@@ -429,7 +429,7 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 		}
 	}
 
-	gp = g_new_geomf(mp, md->md_name);
+	gp = g_new_geomf(mp, "%s", md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "multipath", NULL, MTX_DEF);
 	memcpy(sc->sc_uuid, md->md_uuid, sizeof (sc->sc_uuid));

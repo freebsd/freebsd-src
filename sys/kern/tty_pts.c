@@ -836,6 +836,7 @@ sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	error = pts_alloc(FFLAGS(uap->flags & O_ACCMODE), td, fp);
 	if (error != 0) {
 		fdclose(td->td_proc->p_fd, fp, fd, td);
+		fdrop(fp, td);
 		return (error);
 	}
 

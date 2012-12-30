@@ -55,6 +55,7 @@ SUBDIR=	adduser \
 	nfsdumpstate \
 	nfsrevoke \
 	nfsuserd \
+	nmtree \
 	nologin \
 	pc-sysinstall \
 	pciconf \
@@ -110,6 +111,9 @@ SUBDIR+=	amd
 .if ${MK_AUDIT} != "no"
 SUBDIR+=	audit
 SUBDIR+=	auditd
+.if ${MK_OPENSSL} != "no"
+SUBDIR+=	auditdistd
+.endif
 SUBDIR+=	auditreduce
 SUBDIR+=	praudit
 .endif

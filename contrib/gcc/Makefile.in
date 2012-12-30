@@ -238,7 +238,7 @@ BISONFLAGS =
 FLEX = @FLEX@
 FLEXFLAGS =
 AR = @AR@
-AR_FLAGS = rc
+ARFLAGS = @ARFLAGS@
 NM = @NM@
 RANLIB = @RANLIB@
 RANLIB_FLAGS = @ranlib_flags@
@@ -1303,7 +1303,7 @@ compilations: $(BACKEND)
 # This archive is strictly for the host.
 libbackend.a: $(OBJS@onestep@)
 	-rm -rf libbackend.a
-	$(AR) $(AR_FLAGS) libbackend.a $(OBJS@onestep@)
+	$(AR) $(ARFLAGS) libbackend.a $(OBJS@onestep@)
 	-$(RANLIB) $(RANLIB_FLAGS) libbackend.a
 
 # We call this executable `xgcc' rather than `gcc'

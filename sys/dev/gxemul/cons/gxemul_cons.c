@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
+#include <machine/cpuregs.h>
+
 #define	GC_LOCK_INIT()		mtx_init(&gc_lock, "gc_lock", NULL, MTX_SPIN)
 
 #define	GC_LOCK() do {							\
@@ -97,8 +99,6 @@ static void		gxemul_cons_timeout(void *);
  * XXXRW: Should be using FreeBSD's bus routines here, but they are not
  * available until later in the boot.
  */
-#define	MIPS_XKPHYS_UNCACHED_BASE	0x9000000000000000
-
 typedef	uint64_t	paddr_t;
 typedef	uint64_t	vaddr_t;
 
@@ -106,7 +106,7 @@ static inline vaddr_t
 mips_phys_to_uncached(paddr_t phys)            
 {
 
-	return (phys | MIPS_XKPHYS_UNCACHED_BASE);
+	return (MIPS_PHYS_TO_DIRECT_UNCACHED(phys));
 }
 
 static inline uint8_t

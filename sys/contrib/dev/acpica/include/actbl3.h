@@ -319,10 +319,10 @@ typedef struct acpi_table_gtdt
  ******************************************************************************/
 
 #define ACPI_MPST_CHANNEL_INFO \
-    UINT16                  Reserved1; \
     UINT8                   ChannelId; \
-    UINT8                   Reserved2; \
-    UINT16                  PowerNodeCount;
+    UINT8                   Reserved1[3]; \
+    UINT16                  PowerNodeCount; \
+    UINT16                  Reserved2;
 
 /* Main table */
 
@@ -353,9 +353,8 @@ typedef struct acpi_mpst_power_node
     UINT32                  Length;
     UINT64                  RangeAddress;
     UINT64                  RangeLength;
-    UINT8                   NumPowerStates;
-    UINT8                   NumPhysicalComponents;
-    UINT16                  Reserved2;
+    UINT32                  NumPowerStates;
+    UINT32                  NumPhysicalComponents;
 
 } ACPI_MPST_POWER_NODE;
 
@@ -390,12 +389,13 @@ typedef struct acpi_mpst_component
 typedef struct acpi_mpst_data_hdr
 {
     UINT16                  CharacteristicsCount;
+    UINT16                  Reserved;
 
 } ACPI_MPST_DATA_HDR;
 
 typedef struct acpi_mpst_power_data
 {
-    UINT8                   Revision;
+    UINT8                   StructureId;
     UINT8                   Flags;
     UINT16                  Reserved1;
     UINT32                  AveragePower;
@@ -419,10 +419,10 @@ typedef struct acpi_mpst_shared
     UINT32                  Signature;
     UINT16                  PccCommand;
     UINT16                  PccStatus;
-    UINT16                  CommandRegister;
-    UINT16                  StatusRegister;
-    UINT16                  PowerStateId;
-    UINT16                  PowerNodeId;
+    UINT32                  CommandRegister;
+    UINT32                  StatusRegister;
+    UINT32                  PowerStateId;
+    UINT32                  PowerNodeId;
     UINT64                  EnergyConsumed;
     UINT64                  AveragePower;
 

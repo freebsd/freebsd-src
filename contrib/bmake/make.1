@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.206 2012/08/30 22:35:37 wiz Exp $
+.\"	$NetBSD: make.1,v 1.209 2012/10/08 15:09:48 christos Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd August 30, 2012
+.Dd October 8, 2012
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -2042,6 +2042,13 @@ or
 To be compatible with Makefiles that do this, one can use
 .Fl B
 to disable this behavior.
+.Pp
+In compatibility mode, each command is run in a separate process.
+If the command contains any shell meta characters
+.Pq Ql #=|^(){};&<>*?[]:$`\e\en
+it will be passed to the shell, otherwise
+.Nm
+will attempt direct execution.
 .Sh SEE ALSO
 .Xr mkdep 1
 .Sh HISTORY
@@ -2052,7 +2059,7 @@ command appeared in
 This
 .Nm
 implementation is based on Adam De Boor's pmake program which was written
-for Sprint at Berkeley.
+for Sprite at Berkeley.
 It was designed to be a parallel distributed make running jobs on different
 machines using a daemon called
 .Dq customs .

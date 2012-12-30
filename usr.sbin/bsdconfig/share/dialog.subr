@@ -30,6 +30,7 @@ if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
@@ -42,7 +43,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 # execution of dialog from within a sub-shell (so-long as its standard output
 # is explicitly redirected to this file descriptor).
 #
-: ${DIALOG_TERMINAL_PASSTHRU_FD:=3}
+: ${DIALOG_TERMINAL_PASSTHRU_FD:=${TERMINAL_STDOUT_PASSTHRU:-3}}
 
 ############################################################ GLOBALS
 
@@ -72,10 +73,14 @@ unset XDIALOG_FORCE_AUTOSIZE
 unset XDIALOG_INFOBOX_TIMEOUT
 
 #
-# Default behavior is to call f_dialog_init() automatically if not already
-# called manually by the time the first f_dialog_*() function is used.
+# Default behavior is to call f_dialog_init() automatically when loaded.
 #
 : ${DIALOG_SELF_INITIALIZE=1}
+
+#
+# Default terminal size (used if/when running without a controlling terminal)
+#
+: ${DEFAULT_TERMINAL_SIZE:=24 80}
 
 ############################################################ GENERIC FUNCTIONS
 
@@ -93,7 +98,7 @@ f_dialog_title()
 {
 	local new_title="$1"
 
-	if [ "$new_title" ]; then
+	if [ "${1+set}" ]; then
 		if [ "$USE_XDIALOG" ]; then
 			_DIALOG_BACKTITLE="$DIALOG_BACKTITLE"
 			DIALOG_BACKTITLE="$new_title"
@@ -134,7 +139,7 @@ f_dialog_backtitle()
 {
 	local new_backtitle="$1"
 
-	if [ "$new_backtitle" ]; then
+	if [ "${1+set}" ]; then
 		if [ "$USE_XDIALOG" ]; then
 			_DIALOG_TITLE="$DIALOG_TITLE"
 			DIALOG_TITLE="$new_backtitle"
@@ -185,8 +190,6 @@ f_dialog_backtitle_restore()
 #
 f_dialog_infobox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width max_size
 
@@ -195,7 +198,8 @@ f_dialog_infobox_size()
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
 		min_width=24
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_height="${max_size%%[$IFS]*}"
@@ -272,7 +276,7 @@ f_dialog_infobox_size()
 	#
 	# Set height based on number of rows in prompt
 	#
-	height=$( echo "$prompt" | f_number_of_lines )
+	height=$( echo -n "$prompt" | f_number_of_lines )
 	height=$(( $height + 2 ))
 
 	#
@@ -283,7 +287,7 @@ f_dialog_infobox_size()
 		n=$( echo "$btitle" | f_number_of_lines )
 		height=$(( $height + $n + 2 ))
 	fi
-	
+
 	# Make sure height is less than maximum screen size
 	[ $height -le $max_height ] || height=$max_height
 
@@ -308,8 +312,6 @@ f_dialog_infobox_size()
 #
 f_dialog_buttonbox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4"
 	local size="$( f_dialog_infobox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -329,7 +331,8 @@ f_dialog_buttonbox_size()
 	if [ "$USE_XDIALOG" ]; then
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	[ $height -le $max_height ] || height=$max_height
@@ -355,8 +358,6 @@ f_dialog_buttonbox_size()
 #
 f_dialog_inputbox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" init="$4" hline="$5" n
 	local size="$( f_dialog_buttonbox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -369,7 +370,8 @@ f_dialog_inputbox_size()
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
 		min_width=24
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -422,8 +424,6 @@ f_dialog_inputbox_size()
 #
 f_xdialog_2inputsbox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3"
 	local label1="$4" init1="$5" label2="$6" init2="$7" n
 	local size="$( f_dialog_inputbox_size \
@@ -480,6 +480,7 @@ f_xdialog_2inputsbox_size()
 
 	# Add height for a second inputbox
 	height=$(( $height + 2 ))
+	[ $height -le $max_height ] || height=$max_height
 
 	#
 	# Bump width for second initial text (if not already at maximum width).
@@ -519,8 +520,6 @@ f_xdialog_2inputsbox_size()
 #
 f_dialog_menu_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width min_rows max_size
 
@@ -531,7 +530,8 @@ f_dialog_menu_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -603,8 +603,6 @@ f_dialog_menu_size()
 #
 f_dialog_menu_with_help_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width min_rows max_size
 
@@ -615,7 +613,8 @@ f_dialog_menu_with_help_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -704,8 +703,6 @@ f_dialog_menu_with_help_size()
 #
 f_dialog_radiolist_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width min_rows max_size
 
@@ -716,7 +713,8 @@ f_dialog_radiolist_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -788,8 +786,6 @@ f_dialog_radiolist_size()
 #
 f_dialog_calendar_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n
 	local size="$( f_dialog_infobox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -804,7 +800,8 @@ f_dialog_calendar_size()
 	else
 		min_height=0
 		min_width=40
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -869,8 +866,6 @@ f_dialog_calendar_size()
 #
 f_dialog_timebox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n
 	local size="$( f_dialog_infobox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -884,7 +879,8 @@ f_dialog_timebox_size()
 	else
 		min_height=0
 		min_width=20
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -934,8 +930,6 @@ f_dialog_timebox_size()
 #
 f_dialog_clear()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	$DIALOG --clear
 }
 
@@ -944,12 +938,10 @@ f_dialog_clear()
 # f_dialog_info $info_text ...
 #
 # Throw up a dialog(1) infobox. The infobox remains until another dialog is
-# displayed or `dialog --clear' (or dialog_clear) is called.
+# displayed or `dialog --clear' (or f_dialog_clear) is called.
 #
 f_dialog_info()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local info_text="$*"
 	local size="$( f_dialog_infobox_size \
 	               		"$DIALOG_TITLE"     \
@@ -972,8 +964,6 @@ f_dialog_info()
 #
 f_xdialog_info()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local info_text="$*"
 	local size="$( f_dialog_infobox_size \
 	               		"$DIALOG_TITLE"     \
@@ -1000,8 +990,6 @@ f_xdialog_info()
 #
 f_dialog_msgbox()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local msg_text="$*"
 	local size="$( f_dialog_buttonbox_size \
 	               		"$DIALOG_TITLE"     \
@@ -1013,6 +1001,46 @@ f_dialog_msgbox()
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--ok-label \"\$msg_ok\"            \
 		--msgbox \"\$msg_text\" $size
+}
+
+############################################################ TEXTBOX FUNCTIONS
+
+# f_dialog_textbox $file
+#
+# Display the contents of $file (or an error if $file does not exist, etc.) in
+# a dialog(1) textbox (which has a scrollable region for the text). The textbox
+# remains until the user presses ENTER or ESC, acknowledging the modal dialog.
+#
+# If the user presses ENTER, the exit status is zero (success), otherwise if
+# the user presses ESC the exit status is 255.
+#
+f_dialog_textbox()
+{
+	local file="$1"
+	local contents retval size
+
+	contents=$( cat "$file" 2>&1 )
+	retval=$?
+
+	size=$( f_dialog_buttonbox_size \
+	        	"$DIALOG_TITLE"     \
+	        	"$DIALOG_BACKTITLE" \
+	        	"$contents"         )
+
+	if [ $retval -eq $SUCCESS ]; then
+		eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--exit-label \"\$msg_ok\"          \
+			--no-cancel                        \
+			--textbox \"\$file\" $size
+	else
+		eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--ok-label \"\$msg_ok\"            \
+			--msgbox \"\$contents\" $size
+	fi
 }
 
 ############################################################ YESNO FUNCTIONS
@@ -1028,8 +1056,6 @@ f_dialog_msgbox()
 #
 f_dialog_yesno()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
 	local size="$( f_dialog_buttonbox_size \
@@ -1070,8 +1096,6 @@ f_dialog_yesno()
 #
 f_dialog_noyes()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
 	local size="$( f_dialog_buttonbox_size \
@@ -1106,7 +1130,7 @@ f_dialog_noyes()
 # f_dialog_inputstr
 #
 # Obtain the inputstr entered by the user from the most recently displayed
-# dialog(1) inputbox and clean up any temporary files.
+# dialog(1) inputbox and clean up any temporary files/variables.
 #
 f_dialog_inputstr()
 {
@@ -1129,12 +1153,58 @@ f_dialog_inputstr()
 	return $SUCCESS
 }
 
+# f_dialog_input $prompt [$init [$hline]]
+#
+# Prompt the user with a dialog(1) inputbox to enter some value. The inputbox
+# remains until the the user presses ENTER or ESC, or otherwise ends the
+# editing session, by selecting `Cancel' for example.
+#
+# If the user presses ENTER, the exit status is zero (success), otherwise if
+# the user presses ESC the exit status is 255, or if the user chose Cancel, the
+# exit status is instead 1.
+#
+# NOTE: The hline should correspond to the type of data you want from the user.
+# NOTE: Should not be used to edit multiline values.
+#
+f_dialog_input()
+{
+	local prompt="$1" init="$2" hline="$3"
+	local size="$( f_dialog_inputbox_size \
+	               		"$DIALOG_TITLE"     \
+	                        "$DIALOG_BACKTITLE" \
+	               		"$prompt"           \
+	               		"$init"             \
+	               		"$hline"            )"
+
+	local opterm="--"
+	[ "$USE_XDIALOG" ] && opterm=
+
+	local dialog_input
+	dialog_input=$(
+		eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--hline \"\$hline\"                \
+			--ok-label \"\$msg_ok\"            \
+			--cancel-label \"\$msg_cancel\"    \
+			--inputbox \"\$prompt\" $size      \
+			$opterm \"\$init\"                 \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+
+	setvar DIALOG_INPUTBOX_$$ "$dialog_input"
+	f_dialog_inputstr
+
+	return $retval
+}
+
 ############################################################ MENU FUNCTIONS
 
 # f_dialog_menutag
 #
 # Obtain the menutag chosen by the user from the most recently displayed
-# dialog(1) menu and clean up any temporary files.
+# dialog(1) menu and clean up any temporary files/variables.
 #
 f_dialog_menutag()
 {
@@ -1418,6 +1488,22 @@ f_dialog_init()
 		DIALOG_BACKTITLE="$_DIALOG_TITLE"
 		unset _DIALOG_TITLE
 	fi
+
+	f_dprintf "f_dialog_init: dialog(1) API initialized."
 }
+
+############################################################ MAIN
+
+#
+# Self-initialize unless requested otherwise
+#
+f_dprintf "%s: DIALOG_SELF_INITIALIZE=[%s]" \
+          dialog.subr "$DIALOG_SELF_INITIALIZE"
+case "$DIALOG_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_dialog_init
+esac
+
+f_dprintf "%s: Successfully loaded." dialog.subr
 
 fi # ! $_DIALOG_SUBR

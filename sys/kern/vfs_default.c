@@ -81,6 +81,8 @@ static int	dirent_exists(struct vnode *vp, const char *dirname,
 static int vop_stdis_text(struct vop_is_text_args *ap);
 static int vop_stdset_text(struct vop_set_text_args *ap);
 static int vop_stdunset_text(struct vop_unset_text_args *ap);
+static int vop_stdget_writecount(struct vop_get_writecount_args *ap);
+static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -133,6 +135,8 @@ struct vop_vector default_vnodeops = {
 	.vop_is_text =		vop_stdis_text,
 	.vop_set_text =		vop_stdset_text,
 	.vop_unset_text =	vop_stdunset_text,
+	.vop_get_writecount =	vop_stdget_writecount,
+	.vop_add_writecount =	vop_stdadd_writecount,
 };
 
 /*
@@ -1009,7 +1013,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 {
 	struct vnode *vp;
 	off_t start, end;
-	int error, vfslocked;
+	int error;
 
 	vp = ap->a_vp;
 	switch (ap->a_advice) {
@@ -1030,11 +1034,9 @@ vop_stdadvise(struct vop_advise_args *ap)
 		 * requested range.
 		 */
 		error = 0;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
 			VOP_UNLOCK(vp, 0);
-			VFS_UNLOCK_GIANT(vfslocked);
 			break;
 		}
 		vinvalbuf(vp, V_CLEANONLY, 0, 0);
@@ -1047,7 +1049,6 @@ vop_stdadvise(struct vop_advise_args *ap)
 			VM_OBJECT_UNLOCK(vp->v_object);
 		}
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 	default:
 		error = EINVAL;
@@ -1100,6 +1101,22 @@ vop_stdunset_text(struct vop_unset_text_args *ap)
 {
 
 	ap->a_vp->v_vflag &= ~VV_TEXT;
+	return (0);
+}
+
+static int
+vop_stdget_writecount(struct vop_get_writecount_args *ap)
+{
+
+	*ap->a_writecount = ap->a_vp->v_writecount;
+	return (0);
+}
+
+static int
+vop_stdadd_writecount(struct vop_add_writecount_args *ap)
+{
+
+	ap->a_vp->v_writecount += ap->a_inc;
 	return (0);
 }
 

@@ -173,7 +173,7 @@ ar5416BTCoexSetupBmissThresh(struct ath_hal *ah, u_int32_t thresh)
  *
  * Kite will override this particular method.
  */
-static void
+void
 ar5416BTCoexAntennaDiversity(struct ath_hal *ah)
 {
 }
@@ -350,8 +350,12 @@ ar5416InitBTCoex(struct ath_hal *ah)
 		ar5416GpioCfgInput(ah, ahp->ah_btActiveGpioSelect);
 		ar5416GpioCfgInput(ah, ahp->ah_btPriorityGpioSelect);
 
-		if (AR_SREV_KITE(ah))
-			ar5416BTCoexAntennaDiversity(ah);
+		/*
+		 * Configure the antenna diversity setup.
+		 * It's a no-op for AR9287; AR9285 overrides this
+		 * as required.
+		 */
+		AH5416(ah)->ah_btCoexSetDiversity(ah);
 
 		if (ahp->ah_btCoexEnabled)
 			ar5416BTCoexEnable(ah);

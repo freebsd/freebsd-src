@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslresource - Resource template/descriptor utilities
@@ -398,7 +397,7 @@ RsGetStringDataLength (
         InitializerOp = ASL_GET_PEER_NODE (InitializerOp);
     }
 
-    return 0;
+    return (0);
 }
 
 
@@ -449,7 +448,7 @@ RsAllocateResourceNode (
  * RETURN:      None, sets fields within the input node
  *
  * DESCRIPTION: Utility function to generate a named bit field within a
- *              resource descriptor.  Mark a node as 1) a field in a resource
+ *              resource descriptor. Mark a node as 1) a field in a resource
  *              descriptor, and 2) set the value to be a BIT offset
  *
  ******************************************************************************/
@@ -484,8 +483,8 @@ RsCreateResourceField (
  * RETURN:      Sets bits within the *Flags output byte.
  *
  * DESCRIPTION: Set a bit in a cumulative flags word from an initialization
- *              node.  Will use a default value if the node is DEFAULT, meaning
- *              that no value was specified in the ASL.  Used to merge multiple
+ *              node. Will use a default value if the node is DEFAULT, meaning
+ *              that no value was specified in the ASL. Used to merge multiple
  *              keywords into a single flags byte.
  *
  ******************************************************************************/
@@ -929,7 +928,7 @@ RsLinkDescriptorChain (
 
     if (!Rnode)
     {
-        return 0;
+        return (0);
     }
 
     /* Point the previous node to the new node */
@@ -949,7 +948,7 @@ RsLinkDescriptorChain (
     /* Previous node becomes the last node in the chain */
 
     *PreviousRnode = LastRnode;
-    return CurrentByteOffset;
+    return (CurrentByteOffset);
 }
 
 
@@ -959,7 +958,7 @@ RsLinkDescriptorChain (
  *
  * PARAMETERS:  Op        - Parent of a resource template list
  *
- * RETURN:      None.  Sets input node to point to a list of AML code
+ * RETURN:      None. Sets input node to point to a list of AML code
  *
  * DESCRIPTION: Merge a list of resource descriptors into a single AML buffer,
  *              in preparation for output to the AML output file.
@@ -1016,7 +1015,7 @@ RsDoResourceTemplate (
 
         /*
          * Update current byte offset to indicate the number of bytes from the
-         * start of the buffer.  Buffer can include multiple descriptors, we
+         * start of the buffer. Buffer can include multiple descriptors, we
          * must keep track of the offset of not only each descriptor, but each
          * element (field) within each descriptor as well.
          */

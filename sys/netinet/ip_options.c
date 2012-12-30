@@ -411,7 +411,7 @@ ip_srcroute(struct mbuf *m0)
 
 	if (opts->ip_nhops == 0)
 		return (NULL);
-	m = m_get(M_DONTWAIT, MT_DATA);
+	m = m_get(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
@@ -458,20 +458,18 @@ ip_srcroute(struct mbuf *m0)
 void
 ip_stripoptions(struct mbuf *m)
 {
-	int i;
 	struct ip *ip = mtod(m, struct ip *);
-	caddr_t opts;
 	int olen;
 
-	olen = (ip->ip_hl << 2) - sizeof (struct ip);
-	opts = (caddr_t)(ip + 1);
-	i = m->m_len - (sizeof (struct ip) + olen);
-	bcopy(opts + olen, opts, (unsigned)i);
+	olen = (ip->ip_hl << 2) - sizeof(struct ip);
 	m->m_len -= olen;
 	if (m->m_flags & M_PKTHDR)
 		m->m_pkthdr.len -= olen;
-	ip->ip_v = IPVERSION;
+	ip->ip_len = htons(ntohs(ip->ip_len) - olen);
 	ip->ip_hl = sizeof(struct ip) >> 2;
+
+	bcopy((char *)ip + sizeof(struct ip) + olen, (ip + 1),
+	    (size_t )(m->m_len - sizeof(struct ip)));
 }
 
 /*
@@ -490,14 +488,14 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	unsigned optlen;
 
 	optlen = opt->m_len - sizeof(p->ipopt_dst);
-	if (optlen + ip->ip_len > IP_MAXPACKET) {
+	if (optlen + ntohs(ip->ip_len) > IP_MAXPACKET) {
 		*phlen = 0;
 		return (m);		/* XXX should fail */
 	}
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n == NULL) {
 			*phlen = 0;
 			return (m);
@@ -523,7 +521,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	*phlen = sizeof(struct ip) + optlen;
 	ip->ip_v = IPVERSION;
 	ip->ip_hl = *phlen >> 2;
-	ip->ip_len += optlen;
+	ip->ip_len = htons(ntohs(ip->ip_len) + optlen);
 	return (m);
 }
 

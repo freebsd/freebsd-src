@@ -31,11 +31,12 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ MAIN
@@ -56,7 +57,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Chain-load to groupinput to centralize code and minimize duplication
 #
-f_dialog_init
 $BSDCFG_LIBE/$APP_DIR/groupinput ${USE_XDIALOG:+-X} mode="Add"
 
 ################################################################################

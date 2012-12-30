@@ -595,7 +595,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	vm_prot_t prot;
 	u_long rbase;
 	u_long base_addr = 0;
-	int vfslocked, error, i, numsegs;
+	int error, i, numsegs;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -621,14 +621,11 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->object = NULL;
 	imgp->execlabel = NULL;
 
-	NDINIT(nd, LOOKUP, MPSAFE|LOCKLEAF|FOLLOW, UIO_SYSSPACE, file,
-	    curthread);
-	vfslocked = 0;
+	NDINIT(nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_SYSSPACE, file, curthread);
 	if ((error = namei(nd)) != 0) {
 		nd->ni_vp = NULL;
 		goto fail;
 	}
-	vfslocked = NDHASGIANT(nd);
 	NDFREE(nd, NDF_ONLY_PNBUF);
 	imgp->vp = nd->ni_vp;
 
@@ -706,7 +703,6 @@ fail:
 	if (nd->ni_vp)
 		vput(nd->ni_vp);
 
-	VFS_UNLOCK_GIANT(vfslocked);
 	free(tempdata, M_TEMP);
 
 	return (error);

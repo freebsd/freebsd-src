@@ -721,7 +721,7 @@ static struct pmc_masks iap_rsp_mask_sb_sbx_ib[] = {
 	PMCMASK(RES_SUPPLIER_LLC_HITS,	(1ULL << 20)),
 	PMCMASK(RES_SUPPLIER_LLC_HITF,	(1ULL << 21)),
 	PMCMASK(RES_SUPPLIER_LOCAL,	(1ULL << 22)),
-	PMCMASK(RES_SNOOP_SNPI_NONE,	(1ULL << 31)),
+	PMCMASK(RES_SNOOP_SNP_NONE,	(1ULL << 31)),
 	PMCMASK(RES_SNOOP_SNP_NO_NEEDED,(1ULL << 32)),
 	PMCMASK(RES_SNOOP_SNP_MISS,	(1ULL << 33)),
 	PMCMASK(RES_SNOOP_HIT_NO_FWD,	(1ULL << 34)),
@@ -2264,7 +2264,7 @@ soft_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	(void)ctrspec;
 	(void)pmc_config;
 
-	if (pe < PMC_EV_SOFT_FIRST || pe > PMC_EV_SOFT_LAST)
+	if ((int)pe < PMC_EV_SOFT_FIRST || (int)pe > PMC_EV_SOFT_LAST)
 		return (-1);
 
 	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
@@ -3190,7 +3190,7 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;
 		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);
-	} else if (pe >= PMC_EV_SOFT_FIRST && pe <= PMC_EV_SOFT_LAST) {
+	} else if ((int)pe >= PMC_EV_SOFT_FIRST && (int)pe <= PMC_EV_SOFT_LAST) {
 		ev = soft_event_table;
 		evfence = soft_event_table + soft_event_info.pm_nevent;
 	}

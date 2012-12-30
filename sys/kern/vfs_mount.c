@@ -37,8 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_vfs_allow_nonmpsafe.h"
-
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -561,7 +559,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strncpy(errmsg, "Invalid fstype", errmsg_len);
+			strlcpy(errmsg, "Invalid fstype", errmsg_len);
 		goto bail;
 	}
 	fspathlen = 0;
@@ -569,7 +567,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strncpy(errmsg, "Invalid fspath", errmsg_len);
+			strlcpy(errmsg, "Invalid fspath", errmsg_len);
 		goto bail;
 	}
 
@@ -713,7 +711,7 @@ sys_mount(td, uap)
 	int error;
 
 	/*
-	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * Mount flags are now 64-bits. On 32-bit architectures only
 	 * 32-bits are passed in, but from here on everything handles
 	 * 64-bit flags correctly.
 	 */
@@ -821,14 +819,6 @@ vfs_domount_first(
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = VFS_MOUNT(mp);
-#ifndef VFS_ALLOW_NONMPSAFE
-	if (error == 0 && VFS_NEEDSGIANT(mp)) {
-		(void)VFS_UNMOUNT(mp, fsflags);
-		error = ENXIO;
-		printf("%s: Mounting non-MPSAFE fs (%s) is disabled\n",
-		    __func__, mp->mnt_vfc->vfc_name);
-	}
-#endif
 	if (error != 0) {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
@@ -838,11 +828,6 @@ vfs_domount_first(
 		vrele(vp);
 		return (error);
 	}
-#ifdef VFS_ALLOW_NONMPSAFE
-	if (VFS_NEEDSGIANT(mp))
-		printf("%s: Mounting non-MPSAFE fs (%s) is deprecated\n",
-		    __func__, mp->mnt_vfc->vfc_name);
-#endif
 
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
@@ -1100,13 +1085,12 @@ vfs_domount(
 	/*
 	 * Get vnode to be covered or mount point's vnode in case of MNT_UPDATE.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_SYSSPACE, fspath, td);
 	error = namei(&nd);
 	if (error != 0)
 		return (error);
-	if (!NDHASGIANT(&nd))
-		mtx_lock(&Giant);
+	mtx_lock(&Giant);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
@@ -1153,7 +1137,7 @@ sys_unmount(td, uap)
 	struct nameidata nd;
 	struct mount *mp;
 	char *pathbuf;
-	int error, id0, id1, vfslocked;
+	int error, id0, id1;
 
 	AUDIT_ARG_VALUE(uap->flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
@@ -1186,21 +1170,17 @@ sys_unmount(td, uap)
 		}
 		mtx_unlock(&mountlist_mtx);
 	} else {
-		AUDIT_ARG_UPATH1(td, pathbuf);
 		/*
 		 * Try to find global path for path argument.
 		 */
-		NDINIT(&nd, LOOKUP,
-		    FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
 		    UIO_SYSSPACE, pathbuf, td);
 		if (namei(&nd) == 0) {
-			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			error = vn_path_to_global_path(td, nd.ni_vp, pathbuf,
 			    MNAMELEN);
 			if (error == 0 || error == ENODEV)
 				vput(nd.ni_vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 		}
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
@@ -1467,7 +1447,7 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 	if (ret != 0) {
 		TAILQ_FOREACH(opt, opts, link) {
 			if (strcmp(opt->name, "errmsg") == 0) {
-				strncpy((char *)opt->value, errmsg, opt->len);
+				strlcpy((char *)opt->value, errmsg, opt->len);
 				break;
 			}
 		}
@@ -1744,7 +1724,7 @@ __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	if (should_yield()) {
 		MNT_IUNLOCK(mp);
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 		MNT_ILOCK(mp);
 	}
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);

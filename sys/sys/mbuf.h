@@ -279,7 +279,6 @@ struct mbuf {
 #define	CSUM_IP			0x0001		/* will csum IP */
 #define	CSUM_TCP		0x0002		/* will csum TCP */
 #define	CSUM_UDP		0x0004		/* will csum UDP */
-#define	CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
 #define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
 #define	CSUM_TSO		0x0020		/* will do TSO */
 #define	CSUM_SCTP		0x0040		/* will csum SCTP */
@@ -347,18 +346,7 @@ struct mbstat {
 };
 
 /*
- * Flags specifying how an allocation should be made.
- *
- * The flag to use is as follows:
- * - M_DONTWAIT or M_NOWAIT from an interrupt handler to not block allocation.
- * - M_WAIT or M_WAITOK from wherever it is safe to block.
- *
- * M_DONTWAIT/M_NOWAIT means that we will not block the thread explicitly and
- * if we cannot allocate immediately we may return NULL, whereas
- * M_WAIT/M_WAITOK means that if we cannot allocate resources we
- * will block until they are available, and thus never return NULL.
- *
- * XXX Eventually just phase this out to use M_WAITOK/M_NOWAIT.
+ * Compatibility with historic mbuf allocator.
  */
 #define	MBTOM(how)	(how)
 #define	M_DONTWAIT	M_NOWAIT
@@ -396,7 +384,7 @@ struct mbstat {
  *
  * The rest of it is defined in kern/kern_mbuf.c
  */
-
+extern quad_t		maxmbufmem;
 extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
 extern uma_zone_t	zone_pack;
@@ -866,7 +854,7 @@ m_last(struct mbuf *m)
 #define	M_COPYALL	1000000000
 
 /* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
 
 extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */

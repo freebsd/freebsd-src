@@ -55,9 +55,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SMP
 extern void *ap_pcpu;
+extern vm_paddr_t kernload;		/* Kernel physical load address */
 extern uint8_t __boot_page[];		/* Boot page body */
-extern uint32_t bp_kernload;		/* Kernel physical load address */
-extern uint32_t bp_trace;		/* AP boot trace field */
+extern uint32_t bp_ntlb1s;
+extern uint32_t bp_tlb1[];
+extern uint32_t bp_tlb1_end[];
 #endif
 
 extern uint32_t *bootinfo;
@@ -248,8 +250,9 @@ static int
 bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
 #ifdef SMP
+	uint32_t *tlb1;
 	uint32_t bptr, eebpcr;
-	int timeout;
+	int i, timeout;
 
 	eebpcr = ccsr_read4(OCP85XX_EEBPCR);
 	if ((eebpcr & (1 << (pc->pc_cpuid + 24))) != 0) {
@@ -259,18 +262,37 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	}
 
 	ap_pcpu = pc;
-	__asm __volatile("msync; isync");
+
+	i = 0;
+	tlb1 = bp_tlb1;
+	while (i < bp_ntlb1s && tlb1 < bp_tlb1_end) {
+		mtspr(SPR_MAS0, MAS0_TLBSEL(1) | MAS0_ESEL(i));
+		__asm __volatile("isync; tlbre");
+		tlb1[0] = mfspr(SPR_MAS1);
+		tlb1[1] = mfspr(SPR_MAS2);
+		tlb1[2] = mfspr(SPR_MAS3);
+		i++;
+		tlb1 += 3;
+	}
+	if (i < bp_ntlb1s)
+		bp_ntlb1s = i;
 
 	/*
 	 * Set BPTR to the physical address of the boot page
 	 */
-	bptr = ((uint32_t)__boot_page - KERNBASE) + bp_kernload;
-	ccsr_write4(OCP85XX_BPTR, (bptr >> 12) | 0x80000000);
+	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload;
+	KASSERT((bptr & 0xfff) == 0,
+	    ("%s: boot page is not aligned (%#x)", __func__, bptr));
+	bptr = (bptr >> 12) | 0x80000000u;
+	ccsr_write4(OCP85XX_BPTR, bptr);
+	__asm __volatile("isync; msync");
+
+	/* Flush caches to have our changes hit DRAM. */
+	cpu_flush_dcache(__boot_page, 4096);
 
 	/*
 	 * Release AP from hold-off state
 	 */
-	bp_trace = 0;
 	eebpcr |= (1 << (pc->pc_cpuid + 24));
 	ccsr_write4(OCP85XX_EEBPCR, eebpcr);
 	__asm __volatile("isync; msync");
@@ -285,10 +307,10 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	 * usable otherwise.
 	 */
 	ccsr_write4(OCP85XX_BPTR, 0);
+	__asm __volatile("isync; msync");
 
 	if (!pc->pc_awake)
-		printf("SMP: CPU %d didn't wake up (trace code %#x).\n",
-		    pc->pc_awake, bp_trace);
+		printf("SMP: CPU %d didn't wake up.\n", pc->pc_cpuid);
 	return ((pc->pc_awake) ? 0 : EBUSY);
 #else
 	/* No SMP support */

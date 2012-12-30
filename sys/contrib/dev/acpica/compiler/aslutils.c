@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslutils -- compiler utilities
@@ -52,7 +51,6 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslutils")
-
 
 
 /* Local prototypes */
@@ -569,7 +567,7 @@ UtCheckIntegerRange (
 
     if (!Op)
     {
-        return NULL;
+        return (NULL);
     }
 
     if ((Op->Asl.Value.Integer < LowValue) ||
@@ -833,12 +831,12 @@ UtAttachNameseg (
             Name++;
         }
 
-        /* Remaing string should be one single nameseg */
+        /* Remaining string should be one single nameseg */
 
         UtPadNameWithUnderscores (Name, PaddedNameSeg);
     }
 
-    strncpy (Op->Asl.NameSeg, PaddedNameSeg, 4);
+    ACPI_MOVE_NAME (Op->Asl.NameSeg, PaddedNameSeg);
 }
 
 

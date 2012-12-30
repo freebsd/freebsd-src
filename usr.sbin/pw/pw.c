@@ -62,13 +62,11 @@ struct pwf PWF =
 	getpwent,
 	getpwuid,
 	getpwnam,
-	pwdb,
 	setgrent,
 	endgrent,
 	getgrent,
 	getgrgid,
 	getgrnam,
-	grdb
 
 };
 struct pwf VPWF =
@@ -79,13 +77,11 @@ struct pwf VPWF =
 	vgetpwent,
 	vgetpwuid,
 	vgetpwnam,
-	vpwdb,
 	vsetgrent,
 	vendgrent,
 	vgetgrent,
 	vgetgrgid,
 	vgetgrnam,
-	vgrdb
 };
 
 static struct cargs arglist;

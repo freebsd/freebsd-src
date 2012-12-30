@@ -259,7 +259,6 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 {
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
-	struct ip *ip = mtod(*m, struct ip *);
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
 	/*
@@ -324,9 +323,6 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 			}
 		}
 
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
-
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
@@ -337,6 +333,8 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 		}
 #ifdef SCTP
 		if ((*m)->m_pkthdr.csum_flags & CSUM_SCTP) {
+			struct ip *ip = mtod(*m, struct ip *);
+
 			sctp_delayed_cksum(*m, (uint32_t)(ip->ip_hl << 2));
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 		}
@@ -351,8 +349,6 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 			 * IPsec processing and return without error.
 			 */
 			*error = 0;
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
 			goto done;
 		}
 		/*

@@ -64,7 +64,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* wait4 */
 	case 7: {
-		struct wait_args *p = params;
+		struct wait4_args *p = params;
 		iarg[0] = p->pid; /* int */
 		uarg[1] = (intptr_t) p->status; /* int * */
 		iarg[2] = p->options; /* int */
@@ -3272,6 +3272,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[2] = p->len; /* off_t */
 		iarg[3] = p->advice; /* int */
 		*n_args = 4;
+		break;
+	}
+	/* wait6 */
+	case 532: {
+		struct wait6_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->id; /* int */
+		uarg[2] = (intptr_t) p->status; /* int * */
+		iarg[3] = p->options; /* int */
+		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
+		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
+		*n_args = 6;
 		break;
 	}
 	default:
@@ -8708,6 +8720,31 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* wait6 */
+	case 532:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "struct __wrusage *";
+			break;
+		case 5:
+			p = "siginfo_t *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10593,6 +10630,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* posix_fadvise */
 	case 531:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* wait6 */
+	case 532:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

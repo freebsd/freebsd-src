@@ -266,7 +266,7 @@ AcpiDsLoad2BeginOp (
                 "Scope operator [%4.4s] (Cannot override)",
                 AcpiUtGetTypeName (Node->Type), AcpiUtGetNodeName (Node)));
 
-            return (AE_AML_OPERAND_TYPE);
+            return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
         break;
 
@@ -625,7 +625,7 @@ AcpiDsLoad2EndOp (
                             RegionSpace, WalkState);
                 if (ACPI_FAILURE (Status))
                 {
-                    return (Status);
+                    return_ACPI_STATUS (Status);
                 }
 
                 AcpiExExitInterpreter ();
@@ -758,4 +758,3 @@ Cleanup:
     WalkState->NumOperands = 0;
     return_ACPI_STATUS (Status);
 }
-

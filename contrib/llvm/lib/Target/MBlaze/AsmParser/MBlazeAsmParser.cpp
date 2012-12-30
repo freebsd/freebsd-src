@@ -44,9 +44,10 @@ class MBlazeAsmParser : public MCTargetAsmParser {
 
   bool ParseDirectiveWord(unsigned Size, SMLoc L);
 
-  bool MatchAndEmitInstruction(SMLoc IDLoc,
+  bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                SmallVectorImpl<MCParsedAsmOperand*> &Operands,
-                               MCStreamer &Out);
+                               MCStreamer &Out, unsigned &ErrorInfo,
+                               bool MatchingInlineAsm);
 
   /// @name Auto-generated Match Functions
   /// {
@@ -56,12 +57,12 @@ class MBlazeAsmParser : public MCTargetAsmParser {
 
   /// }
 
-
 public:
   MBlazeAsmParser(MCSubtargetInfo &_STI, MCAsmParser &_Parser)
     : MCTargetAsmParser(), Parser(_Parser) {}
 
-  virtual bool ParseInstruction(StringRef Name, SMLoc NameLoc,
+  virtual bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
+                                SMLoc NameLoc,
                                 SmallVectorImpl<MCParsedAsmOperand*> &Operands);
 
   virtual bool ParseDirective(AsmToken DirectiveID);
@@ -313,14 +314,13 @@ static unsigned MatchRegisterName(StringRef Name);
 /// }
 //
 bool MBlazeAsmParser::
-MatchAndEmitInstruction(SMLoc IDLoc,
+MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                         SmallVectorImpl<MCParsedAsmOperand*> &Operands,
-                        MCStreamer &Out) {
+                        MCStreamer &Out, unsigned &ErrorInfo,
+                        bool MatchingInlineAsm) {
   MCInst Inst;
-  SMLoc ErrorLoc;
-  unsigned ErrorInfo;
-
-  switch (MatchInstructionImpl(Operands, Inst, ErrorInfo)) {
+  switch (MatchInstructionImpl(Operands, Inst, ErrorInfo,
+                               MatchingInlineAsm)) {
   default: break;
   case Match_Success:
     Out.EmitInstruction(Inst);
@@ -329,10 +329,8 @@ MatchAndEmitInstruction(SMLoc IDLoc,
     return Error(IDLoc, "instruction use requires an option to be enabled");
   case Match_MnemonicFail:
       return Error(IDLoc, "unrecognized instruction mnemonic");
-  case Match_ConversionFail:
-    return Error(IDLoc, "unable to convert operands to instruction");
-  case Match_InvalidOperand:
-    ErrorLoc = IDLoc;
+  case Match_InvalidOperand: {
+    SMLoc ErrorLoc = IDLoc;
     if (ErrorInfo != ~0U) {
       if (ErrorInfo >= Operands.size())
         return Error(IDLoc, "too few operands for instruction");
@@ -342,6 +340,7 @@ MatchAndEmitInstruction(SMLoc IDLoc,
     }
 
     return Error(ErrorLoc, "invalid operand for instruction");
+  }
   }
 
   llvm_unreachable("Implement any new match types added!");
@@ -479,7 +478,7 @@ ParseOperand(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
 
 /// Parse an mblaze instruction mnemonic followed by its operands.
 bool MBlazeAsmParser::
-ParseInstruction(StringRef Name, SMLoc NameLoc,
+ParseInstruction(ParseInstructionInfo &Info, StringRef Name, SMLoc NameLoc,
                  SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
   // The first operands is the token for the instruction name
   size_t dotLoc = Name.find('.');

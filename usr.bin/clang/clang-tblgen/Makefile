@@ -6,6 +6,8 @@ NO_MAN=
 SRCDIR=	tools/clang/utils/TableGen
 SRCS=	ClangASTNodesEmitter.cpp \
 	ClangAttrEmitter.cpp \
+	ClangCommentCommandInfoEmitter.cpp \
+	ClangCommentHTMLTagsEmitter.cpp \
 	ClangDiagnosticsEmitter.cpp \
 	ClangSACheckersEmitter.cpp \
 	NeonEmitter.cpp \

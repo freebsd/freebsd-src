@@ -1761,7 +1761,7 @@ m_megapullup(struct mbuf *m, int len) {
 		return (m);
 
 	if (len <= MCLBYTES - RESERVE) {
-		mcl = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		mcl = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	} else if (len < MJUM16BYTES) {
 		int size;
 		if (len <= MJUMPAGESIZE - RESERVE) {
@@ -1771,7 +1771,7 @@ m_megapullup(struct mbuf *m, int len) {
 		} else {
 			size = MJUM16BYTES;
 		};
-		mcl = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, size);
+		mcl = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 	} else {
 		goto bad;
 	}

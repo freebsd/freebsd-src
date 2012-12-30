@@ -121,7 +121,7 @@ lmc_parse_file(char *path)
 		}
 	}
 
-	fd = open(rpath, O_RDONLY);
+	fd = open(rpath, O_RDONLY | O_CLOEXEC);
 	if (fd == -1) {
 		dbg("lm_parse_file: open(\"%s\") failed, %s", rpath,
 		    rtld_strerror(errno));

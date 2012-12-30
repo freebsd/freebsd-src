@@ -241,8 +241,11 @@ main(int argc, char *argv[])
 #ifdef YP
 	case _PWF_NIS:
 		ypclnt = ypclnt_new(yp_domain, "passwd.byname", yp_host);
-		if (ypclnt == NULL ||
-		    ypclnt_connect(ypclnt) == -1 ||
+		if (ypclnt == NULL) {
+			warnx("ypclnt_new failed");
+			exit(1);
+		}
+		if (ypclnt_connect(ypclnt) == -1 ||
 		    ypclnt_passwd(ypclnt, pw, password) == -1) {
 			warnx("%s", ypclnt->error);
 			ypclnt_free(ypclnt);

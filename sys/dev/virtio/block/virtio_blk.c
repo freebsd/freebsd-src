@@ -338,14 +338,15 @@ vtblk_attach(device_t dev)
 		device_printf(dev, "cannot allocate taskqueue\n");
 		goto fail;
 	}
-	taskqueue_start_threads(&sc->vtblk_tq, 1, PI_DISK, "%s taskq",
-	    device_get_nameunit(dev));
 
 	error = virtio_setup_intr(dev, INTR_TYPE_BIO | INTR_ENTROPY);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupt\n");
 		goto fail;
 	}
+
+	taskqueue_start_threads(&sc->vtblk_tq, 1, PI_DISK, "%s taskq",
+	    device_get_nameunit(dev));
 
 	vtblk_create_disk(sc);
 

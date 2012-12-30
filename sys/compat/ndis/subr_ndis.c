@@ -2741,7 +2741,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	char			*afilename = NULL;
 	struct thread		*td = curthread;
 	struct nameidata	nd;
-	int			flags, error, vfslocked;
+	int			flags, error;
 	struct vattr		vat;
 	struct vattr		*vap = &vat;
 	ndis_fh			*fh;
@@ -2821,7 +2821,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	if (td->td_proc->p_fd->fd_cdir == NULL)
 		td->td_proc->p_fd->fd_cdir = rootvnode;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
 
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
@@ -2833,7 +2833,6 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 		free(afilename, M_DEVBUF);
 		return;
 	}
-	vfslocked = NDHASGIANT(&nd);
 
 	ExFreePool(path);
 
@@ -2842,7 +2841,6 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	/* Get the file size. */
 	VOP_GETATTR(nd.ni_vp, vap, td->td_ucred);
 	VOP_UNLOCK(nd.ni_vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	fh->nf_vp = nd.ni_vp;
 	fh->nf_map = NULL;
@@ -2862,7 +2860,7 @@ NdisMapFile(status, mappedbuffer, filehandle)
 	struct thread		*td = curthread;
 	linker_file_t		lf;
 	caddr_t			kldstart;
-	int			error, vfslocked;
+	int			error;
 	ssize_t			resid;
 	struct vnode		*vp;
 
@@ -2903,10 +2901,8 @@ NdisMapFile(status, mappedbuffer, filehandle)
 	}
 
 	vp = fh->nf_vp;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	error = vn_rdwr(UIO_READ, vp, fh->nf_map, fh->nf_maplen, 0,
 	    UIO_SYSSPACE, 0, td->td_ucred, NOCRED, &resid, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (error)
 		*status = NDIS_STATUS_FAILURE;
@@ -2937,7 +2933,6 @@ NdisCloseFile(filehandle)
 {
 	struct thread		*td = curthread;
 	ndis_fh			*fh;
-	int			vfslocked;
 	struct vnode		*vp;
 
 	if (filehandle == NULL)
@@ -2955,9 +2950,7 @@ NdisCloseFile(filehandle)
 
 	if (fh->nf_type == NDIS_FH_TYPE_VFS) {
 		vp = fh->nf_vp;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_close(vp, FREAD, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 
 	fh->nf_vp = NULL;

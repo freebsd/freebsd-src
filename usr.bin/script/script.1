@@ -28,7 +28,7 @@
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2012
+.Dd Oct 27, 2012
 .Dt SCRIPT 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd make typescript of terminal session
 .Sh SYNOPSIS
 .Nm
-.Op Fl adkpqr
+.Op Fl adfkpqr
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
 .Sh DESCRIPTION
@@ -76,6 +76,13 @@ retaining the prior contents.
 When playing back a session with the
 .Fl p
 flag, do not sleep between records when playing back a timestamped session.
+.It Fl f
+Create
+.Ar file.filemon
+or
+.Pa typescript.filemon
+using
+.Xr filemon 4 .
 .It Fl k
 Log keys sent to the program as well as output.
 .It Fl p
@@ -151,6 +158,7 @@ is assumed.
 .El
 .Sh SEE ALSO
 .Xr csh 1
+.Xr filemon 4
 .Po
 for the
 .Em history

@@ -2595,7 +2595,7 @@ run_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->rx_m == NULL) {
-			sc->rx_m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+			sc->rx_m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 			    MJUMPAGESIZE /* xfer can be bigger than MCLBYTES */);
 		}
 		if (sc->rx_m == NULL) {
@@ -2669,7 +2669,7 @@ tr_setup:
 		}
 
 		/* copy aggregated frames to another mbuf */
-		m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (__predict_false(m0 == NULL)) {
 			DPRINTF("could not allocate mbuf\n");
 			ifp->if_ierrors++;

@@ -96,6 +96,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91sam9g20reg.h>
 #include <arm/at91/at91sam9g45reg.h>
 
+#ifndef MAXCPU
+#define MAXCPU 1
+#endif
+
 /* Page table for mapping proc0 zero page */
 #define KERNEL_PT_SYS		0
 #define KERNEL_PT_KERN		1
@@ -454,7 +458,7 @@ initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr  dpcpu;
-	int loop, i;
+	int i;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t afterkern;
@@ -482,23 +486,23 @@ initarm(struct arm_boot_params *abp)
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
 		freemempos += PAGE_SIZE;
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
-	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		if (!(loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
-			valloc_pages(kernel_pt_table[loop],
+	for (i = 0; i < NUM_KERNEL_PTS; ++i) {
+		if (!(i % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
+			valloc_pages(kernel_pt_table[i],
 			    L2_TABLE_SIZE / PAGE_SIZE);
 		} else {
-			kernel_pt_table[loop].pv_va = freemempos -
-			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
+			kernel_pt_table[i].pv_va = freemempos -
+			    (i % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_pa =
-			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
+			kernel_pt_table[i].pv_pa =
+			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
 	}
 	/*
-	 * Allocate a page for the system page mapped to V0x00000000
-	 * This page will just contain the system vectors and can be
-	 * shared by all processes.
+	 * Allocate a page for the system page mapped to 0x00000000
+	 * or 0xffff0000. This page will just contain the system vectors
+	 * and can be shared by all processes.
 	 */
 	valloc_pages(systempage, 1);
 
@@ -507,10 +511,10 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE);
-	valloc_pages(abtstack, ABT_STACK_SIZE);
-	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
+	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
+	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
+	valloc_pages(kernelstack, KSTACK_PAGES * MAXCPU);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
@@ -558,17 +562,17 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, msgbufpv.pv_va, msgbufpv.pv_pa,
 	    msgbufsize, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		pmap_map_chunk(l1pagetable, kernel_pt_table[loop].pv_va,
-		    kernel_pt_table[loop].pv_pa, L2_TABLE_SIZE,
+	for (i = 0; i < NUM_KERNEL_PTS; ++i) {
+		pmap_map_chunk(l1pagetable, kernel_pt_table[i].pv_va,
+		    kernel_pt_table[i].pv_pa, L2_TABLE_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
 	pmap_devmap_bootstrap(l1pagetable, at91_devmap);
-	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
+	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
-	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
+	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
 
 	at91_soc_id();
 

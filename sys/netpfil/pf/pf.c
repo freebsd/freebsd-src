@@ -1,8 +1,7 @@
-/*	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $ */
-
-/*
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002 - 2008 Henning Brauer
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +32,10 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
+ *	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
@@ -713,6 +712,7 @@ pf_initialize()
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
 	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
+	uma_zone_set_warning(V_pf_state_z, "PF states limit reached");
 
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
@@ -734,6 +734,7 @@ pf_initialize()
 	    0);
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
+	uma_zone_set_warning(V_pf_sources_z, "PF source nodes limit reached");
 	V_pf_srchash = malloc(V_pf_srchashsize * sizeof(struct pf_srchash),
 	  M_PFHASH, M_WAITOK|M_ZERO);
 	V_pf_srchashmask = V_pf_srchashsize - 1;
@@ -1080,9 +1081,6 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 
 	s->kif = kif;
 
-	if (pf_state_key_attach(skw, sks, s))
-		return (-1);
-
 	if (s->id == 0 && s->creatorid == 0) {
 		/* XXX: should be atomic, but probability of collision low */
 		if ((s->id = V_pf_stateid[curcpu]++) == PFID_MAXID)
@@ -1091,6 +1089,9 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		s->id = htobe64(s->id);
 		s->creatorid = V_pf_status.hostid;
 	}
+
+	if (pf_state_key_attach(skw, sks, s))
+		return (-1);
 
 	ih = &V_pf_idhash[PF_IDHASH(s)];
 	PF_HASHROW_LOCK(ih);
@@ -1487,8 +1488,6 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 		return (0);	/* XXXGL: undefined actually */
 	}
 
-	s->timeout = PFTM_UNLINKED;
-
 	if (s->src.state == PF_TCPS_PROXY_DST) {
 		/* XXX wire key the right one? */
 		pf_send_tcp(NULL, s->rule.ptr, s->key[PF_SK_WIRE]->af,
@@ -1502,10 +1501,19 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 
 	LIST_REMOVE(s, entry);
 	pf_src_tree_remove_state(s);
-	PF_HASHROW_UNLOCK(ih);
 
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(s);
+
+	--s->rule.ptr->states_cur;
+	if (s->nat_rule.ptr != NULL)
+		--s->nat_rule.ptr->states_cur;
+	if (s->anchor.ptr != NULL)
+		--s->anchor.ptr->states_cur;
+
+	s->timeout = PFTM_UNLINKED;
+
+	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
 	refcount_release(&s->refs);
@@ -1520,11 +1528,7 @@ pf_free_state(struct pf_state *cur)
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
-	--cur->rule.ptr->states_cur;
-	if (cur->nat_rule.ptr != NULL)
-		--cur->nat_rule.ptr->states_cur;
-	if (cur->anchor.ptr != NULL)
-		--cur->anchor.ptr->states_cur;
+
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
 	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;
@@ -2252,8 +2256,8 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 		h->ip_v = 4;
 		h->ip_hl = sizeof(*h) >> 2;
 		h->ip_tos = IPTOS_LOWDELAY;
-		h->ip_off = V_path_mtu_discovery ? IP_DF : 0;
-		h->ip_len = len;
+		h->ip_off = htons(V_path_mtu_discovery ? IP_DF : 0);
+		h->ip_len = htons(len);
 		h->ip_ttl = ttl ? ttl : V_ip_defttl;
 		h->ip_sum = 0;
 
@@ -2316,17 +2320,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-	    {
-		struct ip *ip;
-
-		/* icmp_error() expects host byte ordering */
-		ip = mtod(m0, struct ip *);
-		NTOHS(ip->ip_len);
-		NTOHS(ip->ip_off);
-
 		pfse->pfse_type = PFSE_ICMP;
 		break;
-	    }
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
@@ -5149,7 +5144,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	struct pf_addr		 naddr;
 	struct pf_src_node	*sn = NULL;
 	int			 error = 0;
-	uint16_t		 ip_len, ip_off, sw_csum;
+	uint16_t		 ip_len, ip_off;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",
@@ -5249,18 +5244,16 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	/* Copied from FreeBSD 10.0-CURRENT ip_output. */
 	m0->m_pkthdr.csum_flags |= CSUM_IP;
-	sw_csum = m0->m_pkthdr.csum_flags & ~ifp->if_hwassist;
-	if (sw_csum & CSUM_DELAY_DATA) {
+	if (m0->m_pkthdr.csum_flags & CSUM_DELAY_DATA & ~ifp->if_hwassist) {
 		in_delayed_cksum(m0);
-		sw_csum &= ~CSUM_DELAY_DATA;
+		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 #ifdef SCTP
-	if (sw_csum & CSUM_SCTP) {
+	if (m0->m_pkthdr.csum_flags & CSUM_SCTP & ~ifp->if_hwassist) {
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
-		sw_csum &= ~CSUM_SCTP;
+		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
 #endif
-	m0->m_pkthdr.csum_flags &= ifp->if_hwassist;
 
 	/*
 	 * If small enough for interface, or the interface will take
@@ -5270,8 +5263,10 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	    (m0->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
 	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
 		ip->ip_sum = 0;
-		if (sw_csum & CSUM_DELAY_IP)
+		if (m0->m_pkthdr.csum_flags & CSUM_IP & ~ifp->if_hwassist) {
 			ip->ip_sum = in_cksum(m0, ip->ip_hl << 2);
+			m0->m_pkthdr.csum_flags &= ~CSUM_IP;
+		}
 		m0->m_flags &= ~(M_PROTOFLAGS);
 		error = (*ifp->if_output)(ifp, m0, sintosa(&dst), NULL);
 		goto done;
@@ -5289,7 +5284,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			goto bad;
 	}
 
-	error = ip_fragment(ip, &m0, ifp->if_mtu, ifp->if_hwassist, sw_csum);
+	error = ip_fragment(ip, &m0, ifp->if_mtu, ifp->if_hwassist);
 	if (error)
 		goto bad;
 

@@ -30,6 +30,7 @@
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_SMBFSDATA);
+MALLOC_DECLARE(M_SMBFSCRED);
 #endif
 
 #define SMBFSERR(format, args...) printf("%s: "format, __func__ ,## args)
@@ -178,4 +179,6 @@ void  smb_time_unix2dos(struct timespec *tsp, int tzoff, u_int16_t *ddp,
 	     u_int16_t *dtp, u_int8_t *dhp);
 void smb_dos2unixtime (u_int dd, u_int dt, u_int dh, int tzoff, struct timespec *tsp);
 
+void *smbfs_malloc_scred(void);
+void smbfs_free_scred(void *);
 #endif /* !_FS_SMBFS_SMBFS_SUBR_H_ */

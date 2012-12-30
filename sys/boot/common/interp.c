@@ -211,7 +211,7 @@ include(const char *filename)
 #endif
 
     if (((fd = open(filename, O_RDONLY)) == -1)) {
-	sprintf(command_errbuf,"can't open '%s': %s\n", filename, strerror(errno));
+	sprintf(command_errbuf,"can't open '%s': %s", filename, strerror(errno));
 	return(CMD_ERROR);
     }
 
@@ -254,7 +254,7 @@ include(const char *filename)
 			free(se);
 		}
 		sprintf(command_errbuf, "file '%s' line %d: memory allocation "
-		    "failure - aborting\n", filename, line);
+		    "failure - aborting", filename, line);
 		return (CMD_ERROR);
 	}
 	strcpy(sp->text, cp);

@@ -242,6 +242,9 @@ etc-examples:
 .endif
 
 .if ${SHARED} != "symlinks"
+.if ${MK_ATF} != "no"
+SUBDIR+=atf
+.endif
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=ipfilter
 .endif

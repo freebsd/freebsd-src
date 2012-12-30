@@ -50,19 +50,19 @@ SECTIONS
   . = ALIGN(4096);
   .dynamic	: { *(.dynamic) }
   . = ALIGN(4096);
-  .rel.dyn	: {
-    *(.rel.text .rel.text.* .rel.gnu.linkonce.t.*)
-    *(.rel.rodata .rel.rodata.* .rel.gnu.linkonce.r.*)
-    *(.rel.data .rel.data.* .rel.gnu.linkonce.d.*)
-    *(.rel.got)
-    *(.rel.sdata .rel.sdata.* .rel.gnu.linkonce.s.*)
-    *(.rel.sbss .rel.sbss.* .rel.gnu.linkonce.sb.*)
-    *(.rel.sdata2 .rel.sdata2.* .rel.gnu.linkonce.s2.*)
-    *(.rel.sbss2 .rel.sbss2.* .rel.gnu.linkonce.sb2.*)
-    *(.rel.bss .rel.bss.* .rel.gnu.linkonce.b.*)
-    *(.rel.plt)
+  .rela.dyn	: {
+    *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+    *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+    *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+    *(.rela.got)
+    *(.rela.sdata .rela.sdata.* .rela.gnu.linkonce.s.*)
+    *(.rela.sbss .rela.sbss.* .rela.gnu.linkonce.sb.*)
+    *(.rela.sdata2 .rela.sdata2.* .rela.gnu.linkonce.s2.*)
+    *(.rela.sbss2 .rela.sbss2.* .rela.gnu.linkonce.sb2.*)
+    *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+    *(.rela.plt)
     *(.relset_*)
-    *(.rel.dyn .rel.dyn.*)
+    *(.rela.dyn .rela.dyn.*)
   }
   . = ALIGN(4096);
   .reloc	: { *(.reloc) }

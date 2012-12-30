@@ -34,6 +34,8 @@ static const char rcsid[] =
 #include <termios.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <grp.h>
+#include <libutil.h>
 
 #include "pw.h"
 #include "bitmap.h"
@@ -272,8 +274,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
 
-	if (members)
-		free(members);
+	free(members);
 
 	return EXIT_SUCCESS;
 }
@@ -403,11 +404,10 @@ static int
 print_group(struct group * grp, int pretty)
 {
 	if (!pretty) {
-		int		buflen = 0;
 		char           *buf = NULL;
 
-		fmtgrent(&buf, &buflen, grp);
-		fputs(buf, stdout);
+		buf = gr_make(grp);
+		printf("%s\n", buf);
 		free(buf);
 	} else {
 		int             i;

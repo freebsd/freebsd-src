@@ -334,7 +334,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 				return;
 			}
 			xpt_setup_ccb(&ccb->ccb_h, cpi->ccb_h.path,
-				      /*priority*/ 1);
+				      CAM_PRIORITY_NONE);
 
 			sim = xpt_path_sim(cpi->ccb_h.path);
 
@@ -571,7 +571,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	callout_init_mtx(&softc->dma_callout, sim->mtx, /*flags*/ 0);
 	periph->softc = softc;
 
-	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, /*priority*/ 1);
+	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	en_lun_ccb.ccb_h.func_code = XPT_EN_LUN;
 	en_lun_ccb.cel.grp6_len = 0;
 	en_lun_ccb.cel.grp7_len = 0;
@@ -668,7 +668,7 @@ ctlfeoninvalidate(struct cam_periph *periph)
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
-	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, /*priority*/ 1);
+	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	en_lun_ccb.ccb_h.func_code = XPT_EN_LUN;
 	en_lun_ccb.cel.grp6_len = 0;
 	en_lun_ccb.cel.grp7_len = 0;
@@ -1687,16 +1687,21 @@ ctlfe_onoffline(void *arg, int online)
 
 	set_wwnn = 0;
 
+	sim = bus_softc->sim;
+
+	CAM_SIM_LOCK(sim);
 	status = xpt_create_path(&path, /*periph*/ NULL, bus_softc->path_id,
 		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		printf("%s: unable to create path!\n", __func__);
+		CAM_SIM_UNLOCK(sim);
 		return;
 	}
-	ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP, M_WAITOK | M_ZERO);
-	xpt_setup_ccb(&ccb->ccb_h, path, /*priority*/ 1);
+	CAM_SIM_UNLOCK(sim);
 
-	sim = xpt_path_sim(path);
+	ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP, M_WAITOK | M_ZERO);
+	xpt_setup_ccb(&ccb->ccb_h, path, CAM_PRIORITY_NONE);
+
 
 	/*
 	 * Copan WWN format:
@@ -1822,8 +1827,6 @@ ctlfe_onoffline(void *arg, int online)
 
 	xpt_action(ccb);
 
-	CAM_SIM_UNLOCK(sim);
-
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		printf("%s: SIM %s (path id %d) target %s failed with "
 		       "status %#x\n",
@@ -1836,8 +1839,11 @@ ctlfe_onoffline(void *arg, int online)
 		       (online != 0) ? "enable" : "disable");
 	}
 
-	free(ccb, M_TEMP);
 	xpt_free_path(path);
+
+	CAM_SIM_UNLOCK(sim);
+
+	free(ccb, M_TEMP);
 
 	return;
 }
@@ -1882,27 +1888,30 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 
 	
 	bus_softc = (struct ctlfe_softc *)arg;
+	sim = bus_softc->sim;
 
-	status = xpt_create_path_unlocked(&path, /*periph*/ NULL,
-					  bus_softc->path_id,
-					  targ_id.id,
-					  lun_id);
+	CAM_SIM_LOCK(sim);
+
+	status = xpt_create_path(&path, /*periph*/ NULL, bus_softc->path_id,
+				 targ_id.id, lun_id);
 	/* XXX KDM need some way to return status to CTL here? */
 	if (status != CAM_REQ_CMP) {
 		printf("%s: could not create path, status %#x\n", __func__,
 		       status);
+		CAM_SIM_UNLOCK(sim);
 		return (1);
 	}
+	CAM_SIM_UNLOCK(sim);
 
 	softc = malloc(sizeof(*softc), M_CTLFE, M_WAITOK | M_ZERO);
-	sim = xpt_path_sim(path);
-	mtx_lock(sim->mtx);
+
+	CAM_SIM_LOCK(sim);
 	periph = cam_periph_find(path, "ctl");
 	if (periph != NULL) {
 		/* We've already got a periph, no need to alloc a new one. */
 		xpt_free_path(path);
 		free(softc, M_CTLFE);
-		mtx_unlock(sim->mtx);
+		CAM_SIM_UNLOCK(sim);
 		return (0);
 	}
 
@@ -1920,9 +1929,9 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 				  0,
 				  softc);
 
-	mtx_unlock(sim->mtx);
-
 	xpt_free_path(path);
+
+	CAM_SIM_UNLOCK(sim);
 
 	return (0);
 }

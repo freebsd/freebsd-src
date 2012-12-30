@@ -197,18 +197,14 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 */
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET
-	struct ip *ip;
 	case AF_INET:
-		ip = mtod(m, struct ip *);
-		ip->ip_len = ntohs(ip->ip_len);
-		ip->ip_off = ntohs(ip->ip_off);
-
 #ifdef IPSEC_NAT_T
 		/*
 		 * If NAT-T is enabled, now that all IPsec processing is done
 		 * insert UDP encapsulation header after IP header.
 		 */
 		if (sav->natt_type) {
+			struct ip *ip = mtod(m, struct ip *);
 #ifdef _IP_VHL
 			const int hlen = IP_VHL_HL(ip->ip_vhl);
 #else
@@ -246,7 +242,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 			udp->uh_dport = KEY_PORTFROMSADDR(&sav->sah->saidx.dst);
 			udp->uh_sum = 0;
 			udp->uh_ulen = htons(m->m_pkthdr.len - hlen);
-			ip->ip_len = m->m_pkthdr.len;
+			ip->ip_len = htons(m->m_pkthdr.len);
 			ip->ip_p = IPPROTO_UDP;
 
 			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
@@ -605,7 +601,7 @@ ipsec6_splithdr(struct mbuf *m)
 	ip6 = mtod(m, struct ip6_hdr *);
 	hlen = sizeof(struct ip6_hdr);
 	if (m->m_len > hlen) {
-		MGETHDR(mh, M_DONTWAIT, MT_DATA);
+		MGETHDR(mh, M_NOWAIT, MT_DATA);
 		if (!mh) {
 			m_freem(m);
 			return NULL;
@@ -725,7 +721,7 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 	plen = m->m_pkthdr.len;
 	if (M_LEADINGSPACE(m->m_next) < sizeof(struct ip6_hdr)) {
 		struct mbuf *n;
-		MGET(n, M_DONTWAIT, MT_DATA);
+		MGET(n, M_NOWAIT, MT_DATA);
 		if (!n) {
 			m_freem(m);
 			return ENOBUFS;

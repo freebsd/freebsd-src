@@ -337,16 +337,17 @@ PrOpenIncludeWithPrefix (
     /* Attempt to open the file, push if successful */
 
     IncludeFile = fopen (Pathname, "r");
-    if (IncludeFile)
+    if (!IncludeFile)
     {
-        /* Push the include file on the open input file stack */
-
-        PrPushInputFileStack (IncludeFile, Pathname);
-        return (IncludeFile);
+        fprintf (stderr, "Could not open include file %s\n", Pathname);
+        ACPI_FREE (Pathname);
+        return (NULL);
     }
 
-    ACPI_FREE (Pathname);
-    return (NULL);
+    /* Push the include file on the open input file stack */
+
+    PrPushInputFileStack (IncludeFile, Pathname);
+    return (IncludeFile);
 }
 
 
@@ -413,8 +414,8 @@ PrPushInputFileStack (
  * RETURN:      0 if a node was popped, -1 otherwise
  *
  * DESCRIPTION: Pop the top of the input file stack and point the parser to
- *              the saved parse buffer contained in the fnode.  Also, set the
- *              global line counters to the saved values.  This function is
+ *              the saved parse buffer contained in the fnode. Also, set the
+ *              global line counters to the saved values. This function is
  *              called when an include file reaches EOF.
  *
  ******************************************************************************/

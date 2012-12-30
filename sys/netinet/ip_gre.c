@@ -274,12 +274,10 @@ gre_mobile_input(struct mbuf *m, int hlen)
 
 	/*
 	 * On FreeBSD, rip_input() supplies us with ip->ip_len
-	 * already converted into host byteorder and also decreases
-	 * it by the lengh of IP header, however, ip_input() expects
-	 * that this field is in the original format (network byteorder
-	 * and full size of IP packet), so that adjust accordingly.
+	 * decreased by the lengh of IP header, however, ip_input()
+	 * expects it to be full size of IP packet, so adjust accordingly.
 	 */
-	ip->ip_len = htons(ip->ip_len + sizeof(struct ip) - msiz);
+	ip->ip_len = htons(ntohs(ip->ip_len) + sizeof(struct ip) - msiz);
 
 	ip->ip_sum = 0;
 	ip->ip_sum = in_cksum(m, (ip->ip_hl << 2));

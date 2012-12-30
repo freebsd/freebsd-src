@@ -504,7 +504,7 @@ blk_equals(struct jblkrec *brec, ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t start,
 		return (0);
 	if (brec->jb_blkno + brec->jb_oldfrags != start)
 		return (0);
-	if (brec->jb_frags != frags)
+	if (brec->jb_frags < frags)
 		return (0);
 	return (1);
 }
@@ -551,7 +551,6 @@ blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
 		brec = (struct jblkrec *)srec->sr_rec;
 		/*
 		 * If the block overlaps but does not match
-		 * exactly it's a new allocation.  If it matches
 		 * exactly this record refers to the current
 		 * location.
 		 */
@@ -648,7 +647,8 @@ blk_free(ufs2_daddr_t bno, int mask, int frags)
 	uint8_t *blksfree;
 
 	if (debug)
-		printf("Freeing %d frags at blk %jd\n", frags, bno);
+		printf("Freeing %d frags at blk %jd mask 0x%x\n",
+		    frags, bno, mask);
 	cg = dtog(fs, bno);
 	sc = cg_lookup(cg);
 	cgp = sc->sc_cgp;
@@ -1143,12 +1143,8 @@ ino_adjblks(struct suj_ino *sino)
 static void
 blk_free_visit(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
 {
-	int mask;
 
-	mask = blk_freemask(blk, ino, lbn, frags);
-	if (debug)
-		printf("blk %jd freemask 0x%X\n", blk, mask);
-	blk_free(blk, mask, frags);
+	blk_free(blk, blk_freemask(blk, ino, lbn, frags), frags);
 }
 
 /*
@@ -1163,8 +1159,6 @@ blk_free_lbn(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags, int follow)
 	int mask;
 
 	mask = blk_freemask(blk, ino, lbn, frags);
-	if (debug)
-		printf("blk %jd freemask 0x%X\n", blk, mask);
 	resid = 0;
 	if (lbn <= -NDADDR && follow && mask == 0)
 		indir_visit(ino, lbn, blk, &resid, blk_free_visit, VISIT_INDIR);
@@ -2334,6 +2328,10 @@ suj_prune(void)
 
 	}
 	if (newseq != oldseq) {
+		TAILQ_FOREACH(seg, &allsegs, ss_next) {
+			printf("%jd, ", seg->ss_rec.jsr_seq);
+		}
+		printf("\n");
 		err_suj("Journal file sequence mismatch %jd != %jd\n",
 		    newseq, oldseq);
 	}

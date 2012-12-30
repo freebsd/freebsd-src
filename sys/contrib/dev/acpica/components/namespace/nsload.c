@@ -93,8 +93,8 @@ AcpiNsLoadTable (
 
     /*
      * Parse the table and load the namespace with all named
-     * objects found within.  Control methods are NOT parsed
-     * at this time.  In fact, the control methods cannot be
+     * objects found within. Control methods are NOT parsed
+     * at this time. In fact, the control methods cannot be
      * parsed until the entire namespace is loaded, because
      * if a control method makes a forward reference (call)
      * to another control method, we can't continue parsing
@@ -142,7 +142,7 @@ Unlock:
     }
 
     /*
-     * Now we can parse the control methods.  We always parse
+     * Now we can parse the control methods. We always parse
      * them here for a sanity check, and if configured for
      * just-in-time parsing, we delete the control method
      * parse trees.
@@ -192,7 +192,7 @@ AcpiNsLoadNamespace (
     }
 
     /*
-     * Load the namespace.  The DSDT is required,
+     * Load the namespace. The DSDT is required,
      * but the SSDT and PSDT tables are optional.
      */
     Status = AcpiNsLoadTableByType (ACPI_TABLE_ID_DSDT);
@@ -318,7 +318,7 @@ AcpiNsDeleteSubtree (
  *  RETURN:         Status
  *
  *  DESCRIPTION:    Shrinks the namespace, typically in response to an undocking
- *                  event.  Deletes an entire subtree starting from (and
+ *                  event. Deletes an entire subtree starting from (and
  *                  including) the given handle.
  *
  ******************************************************************************/
@@ -353,4 +353,3 @@ AcpiNsUnloadNamespace (
 }
 #endif
 #endif
-

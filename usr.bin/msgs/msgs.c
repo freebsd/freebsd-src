@@ -175,7 +175,8 @@ main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 
 	time(&t);
-	setuid(uid = getuid());
+	if (setuid(uid = getuid()) != 0)
+		err(1, "setuid failed");
 	ruptible = (signal(SIGINT, SIG_IGN) == SIG_DFL);
 	if (ruptible)
 		signal(SIGINT, SIG_DFL);

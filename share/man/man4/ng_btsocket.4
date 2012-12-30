@@ -25,7 +25,7 @@
 .\" $Id: ng_btsocket.4,v 1.7 2003/05/21 19:37:35 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2002
+.Dd November 13, 2012
 .Dt NG_BTSOCKET 4
 .Os
 .Sh NAME
@@ -65,14 +65,14 @@ The Bluetooth raw HCI socket address is defined as follows:
 struct sockaddr_hci {
         u_char	hci_len;      /* total length */
         u_char	hci_family;   /* address family */
-	char	hci_node[16]; /* HCI node name */
+	char	hci_node[32]; /* address (size == NG_NODESIZ ) */
 };
 .Ed
 .Pp
 Raw HCI sockets support a number of
 .Xr ioctl 2
 requests such as:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv SIOC_HCI_RAW_NODE_GET_STATE
 Returns current state for the HCI node.
 .It Dv SIOC_HCI_RAW_NODE_INIT
@@ -174,7 +174,7 @@ request.
 Raw L2CAP sockets support number of
 .Xr ioctl 2
 requests such as:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv SIOC_L2CAP_NODE_GET_FLAGS
 Returns current state for the L2CAP node.
 .It Dv SIOC_L2CAP_NODE_GET_DEBUG
@@ -243,7 +243,7 @@ level which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv SO_L2CAP_IMTU
 Get (set) maximum payload size the local socket is capable of accepting.
 .It Dv SO_L2CAP_OMTU
@@ -312,7 +312,7 @@ The following options, which can be tested with
 call, are defined at
 .Dv SOL_RFCOMM
 level for RFCOMM sockets:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv SO_RFCOMM_MTU
 Returns the maximum transfer unit size (in bytes) for the underlying RFCOMM
 channel.

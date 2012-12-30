@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
@@ -87,8 +86,8 @@ AcpiExGenerateAccess (
  *              AnyAcc keyword.
  *
  * NOTE: Need to have the RegionLength in order to check for boundary
- *       conditions (end-of-region).  However, the RegionLength is a deferred
- *       operation.  Therefore, to complete this implementation, the generation
+ *       conditions (end-of-region). However, the RegionLength is a deferred
+ *       operation. Therefore, to complete this implementation, the generation
  *       of this access width must be deferred until the region length has
  *       been evaluated.
  *
@@ -326,7 +325,7 @@ AcpiExDecodeFieldAccess (
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the areas of the field object that are common
- *              to the various types of fields.  Note: This is very "sensitive"
+ *              to the various types of fields. Note: This is very "sensitive"
  *              code because we are solving the general case for field
  *              alignment.
  *
@@ -358,13 +357,13 @@ AcpiExPrepCommonFieldObject (
     ObjDesc->CommonField.BitLength  = FieldBitLength;
 
     /*
-     * Decode the access type so we can compute offsets.  The access type gives
+     * Decode the access type so we can compute offsets. The access type gives
      * two pieces of information - the width of each field access and the
      * necessary ByteAlignment (address granularity) of the access.
      *
      * For AnyAcc, the AccessBitWidth is the largest width that is both
      * necessary and possible in an attempt to access the whole field in one
-     * I/O operation.  However, for AnyAcc, the ByteAlignment is always one
+     * I/O operation. However, for AnyAcc, the ByteAlignment is always one
      * byte.
      *
      * For all Buffer Fields, the ByteAlignment is always one byte.
@@ -386,7 +385,7 @@ AcpiExPrepCommonFieldObject (
 
     /*
      * BaseByteOffset is the address of the start of the field within the
-     * region.  It is the byte address of the first *datum* (field-width data
+     * region. It is the byte address of the first *datum* (field-width data
      * unit) of the field. (i.e., the first datum that contains at least the
      * first *bit* of the field.)
      *
@@ -645,4 +644,3 @@ AcpiExPrepFieldValue (
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
 }
-

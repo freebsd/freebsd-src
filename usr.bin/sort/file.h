@@ -65,8 +65,8 @@ struct file_reader;
 struct file_list
 {
 	char			**fns;
-	int			 count;
-	int			 sz;
+	size_t			 count;
+	size_t			 sz;
 	bool			 tmp;
 };
 

@@ -165,6 +165,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 
 #include <machine/md_var.h>
@@ -1365,7 +1366,8 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		    (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~PVF_NC;
-			pmap_set_cache_entry(pv, pm, va, 1);
+			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+				pmap_set_cache_entry(pv, pm, va, 1);
 			continue;
 		}
 			/* user is no longer sharable and writable */
@@ -1374,7 +1376,8 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		    !pmwc && (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~(PVF_NC | PVF_MWC);
-			pmap_set_cache_entry(pv, pm, va, 1);
+			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+				pmap_set_cache_entry(pv, pm, va, 1);
 		}
 	}
 
@@ -1425,15 +1428,16 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 
 		if (!(oflags & maskbits)) {
 			if ((maskbits & PVF_WRITE) && (pv->pv_flags & PVF_NC)) {
-				/* It is safe to re-enable cacheing here. */
-				PMAP_LOCK(pm);
-				l2b = pmap_get_l2_bucket(pm, va);
-				ptep = &l2b->l2b_kva[l2pte_index(va)];
-				*ptep |= pte_l2_s_cache_mode;
-				PTE_SYNC(ptep);
-				PMAP_UNLOCK(pm);
+				if (pg->md.pv_memattr != 
+				    VM_MEMATTR_UNCACHEABLE) {
+					PMAP_LOCK(pm);
+					l2b = pmap_get_l2_bucket(pm, va);
+					ptep = &l2b->l2b_kva[l2pte_index(va)];
+					*ptep |= pte_l2_s_cache_mode;
+					PTE_SYNC(ptep);
+					PMAP_UNLOCK(pm);
+				}
 				pv->pv_flags &= ~(PVF_NC | PVF_MWC);
-				
 			}
 			continue;
 		}
@@ -1462,7 +1466,9 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 				 * permission.
 				 */
 				if (maskbits & PVF_WRITE) {
-					npte |= pte_l2_s_cache_mode;
+					if (pg->md.pv_memattr !=
+					    VM_MEMATTR_UNCACHEABLE)
+						npte |= pte_l2_s_cache_mode;
 					pv->pv_flags &= ~(PVF_NC | PVF_MWC);
 				}
 			} else
@@ -1793,6 +1799,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
 }
 
 /*
@@ -3392,7 +3399,8 @@ do_l2b_alloc:
 		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
-	npte |= pte_l2_s_cache_mode;
+	if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+		npte |= pte_l2_s_cache_mode;
 	if (m && m == opg) {
 		/*
 		 * We're changing the attrs of an existing mapping.
@@ -4927,4 +4935,25 @@ pmap_devmap_find_va(vm_offset_t va, vm_size_t size)
 
 	return (NULL);
 }
+
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+	/* 
+	 * Remember the memattr in a field that gets used to set the appropriate
+	 * bits in the PTEs as mappings are established.
+	 */
+	m->md.pv_memattr = ma;
+
+	/*
+	 * It appears that this function can only be called before any mappings
+	 * for the page are established on ARM.  If this ever changes, this code
+	 * will need to walk the pv_list and make each of the existing mappings
+	 * uncacheable, being careful to sync caches and PTEs (and maybe
+	 * invalidate TLB?) for any current mapping it modifies.
+	 */
+	if (m->md.pv_kva != 0 || TAILQ_FIRST(&m->md.pv_list) != NULL)
+		panic("Can't change memattr on page with existing mappings");
+}
+
 

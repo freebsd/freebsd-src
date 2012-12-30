@@ -90,6 +90,7 @@ int fdt_data_to_res(pcell_t *, int, int, u_long *, u_long *);
 int fdt_data_verify(void *, int);
 phandle_t fdt_find_compatible(phandle_t, const char *, int);
 int fdt_get_mem_regions(struct mem_region *, int *, uint32_t *);
+int fdt_get_reserved_regions(struct mem_region *, int *);
 int fdt_get_phyaddr(phandle_t, device_t, int *, void **);
 int fdt_get_range(phandle_t, int, u_long *, u_long *);
 int fdt_immr_addr(vm_offset_t);

@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2012
+.Dd November 3, 2012
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -267,6 +267,18 @@ are implied
 device, and then mount the new memory disk:
 .Bd -literal -offset indent
 mount -t cd9660 /dev/`mdconfig -f cdimage.iso` /mnt
+.Pp
+.Ed
+Create a file-backed device from a hard disk image that begins
+with 512K of raw header information.
+.Xr gnop 8
+is used to skip over the header information, positioning
+.Pa md1.nop
+to the start of the filesystem in the image.
+.Bd -literal -offset indent
+mdconfig -f diskimage.img -u 1
+gnop create -o 512K md1
+mount /dev/md1.nop /mnt
 .Ed
 .Sh SEE ALSO
 .Xr md 4 ,

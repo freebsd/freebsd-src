@@ -117,6 +117,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_rx_edma.h>
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 /*
  * some general macros
   */
@@ -282,7 +286,7 @@ static void
 ath_edma_recv_flush(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_RECV, "%s: called\n", __func__);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
@@ -357,7 +361,12 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(sc, bf, 0, bf->bf_rxstatus == HAL_OK);
-#endif
+#endif /* ATH_DEBUG */
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS))
+			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS,
+			    sc->sc_rx_statuslen, (char *) ds);
+#endif /* ATH_DEBUG */
 		if (bf->bf_rxstatus == HAL_EINPROGRESS)
 			break;
 
@@ -509,7 +518,7 @@ ath_edma_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_RX_LOCK_ASSERT(sc);
 
-	m = m_getm(NULL, sc->sc_edma_bufsize, M_DONTWAIT, MT_DATA);
+	m = m_getm(NULL, sc->sc_edma_bufsize, M_NOWAIT, MT_DATA);
 	if (! m)
 		return (ENOBUFS);		/* XXX ?*/
 

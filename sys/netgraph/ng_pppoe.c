@@ -460,7 +460,7 @@ pppoe_broadcast_padi(node_p node, struct mbuf *m0)
 	LIST_FOREACH(sp, &privp->listeners, sessions) {
 		struct mbuf *m;
 
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 		if (m == NULL)
 			return (ENOMEM);
 		NG_SEND_DATA_ONLY(error, sp->hook, m);
@@ -801,7 +801,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (neg == NULL)
 				LEAVE(ENOMEM);
 
-			neg->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			neg->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (neg->m == NULL) {
 				free(neg, M_NETGRAPH_PPPOE);
 				LEAVE(ENOBUFS);
@@ -1078,7 +1078,7 @@ pppoe_start(sessp sp)
 	ng_callout(&neg->handle, node, hook, PPPOE_INITIAL_TIMEOUT * hz,
 	    pppoe_ticker, NULL, 0);
 	neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
-	m0 = m_copypacket(neg->m, M_DONTWAIT);
+	m0 = m_copypacket(neg->m, M_NOWAIT);
 	NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
 }
 
@@ -1161,7 +1161,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		 * Bang in a pre-made header, and set the length up
 		 * to be correct. Then send it to the ethernet driver.
 		 */
-		M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
+		M_PREPEND(m, sizeof(*wh), M_NOWAIT);
 		if (m == NULL)
 			LEAVE(ENOBUFS);
 
@@ -1251,7 +1251,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		 */
 		ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
 		    pppoe_ticker, NULL, 0);
-		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
 		NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
 		privp->packets_out++;
 		break;
@@ -1338,7 +1338,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			 * Put it into a cluster.
 			 */
 			struct mbuf *n;
-			n = m_dup(m, M_DONTWAIT);
+			n = m_dup(m, M_NOWAIT);
 			m_freem(m);
 			m = n;
 			if (m) {
@@ -1472,7 +1472,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			    PPPOE_INITIAL_TIMEOUT * hz,
 			    pppoe_ticker, NULL, 0);
 			neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
-			m0 = m_copypacket(neg->m, M_DONTWAIT);
+			m0 = m_copypacket(neg->m, M_NOWAIT);
 			NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
 			break;
 		case	PADR_CODE:
@@ -1530,7 +1530,7 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			sp->state = PPPOE_NEWCONNECTED;
 
 			/* Send the PADS without a timeout - we're now connected. */
-			m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+			m0 = m_copypacket(sp->neg->m, M_NOWAIT);
 			NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
 
 			/*
@@ -1736,7 +1736,7 @@ ng_pppoe_disconnect(hook_p hook)
 			struct mbuf *m;
 
 			/* Generate a packet of that type. */
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL)
 				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
 				    "mbufs\n", node->nd_ID);
@@ -1823,7 +1823,7 @@ pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2)
 	case	PPPOE_SINIT:
 	case	PPPOE_SREQ:
 		/* Timeouts on these produce resends. */
-		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+		m0 = m_copypacket(sp->neg->m, M_NOWAIT);
 		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
 		ng_callout(&neg->handle, node, hook, neg->timeout * hz,
 		    pppoe_ticker, NULL, 0);

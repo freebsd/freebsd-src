@@ -163,13 +163,16 @@ __FBSDID("$FreeBSD$");
 #define	UDMASS_CBI	0x00400000	/* CBI transfers */
 #define	UDMASS_WIRE	(UDMASS_BBB|UDMASS_CBI)
 #define	UDMASS_ALL	0xffff0000	/* all of the above */
-static int umass_debug = 0;
+static int umass_debug;
+static int umass_throttle;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
-SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &umass_debug, 0, "umass debug level");
-
 TUNABLE_INT("hw.usb.umass.debug", &umass_debug);
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, throttle, CTLFLAG_RW | CTLFLAG_TUN,
+    &umass_throttle, 0, "Forced delay between commands in milliseconds");
+TUNABLE_INT("hw.usb.umass.throttle", &umass_throttle);
 #else
 #define	DIF(...) do { } while (0)
 #define	DPRINTF(...) do { } while (0)
@@ -362,6 +365,8 @@ typedef uint8_t (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
 	 * result.
 	 */
 #define	NO_SYNCHRONIZE_CACHE	0x4000
+	/* Device does not support 'PREVENT/ALLOW MEDIUM REMOVAL'. */
+#define	NO_PREVENT_ALLOW	0x8000
 
 struct umass_softc {
 
@@ -832,6 +837,8 @@ umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 		quirks |= NO_INQUIRY;
 	if (usb_test_quirk(uaa, UQ_MSC_NO_INQUIRY_EVPD))
 		quirks |= NO_INQUIRY_EVPD;
+	if (usb_test_quirk(uaa, UQ_MSC_NO_PREVENT_ALLOW))
+		quirks |= NO_PREVENT_ALLOW;
 	if (usb_test_quirk(uaa, UQ_MSC_NO_SYNC_CACHE))
 		quirks |= NO_SYNCHRONIZE_CACHE;
 	if (usb_test_quirk(uaa, UQ_MSC_SHUTTLE_INIT))
@@ -878,7 +885,7 @@ umass_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umass_probe_proto temp = umass_probe_proto(dev, uaa);
 	struct usb_interface_descriptor *id;
-	int32_t err;
+	int err;
 
 	/*
 	 * NOTE: the softc struct is cleared in device_set_driver.
@@ -991,6 +998,24 @@ umass_attach(device_t dev)
 		    "transfers, %s\n", usbd_errstr(err));
 		goto detach;
 	}
+#ifdef USB_DEBUG
+	if (umass_throttle > 0) {
+		uint8_t x;
+		int iv;
+
+		iv = umass_throttle;
+
+		if (iv < 1)
+			iv = 1;
+		else if (iv > 8000)
+			iv = 8000;
+
+		for (x = 0; x != UMASS_T_MAX; x++) {
+			if (sc->sc_xfer[x] != NULL)
+				usbd_xfer_set_interval(sc->sc_xfer[x], iv);
+		}
+	}
+#endif
 	sc->sc_transform =
 	    (sc->sc_proto & UMASS_PROTO_SCSI) ? &umass_scsi_transform :
 	    (sc->sc_proto & UMASS_PROTO_UFI) ? &umass_ufi_transform :
@@ -2245,6 +2270,13 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					}
 					if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
 						ccb->csio.dxfer_len = SHORT_INQUIRY_LENGTH;
+					}
+				} else if (sc->sc_transfer.cmd_data[0] == PREVENT_ALLOW) {
+					if (sc->sc_quirks & NO_PREVENT_ALLOW) {
+						ccb->csio.scsi_status = SCSI_STATUS_OK;
+						ccb->ccb_h.status = CAM_REQ_CMP;
+						xpt_done(ccb);
+						goto done;
 					}
 				} else if (sc->sc_transfer.cmd_data[0] == SYNCHRONIZE_CACHE) {
 					if (sc->sc_quirks & NO_SYNCHRONIZE_CACHE) {

@@ -251,6 +251,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			curthread_pflags_restore(saved_inbdflush);
 			return (error);
 		}
+		pref = newb + fs->fs_frag;
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[1].in_lbn;
@@ -315,6 +316,7 @@ retry:
 			}
 			goto fail;
 		}
+		pref = newb + fs->fs_frag;
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[i].in_lbn;
@@ -363,7 +365,9 @@ retry:
 	 */
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		pref = ffs_blkpref_ufs1(ip, lbn, indirs[i].in_off, &bap[0]);
+		if (pref == 0)
+			pref = ffs_blkpref_ufs1(ip, lbn, indirs[i].in_off,
+			    &bap[0]);
 		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {
@@ -789,6 +793,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			curthread_pflags_restore(saved_inbdflush);
 			return (error);
 		}
+		pref = newb + fs->fs_frag;
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[1].in_lbn;
@@ -853,6 +858,7 @@ retry:
 			}
 			goto fail;
 		}
+		pref = newb + fs->fs_frag;
 		nb = newb;
 		*allocblk++ = nb;
 		*lbns_remfree++ = indirs[i].in_lbn;
@@ -901,7 +907,9 @@ retry:
 	 */
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		pref = ffs_blkpref_ufs2(ip, lbn, indirs[i].in_off, &bap[0]);
+		if (pref == 0)
+			pref = ffs_blkpref_ufs2(ip, lbn, indirs[i].in_off,
+			    &bap[0]);
 		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
 		    flags | IO_BUFLOCKED, cred, &newb);
 		if (error) {

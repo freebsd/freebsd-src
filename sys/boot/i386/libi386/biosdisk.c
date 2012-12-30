@@ -276,7 +276,9 @@ bd_print(int verbose)
 		dev.d_partition = -1;
 		if (disk_open(&dev,
 		    bdinfo[i].bd_sectorsize * bdinfo[i].bd_sectors,
-		    bdinfo[i].bd_sectorsize) == 0) {
+		    bdinfo[i].bd_sectorsize,
+		    (bdinfo[i].bd_flags & BD_FLOPPY) ?
+		    DISK_F_NOCACHE: 0) == 0) {
 			sprintf(line, "    disk%d", i);
 			disk_print(&dev, line, verbose);
 			disk_close(&dev);
@@ -308,7 +310,8 @@ bd_open(struct open_file *f, ...)
 		return (EIO);
 
 	return (disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	    BD(dev).bd_sectorsize));
+	    BD(dev).bd_sectorsize, (BD(dev).bd_flags & BD_FLOPPY) ?
+	    DISK_F_NOCACHE: 0));
 }
 
 static int
@@ -645,7 +648,8 @@ bd_getdev(struct i386_devdesc *d)
     if (biosdev == -1)				/* not a BIOS device */
 	return(-1);
     if (disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	BD(dev).bd_sectorsize) != 0)		/* oops, not a viable device */
+	BD(dev).bd_sectorsize,(BD(dev).bd_flags & BD_FLOPPY) ?
+	DISK_F_NOCACHE: 0) != 0)		/* oops, not a viable device */
 	    return (-1);
     else
 	disk_close(dev);

@@ -1074,5 +1074,3 @@ AcpiUtCopyIobjectToIobject (
 
     return_ACPI_STATUS (Status);
 }
-
-

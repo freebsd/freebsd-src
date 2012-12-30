@@ -159,7 +159,7 @@ again:
 		/* next_hop may be set by ipfw_chk */
 		if (args.next_hop == NULL && args.next_hop6 == NULL)
 			break; /* pass */
-#if !defined(IPFIREWALL_FORWARD) || (!defined(INET6) && !defined(INET))
+#if (!defined(INET6) && !defined(INET))
 		ret = EACCES;
 #else
 	    {
@@ -199,6 +199,7 @@ again:
 			bcopy(args.next_hop6, (fwd_tag+1), len);
 			if (in6_localip(&args.next_hop6->sin6_addr))
 				(*m0)->m_flags |= M_FASTFWD_OURS;
+			(*m0)->m_flags |= M_IP6_NEXTHOP;
 		}
 #endif
 #ifdef INET
@@ -206,11 +207,12 @@ again:
 			bcopy(args.next_hop, (fwd_tag+1), len);
 			if (in_localip(args.next_hop->sin_addr))
 				(*m0)->m_flags |= M_FASTFWD_OURS;
+			(*m0)->m_flags |= M_IP_NEXTHOP;
 		}
 #endif
 		m_tag_prepend(*m0, fwd_tag);
 	    }
-#endif /* IPFIREWALL_FORWARD */
+#endif /* INET || INET6 */
 		break;
 
 	case IP_FW_DENY:
@@ -344,7 +346,7 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 		 * Restore Ethernet header, as needed, in case the
 		 * mbuf chain was replaced by ipfw.
 		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
 		if (m == NULL) {
 			*m0 = NULL;
 			return (0);
@@ -409,7 +411,7 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		clone = *m0;	/* use the original mbuf */
 		*m0 = NULL;
 	} else {
-		clone = m_dup(*m0, M_DONTWAIT);
+		clone = m_dup(*m0, M_NOWAIT);
 		/* If we cannot duplicate the mbuf, we sacrifice the divert
 		 * chain and continue with the tee-ed packet.
 		 */
@@ -431,7 +433,6 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		int hlen;
 		struct mbuf *reass;
 
-		SET_HOST_IPLEN(ip); /* ip_reass wants host order */
 		reass = ip_reass(clone); /* Reassemble packet. */
 		if (reass == NULL)
 			return 0; /* not an error */
@@ -442,7 +443,6 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		 */
 		ip = mtod(reass, struct ip *);
 		hlen = ip->ip_hl << 2;
-		SET_NET_IPLEN(ip);
 		ip->ip_sum = 0;
 		if (hlen == sizeof(struct ip))
 			ip->ip_sum = in_cksum_hdr(ip);

@@ -46,7 +46,7 @@ typedef STAILQ_HEAD(, ciss_request)	cr_qhead_t;
 /*
  * Maximum number of logical drives we support.
  */
-#define CISS_MAX_LOGICAL	15
+#define CISS_MAX_LOGICAL	63
 
 /*
  * Maximum number of physical devices we support.

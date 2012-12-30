@@ -19,57 +19,6 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-/* __ieee754_log(x)
- * Return the logrithm of x
- *
- * Method :                  
- *   1. Argument Reduction: find k and f such that 
- *                      x = 2^k * (1+f), 
- *         where  sqrt(2)/2 < 1+f < sqrt(2) .
- *
- *   2. Approximation of log(1+f).
- *      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
- *               = 2s + 2/3 s**3 + 2/5 s**5 + .....,
- *               = 2s + s*R
- *      We use a special Reme algorithm on [0,0.1716] to generate 
- *      a polynomial of degree 8 to approximate R The maximum error 
- *      of this polynomial approximation is bounded by 2**-34.24. In
- *      other words,
- *                      2      4      6      8
- *          R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s
- *      (the values of Lg1 to Lg7 are listed in the program)
- *      and
- *          |      2          8           |     -34.24
- *          | Lg1*s +...+Lg4*s    -  R(z) | <= 2 
- *          |                             |
- *      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
- *      In order to guarantee error in log below 1ulp, we compute log
- *      by
- *              log(1+f) = f - s*(f - R)        (if f is not too large)
- *              log(1+f) = f - (hfsq - s*(hfsq+R)).     (better accuracy)
- *
- *      3. Finally,  log(x) = k*ln2 + log(1+f).  
- *                          = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
- *         Here ln2 is split into two floating point number: 
- *                      ln2_hi + ln2_lo,
- *         where n*ln2_hi is always exact for |n| < 2000.
- *
- * Special cases:
- *      log(x) is NaN with signal if x < 0 (including -INF) ; 
- *      log(+INF) is +INF; log(0) is -INF with signal;
- *      log(NaN) is that NaN with no signal.
- *
- * Accuracy:
- *      according to an error analysis, the error is always less than
- *      1 ulp (unit in the last place).
- *
- * Constants:
- * The hexadecimal values are the intended ones for the following 
- * constants. The decimal values may be used, provided that the 
- * compiler will convert from decimal to binary accurately enough 
- * to produce the hexadecimal values shown.
- */
-
 static const float
 ln2_hi =   6.9313812256e-01,	/* 0x3f317180 */
 ln2_lo =   9.0580006145e-06,	/* 0x3717f7d1 */

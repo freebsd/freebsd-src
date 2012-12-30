@@ -61,6 +61,8 @@ static int pfil_list_remove(pfil_list_t *,
 LIST_HEAD(pfilheadhead, pfil_head);
 VNET_DEFINE(struct pfilheadhead, pfil_head_list);
 #define	V_pfil_head_list	VNET(pfil_head_list)
+VNET_DEFINE(struct rmlock, pfil_lock);
+#define	V_pfil_lock	VNET(pfil_lock)
 
 /*
  * pfil_run_hooks() runs the specified packet filter hooks.
@@ -90,6 +92,60 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 	return (rv);
 }
 
+/*
+ * pfil_try_rlock() acquires rm reader lock for specified head
+ * if this is immediately possible,
+ */
+int
+pfil_try_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
+{
+	return PFIL_TRY_RLOCK(ph, tracker);
+}
+
+/*
+ * pfil_rlock() acquires rm reader lock for specified head.
+ */
+void
+pfil_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
+{
+	PFIL_RLOCK(ph, tracker);
+}
+
+/*
+ * pfil_runlock() releases reader lock for specified head.
+ */
+void
+pfil_runlock(struct pfil_head *ph, struct rm_priotracker *tracker)
+{
+	PFIL_RUNLOCK(ph, tracker);
+}
+
+/*
+ * pfil_wlock() acquires writer lock for specified head.
+ */
+void
+pfil_wlock(struct pfil_head *ph)
+{
+	PFIL_WLOCK(ph);
+}
+
+/*
+ * pfil_wunlock() releases writer lock for specified head.
+ */
+void
+pfil_wunlock(struct pfil_head *ph)
+{
+	PFIL_WUNLOCK(ph);
+}
+
+/*
+ * pfil_wowned() releases writer lock for specified head.
+ */
+int
+pfil_wowned(struct pfil_head *ph)
+{
+	return PFIL_WOWNED(ph);
+}
 /*
  * pfil_head_register() registers a pfil_head with the packet filter hook
  * mechanism.
@@ -295,6 +351,7 @@ vnet_pfil_init(const void *unused)
 {
 
 	LIST_INIT(&V_pfil_head_list);
+	PFIL_LOCK_INIT_REAL(&V_pfil_lock, "shared");
 	return (0);
 }
 
@@ -306,6 +363,7 @@ vnet_pfil_uninit(const void *unused)
 {
 
 	/*  XXX should panic if list is not empty */
+	PFIL_LOCK_DESTROY_REAL(&V_pfil_lock);
 	return (0);
 }
 

@@ -647,10 +647,8 @@ g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 		g_raid_tr_iostart_raid1_read(tr, bp);
 		break;
 	case BIO_WRITE:
-		g_raid_tr_iostart_raid1_write(tr, bp);
-		break;
 	case BIO_DELETE:
-		g_raid_iodone(bp, EIO);
+		g_raid_tr_iostart_raid1_write(tr, bp);
 		break;
 	case BIO_FLUSH:
 		g_raid_tr_flush_common(tr, bp);
@@ -896,7 +894,7 @@ rebuild_round_done:
 	if (pbp->bio_cmd != BIO_READ) {
 		if (pbp->bio_inbed == 1 || pbp->bio_error != 0)
 			pbp->bio_error = bp->bio_error;
-		if (bp->bio_error != 0) {
+		if (pbp->bio_cmd == BIO_WRITE && bp->bio_error != 0) {
 			G_RAID_LOGREQ(0, bp, "Write failed: failing subdisk.");
 			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 		}

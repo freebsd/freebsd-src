@@ -654,8 +654,8 @@ AcpiDmLoadDescendingOp (
 
         while (AcpiGbl_PreDefinedNames[PreDefineIndex].Name)
         {
-            if (!ACPI_STRNCMP (Node->Name.Ascii,
-                AcpiGbl_PreDefinedNames[PreDefineIndex].Name, 4))
+            if (ACPI_COMPARE_NAME (Node->Name.Ascii,
+                AcpiGbl_PreDefinedNames[PreDefineIndex].Name))
             {
                 PreDefined = TRUE;
                 break;
@@ -787,7 +787,7 @@ AcpiDmXrefDescendingOp (
     }
 
     /*
-     * Lookup the name in the namespace.  Name must exist at this point, or it
+     * Lookup the name in the namespace. Name must exist at this point, or it
      * is an invalid reference.
      *
      * The namespace is also used as a lookup table for references to resource
@@ -1018,5 +1018,3 @@ AcpiDmInspectPossibleArgs (
 
     return (Last);
 }
-
-

@@ -70,7 +70,11 @@ ENTRY(armv7_setttb)
 				
 	orr 	r0, r0, #PT_ATTR
  	mcr	p15, 0, r0, c2, c0, 0	/* Translation Table Base Register 0 (TTBR0) */
+#ifdef SMP
+ 	mcr     p15, 0, r0, c8, c3, 0   /* invalidate I+D TLBs Inner Shareable*/
+#else
  	mcr     p15, 0, r0, c8, c7, 0   /* invalidate I+D TLBs */
+#endif
  	dsb
  	isb
 	RET
@@ -78,11 +82,12 @@ ENTRY(armv7_setttb)
 ENTRY(armv7_tlb_flushID)
 	dsb
 #ifdef SMP
-	mcr 	p15, 0, r0, c8, c3, 0
+	mcr	p15, 0, r0, c8, c3, 0	/* flush I+D tlb */
+	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB */
 #else
 	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
-#endif
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
+#endif
 	dsb
 	isb
 	mov	pc, lr
@@ -91,11 +96,12 @@ ENTRY(armv7_tlb_flushID_SE)
 	ldr	r1, .Lpage_mask
 	bic	r0, r0, r1
 #ifdef SMP
-	mcr	p15, 0, r0, c8, c3, 1	/* flush D tlb single entry */
+	mcr	p15, 0, r0, c8, c3, 1	/* flush D tlb single entry Inner Shareable*/
+	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB Inner Shareable */
 #else
 	mcr	p15, 0, r0, c8, c7, 1	/* flush D tlb single entry */
-#endif
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
+#endif
 	dsb
 	isb
 	mov	pc, lr
@@ -155,7 +161,11 @@ Finished:
 ENTRY(armv7_idcache_wbinv_all)
 	stmdb	sp!, {lr}
 	bl armv7_dcache_wbinv_all
+#ifdef SMP
+	mcr	p15, 0, r0, c7, c1, 0	/* Invalidate all I caches to PoU (ICIALLUIS) */
+#else
 	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate all I caches to PoU (ICIALLU) */
+#endif
 	dsb
 	isb
 	ldmia	sp!, {lr}
@@ -251,7 +261,11 @@ ENTRY(armv7_context_switch)
 	orr     r0, r0, #PT_ATTR
 			
 	mcr	p15, 0, r0, c2, c0, 0	/* set the new TTB */
+#ifdef SMP
+	mcr	p15, 0, r0, c8, c3, 0	/* and flush the I+D tlbs Inner Sharable */
+#else
 	mcr	p15, 0, r0, c8, c7, 0	/* and flush the I+D tlbs */
+#endif
 	dsb
 	isb
 	RET

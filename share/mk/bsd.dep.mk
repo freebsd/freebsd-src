@@ -95,17 +95,16 @@ CLEANFILES+= ${_LC}
 SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
 CLEANFILES+= ${_YC}
 .if !empty(YFLAGS:M-d) && !empty(SRCS:My.tab.h)
-y.tab.h: ${_YSRC}
+.ORDER: ${_YC} y.tab.h
+${_YC} y.tab.h: ${_YSRC}
 	${YACC} ${YFLAGS} ${.ALLSRC}
-${_YC}: y.tab.h
 	cp y.tab.c ${_YC}
 CLEANFILES+= y.tab.c y.tab.h
 .elif !empty(YFLAGS:M-d)
 .for _YH in ${_YC:R}.h
-${_YH}: ${_YSRC}
+${_YH}: ${_YC}
+${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
-${_YC}: ${_YH}
-	@touch ${.TARGET}
 SRCS+=	${_YH}
 CLEANFILES+= ${_YH}
 .endfor

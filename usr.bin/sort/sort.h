@@ -54,7 +54,7 @@ extern const char *nlsstr[];
 
 #if defined(SORT_THREADS)
 #define MT_SORT_THRESHOLD (10000)
-extern size_t ncpu;
+extern unsigned int ncpu;
 extern size_t nthreads;
 #endif
 
@@ -77,7 +77,7 @@ extern MD5_CTX md5_ctx;
  */
 struct sort_opts
 {
-	wchar_t		field_sep;
+	wint_t		field_sep;
 	int		sort_method;
 	bool		cflag;
 	bool		csilentflag;

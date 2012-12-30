@@ -160,7 +160,7 @@ ACPI_EXPORT_SYMBOL (AcpiSubsystemStatus)
  * RETURN:      Status          - the status of the call
  *
  * DESCRIPTION: This function is called to get information about the current
- *              state of the ACPI subsystem.  It will return system information
+ *              state of the ACPI subsystem. It will return system information
  *              in the OutBuffer.
  *
  *              If the function fails an appropriate status will be returned
@@ -310,7 +310,7 @@ AcpiInstallInitializationHandler (
     }
 
     AcpiGbl_InitHandler = Handler;
-    return AE_OK;
+    return (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL (AcpiInstallInitializationHandler)
@@ -334,10 +334,12 @@ AcpiPurgeCachedObjects (
 {
     ACPI_FUNCTION_TRACE (AcpiPurgeCachedObjects);
 
+
     (void) AcpiOsPurgeCache (AcpiGbl_StateCache);
     (void) AcpiOsPurgeCache (AcpiGbl_OperandCache);
     (void) AcpiOsPurgeCache (AcpiGbl_PsNodeCache);
     (void) AcpiOsPurgeCache (AcpiGbl_PsNodeExtCache);
+
     return_ACPI_STATUS (AE_OK);
 }
 

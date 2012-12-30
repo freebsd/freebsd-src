@@ -153,6 +153,7 @@ struct g_raid_disk {
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
 	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
+	int			 d_candelete;	/* BIO_DELETE supported. */
 	uint64_t		 d_flags;	/* Additional flags. */
 	u_int			 d_state;	/* Disk state. */
 	u_int			 d_load;	/* Disk average load. */
@@ -418,6 +419,7 @@ struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
     const char *name, int id);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
 const char * g_raid_get_diskname(struct g_raid_disk *disk);
+void g_raid_get_disk_info(struct g_raid_disk *disk);
 
 int g_raid_start_volume(struct g_raid_volume *vol);
 

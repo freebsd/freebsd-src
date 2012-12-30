@@ -278,8 +278,13 @@ flush()
 						 */
 						if (p[-2] == '[')
 						{
+#if MSDOS_COMPILER==WIN32C
+							fg |= FOREGROUND_INTENSITY;
+							bg |= BACKGROUND_INTENSITY;
+#else
 							fg = bo_fg_color;
 							bg = bo_bg_color;
+#endif
 						} else
 							fg |= 8;
 					} else if (at & 2)

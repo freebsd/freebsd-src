@@ -266,14 +266,13 @@ static struct mtx nblock;
 /*
  * Definitions for the buffer free lists.
  */
-#define BUFFER_QUEUES	6	/* number of free buffer queues */
+#define BUFFER_QUEUES	5	/* number of free buffer queues */
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_CLEAN	1	/* non-B_DELWRI buffers */
 #define QUEUE_DIRTY	2	/* B_DELWRI buffers */
-#define QUEUE_DIRTY_GIANT 3	/* B_DELWRI buffers that need giant */
-#define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
-#define QUEUE_EMPTY	5	/* empty buffer headers */
+#define QUEUE_EMPTYKVA	3	/* empty buffer headers w/KVA assignment */
+#define QUEUE_EMPTY	4	/* empty buffer headers */
 #define QUEUE_SENTINEL	1024	/* not an queue index, but mark for sentinel */
 
 /* Queues for free buffers with various properties */
@@ -1461,10 +1460,7 @@ brelse(struct buf *bp)
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
 	/* remaining buffers */
 	} else {
-		if ((bp->b_flags & (B_DELWRI|B_NEEDSGIANT)) ==
-		    (B_DELWRI|B_NEEDSGIANT))
-			bp->b_qindex = QUEUE_DIRTY_GIANT;
-		else if (bp->b_flags & B_DELWRI)
+		if (bp->b_flags & B_DELWRI)
 			bp->b_qindex = QUEUE_DIRTY;
 		else
 			bp->b_qindex = QUEUE_CLEAN;
@@ -1561,10 +1557,7 @@ bqrelse(struct buf *bp)
 		panic("bqrelse: free buffer onto another queue???");
 	/* buffers with stale but valid contents */
 	if (bp->b_flags & B_DELWRI) {
-		if (bp->b_flags & B_NEEDSGIANT)
-			bp->b_qindex = QUEUE_DIRTY_GIANT;
-		else
-			bp->b_qindex = QUEUE_DIRTY;
+		bp->b_qindex = QUEUE_DIRTY;
 		TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
 	} else {
 		/*
@@ -2114,15 +2107,16 @@ restart:
 
 		if (maxsize != bp->b_kvasize) {
 			vm_offset_t addr = 0;
+			int rv;
 
 			bfreekva(bp);
 
 			vm_map_lock(buffer_map);
 			if (vm_map_findspace(buffer_map,
-				vm_map_min(buffer_map), maxsize, &addr)) {
+			    vm_map_min(buffer_map), maxsize, &addr)) {
 				/*
-				 * Uh oh.  Buffer map is to fragmented.  We
-				 * must defragment the map.
+				 * Buffer map is too fragmented.
+				 * We must defragment the map.
 				 */
 				atomic_add_int(&bufdefragcnt, 1);
 				vm_map_unlock(buffer_map);
@@ -2131,22 +2125,21 @@ restart:
 				brelse(bp);
 				goto restart;
 			}
-			if (addr) {
-				vm_map_insert(buffer_map, NULL, 0,
-					addr, addr + maxsize,
-					VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
-
-				bp->b_kvabase = (caddr_t) addr;
-				bp->b_kvasize = maxsize;
-				atomic_add_long(&bufspace, bp->b_kvasize);
-				atomic_add_int(&bufreusecnt, 1);
-			}
+			rv = vm_map_insert(buffer_map, NULL, 0, addr,
+			    addr + maxsize, VM_PROT_ALL, VM_PROT_ALL,
+			    MAP_NOFAULT);
+			KASSERT(rv == KERN_SUCCESS,
+			    ("vm_map_insert(buffer_map) rv %d", rv));
 			vm_map_unlock(buffer_map);
+			bp->b_kvabase = (caddr_t)addr;
+			bp->b_kvasize = maxsize;
+			atomic_add_long(&bufspace, bp->b_kvasize);
+			atomic_add_int(&bufreusecnt, 1);
 		}
 		bp->b_saveaddr = bp->b_kvabase;
 		bp->b_data = bp->b_saveaddr;
 	}
-	return(bp);
+	return (bp);
 }
 
 /*
@@ -2170,12 +2163,6 @@ buf_do_flush(struct vnode *vp)
 	int flushed;
 
 	flushed = flushbufqueues(vp, QUEUE_DIRTY, 0);
-	/* The list empty check here is slightly racy */
-	if (!TAILQ_EMPTY(&bufqueues[QUEUE_DIRTY_GIANT])) {
-		mtx_lock(&Giant);
-		flushed += flushbufqueues(vp, QUEUE_DIRTY_GIANT, 0);
-		mtx_unlock(&Giant);
-	}
 	if (flushed == 0) {
 		/*
 		 * Could not find any buffers without rollback
@@ -2183,12 +2170,6 @@ buf_do_flush(struct vnode *vp)
 		 * in the hopes of eventually making progress.
 		 */
 		flushbufqueues(vp, QUEUE_DIRTY, 1);
-		if (!TAILQ_EMPTY(
-			    &bufqueues[QUEUE_DIRTY_GIANT])) {
-			mtx_lock(&Giant);
-			flushbufqueues(vp, QUEUE_DIRTY_GIANT, 1);
-			mtx_unlock(&Giant);
-		}
 	}
 	return (flushed);
 }
@@ -2228,7 +2209,7 @@ buf_daemon()
 		while (numdirtybuffers > lodirtybuffers) {
 			if (buf_do_flush(NULL) == 0)
 				break;
-			kern_yield(PRI_UNCHANGED);
+			kern_yield(PRI_USER);
 		}
 		lodirtybuffers = lodirtysave;
 
@@ -2624,8 +2605,6 @@ loop:
          * If this check ever becomes a bottleneck it may be better to
          * move it into the else, when gbincore() fails.  At the moment
          * it isn't a problem.
-	 *
-	 * XXX remove if 0 sections (clean this up after its proven)
          */
 	if (numfreebuffers == 0) {
 		if (TD_IS_IDLETHREAD(curthread))

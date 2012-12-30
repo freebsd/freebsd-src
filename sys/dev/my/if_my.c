@@ -1085,13 +1085,13 @@ my_newbuf(struct my_softc * sc, struct my_chain_onefrag * c)
 	struct mbuf    *m_new = NULL;
 
 	MY_LOCK_ASSERT(sc);
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	MGETHDR(m_new, M_NOWAIT, MT_DATA);
 	if (m_new == NULL) {
 		device_printf(sc->my_dev,
 		    "no memory for rx list -- packet dropped!\n");
 		return (ENOBUFS);
 	}
-	MCLGET(m_new, M_DONTWAIT);
+	MCLGET(m_new, M_NOWAIT);
 	if (!(m_new->m_flags & M_EXT)) {
 		device_printf(sc->my_dev,
 		    "no memory for rx list -- packet dropped!\n");
@@ -1352,13 +1352,13 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 	 * chain.
 	 */
 	m = m_head;
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	MGETHDR(m_new, M_NOWAIT, MT_DATA);
 	if (m_new == NULL) {
 		device_printf(sc->my_dev, "no memory for tx list");
 		return (1);
 	}
 	if (m_head->m_pkthdr.len > MHLEN) {
-		MCLGET(m_new, M_DONTWAIT);
+		MCLGET(m_new, M_NOWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
 			device_printf(sc->my_dev, "no memory for tx list");

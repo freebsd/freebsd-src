@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions
@@ -341,7 +340,7 @@ AcpiExReleaseMutexObject (
 
     if (ObjDesc->Mutex.AcquisitionDepth == 0)
     {
-        return (AE_NOT_ACQUIRED);
+        return_ACPI_STATUS (AE_NOT_ACQUIRED);
     }
 
     /* Match multiple Acquires with multiple Releases */
@@ -515,7 +514,7 @@ AcpiExReleaseAllMutexes (
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
-    ACPI_FUNCTION_ENTRY ();
+    ACPI_FUNCTION_NAME (ExReleaseAllMutexes);
 
 
     /* Traverse the list of owned mutexes, releasing each one */
@@ -528,6 +527,9 @@ AcpiExReleaseAllMutexes (
         ObjDesc->Mutex.Prev = NULL;
         ObjDesc->Mutex.Next = NULL;
         ObjDesc->Mutex.AcquisitionDepth = 0;
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+            "Force-releasing held mutex: %p\n", ObjDesc));
 
         /* Release the mutex, special case for Global Lock */
 

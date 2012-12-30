@@ -96,10 +96,10 @@ enum mem_type {
 
 #endif
 
-#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
+#define	pmap_page_get_memattr(m)	((m)->md.pv_memattr)
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
-#define	pmap_page_set_memattr(m, ma)	(void)0
+void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 
 /*
  * Pmap stuff
@@ -119,6 +119,7 @@ struct	pv_entry;
 
 struct	md_page {
 	int pvh_attrs;
+	vm_memattr_t	 pv_memattr;
 	vm_offset_t pv_kva;		/* first kernel VA mapping */
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
@@ -550,7 +551,7 @@ void	pmap_pte_init_arm10(void);
 #endif /* CPU_ARM10 */
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
-#endif /* CPU_ARM11 */
+#endif /* (ARM_MMU_V6 + ARM_MMU_V7) != 0 */
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
 #if /* ARM_MMU_SA1 == */1

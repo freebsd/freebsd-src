@@ -69,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
-	libdisk \
 	libdwarf \
 	libedit \
 	${_libefi} \
@@ -90,6 +89,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmilter} \
 	${_libmp} \
 	${_libnandfs} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \
@@ -118,6 +118,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libwrap \
 	liby \
 	libz \
+	${_atf} \
 	${_bind} \
 	${_clang}
 
@@ -132,6 +133,10 @@ _csu=csu
 .endif
 
 # NB: keep these sorted by MK_* knobs
+
+.if ${MK_ATF} != "no"
+_atf=		atf
+.endif
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
@@ -198,6 +203,11 @@ _libefi=	libefi
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc"
 _libproc=	libproc
 _librtld_db=	librtld_db
 .endif

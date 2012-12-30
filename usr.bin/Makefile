@@ -12,6 +12,7 @@
 SUBDIR=	alias \
 	apply \
 	asa \
+	${_atf} \
 	awk \
 	banner \
 	basename \
@@ -145,6 +146,7 @@ SUBDIR=	alias \
 	sockstat \
 	sort \
 	split \
+	ssh-copy-id \
 	stat \
 	stdbuf \
 	su \
@@ -203,6 +205,10 @@ SUBDIR=	alias \
 
 .if ${MK_AT} != "no"
 SUBDIR+=	at
+.endif
+
+.if ${MK_ATF} != "no"
+_atf=		atf
 .endif
 
 .if ${MK_ATM} != "no"

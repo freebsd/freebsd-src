@@ -68,16 +68,16 @@ AcpiNsResolveReferences (
  * PARAMETERS:  Handle              - Object handle (optional)
  *              Pathname            - Object pathname (optional)
  *              ExternalParams      - List of parameters to pass to method,
- *                                    terminated by NULL.  May be NULL
+ *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
  *              ReturnBuffer        - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *                                    any). If NULL, no value is returned.
  *              ReturnType          - Expected type of return object
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
- *              parameters if necessary.  One of "Handle" or "Pathname" must
+ *              parameters if necessary. One of "Handle" or "Pathname" must
  *              be valid (non-null)
  *
  ******************************************************************************/
@@ -168,15 +168,15 @@ ACPI_EXPORT_SYMBOL (AcpiEvaluateObjectTyped)
  * PARAMETERS:  Handle              - Object handle (optional)
  *              Pathname            - Object pathname (optional)
  *              ExternalParams      - List of parameters to pass to method,
- *                                    terminated by NULL.  May be NULL
+ *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
  *              ReturnBuffer        - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *                                    any). If NULL, no value is returned.
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
- *              parameters if necessary.  One of "Handle" or "Pathname" must
+ *              parameters if necessary. One of "Handle" or "Pathname" must
  *              be valid (non-null)
  *
  ******************************************************************************/
@@ -537,7 +537,7 @@ AcpiWalkNamespace (
     Status = AcpiUtAcquireReadLock (&AcpiGbl_NamespaceRwLock);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     /*
@@ -591,8 +591,8 @@ AcpiNsGetDeviceCallback (
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
     UINT32                  Flags;
-    ACPI_DEVICE_ID          *Hid;
-    ACPI_DEVICE_ID_LIST     *Cid;
+    ACPI_PNP_DEVICE_ID      *Hid;
+    ACPI_PNP_DEVICE_ID_LIST *Cid;
     UINT32                  i;
     BOOLEAN                 Found;
     int                     NoMatch;
@@ -726,7 +726,7 @@ AcpiNsGetDeviceCallback (
  * DESCRIPTION: Performs a modified depth-first walk of the namespace tree,
  *              starting (and ending) at the object specified by StartHandle.
  *              The UserFunction is called whenever an object of type
- *              Device is found.  If the user function returns
+ *              Device is found. If the user function returns
  *              a non-zero value, the search is terminated immediately and this
  *              value is returned to the caller.
  *
@@ -956,5 +956,3 @@ UnlockAndExit:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiGetData)
-
-

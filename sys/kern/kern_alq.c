@@ -313,7 +313,6 @@ alq_doio(struct alq *alq)
 	struct iovec aiov[2];
 	int totlen;
 	int iov;
-	int vfslocked;
 	int wrapearly;
 
 	KASSERT((HAS_PENDING_DATA(alq)), ("%s: queue empty!", __func__));
@@ -365,7 +364,6 @@ alq_doio(struct alq *alq)
 	/*
 	 * Do all of the junk required to write now.
 	 */
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	/*
@@ -377,7 +375,6 @@ alq_doio(struct alq *alq)
 		VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, alq->aq_cred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	ALQ_LOCK(alq);
 	alq->aq_flags &= ~AQ_FLUSHING;
@@ -438,25 +435,22 @@ alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmod
 	struct alq *alq;
 	int oflags;
 	int error;
-	int vfslocked;
 
 	KASSERT((size > 0), ("%s: size <= 0", __func__));
 
 	*alqp = NULL;
 	td = curthread;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, file, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, file, td);
 	oflags = FWRITE | O_NOFOLLOW | O_CREAT;
 
 	error = vn_open_cred(&nd, &oflags, cmode, 0, cred, NULL);
 	if (error)
 		return (error);
 
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	/* We just unlock so we hold a reference */
 	VOP_UNLOCK(nd.ni_vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	alq = malloc(sizeof(*alq), M_ALD, M_WAITOK|M_ZERO);
 	alq->aq_vp = nd.ni_vp;

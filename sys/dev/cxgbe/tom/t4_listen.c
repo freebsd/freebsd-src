@@ -282,8 +282,8 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 
 	INP_WLOCK_ASSERT(synqe->lctx->inp);
 
-	CTR4(KTR_CXGBE, "%s: synqe %p, tid %d%s",
-	    __func__, synqe, synqe->tid,
+	CTR5(KTR_CXGBE, "%s: synqe %p (0x%x), tid %d%s",
+	    __func__, synqe, synqe->flags, synqe->tid,
 	    synqe->flags & TPF_ABORT_SHUTDOWN ?
 	    " (abort already in progress)" : "");
 	if (synqe->flags & TPF_ABORT_SHUTDOWN)
@@ -501,8 +501,10 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 	 * socket's so_comp.  It doesn't know about the connections on the synq
 	 * so we need to take care of those.
 	 */
-	TAILQ_FOREACH(synqe, &lctx->synq, link)
-		send_reset_synqe(tod, synqe);
+	TAILQ_FOREACH(synqe, &lctx->synq, link) {
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE)
+			send_reset_synqe(tod, synqe);
+	}
 
 	destroy_server(sc, lctx);
 	return (0);
@@ -559,8 +561,10 @@ t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 	struct tcphdr *th = (void *)(ip + 1);
 
 	wr = (struct wrqe *)atomic_readandclear_ptr(&synqe->wr);
-	if (wr == NULL)
+	if (wr == NULL) {
+		m_freem(m);
 		return (EALREADY);
+	}
 
 	bzero(&to, sizeof(to));
 	tcp_dooptions(&to, (void *)(th + 1), (th->th_off << 2) - sizeof(*th),
@@ -1129,8 +1133,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	synqe->lctx = lctx;
 	synqe->syn = m;
 	m = NULL;
-	refcount_init(&synqe->refcnt, 1); /* 1 so that it is held for the
-					     duration of this function */
+	refcount_init(&synqe->refcnt, 0);
 	synqe->l2e_idx = e->idx;
 	synqe->rcv_bufsize = rx_credits;
 	atomic_store_rel_ptr(&synqe->wr, (uintptr_t)wr);
@@ -1153,62 +1156,52 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	 * If we replied during syncache_add (synqe->wr has been consumed),
 	 * good.  Otherwise, set it to 0 so that further syncache_respond
 	 * attempts by the kernel will be ignored.
-	 *
-	 * The extra hold on the synqe makes sure that it is still around, even
-	 * if the listener has been dropped and the synqe was aborted and the
-	 * reply to the abort has removed and released the synqe from the synq
-	 * list.
 	 */
 	if (atomic_cmpset_ptr(&synqe->wr, (uintptr_t)wr, 0)) {
-
-		INP_WLOCK(inp);
-		if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-			/* listener closed.  synqe must have been aborted. */
-			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
-			    ("%s: listener %p closed but synqe %p not aborted",
-			    __func__, inp, synqe));
-
-			CTR5(KTR_CXGBE,
-			    "%s: stid %u, tid %u, lctx %p, synqe %p, ABORTED",
-			    __func__, stid, tid, lctx, synqe);
-			INP_WUNLOCK(inp);
-			free(wr, M_CXGBE);
-			release_synqe(synqe);	/* about to exit function */
-			return (__LINE__);
-		}
-
-		/*
-		 * synqe aborted before TOM replied to PASS_ACCEPT_REQ.  But
-		 * that can only happen if the listener was closed and we just
-		 * checked for that.
-		 */
-		KASSERT(!(synqe->flags & TPF_ABORT_SHUTDOWN),
-		    ("%s: synqe %p aborted, but listener %p not dropped.",
-		    __func__, synqe, inp));
-
-		/* Yank the synqe out of the lctx synq. */
-		TAILQ_REMOVE(&lctx->synq, synqe, link);
-		release_synqe(synqe);	/* removed from synq list */
-		inp = release_lctx(sc, lctx);
-		if (inp)
-			INP_WUNLOCK(inp);
 
 		/*
 		 * syncache may or may not have a hold on the synqe, which may
 		 * or may not be stashed in the original SYN mbuf passed to us.
 		 * Just copy it over instead of dealing with all possibilities.
 		 */
-		m = m_dup(synqe->syn, M_DONTWAIT);
+		m = m_dup(synqe->syn, M_NOWAIT);
 		if (m)
 			m->m_pkthdr.rcvif = ifp;
 
-		release_synqe(synqe);	/* about to exit function */
+		remove_tid(sc, synqe->tid);
 		free(wr, M_CXGBE);
+
+		/* Yank the synqe out of the lctx synq. */
+		INP_WLOCK(inp);
+		TAILQ_REMOVE(&lctx->synq, synqe, link);
+		release_synqe(synqe);	/* removed from synq list */
+		inp = release_lctx(sc, lctx);
+		if (inp)
+			INP_WUNLOCK(inp);
+
 		REJECT_PASS_ACCEPT();
 	}
-	release_synqe(synqe);	/* about to exit function */
+
 	CTR5(KTR_CXGBE, "%s: stid %u, tid %u, lctx %p, synqe %p, SYNACK",
 	    __func__, stid, tid, lctx, synqe);
+
+	INP_WLOCK(inp);
+	synqe->flags |= TPF_SYNQE_HAS_L2TE;
+	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
+		/*
+		 * Listening socket closed but tod_listen_stop did not abort
+		 * this tid because there was no L2T entry for the tid at that
+		 * time.  Abort it now.  The reply to the abort will clean up.
+		 */
+		CTR5(KTR_CXGBE, "%s: stid %u, tid %u, lctx %p, synqe %p, ABORT",
+		    __func__, stid, tid, lctx, synqe);
+		send_reset_synqe(tod, synqe);
+		INP_WUNLOCK(inp);
+
+		return (__LINE__);
+	}
+	INP_WUNLOCK(inp);
+
 	return (0);
 reject:
 	CTR4(KTR_CXGBE, "%s: stid %u, tid %u, REJECT (%d)", __func__, stid, tid,
@@ -1290,15 +1283,12 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	    __func__, stid, tid, synqe, synqe->flags, inp->inp_flags);
 
 	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-		/*
-		 * The listening socket has closed.  The TOM must have aborted
-		 * all the embryonic connections (including this one) that were
-		 * on the lctx's synq.  do_abort_rpl for the tid is responsible
-		 * for cleaning up.
-		 */
-		KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
-		    ("%s: listen socket dropped but tid %u not aborted.",
-		    __func__, tid));
+
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
+			    ("%s: listen socket closed but tid %u not aborted.",
+			    __func__, tid));
+		}
 
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1318,7 +1308,12 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	toep = alloc_toepcb(pi, txqid, rxqid, M_NOWAIT);
 	if (toep == NULL) {
 reset:
-		/* The reply to this abort will perform final cleanup */
+		/*
+		 * The reply to this abort will perform final cleanup.  There is
+		 * no need to check for HAS_L2TE here.  We can be here only if
+		 * we responded to the PASS_ACCEPT_REQ, and our response had the
+		 * L2T idx.
+		 */
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);

@@ -87,7 +87,7 @@ ahci_em_attach(device_t dev)
 	if (!(enc->r_memc = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE)))
 		return (ENXIO);
-	enc->capsem = ATA_INL(enc->r_memc, 0);;
+	enc->capsem = ATA_INL(enc->r_memc, 0);
 	rid = 1;
 	if (!(enc->r_memt = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE))) {
@@ -399,10 +399,11 @@ ahci_em_emulate_ses_on_led(device_t dev, union ccb *ccb)
 	    ccb->ataio.cmd.sector_count >= 2) {
 		bzero(buf, ccb->ataio.dxfer_len);
 		page->hdr.page_code = 0;
-		scsi_ulto2b(3, page->hdr.length);
+		scsi_ulto2b(4, page->hdr.length);
 		buf[4] = 0;
 		buf[5] = 1;
 		buf[6] = 2;
+		buf[7] = 7;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		goto out;
 	}

@@ -1346,7 +1346,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, IPOIB_HEADER_LEN, M_DONTWAIT);
+	M_PREPEND(m, IPOIB_HEADER_LEN, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto bad;

@@ -1113,7 +1113,8 @@ class _LIBCPP_VISIBLE function<_Rp(_ArgTypes...)>
         _LIBCPP_INLINE_VISIBILITY
         static bool __not_null(const function<_Rp(_Ap...)>& __p) {return __p;}
 
-    template <class _Fp, bool = __invokable<_Fp&, _ArgTypes...>::value>
+    template <class _Fp, bool = !is_same<_Fp, function>::value &&
+                                __invokable<_Fp&, _ArgTypes...>::value>
         struct __callable;
     template <class _Fp>
         struct __callable<_Fp, true>
@@ -1350,6 +1351,7 @@ function<_Rp(_ArgTypes...)>::operator=(function&& __f) _NOEXCEPT
         __f_ = __f.__f_;
         __f.__f_ = 0;
     }
+    return *this;
 }
 
 template<class _Rp, class ..._ArgTypes>
@@ -1361,6 +1363,7 @@ function<_Rp(_ArgTypes...)>::operator=(nullptr_t) _NOEXCEPT
     else if (__f_)
         __f_->destroy_deallocate();
     __f_ = 0;
+    return *this;
 }
 
 template<class _Rp, class ..._ArgTypes>
@@ -1707,7 +1710,11 @@ public:
 
 #endif  // _LIBCPP_HAS_NO_DEFAULTED_FUNCTIONS
 
-    template <class _Gp, class ..._BA>
+    template <class _Gp, class ..._BA,
+              class = typename enable_if
+                               <
+                                  is_constructible<_Fd, _Gp>::value
+                               >::type>
       _LIBCPP_INLINE_VISIBILITY
       explicit __bind(_Gp&& __f, _BA&& ...__bound_args)
         : __f_(_VSTD::forward<_Gp>(__f)),

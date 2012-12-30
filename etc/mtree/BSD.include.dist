@@ -9,6 +9,10 @@
     ..
     arpa
     ..
+    atf-c
+    ..
+    atf-c++
+    ..
     bsm
     ..
     bsnmp
