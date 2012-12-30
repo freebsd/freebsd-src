@@ -3202,6 +3202,7 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 	int s, f, pcifunchigh;
 	uint8_t hdrtype;
 
+	printf("pci_add_children\n");
 	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
 	    ("dinfo_size too small"));
 	maxslots = PCIB_MAXSLOTS(pcib);
@@ -3228,6 +3229,7 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 void
 pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 {
+	printf("pci_add_child\n");
 	dinfo->cfg.dev = device_add_child(bus, NULL, -1);
 	device_set_ivars(dinfo->cfg.dev, dinfo);
 	resource_list_init(&dinfo->resources);
@@ -3279,6 +3281,9 @@ pci_attach_common(device_t dev)
 	if (!tag_valid)
 #endif
 		sc->sc_dma_tag = bus_get_dma_tag(dev);
+
+	pci_hotplug_init(dev);
+
 	return (0);
 }
 

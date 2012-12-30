@@ -126,4 +126,6 @@ void		pci_cfg_restore(device_t, struct pci_devinfo *);
  */
 void		pci_cfg_save(device_t, struct pci_devinfo *, int);
 
+void		pci_hotplug_init(device_t dev);
+
 #endif /* _PCI_PRIVATE_H_ */
