@@ -161,8 +161,6 @@ SYSINIT(busdma_kmem, SI_SUB_KMEM, SI_ORDER_ANY, busdma_init, NULL);
 
 /* Section 3.2: Debugging & tracing. */
 
-#define	BUSDMA_DEBUG	1
-
 static void
 _busdma_mtag_dump(const char *func, device_t dev, struct busdma_mtag *mtag)
 {
@@ -544,6 +542,15 @@ busdma_tag_destroy(struct busdma_tag *tag)
 	return (0);
 }
 
+bus_addr_t
+busdma_tag_get_maxaddr(struct busdma_tag *tag)
+{
+
+	CTR2(KTR_BUSDMA, "%s: tag=%p", __func__, tag);
+
+	return ((tag != NULL) ? tag->dt_maxaddr : 0UL);
+}
+
 int
 busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 {
@@ -630,6 +637,15 @@ busdma_md_get_size(struct busdma_md *md, u_int idx)
 	size = (seg != NULL) ? seg->mds_size : 0UL;
 	KASSERT(size != 0UL, ("%s: invalid size", __func__));
 	return (size);
+}
+
+struct busdma_tag *
+busdma_md_get_tag(struct busdma_md *md)
+{
+
+	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
+
+	return ((md != NULL) ? md->md_tag : NULL);
 }
 
 vm_offset_t

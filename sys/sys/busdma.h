@@ -92,6 +92,8 @@ int busdma_tag_derive(busdma_tag_t tag, bus_addr_t align, bus_addr_t bndry,
  */
 int busdma_tag_destroy(busdma_tag_t tag);
 
+bus_addr_t busdma_tag_get_maxaddr(busdma_tag_t tag);
+
 /*
  *
  */
@@ -112,6 +114,7 @@ int busdma_md_load_uio(busdma_md_t md, struct uio *uio,
     busdma_callback_f cb, void *arg, u_int flags);
 int busdma_md_unload(busdma_md_t md);
 u_int busdma_md_get_nsegs(busdma_md_t md);
+busdma_tag_t busdma_md_get_tag(busdma_md_t md);
 bus_addr_t busdma_md_get_busaddr(busdma_md_t md, u_int idx);
 vm_paddr_t busdma_md_get_paddr(busdma_md_t md, u_int idx);
 vm_offset_t busdma_md_get_vaddr(busdma_md_t md, u_int idx);
