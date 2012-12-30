@@ -1,5 +1,5 @@
 /*
- *  $Id: arrows.c,v 1.41 2011/10/20 23:37:17 tom Exp $
+ *  $Id: arrows.c,v 1.36 2011/06/27 09:13:56 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
@@ -79,9 +79,9 @@ dlg_draw_helpline(WINDOW *win, bool decorations)
 	const int *cols = dlg_index_columns(dialog_vars.help_line);
 	int other = decorations ? (ON_LEFT + ON_RIGHT) : 0;
 	int avail = (getmaxx(win) - other - 2);
-	int limit = dlg_count_real_columns(dialog_vars.help_line) + 2;
+	int limit = dlg_limit_columns(dialog_vars.help_line, avail, 0);
 
-	if (limit < avail) {
+	if (limit > 0) {
 	    getyx(win, cur_y, cur_x);
 	    other = decorations ? ON_LEFT : 0;
 	    (void) wmove(win, bottom, other + (avail - limit) / 2);
@@ -107,14 +107,13 @@ dlg_draw_arrows2(WINDOW *win,
     int cur_x, cur_y;
     int limit_x = getmaxx(win);
     bool draw_top = TRUE;
-    bool is_toplevel = (wgetparent(win) == stdscr);
 
     getyx(win, cur_y, cur_x);
 
     /*
      * If we're drawing a centered title, do not overwrite with the arrows.
      */
-    if (dialog_vars.title && is_toplevel && (top - getbegy(win)) < MARGIN) {
+    if (dialog_vars.title) {
 	int have = (limit_x - dlg_count_columns(dialog_vars.title)) / 2;
 	int need = x + 5;
 	if (need > have)
@@ -124,11 +123,11 @@ dlg_draw_arrows2(WINDOW *win,
     if (draw_top) {
 	(void) wmove(win, top, x);
 	if (top_arrow) {
-	    (void) wattrset(win, merge_colors(uarrow_attr, attr));
+	    wattrset(win, merge_colors(uarrow_attr, attr));
 	    (void) add_acs(win, ACS_UARROW);
 	    (void) waddstr(win, "(-)");
 	} else {
-	    (void) wattrset(win, attr);
+	    wattrset(win, attr);
 	    (void) whline(win, dlg_boxchar(ACS_HLINE), ON_LEFT);
 	}
     }
@@ -136,11 +135,11 @@ dlg_draw_arrows2(WINDOW *win,
 
     (void) wmove(win, bottom, x);
     if (bottom_arrow) {
-	(void) wattrset(win, merge_colors(darrow_attr, attr));
+	wattrset(win, merge_colors(darrow_attr, attr));
 	(void) add_acs(win, ACS_DARROW);
 	(void) waddstr(win, "(+)");
     } else {
-	(void) wattrset(win, borderattr);
+	wattrset(win, borderattr);
 	(void) whline(win, dlg_boxchar(ACS_HLINE), ON_LEFT);
     }
     mouse_mkbutton(bottom, x - 1, 6, KEY_NPAGE);
@@ -148,7 +147,7 @@ dlg_draw_arrows2(WINDOW *win,
     (void) wmove(win, cur_y, cur_x);
     wrefresh(win);
 
-    (void) wattrset(win, save);
+    wattrset(win, save);
 }
 
 void
@@ -167,13 +166,14 @@ dlg_draw_scrollbar(WINDOW *win,
     char buffer[80];
     int percent;
     int len;
-    int oldy, oldx;
+    int oldy, oldx, maxy, maxx;
 
     chtype save = dlg_get_attrs(win);
     int top_arrow = (first_data != 0);
     int bottom_arrow = (next_data < total_data);
 
     getyx(win, oldy, oldx);
+    getmaxyx(win, maxy, maxx);
 
     dlg_draw_helpline(win, TRUE);
     if (bottom_arrow || top_arrow || dialog_state.use_scrollbar) {
@@ -187,12 +187,12 @@ dlg_draw_scrollbar(WINDOW *win,
 	else if (percent > 100)
 	    percent = 100;
 
-	(void) wattrset(win, position_indicator_attr);
+	wattrset(win, position_indicator_attr);
 	(void) sprintf(buffer, "%d%%", percent);
 	(void) wmove(win, bottom, right - 7);
 	(void) waddstr(win, buffer);
 	if ((len = dlg_count_columns(buffer)) < 4) {
-	    (void) wattrset(win, border_attr);
+	    wattrset(win, border_attr);
 	    whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
 	}
     }
@@ -212,7 +212,7 @@ dlg_draw_scrollbar(WINDOW *win,
 	    if (bar_high < all_high) {
 		wmove(win, top + 1, right);
 
-		(void) wattrset(win, save);
+		wattrset(win, save);
 		wvline(win, ACS_VLINE | A_REVERSE, all_high);
 
 		bar_y = BARSIZE(this_data);
@@ -221,7 +221,7 @@ dlg_draw_scrollbar(WINDOW *win,
 
 		wmove(win, top + 1 + bar_y, right);
 
-		(void) wattrset(win, position_indicator_attr);
+		wattrset(win, position_indicator_attr);
 		wattron(win, A_REVERSE);
 		wvline(win, ACS_BLOCK, bar_high);
 	    }
@@ -236,7 +236,7 @@ dlg_draw_scrollbar(WINDOW *win,
 		     attr,
 		     borderattr);
 
-    (void) wattrset(win, save);
+    wattrset(win, save);
     wmove(win, oldy, oldx);
 }
 
@@ -255,6 +255,6 @@ dlg_draw_arrows(WINDOW *win,
 		     x,
 		     top,
 		     bottom,
-		     menubox_border2_attr,
+		     menubox_attr,
 		     menubox_border_attr);
 }

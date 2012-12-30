@@ -1,9 +1,9 @@
 /*
- *  $Id: fselect.c,v 1.87 2012/07/01 18:14:09 Zoltan.Kelemen Exp $
+ *  $Id: fselect.c,v 1.78 2011/06/29 09:48:21 tom Exp $
  *
  *  fselect.c -- implements the file-selector box
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -230,11 +230,11 @@ display_list(LIST * list)
 		break;
 	    (void) wmove(list->win, y, 0);
 	    if (n == list->choice)
-		(void) wattrset(list->win, item_selected_attr);
+		wattrset(list->win, item_selected_attr);
 	    (void) waddstr(list->win, list->data[n]);
-	    (void) wattrset(list->win, item_attr);
+	    wattrset(list->win, item_attr);
 	}
-	(void) wattrset(list->win, item_attr);
+	wattrset(list->win, item_attr);
 
 	getparyx(list->win, y, x);
 
@@ -249,7 +249,7 @@ display_list(LIST * list)
 			   x + getmaxx(list->win),
 			   top,
 			   bottom,
-			   menubox_border2_attr,
+			   menubox_attr,
 			   menubox_border_attr);
 
 	(void) wmove(list->win, list->choice - list->offset, 0);
@@ -270,20 +270,18 @@ fix_arrows(LIST * list)
     int x;
     int y;
     int top;
-    int right;
     int bottom;
 
     if (list->win != 0) {
 	getparyx(list->win, y, x);
 	top = y - 1;
-	right = getmaxx(list->win);
 	bottom = y + getmaxy(list->win);
 
-	mouse_mkbutton(top, x, right,
+	mouse_mkbutton(top, x, 6,
 		       ((list->mousex == MOUSE_D)
 			? KEY_PREVIOUS
 			: KEY_PPAGE));
-	mouse_mkbutton(bottom, x, right,
+	mouse_mkbutton(bottom, x, 6,
 		       ((list->mousex == MOUSE_D)
 			? KEY_NEXT
 			: KEY_NPAGE));
@@ -431,8 +429,6 @@ complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
 static bool
 fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, int keep)
 {
-    bool result = TRUE;
-    bool rescan = FALSE;
     DIR *dp;
     DIRENT *de;
     struct stat sb;
@@ -445,60 +441,51 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, int keep)
 	if (current[n] != input[n])
 	    break;
     }
+    if (current[n] == input[n])
+	return FALSE;
+    if (strchr(current + n, '/') == 0
+	&& strchr(input + n, '/') == 0) {
+	return show_both_lists(input, d_list, f_list, keep);
+    }
 
-    if (current[n] == input[n]) {
-	result = FALSE;
-	rescan = (n == 0 && d_list->length == 0);
-    } else if (strchr(current + n, '/') == 0
-	       && strchr(input + n, '/') == 0) {
-	result = show_both_lists(input, d_list, f_list, keep);
+    strcpy(current, input);
+
+    /* refill the lists */
+    free_list(d_list, TRUE);
+    free_list(f_list, TRUE);
+    strcpy(path, current);
+    if ((leaf = strrchr(path, '/')) != 0) {
+	*++leaf = 0;
     } else {
-	rescan = TRUE;
+	strcpy(path, "./");
+	leaf = path + strlen(path);
     }
-
-    if (rescan) {
-
-	strcpy(current, input);
-
-	/* refill the lists */
-	free_list(d_list, TRUE);
-	free_list(f_list, TRUE);
-	strcpy(path, current);
-	if ((leaf = strrchr(path, '/')) != 0) {
-	    *++leaf = 0;
-	} else {
-	    strcpy(path, "./");
-	    leaf = path + strlen(path);
-	}
-	dlg_trace_msg("opendir '%s'\n", path);
-	if ((dp = opendir(path)) != 0) {
-	    while ((de = readdir(dp)) != 0) {
-		strncpy(leaf, de->d_name, NAMLEN(de))[NAMLEN(de)] = 0;
-		if (stat(path, &sb) == 0) {
-		    if ((sb.st_mode & S_IFMT) == S_IFDIR)
-			add_to_list(d_list, leaf);
-		    else if (f_list->win)
-			add_to_list(f_list, leaf);
-		}
+    if ((dp = opendir(path)) != 0) {
+	while ((de = readdir(dp)) != 0) {
+	    strncpy(leaf, de->d_name, NAMLEN(de))[NAMLEN(de)] = 0;
+	    if (stat(path, &sb) == 0) {
+		if ((sb.st_mode & S_IFMT) == S_IFDIR)
+		    add_to_list(d_list, leaf);
+		else if (f_list->win)
+		    add_to_list(f_list, leaf);
 	    }
-	    (void) closedir(dp);
-	    /* sort the lists */
-	    qsort(d_list->data,
-		  (size_t) d_list->length,
-		  sizeof(d_list->data[0]),
-		  compar);
-	    qsort(f_list->data,
-		  (size_t) f_list->length,
-		  sizeof(f_list->data[0]),
-		  compar);
 	}
-
-	(void) show_both_lists(input, d_list, f_list, FALSE);
-	d_list->offset = d_list->choice;
-	f_list->offset = f_list->choice;
-	result = TRUE;
+	(void) closedir(dp);
+	/* sort the lists */
+	qsort(d_list->data,
+	      (size_t) d_list->length,
+	      sizeof(d_list->data[0]),
+	      compar);
+	qsort(f_list->data,
+	      (size_t) f_list->length,
+	      sizeof(f_list->data[0]),
+	      compar);
     }
-    return result;
+
+    (void) show_both_lists(input, d_list, f_list, FALSE);
+    d_list->offset = d_list->choice;
+    f_list->offset = f_list->choice;
+    return TRUE;
 }
 
 static bool
@@ -573,10 +560,9 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     int fkey = FALSE;
     int code;
     int result = DLG_EXIT_UNKNOWN;
-    int state = dialog_vars.default_button >=0 ? dlg_default_button() : sTEXT;
-    int button;
+    int state = dialog_vars.defaultno ? dlg_defaultno_button() : sTEXT;
+    int button = state;
     int first = (state == sTEXT);
-    int first_trace = TRUE;
     char *input;
     char *completed;
     char current[MAX_LEN + 1];
@@ -618,11 +604,11 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 
     dlg_mouse_setbase(0, 0);
 
-    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
-    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
+    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
+    dlg_draw_bottom_box(dialog);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    wattrset(dialog, dialog_attr);
 
     /* Draw the input field box */
     tbox_height = 1;
@@ -637,14 +623,14 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     (void) keypad(w_text, TRUE);
     dlg_draw_box(dialog, tbox_y - MARGIN, tbox_x - MARGIN,
 		 (2 * MARGIN + 1), tbox_width + (MARGIN + EXT_WIDE),
-		 menubox_border_attr, menubox_border2_attr);
+		 menubox_border_attr, menubox_attr);
     dlg_mouse_mkbigregion(getbegy(dialog) + tbox_y - MARGIN,
 			  getbegx(dialog) + tbox_x - MARGIN,
 			  1 + (2 * MARGIN),
 			  tbox_width + (MARGIN + EXT_WIDE),
 			  MOUSE_T, 1, 1, 3 /* doesn't matter */ );
 
-    dlg_register_window(w_text, "fselect2", binding2);
+    dlg_register_window(w_text, "fselect", binding2);
 
     /* Draw the directory listing box */
     if (dselect)
@@ -660,11 +646,11 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	return DLG_EXIT_ERROR;
 
     (void) keypad(w_work, TRUE);
-    (void) mvwaddstr(dialog, dbox_y - (MARGIN + 1), dbox_x - MARGIN, d_label);
+    (void) mvwprintw(dialog, dbox_y - (MARGIN + 1), dbox_x - MARGIN, d_label);
     dlg_draw_box(dialog,
 		 dbox_y - MARGIN, dbox_x - MARGIN,
 		 dbox_height + (MARGIN + 1), dbox_width + (MARGIN + 1),
-		 menubox_border_attr, menubox_border2_attr);
+		 menubox_border_attr, menubox_attr);
     init_list(&d_list, dialog, w_work, MOUSE_D);
 
     if (!dselect) {
@@ -679,11 +665,11 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	    return DLG_EXIT_ERROR;
 
 	(void) keypad(w_work, TRUE);
-	(void) mvwaddstr(dialog, fbox_y - (MARGIN + 1), fbox_x - MARGIN, f_label);
+	(void) mvwprintw(dialog, fbox_y - (MARGIN + 1), fbox_x - MARGIN, f_label);
 	dlg_draw_box(dialog,
 		     fbox_y - MARGIN, fbox_x - MARGIN,
 		     fbox_height + (MARGIN + 1), fbox_width + (MARGIN + 1),
-		     menubox_border_attr, menubox_border2_attr);
+		     menubox_border_attr, menubox_attr);
 	init_list(&f_list, dialog, w_work, MOUSE_F);
     } else {
 	memset(&f_list, 0, sizeof(f_list));
@@ -710,12 +696,6 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	    button = (state < 0) ? 0 : state;
 	    dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
 	}
-
-	if (first_trace) {
-	    first_trace = FALSE;
-	    dlg_trace_win(dialog);
-	}
-
 	if (state < 0) {
 	    switch (state) {
 	    case sTEXT:

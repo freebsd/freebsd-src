@@ -1,5 +1,5 @@
 /*
- *  $Id: ui_getc.c,v 1.65 2011/10/20 23:45:48 tom Exp $
+ *  $Id: ui_getc.c,v 1.63 2011/07/07 22:05:58 tom Exp $
  *
  *  ui_getc.c - user interface glue for getc()
  *
@@ -294,7 +294,8 @@ valid_file(FILE *fp)
     int fd = fileno(fp);
 
     if (fd >= 0) {
-	if (fcntl(fd, F_GETFL, 0) >= 0) {
+	long result = 0;
+	if ((result = fcntl(fd, F_GETFL, 0)) >= 0) {
 	    code = TRUE;
 	}
     }
@@ -529,7 +530,6 @@ dlg_getc(WINDOW *win, int *fkey)
 	if (handle_others) {
 	    if ((p = dialog_state.getc_redirect) != 0) {
 		if (!(p->handle_getc(p, ch, *fkey, &result))) {
-		    done = (p->win == save_win) && (!p->keep_win);
 		    dlg_remove_callback(p);
 		    dialog_state.getc_redirect = 0;
 		    win = save_win;
