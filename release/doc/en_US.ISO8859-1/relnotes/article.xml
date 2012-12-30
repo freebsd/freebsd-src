@@ -1031,16 +1031,24 @@
 	improved.  It now works 10 times faster especially under the
 	condition that a mutex is heavily contested.</para>
 
-      <para revision="235798"><application>libcxxrt</application> and
-	<application>libc++</application> C++ runtime libraries from
-	PathScale have been imported.  This implementation is a full
-	replacement for the GNU <application>libsupc++</application>
-	library for platforms that use the Itanium C++ ABI, including
-	i386 and amd64, and will replace portions of the C++ stack
-	previously only available under the GPL.  It provides
-	implementations of the dynamic features of C++, including
-	dynamic casting, exception handling, and thread-safe static
-	initializers.</para>
+      <para revision="235798">A new C++ stack has been imported.  This
+	consists of <application>libcxxrt</application>, originally
+	developed by a &os; developer under contract by PathScale and
+	open sourced by the &os; and NetBSD foundations, and
+	<application>libc++</application> from the LLVM project.
+	<application>libcxxrt</application> is a drop-in replacement
+	for GNU <application>libsupc++</application>, which implements
+	the C++ runtime support for features such as run-time type
+	information, dynamic casting, thread-safe static initializer,
+	and exceptions.  <application>libc++</application> implements
+	the C++11 standard library, and will replace GNU
+	<application>libstdc++</application> in a future release.  In
+	9.1-RELEASE, <application>libstdc++</application> is still
+	installed as standard and now dynamically links against
+	<application>libsupc++</application>.  This allows libraries
+	linking <application>libstdc++</application> and
+	<application>libc++</application> to both be used in the same
+	program, to aid migration.</para>
 
       <para revision="230919">The &man.limits.1; utility now supports
 	a <option>-P <replaceable>pid</replaceable></option> option to
@@ -1096,9 +1104,13 @@
 	implemented.  This consists of <literal>_l</literal>-suffixed
 	versions of various standard library functions that use the
 	global locale, making them take an explicit locale parameter
-	and allowing thread-safe extended locale support.  This is
-	from Apple Darwin, and mainly for use by
-	<application>libc++</application>.</para>
+	and allowing thread-safe extended locale support.  Most of
+	these APIs are required for IEEE Std 1003.1-2008 (POSIX.1-2008
+	or ISO/IEC 9945:2009) compatibility, and are required by
+	<application>libc++</application> and recent versions of
+	<application>GNOME</application>.  This implementation also
+	supports several extensions for compatibility with Apple
+	<application>Darwin</application>.</para>
 
       <sect3 id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
