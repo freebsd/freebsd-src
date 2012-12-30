@@ -506,12 +506,22 @@ sgisn_pcib_iommu_xlate(device_t dev, busdma_mtag_t mtag)
 static int
 sgisn_pcib_iommu_map(device_t dev, busdma_md_t md, u_int idx, bus_addr_t *ba_p)
 {
-	bus_addr_t bndry = 0x80000000UL;
+	struct sgisn_pcib_softc *sc = device_get_softc(dev);
+	busdma_tag_t tag;
+	bus_addr_t maxaddr = 0x80000000UL;
 	bus_addr_t ba;
 
 	ba = *ba_p;
-	if (ba < bndry) {
-		ba |= bndry;
+	if (ba < maxaddr) {
+		ba |= maxaddr;
+		*ba_p = ba;
+		return (0);
+	}
+
+	tag = busdma_md_get_tag(md);
+	maxaddr = busdma_tag_get_maxaddr(tag);
+	if (maxaddr == ~0UL) {
+		ba |= ((u_long)sc->sc_fwbus->fw_hub_xid << 60) | (1UL << 59);
 		*ba_p = ba;
 		return (0);
 	}
