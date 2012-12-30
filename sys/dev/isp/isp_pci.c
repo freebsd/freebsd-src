@@ -1451,6 +1451,10 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
 	bus_addr_t hlim;	/* high limit of unavailable dma */
+	isp_ecmd_t *ecmd;
+	uintptr_t vaddr;
+	bus_addr_t busaddr;
+	size_t size;
 
 	/*
 	 * Already been here? If so, leave...
@@ -1590,15 +1594,45 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		return (error);
 	}
 
-	isp->isp_rquest = (void *)busdma_md_get_vaddr(isp->isp_osinfo.cdmd, 0);
-	isp->isp_rquest_dma = busdma_md_get_busaddr(isp->isp_osinfo.cdmd, 0);
-	isp->isp_result_dma = isp->isp_rquest_dma + ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
-	isp->isp_result = (char *)isp->isp_rquest + ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
+	busaddr = busdma_md_get_busaddr(isp->isp_osinfo.cdmd, 0);
+	vaddr = busdma_md_get_vaddr(isp->isp_osinfo.cdmd, 0);
 
+	size = busdma_md_get_size(isp->isp_osinfo.cdmd, 0);
+	isp_prt(isp, ISP_LOGDEBUG0, "request/result area @ 0x%jx/0x%jx",
+	    (uintmax_t)busaddr, (uintmax_t)size);
+
+	isp->isp_rquest = (void *)vaddr;
+	isp->isp_rquest_dma = busaddr;
+	size = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
+	busaddr += size;
+	vaddr += size;
+
+	isp->isp_result = (void *)vaddr;
+	isp->isp_result_dma = busaddr;
+	size = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
+	busaddr += size;
+	vaddr += size;
+
+	if (isp->isp_type >= ISP_HA_FC_2300) {
+		isp->isp_osinfo.ecmd_base = (void *)vaddr;
+		isp->isp_osinfo.ecmd_dma = busaddr;
+		size = N_XCMDS * XCMD_SIZE;
+		busaddr += size;
+		vaddr += size;
+
+		isp->isp_osinfo.ecmd_free = isp->isp_osinfo.ecmd_base;
+		for (ecmd = isp->isp_osinfo.ecmd_free;
+		    ecmd < &isp->isp_osinfo.ecmd_free[N_XCMDS]; ecmd++) {
+			if (ecmd == &isp->isp_osinfo.ecmd_free[N_XCMDS - 1])
+				ecmd->next = NULL;
+			else
+				ecmd->next = ecmd + 1;
+		}
+	}
 #ifdef  ISP_TARGET_MODE
 	if (IS_24XX(isp)) {
-		isp->isp_atioq_dma = isp->isp_result_dma + ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
-		isp->isp_atioq = (char *)isp->isp_result + ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
+		isp->isp_atioq_dma = busaddr;
+		isp->isp_atioq = (void *)vaddr;
 	}
 #endif
 
@@ -1615,13 +1649,13 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 				busdma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
+			busaddr = busdma_md_get_busaddr(fc->tdmd, 0);
+			size = busdma_md_get_size(fc->tdmd, 0);
+			vaddr = busdma_md_get_vaddr(fc->tdmd, 0);
 			isp_prt(isp, ISP_LOGDEBUG0, "scdma @ 0x%jx/0x%jx",
-			    (uintmax_t)busdma_md_get_busaddr(fc->tdmd, 0),
-			    (uintmax_t)busdma_md_get_size(fc->tdmd, 0));
-			FCPARAM(isp, cmap)->isp_scdma =
-			    busdma_md_get_busaddr(fc->tdmd, 0);
-			FCPARAM(isp, cmap)->isp_scratch =
-			    (void *)busdma_md_get_vaddr(fc->tdmd, 0);
+			    (uintmax_t)busaddr, (uintmax_t)size);
+			FCPARAM(isp, cmap)->isp_scdma = busaddr;
+			FCPARAM(isp, cmap)->isp_scratch = (void *)vaddr;
 			if (isp->isp_type >= ISP_HA_FC_2300) {
 				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
 					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1689,7 +1723,6 @@ typedef struct {
 	void *cmd_token;
 	void *rq;	/* original request */
 	int error;
-	bus_size_t mapsize;
 } mush_t;
 
 #define	MUSHERR_NOQENTRIES	-2
@@ -1714,9 +1747,8 @@ tdma_cb(void *arg, busdma_md_t md, int error)
 	csio = mp->cmd_token;
 	isp = mp->isp;
 	rq = mp->rq;
-	ddir = ISP_NOXFR;
-	nseg = busdma_md_get_nsegs(md);
-	if (nseg) {
+	if (md != NULL) {
+		nseg = busdma_md_get_nsegs(md);
 		if (isp->isp_osinfo.sixtyfourbit) {
 			if (nseg >= ISP_NSEG64_MAX) {
 				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG64_MAX);
@@ -1734,12 +1766,19 @@ tdma_cb(void *arg, busdma_md_t md, int error)
 			}
 		}
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
+			busdma_sync(PISP_PCMD(csio)->dmap,
+			    BUSDMA_SYNC_PREWRITE);
 			ddir = ISP_TO_DEVICE;
 		} else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
+			busdma_sync(PISP_PCMD(csio)->dmap, BUSDMA_SYNC_PREREAD);
 			ddir = ISP_FROM_DEVICE;
+		} else {
+			md = NULL;
+			ddir = ISP_NOXFR;
 		}
+	} else {
+		md = NULL;
+		ddir = ISP_NOXFR;
 	}
 
 	error = isp_send_tgt_cmd(isp, rq, md, XS_XFRLEN(csio), ddir, &csio->sense_data, csio->sense_len);
@@ -1772,9 +1811,8 @@ dma_cb(void *arg, busdma_md_t md, int error)
 	csio = mp->cmd_token;
 	isp = mp->isp;
 	rq = mp->rq;
-	ddir = ISP_NOXFR;
-	nseg = busdma_md_get_nsegs(md);
-	if (nseg) {
+	if (md != NULL) {
+		nseg = busdma_md_get_nsegs(md);
 		if (isp->isp_osinfo.sixtyfourbit) {
 			if (nseg >= ISP_NSEG64_MAX) {
 				isp_prt(isp, ISP_LOGERR, "number of segments (%d) exceed maximum we can support (%d)", nseg, ISP_NSEG64_MAX);
@@ -1794,12 +1832,17 @@ dma_cb(void *arg, busdma_md_t md, int error)
 			}
 		}
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREREAD);
+			busdma_sync(PISP_PCMD(csio)->dmap, BUSDMA_SYNC_PREREAD);
 			ddir = ISP_FROM_DEVICE;
 		} else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-			busdma_sync(PISP_PCMD(csio)->dmap, BUS_DMASYNC_PREWRITE);
+			busdma_sync(PISP_PCMD(csio)->dmap,
+			    BUSDMA_SYNC_PREWRITE);
 			ddir = ISP_TO_DEVICE;
+		} else {
+			ddir = ISP_NOXFR;
 		}
+	} else {
+		ddir = ISP_NOXFR;
 	}
 
 	error = isp_send_cmd(isp, rq, md, XS_XFRLEN(csio), ddir, (ispds64_t *)csio->req_map);
@@ -1826,7 +1869,6 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 	mp->cmd_token = csio;
 	mp->rq = ff;
 	mp->error = 0;
-	mp->mapsize = 0;
 
 #ifdef	ISP_TARGET_MODE
 	if (csio->ccb_h.func_code == XPT_CONT_TARGET_IO)

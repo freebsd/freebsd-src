@@ -427,22 +427,22 @@ switch (type) {							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	busdma_sync(fc->tdmd, BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE); \
+	busdma_sync(fc->tdmd, BUSDMA_SYNC_PREREAD|BUSDMA_SYNC_PREWRITE); \
 	break;							\
 }								\
 case SYNC_REQUEST:						\
 	busdma_sync(isp->isp_osinfo.cdmd,			\
-	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
+	   BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE);		\
 	break;							\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	busdma_sync(fc->tdmd, BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE); \
+	busdma_sync(fc->tdmd, BUSDMA_SYNC_POSTREAD|BUSDMA_SYNC_POSTWRITE); \
 	break;							\
 }								\
 case SYNC_RESULT:						\
 	busdma_sync(isp->isp_osinfo.cdmd,			\
-	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
+	   BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
 	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
