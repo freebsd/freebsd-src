@@ -29,12 +29,12 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/param.h>
+
+#include <grp.h>
 #include <pwd.h>
 
 __FBSDID("$FreeBSD$");
-
-struct group;
-struct passwd;
 
 int
 pwcache_groupdb(
@@ -59,15 +59,23 @@ pwcache_userdb(
 }
 
 int
-gid_from_group(const char *group __unused, gid_t *gid __unused)
+gid_from_group(const char *group, gid_t *gid)
 {
-
-	return (-1);
+	struct group *grp;
+	
+	if ((grp = getgrnam(group)) == NULL)
+		return (-1);
+	*gid = grp->gr_gid;
+	return (0);
 }
 
 int
-uid_from_user(const char *user __unused, uid_t *uid __unused)
+uid_from_user(const char *user, uid_t *uid)
 {
+	struct passwd *pwd;
 
-	return(-1);
+	if ((pwd = getpwnam(user)) == NULL)
+		return(-1);
+	*uid = pwd->pw_uid;
+	return(0);
 }
