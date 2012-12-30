@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20121230: remove wrongly created directories for auditdistd
+OLD_DIRS+=var/dist
+OLD_DIRS+=var/remote
 # 20121015: remove incomplete unwind.h
 OLD_FILES+=usr/include/clang/3.1/unwind.h
 # 20120713: auth.conf removed
