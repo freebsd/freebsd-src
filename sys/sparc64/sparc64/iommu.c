@@ -851,7 +851,7 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
  * the starting segment on entrace, and the ending segment on exit.
  */
 static int
-iommu_dvmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
+iommu_dvmamap_load_phys(bus_dma_tag_t dt, bus_dmamap_t map, vm_paddr_t buf,
     bus_size_t buflen, int flags, bus_dma_segment_t *segs, int *segp)
 {
 	bus_addr_t amask, dvmaddr, dvmoffs;

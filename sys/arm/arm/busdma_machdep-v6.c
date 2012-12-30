@@ -1084,7 +1084,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					      (void *)bpage->vaddr,
 					      bpage->datacount);
 				else
-					physcopyout(page->dataaddr,
+					physcopyout(bpage->dataaddr,
 					      (void *)bpage->vaddr,
 					      bpage->datacount);
 				cpu_dcache_wb_range((vm_offset_t)bpage->vaddr,

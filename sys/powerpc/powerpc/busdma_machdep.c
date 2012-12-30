@@ -769,7 +769,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	bus_size_t sgsize;
 	bus_addr_t curaddr;
 	vm_offset_t vaddr;
-	bus_addr_t paddr;
+	int error;
 
 	if (segs == NULL)
 		segs = map->segments;
@@ -891,12 +891,12 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
-				if (page->datavaddr != 0)
+				if (bpage->datavaddr != 0)
 					bcopy((void *)bpage->datavaddr,
 					      (void *)bpage->vaddr,
 					      bpage->datacount);
 				else
-					physcopyout(page->dataaddr,
+					physcopyout(bpage->dataaddr,
 					    (void *)bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
@@ -906,7 +906,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
-				if (page->datavaddr != 0)
+				if (bpage->datavaddr != 0)
 					bcopy((void *)bpage->vaddr,
 					      (void *)bpage->datavaddr,
 					      bpage->datacount);
