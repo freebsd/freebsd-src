@@ -69,7 +69,7 @@ dnl http://www.google.com/Top/Computers/Internet/E-mail/Spam/Blacklists/
 dnl Uncomment to activate your chosen DNS based blacklist
 dnl FEATURE(dnsbl, `dnsbl.example.com')
 dnl Alternatively, you can provide your own server and rejection message:
-dnl FEATURE(dnsbl, `dnsbl.example.com', ``"550 Mail from " $&{client_addr} " rejected'')
+dnl FEATURE(dnsbl, `dnsbl.example.com', ``"550 Mail from " $&{client_addr} " rejected"'')
 
 dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')
