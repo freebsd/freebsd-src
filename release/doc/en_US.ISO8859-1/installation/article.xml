@@ -58,7 +58,7 @@
 
     <para>If you are upgrading from a previous release of &os;, please
       read <ulink
-      url="http://www.FreeBSD.org/releases/9.0R/relnotes-detailed.html#UPGRADE">upgrading
+      url="http://www.FreeBSD.org/releases/9.1R/relnotes-detailed.html#upgrade">upgrading
       section in the Release Notes</ulink> for notable
       incompatibilities carefully.</para>
 
@@ -68,12 +68,12 @@
       <para>The procedure for doing a source code based update is
 	described in
 	<ulink url="&url.books.handbook;/synching.html"></ulink> and
-	<ulink url="&url.books.handbook;//makeworld.html"></ulink>.</para>
+	<ulink url="&url.books.handbook;/makeworld.html"></ulink>.</para>
 
-      <para>For SVN use the <filename>releng/9.0</filename> branch
+      <para>For SVN use the <filename>releng/9.1</filename> branch
 	which will be where any upcoming Security Advisories or Errata
 	Notices will be applied.  The branch tag to use for updating
-	the source is <literal>RELENG_9_0</literal> for CVS.</para>
+	the source is <literal>RELENG_9_1</literal> for CVS.</para>
     </sect2>
 
     <sect2>
@@ -84,8 +84,9 @@
 	earlier FreeBSD releases. Systems running
 	<literal>7.[34]-RELEASE</literal>,
 	<literal>8.[12]-RELEASE</literal>,
-	<literal>9.0-BETA[123]</literal>, or
-	<literal>9.0-RC[123]</literal> can upgrade as follows:</para>
+	<literal>9.0-RELEASE</literal>,
+	<literal>9.1-BETA1</literal>, or
+	<literal>9.1-RC[123]</literal> can upgrade as follows:</para>
 
       <para>First, ensure that your current system is up to date; a
 	change was recently made to &man.freebsd-update.8; (Errata
@@ -102,7 +103,7 @@
 	&man.freebsd-update.8; will ask for help in merging
 	configuration files.</para>
 
-      <screen>&prompt.root; freebsd-update upgrade -r 9.0-RELEASE</screen>
+      <screen>&prompt.root; freebsd-update upgrade -r 9.1-RELEASE</screen>
 
       <para>Due to changes in the way that &os; is packaged on the
 	release media, two complications may arise in this process if
