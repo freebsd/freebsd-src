@@ -133,6 +133,8 @@ busdma_md_get_pointer(busdma_md_t md, u_int idx)
  */
 int busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *md_p);
 
+#define	BUSDMA_ALLOC_ZERO	0x10000
+
 /*
  * busdma_mem_free
  * returns:		errno value
@@ -146,10 +148,10 @@ int busdma_stop(busdma_md_t md);
 void busdma_sync(busdma_md_t md, u_int);
 void busdma_sync_range(busdma_md_t md, u_int, vm_paddr_t, vm_size_t);
 
-#define	BUSDMA_SYNC_READ	0x1
-#define	BUSDMA_SYNC_WRITE	0x2
-#define	BUSDMA_SYNC_BEFORE	0x0
-#define	BUSDMA_SYNC_AFTER	0x4
+#define	BUSDMA_SYNC_READ	0x10000
+#define	BUSDMA_SYNC_WRITE	0x20000
+#define	BUSDMA_SYNC_BEFORE	0x40000
+#define	BUSDMA_SYNC_AFTER	0x80000
 
 #define	BUSDMA_SYNC_PREREAD	(BUSDMA_SYNC_BEFORE | BUSDMA_SYNC_READ)
 #define	BUSDMA_SYNC_PREWRITE	(BUSDMA_SYNC_BEFORE | BUSDMA_SYNC_WRITE)

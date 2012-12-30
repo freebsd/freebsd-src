@@ -161,6 +161,8 @@ SYSINIT(busdma_kmem, SI_SUB_KMEM, SI_ORDER_ANY, busdma_init, NULL);
 
 /* Section 3.2: Debugging & tracing. */
 
+#define	BUSDMA_DEBUG	1
+
 static void
 _busdma_mtag_dump(const char *func, device_t dev, struct busdma_mtag *mtag)
 {
@@ -235,6 +237,7 @@ _busdma_data_dump(const char *func, struct busdma_md *md, bus_addr_t addr,
 			continue;
 		pa = MAX(seg->mds_busaddr, addr);
 		sz = MIN(seg->mds_busaddr + seg->mds_size, addr + len) - pa;
+		sz = MIN(sz, 128);	/* XXX arbitrary limit */
 		va = (void *)(seg->mds_vaddr + (pa - seg->mds_busaddr));
 		printf("%#jx: %*D\n", (uintmax_t)pa, sz, va, " ");
 	}
@@ -731,7 +734,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	struct busdma_mtag mtag;
 	vm_size_t maxsz;
 	u_int idx;
-	int error;
+	int error, mflags;
 
 	CTR3(KTR_BUSDMA, "%s: tag=%p, flags=%#x", __func__, tag, flags);
 
@@ -754,6 +757,9 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 		goto fail;
 	}
 
+	mflags = 0;
+	mflags |= (flags & BUSDMA_ALLOC_ZERO) ? M_ZERO : 0;
+
 	idx = 0;
 	maxsz = tag->dt_maxsz;
 	while (maxsz > 0 && idx < tag->dt_nsegs) {
@@ -767,7 +773,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 		seg->mds_paddr = ~0UL;
 		seg->mds_size = MIN(maxsz, mtag.dmt_maxsz);
 		seg->mds_vaddr = kmem_alloc_contig(kernel_map, seg->mds_size,
-		    0, mtag.dmt_minaddr, mtag.dmt_maxaddr, mtag.dmt_align,
+		    mflags, mtag.dmt_minaddr, mtag.dmt_maxaddr, mtag.dmt_align,
 		    mtag.dmt_bndry, VM_MEMATTR_DEFAULT);
 		if (seg->mds_vaddr == 0) {
 			/* TODO: try a smaller segment size */
@@ -830,7 +836,8 @@ busdma_sync(struct busdma_md *md, u_int op)
 
 	CTR3(KTR_BUSDMA, "%s: md=%p, op=%#x", __func__, md, op);
 
-	if ((op & BUSDMA_SYNC_PREWRITE) || (op & BUSDMA_SYNC_POSTREAD))
+	if ((op & BUSDMA_SYNC_PREWRITE) == BUSDMA_SYNC_PREWRITE ||
+	    (op & BUSDMA_SYNC_POSTREAD) == BUSDMA_SYNC_POSTREAD)
 		_busdma_data_dump(__func__, md, 0UL, ~0UL);
 }
 
@@ -842,6 +849,7 @@ busdma_sync_range(struct busdma_md *md, u_int op, bus_addr_t addr,
 	CTR5(KTR_BUSDMA, "%s: md=%p, op=%#x, addr=%#jx, len=%#jx", __func__,
 	    md, op, (uintmax_t)addr, (uintmax_t)len);
 
-	if ((op & BUSDMA_SYNC_PREWRITE) || (op & BUSDMA_SYNC_POSTREAD))
+	if ((op & BUSDMA_SYNC_PREWRITE) == BUSDMA_SYNC_PREWRITE ||
+	    (op & BUSDMA_SYNC_POSTREAD) == BUSDMA_SYNC_POSTREAD)
 		_busdma_data_dump(__func__, md, addr, len);
 }
