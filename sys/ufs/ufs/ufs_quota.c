@@ -1044,7 +1044,7 @@ again:
 		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
 		if (error) {
 			if (error == ENOENT) {
-				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
+				MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp);
 				goto again;
 			}
 			continue;

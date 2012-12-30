@@ -503,8 +503,8 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			ring->slot[j].len = le16toh(curr->wb.upper.length) - crclen;
 			if (ix_write_len)
 				D("rx[%d] len %d", j, ring->slot[j].len);
-			bus_dmamap_sync(rxr->tag,
-			    rxr->rx_buffers[l].map, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync(rxr->ptag,
+			    rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
 		}
@@ -556,12 +556,12 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 				goto ring_reset;
 
 			if (slot->flags & NS_BUF_CHANGED) {
-				netmap_reload_map(rxr->tag, rxbuf->map, addr);
+				netmap_reload_map(rxr->ptag, rxbuf->pmap, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 			curr->wb.upper.status_error = 0;
 			curr->read.pkt_addr = htole64(paddr);
-			bus_dmamap_sync(rxr->tag, rxbuf->map,
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 			    BUS_DMASYNC_PREREAD);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;

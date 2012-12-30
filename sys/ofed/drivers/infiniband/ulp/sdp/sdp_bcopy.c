@@ -151,7 +151,7 @@ sdp_nagle_timeout(void *data)
 	if (ssk->state == TCPS_CLOSED)
 		return;
 	ssk->nagle_last_unacked = 0;
-	sdp_post_sends(ssk, M_DONTWAIT);
+	sdp_post_sends(ssk, M_NOWAIT);
 
 	sowwakeup(ssk->socket);
 out:

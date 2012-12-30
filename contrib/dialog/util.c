@@ -1,9 +1,9 @@
 /*
- *  $Id: util.c,v 1.243 2012/06/30 12:58:04 tom Exp $
+ *  $Id: util.c,v 1.227 2011/07/07 23:42:30 tom Exp $
  *
  *  util.c -- miscellaneous utilities for dialog
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -26,14 +26,6 @@
 
 #include <dialog.h>
 #include <dlg_keys.h>
-
-#ifdef HAVE_SETLOCALE
-#include <locale.h>
-#endif
-
-#ifdef NEED_WCHAR_H
-#include <wchar.h>
-#endif
 
 #ifdef NCURSES_VERSION
 #if defined(HAVE_NCURSESW_TERM_H)
@@ -63,12 +55,6 @@
 DIALOG_STATE dialog_state;
 DIALOG_VARS dialog_vars;
 
-#if !(defined(HAVE_WGETPARENT) && defined(HAVE_WINDOW__PARENT))
-#define NEED_WGETPARENT 1
-#else
-#undef NEED_WGETPARENT
-#endif
-
 #define concat(a,b) a##b
 
 #ifdef HAVE_RC_FILE
@@ -93,7 +79,6 @@ DIALOG_VARS dialog_vars;
 
 /*
  * Table of color and attribute values, default is for mono display.
- * The order matches the DIALOG_ATR() values.
  */
 /* *INDENT-OFF* */
 DIALOG_COLORS dlg_color_table[] =
@@ -131,55 +116,9 @@ DIALOG_COLORS dlg_color_table[] =
     DATA(A_BOLD,	FORM_ACTIVE_TEXT,	form_active_text, "Active form text"),
     DATA(A_REVERSE,	FORM_TEXT,		form_text, "Form text"),
     DATA(A_NORMAL,	FORM_ITEM_READONLY,	form_item_readonly, "Readonly form item"),
-    DATA(A_REVERSE,	GAUGE,			gauge, "Dialog box gauge"),
-    DATA(A_REVERSE,	BORDER2,		border2, "Dialog box border2"),
-    DATA(A_REVERSE,	INPUTBOX_BORDER2,	inputbox_border2, "Input box border2"),
-    DATA(A_REVERSE,	SEARCHBOX_BORDER2,	searchbox_border2, "Search box border2"),
-    DATA(A_REVERSE,	MENUBOX_BORDER2,	menubox_border2, "Menu box border2")
+    DATA(A_REVERSE,	GAUGE,			gauge, "Dialog box gauge")
 };
 /* *INDENT-ON* */
-
-/*
- * Maintain a list of subwindows so that we can delete them to cleanup.
- * More important, this provides a fallback when wgetparent() is not available.
- */
-static void
-add_subwindow(WINDOW *parent, WINDOW *child)
-{
-    DIALOG_WINDOWS *p = dlg_calloc(DIALOG_WINDOWS, 1);
-
-    if (p != 0) {
-	p->normal = parent;
-	p->shadow = child;
-	p->next = dialog_state.all_subwindows;
-	dialog_state.all_subwindows = p;
-    }
-}
-
-static void
-del_subwindows(WINDOW *parent)
-{
-    DIALOG_WINDOWS *p = dialog_state.all_subwindows;
-    DIALOG_WINDOWS *q = 0;
-    DIALOG_WINDOWS *r;
-
-    while (p != 0) {
-	if (p->normal == parent) {
-	    delwin(p->shadow);
-	    r = p->next;
-	    if (q == 0) {
-		dialog_state.all_subwindows = r;
-	    } else {
-		q->next = r;
-	    }
-	    free(p);
-	    p = r;
-	} else {
-	    q = p;
-	    p = p->next;
-	}
-    }
-}
 
 /*
  * Display background title if it exists ...
@@ -287,8 +226,6 @@ init_dialog(FILE *input, FILE *output)
     int fd1, fd2;
     char *device = 0;
 
-    setlocale(LC_ALL, "");
-
     dialog_state.output = output;
     dialog_state.tab_len = TAB_LEN;
     dialog_state.aspect_ratio = DEFAULT_ASPECT_RATIO;
@@ -315,7 +252,7 @@ init_dialog(FILE *input, FILE *output)
      */
     dialog_state.pipe_input = stdin;
     if (fileno(input) != fileno(stdin)) {
-	if (dup(fileno(input)) >= 0
+	if ((fd1 = dup(fileno(input))) >= 0
 	    && (fd2 = dup(fileno(stdin))) >= 0) {
 	    (void) dup2(fileno(input), fileno(stdin));
 	    dialog_state.pipe_input = fdopen(fd2, "r");
@@ -324,7 +261,7 @@ init_dialog(FILE *input, FILE *output)
 	} else
 	    dlg_exiterr("cannot open tty-input");
     } else if (!isatty(fileno(stdin))) {
-	if (open_terminal(&device, O_RDONLY) >= 0
+	if ((fd1 = open_terminal(&device, O_RDONLY)) >= 0
 	    && (fd2 = dup(fileno(stdin))) >= 0) {
 	    dialog_state.pipe_input = fdopen(fd2, "r");
 	    if (freopen(device, "r", stdin) == 0)
@@ -569,32 +506,22 @@ end_dialog(void)
 #define ESCAPE_LEN 3
 #define isOurEscape(p) (((p)[0] == '\\') && ((p)[1] == 'Z') && ((p)[2] != 0))
 
-int
-dlg_count_real_columns(const char *text)
-{
-    int result = dlg_count_columns(text);
-    if (result && dialog_vars.colors) {
-	int hidden = 0;
-	while (*text) {
-	    if (dialog_vars.colors && isOurEscape(text)) {
-		hidden += ESCAPE_LEN;
-		text += ESCAPE_LEN;
-	    } else {
-		++text;
-	    }
-	}
-	result -= hidden;
-    }
-    return result;
-}
-
 static int
 centered(int width, const char *string)
 {
-    int need = dlg_count_real_columns(string);
+    int len = dlg_count_columns(string);
     int left;
+    int hide = 0;
+    int n;
 
-    left = (width - need) / 2 - 1;
+    if (dialog_vars.colors) {
+	for (n = 0; n < len; ++n) {
+	    if (isOurEscape(string + n)) {
+		hide += ESCAPE_LEN;
+	    }
+	}
+    }
+    left = (width - (len - hide)) / 2 - 1;
     if (left < 0)
 	left = 0;
     return left;
@@ -720,10 +647,8 @@ dlg_print_text(WINDOW *win, const char *txt, int cols, chtype *attr)
 	 * more blanks.
 	 */
 	thisTab = (CharOf(*txt) == TAB);
-	if (thisTab) {
+	if (thisTab)
 	    getyx(win, y_before, x_before);
-	    (void) y_before;
-	}
 	(void) waddch(win, CharOf(*txt++) | useattr);
 	getyx(win, y_after, x_after);
 	if (thisTab && (y_after == y_origin))
@@ -779,7 +704,7 @@ dlg_print_line(WINDOW *win,
 	} else if (*test_ptr == ' ' && n != 0 && prompt[indx[n - 1]] != ' ') {
 	    wrap_inx = n;
 	    *x = cur_x;
-	} else if (dialog_vars.colors && isOurEscape(test_ptr)) {
+	} else if (isOurEscape(test_ptr)) {
 	    hide_ptr = test_ptr;
 	    hidden += ESCAPE_LEN;
 	    n += (ESCAPE_LEN - 1);
@@ -826,7 +751,7 @@ dlg_print_line(WINDOW *win,
 	hidden -= ESCAPE_LEN;
 	test_ptr = wrap_ptr;
 	while (test_ptr < wrap_ptr) {
-	    if (dialog_vars.colors && isOurEscape(test_ptr)) {
+	    if (isOurEscape(test_ptr)) {
 		hidden -= ESCAPE_LEN;
 		test_ptr += ESCAPE_LEN;
 	    } else {
@@ -986,7 +911,6 @@ dlg_print_scrolled(WINDOW *win,
 	    werase(dummy);
 	    dlg_print_autowrap(dummy, prompt, high, width);
 	    getyx(dummy, y, x);
-	    (void) x;
 
 	    copywin(dummy,	/* srcwin */
 		    win,	/* dstwin */
@@ -1157,6 +1081,25 @@ longest_word(const char *string)
     return result;
 }
 
+static int
+count_real_columns(const char *text)
+{
+    int result = dlg_count_columns(text);
+    if (result && dialog_vars.colors) {
+	int hidden = 0;
+	while (*text) {
+	    if (isOurEscape(text)) {
+		hidden += ESCAPE_LEN;
+		text += ESCAPE_LEN;
+	    } else {
+		++text;
+	    }
+	}
+	result -= hidden;
+    }
+    return result;
+}
+
 /*
  * if (height or width == -1) Maximize()
  * if (height or width == 0), justify and return actual limits.
@@ -1189,24 +1132,23 @@ real_auto_size(const char *title,
 	high = SLINES - y;
     }
 
-    if (*width <= 0) {
-	if (prompt != 0) {
-	    wide = MAX(title_length, mincols);
-	    if (strchr(prompt, '\n') == 0) {
-		double val = (dialog_state.aspect_ratio *
-			      dlg_count_real_columns(prompt));
-		double xxx = sqrt(val);
-		int tmp = (int) xxx;
-		wide = MAX(wide, tmp);
-		wide = MAX(wide, longest_word(prompt));
-		justify_text((WINDOW *) 0, prompt, high, wide, height, width);
-	    } else {
-		auto_size_preformatted(prompt, height, width);
-	    }
-	} else {
-	    wide = SCOLS - x;
+    if (*width > 0) {
+	wide = *width;
+    } else if (prompt != 0) {
+	wide = MAX(title_length, mincols);
+	if (strchr(prompt, '\n') == 0) {
+	    double val = dialog_state.aspect_ratio * count_real_columns(prompt);
+	    double xxx = sqrt(val);
+	    int tmp = (int) xxx;
+	    wide = MAX(wide, tmp);
+	    wide = MAX(wide, longest_word(prompt));
 	    justify_text((WINDOW *) 0, prompt, high, wide, height, width);
+	} else {
+	    auto_size_preformatted(prompt, height, width);
 	}
+    } else {
+	wide = SCOLS - x;
+	justify_text((WINDOW *) 0, prompt, high, wide, height, width);
     }
 
     if (*width < title_length) {
@@ -1349,8 +1291,8 @@ dlg_get_cell_attrs(WINDOW *win)
  * reverse this choice.
  */
 void
-dlg_draw_box2(WINDOW *win, int y, int x, int height, int width,
-	      chtype boxchar, chtype borderchar, chtype borderchar2)
+dlg_draw_box(WINDOW *win, int y, int x, int height, int width,
+	     chtype boxchar, chtype borderchar)
 {
     int i, j;
     chtype save = dlg_get_attrs(win);
@@ -1364,28 +1306,21 @@ dlg_draw_box2(WINDOW *win, int y, int x, int height, int width,
 	    else if (i == height - 1 && !j)
 		(void) waddch(win, borderchar | dlg_boxchar(ACS_LLCORNER));
 	    else if (!i && j == width - 1)
-		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_URCORNER));
+		(void) waddch(win, boxchar | dlg_boxchar(ACS_URCORNER));
 	    else if (i == height - 1 && j == width - 1)
-		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_LRCORNER));
+		(void) waddch(win, boxchar | dlg_boxchar(ACS_LRCORNER));
 	    else if (!i)
 		(void) waddch(win, borderchar | dlg_boxchar(ACS_HLINE));
 	    else if (i == height - 1)
-		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_HLINE));
+		(void) waddch(win, boxchar | dlg_boxchar(ACS_HLINE));
 	    else if (!j)
 		(void) waddch(win, borderchar | dlg_boxchar(ACS_VLINE));
 	    else if (j == width - 1)
-		(void) waddch(win, borderchar2 | dlg_boxchar(ACS_VLINE));
+		(void) waddch(win, boxchar | dlg_boxchar(ACS_VLINE));
 	    else
 		(void) waddch(win, boxchar | ' ');
     }
     wattrset(win, save);
-}
-
-void
-dlg_draw_box(WINDOW *win, int y, int x, int height, int width,
-	     chtype boxchar, chtype borderchar)
-{
-    dlg_draw_box2(win, y, x, height, width, boxchar, borderchar, boxchar);
 }
 
 static DIALOG_WINDOWS *
@@ -1519,7 +1454,7 @@ repaint_cell(DIALOG_WINDOWS * dw, bool draw, int y, int x)
 #if USE_WCHGAT
 	wchgat(cellwin, 1,
 	       the_attr & (chtype) (~A_COLOR),
-	       (short) PAIR_NUMBER(the_attr),
+	       PAIR_NUMBER(the_attr),
 	       NULL);
 #else
 	{
@@ -1909,29 +1844,22 @@ dlg_draw_title(WINDOW *win, const char *title)
 }
 
 void
-dlg_draw_bottom_box2(WINDOW *win, chtype on_left, chtype on_right, chtype on_inside)
+dlg_draw_bottom_box(WINDOW *win)
 {
     int width = getmaxx(win);
     int height = getmaxy(win);
     int i;
 
-    wattrset(win, on_left);
+    wattrset(win, border_attr);
     (void) wmove(win, height - 3, 0);
     (void) waddch(win, dlg_boxchar(ACS_LTEE));
     for (i = 0; i < width - 2; i++)
 	(void) waddch(win, dlg_boxchar(ACS_HLINE));
-    wattrset(win, on_right);
+    wattrset(win, dialog_attr);
     (void) waddch(win, dlg_boxchar(ACS_RTEE));
-    wattrset(win, on_inside);
     (void) wmove(win, height - 2, 1);
     for (i = 0; i < width - 2; i++)
 	(void) waddch(win, ' ');
-}
-
-void
-dlg_draw_bottom_box(WINDOW *win)
-{
-    dlg_draw_bottom_box2(win, border_attr, dialog_attr, dialog_attr);
 }
 
 /*
@@ -1979,7 +1907,6 @@ dlg_del_window(WINDOW *win)
     if (q) {
 	if (dialog_state.all_windows != 0)
 	    erase_childs_shadow(q);
-	del_subwindows(q->normal);
 	delwin(q->normal);
 	dlg_unregister_window(q->normal);
 	free(q);
@@ -2069,7 +1996,6 @@ dlg_sub_window(WINDOW *parent, int height, int width, int y, int x)
 		    y, x, height, width);
     }
 
-    add_subwindow(parent, win);
     (void) keypad(win, TRUE);
     return win;
 }
@@ -2131,7 +2057,6 @@ dlg_item_help(const char *txt)
 	if (itemhelp_attr & A_COLOR) {
 	    /* fill the remainder of the line with the window's attributes */
 	    getyx(stdscr, y, x);
-	    (void) y;
 	    while (x < COLS) {
 		(void) addch(' ');
 		++x;
@@ -2415,7 +2340,7 @@ dlg_add_quoted(char *string)
 			    ? FIX_SINGLE
 			    : FIX_DOUBLE);
 
-    if (must_quote(string)) {
+    if (dialog_vars.quoted || must_quote(string)) {
 	temp[1] = '\0';
 	dlg_add_result(my_quote);
 	while (*string != '\0') {
@@ -2507,14 +2432,14 @@ dlg_does_output(void)
  */
 #if !(defined(HAVE_GETBEGX) && defined(HAVE_GETBEGY))
 int
-dlg_getbegx(WINDOW *win)
+getbegx(WINDOW *win)
 {
     int y, x;
     getbegyx(win, y, x);
     return x;
 }
 int
-dlg_getbegy(WINDOW *win)
+getbegy(WINDOW *win)
 {
     int y, x;
     getbegyx(win, y, x);
@@ -2524,14 +2449,14 @@ dlg_getbegy(WINDOW *win)
 
 #if !(defined(HAVE_GETCURX) && defined(HAVE_GETCURY))
 int
-dlg_getcurx(WINDOW *win)
+getcurx(WINDOW *win)
 {
     int y, x;
     getyx(win, y, x);
     return x;
 }
 int
-dlg_getcury(WINDOW *win)
+getcury(WINDOW *win)
 {
     int y, x;
     getyx(win, y, x);
@@ -2541,14 +2466,14 @@ dlg_getcury(WINDOW *win)
 
 #if !(defined(HAVE_GETMAXX) && defined(HAVE_GETMAXY))
 int
-dlg_getmaxx(WINDOW *win)
+getmaxx(WINDOW *win)
 {
     int y, x;
     getmaxyx(win, y, x);
     return x;
 }
 int
-dlg_getmaxy(WINDOW *win)
+getmaxy(WINDOW *win)
 {
     int y, x;
     getmaxyx(win, y, x);
@@ -2558,35 +2483,17 @@ dlg_getmaxy(WINDOW *win)
 
 #if !(defined(HAVE_GETPARX) && defined(HAVE_GETPARY))
 int
-dlg_getparx(WINDOW *win)
+getparx(WINDOW *win)
 {
     int y, x;
     getparyx(win, y, x);
     return x;
 }
 int
-dlg_getpary(WINDOW *win)
+getpary(WINDOW *win)
 {
     int y, x;
     getparyx(win, y, x);
     return y;
-}
-#endif
-
-#ifdef NEED_WGETPARENT
-WINDOW *
-dlg_wgetparent(WINDOW *win)
-{
-#undef wgetparent
-    WINDOW *result = 0;
-    DIALOG_WINDOWS *p;
-
-    for (p = dialog_state.all_subwindows; p != 0; p = p->next) {
-	if (p->shadow == win) {
-	    result = p->normal;
-	    break;
-	}
-    }
-    return result;
 }
 #endif

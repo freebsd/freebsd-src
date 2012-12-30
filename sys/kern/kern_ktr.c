@@ -112,7 +112,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
 
-SYSCTL_INT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
+SYSCTL_UINT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
     &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
 
 static void
@@ -190,8 +190,8 @@ sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
-    sysctl_debug_ktr_mask, "I",
+SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
+    sysctl_debug_ktr_mask, "IU",
     "Bitmask of KTR event classes for which logging is enabled");
 
 static int

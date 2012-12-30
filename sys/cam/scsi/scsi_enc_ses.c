@@ -1272,13 +1272,10 @@ ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	err = 0;
 	for (i = 0; i < length; i++) {
-		if (page->params[i] == SesElementDescriptor) {
+		if (page->params[i] == SesElementDescriptor)
 			ses->ses_flags |= SES_FLAG_DESC;
-			break;
-		} else if (page->params[i] == SesAddlElementStatus) {
+		else if (page->params[i] == SesAddlElementStatus)
 			ses->ses_flags |= SES_FLAG_ADDLSTATUS;
-			break;
-		}
 	}
 
 out:
@@ -1804,8 +1801,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d Beyond End "
 			    "of Additional Element Status Descriptors\n",
 			    iter.global_element_index);
-			err = EIO;
-			goto out;
+			break;
 		}
 
 		/* Advance to the protocol data, skipping eip bytes if needed */
@@ -1834,7 +1830,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d: Unknown Additional Element "
 			    "Protocol 0x%x\n", iter.global_element_index,
 			    ses_elm_addlstatus_proto(elmpriv->addl.hdr));
-			goto out;
+			break;
 		}
 
 		offset += proto_info_len;

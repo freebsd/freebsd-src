@@ -56,7 +56,7 @@ do {									\
 		ng_l2cap_cmd_rej_data_t	 data;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -90,7 +90,7 @@ do {									\
 		ng_l2cap_con_req_cp	 param;				\
 	} __attribute__ ((packed)) 	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -113,7 +113,7 @@ do {									\
 		ng_l2cap_con_rsp_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -138,7 +138,7 @@ do {									\
 		ng_l2cap_cfg_req_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) { 						\
 		NG_FREE_M((_data));					\
 		break;							\
@@ -172,7 +172,7 @@ do {									\
 		ng_l2cap_cfg_rsp_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) { 						\
 		NG_FREE_M((_data));					\
 		break;							\
@@ -204,7 +204,7 @@ do {									\
 do {									\
 	u_int8_t	*p = NULL;					\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -281,7 +281,7 @@ do {									\
 		ng_l2cap_discon_req_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -304,7 +304,7 @@ do {									\
 		ng_l2cap_discon_rsp_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -324,7 +324,7 @@ do {									\
 do {									\
 	ng_l2cap_cmd_hdr_t	*c = NULL;				\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\
@@ -351,7 +351,7 @@ do {									\
 		ng_l2cap_info_req_cp	 param;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL)						\
 		break;							\
 									\
@@ -374,7 +374,7 @@ do {									\
 		ng_l2cap_info_rsp_data_t data;				\
 	} __attribute__ ((packed))	*c = NULL;			\
 									\
-	MGETHDR((_m), M_DONTWAIT, MT_DATA);				\
+	MGETHDR((_m), M_NOWAIT, MT_DATA);				\
 	if ((_m) == NULL) 						\
 		break;							\
 									\

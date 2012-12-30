@@ -30,6 +30,7 @@ if [ ! "$_TIMEZONE_CONTINENTS_SUBR" ]; then _TIMEZONE_CONTINENTS_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." timezone/continents.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="090.timezone"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
@@ -134,5 +135,9 @@ f_OCEANP()
 		echo 1
 	esac
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/continents.subr
 
 fi # ! $_TIMEZONE_CONTINENTS_SUBR

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2011
+.Dd December 28, 2012
 .Dt STF 4
 .Os
 .Sh NAME
@@ -180,6 +180,22 @@ Note, however, there are other security risks exist.
 If you wish to use the configuration,
 you must not advertise your 6to4 address to others.
 .\"
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm stf .
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va net.link.stf.permit_rfc1918 : No 0
+The RFC3056 requires the use of globally unique 32-bit IPv4
+addresses. This sysctl variable controls the behaviour of this
+requirement. When it set to not 0, 
+.Nm stf 
+allows the use of private IPv4 addresses described in the RFC1918.
+This may be useful for an Intranet environment or when some mechanisms
+of network address translation (NAT) are used.
+.El
 .Sh EXAMPLES
 Note that
 .Li 8504:0506

@@ -78,6 +78,17 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	ctrlr->bus_handle = rman_get_bushandle(ctrlr->resource);
 	ctrlr->regs = (struct nvme_registers *)ctrlr->bus_handle;
 
+	/*
+	 * The NVMe spec allows for the MSI-X table to be placed behind
+	 *  BAR 4/5, separate from the control/doorbell registers.  Always
+	 *  try to map this bar, because it must be mapped prior to calling
+	 *  pci_alloc_msix().  If the table isn't behind BAR 4/5,
+	 *  bus_alloc_resource() will just return NULL which is OK.
+	 */
+	ctrlr->bar4_resource_id = PCIR_BAR(4);
+	ctrlr->bar4_resource = bus_alloc_resource(ctrlr->dev, SYS_RES_MEMORY,
+	    &ctrlr->bar4_resource_id, 0, ~0, 1, RF_ACTIVE);
+
 	return (0);
 }
 
@@ -619,9 +630,11 @@ err:
 }
 
 static void
-nvme_ctrlr_intx_task(void *arg, int pending)
+nvme_ctrlr_intx_handler(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
+
+	nvme_mmio_write_4(ctrlr, intms, 1);
 
 	nvme_qpair_process_completions(&ctrlr->adminq);
 
@@ -629,15 +642,6 @@ nvme_ctrlr_intx_task(void *arg, int pending)
 		nvme_qpair_process_completions(&ctrlr->ioq[0]);
 
 	nvme_mmio_write_4(ctrlr, intmc, 1);
-}
-
-static void
-nvme_ctrlr_intx_handler(void *arg)
-{
-	struct nvme_controller *ctrlr = arg;
-
-	nvme_mmio_write_4(ctrlr, intms, 1);
-	taskqueue_enqueue_fast(ctrlr->taskqueue, &ctrlr->task);
 }
 
 static int
@@ -664,12 +668,6 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 		    "unable to setup legacy interrupt handler\n");
 		return (ENOMEM);
 	}
-
-	TASK_INIT(&ctrlr->task, 0, nvme_ctrlr_intx_task, ctrlr);
-	ctrlr->taskqueue = taskqueue_create_fast("nvme_taskq", M_NOWAIT,
-	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
-	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_NET,
-	    "%s intx taskq", device_get_nameunit(ctrlr->dev));
 
 	return (0);
 }

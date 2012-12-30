@@ -1,9 +1,9 @@
 /*
- *  $Id: mixedform.c,v 1.9 2011/10/10 00:49:43 tom Exp $
+ *  $Id: mixedform.c,v 1.8 2010/04/28 20:54:11 tom Exp $
  *
- *  mixedform.c -- implements the mixed form (i.e, typed pairs label/editbox)
+ *  formbox.c -- implements the form (i.e, some pairs label/editbox)
  *
- *  Copyright 2007-2010,2011	Thomas E. Dickey
+ *  Copyright 2007-2008,2010	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1

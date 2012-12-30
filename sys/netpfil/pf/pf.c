@@ -1,8 +1,7 @@
-/*	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $ */
-
-/*
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002 - 2008 Henning Brauer
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +32,10 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
+ *	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
@@ -713,6 +712,7 @@ pf_initialize()
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
 	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
+	uma_zone_set_warning(V_pf_state_z, "PF states limit reached");
 
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
@@ -734,6 +734,7 @@ pf_initialize()
 	    0);
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
+	uma_zone_set_warning(V_pf_sources_z, "PF source nodes limit reached");
 	V_pf_srchash = malloc(V_pf_srchashsize * sizeof(struct pf_srchash),
 	  M_PFHASH, M_WAITOK|M_ZERO);
 	V_pf_srchashmask = V_pf_srchashsize - 1;
@@ -1080,9 +1081,6 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 
 	s->kif = kif;
 
-	if (pf_state_key_attach(skw, sks, s))
-		return (-1);
-
 	if (s->id == 0 && s->creatorid == 0) {
 		/* XXX: should be atomic, but probability of collision low */
 		if ((s->id = V_pf_stateid[curcpu]++) == PFID_MAXID)
@@ -1091,6 +1089,9 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		s->id = htobe64(s->id);
 		s->creatorid = V_pf_status.hostid;
 	}
+
+	if (pf_state_key_attach(skw, sks, s))
+		return (-1);
 
 	ih = &V_pf_idhash[PF_IDHASH(s)];
 	PF_HASHROW_LOCK(ih);
@@ -1487,8 +1488,6 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 		return (0);	/* XXXGL: undefined actually */
 	}
 
-	s->timeout = PFTM_UNLINKED;
-
 	if (s->src.state == PF_TCPS_PROXY_DST) {
 		/* XXX wire key the right one? */
 		pf_send_tcp(NULL, s->rule.ptr, s->key[PF_SK_WIRE]->af,
@@ -1502,10 +1501,19 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 
 	LIST_REMOVE(s, entry);
 	pf_src_tree_remove_state(s);
-	PF_HASHROW_UNLOCK(ih);
 
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(s);
+
+	--s->rule.ptr->states_cur;
+	if (s->nat_rule.ptr != NULL)
+		--s->nat_rule.ptr->states_cur;
+	if (s->anchor.ptr != NULL)
+		--s->anchor.ptr->states_cur;
+
+	s->timeout = PFTM_UNLINKED;
+
+	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
 	refcount_release(&s->refs);
@@ -1520,11 +1528,7 @@ pf_free_state(struct pf_state *cur)
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
-	--cur->rule.ptr->states_cur;
-	if (cur->nat_rule.ptr != NULL)
-		--cur->nat_rule.ptr->states_cur;
-	if (cur->anchor.ptr != NULL)
-		--cur->anchor.ptr->states_cur;
+
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
 	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;

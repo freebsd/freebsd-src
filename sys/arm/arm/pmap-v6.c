@@ -1131,6 +1131,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
 }
 
 /*
@@ -2662,7 +2663,8 @@ do_l2b_alloc:
 	if (!(prot & VM_PROT_EXECUTE) && m)
 		npte |= L2_XN;
 
-	npte |= pte_l2_s_cache_mode;
+	if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+		npte |= pte_l2_s_cache_mode;
 
 	if (m && m == opg) {
 		/*
@@ -3817,3 +3819,22 @@ pmap_dmap_iscurrent(pmap_t pmap)
 	return(pmap_is_current(pmap));
 }
 
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+	/* 
+	 * Remember the memattr in a field that gets used to set the appropriate
+	 * bits in the PTEs as mappings are established.
+	 */
+	m->md.pv_memattr = ma;
+
+	/*
+	 * It appears that this function can only be called before any mappings
+	 * for the page are established on ARM.  If this ever changes, this code
+	 * will need to walk the pv_list and make each of the existing mappings
+	 * uncacheable, being careful to sync caches and PTEs (and maybe
+	 * invalidate TLB?) for any current mapping it modifies.
+	 */
+	if (m->md.pv_kva != 0 || TAILQ_FIRST(&m->md.pv_list) != NULL)
+		panic("Can't change memattr on page with existing mappings");
+}

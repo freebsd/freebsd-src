@@ -69,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
-	libdisk \
 	libdwarf \
 	libedit \
 	${_libefi} \
@@ -90,6 +89,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmilter} \
 	${_libmp} \
 	${_libnandfs} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \

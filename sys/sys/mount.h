@@ -199,8 +199,8 @@ struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
 
-#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp)				\
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp));			\
 		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
@@ -218,17 +218,12 @@ struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 
-#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) 				\
+	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); 		\
 		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
-	do {								\
-		MNT_ILOCK(mp);						\
-		__mnt_vnode_markerfree_active(&(mvp), (mp));		\
-		/* MNT_IUNLOCK(mp); -- done in above function */	\
-		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
-	} while (0)
+	__mnt_vnode_markerfree_active(&(mvp), (mp))
 
 /*
  * Definitions for MNT_VNODE_FOREACH.

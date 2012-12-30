@@ -1,5 +1,5 @@
-.\" $Id: dialog.3,v 1.76 2012/07/03 08:22:10 tom Exp $
-.\" Copyright 2005-2011,2012  Thomas E. Dickey
+.\" $Id: dialog.3,v 1.68 2011/06/29 09:07:36 tom Exp $
+.\" Copyright 2005-2010,2011  Thomas E. Dickey
 .\"
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU Lesser General Public License, version 2.1
@@ -38,7 +38,7 @@
 .de bP
 .IP \(bu 4
 ..
-.TH \*D 3 "" "$Date: 2012/07/03 08:22:10 $"
+.TH \*D 3 "" "$Date: 2011/06/29 09:07:36 $"
 .SH NAME
 \*l \- widgets and utilities for the \*p program
 .SH SYNOPSIS
@@ -107,11 +107,6 @@ variables beginning with "\fIdialog_\fP"
 are designed for use by the calling application
 while variables beginning with "\fIdlg_\fP"
 are intended for lower levels, e.g., by the \fB\*l\fP library.
-.\" ---------------------------------------------------------------------------
-.IP \fIDIALOG_STATE.all_subwindows
-This is a linked list of all subwindows created by the library.
-The \fBdlg_del_window\fP function uses this
-to free storage for subwindows when deleting a window.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_STATE.all_windows
 This is a linked list of all windows created by the library.
@@ -295,9 +290,6 @@ bright red.
 Restore normal settings with "\\Zn".
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.column_separator
-This corresponds to the command-line option "\fB--column-separator\fP".
-\fB\*L\fP splits data for radio/checkboxes and menus on the
-occurrences of the given string, and aligns the split data into columns.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.cr_wrap
 This corresponds to the command-line option "\fB--cr-wrap\fP".
@@ -315,16 +307,11 @@ This corresponds to the command-line option "\fB--date-format\fP \fIstring\fP".
 If the host provides \fBstrftime\fP, and the value is nonnull,
 the calendar widget uses this to format its output.
 .\" ---------------------------------------------------------------------------
-.IP \fIDIALOG_VARS.default_button
-This is set by the command-line option "\fB--default-button\fP.
-It is used by \fBdlg_default_button\fP.
-.\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.default_item
 This corresponds to the command-line option "\fB--default-item\fP \fIstring\fP".
 The given string is used as
 the default item in a checklist, form or menu box.
 Normally the first item in the box is the default.
-.\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.defaultno
 This corresponds to the command-line option "\fB--defaultno\fP".
 If true,
@@ -490,8 +477,6 @@ Note that \fB\*p\fR will still wrap text, subject to the \fB--cr-wrap\fR
 option.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.nook
-This corresponds to the command-line option "\fB--nook\fP.
-\fB\*L\fP will suppress the "ok" (or "yes") button from the widget.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.ok_label
 This corresponds to the command-line option "\fB--ok-label\fP \fIstring\fP".
@@ -503,7 +488,6 @@ If true,
 each widget prints its size to \fB\*p\fP's output when it is invoked.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.quoted
-This corresponds to the command-line option "\fB--quoted\fP.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.separate_output
 This corresponds to the command-line option "\fB--separate-output\fP".
@@ -517,9 +501,8 @@ If true,
 Use single-quoting as needed (and no quotes if unneeded) for the
 output of checklist's as well as the item-help text.
 If this option is not set, \fB\*p\fP uses double quotes around each item.
-The latter requires occasional use of backslashes to make the output useful in
+That requires occasional use of backslashes to make the output useful in
 shell scripts.
-.\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.size_err
 This corresponds to the command-line option "\fB--size-err\fP".
 If true,
@@ -935,8 +918,7 @@ If zero, the height is based on the screen size.
 .B int \fIwidth
 is the desired width of the box.
 If zero, the height is based on the screen size.
-.TP 5
-.B int \fIpercent
+.IP percent
 is the percentage to show in the progress bar.
 .TP 5
 .B int \fIitem_no
@@ -1211,9 +1193,6 @@ function to call when input ends, e.g., to free caller's additional data.
 .TP 5
 .B dlg_add_quoted
 Add a quoted string to the result buffer (see \fBdlg_add_result\fP).
-If no quotes are necessary, none are used.
-If \fBdialog_vars.single_quoted\fR is set, single-quotes are used.
-Otherwise, double-quotes are used.
 .RS
 .TP 5
 .B char * \fIstring
@@ -1222,7 +1201,7 @@ is the string to add.
 .\" ---------------------------------------------------------------------------
 .TP 5
 .B dlg_add_result
-Add a string to the result buffer \fBdialog_vars.input_result\fP.
+Add a quoted string to the result buffer \fBdialog_vars.input_result\fP.
 .RS
 .TP 5
 .B char * \fIstring
@@ -1297,10 +1276,6 @@ is the percentage to show in the progress bar.
 returns its parameter transformed to the
 corresponding "+" or "-", etc. for the line-drawing characters used in \fB\*p\fP.
 If the parameter is not a line-drawing or other special character such as ACS_DARROW, it returns 0.
-.RS
-.TP 5
-.B chtype \fIch
-is the parameter, usually one of the \fBACS_\fP\fIxxx\fP constants.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -1362,13 +1337,13 @@ is the name of the file.
 .TP 5
 .B int * \fIheight
 is the nominal height.
-If it is -1, use the screen's height (after subtracting \fBdialog_vars.begin_y\fP
-if \fBdialog_vars.begin_set\fP is true).
+If it is -1, use the screen's height after subtracting \fBdialog_vars.begin_y\fP
+if \fBdialog_vars.begin_set\fP is true.
 .TP 5
-.B int * \fIwidth
+.B int \fI*width
 is the nominal width.
-If it is -1, use the screen's width (after subtracting \fBdialog_vars.begin_x\fP
-if \fBdialog_vars.begin_set\fP is true).
+If it is -1, use the screen's width after subtracting \fBdialog_vars.begin_x\fP
+if \fBdialog_vars.begin_set\fP is true.
 .TP 5
 .B int \fIboxlines
 is the number of lines to reserve on the screen for drawing boxes.
@@ -1385,7 +1360,7 @@ this calls \fBbeep\fP once and sets
 .\" ---------------------------------------------------------------------------
 .TP 5
 .B dlg_boxchar
-returns its \fBchtype\fP parameter transformed as follows:
+returns its parameter transformed as follows:
 .RS
 .TP 3
 .B -
@@ -1710,18 +1685,6 @@ is the string to measure.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
-.B dlg_count_real_columns
-Returns the number of columns used for a string,
-accounting for "\\Z" sequences which can be used for
-coloring the text if \fBdialog_vars.colors\fP is set.
-This is not necessarily the number of bytes in a string.
-.RS
-.TP 5
-.B const char * \fIstring
-is the string to measure.
-.RE
-.\" ---------------------------------------------------------------------------
-.TP 5
 .B dlg_count_wchars
 Returns the number of wide-characters in the string.
 .RS
@@ -1754,13 +1717,6 @@ is the window's height
 .B int \fIwidth
 is the window's width
 .RE
-.\" ---------------------------------------------------------------------------
-.TP 5
-.B dlg_default_button
-If \fBdialog_vars.default_button\fP is positive,
-return the button-index for that button code,
-using \fBdlg_ok_buttoncode\fP to test indices starting with zero.
-Otherwise (or if no match was found for the button code), return zero.
 .\" ---------------------------------------------------------------------------
 .TP 5
 .B dlg_default_formitem
@@ -1874,34 +1830,12 @@ is the window's border attribute.
 Draw a partial box at the bottom of a window,
 e.g., to surround a row of buttons.
 It is designed to merge with an existing box around
-the whole window (see \fBdlg_draw_box\fP),
-so it uses tee-elements rather than corner-elements
+the whole window, so it uses tee-elements rather than corner-elements
 on the top corners of this box.
 .RS
 .TP 5
 .B WINDOW * \fIwin
 is the window to update.
-.RE
-.\" ---------------------------------------------------------------------------
-.TP 5
-.B dlg_draw_bottom_box2
-Draw a partial box at the bottom of a window,
-e.g., to surround a row of buttons.
-It is designed to merge with an existing box around
-the whole window (see \fBdlg_draw_box2\fP),
-so it uses tee-elements rather than corner-elements
-on the top corners of this box.
-.RS
-.TP 5
-.B WINDOW * \fIwin
-is the window to update.
-.B chtype \fIon_left
-is used to color the upper/left edges of the box, i.e., the tee-element and
-horizontal line
-.B chtype \fIon_right
-is used to color the right edge of the box, i.e., the tee-element
-.B chtype \fIon_inside
-is used to fill-color the inside of the box
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -1930,36 +1864,6 @@ It also is fill-color used for the box contents.
 .TP 5
 .B chtype \fIborderchar
 is used to color the upper/left edges.
-.RE
-.\" ---------------------------------------------------------------------------
-.TP 5
-.B dlg_draw_box2
-Draw a rectangular box with line drawing characters.
-.RS
-.TP 5
-.B WINDOW * \fIwin
-is the window to update.
-.TP 5
-.B int \fIy
-is the top row of the box.
-.TP 5
-.B int \fIx
-is the left column of the box.
-.TP 5
-.B int \fIheight
-is the height of the box.
-.TP 5
-.B int \fIwidth
-is the width of the box.
-.TP 5
-.B chtype \fIboxchar
-is used to fill-color for the box contents.
-.TP 5
-.B chtype \fIborderchar
-is used to color the upper/left edges.
-.TP 5
-.B chtype \fIborderchar2
-is used to color the right/lower edges.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -2088,27 +1992,6 @@ is the title string to display at the top of the widget.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
-.B dlg_dummy_menutext
-This is a utility function which supports the \fB--inputmenu\fP option of
-the \fB\*p\fP program.
-If \fBdialog_vars.input_menu\fP is set, \fBdialog_menu\fP passes this
-pointer to \fBdlg_menu\fP as the \fIrename_menutext\fP parameter.
-Otherwise, it passes \fBdlg_dummy_menutext\fP.
-.IP
-The function should only return \fBDLG_EXIT_ERROR\fP.
-.RS
-.TP 5
-.B DIALOG_LISTITEM * \fIitems
-is the list of menu items
-.TP 5
-.B int \fIcurrent
-is the index of the currently-selected item
-.TP 5
-.B char * \fInewtext
-is the updated text for the menu item
-.RE
-.\" ---------------------------------------------------------------------------
-.TP 5
 .B dlg_dump_keys
 Write all user-defined key-bindings to the given stream,
 e.g., as part of \fBdlg_create_rc\fP.
@@ -2116,20 +1999,6 @@ e.g., as part of \fBdlg_create_rc\fP.
 .TP 5
 .B FILE * \fIfp
 is the stream on which to write the bindings.
-.RE
-.\" ---------------------------------------------------------------------------
-.TP 5
-.B dlg_dump_window_keys
-Write all user-defined key-bindings to the given stream,
-e.g., as part of \fBdlg_create_rc\fP.
-.RS
-.TP 5
-.B FILE * \fIfp
-is the stream on which to write the bindings.
-.TP 5
-.B WINDOW * \fIwin
-is the window for which bindings should be dumped.
-If it is null, then only built-in bindings are dumped.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -2547,10 +2416,6 @@ The widget sets the referenced location to the index of the current display
 item (cursor) when it returns.
 .TP 5
 .B DIALOG_INPUTMENU \fIrename_menutext
-If this is not \fBdlg_dummy_menutext\fP,
-the widget acts like an \fIinputmenu\fP widget,
-providing an extra "Rename" button,
-which activates an edit feature on the selected menu item.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -3033,32 +2898,8 @@ is the binding table
 Remove a callback.
 .RS
 .TP 5
-.B DIALOG_CALLBACK * \fIp
+.B DIALOG_CALLBACK \fI* p
 contains the callback information.
-.RE
-.\" ---------------------------------------------------------------------------
-.TP 5
-.B dlg_renamed_menutext
-This is a utility function which supports the \fB--inputmenu\fP option of
-the \fB\*p\fP program.
-If \fBdialog_vars.input_menu\fP is set, \fBdialog_menu\fP passes this
-pointer to \fBdlg_menu\fP as the \fIrename_menutext\fP parameter.
-Otherwise, it passes \fBdlg_dummy_menutext\fP.
-.IP
-The function should add "RENAMED" to \fBdialog_vars.input_result\fP ,
-followed by the menu item's name and the \fInewtext\fP value
-(with a space separating the three items),
-and return \fBDLG_EXIT_EXTRA\fP.
-.RS
-.TP 5
-.B DIALOG_LISTITEM * \fIitems
-is the list of menu items
-.TP 5
-.B int \fIcurrent
-is the index of the currently-selected item
-.TP 5
-.B char * \fInewtext
-is the updated text for the menu item
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -3174,10 +3015,10 @@ is the string to duplicate
 compare two strings, ignoring case.
 .RS
 .TP 5
-.B const char * \fIa
+.B const char \fI* a
 is one string
 .TP 5
-.B const char * \fIb
+.B const char \fI* b
 is the other string
 .RE
 .\" ---------------------------------------------------------------------------

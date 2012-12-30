@@ -338,7 +338,7 @@ iso88025_output(ifp, m, dst, ro)
 		bcopy((caddr_t)&(satoipx_addr(dst).x_host), (caddr_t)edst,
 		      ISO88025_ADDR_LEN);
 
-		M_PREPEND(m, 3, M_WAIT);
+		M_PREPEND(m, 3, M_WAITOK);
 		m = m_pullup(m, 3);
 		if (m == 0)
 			senderr(ENOBUFS);
@@ -382,7 +382,7 @@ iso88025_output(ifp, m, dst, ro)
 	 */
 	if (snap_type != 0) {
         	struct llc *l;
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_NOWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
@@ -398,7 +398,7 @@ iso88025_output(ifp, m, dst, ro)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, ISO88025_HDR_LEN + rif_len, M_DONTWAIT);
+	M_PREPEND(m, ISO88025_HDR_LEN + rif_len, M_NOWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	th = mtod(m, struct iso88025_header *);

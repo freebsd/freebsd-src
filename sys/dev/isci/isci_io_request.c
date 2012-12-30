@@ -670,8 +670,7 @@ isci_io_request_construct(void *arg, bus_dma_segment_t *seg, int nseg,
 	io_request->sge = seg;
 	ccb = io_request->ccb;
 
-	/* XXX More cleanup is needed here */
-	if ((nseg == 0) || (error != 0)) {
+	if (error != 0) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		return;
@@ -755,7 +754,6 @@ isci_io_request_execute_scsi_io(union ccb *ccb,
 	error = bus_dmamap_load_ccb(io_request->parent.dma_tag,
 	    io_request->parent.dma_map, ccb,
 	    isci_io_request_construct, io_request, 0x0);
-
 	/* A resource shortage from BUSDMA will be automatically
 	 * continued at a later point, pushing the CCB processing
 	 * forward, which will in turn unfreeze the simq.

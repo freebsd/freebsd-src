@@ -127,6 +127,11 @@ static int stf_route_cache = 1;
 SYSCTL_INT(_net_link_stf, OID_AUTO, route_cache, CTLFLAG_RW,
     &stf_route_cache, 0, "Caching of IPv4 routes for 6to4 Output");
 
+static int stf_permit_rfc1918 = 0;
+TUNABLE_INT("net.link.stf.permit_rfc1918", &stf_permit_rfc1918);
+SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RW | CTLFLAG_TUN,
+    &stf_permit_rfc1918, 0, "Permit the use of private IPv4 addresses");
+
 #define STFUNIT		0
 
 #define IN6_IS_ADDR_6TO4(x)	(ntohs((x)->s6_addr16[0]) == 0x2002)
@@ -506,7 +511,7 @@ stf_output(ifp, m, dst, ro)
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 
-	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
@@ -581,9 +586,10 @@ isrfc1918addr(in)
 	 * returns 1 if private address range:
 	 * 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
 	 */
-	if ((ntohl(in->s_addr) & 0xff000000) >> 24 == 10 ||
+	if (stf_permit_rfc1918 == 0 && (
+	    (ntohl(in->s_addr) & 0xff000000) >> 24 == 10 ||
 	    (ntohl(in->s_addr) & 0xfff00000) >> 16 == 172 * 256 + 16 ||
-	    (ntohl(in->s_addr) & 0xffff0000) >> 16 == 192 * 256 + 168)
+	    (ntohl(in->s_addr) & 0xffff0000) >> 16 == 192 * 256 + 168))
 		return 1;
 
 	return 0;

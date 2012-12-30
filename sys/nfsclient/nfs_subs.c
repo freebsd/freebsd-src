@@ -181,9 +181,9 @@ nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
 {
 	struct mbuf *mb;
 
-	MGET(mb, M_WAIT, MT_DATA);
+	MGET(mb, M_WAITOK, MT_DATA);
 	if (hsiz >= MINCLSIZE)
-		MCLGET(mb, M_WAIT);
+		MCLGET(mb, M_WAITOK);
 	mb->m_len = 0;
 	return (mb);
 }
@@ -218,9 +218,9 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 		while (left > 0) {
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
-				MGET(mp, M_WAIT, MT_DATA);
+				MGET(mp, M_WAITOK, MT_DATA);
 				if (clflg)
-					MCLGET(mp, M_WAIT);
+					MCLGET(mp, M_WAITOK);
 				mp->m_len = 0;
 				mp2->m_next = mp;
 				mp2 = mp;
@@ -251,7 +251,7 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 	}
 	if (rem > 0) {
 		if (rem > M_TRAILINGSPACE(mp)) {
-			MGET(mp, M_WAIT, MT_DATA);
+			MGET(mp, M_WAITOK, MT_DATA);
 			mp->m_len = 0;
 			mp2->m_next = mp;
 		}
@@ -296,9 +296,9 @@ nfsm_strtmbuf(struct mbuf **mb, char **bpos, const char *cp, long siz)
 	}
 	/* Loop around adding mbufs */
 	while (siz > 0) {
-		MGET(m1, M_WAIT, MT_DATA);
+		MGET(m1, M_WAITOK, MT_DATA);
 		if (siz > MLEN)
-			MCLGET(m1, M_WAIT);
+			MCLGET(m1, M_WAITOK);
 		m1->m_len = NFSMSIZ(m1);
 		m2->m_next = m1;
 		m2 = m1;
@@ -481,7 +481,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
-	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAIT);
+	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAITOK);
 	if (cp2 == NULL) {
 		error = EBADRPC;
 		goto out;

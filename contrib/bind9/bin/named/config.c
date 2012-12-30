@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -89,7 +89,7 @@ options {\n\
 #endif
 "\
 	recursive-clients 1000;\n\
-	resolver-query-timeout 30;\n\
+	resolver-query-timeout 10;\n\
 	rrset-order {type NS order random; order cyclic; };\n\
 	serial-queries 20;\n\
 	serial-query-rate 20;\n\
