@@ -1,6 +1,11 @@
 /*-
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
+ * Copyright (c) 2012 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_platform.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -48,6 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/user.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -75,6 +84,17 @@ static void
 mips_init(void)
 {
 	int i;
+
+#ifdef FDT
+#ifndef FDT_DTB_STATIC
+#error	"mips_init with FDT requires FDT_DTB_STATIC"
+#endif
+
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		while (1);
+	if (OF_init(&fdt_static_dtb) != 0)
+		while (1);
+#endif
 
 	for (i = 0; i < 10; i++) {
 		phys_avail[i] = 0;
