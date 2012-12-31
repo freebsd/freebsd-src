@@ -202,14 +202,21 @@ _bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
  */
 static int
 _bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
-    pmap_t pmap, int *nsegs, int flags)
+    int *nsegs, int flags)
 {
 	bus_size_t resid;
 	bus_size_t minlen;
 	struct iovec *iov;
+	pmap_t pmap;
 	caddr_t addr;
 	int error, i;
 
+	if (uio->uio_segflg == UIO_USERSPACE) {
+		KASSERT(uio->uio_td != NULL,
+			("bus_dmamap_load_uio: USERSPACE but no proc"));
+		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
+	} else
+		pmap = kernel_pmap;
 	resid = uio->uio_resid;
 	iov = uio->uio_iov;
 	error = 0;
@@ -318,18 +325,10 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 {
 	bus_dma_segment_t *segs;
 	int nsegs, error;
-	pmap_t pmap;
 
 	flags |= BUS_DMA_NOWAIT;
-	if (uio->uio_segflg == UIO_USERSPACE) {
-		KASSERT(uio->uio_td != NULL,
-			("bus_dmamap_load_uio: USERSPACE but no proc"));
-		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
-	} else
-		pmap = kernel_pmap;
-
 	nsegs = -1;
-	error = _bus_dmamap_load_uio(dmat, map, uio, pmap, &nsegs, flags);
+	error = _bus_dmamap_load_uio(dmat, map, uio, &nsegs, flags);
 	nsegs++;
 
 	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
@@ -419,7 +418,7 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 		break;
 	case BUS_DMAMEM_UIO:
 		error = _bus_dmamap_load_uio(dmat, map, mem->u.dm_uio,
-		    /*XXX*/kernel_pmap, &nsegs, flags);
+		    &nsegs, flags);
 		break;
 	case BUS_DMAMEM_MBUF:
 		error = _bus_dmamap_load_mbuf_sg(dmat, map, mem->u.dm_mbuf,
