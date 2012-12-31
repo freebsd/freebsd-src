@@ -385,7 +385,7 @@ nexus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 
 	curaddr = buf;
 	while (buflen > 0) {
-		sgsize = MIN(buflen, dmat->maxsegsz);
+		sgsize = MIN(buflen, dmat->dt_maxsegsz);
 		sgsize = nexus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
 		    segp);
 		if (sgsize == 0)

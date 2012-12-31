@@ -687,6 +687,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddrp, int flags,
 	struct sync_list *slist;
 	void * vaddr;
 	struct busdma_bufzone *bufzone;
+	busdma_bufalloc_t ba;
 	bus_dmamap_t map;
 	int mflags;
 	vm_memattr_t memattr;
