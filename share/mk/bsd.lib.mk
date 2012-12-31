@@ -165,19 +165,22 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+.if defined(DEBUG_FLAGS)
+SHLIB_NAME_FULL=${SHLIB_NAME}.debug
+.else
+SHLIB_NAME_FULL=${SHLIB_NAME}
+.endif
+
 SOLINKOPTS=	-shared -Wl,-x
 .if !defined(ALLOW_SHARED_TEXTREL)
 SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
-${SHLIB_NAME}: beforelinking
+beforelinking: ${SOBJS}
+${SHLIB_NAME_FULL}: beforelinking
 .endif
-.if defined(DEBUG_FLAGS)
-${SHLIB_NAME}.debug: ${SOBJS}
-.else
-${SHLIB_NAME}: ${SOBJS}
-.endif
+${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
@@ -197,12 +200,12 @@ ${SHLIB_NAME}: ${SOBJS}
 .endif
 
 .if defined(DEBUG_FLAGS)
-${SHLIB_NAME}: ${SHLIB_NAME}.debug ${SHLIB_NAME}.symbols
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
-	    ${SHLIB_NAME}.debug ${.TARGET}
+	    ${SHLIB_NAME_FULL} ${.TARGET}
 
-${SHLIB_NAME}.symbols: ${SHLIB_NAME}.debug
-	${OBJCOPY} --only-keep-debug ${SHLIB_NAME}.debug ${.TARGET}
+${SHLIB_NAME}.symbols: ${SHLIB_NAME_FULL}
+	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
 .endif
 
