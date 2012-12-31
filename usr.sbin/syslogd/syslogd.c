@@ -1877,6 +1877,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 
 			pri = decode(buf, prioritynames);
 			if (pri < 0) {
+				errno = 0;
 				(void)snprintf(ebuf, sizeof ebuf,
 				    "unknown priority name \"%s\"", buf);
 				logerror(ebuf);
@@ -1905,6 +1906,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 			} else {
 				i = decode(buf, facilitynames);
 				if (i < 0) {
+					errno = 0;
 					(void)snprintf(ebuf, sizeof ebuf,
 					    "unknown facility name \"%s\"",
 					    buf);
@@ -2660,6 +2662,7 @@ socksetup(int af, const char *bindhostname)
 			logerror("socket");
 			continue;
 		}
+#ifdef INET6
 		if (r->ai_family == AF_INET6) {
 			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
 				       (char *)&on, sizeof (on)) < 0) {
@@ -2668,6 +2671,7 @@ socksetup(int af, const char *bindhostname)
 				continue;
 			}
 		}
+#endif
 		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR,
 			       (char *)&on, sizeof (on)) < 0) {
 			logerror("setsockopt");
@@ -2684,8 +2688,8 @@ socksetup(int af, const char *bindhostname)
 		 */
 		if (!NoBind) {
 			if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
-				close(*s);
 				logerror("bind");
+				close(*s);
 				continue;
 			}
 
