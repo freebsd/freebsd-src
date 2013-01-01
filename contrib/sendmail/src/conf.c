@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2012 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1168 2011/01/25 18:31:30 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1176 2012/12/07 03:59:54 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -53,7 +53,7 @@ static int	add_hostnames __P((SOCKADDR *));
 static struct hostent *sm_getipnodebyname __P((const char *, int, int, int *));
 static struct hostent *sm_getipnodebyaddr __P((const void *, size_t, int, int *));
 #else /* NETINET6 && NEEDSGETIPNODE */
-#define sm_getipnodebyname getipnodebyname 
+#define sm_getipnodebyname getipnodebyname
 #define sm_getipnodebyaddr getipnodebyaddr
 #endif /* NETINET6 && NEEDSGETIPNODE */
 
@@ -4602,6 +4602,10 @@ add_hostnames(sa)
 		int save_errno = errno;
 
 		if (LogLevel > 3 &&
+#if NETINET && defined(IN_LINKLOCAL)
+		    !(sa->sa.sa_family == AF_INET &&
+		      IN_LINKLOCAL(ntohl(sa->sin.sin_addr.s_addr))) &&
+#endif /* NETINET && defined(IN_LINKLOCAL) */
 #if NETINET6
 		    !(sa->sa.sa_family == AF_INET6 &&
 		      IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr)) &&
@@ -5374,14 +5378,30 @@ sm_syslog(level, id, fmt, va_alist)
 #if LOG
 		if (*id == '\0')
 		{
-			if (tTd(89, 8))
+			if (tTd(89, 10))
+			{
+				struct timeval tv;
+
+				gettimeofday(&tv, NULL);
+				sm_dprintf("%ld.%06ld %s\n", (long) tv.tv_sec,
+					(long) tv.tv_usec, newstring);
+			}
+			else if (tTd(89, 8))
 				sm_dprintf("%s\n", newstring);
 			else
 				syslog(level, "%s", newstring);
 		}
 		else
 		{
-			if (tTd(89, 8))
+			if (tTd(89, 10))
+			{
+				struct timeval tv;
+
+				gettimeofday(&tv, NULL);
+				sm_dprintf("%ld.%06ld %s: %s\n", (long) tv.tv_sec,
+					(long) tv.tv_usec, id, newstring);
+			}
+			else if (tTd(89, 8))
 				sm_dprintf("%s: %s\n", id, newstring);
 			else
 				syslog(level, "%s: %s", id, newstring);
