@@ -1667,7 +1667,8 @@ vfs_write_resume_flags(struct mount *mp, int flags)
 			mp->mnt_writeopcount++;
 		}
 		MNT_IUNLOCK(mp);
-		VFS_SUSP_CLEAN(mp);
+		if ((flags & VR_NO_SUSPCLR) == 0)
+			VFS_SUSP_CLEAN(mp);
 	} else if ((flags & VR_START_WRITE) != 0) {
 		MNT_REF(mp);
 		vn_start_write_locked(mp, 0);
