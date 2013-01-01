@@ -63,8 +63,8 @@ dnl DNS based black hole lists
 dnl --------------------------------
 dnl DNS based black hole lists come and go on a regular basis
 dnl so this file will not serve as a database of the available servers.
-dnl For that, visit
-dnl http://www.google.com/Top/Computers/Internet/E-mail/Spam/Blacklists/
+dnl For more information, visit
+dnl http://en.wikipedia.org/wiki/DNSBL
 
 dnl Uncomment to activate your chosen DNS based blacklist
 dnl FEATURE(dnsbl, `dnsbl.example.com')
