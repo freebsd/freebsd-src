@@ -393,6 +393,7 @@ extern int		vttoif_tab[];
 #define	V_XSLEEP	0x0004	/* vn_start_write: just return after sleep */
 
 #define	VR_START_WRITE	0x0001	/* vfs_write_resume: start write atomically */
+#define	VR_NO_SUSPCLR	0x0002	/* vfs_write_resume: do not clear suspension */
 
 #define	VREF(vp)	vref(vp)
 
