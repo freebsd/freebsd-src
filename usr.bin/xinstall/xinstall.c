@@ -494,7 +494,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			err(EX_OSERR,"%s: chown/chgrp", to_name);
 		}
 
-	if (mode != (to_sb.st_mode & ALLPERMS))
+	if (mode != (to_sb.st_mode & ALLPERMS)) {
 		if (dounpriv)
 			mode &= S_IRWXU|S_IRWXG|S_IRWXO;
 		if (fchmod(to_fd, mode)) {
@@ -503,6 +503,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			errno = serrno;
 			err(EX_OSERR, "%s: chmod", to_name);
 		}
+	}
 
 	/*
 	 * If provided a set of flags, set them, otherwise, preserve the
