@@ -55,8 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/user.h>
 
+#ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
