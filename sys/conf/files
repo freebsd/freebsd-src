@@ -918,6 +918,10 @@ dev/ath/ath_hal/ar5416/ar5416_reset.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
 	ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_spectral.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
+	ath_ar9287 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5416/ar5416_xmit.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
 	ath_ar9287 \
