@@ -70,7 +70,9 @@ OBJECTS = \
 	$(OBJDIR)/osunixxf.o \
 	$(OBJDIR)/psargs.o \
 	$(OBJDIR)/psloop.o \
+	$(OBJDIR)/psobject.o \
 	$(OBJDIR)/psopcode.o \
+	$(OBJDIR)/psopinfo.o \
 	$(OBJDIR)/psparse.o \
 	$(OBJDIR)/psscope.o \
 	$(OBJDIR)/pstree.o \
@@ -98,7 +100,9 @@ OBJECTS = \
 	$(OBJDIR)/utmutex.o \
 	$(OBJDIR)/utobject.o \
 	$(OBJDIR)/utosi.o \
+	$(OBJDIR)/utownerid.o \
 	$(OBJDIR)/utstate.o \
+	$(OBJDIR)/utstring.o \
 	$(OBJDIR)/utxface.o \
 	$(OBJDIR)/utxferror.o \
 	$(OBJDIR)/utxfinit.o

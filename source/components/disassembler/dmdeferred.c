@@ -83,7 +83,7 @@ AcpiDmParseDeferredOps (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_NAME (DmParseDeferredOps);
+    ACPI_FUNCTION_ENTRY ();
 
 
     /* Traverse the entire parse tree */

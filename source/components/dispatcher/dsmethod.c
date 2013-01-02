@@ -163,6 +163,7 @@ AcpiDsCreateMethodMutex (
     Status = AcpiOsCreateMutex (&MutexDesc->Mutex.OsMutex);
     if (ACPI_FAILURE (Status))
     {
+        AcpiUtDeleteObjectDesc (MutexDesc);
         return_ACPI_STATUS (Status);
     }
 

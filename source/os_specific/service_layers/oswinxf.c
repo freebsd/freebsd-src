@@ -340,7 +340,8 @@ AcpiOsGetTimer (
     {
         /* Convert to 100 nanosecond ticks */
 
-        return ((UINT64) ((Timer.QuadPart * (UINT64) 10000000) / TimerFrequency));
+        return ((UINT64) ((Timer.QuadPart * (UINT64) ACPI_100NSEC_PER_SEC) /
+            TimerFrequency));
     }
 
     /* Fall back to the lo-granularity timer */
@@ -349,7 +350,7 @@ AcpiOsGetTimer (
     {
         /* Convert milliseconds to 100 nanosecond ticks */
 
-        return ((UINT64) GetTickCount() * 10000);
+        return ((UINT64) GetTickCount() * ACPI_100NSEC_PER_MSEC);
     }
 }
 
@@ -1090,7 +1091,7 @@ AcpiOsStall (
     UINT32                  Microseconds)
 {
 
-    Sleep ((Microseconds / 1000) + 1);
+    Sleep ((Microseconds / ACPI_USEC_PER_MSEC) + 1);
     return;
 }
 

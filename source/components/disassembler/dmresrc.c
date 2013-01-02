@@ -415,7 +415,8 @@ AcpiDmIsResourceTemplate (
 
     /* Walk the byte list, abort on any invalid descriptor type or length */
 
-    Status = AcpiUtWalkAmlResources (WalkState, Aml, Length, NULL, &EndAml);
+    Status = AcpiUtWalkAmlResources (WalkState, Aml, Length,
+        NULL, (void **) &EndAml);
     if (ACPI_FAILURE (Status))
     {
         return (AE_TYPE);

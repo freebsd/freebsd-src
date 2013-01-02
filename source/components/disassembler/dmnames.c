@@ -44,7 +44,6 @@
 
 #include "acpi.h"
 #include "accommon.h"
-#include "acparser.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acdisasm.h"
@@ -226,7 +225,8 @@ AcpiDmNamestring (
 
     /* Handle all Scope Prefix operators */
 
-    while (AcpiPsIsPrefixChar (ACPI_GET8 (Name)))
+    while (ACPI_IS_ROOT_PREFIX (ACPI_GET8 (Name)) ||
+           ACPI_IS_PARENT_PREFIX (ACPI_GET8 (Name)))
     {
         /* Append prefix character */
 
@@ -323,7 +323,7 @@ AcpiDmDisplayPath (
 
         if ((NamePath) &&
             (NamePath->Common.Value.String) &&
-            (NamePath->Common.Value.String[0] == '\\'))
+            (ACPI_IS_ROOT_PREFIX (NamePath->Common.Value.String[0])))
         {
             AcpiDmNamestring (NamePath->Common.Value.String);
             return;

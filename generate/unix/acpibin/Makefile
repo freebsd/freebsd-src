@@ -40,6 +40,7 @@ OBJECTS = \
 	$(OBJDIR)/utmisc.o \
 	$(OBJDIR)/utmutex.o \
 	$(OBJDIR)/utstate.o \
+	$(OBJDIR)/utstring.o \
 	$(OBJDIR)/utxferror.o \
 	$(OBJDIR)/osunixxf.o \
 	$(OBJDIR)/getopt.o

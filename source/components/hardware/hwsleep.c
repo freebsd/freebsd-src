@@ -179,7 +179,7 @@ AcpiHwLegacySleep (
          * to still read the right value. Ideally, this block would go
          * away entirely.
          */
-        AcpiOsStall (10000000);
+        AcpiOsStall (10 * ACPI_USEC_PER_SEC);
 
         Status = AcpiHwRegisterWrite (ACPI_REGISTER_PM1_CONTROL,
                     SleepEnableRegInfo->AccessBitMask);

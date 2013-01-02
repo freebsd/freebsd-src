@@ -199,7 +199,7 @@ AcpiExConvertToInteger (
 
     /* Save the Result */
 
-    AcpiExTruncateFor32bitTable (ReturnDesc);
+    (void) AcpiExTruncateFor32bitTable (ReturnDesc);
     *ResultDesc = ReturnDesc;
     return_ACPI_STATUS (AE_OK);
 }

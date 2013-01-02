@@ -46,6 +46,7 @@
 #include "acpi.h"
 #include "accommon.h"
 #include "acnamesp.h"
+#include "acoutput.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE
@@ -92,7 +93,9 @@ AcpiNsPrintPathname (
     ACPI_FUNCTION_NAME (NsPrintPathname);
 
 
-    if (!(AcpiDbgLevel & ACPI_LV_NAMES) || !(AcpiDbgLayer & ACPI_NAMESPACE))
+    /* Check if debug output enabled */
+
+    if (!ACPI_IS_DEBUG_ENABLED (ACPI_LV_NAMES, ACPI_NAMESPACE))
     {
         return;
     }
@@ -151,7 +154,7 @@ AcpiNsDumpPathname (
 
     /* Do this only if the requested debug level and component are enabled */
 
-    if (!(AcpiDbgLevel & Level) || !(AcpiDbgLayer & Component))
+    if (!ACPI_IS_DEBUG_ENABLED (Level, Component))
     {
         return_VOID;
     }

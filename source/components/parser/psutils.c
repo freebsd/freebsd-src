@@ -238,17 +238,6 @@ AcpiPsIsLeadingChar (
 
 
 /*
- * Is "c" a namestring prefix character?
- */
-BOOLEAN
-AcpiPsIsPrefixChar (
-    UINT32                  c)
-{
-    return ((BOOLEAN) (c == '\\' || c == '^'));
-}
-
-
-/*
  * Get op's name (4-byte name segment) or 0 if unnamed
  */
 UINT32

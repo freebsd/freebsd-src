@@ -725,7 +725,7 @@ AcpiUtGetPackageObjectSize (
     Info.NumPackages = 1;
 
     Status = AcpiUtWalkPackageTree (InternalObject, NULL,
-                            AcpiUtGetElementLength, &Info);
+        AcpiUtGetElementLength, &Info);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);

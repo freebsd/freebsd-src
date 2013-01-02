@@ -269,7 +269,7 @@ AcpiExStoreObjectToObject (
 
         /* Truncate value if we are executing from a 32-bit ACPI table */
 
-        AcpiExTruncateFor32bitTable (DestDesc);
+        (void) AcpiExTruncateFor32bitTable (DestDesc);
         break;
 
     case ACPI_TYPE_STRING:

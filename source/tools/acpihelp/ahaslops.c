@@ -76,7 +76,7 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
     {"Case",                    "(Value) {TermList}",
                                 "Expression for conditional execution"},
     {"Concatenate",             "(Source1, Source2, Result) => ComputationalData",
-                                "Concatenate two strings}, integers or buffers"},
+                                "Concatenate two strings, integers or buffers"},
     {"ConcatenateResTemplate",  "(Source1, Source2, Result) => Buffer",
                                 "Concatenate two resource templates"},
     {"CondRefOf",               "(Source, Result) => Boolean",
@@ -107,8 +107,8 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Decrement an Integer"},
     {"Default",                 "{TermList}",
                                 "Default execution path in Switch()"},
-    {"DefinitionBlock",         "(AMLFileName, TableSignature, ComplianceRevision, "
-                                "OEMID, TableID, OEMRevision) {TermList}",
+    {"DefinitionBlock",         "(AmlFileName, TableSignature, ComplianceRevision, "
+                                "OemId, TableId, OemRevision) {TermList}",
                                 "Declare a Definition Block"},
     {"DerefOf",                 "(Source) => Object",
                                 "Dereference an object reference"},
@@ -239,10 +239,10 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Logical Not equal"},
     {"Load",                    "(Object, DDBHandle)",
                                 "Load differentiating definition block"},
-    {"LoadTable",               "(SignatureString, OEMIDString, OEMTableIDString, RootPathString, "
+    {"LoadTable",               "(SignatureString, OemIdString, OemTableIdString, RootPathString, "
                                 "ParameterPathString, ParameterData) => DDBHandle",
                                 "Load Table from RSDT/XSDT"},
-    {"Local",                   "Local0 - Local 7",
+    {"Local",                   "Local0 - Local7",
                                 "Method local data objects"},
     {"LOr",                     "(Source1, Source2) => Boolean",
                                 "Logical Or"},
@@ -288,7 +288,7 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
     {"One",                     "=> Integer",
                                 "Constant One Object (1)"},
     {"Ones",                    "=> Integer",
-                                "Constant Ones Object (-1)"},
+                                "Constant Ones Object (0xFFFFFFFF or 0xFFFFFFFFFFFFFFFF)"},
     {"OperationRegion",         "(RegionName, RegionSpaceKeyword, Offset, Length)",
                                 "Declare an operational region"},
     {"Or",                      "(Source1, Source2, Result) => Integer",
@@ -345,7 +345,7 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "Signal a synchronization object"},
     {"SizeOf",                  "(ObjectName) => Integer",
                                 "Get the size of a buffer}, string}, or package"},
-    {"Sleep",                   "(MilliSeconds)",
+    {"Sleep",                   "(Milliseconds)",
                                 "Sleep n milliseconds (yields the processor)"},
     {"SpiSerialBus",            "(DeviceSelection, PolarityKeyword, WireModeKeyword, "
                                 "DataBitLength, SlaveModeKeyword, "
@@ -353,7 +353,7 @@ const AH_ASL_OPERATOR       AslOperatorInfo[] =
                                 "ResourceSource, ResourceSourceIndex, "
                                 "ResourceTypeKeyword, DescriptorName, RawDataBuffer() {VendorData})",
                                 "SPI Serial Bus Connection Resource Descriptor Macro"},
-    {"Stall",                   "(MicroSeconds)",
+    {"Stall",                   "(Microseconds)",
                                 "Delay n microseconds (does not yield the processor)"},
     {"StartDependentFn",        "(CompatibilityPriority, PerformancePriority) {ResourceList}",
                                 "Start Dependent Function Resource Descriptor macro"},

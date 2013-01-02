@@ -368,7 +368,7 @@ AcpiUtDeleteInternalObjectList (
     ACPI_OPERAND_OBJECT     **InternalObj;
 
 
-    ACPI_FUNCTION_NAME (UtDeleteInternalObjectList);
+    ACPI_FUNCTION_ENTRY ();
 
 
     /* Walk the null-terminated internal list */
