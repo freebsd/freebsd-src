@@ -40,6 +40,7 @@
 .Op Fl B Ar suffix
 .Op Fl f Ar flags
 .Op Fl g Ar group
+.Op Fl l Ar linkflags
 .Op Fl m Ar mode
 .Op Fl N Ar dbdir
 .Op Fl o Ar owner
@@ -49,6 +50,7 @@
 .Op Fl B Ar suffix
 .Op Fl f Ar flags
 .Op Fl g Ar group
+.Op Fl l Ar linkflags
 .Op Fl m Ar mode
 .Op Fl N Ar dbdir
 .Op Fl o Ar owner
@@ -63,7 +65,9 @@
 .Ar directory ...
 .Sh DESCRIPTION
 The file(s) are copied
-to the target file or directory.
+(or linked if the
+.Fl l
+option is specified) to the target file or directory.
 If the destination is a directory, then the
 .Ar file
 is copied into
@@ -118,6 +122,27 @@ for a list of possible flags and their meanings.
 .It Fl g
 Specify a group.
 A numeric GID is allowed.
+.It Fl l Ar linkflags
+Instead of copying the file make a link to the source.
+The type of the link is determined by the
+.Ar linkflags
+argument.
+Valid
+.Ar linkflags
+are:
+.Ar a
+(absolute),
+.Ar r
+(relative),
+.Ar h
+(hard),
+.Ar s
+(symbolic),
+.Ar m
+(mixed).
+Absolute and relative have effect only for symbolic links.
+Mixed links
+are hard links for files on the same filesystem, symbolic otherwise.
 .It Fl M
 Disable all use of
 .Xr mmap 2 .

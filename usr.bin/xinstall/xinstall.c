@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <libgen.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdint.h>
@@ -71,6 +72,12 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_CMP_SIZE	(16 * 1024 * 1024)
 
+#define	LN_ABSOLUTE	0x01
+#define	LN_RELATIVE	0x02
+#define	LN_HARD		0x04
+#define	LN_SYMBOLIC	0x08
+#define	LN_MIXED	0x10
+
 #define	DIRECTORY	0x01		/* Tell install it's a directory. */
 #define	SETFLAGS	0x02		/* Tell install to set flags. */
 #define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
@@ -78,7 +85,7 @@ __FBSDID("$FreeBSD$");
 
 static gid_t gid;
 static uid_t uid;
-static int dobackup, docompare, dodir, dopreserve, dostrip, dounpriv,
+static int dobackup, docompare, dodir, dolink, dopreserve, dostrip, dounpriv,
     nommap, safecopy, verbose;
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 static const char *suffix = BACKUP_SUFFIX;
@@ -87,6 +94,9 @@ static int	compare(int, const char *, size_t, int, const char *, size_t);
 static void	copy(int, const char *, int, const char *, off_t);
 static int	create_newfile(const char *, int, struct stat *);
 static int	create_tempfile(const char *, char *, size_t);
+static int	do_link(const char *, const char *, const struct stat *);
+static void	do_symlink(const char *, const char *, const struct stat *);
+static void	makelink(const char *, const char *, const struct stat *);
 static void	install(const char *, const char *, u_long, u_int);
 static void	install_dir(char *);
 static int	parseid(const char *, id_t *);
@@ -102,13 +112,13 @@ main(int argc, char *argv[])
 	u_long fset;
 	int ch, no_target;
 	u_int iflags;
-	char *flags;
+	char *flags, *p;
 	const char *group, *owner, *to_name;
 
 	flags = NULL;
 	iflags = 0;
 	group = owner = NULL;
-	while ((ch = getopt(argc, argv, "B:bCcdf:g:Mm:N:o:pSsUv")) != -1)
+	while ((ch = getopt(argc, argv, "B:bCcdf:g:l:Mm:N:o:pSsUv")) != -1)
 		switch((char)ch) {
 		case 'B':
 			suffix = optarg;
@@ -130,6 +140,34 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 			group = optarg;
+			break;
+		case 'l':
+			for (p = optarg; *p; p++)
+				switch (*p) {
+				case 's':
+					dolink &= ~(LN_HARD|LN_MIXED);
+					dolink |= LN_SYMBOLIC;
+					break;
+				case 'h':
+					dolink &= ~(LN_SYMBOLIC|LN_MIXED);
+					dolink |= LN_HARD;
+					break;
+				case 'm':
+					dolink &= ~(LN_SYMBOLIC|LN_HARD);
+					dolink |= LN_MIXED;
+					break;
+				case 'a':
+					dolink &= ~LN_RELATIVE;
+					dolink |= LN_ABSOLUTE;
+					break;
+				case 'r':
+					dolink &= ~LN_ABSOLUTE;
+					dolink |= LN_RELATIVE;
+					break;
+				default:
+					errx(1, "%c: invalid link type", *p);
+					/* NOTREACHED */
+				}
 			break;
 		case 'M':
 			nommap = 1;
@@ -276,6 +314,171 @@ parseid(const char *name, id_t *id)
 }
 
 /*
+ * quiet_mktemp --
+ *	mktemp implementation used mkstemp to avoid mktemp warnings.  We
+ *	really do need mktemp semantics here as we will be creating a link.
+ */
+static char *
+quiet_mktemp(char *template)
+{
+	int fd;
+
+	if ((fd = mkstemp(template)) == -1)
+		return (NULL);
+	close (fd);
+	if (unlink(template) == -1)
+		err(1, "unlink %s", template);
+	return (template);
+}
+
+/*
+ * do_link --
+ *	make a hard link, obeying dorename if set
+ *	return -1 on failure
+ */
+static int
+do_link(const char *from_name, const char *to_name,
+    const struct stat *target_sb)
+{
+	char tmpl[MAXPATHLEN];
+	int ret;
+
+	if (safecopy && target_sb != NULL) {
+		(void)snprintf(tmpl, sizeof(tmpl), "%s.inst.XXXXXX", to_name);
+		/* This usage is safe. */
+		if (quiet_mktemp(tmpl) == NULL)
+			err(1, "%s: mktemp", tmpl);
+		ret = link(from_name, tmpl);
+		if (ret == 0) {
+			if (target_sb->st_flags & NOCHANGEBITS)
+				(void)chflags(to_name, target_sb->st_flags &
+				     ~NOCHANGEBITS);
+			unlink(to_name);
+			ret = rename(tmpl, to_name);
+			/* If rename has posix semantics, then the temporary
+			 * file may still exist when from_name and to_name point
+			 * to the same file, so unlink it unconditionally.
+			 */
+			(void)unlink(tmpl);
+		}
+		return (ret);
+	} else
+		return (link(from_name, to_name));
+}
+
+/*
+ * do_symlink --
+ *	make a symbolic link, obeying dorename if set
+ *	exit on failure
+ */
+static void
+do_symlink(const char *from_name, const char *to_name,
+    const struct stat *target_sb)
+{
+	char tmpl[MAXPATHLEN];
+
+	if (safecopy && target_sb != NULL) {
+		(void)snprintf(tmpl, sizeof(tmpl), "%s.inst.XXXXXX", to_name);
+		/* This usage is safe. */
+		if (quiet_mktemp(tmpl) == NULL)
+			err(1, "%s: mktemp", tmpl);
+
+		if (symlink(from_name, tmpl) == -1)
+			err(1, "symlink %s -> %s", from_name, tmpl);
+
+		if (target_sb->st_flags & NOCHANGEBITS)
+			(void)chflags(to_name, target_sb->st_flags &
+			     ~NOCHANGEBITS);
+		unlink(to_name);
+
+		if (rename(tmpl, to_name) == -1) {
+			/* remove temporary link before exiting */
+			(void)unlink(tmpl);
+			err(1, "%s: rename", to_name);
+		}
+	} else {
+		if (symlink(from_name, to_name) == -1)
+			err(1, "symlink %s -> %s", from_name, to_name);
+	}
+}
+
+/*
+ * makelink --
+ *	make a link from source to destination
+ */
+static void
+makelink(const char *from_name, const char *to_name,
+    const struct stat *target_sb)
+{
+	char	src[MAXPATHLEN], dst[MAXPATHLEN], lnk[MAXPATHLEN];
+
+	/* Try hard links first */
+	if (dolink & (LN_HARD|LN_MIXED)) {
+		if (do_link(from_name, to_name, target_sb) == -1) {
+			if ((dolink & LN_HARD) || errno != EXDEV)
+				err(1, "link %s -> %s", from_name, to_name);
+		} else {
+			return;
+		}
+	}
+
+	/* Symbolic links */
+	if (dolink & LN_ABSOLUTE) {
+		/* Convert source path to absolute */
+		if (realpath(from_name, src) == NULL)
+			err(1, "%s: realpath", from_name);
+		do_symlink(src, to_name, target_sb);
+		return;
+	}
+
+	if (dolink & LN_RELATIVE) {
+		char *cp, *d, *s;
+
+		/* Resolve pathnames */
+		if (realpath(from_name, src) == NULL)
+			err(1, "%s: realpath", from_name);
+
+		/*
+		 * The last component of to_name may be a symlink,
+		 * so use realpath to resolve only the directory.
+		 */
+		cp = dirname(to_name);
+		if (realpath(cp, dst) == NULL)
+			err(1, "%s: realpath", cp);
+		/* .. and add the last component */
+		if (strcmp(dst, "/") != 0) {
+			if (strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
+				errx(1, "resolved pathname too long");
+		}
+		cp = basename(to_name);
+		if (strlcat(dst, cp, sizeof(dst)) > sizeof(dst))
+			errx(1, "resolved pathname too long");
+
+		/* trim common path components */
+		for (s = src, d = dst; *s == *d; s++, d++)
+			continue;
+		while (*s != '/')
+			s--, d--;
+
+		/* count the number of directories we need to backtrack */
+		for (++d, lnk[0] = '\0'; *d; d++)
+			if (*d == '/')
+				(void)strlcat(lnk, "../", sizeof(lnk));
+
+		(void)strlcat(lnk, ++s, sizeof(lnk));
+
+		do_symlink(lnk, to_name, target_sb);
+		return;
+	}
+
+	/*
+	 * If absolute or relative was not specified, 
+	 * try the names the user provided
+	 */
+	do_symlink(from_name, to_name, target_sb);
+}
+
+/*
  * install --
  *	build a path name and install the file
  */
@@ -313,6 +516,24 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	}
 
 	target = stat(to_name, &to_sb) == 0;
+
+	if (dolink) {
+		if (target) {
+			if (to_sb.st_mode & S_IFDIR) {
+				errno = EFTYPE;
+				warn("%s", to_name);
+				return;
+			}
+			if (!safecopy) {
+				if (to_sb.st_flags & NOCHANGEBITS)
+					(void)chflags(to_name,
+					    to_sb.st_flags & ~NOCHANGEBITS);
+				unlink(to_name);
+			}
+		}
+		makelink(from_name, to_name, target ? &to_sb : NULL);
+		return;
+	}
 
 	/* Only install to regular files. */
 	if (target && !S_ISREG(to_sb.st_mode)) {
@@ -805,10 +1026,10 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: install [-bCcMpSsUv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"               [-N dbdir] [-o owner] file1 file2\n"
-"       install [-bCcMpSsUv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"               [-N dbdir] [-o owner] file1 ... fileN directory\n"
+"usage: install [-bCcMpSsUv] [-B suffix] [-f flags] [-g group] [-l linkflags]\n"
+"               [-m mode] [-N dbdir] [-o owner] file1 file2\n"
+"       install [-bCcMpSsUv] [-B suffix] [-f flags] [-g group] [-l linkflags]\n"
+"               [-m mode] [-N dbdir] [-o owner] file1 ... fileN directory\n"
 "       install -dU [-vU] [-g group] [-m mode] [-N dbdir] [-o owner]\n"
 "               directory ...\n");
 	exit(EX_USAGE);
