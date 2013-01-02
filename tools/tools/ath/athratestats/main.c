@@ -118,9 +118,9 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 	uint32_t mask;
 	int rix, y;
 
-	PRINTMSG("static_rix (%d) ratemask 0x%x\n",
+	PRINTMSG("static_rix (%d) ratemask 0x%llx\n",
 	    sn->static_rix,
-	    sn->ratemask);
+	    (long long) sn->ratemask);
 
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		PRINTATTR_ON(COLOR_PAIR(y+4) | A_BOLD);
@@ -241,7 +241,7 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 		fprintf(stderr, "unexpected TLV len (got %d bytes, "
 		    "expected %d bytes\n",
 		    av->tlv_len,
-		    sizeof(struct ath_rateioctl_rt));
+		    (int) sizeof(struct ath_rateioctl_rt));
 		exit(127);
 	}
 	rt = (void *) (buf + sizeof(struct ath_rateioctl_tlv));
@@ -260,7 +260,7 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 		fprintf(stderr, "unexpected TLV len (got %d bytes, "
 		    "expected %d bytes\n",
 		    av->tlv_len,
-		    sizeof(struct sample_node));
+		    (int) sizeof(struct sample_node));
 		exit(127);
 	}
 	sn = (void *) (buf + sizeof(struct ath_rateioctl_tlv) +
@@ -268,6 +268,8 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 	    sizeof(struct ath_rateioctl_tlv));
 
 	ath_sample_stats(r, rt, sn);
+
+	return (0);
 }
 
 static void
