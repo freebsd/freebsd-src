@@ -203,7 +203,7 @@ ath_setifname(struct ath_ratestats *r, const char *ifname)
 }
 
 static void
-ath_setsta(struct ath_ratestats *r, const char *mac)
+ath_setsta(struct ath_ratestats *r, uint8_t *mac)
 {
 
 	memcpy(&r->re.is_u.macaddr, mac, sizeof(r->re.is_u.macaddr));
@@ -224,7 +224,7 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 	struct sample_node *sn = NULL;
 	struct ath_rateioctl_rt *rt = NULL;
 	int error = 0;
-	uint8_t *buf = r->re.buf;
+	uint8_t *buf = (uint8_t *) r->re.buf;
 
 	/*
 	 * For now, hard-code the TLV order and contents.  Ew!
@@ -355,7 +355,7 @@ main(int argc, char *argv[])
 	if (buf == NULL)
 		err(1, "calloc");
 
-	r.re.buf = buf;
+	r.re.buf = (char *) buf;
 	r.re.len = STATS_BUF_SIZE;
 
 	r.s = socket(AF_INET, SOCK_DGRAM, 0);
