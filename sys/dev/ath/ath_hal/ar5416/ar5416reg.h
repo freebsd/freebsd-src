@@ -179,6 +179,7 @@
 #define	AR_2040_MODE		0x8318
 #define	AR_EXTRCCNT		0x8328	/* extension channel rx clear count */
 #define	AR_SELFGEN_MASK		0x832c	/* rx and cal chain masks */
+#define	AR_PHY_ERR_MASK_REG	0x8338
 #define	AR_PCU_TXBUF_CTRL	0x8340
 #define	AR_PCU_MISC_MODE2	0x8344
 
