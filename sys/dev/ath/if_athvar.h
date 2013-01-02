@@ -750,6 +750,10 @@ struct ath_softc {
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
 
+	/* Spectral related state */
+	void			*sc_spectral;
+	int			sc_dospectral;
+
 	/* ALQ */
 #ifdef	ATH_DEBUG_ALQ
 	struct if_ath_alq sc_alq;
