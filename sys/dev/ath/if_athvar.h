@@ -1299,4 +1299,13 @@ void	ath_intr(void *);
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
 
+#define	ath_hal_spectral_get_config(_ah, _p) \
+	((*(_ah)->ah_spectralGetConfig)((_ah), (_p)))
+#define	ath_hal_spectral_configure(_ah, _p) \
+	((*(_ah)->ah_spectralConfigure)((_ah), (_p)))
+#define	ath_hal_spectral_start(_ah) \
+	((*(_ah)->ah_spectralStart)((_ah)))
+#define	ath_hal_spectral_stop(_ah) \
+	((*(_ah)->ah_spectralStop)((_ah)))
+
 #endif /* _DEV_ATH_ATHVAR_H */
