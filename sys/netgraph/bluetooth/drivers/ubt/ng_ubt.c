@@ -398,6 +398,12 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
 
 	/* AVM USB Bluetooth-Adapter BlueFritz! v2.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x3800, 0) },
+
+	/* Broadcom USB dongles, mostly BCM20702 and BCM20702A0 */
+	{ USB_VENDOR(USB_VENDOR_BROADCOM),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
 };
 
 /*
@@ -1748,7 +1754,7 @@ static device_method_t	ubt_methods[] =
 	DEVMETHOD(device_probe,	ubt_probe),
 	DEVMETHOD(device_attach, ubt_attach),
 	DEVMETHOD(device_detach, ubt_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t		ubt_driver =
