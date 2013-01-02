@@ -341,7 +341,7 @@ AslDoOneFile (
         /* TBD: Handle additional output files for disassembler */
 
         Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
-        LsDisplayNamespace ();
+        NsDisplayNamespace ();
 #endif
 
         /* Shutdown compiler and ACPICA subsystem */

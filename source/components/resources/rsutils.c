@@ -746,7 +746,8 @@ AcpiRsGetMethodData (
 
     /* Execute the method, no parameters */
 
-    Status = AcpiUtEvaluateObject (Handle, Path, ACPI_BTYPE_BUFFER, &ObjDesc);
+    Status = AcpiUtEvaluateObject (ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Handle),
+        Path, ACPI_BTYPE_BUFFER, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);

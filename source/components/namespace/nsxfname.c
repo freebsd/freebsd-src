@@ -120,7 +120,7 @@ AcpiGetHandle (
      *
      * Error for <null Parent + relative path>
      */
-    if (AcpiNsValidRootPrefix (Pathname[0]))
+    if (ACPI_IS_ROOT_PREFIX (Pathname[0]))
     {
         /* Pathname is fully qualified (starts with '\') */
 

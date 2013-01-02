@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20121114
+#define ACPI_CA_VERSION                 0x20121220
 
 #include "acconfig.h"
 #include "actypes.h"
@@ -616,6 +616,12 @@ ACPI_STATUS
 AcpiGetEventResources (
     ACPI_HANDLE             DeviceHandle,
     ACPI_BUFFER             *RetBuffer);
+
+ACPI_STATUS
+AcpiWalkResourceBuffer (
+    ACPI_BUFFER                 *Buffer,
+    ACPI_WALK_RESOURCE_CALLBACK UserFunction,
+    void                        *Context);
 
 ACPI_STATUS
 AcpiWalkResources (

@@ -44,6 +44,7 @@ OBJECTS = \
 	$(OBJDIR)/aemain.o \
 	$(OBJDIR)/aetables.o \
 	$(OBJDIR)/dbcmds.o \
+	$(OBJDIR)/dbconvert.o \
 	$(OBJDIR)/dbdisply.o \
 	$(OBJDIR)/dbexec.o \
 	$(OBJDIR)/dbfileio.o \
@@ -85,6 +86,7 @@ OBJECTS = \
 	$(OBJDIR)/evgpeblk.o \
 	$(OBJDIR)/evgpeinit.o \
 	$(OBJDIR)/evgpeutil.o \
+	$(OBJDIR)/evhandler.o \
 	$(OBJDIR)/evmisc.o \
 	$(OBJDIR)/evregion.o \
 	$(OBJDIR)/evrgnini.o \
@@ -138,6 +140,7 @@ OBJECTS = \
 	$(OBJDIR)/nsobject.o \
 	$(OBJDIR)/nsparse.o \
 	$(OBJDIR)/nspredef.o \
+	$(OBJDIR)/nsprepkg.o \
 	$(OBJDIR)/nsrepair.o \
 	$(OBJDIR)/nsrepair2.o \
 	$(OBJDIR)/nssearch.o \
@@ -149,7 +152,9 @@ OBJECTS = \
 	$(OBJDIR)/osunixxf.o \
 	$(OBJDIR)/psargs.o \
 	$(OBJDIR)/psloop.o \
+	$(OBJDIR)/psobject.o \
 	$(OBJDIR)/psopcode.o \
+	$(OBJDIR)/psopinfo.o \
 	$(OBJDIR)/psparse.o \
 	$(OBJDIR)/psscope.o \
 	$(OBJDIR)/pstree.o \
@@ -160,6 +165,7 @@ OBJECTS = \
 	$(OBJDIR)/rscalc.o \
 	$(OBJDIR)/rscreate.o \
 	$(OBJDIR)/rsdump.o \
+	$(OBJDIR)/rsdumpinfo.o \
 	$(OBJDIR)/rsinfo.o \
 	$(OBJDIR)/rsio.o \
 	$(OBJDIR)/rsirq.o \
@@ -194,8 +200,10 @@ OBJECTS = \
 	$(OBJDIR)/utmutex.o \
 	$(OBJDIR)/utobject.o \
 	$(OBJDIR)/utosi.o \
+	$(OBJDIR)/utownerid.o \
 	$(OBJDIR)/utresrc.o \
 	$(OBJDIR)/utstate.o \
+	$(OBJDIR)/utstring.o \
 	$(OBJDIR)/uttrack.o \
 	$(OBJDIR)/utxface.o \
 	$(OBJDIR)/utxferror.o \

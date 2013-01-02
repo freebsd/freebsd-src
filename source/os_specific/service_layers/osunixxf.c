@@ -626,7 +626,7 @@ AcpiOsDeleteSemaphore (
  *
  * PARAMETERS:  Handle              - Handle returned by AcpiOsCreateSemaphore
  *              Units               - How many units to wait for
- *              Timeout             - How long to wait
+ *              MsecTimeout         - How long to wait (milliseconds)
  *
  * RETURN:      Status
  *
@@ -638,11 +638,14 @@ ACPI_STATUS
 AcpiOsWaitSemaphore (
     ACPI_HANDLE         Handle,
     UINT32              Units,
-    UINT16              Timeout)
+    UINT16              MsecTimeout)
 {
     ACPI_STATUS         Status = AE_OK;
     sem_t               *Sem = (sem_t *) Handle;
-    struct timespec     T;
+#ifndef ACPI_USE_ALTERNATE_TIMEOUT
+    struct timespec     Time;
+    int                 RetVal;
+#endif
 
 
     if (!Sem)
@@ -650,7 +653,7 @@ AcpiOsWaitSemaphore (
         return (AE_BAD_PARAMETER);
     }
 
-    switch (Timeout)
+    switch (MsecTimeout)
     {
     /*
      * No Wait:
@@ -677,37 +680,71 @@ AcpiOsWaitSemaphore (
         }
         break;
 
-    /* Wait with Timeout */
+    /* Wait with MsecTimeout */
 
     default:
-
-        T.tv_sec = Timeout / 1000;
-        T.tv_nsec = (Timeout - (T.tv_sec * 1000)) * 1000000;
 
 #ifdef ACPI_USE_ALTERNATE_TIMEOUT
         /*
          * Alternate timeout mechanism for environments where
          * sem_timedwait is not available or does not work properly.
          */
-        while (Timeout)
+        while (MsecTimeout)
         {
             if (sem_trywait (Sem) == 0)
             {
                 /* Got the semaphore */
                 return (AE_OK);
             }
-            usleep (1000);  /* one millisecond */
-            Timeout--;
+
+            if (MsecTimeout >= 10)
+            {
+                MsecTimeout -= 10;
+                usleep (10 * ACPI_USEC_PER_MSEC); /* ten milliseconds */
+            }
+            else
+            {
+                MsecTimeout--;
+                usleep (ACPI_USEC_PER_MSEC); /* one millisecond */
+            }
         }
         Status = (AE_TIME);
 #else
-
-        if (sem_timedwait (Sem, &T))
+        /*
+         * The interface to sem_timedwait is an absolute time, so we need to
+         * get the current time, then add in the millisecond Timeout value.
+         */
+        if (clock_gettime (CLOCK_REALTIME, &Time) == -1)
         {
+            perror ("clock_gettime");
+            return (AE_TIME);
+        }
+
+        Time.tv_sec += (MsecTimeout / ACPI_MSEC_PER_SEC);
+        Time.tv_nsec += ((MsecTimeout % ACPI_MSEC_PER_SEC) * ACPI_NSEC_PER_MSEC);
+
+        /* Handle nanosecond overflow (field must be less than one second) */
+
+        if (Time.tv_nsec >= ACPI_NSEC_PER_SEC)
+        {
+            Time.tv_sec += (Time.tv_nsec / ACPI_NSEC_PER_SEC);
+            Time.tv_nsec = (Time.tv_nsec % ACPI_NSEC_PER_SEC);
+        }
+
+        while (((RetVal = sem_timedwait (Sem, &Time)) == -1) && (errno == EINTR))
+        {
+            continue;
+        }
+
+        if (RetVal != 0)
+        {
+            if (errno != ETIMEDOUT)
+            {
+                perror ("sem_timedwait");
+            }
             Status = (AE_TIME);
         }
 #endif
-
         break;
     }
 
@@ -884,12 +921,15 @@ AcpiOsSleep (
     UINT64                  milliseconds)
 {
 
-    sleep (milliseconds / 1000);    /* Sleep for whole seconds */
+    /* Sleep for whole seconds */
+
+    sleep (milliseconds / ACPI_MSEC_PER_SEC);
 
     /*
-     * Arg to usleep() must be less than 1,000,000 (1 second)
+     * Sleep for remaining microseconds.
+     * Arg to usleep() is in usecs and must be less than 1,000,000 (1 second).
      */
-    usleep ((milliseconds % 1000) * 1000);      /* Sleep for remaining usecs */
+    usleep ((milliseconds % ACPI_MSEC_PER_SEC) * ACPI_USEC_PER_MSEC); 
 }
 
 
@@ -912,11 +952,14 @@ AcpiOsGetTimer (
     struct timeval          time;
 
 
+    /* This timer has sufficient resolution for user-space application code */
+
     gettimeofday (&time, NULL);
 
-    /* Seconds * 10^7 = 100ns(10^-7), Microseconds(10^-6) * 10^1 = 100ns */
+    /* (Seconds * 10^7 = 100ns(10^-7)) + (Microseconds(10^-6) * 10^1 = 100ns) */
 
-    return (((UINT64) time.tv_sec * 10000000) + ((UINT64) time.tv_usec * 10));
+    return (((UINT64) time.tv_sec * ACPI_100NSEC_PER_SEC) +
+            ((UINT64) time.tv_usec * ACPI_100NSEC_PER_USEC));
 }
 
 

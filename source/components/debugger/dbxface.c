@@ -433,7 +433,7 @@ AcpiDbInitialize (
 
     /* Initial scope is the root */
 
-    AcpiGbl_DbScopeBuf [0] = '\\';
+    AcpiGbl_DbScopeBuf [0] = AML_ROOT_PREFIX;
     AcpiGbl_DbScopeBuf [1] =  0;
     AcpiGbl_DbScopeNode = AcpiGbl_RootNode;
 

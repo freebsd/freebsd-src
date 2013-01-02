@@ -1168,6 +1168,8 @@ AcpiDbUserCommands (
     ACPI_STATUS             Status = AE_OK;
 
 
+    AcpiOsPrintf ("\n");
+
     /* TBD: [Restructure] Need a separate command line buffer for step mode */
 
     while (!AcpiGbl_DbTerminateThreads)

@@ -538,6 +538,9 @@ AeMiscellaneousTests (
 #endif /* !ACPI_REDUCED_HARDWARE */
 
 
+    Status = AcpiGetHandle (NULL, "\\", &Handle);
+    AE_CHECK_OK (AcpiGetHandle, Status);
+
     if (AcpiGbl_DoInterfaceTests)
     {
         /*

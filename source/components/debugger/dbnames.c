@@ -159,7 +159,7 @@ AcpiDbSetScope (
 
     AcpiDbPrepNamestring (Name);
 
-    if (Name[0] == '\\')
+    if (ACPI_IS_ROOT_PREFIX (Name[0]))
     {
         /* Validate new scope from the root */
 

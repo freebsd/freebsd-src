@@ -199,7 +199,7 @@ AcpiTbLoadNamespace (
         (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
+    ACPI_INFO ((AE_INFO, "All ACPI Tables successfully acquired"));
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);

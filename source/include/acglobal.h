@@ -349,7 +349,6 @@ ACPI_EXTERN UINT32                      AcpiGbl_DeepestNesting;
  *
  ****************************************************************************/
 
-
 ACPI_EXTERN ACPI_THREAD_STATE          *AcpiGbl_CurrentWalkList;
 
 /* Control method single step flag */

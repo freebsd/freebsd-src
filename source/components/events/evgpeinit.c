@@ -94,6 +94,9 @@ AcpiEvGpeInitialize (
     ACPI_FUNCTION_TRACE (EvGpeInitialize);
 
 
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
+        "Initializing General Purpose Events (GPEs):\n"));
+
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {

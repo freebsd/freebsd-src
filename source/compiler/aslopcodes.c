@@ -802,6 +802,14 @@ OpcGenerateAmlOpcode (
         Op->Asl.Child->Asl.Next->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
         break;
 
+    case PARSEOP_TIMER:
+
+        if (AcpiGbl_IntegerBitWidth == 32)
+        {
+            AslError (ASL_REMARK, ASL_MSG_TRUNCATION, Op, NULL);
+        }
+        break;
+
     default:
         /* Nothing to do for other opcodes */
         break;

@@ -394,7 +394,7 @@ AcpiDbDisassembleMethod (
     WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
 
     Status = AcpiPsParseAml (WalkState);
-    AcpiDmParseDeferredOps (Op);
+    (void) AcpiDmParseDeferredOps (Op);
 
     /* Now we can disassemble the method */
 

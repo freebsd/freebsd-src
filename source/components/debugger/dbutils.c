@@ -286,7 +286,7 @@ AcpiDbPrepNamestring (
 
     /* Ignore a leading backslash, this is the root prefix */
 
-    if (*Name == '\\')
+    if (ACPI_IS_ROOT_PREFIX (*Name))
     {
         Name++;
     }
