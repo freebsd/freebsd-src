@@ -490,7 +490,7 @@ ath_zerostats(struct athstatfoo *wf0)
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
 
 	if (ioctl(wf->s, SIOCZATHSTATS, &wf->ifr) < 0)
-		err(-1, wf->ifr.ifr_name);
+		err(-1, "ioctl: %s", wf->ifr.ifr_name);
 }
 
 static void
@@ -498,21 +498,21 @@ ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 {
 	wf->ifr.ifr_data = (caddr_t) &stats->ath;
 	if (ioctl(wf->s, SIOCGATHSTATS, &wf->ifr) < 0)
-		err(1, wf->ifr.ifr_name);
+		err(1, "ioctl: %s", wf->ifr.ifr_name);
 #ifdef ATH_SUPPORT_ANI
 	if (wf->optstats & ATHSTATS_ANI) {
 		wf->atd.ad_id = 5;
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_state;
 		wf->atd.ad_out_size = sizeof(stats->ani_state);
 		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0) {
-			warn(wf->atd.ad_name);
+			warn("ioctl: %s", wf->atd.ad_name);
 			wf->optstats &= ~ATHSTATS_ANI;
 		}
 		wf->atd.ad_id = 8;
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_stats;
 		wf->atd.ad_out_size = sizeof(stats->ani_stats);
 		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0)
-			warn(wf->atd.ad_name);
+			warn("ioctl: %s", wf->atd.ad_name);
 	}
 #endif /* ATH_SUPPORT_ANI */
 }
@@ -574,12 +574,14 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	switch (s) {
 	case S_INPUT:
 		snprintf(b, bs, "%lu",
-		    (wf->cur.ath.ast_rx_packets - wf->total.ath.ast_rx_packets) -
-		    (wf->cur.ath.ast_rx_mgt - wf->total.ath.ast_rx_mgt));
+		    (unsigned long)
+		    ((wf->cur.ath.ast_rx_packets - wf->total.ath.ast_rx_packets) -
+		    (wf->cur.ath.ast_rx_mgt - wf->total.ath.ast_rx_mgt)));
 		return 1;
 	case S_OUTPUT:
 		snprintf(b, bs, "%lu",
-		    wf->cur.ath.ast_tx_packets - wf->total.ath.ast_tx_packets);
+		    (unsigned long)
+		    (wf->cur.ath.ast_tx_packets - wf->total.ath.ast_tx_packets));
 		return 1;
 	case S_RATE:
 		snprintrate(b, bs, wf->cur.ath.ast_tx_rate);
