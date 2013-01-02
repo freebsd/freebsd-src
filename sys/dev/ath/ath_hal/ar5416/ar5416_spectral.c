@@ -113,7 +113,7 @@ ar5416ConfigureSpectralScan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
 
 		if (ss->ss_short_report == AH_TRUE) {
 			val |= AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT;
-		} else {
+		} else if (ss->ss_short_report != HAL_SPECTRAL_PARAM_NOVAL) {
 			val &= ~AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT;
 		}
 	} else {
@@ -130,7 +130,7 @@ ar5416ConfigureSpectralScan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
 
 		if (ss->ss_short_report == AH_TRUE) {
 			val |= AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_KIWI;
-		} else {
+		} else if (ss->ss_short_report != HAL_SPECTRAL_PARAM_NOVAL) {
 			val &= ~AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_KIWI;
 		}
 
