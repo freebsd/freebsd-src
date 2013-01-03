@@ -140,6 +140,7 @@ maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
 mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
 marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
+marius [label="Marius Strobl\nmarius@FreeBSD.org\n2012/12/29"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2004/02/21"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
@@ -235,8 +236,10 @@ avilla -> rakuco
 bapt -> bdrewery
 bapt -> eadler
 bapt -> jlaffaye
+bapt -> marius
 
 beat -> decke
+beat -> marius
 beat -> sperber
 beat -> uqs
 
