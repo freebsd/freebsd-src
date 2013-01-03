@@ -34,9 +34,15 @@
  * $FreeBSD$
  */
 
+#ifndef	FS_NULL_H
+#define	FS_NULL_H
+
+#define	NULLM_CACHE	0x0001
+
 struct null_mount {
 	struct mount	*nullm_vfs;
 	struct vnode	*nullm_rootvp;	/* Reference to root null_node */
+	uint64_t	nullm_flags;
 };
 
 #ifdef _KERNEL
@@ -80,3 +86,5 @@ MALLOC_DECLARE(M_NULLFSNODE);
 #endif /* NULLFS_DEBUG */
 
 #endif /* _KERNEL */
+
+#endif
