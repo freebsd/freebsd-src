@@ -238,15 +238,6 @@ device		usb		# USB Bus (required)
 device		ukbd		# Keyboard
 device		umass		# Disks/Mass storage - Requires scbus and da
 
-# FireWire support
-device		firewire	# FireWire bus code
-# sbp(4) works for some systems but causes boot failure on others
-#device		sbp		# SCSI over FireWire (Requires scbus and da)
-device		fwe		# Ethernet over FireWire (non-standard!)
-device		fwip		# IP over FireWire (RFC 2734,3146)
-device		dcons		# Dumb console driver
-device		dcons_crom	# Configuration ROM for dcons
-
 # Sound support
 device		sound		# Generic sound driver (required)
 device		snd_audiocs	# Crystal Semiconductor CS4231
