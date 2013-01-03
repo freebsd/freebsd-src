@@ -82,12 +82,19 @@ struct ath_spectral_state {
  */
 
 /*
- * Attach DFS to the given interface
+ * Attach spectral to the given interface
  */
 int
 ath_spectral_attach(struct ath_softc *sc)
 {
 	struct ath_spectral_state *ss;
+
+	/*
+	 * If spectral isn't supported, don't error - just
+	 * quietly complete.
+	 */
+	if (! ath_hal_spectral_supported(sc->sc_ah))
+		return (0);
 
 	ss = malloc(sizeof(struct ath_spectral_state),
 	    M_TEMP, M_WAITOK | M_ZERO);
@@ -106,11 +113,15 @@ ath_spectral_attach(struct ath_softc *sc)
 }
 
 /*
- * Detach DFS from the given interface
+ * Detach spectral from the given interface
  */
 int
 ath_spectral_detach(struct ath_softc *sc)
 {
+
+	if (! ath_hal_spectral_supported(sc->sc_ah))
+		return (0);
+
 	if (sc->sc_spectral != NULL) {
 		free(sc->sc_spectral, M_TEMP);
 	}
@@ -147,6 +158,9 @@ ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 	HAL_SPECTRAL_PARAM peout;
 	HAL_SPECTRAL_PARAM *pe;
 	struct ath_spectral_state *ss = sc->sc_spectral;
+
+	if (! ath_hal_spectral_supported(sc->sc_ah))
+		return (EINVAL);
 
 	if (ad->ad_id & ATH_DIAG_IN) {
 		/*
