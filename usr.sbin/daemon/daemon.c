@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 	nochdir = noclose = 1;
 	restart = 0;
 	pidfile = user = NULL;
-	while ((ch = getopt(argc, argv, "-cfp:ru:")) != -1) {
+	while ((ch = getopt(argc, argv, "cfp:ru:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
