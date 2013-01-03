@@ -64,9 +64,15 @@ export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 
 ############################################################ FUNCTIONS
 
+# f_dprintf $fmt [ $opts ... ]
 #
 # Sensible debug function. Override in ~/.bsdconfigrc if desired.
 # See /usr/share/examples/bsdconfig/bsdconfigrc for example.
+#
+# If $debug is set and non-NULL, prints DEBUG info using printf(1) syntax:
+# 	+ To $debugFile, if set and non-NULL
+# 	+ To standard output if $debugFile is either NULL or unset
+# 	+ To both if $debugFile begins with a single plus-sign (`+')
 #
 f_dprintf()
 {
