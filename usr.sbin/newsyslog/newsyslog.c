@@ -1582,7 +1582,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 				    oldlogs[i].fname);
 			else if (unlinkat(dir_fd, oldlogs[i].fname, 0) != 0) {
 				snprintf(errbuf, sizeof(errbuf),
-				    "Could not delet old logfile '%s'",
+				    "Could not delete old logfile '%s'",
 				    oldlogs[i].fname);
 				perror(errbuf);
 			}
