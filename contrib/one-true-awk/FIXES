@@ -25,6 +25,22 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Dec 20, 2012:
+	fiddled makefile to get correct yacc and bison flags.  pick yacc
+	(linux) or bison (mac) as necessary.
+
+	added  __attribute__((__noreturn__)) to a couple of lines in
+	proto.h, to silence someone's enthusiastic checker.
+
+	fixed obscure call by value bug in split(a[1],a) reported on
+	9fans.  the management of temporary values is just a mess; i
+	took a shortcut by making an extra string copy.  thanks
+	to paul patience and arnold robbins for passing it on and for
+	proposed patches.
+
+	tiny fiddle in setfval to eliminate -0 results in T.expr, which
+	has irritated me for 20+ years.
+
 Aug 10, 2011:
 	another fix to avoid core dump with delete(ARGV); again, many thanks
 	to ruslan ermilov.
