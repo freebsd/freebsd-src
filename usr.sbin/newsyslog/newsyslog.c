@@ -644,7 +644,7 @@ parse_args(int argc, char **argv)
 			break;
 		case 'n':
 			noaction++;
-			break;
+			/* FALLTHROUGH */
 		case 'r':
 			needroot = 0;
 			break;
