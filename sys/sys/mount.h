@@ -225,29 +225,6 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
 	__mnt_vnode_markerfree_active(&(mvp), (mp))
 
-/*
- * Definitions for MNT_VNODE_FOREACH.
- *
- * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
- */
-struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
-struct vnode *__mnt_vnode_first(struct vnode **mvp, struct mount *mp);
-void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
-
-#define MNT_VNODE_FOREACH(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first(&(mvp), (mp)); \
-		(vp) != NULL; vp = __mnt_vnode_next(&(mvp), (mp)))
-
-#define MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp)			\
-	__mnt_vnode_markerfree(&(mvp), (mp))
-
-#define MNT_VNODE_FOREACH_ABORT(mp, mvp)				\
-	do {								\
-		MNT_ILOCK(mp);						\
-		MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);		\
-		MNT_IUNLOCK(mp);					\
-	} while (0)
-
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
 #define	MNT_ITRYLOCK(mp) mtx_trylock(&(mp)->mnt_mtx)
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
