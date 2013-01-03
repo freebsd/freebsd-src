@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd February 29, 2012
+.Dd November 7, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -142,7 +142,7 @@ The link-level
 address
 is specified as a series of colon-separated hex digits.
 This can be used to
-e.g.\& set a new MAC address on an ethernet interface, though the
+e.g.,\& set a new MAC address on an ethernet interface, though the
 mechanism used is not ethernet-specific.
 If the interface is already
 up when this option is used, it will be briefly brought down and
@@ -293,7 +293,7 @@ Specify interface FIB.
 A FIB
 .Ar fib_number
 is assigned to all frames or packets received on that interface.
-The FIB is not inherited, e.g. vlans or other sub-interfaces will use
+The FIB is not inherited, e.g., vlans or other sub-interfaces will use
 the default FIB (0) irrespective of the parent interface's FIB.
 The kernel needs to be tuned to support more than the default FIB
 using the
@@ -750,7 +750,7 @@ For example, if a device is capable of operating on channel 6
 with 802.11n and 802.11g then one can specify that g-only use
 should be used by specifying ``6:g''.
 Similarly the channel width can be specified by appending it
-with ``/''; e.g. ``6/40'' specifies a 40MHz wide channel,
+with ``/''; e.g., ``6/40'' specifies a 40MHz wide channel,
 These attributes can be combined as in: ``6:ht/40''.
 The full set of flags specified following a `:'' are:
 .Cm a
@@ -971,7 +971,7 @@ See the description of the
 directive for information on the various parameters.
 .It Cm mcastrate Ar rate
 Set the rate for transmitting multicast/broadcast frames.
-Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
+Rates are specified as megabits/second in decimal; e.g.,\& 5.5 for 5.5 Mb/s.
 This rate should be valid for the current operating conditions;
 if an invalid rate is specified drivers are free to chose an
 appropriate rate.
@@ -1209,7 +1209,7 @@ The
 flag may be used to prevent the shortening of long SSIDs.
 .It Cm scanvalid Ar threshold
 Set the maximum time the scan cache contents are considered valid;
-i.e. will be used without first triggering a scan operation to
+i.e., will be used without first triggering a scan operation to
 refresh the data.
 The
 .Ar threshold
@@ -1907,9 +1907,6 @@ The
 flag disables this behavior.
 .Pp
 Only the super-user may modify the configuration of a network interface.
-.Sh NOTES
-The media selection system is relatively new and only some drivers support
-it (or have need for it).
 .Sh EXAMPLES
 Assign the IPv4 address
 .Li 192.0.2.10 ,
@@ -1981,7 +1978,9 @@ tried to alter an interface's configuration.
 .Xr pfsync 4 ,
 .Xr polling 4 ,
 .Xr vlan 4 ,
+.Xr devd.conf 5 ,
 .\" .Xr eon 5 ,
+.Xr devd 8 ,
 .Xr rc 8 ,
 .Xr routed 8 ,
 .Xr sysctl 8
