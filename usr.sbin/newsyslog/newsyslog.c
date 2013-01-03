@@ -1814,12 +1814,21 @@ do_rotate(const struct conf_entry *ent)
 				printf("\tcp %s %s\n", ent->log, file1);
 			else
 				printf("\tln %s %s\n", ent->log, file1);
+			printf("\ttouch %s\t\t"
+			    "# Update mtime for 'when'-interval processing\n",
+			    file1);
 		} else {
 			if (!(flags & CE_BINARY)) {
 				/* Report the trimming to the old log */
 				log_trim(ent->log, ent);
 			}
 			savelog(ent->log, file1);
+			/*
+			 * Interval-based rotations are done using the mtime of
+			 * the most recently archived log, so make sure it gets
+			 * updated during a rotation.
+			 */
+			utimes(file1, NULL);
 		}
 		change_attrs(file1, ent);
 	}
