@@ -3430,8 +3430,10 @@ dns_adb_adjustsrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 	addr->entry->srtt = new_srtt;
 	addr->srtt = new_srtt;
 
-	isc_stdtime_get(&now);
-	addr->entry->expires = now + ADB_ENTRY_WINDOW;
+	if (addr->entry->expires == 0) {
+		isc_stdtime_get(&now);
+		addr->entry->expires = now + ADB_ENTRY_WINDOW;
+	}
 
 	UNLOCK(&adb->entrylocks[bucket]);
 }
@@ -3441,6 +3443,7 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 		    unsigned int bits, unsigned int mask)
 {
 	int bucket;
+	isc_stdtime_t now;
 
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
@@ -3449,6 +3452,11 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 	LOCK(&adb->entrylocks[bucket]);
 
 	addr->entry->flags = (addr->entry->flags & ~mask) | (bits & mask);
+	if (addr->entry->expires == 0) {
+		isc_stdtime_get(&now);
+		addr->entry->expires = now + ADB_ENTRY_WINDOW;
+	}
+
 	/*
 	 * Note that we do not update the other bits in addr->flags with
 	 * the most recent values from addr->entry->flags.
@@ -3527,15 +3535,16 @@ dns_adb_freeaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **addrp) {
 	entry = addr->entry;
 	REQUIRE(DNS_ADBENTRY_VALID(entry));
 
-	isc_stdtime_get(&now);
-
 	*addrp = NULL;
 	overmem = isc_mem_isovermem(adb->mctx);
 
 	bucket = addr->entry->lock_bucket;
 	LOCK(&adb->entrylocks[bucket]);
 
-	entry->expires = now + ADB_ENTRY_WINDOW;
+	if (entry->expires == 0) {
+		isc_stdtime_get(&now);
+		entry->expires = now + ADB_ENTRY_WINDOW;
+	}
 
 	want_check_exit = dec_entry_refcnt(adb, overmem, entry, ISC_FALSE);
 

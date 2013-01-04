@@ -248,10 +248,14 @@ check_data(const dst_private_t *priv, const unsigned int alg,
 	switch (alg) {
 	case DST_ALG_RSAMD5:
 	case DST_ALG_RSASHA1:
+	case DST_ALG_NSEC3RSASHA1:
+	case DST_ALG_RSASHA256:
+	case DST_ALG_RSASHA512:
 		return (check_rsa(priv));
 	case DST_ALG_DH:
 		return (check_dh(priv));
 	case DST_ALG_DSA:
+	case DST_ALG_NSEC3DSA:
 		return (check_dsa(priv));
 	case DST_ALG_HMACMD5:
 		return (check_hmac_md5(priv, old));
@@ -289,7 +293,7 @@ int
 dst__privstruct_parse(dst_key_t *key, unsigned int alg, isc_lex_t *lex,
 		      isc_mem_t *mctx, dst_private_t *priv)
 {
-	int n = 0, major, minor;
+	int n = 0, major, minor, check;
 	isc_buffer_t b;
 	isc_token_t token;
 	unsigned char *data = NULL;
@@ -416,8 +420,14 @@ dst__privstruct_parse(dst_key_t *key, unsigned int alg, isc_lex_t *lex,
  done:
 	priv->nelements = n;
 
-	if (check_data(priv, alg, ISC_TRUE) < 0)
+	check = check_data(priv, alg, ISC_TRUE);
+	if (check < 0) {
+		ret = DST_R_INVALIDPRIVATEKEY;
 		goto fail;
+	} else if (check != ISC_R_SUCCESS) {
+		ret = check;
+		goto fail;
+	}
 
 	return (ISC_R_SUCCESS);
 
@@ -436,7 +446,7 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 {
 	FILE *fp;
 	int ret, i;
-	isc_result_t iret;
+	isc_result_t result;
 	char filename[ISC_DIR_NAMEMAX];
 	char buffer[MAXFIELDSIZE * 2];
 	isc_buffer_t b;
@@ -444,13 +454,16 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 
 	REQUIRE(priv != NULL);
 
-	if (check_data(priv, dst_key_alg(key), ISC_FALSE) < 0)
+	ret = check_data(priv, dst_key_alg(key), ISC_FALSE);
+	if (ret < 0)
 		return (DST_R_INVALIDPRIVATEKEY);
+	else if (ret != ISC_R_SUCCESS)
+		return (ret);
 
 	isc_buffer_init(&b, filename, sizeof(filename));
-	ret = dst_key_buildfilename(key, DST_TYPE_PRIVATE, directory, &b);
-	if (ret != ISC_R_SUCCESS)
-		return (ret);
+	result = dst_key_buildfilename(key, DST_TYPE_PRIVATE, directory, &b);
+	if (result != ISC_R_SUCCESS)
+		return (result);
 
 	if ((fp = fopen(filename, "w")) == NULL)
 		return (DST_R_WRITEERROR);
@@ -525,8 +538,8 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 		r.base = priv->elements[i].data;
 		r.length = priv->elements[i].length;
 		isc_buffer_init(&b, buffer, sizeof(buffer));
-		iret = isc_base64_totext(&r, sizeof(buffer), "", &b);
-		if (iret != ISC_R_SUCCESS) {
+		result = isc_base64_totext(&r, sizeof(buffer), "", &b);
+		if (result != ISC_R_SUCCESS) {
 			fclose(fp);
 			return (DST_R_INVALIDPRIVATEKEY);
 		}
@@ -536,9 +549,9 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 	}
 
 	fflush(fp);
-	iret = ferror(fp) ? DST_R_WRITEERROR : ISC_R_SUCCESS;
+	result = ferror(fp) ? DST_R_WRITEERROR : ISC_R_SUCCESS;
 	fclose(fp);
-	return (iret);
+	return (result);
 }
 
 /*! \file */

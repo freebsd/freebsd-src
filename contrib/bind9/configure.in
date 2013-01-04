@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -1090,7 +1090,7 @@ case "$use_libxml2" in
 		;;
 	auto|yes)
 		case X`(xml2-config --version) 2>/dev/null` in
-		X2.[[67]].*)
+		X2.[[678]].*)
 			libxml2_libs=`xml2-config --libs`
 			libxml2_cflags=`xml2-config --cflags`
 			;;

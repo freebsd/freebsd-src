@@ -421,6 +421,8 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		REQUIRE(DNS_RDATA_INITIALIZED(rdata));
 		REQUIRE(DNS_RDATA_VALIDFLAGS(rdata));
 	}
+	REQUIRE(source != NULL);
+	REQUIRE(target != NULL);
 
 	if (type == 0)
 		return (DNS_R_FORMERR);
@@ -521,13 +523,11 @@ rdata_validate(isc_buffer_t *src, isc_buffer_t *dest, dns_rdataclass_t rdclass,
 	    dns_rdatatype_t type)
 {
 	dns_decompress_t dctx;
-	dns_rdata_t rdata = DNS_RDATA_INIT;
 	isc_result_t result;
 
 	dns_decompress_init(&dctx, -1, DNS_DECOMPRESS_NONE);
 	isc_buffer_setactive(src, isc_buffer_usedlength(src));
-	result = dns_rdata_fromwire(&rdata, rdclass, type, src,
-				    &dctx, 0, dest);
+	result = dns_rdata_fromwire(NULL, rdclass, type, src, &dctx, 0, dest);
 	dns_decompress_invalidate(&dctx);
 
 	return (result);
@@ -1152,7 +1152,8 @@ txt_fromwire(isc_buffer_t *source, isc_buffer_t *target) {
 	if (n > tregion.length)
 		return (ISC_R_NOSPACE);
 
-	memcpy(tregion.base, sregion.base, n);
+	if (tregion.base != sregion.base)
+		memcpy(tregion.base, sregion.base, n);
 	isc_buffer_forward(source, n);
 	isc_buffer_add(target, n);
 	return (ISC_R_SUCCESS);
@@ -1326,7 +1327,8 @@ mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length) {
 	isc_buffer_availableregion(target, &tr);
 	if (length > tr.length)
 		return (ISC_R_NOSPACE);
-	memcpy(tr.base, base, length);
+	if (tr.base != base)
+		memcpy(tr.base, base, length);
 	isc_buffer_add(target, length);
 	return (ISC_R_SUCCESS);
 }
