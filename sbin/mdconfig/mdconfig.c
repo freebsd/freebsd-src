@@ -62,7 +62,7 @@ usage(void)
 "       mdconfig -d -u unit [-o [no]force]\n"
 "       mdconfig -l [-v] [-n] [-u unit]\n"
 "       mdconfig file\n");
-	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
+	fprintf(stderr, "\t\ttype = {malloc, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%db (B),\n");
 	fprintf(stderr, "\t\t       %%dk (kB), %%dm (MB), %%dg (GB) or\n");
@@ -115,9 +115,6 @@ main(int argc, char **argv)
 			if (!strcmp(optarg, "malloc")) {
 				mdio.md_type = MD_MALLOC;
 				mdio.md_options = MD_AUTOUNIT | MD_COMPRESS;
-			} else if (!strcmp(optarg, "preload")) {
-				mdio.md_type = MD_PRELOAD;
-				mdio.md_options = 0;
 			} else if (!strcmp(optarg, "vnode")) {
 				mdio.md_type = MD_VNODE;
 				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
