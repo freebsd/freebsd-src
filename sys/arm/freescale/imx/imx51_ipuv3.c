@@ -99,6 +99,9 @@ struct video_adapter_softc {
 	video_adapter_t	va;
 
 	intptr_t	fb_addr;
+	intptr_t	fb_paddr;
+	va_sc->fb_paddr = (intptr_t)sc->pbase;
+		*paddr = sc->fb_paddr + offset;
 	unsigned int	fb_size;
 
 	int		depth;
@@ -196,6 +199,7 @@ ipu3_fb_init(void *arg)
 	    ((sc->pbase >> 3) >> 3) & 0xffffffff);
 
 	va_sc->fb_addr = (intptr_t)sc->vbase;
+	va_sc->fb_paddr = (intptr_t)sc->pbase;
 	va_sc->fb_size = size;
 	va_sc->stride = IPU3FB_WIDTH * IPU3FB_BPP;
 	va_sc->depth = IPU3FB_BPP * 8;
@@ -628,7 +632,7 @@ ipu3fb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 	 * framebuffer, since it shouldn't be touched
 	 */
 	if (offset < sc->stride * sc->height) {
-		*paddr = sc->fb_addr + offset;
+		*paddr = sc->fb_paddr + offset;
 		return (0);
 	}
 
