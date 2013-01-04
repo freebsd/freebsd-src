@@ -513,6 +513,7 @@ ipu3fb_init(int unit, video_adapter_t *adp, int flags)
 static int
 ipu3fb_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 {
+
 	bcopy(&adp->va_info, info, sizeof(*info));
 	return (0);
 }
@@ -520,12 +521,14 @@ ipu3fb_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 static int
 ipu3fb_query_mode(video_adapter_t *adp, video_info_t *info)
 {
+
 	return (0);
 }
 
 static int
 ipu3fb_set_mode(video_adapter_t *adp, int mode)
 {
+
 	return (0);
 }
 
@@ -533,6 +536,7 @@ static int
 ipu3fb_save_font(video_adapter_t *adp, int page, int size, int width,
     u_char *data, int c, int count)
 {
+
 	return (0);
 }
 
@@ -540,8 +544,9 @@ static int
 ipu3fb_load_font(video_adapter_t *adp, int page, int size, int width,
     u_char *data, int c, int count)
 {
-	struct video_adapter_softc *sc = (struct video_adapter_softc *)adp;
+	struct video_adapter_softc *sc;
 
+	sc = (struct video_adapter_softc *)adp;
 	sc->font = data;
 
 	return (0);
@@ -550,56 +555,64 @@ ipu3fb_load_font(video_adapter_t *adp, int page, int size, int width,
 static int
 ipu3fb_show_font(video_adapter_t *adp, int page)
 {
+
 	return (0);
 }
 
 static int
 ipu3fb_save_palette(video_adapter_t *adp, u_char *palette)
 {
+
 	return (0);
 }
 
 static int
 ipu3fb_load_palette(video_adapter_t *adp, u_char *palette)
 {
+
 	return (0);
 }
 
 static int
 ipu3fb_set_border(video_adapter_t *adp, int border)
 {
+
 	return (ipu3fb_blank_display(adp, border));
 }
 
 static int
 ipu3fb_save_state(video_adapter_t *adp, void *p, size_t size)
 {
+
 	return (0);
 }
 
 static int
 ipu3fb_load_state(video_adapter_t *adp, void *p)
 {
+
 	return (0);
 }
 
 static int
 ipu3fb_set_win_org(video_adapter_t *adp, off_t offset)
 {
+
 	return (0);
 }
 
 static int
 ipu3fb_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 {
-	*col = *row = 0;
 
+	*col = *row = 0;
 	return (0);
 }
 
 static int
 ipu3fb_set_hw_cursor(video_adapter_t *adp, int col, int row)
 {
+
 	return (0);
 }
 
@@ -607,6 +620,7 @@ static int
 ipu3fb_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
     int celsize, int blink)
 {
+
 	return (0);
 }
 
