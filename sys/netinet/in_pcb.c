@@ -236,6 +236,8 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 	    NULL, NULL, inpcbzone_init, inpcbzone_fini, UMA_ALIGN_PTR,
 	    inpcbzone_flags);
 	uma_zone_set_max(pcbinfo->ipi_zone, maxsockets);
+	uma_zone_set_warning(pcbinfo->ipi_zone,
+	    "kern.ipc.maxsockets limit reached");
 }
 
 /*

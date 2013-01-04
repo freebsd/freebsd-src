@@ -325,7 +325,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 	 */
 	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
 		sc->sc_stats.ast_tx_linear++;
-		m = m_collapse(m0, M_DONTWAIT, ATH_TXDESC);
+		m = m_collapse(m0, M_NOWAIT, ATH_TXDESC);
 		if (m == NULL) {
 			ath_freetx(m0);
 			sc->sc_stats.ast_tx_nombuf++;
@@ -372,7 +372,6 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 	uint32_t segLenList[4];
 	int numTxMaps = 1;
 	int isFirstDesc = 1;
-	int qnum;
 
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
@@ -426,18 +425,16 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 			    bf->bf_daddr + dd->dd_descsize * (dsp + 1));
 
 		/*
-		 * XXX this assumes that bfs_txq is the actual destination
-		 * hardware queue at this point.  It may not have been assigned,
-		 * it may actually be pointing to the multicast software
-		 * TXQ id.  These must be fixed!
+		 * XXX This assumes that bfs_txq is the actual destination
+		 * hardware queue at this point.  It may not have been
+		 * assigned, it may actually be pointing to the multicast
+		 * software TXQ id.  These must be fixed!
 		 */
-		qnum = bf->bf_state.bfs_txq->axq_qnum;
-
 		ath_hal_filltxdesc(ah, (struct ath_desc *) ds
 			, bufAddrList
 			, segLenList
 			, bf->bf_descid		/* XXX desc id */
-			, qnum
+			, bf->bf_state.bfs_tx_queue
 			, isFirstDesc		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
 			, (struct ath_desc *) ds0	/* first descriptor */
@@ -478,7 +475,8 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 		isFirstDesc = 0;
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT)
-			ath_printtxbuf(sc, bf, qnum, 0, 0);
+			ath_printtxbuf(sc, bf, bf->bf_state.bfs_tx_queue,
+			    0, 0);
 #endif
 		bf->bf_lastds = (struct ath_desc *) ds;
 
@@ -697,11 +695,11 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
  * during the beacon setup code.
  *
  * XXX TODO: since the AR9300 EDMA TX queue support wants the QCU ID
- * as part of the TX descriptor, bf_state.bfs_txq must be updated
+ * as part of the TX descriptor, bf_state.bfs_tx_queue must be updated
  * with the actual hardware txq, or all of this will fall apart.
  *
  * XXX It may not be a bad idea to just stuff the QCU ID into bf_state
- * and retire bfs_txq; then make sure the CABQ QCU ID is populated
+ * and retire bfs_tx_queue; then make sure the CABQ QCU ID is populated
  * correctly.
  */
 static void
@@ -1840,7 +1838,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* Set local packet state, used to queue packets to hardware */
 	bf->bf_state.bfs_tid = tid;
-	bf->bf_state.bfs_txq = txq;
+	bf->bf_state.bfs_tx_queue = txq->axq_qnum;
 	bf->bf_state.bfs_pri = pri;
 
 	/*
@@ -1858,7 +1856,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * queue, so the descriptor setup functions will
 		 * correctly initialise the descriptor 'qcuId' field.
 		 */
-		bf->bf_state.bfs_txq = sc->sc_cabq;
+		bf->bf_state.bfs_tx_queue = sc->sc_cabq->axq_qnum;
 	}
 
 	/* Do the generic frame setup */
@@ -2114,7 +2112,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* Set local packet state, used to queue packets to hardware */
 	bf->bf_state.bfs_tid = WME_AC_TO_TID(pri);
-	bf->bf_state.bfs_txq = sc->sc_ac2q[pri];
+	bf->bf_state.bfs_tx_queue = sc->sc_ac2q[pri]->axq_qnum;
 	bf->bf_state.bfs_pri = pri;
 
 	/* XXX this should be done in ath_tx_setrate() */
@@ -2713,15 +2711,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
     struct ath_txq *txq, struct ath_buf *bf)
 {
 	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
-//	struct ath_txq *txq = bf->bf_state.bfs_txq;
 	struct ieee80211_tx_ampdu *tap;
-
-	if (txq != bf->bf_state.bfs_txq) {
-		device_printf(sc->sc_dev, "%s: txq %d != bfs_txq %d!\n",
-		    __func__,
-		    txq->axq_qnum,
-		    bf->bf_state.bfs_txq->axq_qnum);
-	}
 
 	ATH_TX_LOCK_ASSERT(sc);
 
@@ -2821,9 +2811,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 
 	/* Set local packet state, used to queue packets to hardware */
 	/* XXX potentially duplicate info, re-check */
-	/* XXX remember, txq must be the hardware queue, not the av_mcastq */
 	bf->bf_state.bfs_tid = tid;
-	bf->bf_state.bfs_txq = txq;
+	bf->bf_state.bfs_tx_queue = txq->axq_qnum;
 	bf->bf_state.bfs_pri = pri;
 
 	/*
@@ -4869,8 +4858,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 
 		}
 	queuepkt:
-		//txq = bf->bf_state.bfs_txq;
-
 		/* Set completion handler, multi-frame aggregate or not */
 		bf->bf_comp = ath_tx_aggr_comp;
 
@@ -4935,8 +4922,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		}
 
 		ATH_TID_REMOVE(tid, bf, bf_list);
-
-		KASSERT(txq == bf->bf_state.bfs_txq, ("txqs not equal!\n"));
 
 		/* Sanity check! */
 		if (tid->tid != bf->bf_state.bfs_tid) {

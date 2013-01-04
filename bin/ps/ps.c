@@ -109,6 +109,7 @@ static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
 static int	 needuser;	/* -o "user" */
 static int	 optfatal;	/* Fatal error parsing some list-option. */
+static int	 pid_max;	/* kern.max_pid */
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
@@ -148,6 +149,7 @@ static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
 static void	 scanvars(void);
 static void	 sizevars(void);
+static void	 pidmax_init(void);
 static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
@@ -199,6 +201,8 @@ main(int argc, char *argv[])
 	 */
 	if (argc > 1)
 		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
+
+	pidmax_init();
 
 	all = descendancy = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
@@ -722,7 +726,6 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	return (1);
 }
 
-#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h. */
 static int
 addelem_pid(struct listinfo *inf, const char *elem)
 {
@@ -740,7 +743,7 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	if (*endp != '\0' || tempid < 0 || elem == endp) {
 		warnx("Invalid %s: %s", inf->lname, elem);
 		errno = ERANGE;
-	} else if (errno != 0 || tempid > BSD_PID_MAX) {
+	} else if (errno != 0 || tempid > pid_max) {
 		warnx("%s too large: %s", inf->lname, elem);
 		errno = ERANGE;
 	}
@@ -753,7 +756,6 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	inf->l.pids[(inf->count)++] = tempid;
 	return (1);
 }
-#undef	BSD_PID_MAX
 
 /*-
  * The user can specify a device via one of three formats:
@@ -1349,6 +1351,18 @@ kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 	}
 
 	return (newopts);
+}
+
+static void
+pidmax_init(void)
+{
+	size_t intsize;
+
+	intsize = sizeof(pid_max);
+	if (sysctlbyname("kern.pid_max", &pid_max, &intsize, NULL, 0) < 0) {
+		warn("unable to read kern.pid_max");
+		pid_max = 99999;
+	}
 }
 
 static void

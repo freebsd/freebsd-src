@@ -559,7 +559,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strncpy(errmsg, "Invalid fstype", errmsg_len);
+			strlcpy(errmsg, "Invalid fstype", errmsg_len);
 		goto bail;
 	}
 	fspathlen = 0;
@@ -567,7 +567,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strncpy(errmsg, "Invalid fspath", errmsg_len);
+			strlcpy(errmsg, "Invalid fspath", errmsg_len);
 		goto bail;
 	}
 
@@ -711,7 +711,7 @@ sys_mount(td, uap)
 	int error;
 
 	/*
-	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * Mount flags are now 64-bits. On 32-bit architectures only
 	 * 32-bits are passed in, but from here on everything handles
 	 * 64-bit flags correctly.
 	 */
@@ -1447,7 +1447,7 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 	if (ret != 0) {
 		TAILQ_FOREACH(opt, opts, link) {
 			if (strcmp(opt->name, "errmsg") == 0) {
-				strncpy((char *)opt->value, errmsg, opt->len);
+				strlcpy((char *)opt->value, errmsg, opt->len);
 				break;
 			}
 		}
@@ -1724,7 +1724,7 @@ __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	if (should_yield()) {
 		MNT_IUNLOCK(mp);
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 		MNT_ILOCK(mp);
 	}
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);

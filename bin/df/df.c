@@ -397,7 +397,7 @@ prthumanvalinode(int64_t bytes)
 static intmax_t
 fsbtoblk(int64_t num, uint64_t fsbs, u_long bs)
 {
-	return (num * (intmax_t) fsbs / bs);
+	return (num * (intmax_t) fsbs / (int64_t) bs);
 }
 
 /*

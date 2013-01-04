@@ -71,15 +71,12 @@ SUBDIR=	libclanganalysis \
 	libllvmx86utils
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SUBDIR+=libllvmarchive \
-	libllvmdebuginfo \
+SUBDIR+=libllvmdebuginfo \
 	libllvmexecutionengine \
 	libllvminterpreter \
 	libllvmjit \
-	libllvmlinker \
 	libllvmmcdisassembler \
 	libllvmmcjit \
-	libllvmobject \
 	libllvmruntimedyld
 .endif
 .endif

@@ -172,7 +172,7 @@ typedef struct dns_dbmethods {
 	isc_boolean_t	(*isdnssec)(dns_db_t *db);
 	dns_stats_t	*(*getrrsetstats)(dns_db_t *db);
 	void		(*rpz_enabled)(dns_db_t *db, dns_rpz_st_t *st);
-	isc_result_t	(*rpz_findips)(dns_rpz_zone_t *rpz,
+	void		(*rpz_findips)(dns_rpz_zone_t *rpz,
 				       dns_rpz_type_t rpz_type,
 				       dns_zone_t *zone, dns_db_t *db,
 				       dns_dbversion_t *version,
@@ -1507,7 +1507,7 @@ dns_db_rpz_enabled(dns_db_t *db, dns_rpz_st_t *st);
  * DNS_RPZ_TYPE_NSDNAME records.
  */
 
-isc_result_t
+void
 dns_db_rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 		   dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version,
 		   dns_rdataset_t *ardataset, dns_rpz_st_t *st,
@@ -1524,10 +1524,6 @@ dns_db_rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
  * \li	'ardataset' is an A or AAAA rdataset of addresses to check
  * \li	'found' specifies the previous best match if any or
  *	    or NULL, an empty name, 0, DNS_RPZ_POLICY_MISS, and 0
- *
- * Returns:
- * \li	#ISC_R_SUCCESS
- * \li	#ISC_R_UNEXPECTED
  */
 
 ISC_LANG_ENDDECLS

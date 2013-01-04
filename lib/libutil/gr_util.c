@@ -44,11 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-struct group_storage {
-	struct group	 gr;
-	char		*members[];
-};
-
 static int lockfd = -1;
 static char group_dir[PATH_MAX];
 static char group_file[PATH_MAX];
@@ -106,10 +101,8 @@ gr_lock(void)
 	for (;;) {
 		struct stat st;
 
-		lockfd = open(group_file, O_RDONLY, 0);
-		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-			err(1, "%s", group_file);
-		if (flock(lockfd, LOCK_EX|LOCK_NB) == -1) {
+		lockfd = flopen(group_file, O_RDONLY|O_NONBLOCK|O_CLOEXEC, 0);
+		if (lockfd == -1) {
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the group file is busy");
 			} else {
@@ -436,14 +429,14 @@ gr_make(const struct group *gr)
 struct group *
 gr_dup(const struct group *gr)
 {
+	struct group *newgr;
 	char *dst;
 	size_t len;
-	struct group_storage *gs;
 	int ndx;
 	int num_mem;
 
 	/* Calculate size of the group. */
-	len = sizeof(*gs);
+	len = sizeof(*newgr);
 	if (gr->gr_name != NULL)
 		len += strlen(gr->gr_name) + 1;
 	if (gr->gr_passwd != NULL)
@@ -454,30 +447,72 @@ gr_dup(const struct group *gr)
 		len += (num_mem + 1) * sizeof(*gr->gr_mem);
 	} else
 		num_mem = -1;
-
 	/* Create new group and copy old group into it. */
-	if ((gs = calloc(1, len)) == NULL)
+	if ((newgr = malloc(len)) == NULL)
 		return (NULL);
-	dst = (char *)&gs->members[num_mem + 1];
+	/* point new gr_mem to end of struct + 1 */
+	if (gr->gr_mem != NULL)
+		newgr->gr_mem = (char **)(newgr + 1);
+	else
+		newgr->gr_mem = NULL;
+	/* point dst after the end of all the gr_mem pointers in newgr */
+	dst = (char *)&newgr->gr_mem[num_mem + 1];
 	if (gr->gr_name != NULL) {
-		gs->gr.gr_name = dst;
-		dst = stpcpy(gs->gr.gr_name, gr->gr_name) + 1;
+		newgr->gr_name = dst;
+		dst = stpcpy(dst, gr->gr_name) + 1;
+	} else {
+		newgr->gr_name = NULL;
 	}
 	if (gr->gr_passwd != NULL) {
-		gs->gr.gr_passwd = dst;
-		dst = stpcpy(gs->gr.gr_passwd, gr->gr_passwd) + 1;
+		newgr->gr_passwd = dst;
+		dst = stpcpy(dst, gr->gr_passwd) + 1;
+	} else {
+		newgr->gr_passwd = NULL;
 	}
-	gs->gr.gr_gid = gr->gr_gid;
+	newgr->gr_gid = gr->gr_gid;
 	if (gr->gr_mem != NULL) {
-		gs->gr.gr_mem = gs->members;
 		for (ndx = 0; ndx < num_mem; ndx++) {
-			gs->gr.gr_mem[ndx] = dst;
-			dst = stpcpy(gs->gr.gr_mem[ndx], gr->gr_mem[ndx]) + 1;
+			newgr->gr_mem[ndx] = dst;
+			dst = stpcpy(dst, gr->gr_mem[ndx]) + 1;
 		}
-		gs->gr.gr_mem[ndx] = NULL;
+		newgr->gr_mem[ndx] = NULL;
 	}
+	return (newgr);
+}
 
-	return (&gs->gr);
+/*
+ * Add a new member name to a struct group.
+ */
+struct group *
+gr_add(struct group *gr, char *newmember)
+{
+	size_t mlen;
+	int num_mem=0;
+	char **members;
+	struct group *newgr;
+
+	if (newmember == NULL)
+		return(gr_dup(gr));
+
+	if (gr->gr_mem != NULL) {
+		for (num_mem = 0; gr->gr_mem[num_mem] != NULL; num_mem++) {
+			if (strcmp(gr->gr_mem[num_mem], newmember) == 0) {
+				errno = EEXIST;
+				return (NULL);
+			}
+		}
+	}
+	/* Allocate enough for current pointers + 1 more and NULL marker */
+	mlen = (num_mem + 2) * sizeof(*gr->gr_mem);
+	if ((members = malloc(mlen)) == NULL)
+		return (NULL);
+	memcpy(members, gr->gr_mem, num_mem * sizeof(*gr->gr_mem));
+	members[num_mem++] = newmember;
+	members[num_mem] = NULL;
+	gr->gr_mem = members;
+	newgr = gr_dup(gr);
+	free(members);
+	return (newgr);
 }
 
 /*

@@ -191,7 +191,7 @@ agp_amd_match(device_t dev)
 		return ("AMD 761 host to AGP bridge");
 	case 0x700c1022:
 		return ("AMD 762 host to AGP bridge");
-	};
+	}
 
 	return NULL;
 }

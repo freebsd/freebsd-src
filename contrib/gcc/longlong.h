@@ -205,7 +205,7 @@ UDItype __umulsidi3 (USItype, USItype);
 	     "rI" ((USItype) (bl)) __CLOBBER_CC)
 #define umul_ppmm(xh, xl, a, b) \
 {register USItype __t0, __t1, __t2;					\
-  __asm__ ("%@ Inlined umul_ppmm\n"					\
+  __asm__ ("/* Inlined umul_ppmm */\n"					\
 	   "	mov	%2, %5, lsr #16\n"				\
 	   "	mov	%0, %6, lsr #16\n"				\
 	   "	bic	%3, %5, %2, lsl #16\n"				\

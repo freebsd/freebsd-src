@@ -260,19 +260,25 @@ static int
 fiboptlist_range(const char *arg, struct fibl_head_t *flh)
 {
 	struct fibl *fl;
-	char *str, *token, *endptr;
+	char *str0, *str, *token, *endptr;
 	int fib[2], i, error;
 
-	str = strdup(arg);
+	str0 = str = strdup(arg);
 	error = 0;
 	i = 0;
 	while ((token = strsep(&str, "-")) != NULL) {
 		switch (i) {
 		case 0:
 		case 1:
+			errno = 0;
 			fib[i] = strtol(token, &endptr, 0);
-			if (*endptr != '\0' || (fib[i] == 0 &&
-			    (errno == EINVAL || errno == ERANGE)))
+			if (errno == 0) {
+				if (*endptr != '\0' ||
+				    fib[i] < 0 ||
+				    (numfibs != -1 && fib[i] > numfibs - 1)) 
+					errno = EINVAL;
+			}
+			if (errno)
 				error = 1;
 			break;
 		default:
@@ -296,7 +302,7 @@ fiboptlist_range(const char *arg, struct fibl_head_t *flh)
 		TAILQ_INSERT_TAIL(flh, fl, fl_next);
 	}
 fiboptlist_range_ret:
-	free(str);
+	free(str0);
 	return (error);
 }
 
@@ -305,7 +311,7 @@ static int
 fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 {
 	struct fibl *fl;
-	char *str, *token, *endptr;
+	char *str0, *str, *token, *endptr;
 	int fib, error;
 
 	if (strcmp("all", arg) == 0) {
@@ -319,14 +325,14 @@ fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 		else
 			snprintf(str, ALLSTRLEN - 1, "%d", 0);
 	} else if (strcmp("default", arg) == 0) {
-		str = calloc(1, ALLSTRLEN);
+		str0 = str = calloc(1, ALLSTRLEN);
 		if (str == NULL) {
 			error = 1;
 			goto fiboptlist_csv_ret;
 		}
 		snprintf(str, ALLSTRLEN - 1, "%d", defaultfib);
 	} else
-		str = strdup(arg);
+		str0 = str = strdup(arg);
 
 	error = 0;
 	while ((token = strsep(&str, ",")) != NULL) {
@@ -335,9 +341,15 @@ fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 			if (error)
 				goto fiboptlist_csv_ret;
 		} else {
+			errno = 0;
 			fib = strtol(token, &endptr, 0);
-			if (*endptr != '\0' || (fib == 0 &&
-			    (errno == EINVAL || errno == ERANGE))) {
+			if (errno == 0) {
+				if (*endptr != '\0' ||
+				    fib < 0 ||
+				    (numfibs != -1 && fib > numfibs - 1))
+					errno = EINVAL;
+			}
+			if (errno) {
 				error = 1;
 				goto fiboptlist_csv_ret;
 			}
@@ -351,7 +363,7 @@ fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 		}
 	}
 fiboptlist_csv_ret:
-	free(str);
+	free(str0);
 	return (error);
 }
 
@@ -365,7 +377,7 @@ flushroutes(int argc, char *argv[])
 	struct fibl *fl;
 	int error;
 
-	if (uid != 0 && !debugonly) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 	shutdown(s, SHUT_RD); /* Don't want to read back our messages */
@@ -396,7 +408,7 @@ flushroutes(int argc, char *argv[])
 				usage(*argv);
 			error = fiboptlist_csv(*++argv, &fibl_head);
 			if (error)
-				usage(*argv);
+				errx(EX_USAGE, "invalid fib number: %s", *argv);
 			break;
 		default:
 			usage(*argv);
@@ -727,7 +739,7 @@ newroute(int argc, char **argv)
 	const char *dest, *gateway, *errmsg;
 	int key, error, flags, nrflags, fibnum;
 
-	if (uid != 0) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 
@@ -815,7 +827,8 @@ newroute(int argc, char **argv)
 					usage(NULL);
 				error = fiboptlist_csv(*++argv, &fibl_head);
 				if (error)
-					usage(NULL);
+					errx(EX_USAGE,
+					    "invalid fib number: %s", *argv);
 				break;
 			case K_IFA:
 				if (!--argc)
@@ -1031,6 +1044,13 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin, u_long bits)
 	char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
+
+	/*
+	 * MSB of net should be meaningful. 0/0 is exception.
+	 */
+	if (net > 0)
+		while ((net & 0xff000000) == 0)
+			net <<= 8;
 
 	/*
 	 * If no /xx was specified we must calculate the
@@ -1376,10 +1396,16 @@ monitor(int argc, char *argv[])
 		case K_FIB:
 			if (!--argc)
 				usage(*argv);
+			errno = 0;
 			fib = strtol(*++argv, &endptr, 0);
-			if (*endptr != '\0' || (fib == 0 &&
-			    (errno == EINVAL || errno == ERANGE)))
-				usage(*argv);
+			if (errno == 0) {
+				if (*endptr != '\0' ||
+				    fib < 0 ||
+				    (numfibs != -1 && fib > numfibs - 1))
+					errno = EINVAL;
+			}
+			if (errno)
+				errx(EX_USAGE, "invalid fib number: %s", *argv);
 			break;
 		default:
 			usage(*argv);
@@ -1632,6 +1658,7 @@ print_rtmsg(struct rt_msghdr *rtm, size_t msglen)
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 
 	default:

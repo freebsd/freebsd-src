@@ -17,9 +17,6 @@ SUBDIR+=	mptable
 SUBDIR+=	ndiscvt
 .endif
 SUBDIR+=	pnpinfo
-.if ${MK_SYSINSTALL} != "no"
-SUBDIR+=	sade
-.endif
 SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz

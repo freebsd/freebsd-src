@@ -1640,7 +1640,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			/* Release original mbufs. */
 			m_freem(*m_head);
 			if (m == NULL) {
@@ -1657,7 +1657,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 		if ((sc->ale_flags & ALE_FLAG_TXCSUM_BUG) != 0 &&
 		    (m->m_pkthdr.csum_flags & ALE_CSUM_FEATURES) != 0 &&
 		    (mtod(m, intptr_t) & 3) != 0) {
-			m = m_defrag(*m_head, M_DONTWAIT);
+			m = m_defrag(*m_head, M_NOWAIT);
 			if (m == NULL) {
 				*m_head = NULL;
 				return (ENOBUFS);
@@ -1742,7 +1742,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 	error =  bus_dmamap_load_mbuf_sg(sc->ale_cdata.ale_tx_tag, map,
 	    *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, ALE_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, ALE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -2932,7 +2932,7 @@ ale_stop_mac(struct ale_softc *sc)
 
 	reg = CSR_READ_4(sc, ALE_MAC_CFG);
 	if ((reg & (MAC_CFG_TX_ENB | MAC_CFG_RX_ENB)) != 0) {
-		reg &= ~MAC_CFG_TX_ENB | MAC_CFG_RX_ENB;
+		reg &= ~(MAC_CFG_TX_ENB | MAC_CFG_RX_ENB);
 		CSR_WRITE_4(sc, ALE_MAC_CFG, reg);
 	}
 

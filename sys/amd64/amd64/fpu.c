@@ -135,6 +135,7 @@ SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
 static int use_xsaveopt;
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
+static	uma_zone_t fpu_save_area_zone;
 static	struct savefpu *fpu_initialstate;
 
 struct xsave_area_elm_descr {
@@ -312,6 +313,10 @@ fpuinitstate(void *arg __unused)
 			xsave_area_desc[i].size = cp[0];
 		}
 	}
+
+	fpu_save_area_zone = uma_zcreate("FPU_save_area",
+	    cpu_max_ext_state_size, NULL, NULL, NULL, NULL,
+	    XSAVE_AREA_ALIGN - 1, 0);
 
 	start_emulating();
 	intr_restore(saveintr);
@@ -985,18 +990,9 @@ is_fpu_kern_thread(u_int flags)
 /*
  * FPU save area alloc/free/init utility routines
  */
-static uma_zone_t fpu_save_area_zone;
-
 struct savefpu *
 fpu_save_area_alloc(void)
 {
-
-	if (fpu_save_area_zone == NULL) {
-		fpu_save_area_zone = uma_zcreate("FPU_save_area",
-				         cpu_max_ext_state_size,
-				         NULL, NULL, NULL, NULL,
-				         XSAVE_AREA_ALIGN - 1, 0);
-	}
 
 	return (uma_zalloc(fpu_save_area_zone, 0));
 }

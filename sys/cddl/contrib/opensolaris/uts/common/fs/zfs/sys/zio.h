@@ -372,23 +372,23 @@ typedef struct zio_trim_stats {
 	/*
 	 * Number of bytes successfully TRIMmed.
 	 */
-	kstat_named_t zio_trim_bytes;
+	kstat_named_t bytes;
 
 	/*
 	 * Number of successful TRIM requests.
 	 */
-	kstat_named_t zio_trim_success;
+	kstat_named_t success;
 
 	/*
 	 * Number of TRIM requests that failed because TRIM is not
 	 * supported.
 	 */
-	kstat_named_t zio_trim_unsupported;
+	kstat_named_t unsupported;
 
 	/*
 	 * Number of TRIM requests that failed for other reasons.
 	 */
-	kstat_named_t zio_trim_failed;
+	kstat_named_t failed;
 } zio_trim_stats_t;
 
 extern zio_trim_stats_t zio_trim_stats;

@@ -629,7 +629,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				 * enough leading space in the existing mbuf).
 				 */
 				m_adj(m, vjlen);
-				M_PREPEND(m, hlen, M_DONTWAIT);
+				M_PREPEND(m, hlen, M_NOWAIT);
 				if (m == NULL) {
 					SPPP_UNLOCK(sp);
 					goto drop2;
@@ -920,7 +920,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	/*
 	 * Prepend general data packet PPP header. For now, IP only.
 	 */
-	M_PREPEND (m, PPP_HEADER_LEN, M_DONTWAIT);
+	M_PREPEND (m, PPP_HEADER_LEN, M_NOWAIT);
 	if (! m) {
 nobufs:		if (debug)
 			log(LOG_DEBUG, SPP_FMT "no memory for transmit header\n",
@@ -1392,7 +1392,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 
 	getmicrouptime(&tv);
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return;
 	m->m_pkthdr.len = m->m_len = PPP_HEADER_LEN + CISCO_PACKET_LEN;
@@ -1440,7 +1440,7 @@ sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 
 	if (len > MHLEN - PPP_HEADER_LEN - LCP_HEADER_LEN)
 		len = MHLEN - PPP_HEADER_LEN - LCP_HEADER_LEN;
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return;
 	m->m_pkthdr.len = m->m_len = PPP_HEADER_LEN + LCP_HEADER_LEN + len;
@@ -4722,7 +4722,7 @@ sppp_auth_send(const struct cp *cp, struct sppp *sp,
 	const char *msg;
 	va_list ap;
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return;
 	m->m_pkthdr.rcvif = 0;

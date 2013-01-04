@@ -1,5 +1,5 @@
 /*
- *  $Id: prgbox.c,v 1.8 2011/10/20 23:42:32 tom Exp $
+ *  $Id: prgbox.c,v 1.7 2011/06/30 20:44:13 tom Exp $
  *
  *  prgbox.c -- implements the prg box
  *
@@ -31,10 +31,11 @@ dlg_popen(const char *command, const char *type)
 {
     FILE *result = 0;
     int fd[2];
+    int pid;
     const char *argv[4];
 
     if ((*type == 'r' || *type != 'w') && pipe(fd) == 0) {
-	switch (fork()) {
+	switch (pid = fork()) {
 	case -1:		/* Error. */
 	    (void) close(fd[0]);
 	    (void) close(fd[1]);

@@ -2178,8 +2178,8 @@ xptperiphtraverse(struct cam_ed *device, struct cam_periph *start_periph,
 		 * invalidated, but not peripherals that are scheduled to
 		 * be freed.  So instead of calling cam_periph_acquire(),
 		 * which will fail if the periph has been invalidated, we
-		 * just check for the free flag here.  If it is free, we
-		 * skip to the next periph.
+		 * just check for the free flag here.  If it is in the
+		 * process of being freed, we skip to the next periph.
 		 */
 		if (periph->flags & CAM_PERIPH_FREE) {
 			next_periph = SLIST_NEXT(periph, periph_links);
@@ -2192,14 +2192,7 @@ xptperiphtraverse(struct cam_ed *device, struct cam_periph *start_periph,
 		 */
 		periph->refcount++;
 
-		xpt_unlock_buses();
-
 		retval = tr_func(periph, arg);
-
-		/*
-		 * We need the lock for list traversal.
-		 */
-		xpt_lock_buses();
 
 		/*
 		 * Grab the next peripheral before we release this one, so
@@ -2283,11 +2276,6 @@ xptpdperiphtraverse(struct periph_driver **pdrv,
 		 */
 		periph->refcount++;
 
-		/*
-		 * XXX KDM we have the toplogy lock here, but in
-		 * xptperiphtraverse(), we drop it before calling the
-		 * traversal function.  Which is correct?
-		 */
 		retval = tr_func(periph, arg);
 
 		/*

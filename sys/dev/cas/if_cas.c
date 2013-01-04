@@ -1192,7 +1192,7 @@ cas_load_txmbuf(struct cas_softc *sc, struct mbuf **m_head)
 	cflags = 0;
 	if (((*m_head)->m_pkthdr.csum_flags & CAS_CSUM_FEATURES) != 0) {
 		if (M_WRITABLE(*m_head) == 0) {
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			*m_head = m;
 			if (m == NULL)
@@ -1215,7 +1215,7 @@ cas_load_txmbuf(struct cas_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, txs->txs_dmamap,
 	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, CAS_NTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, CAS_NTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -1714,7 +1714,7 @@ cas_rint(struct cas_softc *sc)
 			    __func__, idx, off, len);
 #endif
 			rxds = &sc->sc_rxdsoft[idx];
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m != NULL) {
 				refcount_acquire(&rxds->rxds_refcount);
 				bus_dmamap_sync(sc->sc_rdmatag,
@@ -1759,7 +1759,7 @@ cas_rint(struct cas_softc *sc)
 			    __func__, idx, off, len);
 #endif
 			rxds = &sc->sc_rxdsoft[idx];
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m != NULL) {
 				refcount_acquire(&rxds->rxds_refcount);
 				off += ETHER_ALIGN;
@@ -1796,7 +1796,7 @@ cas_rint(struct cas_softc *sc)
 #endif
 				rxds2 = &sc->sc_rxdsoft[idx2];
 				if (m != NULL) {
-					MGET(m2, M_DONTWAIT, MT_DATA);
+					MGET(m2, M_NOWAIT, MT_DATA);
 					if (m2 != NULL) {
 						refcount_acquire(
 						    &rxds2->rxds_refcount);

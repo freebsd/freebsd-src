@@ -241,8 +241,7 @@ struct ath_buf {
 		uint8_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
 		uint8_t bfs_nframes;	/* number of frames in aggregate */
 		uint8_t bfs_pri;	/* packet AC priority */
-
-		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
+		uint8_t bfs_tx_queue;	/* destination hardware TX queue */
 
 		u_int32_t bfs_aggr:1,		/* part of aggregate? */
 		    bfs_aggrburst:1,	/* part of aggregate burst? */
@@ -750,6 +749,10 @@ struct ath_softc {
 	void			*sc_dfs;	/* Used by an optional DFS module */
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
+
+	/* Spectral related state */
+	void			*sc_spectral;
+	int			sc_dospectral;
 
 	/* ALQ */
 #ifdef	ATH_DEBUG_ALQ
@@ -1299,5 +1302,14 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
+
+#define	ath_hal_spectral_get_config(_ah, _p) \
+	((*(_ah)->ah_spectralGetConfig)((_ah), (_p)))
+#define	ath_hal_spectral_configure(_ah, _p) \
+	((*(_ah)->ah_spectralConfigure)((_ah), (_p)))
+#define	ath_hal_spectral_start(_ah) \
+	((*(_ah)->ah_spectralStart)((_ah)))
+#define	ath_hal_spectral_stop(_ah) \
+	((*(_ah)->ah_spectralStop)((_ah)))
 
 #endif /* _DEV_ATH_ATHVAR_H */

@@ -194,6 +194,7 @@ le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2004/04/17"]
+markj [label="Mark Johnston\nmarkj@FreeBSD.org\n2012/12/18"]
 markm [label="Mark Murray\nmarkm@FreeBSD.org\n199?/??/??"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
@@ -241,6 +242,7 @@ rstone [label="Ryan Stone\nrstone@FreeBSD.org\n2010/04/19"]
 ru [label="Ruslan Ermilov\nru@FreeBSD.org\n1999/05/27"]
 rwatson [label="Robert N. M. Watson\nrwatson@FreeBSD.org\n1999/12/16"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
+sbruno [label="Sean Bruno\nsbruno@FreeBSD.org\n????/??/??"]
 sanpei [label="MIHIRA Sanpei Yoshiro\nsanpei@FreeBSD.org\n2000/06/19"]
 scf [label="Sean C. Farley\nscf@FreeBSD.org\n2007/06/24"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
@@ -249,6 +251,7 @@ sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
+smh [label="Steven Hartland\nsmh@FreeBSD.org\n2012/11/12"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
 sos [label="Soren Schmidt\nsos@FreeBSD.org\n????/??/??"]
 sson [label="Stacey Son\nsson@FreeBSD.org\n2008/07/08"]
@@ -307,6 +310,7 @@ anholt -> jkim
 
 avg -> art
 avg -> pluknet
+avg -> smh
 
 benno -> grehan
 
@@ -375,6 +379,7 @@ eivind -> rwatson
 
 emaste -> rstone
 emaste -> dteske
+emaste -> markj
 
 emax -> markus
 
@@ -555,6 +560,7 @@ philip -> uqs
 
 pjd -> kib
 pjd -> lulf
+pjd -> smh
 pjd -> trociny
 
 rgrimes -> markm
@@ -568,6 +574,8 @@ rpaulo -> dim
 rrs -> brucec
 rrs -> jchandra
 rrs -> tuexen
+
+rstone -> markj
 
 ru -> ceri
 ru -> cjc
@@ -599,8 +607,11 @@ sam -> andre
 sam -> benjsc
 sam -> sephe
 
+sbruno -> jimharris
+
 schweikh -> dds
 
+scottl -> jimharris
 scottl -> pjd
 scottl -> sah
 scottl -> yongari

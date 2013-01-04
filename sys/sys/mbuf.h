@@ -346,18 +346,7 @@ struct mbstat {
 };
 
 /*
- * Flags specifying how an allocation should be made.
- *
- * The flag to use is as follows:
- * - M_NOWAIT (M_DONTWAIT) from an interrupt handler to not block allocation.
- * - M_WAITOK (M_WAIT) from wherever it is safe to block.
- *
- * M_DONTWAIT/M_NOWAIT means that we will not block the thread explicitly and
- * if we cannot allocate immediately we may return NULL, whereas
- * M_WAIT/M_WAITOK means that if we cannot allocate resources we
- * will block until they are available, and thus never return NULL.
- *
- * XXX Eventually just phase this out to use M_WAITOK/M_NOWAIT.
+ * Compatibility with historic mbuf allocator.
  */
 #define	MBTOM(how)	(how)
 #define	M_DONTWAIT	M_NOWAIT
@@ -865,7 +854,7 @@ m_last(struct mbuf *m)
 #define	M_COPYALL	1000000000
 
 /* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
 
 extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
