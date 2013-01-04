@@ -573,11 +573,28 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 	fprintf(stderr, "vm_run error %d, errno %d\n", error, errno);
 }
 
+static int
+num_vcpus_allowed(struct vmctx *ctx)
+{
+	int tmp, error;
+
+	error = vm_get_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, &tmp);
+
+	/*
+	 * The guest is allowed to spinup more than one processor only if the
+	 * UNRESTRICTED_GUEST capability is available.
+	 */
+	if (error == 0)
+		return (VM_MAXCPU);
+	else
+		return (1);
+}
 
 int
 main(int argc, char *argv[])
 {
 	int c, error, gdb_port, inject_bkpt, tmp, err, ioapic, bvmcons;
+	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
 
@@ -660,12 +677,6 @@ main(int argc, char *argv[])
 	if (guest_ncpus <= 1)
 		guest_vcpu_mux = 0;
 
-	if (guest_ncpus > VM_MAXCPU) {
-		fprintf(stderr, "%d vCPUs requested, max %d\n",
-		    guest_ncpus, VM_MAXCPU);
-		exit(1);
-	}
-
 	/* vmexit on hlt if guest is muxed */
 	if (guest_vcpu_mux) {
 		guest_vmexit_on_hlt = 1;
@@ -677,6 +688,13 @@ main(int argc, char *argv[])
 	ctx = vm_open(vmname);
 	if (ctx == NULL) {
 		perror("vm_open");
+		exit(1);
+	}
+
+	max_vcpus = num_vcpus_allowed(ctx);
+	if (guest_ncpus > max_vcpus) {
+		fprintf(stderr, "%d vCPUs requested but only %d available\n",
+			guest_ncpus, max_vcpus);
 		exit(1);
 	}
 

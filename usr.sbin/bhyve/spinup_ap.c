@@ -42,26 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "spinup_ap.h"
 
-/*
- * Trampoline for hypervisor direct 64-bit jump.
- *
- *   0  - signature for guest->host verification
- *   8  - kernel virtual address of trampoline
- *  16  - instruction virtual address
- *  24  - stack pointer virtual address
- *  32  - CR3, physical address of kernel page table
- *  40  - 24-byte area for null/code/data GDT entries
- */
-#define MP_V64T_SIG	0xcafebabecafebabeULL
-struct mp_v64tramp {
-	uint64_t	mt_sig;
-	uint64_t	mt_virt;
-	uint64_t	mt_eip;
-	uint64_t	mt_rsp;
-	uint64_t	mt_cr3;
-	uint64_t	mt_gdtr[3];
-};
-
 static void
 spinup_ap_realmode(struct vmctx *ctx, int newcpu, uint64_t *rip)
 {
@@ -94,46 +74,6 @@ spinup_ap_realmode(struct vmctx *ctx, int newcpu, uint64_t *rip)
 	assert(error == 0);
 }
 
-static void
-spinup_ap_direct64(struct vmctx *ctx, int newcpu, uint64_t *rip)
-{
-	struct mp_v64tramp *mvt;
-	char *errstr;
-	int error;
-	uint64_t gdtbase;
-
-	mvt = paddr_guest2host(*rip);
-
-	assert(mvt->mt_sig == MP_V64T_SIG);
-
-	/*
-	 * Set up the 3-entry GDT using memory supplied in the
-	 * guest's trampoline structure.
-	 */
-	vm_setup_freebsd_gdt(mvt->mt_gdtr);
-
-#define  CHECK_ERROR(msg) \
-	if (error != 0) { \
-		errstr = msg; \
-		goto err_exit; \
-	}
-
-        /* entry point */
-	*rip = mvt->mt_eip;
-
-	/* Get the guest virtual address of the GDT */
-        gdtbase = mvt->mt_virt + __offsetof(struct mp_v64tramp, mt_gdtr);
-
-	error = vm_setup_freebsd_registers(ctx, newcpu, mvt->mt_eip,
-					   mvt->mt_cr3, gdtbase, mvt->mt_rsp);
-	CHECK_ERROR("vm_setup_freebsd_registers");
-
-	return;
-err_exit:
-	printf("spinup_ap_direct64: machine state error: %s", errstr);
-	exit(1);
-}
-
 int
 spinup_ap(struct vmctx *ctx, int vcpu, int newcpu, uint64_t rip)
 {
@@ -163,22 +103,15 @@ spinup_ap(struct vmctx *ctx, int vcpu, int newcpu, uint64_t rip)
 	assert(error == 0);
 
 	/*
-	 * There are 2 startup modes possible here:
-	 *  - if the CPU supports 'unrestricted guest' mode, the spinup can
-	 *    set up the processor state in power-on 16-bit mode, with the CS:IP
-	 *    init'd to the specified low-mem 4K page.
-	 *  - if the guest has requested a 64-bit trampoline in the low-mem 4K
-	 *    page by placing in the specified signature, set up the register
-	 *    state using register state in the signature. Note that this
-	 *    requires accessing guest physical memory to read the signature
-	 *    while 'unrestricted mode' does not.
+	 * Enable the 'unrestricted guest' mode for 'newcpu'.
+	 *
+	 * Set up the processor state in power-on 16-bit mode, with the CS:IP
+	 * init'd to the specified low-mem 4K page.
 	 */
 	error = vm_set_capability(ctx, newcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
-	if (error) {
-		spinup_ap_direct64(ctx, newcpu, &rip);
-	} else {
-		spinup_ap_realmode(ctx, newcpu, &rip);
-	}
+	assert(error == 0);
+
+	spinup_ap_realmode(ctx, newcpu, &rip);
 
 	fbsdrun_addcpu(ctx, newcpu, rip);
 
