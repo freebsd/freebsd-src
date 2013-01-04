@@ -116,6 +116,25 @@ struct video_adapter_softc {
 static struct ipu3sc_softc *ipu3sc_softc;
 static struct video_adapter_softc va_softc;
 
+static uint16_t colors[16] = {
+	0x0000,	/* black */
+	0x001f,	/* blue */
+	0x07e0,	/* green */
+	0x07ff,	/* cyan */
+	0xf800,	/* red */
+	0xf81f,	/* magenta */
+	0x3800,	/* brown */
+	0xc618,	/* light grey */
+	0xc618,	/* XXX: dark grey */
+	0x001f,	/* XXX: light blue */
+	0x07e0,	/* XXX: light green */
+	0x07ff,	/* XXX: light cyan */
+	0xf800,	/* XXX: light red */
+	0xf81f,	/* XXX: light magenta */
+	0xffe0,	/* yellow */
+	0xffff,	/* white */
+};
+
 #define	IPUV3_READ(ipuv3, module, reg)					\
 	bus_space_read_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg))
 #define	IPUV3_WRITE(ipuv3, module, reg, val)				\
@@ -685,7 +704,7 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 {
 	struct video_adapter_softc *sc;
 	int col, row;
-	int i, j, k;
+	int b, i, j, k;
 	uint8_t *addr;
 	u_char *p;
 	uint16_t fg, bg, color;
@@ -701,11 +720,8 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	    + (row + sc->ymargin) * (sc->stride)
 	    + IPU3FB_BPP * (col + sc->xmargin);
 
-	/*
-	 * FIXME: hardcoded
-	 */
-	bg = 0x0000;
-	fg = 0xffff;
+	bg = colors[(a >> 4) & 0x0f];
+	fg = colors[a & 0x0f];
 
 	for (i = 0; i < IPU3FB_FONT_HEIGHT; i++) {
 		for (j = 0, k = 7; j < 8; j++, k--) {
@@ -713,10 +729,9 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 				color = bg;
 			else
 				color = fg;
-
-			addr[IPU3FB_BPP * j] = color;
-			addr[IPU3FB_BPP * j + 1] = color;
-			addr[IPU3FB_BPP * j + 2] = color;
+			for (b = 0; b < IPU3FB_BPP; b ++)
+				addr[IPU3FB_BPP * j + b] =
+				    (color >> (b << 3)) & 0xff;
 		}
 
 		addr += (sc->stride);
