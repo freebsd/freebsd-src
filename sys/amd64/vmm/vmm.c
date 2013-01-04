@@ -145,8 +145,8 @@ static struct vmm_ops *ops;
 #define	VMSETCAP(vmi, vcpu, num, val)		\
 	(ops != NULL ? (*ops->vmsetcap)(vmi, vcpu, num, val) : ENXIO)
 
-#define	fpu_start_emulating()	start_emulating()
-#define	fpu_stop_emulating()	stop_emulating()
+#define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
+#define	fpu_stop_emulating()	clts()
 
 static MALLOC_DEFINE(M_VM, "vm", "vm");
 CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
