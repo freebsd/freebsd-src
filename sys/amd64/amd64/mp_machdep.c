@@ -145,26 +145,6 @@ struct cpu_info {
 int cpu_apic_ids[MAXCPU];
 int apic_cpuids[MAX_APIC_ID + 1];
 
-/*
- * Trampoline for hypervisor direct 64-bit jump.
- *
- *   0  -	signature for guest->host verification
- *   8  -	virtual address of this page
- *  16  -	instruction virtual address
- *  24  -	stack pointer virtual address
- *  32  -	CR3, physical address of kernel page table
- *  40  -	24-byte area for null/code/data GDT entries
- */
-#define MP_V64T_SIG	0xcafebabecafebabeULL
-struct mp_v64tramp {
-	uint64_t	mt_sig;
-	uint64_t	mt_virt;
-	uint64_t	mt_eip;
-	uint64_t	mt_rsp;
-	uint64_t	mt_cr3;
-	uint64_t	mt_gdtr[3];
-};
-
 /* Holds pending bitmap based IPIs per CPU */
 static volatile u_int cpu_ipi_pending[MAXCPU];
 
@@ -966,29 +946,6 @@ start_all_aps(void)
 
 		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
 		bootAP = cpu;
-
-		/*
-		 * If running in a VM that doesn't support the unrestricted
-		 * guest 16-bit mode, forget most of the above and create
-		 * the data block that allows the hypervisor to direct-jump
-		 * into 64-bit mode. Copy this over the top of the 16-bit
-		 * bootstrap. The startup-IPI informs the hypervisor which
-		 * physical page this data block lies in. The hypervisor
-		 * will then use the block to initialise register state of
-		 * the AP in an almost identical fashion to how it builds
-		 * the BSP initial register state.
-		 */
-		if (testenv("hw.use_bvm_mptramp")) {
-			struct mp_v64tramp mv;
-
-			bzero(&mv, sizeof(mv));
-			mv.mt_sig = MP_V64T_SIG;
-			mv.mt_virt = (uint64_t) va;
-			mv.mt_eip = (uint64_t) init_secondary;
-			mv.mt_rsp = (uint64_t) bootSTK;
-			mv.mt_cr3 = KPML4phys;
-			bcopy(&mv, (void *) va, sizeof(mv));
-		}
 
 		/* attempt to start the Application Processor */
 		if (!start_ap(apic_id)) {
