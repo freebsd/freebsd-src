@@ -423,7 +423,21 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
 #ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
-	if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
+	if (rs->rs_status & HAL_RXERR_PHY) {
+		struct ieee80211com *ic = ifp->if_l2com;
+
+		/*
+		 * PHY error - make sure the channel flags
+		 * reflect the actual channel configuration,
+		 * not the received frame.
+		 */
+		if (IEEE80211_IS_CHAN_HT40U(ic->ic_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
+		else if (IEEE80211_IS_CHAN_HT40D(ic->ic_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
+		else if (IEEE80211_IS_CHAN_HT20(ic->ic_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
+	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
 		struct ieee80211com *ic = ifp->if_l2com;
 
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
@@ -435,6 +449,7 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 		if ((rs->rs_flags & HAL_RX_GI) == 0)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
+
 #endif
 	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
