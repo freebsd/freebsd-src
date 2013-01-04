@@ -100,8 +100,6 @@ struct video_adapter_softc {
 
 	intptr_t	fb_addr;
 	intptr_t	fb_paddr;
-	va_sc->fb_paddr = (intptr_t)sc->pbase;
-		*paddr = sc->fb_paddr + offset;
 	unsigned int	fb_size;
 
 	int		depth;
