@@ -523,7 +523,7 @@ igmp_ra_alloc(void)
 	struct mbuf	*m;
 	struct ipoption	*p;
 
-	MGET(m, M_DONTWAIT, MT_DATA);
+	MGET(m, M_NOWAIT, MT_DATA);
 	p = mtod(m, struct ipoption *);
 	p->ipopt_dst.s_addr = INADDR_ANY;
 	p->ipopt_list[0] = IPOPT_RA;	/* Router Alert Option */
@@ -2203,7 +2203,7 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 
 	ifp = inm->inm_ifp;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOMEM);
 	MH_ALIGN(m, sizeof(struct ip) + sizeof(struct igmp));
@@ -2780,12 +2780,12 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 		m0srcs = (ifp->if_mtu - IGMP_LEADINGSPACE -
 		    sizeof(struct igmp_grouprec)) / sizeof(in_addr_t);
 		if (!is_state_change && !is_group_query) {
-			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (m)
 				m->m_data += IGMP_LEADINGSPACE;
 		}
 		if (m == NULL) {
-			m = m_gethdr(M_DONTWAIT, MT_DATA);
+			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (m)
 				MH_ALIGN(m, IGMP_LEADINGSPACE);
 		}
@@ -2905,11 +2905,11 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 			CTR1(KTR_IGMPV3, "%s: outbound queue full", __func__);
 			return (-ENOMEM);
 		}
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m)
 			m->m_data += IGMP_LEADINGSPACE;
 		if (m == NULL) {
-			m = m_gethdr(M_DONTWAIT, MT_DATA);
+			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (m)
 				MH_ALIGN(m, IGMP_LEADINGSPACE);
 		}
@@ -3061,11 +3061,11 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 				CTR1(KTR_IGMPV3,
 				    "%s: use previous packet", __func__);
 			} else {
-				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 				if (m)
 					m->m_data += IGMP_LEADINGSPACE;
 				if (m == NULL) {
-					m = m_gethdr(M_DONTWAIT, MT_DATA);
+					m = m_gethdr(M_NOWAIT, MT_DATA);
 					if (m)
 						MH_ALIGN(m, IGMP_LEADINGSPACE);
 				}
@@ -3497,7 +3497,7 @@ igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_flags & M_IGMPV3_HDR) {
 		igmpreclen -= hdrlen;
 	} else {
-		M_PREPEND(m, hdrlen, M_DONTWAIT);
+		M_PREPEND(m, hdrlen, M_NOWAIT);
 		if (m == NULL)
 			return (NULL);
 		m->m_flags |= M_IGMPV3_HDR;

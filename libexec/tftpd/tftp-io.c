@@ -87,14 +87,13 @@ errtomsg(int error)
 {
 	static char ebuf[40];
 	struct errmsg *pe;
-	char buf[MAXPKTSIZE];
 
 	if (error == 0)
 		return ("success");
 	for (pe = errmsgs; pe->e_code >= 0; pe++)
 		if (pe->e_code == error)
 			return (pe->e_msg);
-	snprintf(ebuf, sizeof(buf), "error %d", error);
+	snprintf(ebuf, sizeof(ebuf), "error %d", error);
 	return (ebuf);
 }
 

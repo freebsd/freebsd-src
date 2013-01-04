@@ -1,6 +1,4 @@
-/*	$OpenBSD: pf_norm.c,v 1.114 2009/01/29 14:11:45 henning Exp $ */
-
-/*
+/*-
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
@@ -23,6 +21,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$OpenBSD: pf_norm.c,v 1.114 2009/01/29 14:11:45 henning Exp $
  */
 
 #include <sys/cdefs.h>
@@ -161,6 +161,7 @@ pf_normalize_init(void)
 	V_pf_limits[PF_LIMIT_FRAGS].zone = V_pf_frent_z;
 	V_pf_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
 	uma_zone_set_max(V_pf_frent_z, PFFRAG_FRENT_HIWAT);
+	uma_zone_set_warning(V_pf_frent_z, "PF frag entries limit reached");
 
 	mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
 

@@ -39,9 +39,7 @@ CFLAGS+= ${DEBUG_FLAGS}
 .if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
-.endif
-
-.if !defined(DEBUG_FLAGS)
+.else
 STRIP?=	-s
 .endif
 
@@ -135,9 +133,9 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 .else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 .endif
 	${RANLIB} ${.TARGET}
 .endif
@@ -152,9 +150,9 @@ lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
 .else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
 .endif
 	${RANLIB} ${.TARGET}
 .endif
@@ -167,20 +165,26 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+.if defined(DEBUG_FLAGS)
+SHLIB_NAME_FULL=${SHLIB_NAME}.debug
+.else
+SHLIB_NAME_FULL=${SHLIB_NAME}
+.endif
+
 SOLINKOPTS=	-shared -Wl,-x
 .if !defined(ALLOW_SHARED_TEXTREL)
 SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
-${SHLIB_NAME}: ${SOBJS} beforelinking
-.else
-${SHLIB_NAME}: ${SOBJS}
+beforelinking: ${SOBJS}
+${SHLIB_NAME_FULL}: beforelinking
 .endif
+${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
-	@rm -f ${.TARGET} ${SHLIB_LINK}
+	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
-	@ln -fs ${.TARGET} ${SHLIB_LINK}
+	@ln -fs ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
 	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
@@ -194,6 +198,15 @@ ${SHLIB_NAME}: ${SOBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
+
+.if defined(DEBUG_FLAGS)
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
+	    ${SHLIB_NAME_FULL} ${.TARGET}
+
+${SHLIB_NAME}.symbols: ${SHLIB_NAME_FULL}
+	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
+.endif
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
@@ -202,7 +215,7 @@ _LIBS+=		lib${LIB}_pic.a
 lib${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} ${SOBJS} ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${.TARGET}
 .endif
 
@@ -270,6 +283,11 @@ _libinstall:
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
+.if defined(DEBUG_FLAGS)
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} \
+	    ${SHLIB_NAME}.symbols ${DESTDIR}${SHLIBDIR}
+.endif
 .if defined(SHLIB_LINK)
 # ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
 # and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory

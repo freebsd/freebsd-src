@@ -39,6 +39,14 @@
 #define CPSW_MAX_RX_BUFFERS	128
 #define CPSW_MAX_ALE_ENTRIES	1024
 
+struct cpsw_slot {
+	bus_dmamap_t dmamap;
+	struct mbuf *mbuf;
+	int index;
+	STAILQ_ENTRY(cpsw_slot) next;
+};
+STAILQ_HEAD(cpsw_queue, cpsw_slot);
+
 struct cpsw_softc {
 	struct ifnet	*ifp;
 	phandle_t	node;
@@ -57,29 +65,36 @@ struct cpsw_softc {
 	struct callout	wd_callout;
 	int		wd_timer;
 
-	/* buffers */
 	bus_dma_tag_t	mbuf_dtag;
-	bus_dmamap_t	tx_dmamap[CPSW_MAX_TX_BUFFERS];
-	bus_dmamap_t	rx_dmamap[CPSW_MAX_RX_BUFFERS];
-	struct mbuf	*tx_mbuf[CPSW_MAX_TX_BUFFERS];
-	struct mbuf	*rx_mbuf[CPSW_MAX_RX_BUFFERS];
-	int		txbd_head;
-	int		txbd_queue_size;
-	int		rxbd_head;
-	int		rxbd_tail;
 
-	int		tmp;
-	int		eoq;
-	int		tc[CPSW_MAX_TX_BUFFERS];
-	int		tc_unload[CPSW_MAX_TX_BUFFERS];
-	
-	struct cpsw_softc *phy_sc;
+	/* RX buffer tracking */
+	int		rx_running;
+	struct cpsw_queue rx_active;
+	struct cpsw_queue rx_avail;
+	struct cpsw_slot _rx_slots[CPSW_MAX_RX_BUFFERS];
+
+	/* TX buffer tracking. */
+	int		tx_running;
+	struct cpsw_queue tx_active;
+	struct cpsw_queue tx_avail;
+	struct cpsw_slot _tx_slots[CPSW_MAX_TX_BUFFERS];
+
+	/* Statistics */
+	uint32_t	tx_enqueues; /* total TX bufs added to queue */
+	uint32_t	tx_retires; /* total TX bufs removed from queue */
+	uint32_t	tx_retires_at_wd_reset; /* used for watchdog */
+	/* Note:  tx_queued != tx_enqueues - tx_retires
+	   At driver reset, packets can be discarded
+	   from TX queue without being retired. */
+	int		tx_queued; /* Current bufs in TX queue */
+	int		tx_max_queued;
 };
 
 #define CPDMA_BD_SOP		(1<<15)
 #define CPDMA_BD_EOP		(1<<14)
 #define CPDMA_BD_OWNER		(1<<13)
 #define CPDMA_BD_EOQ		(1<<12)
+#define CPDMA_BD_TDOWNCMPLT	(1<<11)
 #define CPDMA_BD_PKT_ERR_MASK	(3<< 4)
 
 struct cpsw_cpdma_bd {

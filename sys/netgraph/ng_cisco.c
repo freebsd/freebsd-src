@@ -360,7 +360,7 @@ cisco_rcvdata(hook_p hook, item_p item)
 	/* OK so it came from a protocol, heading out. Prepend general data
 	   packet header. For now, IP,IPX only  */
 	NGI_GET_M(item, m);
-	M_PREPEND(m, CISCO_HEADER_LEN, M_DONTWAIT);
+	M_PREPEND(m, CISCO_HEADER_LEN, M_NOWAIT);
 	if (!m) {
 		error = ENOBUFS;
 		goto out;
@@ -608,7 +608,7 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 
 	getmicrouptime(&time);
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m)
 		return (ENOBUFS);
 

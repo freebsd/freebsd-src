@@ -1164,7 +1164,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * or may not be stashed in the original SYN mbuf passed to us.
 		 * Just copy it over instead of dealing with all possibilities.
 		 */
-		m = m_dup(synqe->syn, M_DONTWAIT);
+		m = m_dup(synqe->syn, M_NOWAIT);
 		if (m)
 			m->m_pkthdr.rcvif = ifp;
 

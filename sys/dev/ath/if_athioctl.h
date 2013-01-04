@@ -406,4 +406,26 @@ struct ath_tx_radiotap_header {
 #define	DFS_PARAM_ENABLE	32
 #define	DFS_PARAM_EN_EXTCH	33
 
+/*
+ * Spectral ioctl parameter types
+ */
+#define	SPECTRAL_PARAM_FFT_PERIOD	1
+#define	SPECTRAL_PARAM_SS_PERIOD	2
+#define	SPECTRAL_PARAM_SS_COUNT		3
+#define	SPECTRAL_PARAM_SS_SHORT_RPT	4
+#define	SPECTRAL_PARAM_ENABLED		5
+#define	SPECTRAL_PARAM_ACTIVE		6
+
+/*
+ * Spectral control parameters
+ */
+#define	SIOCGATHSPECTRAL	_IOWR('i', 151, struct ath_diag)
+
+#define	SPECTRAL_CONTROL_ENABLE		2
+#define	SPECTRAL_CONTROL_DISABLE	3
+#define	SPECTRAL_CONTROL_START		4
+#define	SPECTRAL_CONTROL_STOP		5
+#define	SPECTRAL_CONTROL_GET_PARAMS	6
+#define	SPECTRAL_CONTROL_SET_PARAMS	7
+
 #endif /* _DEV_ATH_ATHIOCTL_H */

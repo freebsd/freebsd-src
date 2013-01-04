@@ -1481,7 +1481,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		/* SHUTDOWN came in after sending INIT-ACK */
 		sctp_send_shutdown_ack(stcb, stcb->asoc.primary_destination);
 		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-		    0, M_DONTWAIT, 1, MT_DATA);
+		    0, M_NOWAIT, 1, MT_DATA);
 		if (op_err == NULL) {
 			/* FOOBAR */
 			return (NULL);
@@ -1699,7 +1699,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		 * with colliding state indication.
 		 */
 		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-		    0, M_DONTWAIT, 1, MT_DATA);
+		    0, M_NOWAIT, 1, MT_DATA);
 		if (op_err == NULL) {
 			/* FOOBAR */
 			return (NULL);
@@ -2461,7 +2461,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	 * calculated in the sctp_hmac_m() call).
 	 */
 	sig_offset = offset + cookie_len - SCTP_SIGNATURE_SIZE;
-	m_sig = m_split(m, sig_offset, M_DONTWAIT);
+	m_sig = m_split(m, sig_offset, M_NOWAIT);
 	if (m_sig == NULL) {
 		/* out of memory or ?? */
 		return (NULL);
@@ -2567,7 +2567,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		uint32_t tim;
 
 		op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_stale_cookie_msg),
-		    0, M_DONTWAIT, 1, MT_DATA);
+		    0, M_NOWAIT, 1, MT_DATA);
 		if (op_err == NULL) {
 			/* FOOBAR */
 			return (NULL);
@@ -4094,7 +4094,7 @@ __attribute__((noinline))
 	chk->no_fr_allowed = 0;
 	chk->book_size = chk->send_size = sizeof(struct sctp_chunkhdr);
 	chk->book_size_scale = 0;
-	chk->data = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
+	chk->data = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (chk->data == NULL) {
 strres_nochunk:
 		if (chk->data) {
@@ -5477,7 +5477,7 @@ process_control_chunks:
 				struct sctp_paramhdr *phd;
 
 				mm = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-				    0, M_DONTWAIT, 1, MT_DATA);
+				    0, M_NOWAIT, 1, MT_DATA);
 				if (mm) {
 					phd = mtod(mm, struct sctp_paramhdr *);
 					/*
@@ -5490,7 +5490,7 @@ process_control_chunks:
 					phd->param_type = htons(SCTP_CAUSE_UNRECOG_CHUNK);
 					phd->param_length = htons(chk_length + sizeof(*phd));
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
-					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, chk_length, M_DONTWAIT);
+					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
 						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL)) {
 							sctp_m_freem(mm);

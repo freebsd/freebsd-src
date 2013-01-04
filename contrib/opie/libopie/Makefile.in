@@ -23,7 +23,7 @@ TARGET=libopie.a
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	ar cr $(TARGET) $(OBJS)
+	@AR@ @ARFLAGS@ $(TARGET) $(OBJS)
 	@RANLIB@ $(TARGET)
 
 clean:

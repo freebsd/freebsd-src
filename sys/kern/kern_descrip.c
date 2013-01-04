@@ -133,12 +133,26 @@ static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
 static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
 
 /*
- * A process is initially started out with NDFILE descriptors stored within
- * this structure, selected to be enough for typical applications based on
- * the historical limit of 20 open files (and the usage of descriptors by
- * shells).  If these descriptors are exhausted, a larger descriptor table
- * may be allocated, up to a process' resource limit; the internal arrays
- * are then unused.
+ * Each process has:
+ *
+ * - An array of open file descriptors (fd_ofiles)
+ * - An array of file flags (fd_ofileflags)
+ * - A bitmap recording which descriptors are in use (fd_map)
+ *
+ * A process starts out with NDFILE descriptors.  The value of NDFILE has
+ * been selected based the historical limit of 20 open files, and an
+ * assumption that the majority of processes, especially short-lived
+ * processes like shells, will never need more.
+ *
+ * If this initial allocation is exhausted, a larger descriptor table and
+ * map are allocated dynamically, and the pointers in the process's struct
+ * filedesc are updated to point to those.  This is repeated every time
+ * the process runs out of file descriptors (provided it hasn't hit its
+ * resource limit).
+ *
+ * Since threads may hold references to individual descriptor table
+ * entries, the tables are never freed.  Instead, they are placed on a
+ * linked list and freed only when the struct filedesc is released.
  */
 #define NDFILE		20
 #define NDSLOTSIZE	sizeof(NDSLOTTYPE)
@@ -148,34 +162,23 @@ static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
 #define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
 
 /*
- * Storage required per open file descriptor.
- */
-#define OFILESIZE (sizeof(struct file *) + sizeof(char))
-
-/*
- * Storage to hold unused ofiles that need to be reclaimed.
+ * SLIST entry used to keep track of ofiles which must be reclaimed when
+ * the process exits.
  */
 struct freetable {
-	struct file	**ft_table;
+	struct file **ft_table;
 	SLIST_ENTRY(freetable) ft_next;
 };
 
 /*
- * Basic allocation of descriptors:
- * one of the above, plus arrays for NDFILE descriptors.
+ * Initial allocation: a filedesc structure + the head of SLIST used to
+ * keep track of old ofiles + enough space for NDFILE descriptors.
  */
 struct filedesc0 {
-	struct	filedesc fd_fd;
-	/*
-	 * ofiles which need to be reclaimed on free.
-	 */
-	SLIST_HEAD(,freetable) fd_free;
-	/*
-	 * These arrays are used when the number of open files is
-	 * <= NDFILE, and are then pointed to by the pointers above.
-	 */
-	struct	file *fd_dfiles[NDFILE];
-	char	fd_dfileflags[NDFILE];
+	struct filedesc fd_fd;
+	SLIST_HEAD(, freetable) fd_free;
+	struct file *fd_dfiles[NDFILE];
+	char fd_dfileflags[NDFILE];
 	NDSLOTTYPE fd_dmap[NDSLOTS(NDFILE)];
 };
 
@@ -1414,58 +1417,74 @@ static void
 fdgrowtable(struct filedesc *fdp, int nfd)
 {
 	struct filedesc0 *fdp0;
-	struct freetable *fo;
+	struct freetable *ft;
 	struct file **ntable;
 	struct file **otable;
-	char *nfileflags;
+	char *nfileflags, *ofileflags;
 	int nnfiles, onfiles;
-	NDSLOTTYPE *nmap;
+	NDSLOTTYPE *nmap, *omap;
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
 	KASSERT(fdp->fd_nfiles > 0,
 	    ("zero-length file table"));
 
-	/* compute the size of the new table */
+	/* save old values */
 	onfiles = fdp->fd_nfiles;
+	otable = fdp->fd_ofiles;
+	ofileflags = fdp->fd_ofileflags;
+	omap = fdp->fd_map;
+
+	/* compute the size of the new table */
 	nnfiles = NDSLOTS(nfd) * NDENTRIES; /* round up */
 	if (nnfiles <= onfiles)
 		/* the table is already large enough */
 		return;
 
-	/* allocate a new table and (if required) new bitmaps */
-	ntable = malloc((nnfiles * OFILESIZE) + sizeof(struct freetable),
-	    M_FILEDESC, M_ZERO | M_WAITOK);
-	nfileflags = (char *)&ntable[nnfiles];
-	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles))
-		nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE,
-		    M_FILEDESC, M_ZERO | M_WAITOK);
-	else
-		nmap = NULL;
-
-	bcopy(fdp->fd_ofiles, ntable, onfiles * sizeof(*ntable));
-	bcopy(fdp->fd_ofileflags, nfileflags, onfiles);
-	otable = fdp->fd_ofiles;
-	fdp->fd_ofileflags = nfileflags;
-	fdp->fd_ofiles = ntable;
 	/*
-	 * We must preserve ofiles until the process exits because we can't
-	 * be certain that no threads have references to the old table via
-	 * _fget().
+	 * Allocate a new table and map.  We need enough space for a) the
+	 * file entries themselves, b) the file flags, and c) the struct
+	 * freetable we will use when we decommission the table and place
+	 * it on the freelist.  We place the struct freetable in the
+	 * middle so we don't have to worry about padding.
+	 */
+	ntable = malloc(nnfiles * sizeof(*ntable) +
+	    sizeof(struct freetable) +
+	    nnfiles * sizeof(*nfileflags),
+	    M_FILEDESC, M_ZERO | M_WAITOK);
+	nfileflags = (char *)&ntable[nnfiles] + sizeof(struct freetable);
+	nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE,
+	    M_FILEDESC, M_ZERO | M_WAITOK);
+
+	/* copy the old data over and point at the new tables */
+	memcpy(ntable, otable, onfiles * sizeof(*otable));
+	memcpy(nfileflags, ofileflags, onfiles * sizeof(*ofileflags));
+	memcpy(nmap, omap, NDSLOTS(onfiles) * sizeof(*omap));
+
+	/* update the pointers and counters */
+	fdp->fd_nfiles = nnfiles;
+	fdp->fd_ofiles = ntable;
+	fdp->fd_ofileflags = nfileflags;
+	fdp->fd_map = nmap;
+
+	/*
+	 * Do not free the old file table, as some threads may still
+	 * reference entries within it.  Instead, place it on a freelist
+	 * which will be processed when the struct filedesc is released.
+	 *
+	 * Do, however, free the old map.
+	 *
+	 * Note that if onfiles == NDFILE, we're dealing with the original
+	 * static allocation contained within (struct filedesc0 *)fdp,
+	 * which must not be freed.
 	 */
 	if (onfiles > NDFILE) {
-		fo = (struct freetable *)&otable[onfiles];
+		ft = (struct freetable *)&otable[onfiles];
 		fdp0 = (struct filedesc0 *)fdp;
-		fo->ft_table = otable;
-		SLIST_INSERT_HEAD(&fdp0->fd_free, fo, ft_next);
+		ft->ft_table = otable;
+		SLIST_INSERT_HEAD(&fdp0->fd_free, ft, ft_next);
+		free(omap, M_FILEDESC);
 	}
-	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles)) {
-		bcopy(fdp->fd_map, nmap, NDSLOTS(onfiles) * sizeof(*nmap));
-		if (NDSLOTS(onfiles) > NDSLOTS(NDFILE))
-			free(fdp->fd_map, M_FILEDESC);
-		fdp->fd_map = nmap;
-	}
-	fdp->fd_nfiles = nnfiles;
 }
 
 /*

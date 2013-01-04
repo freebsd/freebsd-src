@@ -654,7 +654,7 @@ cgetnext(char **bp, char **db_array)
 	if (dbp == NULL)
 		dbp = db_array;
 
-	if (pfp == NULL && (pfp = fopen(*dbp, "r")) == NULL) {
+	if (pfp == NULL && (pfp = fopen(*dbp, "re")) == NULL) {
 		(void)cgetclose();
 		return (-1);
 	}
@@ -679,7 +679,7 @@ cgetnext(char **bp, char **db_array)
 						(void)cgetclose();
 						return (0);
 					} else if ((pfp =
-					    fopen(*dbp, "r")) == NULL) {
+					    fopen(*dbp, "re")) == NULL) {
 						(void)cgetclose();
 						return (-1);
 					} else

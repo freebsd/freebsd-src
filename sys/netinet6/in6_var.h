@@ -67,6 +67,7 @@
 #include <sys/tree.h>
 
 #ifdef _KERNEL
+#include <sys/fnv_hash.h>
 #include <sys/libkern.h>
 #endif
 
@@ -131,10 +132,13 @@ struct	in6_ifaddr {
 
 	/* multicast addresses joined from the kernel */
 	LIST_HEAD(, in6_multi_mship) ia6_memberships;
+	/* entry in bucket of inet6 addresses */
+	LIST_ENTRY(in6_ifaddr) ia6_hash;
 };
 
 /* List of in6_ifaddr's. */
 TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
+LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
 
 /* control structure to manage address selection policy */
 struct in6_addrpolicy {
@@ -499,7 +503,27 @@ struct	in6_rrenumreq {
 
 #ifdef _KERNEL
 VNET_DECLARE(struct in6_ifaddrhead, in6_ifaddrhead);
+VNET_DECLARE(struct in6_ifaddrlisthead *, in6_ifaddrhashtbl);
+VNET_DECLARE(u_long, in6_ifaddrhmask);
 #define	V_in6_ifaddrhead		VNET(in6_ifaddrhead)
+#define	V_in6_ifaddrhashtbl		VNET(in6_ifaddrhashtbl)
+#define	V_in6_ifaddrhmask		VNET(in6_ifaddrhmask)
+
+#define	IN6ADDR_NHASH_LOG2		8
+#define	IN6ADDR_NHASH			(1 << IN6ADDR_NHASH_LOG2)
+#define	IN6ADDR_HASHVAL(x)		(in6_addrhash(x))
+#define	IN6ADDR_HASH(x) \
+    (&V_in6_ifaddrhashtbl[IN6ADDR_HASHVAL(x) & V_in6_ifaddrhmask])
+
+static __inline uint32_t
+in6_addrhash(struct in6_addr *in6)
+{
+	uint32_t x;
+
+	x = in6->s6_addr32[0] ^ in6->s6_addr32[1] ^ in6->s6_addr32[2] ^
+	    in6->s6_addr32[3];
+	return (fnv_32_buf(&x, sizeof(x), FNV1_32_INIT));
+}
 
 extern struct rwlock in6_ifaddr_lock;
 #define	IN6_IFADDR_LOCK_ASSERT(	)	rw_assert(&in6_ifaddr_lock, RA_LOCKED)

@@ -95,9 +95,9 @@ static void cpsw_start(struct ifnet *ifp);
 static void cpsw_start_locked(struct ifnet *ifp);
 static void cpsw_stop_locked(struct cpsw_softc *sc);
 static int cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
-static int cpsw_allocate_dma(struct cpsw_softc *sc);
-static int cpsw_free_dma(struct cpsw_softc *sc);
-static int cpsw_new_rxbuf(struct cpsw_softc *sc, uint32_t i, uint32_t next);
+static int cpsw_init_slot_lists(struct cpsw_softc *sc);
+static void cpsw_free_slot(struct cpsw_softc *sc, struct cpsw_slot *slot);
+static void cpsw_fill_rx_queue_locked(struct cpsw_softc *sc);
 static void cpsw_watchdog(struct cpsw_softc *sc);
 
 static void cpsw_intr_rx_thresh(void *arg);
@@ -156,10 +156,10 @@ static struct {
 	driver_intr_t *handler;
 	char * description;
 } cpsw_intrs[CPSW_INTR_COUNT + 1] = {
-	{ cpsw_intr_rx_thresh,"CPSW RX threshold interrupt" },
+	{ cpsw_intr_rx_thresh, "CPSW RX threshold interrupt" },
 	{ cpsw_intr_rx,	"CPSW RX interrupt" },
 	{ cpsw_intr_tx,	"CPSW TX interrupt" },
-	{ cpsw_intr_misc,"CPSW misc interrupt" },
+	{ cpsw_intr_misc, "CPSW misc interrupt" },
 };
 
 /* Locking macros */
@@ -199,6 +199,34 @@ static struct {
 } while (0)
 
 
+#include <machine/stdarg.h>
+static void
+cpsw_debugf_head(const char *funcname)
+{
+	int t = (int)(time_second % (24 * 60 * 60));
+
+	printf("%02d:%02d:%02d %s ", t / (60 * 60), (t / 60) % 60, t % 60, funcname);
+}
+
+static void
+cpsw_debugf(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+	printf("\n");
+
+}
+
+#define CPSW_DEBUGF(a) do {						\
+		if (sc->cpsw_if_flags & IFF_DEBUG) {			\
+			cpsw_debugf_head(__func__);			\
+			cpsw_debugf a;					\
+		}							\
+} while (0)
+
 static int
 cpsw_probe(device_t dev)
 {
@@ -213,18 +241,20 @@ cpsw_probe(device_t dev)
 static int
 cpsw_attach(device_t dev)
 {
-	struct cpsw_softc *sc;
+	struct cpsw_softc *sc = device_get_softc(dev);
 	struct mii_softc *miisc;
 	struct ifnet *ifp;
+	void *phy_sc;
 	int i, error, phy;
 	uint32_t reg;
 
-	sc = device_get_softc(dev);
+	CPSW_DEBUGF((""));
+
 	sc->dev = dev;
 	sc->node = ofw_bus_get_node(dev);
 
 	/* Get phy address from fdt */
-	if (fdt_get_phyaddr(sc->node, sc->dev, &phy, (void **)&sc->phy_sc) != 0) {
+	if (fdt_get_phyaddr(sc->node, sc->dev, &phy, &phy_sc) != 0) {
 		device_printf(dev, "failed to get PHY address from FDT\n");
 		return (ENXIO);
 	}
@@ -246,14 +276,32 @@ cpsw_attach(device_t dev)
 	device_printf(dev, "Version %d.%d (%d)\n", (reg >> 8 & 0x7),
 		reg & 0xFF, (reg >> 11) & 0x1F);
 
-	/* Allocate DMA, buffers, buffer descriptors */
-	error = cpsw_allocate_dma(sc);
+	//cpsw_add_sysctls(sc); TODO
+
+	/* Allocate a busdma tag and DMA safe memory for mbufs. */
+	error = bus_dma_tag_create(
+		bus_get_dma_tag(sc->dev),	/* parent */
+		1, 0,				/* alignment, boundary */
+		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+		BUS_SPACE_MAXADDR,		/* highaddr */
+		NULL, NULL,			/* filtfunc, filtfuncarg */
+		MCLBYTES, 1,			/* maxsize, nsegments */
+		MCLBYTES, 0,			/* maxsegsz, flags */
+		NULL, NULL,			/* lockfunc, lockfuncarg */
+		&sc->mbuf_dtag);		/* dmatag */
 	if (error) {
+		device_printf(dev, "bus_dma_tag_create failed\n");
 		cpsw_detach(dev);
-		return (ENXIO);
+		return (ENOMEM);
 	}
 
-	//cpsw_add_sysctls(sc); TODO
+	/* Initialize the tx_avail and rx_avail lists. */
+	error = cpsw_init_slot_lists(sc);
+	if (error) {
+		device_printf(dev, "failed to allocate dmamaps\n");
+		cpsw_detach(dev);
+		return (ENOMEM);
+	}
 
 	/* Allocate network interface */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
@@ -294,7 +342,7 @@ cpsw_attach(device_t dev)
 
 	/* Initialze MDIO - ENABLE, PREAMBLE=0, FAULTENB, CLKDIV=0xFF */
 	/* TODO Calculate MDCLK=CLK/(CLKDIV+1) */
-	cpsw_write_4(MDIOCONTROL, (1<<30) | (1<<18) | 0xFF);
+	cpsw_write_4(MDIOCONTROL, 1 << 30 | 1 << 18 | 0xFF);
 
 	/* Attach PHY(s) */
 	error = mii_attach(dev, &sc->miibus, ifp, cpsw_ifmedia_upd,
@@ -310,7 +358,7 @@ cpsw_attach(device_t dev)
 	miisc = LIST_FIRST(&sc->mii->mii_phys);
 
 	/* Select PHY and enable interrupts */
-	cpsw_write_4(MDIOUSERPHYSEL0, (1 << 6) | (miisc->mii_phy & 0x1F));
+	cpsw_write_4(MDIOUSERPHYSEL0, 1 << 6 | (miisc->mii_phy & 0x1F));
 
 	/* Attach interrupt handlers */
 	for (i = 1; i <= CPSW_INTR_COUNT; ++i) {
@@ -332,17 +380,22 @@ cpsw_attach(device_t dev)
 static int
 cpsw_detach(device_t dev)
 {
-	struct cpsw_softc *sc;
-	int error,i;
+	struct cpsw_softc *sc = device_get_softc(dev);
+	int error, i;
 
-	sc = device_get_softc(dev);
+	CPSW_DEBUGF((""));
 
 	/* Stop controller and free TX queue */
-	if (sc->ifp)
-		cpsw_shutdown(dev);
+	if (device_is_attached(dev)) {
+		ether_ifdetach(sc->ifp);
+		CPSW_GLOBAL_LOCK(sc);
+		cpsw_stop_locked(sc);
+		CPSW_GLOBAL_UNLOCK(sc);
+		callout_drain(&sc->wd_callout);
+	}
 
-	/* Wait for stopping ticks */
-        callout_drain(&sc->wd_callout);
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->miibus);
 
 	/* Stop and release all interrupts */
 	for (i = 0; i < CPSW_INTR_COUNT; ++i) {
@@ -355,14 +408,17 @@ cpsw_detach(device_t dev)
 			    cpsw_intrs[i + 1].description);
 	}
 
-	/* Detach network interface */
-	if (sc->ifp) {
-		ether_ifdetach(sc->ifp);
-		if_free(sc->ifp);
+	/* Free dmamaps and mbufs */
+	for (i = 0; i < CPSW_MAX_TX_BUFFERS; i++) {
+		cpsw_free_slot(sc, &sc->_tx_slots[i]);
+	}
+	for (i = 0; i < CPSW_MAX_RX_BUFFERS; i++) {
+		cpsw_free_slot(sc, &sc->_rx_slots[i]);
 	}
 
-	/* Free DMA resources */
-	cpsw_free_dma(sc);
+	/* Free DMA tag */
+	error = bus_dma_tag_destroy(sc->mbuf_dtag);
+	KASSERT(error == 0, ("Unable to destroy DMA tag"));
 
 	/* Free IO memory handler */
 	bus_release_resources(dev, res_spec, sc->res);
@@ -377,15 +433,19 @@ cpsw_detach(device_t dev)
 static int
 cpsw_suspend(device_t dev)
 {
+	struct cpsw_softc *sc = device_get_softc(dev);
 
-	device_printf(dev, "%s\n", __FUNCTION__);
+	CPSW_DEBUGF((""));
+	CPSW_GLOBAL_LOCK(sc);
+	cpsw_stop_locked(sc);
+	CPSW_GLOBAL_UNLOCK(sc);
 	return (0);
 }
 
 static int
 cpsw_resume(device_t dev)
 {
-
+	/* XXX TODO XXX */
 	device_printf(dev, "%s\n", __FUNCTION__);
 	return (0);
 }
@@ -395,208 +455,132 @@ cpsw_shutdown(device_t dev)
 {
 	struct cpsw_softc *sc = device_get_softc(dev);
 
+	CPSW_DEBUGF((""));
 	CPSW_GLOBAL_LOCK(sc);
-
 	cpsw_stop_locked(sc);
-
 	CPSW_GLOBAL_UNLOCK(sc);
-
 	return (0);
+}
+
+static int
+cpsw_miibus_ready(struct cpsw_softc *sc)
+{
+	uint32_t r, retries = CPSW_MIIBUS_RETRIES;
+
+	while (--retries) {
+		r = cpsw_read_4(MDIOUSERACCESS0);
+		if ((r & 1 << 31) == 0)
+			return 1;
+		DELAY(CPSW_MIIBUS_DELAY);
+	}
+	return 0;
 }
 
 static int
 cpsw_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct cpsw_softc *sc;
-	uint32_t r;
-	uint32_t retries = CPSW_MIIBUS_RETRIES;
+	struct cpsw_softc *sc = device_get_softc(dev);
+	uint32_t cmd, r;
 
-	sc = device_get_softc(dev);
+	if (!cpsw_miibus_ready(sc)) {
+		device_printf(dev, "MDIO not ready to read\n");
+		return 0;
+	}
 
-	/* Wait until interface is ready by watching GO bit */
-	while(--retries && (cpsw_read_4(MDIOUSERACCESS0) & (1 << 31)) )
-		DELAY(CPSW_MIIBUS_DELAY);
-	if (!retries)
-		device_printf(dev, "Timeout while waiting for MDIO.\n");
+	/* Set GO, reg, phy */
+	cmd = 1 << 31 | (reg & 0x1F) << 21 | (phy & 0x1F) << 16;
+	cpsw_write_4(MDIOUSERACCESS0, cmd);
 
-	/* Set GO, phy and reg */
-	cpsw_write_4(MDIOUSERACCESS0, (1 << 31) |
-		((reg & 0x1F) << 21) | ((phy & 0x1F) << 16));
-
-	while(--retries && (cpsw_read_4(MDIOUSERACCESS0) & (1 << 31)) )
-		DELAY(CPSW_MIIBUS_DELAY);
-	if (!retries)
-		device_printf(dev, "Timeout while waiting for MDIO.\n");
+	if (!cpsw_miibus_ready(sc)) {
+		device_printf(dev, "MDIO timed out during read\n");
+		return 0;
+	}
 
 	r = cpsw_read_4(MDIOUSERACCESS0);
-	/* Check for ACK */
-	if(r & (1<<29)) {
-		return (r & 0xFFFF);
+	if((r & 1 << 29) == 0) {
+		device_printf(dev, "Failed to read from PHY.\n");
+		r = 0;
 	}
-	device_printf(dev, "Failed to read from PHY.\n");
-	return 0;
+	return (r & 0xFFFF);
 }
 
 static int
 cpsw_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
-	struct cpsw_softc *sc;
-	uint32_t retries = CPSW_MIIBUS_RETRIES;
+	struct cpsw_softc *sc = device_get_softc(dev);
+	uint32_t cmd;
 
-	sc = device_get_softc(dev);
-
-	/* Wait until interface is ready by watching GO bit */
-	while(--retries && (cpsw_read_4(MDIOUSERACCESS0) & (1 << 31)) )
-		DELAY(CPSW_MIIBUS_DELAY);
-	if (!retries)
-		device_printf(dev, "Timeout while waiting for MDIO.\n");
-
-	/* Set GO, WRITE, phy, reg and value */
-	cpsw_write_4(MDIOUSERACCESS0, (value & 0xFFFF) | (3 << 30) |
-		((reg & 0x1F) << 21) | ((phy & 0x1F) << 16));
-
-	while(--retries && (cpsw_read_4(MDIOUSERACCESS0) & (1 << 31)) )
-		DELAY(CPSW_MIIBUS_DELAY);
-	if (!retries)
-		device_printf(dev, "Timeout while waiting for MDIO.\n");
-
-	/* Check for ACK */
-	if(cpsw_read_4(MDIOUSERACCESS0) & (1<<29)) {
+	if (!cpsw_miibus_ready(sc)) {
+		device_printf(dev, "MDIO not ready to write\n");
 		return 0;
 	}
-	device_printf(dev, "Failed to write to PHY.\n");
+
+	/* Set GO, WRITE, reg, phy, and value */
+	cmd = 3 << 30 | (reg & 0x1F) << 21 | (phy & 0x1F) << 16
+	    | (value & 0xFFFF);
+	cpsw_write_4(MDIOUSERACCESS0, cmd);
+
+	if (!cpsw_miibus_ready(sc)) {
+		device_printf(dev, "MDIO timed out during write\n");
+		return 0;
+	}
+
+	if((cpsw_read_4(MDIOUSERACCESS0) & (1 << 29)) == 0)
+		device_printf(dev, "Failed to write to PHY.\n");
 
 	return 0;
 }
 
 static int
-cpsw_allocate_dma(struct cpsw_softc *sc)
+cpsw_init_slot_lists(struct cpsw_softc *sc)
 {
-	int err;
 	int i;
 
-	/* Allocate a busdma tag and DMA safe memory for tx mbufs. */
-	err = bus_dma_tag_create(
-		bus_get_dma_tag(sc->dev),	/* parent */
-		1, 0,				/* alignment, boundary */
-		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-		BUS_SPACE_MAXADDR,		/* highaddr */
-		NULL, NULL,			/* filtfunc, filtfuncarg */
-		MCLBYTES, 1,			/* maxsize, nsegments */
-		MCLBYTES, 0,			/* maxsegsz, flags */
-		NULL, NULL,			/* lockfunc, lockfuncarg */
-		&sc->mbuf_dtag);		/* dmatag */
+	STAILQ_INIT(&sc->rx_active);
+	STAILQ_INIT(&sc->rx_avail);
+	STAILQ_INIT(&sc->tx_active);
+	STAILQ_INIT(&sc->tx_avail);
 
-	if (err)
-		return (ENOMEM);
+	/* Put the slot descriptors onto the avail lists. */
 	for (i = 0; i < CPSW_MAX_TX_BUFFERS; i++) {
-		if ( bus_dmamap_create(sc->mbuf_dtag, 0, &sc->tx_dmamap[i])) {
-			if_printf(sc->ifp, "failed to create dmamap for rx mbuf\n");
+		struct cpsw_slot *slot = &sc->_tx_slots[i];
+		slot->index = i;
+		/* XXX TODO: Remove this from here; allocate dmamaps lazily
+		   in the encap routine to reduce memory usage. */
+		if (bus_dmamap_create(sc->mbuf_dtag, 0, &slot->dmamap)) {
+			if_printf(sc->ifp, "failed to create dmamap for tx mbuf\n");
 			return (ENOMEM);
 		}
+		STAILQ_INSERT_TAIL(&sc->tx_avail, slot, next);
 	}
 
 	for (i = 0; i < CPSW_MAX_RX_BUFFERS; i++) {
-		if ( bus_dmamap_create(sc->mbuf_dtag, 0, &sc->rx_dmamap[i])) {
+		struct cpsw_slot *slot = &sc->_rx_slots[i];
+		slot->index = i;
+		if (bus_dmamap_create(sc->mbuf_dtag, 0, &slot->dmamap)) {
 			if_printf(sc->ifp, "failed to create dmamap for rx mbuf\n");
 			return (ENOMEM);
 		}
+		STAILQ_INSERT_TAIL(&sc->rx_avail, slot, next);
 	}
 
 	return (0);
 }
 
-static int
-cpsw_free_dma(struct cpsw_softc *sc)
+static void
+cpsw_free_slot(struct cpsw_softc *sc, struct cpsw_slot *slot)
 {
-	(void)sc; /* UNUSED */
-	// TODO
-	return 0;
-}
-
-static int
-cpsw_new_rxbuf(struct cpsw_softc *sc, uint32_t i, uint32_t next)
-{
-	bus_dma_segment_t seg[1];
-	struct cpsw_cpdma_bd bd;
 	int error;
-	int nsegs;
 
-	sc->rx_mbuf[i] = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (sc->rx_mbuf[i] == NULL)
-		return (ENOBUFS);
-
-	sc->rx_mbuf[i]->m_len = sc->rx_mbuf[i]->m_pkthdr.len = sc->rx_mbuf[i]->m_ext.ext_size;
-
-	error = bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, sc->rx_dmamap[i], 
-		sc->rx_mbuf[i], seg, &nsegs, BUS_DMA_NOWAIT);
-
-	KASSERT(nsegs == 1, ("Too many segments returned!"));
-	if (nsegs != 1 || error)
-		panic("%s: nsegs(%d), error(%d)",__func__, nsegs, error);
-
-	bus_dmamap_sync(sc->mbuf_dtag, sc->rx_dmamap[i], BUS_DMASYNC_PREREAD);
-
-	/* Create and submit new rx descriptor*/
-	bd.next = next;
-	bd.bufptr = seg->ds_addr;
-	bd.buflen = MCLBYTES-1;
-	bd.bufoff = 2; /* make IP hdr aligned with 4 */
-	bd.pktlen = 0;
-	bd.flags = CPDMA_BD_OWNER;
-	cpsw_cpdma_write_rxbd(i, &bd);
-
-	return (0);
-}
-
-
-static int
-cpsw_encap(struct cpsw_softc *sc, struct mbuf *m0)
-{
-	bus_dma_segment_t seg[1];
-	struct cpsw_cpdma_bd bd;
-	int error;
-	int nsegs;
-	int idx;
-
-	if (sc->txbd_queue_size == CPSW_MAX_TX_BUFFERS)
-		return (ENOBUFS);
-
-	idx = sc->txbd_head + sc->txbd_queue_size;
-
-	if (idx >= (CPSW_MAX_TX_BUFFERS) )
-		idx -= CPSW_MAX_TX_BUFFERS;
-
-	/* Create mapping in DMA memory */
-	error = bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, sc->tx_dmamap[idx], m0, seg, &nsegs,
-	    BUS_DMA_NOWAIT);
-	sc->tc[idx]++;
-	if (error != 0 || nsegs != 1 ) {
-		bus_dmamap_unload(sc->mbuf_dtag, sc->tx_dmamap[idx]);
-		return ((error != 0) ? error : -1);
+	if (slot->dmamap) {
+		error = bus_dmamap_destroy(sc->mbuf_dtag, slot->dmamap);
+		KASSERT(error == 0, ("Mapping still active"));
+		slot->dmamap = NULL;
 	}
-	bus_dmamap_sync(sc->mbuf_dtag, sc->tx_dmamap[idx], BUS_DMASYNC_PREWRITE);
-
-	/* Fill descriptor data */
-	bd.next = 0;
-	bd.bufptr = seg->ds_addr;
-	bd.bufoff = 0;
-	bd.buflen = seg->ds_len;
-	bd.pktlen = seg->ds_len;
-	/* Set OWNERSHIP, SOP, EOP */
-	bd.flags = (7<<13);
-
-	/* Write descriptor */
-	cpsw_cpdma_write_txbd(idx, &bd);
-	sc->tx_mbuf[idx] = m0;
-
-	/* Previous descriptor should point to us */
-	cpsw_cpdma_write_txbd_next(((idx-1<0)?(CPSW_MAX_TX_BUFFERS-1):(idx-1)),
-		cpsw_cpdma_txbd_paddr(idx));
-
-	sc->txbd_queue_size++;
-
-	return (0);
+	if (slot->mbuf) {
+		m_freem(slot->mbuf);
+		slot->mbuf = NULL;
+	}
 }
 
 /*
@@ -625,7 +609,7 @@ cpsw_pad(struct mbuf *m)
 			;
 		if (!(M_WRITABLE(last) && M_TRAILINGSPACE(last) >= padlen)) {
 			/* Allocate new empty mbuf, pad it. Compact later. */
-			MGET(n, M_DONTWAIT, MT_DATA);
+			MGET(n, M_NOWAIT, MT_DATA);
 			if (n == NULL)
 				return (ENOBUFS);
 			n->m_len = 0;
@@ -655,10 +639,13 @@ cpsw_start(struct ifnet *ifp)
 static void
 cpsw_start_locked(struct ifnet *ifp)
 {
+	bus_dma_segment_t seg[1];
+	struct cpsw_cpdma_bd bd;
 	struct cpsw_softc *sc = ifp->if_softc;
+	struct cpsw_queue newslots = STAILQ_HEAD_INITIALIZER(newslots);
+	struct cpsw_slot *slot, *prev_slot = NULL, *first_new_slot;
 	struct mbuf *m0, *mtmp;
-	uint32_t queued = 0;
-	int error;
+	int error, nsegs, enqueued = 0;
 
 	CPSW_TX_LOCK_ASSERT(sc);
 
@@ -666,44 +653,111 @@ cpsw_start_locked(struct ifnet *ifp)
 	    IFF_DRV_RUNNING)
 		return;
 
+	/* Pull pending packets from IF queue and prep them for DMA. */
 	for (;;) {
-		/* Get packet from the queue */
+		slot = STAILQ_FIRST(&sc->tx_avail);
+		if (slot == NULL) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
+
 		IF_DEQUEUE(&ifp->if_snd, m0);
 		if (m0 == NULL)
 			break;
 
 		if ((error = cpsw_pad(m0))) {
+			if_printf(ifp,
+			    "%s: Dropping packet; could not pad\n", __func__);
 			m_freem(m0);
 			continue;
 		}
 
+		/* TODO: don't defragment here, queue each
+		   packet fragment as a separate entry. */
 		mtmp = m_defrag(m0, M_NOWAIT);
 		if (mtmp)
 			m0 = mtmp;
 
-		if (cpsw_encap(sc, m0)) {
-			IF_PREPEND(&ifp->if_snd, m0);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		slot->mbuf = m0;
+		/* Create mapping in DMA memory */
+		error = bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, slot->dmamap,
+		    m0, seg, &nsegs, BUS_DMA_NOWAIT);
+		KASSERT(nsegs == 1, ("More than one segment (nsegs=%d)", nsegs));
+		KASSERT(error == 0, ("DMA error (error=%d)", error));
+		if (error != 0 || nsegs != 1) {
+			if_printf(ifp,
+			    "%s: Can't load packet for DMA (nsegs=%d, error=%d), dropping packet\n",
+			    __func__, nsegs, error);
+			bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
+			m_freem(m0);
 			break;
 		}
-		queued++;
+		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap,
+				BUS_DMASYNC_PREWRITE);
+
+		if (prev_slot != NULL)
+			cpsw_cpdma_write_txbd_next(prev_slot->index,
+			    cpsw_cpdma_txbd_paddr(slot->index));
+		bd.next = 0;
+		bd.bufptr = seg->ds_addr;
+		bd.bufoff = 0;
+		bd.buflen = seg->ds_len;
+		bd.pktlen = seg->ds_len;
+		bd.flags = 7 << 13;	/* Set OWNERSHIP, SOP, EOP */
+		cpsw_cpdma_write_txbd(slot->index, &bd);
+		++enqueued;
+
+		prev_slot = slot;
+		STAILQ_REMOVE_HEAD(&sc->tx_avail, next);
+		STAILQ_INSERT_TAIL(&newslots, slot, next);
 		BPF_MTAP(ifp, m0);
 	}
 
-	if (!queued)
+	if (STAILQ_EMPTY(&newslots))
 		return;
 
-	if (sc->eoq) {
-		cpsw_write_4(CPSW_CPDMA_TX_HDP(0), cpsw_cpdma_txbd_paddr(sc->txbd_head));
-		sc->eoq = 0;
+	/* Attach new segments to the hardware TX queue. */
+	prev_slot = STAILQ_LAST(&sc->tx_active, cpsw_slot, next);
+	first_new_slot = STAILQ_FIRST(&newslots);
+	STAILQ_CONCAT(&sc->tx_active, &newslots);
+	if (prev_slot == NULL) {
+		/* Start the TX queue fresh. */
+		cpsw_write_4(CPSW_CPDMA_TX_HDP(0),
+			     cpsw_cpdma_txbd_paddr(first_new_slot->index));
+	} else {
+		/* Add packets to current queue. */
+		/* Race: The hardware might have sent the last packet
+		 * on the queue and stopped the transmitter just
+		 * before we got here.  In that case, this is a no-op,
+		 * but it also means there's a TX interrupt waiting
+		 * to be processed as soon as we release the lock here.
+		 * That TX interrupt can detect and recover from this
+		 * situation; see cpsw_intr_tx_locked.
+		 */
+		cpsw_cpdma_write_txbd_next(prev_slot->index,
+		   cpsw_cpdma_txbd_paddr(first_new_slot->index));
 	}
-	sc->wd_timer = 5;
+	/* If tx_retires hasn't changed, then we may have
+	   lost a TX interrupt, so let the timer tick. */
+	sc->tx_enqueues += enqueued;
+	if (sc->tx_retires_at_wd_reset != sc->tx_retires) {
+		sc->tx_retires_at_wd_reset = sc->tx_retires;
+		sc->wd_timer = 5;
+	}
+	sc->tx_queued += enqueued;
+	if (sc->tx_queued > sc->tx_max_queued) {
+		sc->tx_max_queued = sc->tx_queued;
+		CPSW_DEBUGF(("New TX high water mark %d", sc->tx_queued));
+	}
 }
 
 static void
 cpsw_stop_locked(struct cpsw_softc *sc)
 {
 	struct ifnet *ifp;
+	int i;
+
+	CPSW_DEBUGF((""));
 
 	CPSW_GLOBAL_LOCK_ASSERT(sc);
 
@@ -712,15 +766,89 @@ cpsw_stop_locked(struct cpsw_softc *sc)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	/* Stop tick engine */
-	callout_stop(&sc->wd_callout);
-
 	/* Disable interface */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+
+	/* Stop tick engine */
+	callout_stop(&sc->wd_callout);
 	sc->wd_timer = 0;
 
-	/* Disable interrupts  TODO */
+	/* Wait for hardware to clear pending ops. */
+	CPSW_GLOBAL_UNLOCK(sc);
+	CPSW_DEBUGF(("starting RX and TX teardown"));
+	cpsw_write_4(CPSW_CPDMA_RX_TEARDOWN, 0);
+	cpsw_write_4(CPSW_CPDMA_TX_TEARDOWN, 0);
+	i = 0;
+	cpsw_intr_rx(sc); // Try clearing without delay.
+	cpsw_intr_tx(sc);
+	while (sc->rx_running || sc->tx_running) {
+		DELAY(10);
+		cpsw_intr_rx(sc);
+		cpsw_intr_tx(sc);
+		++i;
+	}
+	CPSW_DEBUGF(("finished RX and TX teardown (%d tries)", i));
+	CPSW_GLOBAL_LOCK(sc);
 
+	/* All slots are now available */
+	STAILQ_CONCAT(&sc->rx_avail, &sc->rx_active);
+	STAILQ_CONCAT(&sc->tx_avail, &sc->tx_active);
+	CPSW_DEBUGF(("%d buffers dropped at TX reset", sc->tx_queued));
+	sc->tx_queued = 0;
+
+	/* Reset writer */
+	cpsw_write_4(CPSW_WR_SOFT_RESET, 1);
+	while (cpsw_read_4(CPSW_WR_SOFT_RESET) & 1)
+		;
+
+	/* Reset SS */
+	cpsw_write_4(CPSW_SS_SOFT_RESET, 1);
+	while (cpsw_read_4(CPSW_SS_SOFT_RESET) & 1)
+		;
+
+	/* Reset Sliver port 1 and 2 */
+	for (i = 0; i < 2; i++) {
+		/* Reset */
+		cpsw_write_4(CPSW_SL_SOFT_RESET(i), 1);
+		while (cpsw_read_4(CPSW_SL_SOFT_RESET(i)) & 1)
+			;
+	}
+
+	/* Reset CPDMA */
+	cpsw_write_4(CPSW_CPDMA_SOFT_RESET, 1);
+	while (cpsw_read_4(CPSW_CPDMA_SOFT_RESET) & 1)
+		;
+
+	/* Disable TX & RX DMA */
+	cpsw_write_4(CPSW_CPDMA_TX_CONTROL, 0);
+	cpsw_write_4(CPSW_CPDMA_RX_CONTROL, 0);
+
+	/* Disable TX and RX interrupts for all cores. */
+	for (i = 0; i < 3; ++i) {
+		cpsw_write_4(CPSW_WR_C_TX_EN(i), 0x00);
+		cpsw_write_4(CPSW_WR_C_RX_EN(i), 0x00);
+		cpsw_write_4(CPSW_WR_C_MISC_EN(i), 0x00);
+	}
+
+	/* Clear all interrupt Masks */
+	cpsw_write_4(CPSW_CPDMA_RX_INTMASK_CLEAR, 0xFFFFFFFF);
+	cpsw_write_4(CPSW_CPDMA_TX_INTMASK_CLEAR, 0xFFFFFFFF);
+}
+
+static void
+cpsw_set_promisc(struct cpsw_softc *sc, int set)
+{
+	if (set) {
+		printf("Promiscuous mode unimplemented\n");
+	}
+}
+
+static void
+cpsw_set_allmulti(struct cpsw_softc *sc, int set)
+{
+	if (set) {
+		printf("All-multicast mode unimplemented\n");
+	}
 }
 
 static int
@@ -729,53 +857,48 @@ cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct cpsw_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error;
-	uint32_t flags;
+	uint32_t changed;
 
+	CPSW_DEBUGF(("command=0x%lx", command));
 	error = 0;
 
-	// FIXME
 	switch (command) {
 	case SIOCSIFFLAGS:
 		CPSW_GLOBAL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				flags = ifp->if_flags ^ sc->cpsw_if_flags;
-				if (flags & IFF_PROMISC)
-					printf("%s: SIOCSIFFLAGS "
-						"IFF_PROMISC unimplemented\n",
-						__func__);
-
-				if (flags & IFF_ALLMULTI)
-					printf("%s: SIOCSIFFLAGS "
-						"IFF_ALLMULTI unimplemented\n",
-						__func__);
+				changed = ifp->if_flags ^ sc->cpsw_if_flags;
+				CPSW_DEBUGF(("SIOCSIFFLAGS: UP & RUNNING (changed=0x%x)", changed));
+				if (changed & IFF_PROMISC)
+					cpsw_set_promisc(sc,
+					    ifp->if_flags & IFF_PROMISC);
+				if (changed & IFF_ALLMULTI)
+					cpsw_set_allmulti(sc,
+					    ifp->if_flags & IFF_ALLMULTI);
 			} else {
-				printf("%s: SIOCSIFFLAGS cpsw_init_locked\n", __func__);
-				//cpsw_init_locked(sc);
+				CPSW_DEBUGF(("SIOCSIFFLAGS: UP but not RUNNING"));
+				cpsw_init_locked(sc);
 			}
-		}
-		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			CPSW_DEBUGF(("SIOCSIFFLAGS: not UP but RUNNING"));
 			cpsw_stop_locked(sc);
+		}
 
 		sc->cpsw_if_flags = ifp->if_flags;
 		CPSW_GLOBAL_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
-		printf("%s: SIOCADDMULTI\n",__func__);
+		CPSW_DEBUGF(("SIOCADDMULTI unimplemented"));
 		break;
 	case SIOCDELMULTI:
-		printf("%s: SIOCDELMULTI\n",__func__);
-		break;
-	case SIOCSIFCAP:
-		printf("%s: SIOCSIFCAP\n",__func__);
+		CPSW_DEBUGF(("SIOCDELMULTI unimplemented"));
 		break;
 	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
-		break;
 	case SIOCSIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
 		break;
 	default:
+		CPSW_DEBUGF(("ether ioctl"));
 		error = ether_ioctl(ifp, command, data);
 	}
 	return (error);
@@ -787,6 +910,7 @@ cpsw_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct cpsw_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
 
+	CPSW_DEBUGF((""));
 	CPSW_TX_LOCK(sc);
 
 	mii = sc->mii;
@@ -804,13 +928,12 @@ cpsw_ifmedia_upd(struct ifnet *ifp)
 {
 	struct cpsw_softc *sc = ifp->if_softc;
 
+	CPSW_DEBUGF((""));
 	if (ifp->if_flags & IFF_UP) {
 		CPSW_GLOBAL_LOCK(sc);
-
 		sc->cpsw_media_status = sc->mii->mii_media.ifm_media;
 		mii_mediachg(sc->mii);
 		cpsw_init_locked(sc);
-
 		CPSW_GLOBAL_UNLOCK(sc);
 	}
 
@@ -820,15 +943,18 @@ cpsw_ifmedia_upd(struct ifnet *ifp)
 static void
 cpsw_intr_rx_thresh(void *arg)
 {
-	(void)arg; /* UNUSED */
+	struct cpsw_softc *sc = arg;
+	CPSW_DEBUGF((""));
 }
 
 static void
 cpsw_intr_rx(void *arg)
 {
 	struct cpsw_softc *sc = arg;
+
 	CPSW_RX_LOCK(sc);
 	cpsw_intr_rx_locked(arg);
+	cpsw_write_4(CPSW_CPDMA_CPDMA_EOI_VECTOR, 1);
 	CPSW_RX_UNLOCK(sc);
 }
 
@@ -837,63 +963,155 @@ cpsw_intr_rx_locked(void *arg)
 {
 	struct cpsw_softc *sc = arg;
 	struct cpsw_cpdma_bd bd;
+	struct cpsw_slot *slot, *last_slot = NULL;
 	struct ifnet *ifp;
-	int i;
 
 	ifp = sc->ifp;
+	if (!sc->rx_running)
+		return;
 
-	i = sc->rxbd_head;
-	cpsw_cpdma_read_rxbd(i, &bd);
+	/* Pull completed packets off hardware RX queue. */
+	slot = STAILQ_FIRST(&sc->rx_active);
+	while (slot != NULL) {
+		cpsw_cpdma_read_rxbd(slot->index, &bd);
+		if (bd.flags & CPDMA_BD_OWNER)
+			break; /* Still in use by hardware */
 
-	while (bd.flags & CPDMA_BD_SOP) {
-		cpsw_write_4(CPSW_CPDMA_RX_CP(0), cpsw_cpdma_rxbd_paddr(i));
+		if (bd.flags & CPDMA_BD_TDOWNCMPLT) {
+			CPSW_DEBUGF(("RX teardown in progress"));
+			cpsw_write_4(CPSW_CPDMA_RX_CP(0), 0xfffffffc);
+			sc->rx_running = 0;
+			return;
+		}
 
-		bus_dmamap_sync(sc->mbuf_dtag, sc->rx_dmamap[i], BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->mbuf_dtag, sc->rx_dmamap[i]);
+		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap, BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
 
 		/* Fill mbuf */
-		sc->rx_mbuf[i]->m_hdr.mh_data += bd.bufoff;
-		sc->rx_mbuf[i]->m_hdr.mh_len = bd.pktlen - 4;
-		sc->rx_mbuf[i]->m_pkthdr.len = bd.pktlen - 4;
-		sc->rx_mbuf[i]->m_flags |= M_PKTHDR;
-		sc->rx_mbuf[i]->m_pkthdr.rcvif = ifp;
+		/* TODO: track SOP/EOP bits to assemble a full mbuf
+		   out of received fragments. */
+		slot->mbuf->m_hdr.mh_data += bd.bufoff;
+		slot->mbuf->m_hdr.mh_len = bd.pktlen - 4;
+		slot->mbuf->m_pkthdr.len = bd.pktlen - 4;
+		slot->mbuf->m_flags |= M_PKTHDR;
+		slot->mbuf->m_pkthdr.rcvif = ifp;
 
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 			/* check for valid CRC by looking into pkt_err[5:4] */
-			if ( (bd.flags & CPDMA_BD_PKT_ERR_MASK) == 0  ) {
-				sc->rx_mbuf[i]->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-				sc->rx_mbuf[i]->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-				sc->rx_mbuf[i]->m_pkthdr.csum_data = 0xffff;
+			if ((bd.flags & CPDMA_BD_PKT_ERR_MASK) == 0) {
+				slot->mbuf->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+				slot->mbuf->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+				slot->mbuf->m_pkthdr.csum_data = 0xffff;
 			}
 		}
 
 		/* Handover packet */
 		CPSW_RX_UNLOCK(sc);
-		(*ifp->if_input)(ifp, sc->rx_mbuf[i]);
-		sc->rx_mbuf[i] = NULL;
+		(*ifp->if_input)(ifp, slot->mbuf);
+		slot->mbuf = NULL;
 		CPSW_RX_LOCK(sc);
 
-		/* Allocate new buffer for current descriptor */
-		cpsw_new_rxbuf(sc, i, 0);
-
-		/* we are not at tail so old tail BD should point to new one */
-		cpsw_cpdma_write_rxbd_next(sc->rxbd_tail,
-			cpsw_cpdma_rxbd_paddr(i));
-
-		/* Check if EOQ is reached */
-		if (cpsw_cpdma_read_rxbd_flags(sc->rxbd_tail) & CPDMA_BD_EOQ) {
-			cpsw_write_4(CPSW_CPDMA_RX_HDP(0), cpsw_cpdma_rxbd_paddr(i));
-		}
-		sc->rxbd_tail = i;
-
-		/* read next descriptor */
-		if (++i == CPSW_MAX_RX_BUFFERS)
-			i = 0;
-		cpsw_cpdma_read_rxbd(i, &bd);
-		sc->rxbd_head = i;
+		last_slot = slot;
+		STAILQ_REMOVE_HEAD(&sc->rx_active, next);
+		STAILQ_INSERT_TAIL(&sc->rx_avail, slot, next);
+		slot = STAILQ_FIRST(&sc->rx_active);
 	}
 
-	cpsw_write_4(CPSW_CPDMA_CPDMA_EOI_VECTOR, 1);
+	/* Tell hardware last slot we processed. */
+	if (last_slot)
+		cpsw_write_4(CPSW_CPDMA_RX_CP(0),
+		    cpsw_cpdma_rxbd_paddr(last_slot->index));
+
+	/* Repopulate hardware RX queue. */
+	cpsw_fill_rx_queue_locked(sc);
+}
+
+static void
+cpsw_fill_rx_queue_locked(struct cpsw_softc *sc)
+{
+	bus_dma_segment_t seg[1];
+	struct cpsw_queue tmpqueue = STAILQ_HEAD_INITIALIZER(tmpqueue);
+	struct cpsw_cpdma_bd bd;
+	struct cpsw_slot *slot, *prev_slot, *next_slot;
+	int error, nsegs;
+
+	/* Try to allocate new mbufs. */
+	STAILQ_FOREACH(slot, &sc->rx_avail, next) {
+		if (slot->mbuf != NULL)
+			continue;
+		slot->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		if (slot->mbuf == NULL) {
+			if_printf(sc->ifp, "Unable to fill RX queue\n");
+			break;
+		}
+		slot->mbuf->m_len = slot->mbuf->m_pkthdr.len = slot->mbuf->m_ext.ext_size;
+	}
+
+	/* Register new mbufs with hardware. */
+	prev_slot = NULL;
+	while (!STAILQ_EMPTY(&sc->rx_avail)) {
+		slot = STAILQ_FIRST(&sc->rx_avail);
+		if (slot->mbuf == NULL)
+			break;
+
+		error = bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, slot->dmamap,
+		    slot->mbuf, seg, &nsegs, BUS_DMA_NOWAIT);
+
+		KASSERT(nsegs == 1, ("More than one segment (nsegs=%d)", nsegs));
+		KASSERT(error == 0, ("DMA error (error=%d)", error));
+		if (nsegs != 1 || error) {
+			if_printf(sc->ifp,
+			    "%s: Can't prep RX buf for DMA (nsegs=%d, error=%d)\n",
+			    __func__, nsegs, error);
+			m_freem(slot->mbuf);
+			slot->mbuf = NULL;
+			break;
+		}
+
+		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap, BUS_DMASYNC_PREREAD);
+
+		/* Create and submit new rx descriptor*/
+		bd.next = 0;
+		bd.bufptr = seg->ds_addr;
+		bd.buflen = MCLBYTES-1;
+		bd.bufoff = 2; /* make IP hdr aligned with 4 */
+		bd.pktlen = 0;
+		bd.flags = CPDMA_BD_OWNER;
+		cpsw_cpdma_write_rxbd(slot->index, &bd);
+
+		if (prev_slot) {
+			cpsw_cpdma_write_rxbd_next(prev_slot->index,
+			    cpsw_cpdma_rxbd_paddr(slot->index));
+		}
+		prev_slot = slot;
+		STAILQ_REMOVE_HEAD(&sc->rx_avail, next);
+		STAILQ_INSERT_TAIL(&tmpqueue, slot, next);
+	}
+
+	/* Link new entries to hardware RX queue. */
+	prev_slot = STAILQ_LAST(&sc->rx_active, cpsw_slot, next);
+	next_slot = STAILQ_FIRST(&tmpqueue);
+	if (next_slot == NULL) {
+		return;
+	} else if (prev_slot == NULL) {
+		/* Start a fresh RX queue. */
+		cpsw_write_4(CPSW_CPDMA_RX_HDP(0),
+		    cpsw_cpdma_rxbd_paddr(next_slot->index));
+	} else {
+		/* Extend an existing RX queue. */
+		cpsw_cpdma_write_rxbd_next(prev_slot->index,
+		    cpsw_cpdma_rxbd_paddr(next_slot->index));
+		/* XXX Order matters: Previous write must complete
+		   before next read begins in order to avoid an
+		   end-of-queue race.  I think bus_write and bus_read have
+		   sufficient barriers built-in to ensure this. XXX */
+		/* If old RX queue was stopped, restart it. */
+		if (cpsw_cpdma_read_rxbd_flags(prev_slot->index) & CPDMA_BD_EOQ) {
+			cpsw_write_4(CPSW_CPDMA_RX_HDP(0),
+			    cpsw_cpdma_rxbd_paddr(next_slot->index));
+		}
+	}
+	STAILQ_CONCAT(&sc->rx_active, &tmpqueue);
 }
 
 static void
@@ -902,6 +1120,7 @@ cpsw_intr_tx(void *arg)
 	struct cpsw_softc *sc = arg;
 	CPSW_TX_LOCK(sc);
 	cpsw_intr_tx_locked(arg);
+	cpsw_write_4(CPSW_CPDMA_CPDMA_EOI_VECTOR, 2);
 	CPSW_TX_UNLOCK(sc);
 }
 
@@ -909,45 +1128,65 @@ static void
 cpsw_intr_tx_locked(void *arg)
 {
 	struct cpsw_softc *sc = arg;
-	uint32_t flags;
+	struct cpsw_slot *slot, *last_slot = NULL;
+	uint32_t flags, last_flags = 0, retires = 0;
 
-	if(sc->txbd_head == -1)
+	if (!sc->tx_running)
 		return;
 
-	if(sc->txbd_queue_size<1) {
-		/* in some casses interrupt happens even when there is no
-		   data in transmit queue */
+	slot = STAILQ_FIRST(&sc->tx_active);
+	if (slot == NULL &&
+	    cpsw_read_4(CPSW_CPDMA_TX_CP(0)) == 0xfffffffc) {
+		CPSW_DEBUGF(("TX teardown of an empty queue"));
+		cpsw_write_4(CPSW_CPDMA_TX_CP(0), 0xfffffffc);
+		sc->tx_running = 0;
 		return;
 	}
 
-	/* Disable watchdog */
-	sc->wd_timer = 0;
+	/* Pull completed segments off the hardware TX queue. */
+	while (slot != NULL) {
+		flags = cpsw_cpdma_read_txbd_flags(slot->index);
+		if (flags & CPDMA_BD_OWNER)
+			break; /* Hardware is still using this. */
 
-	flags = cpsw_cpdma_read_txbd_flags(sc->txbd_head);
+		if (flags & CPDMA_BD_TDOWNCMPLT) {
+			CPSW_DEBUGF(("TX teardown in progress"));
+			cpsw_write_4(CPSW_CPDMA_TX_CP(0), 0xfffffffc);
+			sc->tx_running = 0;
+			return;
+		}
 
-	/* After BD is transmitted CPDMA will set OWNER to 0 */
-	if (flags & CPDMA_BD_OWNER)
-		return;
+		/* Release dmamap, free mbuf. */
+		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
+		m_freem(slot->mbuf);
+		slot->mbuf = NULL;
 
-	if(flags & CPDMA_BD_EOQ)
-		sc->eoq=1;
+		STAILQ_REMOVE_HEAD(&sc->tx_active, next);
+		STAILQ_INSERT_TAIL(&sc->tx_avail, slot, next);
+		sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	/* release dmamap and mbuf */
-	bus_dmamap_sync(sc->mbuf_dtag, sc->tx_dmamap[sc->txbd_head],
-	    BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(sc->mbuf_dtag, sc->tx_dmamap[sc->txbd_head]);
-	m_freem(sc->tx_mbuf[sc->txbd_head]);
-	sc->tx_mbuf[sc->txbd_head] = NULL;
+		last_slot = slot;
+		last_flags = flags;
+		++retires;
+		slot = STAILQ_FIRST(&sc->tx_active);
+	}
 
-	cpsw_write_4(CPSW_CPDMA_TX_CP(0), cpsw_cpdma_txbd_paddr(sc->txbd_head));
-
-	if (++sc->txbd_head == CPSW_MAX_TX_BUFFERS)
-		sc->txbd_head = 0;
-
-	--sc->txbd_queue_size;
-
-	cpsw_write_4(CPSW_CPDMA_CPDMA_EOI_VECTOR, 2);
-	cpsw_write_4(CPSW_CPDMA_CPDMA_EOI_VECTOR, 1);
+	if (retires != 0) {
+		/* Tell hardware the last item we dequeued. */
+		cpsw_write_4(CPSW_CPDMA_TX_CP(0),
+		     cpsw_cpdma_txbd_paddr(last_slot->index));
+		/* If transmitter stopped and there's more, restart it. */
+		/* This resolves the race described in tx_start above. */
+		if ((last_flags & CPDMA_BD_EOQ) && (slot != NULL)) {
+			cpsw_write_4(CPSW_CPDMA_TX_HDP(0),
+			     cpsw_cpdma_txbd_paddr(slot->index));
+		}
+		sc->tx_retires += retires;
+		sc->tx_queued -= retires;
+		sc->wd_timer = 0;
+	}
 }
 
 static void
@@ -955,7 +1194,8 @@ cpsw_intr_misc(void *arg)
 {
 	struct cpsw_softc *sc = arg;
 	uint32_t stat = cpsw_read_4(CPSW_WR_C_MISC_STAT(0));
-	printf("%s: stat=%x\n",__func__,stat);
+
+	CPSW_DEBUGF(("stat=%x", stat));
 	/* EOI_RX_PULSE */
 	cpsw_write_4(CPSW_CPDMA_CPDMA_EOI_VECTOR, 3);
 }
@@ -972,7 +1212,7 @@ cpsw_tick(void *msc)
 
 	/* Check for media type change */
 	if(sc->cpsw_media_status != sc->mii->mii_media.ifm_media) {
-		printf("%s: media type changed (ifm_media=%x)\n",__func__, 
+		printf("%s: media type changed (ifm_media=%x)\n", __func__, 
 			sc->mii->mii_media.ifm_media);
 		cpsw_ifmedia_upd(sc->ifp);
 	}
@@ -987,9 +1227,7 @@ cpsw_watchdog(struct cpsw_softc *sc)
 	struct ifnet *ifp;
 
 	ifp = sc->ifp;
-
 	CPSW_GLOBAL_LOCK(sc);
-
 	if (sc->wd_timer == 0 || --sc->wd_timer) {
 		CPSW_GLOBAL_UNLOCK(sc);
 		return;
@@ -997,10 +1235,8 @@ cpsw_watchdog(struct cpsw_softc *sc)
 
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
-
 	cpsw_stop_locked(sc);
 	cpsw_init_locked(sc);
-
 	CPSW_GLOBAL_UNLOCK(sc);
 }
 
@@ -1008,6 +1244,8 @@ static void
 cpsw_init(void *arg)
 {
 	struct cpsw_softc *sc = arg;
+
+	CPSW_DEBUGF((""));
 	CPSW_GLOBAL_LOCK(sc);
 	cpsw_init_locked(arg);
 	CPSW_GLOBAL_UNLOCK(sc);
@@ -1021,53 +1259,56 @@ cpsw_init_locked(void *arg)
 	struct ifnet *ifp;
 	struct cpsw_softc *sc = arg;
 	uint8_t  broadcast_address[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-	uint32_t next_bdp;
 	uint32_t i;
 
+	CPSW_DEBUGF((""));
 	ifp = sc->ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
 
-	printf("%s: start\n",__func__);
-
 	/* Reset writer */
 	cpsw_write_4(CPSW_WR_SOFT_RESET, 1);
-	while(cpsw_read_4(CPSW_WR_SOFT_RESET) & 1);
+	while (cpsw_read_4(CPSW_WR_SOFT_RESET) & 1)
+		;
 
 	/* Reset SS */
 	cpsw_write_4(CPSW_SS_SOFT_RESET, 1);
-	while(cpsw_read_4(CPSW_SS_SOFT_RESET) & 1);
+	while (cpsw_read_4(CPSW_SS_SOFT_RESET) & 1)
+		;
 
 	/* Clear table (30) and enable ALE(31) */
 	if (once)
-		cpsw_write_4(CPSW_ALE_CONTROL, (3 << 30));
+		cpsw_write_4(CPSW_ALE_CONTROL, 3 << 30);
 	else
-		cpsw_write_4(CPSW_ALE_CONTROL, (1 << 31));
+		cpsw_write_4(CPSW_ALE_CONTROL, 1 << 31);
 	once = 0; // FIXME
 
 	/* Reset and init Sliver port 1 and 2 */
-	for(i=0;i<2;i++) {
+	for (i = 0; i < 2; i++) {
 		/* Reset */
 		cpsw_write_4(CPSW_SL_SOFT_RESET(i), 1);
-		while(cpsw_read_4(CPSW_SL_SOFT_RESET(i)) & 1);
+		while (cpsw_read_4(CPSW_SL_SOFT_RESET(i)) & 1)
+			;
 		/* Set Slave Mapping */
-		cpsw_write_4(CPSW_SL_RX_PRI_MAP(i),0x76543210);
-		cpsw_write_4(CPSW_PORT_P_TX_PRI_MAP(i+1),0x33221100);
-		cpsw_write_4(CPSW_SL_RX_MAXLEN(i),0x5f2);
+		cpsw_write_4(CPSW_SL_RX_PRI_MAP(i), 0x76543210);
+		cpsw_write_4(CPSW_PORT_P_TX_PRI_MAP(i + 1), 0x33221100);
+		cpsw_write_4(CPSW_SL_RX_MAXLEN(i), 0x5f2);
 		/* Set MAC Address */
-		cpsw_write_4(CPSW_PORT_P_SA_HI(i+1), sc->mac_addr[0] |
-			(sc->mac_addr[1] <<  8) |
-			(sc->mac_addr[2] << 16) |
-			(sc->mac_addr[3] << 24));
-		cpsw_write_4(CPSW_PORT_P_SA_LO(i+1), sc->mac_addr[4] |
-			(sc->mac_addr[5] <<  8));
+		cpsw_write_4(CPSW_PORT_P_SA_HI(i + 1),
+			sc->mac_addr[3] << 24 |
+			sc->mac_addr[2] << 16 |
+			sc->mac_addr[1] << 8 |
+			sc->mac_addr[0]);
+		cpsw_write_4(CPSW_PORT_P_SA_LO(i+1),
+			sc->mac_addr[5] << 8 |
+			sc->mac_addr[4]);
 
 		/* Set MACCONTROL for ports 0,1: FULLDUPLEX(1), GMII_EN(5),
 		   IFCTL_A(15), IFCTL_B(16) FIXME */
-		cpsw_write_4(CPSW_SL_MACCONTROL(i), 1 | (1<<5) | (1<<15));
+		cpsw_write_4(CPSW_SL_MACCONTROL(i), 1 << 15 | 1 << 5 | 1);
 
 		/* Set ALE port to forwarding(3) */
-		cpsw_write_4(CPSW_ALE_PORTCTL(i+1), 3);
+		cpsw_write_4(CPSW_ALE_PORTCTL(i + 1), 3);
 	}
 
 	/* Set Host Port Mapping */
@@ -1087,37 +1328,22 @@ cpsw_init_locked(void *arg)
 
 	/* Reset CPDMA */
 	cpsw_write_4(CPSW_CPDMA_SOFT_RESET, 1);
-	while(cpsw_read_4(CPSW_CPDMA_SOFT_RESET) & 1);
+	while (cpsw_read_4(CPSW_CPDMA_SOFT_RESET) & 1)
+		;
 
-        for(i = 0; i < 8; i++) {
+	/* Make IP hdr aligned with 4 */
+	cpsw_write_4(CPSW_CPDMA_RX_BUFFER_OFFSET, 2);
+
+	for (i = 0; i < 8; i++) {
 		cpsw_write_4(CPSW_CPDMA_TX_HDP(i), 0);
 		cpsw_write_4(CPSW_CPDMA_RX_HDP(i), 0);
 		cpsw_write_4(CPSW_CPDMA_TX_CP(i), 0);
 		cpsw_write_4(CPSW_CPDMA_RX_CP(i), 0);
-        }
-
-	cpsw_write_4(CPSW_CPDMA_RX_FREEBUFFER(0), 0);
-
-	/* Initialize RX Buffer Descriptors */
-	i = CPSW_MAX_RX_BUFFERS;
-	next_bdp = 0;
-	while (i--) {
-		cpsw_new_rxbuf(sc, i, next_bdp);
-		/* Increment number of free RX buffers */
-		//cpsw_write_4(CPSW_CPDMA_RX_FREEBUFFER(0), 1);
-		next_bdp = cpsw_cpdma_rxbd_paddr(i);
 	}
 
-	sc->rxbd_head = 0;
-	sc->rxbd_tail = CPSW_MAX_RX_BUFFERS-1;
-	sc->txbd_head = 0;
-	sc->eoq = 1;
-	sc->txbd_queue_size = 0;
-
-	/* Make IP hdr aligned with 4 */
-	cpsw_write_4(CPSW_CPDMA_RX_BUFFER_OFFSET, 2);
-	/* Write channel 0 RX HDP */
-	cpsw_write_4(CPSW_CPDMA_RX_HDP(0), cpsw_cpdma_rxbd_paddr(0));
+	/* Initialize RX Buffer Descriptors */
+	cpsw_write_4(CPSW_CPDMA_RX_FREEBUFFER(0), 0);
+	cpsw_fill_rx_queue_locked(sc);
 
 	/* Clear all interrupt Masks */
 	cpsw_write_4(CPSW_CPDMA_RX_INTMASK_CLEAR, 0xFFFFFFFF);
@@ -1147,16 +1373,18 @@ cpsw_init_locked(void *arg)
 
 	/* Initialze MDIO - ENABLE, PREAMBLE=0, FAULTENB, CLKDIV=0xFF */
 	/* TODO Calculate MDCLK=CLK/(CLKDIV+1) */
-	cpsw_write_4(MDIOCONTROL, (1<<30) | (1<<18) | 0xFF);
+	cpsw_write_4(MDIOCONTROL, 1 << 30 | 1 << 18 | 0xFF);
 
 	/* Select MII in GMII_SEL, Internal Delay mode */
 	//ti_scm_reg_write_4(0x650, 0);
 
 	/* Activate network interface */
-	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	sc->rx_running = 1;
+	sc->tx_running = 1;
 	sc->wd_timer = 0;
 	callout_reset(&sc->wd_callout, hz, cpsw_tick, sc);
+	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
@@ -1174,7 +1402,7 @@ cpsw_ale_write_entry(struct cpsw_softc *sc, uint16_t idx, uint32_t *ale_entry)
 	cpsw_write_4(CPSW_ALE_TBLW0, ale_entry[0]);
 	cpsw_write_4(CPSW_ALE_TBLW1, ale_entry[1]);
 	cpsw_write_4(CPSW_ALE_TBLW2, ale_entry[2]);
-	cpsw_write_4(CPSW_ALE_TBLCTL, (idx & 1023) | (1 << 31));
+	cpsw_write_4(CPSW_ALE_TBLCTL, 1 << 31 | (idx & 1023));
 }
 
 static int
@@ -1182,7 +1410,7 @@ cpsw_ale_find_entry_by_mac(struct cpsw_softc *sc, uint8_t *mac)
 {
 	int i;
 	uint32_t ale_entry[3];
-	for(i=0; i< CPSW_MAX_ALE_ENTRIES; i++) {
+	for (i = 0; i < CPSW_MAX_ALE_ENTRIES; i++) {
 		cpsw_ale_read_entry(sc, i, ale_entry);
 		if ((((ale_entry[1] >> 8) & 0xFF) == mac[0]) &&
 		    (((ale_entry[1] >> 0) & 0xFF) == mac[1]) &&
@@ -1201,7 +1429,7 @@ cpsw_ale_find_free_entry(struct cpsw_softc *sc)
 {
 	int i;
 	uint32_t ale_entry[3];
-	for(i=0; i< CPSW_MAX_ALE_ENTRIES; i++) {
+	for (i = 0; i < CPSW_MAX_ALE_ENTRIES; i++) {
 		cpsw_ale_read_entry(sc, i, ale_entry);
 		/* Entry Type[61:60] is 0 for free entry */ 
 		if (((ale_entry[1] >> 28) & 3) == 0) {
@@ -1226,11 +1454,11 @@ cpsw_ale_uc_entry_set(struct cpsw_softc *sc, uint8_t port, uint8_t *mac)
 		return (ENOMEM);
 
 	/* Set MAC address */
-	ale_entry[0] = mac[2]<<24 | mac[3]<<16 | mac[4]<<8 | mac[5];
-	ale_entry[1] = mac[0]<<8 | mac[1];
+	ale_entry[0] = mac[2] << 24 | mac[3] << 16 | mac[4] << 8 | mac[5];
+	ale_entry[1] = mac[0] << 8 | mac[1];
 
 	/* Entry type[61:60] is addr entry(1) */
-	ale_entry[1] |= 0x10<<24;
+	ale_entry[1] |= 0x10 << 24;
 
 	/* Set portmask [67:66] */
 	ale_entry[2] = (port & 3) << 2;
@@ -1254,11 +1482,11 @@ cpsw_ale_mc_entry_set(struct cpsw_softc *sc, uint8_t portmap, uint8_t *mac)
 		return (ENOMEM);
 
 	/* Set MAC address */
-	ale_entry[0] = mac[2]<<24 | mac[3]<<16 | mac[4]<<8 | mac[5];
-	ale_entry[1] = mac[0]<<8 | mac[1];
+	ale_entry[0] = mac[2] << 24 | mac[3] << 16 | mac[4] << 8 | mac[5];
+	ale_entry[1] = mac[0] << 8 | mac[1];
 
 	/* Entry type[61:60] is addr entry(1), Mcast fwd state[63:62] is fw(3)*/
-	ale_entry[1] |= 0xd0<<24;
+	ale_entry[1] |= 0xd0 << 24;
 
 	/* Set portmask [68:66] */
 	ale_entry[2] = (portmap & 7) << 2;
@@ -1273,11 +1501,11 @@ static void
 cpsw_ale_dump_table(struct cpsw_softc *sc) {
 	int i;
 	uint32_t ale_entry[3];
-	for(i=0; i< CPSW_MAX_ALE_ENTRIES; i++) {
+	for (i = 0; i < CPSW_MAX_ALE_ENTRIES; i++) {
 		cpsw_ale_read_entry(sc, i, ale_entry);
 		if (ale_entry[0] || ale_entry[1] || ale_entry[2]) {
 			printf("ALE[%4u] %08x %08x %08x ", i, ale_entry[0],
-				ale_entry[1],ale_entry[2]);
+				ale_entry[1], ale_entry[2]);
 			printf("mac: %02x:%02x:%02x:%02x:%02x:%02x ",
 				(ale_entry[1] >> 8) & 0xFF,
 				(ale_entry[1] >> 0) & 0xFF,
@@ -1285,9 +1513,9 @@ cpsw_ale_dump_table(struct cpsw_softc *sc) {
 				(ale_entry[0] >>16) & 0xFF,
 				(ale_entry[0] >> 8) & 0xFF,
 				(ale_entry[0] >> 0) & 0xFF);
-			printf( ((ale_entry[1]>>8)&1) ? "mcast " : "ucast ");
-			printf("type: %u ", (ale_entry[1]>>28)&3);
-			printf("port: %u ", (ale_entry[2]>>2)&7);
+			printf(((ale_entry[1] >> 8) & 1) ? "mcast " : "ucast ");
+			printf("type: %u ", (ale_entry[1] >> 28) & 3);
+			printf("port: %u ", (ale_entry[2] >> 2) & 7);
 			printf("\n");
 		}
 	}

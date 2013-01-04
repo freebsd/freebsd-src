@@ -294,7 +294,6 @@ MALLOC_DECLARE(M_SONAME);
 
 extern int	maxsockets;
 extern u_long	sb_max;
-extern struct uma_zone *socket_zone;
 extern so_gen_t so_gencnt;
 
 struct mbuf;

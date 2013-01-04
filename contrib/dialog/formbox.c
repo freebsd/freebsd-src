@@ -1,9 +1,9 @@
 /*
- *  $Id: formbox.c,v 1.81 2012/07/01 18:13:51 Zoltan.Kelemen Exp $
+ *  $Id: formbox.c,v 1.73 2011/06/29 09:48:08 tom Exp $
  *
  *  formbox.c -- implements the form (i.e, some pairs label/editbox)
  *
- *  Copyright 2003-2011,2012	Thomas E. Dickey
+ *  Copyright 2003-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -186,34 +186,6 @@ form_limit(DIALOG_FORMITEM item[])
 	    limit = item[n].text_y;
     }
     return limit;
-}
-
-static int
-is_first_field(DIALOG_FORMITEM item[], int choice)
-{
-    int count = 0;
-    while (choice >= 0) {
-	if (item[choice].text_flen > 0) {
-	    ++count;
-	}
-	--choice;
-    }
-
-    return (count == 1);
-}
-
-static int
-is_last_field(DIALOG_FORMITEM item[], int choice, int item_no)
-{
-    int count = 0;
-    while (choice < item_no) {
-	if (item[choice].text_flen > 0) {
-	    ++count;
-	}
-	++choice;
-    }
-
-    return (count == 1);
 }
 
 /*
@@ -482,9 +454,8 @@ dlg_form(const char *title,
 
     int form_width;
     int first = TRUE;
-    int first_trace = TRUE;
     int chr_offset = 0;
-    int state = dialog_vars.default_button >=0 ? dlg_default_button() : sTEXT;
+    int state = dialog_vars.defaultno ? dlg_defaultno_button() : sTEXT;
     int x, y, cur_x, cur_y, box_x, box_y;
     int code;
     int key = 0;
@@ -539,31 +510,30 @@ dlg_form(const char *title,
 
     dialog = dlg_new_window(height, width, y, x);
     dlg_register_window(dialog, "formbox", binding);
+    dlg_register_window(dialog, "formfield", binding2);
     dlg_register_buttons(dialog, "formbox", buttons);
 
     dlg_mouse_setbase(x, y);
 
-    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
-    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
+    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
+    dlg_draw_bottom_box(dialog);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    wattrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     form_width = width - 6;
     getyx(dialog, cur_y, cur_x);
-    (void) cur_x;
     box_y = cur_y + 1;
     box_x = (width - form_width) / 2 - 1;
 
     /* create new window for the form */
     form = dlg_sub_window(dialog, form_height, form_width, y + box_y + 1,
 			  x + box_x + 1);
-    dlg_register_window(form, "formfield", binding2);
 
     /* draw a box around the form items */
     dlg_draw_box(dialog, box_y, box_x, form_height + 2, form_width + 2,
-		 menubox_border_attr, menubox_border2_attr);
+		 menubox_border_attr, menubox_attr);
 
     /* register the new window, along with its borders */
     dlg_mouse_mkbigregion(getbegy(form) - getbegy(dialog),
@@ -594,7 +564,7 @@ dlg_form(const char *title,
 			       box_x + form_width,
 			       box_y,
 			       box_y + form_height + 1,
-			       menubox_border2_attr,
+			       menubox_attr,
 			       menubox_border_attr);
 	    scroll_changed = FALSE;
 	}
@@ -607,11 +577,6 @@ dlg_form(const char *title,
 			      : state),
 			     FALSE, width);
 	    show_buttons = FALSE;
-	}
-
-	if (first_trace) {
-	    first_trace = FALSE;
-	    dlg_trace_win(dialog);
 	}
 
 	if (field_changed || state == sTEXT) {
@@ -629,7 +594,7 @@ dlg_form(const char *title,
 	    field_changed = FALSE;
 	}
 
-	key = dlg_mouse_wgetch((state == sTEXT) ? form : dialog, &fkey);
+	key = dlg_mouse_wgetch(dialog, &fkey);
 	if (dlg_result_key(key, fkey, &result))
 	    break;
 
@@ -688,25 +653,6 @@ dlg_form(const char *title,
 		    continue;
 		}
 
-	    case DLGK_FORM_PREV:
-		if (state == sTEXT && !is_first_field(items, choice)) {
-		    do_tab = TRUE;
-		    move_by = -1;
-		    break;
-		} else {
-		    int old_state = state;
-		    state = prev_valid_buttonindex(state, sTEXT, non_editable);
-		    show_buttons = TRUE;
-		    if (old_state >= 0 && state == sTEXT) {
-			new_choice = item_no - 1;
-			if (choice != new_choice) {
-			    print_item(form, items + choice, scrollamt, FALSE);
-			    choice = new_choice;
-			}
-		    }
-		    continue;
-		}
-
 	    case DLGK_FIELD_PREV:
 		state = prev_valid_buttonindex(state, sTEXT, non_editable);
 		show_buttons = TRUE;
@@ -730,21 +676,6 @@ dlg_form(const char *title,
 		} else {
 		    state = next_valid_buttonindex(state, 0, non_editable);
 		    show_buttons = TRUE;
-		    continue;
-		}
-
-	    case DLGK_FORM_NEXT:
-		if (state == sTEXT && !is_last_field(items, choice, item_no)) {
-		    do_tab = TRUE;
-		    move_by = 1;
-		    break;
-		} else {
-		    state = next_valid_buttonindex(state, sTEXT, non_editable);
-		    show_buttons = TRUE;
-		    if (state == sTEXT && choice) {
-			print_item(form, items + choice, scrollamt, FALSE);
-			choice = 0;
-		    }
 		    continue;
 		}
 

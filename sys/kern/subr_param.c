@@ -333,8 +333,8 @@ init_param2(long physpages)
 	 * available kernel memory (physical or kmem).
 	 * At most it can be 3/4 of available kernel memory.
 	 */
-	realmem = qmin(physpages * PAGE_SIZE,
-			VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS);
+	realmem = qmin((quad_t)physpages * PAGE_SIZE,
+	    VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS);
 	maxmbufmem = realmem / 2;
 	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
 	if (maxmbufmem > (realmem / 4) * 3)

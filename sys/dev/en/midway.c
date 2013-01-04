@@ -837,15 +837,15 @@ copy_mbuf(struct mbuf *m)
 {
 	struct mbuf *new;
 
-	MGET(new, M_WAIT, MT_DATA);
+	MGET(new, M_WAITOK, MT_DATA);
 
 	if (m->m_flags & M_PKTHDR) {
 		M_MOVE_PKTHDR(new, m);
 		if (m->m_len > MHLEN)
-			MCLGET(new, M_WAIT);
+			MCLGET(new, M_WAITOK);
 	} else {
 		if (m->m_len > MLEN)
-			MCLGET(new, M_WAIT);
+			MCLGET(new, M_WAITOK);
 	}
 
 	bcopy(m->m_data, new->m_data, m->m_len);
@@ -1925,7 +1925,7 @@ en_mget(struct en_softc *sc, u_int pktlen)
 	 * words at the begin.
 	 */
 	/* called from interrupt context */
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
@@ -1940,7 +1940,7 @@ en_mget(struct en_softc *sc, u_int pktlen)
 		totlen -= m->m_len;
 
 		/* called from interrupt context */
-		tmp = m_getm(m, totlen, M_DONTWAIT, MT_DATA);
+		tmp = m_getm(m, totlen, M_NOWAIT, MT_DATA);
 		if (tmp == NULL) {
 			m_free(m);
 			return (NULL);
@@ -2924,7 +2924,7 @@ en_attach(struct en_softc *sc)
 	    &en_utopia_methods);
 	utopia_init_media(&sc->utopia);
 
-	MGET(sc->padbuf, M_WAIT, MT_DATA);
+	MGET(sc->padbuf, M_WAITOK, MT_DATA);
 	bzero(sc->padbuf->m_data, MLEN);
 
 	if (bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,

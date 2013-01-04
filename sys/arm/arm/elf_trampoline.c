@@ -63,7 +63,7 @@ void __startC(void);
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 #elif defined(CPU_ARM10)
 #define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
-#elif defined(CPU_ARM11)
+#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
 #elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
     defined(CPU_IXP12X0)
