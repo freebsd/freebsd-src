@@ -57,6 +57,7 @@ static isc_boolean_t in_use = ISC_FALSE;
 static char defclass[MXRD] = "IN";
 static char deftype[MXRD] = "A";
 static isc_event_t *global_event = NULL;
+static int query_error = 1, print_error = 0;
 
 static char domainopt[DNS_NAME_MAXTEXT];
 
@@ -406,6 +407,9 @@ isc_result_t
 printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	char servtext[ISC_SOCKADDR_FORMATSIZE];
 
+	/* I've we've gotten this far, we've reached a server. */
+	query_error = 0;
+
 	debug("printmessage()");
 
 	isc_sockaddr_format(&query->sockaddr, servtext, sizeof(servtext));
@@ -433,6 +437,9 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 		       (msg->rcode != dns_rcode_nxdomain) ? nametext :
 		       query->lookup->textname, rcode_totext(msg->rcode));
 		debug("returning with rcode == 0");
+
+		/* the lookup failed */
+		print_error |= 1;
 		return (ISC_R_SUCCESS);
 	}
 
@@ -903,5 +910,5 @@ main(int argc, char **argv) {
 	destroy_libs();
 	isc_app_finish();
 
-	return (0);
+	return (query_error | print_error);
 }

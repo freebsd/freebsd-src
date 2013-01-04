@@ -48,9 +48,14 @@ BIND 9
         For up-to-date release notes and errata, see
         http://www.isc.org/software/bind9/releasenotes
 
+BIND 9.6-ESV-R8 (Extended Support Version)
+
+        BIND 9.6-ESV-R8 includes several bug fixes and patches security
+        flaws described in CVE-2012-1667, CVE-2012-3817 and CVE-2012-4244.
+
 BIND 9.6-ESV-R7 (Extended Support Version)
 
-	BIND 9.4-ESV-R7 is a maintenance release, fixing bugs in BIND
+	BIND 9.6-ESV-R7 is a maintenance release, fixing bugs in BIND
 	9.6-ESV-R6.
 
 BIND 9.6-ESV-R6 (Extended Support Version)
@@ -60,7 +65,7 @@ BIND 9.6-ESV-R6 (Extended Support Version)
 
 BIND 9.6-ESV-R5 (Extended Support Version)
 
-	BIND 9.4-ESV-R5 is a maintenance release, fixing bugs in BIND
+	BIND 9.6-ESV-R5 is a maintenance release, fixing bugs in BIND
 	9.6-ESV-R4.
 
 BIND 9.6.3/BIND 9.6-ESV-R4

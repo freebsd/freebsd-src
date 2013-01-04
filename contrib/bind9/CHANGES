@@ -1,32 +1,86 @@
-	--- 9.6-ESV-R7-P4 released ---
+	--- 9.6-ESV-R8 released ---
 
 3383.	[security]	A certain combination of records in the RBT could
                         cause named to hang while populating the additional
                         section of a response. [RT #31090]
 
-	--- 9.6-ESV-R7-P3 released ---
+3373.	[bug]		win32: open raw files in binary mode. [RT #30944]
 
 3364.	[security]	Named could die on specially crafted record.
 			[RT #30416]
 
-3358	[bug]		Fix declaration of fatal in bin/named/server.c
+	--- 9.6-ESV-R8rc1 released ---
+
+3369.	[bug]		nsupdate terminated unexpectedly in interactive mode
+			if built with readline support. [RT #29550]
+
+3368.	[bug]		<dns/iptable.h> and <dns/zone.h> were not C++ safe.
+
+3366.	[bug]		Fixed Read-After-Write dependency violation for IA64
+			atomic operations. [RT #25181]
+
+3365.	[bug]		Removed spurious newlines from log messages in
+			zone.c [RT #30675]
+
+3362.	[bug]		Setting some option values to 0 in named.conf
+			could trigger an assertion failure on startup.
+			[RT #27730]
+
+3360.	[bug]		'host -w' could die.  [RT #18723]
+
+3359.	[bug]		An improperly-formed TSIG secret could cause a
+			memory leak. [RT #30607]
+
+3358.	[bug]		Fix declaration of fatal in bin/named/server.c
 			and bin/nsupdate/main.c. [RT #30522]
 
-	--- 9.6-ESV-R7-P2 released ---
+3357.	[port]		Add support for libxml2-2.8.x [RT #30440]
+
+	--- 9.6-ESV-R8b1 released ---
+
+3354.	[func]		Improve OpenSSL error logging. [RT #29932]
+
+3352.	[bug]		Ensure that learned server attributes timeout of the
+			adb cache. [RT #29856]
+
+3350.	[bug]		Memory read overrun in isc___mem_reallocate if
+			ISC_MEM_DEBUGCTX memory debugging flag is set.
+			[RT #30240]
+
+3348.	[bug]		Prevent RRSIG data from being cached if a negative
+			record matching the covering type exists at a higher
+			trust level. Such data already can't be retrieved from
+			the cache since change 3218 -- this prevents it
+			being inserted into the cache as well. [RT #26809]
 
 3346.	[security]	Bad-cache data could be used before it was
 			initialized, causing an assert. [RT #30025]
 
-3343.   [bug]		Relax isc_random_jitter() REQUIRE tests. [RT #29821]
+3343.	[bug]		Relax isc_random_jitter() REQUIRE tests. [RT #29821]
 
 3342.	[bug]		Change #3314 broke saving of stub zones to disk
 			resulting in excessive cpu usage in some cases.
 			[RT #29952]
 
-	--- 9.6-ESV-R7-P1 released ---
+3337.	[bug]		Change #3294 broke support for the multiple keys
+			in controls. [RT #29694]
+
+3335.	[func]		nslookup: return a nonzero exit code when unable
+			to get an answer. [RT #29492]
+
+3332.	[bug]		Re-use cached DS rrsets if possible. [RT #29446]
 
 3331.	[security]	dns_rdataslab_fromrdataset could produce bad
 			rdataslabs. [RT #29644]
+
+3329.	[bug]		Handle RRSIG signer-name case consistently: We
+			generate RRSIG records with the signer-name in
+			lower case.  We accept them with any case, but if
+			they fail to validate, we try again in lower case.
+			[RT #27451]
+
+3328.	[bug]		Fixed inconsistent data checking in dst_parse.c.
+			[RT #29401]
 
 	--- 9.6-ESV-R7 released ---
 

@@ -1405,7 +1405,11 @@ isc__mem_reallocate(isc_mem_t *ctx, void *ptr, size_t size FLARG) {
 			oldsize = (((size_info *)ptr)[-1]).u.size;
 			INSIST(oldsize >= ALIGNMENT_SIZE);
 			oldsize -= ALIGNMENT_SIZE;
-			copysize = oldsize > size ? size : oldsize;
+			if ((isc_mem_debugging & ISC_MEM_DEBUGCTX) != 0) {
+				INSIST(oldsize >= ALIGNMENT_SIZE);
+				oldsize -= ALIGNMENT_SIZE;
+			}
+			copysize = (oldsize > size) ? size : oldsize;
 			memcpy(new_ptr, ptr, copysize);
 			isc__mem_free(ctx, ptr FLARG_PASS);
 		}

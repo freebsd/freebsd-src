@@ -112,6 +112,8 @@ typedef isc_uint32_t                    rbtdb_rdatatype_t;
 		RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_cname)
 #define RBTDB_RDATATYPE_SIGDNAME \
 		RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_dname)
+#define RBTDB_RDATATYPE_SIGDDS \
+		RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_ds)
 #define RBTDB_RDATATYPE_NCACHEANY \
 		RBTDB_RDATATYPE_VALUE(0, dns_rdatatype_any)
 
@@ -5524,13 +5526,12 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 	negtype = 0;
 	if (rbtversion == NULL && !newheader_nx) {
 		rdtype = RBTDB_RDATATYPE_BASE(newheader->type);
+		covers = RBTDB_RDATATYPE_EXT(newheader->type);
+		sigtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, covers);
 		if (NEGATIVE(newheader)) {
 			/*
 			 * We're adding a negative cache entry.
 			 */
-			covers = RBTDB_RDATATYPE_EXT(newheader->type);
-			sigtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig,
-							covers);
 			for (topheader = rbtnode->data;
 			     topheader != NULL;
 			     topheader = topheader->next) {
@@ -5563,14 +5564,20 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			 * We're adding something that isn't a
 			 * negative cache entry.  Look for an extant
 			 * non-stale NXDOMAIN/NODATA(QTYPE=ANY) negative
-			 * cache entry.
+			 * cache entry.  If we're adding an RRSIG, also
+			 * check for an extant non-stale NODATA ncache
+			 * entry which covers the same type as the RRSIG.
 			 */
 			for (topheader = rbtnode->data;
 			     topheader != NULL;
 			     topheader = topheader->next) {
-				if (topheader->type ==
-				    RBTDB_RDATATYPE_NCACHEANY)
-					break;
+				if ((topheader->type ==
+					RBTDB_RDATATYPE_NCACHEANY) ||
+					(newheader->type == sigtype &&
+					topheader->type ==
+					RBTDB_RDATATYPE_VALUE(0, covers))) {
+						break;
+					}
 			}
 			if (topheader != NULL && EXISTS(topheader) &&
 			    topheader->rdh_ttl > now) {
@@ -5593,7 +5600,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 				}
 				/*
 				 * The new rdataset is better.  Expire the
-				 * NXDOMAIN/NODATA(QTYPE=ANY).
+				 * ncache entry.
 				 */
 				set_ttl(rbtdb, topheader, 0);
 				topheader->attributes |= RDATASET_ATTR_STALE;
@@ -5754,7 +5761,9 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 		}
 		if (IS_CACHE(rbtdb) && header->rdh_ttl > now &&
 		    (header->type == dns_rdatatype_a ||
-		     header->type == dns_rdatatype_aaaa) &&
+		     header->type == dns_rdatatype_aaaa ||
+		     header->type == dns_rdatatype_ds ||
+		     header->type == RBTDB_RDATATYPE_SIGDDS) &&
 		    !header_nx && !newheader_nx &&
 		    header->trust >= newheader->trust &&
 		    dns_rdataslab_equal((unsigned char *)header,

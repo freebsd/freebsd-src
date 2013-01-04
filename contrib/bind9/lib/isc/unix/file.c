@@ -303,6 +303,11 @@ isc_file_openunique(char *templet, FILE **fp) {
 }
 
 isc_result_t
+isc_file_bopenunique(char *templet, FILE **fp) {
+	return (isc_file_openunique(templet, fp));
+}
+
+isc_result_t
 isc_file_remove(const char *filename) {
 	int r;
 
