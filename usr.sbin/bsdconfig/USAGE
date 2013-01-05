@@ -31,6 +31,9 @@ Usage:
 	@PROGRAM_NAME@ [OPTIONS] [command [OPTIONS]]
 
 OPTIONS:
+	-f file    Load file as script and then exit. If multiple occurrences,
+	           program will only exit after last occurrence. If file is a
+	           single dash (`-'), @PROGRAM_NAME@ reads from standard input.
 	-h         Print usage statement and exit.
 	-S         Secure X11 mode (implies `-X'). As root, always prompt-for
 	           and validate sudo(8) username/password before starting.
