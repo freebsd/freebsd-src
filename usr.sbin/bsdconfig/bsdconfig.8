@@ -85,6 +85,17 @@ a master menu listing the available commands.
 .Pp
 The following options are available:
 .Bl -tag -width indent+
+.It Fl f Ar file
+Load
+.Ar file
+as script and then exit.
+If multiple occurrences, program will only exit after last occurrence.
+If
+.Ar file
+is a single dash
+.Pq Sq Fl ,
+.Nm
+reads from standard input.
 .It Fl h
 Print usage statement and exit.
 .It Fl S

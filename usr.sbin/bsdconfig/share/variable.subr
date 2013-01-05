@@ -1,0 +1,185 @@
+if [ ! "$_VARIABLE_SUBR" ]; then _VARIABLE_SUBR=1
+#
+# Copyright (c) 2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." variable.subr
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ GLOBALS
+
+VARIABLES=
+
+#
+# Default behavior is to call f_variable_set_defaults() when loaded.
+#
+: ${VARIABLE_SELF_INITIALIZE=1}
+
+#
+# File to write when f_dump_variables() is called.
+#
+: ${VARIABLE_DUMPFILE:=/etc/bsdconfig.vars}
+
+############################################################ FUNCTIONS
+
+# f_variable_new $handle $variable
+#
+# Register a new variable named $variable with the given reference-handle
+# $handle. The environment variable $handle is set to $variable allowing you to
+# use the f_getvar() function (from common.subr) with $handle to get the value
+# of environment variable $variable. For example:
+#
+# 	f_variable_new VAR_ABC abc
+#
+# allows the later indirection:
+#
+# 	f_getvar $VAR_ABC
+#
+# to return the value of environment variable `abc'. Variables registered in
+# this manner are recorded in the $VARIABLES environment variable for later
+# allowing dynamic enumeration of so-called `registered/advertised' variables.
+#
+f_variable_new()
+{
+	local handle="$1" variable="$2"
+	[ "$handle" ] || return $FAILURE
+	f_dprintf "variable.subr: New variable %s -> %s" "$handle" "$variable"
+	setvar $handle $variable
+	VARIABLES="$VARIABLES${VARIABLES:+ }$handle"
+}
+
+# f_variable_get_value $var [ $fmt [ $opts ... ] ]
+#
+# Unless nonInteractive is set, prompt the user with a given value (pre-filled
+# with the value of $var) and give them the chance to change the value.
+#
+# Unlike f_getvar() (from common.subr) which can return a variable to the
+# caller on standard output, this function has no [meaningful] output.
+#
+# Returns success unless $var is either NULL or missing.
+#
+f_variable_get_value()
+{
+	local var="$1" cp
+
+	[ "$var" ] || return $FAILURE
+
+	if ! { f_getvar $var cp && ! f_interactive; }; then
+		shift 1 # var
+		cp=$( f_dialog_input "$( printf "$@" )" "$cp" ) &&
+			setvar $var "$cp"
+	fi
+
+	return $SUCCESS
+}
+
+# f_variable_set_defaults
+#
+# Installs sensible defaults for registered/advertised variables.
+#
+f_variable_set_defaults()
+{
+	#
+	# Initialize various user-edittable values to their defaults
+	#
+	setvar $VAR_RELNAME "$UNAME_R"
+
+	f_dprintf "f_variable_set_defaults: Defaults initialized."
+}
+
+# f_dump_variables
+#
+# Dump a list of registered/advertised variables and their respective values to
+# $VARIABLE_DUMPFILE. Returns success unless the file couldn't be written. If
+# an error occurs, it is displayed using f_show_msg() (from common.subr).
+#
+f_dump_variables()
+{
+	local err sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
+	if ! err=$(
+		( for handle in $VARIABLES; do
+			f_getvar $handle var || continue
+			f_getvar $var value || continue
+			value=$( echo "$value" | awk "$sanitize_awk" )
+			printf "%s='%s'\n" "$var" "$value"
+		  done > "$VARIABLE_DUMPFILE" ) 2>&1
+	); then
+		f_show_msg "%s" "$err"
+		return $FAILURE
+	fi
+}
+
+# f_debugging
+#
+# Are we in debug mode? Returns success if extra DEBUG information has been
+# requested (by setting $debug to non-NULL), otherwise false.
+#
+f_debugging()
+{
+	local value
+	f_getvar $VAR_DEBUG value && [ "$value" ]
+}
+
+# f_interactive()
+#
+# Are we running interactively? Return error if $nonInteractive is set and non-
+# NULL, otherwise return success.
+#
+f_interactive()
+{
+	local value
+	! f_getvar $VAR_NONINTERACTIVE value || [ ! "$value" ]
+}
+
+############################################################ MAIN
+
+#
+# Variables that can be tweaked from config files
+#
+f_variable_new VAR_CONFIG_FILE		configFile
+f_variable_new VAR_DEBUG		debug
+f_variable_new VAR_DEBUG_FILE		debugFile
+f_variable_new VAR_NO_ERROR		noError
+f_variable_new VAR_NONINTERACTIVE	nonInteractive
+f_variable_new VAR_RELNAME		releaseName
+
+#
+# Self-initialize unless requested otherwise
+#
+f_dprintf "%s: VARIABLE_SELF_INITIALIZE=[%s]" \
+          variable.subr "$VARIABLE_SELF_INITIALIZE"
+case "$VARIABLE_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_variable_set_defaults
+esac
+
+f_dprintf "%s: Successfully loaded." variable.subr
+
+fi # ! $_VARIABLE_SUBR
