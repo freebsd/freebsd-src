@@ -716,26 +716,22 @@ cpsw_start_locked(struct ifnet *ifp)
 	if (STAILQ_EMPTY(&newslots))
 		return;
 
-	/* Attach new segments to the hardware TX queue. */
+	/* Attach the list of new buffers to the hardware TX queue. */
 	prev_slot = STAILQ_LAST(&sc->tx_active, cpsw_slot, next);
 	first_new_slot = STAILQ_FIRST(&newslots);
 	STAILQ_CONCAT(&sc->tx_active, &newslots);
 	if (prev_slot == NULL) {
 		/* Start the TX queue fresh. */
 		cpsw_write_4(CPSW_CPDMA_TX_HDP(0),
-			     cpsw_cpdma_txbd_paddr(first_new_slot->index));
+		    cpsw_cpdma_txbd_paddr(first_new_slot->index));
 	} else {
-		/* Add packets to current queue. */
-		/* Race: The hardware might have sent the last packet
-		 * on the queue and stopped the transmitter just
-		 * before we got here.  In that case, this is a no-op,
-		 * but it also means there's a TX interrupt waiting
-		 * to be processed as soon as we release the lock here.
-		 * That TX interrupt can detect and recover from this
-		 * situation; see cpsw_intr_tx_locked.
-		 */
+		/* Add buffers to end of current queue. */
 		cpsw_cpdma_write_txbd_next(prev_slot->index,
 		   cpsw_cpdma_txbd_paddr(first_new_slot->index));
+		/* If underrun, restart queue. */
+		if (cpsw_cpdma_read_txbd_flags(prev_slot->index) & CPDMA_BD_EOQ)
+			cpsw_write_4(CPSW_CPDMA_TX_HDP(0),
+			    cpsw_cpdma_txbd_paddr(first_new_slot->index));
 	}
 	sc->tx_enqueues += enqueued;
 	sc->tx_queued += enqueued;
@@ -1091,14 +1087,10 @@ cpsw_fill_rx_queue_locked(struct cpsw_softc *sc)
 		cpsw_write_4(CPSW_CPDMA_RX_HDP(0),
 		    cpsw_cpdma_rxbd_paddr(next_slot->index));
 	} else {
-		/* Extend an existing RX queue. */
+		/* Add buffers to end of current queue. */
 		cpsw_cpdma_write_rxbd_next(prev_slot->index,
 		    cpsw_cpdma_rxbd_paddr(next_slot->index));
-		/* XXX Order matters: Previous write must complete
-		   before next read begins in order to avoid an
-		   end-of-queue race.  I think bus_write and bus_read have
-		   sufficient barriers built-in to ensure this. XXX */
-		/* If old RX queue was stopped, restart it. */
+		/* If underrun, restart queue. */
 		if (cpsw_cpdma_read_rxbd_flags(prev_slot->index) & CPDMA_BD_EOQ) {
 			cpsw_write_4(CPSW_CPDMA_RX_HDP(0),
 			    cpsw_cpdma_rxbd_paddr(next_slot->index));
@@ -1170,12 +1162,6 @@ cpsw_intr_tx_locked(void *arg)
 		/* Tell hardware the last item we dequeued. */
 		cpsw_write_4(CPSW_CPDMA_TX_CP(0),
 		     cpsw_cpdma_txbd_paddr(last_slot->index));
-		/* If transmitter stopped and there's more, restart it. */
-		/* This resolves the race described in tx_start above. */
-		if ((last_flags & CPDMA_BD_EOQ) && (slot != NULL)) {
-			cpsw_write_4(CPSW_CPDMA_TX_HDP(0),
-			     cpsw_cpdma_txbd_paddr(slot->index));
-		}
 		sc->tx_retires += retires;
 		sc->tx_queued -= retires;
 	}
