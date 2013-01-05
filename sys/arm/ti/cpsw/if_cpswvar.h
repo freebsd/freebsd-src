@@ -63,7 +63,7 @@ struct cpsw_softc {
 	int		cpsw_media_status;
 
 	struct callout	wd_callout;
-	int		wd_timer;
+	int		tx_wd_timer;
 
 	bus_dma_tag_t	mbuf_dtag;
 
@@ -82,7 +82,7 @@ struct cpsw_softc {
 	/* Statistics */
 	uint32_t	tx_enqueues; /* total TX bufs added to queue */
 	uint32_t	tx_retires; /* total TX bufs removed from queue */
-	uint32_t	tx_retires_at_wd_reset; /* used for watchdog */
+	uint32_t	tx_retires_at_last_tick; /* used for watchdog */
 	/* Note:  tx_queued != tx_enqueues - tx_retires
 	   At driver reset, packets can be discarded
 	   from TX queue without being retired. */

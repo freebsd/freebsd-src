@@ -98,7 +98,7 @@ static int cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static int cpsw_init_slot_lists(struct cpsw_softc *sc);
 static void cpsw_free_slot(struct cpsw_softc *sc, struct cpsw_slot *slot);
 static void cpsw_fill_rx_queue_locked(struct cpsw_softc *sc);
-static void cpsw_watchdog(struct cpsw_softc *sc);
+static void cpsw_tx_watchdog(struct cpsw_softc *sc);
 
 static void cpsw_intr_rx_thresh(void *arg);
 static void cpsw_intr_rx(void *arg);
@@ -737,13 +737,7 @@ cpsw_start_locked(struct ifnet *ifp)
 		cpsw_cpdma_write_txbd_next(prev_slot->index,
 		   cpsw_cpdma_txbd_paddr(first_new_slot->index));
 	}
-	/* If tx_retires hasn't changed, then we may have
-	   lost a TX interrupt, so let the timer tick. */
 	sc->tx_enqueues += enqueued;
-	if (sc->tx_retires_at_wd_reset != sc->tx_retires) {
-		sc->tx_retires_at_wd_reset = sc->tx_retires;
-		sc->wd_timer = 5;
-	}
 	sc->tx_queued += enqueued;
 	if (sc->tx_queued > sc->tx_max_queued) {
 		sc->tx_max_queued = sc->tx_queued;
@@ -771,7 +765,6 @@ cpsw_stop_locked(struct cpsw_softc *sc)
 
 	/* Stop tick engine */
 	callout_stop(&sc->wd_callout);
-	sc->wd_timer = 0;
 
 	/* Wait for hardware to clear pending ops. */
 	CPSW_GLOBAL_UNLOCK(sc);
@@ -1185,7 +1178,6 @@ cpsw_intr_tx_locked(void *arg)
 		}
 		sc->tx_retires += retires;
 		sc->tx_queued -= retires;
-		sc->wd_timer = 0;
 	}
 }
 
@@ -1206,7 +1198,7 @@ cpsw_tick(void *msc)
 	struct cpsw_softc *sc = msc;
 
 	/* Check for TX timeout */
-	cpsw_watchdog(sc);
+	cpsw_tx_watchdog(sc);
 
 	mii_tick(sc->mii);
 
@@ -1222,21 +1214,28 @@ cpsw_tick(void *msc)
 }
 
 static void
-cpsw_watchdog(struct cpsw_softc *sc)
+cpsw_tx_watchdog(struct cpsw_softc *sc)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = sc->ifp;
 
-	ifp = sc->ifp;
 	CPSW_GLOBAL_LOCK(sc);
-	if (sc->wd_timer == 0 || --sc->wd_timer) {
-		CPSW_GLOBAL_UNLOCK(sc);
-		return;
+	if (sc->tx_retires > sc->tx_retires_at_last_tick) {
+		sc->tx_wd_timer = 0;  /* Stuff got sent. */
+	} else if (sc->tx_queued == 0) {
+		sc->tx_wd_timer = 0; /* Nothing to send. */
+	} else {
+		/* There was something to send but we didn't. */
+		++sc->tx_wd_timer;
+		if (sc->tx_wd_timer > 3) {
+			sc->tx_wd_timer = 0;
+			ifp->if_oerrors++;
+			if_printf(ifp, "watchdog timeout\n");
+			cpsw_stop_locked(sc);
+			cpsw_init_locked(sc);
+			CPSW_DEBUGF(("watchdog reset completed\n"));
+		}
 	}
-
-	ifp->if_oerrors++;
-	if_printf(ifp, "watchdog timeout\n");
-	cpsw_stop_locked(sc);
-	cpsw_init_locked(sc);
+	sc->tx_retires_at_last_tick = sc->tx_retires;
 	CPSW_GLOBAL_UNLOCK(sc);
 }
 
@@ -1381,7 +1380,7 @@ cpsw_init_locked(void *arg)
 	/* Activate network interface */
 	sc->rx_running = 1;
 	sc->tx_running = 1;
-	sc->wd_timer = 0;
+	sc->tx_wd_timer = 0;
 	callout_reset(&sc->wd_callout, hz, cpsw_tick, sc);
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
