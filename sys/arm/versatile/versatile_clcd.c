@@ -892,7 +892,7 @@ versatilefb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	    + (sc->depth/8) * (col + sc->xmargin);
 
 	fg = a & 0xf ;
-	bg = (a >> 8) & 0xf;
+	bg = (a >> 4) & 0xf;
 
 	for (i = 0; i < VERSATILE_FONT_HEIGHT; i++) {
 		for (j = 0, k = 7; j < 8; j++, k--) {
