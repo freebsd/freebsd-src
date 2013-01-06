@@ -184,7 +184,10 @@ prn_octal(const char *s)
 			for (i = 0; i < (int)clen; i++)
 				putchar((unsigned char)s[i]);
 			len += wcwidth(wc);
-		} else if (goodchar && f_octal_escape && wc >= 0 &&
+		} else if (goodchar && f_octal_escape &&
+#if WCHAR_MIN < 0
+                    wc >= 0 &&
+#endif
 		    wc <= (wchar_t)UCHAR_MAX &&
 		    (p = strchr(esc, (char)wc)) != NULL) {
 			putchar('\\');
