@@ -131,6 +131,7 @@ struct pl310_softc {
 	void*		sc_irq_h;
 	int		sc_enabled;
 	struct mtx	sc_mtx;
+	u_int		sc_rtl_revision;
 };
 
 /**
