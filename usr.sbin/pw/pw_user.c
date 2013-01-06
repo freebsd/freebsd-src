@@ -758,6 +758,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (grp == NULL)
 				continue;
 			chggrent(cnf->groups[i], grp);
+			free(grp);
 		}
 	}
 
