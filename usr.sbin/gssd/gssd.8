@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2008
+.Dd December 22, 2012
 .Dt GSSD 8
 .Os
 .Sh NAME
@@ -34,6 +34,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
+.Op Fl s Ar dir-list
+.Op Fl c Ar file-substring
+.Op Fl r Ar preferred-realm
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,6 +49,29 @@ Run in debug mode.
 In this mode,
 .Nm
 will not fork when it starts.
+.It Fl s Ar dir-list
+Look for an appropriate credential cache file in this list of directories.
+The list should be full pathnames from root, separated by ':' characters.
+Usually this list will simply be "/tmp".
+Without this option, the
+.Nm
+daemon assumes that the credential cache file is called /tmp/krb5cc_<uid>,
+where <uid> is the effective uid for the RPC caller.
+.It Fl c Ar file-substring
+Set a file-substring for the credential cache file names.
+Only files with this substring embedded in their names will be
+selected as candidates when the
+.Fl s
+has been specified.
+If not specified, it defaults to "krb5cc_".
+.It Fl r Ar preferred-realm
+Set a preferred Kerberos realm for the search of the directory list for
+a credentials cache file.
+When set, files with TGT credentials for this realm will be selected over
+other credential files.
+This option is only meaningful when the
+.Fl s
+option has been specified.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/krb5.keytab" -compact
