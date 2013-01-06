@@ -688,8 +688,6 @@ init_secondary(void)
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
 
-	lapic_init_ap();
-
 	/* Disable local APIC just to be sure. */
 	lapic_disable();
 

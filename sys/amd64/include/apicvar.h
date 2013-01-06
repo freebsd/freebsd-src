@@ -209,7 +209,6 @@ int	lapic_enable_pmc(void);
 void	lapic_eoi(void);
 int	lapic_id(void);
 void	lapic_init(vm_paddr_t addr);
-void	lapic_init_ap(void);
 int	lapic_intr_pending(u_int vector);
 void	lapic_ipi_raw(register_t icrlo, u_int dest);
 void	lapic_ipi_vectored(u_int vector, int dest);
