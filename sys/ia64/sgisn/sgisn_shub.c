@@ -91,8 +91,9 @@ static int sgisn_shub_set_resource(device_t, device_t, int, int, u_long,
     u_long);
 static int sgisn_shub_write_ivar(device_t, device_t, int, uintptr_t);
 
-static int sgisn_shub_iommu_xlate(device_t, busdma_mtag_t);
-static int sgisn_shub_iommu_map(device_t, busdma_md_t, u_int, bus_addr_t *);
+static int sgisn_shub_iommu_xlate(device_t, device_t, busdma_mtag_t);
+static int sgisn_shub_iommu_map(device_t, device_t, busdma_md_t, u_int,
+    bus_addr_t *);
 
 /*
  * Bus interface definitions.
@@ -486,15 +487,21 @@ sgisn_shub_attach(device_t dev)
 static int
 sgisn_shub_read_ivar(device_t dev, device_t child, int which, uintptr_t *res)
 {
+	struct sgisn_shub_softc *sc;
 	uintptr_t ivars;
 
-	ivars = (uintptr_t)device_get_ivars(child);
 	switch (which) {
 	case SHUB_IVAR_PCIBUS:
+		ivars = (uintptr_t)device_get_ivars(child);
 		*res = ivars & 0xff;
 		return (0);
 	case SHUB_IVAR_PCISEG:
+		ivars = (uintptr_t)device_get_ivars(child);
 		*res = ivars >> 8;
+		return (0);
+	case SHUB_IVAR_NASID:
+		sc = device_get_softc(dev);
+		*res = sc->sc_nasid;
 		return (0);
 	}
 	return (ENOENT);
@@ -508,16 +515,16 @@ sgisn_shub_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 static int
-sgisn_shub_iommu_xlate(device_t dev, busdma_mtag_t mtag)
+sgisn_shub_iommu_xlate(device_t bus, device_t dev, busdma_mtag_t mtag)
 {
 	struct sgisn_shub_softc *sc;
 	vm_paddr_t maxaddr;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc(bus);
 
 	/*
-	 * Always limit the maximum address to the maximum offset within
-	 * this node's cacheable memory space.
+	 * Limit the maximum address to the maximum node offset within an
+	 * address space.
 	 */
 	maxaddr = (1UL << (sc->sc_nasid_shft - 2)) - 1;
 	if (mtag->dmt_maxaddr > maxaddr)
@@ -525,7 +532,8 @@ sgisn_shub_iommu_xlate(device_t dev, busdma_mtag_t mtag)
 
 	/*
 	 * Transpose the address range into the current node's cacheable
-	 * memory space.
+	 * memory space. This makes sure DMA memory is allocated close to
+	 * the device (= within the same node).
 	 */
 	mtag->dmt_minaddr += sc->sc_membase;
 	mtag->dmt_maxaddr += sc->sc_membase;
@@ -533,17 +541,34 @@ sgisn_shub_iommu_xlate(device_t dev, busdma_mtag_t mtag)
 }
 
 static int
-sgisn_shub_iommu_map(device_t dev, busdma_md_t md, u_int idx, bus_addr_t *ba_p)
+sgisn_shub_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
+    bus_addr_t *ba_p)
 {
 	struct sgisn_shub_softc *sc;
-	bus_addr_t ba;
+	bus_addr_t ba, mask;
+	u_int flags;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc(bus);
 	ba = *ba_p;
-	if (ba >= sc->sc_membase && ba < sc->sc_membase + sc->sc_memsize) {
-		ba -= sc->sc_membase;
-		*ba_p = ba;
+
+	/*
+	 * Return the node offset when doing 32-bit direct-mapped DMA.
+	 * The PCI bridge maps this somewhere in the cacheable memory
+	 * of this node.
+	 */
+	flags = busdma_md_get_flags(md);
+	if ((flags & BUSDMA_MD_IA64_DIRECT32) && ba >= sc->sc_membase &&
+	    ba < sc->sc_membase + sc->sc_memsize) {
+		*ba_p = ba - sc->sc_membase;
+		return (0);
 	}
+
+	/*
+	 * For all other memory addresses, map to a fully qualified bus
+	 * address.
+	 */
+	mask = (1UL << (sc->sc_nasid_shft - 2)) - 1;
+	*ba_p = ((ba >> 2) & ~mask) | (ba & mask);
 	return (0);
 }
 

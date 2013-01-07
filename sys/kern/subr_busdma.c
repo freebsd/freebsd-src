@@ -166,9 +166,9 @@ _busdma_mtag_dump(const char *func, device_t dev, struct busdma_mtag *mtag)
 {
 
 #ifdef BUSDMA_DEBUG
-	printf("[%s: %s: min=%#jx, max=%#jx, size=%#jx, align=%#jx, "
+	printf("[%s: %s: flags=%x, min=%#jx, max=%#jx, size=%#jx, align=%#jx, "
 	    "bndry=%#jx]\n", __func__,
-	    (dev != NULL) ? device_get_nameunit(dev) : "*",
+	    (dev != NULL) ? device_get_nameunit(dev) : "*", mtag->dmt_flags,
 	    (uintmax_t)mtag->dmt_minaddr, (uintmax_t)mtag->dmt_maxaddr,
 	    (uintmax_t)mtag->dmt_maxsz, (uintmax_t)mtag->dmt_align,
 	    (uintmax_t)mtag->dmt_bndry);
@@ -227,8 +227,9 @@ _busdma_data_dump(const char *func, struct busdma_md *md, bus_addr_t addr,
 	bus_addr_t pa;
 	int sz;
 
-	printf("[%s: %s: md=%p {\n", func,
-	    device_get_nameunit(md->md_tag->dt_device), md);
+	printf("[%s: %s: md=%p, addr=%#jx, size=%#jx {\n", func,
+	    device_get_nameunit(md->md_tag->dt_device), md,
+	    (uintmax_t)addr, (uintmax_t)len);
 	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
 		if (seg->mds_busaddr + seg->mds_size <= addr ||
 		    addr + len <= seg->mds_busaddr)
@@ -348,30 +349,38 @@ _busdma_md_create(struct busdma_tag *tag, u_int flags)
 }
 
 static int
-_busdma_iommu_xlate(device_t leaf, struct busdma_mtag *mtag)
+_busdma_iommu_xlate(device_t dev, struct busdma_mtag *mtag)
 {
-	device_t dev;
+	device_t bus;
 	int error;
 
 	error = 0;
-	dev = device_get_parent(leaf);
-	while (!error && dev != root_bus) {
-		_busdma_mtag_dump(__func__, dev, mtag);
-		error = BUSDMA_IOMMU_XLATE(dev, mtag);
+	bus = device_get_parent(dev);
+	while (!error && bus != root_bus) {
+		_busdma_mtag_dump(__func__, bus, mtag);
+		error = BUSDMA_IOMMU_XLATE(bus, dev, mtag);
 		if (!error)
-			dev = device_get_parent(dev);
+			bus = device_get_parent(bus);
 	}
-	_busdma_mtag_dump(__func__, dev, mtag);
+
+	/*
+	 * Always align allocated memory on cache line boundaries and round
+	 * the size up to the next cache line.
+	 */
+	mtag->dmt_align = MAX(mtag->dmt_align, CACHE_LINE_SIZE);
+	mtag->dmt_maxsz = roundup2(mtag->dmt_maxsz, CACHE_LINE_SIZE);
+
+	_busdma_mtag_dump(__func__, bus, mtag);
 	return (error);
 }
 
 static int
-_busdma_iommu_map_r(device_t dev, struct busdma_md *md,
+_busdma_iommu_map_r(device_t bus, device_t dev, struct busdma_md *md,
     struct busdma_md_seg *seg)
 {
 	int error;
 
-	if (dev == root_bus) {
+	if (bus == root_bus) {
 		/*
 		 * A bus address and a physical address are one and the same
 		 * at this level.
@@ -380,32 +389,68 @@ _busdma_iommu_map_r(device_t dev, struct busdma_md *md,
 		return (0);
 	}
 
-	error = _busdma_iommu_map_r(device_get_parent(dev), md, seg);
+	error = _busdma_iommu_map_r(device_get_parent(bus), dev, md, seg);
 	if (!error)
-		error = BUSDMA_IOMMU_MAP(dev, md, seg->mds_idx,
+		error = BUSDMA_IOMMU_MAP(bus, dev, md, seg->mds_idx,
 		    &seg->mds_busaddr);
 	return (error);
 }
 
 static int
-_busdma_iommu_map(device_t leaf, struct busdma_md *md)
+_busdma_iommu_map(device_t dev, struct busdma_md *md)
 {
 	struct busdma_md_seg *seg;
-	device_t dev;
+	device_t bus;
 	int error;
  
 	_busdma_md_dump(__func__, root_bus, md);
-	dev = device_get_parent(leaf);
+	bus = device_get_parent(dev);
 	error = 0;
 	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
-		error = _busdma_iommu_map_r(dev, md, seg);
+		error = _busdma_iommu_map_r(bus, dev, md, seg);
 		if (error)
 			break;
 	}
-	if (!error) {
-		_busdma_md_dump(__func__, leaf, md);
-	}
+	if (!error)
+		_busdma_md_dump(__func__, dev, md);
 	return (error);
+}
+
+static int
+_busdma_iommu_unmap(device_t dev, struct busdma_md *md)
+{
+	device_t bus;
+	int error;
+
+	bus = device_get_parent(dev);
+	error = BUSDMA_IOMMU_UNMAP(bus, dev, md);
+	if (error)
+		printf("%s: error=%d\n", __func__, error);
+
+	return (error);
+}
+
+static int
+_busdma_iommu_sync(device_t dev, struct busdma_md *md, u_int op,
+    bus_addr_t addr, bus_size_t size)
+{
+	device_t bus;
+	int error;
+
+	error = 0;
+	bus = device_get_parent(dev);
+	while (!error && bus != root_bus) {
+		error = BUSDMA_IOMMU_SYNC(bus, dev, md, op, addr, size);
+		if (!error)
+			bus = device_get_parent(bus);
+	}
+	if (error)
+		return (error);
+
+	if ((op & BUSDMA_SYNC_PREWRITE) == BUSDMA_SYNC_PREWRITE ||
+	    (op & BUSDMA_SYNC_POSTREAD) == BUSDMA_SYNC_POSTREAD)
+		_busdma_data_dump(__func__, md, addr, size);
+	return (0);
 }
 
 static int
@@ -603,6 +648,15 @@ busdma_md_get_busaddr(struct busdma_md *md, u_int idx)
 }
 
 u_int
+busdma_md_get_flags(struct busdma_md *md)
+{
+
+	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
+
+	return ((md != NULL) ? md->md_flags : 0);
+}
+
+u_int
 busdma_md_get_nsegs(struct busdma_md *md)
 {
 
@@ -715,7 +769,6 @@ int
 busdma_md_unload(struct busdma_md *md)
 {
 	struct busdma_md_seg *seg;
-	device_t bus;
 	int error;
 
 	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
@@ -728,10 +781,9 @@ busdma_md_unload(struct busdma_md *md)
 	if (md->md_nsegs == 0)
 		return (0);
 
-	bus = device_get_parent(md->md_tag->dt_device);
-	error = BUSDMA_IOMMU_UNMAP(bus, md);
+	error = _busdma_iommu_unmap(md->md_tag->dt_device, md);
 	if (error)
-		printf("BUSDMA_IOMMU_UNMAP: error=%d\n", error);
+		return (error);
 
 	while ((seg = TAILQ_FIRST(&md->md_seg)) != NULL) {
 		TAILQ_REMOVE(&md->md_seg, seg, mds_chain);
@@ -761,6 +813,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	if (md == NULL)
 		return (ENOMEM);
 
+	mtag.dmt_flags = flags & BUSDMA_MD_PLATFORM_FLAGS;
 	mtag.dmt_minaddr = tag->dt_minaddr;
 	mtag.dmt_maxaddr = tag->dt_maxaddr;
 	mtag.dmt_maxsz = tag->dt_maxsegsz;
@@ -773,8 +826,8 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 		goto fail;
 	}
 
-	mflags = 0;
-	mflags |= (flags & BUSDMA_ALLOC_ZERO) ? M_ZERO : 0;
+	md->md_flags |= mtag.dmt_flags & BUSDMA_MD_PLATFORM_FLAGS;
+	mflags = (flags & BUSDMA_ALLOC_ZERO) ? M_ZERO : 0;
 
 	idx = 0;
 	maxsz = tag->dt_maxsz;
@@ -822,7 +875,6 @@ int
 busdma_mem_free(struct busdma_md *md)
 {
 	struct busdma_md_seg *seg;
-	device_t bus;
 	int error;
 
 	CTR2(KTR_BUSDMA, "%s: md=%p", __func__, md);
@@ -832,10 +884,9 @@ busdma_mem_free(struct busdma_md *md)
 	if ((md->md_flags & BUSDMA_MD_FLAG_ALLOCATED) == 0)
 		return (EINVAL);
 
-	bus = device_get_parent(md->md_tag->dt_device);
-	error = BUSDMA_IOMMU_UNMAP(bus, md);
+	error = _busdma_iommu_unmap(md->md_tag->dt_device, md);
 	if (error)
-		printf("BUSDMA_IOMMU_UNMAP: error=%d\n", error);
+		return (error);
 
 	while ((seg = TAILQ_FIRST(&md->md_seg)) != NULL) {
 		kmem_free(kernel_map, seg->mds_vaddr, seg->mds_size);
@@ -846,26 +897,15 @@ busdma_mem_free(struct busdma_md *md)
 	return (0);
 }
 
-void
-busdma_sync(struct busdma_md *md, u_int op)
-{
-
-	CTR3(KTR_BUSDMA, "%s: md=%p, op=%#x", __func__, md, op);
-
-	if ((op & BUSDMA_SYNC_PREWRITE) == BUSDMA_SYNC_PREWRITE ||
-	    (op & BUSDMA_SYNC_POSTREAD) == BUSDMA_SYNC_POSTREAD)
-		_busdma_data_dump(__func__, md, 0UL, ~0UL);
-}
-
-void
+int
 busdma_sync_range(struct busdma_md *md, u_int op, bus_addr_t addr,
-    bus_size_t len)
+    bus_size_t size)
 {
+	int error;
 
-	CTR5(KTR_BUSDMA, "%s: md=%p, op=%#x, addr=%#jx, len=%#jx", __func__,
-	    md, op, (uintmax_t)addr, (uintmax_t)len);
+	CTR5(KTR_BUSDMA, "%s: md=%p, op=%#x, addr=%#jx, size=%#jx", __func__,
+	    md, op, (uintmax_t)addr, (uintmax_t)size);
 
-	if ((op & BUSDMA_SYNC_PREWRITE) == BUSDMA_SYNC_PREWRITE ||
-	    (op & BUSDMA_SYNC_POSTREAD) == BUSDMA_SYNC_POSTREAD)
-		_busdma_data_dump(__func__, md, addr, len);
+	error = _busdma_iommu_sync(md->md_tag->dt_device, md, op, addr, size);
+	return (error);
 }

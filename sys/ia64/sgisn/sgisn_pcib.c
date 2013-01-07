@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/resource.h>
 #include <machine/sal.h>
@@ -68,6 +69,8 @@ struct sgisn_pcib_softc {
 	u_int		sc_busnr;
 	struct rman	sc_ioport;
 	struct rman	sc_iomem;
+	uint32_t	*sc_flush_intr[PCI_SLOTMAX + 1];
+	uint64_t	*sc_flush_addr[PCI_SLOTMAX + 1];
 };
 
 static int sgisn_pcib_attach(device_t);
@@ -99,8 +102,11 @@ static uint32_t sgisn_pcib_cfgread(device_t, u_int, u_int, u_int, u_int, int);
 static void sgisn_pcib_cfgwrite(device_t, u_int, u_int, u_int, u_int, uint32_t,
     int);
 
-static int sgisn_pcib_iommu_xlate(device_t, busdma_mtag_t);
-static int sgisn_pcib_iommu_map(device_t, busdma_md_t, u_int, bus_addr_t *);
+static int sgisn_pcib_iommu_xlate(device_t, device_t, busdma_mtag_t);
+static int sgisn_pcib_iommu_map(device_t, device_t, busdma_md_t, u_int,
+    bus_addr_t *);
+static int sgisn_pcib_iommu_sync(device_t, device_t, busdma_md_t, u_int,
+    bus_addr_t, bus_size_t);
 
 /*
  * Bus interface definitions.
@@ -134,6 +140,7 @@ static device_method_t sgisn_pcib_methods[] = {
 	/* busdma interface */
 	DEVMETHOD(busdma_iommu_xlate,	sgisn_pcib_iommu_xlate),
 	DEVMETHOD(busdma_iommu_map,	sgisn_pcib_iommu_map),
+	DEVMETHOD(busdma_iommu_sync,	sgisn_pcib_iommu_sync),
 
 	{ 0, 0 }
 };
@@ -414,19 +421,22 @@ sgisn_pcib_rm_init(struct sgisn_pcib_softc *sc, struct rman *rm,
 static int
 sgisn_pcib_attach(device_t dev)
 {
+	struct ia64_sal_result r;
 	struct sgisn_pcib_softc *sc;
+	struct sgisn_fwflush *fwflush;
 	device_t parent;
-	uintptr_t addr, bus, seg;
+	size_t fwflushsz;
+	uintptr_t addr, ivar;
 	int error;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
 	parent = device_get_parent(dev);
-	BUS_READ_IVAR(parent, dev, SHUB_IVAR_PCIBUS, &bus);
-	sc->sc_busnr = bus;
-	BUS_READ_IVAR(parent, dev, SHUB_IVAR_PCISEG, &seg);
-	sc->sc_domain = seg;
+	BUS_READ_IVAR(parent, dev, SHUB_IVAR_PCIBUS, &ivar);
+	sc->sc_busnr = ivar;
+	BUS_READ_IVAR(parent, dev, SHUB_IVAR_PCISEG, &ivar);
+	sc->sc_domain = ivar;
 
 	error = sgisn_pcib_rm_init(sc, &sc->sc_ioport, "port");
 	if (error)
@@ -437,7 +447,7 @@ sgisn_pcib_attach(device_t dev)
 		return (error);
 	}
 
-	(void)ia64_sal_entry(SAL_SGISN_IOBUS_INFO, seg, bus,
+	(void)ia64_sal_entry(SAL_SGISN_IOBUS_INFO, sc->sc_domain, sc->sc_busnr,
 	    ia64_tpa((uintptr_t)&addr), 0, 0, 0, 0);
 	sc->sc_fwbus = (void *)IA64_PHYS_TO_RR7(addr);
 	sc->sc_ioaddr = IA64_RR_MASK(sc->sc_fwbus->fw_common.bus_base);
@@ -446,9 +456,32 @@ sgisn_pcib_attach(device_t dev)
 	    &sc->sc_hndl);
 
 	if (bootverbose)
-		device_printf(dev, "ASIC=%x, XID=%u\n",
+		device_printf(dev, "ASIC=%x, XID=%u, TYPE=%u, MODE=%u\n",
 		    sc->sc_fwbus->fw_common.bus_asic,
-		    sc->sc_fwbus->fw_common.bus_xid);
+		    sc->sc_fwbus->fw_common.bus_xid,
+		    sc->sc_fwbus->fw_type, sc->sc_fwbus->fw_mode);
+
+	fwflushsz = (PCI_SLOTMAX + 1) * sizeof(struct sgisn_fwflush);
+	fwflush = contigmalloc(fwflushsz, M_TEMP, M_ZERO, 0UL, ~0UL, 16, 0);
+	BUS_READ_IVAR(parent, dev, SHUB_IVAR_NASID, &ivar);
+	r = ia64_sal_entry(SAL_SGISN_IOBUS_FLUSH, ivar,
+	    sc->sc_fwbus->fw_common.bus_xid, ia64_tpa((uintptr_t)fwflush),
+	    0, 0, 0, 0);
+	if (r.sal_status == 0) {
+		int i, slot;
+
+		for (i = 0; i <= PCI_SLOTMAX; i++) {
+			if (fwflush[i].fld_pci_segment != sc->sc_domain ||
+			    fwflush[i].fld_pci_bus != sc->sc_busnr)
+				continue;
+			slot = fwflush[i].fld_slot;
+			sc->sc_flush_intr[slot] = fwflush[i].fld_intr;
+			sc->sc_flush_addr[slot] = fwflush[i].fld_addr;
+			device_printf(dev, "slot=%d: flush addr=%p, intr=%p\n",
+			    slot, fwflush[i].fld_addr, fwflush[i].fld_intr);
+		}
+	}
+	contigfree(fwflush, fwflushsz, M_TEMP);
 
 	device_add_child(dev, "pci", -1);
 	error = bus_generic_attach(dev);
@@ -485,17 +518,21 @@ sgisn_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 static int
-sgisn_pcib_iommu_xlate(device_t dev, busdma_mtag_t mtag)
+sgisn_pcib_iommu_xlate(device_t bus, device_t dev, busdma_mtag_t mtag)
 {
+	struct sgisn_pcib_softc *sc = device_get_softc(bus);
 	vm_paddr_t bndry = 0x80000000UL;
 
 	/*
 	 * Use a 31-bit direct-mapped window for PCI devices that are not
-	 * 64-bit capable. In that case we also make sure allocations do
-	 * not cross the 2G boundary so that the whole segment can be
-	 * direct mapped.
+	 * 64-bit capable and we're not in PCI-X mode.
+	 * For 31-bit direct-mapped DMA we need to make sure allocations
+	 * do not cross the 2G boundary.
 	 */
-	if (mtag->dmt_maxaddr < ~0UL) {
+	if (mtag->dmt_maxaddr < ~0UL && (sc->sc_fwbus->fw_mode & 1) == 0)
+		mtag->dmt_flags |= BUSDMA_MD_IA64_DIRECT32;
+
+	if (mtag->dmt_flags & BUSDMA_MD_IA64_DIRECT32) {
 		mtag->dmt_maxaddr &= (bndry - 1);
 		if (mtag->dmt_bndry == 0 || mtag->dmt_bndry > bndry)
 			mtag->dmt_bndry = bndry;
@@ -504,27 +541,60 @@ sgisn_pcib_iommu_xlate(device_t dev, busdma_mtag_t mtag)
 }
 
 static int
-sgisn_pcib_iommu_map(device_t dev, busdma_md_t md, u_int idx, bus_addr_t *ba_p)
+sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
+    bus_addr_t *ba_p)
 {
-	struct sgisn_pcib_softc *sc = device_get_softc(dev);
+	struct sgisn_pcib_softc *sc = device_get_softc(bus);
 	busdma_tag_t tag;
 	bus_addr_t maxaddr = 0x80000000UL;
 	bus_addr_t ba;
+	u_int flags;
 
 	ba = *ba_p;
-	if (ba < maxaddr) {
-		ba |= maxaddr;
-		*ba_p = ba;
+
+	flags = busdma_md_get_flags(md);
+	if ((flags & BUSDMA_MD_IA64_DIRECT32) && ba < maxaddr) {
+		*ba_p = ba | maxaddr;
 		return (0);
 	}
 
 	tag = busdma_md_get_tag(md);
 	maxaddr = busdma_tag_get_maxaddr(tag);
 	if (maxaddr == ~0UL) {
-		ba |= ((u_long)sc->sc_fwbus->fw_hub_xid << 60) | (1UL << 59);
-		*ba_p = ba;
+		*ba_p = ba | ((u_long)sc->sc_fwbus->fw_hub_xid << 60) |
+		    (1UL << 59);
 		return (0);
 	}
 
+	/* XXX 32-bit mapped DMA */
 	return (ENXIO);
+}
+
+static int
+sgisn_pcib_iommu_sync(device_t bus, device_t dev, busdma_md_t md, u_int op,
+    bus_addr_t addr, bus_size_t size)
+{
+	struct sgisn_pcib_softc *sc = device_get_softc(bus);
+	volatile uint64_t *fladdr;
+	volatile uint32_t *flintr;
+	uintptr_t slot;
+	int error;
+
+	if ((op & BUSDMA_SYNC_POSTREAD) != BUSDMA_SYNC_POSTREAD)
+		return (0);
+
+	error = BUS_READ_IVAR(device_get_parent(dev), dev, PCI_IVAR_SLOT,
+	    &slot);
+	if (error)
+		return (error);
+
+	fladdr = sc->sc_flush_addr[slot];
+	flintr = sc->sc_flush_intr[slot];
+	if (fladdr != NULL && flintr != NULL) {
+		*fladdr = 0;
+		*flintr = 1;
+		while (*fladdr != 0x10f)
+			cpu_spinwait();
+	}
+	return (0);
 }

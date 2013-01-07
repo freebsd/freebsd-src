@@ -41,6 +41,7 @@
 #define	SAL_SGISN_IOHUB_INFO		0x02000055
 #define	SAL_SGISN_IOBUS_INFO		0x02000056
 #define	SAL_SGISN_IODEV_INFO		0x02000057
+#define	SAL_SGISN_IOBUS_FLUSH		0x02000058
 #define	SAL_SGISN_FEATURE_GET_PROM	0x02000065
 #define	SAL_SGISN_FEATURE_SET_OS	0x02000066
 #define	SAL_SGISN_SET_CPUID		0x02000068
@@ -50,7 +51,7 @@
 
 #define	SHUB_IVAR_PCIBUS	1
 #define	SHUB_IVAR_PCISEG	2
-#define	SHUB_IVAR_EVENT		3
+#define	SHUB_IVAR_NASID		3
 
 #define	SHUB_EVENT_CONSOLE	0x100000
 
@@ -107,7 +108,7 @@ struct sgisn_fwbus {
 	struct sgisn_widget	*bus_wgt_info;
 };
 
-struct sgisn_fwflush_dev {
+struct sgisn_fwflush {
 	uint32_t		fld_bus;
 	uint32_t		fld_slot;
 	uint32_t		fld_pin;
@@ -116,17 +117,13 @@ struct sgisn_fwflush_dev {
 		uint64_t	start;
 		uint64_t	end;
 	} fld_bar[6];
-	uint64_t		*fld_intr;
+	uint32_t		*fld_intr;
 	uint64_t		fld_value;
-	uint64_t		*fld_flush;
+	uint64_t		*fld_addr;
 	uint32_t		fld_pci_bus;
 	uint32_t		fld_pci_segment;
 	struct sgisn_fwbus	*fld_parent;
 	uint64_t		fld_xxx;
-};
-
-struct sgisn_fwflush_widget {
-	struct sgisn_fwflush_dev flw_dev[32];
 };
 
 struct sgisn_fwhub {
@@ -134,7 +131,7 @@ struct sgisn_fwhub {
 	uint16_t		hub_nasid;
 	uint16_t		hub_peer_nasid;
 	uint32_t		_pad;
-	struct sgisn_fwflush_widget *hub_flush;
+	struct sgisn_fwflush	**hub_flush;
 	uint64_t		hub_dma_itte[SGISN_HUB_NITTES];
 	struct sgisn_widget	hub_widget[SGISN_HUB_NWIDGETS];
 

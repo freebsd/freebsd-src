@@ -38,6 +38,7 @@ struct busdma_md;
 typedef struct busdma_md *busdma_md_t;
 
 struct busdma_mtag {
+	u_int		dmt_flags;
 	vm_paddr_t	dmt_minaddr;
 	vm_paddr_t	dmt_maxaddr;
 	vm_size_t	dmt_maxsz;
@@ -113,6 +114,7 @@ int busdma_md_load_phys(busdma_md_t md, vm_paddr_t buf, size_t size,
 int busdma_md_load_uio(busdma_md_t md, struct uio *uio,
     busdma_callback_f cb, void *arg, u_int flags);
 int busdma_md_unload(busdma_md_t md);
+u_int busdma_md_get_flags(busdma_md_t md);
 u_int busdma_md_get_nsegs(busdma_md_t md);
 busdma_tag_t busdma_md_get_tag(busdma_md_t md);
 bus_addr_t busdma_md_get_busaddr(busdma_md_t md, u_int idx);
@@ -127,6 +129,16 @@ busdma_md_get_pointer(busdma_md_t md, u_int idx)
 }
 
 /*
+ * Platform-specific flags kept in the memory descriptor and used
+ * by the machine-dependent code. They're exposed here to make it
+ * possible for drivers to use them as well if so needed.
+ */
+#define	BUSDMA_MD_PLATFORM_FLAGS	0xffff
+
+/* SGI Altix 350  -  Map the MD using a 32-bit direct-mapped address. */
+#define	BUSDMA_MD_IA64_DIRECT32		0x0001
+
+/*
  * busdma_mem_alloc
  * returns:		errno value
  * arguments:
@@ -136,7 +148,8 @@ busdma_md_get_pointer(busdma_md_t md, u_int idx)
  */
 int busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *md_p);
 
-#define	BUSDMA_ALLOC_ZERO	0x10000
+/* Allocate pre-zeroed memory. */
+#define	BUSDMA_ALLOC_ZERO		0x10000
 
 /*
  * busdma_mem_free
@@ -148,8 +161,15 @@ int busdma_mem_free(busdma_md_t md);
 
 int busdma_start(busdma_md_t md, u_int);
 int busdma_stop(busdma_md_t md);
-void busdma_sync(busdma_md_t md, u_int);
-void busdma_sync_range(busdma_md_t md, u_int, vm_paddr_t, vm_size_t);
+
+int busdma_sync_range(busdma_md_t md, u_int, bus_addr_t, bus_size_t);
+
+static __inline int
+busdma_sync(busdma_md_t md, u_int op)
+{
+
+	return (busdma_sync_range(md, op, 0UL, ~0UL));
+}
 
 #define	BUSDMA_SYNC_READ	0x10000
 #define	BUSDMA_SYNC_WRITE	0x20000

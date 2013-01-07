@@ -34,31 +34,40 @@ INTERFACE busdma;
 # Default implementations
 CODE {
 	static int
-	default_iommu_xlate(device_t dev, busdma_mtag_t mtag)
+	default_iommu_xlate(device_t bus, device_t dev, busdma_mtag_t mtag)
 	{
 		return (0);
 	}
 
 	static int
-	default_iommu_map(device_t dev, busdma_md_t md, u_int idx,
-	    bus_addr_t *ba_p)
+	default_iommu_map(device_t bus, device_t dev, busdma_md_t md,
+	    u_int idx, bus_addr_t *ba_p)
 	{
 		return (0);
 	}
 
 	static int
-	default_iommu_unmap(device_t dev, busdma_md_t md)
+	default_iommu_unmap(device_t bus, device_t dev, busdma_md_t md)
+	{
+		return (0);
+	}
+
+	static int
+	default_iommu_sync(device_t bus, device_t dev, busdma_md_t md,
+	    u_int op, bus_addr_t addr, bus_size_t size)
 	{
 		return (0);
 	}
 };
 
 METHOD int iommu_xlate {
+	device_t	bus;
 	device_t	dev;
 	busdma_mtag_t	mtag;
 } DEFAULT default_iommu_xlate;
 
 METHOD int iommu_map {
+	device_t	bus;
 	device_t	dev;
 	busdma_md_t	md;
 	u_int		idx;
@@ -66,6 +75,17 @@ METHOD int iommu_map {
 } DEFAULT default_iommu_map;
 
 METHOD int iommu_unmap {
+	device_t	bus;
 	device_t	dev;
 	busdma_md_t	md;
 } DEFAULT default_iommu_unmap;
+
+METHOD int iommu_sync {
+	device_t	bus;
+	device_t	dev;
+	busdma_md_t	md;
+	u_int		op;
+	bus_addr_t	addr;
+	bus_size_t	size;
+} DEFAULT default_iommu_sync;
+
