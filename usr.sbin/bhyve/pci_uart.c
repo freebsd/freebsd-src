@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
@@ -97,6 +98,7 @@ struct fifo {
 
 struct pci_uart_softc {
 	struct pci_devinst *pi;
+	pthread_mutex_t mtx;	/* protects all softc elements */
 	uint8_t data;		/* Data register (R/W) */
 	uint8_t ier;		/* Interrupt enable register (R/W) */
 	uint8_t lcr;		/* Line control register (R/W) */
@@ -214,6 +216,13 @@ fifo_numchars(struct fifo *fifo)
 	return (fifo->num);
 }
 
+static int
+fifo_available(struct fifo *fifo)
+{
+
+	return (fifo->num < fifo->size);
+}
+
 static void
 pci_uart_opentty(struct pci_uart_softc *sc)
 {
@@ -304,19 +313,25 @@ pci_uart_drain(int fd, enum ev_type ev, void *arg)
 
 	assert(fd == STDIN_FILENO);
 	assert(ev == EVF_READ);
+	
+	/*
+	 * This routine is called in the context of the mevent thread
+	 * to take out the softc lock to protect against concurrent
+	 * access from a vCPU i/o exit
+	 */
+	pthread_mutex_lock(&sc->mtx);
 
-	while ((ch = ttyread()) != -1) {
-		/*
-		 * If we are in loopback mode then drop this character.
-		 */
-		if ((sc->mcr & MCR_LOOPBACK) != 0)
-			continue;
-
-		if (fifo_putchar(&sc->rxfifo, ch) != 0)
-			sc->lsr |= LSR_OE;
+	if ((sc->mcr & MCR_LOOPBACK) != 0) {
+		(void) ttyread();
+	} else {
+		while (fifo_available(&sc->rxfifo) &&
+		       ((ch = ttyread()) != -1)) {
+			fifo_putchar(&sc->rxfifo, ch);
+		}
+		pci_uart_toggle_intr(sc);
 	}
 
-	pci_uart_toggle_intr(sc);
+	pthread_mutex_unlock(&sc->mtx);
 }
 
 static void
@@ -337,6 +352,8 @@ pci_uart_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		pci_uart_opentty(sc);
 		sc->opened = 1;
 	}
+
+	pthread_mutex_lock(&sc->mtx);
 	
 	/*
 	 * Take care of the special case DLAB accesses first
@@ -458,6 +475,7 @@ pci_uart_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 
 done:
 	pci_uart_toggle_intr(sc);
+	pthread_mutex_unlock(&sc->mtx);
 }
 
 uint64_t
@@ -478,6 +496,8 @@ pci_uart_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		pci_uart_opentty(sc);
 		sc->opened = 1;
 	}
+
+	pthread_mutex_lock(&sc->mtx);
 
 	/*
 	 * Take care of the special case DLAB accesses first
@@ -554,6 +574,8 @@ pci_uart_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 
 done:
 	pci_uart_toggle_intr(sc);
+	pthread_mutex_unlock(&sc->mtx);
+
 	return (reg);
 }
 
@@ -569,6 +591,8 @@ pci_uart_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	pi->pi_arg = sc;
 	sc->pi = pi;
+
+	pthread_mutex_init(&sc->mtx, NULL);
 
 	/* initialize config space */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, COM_DEV);
