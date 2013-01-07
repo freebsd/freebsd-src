@@ -377,6 +377,7 @@ sgisn_shub_attach(device_t dev)
 	ACPI_TABLE_HEADER *tbl;
 	device_t child;
 	void *ptr;
+	uint64_t id;
 	u_long addr;
 	u_int bus, seg, wdgt;
 
@@ -421,8 +422,11 @@ sgisn_shub_attach(device_t dev)
 	sc->sc_tag = IA64_BUS_SPACE_MEM;
 	bus_space_map(sc->sc_tag, sc->sc_mmraddr, 1UL << 32, 0, &sc->sc_hndl);
 
-	if (bootverbose)
-		device_printf(dev, "NASID=%#x\n", sc->sc_nasid);
+	if (bootverbose) {
+		id = bus_space_read_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_ID);
+		device_printf(dev, "Revision=%u, NASID=%#x\n",
+		    (u_int)((id >> 28) & 0xf), sc->sc_nasid);
+	}
 
 	/*
 	 * Allocate contiguous memory, local to the SHub, for collecting
