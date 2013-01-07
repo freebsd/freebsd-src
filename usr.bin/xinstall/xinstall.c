@@ -54,14 +54,20 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <grp.h>
 #include <libgen.h>
+#include <md5.h>
 #include <paths.h>
 #include <pwd.h>
+#include <ripemd.h>
+#include <sha.h>
+#include <sha256.h>
+#include <sha512.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <vis.h>
 
 #include "mtree.h"
 
@@ -83,22 +89,50 @@ __FBSDID("$FreeBSD$");
 #define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
 #define	BACKUP_SUFFIX	".old"
 
+typedef union {
+	MD5_CTX		MD5;
+	RIPEMD160_CTX	RIPEMD160;
+	SHA1_CTX	SHA1;
+	SHA256_CTX	SHA256;
+	SHA512_CTX	SHA512;
+}	DIGEST_CTX;
+
 static gid_t gid;
 static uid_t uid;
 static int dobackup, docompare, dodir, dolink, dopreserve, dostrip, dounpriv,
-    nommap, safecopy, verbose;
+    safecopy, verbose;
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+static FILE *metafp;
+static const char *group, *owner;
 static const char *suffix = BACKUP_SUFFIX;
+static char *destdir, *digest, *fflags, *metafile, *tags;
 
-static int	compare(int, const char *, size_t, int, const char *, size_t);
-static void	copy(int, const char *, int, const char *, off_t);
+enum {
+	DIGEST_NONE = 0,
+	DIGEST_MD5,
+	DIGEST_RIPEMD160,
+	DIGEST_SHA1,
+	DIGEST_SHA256,
+	DIGEST_SHA512,
+} digesttype = DIGEST_NONE;
+
+static int	compare(int, const char *, size_t, int, const char *, size_t,
+		    char **);
+static char	*copy(int, const char *, int, const char *, off_t);
 static int	create_newfile(const char *, int, struct stat *);
 static int	create_tempfile(const char *, char *, size_t);
+static char	*quiet_mktemp(char *template);
+static char	*digest_file(const char *);
+static void	digest_init(DIGEST_CTX *);
+static void	digest_update(DIGEST_CTX *, const unsigned char *, size_t);
+static char	*digest_end(DIGEST_CTX *, char *);
 static int	do_link(const char *, const char *, const struct stat *);
 static void	do_symlink(const char *, const char *, const struct stat *);
 static void	makelink(const char *, const char *, const struct stat *);
 static void	install(const char *, const char *, u_long, u_int);
 static void	install_dir(char *);
+static void	metadata_log(const char *, const char *, struct timeval *,
+		    const char *, const char *, off_t);
 static int	parseid(const char *, id_t *);
 static void	strip(const char *);
 static int	trymmap(int);
@@ -112,13 +146,13 @@ main(int argc, char *argv[])
 	u_long fset;
 	int ch, no_target;
 	u_int iflags;
-	char *flags, *p;
-	const char *group, *owner, *to_name;
+	char *p;
+	const char *to_name;
 
-	flags = NULL;
 	iflags = 0;
 	group = owner = NULL;
-	while ((ch = getopt(argc, argv, "B:bCcdf:g:l:Mm:N:o:pSsUv")) != -1)
+	while ((ch = getopt(argc, argv, "B:bCcD:df:g:h:l:M:m:N:o:pSsT:Uv")) !=
+	     -1)
 		switch((char)ch) {
 		case 'B':
 			suffix = optarg;
@@ -132,14 +166,20 @@ main(int argc, char *argv[])
 		case 'c':
 			/* For backwards compatibility. */
 			break;
+		case 'D':
+			destdir = optarg;
+			break;
 		case 'd':
 			dodir = 1;
 			break;
 		case 'f':
-			flags = optarg;
+			fflags = optarg;
 			break;
 		case 'g':
 			group = optarg;
+			break;
+		case 'h':
+			digest = optarg;
 			break;
 		case 'l':
 			for (p = optarg; *p; p++)
@@ -170,7 +210,7 @@ main(int argc, char *argv[])
 				}
 			break;
 		case 'M':
-			nommap = 1;
+			metafile = optarg;
 			break;
 		case 'm':
 			if (!(set = setmode(optarg)))
@@ -195,6 +235,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			dostrip = 1;
+			break;
+		case 'T':
+			tags = optarg;
 			break;
 		case 'U':
 			dounpriv = 1;
@@ -224,6 +267,26 @@ main(int argc, char *argv[])
 	if (argc == 0 || (argc == 1 && !dodir))
 		usage();
 
+	if (digest != NULL) {
+		if (0) {
+		} else if (strcmp(digest, "none") == 0) {
+			digesttype = DIGEST_NONE;
+		} else if (strcmp(digest, "md5") == 0) {
+		       digesttype = DIGEST_MD5;
+		} else if (strcmp(digest, "rmd160") == 0) {
+			digesttype = DIGEST_RIPEMD160;
+		} else if (strcmp(digest, "sha1") == 0) {
+			digesttype = DIGEST_SHA1;
+		} else if (strcmp(digest, "sha256") == 0) {
+			digesttype = DIGEST_SHA256;
+		} else if (strcmp(digest, "sha512") == 0) {
+			digesttype = DIGEST_SHA512;
+		} else {
+			warnx("unknown digest `%s'", digest);
+			usage();
+		}
+	}
+
 	/* need to make a temp copy so we can compare stripped version */
 	if (docompare && dostrip)
 		safecopy = 1;
@@ -249,11 +312,17 @@ main(int argc, char *argv[])
 	} else
 		uid = (uid_t)-1;
 
-	if (flags != NULL && !dounpriv) {
-		if (strtofflags(&flags, &fset, NULL))
-			errx(EX_USAGE, "%s: invalid flag", flags);
+	if (fflags != NULL && !dounpriv) {
+		if (strtofflags(&fflags, &fset, NULL))
+			errx(EX_USAGE, "%s: invalid flag", fflags);
 		iflags |= SETFLAGS;
 	}
+
+	if (metafile != NULL) {
+		if ((metafp = fopen(metafile, "a")) == NULL)
+			warn("open %s", metafile);
+	} else
+		digesttype = DIGEST_NONE;
 
 	if (dodir) {
 		for (; *argv != NULL; ++argv)
@@ -296,6 +365,97 @@ main(int argc, char *argv[])
 	install(*argv, to_name, fset, iflags);
 	exit(EX_OK);
 	/* NOTREACHED */
+}
+
+static char *
+digest_file(const char *name)
+{
+
+	switch (digesttype) {
+	case DIGEST_MD5:
+		return (MD5File(name, NULL));
+	case DIGEST_RIPEMD160:
+		return (RIPEMD160_File(name, NULL));
+	case DIGEST_SHA1:
+		return (SHA1_File(name, NULL));
+	case DIGEST_SHA256:
+		return (SHA256_File(name, NULL));
+	case DIGEST_SHA512:
+		return (SHA512_File(name, NULL));
+	default:
+		return (NULL);
+	}
+}
+
+static void
+digest_init(DIGEST_CTX *c)
+{
+
+	switch (digesttype) {
+	case DIGEST_NONE:
+		break;
+	case DIGEST_MD5:
+		MD5Init(&(c->MD5));
+		break;
+	case DIGEST_RIPEMD160:
+		RIPEMD160_Init(&(c->RIPEMD160));
+		break;
+	case DIGEST_SHA1:
+		SHA1_Init(&(c->SHA1));
+		break;
+	case DIGEST_SHA256:
+		SHA256_Init(&(c->SHA256));
+		break;
+	case DIGEST_SHA512:
+		SHA512_Init(&(c->SHA512));
+		break;
+
+	}
+}
+
+static void
+digest_update(DIGEST_CTX *c, const unsigned char *data, size_t len)
+{
+
+	switch (digesttype) {
+	case DIGEST_NONE:
+		break;
+	case DIGEST_MD5:
+		MD5Update(&(c->MD5), data, len);
+		break;
+	case DIGEST_RIPEMD160:
+		RIPEMD160_Update(&(c->RIPEMD160), data, len);
+		break;
+	case DIGEST_SHA1:
+		SHA1_Update(&(c->SHA1), data, len);
+		break;
+	case DIGEST_SHA256:
+		SHA256_Update(&(c->SHA256), data, len);
+		break;
+	case DIGEST_SHA512:
+		SHA512_Update(&(c->SHA512), data, len);
+		break;
+	}
+}
+
+static char *
+digest_end(DIGEST_CTX *c, char *buf)
+{
+
+	switch (digesttype) {
+	case DIGEST_MD5:
+		return (MD5End(&(c->MD5), buf));
+	case DIGEST_RIPEMD160:
+		return (RIPEMD160_End(&(c->RIPEMD160), buf));
+	case DIGEST_SHA1:
+		return (SHA1_End(&(c->SHA1), buf));
+	case DIGEST_SHA256:
+		return (SHA256_End(&(c->SHA256), buf));
+	case DIGEST_SHA512:
+		return (SHA512_End(&(c->SHA512), buf));
+	default:
+		return (NULL);
+	}
 }
 
 /*
@@ -411,6 +571,9 @@ makelink(const char *from_name, const char *to_name,
     const struct stat *target_sb)
 {
 	char	src[MAXPATHLEN], dst[MAXPATHLEN], lnk[MAXPATHLEN];
+#ifdef NOTYET
+	struct stat	to_sb;
+#endif
 
 	/* Try hard links first */
 	if (dolink & (LN_HARD|LN_MIXED)) {
@@ -418,6 +581,43 @@ makelink(const char *from_name, const char *to_name,
 			if ((dolink & LN_HARD) || errno != EXDEV)
 				err(1, "link %s -> %s", from_name, to_name);
 		} else {
+#ifdef NOTYET
+			if (stat(to_name, &to_sb))
+				err(1, "%s: stat", to_name);
+			if (S_ISREG(to_sb.st_mode)) {
+					/* XXX: hard links to anything
+					 * other than plain files are not
+					 * metalogged
+					 */
+				int omode;
+				char *oowner, *ogroup, *offlags;
+				char *dres;
+
+					/* XXX: use underlying perms,
+					 * unless overridden on command line.
+					 */
+				omode = mode;
+				if (!haveopt_m)
+					mode = (to_sb.st_mode & 0777);
+				oowner = owner;
+				if (!haveopt_o)
+					owner = NULL;
+				ogroup = group;
+				if (!haveopt_g)
+					group = NULL;
+				offlags = fflags;
+				if (!haveopt_f)
+					fflags = NULL;
+				dres = digest_file(from_name);
+				metadata_log(to_name, "file", NULL, NULL,
+				    dres, to_sb.st_size);
+				free(dres);
+				mode = omode;
+				owner = oowner;
+				group = ogroup;
+				fflags = offlags;
+			}
+#endif
 			return;
 		}
 	}
@@ -428,6 +628,10 @@ makelink(const char *from_name, const char *to_name,
 		if (realpath(from_name, src) == NULL)
 			err(1, "%s: realpath", from_name);
 		do_symlink(src, to_name, target_sb);
+#ifdef NOTYET
+			/* XXX: src may point outside of destdir */
+		metadata_log(to_name, "link", NULL, src, NULL, 0);
+#endif
 		return;
 	}
 
@@ -468,6 +672,10 @@ makelink(const char *from_name, const char *to_name,
 		(void)strlcat(lnk, ++s, sizeof(lnk));
 
 		do_symlink(lnk, to_name, target_sb);
+#ifdef NOTYET
+			/* XXX: lnk may point outside of destdir */
+		metadata_log(to_name, "link", NULL, lnk, NULL, 0);
+#endif
 		return;
 	}
 
@@ -476,6 +684,10 @@ makelink(const char *from_name, const char *to_name,
 	 * try the names the user provided
 	 */
 	do_symlink(from_name, to_name, target_sb);
+#ifdef NOTYET
+		/* XXX: from_name may point outside of destdir */
+	metadata_log(to_name, "link", NULL, from_name, NULL, 0);
+#endif
 }
 
 /*
@@ -490,6 +702,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	int devnull, files_match, from_fd, serrno, target;
 	int tempcopy, temp_fd, to_fd;
 	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
+	char *digestresult;
 
 	files_match = 0;
 	from_fd = -1;
@@ -557,7 +770,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		else
 			files_match = !(compare(from_fd, from_name,
 			    (size_t)from_sb.st_size, to_fd,
-			    to_name, (size_t)to_sb.st_size));
+			    to_name, (size_t)to_sb.st_size, &digestresult));
 
 		/* Close "to" file unless we match. */
 		if (!files_match)
@@ -579,7 +792,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 				    from_name, to_name);
 		}
 		if (!devnull)
-			copy(from_fd, from_name, to_fd,
+			digestresult = copy(from_fd, from_name, to_fd,
 			     tempcopy ? tempfile : to_name, from_sb.st_size);
 	}
 
@@ -614,7 +827,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		}
 
 		if (compare(temp_fd, tempfile, (size_t)temp_sb.st_size, to_fd,
-			    to_name, (size_t)to_sb.st_size) == 0) {
+			    to_name, (size_t)to_sb.st_size, &digestresult)
+			    == 0) {
 			/*
 			 * If target has more than one link we need to
 			 * replace it in order to snap the extra links.
@@ -632,6 +846,10 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 			(void) close(temp_fd);
 		}
+	}
+
+	if (dostrip && (!docompare || !target)) {
+		digestresult = digest_file(tempfile);
 	}
 
 	/*
@@ -752,6 +970,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	(void)close(to_fd);
 	if (!devnull)
 		(void)close(from_fd);
+
+	metadata_log(to_name, "file", tvb, NULL, digestresult, to_sb.st_size);
+	free(digestresult);
 }
 
 /*
@@ -760,29 +981,37 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
  */
 static int
 compare(int from_fd, const char *from_name __unused, size_t from_len,
-	int to_fd, const char *to_name __unused, size_t to_len)
+	int to_fd, const char *to_name __unused, size_t to_len,
+	char **dresp)
 {
 	char *p, *q;
 	int rv;
 	int done_compare;
+	DIGEST_CTX ctx;
 
 	rv = 0;
 	if (from_len != to_len)
 		return 1;
 
 	if (from_len <= MAX_CMP_SIZE) {
+		if (dresp != NULL)
+			digest_init(&ctx);
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
-			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
+			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
+			    from_fd, (off_t)0);
 			if (p == (char *)MAP_FAILED)
 				goto out;
-			q = mmap(NULL, from_len, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
+			q = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
+			    to_fd, (off_t)0);
 			if (q == (char *)MAP_FAILED) {
 				munmap(p, from_len);
 				goto out;
 			}
 
 			rv = memcmp(p, q, from_len);
+			if (dresp != NULL)
+				digest_update(&ctx, p, from_len);
 			munmap(p, from_len);
 			munmap(q, from_len);
 			done_compare = 1;
@@ -808,12 +1037,20 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 						rv = 1;	/* out of sync */
 				} else
 					rv = 1;		/* read failure */
+				digest_update(&ctx, buf1, n1);
 			}
 			lseek(from_fd, 0, SEEK_SET);
 			lseek(to_fd, 0, SEEK_SET);
 		}
 	} else
 		rv = 1;	/* don't bother in this case */
+
+	if (dresp != NULL) {
+		if (rv == 0)
+			*dresp = digest_end(&ctx, NULL);
+		else
+			(void)digest_end(&ctx, NULL);
+	}
 
 	return rv;
 }
@@ -885,7 +1122,7 @@ create_newfile(const char *path, int target, struct stat *sbp)
  * copy --
  *	copy from one file to another
  */
-static void
+static char *
 copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
     off_t size)
 {
@@ -893,12 +1130,15 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	int serrno;
 	char *p, buf[MAXBSIZE];
 	int done_copy;
+	DIGEST_CTX ctx;
 
 	/* Rewind file descriptors. */
 	if (lseek(from_fd, (off_t)0, SEEK_SET) == (off_t)-1)
 		err(EX_OSERR, "lseek: %s", from_name);
 	if (lseek(to_fd, (off_t)0, SEEK_SET) == (off_t)-1)
 		err(EX_OSERR, "lseek: %s", to_name);
+
+	digest_init(&ctx);
 
 	/*
 	 * Mmap and write if less than 8M (the limit is so we don't totally
@@ -922,10 +1162,12 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 				err(EX_OSERR, "%s", to_name);
 			}
 		}
+		digest_update(&ctx, p, size);
+		(void)munmap(p, size);
 		done_copy = 1;
 	}
 	if (!done_copy) {
-		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
+		while ((nr = read(from_fd, buf, sizeof(buf))) > 0) {
 			if ((nw = write(to_fd, buf, nr)) != nr) {
 				serrno = errno;
 				(void)unlink(to_name);
@@ -939,6 +1181,8 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 					err(EX_OSERR, "%s", to_name);
 				}
 			}
+			digest_update(&ctx, buf, nr);
+		}
 		if (nr != 0) {
 			serrno = errno;
 			(void)unlink(to_name);
@@ -946,6 +1190,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 			err(EX_OSERR, "%s", from_name);
 		}
 	}
+	return digest_end(&ctx, NULL);
 }
 
 /*
@@ -1016,6 +1261,84 @@ install_dir(char *path)
 		if (chmod(path, mode))
 			warn("chmod %o %s", mode, path);
 	}
+	metadata_log(path, "dir", NULL, NULL, NULL, 0);
+}
+
+/*
+ * metadata_log --
+ *	if metafp is not NULL, output mtree(8) full path name and settings to
+ *	metafp, to allow permissions to be set correctly by other tools,
+ *	or to allow integrity checks to be performed.
+ */
+static void
+metadata_log(const char *path, const char *type, struct timeval *tv,
+	const char *slink, const char *digestresult, off_t size)
+{
+	static const char	extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
+	const char	*p;
+	char		*buf;
+	size_t		destlen;
+	struct flock	metalog_lock;
+
+	if (!metafp)	
+		return;
+	buf = (char *)malloc(4 * strlen(path) + 1);	/* buf for strsvis(3) */
+	if (buf == NULL) {
+		warnx("%s", strerror(ENOMEM));
+		return;
+	}
+							/* lock log file */
+	metalog_lock.l_start = 0;
+	metalog_lock.l_len = 0;
+	metalog_lock.l_whence = SEEK_SET;
+	metalog_lock.l_type = F_WRLCK;
+	if (fcntl(fileno(metafp), F_SETLKW, &metalog_lock) == -1) {
+		warn("can't lock %s", metafile);
+		free(buf);
+		return;
+	}
+
+	p = path;					/* remove destdir */
+	if (destdir) {
+		destlen = strlen(destdir);
+		if (strncmp(p, destdir, destlen) == 0 &&
+		    (p[destlen] == '/' || p[destlen] == '\0'))
+			p += destlen;
+	}
+	while (*p && *p == '/')				/* remove leading /s */
+		p++;
+	strsvis(buf, p, VIS_CSTYLE, extra);		/* encode name */
+	p = buf;
+							/* print details */
+	fprintf(metafp, ".%s%s type=%s", *p ? "/" : "", p, type);
+	if (owner)
+		fprintf(metafp, " uname=%s", owner);
+	if (group)
+		fprintf(metafp, " gname=%s", group);
+	fprintf(metafp, " mode=%#o", mode);
+	if (slink) {
+		strsvis(buf, slink, VIS_CSTYLE, extra);	/* encode link */
+		fprintf(metafp, " link=%s", buf);
+	}
+	if (*type == 'f') /* type=file */
+		fprintf(metafp, " size=%lld", (long long)size);
+	if (tv != NULL && dopreserve)
+		fprintf(metafp, " time=%lld.%ld",
+			(long long)tv[1].tv_sec, (long)tv[1].tv_usec);
+	if (digestresult && digest)
+		fprintf(metafp, " %s=%s", digest, digestresult);
+	if (fflags)
+		fprintf(metafp, " flags=%s", fflags);
+	if (tags)
+		fprintf(metafp, " tags=%s", tags);
+	fputc('\n', metafp);
+	fflush(metafp);					/* flush output */
+							/* unlock log file */
+	metalog_lock.l_type = F_UNLCK;
+	if (fcntl(fileno(metafp), F_SETLKW, &metalog_lock) == -1) {
+		warn("can't unlock %s", metafile);
+	}
+	free(buf);
 }
 
 /*
@@ -1026,11 +1349,16 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: install [-bCcMpSsUv] [-B suffix] [-f flags] [-g group] [-l linkflags]\n"
-"               [-m mode] [-N dbdir] [-o owner] file1 file2\n"
-"       install [-bCcMpSsUv] [-B suffix] [-f flags] [-g group] [-l linkflags]\n"
-"               [-m mode] [-N dbdir] [-o owner] file1 ... fileN directory\n"
+"usage: install [-bCcpSsUv] [-f flags] [-g group] [-m mode] [-o owner]\n"
+"               [-M log] [-D dest] [-h hash] [-T tags]\n"
+"               [-B suffix] [-l linkflags] [-N dbdir]\n"
+"               file1 file2\n"
+"       install [-bCcpSsUv] [-f flags] [-g group] [-m mode] [-o owner]\n"
+"               [-M log] [-D dest] [-h hash] [-T tags]\n"
+"               [-B suffix] [-l linkflags] [-N dbdir]\n"
+"               file1 ... fileN directory\n"
 "       install -dU [-vU] [-g group] [-m mode] [-N dbdir] [-o owner]\n"
+"               [-M log] [-D dest] [-h hash] [-T tags]\n"
 "               directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
@@ -1050,7 +1378,7 @@ trymmap(int fd)
 #ifdef MFSNAMELEN
 	struct statfs stfs;
 
-	if (nommap || fstatfs(fd, &stfs) != 0)
+	if (fstatfs(fd, &stfs) != 0)
 		return (0);
 	if (strcmp(stfs.f_fstypename, "ufs") == 0 ||
 	    strcmp(stfs.f_fstypename, "cd9660") == 0)
