@@ -161,6 +161,14 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_procRadarEvent		= ar5416ProcessRadarEvent;
 	ah->ah_isFastClockEnabled	= ar5416IsFastClockEnabled;
 
+	/* Spectral Scan Functions */
+	ah->ah_spectralConfigure	= ar5416ConfigureSpectralScan;
+	ah->ah_spectralGetConfig	= ar5416GetSpectralParams;
+	ah->ah_spectralStart		= ar5416StartSpectralScan;
+	ah->ah_spectralStop		= ar5416StopSpectralScan;
+	ah->ah_spectralIsEnabled	= ar5416IsSpectralEnabled;
+	ah->ah_spectralIsActive		= ar5416IsSpectralActive;
+
 	/* Power Management Functions */
 	ah->ah_setPowerMode		= ar5416SetPowerMode;
 
@@ -918,6 +926,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halMcastKeySrchSupport = AH_TRUE;	/* Works on AR5416 and later */
 	pCap->halTsfAddSupport = AH_TRUE;
 	pCap->hal4AddrAggrSupport = AH_FALSE;	/* Broken in Owl */
+	pCap->halSpectralScanSupport = AH_FALSE;	/* AR9280 and later */
 
 	if (ath_hal_eepromGet(ah, AR_EEP_MAXQCU, &val) == HAL_OK)
 		pCap->halTotalQueues = val;

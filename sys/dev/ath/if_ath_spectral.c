@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Adrian Chadd, Xenion Pty Ltd
+ * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * This implements an empty DFS module.
+ * Implement some basic spectral scan control logic.
  */
 #include "opt_ath.h"
 #include "opt_inet.h"
@@ -67,141 +67,75 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <dev/ath/if_athvar.h>
-#include <dev/ath/if_athdfs.h>
+#include <dev/ath/if_ath_spectral.h>
 
 #include <dev/ath/ath_hal/ah_desc.h>
+
+struct ath_spectral_state {
+	HAL_SPECTRAL_PARAM	spectral_state;
+	int	spectral_active;
+	int	spectral_enabled;
+};
 
 /*
  * Methods which are required
  */
 
 /*
- * Attach DFS to the given interface
+ * Attach spectral to the given interface
  */
 int
-ath_dfs_attach(struct ath_softc *sc)
+ath_spectral_attach(struct ath_softc *sc)
 {
-	return (1);
-}
-
-/*
- * Detach DFS from the given interface
- */
-int
-ath_dfs_detach(struct ath_softc *sc)
-{
-	return (1);
-}
-
-/*
- * Enable radar check.  Return 1 if the driver should
- * enable radar PHY errors, or 0 if not.
- */
-int
-ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
-{
-#if 0
-	HAL_PHYERR_PARAM pe;
-
-	/* Check if the hardware supports radar reporting */
-	/* XXX TODO: migrate HAL_CAP_RADAR/HAL_CAP_AR to somewhere public! */
-	if (ath_hal_getcapability(sc->sc_ah,
-	    HAL_CAP_PHYDIAG, 0, NULL) != HAL_OK)
-		return (0);
-
-	/* Check if the current channel is radar-enabled */
-	if (! IEEE80211_IS_CHAN_DFS(chan))
-		return (0);
-
-	/* Fetch the default parameters */
-	memset(&pe, '\0', sizeof(pe));
-	if (! ath_hal_getdfsdefaultthresh(sc->sc_ah, &pe))
-		return (0);
-
-	/* Enable radar PHY error reporting */
-	sc->sc_dodfs = 1;
-
-	/* Tell the hardware to enable radar reporting */
-	pe.pe_enabled = 1;
-
-	/* Flip on extension channel events only if doing HT40 */
-	if (IEEE80211_IS_CHAN_HT40(chan))
-		pe.pe_extchannel = 1;
-	else
-		pe.pe_extchannel = 0;
-
-	ath_hal_enabledfs(sc->sc_ah, &pe);
+	struct ath_spectral_state *ss;
 
 	/*
-	 * Disable strong signal fast diversity - needed for
-	 * AR5212 and similar PHYs for reliable short pulse
-	 * duration.
+	 * If spectral isn't supported, don't error - just
+	 * quietly complete.
 	 */
-	(void) ath_hal_setcapability(sc->sc_ah, HAL_CAP_DIVERSITY, 2, 0, NULL);
+	if (! ath_hal_spectral_supported(sc->sc_ah))
+		return (0);
 
-	return (1);
-#else
+	ss = malloc(sizeof(struct ath_spectral_state),
+	    M_TEMP, M_WAITOK | M_ZERO);
+
+	if (ss == NULL) {
+		device_printf(sc->sc_dev, "%s: failed to alloc memory\n",
+		    __func__);
+		return (-ENOMEM);
+	}
+
+	sc->sc_spectral = ss;
+
+	(void) ath_hal_spectral_get_config(sc->sc_ah, &ss->spectral_state);
+
 	return (0);
-#endif
 }
 
 /*
- * Explicity disable radar reporting.
- *
- * Return 0 if it was disabled, < 0 on error.
+ * Detach spectral from the given interface
  */
 int
-ath_dfs_radar_disable(struct ath_softc *sc)
+ath_spectral_detach(struct ath_softc *sc)
 {
-#if 0
-	HAL_PHYERR_PARAM pe;
 
-	(void) ath_hal_getdfsthresh(sc->sc_ah, &pe);
-	pe.pe_enabled = 0;
-	(void) ath_hal_enabledfs(sc->sc_ah, &pe);
+	if (! ath_hal_spectral_supported(sc->sc_ah))
+		return (0);
+
+	if (sc->sc_spectral != NULL) {
+		free(sc->sc_spectral, M_TEMP);
+	}
 	return (0);
-#else
-	return (0);
-#endif
 }
 
 /*
- * Process DFS related PHY errors
- *
- * The mbuf is not "ours" and if we want a copy, we have
- * to take a copy.  It'll be freed after this function returns.
- */
-void
-ath_dfs_process_phy_err(struct ath_softc *sc, struct mbuf *m,
-    uint64_t tsf, struct ath_rx_status *rxstat)
-{
-
-}
-
-/*
- * Process the radar events and determine whether a DFS event has occured.
- *
- * This is designed to run outside of the RX processing path.
- * The RX path will call ath_dfs_tasklet_needed() to see whether
- * the task/callback running this routine needs to be called.
+ * Check whether spectral needs enabling and if so,
+ * flip it on.
  */
 int
-ath_dfs_process_radar_event(struct ath_softc *sc,
-    struct ieee80211_channel *chan)
+ath_spectral_enable(struct ath_softc *sc, struct ieee80211_channel *ch)
 {
-	return (0);
-}
 
-/*
- * Determine whether the DFS check task needs to be queued.
- *
- * This is called in the RX task when the current batch of packets
- * have been received. It will return whether there are any radar
- * events for ath_dfs_process_radar_event() to handle.
- */
-int
-ath_dfs_tasklet_needed(struct ath_softc *sc, struct ieee80211_channel *chan)
-{
 	return (0);
 }
 
@@ -213,7 +147,7 @@ ath_dfs_tasklet_needed(struct ath_softc *sc, struct ieee80211_channel *chan)
  * these two routines.
  */
 int
-ath_ioctl_phyerr(struct ath_softc *sc, struct ath_diag *ad)
+ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 {
 	unsigned int id = ad->ad_id & ATH_DIAG_ID;
 	void *indata = NULL;
@@ -221,8 +155,12 @@ ath_ioctl_phyerr(struct ath_softc *sc, struct ath_diag *ad)
 	u_int32_t insize = ad->ad_in_size;
 	u_int32_t outsize = ad->ad_out_size;
 	int error = 0;
-	HAL_PHYERR_PARAM peout;
-	HAL_PHYERR_PARAM *pe;
+	HAL_SPECTRAL_PARAM peout;
+	HAL_SPECTRAL_PARAM *pe;
+	struct ath_spectral_state *ss = sc->sc_spectral;
+
+	if (! ath_hal_spectral_supported(sc->sc_ah))
+		return (EINVAL);
 
 	if (ad->ad_id & ATH_DIAG_IN) {
 		/*
@@ -252,21 +190,37 @@ ath_ioctl_phyerr(struct ath_softc *sc, struct ath_diag *ad)
 		}
 	}
 	switch (id) {
-		case DFS_SET_THRESH:
-			if (insize < sizeof(HAL_PHYERR_PARAM)) {
+		case SPECTRAL_CONTROL_GET_PARAMS:
+			memset(&peout, 0, sizeof(peout));
+			outsize = sizeof(HAL_SPECTRAL_PARAM);
+			ath_hal_spectral_get_config(sc->sc_ah, &peout);
+			pe = (HAL_SPECTRAL_PARAM *) outdata;
+			memcpy(pe, &peout, sizeof(*pe));
+			break;
+		case SPECTRAL_CONTROL_SET_PARAMS:
+			if (insize < sizeof(HAL_SPECTRAL_PARAM)) {
 				error = EINVAL;
 				break;
 			}
-			pe = (HAL_PHYERR_PARAM *) indata;
-			ath_hal_enabledfs(sc->sc_ah, pe);
+			pe = (HAL_SPECTRAL_PARAM *) indata;
+			ath_hal_spectral_configure(sc->sc_ah, pe);
+			/* Save a local copy of the updated parameters */
+			ath_hal_spectral_get_config(sc->sc_ah,
+			    &ss->spectral_state);
 			break;
-		case DFS_GET_THRESH:
-			memset(&peout, 0, sizeof(peout));
-			outsize = sizeof(HAL_PHYERR_PARAM);
-			ath_hal_getdfsthresh(sc->sc_ah, &peout);
-			pe = (HAL_PHYERR_PARAM *) outdata;
-			memcpy(pe, &peout, sizeof(*pe));
+		case SPECTRAL_CONTROL_START:
+			ath_hal_spectral_configure(sc->sc_ah,
+			    &ss->spectral_state);
+			(void) ath_hal_spectral_start(sc->sc_ah);
 			break;
+		case SPECTRAL_CONTROL_STOP:
+			(void) ath_hal_spectral_stop(sc->sc_ah);
+			break;
+		case SPECTRAL_CONTROL_ENABLE:
+			/* XXX TODO */
+		case SPECTRAL_CONTROL_DISABLE:
+			/* XXX TODO */
+		break;
 		default:
 			error = EINVAL;
 	}
@@ -282,12 +236,3 @@ bad:
 	return (error);
 }
 
-/*
- * Get the current DFS thresholds from the HAL
- */
-int
-ath_dfs_get_thresholds(struct ath_softc *sc, HAL_PHYERR_PARAM *param)
-{
-	ath_hal_getdfsthresh(sc->sc_ah, param);
-	return (1);
-}

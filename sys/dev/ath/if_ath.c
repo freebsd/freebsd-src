@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_rx_edma.h>
 #include <dev/ath/if_ath_tx_edma.h>
 #include <dev/ath/if_ath_beacon.h>
+#include <dev/ath/if_ath_spectral.h>
 #include <dev/ath/if_athdfs.h>
 
 #ifdef ATH_TX99_DIAG
@@ -506,6 +507,14 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (! ath_dfs_attach(sc)) {
 		device_printf(sc->sc_dev,
 		    "%s: unable to attach DFS\n", __func__);
+		error = EIO;
+		goto bad2;
+	}
+
+	/* Attach spectral module */
+	if (ath_spectral_attach(sc) < 0) {
+		device_printf(sc->sc_dev,
+		    "%s: unable to attach spectral\n", __func__);
 		error = EIO;
 		goto bad2;
 	}
@@ -967,6 +976,7 @@ ath_detach(struct ath_softc *sc)
 	if_ath_alq_tidyup(&sc->sc_alq);
 #endif
 
+	ath_spectral_detach(sc);
 	ath_dfs_detach(sc);
 	ath_desc_free(sc);
 	ath_txdma_teardown(sc);
@@ -1489,6 +1499,9 @@ ath_resume(struct ath_softc *sc)
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
 
+	/* Let spectral at in case spectral is enabled */
+	ath_spectral_enable(sc, ic->ic_curchan);
+
 	/* Restore the LED configuration */
 	ath_led_config(sc);
 	ath_hal_setledstate(ah, HAL_LED_INIT);
@@ -1918,6 +1931,9 @@ ath_init(void *arg)
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
 
+	/* Let spectral at in case spectral is enabled */
+	ath_spectral_enable(sc, ic->ic_curchan);
+
 	/*
 	 * Likewise this is set during reset so update
 	 * state cached in the driver.
@@ -2225,6 +2241,9 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
+
+	/* Let spectral at in case spectral is enabled */
+	ath_spectral_enable(sc, ic->ic_curchan);
 
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
@@ -4402,6 +4421,9 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		/* Let DFS at it in case it's a DFS channel */
 		ath_dfs_radar_enable(sc, chan);
 
+		/* Let spectral at in case spectral is enabled */
+		ath_spectral_enable(sc, chan);
+
 		/*
 		 * Re-enable rx framework.
 		 */
@@ -5384,6 +5406,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ath_ioctl_phyerr(sc,(struct ath_diag*) ifr);
 		break;
 #endif
+	case SIOCGATHSPECTRAL:
+		error = ath_ioctl_spectral(sc,(struct ath_diag*) ifr);
+		break;
 	case SIOCGATHNODERATESTATS:
 		error = ath_ioctl_ratestats(sc, (struct ath_rateioctl *) ifr);
 		break;

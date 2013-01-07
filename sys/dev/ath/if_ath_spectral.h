@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Adrian Chadd, Xenion Pty Ltd
+ * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,22 +28,13 @@
  *
  * $FreeBSD$
  */
-#ifndef	__IF_ATHDFS_H__
-#define	__IF_ATHDFS_H__
+#ifndef	__IF_ATH_SPECTRAL_H__
+#define	__IF_ATH_SPECTRAL_H__
 
-extern	int ath_dfs_attach(struct ath_softc *sc);
-extern	int ath_dfs_detach(struct ath_softc *sc);
-extern	int ath_dfs_radar_enable(struct ath_softc *,
-    struct ieee80211_channel *chan);
-extern	int ath_dfs_radar_disable(struct ath_softc *sc);
-extern	void ath_dfs_process_phy_err(struct ath_softc *sc, struct mbuf *m,
-    uint64_t tsf, struct ath_rx_status *rxstat);
-extern	int ath_dfs_process_radar_event(struct ath_softc *sc,
-    struct ieee80211_channel *chan);
-extern	int ath_dfs_tasklet_needed(struct ath_softc *sc,
-    struct ieee80211_channel *chan);
-extern	int ath_ioctl_phyerr(struct ath_softc *sc, struct ath_diag *ad);
-extern	int ath_dfs_get_thresholds(struct ath_softc *sc,
-    HAL_PHYERR_PARAM *param);
+extern	int ath_spectral_attach(struct ath_softc *sc);
+extern	int ath_spectral_detach(struct ath_softc *sc);
+extern	int ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad);
+extern	int ath_spectral_enable(struct ath_softc *sc,
+	    struct ieee80211_channel *ch);
 
-#endif	/* __IF_ATHDFS_H__ */
+#endif	/* __IF_ATH_SPECTRAL_H__ */

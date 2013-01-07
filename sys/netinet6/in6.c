@@ -1874,18 +1874,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	ia->ia_addr = *sin6;
 
 	if (ifacount <= 1 && ifp->if_ioctl) {
-		int flags;
-
-		/*
-		 * Historically, drivers managed IFF_UP flag theirselves, so we
-		 * need to check whether driver did that.
-		 */
-		flags = ifp->if_flags;
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
 		if (error)
 			return (error);
-		if ((ifp->if_flags & IFF_UP) && (flags & IFF_UP) == 0)
-			if_up(ifp);
 	}
 
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
