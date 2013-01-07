@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "inout.h"
 
@@ -51,36 +52,42 @@ __FBSDID("$FreeBSD$");
 
 #define PMTMR_FREQ	3579545  /* 3.579545MHz */
 
-static uint32_t	pmtmr_tscf;
-static uint32_t	pmtmr_old;
+static pthread_mutex_t pmtmr_mtx;
+static uint64_t	pmtmr_tscf;
+static uint64_t	pmtmr_old;
 static uint64_t	pmtmr_tsc_old;
 
 static uint32_t
 pmtmr_val(void)
 {
 	uint64_t	pmtmr_tsc_new;
-	uint32_t	pmtmr_new;
+	uint64_t	pmtmr_new;
 	static int	inited = 0;
 
 	if (!inited) {
 		size_t len;
+		uint32_t tmpf;
 
 		inited = 1;
-		len = sizeof(pmtmr_tscf);
-		sysctlbyname("machdep.tsc_freq", &pmtmr_tscf, &len,
+		pthread_mutex_init(&pmtmr_mtx, NULL);
+		len = sizeof(tmpf);
+		sysctlbyname("machdep.tsc_freq", &tmpf, &len,
 		    NULL, 0);
+		pmtmr_tscf = tmpf;
 		pmtmr_tsc_old = rdtsc();
 		pmtmr_old = pmtmr_tsc_old / pmtmr_tscf * PMTMR_FREQ;
 		return (pmtmr_old);
 	}
 
+	pthread_mutex_lock(&pmtmr_mtx);
 	pmtmr_tsc_new = rdtsc();
 	pmtmr_new = (pmtmr_tsc_new - pmtmr_tsc_old) * PMTMR_FREQ / pmtmr_tscf +
 	    pmtmr_old;
 	pmtmr_old = pmtmr_new;
 	pmtmr_tsc_old = pmtmr_tsc_new;
+	pthread_mutex_unlock(&pmtmr_mtx);
 
-	return (pmtmr_old); 
+	return (pmtmr_new); 
 }
 
 static int
