@@ -357,7 +357,7 @@ main(int argc, char *argv[])
 			errno = EFTYPE;
 			err(EX_OSERR, "%s", to_name);
 		}
-		if (to_sb.st_dev == from_sb.st_dev &&
+		if (!dolink && to_sb.st_dev == from_sb.st_dev &&
 		    to_sb.st_ino == from_sb.st_ino)
 			errx(EX_USAGE, 
 			    "%s and %s are the same file", *argv, to_name);
