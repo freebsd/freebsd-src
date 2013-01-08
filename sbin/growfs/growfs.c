@@ -1487,6 +1487,12 @@ main(int argc, char **argv)
 		}
 	}
 
+	/*
+	 * Make sure the new size is a multiple of fs_fsize; /dev/ufssuspend
+	 * only supports fragment-aligned IO requests.
+	 */
+	size -= size % osblock.fs_fsize;
+
 	if (size <= (uint64_t)(osblock.fs_size * osblock.fs_fsize)) {
 		humanize_number(oldsizebuf, sizeof(oldsizebuf),
 		    osblock.fs_size * osblock.fs_fsize,
@@ -1605,17 +1611,20 @@ main(int argc, char **argv)
 	}
 	sblock.fs_ncg = howmany(sblock.fs_size, sblock.fs_fpg);
 
+	/*
+	 * Allocate last cylinder group only if there is enough room
+	 * for at least one data block.
+	 */
 	if (sblock.fs_size % sblock.fs_fpg != 0 &&
-	    sblock.fs_size % sblock.fs_fpg < cgdmin(&sblock, sblock.fs_ncg)) {
-		/*
-		 * The space in the new last cylinder group is too small,
-		 * so revert back.
-		 */
+	    sblock.fs_size <= cgdmin(&sblock, sblock.fs_ncg - 1)) {
+		humanize_number(oldsizebuf, sizeof(oldsizebuf),
+		    (sblock.fs_size % sblock.fs_fpg) * sblock.fs_fsize,
+		    "B", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+		warnx("no room to allocate last cylinder group; "
+		    "leaving %s unused", oldsizebuf);
 		sblock.fs_ncg--;
 		if (sblock.fs_magic == FS_UFS1_MAGIC)
 			sblock.fs_old_ncyl = sblock.fs_ncg * sblock.fs_old_cpg;
-		printf("Warning: %jd sector(s) cannot be allocated.\n",
-		    (intmax_t)fsbtodb(&sblock, sblock.fs_size % sblock.fs_fpg));
 		sblock.fs_size = sblock.fs_ncg * sblock.fs_fpg;
 	}
 

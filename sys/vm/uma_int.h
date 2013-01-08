@@ -329,7 +329,7 @@ struct uma_zone {
 	u_int64_t	uz_fails;	/* Total number of alloc failures */
 	u_int64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
-	uint16_t	uz_count;	/* Highest value ub_ptr can have */
+	uint16_t	uz_count;	/* Highest amount of items in bucket */
 
 	/* The next three fields are used to print a rate-limited warnings. */
 	const char	*uz_warning;	/* Warning to print on failure */

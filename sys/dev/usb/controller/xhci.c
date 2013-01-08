@@ -1459,7 +1459,9 @@ xhci_interrupt(struct xhci_softc *sc)
 	DPRINTFN(16, "real interrupt (sts=0x%08x, "
 	    "iman=0x%08x)\n", status, temp);
 
-	if (status != 0) {
+	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
+	    XHCI_STS_HSE | XHCI_STS_HCE)) {
+
 		if (status & XHCI_STS_PCD) {
 			xhci_root_intr(sc);
 		}
@@ -1480,7 +1482,9 @@ xhci_interrupt(struct xhci_softc *sc)
 		}
 	}
 
-	xhci_interrupt_poll(sc);
+	/* check if we need to check the event rings */
+	if ((status != 0) || (temp & XHCI_IMAN_INTR_PEND))
+		xhci_interrupt_poll(sc);
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }

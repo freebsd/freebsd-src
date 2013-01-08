@@ -358,8 +358,7 @@ usb_dma_tag_create(struct usb_dma_tag *udt,
 	if (bus_dma_tag_create
 	    ( /* parent    */ udt->tag_parent->tag,
 	     /* alignment */ align,
-	     /* boundary  */ (align == 1) ?
-	    USB_PAGE_SIZE : 0,
+	     /* boundary  */ 0,
 	     /* lowaddr   */ (2ULL << (udt->tag_parent->dma_bits - 1)) - 1,
 	     /* highaddr  */ BUS_SPACE_MAXADDR,
 	     /* filter    */ NULL,
@@ -418,6 +417,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	struct usb_page_cache *pc;
 	struct usb_page *pg;
 	usb_size_t rem;
+	bus_size_t off;
 	uint8_t owned;
 
 	pc = arg;
@@ -433,6 +433,8 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	if (error) {
 		goto done;
 	}
+
+	off = 0;
 	pg = pc->page_start;
 	pg->physaddr = segs->ds_addr & ~(USB_PAGE_SIZE - 1);
 	rem = segs->ds_addr & (USB_PAGE_SIZE - 1);
@@ -450,10 +452,16 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	}
 #endif
 	while (nseg > 0) {
-		nseg--;
-		segs++;
+		off += USB_PAGE_SIZE;
+		if (off >= (segs->ds_len + rem)) {
+			/* page crossing */
+			nseg--;
+			segs++;
+			off = 0;
+			rem = 0;
+		}
 		pg++;
-		pg->physaddr = segs->ds_addr & ~(USB_PAGE_SIZE - 1);
+		pg->physaddr = (segs->ds_addr + off) & ~(USB_PAGE_SIZE - 1);
 	}
 
 done:

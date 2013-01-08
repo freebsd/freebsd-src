@@ -265,6 +265,16 @@ extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
 	    HAL_DFS_EVENT *event);
 extern	HAL_BOOL ar5416IsFastClockEnabled(struct ath_hal *ah);
 
+/* ar9280_spectral.c */
+extern	void ar5416ConfigureSpectralScan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss);
+extern	void ar5416GetSpectralParams(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss);
+extern	HAL_BOOL ar5416IsSpectralActive(struct ath_hal *ah);
+extern	HAL_BOOL ar5416IsSpectralEnabled(struct ath_hal *ah);
+extern	void ar5416StartSpectralScan(struct ath_hal *ah);
+extern	void ar5416StopSpectralScan(struct ath_hal *ah);
+extern	uint32_t ar5416GetSpectralConfig(struct ath_hal *ah);
+extern	void ar5416RestoreSpectralConfig(struct ath_hal *ah, uint32_t restoreval);
+
 extern	HAL_BOOL ar5416SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
 extern	HAL_POWER_MODE ar5416GetPowerMode(struct ath_hal *ah);

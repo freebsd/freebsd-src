@@ -1,10 +1,9 @@
-/*	$OpenBSD: pf_if.c,v 1.54 2008/06/14 16:55:28 mk Exp $ */
-
-/*
- * Copyright 2005 Henning Brauer <henning@openbsd.org>
- * Copyright 2005 Ryan McBride <mcbride@openbsd.org>
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2003 Cedric Berger
+ * Copyright (c) 2005 Henning Brauer <henning@openbsd.org>
+ * Copyright (c) 2005 Ryan McBride <mcbride@openbsd.org>
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,10 +29,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$OpenBSD: pf_if.c,v 1.54 2008/06/14 16:55:28 mk Exp $
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
@@ -478,10 +478,10 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 	if (kif->pfik_ifp != NULL)
 		pfi_instance_add(kif->pfik_ifp, net, flags);
 	else if (kif->pfik_group != NULL) {
-		IFNET_RLOCK();
+		IFNET_RLOCK_NOSLEEP();
 		TAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members, ifgm_next)
 			pfi_instance_add(ifgm->ifgm_ifp, net, flags);
-		IFNET_RUNLOCK();
+		IFNET_RUNLOCK_NOSLEEP();
 	}
 
 	if ((e = pfr_set_addrs(&kt->pfrkt_t, V_pfi_buffer, V_pfi_buffer_cnt, &size2,

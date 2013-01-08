@@ -1,7 +1,7 @@
 dnl macros used for DIALOG configure script
-dnl $Id: aclocal.m4,v 1.87 2012/02/16 02:11:26 tom Exp $
+dnl $Id: aclocal.m4,v 1.82 2011/06/28 22:48:31 tom Exp $
 dnl ---------------------------------------------------------------------------
-dnl Copyright 1999-2011,2012 -- Thomas E. Dickey
+dnl Copyright 1999-2010,2011 -- Thomas E. Dickey
 dnl
 dnl Permission is hereby granted, free of charge, to any person obtaining a
 dnl copy of this software and associated documentation files (the
@@ -591,31 +591,6 @@ changequote([,])dnl
   GENCAT=gencat
   AC_SUBST(GENCAT)
 ])dnl
-dnl ---------------------------------------------------------------------------
-dnl CF_ACVERSION_CHECK version: 2 updated: 2011/05/08 11:22:03
-dnl ------------------
-dnl Conditionally generate script according to whether we're using a given autoconf.
-dnl
-dnl $1 = version to compare against
-dnl $2 = code to use if AC_ACVERSION is at least as high as $1.
-dnl $3 = code to use if AC_ACVERSION is older than $1.
-define(CF_ACVERSION_CHECK,
-[
-ifdef([m4_version_compare],
-[m4_if(m4_version_compare(m4_defn([AC_ACVERSION]), [$1]), -1, [$3], [$2])],
-[CF_ACVERSION_COMPARE(
-AC_PREREQ_CANON(AC_PREREQ_SPLIT([$1])),
-AC_PREREQ_CANON(AC_PREREQ_SPLIT(AC_ACVERSION)), AC_ACVERSION, [$2], [$3])])])dnl
-dnl ---------------------------------------------------------------------------
-dnl CF_ACVERSION_COMPARE version: 2 updated: 2011/04/14 20:56:50
-dnl --------------------
-dnl CF_ACVERSION_COMPARE(MAJOR1, MINOR1, TERNARY1,
-dnl                      MAJOR2, MINOR2, TERNARY2,
-dnl                      PRINTABLE2, not FOUND, FOUND)
-define(CF_ACVERSION_COMPARE,
-[ifelse(builtin([eval], [$2 < $5]), 1,
-[ifelse([$8], , ,[$8])],
-[ifelse([$9], , ,[$9])])])dnl
 dnl ---------------------------------------------------------------------------
 dnl CF_AC_PREREQ version: 2 updated: 1997/09/06 13:24:56
 dnl ------------
@@ -1252,7 +1227,7 @@ fi
 AC_CHECK_HEADERS($cf_cv_ncurses_header)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_CURSES_LIBS version: 35 updated: 2011/08/09 21:06:37
+dnl CF_CURSES_LIBS version: 34 updated: 2011/04/09 14:51:08
 dnl --------------
 dnl Look for the curses libraries.  Older curses implementations may require
 dnl termcap/termlib to be linked as well.  Call CF_CURSES_CPPFLAGS first.
@@ -1332,7 +1307,7 @@ if test ".$ac_cv_func_initscr" != .yes ; then
     # Check for library containing tgoto.  Do this before curses library
     # because it may be needed to link the test-case for initscr.
     AC_CHECK_FUNC(tgoto,[cf_term_lib=predefined],[
-        for cf_term_lib in $cf_check_list otermcap termcap termlib unknown
+        for cf_term_lib in $cf_check_list termcap termlib unknown
         do
             AC_CHECK_LIB($cf_term_lib,tgoto,[break])
         done
@@ -1556,30 +1531,6 @@ fi
 ])
 
 test "$cf_cv_curses_wacs_symbols" != no && AC_DEFINE(CURSES_WACS_SYMBOLS)
-])dnl
-dnl ---------------------------------------------------------------------------
-dnl CF_CURSES_WGETPARENT version: 2 updated: 2011/10/17 20:12:04
-dnl --------------------
-dnl Check for curses support for directly determining the parent of a given
-dnl window.  Some implementations make this difficult, so we provide for
-dnl defining an application-specific function that gives this functionality.
-dnl
-dnl $1 = name of function to use if the feature is missing
-AC_DEFUN([CF_CURSES_WGETPARENT],[
-CF_CURSES_FUNCS(wgetparent)
-if test "x$cf_cv_func_wgetparent" != xyes
-then
-	AC_MSG_CHECKING(if WINDOW has _parent member)
-	AC_TRY_COMPILE([#include <${cf_cv_ncurses_header:-curses.h}>],
-		[WINDOW *p = stdscr->_parent],
-		[cf_window__parent=yes],
-		[cf_window__parent=no])
-	AC_MSG_RESULT($cf_window__parent)
-	if test "$cf_window__parent" = yes
-	then
-		AC_DEFINE(HAVE_WINDOW__PARENT)
-	fi
-fi
 ])dnl
 dnl ---------------------------------------------------------------------------
 dnl CF_DIRNAME version: 4 updated: 2002/12/21 19:25:52
@@ -2386,7 +2337,7 @@ ifdef([AC_FUNC_FSEEKO],[
 ])
 ])
 dnl ---------------------------------------------------------------------------
-dnl CF_LD_RPATH_OPT version: 5 updated: 2011/07/17 14:48:41
+dnl CF_LD_RPATH_OPT version: 4 updated: 2011/06/04 20:09:13
 dnl ---------------
 dnl For the given system and compiler, find the compiler flags to pass to the
 dnl loader to use the "rpath" feature.
@@ -2410,7 +2361,7 @@ linux*|gnu*|k*bsd*-gnu) #(vi
 openbsd[[2-9]].*|mirbsd*) #(vi
 	LD_RPATH_OPT="-Wl,-rpath,"
 	;;
-dragonfly*|freebsd*) #(vi
+freebsd*) #(vi
 	LD_RPATH_OPT="-rpath "
 	;;
 netbsd*) #(vi
@@ -2469,11 +2420,11 @@ CF_SUBDIR_PATH($1,$2,lib)
 $1="$cf_library_path_list [$]$1"
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_LIB_PREFIX version: 9 updated: 2012/01/21 19:28:10
+dnl CF_LIB_PREFIX version: 8 updated: 2008/09/13 11:34:16
 dnl -------------
 dnl Compute the library-prefix for the given host system
 dnl $1 = variable to set
-define([CF_LIB_PREFIX],
+AC_DEFUN([CF_LIB_PREFIX],
 [
 	case $cf_cv_system_name in #(vi
 	OS/2*|os2*) #(vi
@@ -2694,7 +2645,7 @@ printf("old\n");
 	,[$1=no])
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_NCURSES_CONFIG version: 9 updated: 2011/11/26 15:42:05
+dnl CF_NCURSES_CONFIG version: 8 updated: 2010/07/08 05:17:30
 dnl -----------------
 dnl Tie together the configure-script macros for ncurses.
 dnl Prefer the "-config" script from ncurses 6.x, to simplify analysis.
@@ -2706,10 +2657,7 @@ AC_DEFUN([CF_NCURSES_CONFIG],
 cf_ncuconfig_root=ifelse($1,,ncurses,$1)
 
 echo "Looking for ${cf_ncuconfig_root}-config"
-
-CF_ACVERSION_CHECK(2.52,
-	[AC_CHECK_TOOLS(NCURSES_CONFIG, ${cf_ncuconfig_root}6-config ${cf_ncuconfig_root}5-config, none)],
-	[AC_PATH_PROGS(NCURSES_CONFIG, ${cf_ncuconfig_root}6-config ${cf_ncuconfig_root}5-config, none)])
+AC_PATH_PROGS(NCURSES_CONFIG,${cf_ncuconfig_root}6-config ${cf_ncuconfig_root}5-config,none)
 
 if test "$NCURSES_CONFIG" != none ; then
 
@@ -3223,14 +3171,6 @@ AC_SUBST(PROG_EXT)
 test -n "$PROG_EXT" && AC_DEFINE_UNQUOTED(PROG_EXT,"$PROG_EXT")
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_PROG_LINT version: 2 updated: 2009/08/12 04:43:14
-dnl ------------
-AC_DEFUN([CF_PROG_LINT],
-[
-AC_CHECK_PROGS(LINT, tdlint lint alint splint lclint)
-AC_SUBST(LINT_OPTS)
-])dnl
-dnl ---------------------------------------------------------------------------
 dnl CF_REMOVE_DEFINE version: 3 updated: 2010/01/09 11:05:50
 dnl ----------------
 dnl Remove all -U and -D options that refer to the given symbol from a list
@@ -3477,45 +3417,6 @@ ncursesw/term.h)
 	;;
 esac
 ])dnl
-dnl ---------------------------------------------------------------------------
-dnl CF_TRY_XOPEN_SOURCE version: 1 updated: 2011/10/30 17:09:50
-dnl -------------------
-dnl If _XOPEN_SOURCE is not defined in the compile environment, check if we
-dnl can define it successfully.
-AC_DEFUN([CF_TRY_XOPEN_SOURCE],[
-AC_CACHE_CHECK(if we should define _XOPEN_SOURCE,cf_cv_xopen_source,[
-	AC_TRY_COMPILE([
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-],[
-#ifndef _XOPEN_SOURCE
-make an error
-#endif],
-	[cf_cv_xopen_source=no],
-	[cf_save="$CPPFLAGS"
-	 CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=$cf_XOPEN_SOURCE"
-	 AC_TRY_COMPILE([
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-],[
-#ifdef _XOPEN_SOURCE
-make an error
-#endif],
-	[cf_cv_xopen_source=no],
-	[cf_cv_xopen_source=$cf_XOPEN_SOURCE])
-	CPPFLAGS="$cf_save"
-	])
-])
-
-if test "$cf_cv_xopen_source" != no ; then
-	CF_REMOVE_DEFINE(CFLAGS,$CFLAGS,_XOPEN_SOURCE)
-	CF_REMOVE_DEFINE(CPPFLAGS,$CPPFLAGS,_XOPEN_SOURCE)
-	cf_temp_xopen_source="-D_XOPEN_SOURCE=$cf_cv_xopen_source"
-	CF_ADD_CFLAGS($cf_temp_xopen_source)
-fi
-])
 dnl ---------------------------------------------------------------------------
 dnl CF_UNION_WAIT version: 5 updated: 1997/11/23 14:49:44
 dnl -------------
@@ -3779,7 +3680,7 @@ if test "$with_dmalloc" = yes ; then
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_WITH_LIBTOOL version: 28 updated: 2011/07/02 15:40:32
+dnl CF_WITH_LIBTOOL version: 27 updated: 2011/06/28 18:45:38
 dnl ---------------
 dnl Provide a configure option to incorporate libtool.  Define several useful
 dnl symbols for the makefile rules.
@@ -3880,7 +3781,7 @@ ifdef([AC_PROG_LIBTOOL],[
 	# special hack to add -no-undefined (which libtool should do for itself)
 	LT_UNDEF=
 	case "$cf_cv_system_name" in #(vi
-	cygwin*|mingw32*|uwin*|aix[[4-7]]) #(vi
+	cygwin*|mingw32*|uwin*|aix[[456]]) #(vi
 		LT_UNDEF=-no-undefined
 		;;
 	esac
@@ -4049,7 +3950,7 @@ AC_TRY_LINK([
 test $cf_cv_need_xopen_extension = yes && CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE_EXTENDED"
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_XOPEN_SOURCE version: 42 updated: 2012/01/07 08:26:49
+dnl CF_XOPEN_SOURCE version: 35 updated: 2011/02/20 20:37:37
 dnl ---------------
 dnl Try to get _XOPEN_SOURCE defined properly that we can use POSIX functions,
 dnl or adapt to the vendor's definitions to get equivalent functionality,
@@ -4065,7 +3966,7 @@ cf_POSIX_C_SOURCE=ifelse([$2],,199506L,[$2])
 cf_xopen_source=
 
 case $host_os in #(vi
-aix[[4-7]]*) #(vi
+aix[[456]]*) #(vi
 	cf_xopen_source="-D_ALL_SOURCE"
 	;;
 cygwin) #(vi
@@ -4076,7 +3977,6 @@ darwin[[0-8]].*) #(vi
 	;;
 darwin*) #(vi
 	cf_xopen_source="-D_DARWIN_C_SOURCE"
-	cf_XOPEN_SOURCE=
 	;;
 freebsd*|dragonfly*) #(vi
 	# 5.x headers associate
@@ -4094,23 +3994,15 @@ hpux*) #(vi
 	;;
 irix[[56]].*) #(vi
 	cf_xopen_source="-D_SGI_SOURCE"
-	cf_XOPEN_SOURCE=
 	;;
 linux*|gnu*|mint*|k*bsd*-gnu) #(vi
 	CF_GNU_SOURCE
 	;;
 mirbsd*) #(vi
-	# setting _XOPEN_SOURCE or _POSIX_SOURCE breaks <sys/select.h> and other headers which use u_int / u_short types
-	cf_XOPEN_SOURCE=
-	CF_POSIX_C_SOURCE($cf_POSIX_C_SOURCE)
+	# setting _XOPEN_SOURCE or _POSIX_SOURCE breaks <arpa/inet.h>
 	;;
 netbsd*) #(vi
-	cf_xopen_source="-D_NETBSD_SOURCE" # setting _XOPEN_SOURCE breaks IPv6 for lynx on NetBSD 1.6, breaks xterm, is not needed for ncursesw
-	;;
-openbsd[[4-9]]*) #(vi
-	# setting _XOPEN_SOURCE lower than 500 breaks g++ compile with wchar.h, needed for ncursesw
-	cf_xopen_source="-D_BSD_SOURCE"
-	cf_XOPEN_SOURCE=600
+	# setting _XOPEN_SOURCE breaks IPv6 for lynx on NetBSD 1.6, breaks xterm, is not needed for ncursesw
 	;;
 openbsd*) #(vi
 	# setting _XOPEN_SOURCE breaks xterm on OpenBSD 2.8, is not needed for ncursesw
@@ -4124,46 +4016,42 @@ nto-qnx*) #(vi
 sco*) #(vi
 	# setting _XOPEN_SOURCE breaks Lynx on SCO Unix / OpenServer
 	;;
-solaris2.*) #(vi
+solaris2.1[[0-9]]) #(vi
+	cf_xopen_source="-D__EXTENSIONS__ -D_XOPEN_SOURCE=$cf_XOPEN_SOURCE"
+	;;
+solaris2.[[1-9]]) #(vi
 	cf_xopen_source="-D__EXTENSIONS__"
 	;;
 *)
-	CF_TRY_XOPEN_SOURCE
+	AC_CACHE_CHECK(if we should define _XOPEN_SOURCE,cf_cv_xopen_source,[
+	AC_TRY_COMPILE([#include <sys/types.h>],[
+#ifndef _XOPEN_SOURCE
+make an error
+#endif],
+	[cf_cv_xopen_source=no],
+	[cf_save="$CPPFLAGS"
+	 CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE=$cf_XOPEN_SOURCE"
+	 AC_TRY_COMPILE([#include <sys/types.h>],[
+#ifdef _XOPEN_SOURCE
+make an error
+#endif],
+	[cf_cv_xopen_source=no],
+	[cf_cv_xopen_source=$cf_XOPEN_SOURCE])
+	CPPFLAGS="$cf_save"
+	])
+])
+	if test "$cf_cv_xopen_source" != no ; then
+		CF_REMOVE_DEFINE(CFLAGS,$CFLAGS,_XOPEN_SOURCE)
+		CF_REMOVE_DEFINE(CPPFLAGS,$CPPFLAGS,_XOPEN_SOURCE)
+		cf_temp_xopen_source="-D_XOPEN_SOURCE=$cf_cv_xopen_source"
+		CF_ADD_CFLAGS($cf_temp_xopen_source)
+	fi
 	CF_POSIX_C_SOURCE($cf_POSIX_C_SOURCE)
 	;;
 esac
 
 if test -n "$cf_xopen_source" ; then
 	CF_ADD_CFLAGS($cf_xopen_source)
-fi
-
-dnl In anything but the default case, we may have system-specific setting
-dnl which is still not guaranteed to provide all of the entrypoints that
-dnl _XOPEN_SOURCE would yield.
-if test -n "$cf_XOPEN_SOURCE" && test -z "$cf_cv_xopen_source" ; then
-	AC_MSG_CHECKING(if _XOPEN_SOURCE really is set)
-	AC_TRY_COMPILE([#include <stdlib.h>],[
-#ifndef _XOPEN_SOURCE
-make an error
-#endif],
-	[cf_XOPEN_SOURCE_set=yes],
-	[cf_XOPEN_SOURCE_set=no])
-	AC_MSG_RESULT($cf_XOPEN_SOURCE_set)
-	if test $cf_XOPEN_SOURCE_set = yes
-	then
-		AC_TRY_COMPILE([#include <stdlib.h>],[
-#if (_XOPEN_SOURCE - 0) < $cf_XOPEN_SOURCE
-make an error
-#endif],
-		[cf_XOPEN_SOURCE_set_ok=yes],
-		[cf_XOPEN_SOURCE_set_ok=no])
-		if test $cf_XOPEN_SOURCE_set_ok = no
-		then
-			AC_MSG_WARN(_XOPEN_SOURCE is lower than requested)
-		fi
-	else
-		CF_TRY_XOPEN_SOURCE
-	fi
 fi
 ])
 dnl ---------------------------------------------------------------------------

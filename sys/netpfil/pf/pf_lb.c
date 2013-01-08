@@ -1,6 +1,4 @@
-/*	$OpenBSD: pf_lb.c,v 1.2 2009/02/12 02:13:15 sthen Exp $ */
-
-/*
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002 - 2008 Henning Brauer
  * All rights reserved.
@@ -33,6 +31,7 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
+ *	$OpenBSD: pf_lb.c,v 1.2 2009/02/12 02:13:15 sthen Exp $
  */
 
 #include <sys/cdefs.h>

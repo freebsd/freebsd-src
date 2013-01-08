@@ -407,7 +407,7 @@ print_group(struct group * grp, int pretty)
 		char           *buf = NULL;
 
 		buf = gr_make(grp);
-		fputs(buf, stdout);
+		printf("%s\n", buf);
 		free(buf);
 	} else {
 		int             i;

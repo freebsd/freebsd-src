@@ -847,7 +847,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	/* Free the directory entry we just deleted.  Note that the node
 	 * referred by it will not be removed until the vnode is really
 	 * reclaimed. */
-	tmpfs_free_dirent(tmp, de, TRUE);
+	tmpfs_free_dirent(tmp, de);
 
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
 	error = 0;
@@ -1263,26 +1263,25 @@ tmpfs_rename(struct vop_rename_args *v)
 			fdnode->tn_links--;
 			TMPFS_NODE_UNLOCK(fdnode);
 		}
-
-		/* Do the move: just remove the entry from the source directory
-		 * and insert it into the target one. */
-		tmpfs_dir_detach(fdvp, de);
-		if (fcnp->cn_flags & DOWHITEOUT)
-			tmpfs_dir_whiteout_add(fdvp, fcnp);
-		if (tcnp->cn_flags & ISWHITEOUT)
-			tmpfs_dir_whiteout_remove(tdvp, tcnp);
-		tmpfs_dir_attach(tdvp, de);
 	}
+
+	/* Do the move: just remove the entry from the source directory
+	 * and insert it into the target one. */
+	tmpfs_dir_detach(fdvp, de);
+
+	if (fcnp->cn_flags & DOWHITEOUT)
+		tmpfs_dir_whiteout_add(fdvp, fcnp);
+	if (tcnp->cn_flags & ISWHITEOUT)
+		tmpfs_dir_whiteout_remove(tdvp, tcnp);
 
 	/* If the name has changed, we need to make it effective by changing
 	 * it in the directory entry. */
 	if (newname != NULL) {
 		MPASS(tcnp->cn_namelen <= MAXNAMLEN);
 
-		free(de->td_name, M_TMPFSNAME);
-		de->td_namelen = (uint16_t)tcnp->cn_namelen;
-		memcpy(newname, tcnp->cn_nameptr, tcnp->cn_namelen);
-		de->td_name = newname;
+		free(de->ud.td_name, M_TMPFSNAME);
+		de->ud.td_name = newname;
+		tmpfs_dirent_init(de, tcnp->cn_nameptr, tcnp->cn_namelen);
 
 		fnode->tn_status |= TMPFS_NODE_CHANGED;
 		tdnode->tn_status |= TMPFS_NODE_MODIFIED;
@@ -1291,15 +1290,20 @@ tmpfs_rename(struct vop_rename_args *v)
 	/* If we are overwriting an entry, we have to remove the old one
 	 * from the target directory. */
 	if (tvp != NULL) {
+		struct tmpfs_dirent *tde;
+
 		/* Remove the old entry from the target directory. */
-		de = tmpfs_dir_lookup(tdnode, tnode, tcnp);
-		tmpfs_dir_detach(tdvp, de);
+		tde = tmpfs_dir_lookup(tdnode, tnode, tcnp);
+		tmpfs_dir_detach(tdvp, tde);
 
 		/* Free the directory entry we just deleted.  Note that the
 		 * node referred by it will not be removed until the vnode is
 		 * really reclaimed. */
-		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), de, TRUE);
+		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), tde);
 	}
+
+	tmpfs_dir_attach(tdvp, de);
+
 	cache_purge(fvp);
 	if (tvp != NULL)
 		cache_purge(tvp);
@@ -1427,7 +1431,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	/* Free the directory entry we just deleted.  Note that the node
 	 * referred by it will not be removed until the vnode is really
 	 * reclaimed. */
-	tmpfs_free_dirent(tmp, de, TRUE);
+	tmpfs_free_dirent(tmp, de);
 
 	/* Release the deleted vnode (will destroy the node, notify
 	 * interested parties and clean it from the cache). */
@@ -1473,8 +1477,8 @@ tmpfs_readdir(struct vop_readdir_args *v)
 	int *ncookies = v->a_ncookies;
 
 	int error;
-	off_t startoff;
-	off_t cnt = 0;
+	ssize_t startresid;
+	int cnt = 0;
 	struct tmpfs_node *node;
 
 	/* This operation only makes sense on directory nodes. */
@@ -1483,68 +1487,28 @@ tmpfs_readdir(struct vop_readdir_args *v)
 
 	node = VP_TO_TMPFS_DIR(vp);
 
-	startoff = uio->uio_offset;
+	startresid = uio->uio_resid;
 
-	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOT) {
-		error = tmpfs_dir_getdotdent(node, uio);
-		if (error != 0)
-			goto outok;
-		cnt++;
+	if (cookies != NULL && ncookies != NULL) {
+		cnt = howmany(node->tn_size, sizeof(struct tmpfs_dirent)) + 2;
+		*cookies = malloc(cnt * sizeof(**cookies), M_TEMP, M_WAITOK);
+		*ncookies = 0;
 	}
 
-	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOTDOT) {
-		error = tmpfs_dir_getdotdotdent(node, uio);
-		if (error != 0)
-			goto outok;
-		cnt++;
-	}
+	if (cnt == 0)
+		error = tmpfs_dir_getdents(node, uio, 0, NULL, NULL);
+	else
+		error = tmpfs_dir_getdents(node, uio, cnt, *cookies, ncookies);
 
-	error = tmpfs_dir_getdents(node, uio, &cnt);
+	if (error == EJUSTRETURN)
+		error = (uio->uio_resid != startresid) ? 0 : EINVAL;
 
-outok:
-	MPASS(error >= -1);
-
-	if (error == -1)
-		error = (cnt != 0) ? 0 : EINVAL;
+	if (error != 0 && cnt != 0)
+		free(*cookies, M_TEMP);
 
 	if (eofflag != NULL)
 		*eofflag =
 		    (error == 0 && uio->uio_offset == TMPFS_DIRCOOKIE_EOF);
-
-	/* Update NFS-related variables. */
-	if (error == 0 && cookies != NULL && ncookies != NULL) {
-		off_t i;
-		off_t off = startoff;
-		struct tmpfs_dirent *de = NULL;
-
-		*ncookies = cnt;
-		*cookies = malloc(cnt * sizeof(off_t), M_TEMP, M_WAITOK);
-
-		for (i = 0; i < cnt; i++) {
-			MPASS(off != TMPFS_DIRCOOKIE_EOF);
-			if (off == TMPFS_DIRCOOKIE_DOT) {
-				off = TMPFS_DIRCOOKIE_DOTDOT;
-			} else {
-				if (off == TMPFS_DIRCOOKIE_DOTDOT) {
-					de = TAILQ_FIRST(&node->tn_dir.tn_dirhead);
-				} else if (de != NULL) {
-					de = TAILQ_NEXT(de, td_entries);
-				} else {
-					de = tmpfs_dir_lookupbycookie(node,
-					    off);
-					MPASS(de != NULL);
-					de = TAILQ_NEXT(de, td_entries);
-				}
-				if (de == NULL)
-					off = TMPFS_DIRCOOKIE_EOF;
-				else
-					off = tmpfs_dircookie(de);
-			}
-
-			(*cookies)[i] = off;
-		}
-		MPASS(uio->uio_offset == off);
-	}
 
 	return error;
 }

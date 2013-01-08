@@ -1,6 +1,4 @@
-/*	$OpenBSD: pf_osfp.c,v 1.14 2008/06/12 18:17:01 henning Exp $ */
-
-/*
+/*-
  * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,6 +13,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
+ *	$OpenBSD: pf_osfp.c,v 1.14 2008/06/12 18:17:01 henning Exp $
  */
 
 #include <sys/cdefs.h>

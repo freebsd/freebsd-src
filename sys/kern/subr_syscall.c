@@ -77,13 +77,12 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(sa->code, sa->narg, sa->args);
 #endif
-
-	CTR6(KTR_SYSC,
-"syscall: td=%p pid %d %s (%#lx, %#lx, %#lx)",
-	    td, td->td_proc->p_pid, syscallname(p, sa->code),
-	    sa->args[0], sa->args[1], sa->args[2]);
+	KTR_START4(KTR_SYSC, "syscall", syscallname(p, sa->code),
+	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "arg0:%p", sa->args[0],
+	    "arg1:%p", sa->args[1], "arg2:%p", sa->args[2]);
 
 	if (error == 0) {
+
 		STOPEVENT(p, S_SCE, sa->narg);
 		if (p->p_flag & P_TRACED && p->p_stops & S_PT_SCE) {
 			PROC_LOCK(p);
@@ -150,10 +149,12 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			    sa->callp, NULL, (error) ? -1 : td->td_retval[0]);
 #endif
 		syscall_thread_exit(td, sa->callp);
-		CTR4(KTR_SYSC, "syscall: p=%p error=%d return %#lx %#lx",
-		    p, error, td->td_retval[0], td->td_retval[1]);
 	}
  retval:
+	KTR_STOP4(KTR_SYSC, "syscall", syscallname(p, sa->code),
+	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
+	    "retval0:%#lx", td->td_retval[0], "retval1:%#lx",
+	    td->td_retval[1]);
 	if (traced) {
 		PROC_LOCK(p);
 		td->td_dbgflags &= ~TDB_SCE;
@@ -175,9 +176,6 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 	 * Handle reschedule and other end-of-syscall issues
 	 */
 	userret(td, td->td_frame);
-
-	CTR4(KTR_SYSC, "syscall %s exit thread %p pid %d proc %s",
-	    syscallname(p, sa->code), td, td->td_proc->p_pid, td->td_name);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET)) {

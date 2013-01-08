@@ -1,9 +1,9 @@
 /*
- * $Id: timebox.c,v 1.52 2012/07/02 09:34:04 tom Exp $
+ * $Id: timebox.c,v 1.45 2011/06/27 08:20:22 tom Exp $
  *
  *  timebox.c -- implements the timebox dialog
  *
- *  Copyright 2001-2011,2012   Thomas E. Dickey
+ *  Copyright 2001-2010,2011   Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -82,9 +82,9 @@ draw_cell(BOX * data)
     dlg_draw_box(data->parent,
 		 data->y - MARGIN, data->x - MARGIN,
 		 data->height + (2 * MARGIN), data->width + (2 * MARGIN),
-		 menubox_border_attr, menubox_border2_attr);
+		 menubox_border_attr, menubox_attr);
 
-    (void) wattrset(data->window, item_attr);
+    wattrset(data->window, item_attr);
     wprintw(data->window, "%02d", data->value);
     return 0;
 }
@@ -184,7 +184,7 @@ dialog_timebox(const char *title,
     WINDOW *dialog;
     time_t now_time = time((time_t *) 0);
     struct tm current;
-    int state = dlg_default_button();
+    int state = dlg_defaultno_button();
     const char **buttons = dlg_ok_labels();
     char *prompt = dlg_strclone(subtitle);
     char buffer[MAX_LEN];
@@ -221,12 +221,12 @@ dialog_timebox(const char *title,
     dlg_register_window(dialog, "timebox", binding);
     dlg_register_buttons(dialog, "timebox", buttons);
 
-    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
-    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
+    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
+    dlg_draw_bottom_box(dialog);
     dlg_draw_title(dialog, title);
     dlg_draw_helpline(dialog, FALSE);
 
-    (void) wattrset(dialog, dialog_attr);
+    wattrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     /* compute positions of hour, month and year boxes */
@@ -275,7 +275,6 @@ dialog_timebox(const char *title,
 	return CleanupResult(DLG_EXIT_ERROR, dialog, prompt, &save_vars);
     }
 
-    dlg_trace_win(dialog);
     while (result == DLG_EXIT_UNKNOWN) {
 	BOX *obj = (state == sHR ? &hr_box
 		    : (state == sMN ? &mn_box :
@@ -296,6 +295,12 @@ dialog_timebox(const char *title,
 	    /* handle function-keys */
 	    if (fkey) {
 		switch (key) {
+		case DLGK_MOUSE(0):
+		    result = DLG_EXIT_OK;
+		    break;
+		case DLGK_MOUSE(1):
+		    result = DLG_EXIT_CANCEL;
+		    break;
 		case DLGK_MOUSE('H'):
 		    state = sHR;
 		    break;
@@ -306,7 +311,7 @@ dialog_timebox(const char *title,
 		    state = sSC;
 		    break;
 		case DLGK_ENTER:
-		    result = dlg_ok_buttoncode(button);
+		    result = button;
 		    break;
 		case DLGK_FIELD_PREV:
 		    state = dlg_prev_ok_buttonindex(state, sHR);
@@ -356,11 +361,7 @@ dialog_timebox(const char *title,
 		    goto retry;
 #endif
 		default:
-		    if (is_DLGK_MOUSE(key)) {
-			result = dlg_ok_buttoncode(key - M_EVENT);
-			if (result < 0)
-			    result = DLG_EXIT_OK;
-		    } else if (obj != 0) {
+		    if (obj != 0) {
 			int step = next_or_previous(key);
 			if (step != 0) {
 			    obj->value += step;

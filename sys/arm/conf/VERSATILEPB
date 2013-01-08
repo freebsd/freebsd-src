@@ -1,4 +1,4 @@
-# RPI-B -- Custom configuration for the Raspberry Pi
+# VERSATILEPB - Configuration for QEMU version of Versatile Platform Board
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -19,7 +19,7 @@
 
 ident		VERSATILEPB
 machine		arm	armv6
-cpu 		CPU_ARM11
+cpu 		CPU_ARM1176
 
 files		"../versatile/files.versatile"
 makeoptions	MODULES_OVERRIDE=""

@@ -769,7 +769,7 @@ family_supported(int family)
 	int sock;
 
 	sock = socket(family, SOCK_STREAM, 0);
-	if (sock == -1 && errno == EPROTONOSUPPORT)
+	if (sock == -1 && errno == EAFNOSUPPORT)
 		return (false);
 	if (sock >= 0)
 		(void)close(sock);

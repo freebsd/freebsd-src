@@ -834,6 +834,8 @@ static void read_tag_const_type (struct die_info *, struct dwarf2_cu *);
 
 static void read_tag_volatile_type (struct die_info *, struct dwarf2_cu *);
 
+static void read_tag_restrict_type (struct die_info *, struct dwarf2_cu *);
+
 static void read_tag_string_type (struct die_info *, struct dwarf2_cu *);
 
 static void read_subroutine_type (struct die_info *, struct dwarf2_cu *);
@@ -3729,7 +3731,8 @@ read_tag_const_type (struct die_info *die, struct dwarf2_cu *cu)
     }
 
   base_type = die_type (die, cu);
-  die->type = make_cv_type (1, TYPE_VOLATILE (base_type), base_type, 0);
+  die->type = make_cvr_type (1, TYPE_VOLATILE (base_type),
+                             TYPE_RESTRICT (base_type), base_type, 0);
 }
 
 static void
@@ -3743,7 +3746,23 @@ read_tag_volatile_type (struct die_info *die, struct dwarf2_cu *cu)
     }
 
   base_type = die_type (die, cu);
-  die->type = make_cv_type (TYPE_CONST (base_type), 1, base_type, 0);
+  die->type = make_cvr_type (TYPE_CONST (base_type), 1,
+                             TYPE_RESTRICT (base_type), base_type, 0);
+}
+
+static void
+read_tag_restrict_type (struct die_info *die, struct dwarf2_cu *cu)
+{
+  struct type *base_type;
+
+  if (die->type)
+    {
+      return;
+    }
+
+  base_type = die_type (die, cu);
+  die->type = make_cvr_type (TYPE_CONST (base_type), TYPE_VOLATILE (base_type),
+                             1, base_type, 0);
 }
 
 /* Extract all information from a DW_TAG_string_type DIE and add to
@@ -6085,6 +6104,9 @@ read_type_die (struct die_info *die, struct dwarf2_cu *cu)
       break;
     case DW_TAG_volatile_type:
       read_tag_volatile_type (die, cu);
+      break;
+    case DW_TAG_restrict_type:
+      read_tag_restrict_type (die, cu);
       break;
     case DW_TAG_string_type:
       read_tag_string_type (die, cu);

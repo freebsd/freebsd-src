@@ -35,6 +35,7 @@ extern	int ath_dfs_attach(struct ath_softc *sc);
 extern	int ath_dfs_detach(struct ath_softc *sc);
 extern	int ath_dfs_radar_enable(struct ath_softc *,
     struct ieee80211_channel *chan);
+extern	int ath_dfs_radar_disable(struct ath_softc *sc);
 extern	void ath_dfs_process_phy_err(struct ath_softc *sc, struct mbuf *m,
     uint64_t tsf, struct ath_rx_status *rxstat);
 extern	int ath_dfs_process_radar_event(struct ath_softc *sc,

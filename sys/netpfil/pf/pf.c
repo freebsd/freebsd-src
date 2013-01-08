@@ -1,8 +1,7 @@
-/*	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $ */
-
-/*
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002 - 2008 Henning Brauer
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +32,10 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
+ *	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
@@ -713,6 +712,7 @@ pf_initialize()
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
 	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
+	uma_zone_set_warning(V_pf_state_z, "PF states limit reached");
 
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
@@ -734,6 +734,7 @@ pf_initialize()
 	    0);
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
+	uma_zone_set_warning(V_pf_sources_z, "PF source nodes limit reached");
 	V_pf_srchash = malloc(V_pf_srchashsize * sizeof(struct pf_srchash),
 	  M_PFHASH, M_WAITOK|M_ZERO);
 	V_pf_srchashmask = V_pf_srchashsize - 1;
