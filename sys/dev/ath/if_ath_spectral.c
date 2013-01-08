@@ -251,7 +251,7 @@ ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 			if (insize < sizeof(int)) {
 				device_printf(sc->sc_dev, "%d != %d\n",
 				    insize,
-				    sizeof(int));
+				    (int) sizeof(int));
 				error = EINVAL;
 				break;
 			}
