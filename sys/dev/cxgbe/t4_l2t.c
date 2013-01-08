@@ -149,7 +149,7 @@ t4_l2t_alloc_switching(struct l2t_data *d)
 {
 	struct l2t_entry *e;
 
-	rw_rlock(&d->lock);
+	rw_wlock(&d->lock);
 	e = t4_alloc_l2e(d);
 	if (e) {
 		mtx_lock(&e->lock);          /* avoid race with t4_l2t_free */
@@ -157,7 +157,7 @@ t4_l2t_alloc_switching(struct l2t_data *d)
 		atomic_store_rel_int(&e->refcnt, 1);
 		mtx_unlock(&e->lock);
 	}
-	rw_runlock(&d->lock);
+	rw_wunlock(&d->lock);
 	return e;
 }
 
