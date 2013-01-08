@@ -37,7 +37,7 @@ if [ $# -lt 3 ]; then
     exit 1
 fi
 
-LABEL=$1; shift
+LABEL=`echo $1 | tr '[:lower:]' '[:upper:]'`; shift
 NAME=$1; shift
 BASE=$1; shift
 
