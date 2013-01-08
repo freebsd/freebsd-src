@@ -567,7 +567,7 @@ main(int argc, char** argv)
 
 	progname = argv[0];
 
-	lowmem = 768 * MB;
+	lowmem = 128 * MB;
 	highmem = 0;
 	disk_image = NULL;
 
