@@ -101,6 +101,7 @@ static gid_t gid;
 static uid_t uid;
 static int dobackup, docompare, dodir, dolink, dopreserve, dostrip, dounpriv,
     safecopy, verbose;
+static int haveopt_f, haveopt_g, haveopt_m, haveopt_o;
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 static FILE *metafp;
 static const char *group, *owner;
@@ -173,9 +174,11 @@ main(int argc, char *argv[])
 			dodir = 1;
 			break;
 		case 'f':
+			haveopt_f = 1;
 			fflags = optarg;
 			break;
 		case 'g':
+			haveopt_g = 1;
 			group = optarg;
 			break;
 		case 'h':
@@ -213,6 +216,7 @@ main(int argc, char *argv[])
 			metafile = optarg;
 			break;
 		case 'm':
+			haveopt_m = 1;
 			if (!(set = setmode(optarg)))
 				errx(EX_USAGE, "invalid file mode: %s",
 				     optarg);
@@ -225,6 +229,7 @@ main(int argc, char *argv[])
 				    "databases in `%s'", optarg);
 			break;
 		case 'o':
+			haveopt_o = 1;
 			owner = optarg;
 			break;
 		case 'p':
@@ -571,9 +576,7 @@ makelink(const char *from_name, const char *to_name,
     const struct stat *target_sb)
 {
 	char	src[MAXPATHLEN], dst[MAXPATHLEN], lnk[MAXPATHLEN];
-#ifdef NOTYET
 	struct stat	to_sb;
-#endif
 
 	/* Try hard links first */
 	if (dolink & (LN_HARD|LN_MIXED)) {
@@ -581,7 +584,6 @@ makelink(const char *from_name, const char *to_name,
 			if ((dolink & LN_HARD) || errno != EXDEV)
 				err(1, "link %s -> %s", from_name, to_name);
 		} else {
-#ifdef NOTYET
 			if (stat(to_name, &to_sb))
 				err(1, "%s: stat", to_name);
 			if (S_ISREG(to_sb.st_mode)) {
@@ -590,7 +592,8 @@ makelink(const char *from_name, const char *to_name,
 					 * metalogged
 					 */
 				int omode;
-				char *oowner, *ogroup, *offlags;
+				const char *oowner, *ogroup;
+				char *offlags;
 				char *dres;
 
 					/* XXX: use underlying perms,
@@ -617,7 +620,6 @@ makelink(const char *from_name, const char *to_name,
 				group = ogroup;
 				fflags = offlags;
 			}
-#endif
 			return;
 		}
 	}
@@ -628,10 +630,8 @@ makelink(const char *from_name, const char *to_name,
 		if (realpath(from_name, src) == NULL)
 			err(1, "%s: realpath", from_name);
 		do_symlink(src, to_name, target_sb);
-#ifdef NOTYET
 			/* XXX: src may point outside of destdir */
 		metadata_log(to_name, "link", NULL, src, NULL, 0);
-#endif
 		return;
 	}
 
@@ -672,10 +672,8 @@ makelink(const char *from_name, const char *to_name,
 		(void)strlcat(lnk, ++s, sizeof(lnk));
 
 		do_symlink(lnk, to_name, target_sb);
-#ifdef NOTYET
-			/* XXX: lnk may point outside of destdir */
+		/* XXX: lnk may point outside of destdir */
 		metadata_log(to_name, "link", NULL, lnk, NULL, 0);
-#endif
 		return;
 	}
 
@@ -684,10 +682,8 @@ makelink(const char *from_name, const char *to_name,
 	 * try the names the user provided
 	 */
 	do_symlink(from_name, to_name, target_sb);
-#ifdef NOTYET
-		/* XXX: from_name may point outside of destdir */
+	/* XXX: from_name may point outside of destdir */
 	metadata_log(to_name, "link", NULL, from_name, NULL, 0);
-#endif
 }
 
 /*
