@@ -1811,14 +1811,15 @@ vic_get_lladdr(struct vic_softc *sc)
 	uint32_t r;
 
 	r = (sc->vic_cap & VIC_CMD_HWCAP_VPROM) ? VIC_VPROM : VIC_LLADDR;
+	r += sc->vic_ioadj;
 
-	bus_space_barrier(sc->vic_iot, sc->vic_ioh, r + sc->vic_ioadj,
-	    ETHER_ADDR_LEN, BUS_SPACE_BARRIER_READ);
-	bus_space_read_region_1(sc->vic_iot, sc->vic_ioh, r + sc->vic_ioadj,
-	    sc->vic_lladdr, ETHER_ADDR_LEN);
+	bus_space_barrier(sc->vic_iot, sc->vic_ioh, r, ETHER_ADDR_LEN,
+	    BUS_SPACE_BARRIER_READ);
+	bus_space_read_region_1(sc->vic_iot, sc->vic_ioh, r, sc->vic_lladdr,
+	    ETHER_ADDR_LEN);
 
 	/* Update the MAC address register. */
-	if (r == VIC_VPROM)
+	if (sc->vic_cap & VIC_CMD_HWCAP_VPROM)
 		vic_set_lladdr(sc);
 }
 
