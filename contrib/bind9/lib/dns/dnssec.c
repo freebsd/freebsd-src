@@ -44,9 +44,12 @@
 #include <dns/rdataset.h>
 #include <dns/rdatastruct.h>
 #include <dns/result.h>
+#include <dns/stats.h>
 #include <dns/tsig.h>		/* for DNS_TSIG_FUDGE */
 
 #include <dst/result.h>
+
+LIBDNS_EXTERNAL_DATA isc_stats_t *dns_dnssec_stats;
 
 #define is_response(msg) (msg->flags & DNS_MESSAGEFLAG_QR)
 
@@ -75,6 +78,12 @@ digest_callback(void *arg, isc_region_t *data) {
 	dst_context_t *ctx = arg;
 
 	return (dst_context_adddata(ctx, data));
+}
+
+static inline void
+inc_stat(isc_statscounter_t counter) {
+	if (dns_dnssec_stats != NULL)
+		isc_stats_increment(dns_dnssec_stats, counter);
 }
 
 /*
@@ -153,7 +162,9 @@ dns_dnssec_keyfromrdata(dns_name_t *name, dns_rdata_t *rdata, isc_mem_t *mctx,
 }
 
 static isc_result_t
-digest_sig(dst_context_t *ctx, dns_rdata_t *sigrdata, dns_rdata_rrsig_t *sig) {
+digest_sig(dst_context_t *ctx, isc_boolean_t downcase, dns_rdata_t *sigrdata,
+	   dns_rdata_rrsig_t *rrsig)
+{
 	isc_region_t r;
 	isc_result_t ret;
 	dns_fixedname_t fname;
@@ -165,11 +176,16 @@ digest_sig(dst_context_t *ctx, dns_rdata_t *sigrdata, dns_rdata_rrsig_t *sig) {
 	ret = dst_context_adddata(ctx, &r);
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
-	dns_fixedname_init(&fname);
-	RUNTIME_CHECK(dns_name_downcase(&sig->signer,
-					dns_fixedname_name(&fname), NULL)
-		      == ISC_R_SUCCESS);
-	dns_name_toregion(dns_fixedname_name(&fname), &r);
+	if (downcase) {
+		dns_fixedname_init(&fname);
+
+		RUNTIME_CHECK(dns_name_downcase(&rrsig->signer,
+						dns_fixedname_name(&fname),
+						NULL) == ISC_R_SUCCESS);
+		dns_name_toregion(dns_fixedname_name(&fname), &r);
+	} else
+		dns_name_toregion(&rrsig->signer, &r);
+
 	return (dst_context_adddata(ctx, &r));
 }
 
@@ -191,6 +207,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	isc_uint32_t flags;
 	unsigned int sigsize;
 	dns_fixedname_t fnewname;
+	dns_fixedname_t fsigner;
 
 	REQUIRE(name != NULL);
 	REQUIRE(dns_name_countlabels(name) <= 255);
@@ -218,8 +235,14 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	sig.common.rdtype = dns_rdatatype_rrsig;
 	ISC_LINK_INIT(&sig.common, link);
 
+	/*
+	 * Downcase signer.
+	 */
 	dns_name_init(&sig.signer, NULL);
-	dns_name_clone(dst_key_name(key), &sig.signer);
+	dns_fixedname_init(&fsigner);
+	RUNTIME_CHECK(dns_name_downcase(dst_key_name(key),
+		      dns_fixedname_name(&fsigner), NULL) == ISC_R_SUCCESS);
+	dns_name_clone(dns_fixedname_name(&fsigner), &sig.signer);
 
 	sig.covered = set->type;
 	sig.algorithm = dst_key_alg(key);
@@ -259,7 +282,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	/*
 	 * Digest the SIG rdata.
 	 */
-	ret = digest_sig(ctx, &tmpsigrdata, &sig);
+	ret = digest_sig(ctx, ISC_FALSE, &tmpsigrdata, &sig);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_context;
 
@@ -332,7 +355,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	memcpy(sig.signature, r.base, sig.siglen);
 
 	ret = dns_rdata_fromstruct(sigrdata, sig.common.rdclass,
-				  sig.common.rdtype, &sig, buffer);
+				   sig.common.rdtype, &sig, buffer);
 
 cleanup_array:
 	isc_mem_put(mctx, rdatas, nrdatas * sizeof(dns_rdata_t));
@@ -363,6 +386,7 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	dst_context_t *ctx = NULL;
 	int labels = 0;
 	isc_uint32_t flags;
+	isc_boolean_t downcase = ISC_FALSE;
 
 	REQUIRE(name != NULL);
 	REQUIRE(set != NULL);
@@ -377,8 +401,10 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	if (set->type != sig.covered)
 		return (DNS_R_SIGINVALID);
 
-	if (isc_serial_lt(sig.timeexpire, sig.timesigned))
+	if (isc_serial_lt(sig.timeexpire, sig.timesigned)) {
+		inc_stat(dns_dnssecstats_fail);
 		return (DNS_R_SIGINVALID);
+	}
 
 	if (!ignoretime) {
 		isc_stdtime_get(&now);
@@ -386,10 +412,13 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		/*
 		 * Is SIG temporally valid?
 		 */
-		if (isc_serial_lt((isc_uint32_t)now, sig.timesigned))
+		if (isc_serial_lt((isc_uint32_t)now, sig.timesigned)) {
+			inc_stat(dns_dnssecstats_fail);
 			return (DNS_R_SIGFUTURE);
-		else if (isc_serial_lt(sig.timeexpire, (isc_uint32_t)now))
+		} else if (isc_serial_lt(sig.timeexpire, (isc_uint32_t)now)) {
+			inc_stat(dns_dnssecstats_fail);
 			return (DNS_R_SIGEXPIRED);
+		}
 	}
 
 	/*
@@ -400,16 +429,22 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	case dns_rdatatype_ns:
 	case dns_rdatatype_soa:
 	case dns_rdatatype_dnskey:
-		if (!dns_name_equal(name, &sig.signer))
+		if (!dns_name_equal(name, &sig.signer)) {
+			inc_stat(dns_dnssecstats_fail);
 			return (DNS_R_SIGINVALID);
+		}
 		break;
 	case dns_rdatatype_ds:
-		if (dns_name_equal(name, &sig.signer))
+		if (dns_name_equal(name, &sig.signer)) {
+			inc_stat(dns_dnssecstats_fail);
 			return (DNS_R_SIGINVALID);
+		}
 		/* FALLTHROUGH */
 	default:
-		if (!dns_name_issubdomain(name, &sig.signer))
+		if (!dns_name_issubdomain(name, &sig.signer)) {
+			inc_stat(dns_dnssecstats_fail);
 			return (DNS_R_SIGINVALID);
+		}
 		break;
 	}
 
@@ -417,11 +452,16 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	 * Is the key allowed to sign data?
 	 */
 	flags = dst_key_flags(key);
-	if (flags & DNS_KEYTYPE_NOAUTH)
+	if (flags & DNS_KEYTYPE_NOAUTH) {
+		inc_stat(dns_dnssecstats_fail);
 		return (DNS_R_KEYUNAUTHORIZED);
-	if ((flags & DNS_KEYFLAG_OWNERMASK) != DNS_KEYOWNER_ZONE)
+	}
+	if ((flags & DNS_KEYFLAG_OWNERMASK) != DNS_KEYOWNER_ZONE) {
+		inc_stat(dns_dnssecstats_fail);
 		return (DNS_R_KEYUNAUTHORIZED);
+	}
 
+ again:
 	ret = dst_context_create(key, mctx, &ctx);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_struct;
@@ -429,7 +469,7 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	/*
 	 * Digest the SIG rdata (not including the signature).
 	 */
-	ret = digest_sig(ctx, sigrdata, &sig);
+	ret = digest_sig(ctx, downcase, sigrdata, &sig);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_context;
 
@@ -508,21 +548,40 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	r.base = sig.signature;
 	r.length = sig.siglen;
 	ret = dst_context_verify(ctx, &r);
-	if (ret == DST_R_VERIFYFAILURE)
-		ret = DNS_R_SIGINVALID;
+	if (ret == ISC_R_SUCCESS && downcase) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		dns_name_format(&sig.signer, namebuf, sizeof(namebuf));
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+			      DNS_LOGMODULE_DNSSEC, ISC_LOG_INFO,
+			      "sucessfully validated after lower casing "
+			      "signer '%s'", namebuf);
+		inc_stat(dns_dnssecstats_downcase);
+	} else if (ret == ISC_R_SUCCESS)
+		inc_stat(dns_dnssecstats_asis);
 
 cleanup_array:
 	isc_mem_put(mctx, rdatas, nrdatas * sizeof(dns_rdata_t));
 cleanup_context:
 	dst_context_destroy(&ctx);
+	if (ret == DST_R_VERIFYFAILURE && !downcase) {
+		downcase = ISC_TRUE;
+		goto again;
+	}
 cleanup_struct:
 	dns_rdata_freestruct(&sig);
+
+	if (ret == DST_R_VERIFYFAILURE)
+		ret = DNS_R_SIGINVALID;
+
+	if (ret != ISC_R_SUCCESS)
+		inc_stat(dns_dnssecstats_fail);
 
 	if (ret == ISC_R_SUCCESS && labels - sig.labels > 0) {
 		if (wild != NULL)
 			RUNTIME_CHECK(dns_name_concatenate(dns_wildcardname,
 						 dns_fixedname_name(&fnewname),
 						 wild, NULL) == ISC_R_SUCCESS);
+		inc_stat(dns_dnssecstats_wildcard);
 		ret = DNS_R_FROMWILDCARD;
 	}
 	return (ret);
@@ -1325,11 +1384,12 @@ dns_dnssec_findmatchingkeys(dns_name_t *origin, const char *directory,
  * the keys in the keyset, regardless of whether they have
  * metadata indicating they should be deactivated or removed.
  */
-static void
+static isc_result_t
 addkey(dns_dnsseckeylist_t *keylist, dst_key_t **newkey,
        isc_boolean_t savekeys, isc_mem_t *mctx)
 {
 	dns_dnsseckey_t *key;
+	isc_result_t result;
 
 	/* Skip duplicates */
 	for (key = ISC_LIST_HEAD(*keylist);
@@ -1357,10 +1417,12 @@ addkey(dns_dnsseckeylist_t *keylist, dst_key_t **newkey,
 		}
 
 		key->source = dns_keysource_zoneapex;
-		return;
+		return (ISC_R_SUCCESS);
 	}
 
-	dns_dnsseckey_create(mctx, newkey, &key);
+	result = dns_dnsseckey_create(mctx, newkey, &key);
+	if (result != ISC_R_SUCCESS)
+		return (result);
 	if (key->legacy || savekeys) {
 		key->force_publish = ISC_TRUE;
 		key->force_sign = dst_key_isprivate(key->key);
@@ -1368,6 +1430,7 @@ addkey(dns_dnsseckeylist_t *keylist, dst_key_t **newkey,
 	key->source = dns_keysource_zoneapex;
 	ISC_LIST_APPEND(*keylist, key, link);
 	*newkey = NULL;
+	return (ISC_R_SUCCESS);
 }
 
 
@@ -1457,7 +1520,7 @@ dns_dnssec_keylistfromrdataset(dns_name_t *origin,
 			goto skip;
 
 		if (public) {
-			addkey(keylist, &pubkey, savekeys, mctx);
+			RETERR(addkey(keylist, &pubkey, savekeys, mctx));
 			goto skip;
 		}
 
@@ -1510,7 +1573,7 @@ dns_dnssec_keylistfromrdataset(dns_name_t *origin,
 		}
 
 		if (result == ISC_R_FILENOTFOUND || result == ISC_R_NOPERM) {
-			addkey(keylist, &pubkey, savekeys, mctx);
+			RETERR(addkey(keylist, &pubkey, savekeys, mctx));
 			goto skip;
 		}
 		RETERR(result);
@@ -1519,7 +1582,7 @@ dns_dnssec_keylistfromrdataset(dns_name_t *origin,
 		if ((dst_key_flags(privkey) & DNS_KEYTYPE_NOAUTH) != 0)
 			goto skip;
 
-		addkey(keylist, &privkey, savekeys, mctx);
+		RETERR(addkey(keylist, &privkey, savekeys, mctx));
  skip:
 		if (pubkey != NULL)
 			dst_key_free(&pubkey);
