@@ -2,7 +2,7 @@
 
 PROG=	bhyveload
 SRCS=	bhyveload.c
-NO_MAN=
+MAN=	bhyveload.8
 
 DPADD+=	${LIBVMMAPI}
 LDADD+=	-lvmmapi
