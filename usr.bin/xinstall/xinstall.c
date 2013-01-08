@@ -794,6 +794,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (!devnull)
 			digestresult = copy(from_fd, from_name, to_fd,
 			     tempcopy ? tempfile : to_name, from_sb.st_size);
+		else
+			digestresult = NULL;
 	}
 
 	if (dostrip) {
