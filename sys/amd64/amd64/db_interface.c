@@ -42,6 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#ifdef XEN
+#include <amd64/xen/mmu_map.h>
+#endif
+
 #include <ddb/ddb.h>
 
 /*
@@ -66,6 +70,8 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 	return (ret);
 }
 
+/* XXX: Best to redo this entirely for XEN */
+
 /*
  * Write bytes to kernel address space for debugger.
  */
@@ -88,7 +94,19 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 		if (addr > trunc_page((vm_offset_t)btext) - size &&
 		    addr < round_page((vm_offset_t)etext)) {
 
+#ifdef XEN
+			static size_t tsz; /* mmu_map.h opaque cookie size */
+			tsz = mmu_map_t_size();
+			KASSERT(tsz != 0, ("tsz != 0"));
+			char tbuf0[tsz]; /* Safe to do this on the stack since tsz is
+					 * effectively const.
+					 */
+
+			mmu_map_t tptr0 = tbuf0;
+			ptep0 = vtopte_hold(addr, &tptr0);
+#else
 			ptep0 = vtopte(addr);
+#endif
 			oldmap0 = *ptep0;
 			*ptep0 |= PG_RW;
 
@@ -99,20 +117,38 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 			if ((*ptep0 & PG_PS) == 0) {
 				addr1 = trunc_page(addr + size - 1);
 				if (trunc_page(addr) != addr1) {
+#ifdef XEN
+					KASSERT(tsz != 0, ("tsz != 0"));
+					char tbuf1[tsz]; /* Safe to do this on the stack since tsz is
+							 * effectively const.
+							 */
+
+					mmu_map_t tptr1 = tbuf1;
+					ptep1 = vtopte_hold(addr1, &tptr1);
+#else
 					ptep1 = vtopte(addr1);
+#endif /* XEN */
 					oldmap1 = *ptep1;
 					*ptep1 |= PG_RW;
+#ifdef XEN
+					vtopte_release(addr1, &tptr1);
+#endif /* XEN */
 				}
 			} else {
+#ifndef XEN
 				addr1 = trunc_2mpage(addr + size - 1);
 				if (trunc_2mpage(addr) != addr1) {
 					ptep1 = vtopte(addr1);
 					oldmap1 = *ptep1;
 					*ptep1 |= PG_RW;
 				}
+#endif /* !XEN */
 			}
 
 			invltlb();
+#ifdef XEN
+			vtopte_release(addr, &tptr0);
+#endif /* XEN */
 		}
 
 		dst = (char *)addr;
