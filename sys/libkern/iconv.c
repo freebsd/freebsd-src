@@ -84,9 +84,11 @@ iconv_mod_unload(void)
 	struct iconv_cspair *csp;
 
 	sx_xlock(&iconv_lock);
-	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL) {
-		if (csp->cp_refcount)
+	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
+		if (csp->cp_refcount) {
+			sx_xunlock(&iconv_lock);
 			return EBUSY;
+		}
 	}
 
 	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL)
