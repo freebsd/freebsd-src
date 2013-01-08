@@ -669,7 +669,7 @@ pmap_init(void)
 	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
 	KASSERT(va != 0, ("Could not allocate KVA for console page!\n"));
 
-	pmap_kenter(va, xpmap_mtop(console_ma));
+	pmap_kenter_ma(va, console_ma);
 	console_page = (void *)va;
 }
 
@@ -730,12 +730,11 @@ pmap_release(pmap_t pmap)
 }
 
 pt_entry_t *
-vtopte(uintptr_t va)
+vtopte_hold(uintptr_t va, void *addr)
 {
-	KASSERT(tsz != 0, ("tsz != 0"));
-	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
-			 * effectively const.
-			 */
+	KASSERT(addr != NULL, ("addr == NULL"));
+
+	mmu_map_t tptr = *(mmu_map_t *)addr;
 
 	const uint64_t SIGNMASK = (1UL << 48) - 1;
 
@@ -743,15 +742,13 @@ vtopte(uintptr_t va)
 
 	pd_entry_t *pte; /* PTE address to return */
 
-
-	mmu_map_t tptr = tbuf;
-
 	struct mmu_map_mbackend mb = {
 		ptmb_mappedalloc,
 		ptmb_mappedfree,
 		ptmb_ptov,
 		ptmb_vtop
 	};
+
 	mmu_map_t_init(tptr, &mb);
 
 	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
@@ -763,10 +760,20 @@ vtopte(uintptr_t va)
 	/* add VA offset */
 	pte += (va & PDRMASK) >> PAGE_SHIFT;
 
+	return pte;
+}
+
+void
+vtopte_release(uintptr_t va, void *addr)
+{
+	mmu_map_t tptr = *(mmu_map_t *)addr;
+	const uint64_t SIGNMASK = (1UL << 48) - 1;
+
+	va &= SIGNMASK; /* Remove sign extension */
+
 	mmu_map_release_va(kernel_pmap, tptr, va);
 	mmu_map_t_fini(tptr);
 
-	return pte;
 }
 
 #ifdef SMP
@@ -968,8 +975,7 @@ pmap_kextract_ma(vm_offset_t va)
 	mmu_map_t_fini(tptr);
 
 nomapping:
-	/* XXX: why do we need to  enforce alignment ? */
-	return ma & ~0x7UL;
+	return (ma & PG_FRAME) | (va & ~PG_FRAME);
 }
 
 /***************************************************
@@ -1029,7 +1035,6 @@ pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
 	PT_SET_MA(va, ma | PG_RW | PG_V | PG_U);
 	PT_UPDATES_FLUSH();
 
-	mmu_map_release_va(kernel_pmap, tptr, va);
 	mmu_map_t_fini(tptr);
 }
 
@@ -1045,14 +1050,21 @@ pmap_kremove(vm_offset_t va)
 {
 	pt_entry_t *pte;
 
-	pte = vtopte(va);
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	pte = vtopte_hold(va, &tptr);
 	if (pte == NULL) { /* Mapping doesn't exist */
 		return;
 	}
 
-	PT_CLEAR_VA(pte, FALSE);
-
+	PT_CLEAR_VA(pte, TRUE);
 	PT_UPDATES_FLUSH();
+
+	//	vtopte_release(va, &tptr);
 }
 
 /*

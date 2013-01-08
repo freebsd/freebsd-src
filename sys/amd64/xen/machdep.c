@@ -554,7 +554,7 @@ initxen(struct start_info *si)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_pcb->pcb_cr3 = KPML4phys;
+	thread0.td_pcb->pcb_cr3 = VTOP(KPML4phys);
 	thread0.td_frame = &proc0_tf;
 
         env = getenv("kernelname");

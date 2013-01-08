@@ -190,7 +190,13 @@ extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
  * Note: these work recursively, thus vtopte of a pte will give
  * the corresponding pde that in turn maps it.
  */
+
+#ifdef XEN
+pt_entry_t *vtopte_hold(vm_offset_t, void *);
+void vtopte_release(vm_offset_t, void *);
+#else
 pt_entry_t *vtopte(vm_offset_t);
+#endif
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 static __inline pt_entry_t
