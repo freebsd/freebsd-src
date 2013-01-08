@@ -36,6 +36,7 @@
 
 void _xen_queue_pt_update(vm_paddr_t, vm_paddr_t, char *, int);
 void xen_pt_switch(vm_paddr_t);
+void xen_pt_user_switch(vm_paddr_t);
 void xen_set_ldt(vm_paddr_t, unsigned long);
 void xen_pgdir_pin(vm_paddr_t);
 void xen_pgdir_unpin(vm_paddr_t);
