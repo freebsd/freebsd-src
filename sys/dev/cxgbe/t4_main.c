@@ -371,6 +371,7 @@ struct t4_pciids {
 	{0x4408, "Chelsio T420-CX"},
 	{0x4409, "Chelsio T420-BT"},
 	{0x440a, "Chelsio T404-BT"},
+	{0x440e, "Chelsio T440-LP-CR"},
 };
 
 #ifdef TCP_OFFLOAD
