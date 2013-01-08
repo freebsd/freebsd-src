@@ -269,7 +269,7 @@ WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
 		_LDSCRIPTROOT= \
 		VERSION="${VERSION}" \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		INSTALL="install -U" \
 		PATH=${TMPPATH}
 .if ${MK_CDDL} == "no"
 WMAKEENV+=	NO_CTF=1
@@ -324,7 +324,7 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
 		_LDSCRIPTROOT=${LIB32TMP} \
 		VERSION="${VERSION}" \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		INSTALL="install -U" \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32 \
