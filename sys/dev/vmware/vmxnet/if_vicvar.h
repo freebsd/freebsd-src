@@ -70,7 +70,7 @@ struct vic_softc {
 	struct resource		*vic_res;
 	bus_space_tag_t		 vic_iot;
 	bus_space_handle_t	 vic_ioh;
-	int			 vic_ioadj;
+	bus_space_handle_t	 vic_orig_ioh;
 
 	bus_dma_tag_t		 vic_dma_tag;
 	bus_dmamap_t		 vic_dma_map;

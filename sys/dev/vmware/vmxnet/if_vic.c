@@ -419,8 +419,6 @@ static uint32_t
 vic_read(struct vic_softc *sc, bus_size_t r)
 {
 
-	r += sc->vic_ioadj;
-
 	bus_space_barrier(sc->vic_iot, sc->vic_ioh, r, 4,
 	    BUS_SPACE_BARRIER_READ);
 	return (bus_space_read_4(sc->vic_iot, sc->vic_ioh, r));
@@ -429,8 +427,6 @@ vic_read(struct vic_softc *sc, bus_size_t r)
 static void
 vic_write(struct vic_softc *sc, bus_size_t r, uint32_t v)
 {
-
-	r += sc->vic_ioadj;
 
 	bus_space_write_4(sc->vic_iot, sc->vic_ioh, r, v);
 	bus_space_barrier(sc->vic_iot, sc->vic_ioh, r, 4,
@@ -1811,7 +1807,6 @@ vic_get_lladdr(struct vic_softc *sc)
 	uint32_t r;
 
 	r = (sc->vic_cap & VIC_CMD_HWCAP_VPROM) ? VIC_VPROM : VIC_LLADDR;
-	r += sc->vic_ioadj;
 
 	bus_space_barrier(sc->vic_iot, sc->vic_ioh, r, ETHER_ADDR_LEN,
 	    BUS_SPACE_BARRIER_READ);
@@ -1826,13 +1821,10 @@ vic_get_lladdr(struct vic_softc *sc)
 static void
 vic_set_lladdr(struct vic_softc *sc)
 {
-	uint32_t r;
 
-	r = VIC_LLADDR + sc->vic_ioadj;
-
-	bus_space_write_region_1(sc->vic_iot, sc->vic_ioh, r,
+	bus_space_write_region_1(sc->vic_iot, sc->vic_ioh, VIC_LLADDR,
 	    sc->vic_lladdr, ETHER_ADDR_LEN);
-	bus_space_barrier(sc->vic_iot, sc->vic_ioh, r,
+	bus_space_barrier(sc->vic_iot, sc->vic_ioh, VIC_LLADDR,
 	    ETHER_ADDR_LEN, BUS_SPACE_BARRIER_WRITE);
 }
 
@@ -1947,7 +1939,7 @@ vic_pcnet_restore(struct vic_softc *sc)
 	uint32_t morph;
 
 	sc->vic_flags &= ~VIC_FLAGS_MORPHED_PCNET;
-	sc->vic_ioadj = 0;
+	sc->vic_ioh = sc->vic_orig_ioh;
 
 	morph = vic_read(sc, VIC_LANCE_SIZE);
 	morph &= ~VIC_MORPH_MASK;
@@ -1960,11 +1952,21 @@ vic_pcnet_transform(struct vic_softc *sc)
 {
 	device_t dev;
 	uint32_t morph;
+	bus_space_handle_t handle;
+	int error;
 
 	dev = sc->vic_dev;
 
 	if (rman_get_size(sc->vic_res) < VIC_LANCE_MINLEN)
 		return (ENOSPC);
+
+	/* Set up the subregion now - it doesn't require any cleanup. */
+	error = bus_space_subregion(sc->vic_iot, sc->vic_ioh,
+	    VIC_LANCE_SIZE + VIC_MORPH_SIZE, VIC_VMXNET_SIZE, &handle);
+	if (error) {
+		device_printf(dev, "unable to create bus space subregion\n");
+		return (error);
+	}
 
 	morph = vic_read(sc, VIC_LANCE_SIZE);
 	if ((morph & VIC_MORPH_MASK) == VIC_MORPH_VMXNET)
@@ -1988,7 +1990,9 @@ vic_pcnet_transform(struct vic_softc *sc)
 
 morphed:
 	sc->vic_flags |= VIC_FLAGS_MORPHED_PCNET;
-	sc->vic_ioadj = VIC_LANCE_SIZE + VIC_MORPH_SIZE;
+	sc->vic_orig_ioh = sc->vic_ioh;
+	sc->vic_ioh = handle;
+
 	if (bootverbose)
 		device_printf(dev, "transformed PCNet into VMXNET\n");
 
