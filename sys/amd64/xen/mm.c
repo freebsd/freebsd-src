@@ -181,6 +181,20 @@ xen_pt_switch(vm_paddr_t kpml4phys)
 }
 
 void
+xen_pt_user_switch(vm_paddr_t upml4phys)
+{
+	struct mmuext_op op;
+#ifdef INVARIANTS
+	SET_VCPU();
+	
+	KASSERT(XPQ_IDX == 0, ("pending operations XPQ_IDX=%d", XPQ_IDX));
+#endif
+	op.cmd = MMUEXT_NEW_USER_BASEPTR;
+	op.arg1.mfn = xpmap_ptom(upml4phys) >> PAGE_SHIFT;
+	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+}
+
+void
 _xen_machphys_update(vm_paddr_t mfn, vm_paddr_t pfn, char *file, int line)
 {
 	SET_VCPU();
