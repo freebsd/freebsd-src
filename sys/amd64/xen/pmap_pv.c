@@ -208,15 +208,15 @@ pmap_get_pv_entry(pmap_t pmap)
 
 	PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
-	dump_add_page(m->phys_addr);
+	dump_add_page(VM_PAGE_TO_PHYS(m));
 
-	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
+	pc = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
 	/* 
 	 * DMAP entries are kernel only, and don't need tracking, so
 	 * we just wire in the va.
 	 */
-	pmap_kenter_ma((vm_offset_t)pc, xpmap_ptom(m->phys_addr));
+	pmap_kenter_ma((vm_offset_t)pc, xpmap_ptom(VM_PAGE_TO_PHYS(m)));
 
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
