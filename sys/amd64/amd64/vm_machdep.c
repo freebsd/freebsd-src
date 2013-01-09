@@ -574,10 +574,9 @@ cpu_reset_proxy()
 	cpuset_t tcrp;
 
 	cpu_reset_proxy_active = 1;
-	while (cpu_reset_proxy_active == 1) {
-		ia32_pause();
-		;	/* Wait for other cpu to see that we've started */
-	}
+	while (cpu_reset_proxy_active == 1)
+		ia32_pause(); /* Wait for other cpu to see that we've started */
+
 	CPU_SETOF(cpu_reset_proxyid, &tcrp);
 	stop_cpus(tcrp);
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
