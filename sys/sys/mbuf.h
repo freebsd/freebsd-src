@@ -396,7 +396,7 @@ extern uma_zone_t	zone_ext_refcnt;
 static __inline struct mbuf	*m_getcl(int how, short type, int flags);
 static __inline struct mbuf	*m_get(int how, short type);
 static __inline struct mbuf	*m_get2(int how, short type, int flags,
-				    int size);
+				    u_int size);
 static __inline struct mbuf	*m_gethdr(int how, short type);
 static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
 				    int size);
@@ -548,7 +548,7 @@ m_getcl(int how, short type, int flags)
  * XXX: This is rather large, should be real function maybe.
  */
 static __inline struct mbuf *
-m_get2(int how, short type, int flags, int size)
+m_get2(int how, short type, int flags, u_int size)
 {
 	struct mb_args args;
 	struct mbuf *m, *n;
@@ -557,7 +557,7 @@ m_get2(int how, short type, int flags, int size)
 	args.flags = flags;
 	args.type = type;
 
-	if (size <= ((int)MHLEN) || (size <= ((int)MLEN) && (flags & M_PKTHDR) == 0))
+	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
 		return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
 	if (size <= MCLBYTES)
 		return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
