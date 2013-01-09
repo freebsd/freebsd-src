@@ -7,14 +7,14 @@
 ;       (e.g. reference this file in the "cache  .  <file>"
 ;       configuration file of BIND domain name servers).
 ;
-;       This file is made available by InterNIC
+;       This file is made available by InterNIC 
 ;       under anonymous FTP as
-;           file                /domain/named.root
+;           file                /domain/named.cache
 ;           on server           FTP.INTERNIC.NET
 ;       -OR-                    RS.INTERNIC.NET
 ;
-;       last update:    Jun 8, 2011
-;       related version of root zone:   2011060800
+;       last update:    Jan 3, 2013
+;       related version of root zone:   2013010300
 ;
 ; formerly NS.INTERNIC.NET
 ;
@@ -35,7 +35,7 @@ C.ROOT-SERVERS.NET.      3600000      A     192.33.4.12
 ; FORMERLY TERP.UMD.EDU
 ;
 .                        3600000      NS    D.ROOT-SERVERS.NET.
-D.ROOT-SERVERS.NET.      3600000      A     128.8.10.90
+D.ROOT-SERVERS.NET.      3600000      A     199.7.91.13
 D.ROOT-SERVERS.NET.	 3600000      AAAA  2001:500:2D::D
 ;
 ; FORMERLY NS.NASA.GOV

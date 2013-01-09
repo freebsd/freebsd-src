@@ -257,6 +257,8 @@ newbus_device_destroy(device_t dev)
 	struct fdtbus_devinfo *di;
 
 	di = device_get_ivars(dev);
+	if (di == NULL)
+		return;
 
 	free(di->di_name, M_OFWPROP);
 	free(di->di_type, M_OFWPROP);

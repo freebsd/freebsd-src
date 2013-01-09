@@ -906,10 +906,11 @@ zpool_do_create(int argc, char **argv)
 	/*
 	 * Check the validity of the mountpoint and direct the user to use the
 	 * '-m' mountpoint option if it looks like its in use.
+	 * Ignore the checks if the '-f' option is given.
 	 */
-	if (mountpoint == NULL ||
+	if (!force && (mountpoint == NULL ||
 	    (strcmp(mountpoint, ZFS_MOUNTPOINT_LEGACY) != 0 &&
-	    strcmp(mountpoint, ZFS_MOUNTPOINT_NONE) != 0)) {
+	    strcmp(mountpoint, ZFS_MOUNTPOINT_NONE) != 0))) {
 		char buf[MAXPATHLEN];
 		DIR *dirp;
 

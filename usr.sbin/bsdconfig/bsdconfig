@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -204,24 +204,44 @@ dialog_menu_main()
 ############################################################ MAIN
 
 #
-# If $0 is not "bsdconfig", interpret it as a keyword to a menuitem
+# If $0 is not "bsdconfig", interpret it either as a keyword to a menuitem or
+# as a valid resword (see script.subr for additional details about reswords).
 #
-if [ "$pgm" != "bsdconfig" ] &&
-   indexfile=$( f_index_file "$pgm" ) &&
-   cmd=$( f_index_menusel_command "$indexfile" "$pgm" )
-then
-	exec "$cmd" "$@" || exit 1
+if [ "$pgm" != "bsdconfig" ]; then
+	if indexfile=$( f_index_file "$pgm" ) &&
+	   cmd=$( f_index_menusel_command "$indexfile" "$pgm" )
+	then
+		f_dprintf "pgm=[%s] indexfile=[%s] cmd=[%s]" \
+		          "$pgm" "$indexfile" "$cmd"
+		exec "$cmd" "$@" || exit 1
+	else
+		f_include $BSDCFG_SHARE/script.subr
+		for resword in $RESWORDS; do
+			[ "$pgm" = "$resword" ] || continue
+			# Found a match
+			f_dprintf "pgm=[%s] A valid resWord!" "$pgm"
+			f_dispatch $resword
+			exit $?
+		done
+	fi
 fi
 
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+scripts_loaded=0
+while getopts f:hSX flag; do
 	case "$flag" in
+	f) [ $scripts_loaded -eq 0 ] && f_include $BSDCFG_SHARE/script.subr
+	   f_script_load "$OPTARG"
+	   scripts_loaded=$(( $scripts_loaded + 1 ));;
 	h|\?) usage;;
 	esac
 done
 shift $(( $OPTIND -1 ))
+
+# If we've loaded any scripts, do not continue any further
+[ $scripts_loaded -gt 0 ] && exit
 
 #
 # Initialize

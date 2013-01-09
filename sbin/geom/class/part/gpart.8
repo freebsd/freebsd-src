@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2012
+.Dd January 3, 2013
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -453,8 +453,14 @@ about its use.
 .El
 .\" ==== SHOW ====
 .It Cm show
-Show the current partition information of the specified geoms
-or all geoms if none are specified.
+Show current partition information for the specified geoms, or all
+geoms if none are specified.
+The default output includes the logical starting block of each
+partition, the partition size in blocks, the partition index number,
+the partition type, and a human readable partition size.
+Block sizes and locations are based on the device's Sectorsize
+as shown by
+.Cm gpart list .
 Additional options include:
 .Bl -tag -width 10n
 .It Fl l
@@ -919,7 +925,7 @@ and
 .Cm list
 will report about corrupt tables.
 .Pp
-If the size of the device has changed (e.g.\& volume expansion) the
+If the size of the device has changed (e.g.,\& volume expansion) the
 secondary GPT header will no longer be located in the last sector.
 This is not a metadata corruption, but it is dangerous because any
 corruption of the primary GPT will lead to loss of the partition table.
@@ -979,14 +985,14 @@ This may break a mirrored volume and lead to data damage.
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 Create a GPT scheme on
-.Pa ad0 :
+.Pa ada0 :
 .Bd -literal -offset indent
-/sbin/gpart create -s GPT ad0
+/sbin/gpart create -s GPT ada0
 .Ed
 .Pp
 Embed GPT bootstrap code into a protective MBR:
 .Bd -literal -offset indent
-/sbin/gpart bootcode -b /boot/pmbr ad0
+/sbin/gpart bootcode -b /boot/pmbr ada0
 .Ed
 .Pp
 Create a dedicated
@@ -1011,15 +1017,15 @@ aligned on a 64 kB boundary without the need to specify an explicit
 offset or alignment.
 The boot partition itself is aligned on a 4 kB boundary.
 .Bd -literal -offset indent
-/sbin/gpart add -b 40 -s 88 -t freebsd-boot ad0
-/sbin/gpart bootcode -p /boot/gptboot -i 1 ad0
+/sbin/gpart add -b 40 -s 88 -t freebsd-boot ada0
+/sbin/gpart bootcode -p /boot/gptboot -i 1 ada0
 .Ed
 .Pp
 Create a 512MB-sized
 .Cm freebsd-ufs
 partition to contain a UFS filesystem from which the system can boot.
 .Bd -literal -offset indent
-/sbin/gpart add -s 512M -t freebsd-ufs ad0
+/sbin/gpart add -s 512M -t freebsd-ufs ada0
 .Ed
 .Pp
 Create an MBR scheme on

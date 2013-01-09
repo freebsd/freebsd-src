@@ -270,7 +270,7 @@ while ((getline < srcfile) > 0) {
 		ctrargs = 4;
 	else
 		ctrargs = numargs;
-	ctrstr = ctrargs "(KTR_VOP, \"VOP\", \"" uname "\", a,\n\t    "; 
+	ctrstr = ctrargs "(KTR_VOP, \"VOP\", \"" uname "\", (uintptr_t)a,\n\t    "; 
 	ctrstr = ctrstr "\"" args[0] ":0x%jX\", (uintptr_t)a->a_" args[0];
 	for (i = 1; i < ctrargs; ++i)
 		ctrstr = ctrstr ", \"" args[i] ":0x%jX\", a->a_" args[i];

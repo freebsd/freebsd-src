@@ -1050,6 +1050,7 @@ product AOX USB101		0x0008	Ethernet
 product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
+product APPLE DUMMY		0x0000	Dummy product
 product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
 product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
@@ -3057,6 +3058,7 @@ product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
+product NOVATEL MIFI2200	0x5041	Novatel MiFi 2200 CDMA
 product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL MC760		0x6002	Novatel MC760

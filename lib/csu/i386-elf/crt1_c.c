@@ -61,10 +61,7 @@ _start1(fptr cleanup, int argc, char *argv[])
 	char **env;
 
 	env = argv + argc + 1;
-	environ = env;
-	if (argc > 0 && argv[0] != NULL)
-		handle_progname(argv[0]);
-
+	handle_argv(argc, argv, env);
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
 	else
