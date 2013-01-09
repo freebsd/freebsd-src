@@ -1347,35 +1347,49 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			while (sl != NULL) {
 					/* write back the unaligned portions */
 				vm_paddr_t physaddr;
+				register_t s = 0;
+
 				buf = sl->vaddr;
 				len = sl->datacount;
 				physaddr = sl->busaddr;
 				bbuf = buf & ~arm_dcache_align_mask;
 				ebuf = buf + len;
 				physaddr = physaddr & ~arm_dcache_align_mask;
-				unalign = buf & arm_dcache_align_mask;
-				if (unalign) {
-					memcpy(_tmp_cl, (void *)bbuf, unalign);
-					len += unalign; /* inv entire cache line */
+
+
+				if ((buf & arm_dcache_align_mask) ||
+				    (ebuf & arm_dcache_align_mask)) {
+					s = intr_disable();
+					unalign = buf & arm_dcache_align_mask;
+					if (unalign) {
+						memcpy(_tmp_cl, (void *)bbuf, unalign);
+						len += unalign; /* inv entire cache line */
+					}
+
+					unalign = ebuf & arm_dcache_align_mask;
+					if (unalign) {
+						unalign = arm_dcache_align - unalign;
+						memcpy(_tmp_clend, (void *)ebuf, unalign);
+						len += unalign; /* inv entire cache line */
+					}
 				}
-				unalign = ebuf & arm_dcache_align_mask;
-				if (unalign) {
-					unalign = arm_dcache_align - unalign;
-					memcpy(_tmp_clend, (void *)ebuf, unalign);
-					len += unalign; /* inv entire cache line */
-				}
-					/* inv are cache length aligned */
+
+				/* inv are cache length aligned */
 				cpu_dcache_inv_range(bbuf, len);
 				l2cache_inv_range(bbuf, physaddr, len);
 
-				unalign = (vm_offset_t)buf & arm_dcache_align_mask;
-				if (unalign) {
-					memcpy((void *)bbuf, _tmp_cl, unalign);
-				}
-				unalign = ebuf & arm_dcache_align_mask;
-				if (unalign) {
-					unalign = arm_dcache_align - unalign;
-					memcpy((void *)ebuf, _tmp_clend, unalign);
+				if ((buf & arm_dcache_align_mask) ||
+				    (ebuf & arm_dcache_align_mask)) {
+					unalign = (vm_offset_t)buf & arm_dcache_align_mask;
+					if (unalign)
+						memcpy((void *)bbuf, _tmp_cl, unalign);
+
+					unalign = ebuf & arm_dcache_align_mask;
+					if (unalign)
+						memcpy((void *)ebuf, _tmp_clend,
+						    arm_dcache_align - unalign);
+
+					intr_restore(s);
 				}
 				sl = STAILQ_NEXT(sl, slinks);
 			}

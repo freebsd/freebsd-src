@@ -69,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
-	libdisk \
 	libdwarf \
 	libedit \
 	${_libefi} \

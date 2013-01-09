@@ -40,17 +40,24 @@ MLINKS= grep.1 egrep.1 \
 	grep.1 lzfgrep.1
 .endif
 
+LDADD=	-lz
+DPADD=	${LIBZ}
+
+.if !defined(WITHOUT_LZMA_SUPPORT)
+LDADD+=	-llzma
+DPADD+=	${LIBLZMA}
+
 LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzfgrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzegrep \
 	${BINDIR}/${PROG} ${BINDIR}/lzfgrep
+.else
+CFLAGS+= -DWITHOUT_LZMA
+.endif
 
-LDADD=	-lz -llzma
-DPADD=	${LIBZ} ${LIBLZMA}
-
-.if !defined(WITHOUT_BZIP2)
+.if !defined(WITHOUT_BZIP2_SUPPORT)
 LDADD+=	-lbz2
 DPADD+=	${LIBBZ2}
 

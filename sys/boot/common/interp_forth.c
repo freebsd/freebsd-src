@@ -51,6 +51,13 @@ extern char bootprog_rev[];
 #define BF_PARSE 100
 
 /*
+ * FreeBSD loader default dictionary cells
+ */
+#ifndef	BF_DICTSIZE
+#define	BF_DICTSIZE	10000
+#endif
+
+/*
  * BootForth   Interface to Ficl Forth interpreter.
  */
 
@@ -239,8 +246,8 @@ bf_init(void)
     struct bootblk_command	**cmdp;
     char create_buf[41];	/* 31 characters-long builtins */
     int fd;
-   
-    bf_sys = ficlInitSystem(10000);	/* Default dictionary ~4000 cells */
+
+    bf_sys = ficlInitSystem(BF_DICTSIZE);
     bf_vm = ficlNewVM(bf_sys);
 
     /* Put all private definitions in a "builtins" vocabulary */

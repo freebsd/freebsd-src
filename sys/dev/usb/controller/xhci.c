@@ -1440,26 +1440,37 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
-	uint32_t temp;
+	uint32_t iman;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
+	if (status == 0)
+		goto done;
 
 	/* acknowledge interrupts */
 
 	XWRITE4(sc, oper, XHCI_USBSTS, status);
 
-	temp = XREAD4(sc, runt, XHCI_IMAN(0));
+	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
+ 
+	if (status & XHCI_STS_EINT) {
 
-	/* acknowledge pending event */
+		/* acknowledge pending event */
+		iman = XREAD4(sc, runt, XHCI_IMAN(0));
 
-	XWRITE4(sc, runt, XHCI_IMAN(0), temp);
+		/* reset interrupt */
+		XWRITE4(sc, runt, XHCI_IMAN(0), iman);
+ 
+		DPRINTFN(16, "real interrupt (iman=0x%08x)\n", iman);
+ 
+		/* check for event(s) */
+		xhci_interrupt_poll(sc);
+	}
 
-	DPRINTFN(16, "real interrupt (sts=0x%08x, "
-	    "iman=0x%08x)\n", status, temp);
+	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
+	    XHCI_STS_HSE | XHCI_STS_HCE)) {
 
-	if (status != 0) {
 		if (status & XHCI_STS_PCD) {
 			xhci_root_intr(sc);
 		}
@@ -1479,9 +1490,7 @@ xhci_interrupt(struct xhci_softc *sc)
 			   __FUNCTION__);
 		}
 	}
-
-	xhci_interrupt_poll(sc);
-
+done:
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 

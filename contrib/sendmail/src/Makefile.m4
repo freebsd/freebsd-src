@@ -1,4 +1,4 @@
-dnl $Id: Makefile.m4,v 8.126 2010/11/24 19:59:54 gshapiro Exp $
+dnl $Id: Makefile.m4,v 8.132 2012/09/11 20:02:44 ca Exp $
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
 define(`confREQUIRE_LIBSM', `true')

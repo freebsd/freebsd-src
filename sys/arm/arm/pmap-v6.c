@@ -193,6 +193,14 @@ int pmap_debug_level = 0;
 #define PMAP_INLINE __inline
 #endif  /* PMAP_DEBUG */
 
+#ifdef ARM_L2_PIPT
+#define pmap_l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range((pa), (size))
+#define pmap_l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range((pa), (size))
+#else
+#define pmap_l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range((va), (size))
+#define pmap_l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range((va), (size))
+#endif
+
 extern struct pv_addr systempage;
 
 /*
@@ -786,11 +794,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	pte = *ptep;
 
 	cpu_idcache_wbinv_range(va, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-	cpu_l2cache_wbinv_range(pte & L2_S_FRAME, PAGE_SIZE);
-#else
-	cpu_l2cache_wbinv_range(va, PAGE_SIZE);
-#endif
+	pmap_l2cache_wbinv_range(va, pte & L2_S_FRAME, PAGE_SIZE);
 	if ((pte & L2_S_CACHE_MASK) != pte_l2_s_cache_mode_pt) {
 		/*
 		 * Page tables must have the cache-mode set to
@@ -2121,6 +2125,7 @@ pmap_kremove(vm_offset_t va)
 		cpu_tlb_flushD_SE(va);
 		cpu_cpwait();
 		*pte = 0;
+		PTE_SYNC(pte);
 	}
 }
 
@@ -2387,11 +2392,7 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 
 		pte = *ptep &~ L2_S_CACHE_MASK;
 		cpu_idcache_wbinv_range(tmpva, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-		cpu_l2cache_wbinv_range(pte & L2_S_FRAME, PAGE_SIZE);
-#else
-		cpu_l2cache_wbinv_range(tmpva, PAGE_SIZE);
-#endif
+		pmap_l2cache_wbinv_range(tmpva, pte & L2_S_FRAME, PAGE_SIZE);
 		*ptep = pte;
 		cpu_tlb_flushID_SE(tmpva);
 
@@ -2754,6 +2755,9 @@ do_l2b_alloc:
 		else if (PV_BEEN_REFD(oflags))
 			cpu_tlb_flushD_SE(va);
 	}
+
+	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
+		cpu_icache_sync_range(va, PAGE_SIZE);
 }
 
 /*
@@ -3197,6 +3201,16 @@ pmap_zero_page_gen(vm_page_t pg, int off, int size)
 	else
 		bzero_page(cdstp);
 
+	/*
+	 * Although aliasing is not possible if we use 
+	 * cdstp temporary mappings with memory that 
+	 * will be mapped later as non-cached or with write-through 
+	 * caches we might end up overwriting it when calling wbinv_all
+	 * So make sure caches are clean after copy operation
+	 */
+	cpu_idcache_wbinv_range(cdstp, size);
+	pmap_l2cache_wbinv_range(cdstp, phys, size);
+
 	mtx_unlock(&cmtx);
 }
 
@@ -3276,11 +3290,22 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	*cdst_pte = L2_S_PROTO | dst | pte_l2_s_cache_mode;
 	pmap_set_prot(cdst_pte, VM_PROT_READ | VM_PROT_WRITE, 0);
 	PTE_SYNC(cdst_pte);
+
 	cpu_tlb_flushD_SE(csrcp);
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
 
+	/*
+	 * Although aliasing is not possible if we use 
+	 * cdstp temporary mappings with memory that 
+	 * will be mapped later as non-cached or with write-through 
+	 * caches we might end up overwriting it when calling wbinv_all
+	 * So make sure caches are clean after copy operation
+	 */
 	bcopy_page(csrcp, cdstp);
+
+	cpu_idcache_wbinv_range(cdstp, PAGE_SIZE);
+	pmap_l2cache_wbinv_range(cdstp, dst, PAGE_SIZE);
 
 	mtx_unlock(&cmtx);
 }

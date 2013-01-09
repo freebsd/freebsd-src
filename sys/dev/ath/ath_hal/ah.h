@@ -156,6 +156,7 @@ typedef enum {
 	HAL_CAP_RXBUFSIZE	= 81,	/* Receive Buffer Length */
 	HAL_CAP_NUM_MR_RETRIES	= 82,	/* limit on multirate retries */
 	HAL_CAP_OL_PWRCTRL	= 84,	/* Open loop TX power control */
+	HAL_CAP_SPECTRAL_SCAN	= 90,	/* Hardware supports spectral scan */
 
 	HAL_CAP_BB_PANIC_WATCHDOG	= 92,
 
@@ -930,6 +931,20 @@ typedef struct {
 
 #define	HAL_PHYERR_PARAM_NOVAL	65535
 
+typedef struct {
+	u_int16_t	ss_fft_period;	/* Skip interval for FFT reports */
+	u_int16_t	ss_period;	/* Spectral scan period */
+	u_int16_t	ss_count;	/* # of reports to return from ss_active */
+	u_int16_t	ss_short_report;/* Set to report ony 1 set of FFT results */
+	u_int8_t	radar_bin_thresh_sel;	/* strong signal radar FFT threshold configuration */
+	u_int16_t	ss_spectral_pri;		/* are we doing a noise power cal ? */
+	int8_t		ss_nf_cal[AH_MAX_CHAINS*2];     /* nf calibrated values for ctl+ext from eeprom */
+	int8_t		ss_nf_pwr[AH_MAX_CHAINS*2];     /* nf pwr values for ctl+ext from eeprom */
+	int32_t		ss_nf_temp_data;	/* temperature data taken during nf scan */
+} HAL_SPECTRAL_PARAM;
+#define	HAL_SPECTRAL_PARAM_NOVAL	0xFFFF
+#define	HAL_SPECTRAL_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
+
 /*
  * DFS operating mode flags.
  */
@@ -1432,6 +1447,17 @@ struct ath_hal {
 				struct ath_rx_status *rxs, uint64_t fulltsf,
 				const char *buf, HAL_DFS_EVENT *event);
 	HAL_BOOL  __ahdecl(*ah_isFastClockEnabled)(struct ath_hal *ah);
+
+	/* Spectral Scan functions */
+	void	__ahdecl(*ah_spectralConfigure)(struct ath_hal *ah,
+				HAL_SPECTRAL_PARAM *sp);
+	void	__ahdecl(*ah_spectralGetConfig)(struct ath_hal *ah,
+				HAL_SPECTRAL_PARAM *sp);
+	void	__ahdecl(*ah_spectralStart)(struct ath_hal *);
+	void	__ahdecl(*ah_spectralStop)(struct ath_hal *);
+	HAL_BOOL	__ahdecl(*ah_spectralIsEnabled)(struct ath_hal *);
+	HAL_BOOL	__ahdecl(*ah_spectralIsActive)(struct ath_hal *);
+	/* XXX getNfPri() and getNfExt() */
 
 	/* Key Cache Functions */
 	uint32_t __ahdecl(*ah_getKeyCacheSize)(struct ath_hal*);

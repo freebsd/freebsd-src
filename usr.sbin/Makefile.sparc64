@@ -2,6 +2,3 @@
 
 SUBDIR+=	eeprom
 SUBDIR+=	ofwdump
-.if ${MK_SYSINSTALL} != "no"
-SUBDIR+=	sade
-.endif

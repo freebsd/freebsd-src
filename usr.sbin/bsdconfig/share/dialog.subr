@@ -1,6 +1,6 @@
 if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -76,6 +77,11 @@ unset XDIALOG_INFOBOX_TIMEOUT
 # Default behavior is to call f_dialog_init() automatically when loaded.
 #
 : ${DIALOG_SELF_INITIALIZE=1}
+
+#
+# Default terminal size (used if/when running without a controlling terminal)
+#
+: ${DEFAULT_TERMINAL_SIZE:=24 80}
 
 ############################################################ GENERIC FUNCTIONS
 
@@ -193,7 +199,8 @@ f_dialog_infobox_size()
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
 		min_width=24
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_height="${max_size%%[$IFS]*}"
@@ -325,7 +332,8 @@ f_dialog_buttonbox_size()
 	if [ "$USE_XDIALOG" ]; then
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	[ $height -le $max_height ] || height=$max_height
@@ -363,7 +371,8 @@ f_dialog_inputbox_size()
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
 		min_width=24
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -472,6 +481,7 @@ f_xdialog_2inputsbox_size()
 
 	# Add height for a second inputbox
 	height=$(( $height + 2 ))
+	[ $height -le $max_height ] || height=$max_height
 
 	#
 	# Bump width for second initial text (if not already at maximum width).
@@ -521,7 +531,8 @@ f_dialog_menu_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -603,7 +614,8 @@ f_dialog_menu_with_help_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -702,7 +714,8 @@ f_dialog_radiolist_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -788,7 +801,8 @@ f_dialog_calendar_size()
 	else
 		min_height=0
 		min_width=40
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -866,7 +880,8 @@ f_dialog_timebox_size()
 	else
 		min_height=0
 		min_width=20
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -924,7 +939,7 @@ f_dialog_clear()
 # f_dialog_info $info_text ...
 #
 # Throw up a dialog(1) infobox. The infobox remains until another dialog is
-# displayed or `dialog --clear' (or dialog_clear) is called.
+# displayed or `dialog --clear' (or f_dialog_clear) is called.
 #
 f_dialog_info()
 {
@@ -1044,6 +1059,9 @@ f_dialog_yesno()
 {
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
+
+	f_interactive || return 0 # If non-interactive, return YES all the time
+
 	local size="$( f_dialog_buttonbox_size \
 	               		"$DIALOG_TITLE"     \
 	               		"$DIALOG_BACKTITLE" \
@@ -1084,6 +1102,9 @@ f_dialog_noyes()
 {
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
+
+	f_interactive || return 1 # If non-interactive, return NO all the time
+
 	local size="$( f_dialog_buttonbox_size \
 	               		"$DIALOG_TITLE"     \
 	               		"$DIALOG_BACKTITLE" \
@@ -1480,6 +1501,9 @@ f_dialog_init()
 
 ############################################################ MAIN
 
+#
+# Self-initialize unless requested otherwise
+#
 f_dprintf "%s: DIALOG_SELF_INITIALIZE=[%s]" \
           dialog.subr "$DIALOG_SELF_INITIALIZE"
 case "$DIALOG_SELF_INITIALIZE" in

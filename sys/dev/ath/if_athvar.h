@@ -750,6 +750,10 @@ struct ath_softc {
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
 
+	/* Spectral related state */
+	void			*sc_spectral;
+	int			sc_dospectral;
+
 	/* ALQ */
 #ifdef	ATH_DEBUG_ALQ
 	struct if_ath_alq sc_alq;
@@ -1298,5 +1302,16 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
+
+#define	ath_hal_spectral_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_SPECTRAL_SCAN, 0, NULL) == HAL_OK)
+#define	ath_hal_spectral_get_config(_ah, _p) \
+	((*(_ah)->ah_spectralGetConfig)((_ah), (_p)))
+#define	ath_hal_spectral_configure(_ah, _p) \
+	((*(_ah)->ah_spectralConfigure)((_ah), (_p)))
+#define	ath_hal_spectral_start(_ah) \
+	((*(_ah)->ah_spectralStart)((_ah)))
+#define	ath_hal_spectral_stop(_ah) \
+	((*(_ah)->ah_spectralStop)((_ah)))
 
 #endif /* _DEV_ATH_ATHVAR_H */

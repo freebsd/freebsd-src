@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2006
+.Dd December 30, 2012
 .Dt SADE 8
 .Os
 .Sh NAME
@@ -46,28 +46,30 @@ The
 .Nm
 utility aims to provide a handy tool for disk management
 tasks on an already installed system.
-The goal is to save
-some of the useful functionality of the old
-.Xr sysinstall 8
-which
-will be removed from the system in favor of the new installer.
+The goal is to provide the same text interface for disk management in
+.Xr bsdinstall 8
+in the post-installation environment.
 .Sh SEE ALSO
-.Xr sysinstall 8
+.Xr bsdinstall 8 ,
+.Xr gpart 8
 .Sh HISTORY
-This version of
+A program called
 .Nm
 first appeared in
-.Fx 6.3 .
-The code is extracted from the
+.Fx 6.3 
+as a utility encapsulating features from the
 .Xr sysinstall 8
-utility.
+installer. It was replaced in
+.Fx 10.0
+with the equivalent part of
+.Xr bsdinstall 8 .
 .Sh AUTHORS
-.An Jordan K. Hubbard Aq jkh@FreeBSD.org
+.An Nathan Whitehorn Aq nwhitehorn@FreeBSD.org
 .Sh BUGS
 The utility misses a lot of nice features, such as tools for
 manipulating
 .Xr gmirror 8
 or
-.Xr gvinum 8
-stuff.
+.Xr zfs 8
+.
 These will be added later.

@@ -104,6 +104,7 @@ f_validate_ipaddr()
 		[ $noctets -eq 4 ] || exit 4
 	)
 }
+
 # f_dialog_iperror $error $ipaddr
 #
 # Display a msgbox with the appropriate error message for an error returned by

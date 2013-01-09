@@ -46,6 +46,7 @@ PROG=	${PROG_CXX}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if target(beforelinking)
+beforelinking: ${OBJS}
 ${PROG}: beforelinking
 .endif
 ${PROG}: ${OBJS}
@@ -75,6 +76,7 @@ SRCS=	${PROG}.c
 OBJS=	${PROG}.o
 
 .if target(beforelinking)
+beforelinking: ${OBJS}
 ${PROG}: beforelinking
 .endif
 ${PROG}: ${OBJS}
