@@ -88,6 +88,18 @@ pdt_index(uintptr_t va)
 	return ((va & PDPMASK) >> PDRSHIFT);
 }
 
+#if 0
+static int
+pt_index(uintptr_t va)
+{
+	/* amd64 sign extends 48th bit and upwards */
+	const uint64_t SIGNMASK = (1UL << 48) - 1;
+	va &= SIGNMASK; /* Remove sign extension */
+
+	return ((va & PDRMASK) >> PAGE_SHIFT);
+}
+#endif
+
 /* 
  * The table get functions below assume that a table cannot exist at
  * address 0
@@ -352,7 +364,7 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 		pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
 		pdpte = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pti->pdt)) | PG_RW | PG_V | PG_U; /*	XXX: revisit flags */
 		xen_queue_pt_update(pdptep_ma, pdpte);
-		
+		xen_flush_queue();
 	} else {
 		pti->pdt = (pd_entry_t *) pti->ptmb.ptov(pt);
 	}
@@ -370,11 +382,32 @@ mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 		pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
 		pdte = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pti->pt)) | PG_RW | PG_V | PG_U; /*	XXX: revisit flags */
 		xen_queue_pt_update(pdtep_ma, pdte);
-
+		xen_flush_queue();
 	} else {
 		pti->pt = (pt_entry_t *) pti->ptmb.ptov(pt);
 	}
 }
+
+/*$FreeBSD: head/lib/libc/string/memrchr.c 178051 2008-04-10 00:12:44Z delphij $*/
+/*
+ * Reverse memchr()
+ * Find the last occurrence of 'c' in the buffer 's' of size 'n'.
+ */
+static void *
+memrchr(const void *s, int c, size_t n)
+{
+	const unsigned char *cp;
+
+	if (n != 0) {
+		cp = (unsigned char *)s + n;
+		do {
+			if (*(--cp) == (unsigned char)c)
+				return((void *)cp);
+		} while (--n != 0);
+	}
+	return(NULL);
+}
+
 
 void
 mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
@@ -385,5 +418,107 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 	struct mmu_map_index *pti = addr;
 	KASSERT(pti->sanity == SANE, ("Uninitialised index cookie used"));
 
-	/* XXX: */
+	/*
+	 * We're expected to be called after an init-ed pti has either
+	 * been inspected, or held.
+	 */
+
+	pti->pml4t = pmap_get_pml4t(pm);
+
+	if (pti->pml4t == 0) {
+		return;
+	}
+
+	if (pti->pt != NULL) {
+		KASSERT(pti->pdt != 0, ("Invalid pdt\n"));
+	}
+
+	if (pti->pdt != NULL) { /* Zap pdte */
+
+		pd_entry_t *pdtep;
+		vm_paddr_t pdtep_ma;
+
+		pdtep = &pti->pdt[pdt_index(va)];
+
+		if (pti->pt == NULL) {
+			KASSERT(*pdtep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
+		} else {
+
+			/* We can free the PT only after the PDT entry is zapped */
+			if (memrchr(pti->pt, 0, PAGE_SIZE) == ((char *)pti->pt + PAGE_SIZE - 1)) {
+			  (void) pdtep_ma;
+
+				/* Zap the backing PDT entry */
+				pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
+				xen_queue_pt_update(pdtep_ma, 0);
+				xen_flush_queue();
+
+				/* The PT is empty. Free it and zero the
+				 * pointer */
+				if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pt);
+				pti->pt = NULL;
+
+			}
+
+		}
+
+		KASSERT(pti->pdpt != 0, ("Invalid pdpt\n"));
+	}
+
+	if (pti->pdpt != NULL) { /* Zap pdpte */
+
+		pdp_entry_t *pdptep;
+		vm_paddr_t pdptep_ma;
+
+		pdptep = &pti->pdpt[pdpt_index(va)];
+
+		if (pti->pdt == NULL) {
+			KASSERT(*pdptep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
+		}
+
+		/* We can free the PDT only after the PDPT entry is zapped */
+		if (memrchr(pti->pdt, 0, PAGE_SIZE) == ((char *)pti->pdt + PAGE_SIZE - 1)) {
+			pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
+			xen_queue_pt_update(pdptep_ma, 0);
+			xen_flush_queue();
+
+			/* The PDT is empty. Free it and zero the
+			 * pointer 
+			 */
+			if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pdt);
+			pti->pdt = NULL;
+		}
+		KASSERT(pti->pml4t != 0, ("Invalid pml4t\n"));
+	}
+
+	if (pti->pml4t != NULL) { /* Zap pml4te */
+		pml4_entry_t *pml4tep;
+		vm_paddr_t pml4tep_ma;
+
+		pml4tep = &pti->pml4t[pml4t_index(va)];
+
+		if (pti->pdpt == NULL) {
+			KASSERT(*pml4tep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
+		}
+
+		if (memrchr(pti->pdpt, 0, PAGE_SIZE) == ((char *)pti->pdpt + PAGE_SIZE - 1)) {
+			pml4tep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pml4tep)
+);
+			xen_queue_pt_update(pml4tep_ma, 0);
+			xen_flush_queue();
+
+			/* The PDPT is empty. Free it and zero the
+			 * pointer 
+			 */
+			if (pti->ptmb.free) pti->ptmb.free((uintptr_t)pti->pdpt);
+			pti->pdpt = NULL;
+		}
+	}			
+
+	/* 
+	 * We leave the pml4t to be managed by pmap, since there are
+	 * higher level aliasing issues across pmaps and vcpus that
+	 * can't be addressed here.
+	 */
 }
+					
