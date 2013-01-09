@@ -155,6 +155,8 @@ extern unsigned long physfree; /* from machdep.c */
 
 struct pmap kernel_pmap_store;
 
+#define ISBOOTVA(va) ((va) >= KERNBASE && (va) <= virtual_avail) /* XXX: keep an eye on virtual_avail */
+
 uintptr_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 uintptr_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
@@ -1064,7 +1066,7 @@ pmap_kremove(vm_offset_t va)
 	PT_CLEAR_VA(pte, TRUE);
 	PT_UPDATES_FLUSH();
 
-	//	vtopte_release(va, &tptr);
+	vtopte_release(va, &tptr);
 }
 
 /*
@@ -1357,7 +1359,7 @@ xen_vm_vtop(uintptr_t va)
 		 va <= VM_MAX_KERNEL_ADDRESS),
 		("Invalid kernel virtual address"));
 
-	if (va >= KERNBASE && va <= virtual_avail) { /* 
+	if (ISBOOTVA(va)) { /* 
 						      * Boot time page
 						      */
 		return VTOP(va);
@@ -1401,6 +1403,11 @@ xen_pagezone_alloc(void)
 static void
 xen_pagezone_free(vm_offset_t page)
 {
+
+	if (ISBOOTVA(page)) {
+		/* We don't manage this range */
+		return;
+	}
 
 	uma_zfree(xen_pagezone, (void *)page);
 }
