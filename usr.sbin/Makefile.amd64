@@ -11,6 +11,7 @@ SUBDIR+=	apm
 .endif
 SUBDIR+=	asf
 SUBDIR+=	bhyve
+SUBDIR+=	bhyvectl
 SUBDIR+=	bhyveload
 SUBDIR+=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
@@ -25,5 +26,4 @@ SUBDIR+=	ndiscvt
 .endif
 SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
-SUBDIR+=	bhyvectl
 SUBDIR+=	zzz
