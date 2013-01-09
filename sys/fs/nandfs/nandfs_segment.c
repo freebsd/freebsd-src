@@ -478,39 +478,19 @@ nandfs_iterate_dirty_vnodes(struct mount *mp, struct nandfs_seginfo *seginfo)
 	struct nandfs_node *nandfs_node;
 	struct vnode *vp, *mvp;
 	struct thread *td;
-	int error, lockreq, update;
+	int error, update;
 
 	td = curthread;
-	lockreq = LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY;
 
-	MNT_ILOCK(mp);
-
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		update = 0;
 
-		if (mp->mnt_syncer == vp)
-			continue;
-		if (VOP_ISLOCKED(vp))
-			continue;
-
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
-		if (vp->v_iflag & VI_DOOMED) {
+		if (mp->mnt_syncer == vp || VOP_ISLOCKED(vp)) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
-
-		if ((error = vget(vp, lockreq, td)) != 0) {
-			MNT_ILOCK(mp);
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT, td) != 0)
 			continue;
-		}
-
-		if (vp->v_iflag & VI_DOOMED) {
-			vput(vp);
-			MNT_ILOCK(mp);
-			continue;
-		}
 
 		nandfs_node = VTON(vp);
 		if (nandfs_node->nn_flags & IN_MODIFIED) {
@@ -532,11 +512,7 @@ nandfs_iterate_dirty_vnodes(struct mount *mp, struct nandfs_seginfo *seginfo)
 
 		if (update)
 			nandfs_node_update(nandfs_node);
-
-		MNT_ILOCK(mp);
 	}
-
-	MNT_IUNLOCK(mp);
 
 	return (0);
 }

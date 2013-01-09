@@ -135,11 +135,12 @@ pl310_cache_sync(void)
 		return;
 
 #ifdef PL310_ERRATA_753970
-	/* Write uncached PL310 register */
-	pl310_write4(pl310_softc, 0x740, 0xffffffff);
-#else
-	pl310_write4(pl310_softc, PL310_CACHE_SYNC, 0xffffffff);
+	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
+		/* Write uncached PL310 register */
+		pl310_write4(pl310_softc, 0x740, 0xffffffff);
+	else
 #endif
+		pl310_write4(pl310_softc, PL310_CACHE_SYNC, 0xffffffff);
 }
 
 
@@ -152,13 +153,17 @@ pl310_wbinv_all(void)
 
 	PL310_LOCK(pl310_softc);
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 3);
+	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r2p0 ||
+	    pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
+		platform_pl310_write_debug(pl310_softc, 3);
 #endif
 	pl310_write4(pl310_softc, PL310_CLEAN_INV_WAY, g_l2cache_way_mask);
 	pl310_wait_background_op(PL310_CLEAN_INV_WAY, g_l2cache_way_mask);
 	pl310_cache_sync();
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 0);
+	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r2p0 ||
+	    pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
+		platform_pl310_write_debug(pl310_softc, 0);
 #endif
 	PL310_UNLOCK(pl310_softc);
 }
@@ -186,18 +191,19 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 #endif
 	while (size > 0) {
 #ifdef PL310_ERRATA_588369
-		/* 
-		 * Errata 588369 says that clean + inv may keep the 
-		 * cache line if it was clean, the recommanded workaround
-		 * is to clean then invalidate the cache line, with
-		 * write-back and cache linefill disabled
-		 */
-		   
-		pl310_write4(pl310_softc, PL310_CLEAN_LINE_PA, start);
-		pl310_write4(pl310_softc, PL310_INV_LINE_PA, start);
-#else
-		pl310_write4(pl310_softc, PL310_CLEAN_INV_LINE_PA, start);
+		if (pl310_softc->sc_rtl_revision <= CACHE_ID_RELEASE_r1p0) {
+			/* 
+			 * Errata 588369 says that clean + inv may keep the 
+			 * cache line if it was clean, the recommanded
+			 * workaround is to clean then invalidate the cache
+			 * line, with write-back and cache linefill disabled.
+			 */
+			pl310_write4(pl310_softc, PL310_CLEAN_LINE_PA, start);
+			pl310_write4(pl310_softc, PL310_INV_LINE_PA, start);
+		} else
 #endif
+			pl310_write4(pl310_softc, PL310_CLEAN_INV_LINE_PA,
+			    start);
 		start += g_l2cache_line_size;
 		size -= g_l2cache_line_size;
 	}
@@ -307,6 +313,8 @@ pl310_attach(device_t dev)
 				pl310_filter, NULL, sc, &sc->sc_irq_h);
 
 	cache_id = pl310_read4(sc, PL310_CACHE_ID);
+	sc->sc_rtl_revision = (cache_id >> CACHE_ID_RELEASE_SHIFT) &
+	    CACHE_ID_RELEASE_MASK;
 	device_printf(dev, "Part number: 0x%x, release: 0x%x\n",
 	    (cache_id >> CACHE_ID_PARTNUM_SHIFT) & CACHE_ID_PARTNUM_MASK,
 	    (cache_id >> CACHE_ID_RELEASE_SHIFT) & CACHE_ID_RELEASE_MASK);

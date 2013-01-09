@@ -47,9 +47,25 @@
 #include <machine/cpuconf.h>
 #endif
 
-#define mb()
-#define wmb()
-#define rmb()
+#if defined (__ARM_ARCH_7__) || defined (__ARM_ARCH_7A__)
+#define isb()  __asm __volatile("isb" : : : "memory")
+#define dsb()  __asm __volatile("dsb" : : : "memory")
+#define dmb()  __asm __volatile("dmb" : : : "memory")
+#elif defined (__ARM_ARCH_6__) || defined (__ARM_ARCH_6J__) || \
+  defined (__ARM_ARCH_6K__) || defined (__ARM_ARCH_6Z__) || \
+  defined (__ARM_ARCH_6ZK__)
+#define isb()  __asm __volatile("mcr p15, 0, %0, c7, c5, 4" : : "r" (0) : "memory")
+#define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
+#define dmb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
+#else
+#define isb()
+#define dsb()
+#define dmb()
+#endif
+
+#define mb()   dmb()
+#define wmb()  dmb()
+#define rmb()  dmb()
 
 #ifndef I32_bit
 #define I32_bit (1 << 7)        /* IRQ disable */

@@ -81,10 +81,7 @@ _start(int argc, char **argv, char **env,
     struct ps_strings *ps_strings)
 {
 
-	environ = env;
-
-	if (argc > 0 && argv[0] != NULL)
-		handle_progname(argv[0]);
+	handle_argv(argc, argv, env);
 
 	if (ps_strings != (struct ps_strings *)0)
 		__ps_strings = ps_strings;

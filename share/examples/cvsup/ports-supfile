@@ -1,7 +1,14 @@
 # $FreeBSD$
 #
-# This file contains all of the "CVSup collections" that make up the
-# ports collection.
+# BEWARE, CVS is deprecated and no longer supported by the FreeBSD project.
+#
+# The primary development work happens in Subversion and is temporarily
+# exported to the legacy CVS system with significant time delays.
+#
+# You should NOT set up a new consumer of FreeBSD source code via CVS.
+# Please see:
+# http://www.freebsd.org/doc/handbook/svn.html
+# http://www.freebsd.org/doc/handbook/svn-mirrors.html
 #
 # csup (CVS Update Protocol) allows you to download the latest CVS
 # tree (or any branch of development therefrom) to your system easily
@@ -65,76 +72,3 @@
 # mega-collection.  It includes all of the individual "ports-*"
 # collections,
 ports-all
-
-# These are the individual collections that make up "ports-all".  If you
-# use these, be sure to comment out "ports-all" above.
-
-# Be sure to ALWAYS cvsup the ports-base collection if you use any of the
-# other individual collections below. ports-base is a mandatory collection
-# for the ports collection, and your ports may not build correctly if it
-# is not kept up to date.
-#
-# Use of individual collections is not a supported configuration.
-#ports-base
-#ports-accessibility
-#ports-arabic
-#ports-archivers
-#ports-astro
-#ports-audio
-#ports-benchmarks
-#ports-biology
-#ports-cad
-#ports-chinese
-#ports-comms
-#ports-converters
-#ports-databases
-#ports-deskutils
-#ports-devel
-#ports-dns
-#ports-editors
-#ports-emulators
-#ports-finance
-#ports-french
-#ports-ftp
-#ports-games
-#ports-german
-#ports-graphics
-#ports-hebrew
-#ports-hungarian
-#ports-irc
-#ports-japanese
-#ports-java
-#ports-korean
-#ports-lang
-#ports-mail
-#ports-math
-#ports-misc
-#ports-multimedia
-#ports-net
-#ports-net-im
-#ports-net-mgmt
-#ports-net-p2p
-#ports-news
-#ports-palm
-#ports-polish
-#ports-ports-mgmt
-#ports-portuguese
-#ports-print
-#ports-russian
-#ports-science
-#ports-security
-#ports-shells
-#ports-sysutils
-#ports-textproc
-#ports-ukrainian
-#ports-vietnamese
-#ports-www
-#ports-x11
-#ports-x11-clocks
-#ports-x11-drivers
-#ports-x11-fm
-#ports-x11-fonts
-#ports-x11-servers
-#ports-x11-themes
-#ports-x11-toolkits
-#ports-x11-wm

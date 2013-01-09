@@ -53,8 +53,8 @@ extern char bootprog_rev[];
 /*
  * FreeBSD loader default dictionary cells
  */
-#ifndef BF_DICTSIZE
-#define BF_DICTSIZE	10000
+#ifndef	BF_DICTSIZE
+#define	BF_DICTSIZE	10000
 #endif
 
 /*
@@ -247,6 +247,7 @@ bf_init(void)
     char create_buf[41];	/* 31 characters-long builtins */
     int fd;
    
+
     bf_sys = ficlInitSystem(BF_DICTSIZE);
     bf_vm = ficlNewVM(bf_sys);
 

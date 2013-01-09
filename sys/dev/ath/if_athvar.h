@@ -1303,6 +1303,8 @@ void	ath_intr(void *);
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
 
+#define	ath_hal_spectral_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_SPECTRAL_SCAN, 0, NULL) == HAL_OK)
 #define	ath_hal_spectral_get_config(_ah, _p) \
 	((*(_ah)->ah_spectralGetConfig)((_ah), (_p)))
 #define	ath_hal_spectral_configure(_ah, _p) \
