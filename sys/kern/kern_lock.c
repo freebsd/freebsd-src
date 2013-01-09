@@ -498,6 +498,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		case LK_DOWNGRADE:
 			_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED,
 			    file, line);
+			if (flags & LK_INTERLOCK)
+				class->lc_unlock(ilk);
 			return (0);
 		}
 	}

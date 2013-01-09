@@ -1,6 +1,6 @@
 if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -1058,6 +1059,9 @@ f_dialog_yesno()
 {
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
+
+	f_interactive || return 0 # If non-interactive, return YES all the time
+
 	local size="$( f_dialog_buttonbox_size \
 	               		"$DIALOG_TITLE"     \
 	               		"$DIALOG_BACKTITLE" \
@@ -1098,6 +1102,9 @@ f_dialog_noyes()
 {
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
+
+	f_interactive || return 1 # If non-interactive, return NO all the time
+
 	local size="$( f_dialog_buttonbox_size \
 	               		"$DIALOG_TITLE"     \
 	               		"$DIALOG_BACKTITLE" \

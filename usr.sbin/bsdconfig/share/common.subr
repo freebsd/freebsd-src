@@ -64,9 +64,15 @@ export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 
 ############################################################ FUNCTIONS
 
+# f_dprintf $fmt [ $opts ... ]
 #
 # Sensible debug function. Override in ~/.bsdconfigrc if desired.
 # See /usr/share/examples/bsdconfig/bsdconfigrc for example.
+#
+# If $debug is set and non-NULL, prints DEBUG info using printf(1) syntax:
+# 	+ To $debugFile, if set and non-NULL
+# 	+ To standard output if $debugFile is either NULL or unset
+# 	+ To both if $debugFile begins with a single plus-sign (`+')
 #
 f_dprintf()
 {
@@ -106,6 +112,30 @@ f_quietly()
 f_have()
 {
 	f_quietly type "$@"
+}
+
+# f_getvar $var_to_get [$var_to_set]
+#
+# Utility function designed to go along with the already-builtin setvar.
+# Allows clean variable name indirection without forking or sub-shells.
+#
+# Returns error status if the requested variable ($var_to_get) is not set.
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_getvar()
+{
+	local var_to_get="$1" var_to_set="$2"
+	[ "$var_to_set" ] || local value
+	eval ${var_to_set:-value}=\"\${$var_to_get}\"
+	eval [ \"\${$var_to_get+set}\" ]
+	local retval=$?
+	eval f_dprintf '"f_getvar: var=[%s] value=[%s] r=%u"' \
+	               \"\$var_to_get\" \"\$${var_to_set:-value}\" \$retval
+	[ "$var_to_set" ] || { [ "$value" ] && echo "$value"; }
+	return $retval
 }
 
 # f_die [ $status [ $fmt [ $opts ... ]]]

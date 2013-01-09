@@ -37,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
+#ifndef WITHOUT_KERBEROS
 #include <krb5.h>
+#endif
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,12 +104,17 @@ main(int argc, char **argv)
 			debug_level++;
 			break;
 		case 's':
+#ifndef WITHOUT_KERBEROS
 			/*
 			 * Set the directory search list. This enables use of
 			 * find_ccache_file() to search the directories for a
 			 * suitable credentials cache file.
 			 */
 			strlcpy(ccfile_dirlist, optarg, sizeof(ccfile_dirlist));
+#else
+			errx(1, "This option not available when built"
+			    " without MK_KERBEROS\n");
+#endif
 			break;
 		case 'c':
 			/*
@@ -814,6 +821,7 @@ static int
 is_a_valid_tgt_cache(const char *filepath, uid_t uid, int *retrating,
     time_t *retexptime)
 {
+#ifndef WITHOUT_KERBEROS
 	krb5_context context;
 	krb5_principal princ;
 	krb5_ccache ccache;
@@ -913,5 +921,8 @@ is_a_valid_tgt_cache(const char *filepath, uid_t uid, int *retrating,
 		*retexptime = exptime;
 	}
 	return (ret);
+#else /* WITHOUT_KERBEROS */
+	return (0);
+#endif /* !WITHOUT_KERBEROS */
 }
 

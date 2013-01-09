@@ -94,7 +94,7 @@ typedef union sockunion *sup;
 int	pid, rtm_addrs;
 int	s;
 int	forcehost, forcenet, doflush, nflag, af, qflag, tflag;
-int	iflag, verbose, aflen = sizeof (struct sockaddr_in);
+int	verbose, aflen = sizeof (struct sockaddr_in);
 int	locking, lockrest, debugonly;
 struct	rt_metrics rt_metrics;
 u_long  rtm_inits;
@@ -107,7 +107,7 @@ static char	*atalk_ntoa(struct at_addr);
 static void	bprintf(FILE *, int, u_char *);
 static void	flushroutes(int argc, char *argv[]);
 static int	flushroutes_fib(int);
-static int	getaddr(int, char *, struct hostent **);
+static int	getaddr(int, char *, struct hostent **, int);
 static int	keyword(const char *);
 static void	inet_makenetandmask(u_long, struct sockaddr_in *, u_long);
 #ifdef INET6
@@ -833,34 +833,34 @@ newroute(int argc, char **argv)
 			case K_IFA:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_IFA, *++argv, 0);
+				getaddr(RTA_IFA, *++argv, 0, nrflags);
 				break;
 			case K_IFP:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_IFP, *++argv, 0);
+				getaddr(RTA_IFP, *++argv, 0, nrflags);
 				break;
 			case K_GENMASK:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_GENMASK, *++argv, 0);
+				getaddr(RTA_GENMASK, *++argv, 0, nrflags);
 				break;
 			case K_GATEWAY:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_GATEWAY, *++argv, 0);
+				getaddr(RTA_GATEWAY, *++argv, 0, nrflags);
 				break;
 			case K_DST:
 				if (!--argc)
 					usage(NULL);
-				if (getaddr(RTA_DST, *++argv, &hp))
+				if (getaddr(RTA_DST, *++argv, &hp, nrflags))
 					nrflags |= F_ISHOST;
 				dest = *argv;
 				break;
 			case K_NETMASK:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_NETMASK, *++argv, 0);
+				getaddr(RTA_NETMASK, *++argv, 0, nrflags);
 				/* FALLTHROUGH */
 			case K_NET:
 				nrflags |= F_FORCENET;
@@ -895,13 +895,13 @@ newroute(int argc, char **argv)
 		} else {
 			if ((rtm_addrs & RTA_DST) == 0) {
 				dest = *argv;
-				if (getaddr(RTA_DST, *argv, &hp))
+				if (getaddr(RTA_DST, *argv, &hp, nrflags))
 					nrflags |= F_ISHOST;
 			} else if ((rtm_addrs & RTA_GATEWAY) == 0) {
 				gateway = *argv;
-				(void) getaddr(RTA_GATEWAY, *argv, &hp);
+				getaddr(RTA_GATEWAY, *argv, &hp, nrflags);
 			} else {
-				(void) getaddr(RTA_NETMASK, *argv, 0);
+				getaddr(RTA_NETMASK, *argv, 0, nrflags);
 				nrflags |= F_FORCENET;
 			}
 		}
@@ -1116,7 +1116,7 @@ inet6_makenetandmask(struct sockaddr_in6 *sin6, const char *plen)
  * returning 1 if a host address, 0 if a network address.
  */
 static int
-getaddr(int which, char *str, struct hostent **hpp)
+getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 {
 	sup su;
 	struct hostent *hp;
@@ -1137,7 +1137,7 @@ getaddr(int which, char *str, struct hostent **hpp)
 		break;
 	case RTA_GATEWAY:
 		su = &so_gate;
-		if (iflag) {
+		if (nrflags & F_INTERFACE) {
 			struct ifaddrs *ifap, *ifa;
 			struct sockaddr_dl *sdl = NULL;
 
@@ -1197,7 +1197,7 @@ getaddr(int which, char *str, struct hostent **hpp)
 #if 0
 			bzero(su, sizeof(*su));	/* for readability */
 #endif
-			getaddr(RTA_NETMASK, str, 0);
+			getaddr(RTA_NETMASK, str, 0, nrflags);
 			break;
 #if 0
 		case RTA_NETMASK:
