@@ -210,6 +210,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_dodfs)
 		rfilt |= HAL_RX_FILTER_PHYRADAR;
 
+	/*
+	 * Enable spectral PHY errors if requested by the
+	 * spectral module.
+	 */
+	if (sc->sc_dospectral)
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
