@@ -187,6 +187,29 @@ spectral_stop(struct spectralhandler *spectral)
 		err(1, spectral->atd.ad_name);
 }
 
+static void
+spectral_enable_at_reset(struct spectralhandler *spectral, int val)
+{
+	int v = val;
+
+	spectral->atd.ad_id = SPECTRAL_CONTROL_ENABLE_AT_RESET
+	    | ATH_DIAG_IN;
+
+	/*
+	 * XXX don't need these, but need to eliminate the ATH_DIAG_DYN flag
+	 * and debug
+	 */
+	spectral->atd.ad_out_data = NULL;
+	spectral->atd.ad_out_size = 0;
+	spectral->atd.ad_in_data = (caddr_t) &v;
+	spectral->atd.ad_in_size = sizeof(v);
+
+	printf("%s: val=%d\n", __func__, v);
+
+	if (ioctl(spectral->s, SIOCGATHSPECTRAL, &spectral->atd) < 0)
+		err(1, spectral->atd.ad_name);
+}
+
 static int
 spectral_set_param(struct spectralhandler *spectral, const char *param,
     const char *val)
@@ -258,6 +281,7 @@ usage(const char *progname)
 	printf("\tset <param> <value>:\t\tSet spectral parameter\n");
 	printf("\tstart: Start spectral scan\n");
 	printf("\tstop: Stop spectral scan\n");
+	printf("\tenable_at_reset <0|1>: enable reporting upon channel reset\n");
 }
 
 int
@@ -312,6 +336,12 @@ main(int argc, char *argv[])
 		spectral_start(&spectral);
 	} else if (strcasecmp(argv[1], "stop") == 0) {
 		spectral_stop(&spectral);
+	} else if (strcasecmp(argv[1], "enable_at_reset") == 0) {
+		if (argc < 3) {
+			usage(progname);
+			exit(127);
+		}
+		spectral_enable_at_reset(&spectral, atoi(argv[2]));
 	} else {
 		usage(progname);
 		exit(127);
