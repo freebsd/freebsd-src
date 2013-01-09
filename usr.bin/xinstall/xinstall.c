@@ -726,7 +726,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		devnull = 1;
 	}
 
-	target = stat(to_name, &to_sb) == 0;
+	target = (stat(to_name, &to_sb) == 0);
+	if (!target && dolink & LN_SYMBOLIC && errno == ELOOP)
+		target = (lstat(to_name, &to_sb) == 0);
 
 	if (dolink) {
 		if (target) {
