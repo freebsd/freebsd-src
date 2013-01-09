@@ -246,7 +246,6 @@ bf_init(void)
     struct bootblk_command	**cmdp;
     char create_buf[41];	/* 31 characters-long builtins */
     int fd;
-   
 
     bf_sys = ficlInitSystem(BF_DICTSIZE);
     bf_vm = ficlNewVM(bf_sys);
