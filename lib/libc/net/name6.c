@@ -200,6 +200,7 @@ static struct	 hostent *_hpmapv6(struct hostent *, int *);
 #endif
 static struct	 hostent *_hpsort(struct hostent *, res_state);
 
+#ifdef ENABLE_IP6ADDRCTL
 static struct	 hostent *_hpreorder(struct hostent *);
 static int	 get_addrselectpolicy(struct policyhead *);
 static void	 free_addrselectpolicy(struct policyhead *);
@@ -209,6 +210,7 @@ static void	 set_source(struct hp_order *, struct policyhead *);
 static int	 matchlen(struct sockaddr *, struct sockaddr *);
 static int	 comp_dst(const void *, const void *);
 static int	 gai_addr2scopetype(struct sockaddr *);
+#endif
 
 /*
  * Functions defined in RFC2553
@@ -309,7 +311,11 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		*errp = statp->res_h_errno;
 	
 	statp->options = options;
+#ifdef ENABLE_IP6ADDRCTL
 	return _hpreorder(_hpsort(hp, statp));
+#else
+	return _hpsort(hp, statp);
+#endif
 }
 
 struct hostent *
@@ -632,6 +638,7 @@ _hpsort(struct hostent *hp, res_state statp)
 	return hp;
 }
 
+#ifdef ENABLE_IP6ADDRCTL
 /*
  * _hpreorder: sort address by default address selection
  */
@@ -1109,3 +1116,4 @@ gai_addr2scopetype(struct sockaddr *sa)
 		return(-1);
 	}
 }
+#endif
