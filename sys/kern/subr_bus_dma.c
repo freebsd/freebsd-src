@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/mbuf.h>
+#include <sys/memdesc.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 
@@ -248,12 +249,14 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     void *callback_arg, int flags)
 {
 	bus_dma_segment_t *segs;
+	struct memdesc mem;
 	int error;
 	int nsegs;
 
-	if ((flags & BUS_DMA_NOWAIT) == 0)
-		_bus_dmamap_waitok(dmat, map, dma_mem_vaddr(buf, buflen),
-		    callback, callback_arg);
+	if ((flags & BUS_DMA_NOWAIT) == 0) {
+		mem = memdesc_vaddr(buf, buflen);
+		_bus_dmamap_waitok(dmat, map, &mem, callback, callback_arg);
+	}
 
 	nsegs = -1;
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
@@ -349,6 +352,7 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 {
 	bus_dma_segment_t *segs;
 	struct ccb_hdr *ccb_h;
+	struct memdesc mem;
 	int error;
 	int nsegs;
 
@@ -357,9 +361,10 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		callback(callback_arg, NULL, 0, 0);
 		return (0);
 	}
-	if ((flags & BUS_DMA_NOWAIT) == 0)
-		_bus_dmamap_waitok(dmat, map, dma_mem_ccb(ccb), callback,
-		    callback_arg);
+	if ((flags & BUS_DMA_NOWAIT) == 0) {
+		mem = memdesc_ccb(ccb);
+		_bus_dmamap_waitok(dmat, map, &mem, callback, callback_arg);
+	}
 	nsegs = -1;
 	error = _bus_dmamap_load_ccb(dmat, map, ccb, &nsegs, flags);
 	nsegs++;
@@ -383,7 +388,7 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 
 int
 bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dma_memory_t *mem, bus_dmamap_callback_t *callback,
+    struct memdesc *mem, bus_dmamap_callback_t *callback,
     void *callback_arg, int flags)
 {
 	bus_dma_segment_t *segs;
@@ -391,41 +396,41 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 	int nsegs;
 
 	if ((flags & BUS_DMA_NOWAIT) == 0)
-		_bus_dmamap_waitok(dmat, map, *mem, callback, callback_arg);
+		_bus_dmamap_waitok(dmat, map, mem, callback, callback_arg);
 
 	nsegs = -1;
 	error = 0;
-	switch (mem->dm_type) {
-	case BUS_DMAMEM_VADDR:
-		error = _bus_dmamap_load_buffer(dmat, map, mem->u.dm_vaddr,
-		    mem->dm_opaque, kernel_pmap, flags, NULL, &nsegs);
+	switch (mem->md_type) {
+	case MEMDESC_VADDR:
+		error = _bus_dmamap_load_buffer(dmat, map, mem->u.md_vaddr,
+		    mem->md_opaque, kernel_pmap, flags, NULL, &nsegs);
 		break;
-	case BUS_DMAMEM_PADDR:
-		error = _bus_dmamap_load_phys(dmat, map, mem->u.dm_paddr,
-		    mem->dm_opaque, flags, NULL, &nsegs);
+	case MEMDESC_PADDR:
+		error = _bus_dmamap_load_phys(dmat, map, mem->u.md_paddr,
+		    mem->md_opaque, flags, NULL, &nsegs);
 		break;
-	case BUS_DMAMEM_VLIST:
-		error = _bus_dmamap_load_vlist(dmat, map, mem->u.dm_list,
-		    mem->dm_opaque, kernel_pmap, &nsegs, flags);
+	case MEMDESC_VLIST:
+		error = _bus_dmamap_load_vlist(dmat, map, mem->u.md_list,
+		    mem->md_opaque, kernel_pmap, &nsegs, flags);
 		break;
-	case BUS_DMAMEM_PLIST:
-		error = _bus_dmamap_load_plist(dmat, map, mem->u.dm_list,
-		    mem->dm_opaque, &nsegs, flags);
+	case MEMDESC_PLIST:
+		error = _bus_dmamap_load_plist(dmat, map, mem->u.md_list,
+		    mem->md_opaque, &nsegs, flags);
 		break;
-	case BUS_DMAMEM_BIO:
-		error = _bus_dmamap_load_bio(dmat, map, mem->u.dm_bio,
+	case MEMDESC_BIO:
+		error = _bus_dmamap_load_bio(dmat, map, mem->u.md_bio,
 		    &nsegs, flags);
 		break;
-	case BUS_DMAMEM_UIO:
-		error = _bus_dmamap_load_uio(dmat, map, mem->u.dm_uio,
+	case MEMDESC_UIO:
+		error = _bus_dmamap_load_uio(dmat, map, mem->u.md_uio,
 		    &nsegs, flags);
 		break;
-	case BUS_DMAMEM_MBUF:
-		error = _bus_dmamap_load_mbuf_sg(dmat, map, mem->u.dm_mbuf,
+	case MEMDESC_MBUF:
+		error = _bus_dmamap_load_mbuf_sg(dmat, map, mem->u.md_mbuf,
 		    NULL, &nsegs, flags);
 		break;
-	case BUS_DMAMEM_CCB:
-		error = _bus_dmamap_load_ccb(dmat, map, mem->u.dm_ccb, &nsegs,
+	case MEMDESC_CCB:
+		error = _bus_dmamap_load_ccb(dmat, map, mem->u.md_ccb, &nsegs,
 		    flags);
 		break;
 	}

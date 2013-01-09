@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/memdesc.h>
 #include <sys/proc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
@@ -155,7 +156,7 @@ struct bus_dmamap {
 	int		       pagesneeded;
 	int		       pagesreserved;
 	bus_dma_tag_t	       dmat;
-	bus_dma_memory_t       mem;
+	struct memdesc	       mem;
 	pmap_t		       pmap;
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
@@ -1037,11 +1038,11 @@ cleanup:
 
 void
 __bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
-		    bus_dma_memory_t mem, bus_dmamap_callback_t *callback,
+		    struct memdesc *mem, bus_dmamap_callback_t *callback,
 		    void *callback_arg)
 {
 
-	map->mem = mem;
+	map->mem = *mem;
 	map->dmat = dmat;
 	map->callback = callback;
 	map->callback_arg = callback_arg;

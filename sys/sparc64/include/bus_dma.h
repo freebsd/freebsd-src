@@ -85,7 +85,7 @@ struct bus_dma_methods {
 	    void *buf, bus_size_t buflen, struct pmap *pmap, int flags,
 	    bus_dma_segment_t *segs, int *segp);
 	void	(*dm_dmamap_waitok)(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    bus_dma_memory_t mem, bus_dmamap_callback_t *callback,
+	    struct memdesc *mem, bus_dmamap_callback_t *callback,
 	    void *callback_arg);
 	bus_dma_segment_t *(*dm_dmamap_complete)(bus_dma_tag_t dmat,
 	    bus_dmamap_t map, bus_dma_segment_t *segs, int nsegs, int error);

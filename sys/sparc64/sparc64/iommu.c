@@ -1087,7 +1087,7 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 
 static void
 iommu_dvmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dma_memory_t mem, bus_dmamap_callback_t *callback, void *callback_arg)
+    struct memdesc *mem, bus_dmamap_callback_t *callback, void *callback_arg)
 {
 }
 
