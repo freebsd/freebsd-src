@@ -225,7 +225,7 @@ main(int argc, char *argv[])
 			break;
 		case 'N':
 			if (!setup_getid(optarg))
-				err(1, "Unable to use user and group "
+				err(EX_OSERR, "Unable to use user and group "
 				    "databases in `%s'", optarg);
 			break;
 		case 'o':
@@ -492,7 +492,7 @@ quiet_mktemp(char *template)
 		return (NULL);
 	close (fd);
 	if (unlink(template) == -1)
-		err(1, "unlink %s", template);
+		err(EX_OSERR, "unlink %s", template);
 	return (template);
 }
 
@@ -512,9 +512,14 @@ do_link(const char *from_name, const char *to_name,
 		(void)snprintf(tmpl, sizeof(tmpl), "%s.inst.XXXXXX", to_name);
 		/* This usage is safe. */
 		if (quiet_mktemp(tmpl) == NULL)
-			err(1, "%s: mktemp", tmpl);
+			err(EX_OSERR, "%s: mktemp", tmpl);
 		ret = link(from_name, tmpl);
 		if (ret == 0) {
+			if (target_sb->st_mode & S_IFDIR && rmdir(to_name) ==
+			    -1) {
+				unlink(tmpl);
+				err(EX_OSERR, "%s", to_name);
+			}
 			if (target_sb->st_flags & NOCHANGEBITS)
 				(void)chflags(to_name, target_sb->st_flags &
 				     ~NOCHANGEBITS);
@@ -546,11 +551,15 @@ do_symlink(const char *from_name, const char *to_name,
 		(void)snprintf(tmpl, sizeof(tmpl), "%s.inst.XXXXXX", to_name);
 		/* This usage is safe. */
 		if (quiet_mktemp(tmpl) == NULL)
-			err(1, "%s: mktemp", tmpl);
+			err(EX_OSERR, "%s: mktemp", tmpl);
 
 		if (symlink(from_name, tmpl) == -1)
-			err(1, "symlink %s -> %s", from_name, tmpl);
+			err(EX_OSERR, "symlink %s -> %s", from_name, tmpl);
 
+		if (target_sb->st_mode & S_IFDIR && rmdir(to_name) == -1) {
+			(void)unlink(tmpl);
+			err(EX_OSERR, "%s", to_name);
+		}
 		if (target_sb->st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, target_sb->st_flags &
 			     ~NOCHANGEBITS);
@@ -559,11 +568,11 @@ do_symlink(const char *from_name, const char *to_name,
 		if (rename(tmpl, to_name) == -1) {
 			/* remove temporary link before exiting */
 			(void)unlink(tmpl);
-			err(1, "%s: rename", to_name);
+			err(EX_OSERR, "%s: rename", to_name);
 		}
 	} else {
 		if (symlink(from_name, to_name) == -1)
-			err(1, "symlink %s -> %s", from_name, to_name);
+			err(EX_OSERR, "symlink %s -> %s", from_name, to_name);
 	}
 }
 
@@ -582,10 +591,10 @@ makelink(const char *from_name, const char *to_name,
 	if (dolink & (LN_HARD|LN_MIXED)) {
 		if (do_link(from_name, to_name, target_sb) == -1) {
 			if ((dolink & LN_HARD) || errno != EXDEV)
-				err(1, "link %s -> %s", from_name, to_name);
+				err(EX_OSERR, "link %s -> %s", from_name, to_name);
 		} else {
 			if (stat(to_name, &to_sb))
-				err(1, "%s: stat", to_name);
+				err(EX_OSERR, "%s: stat", to_name);
 			if (S_ISREG(to_sb.st_mode)) {
 					/* XXX: hard links to anything
 					 * other than plain files are not
@@ -628,7 +637,7 @@ makelink(const char *from_name, const char *to_name,
 	if (dolink & LN_ABSOLUTE) {
 		/* Convert source path to absolute */
 		if (realpath(from_name, src) == NULL)
-			err(1, "%s: realpath", from_name);
+			err(EX_OSERR, "%s: realpath", from_name);
 		do_symlink(src, to_name, target_sb);
 			/* XXX: src may point outside of destdir */
 		metadata_log(to_name, "link", NULL, src, NULL, 0);
@@ -640,7 +649,7 @@ makelink(const char *from_name, const char *to_name,
 
 		/* Resolve pathnames */
 		if (realpath(from_name, src) == NULL)
-			err(1, "%s: realpath", from_name);
+			err(EX_OSERR, "%s: realpath", from_name);
 
 		/*
 		 * The last component of to_name may be a symlink,
@@ -648,7 +657,7 @@ makelink(const char *from_name, const char *to_name,
 		 */
 		cp = dirname(to_name);
 		if (realpath(cp, dst) == NULL)
-			err(1, "%s: realpath", cp);
+			err(EX_OSERR, "%s: realpath", cp);
 		/* .. and add the last component */
 		if (strcmp(dst, "/") != 0) {
 			if (strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
@@ -726,23 +735,19 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		devnull = 1;
 	}
 
-	target = (stat(to_name, &to_sb) == 0);
-	if (!target && dolink & LN_SYMBOLIC && errno == ELOOP)
+	if (!dolink)
+		target = (stat(to_name, &to_sb) == 0);
+	else
 		target = (lstat(to_name, &to_sb) == 0);
 
 	if (dolink) {
-		if (target) {
-			if (to_sb.st_mode & S_IFDIR) {
-				errno = EFTYPE;
-				warn("%s", to_name);
-				return;
-			}
-			if (!safecopy) {
-				if (to_sb.st_flags & NOCHANGEBITS)
-					(void)chflags(to_name,
-					    to_sb.st_flags & ~NOCHANGEBITS);
-				unlink(to_name);
-			}
+		if (target && !safecopy) {
+			if (to_sb.st_mode & S_IFDIR && rmdir(to_name) == -1)
+				err(EX_OSERR, "%s", to_name);
+			if (to_sb.st_flags & NOCHANGEBITS)
+				(void)chflags(to_name,
+				    to_sb.st_flags & ~NOCHANGEBITS);
+			unlink(to_name);
 		}
 		makelink(from_name, to_name, target ? &to_sb : NULL);
 		return;
