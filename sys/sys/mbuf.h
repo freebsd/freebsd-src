@@ -557,7 +557,7 @@ m_get2(int how, short type, int flags, int size)
 	args.flags = flags;
 	args.type = type;
 
-	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
+	if (size <= ((int)MHLEN) || (size <= ((int)MLEN) && (flags & M_PKTHDR) == 0))
 		return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
 	if (size <= MCLBYTES)
 		return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
