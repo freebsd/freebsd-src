@@ -138,7 +138,7 @@ struct bus_dmamap {
 	int		pagesneeded;
 	int		pagesreserved;
 	bus_dma_tag_t	dmat;
-	struct memdesc	*mem;
+	struct memdesc	mem;
 	int		flags;
 	void		*origbuffer;
 	void		*allocbuffer;

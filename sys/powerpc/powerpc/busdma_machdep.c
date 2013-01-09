@@ -126,7 +126,7 @@ struct bus_dmamap {
 	int		       pagesneeded;
 	int		       pagesreserved;
 	bus_dma_tag_t	       dmat;
-	struct memdesc	      *mem;
+	struct memdesc	       mem;
 	bus_dma_segment_t     *segments;
 	int		       nsegs;
 	bus_dmamap_callback_t *callback;
