@@ -336,7 +336,6 @@ scope6_addr2default(struct in6_addr *addr)
 int
 sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 {
-	struct ifnet *ifp;
 	u_int32_t zoneid;
 
 	if ((zoneid = sin6->sin6_scope_id) == 0 && defaultok)
@@ -351,15 +350,11 @@ sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 		 * zone IDs assuming a one-to-one mapping between interfaces
 		 * and links.
 		 */
-		if (V_if_index < zoneid)
-			return (ENXIO);
-		ifp = ifnet_byindex(zoneid);
-		if (ifp == NULL) /* XXX: this can happen for some OS */
+		if (V_if_index < zoneid || ifnet_byindex(zoneid) == NULL)
 			return (ENXIO);
 
 		/* XXX assignment to 16bit from 32bit variable */
 		sin6->sin6_addr.s6_addr16[1] = htons(zoneid & 0xffff);
-
 		sin6->sin6_scope_id = 0;
 	}
 
