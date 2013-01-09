@@ -148,8 +148,11 @@ busdma_md_get_pointer(busdma_md_t md, u_int idx)
  */
 int busdma_mem_alloc(busdma_tag_t tag, u_int flags, busdma_md_t *md_p);
 
-/* Allocate pre-zeroed memory. */
+/* Allocate pre-zeroed DMA memory. */
 #define	BUSDMA_ALLOC_ZERO		0x10000
+
+/* Allocate memory with consistent mapping. */
+#define	BUSDMA_ALLOC_CONSISTENT		0x20000
 
 /*
  * busdma_mem_free

@@ -813,7 +813,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	if (md == NULL)
 		return (ENOMEM);
 
-	mtag.dmt_flags = flags & BUSDMA_MD_PLATFORM_FLAGS;
+	mtag.dmt_flags = flags;
 	mtag.dmt_minaddr = tag->dt_minaddr;
 	mtag.dmt_maxaddr = tag->dt_maxaddr;
 	mtag.dmt_maxsz = tag->dt_maxsegsz;
@@ -826,7 +826,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 		goto fail;
 	}
 
-	md->md_flags |= mtag.dmt_flags & BUSDMA_MD_PLATFORM_FLAGS;
+	md->md_flags = mtag.dmt_flags;
 	mflags = (flags & BUSDMA_ALLOC_ZERO) ? M_ZERO : 0;
 
 	idx = 0;
