@@ -340,12 +340,23 @@ LIB32WMAKEFLAGS+=	\
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
+		INSTALL="install -N ${.CURDIR}/etc ${INSTALLFLAGS}"
 .endif
 
 # install stage
+.if !empty(METALOG)
+INSTALLFLAGS=	-M ${METALOG} -D ${DESTDIR}
+.endif
+USER!=	id -u
+.if ${USER} != 0
+INSTALLFLAGS+=	-U
+MTREEFLAGS+=	-W
+.endif
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
-IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
+IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
+		INSTALL="install -N ${.CURDIR}/etc ${INSTALLFLAGS}" \
+		MTREE_CMD="nmtree -N ${.CURDIR}/etc ${MTREEFLAGS}"
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 		LD_LIBRARY_PATH=${INSTALLTMP} \
@@ -609,45 +620,17 @@ installcheck_DESTDIR:
 .endif
 
 #
-# Check for missing UIDs/GIDs.
-#
-CHECK_UIDS=	auditdistd
-CHECK_GIDS=	audit
-.if ${MK_SENDMAIL} != "no"
-CHECK_UIDS+=	smmsp
-CHECK_GIDS+=	smmsp
-.endif
-.if ${MK_PF} != "no"
-CHECK_UIDS+=	proxy
-CHECK_GIDS+=	proxy authpf
-.endif
-installcheck: installcheck_UGID
-installcheck_UGID:
-.for uid in ${CHECK_UIDS}
-	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
-		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
-		false; \
-	fi
-.endfor
-.for gid in ${CHECK_GIDS}
-	@if ! `find / -prune -group ${gid} >/dev/null 2>&1`; then \
-		echo "ERROR: Required ${gid} group is missing, see /usr/src/UPDATING."; \
-		false; \
-	fi
-.endfor
-
-#
 # Required install tools to be saved in a scratch dir for safety.
 #
 .if ${MK_INFO} != "no"
 _install-info=	install-info
 .endif
 .if ${MK_ZONEINFO} != "no"
-_zoneinfo=	zic tzsetup
+_zoneinfo=	zic tzsetup xargs
 .endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
-	date echo egrep find grep ${_install-info} \
+	date echo egrep find grep id ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	test true uname wc ${_zoneinfo}
 
@@ -692,6 +675,7 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+	rm -f ${METALOG}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
@@ -1111,6 +1095,7 @@ bootstrap-tools:
     ${_ar} \
     ${_dtc} \
     ${_awk} \
+    lib/libnetbsd \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
@@ -1120,7 +1105,8 @@ bootstrap-tools:
     ${_lex} \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config
+    usr.sbin/config \
+    usr.sbin/nmtree
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
