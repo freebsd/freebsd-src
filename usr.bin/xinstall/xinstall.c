@@ -355,14 +355,14 @@ main(int argc, char *argv[])
 		usage();
 	}
 
-	if (!no_target) {
+	if (!no_target && !dolink) {
 		if (stat(*argv, &from_sb))
 			err(EX_OSERR, "%s", *argv);
 		if (!S_ISREG(to_sb.st_mode)) {
 			errno = EFTYPE;
 			err(EX_OSERR, "%s", to_name);
 		}
-		if (!dolink && to_sb.st_dev == from_sb.st_dev &&
+		if (to_sb.st_dev == from_sb.st_dev &&
 		    to_sb.st_ino == from_sb.st_ino)
 			errx(EX_USAGE, 
 			    "%s and %s are the same file", *argv, to_name);
@@ -706,11 +706,13 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 
 	/* If try to install NULL file to a directory, fails. */
 	if (flags & DIRECTORY || strcmp(from_name, _PATH_DEVNULL)) {
-		if (stat(from_name, &from_sb))
-			err(EX_OSERR, "%s", from_name);
-		if (!S_ISREG(from_sb.st_mode)) {
-			errno = EFTYPE;
-			err(EX_OSERR, "%s", from_name);
+		if (!dolink) {
+			if (stat(from_name, &from_sb))
+				err(EX_OSERR, "%s", from_name);
+			if (!S_ISREG(from_sb.st_mode)) {
+				errno = EFTYPE;
+				err(EX_OSERR, "%s", from_name);
+			}
 		}
 		/* Build the target path. */
 		if (flags & DIRECTORY) {
