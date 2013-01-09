@@ -420,6 +420,23 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 	u_int32_t zoneid = 0;
 	struct scope6_id *sid;
 
+	/*
+	 * special case: the loopback address can only belong to a loopback
+	 * interface.
+	 */
+	if (IN6_IS_ADDR_LOOPBACK(in6)) {
+		if (!(ifp->if_flags & IFF_LOOPBACK)) {
+			return (EINVAL);
+		} else {
+			if (ret_id != NULL)
+				*ret_id = 0; /* there's no ambiguity */
+			return (0);
+		}
+	}
+
+	if (ret_id == NULL && !IN6_IS_SCOPE_EMBED(in6))
+		return (0);
+
 	IF_AFDATA_RLOCK(ifp);
 
 	sid = SID(ifp);
@@ -430,22 +447,6 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 		/* NOTREACHED */
 	}
 #endif
-
-	/*
-	 * special case: the loopback address can only belong to a loopback
-	 * interface.
-	 */
-	if (IN6_IS_ADDR_LOOPBACK(in6)) {
-		if (!(ifp->if_flags & IFF_LOOPBACK)) {
-			IF_AFDATA_RUNLOCK(ifp);
-			return (EINVAL);
-		} else {
-			if (ret_id != NULL)
-				*ret_id = 0; /* there's no ambiguity */
-			IF_AFDATA_RUNLOCK(ifp);
-			return (0);
-		}
-	}
 
 	scope = in6_addrscope(in6);
 	switch (scope) {
@@ -474,7 +475,7 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 	if (ret_id != NULL)
 		*ret_id = zoneid;
 
-	if (IN6_IS_SCOPE_LINKLOCAL(in6) || IN6_IS_ADDR_MC_INTFACELOCAL(in6))
+	if (IN6_IS_SCOPE_EMBED(in6))
 		in6->s6_addr16[1] = htons(zoneid & 0xffff); /* XXX */
 
 	return (0);
