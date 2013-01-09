@@ -73,6 +73,9 @@
 #define	PIC_REG_WR_REQ(x)	(0x00240 + (x << 3))
 #define	PIC_REG_RRB_MAP(x)	(0x00280 + (x << 3))
 
+#define	PIC_REG_ATE(x)		(0x10000 + (x << 3))
+#define	PIC_REG_ATE_SIZE	1024
+
 struct sgisn_fwpcib {
 	struct sgisn_fwbus	fw_common;
 	uint32_t		fw_modid;
