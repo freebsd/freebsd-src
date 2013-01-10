@@ -216,6 +216,8 @@ struct ktr_faultend {
 	int result;
 };
 
+#define KTR_USER2	15
+
 /*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
@@ -240,6 +242,7 @@ struct ktr_faultend {
 #define KTRFAC_CAPFAIL	(1<<KTR_CAPFAIL)
 #define KTRFAC_FAULT	(1<<KTR_FAULT)
 #define KTRFAC_FAULTEND	(1<<KTR_FAULTEND)
+#define KTRFAC_USER2	(1<<KTR_USER2)
 
 /*
  * trace flags (also in p_traceflags)
@@ -277,7 +280,12 @@ void	ktrcapfail(enum ktr_cap_fail_type, cap_rights_t, cap_rights_t);
 __BEGIN_DECLS
 int	ktrace(const char *, int, int, pid_t);
 int	utrace(const void *, size_t);
+int	utrace2(const void *, size_t);
 __END_DECLS
+
+#define	UTRACE_MALLOC		0x001
+#define UTRACE_SYSMAX		0x100
+#define UTRACE_APPLICATIONMIN	0x101
 
 #endif
 

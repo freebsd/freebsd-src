@@ -123,6 +123,7 @@ static int data_lengths[] = {
 	sizeof(struct ktr_cap_fail),		/* KTR_CAPFAIL */
 	sizeof(struct ktr_fault),		/* KTR_FAULT */
 	sizeof(struct ktr_faultend),		/* KTR_FAULTEND */
+	0,					/* KTR_USER2 */
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -1012,6 +1013,42 @@ sys_utrace(td, uap)
 		return (error);
 	}
 	req = ktr_getrequest(KTR_USER);
+	if (req == NULL) {
+		free(cp, M_KTRACE);
+		return (ENOMEM);
+	}
+	req->ktr_buffer = cp;
+	req->ktr_header.ktr_len = uap->len;
+	ktr_submitrequest(td, req);
+	return (0);
+#else /* !KTRACE */
+	return (ENOSYS);
+#endif /* KTRACE */
+}
+
+/* ARGSUSED */
+int
+sys_utrace2(td, uap)
+	struct thread *td;
+	register struct utrace2_args *uap;
+{
+
+#ifdef KTRACE
+	struct ktr_request *req;
+	void *cp;
+	int error;
+
+	if (!KTRPOINT(td, KTR_USER2))
+		return (0);
+	if (uap->len > KTR_USER_MAXLEN)
+		return (EINVAL);
+	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
+	error = copyin(uap->addr, cp, uap->len);
+	if (error) {
+		free(cp, M_KTRACE);
+		return (error);
+	}
+	req = ktr_getrequest(KTR_USER2);
 	if (req == NULL) {
 		free(cp, M_KTRACE);
 		return (ENOMEM);

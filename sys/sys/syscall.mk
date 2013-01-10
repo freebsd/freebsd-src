@@ -400,4 +400,5 @@ MIASM =  \
 	rctl_remove_rule.o \
 	posix_fallocate.o \
 	posix_fadvise.o \
-	wait6.o
+	wait6.o \
+	utrace2.o

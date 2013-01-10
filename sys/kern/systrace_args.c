@@ -3286,6 +3286,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
+	/* utrace2 */
+	case 533: {
+		struct utrace2_args *p = params;
+		uarg[0] = (intptr_t) p->addr; /* const void * */
+		uarg[1] = p->len; /* size_t */
+		*n_args = 2;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8745,6 +8753,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* utrace2 */
+	case 533:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10635,6 +10656,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* wait6 */
 	case 532:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* utrace2 */
+	case 533:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

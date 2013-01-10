@@ -955,5 +955,6 @@
 				    int *status, int options, \
 				    struct __wrusage *wrusage, \
 				    siginfo_t *info); }
+533	AUE_NULL	STD	{ int utrace2(const void *addr, size_t len); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

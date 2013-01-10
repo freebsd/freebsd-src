@@ -540,4 +540,5 @@ const char *syscallnames[] = {
 	"posix_fallocate",			/* 530 = posix_fallocate */
 	"posix_fadvise",			/* 531 = posix_fadvise */
 	"wait6",			/* 532 = wait6 */
+	"utrace2",			/* 533 = utrace2 */
 };

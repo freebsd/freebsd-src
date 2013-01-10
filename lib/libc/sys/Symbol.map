@@ -384,6 +384,7 @@ FBSD_1.3 {
 	ffclock_getestimate;
 	ffclock_setestimate;
 	posix_fadvise;
+	utrace2;
 	wait6;
 };
 
@@ -1014,6 +1015,8 @@ FBSDprivate_1.0 {
 	__sys_utimes;
 	_utrace;
 	__sys_utrace;
+	_utrace2;
+	__sys_utrace2;
 	_uuidgen;
 	__sys_uuidgen;
 	_vadvise;

@@ -1762,6 +1762,10 @@ struct wait6_args {
 	char wrusage_l_[PADL_(struct __wrusage *)]; struct __wrusage * wrusage; char wrusage_r_[PADR_(struct __wrusage *)];
 	char info_l_[PADL_(siginfo_t *)]; siginfo_t * info; char info_r_[PADR_(siginfo_t *)];
 };
+struct utrace2_args {
+	char addr_l_[PADL_(const void *)]; const void * addr; char addr_r_[PADR_(const void *)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2144,6 +2148,7 @@ int	sys_rctl_remove_rule(struct thread *, struct rctl_remove_rule_args *);
 int	sys_posix_fallocate(struct thread *, struct posix_fallocate_args *);
 int	sys_posix_fadvise(struct thread *, struct posix_fadvise_args *);
 int	sys_wait6(struct thread *, struct wait6_args *);
+int	sys_utrace2(struct thread *, struct utrace2_args *);
 
 #ifdef COMPAT_43
 
@@ -2840,6 +2845,7 @@ int	freebsd7_shmctl(struct thread *, struct freebsd7_shmctl_args *);
 #define	SYS_AUE_posix_fallocate	AUE_NULL
 #define	SYS_AUE_posix_fadvise	AUE_NULL
 #define	SYS_AUE_wait6	AUE_WAIT6
+#define	SYS_AUE_utrace2	AUE_NULL
 
 #undef PAD_
 #undef PADL_

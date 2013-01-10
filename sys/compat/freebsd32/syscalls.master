@@ -1004,4 +1004,5 @@
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
+533     AUE_NULL        STD     { int utrace2(const void *addr, size_t len); }
 

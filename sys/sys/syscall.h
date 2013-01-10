@@ -452,4 +452,5 @@
 #define	SYS_posix_fallocate	530
 #define	SYS_posix_fadvise	531
 #define	SYS_wait6	532
-#define	SYS_MAXSYSCALL	533
+#define	SYS_utrace2	533
+#define	SYS_MAXSYSCALL	534

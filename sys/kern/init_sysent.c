@@ -567,4 +567,5 @@ struct sysent sysent[] = {
 	{ AS(posix_fallocate_args), (sy_call_t *)sys_posix_fallocate, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 530 = posix_fallocate */
 	{ AS(posix_fadvise_args), (sy_call_t *)sys_posix_fadvise, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 531 = posix_fadvise */
 	{ AS(wait6_args), (sy_call_t *)sys_wait6, AUE_WAIT6, NULL, 0, 0, 0, SY_THR_STATIC },	/* 532 = wait6 */
+	{ AS(utrace2_args), (sy_call_t *)sys_utrace2, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 533 = utrace2 */
 };

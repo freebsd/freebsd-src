@@ -83,6 +83,8 @@ extern int errno;
 #include "ktrace.h"
 #include "kdump_subr.h"
 
+struct utrace_malloc_v2;
+
 u_int abidump(struct ktr_header *);
 int fetchprocinfo(struct ktr_header *, u_int *);
 int fread_tail(void *, int, int);
@@ -96,9 +98,11 @@ void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
 void ktrcsw_old(struct ktr_csw_old *);
-void ktruser_malloc(unsigned char *);
+void ktruser_malloc(struct utrace_malloc_v2 *, int);
 void ktruser_rtld(int, unsigned char *);
-void ktruser(int, unsigned char *);
+void ktruser(int, void *);
+void ktruser2(size_t, void *);
+void ktruser_data(size_t, unsigned char *);
 void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
@@ -321,6 +325,9 @@ main(int argc, char *argv[])
 		case KTR_FAULTEND:
 			ktrfaultend((struct ktr_faultend *)m);
 			break;
+		case KTR_USER2:
+			ktruser2(ktrlen, m);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -468,6 +475,9 @@ dumpheader(struct ktr_header *kth)
 		break;
 	case KTR_FAULTEND:
 		type = "PRET";
+		break;
+	case KTR_USER2:
+		type = "USR2";
 		break;
 	default:
 		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
@@ -1369,29 +1379,53 @@ ktruser_rtld(int len, unsigned char *p)
 	}
 }
 
-struct utrace_malloc {
-	void *p;
-	size_t s;
-	void *r;
+struct utrace_malloc_old {
+    void    *p;	/* Input pointer (as in realloc(p, s)). */
+    size_t  s;  /* Request size. */
+    void    *r;	/* Result pointer. */
+};
+
+struct utrace_malloc_v2 {
+    int	    utrace_type;    /* utrace type UTRACE_MALLOC */
+    int	    utrace_version;	/* utrace malloc version */
+    void    *p;	/* Input pointer (as in realloc(p, s)). */
+    size_t  s;  /* Request size. */
+    void    *r;	/* Result pointer. */
+    void    *caller;    /* Caller */
 };
 
 void
-ktruser_malloc(unsigned char *p)
+ktruser_malloc(struct utrace_malloc_v2 *ut, int v2)
 {
-	struct utrace_malloc *ut = (struct utrace_malloc *)p;
 
 	if (ut->p == (void *)(intptr_t)(-1))
-		printf("malloc_init()\n");
+		printf("malloc_init()");
 	else if (ut->s == 0)
-		printf("free(%p)\n", ut->p);
+		printf("free(%p)", ut->p);
 	else if (ut->p == NULL)
-		printf("%p = malloc(%zu)\n", ut->r, ut->s);
+		printf("%p = malloc(%zu)", ut->r, ut->s);
 	else
-		printf("%p = realloc(%p, %zu)\n", ut->r, ut->p, ut->s);
+		printf("%p = realloc(%p, %zu)", ut->r, ut->p, ut->s);
+	if (v2)
+		printf(", caller %p", ut->caller);
+	putchar('\n');
 }
 
 void
-ktruser(int len, unsigned char *p)
+ktruser_data(size_t len, unsigned char *p)
+{
+
+	printf("%zd ", len);
+	while (len--)
+		if (decimal)
+			printf(" %d", *p++);
+		else
+			printf(" %02x", *p++);
+	printf("\n");
+}
+
+void
+ktruser(int len, void *p)
 {
 
 	if (len >= 8 && bcmp(p, "RTLD", 4) == 0) {
@@ -1399,18 +1433,60 @@ ktruser(int len, unsigned char *p)
 		return;
 	}
 
-	if (len == sizeof(struct utrace_malloc)) {
-		ktruser_malloc(p);
+	if (len == sizeof(struct utrace_malloc_old)) {
+		struct utrace_malloc_old *utm_old;
+		struct utrace_malloc_v2 utm_v2;
+
+		utm_old = p;
+		utm_v2.p = utm_old->p;
+		utm_v2.s = utm_old->s;
+		utm_v2.r = utm_old->r;
+		ktruser_malloc(&utm_v2, 0);
 		return;
 	}
 
-	printf("%d ", len);
-	while (len--)
-		if (decimal)
-			printf(" %d", *p++);
-		else
-			printf(" %02x", *p++);
-	printf("\n");
+	ktruser_data(len, p);
+}
+
+void
+ktruser2(size_t len, void *p)
+{
+	struct ktruser2_header {
+		int type;
+		int version;
+	} *ktru2_hd;
+
+	if (len < sizeof(struct ktruser2_header)) {
+		warnx("utrace2 size too small: %zd (want: %zd)",
+		    len, sizeof(struct ktruser2_header));
+		ktruser_data(len, p);
+		return;
+	}
+
+	ktru2_hd = p;
+	switch (ktru2_hd->type) {
+	case UTRACE_MALLOC:
+		if (ktru2_hd->version == 2) {
+			if (len == sizeof(struct utrace_malloc_v2)) {
+				ktruser_malloc(p, 1);
+				return;
+			}
+			warnx("ktruser2: UTRACE_MALLOC, version = 2, "
+			    "size incorrect %zd (want: %zd)",
+			    len, sizeof(struct utrace_malloc_v2));
+			ktruser_data(len, p);
+			return;
+		} else {
+			warnx("ktruser2: UTRACE_MALLOC, unknown version = %d, "
+			    "(want: %d)", ktru2_hd->version, 2);
+			ktruser_data(len, p);
+			return;
+		}
+	default:
+		break;
+	}
+	ktruser_data(len, p);
+	return;
 }
 
 void
