@@ -1,9 +1,9 @@
 /*
- *  $Id: textbox.c,v 1.107 2012/07/01 18:13:24 Zoltan.Kelemen Exp $
+ *  $Id: textbox.c,v 1.101 2011/06/29 09:53:03 tom Exp $
  *
  *  textbox.c -- implements the text box
  *
- *  Copyright 2000-2011,2012	Thomas E.  Dickey
+ *  Copyright 2000-2010,2011	Thomas E.  Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -414,7 +414,6 @@ print_page(MY_OBJ * obj, int height, int width)
 	    passed_end = 1;
     }
     (void) wnoutrefresh(obj->text);
-    dlg_trace_win(obj->text);
 }
 
 /*
@@ -489,10 +488,9 @@ get_search_term(WINDOW *dialog, char *input, int height, int width)
     keypad(widget, TRUE);
     dlg_register_window(widget, "searchbox", binding);
 
-    dlg_draw_box2(widget, 0, 0, box_height, box_width,
-		  searchbox_attr,
-		  searchbox_border_attr,
-		  searchbox_border2_attr);
+    dlg_draw_box(widget, 0, 0, box_height, box_width,
+		 searchbox_attr,
+		 searchbox_border_attr);
     wattrset(widget, searchbox_title_attr);
     (void) wmove(widget, 0, (box_width - len_caption) / 2);
 
@@ -500,6 +498,8 @@ get_search_term(WINDOW *dialog, char *input, int height, int width)
     limit = dlg_limit_columns(caption, len_caption, 0);
     (void) waddnstr(widget, caption + indx[0], indx[limit] - indx[0]);
 
+    box_y++;
+    box_x++;
     box_width -= 2;
     offset = dlg_count_columns(input);
 
@@ -581,6 +581,7 @@ perform_search(MY_OBJ * obj, int height, int width, int key, char *search_term)
 	back_lines(obj, (dir
 			 ? obj->page_length - 1
 			 : obj->page_length + 1));
+	found = FALSE;
 	if (dir) {		/* Forward search */
 	    while ((found = match_string(obj, search_term)) == FALSE) {
 		if (obj->end_reached)
@@ -674,7 +675,7 @@ dialog_textbox(const char *title, const char *file, int height, int width)
     WINDOW *dialog;
     bool moved;
     int result = DLG_EXIT_UNKNOWN;
-    int button = dlg_default_button();
+    int button = dialog_vars.extra_button ? dlg_defaultno_button() : 0;
     int min_width = 12;
 
     search_term[0] = '\0';	/* no search term entered yet */
@@ -724,8 +725,8 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 
     /* register the new window, along with its borders */
     dlg_mouse_mkbigregion(0, 0, PAGE_LENGTH + 2, width, KEY_MAX, 1, 1, 1 /* lines */ );
-    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
-    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
+    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
+    dlg_draw_bottom_box(dialog);
     dlg_draw_title(dialog, title);
 
     dlg_draw_buttons(dialog, PAGE_LENGTH + 2, 0, obj.buttons, button, FALSE, width);
@@ -914,6 +915,7 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 		height = old_height;
 		width = old_width;
 		back_lines(&obj, obj.page_length);
+		moved = TRUE;
 		/* repaint */
 		dlg_clear();
 		dlg_del_window(dialog);

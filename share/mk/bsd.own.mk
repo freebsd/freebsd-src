@@ -431,6 +431,7 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
+    NMTREE \
     NAND \
     OFED \
     SHARED_TOOLCHAIN

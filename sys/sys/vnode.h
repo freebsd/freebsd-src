@@ -392,6 +392,9 @@ extern int		vttoif_tab[];
 #define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
 #define	V_XSLEEP	0x0004	/* vn_start_write: just return after sleep */
 
+#define	VR_START_WRITE	0x0001	/* vfs_write_resume: start write atomically */
+#define	VR_NO_SUSPCLR	0x0002	/* vfs_write_resume: do not clear suspension */
+
 #define	VREF(vp)	vref(vp)
 
 #ifdef DIAGNOSTIC
@@ -701,6 +704,7 @@ int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp);
+void	vfs_write_resume_flags(struct mount *mp, int flags);
 int	vfs_write_suspend(struct mount *mp);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);

@@ -383,10 +383,12 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		 */
 
 		/* Rule 5: Prefer outgoing interface */
-		if (ia_best->ia_ifp == ifp && ia->ia_ifp != ifp)
-			NEXT(5);
-		if (ia_best->ia_ifp != ifp && ia->ia_ifp == ifp)
-			REPLACE(5);
+		if (!(ND_IFINFO(ifp)->flags & ND6_IFF_NO_PREFER_IFACE)) {
+			if (ia_best->ia_ifp == ifp && ia->ia_ifp != ifp)
+				NEXT(5);
+			if (ia_best->ia_ifp != ifp && ia->ia_ifp == ifp)
+				REPLACE(5);
+		}
 
 		/*
 		 * Rule 6: Prefer matching label
