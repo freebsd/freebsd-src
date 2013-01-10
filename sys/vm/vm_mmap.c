@@ -1038,6 +1038,7 @@ sys_mlock(td, uap)
 	struct proc *proc;
 	vm_offset_t addr, end, last, start;
 	vm_size_t npages, size;
+	vm_map_t map;
 	unsigned long nsize;
 	int error;
 
@@ -1055,8 +1056,9 @@ sys_mlock(td, uap)
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
 	proc = td->td_proc;
+	map = &proc->p_vmspace->vm_map;
 	PROC_LOCK(proc);
-	nsize = ptoa(npages + vmspace_wired_count(proc->p_vmspace));
+	nsize = ptoa(npages + pmap_wired_count(map->pmap));
 	if (nsize > lim_cur(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		return (ENOMEM);
@@ -1071,13 +1073,13 @@ sys_mlock(td, uap)
 	if (error != 0)
 		return (ENOMEM);
 #endif
-	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
+	error = vm_map_wire(map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 #ifdef RACCT
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(proc);
 		racct_set(proc, RACCT_MEMLOCK,
-		    ptoa(vmspace_wired_count(proc->p_vmspace)));
+		    ptoa(pmap_wired_count(map->pmap)));
 		PROC_UNLOCK(proc);
 	}
 #endif
@@ -1151,7 +1153,7 @@ sys_mlockall(td, uap)
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK,
-		    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)));
+		    ptoa(pmap_wired_count(map->pmap)));
 		PROC_UNLOCK(td->td_proc);
 	}
 #endif
@@ -1485,16 +1487,15 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			return (ENOMEM);
 		}
 		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-			if (ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
-			    size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+			if (ptoa(pmap_wired_count(map->pmap)) + size >
+			    lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
 				racct_set_force(td->td_proc, RACCT_VMEM,
 				    map->size);
 				PROC_UNLOCK(td->td_proc);
 				return (ENOMEM);
 			}
 			error = racct_set(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
-			    size);
+			    ptoa(pmap_wired_count(map->pmap)) + size);
 			if (error != 0) {
 				racct_set_force(td->td_proc, RACCT_VMEM,
 				    map->size);

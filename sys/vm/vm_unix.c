@@ -118,7 +118,7 @@ sys_obreak(td, uap)
 	}
 	if (new > old) {
 		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
-			if (ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
+			if (ptoa(pmap_wired_count(vm->vm_map.pmap)) +
 			    (new - old) > lmemlim) {
 				error = ENOMEM;
 				goto done;
@@ -146,7 +146,7 @@ sys_obreak(td, uap)
 		}
 		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
 			error = racct_set(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
+			    ptoa(pmap_wired_count(vm->vm_map.pmap)) +
 			    (new - old));
 			if (error != 0) {
 				racct_set_force(td->td_proc, RACCT_DATA,
@@ -176,8 +176,7 @@ sys_obreak(td, uap)
 			racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
 			if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
 				racct_set_force(td->td_proc, RACCT_MEMLOCK,
-				    ptoa(vmspace_wired_count(
-				    td->td_proc->p_vmspace)));
+				    ptoa(pmap_wired_count(vm->vm_map.pmap)));
 			}
 			PROC_UNLOCK(td->td_proc);
 #endif
@@ -212,7 +211,7 @@ sys_obreak(td, uap)
 		racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
 		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
 			racct_set_force(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)));
+			    ptoa(pmap_wired_count(vm->vm_map.pmap)));
 		}
 		PROC_UNLOCK(td->td_proc);
 #endif

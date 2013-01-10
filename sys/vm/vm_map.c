@@ -3281,8 +3281,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	}
 
 	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-		if (ptoa(vmspace_wired_count(curproc->p_vmspace)) +
-		    init_ssize > lmemlim) {
+		if (ptoa(pmap_wired_count(map->pmap)) + init_ssize > lmemlim) {
 			vm_map_unlock(map);
 			return (KERN_NO_SPACE);
 		}
@@ -3505,8 +3504,7 @@ Retry:
 		grow_amount = limit - ctob(vm->vm_ssize);
 #endif
 	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-		if (ptoa(vmspace_wired_count(p->p_vmspace)) + grow_amount >
-		    lmemlim) {
+		if (ptoa(pmap_wired_count(map->pmap)) + grow_amount > lmemlim) {
 			vm_map_unlock_read(map);
 			rv = KERN_NO_SPACE;
 			goto out;
@@ -3514,7 +3512,7 @@ Retry:
 #ifdef RACCT
 		PROC_LOCK(p);
 		if (racct_set(p, RACCT_MEMLOCK,
-		    ptoa(vmspace_wired_count(p->p_vmspace)) + grow_amount)) {
+		    ptoa(pmap_wired_count(map->pmap)) + grow_amount)) {
 			PROC_UNLOCK(p);
 			vm_map_unlock_read(map);
 			rv = KERN_NO_SPACE;
@@ -3645,7 +3643,7 @@ out:
 		KASSERT(error == 0, ("decreasing RACCT_VMEM failed"));
 		if (!old_mlock) {
 			error = racct_set(p, RACCT_MEMLOCK,
-			    ptoa(vmspace_wired_count(p->p_vmspace)));
+			    ptoa(pmap_wired_count(map->pmap)));
 			KASSERT(error == 0, ("decreasing RACCT_MEMLOCK failed"));
 		}
 	    	error = racct_set(p, RACCT_STACK, ctob(vm->vm_ssize));
