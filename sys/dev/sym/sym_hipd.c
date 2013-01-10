@@ -3426,7 +3426,6 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 	/*
 	 *  Check against our hardware limits, or bugs :).
 	 */
-	if (fak < 0)	{fak = 0; ret = -1;}
 	if (fak > 2)	{fak = 2; ret = -1;}
 
 	/*
