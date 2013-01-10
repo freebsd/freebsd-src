@@ -1378,14 +1378,14 @@ export_config(int ac, char **av)
 		case TOK_DI_EXP_ACTION_PARAMS:
 			NEED(exp, "action-param is only for export config");
 			NEED1("action-param must be specified");
-			if (strlen(*av) > DI_MAX_NAME_STR_LEN - 1) {
+			if (strlen(*av) > DI_MAX_PARAM_STR_LEN - 1) {
 				errx(EX_DATAERR, "action-param cannot be "
 				    "longer than %d chars",
-				    DI_MAX_NAME_STR_LEN - 1);
+				    DI_MAX_PARAM_STR_LEN - 1);
 			}
 			strncpy(exp->conf.action_param, *av,
 			    DI_MAX_PARAM_STR_LEN - 1);
-			exp->conf.action[DI_MAX_PARAM_STR_LEN - 1] = '\0';
+			exp->conf.action_param[DI_MAX_PARAM_STR_LEN - 1] = '\0';
 			ac--; av++;
 			break;
 		
