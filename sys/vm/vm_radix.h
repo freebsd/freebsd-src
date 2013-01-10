@@ -42,25 +42,10 @@ struct vm_radix {
 void	vm_radix_init(void);
 int 	vm_radix_insert(struct vm_radix *, vm_pindex_t, void *);
 void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t);
-int	vm_radix_lookupn(struct vm_radix *, vm_pindex_t, vm_pindex_t, void **,
-	    int, vm_pindex_t *, u_int *);
+void	*vm_radix_lookup_ge(struct vm_radix *, vm_pindex_t);
 void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t);
 void	vm_radix_reclaim_allnodes(struct vm_radix *);
 void	vm_radix_remove(struct vm_radix *, vm_pindex_t);
-
-/*
- * Look up any entry at a position greater or equal to index.
- */
-static inline void *
-vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
-{
-	void *val;
-	u_int dummy;
-
-	if (vm_radix_lookupn(rtree, index, 0, &val, 1, &index, &dummy))
-		return (val);
-	return (NULL);
-}
 
 #endif /* _KERNEL */
 #endif /* !_VM_RADIX_H_ */

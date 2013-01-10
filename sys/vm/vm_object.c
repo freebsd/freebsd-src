@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
-#define	VM_RADIX_STACK	8	/* Nodes to store on stack for ranged ops. */
+#define	VM_PINDEX_MAX	((vm_pindex_t)(-1))
 
 static int old_msync;
 SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
@@ -679,12 +679,9 @@ vm_object_destroy(vm_object_t object)
 void
 vm_object_terminate(vm_object_t object)
 {
-	vm_page_t pa[VM_RADIX_STACK];
-	vm_page_t p;
+	vm_page_t p, p_next;
 	vm_pindex_t start;
 	struct vnode *vp;
-	u_int exhausted;
-	int n, i;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
@@ -729,67 +726,53 @@ vm_object_terminate(vm_object_t object)
 	 * from the object.  Rather than incrementally removing each page from
 	 * the object, the page and object are reset to any empty state. 
 	 */
-	start = 0;
-	exhausted = 0;
-	n = VM_RADIX_STACK;
-	while (n == VM_RADIX_STACK && exhausted == 0 &&
-	    (n = vm_radix_lookupn(&object->rtree, start, 0, (void **)pa,
-	    VM_RADIX_STACK, &start, &exhausted)) != 0) {
-		for (i = 0; i < n; i++) {
-			p = pa[i];
-			KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
-			    ("vm_object_terminate: freeing busy page %p", p));
-			vm_page_lock(p);
-
-			/*
-			 * Optimize the page's removal from the object by
-			 * resetting its "object" field.  Specifically, if
-			 * the page is not wired, then the effect of this
-			 * assignment is that vm_page_free()'s call to
-			 * vm_page_remove() will return immediately without
-			 * modifying the page or the object.
-			 * Anyway, the radix tree cannot be accessed anymore
-			 * from within the object, thus all the nodes need
-			 * to be reclaimed later on.
-			 */ 
-			p->object = NULL;
-			if (p->wire_count == 0) {
-				vm_page_free(p);
-				PCPU_INC(cnt.v_pfree);
-			}
-			vm_page_unlock(p);
+	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
+		KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
+		    ("vm_object_terminate: freeing busy page %p", p));
+		vm_page_lock(p);
+		/*
+		 * Optimize the page's removal from the object by resetting
+		 * its "object" field.  Specifically, if the page is not
+		 * wired, then the effect of this assignment is that
+		 * vm_page_free()'s call to vm_page_remove() will return
+		 * immediately without modifying the page or the object.
+		 */
+		p->object = NULL;
+		if (p->wire_count == 0) {
+			vm_page_free(p);
+			PCPU_INC(cnt.v_pfree);
 		}
+		vm_page_unlock(p);
 	}
 	vm_radix_reclaim_allnodes(&object->rtree);
 	vp = NULL;
 	if (!vm_object_cache_is_empty(object)) {
-		mtx_lock(&vm_page_queue_free_mtx);
 		start = 0;
-		exhausted = 0;
-		n = VM_RADIX_STACK;
-		while (n == VM_RADIX_STACK && exhausted == 0 &&
-		    (n = vm_radix_lookupn(&object->cache, start, 0,
-		    (void **)pa, VM_RADIX_STACK, &start, &exhausted)) != 0) {
-			for (i = 0; i < n; i++) {
-				p = pa[i];
-				MPASS(p->object == object);
-				p->object = NULL;
-				p->valid = 0;
+		mtx_lock(&vm_page_queue_free_mtx);
+		while ((p = vm_radix_lookup_ge(&object->cache,
+		    start)) != NULL) {
+			MPASS(p->object == object);
+			p->object = NULL;
+			p->valid = 0;
 
-				/* Clear PG_CACHED and set PG_FREE. */
-				p->flags ^= PG_CACHED | PG_FREE;
-				cnt.v_cache_count--;
-				cnt.v_free_count++;
+			/* Clear PG_CACHED and set PG_FREE. */
+			p->flags ^= PG_CACHED | PG_FREE;
+			cnt.v_cache_count--;
+			cnt.v_free_count++;
 
-				/*
-				 * At least one cached page was removed and
-				 * in the end all the cached pages will be
-				 * reclaimed.  If the object is a vnode,
-				 * drop a reference to it.
-				 */
-				if (object->type == OBJT_VNODE)
-					vp = object->handle;
-			}
+			/*
+			 * At least one cached page was removed and
+			 * in the end all the cached pages will be
+			 * reclaimed.  If the object is a vnode,
+			 * drop a reference to it.
+			 */
+			if (object->type == OBJT_VNODE)
+				vp = object->handle;
+
+			/* Point to the next available index. */
+			if (p->pindex == VM_PINDEX_MAX)
+				break;
+			start = p->pindex + 1;
 		}
 		vm_radix_reclaim_allnodes(&object->cache);
 		mtx_unlock(&vm_page_queue_free_mtx);
@@ -1328,13 +1311,10 @@ vm_object_shadow(
 void
 vm_object_split(vm_map_entry_t entry)
 {
-	vm_page_t ma[VM_RADIX_STACK];
-	vm_page_t m;
+	vm_page_t m, m_next;
 	vm_object_t orig_object, new_object, source;
 	vm_pindex_t idx, offidxstart, start;
 	vm_size_t size;
-	u_int exhausted;
-	int i, n;
 
 	orig_object = entry->object.vm_object;
 	if (orig_object->type != OBJT_DEFAULT && orig_object->type != OBJT_SWAP)
@@ -1387,60 +1367,46 @@ vm_object_split(vm_map_entry_t entry)
 		    ("orig_object->charge < 0"));
 		orig_object->charge -= ptoa(size);
 	}
-	start = offidxstart;
 retry:
-	exhausted = 0;
-	n = VM_RADIX_STACK;
-	while (n == VM_RADIX_STACK && exhausted == 0 &&
-	    (n = vm_radix_lookupn(&orig_object->rtree, start,
-	    offidxstart + size, (void **)ma, VM_RADIX_STACK, &start,
-	    &exhausted)) != 0) {
-		for (i = 0; i < n; i++) {
-			m = ma[i];
-			idx = m->pindex - offidxstart;
+	m = vm_page_find_least(orig_object, offidxstart);
+	for (; m != NULL && (idx = m->pindex - offidxstart) < size;
+	    m = m_next) {
+		m_next = TAILQ_NEXT(m, listq);
 
-			/*
-			 * We must wait for pending I/O to complete before
-			 * we can rename the page.
-			 *
-			 * We do not have to VM_PROT_NONE the page as mappings
-			 * should not be changed by this operation.
-			 */
-			if ((m->oflags & VPO_BUSY) || m->busy) {
-				start = m->pindex;
-				VM_OBJECT_UNLOCK(new_object);
-				m->oflags |= VPO_WANTED;
-				msleep(m, VM_OBJECT_MTX(orig_object), PVM,
-				    "spltwt", 0);
-				VM_OBJECT_LOCK(new_object);
-				goto retry;
-			}
-#if VM_NRESERVLEVEL > 0
-			/*
-			 * If some of the reservation's allocated pages remain
-			 * with the original object, then transferring the
-			 * reservation to the new object is neither
-			 * particularly beneficial nor particularly harmful as
-			 * compared to leaving the reservation with the
-			 * original object.  If, however, all of the
-			 * reservation's allocated pages are transferred to
-			 * the new object, then transferring the reservation
-			 * is typically beneficial.  Determining which of
-			 * these two cases applies would be more costly than
-			 * unconditionally renaming the reservation.
-			 */
-			vm_reserv_rename(m, new_object, orig_object,
-			    offidxstart);
-#endif
-			vm_page_lock(m);
-			vm_page_rename(m, new_object, idx);
-			vm_page_unlock(m);
-			/*
-			 * page automatically made dirty by rename and
-			 * cache handled
-			 */
-			vm_page_busy(m);
+		/*
+		 * We must wait for pending I/O to complete before we can
+		 * rename the page.
+		 *
+		 * We do not have to VM_PROT_NONE the page as mappings should
+		 * not be changed by this operation.
+		 */
+		if ((m->oflags & VPO_BUSY) || m->busy) {
+			VM_OBJECT_UNLOCK(new_object);
+			m->oflags |= VPO_WANTED;
+			msleep(m, VM_OBJECT_MTX(orig_object), PVM, "spltwt", 0);
+			VM_OBJECT_LOCK(new_object);
+			goto retry;
 		}
+#if VM_NRESERVLEVEL > 0
+		/*
+		 * If some of the reservation's allocated pages remain with
+		 * the original object, then transferring the reservation to
+		 * the new object is neither particularly beneficial nor
+		 * particularly harmful as compared to leaving the reservation
+		 * with the original object.  If, however, all of the
+		 * reservation's allocated pages are transferred to the new
+		 * object, then transferring the reservation is typically
+		 * beneficial.  Determining which of these two cases applies
+		 * would be more costly than unconditionally renaming the
+		 * reservation.
+		 */
+		vm_reserv_rename(m, new_object, orig_object, offidxstart);
+#endif
+		vm_page_lock(m);
+		vm_page_rename(m, new_object, idx);
+		vm_page_unlock(m);
+		/* page automatically made dirty by rename and cache handled */
+		vm_page_busy(m);
 	}
 	if (orig_object->type == OBJT_SWAP) {
 		/*
@@ -1460,19 +1426,13 @@ retry:
 		 */
 		if (!vm_object_cache_is_empty(orig_object)) {
 			start = offidxstart;
-			exhausted = 0;
-			n = VM_RADIX_STACK;
 			mtx_lock(&vm_page_queue_free_mtx);
-			while (n == VM_RADIX_STACK && exhausted == 0 &&
-			    (n = vm_radix_lookupn(&orig_object->cache, start,
-			    offidxstart + size, (void **)ma, VM_RADIX_STACK,
-			    &start, &exhausted)) != 0) {
-				for (i = 0; i < n; i++) {
-					m = ma[i];
-					idx = m->pindex - offidxstart;
-					vm_page_cache_rename(m, new_object,
-					    idx);
-				}
+			while ((m = vm_radix_lookup_ge(&orig_object->cache,
+			    start)) != NULL) {
+				if (m->pindex >= (offidxstart + size))
+					break;
+				idx = m->pindex - offidxstart;
+				vm_page_cache_rename(m, new_object, idx);
 			}
 			mtx_unlock(&vm_page_queue_free_mtx);
 		}
@@ -1494,14 +1454,10 @@ retry:
 static int
 vm_object_backing_scan(vm_object_t object, int op)
 {
-	vm_page_t pa[VM_RADIX_STACK];
+	int r = 1;
 	vm_page_t p;
 	vm_object_t backing_object;
-	vm_pindex_t backing_offset_index, new_pindex;
-	vm_pindex_t start;
-	u_int exhausted;
-	int i, n;
-	int r = 1;
+	vm_pindex_t backing_offset_index;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(object->backing_object, MA_OWNED);
@@ -1529,25 +1485,15 @@ vm_object_backing_scan(vm_object_t object, int op)
 	if (op & OBSC_COLLAPSE_WAIT) {
 		vm_object_set_flag(backing_object, OBJ_DEAD);
 	}
+
 	/*
 	 * Our scan
 	 */
-restart:
-	start = 0;
-	i = n = VM_RADIX_STACK;
-	exhausted = 0;
-	for (;;) {
-		if (i == n) {
-			if (n < VM_RADIX_STACK || exhausted != 0 ||
-			    (n = vm_radix_lookupn(&backing_object->rtree,
-			    start, 0, (void **)pa, VM_RADIX_STACK,
-			    &start, &exhausted)) == 0)
-				break;
-			i = 0;
-		}
-		p = pa[i++];
+	p = TAILQ_FIRST(&backing_object->memq);
+	while (p) {
+		vm_page_t next = TAILQ_NEXT(p, listq);
+		vm_pindex_t new_pindex = p->pindex - backing_offset_index;
 
-		new_pindex = p->pindex - backing_offset_index;
 		if (op & OBSC_TEST_ALL_SHADOWED) {
 			vm_page_t pp;
 
@@ -1559,9 +1505,13 @@ restart:
 			 * note that we do not busy the backing object's
 			 * page.
 			 */
-			if (p->pindex < backing_offset_index ||
-			    new_pindex >= object->size)
+			if (
+			    p->pindex < backing_offset_index ||
+			    new_pindex >= object->size
+			) {
+				p = next;
 				continue;
+			}
 
 			/*
 			 * See if the parent has the page or if the parent's
@@ -1590,9 +1540,12 @@ restart:
 			vm_page_t pp;
 
 			if (op & OBSC_COLLAPSE_NOWAIT) {
-				if ((p->oflags & VPO_BUSY) || !p->valid || 
-				    p->busy)
+				if ((p->oflags & VPO_BUSY) ||
+				    !p->valid || 
+				    p->busy) {
+					p = next;
 					continue;
+				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
 				if ((p->oflags & VPO_BUSY) || p->busy) {
 					VM_OBJECT_UNLOCK(object);
@@ -1608,7 +1561,8 @@ restart:
 					 * should not have changed so we
 					 * just restart our scan.
 					 */
-					goto restart;
+					p = TAILQ_FIRST(&backing_object->memq);
+					continue;
 				}
 			}
 
@@ -1644,6 +1598,7 @@ restart:
 				else
 					vm_page_remove(p);
 				vm_page_unlock(p);
+				p = next;
 				continue;
 			}
 
@@ -1663,6 +1618,7 @@ restart:
 				 * page before we can (re)lock the parent.
 				 * Hence we can get here.
 				 */
+				p = next;
 				continue;
 			}
 			if (
@@ -1684,6 +1640,7 @@ restart:
 				else
 					vm_page_remove(p);
 				vm_page_unlock(p);
+				p = next;
 				continue;
 			}
 
@@ -1707,6 +1664,7 @@ restart:
 			vm_page_unlock(p);
 			/* page automatically made dirty by rename */
 		}
+		p = next;
 	}
 	return (r);
 }
@@ -1741,10 +1699,8 @@ vm_object_qcollapse(vm_object_t object)
 void
 vm_object_collapse(vm_object_t object)
 {
-	vm_page_t pa[VM_RADIX_STACK];
-	vm_pindex_t start;
-	u_int exhausted;
-	int i, n;
+	vm_page_t p;
+	vm_pindex_t start, tmpindex;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	
@@ -1833,17 +1789,20 @@ vm_object_collapse(vm_object_t object)
 					 * backing_object.
 					 */
 					start = 0;
-					exhausted = 0;
-					n = VM_RADIX_STACK;
 					mtx_lock(&vm_page_queue_free_mtx);
-					while (n == VM_RADIX_STACK &&
-					    exhausted == 0 && (n =
-				    vm_radix_lookupn(&backing_object->cache,
-					    start, 0, (void **)pa,
-					    VM_RADIX_STACK, &start,
-					    &exhausted)) != 0) {
-						for (i = 0; i < n; i++)
-						vm_page_cache_free(pa[i]);
+					while ((p =
+				    vm_radix_lookup_ge(&backing_object->cache,
+					    start)) != NULL) {
+						tmpindex = p->pindex;
+						vm_page_cache_free(p);
+
+						/*
+						 * Point to the next available
+						 * index.
+						 */
+						if (tmpindex == VM_PINDEX_MAX)
+							break;
+						start = tmpindex + 1;
 					}
 					mtx_unlock(&vm_page_queue_free_mtx);
 				}
@@ -1969,102 +1928,92 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
     int options)
 {
 	struct vnode *vp;
-	vm_page_t pa[VM_RADIX_STACK];
-	vm_pindex_t cstart;
-	vm_page_t p;
-	u_int exhausted;
-	int i, n;
+	vm_page_t p, next;
 	int wirings;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT((object->type != OBJT_DEVICE && object->type != OBJT_PHYS) ||
 	    (options & (OBJPR_CLEANONLY | OBJPR_NOTMAPPED)) == OBJPR_NOTMAPPED,
 	    ("vm_object_page_remove: illegal options for object %p", object));
-	if (object->resident_page_count == 0 &&
-	    vm_object_cache_is_empty(object))
-		return;
-	vp = NULL;
+	if (object->resident_page_count == 0) {
+		if (vm_object_cache_is_empty(object))
+			return;
+		goto skipmemq;
+	}
 	vm_object_pip_add(object, 1);
-	cstart = start;
-restart:
-	exhausted = 0;
-	n = VM_RADIX_STACK;
-	while (n == VM_RADIX_STACK && exhausted == 0 &&
-	    (n = vm_radix_lookupn(&object->rtree, start, end, (void **)pa,
-	    VM_RADIX_STACK, &start, &exhausted)) != 0) {
-		for (i = 0; i < n; i++) {
-			p = pa[i];
+again:
+	p = vm_page_find_least(object, start);
 
-			/*
-			 * If the page is wired for any reason besides
-			 * the existence of managed, wired mappings, then
-			 * it cannot be freed.  For example, fictitious
-			 * pages, which represent device memory, are
-			 * inherently wired and cannot be freed.  They can,
-			 * however, be invalidated if the option
-			 * OBJPR_CLEANONLY is not specified.
-			 */
-			vm_page_lock(p);
-			if ((wirings = p->wire_count) != 0 &&
-			    (wirings = pmap_page_wired_mappings(p)) !=
-			    p->wire_count) {
-				if ((options & OBJPR_NOTMAPPED) == 0) {
-					pmap_remove_all(p);
-					/*
-					 * Account for removal of wired
-					 * mappings.
-					 */
-					if (wirings != 0)
-						p->wire_count -= wirings;
-				}
-				if ((options & OBJPR_CLEANONLY) == 0) {
-					p->valid = 0;
-					vm_page_undirty(p);
-				}
-				vm_page_unlock(p);
-				continue;
-			}
-			if (vm_page_sleep_if_busy(p, TRUE, "vmopar")) {
-				start = p->pindex;
-				goto restart;
-			}
-			KASSERT((p->flags & PG_FICTITIOUS) == 0,
-			    ("vm_object_page_remove: page %p is fictitious",
-			    p));
-			if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
-				if ((options & OBJPR_NOTMAPPED) == 0)
-					pmap_remove_write(p);
-				if (p->dirty) {
-					vm_page_unlock(p);
-					continue;
-				}
-			}
+	/*
+	 * Here, the variable "p" is either (1) the page with the least pindex
+	 * greater than or equal to the parameter "start" or (2) NULL.
+	 */
+	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
+		next = TAILQ_NEXT(p, listq);
+
+		/*
+		 * If the page is wired for any reason besides the existence
+		 * of managed, wired mappings, then it cannot be freed.  For
+		 * example, fictitious pages, which represent device memory,
+		 * are inherently wired and cannot be freed.  They can,
+		 * however, be invalidated if the option OBJPR_CLEANONLY is
+		 * not specified.
+		 */
+		vm_page_lock(p);
+		if ((wirings = p->wire_count) != 0 &&
+		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
 			if ((options & OBJPR_NOTMAPPED) == 0) {
 				pmap_remove_all(p);
 				/* Account for removal of wired mappings. */
 				if (wirings != 0)
 					p->wire_count -= wirings;
 			}
-			vm_page_free(p);
+			if ((options & OBJPR_CLEANONLY) == 0) {
+				p->valid = 0;
+				vm_page_undirty(p);
+			}
 			vm_page_unlock(p);
+			continue;
 		}
+		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
+			goto again;
+		KASSERT((p->flags & PG_FICTITIOUS) == 0,
+		    ("vm_object_page_remove: page %p is fictitious", p));
+		if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
+			if ((options & OBJPR_NOTMAPPED) == 0)
+				pmap_remove_write(p);
+			if (p->dirty) {
+				vm_page_unlock(p);
+				continue;
+			}
+		}
+		if ((options & OBJPR_NOTMAPPED) == 0) {
+			pmap_remove_all(p);
+			/* Account for removal of wired mappings. */
+			if (wirings != 0) {
+				KASSERT(p->wire_count == wirings,
+				    ("inconsistent wire count %d %d %p",
+				    p->wire_count, wirings, p));
+				p->wire_count = 0;
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+			}
+		}
+		vm_page_free(p);
+		vm_page_unlock(p);
 	}
 	vm_object_pip_wakeup(object);
+skipmemq:
+	vp = NULL;
 	if (!vm_object_cache_is_empty(object)) {
-		start = cstart;
-		exhausted = 0;
-		n = VM_RADIX_STACK;
 		mtx_lock(&vm_page_queue_free_mtx);
-		while (n == VM_RADIX_STACK && exhausted == 0 &&
-		    (n = vm_radix_lookupn(&object->cache, start, end,
-		    (void **)pa, VM_RADIX_STACK, &start, &exhausted)) != 0) {
-			for (i = 0; i < n; i++) {
-				p = pa[i];
-				vm_page_cache_free(p);
-				if (vm_object_cache_is_empty(object) &&
-				    object->type == OBJT_VNODE)
-					vp = object->handle;
-			}
+		while ((p = vm_radix_lookup_ge(&object->cache,
+		    start)) != NULL) {
+			if (p->pindex >= end)
+				break;
+			vm_page_cache_free(p);
+			if (vm_object_cache_is_empty(object) &&
+			    object->type == OBJT_VNODE)
+				vp = object->handle;
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
 	}

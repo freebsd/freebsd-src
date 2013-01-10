@@ -477,7 +477,7 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
  * the index of the first valid item in the leaf in *startp.
  */
 static struct vm_radix_node *
-vm_radix_leaf(struct vm_radix *rtree, vm_pindex_t *startp, vm_pindex_t end)
+vm_radix_leaf(struct vm_radix *rtree, vm_pindex_t *startp)
 {
 	struct vm_radix_node *rnode;
 	vm_pindex_t start;
@@ -488,13 +488,13 @@ vm_radix_leaf(struct vm_radix *rtree, vm_pindex_t *startp, vm_pindex_t end)
 	start = *startp;
 restart:
 	level = vm_radix_height(rtree, &rnode);
-	if (start > VM_RADIX_MAX(level) || (end && start >= end)) {
+	if (start > VM_RADIX_MAX(level)) {
 		rnode = NULL;
 		goto out;
 	}
 	/*
 	 * Search the tree from the top for any leaf node holding an index
-	 * between start and end.
+	 * between start and maxval.
 	 */
 	for (level--; level; level--) {
 		slot = vm_radix_slot(start, level);
@@ -524,16 +524,12 @@ restart:
 		}
 		start += inc;
 		slot++;
-		CTR6(KTR_VM,
-		    "leaf: " KFRMT64(start) ", " KFRMT64(end) ", " KFRMT64(inc),
-		    KSPLT64L(start), KSPLT64H(start), KSPLT64L(end),
-		    KSPLT64H(end), KSPLT64L(inc), KSPLT64H(inc));
+		CTR4(KTR_VM,
+		    "leaf: " KFRMT64(start) ", " KFRMT64(inc),
+		    KSPLT64L(start), KSPLT64H(start), KSPLT64L(inc),
+		    KSPLT64H(inc));
 		CTR2(KTR_VM, "leaf: level %d, slot %d", level, slot);
 		for (; slot < VM_RADIX_COUNT; slot++, start += inc) {
-			if (end != 0 && start >= end) {
-				rnode = NULL;
-				goto out;
-			}
 			if (rnode->rn_child[slot]) {
 				rnode = rnode->rn_child[slot];
 				break;
@@ -552,35 +548,23 @@ out:
 	return (rnode);
 }
 
-    
-
 /*
- * Looks up as many as cnt values between start and end, and stores
- * them in the caller allocated array out.  The next index can be used
- * to restart the scan.  This optimizes forward scans in the tree.
+ * Look up any entry at a position bigger than or equal to index.
  */
-int
-vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
-    vm_pindex_t end, void **out, int cnt, vm_pindex_t *next, u_int *exhausted)
+void *
+vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t start)
 {
 	struct vm_radix_node *rnode;
 	void *val;
 	int slot;
-	int outidx;
 
-	CTR5(KTR_VM, "lookupn: tree %p, " KFRMT64(start) ", " KFRMT64(end),
-	    rtree, KSPLT64L(start), KSPLT64H(start), KSPLT64L(end),
-	    KSPLT64H(end));
-	if (end == 0)
-		*exhausted = 0;
+	CTR3(KTR_VM, "lookupn: tree %p, " KFRMT64(start), rtree,
+	    KSPLT64L(start), KSPLT64H(start));
 	if (rtree->rt_root == 0)
-		return (0);
-	outidx = 0;
-	while ((rnode = vm_radix_leaf(rtree, &start, end)) != NULL) {
+		return (NULL);
+	while ((rnode = vm_radix_leaf(rtree, &start)) != NULL) {
 		slot = vm_radix_slot(start, 0);
 		for (; slot < VM_RADIX_COUNT; slot++, start++) {
-			if (end != 0 && start >= end)
-				goto out;
 			val = vm_radix_match(rnode->rn_child[slot]);
 			if (val == NULL) {
 
@@ -595,33 +579,18 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 				 * be done after all the necessary controls
 				 * on start are completed.
 				 */
-				if ((VM_RADIX_MAXVAL - start) == 0) {
-					start++;
-					if (end == 0)
-						*exhausted = 1;
-					goto out;
-				}
+				if ((VM_RADIX_MAXVAL - start) == 0)
+					return (NULL);
 				continue;
 			}
 			CTR5(KTR_VM,
 	    "lookupn: tree %p " KFRMT64(index) " slot %d found child %p",
 			    rtree, KSPLT64L(start), KSPLT64H(start), slot, val);
-			out[outidx] = val;
-			if (++outidx == cnt ||
-			    (VM_RADIX_MAXVAL - start) == 0) {
-				start++;
-				if ((VM_RADIX_MAXVAL - start) == 0 && end == 0)
-					*exhausted = 1;
-				goto out;
-			}
+			return (val);
 		} 
 		MPASS((VM_RADIX_MAXVAL - start) != 0);
-		if (end != 0 && start >= end)
-			break;
 	}
-out:
-	*next = start;
-	return (outidx);
+	return (NULL);
 }
 
 /*
