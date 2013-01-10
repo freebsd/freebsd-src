@@ -863,6 +863,8 @@ static	void		daasync(void *callback_arg, u_int32_t code,
 static	void		dasysctlinit(void *context, int pending);
 static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
+static	int		dadeletemethodset(struct da_softc *softc,
+					  da_delete_methods delete_method);
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
 static	periph_start_t	dastart;
@@ -1489,7 +1491,7 @@ dasysctlinit(void *context, int pending)
 	 */
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "delete_method", CTLTYPE_STRING | CTLFLAG_RW,
-		&softc->delete_method, 0, dadeletemethodsysctl, "A",
+		softc, 0, dadeletemethodsysctl, "A",
 		"BIO_DELETE execution method");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
@@ -1566,14 +1568,33 @@ dacmdsizesysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
+{
+
+	if (delete_method < 0 || delete_method > DA_DELETE_MAX)
+		return (EINVAL);
+
+	softc->delete_method = delete_method;
+
+	if (softc->delete_method > DA_DELETE_DISABLE)
+		softc->disk->d_flags |= DISKFLAG_CANDELETE;
+	else
+		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
+
+	return (0);
+}
+
+static int
 dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 {
 	char buf[16];
-	int error;
 	const char *p;
-	int i, value;
+	struct da_softc *softc;
+	int i, error, value;
 
-	value = *(int *)arg1;
+	softc = (struct da_softc *)arg1;
+
+	value = softc->delete_method;
 	if (value < 0 || value > DA_DELETE_MAX)
 		p = "UNKNOWN";
 	else
@@ -1585,8 +1606,7 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
 		if (strcmp(buf, da_delete_method_names[i]) != 0)
 			continue;
-		*(int *)arg1 = i;
-		return (0);
+		return dadeletemethodset(softc, i);
 	}
 	return (EINVAL);
 }
@@ -2082,24 +2102,24 @@ cmd6workaround(union ccb *ccb)
 		if (softc->delete_method == DA_DELETE_UNMAP) {
 			xpt_print(ccb->ccb_h.path, "UNMAP is not supported, "
 			    "switching to WRITE SAME(16) with UNMAP.\n");
-			softc->delete_method = DA_DELETE_WS16;
+			dadeletemethodset(softc, DA_DELETE_WS16);
 		} else if (softc->delete_method == DA_DELETE_WS16) {
 			xpt_print(ccb->ccb_h.path,
 			    "WRITE SAME(16) with UNMAP is not supported, "
 			    "disabling BIO_DELETE.\n");
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		} else if (softc->delete_method == DA_DELETE_WS10) {
 			xpt_print(ccb->ccb_h.path,
 			    "WRITE SAME(10) with UNMAP is not supported, "
 			    "disabling BIO_DELETE.\n");
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		} else if (softc->delete_method == DA_DELETE_ZERO) {
 			xpt_print(ccb->ccb_h.path,
 			    "WRITE SAME(10) is not supported, "
 			    "disabling BIO_DELETE.\n");
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		} else
-			softc->delete_method = DA_DELETE_DISABLE;
+			dadeletemethodset(softc, DA_DELETE_DISABLE);
 		while ((bp = bioq_takefirst(&softc->delete_run_queue))
 		    != NULL)
 			bioq_disksort(&softc->delete_queue, bp);
@@ -2345,7 +2365,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					  rcaplong, sizeof(*rcaplong));
 				if ((lalba & SRC16_LBPME_A)
 				 && softc->delete_method == DA_DELETE_NONE)
-					softc->delete_method = DA_DELETE_UNMAP;
+					dadeletemethodset(softc, DA_DELETE_UNMAP);
 				dp = &softc->params;
 				snprintf(announce_buf, sizeof(announce_buf),
 				        "%juMB (%ju %u byte sectors: %dH %dS/T "
