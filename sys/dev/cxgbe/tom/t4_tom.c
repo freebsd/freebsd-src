@@ -602,7 +602,7 @@ t4_tom_activate(struct adapter *sc)
 	struct toedev *tod;
 	int i, rc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for sc->flags */
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	/* per-adapter softc for TOM */
 	td = malloc(sizeof(*td), M_CXGBE, M_ZERO | M_NOWAIT);
@@ -668,7 +668,7 @@ t4_tom_deactivate(struct adapter *sc)
 	int rc = 0;
 	struct tom_data *td = sc->tom_softc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for sc->flags */
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (td == NULL)
 		return (0);	/* XXX. KASSERT? */
@@ -721,11 +721,14 @@ t4_tom_mod_load(void)
 static void
 tom_uninit(struct adapter *sc, void *arg __unused)
 {
+	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4tomun"))
+		return;
+
 	/* Try to free resources (works only if no port has IFCAP_TOE) */
-	ADAPTER_LOCK(sc);
 	if (sc->flags & TOM_INIT_DONE)
 		t4_deactivate_uld(sc, ULD_TOM);
-	ADAPTER_UNLOCK(sc);
+
+	end_synchronized_op(sc, LOCK_HELD);
 }
 
 static int

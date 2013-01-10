@@ -75,29 +75,27 @@ union aopen_entry {
  */
 struct tid_info {
 	void **tid_tab;
-	unsigned int ntids;
+	u_int ntids;
+	u_int tids_in_use;
 
+	struct mtx stid_lock __aligned(CACHE_LINE_SIZE);
 	union serv_entry *stid_tab;
-	unsigned int nstids;
-	unsigned int stid_base;
-
-	union aopen_entry *atid_tab;
-	unsigned int natids;
-
-	struct filter_entry *ftid_tab;
-	unsigned int nftids;
-	unsigned int ftid_base;
-	unsigned int ftids_in_use;
-
-	struct mtx atid_lock;
-	union aopen_entry *afree;
-	unsigned int atids_in_use;
-
-	struct mtx stid_lock;
+	u_int nstids;
+	u_int stid_base;
 	union serv_entry *sfree;
-	unsigned int stids_in_use;
+	u_int stids_in_use;
 
-	unsigned int tids_in_use;
+	struct mtx atid_lock __aligned(CACHE_LINE_SIZE);
+	union aopen_entry *atid_tab;
+	u_int natids;
+	union aopen_entry *afree;
+	u_int atids_in_use;
+
+	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
+	struct filter_entry *ftid_tab;
+	u_int nftids;
+	u_int ftid_base;
+	u_int ftids_in_use;
 };
 
 struct t4_range {

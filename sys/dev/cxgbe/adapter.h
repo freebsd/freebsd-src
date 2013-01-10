@@ -158,6 +158,16 @@ enum {
 };
 
 enum {
+	/* flags understood by begin_synchronized_op */
+	HOLD_LOCK	= (1 << 0),
+	SLEEP_OK	= (1 << 1),
+	INTR_OK		= (1 << 2),
+
+	/* flags understood by end_synchronized_op */
+	LOCK_HELD	= HOLD_LOCK,
+};
+
+enum {
 	/* adapter flags */
 	FULL_INIT_DONE	= (1 << 0),
 	FW_OK		= (1 << 1),
@@ -174,11 +184,11 @@ enum {
 	PORT_SYSCTL_CTX	= (1 << 2),
 };
 
-#define IS_DOOMED(pi)	(pi->flags & DOOMED)
-#define SET_DOOMED(pi)	do {pi->flags |= DOOMED;} while (0)
-#define IS_BUSY(sc)	(sc->flags & CXGBE_BUSY)
-#define SET_BUSY(sc)	do {sc->flags |= CXGBE_BUSY;} while (0)
-#define CLR_BUSY(sc)	do {sc->flags &= ~CXGBE_BUSY;} while (0)
+#define IS_DOOMED(pi)	((pi)->flags & DOOMED)
+#define SET_DOOMED(pi)	do {(pi)->flags |= DOOMED;} while (0)
+#define IS_BUSY(sc)	((sc)->flags & CXGBE_BUSY)
+#define SET_BUSY(sc)	do {(sc)->flags |= CXGBE_BUSY;} while (0)
+#define CLR_BUSY(sc)	do {(sc)->flags &= ~CXGBE_BUSY;} while (0)
 
 struct port_info {
 	device_t dev;
@@ -591,12 +601,23 @@ struct adapter {
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
 	fw_msg_handler_t fw_msg_handler[4];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
+
+#ifdef INVARIANTS
+	const char *last_op;
+	const void *last_op_thr;
+#endif
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
 #define ADAPTER_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
+
+/* XXX: not bulletproof, but much better than nothing */
+#define ASSERT_SYNCHRONIZED_OP(sc)	\
+    KASSERT(IS_BUSY(sc) && \
+	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \
+	("%s: operation not synchronized.", __func__))
 
 #define PORT_LOCK(pi)			mtx_lock(&(pi)->pi_lock)
 #define PORT_UNLOCK(pi)			mtx_unlock(&(pi)->pi_lock)
@@ -751,6 +772,8 @@ int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
 int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int begin_synchronized_op(struct adapter *, struct port_info *, int, char *);
+void end_synchronized_op(struct adapter *, int);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
