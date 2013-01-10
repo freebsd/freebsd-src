@@ -740,6 +740,14 @@ null_reclaim(struct vop_reclaim_args *ap)
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	VI_UNLOCK(vp);
+
+	/*
+	 * If we were opened for write, we leased one write reference
+	 * to the lower vnode.  If this is a reclamation due to the
+	 * forced unmount, undo the reference now.
+	 */
+	if (vp->v_writecount > 0)
+		VOP_ADD_WRITECOUNT(lowervp, -1);
 	vput(lowervp);
 	free(xp, M_NULLFSNODE);
 
