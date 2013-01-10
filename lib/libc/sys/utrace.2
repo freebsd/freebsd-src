@@ -44,6 +44,16 @@
 .In sys/ktrace.h
 .Ft int
 .Fn utrace "const void *addr" "size_t len"
+.Bd -literal
+struct utrace2_data {
+	int	ud_type;	/* type of utrace record,
+				   must be >= UTRACE_APPLICATIONMIN */
+	int	ud_version;	/* version of 'type' */
+	char	application_data[SIZE];	/* your data */
+};
+.Ed
+.Ft int
+.Fn utrace2 "const void *addr" "size_t len"
 .Sh DESCRIPTION
 Adds a record to the process trace with information supplied by user.
 The record contains
@@ -51,6 +61,81 @@ The record contains
 bytes from memory pointed to by
 .Fa addr .
 This call only has an effect if the calling process is being traced.
+.Pp
+The old
+.Fn utrace
+system call uses unstructured data and should be avoided.
+.Pp
+The new
+.Fn utrace2
+function is for structured data and should be used with an overlay structure
+that matches the
+.Vt struct utrace2_data
+above.
+.Pp The format of the overlay must begin with two integer (int) fields.
+The first is the utrace record type, for applications it must be
+greater than or equal to UTRACE_APPLICATIONMIN (defined in
+.In sys/ktrace.h )
+The second should be the version of the record.
+.Pp
+.Sh EXAMPLES FOR USER CODE
+An example for
+.Em non-system
+code:
+.Bd -literal
+    #define	MY_UTRACE	(UTRACE_APPLICATIONMIN + 1)
+    #define	D_SIZE		20
+    struct my_utrace2_data {
+	    int  ud_type;	/* type of utrace record,
+				       must be >= UTRACE_APPLICATIONMIN */
+	    int  ud_version;	/* version of 'type' */
+	    char hello[D_SIZE];	/* your data */
+    } ud;
+
+    ud.ud_type = MY_UTRACE;
+    ud.ud_version = 1;
+    strcpy(ud.hello, "world");
+    utrace2(&ud, sizeof(ud));
+
+.Ed
+.Sh EXAMPLES FOR FREEBSD SYSTEM CODE
+An example for a
+.Em system library
+(ONLY FOR BASE FREEBSD):
+.Pp
+First add an entry to
+.In sys/ktrace.h 
+near
+.Dv UTRACE_MALLOC .
+Then start writing records using code like this:
+.Bd -literal
+    #define	UTRACE_THREAD_NEW	1
+    #define	UTRACE_THREAD_DEL	2
+    struct utrace2_thread_data {
+	    int  ud_type;	/* type of utrace record,
+				       must be >= UTRACE_APPLICATIONMIN */
+	    int  ud_version;	/* version of 'type' */
+	    int  ud_thread_op;	/* UTRACE_THREAD_NEW/UTRACE_THREAD_DEL */
+	    int  ud_thread_id;	/* id of thread */
+    };
+
+    int
+    thread_create(void)
+    {
+	int tid;
+	struct utrace2_thread_data ud;
+
+	tid = get_new_tid();
+	ud.ud_type = UTRACE_THREAD;
+	ud.ud_version = 1;
+	ud.ud_thread_op = UTRACE_THREAD_NEW;
+	ud.ud_thread_id = tid;
+	return tid;
+    }
+.Ed
+.Pp
+Then you should add your new data type to
+.Xr kdump 1 .
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
