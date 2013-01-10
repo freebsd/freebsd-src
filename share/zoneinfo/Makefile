@@ -29,6 +29,7 @@
 #
 
 CLEANFILES+=	yearistype
+CLEANDIRS+=	builddir
 CONTRIBDIR=	${.CURDIR}/../../contrib/tzdata/
 .PATH:		${CONTRIBDIR}
 
@@ -68,7 +69,7 @@ TZBUILDSUBDIRS=	\
 
 all: zoneinfo
 
-.PHONEY: zoneinfo
+.PHONY: zoneinfo
 zoneinfo: yearistype ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
