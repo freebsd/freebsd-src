@@ -284,9 +284,7 @@ static int get_params__post_init(struct adapter *);
 static void t4_set_desc(struct adapter *);
 static void build_medialist(struct port_info *);
 static int update_mac_settings(struct port_info *, int);
-static int cxgbe_init_locked(struct port_info *);
 static int cxgbe_init_synchronized(struct port_info *);
-static int cxgbe_uninit_locked(struct port_info *);
 static int cxgbe_uninit_synchronized(struct port_info *);
 static int setup_intr_handlers(struct adapter *);
 static int adapter_full_init(struct adapter *);
@@ -348,6 +346,7 @@ static void clear_filter(struct filter_entry *);
 static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
+static int load_fw(struct adapter *, struct t4_data *);
 static int read_card_mem(struct adapter *, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
@@ -820,6 +819,8 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->sc_lock);
 	}
 
+	if (mtx_initialized(&sc->tids.ftid_lock))
+		mtx_destroy(&sc->tids.ftid_lock);
 	if (mtx_initialized(&sc->sfl_lock))
 		mtx_destroy(&sc->sfl_lock);
 
@@ -918,6 +919,10 @@ cxgbe_detach(device_t dev)
 	while (IS_BUSY(sc))
 		mtx_sleep(&sc->flags, &sc->sc_lock, 0, "t4detach", 0);
 	SET_BUSY(sc);
+#ifdef INVARIANTS
+	sc->last_op = "t4detach";
+	sc->last_op_thr = curthread;
+#endif
 	ADAPTER_UNLOCK(sc);
 
 	if (pi->vlan_c)
@@ -939,7 +944,7 @@ cxgbe_detach(device_t dev)
 
 	ADAPTER_LOCK(sc);
 	CLR_BUSY(sc);
-	wakeup_one(&sc->flags);
+	wakeup(&sc->flags);
 	ADAPTER_UNLOCK(sc);
 
 	return (0);
@@ -951,9 +956,10 @@ cxgbe_init(void *arg)
 	struct port_info *pi = arg;
 	struct adapter *sc = pi->adapter;
 
-	ADAPTER_LOCK(sc);
-	cxgbe_init_locked(pi); /* releases adapter lock */
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
+	if (begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4init") != 0)
+		return;
+	cxgbe_init_synchronized(pi);
+	end_synchronized_op(sc, 0);
 }
 
 static int
@@ -967,81 +973,56 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFMTU:
-		ADAPTER_LOCK(sc);
-		rc = IS_DOOMED(pi) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
-		if (rc) {
-fail:
-			ADAPTER_UNLOCK(sc);
-			return (rc);
-		}
-
 		mtu = ifr->ifr_mtu;
-		if ((mtu < ETHERMIN) || (mtu > ETHERMTU_JUMBO)) {
-			rc = EINVAL;
-		} else {
-			ifp->if_mtu = mtu;
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				t4_update_fl_bufsize(ifp);
-				PORT_LOCK(pi);
-				rc = update_mac_settings(pi, XGMAC_MTU);
-				PORT_UNLOCK(pi);
-			}
+		if ((mtu < ETHERMIN) || (mtu > ETHERMTU_JUMBO))
+			return (EINVAL);
+
+		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4mtu");
+		if (rc)
+			return (rc);
+		ifp->if_mtu = mtu;
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			t4_update_fl_bufsize(ifp);
+			rc = update_mac_settings(pi, XGMAC_MTU);
 		}
-		ADAPTER_UNLOCK(sc);
+		end_synchronized_op(sc, 0);
 		break;
 
 	case SIOCSIFFLAGS:
-		ADAPTER_LOCK(sc);
-		if (IS_DOOMED(pi)) {
-			rc = ENXIO;
-			goto fail;
-		}
+		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4flg");
+		if (rc)
+			return (rc);
+
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				flags = pi->if_flags;
 				if ((ifp->if_flags ^ flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
-					if (IS_BUSY(sc)) {
-						rc = EBUSY;
-						goto fail;
-					}
-					PORT_LOCK(pi);
 					rc = update_mac_settings(pi,
 					    XGMAC_PROMISC | XGMAC_ALLMULTI);
-					PORT_UNLOCK(pi);
 				}
-				ADAPTER_UNLOCK(sc);
 			} else
-				rc = cxgbe_init_locked(pi);
+				rc = cxgbe_init_synchronized(pi);
 			pi->if_flags = ifp->if_flags;
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			rc = cxgbe_uninit_locked(pi);
-		else
-			ADAPTER_UNLOCK(sc);
-
-		ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
+			rc = cxgbe_uninit_synchronized(pi);
+		end_synchronized_op(sc, 0);
 		break;
 
 	case SIOCADDMULTI:	
-	case SIOCDELMULTI: /* these two can be called with a mutex held :-( */
-		ADAPTER_LOCK(sc);
-		rc = IS_DOOMED(pi) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
+	case SIOCDELMULTI: /* these two are called with a mutex held :-( */
+		rc = begin_synchronized_op(sc, pi, HOLD_LOCK, "t4multi");
 		if (rc)
-			goto fail;
-
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			PORT_LOCK(pi);
+			return (rc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			rc = update_mac_settings(pi, XGMAC_MCADDRS);
-			PORT_UNLOCK(pi);
-		}
-		ADAPTER_UNLOCK(sc);
+		end_synchronized_op(sc, LOCK_HELD);
 		break;
 
 	case SIOCSIFCAP:
-		ADAPTER_LOCK(sc);
-		rc = IS_DOOMED(pi) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
+		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4cap");
 		if (rc)
-			goto fail;
+			return (rc);
 
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
@@ -1122,11 +1103,8 @@ fail:
 #endif
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				PORT_LOCK(pi);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				rc = update_mac_settings(pi, XGMAC_VLANEX);
-				PORT_UNLOCK(pi);
-			}
 		}
 		if (mask & IFCAP_VLAN_MTU) {
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
@@ -1141,7 +1119,8 @@ fail:
 #ifdef VLAN_CAPABILITIES
 		VLAN_CAPABILITIES(ifp);
 #endif
-		ADAPTER_UNLOCK(sc);
+fail:
+		end_synchronized_op(sc, 0);
 		break;
 
 	case SIOCSIFMEDIA:
@@ -2111,7 +2090,7 @@ update_mac_settings(struct port_info *pi, int flags)
 	struct adapter *sc = pi->adapter;
 	int mtu = -1, promisc = -1, allmulti = -1, vlanex = -1;
 
-	PORT_LOCK_ASSERT_OWNED(pi);
+	ASSERT_SYNCHRONIZED_OP(sc);
 	KASSERT(flags, ("%s: not told what to update.", __func__));
 
 	if (flags & XGMAC_MTU)
@@ -2213,39 +2192,74 @@ mcfail:
 	return (rc);
 }
 
-static int
-cxgbe_init_locked(struct port_info *pi)
+int
+begin_synchronized_op(struct adapter *sc, struct port_info *pi, int flags,
+    char *wmesg)
 {
-	struct adapter *sc = pi->adapter;
-	int rc = 0;
+	int rc, pri;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
+#ifdef WITNESS
+	/* the caller thinks it's ok to sleep, but is it really? */
+	if (flags & SLEEP_OK)
+		pause("t4slptst", 1);
+#endif
 
-	while (!IS_DOOMED(pi) && IS_BUSY(sc)) {
-		if (mtx_sleep(&sc->flags, &sc->sc_lock, PCATCH, "t4init", 0)) {
+	if (INTR_OK)
+		pri = PCATCH;
+	else
+		pri = 0;
+
+	ADAPTER_LOCK(sc);
+	for (;;) {
+
+		if (pi && IS_DOOMED(pi)) {
+			rc = ENXIO;
+			goto done;
+		}
+
+		if (!IS_BUSY(sc)) {
+			rc = 0;
+			break;
+		}
+
+		if (!(flags & SLEEP_OK)) {
+			rc = EBUSY;
+			goto done;
+		}
+
+		if (mtx_sleep(&sc->flags, &sc->sc_lock, pri, wmesg, 0)) {
 			rc = EINTR;
 			goto done;
 		}
 	}
-	if (IS_DOOMED(pi)) {
-		rc = ENXIO;
-		goto done;
-	}
+
 	KASSERT(!IS_BUSY(sc), ("%s: controller busy.", __func__));
-
-	/* Give up the adapter lock, port init code can sleep. */
 	SET_BUSY(sc);
-	ADAPTER_UNLOCK(sc);
-
-	rc = cxgbe_init_synchronized(pi);
+#ifdef INVARIANTS
+	sc->last_op = wmesg;
+	sc->last_op_thr = curthread;
+#endif
 
 done:
-	ADAPTER_LOCK(sc);
+	if (!(flags & HOLD_LOCK) || rc)
+		ADAPTER_UNLOCK(sc);
+
+	return (rc);
+}
+
+void
+end_synchronized_op(struct adapter *sc, int flags)
+{
+
+	if (flags & LOCK_HELD)
+		ADAPTER_LOCK_ASSERT_OWNED(sc);
+	else
+		ADAPTER_LOCK(sc);
+
 	KASSERT(IS_BUSY(sc), ("%s: controller not busy.", __func__));
 	CLR_BUSY(sc);
-	wakeup_one(&sc->flags);
+	wakeup(&sc->flags);
 	ADAPTER_UNLOCK(sc);
-	return (rc);
 }
 
 static int
@@ -2255,7 +2269,7 @@ cxgbe_init_synchronized(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	int rc = 0;
 
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (isset(&sc->open_device_map, pi->port_id)) {
 		KASSERT(ifp->if_drv_flags & IFF_DRV_RUNNING,
@@ -2271,9 +2285,7 @@ cxgbe_init_synchronized(struct port_info *pi)
 	    ((rc = port_full_init(pi)) != 0))
 		return (rc); /* error message displayed already */
 
-	PORT_LOCK(pi);
 	rc = update_mac_settings(pi, XGMAC_ALL);
-	PORT_UNLOCK(pi);
 	if (rc)
 		goto done;	/* error message displayed already */
 
@@ -2291,46 +2303,15 @@ cxgbe_init_synchronized(struct port_info *pi)
 
 	/* all ok */
 	setbit(&sc->open_device_map, pi->port_id);
+	PORT_LOCK(pi);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	PORT_UNLOCK(pi);
 
 	callout_reset(&pi->tick, hz, cxgbe_tick, pi);
 done:
 	if (rc != 0)
 		cxgbe_uninit_synchronized(pi);
 
-	return (rc);
-}
-
-static int
-cxgbe_uninit_locked(struct port_info *pi)
-{
-	struct adapter *sc = pi->adapter;
-	int rc;
-
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
-
-	while (!IS_DOOMED(pi) && IS_BUSY(sc)) {
-		if (mtx_sleep(&sc->flags, &sc->sc_lock, PCATCH, "t4uninit", 0)) {
-			rc = EINTR;
-			goto done;
-		}
-	}
-	if (IS_DOOMED(pi)) {
-		rc = ENXIO;
-		goto done;
-	}
-	KASSERT(!IS_BUSY(sc), ("%s: controller busy.", __func__));
-	SET_BUSY(sc);
-	ADAPTER_UNLOCK(sc);
-
-	rc = cxgbe_uninit_synchronized(pi);
-
-	ADAPTER_LOCK(sc);
-	KASSERT(IS_BUSY(sc), ("%s: controller not busy.", __func__));
-	CLR_BUSY(sc);
-	wakeup_one(&sc->flags);
-done:
-	ADAPTER_UNLOCK(sc);
 	return (rc);
 }
 
@@ -2344,7 +2325,7 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	int rc;
 
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	/*
 	 * Disable the VI so that all its data in either direction is discarded
@@ -2360,7 +2341,9 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 	}
 
 	clrbit(&sc->open_device_map, pi->port_id);
+	PORT_LOCK(pi);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	PORT_UNLOCK(pi);
 
 	pi->link_cfg.link_ok = 0;
 	pi->link_cfg.speed = 0;
@@ -2539,7 +2522,7 @@ port_full_init(struct port_info *pi)
 	struct sge_rxq *rxq;
 	int rc, i;
 
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
+	ASSERT_SYNCHRONIZED_OP(sc);
 	KASSERT((pi->flags & PORT_INIT_DONE) == 0,
 	    ("%s: PORT_INIT_DONE already", __func__));
 
@@ -3524,6 +3507,8 @@ sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 	struct port_info *pi = arg1;
 	struct adapter *sc = pi->adapter;
 	int idx, rc, i;
+	struct sge_rxq *rxq;
+	uint8_t v;
 
 	idx = pi->tmr_idx;
 
@@ -3534,25 +3519,23 @@ sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 	if (idx < 0 || idx >= SGE_NTIMERS)
 		return (EINVAL);
 
-	ADAPTER_LOCK(sc);
-	rc = IS_DOOMED(pi) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
-	if (rc == 0) {
-		struct sge_rxq *rxq;
-		uint8_t v;
+	rc = begin_synchronized_op(sc, pi, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4tmr");
+	if (rc)
+		return (rc);
 
-		v = V_QINTR_TIMER_IDX(idx) | V_QINTR_CNT_EN(pi->pktc_idx != -1);
-		for_each_rxq(pi, i, rxq) {
+	v = V_QINTR_TIMER_IDX(idx) | V_QINTR_CNT_EN(pi->pktc_idx != -1);
+	for_each_rxq(pi, i, rxq) {
 #ifdef atomic_store_rel_8
-			atomic_store_rel_8(&rxq->iq.intr_params, v);
+		atomic_store_rel_8(&rxq->iq.intr_params, v);
 #else
-			rxq->iq.intr_params = v;
+		rxq->iq.intr_params = v;
 #endif
-		}
-		pi->tmr_idx = idx;
 	}
+	pi->tmr_idx = idx;
 
-	ADAPTER_UNLOCK(sc);
-	return (rc);
+	end_synchronized_op(sc, LOCK_HELD);
+	return (0);
 }
 
 static int
@@ -3571,15 +3554,17 @@ sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS)
 	if (idx < -1 || idx >= SGE_NCOUNTERS)
 		return (EINVAL);
 
-	ADAPTER_LOCK(sc);
-	rc = IS_DOOMED(pi) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
-	if (rc == 0 && pi->flags & PORT_INIT_DONE)
-		rc = EBUSY; /* cannot be changed once the queues are created */
+	rc = begin_synchronized_op(sc, pi, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4pktc");
+	if (rc)
+		return (rc);
 
-	if (rc == 0)
+	if (pi->flags & PORT_INIT_DONE)
+		rc = EBUSY; /* cannot be changed once the queues are created */
+	else
 		pi->pktc_idx = idx;
 
-	ADAPTER_UNLOCK(sc);
+	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
 }
 
@@ -3599,15 +3584,17 @@ sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS)
 	if (qsize < 128 || (qsize & 7))
 		return (EINVAL);
 
-	ADAPTER_LOCK(sc);
-	rc = IS_DOOMED(pi) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
-	if (rc == 0 && pi->flags & PORT_INIT_DONE)
-		rc = EBUSY; /* cannot be changed once the queues are created */
+	rc = begin_synchronized_op(sc, pi, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4rxqs");
+	if (rc)
+		return (rc);
 
-	if (rc == 0)
+	if (pi->flags & PORT_INIT_DONE)
+		rc = EBUSY; /* cannot be changed once the queues are created */
+	else
 		pi->qsize_rxq = qsize;
 
-	ADAPTER_UNLOCK(sc);
+	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
 }
 
@@ -3624,18 +3611,21 @@ sysctl_qsize_txq(SYSCTL_HANDLER_ARGS)
 	if (rc != 0 || req->newptr == NULL)
 		return (rc);
 
-	if (qsize < 128)
+	/* bufring size must be powerof2 */
+	if (qsize < 128 || !powerof2(qsize))
 		return (EINVAL);
 
-	ADAPTER_LOCK(sc);
-	rc = IS_DOOMED(pi) ? ENXIO : (IS_BUSY(sc) ? EBUSY : 0);
-	if (rc == 0 && pi->flags & PORT_INIT_DONE)
-		rc = EBUSY; /* cannot be changed once the queues are created */
+	rc = begin_synchronized_op(sc, pi, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4txqs");
+	if (rc)
+		return (rc);
 
-	if (rc == 0)
+	if (pi->flags & PORT_INIT_DONE)
+		rc = EBUSY; /* cannot be changed once the queues are created */
+	else
 		pi->qsize_txq = qsize;
 
-	ADAPTER_UNLOCK(sc);
+	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
 }
 
@@ -4674,7 +4664,13 @@ fspec_to_fconf(struct t4_filter_specification *fs)
 static int
 get_filter_mode(struct adapter *sc, uint32_t *mode)
 {
+	int rc;
 	uint32_t fconf;
+
+	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4getfm");
+	if (rc)
+		return (rc);
 
 	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &fconf, 1,
 	    A_TP_VLAN_PRI_MAP);
@@ -4687,6 +4683,7 @@ get_filter_mode(struct adapter *sc, uint32_t *mode)
 
 	*mode = fconf_to_mode(sc->filter_mode);
 
+	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
 }
 
@@ -4698,11 +4695,10 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 
 	fconf = mode_to_fconf(mode);
 
-	ADAPTER_LOCK(sc);
-	if (IS_BUSY(sc)) {
-		rc = EAGAIN;
-		goto done;
-	}
+	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4setfm");
+	if (rc)
+		return (rc);
 
 	if (sc->tids.ftids_in_use > 0) {
 		rc = EBUSY;
@@ -4725,7 +4721,7 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 #endif
 
 done:
-	ADAPTER_UNLOCK(sc);
+	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
 }
 
@@ -4746,18 +4742,18 @@ get_filter_hits(struct adapter *sc, uint32_t fid)
 static int
 get_filter(struct adapter *sc, struct t4_filter *t)
 {
-	int i, nfilters = sc->tids.nftids;
+	int i, rc, nfilters = sc->tids.nftids;
 	struct filter_entry *f;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
-
-	if (IS_BUSY(sc))
-		return (EAGAIN);
+	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4getf");
+	if (rc)
+		return (rc);
 
 	if (sc->tids.ftids_in_use == 0 || sc->tids.ftid_tab == NULL ||
 	    t->idx >= nfilters) {
 		t->idx = 0xffffffff;
-		return (0);
+		goto done;
 	}
 
 	f = &sc->tids.ftid_tab[t->idx];
@@ -4772,11 +4768,13 @@ get_filter(struct adapter *sc, struct t4_filter *t)
 				t->hits = UINT64_MAX;
 			t->fs = f->fs;
 
-			return (0);
+			goto done;
 		}
 	}
 
 	t->idx = 0xffffffff;
+done:
+	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
 }
 
@@ -4785,40 +4783,58 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 {
 	unsigned int nfilters, nports;
 	struct filter_entry *f;
-	int i;
+	int i, rc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setf");
+	if (rc)
+		return (rc);
 
 	nfilters = sc->tids.nftids;
 	nports = sc->params.nports;
 
-	if (nfilters == 0)
-		return (ENOTSUP);
+	if (nfilters == 0) {
+		rc = ENOTSUP;
+		goto done;
+	}
 
-	if (!(sc->flags & FULL_INIT_DONE))
-		return (EAGAIN);
+	if (!(sc->flags & FULL_INIT_DONE)) {
+		rc = EAGAIN;
+		goto done;
+	}
 
-	if (t->idx >= nfilters)
-		return (EINVAL);
+	if (t->idx >= nfilters) {
+		rc = EINVAL;
+		goto done;
+	}
 
 	/* Validate against the global filter mode */
-	if ((sc->filter_mode | fspec_to_fconf(&t->fs)) != sc->filter_mode)
-		return (E2BIG);
+	if ((sc->filter_mode | fspec_to_fconf(&t->fs)) != sc->filter_mode) {
+		rc = E2BIG;
+		goto done;
+	}
 
-	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= nports)
-		return (EINVAL);
+	if (t->fs.action == FILTER_SWITCH && t->fs.eport >= nports) {
+		rc = EINVAL;
+		goto done;
+	}
 
-	if (t->fs.val.iport >= nports)
-		return (EINVAL);
+	if (t->fs.val.iport >= nports) {
+		rc = EINVAL;
+		goto done;
+	}
 
 	/* Can't specify an iq if not steering to it */
-	if (!t->fs.dirsteer && t->fs.iq)
-		return (EINVAL);
+	if (!t->fs.dirsteer && t->fs.iq) {
+		rc = EINVAL;
+		goto done;
+	}
 
 	/* IPv6 filter idx must be 4 aligned */
 	if (t->fs.type == 1 &&
-	    ((t->idx & 0x3) || t->idx + 4 >= nfilters))
-		return (EINVAL);
+	    ((t->idx & 0x3) || t->idx + 4 >= nfilters)) {
+		rc = EINVAL;
+		goto done;
+	}
 
 	if (sc->tids.ftid_tab == NULL) {
 		KASSERT(sc->tids.ftids_in_use == 0,
@@ -4827,17 +4843,24 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 
 		sc->tids.ftid_tab = malloc(sizeof (struct filter_entry) *
 		    nfilters, M_CXGBE, M_NOWAIT | M_ZERO);
-		if (sc->tids.ftid_tab == NULL)
-			return (ENOMEM);
+		if (sc->tids.ftid_tab == NULL) {
+			rc = ENOMEM;
+			goto done;
+		}
+		mtx_init(&sc->tids.ftid_lock, "T4 filters", 0, MTX_DEF);
 	}
 
 	for (i = 0; i < 4; i++) {
 		f = &sc->tids.ftid_tab[t->idx + i];
 
-		if (f->pending || f->valid)
-			return (EBUSY);
-		if (f->locked)
-			return (EPERM);
+		if (f->pending || f->valid) {
+			rc = EBUSY;
+			goto done;
+		}
+		if (f->locked) {
+			rc = EPERM;
+			goto done;
+		}
 
 		if (t->fs.type == 0)
 			break;
@@ -4846,7 +4869,27 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	f = &sc->tids.ftid_tab[t->idx];
 	f->fs = t->fs;
 
-	return set_filter_wr(sc, t->idx);
+	rc = set_filter_wr(sc, t->idx);
+done:
+	end_synchronized_op(sc, 0);
+
+	if (rc == 0) {
+		mtx_lock(&sc->tids.ftid_lock);
+		for (;;) {
+			if (f->pending == 0) {
+				rc = f->valid ? 0 : EIO;
+				break;
+			}
+
+			if (mtx_sleep(&sc->tids.ftid_tab, &sc->tids.ftid_lock,
+			    PCATCH, "t4setfw", 0)) {
+				rc = EINPROGRESS;
+				break;
+			}
+		}
+		mtx_unlock(&sc->tids.ftid_lock);
+	}
+	return (rc);
 }
 
 static int
@@ -4854,37 +4897,67 @@ del_filter(struct adapter *sc, struct t4_filter *t)
 {
 	unsigned int nfilters;
 	struct filter_entry *f;
+	int rc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
-
-	if (IS_BUSY(sc))
-		return (EAGAIN);
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4delf");
+	if (rc)
+		return (rc);
 
 	nfilters = sc->tids.nftids;
 
-	if (nfilters == 0)
-		return (ENOTSUP);
+	if (nfilters == 0) {
+		rc = ENOTSUP;
+		goto done;
+	}
 
 	if (sc->tids.ftid_tab == NULL || sc->tids.ftids_in_use == 0 ||
-	    t->idx >= nfilters)
-		return (EINVAL);
+	    t->idx >= nfilters) {
+		rc = EINVAL;
+		goto done;
+	}
 
-	if (!(sc->flags & FULL_INIT_DONE))
-		return (EAGAIN);
+	if (!(sc->flags & FULL_INIT_DONE)) {
+		rc = EAGAIN;
+		goto done;
+	}
 
 	f = &sc->tids.ftid_tab[t->idx];
 
-	if (f->pending)
-		return (EBUSY);
-	if (f->locked)
-		return (EPERM);
+	if (f->pending) {
+		rc = EBUSY;
+		goto done;
+	}
+	if (f->locked) {
+		rc = EPERM;
+		goto done;
+	}
 
 	if (f->valid) {
 		t->fs = f->fs;	/* extra info for the caller */
-		return del_filter_wr(sc, t->idx);
+		rc = del_filter_wr(sc, t->idx);
 	}
 
-	return (0);
+done:
+	end_synchronized_op(sc, 0);
+
+	if (rc == 0) {
+		mtx_lock(&sc->tids.ftid_lock);
+		for (;;) {
+			if (f->pending == 0) {
+				rc = f->valid ? EIO : 0;
+				break;
+			}
+
+			if (mtx_sleep(&sc->tids.ftid_tab, &sc->tids.ftid_lock,
+			    PCATCH, "t4delfw", 0)) {
+				rc = EINPROGRESS;
+				break;
+			}
+		}
+		mtx_unlock(&sc->tids.ftid_lock);
+	}
+
+	return (rc);
 }
 
 static void
@@ -4904,7 +4977,7 @@ set_filter_wr(struct adapter *sc, int fidx)
 	struct fw_filter_wr *fwr;
 	unsigned int ftid;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (f->fs.newdmac || f->fs.newvlan) {
 		/* This filter needs an L2T entry; allocate one. */
@@ -5007,8 +5080,6 @@ del_filter_wr(struct adapter *sc, int fidx)
 	struct fw_filter_wr *fwr;
 	unsigned int ftid;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
-
 	ftid = sc->tids.ftid_base + fidx;
 
 	wr = alloc_wrqe(sizeof(*fwr), &sc->sge.mgmtq);
@@ -5039,8 +5110,10 @@ t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		unsigned int rc = G_COOKIE(rpl->cookie);
 		struct filter_entry *f = &sc->tids.ftid_tab[idx];
 
-		ADAPTER_LOCK(sc);
+		mtx_lock(&sc->tids.ftid_lock);
 		if (rc == FW_FILTER_WR_FLT_ADDED) {
+			KASSERT(f->pending, ("%s: filter[%u] isn't pending.",
+			    __func__, idx));
 			f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
 			f->pending = 0;  /* asynchronous setup completed */
 			f->valid = 1;
@@ -5055,7 +5128,8 @@ t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			clear_filter(f);
 			sc->tids.ftids_in_use--;
 		}
-		ADAPTER_UNLOCK(sc);
+		wakeup(&sc->tids.ftid_tab);
+		mtx_unlock(&sc->tids.ftid_lock);
 	}
 
 	return (0);
@@ -5064,29 +5138,63 @@ t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 static int
 get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
 {
-	int rc = EINVAL;
+	int rc;
 
 	if (cntxt->cid > M_CTXTQID)
-		return (rc);
+		return (EINVAL);
 
 	if (cntxt->mem_id != CTXT_EGRESS && cntxt->mem_id != CTXT_INGRESS &&
 	    cntxt->mem_id != CTXT_FLM && cntxt->mem_id != CTXT_CNM)
-		return (rc);
+		return (EINVAL);
 
 	if (sc->flags & FW_OK) {
-		ADAPTER_LOCK(sc);	/* Avoid parallel t4_wr_mbox */
-		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid, cntxt->mem_id,
-		    &cntxt->data[0]);
-		ADAPTER_UNLOCK(sc);
+		rc = begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4ctxt");
+		if (rc == 0) {
+			rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid,
+			    cntxt->mem_id, &cntxt->data[0]);
+			end_synchronized_op(sc, LOCK_HELD);
+			if (rc == 0)
+				return (0);
+		}
 	}
 
-	if (rc != 0) {
-		/* Read via firmware failed or wasn't even attempted */
+	/*
+	 * Read via firmware failed or wasn't even attempted.  Read directly via
+	 * the backdoor.
+	 */
+	rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id,
+	    &cntxt->data[0]);
+	return (rc);
+}
 
-		rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id,
-		    &cntxt->data[0]);
+static int
+load_fw(struct adapter *sc, struct t4_data *fw)
+{
+	int rc;
+	uint8_t *fw_data;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ldfw");
+	if (rc)
+		return (rc);
+
+	if (sc->flags & FULL_INIT_DONE) {
+		rc = EBUSY;
+		goto done;
 	}
 
+	fw_data = malloc(fw->len, M_CXGBE, M_WAITOK);
+	if (fw_data == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	rc = copyin(fw->data, fw_data, fw->len);
+	if (rc == 0)
+		rc = -t4_load_fw(sc, fw_data, fw->len);
+
+	free(fw_data, M_CXGBE);
+done:
+	end_synchronized_op(sc, 0);
 	return (rc);
 }
 
@@ -5173,8 +5281,6 @@ read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
 {
 	int rc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for mbox */
-
 	if (i2cd->len == 0 || i2cd->port_id >= sc->params.nports)
 		return (EINVAL);
 
@@ -5183,8 +5289,12 @@ read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
 		return (ENOTSUP);
 	}
 
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4i2crd");
+	if (rc)
+		return (rc);
 	rc = -t4_i2c_rd(sc, sc->mbox, i2cd->port_id, i2cd->dev_addr,
 	    i2cd->offset, &i2cd->data[0]);
+	end_synchronized_op(sc, 0);
 
 	return (rc);
 }
@@ -5354,48 +5464,25 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = set_filter_mode(sc, *(uint32_t *)data);
 		break;
 	case CHELSIO_T4_GET_FILTER:
-		ADAPTER_LOCK(sc);
 		rc = get_filter(sc, (struct t4_filter *)data);
-		ADAPTER_UNLOCK(sc);
 		break;
 	case CHELSIO_T4_SET_FILTER:
-		ADAPTER_LOCK(sc);
 		rc = set_filter(sc, (struct t4_filter *)data);
-		ADAPTER_UNLOCK(sc);
 		break;
 	case CHELSIO_T4_DEL_FILTER:
-		ADAPTER_LOCK(sc);
 		rc = del_filter(sc, (struct t4_filter *)data);
-		ADAPTER_UNLOCK(sc);
 		break;
 	case CHELSIO_T4_GET_SGE_CONTEXT:
 		rc = get_sge_context(sc, (struct t4_sge_context *)data);
 		break;
-	case CHELSIO_T4_LOAD_FW: {
-		struct t4_data *fw = (struct t4_data *)data;
-		uint8_t *fw_data;
-
-		if (sc->flags & FULL_INIT_DONE)
-			return (EBUSY);
-
-		fw_data = malloc(fw->len, M_CXGBE, M_NOWAIT);
-		if (fw_data == NULL)
-			return (ENOMEM);
-
-		rc = copyin(fw->data, fw_data, fw->len);
-		if (rc == 0)
-			rc = -t4_load_fw(sc, fw_data, fw->len);
-
-		free(fw_data, M_CXGBE);
+	case CHELSIO_T4_LOAD_FW:
+		rc = load_fw(sc, (struct t4_data *)data);
 		break;
-	}
 	case CHELSIO_T4_GET_MEM:
 		rc = read_card_mem(sc, (struct t4_mem_range *)data);
 		break;
 	case CHELSIO_T4_GET_I2C:
-		ADAPTER_LOCK(sc);
 		rc = read_i2c(sc, (struct t4_i2c_data *)data);
-		ADAPTER_UNLOCK(sc);
 		break;
 	case CHELSIO_T4_CLEAR_STATS: {
 		u_int port_id = *(uint32_t *)data;
@@ -5420,16 +5507,16 @@ toe_capability(struct port_info *pi, int enable)
 	int rc;
 	struct adapter *sc = pi->adapter;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (!is_offload(sc))
 		return (ENODEV);
 
 	if (enable) {
 		if (!(sc->flags & FULL_INIT_DONE)) {
-			log(LOG_WARNING,
-			    "You must enable a cxgbe interface first\n");
-			return (EAGAIN);
+			rc = cxgbe_init_synchronized(pi);
+			if (rc)
+				return (rc);
 		}
 
 		if (isset(&sc->offload_map, pi->port_id))
@@ -5518,6 +5605,8 @@ t4_activate_uld(struct adapter *sc, int id)
 	int rc = EAGAIN;
 	struct uld_info *ui;
 
+	ASSERT_SYNCHRONIZED_OP(sc);
+
 	mtx_lock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
@@ -5539,6 +5628,8 @@ t4_deactivate_uld(struct adapter *sc, int id)
 {
 	int rc = EINVAL;
 	struct uld_info *ui;
+
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	mtx_lock(&t4_uld_list_lock);
 
