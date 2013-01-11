@@ -401,7 +401,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		bcopy(&key_map, keymap, sizeof(key_map));
 		bcopy(&accent_map, accmap, sizeof(accent_map));
 		bcopy(fkey_tab, fkeymap,
-		      imin(fkeymap_size*sizeof(fkeymap[0]), sizeof(fkey_tab)));
+		    imin(fkeymap_size * sizeof(fkeymap[0]), sizeof(fkey_tab)));
 		kbd_set_maps(kbd, keymap, accmap, fkeymap, fkeymap_size);
 		kbd->kb_data = (void *)state;
 	
@@ -424,8 +424,8 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	if (!KBD_IS_INITIALIZED(kbd) && !(flags & KB_CONF_PROBE_ONLY)) {
 		kbd->kb_config = flags & ~KB_CONF_PROBE_ONLY;
 		if (KBD_HAS_DEVICE(kbd)
-	    	    && init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config)
-	    	    && (kbd->kb_config & KB_CONF_FAIL_IF_NO_KBD)) {
+		    && init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config)
+		    && (kbd->kb_config & KB_CONF_FAIL_IF_NO_KBD)) {
 			kbd_unregister(kbd);
 			error = ENXIO;
 			goto bad;
@@ -485,8 +485,7 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 		 * The keyboard was not detected before;
 		 * it must have been reconnected!
 		 */
-		init_keyboard(state->kbdc, &kbd->kb_type,
-			      kbd->kb_config);
+		init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config);
 		KBD_FOUND_DEVICE(kbd);
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
 		get_typematic(kbd);
@@ -645,7 +644,7 @@ next_code:
 			goto next_code;
 		}
 		break;
-	case 0xE0:      /* 0xE0 prefix */
+	case 0xE0:		/* 0xE0 prefix */
 		state->ks_prefix = 0;
 		switch (keycode) {
 		case 0x1C:	/* right enter key */
@@ -655,57 +654,57 @@ next_code:
 			keycode = 0x5A;
 			break;
 		case 0x35:	/* keypad divide key */
-	    		keycode = 0x5B;
-	    		break;
+			keycode = 0x5B;
+			break;
 		case 0x37:	/* print scrn key */
-	    		keycode = 0x5C;
-	    		break;
+			keycode = 0x5C;
+			break;
 		case 0x38:	/* right alt key (alt gr) */
-	    		keycode = 0x5D;
-	    		break;
+			keycode = 0x5D;
+			break;
 		case 0x46:	/* ctrl-pause/break on AT 101 (see below) */
 			keycode = 0x68;
-	    		break;
+			break;
 		case 0x47:	/* grey home key */
-	    		keycode = 0x5E;
-	    		break;
+			keycode = 0x5E;
+			break;
 		case 0x48:	/* grey up arrow key */
-	    		keycode = 0x5F;
-	    		break;
+			keycode = 0x5F;
+			break;
 		case 0x49:	/* grey page up key */
-	    		keycode = 0x60;
-	    		break;
+			keycode = 0x60;
+			break;
 		case 0x4B:	/* grey left arrow key */
-	    		keycode = 0x61;
-	    		break;
+			keycode = 0x61;
+			break;
 		case 0x4D:	/* grey right arrow key */
-	    		keycode = 0x62;
-	    		break;
+			keycode = 0x62;
+			break;
 		case 0x4F:	/* grey end key */
-	    		keycode = 0x63;
-	    		break;
+			keycode = 0x63;
+			break;
 		case 0x50:	/* grey down arrow key */
-	    		keycode = 0x64;
-	    		break;
+			keycode = 0x64;
+			break;
 		case 0x51:	/* grey page down key */
-	    		keycode = 0x65;
-	    		break;
+			keycode = 0x65;
+			break;
 		case 0x52:	/* grey insert key */
-	    		keycode = 0x66;
-	    		break;
+			keycode = 0x66;
+			break;
 		case 0x53:	/* grey delete key */
-	    		keycode = 0x67;
-	    		break;
-		/* the following 3 are only used on the MS "Natural" keyboard */
+			keycode = 0x67;
+			break;
+			/* the following 3 are only used on the MS "Natural" keyboard */
 		case 0x5b:	/* left Window key */
-	    		keycode = 0x69;
-	    		break;
+			keycode = 0x69;
+			break;
 		case 0x5c:	/* right Window key */
-	    		keycode = 0x6a;
-	    		break;
+			keycode = 0x6a;
+			break;
 		case 0x5d:	/* menu key */
-	    		keycode = 0x6b;
-	    		break;
+			keycode = 0x6b;
+			break;
 		case 0x5e:	/* power key */
 			keycode = 0x6d;
 			break;
@@ -716,10 +715,10 @@ next_code:
 			keycode = 0x6f;
 			break;
 		default:	/* ignore everything else */
-	    		goto next_code;
+			goto next_code;
 		}
 		break;
-    	case 0xE1:	/* 0xE1 prefix */
+   	case 0xE1:	/* 0xE1 prefix */
 		/* 
 		 * The pause/break key on the 101 keyboard produces:
 		 * E1-1D-45 E1-9D-C5
@@ -728,10 +727,10 @@ next_code:
 		 */
 		state->ks_prefix = 0;
 		if (keycode == 0x1D)
-	    		state->ks_prefix = 0x1D;
+			state->ks_prefix = 0x1D;
 		goto next_code;
 		/* NOT REACHED */
-    	case 0x1D:	/* pause / break */
+   	case 0x1D:	/* pause / break */
 		state->ks_prefix = 0;
 		if (keycode != 0x45)
 			goto next_code;
@@ -743,7 +742,7 @@ next_code:
 		switch (keycode) {
 		case 0x37:	/* *(numpad)/print screen */
 			if (state->ks_flags & SHIFTS)
-	    			keycode = 0x5c;	/* print screen */
+				keycode = 0x5c;	/* print screen */
 			break;
 		case 0x45:	/* num lock/pause */
 			if (state->ks_flags & CTLS)
@@ -1177,7 +1176,7 @@ get_kbd_echo(KBDC kbdc)
 		 */
 		return ENXIO;
 	}
-    
+
 	return 0;
 }
 
@@ -1275,7 +1274,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	}
 	if (bootverbose)
 		printf("atkbd: the current kbd controller command byte %04x\n",
-		       c);
+		   c);
 #if 0
 	/* override the keyboard lock switch */
 	c |= KBD_OVERRIDE_KBD_LOCK;
@@ -1415,52 +1414,49 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 static int
 write_kbd(KBDC kbdc, int command, int data)
 {
-    int s;
+	int s;
 
-    /* prevent the timeout routine from polling the keyboard */
-    if (!kbdc_lock(kbdc, TRUE)) 
-	return EBUSY;
+	/* prevent the timeout routine from polling the keyboard */
+	if (!kbdc_lock(kbdc, TRUE)) 
+		return EBUSY;
 
-    /* disable the keyboard and mouse interrupt */
-    s = spltty();
+	/* disable the keyboard and mouse interrupt */
+	s = spltty();
 #if 0
-    c = get_controller_command_byte(kbdc);
-    if ((c == -1) 
-	|| !set_controller_command_byte(kbdc, 
-            kbdc_get_device_mask(kbdc),
-            KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-                | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
-	/* CONTROLLER ERROR */
-        kbdc_lock(kbdc, FALSE);
+	c = get_controller_command_byte(kbdc);
+	if ((c == -1) 
+	    || !set_controller_command_byte(kbdc, 
+		kbdc_get_device_mask(kbdc),
+		KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+		| KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+		/* CONTROLLER ERROR */
+		kbdc_lock(kbdc, FALSE);
+		splx(s);
+		return EIO;
+	}
+	/* 
+	 * Now that the keyboard controller is told not to generate 
+	 * the keyboard and mouse interrupts, call `splx()' to allow 
+	 * the other tty interrupts. The clock interrupt may also occur, 
+	 * but the timeout routine (`scrn_timer()') will be blocked 
+	 * by the lock flag set via `kbdc_lock()'
+	 */
 	splx(s);
-	return EIO;
-    }
-    /* 
-     * Now that the keyboard controller is told not to generate 
-     * the keyboard and mouse interrupts, call `splx()' to allow 
-     * the other tty interrupts. The clock interrupt may also occur, 
-     * but the timeout routine (`scrn_timer()') will be blocked 
-     * by the lock flag set via `kbdc_lock()'
-     */
-    splx(s);
 #endif
-
-    if (send_kbd_command_and_data(kbdc, command, data) != KBD_ACK)
-        send_kbd_command(kbdc, KBDC_ENABLE_KBD);
-
+	if (send_kbd_command_and_data(kbdc, command, data) != KBD_ACK)
+		send_kbd_command(kbdc, KBDC_ENABLE_KBD);
 #if 0
-    /* restore the interrupts */
-    if (!set_controller_command_byte(kbdc,
-            kbdc_get_device_mask(kbdc),
+	/* restore the interrupts */
+	if (!set_controller_command_byte(kbdc, kbdc_get_device_mask(kbdc),
 	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) { 
-	/* CONTROLLER ERROR */
-    }
+		/* CONTROLLER ERROR */
+	}
 #else
-    splx(s);
+	splx(s);
 #endif
-    kbdc_lock(kbdc, FALSE);
+	kbdc_lock(kbdc, FALSE);
 
-    return 0;
+	return 0;
 }
 
 static int
