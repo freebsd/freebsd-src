@@ -536,12 +536,10 @@ alloc_tid_tabs(struct tid_info *t)
 	t->atid_tab[t->natids - 1].next = NULL;
 
 	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
-	t->stid_tab = (union serv_entry *)&t->atid_tab[t->natids];
-	t->sfree = t->stid_tab;
+	t->stid_tab = (struct listen_ctx **)&t->atid_tab[t->natids];
 	t->stids_in_use = 0;
-	for (i = 1; i < t->nstids; i++)
-		t->stid_tab[i - 1].next = &t->stid_tab[i];
-	t->stid_tab[t->nstids - 1].next = NULL;
+	TAILQ_INIT(&t->stids);
+	t->nstids_free_head = t->nstids;
 
 	atomic_store_rel_int(&t->tids_in_use, 0);
 
