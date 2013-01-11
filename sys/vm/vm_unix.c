@@ -76,6 +76,7 @@ sys_obreak(td, uap)
 	struct obreak_args *uap;
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
+	vm_map_t map = &vm->vm_map;
 	vm_offset_t new, old, base;
 	rlim_t datalim, lmemlim, vmemlim;
 	int prot, rv;
@@ -90,7 +91,7 @@ sys_obreak(td, uap)
 
 	do_map_wirefuture = FALSE;
 	new = round_page((vm_offset_t)uap->nsize);
-	vm_map_lock(&vm->vm_map);
+	vm_map_lock(map);
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
 	old = base + ctob(vm->vm_dsize);
@@ -103,7 +104,7 @@ sys_obreak(td, uap)
 			error = ENOMEM;
 			goto done;
 		}
-		if (new > vm_map_max(&vm->vm_map)) {
+		if (new > vm_map_max(map)) {
 			error = ENOMEM;
 			goto done;
 		}
@@ -117,14 +118,14 @@ sys_obreak(td, uap)
 		goto done;
 	}
 	if (new > old) {
-		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
-			if (ptoa(pmap_wired_count(vm->vm_map.pmap)) +
+		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+			if (ptoa(pmap_wired_count(map->pmap)) +
 			    (new - old) > lmemlim) {
 				error = ENOMEM;
 				goto done;
 			}
 		}
-		if (vm->vm_map.size + (new - old) > vmemlim) {
+		if (map->size + (new - old) > vmemlim) {
 			error = ENOMEM;
 			goto done;
 		}
@@ -137,22 +138,21 @@ sys_obreak(td, uap)
 			goto done;
 		}
 		error = racct_set(td->td_proc, RACCT_VMEM,
-		    vm->vm_map.size + (new - old));
+		    map->size + (new - old));
 		if (error != 0) {
 			racct_set_force(td->td_proc, RACCT_DATA, old - base);
 			PROC_UNLOCK(td->td_proc);
 			error = ENOMEM;
 			goto done;
 		}
-		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
+		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 			error = racct_set(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(pmap_wired_count(vm->vm_map.pmap)) +
-			    (new - old));
+			    ptoa(pmap_wired_count(map->pmap)) + (new - old));
 			if (error != 0) {
 				racct_set_force(td->td_proc, RACCT_DATA,
 				    old - base);
 				racct_set_force(td->td_proc, RACCT_VMEM,
-				    vm->vm_map.size);
+				    map->size);
 				PROC_UNLOCK(td->td_proc);
 				error = ENOMEM;
 				goto done;
@@ -167,16 +167,15 @@ sys_obreak(td, uap)
 			prot |= VM_PROT_EXECUTE;
 #endif
 #endif
-		rv = vm_map_insert(&vm->vm_map, NULL, 0, old, new,
-		    prot, VM_PROT_ALL, 0);
+		rv = vm_map_insert(map, NULL, 0, old, new, prot, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 #ifdef RACCT
 			PROC_LOCK(td->td_proc);
 			racct_set_force(td->td_proc, RACCT_DATA, old - base);
-			racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
-			if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
+			racct_set_force(td->td_proc, RACCT_VMEM, map->size);
+			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 				racct_set_force(td->td_proc, RACCT_MEMLOCK,
-				    ptoa(pmap_wired_count(vm->vm_map.pmap)));
+				    ptoa(pmap_wired_count(map->pmap)));
 			}
 			PROC_UNLOCK(td->td_proc);
 #endif
@@ -193,13 +192,13 @@ sys_obreak(td, uap)
 		 *
 		 * XXX If the pages cannot be wired, no error is returned.
 		 */
-		if ((vm->vm_map.flags & MAP_WIREFUTURE) == MAP_WIREFUTURE) {
+		if ((map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE) {
 			if (bootverbose)
 				printf("obreak: MAP_WIREFUTURE set\n");
 			do_map_wirefuture = TRUE;
 		}
 	} else if (new < old) {
-		rv = vm_map_delete(&vm->vm_map, new, old);
+		rv = vm_map_delete(map, new, old);
 		if (rv != KERN_SUCCESS) {
 			error = ENOMEM;
 			goto done;
@@ -208,19 +207,19 @@ sys_obreak(td, uap)
 #ifdef RACCT
 		PROC_LOCK(td->td_proc);
 		racct_set_force(td->td_proc, RACCT_DATA, new - base);
-		racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
-		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
+		racct_set_force(td->td_proc, RACCT_VMEM, map->size);
+		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 			racct_set_force(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(pmap_wired_count(vm->vm_map.pmap)));
+			    ptoa(pmap_wired_count(map->pmap)));
 		}
 		PROC_UNLOCK(td->td_proc);
 #endif
 	}
 done:
-	vm_map_unlock(&vm->vm_map);
+	vm_map_unlock(map);
 
 	if (do_map_wirefuture)
-		(void) vm_map_wire(&vm->vm_map, old, new,
+		(void) vm_map_wire(map, old, new,
 		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 
 	return (error);
