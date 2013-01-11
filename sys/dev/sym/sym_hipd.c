@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/atomic.h>
 
 #ifdef __sparc64__
 #include <dev/ofw/openfirm.h>
@@ -136,7 +137,7 @@ typedef	u_int32_t u32;
 #elif	defined	__sparc64__
 #define MEMORY_BARRIER()	__asm__ volatile("membar #Sync" : : : "memory")
 #elif	defined	__arm__
-#define MEMORY_BARRIER()	__do_dmb()
+#define MEMORY_BARRIER()	dmb()
 #else
 #error	"Not supported platform"
 #endif
