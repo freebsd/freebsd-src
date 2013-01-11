@@ -340,14 +340,12 @@ LIB32WMAKEFLAGS+=	\
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
-		INSTALL="install -N ${.CURDIR}/etc"
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
 .endif
 
+# install stage
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
-IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
-		INSTALL="install -N ${.CURDIR}/etc" \
-		MTREE_CMD="nmtree -N ${.CURDIR}/etc"
+IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 		LD_LIBRARY_PATH=${INSTALLTMP} \
@@ -611,6 +609,34 @@ installcheck_DESTDIR:
 .endif
 
 #
+# Check for missing UIDs/GIDs.
+#
+CHECK_UIDS=	auditdistd
+CHECK_GIDS=	audit
+.if ${MK_SENDMAIL} != "no"
+CHECK_UIDS+=	smmsp
+CHECK_GIDS+=	smmsp
+.endif
+.if ${MK_PF} != "no"
+CHECK_UIDS+=	proxy
+CHECK_GIDS+=	proxy authpf
+.endif
+installcheck: installcheck_UGID
+installcheck_UGID:
+.for uid in ${CHECK_UIDS}
+	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
+		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+.endfor
+.for gid in ${CHECK_GIDS}
+	@if ! `find / -prune -group ${gid} >/dev/null 2>&1`; then \
+		echo "ERROR: Required ${gid} group is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+.endfor
+
+#
 # Required install tools to be saved in a scratch dir for safety.
 #
 .if ${MK_INFO} != "no"
@@ -666,7 +692,6 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
-	rm -f ${METALOG}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
@@ -728,8 +753,7 @@ redistribute:
 .endif
 
 distrib-dirs distribution:
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    INSTALL="install -N ${.CURDIR}/etc" ${.TARGET}
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -1035,11 +1059,6 @@ _lex=		usr.bin/lex
 _yacc=		usr.bin/yacc
 .endif
 
-.if ${BOOTSTRAPPING} < 1000026
-_nmtree=	lib/libnetbsd \
-		usr.sbin/nmtree
-.endif
-
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
 _awk=		usr.bin/awk
 .endif
@@ -1101,8 +1120,7 @@ bootstrap-tools:
     ${_lex} \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config \
-    ${_nmtree}
+    usr.sbin/config
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
