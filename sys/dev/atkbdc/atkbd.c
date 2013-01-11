@@ -66,7 +66,7 @@ static timeout_t	atkbd_timeout;
 static void		atkbd_shutdown_final(void *v);
 
 int
-atkbd_probe_unit(int unit, int ctlr, int irq, int flags)
+atkbd_probe_unit(device_t dev, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
@@ -76,27 +76,29 @@ atkbd_probe_unit(int unit, int ctlr, int irq, int flags)
 	if (sw == NULL)
 		return ENXIO;
 
-	args[0] = ctlr;
+	args[0] = device_get_unit(device_get_parent(dev));
 	args[1] = irq;
-	error = (*sw->probe)(unit, args, flags);
+	error = (*sw->probe)(device_get_unit(dev), args, flags);
 	if (error)
 		return error;
 	return 0;
 }
 
 int
-atkbd_attach_unit(int unit, keyboard_t **kbd, int ctlr, int irq, int flags)
+atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
 	int error;
+	int unit;
 
 	sw = kbd_get_switch(ATKBD_DRIVER_NAME);
 	if (sw == NULL)
 		return ENXIO;
 
 	/* reset, initialize and enable the device */
-	args[0] = ctlr;
+	unit = device_get_unit(dev);
+	args[0] = device_get_unit(device_get_parent(dev));
 	args[1] = irq;
 	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
