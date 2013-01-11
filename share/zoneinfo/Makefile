@@ -79,9 +79,9 @@ zoneinfo: yearistype ${TDATA}
 
 beforeinstall:
 	cd ${TZBUILDDIR} && \
-	    find . -type f -print | xargs -I _FILE_ ${INSTALL} \
+	    find . -type f -print -exec ${INSTALL} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    _FILE_ ${DESTDIR}/usr/share/zoneinfo/_FILE_
+	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
