@@ -703,8 +703,7 @@ int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
-void	vfs_write_resume(struct mount *mp);
-void	vfs_write_resume_flags(struct mount *mp, int flags);
+void	vfs_write_resume(struct mount *mp, int flags);
 int	vfs_write_suspend(struct mount *mp);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
