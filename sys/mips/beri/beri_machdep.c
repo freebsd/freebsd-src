@@ -87,17 +87,6 @@ mips_init(void)
 {
 	int i;
 
-#ifdef FDT
-#ifndef FDT_DTB_STATIC
-#error	"mips_init with FDT requires FDT_DTB_STATIC"
-#endif
-
-	if (OF_install(OFW_FDT, 0) == FALSE)
-		while (1);
-	if (OF_init(&fdt_static_dtb) != 0)
-		while (1);
-#endif
-
 	for (i = 0; i < 10; i++) {
 		phys_avail[i] = 0;
 	}
@@ -155,6 +144,17 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	mips_postboot_fixup();
 
 	mips_pcpu0_init();
+
+#ifdef FDT
+#ifndef FDT_DTB_STATIC
+#error	"mips_init with FDT requires FDT_DTB_STATIC"
+#endif
+
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		while (1);
+	if (OF_init(&fdt_static_dtb) != 0)
+		while (1);
+#endif
 
 	/*
 	 * XXXRW: We have no way to compare wallclock time to cycle rate on
