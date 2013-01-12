@@ -48,9 +48,9 @@
  * __FreeBSD_version numbers are documented in the Porter's Handbook.
  * If you bump the version for any reason, you should update the documentation
  * there.
- * Currently this lives here:
+ * Currently this lives here in the doc/ repository:
  *
- *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
+ *	head/en_US.ISO8859-1/books/porters-handbook/book.xml
  *
  * scheme is:  <major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
