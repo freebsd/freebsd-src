@@ -774,7 +774,7 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 	struct intel_raid_conf *meta;
 	struct intel_raid_vol *mvol;
 	struct intel_raid_map *mmap0, *mmap1;
-	int disk_pos, resurrection = 0;
+	int disk_pos, resurrection = 0, migr_global, i;
 
 	sc = disk->d_softc;
 	md = sc->sc_md;
@@ -903,6 +903,13 @@ nofit:
 		else
 			mmap1 = mmap0;
 
+		migr_global = 1;
+		for (i = 0; i < mmap0->total_disks; i++) {
+			if ((mmap0->disk_idx[i] & INTEL_DI_RBLD) == 0 &&
+			    (mmap1->disk_idx[i] & INTEL_DI_RBLD) != 0)
+				migr_global = 0;
+		}
+
 		if (resurrection) {
 			/* Stale disk, almost same as new. */
 			g_raid_change_subdisk_state(sd,
@@ -953,6 +960,11 @@ nofit:
 					    sd->sd_volume->v_strip_size *
 					    mmap0->total_domains;
 				}
+			} else if (mvol->migr_type == INTEL_MT_INIT &&
+			    migr_global) {
+				/* Freshly created uninitialized volume. */
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_UNINITIALIZED);
 			} else if (mvol->dirty && (!pv->pv_cng ||
 			    pv->pv_cng_master_disk != disk_pos)) {
 				/* Dirty volume (unclean shutdown). */
@@ -969,7 +981,8 @@ nofit:
 				/* Freshly inserted disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_NEW);
-			} else if (mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) {
+			} else if ((mmap1->disk_idx[sd->sd_pos] & INTEL_DI_RBLD) ||
+			    migr_global) {
 				/* Resyncing disk. */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_RESYNC);
