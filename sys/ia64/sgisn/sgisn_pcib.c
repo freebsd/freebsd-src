@@ -56,6 +56,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ia64/sgisn/sgisn_pcib.h>
 
+#define	SGISN_PCIB_PAGE_SHIFT	14	/* 16KB; Use 12 for 4KB */
+#define	SGISN_PCIB_PAGE_SIZE	(1UL << SGISN_PCIB_PAGE_SHIFT)
+#define	SGISN_PCIB_PAGE_MASK	(SGISN_PCIB_PAGE_SIZE - 1UL)
+
 static struct sgisn_fwdev sgisn_dev;
 static struct sgisn_fwirq sgisn_irq;
 
@@ -427,6 +431,7 @@ sgisn_pcib_attach(device_t dev)
 	device_t parent;
 	size_t fwflushsz;
 	uintptr_t addr, ivar;
+	uint64_t ctrl;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -460,6 +465,15 @@ sgisn_pcib_attach(device_t dev)
 		    sc->sc_fwbus->fw_common.bus_asic,
 		    sc->sc_fwbus->fw_common.bus_xid,
 		    sc->sc_fwbus->fw_type, sc->sc_fwbus->fw_mode);
+
+	/* Set the preferred I/O MMU page size -- 4KB or 16KB. */
+	ctrl = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PIC_REG_WGT_CTRL);
+#if SGISN_PCIB_PAGE_SHIFT == 12
+	ctrl &= ~(1UL << 21);
+#else
+	ctrl |= 1UL << 21;
+#endif
+	bus_space_write_8(sc->sc_tag, sc->sc_hndl, PIC_REG_WGT_CTRL, ctrl);
 
 	fwflushsz = (PCI_SLOTMAX + 1) * sizeof(struct sgisn_fwflush);
 	fwflush = contigmalloc(fwflushsz, M_TEMP, M_ZERO, 0UL, ~0UL, 16, 0);
@@ -524,12 +538,25 @@ sgisn_pcib_iommu_xlate(device_t bus, device_t dev, busdma_mtag_t mtag)
 	vm_paddr_t bndry = 0x80000000UL;
 
 	/*
+	 * 64-bit consistent DMA is only guaranteed for PCI-X. So, if we
+	 * need consistent DMA and we're not in PCI-X mode, force 32-bit
+	 * mappings.
+	 */
+	if ((mtag->dmt_flags & BUSDMA_ALLOC_CONSISTENT) &&
+	    (sc->sc_fwbus->fw_mode & 1) == 0 &&
+	    mtag->dmt_maxaddr == BUS_SPACE_MAXADDR)
+		mtag->dmt_maxaddr >>= 4;
+
+	/*
 	 * Use a 31-bit direct-mapped window for PCI devices that are not
-	 * 64-bit capable and we're not in PCI-X mode.
+	 * 64-bit capable and we're not in PCI-X mode and we don't need
+	 * consistent DMA.
 	 * For 31-bit direct-mapped DMA we need to make sure allocations
 	 * do not cross the 2G boundary.
 	 */
-	if (mtag->dmt_maxaddr < ~0UL && (sc->sc_fwbus->fw_mode & 1) == 0)
+	if (mtag->dmt_maxaddr < BUS_SPACE_MAXADDR &&
+	    (sc->sc_fwbus->fw_mode & 1) == 0 &&
+	    (mtag->dmt_flags & BUSDMA_ALLOC_CONSISTENT) == 0)
 		mtag->dmt_flags |= BUSDMA_MD_IA64_DIRECT32;
 
 	if (mtag->dmt_flags & BUSDMA_MD_IA64_DIRECT32) {
@@ -560,14 +587,48 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 
 	tag = busdma_md_get_tag(md);
 	maxaddr = busdma_tag_get_maxaddr(tag);
-	if (maxaddr == ~0UL) {
+	if (maxaddr == BUS_SPACE_MAXADDR) {
 		*ba_p = ba | ((u_long)sc->sc_fwbus->fw_hub_xid << 60) |
-		    (1UL << 59);
+		    (1UL << ((flags & BUSDMA_ALLOC_CONSISTENT) ? 56 : 59));
 		return (0);
 	}
 
-	/* XXX 32-bit mapped DMA */
-	return (ENXIO);
+	/*
+	 * 32-bit mapped DMA.
+	 *
+	 * XXX HACK START XXX
+	 */
+	{
+		bus_addr_t size;
+		size_t count;
+		u_int entry;
+
+		size = busdma_md_get_size(md, idx);
+		count = ((ba & SGISN_PCIB_PAGE_MASK) + size +
+		    SGISN_PCIB_PAGE_MASK) >> SGISN_PCIB_PAGE_SHIFT;
+
+		entry = 0;
+
+		*ba_p = (1UL << 30) | (ba & SGISN_PCIB_PAGE_MASK) |
+		    (SGISN_PCIB_PAGE_SIZE * entry);
+
+		ba &= ~SGISN_PCIB_PAGE_MASK;
+		ba |= 1 << 0; /* valid */
+		ba |= 1 << ((flags & BUSDMA_ALLOC_CONSISTENT) ? 4 : 3);
+		ba |= (u_long)sc->sc_fwbus->fw_hub_xid << 8;
+
+		while (count > 0) {
+			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+			    PIC_REG_ATE(entry), ba);
+			ba += SGISN_PCIB_PAGE_SIZE;
+			entry++;
+			count--;
+		}
+	}
+	/*
+	 * XXX HACK END XXX
+	 */
+	return (0);
 }
 
 static int
