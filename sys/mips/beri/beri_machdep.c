@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpu.h>
 #include <sys/cons.h>
 #include <sys/exec.h>
+#include <sys/linker.h>
 #include <sys/ucontext.h>
 #include <sys/proc.h>
 #include <sys/kdb.h>
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
 
@@ -135,6 +137,10 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	char **argv = (char **)a1;
 	char **envp = (char **)a2;
 	unsigned int memsize = a3;
+#ifdef FDT
+	vm_offset_t dtbp;
+	void *kmdp;
+#endif
 	int i;
 
 	/* clear the BSS and SBSS segments */
@@ -146,8 +152,24 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	mips_pcpu0_init();
 
 #ifdef FDT
-#ifndef FDT_DTB_STATIC
-#error	"mips_init with FDT requires FDT_DTB_STATIC"
+	/*
+	 * Find the dtb passed in by the boot loader (currently fictional).
+	 */
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp != NULL)
+		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	else
+		dtbp = (vm_offset_t)NULL;
+
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == (vm_offset_t)NULL)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
+#else
+#error	"Non-static FDT not yet supported on BERI"
 #endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
