@@ -524,6 +524,7 @@ MAN=	aac.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
+	${_vic.4} \
 	vinum.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
@@ -775,6 +776,7 @@ _spkr.4=	spkr.4
 _tpm.4=		tpm.4
 _urtw.4=	urtw.4
 _viawd.4=	viawd.4
+_vic.4=		vic.4
 _wbwd.4=	wbwd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
