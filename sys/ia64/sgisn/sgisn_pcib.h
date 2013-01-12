@@ -63,17 +63,17 @@
 #define	PIC_REG_INT_MODE	0x00118
 #define	PIC_REG_INT_DEVICE	0x00120
 #define	PIC_REG_INT_HOSTERR	0x00128
-#define	PIC_REG_INT_ADDR(x)	(0x00130 + (x << 3))
+#define	PIC_REG_INT_ADDR(x)	(0x00130 + ((x) << 3))
 #define	PIC_REG_INT_ERRVIEW	0x00170
 #define	PIC_REG_INT_MULTI	0x00178
-#define	PIC_REG_INT_FORCE(x)	(0x00180 + (x << 3))
-#define	PIC_REG_INT_PIN(x)	(0x001c0 + (x << 3))
+#define	PIC_REG_INT_FORCE(x)	(0x00180 + ((x) << 3))
+#define	PIC_REG_INT_PIN(x)	(0x001c0 + ((x) << 3))
 
-#define	PIC_REG_DEVICE(x)	(0x00200 + (x << 3))
-#define	PIC_REG_WR_REQ(x)	(0x00240 + (x << 3))
-#define	PIC_REG_RRB_MAP(x)	(0x00280 + (x << 3))
+#define	PIC_REG_DEVICE(x)	(0x00200 + ((x) << 3))
+#define	PIC_REG_WR_REQ(x)	(0x00240 + ((x) << 3))
+#define	PIC_REG_RRB_MAP(x)	(0x00280 + ((x) << 3))
 
-#define	PIC_REG_ATE(x)		(0x10000 + (x << 3))
+#define	PIC_REG_ATE(x)		(0x10000 + ((x) << 3))
 #define	PIC_REG_ATE_SIZE	1024
 
 struct sgisn_fwpcib {
