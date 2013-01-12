@@ -163,6 +163,8 @@ g_raid_disk_state2str(int state)
 		return ("NONE");
 	case G_RAID_DISK_S_OFFLINE:
 		return ("OFFLINE");
+	case G_RAID_DISK_S_DISABLED:
+		return ("DISABLED");
 	case G_RAID_DISK_S_FAILED:
 		return ("FAILED");
 	case G_RAID_DISK_S_STALE_FAILED:
@@ -535,7 +537,9 @@ g_raid_report_disk_state(struct g_raid_disk *disk)
 
 	if (disk->d_consumer == NULL)
 		return;
-	if (disk->d_state == G_RAID_DISK_S_FAILED ||
+	if (disk->d_state == G_RAID_DISK_S_DISABLED) {
+		;
+	} else if (disk->d_state == G_RAID_DISK_S_FAILED ||
 	    disk->d_state == G_RAID_DISK_S_STALE_FAILED) {
 		s = G_STATE_FAILED;
 	} else {
