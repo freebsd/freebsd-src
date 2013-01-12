@@ -45,5 +45,5 @@ ttyu0	"/usr/libexec/getty std.9600"	vt100	on  secure
 ttyu1	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyu2	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyu3	"/usr/libexec/getty std.9600"	dialup	off secure
-# Dumb console
-dcons	"/usr/libexec/getty std.9600"	vt100	off secure
+# SGI Altix 350 L1 console
+ttys0   "/usr/libexec/getty std.9600"   vt100   on  secure
