@@ -101,4 +101,6 @@ f_isinteger()
 	( : $((0/$arg)) ) > /dev/null 2>&1
 }
 
+f_dprintf "%s: Successfully loaded." strings.subr
+
 fi # ! $_STRINGS_SUBR

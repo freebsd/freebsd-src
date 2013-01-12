@@ -186,7 +186,7 @@ prn_octal(const char *s)
 			len += wcwidth(wc);
 		} else if (goodchar && f_octal_escape &&
 #if WCHAR_MIN < 0
-		    wc >= 0 &&
+                    wc >= 0 &&
 #endif
 		    wc <= (wchar_t)UCHAR_MAX &&
 		    (p = strchr(esc, (char)wc)) != NULL) {

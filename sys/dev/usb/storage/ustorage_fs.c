@@ -603,6 +603,8 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			DPRINTF("stall pipe\n");
 		}
+		usbd_xfer_set_frame_len(xfer, 0,
+		    sizeof(ustorage_fs_bbb_cbw_t));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -827,6 +829,8 @@ tr_setup:
 			sc->sc_transfer.data_error = 0;
 			usbd_xfer_set_stall(xfer);
 		}
+		usbd_xfer_set_frame_len(xfer, 0,
+		    sizeof(ustorage_fs_bbb_csw_t));
 		usbd_transfer_submit(xfer);
 		break;
 

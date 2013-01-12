@@ -30,6 +30,7 @@ if [ ! "$_NETWORKING_ROUTING_SUBR" ]; then _NETWORKING_ROUTING_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/routing.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/networking/common.subr
@@ -146,5 +147,9 @@ f_dialog_input_defaultrouter()
 		fi
 	fi
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/routing.subr
 
 fi # ! $_NETWORKING_ROUTING_SUBR

@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.747 2010/05/08 04:18:27 ca Exp $
+.\"	$Id: op.me,v 8.749 2012/03/02 22:37:11 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.747 $
+.Ve $Revision: 8.749 $
 .rm Ve
 .sp
 For Sendmail Version 8.14
@@ -5999,7 +5999,7 @@ mailer.
 .ip @
 Look up addresses in the user database.
 .ip %
-Do not attempt delivery on initial recipient of a message
+Do not attempt delivery on initial receipt of a message
 or on queue runs
 unless the queued message is selected
 using one of the -qI/-qR/-qS queue run modifiers
@@ -7540,6 +7540,10 @@ This is intended to allow you to get responsiveness
 by processing the queue fairly frequently
 without thrashing your system by trying jobs too often.
 The default units are minutes.
+Note:
+This option is ignored for queue runs that select a subset
+of the queue, i.e.,
+.q \-q[!][I|R|S|Q][string]
 .ip MustQuoteChars=\fIs\fP
 [no short name]
 Sets the list of characters that must be quoted if used in a full name
@@ -11467,7 +11471,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.747 $
+.\"Version $Revision: 8.749 $
 .\".ce 0
 .bp 3
 .ce

@@ -536,12 +536,10 @@ alloc_tid_tabs(struct tid_info *t)
 	t->atid_tab[t->natids - 1].next = NULL;
 
 	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
-	t->stid_tab = (union serv_entry *)&t->atid_tab[t->natids];
-	t->sfree = t->stid_tab;
+	t->stid_tab = (struct listen_ctx **)&t->atid_tab[t->natids];
 	t->stids_in_use = 0;
-	for (i = 1; i < t->nstids; i++)
-		t->stid_tab[i - 1].next = &t->stid_tab[i];
-	t->stid_tab[t->nstids - 1].next = NULL;
+	TAILQ_INIT(&t->stids);
+	t->nstids_free_head = t->nstids;
 
 	atomic_store_rel_int(&t->tids_in_use, 0);
 
@@ -602,7 +600,7 @@ t4_tom_activate(struct adapter *sc)
 	struct toedev *tod;
 	int i, rc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for sc->flags */
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	/* per-adapter softc for TOM */
 	td = malloc(sizeof(*td), M_CXGBE, M_ZERO | M_NOWAIT);
@@ -668,7 +666,7 @@ t4_tom_deactivate(struct adapter *sc)
 	int rc = 0;
 	struct tom_data *td = sc->tom_softc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for sc->flags */
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (td == NULL)
 		return (0);	/* XXX. KASSERT? */
@@ -721,11 +719,14 @@ t4_tom_mod_load(void)
 static void
 tom_uninit(struct adapter *sc, void *arg __unused)
 {
+	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4tomun"))
+		return;
+
 	/* Try to free resources (works only if no port has IFCAP_TOE) */
-	ADAPTER_LOCK(sc);
 	if (sc->flags & TOM_INIT_DONE)
 		t4_deactivate_uld(sc, ULD_TOM);
-	ADAPTER_UNLOCK(sc);
+
+	end_synchronized_op(sc, LOCK_HELD);
 }
 
 static int

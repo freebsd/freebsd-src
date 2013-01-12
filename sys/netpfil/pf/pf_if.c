@@ -1,10 +1,9 @@
-/*	$OpenBSD: pf_if.c,v 1.54 2008/06/14 16:55:28 mk Exp $ */
-
-/*
- * Copyright 2005 Henning Brauer <henning@openbsd.org>
- * Copyright 2005 Ryan McBride <mcbride@openbsd.org>
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2003 Cedric Berger
+ * Copyright (c) 2005 Henning Brauer <henning@openbsd.org>
+ * Copyright (c) 2005 Ryan McBride <mcbride@openbsd.org>
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,10 +29,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$OpenBSD: pf_if.c,v 1.54 2008/06/14 16:55:28 mk Exp $
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"

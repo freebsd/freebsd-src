@@ -87,14 +87,18 @@ handle_static_init(int argc, char **argv, char **env)
 }
 
 static inline void
-handle_progname(const char *v)
+handle_argv(int argc, char *argv[], char **env)
 {
 	const char *s;
 
-	__progname = v;
-	for (s = __progname; *s != '\0'; s++) {
-		if (*s == '/')
-			__progname = s + 1;
+	if (environ == NULL)
+		environ = env;
+	if (argc > 0 && argv[0] != NULL) {
+		__progname = argv[0];
+		for (s = __progname; *s != '\0'; s++) {
+			if (*s == '/')
+				__progname = s + 1;
+		}
 	}
 }
 

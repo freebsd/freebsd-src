@@ -30,6 +30,7 @@ if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 f_include $BSDCFG_SHARE/networking/common.subr
@@ -494,5 +495,9 @@ f_dialog_menu_netdev_edit()
 
 	return $SUCCESS
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/device.subr
 
 fi # ! $_NETWORKING_DEVICE_SUBR

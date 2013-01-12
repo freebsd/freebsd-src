@@ -1,7 +1,6 @@
-/*	$OpenBSD: if_pfsync.c,v 1.110 2009/02/24 05:39:19 dlg Exp $	*/
-
-/*
+/*-
  * Copyright (c) 2002 Michael Shalayeff
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +25,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 2009 David Gwynne <dlg@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -43,6 +42,8 @@
  */
 
 /*
+ * $OpenBSD: if_pfsync.c,v 1.110 2009/02/24 05:39:19 dlg Exp $
+ *
  * Revisions picked from OpenBSD after revision 1.110 import:
  * 1.119 - don't m_copydata() beyond the len of mbuf in pfsync_input()
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates

@@ -30,6 +30,7 @@ if [ ! "$_MUSTBEROOT_SUBR" ]; then _MUSTBEROOT_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." mustberoot.subr
 f_include $BSDCFG_SHARE/dialog.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
@@ -418,5 +419,9 @@ f_mustberoot_init()
 		f_authenticate_some_user
 	fi
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." mustberoot.subr
 
 fi # ! $_MUSTBEROOT_SUBR
