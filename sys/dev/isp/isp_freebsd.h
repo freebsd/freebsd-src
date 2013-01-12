@@ -431,8 +431,10 @@ case SYNC_SFORDEV:						\
 	break;							\
 }								\
 case SYNC_REQUEST:						\
-	busdma_sync(isp->isp_osinfo.cdmd,			\
-	   BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE);		\
+	busdma_sync_range(isp->isp_osinfo.cdmd, BUSDMA_SYNC_PREWRITE,	\
+	    isp->isp_rquest_dma + (offset * size), size);	\
+	busdma_sync_range(isp->isp_osinfo.cdmd, BUSDMA_SYNC_PREREAD,	\
+	    isp->isp_result_dma + (offset * size), size);	\
 	break;							\
 case SYNC_SFORCPU:						\
 {								\
@@ -441,8 +443,10 @@ case SYNC_SFORCPU:						\
 	break;							\
 }								\
 case SYNC_RESULT:						\
-	busdma_sync(isp->isp_osinfo.cdmd,			\
-	   BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);	\
+	busdma_sync_range(isp->isp_osinfo.cdmd, BUSDMA_SYNC_POSTWRITE,	\
+	    isp->isp_rquest_dma + (offset * size), size);	\
+	busdma_sync_range(isp->isp_osinfo.cdmd, BUSDMA_SYNC_POSTREAD,	\
+	    isp->isp_result_dma + (offset * size), size);	\
 	break;							\
 case SYNC_REG:							\
 	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
