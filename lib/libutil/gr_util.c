@@ -390,7 +390,9 @@ char *
 gr_make(const struct group *gr)
 {
 	const char *group_line_format = "%s:%s:%ju:";
+	const char *sep;
 	char *line;
+	char *p;
 	size_t line_size;
 	int ndx;
 
@@ -405,16 +407,18 @@ gr_make(const struct group *gr)
 	}
 
 	/* Create the group line and fill it. */
-	if ((line = malloc(line_size)) == NULL)
+	if ((line = p = malloc(line_size)) == NULL)
 		return (NULL);
-	snprintf(line, line_size, group_line_format, gr->gr_name, gr->gr_passwd,
+	p += sprintf(p, group_line_format, gr->gr_name, gr->gr_passwd,
 	    (uintmax_t)gr->gr_gid);
-	if (gr->gr_mem != NULL)
+	if (gr->gr_mem != NULL) {
+		sep = "";
 		for (ndx = 0; gr->gr_mem[ndx] != NULL; ndx++) {
-			strcat(line, gr->gr_mem[ndx]);
-			if (gr->gr_mem[ndx + 1] != NULL)
-				strcat(line, ",");
+			p = stpcpy(p, sep);
+			p = stpcpy(p, gr->gr_mem[ndx]);
+			sep = ",";
 		}
+	}
 
 	return (line);
 }
