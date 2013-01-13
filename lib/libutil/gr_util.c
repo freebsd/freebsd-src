@@ -50,8 +50,6 @@ static char group_file[PATH_MAX];
 static char tempname[PATH_MAX];
 static int initialized;
 
-static const char group_line_format[] = "%s:%s:%ju:";
-
 /*
  * Initialize statics
  */
@@ -391,6 +389,7 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 char *
 gr_make(const struct group *gr)
 {
+	const char *group_line_format = "%s:%s:%ju:";
 	char *line;
 	size_t line_size;
 	int ndx;
