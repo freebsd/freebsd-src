@@ -50,6 +50,20 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(geom_part_gpt, "GEOM partitioning class for GPT partitions support");
 
+SYSCTL_DECL(_kern_geom_part);
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, gpt, CTLFLAG_RW, 0,
+    "gpart GPT controls");
+
+#if defined(__i386__) || defined(__amd64__)
+#define	PMBR_ACTIVE	1
+#else
+#define	PMBR_ACTIVE	0
+#endif
+
+static u_int gpt_mark_pmbr_active = PMBR_ACTIVE;
+SYSCTL_UINT(_kern_geom_part_gpt, OID_AUTO, mark_pmbr_active, CTLFLAG_RW,
+    &gpt_mark_pmbr_active, 0, "Mark the PMBR active on creation");
+
 CTASSERT(offsetof(struct gpt_hdr, padding) == 92);
 CTASSERT(sizeof(struct gpt_ent) == 128);
 
@@ -1040,7 +1054,8 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 		gpt_write_mbr_entry(table->mbr, 0, 0xee, 1,
 		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
 		/* Mark the PMBR active since some BIOS require it. */
-		table->mbr[DOSPARTOFF] = 0x80;
+		if (gpt_mark_pmbr_active)
+			table->mbr[DOSPARTOFF] = 0x80;
 	}
 	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
 
