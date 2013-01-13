@@ -504,6 +504,8 @@ ipu3fb_init(int unit, video_adapter_t *adp, int flags)
 
 	adp->va_window = (vm_offset_t) ipu3fb_static_window;
 	adp->va_flags |= V_ADP_FONT /* | V_ADP_COLOR | V_ADP_MODECHANGE */;
+	adp->va_line_width = sc->stride;
+	adp->va_buffer_size = sc->fb_size;
 
 	vid_register(&sc->va);
 
@@ -654,6 +656,29 @@ ipu3fb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 static int
 ipu3fb_ioctl(video_adapter_t *adp, u_long cmd, caddr_t data)
 {
+	struct video_adapter_softc *sc;
+	struct fbtype *fb;
+
+	sc = (struct video_adapter_softc *)adp;
+
+	switch (cmd) {
+	case FBIOGTYPE:
+		fb = (struct fbtype *)data;
+		fb->fb_type = FBTYPE_PCIMISC;
+		fb->fb_height = sc->height;
+		fb->fb_width = sc->width;
+		fb->fb_depth = sc->depth;
+		if (sc->depth <= 1 || sc->depth > 8)
+			fb->fb_cmsize = 0;
+		else
+			fb->fb_cmsize = 1 << sc->depth;
+		fb->fb_size = sc->fb_size;
+		break;
+	case FBIOSCURSOR:
+		return (ENODEV);
+	default:
+		return (fb_commonioctl(adp, cmd, data));
+	}
 
 	return (0);
 }
