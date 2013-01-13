@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	pkg
-SRC=	pkg.c
+SRCS=	pkg.c dns_utils.c
 
 NO_MAN=	yes
 DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH}
