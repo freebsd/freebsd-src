@@ -196,7 +196,5 @@ static driver_t terasic_mtl_fdt_driver = {
 	sizeof(struct terasic_mtl_softc),
 };
 
-static devclass_t terasic_mtl_devclass;
-
 DRIVER_MODULE(mtl, simplebus, terasic_mtl_fdt_driver, terasic_mtl_devclass, 0,
     0);

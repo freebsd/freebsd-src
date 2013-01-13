@@ -82,4 +82,6 @@ int	altera_avgen_attach(struct altera_avgen_softc *sc,
 	    const char *str_devname, int devunit);
 void	altera_avgen_detach(struct altera_avgen_softc *sc);
 
+extern devclass_t	altera_avgen_devclass;
+
 #endif /* _DEV_ALTERA_AVALON_H_ */
