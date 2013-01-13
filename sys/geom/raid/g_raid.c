@@ -538,7 +538,7 @@ g_raid_report_disk_state(struct g_raid_disk *disk)
 	if (disk->d_consumer == NULL)
 		return;
 	if (disk->d_state == G_RAID_DISK_S_DISABLED) {
-		;
+		s = G_STATE_ACTIVE; /* XXX */
 	} else if (disk->d_state == G_RAID_DISK_S_FAILED ||
 	    disk->d_state == G_RAID_DISK_S_STALE_FAILED) {
 		s = G_STATE_FAILED;
