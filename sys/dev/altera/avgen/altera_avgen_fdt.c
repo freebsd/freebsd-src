@@ -150,7 +150,5 @@ static driver_t altera_avgen_fdt_driver = {
 	sizeof(struct altera_avgen_softc),
 };
 
-static devclass_t altera_avgen_devclass;
-
 DRIVER_MODULE(avgen, simplebus, altera_avgen_fdt_driver,
     altera_avgen_devclass, 0, 0);

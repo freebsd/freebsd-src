@@ -143,7 +143,5 @@ static driver_t altera_jtag_uart_fdt_driver = {
 	sizeof(struct altera_jtag_uart_softc),
 };
 
-static devclass_t altera_jtag_uart_devclass;
-
 DRIVER_MODULE(altera_jtag_uart, simplebus, altera_jtag_uart_fdt_driver,
     altera_jtag_uart_devclass, 0, 0);

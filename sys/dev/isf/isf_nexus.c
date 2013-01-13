@@ -115,6 +115,4 @@ static driver_t isf_nexus_driver = {
 	sizeof(struct isf_softc),
 };
 
-static devclass_t isf_devclass;
-
 DRIVER_MODULE(isf, nexus, isf_nexus_driver, isf_devclass, 0, 0);

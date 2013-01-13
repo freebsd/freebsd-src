@@ -114,7 +114,5 @@ static driver_t terasic_de4led_fdt_driver = {
 	sizeof(struct terasic_de4led_softc),
 };
 
-static devclass_t terasic_de4led_devclass;
-
 DRIVER_MODULE(terasic_de4led, simplebus, terasic_de4led_fdt_driver,
     terasic_de4led_devclass, 0, 0);

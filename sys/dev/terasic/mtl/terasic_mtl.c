@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
  * attached as they may be called even if the attach routine hasn't been, on
  * an error.
  */
+
+devclass_t	terasic_mtl_devclass;
+
 int
 terasic_mtl_attach(struct terasic_mtl_softc *sc)
 {
