@@ -47,6 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <dev/terasic/de4led/terasic_de4led.h>
 
 /*
@@ -54,15 +59,18 @@ __FBSDID("$FreeBSD$");
  * which is hooked up to the processor via a memory-mapped Avalon bus.
  */
 static int
-terasic_de4led_nexus_probe(device_t dev)
+terasic_de4led_fdt_probe(device_t dev)
 {
 
-	device_set_desc(dev, "Terasic DE4 8-element LED");
-	return (BUS_PROBE_DEFAULT);
+	if (ofw_bus_is_compatible(dev, "cambridge,de4led")) {
+		device_set_desc(dev, "Terasic DE4 8-element LED");
+		return (BUS_PROBE_DEFAULT);
+	}
+	return (ENXIO);
 }
 
 static int
-terasic_de4led_nexus_attach(device_t dev)
+terasic_de4led_fdt_attach(device_t dev)
 {
 	struct terasic_de4led_softc *sc;
 
@@ -81,7 +89,7 @@ terasic_de4led_nexus_attach(device_t dev)
 }
 
 static int
-terasic_de4led_nexus_detach(device_t dev)
+terasic_de4led_fdt_detach(device_t dev)
 {
 	struct terasic_de4led_softc *sc;
 
@@ -93,20 +101,20 @@ terasic_de4led_nexus_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t terasic_de4led_nexus_methods[] = {
-	DEVMETHOD(device_probe,		terasic_de4led_nexus_probe),
-	DEVMETHOD(device_attach,	terasic_de4led_nexus_attach),
-	DEVMETHOD(device_detach,	terasic_de4led_nexus_detach),
+static device_method_t terasic_de4led_fdt_methods[] = {
+	DEVMETHOD(device_probe,		terasic_de4led_fdt_probe),
+	DEVMETHOD(device_attach,	terasic_de4led_fdt_attach),
+	DEVMETHOD(device_detach,	terasic_de4led_fdt_detach),
 	{ 0, 0 }
 };
 
-static driver_t terasic_de4led_nexus_driver = {
+static driver_t terasic_de4led_fdt_driver = {
 	"terasic_de4led",
-	terasic_de4led_nexus_methods,
+	terasic_de4led_fdt_methods,
 	sizeof(struct terasic_de4led_softc),
 };
 
 static devclass_t terasic_de4led_devclass;
 
-DRIVER_MODULE(terasic_de4led, nexus, terasic_de4led_nexus_driver,
+DRIVER_MODULE(terasic_de4led, simplebus, terasic_de4led_fdt_driver,
     terasic_de4led_devclass, 0, 0);
