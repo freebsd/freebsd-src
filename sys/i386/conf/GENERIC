@@ -346,3 +346,11 @@ device		snd_via8233	# VIA VT8233x Audio
 device		mmc		# MMC/SD bus
 device		mmcsd		# MMC/SD memory card
 device		sdhci		# Generic PCI SD Host Controller
+
+# VirtIO support
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI device
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device

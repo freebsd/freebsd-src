@@ -2276,15 +2276,6 @@ dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
-#
-# virtio support
-#
-dev/virtio/pci/virtio_pci.c    optional vtnet
-dev/virtio/virtio.c            optional vtnet
-dev/virtio/virtqueue.c         optional vtnet
-dev/virtio/network/if_vtnet.c  optional vtnet
-dev/virtio/virtio_bus_if.m     optional vtnet
-dev/virtio/virtio_if.m         optional vtnet
 
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
