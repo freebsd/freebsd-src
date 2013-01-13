@@ -787,13 +787,9 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 	disk_pos = intel_meta_find_disk(meta, pd->pd_disk_meta.serial);
 	if (disk_pos < 0) {
 		G_RAID_DEBUG1(1, sc, "Unknown, probably new or stale disk");
-		/* Disabled disk is useless for us. */
-		if (pd->pd_disk_meta.flags & INTEL_F_DISABLED) {
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_DISABLED);
-			return (0);
-		}
 		/* Failed stale disk is useless for us. */
-		if (pd->pd_disk_meta.flags & INTEL_F_FAILED) {
+		if ((pd->pd_disk_meta.flags & INTEL_F_FAILED) &&
+		    !(pd->pd_disk_meta.flags & INTEL_F_DISABLED)) {
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE_FAILED);
 			return (0);
 		}
@@ -884,10 +880,11 @@ nofit:
 	}
 
 	/* Welcome the new disk. */
-	if (resurrection)
-		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-	else if (meta->disk[disk_pos].flags & INTEL_F_DISABLED)
+	if ((meta->disk[disk_pos].flags & INTEL_F_DISABLED) &&
+	    !(pd->pd_disk_meta.flags & INTEL_F_SPARE))
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_DISABLED);
+	else if (resurrection)
+		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 	else if (meta->disk[disk_pos].flags & INTEL_F_FAILED)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
 	else if (meta->disk[disk_pos].flags & INTEL_F_SPARE)
@@ -910,14 +907,15 @@ nofit:
 				migr_global = 0;
 		}
 
-		if (resurrection) {
-			/* Stale disk, almost same as new. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_NEW);
-		} else if (meta->disk[disk_pos].flags & INTEL_F_DISABLED) {
+		if ((meta->disk[disk_pos].flags & INTEL_F_DISABLED) &&
+		    !(pd->pd_disk_meta.flags & INTEL_F_SPARE)) {
 			/* Disabled disk, useless. */
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_NONE);
+		} else if (resurrection) {
+			/* Stale disk, almost same as new. */
+			g_raid_change_subdisk_state(sd,
+			    G_RAID_SUBDISK_S_NEW);
 		} else if (meta->disk[disk_pos].flags & INTEL_F_FAILED) {
 			/* Failed disk, almost useless. */
 			g_raid_change_subdisk_state(sd,
@@ -1021,7 +1019,8 @@ nofit:
 	/* Update status of our need for spare. */
 	if (mdi->mdio_started) {
 		mdi->mdio_incomplete =
-		    (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
+		    (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) +
+		     g_raid_ndisks(sc, G_RAID_DISK_S_DISABLED) <
 		     meta->total_disks);
 	}
 
@@ -1053,7 +1052,8 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 	update = 0;
 	do {
 		/* Make sure we miss anything. */
-		na = g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE);
+		na = g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) +
+		    g_raid_ndisks(sc, G_RAID_DISK_S_DISABLED);
 		if (na == meta->total_disks)
 			break;
 
@@ -1065,7 +1065,8 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_STALE) {
 				update += g_raid_md_intel_start_disk(disk);
-				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
+				if (disk->d_state == G_RAID_DISK_S_ACTIVE ||
+				    disk->d_state == G_RAID_DISK_S_DISABLED)
 					break;
 			}
 		}
@@ -1089,8 +1090,8 @@ g_raid_md_intel_refill(struct g_raid_softc *sc)
 	}
 
 	/* Update status of our need for spare. */
-	mdi->mdio_incomplete = (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
-	    meta->total_disks);
+	mdi->mdio_incomplete = (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) +
+	    g_raid_ndisks(sc, G_RAID_DISK_S_DISABLED) < meta->total_disks);
 
 	/* Request retaste hoping to find spare. */
 	if (mdi->mdio_incomplete) {
@@ -2242,7 +2243,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			pd->pd_disk_meta.flags = INTEL_F_FAILED |
 			    INTEL_F_ASSIGNED | INTEL_F_DISABLED;
 		} else {
-			pd->pd_disk_meta.flags = INTEL_F_ASSIGNED;
+			if (!(pd->pd_disk_meta.flags & INTEL_F_DISABLED))
+				pd->pd_disk_meta.flags = INTEL_F_ASSIGNED;
 			if (pd->pd_disk_meta.id != 0xffffffff) {
 				pd->pd_disk_meta.id = 0xffffffff;
 				len = strlen(pd->pd_disk_meta.serial);
