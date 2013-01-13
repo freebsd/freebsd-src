@@ -121,6 +121,4 @@ static driver_t isf_fdt_driver = {
 	sizeof(struct isf_softc),
 };
 
-static devclass_t isf_devclass;
-
 DRIVER_MODULE(isf, simplebus, isf_fdt_driver, isf_devclass, 0, 0);
