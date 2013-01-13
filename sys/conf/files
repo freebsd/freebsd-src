@@ -1416,6 +1416,7 @@ dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/isf/isf.c			optional isf
+dev/isf/isf_fdt.c		optional isf fdt
 dev/isf/isf_nexus.c		optional isf
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp

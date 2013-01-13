@@ -51,23 +51,29 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom_disk.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <dev/isf/isf.h>
 
 /*
- * Nexus bus attachment for the Intel Strata Flash devices.  Appropriate for
- * most Altera FPGA SoC-style configurations in which the part will be exposed
- * to the processor via a memory-mapped Avalon bus.
+ * FDT bus attachment for the Intel Strata Flash devices.
  */
 static int
-isf_nexus_probe(device_t dev)
+isf_fdt_probe(device_t dev)
 {
 
-	device_set_desc(dev, "Intel StrataFlash NOR flash device");
-	return (BUS_PROBE_DEFAULT);
+	if (ofw_bus_is_compatible(dev, "intel,strataflash")) {
+		device_set_desc(dev, "Intel StrataFlash NOR flash device");
+		return (BUS_PROBE_DEFAULT);
+	}
+	return (ENXIO);
 }
 
 static int
-isf_nexus_attach(device_t dev)
+isf_fdt_attach(device_t dev)
 {
 	int			 error;
 	struct isf_softc	*sc;
@@ -90,7 +96,7 @@ isf_nexus_attach(device_t dev)
 }
 
 static int
-isf_nexus_detach(device_t dev)
+isf_fdt_detach(device_t dev)
 {
 	struct isf_softc *sc;
 
@@ -102,19 +108,19 @@ isf_nexus_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t isf_nexus_methods[] = {
-	DEVMETHOD(device_probe,		isf_nexus_probe),
-	DEVMETHOD(device_attach,	isf_nexus_attach),
-	DEVMETHOD(device_detach,	isf_nexus_detach),
+static device_method_t isf_fdt_methods[] = {
+	DEVMETHOD(device_probe,		isf_fdt_probe),
+	DEVMETHOD(device_attach,	isf_fdt_attach),
+	DEVMETHOD(device_detach,	isf_fdt_detach),
 	{ 0, 0 }
 };
 
-static driver_t isf_nexus_driver = {
+static driver_t isf_fdt_driver = {
 	"isf",
-	isf_nexus_methods,
+	isf_fdt_methods,
 	sizeof(struct isf_softc),
 };
 
 static devclass_t isf_devclass;
 
-DRIVER_MODULE(isf, nexus, isf_nexus_driver, isf_devclass, 0, 0);
+DRIVER_MODULE(isf, simplebus, isf_fdt_driver, isf_devclass, 0, 0);
