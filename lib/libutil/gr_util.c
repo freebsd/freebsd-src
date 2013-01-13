@@ -316,7 +316,7 @@ gr_mkdb(void)
 }
 
 /*
- * Clean up. Preserver errno for the caller's convenience.
+ * Clean up. Preserves errno for the caller's convenience.
  */
 void
 gr_fini(void)
