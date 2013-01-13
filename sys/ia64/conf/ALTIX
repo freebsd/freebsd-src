@@ -20,7 +20,6 @@ device		md
 device		miibus
 device		pass
 device		pci
-device		pty
 device		random
 device		scbus
 device		tun
