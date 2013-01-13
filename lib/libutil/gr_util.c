@@ -346,7 +346,6 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 {
 	int gr1_ndx;
 	int gr2_ndx;
-	bool found;
 
 	/* Check that the non-member information is the same. */
 	if (gr1->gr_name == NULL || gr2->gr_name == NULL) {
@@ -367,17 +366,15 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 		if (gr1->gr_mem != gr2->gr_mem)
 			return (false);
 	} else {
-		for (found = false, gr1_ndx = 0; gr1->gr_mem[gr1_ndx] != NULL;
-		    gr1_ndx++) {
-			for (gr2_ndx = 0; gr2->gr_mem[gr2_ndx] != NULL;
-			    gr2_ndx++)
+		for (gr1_ndx = 0; gr1->gr_mem[gr1_ndx] != NULL; gr1_ndx++) {
+			for (gr2_ndx = 0;; gr2_ndx++) {
+				if (gr2->gr_mem[gr2_ndx] == NULL)
+					return (false);
 				if (strcmp(gr1->gr_mem[gr1_ndx],
 				    gr2->gr_mem[gr2_ndx]) == 0) {
-					found = true;
 					break;
 				}
-			if (!found)
-				return (false);
+			}
 		}
 
 		/* Check that group2 does not have more members than group1. */
