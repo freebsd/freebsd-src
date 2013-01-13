@@ -286,7 +286,8 @@ list(int nlflag, int erflag)
 				tokpushback++;
 			}
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
-			if (!nlflag && !erflag && tokendlist[peektoken()])
+			if (!nlflag && (erflag ? peektoken() == TEOF :
+			    tokendlist[peektoken()]))
 				return ntop;
 			break;
 		case TEOF:
