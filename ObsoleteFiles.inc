@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20121230: libdisk removed
+OLD_FILES+=usr/share/man/man3/libdisk.3.gz usr/include/libdisk.h
+OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a
+# 20121230: remove wrongly created directories for auditdistd
+OLD_DIRS+=var/dist
+OLD_DIRS+=var/remote
 # 20121114: zpool-features manual page moved from section 5 to 7
 OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
 # 20121022: remove harp, hfa and idt man page
@@ -1195,12 +1201,6 @@ OLD_FILES+=usr/include/sys/linedisc.h
 OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
 # 20080725: sgtty.h removed
 OLD_FILES+=usr/include/sgtty.h
-# 20080719: sade(8) removed on all but amd64, i386 and sparc64
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386" && \
-    ${TARGET_ARCH} != "sparc64"
-OLD_FILES+=usr/sbin/sade
-OLD_FILES+=usr/share/man/man8/sade.8.gz
-.endif
 # 20080706: bsdlabel(8) removed on powerpc
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=sbin/bsdlabel

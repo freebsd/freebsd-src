@@ -1227,6 +1227,8 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct mbuf *m, *next;
 	uint32_t metric = 0;
 	const uint8_t *addr;
+	int is_encap;
+	struct ieee80211_node *ni_encap;
 
 	if (ni == vap->iv_bss ||
 	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
@@ -1403,11 +1405,21 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	    (struct ieee80211_node *)(uintptr_t)
 	    ieee80211_mac_hash(ic, addr)); /* either dest or ext_dest */
 	for (; m != NULL; m = next) {
+		is_encap = !! (m->m_flags & M_ENCAP);
+		ni_encap = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		next = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 		    "flush queued frame %p len %d", m, m->m_pkthdr.len);
-		ifp->if_transmit(ifp, m);
+
+		/*
+		 * If the mbuf has M_ENCAP set, ensure we free it.
+		 * Note that after if_transmit() is called, m is invalid.
+		 */
+		if (ifp->if_transmit(ifp, m) != 0) {
+			if (is_encap)
+				ieee80211_free_node(ni_encap);
+		}
 	}
 #undef	IS_PROXY
 #undef	PROXIED_BY_US

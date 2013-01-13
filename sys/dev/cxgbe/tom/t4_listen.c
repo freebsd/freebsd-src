@@ -63,9 +63,9 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom.h"
 
 /* stid services */
-static int alloc_stid(struct adapter *, void *);
-static void *lookup_stid(struct adapter *, int);
-static void free_stid(struct adapter *, int);
+static int alloc_stid(struct adapter *, struct listen_ctx *, int);
+static struct listen_ctx *lookup_stid(struct adapter *, int);
+static void free_stid(struct adapter *, struct listen_ctx *);
 
 /* lctx services */
 static struct listen_ctx *alloc_lctx(struct adapter *, struct inpcb *,
@@ -81,45 +81,105 @@ static inline void save_qids_in_mbuf(struct mbuf *, struct port_info *);
 static inline void get_qids_from_mbuf(struct mbuf *m, int *, int *);
 static void send_reset_synqe(struct toedev *, struct synq_entry *);
 
-/* XXX: won't work for IPv6 */
 static int
-alloc_stid(struct adapter *sc, void *ctx)
+alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
 {
 	struct tid_info *t = &sc->tids;
-	int stid = -1;
+	u_int stid, n, f, mask;
+	struct stid_region *sr = &lctx->stid_region;
+
+	/*
+	 * An IPv6 server needs 2 naturally aligned stids (1 stid = 4 cells) in
+	 * the TCAM.  The start of the stid region is properly aligned (the chip
+	 * requires each region to be 128-cell aligned).
+	 */
+	n = isipv6 ? 2 : 1;
+	mask = n - 1;
+	KASSERT((t->stid_base & mask) == 0 && (t->nstids & mask) == 0,
+	    ("%s: stid region (%u, %u) not properly aligned.  n = %u",
+	    __func__, t->stid_base, t->nstids, n));
 
 	mtx_lock(&t->stid_lock);
-	if (t->sfree) {
-		union serv_entry *p = t->sfree;
-
-		stid = p - t->stid_tab;
-		stid += t->stid_base;
-		t->sfree = p->next;
-		p->data = ctx;
-		t->stids_in_use++;
+	if (n > t->nstids - t->stids_in_use) {
+		mtx_unlock(&t->stid_lock);
+		return (-1);
 	}
+
+	if (t->nstids_free_head >= n) {
+		/*
+		 * This allocation will definitely succeed because the region
+		 * starts at a good alignment and we just checked we have enough
+		 * stids free.
+		 */
+		f = t->nstids_free_head & mask;
+		t->nstids_free_head -= n + f;
+		stid = t->nstids_free_head;
+		TAILQ_INSERT_HEAD(&t->stids, sr, link);
+	} else {
+		struct stid_region *s;
+
+		stid = t->nstids_free_head;
+		TAILQ_FOREACH(s, &t->stids, link) {
+			stid += s->used + s->free;
+			f = stid & mask;
+			if (n <= s->free - f) {
+				stid -= n + f;
+				s->free -= n + f;
+				TAILQ_INSERT_AFTER(&t->stids, s, sr, link);
+				goto allocated;
+			}
+		}
+
+		if (__predict_false(stid != t->nstids)) {
+			panic("%s: stids TAILQ (%p) corrupt."
+			    "  At %d instead of %d at the end of the queue.",
+			    __func__, &t->stids, stid, t->nstids);
+		}
+
+		mtx_unlock(&t->stid_lock);
+		return (-1);
+	}
+
+allocated:
+	sr->used = n;
+	sr->free = f;
+	t->stids_in_use += n;
+	t->stid_tab[stid] = lctx;
 	mtx_unlock(&t->stid_lock);
-	return (stid);
+
+	KASSERT(((stid + t->stid_base) & mask) == 0,
+	    ("%s: EDOOFUS.", __func__));
+	return (stid + t->stid_base);
 }
 
-static void *
+static struct listen_ctx *
 lookup_stid(struct adapter *sc, int stid)
 {
 	struct tid_info *t = &sc->tids;
 
-	return (t->stid_tab[stid - t->stid_base].data);
+	return (t->stid_tab[stid - t->stid_base]);
 }
 
 static void
-free_stid(struct adapter *sc, int stid)
+free_stid(struct adapter *sc, struct listen_ctx *lctx)
 {
 	struct tid_info *t = &sc->tids;
-	union serv_entry *p = &t->stid_tab[stid - t->stid_base];
+	struct stid_region *sr = &lctx->stid_region;
+	struct stid_region *s;
+
+	KASSERT(sr->used > 0, ("%s: nonsense free (%d)", __func__, sr->used));
 
 	mtx_lock(&t->stid_lock);
-	p->next = t->sfree;
-	t->sfree = p;
-	t->stids_in_use--;
+	s = TAILQ_PREV(sr, stid_head, link);
+	if (s != NULL)
+		s->free += sr->used + sr->free;
+	else
+		t->nstids_free_head += sr->used + sr->free;
+	KASSERT(t->stids_in_use >= sr->used,
+	    ("%s: stids_in_use (%u) < stids being freed (%u)", __func__,
+	    t->stids_in_use, sr->used));
+	t->stids_in_use -= sr->used;
+	TAILQ_REMOVE(&t->stids, sr, link);
 	mtx_unlock(&t->stid_lock);
 }
 
@@ -134,7 +194,7 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct port_info *pi)
 	if (lctx == NULL)
 		return (NULL);
 
-	lctx->stid = alloc_stid(sc, lctx);
+	lctx->stid = alloc_stid(sc, lctx, inp->inp_inc.inc_flags & INC_ISIPV6);
 	if (lctx->stid < 0) {
 		free(lctx, M_CXGBE);
 		return (NULL);
@@ -167,7 +227,7 @@ free_lctx(struct adapter *sc, struct listen_ctx *lctx)
 	CTR4(KTR_CXGBE, "%s: stid %u, lctx %p, inp %p",
 	    __func__, lctx->stid, lctx, lctx->inp);
 
-	free_stid(sc, lctx->stid);
+	free_stid(sc, lctx);
 	free(lctx, M_CXGBE);
 
 	return (in_pcbrele_wlocked(inp));

@@ -1074,7 +1074,9 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 	q = td->td_proc;
 
 	if ((pid_t)id == WAIT_MYPGRP && (idtype == P_PID || idtype == P_PGID)) {
+		PROC_LOCK(q);
 		id = (id_t)q->p_pgid;
+		PROC_UNLOCK(q);
 		idtype = P_PGID;
 	}
 

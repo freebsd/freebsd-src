@@ -190,7 +190,7 @@ f_dialog_input_hostname()
 	# the stored configuration (in rc.conf(5)).
 	#
 	if [ "$( hostname )" != "$( f_sysrc_get hostname )" ]; then
-		[ ! "$USE_XDIALOG" ] && dialog_clear
+		[ ! "$USE_XDIALOG" ] && f_dialog_clear
 
 		#
 		# If connected via ssh(1) and performing X11-Forwarding, don't

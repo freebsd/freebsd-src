@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.284 2008/08/06 05:26:24 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.285 2012/06/14 23:54:02 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
@@ -869,7 +869,8 @@ readerr:
 			if (LogLevel > 6)
 				sm_syslog(LOG_NOTICE, e->e_id,
 					"message size (%ld) exceeds maximum (%ld)",
-					e->e_msgsize, MaxMessageSize);
+					PRT_NONNEGL(e->e_msgsize),
+					MaxMessageSize);
 		}
 	}
 

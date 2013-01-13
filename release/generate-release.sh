@@ -160,7 +160,7 @@ build_docports()
 {
 	# Could not install textproc/docproj from pkg(8) or pkg_add(1).  Build
 	# the port as final fallback.
-	chroot ${CHROOTDIR} /bin/sh -c 'make -C /usr/ports/textproc/docproj BATCH=yes WITH_JADETEX=no WITHOUT_X11=yes WITHOUT_PYTHON=yes install clean' || \
+	chroot ${CHROOTDIR} /bin/sh -c 'make -C /usr/ports/textproc/docproj BATCH=yes WITHOUT_SVN=yes WITH_JADETEX=no WITHOUT_X11=yes WITHOUT_PYTHON=yes install clean' || \
 		{ echo "*** Could not build the textproj/docproj port.  Exiting."; exit 2; }
 }
 
