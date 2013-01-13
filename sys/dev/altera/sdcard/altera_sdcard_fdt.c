@@ -52,21 +52,27 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/altera/sdcard/altera_sdcard.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 /*
- * Nexus bus attachment for the Altera SD Card IP core.  Appropriate for most
- * Altera FPGA SoC-style configurations in which the IP core will be exposed
- * to the processor via a memory-mapped Avalon bus.
+ * FDT bus attachment for the Altera SD Card IP core.
  */
 static int
-altera_sdcard_nexus_probe(device_t dev)
+altera_sdcard_fdt_probe(device_t dev)
 {
 
-	device_set_desc(dev, "Altera Secure Data Card IP Core");
-	return (BUS_PROBE_DEFAULT);
+	if (ofw_bus_is_compatible(dev, "altera,sdcard_11_2011")) {
+		device_set_desc(dev, "Altera Secure Data Card IP Core");
+		return (BUS_PROBE_DEFAULT);
+	}
+	return (ENXIO);
 }
 
 static int
-altera_sdcard_nexus_attach(device_t dev)
+altera_sdcard_fdt_attach(device_t dev)
 {
 	struct altera_sdcard_softc *sc;
 
@@ -85,7 +91,7 @@ altera_sdcard_nexus_attach(device_t dev)
 }
 
 static int
-altera_sdcard_nexus_detach(device_t dev)
+altera_sdcard_fdt_detach(device_t dev)
 {
 	struct altera_sdcard_softc *sc;
 
@@ -97,20 +103,20 @@ altera_sdcard_nexus_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t altera_sdcard_nexus_methods[] = {
-	DEVMETHOD(device_probe,		altera_sdcard_nexus_probe),
-	DEVMETHOD(device_attach,	altera_sdcard_nexus_attach),
-	DEVMETHOD(device_detach,	altera_sdcard_nexus_detach),
+static device_method_t altera_sdcard_fdt_methods[] = {
+	DEVMETHOD(device_probe,		altera_sdcard_fdt_probe),
+	DEVMETHOD(device_attach,	altera_sdcard_fdt_attach),
+	DEVMETHOD(device_detach,	altera_sdcard_fdt_detach),
 	{ 0, 0 }
 };
 
-static driver_t altera_sdcard_nexus_driver = {
+static driver_t altera_sdcard_fdt_driver = {
 	"altera_sdcardc",
-	altera_sdcard_nexus_methods,
+	altera_sdcard_fdt_methods,
 	sizeof(struct altera_sdcard_softc),
 };
 
 static devclass_t altera_sdcard_devclass;
 
-DRIVER_MODULE(altera_sdcard, nexus, altera_sdcard_nexus_driver,
+DRIVER_MODULE(altera_sdcard, simplebus, altera_sdcard_fdt_driver,
     altera_sdcard_devclass, 0, 0);

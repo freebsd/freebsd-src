@@ -641,6 +641,7 @@ dev/altera/avgen/altera_avgen.c		optional altera_avgen
 dev/altera/sdcard/altera_sdcard.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
+dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
