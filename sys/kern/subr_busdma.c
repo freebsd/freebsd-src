@@ -246,6 +246,17 @@ _busdma_data_dump(const char *func, struct busdma_md *md, bus_addr_t addr,
 
 /* Section 3.3: API support functions. */
 
+static u_int
+_busdma_flags(const char *func, device_t dev, u_int flags)
+{
+
+	if (flags & BUSDMA_MD_PLATFORM_FLAGS)
+		device_printf(dev, "called %s() with invalid flags %#x\n",
+		    func, flags);
+
+	return (flags & ~BUSDMA_MD_PLATFORM_FLAGS);
+}
+
 static struct busdma_md_seg *
 _busdma_md_get_seg(struct busdma_md *md, u_int idx)
 {
@@ -524,6 +535,8 @@ busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
 	CTR5(KTR_BUSDMA, "%s: maxsz=%#jx, nsegs=%u, maxsegsz=%#jx, flags=%#x",
 	    __func__, maxsz, nsegs, (uintmax_t)maxsegsz, flags);
 
+	flags = _busdma_flags(__func__, dev, flags);
+
 	if (dev == NULL || tag_p == NULL)
 		return (EINVAL);
 
@@ -555,6 +568,8 @@ busdma_tag_derive(struct busdma_tag *base, bus_addr_t align, bus_addr_t bndry,
 	    (uintmax_t)maxaddr);
 	CTR5(KTR_BUSDMA, "%s: maxsz=%#jx, nsegs=%u, maxsegsz=%#jx, flags=%#x",
 	    __func__, maxsz, nsegs, (uintmax_t)maxsegsz, flags);
+
+	flags = _busdma_flags(__func__, base->dt_device, flags);
 
 	if (base == NULL || tag_p == NULL)
 		return (EINVAL);
@@ -602,6 +617,8 @@ busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	struct busdma_md *md;
 
 	CTR3(KTR_BUSDMA, "%s: tag=%p, flags=%#x", __func__, tag, flags);
+
+	flags = _busdma_flags(__func__, tag->dt_device, flags);
 
 	if (tag == NULL || md_p == NULL)
 		return (EINVAL);
@@ -725,6 +742,8 @@ busdma_md_load_linear(struct busdma_md *md, void *buf, size_t len,
 	CTR6(KTR_BUSDMA, "busdma_md_load_linear: md=%p, buf=%p, len=%zu, "
 	    "cb=%p, arg=%p, flags=%#x", md, buf, len, cb, arg, flags);
 
+	flags = _busdma_flags(__func__, md->md_tag->dt_device, flags);
+
 	if (md == NULL || buf == NULL || len == 0)
 		return (EINVAL);
 
@@ -747,6 +766,8 @@ busdma_md_load_phys(struct busdma_md *md, vm_paddr_t buf, size_t len,
 	    "cb=%p, arg=%p, flags=%#x", md, (uintmax_t)buf, len, cb, arg,
 	    flags);
 
+	flags = _busdma_flags(__func__, md->md_tag->dt_device, flags);
+
 	panic(__func__);
 	(*cb)(arg, md, ENOSYS);
 	return (0);
@@ -759,6 +780,8 @@ busdma_md_load_uio(struct busdma_md *md, struct uio *uio,
 
 	CTR6(KTR_BUSDMA, "%s: md=%p, uio=%p, cb=%p, arg=%p, flags=%#x",
 	    __func__, md, uio, cb, arg, flags);
+
+	flags = _busdma_flags(__func__, md->md_tag->dt_device, flags);
 
 	panic(__func__);
 	(*cb)(arg, md, ENOSYS);
@@ -805,6 +828,8 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	int error, mflags;
 
 	CTR3(KTR_BUSDMA, "%s: tag=%p, flags=%#x", __func__, tag, flags);
+
+	flags = _busdma_flags(__func__, tag->dt_device, flags);
 
 	if (tag == NULL || md_p == NULL)
 		return (EINVAL);
