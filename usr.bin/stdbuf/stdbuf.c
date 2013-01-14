@@ -72,8 +72,8 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
-	if (argc < 2)
-		usage(0);
+	if (argc == 0)
+		exit(0);
 
 	if (ibuf != NULL && setenv("_STDBUF_I", ibuf, 1) == -1)
 		warn("Failed to set environment variable: %s=%s",
