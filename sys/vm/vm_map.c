@@ -3247,7 +3247,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	vm_offset_t bot, top;
 	vm_size_t growsize, init_ssize;
 	int orient, rv;
-	rlim_t vmemlim;
+	rlim_t lmemlim, vmemlim;
 
 	/*
 	 * The stack orientation is piggybacked with the cow argument.
@@ -3267,9 +3267,10 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	growsize = sgrowsiz;
 	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
 
-	PROC_LOCK(curthread->td_proc);
-	vmemlim = lim_cur(curthread->td_proc, RLIMIT_VMEM);
-	PROC_UNLOCK(curthread->td_proc);
+	PROC_LOCK(curproc);
+	lmemlim = lim_cur(curproc, RLIMIT_MEMLOCK);
+	vmemlim = lim_cur(curproc, RLIMIT_VMEM);
+	PROC_UNLOCK(curproc);
 
 	vm_map_lock(map);
 
@@ -3277,6 +3278,14 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	if (vm_map_lookup_entry(map, addrbos, &prev_entry)) {
 		vm_map_unlock(map);
 		return (KERN_NO_SPACE);
+	}
+
+	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+		if (ptoa(vmspace_wired_count(curproc->p_vmspace)) +
+		    init_ssize > lmemlim) {
+			vm_map_unlock(map);
+			return (KERN_NO_SPACE);
+		}
 	}
 
 	/* If we would blow our VMEM resource limit, no go */
@@ -3360,7 +3369,7 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	vm_offset_t end;
 	vm_size_t growsize;
 	size_t grow_amount, max_grow;
-	rlim_t stacklim, vmemlim;
+	rlim_t lmemlim, stacklim, vmemlim;
 	int is_procstack, rv;
 	struct ucred *cred;
 #ifdef notyet
@@ -3372,6 +3381,7 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 
 Retry:
 	PROC_LOCK(p);
+	lmemlim = lim_cur(p, RLIMIT_MEMLOCK);
 	stacklim = lim_cur(p, RLIMIT_STACK);
 	vmemlim = lim_cur(p, RLIMIT_VMEM);
 	PROC_UNLOCK(p);
@@ -3494,7 +3504,25 @@ Retry:
 	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > limit))
 		grow_amount = limit - ctob(vm->vm_ssize);
 #endif
-
+	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+		if (ptoa(vmspace_wired_count(p->p_vmspace)) + grow_amount >
+		    lmemlim) {
+			vm_map_unlock_read(map);
+			rv = KERN_NO_SPACE;
+			goto out;
+		}
+#ifdef RACCT
+		PROC_LOCK(p);
+		if (racct_set(p, RACCT_MEMLOCK,
+		    ptoa(vmspace_wired_count(p->p_vmspace)) + grow_amount)) {
+			PROC_UNLOCK(p);
+			vm_map_unlock_read(map);
+			rv = KERN_NO_SPACE;
+			goto out;
+		}
+		PROC_UNLOCK(p);
+#endif
+	}
 	/* If we would blow our VMEM resource limit, no go */
 	if (map->size + grow_amount > vmemlim) {
 		vm_map_unlock_read(map);
@@ -3615,6 +3643,11 @@ out:
 		PROC_LOCK(p);
 		error = racct_set(p, RACCT_VMEM, map->size);
 		KASSERT(error == 0, ("decreasing RACCT_VMEM failed"));
+		if (!old_mlock) {
+			error = racct_set(p, RACCT_MEMLOCK,
+			    ptoa(vmspace_wired_count(p->p_vmspace)));
+			KASSERT(error == 0, ("decreasing RACCT_MEMLOCK failed"));
+		}
 	    	error = racct_set(p, RACCT_STACK, ctob(vm->vm_ssize));
 		KASSERT(error == 0, ("decreasing RACCT_STACK failed"));
 		PROC_UNLOCK(p);
