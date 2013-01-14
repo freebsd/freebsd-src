@@ -1866,7 +1866,9 @@ get_params__post_init(struct adapter *sc)
 	param[1] = FW_PARAM_PFVF(EQ_START);
 	param[2] = FW_PARAM_PFVF(FILTER_START);
 	param[3] = FW_PARAM_PFVF(FILTER_END);
-	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
+	param[4] = FW_PARAM_PFVF(L2T_START);
+	param[5] = FW_PARAM_PFVF(L2T_END);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 	if (rc != 0) {
 		device_printf(sc->dev,
 		    "failed to query parameters (post_init): %d.\n", rc);
@@ -1877,6 +1879,11 @@ get_params__post_init(struct adapter *sc)
 	sc->sge.eq_start = val[1];
 	sc->tids.ftid_base = val[2];
 	sc->tids.nftids = val[3] - val[2] + 1;
+	sc->vres.l2t.start = val[4];
+	sc->vres.l2t.size = val[5] - val[4] + 1;
+	KASSERT(sc->vres.l2t.size <= L2T_SIZE,
+	    ("%s: L2 table size (%u) larger than expected (%u)",
+	    __func__, sc->vres.l2t.size, L2T_SIZE));
 
 	/* get capabilites */
 	bzero(&caps, sizeof(caps));
