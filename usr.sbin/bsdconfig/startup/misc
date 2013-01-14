@@ -307,14 +307,14 @@ while :; do
 		?" [X] "*) err=$( f_sysrc_set apm_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set apm_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_startup_dirs")
 		dialog_input_value \
 			"$msg_startup_dirs_desc" \
 			"$( f_sysrc_get local_startup )"
 		if [ $? -eq $SUCCESS ]; then
 			err=$( f_sysrc_set local_startup "$value" ) ||
-				f_show_msg "%s\n" "$err"
+				f_dialog_msgbox "$err\n"
 		fi
 		;;
 	?" ["?"] $msg_named")
@@ -322,14 +322,14 @@ while :; do
 		?" [X] "*) err=$( f_sysrc_set named_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set named_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_named_flags")
 		dialog_input_value \
 			"$msg_named_flags_desc" \
 			"$( f_sysrc_get named_flags )"
 		if [ $? -eq $SUCCESS ]; then
 			err=$( f_sysrc_set named_flags "$value" ) ||
-				f_show_msg "%s\n" "$err"
+				f_dialog_msgbox "$err\n"
 		fi
 		;;
 	?" ["?"] $msg_nis_client")
@@ -339,14 +339,14 @@ while :; do
 			err=$( f_sysrc_set nis_client_enable YES 2>&1 ) \
 			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_nis_domainname")
 		dialog_input_value \
 			"$msg_nis_domainname_desc" \
 			"$( f_sysrc_get nisdomainname )"
 		if [ $? -eq $SUCCESS ]; then
 			err=$( f_sysrc_set nisdomainname "$value" ) ||
-				f_show_msg "%s\n" "$err"
+				f_dialog_msgbox "$err\n"
 		fi
 		;;
 	?" ["?"] $msg_nis_server")
@@ -356,31 +356,31 @@ while :; do
 			err=$( f_sysrc_set nis_server_enable YES 2>&1 ) \
 			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_accounting")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set accounting_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set accounting_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_lpd")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set lpd_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set lpd_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_sco")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set ibcs2_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set ibcs2_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_svr4")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set svr4_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set svr4_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	esac
 done
 

@@ -318,7 +318,7 @@ while :; do
 			for var in $delete_vars; do
 				err=$( f_sysrc_delete $var 2>&1 )
 				if [ $? -ne $SUCCESS ]; then
-					f_show_msg "%s\n" "$err"
+					f_dialog_msgbox "$err\n"
 					break
 				fi
 			done
