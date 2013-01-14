@@ -343,6 +343,7 @@ f_dialog_menu_netdev_edit()
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
 			--help-button                      \
+			--help-label \"\$msg_help\"        \
 			${USE_XDIALOG:+--help \"\"}        \
 			--menu \"\$prompt\" $size          \
 			$menu_list                         \
