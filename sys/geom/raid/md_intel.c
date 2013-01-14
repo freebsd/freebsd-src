@@ -98,8 +98,9 @@ struct intel_raid_vol {
 	uint8_t		cng_master_disk;
 	uint16_t	cache_policy;
 	uint8_t		cng_state;
-#define INTEL_SNGST_NEEDS_UPDATE	1
-#define INTEL_SNGST_MASTER_MISSING	2
+#define INTEL_CNGST_UPDATED		0
+#define INTEL_CNGST_NEEDS_UPDATE	1
+#define INTEL_CNGST_MASTER_MISSING	2
 	uint8_t		cng_sub_state;
 	uint32_t	filler_0[10];
 
@@ -2366,9 +2367,11 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			mvol->cng_master_disk = pv->pv_cng_master_disk;
 			if (vol->v_subdisks[pv->pv_cng_master_disk].sd_state ==
 			    G_RAID_SUBDISK_S_NONE)
-				mvol->cng_state = INTEL_SNGST_MASTER_MISSING;
+				mvol->cng_state = INTEL_CNGST_MASTER_MISSING;
 			else if (vol->v_state != G_RAID_VOLUME_S_OPTIMAL)
-				mvol->cng_state = INTEL_SNGST_NEEDS_UPDATE;
+				mvol->cng_state = INTEL_CNGST_NEEDS_UPDATE;
+			else
+				mvol->cng_state = INTEL_CNGST_UPDATED;
 		}
 
 		/* Check for any recovery in progress. */
