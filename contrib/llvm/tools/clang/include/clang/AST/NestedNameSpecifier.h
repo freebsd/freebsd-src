@@ -31,7 +31,7 @@ class TypeLoc;
 class LangOptions;
 
 /// \brief Represents a C++ nested name specifier, such as
-/// "::std::vector<int>::".
+/// "\::std::vector<int>::".
 ///
 /// C++ nested name specifiers are the prefixes to qualified
 /// namespaces. For example, "foo::" in "foo::x" is a nested name
@@ -97,8 +97,7 @@ private:
       Specifier(Other.Specifier) {
   }
 
-  NestedNameSpecifier &operator=(const NestedNameSpecifier &); // do not
-                                                               // implement
+  void operator=(const NestedNameSpecifier &) LLVM_DELETED_FUNCTION;
 
   /// \brief Either find or insert the given nested name specifier
   /// mockup in the given context.
@@ -190,7 +189,7 @@ public:
   bool isInstantiationDependent() const;
 
   /// \brief Whether this nested-name-specifier contains an unexpanded
-  /// parameter pack (for C++0x variadic templates).
+  /// parameter pack (for C++11 variadic templates).
   bool containsUnexpandedParameterPack() const;
 
   /// \brief Print this nested name specifier to the given output
@@ -247,7 +246,7 @@ public:
   /// nested-name-specifier.
   ///
   /// For example, if this instance refers to a nested-name-specifier
-  /// \c ::std::vector<int>::, the returned source range would cover
+  /// \c \::std::vector<int>::, the returned source range would cover
   /// from the initial '::' to the last '::'.
   SourceRange getSourceRange() const LLVM_READONLY;
 
@@ -255,7 +254,7 @@ public:
   /// this nested-name-specifier, not including the prefix.
   ///
   /// For example, if this instance refers to a nested-name-specifier
-  /// \c ::std::vector<int>::, the returned source range would cover
+  /// \c \::std::vector<int>::, the returned source range would cover
   /// from "vector" to the last '::'.
   SourceRange getLocalSourceRange() const;
 
@@ -286,7 +285,7 @@ public:
   /// \brief Return the prefix of this nested-name-specifier.
   ///
   /// For example, if this instance refers to a nested-name-specifier
-  /// \c ::std::vector<int>::, the prefix is \c ::std::. Note that the
+  /// \c \::std::vector<int>::, the prefix is \c \::std::. Note that the
   /// returned prefix may be empty, if this is the first component of
   /// the nested-name-specifier.
   NestedNameSpecifierLoc getPrefix() const {
@@ -443,8 +442,9 @@ public:
   NestedNameSpecifierLoc getWithLocInContext(ASTContext &Context) const;
 
   /// \brief Retrieve a nested-name-specifier with location
-  /// information based on the information in this builder.  This loc
-  /// will contain references to the builder's internal data and may
+  /// information based on the information in this builder.
+  ///
+  /// This loc will contain references to the builder's internal data and may
   /// be invalidated by any change to the builder.
   NestedNameSpecifierLoc getTemporary() const {
     return NestedNameSpecifierLoc(Representation, Buffer);

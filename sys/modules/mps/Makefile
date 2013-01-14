@@ -13,5 +13,7 @@ DEBUG_FLAGS += -g
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS.mps_sas.c=	${NO_WUNNEEDED_INTERNAL_DECL}
-CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}
+CWARNFLAGS.mps_sas.c=		${NO_WUNNEEDED_INTERNAL_DECL}
+# XXX Work around clang warning, until maintainer approves fix.
+CWARNFLAGS.mps_mapping.c=	${NO_WSOMETIMES_UNINITIALIZED}
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

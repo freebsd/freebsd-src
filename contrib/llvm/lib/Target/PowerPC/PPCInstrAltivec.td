@@ -274,15 +274,11 @@ let PPC970_Unit = 5 in {  // VALU Operations.
 // VA-Form instructions.  3-input AltiVec ops.
 def VMADDFP : VAForm_1<46, (outs VRRC:$vD), (ins VRRC:$vA, VRRC:$vC, VRRC:$vB),
                        "vmaddfp $vD, $vA, $vC, $vB", VecFP,
-                       [(set VRRC:$vD, (fadd (fmul VRRC:$vA, VRRC:$vC),
-                                             VRRC:$vB))]>,
-                       Requires<[FPContractions]>;
+                       [(set VRRC:$vD, (fma VRRC:$vA, VRRC:$vC, VRRC:$vB))]>;
 def VNMSUBFP: VAForm_1<47, (outs VRRC:$vD), (ins VRRC:$vA, VRRC:$vC, VRRC:$vB),
                        "vnmsubfp $vD, $vA, $vC, $vB", VecFP,
-                       [(set VRRC:$vD, (fsub V_immneg0,
-                                             (fsub (fmul VRRC:$vA, VRRC:$vC),
-                                                   VRRC:$vB)))]>,
-                       Requires<[FPContractions]>;
+                       [(set VRRC:$vD, (fneg (fma VRRC:$vA, VRRC:$vC,
+                                                  (fneg VRRC:$vB))))]>; 
 
 def VMHADDSHS  : VA1a_Int<32, "vmhaddshs",  int_ppc_altivec_vmhaddshs>;
 def VMHRADDSHS : VA1a_Int<33, "vmhraddshs", int_ppc_altivec_vmhraddshs>;
@@ -344,6 +340,28 @@ def VCTUXS : VXForm_1<906, (outs VRRC:$vD), (ins u5imm:$UIMM, VRRC:$vB),
                       "vctuxs $vD, $vB, $UIMM", VecFP,
                       [(set VRRC:$vD,
                              (int_ppc_altivec_vctuxs VRRC:$vB, imm:$UIMM))]>;
+
+// Defines with the UIM field set to 0 for floating-point
+// to integer (fp_to_sint/fp_to_uint) conversions and integer
+// to floating-point (sint_to_fp/uint_to_fp) conversions.
+let VA = 0 in {
+def VCFSX_0 : VXForm_1<842, (outs VRRC:$vD), (ins VRRC:$vB),
+                       "vcfsx $vD, $vB, 0", VecFP,
+                       [(set VRRC:$vD,
+                             (int_ppc_altivec_vcfsx VRRC:$vB, 0))]>;
+def VCTUXS_0 : VXForm_1<906, (outs VRRC:$vD), (ins VRRC:$vB),
+                        "vctuxs $vD, $vB, 0", VecFP,
+                        [(set VRRC:$vD,
+                               (int_ppc_altivec_vctuxs VRRC:$vB, 0))]>;
+def VCFUX_0 : VXForm_1<778, (outs VRRC:$vD), (ins VRRC:$vB),
+                       "vcfux $vD, $vB, 0", VecFP,
+                       [(set VRRC:$vD,
+                               (int_ppc_altivec_vcfux VRRC:$vB, 0))]>;
+def VCTSXS_0 : VXForm_1<970, (outs VRRC:$vD), (ins VRRC:$vB),
+                      "vctsxs $vD, $vB, 0", VecFP,
+                      [(set VRRC:$vD,
+                             (int_ppc_altivec_vctsxs VRRC:$vB, 0))]>;
+}
 def VEXPTEFP : VX2_Int<394, "vexptefp", int_ppc_altivec_vexptefp>;
 def VLOGEFP  : VX2_Int<458, "vlogefp",  int_ppc_altivec_vlogefp>;
 
@@ -693,3 +711,13 @@ def : Pat<(v8i16 (sra (v8i16 VRRC:$vA), (v8i16 VRRC:$vB))),
           (v8i16 (VSRAH VRRC:$vA, VRRC:$vB))>;
 def : Pat<(v4i32 (sra (v4i32 VRRC:$vA), (v4i32 VRRC:$vB))),
           (v4i32 (VSRAW VRRC:$vA, VRRC:$vB))>;
+
+// Float to integer and integer to float conversions
+def : Pat<(v4i32 (fp_to_sint (v4f32 VRRC:$vA))),
+           (VCTSXS_0 VRRC:$vA)>;
+def : Pat<(v4i32 (fp_to_uint (v4f32 VRRC:$vA))),
+           (VCTUXS_0 VRRC:$vA)>;
+def : Pat<(v4f32 (sint_to_fp (v4i32 VRRC:$vA))),
+           (VCFSX_0 VRRC:$vA)>;
+def : Pat<(v4f32 (uint_to_fp (v4i32 VRRC:$vA))),
+           (VCFUX_0 VRRC:$vA)>;

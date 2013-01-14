@@ -14,7 +14,6 @@ SUBDIR+=bugpoint \
 	llvm-diff \
 	llvm-dis \
 	llvm-extract \
-	llvm-ld \
 	llvm-link \
 	llvm-mc \
 	llvm-nm \
@@ -22,7 +21,6 @@ SUBDIR+=bugpoint \
 	llvm-prof \
 	llvm-ranlib \
 	llvm-rtdyld \
-	llvm-stub \
 	macho-dump \
 	opt
 .endif

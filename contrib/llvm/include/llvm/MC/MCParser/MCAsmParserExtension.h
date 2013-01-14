@@ -21,8 +21,8 @@ class Twine;
 /// which is implemented by target and object file assembly parser
 /// implementations.
 class MCAsmParserExtension {
-  MCAsmParserExtension(const MCAsmParserExtension &);   // DO NOT IMPLEMENT
-  void operator=(const MCAsmParserExtension &);  // DO NOT IMPLEMENT
+  MCAsmParserExtension(const MCAsmParserExtension &) LLVM_DELETED_FUNCTION;
+  void operator=(const MCAsmParserExtension &) LLVM_DELETED_FUNCTION;
 
   MCAsmParser *Parser;
 
@@ -43,8 +43,8 @@ protected:
 public:
   virtual ~MCAsmParserExtension();
 
-  /// \brief Initialize the extension for parsing using the given \arg
-  /// Parser. The extension should use the AsmParser interfaces to register its
+  /// \brief Initialize the extension for parsing using the given \p Parser.
+  /// The extension should use the AsmParser interfaces to register its
   /// parsing routines.
   virtual void Initialize(MCAsmParser &Parser);
 

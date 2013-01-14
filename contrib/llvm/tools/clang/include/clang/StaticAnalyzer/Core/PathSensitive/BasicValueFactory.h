@@ -16,6 +16,7 @@
 #ifndef LLVM_CLANG_GR_BASICVALUEFACTORY_H
 #define LLVM_CLANG_GR_BASICVALUEFACTORY_H
 
+#include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 
@@ -72,6 +73,10 @@ class BasicValueFactory {
   llvm::FoldingSet<CompoundValData>  CompoundValDataSet;
   llvm::FoldingSet<LazyCompoundValData> LazyCompoundValDataSet;
 
+  // This is private because external clients should use the factory
+  // method that takes a QualType.
+  const llvm::APSInt& getValue(uint64_t X, unsigned BitWidth, bool isUnsigned);
+
 public:
   BasicValueFactory(ASTContext &ctx, llvm::BumpPtrAllocator& Alloc)
   : Ctx(ctx), BPAlloc(Alloc), PersistentSVals(0), PersistentSValPairs(0),
@@ -83,31 +88,32 @@ public:
 
   const llvm::APSInt& getValue(const llvm::APSInt& X);
   const llvm::APSInt& getValue(const llvm::APInt& X, bool isUnsigned);
-  const llvm::APSInt& getValue(uint64_t X, unsigned BitWidth, bool isUnsigned);
   const llvm::APSInt& getValue(uint64_t X, QualType T);
+
+  /// Returns the type of the APSInt used to store values of the given QualType.
+  APSIntType getAPSIntType(QualType T) const {
+    assert(T->isIntegerType() || Loc::isLocType(T));
+    return APSIntType(Ctx.getTypeSize(T),
+                      !T->isSignedIntegerOrEnumerationType());
+  }
 
   /// Convert - Create a new persistent APSInt with the same value as 'From'
   ///  but with the bitwidth and signedness of 'To'.
   const llvm::APSInt &Convert(const llvm::APSInt& To,
                               const llvm::APSInt& From) {
-
-    if (To.isUnsigned() == From.isUnsigned() &&
-        To.getBitWidth() == From.getBitWidth())
+    APSIntType TargetType(To);
+    if (TargetType == APSIntType(From))
       return From;
 
-    return getValue(From.getSExtValue(), To.getBitWidth(), To.isUnsigned());
+    return getValue(TargetType.convert(From));
   }
   
   const llvm::APSInt &Convert(QualType T, const llvm::APSInt &From) {
-    assert(T->isIntegerType() || Loc::isLocType(T));
-    unsigned bitwidth = Ctx.getTypeSize(T);
-    bool isUnsigned 
-      = T->isUnsignedIntegerOrEnumerationType() || Loc::isLocType(T);
-    
-    if (isUnsigned == From.isUnsigned() && bitwidth == From.getBitWidth())
+    APSIntType TargetType = getAPSIntType(T);
+    if (TargetType == APSIntType(From))
       return From;
     
-    return getValue(From.getSExtValue(), bitwidth, isUnsigned);
+    return getValue(TargetType.convert(From));
   }
 
   const llvm::APSInt& getIntValue(uint64_t X, bool isUnsigned) {
@@ -116,25 +122,19 @@ public:
   }
 
   inline const llvm::APSInt& getMaxValue(const llvm::APSInt &v) {
-    return getValue(llvm::APSInt::getMaxValue(v.getBitWidth(), v.isUnsigned()));
+    return getValue(APSIntType(v).getMaxValue());
   }
 
   inline const llvm::APSInt& getMinValue(const llvm::APSInt &v) {
-    return getValue(llvm::APSInt::getMinValue(v.getBitWidth(), v.isUnsigned()));
+    return getValue(APSIntType(v).getMinValue());
   }
 
   inline const llvm::APSInt& getMaxValue(QualType T) {
-    assert(T->isIntegerType() || Loc::isLocType(T));
-    bool isUnsigned 
-      = T->isUnsignedIntegerOrEnumerationType() || Loc::isLocType(T);
-    return getValue(llvm::APSInt::getMaxValue(Ctx.getTypeSize(T), isUnsigned));
+    return getValue(getAPSIntType(T).getMaxValue());
   }
 
   inline const llvm::APSInt& getMinValue(QualType T) {
-    assert(T->isIntegerType() || Loc::isLocType(T));
-    bool isUnsigned 
-      = T->isUnsignedIntegerOrEnumerationType() || Loc::isLocType(T);
-    return getValue(llvm::APSInt::getMinValue(Ctx.getTypeSize(T), isUnsigned));
+    return getValue(getAPSIntType(T).getMinValue());
   }
 
   inline const llvm::APSInt& Add1(const llvm::APSInt& V) {

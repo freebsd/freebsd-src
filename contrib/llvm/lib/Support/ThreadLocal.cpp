@@ -25,9 +25,18 @@ namespace llvm {
 using namespace sys;
 ThreadLocalImpl::ThreadLocalImpl() { }
 ThreadLocalImpl::~ThreadLocalImpl() { }
-void ThreadLocalImpl::setInstance(const void* d) { data = const_cast<void*>(d);}
-const void* ThreadLocalImpl::getInstance() { return data; }
-void ThreadLocalImpl::removeInstance() { data = 0; }
+void ThreadLocalImpl::setInstance(const void* d) {
+  typedef int SIZE_TOO_BIG[sizeof(d) <= sizeof(data) ? 1 : -1];
+  void **pd = reinterpret_cast<void**>(&data);
+  *pd = const_cast<void*>(d);
+}
+const void* ThreadLocalImpl::getInstance() {
+  void **pd = reinterpret_cast<void**>(&data);
+  return *pd;
+}
+void ThreadLocalImpl::removeInstance() {
+  setInstance(0);
+}
 }
 #else
 
@@ -40,31 +49,30 @@ void ThreadLocalImpl::removeInstance() { data = 0; }
 namespace llvm {
 using namespace sys;
 
-ThreadLocalImpl::ThreadLocalImpl() : data(0) {
-  pthread_key_t* key = new pthread_key_t;
+ThreadLocalImpl::ThreadLocalImpl() : data() {
+  typedef int SIZE_TOO_BIG[sizeof(pthread_key_t) <= sizeof(data) ? 1 : -1];
+  pthread_key_t* key = reinterpret_cast<pthread_key_t*>(&data);
   int errorcode = pthread_key_create(key, NULL);
   assert(errorcode == 0);
   (void) errorcode;
-  data = (void*)key;
 }
 
 ThreadLocalImpl::~ThreadLocalImpl() {
-  pthread_key_t* key = static_cast<pthread_key_t*>(data);
+  pthread_key_t* key = reinterpret_cast<pthread_key_t*>(&data);
   int errorcode = pthread_key_delete(*key);
   assert(errorcode == 0);
   (void) errorcode;
-  delete key;
 }
 
 void ThreadLocalImpl::setInstance(const void* d) {
-  pthread_key_t* key = static_cast<pthread_key_t*>(data);
+  pthread_key_t* key = reinterpret_cast<pthread_key_t*>(&data);
   int errorcode = pthread_setspecific(*key, d);
   assert(errorcode == 0);
   (void) errorcode;
 }
 
 const void* ThreadLocalImpl::getInstance() {
-  pthread_key_t* key = static_cast<pthread_key_t*>(data);
+  pthread_key_t* key = reinterpret_cast<pthread_key_t*>(&data);
   return pthread_getspecific(*key);
 }
 

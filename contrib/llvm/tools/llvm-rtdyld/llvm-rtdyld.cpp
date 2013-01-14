@@ -14,6 +14,8 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
+#include "llvm/ExecutionEngine/ObjectImage.h"
+#include "llvm/ExecutionEngine/ObjectBuffer.h"
 #include "llvm/Object/MachOObject.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -63,18 +65,37 @@ public:
     return 0;
   }
 
+  // Invalidate instruction cache for sections with execute permissions.
+  // Some platforms with separate data cache and instruction cache require
+  // explicit cache flush, otherwise JIT code manipulations (like resolved
+  // relocations) will get to the data cache but not to the instruction cache.
+  virtual void invalidateInstructionCache();
 };
 
 uint8_t *TrivialMemoryManager::allocateCodeSection(uintptr_t Size,
                                                    unsigned Alignment,
                                                    unsigned SectionID) {
-  return (uint8_t*)sys::Memory::AllocateRWX(Size, 0, 0).base();
+  sys::MemoryBlock MB = sys::Memory::AllocateRWX(Size, 0, 0);
+  FunctionMemory.push_back(MB);
+  return (uint8_t*)MB.base();
 }
 
 uint8_t *TrivialMemoryManager::allocateDataSection(uintptr_t Size,
                                                    unsigned Alignment,
                                                    unsigned SectionID) {
-  return (uint8_t*)sys::Memory::AllocateRWX(Size, 0, 0).base();
+  sys::MemoryBlock MB = sys::Memory::AllocateRWX(Size, 0, 0);
+  DataMemory.push_back(MB);
+  return (uint8_t*)MB.base();
+}
+
+void TrivialMemoryManager::invalidateInstructionCache() {
+  for (int i = 0, e = FunctionMemory.size(); i != e; ++i)
+    sys::Memory::InvalidateInstructionCache(FunctionMemory[i].base(),
+                                            FunctionMemory[i].size());
+
+  for (int i = 0, e = DataMemory.size(); i != e; ++i)
+    sys::Memory::InvalidateInstructionCache(DataMemory[i].base(),
+                                            DataMemory[i].size());
 }
 
 static const char *ProgramName;
@@ -101,18 +122,22 @@ static int executeInput() {
   for(unsigned i = 0, e = InputFileList.size(); i != e; ++i) {
     // Load the input memory buffer.
     OwningPtr<MemoryBuffer> InputBuffer;
+    OwningPtr<ObjectImage>  LoadedObject;
     if (error_code ec = MemoryBuffer::getFileOrSTDIN(InputFileList[i],
                                                      InputBuffer))
       return Error("unable to read input: '" + ec.message() + "'");
 
-    // Load the object file into it.
-    if (Dyld.loadObject(InputBuffer.take())) {
+    // Load the object file
+    LoadedObject.reset(Dyld.loadObject(new ObjectBuffer(InputBuffer.take())));
+    if (!LoadedObject) {
       return Error(Dyld.getErrorString());
     }
   }
 
   // Resolve all the relocations we can.
   Dyld.resolveRelocations();
+  // Clear instruction cache before code will be executed.
+  MemMgr->invalidateInstructionCache();
 
   // FIXME: Error out if there are unresolved relocations.
 

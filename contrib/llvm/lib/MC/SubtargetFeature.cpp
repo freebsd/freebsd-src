@@ -92,7 +92,7 @@ static void Split(std::vector<std::string> &V, const StringRef S) {
 static std::string Join(const std::vector<std::string> &V) {
   // Start with empty string.
   std::string Result;
-  // If the vector is not empty 
+  // If the vector is not empty
   if (!V.empty()) {
     // Start with the first feature
     Result = V[0];
@@ -104,7 +104,7 @@ static std::string Join(const std::vector<std::string> &V) {
       Result += V[i];
     }
   }
-  // Return the features string 
+  // Return the features string
   return Result;
 }
 
@@ -119,14 +119,15 @@ void SubtargetFeatures::AddFeature(const StringRef String,
 }
 
 /// Find KV in array using binary search.
-template<typename T> const T *Find(const StringRef S, const T *A, size_t L) {
+static const SubtargetFeatureKV *Find(StringRef S, const SubtargetFeatureKV *A,
+                                      size_t L) {
   // Make the lower bound element we're looking for
-  T KV;
+  SubtargetFeatureKV KV;
   KV.Key = S.data();
   // Determine the end of the array
-  const T *Hi = A + L;
+  const SubtargetFeatureKV *Hi = A + L;
   // Binary search the array
-  const T *F = std::lower_bound(A, Hi, KV);
+  const SubtargetFeatureKV *F = std::lower_bound(A, Hi, KV);
   // If not found then return NULL
   if (F == Hi || StringRef(F->Key) != S) return NULL;
   // Return the found array item
@@ -205,7 +206,7 @@ void SetImpliedBits(uint64_t &Bits, const SubtargetFeatureKV *FeatureEntry,
 
 /// ClearImpliedBits - For each feature that (transitively) implies this
 /// feature, clear it.
-/// 
+///
 static
 void ClearImpliedBits(uint64_t &Bits, const SubtargetFeatureKV *FeatureEntry,
                       const SubtargetFeatureKV *FeatureTable,
@@ -252,7 +253,7 @@ SubtargetFeatures::ToggleFeature(uint64_t Bits, const StringRef Feature,
 
   return Bits;
 }
-           
+
 
 /// getFeatureBits - Get feature bits a CPU.
 ///
@@ -279,7 +280,7 @@ uint64_t SubtargetFeatures::getFeatureBits(const StringRef CPU,
   // Check if help is needed
   if (CPU == "help")
     Help(CPUTable, CPUTableSize, FeatureTable, FeatureTableSize);
-  
+
   // Find CPU entry if CPU name is specified.
   if (!CPU.empty()) {
     const SubtargetFeatureKV *CPUEntry = Find(CPU, CPUTable, CPUTableSize);
@@ -304,11 +305,11 @@ uint64_t SubtargetFeatures::getFeatureBits(const StringRef CPU,
   // Iterate through each feature
   for (size_t i = 0, E = Features.size(); i < E; i++) {
     const StringRef Feature = Features[i];
-    
+
     // Check for help
     if (Feature == "+help")
       Help(CPUTable, CPUTableSize, FeatureTable, FeatureTableSize);
-    
+
     // Find feature in table.
     const SubtargetFeatureKV *FeatureEntry =
                        Find(StripFlag(Feature), FeatureTable, FeatureTableSize);
@@ -336,30 +337,6 @@ uint64_t SubtargetFeatures::getFeatureBits(const StringRef CPU,
   return Bits;
 }
 
-/// Get scheduling itinerary of a CPU.
-void *SubtargetFeatures::getItinerary(const StringRef CPU,
-                                      const SubtargetInfoKV *Table,
-                                      size_t TableSize) {
-  assert(Table && "missing table");
-#ifndef NDEBUG
-  for (size_t i = 1; i < TableSize; i++) {
-    assert(strcmp(Table[i - 1].Key, Table[i].Key) < 0 && "Table is not sorted");
-  }
-#endif
-
-  // Find entry
-  const SubtargetInfoKV *Entry = Find(CPU, Table, TableSize);
-  
-  if (Entry) {
-    return Entry->Value;
-  } else {
-    errs() << "'" << CPU
-           << "' is not a recognized processor for this target"
-           << " (ignoring processor)\n";
-    return NULL;
-  }
-}
-
 /// print - Print feature string.
 ///
 void SubtargetFeatures::print(raw_ostream &OS) const {
@@ -368,11 +345,13 @@ void SubtargetFeatures::print(raw_ostream &OS) const {
   OS << "\n";
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// dump - Dump feature info.
 ///
 void SubtargetFeatures::dump() const {
   print(dbgs());
 }
+#endif
 
 /// getDefaultSubtargetFeatures - Return a string listing the features
 /// associated with the target triple.

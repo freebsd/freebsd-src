@@ -58,7 +58,7 @@ namespace clang {
                            SourceLocation TemplateLoc) 
       : Kind(ParsedTemplateArgument::Template),
         Arg(Template.getAsOpaquePtr()), 
-        Loc(TemplateLoc), SS(SS), EllipsisLoc() { }
+        SS(SS), Loc(TemplateLoc), EllipsisLoc() { }
     
     /// \brief Determine whether the given template argument is invalid.
     bool isInvalid() const { return Arg == 0; }
@@ -118,13 +118,13 @@ namespace clang {
     /// expression), or an ActionBase::TemplateTy (for a template).
     void *Arg;
 
-    /// \brief the location of the template argument.
-    SourceLocation Loc;
-    
     /// \brief The nested-name-specifier that can accompany a template template
     /// argument.
     CXXScopeSpec SS;
-    
+
+    /// \brief the location of the template argument.
+    SourceLocation Loc;
+
     /// \brief The ellipsis location that can accompany a template template
     /// argument (turning it into a template template argument expansion).
     SourceLocation EllipsisLoc;
@@ -209,11 +209,6 @@ namespace clang {
   /// Retrieves the range of the given template parameter lists.
   SourceRange getTemplateParamsRange(TemplateParameterList const *const *Params,
                                      unsigned NumParams);  
-  
-  inline const ParsedTemplateArgument &
-  ASTTemplateArgsPtr::operator[](unsigned Arg) const { 
-    return Args[Arg]; 
-  }
 }
 
 #endif

@@ -53,7 +53,7 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
   // destructor separately.
   for (CXXRecordDecl::field_iterator I = Class->field_begin(),
          E = Class->field_end(); I != E; ++I)
-    if ((*I)->getType().isDestructedType())
+    if (I->getType().isDestructedType())
       return true;
 
   // Try to find a unique base class with a non-trivial destructor.
@@ -91,7 +91,7 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
 
   // If the base is at a non-zero offset, give up.
   const ASTRecordLayout &ClassLayout = Context.getASTRecordLayout(Class);
-  if (ClassLayout.getBaseClassOffsetInBits(UniqueBase) != 0)
+  if (!ClassLayout.getBaseClassOffset(UniqueBase).isZero())
     return true;
 
   return TryEmitDefinitionAsAlias(GlobalDecl(D, Dtor_Base),

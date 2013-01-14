@@ -1,4 +1,4 @@
-//===--- DumpXML.cpp - Detailed XML dumping ---------------------*- C++ -*-===//
+//===--- DumpXML.cpp - Detailed XML dumping -------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -64,6 +64,8 @@ template <class Impl> struct XMLDeclVisitor {
   static_cast<Impl*>(this)->NAME(static_cast<CLASS*>(D))
 
   void dispatch(Decl *D) {
+    if (D->isUsed())
+      static_cast<Impl*>(this)->set("used", "1");
     switch (D->getKind()) {
 #define DECL(DERIVED, BASE) \
       case Decl::DERIVED: \
@@ -316,17 +318,17 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     }
     case TemplateArgument::Template:
     case TemplateArgument::TemplateExpansion:
+    case TemplateArgument::NullPtr:
       // FIXME: Implement!
       break;
         
     case TemplateArgument::Declaration: {
-      if (Decl *D = A.getAsDecl())
-        visitDeclRef(D);
+      visitDeclRef(A.getAsDecl());
       break;
     }
     case TemplateArgument::Integral: {
       push("integer");
-      setInteger("value", *A.getAsIntegral());
+      setInteger("value", A.getAsIntegral());
       completeAttrs();
       pop();
       break;
@@ -778,7 +780,6 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   // ObjCCategoryDecl
   void visitObjCCategoryDeclAttrs(ObjCCategoryDecl *D) {
     setFlag("extension", D->IsClassExtension());
-    setFlag("synth_bitfield", D->hasSynthBitfield());
   }
   void visitObjCCategoryDeclChildren(ObjCCategoryDecl *D) {
     visitDeclRef("interface", D->getClassInterface());
@@ -804,7 +805,6 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
   // ObjCImplementationDecl
   void visitObjCImplementationDeclAttrs(ObjCImplementationDecl *D) {
-    setFlag("synth_bitfield", D->hasSynthBitfield());
     set("identifier", D->getName());
   }
   void visitObjCImplementationDeclChildren(ObjCImplementationDecl *D) {
@@ -843,7 +843,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
     setFlag("instance", D->isInstanceMethod());
     setFlag("variadic", D->isVariadic());
-    setFlag("synthesized", D->isSynthesized());
+    setFlag("property_accessor", D->isPropertyAccessor());
     setFlag("defined", D->isDefined());
     setFlag("related_result_type", D->hasRelatedResultType());
   }
@@ -922,6 +922,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     case CC_X86Pascal: return set("cc", "x86_pascal");
     case CC_AAPCS: return set("cc", "aapcs");
     case CC_AAPCS_VFP: return set("cc", "aapcs_vfp");
+    case CC_PnaclCall: return set("cc", "pnaclcall");
     }
   }
 
@@ -973,9 +974,19 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
 
   void visitFunctionProtoTypeAttrs(FunctionProtoType *T) {
-    setFlag("const", T->getTypeQuals() & Qualifiers::Const);
-    setFlag("volatile", T->getTypeQuals() & Qualifiers::Volatile);
-    setFlag("restrict", T->getTypeQuals() & Qualifiers::Restrict);
+    setFlag("const", T->isConst());
+    setFlag("volatile", T->isVolatile());
+    setFlag("restrict", T->isRestrict());
+    switch (T->getExceptionSpecType()) {
+    case EST_None: break;
+    case EST_DynamicNone: set("exception_spec", "throw()"); break;
+    case EST_Dynamic: set("exception_spec", "throw(T)"); break;
+    case EST_MSAny: set("exception_spec", "throw(...)"); break;
+    case EST_BasicNoexcept: set("exception_spec", "noexcept"); break;
+    case EST_ComputedNoexcept: set("exception_spec", "noexcept(expr)"); break;
+    case EST_Unevaluated: set("exception_spec", "unevaluated"); break;
+    case EST_Uninstantiated: set("exception_spec", "uninstantiated"); break;
+    }
   }
   void visitFunctionProtoTypeChildren(FunctionProtoType *T) {
     push("parameters");

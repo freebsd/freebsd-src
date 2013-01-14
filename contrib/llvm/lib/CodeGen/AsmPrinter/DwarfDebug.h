@@ -14,16 +14,16 @@
 #ifndef CODEGEN_ASMPRINTER_DWARFDEBUG_H__
 #define CODEGEN_ASMPRINTER_DWARFDEBUG_H__
 
+#include "DIE.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/LexicalScopes.h"
 #include "llvm/MC/MachineLocation.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "DIE.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/UniqueVector.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/DebugLoc.h"
 
@@ -96,7 +96,8 @@ typedef struct DotDebugLocEntry {
   DotDebugLocEntry(const MCSymbol *B, const MCSymbol *E, const ConstantFP *FPtr)
     : Begin(B), End(E), Variable(0), Merged(false), 
       Constant(true) { Constants.CFP = FPtr; EntryKind = E_ConstantFP; }
-  DotDebugLocEntry(const MCSymbol *B, const MCSymbol *E, const ConstantInt *IPtr)
+  DotDebugLocEntry(const MCSymbol *B, const MCSymbol *E,
+                   const ConstantInt *IPtr)
     : Begin(B), End(E), Variable(0), Merged(false), 
       Constant(true) { Constants.CIP = IPtr; EntryKind = E_ConstantInt; }
 
@@ -158,11 +159,19 @@ public:
   bool isArtificial()                const {
     if (Var.isArtificial())
       return true;
-    if (Var.getTag() == dwarf::DW_TAG_arg_variable
-        && getType().isArtificial())
+    if (getType().isArtificial())
       return true;
     return false;
   }
+
+  bool isObjectPointer()             const {
+    if (Var.isObjectPointer())
+      return true;
+    if (getType().isObjectPointer())
+      return true;
+    return false;
+  }
+  
   bool variableHasComplexAddress()   const {
     assert(Var.Verify() && "Invalid complex DbgVariable!");
     return Var.hasComplexAddress();
@@ -188,6 +197,9 @@ class DwarfDebug {
   /// MMI - Collected machine module information.
   MachineModuleInfo *MMI;
 
+  /// DIEValueAllocator - All DIEValues are allocated through this allocator.
+  BumpPtrAllocator DIEValueAllocator;
+
   //===--------------------------------------------------------------------===//
   // Attributes used to construct specific Dwarf sections.
   //
@@ -210,16 +222,16 @@ class DwarfDebug {
 
   /// SourceIdMap - Source id map, i.e. pair of source filename and directory,
   /// separated by a zero byte, mapped to a unique id.
-  StringMap<unsigned> SourceIdMap;
+  StringMap<unsigned, BumpPtrAllocator&> SourceIdMap;
 
   /// StringPool - A String->Symbol mapping of strings used by indirect
   /// references.
-  StringMap<std::pair<MCSymbol*, unsigned> > StringPool;
+  StringMap<std::pair<MCSymbol*, unsigned>, BumpPtrAllocator&> StringPool;
   unsigned NextStringPoolNumber;
   
   /// SectionMap - Provides a unique id per text section.
   ///
-  UniqueVector<const MCSection*> SectionMap;
+  SetVector<const MCSection*> SectionMap;
 
   /// CurrentFnArguments - List of Arguments (DbgValues) for current function.
   SmallVector<DbgVariable *, 8> CurrentFnArguments;
@@ -232,7 +244,7 @@ class DwarfDebug {
   /// ScopeVariables - Collection of dbg variables of a scope.
   DenseMap<LexicalScope *, SmallVector<DbgVariable *, 8> > ScopeVariables;
 
-  /// AbstractVariables - Collection on abstract variables.
+  /// AbstractVariables - Collection of abstract variables.
   DenseMap<const MDNode *, DbgVariable *> AbstractVariables;
 
   /// DotDebugLocEntries - Collection of DotDebugLocEntry.
@@ -292,9 +304,6 @@ class DwarfDebug {
 
   std::vector<FunctionDebugFrameInfo> DebugFrames;
 
-  // DIEValueAllocator - All DIEValues are allocated through this allocator.
-  BumpPtrAllocator DIEValueAllocator;
-
   // Section Symbols: these are assembler temporary labels that are emitted at
   // the beginning of each supported dwarf section.  These are used to form
   // section offsets and are created by EmitSectionLabels.
@@ -307,6 +316,9 @@ class DwarfDebug {
   // table for the same directory as DW_at_comp_dir.
   StringRef CompilationDir;
 
+  // A holder for the DarwinGDBCompat flag so that the compile unit can use it.
+  bool isDarwinGDBCompat;
+  bool hasDwarfAccelTables;
 private:
 
   /// assignAbbrevNumber - Define a unique number for the abbreviation.
@@ -332,9 +344,6 @@ private:
   /// a function. Construct DIE to represent this concrete inlined copy
   /// of the function.
   DIE *constructInlinedScopeDIE(CompileUnit *TheCU, LexicalScope *Scope);
-
-  /// constructVariableDIE - Construct a DIE for the given DbgVariable.
-  DIE *constructVariableDIE(DbgVariable *DV, LexicalScope *S);
 
   /// constructScopeDIE - Construct a DIE for this scope.
   DIE *constructScopeDIE(CompileUnit *TheCU, LexicalScope *Scope);
@@ -517,15 +526,17 @@ public:
   /// in the SourceIds map.
   unsigned GetOrCreateSourceID(StringRef DirName, StringRef FullName);
 
-  /// createSubprogramDIE - Create new DIE using SP.
-  DIE *createSubprogramDIE(DISubprogram SP);
-
   /// getStringPool - returns the entry into the start of the pool.
   MCSymbol *getStringPool();
 
   /// getStringPoolEntry - returns an entry into the string pool with the given
   /// string text.
   MCSymbol *getStringPoolEntry(StringRef Str);
+
+  /// useDarwinGDBCompat - returns whether or not to limit some of our debug
+  /// output to the limitations of darwin gdb.
+  bool useDarwinGDBCompat() { return isDarwinGDBCompat; }
+  bool useDwarfAccelTables() { return hasDwarfAccelTables; }
 };
 } // End of namespace llvm
 

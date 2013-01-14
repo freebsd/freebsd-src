@@ -21,6 +21,7 @@
 #include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Object/MachOFormat.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 
 #include <vector>
@@ -67,6 +68,11 @@ uint64_t MachObjectWriter::getSymbolAddress(const MCSymbolData* SD,
 
   // If this is a variable, then recursively evaluate now.
   if (S.isVariable()) {
+    if (const MCConstantExpr *C =
+          dyn_cast<const MCConstantExpr>(S.getVariableValue()))
+      return C->getValue();
+
+
     MCValue Target;
     if (!S.getVariableValue()->EvaluateAsRelocatable(Target, Layout))
       report_fatal_error("unable to evaluate offset for variable '" +
@@ -139,8 +145,8 @@ void MachObjectWriter::WriteHeader(unsigned NumLoadCommands,
 
 /// WriteSegmentLoadCommand - Write a segment load command.
 ///
-/// \arg NumSections - The number of sections in this segment.
-/// \arg SectionDataSize - The total size of the sections.
+/// \param NumSections The number of sections in this segment.
+/// \param SectionDataSize The total size of the sections.
 void MachObjectWriter::WriteSegmentLoadCommand(unsigned NumSections,
                                                uint64_t VMSize,
                                                uint64_t SectionDataStartOffset,
@@ -314,11 +320,7 @@ void MachObjectWriter::WriteNlist(MachSymbolData &MSD,
 
   // Compute the symbol address.
   if (Symbol.isDefined()) {
-    if (Symbol.isAbsolute()) {
-      Address = cast<MCConstantExpr>(Symbol.getVariableValue())->getValue();
-    } else {
-      Address = getSymbolAddress(&Data, Layout);
-    }
+    Address = getSymbolAddress(&Data, Layout);
   } else if (Data.isCommon()) {
     // Common symbols are encoded with the size in the address
     // field, and their alignment in the flags.
@@ -351,6 +353,21 @@ void MachObjectWriter::WriteNlist(MachSymbolData &MSD,
     Write32(Address);
 }
 
+void MachObjectWriter::WriteLinkeditLoadCommand(uint32_t Type,
+                                                uint32_t DataOffset,
+                                                uint32_t DataSize) {
+  uint64_t Start = OS.tell();
+  (void) Start;
+
+  Write32(Type);
+  Write32(macho::LinkeditLoadCommandSize);
+  Write32(DataOffset);
+  Write32(DataSize);
+
+  assert(OS.tell() - Start == macho::LinkeditLoadCommandSize);
+}
+
+
 void MachObjectWriter::RecordRelocation(const MCAssembler &Asm,
                                         const MCAsmLayout &Layout,
                                         const MCFragment *Fragment,
@@ -380,8 +397,7 @@ void MachObjectWriter::BindIndirectSymbols(MCAssembler &Asm) {
       continue;
 
     // Initialize the section indirect symbol base, if necessary.
-    if (!IndirectSymBase.count(it->SectionData))
-      IndirectSymBase[it->SectionData] = IndirectIndex;
+    IndirectSymBase.insert(std::make_pair(it->SectionData, IndirectIndex));
 
     Asm.getOrCreateSymbolData(*it->Symbol);
   }
@@ -398,8 +414,7 @@ void MachObjectWriter::BindIndirectSymbols(MCAssembler &Asm) {
       continue;
 
     // Initialize the section indirect symbol base, if necessary.
-    if (!IndirectSymBase.count(it->SectionData))
-      IndirectSymBase[it->SectionData] = IndirectIndex;
+    IndirectSymBase.insert(std::make_pair(it->SectionData, IndirectIndex));
 
     // Set the symbol type to undefined lazy, but only on construction.
     //
@@ -543,12 +558,36 @@ void MachObjectWriter::computeSectionAddresses(const MCAssembler &Asm,
   }
 }
 
+void MachObjectWriter::markAbsoluteVariableSymbols(MCAssembler &Asm,
+                                                   const MCAsmLayout &Layout) {
+  for (MCAssembler::symbol_iterator i = Asm.symbol_begin(),
+                                    e = Asm.symbol_end();
+      i != e; ++i) {
+    MCSymbolData &SD = *i;
+    if (!SD.getSymbol().isVariable())
+      continue;
+
+    // Is the variable is a symbol difference (SA - SB + C) expression,
+    // and neither symbol is external, mark the variable as absolute.
+    const MCExpr *Expr = SD.getSymbol().getVariableValue();
+    MCValue Value;
+    if (Expr->EvaluateAsRelocatable(Value, Layout)) {
+      if (Value.getSymA() && Value.getSymB())
+        const_cast<MCSymbol*>(&SD.getSymbol())->setAbsolute();
+    }
+  }
+}
+
 void MachObjectWriter::ExecutePostLayoutBinding(MCAssembler &Asm,
                                                 const MCAsmLayout &Layout) {
   computeSectionAddresses(Asm, Layout);
 
   // Create symbol data for any indirect symbols.
   BindIndirectSymbols(Asm);
+
+  // Mark symbol difference expressions in variables (from .set or = directives)
+  // as absolute.
+  markAbsoluteVariableSymbols(Asm, Layout);
 
   // Compute symbol table information and bind symbol indices.
   ComputeSymbolTable(Asm, StringTable, LocalSymbolData, ExternalSymbolData,
@@ -654,6 +693,13 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
                          macho::DysymtabLoadCommandSize);
   }
 
+  // Add the data-in-code load command size, if used.
+  unsigned NumDataRegions = Asm.getDataRegions().size();
+  if (NumDataRegions) {
+    ++NumLoadCommands;
+    LoadCommandsSize += macho::LinkeditLoadCommandSize;
+  }
+
   // Compute the total size of the section data, as well as its file size and vm
   // size.
   uint64_t SectionDataStart = (is64Bit() ? macho::Header64Size :
@@ -701,6 +747,15 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
     RelocTableEnd += NumRelocs * macho::RelocationInfoSize;
   }
 
+  // Write the data-in-code load command, if used.
+  uint64_t DataInCodeTableEnd = RelocTableEnd + NumDataRegions * 8;
+  if (NumDataRegions) {
+    uint64_t DataRegionsOffset = RelocTableEnd;
+    uint64_t DataRegionsSize = NumDataRegions * 8;
+    WriteLinkeditLoadCommand(macho::LCT_DataInCode, DataRegionsOffset,
+                             DataRegionsSize);
+  }
+
   // Write the symbol table load command, if used.
   if (NumSymbols) {
     unsigned FirstLocalSymbol = 0;
@@ -717,10 +772,10 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
 
     // If used, the indirect symbols are written after the section data.
     if (NumIndirectSymbols)
-      IndirectSymbolOffset = RelocTableEnd;
+      IndirectSymbolOffset = DataInCodeTableEnd;
 
     // The symbol table is written after the indirect symbol data.
-    uint64_t SymbolTableOffset = RelocTableEnd + IndirectSymbolSize;
+    uint64_t SymbolTableOffset = DataInCodeTableEnd + IndirectSymbolSize;
 
     // The string table is written after symbol table.
     uint64_t StringTableOffset =
@@ -758,6 +813,27 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
       Write32(Relocs[e - i - 1].Word0);
       Write32(Relocs[e - i - 1].Word1);
     }
+  }
+
+  // Write out the data-in-code region payload, if there is one.
+  for (MCAssembler::const_data_region_iterator
+         it = Asm.data_region_begin(), ie = Asm.data_region_end();
+         it != ie; ++it) {
+    const DataRegionData *Data = &(*it);
+    uint64_t Start =
+      getSymbolAddress(&Layout.getAssembler().getSymbolData(*Data->Start),
+                       Layout);
+    uint64_t End =
+      getSymbolAddress(&Layout.getAssembler().getSymbolData(*Data->End),
+                       Layout);
+    DEBUG(dbgs() << "data in code region-- kind: " << Data->Kind
+                 << "  start: " << Start << "(" << Data->Start->getName() << ")"
+                 << "  end: " << End << "(" << Data->End->getName() << ")"
+                 << "  size: " << End - Start
+                 << "\n");
+    Write32(Start);
+    Write16(End - Start);
+    Write16(Data->Kind);
   }
 
   // Write the symbol table data, if used.

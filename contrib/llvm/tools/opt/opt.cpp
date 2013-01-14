@@ -13,17 +13,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/LLVMContext.h"
+#include "llvm/DataLayout.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
 #include "llvm/CallGraphSCCPass.h"
+#include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Assembly/PrintModulePass.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/RegionPass.h"
 #include "llvm/Analysis/CallGraph.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/StringSet.h"
@@ -36,7 +37,10 @@
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/SystemUtils.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/LinkAllPasses.h"
 #include "llvm/LinkAllVMCore.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
@@ -104,15 +108,23 @@ StandardLinkOpts("std-link-opts",
 
 static cl::opt<bool>
 OptLevelO1("O1",
-           cl::desc("Optimization level 1. Similar to llvm-gcc -O1"));
+           cl::desc("Optimization level 1. Similar to clang -O1"));
 
 static cl::opt<bool>
 OptLevelO2("O2",
-           cl::desc("Optimization level 2. Similar to llvm-gcc -O2"));
+           cl::desc("Optimization level 2. Similar to clang -O2"));
+
+static cl::opt<bool>
+OptLevelOs("Os",
+           cl::desc("Like -O2 with extra optimizations for size. Similar to clang -Os"));
+
+static cl::opt<bool>
+OptLevelOz("Oz",
+           cl::desc("Like -Os but reduces code size further. Similar to clang -Oz"));
 
 static cl::opt<bool>
 OptLevelO3("O3",
-           cl::desc("Optimization level 3. Similar to llvm-gcc -O3"));
+           cl::desc("Optimization level 3. Similar to clang -O3"));
 
 static cl::opt<std::string>
 TargetTriple("mtriple", cl::desc("Override target triple for module"));
@@ -409,16 +421,21 @@ static inline void addPass(PassManagerBase &PM, Pass *P) {
 ///
 /// OptLevel - Optimization Level
 static void AddOptimizationPasses(PassManagerBase &MPM,FunctionPassManager &FPM,
-                                  unsigned OptLevel) {
+                                  unsigned OptLevel, unsigned SizeLevel) {
   FPM.add(createVerifierPass());                  // Verify that input is correct
 
   PassManagerBuilder Builder;
   Builder.OptLevel = OptLevel;
+  Builder.SizeLevel = SizeLevel;
 
   if (DisableInline) {
     // No inlining pass
   } else if (OptLevel > 1) {
     unsigned Threshold = 225;
+    if (SizeLevel == 1)      // -Os
+      Threshold = 75;
+    else if (SizeLevel == 2) // -Oz
+      Threshold = 25;
     if (OptLevel > 2)
       Threshold = 275;
     Builder.Inliner = createFunctionInliningPass(Threshold);
@@ -465,6 +482,75 @@ static void AddStandardLinkPasses(PassManagerBase &PM) {
                                  /*RunInliner=*/ !DisableInline);
 }
 
+//===----------------------------------------------------------------------===//
+// CodeGen-related helper functions.
+//
+static TargetOptions GetTargetOptions() {
+  TargetOptions Options;
+  Options.LessPreciseFPMADOption = EnableFPMAD;
+  Options.NoFramePointerElim = DisableFPElim;
+  Options.NoFramePointerElimNonLeaf = DisableFPElimNonLeaf;
+  Options.AllowFPOpFusion = FuseFPOps;
+  Options.UnsafeFPMath = EnableUnsafeFPMath;
+  Options.NoInfsFPMath = EnableNoInfsFPMath;
+  Options.NoNaNsFPMath = EnableNoNaNsFPMath;
+  Options.HonorSignDependentRoundingFPMathOption =
+  EnableHonorSignDependentRoundingFPMath;
+  Options.UseSoftFloat = GenerateSoftFloatCalls;
+  if (FloatABIForCalls != FloatABI::Default)
+    Options.FloatABIType = FloatABIForCalls;
+  Options.NoZerosInBSS = DontPlaceZerosInBSS;
+  Options.GuaranteedTailCallOpt = EnableGuaranteedTailCallOpt;
+  Options.DisableTailCalls = DisableTailCalls;
+  Options.StackAlignmentOverride = OverrideStackAlignment;
+  Options.RealignStack = EnableRealignStack;
+  Options.TrapFuncName = TrapFuncName;
+  Options.PositionIndependentExecutable = EnablePIE;
+  Options.EnableSegmentedStacks = SegmentedStacks;
+  Options.UseInitArray = UseInitArray;
+  Options.SSPBufferSize = SSPBufferSize;
+  return Options;
+}
+
+CodeGenOpt::Level GetCodeGenOptLevel() {
+  if (OptLevelO1)
+    return CodeGenOpt::Less;
+  if (OptLevelO2)
+    return CodeGenOpt::Default;
+  if (OptLevelO3)
+    return CodeGenOpt::Aggressive;
+  return CodeGenOpt::None;
+}
+
+// Returns the TargetMachine instance or zero if no triple is provided.
+static TargetMachine* GetTargetMachine(std::string TripleStr) {
+  if (TripleStr.empty())
+    return 0;
+
+  // Get the target specific parser.
+  std::string Error;
+  Triple TheTriple(Triple::normalize(TargetTriple));
+
+  const Target *TheTarget = TargetRegistry::lookupTarget(MArch, TheTriple,
+                                                         Error);
+  if (!TheTarget) {
+    return 0;
+  }
+
+  // Package up features to be passed to target/subtarget
+  std::string FeaturesStr;
+  if (MAttrs.size()) {
+    SubtargetFeatures Features;
+    for (unsigned i = 0; i != MAttrs.size(); ++i)
+      Features.AddFeature(MAttrs[i]);
+    FeaturesStr = Features.getString();
+  }
+
+  return TheTarget->createTargetMachine(TheTriple.getTriple(),
+                                        MCPU, FeaturesStr, GetTargetOptions(),
+                                        RelocModel, CMModel,
+                                        GetCodeGenOptLevel());
+}
 
 //===----------------------------------------------------------------------===//
 // main for opt
@@ -478,6 +564,9 @@ int main(int argc, char **argv) {
 
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   LLVMContext &Context = getGlobalContext();
+
+  InitializeAllTargets();
+  InitializeAllTargetMCs();
 
   // Initialize passes
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
@@ -499,10 +588,6 @@ int main(int argc, char **argv) {
     errs() << argv[0] << ": analyze mode conflicts with no-output mode.\n";
     return 1;
   }
-
-  // Allocate a full target machine description only if necessary.
-  // FIXME: The choice of target should be controllable on the command line.
-  std::auto_ptr<TargetMachine> target;
 
   SMDiagnostic Err;
 
@@ -559,22 +644,28 @@ int main(int argc, char **argv) {
     TLI->disableAllFunctions();
   Passes.add(TLI);
 
-  // Add an appropriate TargetData instance for this module.
-  TargetData *TD = 0;
+  // Add an appropriate DataLayout instance for this module.
+  DataLayout *TD = 0;
   const std::string &ModuleDataLayout = M.get()->getDataLayout();
   if (!ModuleDataLayout.empty())
-    TD = new TargetData(ModuleDataLayout);
+    TD = new DataLayout(ModuleDataLayout);
   else if (!DefaultDataLayout.empty())
-    TD = new TargetData(DefaultDataLayout);
+    TD = new DataLayout(DefaultDataLayout);
 
   if (TD)
     Passes.add(TD);
 
+  std::auto_ptr<TargetMachine> TM(GetTargetMachine(TargetTriple));
+  if (TM.get()) {
+    Passes.add(new TargetTransformInfo(TM->getScalarTargetTransformInfo(),
+                                       TM->getVectorTargetTransformInfo()));
+  }
+
   OwningPtr<FunctionPassManager> FPasses;
-  if (OptLevelO1 || OptLevelO2 || OptLevelO3) {
+  if (OptLevelO1 || OptLevelO2 || OptLevelOs || OptLevelOz || OptLevelO3) {
     FPasses.reset(new FunctionPassManager(M.get()));
     if (TD)
-      FPasses->add(new TargetData(*TD));
+      FPasses->add(new DataLayout(*TD));
   }
 
   if (PrintBreakpoints) {
@@ -617,17 +708,27 @@ int main(int argc, char **argv) {
     }
 
     if (OptLevelO1 && OptLevelO1.getPosition() < PassList.getPosition(i)) {
-      AddOptimizationPasses(Passes, *FPasses, 1);
+      AddOptimizationPasses(Passes, *FPasses, 1, 0);
       OptLevelO1 = false;
     }
 
     if (OptLevelO2 && OptLevelO2.getPosition() < PassList.getPosition(i)) {
-      AddOptimizationPasses(Passes, *FPasses, 2);
+      AddOptimizationPasses(Passes, *FPasses, 2, 0);
       OptLevelO2 = false;
     }
 
+    if (OptLevelOs && OptLevelOs.getPosition() < PassList.getPosition(i)) {
+      AddOptimizationPasses(Passes, *FPasses, 2, 1);
+      OptLevelOs = false;
+    }
+
+    if (OptLevelOz && OptLevelOz.getPosition() < PassList.getPosition(i)) {
+      AddOptimizationPasses(Passes, *FPasses, 2, 2);
+      OptLevelOz = false;
+    }
+
     if (OptLevelO3 && OptLevelO3.getPosition() < PassList.getPosition(i)) {
-      AddOptimizationPasses(Passes, *FPasses, 3);
+      AddOptimizationPasses(Passes, *FPasses, 3, 0);
       OptLevelO3 = false;
     }
 
@@ -682,15 +783,21 @@ int main(int argc, char **argv) {
   }
 
   if (OptLevelO1)
-    AddOptimizationPasses(Passes, *FPasses, 1);
+    AddOptimizationPasses(Passes, *FPasses, 1, 0);
 
   if (OptLevelO2)
-    AddOptimizationPasses(Passes, *FPasses, 2);
+    AddOptimizationPasses(Passes, *FPasses, 2, 0);
+
+  if (OptLevelOs)
+    AddOptimizationPasses(Passes, *FPasses, 2, 1);
+
+  if (OptLevelOz)
+    AddOptimizationPasses(Passes, *FPasses, 2, 2);
 
   if (OptLevelO3)
-    AddOptimizationPasses(Passes, *FPasses, 3);
+    AddOptimizationPasses(Passes, *FPasses, 3, 0);
 
-  if (OptLevelO1 || OptLevelO2 || OptLevelO3) {
+  if (OptLevelO1 || OptLevelO2 || OptLevelOs || OptLevelOz || OptLevelO3) {
     FPasses->doInitialization();
     for (Module::iterator F = M->begin(), E = M->end(); F != E; ++F)
       FPasses->run(*F);

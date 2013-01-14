@@ -1135,7 +1135,7 @@ APInt APInt::lshr(unsigned shiftAmt) const {
   // If all the bits were shifted out, the result is 0. This avoids issues
   // with shifting by the size of the integer type, which produces undefined
   // results. We define these "undefined results" to always be 0.
-  if (shiftAmt == BitWidth)
+  if (shiftAmt >= BitWidth)
     return APInt(BitWidth, 0);
 
   // If none of the bits are shifted out, the result is *this. This avoids
@@ -1446,7 +1446,7 @@ APInt::mu APInt::magicu(unsigned LeadingZeros) const {
   APInt signedMin = APInt::getSignedMinValue(d.getBitWidth());
   APInt signedMax = APInt::getSignedMaxValue(d.getBitWidth());
 
-  nc = allOnes - (-d).urem(d);
+  nc = allOnes - (allOnes - d).urem(d);
   p = d.getBitWidth() - 1;  // initialize p
   q1 = signedMin.udiv(nc);  // initialize q1 = 2p/nc
   r1 = signedMin - q1*nc;   // initialize r1 = rem(2p,nc)

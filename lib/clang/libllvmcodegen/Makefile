@@ -12,9 +12,10 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	CodeGen.cpp \
 	CodePlacementOpt.cpp \
 	CriticalAntiDepBreaker.cpp \
-	DeadMachineInstructionElim.cpp \
 	DFAPacketizer.cpp \
+	DeadMachineInstructionElim.cpp \
 	DwarfEHPrepare.cpp \
+	EarlyIfConversion.cpp \
 	EdgeBundles.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
@@ -34,18 +35,19 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveInterval.cpp \
 	LiveIntervalAnalysis.cpp \
 	LiveIntervalUnion.cpp \
-	LiveStackAnalysis.cpp \
-	LiveVariables.cpp \
 	LiveRangeCalc.cpp \
 	LiveRangeEdit.cpp \
+	LiveRegMatrix.cpp \
+	LiveStackAnalysis.cpp \
+	LiveVariables.cpp \
 	LocalStackSlotAllocation.cpp \
 	MachineBasicBlock.cpp \
 	MachineBlockFrequencyInfo.cpp \
 	MachineBlockPlacement.cpp \
 	MachineBranchProbabilityInfo.cpp \
+	MachineCSE.cpp \
 	MachineCodeEmitter.cpp \
 	MachineCopyPropagation.cpp \
-	MachineCSE.cpp \
 	MachineDominators.cpp \
 	MachineFunction.cpp \
 	MachineFunctionAnalysis.cpp \
@@ -59,10 +61,12 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineModuleInfo.cpp \
 	MachineModuleInfoImpls.cpp \
 	MachinePassRegistry.cpp \
+	MachinePostDominators.cpp \
 	MachineRegisterInfo.cpp \
 	MachineSSAUpdater.cpp \
 	MachineScheduler.cpp \
 	MachineSink.cpp \
+	MachineTraceMetrics.cpp \
 	MachineVerifier.cpp \
 	OcamlGC.cpp \
 	OptimizePHIs.cpp \
@@ -81,8 +85,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	RegAllocPBQP.cpp \
 	RegisterClassInfo.cpp \
 	RegisterCoalescer.cpp \
+	RegisterPressure.cpp \
 	RegisterScavenging.cpp \
-	RenderMachineFunction.cpp \
 	ScheduleDAG.cpp \
 	ScheduleDAGInstrs.cpp \
 	ScheduleDAGPrinter.cpp \
@@ -91,9 +95,10 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ShrinkWrapping.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
-	Spiller.cpp \
 	SpillPlacement.cpp \
+	Spiller.cpp \
 	SplitKit.cpp \
+	StackColoring.cpp \
 	StackProtector.cpp \
 	StackSlotColoring.cpp \
 	StrongPHIElimination.cpp \
@@ -102,6 +107,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	TargetInstrInfoImpl.cpp \
 	TargetLoweringObjectFileImpl.cpp \
 	TargetOptionsImpl.cpp \
+	TargetSchedule.cpp \
 	TwoAddressInstructionPass.cpp \
 	UnreachableBlockElim.cpp \
 	VirtRegMap.cpp

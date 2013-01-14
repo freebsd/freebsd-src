@@ -153,6 +153,12 @@ MCSymbol *MCContext::LookupSymbol(StringRef Name) const {
   return Symbols.lookup(Name);
 }
 
+MCSymbol *MCContext::LookupSymbol(const Twine &Name) const {
+  SmallString<128> NameSV;
+  Name.toVector(NameSV);
+  return LookupSymbol(NameSV.str());
+}
+
 //===----------------------------------------------------------------------===//
 // Section Management
 //===----------------------------------------------------------------------===//
@@ -274,11 +280,11 @@ unsigned MCContext::GetDwarfFile(StringRef Directory, StringRef FileName,
 
   if (Directory.empty()) {
     // Separate the directory part from the basename of the FileName.
-    std::pair<StringRef, StringRef> Slash = FileName.rsplit('/');
-    Directory = Slash.second;
-    if (!Directory.empty()) {
-      Directory = Slash.first;
-      FileName = Slash.second;
+    StringRef tFileName = sys::path::filename(FileName);
+    if (!tFileName.empty()) {
+      Directory = sys::path::parent_path(FileName);
+      if (!Directory.empty())
+        FileName = tFileName;
     }
   }
 

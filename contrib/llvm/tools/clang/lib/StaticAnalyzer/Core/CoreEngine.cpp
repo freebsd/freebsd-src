@@ -26,6 +26,8 @@
 using namespace clang;
 using namespace ento;
 
+STATISTIC(NumSteps,
+            "The # of steps executed.");
 STATISTIC(NumReachedMaxSteps,
             "The # of times we reached the max number of steps.");
 STATISTIC(NumPathsExplored,
@@ -74,7 +76,7 @@ public:
   }
 
   virtual void enqueue(const WorkListUnit& U) {
-    Queue.push_front(U);
+    Queue.push_back(U);
   }
 
   virtual WorkListUnit dequeue() {
@@ -207,6 +209,8 @@ bool CoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps,
       --Steps;
     }
 
+    NumSteps++;
+
     const WorkListUnit& WU = WList->dequeue();
 
     // Set the current block counter.
@@ -239,16 +243,11 @@ void CoreEngine::dispatchWorkItem(ExplodedNode* Pred, ProgramPoint Loc,
 
     case ProgramPoint::CallEnterKind: {
       CallEnter CEnter = cast<CallEnter>(Loc);
-      if (AnalyzedCallees)
-        if (const CallExpr* CE =
-            dyn_cast_or_null<CallExpr>(CEnter.getCallExpr()))
-          if (const Decl *CD = CE->getCalleeDecl())
-            AnalyzedCallees->insert(CD);
       SubEng.processCallEnter(CEnter, Pred);
       break;
     }
 
-    case ProgramPoint::CallExitKind:
+    case ProgramPoint::CallExitBeginKind:
       SubEng.processCallExit(Pred);
       break;
 
@@ -261,7 +260,9 @@ void CoreEngine::dispatchWorkItem(ExplodedNode* Pred, ProgramPoint Loc,
     }
     default:
       assert(isa<PostStmt>(Loc) ||
-             isa<PostInitializer>(Loc));
+             isa<PostInitializer>(Loc) ||
+             isa<PostImplicitCall>(Loc) ||
+             isa<CallExitEnd>(Loc));
       HandlePostStmt(WU.getBlock(), WU.getIndex(), Pred);
       break;
   }
@@ -297,7 +298,7 @@ void CoreEngine::HandleBlockEdge(const BlockEdge &L, ExplodedNode *Pred) {
             && "EXIT block cannot contain Stmts.");
 
     // Process the final state transition.
-    SubEng.processEndOfFunction(BuilderCtx);
+    SubEng.processEndOfFunction(BuilderCtx, Pred);
 
     // This path is done. Don't enqueue any more nodes.
     return;
@@ -307,7 +308,7 @@ void CoreEngine::HandleBlockEdge(const BlockEdge &L, ExplodedNode *Pred) {
   ExplodedNodeSet dstNodes;
   BlockEntrance BE(Blk, Pred->getLocationContext());
   NodeBuilderWithSinks nodeBuilder(Pred, dstNodes, BuilderCtx, BE);
-  SubEng.processCFGBlockEntrance(L, nodeBuilder);
+  SubEng.processCFGBlockEntrance(L, nodeBuilder, Pred);
 
   // Auto-generate a node.
   if (!nodeBuilder.hasGeneratedNodes()) {
@@ -502,7 +503,8 @@ void CoreEngine::enqueueStmtNode(ExplodedNode *N,
   }
 
   // Do not create extra nodes. Move to the next CFG element.
-  if (isa<PostInitializer>(N->getLocation())) {
+  if (isa<PostInitializer>(N->getLocation()) ||
+      isa<PostImplicitCall>(N->getLocation())) {
     WList->enqueue(N, Block, Idx+1);
     return;
   }
@@ -512,9 +514,9 @@ void CoreEngine::enqueueStmtNode(ExplodedNode *N,
     return;
   }
 
-  const CFGStmt *CS = (*Block)[Idx].getAs<CFGStmt>();
-  const Stmt *St = CS ? CS->getStmt() : 0;
-  PostStmt Loc(St, N->getLocationContext());
+  // At this point, we know we're processing a normal statement.
+  CFGStmt CS = cast<CFGStmt>((*Block)[Idx]);
+  PostStmt Loc(CS.getStmt(), N->getLocationContext());
 
   if (Loc == N->getLocation()) {
     // Note: 'N' should be a fresh node because otherwise it shouldn't be
@@ -531,14 +533,13 @@ void CoreEngine::enqueueStmtNode(ExplodedNode *N,
     WList->enqueue(Succ, Block, Idx+1);
 }
 
-ExplodedNode *CoreEngine::generateCallExitNode(ExplodedNode *N) {
-  // Create a CallExit node and enqueue it.
+ExplodedNode *CoreEngine::generateCallExitBeginNode(ExplodedNode *N) {
+  // Create a CallExitBegin node and enqueue it.
   const StackFrameContext *LocCtx
                          = cast<StackFrameContext>(N->getLocationContext());
-  const Stmt *CE = LocCtx->getCallSite();
 
-  // Use the the callee location context.
-  CallExit Loc(CE, LocCtx);
+  // Use the callee location context.
+  CallExitBegin Loc(LocCtx);
 
   bool isNew;
   ExplodedNode *Node = G->getNode(Loc, N->getState(), false, &isNew);
@@ -565,12 +566,13 @@ void CoreEngine::enqueue(ExplodedNodeSet &Set,
 void CoreEngine::enqueueEndOfFunction(ExplodedNodeSet &Set) {
   for (ExplodedNodeSet::iterator I = Set.begin(), E = Set.end(); I != E; ++I) {
     ExplodedNode *N = *I;
-    // If we are in an inlined call, generate CallExit node.
+    // If we are in an inlined call, generate CallExitBegin node.
     if (N->getLocationContext()->getParent()) {
-      N = generateCallExitNode(N);
+      N = generateCallExitBeginNode(N);
       if (N)
         WList->enqueue(N);
     } else {
+      // TODO: We should run remove dead bindings here.
       G->addEndOfPath(N);
       NumPathsExplored++;
     }

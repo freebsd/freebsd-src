@@ -61,6 +61,7 @@ namespace llvm {
       if (isa<BasicBlockSDNode>(Node))     return true;
       if (isa<FrameIndexSDNode>(Node))     return true;
       if (isa<ConstantPoolSDNode>(Node))   return true;
+      if (isa<TargetIndexSDNode>(Node))    return true;
       if (isa<JumpTableSDNode>(Node))      return true;
       if (isa<ExternalSymbolSDNode>(Node)) return true;
       if (isa<BlockAddressSDNode>(Node))   return true;
@@ -98,12 +99,6 @@ namespace llvm {
     ///
     virtual void computeLatency(SUnit *SU);
 
-    /// computeOperandLatency - Override dependence edge latency using
-    /// operand use/def information
-    ///
-    virtual void computeOperandLatency(SUnit *Def, SUnit *Use,
-                                       SDep& dep) const { }
-
     virtual void computeOperandLatency(SDNode *Def, SDNode *Use,
                                        unsigned OpIdx, SDep& dep) const;
 
@@ -119,7 +114,8 @@ namespace llvm {
     /// EmitSchedule - Insert MachineInstrs into the MachineBasicBlock
     /// according to the order specified in Sequence.
     ///
-    MachineBasicBlock *EmitSchedule(MachineBasicBlock::iterator &InsertPos);
+    virtual MachineBasicBlock*
+    EmitSchedule(MachineBasicBlock::iterator &InsertPos);
 
     virtual void dumpNode(const SUnit *SU) const;
 
@@ -162,6 +158,12 @@ namespace llvm {
     private:
       void InitNodeNumDefs();
     };
+
+  protected:
+    /// ForceUnitLatencies - Return true if all scheduling edges should be given
+    /// a latency value of one.  The default is to return false; schedulers may
+    /// override this as needed.
+    virtual bool forceUnitLatencies() const { return false; }
 
   private:
     /// ClusterNeighboringLoads - Cluster loads from "near" addresses into

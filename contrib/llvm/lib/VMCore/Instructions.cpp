@@ -161,8 +161,14 @@ Value *PHINode::hasConstantValue() const {
   // Exploit the fact that phi nodes always have at least one entry.
   Value *ConstantValue = getIncomingValue(0);
   for (unsigned i = 1, e = getNumIncomingValues(); i != e; ++i)
-    if (getIncomingValue(i) != ConstantValue)
-      return 0; // Incoming values not all the same.
+    if (getIncomingValue(i) != ConstantValue && getIncomingValue(i) != this) {
+      if (ConstantValue != this)
+        return 0; // Incoming values not all the same.
+       // The case where the first value is this PHI.
+      ConstantValue = getIncomingValue(i);
+    }
+  if (ConstantValue == this)
+    return UndefValue::get(getType());
   return ConstantValue;
 }
 
@@ -326,21 +332,30 @@ CallInst::CallInst(const CallInst &CI)
 
 void CallInst::addAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.addAttr(i, attr);
+  PAL = PAL.addAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
 void CallInst::removeAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.removeAttr(i, attr);
+  PAL = PAL.removeAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
-bool CallInst::paramHasAttr(unsigned i, Attributes attr) const {
-  if (AttributeList.paramHasAttr(i, attr))
+bool CallInst::hasFnAttr(Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(AttrListPtr::FunctionIndex)
+      .hasAttribute(A))
     return true;
   if (const Function *F = getCalledFunction())
-    return F->paramHasAttr(i, attr);
+    return F->getParamAttributes(AttrListPtr::FunctionIndex).hasAttribute(A);
+  return false;
+}
+
+bool CallInst::paramHasAttr(unsigned i, Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(i).hasAttribute(A))
+    return true;
+  if (const Function *F = getCalledFunction())
+    return F->getParamAttributes(i).hasAttribute(A);
   return false;
 }
 
@@ -556,23 +571,32 @@ void InvokeInst::setSuccessorV(unsigned idx, BasicBlock *B) {
   return setSuccessor(idx, B);
 }
 
-bool InvokeInst::paramHasAttr(unsigned i, Attributes attr) const {
-  if (AttributeList.paramHasAttr(i, attr))
+bool InvokeInst::hasFnAttr(Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(AttrListPtr::FunctionIndex).
+      hasAttribute(A))
     return true;
   if (const Function *F = getCalledFunction())
-    return F->paramHasAttr(i, attr);
+    return F->getParamAttributes(AttrListPtr::FunctionIndex).hasAttribute(A);
+  return false;
+}
+
+bool InvokeInst::paramHasAttr(unsigned i, Attributes::AttrVal A) const {
+  if (AttributeList.getParamAttributes(i).hasAttribute(A))
+    return true;
+  if (const Function *F = getCalledFunction())
+    return F->getParamAttributes(i).hasAttribute(A);
   return false;
 }
 
 void InvokeInst::addAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.addAttr(i, attr);
+  PAL = PAL.addAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
 void InvokeInst::removeAttribute(unsigned i, Attributes attr) {
   AttrListPtr PAL = getAttributes();
-  PAL = PAL.removeAttr(i, attr);
+  PAL = PAL.removeAttr(getContext(), i, attr);
   setAttributes(PAL);
 }
 
@@ -1375,18 +1399,6 @@ Type *GetElementPtrInst::getIndexedType(Type *Ptr, ArrayRef<uint64_t> IdxList) {
   return getIndexedTypeInternal(Ptr, IdxList);
 }
 
-unsigned GetElementPtrInst::getAddressSpace(Value *Ptr) {
-  Type *Ty = Ptr->getType();
-
-  if (VectorType *VTy = dyn_cast<VectorType>(Ty))
-    Ty = VTy->getElementType();
-
-  if (PointerType *PTy = dyn_cast<PointerType>(Ty))
-    return PTy->getAddressSpace();
-
-  llvm_unreachable("Invalid GEP pointer type");
-}
-
 /// hasAllZeroIndices - Return true if all of the indices of this GEP are
 /// zeros.  If so, the result pointer and the first operand have the same
 /// value, just potentially different types.
@@ -2106,7 +2118,8 @@ bool CastInst::isNoopCast(Type *IntPtrTy) const {
 /// If no such cast is permited, the function returns 0.
 unsigned CastInst::isEliminableCastPair(
   Instruction::CastOps firstOp, Instruction::CastOps secondOp,
-  Type *SrcTy, Type *MidTy, Type *DstTy, Type *IntPtrTy) {
+  Type *SrcTy, Type *MidTy, Type *DstTy, Type *SrcIntPtrTy, Type *MidIntPtrTy,
+  Type *DstIntPtrTy) {
   // Define the 144 possibilities for these two cast instructions. The values
   // in this matrix determine what to do in a given situation and select the
   // case in the switch below.  The rows correspond to firstOp, the columns 
@@ -2209,9 +2222,9 @@ unsigned CastInst::isEliminableCastPair(
       return 0;
     case 7: { 
       // ptrtoint, inttoptr -> bitcast (ptr -> ptr) if int size is >= ptr size
-      if (!IntPtrTy)
+      if (!SrcIntPtrTy || DstIntPtrTy != SrcIntPtrTy)
         return 0;
-      unsigned PtrSize = IntPtrTy->getScalarSizeInBits();
+      unsigned PtrSize = SrcIntPtrTy->getScalarSizeInBits();
       unsigned MidSize = MidTy->getScalarSizeInBits();
       if (MidSize >= PtrSize)
         return Instruction::BitCast;
@@ -2250,9 +2263,9 @@ unsigned CastInst::isEliminableCastPair(
       return 0;
     case 13: {
       // inttoptr, ptrtoint -> bitcast if SrcSize<=PtrSize and SrcSize==DstSize
-      if (!IntPtrTy)
+      if (!MidIntPtrTy)
         return 0;
-      unsigned PtrSize = IntPtrTy->getScalarSizeInBits();
+      unsigned PtrSize = MidIntPtrTy->getScalarSizeInBits();
       unsigned SrcSize = SrcTy->getScalarSizeInBits();
       unsigned DstSize = DstTy->getScalarSizeInBits();
       if (SrcSize <= PtrSize && SrcSize == DstSize)
@@ -2830,7 +2843,7 @@ BitCastInst::BitCastInst(
 //                               CmpInst Classes
 //===----------------------------------------------------------------------===//
 
-void CmpInst::Anchor() const {}
+void CmpInst::anchor() {}
 
 CmpInst::CmpInst(Type *ty, OtherOps op, unsigned short predicate,
                  Value *LHS, Value *RHS, const Twine &Name,
@@ -3158,6 +3171,7 @@ SwitchInst::SwitchInst(const SwitchInst &SI)
     OL[i] = InOL[i];
     OL[i+1] = InOL[i+1];
   }
+  TheSubsets = SI.TheSubsets;
   SubclassOptionalData = SI.SubclassOptionalData;
 }
 
@@ -3169,6 +3183,16 @@ SwitchInst::~SwitchInst() {
 /// addCase - Add an entry to the switch instruction...
 ///
 void SwitchInst::addCase(ConstantInt *OnVal, BasicBlock *Dest) {
+  IntegersSubsetToBB Mapping;
+  
+  // FIXME: Currently we work with ConstantInt based cases.
+  // So inititalize IntItem container directly from ConstantInt.
+  Mapping.add(IntItem::fromConstantInt(OnVal));
+  IntegersSubset CaseRanges = Mapping.getCase();
+  addCase(CaseRanges, Dest);
+}
+
+void SwitchInst::addCase(IntegersSubset& OnVal, BasicBlock *Dest) {
   unsigned NewCaseIdx = getNumCases(); 
   unsigned OpNo = NumOperands;
   if (OpNo+2 > ReservedSpace)
@@ -3176,14 +3200,17 @@ void SwitchInst::addCase(ConstantInt *OnVal, BasicBlock *Dest) {
   // Initialize some new operands.
   assert(OpNo+1 < ReservedSpace && "Growing didn't work!");
   NumOperands = OpNo+2;
-  CaseIt Case(this, NewCaseIdx);
-  Case.setValue(OnVal);
+
+  SubsetsIt TheSubsetsIt = TheSubsets.insert(TheSubsets.end(), OnVal);
+  
+  CaseIt Case(this, NewCaseIdx, TheSubsetsIt);
+  Case.updateCaseValueOperand(OnVal);
   Case.setSuccessor(Dest);
 }
 
 /// removeCase - This method removes the specified case and its successor
 /// from the switch instruction.
-void SwitchInst::removeCase(CaseIt i) {
+void SwitchInst::removeCase(CaseIt& i) {
   unsigned idx = i.getCaseIndex();
   
   assert(2 + idx*2 < getNumOperands() && "Case index out of range!!!");
@@ -3200,6 +3227,16 @@ void SwitchInst::removeCase(CaseIt i) {
   // Nuke the last value.
   OL[NumOps-2].set(0);
   OL[NumOps-2+1].set(0);
+
+  // Do the same with TheCases collection:
+  if (i.SubsetIt != --TheSubsets.end()) {
+    *i.SubsetIt = TheSubsets.back();
+    TheSubsets.pop_back();
+  } else {
+    TheSubsets.pop_back();
+    i.SubsetIt = TheSubsets.end();
+  }
+  
   NumOperands = NumOps-2;
 }
 

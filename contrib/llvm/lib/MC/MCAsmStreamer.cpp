@@ -138,6 +138,7 @@ public:
   virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
                                    MCSymbol *EHSymbol);
   virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
+  virtual void EmitDataRegion(MCDataRegionType Kind);
   virtual void EmitThumbFunc(MCSymbol *Func);
 
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
@@ -165,12 +166,12 @@ public:
   ///
   /// @param Symbol - The common symbol to emit.
   /// @param Size - The size of the common symbol.
-  /// @param Size - The alignment of the common symbol in bytes.
+  /// @param ByteAlignment - The alignment of the common symbol in bytes.
   virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                      unsigned ByteAlignment);
 
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
-                            unsigned Size = 0, unsigned ByteAlignment = 0);
+                            uint64_t Size = 0, unsigned ByteAlignment = 0);
 
   virtual void EmitTBSSSymbol (const MCSection *Section, MCSymbol *Symbol,
                                uint64_t Size, unsigned ByteAlignment = 0);
@@ -250,6 +251,7 @@ public:
   virtual void EmitPad(int64_t Offset);
   virtual void EmitRegSave(const SmallVectorImpl<unsigned> &RegList, bool);
 
+  virtual void EmitTCEntry(const MCSymbol &S);
 
   virtual void EmitInstruction(const MCInst &Inst);
 
@@ -348,6 +350,21 @@ void MCAsmStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   case MCAF_Code16:                OS << '\t'<< MAI.getCode16Directive(); break;
   case MCAF_Code32:                OS << '\t'<< MAI.getCode32Directive(); break;
   case MCAF_Code64:                OS << '\t'<< MAI.getCode64Directive(); break;
+  }
+  EmitEOL();
+}
+
+void MCAsmStreamer::EmitDataRegion(MCDataRegionType Kind) {
+  MCContext &Ctx = getContext();
+  const MCAsmInfo &MAI = Ctx.getAsmInfo();
+  if (!MAI.doesSupportDataRegionDirectives())
+    return;
+  switch (Kind) {
+  case MCDR_DataRegion:            OS << "\t.data_region"; break;
+  case MCDR_DataRegionJT8:         OS << "\t.data_region jt8"; break;
+  case MCDR_DataRegionJT16:        OS << "\t.data_region jt16"; break;
+  case MCDR_DataRegionJT32:        OS << "\t.data_region jt32"; break;
+  case MCDR_DataRegionEnd:         OS << "\t.end_data_region"; break;
   }
   EmitEOL();
 }
@@ -501,19 +518,25 @@ void MCAsmStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 /// @param Size - The size of the common symbol.
 void MCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                           unsigned ByteAlign) {
-  assert(MAI.getLCOMMDirectiveType() != LCOMM::None &&
-         "Doesn't have .lcomm, can't emit it!");
   OS << "\t.lcomm\t" << *Symbol << ',' << Size;
   if (ByteAlign > 1) {
-    assert(MAI.getLCOMMDirectiveType() == LCOMM::ByteAlignment &&
-           "Alignment not supported on .lcomm!");
-    OS << ',' << ByteAlign;
+    switch (MAI.getLCOMMDirectiveAlignmentType()) {
+    case LCOMM::NoAlignment:
+      llvm_unreachable("alignment not supported on .lcomm!");
+    case LCOMM::ByteAlignment:
+      OS << ',' << ByteAlign;
+      break;
+    case LCOMM::Log2Alignment:
+      assert(isPowerOf2_32(ByteAlign) && "alignment must be a power of 2");
+      OS << ',' << Log2_32(ByteAlign);
+      break;
+    }
   }
   EmitEOL();
 }
 
 void MCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
-                                 unsigned Size, unsigned ByteAlignment) {
+                                 uint64_t Size, unsigned ByteAlignment) {
   // Note: a .zerofill directive does not switch sections.
   OS << ".zerofill ";
 
@@ -826,7 +849,7 @@ void MCAsmStreamer::EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
 
   if (IsVerboseAsm) {
     OS.PadToColumn(MAI.getCommentColumn());
-    OS << MAI.getCommentString() << ' ' << FileName << ':' 
+    OS << MAI.getCommentString() << ' ' << FileName << ':'
        << Line << ':' << Column;
   }
   EmitEOL();
@@ -1009,7 +1032,7 @@ void MCAsmStreamer::EmitCFISignalFrame() {
   if (!UseCFI)
     return;
 
-  OS << "\t.cif_signal_frame";
+  OS << "\t.cfi_signal_frame";
   EmitEOL();
 }
 
@@ -1274,6 +1297,14 @@ void MCAsmStreamer::EmitRegSave(const SmallVectorImpl<unsigned> &RegList,
   }
 
   OS << "}";
+  EmitEOL();
+}
+
+void MCAsmStreamer::EmitTCEntry(const MCSymbol &S) {
+  OS << "\t.tc ";
+  OS << S.getName();
+  OS << "[TC],";
+  OS << S.getName();
   EmitEOL();
 }
 

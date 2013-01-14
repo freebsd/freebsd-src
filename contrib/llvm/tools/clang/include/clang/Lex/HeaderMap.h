@@ -15,6 +15,7 @@
 #define LLVM_CLANG_LEX_HEADERMAP_H
 
 #include "clang/Basic/LLVM.h"
+#include "llvm/Support/Compiler.h"
 
 namespace llvm {
   class MemoryBuffer;
@@ -26,12 +27,12 @@ namespace clang {
   struct HMapHeader;
 
 /// This class represents an Apple concept known as a 'header map'.  To the
-/// #include file resolution process, it basically acts like a directory of
+/// \#include file resolution process, it basically acts like a directory of
 /// symlinks to files.  Its advantages are that it is dense and more efficient
 /// to create and process than a directory of symlinks.
 class HeaderMap {
-  HeaderMap(const HeaderMap&); // DO NOT IMPLEMENT
-  void operator=(const HeaderMap&); // DO NOT IMPLEMENT
+  HeaderMap(const HeaderMap &) LLVM_DELETED_FUNCTION;
+  void operator=(const HeaderMap &) LLVM_DELETED_FUNCTION;
 
   const llvm::MemoryBuffer *FileBuffer;
   bool NeedsBSwap;

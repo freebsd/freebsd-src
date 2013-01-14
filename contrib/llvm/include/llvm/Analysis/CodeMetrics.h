@@ -16,23 +16,25 @@
 #define LLVM_ANALYSIS_CODEMETRICS_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/CallSite.h"
 
 namespace llvm {
   class BasicBlock;
   class Function;
   class Instruction;
-  class TargetData;
+  class DataLayout;
   class Value;
 
   /// \brief Check whether an instruction is likely to be "free" when lowered.
-  bool isInstructionFree(const Instruction *I, const TargetData *TD = 0);
+  bool isInstructionFree(const Instruction *I, const DataLayout *TD = 0);
 
   /// \brief Check whether a call will lower to something small.
   ///
-  /// This tests checks whether calls to this function will lower to something
+  /// This tests checks whether this callsite will lower to something
   /// significantly cheaper than a traditional call, often a single
-  /// instruction.
-  bool callIsSmall(const Function *F);
+  /// instruction. Note that if isInstructionFree(CS.getInstruction()) would
+  /// return true, so will this function.
+  bool callIsSmall(ImmutableCallSite CS);
 
   /// \brief Utility to calculate the size and a few similar metrics for a set
   /// of basic blocks.
@@ -83,10 +85,10 @@ namespace llvm {
                     NumRets(0) {}
 
     /// \brief Add information about a block to the current state.
-    void analyzeBasicBlock(const BasicBlock *BB, const TargetData *TD = 0);
+    void analyzeBasicBlock(const BasicBlock *BB, const DataLayout *TD = 0);
 
     /// \brief Add information about a function to the current state.
-    void analyzeFunction(Function *F, const TargetData *TD = 0);
+    void analyzeFunction(Function *F, const DataLayout *TD = 0);
   };
 }
 

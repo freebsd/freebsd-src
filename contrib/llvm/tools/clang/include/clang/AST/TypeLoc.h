@@ -159,8 +159,6 @@ public:
     return !(LHS == RHS);
   }
 
-  static bool classof(const TypeLoc *TL) { return true; }
-
 private:
   static void initializeImpl(ASTContext &Context, TypeLoc TL,
                              SourceLocation Loc);
@@ -192,7 +190,6 @@ public:
   static bool classof(const TypeLoc *TL) {
     return !TL->getType().hasLocalQualifiers();
   }
-  static bool classof(const UnqualTypeLoc *TL) { return true; }
 };
 
 /// \brief Wrapper of type source information for a type with
@@ -237,7 +234,6 @@ public:
   static bool classof(const TypeLoc *TL) {
     return TL->getType().hasLocalQualifiers();
   }
-  static bool classof(const QualifiedTypeLoc *TL) { return true; }
 };
 
 inline UnqualTypeLoc TypeLoc::getUnqualifiedLoc() const {
@@ -250,11 +246,11 @@ inline UnqualTypeLoc TypeLoc::getUnqualifiedLoc() const {
 /// to a particular Type subclass.  It is accepted for a single
 /// TypeLoc class to correspond to multiple Type classes.
 ///
-/// \param Base a class from which to derive
-/// \param Derived the class deriving from this one
-/// \param TypeClass the concrete Type subclass associated with this
+/// \tparam Base a class from which to derive
+/// \tparam Derived the class deriving from this one
+/// \tparam TypeClass the concrete Type subclass associated with this
 ///   location type
-/// \param LocalData the structure type of local location data for
+/// \tparam LocalData the structure type of local location data for
 ///   this type
 ///
 /// sizeof(LocalData) needs to be a multiple of sizeof(void*) or
@@ -302,9 +298,6 @@ public:
   }
   static bool classof(const UnqualTypeLoc *TL) {
     return Derived::classofType(TL->getTypePtr());
-  }
-  static bool classof(const Derived *TL) {
-    return true;
   }
 
   TypeLoc getNextTypeLoc() const {
@@ -380,9 +373,6 @@ public:
   static bool classof(const UnqualTypeLoc *TL) {
     return Derived::classofType(TL->getTypePtr());
   }
-  static bool classof(const Derived *TL) {
-    return true;
-  }
 
   const TypeClass *getTypePtr() const {
     return cast<TypeClass>(Base::getTypePtr());
@@ -417,7 +407,6 @@ public:
   }
 
   static bool classof(const TypeLoc *TL);
-  static bool classof(const TypeSpecTypeLoc *TL) { return true; }
 };
 
 
@@ -831,6 +820,7 @@ public:
 
 struct ObjCInterfaceLocInfo {
   SourceLocation NameLoc;
+  SourceLocation NameEndLoc;
 };
 
 /// \brief Wrapper for source info for ObjC interfaces.
@@ -850,13 +840,22 @@ public:
   void setNameLoc(SourceLocation Loc) {
     getLocalData()->NameLoc = Loc;
   }
-
+                                                    
   SourceRange getLocalSourceRange() const {
-    return SourceRange(getNameLoc());
+    return SourceRange(getNameLoc(), getNameEndLoc());
+  }
+  
+  SourceLocation getNameEndLoc() const {
+    return getLocalData()->NameEndLoc;
+  }
+
+  void setNameEndLoc(SourceLocation Loc) {
+    getLocalData()->NameEndLoc = Loc;
   }
 
   void initializeLocal(ASTContext &Context, SourceLocation Loc) {
     setNameLoc(Loc);
+    setNameEndLoc(Loc);
   }
 };
 
@@ -1051,8 +1050,9 @@ public:
 
 struct FunctionLocInfo {
   SourceLocation LocalRangeBegin;
+  SourceLocation LParenLoc;
+  SourceLocation RParenLoc;
   SourceLocation LocalRangeEnd;
-  bool TrailingReturn;
 };
 
 /// \brief Wrapper for source info for functions.
@@ -1075,11 +1075,22 @@ public:
     getLocalData()->LocalRangeEnd = L;
   }
 
-  bool getTrailingReturn() const {
-    return getLocalData()->TrailingReturn;
+  SourceLocation getLParenLoc() const {
+    return this->getLocalData()->LParenLoc;
   }
-  void setTrailingReturn(bool Trailing) {
-    getLocalData()->TrailingReturn = Trailing;
+  void setLParenLoc(SourceLocation Loc) {
+    this->getLocalData()->LParenLoc = Loc;
+  }
+
+  SourceLocation getRParenLoc() const {
+    return this->getLocalData()->RParenLoc;
+  }
+  void setRParenLoc(SourceLocation Loc) {
+    this->getLocalData()->RParenLoc = Loc;
+  }
+
+  SourceRange getParensRange() const {
+    return SourceRange(getLParenLoc(), getRParenLoc());
   }
 
   ArrayRef<ParmVarDecl *> getParams() const {
@@ -1109,8 +1120,9 @@ public:
 
   void initializeLocal(ASTContext &Context, SourceLocation Loc) {
     setLocalRangeBegin(Loc);
+    setLParenLoc(Loc);
+    setRParenLoc(Loc);
     setLocalRangeEnd(Loc);
-    setTrailingReturn(false);
     for (unsigned i = 0, e = getNumArgs(); i != e; ++i)
       setArg(i, NULL);
   }

@@ -363,6 +363,10 @@ error_code MachOObjectFile::getSymbolType(DataRefImpl Symb,
   return object_error::success;
 }
 
+error_code MachOObjectFile::getSymbolValue(DataRefImpl Symb,
+                                           uint64_t &Val) const {
+  report_fatal_error("getSymbolValue unimplemented in MachOObjectFile");
+}
 
 symbol_iterator MachOObjectFile::begin_symbols() const {
   // DRI.d.a = segment number; DRI.d.b = symbol index.
@@ -581,14 +585,14 @@ error_code MachOObjectFile::isSectionBSS(DataRefImpl DRI,
 
 error_code MachOObjectFile::isSectionRequiredForExecution(DataRefImpl Sec,
                                                           bool &Result) const {
-  // FIXME: Unimplemented
+  // FIXME: Unimplemented.
   Result = true;
   return object_error::success;
 }
 
 error_code MachOObjectFile::isSectionVirtual(DataRefImpl Sec,
-                                            bool &Result) const {
-  // FIXME: Unimplemented
+                                             bool &Result) const {
+  // FIXME: Unimplemented.
   Result = false;
   return object_error::success;
 }
@@ -598,15 +602,28 @@ error_code MachOObjectFile::isSectionZeroInit(DataRefImpl DRI,
   if (MachOObj->is64Bit()) {
     InMemoryStruct<macho::Section64> Sect;
     getSection64(DRI, Sect);
-    Result = (Sect->Flags & MachO::SectionTypeZeroFill ||
-              Sect->Flags & MachO::SectionTypeZeroFillLarge);
+    unsigned SectionType = Sect->Flags & MachO::SectionFlagMaskSectionType;
+    Result = (SectionType == MachO::SectionTypeZeroFill ||
+              SectionType == MachO::SectionTypeZeroFillLarge);
   } else {
     InMemoryStruct<macho::Section> Sect;
     getSection(DRI, Sect);
-    Result = (Sect->Flags & MachO::SectionTypeZeroFill ||
-              Sect->Flags & MachO::SectionTypeZeroFillLarge);
+    unsigned SectionType = Sect->Flags & MachO::SectionFlagMaskSectionType;
+    Result = (SectionType == MachO::SectionTypeZeroFill ||
+              SectionType == MachO::SectionTypeZeroFillLarge);
   }
 
+  return object_error::success;
+}
+
+error_code MachOObjectFile::isSectionReadOnlyData(DataRefImpl Sec,
+                                                  bool &Result) const {
+  // Consider using the code from isSectionText to look for __const sections.
+  // Alternately, emit S_ATTR_PURE_INSTRUCTIONS and/or S_ATTR_SOME_INSTRUCTIONS
+  // to use section attributes to distinguish code from data.
+
+  // FIXME: Unimplemented.
+  Result = false;
   return object_error::success;
 }
 
@@ -786,7 +803,7 @@ error_code MachOObjectFile::getRelocationTypeName(DataRefImpl Rel,
 
   switch (Arch) {
     case Triple::x86: {
-      const char* Table[] =  {
+      static const char *const Table[] =  {
         "GENERIC_RELOC_VANILLA",
         "GENERIC_RELOC_PAIR",
         "GENERIC_RELOC_SECTDIFF",
@@ -801,7 +818,7 @@ error_code MachOObjectFile::getRelocationTypeName(DataRefImpl Rel,
       break;
     }
     case Triple::x86_64: {
-      const char* Table[] =  {
+      static const char *const Table[] =  {
         "X86_64_RELOC_UNSIGNED",
         "X86_64_RELOC_SIGNED",
         "X86_64_RELOC_BRANCH",
@@ -820,7 +837,7 @@ error_code MachOObjectFile::getRelocationTypeName(DataRefImpl Rel,
       break;
     }
     case Triple::arm: {
-      const char* Table[] =  {
+      static const char *const Table[] =  {
         "ARM_RELOC_VANILLA",
         "ARM_RELOC_PAIR",
         "ARM_RELOC_SECTDIFF",
@@ -839,7 +856,7 @@ error_code MachOObjectFile::getRelocationTypeName(DataRefImpl Rel,
       break;
     }
     case Triple::ppc: {
-      const char* Table[] =  {
+      static const char *const Table[] =  {
         "PPC_RELOC_VANILLA",
         "PPC_RELOC_PAIR",
         "PPC_RELOC_BR14",

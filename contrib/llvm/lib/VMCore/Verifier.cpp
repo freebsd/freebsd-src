@@ -68,6 +68,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -293,8 +294,9 @@ namespace {
     void VerifyCallSite(CallSite CS);
     bool PerformTypeCheck(Intrinsic::ID ID, Function *F, Type *Ty,
                           int VT, unsigned ArgNo, std::string &Suffix);
-    void VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
-                                  unsigned RetNum, unsigned ParamNum, ...);
+    bool VerifyIntrinsicType(Type *Ty,
+                             ArrayRef<Intrinsic::IITDescriptor> &Infos,
+                             SmallVectorImpl<Type*> &ArgTys);
     void VerifyParameterAttrs(Attributes Attrs, Type *Ty,
                               bool isReturnValue, const Value *V);
     void VerifyFunctionAttrs(FunctionType *FT, const AttrListPtr &Attrs,
@@ -398,8 +400,8 @@ void Verifier::visitGlobalValue(GlobalValue &GV) {
             "Only global arrays can have appending linkage!", GVar);
   }
 
-  Assert1(!GV.hasLinkerPrivateWeakDefAutoLinkage() || GV.hasDefaultVisibility(),
-          "linker_private_weak_def_auto can only have default visibility!",
+  Assert1(!GV.hasLinkOnceODRAutoHideLinkage() || GV.hasDefaultVisibility(),
+          "linkonce_odr_auto_hide can only have default visibility!",
           &GV);
 }
 
@@ -524,40 +526,60 @@ void Verifier::visitMDNode(MDNode &MD, Function *F) {
 // value of the specified type.  The value V is printed in error messages.
 void Verifier::VerifyParameterAttrs(Attributes Attrs, Type *Ty,
                                     bool isReturnValue, const Value *V) {
-  if (Attrs == Attribute::None)
+  if (!Attrs.hasAttributes())
     return;
 
-  Attributes FnCheckAttr = Attrs & Attribute::FunctionOnly;
-  Assert1(!FnCheckAttr, "Attribute " + Attribute::getAsString(FnCheckAttr) +
-          " only applies to the function!", V);
+  Assert1(!Attrs.hasFunctionOnlyAttrs(),
+          "Some attributes in '" + Attrs.getAsString() +
+          "' only apply to functions!", V);
 
-  if (isReturnValue) {
-    Attributes RetI = Attrs & Attribute::ParameterOnly;
-    Assert1(!RetI, "Attribute " + Attribute::getAsString(RetI) +
-            " does not apply to return values!", V);
-  }
+  if (isReturnValue)
+    Assert1(!Attrs.hasParameterOnlyAttrs(),
+            "Attributes 'byval', 'nest', 'sret', and 'nocapture' "
+            "do not apply to return values!", V);
 
-  for (unsigned i = 0;
-       i < array_lengthof(Attribute::MutuallyIncompatible); ++i) {
-    Attributes MutI = Attrs & Attribute::MutuallyIncompatible[i];
-    Assert1(MutI.isEmptyOrSingleton(), "Attributes " +
-            Attribute::getAsString(MutI) + " are incompatible!", V);
-  }
+  // Check for mutually incompatible attributes.
+  Assert1(!((Attrs.hasAttribute(Attributes::ByVal) &&
+             Attrs.hasAttribute(Attributes::Nest)) ||
+            (Attrs.hasAttribute(Attributes::ByVal) &&
+             Attrs.hasAttribute(Attributes::StructRet)) ||
+            (Attrs.hasAttribute(Attributes::Nest) &&
+             Attrs.hasAttribute(Attributes::StructRet))), "Attributes "
+          "'byval, nest, and sret' are incompatible!", V);
 
-  Attributes TypeI = Attrs & Attribute::typeIncompatible(Ty);
-  Assert1(!TypeI, "Wrong type for attribute " +
-          Attribute::getAsString(TypeI), V);
+  Assert1(!((Attrs.hasAttribute(Attributes::ByVal) &&
+             Attrs.hasAttribute(Attributes::Nest)) ||
+            (Attrs.hasAttribute(Attributes::ByVal) &&
+             Attrs.hasAttribute(Attributes::InReg)) ||
+            (Attrs.hasAttribute(Attributes::Nest) &&
+             Attrs.hasAttribute(Attributes::InReg))), "Attributes "
+          "'byval, nest, and inreg' are incompatible!", V);
 
-  Attributes ByValI = Attrs & Attribute::ByVal;
-  if (PointerType *PTy = dyn_cast<PointerType>(Ty)) {
-    Assert1(!ByValI || PTy->getElementType()->isSized(),
-            "Attribute " + Attribute::getAsString(ByValI) +
-            " does not support unsized types!", V);
-  } else {
-    Assert1(!ByValI,
-            "Attribute " + Attribute::getAsString(ByValI) +
-            " only applies to parameters with pointer type!", V);
-  }
+  Assert1(!(Attrs.hasAttribute(Attributes::ZExt) &&
+            Attrs.hasAttribute(Attributes::SExt)), "Attributes "
+          "'zeroext and signext' are incompatible!", V);
+
+  Assert1(!(Attrs.hasAttribute(Attributes::ReadNone) &&
+            Attrs.hasAttribute(Attributes::ReadOnly)), "Attributes "
+          "'readnone and readonly' are incompatible!", V);
+
+  Assert1(!(Attrs.hasAttribute(Attributes::NoInline) &&
+            Attrs.hasAttribute(Attributes::AlwaysInline)), "Attributes "
+          "'noinline and alwaysinline' are incompatible!", V);
+
+  Assert1(!AttrBuilder(Attrs).
+            hasAttributes(Attributes::typeIncompatible(Ty)),
+          "Wrong types for attribute: " +
+          Attributes::typeIncompatible(Ty).getAsString(), V);
+
+  if (PointerType *PTy = dyn_cast<PointerType>(Ty))
+    Assert1(!Attrs.hasAttribute(Attributes::ByVal) ||
+            PTy->getElementType()->isSized(),
+            "Attribute 'byval' does not support unsized types!", V);
+  else
+    Assert1(!Attrs.hasAttribute(Attributes::ByVal),
+            "Attribute 'byval' only applies to parameters with pointer type!",
+            V);
 }
 
 // VerifyFunctionAttrs - Check parameter attributes against a function type.
@@ -583,26 +605,50 @@ void Verifier::VerifyFunctionAttrs(FunctionType *FT,
 
     VerifyParameterAttrs(Attr.Attrs, Ty, Attr.Index == 0, V);
 
-    if (Attr.Attrs & Attribute::Nest) {
+    if (Attr.Attrs.hasAttribute(Attributes::Nest)) {
       Assert1(!SawNest, "More than one parameter has attribute nest!", V);
       SawNest = true;
     }
 
-    if (Attr.Attrs & Attribute::StructRet)
+    if (Attr.Attrs.hasAttribute(Attributes::StructRet))
       Assert1(Attr.Index == 1, "Attribute sret not on first parameter!", V);
   }
 
   Attributes FAttrs = Attrs.getFnAttributes();
-  Attributes NotFn = FAttrs & (~Attribute::FunctionOnly);
-  Assert1(!NotFn, "Attribute " + Attribute::getAsString(NotFn) +
-          " does not apply to the function!", V);
+  AttrBuilder NotFn(FAttrs);
+  NotFn.removeFunctionOnlyAttrs();
+  Assert1(!NotFn.hasAttributes(), "Attributes '" +
+          Attributes::get(V->getContext(), NotFn).getAsString() +
+          "' do not apply to the function!", V);
 
-  for (unsigned i = 0;
-       i < array_lengthof(Attribute::MutuallyIncompatible); ++i) {
-    Attributes MutI = FAttrs & Attribute::MutuallyIncompatible[i];
-    Assert1(MutI.isEmptyOrSingleton(), "Attributes " +
-            Attribute::getAsString(MutI) + " are incompatible!", V);
-  }
+  // Check for mutually incompatible attributes.
+  Assert1(!((FAttrs.hasAttribute(Attributes::ByVal) &&
+             FAttrs.hasAttribute(Attributes::Nest)) ||
+            (FAttrs.hasAttribute(Attributes::ByVal) &&
+             FAttrs.hasAttribute(Attributes::StructRet)) ||
+            (FAttrs.hasAttribute(Attributes::Nest) &&
+             FAttrs.hasAttribute(Attributes::StructRet))), "Attributes "
+          "'byval, nest, and sret' are incompatible!", V);
+
+  Assert1(!((FAttrs.hasAttribute(Attributes::ByVal) &&
+             FAttrs.hasAttribute(Attributes::Nest)) ||
+            (FAttrs.hasAttribute(Attributes::ByVal) &&
+             FAttrs.hasAttribute(Attributes::InReg)) ||
+            (FAttrs.hasAttribute(Attributes::Nest) &&
+             FAttrs.hasAttribute(Attributes::InReg))), "Attributes "
+          "'byval, nest, and inreg' are incompatible!", V);
+
+  Assert1(!(FAttrs.hasAttribute(Attributes::ZExt) &&
+            FAttrs.hasAttribute(Attributes::SExt)), "Attributes "
+          "'zeroext and signext' are incompatible!", V);
+
+  Assert1(!(FAttrs.hasAttribute(Attributes::ReadNone) &&
+            FAttrs.hasAttribute(Attributes::ReadOnly)), "Attributes "
+          "'readnone and readonly' are incompatible!", V);
+
+  Assert1(!(FAttrs.hasAttribute(Attributes::NoInline) &&
+            FAttrs.hasAttribute(Attributes::AlwaysInline)), "Attributes "
+          "'noinline and alwaysinline' are incompatible!", V);
 }
 
 static bool VerifyAttributeCount(const AttrListPtr &Attrs, unsigned Params) {
@@ -659,6 +705,7 @@ void Verifier::visitFunction(Function &F) {
   case CallingConv::Cold:
   case CallingConv::X86_FastCall:
   case CallingConv::X86_ThisCall:
+  case CallingConv::Intel_OCL_BI:
   case CallingConv::PTX_Kernel:
   case CallingConv::PTX_Device:
     Assert1(!F.isVarArg(),
@@ -804,14 +851,29 @@ void Verifier::visitSwitchInst(SwitchInst &SI) {
   // Check to make sure that all of the constants in the switch instruction
   // have the same type as the switched-on value.
   Type *SwitchTy = SI.getCondition()->getType();
-  SmallPtrSet<ConstantInt*, 32> Constants;
+  IntegerType *IntTy = cast<IntegerType>(SwitchTy);
+  IntegersSubsetToBB Mapping;
+  std::map<IntegersSubset::Range, unsigned> RangeSetMap;
   for (SwitchInst::CaseIt i = SI.case_begin(), e = SI.case_end(); i != e; ++i) {
-    Assert1(i.getCaseValue()->getType() == SwitchTy,
-            "Switch constants must all be same type as switch value!", &SI);
-    Assert2(Constants.insert(i.getCaseValue()),
-            "Duplicate integer as switch case", &SI, i.getCaseValue());
+    IntegersSubset CaseRanges = i.getCaseValueEx();
+    for (unsigned ri = 0, rie = CaseRanges.getNumItems(); ri < rie; ++ri) {
+      IntegersSubset::Range r = CaseRanges.getItem(ri);
+      Assert1(((const APInt&)r.getLow()).getBitWidth() == IntTy->getBitWidth(),
+              "Switch constants must all be same type as switch value!", &SI);
+      Assert1(((const APInt&)r.getHigh()).getBitWidth() == IntTy->getBitWidth(),
+              "Switch constants must all be same type as switch value!", &SI);
+      Mapping.add(r);
+      RangeSetMap[r] = i.getCaseIndex();
+    }
   }
-
+  
+  IntegersSubsetToBB::RangeIterator errItem;
+  if (!Mapping.verify(errItem)) {
+    unsigned CaseIndex = RangeSetMap[errItem->first];
+    SwitchInst::CaseIt i(&SI, CaseIndex);
+    Assert2(false, "Duplicate integer as switch case", &SI, i.getCaseValueEx());
+  }
+  
   visitTerminatorInst(SI);
 }
 
@@ -1076,7 +1138,7 @@ void Verifier::visitBitCastInst(BitCastInst &I) {
 
   // BitCast implies a no-op cast of type only. No bits change.
   // However, you can't cast pointers to anything but pointers.
-  Assert1(DestTy->isPointerTy() == DestTy->isPointerTy(),
+  Assert1(SrcTy->isPointerTy() == DestTy->isPointerTy(),
           "Bitcast requires both operands to be pointer or neither", &I);
   Assert1(SrcBitSize == DestBitSize, "Bitcast requires types of same width",&I);
 
@@ -1153,9 +1215,8 @@ void Verifier::VerifyCallSite(CallSite CS) {
 
       VerifyParameterAttrs(Attr, CS.getArgument(Idx-1)->getType(), false, I);
 
-      Attributes VArgI = Attr & Attribute::VarArgsIncompatible;
-      Assert1(!VArgI, "Attribute " + Attribute::getAsString(VArgI) +
-              " cannot be used for vararg call arguments!", I);
+      Assert1(!Attr.hasIncompatibleWithVarArgsAttrs(),
+              "Attribute 'sret' cannot be used for vararg call arguments!", I);
     }
 
   // Verify that there's no metadata unless it's a direct call to an intrinsic.
@@ -1346,6 +1407,10 @@ void Verifier::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   visitInstruction(GEP);
 }
 
+static bool isContiguous(const ConstantRange &A, const ConstantRange &B) {
+  return A.getUpper() == B.getLower() || A.getLower() == B.getUpper();
+}
+
 void Verifier::visitLoadInst(LoadInst &LI) {
   PointerType *PTy = dyn_cast<PointerType>(LI.getOperand(0)->getType());
   Assert1(PTy, "Load operand must be a pointer.", &LI);
@@ -1357,6 +1422,15 @@ void Verifier::visitLoadInst(LoadInst &LI) {
             "Load cannot have Release ordering", &LI);
     Assert1(LI.getAlignment() != 0,
             "Atomic load must specify explicit alignment", &LI);
+    if (!ElTy->isPointerTy()) {
+      Assert2(ElTy->isIntegerTy(),
+              "atomic store operand must have integer type!",
+              &LI, ElTy);
+      unsigned Size = ElTy->getPrimitiveSizeInBits();
+      Assert2(Size >= 8 && !(Size & (Size - 1)),
+              "atomic store operand must be power-of-two byte-sized integer",
+              &LI, ElTy);
+    }
   } else {
     Assert1(LI.getSynchScope() == CrossThread,
             "Non-atomic load cannot have SynchronizationScope specified", &LI);
@@ -1367,6 +1441,8 @@ void Verifier::visitLoadInst(LoadInst &LI) {
     Assert1(NumOperands % 2 == 0, "Unfinished range!", Range);
     unsigned NumRanges = NumOperands / 2;
     Assert1(NumRanges >= 1, "It should have at least one range!", Range);
+
+    ConstantRange LastRange(1); // Dummy initial value
     for (unsigned i = 0; i < NumRanges; ++i) {
       ConstantInt *Low = dyn_cast<ConstantInt>(Range->getOperand(2*i));
       Assert1(Low, "The lower limit must be an integer!", Low);
@@ -1375,9 +1451,35 @@ void Verifier::visitLoadInst(LoadInst &LI) {
       Assert1(High->getType() == Low->getType() &&
               High->getType() == ElTy, "Range types must match load type!",
               &LI);
-      Assert1(High->getValue() != Low->getValue(), "Range must not be empty!",
+
+      APInt HighV = High->getValue();
+      APInt LowV = Low->getValue();
+      ConstantRange CurRange(LowV, HighV);
+      Assert1(!CurRange.isEmptySet() && !CurRange.isFullSet(),
+              "Range must not be empty!", Range);
+      if (i != 0) {
+        Assert1(CurRange.intersectWith(LastRange).isEmptySet(),
+                "Intervals are overlapping", Range);
+        Assert1(LowV.sgt(LastRange.getLower()), "Intervals are not in order",
+                Range);
+        Assert1(!isContiguous(CurRange, LastRange), "Intervals are contiguous",
+                Range);
+      }
+      LastRange = ConstantRange(LowV, HighV);
+    }
+    if (NumRanges > 2) {
+      APInt FirstLow =
+        dyn_cast<ConstantInt>(Range->getOperand(0))->getValue();
+      APInt FirstHigh =
+        dyn_cast<ConstantInt>(Range->getOperand(1))->getValue();
+      ConstantRange FirstRange(FirstLow, FirstHigh);
+      Assert1(FirstRange.intersectWith(LastRange).isEmptySet(),
+              "Intervals are overlapping", Range);
+      Assert1(!isContiguous(FirstRange, LastRange), "Intervals are contiguous",
               Range);
     }
+
+
   }
 
   visitInstruction(LI);
@@ -1395,6 +1497,15 @@ void Verifier::visitStoreInst(StoreInst &SI) {
             "Store cannot have Acquire ordering", &SI);
     Assert1(SI.getAlignment() != 0,
             "Atomic store must specify explicit alignment", &SI);
+    if (!ElTy->isPointerTy()) {
+      Assert2(ElTy->isIntegerTy(),
+              "atomic store operand must have integer type!",
+              &SI, ElTy);
+      unsigned Size = ElTy->getPrimitiveSizeInBits();
+      Assert2(Size >= 8 && !(Size & (Size - 1)),
+              "atomic store operand must be power-of-two byte-sized integer",
+              &SI, ElTy);
+    }
   } else {
     Assert1(SI.getSynchScope() == CrossThread,
             "Non-atomic store cannot have SynchronizationScope specified", &SI);
@@ -1422,6 +1533,13 @@ void Verifier::visitAtomicCmpXchgInst(AtomicCmpXchgInst &CXI) {
   PointerType *PTy = dyn_cast<PointerType>(CXI.getOperand(0)->getType());
   Assert1(PTy, "First cmpxchg operand must be a pointer.", &CXI);
   Type *ElTy = PTy->getElementType();
+  Assert2(ElTy->isIntegerTy(),
+          "cmpxchg operand must have integer type!",
+          &CXI, ElTy);
+  unsigned Size = ElTy->getPrimitiveSizeInBits();
+  Assert2(Size >= 8 && !(Size & (Size - 1)),
+          "cmpxchg operand must be power-of-two byte-sized integer",
+          &CXI, ElTy);
   Assert2(ElTy == CXI.getOperand(1)->getType(),
           "Expected value type does not match pointer operand type!",
           &CXI, ElTy);
@@ -1439,6 +1557,13 @@ void Verifier::visitAtomicRMWInst(AtomicRMWInst &RMWI) {
   PointerType *PTy = dyn_cast<PointerType>(RMWI.getOperand(0)->getType());
   Assert1(PTy, "First atomicrmw operand must be a pointer.", &RMWI);
   Type *ElTy = PTy->getElementType();
+  Assert2(ElTy->isIntegerTy(),
+          "atomicrmw operand must have integer type!",
+          &RMWI, ElTy);
+  unsigned Size = ElTy->getPrimitiveSizeInBits();
+  Assert2(Size >= 8 && !(Size & (Size - 1)),
+          "atomicrmw operand must be power-of-two byte-sized integer",
+          &RMWI, ElTy);
   Assert2(ElTy == RMWI.getOperand(1)->getType(),
           "Argument value type does not match pointer operand type!",
           &RMWI, ElTy);
@@ -1487,7 +1612,7 @@ void Verifier::visitLandingPadInst(LandingPadInst &LPI) {
   // landing pad block may be branched to only by the unwind edge of an invoke.
   for (pred_iterator I = pred_begin(BB), E = pred_end(BB); I != E; ++I) {
     const InvokeInst *II = dyn_cast<InvokeInst>((*I)->getTerminator());
-    Assert1(II && II->getUnwindDest() == BB,
+    Assert1(II && II->getUnwindDest() == BB && II->getNormalDest() != BB,
             "Block containing LandingPadInst must be jumped to "
             "only by the unwind edge of an invoke.", &LPI);
   }
@@ -1526,53 +1651,16 @@ void Verifier::visitLandingPadInst(LandingPadInst &LPI) {
 
 void Verifier::verifyDominatesUse(Instruction &I, unsigned i) {
   Instruction *Op = cast<Instruction>(I.getOperand(i));
-  BasicBlock *BB = I.getParent();
-  BasicBlock *OpBlock = Op->getParent();
-  PHINode *PN = dyn_cast<PHINode>(&I);
-
-  // DT can handle non phi instructions for us.
-  if (!PN) {
-    // Definition must dominate use unless use is unreachable!
-    Assert2(InstsInThisBlock.count(Op) || !DT->isReachableFromEntry(BB) ||
-            DT->dominates(Op, &I),
-            "Instruction does not dominate all uses!", Op, &I);
-    return;
-  }
-
-  // Check that a definition dominates all of its uses.
+  // If the we have an invalid invoke, don't try to compute the dominance.
+  // We already reject it in the invoke specific checks and the dominance
+  // computation doesn't handle multiple edges.
   if (InvokeInst *II = dyn_cast<InvokeInst>(Op)) {
-    // Invoke results are only usable in the normal destination, not in the
-    // exceptional destination.
-    BasicBlock *NormalDest = II->getNormalDest();
-
-
-    // PHI nodes differ from other nodes because they actually "use" the
-    // value in the predecessor basic blocks they correspond to.
-    BasicBlock *UseBlock = BB;
-    unsigned j = PHINode::getIncomingValueNumForOperand(i);
-    UseBlock = PN->getIncomingBlock(j);
-    Assert2(UseBlock, "Invoke operand is PHI node with bad incoming-BB",
-            Op, &I);
-
-    if (UseBlock == OpBlock) {
-      // Special case of a phi node in the normal destination or the unwind
-      // destination.
-      Assert2(BB == NormalDest || !DT->isReachableFromEntry(UseBlock),
-              "Invoke result not available in the unwind destination!",
-              Op, &I);
-    } else {
-      Assert2(DT->dominates(II, UseBlock) ||
-              !DT->isReachableFromEntry(UseBlock),
-              "Invoke result does not dominate all uses!", Op, &I);
-    }
+    if (II->getNormalDest() == II->getUnwindDest())
+      return;
   }
 
-  // PHI nodes are more difficult than other nodes because they actually
-  // "use" the value in the predecessor basic blocks they correspond to.
-  unsigned j = PHINode::getIncomingValueNumForOperand(i);
-  BasicBlock *PredBB = PN->getIncomingBlock(j);
-  Assert2(PredBB && (DT->dominates(OpBlock, PredBB) ||
-                     !DT->isReachableFromEntry(PredBB)),
+  const Use &U = I.getOperandUse(i);
+  Assert2(InstsInThisBlock.count(Op) || DT->dominates(Op, U),
           "Instruction does not dominate all uses!", Op, &I);
 }
 
@@ -1631,8 +1719,11 @@ void Verifier::visitInstruction(Instruction &I) {
     if (Function *F = dyn_cast<Function>(I.getOperand(i))) {
       // Check to make sure that the "address of" an intrinsic function is never
       // taken.
-      Assert1(!F->isIntrinsic() || (i + 1 == e && isa<CallInst>(I)),
+      Assert1(!F->isIntrinsic() || i == (isa<CallInst>(I) ? e-1 : 0),
               "Cannot take the address of an intrinsic!", &I);
+      Assert1(!F->isIntrinsic() || isa<CallInst>(I) ||
+              F->getIntrinsicID() == Intrinsic::donothing,
+              "Cannot invoke an intrinsinc other than donothing", &I);
       Assert1(F->getParent() == Mod, "Referencing function in another module!",
               &I);
     } else if (BasicBlock *OpBB = dyn_cast<BasicBlock>(I.getOperand(i))) {
@@ -1673,10 +1764,85 @@ void Verifier::visitInstruction(Instruction &I) {
   InstsInThisBlock.insert(&I);
 }
 
-// Flags used by TableGen to mark intrinsic parameters with the
-// LLVMExtendedElementVectorType and LLVMTruncatedElementVectorType classes.
-static const unsigned ExtendedElementVectorType = 0x40000000;
-static const unsigned TruncatedElementVectorType = 0x20000000;
+/// VerifyIntrinsicType - Verify that the specified type (which comes from an
+/// intrinsic argument or return value) matches the type constraints specified
+/// by the .td file (e.g. an "any integer" argument really is an integer).
+///
+/// This return true on error but does not print a message.
+bool Verifier::VerifyIntrinsicType(Type *Ty,
+                                   ArrayRef<Intrinsic::IITDescriptor> &Infos,
+                                   SmallVectorImpl<Type*> &ArgTys) {
+  using namespace Intrinsic;
+
+  // If we ran out of descriptors, there are too many arguments.
+  if (Infos.empty()) return true; 
+  IITDescriptor D = Infos.front();
+  Infos = Infos.slice(1);
+  
+  switch (D.Kind) {
+  case IITDescriptor::Void: return !Ty->isVoidTy();
+  case IITDescriptor::MMX:  return !Ty->isX86_MMXTy();
+  case IITDescriptor::Metadata: return !Ty->isMetadataTy();
+  case IITDescriptor::Float: return !Ty->isFloatTy();
+  case IITDescriptor::Double: return !Ty->isDoubleTy();
+  case IITDescriptor::Integer: return !Ty->isIntegerTy(D.Integer_Width);
+  case IITDescriptor::Vector: {
+    VectorType *VT = dyn_cast<VectorType>(Ty);
+    return VT == 0 || VT->getNumElements() != D.Vector_Width ||
+           VerifyIntrinsicType(VT->getElementType(), Infos, ArgTys);
+  }
+  case IITDescriptor::Pointer: {
+    PointerType *PT = dyn_cast<PointerType>(Ty);
+    return PT == 0 || PT->getAddressSpace() != D.Pointer_AddressSpace ||
+           VerifyIntrinsicType(PT->getElementType(), Infos, ArgTys);
+  }
+      
+  case IITDescriptor::Struct: {
+    StructType *ST = dyn_cast<StructType>(Ty);
+    if (ST == 0 || ST->getNumElements() != D.Struct_NumElements)
+      return true;
+    
+    for (unsigned i = 0, e = D.Struct_NumElements; i != e; ++i)
+      if (VerifyIntrinsicType(ST->getElementType(i), Infos, ArgTys))
+        return true;
+    return false;
+  }
+      
+  case IITDescriptor::Argument:
+    // Two cases here - If this is the second occurrence of an argument, verify
+    // that the later instance matches the previous instance. 
+    if (D.getArgumentNumber() < ArgTys.size())
+      return Ty != ArgTys[D.getArgumentNumber()];  
+      
+    // Otherwise, if this is the first instance of an argument, record it and
+    // verify the "Any" kind.
+    assert(D.getArgumentNumber() == ArgTys.size() && "Table consistency error");
+    ArgTys.push_back(Ty);
+      
+    switch (D.getArgumentKind()) {
+    case IITDescriptor::AK_AnyInteger: return !Ty->isIntOrIntVectorTy();
+    case IITDescriptor::AK_AnyFloat:   return !Ty->isFPOrFPVectorTy();
+    case IITDescriptor::AK_AnyVector:  return !isa<VectorType>(Ty);
+    case IITDescriptor::AK_AnyPointer: return !isa<PointerType>(Ty);
+    }
+    llvm_unreachable("all argument kinds not covered");
+      
+  case IITDescriptor::ExtendVecArgument:
+    // This may only be used when referring to a previous vector argument.
+    return D.getArgumentNumber() >= ArgTys.size() ||
+           !isa<VectorType>(ArgTys[D.getArgumentNumber()]) ||
+           VectorType::getExtendedElementVectorType(
+                       cast<VectorType>(ArgTys[D.getArgumentNumber()])) != Ty;
+
+  case IITDescriptor::TruncVecArgument:
+    // This may only be used when referring to a previous vector argument.
+    return D.getArgumentNumber() >= ArgTys.size() ||
+           !isa<VectorType>(ArgTys[D.getArgumentNumber()]) ||
+           VectorType::getTruncatedElementVectorType(
+                         cast<VectorType>(ArgTys[D.getArgumentNumber()])) != Ty;
+  }
+  llvm_unreachable("unhandled");
+}
 
 /// visitIntrinsicFunction - Allow intrinsics to be verified in different ways.
 ///
@@ -1685,10 +1851,30 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
   Assert1(IF->isDeclaration(), "Intrinsic functions should never be defined!",
           IF);
 
-#define GET_INTRINSIC_VERIFIER
-#include "llvm/Intrinsics.gen"
-#undef GET_INTRINSIC_VERIFIER
+  // Verify that the intrinsic prototype lines up with what the .td files
+  // describe.
+  FunctionType *IFTy = IF->getFunctionType();
+  Assert1(!IFTy->isVarArg(), "Intrinsic prototypes are not varargs", IF);
+  
+  SmallVector<Intrinsic::IITDescriptor, 8> Table;
+  getIntrinsicInfoTableEntries(ID, Table);
+  ArrayRef<Intrinsic::IITDescriptor> TableRef = Table;
 
+  SmallVector<Type *, 4> ArgTys;
+  Assert1(!VerifyIntrinsicType(IFTy->getReturnType(), TableRef, ArgTys),
+          "Intrinsic has incorrect return type!", IF);
+  for (unsigned i = 0, e = IFTy->getNumParams(); i != e; ++i)
+    Assert1(!VerifyIntrinsicType(IFTy->getParamType(i), TableRef, ArgTys),
+            "Intrinsic has incorrect argument type!", IF);
+  Assert1(TableRef.empty(), "Intrinsic has too few arguments!", IF);
+
+  // Now that we have the intrinsic ID and the actual argument types (and we
+  // know they are legal for the intrinsic!) get the intrinsic name through the
+  // usual means.  This allows us to verify the mangling of argument types into
+  // the name.
+  Assert1(Intrinsic::getName(ID, ArgTys) == IF->getName(),
+          "Intrinsic name not mangled correctly for type arguments!", IF);
+  
   // If the intrinsic takes MDNode arguments, verify that they are either global
   // or are local to *this* function.
   for (unsigned i = 0, e = CI.getNumArgOperands(); i != e; ++i)
@@ -1771,261 +1957,6 @@ void Verifier::visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI) {
     break;
   }
 }
-
-/// Produce a string to identify an intrinsic parameter or return value.
-/// The ArgNo value numbers the return values from 0 to NumRets-1 and the
-/// parameters beginning with NumRets.
-///
-static std::string IntrinsicParam(unsigned ArgNo, unsigned NumRets) {
-  if (ArgNo >= NumRets)
-    return "Intrinsic parameter #" + utostr(ArgNo - NumRets);
-  if (NumRets == 1)
-    return "Intrinsic result type";
-  return "Intrinsic result type #" + utostr(ArgNo);
-}
-
-bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, Type *Ty,
-                                int VT, unsigned ArgNo, std::string &Suffix) {
-  FunctionType *FTy = F->getFunctionType();
-
-  unsigned NumElts = 0;
-  Type *EltTy = Ty;
-  VectorType *VTy = dyn_cast<VectorType>(Ty);
-  if (VTy) {
-    EltTy = VTy->getElementType();
-    NumElts = VTy->getNumElements();
-  }
-
-  Type *RetTy = FTy->getReturnType();
-  StructType *ST = dyn_cast<StructType>(RetTy);
-  unsigned NumRetVals;
-  if (RetTy->isVoidTy())
-    NumRetVals = 0;
-  else if (ST)
-    NumRetVals = ST->getNumElements();
-  else
-    NumRetVals = 1;
-
-  if (VT < 0) {
-    int Match = ~VT;
-
-    // Check flags that indicate a type that is an integral vector type with
-    // elements that are larger or smaller than the elements of the matched
-    // type.
-    if ((Match & (ExtendedElementVectorType |
-                  TruncatedElementVectorType)) != 0) {
-      IntegerType *IEltTy = dyn_cast<IntegerType>(EltTy);
-      if (!VTy || !IEltTy) {
-        CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not "
-                    "an integral vector type.", F);
-        return false;
-      }
-      // Adjust the current Ty (in the opposite direction) rather than
-      // the type being matched against.
-      if ((Match & ExtendedElementVectorType) != 0) {
-        if ((IEltTy->getBitWidth() & 1) != 0) {
-          CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " vector "
-                      "element bit-width is odd.", F);
-          return false;
-        }
-        Ty = VectorType::getTruncatedElementVectorType(VTy);
-      } else
-        Ty = VectorType::getExtendedElementVectorType(VTy);
-      Match &= ~(ExtendedElementVectorType | TruncatedElementVectorType);
-    }
-
-    if (Match <= static_cast<int>(NumRetVals - 1)) {
-      if (ST)
-        RetTy = ST->getElementType(Match);
-
-      if (Ty != RetTy) {
-        CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " does not "
-                    "match return type.", F);
-        return false;
-      }
-    } else {
-      if (Ty != FTy->getParamType(Match - NumRetVals)) {
-        CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " does not "
-                    "match parameter %" + utostr(Match - NumRetVals) + ".", F);
-        return false;
-      }
-    }
-  } else if (VT == MVT::iAny) {
-    if (!EltTy->isIntegerTy()) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not "
-                  "an integer type.", F);
-      return false;
-    }
-
-    unsigned GotBits = cast<IntegerType>(EltTy)->getBitWidth();
-    Suffix += ".";
-
-    if (EltTy != Ty)
-      Suffix += "v" + utostr(NumElts);
-
-    Suffix += "i" + utostr(GotBits);
-
-    // Check some constraints on various intrinsics.
-    switch (ID) {
-    default: break; // Not everything needs to be checked.
-    case Intrinsic::bswap:
-      if (GotBits < 16 || GotBits % 16 != 0) {
-        CheckFailed("Intrinsic requires even byte width argument", F);
-        return false;
-      }
-      break;
-    }
-  } else if (VT == MVT::fAny) {
-    if (!EltTy->isFloatingPointTy()) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not "
-                  "a floating-point type.", F);
-      return false;
-    }
-
-    Suffix += ".";
-
-    if (EltTy != Ty)
-      Suffix += "v" + utostr(NumElts);
-
-    Suffix += EVT::getEVT(EltTy).getEVTString();
-  } else if (VT == MVT::vAny) {
-    if (!VTy) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not a vector type.",
-                  F);
-      return false;
-    }
-    Suffix += ".v" + utostr(NumElts) + EVT::getEVT(EltTy).getEVTString();
-  } else if (VT == MVT::iPTR) {
-    if (!Ty->isPointerTy()) {
-      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not a "
-                  "pointer and a pointer is required.", F);
-      return false;
-    }
-  } else if (VT == MVT::iPTRAny) {
-    // Outside of TableGen, we don't distinguish iPTRAny (to any address space)
-    // and iPTR. In the verifier, we can not distinguish which case we have so
-    // allow either case to be legal.
-    if (PointerType* PTyp = dyn_cast<PointerType>(Ty)) {
-      EVT PointeeVT = EVT::getEVT(PTyp->getElementType(), true);
-      if (PointeeVT == MVT::Other) {
-        CheckFailed("Intrinsic has pointer to complex type.");
-        return false;
-      }
-      Suffix += ".p" + utostr(PTyp->getAddressSpace()) +
-        PointeeVT.getEVTString();
-    } else {
-      CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not a "
-                  "pointer and a pointer is required.", F);
-      return false;
-    }
-  } else if (EVT((MVT::SimpleValueType)VT).isVector()) {
-    EVT VVT = EVT((MVT::SimpleValueType)VT);
-
-    // If this is a vector argument, verify the number and type of elements.
-    if (VVT.getVectorElementType() != EVT::getEVT(EltTy)) {
-      CheckFailed("Intrinsic prototype has incorrect vector element type!", F);
-      return false;
-    }
-
-    if (VVT.getVectorNumElements() != NumElts) {
-      CheckFailed("Intrinsic prototype has incorrect number of "
-                  "vector elements!", F);
-      return false;
-    }
-  } else if (EVT((MVT::SimpleValueType)VT).getTypeForEVT(Ty->getContext()) != 
-             EltTy) {
-    CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is wrong!", F);
-    return false;
-  } else if (EltTy != Ty) {
-    CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is a vector "
-                "and a scalar is required.", F);
-    return false;
-  }
-
-  return true;
-}
-
-/// VerifyIntrinsicPrototype - TableGen emits calls to this function into
-/// Intrinsics.gen.  This implements a little state machine that verifies the
-/// prototype of intrinsics.
-void Verifier::VerifyIntrinsicPrototype(Intrinsic::ID ID, Function *F,
-                                        unsigned NumRetVals,
-                                        unsigned NumParams, ...) {
-  va_list VA;
-  va_start(VA, NumParams);
-  FunctionType *FTy = F->getFunctionType();
-
-  // For overloaded intrinsics, the Suffix of the function name must match the
-  // types of the arguments. This variable keeps track of the expected
-  // suffix, to be checked at the end.
-  std::string Suffix;
-
-  if (FTy->getNumParams() + FTy->isVarArg() != NumParams) {
-    CheckFailed("Intrinsic prototype has incorrect number of arguments!", F);
-    return;
-  }
-
-  Type *Ty = FTy->getReturnType();
-  StructType *ST = dyn_cast<StructType>(Ty);
-
-  if (NumRetVals == 0 && !Ty->isVoidTy()) {
-    CheckFailed("Intrinsic should return void", F);
-    return;
-  }
-  
-  // Verify the return types.
-  if (ST && ST->getNumElements() != NumRetVals) {
-    CheckFailed("Intrinsic prototype has incorrect number of return types!", F);
-    return;
-  }
-  
-  for (unsigned ArgNo = 0; ArgNo != NumRetVals; ++ArgNo) {
-    int VT = va_arg(VA, int); // An MVT::SimpleValueType when non-negative.
-
-    if (ST) Ty = ST->getElementType(ArgNo);
-    if (!PerformTypeCheck(ID, F, Ty, VT, ArgNo, Suffix))
-      break;
-  }
-
-  // Verify the parameter types.
-  for (unsigned ArgNo = 0; ArgNo != NumParams; ++ArgNo) {
-    int VT = va_arg(VA, int); // An MVT::SimpleValueType when non-negative.
-
-    if (VT == MVT::isVoid && ArgNo > 0) {
-      if (!FTy->isVarArg())
-        CheckFailed("Intrinsic prototype has no '...'!", F);
-      break;
-    }
-
-    if (!PerformTypeCheck(ID, F, FTy->getParamType(ArgNo), VT,
-                          ArgNo + NumRetVals, Suffix))
-      break;
-  }
-
-  va_end(VA);
-
-  // For intrinsics without pointer arguments, if we computed a Suffix then the
-  // intrinsic is overloaded and we need to make sure that the name of the
-  // function is correct. We add the suffix to the name of the intrinsic and
-  // compare against the given function name. If they are not the same, the
-  // function name is invalid. This ensures that overloading of intrinsics
-  // uses a sane and consistent naming convention.  Note that intrinsics with
-  // pointer argument may or may not be overloaded so we will check assuming it
-  // has a suffix and not.
-  if (!Suffix.empty()) {
-    std::string Name(Intrinsic::getName(ID));
-    if (Name + Suffix != F->getName()) {
-      CheckFailed("Overloaded intrinsic has incorrect suffix: '" +
-                  F->getName().substr(Name.length()) + "'. It should be '" +
-                  Suffix + "'", F);
-    }
-  }
-
-  // Check parameter attributes.
-  Assert1(F->getAttributes() == Intrinsic::getAttributes(ID),
-          "Intrinsic has wrong parameter attributes!", F);
-}
-
 
 //===----------------------------------------------------------------------===//
 //  Implement the public interfaces to this file...

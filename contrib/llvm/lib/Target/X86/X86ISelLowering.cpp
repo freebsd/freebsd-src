@@ -49,6 +49,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetOptions.h"
 #include <bitset>
+#include <cctype>
 using namespace llvm;
 
 STATISTIC(NumTailCalls, "Number of tail calls");
@@ -62,41 +63,33 @@ static SDValue getMOVL(SelectionDAG &DAG, DebugLoc dl, EVT VT, SDValue V1,
 /// simple subregister reference.  Idx is an index in the 128 bits we
 /// want.  It need not be aligned to a 128-bit bounday.  That makes
 /// lowering EXTRACT_VECTOR_ELT operations easier.
-static SDValue Extract128BitVector(SDValue Vec,
-                                   SDValue Idx,
-                                   SelectionDAG &DAG,
-                                   DebugLoc dl) {
+static SDValue Extract128BitVector(SDValue Vec, unsigned IdxVal,
+                                   SelectionDAG &DAG, DebugLoc dl) {
   EVT VT = Vec.getValueType();
-  assert(VT.getSizeInBits() == 256 && "Unexpected vector size!");
+  assert(VT.is256BitVector() && "Unexpected vector size!");
   EVT ElVT = VT.getVectorElementType();
-  int Factor = VT.getSizeInBits()/128;
+  unsigned Factor = VT.getSizeInBits()/128;
   EVT ResultVT = EVT::getVectorVT(*DAG.getContext(), ElVT,
                                   VT.getVectorNumElements()/Factor);
 
   // Extract from UNDEF is UNDEF.
   if (Vec.getOpcode() == ISD::UNDEF)
-    return DAG.getNode(ISD::UNDEF, dl, ResultVT);
+    return DAG.getUNDEF(ResultVT);
 
-  if (isa<ConstantSDNode>(Idx)) {
-    unsigned IdxVal = cast<ConstantSDNode>(Idx)->getZExtValue();
+  // Extract the relevant 128 bits.  Generate an EXTRACT_SUBVECTOR
+  // we can match to VEXTRACTF128.
+  unsigned ElemsPerChunk = 128 / ElVT.getSizeInBits();
 
-    // Extract the relevant 128 bits.  Generate an EXTRACT_SUBVECTOR
-    // we can match to VEXTRACTF128.
-    unsigned ElemsPerChunk = 128 / ElVT.getSizeInBits();
+  // This is the index of the first element of the 128-bit chunk
+  // we want.
+  unsigned NormalizedIdxVal = (((IdxVal * ElVT.getSizeInBits()) / 128)
+                               * ElemsPerChunk);
 
-    // This is the index of the first element of the 128-bit chunk
-    // we want.
-    unsigned NormalizedIdxVal = (((IdxVal * ElVT.getSizeInBits()) / 128)
-                                 * ElemsPerChunk);
+  SDValue VecIdx = DAG.getIntPtrConstant(NormalizedIdxVal);
+  SDValue Result = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, ResultVT, Vec,
+                               VecIdx);
 
-    SDValue VecIdx = DAG.getConstant(NormalizedIdxVal, MVT::i32);
-    SDValue Result = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, ResultVT, Vec,
-                                 VecIdx);
-
-    return Result;
-  }
-
-  return SDValue();
+  return Result;
 }
 
 /// Generate a DAG to put 128-bits into a vector > 128 bits.  This
@@ -104,34 +97,41 @@ static SDValue Extract128BitVector(SDValue Vec,
 /// simple superregister reference.  Idx is an index in the 128 bits
 /// we want.  It need not be aligned to a 128-bit bounday.  That makes
 /// lowering INSERT_VECTOR_ELT operations easier.
-static SDValue Insert128BitVector(SDValue Result,
-                                  SDValue Vec,
-                                  SDValue Idx,
-                                  SelectionDAG &DAG,
+static SDValue Insert128BitVector(SDValue Result, SDValue Vec,
+                                  unsigned IdxVal, SelectionDAG &DAG,
                                   DebugLoc dl) {
-  if (isa<ConstantSDNode>(Idx)) {
-    EVT VT = Vec.getValueType();
-    assert(VT.getSizeInBits() == 128 && "Unexpected vector size!");
-
-    EVT ElVT = VT.getVectorElementType();
-    unsigned IdxVal = cast<ConstantSDNode>(Idx)->getZExtValue();
-    EVT ResultVT = Result.getValueType();
-
-    // Insert the relevant 128 bits.
-    unsigned ElemsPerChunk = 128/ElVT.getSizeInBits();
-
-    // This is the index of the first element of the 128-bit chunk
-    // we want.
-    unsigned NormalizedIdxVal = (((IdxVal * ElVT.getSizeInBits())/128)
-                                 * ElemsPerChunk);
-
-    SDValue VecIdx = DAG.getConstant(NormalizedIdxVal, MVT::i32);
-    Result = DAG.getNode(ISD::INSERT_SUBVECTOR, dl, ResultVT, Result, Vec,
-                         VecIdx);
+  // Inserting UNDEF is Result
+  if (Vec.getOpcode() == ISD::UNDEF)
     return Result;
-  }
 
-  return SDValue();
+  EVT VT = Vec.getValueType();
+  assert(VT.is128BitVector() && "Unexpected vector size!");
+
+  EVT ElVT = VT.getVectorElementType();
+  EVT ResultVT = Result.getValueType();
+
+  // Insert the relevant 128 bits.
+  unsigned ElemsPerChunk = 128/ElVT.getSizeInBits();
+
+  // This is the index of the first element of the 128-bit chunk
+  // we want.
+  unsigned NormalizedIdxVal = (((IdxVal * ElVT.getSizeInBits())/128)
+                               * ElemsPerChunk);
+
+  SDValue VecIdx = DAG.getIntPtrConstant(NormalizedIdxVal);
+  return DAG.getNode(ISD::INSERT_SUBVECTOR, dl, ResultVT, Result, Vec,
+                     VecIdx);
+}
+
+/// Concat two 128-bit vectors into a 256 bit vector using VINSERTF128
+/// instructions. This is used because creating CONCAT_VECTOR nodes of
+/// BUILD_VECTORS returns a larger BUILD_VECTOR while we're trying to lower
+/// large BUILD_VECTORS.
+static SDValue Concat128BitVectors(SDValue V1, SDValue V2, EVT VT,
+                                   unsigned NumElems, SelectionDAG &DAG,
+                                   DebugLoc dl) {
+  SDValue V = Insert128BitVector(DAG.getUNDEF(VT), V1, 0, DAG, dl);
+  return Insert128BitVector(V, V2, NumElems/2, DAG, dl);
 }
 
 static TargetLoweringObjectFile *createTLOF(X86TargetMachine &TM) {
@@ -140,10 +140,12 @@ static TargetLoweringObjectFile *createTLOF(X86TargetMachine &TM) {
 
   if (Subtarget->isTargetEnvMacho()) {
     if (is64Bit)
-      return new X8664_MachoTargetObjectFile();
+      return new X86_64MachoTargetObjectFile();
     return new TargetLoweringObjectFileMachO();
   }
 
+  if (Subtarget->isTargetLinux())
+    return new X86LinuxTargetObjectFile();
   if (Subtarget->isTargetELF())
     return new TargetLoweringObjectFileELF();
   if (Subtarget->isTargetCOFF() && !Subtarget->isTargetEnvMacho())
@@ -156,13 +158,12 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   Subtarget = &TM.getSubtarget<X86Subtarget>();
   X86ScalarSSEf64 = Subtarget->hasSSE2();
   X86ScalarSSEf32 = Subtarget->hasSSE1();
-  X86StackPtr = Subtarget->is64Bit() ? X86::RSP : X86::ESP;
 
   RegInfo = TM.getRegisterInfo();
-  TD = getTargetData();
+  TD = getDataLayout();
 
   // Set up the TargetLowering object.
-  static MVT IntVTs[] = { MVT::i8, MVT::i16, MVT::i32, MVT::i64 };
+  static const MVT IntVTs[] = { MVT::i8, MVT::i16, MVT::i32, MVT::i64 };
 
   // X86 is weird, it always uses i8 for shift amounts and setcc results.
   setBooleanContents(ZeroOrOneBooleanContent);
@@ -171,14 +172,18 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
 
   // For 64-bit since we have so many registers use the ILP scheduler, for
   // 32-bit code use the register pressure specific scheduling.
-  // For 32 bit Atom, use Hybrid (register pressure + latency) scheduling.
-  if (Subtarget->is64Bit())
+  // For Atom, always use ILP scheduling.
+  if (Subtarget->isAtom())
     setSchedulingPreference(Sched::ILP);
-  else if (Subtarget->isAtom()) 
-    setSchedulingPreference(Sched::Hybrid);
+  else if (Subtarget->is64Bit())
+    setSchedulingPreference(Sched::ILP);
   else
     setSchedulingPreference(Sched::RegPressure);
-  setStackPointerRegisterToSaveRestore(X86StackPtr);
+  setStackPointerRegisterToSaveRestore(RegInfo->getStackRegister());
+
+  // Bypass i32 with i8 on Atom when compiling with O2
+  if (Subtarget->hasSlowDivide() && TM.getOptLevel() >= CodeGenOpt::Default)
+    addBypassSlowDiv(32, 8);
 
   if (Subtarget->isTargetWindows() && !Subtarget->isTargetCygMing()) {
     // Setup Windows compiler runtime calls.
@@ -215,11 +220,11 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   }
 
   // Set up the register classes.
-  addRegisterClass(MVT::i8, X86::GR8RegisterClass);
-  addRegisterClass(MVT::i16, X86::GR16RegisterClass);
-  addRegisterClass(MVT::i32, X86::GR32RegisterClass);
+  addRegisterClass(MVT::i8, &X86::GR8RegClass);
+  addRegisterClass(MVT::i16, &X86::GR16RegClass);
+  addRegisterClass(MVT::i32, &X86::GR32RegClass);
   if (Subtarget->is64Bit())
-    addRegisterClass(MVT::i64, X86::GR64RegisterClass);
+    addRegisterClass(MVT::i64, &X86::GR64RegClass);
 
   setLoadExtAction(ISD::SEXTLOAD, MVT::i1, Promote);
 
@@ -345,7 +350,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   // (low) operations are left as Legal, as there are single-result
   // instructions for this in x86. Using the two-result multiply instructions
   // when both high and low results are needed must be arranged by dagcombine.
-  for (unsigned i = 0, e = 4; i != e; ++i) {
+  for (unsigned i = 0; i != array_lengthof(IntVTs); ++i) {
     MVT VT = IntVTs[i];
     setOperationAction(ISD::MULHS, VT, Expand);
     setOperationAction(ISD::MULHU, VT, Expand);
@@ -451,6 +456,14 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::SETCC         , MVT::i64  , Custom);
   }
   setOperationAction(ISD::EH_RETURN       , MVT::Other, Custom);
+  // NOTE: EH_SJLJ_SETJMP/_LONGJMP supported here is NOT intened to support
+  // SjLj exception handling but a light-weight setjmp/longjmp replacement to
+  // support continuation, user-level threading, and etc.. As a result, no
+  // other SjLj exception interfaces are implemented and please don't build
+  // your own exception handling based on them.
+  // LLVM/Clang supports zero-cost DWARF exception handling.
+  setOperationAction(ISD::EH_SJLJ_SETJMP, MVT::i32, Custom);
+  setOperationAction(ISD::EH_SJLJ_LONGJMP, MVT::Other, Custom);
 
   // Darwin ABI issue.
   setOperationAction(ISD::ConstantPool    , MVT::i32  , Custom);
@@ -492,7 +505,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setShouldFoldAtomicFences(true);
 
   // Expand certain atomics
-  for (unsigned i = 0, e = 4; i != e; ++i) {
+  for (unsigned i = 0; i != array_lengthof(IntVTs); ++i) {
     MVT VT = IntVTs[i];
     setOperationAction(ISD::ATOMIC_CMP_SWAP, VT, Custom);
     setOperationAction(ISD::ATOMIC_LOAD_SUB, VT, Custom);
@@ -508,6 +521,10 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::ATOMIC_LOAD_XOR, MVT::i64, Custom);
     setOperationAction(ISD::ATOMIC_LOAD_NAND, MVT::i64, Custom);
     setOperationAction(ISD::ATOMIC_SWAP, MVT::i64, Custom);
+    setOperationAction(ISD::ATOMIC_LOAD_MAX, MVT::i64, Custom);
+    setOperationAction(ISD::ATOMIC_LOAD_MIN, MVT::i64, Custom);
+    setOperationAction(ISD::ATOMIC_LOAD_UMAX, MVT::i64, Custom);
+    setOperationAction(ISD::ATOMIC_LOAD_UMIN, MVT::i64, Custom);
   }
 
   if (Subtarget->hasCmpxchg16b()) {
@@ -539,6 +556,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setOperationAction(ISD::ADJUST_TRAMPOLINE, MVT::Other, Custom);
 
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
+  setOperationAction(ISD::DEBUGTRAP, MVT::Other, Legal);
 
   // VASTART needs to be custom lowered to use the VarArgsFrameIndex
   setOperationAction(ISD::VASTART           , MVT::Other, Custom);
@@ -567,8 +585,8 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   if (!TM.Options.UseSoftFloat && X86ScalarSSEf64) {
     // f32 and f64 use SSE.
     // Set up the FP register classes.
-    addRegisterClass(MVT::f32, X86::FR32RegisterClass);
-    addRegisterClass(MVT::f64, X86::FR64RegisterClass);
+    addRegisterClass(MVT::f32, &X86::FR32RegClass);
+    addRegisterClass(MVT::f64, &X86::FR64RegClass);
 
     // Use ANDPD to simulate FABS.
     setOperationAction(ISD::FABS , MVT::f64, Custom);
@@ -599,8 +617,8 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   } else if (!TM.Options.UseSoftFloat && X86ScalarSSEf32) {
     // Use SSE for f32, x87 for f64.
     // Set up the FP register classes.
-    addRegisterClass(MVT::f32, X86::FR32RegisterClass);
-    addRegisterClass(MVT::f64, X86::RFP64RegisterClass);
+    addRegisterClass(MVT::f32, &X86::FR32RegClass);
+    addRegisterClass(MVT::f64, &X86::RFP64RegClass);
 
     // Use ANDPS to simulate FABS.
     setOperationAction(ISD::FABS , MVT::f32, Custom);
@@ -632,8 +650,8 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   } else if (!TM.Options.UseSoftFloat) {
     // f32 and f64 in x87.
     // Set up the FP register classes.
-    addRegisterClass(MVT::f64, X86::RFP64RegisterClass);
-    addRegisterClass(MVT::f32, X86::RFP32RegisterClass);
+    addRegisterClass(MVT::f64, &X86::RFP64RegClass);
+    addRegisterClass(MVT::f32, &X86::RFP32RegClass);
 
     setOperationAction(ISD::UNDEF,     MVT::f64, Expand);
     setOperationAction(ISD::UNDEF,     MVT::f32, Expand);
@@ -662,7 +680,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
 
   // Long double always uses X87.
   if (!TM.Options.UseSoftFloat) {
-    addRegisterClass(MVT::f80, X86::RFP80RegisterClass);
+    addRegisterClass(MVT::f80, &X86::RFP80RegClass);
     setOperationAction(ISD::UNDEF,     MVT::f80, Expand);
     setOperationAction(ISD::FCOPYSIGN, MVT::f80, Expand);
     {
@@ -707,8 +725,8 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   // First set operation action for all vector types to either promote
   // (for widening) or expand (for scalarization). Then we will selectively
   // turn on ones that can be effectively codegen'd.
-  for (unsigned VT = (unsigned)MVT::FIRST_VECTOR_VALUETYPE;
-       VT <= (unsigned)MVT::LAST_VECTOR_VALUETYPE; ++VT) {
+  for (int VT = MVT::FIRST_VECTOR_VALUETYPE;
+           VT <= MVT::LAST_VECTOR_VALUETYPE; ++VT) {
     setOperationAction(ISD::ADD , (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::SUB , (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::FADD, (MVT::SimpleValueType)VT, Expand);
@@ -731,9 +749,11 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::FSIN, (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::FCOS, (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::FREM, (MVT::SimpleValueType)VT, Expand);
+    setOperationAction(ISD::FMA,  (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::FPOWI, (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::FSQRT, (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::FCOPYSIGN, (MVT::SimpleValueType)VT, Expand);
+    setOperationAction(ISD::FFLOOR, (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::SMUL_LOHI, (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::UMUL_LOHI, (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::SDIVREM, (MVT::SimpleValueType)VT, Expand);
@@ -766,8 +786,8 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::ZERO_EXTEND,  (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::ANY_EXTEND,  (MVT::SimpleValueType)VT, Expand);
     setOperationAction(ISD::VSELECT,  (MVT::SimpleValueType)VT, Expand);
-    for (unsigned InnerVT = (unsigned)MVT::FIRST_VECTOR_VALUETYPE;
-         InnerVT <= (unsigned)MVT::LAST_VECTOR_VALUETYPE; ++InnerVT)
+    for (int InnerVT = MVT::FIRST_VECTOR_VALUETYPE;
+             InnerVT <= MVT::LAST_VECTOR_VALUETYPE; ++InnerVT)
       setTruncStoreAction((MVT::SimpleValueType)VT,
                           (MVT::SimpleValueType)InnerVT, Expand);
     setLoadExtAction(ISD::SEXTLOAD, (MVT::SimpleValueType)VT, Expand);
@@ -778,7 +798,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   // FIXME: In order to prevent SSE instructions being expanded to MMX ones
   // with -msoft-float, disable use of MMX as well.
   if (!TM.Options.UseSoftFloat && Subtarget->hasMMX()) {
-    addRegisterClass(MVT::x86mmx, X86::VR64RegisterClass);
+    addRegisterClass(MVT::x86mmx, &X86::VR64RegClass);
     // No operations on x86mmx supported, everything uses intrinsics.
   }
 
@@ -815,7 +835,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setOperationAction(ISD::BITCAST,            MVT::v1i64, Expand);
 
   if (!TM.Options.UseSoftFloat && Subtarget->hasSSE1()) {
-    addRegisterClass(MVT::v4f32, X86::VR128RegisterClass);
+    addRegisterClass(MVT::v4f32, &X86::VR128RegClass);
 
     setOperationAction(ISD::FADD,               MVT::v4f32, Legal);
     setOperationAction(ISD::FSUB,               MVT::v4f32, Legal);
@@ -823,23 +843,23 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::FDIV,               MVT::v4f32, Legal);
     setOperationAction(ISD::FSQRT,              MVT::v4f32, Legal);
     setOperationAction(ISD::FNEG,               MVT::v4f32, Custom);
+    setOperationAction(ISD::FABS,               MVT::v4f32, Custom);
     setOperationAction(ISD::LOAD,               MVT::v4f32, Legal);
     setOperationAction(ISD::BUILD_VECTOR,       MVT::v4f32, Custom);
     setOperationAction(ISD::VECTOR_SHUFFLE,     MVT::v4f32, Custom);
     setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v4f32, Custom);
     setOperationAction(ISD::SELECT,             MVT::v4f32, Custom);
-    setOperationAction(ISD::SETCC,              MVT::v4f32, Custom);
   }
 
   if (!TM.Options.UseSoftFloat && Subtarget->hasSSE2()) {
-    addRegisterClass(MVT::v2f64, X86::VR128RegisterClass);
+    addRegisterClass(MVT::v2f64, &X86::VR128RegClass);
 
     // FIXME: Unfortunately -soft-float and -no-implicit-float means XMM
     // registers cannot be used even for integer operations.
-    addRegisterClass(MVT::v16i8, X86::VR128RegisterClass);
-    addRegisterClass(MVT::v8i16, X86::VR128RegisterClass);
-    addRegisterClass(MVT::v4i32, X86::VR128RegisterClass);
-    addRegisterClass(MVT::v2i64, X86::VR128RegisterClass);
+    addRegisterClass(MVT::v16i8, &X86::VR128RegClass);
+    addRegisterClass(MVT::v8i16, &X86::VR128RegClass);
+    addRegisterClass(MVT::v4i32, &X86::VR128RegClass);
+    addRegisterClass(MVT::v2i64, &X86::VR128RegClass);
 
     setOperationAction(ISD::ADD,                MVT::v16i8, Legal);
     setOperationAction(ISD::ADD,                MVT::v8i16, Legal);
@@ -857,6 +877,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::FDIV,               MVT::v2f64, Legal);
     setOperationAction(ISD::FSQRT,              MVT::v2f64, Legal);
     setOperationAction(ISD::FNEG,               MVT::v2f64, Custom);
+    setOperationAction(ISD::FABS,               MVT::v2f64, Custom);
 
     setOperationAction(ISD::SETCC,              MVT::v2i64, Custom);
     setOperationAction(ISD::SETCC,              MVT::v16i8, Custom);
@@ -869,27 +890,18 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::INSERT_VECTOR_ELT,  MVT::v4i32, Custom);
     setOperationAction(ISD::INSERT_VECTOR_ELT,  MVT::v4f32, Custom);
 
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v2f64, Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v2i64, Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v16i8, Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v8i16, Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v4i32, Custom);
-
     // Custom lower build_vector, vector_shuffle, and extract_vector_elt.
-    for (unsigned i = (unsigned)MVT::v16i8; i != (unsigned)MVT::v2i64; ++i) {
-      EVT VT = (MVT::SimpleValueType)i;
+    for (int i = MVT::v16i8; i != MVT::v2i64; ++i) {
+      MVT VT = (MVT::SimpleValueType)i;
       // Do not attempt to custom lower non-power-of-2 vectors
       if (!isPowerOf2_32(VT.getVectorNumElements()))
         continue;
       // Do not attempt to custom lower non-128-bit vectors
       if (!VT.is128BitVector())
         continue;
-      setOperationAction(ISD::BUILD_VECTOR,
-                         VT.getSimpleVT().SimpleTy, Custom);
-      setOperationAction(ISD::VECTOR_SHUFFLE,
-                         VT.getSimpleVT().SimpleTy, Custom);
-      setOperationAction(ISD::EXTRACT_VECTOR_ELT,
-                         VT.getSimpleVT().SimpleTy, Custom);
+      setOperationAction(ISD::BUILD_VECTOR,       VT, Custom);
+      setOperationAction(ISD::VECTOR_SHUFFLE,     VT, Custom);
+      setOperationAction(ISD::EXTRACT_VECTOR_ELT, VT, Custom);
     }
 
     setOperationAction(ISD::BUILD_VECTOR,       MVT::v2f64, Custom);
@@ -905,24 +917,23 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     }
 
     // Promote v16i8, v8i16, v4i32 load, select, and, or, xor to v2i64.
-    for (unsigned i = (unsigned)MVT::v16i8; i != (unsigned)MVT::v2i64; i++) {
-      MVT::SimpleValueType SVT = (MVT::SimpleValueType)i;
-      EVT VT = SVT;
+    for (int i = MVT::v16i8; i != MVT::v2i64; ++i) {
+      MVT VT = (MVT::SimpleValueType)i;
 
       // Do not attempt to promote non-128-bit vectors
       if (!VT.is128BitVector())
         continue;
 
-      setOperationAction(ISD::AND,    SVT, Promote);
-      AddPromotedToType (ISD::AND,    SVT, MVT::v2i64);
-      setOperationAction(ISD::OR,     SVT, Promote);
-      AddPromotedToType (ISD::OR,     SVT, MVT::v2i64);
-      setOperationAction(ISD::XOR,    SVT, Promote);
-      AddPromotedToType (ISD::XOR,    SVT, MVT::v2i64);
-      setOperationAction(ISD::LOAD,   SVT, Promote);
-      AddPromotedToType (ISD::LOAD,   SVT, MVT::v2i64);
-      setOperationAction(ISD::SELECT, SVT, Promote);
-      AddPromotedToType (ISD::SELECT, SVT, MVT::v2i64);
+      setOperationAction(ISD::AND,    VT, Promote);
+      AddPromotedToType (ISD::AND,    VT, MVT::v2i64);
+      setOperationAction(ISD::OR,     VT, Promote);
+      AddPromotedToType (ISD::OR,     VT, MVT::v2i64);
+      setOperationAction(ISD::XOR,    VT, Promote);
+      AddPromotedToType (ISD::XOR,    VT, MVT::v2i64);
+      setOperationAction(ISD::LOAD,   VT, Promote);
+      AddPromotedToType (ISD::LOAD,   VT, MVT::v2i64);
+      setOperationAction(ISD::SELECT, VT, Promote);
+      AddPromotedToType (ISD::SELECT, VT, MVT::v2i64);
     }
 
     setTruncStoreAction(MVT::f64, MVT::f32, Expand);
@@ -935,6 +946,18 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
 
     setOperationAction(ISD::FP_TO_SINT,         MVT::v4i32, Legal);
     setOperationAction(ISD::SINT_TO_FP,         MVT::v4i32, Legal);
+
+    setOperationAction(ISD::UINT_TO_FP,         MVT::v4i8,  Custom);
+    setOperationAction(ISD::UINT_TO_FP,         MVT::v4i16, Custom);
+    // As there is no 64-bit GPR available, we need build a special custom
+    // sequence to convert from v2i32 to v2f32.
+    if (!Subtarget->is64Bit())
+      setOperationAction(ISD::UINT_TO_FP,       MVT::v2f32, Custom);
+
+    setOperationAction(ISD::FP_EXTEND,          MVT::v2f32, Custom);
+    setOperationAction(ISD::FP_ROUND,           MVT::v2f32, Custom);
+
+    setLoadExtAction(ISD::EXTLOAD,              MVT::v2f32, Legal);
   }
 
   if (Subtarget->hasSSE41()) {
@@ -948,6 +971,9 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::FTRUNC,             MVT::f64,   Legal);
     setOperationAction(ISD::FRINT,              MVT::f64,   Legal);
     setOperationAction(ISD::FNEARBYINT,         MVT::f64,   Legal);
+
+    setOperationAction(ISD::FFLOOR,             MVT::v4f32, Legal);
+    setOperationAction(ISD::FFLOOR,             MVT::v2f64, Legal);
 
     // FIXME: Do we need to handle scalar-to-vector here?
     setOperationAction(ISD::MUL,                MVT::v4i32, Legal);
@@ -1009,16 +1035,13 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     }
   }
 
-  if (Subtarget->hasSSE42())
-    setOperationAction(ISD::SETCC,             MVT::v2i64, Custom);
-
   if (!TM.Options.UseSoftFloat && Subtarget->hasAVX()) {
-    addRegisterClass(MVT::v32i8,  X86::VR256RegisterClass);
-    addRegisterClass(MVT::v16i16, X86::VR256RegisterClass);
-    addRegisterClass(MVT::v8i32,  X86::VR256RegisterClass);
-    addRegisterClass(MVT::v8f32,  X86::VR256RegisterClass);
-    addRegisterClass(MVT::v4i64,  X86::VR256RegisterClass);
-    addRegisterClass(MVT::v4f64,  X86::VR256RegisterClass);
+    addRegisterClass(MVT::v32i8,  &X86::VR256RegClass);
+    addRegisterClass(MVT::v16i16, &X86::VR256RegClass);
+    addRegisterClass(MVT::v8i32,  &X86::VR256RegClass);
+    addRegisterClass(MVT::v8f32,  &X86::VR256RegClass);
+    addRegisterClass(MVT::v4i64,  &X86::VR256RegClass);
+    addRegisterClass(MVT::v4f64,  &X86::VR256RegClass);
 
     setOperationAction(ISD::LOAD,               MVT::v8f32, Legal);
     setOperationAction(ISD::LOAD,               MVT::v4f64, Legal);
@@ -1029,25 +1052,32 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::FMUL,               MVT::v8f32, Legal);
     setOperationAction(ISD::FDIV,               MVT::v8f32, Legal);
     setOperationAction(ISD::FSQRT,              MVT::v8f32, Legal);
+    setOperationAction(ISD::FFLOOR,             MVT::v8f32, Legal);
     setOperationAction(ISD::FNEG,               MVT::v8f32, Custom);
+    setOperationAction(ISD::FABS,               MVT::v8f32, Custom);
 
     setOperationAction(ISD::FADD,               MVT::v4f64, Legal);
     setOperationAction(ISD::FSUB,               MVT::v4f64, Legal);
     setOperationAction(ISD::FMUL,               MVT::v4f64, Legal);
     setOperationAction(ISD::FDIV,               MVT::v4f64, Legal);
     setOperationAction(ISD::FSQRT,              MVT::v4f64, Legal);
+    setOperationAction(ISD::FFLOOR,             MVT::v4f64, Legal);
     setOperationAction(ISD::FNEG,               MVT::v4f64, Custom);
+    setOperationAction(ISD::FABS,               MVT::v4f64, Custom);
+
+    setOperationAction(ISD::TRUNCATE,           MVT::v8i16, Custom);
+
+    setOperationAction(ISD::FP_TO_SINT,         MVT::v8i16, Custom);
 
     setOperationAction(ISD::FP_TO_SINT,         MVT::v8i32, Legal);
     setOperationAction(ISD::SINT_TO_FP,         MVT::v8i32, Legal);
     setOperationAction(ISD::FP_ROUND,           MVT::v4f32, Legal);
 
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v4f64,  Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v4i64,  Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v8f32,  Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v8i32,  Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v32i8,  Custom);
-    setOperationAction(ISD::CONCAT_VECTORS,     MVT::v16i16, Custom);
+    setOperationAction(ISD::ZERO_EXTEND,        MVT::v8i32, Custom);
+    setOperationAction(ISD::UINT_TO_FP,         MVT::v8i8,  Custom);
+    setOperationAction(ISD::UINT_TO_FP,         MVT::v8i16, Custom);
+
+    setLoadExtAction(ISD::EXTLOAD,              MVT::v4f32, Legal);
 
     setOperationAction(ISD::SRL,               MVT::v16i16, Custom);
     setOperationAction(ISD::SRL,               MVT::v32i8, Custom);
@@ -1071,6 +1101,15 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::VSELECT,           MVT::v4i64, Legal);
     setOperationAction(ISD::VSELECT,           MVT::v8i32, Legal);
     setOperationAction(ISD::VSELECT,           MVT::v8f32, Legal);
+
+    if (Subtarget->hasFMA() || Subtarget->hasFMA4()) {
+      setOperationAction(ISD::FMA,             MVT::v8f32, Custom);
+      setOperationAction(ISD::FMA,             MVT::v4f64, Custom);
+      setOperationAction(ISD::FMA,             MVT::v4f32, Custom);
+      setOperationAction(ISD::FMA,             MVT::v2f64, Custom);
+      setOperationAction(ISD::FMA,             MVT::f32, Custom);
+      setOperationAction(ISD::FMA,             MVT::f64, Custom);
+    }
 
     if (Subtarget->hasAVX2()) {
       setOperationAction(ISD::ADD,             MVT::v4i64, Legal);
@@ -1123,60 +1162,60 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     }
 
     // Custom lower several nodes for 256-bit types.
-    for (unsigned i = (unsigned)MVT::FIRST_VECTOR_VALUETYPE;
-                  i <= (unsigned)MVT::LAST_VECTOR_VALUETYPE; ++i) {
-      MVT::SimpleValueType SVT = (MVT::SimpleValueType)i;
-      EVT VT = SVT;
+    for (int i = MVT::FIRST_VECTOR_VALUETYPE;
+             i <= MVT::LAST_VECTOR_VALUETYPE; ++i) {
+      MVT VT = (MVT::SimpleValueType)i;
 
       // Extract subvector is special because the value type
       // (result) is 128-bit but the source is 256-bit wide.
       if (VT.is128BitVector())
-        setOperationAction(ISD::EXTRACT_SUBVECTOR, SVT, Custom);
+        setOperationAction(ISD::EXTRACT_SUBVECTOR, VT, Custom);
 
       // Do not attempt to custom lower other non-256-bit vectors
       if (!VT.is256BitVector())
         continue;
 
-      setOperationAction(ISD::BUILD_VECTOR,       SVT, Custom);
-      setOperationAction(ISD::VECTOR_SHUFFLE,     SVT, Custom);
-      setOperationAction(ISD::INSERT_VECTOR_ELT,  SVT, Custom);
-      setOperationAction(ISD::EXTRACT_VECTOR_ELT, SVT, Custom);
-      setOperationAction(ISD::SCALAR_TO_VECTOR,   SVT, Custom);
-      setOperationAction(ISD::INSERT_SUBVECTOR,   SVT, Custom);
+      setOperationAction(ISD::BUILD_VECTOR,       VT, Custom);
+      setOperationAction(ISD::VECTOR_SHUFFLE,     VT, Custom);
+      setOperationAction(ISD::INSERT_VECTOR_ELT,  VT, Custom);
+      setOperationAction(ISD::EXTRACT_VECTOR_ELT, VT, Custom);
+      setOperationAction(ISD::SCALAR_TO_VECTOR,   VT, Custom);
+      setOperationAction(ISD::INSERT_SUBVECTOR,   VT, Custom);
+      setOperationAction(ISD::CONCAT_VECTORS,     VT, Custom);
     }
 
     // Promote v32i8, v16i16, v8i32 select, and, or, xor to v4i64.
-    for (unsigned i = (unsigned)MVT::v32i8; i != (unsigned)MVT::v4i64; ++i) {
-      MVT::SimpleValueType SVT = (MVT::SimpleValueType)i;
-      EVT VT = SVT;
+    for (int i = MVT::v32i8; i != MVT::v4i64; ++i) {
+      MVT VT = (MVT::SimpleValueType)i;
 
       // Do not attempt to promote non-256-bit vectors
       if (!VT.is256BitVector())
         continue;
 
-      setOperationAction(ISD::AND,    SVT, Promote);
-      AddPromotedToType (ISD::AND,    SVT, MVT::v4i64);
-      setOperationAction(ISD::OR,     SVT, Promote);
-      AddPromotedToType (ISD::OR,     SVT, MVT::v4i64);
-      setOperationAction(ISD::XOR,    SVT, Promote);
-      AddPromotedToType (ISD::XOR,    SVT, MVT::v4i64);
-      setOperationAction(ISD::LOAD,   SVT, Promote);
-      AddPromotedToType (ISD::LOAD,   SVT, MVT::v4i64);
-      setOperationAction(ISD::SELECT, SVT, Promote);
-      AddPromotedToType (ISD::SELECT, SVT, MVT::v4i64);
+      setOperationAction(ISD::AND,    VT, Promote);
+      AddPromotedToType (ISD::AND,    VT, MVT::v4i64);
+      setOperationAction(ISD::OR,     VT, Promote);
+      AddPromotedToType (ISD::OR,     VT, MVT::v4i64);
+      setOperationAction(ISD::XOR,    VT, Promote);
+      AddPromotedToType (ISD::XOR,    VT, MVT::v4i64);
+      setOperationAction(ISD::LOAD,   VT, Promote);
+      AddPromotedToType (ISD::LOAD,   VT, MVT::v4i64);
+      setOperationAction(ISD::SELECT, VT, Promote);
+      AddPromotedToType (ISD::SELECT, VT, MVT::v4i64);
     }
   }
 
   // SIGN_EXTEND_INREGs are evaluated by the extend type. Handle the expansion
   // of this type with custom code.
-  for (unsigned VT = (unsigned)MVT::FIRST_VECTOR_VALUETYPE;
-         VT != (unsigned)MVT::LAST_VECTOR_VALUETYPE; VT++) {
+  for (int VT = MVT::FIRST_VECTOR_VALUETYPE;
+           VT != MVT::LAST_VECTOR_VALUETYPE; VT++) {
     setOperationAction(ISD::SIGN_EXTEND_INREG, (MVT::SimpleValueType)VT,
                        Custom);
   }
 
   // We want to custom lower some of our intrinsics.
   setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::Other, Custom);
+  setOperationAction(ISD::INTRINSIC_W_CHAIN, MVT::Other, Custom);
 
 
   // Only custom-lower 64-bit SADDO and friends on 64-bit because we don't
@@ -1220,17 +1259,19 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setTargetDAGCombine(ISD::ADD);
   setTargetDAGCombine(ISD::FADD);
   setTargetDAGCombine(ISD::FSUB);
+  setTargetDAGCombine(ISD::FMA);
   setTargetDAGCombine(ISD::SUB);
   setTargetDAGCombine(ISD::LOAD);
   setTargetDAGCombine(ISD::STORE);
   setTargetDAGCombine(ISD::ZERO_EXTEND);
+  setTargetDAGCombine(ISD::ANY_EXTEND);
   setTargetDAGCombine(ISD::SIGN_EXTEND);
   setTargetDAGCombine(ISD::TRUNCATE);
   setTargetDAGCombine(ISD::SINT_TO_FP);
+  setTargetDAGCombine(ISD::SETCC);
   if (Subtarget->is64Bit())
     setTargetDAGCombine(ISD::MUL);
-  if (Subtarget->hasBMI())
-    setTargetDAGCombine(ISD::XOR);
+  setTargetDAGCombine(ISD::XOR);
 
   computeRegisterProperties();
 
@@ -1244,6 +1285,9 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   maxStoresPerMemmoveOptSize = Subtarget->isTargetDarwin() ? 8 : 4;
   setPrefLoopAlignment(4); // 2^4 bytes.
   benefitFromCodePlacementOpt = true;
+
+  // Predictable cmov don't hurt on atom because it's in-order.
+  predictableSelectIsExpensive = !Subtarget->isAtom();
 
   setPrefFunctionAlignment(4); // 2^4 bytes.
 }
@@ -1278,7 +1322,6 @@ static void getMaxByValAlign(Type *Ty, unsigned &MaxAlign) {
         break;
     }
   }
-  return;
 }
 
 /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
@@ -1323,7 +1366,7 @@ X86TargetLowering::getOptimalMemOpType(uint64_t Size,
   // cases like PR2962.  This should be removed when PR2962 is fixed.
   const Function *F = MF.getFunction();
   if (IsZeroVal &&
-      !F->hasFnAttr(Attribute::NoImplicitFloat)) {
+      !F->getFnAttributes().hasAttribute(Attributes::NoImplicitFloat)) {
     if (Size >= 16 &&
         (Subtarget->isUnalignedMemAccessFast() ||
          ((DstAlign == 0 || DstAlign >= 16) &&
@@ -1413,18 +1456,19 @@ X86TargetLowering::findRepresentativeClass(EVT VT) const{
   default:
     return TargetLowering::findRepresentativeClass(VT);
   case MVT::i8: case MVT::i16: case MVT::i32: case MVT::i64:
-    RRC = (Subtarget->is64Bit()
-           ? X86::GR64RegisterClass : X86::GR32RegisterClass);
+    RRC = Subtarget->is64Bit() ?
+      (const TargetRegisterClass*)&X86::GR64RegClass :
+      (const TargetRegisterClass*)&X86::GR32RegClass;
     break;
   case MVT::x86mmx:
-    RRC = X86::VR64RegisterClass;
+    RRC = &X86::VR64RegClass;
     break;
   case MVT::f32: case MVT::f64:
   case MVT::v16i8: case MVT::v8i16: case MVT::v4i32: case MVT::v2i64:
   case MVT::v4f32: case MVT::v2f64:
   case MVT::v32i8: case MVT::v8i32: case MVT::v4i64: case MVT::v8f32:
   case MVT::v4f64:
-    RRC = X86::VR128RegisterClass;
+    RRC = &X86::VR128RegClass;
     break;
   }
   return std::make_pair(RRC, Cost);
@@ -1459,7 +1503,7 @@ bool X86TargetLowering::getStackCookieLocation(unsigned &AddressSpace,
 
 bool
 X86TargetLowering::CanLowerReturn(CallingConv::ID CallConv,
-				  MachineFunction &MF, bool isVarArg,
+                                  MachineFunction &MF, bool isVarArg,
                         const SmallVectorImpl<ISD::OutputArg> &Outs,
                         LLVMContext &Context) const {
   SmallVector<CCValAssign, 16> RVLocs;
@@ -1502,6 +1546,16 @@ X86TargetLowering::LowerReturn(SDValue Chain,
     assert(VA.isRegLoc() && "Can only return in registers!");
     SDValue ValToCopy = OutVals[i];
     EVT ValVT = ValToCopy.getValueType();
+
+    // Promote values to the appropriate types
+    if (VA.getLocInfo() == CCValAssign::SExt)
+      ValToCopy = DAG.getNode(ISD::SIGN_EXTEND, dl, VA.getLocVT(), ValToCopy);
+    else if (VA.getLocInfo() == CCValAssign::ZExt)
+      ValToCopy = DAG.getNode(ISD::ZERO_EXTEND, dl, VA.getLocVT(), ValToCopy);
+    else if (VA.getLocInfo() == CCValAssign::AExt)
+      ValToCopy = DAG.getNode(ISD::ANY_EXTEND, dl, VA.getLocVT(), ValToCopy);
+    else if (VA.getLocInfo() == CCValAssign::BCvt)
+      ValToCopy = DAG.getNode(ISD::BITCAST, dl, VA.getLocVT(), ValToCopy);
 
     // If this is x86-64, and we disabled SSE, we can't return FP values,
     // or SSE or MMX vectors.
@@ -1640,7 +1694,7 @@ X86TargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
   SmallVector<CCValAssign, 16> RVLocs;
   bool Is64Bit = Subtarget->is64Bit();
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), RVLocs, *DAG.getContext());
+                 getTargetMachine(), RVLocs, *DAG.getContext());
   CCInfo.AnalyzeCallResult(Ins, RetCC_X86);
 
   // Copy all of the result registers out of their specified physreg.
@@ -1657,7 +1711,7 @@ X86TargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
     SDValue Val;
 
     // If this is a call to a function that returns an fp value on the floating
-    // point stack, we must guarantee the the value is popped from the stack, so
+    // point stack, we must guarantee the value is popped from the stack, so
     // a CopyFromReg is not good enough - the copy instruction may be eliminated
     // if the return value is not used. We use the FpPOP_RETVAL instruction
     // instead.
@@ -1701,21 +1755,37 @@ X86TargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
 
 /// CallIsStructReturn - Determines whether a call uses struct return
 /// semantics.
-static bool CallIsStructReturn(const SmallVectorImpl<ISD::OutputArg> &Outs) {
+enum StructReturnType {
+  NotStructReturn,
+  RegStructReturn,
+  StackStructReturn
+};
+static StructReturnType
+callIsStructReturn(const SmallVectorImpl<ISD::OutputArg> &Outs) {
   if (Outs.empty())
-    return false;
+    return NotStructReturn;
 
-  return Outs[0].Flags.isSRet();
+  const ISD::ArgFlagsTy &Flags = Outs[0].Flags;
+  if (!Flags.isSRet())
+    return NotStructReturn;
+  if (Flags.isInReg())
+    return RegStructReturn;
+  return StackStructReturn;
 }
 
 /// ArgsAreStructReturn - Determines whether a function uses struct
 /// return semantics.
-static bool
-ArgsAreStructReturn(const SmallVectorImpl<ISD::InputArg> &Ins) {
+static StructReturnType
+argsAreStructReturn(const SmallVectorImpl<ISD::InputArg> &Ins) {
   if (Ins.empty())
-    return false;
+    return NotStructReturn;
 
-  return Ins[0].Flags.isSRet();
+  const ISD::ArgFlagsTy &Flags = Ins[0].Flags;
+  if (!Flags.isSRet())
+    return NotStructReturn;
+  if (Flags.isInReg())
+    return RegStructReturn;
+  return StackStructReturn;
 }
 
 /// CreateCopyOfByValArgument - Make a copy of an aggregate at address specified
@@ -1852,19 +1922,19 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
       EVT RegVT = VA.getLocVT();
       const TargetRegisterClass *RC;
       if (RegVT == MVT::i32)
-        RC = X86::GR32RegisterClass;
+        RC = &X86::GR32RegClass;
       else if (Is64Bit && RegVT == MVT::i64)
-        RC = X86::GR64RegisterClass;
+        RC = &X86::GR64RegClass;
       else if (RegVT == MVT::f32)
-        RC = X86::FR32RegisterClass;
+        RC = &X86::FR32RegClass;
       else if (RegVT == MVT::f64)
-        RC = X86::FR64RegisterClass;
-      else if (RegVT.isVector() && RegVT.getSizeInBits() == 256)
-        RC = X86::VR256RegisterClass;
-      else if (RegVT.isVector() && RegVT.getSizeInBits() == 128)
-        RC = X86::VR128RegisterClass;
+        RC = &X86::FR64RegClass;
+      else if (RegVT.is256BitVector())
+        RC = &X86::VR256RegClass;
+      else if (RegVT.is128BitVector())
+        RC = &X86::VR128RegClass;
       else if (RegVT == MVT::x86mmx)
-        RC = X86::VR64RegisterClass;
+        RC = &X86::VR64RegClass;
       else
         llvm_unreachable("Unknown argument type!");
 
@@ -1964,7 +2034,8 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
       unsigned NumIntRegs = CCInfo.getFirstUnallocated(GPR64ArgRegs,
                                                        TotalNumIntRegs);
 
-      bool NoImplicitFloatOps = Fn->hasFnAttr(Attribute::NoImplicitFloat);
+      bool NoImplicitFloatOps = Fn->getFnAttributes().
+        hasAttribute(Attributes::NoImplicitFloat);
       assert(!(NumXMMRegs && !Subtarget->hasSSE1()) &&
              "SSE register cannot be used when SSE is disabled!");
       assert(!(NumXMMRegs && MF.getTarget().Options.UseSoftFloat &&
@@ -2006,7 +2077,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
         SDValue FIN = DAG.getNode(ISD::ADD, dl, getPointerTy(), RSFIN,
                                   DAG.getIntPtrConstant(Offset));
         unsigned VReg = MF.addLiveIn(GPR64ArgRegs[NumIntRegs],
-                                     X86::GR64RegisterClass);
+                                     &X86::GR64RegClass);
         SDValue Val = DAG.getCopyFromReg(Chain, dl, VReg, MVT::i64);
         SDValue Store =
           DAG.getStore(Val.getValue(1), dl, Val, FIN,
@@ -2022,7 +2093,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
         SmallVector<SDValue, 11> SaveXMMOps;
         SaveXMMOps.push_back(Chain);
 
-        unsigned AL = MF.addLiveIn(X86::AL, X86::GR8RegisterClass);
+        unsigned AL = MF.addLiveIn(X86::AL, &X86::GR8RegClass);
         SDValue ALVal = DAG.getCopyFromReg(DAG.getEntryNode(), dl, AL, MVT::i8);
         SaveXMMOps.push_back(ALVal);
 
@@ -2033,7 +2104,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
 
         for (; NumXMMRegs != TotalNumXMMRegs; ++NumXMMRegs) {
           unsigned VReg = MF.addLiveIn(XMMArgRegs64Bit[NumXMMRegs],
-                                       X86::VR128RegisterClass);
+                                       &X86::VR128RegClass);
           SDValue Val = DAG.getCopyFromReg(Chain, dl, VReg, MVT::v4f32);
           SaveXMMOps.push_back(Val);
         }
@@ -2056,7 +2127,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
     FuncInfo->setBytesToPopOnReturn(0); // Callee pops nothing.
     // If this is an sret function, the return should pop the hidden pointer.
     if (!Is64Bit && !IsTailCallConvention(CallConv) && !IsWindows &&
-        ArgsAreStructReturn(Ins))
+        argsAreStructReturn(Ins) == StackStructReturn)
       FuncInfo->setBytesToPopOnReturn(4);
   }
 
@@ -2112,16 +2183,14 @@ X86TargetLowering::EmitTailCallLoadRetAddr(SelectionDAG &DAG,
 /// optimization is performed and it is required (FPDiff!=0).
 static SDValue
 EmitTailCallStoreRetAddr(SelectionDAG & DAG, MachineFunction &MF,
-                         SDValue Chain, SDValue RetAddrFrIdx,
-                         bool Is64Bit, int FPDiff, DebugLoc dl) {
+                         SDValue Chain, SDValue RetAddrFrIdx, EVT PtrVT,
+                         unsigned SlotSize, int FPDiff, DebugLoc dl) {
   // Store the return address to the appropriate stack slot.
   if (!FPDiff) return Chain;
   // Calculate the new stack slot for the return address.
-  int SlotSize = Is64Bit ? 8 : 4;
   int NewReturnAddrFI =
     MF.getFrameInfo()->CreateFixedObject(SlotSize, FPDiff-SlotSize, false);
-  EVT VT = Is64Bit ? MVT::i64 : MVT::i32;
-  SDValue NewRetAddrFrIdx = DAG.getFrameIndex(NewReturnAddrFI, VT);
+  SDValue NewRetAddrFrIdx = DAG.getFrameIndex(NewReturnAddrFI, PtrVT);
   Chain = DAG.getStore(Chain, dl, RetAddrFrIdx, NewRetAddrFrIdx,
                        MachinePointerInfo::getFixedStack(NewReturnAddrFI),
                        false, false, 0);
@@ -2129,19 +2198,24 @@ EmitTailCallStoreRetAddr(SelectionDAG & DAG, MachineFunction &MF,
 }
 
 SDValue
-X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
-                             CallingConv::ID CallConv, bool isVarArg,
-                             bool doesNotRet, bool &isTailCall,
-                             const SmallVectorImpl<ISD::OutputArg> &Outs,
-                             const SmallVectorImpl<SDValue> &OutVals,
-                             const SmallVectorImpl<ISD::InputArg> &Ins,
-                             DebugLoc dl, SelectionDAG &DAG,
+X86TargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
                              SmallVectorImpl<SDValue> &InVals) const {
+  SelectionDAG &DAG                     = CLI.DAG;
+  DebugLoc &dl                          = CLI.DL;
+  SmallVector<ISD::OutputArg, 32> &Outs = CLI.Outs;
+  SmallVector<SDValue, 32> &OutVals     = CLI.OutVals;
+  SmallVector<ISD::InputArg, 32> &Ins   = CLI.Ins;
+  SDValue Chain                         = CLI.Chain;
+  SDValue Callee                        = CLI.Callee;
+  CallingConv::ID CallConv              = CLI.CallConv;
+  bool &isTailCall                      = CLI.IsTailCall;
+  bool isVarArg                         = CLI.IsVarArg;
+
   MachineFunction &MF = DAG.getMachineFunction();
   bool Is64Bit        = Subtarget->is64Bit();
   bool IsWin64        = Subtarget->isTargetWin64();
   bool IsWindows      = Subtarget->isTargetWindows();
-  bool IsStructRet    = CallIsStructReturn(Outs);
+  StructReturnType SR = callIsStructReturn(Outs);
   bool IsSibcall      = false;
 
   if (MF.getTarget().Options.DisableTailCalls)
@@ -2150,8 +2224,9 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   if (isTailCall) {
     // Check if it's really possible to do a tail call.
     isTailCall = IsEligibleForTailCallOptimization(Callee, CallConv,
-                    isVarArg, IsStructRet, MF.getFunction()->hasStructRetAttr(),
-                                                   Outs, OutVals, Ins, DAG);
+                    isVarArg, SR != NotStructReturn,
+                    MF.getFunction()->hasStructRetAttr(), CLI.RetTy,
+                    Outs, OutVals, Ins, DAG);
 
     // Sibcalls are automatically detected tailcalls which do not require
     // ABI changes.
@@ -2190,14 +2265,15 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   int FPDiff = 0;
   if (isTailCall && !IsSibcall) {
     // Lower arguments at fp - stackoffset + fpdiff.
-    unsigned NumBytesCallerPushed =
-      MF.getInfo<X86MachineFunctionInfo>()->getBytesToPopOnReturn();
+    X86MachineFunctionInfo *X86Info = MF.getInfo<X86MachineFunctionInfo>();
+    unsigned NumBytesCallerPushed = X86Info->getBytesToPopOnReturn();
+
     FPDiff = NumBytesCallerPushed - NumBytes;
 
     // Set the delta of movement of the returnaddr stackslot.
     // But only set if delta is greater than previous delta.
-    if (FPDiff < (MF.getInfo<X86MachineFunctionInfo>()->getTCReturnAddrDelta()))
-      MF.getInfo<X86MachineFunctionInfo>()->setTCReturnAddrDelta(FPDiff);
+    if (FPDiff < X86Info->getTCReturnAddrDelta())
+      X86Info->setTCReturnAddrDelta(FPDiff);
   }
 
   if (!IsSibcall)
@@ -2233,7 +2309,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       Arg = DAG.getNode(ISD::ZERO_EXTEND, dl, RegVT, Arg);
       break;
     case CCValAssign::AExt:
-      if (RegVT.isVector() && RegVT.getSizeInBits() == 128) {
+      if (RegVT.is128BitVector()) {
         // Special case: passing MMX values in XMM registers.
         Arg = DAG.getNode(ISD::BITCAST, dl, MVT::i64, Arg);
         Arg = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v2i64, Arg);
@@ -2274,7 +2350,8 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     } else if (!IsSibcall && (!isTailCall || isByVal)) {
       assert(VA.isMemLoc());
       if (StackPtr.getNode() == 0)
-        StackPtr = DAG.getCopyFromReg(Chain, dl, X86StackPtr, getPointerTy());
+        StackPtr = DAG.getCopyFromReg(Chain, dl, RegInfo->getStackRegister(),
+                                      getPointerTy());
       MemOpChains.push_back(LowerMemOpCallTo(Chain, StackPtr, Arg,
                                              dl, DAG, VA, Flags));
     }
@@ -2284,27 +2361,12 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
                         &MemOpChains[0], MemOpChains.size());
 
-  // Build a sequence of copy-to-reg nodes chained together with token chain
-  // and flag operands which copy the outgoing args into registers.
-  SDValue InFlag;
-  // Tail call byval lowering might overwrite argument registers so in case of
-  // tail call optimization the copies to registers are lowered later.
-  if (!isTailCall)
-    for (unsigned i = 0, e = RegsToPass.size(); i != e; ++i) {
-      Chain = DAG.getCopyToReg(Chain, dl, RegsToPass[i].first,
-                               RegsToPass[i].second, InFlag);
-      InFlag = Chain.getValue(1);
-    }
-
   if (Subtarget->isPICStyleGOT()) {
     // ELF / PIC requires GOT in the EBX register before function calls via PLT
     // GOT pointer.
     if (!isTailCall) {
-      Chain = DAG.getCopyToReg(Chain, dl, X86::EBX,
-                               DAG.getNode(X86ISD::GlobalBaseReg,
-                                           DebugLoc(), getPointerTy()),
-                               InFlag);
-      InFlag = Chain.getValue(1);
+      RegsToPass.push_back(std::make_pair(unsigned(X86::EBX),
+               DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc(), getPointerTy())));
     } else {
       // If we are tail calling and generating PIC/GOT style code load the
       // address of the callee into ECX. The value in ecx is used as target of
@@ -2342,11 +2404,9 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     assert((Subtarget->hasSSE1() || !NumXMMRegs)
            && "SSE registers cannot be used when SSE is disabled");
 
-    Chain = DAG.getCopyToReg(Chain, dl, X86::AL,
-                             DAG.getConstant(NumXMMRegs, MVT::i8), InFlag);
-    InFlag = Chain.getValue(1);
+    RegsToPass.push_back(std::make_pair(unsigned(X86::AL),
+                                        DAG.getConstant(NumXMMRegs, MVT::i8)));
   }
-
 
   // For tail calls lower the arguments to the 'real' stack slot.
   if (isTailCall) {
@@ -2361,8 +2421,6 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     SmallVector<SDValue, 8> MemOpChains2;
     SDValue FIN;
     int FI = 0;
-    // Do not flag preceding copytoreg stuff together with the following stuff.
-    InFlag = SDValue();
     if (getTargetMachine().Options.GuaranteedTailCallOpt) {
       for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
         CCValAssign &VA = ArgLocs[i];
@@ -2381,7 +2439,8 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
           // Copy relative to framepointer.
           SDValue Source = DAG.getIntPtrConstant(VA.getLocMemOffset());
           if (StackPtr.getNode() == 0)
-            StackPtr = DAG.getCopyFromReg(Chain, dl, X86StackPtr,
+            StackPtr = DAG.getCopyFromReg(Chain, dl,
+                                          RegInfo->getStackRegister(),
                                           getPointerTy());
           Source = DAG.getNode(ISD::ADD, dl, getPointerTy(), StackPtr, Source);
 
@@ -2402,17 +2461,19 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
       Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
                           &MemOpChains2[0], MemOpChains2.size());
 
-    // Copy arguments to their registers.
-    for (unsigned i = 0, e = RegsToPass.size(); i != e; ++i) {
-      Chain = DAG.getCopyToReg(Chain, dl, RegsToPass[i].first,
-                               RegsToPass[i].second, InFlag);
-      InFlag = Chain.getValue(1);
-    }
-    InFlag =SDValue();
-
     // Store the return address to the appropriate stack slot.
-    Chain = EmitTailCallStoreRetAddr(DAG, MF, Chain, RetAddrFrIdx, Is64Bit,
+    Chain = EmitTailCallStoreRetAddr(DAG, MF, Chain, RetAddrFrIdx,
+                                     getPointerTy(), RegInfo->getSlotSize(),
                                      FPDiff, dl);
+  }
+
+  // Build a sequence of copy-to-reg nodes chained together with token chain
+  // and flag operands which copy the outgoing args into registers.
+  SDValue InFlag;
+  for (unsigned i = 0, e = RegsToPass.size(); i != e; ++i) {
+    Chain = DAG.getCopyToReg(Chain, dl, RegsToPass[i].first,
+                             RegsToPass[i].second, InFlag);
+    InFlag = Chain.getValue(1);
   }
 
   if (getTargetMachine().getCodeModel() == CodeModel::Large) {
@@ -2452,7 +2513,8 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
         OpFlags = X86II::MO_DARWIN_STUB;
       } else if (Subtarget->isPICStyleRIPRel() &&
                  isa<Function>(GV) &&
-                 cast<Function>(GV)->hasFnAttr(Attribute::NonLazyBind)) {
+                 cast<Function>(GV)->getFnAttributes().
+                   hasAttribute(Attributes::NonLazyBind)) {
         // If the function is marked as non-lazy, generate an indirect call
         // which loads from the GOT directly. This avoids runtime overhead
         // at the cost of eager binding (and one extra byte of encoding).
@@ -2516,14 +2578,6 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
     Ops.push_back(DAG.getRegister(RegsToPass[i].first,
                                   RegsToPass[i].second.getValueType()));
 
-  // Add an implicit use GOT pointer in EBX.
-  if (!isTailCall && Subtarget->isPICStyleGOT())
-    Ops.push_back(DAG.getRegister(X86::EBX, getPointerTy()));
-
-  // Add an implicit use of AL for non-Windows x86 64-bit vararg functions.
-  if (Is64Bit && isVarArg && !IsWin64)
-    Ops.push_back(DAG.getRegister(X86::AL, MVT::i8));
-
   // Add a register mask operand representing the call-preserved registers.
   const TargetRegisterInfo *TRI = getTargetMachine().getRegisterInfo();
   const uint32_t *Mask = TRI->getCallPreservedMask(CallConv);
@@ -2553,7 +2607,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                        getTargetMachine().Options.GuaranteedTailCallOpt))
     NumBytesForCalleeToPush = NumBytes;    // Callee pops everything
   else if (!Is64Bit && !IsTailCallConvention(CallConv) && !IsWindows &&
-           IsStructRet)
+           SR == StackStructReturn)
     // If this is a call to a struct-return function, the callee
     // pops the hidden struct pointer, so we have to push it back.
     // This is common for Darwin/X86, Linux & Mingw32 targets.
@@ -2621,7 +2675,7 @@ X86TargetLowering::GetAlignedArgumentStackSize(unsigned StackSize,
   unsigned StackAlignment = TFI.getStackAlignment();
   uint64_t AlignMask = StackAlignment - 1;
   int64_t Offset = StackSize;
-  uint64_t SlotSize = TD->getPointerSize();
+  unsigned SlotSize = RegInfo->getSlotSize();
   if ( (Offset & AlignMask) <= (StackAlignment - SlotSize) ) {
     // Number smaller than 12 so just add the difference.
     Offset += ((StackAlignment - SlotSize) - (Offset & AlignMask));
@@ -2696,6 +2750,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
                                                      bool isVarArg,
                                                      bool isCalleeStructRet,
                                                      bool isCallerStructRet,
+                                                     Type *RetTy,
                                     const SmallVectorImpl<ISD::OutputArg> &Outs,
                                     const SmallVectorImpl<SDValue> &OutVals,
                                     const SmallVectorImpl<ISD::InputArg> &Ins,
@@ -2707,6 +2762,13 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
   // If -tailcallopt is specified, make fastcc functions tail-callable.
   const MachineFunction &MF = DAG.getMachineFunction();
   const Function *CallerF = DAG.getMachineFunction().getFunction();
+
+  // If the function return type is x86_fp80 and the callee return type is not,
+  // then the FP_EXTEND of the call result is not a nop. It's not safe to
+  // perform a tailcall optimization here.
+  if (CallerF->getReturnType()->isX86_FP80Ty() && !RetTy->isX86_FP80Ty())
+    return false;
+
   CallingConv::ID CallerCC = CallerF->getCallingConv();
   bool CCMatch = CallerCC == CalleeCC;
 
@@ -2745,7 +2807,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
 
     SmallVector<CCValAssign, 16> ArgLocs;
     CCState CCInfo(CalleeCC, isVarArg, DAG.getMachineFunction(),
-		   getTargetMachine(), ArgLocs, *DAG.getContext());
+                   getTargetMachine(), ArgLocs, *DAG.getContext());
 
     CCInfo.AnalyzeCallOperands(Outs, CC_X86);
     for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i)
@@ -2766,7 +2828,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
   if (Unused) {
     SmallVector<CCValAssign, 16> RVLocs;
     CCState CCInfo(CalleeCC, false, DAG.getMachineFunction(),
-		   getTargetMachine(), RVLocs, *DAG.getContext());
+                   getTargetMachine(), RVLocs, *DAG.getContext());
     CCInfo.AnalyzeCallResult(Ins, RetCC_X86);
     for (unsigned i = 0, e = RVLocs.size(); i != e; ++i) {
       CCValAssign &VA = RVLocs[i];
@@ -2780,12 +2842,12 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
   if (!CCMatch) {
     SmallVector<CCValAssign, 16> RVLocs1;
     CCState CCInfo1(CalleeCC, false, DAG.getMachineFunction(),
-		    getTargetMachine(), RVLocs1, *DAG.getContext());
+                    getTargetMachine(), RVLocs1, *DAG.getContext());
     CCInfo1.AnalyzeCallResult(Ins, RetCC_X86);
 
     SmallVector<CCValAssign, 16> RVLocs2;
     CCState CCInfo2(CallerCC, false, DAG.getMachineFunction(),
-		    getTargetMachine(), RVLocs2, *DAG.getContext());
+                    getTargetMachine(), RVLocs2, *DAG.getContext());
     CCInfo2.AnalyzeCallResult(Ins, RetCC_X86);
 
     if (RVLocs1.size() != RVLocs2.size())
@@ -2812,7 +2874,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
     // argument is passed on the stack.
     SmallVector<CCValAssign, 16> ArgLocs;
     CCState CCInfo(CalleeCC, isVarArg, DAG.getMachineFunction(),
-		   getTargetMachine(), ArgLocs, *DAG.getContext());
+                   getTargetMachine(), ArgLocs, *DAG.getContext());
 
     // Allocate shadow area for Win64
     if (Subtarget->isTargetWin64()) {
@@ -2830,7 +2892,7 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
       MachineFrameInfo *MFI = MF.getFrameInfo();
       const MachineRegisterInfo *MRI = &MF.getRegInfo();
       const X86InstrInfo *TII =
-        ((X86TargetMachine&)getTargetMachine()).getInstrInfo();
+        ((const X86TargetMachine&)getTargetMachine()).getInstrInfo();
       for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
         CCValAssign &VA = ArgLocs[i];
         SDValue Arg = OutVals[i];
@@ -2874,8 +2936,9 @@ X86TargetLowering::IsEligibleForTailCallOptimization(SDValue Callee,
 }
 
 FastISel *
-X86TargetLowering::createFastISel(FunctionLoweringInfo &funcInfo) const {
-  return X86::createFastISel(funcInfo);
+X86TargetLowering::createFastISel(FunctionLoweringInfo &funcInfo,
+                                  const TargetLibraryInfo *libInfo) const {
+  return X86::createFastISel(funcInfo, libInfo);
 }
 
 
@@ -2913,6 +2976,7 @@ static bool isTargetShuffle(unsigned Opcode) {
   case X86ISD::UNPCKH:
   case X86ISD::VPERMILP:
   case X86ISD::VPERM2X128:
+  case X86ISD::VPERMI:
     return true;
   }
 }
@@ -2979,7 +3043,7 @@ SDValue X86TargetLowering::getReturnAddressFrameIndex(SelectionDAG &DAG) const {
 
   if (ReturnAddrIndex == 0) {
     // Set up a frame object for the return address.
-    uint64_t SlotSize = TD->getPointerSize();
+    unsigned SlotSize = RegInfo->getSlotSize();
     ReturnAddrIndex = MF.getFrameInfo()->CreateFixedObject(SlotSize, -SlotSize,
                                                            false);
     FuncInfo->setRAIndex(ReturnAddrIndex);
@@ -3053,10 +3117,12 @@ static unsigned TranslateX86CC(ISD::CondCode SetCCOpcode, bool isFP,
         // X > -1   -> X == 0, jump !sign.
         RHS = DAG.getConstant(0, RHS.getValueType());
         return X86::COND_NS;
-      } else if (SetCCOpcode == ISD::SETLT && RHSC->isNullValue()) {
+      }
+      if (SetCCOpcode == ISD::SETLT && RHSC->isNullValue()) {
         // X < 0   -> X == 0, jump on sign.
         return X86::COND_S;
-      } else if (SetCCOpcode == ISD::SETLT && RHSC->getZExtValue() == 1) {
+      }
+      if (SetCCOpcode == ISD::SETLT && RHSC->getZExtValue() == 1) {
         // X < 1   -> X <= 0
         RHS = DAG.getConstant(0, RHS.getValueType());
         return X86::COND_LE;
@@ -3172,12 +3238,12 @@ static bool isUndefOrEqual(int Val, int CmpVal) {
   return false;
 }
 
-/// isSequentialOrUndefInRange - Return true if every element in Mask, begining
+/// isSequentialOrUndefInRange - Return true if every element in Mask, beginning
 /// from position Pos and ending in Pos+Size, falls within the specified
 /// sequential range (L, L+Pos]. or is undef.
 static bool isSequentialOrUndefInRange(ArrayRef<int> Mask,
-                                       int Pos, int Size, int Low) {
-  for (int i = Pos, e = Pos+Size; i != e; ++i, ++Low)
+                                       unsigned Pos, unsigned Size, int Low) {
+  for (unsigned i = Pos, e = Pos+Size; i != e; ++i, ++Low)
     if (!isUndefOrEqual(Mask[i], Low))
       return false;
   return true;
@@ -3196,8 +3262,8 @@ static bool isPSHUFDMask(ArrayRef<int> Mask, EVT VT) {
 
 /// isPSHUFHWMask - Return true if the node specifies a shuffle of elements that
 /// is suitable for input to PSHUFHW.
-static bool isPSHUFHWMask(ArrayRef<int> Mask, EVT VT) {
-  if (VT != MVT::v8i16)
+static bool isPSHUFHWMask(ArrayRef<int> Mask, EVT VT, bool HasAVX2) {
+  if (VT != MVT::v8i16 && (!HasAVX2 || VT != MVT::v16i16))
     return false;
 
   // Lower quadword copied in order or undef.
@@ -3206,16 +3272,27 @@ static bool isPSHUFHWMask(ArrayRef<int> Mask, EVT VT) {
 
   // Upper quadword shuffled.
   for (unsigned i = 4; i != 8; ++i)
-    if (Mask[i] >= 0 && (Mask[i] < 4 || Mask[i] > 7))
+    if (!isUndefOrInRange(Mask[i], 4, 8))
       return false;
+
+  if (VT == MVT::v16i16) {
+    // Lower quadword copied in order or undef.
+    if (!isSequentialOrUndefInRange(Mask, 8, 4, 8))
+      return false;
+
+    // Upper quadword shuffled.
+    for (unsigned i = 12; i != 16; ++i)
+      if (!isUndefOrInRange(Mask[i], 12, 16))
+        return false;
+  }
 
   return true;
 }
 
 /// isPSHUFLWMask - Return true if the node specifies a shuffle of elements that
 /// is suitable for input to PSHUFLW.
-static bool isPSHUFLWMask(ArrayRef<int> Mask, EVT VT) {
-  if (VT != MVT::v8i16)
+static bool isPSHUFLWMask(ArrayRef<int> Mask, EVT VT, bool HasAVX2) {
+  if (VT != MVT::v8i16 && (!HasAVX2 || VT != MVT::v16i16))
     return false;
 
   // Upper quadword copied in order.
@@ -3224,8 +3301,19 @@ static bool isPSHUFLWMask(ArrayRef<int> Mask, EVT VT) {
 
   // Lower quadword shuffled.
   for (unsigned i = 0; i != 4; ++i)
-    if (Mask[i] >= 4)
+    if (!isUndefOrInRange(Mask[i], 0, 4))
       return false;
+
+  if (VT == MVT::v16i16) {
+    // Upper quadword copied in order.
+    if (!isSequentialOrUndefInRange(Mask, 12, 4, 12))
+      return false;
+
+    // Lower quadword shuffled.
+    for (unsigned i = 8; i != 12; ++i)
+      if (!isUndefOrInRange(Mask[i], 8, 12))
+        return false;
+  }
 
   return true;
 }
@@ -3376,10 +3464,10 @@ static bool isSHUFPMask(ArrayRef<int> Mask, EVT VT, bool HasAVX,
 /// isMOVHLPSMask - Return true if the specified VECTOR_SHUFFLE operand
 /// specifies a shuffle of elements that is suitable for input to MOVHLPS.
 static bool isMOVHLPSMask(ArrayRef<int> Mask, EVT VT) {
-  unsigned NumElems = VT.getVectorNumElements();
-
-  if (VT.getSizeInBits() != 128)
+  if (!VT.is128BitVector())
     return false;
+
+  unsigned NumElems = VT.getVectorNumElements();
 
   if (NumElems != 4)
     return false;
@@ -3395,10 +3483,10 @@ static bool isMOVHLPSMask(ArrayRef<int> Mask, EVT VT) {
 /// of vector_shuffle v, v, <2, 3, 2, 3>, i.e. vector_shuffle v, undef,
 /// <2, 3, 2, 3>
 static bool isMOVHLPS_v_undef_Mask(ArrayRef<int> Mask, EVT VT) {
-  unsigned NumElems = VT.getVectorNumElements();
-
-  if (VT.getSizeInBits() != 128)
+  if (!VT.is128BitVector())
     return false;
+
+  unsigned NumElems = VT.getVectorNumElements();
 
   if (NumElems != 4)
     return false;
@@ -3412,7 +3500,7 @@ static bool isMOVHLPS_v_undef_Mask(ArrayRef<int> Mask, EVT VT) {
 /// isMOVLPMask - Return true if the specified VECTOR_SHUFFLE operand
 /// specifies a shuffle of elements that is suitable for input to MOVLP{S|D}.
 static bool isMOVLPMask(ArrayRef<int> Mask, EVT VT) {
-  if (VT.getSizeInBits() != 128)
+  if (!VT.is128BitVector())
     return false;
 
   unsigned NumElems = VT.getVectorNumElements();
@@ -3420,11 +3508,11 @@ static bool isMOVLPMask(ArrayRef<int> Mask, EVT VT) {
   if (NumElems != 2 && NumElems != 4)
     return false;
 
-  for (unsigned i = 0; i != NumElems/2; ++i)
+  for (unsigned i = 0, e = NumElems/2; i != e; ++i)
     if (!isUndefOrEqual(Mask[i], i + NumElems))
       return false;
 
-  for (unsigned i = NumElems/2; i != NumElems; ++i)
+  for (unsigned i = NumElems/2, e = NumElems; i != e; ++i)
     if (!isUndefOrEqual(Mask[i], i))
       return false;
 
@@ -3434,21 +3522,70 @@ static bool isMOVLPMask(ArrayRef<int> Mask, EVT VT) {
 /// isMOVLHPSMask - Return true if the specified VECTOR_SHUFFLE operand
 /// specifies a shuffle of elements that is suitable for input to MOVLHPS.
 static bool isMOVLHPSMask(ArrayRef<int> Mask, EVT VT) {
-  unsigned NumElems = VT.getVectorNumElements();
-
-  if ((NumElems != 2 && NumElems != 4)
-      || VT.getSizeInBits() > 128)
+  if (!VT.is128BitVector())
     return false;
 
-  for (unsigned i = 0; i != NumElems/2; ++i)
+  unsigned NumElems = VT.getVectorNumElements();
+
+  if (NumElems != 2 && NumElems != 4)
+    return false;
+
+  for (unsigned i = 0, e = NumElems/2; i != e; ++i)
     if (!isUndefOrEqual(Mask[i], i))
       return false;
 
-  for (unsigned i = 0; i != NumElems/2; ++i)
-    if (!isUndefOrEqual(Mask[i + NumElems/2], i + NumElems))
+  for (unsigned i = 0, e = NumElems/2; i != e; ++i)
+    if (!isUndefOrEqual(Mask[i + e], i + NumElems))
       return false;
 
   return true;
+}
+
+//
+// Some special combinations that can be optimized.
+//
+static
+SDValue Compact8x32ShuffleNode(ShuffleVectorSDNode *SVOp,
+                               SelectionDAG &DAG) {
+  EVT VT = SVOp->getValueType(0);
+  DebugLoc dl = SVOp->getDebugLoc();
+
+  if (VT != MVT::v8i32 && VT != MVT::v8f32)
+    return SDValue();
+
+  ArrayRef<int> Mask = SVOp->getMask();
+
+  // These are the special masks that may be optimized.
+  static const int MaskToOptimizeEven[] = {0, 8, 2, 10, 4, 12, 6, 14};
+  static const int MaskToOptimizeOdd[]  = {1, 9, 3, 11, 5, 13, 7, 15};
+  bool MatchEvenMask = true;
+  bool MatchOddMask  = true;
+  for (int i=0; i<8; ++i) {
+    if (!isUndefOrEqual(Mask[i], MaskToOptimizeEven[i]))
+      MatchEvenMask = false;
+    if (!isUndefOrEqual(Mask[i], MaskToOptimizeOdd[i]))
+      MatchOddMask = false;
+  }
+
+  if (!MatchEvenMask && !MatchOddMask)
+    return SDValue();
+
+  SDValue UndefNode = DAG.getNode(ISD::UNDEF, dl, VT);
+
+  SDValue Op0 = SVOp->getOperand(0);
+  SDValue Op1 = SVOp->getOperand(1);
+
+  if (MatchEvenMask) {
+    // Shift the second operand right to 32 bits.
+    static const int ShiftRightMask[] = {-1, 0, -1, 2, -1, 4, -1, 6 };
+    Op1 = DAG.getVectorShuffle(VT, dl, Op1, UndefNode, ShiftRightMask);
+  } else {
+    // Shift the first operand left to 32 bits.
+    static const int ShiftLeftMask[] = {1, -1, 3, -1, 5, -1, 7, -1 };
+    Op0 = DAG.getVectorShuffle(VT, dl, Op0, UndefNode, ShiftLeftMask);
+  }
+  static const int BlendMask[] = {0, 9, 2, 11, 4, 13, 6, 15};
+  return DAG.getVectorShuffle(VT, dl, Op0, Op1, BlendMask);
 }
 
 /// isUNPCKLMask - Return true if the specified VECTOR_SHUFFLE operand
@@ -3608,7 +3745,7 @@ static bool isUNPCKH_v_undef_Mask(ArrayRef<int> Mask, EVT VT, bool HasAVX2) {
 static bool isMOVLMask(ArrayRef<int> Mask, EVT VT) {
   if (VT.getVectorElementType().getSizeInBits() < 32)
     return false;
-  if (VT.getSizeInBits() == 256)
+  if (!VT.is128BitVector())
     return false;
 
   unsigned NumElts = VT.getVectorNumElements();
@@ -3630,7 +3767,7 @@ static bool isMOVLMask(ArrayRef<int> Mask, EVT VT) {
 /// The first half comes from the second half of V1 and the second half from the
 /// the second half of V2.
 static bool isVPERM2X128Mask(ArrayRef<int> Mask, EVT VT, bool HasAVX) {
-  if (!HasAVX || VT.getSizeInBits() != 256)
+  if (!HasAVX || !VT.is256BitVector())
     return false;
 
   // The shuffle result is divided into half A and half B. In total the two
@@ -3722,9 +3859,10 @@ static bool isVPERMILPMask(ArrayRef<int> Mask, EVT VT, bool HasAVX) {
 /// element of vector 2 and the other elements to come from vector 1 in order.
 static bool isCommutedMOVLMask(ArrayRef<int> Mask, EVT VT,
                                bool V2IsSplat = false, bool V2IsUndef = false) {
-  unsigned NumOps = VT.getVectorNumElements();
-  if (VT.getSizeInBits() == 256)
+  if (!VT.is128BitVector())
     return false;
+
+  unsigned NumOps = VT.getVectorNumElements();
   if (NumOps != 2 && NumOps != 4 && NumOps != 8 && NumOps != 16)
     return false;
 
@@ -3790,9 +3928,11 @@ static bool isMOVSLDUPMask(ArrayRef<int> Mask, EVT VT,
 /// specifies a shuffle of elements that is suitable for input to 256-bit
 /// version of MOVDDUP.
 static bool isMOVDDUPYMask(ArrayRef<int> Mask, EVT VT, bool HasAVX) {
-  unsigned NumElts = VT.getVectorNumElements();
+  if (!HasAVX || !VT.is256BitVector())
+    return false;
 
-  if (!HasAVX || VT.getSizeInBits() != 256 || NumElts != 4)
+  unsigned NumElts = VT.getVectorNumElements();
+  if (NumElts != 4)
     return false;
 
   for (unsigned i = 0; i != NumElts/2; ++i)
@@ -3808,7 +3948,7 @@ static bool isMOVDDUPYMask(ArrayRef<int> Mask, EVT VT, bool HasAVX) {
 /// specifies a shuffle of elements that is suitable for input to 128-bit
 /// version of MOVDDUP.
 static bool isMOVDDUPMask(ArrayRef<int> Mask, EVT VT) {
-  if (VT.getSizeInBits() != 128)
+  if (!VT.is128BitVector())
     return false;
 
   unsigned e = VT.getVectorNumElements() / 2;
@@ -3882,9 +4022,8 @@ static unsigned getShuffleSHUFImmediate(ShuffleVectorSDNode *N) {
   for (unsigned i = 0; i != NumElts; ++i) {
     int Elt = N->getMaskElt(i);
     if (Elt < 0) continue;
-    Elt %= NumLaneElts;
-    unsigned ShAmt = i << Shift;
-    if (ShAmt >= 8) ShAmt -= 8;
+    Elt &= NumLaneElts - 1;
+    unsigned ShAmt = (i << Shift) % 8;
     Mask |= Elt << ShAmt;
   }
 
@@ -3894,30 +4033,48 @@ static unsigned getShuffleSHUFImmediate(ShuffleVectorSDNode *N) {
 /// getShufflePSHUFHWImmediate - Return the appropriate immediate to shuffle
 /// the specified VECTOR_SHUFFLE mask with the PSHUFHW instruction.
 static unsigned getShufflePSHUFHWImmediate(ShuffleVectorSDNode *N) {
+  EVT VT = N->getValueType(0);
+
+  assert((VT == MVT::v8i16 || VT == MVT::v16i16) &&
+         "Unsupported vector type for PSHUFHW");
+
+  unsigned NumElts = VT.getVectorNumElements();
+
   unsigned Mask = 0;
-  // 8 nodes, but we only care about the last 4.
-  for (unsigned i = 7; i >= 4; --i) {
-    int Val = N->getMaskElt(i);
-    if (Val >= 0)
-      Mask |= (Val - 4);
-    if (i != 4)
-      Mask <<= 2;
+  for (unsigned l = 0; l != NumElts; l += 8) {
+    // 8 nodes per lane, but we only care about the last 4.
+    for (unsigned i = 0; i < 4; ++i) {
+      int Elt = N->getMaskElt(l+i+4);
+      if (Elt < 0) continue;
+      Elt &= 0x3; // only 2-bits.
+      Mask |= Elt << (i * 2);
+    }
   }
+
   return Mask;
 }
 
 /// getShufflePSHUFLWImmediate - Return the appropriate immediate to shuffle
 /// the specified VECTOR_SHUFFLE mask with the PSHUFLW instruction.
 static unsigned getShufflePSHUFLWImmediate(ShuffleVectorSDNode *N) {
+  EVT VT = N->getValueType(0);
+
+  assert((VT == MVT::v8i16 || VT == MVT::v16i16) &&
+         "Unsupported vector type for PSHUFHW");
+
+  unsigned NumElts = VT.getVectorNumElements();
+
   unsigned Mask = 0;
-  // 8 nodes, but we only care about the first 4.
-  for (int i = 3; i >= 0; --i) {
-    int Val = N->getMaskElt(i);
-    if (Val >= 0)
-      Mask |= Val;
-    if (i != 0)
-      Mask <<= 2;
+  for (unsigned l = 0; l != NumElts; l += 8) {
+    // 8 nodes per lane, but we only care about the first 4.
+    for (unsigned i = 0; i < 4; ++i) {
+      int Elt = N->getMaskElt(l+i);
+      if (Elt < 0) continue;
+      Elt &= 0x3; // only 2-bits
+      Mask |= Elt << (i * 2);
+    }
   }
+
   return Mask;
 }
 
@@ -4018,13 +4175,14 @@ static SDValue CommuteVectorShuffle(ShuffleVectorSDNode *SVOp,
   SmallVector<int, 8> MaskVec;
 
   for (unsigned i = 0; i != NumElems; ++i) {
-    int idx = SVOp->getMaskElt(i);
-    if (idx < 0)
-      MaskVec.push_back(idx);
-    else if (idx < (int)NumElems)
-      MaskVec.push_back(idx + NumElems);
-    else
-      MaskVec.push_back(idx - NumElems);
+    int Idx = SVOp->getMaskElt(i);
+    if (Idx >= 0) {
+      if (Idx < (int)NumElems)
+        Idx += NumElems;
+      else
+        Idx -= NumElems;
+    }
+    MaskVec.push_back(Idx);
   }
   return DAG.getVectorShuffle(VT, SVOp->getDebugLoc(), SVOp->getOperand(1),
                               SVOp->getOperand(0), &MaskVec[0]);
@@ -4035,7 +4193,7 @@ static SDValue CommuteVectorShuffle(ShuffleVectorSDNode *SVOp,
 /// V1 (and in order), and the upper half elements should come from the upper
 /// half of V2 (and in order).
 static bool ShouldXformToMOVHLPS(ArrayRef<int> Mask, EVT VT) {
-  if (VT.getSizeInBits() != 128)
+  if (!VT.is128BitVector())
     return false;
   if (VT.getVectorNumElements() != 4)
     return false;
@@ -4092,7 +4250,7 @@ static bool WillBeConstantPoolLoad(SDNode *N) {
 /// MOVLP, it must be either a vector load or a scalar load to vector.
 static bool ShouldXformToMOVLP(SDNode *V1, SDNode *V2,
                                ArrayRef<int> Mask, EVT VT) {
-  if (VT.getSizeInBits() != 128)
+  if (!VT.is128BitVector())
     return false;
 
   if (!ISD::isNON_EXTLoad(V1) && !isScalarLoadToVector(V1))
@@ -4109,7 +4267,7 @@ static bool ShouldXformToMOVLP(SDNode *V1, SDNode *V2,
   for (unsigned i = 0, e = NumElems/2; i != e; ++i)
     if (!isUndefOrEqual(Mask[i], i))
       return false;
-  for (unsigned i = NumElems/2; i != NumElems; ++i)
+  for (unsigned i = NumElems/2, e = NumElems; i != e; ++i)
     if (!isUndefOrEqual(Mask[i], i+NumElems))
       return false;
   return true;
@@ -4161,11 +4319,12 @@ static bool isZeroShuffle(ShuffleVectorSDNode *N) {
 static SDValue getZeroVector(EVT VT, const X86Subtarget *Subtarget,
                              SelectionDAG &DAG, DebugLoc dl) {
   assert(VT.isVector() && "Expected a vector type");
+  unsigned Size = VT.getSizeInBits();
 
   // Always build SSE zero vectors as <4 x i32> bitcasted
   // to their dest type. This ensures they get CSE'd.
   SDValue Vec;
-  if (VT.getSizeInBits() == 128) {  // SSE
+  if (Size == 128) {  // SSE
     if (Subtarget->hasSSE2()) {  // SSE2
       SDValue Cst = DAG.getTargetConstant(0, MVT::i32);
       Vec = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v4i32, Cst, Cst, Cst, Cst);
@@ -4173,7 +4332,7 @@ static SDValue getZeroVector(EVT VT, const X86Subtarget *Subtarget,
       SDValue Cst = DAG.getTargetConstantFP(+0.0, MVT::f32);
       Vec = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v4f32, Cst, Cst, Cst, Cst);
     }
-  } else if (VT.getSizeInBits() == 256) { // AVX
+  } else if (Size == 256) { // AVX
     if (Subtarget->hasAVX2()) { // AVX2
       SDValue Cst = DAG.getTargetConstant(0, MVT::i32);
       SDValue Ops[] = { Cst, Cst, Cst, Cst, Cst, Cst, Cst, Cst };
@@ -4185,7 +4344,9 @@ static SDValue getZeroVector(EVT VT, const X86Subtarget *Subtarget,
       SDValue Ops[] = { Cst, Cst, Cst, Cst, Cst, Cst, Cst, Cst };
       Vec = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v8f32, Ops, 8);
     }
-  }
+  } else
+    llvm_unreachable("Unexpected vector type");
+
   return DAG.getNode(ISD::BITCAST, dl, VT, Vec);
 }
 
@@ -4196,25 +4357,22 @@ static SDValue getZeroVector(EVT VT, const X86Subtarget *Subtarget,
 static SDValue getOnesVector(EVT VT, bool HasAVX2, SelectionDAG &DAG,
                              DebugLoc dl) {
   assert(VT.isVector() && "Expected a vector type");
-  assert((VT.is128BitVector() || VT.is256BitVector())
-         && "Expected a 128-bit or 256-bit vector type");
+  unsigned Size = VT.getSizeInBits();
 
   SDValue Cst = DAG.getTargetConstant(~0U, MVT::i32);
   SDValue Vec;
-  if (VT.getSizeInBits() == 256) {
+  if (Size == 256) {
     if (HasAVX2) { // AVX2
       SDValue Ops[] = { Cst, Cst, Cst, Cst, Cst, Cst, Cst, Cst };
       Vec = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v8i32, Ops, 8);
     } else { // AVX
       Vec = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v4i32, Cst, Cst, Cst, Cst);
-      SDValue InsV = Insert128BitVector(DAG.getNode(ISD::UNDEF, dl, MVT::v8i32),
-                                Vec, DAG.getConstant(0, MVT::i32), DAG, dl);
-      Vec = Insert128BitVector(InsV, Vec,
-                    DAG.getConstant(4 /* NumElems/2 */, MVT::i32), DAG, dl);
+      Vec = Concat128BitVectors(Vec, Vec, MVT::v8i32, 8, DAG, dl);
     }
-  } else {
+  } else if (Size == 128) {
     Vec = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v4i32, Cst, Cst, Cst, Cst);
-  }
+  } else
+    llvm_unreachable("Unexpected vector type");
 
   return DAG.getNode(ISD::BITCAST, dl, VT, Vec);
 }
@@ -4257,9 +4415,8 @@ static SDValue getUnpackl(SelectionDAG &DAG, DebugLoc dl, EVT VT, SDValue V1,
 static SDValue getUnpackh(SelectionDAG &DAG, DebugLoc dl, EVT VT, SDValue V1,
                           SDValue V2) {
   unsigned NumElems = VT.getVectorNumElements();
-  unsigned Half = NumElems/2;
   SmallVector<int, 8> Mask;
-  for (unsigned i = 0; i != Half; ++i) {
+  for (unsigned i = 0, Half = NumElems/2; i != Half; ++i) {
     Mask.push_back(i + Half);
     Mask.push_back(i + NumElems + Half);
   }
@@ -4291,15 +4448,14 @@ static SDValue PromoteSplati8i16(SDValue V, SelectionDAG &DAG, int &EltNo) {
 static SDValue getLegalSplat(SelectionDAG &DAG, SDValue V, int EltNo) {
   EVT VT = V.getValueType();
   DebugLoc dl = V.getDebugLoc();
-  assert((VT.getSizeInBits() == 128 || VT.getSizeInBits() == 256)
-         && "Vector size not supported");
+  unsigned Size = VT.getSizeInBits();
 
-  if (VT.getSizeInBits() == 128) {
+  if (Size == 128) {
     V = DAG.getNode(ISD::BITCAST, dl, MVT::v4f32, V);
     int SplatMask[4] = { EltNo, EltNo, EltNo, EltNo };
     V = DAG.getVectorShuffle(MVT::v4f32, dl, V, DAG.getUNDEF(MVT::v4f32),
                              &SplatMask[0]);
-  } else {
+  } else if (Size == 256) {
     // To use VPERMILPS to splat scalars, the second half of indicies must
     // refer to the higher part, which is a duplication of the lower one,
     // because VPERMILPS can only handle in-lane permutations.
@@ -4309,7 +4465,8 @@ static SDValue getLegalSplat(SelectionDAG &DAG, SDValue V, int EltNo) {
     V = DAG.getNode(ISD::BITCAST, dl, MVT::v8f32, V);
     V = DAG.getVectorShuffle(MVT::v8f32, dl, V, DAG.getUNDEF(MVT::v8f32),
                              &SplatMask[0]);
-  }
+  } else
+    llvm_unreachable("Vector size not supported");
 
   return DAG.getNode(ISD::BITCAST, dl, VT, V);
 }
@@ -4330,9 +4487,8 @@ static SDValue PromoteSplat(ShuffleVectorSDNode *SV, SelectionDAG &DAG) {
   // Extract the 128-bit part containing the splat element and update
   // the splat element index when it refers to the higher register.
   if (Size == 256) {
-    unsigned Idx = (EltNo >= NumElems/2) ? NumElems/2 : 0;
-    V1 = Extract128BitVector(V1, DAG.getConstant(Idx, MVT::i32), DAG, dl);
-    if (Idx > 0)
+    V1 = Extract128BitVector(V1, EltNo, DAG, dl);
+    if (EltNo >= NumElems/2)
       EltNo -= NumElems/2;
   }
 
@@ -4348,10 +4504,7 @@ static SDValue PromoteSplat(ShuffleVectorSDNode *SV, SelectionDAG &DAG) {
   // into the low and high part. This is necessary because we want
   // to use VPERM* to shuffle the vectors
   if (Size == 256) {
-    SDValue InsV = Insert128BitVector(DAG.getUNDEF(SrcVT), V1,
-                         DAG.getConstant(0, MVT::i32), DAG, dl);
-    V1 = Insert128BitVector(InsV, V1,
-               DAG.getConstant(NumElems/2, MVT::i32), DAG, dl);
+    V1 = DAG.getNode(ISD::CONCAT_VECTORS, dl, SrcVT, V1, V1);
   }
 
   return getLegalSplat(DAG, V1, EltNo);
@@ -4379,7 +4532,7 @@ static SDValue getShuffleVectorZeroOrUndef(SDValue V2, unsigned Idx,
 /// getTargetShuffleMask - Calculates the shuffle mask corresponding to the
 /// target specific opcode. Returns true if the Mask could be calculated.
 /// Sets IsUnary to true if only uses one source.
-static bool getTargetShuffleMask(SDNode *N, EVT VT,
+static bool getTargetShuffleMask(SDNode *N, MVT VT,
                                  SmallVectorImpl<int> &Mask, bool &IsUnary) {
   unsigned NumElems = VT.getVectorNumElements();
   SDValue ImmN;
@@ -4410,12 +4563,17 @@ static bool getTargetShuffleMask(SDNode *N, EVT VT,
     break;
   case X86ISD::PSHUFHW:
     ImmN = N->getOperand(N->getNumOperands()-1);
-    DecodePSHUFHWMask(cast<ConstantSDNode>(ImmN)->getZExtValue(), Mask);
+    DecodePSHUFHWMask(VT, cast<ConstantSDNode>(ImmN)->getZExtValue(), Mask);
     IsUnary = true;
     break;
   case X86ISD::PSHUFLW:
     ImmN = N->getOperand(N->getNumOperands()-1);
-    DecodePSHUFLWMask(cast<ConstantSDNode>(ImmN)->getZExtValue(), Mask);
+    DecodePSHUFLWMask(VT, cast<ConstantSDNode>(ImmN)->getZExtValue(), Mask);
+    IsUnary = true;
+    break;
+  case X86ISD::VPERMI:
+    ImmN = N->getOperand(N->getNumOperands()-1);
+    DecodeVPERMMask(cast<ConstantSDNode>(ImmN)->getZExtValue(), Mask);
     IsUnary = true;
     break;
   case X86ISD::MOVSS:
@@ -4475,20 +4633,20 @@ static SDValue getShuffleScalarElt(SDNode *N, unsigned Index, SelectionDAG &DAG,
 
   // Recurse into target specific vector shuffles to find scalars.
   if (isTargetShuffle(Opcode)) {
-    unsigned NumElems = VT.getVectorNumElements();
+    MVT ShufVT = V.getValueType().getSimpleVT();
+    unsigned NumElems = ShufVT.getVectorNumElements();
     SmallVector<int, 16> ShuffleMask;
-    SDValue ImmN;
     bool IsUnary;
 
-    if (!getTargetShuffleMask(N, VT, ShuffleMask, IsUnary))
+    if (!getTargetShuffleMask(N, ShufVT, ShuffleMask, IsUnary))
       return SDValue();
 
     int Elt = ShuffleMask[Index];
     if (Elt < 0)
-      return DAG.getUNDEF(VT.getVectorElementType());
+      return DAG.getUNDEF(ShufVT.getVectorElementType());
 
     SDValue NewV = (Elt < (int)NumElems) ? N->getOperand(0)
-                                           : N->getOperand(1);
+                                         : N->getOperand(1);
     return getShuffleScalarElt(NewV.getNode(), Elt % NumElems, DAG,
                                Depth+1);
   }
@@ -4633,7 +4791,7 @@ static bool isVectorShift(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG,
                           bool &isLeft, SDValue &ShVal, unsigned &ShAmt) {
   // Although the logic below support any bitwidth size, there are no
   // shift instructions which handle more than 128-bit vectors.
-  if (SVOp->getValueType(0).getSizeInBits() > 128)
+  if (!SVOp->getValueType(0).is128BitVector())
     return false;
 
   if (isVectorShiftLeft(SVOp, DAG, isLeft, ShVal, ShAmt) ||
@@ -4728,7 +4886,7 @@ static SDValue LowerBuildVectorv8i16(SDValue Op, unsigned NonZeros,
 static SDValue getVShift(bool isLeft, EVT VT, SDValue SrcOp,
                          unsigned NumBits, SelectionDAG &DAG,
                          const TargetLowering &TLI, DebugLoc dl) {
-  assert(VT.getSizeInBits() == 128 && "Unknown type for VShift");
+  assert(VT.is128BitVector() && "Unknown type for VShift");
   EVT ShVT = MVT::v2i64;
   unsigned Opc = isLeft ? X86ISD::VSHLDQ : X86ISD::VSRLDQ;
   SrcOp = DAG.getNode(ISD::BITCAST, dl, ShVT, SrcOp);
@@ -4796,7 +4954,7 @@ X86TargetLowering::LowerAsSplatVectorLoad(SDValue SrcOp, EVT VT, DebugLoc dl,
                         Ptr,DAG.getConstant(StartOffset, Ptr.getValueType()));
 
     int EltNo = (Offset - StartOffset) >> 2;
-    int NumElems = VT.getVectorNumElements();
+    unsigned NumElems = VT.getVectorNumElements();
 
     EVT NVT = EVT::getVectorVT(*DAG.getContext(), PVT, NumElems);
     SDValue V1 = DAG.getLoad(NVT, dl, Chain, Ptr,
@@ -4804,7 +4962,7 @@ X86TargetLowering::LowerAsSplatVectorLoad(SDValue SrcOp, EVT VT, DebugLoc dl,
                              false, false, false, 0);
 
     SmallVector<int, 8> Mask;
-    for (int i = 0; i < NumElems; ++i)
+    for (unsigned i = 0; i != NumElems; ++i)
       Mask.push_back(EltNo);
 
     return DAG.getVectorShuffle(NVT, dl, V1, DAG.getUNDEF(NVT), &Mask[0]);
@@ -4868,8 +5026,9 @@ static SDValue EltsFromConsecutiveLoads(EVT VT, SmallVectorImpl<SDValue> &Elts,
                        LDBase->getPointerInfo(),
                        LDBase->isVolatile(), LDBase->isNonTemporal(),
                        LDBase->isInvariant(), LDBase->getAlignment());
-  } else if (NumElems == 4 && LastLoadedElt == 1 &&
-             DAG.getTargetLoweringInfo().isTypeLegal(MVT::v2i64)) {
+  }
+  if (NumElems == 4 && LastLoadedElt == 1 &&
+      DAG.getTargetLoweringInfo().isTypeLegal(MVT::v2i64)) {
     SDVTList Tys = DAG.getVTList(MVT::v2i64, MVT::Other);
     SDValue Ops[] = { LDBase->getChain(), LDBase->getBasePtr() };
     SDValue ResNode =
@@ -4878,6 +5037,18 @@ static SDValue EltsFromConsecutiveLoads(EVT VT, SmallVectorImpl<SDValue> &Elts,
                                 LDBase->getAlignment(),
                                 false/*isVolatile*/, true/*ReadMem*/,
                                 false/*WriteMem*/);
+
+    // Make sure the newly-created LOAD is in the same position as LDBase in
+    // terms of dependency. We create a TokenFactor for LDBase and ResNode, and
+    // update uses of LDBase's output chain to use the TokenFactor.
+    if (LDBase->hasAnyUseOfValue(1)) {
+      SDValue NewChain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other,
+                             SDValue(LDBase, 1), SDValue(ResNode.getNode(), 1));
+      DAG.ReplaceAllUsesOfValueWith(SDValue(LDBase, 1), NewChain);
+      DAG.UpdateNodeOperands(NewChain.getNode(), SDValue(LDBase, 1),
+                             SDValue(ResNode.getNode(), 1));
+    }
+
     return DAG.getNode(ISD::BITCAST, DL, VT, ResNode);
   }
   return SDValue();
@@ -4891,12 +5062,15 @@ static SDValue EltsFromConsecutiveLoads(EVT VT, SmallVectorImpl<SDValue> &Elts,
 /// The VBROADCAST node is returned when a pattern is found,
 /// or SDValue() otherwise.
 SDValue
-X86TargetLowering::LowerVectorBroadcast(SDValue &Op, SelectionDAG &DAG) const {
+X86TargetLowering::LowerVectorBroadcast(SDValue Op, SelectionDAG &DAG) const {
   if (!Subtarget->hasAVX())
     return SDValue();
 
   EVT VT = Op.getValueType();
   DebugLoc dl = Op.getDebugLoc();
+
+  assert((VT.is128BitVector() || VT.is256BitVector()) &&
+         "Unsupported vector type for broadcast.");
 
   SDValue Ld;
   bool ConstSplatVal;
@@ -4932,8 +5106,17 @@ X86TargetLowering::LowerVectorBroadcast(SDValue &Op, SelectionDAG &DAG) const {
         return SDValue();
 
       SDValue Sc = Op.getOperand(0);
-      if (Sc.getOpcode() != ISD::SCALAR_TO_VECTOR)
-        return SDValue();
+      if (Sc.getOpcode() != ISD::SCALAR_TO_VECTOR &&
+          Sc.getOpcode() != ISD::BUILD_VECTOR) {
+
+        if (!Subtarget->hasAVX2())
+          return SDValue();
+
+        // Use the register form of the broadcast instruction available on AVX2.
+        if (VT.is256BitVector())
+          Sc = Extract128BitVector(Sc, 0, DAG, dl);
+        return DAG.getNode(X86ISD::VBROADCAST, dl, VT, Sc);
+      }
 
       Ld = Sc.getOperand(0);
       ConstSplatVal = (Ld.getOpcode() == ISD::Constant ||
@@ -4948,8 +5131,7 @@ X86TargetLowering::LowerVectorBroadcast(SDValue &Op, SelectionDAG &DAG) const {
     }
   }
 
-  bool Is256 = VT.getSizeInBits() == 256;
-  bool Is128 = VT.getSizeInBits() == 128;
+  bool Is256 = VT.is256BitVector();
 
   // Handle the broadcasting a single constant scalar from the constant pool
   // into a vector. On Sandybridge it is still better to load a constant vector
@@ -4959,9 +5141,7 @@ X86TargetLowering::LowerVectorBroadcast(SDValue &Op, SelectionDAG &DAG) const {
     assert(!CVT.isVector() && "Must not broadcast a vector type");
     unsigned ScalarSize = CVT.getSizeInBits();
 
-    if ((Is256 && (ScalarSize == 32 || ScalarSize == 64)) ||
-        (Is128 && (ScalarSize == 32))) {
-
+    if (ScalarSize == 32 || (Is256 && ScalarSize == 64)) {
       const Constant *C = 0;
       if (ConstantSDNode *CI = dyn_cast<ConstantSDNode>(Ld))
         C = CI->getConstantIntValue();
@@ -4973,45 +5153,111 @@ X86TargetLowering::LowerVectorBroadcast(SDValue &Op, SelectionDAG &DAG) const {
       SDValue CP = DAG.getConstantPool(C, getPointerTy());
       unsigned Alignment = cast<ConstantPoolSDNode>(CP)->getAlignment();
       Ld = DAG.getLoad(CVT, dl, DAG.getEntryNode(), CP,
-                         MachinePointerInfo::getConstantPool(),
-                         false, false, false, Alignment);
+                       MachinePointerInfo::getConstantPool(),
+                       false, false, false, Alignment);
 
       return DAG.getNode(X86ISD::VBROADCAST, dl, VT, Ld);
     }
   }
 
-  // The scalar source must be a normal load.
-  if (!ISD::isNormalLoad(Ld.getNode()))
-    return SDValue();
-
-  // Reject loads that have uses of the chain result
-  if (Ld->hasAnyUseOfValue(1))
-    return SDValue();
-
+  bool IsLoad = ISD::isNormalLoad(Ld.getNode());
   unsigned ScalarSize = Ld.getValueType().getSizeInBits();
 
-  // VBroadcast to YMM
-  if (Is256 && (ScalarSize == 32 || ScalarSize == 64))
+  // Handle AVX2 in-register broadcasts.
+  if (!IsLoad && Subtarget->hasAVX2() &&
+      (ScalarSize == 32 || (Is256 && ScalarSize == 64)))
     return DAG.getNode(X86ISD::VBROADCAST, dl, VT, Ld);
 
-  // VBroadcast to XMM
-  if (Is128 && (ScalarSize == 32))
+  // The scalar source must be a normal load.
+  if (!IsLoad)
+    return SDValue();
+
+  if (ScalarSize == 32 || (Is256 && ScalarSize == 64))
     return DAG.getNode(X86ISD::VBROADCAST, dl, VT, Ld);
 
   // The integer check is needed for the 64-bit into 128-bit so it doesn't match
-  // double since there is vbroadcastsd xmm
+  // double since there is no vbroadcastsd xmm
   if (Subtarget->hasAVX2() && Ld.getValueType().isInteger()) {
-    // VBroadcast to YMM
-    if (Is256 && (ScalarSize == 8 || ScalarSize == 16))
-      return DAG.getNode(X86ISD::VBROADCAST, dl, VT, Ld);
-
-    // VBroadcast to XMM
-    if (Is128 && (ScalarSize ==  8 || ScalarSize == 16 || ScalarSize == 64))
+    if (ScalarSize == 8 || ScalarSize == 16 || ScalarSize == 64)
       return DAG.getNode(X86ISD::VBROADCAST, dl, VT, Ld);
   }
 
   // Unsupported broadcast.
   return SDValue();
+}
+
+SDValue
+X86TargetLowering::buildFromShuffleMostly(SDValue Op, SelectionDAG &DAG) const {
+  EVT VT = Op.getValueType();
+
+  // Skip if insert_vec_elt is not supported.
+  if (!isOperationLegalOrCustom(ISD::INSERT_VECTOR_ELT, VT))
+    return SDValue();
+
+  DebugLoc DL = Op.getDebugLoc();
+  unsigned NumElems = Op.getNumOperands();
+
+  SDValue VecIn1;
+  SDValue VecIn2;
+  SmallVector<unsigned, 4> InsertIndices;
+  SmallVector<int, 8> Mask(NumElems, -1);
+
+  for (unsigned i = 0; i != NumElems; ++i) {
+    unsigned Opc = Op.getOperand(i).getOpcode();
+
+    if (Opc == ISD::UNDEF)
+      continue;
+
+    if (Opc != ISD::EXTRACT_VECTOR_ELT) {
+      // Quit if more than 1 elements need inserting.
+      if (InsertIndices.size() > 1)
+        return SDValue();
+
+      InsertIndices.push_back(i);
+      continue;
+    }
+
+    SDValue ExtractedFromVec = Op.getOperand(i).getOperand(0);
+    SDValue ExtIdx = Op.getOperand(i).getOperand(1);
+
+    // Quit if extracted from vector of different type.
+    if (ExtractedFromVec.getValueType() != VT)
+      return SDValue();
+
+    // Quit if non-constant index.
+    if (!isa<ConstantSDNode>(ExtIdx))
+      return SDValue();
+
+    if (VecIn1.getNode() == 0)
+      VecIn1 = ExtractedFromVec;
+    else if (VecIn1 != ExtractedFromVec) {
+      if (VecIn2.getNode() == 0)
+        VecIn2 = ExtractedFromVec;
+      else if (VecIn2 != ExtractedFromVec)
+        // Quit if more than 2 vectors to shuffle
+        return SDValue();
+    }
+
+    unsigned Idx = cast<ConstantSDNode>(ExtIdx)->getZExtValue();
+
+    if (ExtractedFromVec == VecIn1)
+      Mask[i] = Idx;
+    else if (ExtractedFromVec == VecIn2)
+      Mask[i] = Idx + NumElems;
+  }
+
+  if (VecIn1.getNode() == 0)
+    return SDValue();
+
+  VecIn2 = VecIn2.getNode() ? VecIn2 : DAG.getUNDEF(VT);
+  SDValue NV = DAG.getVectorShuffle(VT, DL, VecIn1, VecIn2, &Mask[0]);
+  for (unsigned i = 0, e = InsertIndices.size(); i != e; ++i) {
+    unsigned Idx = InsertIndices[i];
+    NV = DAG.getNode(ISD::INSERT_VECTOR_ELT, DL, VT, NV, Op.getOperand(Idx),
+                     DAG.getIntPtrConstant(Idx));
+  }
+
+  return NV;
 }
 
 SDValue
@@ -5104,8 +5350,7 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
           Mask.push_back(Idx);
           for (unsigned i = 1; i != VecElts; ++i)
             Mask.push_back(i);
-          Item = DAG.getVectorShuffle(VecVT, dl, Item,
-                                      DAG.getUNDEF(Item.getValueType()),
+          Item = DAG.getVectorShuffle(VecVT, dl, Item, DAG.getUNDEF(VecVT),
                                       &Mask[0]);
         }
         return DAG.getNode(ISD::BITCAST, dl, VT, Item);
@@ -5122,12 +5367,12 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
 
       if (ExtVT == MVT::i32 || ExtVT == MVT::f32 || ExtVT == MVT::f64 ||
           (ExtVT == MVT::i64 && Subtarget->is64Bit())) {
-        if (VT.getSizeInBits() == 256) {
+        if (VT.is256BitVector()) {
           SDValue ZeroVec = getZeroVector(VT, Subtarget, DAG, dl);
           return DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, VT, ZeroVec,
                              Item, DAG.getIntPtrConstant(0));
         }
-        assert(VT.getSizeInBits() == 128 && "Expected an SSE value type!");
+        assert(VT.is128BitVector() && "Expected an SSE value type!");
         Item = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, VT, Item);
         // Turn it into a MOVL (i.e. movss, movsd, or movd) to a zero vector.
         return getShuffleVectorZeroOrUndef(Item, 0, true, Subtarget, DAG);
@@ -5136,12 +5381,11 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
       if (ExtVT == MVT::i16 || ExtVT == MVT::i8) {
         Item = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i32, Item);
         Item = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v4i32, Item);
-        if (VT.getSizeInBits() == 256) {
+        if (VT.is256BitVector()) {
           SDValue ZeroVec = getZeroVector(MVT::v8i32, Subtarget, DAG, dl);
-          Item = Insert128BitVector(ZeroVec, Item, DAG.getConstant(0, MVT::i32),
-                                    DAG, dl);
+          Item = Insert128BitVector(ZeroVec, Item, 0, DAG, dl);
         } else {
-          assert(VT.getSizeInBits() == 128 && "Expected an SSE value type!");
+          assert(VT.is128BitVector() && "Expected an SSE value type!");
           Item = getShuffleVectorZeroOrUndef(Item, 0, true, Subtarget, DAG);
         }
         return DAG.getNode(ISD::BITCAST, dl, VT, Item);
@@ -5173,7 +5417,7 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
       // Turn it into a shuffle of zero and zero-extended scalar to vector.
       Item = getShuffleVectorZeroOrUndef(Item, 0, NumZero > 0, Subtarget, DAG);
       SmallVector<int, 8> MaskVec;
-      for (unsigned i = 0; i < NumElems; i++)
+      for (unsigned i = 0; i != NumElems; ++i)
         MaskVec.push_back(i == Idx ? 0 : 1);
       return DAG.getVectorShuffle(VT, dl, Item, DAG.getUNDEF(VT), &MaskVec[0]);
     }
@@ -5201,7 +5445,7 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
 
   // For AVX-length vectors, build the individual 128-bit pieces and use
   // shuffles to put them in place.
-  if (VT.getSizeInBits() == 256) {
+  if (VT.is256BitVector()) {
     SmallVector<SDValue, 32> V;
     for (unsigned i = 0; i != NumElems; ++i)
       V.push_back(Op.getOperand(i));
@@ -5214,10 +5458,7 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
                                 NumElems/2);
 
     // Recreate the wider vector with the lower and upper part.
-    SDValue Vec = Insert128BitVector(DAG.getNode(ISD::UNDEF, dl, VT), Lower,
-                                DAG.getConstant(0, MVT::i32), DAG, dl);
-    return Insert128BitVector(Vec, Upper, DAG.getConstant(NumElems/2, MVT::i32),
-                              DAG, dl);
+    return Concat128BitVectors(Lower, Upper, VT, NumElems, DAG, dl);
   }
 
   // Let legalizer expand 2-wide build_vectors.
@@ -5285,7 +5526,7 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
     return DAG.getVectorShuffle(VT, dl, V[0], V[1], &MaskVec[0]);
   }
 
-  if (Values.size() > 1 && VT.getSizeInBits() == 128) {
+  if (Values.size() > 1 && VT.is128BitVector()) {
     // Check for a build vector of consecutive loads.
     for (unsigned i = 0; i < NumElems; ++i)
       V[i] = Op.getOperand(i);
@@ -5294,6 +5535,11 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
     SDValue LD = EltsFromConsecutiveLoads(VT, V, dl, DAG);
     if (LD.getNode())
       return LD;
+
+    // Check for a build vector from mostly shuffle plus few inserting.
+    SDValue Sh = buildFromShuffleMostly(Op, DAG);
+    if (Sh.getNode())
+      return Sh;
 
     // For SSE 4.1, use insertps to put the high elements into the low element.
     if (getSubtarget()->hasSSE41()) {
@@ -5346,62 +5592,23 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
   return SDValue();
 }
 
-// LowerMMXCONCAT_VECTORS - We support concatenate two MMX registers and place
-// them in a MMX register.  This is better than doing a stack convert.
-static SDValue LowerMMXCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) {
-  DebugLoc dl = Op.getDebugLoc();
-  EVT ResVT = Op.getValueType();
-
-  assert(ResVT == MVT::v2i64 || ResVT == MVT::v4i32 ||
-         ResVT == MVT::v8i16 || ResVT == MVT::v16i8);
-  int Mask[2];
-  SDValue InVec = DAG.getNode(ISD::BITCAST,dl, MVT::v1i64, Op.getOperand(0));
-  SDValue VecOp = DAG.getNode(X86ISD::MOVQ2DQ, dl, MVT::v2i64, InVec);
-  InVec = Op.getOperand(1);
-  if (InVec.getOpcode() == ISD::SCALAR_TO_VECTOR) {
-    unsigned NumElts = ResVT.getVectorNumElements();
-    VecOp = DAG.getNode(ISD::BITCAST, dl, ResVT, VecOp);
-    VecOp = DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, ResVT, VecOp,
-                       InVec.getOperand(0), DAG.getIntPtrConstant(NumElts/2+1));
-  } else {
-    InVec = DAG.getNode(ISD::BITCAST, dl, MVT::v1i64, InVec);
-    SDValue VecOp2 = DAG.getNode(X86ISD::MOVQ2DQ, dl, MVT::v2i64, InVec);
-    Mask[0] = 0; Mask[1] = 2;
-    VecOp = DAG.getVectorShuffle(MVT::v2i64, dl, VecOp, VecOp2, Mask);
-  }
-  return DAG.getNode(ISD::BITCAST, dl, ResVT, VecOp);
-}
-
 // LowerAVXCONCAT_VECTORS - 256-bit AVX can use the vinsertf128 instruction
 // to create 256-bit vectors from two other 128-bit ones.
 static SDValue LowerAVXCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   EVT ResVT = Op.getValueType();
 
-  assert(ResVT.getSizeInBits() == 256 && "Value type must be 256-bit wide");
+  assert(ResVT.is256BitVector() && "Value type must be 256-bit wide");
 
   SDValue V1 = Op.getOperand(0);
   SDValue V2 = Op.getOperand(1);
   unsigned NumElems = ResVT.getVectorNumElements();
 
-  SDValue V = Insert128BitVector(DAG.getNode(ISD::UNDEF, dl, ResVT), V1,
-                                 DAG.getConstant(0, MVT::i32), DAG, dl);
-  return Insert128BitVector(V, V2, DAG.getConstant(NumElems/2, MVT::i32),
-                            DAG, dl);
+  return Concat128BitVectors(V1, V2, ResVT, NumElems, DAG, dl);
 }
 
-SDValue
-X86TargetLowering::LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const {
-  EVT ResVT = Op.getValueType();
-
+static SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) {
   assert(Op.getNumOperands() == 2);
-  assert((ResVT.getSizeInBits() == 128 || ResVT.getSizeInBits() == 256) &&
-         "Unsupported CONCAT_VECTORS for value type");
-
-  // We support concatenate two MMX registers and place them in a MMX register.
-  // This is better than doing a stack convert.
-  if (ResVT.is128BitVector())
-    return LowerMMXCONCAT_VECTORS(Op, DAG);
 
   // 256-bit AVX can use the vinsertf128 instruction to create 256-bit vectors
   // from two other 128-bit ones.
@@ -5409,75 +5616,64 @@ X86TargetLowering::LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const {
 }
 
 // Try to lower a shuffle node into a simple blend instruction.
-static SDValue LowerVECTOR_SHUFFLEtoBlend(SDValue Op,
-                                          const X86Subtarget *Subtarget,
-                                          SelectionDAG &DAG) {
-  ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(Op);
+static SDValue
+LowerVECTOR_SHUFFLEtoBlend(ShuffleVectorSDNode *SVOp,
+                           const X86Subtarget *Subtarget, SelectionDAG &DAG) {
   SDValue V1 = SVOp->getOperand(0);
   SDValue V2 = SVOp->getOperand(1);
   DebugLoc dl = SVOp->getDebugLoc();
-  EVT VT = Op.getValueType();
-  EVT InVT = V1.getValueType();
-  int MaskSize = VT.getVectorNumElements();
-  int InSize = InVT.getVectorNumElements();
+  MVT VT = SVOp->getValueType(0).getSimpleVT();
+  unsigned NumElems = VT.getVectorNumElements();
 
   if (!Subtarget->hasSSE41())
     return SDValue();
 
-  if (MaskSize != InSize)
-    return SDValue();
-
-  int ISDNo = 0;
+  unsigned ISDNo = 0;
   MVT OpTy;
 
-  switch (VT.getSimpleVT().SimpleTy) {
+  switch (VT.SimpleTy) {
   default: return SDValue();
   case MVT::v8i16:
-           ISDNo = X86ISD::BLENDPW;
-           OpTy = MVT::v8i16;
-           break;
+    ISDNo = X86ISD::BLENDPW;
+    OpTy = MVT::v8i16;
+    break;
   case MVT::v4i32:
   case MVT::v4f32:
-           ISDNo = X86ISD::BLENDPS;
-           OpTy = MVT::v4f32;
-           break;
+    ISDNo = X86ISD::BLENDPS;
+    OpTy = MVT::v4f32;
+    break;
   case MVT::v2i64:
   case MVT::v2f64:
-           ISDNo = X86ISD::BLENDPD;
-           OpTy = MVT::v2f64;
-           break;
+    ISDNo = X86ISD::BLENDPD;
+    OpTy = MVT::v2f64;
+    break;
   case MVT::v8i32:
   case MVT::v8f32:
-           if (!Subtarget->hasAVX())
-             return SDValue();
-           ISDNo = X86ISD::BLENDPS;
-           OpTy = MVT::v8f32;
-           break;
+    if (!Subtarget->hasAVX())
+      return SDValue();
+    ISDNo = X86ISD::BLENDPS;
+    OpTy = MVT::v8f32;
+    break;
   case MVT::v4i64:
   case MVT::v4f64:
-           if (!Subtarget->hasAVX())
-             return SDValue();
-           ISDNo = X86ISD::BLENDPD;
-           OpTy = MVT::v4f64;
-           break;
-  case MVT::v16i16:
-           if (!Subtarget->hasAVX2())
-             return SDValue();
-           ISDNo = X86ISD::BLENDPW;
-           OpTy = MVT::v16i16;
-           break;
+    if (!Subtarget->hasAVX())
+      return SDValue();
+    ISDNo = X86ISD::BLENDPD;
+    OpTy = MVT::v4f64;
+    break;
   }
   assert(ISDNo && "Invalid Op Number");
 
   unsigned MaskVals = 0;
 
-  for (int i = 0; i < MaskSize; ++i) {
+  for (unsigned i = 0; i != NumElems; ++i) {
     int EltIdx = SVOp->getMaskElt(i);
-    if (EltIdx == i || EltIdx == -1)
+    if (EltIdx == (int)i || EltIdx < 0)
       MaskVals |= (1<<i);
-    else if (EltIdx == (i + MaskSize))
+    else if (EltIdx == (int)(i + NumElems))
       continue; // Bit is set to zero;
-    else return SDValue();
+    else
+      return SDValue();
   }
 
   V1 = DAG.getNode(ISD::BITCAST, dl, OpTy, V1);
@@ -5492,9 +5688,9 @@ static SDValue LowerVECTOR_SHUFFLEtoBlend(SDValue Op,
 // 2. [ssse3] 1 x pshufb
 // 3. [ssse3] 2 x pshufb + 1 x por
 // 4. [all]   mov + pshuflw + pshufhw + N x (pextrw + pinsrw)
-SDValue
-X86TargetLowering::LowerVECTOR_SHUFFLEv8i16(SDValue Op,
-                                            SelectionDAG &DAG) const {
+static SDValue
+LowerVECTOR_SHUFFLEv8i16(SDValue Op, const X86Subtarget *Subtarget,
+                         SelectionDAG &DAG) {
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(Op);
   SDValue V1 = SVOp->getOperand(0);
   SDValue V2 = SVOp->getOperand(1);
@@ -5631,13 +5827,10 @@ X86TargetLowering::LowerVECTOR_SHUFFLEv8i16(SDValue Op,
     bool TwoInputs = V1Used && V2Used;
     for (unsigned i = 0; i != 8; ++i) {
       int EltIdx = MaskVals[i] * 2;
-      if (TwoInputs && (EltIdx >= 16)) {
-        pshufbMask.push_back(DAG.getConstant(0x80, MVT::i8));
-        pshufbMask.push_back(DAG.getConstant(0x80, MVT::i8));
-        continue;
-      }
-      pshufbMask.push_back(DAG.getConstant(EltIdx,   MVT::i8));
-      pshufbMask.push_back(DAG.getConstant(EltIdx+1, MVT::i8));
+      int Idx0 = (TwoInputs && (EltIdx >= 16)) ? 0x80 : EltIdx;
+      int Idx1 = (TwoInputs && (EltIdx >= 16)) ? 0x80 : EltIdx+1;
+      pshufbMask.push_back(DAG.getConstant(Idx0,   MVT::i8));
+      pshufbMask.push_back(DAG.getConstant(Idx1, MVT::i8));
     }
     V1 = DAG.getNode(ISD::BITCAST, dl, MVT::v16i8, V1);
     V1 = DAG.getNode(X86ISD::PSHUFB, dl, MVT::v16i8, V1,
@@ -5651,13 +5844,10 @@ X86TargetLowering::LowerVECTOR_SHUFFLEv8i16(SDValue Op,
     pshufbMask.clear();
     for (unsigned i = 0; i != 8; ++i) {
       int EltIdx = MaskVals[i] * 2;
-      if (EltIdx < 16) {
-        pshufbMask.push_back(DAG.getConstant(0x80, MVT::i8));
-        pshufbMask.push_back(DAG.getConstant(0x80, MVT::i8));
-        continue;
-      }
-      pshufbMask.push_back(DAG.getConstant(EltIdx - 16, MVT::i8));
-      pshufbMask.push_back(DAG.getConstant(EltIdx - 15, MVT::i8));
+      int Idx0 = (EltIdx < 16) ? 0x80 : EltIdx - 16;
+      int Idx1 = (EltIdx < 16) ? 0x80 : EltIdx - 15;
+      pshufbMask.push_back(DAG.getConstant(Idx0, MVT::i8));
+      pshufbMask.push_back(DAG.getConstant(Idx1, MVT::i8));
     }
     V2 = DAG.getNode(ISD::BITCAST, dl, MVT::v16i8, V2);
     V2 = DAG.getNode(X86ISD::PSHUFB, dl, MVT::v16i8, V2,
@@ -5733,10 +5923,10 @@ X86TargetLowering::LowerVECTOR_SHUFFLEv8i16(SDValue Op,
     int EltIdx = MaskVals[i];
     if (EltIdx < 0)
       continue;
-    SDValue ExtOp = (EltIdx < 8)
-    ? DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, MVT::i16, V1,
-                  DAG.getIntPtrConstant(EltIdx))
-    : DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, MVT::i16, V2,
+    SDValue ExtOp = (EltIdx < 8) ?
+      DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, MVT::i16, V1,
+                  DAG.getIntPtrConstant(EltIdx)) :
+      DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, MVT::i16, V2,
                   DAG.getIntPtrConstant(EltIdx - 8));
     NewV = DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, MVT::v8i16, NewV, ExtOp,
                        DAG.getIntPtrConstant(i));
@@ -5760,18 +5950,6 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
   // If we have SSSE3, case 1 is generated when all result bytes come from
   // one of  the inputs.  Otherwise, case 2 is generated.  If no SSSE3 is
   // present, fall back to case 3.
-  // FIXME: kill V2Only once shuffles are canonizalized by getNode.
-  bool V1Only = true;
-  bool V2Only = true;
-  for (unsigned i = 0; i < 16; ++i) {
-    int EltIdx = MaskVals[i];
-    if (EltIdx < 0)
-      continue;
-    if (EltIdx < 16)
-      V2Only = false;
-    else
-      V1Only = false;
-  }
 
   // If SSSE3, use 1 pshufb instruction per vector with elements in the result.
   if (TLI.getSubtarget()->hasSSSE3()) {
@@ -5783,23 +5961,20 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
     // Otherwise, we have elements from both input vectors, and must zero out
     // elements that come from V2 in the first mask, and V1 in the second mask
     // so that we can OR them together.
-    bool TwoInputs = !(V1Only || V2Only);
     for (unsigned i = 0; i != 16; ++i) {
       int EltIdx = MaskVals[i];
-      if (EltIdx < 0 || (TwoInputs && EltIdx >= 16)) {
-        pshufbMask.push_back(DAG.getConstant(0x80, MVT::i8));
-        continue;
-      }
+      if (EltIdx < 0 || EltIdx >= 16)
+        EltIdx = 0x80;
       pshufbMask.push_back(DAG.getConstant(EltIdx, MVT::i8));
     }
-    // If all the elements are from V2, assign it to V1 and return after
-    // building the first pshufb.
-    if (V2Only)
-      V1 = V2;
     V1 = DAG.getNode(X86ISD::PSHUFB, dl, MVT::v16i8, V1,
                      DAG.getNode(ISD::BUILD_VECTOR, dl,
                                  MVT::v16i8, &pshufbMask[0], 16));
-    if (!TwoInputs)
+
+    // As PSHUFB will zero elements with negative indices, it's safe to ignore
+    // the 2nd operand if it's undefined or zero.
+    if (V2.getOpcode() == ISD::UNDEF ||
+        ISD::isBuildVectorAllZeros(V2.getNode()))
       return V1;
 
     // Calculate the shuffle mask for the second input, shuffle it, and
@@ -5807,11 +5982,8 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
     pshufbMask.clear();
     for (unsigned i = 0; i != 16; ++i) {
       int EltIdx = MaskVals[i];
-      if (EltIdx < 16) {
-        pshufbMask.push_back(DAG.getConstant(0x80, MVT::i8));
-        continue;
-      }
-      pshufbMask.push_back(DAG.getConstant(EltIdx - 16, MVT::i8));
+      EltIdx = (EltIdx < 16) ? 0x80 : EltIdx - 16;
+      pshufbMask.push_back(DAG.getConstant(EltIdx, MVT::i8));
     }
     V2 = DAG.getNode(X86ISD::PSHUFB, dl, MVT::v16i8, V2,
                      DAG.getNode(ISD::BUILD_VECTOR, dl,
@@ -5824,7 +5996,7 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
   // the 16 different words that comprise the two doublequadword input vectors.
   V1 = DAG.getNode(ISD::BITCAST, dl, MVT::v8i16, V1);
   V2 = DAG.getNode(ISD::BITCAST, dl, MVT::v8i16, V2);
-  SDValue NewV = V2Only ? V2 : V1;
+  SDValue NewV = V1;
   for (int i = 0; i != 8; ++i) {
     int Elt0 = MaskVals[i*2];
     int Elt1 = MaskVals[i*2+1];
@@ -5834,9 +6006,7 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
       continue;
 
     // This word of the result is already in the correct place, skip it.
-    if (V1Only && (Elt0 == i*2) && (Elt1 == i*2+1))
-      continue;
-    if (V2Only && (Elt0 == i*2+16) && (Elt1 == i*2+17))
+    if ((Elt0 == i*2) && (Elt1 == i*2+1))
       continue;
 
     SDValue Elt0Src = Elt0 < 16 ? V1 : V2;
@@ -5890,6 +6060,51 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
   return DAG.getNode(ISD::BITCAST, dl, MVT::v16i8, NewV);
 }
 
+// v32i8 shuffles - Translate to VPSHUFB if possible.
+static
+SDValue LowerVECTOR_SHUFFLEv32i8(ShuffleVectorSDNode *SVOp,
+                                 const X86Subtarget *Subtarget,
+                                 SelectionDAG &DAG) {
+  EVT VT = SVOp->getValueType(0);
+  SDValue V1 = SVOp->getOperand(0);
+  SDValue V2 = SVOp->getOperand(1);
+  DebugLoc dl = SVOp->getDebugLoc();
+  SmallVector<int, 32> MaskVals(SVOp->getMask().begin(), SVOp->getMask().end());
+
+  bool V2IsUndef = V2.getOpcode() == ISD::UNDEF;
+  bool V1IsAllZero = ISD::isBuildVectorAllZeros(V1.getNode());
+  bool V2IsAllZero = ISD::isBuildVectorAllZeros(V2.getNode());
+
+  // VPSHUFB may be generated if
+  // (1) one of input vector is undefined or zeroinitializer.
+  // The mask value 0x80 puts 0 in the corresponding slot of the vector.
+  // And (2) the mask indexes don't cross the 128-bit lane.
+  if (VT != MVT::v32i8 || !Subtarget->hasAVX2() ||
+      (!V2IsUndef && !V2IsAllZero && !V1IsAllZero))
+    return SDValue();
+
+  if (V1IsAllZero && !V2IsAllZero) {
+    CommuteVectorShuffleMask(MaskVals, 32);
+    V1 = V2;
+  }
+  SmallVector<SDValue, 32> pshufbMask;
+  for (unsigned i = 0; i != 32; i++) {
+    int EltIdx = MaskVals[i];
+    if (EltIdx < 0 || EltIdx >= 32)
+      EltIdx = 0x80;
+    else {
+      if ((EltIdx >= 16 && i < 16) || (EltIdx < 16 && i >= 16))
+        // Cross lane is not allowed.
+        return SDValue();
+      EltIdx &= 0xf;
+    }
+    pshufbMask.push_back(DAG.getConstant(EltIdx, MVT::i8));
+  }
+  return DAG.getNode(X86ISD::PSHUFB, dl, MVT::v32i8, V1,
+                      DAG.getNode(ISD::BUILD_VECTOR, dl,
+                                  MVT::v32i8, &pshufbMask[0], 32));
+}
+
 /// RewriteAsNarrowerShuffle - Try rewriting v8i16 and v16i8 shuffles as 4 wide
 /// ones, or rewriting v4i32 / v4f32 as 2 wide ones if possible. This can be
 /// done when every pair / quad of shuffle mask elements point to elements in
@@ -5898,41 +6113,37 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
 static
 SDValue RewriteAsNarrowerShuffle(ShuffleVectorSDNode *SVOp,
                                  SelectionDAG &DAG, DebugLoc dl) {
-  EVT VT = SVOp->getValueType(0);
-  SDValue V1 = SVOp->getOperand(0);
-  SDValue V2 = SVOp->getOperand(1);
+  MVT VT = SVOp->getValueType(0).getSimpleVT();
   unsigned NumElems = VT.getVectorNumElements();
-  unsigned NewWidth = (NumElems == 4) ? 2 : 4;
-  EVT NewVT;
-  switch (VT.getSimpleVT().SimpleTy) {
+  MVT NewVT;
+  unsigned Scale;
+  switch (VT.SimpleTy) {
   default: llvm_unreachable("Unexpected!");
-  case MVT::v4f32: NewVT = MVT::v2f64; break;
-  case MVT::v4i32: NewVT = MVT::v2i64; break;
-  case MVT::v8i16: NewVT = MVT::v4i32; break;
-  case MVT::v16i8: NewVT = MVT::v4i32; break;
+  case MVT::v4f32:  NewVT = MVT::v2f64; Scale = 2; break;
+  case MVT::v4i32:  NewVT = MVT::v2i64; Scale = 2; break;
+  case MVT::v8i16:  NewVT = MVT::v4i32; Scale = 2; break;
+  case MVT::v16i8:  NewVT = MVT::v4i32; Scale = 4; break;
+  case MVT::v16i16: NewVT = MVT::v8i32; Scale = 2; break;
+  case MVT::v32i8:  NewVT = MVT::v8i32; Scale = 4; break;
   }
 
-  int Scale = NumElems / NewWidth;
   SmallVector<int, 8> MaskVec;
-  for (unsigned i = 0; i < NumElems; i += Scale) {
+  for (unsigned i = 0; i != NumElems; i += Scale) {
     int StartIdx = -1;
-    for (int j = 0; j < Scale; ++j) {
+    for (unsigned j = 0; j != Scale; ++j) {
       int EltIdx = SVOp->getMaskElt(i+j);
       if (EltIdx < 0)
         continue;
-      if (StartIdx == -1)
-        StartIdx = EltIdx - (EltIdx % Scale);
-      if (EltIdx != StartIdx + j)
+      if (StartIdx < 0)
+        StartIdx = (EltIdx / Scale);
+      if (EltIdx != (int)(StartIdx*Scale + j))
         return SDValue();
     }
-    if (StartIdx == -1)
-      MaskVec.push_back(-1);
-    else
-      MaskVec.push_back(StartIdx / Scale);
+    MaskVec.push_back(StartIdx);
   }
 
-  V1 = DAG.getNode(ISD::BITCAST, dl, NewVT, V1);
-  V2 = DAG.getNode(ISD::BITCAST, dl, NewVT, V2);
+  SDValue V1 = DAG.getNode(ISD::BITCAST, dl, NewVT, SVOp->getOperand(0));
+  SDValue V2 = DAG.getNode(ISD::BITCAST, dl, NewVT, SVOp->getOperand(1));
   return DAG.getVectorShuffle(NewVT, dl, V1, V2, &MaskVec[0]);
 }
 
@@ -5975,6 +6186,11 @@ static SDValue getVZextMovL(EVT VT, EVT OpVT,
 /// which could not be matched by any known target speficic shuffle
 static SDValue
 LowerVECTOR_SHUFFLE_256(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG) {
+
+  SDValue NewOp = Compact8x32ShuffleNode(SVOp, DAG);
+  if (NewOp.getNode())
+    return NewOp;
+
   EVT VT = SVOp->getValueType(0);
 
   unsigned NumElems = VT.getVectorNumElements();
@@ -5983,14 +6199,15 @@ LowerVECTOR_SHUFFLE_256(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG) {
   DebugLoc dl = SVOp->getDebugLoc();
   MVT EltVT = VT.getVectorElementType().getSimpleVT();
   EVT NVT = MVT::getVectorVT(EltVT, NumLaneElems);
-  SDValue Shufs[2];
+  SDValue Output[2];
 
   SmallVector<int, 16> Mask;
   for (unsigned l = 0; l < 2; ++l) {
     // Build a shuffle mask for the output, discovering on the fly which
     // input vectors to use as shuffle operands (recorded in InputUsed).
     // If building a suitable shuffle vector proves too hard, then bail
-    // out with useBuildVector set.
+    // out with UseBuildVector set.
+    bool UseBuildVector = false;
     int InputUsed[2] = { -1, -1 }; // Not yet discovered.
     unsigned LaneStart = l * NumLaneElems;
     for (unsigned i = 0; i != NumLaneElems; ++i) {
@@ -6022,38 +6239,61 @@ LowerVECTOR_SHUFFLE_256(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG) {
       }
 
       if (OpNo >= array_lengthof(InputUsed)) {
-        // More than two input vectors used! Give up.
-        return SDValue();
+        // More than two input vectors used!  Give up on trying to create a
+        // shuffle vector.  Insert all elements into a BUILD_VECTOR instead.
+        UseBuildVector = true;
+        break;
       }
 
       // Add the mask index for the new shuffle vector.
       Mask.push_back(Idx + OpNo * NumLaneElems);
     }
 
-    if (InputUsed[0] < 0) {
+    if (UseBuildVector) {
+      SmallVector<SDValue, 16> SVOps;
+      for (unsigned i = 0; i != NumLaneElems; ++i) {
+        // The mask element.  This indexes into the input.
+        int Idx = SVOp->getMaskElt(i+LaneStart);
+        if (Idx < 0) {
+          SVOps.push_back(DAG.getUNDEF(EltVT));
+          continue;
+        }
+
+        // The input vector this mask element indexes into.
+        int Input = Idx / NumElems;
+
+        // Turn the index into an offset from the start of the input vector.
+        Idx -= Input * NumElems;
+
+        // Extract the vector element by hand.
+        SVOps.push_back(DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, EltVT,
+                                    SVOp->getOperand(Input),
+                                    DAG.getIntPtrConstant(Idx)));
+      }
+
+      // Construct the output using a BUILD_VECTOR.
+      Output[l] = DAG.getNode(ISD::BUILD_VECTOR, dl, NVT, &SVOps[0],
+                              SVOps.size());
+    } else if (InputUsed[0] < 0) {
       // No input vectors were used! The result is undefined.
-      Shufs[l] = DAG.getUNDEF(NVT);
+      Output[l] = DAG.getUNDEF(NVT);
     } else {
       SDValue Op0 = Extract128BitVector(SVOp->getOperand(InputUsed[0] / 2),
-                   DAG.getConstant((InputUsed[0] % 2) * NumLaneElems, MVT::i32),
-                                   DAG, dl);
+                                        (InputUsed[0] % 2) * NumLaneElems,
+                                        DAG, dl);
       // If only one input was used, use an undefined vector for the other.
       SDValue Op1 = (InputUsed[1] < 0) ? DAG.getUNDEF(NVT) :
         Extract128BitVector(SVOp->getOperand(InputUsed[1] / 2),
-                   DAG.getConstant((InputUsed[1] % 2) * NumLaneElems, MVT::i32),
-                                   DAG, dl);
+                            (InputUsed[1] % 2) * NumLaneElems, DAG, dl);
       // At least one input vector was used. Create a new shuffle vector.
-      Shufs[l] = DAG.getVectorShuffle(NVT, dl, Op0, Op1, &Mask[0]);
+      Output[l] = DAG.getVectorShuffle(NVT, dl, Op0, Op1, &Mask[0]);
     }
 
     Mask.clear();
   }
 
   // Concatenate the result back
-  SDValue V = Insert128BitVector(DAG.getNode(ISD::UNDEF, dl, VT), Shufs[0],
-                                 DAG.getConstant(0, MVT::i32), DAG, dl);
-  return Insert128BitVector(V, Shufs[1],DAG.getConstant(NumLaneElems, MVT::i32),
-                            DAG, dl);
+  return DAG.getNode(ISD::CONCAT_VECTORS, dl, VT, Output[0], Output[1]);
 }
 
 /// LowerVECTOR_SHUFFLE_128v4 - Handle all 128-bit wide vectors with
@@ -6065,7 +6305,7 @@ LowerVECTOR_SHUFFLE_128v4(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG) {
   DebugLoc dl = SVOp->getDebugLoc();
   EVT VT = SVOp->getValueType(0);
 
-  assert(VT.getSizeInBits() == 128 && "Unsupported vector size");
+  assert(VT.is128BitVector() && "Unsupported vector size");
 
   std::pair<int, int> Locs[4];
   int Mask1[] = { -1, -1, -1, -1 };
@@ -6109,7 +6349,9 @@ LowerVECTOR_SHUFFLE_128v4(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG) {
       }
 
     return DAG.getVectorShuffle(VT, dl, V1, V1, &Mask2[0]);
-  } else if (NumLo == 3 || NumHi == 3) {
+  }
+
+  if (NumLo == 3 || NumHi == 3) {
     // Otherwise, we must have three elements from one vector, call it X, and
     // one element from the other, call it Y.  First, use a shufps to build an
     // intermediate vector with the one element from Y and the element from X
@@ -6145,17 +6387,17 @@ LowerVECTOR_SHUFFLE_128v4(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG) {
       Mask1[2] = HiIndex & 1 ? 6 : 4;
       Mask1[3] = HiIndex & 1 ? 4 : 6;
       return DAG.getVectorShuffle(VT, dl, V1, V2, &Mask1[0]);
-    } else {
-      Mask1[0] = HiIndex & 1 ? 2 : 0;
-      Mask1[1] = HiIndex & 1 ? 0 : 2;
-      Mask1[2] = PermMask[2];
-      Mask1[3] = PermMask[3];
-      if (Mask1[2] >= 0)
-        Mask1[2] += 4;
-      if (Mask1[3] >= 0)
-        Mask1[3] += 4;
-      return DAG.getVectorShuffle(VT, dl, V2, V1, &Mask1[0]);
     }
+
+    Mask1[0] = HiIndex & 1 ? 2 : 0;
+    Mask1[1] = HiIndex & 1 ? 0 : 2;
+    Mask1[2] = PermMask[2];
+    Mask1[3] = PermMask[3];
+    if (Mask1[2] >= 0)
+      Mask1[2] += 4;
+    if (Mask1[3] >= 0)
+      Mask1[3] += 4;
+    return DAG.getVectorShuffle(VT, dl, V2, V1, &Mask1[0]);
   }
 
   // Break it into (shuffle shuffle_hi, shuffle_lo).
@@ -6197,17 +6439,17 @@ LowerVECTOR_SHUFFLE_128v4(ShuffleVectorSDNode *SVOp, SelectionDAG &DAG) {
 }
 
 static bool MayFoldVectorLoad(SDValue V) {
-  if (V.hasOneUse() && V.getOpcode() == ISD::BITCAST)
+  while (V.hasOneUse() && V.getOpcode() == ISD::BITCAST)
     V = V.getOperand(0);
+
   if (V.hasOneUse() && V.getOpcode() == ISD::SCALAR_TO_VECTOR)
     V = V.getOperand(0);
   if (V.hasOneUse() && V.getOpcode() == ISD::BUILD_VECTOR &&
       V.getNumOperands() == 2 && V.getOperand(1).getOpcode() == ISD::UNDEF)
     // BUILD_VECTOR (load), undef
     V = V.getOperand(0);
-  if (MayFoldLoad(V))
-    return true;
-  return false;
+
+  return MayFoldLoad(V);
 }
 
 // FIXME: the version above should always be used. Since there's
@@ -6304,7 +6546,7 @@ SDValue getMOVLP(SDValue &Op, DebugLoc &dl, SelectionDAG &DAG, bool HasSSE2) {
       return getTargetShuffleNode(X86ISD::MOVLPD, dl, VT, V1, V2, DAG);
 
     if (NumElems == 4)
-      // If we don't care about the second element, procede to use movss.
+      // If we don't care about the second element, proceed to use movss.
       if (SVOp->getMaskElt(1) != -1)
         return getTargetShuffleNode(X86ISD::MOVLPS, dl, VT, V1, V2, DAG);
   }
@@ -6328,6 +6570,81 @@ SDValue getMOVLP(SDValue &Op, DebugLoc &dl, SelectionDAG &DAG, bool HasSSE2) {
   // Invert the operand order and use SHUFPS to match it.
   return getTargetShuffleNode(X86ISD::SHUFP, dl, VT, V2, V1,
                               getShuffleSHUFImmediate(SVOp), DAG);
+}
+
+// Reduce a vector shuffle to zext.
+SDValue
+X86TargetLowering::lowerVectorIntExtend(SDValue Op, SelectionDAG &DAG) const {
+  // PMOVZX is only available from SSE41.
+  if (!Subtarget->hasSSE41())
+    return SDValue();
+
+  EVT VT = Op.getValueType();
+
+  // Only AVX2 support 256-bit vector integer extending.
+  if (!Subtarget->hasAVX2() && VT.is256BitVector())
+    return SDValue();
+
+  ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(Op);
+  DebugLoc DL = Op.getDebugLoc();
+  SDValue V1 = Op.getOperand(0);
+  SDValue V2 = Op.getOperand(1);
+  unsigned NumElems = VT.getVectorNumElements();
+
+  // Extending is an unary operation and the element type of the source vector
+  // won't be equal to or larger than i64.
+  if (V2.getOpcode() != ISD::UNDEF || !VT.isInteger() ||
+      VT.getVectorElementType() == MVT::i64)
+    return SDValue();
+
+  // Find the expansion ratio, e.g. expanding from i8 to i32 has a ratio of 4.
+  unsigned Shift = 1; // Start from 2, i.e. 1 << 1.
+  while ((1U << Shift) < NumElems) {
+    if (SVOp->getMaskElt(1U << Shift) == 1)
+      break;
+    Shift += 1;
+    // The maximal ratio is 8, i.e. from i8 to i64.
+    if (Shift > 3)
+      return SDValue();
+  }
+
+  // Check the shuffle mask.
+  unsigned Mask = (1U << Shift) - 1;
+  for (unsigned i = 0; i != NumElems; ++i) {
+    int EltIdx = SVOp->getMaskElt(i);
+    if ((i & Mask) != 0 && EltIdx != -1)
+      return SDValue();
+    if ((i & Mask) == 0 && (unsigned)EltIdx != (i >> Shift))
+      return SDValue();
+  }
+
+  unsigned NBits = VT.getVectorElementType().getSizeInBits() << Shift;
+  EVT NeVT = EVT::getIntegerVT(*DAG.getContext(), NBits);
+  EVT NVT = EVT::getVectorVT(*DAG.getContext(), NeVT, NumElems >> Shift);
+
+  if (!isTypeLegal(NVT))
+    return SDValue();
+
+  // Simplify the operand as it's prepared to be fed into shuffle.
+  unsigned SignificantBits = NVT.getSizeInBits() >> Shift;
+  if (V1.getOpcode() == ISD::BITCAST &&
+      V1.getOperand(0).getOpcode() == ISD::SCALAR_TO_VECTOR &&
+      V1.getOperand(0).getOperand(0).getOpcode() == ISD::EXTRACT_VECTOR_ELT &&
+      V1.getOperand(0)
+        .getOperand(0).getValueType().getSizeInBits() == SignificantBits) {
+    // (bitcast (sclr2vec (ext_vec_elt x))) -> (bitcast x)
+    SDValue V = V1.getOperand(0).getOperand(0).getOperand(0);
+    ConstantSDNode *CIdx =
+      dyn_cast<ConstantSDNode>(V1.getOperand(0).getOperand(0).getOperand(1));
+    // If it's foldable, i.e. normal load with single use, we will let code
+    // selection to fold it. Otherwise, we will short the conversion sequence.
+    if (CIdx && CIdx->getZExtValue() == 0 &&
+        (!ISD::isNormalLoad(V.getNode()) || !V.hasOneUse()))
+      V1 = DAG.getNode(ISD::BITCAST, DL, V1.getValueType(), V);
+  }
+
+  return DAG.getNode(ISD::BITCAST, DL, VT,
+                     DAG.getNode(X86ISD::VZEXT, DL, NVT, V1));
 }
 
 SDValue
@@ -6360,9 +6677,15 @@ X86TargetLowering::NormalizeVectorShuffle(SDValue Op, SelectionDAG &DAG) const {
     return PromoteSplat(SVOp, DAG);
   }
 
+  // Check integer expanding shuffles.
+  SDValue NewOp = lowerVectorIntExtend(Op, DAG);
+  if (NewOp.getNode())
+    return NewOp;
+
   // If the shuffle can be profitably rewritten as a narrower shuffle, then
   // do it!
-  if (VT == MVT::v8i16 || VT == MVT::v16i8) {
+  if (VT == MVT::v8i16  || VT == MVT::v16i8 ||
+      VT == MVT::v16i16 || VT == MVT::v32i8) {
     SDValue NewOp = RewriteAsNarrowerShuffle(SVOp, DAG, dl);
     if (NewOp.getNode())
       return DAG.getNode(ISD::BITCAST, dl, VT, NewOp);
@@ -6408,7 +6731,8 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const {
   bool HasAVX    = Subtarget->hasAVX();
   bool HasAVX2   = Subtarget->hasAVX2();
   MachineFunction &MF = DAG.getMachineFunction();
-  bool OptForSize = MF.getFunction()->hasFnAttr(Attribute::OptimizeForSize);
+  bool OptForSize = MF.getFunction()->getFnAttributes().
+    hasAttribute(Attributes::OptimizeForSize);
 
   assert(VT.getSizeInBits() != 64 && "Can't lower MMX shuffles");
 
@@ -6566,11 +6890,10 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const {
     // new vector_shuffle with the corrected mask.p
     SmallVector<int, 8> NewMask(M.begin(), M.end());
     NormalizeMask(NewMask, NumElems);
-    if (isUNPCKLMask(NewMask, VT, HasAVX2, true)) {
+    if (isUNPCKLMask(NewMask, VT, HasAVX2, true))
       return getTargetShuffleNode(X86ISD::UNPCKL, dl, VT, V1, V2, DAG);
-    } else if (isUNPCKHMask(NewMask, VT, HasAVX2, true)) {
+    if (isUNPCKHMask(NewMask, VT, HasAVX2, true))
       return getTargetShuffleNode(X86ISD::UNPCKH, dl, VT, V1, V2, DAG);
-    }
   }
 
   if (Commuted) {
@@ -6607,12 +6930,12 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const {
       return getTargetShuffleNode(X86ISD::UNPCKL, dl, VT, V1, V1, DAG);
   }
 
-  if (isPSHUFHWMask(M, VT))
+  if (isPSHUFHWMask(M, VT, HasAVX2))
     return getTargetShuffleNode(X86ISD::PSHUFHW, dl, VT, V1,
                                 getShufflePSHUFHWImmediate(SVOp),
                                 DAG);
 
-  if (isPSHUFLWMask(M, VT))
+  if (isPSHUFLWMask(M, VT, HasAVX2))
     return getTargetShuffleNode(X86ISD::PSHUFLW, dl, VT, V1,
                                 getShufflePSHUFLWImmediate(SVOp),
                                 DAG);
@@ -6649,7 +6972,7 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const {
     return getTargetShuffleNode(X86ISD::VPERM2X128, dl, VT, V1,
                                 V2, getShuffleVPERM2X128Immediate(SVOp), DAG);
 
-  SDValue BlendOp = LowerVECTOR_SHUFFLEtoBlend(Op, Subtarget, DAG);
+  SDValue BlendOp = LowerVECTOR_SHUFFLEtoBlend(SVOp, Subtarget, DAG);
   if (BlendOp.getNode())
     return BlendOp;
 
@@ -6678,7 +7001,7 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const {
 
   // Handle v8i16 specifically since SSE can do byte extraction and insertion.
   if (VT == MVT::v8i16) {
-    SDValue NewOp = LowerVECTOR_SHUFFLEv8i16(Op, DAG);
+    SDValue NewOp = LowerVECTOR_SHUFFLEv8i16(Op, Subtarget, DAG);
     if (NewOp.getNode())
       return NewOp;
   }
@@ -6689,9 +7012,15 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const {
       return NewOp;
   }
 
+  if (VT == MVT::v32i8) {
+    SDValue NewOp = LowerVECTOR_SHUFFLEv32i8(SVOp, Subtarget, DAG);
+    if (NewOp.getNode())
+      return NewOp;
+  }
+
   // Handle all 128-bit wide vectors with 4 elements, and match them with
   // several different shuffle types.
-  if (NumElems == 4 && VT.getSizeInBits() == 128)
+  if (NumElems == 4 && VT.is128BitVector())
     return LowerVECTOR_SHUFFLE_128v4(SVOp, DAG);
 
   // Handle general 256-bit shuffles
@@ -6707,16 +7036,18 @@ X86TargetLowering::LowerEXTRACT_VECTOR_ELT_SSE4(SDValue Op,
   EVT VT = Op.getValueType();
   DebugLoc dl = Op.getDebugLoc();
 
-  if (Op.getOperand(0).getValueType().getSizeInBits() != 128)
+  if (!Op.getOperand(0).getValueType().is128BitVector())
     return SDValue();
 
   if (VT.getSizeInBits() == 8) {
     SDValue Extract = DAG.getNode(X86ISD::PEXTRB, dl, MVT::i32,
-                                    Op.getOperand(0), Op.getOperand(1));
+                                  Op.getOperand(0), Op.getOperand(1));
     SDValue Assert  = DAG.getNode(ISD::AssertZext, dl, MVT::i32, Extract,
-                                    DAG.getValueType(VT));
+                                  DAG.getValueType(VT));
     return DAG.getNode(ISD::TRUNCATE, dl, VT, Assert);
-  } else if (VT.getSizeInBits() == 16) {
+  }
+
+  if (VT.getSizeInBits() == 16) {
     unsigned Idx = cast<ConstantSDNode>(Op.getOperand(1))->getZExtValue();
     // If Idx is 0, it's cheaper to do a move instead of a pextrw.
     if (Idx == 0)
@@ -6727,11 +7058,13 @@ X86TargetLowering::LowerEXTRACT_VECTOR_ELT_SSE4(SDValue Op,
                                                  Op.getOperand(0)),
                                      Op.getOperand(1)));
     SDValue Extract = DAG.getNode(X86ISD::PEXTRW, dl, MVT::i32,
-                                    Op.getOperand(0), Op.getOperand(1));
+                                  Op.getOperand(0), Op.getOperand(1));
     SDValue Assert  = DAG.getNode(ISD::AssertZext, dl, MVT::i32, Extract,
-                                    DAG.getValueType(VT));
+                                  DAG.getValueType(VT));
     return DAG.getNode(ISD::TRUNCATE, dl, VT, Assert);
-  } else if (VT == MVT::f32) {
+  }
+
+  if (VT == MVT::f32) {
     // EXTRACTPS outputs to a GPR32 register which will require a movd to copy
     // the result back to FR32 register. It's only worth matching if the
     // result has a single use which is a store or a bitcast to i32.  And in
@@ -6751,7 +7084,9 @@ X86TargetLowering::LowerEXTRACT_VECTOR_ELT_SSE4(SDValue Op,
                                               Op.getOperand(0)),
                                               Op.getOperand(1));
     return DAG.getNode(ISD::BITCAST, dl, MVT::f32, Extract);
-  } else if (VT == MVT::i32 || VT == MVT::i64) {
+  }
+
+  if (VT == MVT::i32 || VT == MVT::i64) {
     // ExtractPS/pextrq works with constant index.
     if (isa<ConstantSDNode>(Op.getOperand(1)))
       return Op;
@@ -6771,22 +7106,22 @@ X86TargetLowering::LowerEXTRACT_VECTOR_ELT(SDValue Op,
 
   // If this is a 256-bit vector result, first extract the 128-bit vector and
   // then extract the element from the 128-bit vector.
-  if (VecVT.getSizeInBits() == 256) {
+  if (VecVT.is256BitVector()) {
     DebugLoc dl = Op.getNode()->getDebugLoc();
     unsigned NumElems = VecVT.getVectorNumElements();
     SDValue Idx = Op.getOperand(1);
     unsigned IdxVal = cast<ConstantSDNode>(Idx)->getZExtValue();
 
     // Get the 128-bit vector.
-    bool Upper = IdxVal >= NumElems/2;
-    Vec = Extract128BitVector(Vec,
-                    DAG.getConstant(Upper ? NumElems/2 : 0, MVT::i32), DAG, dl);
+    Vec = Extract128BitVector(Vec, IdxVal, DAG, dl);
 
+    if (IdxVal >= NumElems/2)
+      IdxVal -= NumElems/2;
     return DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, Op.getValueType(), Vec,
-                    Upper ? DAG.getConstant(IdxVal-NumElems/2, MVT::i32) : Idx);
+                       DAG.getConstant(IdxVal, MVT::i32));
   }
 
-  assert(Vec.getValueSizeInBits() <= 128 && "Unexpected vector length");
+  assert(VecVT.is128BitVector() && "Unexpected vector length");
 
   if (Subtarget->hasSSE41()) {
     SDValue Res = LowerEXTRACT_VECTOR_ELT_SSE4(Op, DAG);
@@ -6809,11 +7144,13 @@ X86TargetLowering::LowerEXTRACT_VECTOR_ELT(SDValue Op,
     // Transform it so it match pextrw which produces a 32-bit result.
     EVT EltVT = MVT::i32;
     SDValue Extract = DAG.getNode(X86ISD::PEXTRW, dl, EltVT,
-                                    Op.getOperand(0), Op.getOperand(1));
+                                  Op.getOperand(0), Op.getOperand(1));
     SDValue Assert  = DAG.getNode(ISD::AssertZext, dl, EltVT, Extract,
-                                    DAG.getValueType(VT));
+                                  DAG.getValueType(VT));
     return DAG.getNode(ISD::TRUNCATE, dl, VT, Assert);
-  } else if (VT.getSizeInBits() == 32) {
+  }
+
+  if (VT.getSizeInBits() == 32) {
     unsigned Idx = cast<ConstantSDNode>(Op.getOperand(1))->getZExtValue();
     if (Idx == 0)
       return Op;
@@ -6825,7 +7162,9 @@ X86TargetLowering::LowerEXTRACT_VECTOR_ELT(SDValue Op,
                                        DAG.getUNDEF(VVT), Mask);
     return DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, VT, Vec,
                        DAG.getIntPtrConstant(0));
-  } else if (VT.getSizeInBits() == 64) {
+  }
+
+  if (VT.getSizeInBits() == 64) {
     // FIXME: .td only matches this for <2 x f64>, not <2 x i64> on 32b
     // FIXME: seems like this should be unnecessary if mov{h,l}pd were taught
     //        to match extract_elt for f64.
@@ -6858,7 +7197,7 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT_SSE4(SDValue Op,
   SDValue N1 = Op.getOperand(1);
   SDValue N2 = Op.getOperand(2);
 
-  if (VT.getSizeInBits() == 256)
+  if (!VT.is128BitVector())
     return SDValue();
 
   if ((EltVT.getSizeInBits() == 8 || EltVT.getSizeInBits() == 16) &&
@@ -6878,7 +7217,9 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT_SSE4(SDValue Op,
     if (N2.getValueType() != MVT::i32)
       N2 = DAG.getIntPtrConstant(cast<ConstantSDNode>(N2)->getZExtValue());
     return DAG.getNode(Opc, dl, VT, N0, N1, N2);
-  } else if (EltVT == MVT::f32 && isa<ConstantSDNode>(N2)) {
+  }
+
+  if (EltVT == MVT::f32 && isa<ConstantSDNode>(N2)) {
     // Bits [7:6] of the constant are the source select.  This will always be
     //  zero here.  The DAG Combiner may combine an extract_elt index into these
     //  bits.  For example (insert (extract, 3), 2) could be matched by putting
@@ -6891,8 +7232,9 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT_SSE4(SDValue Op,
     // Create this as a scalar to vector..
     N1 = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v4f32, N1);
     return DAG.getNode(X86ISD::INSERTPS, dl, VT, N0, N1, N2);
-  } else if ((EltVT == MVT::i32 || EltVT == MVT::i64) && 
-             isa<ConstantSDNode>(N2)) {
+  }
+
+  if ((EltVT == MVT::i32 || EltVT == MVT::i64) && isa<ConstantSDNode>(N2)) {
     // PINSR* works with constant index.
     return Op;
   }
@@ -6911,23 +7253,22 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const {
 
   // If this is a 256-bit vector result, first extract the 128-bit vector,
   // insert the element into the extracted half and then place it back.
-  if (VT.getSizeInBits() == 256) {
+  if (VT.is256BitVector()) {
     if (!isa<ConstantSDNode>(N2))
       return SDValue();
 
     // Get the desired 128-bit vector half.
     unsigned NumElems = VT.getVectorNumElements();
     unsigned IdxVal = cast<ConstantSDNode>(N2)->getZExtValue();
-    bool Upper = IdxVal >= NumElems/2;
-    SDValue Ins128Idx = DAG.getConstant(Upper ? NumElems/2 : 0, MVT::i32);
-    SDValue V = Extract128BitVector(N0, Ins128Idx, DAG, dl);
+    SDValue V = Extract128BitVector(N0, IdxVal, DAG, dl);
 
     // Insert the element into the desired half.
-    V = DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, V.getValueType(), V,
-                 N1, Upper ? DAG.getConstant(IdxVal-NumElems/2, MVT::i32) : N2);
+    bool Upper = IdxVal >= NumElems/2;
+    V = DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, V.getValueType(), V, N1,
+                 DAG.getConstant(Upper ? IdxVal-NumElems/2 : IdxVal, MVT::i32));
 
     // Insert the changed part back to the 256-bit vector
-    return Insert128BitVector(N0, V, Ins128Idx, DAG, dl);
+    return Insert128BitVector(N0, V, IdxVal, DAG, dl);
   }
 
   if (Subtarget->hasSSE41())
@@ -6948,15 +7289,14 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const {
   return SDValue();
 }
 
-SDValue
-X86TargetLowering::LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) {
   LLVMContext *Context = DAG.getContext();
   DebugLoc dl = Op.getDebugLoc();
   EVT OpVT = Op.getValueType();
 
   // If this is a 256-bit vector result, first insert into a 128-bit
   // vector and then insert into the 256-bit vector.
-  if (OpVT.getSizeInBits() > 128) {
+  if (!OpVT.is128BitVector()) {
     // Insert into a 128-bit vector.
     EVT VT128 = EVT::getVectorVT(*Context,
                                  OpVT.getVectorElementType(),
@@ -6965,35 +7305,34 @@ X86TargetLowering::LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const {
     Op = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, VT128, Op.getOperand(0));
 
     // Insert the 128-bit vector.
-    return Insert128BitVector(DAG.getNode(ISD::UNDEF, dl, OpVT), Op,
-                              DAG.getConstant(0, MVT::i32),
-                              DAG, dl);
+    return Insert128BitVector(DAG.getUNDEF(OpVT), Op, 0, DAG, dl);
   }
 
-  if (Op.getValueType() == MVT::v1i64 &&
+  if (OpVT == MVT::v1i64 &&
       Op.getOperand(0).getValueType() == MVT::i64)
     return DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v1i64, Op.getOperand(0));
 
   SDValue AnyExt = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i32, Op.getOperand(0));
-  assert(Op.getValueType().getSimpleVT().getSizeInBits() == 128 &&
-         "Expected an SSE type!");
-  return DAG.getNode(ISD::BITCAST, dl, Op.getValueType(),
+  assert(OpVT.is128BitVector() && "Expected an SSE type!");
+  return DAG.getNode(ISD::BITCAST, dl, OpVT,
                      DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, MVT::v4i32,AnyExt));
 }
 
 // Lower a node with an EXTRACT_SUBVECTOR opcode.  This may result in
 // a simple subregister reference or explicit instructions to grab
 // upper bits of a vector.
-SDValue
-X86TargetLowering::LowerEXTRACT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerEXTRACT_SUBVECTOR(SDValue Op, const X86Subtarget *Subtarget,
+                                      SelectionDAG &DAG) {
   if (Subtarget->hasAVX()) {
     DebugLoc dl = Op.getNode()->getDebugLoc();
     SDValue Vec = Op.getNode()->getOperand(0);
     SDValue Idx = Op.getNode()->getOperand(1);
 
-    if (Op.getNode()->getValueType(0).getSizeInBits() == 128
-        && Vec.getNode()->getValueType(0).getSizeInBits() == 256) {
-        return Extract128BitVector(Vec, Idx, DAG, dl);
+    if (Op.getNode()->getValueType(0).is128BitVector() &&
+        Vec.getNode()->getValueType(0).is256BitVector() &&
+        isa<ConstantSDNode>(Idx)) {
+      unsigned IdxVal = cast<ConstantSDNode>(Idx)->getZExtValue();
+      return Extract128BitVector(Vec, IdxVal, DAG, dl);
     }
   }
   return SDValue();
@@ -7002,17 +7341,19 @@ X86TargetLowering::LowerEXTRACT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const {
 // Lower a node with an INSERT_SUBVECTOR opcode.  This may result in a
 // simple superregister reference or explicit instructions to insert
 // the upper bits of a vector.
-SDValue
-X86TargetLowering::LowerINSERT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerINSERT_SUBVECTOR(SDValue Op, const X86Subtarget *Subtarget,
+                                     SelectionDAG &DAG) {
   if (Subtarget->hasAVX()) {
     DebugLoc dl = Op.getNode()->getDebugLoc();
     SDValue Vec = Op.getNode()->getOperand(0);
     SDValue SubVec = Op.getNode()->getOperand(1);
     SDValue Idx = Op.getNode()->getOperand(2);
 
-    if (Op.getNode()->getValueType(0).getSizeInBits() == 256
-        && SubVec.getNode()->getValueType(0).getSizeInBits() == 128) {
-      return Insert128BitVector(Vec, SubVec, Idx, DAG, dl);
+    if (Op.getNode()->getValueType(0).is256BitVector() &&
+        SubVec.getNode()->getValueType(0).is128BitVector() &&
+        isa<ConstantSDNode>(Idx)) {
+      unsigned IdxVal = cast<ConstantSDNode>(Idx)->getZExtValue();
+      return Insert128BitVector(Vec, SubVec, IdxVal, DAG, dl);
     }
   }
   return SDValue();
@@ -7144,9 +7485,10 @@ X86TargetLowering::LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const {
     Subtarget->ClassifyBlockAddressReference();
   CodeModel::Model M = getTargetMachine().getCodeModel();
   const BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
+  int64_t Offset = cast<BlockAddressSDNode>(Op)->getOffset();
   DebugLoc dl = Op.getDebugLoc();
-  SDValue Result = DAG.getBlockAddress(BA, getPointerTy(),
-                                       /*isTarget=*/true, OpFlags);
+  SDValue Result = DAG.getTargetBlockAddress(BA, getPointerTy(), Offset,
+                                             OpFlags);
 
   if (Subtarget->isPICStyleRIPRel() &&
       (M == CodeModel::Small || M == CodeModel::Kernel))
@@ -7221,7 +7563,7 @@ X86TargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const {
 static SDValue
 GetTLSADDR(SelectionDAG &DAG, SDValue Chain, GlobalAddressSDNode *GA,
            SDValue *InFlag, const EVT PtrVT, unsigned ReturnReg,
-           unsigned char OperandFlags) {
+           unsigned char OperandFlags, bool LocalDynamic = false) {
   MachineFrameInfo *MFI = DAG.getMachineFunction().getFrameInfo();
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
   DebugLoc dl = GA->getDebugLoc();
@@ -7229,12 +7571,16 @@ GetTLSADDR(SelectionDAG &DAG, SDValue Chain, GlobalAddressSDNode *GA,
                                            GA->getValueType(0),
                                            GA->getOffset(),
                                            OperandFlags);
+
+  X86ISD::NodeType CallType = LocalDynamic ? X86ISD::TLSBASEADDR
+                                           : X86ISD::TLSADDR;
+
   if (InFlag) {
     SDValue Ops[] = { Chain,  TGA, *InFlag };
-    Chain = DAG.getNode(X86ISD::TLSADDR, dl, NodeTys, Ops, 3);
+    Chain = DAG.getNode(CallType, dl, NodeTys, Ops, 3);
   } else {
     SDValue Ops[]  = { Chain, TGA };
-    Chain = DAG.getNode(X86ISD::TLSADDR, dl, NodeTys, Ops, 2);
+    Chain = DAG.getNode(CallType, dl, NodeTys, Ops, 2);
   }
 
   // TLSADDR will be codegen'ed as call. Inform MFI that function has calls.
@@ -7251,8 +7597,8 @@ LowerToTLSGeneralDynamicModel32(GlobalAddressSDNode *GA, SelectionDAG &DAG,
   SDValue InFlag;
   DebugLoc dl = GA->getDebugLoc();  // ? function entry point might be better
   SDValue Chain = DAG.getCopyToReg(DAG.getEntryNode(), dl, X86::EBX,
-                                     DAG.getNode(X86ISD::GlobalBaseReg,
-                                                 DebugLoc(), PtrVT), InFlag);
+                                   DAG.getNode(X86ISD::GlobalBaseReg,
+                                               DebugLoc(), PtrVT), InFlag);
   InFlag = Chain.getValue(1);
 
   return GetTLSADDR(DAG, Chain, GA, &InFlag, PtrVT, X86::EAX, X86II::MO_TLSGD);
@@ -7266,11 +7612,49 @@ LowerToTLSGeneralDynamicModel64(GlobalAddressSDNode *GA, SelectionDAG &DAG,
                     X86::RAX, X86II::MO_TLSGD);
 }
 
-// Lower ISD::GlobalTLSAddress using the "initial exec" (for no-pic) or
-// "local exec" model.
+static SDValue LowerToTLSLocalDynamicModel(GlobalAddressSDNode *GA,
+                                           SelectionDAG &DAG,
+                                           const EVT PtrVT,
+                                           bool is64Bit) {
+  DebugLoc dl = GA->getDebugLoc();
+
+  // Get the start address of the TLS block for this module.
+  X86MachineFunctionInfo* MFI = DAG.getMachineFunction()
+      .getInfo<X86MachineFunctionInfo>();
+  MFI->incNumLocalDynamicTLSAccesses();
+
+  SDValue Base;
+  if (is64Bit) {
+    Base = GetTLSADDR(DAG, DAG.getEntryNode(), GA, NULL, PtrVT, X86::RAX,
+                      X86II::MO_TLSLD, /*LocalDynamic=*/true);
+  } else {
+    SDValue InFlag;
+    SDValue Chain = DAG.getCopyToReg(DAG.getEntryNode(), dl, X86::EBX,
+        DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc(), PtrVT), InFlag);
+    InFlag = Chain.getValue(1);
+    Base = GetTLSADDR(DAG, Chain, GA, &InFlag, PtrVT, X86::EAX,
+                      X86II::MO_TLSLDM, /*LocalDynamic=*/true);
+  }
+
+  // Note: the CleanupLocalDynamicTLSPass will remove redundant computations
+  // of Base.
+
+  // Build x@dtpoff.
+  unsigned char OperandFlags = X86II::MO_DTPOFF;
+  unsigned WrapperKind = X86ISD::Wrapper;
+  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), dl,
+                                           GA->getValueType(0),
+                                           GA->getOffset(), OperandFlags);
+  SDValue Offset = DAG.getNode(WrapperKind, dl, PtrVT, TGA);
+
+  // Add x@dtpoff with the base.
+  return DAG.getNode(ISD::ADD, dl, PtrVT, Offset, Base);
+}
+
+// Lower ISD::GlobalTLSAddress using the "initial exec" or "local exec" model.
 static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
                                    const EVT PtrVT, TLSModel::Model model,
-                                   bool is64Bit) {
+                                   bool is64Bit, bool isPIC) {
   DebugLoc dl = GA->getDebugLoc();
 
   // Get the Thread Pointer, which is %gs:0 (32-bit) or %fs:0 (64-bit).
@@ -7288,25 +7672,36 @@ static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
   unsigned WrapperKind = X86ISD::Wrapper;
   if (model == TLSModel::LocalExec) {
     OperandFlags = is64Bit ? X86II::MO_TPOFF : X86II::MO_NTPOFF;
-  } else if (is64Bit) {
-    assert(model == TLSModel::InitialExec);
-    OperandFlags = X86II::MO_GOTTPOFF;
-    WrapperKind = X86ISD::WrapperRIP;
+  } else if (model == TLSModel::InitialExec) {
+    if (is64Bit) {
+      OperandFlags = X86II::MO_GOTTPOFF;
+      WrapperKind = X86ISD::WrapperRIP;
+    } else {
+      OperandFlags = isPIC ? X86II::MO_GOTNTPOFF : X86II::MO_INDNTPOFF;
+    }
   } else {
-    assert(model == TLSModel::InitialExec);
-    OperandFlags = X86II::MO_INDNTPOFF;
+    llvm_unreachable("Unexpected model");
   }
 
-  // emit "addl x@ntpoff,%eax" (local exec) or "addl x@indntpoff,%eax" (initial
-  // exec)
+  // emit "addl x@ntpoff,%eax" (local exec)
+  // or "addl x@indntpoff,%eax" (initial exec)
+  // or "addl x@gotntpoff(%ebx) ,%eax" (initial exec, 32-bit pic)
   SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), dl,
                                            GA->getValueType(0),
                                            GA->getOffset(), OperandFlags);
   SDValue Offset = DAG.getNode(WrapperKind, dl, PtrVT, TGA);
 
-  if (model == TLSModel::InitialExec)
+  if (model == TLSModel::InitialExec) {
+    if (isPIC && !is64Bit) {
+      Offset = DAG.getNode(ISD::ADD, dl, PtrVT,
+                          DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc(), PtrVT),
+                           Offset);
+    }
+
     Offset = DAG.getLoad(PtrVT, dl, DAG.getEntryNode(), Offset,
-                         MachinePointerInfo::getGOT(), false, false, false, 0);
+                         MachinePointerInfo::getGOT(), false, false, false,
+                         0);
+  }
 
   // The address of the thread local variable is the add of the thread
   // pointer with the offset of the variable.
@@ -7320,29 +7715,26 @@ X86TargetLowering::LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const {
   const GlobalValue *GV = GA->getGlobal();
 
   if (Subtarget->isTargetELF()) {
-    // TODO: implement the "local dynamic" model
-    // TODO: implement the "initial exec"model for pic executables
-
-    // If GV is an alias then use the aliasee for determining
-    // thread-localness.
-    if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(GV))
-      GV = GA->resolveAliasedGlobal(false);
-
     TLSModel::Model model = getTargetMachine().getTLSModel(GV);
 
     switch (model) {
       case TLSModel::GeneralDynamic:
-      case TLSModel::LocalDynamic: // not implemented
         if (Subtarget->is64Bit())
           return LowerToTLSGeneralDynamicModel64(GA, DAG, getPointerTy());
         return LowerToTLSGeneralDynamicModel32(GA, DAG, getPointerTy());
-
+      case TLSModel::LocalDynamic:
+        return LowerToTLSLocalDynamicModel(GA, DAG, getPointerTy(),
+                                           Subtarget->is64Bit());
       case TLSModel::InitialExec:
       case TLSModel::LocalExec:
         return LowerToTLSExecModel(GA, DAG, getPointerTy(), model,
-                                   Subtarget->is64Bit());
+                                   Subtarget->is64Bit(),
+                         getTargetMachine().getRelocationModel() == Reloc::PIC_);
     }
-  } else if (Subtarget->isTargetDarwin()) {
+    llvm_unreachable("Unknown TLS model.");
+  }
+
+  if (Subtarget->isTargetDarwin()) {
     // Darwin only has one model of TLS.  Lower to that.
     unsigned char OpFlag = 0;
     unsigned WrapperKind = Subtarget->isPICStyleRIPRel() ?
@@ -7385,7 +7777,9 @@ X86TargetLowering::LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const {
     unsigned Reg = Subtarget->is64Bit() ? X86::RAX : X86::EAX;
     return DAG.getCopyFromReg(Chain, DL, Reg, getPointerTy(),
                               Chain.getValue(1));
-  } else if (Subtarget->isTargetWindows()) {
+  }
+
+  if (Subtarget->isTargetWindows()) {
     // Just use the implicit TLS architecture
     // Need to generate someting similar to:
     //   mov     rdx, qword [gs:abs 58H]; Load pointer to ThreadLocalStorage
@@ -7431,7 +7825,7 @@ X86TargetLowering::LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const {
                         false, false, false, 0);
 
     SDValue Scale = DAG.getConstant(Log2_64_Ceil(TD->getPointerSize()),
-		                            getPointerTy());
+                                    getPointerTy());
     IDX = DAG.getNode(ISD::SHL, dl, getPointerTy(), IDX, Scale);
 
     SDValue res = DAG.getNode(ISD::ADD, dl, getPointerTy(), ThreadPointer, IDX);
@@ -7602,9 +7996,9 @@ SDValue X86TargetLowering::LowerUINT_TO_FP_i64(SDValue Op,
      punpckldq  (c0),  %xmm0  // c0: (uint4){ 0x43300000U, 0x45300000U, 0U, 0U }
      subpd      (c1),  %xmm0  // c1: (double2){ 0x1.0p52, 0x1.0p52 * 0x1.0p32 }
      #ifdef __SSE3__
-       haddpd   %xmm0, %xmm0          
+       haddpd   %xmm0, %xmm0
      #else
-       pshufd   $0x4e, %xmm0, %xmm1 
+       pshufd   $0x4e, %xmm0, %xmm1
        addpd    %xmm1, %xmm0
      #endif
   */
@@ -7695,21 +8089,38 @@ SDValue X86TargetLowering::LowerUINT_TO_FP_i32(SDValue Op,
   // Handle final rounding.
   EVT DestVT = Op.getValueType();
 
-  if (DestVT.bitsLT(MVT::f64)) {
+  if (DestVT.bitsLT(MVT::f64))
     return DAG.getNode(ISD::FP_ROUND, dl, DestVT, Sub,
                        DAG.getIntPtrConstant(0));
-  } else if (DestVT.bitsGT(MVT::f64)) {
+  if (DestVT.bitsGT(MVT::f64))
     return DAG.getNode(ISD::FP_EXTEND, dl, DestVT, Sub);
-  }
 
   // Handle final rounding.
   return Sub;
+}
+
+SDValue X86TargetLowering::lowerUINT_TO_FP_vec(SDValue Op,
+                                               SelectionDAG &DAG) const {
+  SDValue N0 = Op.getOperand(0);
+  EVT SVT = N0.getValueType();
+  DebugLoc dl = Op.getDebugLoc();
+
+  assert((SVT == MVT::v4i8 || SVT == MVT::v4i16 ||
+          SVT == MVT::v8i8 || SVT == MVT::v8i16) &&
+         "Custom UINT_TO_FP is not supported!");
+
+  EVT NVT = EVT::getVectorVT(*DAG.getContext(), MVT::i32, SVT.getVectorNumElements());
+  return DAG.getNode(ISD::SINT_TO_FP, dl, Op.getValueType(),
+                     DAG.getNode(ISD::ZERO_EXTEND, dl, NVT, N0));
 }
 
 SDValue X86TargetLowering::LowerUINT_TO_FP(SDValue Op,
                                            SelectionDAG &DAG) const {
   SDValue N0 = Op.getOperand(0);
   DebugLoc dl = Op.getDebugLoc();
+
+  if (Op.getValueType().isVector())
+    return lowerUINT_TO_FP_vec(Op, DAG);
 
   // Since UINT_TO_FP is legal (it's marked custom), dag combiner won't
   // optimize it to a SINT_TO_FP when the sign bit is known zero. Perform
@@ -7721,10 +8132,9 @@ SDValue X86TargetLowering::LowerUINT_TO_FP(SDValue Op,
   EVT DstVT = Op.getValueType();
   if (SrcVT == MVT::i64 && DstVT == MVT::f64 && X86ScalarSSEf64)
     return LowerUINT_TO_FP_i64(Op, DAG);
-  else if (SrcVT == MVT::i32 && X86ScalarSSEf64)
+  if (SrcVT == MVT::i32 && X86ScalarSSEf64)
     return LowerUINT_TO_FP_i32(Op, DAG);
-  else if (Subtarget->is64Bit() &&
-           SrcVT == MVT::i64 && DstVT == MVT::f32)
+  if (Subtarget->is64Bit() && SrcVT == MVT::i64 && DstVT == MVT::f32)
     return SDValue();
 
   // Make a 64-bit buffer, and use it to build an FILD.
@@ -7885,10 +8295,66 @@ FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG, bool IsSigned, bool IsReplace) co
   }
 }
 
+SDValue X86TargetLowering::lowerZERO_EXTEND(SDValue Op, SelectionDAG &DAG) const {
+  DebugLoc DL = Op.getDebugLoc();
+  EVT VT = Op.getValueType();
+  SDValue In = Op.getOperand(0);
+  EVT SVT = In.getValueType();
+
+  if (!VT.is256BitVector() || !SVT.is128BitVector() ||
+      VT.getVectorNumElements() != SVT.getVectorNumElements())
+    return SDValue();
+
+  assert(Subtarget->hasAVX() && "256-bit vector is observed without AVX!");
+
+  // AVX2 has better support of integer extending.
+  if (Subtarget->hasAVX2())
+    return DAG.getNode(X86ISD::VZEXT, DL, VT, In);
+
+  SDValue Lo = DAG.getNode(X86ISD::VZEXT, DL, MVT::v4i32, In);
+  static const int Mask[] = {4, 5, 6, 7, -1, -1, -1, -1};
+  SDValue Hi = DAG.getNode(X86ISD::VZEXT, DL, MVT::v4i32,
+                           DAG.getVectorShuffle(MVT::v8i16, DL, In, DAG.getUNDEF(MVT::v8i16), &Mask[0]));
+
+  return DAG.getNode(ISD::CONCAT_VECTORS, DL, MVT::v8i32, Lo, Hi);
+}
+
+SDValue X86TargetLowering::lowerTRUNCATE(SDValue Op, SelectionDAG &DAG) const {
+  DebugLoc DL = Op.getDebugLoc();
+  EVT VT = Op.getValueType();
+  EVT SVT = Op.getOperand(0).getValueType();
+
+  if (!VT.is128BitVector() || !SVT.is256BitVector() ||
+      VT.getVectorNumElements() != SVT.getVectorNumElements())
+    return SDValue();
+
+  assert(Subtarget->hasAVX() && "256-bit vector is observed without AVX!");
+
+  unsigned NumElems = VT.getVectorNumElements();
+  EVT NVT = EVT::getVectorVT(*DAG.getContext(), VT.getVectorElementType(),
+                             NumElems * 2);
+
+  SDValue In = Op.getOperand(0);
+  SmallVector<int, 16> MaskVec(NumElems * 2, -1);
+  // Prepare truncation shuffle mask
+  for (unsigned i = 0; i != NumElems; ++i)
+    MaskVec[i] = i * 2;
+  SDValue V = DAG.getVectorShuffle(NVT, DL,
+                                   DAG.getNode(ISD::BITCAST, DL, NVT, In),
+                                   DAG.getUNDEF(NVT), &MaskVec[0]);
+  return DAG.getNode(ISD::EXTRACT_SUBVECTOR, DL, VT, V,
+                     DAG.getIntPtrConstant(0));
+}
+
 SDValue X86TargetLowering::LowerFP_TO_SINT(SDValue Op,
                                            SelectionDAG &DAG) const {
-  if (Op.getValueType().isVector())
+  if (Op.getValueType().isVector()) {
+    if (Op.getValueType() == MVT::v8i16)
+      return DAG.getNode(ISD::TRUNCATE, Op.getDebugLoc(), Op.getValueType(),
+                         DAG.getNode(ISD::FP_TO_SINT, Op.getDebugLoc(),
+                                     MVT::v8i32, Op.getOperand(0)));
     return SDValue();
+  }
 
   std::pair<SDValue,SDValue> Vals = FP_TO_INTHelper(Op, DAG,
     /*IsSigned=*/ true, /*IsReplace=*/ false);
@@ -7901,9 +8367,9 @@ SDValue X86TargetLowering::LowerFP_TO_SINT(SDValue Op,
     return DAG.getLoad(Op.getValueType(), Op.getDebugLoc(),
                        FIST, StackSlot, MachinePointerInfo(),
                        false, false, false, 0);
-  else
-    // The node is the result.
-    return FIST;
+
+  // The node is the result.
+  return FIST;
 }
 
 SDValue X86TargetLowering::LowerFP_TO_UINT(SDValue Op,
@@ -7918,31 +8384,54 @@ SDValue X86TargetLowering::LowerFP_TO_UINT(SDValue Op,
     return DAG.getLoad(Op.getValueType(), Op.getDebugLoc(),
                        FIST, StackSlot, MachinePointerInfo(),
                        false, false, false, 0);
-  else
-    // The node is the result.
-    return FIST;
+
+  // The node is the result.
+  return FIST;
 }
 
-SDValue X86TargetLowering::LowerFABS(SDValue Op,
-                                     SelectionDAG &DAG) const {
+SDValue X86TargetLowering::lowerFP_EXTEND(SDValue Op,
+                                          SelectionDAG &DAG) const {
+  DebugLoc DL = Op.getDebugLoc();
+  EVT VT = Op.getValueType();
+  SDValue In = Op.getOperand(0);
+  EVT SVT = In.getValueType();
+
+  assert(SVT == MVT::v2f32 && "Only customize MVT::v2f32 type legalization!");
+
+  return DAG.getNode(X86ISD::VFPEXT, DL, VT,
+                     DAG.getNode(ISD::CONCAT_VECTORS, DL, MVT::v4f32,
+                                 In, DAG.getUNDEF(SVT)));
+}
+
+SDValue X86TargetLowering::LowerFABS(SDValue Op, SelectionDAG &DAG) const {
   LLVMContext *Context = DAG.getContext();
   DebugLoc dl = Op.getDebugLoc();
   EVT VT = Op.getValueType();
   EVT EltVT = VT;
-  if (VT.isVector())
+  unsigned NumElts = VT == MVT::f64 ? 2 : 4;
+  if (VT.isVector()) {
     EltVT = VT.getVectorElementType();
-  Constant *C;
-  if (EltVT == MVT::f64) {
-    C = ConstantVector::getSplat(2, 
-                ConstantFP::get(*Context, APFloat(APInt(64, ~(1ULL << 63)))));
-  } else {
-    C = ConstantVector::getSplat(4,
-               ConstantFP::get(*Context, APFloat(APInt(32, ~(1U << 31)))));
+    NumElts = VT.getVectorNumElements();
   }
-  SDValue CPIdx = DAG.getConstantPool(C, getPointerTy(), 16);
+  Constant *C;
+  if (EltVT == MVT::f64)
+    C = ConstantFP::get(*Context, APFloat(APInt(64, ~(1ULL << 63))));
+  else
+    C = ConstantFP::get(*Context, APFloat(APInt(32, ~(1U << 31))));
+  C = ConstantVector::getSplat(NumElts, C);
+  SDValue CPIdx = DAG.getConstantPool(C, getPointerTy());
+  unsigned Alignment = cast<ConstantPoolSDNode>(CPIdx)->getAlignment();
   SDValue Mask = DAG.getLoad(VT, dl, DAG.getEntryNode(), CPIdx,
                              MachinePointerInfo::getConstantPool(),
-                             false, false, false, 16);
+                             false, false, false, Alignment);
+  if (VT.isVector()) {
+    MVT ANDVT = VT.is128BitVector() ? MVT::v2i64 : MVT::v4i64;
+    return DAG.getNode(ISD::BITCAST, dl, VT,
+                       DAG.getNode(ISD::AND, dl, ANDVT,
+                                   DAG.getNode(ISD::BITCAST, dl, ANDVT,
+                                               Op.getOperand(0)),
+                                   DAG.getNode(ISD::BITCAST, dl, ANDVT, Mask)));
+  }
   return DAG.getNode(X86ISD::FAND, dl, VT, Op.getOperand(0), Mask);
 }
 
@@ -7962,20 +8451,21 @@ SDValue X86TargetLowering::LowerFNEG(SDValue Op, SelectionDAG &DAG) const {
   else
     C = ConstantFP::get(*Context, APFloat(APInt(32, 1U << 31)));
   C = ConstantVector::getSplat(NumElts, C);
-  SDValue CPIdx = DAG.getConstantPool(C, getPointerTy(), 16);
+  SDValue CPIdx = DAG.getConstantPool(C, getPointerTy());
+  unsigned Alignment = cast<ConstantPoolSDNode>(CPIdx)->getAlignment();
   SDValue Mask = DAG.getLoad(VT, dl, DAG.getEntryNode(), CPIdx,
                              MachinePointerInfo::getConstantPool(),
-                             false, false, false, 16);
+                             false, false, false, Alignment);
   if (VT.isVector()) {
-    MVT XORVT = VT.getSizeInBits() == 128 ? MVT::v2i64 : MVT::v4i64;
+    MVT XORVT = VT.is128BitVector() ? MVT::v2i64 : MVT::v4i64;
     return DAG.getNode(ISD::BITCAST, dl, VT,
                        DAG.getNode(ISD::XOR, dl, XORVT,
-                    DAG.getNode(ISD::BITCAST, dl, XORVT,
-                                Op.getOperand(0)),
-                    DAG.getNode(ISD::BITCAST, dl, XORVT, Mask)));
-  } else {
-    return DAG.getNode(X86ISD::FXOR, dl, VT, Op.getOperand(0), Mask);
+                                   DAG.getNode(ISD::BITCAST, dl, XORVT,
+                                               Op.getOperand(0)),
+                                   DAG.getNode(ISD::BITCAST, dl, XORVT, Mask)));
   }
+
+  return DAG.getNode(X86ISD::FXOR, dl, VT, Op.getOperand(0), Mask);
 }
 
 SDValue X86TargetLowering::LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const {
@@ -8051,7 +8541,7 @@ SDValue X86TargetLowering::LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const {
   return DAG.getNode(X86ISD::FOR, dl, VT, Val, SignBit);
 }
 
-SDValue X86TargetLowering::LowerFGETSIGN(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerFGETSIGN(SDValue Op, SelectionDAG &DAG) {
   SDValue N0 = Op.getOperand(0);
   DebugLoc dl = Op.getDebugLoc();
   EVT VT = Op.getValueType();
@@ -8060,6 +8550,98 @@ SDValue X86TargetLowering::LowerFGETSIGN(SDValue Op, SelectionDAG &DAG) const {
   SDValue xFGETSIGN = DAG.getNode(X86ISD::FGETSIGNx86, dl, VT, N0,
                                   DAG.getConstant(1, VT));
   return DAG.getNode(ISD::AND, dl, VT, xFGETSIGN, DAG.getConstant(1, VT));
+}
+
+// LowerVectorAllZeroTest - Check whether an OR'd tree is PTEST-able.
+//
+SDValue X86TargetLowering::LowerVectorAllZeroTest(SDValue Op, SelectionDAG &DAG) const {
+  assert(Op.getOpcode() == ISD::OR && "Only check OR'd tree.");
+
+  if (!Subtarget->hasSSE41())
+    return SDValue();
+
+  if (!Op->hasOneUse())
+    return SDValue();
+
+  SDNode *N = Op.getNode();
+  DebugLoc DL = N->getDebugLoc();
+
+  SmallVector<SDValue, 8> Opnds;
+  DenseMap<SDValue, unsigned> VecInMap;
+  EVT VT = MVT::Other;
+
+  // Recognize a special case where a vector is casted into wide integer to
+  // test all 0s.
+  Opnds.push_back(N->getOperand(0));
+  Opnds.push_back(N->getOperand(1));
+
+  for (unsigned Slot = 0, e = Opnds.size(); Slot < e; ++Slot) {
+    SmallVector<SDValue, 8>::const_iterator I = Opnds.begin() + Slot;
+    // BFS traverse all OR'd operands.
+    if (I->getOpcode() == ISD::OR) {
+      Opnds.push_back(I->getOperand(0));
+      Opnds.push_back(I->getOperand(1));
+      // Re-evaluate the number of nodes to be traversed.
+      e += 2; // 2 more nodes (LHS and RHS) are pushed.
+      continue;
+    }
+
+    // Quit if a non-EXTRACT_VECTOR_ELT
+    if (I->getOpcode() != ISD::EXTRACT_VECTOR_ELT)
+      return SDValue();
+
+    // Quit if without a constant index.
+    SDValue Idx = I->getOperand(1);
+    if (!isa<ConstantSDNode>(Idx))
+      return SDValue();
+
+    SDValue ExtractedFromVec = I->getOperand(0);
+    DenseMap<SDValue, unsigned>::iterator M = VecInMap.find(ExtractedFromVec);
+    if (M == VecInMap.end()) {
+      VT = ExtractedFromVec.getValueType();
+      // Quit if not 128/256-bit vector.
+      if (!VT.is128BitVector() && !VT.is256BitVector())
+        return SDValue();
+      // Quit if not the same type.
+      if (VecInMap.begin() != VecInMap.end() &&
+          VT != VecInMap.begin()->first.getValueType())
+        return SDValue();
+      M = VecInMap.insert(std::make_pair(ExtractedFromVec, 0)).first;
+    }
+    M->second |= 1U << cast<ConstantSDNode>(Idx)->getZExtValue();
+  }
+
+  assert((VT.is128BitVector() || VT.is256BitVector()) &&
+         "Not extracted from 128-/256-bit vector.");
+
+  unsigned FullMask = (1U << VT.getVectorNumElements()) - 1U;
+  SmallVector<SDValue, 8> VecIns;
+
+  for (DenseMap<SDValue, unsigned>::const_iterator
+        I = VecInMap.begin(), E = VecInMap.end(); I != E; ++I) {
+    // Quit if not all elements are used.
+    if (I->second != FullMask)
+      return SDValue();
+    VecIns.push_back(I->first);
+  }
+
+  EVT TestVT = VT.is128BitVector() ? MVT::v2i64 : MVT::v4i64;
+
+  // Cast all vectors into TestVT for PTEST.
+  for (unsigned i = 0, e = VecIns.size(); i < e; ++i)
+    VecIns[i] = DAG.getNode(ISD::BITCAST, DL, TestVT, VecIns[i]);
+
+  // If more than one full vectors are evaluated, OR them first before PTEST.
+  for (unsigned Slot = 0, e = VecIns.size(); e - Slot > 1; Slot += 2, e += 1) {
+    // Each iteration will OR 2 nodes and append the result until there is only
+    // 1 node left, i.e. the final OR'd value of all vectors.
+    SDValue LHS = VecIns[Slot];
+    SDValue RHS = VecIns[Slot + 1];
+    VecIns.push_back(DAG.getNode(ISD::OR, DL, TestVT, LHS, RHS));
+  }
+
+  return DAG.getNode(X86ISD::PTEST, DL, MVT::i32,
+                     VecIns.back(), VecIns.back());
 }
 
 /// Emit nodes that will be selected as "test Op0,Op0", or something
@@ -8095,7 +8677,33 @@ SDValue X86TargetLowering::EmitTest(SDValue Op, unsigned X86CC,
 
   unsigned Opcode = 0;
   unsigned NumOperands = 0;
-  switch (Op.getNode()->getOpcode()) {
+
+  // Truncate operations may prevent the merge of the SETCC instruction
+  // and the arithmetic intruction before it. Attempt to truncate the operands
+  // of the arithmetic instruction and use a reduced bit-width instruction.
+  bool NeedTruncation = false;
+  SDValue ArithOp = Op;
+  if (Op->getOpcode() == ISD::TRUNCATE && Op->hasOneUse()) {
+    SDValue Arith = Op->getOperand(0);
+    // Both the trunc and the arithmetic op need to have one user each.
+    if (Arith->hasOneUse())
+      switch (Arith.getOpcode()) {
+        default: break;
+        case ISD::ADD:
+        case ISD::SUB:
+        case ISD::AND:
+        case ISD::OR:
+        case ISD::XOR: {
+          NeedTruncation = true;
+          ArithOp = Arith;
+        }
+      }
+  }
+
+  // NOTICE: In the code below we use ArithOp to hold the arithmetic operation
+  // which may be the result of a CAST.  We use the variable 'Op', which is the
+  // non-casted variable when we check for possible users.
+  switch (ArithOp.getOpcode()) {
   case ISD::ADD:
     // Due to an isel shortcoming, be conservative if this add is likely to be
     // selected as part of a load-modify-store instruction. When the root node
@@ -8115,7 +8723,7 @@ SDValue X86TargetLowering::EmitTest(SDValue Op, unsigned X86CC,
         goto default_case;
 
     if (ConstantSDNode *C =
-        dyn_cast<ConstantSDNode>(Op.getNode()->getOperand(1))) {
+        dyn_cast<ConstantSDNode>(ArithOp.getNode()->getOperand(1))) {
       // An add of one will be selected as an INC.
       if (C->getAPIntValue() == 1) {
         Opcode = X86ISD::INC;
@@ -8151,7 +8759,7 @@ SDValue X86TargetLowering::EmitTest(SDValue Op, unsigned X86CC,
 
       if (User->getOpcode() != ISD::BRCOND &&
           User->getOpcode() != ISD::SETCC &&
-          (User->getOpcode() != ISD::SELECT || UOpNo != 0)) {
+          !(User->getOpcode() == ISD::SELECT && UOpNo == 0)) {
         NonFlagUse = true;
         break;
       }
@@ -8172,12 +8780,20 @@ SDValue X86TargetLowering::EmitTest(SDValue Op, unsigned X86CC,
         goto default_case;
 
     // Otherwise use a regular EFLAGS-setting instruction.
-    switch (Op.getNode()->getOpcode()) {
+    switch (ArithOp.getOpcode()) {
     default: llvm_unreachable("unexpected operator!");
     case ISD::SUB: Opcode = X86ISD::SUB; break;
-    case ISD::OR:  Opcode = X86ISD::OR;  break;
     case ISD::XOR: Opcode = X86ISD::XOR; break;
     case ISD::AND: Opcode = X86ISD::AND; break;
+    case ISD::OR: {
+      if (!NeedTruncation && (X86CC == X86::COND_E || X86CC == X86::COND_NE)) {
+        SDValue EFLAGS = LowerVectorAllZeroTest(Op, DAG);
+        if (EFLAGS.getNode())
+          return EFLAGS;
+      }
+      Opcode = X86ISD::OR;
+      break;
+    }
     }
 
     NumOperands = 2;
@@ -8193,6 +8809,35 @@ SDValue X86TargetLowering::EmitTest(SDValue Op, unsigned X86CC,
   default:
   default_case:
     break;
+  }
+
+  // If we found that truncation is beneficial, perform the truncation and
+  // update 'Op'.
+  if (NeedTruncation) {
+    EVT VT = Op.getValueType();
+    SDValue WideVal = Op->getOperand(0);
+    EVT WideVT = WideVal.getValueType();
+    unsigned ConvertedOp = 0;
+    // Use a target machine opcode to prevent further DAGCombine
+    // optimizations that may separate the arithmetic operations
+    // from the setcc node.
+    switch (WideVal.getOpcode()) {
+      default: break;
+      case ISD::ADD: ConvertedOp = X86ISD::ADD; break;
+      case ISD::SUB: ConvertedOp = X86ISD::SUB; break;
+      case ISD::AND: ConvertedOp = X86ISD::AND; break;
+      case ISD::OR:  ConvertedOp = X86ISD::OR;  break;
+      case ISD::XOR: ConvertedOp = X86ISD::XOR; break;
+    }
+
+    if (ConvertedOp) {
+      const TargetLowering &TLI = DAG.getTargetLoweringInfo();
+      if (TLI.isOperationLegal(WideVal.getOpcode(), WideVT)) {
+        SDValue V0 = DAG.getNode(ISD::TRUNCATE, dl, VT, WideVal.getOperand(0));
+        SDValue V1 = DAG.getNode(ISD::TRUNCATE, dl, VT, WideVal.getOperand(1));
+        Op = DAG.getNode(ConvertedOp, dl, VT, V0, V1);
+      }
+    }
   }
 
   if (Opcode == 0)
@@ -8219,7 +8864,39 @@ SDValue X86TargetLowering::EmitCmp(SDValue Op0, SDValue Op1, unsigned X86CC,
       return EmitTest(Op0, X86CC, DAG);
 
   DebugLoc dl = Op0.getDebugLoc();
+  if ((Op0.getValueType() == MVT::i8 || Op0.getValueType() == MVT::i16 ||
+       Op0.getValueType() == MVT::i32 || Op0.getValueType() == MVT::i64)) {
+    // Use SUB instead of CMP to enable CSE between SUB and CMP.
+    SDVTList VTs = DAG.getVTList(Op0.getValueType(), MVT::i32);
+    SDValue Sub = DAG.getNode(X86ISD::SUB, dl, VTs,
+                              Op0, Op1);
+    return SDValue(Sub.getNode(), 1);
+  }
   return DAG.getNode(X86ISD::CMP, dl, MVT::i32, Op0, Op1);
+}
+
+/// Convert a comparison if required by the subtarget.
+SDValue X86TargetLowering::ConvertCmpIfNecessary(SDValue Cmp,
+                                                 SelectionDAG &DAG) const {
+  // If the subtarget does not support the FUCOMI instruction, floating-point
+  // comparisons have to be converted.
+  if (Subtarget->hasCMov() ||
+      Cmp.getOpcode() != X86ISD::CMP ||
+      !Cmp.getOperand(0).getValueType().isFloatingPoint() ||
+      !Cmp.getOperand(1).getValueType().isFloatingPoint())
+    return Cmp;
+
+  // The instruction selector will select an FUCOM instruction instead of
+  // FUCOMI, which writes the comparison result to FPSW instead of EFLAGS. Hence
+  // build an SDNode sequence that transfers the result from FPSW into EFLAGS:
+  // (X86sahf (trunc (srl (X86fp_stsw (trunc (X86cmp ...)), 8))))
+  DebugLoc dl = Cmp.getDebugLoc();
+  SDValue TruncFPSW = DAG.getNode(ISD::TRUNCATE, dl, MVT::i16, Cmp);
+  SDValue FNStSW = DAG.getNode(X86ISD::FNSTSW16r, dl, MVT::i16, TruncFPSW);
+  SDValue Srl = DAG.getNode(ISD::SRL, dl, MVT::i16, FNStSW,
+                            DAG.getConstant(8, MVT::i8));
+  SDValue TruncSrl = DAG.getNode(ISD::TRUNCATE, dl, MVT::i8, Srl);
+  return DAG.getNode(X86ISD::SAHF, dl, MVT::i32, TruncSrl);
 }
 
 /// LowerToBT - Result of 'and' is compared against zero. Turn it into a BT node
@@ -8343,6 +9020,7 @@ SDValue X86TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
     return SDValue();
 
   SDValue EFLAGS = EmitCmp(Op0, Op1, X86CC, DAG);
+  EFLAGS = ConvertCmpIfNecessary(EFLAGS, DAG);
   return DAG.getNode(X86ISD::SETCC, dl, MVT::i8,
                      DAG.getConstant(X86CC, MVT::i8), EFLAGS);
 }
@@ -8352,24 +9030,22 @@ SDValue X86TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
 static SDValue Lower256IntVSETCC(SDValue Op, SelectionDAG &DAG) {
   EVT VT = Op.getValueType();
 
-  assert(VT.getSizeInBits() == 256 && Op.getOpcode() == ISD::SETCC &&
+  assert(VT.is256BitVector() && Op.getOpcode() == ISD::SETCC &&
          "Unsupported value type for operation");
 
-  int NumElems = VT.getVectorNumElements();
+  unsigned NumElems = VT.getVectorNumElements();
   DebugLoc dl = Op.getDebugLoc();
   SDValue CC = Op.getOperand(2);
-  SDValue Idx0 = DAG.getConstant(0, MVT::i32);
-  SDValue Idx1 = DAG.getConstant(NumElems/2, MVT::i32);
 
   // Extract the LHS vectors
   SDValue LHS = Op.getOperand(0);
-  SDValue LHS1 = Extract128BitVector(LHS, Idx0, DAG, dl);
-  SDValue LHS2 = Extract128BitVector(LHS, Idx1, DAG, dl);
+  SDValue LHS1 = Extract128BitVector(LHS, 0, DAG, dl);
+  SDValue LHS2 = Extract128BitVector(LHS, NumElems/2, DAG, dl);
 
   // Extract the RHS vectors
   SDValue RHS = Op.getOperand(1);
-  SDValue RHS1 = Extract128BitVector(RHS, Idx0, DAG, dl);
-  SDValue RHS2 = Extract128BitVector(RHS, Idx1, DAG, dl);
+  SDValue RHS1 = Extract128BitVector(RHS, 0, DAG, dl);
+  SDValue RHS2 = Extract128BitVector(RHS, NumElems/2, DAG, dl);
 
   // Issue the operation on the smaller types and concatenate the result back
   MVT EltVT = VT.getVectorElementType().getSimpleVT();
@@ -8391,10 +9067,12 @@ SDValue X86TargetLowering::LowerVSETCC(SDValue Op, SelectionDAG &DAG) const {
   DebugLoc dl = Op.getDebugLoc();
 
   if (isFP) {
-    unsigned SSECC = 8;
+#ifndef NDEBUG
     EVT EltVT = Op0.getValueType().getVectorElementType();
-    assert(EltVT == MVT::f32 || EltVT == MVT::f64); (void)EltVT;
+    assert(EltVT == MVT::f32 || EltVT == MVT::f64);
+#endif
 
+    unsigned SSECC;
     bool Swap = false;
 
     // SSE Condition code mapping:
@@ -8407,7 +9085,7 @@ SDValue X86TargetLowering::LowerVSETCC(SDValue Op, SelectionDAG &DAG) const {
     //  6 - NLE
     //  7 - ORD
     switch (SetCCOpcode) {
-    default: break;
+    default: llvm_unreachable("Unexpected SETCC condition");
     case ISD::SETOEQ:
     case ISD::SETEQ:  SSECC = 0; break;
     case ISD::SETOGT:
@@ -8421,33 +9099,33 @@ SDValue X86TargetLowering::LowerVSETCC(SDValue Op, SelectionDAG &DAG) const {
     case ISD::SETUO:  SSECC = 3; break;
     case ISD::SETUNE:
     case ISD::SETNE:  SSECC = 4; break;
-    case ISD::SETULE: Swap = true;
+    case ISD::SETULE: Swap = true; // Fallthrough
     case ISD::SETUGE: SSECC = 5; break;
-    case ISD::SETULT: Swap = true;
+    case ISD::SETULT: Swap = true; // Fallthrough
     case ISD::SETUGT: SSECC = 6; break;
     case ISD::SETO:   SSECC = 7; break;
+    case ISD::SETUEQ:
+    case ISD::SETONE: SSECC = 8; break;
     }
     if (Swap)
       std::swap(Op0, Op1);
 
     // In the two special cases we can't handle, emit two comparisons.
     if (SSECC == 8) {
+      unsigned CC0, CC1;
+      unsigned CombineOpc;
       if (SetCCOpcode == ISD::SETUEQ) {
-        SDValue UNORD, EQ;
-        UNORD = DAG.getNode(X86ISD::CMPP, dl, VT, Op0, Op1,
-                            DAG.getConstant(3, MVT::i8));
-        EQ = DAG.getNode(X86ISD::CMPP, dl, VT, Op0, Op1,
-                         DAG.getConstant(0, MVT::i8));
-        return DAG.getNode(ISD::OR, dl, VT, UNORD, EQ);
-      } else if (SetCCOpcode == ISD::SETONE) {
-        SDValue ORD, NEQ;
-        ORD = DAG.getNode(X86ISD::CMPP, dl, VT, Op0, Op1,
-                          DAG.getConstant(7, MVT::i8));
-        NEQ = DAG.getNode(X86ISD::CMPP, dl, VT, Op0, Op1,
-                          DAG.getConstant(4, MVT::i8));
-        return DAG.getNode(ISD::AND, dl, VT, ORD, NEQ);
+        CC0 = 3; CC1 = 0; CombineOpc = ISD::OR;
+      } else {
+        assert(SetCCOpcode == ISD::SETONE);
+        CC0 = 7; CC1 = 4; CombineOpc = ISD::AND;
       }
-      llvm_unreachable("Illegal FP comparison");
+
+      SDValue Cmp0 = DAG.getNode(X86ISD::CMPP, dl, VT, Op0, Op1,
+                                 DAG.getConstant(CC0, MVT::i8));
+      SDValue Cmp1 = DAG.getNode(X86ISD::CMPP, dl, VT, Op0, Op1,
+                                 DAG.getConstant(CC1, MVT::i8));
+      return DAG.getNode(CombineOpc, dl, VT, Cmp0, Cmp1);
     }
     // Handle all other FP comparisons here.
     return DAG.getNode(X86ISD::CMPP, dl, VT, Op0, Op1,
@@ -8455,17 +9133,17 @@ SDValue X86TargetLowering::LowerVSETCC(SDValue Op, SelectionDAG &DAG) const {
   }
 
   // Break 256-bit integer vector compare into smaller ones.
-  if (VT.getSizeInBits() == 256 && !Subtarget->hasAVX2())
+  if (VT.is256BitVector() && !Subtarget->hasAVX2())
     return Lower256IntVSETCC(Op, DAG);
 
   // We are handling one of the integer comparisons here.  Since SSE only has
   // GT and EQ comparisons for integer, swapping operands and multiple
   // operations may be required for some comparisons.
-  unsigned Opc = 0;
+  unsigned Opc;
   bool Swap = false, Invert = false, FlipSigns = false;
 
   switch (SetCCOpcode) {
-  default: break;
+  default: llvm_unreachable("Unexpected SETCC condition");
   case ISD::SETNE:  Invert = true;
   case ISD::SETEQ:  Opc = X86ISD::PCMPEQ; break;
   case ISD::SETLT:  Swap = true;
@@ -8482,10 +9160,12 @@ SDValue X86TargetLowering::LowerVSETCC(SDValue Op, SelectionDAG &DAG) const {
 
   // Check that the operation in question is available (most are plain SSE2,
   // but PCMPGTQ and PCMPEQQ have different requirements).
-  if (Opc == X86ISD::PCMPGT && VT == MVT::v2i64 && !Subtarget->hasSSE42())
-    return SDValue();
-  if (Opc == X86ISD::PCMPEQ && VT == MVT::v2i64 && !Subtarget->hasSSE41())
-    return SDValue();
+  if (VT == MVT::v2i64) {
+    if (Opc == X86ISD::PCMPGT && !Subtarget->hasSSE42())
+      return SDValue();
+    if (Opc == X86ISD::PCMPEQ && !Subtarget->hasSSE41())
+      return SDValue();
+  }
 
   // Since SSE has no unsigned integer comparisons, we need to flip  the sign
   // bits of the inputs before performing those operations.
@@ -8512,7 +9192,8 @@ SDValue X86TargetLowering::LowerVSETCC(SDValue Op, SelectionDAG &DAG) const {
 // isX86LogicalCmp - Return true if opcode is a X86 logical comparison.
 static bool isX86LogicalCmp(SDValue Op) {
   unsigned Opc = Op.getNode()->getOpcode();
-  if (Opc == X86ISD::CMP || Opc == X86ISD::COMI || Opc == X86ISD::UCOMI)
+  if (Opc == X86ISD::CMP || Opc == X86ISD::COMI || Opc == X86ISD::UCOMI ||
+      Opc == X86ISD::SAHF)
     return true;
   if (Op.getResNo() == 1 &&
       (Opc == X86ISD::ADD ||
@@ -8542,6 +9223,16 @@ static bool isZero(SDValue V) {
 static bool isAllOnes(SDValue V) {
   ConstantSDNode *C = dyn_cast<ConstantSDNode>(V);
   return C && C->isAllOnesValue();
+}
+
+static bool isTruncWithZeroHighBitsInput(SDValue V, SelectionDAG &DAG) {
+  if (V.getOpcode() != ISD::TRUNCATE)
+    return false;
+
+  SDValue VOp0 = V.getOperand(0);
+  unsigned InBits = VOp0.getValueSizeInBits();
+  unsigned Bits = V.getValueSizeInBits();
+  return DAG.MaskedValueIsZero(VOp0, APInt::getHighBitsSet(InBits,InBits-Bits));
 }
 
 SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
@@ -8574,8 +9265,25 @@ SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
       SDValue Y = isAllOnes(Op2) ? Op1 : Op2;
 
       SDValue CmpOp0 = Cmp.getOperand(0);
+      // Apply further optimizations for special cases
+      // (select (x != 0), -1, 0) -> neg & sbb
+      // (select (x == 0), 0, -1) -> neg & sbb
+      if (ConstantSDNode *YC = dyn_cast<ConstantSDNode>(Y))
+        if (YC->isNullValue() &&
+            (isAllOnes(Op1) == (CondCode == X86::COND_NE))) {
+          SDVTList VTs = DAG.getVTList(CmpOp0.getValueType(), MVT::i32);
+          SDValue Neg = DAG.getNode(X86ISD::SUB, DL, VTs,
+                                    DAG.getConstant(0, CmpOp0.getValueType()),
+                                    CmpOp0);
+          SDValue Res = DAG.getNode(X86ISD::SETCC_CARRY, DL, Op.getValueType(),
+                                    DAG.getConstant(X86::COND_B, MVT::i8),
+                                    SDValue(Neg.getNode(), 1));
+          return Res;
+        }
+
       Cmp = DAG.getNode(X86ISD::CMP, DL, MVT::i32,
                         CmpOp0, DAG.getConstant(1, CmpOp0.getValueType()));
+      Cmp = ConvertCmpIfNecessary(Cmp, DAG);
 
       SDValue Res =   // Res = 0 or -1.
         DAG.getNode(X86ISD::SETCC_CARRY, DL, Op.getValueType(),
@@ -8656,9 +9364,9 @@ SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
   }
 
   if (addTest) {
-    // Look pass the truncate.
-    if (Cond.getOpcode() == ISD::TRUNCATE)
-      Cond = Cond.getOperand(0);
+    // Look pass the truncate if the high bits are known zero.
+    if (isTruncWithZeroHighBitsInput(Cond, DAG))
+        Cond = Cond.getOperand(0);
 
     // We know the result of AND is compared against zero. Try to match
     // it to BT.
@@ -8681,7 +9389,8 @@ SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
   // a <  b ?  0 : -1 -> RES = setcc_carry
   // a >= b ? -1 :  0 -> RES = setcc_carry
   // a >= b ?  0 : -1 -> RES = ~setcc_carry
-  if (Cond.getOpcode() == X86ISD::CMP) {
+  if (Cond.getOpcode() == X86ISD::SUB) {
+    Cond = ConvertCmpIfNecessary(Cond, DAG);
     unsigned CondCode = cast<ConstantSDNode>(CC)->getZExtValue();
 
     if ((CondCode == X86::COND_AE || CondCode == X86::COND_B) &&
@@ -8691,6 +9400,21 @@ SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
       if (isAllOnes(Op1) != (CondCode == X86::COND_B))
         return DAG.getNOT(DL, Res, Res.getValueType());
       return Res;
+    }
+  }
+
+  // X86 doesn't have an i8 cmov. If both operands are the result of a truncate
+  // widen the cmov and push the truncate through. This avoids introducing a new
+  // branch during isel and doesn't add any extensions.
+  if (Op.getValueType() == MVT::i8 &&
+      Op1.getOpcode() == ISD::TRUNCATE && Op2.getOpcode() == ISD::TRUNCATE) {
+    SDValue T1 = Op1.getOperand(0), T2 = Op2.getOperand(0);
+    if (T1.getValueType() == T2.getValueType() &&
+        // Blacklist CopyFromReg to avoid partial register stalls.
+        T1.getOpcode() != ISD::CopyFromReg && T2.getOpcode()!=ISD::CopyFromReg){
+      SDVTList VTs = DAG.getVTList(T1.getValueType(), MVT::Glue);
+      SDValue Cmov = DAG.getNode(X86ISD::CMOV, DL, VTs, T2, T1, CC, Cond);
+      return DAG.getNode(ISD::TRUNCATE, DL, Op.getValueType(), Cmov);
     }
   }
 
@@ -8920,6 +9644,7 @@ SDValue X86TargetLowering::LowerBRCOND(SDValue Op, SelectionDAG &DAG) const {
 
           SDValue Cmp = DAG.getNode(X86ISD::CMP, dl, MVT::i32,
                                     Cond.getOperand(0), Cond.getOperand(1));
+          Cmp = ConvertCmpIfNecessary(Cmp, DAG);
           CC = DAG.getConstant(X86::COND_NE, MVT::i8);
           Chain = DAG.getNode(X86ISD::BRCOND, dl, Op.getValueType(),
                               Chain, Dest, CC, Cmp);
@@ -8949,6 +9674,7 @@ SDValue X86TargetLowering::LowerBRCOND(SDValue Op, SelectionDAG &DAG) const {
 
           SDValue Cmp = DAG.getNode(X86ISD::CMP, dl, MVT::i32,
                                     Cond.getOperand(0), Cond.getOperand(1));
+          Cmp = ConvertCmpIfNecessary(Cmp, DAG);
           CC = DAG.getConstant(X86::COND_NE, MVT::i8);
           Chain = DAG.getNode(X86ISD::BRCOND, dl, Op.getValueType(),
                               Chain, Dest, CC, Cmp);
@@ -8962,9 +9688,9 @@ SDValue X86TargetLowering::LowerBRCOND(SDValue Op, SelectionDAG &DAG) const {
   }
 
   if (addTest) {
-    // Look pass the truncate.
-    if (Cond.getOpcode() == ISD::TRUNCATE)
-      Cond = Cond.getOperand(0);
+    // Look pass the truncate if the high bits are known zero.
+    if (isTruncWithZeroHighBitsInput(Cond, DAG))
+        Cond = Cond.getOperand(0);
 
     // We know the result of AND is compared against zero. Try to match
     // it to BT.
@@ -8982,6 +9708,7 @@ SDValue X86TargetLowering::LowerBRCOND(SDValue Op, SelectionDAG &DAG) const {
     CC = DAG.getConstant(X86::COND_NE, MVT::i8);
     Cond = EmitTest(Cond, X86::COND_NE, DAG);
   }
+  Cond = ConvertCmpIfNecessary(Cond, DAG);
   return DAG.getNode(X86ISD::BRCOND, dl, Op.getValueType(),
                      Chain, Dest, CC, Cond);
 }
@@ -9020,7 +9747,7 @@ X86TargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
       const Function *F = MF.getFunction();
 
       for (Function::const_arg_iterator I = F->arg_begin(), E = F->arg_end();
-           I != E; I++)
+           I != E; ++I)
         if (I->hasNestAttr())
           report_fatal_error("Cannot use segmented stacks with functions that "
                              "have nested arguments.");
@@ -9045,7 +9772,8 @@ X86TargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
     Chain = DAG.getNode(X86ISD::WIN_ALLOCA, dl, NodeTys, Chain, Flag);
     Flag = Chain.getValue(1);
 
-    Chain = DAG.getCopyFromReg(Chain, dl, X86StackPtr, SPTy).getValue(1);
+    Chain = DAG.getCopyFromReg(Chain, dl, RegInfo->getStackRegister(),
+                               SPTy).getValue(1);
 
     SDValue Ops1[2] = { Chain.getValue(0), Chain };
     return DAG.getMergeValues(Ops1, 2, dl);
@@ -9128,7 +9856,7 @@ SDValue X86TargetLowering::LowerVAARG(SDValue Op, SelectionDAG &DAG) const {
 
   EVT ArgVT = Op.getNode()->getValueType(0);
   Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
-  uint32_t ArgSize = getTargetData()->getTypeAllocSize(ArgTy);
+  uint32_t ArgSize = getDataLayout()->getTypeAllocSize(ArgTy);
   uint8_t ArgMode;
 
   // Decide which area this value should be read from.
@@ -9148,7 +9876,8 @@ SDValue X86TargetLowering::LowerVAARG(SDValue Op, SelectionDAG &DAG) const {
     // Sanity Check: Make sure using fp_offset makes sense.
     assert(!getTargetMachine().Options.UseSoftFloat &&
            !(DAG.getMachineFunction()
-                .getFunction()->hasFnAttr(Attribute::NoImplicitFloat)) &&
+                .getFunction()->getFnAttributes()
+                .hasAttribute(Attributes::NoImplicitFloat)) &&
            Subtarget->hasSSE1());
   }
 
@@ -9179,7 +9908,8 @@ SDValue X86TargetLowering::LowerVAARG(SDValue Op, SelectionDAG &DAG) const {
                      false, false, false, 0);
 }
 
-SDValue X86TargetLowering::LowerVACOPY(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerVACOPY(SDValue Op, const X86Subtarget *Subtarget,
+                           SelectionDAG &DAG) {
   // X86-64 va_list is a struct { i32, i32, i8*, i8* }.
   assert(Subtarget->is64Bit() && "This code only handles 64-bit va_copy!");
   SDValue Chain = Op.getOperand(0);
@@ -9203,12 +9933,15 @@ static SDValue getTargetVShiftNode(unsigned Opc, DebugLoc dl, EVT VT,
   assert(ShAmt.getValueType() == MVT::i32 && "ShAmt is not i32");
 
   if (isa<ConstantSDNode>(ShAmt)) {
+    // Constant may be a TargetConstant. Use a regular constant.
+    uint32_t ShiftAmt = cast<ConstantSDNode>(ShAmt)->getZExtValue();
     switch (Opc) {
       default: llvm_unreachable("Unknown target vector shift node");
       case X86ISD::VSHLI:
       case X86ISD::VSRLI:
       case X86ISD::VSRAI:
-        return DAG.getNode(Opc, dl, VT, SrcOp, ShAmt);
+        return DAG.getNode(Opc, dl, VT, SrcOp,
+                           DAG.getConstant(ShiftAmt, MVT::i32));
     }
   }
 
@@ -9225,15 +9958,19 @@ static SDValue getTargetVShiftNode(unsigned Opc, DebugLoc dl, EVT VT,
   SDValue ShOps[4];
   ShOps[0] = ShAmt;
   ShOps[1] = DAG.getConstant(0, MVT::i32);
-  ShOps[2] = DAG.getUNDEF(MVT::i32);
-  ShOps[3] = DAG.getUNDEF(MVT::i32);
+  ShOps[2] = ShOps[3] = DAG.getUNDEF(MVT::i32);
   ShAmt = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v4i32, &ShOps[0], 4);
-  ShAmt = DAG.getNode(ISD::BITCAST, dl, VT, ShAmt);
+
+  // The return type has to be a 128-bit type with the same element
+  // type as the input type.
+  MVT EltVT = VT.getVectorElementType().getSimpleVT();
+  EVT ShVT = MVT::getVectorVT(EltVT, 128/EltVT.getSizeInBits());
+
+  ShAmt = DAG.getNode(ISD::BITCAST, dl, ShVT, ShAmt);
   return DAG.getNode(Opc, dl, VT, SrcOp, ShAmt);
 }
 
-SDValue
-X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   unsigned IntNo = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
   switch (IntNo) {
@@ -9263,8 +10000,8 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const 
   case Intrinsic::x86_sse2_ucomigt_sd:
   case Intrinsic::x86_sse2_ucomige_sd:
   case Intrinsic::x86_sse2_ucomineq_sd: {
-    unsigned Opc = 0;
-    ISD::CondCode CC = ISD::SETCC_INVALID;
+    unsigned Opc;
+    ISD::CondCode CC;
     switch (IntNo) {
     default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
     case Intrinsic::x86_sse_comieq_ss:
@@ -9338,245 +10075,102 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const 
                                 DAG.getConstant(X86CC, MVT::i8), Cond);
     return DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i32, SetCC);
   }
-  // XOP comparison intrinsics
-  case Intrinsic::x86_xop_vpcomltb:
-  case Intrinsic::x86_xop_vpcomltw:
-  case Intrinsic::x86_xop_vpcomltd:
-  case Intrinsic::x86_xop_vpcomltq:
-  case Intrinsic::x86_xop_vpcomltub:
-  case Intrinsic::x86_xop_vpcomltuw:
-  case Intrinsic::x86_xop_vpcomltud:
-  case Intrinsic::x86_xop_vpcomltuq:
-  case Intrinsic::x86_xop_vpcomleb:
-  case Intrinsic::x86_xop_vpcomlew:
-  case Intrinsic::x86_xop_vpcomled:
-  case Intrinsic::x86_xop_vpcomleq:
-  case Intrinsic::x86_xop_vpcomleub:
-  case Intrinsic::x86_xop_vpcomleuw:
-  case Intrinsic::x86_xop_vpcomleud:
-  case Intrinsic::x86_xop_vpcomleuq:
-  case Intrinsic::x86_xop_vpcomgtb:
-  case Intrinsic::x86_xop_vpcomgtw:
-  case Intrinsic::x86_xop_vpcomgtd:
-  case Intrinsic::x86_xop_vpcomgtq:
-  case Intrinsic::x86_xop_vpcomgtub:
-  case Intrinsic::x86_xop_vpcomgtuw:
-  case Intrinsic::x86_xop_vpcomgtud:
-  case Intrinsic::x86_xop_vpcomgtuq:
-  case Intrinsic::x86_xop_vpcomgeb:
-  case Intrinsic::x86_xop_vpcomgew:
-  case Intrinsic::x86_xop_vpcomged:
-  case Intrinsic::x86_xop_vpcomgeq:
-  case Intrinsic::x86_xop_vpcomgeub:
-  case Intrinsic::x86_xop_vpcomgeuw:
-  case Intrinsic::x86_xop_vpcomgeud:
-  case Intrinsic::x86_xop_vpcomgeuq:
-  case Intrinsic::x86_xop_vpcomeqb:
-  case Intrinsic::x86_xop_vpcomeqw:
-  case Intrinsic::x86_xop_vpcomeqd:
-  case Intrinsic::x86_xop_vpcomeqq:
-  case Intrinsic::x86_xop_vpcomequb:
-  case Intrinsic::x86_xop_vpcomequw:
-  case Intrinsic::x86_xop_vpcomequd:
-  case Intrinsic::x86_xop_vpcomequq:
-  case Intrinsic::x86_xop_vpcomneb:
-  case Intrinsic::x86_xop_vpcomnew:
-  case Intrinsic::x86_xop_vpcomned:
-  case Intrinsic::x86_xop_vpcomneq:
-  case Intrinsic::x86_xop_vpcomneub:
-  case Intrinsic::x86_xop_vpcomneuw:
-  case Intrinsic::x86_xop_vpcomneud:
-  case Intrinsic::x86_xop_vpcomneuq:
-  case Intrinsic::x86_xop_vpcomfalseb:
-  case Intrinsic::x86_xop_vpcomfalsew:
-  case Intrinsic::x86_xop_vpcomfalsed:
-  case Intrinsic::x86_xop_vpcomfalseq:
-  case Intrinsic::x86_xop_vpcomfalseub:
-  case Intrinsic::x86_xop_vpcomfalseuw:
-  case Intrinsic::x86_xop_vpcomfalseud:
-  case Intrinsic::x86_xop_vpcomfalseuq:
-  case Intrinsic::x86_xop_vpcomtrueb:
-  case Intrinsic::x86_xop_vpcomtruew:
-  case Intrinsic::x86_xop_vpcomtrued:
-  case Intrinsic::x86_xop_vpcomtrueq:
-  case Intrinsic::x86_xop_vpcomtrueub:
-  case Intrinsic::x86_xop_vpcomtrueuw:
-  case Intrinsic::x86_xop_vpcomtrueud:
-  case Intrinsic::x86_xop_vpcomtrueuq: {
-    unsigned CC = 0;
-    unsigned Opc = 0;
-
-    switch (IntNo) {
-    default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
-    case Intrinsic::x86_xop_vpcomltb:
-    case Intrinsic::x86_xop_vpcomltw:
-    case Intrinsic::x86_xop_vpcomltd:
-    case Intrinsic::x86_xop_vpcomltq:
-      CC = 0;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomltub:
-    case Intrinsic::x86_xop_vpcomltuw:
-    case Intrinsic::x86_xop_vpcomltud:
-    case Intrinsic::x86_xop_vpcomltuq:
-      CC = 0;
-      Opc = X86ISD::VPCOMU;
-      break;
-    case Intrinsic::x86_xop_vpcomleb:
-    case Intrinsic::x86_xop_vpcomlew:
-    case Intrinsic::x86_xop_vpcomled:
-    case Intrinsic::x86_xop_vpcomleq:
-      CC = 1;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomleub:
-    case Intrinsic::x86_xop_vpcomleuw:
-    case Intrinsic::x86_xop_vpcomleud:
-    case Intrinsic::x86_xop_vpcomleuq:
-      CC = 1;
-      Opc = X86ISD::VPCOMU;
-      break;
-    case Intrinsic::x86_xop_vpcomgtb:
-    case Intrinsic::x86_xop_vpcomgtw:
-    case Intrinsic::x86_xop_vpcomgtd:
-    case Intrinsic::x86_xop_vpcomgtq:
-      CC = 2;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomgtub:
-    case Intrinsic::x86_xop_vpcomgtuw:
-    case Intrinsic::x86_xop_vpcomgtud:
-    case Intrinsic::x86_xop_vpcomgtuq:
-      CC = 2;
-      Opc = X86ISD::VPCOMU;
-      break;
-    case Intrinsic::x86_xop_vpcomgeb:
-    case Intrinsic::x86_xop_vpcomgew:
-    case Intrinsic::x86_xop_vpcomged:
-    case Intrinsic::x86_xop_vpcomgeq:
-      CC = 3;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomgeub:
-    case Intrinsic::x86_xop_vpcomgeuw:
-    case Intrinsic::x86_xop_vpcomgeud:
-    case Intrinsic::x86_xop_vpcomgeuq:
-      CC = 3;
-      Opc = X86ISD::VPCOMU;
-      break;
-    case Intrinsic::x86_xop_vpcomeqb:
-    case Intrinsic::x86_xop_vpcomeqw:
-    case Intrinsic::x86_xop_vpcomeqd:
-    case Intrinsic::x86_xop_vpcomeqq:
-      CC = 4;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomequb:
-    case Intrinsic::x86_xop_vpcomequw:
-    case Intrinsic::x86_xop_vpcomequd:
-    case Intrinsic::x86_xop_vpcomequq:
-      CC = 4;
-      Opc = X86ISD::VPCOMU;
-      break;
-    case Intrinsic::x86_xop_vpcomneb:
-    case Intrinsic::x86_xop_vpcomnew:
-    case Intrinsic::x86_xop_vpcomned:
-    case Intrinsic::x86_xop_vpcomneq:
-      CC = 5;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomneub:
-    case Intrinsic::x86_xop_vpcomneuw:
-    case Intrinsic::x86_xop_vpcomneud:
-    case Intrinsic::x86_xop_vpcomneuq:
-      CC = 5;
-      Opc = X86ISD::VPCOMU;
-      break;
-    case Intrinsic::x86_xop_vpcomfalseb:
-    case Intrinsic::x86_xop_vpcomfalsew:
-    case Intrinsic::x86_xop_vpcomfalsed:
-    case Intrinsic::x86_xop_vpcomfalseq:
-      CC = 6;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomfalseub:
-    case Intrinsic::x86_xop_vpcomfalseuw:
-    case Intrinsic::x86_xop_vpcomfalseud:
-    case Intrinsic::x86_xop_vpcomfalseuq:
-      CC = 6;
-      Opc = X86ISD::VPCOMU;
-      break;
-    case Intrinsic::x86_xop_vpcomtrueb:
-    case Intrinsic::x86_xop_vpcomtruew:
-    case Intrinsic::x86_xop_vpcomtrued:
-    case Intrinsic::x86_xop_vpcomtrueq:
-      CC = 7;
-      Opc = X86ISD::VPCOM;
-      break;
-    case Intrinsic::x86_xop_vpcomtrueub:
-    case Intrinsic::x86_xop_vpcomtrueuw:
-    case Intrinsic::x86_xop_vpcomtrueud:
-    case Intrinsic::x86_xop_vpcomtrueuq:
-      CC = 7;
-      Opc = X86ISD::VPCOMU;
-      break;
-    }
-
-    SDValue LHS = Op.getOperand(1);
-    SDValue RHS = Op.getOperand(2);
-    return DAG.getNode(Opc, dl, Op.getValueType(), LHS, RHS,
-                       DAG.getConstant(CC, MVT::i8));
-  }
 
   // Arithmetic intrinsics.
   case Intrinsic::x86_sse2_pmulu_dq:
   case Intrinsic::x86_avx2_pmulu_dq:
     return DAG.getNode(X86ISD::PMULUDQ, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2));
+
+  // SSE3/AVX horizontal add/sub intrinsics
   case Intrinsic::x86_sse3_hadd_ps:
   case Intrinsic::x86_sse3_hadd_pd:
   case Intrinsic::x86_avx_hadd_ps_256:
   case Intrinsic::x86_avx_hadd_pd_256:
-    return DAG.getNode(X86ISD::FHADD, dl, Op.getValueType(),
-                       Op.getOperand(1), Op.getOperand(2));
   case Intrinsic::x86_sse3_hsub_ps:
   case Intrinsic::x86_sse3_hsub_pd:
   case Intrinsic::x86_avx_hsub_ps_256:
   case Intrinsic::x86_avx_hsub_pd_256:
-    return DAG.getNode(X86ISD::FHSUB, dl, Op.getValueType(),
-                       Op.getOperand(1), Op.getOperand(2));
   case Intrinsic::x86_ssse3_phadd_w_128:
   case Intrinsic::x86_ssse3_phadd_d_128:
   case Intrinsic::x86_avx2_phadd_w:
   case Intrinsic::x86_avx2_phadd_d:
-    return DAG.getNode(X86ISD::HADD, dl, Op.getValueType(),
-                       Op.getOperand(1), Op.getOperand(2));
   case Intrinsic::x86_ssse3_phsub_w_128:
   case Intrinsic::x86_ssse3_phsub_d_128:
   case Intrinsic::x86_avx2_phsub_w:
-  case Intrinsic::x86_avx2_phsub_d:
-    return DAG.getNode(X86ISD::HSUB, dl, Op.getValueType(),
+  case Intrinsic::x86_avx2_phsub_d: {
+    unsigned Opcode;
+    switch (IntNo) {
+    default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
+    case Intrinsic::x86_sse3_hadd_ps:
+    case Intrinsic::x86_sse3_hadd_pd:
+    case Intrinsic::x86_avx_hadd_ps_256:
+    case Intrinsic::x86_avx_hadd_pd_256:
+      Opcode = X86ISD::FHADD;
+      break;
+    case Intrinsic::x86_sse3_hsub_ps:
+    case Intrinsic::x86_sse3_hsub_pd:
+    case Intrinsic::x86_avx_hsub_ps_256:
+    case Intrinsic::x86_avx_hsub_pd_256:
+      Opcode = X86ISD::FHSUB;
+      break;
+    case Intrinsic::x86_ssse3_phadd_w_128:
+    case Intrinsic::x86_ssse3_phadd_d_128:
+    case Intrinsic::x86_avx2_phadd_w:
+    case Intrinsic::x86_avx2_phadd_d:
+      Opcode = X86ISD::HADD;
+      break;
+    case Intrinsic::x86_ssse3_phsub_w_128:
+    case Intrinsic::x86_ssse3_phsub_d_128:
+    case Intrinsic::x86_avx2_phsub_w:
+    case Intrinsic::x86_avx2_phsub_d:
+      Opcode = X86ISD::HSUB;
+      break;
+    }
+    return DAG.getNode(Opcode, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2));
+  }
+
+  // AVX2 variable shift intrinsics
   case Intrinsic::x86_avx2_psllv_d:
   case Intrinsic::x86_avx2_psllv_q:
   case Intrinsic::x86_avx2_psllv_d_256:
   case Intrinsic::x86_avx2_psllv_q_256:
-    return DAG.getNode(ISD::SHL, dl, Op.getValueType(),
-                      Op.getOperand(1), Op.getOperand(2));
   case Intrinsic::x86_avx2_psrlv_d:
   case Intrinsic::x86_avx2_psrlv_q:
   case Intrinsic::x86_avx2_psrlv_d_256:
   case Intrinsic::x86_avx2_psrlv_q_256:
-    return DAG.getNode(ISD::SRL, dl, Op.getValueType(),
-                      Op.getOperand(1), Op.getOperand(2));
   case Intrinsic::x86_avx2_psrav_d:
-  case Intrinsic::x86_avx2_psrav_d_256:
-    return DAG.getNode(ISD::SRA, dl, Op.getValueType(),
-                      Op.getOperand(1), Op.getOperand(2));
+  case Intrinsic::x86_avx2_psrav_d_256: {
+    unsigned Opcode;
+    switch (IntNo) {
+    default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
+    case Intrinsic::x86_avx2_psllv_d:
+    case Intrinsic::x86_avx2_psllv_q:
+    case Intrinsic::x86_avx2_psllv_d_256:
+    case Intrinsic::x86_avx2_psllv_q_256:
+      Opcode = ISD::SHL;
+      break;
+    case Intrinsic::x86_avx2_psrlv_d:
+    case Intrinsic::x86_avx2_psrlv_q:
+    case Intrinsic::x86_avx2_psrlv_d_256:
+    case Intrinsic::x86_avx2_psrlv_q_256:
+      Opcode = ISD::SRL;
+      break;
+    case Intrinsic::x86_avx2_psrav_d:
+    case Intrinsic::x86_avx2_psrav_d_256:
+      Opcode = ISD::SRA;
+      break;
+    }
+    return DAG.getNode(Opcode, dl, Op.getValueType(),
+                       Op.getOperand(1), Op.getOperand(2));
+  }
+
   case Intrinsic::x86_ssse3_pshuf_b_128:
   case Intrinsic::x86_avx2_pshuf_b:
     return DAG.getNode(X86ISD::PSHUFB, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2));
+
   case Intrinsic::x86_ssse3_psign_b_128:
   case Intrinsic::x86_ssse3_psign_w_128:
   case Intrinsic::x86_ssse3_psign_d_128:
@@ -9585,15 +10179,18 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const 
   case Intrinsic::x86_avx2_psign_d:
     return DAG.getNode(X86ISD::PSIGN, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2));
+
   case Intrinsic::x86_sse41_insertps:
     return DAG.getNode(X86ISD::INSERTPS, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
+
   case Intrinsic::x86_avx_vperm2f128_ps_256:
   case Intrinsic::x86_avx_vperm2f128_pd_256:
   case Intrinsic::x86_avx_vperm2f128_si_256:
   case Intrinsic::x86_avx2_vperm2i128:
     return DAG.getNode(X86ISD::VPERM2X128, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2), Op.getOperand(3));
+
   case Intrinsic::x86_avx2_permd:
   case Intrinsic::x86_avx2_permps:
     // Operands intentionally swapped. Mask is last operand to intrinsic,
@@ -9623,7 +10220,7 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const 
   case Intrinsic::x86_avx_vtestc_pd_256:
   case Intrinsic::x86_avx_vtestnzc_pd_256: {
     bool IsTestPacked = false;
-    unsigned X86CC = 0;
+    unsigned X86CC;
     switch (IntNo) {
     default: llvm_unreachable("Bad fallthrough in Intrinsic lowering.");
     case Intrinsic::x86_avx_vtestz_ps:
@@ -9674,99 +10271,269 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const 
   case Intrinsic::x86_avx2_psll_w:
   case Intrinsic::x86_avx2_psll_d:
   case Intrinsic::x86_avx2_psll_q:
-    return DAG.getNode(X86ISD::VSHL, dl, Op.getValueType(),
-                       Op.getOperand(1), Op.getOperand(2));
   case Intrinsic::x86_sse2_psrl_w:
   case Intrinsic::x86_sse2_psrl_d:
   case Intrinsic::x86_sse2_psrl_q:
   case Intrinsic::x86_avx2_psrl_w:
   case Intrinsic::x86_avx2_psrl_d:
   case Intrinsic::x86_avx2_psrl_q:
-    return DAG.getNode(X86ISD::VSRL, dl, Op.getValueType(),
-                       Op.getOperand(1), Op.getOperand(2));
   case Intrinsic::x86_sse2_psra_w:
   case Intrinsic::x86_sse2_psra_d:
   case Intrinsic::x86_avx2_psra_w:
-  case Intrinsic::x86_avx2_psra_d:
-    return DAG.getNode(X86ISD::VSRA, dl, Op.getValueType(),
+  case Intrinsic::x86_avx2_psra_d: {
+    unsigned Opcode;
+    switch (IntNo) {
+    default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
+    case Intrinsic::x86_sse2_psll_w:
+    case Intrinsic::x86_sse2_psll_d:
+    case Intrinsic::x86_sse2_psll_q:
+    case Intrinsic::x86_avx2_psll_w:
+    case Intrinsic::x86_avx2_psll_d:
+    case Intrinsic::x86_avx2_psll_q:
+      Opcode = X86ISD::VSHL;
+      break;
+    case Intrinsic::x86_sse2_psrl_w:
+    case Intrinsic::x86_sse2_psrl_d:
+    case Intrinsic::x86_sse2_psrl_q:
+    case Intrinsic::x86_avx2_psrl_w:
+    case Intrinsic::x86_avx2_psrl_d:
+    case Intrinsic::x86_avx2_psrl_q:
+      Opcode = X86ISD::VSRL;
+      break;
+    case Intrinsic::x86_sse2_psra_w:
+    case Intrinsic::x86_sse2_psra_d:
+    case Intrinsic::x86_avx2_psra_w:
+    case Intrinsic::x86_avx2_psra_d:
+      Opcode = X86ISD::VSRA;
+      break;
+    }
+    return DAG.getNode(Opcode, dl, Op.getValueType(),
                        Op.getOperand(1), Op.getOperand(2));
+  }
+
+  // SSE/AVX immediate shift intrinsics
   case Intrinsic::x86_sse2_pslli_w:
   case Intrinsic::x86_sse2_pslli_d:
   case Intrinsic::x86_sse2_pslli_q:
   case Intrinsic::x86_avx2_pslli_w:
   case Intrinsic::x86_avx2_pslli_d:
   case Intrinsic::x86_avx2_pslli_q:
-    return getTargetVShiftNode(X86ISD::VSHLI, dl, Op.getValueType(),
-                               Op.getOperand(1), Op.getOperand(2), DAG);
   case Intrinsic::x86_sse2_psrli_w:
   case Intrinsic::x86_sse2_psrli_d:
   case Intrinsic::x86_sse2_psrli_q:
   case Intrinsic::x86_avx2_psrli_w:
   case Intrinsic::x86_avx2_psrli_d:
   case Intrinsic::x86_avx2_psrli_q:
-    return getTargetVShiftNode(X86ISD::VSRLI, dl, Op.getValueType(),
-                               Op.getOperand(1), Op.getOperand(2), DAG);
   case Intrinsic::x86_sse2_psrai_w:
   case Intrinsic::x86_sse2_psrai_d:
   case Intrinsic::x86_avx2_psrai_w:
-  case Intrinsic::x86_avx2_psrai_d:
-    return getTargetVShiftNode(X86ISD::VSRAI, dl, Op.getValueType(),
-                               Op.getOperand(1), Op.getOperand(2), DAG);
-  // Fix vector shift instructions where the last operand is a non-immediate
-  // i32 value.
-  case Intrinsic::x86_mmx_pslli_w:
-  case Intrinsic::x86_mmx_pslli_d:
-  case Intrinsic::x86_mmx_pslli_q:
-  case Intrinsic::x86_mmx_psrli_w:
-  case Intrinsic::x86_mmx_psrli_d:
-  case Intrinsic::x86_mmx_psrli_q:
-  case Intrinsic::x86_mmx_psrai_w:
-  case Intrinsic::x86_mmx_psrai_d: {
-    SDValue ShAmt = Op.getOperand(2);
-    if (isa<ConstantSDNode>(ShAmt))
-      return SDValue();
-
-    unsigned NewIntNo = 0;
+  case Intrinsic::x86_avx2_psrai_d: {
+    unsigned Opcode;
     switch (IntNo) {
-    case Intrinsic::x86_mmx_pslli_w:
-      NewIntNo = Intrinsic::x86_mmx_psll_w;
-      break;
-    case Intrinsic::x86_mmx_pslli_d:
-      NewIntNo = Intrinsic::x86_mmx_psll_d;
-      break;
-    case Intrinsic::x86_mmx_pslli_q:
-      NewIntNo = Intrinsic::x86_mmx_psll_q;
-      break;
-    case Intrinsic::x86_mmx_psrli_w:
-      NewIntNo = Intrinsic::x86_mmx_psrl_w;
-      break;
-    case Intrinsic::x86_mmx_psrli_d:
-      NewIntNo = Intrinsic::x86_mmx_psrl_d;
-      break;
-    case Intrinsic::x86_mmx_psrli_q:
-      NewIntNo = Intrinsic::x86_mmx_psrl_q;
-      break;
-    case Intrinsic::x86_mmx_psrai_w:
-      NewIntNo = Intrinsic::x86_mmx_psra_w;
-      break;
-    case Intrinsic::x86_mmx_psrai_d:
-      NewIntNo = Intrinsic::x86_mmx_psra_d;
-      break;
     default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
+    case Intrinsic::x86_sse2_pslli_w:
+    case Intrinsic::x86_sse2_pslli_d:
+    case Intrinsic::x86_sse2_pslli_q:
+    case Intrinsic::x86_avx2_pslli_w:
+    case Intrinsic::x86_avx2_pslli_d:
+    case Intrinsic::x86_avx2_pslli_q:
+      Opcode = X86ISD::VSHLI;
+      break;
+    case Intrinsic::x86_sse2_psrli_w:
+    case Intrinsic::x86_sse2_psrli_d:
+    case Intrinsic::x86_sse2_psrli_q:
+    case Intrinsic::x86_avx2_psrli_w:
+    case Intrinsic::x86_avx2_psrli_d:
+    case Intrinsic::x86_avx2_psrli_q:
+      Opcode = X86ISD::VSRLI;
+      break;
+    case Intrinsic::x86_sse2_psrai_w:
+    case Intrinsic::x86_sse2_psrai_d:
+    case Intrinsic::x86_avx2_psrai_w:
+    case Intrinsic::x86_avx2_psrai_d:
+      Opcode = X86ISD::VSRAI;
+      break;
+    }
+    return getTargetVShiftNode(Opcode, dl, Op.getValueType(),
+                               Op.getOperand(1), Op.getOperand(2), DAG);
+  }
+
+  case Intrinsic::x86_sse42_pcmpistria128:
+  case Intrinsic::x86_sse42_pcmpestria128:
+  case Intrinsic::x86_sse42_pcmpistric128:
+  case Intrinsic::x86_sse42_pcmpestric128:
+  case Intrinsic::x86_sse42_pcmpistrio128:
+  case Intrinsic::x86_sse42_pcmpestrio128:
+  case Intrinsic::x86_sse42_pcmpistris128:
+  case Intrinsic::x86_sse42_pcmpestris128:
+  case Intrinsic::x86_sse42_pcmpistriz128:
+  case Intrinsic::x86_sse42_pcmpestriz128: {
+    unsigned Opcode;
+    unsigned X86CC;
+    switch (IntNo) {
+    default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
+    case Intrinsic::x86_sse42_pcmpistria128:
+      Opcode = X86ISD::PCMPISTRI;
+      X86CC = X86::COND_A;
+      break;
+    case Intrinsic::x86_sse42_pcmpestria128:
+      Opcode = X86ISD::PCMPESTRI;
+      X86CC = X86::COND_A;
+      break;
+    case Intrinsic::x86_sse42_pcmpistric128:
+      Opcode = X86ISD::PCMPISTRI;
+      X86CC = X86::COND_B;
+      break;
+    case Intrinsic::x86_sse42_pcmpestric128:
+      Opcode = X86ISD::PCMPESTRI;
+      X86CC = X86::COND_B;
+      break;
+    case Intrinsic::x86_sse42_pcmpistrio128:
+      Opcode = X86ISD::PCMPISTRI;
+      X86CC = X86::COND_O;
+      break;
+    case Intrinsic::x86_sse42_pcmpestrio128:
+      Opcode = X86ISD::PCMPESTRI;
+      X86CC = X86::COND_O;
+      break;
+    case Intrinsic::x86_sse42_pcmpistris128:
+      Opcode = X86ISD::PCMPISTRI;
+      X86CC = X86::COND_S;
+      break;
+    case Intrinsic::x86_sse42_pcmpestris128:
+      Opcode = X86ISD::PCMPESTRI;
+      X86CC = X86::COND_S;
+      break;
+    case Intrinsic::x86_sse42_pcmpistriz128:
+      Opcode = X86ISD::PCMPISTRI;
+      X86CC = X86::COND_E;
+      break;
+    case Intrinsic::x86_sse42_pcmpestriz128:
+      Opcode = X86ISD::PCMPESTRI;
+      X86CC = X86::COND_E;
+      break;
+    }
+    SmallVector<SDValue, 5> NewOps;
+    NewOps.append(Op->op_begin()+1, Op->op_end());
+    SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::i32);
+    SDValue PCMP = DAG.getNode(Opcode, dl, VTs, NewOps.data(), NewOps.size());
+    SDValue SetCC = DAG.getNode(X86ISD::SETCC, dl, MVT::i8,
+                                DAG.getConstant(X86CC, MVT::i8),
+                                SDValue(PCMP.getNode(), 1));
+    return DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i32, SetCC);
+  }
+
+  case Intrinsic::x86_sse42_pcmpistri128:
+  case Intrinsic::x86_sse42_pcmpestri128: {
+    unsigned Opcode;
+    if (IntNo == Intrinsic::x86_sse42_pcmpistri128)
+      Opcode = X86ISD::PCMPISTRI;
+    else
+      Opcode = X86ISD::PCMPESTRI;
+
+    SmallVector<SDValue, 5> NewOps;
+    NewOps.append(Op->op_begin()+1, Op->op_end());
+    SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::i32);
+    return DAG.getNode(Opcode, dl, VTs, NewOps.data(), NewOps.size());
+  }
+  case Intrinsic::x86_fma_vfmadd_ps:
+  case Intrinsic::x86_fma_vfmadd_pd:
+  case Intrinsic::x86_fma_vfmsub_ps:
+  case Intrinsic::x86_fma_vfmsub_pd:
+  case Intrinsic::x86_fma_vfnmadd_ps:
+  case Intrinsic::x86_fma_vfnmadd_pd:
+  case Intrinsic::x86_fma_vfnmsub_ps:
+  case Intrinsic::x86_fma_vfnmsub_pd:
+  case Intrinsic::x86_fma_vfmaddsub_ps:
+  case Intrinsic::x86_fma_vfmaddsub_pd:
+  case Intrinsic::x86_fma_vfmsubadd_ps:
+  case Intrinsic::x86_fma_vfmsubadd_pd:
+  case Intrinsic::x86_fma_vfmadd_ps_256:
+  case Intrinsic::x86_fma_vfmadd_pd_256:
+  case Intrinsic::x86_fma_vfmsub_ps_256:
+  case Intrinsic::x86_fma_vfmsub_pd_256:
+  case Intrinsic::x86_fma_vfnmadd_ps_256:
+  case Intrinsic::x86_fma_vfnmadd_pd_256:
+  case Intrinsic::x86_fma_vfnmsub_ps_256:
+  case Intrinsic::x86_fma_vfnmsub_pd_256:
+  case Intrinsic::x86_fma_vfmaddsub_ps_256:
+  case Intrinsic::x86_fma_vfmaddsub_pd_256:
+  case Intrinsic::x86_fma_vfmsubadd_ps_256:
+  case Intrinsic::x86_fma_vfmsubadd_pd_256: {
+    unsigned Opc;
+    switch (IntNo) {
+    default: llvm_unreachable("Impossible intrinsic");  // Can't reach here.
+    case Intrinsic::x86_fma_vfmadd_ps:
+    case Intrinsic::x86_fma_vfmadd_pd:
+    case Intrinsic::x86_fma_vfmadd_ps_256:
+    case Intrinsic::x86_fma_vfmadd_pd_256:
+      Opc = X86ISD::FMADD;
+      break;
+    case Intrinsic::x86_fma_vfmsub_ps:
+    case Intrinsic::x86_fma_vfmsub_pd:
+    case Intrinsic::x86_fma_vfmsub_ps_256:
+    case Intrinsic::x86_fma_vfmsub_pd_256:
+      Opc = X86ISD::FMSUB;
+      break;
+    case Intrinsic::x86_fma_vfnmadd_ps:
+    case Intrinsic::x86_fma_vfnmadd_pd:
+    case Intrinsic::x86_fma_vfnmadd_ps_256:
+    case Intrinsic::x86_fma_vfnmadd_pd_256:
+      Opc = X86ISD::FNMADD;
+      break;
+    case Intrinsic::x86_fma_vfnmsub_ps:
+    case Intrinsic::x86_fma_vfnmsub_pd:
+    case Intrinsic::x86_fma_vfnmsub_ps_256:
+    case Intrinsic::x86_fma_vfnmsub_pd_256:
+      Opc = X86ISD::FNMSUB;
+      break;
+    case Intrinsic::x86_fma_vfmaddsub_ps:
+    case Intrinsic::x86_fma_vfmaddsub_pd:
+    case Intrinsic::x86_fma_vfmaddsub_ps_256:
+    case Intrinsic::x86_fma_vfmaddsub_pd_256:
+      Opc = X86ISD::FMADDSUB;
+      break;
+    case Intrinsic::x86_fma_vfmsubadd_ps:
+    case Intrinsic::x86_fma_vfmsubadd_pd:
+    case Intrinsic::x86_fma_vfmsubadd_ps_256:
+    case Intrinsic::x86_fma_vfmsubadd_pd_256:
+      Opc = X86ISD::FMSUBADD;
+      break;
     }
 
-    // The vector shift intrinsics with scalars uses 32b shift amounts but
-    // the sse2/mmx shift instructions reads 64 bits. Set the upper 32 bits
-    // to be zero.
-    ShAmt =  DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v2i32, ShAmt,
-                         DAG.getConstant(0, MVT::i32));
-// FIXME this must be lowered to get rid of the invalid type.
+    return DAG.getNode(Opc, dl, Op.getValueType(), Op.getOperand(1),
+                       Op.getOperand(2), Op.getOperand(3));
+  }
+  }
+}
 
-    EVT VT = Op.getValueType();
-    ShAmt = DAG.getNode(ISD::BITCAST, dl, VT, ShAmt);
-    return DAG.getNode(ISD::INTRINSIC_WO_CHAIN, dl, VT,
-                       DAG.getConstant(NewIntNo, MVT::i32),
-                       Op.getOperand(1), ShAmt);
+static SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) {
+  DebugLoc dl = Op.getDebugLoc();
+  unsigned IntNo = cast<ConstantSDNode>(Op.getOperand(1))->getZExtValue();
+  switch (IntNo) {
+  default: return SDValue();    // Don't custom lower most intrinsics.
+
+  // RDRAND intrinsics.
+  case Intrinsic::x86_rdrand_16:
+  case Intrinsic::x86_rdrand_32:
+  case Intrinsic::x86_rdrand_64: {
+    // Emit the node with the right value type.
+    SDVTList VTs = DAG.getVTList(Op->getValueType(0), MVT::Glue, MVT::Other);
+    SDValue Result = DAG.getNode(X86ISD::RDRAND, dl, VTs, Op.getOperand(0));
+
+    // If the value returned by RDRAND was valid (CF=1), return 1. Otherwise
+    // return the value from Rand, which is always 0, casted to i32.
+    SDValue Ops[] = { DAG.getZExtOrTrunc(Result, dl, Op->getValueType(1)),
+                      DAG.getConstant(1, Op->getValueType(1)),
+                      DAG.getConstant(X86::COND_B, MVT::i32),
+                      SDValue(Result.getNode(), 1) };
+    SDValue isValid = DAG.getNode(X86ISD::CMOV, dl,
+                                  DAG.getVTList(Op->getValueType(1), MVT::Glue),
+                                  Ops, 4);
+
+    // Return { result, isValid, chain }.
+    return DAG.getNode(ISD::MERGE_VALUES, dl, Op->getVTList(), Result, isValid,
+                       SDValue(Result.getNode(), 2));
   }
   }
 }
@@ -9778,21 +10545,21 @@ SDValue X86TargetLowering::LowerRETURNADDR(SDValue Op,
 
   unsigned Depth = cast<ConstantSDNode>(Op.getOperand(0))->getZExtValue();
   DebugLoc dl = Op.getDebugLoc();
+  EVT PtrVT = getPointerTy();
 
   if (Depth > 0) {
     SDValue FrameAddr = LowerFRAMEADDR(Op, DAG);
     SDValue Offset =
-      DAG.getConstant(TD->getPointerSize(),
-                      Subtarget->is64Bit() ? MVT::i64 : MVT::i32);
-    return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(),
-                       DAG.getNode(ISD::ADD, dl, getPointerTy(),
+      DAG.getConstant(RegInfo->getSlotSize(), PtrVT);
+    return DAG.getLoad(PtrVT, dl, DAG.getEntryNode(),
+                       DAG.getNode(ISD::ADD, dl, PtrVT,
                                    FrameAddr, Offset),
                        MachinePointerInfo(), false, false, false, 0);
   }
 
   // Just load the return address.
   SDValue RetAddrFI = getReturnAddressFrameIndex(DAG);
-  return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(),
+  return DAG.getLoad(PtrVT, dl, DAG.getEntryNode(),
                      RetAddrFI, MachinePointerInfo(), false, false, false, 0);
 }
 
@@ -9814,11 +10581,10 @@ SDValue X86TargetLowering::LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
 
 SDValue X86TargetLowering::LowerFRAME_TO_ARGS_OFFSET(SDValue Op,
                                                      SelectionDAG &DAG) const {
-  return DAG.getIntPtrConstant(2*TD->getPointerSize());
+  return DAG.getIntPtrConstant(2 * RegInfo->getSlotSize());
 }
 
 SDValue X86TargetLowering::LowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const {
-  MachineFunction &MF = DAG.getMachineFunction();
   SDValue Chain     = Op.getOperand(0);
   SDValue Offset    = Op.getOperand(1);
   SDValue Handler   = Op.getOperand(2);
@@ -9830,20 +10596,33 @@ SDValue X86TargetLowering::LowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const {
   unsigned StoreAddrReg = (Subtarget->is64Bit() ? X86::RCX : X86::ECX);
 
   SDValue StoreAddr = DAG.getNode(ISD::ADD, dl, getPointerTy(), Frame,
-                                  DAG.getIntPtrConstant(TD->getPointerSize()));
+                                  DAG.getIntPtrConstant(RegInfo->getSlotSize()));
   StoreAddr = DAG.getNode(ISD::ADD, dl, getPointerTy(), StoreAddr, Offset);
   Chain = DAG.getStore(Chain, dl, Handler, StoreAddr, MachinePointerInfo(),
                        false, false, 0);
   Chain = DAG.getCopyToReg(Chain, dl, StoreAddrReg, StoreAddr);
-  MF.getRegInfo().addLiveOut(StoreAddrReg);
 
   return DAG.getNode(X86ISD::EH_RETURN, dl,
                      MVT::Other,
                      Chain, DAG.getRegister(StoreAddrReg, getPointerTy()));
 }
 
-SDValue X86TargetLowering::LowerADJUST_TRAMPOLINE(SDValue Op,
-                                                  SelectionDAG &DAG) const {
+SDValue X86TargetLowering::lowerEH_SJLJ_SETJMP(SDValue Op,
+                                               SelectionDAG &DAG) const {
+  DebugLoc DL = Op.getDebugLoc();
+  return DAG.getNode(X86ISD::EH_SJLJ_SETJMP, DL,
+                     DAG.getVTList(MVT::i32, MVT::Other),
+                     Op.getOperand(0), Op.getOperand(1));
+}
+
+SDValue X86TargetLowering::lowerEH_SJLJ_LONGJMP(SDValue Op,
+                                                SelectionDAG &DAG) const {
+  DebugLoc DL = Op.getDebugLoc();
+  return DAG.getNode(X86ISD::EH_SJLJ_LONGJMP, DL, MVT::Other,
+                     Op.getOperand(0), Op.getOperand(1));
+}
+
+static SDValue LowerADJUST_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) {
   return Op.getOperand(0);
 }
 
@@ -9856,6 +10635,7 @@ SDValue X86TargetLowering::LowerINIT_TRAMPOLINE(SDValue Op,
   DebugLoc dl  = Op.getDebugLoc();
 
   const Value *TrmpAddr = cast<SrcValueSDNode>(Op.getOperand(4))->getValue();
+  const TargetRegisterInfo* TRI = getTargetMachine().getRegisterInfo();
 
   if (Subtarget->is64Bit()) {
     SDValue OutChains[6];
@@ -9864,8 +10644,8 @@ SDValue X86TargetLowering::LowerINIT_TRAMPOLINE(SDValue Op,
     const unsigned char JMP64r  = 0xFF; // 64-bit jmp through register opcode.
     const unsigned char MOV64ri = 0xB8; // X86::MOV64ri opcode.
 
-    const unsigned char N86R10 = X86_MC::getX86RegNum(X86::R10);
-    const unsigned char N86R11 = X86_MC::getX86RegNum(X86::R11);
+    const unsigned char N86R10 = TRI->getEncodingValue(X86::R10) & 0x7;
+    const unsigned char N86R11 = TRI->getEncodingValue(X86::R11) & 0x7;
 
     const unsigned char REX_WB = 0x40 | 0x08 | 0x01; // REX prefix
 
@@ -9938,7 +10718,7 @@ SDValue X86TargetLowering::LowerINIT_TRAMPOLINE(SDValue Op,
 
         for (FunctionType::param_iterator I = FTy->param_begin(),
              E = FTy->param_end(); I != E; ++I, ++Idx)
-          if (Attrs.paramHasAttr(Idx, Attribute::InReg))
+          if (Attrs.getParamAttributes(Idx).hasAttribute(Attributes::InReg))
             // FIXME: should only count parameters that are lowered to integers.
             InRegCount += (TD->getTypeSizeInBits(*I) + 31) / 32;
 
@@ -9967,7 +10747,7 @@ SDValue X86TargetLowering::LowerINIT_TRAMPOLINE(SDValue Op,
 
     // This is storing the opcode for MOV32ri.
     const unsigned char MOV32ri = 0xB8; // X86::MOV32ri's opcode byte.
-    const unsigned char N86Reg = X86_MC::getX86RegNum(NestReg);
+    const unsigned char N86Reg = TRI->getEncodingValue(NestReg) & 0x7;
     OutChains[0] = DAG.getStore(Root, dl,
                                 DAG.getConstant(MOV32ri|N86Reg, MVT::i8),
                                 Trmp, MachinePointerInfo(TrmpAddr),
@@ -10066,7 +10846,7 @@ SDValue X86TargetLowering::LowerFLT_ROUNDS_(SDValue Op,
                       ISD::TRUNCATE : ISD::ZERO_EXTEND), DL, VT, RetVal);
 }
 
-SDValue X86TargetLowering::LowerCTLZ(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerCTLZ(SDValue Op, SelectionDAG &DAG) {
   EVT VT = Op.getValueType();
   EVT OpVT = VT;
   unsigned NumBits = VT.getSizeInBits();
@@ -10100,8 +10880,7 @@ SDValue X86TargetLowering::LowerCTLZ(SDValue Op, SelectionDAG &DAG) const {
   return Op;
 }
 
-SDValue X86TargetLowering::LowerCTLZ_ZERO_UNDEF(SDValue Op,
-                                                SelectionDAG &DAG) const {
+static SDValue LowerCTLZ_ZERO_UNDEF(SDValue Op, SelectionDAG &DAG) {
   EVT VT = Op.getValueType();
   EVT OpVT = VT;
   unsigned NumBits = VT.getSizeInBits();
@@ -10126,7 +10905,7 @@ SDValue X86TargetLowering::LowerCTLZ_ZERO_UNDEF(SDValue Op,
   return Op;
 }
 
-SDValue X86TargetLowering::LowerCTTZ(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerCTTZ(SDValue Op, SelectionDAG &DAG) {
   EVT VT = Op.getValueType();
   unsigned NumBits = VT.getSizeInBits();
   DebugLoc dl = Op.getDebugLoc();
@@ -10151,23 +10930,21 @@ SDValue X86TargetLowering::LowerCTTZ(SDValue Op, SelectionDAG &DAG) const {
 static SDValue Lower256IntArith(SDValue Op, SelectionDAG &DAG) {
   EVT VT = Op.getValueType();
 
-  assert(VT.getSizeInBits() == 256 && VT.isInteger() &&
+  assert(VT.is256BitVector() && VT.isInteger() &&
          "Unsupported value type for operation");
 
-  int NumElems = VT.getVectorNumElements();
+  unsigned NumElems = VT.getVectorNumElements();
   DebugLoc dl = Op.getDebugLoc();
-  SDValue Idx0 = DAG.getConstant(0, MVT::i32);
-  SDValue Idx1 = DAG.getConstant(NumElems/2, MVT::i32);
 
   // Extract the LHS vectors
   SDValue LHS = Op.getOperand(0);
-  SDValue LHS1 = Extract128BitVector(LHS, Idx0, DAG, dl);
-  SDValue LHS2 = Extract128BitVector(LHS, Idx1, DAG, dl);
+  SDValue LHS1 = Extract128BitVector(LHS, 0, DAG, dl);
+  SDValue LHS2 = Extract128BitVector(LHS, NumElems/2, DAG, dl);
 
   // Extract the RHS vectors
   SDValue RHS = Op.getOperand(1);
-  SDValue RHS1 = Extract128BitVector(RHS, Idx0, DAG, dl);
-  SDValue RHS2 = Extract128BitVector(RHS, Idx1, DAG, dl);
+  SDValue RHS1 = Extract128BitVector(RHS, 0, DAG, dl);
+  SDValue RHS2 = Extract128BitVector(RHS, NumElems/2, DAG, dl);
 
   MVT EltVT = VT.getVectorElementType().getSimpleVT();
   EVT NewVT = MVT::getVectorVT(EltVT, NumElems/2);
@@ -10177,25 +10954,26 @@ static SDValue Lower256IntArith(SDValue Op, SelectionDAG &DAG) {
                      DAG.getNode(Op.getOpcode(), dl, NewVT, LHS2, RHS2));
 }
 
-SDValue X86TargetLowering::LowerADD(SDValue Op, SelectionDAG &DAG) const {
-  assert(Op.getValueType().getSizeInBits() == 256 &&
+static SDValue LowerADD(SDValue Op, SelectionDAG &DAG) {
+  assert(Op.getValueType().is256BitVector() &&
          Op.getValueType().isInteger() &&
          "Only handle AVX 256-bit vector integer operation");
   return Lower256IntArith(Op, DAG);
 }
 
-SDValue X86TargetLowering::LowerSUB(SDValue Op, SelectionDAG &DAG) const {
-  assert(Op.getValueType().getSizeInBits() == 256 &&
+static SDValue LowerSUB(SDValue Op, SelectionDAG &DAG) {
+  assert(Op.getValueType().is256BitVector() &&
          Op.getValueType().isInteger() &&
          "Only handle AVX 256-bit vector integer operation");
   return Lower256IntArith(Op, DAG);
 }
 
-SDValue X86TargetLowering::LowerMUL(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerMUL(SDValue Op, const X86Subtarget *Subtarget,
+                        SelectionDAG &DAG) {
   EVT VT = Op.getValueType();
 
   // Decompose 256-bit ops into smaller 128-bit ops.
-  if (VT.getSizeInBits() == 256 && !Subtarget->hasAVX2())
+  if (VT.is256BitVector() && !Subtarget->hasAVX2())
     return Lower256IntArith(Op, DAG);
 
   assert((VT == MVT::v2i64 || VT == MVT::v4i64) &&
@@ -10312,6 +11090,7 @@ SDValue X86TargetLowering::LowerShift(SDValue Op, SelectionDAG &DAG) const {
           Res = DAG.getNode(ISD::SUB, dl, VT, Res, Mask);
           return Res;
         }
+        llvm_unreachable("Unknown shift opcode.");
       }
 
       if (Subtarget->hasAVX2() && VT == MVT::v32i8) {
@@ -10355,6 +11134,7 @@ SDValue X86TargetLowering::LowerShift(SDValue Op, SelectionDAG &DAG) const {
           Res = DAG.getNode(ISD::SUB, dl, VT, Res, Mask);
           return Res;
         }
+        llvm_unreachable("Unknown shift opcode.");
       }
     }
   }
@@ -10423,15 +11203,14 @@ SDValue X86TargetLowering::LowerShift(SDValue Op, SelectionDAG &DAG) const {
   }
 
   // Decompose 256-bit shifts into smaller 128-bit shifts.
-  if (VT.getSizeInBits() == 256) {
+  if (VT.is256BitVector()) {
     unsigned NumElems = VT.getVectorNumElements();
     MVT EltVT = VT.getVectorElementType().getSimpleVT();
     EVT NewVT = MVT::getVectorVT(EltVT, NumElems/2);
 
     // Extract the two vectors
-    SDValue V1 = Extract128BitVector(R, DAG.getConstant(0, MVT::i32), DAG, dl);
-    SDValue V2 = Extract128BitVector(R, DAG.getConstant(NumElems/2, MVT::i32),
-                                     DAG, dl);
+    SDValue V1 = Extract128BitVector(R, 0, DAG, dl);
+    SDValue V2 = Extract128BitVector(R, NumElems/2, DAG, dl);
 
     // Recreate the shift amount vectors
     SDValue Amt1, Amt2;
@@ -10450,9 +11229,8 @@ SDValue X86TargetLowering::LowerShift(SDValue Op, SelectionDAG &DAG) const {
                                  &Amt2Csts[0], NumElems/2);
     } else {
       // Variable shift amount
-      Amt1 = Extract128BitVector(Amt, DAG.getConstant(0, MVT::i32), DAG, dl);
-      Amt2 = Extract128BitVector(Amt, DAG.getConstant(NumElems/2, MVT::i32),
-                                 DAG, dl);
+      Amt1 = Extract128BitVector(Amt, 0, DAG, dl);
+      Amt2 = Extract128BitVector(Amt, NumElems/2, DAG, dl);
     }
 
     // Issue new vector shifts for the smaller types
@@ -10466,7 +11244,7 @@ SDValue X86TargetLowering::LowerShift(SDValue Op, SelectionDAG &DAG) const {
   return SDValue();
 }
 
-SDValue X86TargetLowering::LowerXALUO(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG) {
   // Lower the "add/sub/mul with overflow" instruction into a regular ins plus
   // a "setcc" instruction that checks the overflow flag. The "brcond" lowering
   // looks for this combo and may remove the "setcc" instruction if the "setcc"
@@ -10562,20 +11340,18 @@ SDValue X86TargetLowering::LowerSIGN_EXTEND_INREG(SDValue Op,
         return SDValue();
       if (!Subtarget->hasAVX2()) {
         // needs to be split
-        int NumElems = VT.getVectorNumElements();
-        SDValue Idx0 = DAG.getConstant(0, MVT::i32);
-        SDValue Idx1 = DAG.getConstant(NumElems/2, MVT::i32);
+        unsigned NumElems = VT.getVectorNumElements();
 
         // Extract the LHS vectors
         SDValue LHS = Op.getOperand(0);
-        SDValue LHS1 = Extract128BitVector(LHS, Idx0, DAG, dl);
-        SDValue LHS2 = Extract128BitVector(LHS, Idx1, DAG, dl);
+        SDValue LHS1 = Extract128BitVector(LHS, 0, DAG, dl);
+        SDValue LHS2 = Extract128BitVector(LHS, NumElems/2, DAG, dl);
 
         MVT EltVT = VT.getVectorElementType().getSimpleVT();
         EVT NewVT = MVT::getVectorVT(EltVT, NumElems/2);
 
         EVT ExtraEltVT = ExtraVT.getVectorElementType();
-        int ExtraNumElems = ExtraVT.getVectorNumElements();
+        unsigned ExtraNumElems = ExtraVT.getVectorNumElements();
         ExtraVT = EVT::getVectorVT(*DAG.getContext(), ExtraEltVT,
                                    ExtraNumElems/2);
         SDValue Extra = DAG.getValueType(ExtraVT);
@@ -10583,7 +11359,7 @@ SDValue X86TargetLowering::LowerSIGN_EXTEND_INREG(SDValue Op,
         LHS1 = DAG.getNode(Op.getOpcode(), dl, NewVT, LHS1, Extra);
         LHS2 = DAG.getNode(Op.getOpcode(), dl, NewVT, LHS2, Extra);
 
-        return DAG.getNode(ISD::CONCAT_VECTORS, dl, VT, LHS1, LHS2);;
+        return DAG.getNode(ISD::CONCAT_VECTORS, dl, VT, LHS1, LHS2);
       }
       // fall through
     case MVT::v4i32:
@@ -10596,7 +11372,8 @@ SDValue X86TargetLowering::LowerSIGN_EXTEND_INREG(SDValue Op,
 }
 
 
-SDValue X86TargetLowering::LowerMEMBARRIER(SDValue Op, SelectionDAG &DAG) const{
+static SDValue LowerMEMBARRIER(SDValue Op, const X86Subtarget *Subtarget,
+                              SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
 
   // Go ahead and emit the fence on x86-64 even if we asked for no-sse2.
@@ -10641,8 +11418,8 @@ SDValue X86TargetLowering::LowerMEMBARRIER(SDValue Op, SelectionDAG &DAG) const{
   return DAG.getNode(X86ISD::MFENCE, dl, MVT::Other, Op.getOperand(0));
 }
 
-SDValue X86TargetLowering::LowerATOMIC_FENCE(SDValue Op,
-                                             SelectionDAG &DAG) const {
+static SDValue LowerATOMIC_FENCE(SDValue Op, const X86Subtarget *Subtarget,
+                                 SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   AtomicOrdering FenceOrdering = static_cast<AtomicOrdering>(
     cast<ConstantSDNode>(Op.getOperand(1))->getZExtValue());
@@ -10680,7 +11457,8 @@ SDValue X86TargetLowering::LowerATOMIC_FENCE(SDValue Op,
 }
 
 
-SDValue X86TargetLowering::LowerCMP_SWAP(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerCMP_SWAP(SDValue Op, const X86Subtarget *Subtarget,
+                             SelectionDAG &DAG) {
   EVT T = Op.getValueType();
   DebugLoc DL = Op.getDebugLoc();
   unsigned Reg = 0;
@@ -10711,8 +11489,8 @@ SDValue X86TargetLowering::LowerCMP_SWAP(SDValue Op, SelectionDAG &DAG) const {
   return cpOut;
 }
 
-SDValue X86TargetLowering::LowerREADCYCLECOUNTER(SDValue Op,
-                                                 SelectionDAG &DAG) const {
+static SDValue LowerREADCYCLECOUNTER(SDValue Op, const X86Subtarget *Subtarget,
+                                     SelectionDAG &DAG) {
   assert(Subtarget->is64Bit() && "Result not type legalized?");
   SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Glue);
   SDValue TheChain = Op.getOperand(0);
@@ -10730,8 +11508,7 @@ SDValue X86TargetLowering::LowerREADCYCLECOUNTER(SDValue Op,
   return DAG.getMergeValues(Ops, 2, dl);
 }
 
-SDValue X86TargetLowering::LowerBITCAST(SDValue Op,
-                                            SelectionDAG &DAG) const {
+SDValue X86TargetLowering::LowerBITCAST(SDValue Op, SelectionDAG &DAG) const {
   EVT SrcVT = Op.getOperand(0).getValueType();
   EVT DstVT = Op.getValueType();
   assert(Subtarget->is64Bit() && !Subtarget->hasSSE2() &&
@@ -10751,7 +11528,7 @@ SDValue X86TargetLowering::LowerBITCAST(SDValue Op,
   return SDValue();
 }
 
-SDValue X86TargetLowering::LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG) const {
+static SDValue LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG) {
   SDNode *Node = Op.getNode();
   DebugLoc dl = Node->getDebugLoc();
   EVT T = Node->getValueType(0);
@@ -10824,9 +11601,9 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   default: llvm_unreachable("Should not custom lower this!");
   case ISD::SIGN_EXTEND_INREG:  return LowerSIGN_EXTEND_INREG(Op,DAG);
-  case ISD::MEMBARRIER:         return LowerMEMBARRIER(Op,DAG);
-  case ISD::ATOMIC_FENCE:       return LowerATOMIC_FENCE(Op,DAG);
-  case ISD::ATOMIC_CMP_SWAP:    return LowerCMP_SWAP(Op,DAG);
+  case ISD::MEMBARRIER:         return LowerMEMBARRIER(Op, Subtarget, DAG);
+  case ISD::ATOMIC_FENCE:       return LowerATOMIC_FENCE(Op, Subtarget, DAG);
+  case ISD::ATOMIC_CMP_SWAP:    return LowerCMP_SWAP(Op, Subtarget, DAG);
   case ISD::ATOMIC_LOAD_SUB:    return LowerLOAD_SUB(Op,DAG);
   case ISD::ATOMIC_STORE:       return LowerATOMIC_STORE(Op,DAG);
   case ISD::BUILD_VECTOR:       return LowerBUILD_VECTOR(Op, DAG);
@@ -10834,8 +11611,8 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::VECTOR_SHUFFLE:     return LowerVECTOR_SHUFFLE(Op, DAG);
   case ISD::EXTRACT_VECTOR_ELT: return LowerEXTRACT_VECTOR_ELT(Op, DAG);
   case ISD::INSERT_VECTOR_ELT:  return LowerINSERT_VECTOR_ELT(Op, DAG);
-  case ISD::EXTRACT_SUBVECTOR:  return LowerEXTRACT_SUBVECTOR(Op, DAG);
-  case ISD::INSERT_SUBVECTOR:   return LowerINSERT_SUBVECTOR(Op, DAG);
+  case ISD::EXTRACT_SUBVECTOR:  return LowerEXTRACT_SUBVECTOR(Op,Subtarget,DAG);
+  case ISD::INSERT_SUBVECTOR:   return LowerINSERT_SUBVECTOR(Op, Subtarget,DAG);
   case ISD::SCALAR_TO_VECTOR:   return LowerSCALAR_TO_VECTOR(Op, DAG);
   case ISD::ConstantPool:       return LowerConstantPool(Op, DAG);
   case ISD::GlobalAddress:      return LowerGlobalAddress(Op, DAG);
@@ -10847,8 +11624,11 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::SRL_PARTS:          return LowerShiftParts(Op, DAG);
   case ISD::SINT_TO_FP:         return LowerSINT_TO_FP(Op, DAG);
   case ISD::UINT_TO_FP:         return LowerUINT_TO_FP(Op, DAG);
+  case ISD::TRUNCATE:           return lowerTRUNCATE(Op, DAG);
+  case ISD::ZERO_EXTEND:        return lowerZERO_EXTEND(Op, DAG);
   case ISD::FP_TO_SINT:         return LowerFP_TO_SINT(Op, DAG);
   case ISD::FP_TO_UINT:         return LowerFP_TO_UINT(Op, DAG);
+  case ISD::FP_EXTEND:          return lowerFP_EXTEND(Op, DAG);
   case ISD::FABS:               return LowerFABS(Op, DAG);
   case ISD::FNEG:               return LowerFNEG(Op, DAG);
   case ISD::FCOPYSIGN:          return LowerFCOPYSIGN(Op, DAG);
@@ -10859,21 +11639,24 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::JumpTable:          return LowerJumpTable(Op, DAG);
   case ISD::VASTART:            return LowerVASTART(Op, DAG);
   case ISD::VAARG:              return LowerVAARG(Op, DAG);
-  case ISD::VACOPY:             return LowerVACOPY(Op, DAG);
+  case ISD::VACOPY:             return LowerVACOPY(Op, Subtarget, DAG);
   case ISD::INTRINSIC_WO_CHAIN: return LowerINTRINSIC_WO_CHAIN(Op, DAG);
+  case ISD::INTRINSIC_W_CHAIN:  return LowerINTRINSIC_W_CHAIN(Op, DAG);
   case ISD::RETURNADDR:         return LowerRETURNADDR(Op, DAG);
   case ISD::FRAMEADDR:          return LowerFRAMEADDR(Op, DAG);
   case ISD::FRAME_TO_ARGS_OFFSET:
                                 return LowerFRAME_TO_ARGS_OFFSET(Op, DAG);
   case ISD::DYNAMIC_STACKALLOC: return LowerDYNAMIC_STACKALLOC(Op, DAG);
   case ISD::EH_RETURN:          return LowerEH_RETURN(Op, DAG);
+  case ISD::EH_SJLJ_SETJMP:     return lowerEH_SJLJ_SETJMP(Op, DAG);
+  case ISD::EH_SJLJ_LONGJMP:    return lowerEH_SJLJ_LONGJMP(Op, DAG);
   case ISD::INIT_TRAMPOLINE:    return LowerINIT_TRAMPOLINE(Op, DAG);
   case ISD::ADJUST_TRAMPOLINE:  return LowerADJUST_TRAMPOLINE(Op, DAG);
   case ISD::FLT_ROUNDS_:        return LowerFLT_ROUNDS_(Op, DAG);
   case ISD::CTLZ:               return LowerCTLZ(Op, DAG);
   case ISD::CTLZ_ZERO_UNDEF:    return LowerCTLZ_ZERO_UNDEF(Op, DAG);
   case ISD::CTTZ:               return LowerCTTZ(Op, DAG);
-  case ISD::MUL:                return LowerMUL(Op, DAG);
+  case ISD::MUL:                return LowerMUL(Op, Subtarget, DAG);
   case ISD::SRA:
   case ISD::SRL:
   case ISD::SHL:                return LowerShift(Op, DAG);
@@ -10883,7 +11666,7 @@ SDValue X86TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::USUBO:
   case ISD::SMULO:
   case ISD::UMULO:              return LowerXALUO(Op, DAG);
-  case ISD::READCYCLECOUNTER:   return LowerREADCYCLECOUNTER(Op, DAG);
+  case ISD::READCYCLECOUNTER:   return LowerREADCYCLECOUNTER(Op, Subtarget,DAG);
   case ISD::BITCAST:            return LowerBITCAST(Op, DAG);
   case ISD::ADDC:
   case ISD::ADDE:
@@ -10915,9 +11698,9 @@ static void ReplaceATOMIC_LOAD(SDNode *Node,
   Results.push_back(Swap.getValue(1));
 }
 
-void X86TargetLowering::
+static void
 ReplaceATOMIC_BINARY_64(SDNode *Node, SmallVectorImpl<SDValue>&Results,
-                        SelectionDAG &DAG, unsigned NewOp) const {
+                        SelectionDAG &DAG, unsigned NewOp) {
   DebugLoc dl = Node->getDebugLoc();
   assert (Node->getValueType(0) == MVT::i64 &&
           "Only know how to expand i64 atomics");
@@ -10976,6 +11759,27 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
     }
     return;
   }
+  case ISD::UINT_TO_FP: {
+    if (N->getOperand(0).getValueType() != MVT::v2i32 &&
+        N->getValueType(0) != MVT::v2f32)
+      return;
+    SDValue ZExtIn = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::v2i64,
+                                 N->getOperand(0));
+    SDValue Bias = DAG.getConstantFP(BitsToDouble(0x4330000000000000ULL),
+                                     MVT::f64);
+    SDValue VBias = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v2f64, Bias, Bias);
+    SDValue Or = DAG.getNode(ISD::OR, dl, MVT::v2i64, ZExtIn,
+                             DAG.getNode(ISD::BITCAST, dl, MVT::v2i64, VBias));
+    Or = DAG.getNode(ISD::BITCAST, dl, MVT::v2f64, Or);
+    SDValue Sub = DAG.getNode(ISD::FSUB, dl, MVT::v2f64, Or, VBias);
+    Results.push_back(DAG.getNode(X86ISD::VFPROUND, dl, MVT::v4f32, Sub));
+    return;
+  }
+  case ISD::FP_ROUND: {
+    SDValue V = DAG.getNode(X86ISD::VFPROUND, dl, MVT::v4f32, N->getOperand(0));
+    Results.push_back(V);
+    return;
+  }
   case ISD::READCYCLECOUNTER: {
     SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Glue);
     SDValue TheChain = N->getOperand(0);
@@ -11015,7 +11819,7 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
                                Regs64bit ? X86::RBX : X86::EBX,
                                swapInL, cpInH.getValue(1));
     swapInH = DAG.getCopyToReg(swapInL.getValue(0), dl,
-                               Regs64bit ? X86::RCX : X86::ECX, 
+                               Regs64bit ? X86::RCX : X86::ECX,
                                swapInH, swapInL.getValue(1));
     SDValue Ops[] = { swapInH.getValue(0),
                       N->getOperand(1),
@@ -11038,26 +11842,56 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
     return;
   }
   case ISD::ATOMIC_LOAD_ADD:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMADD64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_AND:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMAND64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_NAND:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMNAND64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_OR:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMOR64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_SUB:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMSUB64_DAG);
-    return;
   case ISD::ATOMIC_LOAD_XOR:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMXOR64_DAG);
+  case ISD::ATOMIC_LOAD_MAX:
+  case ISD::ATOMIC_LOAD_MIN:
+  case ISD::ATOMIC_LOAD_UMAX:
+  case ISD::ATOMIC_LOAD_UMIN:
+  case ISD::ATOMIC_SWAP: {
+    unsigned Opc;
+    switch (N->getOpcode()) {
+    default: llvm_unreachable("Unexpected opcode");
+    case ISD::ATOMIC_LOAD_ADD:
+      Opc = X86ISD::ATOMADD64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_AND:
+      Opc = X86ISD::ATOMAND64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_NAND:
+      Opc = X86ISD::ATOMNAND64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_OR:
+      Opc = X86ISD::ATOMOR64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_SUB:
+      Opc = X86ISD::ATOMSUB64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_XOR:
+      Opc = X86ISD::ATOMXOR64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_MAX:
+      Opc = X86ISD::ATOMMAX64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_MIN:
+      Opc = X86ISD::ATOMMIN64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_UMAX:
+      Opc = X86ISD::ATOMUMAX64_DAG;
+      break;
+    case ISD::ATOMIC_LOAD_UMIN:
+      Opc = X86ISD::ATOMUMIN64_DAG;
+      break;
+    case ISD::ATOMIC_SWAP:
+      Opc = X86ISD::ATOMSWAP64_DAG;
+      break;
+    }
+    ReplaceATOMIC_BINARY_64(N, Results, DAG, Opc);
     return;
-  case ISD::ATOMIC_SWAP:
-    ReplaceATOMIC_BINARY_64(N, Results, DAG, X86ISD::ATOMSWAP64_DAG);
-    return;
+  }
   case ISD::ATOMIC_LOAD:
     ReplaceATOMIC_LOAD(N, Results, DAG);
   }
@@ -11117,13 +11951,19 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::FHSUB:              return "X86ISD::FHSUB";
   case X86ISD::FMAX:               return "X86ISD::FMAX";
   case X86ISD::FMIN:               return "X86ISD::FMIN";
+  case X86ISD::FMAXC:              return "X86ISD::FMAXC";
+  case X86ISD::FMINC:              return "X86ISD::FMINC";
   case X86ISD::FRSQRT:             return "X86ISD::FRSQRT";
   case X86ISD::FRCP:               return "X86ISD::FRCP";
   case X86ISD::TLSADDR:            return "X86ISD::TLSADDR";
+  case X86ISD::TLSBASEADDR:        return "X86ISD::TLSBASEADDR";
   case X86ISD::TLSCALL:            return "X86ISD::TLSCALL";
+  case X86ISD::EH_SJLJ_SETJMP:     return "X86ISD::EH_SJLJ_SETJMP";
+  case X86ISD::EH_SJLJ_LONGJMP:    return "X86ISD::EH_SJLJ_LONGJMP";
   case X86ISD::EH_RETURN:          return "X86ISD::EH_RETURN";
   case X86ISD::TC_RETURN:          return "X86ISD::TC_RETURN";
   case X86ISD::FNSTCW16m:          return "X86ISD::FNSTCW16m";
+  case X86ISD::FNSTSW16r:          return "X86ISD::FNSTSW16r";
   case X86ISD::LCMPXCHG_DAG:       return "X86ISD::LCMPXCHG_DAG";
   case X86ISD::LCMPXCHG8_DAG:      return "X86ISD::LCMPXCHG8_DAG";
   case X86ISD::ATOMADD64_DAG:      return "X86ISD::ATOMADD64_DAG";
@@ -11133,7 +11973,12 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::ATOMAND64_DAG:      return "X86ISD::ATOMAND64_DAG";
   case X86ISD::ATOMNAND64_DAG:     return "X86ISD::ATOMNAND64_DAG";
   case X86ISD::VZEXT_MOVL:         return "X86ISD::VZEXT_MOVL";
+  case X86ISD::VSEXT_MOVL:         return "X86ISD::VSEXT_MOVL";
   case X86ISD::VZEXT_LOAD:         return "X86ISD::VZEXT_LOAD";
+  case X86ISD::VZEXT:              return "X86ISD::VZEXT";
+  case X86ISD::VSEXT:              return "X86ISD::VSEXT";
+  case X86ISD::VFPEXT:             return "X86ISD::VFPEXT";
+  case X86ISD::VFPROUND:           return "X86ISD::VFPROUND";
   case X86ISD::VSHLDQ:             return "X86ISD::VSHLDQ";
   case X86ISD::VSRLDQ:             return "X86ISD::VSRLDQ";
   case X86ISD::VSHL:               return "X86ISD::VSHL";
@@ -11192,6 +12037,16 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::MEMBARRIER:         return "X86ISD::MEMBARRIER";
   case X86ISD::SEG_ALLOCA:         return "X86ISD::SEG_ALLOCA";
   case X86ISD::WIN_FTOL:           return "X86ISD::WIN_FTOL";
+  case X86ISD::SAHF:               return "X86ISD::SAHF";
+  case X86ISD::RDRAND:             return "X86ISD::RDRAND";
+  case X86ISD::FMADD:              return "X86ISD::FMADD";
+  case X86ISD::FMSUB:              return "X86ISD::FMSUB";
+  case X86ISD::FNMADD:             return "X86ISD::FNMADD";
+  case X86ISD::FNMSUB:             return "X86ISD::FNMSUB";
+  case X86ISD::FMADDSUB:           return "X86ISD::FMADDSUB";
+  case X86ISD::FMSUBADD:           return "X86ISD::FMSUBADD";
+  case X86ISD::PCMPESTRI:          return "X86ISD::PCMPESTRI";
+  case X86ISD::PCMPISTRI:          return "X86ISD::PCMPISTRI";
   }
 }
 
@@ -11260,6 +12115,15 @@ bool X86TargetLowering::isTruncateFree(Type *Ty1, Type *Ty2) const {
   return true;
 }
 
+bool X86TargetLowering::isLegalICmpImmediate(int64_t Imm) const {
+  return Imm == (int32_t)Imm;
+}
+
+bool X86TargetLowering::isLegalAddImmediate(int64_t Imm) const {
+  // Can also use sub to handle negated immediates.
+  return Imm == (int32_t)Imm;
+}
+
 bool X86TargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
   if (!VT1.isInteger() || !VT2.isInteger())
     return false;
@@ -11302,8 +12166,8 @@ X86TargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &M,
           isMOVLMask(M, VT) ||
           isSHUFPMask(M, VT, Subtarget->hasAVX()) ||
           isPSHUFDMask(M, VT) ||
-          isPSHUFHWMask(M, VT) ||
-          isPSHUFLWMask(M, VT) ||
+          isPSHUFHWMask(M, VT, Subtarget->hasAVX2()) ||
+          isPSHUFLWMask(M, VT, Subtarget->hasAVX2()) ||
           isPALIGNRMask(M, VT, Subtarget) ||
           isUNPCKLMask(M, VT, Subtarget->hasAVX2()) ||
           isUNPCKHMask(M, VT, Subtarget->hasAVX2()) ||
@@ -11318,7 +12182,7 @@ X86TargetLowering::isVectorClearMaskLegal(const SmallVectorImpl<int> &Mask,
   // FIXME: This collection of masks seems suspect.
   if (NumElts == 2)
     return true;
-  if (NumElts == 4 && VT.getSizeInBits() == 128) {
+  if (NumElts == 4 && VT.is128BitVector()) {
     return (isMOVLMask(Mask, VT)  ||
             isCommutedMOVLMask(Mask, VT, true) ||
             isSHUFPMask(Mask, VT, Subtarget->hasAVX()) ||
@@ -11331,431 +12195,724 @@ X86TargetLowering::isVectorClearMaskLegal(const SmallVectorImpl<int> &Mask,
 //                           X86 Scheduler Hooks
 //===----------------------------------------------------------------------===//
 
-// private utility function
-MachineBasicBlock *
-X86TargetLowering::EmitAtomicBitwiseWithCustomInserter(MachineInstr *bInstr,
-                                                       MachineBasicBlock *MBB,
-                                                       unsigned regOpc,
-                                                       unsigned immOpc,
-                                                       unsigned LoadOpc,
-                                                       unsigned CXchgOpc,
-                                                       unsigned notOpc,
-                                                       unsigned EAXreg,
-                                                 const TargetRegisterClass *RC,
-                                                       bool Invert) const {
-  // For the atomic bitwise operator, we generate
-  //   thisMBB:
-  //   newMBB:
-  //     ld  t1 = [bitinstr.addr]
-  //     op  t2 = t1, [bitinstr.val]
-  //     not t3 = t2  (if Invert)
-  //     mov EAX = t1
-  //     lcs dest = [bitinstr.addr], t3  [EAX is implicit]
-  //     bz  newMBB
-  //     fallthrough -->nextMBB
-  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
-  const BasicBlock *LLVM_BB = MBB->getBasicBlock();
-  MachineFunction::iterator MBBIter = MBB;
-  ++MBBIter;
+/// Utility function to emit xbegin specifying the start of an RTM region.
+static MachineBasicBlock *EmitXBegin(MachineInstr *MI, MachineBasicBlock *MBB,
+                                     const TargetInstrInfo *TII) {
+  DebugLoc DL = MI->getDebugLoc();
 
-  /// First build the CFG
-  MachineFunction *F = MBB->getParent();
-  MachineBasicBlock *thisMBB = MBB;
-  MachineBasicBlock *newMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *nextMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  F->insert(MBBIter, newMBB);
-  F->insert(MBBIter, nextMBB);
+  const BasicBlock *BB = MBB->getBasicBlock();
+  MachineFunction::iterator I = MBB;
+  ++I;
 
-  // Transfer the remainder of thisMBB and its successor edges to nextMBB.
-  nextMBB->splice(nextMBB->begin(), thisMBB,
-                  llvm::next(MachineBasicBlock::iterator(bInstr)),
-                  thisMBB->end());
-  nextMBB->transferSuccessorsAndUpdatePHIs(thisMBB);
-
-  // Update thisMBB to fall through to newMBB
-  thisMBB->addSuccessor(newMBB);
-
-  // newMBB jumps to itself and fall through to nextMBB
-  newMBB->addSuccessor(nextMBB);
-  newMBB->addSuccessor(newMBB);
-
-  // Insert instructions into newMBB based on incoming instruction
-  assert(bInstr->getNumOperands() < X86::AddrNumOperands + 4 &&
-         "unexpected number of operands");
-  DebugLoc dl = bInstr->getDebugLoc();
-  MachineOperand& destOper = bInstr->getOperand(0);
-  MachineOperand* argOpers[2 + X86::AddrNumOperands];
-  int numArgs = bInstr->getNumOperands() - 1;
-  for (int i=0; i < numArgs; ++i)
-    argOpers[i] = &bInstr->getOperand(i+1);
-
-  // x86 address has 4 operands: base, index, scale, and displacement
-  int lastAddrIndx = X86::AddrNumOperands - 1; // [0,3]
-  int valArgIndx = lastAddrIndx + 1;
-
-  unsigned t1 = F->getRegInfo().createVirtualRegister(RC);
-  MachineInstrBuilder MIB = BuildMI(newMBB, dl, TII->get(LoadOpc), t1);
-  for (int i=0; i <= lastAddrIndx; ++i)
-    (*MIB).addOperand(*argOpers[i]);
-
-  unsigned t2 = F->getRegInfo().createVirtualRegister(RC);
-  assert((argOpers[valArgIndx]->isReg() ||
-          argOpers[valArgIndx]->isImm()) &&
-         "invalid operand");
-  if (argOpers[valArgIndx]->isReg())
-    MIB = BuildMI(newMBB, dl, TII->get(regOpc), t2);
-  else
-    MIB = BuildMI(newMBB, dl, TII->get(immOpc), t2);
-  MIB.addReg(t1);
-  (*MIB).addOperand(*argOpers[valArgIndx]);
-
-  unsigned t3 = F->getRegInfo().createVirtualRegister(RC);
-  if (Invert) {
-    MIB = BuildMI(newMBB, dl, TII->get(notOpc), t3).addReg(t2);
-  }
-  else
-    t3 = t2;
-
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), EAXreg);
-  MIB.addReg(t1);
-
-  MIB = BuildMI(newMBB, dl, TII->get(CXchgOpc));
-  for (int i=0; i <= lastAddrIndx; ++i)
-    (*MIB).addOperand(*argOpers[i]);
-  MIB.addReg(t3);
-  assert(bInstr->hasOneMemOperand() && "Unexpected number of memoperand");
-  (*MIB).setMemRefs(bInstr->memoperands_begin(),
-                    bInstr->memoperands_end());
-
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), destOper.getReg());
-  MIB.addReg(EAXreg);
-
-  // insert branch
-  BuildMI(newMBB, dl, TII->get(X86::JNE_4)).addMBB(newMBB);
-
-  bInstr->eraseFromParent();   // The pseudo instruction is gone now.
-  return nextMBB;
-}
-
-// private utility function:  64 bit atomics on 32 bit host.
-MachineBasicBlock *
-X86TargetLowering::EmitAtomicBit6432WithCustomInserter(MachineInstr *bInstr,
-                                                       MachineBasicBlock *MBB,
-                                                       unsigned regOpcL,
-                                                       unsigned regOpcH,
-                                                       unsigned immOpcL,
-                                                       unsigned immOpcH,
-                                                       bool Invert) const {
-  // For the atomic bitwise operator, we generate
-  //   thisMBB (instructions are in pairs, except cmpxchg8b)
-  //     ld t1,t2 = [bitinstr.addr]
-  //   newMBB:
-  //     out1, out2 = phi (thisMBB, t1/t2) (newMBB, t3/t4)
-  //     op  t5, t6 <- out1, out2, [bitinstr.val]
-  //      (for SWAP, substitute:  mov t5, t6 <- [bitinstr.val])
-  //     neg t7, t8 < t5, t6  (if Invert)
-  //     mov ECX, EBX <- t5, t6
-  //     mov EAX, EDX <- t1, t2
-  //     cmpxchg8b [bitinstr.addr]  [EAX, EDX, EBX, ECX implicit]
-  //     mov t3, t4 <- EAX, EDX
-  //     bz  newMBB
-  //     result in out1, out2
-  //     fallthrough -->nextMBB
-
-  const TargetRegisterClass *RC = X86::GR32RegisterClass;
-  const unsigned LoadOpc = X86::MOV32rm;
-  const unsigned NotOpc = X86::NOT32r;
-  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
-  const BasicBlock *LLVM_BB = MBB->getBasicBlock();
-  MachineFunction::iterator MBBIter = MBB;
-  ++MBBIter;
-
-  /// First build the CFG
-  MachineFunction *F = MBB->getParent();
-  MachineBasicBlock *thisMBB = MBB;
-  MachineBasicBlock *newMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *nextMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  F->insert(MBBIter, newMBB);
-  F->insert(MBBIter, nextMBB);
-
-  // Transfer the remainder of thisMBB and its successor edges to nextMBB.
-  nextMBB->splice(nextMBB->begin(), thisMBB,
-                  llvm::next(MachineBasicBlock::iterator(bInstr)),
-                  thisMBB->end());
-  nextMBB->transferSuccessorsAndUpdatePHIs(thisMBB);
-
-  // Update thisMBB to fall through to newMBB
-  thisMBB->addSuccessor(newMBB);
-
-  // newMBB jumps to itself and fall through to nextMBB
-  newMBB->addSuccessor(nextMBB);
-  newMBB->addSuccessor(newMBB);
-
-  DebugLoc dl = bInstr->getDebugLoc();
-  // Insert instructions into newMBB based on incoming instruction
-  // There are 8 "real" operands plus 9 implicit def/uses, ignored here.
-  assert(bInstr->getNumOperands() < X86::AddrNumOperands + 14 &&
-         "unexpected number of operands");
-  MachineOperand& dest1Oper = bInstr->getOperand(0);
-  MachineOperand& dest2Oper = bInstr->getOperand(1);
-  MachineOperand* argOpers[2 + X86::AddrNumOperands];
-  for (int i=0; i < 2 + X86::AddrNumOperands; ++i) {
-    argOpers[i] = &bInstr->getOperand(i+2);
-
-    // We use some of the operands multiple times, so conservatively just
-    // clear any kill flags that might be present.
-    if (argOpers[i]->isReg() && argOpers[i]->isUse())
-      argOpers[i]->setIsKill(false);
-  }
-
-  // x86 address has 5 operands: base, index, scale, displacement, and segment.
-  int lastAddrIndx = X86::AddrNumOperands - 1; // [0,3]
-
-  unsigned t1 = F->getRegInfo().createVirtualRegister(RC);
-  MachineInstrBuilder MIB = BuildMI(thisMBB, dl, TII->get(LoadOpc), t1);
-  for (int i=0; i <= lastAddrIndx; ++i)
-    (*MIB).addOperand(*argOpers[i]);
-  unsigned t2 = F->getRegInfo().createVirtualRegister(RC);
-  MIB = BuildMI(thisMBB, dl, TII->get(LoadOpc), t2);
-  // add 4 to displacement.
-  for (int i=0; i <= lastAddrIndx-2; ++i)
-    (*MIB).addOperand(*argOpers[i]);
-  MachineOperand newOp3 = *(argOpers[3]);
-  if (newOp3.isImm())
-    newOp3.setImm(newOp3.getImm()+4);
-  else
-    newOp3.setOffset(newOp3.getOffset()+4);
-  (*MIB).addOperand(newOp3);
-  (*MIB).addOperand(*argOpers[lastAddrIndx]);
-
-  // t3/4 are defined later, at the bottom of the loop
-  unsigned t3 = F->getRegInfo().createVirtualRegister(RC);
-  unsigned t4 = F->getRegInfo().createVirtualRegister(RC);
-  BuildMI(newMBB, dl, TII->get(X86::PHI), dest1Oper.getReg())
-    .addReg(t1).addMBB(thisMBB).addReg(t3).addMBB(newMBB);
-  BuildMI(newMBB, dl, TII->get(X86::PHI), dest2Oper.getReg())
-    .addReg(t2).addMBB(thisMBB).addReg(t4).addMBB(newMBB);
-
-  // The subsequent operations should be using the destination registers of
-  // the PHI instructions.
-  t1 = dest1Oper.getReg();
-  t2 = dest2Oper.getReg();
-
-  int valArgIndx = lastAddrIndx + 1;
-  assert((argOpers[valArgIndx]->isReg() ||
-          argOpers[valArgIndx]->isImm()) &&
-         "invalid operand");
-  unsigned t5 = F->getRegInfo().createVirtualRegister(RC);
-  unsigned t6 = F->getRegInfo().createVirtualRegister(RC);
-  if (argOpers[valArgIndx]->isReg())
-    MIB = BuildMI(newMBB, dl, TII->get(regOpcL), t5);
-  else
-    MIB = BuildMI(newMBB, dl, TII->get(immOpcL), t5);
-  if (regOpcL != X86::MOV32rr)
-    MIB.addReg(t1);
-  (*MIB).addOperand(*argOpers[valArgIndx]);
-  assert(argOpers[valArgIndx + 1]->isReg() ==
-         argOpers[valArgIndx]->isReg());
-  assert(argOpers[valArgIndx + 1]->isImm() ==
-         argOpers[valArgIndx]->isImm());
-  if (argOpers[valArgIndx + 1]->isReg())
-    MIB = BuildMI(newMBB, dl, TII->get(regOpcH), t6);
-  else
-    MIB = BuildMI(newMBB, dl, TII->get(immOpcH), t6);
-  if (regOpcH != X86::MOV32rr)
-    MIB.addReg(t2);
-  (*MIB).addOperand(*argOpers[valArgIndx + 1]);
-
-  unsigned t7, t8;
-  if (Invert) {
-    t7 = F->getRegInfo().createVirtualRegister(RC);
-    t8 = F->getRegInfo().createVirtualRegister(RC);
-    MIB = BuildMI(newMBB, dl, TII->get(NotOpc), t7).addReg(t5);
-    MIB = BuildMI(newMBB, dl, TII->get(NotOpc), t8).addReg(t6);
-  } else {
-    t7 = t5;
-    t8 = t6;
-  }
-
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EAX);
-  MIB.addReg(t1);
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EDX);
-  MIB.addReg(t2);
-
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EBX);
-  MIB.addReg(t7);
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::ECX);
-  MIB.addReg(t8);
-
-  MIB = BuildMI(newMBB, dl, TII->get(X86::LCMPXCHG8B));
-  for (int i=0; i <= lastAddrIndx; ++i)
-    (*MIB).addOperand(*argOpers[i]);
-
-  assert(bInstr->hasOneMemOperand() && "Unexpected number of memoperand");
-  (*MIB).setMemRefs(bInstr->memoperands_begin(),
-                    bInstr->memoperands_end());
-
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t3);
-  MIB.addReg(X86::EAX);
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t4);
-  MIB.addReg(X86::EDX);
-
-  // insert branch
-  BuildMI(newMBB, dl, TII->get(X86::JNE_4)).addMBB(newMBB);
-
-  bInstr->eraseFromParent();   // The pseudo instruction is gone now.
-  return nextMBB;
-}
-
-// private utility function
-MachineBasicBlock *
-X86TargetLowering::EmitAtomicMinMaxWithCustomInserter(MachineInstr *mInstr,
-                                                      MachineBasicBlock *MBB,
-                                                      unsigned cmovOpc) const {
-  // For the atomic min/max operator, we generate
-  //   thisMBB:
-  //   newMBB:
-  //     ld t1 = [min/max.addr]
-  //     mov t2 = [min/max.val]
-  //     cmp  t1, t2
-  //     cmov[cond] t2 = t1
-  //     mov EAX = t1
-  //     lcs dest = [bitinstr.addr], t2  [EAX is implicit]
-  //     bz   newMBB
-  //     fallthrough -->nextMBB
+  // For the v = xbegin(), we generate
   //
-  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
-  const BasicBlock *LLVM_BB = MBB->getBasicBlock();
-  MachineFunction::iterator MBBIter = MBB;
-  ++MBBIter;
+  // thisMBB:
+  //  xbegin sinkMBB
+  //
+  // mainMBB:
+  //  eax = -1
+  //
+  // sinkMBB:
+  //  v = eax
 
-  /// First build the CFG
-  MachineFunction *F = MBB->getParent();
   MachineBasicBlock *thisMBB = MBB;
-  MachineBasicBlock *newMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  MachineBasicBlock *nextMBB = F->CreateMachineBasicBlock(LLVM_BB);
-  F->insert(MBBIter, newMBB);
-  F->insert(MBBIter, nextMBB);
+  MachineFunction *MF = MBB->getParent();
+  MachineBasicBlock *mainMBB = MF->CreateMachineBasicBlock(BB);
+  MachineBasicBlock *sinkMBB = MF->CreateMachineBasicBlock(BB);
+  MF->insert(I, mainMBB);
+  MF->insert(I, sinkMBB);
 
-  // Transfer the remainder of thisMBB and its successor edges to nextMBB.
-  nextMBB->splice(nextMBB->begin(), thisMBB,
-                  llvm::next(MachineBasicBlock::iterator(mInstr)),
-                  thisMBB->end());
-  nextMBB->transferSuccessorsAndUpdatePHIs(thisMBB);
+  // Transfer the remainder of BB and its successor edges to sinkMBB.
+  sinkMBB->splice(sinkMBB->begin(), MBB,
+                  llvm::next(MachineBasicBlock::iterator(MI)), MBB->end());
+  sinkMBB->transferSuccessorsAndUpdatePHIs(MBB);
 
-  // Update thisMBB to fall through to newMBB
-  thisMBB->addSuccessor(newMBB);
+  // thisMBB:
+  //  xbegin sinkMBB
+  //  # fallthrough to mainMBB
+  //  # abortion to sinkMBB
+  BuildMI(thisMBB, DL, TII->get(X86::XBEGIN_4)).addMBB(sinkMBB);
+  thisMBB->addSuccessor(mainMBB);
+  thisMBB->addSuccessor(sinkMBB);
 
-  // newMBB jumps to newMBB and fall through to nextMBB
-  newMBB->addSuccessor(nextMBB);
-  newMBB->addSuccessor(newMBB);
+  // mainMBB:
+  //  EAX = -1
+  BuildMI(mainMBB, DL, TII->get(X86::MOV32ri), X86::EAX).addImm(-1);
+  mainMBB->addSuccessor(sinkMBB);
 
-  DebugLoc dl = mInstr->getDebugLoc();
-  // Insert instructions into newMBB based on incoming instruction
-  assert(mInstr->getNumOperands() < X86::AddrNumOperands + 4 &&
-         "unexpected number of operands");
-  MachineOperand& destOper = mInstr->getOperand(0);
-  MachineOperand* argOpers[2 + X86::AddrNumOperands];
-  int numArgs = mInstr->getNumOperands() - 1;
-  for (int i=0; i < numArgs; ++i)
-    argOpers[i] = &mInstr->getOperand(i+1);
+  // sinkMBB:
+  // EAX is live into the sinkMBB
+  sinkMBB->addLiveIn(X86::EAX);
+  BuildMI(*sinkMBB, sinkMBB->begin(), DL,
+          TII->get(TargetOpcode::COPY), MI->getOperand(0).getReg())
+    .addReg(X86::EAX);
 
-  // x86 address has 4 operands: base, index, scale, and displacement
-  int lastAddrIndx = X86::AddrNumOperands - 1; // [0,3]
-  int valArgIndx = lastAddrIndx + 1;
+  MI->eraseFromParent();
+  return sinkMBB;
+}
 
-  unsigned t1 = F->getRegInfo().createVirtualRegister(X86::GR32RegisterClass);
-  MachineInstrBuilder MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rm), t1);
-  for (int i=0; i <= lastAddrIndx; ++i)
-    (*MIB).addOperand(*argOpers[i]);
+// Get CMPXCHG opcode for the specified data type.
+static unsigned getCmpXChgOpcode(EVT VT) {
+  switch (VT.getSimpleVT().SimpleTy) {
+  case MVT::i8:  return X86::LCMPXCHG8;
+  case MVT::i16: return X86::LCMPXCHG16;
+  case MVT::i32: return X86::LCMPXCHG32;
+  case MVT::i64: return X86::LCMPXCHG64;
+  default:
+    break;
+  }
+  llvm_unreachable("Invalid operand size!");
+}
 
-  // We only support register and immediate values
-  assert((argOpers[valArgIndx]->isReg() ||
-          argOpers[valArgIndx]->isImm()) &&
-         "invalid operand");
+// Get LOAD opcode for the specified data type.
+static unsigned getLoadOpcode(EVT VT) {
+  switch (VT.getSimpleVT().SimpleTy) {
+  case MVT::i8:  return X86::MOV8rm;
+  case MVT::i16: return X86::MOV16rm;
+  case MVT::i32: return X86::MOV32rm;
+  case MVT::i64: return X86::MOV64rm;
+  default:
+    break;
+  }
+  llvm_unreachable("Invalid operand size!");
+}
 
-  unsigned t2 = F->getRegInfo().createVirtualRegister(X86::GR32RegisterClass);
-  if (argOpers[valArgIndx]->isReg())
-    MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), t2);
-  else
-    MIB = BuildMI(newMBB, dl, TII->get(X86::MOV32rr), t2);
-  (*MIB).addOperand(*argOpers[valArgIndx]);
+// Get opcode of the non-atomic one from the specified atomic instruction.
+static unsigned getNonAtomicOpcode(unsigned Opc) {
+  switch (Opc) {
+  case X86::ATOMAND8:  return X86::AND8rr;
+  case X86::ATOMAND16: return X86::AND16rr;
+  case X86::ATOMAND32: return X86::AND32rr;
+  case X86::ATOMAND64: return X86::AND64rr;
+  case X86::ATOMOR8:   return X86::OR8rr;
+  case X86::ATOMOR16:  return X86::OR16rr;
+  case X86::ATOMOR32:  return X86::OR32rr;
+  case X86::ATOMOR64:  return X86::OR64rr;
+  case X86::ATOMXOR8:  return X86::XOR8rr;
+  case X86::ATOMXOR16: return X86::XOR16rr;
+  case X86::ATOMXOR32: return X86::XOR32rr;
+  case X86::ATOMXOR64: return X86::XOR64rr;
+  }
+  llvm_unreachable("Unhandled atomic-load-op opcode!");
+}
 
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), X86::EAX);
+// Get opcode of the non-atomic one from the specified atomic instruction with
+// extra opcode.
+static unsigned getNonAtomicOpcodeWithExtraOpc(unsigned Opc,
+                                               unsigned &ExtraOpc) {
+  switch (Opc) {
+  case X86::ATOMNAND8:  ExtraOpc = X86::NOT8r;   return X86::AND8rr;
+  case X86::ATOMNAND16: ExtraOpc = X86::NOT16r;  return X86::AND16rr;
+  case X86::ATOMNAND32: ExtraOpc = X86::NOT32r;  return X86::AND32rr;
+  case X86::ATOMNAND64: ExtraOpc = X86::NOT64r;  return X86::AND64rr;
+  case X86::ATOMMAX8:   ExtraOpc = X86::CMP8rr;  return X86::CMOVL32rr;
+  case X86::ATOMMAX16:  ExtraOpc = X86::CMP16rr; return X86::CMOVL16rr;
+  case X86::ATOMMAX32:  ExtraOpc = X86::CMP32rr; return X86::CMOVL32rr;
+  case X86::ATOMMAX64:  ExtraOpc = X86::CMP64rr; return X86::CMOVL64rr;
+  case X86::ATOMMIN8:   ExtraOpc = X86::CMP8rr;  return X86::CMOVG32rr;
+  case X86::ATOMMIN16:  ExtraOpc = X86::CMP16rr; return X86::CMOVG16rr;
+  case X86::ATOMMIN32:  ExtraOpc = X86::CMP32rr; return X86::CMOVG32rr;
+  case X86::ATOMMIN64:  ExtraOpc = X86::CMP64rr; return X86::CMOVG64rr;
+  case X86::ATOMUMAX8:  ExtraOpc = X86::CMP8rr;  return X86::CMOVB32rr;
+  case X86::ATOMUMAX16: ExtraOpc = X86::CMP16rr; return X86::CMOVB16rr;
+  case X86::ATOMUMAX32: ExtraOpc = X86::CMP32rr; return X86::CMOVB32rr;
+  case X86::ATOMUMAX64: ExtraOpc = X86::CMP64rr; return X86::CMOVB64rr;
+  case X86::ATOMUMIN8:  ExtraOpc = X86::CMP8rr;  return X86::CMOVA32rr;
+  case X86::ATOMUMIN16: ExtraOpc = X86::CMP16rr; return X86::CMOVA16rr;
+  case X86::ATOMUMIN32: ExtraOpc = X86::CMP32rr; return X86::CMOVA32rr;
+  case X86::ATOMUMIN64: ExtraOpc = X86::CMP64rr; return X86::CMOVA64rr;
+  }
+  llvm_unreachable("Unhandled atomic-load-op opcode!");
+}
+
+// Get opcode of the non-atomic one from the specified atomic instruction for
+// 64-bit data type on 32-bit target.
+static unsigned getNonAtomic6432Opcode(unsigned Opc, unsigned &HiOpc) {
+  switch (Opc) {
+  case X86::ATOMAND6432:  HiOpc = X86::AND32rr; return X86::AND32rr;
+  case X86::ATOMOR6432:   HiOpc = X86::OR32rr;  return X86::OR32rr;
+  case X86::ATOMXOR6432:  HiOpc = X86::XOR32rr; return X86::XOR32rr;
+  case X86::ATOMADD6432:  HiOpc = X86::ADC32rr; return X86::ADD32rr;
+  case X86::ATOMSUB6432:  HiOpc = X86::SBB32rr; return X86::SUB32rr;
+  case X86::ATOMSWAP6432: HiOpc = X86::MOV32rr; return X86::MOV32rr;
+  case X86::ATOMMAX6432:  HiOpc = X86::SETLr;   return X86::SETLr;
+  case X86::ATOMMIN6432:  HiOpc = X86::SETGr;   return X86::SETGr;
+  case X86::ATOMUMAX6432: HiOpc = X86::SETBr;   return X86::SETBr;
+  case X86::ATOMUMIN6432: HiOpc = X86::SETAr;   return X86::SETAr;
+  }
+  llvm_unreachable("Unhandled atomic-load-op opcode!");
+}
+
+// Get opcode of the non-atomic one from the specified atomic instruction for
+// 64-bit data type on 32-bit target with extra opcode.
+static unsigned getNonAtomic6432OpcodeWithExtraOpc(unsigned Opc,
+                                                   unsigned &HiOpc,
+                                                   unsigned &ExtraOpc) {
+  switch (Opc) {
+  case X86::ATOMNAND6432:
+    ExtraOpc = X86::NOT32r;
+    HiOpc = X86::AND32rr;
+    return X86::AND32rr;
+  }
+  llvm_unreachable("Unhandled atomic-load-op opcode!");
+}
+
+// Get pseudo CMOV opcode from the specified data type.
+static unsigned getPseudoCMOVOpc(EVT VT) {
+  switch (VT.getSimpleVT().SimpleTy) {
+  case MVT::i8:  return X86::CMOV_GR8;
+  case MVT::i16: return X86::CMOV_GR16;
+  case MVT::i32: return X86::CMOV_GR32;
+  default:
+    break;
+  }
+  llvm_unreachable("Unknown CMOV opcode!");
+}
+
+// EmitAtomicLoadArith - emit the code sequence for pseudo atomic instructions.
+// They will be translated into a spin-loop or compare-exchange loop from
+//
+//    ...
+//    dst = atomic-fetch-op MI.addr, MI.val
+//    ...
+//
+// to
+//
+//    ...
+//    EAX = LOAD MI.addr
+// loop:
+//    t1 = OP MI.val, EAX
+//    LCMPXCHG [MI.addr], t1, [EAX is implicitly used & defined]
+//    JNE loop
+// sink:
+//    dst = EAX
+//    ...
+MachineBasicBlock *
+X86TargetLowering::EmitAtomicLoadArith(MachineInstr *MI,
+                                       MachineBasicBlock *MBB) const {
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+  DebugLoc DL = MI->getDebugLoc();
+
+  MachineFunction *MF = MBB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  const BasicBlock *BB = MBB->getBasicBlock();
+  MachineFunction::iterator I = MBB;
+  ++I;
+
+  assert(MI->getNumOperands() <= X86::AddrNumOperands + 2 &&
+         "Unexpected number of operands");
+
+  assert(MI->hasOneMemOperand() &&
+         "Expected atomic-load-op to have one memoperand");
+
+  // Memory Reference
+  MachineInstr::mmo_iterator MMOBegin = MI->memoperands_begin();
+  MachineInstr::mmo_iterator MMOEnd = MI->memoperands_end();
+
+  unsigned DstReg, SrcReg;
+  unsigned MemOpndSlot;
+
+  unsigned CurOp = 0;
+
+  DstReg = MI->getOperand(CurOp++).getReg();
+  MemOpndSlot = CurOp;
+  CurOp += X86::AddrNumOperands;
+  SrcReg = MI->getOperand(CurOp++).getReg();
+
+  const TargetRegisterClass *RC = MRI.getRegClass(DstReg);
+  MVT::SimpleValueType VT = *RC->vt_begin();
+  unsigned AccPhyReg = getX86SubSuperRegister(X86::EAX, VT);
+
+  unsigned LCMPXCHGOpc = getCmpXChgOpcode(VT);
+  unsigned LOADOpc = getLoadOpcode(VT);
+
+  // For the atomic load-arith operator, we generate
+  //
+  //  thisMBB:
+  //    EAX = LOAD [MI.addr]
+  //  mainMBB:
+  //    t1 = OP MI.val, EAX
+  //    LCMPXCHG [MI.addr], t1, [EAX is implicitly used & defined]
+  //    JNE mainMBB
+  //  sinkMBB:
+
+  MachineBasicBlock *thisMBB = MBB;
+  MachineBasicBlock *mainMBB = MF->CreateMachineBasicBlock(BB);
+  MachineBasicBlock *sinkMBB = MF->CreateMachineBasicBlock(BB);
+  MF->insert(I, mainMBB);
+  MF->insert(I, sinkMBB);
+
+  MachineInstrBuilder MIB;
+
+  // Transfer the remainder of BB and its successor edges to sinkMBB.
+  sinkMBB->splice(sinkMBB->begin(), MBB,
+                  llvm::next(MachineBasicBlock::iterator(MI)), MBB->end());
+  sinkMBB->transferSuccessorsAndUpdatePHIs(MBB);
+
+  // thisMBB:
+  MIB = BuildMI(thisMBB, DL, TII->get(LOADOpc), AccPhyReg);
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i)
+    MIB.addOperand(MI->getOperand(MemOpndSlot + i));
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+
+  thisMBB->addSuccessor(mainMBB);
+
+  // mainMBB:
+  MachineBasicBlock *origMainMBB = mainMBB;
+  mainMBB->addLiveIn(AccPhyReg);
+
+  // Copy AccPhyReg as it is used more than once.
+  unsigned AccReg = MRI.createVirtualRegister(RC);
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), AccReg)
+    .addReg(AccPhyReg);
+
+  unsigned t1 = MRI.createVirtualRegister(RC);
+  unsigned Opc = MI->getOpcode();
+  switch (Opc) {
+  default:
+    llvm_unreachable("Unhandled atomic-load-op opcode!");
+  case X86::ATOMAND8:
+  case X86::ATOMAND16:
+  case X86::ATOMAND32:
+  case X86::ATOMAND64:
+  case X86::ATOMOR8:
+  case X86::ATOMOR16:
+  case X86::ATOMOR32:
+  case X86::ATOMOR64:
+  case X86::ATOMXOR8:
+  case X86::ATOMXOR16:
+  case X86::ATOMXOR32:
+  case X86::ATOMXOR64: {
+    unsigned ARITHOpc = getNonAtomicOpcode(Opc);
+    BuildMI(mainMBB, DL, TII->get(ARITHOpc), t1).addReg(SrcReg)
+      .addReg(AccReg);
+    break;
+  }
+  case X86::ATOMNAND8:
+  case X86::ATOMNAND16:
+  case X86::ATOMNAND32:
+  case X86::ATOMNAND64: {
+    unsigned t2 = MRI.createVirtualRegister(RC);
+    unsigned NOTOpc;
+    unsigned ANDOpc = getNonAtomicOpcodeWithExtraOpc(Opc, NOTOpc);
+    BuildMI(mainMBB, DL, TII->get(ANDOpc), t2).addReg(SrcReg)
+      .addReg(AccReg);
+    BuildMI(mainMBB, DL, TII->get(NOTOpc), t1).addReg(t2);
+    break;
+  }
+  case X86::ATOMMAX8:
+  case X86::ATOMMAX16:
+  case X86::ATOMMAX32:
+  case X86::ATOMMAX64:
+  case X86::ATOMMIN8:
+  case X86::ATOMMIN16:
+  case X86::ATOMMIN32:
+  case X86::ATOMMIN64:
+  case X86::ATOMUMAX8:
+  case X86::ATOMUMAX16:
+  case X86::ATOMUMAX32:
+  case X86::ATOMUMAX64:
+  case X86::ATOMUMIN8:
+  case X86::ATOMUMIN16:
+  case X86::ATOMUMIN32:
+  case X86::ATOMUMIN64: {
+    unsigned CMPOpc;
+    unsigned CMOVOpc = getNonAtomicOpcodeWithExtraOpc(Opc, CMPOpc);
+
+    BuildMI(mainMBB, DL, TII->get(CMPOpc))
+      .addReg(SrcReg)
+      .addReg(AccReg);
+
+    if (Subtarget->hasCMov()) {
+      if (VT != MVT::i8) {
+        // Native support
+        BuildMI(mainMBB, DL, TII->get(CMOVOpc), t1)
+          .addReg(SrcReg)
+          .addReg(AccReg);
+      } else {
+        // Promote i8 to i32 to use CMOV32
+        const TargetRegisterClass *RC32 = getRegClassFor(MVT::i32);
+        unsigned SrcReg32 = MRI.createVirtualRegister(RC32);
+        unsigned AccReg32 = MRI.createVirtualRegister(RC32);
+        unsigned t2 = MRI.createVirtualRegister(RC32);
+
+        unsigned Undef = MRI.createVirtualRegister(RC32);
+        BuildMI(mainMBB, DL, TII->get(TargetOpcode::IMPLICIT_DEF), Undef);
+
+        BuildMI(mainMBB, DL, TII->get(TargetOpcode::INSERT_SUBREG), SrcReg32)
+          .addReg(Undef)
+          .addReg(SrcReg)
+          .addImm(X86::sub_8bit);
+        BuildMI(mainMBB, DL, TII->get(TargetOpcode::INSERT_SUBREG), AccReg32)
+          .addReg(Undef)
+          .addReg(AccReg)
+          .addImm(X86::sub_8bit);
+
+        BuildMI(mainMBB, DL, TII->get(CMOVOpc), t2)
+          .addReg(SrcReg32)
+          .addReg(AccReg32);
+
+        BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), t1)
+          .addReg(t2, 0, X86::sub_8bit);
+      }
+    } else {
+      // Use pseudo select and lower them.
+      assert((VT == MVT::i8 || VT == MVT::i16 || VT == MVT::i32) &&
+             "Invalid atomic-load-op transformation!");
+      unsigned SelOpc = getPseudoCMOVOpc(VT);
+      X86::CondCode CC = X86::getCondFromCMovOpc(CMOVOpc);
+      assert(CC != X86::COND_INVALID && "Invalid atomic-load-op transformation!");
+      MIB = BuildMI(mainMBB, DL, TII->get(SelOpc), t1)
+              .addReg(SrcReg).addReg(AccReg)
+              .addImm(CC);
+      mainMBB = EmitLoweredSelect(MIB, mainMBB);
+    }
+    break;
+  }
+  }
+
+  // Copy AccPhyReg back from virtual register.
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), AccPhyReg)
+    .addReg(AccReg);
+
+  MIB = BuildMI(mainMBB, DL, TII->get(LCMPXCHGOpc));
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i)
+    MIB.addOperand(MI->getOperand(MemOpndSlot + i));
   MIB.addReg(t1);
+  MIB.setMemRefs(MMOBegin, MMOEnd);
 
-  MIB = BuildMI(newMBB, dl, TII->get(X86::CMP32rr));
-  MIB.addReg(t1);
-  MIB.addReg(t2);
+  BuildMI(mainMBB, DL, TII->get(X86::JNE_4)).addMBB(origMainMBB);
 
-  // Generate movc
-  unsigned t3 = F->getRegInfo().createVirtualRegister(X86::GR32RegisterClass);
-  MIB = BuildMI(newMBB, dl, TII->get(cmovOpc),t3);
-  MIB.addReg(t2);
-  MIB.addReg(t1);
+  mainMBB->addSuccessor(origMainMBB);
+  mainMBB->addSuccessor(sinkMBB);
 
-  // Cmp and exchange if none has modified the memory location
-  MIB = BuildMI(newMBB, dl, TII->get(X86::LCMPXCHG32));
-  for (int i=0; i <= lastAddrIndx; ++i)
-    (*MIB).addOperand(*argOpers[i]);
-  MIB.addReg(t3);
-  assert(mInstr->hasOneMemOperand() && "Unexpected number of memoperand");
-  (*MIB).setMemRefs(mInstr->memoperands_begin(),
-                    mInstr->memoperands_end());
+  // sinkMBB:
+  sinkMBB->addLiveIn(AccPhyReg);
 
-  MIB = BuildMI(newMBB, dl, TII->get(TargetOpcode::COPY), destOper.getReg());
-  MIB.addReg(X86::EAX);
+  BuildMI(*sinkMBB, sinkMBB->begin(), DL,
+          TII->get(TargetOpcode::COPY), DstReg)
+    .addReg(AccPhyReg);
 
-  // insert branch
-  BuildMI(newMBB, dl, TII->get(X86::JNE_4)).addMBB(newMBB);
+  MI->eraseFromParent();
+  return sinkMBB;
+}
 
-  mInstr->eraseFromParent();   // The pseudo instruction is gone now.
-  return nextMBB;
+// EmitAtomicLoadArith6432 - emit the code sequence for pseudo atomic
+// instructions. They will be translated into a spin-loop or compare-exchange
+// loop from
+//
+//    ...
+//    dst = atomic-fetch-op MI.addr, MI.val
+//    ...
+//
+// to
+//
+//    ...
+//    EAX = LOAD [MI.addr + 0]
+//    EDX = LOAD [MI.addr + 4]
+// loop:
+//    EBX = OP MI.val.lo, EAX
+//    ECX = OP MI.val.hi, EDX
+//    LCMPXCHG8B [MI.addr], [ECX:EBX & EDX:EAX are implicitly used and EDX:EAX is implicitly defined]
+//    JNE loop
+// sink:
+//    dst = EDX:EAX
+//    ...
+MachineBasicBlock *
+X86TargetLowering::EmitAtomicLoadArith6432(MachineInstr *MI,
+                                           MachineBasicBlock *MBB) const {
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+  DebugLoc DL = MI->getDebugLoc();
+
+  MachineFunction *MF = MBB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  const BasicBlock *BB = MBB->getBasicBlock();
+  MachineFunction::iterator I = MBB;
+  ++I;
+
+  assert(MI->getNumOperands() <= X86::AddrNumOperands + 4 &&
+         "Unexpected number of operands");
+
+  assert(MI->hasOneMemOperand() &&
+         "Expected atomic-load-op32 to have one memoperand");
+
+  // Memory Reference
+  MachineInstr::mmo_iterator MMOBegin = MI->memoperands_begin();
+  MachineInstr::mmo_iterator MMOEnd = MI->memoperands_end();
+
+  unsigned DstLoReg, DstHiReg;
+  unsigned SrcLoReg, SrcHiReg;
+  unsigned MemOpndSlot;
+
+  unsigned CurOp = 0;
+
+  DstLoReg = MI->getOperand(CurOp++).getReg();
+  DstHiReg = MI->getOperand(CurOp++).getReg();
+  MemOpndSlot = CurOp;
+  CurOp += X86::AddrNumOperands;
+  SrcLoReg = MI->getOperand(CurOp++).getReg();
+  SrcHiReg = MI->getOperand(CurOp++).getReg();
+
+  const TargetRegisterClass *RC = &X86::GR32RegClass;
+  const TargetRegisterClass *RC8 = &X86::GR8RegClass;
+
+  unsigned LCMPXCHGOpc = X86::LCMPXCHG8B;
+  unsigned LOADOpc = X86::MOV32rm;
+
+  // For the atomic load-arith operator, we generate
+  //
+  //  thisMBB:
+  //    EAX = LOAD [MI.addr + 0]
+  //    EDX = LOAD [MI.addr + 4]
+  //  mainMBB:
+  //    EBX = OP MI.vallo, EAX
+  //    ECX = OP MI.valhi, EDX
+  //    LCMPXCHG8B [MI.addr], [ECX:EBX & EDX:EAX are implicitly used and EDX:EAX is implicitly defined]
+  //    JNE mainMBB
+  //  sinkMBB:
+
+  MachineBasicBlock *thisMBB = MBB;
+  MachineBasicBlock *mainMBB = MF->CreateMachineBasicBlock(BB);
+  MachineBasicBlock *sinkMBB = MF->CreateMachineBasicBlock(BB);
+  MF->insert(I, mainMBB);
+  MF->insert(I, sinkMBB);
+
+  MachineInstrBuilder MIB;
+
+  // Transfer the remainder of BB and its successor edges to sinkMBB.
+  sinkMBB->splice(sinkMBB->begin(), MBB,
+                  llvm::next(MachineBasicBlock::iterator(MI)), MBB->end());
+  sinkMBB->transferSuccessorsAndUpdatePHIs(MBB);
+
+  // thisMBB:
+  // Lo
+  MIB = BuildMI(thisMBB, DL, TII->get(LOADOpc), X86::EAX);
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i)
+    MIB.addOperand(MI->getOperand(MemOpndSlot + i));
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+  // Hi
+  MIB = BuildMI(thisMBB, DL, TII->get(LOADOpc), X86::EDX);
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i) {
+    if (i == X86::AddrDisp)
+      MIB.addDisp(MI->getOperand(MemOpndSlot + i), 4); // 4 == sizeof(i32)
+    else
+      MIB.addOperand(MI->getOperand(MemOpndSlot + i));
+  }
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+
+  thisMBB->addSuccessor(mainMBB);
+
+  // mainMBB:
+  MachineBasicBlock *origMainMBB = mainMBB;
+  mainMBB->addLiveIn(X86::EAX);
+  mainMBB->addLiveIn(X86::EDX);
+
+  // Copy EDX:EAX as they are used more than once.
+  unsigned LoReg = MRI.createVirtualRegister(RC);
+  unsigned HiReg = MRI.createVirtualRegister(RC);
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), LoReg).addReg(X86::EAX);
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), HiReg).addReg(X86::EDX);
+
+  unsigned t1L = MRI.createVirtualRegister(RC);
+  unsigned t1H = MRI.createVirtualRegister(RC);
+
+  unsigned Opc = MI->getOpcode();
+  switch (Opc) {
+  default:
+    llvm_unreachable("Unhandled atomic-load-op6432 opcode!");
+  case X86::ATOMAND6432:
+  case X86::ATOMOR6432:
+  case X86::ATOMXOR6432:
+  case X86::ATOMADD6432:
+  case X86::ATOMSUB6432: {
+    unsigned HiOpc;
+    unsigned LoOpc = getNonAtomic6432Opcode(Opc, HiOpc);
+    BuildMI(mainMBB, DL, TII->get(LoOpc), t1L).addReg(LoReg).addReg(SrcLoReg);
+    BuildMI(mainMBB, DL, TII->get(HiOpc), t1H).addReg(HiReg).addReg(SrcHiReg);
+    break;
+  }
+  case X86::ATOMNAND6432: {
+    unsigned HiOpc, NOTOpc;
+    unsigned LoOpc = getNonAtomic6432OpcodeWithExtraOpc(Opc, HiOpc, NOTOpc);
+    unsigned t2L = MRI.createVirtualRegister(RC);
+    unsigned t2H = MRI.createVirtualRegister(RC);
+    BuildMI(mainMBB, DL, TII->get(LoOpc), t2L).addReg(SrcLoReg).addReg(LoReg);
+    BuildMI(mainMBB, DL, TII->get(HiOpc), t2H).addReg(SrcHiReg).addReg(HiReg);
+    BuildMI(mainMBB, DL, TII->get(NOTOpc), t1L).addReg(t2L);
+    BuildMI(mainMBB, DL, TII->get(NOTOpc), t1H).addReg(t2H);
+    break;
+  }
+  case X86::ATOMMAX6432:
+  case X86::ATOMMIN6432:
+  case X86::ATOMUMAX6432:
+  case X86::ATOMUMIN6432: {
+    unsigned HiOpc;
+    unsigned LoOpc = getNonAtomic6432Opcode(Opc, HiOpc);
+    unsigned cL = MRI.createVirtualRegister(RC8);
+    unsigned cH = MRI.createVirtualRegister(RC8);
+    unsigned cL32 = MRI.createVirtualRegister(RC);
+    unsigned cH32 = MRI.createVirtualRegister(RC);
+    unsigned cc = MRI.createVirtualRegister(RC);
+    // cl := cmp src_lo, lo
+    BuildMI(mainMBB, DL, TII->get(X86::CMP32rr))
+      .addReg(SrcLoReg).addReg(LoReg);
+    BuildMI(mainMBB, DL, TII->get(LoOpc), cL);
+    BuildMI(mainMBB, DL, TII->get(X86::MOVZX32rr8), cL32).addReg(cL);
+    // ch := cmp src_hi, hi
+    BuildMI(mainMBB, DL, TII->get(X86::CMP32rr))
+      .addReg(SrcHiReg).addReg(HiReg);
+    BuildMI(mainMBB, DL, TII->get(HiOpc), cH);
+    BuildMI(mainMBB, DL, TII->get(X86::MOVZX32rr8), cH32).addReg(cH);
+    // cc := if (src_hi == hi) ? cl : ch;
+    if (Subtarget->hasCMov()) {
+      BuildMI(mainMBB, DL, TII->get(X86::CMOVE32rr), cc)
+        .addReg(cH32).addReg(cL32);
+    } else {
+      MIB = BuildMI(mainMBB, DL, TII->get(X86::CMOV_GR32), cc)
+              .addReg(cH32).addReg(cL32)
+              .addImm(X86::COND_E);
+      mainMBB = EmitLoweredSelect(MIB, mainMBB);
+    }
+    BuildMI(mainMBB, DL, TII->get(X86::TEST32rr)).addReg(cc).addReg(cc);
+    if (Subtarget->hasCMov()) {
+      BuildMI(mainMBB, DL, TII->get(X86::CMOVNE32rr), t1L)
+        .addReg(SrcLoReg).addReg(LoReg);
+      BuildMI(mainMBB, DL, TII->get(X86::CMOVNE32rr), t1H)
+        .addReg(SrcHiReg).addReg(HiReg);
+    } else {
+      MIB = BuildMI(mainMBB, DL, TII->get(X86::CMOV_GR32), t1L)
+              .addReg(SrcLoReg).addReg(LoReg)
+              .addImm(X86::COND_NE);
+      mainMBB = EmitLoweredSelect(MIB, mainMBB);
+      MIB = BuildMI(mainMBB, DL, TII->get(X86::CMOV_GR32), t1H)
+              .addReg(SrcHiReg).addReg(HiReg)
+              .addImm(X86::COND_NE);
+      mainMBB = EmitLoweredSelect(MIB, mainMBB);
+    }
+    break;
+  }
+  case X86::ATOMSWAP6432: {
+    unsigned HiOpc;
+    unsigned LoOpc = getNonAtomic6432Opcode(Opc, HiOpc);
+    BuildMI(mainMBB, DL, TII->get(LoOpc), t1L).addReg(SrcLoReg);
+    BuildMI(mainMBB, DL, TII->get(HiOpc), t1H).addReg(SrcHiReg);
+    break;
+  }
+  }
+
+  // Copy EDX:EAX back from HiReg:LoReg
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), X86::EAX).addReg(LoReg);
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), X86::EDX).addReg(HiReg);
+  // Copy ECX:EBX from t1H:t1L
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), X86::EBX).addReg(t1L);
+  BuildMI(mainMBB, DL, TII->get(TargetOpcode::COPY), X86::ECX).addReg(t1H);
+
+  MIB = BuildMI(mainMBB, DL, TII->get(LCMPXCHGOpc));
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i)
+    MIB.addOperand(MI->getOperand(MemOpndSlot + i));
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+
+  BuildMI(mainMBB, DL, TII->get(X86::JNE_4)).addMBB(origMainMBB);
+
+  mainMBB->addSuccessor(origMainMBB);
+  mainMBB->addSuccessor(sinkMBB);
+
+  // sinkMBB:
+  sinkMBB->addLiveIn(X86::EAX);
+  sinkMBB->addLiveIn(X86::EDX);
+
+  BuildMI(*sinkMBB, sinkMBB->begin(), DL,
+          TII->get(TargetOpcode::COPY), DstLoReg)
+    .addReg(X86::EAX);
+  BuildMI(*sinkMBB, sinkMBB->begin(), DL,
+          TII->get(TargetOpcode::COPY), DstHiReg)
+    .addReg(X86::EDX);
+
+  MI->eraseFromParent();
+  return sinkMBB;
 }
 
 // FIXME: When we get size specific XMM0 registers, i.e. XMM0_V16I8
 // or XMM0_V32I8 in AVX all of this code can be replaced with that
 // in the .td file.
-MachineBasicBlock *
-X86TargetLowering::EmitPCMP(MachineInstr *MI, MachineBasicBlock *BB,
-                            unsigned numArgs, bool memArg) const {
-  assert(Subtarget->hasSSE42() &&
-         "Target must have SSE4.2 or AVX features enabled");
-
-  DebugLoc dl = MI->getDebugLoc();
-  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+static MachineBasicBlock *EmitPCMPSTRM(MachineInstr *MI, MachineBasicBlock *BB,
+                                       const TargetInstrInfo *TII) {
   unsigned Opc;
-  if (!Subtarget->hasAVX()) {
-    if (memArg)
-      Opc = numArgs == 3 ? X86::PCMPISTRM128rm : X86::PCMPESTRM128rm;
-    else
-      Opc = numArgs == 3 ? X86::PCMPISTRM128rr : X86::PCMPESTRM128rr;
-  } else {
-    if (memArg)
-      Opc = numArgs == 3 ? X86::VPCMPISTRM128rm : X86::VPCMPESTRM128rm;
-    else
-      Opc = numArgs == 3 ? X86::VPCMPISTRM128rr : X86::VPCMPESTRM128rr;
+  switch (MI->getOpcode()) {
+  default: llvm_unreachable("illegal opcode!");
+  case X86::PCMPISTRM128REG:  Opc = X86::PCMPISTRM128rr;  break;
+  case X86::VPCMPISTRM128REG: Opc = X86::VPCMPISTRM128rr; break;
+  case X86::PCMPISTRM128MEM:  Opc = X86::PCMPISTRM128rm;  break;
+  case X86::VPCMPISTRM128MEM: Opc = X86::VPCMPISTRM128rm; break;
+  case X86::PCMPESTRM128REG:  Opc = X86::PCMPESTRM128rr;  break;
+  case X86::VPCMPESTRM128REG: Opc = X86::VPCMPESTRM128rr; break;
+  case X86::PCMPESTRM128MEM:  Opc = X86::PCMPESTRM128rm;  break;
+  case X86::VPCMPESTRM128MEM: Opc = X86::VPCMPESTRM128rm; break;
   }
 
+  DebugLoc dl = MI->getDebugLoc();
   MachineInstrBuilder MIB = BuildMI(*BB, MI, dl, TII->get(Opc));
-  for (unsigned i = 0; i < numArgs; ++i) {
-    MachineOperand &Op = MI->getOperand(i+1);
+
+  unsigned NumArgs = MI->getNumOperands();
+  for (unsigned i = 1; i < NumArgs; ++i) {
+    MachineOperand &Op = MI->getOperand(i);
     if (!(Op.isReg() && Op.isImplicit()))
       MIB.addOperand(Op);
   }
+  if (MI->hasOneMemOperand())
+    MIB->setMemRefs(MI->memoperands_begin(), MI->memoperands_end());
+
   BuildMI(*BB, MI, dl,
-    TII->get(Subtarget->hasAVX() ? X86::VMOVAPSrr : X86::MOVAPSrr),
-             MI->getOperand(0).getReg())
+    TII->get(TargetOpcode::COPY), MI->getOperand(0).getReg())
     .addReg(X86::XMM0);
 
   MI->eraseFromParent();
   return BB;
 }
 
-MachineBasicBlock *
-X86TargetLowering::EmitMonitor(MachineInstr *MI, MachineBasicBlock *BB) const {
+// FIXME: Custom handling because TableGen doesn't support multiple implicit
+// defs in an instruction pattern
+static MachineBasicBlock *EmitPCMPSTRI(MachineInstr *MI, MachineBasicBlock *BB,
+                                       const TargetInstrInfo *TII) {
+  unsigned Opc;
+  switch (MI->getOpcode()) {
+  default: llvm_unreachable("illegal opcode!");
+  case X86::PCMPISTRIREG:  Opc = X86::PCMPISTRIrr;  break;
+  case X86::VPCMPISTRIREG: Opc = X86::VPCMPISTRIrr; break;
+  case X86::PCMPISTRIMEM:  Opc = X86::PCMPISTRIrm;  break;
+  case X86::VPCMPISTRIMEM: Opc = X86::VPCMPISTRIrm; break;
+  case X86::PCMPESTRIREG:  Opc = X86::PCMPESTRIrr;  break;
+  case X86::VPCMPESTRIREG: Opc = X86::VPCMPESTRIrr; break;
+  case X86::PCMPESTRIMEM:  Opc = X86::PCMPESTRIrm;  break;
+  case X86::VPCMPESTRIMEM: Opc = X86::VPCMPESTRIrm; break;
+  }
+
   DebugLoc dl = MI->getDebugLoc();
-  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+  MachineInstrBuilder MIB = BuildMI(*BB, MI, dl, TII->get(Opc));
+
+  unsigned NumArgs = MI->getNumOperands(); // remove the results
+  for (unsigned i = 1; i < NumArgs; ++i) {
+    MachineOperand &Op = MI->getOperand(i);
+    if (!(Op.isReg() && Op.isImplicit()))
+      MIB.addOperand(Op);
+  }
+  if (MI->hasOneMemOperand())
+    MIB->setMemRefs(MI->memoperands_begin(), MI->memoperands_end());
+
+  BuildMI(*BB, MI, dl,
+    TII->get(TargetOpcode::COPY), MI->getOperand(0).getReg())
+    .addReg(X86::ECX);
+
+  MI->eraseFromParent();
+  return BB;
+}
+
+static MachineBasicBlock * EmitMonitor(MachineInstr *MI, MachineBasicBlock *BB,
+                                       const TargetInstrInfo *TII,
+                                       const X86Subtarget* Subtarget) {
+  DebugLoc dl = MI->getDebugLoc();
 
   // Address into RAX/EAX, other two args into ECX, EDX.
   unsigned MemOpc = Subtarget->is64Bit() ? X86::LEA64r : X86::LEA32r;
@@ -11772,24 +12929,6 @@ X86TargetLowering::EmitMonitor(MachineInstr *MI, MachineBasicBlock *BB) const {
 
   // The instruction doesn't actually take any operands though.
   BuildMI(*BB, MI, dl, TII->get(X86::MONITORrrr));
-
-  MI->eraseFromParent(); // The pseudo is gone now.
-  return BB;
-}
-
-MachineBasicBlock *
-X86TargetLowering::EmitMwait(MachineInstr *MI, MachineBasicBlock *BB) const {
-  DebugLoc dl = MI->getDebugLoc();
-  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
-
-  // First arg in ECX, the second in EAX.
-  BuildMI(*BB, MI, dl, TII->get(TargetOpcode::COPY), X86::ECX)
-    .addReg(MI->getOperand(0).getReg());
-  BuildMI(*BB, MI, dl, TII->get(TargetOpcode::COPY), X86::EAX)
-    .addReg(MI->getOperand(1).getReg());
-
-  // The instruction doesn't actually take any operands though.
-  BuildMI(*BB, MI, dl, TII->get(X86::MWAITrr));
 
   MI->eraseFromParent(); // The pseudo is gone now.
   return BB;
@@ -12308,8 +13447,9 @@ X86TargetLowering::EmitLoweredSegAlloca(MachineInstr *MI, MachineBasicBlock *BB,
     BuildMI(mallocMBB, DL, TII->get(X86::MOV64rr), X86::RDI)
       .addReg(sizeVReg);
     BuildMI(mallocMBB, DL, TII->get(X86::CALL64pcrel32))
-      .addExternalSymbol("__morestack_allocate_stack_space").addReg(X86::RDI)
+      .addExternalSymbol("__morestack_allocate_stack_space")
       .addRegMask(RegMask)
+      .addReg(X86::RDI, RegState::Implicit)
       .addReg(X86::RAX, RegState::ImplicitDefine);
   } else {
     BuildMI(mallocMBB, DL, TII->get(X86::SUB32ri), physSPReg).addReg(physSPReg)
@@ -12461,6 +13601,203 @@ X86TargetLowering::EmitLoweredTLSCall(MachineInstr *MI,
 }
 
 MachineBasicBlock *
+X86TargetLowering::emitEHSjLjSetJmp(MachineInstr *MI,
+                                    MachineBasicBlock *MBB) const {
+  DebugLoc DL = MI->getDebugLoc();
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+
+  MachineFunction *MF = MBB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  const BasicBlock *BB = MBB->getBasicBlock();
+  MachineFunction::iterator I = MBB;
+  ++I;
+
+  // Memory Reference
+  MachineInstr::mmo_iterator MMOBegin = MI->memoperands_begin();
+  MachineInstr::mmo_iterator MMOEnd = MI->memoperands_end();
+
+  unsigned DstReg;
+  unsigned MemOpndSlot = 0;
+
+  unsigned CurOp = 0;
+
+  DstReg = MI->getOperand(CurOp++).getReg();
+  const TargetRegisterClass *RC = MRI.getRegClass(DstReg);
+  assert(RC->hasType(MVT::i32) && "Invalid destination!");
+  unsigned mainDstReg = MRI.createVirtualRegister(RC);
+  unsigned restoreDstReg = MRI.createVirtualRegister(RC);
+
+  MemOpndSlot = CurOp;
+
+  MVT PVT = getPointerTy();
+  assert((PVT == MVT::i64 || PVT == MVT::i32) &&
+         "Invalid Pointer Size!");
+
+  // For v = setjmp(buf), we generate
+  //
+  // thisMBB:
+  //  buf[LabelOffset] = restoreMBB
+  //  SjLjSetup restoreMBB
+  //
+  // mainMBB:
+  //  v_main = 0
+  //
+  // sinkMBB:
+  //  v = phi(main, restore)
+  //
+  // restoreMBB:
+  //  v_restore = 1
+
+  MachineBasicBlock *thisMBB = MBB;
+  MachineBasicBlock *mainMBB = MF->CreateMachineBasicBlock(BB);
+  MachineBasicBlock *sinkMBB = MF->CreateMachineBasicBlock(BB);
+  MachineBasicBlock *restoreMBB = MF->CreateMachineBasicBlock(BB);
+  MF->insert(I, mainMBB);
+  MF->insert(I, sinkMBB);
+  MF->push_back(restoreMBB);
+
+  MachineInstrBuilder MIB;
+
+  // Transfer the remainder of BB and its successor edges to sinkMBB.
+  sinkMBB->splice(sinkMBB->begin(), MBB,
+                  llvm::next(MachineBasicBlock::iterator(MI)), MBB->end());
+  sinkMBB->transferSuccessorsAndUpdatePHIs(MBB);
+
+  // thisMBB:
+  unsigned PtrStoreOpc = 0;
+  unsigned LabelReg = 0;
+  const int64_t LabelOffset = 1 * PVT.getStoreSize();
+  Reloc::Model RM = getTargetMachine().getRelocationModel();
+  bool UseImmLabel = (getTargetMachine().getCodeModel() == CodeModel::Small) &&
+                     (RM == Reloc::Static || RM == Reloc::DynamicNoPIC);
+
+  // Prepare IP either in reg or imm.
+  if (!UseImmLabel) {
+    PtrStoreOpc = (PVT == MVT::i64) ? X86::MOV64mr : X86::MOV32mr;
+    const TargetRegisterClass *PtrRC = getRegClassFor(PVT);
+    LabelReg = MRI.createVirtualRegister(PtrRC);
+    if (Subtarget->is64Bit()) {
+      MIB = BuildMI(*thisMBB, MI, DL, TII->get(X86::LEA64r), LabelReg)
+              .addReg(X86::RIP)
+              .addImm(0)
+              .addReg(0)
+              .addMBB(restoreMBB)
+              .addReg(0);
+    } else {
+      const X86InstrInfo *XII = static_cast<const X86InstrInfo*>(TII);
+      MIB = BuildMI(*thisMBB, MI, DL, TII->get(X86::LEA32r), LabelReg)
+              .addReg(XII->getGlobalBaseReg(MF))
+              .addImm(0)
+              .addReg(0)
+              .addMBB(restoreMBB, Subtarget->ClassifyBlockAddressReference())
+              .addReg(0);
+    }
+  } else
+    PtrStoreOpc = (PVT == MVT::i64) ? X86::MOV64mi32 : X86::MOV32mi;
+  // Store IP
+  MIB = BuildMI(*thisMBB, MI, DL, TII->get(PtrStoreOpc));
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i) {
+    if (i == X86::AddrDisp)
+      MIB.addDisp(MI->getOperand(MemOpndSlot + i), LabelOffset);
+    else
+      MIB.addOperand(MI->getOperand(MemOpndSlot + i));
+  }
+  if (!UseImmLabel)
+    MIB.addReg(LabelReg);
+  else
+    MIB.addMBB(restoreMBB);
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+  // Setup
+  MIB = BuildMI(*thisMBB, MI, DL, TII->get(X86::EH_SjLj_Setup))
+          .addMBB(restoreMBB);
+  MIB.addRegMask(RegInfo->getNoPreservedMask());
+  thisMBB->addSuccessor(mainMBB);
+  thisMBB->addSuccessor(restoreMBB);
+
+  // mainMBB:
+  //  EAX = 0
+  BuildMI(mainMBB, DL, TII->get(X86::MOV32r0), mainDstReg);
+  mainMBB->addSuccessor(sinkMBB);
+
+  // sinkMBB:
+  BuildMI(*sinkMBB, sinkMBB->begin(), DL,
+          TII->get(X86::PHI), DstReg)
+    .addReg(mainDstReg).addMBB(mainMBB)
+    .addReg(restoreDstReg).addMBB(restoreMBB);
+
+  // restoreMBB:
+  BuildMI(restoreMBB, DL, TII->get(X86::MOV32ri), restoreDstReg).addImm(1);
+  BuildMI(restoreMBB, DL, TII->get(X86::JMP_4)).addMBB(sinkMBB);
+  restoreMBB->addSuccessor(sinkMBB);
+
+  MI->eraseFromParent();
+  return sinkMBB;
+}
+
+MachineBasicBlock *
+X86TargetLowering::emitEHSjLjLongJmp(MachineInstr *MI,
+                                     MachineBasicBlock *MBB) const {
+  DebugLoc DL = MI->getDebugLoc();
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+
+  MachineFunction *MF = MBB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  // Memory Reference
+  MachineInstr::mmo_iterator MMOBegin = MI->memoperands_begin();
+  MachineInstr::mmo_iterator MMOEnd = MI->memoperands_end();
+
+  MVT PVT = getPointerTy();
+  assert((PVT == MVT::i64 || PVT == MVT::i32) &&
+         "Invalid Pointer Size!");
+
+  const TargetRegisterClass *RC =
+    (PVT == MVT::i64) ? &X86::GR64RegClass : &X86::GR32RegClass;
+  unsigned Tmp = MRI.createVirtualRegister(RC);
+  // Since FP is only updated here but NOT referenced, it's treated as GPR.
+  unsigned FP = (PVT == MVT::i64) ? X86::RBP : X86::EBP;
+  unsigned SP = RegInfo->getStackRegister();
+
+  MachineInstrBuilder MIB;
+
+  const int64_t LabelOffset = 1 * PVT.getStoreSize();
+  const int64_t SPOffset = 2 * PVT.getStoreSize();
+
+  unsigned PtrLoadOpc = (PVT == MVT::i64) ? X86::MOV64rm : X86::MOV32rm;
+  unsigned IJmpOpc = (PVT == MVT::i64) ? X86::JMP64r : X86::JMP32r;
+
+  // Reload FP
+  MIB = BuildMI(*MBB, MI, DL, TII->get(PtrLoadOpc), FP);
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i)
+    MIB.addOperand(MI->getOperand(i));
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+  // Reload IP
+  MIB = BuildMI(*MBB, MI, DL, TII->get(PtrLoadOpc), Tmp);
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i) {
+    if (i == X86::AddrDisp)
+      MIB.addDisp(MI->getOperand(i), LabelOffset);
+    else
+      MIB.addOperand(MI->getOperand(i));
+  }
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+  // Reload SP
+  MIB = BuildMI(*MBB, MI, DL, TII->get(PtrLoadOpc), SP);
+  for (unsigned i = 0; i < X86::AddrNumOperands; ++i) {
+    if (i == X86::AddrDisp)
+      MIB.addDisp(MI->getOperand(i), SPOffset);
+    else
+      MIB.addOperand(MI->getOperand(i));
+  }
+  MIB.setMemRefs(MMOBegin, MMOEnd);
+  // Jump
+  BuildMI(*MBB, MI, DL, TII->get(IJmpOpc)).addReg(Tmp);
+
+  MI->eraseFromParent();
+  return MBB;
+}
+
+MachineBasicBlock *
 X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
                                                MachineBasicBlock *BB) const {
   switch (MI->getOpcode()) {
@@ -12519,7 +13856,7 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 
     // Load the old value of the high byte of the control word...
     unsigned OldCW =
-      F->getRegInfo().createVirtualRegister(X86::GR16RegisterClass);
+      F->getRegInfo().createVirtualRegister(&X86::GR16RegClass);
     addFrameReference(BuildMI(*BB, MI, DL, TII->get(X86::MOV16rm), OldCW),
                       CWFrameIdx);
 
@@ -12584,190 +13921,106 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     // String/text processing lowering.
   case X86::PCMPISTRM128REG:
   case X86::VPCMPISTRM128REG:
-    return EmitPCMP(MI, BB, 3, false /* in-mem */);
   case X86::PCMPISTRM128MEM:
   case X86::VPCMPISTRM128MEM:
-    return EmitPCMP(MI, BB, 3, true /* in-mem */);
   case X86::PCMPESTRM128REG:
   case X86::VPCMPESTRM128REG:
-    return EmitPCMP(MI, BB, 5, false /* in mem */);
   case X86::PCMPESTRM128MEM:
   case X86::VPCMPESTRM128MEM:
-    return EmitPCMP(MI, BB, 5, true /* in mem */);
+    assert(Subtarget->hasSSE42() &&
+           "Target must have SSE4.2 or AVX features enabled");
+    return EmitPCMPSTRM(MI, BB, getTargetMachine().getInstrInfo());
 
-    // Thread synchronization.
+  // String/text processing lowering.
+  case X86::PCMPISTRIREG:
+  case X86::VPCMPISTRIREG:
+  case X86::PCMPISTRIMEM:
+  case X86::VPCMPISTRIMEM:
+  case X86::PCMPESTRIREG:
+  case X86::VPCMPESTRIREG:
+  case X86::PCMPESTRIMEM:
+  case X86::VPCMPESTRIMEM:
+    assert(Subtarget->hasSSE42() &&
+           "Target must have SSE4.2 or AVX features enabled");
+    return EmitPCMPSTRI(MI, BB, getTargetMachine().getInstrInfo());
+
+  // Thread synchronization.
   case X86::MONITOR:
-    return EmitMonitor(MI, BB);
-  case X86::MWAIT:
-    return EmitMwait(MI, BB);
+    return EmitMonitor(MI, BB, getTargetMachine().getInstrInfo(), Subtarget);
 
-    // Atomic Lowering.
-  case X86::ATOMAND32:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND32rr,
-                                               X86::AND32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32,
-                                               X86::NOT32r, X86::EAX,
-                                               X86::GR32RegisterClass);
-  case X86::ATOMOR32:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR32rr,
-                                               X86::OR32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32,
-                                               X86::NOT32r, X86::EAX,
-                                               X86::GR32RegisterClass);
-  case X86::ATOMXOR32:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR32rr,
-                                               X86::XOR32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32,
-                                               X86::NOT32r, X86::EAX,
-                                               X86::GR32RegisterClass);
-  case X86::ATOMNAND32:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND32rr,
-                                               X86::AND32ri, X86::MOV32rm,
-                                               X86::LCMPXCHG32,
-                                               X86::NOT32r, X86::EAX,
-                                               X86::GR32RegisterClass, true);
-  case X86::ATOMMIN32:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVL32rr);
-  case X86::ATOMMAX32:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVG32rr);
-  case X86::ATOMUMIN32:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVB32rr);
-  case X86::ATOMUMAX32:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVA32rr);
+  // xbegin
+  case X86::XBEGIN:
+    return EmitXBegin(MI, BB, getTargetMachine().getInstrInfo());
 
-  case X86::ATOMAND16:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND16rr,
-                                               X86::AND16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16,
-                                               X86::NOT16r, X86::AX,
-                                               X86::GR16RegisterClass);
-  case X86::ATOMOR16:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR16rr,
-                                               X86::OR16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16,
-                                               X86::NOT16r, X86::AX,
-                                               X86::GR16RegisterClass);
-  case X86::ATOMXOR16:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR16rr,
-                                               X86::XOR16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16,
-                                               X86::NOT16r, X86::AX,
-                                               X86::GR16RegisterClass);
-  case X86::ATOMNAND16:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND16rr,
-                                               X86::AND16ri, X86::MOV16rm,
-                                               X86::LCMPXCHG16,
-                                               X86::NOT16r, X86::AX,
-                                               X86::GR16RegisterClass, true);
-  case X86::ATOMMIN16:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVL16rr);
-  case X86::ATOMMAX16:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVG16rr);
-  case X86::ATOMUMIN16:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVB16rr);
-  case X86::ATOMUMAX16:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVA16rr);
-
+  // Atomic Lowering.
   case X86::ATOMAND8:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND8rr,
-                                               X86::AND8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8,
-                                               X86::NOT8r, X86::AL,
-                                               X86::GR8RegisterClass);
-  case X86::ATOMOR8:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR8rr,
-                                               X86::OR8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8,
-                                               X86::NOT8r, X86::AL,
-                                               X86::GR8RegisterClass);
-  case X86::ATOMXOR8:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR8rr,
-                                               X86::XOR8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8,
-                                               X86::NOT8r, X86::AL,
-                                               X86::GR8RegisterClass);
-  case X86::ATOMNAND8:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND8rr,
-                                               X86::AND8ri, X86::MOV8rm,
-                                               X86::LCMPXCHG8,
-                                               X86::NOT8r, X86::AL,
-                                               X86::GR8RegisterClass, true);
-  // FIXME: There are no CMOV8 instructions; MIN/MAX need some other way.
-  // This group is for 64-bit host.
+  case X86::ATOMAND16:
+  case X86::ATOMAND32:
   case X86::ATOMAND64:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND64rr,
-                                               X86::AND64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64,
-                                               X86::NOT64r, X86::RAX,
-                                               X86::GR64RegisterClass);
+    // Fall through
+  case X86::ATOMOR8:
+  case X86::ATOMOR16:
+  case X86::ATOMOR32:
   case X86::ATOMOR64:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::OR64rr,
-                                               X86::OR64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64,
-                                               X86::NOT64r, X86::RAX,
-                                               X86::GR64RegisterClass);
+    // Fall through
+  case X86::ATOMXOR16:
+  case X86::ATOMXOR8:
+  case X86::ATOMXOR32:
   case X86::ATOMXOR64:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::XOR64rr,
-                                               X86::XOR64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64,
-                                               X86::NOT64r, X86::RAX,
-                                               X86::GR64RegisterClass);
+    // Fall through
+  case X86::ATOMNAND8:
+  case X86::ATOMNAND16:
+  case X86::ATOMNAND32:
   case X86::ATOMNAND64:
-    return EmitAtomicBitwiseWithCustomInserter(MI, BB, X86::AND64rr,
-                                               X86::AND64ri32, X86::MOV64rm,
-                                               X86::LCMPXCHG64,
-                                               X86::NOT64r, X86::RAX,
-                                               X86::GR64RegisterClass, true);
-  case X86::ATOMMIN64:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVL64rr);
+    // Fall through
+  case X86::ATOMMAX8:
+  case X86::ATOMMAX16:
+  case X86::ATOMMAX32:
   case X86::ATOMMAX64:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVG64rr);
-  case X86::ATOMUMIN64:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVB64rr);
+    // Fall through
+  case X86::ATOMMIN8:
+  case X86::ATOMMIN16:
+  case X86::ATOMMIN32:
+  case X86::ATOMMIN64:
+    // Fall through
+  case X86::ATOMUMAX8:
+  case X86::ATOMUMAX16:
+  case X86::ATOMUMAX32:
   case X86::ATOMUMAX64:
-    return EmitAtomicMinMaxWithCustomInserter(MI, BB, X86::CMOVA64rr);
+    // Fall through
+  case X86::ATOMUMIN8:
+  case X86::ATOMUMIN16:
+  case X86::ATOMUMIN32:
+  case X86::ATOMUMIN64:
+    return EmitAtomicLoadArith(MI, BB);
 
   // This group does 64-bit operations on a 32-bit host.
   case X86::ATOMAND6432:
-    return EmitAtomicBit6432WithCustomInserter(MI, BB,
-                                               X86::AND32rr, X86::AND32rr,
-                                               X86::AND32ri, X86::AND32ri,
-                                               false);
   case X86::ATOMOR6432:
-    return EmitAtomicBit6432WithCustomInserter(MI, BB,
-                                               X86::OR32rr, X86::OR32rr,
-                                               X86::OR32ri, X86::OR32ri,
-                                               false);
   case X86::ATOMXOR6432:
-    return EmitAtomicBit6432WithCustomInserter(MI, BB,
-                                               X86::XOR32rr, X86::XOR32rr,
-                                               X86::XOR32ri, X86::XOR32ri,
-                                               false);
   case X86::ATOMNAND6432:
-    return EmitAtomicBit6432WithCustomInserter(MI, BB,
-                                               X86::AND32rr, X86::AND32rr,
-                                               X86::AND32ri, X86::AND32ri,
-                                               true);
   case X86::ATOMADD6432:
-    return EmitAtomicBit6432WithCustomInserter(MI, BB,
-                                               X86::ADD32rr, X86::ADC32rr,
-                                               X86::ADD32ri, X86::ADC32ri,
-                                               false);
   case X86::ATOMSUB6432:
-    return EmitAtomicBit6432WithCustomInserter(MI, BB,
-                                               X86::SUB32rr, X86::SBB32rr,
-                                               X86::SUB32ri, X86::SBB32ri,
-                                               false);
+  case X86::ATOMMAX6432:
+  case X86::ATOMMIN6432:
+  case X86::ATOMUMAX6432:
+  case X86::ATOMUMIN6432:
   case X86::ATOMSWAP6432:
-    return EmitAtomicBit6432WithCustomInserter(MI, BB,
-                                               X86::MOV32rr, X86::MOV32rr,
-                                               X86::MOV32ri, X86::MOV32ri,
-                                               false);
+    return EmitAtomicLoadArith6432(MI, BB);
+
   case X86::VASTART_SAVE_XMM_REGS:
     return EmitVAStartSaveXMMRegsWithCustomInserter(MI, BB);
 
   case X86::VAARG_64:
     return EmitVAARG64WithCustomInserter(MI, BB);
+
+  case X86::EH_SjLj_SetJmp32:
+  case X86::EH_SjLj_SetJmp64:
+    return emitEHSjLjSetJmp(MI, BB);
+
+  case X86::EH_SjLj_LongJmp32:
+  case X86::EH_SjLj_LongJmp64:
+    return emitEHSjLjLongJmp(MI, BB);
   }
 }
 
@@ -12872,10 +14125,10 @@ bool X86TargetLowering::isGAPlusOffset(SDNode *N,
 /// inserting the result into the low part of a new 256-bit vector
 static bool isShuffleHigh128VectorInsertLow(ShuffleVectorSDNode *SVOp) {
   EVT VT = SVOp->getValueType(0);
-  int NumElems = VT.getVectorNumElements();
+  unsigned NumElems = VT.getVectorNumElements();
 
   // vector_shuffle <4, 5, 6, 7, u, u, u, u> or <2, 3, u, u>
-  for (int i = 0, j = NumElems/2; i < NumElems/2; ++i, ++j)
+  for (unsigned i = 0, j = NumElems/2; i != NumElems/2; ++i, ++j)
     if (!isUndefOrEqual(SVOp->getMaskElt(i), j) ||
         SVOp->getMaskElt(j) >= 0)
       return false;
@@ -12888,10 +14141,10 @@ static bool isShuffleHigh128VectorInsertLow(ShuffleVectorSDNode *SVOp) {
 /// inserting the result into the high part of a new 256-bit vector
 static bool isShuffleLow128VectorInsertHigh(ShuffleVectorSDNode *SVOp) {
   EVT VT = SVOp->getValueType(0);
-  int NumElems = VT.getVectorNumElements();
+  unsigned NumElems = VT.getVectorNumElements();
 
   // vector_shuffle <u, u, u, u, 0, 1, 2, 3> or <u, u, 0, 1>
-  for (int i = NumElems/2, j = 0; i < NumElems; ++i, ++j)
+  for (unsigned i = NumElems/2, j = 0; i != NumElems; ++i, ++j)
     if (!isUndefOrEqual(SVOp->getMaskElt(i), j) ||
         SVOp->getMaskElt(j) >= 0)
       return false;
@@ -12908,7 +14161,7 @@ static SDValue PerformShuffleCombine256(SDNode *N, SelectionDAG &DAG,
   SDValue V1 = SVOp->getOperand(0);
   SDValue V2 = SVOp->getOperand(1);
   EVT VT = SVOp->getValueType(0);
-  int NumElems = VT.getVectorNumElements();
+  unsigned NumElems = VT.getVectorNumElements();
 
   if (V1.getOpcode() == ISD::CONCAT_VECTORS &&
       V2.getOpcode() == ISD::CONCAT_VECTORS) {
@@ -12933,30 +14186,31 @@ static SDValue PerformShuffleCombine256(SDNode *N, SelectionDAG &DAG,
     // To match the shuffle mask, the first half of the mask should
     // be exactly the first vector, and all the rest a splat with the
     // first element of the second one.
-    for (int i = 0; i < NumElems/2; ++i)
+    for (unsigned i = 0; i != NumElems/2; ++i)
       if (!isUndefOrEqual(SVOp->getMaskElt(i), i) ||
           !isUndefOrEqual(SVOp->getMaskElt(i+NumElems/2), NumElems))
         return SDValue();
 
     // If V1 is coming from a vector load then just fold to a VZEXT_LOAD.
     if (LoadSDNode *Ld = dyn_cast<LoadSDNode>(V1.getOperand(0))) {
-      SDVTList Tys = DAG.getVTList(MVT::v4i64, MVT::Other);
-      SDValue Ops[] = { Ld->getChain(), Ld->getBasePtr() };
-      SDValue ResNode =
-        DAG.getMemIntrinsicNode(X86ISD::VZEXT_LOAD, dl, Tys, Ops, 2,
-                                Ld->getMemoryVT(),
-                                Ld->getPointerInfo(),
-                                Ld->getAlignment(),
-                                false/*isVolatile*/, true/*ReadMem*/,
-                                false/*WriteMem*/);
-      return DAG.getNode(ISD::BITCAST, dl, VT, ResNode);
-    } 
+      if (Ld->hasNUsesOfValue(1, 0)) {
+        SDVTList Tys = DAG.getVTList(MVT::v4i64, MVT::Other);
+        SDValue Ops[] = { Ld->getChain(), Ld->getBasePtr() };
+        SDValue ResNode =
+          DAG.getMemIntrinsicNode(X86ISD::VZEXT_LOAD, dl, Tys, Ops, 2,
+                                  Ld->getMemoryVT(),
+                                  Ld->getPointerInfo(),
+                                  Ld->getAlignment(),
+                                  false/*isVolatile*/, true/*ReadMem*/,
+                                  false/*WriteMem*/);
+        return DAG.getNode(ISD::BITCAST, dl, VT, ResNode);
+      }
+    }
 
     // Emit a zeroed vector and insert the desired subvector on its
     // first half.
     SDValue Zeros = getZeroVector(VT, Subtarget, DAG, dl);
-    SDValue InsV = Insert128BitVector(Zeros, V1.getOperand(0),
-                         DAG.getConstant(0, MVT::i32), DAG, dl);
+    SDValue InsV = Insert128BitVector(Zeros, V1.getOperand(0), 0, DAG, dl);
     return DCI.CombineTo(N, InsV);
   }
 
@@ -12966,18 +14220,15 @@ static SDValue PerformShuffleCombine256(SDNode *N, SelectionDAG &DAG,
 
   // vector_shuffle <4, 5, 6, 7, u, u, u, u> or <2, 3, u, u>
   if (isShuffleHigh128VectorInsertLow(SVOp)) {
-    SDValue V = Extract128BitVector(V1, DAG.getConstant(NumElems/2, MVT::i32),
-                                    DAG, dl);
-    SDValue InsV = Insert128BitVector(DAG.getNode(ISD::UNDEF, dl, VT),
-                                      V, DAG.getConstant(0, MVT::i32), DAG, dl);
+    SDValue V = Extract128BitVector(V1, NumElems/2, DAG, dl);
+    SDValue InsV = Insert128BitVector(DAG.getUNDEF(VT), V, 0, DAG, dl);
     return DCI.CombineTo(N, InsV);
   }
 
   // vector_shuffle <u, u, u, u, 0, 1, 2, 3> or <u, u, 0, 1>
   if (isShuffleLow128VectorInsertHigh(SVOp)) {
-    SDValue V = Extract128BitVector(V1, DAG.getConstant(0, MVT::i32), DAG, dl);
-    SDValue InsV = Insert128BitVector(DAG.getNode(ISD::UNDEF, dl, VT),
-                             V, DAG.getConstant(NumElems/2, MVT::i32), DAG, dl);
+    SDValue V = Extract128BitVector(V1, 0, DAG, dl);
+    SDValue InsV = Insert128BitVector(DAG.getUNDEF(VT), V, NumElems/2, DAG, dl);
     return DCI.CombineTo(N, InsV);
   }
 
@@ -12997,12 +14248,12 @@ static SDValue PerformShuffleCombine(SDNode *N, SelectionDAG &DAG,
     return SDValue();
 
   // Combine 256-bit vector shuffles. This is only profitable when in AVX mode
-  if (Subtarget->hasAVX() && VT.getSizeInBits() == 256 &&
+  if (Subtarget->hasAVX() && VT.is256BitVector() &&
       N->getOpcode() == ISD::VECTOR_SHUFFLE)
     return PerformShuffleCombine256(N, DAG, DCI, Subtarget);
 
   // Only handle 128 wide vector from here on.
-  if (VT.getSizeInBits() != 128)
+  if (!VT.is128BitVector())
     return SDValue();
 
   // Combine a vector_shuffle that is equal to build_vector load1, load2, load3,
@@ -13019,13 +14270,14 @@ static SDValue PerformShuffleCombine(SDNode *N, SelectionDAG &DAG,
 /// PerformTruncateCombine - Converts truncate operation to
 /// a sequence of vector shuffle operations.
 /// It is possible when we truncate 256-bit vector to 128-bit vector
-
-SDValue X86TargetLowering::PerformTruncateCombine(SDNode *N, SelectionDAG &DAG, 
-                                                  DAGCombinerInfo &DCI) const {
+static SDValue PerformTruncateCombine(SDNode *N, SelectionDAG &DAG,
+                                      TargetLowering::DAGCombinerInfo &DCI,
+                                      const X86Subtarget *Subtarget)  {
   if (!DCI.isBeforeLegalizeOps())
     return SDValue();
 
-  if (!Subtarget->hasAVX()) return SDValue();
+  if (!Subtarget->hasAVX())
+    return SDValue();
 
   EVT VT = N->getValueType(0);
   SDValue Op = N->getOperand(0);
@@ -13034,55 +14286,102 @@ SDValue X86TargetLowering::PerformTruncateCombine(SDNode *N, SelectionDAG &DAG,
 
   if ((VT == MVT::v4i32) && (OpVT == MVT::v4i64)) {
 
+    if (Subtarget->hasAVX2()) {
+      // AVX2: v4i64 -> v4i32
+
+      // VPERMD
+      static const int ShufMask[] = {0, 2, 4, 6, -1, -1, -1, -1};
+
+      Op = DAG.getNode(ISD::BITCAST, dl, MVT::v8i32, Op);
+      Op = DAG.getVectorShuffle(MVT::v8i32, dl, Op, DAG.getUNDEF(MVT::v8i32),
+                                ShufMask);
+
+      return DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, VT, Op,
+                         DAG.getIntPtrConstant(0));
+    }
+
+    // AVX: v4i64 -> v4i32
     SDValue OpLo = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, MVT::v2i64, Op,
-                          DAG.getIntPtrConstant(0));
+                               DAG.getIntPtrConstant(0));
 
     SDValue OpHi = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, MVT::v2i64, Op,
-                          DAG.getIntPtrConstant(2));
+                               DAG.getIntPtrConstant(2));
 
     OpLo = DAG.getNode(ISD::BITCAST, dl, MVT::v4i32, OpLo);
     OpHi = DAG.getNode(ISD::BITCAST, dl, MVT::v4i32, OpHi);
 
     // PSHUFD
-    int ShufMask1[] = {0, 2, 0, 0};
+    static const int ShufMask1[] = {0, 2, 0, 0};
 
-    OpLo = DAG.getVectorShuffle(VT, dl, OpLo, DAG.getUNDEF(VT),
-                                ShufMask1);
-    OpHi = DAG.getVectorShuffle(VT, dl, OpHi, DAG.getUNDEF(VT),
-                                ShufMask1);
+    SDValue Undef = DAG.getUNDEF(VT);
+    OpLo = DAG.getVectorShuffle(VT, dl, OpLo, Undef, ShufMask1);
+    OpHi = DAG.getVectorShuffle(VT, dl, OpHi, Undef, ShufMask1);
 
     // MOVLHPS
-    int ShufMask2[] = {0, 1, 4, 5};
+    static const int ShufMask2[] = {0, 1, 4, 5};
 
     return DAG.getVectorShuffle(VT, dl, OpLo, OpHi, ShufMask2);
   }
+
   if ((VT == MVT::v8i16) && (OpVT == MVT::v8i32)) {
 
+    if (Subtarget->hasAVX2()) {
+      // AVX2: v8i32 -> v8i16
+
+      Op = DAG.getNode(ISD::BITCAST, dl, MVT::v32i8, Op);
+
+      // PSHUFB
+      SmallVector<SDValue,32> pshufbMask;
+      for (unsigned i = 0; i < 2; ++i) {
+        pshufbMask.push_back(DAG.getConstant(0x0, MVT::i8));
+        pshufbMask.push_back(DAG.getConstant(0x1, MVT::i8));
+        pshufbMask.push_back(DAG.getConstant(0x4, MVT::i8));
+        pshufbMask.push_back(DAG.getConstant(0x5, MVT::i8));
+        pshufbMask.push_back(DAG.getConstant(0x8, MVT::i8));
+        pshufbMask.push_back(DAG.getConstant(0x9, MVT::i8));
+        pshufbMask.push_back(DAG.getConstant(0xc, MVT::i8));
+        pshufbMask.push_back(DAG.getConstant(0xd, MVT::i8));
+        for (unsigned j = 0; j < 8; ++j)
+          pshufbMask.push_back(DAG.getConstant(0x80, MVT::i8));
+      }
+      SDValue BV = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v32i8,
+                               &pshufbMask[0], 32);
+      Op = DAG.getNode(X86ISD::PSHUFB, dl, MVT::v32i8, Op, BV);
+
+      Op = DAG.getNode(ISD::BITCAST, dl, MVT::v4i64, Op);
+
+      static const int ShufMask[] = {0,  2,  -1,  -1};
+      Op = DAG.getVectorShuffle(MVT::v4i64, dl,  Op, DAG.getUNDEF(MVT::v4i64),
+                                &ShufMask[0]);
+
+      Op = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, MVT::v2i64, Op,
+                       DAG.getIntPtrConstant(0));
+
+      return DAG.getNode(ISD::BITCAST, dl, VT, Op);
+    }
+
     SDValue OpLo = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, MVT::v4i32, Op,
-                          DAG.getIntPtrConstant(0));
+                               DAG.getIntPtrConstant(0));
 
     SDValue OpHi = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, MVT::v4i32, Op,
-                          DAG.getIntPtrConstant(4));
+                               DAG.getIntPtrConstant(4));
 
     OpLo = DAG.getNode(ISD::BITCAST, dl, MVT::v16i8, OpLo);
     OpHi = DAG.getNode(ISD::BITCAST, dl, MVT::v16i8, OpHi);
 
     // PSHUFB
-    int ShufMask1[] = {0,  1,  4,  5,  8,  9, 12, 13, 
-                      -1, -1, -1, -1, -1, -1, -1, -1};
+    static const int ShufMask1[] = {0,  1,  4,  5,  8,  9, 12, 13,
+                                   -1, -1, -1, -1, -1, -1, -1, -1};
 
-    OpLo = DAG.getVectorShuffle(MVT::v16i8, dl, OpLo,
-                                DAG.getUNDEF(MVT::v16i8),
-                                ShufMask1);
-    OpHi = DAG.getVectorShuffle(MVT::v16i8, dl, OpHi,
-                                DAG.getUNDEF(MVT::v16i8),
-                                ShufMask1);
+    SDValue Undef = DAG.getUNDEF(MVT::v16i8);
+    OpLo = DAG.getVectorShuffle(MVT::v16i8, dl, OpLo, Undef, ShufMask1);
+    OpHi = DAG.getVectorShuffle(MVT::v16i8, dl, OpHi, Undef, ShufMask1);
 
     OpLo = DAG.getNode(ISD::BITCAST, dl, MVT::v4i32, OpLo);
     OpHi = DAG.getNode(ISD::BITCAST, dl, MVT::v4i32, OpHi);
 
     // MOVLHPS
-    int ShufMask2[] = {0, 1, 4, 5};
+    static const int ShufMask2[] = {0, 1, 4, 5};
 
     SDValue res = DAG.getVectorShuffle(MVT::v4i32, dl, OpLo, OpHi, ShufMask2);
     return DAG.getNode(ISD::BITCAST, dl, MVT::v8i16, res);
@@ -13129,7 +14428,8 @@ static SDValue XFormVExtractWithShuffleIntoLoad(SDNode *N, SelectionDAG &DAG,
 
   SmallVector<int, 16> ShuffleMask;
   bool UnaryShuffle;
-  if (!getTargetShuffleMask(InVec.getNode(), VT, ShuffleMask, UnaryShuffle))
+  if (!getTargetShuffleMask(InVec.getNode(), VT.getSimpleVT(), ShuffleMask,
+                            UnaryShuffle))
     return SDValue();
 
   // Select the input vector, guarding against out of range extract vector.
@@ -13164,7 +14464,7 @@ static SDValue XFormVExtractWithShuffleIntoLoad(SDNode *N, SelectionDAG &DAG,
     // alignment is valid.
     unsigned Align = LN0->getAlignment();
     const TargetLowering &TLI = DAG.getTargetLoweringInfo();
-    unsigned NewAlign = TLI.getTargetData()->
+    unsigned NewAlign = TLI.getDataLayout()->
       getABITypeAlignment(VT.getTypeForEVT(*DAG.getContext()));
 
     if (NewAlign > Align || !TLI.isOperationLegalOrCustom(ISD::LOAD, VT))
@@ -13195,6 +14495,14 @@ static SDValue PerformEXTRACT_VECTOR_ELTCombine(SDNode *N, SelectionDAG &DAG,
     return NewOp;
 
   SDValue InputVector = N->getOperand(0);
+  // Detect whether we are trying to convert from mmx to i32 and the bitcast
+  // from mmx to v2i32 has a single usage.
+  if (InputVector.getNode()->getOpcode() == llvm::ISD::BITCAST &&
+      InputVector.getNode()->getOperand(0).getValueType() == MVT::x86mmx &&
+      InputVector.hasOneUse() && N->getValueType(0) == MVT::i32)
+    return DAG.getNode(X86ISD::MMX_MOVD2W, InputVector.getDebugLoc(),
+                       N->getValueType(0),
+                       InputVector.getNode()->getOperand(0));
 
   // Only operate on vectors of 4 elements, where the alternative shuffling
   // gets to be more expensive.
@@ -13278,8 +14586,6 @@ static SDValue PerformEXTRACT_VECTOR_ELTCombine(SDNode *N, SelectionDAG &DAG,
 static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
                                     TargetLowering::DAGCombinerInfo &DCI,
                                     const X86Subtarget *Subtarget) {
-
-
   DebugLoc DL = N->getDebugLoc();
   SDValue Cond = N->getOperand(0);
   // Get the LHS/RHS of the select.
@@ -13561,9 +14867,13 @@ static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
   // to simplify previous instructions.
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   if (N->getOpcode() == ISD::VSELECT && DCI.isBeforeLegalizeOps() &&
-      !DCI.isBeforeLegalize() &&
-      TLI.isOperationLegal(ISD::VSELECT, VT)) {
+      !DCI.isBeforeLegalize() && TLI.isOperationLegal(ISD::VSELECT, VT)) {
     unsigned BitWidth = Cond.getValueType().getScalarType().getSizeInBits();
+
+    // Don't optimize vector selects that map to mask-registers.
+    if (BitWidth == 1)
+      return SDValue();
+
     assert(BitWidth >= 8 && BitWidth <= 64 && "Invalid mask size");
     APInt DemandedMask = APInt::getHighBitsSet(BitWidth, 1);
 
@@ -13578,9 +14888,106 @@ static SDValue PerformSELECTCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
+// Check whether a boolean test is testing a boolean value generated by
+// X86ISD::SETCC. If so, return the operand of that SETCC and proper condition
+// code.
+//
+// Simplify the following patterns:
+// (Op (CMP (SETCC Cond EFLAGS) 1) EQ) or
+// (Op (CMP (SETCC Cond EFLAGS) 0) NEQ)
+// to (Op EFLAGS Cond)
+//
+// (Op (CMP (SETCC Cond EFLAGS) 0) EQ) or
+// (Op (CMP (SETCC Cond EFLAGS) 1) NEQ)
+// to (Op EFLAGS !Cond)
+//
+// where Op could be BRCOND or CMOV.
+//
+static SDValue checkBoolTestSetCCCombine(SDValue Cmp, X86::CondCode &CC) {
+  // Quit if not CMP and SUB with its value result used.
+  if (Cmp.getOpcode() != X86ISD::CMP &&
+      (Cmp.getOpcode() != X86ISD::SUB || Cmp.getNode()->hasAnyUseOfValue(0)))
+      return SDValue();
+
+  // Quit if not used as a boolean value.
+  if (CC != X86::COND_E && CC != X86::COND_NE)
+    return SDValue();
+
+  // Check CMP operands. One of them should be 0 or 1 and the other should be
+  // an SetCC or extended from it.
+  SDValue Op1 = Cmp.getOperand(0);
+  SDValue Op2 = Cmp.getOperand(1);
+
+  SDValue SetCC;
+  const ConstantSDNode* C = 0;
+  bool needOppositeCond = (CC == X86::COND_E);
+
+  if ((C = dyn_cast<ConstantSDNode>(Op1)))
+    SetCC = Op2;
+  else if ((C = dyn_cast<ConstantSDNode>(Op2)))
+    SetCC = Op1;
+  else // Quit if all operands are not constants.
+    return SDValue();
+
+  if (C->getZExtValue() == 1)
+    needOppositeCond = !needOppositeCond;
+  else if (C->getZExtValue() != 0)
+    // Quit if the constant is neither 0 or 1.
+    return SDValue();
+
+  // Skip 'zext' node.
+  if (SetCC.getOpcode() == ISD::ZERO_EXTEND)
+    SetCC = SetCC.getOperand(0);
+
+  switch (SetCC.getOpcode()) {
+  case X86ISD::SETCC:
+    // Set the condition code or opposite one if necessary.
+    CC = X86::CondCode(SetCC.getConstantOperandVal(0));
+    if (needOppositeCond)
+      CC = X86::GetOppositeBranchCondition(CC);
+    return SetCC.getOperand(1);
+  case X86ISD::CMOV: {
+    // Check whether false/true value has canonical one, i.e. 0 or 1.
+    ConstantSDNode *FVal = dyn_cast<ConstantSDNode>(SetCC.getOperand(0));
+    ConstantSDNode *TVal = dyn_cast<ConstantSDNode>(SetCC.getOperand(1));
+    // Quit if true value is not a constant.
+    if (!TVal)
+      return SDValue();
+    // Quit if false value is not a constant.
+    if (!FVal) {
+      // A special case for rdrand, where 0 is set if false cond is found.
+      SDValue Op = SetCC.getOperand(0);
+      if (Op.getOpcode() != X86ISD::RDRAND)
+        return SDValue();
+    }
+    // Quit if false value is not the constant 0 or 1.
+    bool FValIsFalse = true;
+    if (FVal && FVal->getZExtValue() != 0) {
+      if (FVal->getZExtValue() != 1)
+        return SDValue();
+      // If FVal is 1, opposite cond is needed.
+      needOppositeCond = !needOppositeCond;
+      FValIsFalse = false;
+    }
+    // Quit if TVal is not the constant opposite of FVal.
+    if (FValIsFalse && TVal->getZExtValue() != 1)
+      return SDValue();
+    if (!FValIsFalse && TVal->getZExtValue() != 0)
+      return SDValue();
+    CC = X86::CondCode(SetCC.getConstantOperandVal(2));
+    if (needOppositeCond)
+      CC = X86::GetOppositeBranchCondition(CC);
+    return SetCC.getOperand(3);
+  }
+  }
+
+  return SDValue();
+}
+
 /// Optimize X86ISD::CMOV [LHS, RHS, CONDCODE (e.g. X86::COND_NE), CONDVAL]
 static SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG,
-                                  TargetLowering::DAGCombinerInfo &DCI) {
+                                  TargetLowering::DAGCombinerInfo &DCI,
+                                  const X86Subtarget *Subtarget) {
   DebugLoc DL = N->getDebugLoc();
 
   // If the flag operand isn't dead, don't touch this CMOV.
@@ -13591,6 +14998,7 @@ static SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG,
   SDValue TrueOp = N->getOperand(1);
   X86::CondCode CC = (X86::CondCode)N->getConstantOperandVal(2);
   SDValue Cond = N->getOperand(3);
+
   if (CC == X86::COND_E || CC == X86::COND_NE) {
     switch (Cond.getOpcode()) {
     default: break;
@@ -13600,6 +15008,18 @@ static SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG,
       if (DAG.isKnownNeverZero(Cond.getOperand(0)))
         return (CC == X86::COND_E) ? FalseOp : TrueOp;
     }
+  }
+
+  SDValue Flags;
+
+  Flags = checkBoolTestSetCCCombine(Cond, CC);
+  if (Flags.getNode() &&
+      // Extra check as FCMOV only supports a subset of X86 cond.
+      (FalseOp.getValueType() != MVT::f80 || hasFPCMov(CC))) {
+    SDValue Ops[] = { FalseOp, TrueOp,
+                      DAG.getConstant(CC, MVT::i8), Flags };
+    return DAG.getNode(X86ISD::CMOV, DL, N->getVTList(),
+                       Ops, array_lengthof(Ops));
   }
 
   // If this is a select between two integer constants, try to do some
@@ -13612,6 +15032,7 @@ static SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG,
       if (TrueC->getAPIntValue().ult(FalseC->getAPIntValue())) {
         CC = X86::GetOppositeBranchCondition(CC);
         std::swap(TrueC, FalseC);
+        std::swap(TrueOp, FalseOp);
       }
 
       // Optimize C ? 8 : 0 -> zext(setcc(C)) << 3.  Likewise for any pow2/0.
@@ -13694,6 +15115,46 @@ static SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG,
       }
     }
   }
+
+  // Handle these cases:
+  //   (select (x != c), e, c) -> select (x != c), e, x),
+  //   (select (x == c), c, e) -> select (x == c), x, e)
+  // where the c is an integer constant, and the "select" is the combination
+  // of CMOV and CMP.
+  //
+  // The rationale for this change is that the conditional-move from a constant
+  // needs two instructions, however, conditional-move from a register needs
+  // only one instruction.
+  //
+  // CAVEAT: By replacing a constant with a symbolic value, it may obscure
+  //  some instruction-combining opportunities. This opt needs to be
+  //  postponed as late as possible.
+  //
+  if (!DCI.isBeforeLegalize() && !DCI.isBeforeLegalizeOps()) {
+    // the DCI.xxxx conditions are provided to postpone the optimization as
+    // late as possible.
+
+    ConstantSDNode *CmpAgainst = 0;
+    if ((Cond.getOpcode() == X86ISD::CMP || Cond.getOpcode() == X86ISD::SUB) &&
+        (CmpAgainst = dyn_cast<ConstantSDNode>(Cond.getOperand(1))) &&
+        dyn_cast<ConstantSDNode>(Cond.getOperand(0)) == 0) {
+
+      if (CC == X86::COND_NE &&
+          CmpAgainst == dyn_cast<ConstantSDNode>(FalseOp)) {
+        CC = X86::GetOppositeBranchCondition(CC);
+        std::swap(TrueOp, FalseOp);
+      }
+
+      if (CC == X86::COND_E &&
+          CmpAgainst == dyn_cast<ConstantSDNode>(TrueOp)) {
+        SDValue Ops[] = { FalseOp, Cond.getOperand(0),
+                          DAG.getConstant(CC, MVT::i8), Cond };
+        return DAG.getNode(X86ISD::CMOV, DL, N->getVTList (), Ops,
+                           array_lengthof(Ops));
+      }
+    }
+  }
+
   return SDValue();
 }
 
@@ -14024,7 +15485,7 @@ static bool CanFoldXORWithAllOnes(const SDNode *N) {
 
   // Sometimes the operand may come from a insert_subvector building a 256-bit
   // allones vector
-  if (VT.getSizeInBits() == 256 &&
+  if (VT.is256BitVector() &&
       N->getOpcode() == ISD::INSERT_SUBVECTOR) {
     SDValue V1 = N->getOperand(0);
     SDValue V2 = N->getOperand(1);
@@ -14262,11 +15723,56 @@ static SDValue PerformOrCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
+// Generate NEG and CMOV for integer abs.
+static SDValue performIntegerAbsCombine(SDNode *N, SelectionDAG &DAG) {
+  EVT VT = N->getValueType(0);
+
+  // Since X86 does not have CMOV for 8-bit integer, we don't convert
+  // 8-bit integer abs to NEG and CMOV.
+  if (VT.isInteger() && VT.getSizeInBits() == 8)
+    return SDValue();
+
+  SDValue N0 = N->getOperand(0);
+  SDValue N1 = N->getOperand(1);
+  DebugLoc DL = N->getDebugLoc();
+
+  // Check pattern of XOR(ADD(X,Y), Y) where Y is SRA(X, size(X)-1)
+  // and change it to SUB and CMOV.
+  if (VT.isInteger() && N->getOpcode() == ISD::XOR &&
+      N0.getOpcode() == ISD::ADD &&
+      N0.getOperand(1) == N1 &&
+      N1.getOpcode() == ISD::SRA &&
+      N1.getOperand(0) == N0.getOperand(0))
+    if (ConstantSDNode *Y1C = dyn_cast<ConstantSDNode>(N1.getOperand(1)))
+      if (Y1C->getAPIntValue() == VT.getSizeInBits()-1) {
+        // Generate SUB & CMOV.
+        SDValue Neg = DAG.getNode(X86ISD::SUB, DL, DAG.getVTList(VT, MVT::i32),
+                                  DAG.getConstant(0, VT), N0.getOperand(0));
+
+        SDValue Ops[] = { N0.getOperand(0), Neg,
+                          DAG.getConstant(X86::COND_GE, MVT::i8),
+                          SDValue(Neg.getNode(), 1) };
+        return DAG.getNode(X86ISD::CMOV, DL, DAG.getVTList(VT, MVT::Glue),
+                           Ops, array_lengthof(Ops));
+      }
+  return SDValue();
+}
+
 // PerformXorCombine - Attempts to turn XOR nodes into BLSMSK nodes
 static SDValue PerformXorCombine(SDNode *N, SelectionDAG &DAG,
                                  TargetLowering::DAGCombinerInfo &DCI,
                                  const X86Subtarget *Subtarget) {
   if (DCI.isBeforeLegalizeOps())
+    return SDValue();
+
+  if (Subtarget->hasCMov()) {
+    SDValue RV = performIntegerAbsCombine(N, DAG);
+    if (RV.getNode())
+      return RV;
+  }
+
+  // Try forming BMI if it is available.
+  if (!Subtarget->hasBMI())
     return SDValue();
 
   EVT VT = N->getValueType(0);
@@ -14294,7 +15800,8 @@ static SDValue PerformXorCombine(SDNode *N, SelectionDAG &DAG,
 
 /// PerformLOADCombine - Do target-specific dag combines on LOAD nodes.
 static SDValue PerformLOADCombine(SDNode *N, SelectionDAG &DAG,
-                                   const X86Subtarget *Subtarget) {
+                                  TargetLowering::DAGCombinerInfo &DCI,
+                                  const X86Subtarget *Subtarget) {
   LoadSDNode *Ld = cast<LoadSDNode>(N);
   EVT RegVT = Ld->getValueType(0);
   EVT MemVT = Ld->getMemoryVT();
@@ -14304,11 +15811,11 @@ static SDValue PerformLOADCombine(SDNode *N, SelectionDAG &DAG,
   ISD::LoadExtType Ext = Ld->getExtensionType();
 
   // If this is a vector EXT Load then attempt to optimize it using a
-  // shuffle. We need SSE4 for the shuffles.
+  // shuffle. We need SSSE3 shuffles.
   // TODO: It is possible to support ZExt by zeroing the undef values
   // during the shuffle phase or after the shuffle.
   if (RegVT.isVector() && RegVT.isInteger() &&
-      Ext == ISD::EXTLOAD && Subtarget->hasSSE41()) {
+      Ext == ISD::EXTLOAD && Subtarget->hasSSSE3()) {
     assert(MemVT != RegVT && "Cannot extend to the same type");
     assert(MemVT.isVector() && "Must load a vector from memory");
 
@@ -14316,63 +15823,94 @@ static SDValue PerformLOADCombine(SDNode *N, SelectionDAG &DAG,
     unsigned RegSz = RegVT.getSizeInBits();
     unsigned MemSz = MemVT.getSizeInBits();
     assert(RegSz > MemSz && "Register size must be greater than the mem size");
-    // All sizes must be a power of two
-    if (!isPowerOf2_32(RegSz * MemSz * NumElems)) return SDValue();
 
-    // Attempt to load the original value using a single load op.
-    // Find a scalar type which is equal to the loaded word size.
+    // All sizes must be a power of two.
+    if (!isPowerOf2_32(RegSz * MemSz * NumElems))
+      return SDValue();
+
+    // Attempt to load the original value using scalar loads.
+    // Find the largest scalar type that divides the total loaded size.
     MVT SclrLoadTy = MVT::i8;
     for (unsigned tp = MVT::FIRST_INTEGER_VALUETYPE;
          tp < MVT::LAST_INTEGER_VALUETYPE; ++tp) {
       MVT Tp = (MVT::SimpleValueType)tp;
-      if (TLI.isTypeLegal(Tp) &&  Tp.getSizeInBits() == MemSz) {
+      if (TLI.isTypeLegal(Tp) && ((MemSz % Tp.getSizeInBits()) == 0)) {
         SclrLoadTy = Tp;
-        break;
       }
     }
 
-    // Proceed if a load word is found.
-    if (SclrLoadTy.getSizeInBits() != MemSz) return SDValue();
+    // On 32bit systems, we can't save 64bit integers. Try bitcasting to F64.
+    if (TLI.isTypeLegal(MVT::f64) && SclrLoadTy.getSizeInBits() < 64 &&
+        (64 <= MemSz))
+      SclrLoadTy = MVT::f64;
 
+    // Calculate the number of scalar loads that we need to perform
+    // in order to load our vector from memory.
+    unsigned NumLoads = MemSz / SclrLoadTy.getSizeInBits();
+
+    // Represent our vector as a sequence of elements which are the
+    // largest scalar that we can load.
     EVT LoadUnitVecVT = EVT::getVectorVT(*DAG.getContext(), SclrLoadTy,
       RegSz/SclrLoadTy.getSizeInBits());
 
+    // Represent the data using the same element type that is stored in
+    // memory. In practice, we ''widen'' MemVT.
     EVT WideVecVT = EVT::getVectorVT(*DAG.getContext(), MemVT.getScalarType(),
                                   RegSz/MemVT.getScalarType().getSizeInBits());
-    // Can't shuffle using an illegal type.
-    if (!TLI.isTypeLegal(WideVecVT)) return SDValue();
 
-    // Perform a single load.
-    SDValue ScalarLoad = DAG.getLoad(SclrLoadTy, dl, Ld->getChain(),
-                                  Ld->getBasePtr(),
-                                  Ld->getPointerInfo(), Ld->isVolatile(),
-                                  Ld->isNonTemporal(), Ld->isInvariant(),
-                                  Ld->getAlignment());
+    assert(WideVecVT.getSizeInBits() == LoadUnitVecVT.getSizeInBits() &&
+      "Invalid vector type");
 
-    // Insert the word loaded into a vector.
-    SDValue ScalarInVector = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl,
-      LoadUnitVecVT, ScalarLoad);
+    // We can't shuffle using an illegal type.
+    if (!TLI.isTypeLegal(WideVecVT))
+      return SDValue();
+
+    SmallVector<SDValue, 8> Chains;
+    SDValue Ptr = Ld->getBasePtr();
+    SDValue Increment = DAG.getConstant(SclrLoadTy.getSizeInBits()/8,
+                                        TLI.getPointerTy());
+    SDValue Res = DAG.getUNDEF(LoadUnitVecVT);
+
+    for (unsigned i = 0; i < NumLoads; ++i) {
+      // Perform a single load.
+      SDValue ScalarLoad = DAG.getLoad(SclrLoadTy, dl, Ld->getChain(),
+                                       Ptr, Ld->getPointerInfo(),
+                                       Ld->isVolatile(), Ld->isNonTemporal(),
+                                       Ld->isInvariant(), Ld->getAlignment());
+      Chains.push_back(ScalarLoad.getValue(1));
+      // Create the first element type using SCALAR_TO_VECTOR in order to avoid
+      // another round of DAGCombining.
+      if (i == 0)
+        Res = DAG.getNode(ISD::SCALAR_TO_VECTOR, dl, LoadUnitVecVT, ScalarLoad);
+      else
+        Res = DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, LoadUnitVecVT, Res,
+                          ScalarLoad, DAG.getIntPtrConstant(i));
+
+      Ptr = DAG.getNode(ISD::ADD, dl, Ptr.getValueType(), Ptr, Increment);
+    }
+
+    SDValue TF = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, &Chains[0],
+                               Chains.size());
 
     // Bitcast the loaded value to a vector of the original element type, in
     // the size of the target vector type.
-    SDValue SlicedVec = DAG.getNode(ISD::BITCAST, dl, WideVecVT,
-                                    ScalarInVector);
+    SDValue SlicedVec = DAG.getNode(ISD::BITCAST, dl, WideVecVT, Res);
     unsigned SizeRatio = RegSz/MemSz;
 
     // Redistribute the loaded elements into the different locations.
     SmallVector<int, 8> ShuffleVec(NumElems * SizeRatio, -1);
-    for (unsigned i = 0; i < NumElems; i++) ShuffleVec[i*SizeRatio] = i;
+    for (unsigned i = 0; i != NumElems; ++i)
+      ShuffleVec[i*SizeRatio] = i;
 
     SDValue Shuff = DAG.getVectorShuffle(WideVecVT, dl, SlicedVec,
-                                DAG.getUNDEF(SlicedVec.getValueType()),
-                                ShuffleVec.data());
+                                         DAG.getUNDEF(WideVecVT),
+                                         &ShuffleVec[0]);
 
     // Bitcast to the requested type.
     Shuff = DAG.getNode(ISD::BITCAST, dl, RegVT, Shuff);
     // Replace the original load with the new sequence
     // and return the new chain.
-    DAG.ReplaceAllUsesOfValueWith(SDValue(N, 0), Shuff);
-    return SDValue(ScalarLoad.getNode(), 1);
+    return DCI.CombineTo(N, Shuff, TF, true);
   }
 
   return SDValue();
@@ -14389,13 +15927,12 @@ static SDValue PerformSTORECombine(SDNode *N, SelectionDAG &DAG,
   const TargetLowering &TLI = DAG.getTargetLoweringInfo();
 
   // If we are saving a concatenation of two XMM registers, perform two stores.
-  // This is better in Sandy Bridge cause one 256-bit mem op is done via two
-  // 128-bit ones. If in the future the cost becomes only one memory access the
-  // first version would be better.
-  if (VT.getSizeInBits() == 256 &&
-    StoredVal.getNode()->getOpcode() == ISD::CONCAT_VECTORS &&
-    StoredVal.getNumOperands() == 2) {
-
+  // On Sandy Bridge, 256-bit memory operations are executed by two
+  // 128-bit ports. However, on Haswell it is better to issue a single 256-bit
+  // memory  operation.
+  if (VT.is256BitVector() && !Subtarget->hasAVX2() &&
+      StoredVal.getNode()->getOpcode() == ISD::CONCAT_VECTORS &&
+      StoredVal.getNumOperands() == 2) {
     SDValue Value0 = StoredVal.getOperand(0);
     SDValue Value1 = StoredVal.getOperand(1);
 
@@ -14440,14 +15977,16 @@ static SDValue PerformSTORECombine(SDNode *N, SelectionDAG &DAG,
 
     SDValue WideVec = DAG.getNode(ISD::BITCAST, dl, WideVecVT, St->getValue());
     SmallVector<int, 8> ShuffleVec(NumElems * SizeRatio, -1);
-    for (unsigned i = 0; i < NumElems; i++ ) ShuffleVec[i] = i * SizeRatio;
+    for (unsigned i = 0; i != NumElems; ++i)
+      ShuffleVec[i] = i * SizeRatio;
 
-    // Can't shuffle using an illegal type
-    if (!TLI.isTypeLegal(WideVecVT)) return SDValue();
+    // Can't shuffle using an illegal type.
+    if (!TLI.isTypeLegal(WideVecVT))
+      return SDValue();
 
     SDValue Shuff = DAG.getVectorShuffle(WideVecVT, dl, WideVec,
-                                DAG.getUNDEF(WideVec.getValueType()),
-                                ShuffleVec.data());
+                                         DAG.getUNDEF(WideVecVT),
+                                         &ShuffleVec[0]);
     // At this point all of the data is stored at the bottom of the
     // register. We now need to save it to mem.
 
@@ -14456,13 +15995,18 @@ static SDValue PerformSTORECombine(SDNode *N, SelectionDAG &DAG,
     for (unsigned tp = MVT::FIRST_INTEGER_VALUETYPE;
          tp < MVT::LAST_INTEGER_VALUETYPE; ++tp) {
       MVT Tp = (MVT::SimpleValueType)tp;
-      if (TLI.isTypeLegal(Tp) && StoreType.getSizeInBits() < NumElems * ToSz)
+      if (TLI.isTypeLegal(Tp) && Tp.getSizeInBits() <= NumElems * ToSz)
         StoreType = Tp;
     }
 
+    // On 32bit systems, we can't save 64bit integers. Try bitcasting to F64.
+    if (TLI.isTypeLegal(MVT::f64) && StoreType.getSizeInBits() < 64 &&
+        (64 <= NumElems * ToSz))
+      StoreType = MVT::f64;
+
     // Bitcast the original vector into a vector of store-size units
     EVT StoreVecVT = EVT::getVectorVT(*DAG.getContext(),
-            StoreType, VT.getSizeInBits()/EVT(StoreType).getSizeInBits());
+            StoreType, VT.getSizeInBits()/StoreType.getSizeInBits());
     assert(StoreVecVT.getSizeInBits() == VT.getSizeInBits());
     SDValue ShuffWide = DAG.getNode(ISD::BITCAST, dl, StoreVecVT, Shuff);
     SmallVector<SDValue, 8> Chains;
@@ -14471,7 +16015,7 @@ static SDValue PerformSTORECombine(SDNode *N, SelectionDAG &DAG,
     SDValue Ptr = St->getBasePtr();
 
     // Perform one or more big stores into memory.
-    for (unsigned i = 0; i < (ToSz*NumElems)/StoreType.getSizeInBits() ; i++) {
+    for (unsigned i=0, e=(ToSz*NumElems)/StoreType.getSizeInBits(); i!=e; ++i) {
       SDValue SubVec = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl,
                                    StoreType, ShuffWide,
                                    DAG.getIntPtrConstant(i));
@@ -14497,7 +16041,8 @@ static SDValue PerformSTORECombine(SDNode *N, SelectionDAG &DAG,
     return SDValue();
 
   const Function *F = DAG.getMachineFunction().getFunction();
-  bool NoImplicitFloatOps = F->hasFnAttr(Attribute::NoImplicitFloat);
+  bool NoImplicitFloatOps = F->getFnAttributes().
+    hasAttribute(Attributes::NoImplicitFloat);
   bool F64IsLegal = !DAG.getTarget().Options.UseSoftFloat && !NoImplicitFloatOps
                      && Subtarget->hasSSE2();
   if ((VT.isVector() ||
@@ -14769,6 +16314,29 @@ static SDValue PerformFORCombine(SDNode *N, SelectionDAG &DAG) {
   return SDValue();
 }
 
+/// PerformFMinFMaxCombine - Do target-specific dag combines on X86ISD::FMIN and
+/// X86ISD::FMAX nodes.
+static SDValue PerformFMinFMaxCombine(SDNode *N, SelectionDAG &DAG) {
+  assert(N->getOpcode() == X86ISD::FMIN || N->getOpcode() == X86ISD::FMAX);
+
+  // Only perform optimizations if UnsafeMath is used.
+  if (!DAG.getTarget().Options.UnsafeFPMath)
+    return SDValue();
+
+  // If we run in unsafe-math mode, then convert the FMAX and FMIN nodes
+  // into FMINC and FMAXC, which are Commutative operations.
+  unsigned NewOp = 0;
+  switch (N->getOpcode()) {
+    default: llvm_unreachable("unknown opcode");
+    case X86ISD::FMIN:  NewOp = X86ISD::FMINC; break;
+    case X86ISD::FMAX:  NewOp = X86ISD::FMAXC; break;
+  }
+
+  return DAG.getNode(NewOp, N->getDebugLoc(), N->getValueType(0),
+                     N->getOperand(0), N->getOperand(1));
+}
+
+
 /// PerformFANDCombine - Do target-specific dag combines on X86ISD::FAND nodes.
 static SDValue PerformFANDCombine(SDNode *N, SelectionDAG &DAG) {
   // FAND(0.0, x) -> 0.0
@@ -14820,17 +16388,8 @@ static SDValue PerformSExtCombine(SDNode *N, SelectionDAG &DAG,
   if (!DCI.isBeforeLegalizeOps())
     return SDValue();
 
-  if (!Subtarget->hasAVX()) 
+  if (!Subtarget->hasAVX())
     return SDValue();
-
-  // Optimize vectors in AVX mode
-  // Sign extend  v8i16 to v8i32 and
-  //              v4i32 to v4i64
-  //
-  // Divide input vector into two parts
-  // for v4i32 the shuffle mask will be { 0, 1, -1, -1} {2, 3, -1, -1}
-  // use vpmovsx instruction to extend v4i32 -> v2i64; v8i16 -> v4i32
-  // concat the vectors to original VT
 
   EVT VT = N->getValueType(0);
   SDValue Op = N->getOperand(0);
@@ -14840,23 +16399,37 @@ static SDValue PerformSExtCombine(SDNode *N, SelectionDAG &DAG,
   if ((VT == MVT::v4i64 && OpVT == MVT::v4i32) ||
       (VT == MVT::v8i32 && OpVT == MVT::v8i16)) {
 
-    unsigned NumElems = OpVT.getVectorNumElements();
-    SmallVector<int,8> ShufMask1(NumElems, -1);
-    for (unsigned i = 0; i < NumElems/2; i++) ShufMask1[i] = i;
+    if (Subtarget->hasAVX2())
+      return DAG.getNode(X86ISD::VSEXT_MOVL, dl, VT, Op);
 
-    SDValue OpLo = DAG.getVectorShuffle(OpVT, dl, Op, DAG.getUNDEF(OpVT),
-                                        ShufMask1.data());
+    // Optimize vectors in AVX mode
+    // Sign extend  v8i16 to v8i32 and
+    //              v4i32 to v4i64
+    //
+    // Divide input vector into two parts
+    // for v4i32 the shuffle mask will be { 0, 1, -1, -1} {2, 3, -1, -1}
+    // use vpmovsx instruction to extend v4i32 -> v2i64; v8i16 -> v4i32
+    // concat the vectors to original VT
+
+    unsigned NumElems = OpVT.getVectorNumElements();
+    SDValue Undef = DAG.getUNDEF(OpVT);
+
+    SmallVector<int,8> ShufMask1(NumElems, -1);
+    for (unsigned i = 0; i != NumElems/2; ++i)
+      ShufMask1[i] = i;
+
+    SDValue OpLo = DAG.getVectorShuffle(OpVT, dl, Op, Undef, &ShufMask1[0]);
 
     SmallVector<int,8> ShufMask2(NumElems, -1);
-    for (unsigned i = 0; i < NumElems/2; i++) ShufMask2[i] = i + NumElems/2;
+    for (unsigned i = 0; i != NumElems/2; ++i)
+      ShufMask2[i] = i + NumElems/2;
 
-    SDValue OpHi = DAG.getVectorShuffle(OpVT, dl, Op, DAG.getUNDEF(OpVT),
-                                        ShufMask2.data());
+    SDValue OpHi = DAG.getVectorShuffle(OpVT, dl, Op, Undef, &ShufMask2[0]);
 
-    EVT HalfVT = EVT::getVectorVT(*DAG.getContext(), VT.getScalarType(), 
+    EVT HalfVT = EVT::getVectorVT(*DAG.getContext(), VT.getScalarType(),
                                   VT.getVectorNumElements()/2);
 
-    OpLo = DAG.getNode(X86ISD::VSEXT_MOVL, dl, HalfVT, OpLo); 
+    OpLo = DAG.getNode(X86ISD::VSEXT_MOVL, dl, HalfVT, OpLo);
     OpHi = DAG.getNode(X86ISD::VSEXT_MOVL, dl, HalfVT, OpHi);
 
     return DAG.getNode(ISD::CONCAT_VECTORS, dl, VT, OpLo, OpHi);
@@ -14864,7 +16437,48 @@ static SDValue PerformSExtCombine(SDNode *N, SelectionDAG &DAG,
   return SDValue();
 }
 
+static SDValue PerformFMACombine(SDNode *N, SelectionDAG &DAG,
+                                 const X86Subtarget* Subtarget) {
+  DebugLoc dl = N->getDebugLoc();
+  EVT VT = N->getValueType(0);
+
+  // Let legalize expand this if it isn't a legal type yet.
+  if (!DAG.getTargetLoweringInfo().isTypeLegal(VT))
+    return SDValue();
+
+  EVT ScalarVT = VT.getScalarType();
+  if ((ScalarVT != MVT::f32 && ScalarVT != MVT::f64) ||
+      (!Subtarget->hasFMA() && !Subtarget->hasFMA4()))
+    return SDValue();
+
+  SDValue A = N->getOperand(0);
+  SDValue B = N->getOperand(1);
+  SDValue C = N->getOperand(2);
+
+  bool NegA = (A.getOpcode() == ISD::FNEG);
+  bool NegB = (B.getOpcode() == ISD::FNEG);
+  bool NegC = (C.getOpcode() == ISD::FNEG);
+
+  // Negative multiplication when NegA xor NegB
+  bool NegMul = (NegA != NegB);
+  if (NegA)
+    A = A.getOperand(0);
+  if (NegB)
+    B = B.getOperand(0);
+  if (NegC)
+    C = C.getOperand(0);
+
+  unsigned Opcode;
+  if (!NegMul)
+    Opcode = (!NegC) ? X86ISD::FMADD : X86ISD::FMSUB;
+  else
+    Opcode = (!NegC) ? X86ISD::FNMADD : X86ISD::FNMSUB;
+
+  return DAG.getNode(Opcode, dl, VT, A, B, C);
+}
+
 static SDValue PerformZExtCombine(SDNode *N, SelectionDAG &DAG,
+                                  TargetLowering::DAGCombinerInfo &DCI,
                                   const X86Subtarget *Subtarget) {
   // (i32 zext (and (i8  x86isd::setcc_carry), 1)) ->
   //           (and (i32 x86isd::setcc_carry), 1)
@@ -14889,6 +16503,7 @@ static SDValue PerformZExtCombine(SDNode *N, SelectionDAG &DAG,
                                    N00.getOperand(0), N00.getOperand(1)),
                        DAG.getConstant(1, VT));
   }
+
   // Optimize vectors in AVX mode:
   //
   //   v8i16 -> v8i32
@@ -14901,43 +16516,132 @@ static SDValue PerformZExtCombine(SDNode *N, SelectionDAG &DAG,
   //   Use vpunpckhdq for 4 upper elements  v4i32 -> v2i64.
   //   Concat upper and lower parts.
   //
-  if (Subtarget->hasAVX()) {
+  if (!DCI.isBeforeLegalizeOps())
+    return SDValue();
 
-    if (((VT == MVT::v8i32) && (OpVT == MVT::v8i16))  ||
+  if (!Subtarget->hasAVX())
+    return SDValue();
+
+  if (((VT == MVT::v8i32) && (OpVT == MVT::v8i16)) ||
       ((VT == MVT::v4i64) && (OpVT == MVT::v4i32)))  {
 
-      SDValue ZeroVec = getZeroVector(OpVT, Subtarget, DAG, dl);
-      SDValue OpLo = getTargetShuffleNode(X86ISD::UNPCKL, dl, OpVT, N0, ZeroVec, DAG);
-      SDValue OpHi = getTargetShuffleNode(X86ISD::UNPCKH, dl, OpVT, N0, ZeroVec, DAG);
+    if (Subtarget->hasAVX2())
+      return DAG.getNode(X86ISD::VZEXT_MOVL, dl, VT, N0);
 
-      EVT HVT = EVT::getVectorVT(*DAG.getContext(), VT.getVectorElementType(), 
-        VT.getVectorNumElements()/2);
+    SDValue ZeroVec = getZeroVector(OpVT, Subtarget, DAG, dl);
+    SDValue OpLo = getUnpackl(DAG, dl, OpVT, N0, ZeroVec);
+    SDValue OpHi = getUnpackh(DAG, dl, OpVT, N0, ZeroVec);
 
-      OpLo = DAG.getNode(ISD::BITCAST, dl, HVT, OpLo);
-      OpHi = DAG.getNode(ISD::BITCAST, dl, HVT, OpHi);
+    EVT HVT = EVT::getVectorVT(*DAG.getContext(), VT.getVectorElementType(),
+                               VT.getVectorNumElements()/2);
 
-      return DAG.getNode(ISD::CONCAT_VECTORS, dl, VT, OpLo, OpHi);
-    }
+    OpLo = DAG.getNode(ISD::BITCAST, dl, HVT, OpLo);
+    OpHi = DAG.getNode(ISD::BITCAST, dl, HVT, OpHi);
+
+    return DAG.getNode(ISD::CONCAT_VECTORS, dl, VT, OpLo, OpHi);
   }
-
 
   return SDValue();
 }
 
+// Optimize x == -y --> x+y == 0
+//          x != -y --> x+y != 0
+static SDValue PerformISDSETCCCombine(SDNode *N, SelectionDAG &DAG) {
+  ISD::CondCode CC = cast<CondCodeSDNode>(N->getOperand(2))->get();
+  SDValue LHS = N->getOperand(0);
+  SDValue RHS = N->getOperand(1);
+
+  if ((CC == ISD::SETNE || CC == ISD::SETEQ) && LHS.getOpcode() == ISD::SUB)
+    if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(LHS.getOperand(0)))
+      if (C->getAPIntValue() == 0 && LHS.hasOneUse()) {
+        SDValue addV = DAG.getNode(ISD::ADD, N->getDebugLoc(),
+                                   LHS.getValueType(), RHS, LHS.getOperand(1));
+        return DAG.getSetCC(N->getDebugLoc(), N->getValueType(0),
+                            addV, DAG.getConstant(0, addV.getValueType()), CC);
+      }
+  if ((CC == ISD::SETNE || CC == ISD::SETEQ) && RHS.getOpcode() == ISD::SUB)
+    if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(RHS.getOperand(0)))
+      if (C->getAPIntValue() == 0 && RHS.hasOneUse()) {
+        SDValue addV = DAG.getNode(ISD::ADD, N->getDebugLoc(),
+                                   RHS.getValueType(), LHS, RHS.getOperand(1));
+        return DAG.getSetCC(N->getDebugLoc(), N->getValueType(0),
+                            addV, DAG.getConstant(0, addV.getValueType()), CC);
+      }
+  return SDValue();
+}
+
+// Helper function of PerformSETCCCombine. It is to materialize "setb reg" 
+// as "sbb reg,reg", since it can be extended without zext and produces 
+// an all-ones bit which is more useful than 0/1 in some cases.
+static SDValue MaterializeSETB(DebugLoc DL, SDValue EFLAGS, SelectionDAG &DAG) {
+  return DAG.getNode(ISD::AND, DL, MVT::i8,
+                     DAG.getNode(X86ISD::SETCC_CARRY, DL, MVT::i8,
+                                 DAG.getConstant(X86::COND_B, MVT::i8), EFLAGS),
+                     DAG.getConstant(1, MVT::i8));
+}
+
 // Optimize  RES = X86ISD::SETCC CONDCODE, EFLAG_INPUT
-static SDValue PerformSETCCCombine(SDNode *N, SelectionDAG &DAG) {
-  unsigned X86CC = N->getConstantOperandVal(0);
-  SDValue EFLAG = N->getOperand(1);
+static SDValue PerformSETCCCombine(SDNode *N, SelectionDAG &DAG,
+                                   TargetLowering::DAGCombinerInfo &DCI,
+                                   const X86Subtarget *Subtarget) {
   DebugLoc DL = N->getDebugLoc();
+  X86::CondCode CC = X86::CondCode(N->getConstantOperandVal(0));
+  SDValue EFLAGS = N->getOperand(1);
+
+  if (CC == X86::COND_A) {
+    // Try to convert COND_A into COND_B in an attempt to facilitate 
+    // materializing "setb reg".
+    //
+    // Do not flip "e > c", where "c" is a constant, because Cmp instruction
+    // cannot take an immediate as its first operand.
+    //
+    if (EFLAGS.getOpcode() == X86ISD::SUB && EFLAGS.hasOneUse() && 
+        EFLAGS.getValueType().isInteger() &&
+        !isa<ConstantSDNode>(EFLAGS.getOperand(1))) {
+      SDValue NewSub = DAG.getNode(X86ISD::SUB, EFLAGS.getDebugLoc(),
+                                   EFLAGS.getNode()->getVTList(),
+                                   EFLAGS.getOperand(1), EFLAGS.getOperand(0));
+      SDValue NewEFLAGS = SDValue(NewSub.getNode(), EFLAGS.getResNo());
+      return MaterializeSETB(DL, NewEFLAGS, DAG);
+    }
+  }
 
   // Materialize "setb reg" as "sbb reg,reg", since it can be extended without
   // a zext and produces an all-ones bit which is more useful than 0/1 in some
   // cases.
-  if (X86CC == X86::COND_B)
-    return DAG.getNode(ISD::AND, DL, MVT::i8,
-                       DAG.getNode(X86ISD::SETCC_CARRY, DL, MVT::i8,
-                                   DAG.getConstant(X86CC, MVT::i8), EFLAG),
-                       DAG.getConstant(1, MVT::i8));
+  if (CC == X86::COND_B)
+    return MaterializeSETB(DL, EFLAGS, DAG);
+
+  SDValue Flags;
+
+  Flags = checkBoolTestSetCCCombine(EFLAGS, CC);
+  if (Flags.getNode()) {
+    SDValue Cond = DAG.getConstant(CC, MVT::i8);
+    return DAG.getNode(X86ISD::SETCC, DL, N->getVTList(), Cond, Flags);
+  }
+
+  return SDValue();
+}
+
+// Optimize branch condition evaluation.
+//
+static SDValue PerformBrCondCombine(SDNode *N, SelectionDAG &DAG,
+                                    TargetLowering::DAGCombinerInfo &DCI,
+                                    const X86Subtarget *Subtarget) {
+  DebugLoc DL = N->getDebugLoc();
+  SDValue Chain = N->getOperand(0);
+  SDValue Dest = N->getOperand(1);
+  SDValue EFLAGS = N->getOperand(3);
+  X86::CondCode CC = X86::CondCode(N->getConstantOperandVal(2));
+
+  SDValue Flags;
+
+  Flags = checkBoolTestSetCCCombine(EFLAGS, CC);
+  if (Flags.getNode()) {
+    SDValue Cond = DAG.getConstant(CC, MVT::i8);
+    return DAG.getNode(X86ISD::BRCOND, DL, N->getVTList(), Chain, Dest, Cond,
+                       Flags);
+  }
 
   return SDValue();
 }
@@ -14945,6 +16649,16 @@ static SDValue PerformSETCCCombine(SDNode *N, SelectionDAG &DAG) {
 static SDValue PerformSINT_TO_FPCombine(SDNode *N, SelectionDAG &DAG,
                                         const X86TargetLowering *XTLI) {
   SDValue Op0 = N->getOperand(0);
+  EVT InVT = Op0->getValueType(0);
+
+  // SINT_TO_FP(v4i8) -> SINT_TO_FP(SEXT(v4i8 to v4i32))
+  if (InVT == MVT::v8i8 || InVT == MVT::v4i8) {
+    DebugLoc dl = N->getDebugLoc();
+    MVT DstVT = InVT == MVT::v4i8 ? MVT::v4i32 : MVT::v8i32;
+    SDValue P = DAG.getNode(ISD::SIGN_EXTEND, dl, DstVT, Op0);
+    return DAG.getNode(ISD::SINT_TO_FP, dl, N->getValueType(0), P);
+  }
+
   // Transform (SINT_TO_FP (i64 ...)) into an x87 operation if we have
   // a 32-bit target where SSE doesn't support i64->FP operations.
   if (Op0.getOpcode() == ISD::LOAD) {
@@ -15077,6 +16791,21 @@ static SDValue PerformSubCombine(SDNode *N, SelectionDAG &DAG,
   return OptimizeConditionalInDecrement(N, DAG);
 }
 
+/// performVZEXTCombine - Performs build vector combines
+static SDValue performVZEXTCombine(SDNode *N, SelectionDAG &DAG,
+                                        TargetLowering::DAGCombinerInfo &DCI,
+                                        const X86Subtarget *Subtarget) {
+  // (vzext (bitcast (vzext (x)) -> (vzext x)
+  SDValue In = N->getOperand(0);
+  while (In.getOpcode() == ISD::BITCAST)
+    In = In.getOperand(0);
+
+  if (In.getOpcode() != X86ISD::VZEXT)
+    return SDValue();
+
+  return DAG.getNode(X86ISD::VZEXT, N->getDebugLoc(), N->getValueType(0), In.getOperand(0));
+}
+
 SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
                                              DAGCombinerInfo &DCI) const {
   SelectionDAG &DAG = DCI.DAG;
@@ -15086,7 +16815,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
     return PerformEXTRACT_VECTOR_ELTCombine(N, DAG, DCI);
   case ISD::VSELECT:
   case ISD::SELECT:         return PerformSELECTCombine(N, DAG, DCI, Subtarget);
-  case X86ISD::CMOV:        return PerformCMOVCombine(N, DAG, DCI);
+  case X86ISD::CMOV:        return PerformCMOVCombine(N, DAG, DCI, Subtarget);
   case ISD::ADD:            return PerformAddCombine(N, DAG, Subtarget);
   case ISD::SUB:            return PerformSubCombine(N, DAG, Subtarget);
   case X86ISD::ADC:         return PerformADCCombine(N, DAG, DCI);
@@ -15097,20 +16826,26 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case ISD::AND:            return PerformAndCombine(N, DAG, DCI, Subtarget);
   case ISD::OR:             return PerformOrCombine(N, DAG, DCI, Subtarget);
   case ISD::XOR:            return PerformXorCombine(N, DAG, DCI, Subtarget);
-  case ISD::LOAD:           return PerformLOADCombine(N, DAG, Subtarget);
+  case ISD::LOAD:           return PerformLOADCombine(N, DAG, DCI, Subtarget);
   case ISD::STORE:          return PerformSTORECombine(N, DAG, Subtarget);
   case ISD::SINT_TO_FP:     return PerformSINT_TO_FPCombine(N, DAG, this);
   case ISD::FADD:           return PerformFADDCombine(N, DAG, Subtarget);
   case ISD::FSUB:           return PerformFSUBCombine(N, DAG, Subtarget);
   case X86ISD::FXOR:
   case X86ISD::FOR:         return PerformFORCombine(N, DAG);
+  case X86ISD::FMIN:
+  case X86ISD::FMAX:        return PerformFMinFMaxCombine(N, DAG);
   case X86ISD::FAND:        return PerformFANDCombine(N, DAG);
   case X86ISD::BT:          return PerformBTCombine(N, DAG, DCI);
   case X86ISD::VZEXT_MOVL:  return PerformVZEXT_MOVLCombine(N, DAG);
-  case ISD::ZERO_EXTEND:    return PerformZExtCombine(N, DAG, Subtarget);
+  case ISD::ANY_EXTEND:
+  case ISD::ZERO_EXTEND:    return PerformZExtCombine(N, DAG, DCI, Subtarget);
   case ISD::SIGN_EXTEND:    return PerformSExtCombine(N, DAG, DCI, Subtarget);
-  case ISD::TRUNCATE:       return PerformTruncateCombine(N, DAG, DCI);
-  case X86ISD::SETCC:       return PerformSETCCCombine(N, DAG);
+  case ISD::TRUNCATE:       return PerformTruncateCombine(N, DAG,DCI,Subtarget);
+  case ISD::SETCC:          return PerformISDSETCCCombine(N, DAG);
+  case X86ISD::SETCC:       return PerformSETCCCombine(N, DAG, DCI, Subtarget);
+  case X86ISD::BRCOND:      return PerformBrCondCombine(N, DAG, DCI, Subtarget);
+  case X86ISD::VZEXT:       return performVZEXTCombine(N, DAG, DCI, Subtarget);
   case X86ISD::SHUFP:       // Handle all target specific shuffles
   case X86ISD::PALIGN:
   case X86ISD::UNPCKH:
@@ -15125,6 +16860,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::VPERMILP:
   case X86ISD::VPERM2X128:
   case ISD::VECTOR_SHUFFLE: return PerformShuffleCombine(N, DAG, DCI,Subtarget);
+  case ISD::FMA:            return PerformFMACombine(N, DAG, Subtarget);
   }
 
   return SDValue();
@@ -15537,7 +17273,7 @@ void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
     return;
   case 'K':
     if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op)) {
-      if ((int8_t)C->getSExtValue() == C->getSExtValue()) {
+      if (isInt<8>(C->getSExtValue())) {
         Result = DAG.getTargetConstant(C->getZExtValue(), Op.getValueType());
         break;
       }
@@ -15654,55 +17390,55 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
       // in the normal allocation?
     case 'q':   // GENERAL_REGS in 64-bit mode, Q_REGS in 32-bit mode.
       if (Subtarget->is64Bit()) {
-	if (VT == MVT::i32 || VT == MVT::f32)
-	  return std::make_pair(0U, X86::GR32RegisterClass);
-	else if (VT == MVT::i16)
-	  return std::make_pair(0U, X86::GR16RegisterClass);
-	else if (VT == MVT::i8 || VT == MVT::i1)
-	  return std::make_pair(0U, X86::GR8RegisterClass);
-	else if (VT == MVT::i64 || VT == MVT::f64)
-	  return std::make_pair(0U, X86::GR64RegisterClass);
-	break;
+        if (VT == MVT::i32 || VT == MVT::f32)
+          return std::make_pair(0U, &X86::GR32RegClass);
+        if (VT == MVT::i16)
+          return std::make_pair(0U, &X86::GR16RegClass);
+        if (VT == MVT::i8 || VT == MVT::i1)
+          return std::make_pair(0U, &X86::GR8RegClass);
+        if (VT == MVT::i64 || VT == MVT::f64)
+          return std::make_pair(0U, &X86::GR64RegClass);
+        break;
       }
       // 32-bit fallthrough
     case 'Q':   // Q_REGS
       if (VT == MVT::i32 || VT == MVT::f32)
-	return std::make_pair(0U, X86::GR32_ABCDRegisterClass);
-      else if (VT == MVT::i16)
-	return std::make_pair(0U, X86::GR16_ABCDRegisterClass);
-      else if (VT == MVT::i8 || VT == MVT::i1)
-	return std::make_pair(0U, X86::GR8_ABCD_LRegisterClass);
-      else if (VT == MVT::i64)
-	return std::make_pair(0U, X86::GR64_ABCDRegisterClass);
+        return std::make_pair(0U, &X86::GR32_ABCDRegClass);
+      if (VT == MVT::i16)
+        return std::make_pair(0U, &X86::GR16_ABCDRegClass);
+      if (VT == MVT::i8 || VT == MVT::i1)
+        return std::make_pair(0U, &X86::GR8_ABCD_LRegClass);
+      if (VT == MVT::i64)
+        return std::make_pair(0U, &X86::GR64_ABCDRegClass);
       break;
     case 'r':   // GENERAL_REGS
     case 'l':   // INDEX_REGS
       if (VT == MVT::i8 || VT == MVT::i1)
-        return std::make_pair(0U, X86::GR8RegisterClass);
+        return std::make_pair(0U, &X86::GR8RegClass);
       if (VT == MVT::i16)
-        return std::make_pair(0U, X86::GR16RegisterClass);
+        return std::make_pair(0U, &X86::GR16RegClass);
       if (VT == MVT::i32 || VT == MVT::f32 || !Subtarget->is64Bit())
-        return std::make_pair(0U, X86::GR32RegisterClass);
-      return std::make_pair(0U, X86::GR64RegisterClass);
+        return std::make_pair(0U, &X86::GR32RegClass);
+      return std::make_pair(0U, &X86::GR64RegClass);
     case 'R':   // LEGACY_REGS
       if (VT == MVT::i8 || VT == MVT::i1)
-        return std::make_pair(0U, X86::GR8_NOREXRegisterClass);
+        return std::make_pair(0U, &X86::GR8_NOREXRegClass);
       if (VT == MVT::i16)
-        return std::make_pair(0U, X86::GR16_NOREXRegisterClass);
+        return std::make_pair(0U, &X86::GR16_NOREXRegClass);
       if (VT == MVT::i32 || !Subtarget->is64Bit())
-        return std::make_pair(0U, X86::GR32_NOREXRegisterClass);
-      return std::make_pair(0U, X86::GR64_NOREXRegisterClass);
+        return std::make_pair(0U, &X86::GR32_NOREXRegClass);
+      return std::make_pair(0U, &X86::GR64_NOREXRegClass);
     case 'f':  // FP Stack registers.
       // If SSE is enabled for this VT, use f80 to ensure the isel moves the
       // value to the correct fpstack register class.
       if (VT == MVT::f32 && !isScalarFPTypeInSSEReg(VT))
-        return std::make_pair(0U, X86::RFP32RegisterClass);
+        return std::make_pair(0U, &X86::RFP32RegClass);
       if (VT == MVT::f64 && !isScalarFPTypeInSSEReg(VT))
-        return std::make_pair(0U, X86::RFP64RegisterClass);
-      return std::make_pair(0U, X86::RFP80RegisterClass);
+        return std::make_pair(0U, &X86::RFP64RegClass);
+      return std::make_pair(0U, &X86::RFP80RegClass);
     case 'y':   // MMX_REGS if MMX allowed.
       if (!Subtarget->hasMMX()) break;
-      return std::make_pair(0U, X86::VR64RegisterClass);
+      return std::make_pair(0U, &X86::VR64RegClass);
     case 'Y':   // SSE_REGS if SSE2 allowed
       if (!Subtarget->hasSSE2()) break;
       // FALL THROUGH.
@@ -15714,10 +17450,10 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
       // Scalar SSE types.
       case MVT::f32:
       case MVT::i32:
-        return std::make_pair(0U, X86::FR32RegisterClass);
+        return std::make_pair(0U, &X86::FR32RegClass);
       case MVT::f64:
       case MVT::i64:
-        return std::make_pair(0U, X86::FR64RegisterClass);
+        return std::make_pair(0U, &X86::FR64RegClass);
       // Vector types.
       case MVT::v16i8:
       case MVT::v8i16:
@@ -15725,7 +17461,7 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
       case MVT::v2i64:
       case MVT::v4f32:
       case MVT::v2f64:
-        return std::make_pair(0U, X86::VR128RegisterClass);
+        return std::make_pair(0U, &X86::VR128RegClass);
       // AVX types.
       case MVT::v32i8:
       case MVT::v16i16:
@@ -15733,8 +17469,7 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
       case MVT::v4i64:
       case MVT::v8f32:
       case MVT::v4f64:
-        return std::make_pair(0U, X86::VR256RegisterClass);
-        
+        return std::make_pair(0U, &X86::VR256RegClass);
       }
       break;
     }
@@ -15757,28 +17492,28 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
         Constraint[6] == '}') {
 
       Res.first = X86::ST0+Constraint[4]-'0';
-      Res.second = X86::RFP80RegisterClass;
+      Res.second = &X86::RFP80RegClass;
       return Res;
     }
 
     // GCC allows "st(0)" to be called just plain "st".
     if (StringRef("{st}").equals_lower(Constraint)) {
       Res.first = X86::ST0;
-      Res.second = X86::RFP80RegisterClass;
+      Res.second = &X86::RFP80RegClass;
       return Res;
     }
 
     // flags -> EFLAGS
     if (StringRef("{flags}").equals_lower(Constraint)) {
       Res.first = X86::EFLAGS;
-      Res.second = X86::CCRRegisterClass;
+      Res.second = &X86::CCRRegClass;
       return Res;
     }
 
     // 'A' means EAX + EDX.
     if (Constraint == "A") {
       Res.first = X86::EAX;
-      Res.second = X86::GR32_ADRegisterClass;
+      Res.second = &X86::GR32_ADRegClass;
       return Res;
     }
     return Res;
@@ -15794,7 +17529,7 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
   // 16-bit register pieces "ax","dx","cx","bx","si","di","bp","sp".  If we
   // really want an 8-bit or 32-bit register, map to the appropriate register
   // class and return the appropriate register.
-  if (Res.second == X86::GR16RegisterClass) {
+  if (Res.second == &X86::GR16RegClass) {
     if (VT == MVT::i8) {
       unsigned DestReg = 0;
       switch (Res.first) {
@@ -15806,7 +17541,7 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
       }
       if (DestReg) {
         Res.first = DestReg;
-        Res.second = X86::GR8RegisterClass;
+        Res.second = &X86::GR8RegClass;
       }
     } else if (VT == MVT::i32) {
       unsigned DestReg = 0;
@@ -15823,7 +17558,7 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
       }
       if (DestReg) {
         Res.first = DestReg;
-        Res.second = X86::GR32RegisterClass;
+        Res.second = &X86::GR32RegClass;
       }
     } else if (VT == MVT::i64) {
       unsigned DestReg = 0;
@@ -15840,23 +17575,230 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
       }
       if (DestReg) {
         Res.first = DestReg;
-        Res.second = X86::GR64RegisterClass;
+        Res.second = &X86::GR64RegClass;
       }
     }
-  } else if (Res.second == X86::FR32RegisterClass ||
-             Res.second == X86::FR64RegisterClass ||
-             Res.second == X86::VR128RegisterClass) {
+  } else if (Res.second == &X86::FR32RegClass ||
+             Res.second == &X86::FR64RegClass ||
+             Res.second == &X86::VR128RegClass) {
     // Handle references to XMM physical registers that got mapped into the
     // wrong class.  This can happen with constraints like {xmm0} where the
     // target independent register mapper will just pick the first match it can
     // find, ignoring the required type.
-    if (VT == MVT::f32)
-      Res.second = X86::FR32RegisterClass;
-    else if (VT == MVT::f64)
-      Res.second = X86::FR64RegisterClass;
-    else if (X86::VR128RegisterClass->hasType(VT))
-      Res.second = X86::VR128RegisterClass;
+
+    if (VT == MVT::f32 || VT == MVT::i32)
+      Res.second = &X86::FR32RegClass;
+    else if (VT == MVT::f64 || VT == MVT::i64)
+      Res.second = &X86::FR64RegClass;
+    else if (X86::VR128RegClass.hasType(VT))
+      Res.second = &X86::VR128RegClass;
+    else if (X86::VR256RegClass.hasType(VT))
+      Res.second = &X86::VR256RegClass;
   }
 
   return Res;
 }
+
+//===----------------------------------------------------------------------===//
+//
+// X86 cost model.
+//
+//===----------------------------------------------------------------------===//
+
+struct X86CostTblEntry {
+  int ISD;
+  MVT Type;
+  unsigned Cost;
+};
+
+static int
+FindInTable(const X86CostTblEntry *Tbl, unsigned len, int ISD, MVT Ty) {
+  for (unsigned int i = 0; i < len; ++i)
+    if (Tbl[i].ISD == ISD && Tbl[i].Type == Ty)
+      return i;
+
+  // Could not find an entry.
+  return -1;
+}
+
+struct X86TypeConversionCostTblEntry {
+  int ISD;
+  MVT Dst;
+  MVT Src;
+  unsigned Cost;
+};
+
+static int
+FindInConvertTable(const X86TypeConversionCostTblEntry *Tbl, unsigned len,
+                   int ISD, MVT Dst, MVT Src) {
+  for (unsigned int i = 0; i < len; ++i)
+    if (Tbl[i].ISD == ISD && Tbl[i].Src == Src && Tbl[i].Dst == Dst)
+      return i;
+
+  // Could not find an entry.
+  return -1;
+}
+
+unsigned
+X86VectorTargetTransformInfo::getArithmeticInstrCost(unsigned Opcode,
+                                                     Type *Ty) const {
+  // Legalize the type.
+  std::pair<unsigned, MVT> LT = getTypeLegalizationCost(Ty);
+
+  int ISD = InstructionOpcodeToISD(Opcode);
+  assert(ISD && "Invalid opcode");
+
+  const X86Subtarget &ST = TLI->getTargetMachine().getSubtarget<X86Subtarget>();
+
+  static const X86CostTblEntry AVX1CostTable[] = {
+    // We don't have to scalarize unsupported ops. We can issue two half-sized
+    // operations and we only need to extract the upper YMM half.
+    // Two ops + 1 extract + 1 insert = 4.
+    { ISD::MUL,     MVT::v8i32,    4 },
+    { ISD::SUB,     MVT::v8i32,    4 },
+    { ISD::ADD,     MVT::v8i32,    4 },
+    { ISD::MUL,     MVT::v4i64,    4 },
+    { ISD::SUB,     MVT::v4i64,    4 },
+    { ISD::ADD,     MVT::v4i64,    4 },
+    };
+
+  // Look for AVX1 lowering tricks.
+  if (ST.hasAVX()) {
+    int Idx = FindInTable(AVX1CostTable, array_lengthof(AVX1CostTable), ISD,
+                          LT.second);
+    if (Idx != -1)
+      return LT.first * AVX1CostTable[Idx].Cost;
+  }
+  // Fallback to the default implementation.
+  return VectorTargetTransformImpl::getArithmeticInstrCost(Opcode, Ty);
+}
+
+unsigned
+X86VectorTargetTransformInfo::getVectorInstrCost(unsigned Opcode, Type *Val,
+                                                 unsigned Index) const {
+  assert(Val->isVectorTy() && "This must be a vector type");
+
+  if (Index != -1U) {
+    // Legalize the type.
+    std::pair<unsigned, MVT> LT = getTypeLegalizationCost(Val);
+
+    // This type is legalized to a scalar type.
+    if (!LT.second.isVector())
+      return 0;
+
+    // The type may be split. Normalize the index to the new type.
+    unsigned Width = LT.second.getVectorNumElements();
+    Index = Index % Width;
+
+    // Floating point scalars are already located in index #0.
+    if (Val->getScalarType()->isFloatingPointTy() && Index == 0)
+      return 0;
+  }
+
+  return VectorTargetTransformImpl::getVectorInstrCost(Opcode, Val, Index);
+}
+
+unsigned X86VectorTargetTransformInfo::getCmpSelInstrCost(unsigned Opcode,
+                                                          Type *ValTy,
+                                                          Type *CondTy) const {
+  // Legalize the type.
+  std::pair<unsigned, MVT> LT = getTypeLegalizationCost(ValTy);
+
+  MVT MTy = LT.second;
+
+  int ISD = InstructionOpcodeToISD(Opcode);
+  assert(ISD && "Invalid opcode");
+
+  const X86Subtarget &ST =
+  TLI->getTargetMachine().getSubtarget<X86Subtarget>();
+
+  static const X86CostTblEntry SSE42CostTbl[] = {
+    { ISD::SETCC,   MVT::v2f64,   1 },
+    { ISD::SETCC,   MVT::v4f32,   1 },
+    { ISD::SETCC,   MVT::v2i64,   1 },
+    { ISD::SETCC,   MVT::v4i32,   1 },
+    { ISD::SETCC,   MVT::v8i16,   1 },
+    { ISD::SETCC,   MVT::v16i8,   1 },
+  };
+
+  static const X86CostTblEntry AVX1CostTbl[] = {
+    { ISD::SETCC,   MVT::v4f64,   1 },
+    { ISD::SETCC,   MVT::v8f32,   1 },
+    // AVX1 does not support 8-wide integer compare.
+    { ISD::SETCC,   MVT::v4i64,   4 },
+    { ISD::SETCC,   MVT::v8i32,   4 },
+    { ISD::SETCC,   MVT::v16i16,  4 },
+    { ISD::SETCC,   MVT::v32i8,   4 },
+  };
+
+  static const X86CostTblEntry AVX2CostTbl[] = {
+    { ISD::SETCC,   MVT::v4i64,   1 },
+    { ISD::SETCC,   MVT::v8i32,   1 },
+    { ISD::SETCC,   MVT::v16i16,  1 },
+    { ISD::SETCC,   MVT::v32i8,   1 },
+  };
+
+  if (ST.hasSSE42()) {
+    int Idx = FindInTable(SSE42CostTbl, array_lengthof(SSE42CostTbl), ISD, MTy);
+    if (Idx != -1)
+      return LT.first * SSE42CostTbl[Idx].Cost;
+  }
+
+  if (ST.hasAVX()) {
+    int Idx = FindInTable(AVX1CostTbl, array_lengthof(AVX1CostTbl), ISD, MTy);
+    if (Idx != -1)
+      return LT.first * AVX1CostTbl[Idx].Cost;
+  }
+
+  if (ST.hasAVX2()) {
+    int Idx = FindInTable(AVX2CostTbl, array_lengthof(AVX2CostTbl), ISD, MTy);
+    if (Idx != -1)
+      return LT.first * AVX2CostTbl[Idx].Cost;
+  }
+
+  return VectorTargetTransformImpl::getCmpSelInstrCost(Opcode, ValTy, CondTy);
+}
+
+unsigned X86VectorTargetTransformInfo::getCastInstrCost(unsigned Opcode,
+                                                        Type *Dst,
+                                                        Type *Src) const {
+  int ISD = InstructionOpcodeToISD(Opcode);
+  assert(ISD && "Invalid opcode");
+
+  EVT SrcTy = TLI->getValueType(Src);
+  EVT DstTy = TLI->getValueType(Dst);
+
+  if (!SrcTy.isSimple() || !DstTy.isSimple())
+    return VectorTargetTransformImpl::getCastInstrCost(Opcode, Dst, Src);
+
+  const X86Subtarget &ST = TLI->getTargetMachine().getSubtarget<X86Subtarget>();
+
+  static const X86TypeConversionCostTblEntry AVXConversionTbl[] = {
+    { ISD::SIGN_EXTEND, MVT::v8i32, MVT::v8i16, 1 },
+    { ISD::ZERO_EXTEND, MVT::v8i32, MVT::v8i16, 1 },
+    { ISD::SIGN_EXTEND, MVT::v4i64, MVT::v4i32, 1 },
+    { ISD::ZERO_EXTEND, MVT::v4i64, MVT::v4i32, 1 },
+    { ISD::TRUNCATE,    MVT::v4i32, MVT::v4i64, 1 },
+    { ISD::TRUNCATE,    MVT::v8i16, MVT::v8i32, 1 },
+    { ISD::SINT_TO_FP,  MVT::v8f32, MVT::v8i8,  1 },
+    { ISD::SINT_TO_FP,  MVT::v4f32, MVT::v4i8,  1 },
+    { ISD::UINT_TO_FP,  MVT::v8f32, MVT::v8i8,  1 },
+    { ISD::UINT_TO_FP,  MVT::v4f32, MVT::v4i8,  1 },
+    { ISD::FP_TO_SINT,  MVT::v8i8,  MVT::v8f32, 1 },
+    { ISD::FP_TO_SINT,  MVT::v4i8,  MVT::v4f32, 1 },
+    { ISD::ZERO_EXTEND, MVT::v8i32, MVT::v8i1,  6 },
+    { ISD::SIGN_EXTEND, MVT::v8i32, MVT::v8i1,  9 },
+    { ISD::TRUNCATE,    MVT::v8i32, MVT::v8i64, 3 },
+  };
+
+  if (ST.hasAVX()) {
+    int Idx = FindInConvertTable(AVXConversionTbl,
+                                 array_lengthof(AVXConversionTbl),
+                                 ISD, DstTy.getSimpleVT(), SrcTy.getSimpleVT());
+    if (Idx != -1)
+      return AVXConversionTbl[Idx].Cost;
+  }
+
+  return VectorTargetTransformImpl::getCastInstrCost(Opcode, Dst, Src);
+}
+

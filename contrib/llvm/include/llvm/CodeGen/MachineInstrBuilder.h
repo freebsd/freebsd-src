@@ -34,6 +34,7 @@ namespace RegState {
     Undef          = 0x20,
     EarlyClobber   = 0x40,
     Debug          = 0x80,
+    InternalRead   = 0x100,
     DefineNoRead   = Define | Undef,
     ImplicitDefine = Implicit | Define,
     ImplicitKill   = Implicit | Kill
@@ -67,7 +68,8 @@ public:
                                              flags & RegState::Undef,
                                              flags & RegState::EarlyClobber,
                                              SubReg,
-                                             flags & RegState::Debug));
+                                             flags & RegState::Debug,
+                                             flags & RegState::InternalRead));
     return *this;
   }
 
@@ -103,6 +105,12 @@ public:
                                                   int Offset = 0,
                                           unsigned char TargetFlags = 0) const {
     MI->addOperand(MachineOperand::CreateCPI(Idx, Offset, TargetFlags));
+    return *this;
+  }
+
+  const MachineInstrBuilder &addTargetIndex(unsigned Idx, int64_t Offset = 0,
+                                          unsigned char TargetFlags = 0) const {
+    MI->addOperand(MachineOperand::CreateTargetIndex(Idx, Offset, TargetFlags));
     return *this;
   }
 
@@ -168,15 +176,24 @@ public:
   }
 
   // Add a displacement from an existing MachineOperand with an added offset.
-  const MachineInstrBuilder &addDisp(const MachineOperand &Disp,
-                                     int64_t off) const {
+  const MachineInstrBuilder &addDisp(const MachineOperand &Disp, int64_t off,
+                                     unsigned char TargetFlags = 0) const {
     switch (Disp.getType()) {
       default:
         llvm_unreachable("Unhandled operand type in addDisp()");
       case MachineOperand::MO_Immediate:
         return addImm(Disp.getImm() + off);
-      case MachineOperand::MO_GlobalAddress:
-        return addGlobalAddress(Disp.getGlobal(), Disp.getOffset() + off);
+      case MachineOperand::MO_GlobalAddress: {
+        // If caller specifies new TargetFlags then use it, otherwise the
+        // default behavior is to copy the target flags from the existing
+        // MachineOperand. This means if the caller wants to clear the
+        // target flags it needs to do so explicitly.
+        if (TargetFlags)
+          return addGlobalAddress(Disp.getGlobal(), Disp.getOffset() + off,
+                                  TargetFlags);
+        return addGlobalAddress(Disp.getGlobal(), Disp.getOffset() + off,
+                                Disp.getTargetFlags());
+      }
     }
   }
 };
@@ -309,6 +326,9 @@ inline unsigned getDeadRegState(bool B) {
 }
 inline unsigned getUndefRegState(bool B) {
   return B ? RegState::Undef : 0;
+}
+inline unsigned getInternalReadRegState(bool B) {
+  return B ? RegState::InternalRead : 0;
 }
 
 } // End llvm namespace

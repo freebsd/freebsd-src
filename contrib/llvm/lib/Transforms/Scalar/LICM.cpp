@@ -46,7 +46,7 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
@@ -100,7 +100,7 @@ namespace {
     LoopInfo      *LI;       // Current LoopInfo
     DominatorTree *DT;       // Dominator Tree for the current Loop.
 
-    TargetData *TD;          // TargetData for constant folding.
+    DataLayout *TD;          // DataLayout for constant folding.
     TargetLibraryInfo *TLI;  // TargetLibraryInfo for constant folding.
 
     // State that is updated as we process loops.
@@ -108,6 +108,9 @@ namespace {
     BasicBlock *Preheader;   // The preheader block of the current loop...
     Loop *CurLoop;           // The current loop we are working on...
     AliasSetTracker *CurAST; // AliasSet information for the current loop...
+    bool MayThrow;           // The current loop contains an instruction which
+                             // may throw, thus preventing code motion of
+                             // instructions with side effects.
     DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
 
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
@@ -175,7 +178,9 @@ namespace {
     bool canSinkOrHoistInst(Instruction &I);
     bool isNotUsedInLoop(Instruction &I);
 
-    void PromoteAliasSet(AliasSet &AS);
+    void PromoteAliasSet(AliasSet &AS,
+                         SmallVectorImpl<BasicBlock*> &ExitBlocks,
+                         SmallVectorImpl<Instruction*> &InsertPts);
   };
 }
 
@@ -202,7 +207,7 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   AA = &getAnalysis<AliasAnalysis>();
   DT = &getAnalysis<DominatorTree>();
 
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   TLI = &getAnalysis<TargetLibraryInfo>();
 
   CurAST = new AliasSetTracker(*AA);
@@ -238,6 +243,15 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
       CurAST->add(*BB);                 // Incorporate the specified basic block
   }
 
+  MayThrow = false;
+  // TODO: We've already searched for instructions which may throw in subloops.
+  // We may want to reuse this information.
+  for (Loop::block_iterator BB = L->block_begin(), BBE = L->block_end();
+       (BB != BBE) && !MayThrow ; ++BB)
+    for (BasicBlock::iterator I = (*BB)->begin(), E = (*BB)->end();
+         (I != E) && !MayThrow; ++I)
+      MayThrow |= I->mayThrow();
+
   // We want to visit all of the instructions in this loop... that are not parts
   // of our subloops (they have already had their invariants hoisted out of
   // their loop, into this loop, so there is no need to process the BODIES of
@@ -256,10 +270,13 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
   if (!DisablePromotion && Preheader && L->hasDedicatedExits()) {
+    SmallVector<BasicBlock *, 8> ExitBlocks;
+    SmallVector<Instruction *, 8> InsertPts;
+
     // Loop over all of the alias sets in the tracker object.
     for (AliasSetTracker::iterator I = CurAST->begin(), E = CurAST->end();
          I != E; ++I)
-      PromoteAliasSet(*I);
+      PromoteAliasSet(*I, ExitBlocks, InsertPts);
   }
 
   // Clear out loops state information for the next iteration
@@ -302,7 +319,7 @@ void LICM::SinkRegion(DomTreeNode *N) {
 
     // If the instruction is dead, we would try to sink it because it isn't used
     // in the loop, instead, just delete it.
-    if (isInstructionTriviallyDead(&I)) {
+    if (isInstructionTriviallyDead(&I, TLI)) {
       DEBUG(dbgs() << "LICM deleting dead inst: " << I << '\n');
       ++II;
       CurAST->deleteValue(&I);
@@ -413,17 +430,22 @@ bool LICM::canSinkOrHoistInst(Instruction &I) {
       if (!FoundMod) return true;
     }
 
-    // FIXME: This should use mod/ref information to see if we can hoist or sink
-    // the call.
+    // FIXME: This should use mod/ref information to see if we can hoist or
+    // sink the call.
 
     return false;
   }
 
-  // Otherwise these instructions are hoistable/sinkable
-  return isa<BinaryOperator>(I) || isa<CastInst>(I) ||
-         isa<SelectInst>(I) || isa<GetElementPtrInst>(I) || isa<CmpInst>(I) ||
-         isa<InsertElementInst>(I) || isa<ExtractElementInst>(I) ||
-         isa<ShuffleVectorInst>(I);
+  // Only these instructions are hoistable/sinkable.
+  bool HoistableKind = (isa<BinaryOperator>(I) || isa<CastInst>(I) ||
+                            isa<SelectInst>(I) || isa<GetElementPtrInst>(I) ||
+                            isa<CmpInst>(I)    || isa<InsertElementInst>(I) ||
+                            isa<ExtractElementInst>(I) ||
+                            isa<ShuffleVectorInst>(I));
+  if (!HoistableKind)
+      return false;
+
+  return isSafeToExecuteUnconditionally(I);
 }
 
 /// isNotUsedInLoop - Return true if the only users of this instruction are
@@ -599,6 +621,12 @@ bool LICM::isSafeToExecuteUnconditionally(Instruction &Inst) {
 }
 
 bool LICM::isGuaranteedToExecute(Instruction &Inst) {
+
+  // Somewhere in this loop there is an instruction which may throw and make us
+  // exit the loop.
+  if (MayThrow)
+    return false;
+
   // Otherwise we have to check to make sure that the instruction dominates all
   // of the exit blocks.  If it doesn't, then there is a path out of the loop
   // which does not execute this instruction, so we can't hoist it.
@@ -618,6 +646,11 @@ bool LICM::isGuaranteedToExecute(Instruction &Inst) {
     if (!DT->dominates(Inst.getParent(), ExitBlocks[i]))
       return false;
 
+  // As a degenerate case, if the loop is statically infinite then we haven't
+  // proven anything since there are no exit blocks.
+  if (ExitBlocks.empty())
+    return false;
+
   return true;
 }
 
@@ -626,6 +659,7 @@ namespace {
     Value *SomePtr;  // Designated pointer to store to.
     SmallPtrSet<Value*, 4> &PointerMustAliases;
     SmallVectorImpl<BasicBlock*> &LoopExitBlocks;
+    SmallVectorImpl<Instruction*> &LoopInsertPts;
     AliasSetTracker &AST;
     DebugLoc DL;
     int Alignment;
@@ -633,11 +667,12 @@ namespace {
     LoopPromoter(Value *SP,
                  const SmallVectorImpl<Instruction*> &Insts, SSAUpdater &S,
                  SmallPtrSet<Value*, 4> &PMA,
-                 SmallVectorImpl<BasicBlock*> &LEB, AliasSetTracker &ast,
-                 DebugLoc dl, int alignment)
+                 SmallVectorImpl<BasicBlock*> &LEB,
+                 SmallVectorImpl<Instruction*> &LIP,
+                 AliasSetTracker &ast, DebugLoc dl, int alignment)
       : LoadAndStorePromoter(Insts, S), SomePtr(SP),
-        PointerMustAliases(PMA), LoopExitBlocks(LEB), AST(ast), DL(dl),
-        Alignment(alignment) {}
+        PointerMustAliases(PMA), LoopExitBlocks(LEB), LoopInsertPts(LIP),
+        AST(ast), DL(dl), Alignment(alignment) {}
 
     virtual bool isInstInList(Instruction *I,
                               const SmallVectorImpl<Instruction*> &) const {
@@ -657,7 +692,7 @@ namespace {
       for (unsigned i = 0, e = LoopExitBlocks.size(); i != e; ++i) {
         BasicBlock *ExitBlock = LoopExitBlocks[i];
         Value *LiveInValue = SSA.GetValueInMiddleOfBlock(ExitBlock);
-        Instruction *InsertPos = ExitBlock->getFirstInsertionPt();
+        Instruction *InsertPos = LoopInsertPts[i];
         StoreInst *NewSI = new StoreInst(LiveInValue, SomePtr, InsertPos);
         NewSI->setAlignment(Alignment);
         NewSI->setDebugLoc(DL);
@@ -679,7 +714,9 @@ namespace {
 /// looping over the stores in the loop, looking for stores to Must pointers
 /// which are loop invariant.
 ///
-void LICM::PromoteAliasSet(AliasSet &AS) {
+void LICM::PromoteAliasSet(AliasSet &AS,
+                           SmallVectorImpl<BasicBlock*> &ExitBlocks,
+                           SmallVectorImpl<Instruction*> &InsertPts) {
   // We can promote this alias set if it has a store, if it is a "Must" alias
   // set, if the pointer is loop invariant, and if we are not eliminating any
   // volatile loads or stores.
@@ -789,14 +826,20 @@ void LICM::PromoteAliasSet(AliasSet &AS) {
   // location is better than none.
   DebugLoc DL = LoopUses[0]->getDebugLoc();
 
-  SmallVector<BasicBlock*, 8> ExitBlocks;
-  CurLoop->getUniqueExitBlocks(ExitBlocks);
+  // Figure out the loop exits and their insertion points, if this is the
+  // first promotion.
+  if (ExitBlocks.empty()) {
+    CurLoop->getUniqueExitBlocks(ExitBlocks);
+    InsertPts.resize(ExitBlocks.size());
+    for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i)
+      InsertPts[i] = ExitBlocks[i]->getFirstInsertionPt();
+  }
 
   // We use the SSAUpdater interface to insert phi nodes as required.
   SmallVector<PHINode*, 16> NewPHIs;
   SSAUpdater SSA(&NewPHIs);
   LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
-                        *CurAST, DL, Alignment);
+                        InsertPts, *CurAST, DL, Alignment);
 
   // Set up the preheader to have a definition of the value.  It is the live-out
   // value from the preheader that uses in the loop will use.

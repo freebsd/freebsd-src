@@ -45,25 +45,25 @@
 
 #define DEBUG_TYPE "mergefunc"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Constants.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Instructions.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Operator.h"
 #include "llvm/Pass.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include <vector>
 using namespace llvm;
 
@@ -92,19 +92,19 @@ static unsigned profileFunction(const Function *F) {
 namespace {
 
 /// ComparableFunction - A struct that pairs together functions with a
-/// TargetData so that we can keep them together as elements in the DenseSet.
+/// DataLayout so that we can keep them together as elements in the DenseSet.
 class ComparableFunction {
 public:
   static const ComparableFunction EmptyKey;
   static const ComparableFunction TombstoneKey;
-  static TargetData * const LookupOnly;
+  static DataLayout * const LookupOnly;
 
-  ComparableFunction(Function *Func, TargetData *TD)
+  ComparableFunction(Function *Func, DataLayout *TD)
     : Func(Func), Hash(profileFunction(Func)), TD(TD) {}
 
   Function *getFunc() const { return Func; }
   unsigned getHash() const { return Hash; }
-  TargetData *getTD() const { return TD; }
+  DataLayout *getTD() const { return TD; }
 
   // Drops AssertingVH reference to the function. Outside of debug mode, this
   // does nothing.
@@ -120,13 +120,13 @@ private:
 
   AssertingVH<Function> Func;
   unsigned Hash;
-  TargetData *TD;
+  DataLayout *TD;
 };
 
 const ComparableFunction ComparableFunction::EmptyKey = ComparableFunction(0);
 const ComparableFunction ComparableFunction::TombstoneKey =
     ComparableFunction(1);
-TargetData *const ComparableFunction::LookupOnly = (TargetData*)(-1);
+DataLayout *const ComparableFunction::LookupOnly = (DataLayout*)(-1);
 
 }
 
@@ -150,12 +150,12 @@ namespace llvm {
 namespace {
 
 /// FunctionComparator - Compares two functions to determine whether or not
-/// they will generate machine code with the same behaviour. TargetData is
+/// they will generate machine code with the same behaviour. DataLayout is
 /// used if available. The comparator always fails conservatively (erring on the
 /// side of claiming that two functions are different).
 class FunctionComparator {
 public:
-  FunctionComparator(const TargetData *TD, const Function *F1,
+  FunctionComparator(const DataLayout *TD, const Function *F1,
                      const Function *F2)
     : F1(F1), F2(F2), TD(TD) {}
 
@@ -190,7 +190,7 @@ private:
   // The two functions undergoing comparison.
   const Function *F1, *F2;
 
-  const TargetData *TD;
+  const DataLayout *TD;
 
   DenseMap<const Value *, const Value *> id_map;
   DenseSet<const Value *> seen_values;
@@ -389,7 +389,7 @@ bool FunctionComparator::enumerate(const Value *V1, const Value *V2) {
     if (!C2) return false;
     // TODO: constant expressions with GEP or references to F1 or F2.
     if (C1->isNullValue() && C2->isNullValue() &&
-	isEquivalentType(C1->getType(), C2->getType()))
+        isEquivalentType(C1->getType(), C2->getType()))
       return true;
     // Try bitcasting C2 to C1's type. If the bitcast is legal and returns C1
     // then they must have equal bit patterns.
@@ -591,8 +591,8 @@ private:
   /// to modify it.
   FnSetType FnSet;
 
-  /// TargetData for more accurate GEP comparisons. May be NULL.
-  TargetData *TD;
+  /// DataLayout for more accurate GEP comparisons. May be NULL.
+  DataLayout *TD;
 
   /// Whether or not the target supports global aliases.
   bool HasGlobalAliases;
@@ -609,7 +609,7 @@ ModulePass *llvm::createMergeFunctionsPass() {
 
 bool MergeFunctions::runOnModule(Module &M) {
   bool Changed = false;
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
 
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     if (!I->isDeclaration() && !I->hasAvailableExternallyLinkage())

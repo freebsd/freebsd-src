@@ -16,6 +16,7 @@
 #define LLVM_CLANG_AST_DECLFRIEND_H
 
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "llvm/Support/Compiler.h"
 
 namespace clang {
@@ -71,10 +72,12 @@ private:
     : Decl(Decl::Friend, Empty), NextFriend() { }
 
   FriendDecl *getNextFriend() {
-    return cast_or_null<FriendDecl>(
-                          NextFriend.get(getASTContext().getExternalSource()));
+    if (!NextFriend.isOffset())
+      return cast_or_null<FriendDecl>(NextFriend.get(0));
+    return getNextFriendSlowCase();
   }
-  
+  FriendDecl *getNextFriendSlowCase();
+
 public:
   static FriendDecl *Create(ASTContext &C, DeclContext *DC,
                             SourceLocation L, FriendUnion Friend_,
@@ -102,9 +105,15 @@ public:
 
   /// Retrieves the source range for the friend declaration.
   SourceRange getSourceRange() const LLVM_READONLY {
-    /* FIXME: consider the case of templates wrt start of range. */
-    if (NamedDecl *ND = getFriendDecl())
+    if (NamedDecl *ND = getFriendDecl()) {
+      if (FunctionTemplateDecl *FTD = dyn_cast<FunctionTemplateDecl>(ND))
+        return FTD->getSourceRange();
+      if (DeclaratorDecl *DD = dyn_cast<DeclaratorDecl>(ND)) {
+        if (DD->getOuterLocStart() != DD->getInnerLocStart())
+          return DD->getSourceRange();
+      }
       return SourceRange(getFriendLoc(), ND->getLocEnd());
+    }
     else if (TypeSourceInfo *TInfo = getFriendType())
       return SourceRange(getFriendLoc(), TInfo->getTypeLoc().getEndLoc());
     else
@@ -121,7 +130,6 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
-  static bool classof(const FriendDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == Decl::Friend; }
 
   friend class ASTDeclReader;

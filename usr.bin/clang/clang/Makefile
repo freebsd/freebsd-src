@@ -29,7 +29,6 @@ MLINKS+= clang.1 cc.1 \
 .endif
 
 TGHDRS=	CC1AsOptions \
-	CC1Options \
 	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
@@ -48,7 +47,8 @@ LIBDEPS=clangfrontendtool \
 	clangstaticanalyzercore \
 	clanganalysis \
 	clangarcmigrate \
-	clangrewrite \
+	clangrewritefrontend \
+	clangrewritecore \
 	clangedit \
 	clangast \
 	clanglex \
@@ -61,23 +61,23 @@ LIBDEPS=clangfrontendtool \
 	llvmbitwriter \
 	llvmbitreader \
 	llvmasmparser \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsinstprinter \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
+	llvmmipsasmparser \
+	llvmmipscodegen \
+	llvmmipsdesc \
+	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
 	llvmx86asmparser \
-	llvmx86disassembler \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
@@ -88,6 +88,7 @@ LIBDEPS=clangfrontendtool \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
+	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

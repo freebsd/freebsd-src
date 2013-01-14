@@ -13,8 +13,9 @@
 
 #include "ARMSubtarget.h"
 #include "ARMBaseRegisterInfo.h"
+#include "ARMBaseInstrInfo.h"
 #include "llvm/GlobalValue.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Support/CommandLine.h"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
@@ -29,6 +30,10 @@ ReserveR9("arm-reserve-r9", cl::Hidden,
 
 static cl::opt<bool>
 DarwinUseMOVT("arm-darwin-use-movt", cl::init(true), cl::Hidden);
+
+static cl::opt<bool>
+UseFusedMulOps("arm-use-mulops",
+               cl::init(true), cl::Hidden);
 
 static cl::opt<bool>
 StrictAlign("arm-strict-align", cl::Hidden,
@@ -49,6 +54,7 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   , HasVFPv4(false)
   , HasNEON(false)
   , UseNEONForSinglePrecisionFP(false)
+  , UseMulOps(UseFusedMulOps)
   , SlowFPVMLx(false)
   , HasVMLxForwarding(false)
   , SlowFPBrcc(false)
@@ -63,10 +69,12 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   , HasFP16(false)
   , HasD16(false)
   , HasHardwareDivide(false)
+  , HasHardwareDivideInARM(false)
   , HasT2ExtractPack(false)
   , HasDataBarrier(false)
   , Pref32BitThumb(false)
   , AvoidCPSRPartialUpdate(false)
+  , HasRAS(false)
   , HasMPExtension(false)
   , FPOnlySP(false)
   , AllowsUnalignedMem(false)
@@ -82,7 +90,7 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   // Insert the architecture feature derived from the target triple into the
   // feature string. This is important for setting features that are implied
   // based on the architecture version.
-  std::string ArchFS = ARM_MC::ParseARMTriple(TT);
+  std::string ArchFS = ARM_MC::ParseARMTriple(TT, CPUString);
   if (!FS.empty()) {
     if (!ArchFS.empty())
       ArchFS = ArchFS + "," + FS;
@@ -96,13 +104,13 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
   if (!HasV6T2Ops && hasThumb2())
     HasV4TOps = HasV5TOps = HasV5TEOps = HasV6Ops = HasV6T2Ops = true;
 
+  // Keep a pointer to static instruction cost data for the specified CPU.
+  SchedModel = getSchedModelForCPU(CPUString);
+
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);
 
-  // After parsing Itineraries, set ItinData.IssueWidth.
-  computeIssueWidth();
-
-  if (TT.find("eabi") != std::string::npos)
+  if ((TT.find("eabi") != std::string::npos) || (isTargetIOS() && isMClass()))
     // FIXME: We might want to separate AAPCS and EABI. Some systems, e.g.
     // Darwin-EABI conforms to AACPS but not the rest of EABI.
     TargetABI = ARM_ABI_AAPCS;
@@ -181,31 +189,7 @@ ARMSubtarget::GVIsIndirectSymbol(const GlobalValue *GV,
 }
 
 unsigned ARMSubtarget::getMispredictionPenalty() const {
-  // If we have a reasonable estimate of the pipeline depth, then we can
-  // estimate the penalty of a misprediction based on that.
-  if (isCortexA8())
-    return 13;
-  else if (isCortexA9())
-    return 8;
-
-  // Otherwise, just return a sensible default.
-  return 10;
-}
-
-void ARMSubtarget::computeIssueWidth() {
-  unsigned allStage1Units = 0;
-  for (const InstrItinerary *itin = InstrItins.Itineraries;
-       itin->FirstStage != ~0U; ++itin) {
-    const InstrStage *IS = InstrItins.Stages + itin->FirstStage;
-    allStage1Units |= IS->getUnits();
-  }
-  InstrItins.IssueWidth = 0;
-  while (allStage1Units) {
-    ++InstrItins.IssueWidth;
-    // clear the lowest bit
-    allStage1Units ^= allStage1Units & ~(allStage1Units - 1);
-  }
-  assert(InstrItins.IssueWidth <= 2 && "itinerary bug, too many stage 1 units");
+  return SchedModel->MispredictPenalty;
 }
 
 bool ARMSubtarget::enablePostRAScheduler(

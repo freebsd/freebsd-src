@@ -43,7 +43,8 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/SimplifyIndVar.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -67,7 +68,8 @@ namespace {
     LoopInfo        *LI;
     ScalarEvolution *SE;
     DominatorTree   *DT;
-    TargetData      *TD;
+    DataLayout      *TD;
+    TargetLibraryInfo *TLI;
 
     SmallVector<WeakVH, 16> DeadInsts;
     bool Changed;
@@ -218,8 +220,6 @@ static Instruction *getInsertPointForUses(Instruction *User, Value *Def,
 /// ConvertToSInt - Convert APF to an integer, if possible.
 static bool ConvertToSInt(const APFloat &APF, int64_t &IntVal) {
   bool isExact = false;
-  if (&APF.getSemantics() == &APFloat::PPCDoubleDouble)
-    return false;
   // See if we can convert this to an int64_t
   uint64_t UIntVal;
   if (APF.convertToInteger(&UIntVal, 64, true, APFloat::rmTowardZero,
@@ -414,11 +414,11 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
   // new comparison.
   NewCompare->takeName(Compare);
   Compare->replaceAllUsesWith(NewCompare);
-  RecursivelyDeleteTriviallyDeadInstructions(Compare);
+  RecursivelyDeleteTriviallyDeadInstructions(Compare, TLI);
 
   // Delete the old floating point increment.
   Incr->replaceAllUsesWith(UndefValue::get(Incr->getType()));
-  RecursivelyDeleteTriviallyDeadInstructions(Incr);
+  RecursivelyDeleteTriviallyDeadInstructions(Incr, TLI);
 
   // If the FP induction variable still has uses, this is because something else
   // in the loop uses its value.  In order to canonicalize the induction
@@ -431,7 +431,7 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
     Value *Conv = new SIToFPInst(NewPHI, PN->getType(), "indvar.conv",
                                  PN->getParent()->getFirstInsertionPt());
     PN->replaceAllUsesWith(Conv);
-    RecursivelyDeleteTriviallyDeadInstructions(PN);
+    RecursivelyDeleteTriviallyDeadInstructions(PN, TLI);
   }
   Changed = true;
 }
@@ -549,15 +549,17 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
 
         PN->setIncomingValue(i, ExitVal);
 
-        // If this instruction is dead now, delete it.
-        RecursivelyDeleteTriviallyDeadInstructions(Inst);
+        // If this instruction is dead now, delete it. Don't do it now to avoid
+        // invalidating iterators.
+        if (isInstructionTriviallyDead(Inst, TLI))
+          DeadInsts.push_back(Inst);
 
         if (NumPreds == 1) {
           // Completely replace a single-pred PHI. This is safe, because the
           // NewVal won't be variant in the loop, so we don't need an LCSSA phi
           // node anymore.
           PN->replaceAllUsesWith(ExitVal);
-          RecursivelyDeleteTriviallyDeadInstructions(PN);
+          PN->eraseFromParent();
         }
       }
       if (NumPreds != 1) {
@@ -595,13 +597,13 @@ namespace {
 
   class WideIVVisitor : public IVVisitor {
     ScalarEvolution *SE;
-    const TargetData *TD;
+    const DataLayout *TD;
 
   public:
     WideIVInfo WI;
 
     WideIVVisitor(PHINode *NarrowIV, ScalarEvolution *SCEV,
-                  const TargetData *TData) :
+                  const DataLayout *TData) :
       SE(SCEV), TD(TData) { WI.NarrowIV = NarrowIV; }
 
     // Implement the interface used by simplifyUsersOfIV.
@@ -1215,21 +1217,26 @@ static PHINode *getLoopPhiForCounter(Value *IncV, Loop *L, DominatorTree *DT) {
   return 0;
 }
 
-/// needsLFTR - LinearFunctionTestReplace policy. Return true unless we can show
-/// that the current exit test is already sufficiently canonical.
-static bool needsLFTR(Loop *L, DominatorTree *DT) {
+/// Return the compare guarding the loop latch, or NULL for unrecognized tests.
+static ICmpInst *getLoopTest(Loop *L) {
   assert(L->getExitingBlock() && "expected loop exit");
 
   BasicBlock *LatchBlock = L->getLoopLatch();
   // Don't bother with LFTR if the loop is not properly simplified.
   if (!LatchBlock)
-    return false;
+    return 0;
 
   BranchInst *BI = dyn_cast<BranchInst>(L->getExitingBlock()->getTerminator());
   assert(BI && "expected exit branch");
 
+  return dyn_cast<ICmpInst>(BI->getCondition());
+}
+
+/// needsLFTR - LinearFunctionTestReplace policy. Return true unless we can show
+/// that the current exit test is already sufficiently canonical.
+static bool needsLFTR(Loop *L, DominatorTree *DT) {
   // Do LFTR to simplify the exit condition to an ICMP.
-  ICmpInst *Cond = dyn_cast<ICmpInst>(BI->getCondition());
+  ICmpInst *Cond = getLoopTest(L);
   if (!Cond)
     return true;
 
@@ -1254,9 +1261,56 @@ static bool needsLFTR(Loop *L, DominatorTree *DT) {
   if (!Phi)
     return true;
 
+  // Do LFTR if PHI node is defined in the loop, but is *not* a counter.
+  int Idx = Phi->getBasicBlockIndex(L->getLoopLatch());
+  if (Idx < 0)
+    return true;
+
   // Do LFTR if the exit condition's IV is *not* a simple counter.
-  Value *IncV = Phi->getIncomingValueForBlock(L->getLoopLatch());
+  Value *IncV = Phi->getIncomingValue(Idx);
   return Phi != getLoopPhiForCounter(IncV, L, DT);
+}
+
+/// Recursive helper for hasConcreteDef(). Unfortunately, this currently boils
+/// down to checking that all operands are constant and listing instructions
+/// that may hide undef.
+static bool hasConcreteDefImpl(Value *V, SmallPtrSet<Value*, 8> &Visited,
+                               unsigned Depth) {
+  if (isa<Constant>(V))
+    return !isa<UndefValue>(V);
+
+  if (Depth >= 6)
+    return false;
+
+  // Conservatively handle non-constant non-instructions. For example, Arguments
+  // may be undef.
+  Instruction *I = dyn_cast<Instruction>(V);
+  if (!I)
+    return false;
+
+  // Load and return values may be undef.
+  if(I->mayReadFromMemory() || isa<CallInst>(I) || isa<InvokeInst>(I))
+    return false;
+
+  // Optimistically handle other instructions.
+  for (User::op_iterator OI = I->op_begin(), E = I->op_end(); OI != E; ++OI) {
+    if (!Visited.insert(*OI))
+      continue;
+    if (!hasConcreteDefImpl(*OI, Visited, Depth+1))
+      return false;
+  }
+  return true;
+}
+
+/// Return true if the given value is concrete. We must prove that undef can
+/// never reach it.
+///
+/// TODO: If we decide that this is a good approach to checking for undef, we
+/// may factor it into a common location.
+static bool hasConcreteDef(Value *V) {
+  SmallPtrSet<Value*, 8> Visited;
+  Visited.insert(V);
+  return hasConcreteDefImpl(V, Visited, 0);
 }
 
 /// AlmostDeadIV - Return true if this IV has any uses other than the (soon to
@@ -1283,6 +1337,8 @@ static bool AlmostDeadIV(PHINode *Phi, BasicBlock *LatchBlock, Value *Cond) {
 /// valid count without scaling the address stride, so it remains a pointer
 /// expression as far as SCEV is concerned.
 ///
+/// Currently only valid for LFTR. See the comments on hasConcreteDef below.
+///
 /// FIXME: Accept -1 stride and set IVLimit = IVInit - BECount
 ///
 /// FIXME: Accept non-unit stride as long as SCEV can reduce BECount * Stride.
@@ -1290,7 +1346,7 @@ static bool AlmostDeadIV(PHINode *Phi, BasicBlock *LatchBlock, Value *Cond) {
 /// could at least handle constant BECounts.
 static PHINode *
 FindLoopCounter(Loop *L, const SCEV *BECount,
-                ScalarEvolution *SE, DominatorTree *DT, const TargetData *TD) {
+                ScalarEvolution *SE, DominatorTree *DT, const DataLayout *TD) {
   uint64_t BCWidth = SE->getTypeSizeInBits(BECount->getType());
 
   Value *Cond =
@@ -1331,6 +1387,19 @@ FindLoopCounter(Loop *L, const SCEV *BECount,
     if (getLoopPhiForCounter(IncV, L, DT) != Phi)
       continue;
 
+    // Avoid reusing a potentially undef value to compute other values that may
+    // have originally had a concrete definition.
+    if (!hasConcreteDef(Phi)) {
+      // We explicitly allow unknown phis as long as they are already used by
+      // the loop test. In this case we assume that performing LFTR could not
+      // increase the number of undef users.
+      if (ICmpInst *Cond = getLoopTest(L)) {
+        if (Phi != getLoopPhiForCounter(Cond->getOperand(0), L, DT)
+            && Phi != getLoopPhiForCounter(Cond->getOperand(1), L, DT)) {
+          continue;
+        }
+      }
+    }
     const SCEV *Init = AR->getStart();
 
     if (BestPhi && !AlmostDeadIV(BestPhi, LatchBlock, Cond)) {
@@ -1347,7 +1416,7 @@ FindLoopCounter(Loop *L, const SCEV *BECount,
       // If two IVs both count from zero or both count from nonzero then the
       // narrower is likely a dead phi that has been widened. Use the wider phi
       // to allow the other to be eliminated.
-      if (PhiWidth <= SE->getTypeSizeInBits(BestPhi->getType()))
+      else if (PhiWidth <= SE->getTypeSizeInBits(BestPhi->getType()))
         continue;
     }
     BestPhi = Phi;
@@ -1634,7 +1703,8 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   LI = &getAnalysis<LoopInfo>();
   SE = &getAnalysis<ScalarEvolution>();
   DT = &getAnalysis<DominatorTree>();
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
+  TLI = getAnalysisIfAvailable<TargetLibraryInfo>();
 
   DeadInsts.clear();
   Changed = false;
@@ -1701,7 +1771,7 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   while (!DeadInsts.empty())
     if (Instruction *Inst =
           dyn_cast_or_null<Instruction>(&*DeadInsts.pop_back_val()))
-      RecursivelyDeleteTriviallyDeadInstructions(Inst);
+      RecursivelyDeleteTriviallyDeadInstructions(Inst, TLI);
 
   // The Rewriter may not be used from this point on.
 
@@ -1710,7 +1780,7 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   SinkUnusedInvariants(L);
 
   // Clean up dead instructions.
-  Changed |= DeleteDeadPHIs(L->getHeader());
+  Changed |= DeleteDeadPHIs(L->getHeader(), TLI);
   // Check a post-condition.
   assert(L->isLCSSAForm(*DT) &&
          "Indvars did not leave the loop in lcssa form!");

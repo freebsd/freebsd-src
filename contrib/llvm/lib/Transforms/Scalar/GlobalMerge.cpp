@@ -12,7 +12,7 @@
 // global). Such a transformation can significantly reduce the register pressure
 // when many globals are involved.
 //
-// For example, consider the code which touches several global variables at 
+// For example, consider the code which touches several global variables at
 // once:
 //
 // static int foo[N], bar[N], baz[N];
@@ -62,7 +62,7 @@
 #include "llvm/Intrinsics.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/ADT/Statistic.h"
@@ -98,9 +98,9 @@ namespace {
     }
 
     struct GlobalCmp {
-      const TargetData *TD;
+      const DataLayout *TD;
 
-      GlobalCmp(const TargetData *td) : TD(td) { }
+      GlobalCmp(const DataLayout *td) : TD(td) { }
 
       bool operator()(const GlobalVariable *GV1, const GlobalVariable *GV2) {
         Type *Ty1 = cast<PointerType>(GV1->getType())->getElementType();
@@ -119,7 +119,7 @@ INITIALIZE_PASS(GlobalMerge, "global-merge",
 
 bool GlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
                              Module &M, bool isConst) const {
-  const TargetData *TD = TLI->getTargetData();
+  const DataLayout *TD = TLI->getDataLayout();
 
   // FIXME: Infer the maximum possible offset depending on the actual users
   // (these max offsets are different for the users inside Thumb or ARM
@@ -170,7 +170,7 @@ bool GlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
 
 bool GlobalMerge::doInitialization(Module &M) {
   SmallVector<GlobalVariable*, 16> Globals, ConstGlobals, BSSGlobals;
-  const TargetData *TD = TLI->getTargetData();
+  const DataLayout *TD = TLI->getDataLayout();
   unsigned MaxOffset = TLI->getMaximalGlobalOffset();
   bool Changed = false;
 
@@ -208,8 +208,8 @@ bool GlobalMerge::doInitialization(Module &M) {
   if (BSSGlobals.size() > 1)
     Changed |= doMerge(BSSGlobals, M, false);
 
-  // FIXME: This currently breaks the EH processing due to way how the 
-  // typeinfo detection works. We might want to detect the TIs and ignore 
+  // FIXME: This currently breaks the EH processing due to way how the
+  // typeinfo detection works. We might want to detect the TIs and ignore
   // them in the future.
   // if (ConstGlobals.size() > 1)
   //  Changed |= doMerge(ConstGlobals, M, true);

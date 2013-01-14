@@ -30,7 +30,7 @@ class StringRef;
 class ARMSubtarget : public ARMGenSubtargetInfo {
 protected:
   enum ARMProcFamilyEnum {
-    Others, CortexA8, CortexA9
+    Others, CortexA8, CortexA9, CortexA15, Swift
   };
 
   /// ARMProcFamily - ARM processor family: Cortex-A8, Cortex-A9, and others.
@@ -57,6 +57,10 @@ protected:
   /// determine if NEON should actually be used.
   bool UseNEONForSinglePrecisionFP;
 
+  /// UseMulOps - True if non-microcoded fused integer multiply-add and
+  /// multiply-subtract instructions should be used.
+  bool UseMulOps;
+
   /// SlowFPVMLx - If the VFP2 / NEON instructions are available, indicates
   /// whether the FP VML[AS] instructions are slow (if so, don't use them).
   bool SlowFPVMLx;
@@ -74,7 +78,7 @@ protected:
   /// HasThumb2 - True if Thumb2 instructions are supported.
   bool HasThumb2;
 
-  /// IsMClass - True if the subtarget belongs to the 'M' profile of CPUs - 
+  /// IsMClass - True if the subtarget belongs to the 'M' profile of CPUs -
   /// v6m, v7m for example.
   bool IsMClass;
 
@@ -106,6 +110,9 @@ protected:
 
   /// HasHardwareDivide - True if subtarget supports [su]div
   bool HasHardwareDivide;
+
+  /// HasHardwareDivideInARM - True if subtarget supports [su]div in ARM mode
+  bool HasHardwareDivideInARM;
 
   /// HasT2ExtractPack - True if subtarget supports thumb2 extract/pack
   /// instructions.
@@ -155,6 +162,9 @@ protected:
   /// TargetTriple - What processor and OS we're targeting.
   Triple TargetTriple;
 
+  /// SchedModel - Processor specific instruction costs.
+  const MCSchedModel *SchedModel;
+
   /// Selected instruction itineraries (one entry per itinerary class.)
   InstrItineraryData InstrItins;
 
@@ -196,7 +206,10 @@ protected:
 
   bool isCortexA8() const { return ARMProcFamily == CortexA8; }
   bool isCortexA9() const { return ARMProcFamily == CortexA9; }
+  bool isCortexA15() const { return ARMProcFamily == CortexA15; }
+  bool isSwift()    const { return ARMProcFamily == Swift; }
   bool isCortexM3() const { return CPUString == "cortex-m3"; }
+  bool isLikeA9() const { return isCortexA9() || isCortexA15(); }
 
   bool hasARMOps() const { return !NoARM; }
 
@@ -208,8 +221,10 @@ protected:
     return hasNEON() && UseNEONForSinglePrecisionFP; }
 
   bool hasDivide() const { return HasHardwareDivide; }
+  bool hasDivideInARMMode() const { return HasHardwareDivideInARM; }
   bool hasT2ExtractPack() const { return HasT2ExtractPack; }
   bool hasDataBarrier() const { return HasDataBarrier; }
+  bool useMulOps() const { return UseMulOps; }
   bool useFPVMLx() const { return !SlowFPVMLx; }
   bool hasVMLxForwarding() const { return HasVMLxForwarding; }
   bool isFPBrccSlow() const { return SlowFPBrcc; }

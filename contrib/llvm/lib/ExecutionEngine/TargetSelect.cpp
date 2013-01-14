@@ -26,11 +26,14 @@
 using namespace llvm;
 
 TargetMachine *EngineBuilder::selectTarget() {
-  StringRef MArch = "";
-  StringRef MCPU = "";
-  SmallVector<std::string, 1> MAttrs;
-  Triple TT(M->getTargetTriple());
+  Triple TT;
 
+  // MCJIT can generate code for remote targets, but the old JIT and Interpreter
+  // must use the host architecture.
+  if (UseMCJIT && WhichEngine != EngineKind::Interpreter && M)
+    TT.setTriple(M->getTargetTriple());
+  else
+    TT.setTriple(LLVM_HOSTTRIPLE);
   return selectTarget(TT, MArch, MCPU, MAttrs);
 }
 
@@ -56,8 +59,9 @@ TargetMachine *EngineBuilder::selectTarget(const Triple &TargetTriple,
     }
 
     if (!TheTarget) {
-      *ErrorStr = "No available targets are compatible with this -march, "
-        "see -version for the available targets.\n";
+      if (ErrorStr)
+        *ErrorStr = "No available targets are compatible with this -march, "
+                    "see -version for the available targets.\n";
       return 0;
     }
 

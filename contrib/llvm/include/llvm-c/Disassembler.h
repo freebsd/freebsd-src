@@ -109,9 +109,9 @@ struct LLVMOpInfo1 {
  */
 typedef const char *(*LLVMSymbolLookupCallback)(void *DisInfo,
                                                 uint64_t ReferenceValue,
-						uint64_t *ReferenceType,
-						uint64_t ReferencePC,
-						const char **ReferenceName);
+                                                uint64_t *ReferenceType,
+                                                uint64_t ReferencePC,
+                                                const char **ReferenceName);
 /**
  * The reference types on input and output.
  */
@@ -144,6 +144,15 @@ extern "C" {
 LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
                                       int TagType, LLVMOpInfoCallback GetOpInfo,
                                       LLVMSymbolLookupCallback SymbolLookUp);
+
+/**
+ * Set the disassembler's options.  Returns 1 if it can set the Options and 0
+ * otherwise.
+ */
+int LLVMSetDisasmOptions(LLVMDisasmContextRef DC, uint64_t Options);
+
+/* The option to produce marked up assembly. */
+#define LLVMDisassembler_Option_UseMarkup 1
 
 /**
  * Dispose of a disassembler context.
