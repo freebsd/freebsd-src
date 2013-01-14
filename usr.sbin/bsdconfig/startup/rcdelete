@@ -210,9 +210,7 @@ dialog_menu_delete()
 	[ $# -ge 1 ] || return $FAILURE
 
 	if [ $# -eq 1 ]; then
-		msg=$( printf "$msg_are_you_sure_you_want_to_delete" \
-		              "$delete_vars" )
-		f_dialog_noyes "$msg"
+		f_noyes "$msg_are_you_sure_you_want_to_delete" "$delete_vars"
 		return $?
 	fi
 

@@ -456,9 +456,8 @@ f_dialog_menu_netdev_edit()
 	# Re/Apply the settings if desired
 	#
 	if [ ! "$dhcp" ]; then
-		f_dialog_yesno "Would you like to bring the $interface" \
-		               "interface up right now?"
-		if [ $? -eq $SUCCESS ]; then
+		if f_yesno "$msg_bring_interface_up" "$interface"
+		then
 			f_show_info "$msg_bring_interface_up" "$interface"
 
 			local dr="$( f_sysrc_get defaultrouter )" err
