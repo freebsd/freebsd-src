@@ -179,7 +179,7 @@ struct intel_raid_conf {
 	uint8_t		error_log_pos;
 	uint8_t		dummy_2[1];
 	uint32_t	cache_size;
-	uint32_t	orig_family_num;
+	uint32_t	orig_config_id;
 	uint32_t	pwr_cycle_count;
 	uint32_t	bbm_log_size;
 	uint32_t	filler_0[35];
@@ -385,14 +385,17 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 	printf("attributes          0x%08x\n", meta->attributes);
 	printf("total_disks         %u\n", meta->total_disks);
 	printf("total_volumes       %u\n", meta->total_volumes);
-	printf("orig_family_num     0x%08x\n", meta->orig_family_num);
+	printf("error_log_pos       %u\n", meta->error_log_pos);
+	printf("cache_size          %u\n", meta->cache_size);
+	printf("orig_config_id      0x%08x\n", meta->orig_config_id);
+	printf("pwr_cycle_count     %u\n", meta->pwr_cycle_count);
 	printf("bbm_log_size        %u\n", meta->bbm_log_size);
-	printf("DISK#   serial disk_sectors disk_sectors_hi disk_id flags\n");
+	printf("DISK#   serial disk_sectors disk_sectors_hi disk_id flags owner\n");
 	for (i = 0; i < meta->total_disks; i++ ) {
-		printf("    %d   <%.16s> %u %u 0x%08x 0x%08x\n", i,
+		printf("    %d   <%.16s> %u %u 0x%08x 0x%08x %08x\n", i,
 		    meta->disk[i].serial, meta->disk[i].sectors,
-		    meta->disk[i].sectors_hi,
-		    meta->disk[i].id, meta->disk[i].flags);
+		    meta->disk[i].sectors_hi, meta->disk[i].id,
+		    meta->disk[i].flags, meta->disk[i].owner_cfg_num);
 	}
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
@@ -414,6 +417,9 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 		printf(" migr_state         %u\n", mvol->migr_state);
 		printf(" migr_type          %u\n", mvol->migr_type);
 		printf(" dirty              %u\n", mvol->dirty);
+		printf(" fs_state           %u\n", mvol->fs_state);
+		printf(" verify_errors      %u\n", mvol->verify_errors);
+		printf(" bad_blocks         %u\n", mvol->bad_blocks);
 
 		for (j = 0; j < (mvol->migr_state ? 2 : 1); j++) {
 			printf("  *** Map %d ***\n", j);
