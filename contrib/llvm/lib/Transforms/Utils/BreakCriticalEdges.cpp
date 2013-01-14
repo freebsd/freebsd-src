@@ -122,7 +122,7 @@ bool llvm::isCriticalEdge(const TerminatorInst *TI, unsigned SuccNum,
 /// new PHIs, as needed. Preds is a list of preds inside the loop, SplitBB
 /// is the new loop exit block, and DestBB is the old loop exit, now the
 /// successor of SplitBB.
-static void createPHIsForSplitLoopExit(SmallVectorImpl<BasicBlock *> &Preds,
+static void createPHIsForSplitLoopExit(ArrayRef<BasicBlock *> Preds,
                                        BasicBlock *SplitBB,
                                        BasicBlock *DestBB) {
   // SplitBB shouldn't have anything non-trivial in it yet.
@@ -341,11 +341,8 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
                "Split point for loop exit is contained in loop!");
 
         // Update LCSSA form in the newly created exit block.
-        if (P->mustPreserveAnalysisID(LCSSAID)) {
-          SmallVector<BasicBlock *, 1> OrigPred;
-          OrigPred.push_back(TIBB);
-          createPHIsForSplitLoopExit(OrigPred, NewBB, DestBB);
-        }
+        if (P->mustPreserveAnalysisID(LCSSAID))
+          createPHIsForSplitLoopExit(TIBB, NewBB, DestBB);
 
         // For each unique exit block...
         // FIXME: This code is functionally equivalent to the corresponding

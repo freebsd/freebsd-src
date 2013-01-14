@@ -52,25 +52,13 @@ Driver::Driver(StringRef ClangExecutable,
     ClangExecutable(ClangExecutable), SysRoot(DEFAULT_SYSROOT),
     UseStdLib(true), DefaultTargetTriple(DefaultTargetTriple),
     DefaultImageName(DefaultImageName),
-    DriverTitle("clang \"gcc-compatible\" driver"),
+    DriverTitle("clang LLVM compiler"),
     CCPrintOptionsFilename(0), CCPrintHeadersFilename(0),
     CCLogDiagnosticsFilename(0), CCCIsCXX(false),
     CCCIsCPP(false),CCCEcho(false), CCCPrintBindings(false),
     CCPrintOptions(false), CCPrintHeaders(false), CCLogDiagnostics(false),
     CCGenDiagnostics(false), CCCGenericGCCName(""), CheckInputsExist(true),
-    CCCUseClang(true), CCCUseClangCXX(true), CCCUseClangCPP(true),
     CCCUsePCH(true), SuppressMissingInputWarning(false) {
-  if (IsProduction) {
-    // In a "production" build, only use clang on architectures we expect to
-    // work.
-    //
-    // During development its more convenient to always have the driver use
-    // clang, but we don't want users to be confused when things don't work, or
-    // to file bugs for things we don't support.
-    CCCClangArchs.insert(llvm::Triple::x86);
-    CCCClangArchs.insert(llvm::Triple::x86_64);
-    CCCClangArchs.insert(llvm::Triple::arm);
-  }
 
   Name = llvm::sys::path::stem(ClangExecutable);
   Dir  = llvm::sys::path::parent_path(ClangExecutable);
@@ -109,15 +97,16 @@ InputArgList *Driver::ParseArgStrings(ArrayRef<const char *> ArgList) {
   for (ArgList::const_iterator it = Args->begin(), ie = Args->end();
        it != ie; ++it) {
     Arg *A = *it;
-    if (A->getOption().isUnsupported()) {
+    if (A->getOption().hasFlag(options::Unsupported)) {
       Diag(clang::diag::err_drv_unsupported_opt) << A->getAsString(*Args);
       continue;
     }
 
     // Warn about -mcpu= without an argument.
-    if (A->getOption().matches(options::OPT_mcpu_EQ) && 
+    if (A->getOption().matches(options::OPT_mcpu_EQ) &&
         A->containsValue("")) {
-      Diag(clang::diag::warn_drv_empty_joined_argument) << A->getAsString(*Args);
+      Diag(clang::diag::warn_drv_empty_joined_argument) <<
+        A->getAsString(*Args);
     }
   }
 
@@ -185,9 +174,9 @@ DerivedArgList *Driver::TranslateInputArgs(const InputArgList &Args) const {
 
       // Add the remaining values as Xlinker arguments.
       for (unsigned i = 0, e = A->getNumValues(); i != e; ++i)
-        if (StringRef(A->getValue(Args, i)) != "--no-demangle")
+        if (StringRef(A->getValue(i)) != "--no-demangle")
           DAL->AddSeparateArg(A, Opts->getOption(options::OPT_Xlinker),
-                              A->getValue(Args, i));
+                              A->getValue(i));
 
       continue;
     }
@@ -196,22 +185,22 @@ DerivedArgList *Driver::TranslateInputArgs(const InputArgList &Args) const {
     // some build systems. We don't try to be complete here because we don't
     // care to encourage this usage model.
     if (A->getOption().matches(options::OPT_Wp_COMMA) &&
-        A->getNumValues() == 2 &&
-        (A->getValue(Args, 0) == StringRef("-MD") ||
-         A->getValue(Args, 0) == StringRef("-MMD"))) {
+        (A->getValue(0) == StringRef("-MD") ||
+         A->getValue(0) == StringRef("-MMD"))) {
       // Rewrite to -MD/-MMD along with -MF.
-      if (A->getValue(Args, 0) == StringRef("-MD"))
+      if (A->getValue(0) == StringRef("-MD"))
         DAL->AddFlagArg(A, Opts->getOption(options::OPT_MD));
       else
         DAL->AddFlagArg(A, Opts->getOption(options::OPT_MMD));
-      DAL->AddSeparateArg(A, Opts->getOption(options::OPT_MF),
-                          A->getValue(Args, 1));
+      if (A->getNumValues() == 2)
+        DAL->AddSeparateArg(A, Opts->getOption(options::OPT_MF),
+                            A->getValue(1));
       continue;
     }
 
     // Rewrite reserved library names.
     if (A->getOption().matches(options::OPT_l)) {
-      StringRef Value = A->getValue(Args);
+      StringRef Value = A->getValue();
 
       // Rewrite unless -nostdlib is present.
       if (!HasNostdlib && Value == "stdc++") {
@@ -253,7 +242,7 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
   if (char *env = ::getenv("COMPILER_PATH")) {
     StringRef CompilerPath = env;
     while (!CompilerPath.empty()) {
-      std::pair<StringRef, StringRef> Split = CompilerPath.split(':');      
+      std::pair<StringRef, StringRef> Split = CompilerPath.split(':');
       PrefixDirs.push_back(Split.first);
       CompilerPath = Split.second;
     }
@@ -284,48 +273,23 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
   CCCIsCXX = Args->hasArg(options::OPT_ccc_cxx) || CCCIsCXX;
   CCCEcho = Args->hasArg(options::OPT_ccc_echo);
   if (const Arg *A = Args->getLastArg(options::OPT_ccc_gcc_name))
-    CCCGenericGCCName = A->getValue(*Args);
-  CCCUseClangCXX = Args->hasFlag(options::OPT_ccc_clang_cxx,
-                                 options::OPT_ccc_no_clang_cxx,
-                                 CCCUseClangCXX);
+    CCCGenericGCCName = A->getValue();
   CCCUsePCH = Args->hasFlag(options::OPT_ccc_pch_is_pch,
                             options::OPT_ccc_pch_is_pth);
-  CCCUseClang = !Args->hasArg(options::OPT_ccc_no_clang);
-  CCCUseClangCPP = !Args->hasArg(options::OPT_ccc_no_clang_cpp);
-  if (const Arg *A = Args->getLastArg(options::OPT_ccc_clang_archs)) {
-    StringRef Cur = A->getValue(*Args);
-
-    CCCClangArchs.clear();
-    while (!Cur.empty()) {
-      std::pair<StringRef, StringRef> Split = Cur.split(',');
-
-      if (!Split.first.empty()) {
-        llvm::Triple::ArchType Arch =
-          llvm::Triple(Split.first, "", "").getArch();
-
-        if (Arch == llvm::Triple::UnknownArch)
-          Diag(clang::diag::err_drv_invalid_arch_name) << Split.first;
-
-        CCCClangArchs.insert(Arch);
-      }
-
-      Cur = Split.second;
-    }
-  }
   // FIXME: DefaultTargetTriple is used by the target-prefixed calls to as/ld
   // and getToolChain is const.
   if (const Arg *A = Args->getLastArg(options::OPT_target))
-    DefaultTargetTriple = A->getValue(*Args);
+    DefaultTargetTriple = A->getValue();
   if (const Arg *A = Args->getLastArg(options::OPT_ccc_install_dir))
-    Dir = InstalledDir = A->getValue(*Args);
+    Dir = InstalledDir = A->getValue();
   for (arg_iterator it = Args->filtered_begin(options::OPT_B),
          ie = Args->filtered_end(); it != ie; ++it) {
     const Arg *A = *it;
     A->claim();
-    PrefixDirs.push_back(A->getValue(*Args, 0));
+    PrefixDirs.push_back(A->getValue(0));
   }
   if (const Arg *A = Args->getLastArg(options::OPT__sysroot_EQ))
-    SysRoot = A->getValue(*Args);
+    SysRoot = A->getValue();
   if (Args->hasArg(options::OPT_nostdlib))
     UseStdLib = false;
 
@@ -376,24 +340,33 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
 void Driver::generateCompilationDiagnostics(Compilation &C,
                                             const Command *FailingCommand) {
   if (C.getArgs().hasArg(options::OPT_fno_crash_diagnostics))
-    return;  
-
-  // Don't try to generate diagnostics for link jobs.
-  if (FailingCommand->getCreator().isLinkJob())
     return;
 
+  // Don't try to generate diagnostics for link jobs.
+  if (FailingCommand && FailingCommand->getCreator().isLinkJob())
+    return;
+
+  // Print the version of the compiler.
+  PrintVersion(C, llvm::errs());
+
   Diag(clang::diag::note_drv_command_failed_diag_msg)
-    << "Please submit a bug report to " BUG_REPORT_URL " and include command"
-    " line arguments and all diagnostic information.";
+    << "PLEASE submit a bug report to " BUG_REPORT_URL " and include the "
+    "crash backtrace, preprocessed source, and associated run script.";
 
   // Suppress driver output and emit preprocessor output to temp file.
   CCCIsCPP = true;
   CCGenDiagnostics = true;
+  C.getArgs().AddFlagArg(0, Opts->getOption(options::OPT_frewrite_includes));
 
   // Save the original job command(s).
   std::string Cmd;
   llvm::raw_string_ostream OS(Cmd);
-  C.PrintJob(OS, C.getJobs(), "\n", false);
+  if (FailingCommand)
+    C.PrintDiagnosticJob(OS, *FailingCommand);
+  else
+    // Crash triggered by FORCE_CLANG_DIAGNOSTICS_CRASH, which doesn't have an
+    // associated FailingCommand, so just pass all jobs.
+    C.PrintDiagnosticJob(OS, C.getJobs());
   OS.flush();
 
   // Clear stale state and suppress tool output.
@@ -408,7 +381,7 @@ void Driver::generateCompilationDiagnostics(Compilation &C,
     bool IgnoreInput = false;
 
     // Ignore input from stdin or any inputs that cannot be preprocessed.
-    if (!strcmp(it->second->getValue(C.getArgs()), "-")) {
+    if (!strcmp(it->second->getValue(), "-")) {
       Diag(clang::diag::note_drv_command_failed_diag_msg)
         << "Error generating preprocessed source(s) - ignoring input from stdin"
         ".";
@@ -432,7 +405,7 @@ void Driver::generateCompilationDiagnostics(Compilation &C,
        it != ie; ++it) {
     Arg *A = *it;
     if (A->getOption().matches(options::OPT_arch)) {
-      StringRef ArchName = A->getValue(C.getArgs());
+      StringRef ArchName = A->getValue();
       ArchNames.insert(ArchName);
     }
   }
@@ -473,7 +446,9 @@ void Driver::generateCompilationDiagnostics(Compilation &C,
   // If the command succeeded, we are done.
   if (Res == 0) {
     Diag(clang::diag::note_drv_command_failed_diag_msg)
-      << "Preprocessed source(s) and associated run script(s) are located at:";
+      << "\n********************\n\n"
+      "PLEASE ATTACH THE FOLLOWING FILES TO THE BUG REPORT:\n"
+      "Preprocessed source(s) and associated run script(s) are located at:";
     ArgStringList Files = C.getTempFiles();
     for (ArgStringList::const_iterator it = Files.begin(), ie = Files.end();
          it != ie; ++it) {
@@ -489,10 +464,25 @@ void Driver::generateCompilationDiagnostics(Compilation &C,
         Diag(clang::diag::note_drv_command_failed_diag_msg)
           << "Error generating run script: " + Script + " " + Err;
       } else {
+        // Append the new filename with correct preprocessed suffix.
+        size_t I, E;
+        I = Cmd.find("-main-file-name ");
+        assert (I != std::string::npos && "Expected to find -main-file-name");
+        I += 16;
+        E = Cmd.find(" ", I);
+        assert (E != std::string::npos && "-main-file-name missing argument?");
+        StringRef OldFilename = StringRef(Cmd).slice(I, E);
+        StringRef NewFilename = llvm::sys::path::filename(*it);
+        I = StringRef(Cmd).rfind(OldFilename);
+        E = I + OldFilename.size();
+        I = Cmd.rfind(" ", I) + 1;
+        Cmd.replace(I, E - I, NewFilename.data(), NewFilename.size());
         ScriptOS << Cmd;
         Diag(clang::diag::note_drv_command_failed_diag_msg) << Script;
       }
     }
+    Diag(clang::diag::note_drv_command_failed_diag_msg)
+      << "\n\n********************";
   } else {
     // Failure, remove preprocessed files.
     if (!C.getArgs().hasArg(options::OPT_save_temps))
@@ -529,14 +519,8 @@ int Driver::ExecuteCompilation(const Compilation &C,
     C.CleanupFileList(C.getResultFiles(), true);
 
     // Failure result files are valid unless we crashed.
-    if (Res < 0) {
+    if (Res < 0)
       C.CleanupFileList(C.getFailureResultFiles(), true);
-#ifdef _WIN32
-      // Exit status should not be negative on Win32,
-      // unless abnormal termination.
-      Res = 1;
-#endif
-    }
   }
 
   // Print extra information about abnormal failures, if possible.
@@ -567,12 +551,12 @@ void Driver::PrintOptions(const ArgList &Args) const {
        it != ie; ++it, ++i) {
     Arg *A = *it;
     llvm::errs() << "Option " << i << " - "
-                 << "Name: \"" << A->getOption().getName() << "\", "
+                 << "Name: \"" << A->getOption().getPrefixedName() << "\", "
                  << "Values: {";
     for (unsigned j = 0; j < A->getNumValues(); ++j) {
       if (j)
         llvm::errs() << ", ";
-      llvm::errs() << '"' << A->getValue(Args, j) << '"';
+      llvm::errs() << '"' << A->getValue(j) << '"';
     }
     llvm::errs() << "}\n";
   }
@@ -580,7 +564,9 @@ void Driver::PrintOptions(const ArgList &Args) const {
 
 void Driver::PrintHelp(bool ShowHidden) const {
   getOpts().PrintHelp(llvm::outs(), Name.c_str(), DriverTitle.c_str(),
-                      ShowHidden);
+                      /*Include*/0,
+                      /*Exclude*/options::NoDriverOption |
+                      (ShowHidden ? 0 : options::HelpHidden));
 }
 
 void Driver::PrintVersion(const Compilation &C, raw_ostream &OS) const {
@@ -630,7 +616,7 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
     return false;
   }
 
-  if (C.getArgs().hasArg(options::OPT__help) ||
+  if (C.getArgs().hasArg(options::OPT_help) ||
       C.getArgs().hasArg(options::OPT__help_hidden)) {
     PrintHelp(C.getArgs().hasArg(options::OPT__help_hidden));
     return false;
@@ -678,12 +664,12 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
   // FIXME: The following handlers should use a callback mechanism, we don't
   // know what the client would like to do.
   if (Arg *A = C.getArgs().getLastArg(options::OPT_print_file_name_EQ)) {
-    llvm::outs() << GetFilePath(A->getValue(C.getArgs()), TC) << "\n";
+    llvm::outs() << GetFilePath(A->getValue(), TC) << "\n";
     return false;
   }
 
   if (Arg *A = C.getArgs().getLastArg(options::OPT_print_prog_name_EQ)) {
-    llvm::outs() << GetProgramPath(A->getValue(C.getArgs()), TC) << "\n";
+    llvm::outs() << GetProgramPath(A->getValue(), TC) << "\n";
     return false;
   }
 
@@ -746,10 +732,9 @@ static unsigned PrintActions1(const Compilation &C, Action *A,
 
   os << Action::getClassName(A->getKind()) << ", ";
   if (InputAction *IA = dyn_cast<InputAction>(A)) {
-    os << "\"" << IA->getInputArg().getValue(C.getArgs()) << "\"";
+    os << "\"" << IA->getInputArg().getValue() << "\"";
   } else if (BindArchAction *BIA = dyn_cast<BindArchAction>(A)) {
-    os << '"' << (BIA->getArchName() ? BIA->getArchName() :
-                  C.getDefaultToolChain().getArchName()) << '"'
+    os << '"' << BIA->getArchName() << '"'
        << ", {" << PrintActions1(C, *BIA->begin(), Ids) << "}";
   } else {
     os << "{";
@@ -807,7 +792,7 @@ void Driver::BuildUniversalActions(const ToolChain &TC,
       // Validate the option here; we don't save the type here because its
       // particular spelling may participate in other driver choices.
       llvm::Triple::ArchType Arch =
-        llvm::Triple::getArchTypeForDarwinArchName(A->getValue(Args));
+        tools::darwin::getArchTypeForDarwinArchName(A->getValue());
       if (Arch == llvm::Triple::UnknownArch) {
         Diag(clang::diag::err_drv_invalid_arch_name)
           << A->getAsString(Args);
@@ -815,15 +800,15 @@ void Driver::BuildUniversalActions(const ToolChain &TC,
       }
 
       A->claim();
-      if (ArchNames.insert(A->getValue(Args)))
-        Archs.push_back(A->getValue(Args));
+      if (ArchNames.insert(A->getValue()))
+        Archs.push_back(A->getValue());
     }
   }
 
   // When there is no explicit arch for this platform, make sure we still bind
   // the architecture (to the default) so that -Xarch_ is handled correctly.
   if (!Archs.size())
-    Archs.push_back(0);
+    Archs.push_back(Args.MakeArgString(TC.getDefaultUniversalArchName()));
 
   // FIXME: We killed off some others but these aren't yet detected in a
   // functional manner. If we added information to jobs about which "auxiliary"
@@ -873,7 +858,7 @@ void Driver::BuildUniversalActions(const ToolChain &TC,
     if (A && !A->getOption().matches(options::OPT_g0) &&
         !A->getOption().matches(options::OPT_gstabs) &&
         ContainsCompileOrAssembleAction(Actions.back())) {
- 
+
       // Add a 'dsymutil' step if necessary, when debug info is enabled and we
       // have a compile input. We need to run 'dsymutil' ourselves in such cases
       // because the debug info will refer to a temporary object file which is
@@ -910,8 +895,8 @@ void Driver::BuildInputs(const ToolChain &TC, const DerivedArgList &Args,
        it != ie; ++it) {
     Arg *A = *it;
 
-    if (isa<InputOption>(A->getOption())) {
-      const char *Value = A->getValue(Args);
+    if (A->getOption().getKind() == Option::InputClass) {
+      const char *Value = A->getValue();
       types::ID Ty = types::TY_INVALID;
 
       // Infer the input type if necessary.
@@ -978,8 +963,8 @@ void Driver::BuildInputs(const ToolChain &TC, const DerivedArgList &Args,
       if (CheckInputsExist && memcmp(Value, "-", 2) != 0) {
         SmallString<64> Path(Value);
         if (Arg *WorkDir = Args.getLastArg(options::OPT_working_directory)) {
-          SmallString<64> Directory(WorkDir->getValue(Args));
-          if (llvm::sys::path::is_absolute(Directory.str())) {
+          if (!llvm::sys::path::is_absolute(Path.str())) {
+            SmallString<64> Directory(WorkDir->getValue());
             llvm::sys::path::append(Directory, Value);
             Path.assign(Directory);
           }
@@ -993,21 +978,21 @@ void Driver::BuildInputs(const ToolChain &TC, const DerivedArgList &Args,
       } else
         Inputs.push_back(std::make_pair(Ty, A));
 
-    } else if (A->getOption().isLinkerInput()) {
+    } else if (A->getOption().hasFlag(options::LinkerInput)) {
       // Just treat as object type, we could make a special type for this if
       // necessary.
       Inputs.push_back(std::make_pair(types::TY_Object, A));
 
     } else if (A->getOption().matches(options::OPT_x)) {
       InputTypeArg = A;
-      InputType = types::lookupTypeForTypeSpecifier(A->getValue(Args));
+      InputType = types::lookupTypeForTypeSpecifier(A->getValue());
       A->claim();
 
       // Follow gcc behavior and treat as linker input for invalid -x
       // options. Its not clear why we shouldn't just revert to unknown; but
       // this isn't very important, we might as well be bug compatible.
       if (!InputType) {
-        Diag(clang::diag::err_drv_unknown_language) << A->getValue(Args);
+        Diag(clang::diag::err_drv_unknown_language) << A->getValue();
         InputType = types::TY_Object;
       }
     }
@@ -1060,18 +1045,27 @@ void Driver::BuildActions(const ToolChain &TC, const DerivedArgList &Args,
       if (Args.hasArg(options::OPT_Qunused_arguments))
         continue;
 
+      // Special case when final phase determined by binary name, rather than
+      // by a command-line argument with a corresponding Arg.
+      if (CCCIsCPP)
+        Diag(clang::diag::warn_drv_input_file_unused_by_cpp)
+          << InputArg->getAsString(Args)
+          << getPhaseName(InitialPhase);
       // Special case '-E' warning on a previously preprocessed file to make
       // more sense.
-      if (InitialPhase == phases::Compile && FinalPhase == phases::Preprocess &&
-          getPreprocessedType(InputType) == types::TY_INVALID)
+      else if (InitialPhase == phases::Compile &&
+               FinalPhase == phases::Preprocess &&
+               getPreprocessedType(InputType) == types::TY_INVALID)
         Diag(clang::diag::warn_drv_preprocessed_input_file_unused)
           << InputArg->getAsString(Args)
-          << FinalPhaseArg->getOption().getName();
+          << !!FinalPhaseArg
+          << FinalPhaseArg ? FinalPhaseArg->getOption().getName() : "";
       else
         Diag(clang::diag::warn_drv_input_file_unused)
           << InputArg->getAsString(Args)
           << getPhaseName(InitialPhase)
-          << FinalPhaseArg->getOption().getName();
+          << !!FinalPhaseArg
+          << FinalPhaseArg ? FinalPhaseArg->getOption().getName() : "";
       continue;
     }
 
@@ -1130,14 +1124,23 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
     if (Args.hasArg(options::OPT_M, options::OPT_MM)) {
       OutputTy = types::TY_Dependencies;
     } else {
-      OutputTy = types::getPreprocessedType(Input->getType());
+      OutputTy = Input->getType();
+      if (!Args.hasFlag(options::OPT_frewrite_includes,
+                        options::OPT_fno_rewrite_includes, false))
+        OutputTy = types::getPreprocessedType(OutputTy);
       assert(OutputTy != types::TY_INVALID &&
              "Cannot preprocess this input type!");
     }
     return new PreprocessJobAction(Input, OutputTy);
   }
-  case phases::Precompile:
-    return new PrecompileJobAction(Input, types::TY_PCH);
+  case phases::Precompile: {
+    types::ID OutputTy = types::TY_PCH;
+    if (Args.hasArg(options::OPT_fsyntax_only)) {
+      // Syntax checks should not emit a PCH file
+      OutputTy = types::TY_Nothing;
+    }
+    return new PrecompileJobAction(Input, OutputTy);
+  }
   case phases::Compile: {
     if (Args.hasArg(options::OPT_fsyntax_only)) {
       return new CompileJobAction(Input, types::TY_Nothing);
@@ -1212,7 +1215,7 @@ void Driver::BuildJobs(Compilation &C) const {
     const char *LinkingOutput = 0;
     if (isa<LipoJobAction>(A)) {
       if (FinalOutput)
-        LinkingOutput = FinalOutput->getValue(C.getArgs());
+        LinkingOutput = FinalOutput->getValue();
       else
         LinkingOutput = DefaultImageName.c_str();
     }
@@ -1242,13 +1245,13 @@ void Driver::BuildJobs(Compilation &C) const {
     // DiagnosticsEngine, so that extra values, position, and so on could be
     // printed.
     if (!A->isClaimed()) {
-      if (A->getOption().hasNoArgumentUnused())
+      if (A->getOption().hasFlag(options::NoArgumentUnused))
         continue;
 
       // Suppress the warning automatically if this is just a flag, and it is an
       // instance of an argument we already claimed.
       const Option &Opt = A->getOption();
-      if (isa<FlagOption>(Opt)) {
+      if (Opt.getKind() == Option::FlagClass) {
         bool DuplicateClaimed = false;
 
         for (arg_iterator it = C.getArgs().filtered_begin(&Opt),
@@ -1303,6 +1306,7 @@ static const Tool &SelectToolForJob(Compilation &C, const ToolChain *TC,
       !C.getArgs().hasArg(options::OPT_no_integrated_cpp) &&
       !C.getArgs().hasArg(options::OPT_traditional_cpp) &&
       !C.getArgs().hasArg(options::OPT_save_temps) &&
+      !C.getArgs().hasArg(options::OPT_rewrite_objc) &&
       ToolForJob->hasIntegratedCPP())
     Inputs = &(*Inputs)[0]->getInputs();
 
@@ -1324,7 +1328,7 @@ void Driver::BuildJobsForAction(Compilation &C,
     const Arg &Input = IA->getInputArg();
     Input.claim();
     if (Input.getOption().matches(options::OPT_INPUT)) {
-      const char *Name = Input.getValue(C.getArgs());
+      const char *Name = Input.getValue();
       Result = InputInfo(Name, A->getType(), Name);
     } else
       Result = InputInfo(&Input, A->getType(), "");
@@ -1332,10 +1336,13 @@ void Driver::BuildJobsForAction(Compilation &C,
   }
 
   if (const BindArchAction *BAA = dyn_cast<BindArchAction>(A)) {
-    const ToolChain *TC = &C.getDefaultToolChain();
+    const ToolChain *TC;
+    const char *ArchName = BAA->getArchName();
 
-    if (BAA->getArchName())
-      TC = &getToolChain(C.getArgs(), BAA->getArchName());
+    if (ArchName)
+      TC = &getToolChain(C.getArgs(), ArchName);
+    else
+      TC = &C.getDefaultToolChain();
 
     BuildJobsForAction(C, *BAA->begin(), TC, BAA->getArchName(),
                        AtTopLevel, LinkingOutput, Result);
@@ -1410,7 +1417,7 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
   if (AtTopLevel && !isa<DsymutilJobAction>(JA) &&
       !isa<VerifyJobAction>(JA)) {
     if (Arg *FinalOutput = C.getArgs().getLastArg(options::OPT_o))
-      return C.addResultFile(FinalOutput->getValue(C.getArgs()));
+      return C.addResultFile(FinalOutput->getValue());
   }
 
   // Default to writing to stdout?
@@ -1453,15 +1460,24 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
     NamedOutput = C.getArgs().MakeArgString(Suffixed.c_str());
   }
 
-  // If we're saving temps and the temp filename conflicts with the input
-  // filename, then avoid overwriting input file.
+  // If we're saving temps and the temp file conflicts with the input file,
+  // then avoid overwriting input file.
   if (!AtTopLevel && C.getArgs().hasArg(options::OPT_save_temps) &&
       NamedOutput == BaseName) {
-    StringRef Name = llvm::sys::path::filename(BaseInput);
-    std::pair<StringRef, StringRef> Split = Name.split('.');
-    std::string TmpName =
-      GetTemporaryPath(Split.first, types::getTypeTempSuffix(JA.getType()));
-    return C.addTempFile(C.getArgs().MakeArgString(TmpName.c_str()));
+
+    bool SameFile = false;
+    SmallString<256> Result;
+    llvm::sys::fs::current_path(Result);
+    llvm::sys::path::append(Result, BaseName);
+    llvm::sys::fs::equivalent(BaseInput, Result.c_str(), SameFile);
+    // Must share the same path to conflict.
+    if (SameFile) {
+      StringRef Name = llvm::sys::path::filename(BaseInput);
+      std::pair<StringRef, StringRef> Split = Name.split('.');
+      std::string TmpName =
+        GetTemporaryPath(Split.first, types::getTypeTempSuffix(JA.getType()));
+      return C.addTempFile(C.getArgs().MakeArgString(TmpName.c_str()));
+    }
   }
 
   // As an annoying special case, PCH generation doesn't strip the pathname.
@@ -1479,7 +1495,7 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
 
 std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
   // Respect a limited subset of the '-Bprefix' functionality in GCC by
-  // attempting to use this prefix when lokup up program paths.
+  // attempting to use this prefix when looking for file paths.
   for (Driver::prefix_list::const_iterator it = PrefixDirs.begin(),
        ie = PrefixDirs.end(); it != ie; ++it) {
     std::string Dir(*it);
@@ -1518,26 +1534,26 @@ std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
   return Name;
 }
 
-static bool isPathExecutable(llvm::sys::Path &P, bool WantFile) {
-    bool Exists;
-    return (WantFile ? !llvm::sys::fs::exists(P.str(), Exists) && Exists
-                 : P.canExecute());
-}
-
-std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
-                                   bool WantFile) const {
+std::string Driver::GetProgramPath(const char *Name,
+                                   const ToolChain &TC) const {
   // FIXME: Needs a better variable than DefaultTargetTriple
   std::string TargetSpecificExecutable(DefaultTargetTriple + "-" + Name);
   // Respect a limited subset of the '-Bprefix' functionality in GCC by
-  // attempting to use this prefix when lokup up program paths.
+  // attempting to use this prefix when looking for program paths.
   for (Driver::prefix_list::const_iterator it = PrefixDirs.begin(),
        ie = PrefixDirs.end(); it != ie; ++it) {
-    llvm::sys::Path P(*it);
-    P.appendComponent(TargetSpecificExecutable);
-    if (isPathExecutable(P, WantFile)) return P.str();
-    P.eraseComponent();
-    P.appendComponent(Name);
-    if (isPathExecutable(P, WantFile)) return P.str();
+    bool IsDirectory;
+    if (!llvm::sys::fs::is_directory(*it, IsDirectory) && IsDirectory) {
+      llvm::sys::Path P(*it);
+      P.appendComponent(TargetSpecificExecutable);
+      if (P.canExecute()) return P.str();
+      P.eraseComponent();
+      P.appendComponent(Name);
+      if (P.canExecute()) return P.str();
+    } else {
+      llvm::sys::Path P(*it + Name);
+      if (P.canExecute()) return P.str();
+    }
   }
 
   const ToolChain::path_list &List = TC.getProgramPaths();
@@ -1545,10 +1561,10 @@ std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
          it = List.begin(), ie = List.end(); it != ie; ++it) {
     llvm::sys::Path P(*it);
     P.appendComponent(TargetSpecificExecutable);
-    if (isPathExecutable(P, WantFile)) return P.str();
+    if (P.canExecute()) return P.str();
     P.eraseComponent();
     P.appendComponent(Name);
-    if (isPathExecutable(P, WantFile)) return P.str();
+    if (P.canExecute()) return P.str();
   }
 
   // If all else failed, search the path.
@@ -1564,7 +1580,7 @@ std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
   return Name;
 }
 
-std::string Driver::GetTemporaryPath(StringRef Prefix, const char *Suffix) 
+std::string Driver::GetTemporaryPath(StringRef Prefix, const char *Suffix)
   const {
   // FIXME: This is lame; sys::Path should provide this function (in particular,
   // it should know how to find the temporary files dir).
@@ -1579,14 +1595,15 @@ std::string Driver::GetTemporaryPath(StringRef Prefix, const char *Suffix)
   llvm::sys::Path P(TmpDir);
   P.appendComponent(Prefix);
   if (P.makeUnique(false, &Error)) {
-    Diag(clang::diag::err_drv_unable_to_make_temp) << Error;
+    Diag(clang::diag::err_unable_to_make_temp) << Error;
     return "";
   }
 
   // FIXME: Grumble, makeUnique sometimes leaves the file around!?  PR3837.
   P.eraseFromDisk(false, 0);
 
-  P.appendSuffix(Suffix);
+  if (Suffix)
+    P.appendSuffix(Suffix);
   return P.str();
 }
 
@@ -1599,7 +1616,7 @@ static llvm::Triple computeTargetTriple(StringRef DefaultTargetTriple,
                                         StringRef DarwinArchName) {
   // FIXME: Already done in Compilation *Driver::BuildCompilation
   if (const Arg *A = Args.getLastArg(options::OPT_target))
-    DefaultTargetTriple = A->getValue(Args);
+    DefaultTargetTriple = A->getValue();
 
   llvm::Triple Target(llvm::Triple::normalize(DefaultTargetTriple));
 
@@ -1608,14 +1625,14 @@ static llvm::Triple computeTargetTriple(StringRef DefaultTargetTriple,
     // If an explict Darwin arch name is given, that trumps all.
     if (!DarwinArchName.empty()) {
       Target.setArch(
-        llvm::Triple::getArchTypeForDarwinArchName(DarwinArchName));
+        tools::darwin::getArchTypeForDarwinArchName(DarwinArchName));
       return Target;
     }
 
     // Handle the Darwin '-arch' flag.
     if (Arg *A = Args.getLastArg(options::OPT_arch)) {
       llvm::Triple::ArchType DarwinArch
-        = llvm::Triple::getArchTypeForDarwinArchName(A->getValue(Args));
+        = tools::darwin::getArchTypeForDarwinArchName(A->getValue());
       if (DarwinArch != llvm::Triple::UnknownArch)
         Target.setArch(DarwinArch);
     }
@@ -1674,6 +1691,9 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
     case llvm::Triple::OpenBSD:
       TC = new toolchains::OpenBSD(*this, Target, Args);
       break;
+    case llvm::Triple::Bitrig:
+      TC = new toolchains::Bitrig(*this, Target, Args);
+      break;
     case llvm::Triple::NetBSD:
       TC = new toolchains::NetBSD(*this, Target, Args);
       break;
@@ -1715,37 +1735,14 @@ bool Driver::ShouldUseClangCompiler(const Compilation &C, const JobAction &JA,
                                     const llvm::Triple &Triple) const {
   // Check if user requested no clang, or clang doesn't understand this type (we
   // only handle single inputs for now).
-  if (!CCCUseClang || JA.size() != 1 ||
+  if (JA.size() != 1 ||
       !types::isAcceptedByClang((*JA.begin())->getType()))
     return false;
 
   // Otherwise make sure this is an action clang understands.
-  if (isa<PreprocessJobAction>(JA)) {
-    if (!CCCUseClangCPP) {
-      Diag(clang::diag::warn_drv_not_using_clang_cpp);
-      return false;
-    }
-  } else if (!isa<PrecompileJobAction>(JA) && !isa<CompileJobAction>(JA))
+  if (!isa<PreprocessJobAction>(JA) && !isa<PrecompileJobAction>(JA) &&
+      !isa<CompileJobAction>(JA))
     return false;
-
-  // Use clang for C++?
-  if (!CCCUseClangCXX && types::isCXX((*JA.begin())->getType())) {
-    Diag(clang::diag::warn_drv_not_using_clang_cxx);
-    return false;
-  }
-
-  // Always use clang for precompiling, AST generation, and rewriting,
-  // regardless of archs.
-  if (isa<PrecompileJobAction>(JA) ||
-      types::isOnlyAcceptedByClang(JA.getType()))
-    return true;
-
-  // Finally, don't use clang if this isn't one of the user specified archs to
-  // build.
-  if (!CCCClangArchs.empty() && !CCCClangArchs.count(Triple.getArch())) {
-    Diag(clang::diag::warn_drv_not_using_clang_arch) << Triple.getArchName();
-    return false;
-  }
 
   return true;
 }

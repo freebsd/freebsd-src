@@ -21,7 +21,8 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
@@ -119,6 +120,12 @@ bool IVUsers::AddUsersImpl(Instruction *I,
 
   if (!SE->isSCEVable(I->getType()))
     return false;   // Void and FP expressions cannot be reduced.
+
+  // IVUsers is used by LSR which assumes that all SCEV expressions are safe to
+  // pass to SCEVExpander. Expressions are not safe to expand if they represent
+  // operations that are not safe to speculate, namely integer division.
+  if (!isa<PHINode>(I) && !isSafeToSpeculativelyExecute(I, TD))
+    return false;
 
   // LSR is not APInt clean, do not touch integers bigger than 64-bits.
   // Also avoid creating IVs of non-native types. For example, we don't want a
@@ -228,7 +235,7 @@ bool IVUsers::runOnLoop(Loop *l, LPPassManager &LPM) {
   LI = &getAnalysis<LoopInfo>();
   DT = &getAnalysis<DominatorTree>();
   SE = &getAnalysis<ScalarEvolution>();
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
 
   // Find all uses of induction variables in this loop, and categorize
   // them by stride.  Start by finding all of the PHI nodes in the header for
@@ -266,9 +273,11 @@ void IVUsers::print(raw_ostream &OS, const Module *M) const {
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void IVUsers::dump() const {
   print(dbgs());
 }
+#endif
 
 void IVUsers::releaseMemory() {
   Processed.clear();

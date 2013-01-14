@@ -33,10 +33,10 @@ MSP430TargetMachine::MSP430TargetMachine(const Target &T,
                                          CodeGenOpt::Level OL)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS),
-    // FIXME: Check TargetData string.
-    DataLayout("e-p:16:16:16-i8:8:8-i16:16:16-i32:16:32-n8:16"),
+    // FIXME: Check DataLayout string.
+    DL("e-p:16:16:16-i8:8:8-i16:16:16-i32:16:32-n8:16"),
     InstrInfo(*this), TLInfo(*this), TSInfo(*this),
-    FrameLowering(Subtarget) { }
+    FrameLowering(Subtarget), STTI(&TLInfo), VTTI(&TLInfo) { }
 
 namespace {
 /// MSP430 Code Generator Pass Configuration Options.
@@ -60,12 +60,12 @@ TargetPassConfig *MSP430TargetMachine::createPassConfig(PassManagerBase &PM) {
 
 bool MSP430PassConfig::addInstSelector() {
   // Install an instruction selector.
-  PM->add(createMSP430ISelDag(getMSP430TargetMachine(), getOptLevel()));
+  addPass(createMSP430ISelDag(getMSP430TargetMachine(), getOptLevel()));
   return false;
 }
 
 bool MSP430PassConfig::addPreEmitPass() {
   // Must run branch selection immediately preceding the asm printer.
-  PM->add(createMSP430BranchSelectionPass());
+  addPass(createMSP430BranchSelectionPass());
   return false;
 }

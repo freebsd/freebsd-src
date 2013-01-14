@@ -76,7 +76,6 @@ namespace llvm {
   /// SlotIndex - An opaque wrapper around machine indexes.
   class SlotIndex {
     friend class SlotIndexes;
-    friend struct DenseMapInfo<SlotIndex>;
 
     enum Slot {
       /// Basic block boundary.  Used for live ranges entering and leaving a
@@ -121,25 +120,12 @@ namespace llvm {
       return static_cast<Slot>(lie.getInt());
     }
 
-    static inline unsigned getHashValue(const SlotIndex &v) {
-      void *ptrVal = v.lie.getOpaqueValue();
-      return (unsigned((intptr_t)ptrVal)) ^ (unsigned((intptr_t)ptrVal) >> 9);
-    }
-
   public:
     enum {
       /// The default distance between instructions as returned by distance().
       /// This may vary as instructions are inserted and removed.
       InstrDist = 4 * Slot_Count
     };
-
-    static inline SlotIndex getEmptyKey() {
-      return SlotIndex(0, 1);
-    }
-
-    static inline SlotIndex getTombstoneKey() {
-      return SlotIndex(0, 2);
-    }
 
     /// Construct an invalid index.
     SlotIndex() : lie(0, 0) {}
@@ -293,23 +279,6 @@ namespace llvm {
 
   };
 
-  /// DenseMapInfo specialization for SlotIndex.
-  template <>
-  struct DenseMapInfo<SlotIndex> {
-    static inline SlotIndex getEmptyKey() {
-      return SlotIndex::getEmptyKey();
-    }
-    static inline SlotIndex getTombstoneKey() {
-      return SlotIndex::getTombstoneKey();
-    }
-    static inline unsigned getHashValue(const SlotIndex &v) {
-      return SlotIndex::getHashValue(v);
-    }
-    static inline bool isEqual(const SlotIndex &LHS, const SlotIndex &RHS) {
-      return (LHS == RHS);
-    }
-  };
-
   template <> struct isPodLike<SlotIndex> { static const bool value = true; };
 
 
@@ -344,7 +313,6 @@ namespace llvm {
     IndexList indexList;
 
     MachineFunction *mf;
-    unsigned functionSize;
 
     typedef DenseMap<const MachineInstr*, SlotIndex> Mi2IndexMap;
     Mi2IndexMap mi2iMap;
@@ -402,19 +370,6 @@ namespace llvm {
       return SlotIndex(&indexList.back(), 0);
     }
 
-    /// Returns the distance between the highest and lowest indexes allocated
-    /// so far.
-    unsigned getIndexesLength() const {
-      assert(indexList.front().getIndex() == 0 &&
-             "Initial index isn't zero?");
-      return indexList.back().getIndex();
-    }
-
-    /// Returns the number of instructions in the function.
-    unsigned getFunctionSize() const {
-      return functionSize;
-    }
-
     /// Returns true if the given machine instr is mapped to an index,
     /// otherwise returns false.
     bool hasIndex(const MachineInstr *instr) const {
@@ -444,7 +399,7 @@ namespace llvm {
     }
 
     /// getIndexBefore - Returns the index of the last indexed instruction
-    /// before MI, or the the start index of its basic block.
+    /// before MI, or the start index of its basic block.
     /// MI is not required to have an index.
     SlotIndex getIndexBefore(const MachineInstr *MI) const {
       const MachineBasicBlock *MBB = MI->getParent();
@@ -590,7 +545,7 @@ namespace llvm {
         nextItr = getIndexAfter(mi).listEntry();
         prevItr = prior(nextItr);
       } else {
-        // Insert mi's index immediately after the preceeding instruction.
+        // Insert mi's index immediately after the preceding instruction.
         prevItr = getIndexBefore(mi).listEntry();
         nextItr = llvm::next(prevItr);
       }

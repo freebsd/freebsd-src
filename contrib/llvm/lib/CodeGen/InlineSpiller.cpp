@@ -52,7 +52,6 @@ static cl::opt<bool> DisableHoisting("disable-spill-hoist", cl::Hidden,
 
 namespace {
 class InlineSpiller : public Spiller {
-  MachineFunctionPass &Pass;
   MachineFunction &MF;
   LiveIntervals &LIS;
   LiveStacks &LSS;
@@ -137,8 +136,7 @@ public:
   InlineSpiller(MachineFunctionPass &pass,
                 MachineFunction &mf,
                 VirtRegMap &vrm)
-    : Pass(pass),
-      MF(mf),
+    : MF(mf),
       LIS(pass.getAnalysis<LiveIntervals>()),
       LSS(pass.getAnalysis<LiveStacks>()),
       AA(&pass.getAnalysis<AliasAnalysis>()),
@@ -578,11 +576,11 @@ MachineInstr *InlineSpiller::traceSiblingValue(unsigned UseReg, VNInfo *UseVNI,
     if (unsigned SrcReg = isFullCopyOf(MI, Reg)) {
       if (isSibling(SrcReg)) {
         LiveInterval &SrcLI = LIS.getInterval(SrcReg);
-        LiveRange *SrcLR = SrcLI.getLiveRangeContaining(VNI->def.getRegSlot(true));
-        assert(SrcLR && "Copy from non-existing value");
+        LiveRangeQuery SrcQ(SrcLI, VNI->def);
+        assert(SrcQ.valueIn() && "Copy from non-existing value");
         // Check if this COPY kills its source.
-        SVI->second.KillsSource = (SrcLR->end == VNI->def);
-        VNInfo *SrcVNI = SrcLR->valno;
+        SVI->second.KillsSource = SrcQ.isKill();
+        VNInfo *SrcVNI = SrcQ.valueIn();
         DEBUG(dbgs() << "copy of " << PrintReg(SrcReg) << ':'
                      << SrcVNI->id << '@' << SrcVNI->def
                      << " kill=" << unsigned(SVI->second.KillsSource) << '\n');
@@ -615,7 +613,7 @@ MachineInstr *InlineSpiller::traceSiblingValue(unsigned UseReg, VNInfo *UseVNI,
     propagateSiblingValue(SVI);
   } while (!WorkList.empty());
 
-  // Look up the value we were looking for.  We already did this lokup at the
+  // Look up the value we were looking for.  We already did this lookup at the
   // top of the function, but SibValues may have been invalidated.
   SVI = SibValues.find(UseVNI);
   assert(SVI != SibValues.end() && "Didn't compute requested info");
@@ -865,7 +863,7 @@ bool InlineSpiller::reMaterializeFor(LiveInterval &VirtReg,
   // If the instruction also writes VirtReg.reg, it had better not require the
   // same register for uses and defs.
   SmallVector<std::pair<MachineInstr*, unsigned>, 8> Ops;
-  MIBundleOperands::RegInfo RI =
+  MIBundleOperands::VirtRegInfo RI =
     MIBundleOperands(MI).analyzeVirtReg(VirtReg.reg, &Ops);
   if (RI.Tied) {
     markValueUsed(&VirtReg, ParentVNI);
@@ -1083,6 +1081,10 @@ void InlineSpiller::insertReload(LiveInterval &NewLI,
                            MRI.getRegClass(NewLI.reg), &TRI);
   --MI; // Point to load instruction.
   SlotIndex LoadIdx = LIS.InsertMachineInstrInMaps(MI).getRegSlot();
+  // Some (out-of-tree) targets have EC reload instructions.
+  if (MachineOperand *MO = MI->findRegisterDefOperand(NewLI.reg))
+    if (MO->isEarlyClobber())
+      LoadIdx = LoadIdx.getRegSlot(true);
   DEBUG(dbgs() << "\treload:  " << LoadIdx << '\t' << *MI);
   VNInfo *LoadVNI = NewLI.getNextValue(LoadIdx, LIS.getVNInfoAllocator());
   NewLI.addRange(LiveRange(LoadIdx, Idx, LoadVNI));
@@ -1140,7 +1142,7 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
 
     // Analyze instruction.
     SmallVector<std::pair<MachineInstr*, unsigned>, 8> Ops;
-    MIBundleOperands::RegInfo RI =
+    MIBundleOperands::VirtRegInfo RI =
       MIBundleOperands(MI).analyzeVirtReg(Reg, &Ops);
 
     // Find the slot index where this instruction reads and writes OldLI.
@@ -1275,8 +1277,8 @@ void InlineSpiller::spill(LiveRangeEdit &edit) {
 
   DEBUG(dbgs() << "Inline spilling "
                << MRI.getRegClass(edit.getReg())->getName()
-               << ':' << edit.getParent() << "\nFrom original "
-               << LIS.getInterval(Original) << '\n');
+               << ':' << PrintReg(edit.getReg()) << ' ' << edit.getParent()
+               << "\nFrom original " << LIS.getInterval(Original) << '\n');
   assert(edit.getParent().isSpillable() &&
          "Attempting to spill already spilled value.");
   assert(DeadDefs.empty() && "Previous spill didn't remove dead defs");

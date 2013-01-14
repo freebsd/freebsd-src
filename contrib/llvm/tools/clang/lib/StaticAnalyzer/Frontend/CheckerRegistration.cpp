@@ -17,7 +17,7 @@
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/CheckerOptInfo.h"
 #include "clang/StaticAnalyzer/Core/CheckerRegistry.h"
-#include "clang/Frontend/AnalyzerOptions.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -118,7 +118,7 @@ CheckerManager *ento::createCheckerManager(const AnalyzerOptions &opts,
 
   for (unsigned i = 0, e = checkerOpts.size(); i != e; ++i) {
     if (checkerOpts[i].isUnclaimed())
-      diags.Report(diag::warn_unknown_analyzer_checker)
+      diags.Report(diag::err_unknown_analyzer_checker)
           << checkerOpts[i].getName();
   }
 

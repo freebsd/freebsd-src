@@ -130,6 +130,7 @@ namespace {
   private:
     void printLinkageType(GlobalValue::LinkageTypes LT);
     void printVisibilityType(GlobalValue::VisibilityTypes VisTypes);
+    void printThreadLocalMode(GlobalVariable::ThreadLocalMode TLM);
     void printCallingConv(CallingConv::ID cc);
     void printEscapedString(const std::string& str);
     void printCFP(const ConstantFP* CFP);
@@ -284,14 +285,14 @@ void CppWriter::printLinkageType(GlobalValue::LinkageTypes LT) {
     Out << "GlobalValue::LinkerPrivateLinkage"; break;
   case GlobalValue::LinkerPrivateWeakLinkage:
     Out << "GlobalValue::LinkerPrivateWeakLinkage"; break;
-  case GlobalValue::LinkerPrivateWeakDefAutoLinkage:
-    Out << "GlobalValue::LinkerPrivateWeakDefAutoLinkage"; break;
   case GlobalValue::AvailableExternallyLinkage:
     Out << "GlobalValue::AvailableExternallyLinkage "; break;
   case GlobalValue::LinkOnceAnyLinkage:
     Out << "GlobalValue::LinkOnceAnyLinkage "; break;
   case GlobalValue::LinkOnceODRLinkage:
     Out << "GlobalValue::LinkOnceODRLinkage "; break;
+  case GlobalValue::LinkOnceODRAutoHideLinkage:
+    Out << "GlobalValue::LinkOnceODRAutoHideLinkage"; break;
   case GlobalValue::WeakAnyLinkage:
     Out << "GlobalValue::WeakAnyLinkage"; break;
   case GlobalValue::WeakODRLinkage:
@@ -322,6 +323,26 @@ void CppWriter::printVisibilityType(GlobalValue::VisibilityTypes VisType) {
   case GlobalValue::ProtectedVisibility:
     Out << "GlobalValue::ProtectedVisibility";
     break;
+  }
+}
+
+void CppWriter::printThreadLocalMode(GlobalVariable::ThreadLocalMode TLM) {
+  switch (TLM) {
+    case GlobalVariable::NotThreadLocal:
+      Out << "GlobalVariable::NotThreadLocal";
+      break;
+    case GlobalVariable::GeneralDynamicTLSModel:
+      Out << "GlobalVariable::GeneralDynamicTLSModel";
+      break;
+    case GlobalVariable::LocalDynamicTLSModel:
+      Out << "GlobalVariable::LocalDynamicTLSModel";
+      break;
+    case GlobalVariable::InitialExecTLSModel:
+      Out << "GlobalVariable::InitialExecTLSModel";
+      break;
+    case GlobalVariable::LocalExecTLSModel:
+      Out << "GlobalVariable::LocalExecTLSModel";
+      break;
   }
 }
 
@@ -453,13 +474,15 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
     Out << "AttributeWithIndex PAWI;"; nl(Out);
     for (unsigned i = 0; i < PAL.getNumSlots(); ++i) {
       unsigned index = PAL.getSlot(i).Index;
-      Attributes attrs = PAL.getSlot(i).Attrs;
-      Out << "PAWI.Index = " << index << "U; PAWI.Attrs = Attribute::None ";
-#define HANDLE_ATTR(X)                 \
-      if (attrs & Attribute::X)      \
-        Out << " | Attribute::" #X;  \
-      attrs &= ~Attribute::X;
-      
+      AttrBuilder attrs(PAL.getSlot(i).Attrs);
+      Out << "PAWI.Index = " << index << "U;\n";
+      Out << " {\n    AttrBuilder B;\n";
+
+#define HANDLE_ATTR(X)                                     \
+      if (attrs.hasAttribute(Attributes::X))               \
+        Out << "    B.addAttribute(Attributes::" #X ");\n"; \
+      attrs.removeAttribute(Attributes::X);
+
       HANDLE_ATTR(SExt);
       HANDLE_ATTR(ZExt);
       HANDLE_ATTR(NoReturn);
@@ -484,19 +507,18 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
       HANDLE_ATTR(ReturnsTwice);
       HANDLE_ATTR(UWTable);
       HANDLE_ATTR(NonLazyBind);
+      HANDLE_ATTR(MinSize);
 #undef HANDLE_ATTR
-      if (attrs & Attribute::StackAlignment)
-        Out << " | Attribute::constructStackAlignmentFromInt("
-            << Attribute::getStackAlignmentFromAttrs(attrs)
-            << ")"; 
-      attrs &= ~Attribute::StackAlignment;
-      assert(attrs == 0 && "Unhandled attribute!");
-      Out << ";";
+      if (attrs.hasAttribute(Attributes::StackAlignment))
+        Out << "    B.addStackAlignmentAttr(" << attrs.getStackAlignment() << ")\n";
+      attrs.removeAttribute(Attributes::StackAlignment);
+      assert(!attrs.hasAttributes() && "Unhandled attribute!");
+      Out << "    PAWI.Attrs = Attributes::get(mod->getContext(), B);\n }";
       nl(Out);
       Out << "Attrs.push_back(PAWI);";
       nl(Out);
     }
-    Out << name << "_PAL = AttrListPtr::get(Attrs.begin(), Attrs.end());";
+    Out << name << "_PAL = AttrListPtr::get(mod->getContext(), Attrs);";
     nl(Out);
     out(); nl(Out);
     Out << '}'; nl(Out);
@@ -996,7 +1018,9 @@ void CppWriter::printVariableHead(const GlobalVariable *GV) {
   }
   if (GV->isThreadLocal()) {
     printCppName(GV);
-    Out << "->setThreadLocal(true);";
+    Out << "->setThreadLocalMode(";
+    printThreadLocalMode(GV->getThreadLocalMode());
+    Out << ");";
     nl(Out);
   }
   if (is_inline) {
@@ -1105,7 +1129,7 @@ void CppWriter::printInstruction(const Instruction *I,
     nl(Out);
     for (SwitchInst::ConstCaseIt i = SI->case_begin(), e = SI->case_end();
          i != e; ++i) {
-      const ConstantInt* CaseVal = i.getCaseValue();
+      const IntegersSubset CaseVal = i.getCaseValueEx();
       const BasicBlock *BB = i.getCaseSuccessor();
       Out << iName << "->addCase("
           << getOpName(CaseVal) << ", "
@@ -2078,7 +2102,9 @@ char CppWriter::ID = 0;
 bool CPPTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
                                            formatted_raw_ostream &o,
                                            CodeGenFileType FileType,
-                                           bool DisableVerify) {
+                                           bool DisableVerify,
+                                           AnalysisID StartAfter,
+                                           AnalysisID StopAfter) {
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   PM.add(new CppWriter(o));
   return false;

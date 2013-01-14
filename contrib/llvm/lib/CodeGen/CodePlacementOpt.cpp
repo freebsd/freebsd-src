@@ -201,7 +201,7 @@ bool CodePlacementOpt::EliminateUnconditionalJumpsToTop(MachineFunction &MF,
           // fallthrough edge.
           if (!Prior->isSuccessor(End))
             goto next_pred;
-          // Otherwise we can stop scanning and procede to move the blocks.
+          // Otherwise we can stop scanning and proceed to move the blocks.
           break;
         }
         // If we hit a switch or something complicated, don't move anything
@@ -373,7 +373,7 @@ bool CodePlacementOpt::OptimizeIntraLoopEdges(MachineFunction &MF) {
 ///
 bool CodePlacementOpt::AlignLoops(MachineFunction &MF) {
   const Function *F = MF.getFunction();
-  if (F->hasFnAttr(Attribute::OptimizeForSize))
+  if (F->getFnAttributes().hasAttribute(Attributes::OptimizeForSize))
     return false;
 
   unsigned Align = TLI->getPrefLoopAlignment();

@@ -130,8 +130,7 @@ namespace {
     void
     printS10ImmOperand(const MachineInstr *MI, unsigned OpNo, raw_ostream &O)
     {
-      short value = (short) (((int) MI->getOperand(OpNo).getImm() << 16)
-                             >> 16);
+      short value = MI->getOperand(OpNo).getImm();
       assert((value >= -(1 << 9) && value <= (1 << 9) - 1)
              && "Invalid s10 argument");
       O << value;
@@ -140,8 +139,7 @@ namespace {
     void
     printU10ImmOperand(const MachineInstr *MI, unsigned OpNo, raw_ostream &O)
     {
-      short value = (short) (((int) MI->getOperand(OpNo).getImm() << 16)
-                             >> 16);
+      short value = MI->getOperand(OpNo).getImm();
       assert((value <= (1 << 10) - 1) && "Invalid u10 argument");
       O << value;
     }
@@ -301,7 +299,9 @@ bool SPUAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
     if (ExtraCode[1] != 0) return true; // Unknown modifier.
 
     switch (ExtraCode[0]) {
-    default: return true;  // Unknown modifier.
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNo, AsmVariant, ExtraCode, O);
     case 'L': // Write second word of DImode reference.
       // Verify that this operand has two consecutive registers.
       if (!MI->getOperand(OpNo).isReg() ||

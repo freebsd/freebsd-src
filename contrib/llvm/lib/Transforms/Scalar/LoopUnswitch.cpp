@@ -638,7 +638,8 @@ bool LoopUnswitch::UnswitchIfProfitable(Value *LoopCond, Constant *Val) {
   // Check to see if it would be profitable to unswitch current loop.
 
   // Do not do non-trivial unswitch while optimizing for size.
-  if (OptimizeForSize || F->hasFnAttr(Attribute::OptimizeForSize))
+  if (OptimizeForSize ||
+      F->getFnAttributes().hasAttribute(Attributes::OptimizeForSize))
     return false;
 
   UnswitchNontrivialCondition(LoopCond, Val, currentLoop);
@@ -906,13 +907,9 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
 /// specified.
 static void RemoveFromWorklist(Instruction *I,
                                std::vector<Instruction*> &Worklist) {
-  std::vector<Instruction*>::iterator WI = std::find(Worklist.begin(),
-                                                     Worklist.end(), I);
-  while (WI != Worklist.end()) {
-    unsigned Offset = WI-Worklist.begin();
-    Worklist.erase(WI);
-    WI = std::find(Worklist.begin()+Offset, Worklist.end(), I);
-  }
+
+  Worklist.erase(std::remove(Worklist.begin(), Worklist.end(), I),
+                 Worklist.end());
 }
 
 /// ReplaceUsesOfWith - When we find that I really equals V, remove I from the
@@ -1214,8 +1211,8 @@ void LoopUnswitch::SimplifyCode(std::vector<Instruction*> &Worklist, Loop *L) {
 
     // See if instruction simplification can hack this up.  This is common for
     // things like "select false, X, Y" after unswitching made the condition be
-    // 'false'.
-    if (Value *V = SimplifyInstruction(I, 0, 0, DT))
+    // 'false'.  TODO: update the domtree properly so we can pass it here.
+    if (Value *V = SimplifyInstruction(I))
       if (LI->replacementPreservesLCSSAForm(I, V)) {
         ReplaceUsesOfWith(I, V, Worklist, L, LPM);
         continue;

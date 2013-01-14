@@ -12,14 +12,50 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InstrInfoEmitter.h"
+
+#include "CodeGenDAGPatterns.h"
+#include "CodeGenSchedule.h"
 #include "CodeGenTarget.h"
+#include "TableGenBackends.h"
 #include "SequenceToOffsetTable.h"
-#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <algorithm>
 #include <cstdio>
+#include <map>
+#include <vector>
 using namespace llvm;
+
+namespace {
+class InstrInfoEmitter {
+  RecordKeeper &Records;
+  CodeGenDAGPatterns CDP;
+  const CodeGenSchedModels &SchedModels;
+
+public:
+  InstrInfoEmitter(RecordKeeper &R):
+    Records(R), CDP(R), SchedModels(CDP.getTargetInfo().getSchedModels()) {}
+
+  // run - Output the instruction set description.
+  void run(raw_ostream &OS);
+
+private:
+  void emitEnums(raw_ostream &OS);
+
+  typedef std::map<std::vector<std::string>, unsigned> OperandInfoMapTy;
+  void emitRecord(const CodeGenInstruction &Inst, unsigned Num,
+                  Record *InstrInfo,
+                  std::map<std::vector<Record*>, unsigned> &EL,
+                  const OperandInfoMapTy &OpInfo,
+                  raw_ostream &OS);
+
+  // Operand information.
+  void EmitOperandInfo(raw_ostream &OS, OperandInfoMapTy &OperandInfoIDs);
+  std::vector<std::string> GetOperandInfo(const CodeGenInstruction &Inst);
+};
+} // End anonymous namespace
 
 static void PrintDefList(const std::vector<Record*> &Uses,
                          unsigned Num, raw_ostream &OS) {
@@ -27,23 +63,6 @@ static void PrintDefList(const std::vector<Record*> &Uses,
   for (unsigned i = 0, e = Uses.size(); i != e; ++i)
     OS << getQualifiedName(Uses[i]) << ", ";
   OS << "0 };\n";
-}
-
-//===----------------------------------------------------------------------===//
-// Instruction Itinerary Information.
-//===----------------------------------------------------------------------===//
-
-void InstrInfoEmitter::GatherItinClasses() {
-  std::vector<Record*> DefList =
-  Records.getAllDerivedDefinitions("InstrItinClass");
-  std::sort(DefList.begin(), DefList.end(), LessRecord());
-
-  for (unsigned i = 0, N = DefList.size(); i < N; i++)
-    ItinClassMap[DefList[i]->getName()] = i;
-}
-
-unsigned InstrInfoEmitter::getItinClassNumber(const Record *InstRec) {
-  return ItinClassMap[InstRec->getValueAsDef("Itinerary")->getName()];
 }
 
 //===----------------------------------------------------------------------===//
@@ -72,7 +91,7 @@ InstrInfoEmitter::GetOperandInfo(const CodeGenInstruction &Inst) {
       for (unsigned j = 0, e = Inst.Operands[i].MINumOperands; j != e; ++j) {
         OperandList.push_back(Inst.Operands[i]);
 
-        Record *OpR = dynamic_cast<DefInit*>(MIOI->getArg(j))->getDef();
+        Record *OpR = cast<DefInit>(MIOI->getArg(j))->getDef();
         OperandList.back().Rec = OpR;
       }
     }
@@ -163,11 +182,10 @@ void InstrInfoEmitter::EmitOperandInfo(raw_ostream &OS,
 
 // run - Emit the main instruction description records for the target...
 void InstrInfoEmitter::run(raw_ostream &OS) {
+  emitSourceFileHeader("Target Instruction Enum Values", OS);
   emitEnums(OS);
 
-  GatherItinClasses();
-
-  EmitSourceFileHeader("Target Instruction Descriptors", OS);
+  emitSourceFileHeader("Target Instruction Descriptors", OS);
 
   OS << "\n#ifdef GET_INSTRINFO_MC_DESC\n";
   OS << "#undef GET_INSTRINFO_MC_DESC\n";
@@ -283,7 +301,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
                                   const OperandInfoMapTy &OpInfo,
                                   raw_ostream &OS) {
   int MinOperands = 0;
-  if (!Inst.Operands.size() == 0)
+  if (!Inst.Operands.empty())
     // Each logical operand can be multiple MI operands.
     MinOperands = Inst.Operands.back().MIOperandNo +
                   Inst.Operands.back().MINumOperands;
@@ -291,7 +309,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   OS << "  { ";
   OS << Num << ",\t" << MinOperands << ",\t"
      << Inst.Operands.NumDefs << ",\t"
-     << getItinClassNumber(Inst.TheDef) << ",\t"
+     << SchedModels.getSchedClassIdx(Inst) << ",\t"
      << Inst.TheDef->getValueAsInt("Size") << ",\t0";
 
   // Emit all of the target indepedent flags...
@@ -302,6 +320,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   if (Inst.isCompare)          OS << "|(1<<MCID::Compare)";
   if (Inst.isMoveImm)          OS << "|(1<<MCID::MoveImm)";
   if (Inst.isBitcast)          OS << "|(1<<MCID::Bitcast)";
+  if (Inst.isSelect)           OS << "|(1<<MCID::Select)";
   if (Inst.isBarrier)          OS << "|(1<<MCID::Barrier)";
   if (Inst.hasDelaySlot)       OS << "|(1<<MCID::DelaySlot)";
   if (Inst.isCall)             OS << "|(1<<MCID::Call)";
@@ -325,13 +344,14 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
 
   // Emit all of the target-specific flags...
   BitsInit *TSF = Inst.TheDef->getValueAsBitsInit("TSFlags");
-  if (!TSF) throw "no TSFlags?";
+  if (!TSF)
+    PrintFatalError("no TSFlags?");
   uint64_t Value = 0;
   for (unsigned i = 0, e = TSF->getNumBits(); i != e; ++i) {
-    if (BitInit *Bit = dynamic_cast<BitInit*>(TSF->getBit(i)))
+    if (BitInit *Bit = dyn_cast<BitInit>(TSF->getBit(i)))
       Value |= uint64_t(Bit->getValue()) << i;
     else
-      throw "Invalid TSFlags bit in " + Inst.TheDef->getName();
+      PrintFatalError("Invalid TSFlags bit in " + Inst.TheDef->getName());
   }
   OS << ", 0x";
   OS.write_hex(Value);
@@ -362,7 +382,6 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
 
 // emitEnums - Print out enum values for all of the instructions.
 void InstrInfoEmitter::emitEnums(raw_ostream &OS) {
-  EmitSourceFileHeader("Target Instruction Enum Values", OS);
 
   OS << "\n#ifdef GET_INSTRINFO_ENUM\n";
   OS << "#undef GET_INSTRINFO_ENUM\n";
@@ -394,3 +413,12 @@ void InstrInfoEmitter::emitEnums(raw_ostream &OS) {
 
   OS << "#endif // GET_INSTRINFO_ENUM\n\n";
 }
+
+namespace llvm {
+
+void EmitInstrInfo(RecordKeeper &RK, raw_ostream &OS) {
+  InstrInfoEmitter(RK).run(OS);
+  EmitMapTable(RK, OS);
+}
+
+} // End llvm namespace

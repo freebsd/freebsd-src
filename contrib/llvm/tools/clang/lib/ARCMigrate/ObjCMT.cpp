@@ -10,6 +10,7 @@
 #include "clang/ARCMigrate/ARCMTActions.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/MultiplexConsumer.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/NSAPI.h"
 #include "clang/AST/ASTConsumer.h"
@@ -17,7 +18,7 @@
 #include "clang/Edit/EditedSource.h"
 #include "clang/Edit/Commit.h"
 #include "clang/Edit/EditsReceiver.h"
-#include "clang/Rewrite/Rewriter.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/FileManager.h"
 #include "llvm/ADT/SmallString.h"
@@ -209,6 +210,7 @@ void ObjCMigrateASTConsumer::HandleTranslationUnit(ASTContext &Ctx) {
 }
 
 bool MigrateSourceAction::BeginInvocation(CompilerInstance &CI) {
+  CI.getDiagnostics().setIgnoreAllWarnings(true);
   CI.getPreprocessorOpts().DetailedRecord = true;
   CI.getPreprocessorOpts().DetailedRecordConditionalDirectives = true;
   return true;

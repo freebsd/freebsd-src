@@ -9,6 +9,7 @@ LIBDEPS=llvmasmparser \
 	llvmbitwriter \
 	llvmbitreader \
 	llvmipo \
+	llvmvectorize \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
@@ -16,6 +17,7 @@ LIBDEPS=llvmasmparser \
 	llvmanalysis \
 	llvmtarget \
 	llvmmc \
+	llvmobject \
 	llvmcore \
 	llvmsupport
 

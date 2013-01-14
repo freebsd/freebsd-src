@@ -11,14 +11,20 @@
 #define LLVM_CLANG_FRONTEND_FRONTENDOPTIONS_H
 
 #include "clang/Frontend/CommandLineSourceLoc.h"
+#include "clang/Sema/CodeCompleteOptions.h"
 #include "llvm/ADT/StringRef.h"
 #include <string>
 #include <vector>
+
+namespace llvm {
+class MemoryBuffer;
+}
 
 namespace clang {
 
 namespace frontend {
   enum ActionKind {
+    ASTDeclList,            ///< Parse ASTs and list Decl nodes.
     ASTDump,                ///< Parse ASTs and dump them.
     ASTDumpXML,             ///< Parse ASTs and dump them in XML.
     ASTPrint,               ///< Parse ASTs and print them.
@@ -42,7 +48,7 @@ namespace frontend {
     PrintDeclContext,       ///< Print DeclContext and their Decls.
     PrintPreamble,          ///< Print the "preamble" of the input file
     PrintPreprocessedInput, ///< -E mode.
-    RewriteMacros,          ///< Expand macros but not #includes.
+    RewriteMacros,          ///< Expand macros but not \#includes.
     RewriteObjC,            ///< ObjC->C Rewriter.
     RewriteTest,            ///< Rewriter playground
     RunAnalysis,            ///< Run one or more source code analyses.
@@ -70,21 +76,43 @@ enum InputKind {
 
   
 /// \brief An input file for the front end.
-struct FrontendInputFile {
+class FrontendInputFile {
   /// \brief The file name, or "-" to read from standard input.
   std::string File;
+
+  llvm::MemoryBuffer *Buffer;
 
   /// \brief The kind of input, e.g., C source, AST file, LLVM IR.
   InputKind Kind;
 
   /// \brief Whether we're dealing with a 'system' input (vs. a 'user' input).
   bool IsSystem;
-  
-  FrontendInputFile() : Kind(IK_None) { }
+
+public:
+  FrontendInputFile() : Buffer(0), Kind(IK_None) { }
   FrontendInputFile(StringRef File, InputKind Kind, bool IsSystem = false)
-    : File(File.str()), Kind(Kind), IsSystem(IsSystem) { }
+    : File(File.str()), Buffer(0), Kind(Kind), IsSystem(IsSystem) { }
+  FrontendInputFile(llvm::MemoryBuffer *buffer, InputKind Kind,
+                    bool IsSystem = false)
+    : Buffer(buffer), Kind(Kind), IsSystem(IsSystem) { }
+
+  InputKind getKind() const { return Kind; }
+  bool isSystem() const { return IsSystem; }
+
+  bool isEmpty() const { return File.empty() && Buffer == 0; }
+  bool isFile() const { return !isBuffer(); }
+  bool isBuffer() const { return Buffer != 0; }
+
+  StringRef getFile() const {
+    assert(isFile());
+    return File;
+  }
+  llvm::MemoryBuffer *getBuffer() const {
+    assert(isBuffer());
+    return Buffer;
+  }
 };
-  
+
 /// FrontendOptions - Options for controlling the behavior of the frontend.
 class FrontendOptions {
 public:
@@ -93,12 +121,6 @@ public:
                                            /// instruct the AST writer to create
                                            /// relocatable PCH files.
   unsigned ShowHelp : 1;                   ///< Show the -help text.
-  unsigned ShowMacrosInCodeCompletion : 1; ///< Show macros in code completion
-                                           /// results.
-  unsigned ShowCodePatternsInCodeCompletion : 1; ///< Show code patterns in code
-                                                 /// completion results.
-  unsigned ShowGlobalSymbolsInCodeCompletion : 1; ///< Show top-level decls in
-                                                  /// code completion results.
   unsigned ShowStats : 1;                  ///< Show frontend performance
                                            /// metrics and statistics.
   unsigned ShowTimers : 1;                 ///< Show timers for individual
@@ -115,6 +137,8 @@ public:
                                            /// speed up parsing in cases you do
                                            /// not need them (e.g. with code
                                            /// completion).
+
+  CodeCompleteOptions CodeCompleteOpts;
 
   enum {
     ARCMT_None,
@@ -143,6 +167,9 @@ public:
 
   /// If given, the new suffix for fix-it rewritten files.
   std::string FixItSuffix;
+
+  /// If given, filter dumped AST Decl nodes by this substring.
+  std::string ASTDumpFilter;
 
   /// If given, enable code completion at the provided location.
   ParsedSourceLocation CodeCompletionAt;
@@ -183,9 +210,6 @@ public:
     ActionName = "";
     RelocatablePCH = 0;
     ShowHelp = 0;
-    ShowMacrosInCodeCompletion = 0;
-    ShowCodePatternsInCodeCompletion = 0;
-    ShowGlobalSymbolsInCodeCompletion = 1;
     ShowStats = 0;
     ShowTimers = 0;
     ShowVersion = 0;

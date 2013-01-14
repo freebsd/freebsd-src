@@ -63,8 +63,8 @@ namespace llvm {
     /// createSpillSlot - Allocate a spill slot for RC from MFI.
     unsigned createSpillSlot(const TargetRegisterClass *RC);
 
-    VirtRegMap(const VirtRegMap&);     // DO NOT IMPLEMENT
-    void operator=(const VirtRegMap&); // DO NOT IMPLEMENT
+    VirtRegMap(const VirtRegMap&) LLVM_DELETED_FUNCTION;
+    void operator=(const VirtRegMap&) LLVM_DELETED_FUNCTION;
 
   public:
     static char ID;
@@ -176,13 +176,6 @@ namespace llvm {
     /// @brief create a mapping for the specified virtual register to
     /// the specified stack slot
     void assignVirt2StackSlot(unsigned virtReg, int frameIndex);
-
-    /// rewrite - Rewrite all instructions in MF to use only physical registers
-    /// by mapping all virtual register operands to their assigned physical
-    /// registers.
-    ///
-    /// @param Indexes Optionally remove deleted instructions from indexes.
-    void rewrite(SlotIndexes *Indexes);
 
     void print(raw_ostream &OS, const Module* M = 0) const;
     void dump() const;

@@ -24,7 +24,7 @@
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
 #include "llvm/GlobalVariable.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -79,12 +79,12 @@ private:
   CharUnits getAlignment(const llvm::Constant *C) const {
     if (Packed)  return CharUnits::One();
     return CharUnits::fromQuantity(
-        CGM.getTargetData().getABITypeAlignment(C->getType()));
+        CGM.getDataLayout().getABITypeAlignment(C->getType()));
   }
 
   CharUnits getSizeInChars(const llvm::Constant *C) const {
     return CharUnits::fromQuantity(
-        CGM.getTargetData().getTypeAllocSize(C->getType()));
+        CGM.getDataLayout().getTypeAllocSize(C->getType()));
   }
 };
 
@@ -204,7 +204,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
     if (!FitsCompletelyInPreviousByte) {
       unsigned NewFieldWidth = FieldSize - BitsInPreviousByte;
 
-      if (CGM.getTargetData().isBigEndian()) {
+      if (CGM.getDataLayout().isBigEndian()) {
         Tmp = Tmp.lshr(NewFieldWidth);
         Tmp = Tmp.trunc(BitsInPreviousByte);
 
@@ -220,7 +220,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
     }
 
     Tmp = Tmp.zext(CharWidth);
-    if (CGM.getTargetData().isBigEndian()) {
+    if (CGM.getDataLayout().isBigEndian()) {
       if (FitsCompletelyInPreviousByte)
         Tmp = Tmp.shl(BitsInPreviousByte - FieldValue.getBitWidth());
     } else {
@@ -269,7 +269,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
   while (FieldValue.getBitWidth() > CharWidth) {
     llvm::APInt Tmp;
 
-    if (CGM.getTargetData().isBigEndian()) {
+    if (CGM.getDataLayout().isBigEndian()) {
       // We want the high bits.
       Tmp = 
         FieldValue.lshr(FieldValue.getBitWidth() - CharWidth).trunc(CharWidth);
@@ -292,7 +292,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
          "Should not have more than a byte left!");
 
   if (FieldValue.getBitWidth() < CharWidth) {
-    if (CGM.getTargetData().isBigEndian()) {
+    if (CGM.getDataLayout().isBigEndian()) {
       unsigned BitWidth = FieldValue.getBitWidth();
 
       FieldValue = FieldValue.zext(CharWidth) << (CharWidth - BitWidth);
@@ -337,7 +337,7 @@ void ConstStructBuilder::ConvertStructToPacked() {
     llvm::Constant *C = Elements[i];
 
     CharUnits ElementAlign = CharUnits::fromQuantity(
-      CGM.getTargetData().getABITypeAlignment(C->getType()));
+      CGM.getDataLayout().getABITypeAlignment(C->getType()));
     CharUnits AlignedElementOffsetInChars =
       ElementOffsetInChars.RoundUpToAlignment(ElementAlign);
 
@@ -379,18 +379,18 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
   unsigned FieldNo = 0;
   unsigned ElementNo = 0;
   const FieldDecl *LastFD = 0;
-  bool IsMsStruct = RD->hasAttr<MsStructAttr>();
+  bool IsMsStruct = RD->isMsStruct(CGM.getContext());
   
   for (RecordDecl::field_iterator Field = RD->field_begin(),
        FieldEnd = RD->field_end(); Field != FieldEnd; ++Field, ++FieldNo) {
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD)) {
+      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield(*Field, LastFD)) {
         --FieldNo;
         continue;
       }
-      LastFD = (*Field);
+      LastFD = *Field;
     }
     
     // If this is a union, skip all the fields that aren't being initialized.
@@ -399,7 +399,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
 
     // Don't emit anonymous bitfields, they just affect layout.
     if (Field->isUnnamedBitfield()) {
-      LastFD = (*Field);
+      LastFD = *Field;
       continue;
     }
 
@@ -478,7 +478,7 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
 
   unsigned FieldNo = 0;
   const FieldDecl *LastFD = 0;
-  bool IsMsStruct = RD->hasAttr<MsStructAttr>();
+  bool IsMsStruct = RD->isMsStruct(CGM.getContext());
   uint64_t OffsetBits = CGM.getContext().toBits(Offset);
 
   for (RecordDecl::field_iterator Field = RD->field_begin(),
@@ -486,11 +486,11 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield((*Field), LastFD)) {
+      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield(*Field, LastFD)) {
         --FieldNo;
         continue;
       }
-      LastFD = (*Field);
+      LastFD = *Field;
     }
 
     // If this is a union, skip all the fields that aren't being initialized.
@@ -499,7 +499,7 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
 
     // Don't emit anonymous bitfields, they just affect layout.
     if (Field->isUnnamedBitfield()) {
-      LastFD = (*Field);
+      LastFD = *Field;
       continue;
     }
 
@@ -665,8 +665,8 @@ public:
       SmallVector<llvm::Type*, 2> Types;
       Elts.push_back(C);
       Types.push_back(C->getType());
-      unsigned CurSize = CGM.getTargetData().getTypeAllocSize(C->getType());
-      unsigned TotalSize = CGM.getTargetData().getTypeAllocSize(destType);
+      unsigned CurSize = CGM.getDataLayout().getTypeAllocSize(C->getType());
+      unsigned TotalSize = CGM.getDataLayout().getTypeAllocSize(destType);
 
       assert(CurSize <= TotalSize && "Union size mismatch!");
       if (unsigned NumPadBytes = TotalSize - CurSize) {
@@ -690,6 +690,9 @@ public:
       return C;
 
     case CK_Dependent: llvm_unreachable("saw dependent cast!");
+
+    case CK_BuiltinFnToFnPtr:
+      llvm_unreachable("builtin functions are handled elsewhere");
 
     case CK_ReinterpretMemberPointer:
     case CK_DerivedToBaseMemberPointer:
@@ -811,11 +814,7 @@ public:
     return llvm::ConstantArray::get(AType, Elts);
   }
 
-  llvm::Constant *EmitStructInitialization(InitListExpr *ILE) {
-    return ConstStructBuilder::BuildStruct(CGM, CGF, ILE);
-  }
-
-  llvm::Constant *EmitUnionInitialization(InitListExpr *ILE) {
+  llvm::Constant *EmitRecordInitialization(InitListExpr *ILE) {
     return ConstStructBuilder::BuildStruct(CGM, CGF, ILE);
   }
 
@@ -828,10 +827,7 @@ public:
       return EmitArrayInitialization(ILE);
 
     if (ILE->getType()->isRecordType())
-      return EmitStructInitialization(ILE);
-
-    if (ILE->getType()->isUnionType())
-      return EmitUnionInitialization(ILE);
+      return EmitRecordInitialization(ILE);
 
     return 0;
   }
@@ -932,7 +928,8 @@ public:
         C = new llvm::GlobalVariable(CGM.getModule(), C->getType(),
                                      E->getType().isConstant(CGM.getContext()),
                                      llvm::GlobalValue::InternalLinkage,
-                                     C, ".compoundliteral", 0, false,
+                                     C, ".compoundliteral", 0,
+                                     llvm::GlobalVariable::NotThreadLocal,
                           CGM.getContext().getTargetAddressSpace(E->getType()));
       return C;
     }
@@ -997,6 +994,9 @@ public:
       else
         T = Typeid->getExprOperand()->getType();
       return CGM.GetAddrOfRTTIDescriptor(T);
+    }
+    case Expr::CXXUuidofExprClass: {
+      return CGM.GetAddrOfUuidDescriptor(cast<CXXUuidofExpr>(E));
     }
     }
 
@@ -1300,7 +1300,8 @@ FillInNullDataMemberPointers(CodeGenModule &CGM, QualType T,
       if (CGM.getTypes().isZeroInitializable(BaseDecl))
         continue;
 
-      uint64_t BaseOffset = Layout.getBaseClassOffsetInBits(BaseDecl);
+      uint64_t BaseOffset =
+        CGM.getContext().toBits(Layout.getBaseClassOffset(BaseDecl));
       FillInNullDataMemberPointers(CGM, I->getType(),
                                    Elements, StartOffset + BaseOffset);
     }

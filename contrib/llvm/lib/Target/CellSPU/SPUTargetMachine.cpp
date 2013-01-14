@@ -38,12 +38,13 @@ SPUTargetMachine::SPUTargetMachine(const Target &T, StringRef TT,
                                    CodeGenOpt::Level OL)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS),
-    DataLayout(Subtarget.getTargetDataString()),
+    DL(Subtarget.getDataLayoutString()),
     InstrInfo(*this),
     FrameLowering(Subtarget),
     TLInfo(*this),
     TSInfo(*this),
-    InstrItins(Subtarget.getInstrItineraryData()) {
+    InstrItins(Subtarget.getInstrItineraryData()),
+    STTI(&TLInfo), VTTI(&TLInfo) {
 }
 
 //===----------------------------------------------------------------------===//
@@ -72,7 +73,7 @@ TargetPassConfig *SPUTargetMachine::createPassConfig(PassManagerBase &PM) {
 
 bool SPUPassConfig::addInstSelector() {
   // Install an instruction selector.
-  PM->add(createSPUISelDag(getSPUTargetMachine()));
+  addPass(createSPUISelDag(getSPUTargetMachine()));
   return false;
 }
 
@@ -85,9 +86,9 @@ bool SPUPassConfig::addPreEmitPass() {
     (BuilderFunc)(intptr_t)sys::DynamicLibrary::SearchForAddressOfSymbol(
           "createTCESchedulerPass");
   if (schedulerCreator != NULL)
-      PM->add(schedulerCreator("cellspu"));
+      addPass(schedulerCreator("cellspu"));
 
   //align instructions with nops/lnops for dual issue
-  PM->add(createSPUNopFillerPass(getSPUTargetMachine()));
+  addPass(createSPUNopFillerPass(getSPUTargetMachine()));
   return true;
 }

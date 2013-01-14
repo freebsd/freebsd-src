@@ -16,13 +16,11 @@
 
 #define DEBUG_TYPE "memdep"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
-#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Function.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
@@ -32,7 +30,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/PredIteratorCache.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 using namespace llvm;
 
 STATISTIC(NumCacheNonLocal, "Number of fully cached non-local responses");
@@ -91,7 +89,7 @@ void MemoryDependenceAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool MemoryDependenceAnalysis::runOnFunction(Function &) {
   AA = &getAnalysis<AliasAnalysis>();
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   DT = getAnalysisIfAvailable<DominatorTree>();
   if (PredCache == 0)
     PredCache.reset(new PredIteratorCache());
@@ -150,7 +148,7 @@ AliasAnalysis::ModRefResult GetLocation(const Instruction *Inst,
     return AliasAnalysis::ModRef;
   }
 
-  if (const CallInst *CI = isFreeCall(Inst)) {
+  if (const CallInst *CI = isFreeCall(Inst, AA->getTargetLibraryInfo())) {
     // calls to free() deallocate the entire structure
     Loc = AliasAnalysis::Location(CI->getArgOperand(0));
     return AliasAnalysis::Mod;
@@ -229,13 +227,18 @@ getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
 
         // Otherwise if the two calls don't interact (e.g. InstCS is readnone)
         // keep scanning.
-        break;
+        continue;
       default:
         return MemDepResult::getClobber(Inst);
       }
     }
+
+    // If we could not obtain a pointer for the instruction and the instruction
+    // touches memory then assume that this is a dependency.
+    if (MR != AliasAnalysis::NoModRef)
+      return MemDepResult::getClobber(Inst);
   }
-  
+
   // No dependence found.  If this is the entry block of the function, it is
   // unknown, otherwise it is non-local.
   if (BB != &BB->getParent()->getEntryBlock())
@@ -253,7 +256,7 @@ isLoadLoadClobberIfExtendedToFullWidth(const AliasAnalysis::Location &MemLoc,
                                        const Value *&MemLocBase,
                                        int64_t &MemLocOffs,
                                        const LoadInst *LI,
-                                       const TargetData *TD) {
+                                       const DataLayout *TD) {
   // If we have no target data, we can't do this.
   if (TD == 0) return false;
 
@@ -277,7 +280,7 @@ isLoadLoadClobberIfExtendedToFullWidth(const AliasAnalysis::Location &MemLoc,
 unsigned MemoryDependenceAnalysis::
 getLoadLoadClobberFullWidthSize(const Value *MemLocBase, int64_t MemLocOffs,
                                 unsigned MemLocSize, const LoadInst *LI,
-                                const TargetData &TD) {
+                                const DataLayout &TD) {
   // We can only extend simple integer loads.
   if (!isa<IntegerType>(LI->getType()) || !LI->isSimple()) return 0;
   
@@ -324,12 +327,12 @@ getLoadLoadClobberFullWidthSize(const Value *MemLocBase, int64_t MemLocOffs,
       return 0;
 
     if (LIOffs+NewLoadByteSize > MemLocEnd &&
-        LI->getParent()->getParent()->hasFnAttr(Attribute::AddressSafety)) {
+        LI->getParent()->getParent()->getFnAttributes().
+          hasAttribute(Attributes::AddressSafety))
       // We will be reading past the location accessed by the original program.
       // While this is safe in a regular build, Address Safety analysis tools
       // may start reporting false warnings. So, don't do widening.
       return 0;
-    }
 
     // If a load of this width would include all of MemLoc, then we succeed.
     if (LIOffs+NewLoadByteSize >= MemLocEnd)
@@ -337,86 +340,6 @@ getLoadLoadClobberFullWidthSize(const Value *MemLocBase, int64_t MemLocOffs,
     
     NewLoadByteSize <<= 1;
   }
-}
-
-namespace {
-  /// Only find pointer captures which happen before the given instruction. Uses
-  /// the dominator tree to determine whether one instruction is before another.
-  struct CapturesBefore : public CaptureTracker {
-    CapturesBefore(const Instruction *I, DominatorTree *DT)
-      : BeforeHere(I), DT(DT), Captured(false) {}
-
-    void tooManyUses() { Captured = true; }
-
-    bool shouldExplore(Use *U) {
-      Instruction *I = cast<Instruction>(U->getUser());
-      BasicBlock *BB = I->getParent();
-      if (BeforeHere != I &&
-          (!DT->isReachableFromEntry(BB) || DT->dominates(BeforeHere, I)))
-        return false;
-      return true;
-    }
-
-    bool captured(Use *U) {
-      Instruction *I = cast<Instruction>(U->getUser());
-      BasicBlock *BB = I->getParent();
-      if (BeforeHere != I &&
-          (!DT->isReachableFromEntry(BB) || DT->dominates(BeforeHere, I)))
-        return false;
-      Captured = true;
-      return true;
-    }
-
-    const Instruction *BeforeHere;
-    DominatorTree *DT;
-
-    bool Captured;
-  };
-}
-
-AliasAnalysis::ModRefResult
-MemoryDependenceAnalysis::getModRefInfo(const Instruction *Inst,
-                                        const AliasAnalysis::Location &MemLoc) {
-  AliasAnalysis::ModRefResult MR = AA->getModRefInfo(Inst, MemLoc);
-  if (MR != AliasAnalysis::ModRef) return MR;
-
-  // FIXME: this is really just shoring-up a deficiency in alias analysis.
-  // BasicAA isn't willing to spend linear time determining whether an alloca
-  // was captured before or after this particular call, while we are. However,
-  // with a smarter AA in place, this test is just wasting compile time.
-  if (!DT) return AliasAnalysis::ModRef;
-  const Value *Object = GetUnderlyingObject(MemLoc.Ptr, TD);
-  if (!isIdentifiedObject(Object) || isa<GlobalValue>(Object))
-    return AliasAnalysis::ModRef;
-  ImmutableCallSite CS(Inst);
-  if (!CS.getInstruction()) return AliasAnalysis::ModRef;
-
-  CapturesBefore CB(Inst, DT);
-  llvm::PointerMayBeCaptured(Object, &CB);
-
-  if (isa<Constant>(Object) || CS.getInstruction() == Object || CB.Captured)
-    return AliasAnalysis::ModRef;
-
-  unsigned ArgNo = 0;
-  for (ImmutableCallSite::arg_iterator CI = CS.arg_begin(), CE = CS.arg_end();
-       CI != CE; ++CI, ++ArgNo) {
-    // Only look at the no-capture or byval pointer arguments.  If this
-    // pointer were passed to arguments that were neither of these, then it
-    // couldn't be no-capture.
-    if (!(*CI)->getType()->isPointerTy() ||
-        (!CS.doesNotCapture(ArgNo) && !CS.isByValArgument(ArgNo)))
-      continue;
-
-    // If this is a no-capture pointer argument, see if we can tell that it
-    // is impossible to alias the pointer we're checking.  If not, we have to
-    // assume that the call could touch the pointer, even though it doesn't
-    // escape.
-    if (!AA->isNoAlias(AliasAnalysis::Location(*CI),
-                       AliasAnalysis::Location(Object))) {
-      return AliasAnalysis::ModRef;
-    }
-  }
-  return AliasAnalysis::NoModRef;
 }
 
 /// getPointerDependencyFrom - Return the instruction on which a memory
@@ -556,17 +479,28 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
     // a subsequent bitcast of the malloc call result.  There can be stores to
     // the malloced memory between the malloc call and its bitcast uses, and we
     // need to continue scanning until the malloc call.
-    if (isa<AllocaInst>(Inst) ||
-        (isa<CallInst>(Inst) && extractMallocCall(Inst))) {
+    const TargetLibraryInfo *TLI = AA->getTargetLibraryInfo();
+    if (isa<AllocaInst>(Inst) || isNoAliasFn(Inst, TLI)) {
       const Value *AccessPtr = GetUnderlyingObject(MemLoc.Ptr, TD);
       
       if (AccessPtr == Inst || AA->isMustAlias(Inst, AccessPtr))
         return MemDepResult::getDef(Inst);
-      continue;
+      // Be conservative if the accessed pointer may alias the allocation.
+      if (AA->alias(Inst, AccessPtr) != AliasAnalysis::NoAlias)
+        return MemDepResult::getClobber(Inst);
+      // If the allocation is not aliased and does not read memory (like
+      // strdup), it is safe to ignore.
+      if (isa<AllocaInst>(Inst) ||
+          isMallocLikeFn(Inst, TLI) || isCallocLikeFn(Inst, TLI))
+        continue;
     }
 
     // See if this instruction (e.g. a call or vaarg) mod/ref's the pointer.
-    switch (getModRefInfo(Inst, MemLoc)) {
+    AliasAnalysis::ModRefResult MR = AA->getModRefInfo(Inst, MemLoc);
+    // If necessary, perform additional analysis.
+    if (MR == AliasAnalysis::ModRef)
+      MR = AA->callCapturesBefore(Inst, MemLoc, DT);
+    switch (MR) {
     case AliasAnalysis::NoModRef:
       // If the call has no effect on the queried pointer, just ignore it.
       continue;
@@ -984,7 +918,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
   if (!Pair.second) {
     if (CacheInfo->Size < Loc.Size) {
       // The query's Size is greater than the cached one. Throw out the
-      // cached data and procede with the query at the greater size.
+      // cached data and proceed with the query at the greater size.
       CacheInfo->Pair = BBSkipFirstBlockPair();
       CacheInfo->Size = Loc.Size;
       for (NonLocalDepInfo::iterator DI = CacheInfo->NonLocalDeps.begin(),
@@ -1049,7 +983,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
     for (NonLocalDepInfo::iterator I = Cache->begin(), E = Cache->end();
          I != E; ++I) {
       Visited.insert(std::make_pair(I->getBB(), Addr));
-      if (!I->getResult().isNonLocal())
+      if (!I->getResult().isNonLocal() && DT->isReachableFromEntry(I->getBB()))
         Result.push_back(NonLocalDepResult(I->getBB(), I->getResult(), Addr));
     }
     ++NumCacheCompleteNonLocalPtr;
@@ -1095,7 +1029,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
                                                  NumSortedEntries);
       
       // If we got a Def or Clobber, add this to the list of results.
-      if (!Dep.isNonLocal()) {
+      if (!Dep.isNonLocal() && DT->isReachableFromEntry(BB)) {
         Result.push_back(NonLocalDepResult(BB, Dep, Pointer.getAddr()));
         continue;
       }

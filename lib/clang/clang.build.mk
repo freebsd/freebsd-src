@@ -8,26 +8,17 @@ CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 		-DLLVM_ON_UNIX -DLLVM_ON_FREEBSD \
 		-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
-# Correct for gcc miscompilation when compiling on PPC with -O2
-.if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-O1 -mminimal-toc
-.endif
+# LLVM is not strict aliasing safe as of 12/31/2011
+CFLAGS+= -fno-strict-aliasing
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-CFLAGS+=-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd9.0\"
-
-.ifndef LLVM_REQUIRES_EH
-CXXFLAGS+=	-fno-exceptions
-.else
-# If the library or program requires EH, it also requires RTTI.
-LLVM_REQUIRES_RTTI=
-.endif
-
-.ifndef LLVM_REQUIRES_RTTI
-CXXFLAGS+=	-fno-rtti
-.endif
-
-CFLAGS+=	-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
+BUILD_ARCH?=	${MACHINE_ARCH}
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd9.2
+BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd9.2
+CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
+		-DLLVM_HOSTTRIPLE=\"${BUILD_TRIPLE}\" \
+		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
+CXXFLAGS+=	-fno-exceptions -fno-rtti
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
@@ -112,6 +103,22 @@ AttrTemplateInstantiate.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    -gen-clang-attr-template-instantiate -o ${.TARGET} \
 	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
+CommentCommandInfo.inc.h: ${CLANG_SRCS}/include/clang/AST/CommentCommands.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-comment-command-info -o ${.TARGET} ${.ALLSRC}
+
+CommentHTMLTags.inc.h: ${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-comment-html-tags -o ${.TARGET} ${.ALLSRC}
+
+CommentHTMLTagsProperties.inc.h: ${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-comment-html-tags-properties -o ${.TARGET} ${.ALLSRC}
+
+CommentNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/CommentNodes.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-comment-nodes -o ${.TARGET} ${.ALLSRC}
+
 DeclNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
 	    -gen-clang-decl-nodes -o ${.TARGET} ${.ALLSRC}
@@ -132,7 +139,7 @@ DiagnosticIndexName.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
 	    -gen-clang-diags-index-name -o ${.TARGET} ${.ALLSRC}
 
-.for hdr in AST Analysis Common Driver Frontend Lex Parse Sema Serialization
+.for hdr in AST Analysis Comment Common Driver Frontend Lex Parse Sema Serialization
 Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
 	    -gen-clang-diags-defs -clang-component=${hdr} \
@@ -140,10 +147,6 @@ Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 .endfor
 
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
-	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver ${TBLINC} \
-	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
-
-CC1Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1Options.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver ${TBLINC} \
 	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 

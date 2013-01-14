@@ -18,7 +18,10 @@ DIContext *DIContext::getDWARFContext(bool isLittleEndian,
                                       StringRef abbrevSection,
                                       StringRef aRangeSection,
                                       StringRef lineSection,
-                                      StringRef stringSection) {
+                                      StringRef stringSection,
+                                      StringRef rangeSection,
+                                      const RelocAddrMap &Map) {
   return new DWARFContextInMemory(isLittleEndian, infoSection, abbrevSection,
-                                  aRangeSection, lineSection, stringSection);
+                                  aRangeSection, lineSection, stringSection,
+                                  rangeSection, Map);
 }

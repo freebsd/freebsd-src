@@ -39,12 +39,9 @@ void DivZeroChecker::reportBug(const char *Msg,
     if (!BT)
       BT.reset(new BuiltinBug("Division by zero"));
 
-    BugReport *R =
-      new BugReport(*BT, Msg, N);
-
-    R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N,
-                                 bugreporter::GetDenomExpr(N), R));
-    C.EmitReport(R);
+    BugReport *R = new BugReport(*BT, Msg, N);
+    bugreporter::trackNullOrUndefValue(N, bugreporter::GetDenomExpr(N), *R);
+    C.emitReport(R);
   }
 }
 
@@ -57,8 +54,7 @@ void DivZeroChecker::checkPreStmt(const BinaryOperator *B,
       Op != BO_RemAssign)
     return;
 
-  if (!B->getRHS()->getType()->isIntegerType() ||
-      !B->getRHS()->getType()->isScalarType())
+  if (!B->getRHS()->getType()->isScalarType())
     return;
 
   SVal Denom = C.getState()->getSVal(B->getRHS(), C.getLocationContext());

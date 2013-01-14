@@ -17,7 +17,9 @@
 
 #include "CodeGenTBAA.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/AST/Mangle.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Metadata.h"
 #include "llvm/Constants.h"
@@ -26,8 +28,9 @@ using namespace clang;
 using namespace CodeGen;
 
 CodeGenTBAA::CodeGenTBAA(ASTContext &Ctx, llvm::LLVMContext& VMContext,
+                         const CodeGenOptions &CGO,
                          const LangOptions &Features, MangleContext &MContext)
-  : Context(Ctx), VMContext(VMContext), Features(Features), MContext(MContext),
+  : Context(Ctx), CodeGenOpts(CGO), Features(Features), MContext(MContext),
     MDHelper(VMContext), Root(0), Char(0) {
 }
 
@@ -74,6 +77,10 @@ static bool TypeHasMayAlias(QualType QTy) {
 
 llvm::MDNode *
 CodeGenTBAA::getTBAAInfo(QualType QTy) {
+  // At -O0 TBAA is not emitted for regular types.
+  if (CodeGenOpts.OptimizationLevel == 0 || CodeGenOpts.RelaxedAliasing)
+    return NULL;
+
   // If the type has the may_alias attribute (even on a typedef), it is
   // effectively in the general char alias class.
   if (TypeHasMayAlias(QTy))
@@ -160,4 +167,60 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
 
 llvm::MDNode *CodeGenTBAA::getTBAAInfoForVTablePtr() {
   return MDHelper.createTBAANode("vtable pointer", getRoot());
+}
+
+bool
+CodeGenTBAA::CollectFields(uint64_t BaseOffset,
+                           QualType QTy,
+                           SmallVectorImpl<llvm::MDBuilder::TBAAStructField> &
+                             Fields,
+                           bool MayAlias) {
+  /* Things not handled yet include: C++ base classes, bitfields, */
+
+  if (const RecordType *TTy = QTy->getAs<RecordType>()) {
+    const RecordDecl *RD = TTy->getDecl()->getDefinition();
+    if (RD->hasFlexibleArrayMember())
+      return false;
+
+    // TODO: Handle C++ base classes.
+    if (const CXXRecordDecl *Decl = dyn_cast<CXXRecordDecl>(RD))
+      if (Decl->bases_begin() != Decl->bases_end())
+        return false;
+
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+
+    unsigned idx = 0;
+    for (RecordDecl::field_iterator i = RD->field_begin(),
+         e = RD->field_end(); i != e; ++i, ++idx) {
+      uint64_t Offset = BaseOffset +
+                        Layout.getFieldOffset(idx) / Context.getCharWidth();
+      QualType FieldQTy = i->getType();
+      if (!CollectFields(Offset, FieldQTy, Fields,
+                         MayAlias || TypeHasMayAlias(FieldQTy)))
+        return false;
+    }
+    return true;
+  }
+
+  /* Otherwise, treat whatever it is as a field. */
+  uint64_t Offset = BaseOffset;
+  uint64_t Size = Context.getTypeSizeInChars(QTy).getQuantity();
+  llvm::MDNode *TBAAInfo = MayAlias ? getChar() : getTBAAInfo(QTy);
+  Fields.push_back(llvm::MDBuilder::TBAAStructField(Offset, Size, TBAAInfo));
+  return true;
+}
+
+llvm::MDNode *
+CodeGenTBAA::getTBAAStructInfo(QualType QTy) {
+  const Type *Ty = Context.getCanonicalType(QTy).getTypePtr();
+
+  if (llvm::MDNode *N = StructMetadataCache[Ty])
+    return N;
+
+  SmallVector<llvm::MDBuilder::TBAAStructField, 4> Fields;
+  if (CollectFields(0, QTy, Fields, TypeHasMayAlias(QTy)))
+    return MDHelper.createTBAAStructNode(Fields);
+
+  // For now, handle any other kind of type conservatively.
+  return StructMetadataCache[Ty] = NULL;
 }

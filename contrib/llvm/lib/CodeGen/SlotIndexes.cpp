@@ -62,7 +62,6 @@ bool SlotIndexes::runOnMachineFunction(MachineFunction &fn) {
   assert(mi2iMap.empty() &&
          "MachineInstr -> Index mapping non-empty at initial numbering?");
 
-  functionSize = 0;
   unsigned index = 0;
   MBBRanges.resize(mf->getNumBlockIDs());
   idx2MBBMap.reserve(mf->size());
@@ -89,8 +88,6 @@ bool SlotIndexes::runOnMachineFunction(MachineFunction &fn) {
       // Save this base index in the maps.
       mi2iMap.insert(std::make_pair(mi, SlotIndex(&indexList.back(),
                                                   SlotIndex::Slot_Block)));
-
-      ++functionSize;
     }
 
     // We insert one blank instructions between basic blocks.
@@ -146,6 +143,7 @@ void SlotIndexes::renumberIndexes(IndexList::iterator curItr) {
 }
 
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void SlotIndexes::dump() const {
   for (IndexList::const_iterator itr = indexList.begin();
        itr != indexList.end(); ++itr) {
@@ -162,6 +160,7 @@ void SlotIndexes::dump() const {
     dbgs() << "BB#" << i << "\t[" << MBBRanges[i].first << ';'
            << MBBRanges[i].second << ")\n";
 }
+#endif
 
 // Print a SlotIndex to a raw_ostream.
 void SlotIndex::print(raw_ostream &os) const {
@@ -171,9 +170,11 @@ void SlotIndex::print(raw_ostream &os) const {
     os << "invalid";
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 // Dump a SlotIndex to stderr.
 void SlotIndex::dump() const {
   print(dbgs());
   dbgs() << "\n";
 }
+#endif
 

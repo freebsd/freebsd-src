@@ -35,7 +35,7 @@ void EmitMatcherTable(const Matcher *Matcher, const CodeGenDAGPatterns &CGP,
                       raw_ostream &OS);
 
 
-/// Matcher - Base class for all the the DAG ISel Matcher representation
+/// Matcher - Base class for all the DAG ISel Matcher representation
 /// nodes.
 class Matcher {
   // The next matcher node that is executed after this one.  Null if this is the
@@ -98,8 +98,6 @@ public:
   Matcher *takeNext() { return Next.take(); }
 
   OwningPtr<Matcher> &getNextPtr() { return Next; }
-
-  static inline bool classof(const Matcher *) { return true; }
 
   bool isEqual(const Matcher *M) const {
     if (getKind() != M->getKind()) return false;

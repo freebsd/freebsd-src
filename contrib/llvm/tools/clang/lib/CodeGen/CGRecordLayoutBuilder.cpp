@@ -25,7 +25,7 @@
 #include "llvm/Type.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -206,7 +206,7 @@ void CGRecordLayoutBuilder::Layout(const RecordDecl *D) {
   Alignment = Types.getContext().getASTRecordLayout(D).getAlignment();
   Packed = D->hasAttr<PackedAttr>();
   
-  IsMsStruct = D->hasAttr<MsStructAttr>();
+  IsMsStruct = D->isMsStruct(Types.getContext());
 
   if (D->isUnion()) {
     LayoutUnion(D);
@@ -235,9 +235,11 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
                                uint64_t FieldSize,
                                uint64_t ContainingTypeSizeInBits,
                                unsigned ContainingTypeAlign) {
+  assert(ContainingTypeAlign && "Expected alignment to be specified");
+
   llvm::Type *Ty = Types.ConvertTypeForMem(FD->getType());
   CharUnits TypeSizeInBytes =
-    CharUnits::fromQuantity(Types.getTargetData().getTypeAllocSize(Ty));
+    CharUnits::fromQuantity(Types.getDataLayout().getTypeAllocSize(Ty));
   uint64_t TypeSizeInBits = Types.getContext().toBits(TypeSizeInBytes);
 
   bool IsSigned = FD->getType()->isSignedIntegerOrEnumerationType();
@@ -257,7 +259,7 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
 
   // in big-endian machines the first fields are in higher bit positions,
   // so revert the offset. The byte offsets are reversed(back) later.
-  if (Types.getTargetData().isBigEndian()) {
+  if (Types.getDataLayout().isBigEndian()) {
     FieldOffset = ((ContainingTypeSizeInBits)-FieldOffset-FieldSize);
   }
 
@@ -332,7 +334,7 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
     // on big-endian machines we reverted the bit offset because first fields are
     // in higher bits. But this also reverts the bytes, so fix this here by reverting
     // the byte offset on big-endian machines.
-    if (Types.getTargetData().isBigEndian()) {
+    if (Types.getDataLayout().isBigEndian()) {
       AI.FieldByteOffset = Types.getContext().toCharUnitsFromBits(
           ContainingTypeSizeInBits - AccessStart - AccessWidth);
     } else {
@@ -551,9 +553,9 @@ void CGRecordLayoutBuilder::LayoutUnion(const RecordDecl *D) {
     hasOnlyZeroSizedBitFields = false;
 
     CharUnits fieldAlign = CharUnits::fromQuantity(
-                          Types.getTargetData().getABITypeAlignment(fieldType));
+                          Types.getDataLayout().getABITypeAlignment(fieldType));
     CharUnits fieldSize = CharUnits::fromQuantity(
-                             Types.getTargetData().getTypeAllocSize(fieldType));
+                             Types.getDataLayout().getTypeAllocSize(fieldType));
 
     if (fieldAlign < unionAlign)
       continue;
@@ -714,14 +716,18 @@ CGRecordLayoutBuilder::LayoutNonVirtualBases(const CXXRecordDecl *RD,
     }
 
   // Otherwise, add a vtable / vf-table if the layout says to do so.
-  } else if (Types.getContext().getTargetInfo().getCXXABI() == CXXABI_Microsoft
-               ? Layout.getVFPtrOffset() != CharUnits::fromQuantity(-1)
-               : RD->isDynamicClass()) {
+  } else if (Layout.hasOwnVFPtr()) {
     llvm::Type *FunctionType =
       llvm::FunctionType::get(llvm::Type::getInt32Ty(Types.getLLVMContext()),
                               /*isVarArg=*/true);
     llvm::Type *VTableTy = FunctionType->getPointerTo();
-    
+
+    if (getTypeAlignment(VTableTy) > Alignment) {
+      // FIXME: Should we allow this to happen in Sema?
+      assert(!Packed && "Alignment is wrong even with packed struct!");
+      return false;
+    }
+
     assert(NextFieldOffset.isZero() &&
            "VTable pointer must come first!");
     AppendField(CharUnits::Zero(), VTableTy->getPointerTo());
@@ -814,7 +820,7 @@ bool CGRecordLayoutBuilder::LayoutFields(const RecordDecl *D) {
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      const FieldDecl *FD =  (*Field);
+      const FieldDecl *FD = *Field;
       if (Types.getContext().ZeroBitfieldFollowsNonBitfield(FD, LastFD)) {
         --FieldNo;
         continue;
@@ -878,7 +884,7 @@ void CGRecordLayoutBuilder::AppendTailPadding(CharUnits RecordSize) {
 void CGRecordLayoutBuilder::AppendField(CharUnits fieldOffset,
                                         llvm::Type *fieldType) {
   CharUnits fieldSize =
-    CharUnits::fromQuantity(Types.getTargetData().getTypeAllocSize(fieldType));
+    CharUnits::fromQuantity(Types.getDataLayout().getTypeAllocSize(fieldType));
 
   FieldTypes.push_back(fieldType);
 
@@ -951,7 +957,7 @@ CharUnits CGRecordLayoutBuilder::getTypeAlignment(llvm::Type *Ty) const {
   if (Packed)
     return CharUnits::One();
 
-  return CharUnits::fromQuantity(Types.getTargetData().getABITypeAlignment(Ty));
+  return CharUnits::fromQuantity(Types.getDataLayout().getABITypeAlignment(Ty));
 }
 
 CharUnits CGRecordLayoutBuilder::getAlignmentAsLLVMStruct() const {
@@ -1030,7 +1036,7 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
   const ASTRecordLayout &Layout = getContext().getASTRecordLayout(D);
 
   uint64_t TypeSizeInBits = getContext().toBits(Layout.getSize());
-  assert(TypeSizeInBits == getTargetData().getTypeAllocSizeInBits(Ty) &&
+  assert(TypeSizeInBits == getDataLayout().getTypeAllocSizeInBits(Ty) &&
          "Type size mismatch!");
 
   if (BaseTy) {
@@ -1043,19 +1049,19 @@ CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
       getContext().toBits(AlignedNonVirtualTypeSize);
 
     assert(AlignedNonVirtualTypeSizeInBits == 
-           getTargetData().getTypeAllocSizeInBits(BaseTy) &&
+           getDataLayout().getTypeAllocSizeInBits(BaseTy) &&
            "Type size mismatch!");
   }
                                      
   // Verify that the LLVM and AST field offsets agree.
   llvm::StructType *ST =
     dyn_cast<llvm::StructType>(RL->getLLVMType());
-  const llvm::StructLayout *SL = getTargetData().getStructLayout(ST);
+  const llvm::StructLayout *SL = getDataLayout().getStructLayout(ST);
 
   const ASTRecordLayout &AST_RL = getContext().getASTRecordLayout(D);
   RecordDecl::field_iterator it = D->field_begin();
   const FieldDecl *LastFD = 0;
-  bool IsMsStruct = D->hasAttr<MsStructAttr>();
+  bool IsMsStruct = D->isMsStruct(getContext());
   for (unsigned i = 0, e = AST_RL.getFieldCount(); i != e; ++i, ++it) {
     const FieldDecl *FD = *it;
 

@@ -211,10 +211,13 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //   KEYCXX0X - This is a C++ keyword introduced to C++ in C++0x
 //   KEYGNU   - This is a keyword if GNU extensions are enabled
 //   KEYMS    - This is a keyword if Microsoft extensions are enabled
+//   KEYNOMS  - This is a keyword that must never be enabled under
+//              Microsoft mode
 //   KEYOPENCL  - This is a keyword in OpenCL
 //   KEYALTIVEC - This is a keyword in AltiVec
 //   KEYBORLAND - This is a keyword if Borland extensions are enabled
 //   BOOLSUPPORT - This is a keyword if 'bool' is a built-in type
+//   WCHARSUPPORT - This is a keyword if 'wchar_t' is a built-in type
 //
 KEYWORD(auto                        , KEYALL)
 KEYWORD(break                       , KEYALL)
@@ -251,6 +254,7 @@ KEYWORD(void                        , KEYALL)
 KEYWORD(volatile                    , KEYALL)
 KEYWORD(while                       , KEYALL)
 KEYWORD(_Alignas                    , KEYALL)
+KEYWORD(_Alignof                    , KEYALL)
 KEYWORD(_Atomic                     , KEYALL)
 KEYWORD(_Bool                       , KEYNOCXX)
 KEYWORD(_Complex                    , KEYALL)
@@ -292,7 +296,7 @@ KEYWORD(typename                    , KEYCXX)
 KEYWORD(typeid                      , KEYCXX)
 KEYWORD(using                       , KEYCXX)
 KEYWORD(virtual                     , KEYCXX)
-KEYWORD(wchar_t                     , KEYCXX)
+KEYWORD(wchar_t                     , WCHARSUPPORT)
 
 // C++ 2.5p2: Alternative Representations.
 CXX_KEYWORD_OPERATOR(and     , ampamp)
@@ -310,8 +314,8 @@ CXX_KEYWORD_OPERATOR(xor_eq  , caretequal)
 // C++0x keywords
 KEYWORD(alignas                     , KEYCXX0X)
 KEYWORD(alignof                     , KEYCXX0X)
-KEYWORD(char16_t                    , KEYCXX0X)
-KEYWORD(char32_t                    , KEYCXX0X)
+KEYWORD(char16_t                    , KEYCXX0X|KEYNOMS)
+KEYWORD(char32_t                    , KEYCXX0X|KEYNOMS)
 KEYWORD(constexpr                   , KEYCXX0X)
 KEYWORD(decltype                    , KEYCXX0X)
 KEYWORD(noexcept                    , KEYCXX0X)
@@ -342,6 +346,9 @@ KEYWORD(__PRETTY_FUNCTION__         , KEYALL)
 // GNU Extensions (outside impl-reserved namespace)
 KEYWORD(typeof                      , KEYGNU)
 
+// MS Extensions
+KEYWORD(L__FUNCTION__               , KEYMS)
+
 // GNU and MS Type Traits
 KEYWORD(__has_nothrow_assign        , KEYCXX)
 KEYWORD(__has_nothrow_copy          , KEYCXX)
@@ -358,6 +365,7 @@ KEYWORD(__is_convertible_to         , KEYCXX)
 KEYWORD(__is_empty                  , KEYCXX)
 KEYWORD(__is_enum                   , KEYCXX)
 KEYWORD(__is_final                  , KEYCXX)
+KEYWORD(__is_interface_class        , KEYCXX)
 // Tentative name - there's no implementation of std::is_literal_type yet.
 KEYWORD(__is_literal                , KEYCXX)
 // Name for GCC 4.6 compatibility - people have already written libraries using
@@ -486,28 +494,33 @@ ALIAS("__volatile"   , volatile   , KEYALL)
 ALIAS("__volatile__" , volatile   , KEYALL)
 
 // Microsoft extensions which should be disabled in strict conformance mode
-KEYWORD(__ptr64                   , KEYMS)
-KEYWORD(__ptr32                   , KEYMS)
-KEYWORD(__w64                     , KEYMS)
-KEYWORD(__uuidof                  , KEYMS | KEYBORLAND)
-KEYWORD(__try                     , KEYMS | KEYBORLAND)
-KEYWORD(__finally                 , KEYMS | KEYBORLAND)
-KEYWORD(__leave                   , KEYMS | KEYBORLAND)
-KEYWORD(__int64                   , KEYMS)
-KEYWORD(__if_exists               , KEYMS)
-KEYWORD(__if_not_exists           , KEYMS)
-ALIAS("__int8"       , char       , KEYMS)
-ALIAS("__int16"      , short      , KEYMS)
-ALIAS("__int32"      , int        , KEYMS)
-ALIAS("_asm"         , asm        , KEYMS)
-ALIAS("_cdecl"       , __cdecl    , KEYMS | KEYBORLAND)
-ALIAS("_fastcall"    , __fastcall , KEYMS | KEYBORLAND)
-ALIAS("_stdcall"     , __stdcall  , KEYMS | KEYBORLAND)
-ALIAS("_thiscall"    , __thiscall , KEYMS)
-ALIAS("_uuidof"      , __uuidof   , KEYMS | KEYBORLAND)
-ALIAS("_inline"      , inline     , KEYMS)
-ALIAS("_declspec"    , __declspec , KEYMS)
-ALIAS("__interface"  , struct     , KEYMS)
+KEYWORD(__ptr64                       , KEYMS)
+KEYWORD(__ptr32                       , KEYMS)
+KEYWORD(__w64                         , KEYMS)
+KEYWORD(__uuidof                      , KEYMS | KEYBORLAND)
+KEYWORD(__try                         , KEYMS | KEYBORLAND)
+KEYWORD(__finally                     , KEYMS | KEYBORLAND)
+KEYWORD(__leave                       , KEYMS | KEYBORLAND)
+KEYWORD(__int64                       , KEYMS)
+KEYWORD(__if_exists                   , KEYMS)
+KEYWORD(__if_not_exists               , KEYMS)
+KEYWORD(__single_inheritance          , KEYMS)
+KEYWORD(__multiple_inheritance        , KEYMS)
+KEYWORD(__virtual_inheritance         , KEYMS)
+KEYWORD(__interface                   , KEYMS)
+ALIAS("__int8"           , char       , KEYMS)
+ALIAS("__int16"          , short      , KEYMS)
+ALIAS("__int32"          , int        , KEYMS)
+ALIAS("_asm"             , asm        , KEYMS)
+ALIAS("_alignof"         , __alignof  , KEYMS)
+ALIAS("__builtin_alignof", __alignof  , KEYMS)
+ALIAS("_cdecl"           , __cdecl    , KEYMS | KEYBORLAND)
+ALIAS("_fastcall"        , __fastcall , KEYMS | KEYBORLAND)
+ALIAS("_stdcall"         , __stdcall  , KEYMS | KEYBORLAND)
+ALIAS("_thiscall"        , __thiscall , KEYMS)
+ALIAS("_uuidof"          , __uuidof   , KEYMS | KEYBORLAND)
+ALIAS("_inline"          , inline     , KEYMS)
+ALIAS("_declspec"        , __declspec , KEYMS)
 
 // Borland Extensions which should be disabled in strict conformance mode.
 ALIAS("_pascal"      , __pascal   , KEYBORLAND)
@@ -583,6 +596,46 @@ ANNOTATION(pragma_vis)
 // The lexer produces these so that they only take effect when the parser
 // handles them.
 ANNOTATION(pragma_pack)
+
+// Annotation for #pragma clang __debug parser_crash...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_parser_crash)
+
+// Annotation for #pragma ms_struct...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_msstruct)
+
+// Annotation for #pragma align...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_align)
+
+// Annotation for #pragma weak id
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_weak)
+
+// Annotation for #pragma weak id = id
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_weakalias)
+
+// Annotation for #pragma redefine_extname...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_redefine_extname)
+
+// Annotation for #pragma STDC FP_CONTRACT...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_fp_contract)
+
+// Annotation for #pragma OPENCL EXTENSION...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_opencl_extension)
 
 #undef ANNOTATION
 #undef TESTING_KEYWORD

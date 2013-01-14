@@ -73,6 +73,7 @@ public:
   void printPKHLSLShiftImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printPKHASRShiftImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
+  void printAdrLabelOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printThumbS4ImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printThumbSRImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printThumbITMask(const MCInst *MI, unsigned OpNum, raw_ostream &O);
@@ -125,7 +126,8 @@ public:
   void printRotImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
   void printPCLabel(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  void printT2LdrLabelOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printThumbLdrLabelOperand(const MCInst *MI, unsigned OpNum,
+                                 raw_ostream &O);
   void printFBits16(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printFBits32(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printVectorIndex(const MCInst *MI, unsigned OpNum, raw_ostream &O);

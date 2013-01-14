@@ -19,7 +19,8 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/InlineCost.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -36,7 +37,7 @@ STATISTIC(NumCallsDeleted, "Number of call sites deleted, not inlined");
 STATISTIC(NumDeleted, "Number of functions deleted because all callers found");
 STATISTIC(NumMergedAllocas, "Number of allocas merged together");
 
-// This weirdly named statistic tracks the number of times that, when attemting
+// This weirdly named statistic tracks the number of times that, when attempting
 // to inline a function A into B, we analyze the callers of B in order to see
 // if those would be more profitable and blocked inline steps.
 STATISTIC(NumCallerCallersAnalyzed, "Number of caller-callers analyzed");
@@ -92,11 +93,11 @@ static bool InlineCallIfPossible(CallSite CS, InlineFunctionInfo &IFI,
 
   // If the inlined function had a higher stack protection level than the
   // calling function, then bump up the caller's stack protection level.
-  if (Callee->hasFnAttr(Attribute::StackProtectReq))
-    Caller->addFnAttr(Attribute::StackProtectReq);
-  else if (Callee->hasFnAttr(Attribute::StackProtect) &&
-           !Caller->hasFnAttr(Attribute::StackProtectReq))
-    Caller->addFnAttr(Attribute::StackProtect);
+  if (Callee->getFnAttributes().hasAttribute(Attributes::StackProtectReq))
+    Caller->addFnAttr(Attributes::StackProtectReq);
+  else if (Callee->getFnAttributes().hasAttribute(Attributes::StackProtect) &&
+           !Caller->getFnAttributes().hasAttribute(Attributes::StackProtectReq))
+    Caller->addFnAttr(Attributes::StackProtect);
 
   // Look at all of the allocas that we inlined through this call site.  If we
   // have already inlined other allocas through other calls into this function,
@@ -201,19 +202,23 @@ static bool InlineCallIfPossible(CallSite CS, InlineFunctionInfo &IFI,
 }
 
 unsigned Inliner::getInlineThreshold(CallSite CS) const {
-  int thres = InlineThreshold;
+  int thres = InlineThreshold; // -inline-threshold or else selected by
+                               // overall opt level
 
-  // Listen to optsize when -inline-limit is not given.
+  // If -inline-threshold is not given, listen to the optsize attribute when it
+  // would decrease the threshold.
   Function *Caller = CS.getCaller();
-  if (Caller && !Caller->isDeclaration() &&
-      Caller->hasFnAttr(Attribute::OptimizeForSize) &&
-      InlineLimit.getNumOccurrences() == 0)
+  bool OptSize = Caller && !Caller->isDeclaration() &&
+    Caller->getFnAttributes().hasAttribute(Attributes::OptimizeForSize);
+  if (!(InlineLimit.getNumOccurrences() > 0) && OptSize &&
+      OptSizeThreshold < thres)
     thres = OptSizeThreshold;
 
-  // Listen to inlinehint when it would increase the threshold.
+  // Listen to the inlinehint attribute when it would increase the threshold.
   Function *Callee = CS.getCalledFunction();
-  if (HintThreshold > thres && Callee && !Callee->isDeclaration() &&
-      Callee->hasFnAttr(Attribute::InlineHint))
+  bool InlineHint = Callee && !Callee->isDeclaration() &&
+    Callee->getFnAttributes().hasAttribute(Attributes::InlineHint);
+  if (InlineHint && HintThreshold > thres)
     thres = HintThreshold;
 
   return thres;
@@ -335,7 +340,8 @@ static bool InlineHistoryIncludes(Function *F, int InlineHistoryID,
 
 bool Inliner::runOnSCC(CallGraphSCC &SCC) {
   CallGraph &CG = getAnalysis<CallGraph>();
-  const TargetData *TD = getAnalysisIfAvailable<TargetData>();
+  const DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
+  const TargetLibraryInfo *TLI = getAnalysisIfAvailable<TargetLibraryInfo>();
 
   SmallPtrSet<Function*, 8> SCCFunctions;
   DEBUG(dbgs() << "Inliner visiting SCC:");
@@ -414,7 +420,7 @@ bool Inliner::runOnSCC(CallGraphSCC &SCC) {
       // just delete the call instead of trying to inline it, regardless of
       // size.  This happens because IPSCCP propagates the result out of the
       // call and then we're left with the dead call.
-      if (isInstructionTriviallyDead(CS.getInstruction())) {
+      if (isInstructionTriviallyDead(CS.getInstruction(), TLI)) {
         DEBUG(dbgs() << "    -> Deleting dead call: "
                      << *CS.getInstruction() << "\n");
         // Update the call graph by deleting the edge from Callee to Caller.
@@ -527,7 +533,8 @@ bool Inliner::removeDeadFunctions(CallGraph &CG, bool AlwaysInlineOnly) {
     // Handle the case when this function is called and we only want to care
     // about always-inline functions. This is a bit of a hack to share code
     // between here and the InlineAlways pass.
-    if (AlwaysInlineOnly && !F->hasFnAttr(Attribute::AlwaysInline))
+    if (AlwaysInlineOnly &&
+        !F->getFnAttributes().hasAttribute(Attributes::AlwaysInline))
       continue;
 
     // If the only remaining users of the function are dead constants, remove

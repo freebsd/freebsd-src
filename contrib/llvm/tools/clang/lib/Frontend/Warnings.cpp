@@ -24,7 +24,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Lex/LexDiagnostic.h"
-#include "clang/Frontend/DiagnosticOptions.h"
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include <cstring>
 #include <utility>
@@ -51,9 +51,12 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
                                   const DiagnosticOptions &Opts) {
   Diags.setSuppressSystemWarnings(true);  // Default to -Wno-system-headers
   Diags.setIgnoreAllWarnings(Opts.IgnoreWarnings);
-  Diags.setShowOverloads(
-    static_cast<DiagnosticsEngine::OverloadsShown>(Opts.ShowOverloads));
-  
+  Diags.setShowOverloads(Opts.getShowOverloads());
+
+  Diags.setElideType(Opts.ElideType);
+  Diags.setPrintTemplateTree(Opts.ShowTemplateTree);
+  Diags.setShowColors(Opts.ShowColors);
+ 
   // Handle -ferror-limit
   if (Opts.ErrorLimit)
     Diags.setErrorLimit(Opts.ErrorLimit);
@@ -83,6 +86,7 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
     bool SetDiagnostic = (Report == 0);
     for (unsigned i = 0, e = Opts.Warnings.size(); i != e; ++i) {
       StringRef Opt = Opts.Warnings[i];
+      StringRef OrigOpt = Opts.Warnings[i];
 
       // Treat -Wformat=0 as an alias for -Wno-format.
       if (Opt == "format=0")
@@ -130,7 +134,7 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
           if ((Opt[5] != '=' && Opt[5] != '-') || Opt.size() == 6) {
             if (Report)
               Diags.Report(diag::warn_unknown_warning_specifier)
-                << "-Werror" << ("-W" + Opt.str());
+                << "-Werror" << ("-W" + OrigOpt.str());
             continue;
           }
           Specifier = Opt.substr(6);
@@ -158,7 +162,7 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
           if ((Opt[12] != '=' && Opt[12] != '-') || Opt.size() == 13) {
             if (Report)
               Diags.Report(diag::warn_unknown_warning_specifier)
-                << "-Wfatal-errors" << ("-W" + Opt.str());
+                << "-Wfatal-errors" << ("-W" + OrigOpt.str());
             continue;
           }
           Specifier = Opt.substr(13);
@@ -182,7 +186,8 @@ void clang::ProcessWarningOptions(DiagnosticsEngine &Diags,
       
       if (Report) {
         if (DiagIDs->getDiagnosticsInGroup(Opt, _Diags))
-          EmitUnknownDiagWarning(Diags, "-W", Opt, isPositive);
+          EmitUnknownDiagWarning(Diags, isPositive ? "-W" : "-Wno-", Opt,
+                                 isPositive);
       } else {
         Diags.setDiagnosticGroupMapping(Opt, Mapping);
       }

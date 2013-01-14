@@ -23,7 +23,7 @@
 namespace llvm {
   class FunctionType;
   class Module;
-  class TargetData;
+  class DataLayout;
   class Type;
   class LLVMContext;
   class StructType;
@@ -62,7 +62,7 @@ class CodeGenTypes {
   ASTContext &Context;
   const TargetInfo &Target;
   llvm::Module &TheModule;
-  const llvm::TargetData &TheTargetData;
+  const llvm::DataLayout &TheDataLayout;
   const ABIInfo &TheABIInfo;
   CGCXXABI &TheCXXABI;
   const CodeGenOptions &CodeGenOpts;
@@ -108,7 +108,7 @@ public:
   CodeGenTypes(CodeGenModule &CGM);
   ~CodeGenTypes();
 
-  const llvm::TargetData &getTargetData() const { return TheTargetData; }
+  const llvm::DataLayout &getDataLayout() const { return TheDataLayout; }
   const TargetInfo &getTarget() const { return Target; }
   ASTContext &getContext() const { return Context; }
   const ABIInfo &getABIInfo() const { return TheABIInfo; }
@@ -189,26 +189,32 @@ public:
   const CGFunctionInfo &arrangeCXXDestructor(const CXXDestructorDecl *D,
                                              CXXDtorType Type);
 
-  const CGFunctionInfo &arrangeFunctionCall(const CallArgList &Args,
-                                            const FunctionType *Ty);
-  const CGFunctionInfo &arrangeFunctionCall(QualType ResTy,
-                                            const CallArgList &args,
-                                            const FunctionType::ExtInfo &info,
-                                            RequiredArgs required);
+  const CGFunctionInfo &arrangeFreeFunctionCall(const CallArgList &Args,
+                                                const FunctionType *Ty);
+  const CGFunctionInfo &arrangeFreeFunctionCall(QualType ResTy,
+                                                const CallArgList &args,
+                                                FunctionType::ExtInfo info,
+                                                RequiredArgs required);
 
-  const CGFunctionInfo &arrangeFunctionType(CanQual<FunctionProtoType> Ty);
-  const CGFunctionInfo &arrangeFunctionType(CanQual<FunctionNoProtoType> Ty);
+  const CGFunctionInfo &arrangeCXXMethodCall(const CallArgList &args,
+                                             const FunctionProtoType *type,
+                                             RequiredArgs required);
+
+  const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionProtoType> Ty);
+  const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionNoProtoType> Ty);
   const CGFunctionInfo &arrangeCXXMethodType(const CXXRecordDecl *RD,
                                              const FunctionProtoType *FTP);
 
-  /// Retrieves the ABI information for the given function signature.
-  /// This is the "core" routine to which all the others defer.
+  /// "Arrange" the LLVM information for a call or type with the given
+  /// signature.  This is largely an internal method; other clients
+  /// should use one of the above routines, which ultimately defer to
+  /// this.
   ///
   /// \param argTypes - must all actually be canonical as params
-  const CGFunctionInfo &arrangeFunctionType(CanQualType returnType,
-                                            ArrayRef<CanQualType> argTypes,
-                                            const FunctionType::ExtInfo &info,
-                                            RequiredArgs args);
+  const CGFunctionInfo &arrangeLLVMFunctionInfo(CanQualType returnType,
+                                                ArrayRef<CanQualType> argTypes,
+                                                FunctionType::ExtInfo info,
+                                                RequiredArgs args);
 
   /// \brief Compute a new LLVM record layout object for the given record.
   CGRecordLayout *ComputeRecordLayout(const RecordDecl *D,

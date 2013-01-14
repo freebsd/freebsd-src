@@ -16,8 +16,8 @@
 #define CLANG_CODEGEN_CODEGENTBAA_H
 
 #include "clang/Basic/LLVM.h"
+#include "llvm/MDBuilder.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/MDBuilder.h"
 
 namespace llvm {
   class LLVMContext;
@@ -26,6 +26,7 @@ namespace llvm {
 
 namespace clang {
   class ASTContext;
+  class CodeGenOptions;
   class LangOptions;
   class MangleContext;
   class QualType;
@@ -38,7 +39,7 @@ namespace CodeGen {
 /// while lowering AST types to LLVM types.
 class CodeGenTBAA {
   ASTContext &Context;
-  llvm::LLVMContext& VMContext;
+  const CodeGenOptions &CodeGenOpts;
   const LangOptions &Features;
   MangleContext &MContext;
 
@@ -47,6 +48,10 @@ class CodeGenTBAA {
 
   /// MetadataCache - This maps clang::Types to llvm::MDNodes describing them.
   llvm::DenseMap<const Type *, llvm::MDNode *> MetadataCache;
+
+  /// StructMetadataCache - This maps clang::Types to llvm::MDNodes describing
+  /// them for struct assignments.
+  llvm::DenseMap<const Type *, llvm::MDNode *> StructMetadataCache;
 
   llvm::MDNode *Root;
   llvm::MDNode *Char;
@@ -59,8 +64,16 @@ class CodeGenTBAA {
   /// considered to be equivalent to it.
   llvm::MDNode *getChar();
 
+  /// CollectFields - Collect information about the fields of a type for
+  /// !tbaa.struct metadata formation. Return false for an unsupported type.
+  bool CollectFields(uint64_t BaseOffset,
+                     QualType Ty,
+                     SmallVectorImpl<llvm::MDBuilder::TBAAStructField> &Fields,
+                     bool MayAlias);
+
 public:
   CodeGenTBAA(ASTContext &Ctx, llvm::LLVMContext &VMContext,
+              const CodeGenOptions &CGO,
               const LangOptions &Features,
               MangleContext &MContext);
   ~CodeGenTBAA();
@@ -72,6 +85,10 @@ public:
   /// getTBAAInfoForVTablePtr - Get the TBAA MDNode to be used for a
   /// dereference of a vtable pointer.
   llvm::MDNode *getTBAAInfoForVTablePtr();
+
+  /// getTBAAStructInfo - Get the TBAAStruct MDNode to be used for a memcpy of
+  /// the given type.
+  llvm::MDNode *getTBAAStructInfo(QualType QTy);
 };
 
 }  // end namespace CodeGen

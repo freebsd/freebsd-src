@@ -18,9 +18,11 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/Support/CrashRecoveryContext.h"
 #include "clang/Sema/CXXFieldCollector.h"
 #include "clang/Sema/TemplateDeduction.h"
 #include "clang/Sema/ExternalSemaSource.h"
+#include "clang/Sema/MultiplexExternalSemaSource.h"
 #include "clang/Sema/ObjCMethodList.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
@@ -29,6 +31,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclFriend.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
@@ -40,22 +43,6 @@
 #include "clang/Basic/TargetInfo.h"
 using namespace clang;
 using namespace sema;
-
-FunctionScopeInfo::~FunctionScopeInfo() { }
-
-void FunctionScopeInfo::Clear() {
-  HasBranchProtectedScope = false;
-  HasBranchIntoScope = false;
-  HasIndirectGoto = false;
-  
-  SwitchStack.clear();
-  Returns.clear();
-  ErrorTrap.reset();
-  PossiblyUnreachableDiags.clear();
-}
-
-BlockScopeInfo::~BlockScopeInfo() { }
-LambdaScopeInfo::~LambdaScopeInfo() { }
 
 PrintingPolicy Sema::getPrintingPolicy(const ASTContext &Context,
                                        const Preprocessor &PP) {
@@ -82,21 +69,23 @@ void Sema::ActOnTranslationUnitScope(Scope *S) {
 Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
            TranslationUnitKind TUKind,
            CodeCompleteConsumer *CodeCompleter)
-  : TheTargetAttributesSema(0), FPFeatures(pp.getLangOpts()),
+  : TheTargetAttributesSema(0), ExternalSource(0), 
+    isMultiplexExternalSource(false), FPFeatures(pp.getLangOpts()),
     LangOpts(pp.getLangOpts()), PP(pp), Context(ctxt), Consumer(consumer),
     Diags(PP.getDiagnostics()), SourceMgr(PP.getSourceManager()),
-    CollectStats(false), ExternalSource(0), CodeCompleter(CodeCompleter),
+    CollectStats(false), CodeCompleter(CodeCompleter),
     CurContext(0), OriginalLexicalContext(0),
     PackContext(0), MSStructPragmaOn(false), VisContext(0),
+    IsBuildingRecoveryCallExpr(false),
     ExprNeedsCleanups(false), LateTemplateParser(0), OpaqueParser(0),
     IdResolver(pp), StdInitializerList(0), CXXTypeInfoDecl(0), MSVCGuidDecl(0),
-    NSNumberDecl(0), NSArrayDecl(0), ArrayWithObjectsMethod(0), 
+    NSNumberDecl(0),
+    NSStringDecl(0), StringWithUTF8StringMethod(0),
+    NSArrayDecl(0), ArrayWithObjectsMethod(0),
     NSDictionaryDecl(0), DictionaryWithObjectsMethod(0),
     GlobalNewDeleteDeclared(false), 
-    ObjCShouldCallSuperDealloc(false),
-    ObjCShouldCallSuperFinalize(false),
     TUKind(TUKind),
-    NumSFINAEErrors(0), InFunctionDeclarator(0), SuppressAccessChecking(false), 
+    NumSFINAEErrors(0), InFunctionDeclarator(0),
     AccessCheckingSFINAE(false), InNonInstantiationSFINAEContext(false),
     NonInstantiationEntries(0), ArgumentPackSubstitutionIndex(-1),
     CurrentInstantiationScope(0), TyposCorrected(0),
@@ -176,6 +165,10 @@ void Sema::Initialize() {
     if (IdResolver.begin(Protocol) == IdResolver.end())
       PushOnScopeChains(Context.getObjCProtocolDecl(), TUScope);
   }
+
+  DeclarationName BuiltinVaList = &Context.Idents.get("__builtin_va_list");
+  if (IdResolver.begin(BuiltinVaList) == IdResolver.end())
+    PushOnScopeChains(Context.getBuiltinVaListDecl(), TUScope);
 }
 
 Sema::~Sema() {
@@ -197,8 +190,11 @@ Sema::~Sema() {
   if (ExternalSemaSource *ExternalSema
         = dyn_cast_or_null<ExternalSemaSource>(Context.getExternalSource()))
     ExternalSema->ForgetSema();
-}
 
+  // If Sema's ExternalSource is the multiplexer - we own it.
+  if (isMultiplexExternalSource)
+    delete ExternalSource;
+}
 
 /// makeUnavailableInSystemHeader - There is an error in the current
 /// context.  If we're still in a system header, and we can plausibly
@@ -227,6 +223,27 @@ bool Sema::makeUnavailableInSystemHeader(SourceLocation loc,
 
 ASTMutationListener *Sema::getASTMutationListener() const {
   return getASTConsumer().GetASTMutationListener();
+}
+
+///\brief Registers an external source. If an external source already exists,
+/// creates a multiplex external source and appends to it.
+///
+///\param[in] E - A non-null external sema source.
+///
+void Sema::addExternalSource(ExternalSemaSource *E) {
+  assert(E && "Cannot use with NULL ptr");
+
+  if (!ExternalSource) {
+    ExternalSource = E;
+    return;
+  }
+
+  if (isMultiplexExternalSource)
+    static_cast<MultiplexExternalSemaSource*>(ExternalSource)->addSource(*E);
+  else {
+    ExternalSource = new MultiplexExternalSemaSource(*ExternalSource, *E);
+    isMultiplexExternalSource = true;
+  }
 }
 
 /// \brief Print out statistics about the semantic analysis.
@@ -420,10 +437,93 @@ void Sema::LoadExternalWeakUndeclaredIdentifiers() {
   }
 }
 
+
+typedef llvm::DenseMap<const CXXRecordDecl*, bool> RecordCompleteMap;
+
+/// \brief Returns true, if all methods and nested classes of the given
+/// CXXRecordDecl are defined in this translation unit.
+///
+/// Should only be called from ActOnEndOfTranslationUnit so that all
+/// definitions are actually read.
+static bool MethodsAndNestedClassesComplete(const CXXRecordDecl *RD,
+                                            RecordCompleteMap &MNCComplete) {
+  RecordCompleteMap::iterator Cache = MNCComplete.find(RD);
+  if (Cache != MNCComplete.end())
+    return Cache->second;
+  if (!RD->isCompleteDefinition())
+    return false;
+  bool Complete = true;
+  for (DeclContext::decl_iterator I = RD->decls_begin(),
+                                  E = RD->decls_end();
+       I != E && Complete; ++I) {
+    if (const CXXMethodDecl *M = dyn_cast<CXXMethodDecl>(*I))
+      Complete = M->isDefined() || (M->isPure() && !isa<CXXDestructorDecl>(M));
+    else if (const FunctionTemplateDecl *F = dyn_cast<FunctionTemplateDecl>(*I))
+      Complete = F->getTemplatedDecl()->isDefined();
+    else if (const CXXRecordDecl *R = dyn_cast<CXXRecordDecl>(*I)) {
+      if (R->isInjectedClassName())
+        continue;
+      if (R->hasDefinition())
+        Complete = MethodsAndNestedClassesComplete(R->getDefinition(),
+                                                   MNCComplete);
+      else
+        Complete = false;
+    }
+  }
+  MNCComplete[RD] = Complete;
+  return Complete;
+}
+
+/// \brief Returns true, if the given CXXRecordDecl is fully defined in this
+/// translation unit, i.e. all methods are defined or pure virtual and all
+/// friends, friend functions and nested classes are fully defined in this
+/// translation unit.
+///
+/// Should only be called from ActOnEndOfTranslationUnit so that all
+/// definitions are actually read.
+static bool IsRecordFullyDefined(const CXXRecordDecl *RD,
+                                 RecordCompleteMap &RecordsComplete,
+                                 RecordCompleteMap &MNCComplete) {
+  RecordCompleteMap::iterator Cache = RecordsComplete.find(RD);
+  if (Cache != RecordsComplete.end())
+    return Cache->second;
+  bool Complete = MethodsAndNestedClassesComplete(RD, MNCComplete);
+  for (CXXRecordDecl::friend_iterator I = RD->friend_begin(),
+                                      E = RD->friend_end();
+       I != E && Complete; ++I) {
+    // Check if friend classes and methods are complete.
+    if (TypeSourceInfo *TSI = (*I)->getFriendType()) {
+      // Friend classes are available as the TypeSourceInfo of the FriendDecl.
+      if (CXXRecordDecl *FriendD = TSI->getType()->getAsCXXRecordDecl())
+        Complete = MethodsAndNestedClassesComplete(FriendD, MNCComplete);
+      else
+        Complete = false;
+    } else {
+      // Friend functions are available through the NamedDecl of FriendDecl.
+      if (const FunctionDecl *FD =
+          dyn_cast<FunctionDecl>((*I)->getFriendDecl()))
+        Complete = FD->isDefined();
+      else
+        // This is a template friend, give up.
+        Complete = false;
+    }
+  }
+  RecordsComplete[RD] = Complete;
+  return Complete;
+}
+
 /// ActOnEndOfTranslationUnit - This is called at the very end of the
 /// translation unit when EOF is reached and all but the top-level scope is
 /// popped.
 void Sema::ActOnEndOfTranslationUnit() {
+  assert(DelayedDiagnostics.getCurrentPool() == NULL
+         && "reached end of translation unit with a pool attached?");
+
+  // If code completion is enabled, don't perform any end-of-translation-unit
+  // work.
+  if (PP.isCodeCompletionEnabled())
+    return;
+
   // Only complete translation units define vtables and perform implicit
   // instantiations.
   if (TUKind == TU_Complete) {
@@ -565,6 +665,8 @@ void Sema::ActOnEndOfTranslationUnit() {
                                    diag::err_tentative_def_incomplete_type))
       VD->setInvalidDecl();
 
+    CheckCompleteVariableDeclaration(VD);
+
     // Notify the consumer that we've completed a tentative definition.
     if (!VD->isInvalidDecl())
       Consumer.CompleteTentativeDefinition(VD);
@@ -597,9 +699,17 @@ void Sema::ActOnEndOfTranslationUnit() {
           if (isa<CXXMethodDecl>(DiagD))
             Diag(DiagD->getLocation(), diag::warn_unneeded_member_function)
                   << DiagD->getDeclName();
-          else
-            Diag(DiagD->getLocation(), diag::warn_unneeded_internal_decl)
-                  << /*function*/0 << DiagD->getDeclName();
+          else {
+            if (FD->getStorageClassAsWritten() == SC_Static &&
+                !FD->isInlineSpecified() &&
+                !SourceMgr.isFromMainFile(
+                   SourceMgr.getExpansionLoc(FD->getLocation())))
+              Diag(DiagD->getLocation(), diag::warn_unneeded_static_internal_decl)
+                << DiagD->getDeclName();
+            else
+              Diag(DiagD->getLocation(), diag::warn_unneeded_internal_decl)
+                   << /*function*/0 << DiagD->getDeclName();
+          }
         } else {
           Diag(DiagD->getLocation(),
                isa<CXXMethodDecl>(DiagD) ? diag::warn_unused_member_function
@@ -621,6 +731,23 @@ void Sema::ActOnEndOfTranslationUnit() {
     }
 
     checkUndefinedInternals(*this);
+  }
+
+  if (Diags.getDiagnosticLevel(diag::warn_unused_private_field,
+                               SourceLocation())
+        != DiagnosticsEngine::Ignored) {
+    RecordCompleteMap RecordsComplete;
+    RecordCompleteMap MNCComplete;
+    for (NamedDeclSetType::iterator I = UnusedPrivateFields.begin(),
+         E = UnusedPrivateFields.end(); I != E; ++I) {
+      const NamedDecl *D = *I;
+      const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D->getDeclContext());
+      if (RD && !RD->isUnion() &&
+          IsRecordFullyDefined(RD, RecordsComplete, MNCComplete)) {
+        Diag(D->getLocation(), diag::warn_unused_private_field)
+              << D->getDeclName();
+      }
+    }
   }
 
   // Check we've noticed that we're no longer parsing the initializer for every
@@ -693,6 +820,15 @@ void Sema::EmitCurrentDiagnostic(unsigned DiagID) {
       // Count this failure so that we know that template argument deduction
       // has failed.
       ++NumSFINAEErrors;
+
+      // Make a copy of this suppressed diagnostic and store it with the
+      // template-deduction information.
+      if (*Info && !(*Info)->hasSFINAEDiagnostic()) {
+        Diagnostic DiagInfo(&Diags);
+        (*Info)->addSFINAEDiagnostic(DiagInfo.getLocation(),
+                       PartialDiagnostic(DiagInfo, Context.getDiagAllocator()));
+      }
+
       Diags.setLastDiagnosticIgnored();
       Diags.Clear();
       return;
@@ -709,6 +845,15 @@ void Sema::EmitCurrentDiagnostic(unsigned DiagID) {
 
       // Suppress this diagnostic.
       ++NumSFINAEErrors;
+
+      // Make a copy of this suppressed diagnostic and store it with the
+      // template-deduction information.
+      if (*Info && !(*Info)->hasSFINAEDiagnostic()) {
+        Diagnostic DiagInfo(&Diags);
+        (*Info)->addSFINAEDiagnostic(DiagInfo.getLocation(),
+                       PartialDiagnostic(DiagInfo, Context.getDiagAllocator()));
+      }
+
       Diags.setLastDiagnosticIgnored();
       Diags.Clear();
 
@@ -725,13 +870,13 @@ void Sema::EmitCurrentDiagnostic(unsigned DiagID) {
     case DiagnosticIDs::SFINAE_Suppress:
       // Make a copy of this suppressed diagnostic and store it with the
       // template-deduction information;
-      Diagnostic DiagInfo(&Diags);
-        
-      if (*Info)
+      if (*Info) {
+        Diagnostic DiagInfo(&Diags);
         (*Info)->addSuppressedDiagnostic(DiagInfo.getLocation(),
-                        PartialDiagnostic(DiagInfo,Context.getDiagAllocator()));
-        
-      // Suppress this diagnostic.        
+                       PartialDiagnostic(DiagInfo, Context.getDiagAllocator()));
+      }
+
+      // Suppress this diagnostic.
       Diags.setLastDiagnosticIgnored();
       Diags.Clear();
       return;
@@ -894,6 +1039,32 @@ LambdaScopeInfo *Sema::getCurLambda() {
   return dyn_cast<LambdaScopeInfo>(FunctionScopes.back());  
 }
 
+void Sema::ActOnComment(SourceRange Comment) {
+  if (!LangOpts.RetainCommentsFromSystemHeaders &&
+      SourceMgr.isInSystemHeader(Comment.getBegin()))
+    return;
+  RawComment RC(SourceMgr, Comment);
+  if (RC.isAlmostTrailingComment()) {
+    SourceRange MagicMarkerRange(Comment.getBegin(),
+                                 Comment.getBegin().getLocWithOffset(3));
+    StringRef MagicMarkerText;
+    switch (RC.getKind()) {
+    case RawComment::RCK_OrdinaryBCPL:
+      MagicMarkerText = "///<";
+      break;
+    case RawComment::RCK_OrdinaryC:
+      MagicMarkerText = "/**<";
+      break;
+    default:
+      llvm_unreachable("if this is an almost Doxygen comment, "
+                       "it should be ordinary");
+    }
+    Diag(Comment.getBegin(), diag::warn_not_a_doxygen_trailing_member_comment) <<
+      FixItHint::CreateReplacement(MagicMarkerRange, MagicMarkerText);
+  }
+  Context.addComment(RC);
+}
+
 // Pin this vtable to this file.
 ExternalSemaSource::~ExternalSemaSource() {}
 
@@ -1016,8 +1187,7 @@ static void noteOverloads(Sema &S, const UnresolvedSetImpl &Overloads,
        DeclsEnd = Overloads.end(); It != DeclsEnd; ++It) {
     // FIXME: Magic number for max shown overloads stolen from
     // OverloadCandidateSet::NoteCandidates.
-    if (ShownOverloads >= 4 &&
-        S.Diags.getShowOverloads() == DiagnosticsEngine::Ovl_Best) {
+    if (ShownOverloads >= 4 && S.Diags.getShowOverloads() == Ovl_Best) {
       ++SuppressedOverloads;
       continue;
     }
@@ -1088,8 +1258,7 @@ bool Sema::tryToRecoverWithCall(ExprResult &E, const PartialDiagnostic &PD,
     // FIXME: Try this before emitting the fixit, and suppress diagnostics
     // while doing so.
     E = ActOnCallExpr(0, E.take(), ParenInsertionLoc,
-                      MultiExprArg(*this, 0, 0),
-                      ParenInsertionLoc.getLocWithOffset(1));
+                      MultiExprArg(), ParenInsertionLoc.getLocWithOffset(1));
     return true;
   }
 

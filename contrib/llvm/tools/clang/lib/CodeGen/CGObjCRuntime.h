@@ -91,20 +91,20 @@ protected:
                                   llvm::Value *Offset);
   /// Emits a try / catch statement.  This function is intended to be called by
   /// subclasses, and provides a generic mechanism for generating these, which
-  /// should be usable by all runtimes.  The caller must provide the functions to
-  /// call when entering and exiting a @catch() block, and the function used to
-  /// rethrow exceptions.  If the begin and end catch functions are NULL, then
-  /// the function assumes that the EH personality function provides the
-  /// thrown object directly.
+  /// should be usable by all runtimes.  The caller must provide the functions
+  /// to call when entering and exiting a \@catch() block, and the function
+  /// used to rethrow exceptions.  If the begin and end catch functions are
+  /// NULL, then the function assumes that the EH personality function provides
+  /// the thrown object directly.
   void EmitTryCatchStmt(CodeGenFunction &CGF,
                         const ObjCAtTryStmt &S,
                         llvm::Constant *beginCatchFn,
                         llvm::Constant *endCatchFn,
                         llvm::Constant *exceptionRethrowFn);
-  /// Emits an @synchronize() statement, using the syncEnterFn and syncExitFn
-  /// arguments as the functions called to lock and unlock the object.  This
-  /// function can be called by subclasses that use zero-cost exception
-  /// handling.
+  /// Emits an \@synchronize() statement, using the \p syncEnterFn and
+  /// \p syncExitFn arguments as the functions called to lock and unlock
+  /// the object.  This function can be called by subclasses that use
+  /// zero-cost exception handling.
   void EmitAtSynchronizedStmt(CodeGenFunction &CGF,
                             const ObjCAtSynchronizedStmt &S,
                             llvm::Function *syncEnterFn,
@@ -179,7 +179,7 @@ public:
                            const ObjCMethodDecl *Method = 0) = 0;
 
   /// Emit the code to return the named protocol as an object, as in a
-  /// @protocol expression.
+  /// \@protocol expression.
   virtual llvm::Value *GenerateProtocolRef(CGBuilderTy &Builder,
                                            const ObjCProtocolDecl *OPD) = 0;
 
@@ -261,6 +261,8 @@ public:
                                         llvm::Value *Size) = 0;
   virtual llvm::Constant *BuildGCBlockLayout(CodeGen::CodeGenModule &CGM,
                                   const CodeGen::CGBlockInfo &blockInfo) = 0;
+  virtual llvm::Constant *BuildRCBlockLayout(CodeGen::CodeGenModule &CGM,
+                                  const CodeGen::CGBlockInfo &blockInfo) = 0;
   virtual llvm::GlobalVariable *GetClassGlobal(const std::string &Name) = 0;
 
   struct MessageSendInfo {
@@ -275,6 +277,12 @@ public:
   MessageSendInfo getMessageSendInfo(const ObjCMethodDecl *method,
                                      QualType resultType,
                                      CallArgList &callArgs);
+
+  // FIXME: This probably shouldn't be here, but the code to compute
+  // it is here.
+  unsigned ComputeBitfieldBitOffset(CodeGen::CodeGenModule &CGM,
+                                    const ObjCInterfaceDecl *ID,
+                                    const ObjCIvarDecl *Ivar);
 };
 
 /// Creates an instance of an Objective-C runtime class.

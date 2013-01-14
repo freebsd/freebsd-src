@@ -22,7 +22,7 @@
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
@@ -266,7 +266,8 @@ static void GetCostForDef(const ScheduleDAGSDNodes::RegDefIter &RegDefPos,
                           const TargetLowering *TLI,
                           const TargetInstrInfo *TII,
                           const TargetRegisterInfo *TRI,
-                          unsigned &RegClass, unsigned &Cost) {
+                          unsigned &RegClass, unsigned &Cost,
+                          const MachineFunction &MF) {
   EVT VT = RegDefPos.GetValue();
 
   // Special handling for untyped values.  These values can only come from
@@ -285,7 +286,7 @@ static void GetCostForDef(const ScheduleDAGSDNodes::RegDefIter &RegDefPos,
 
     unsigned Idx = RegDefPos.GetIdx();
     const MCInstrDesc Desc = TII->get(Opcode);
-    const TargetRegisterClass *RC = TII->getRegClass(Desc, Idx, TRI);
+    const TargetRegisterClass *RC = TII->getRegClass(Desc, Idx, TRI, MF);
     RegClass = RC->getID();
     // FIXME: Cost arbitrarily set to 1 because there doesn't seem to be a
     // better way to determine it.
@@ -655,6 +656,8 @@ void ScheduleDAGRRList::EmitNode(SUnit *SU) {
     break;
   case ISD::MERGE_VALUES:
   case ISD::TokenFactor:
+  case ISD::LIFETIME_START:
+  case ISD::LIFETIME_END:
   case ISD::CopyToReg:
   case ISD::CopyFromReg:
   case ISD::EH_LABEL:
@@ -852,7 +855,7 @@ void ScheduleDAGRRList::UnscheduleNodeBottomUp(SUnit *SU) {
 }
 
 /// After backtracking, the hazard checker needs to be restored to a state
-/// corresponding the the current cycle.
+/// corresponding the current cycle.
 void ScheduleDAGRRList::RestoreHazardCheckerBottomUp() {
   HazardRec->Reset();
 
@@ -1055,7 +1058,9 @@ SUnit *ScheduleDAGRRList::CopyAndMoveSuccessors(SUnit *SU) {
 
     // Add a data dependency to reflect that NewSU reads the value defined
     // by LoadSU.
-    AddPred(NewSU, SDep(LoadSU, SDep::Data, LoadSU->Latency));
+    SDep D(LoadSU, SDep::Data, 0);
+    D.setLatency(LoadSU->Latency);
+    AddPred(NewSU, D);
 
     if (isNewLoad)
       AvailableQueue->addNode(LoadSU);
@@ -1137,17 +1142,18 @@ void ScheduleDAGRRList::InsertCopiesAndMoveSuccs(SUnit *SU, unsigned Reg,
       // Avoid scheduling the def-side copy before other successors. Otherwise
       // we could introduce another physreg interference on the copy and
       // continue inserting copies indefinitely.
-      SDep D(CopyFromSU, SDep::Order, /*Latency=*/0,
-             /*Reg=*/0, /*isNormalMemory=*/false,
-             /*isMustAlias=*/false, /*isArtificial=*/true);
-      AddPred(SuccSU, D);
+      AddPred(SuccSU, SDep(CopyFromSU, SDep::Artificial));
     }
   }
   for (unsigned i = 0, e = DelDeps.size(); i != e; ++i)
     RemovePred(DelDeps[i].first, DelDeps[i].second);
 
-  AddPred(CopyFromSU, SDep(SU, SDep::Data, SU->Latency, Reg));
-  AddPred(CopyToSU, SDep(CopyFromSU, SDep::Data, CopyFromSU->Latency, 0));
+  SDep FromDep(SU, SDep::Data, Reg);
+  FromDep.setLatency(SU->Latency);
+  AddPred(CopyFromSU, FromDep);
+  SDep ToDep(CopyFromSU, SDep::Data, 0);
+  ToDep.setLatency(CopyFromSU->Latency);
+  AddPred(CopyToSU, ToDep);
 
   AvailableQueue->updateNode(SU);
   AvailableQueue->addNode(CopyFromSU);
@@ -1181,7 +1187,7 @@ static void CheckForLiveRegDef(SUnit *SU, unsigned Reg,
                                SmallSet<unsigned, 4> &RegAdded,
                                SmallVector<unsigned, 4> &LRegs,
                                const TargetRegisterInfo *TRI) {
-  for (const uint16_t *AliasI = TRI->getOverlaps(Reg); *AliasI; ++AliasI) {
+  for (MCRegAliasIterator AliasI(Reg, TRI, true); AliasI.isValid(); ++AliasI) {
 
     // Check if Ref is live.
     if (!LiveRegDefs[*AliasI]) continue;
@@ -1356,9 +1362,7 @@ SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
         if (!BtSU->isPending)
           AvailableQueue->remove(BtSU);
       }
-      AddPred(TrySU, SDep(BtSU, SDep::Order, /*Latency=*/1,
-                          /*Reg=*/0, /*isNormalMemory=*/false,
-                          /*isMustAlias=*/false, /*isArtificial=*/true));
+      AddPred(TrySU, SDep(BtSU, SDep::Artificial));
 
       // If one or more successors has been unscheduled, then the current
       // node is no longer avaialable. Schedule a successor that's now
@@ -1410,20 +1414,14 @@ SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
       InsertCopiesAndMoveSuccs(LRDef, Reg, DestRC, RC, Copies);
       DEBUG(dbgs() << "    Adding an edge from SU #" << TrySU->NodeNum
             << " to SU #" << Copies.front()->NodeNum << "\n");
-      AddPred(TrySU, SDep(Copies.front(), SDep::Order, /*Latency=*/1,
-                          /*Reg=*/0, /*isNormalMemory=*/false,
-                          /*isMustAlias=*/false,
-                          /*isArtificial=*/true));
+      AddPred(TrySU, SDep(Copies.front(), SDep::Artificial));
       NewDef = Copies.back();
     }
 
     DEBUG(dbgs() << "    Adding an edge from SU #" << NewDef->NodeNum
           << " to SU #" << TrySU->NodeNum << "\n");
     LiveRegDefs[Reg] = NewDef;
-    AddPred(NewDef, SDep(TrySU, SDep::Order, /*Latency=*/1,
-                         /*Reg=*/0, /*isNormalMemory=*/false,
-                         /*isMustAlias=*/false,
-                         /*isArtificial=*/true));
+    AddPred(NewDef, SDep(TrySU, SDep::Artificial));
     TrySU->isAvailable = false;
     CurSU = NewDef;
   }
@@ -1755,6 +1753,7 @@ public:
     return V;
   }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump(ScheduleDAG *DAG) const {
     // Emulate pop() without clobbering NodeQueueIds.
     std::vector<SUnit*> DumpQueue = Queue;
@@ -1765,6 +1764,7 @@ public:
       SU->dump(DAG);
     }
   }
+#endif
 };
 
 typedef RegReductionPriorityQueue<bu_ls_rr_sort>
@@ -1892,6 +1892,7 @@ unsigned RegReductionPQBase::getNodePriority(const SUnit *SU) const {
 //===----------------------------------------------------------------------===//
 
 void RegReductionPQBase::dumpRegPressure() const {
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
          E = TRI->regclass_end(); I != E; ++I) {
     const TargetRegisterClass *RC = *I;
@@ -1901,6 +1902,7 @@ void RegReductionPQBase::dumpRegPressure() const {
     DEBUG(dbgs() << RC->getName() << ": " << RP << " / " << RegLimit[Id]
           << '\n');
   }
+#endif
 }
 
 bool RegReductionPQBase::HighRegPressure(const SUnit *SU) const {
@@ -1920,7 +1922,7 @@ bool RegReductionPQBase::HighRegPressure(const SUnit *SU) const {
     for (ScheduleDAGSDNodes::RegDefIter RegDefPos(PredSU, scheduleDAG);
          RegDefPos.IsValid(); RegDefPos.Advance()) {
       unsigned RCId, Cost;
-      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost);
+      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost, MF);
 
       if ((RegPressure[RCId] + Cost) >= RegLimit[RCId])
         return true;
@@ -2034,7 +2036,7 @@ void RegReductionPQBase::scheduledNode(SUnit *SU) {
         continue;
 
       unsigned RCId, Cost;
-      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost);
+      GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost, MF);
       RegPressure[RCId] += Cost;
       break;
     }
@@ -2049,7 +2051,7 @@ void RegReductionPQBase::scheduledNode(SUnit *SU) {
     if (SkipRegDefs > 0)
       continue;
     unsigned RCId, Cost;
-    GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost);
+    GetCostForDef(RegDefPos, TLI, TII, TRI, RCId, Cost, MF);
     if (RegPressure[RCId] < Cost) {
       // Register pressure tracking is imprecise. This can happen. But we try
       // hard not to let it happen because it likely results in poor scheduling.
@@ -2330,22 +2332,21 @@ static int BUCompareLatency(SUnit *left, SUnit *right, bool checkPref,
   // and latency.
   if (!checkPref || (left->SchedulingPref == Sched::ILP ||
                      right->SchedulingPref == Sched::ILP)) {
-    if (DisableSchedCycles) {
+    // If neither instruction stalls (!LStall && !RStall) and HazardRecognizer
+    // is enabled, grouping instructions by cycle, then its height is already
+    // covered so only its depth matters. We also reach this point if both stall
+    // but have the same height.
+    if (!SPQ->getHazardRec()->isEnabled()) {
       if (LHeight != RHeight)
         return LHeight > RHeight ? 1 : -1;
     }
-    else {
-      // If neither instruction stalls (!LStall && !RStall) then
-      // its height is already covered so only its depth matters. We also reach
-      // this if both stall but have the same height.
-      int LDepth = left->getDepth() - LPenalty;
-      int RDepth = right->getDepth() - RPenalty;
-      if (LDepth != RDepth) {
-        DEBUG(dbgs() << "  Comparing latency of SU (" << left->NodeNum
-              << ") depth " << LDepth << " vs SU (" << right->NodeNum
-              << ") depth " << RDepth << "\n");
-        return LDepth < RDepth ? 1 : -1;
-      }
+    int LDepth = left->getDepth() - LPenalty;
+    int RDepth = right->getDepth() - RPenalty;
+    if (LDepth != RDepth) {
+      DEBUG(dbgs() << "  Comparing latency of SU (" << left->NodeNum
+            << ") depth " << LDepth << " vs SU (" << right->NodeNum
+            << ") depth " << RDepth << "\n");
+      return LDepth < RDepth ? 1 : -1;
     }
     if (left->Latency != right->Latency)
       return left->Latency > right->Latency ? 1 : -1;
@@ -2363,7 +2364,7 @@ static bool BURRSort(SUnit *left, SUnit *right, RegReductionPQBase *SPQ) {
     bool RHasPhysReg = right->hasPhysRegDefs;
     if (LHasPhysReg != RHasPhysReg) {
       #ifndef NDEBUG
-      const char *PhysRegMsg[] = {" has no physreg", " defines a physreg"};
+      const char *const PhysRegMsg[] = {" has no physreg"," defines a physreg"};
       #endif
       DEBUG(dbgs() << "  SU (" << left->NodeNum << ") "
             << PhysRegMsg[LHasPhysReg] << " SU(" << right->NodeNum << ") "
@@ -2930,10 +2931,7 @@ void RegReductionPQBase::AddPseudoTwoAddrDeps() {
             !scheduleDAG->IsReachable(SuccSU, SU)) {
           DEBUG(dbgs() << "    Adding a pseudo-two-addr edge from SU #"
                        << SU->NodeNum << " to SU #" << SuccSU->NodeNum << "\n");
-          scheduleDAG->AddPred(SU, SDep(SuccSU, SDep::Order, /*Latency=*/0,
-                                        /*Reg=*/0, /*isNormalMemory=*/false,
-                                        /*isMustAlias=*/false,
-                                        /*isArtificial=*/true));
+          scheduleDAG->AddPred(SU, SDep(SuccSU, SDep::Artificial));
         }
       }
     }

@@ -28,8 +28,10 @@ def SwitchCase : Stmt<1>;
 def CaseStmt : DStmt<SwitchCase>;
 def DefaultStmt : DStmt<SwitchCase>;
 
-// GNU Extensions
-def AsmStmt : Stmt;
+// Asm statements
+def AsmStmt : Stmt<1>;
+def GCCAsmStmt : DStmt<AsmStmt>;
+def MSAsmStmt : DStmt<AsmStmt>;
 
 // Obj-C statements
 def ObjCAtTryStmt : Stmt;
@@ -129,12 +131,13 @@ def PackExpansionExpr : DStmt<Expr>;
 def SizeOfPackExpr : DStmt<Expr>;
 def SubstNonTypeTemplateParmExpr : DStmt<Expr>;
 def SubstNonTypeTemplateParmPackExpr : DStmt<Expr>;
+def FunctionParmPackExpr : DStmt<Expr>;
 def MaterializeTemporaryExpr : DStmt<Expr>;
 def LambdaExpr : DStmt<Expr>;
 
 // Obj-C Expressions.
 def ObjCStringLiteral : DStmt<Expr>;
-def ObjCNumericLiteral : DStmt<Expr>;
+def ObjCBoxedExpr : DStmt<Expr>;
 def ObjCArrayLiteral : DStmt<Expr>;
 def ObjCDictionaryLiteral : DStmt<Expr>;
 def ObjCEncodeExpr : DStmt<Expr>;

@@ -192,13 +192,7 @@ const char GenericTaintChecker::MsgTaintedBufferSize[] =
 /// to the call post-visit. The values are unsigned integers, which are either
 /// ReturnValueIndex, or indexes of the pointer/reference argument, which
 /// points to data, which should be tainted on return.
-namespace { struct TaintArgsOnPostVisit{}; }
-namespace clang { namespace ento {
-template<> struct ProgramStateTrait<TaintArgsOnPostVisit>
-    :  public ProgramStatePartialTrait<llvm::ImmutableSet<unsigned> > {
-  static void *GDMIndex() { return GenericTaintChecker::getTag(); }
-};
-}}
+REGISTER_SET_WITH_PROGRAMSTATE(TaintArgsOnPostVisit, unsigned)
 
 GenericTaintChecker::TaintPropagationRule
 GenericTaintChecker::TaintPropagationRule::getTaintPropagationRule(
@@ -273,7 +267,7 @@ GenericTaintChecker::TaintPropagationRule::getTaintPropagationRule(
 
   // Skipping the following functions, since they might be used for cleansing
   // or smart memory copy:
-  // - memccpy - copying untill hitting a special character.
+  // - memccpy - copying until hitting a special character.
 
   return TaintPropagationRule();
 }
@@ -299,6 +293,9 @@ void GenericTaintChecker::addSourcesPre(const CallExpr *CE,
                                         CheckerContext &C) const {
   ProgramStateRef State = 0;
   const FunctionDecl *FDecl = C.getCalleeDecl(CE);
+  if (!FDecl || FDecl->getKind() != Decl::Function)
+    return;
+
   StringRef Name = C.getCalleeName(FDecl);
   if (Name.empty())
     return;
@@ -334,7 +331,7 @@ bool GenericTaintChecker::propagateFromPre(const CallExpr *CE,
   // Depending on what was tainted at pre-visit, we determined a set of
   // arguments which should be tainted after the function returns. These are
   // stored in the state as TaintArgsOnPostVisit set.
-  llvm::ImmutableSet<unsigned> TaintArgs = State->get<TaintArgsOnPostVisit>();
+  TaintArgsOnPostVisitTy TaintArgs = State->get<TaintArgsOnPostVisit>();
   if (TaintArgs.isEmpty())
     return false;
 
@@ -372,7 +369,11 @@ void GenericTaintChecker::addSourcesPost(const CallExpr *CE,
                                          CheckerContext &C) const {
   // Define the attack surface.
   // Set the evaluation function by switching on the callee name.
-  StringRef Name = C.getCalleeName(CE);
+  const FunctionDecl *FDecl = C.getCalleeDecl(CE);
+  if (!FDecl || FDecl->getKind() != Decl::Function)
+    return;
+
+  StringRef Name = C.getCalleeName(FDecl);
   if (Name.empty())
     return;
   FnCheck evalFunction = llvm::StringSwitch<FnCheck>(Name)
@@ -406,6 +407,9 @@ bool GenericTaintChecker::checkPre(const CallExpr *CE, CheckerContext &C) const{
     return true;
 
   const FunctionDecl *FDecl = C.getCalleeDecl(CE);
+  if (!FDecl || FDecl->getKind() != Decl::Function)
+    return false;
+
   StringRef Name = C.getCalleeName(FDecl);
   if (Name.empty())
     return false;
@@ -549,7 +553,6 @@ ProgramStateRef GenericTaintChecker::postScanf(const CallExpr *CE,
   if (CE->getNumArgs() < 2)
     return State;
 
-  SVal x = State->getSVal(CE->getArg(1), C.getLocationContext());
   // All arguments except for the very first one should get taint.
   for (unsigned int i = 1; i < CE->getNumArgs(); ++i) {
     // The arguments are pointer arguments. The data they are pointing at is
@@ -644,7 +647,7 @@ bool GenericTaintChecker::generateReportIfTainted(const Expr *E,
     initBugType();
     BugReport *report = new BugReport(*BT, Msg, N);
     report->addRange(E->getSourceRange());
-    C.EmitReport(report);
+    C.emitReport(report);
     return true;
   }
   return false;

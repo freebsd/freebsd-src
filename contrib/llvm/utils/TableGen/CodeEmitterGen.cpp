@@ -13,13 +13,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeEmitterGen.h"
 #include "CodeGenTarget.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <map>
+#include <string>
+#include <vector>
 using namespace llvm;
 
 // FIXME: Somewhat hackish to use a command line option for this. There should
@@ -29,6 +31,27 @@ static cl::opt<bool>
 MCEmitter("mc-emitter",
           cl::desc("Generate CodeEmitter for use with the MC library."),
           cl::init(false));
+
+namespace {
+
+class CodeEmitterGen {
+  RecordKeeper &Records;
+public:
+  CodeEmitterGen(RecordKeeper &R) : Records(R) {}
+
+  void run(raw_ostream &o);
+private:
+  void emitMachineOpEmitter(raw_ostream &o, const std::string &Namespace);
+  void emitGetValueBit(raw_ostream &o, const std::string &Namespace);
+  void reverseBits(std::vector<Record*> &Insts);
+  int getVariableBit(const std::string &VarName, BitsInit *BI, int bit);
+  std::string getInstructionCase(Record *R, CodeGenTarget &Target);
+  void AddCodeToMergeInOperand(Record *R, BitsInit *BI,
+                               const std::string &VarName,
+                               unsigned &NumberedOp,
+                               std::string &Case, CodeGenTarget &Target);
+
+};
 
 void CodeEmitterGen::reverseBits(std::vector<Record*> &Insts) {
   for (std::vector<Record*>::iterator I = Insts.begin(), E = Insts.end();
@@ -68,11 +91,11 @@ void CodeEmitterGen::reverseBits(std::vector<Record*> &Insts) {
 // return the variable bit position.  Otherwise return -1.
 int CodeEmitterGen::getVariableBit(const std::string &VarName,
                                    BitsInit *BI, int bit) {
-  if (VarBitInit *VBI = dynamic_cast<VarBitInit*>(BI->getBit(bit))) {
-    if (VarInit *VI = dynamic_cast<VarInit*>(VBI->getVariable()))
+  if (VarBitInit *VBI = dyn_cast<VarBitInit>(BI->getBit(bit))) {
+    if (VarInit *VI = dyn_cast<VarInit>(VBI->getBitVar()))
       if (VI->getName() == VarName)
         return VBI->getBitNum();
-  } else if (VarInit *VI = dynamic_cast<VarInit*>(BI->getBit(bit))) {
+  } else if (VarInit *VI = dyn_cast<VarInit>(BI->getBit(bit))) {
     if (VI->getName() == VarName)
       return 0;
   }
@@ -111,10 +134,13 @@ AddCodeToMergeInOperand(Record *R, BitsInit *BI, const std::string &VarName,
     assert(!CGI.Operands.isFlatOperandNotEmitted(OpIdx) &&
            "Explicitly used operand also marked as not emitted!");
   } else {
+    unsigned NumberOps = CGI.Operands.size();
     /// If this operand is not supposed to be emitted by the
     /// generated emitter, skip it.
-    while (CGI.Operands.isFlatOperandNotEmitted(NumberedOp))
+    while (NumberedOp < NumberOps &&
+           CGI.Operands.isFlatOperandNotEmitted(NumberedOp))
       ++NumberedOp;
+
     OpIdx = NumberedOp++;
   }
   
@@ -214,7 +240,6 @@ void CodeEmitterGen::run(raw_ostream &o) {
   // For little-endian instruction bit encodings, reverse the bit order
   if (Target.isLittleEndianEncoding()) reverseBits(Insts);
 
-  EmitSourceFileHeader("Machine Code Emitter", o);
 
   const std::vector<const CodeGenInstruction*> &NumberedInstructions =
     Target.getInstructionsByEnumValue();
@@ -247,7 +272,7 @@ void CodeEmitterGen::run(raw_ostream &o) {
     // Start by filling in fixed values.
     uint64_t Value = 0;
     for (unsigned i = 0, e = BI->getNumBits(); i != e; ++i) {
-      if (BitInit *B = dynamic_cast<BitInit*>(BI->getBit(e-i-1)))
+      if (BitInit *B = dyn_cast<BitInit>(BI->getBit(e-i-1)))
         Value |= (uint64_t)B->getValue() << (e-i-1);
     }
     o << "    UINT64_C(" << Value << ")," << '\t' << "// " << R->getName() << "\n";
@@ -304,3 +329,14 @@ void CodeEmitterGen::run(raw_ostream &o) {
     << "  return Value;\n"
     << "}\n\n";
 }
+
+} // End anonymous namespace
+
+namespace llvm {
+
+void EmitCodeEmitter(RecordKeeper &RK, raw_ostream &OS) {
+  emitSourceFileHeader("Machine Code Emitter", OS);
+  CodeEmitterGen(RK).run(OS);
+}
+
+} // End llvm namespace

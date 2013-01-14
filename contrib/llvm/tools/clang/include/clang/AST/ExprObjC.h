@@ -51,7 +51,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCStringLiteralClass;
   }
-  static bool classof(const ObjCStringLiteral *) { return true; }
 
   // Iterators
   child_range children() { return child_range(&String, &String+1); }
@@ -81,49 +80,49 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCBoolLiteralExprClass;
   }
-  static bool classof(const ObjCBoolLiteralExpr *) { return true; }
     
   // Iterators
   child_range children() { return child_range(); }
 };
 
-/// ObjCNumericLiteral - used for objective-c numeric literals;
-/// as in: @42 or @true (c++/objc++) or @__yes (c/objc)
-class ObjCNumericLiteral : public Expr {
-  /// Number - expression AST node for the numeric literal
-  Stmt *Number;
-  ObjCMethodDecl *ObjCNumericLiteralMethod;
-  SourceLocation AtLoc;
+/// ObjCBoxedExpr - used for generalized expression boxing.
+/// as in: @(strdup("hello world")) or @(random())
+/// Also used for boxing non-parenthesized numeric literals;
+/// as in: @42 or \@true (c++/objc++) or \@__yes (c/objc).
+class ObjCBoxedExpr : public Expr {
+  Stmt *SubExpr;
+  ObjCMethodDecl *BoxingMethod;
+  SourceRange Range;
 public:
-  ObjCNumericLiteral(Stmt *NL, QualType T, ObjCMethodDecl *method,
-                     SourceLocation L)
-  : Expr(ObjCNumericLiteralClass, T, VK_RValue, OK_Ordinary, 
-         false, false, false, false), Number(NL), 
-    ObjCNumericLiteralMethod(method), AtLoc(L) {}
-  explicit ObjCNumericLiteral(EmptyShell Empty)
-  : Expr(ObjCNumericLiteralClass, Empty) {}
+  ObjCBoxedExpr(Expr *E, QualType T, ObjCMethodDecl *method,
+                     SourceRange R)
+  : Expr(ObjCBoxedExprClass, T, VK_RValue, OK_Ordinary, 
+         E->isTypeDependent(), E->isValueDependent(), 
+         E->isInstantiationDependent(), E->containsUnexpandedParameterPack()), 
+         SubExpr(E), BoxingMethod(method), Range(R) {}
+  explicit ObjCBoxedExpr(EmptyShell Empty)
+  : Expr(ObjCBoxedExprClass, Empty) {}
   
-  Expr *getNumber() { return cast<Expr>(Number); }
-  const Expr *getNumber() const { return cast<Expr>(Number); }
+  Expr *getSubExpr() { return cast<Expr>(SubExpr); }
+  const Expr *getSubExpr() const { return cast<Expr>(SubExpr); }
   
-  ObjCMethodDecl *getObjCNumericLiteralMethod() const {
-    return ObjCNumericLiteralMethod; 
+  ObjCMethodDecl *getBoxingMethod() const {
+    return BoxingMethod; 
   }
-    
-  SourceLocation getAtLoc() const { return AtLoc; }
+  
+  SourceLocation getAtLoc() const { return Range.getBegin(); }
   
   SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtLoc, Number->getSourceRange().getEnd());
+    return Range;
   }
-
+  
   static bool classof(const Stmt *T) {
-      return T->getStmtClass() == ObjCNumericLiteralClass;
+    return T->getStmtClass() == ObjCBoxedExprClass;
   }
-  static bool classof(const ObjCNumericLiteral *) { return true; }
   
   // Iterators
-  child_range children() { return child_range(&Number, &Number+1); }
-    
+  child_range children() { return child_range(&SubExpr, &SubExpr+1); }
+  
   friend class ASTStmtReader;
 };
 
@@ -154,7 +153,6 @@ public:
   static bool classof(const Stmt *T) {
       return T->getStmtClass() == ObjCArrayLiteralClass;
   }
-  static bool classof(const ObjCArrayLiteral *) { return true; }
 
   /// \brief Retrieve elements of array of literals.
   Expr **getElements() { return reinterpret_cast<Expr **>(this + 1); }
@@ -317,7 +315,6 @@ public:
   static bool classof(const Stmt *T) {
       return T->getStmtClass() == ObjCDictionaryLiteralClass;
   }
-  static bool classof(const ObjCDictionaryLiteral *) { return true; }
     
   // Iterators
   child_range children() { 
@@ -332,9 +329,9 @@ public:
 };
 
 
-/// ObjCEncodeExpr, used for @encode in Objective-C.  @encode has the same type
-/// and behavior as StringLiteral except that the string initializer is obtained
-/// from ASTContext with the encoding type as an argument.
+/// ObjCEncodeExpr, used for \@encode in Objective-C.  \@encode has the same
+/// type and behavior as StringLiteral except that the string initializer is
+/// obtained from ASTContext with the encoding type as an argument.
 class ObjCEncodeExpr : public Expr {
   TypeSourceInfo *EncodedType;
   SourceLocation AtLoc, RParenLoc;
@@ -370,13 +367,12 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCEncodeExprClass;
   }
-  static bool classof(const ObjCEncodeExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(); }
 };
 
-/// ObjCSelectorExpr used for @selector in Objective-C.
+/// ObjCSelectorExpr used for \@selector in Objective-C.
 class ObjCSelectorExpr : public Expr {
   Selector SelName;
   SourceLocation AtLoc, RParenLoc;
@@ -407,7 +403,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCSelectorExprClass;
   }
-  static bool classof(const ObjCSelectorExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(); }
@@ -419,19 +414,20 @@ public:
 /// The return type is "Protocol*".
 class ObjCProtocolExpr : public Expr {
   ObjCProtocolDecl *TheProtocol;
-  SourceLocation AtLoc, RParenLoc;
+  SourceLocation AtLoc, ProtoLoc, RParenLoc;
 public:
   ObjCProtocolExpr(QualType T, ObjCProtocolDecl *protocol,
-                   SourceLocation at, SourceLocation rp)
+                 SourceLocation at, SourceLocation protoLoc, SourceLocation rp)
     : Expr(ObjCProtocolExprClass, T, VK_RValue, OK_Ordinary, false, false,
            false, false),
-      TheProtocol(protocol), AtLoc(at), RParenLoc(rp) {}
+      TheProtocol(protocol), AtLoc(at), ProtoLoc(protoLoc), RParenLoc(rp) {}
   explicit ObjCProtocolExpr(EmptyShell Empty)
     : Expr(ObjCProtocolExprClass, Empty) {}
 
   ObjCProtocolDecl *getProtocol() const { return TheProtocol; }
   void setProtocol(ObjCProtocolDecl *P) { TheProtocol = P; }
 
+  SourceLocation getProtocolIdLoc() const { return ProtoLoc; }
   SourceLocation getAtLoc() const { return AtLoc; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setAtLoc(SourceLocation L) { AtLoc = L; }
@@ -444,10 +440,12 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCProtocolExprClass;
   }
-  static bool classof(const ObjCProtocolExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(); }
+
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
 };
 
 /// ObjCIvarRefExpr - A reference to an ObjC instance variable.
@@ -495,7 +493,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCIvarRefExprClass;
   }
-  static bool classof(const ObjCIvarRefExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
@@ -709,7 +706,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCPropertyRefExprClass;
   }
-  static bool classof(const ObjCPropertyRefExpr *) { return true; }
 
   // Iterators
   child_range children() {
@@ -807,7 +803,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCSubscriptRefExprClass;
   }
-  static bool classof(const ObjCSubscriptRefExpr *) { return true; }
   
   Expr *getBaseExpr() const { return cast<Expr>(SubExprs[BASE]); }
   void setBaseExpr(Stmt *S) { SubExprs[BASE] = S; }
@@ -1019,7 +1014,7 @@ public:
   /// a l-value or r-value reference will be an l-value or x-value,
   /// respectively.
   ///
-  /// \param LBrac The location of the open square bracket '['.
+  /// \param LBracLoc The location of the open square bracket '['.
   ///
   /// \param SuperLoc The location of the "super" keyword.
   ///
@@ -1032,8 +1027,6 @@ public:
   /// send was type-checked. May be NULL.
   ///
   /// \param Args The message send arguments.
-  ///
-  /// \param NumArgs The number of arguments.
   ///
   /// \param RBracLoc The location of the closing square bracket ']'.
   static ObjCMessageExpr *Create(ASTContext &Context, QualType T, 
@@ -1059,7 +1052,7 @@ public:
   /// a l-value or r-value reference will be an l-value or x-value,
   /// respectively.
   ///
-  /// \param LBrac The location of the open square bracket '['.
+  /// \param LBracLoc The location of the open square bracket '['.
   ///
   /// \param Receiver The type of the receiver, including
   /// source-location information.
@@ -1070,8 +1063,6 @@ public:
   /// send was type-checked. May be NULL.
   ///
   /// \param Args The message send arguments.
-  ///
-  /// \param NumArgs The number of arguments.
   ///
   /// \param RBracLoc The location of the closing square bracket ']'.
   static ObjCMessageExpr *Create(ASTContext &Context, QualType T,
@@ -1095,7 +1086,7 @@ public:
   /// a l-value or r-value reference will be an l-value or x-value,
   /// respectively.
   ///
-  /// \param LBrac The location of the open square bracket '['.
+  /// \param LBracLoc The location of the open square bracket '['.
   ///
   /// \param Receiver The expression used to produce the object that
   /// will receive this message.
@@ -1106,8 +1097,6 @@ public:
   /// send was type-checked. May be NULL.
   ///
   /// \param Args The message send arguments.
-  ///
-  /// \param NumArgs The number of arguments.
   ///
   /// \param RBracLoc The location of the closing square bracket ']'.
   static ObjCMessageExpr *Create(ASTContext &Context, QualType T,
@@ -1156,10 +1145,8 @@ public:
     return getReceiverKind() == Class || getReceiverKind() == SuperClass;
   }
 
-  /// \brief Returns the receiver of an instance message.
-  ///
-  /// \brief Returns the object expression for an instance message, or
-  /// NULL for a message that is not an instance message.
+  /// \brief Returns the object expression (receiver) for an instance message,
+  /// or null for a message that is not an instance message.
   Expr *getInstanceReceiver() {
     if (getReceiverKind() == Instance)
       return static_cast<Expr *>(getReceiverPointer());
@@ -1207,6 +1194,17 @@ public:
 
     return SourceLocation();
   }
+
+  /// \brief Retrieve the receiver type to which this message is being directed.
+  ///
+  /// This routine cross-cuts all of the different kinds of message
+  /// sends to determine what the underlying (statically known) type
+  /// of the receiver will be; use \c getReceiverKind() to determine
+  /// whether the message is a class or an instance method, whether it
+  /// is a send to super or not, etc.
+  ///
+  /// \returns The type of the receiver.
+  QualType getReceiverType() const;
 
   /// \brief Retrieve the Objective-C interface to which this message
   /// is being directed, if known.
@@ -1344,7 +1342,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCMessageExprClass;
   }
-  static bool classof(const ObjCMessageExpr *) { return true; }
 
   // Iterators
   child_range children();
@@ -1409,7 +1406,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCIsaExprClass;
   }
-  static bool classof(const ObjCIsaExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
@@ -1483,7 +1479,6 @@ public:
   static bool classof(const Stmt *s) {
     return s->getStmtClass() == ObjCIndirectCopyRestoreExprClass;
   }
-  static bool classof(const ObjCIndirectCopyRestoreExpr *) { return true; }
 };
 
 /// \brief An Objective-C "bridged" cast expression, which casts between
@@ -1532,8 +1527,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCBridgedCastExprClass;
   }
-  static bool classof(const ObjCBridgedCastExpr *) { return true; }
- 
 };
   
 }  // end namespace clang
