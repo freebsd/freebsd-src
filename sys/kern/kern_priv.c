@@ -59,7 +59,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
     &suser_enabled, 0, "processes with uid 0 have privilege");
 TUNABLE_INT("security.bsd.suser_enabled", &suser_enabled);
 
-static int	unprivileged_mlock = 1;
+static int	unprivileged_mlock = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_mlock, CTLFLAG_RW|CTLFLAG_TUN,
     &unprivileged_mlock, 0, "Allow non-root users to call mlock(2)");
 TUNABLE_INT("security.bsd.unprivileged_mlock", &unprivileged_mlock);

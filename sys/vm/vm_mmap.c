@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 #endif
 
-int old_mlock = 0;
+int old_mlock = 1;
 SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RW | CTLFLAG_TUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
 TUNABLE_INT("vm.old_mlock", &old_mlock);
