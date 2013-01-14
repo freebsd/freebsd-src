@@ -726,12 +726,6 @@ vmspace_resident_count(struct vmspace *vmspace)
 	return pmap_resident_count(vmspace_pmap(vmspace));
 }
 
-long
-vmspace_wired_count(struct vmspace *vmspace)
-{
-	return pmap_wired_count(vmspace_pmap(vmspace));
-}
-
 /*
  *	vm_map_create:
  *
