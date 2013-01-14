@@ -39,7 +39,7 @@ extern char *__progname;
 static void
 usage(int s)
 {
-	
+
 	fprintf(stderr, "Usage: %s [-e 0|L|<sz>] [-i 0|L|<sz>] [-o 0|L|<sz>] "
 	    "<cmd> [args ...]\n", __progname);
 	exit(s);
@@ -94,7 +94,7 @@ main(int argc, char *argv[])
 
 	if (i < 0 || putenv(preload1) == -1)
 		warn("Failed to set environment variable: LD_PRELOAD");
-	
+
 	preload0 = getenv("LD_32_PRELOAD");
 	if (preload0 == NULL)
 		i = asprintf(&preload1, "LD_32_PRELOAD=" LIBSTDBUF32);
