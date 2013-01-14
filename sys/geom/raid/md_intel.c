@@ -216,6 +216,7 @@ struct g_raid_md_intel_pervolume {
 struct g_raid_md_intel_object {
 	struct g_raid_md_object	 mdio_base;
 	uint32_t		 mdio_config_id;
+	uint32_t		 mdio_orig_config_id;
 	uint32_t		 mdio_generation;
 	struct intel_raid_conf	*mdio_meta;
 	struct callout		 mdio_start_co;	/* STARTING state timer. */
@@ -717,7 +718,7 @@ intel_meta_write_spare(struct g_consumer *cp, struct intel_raid_disk *d)
 	memcpy(&meta->version[0], INTEL_VERSION_1000,
 	    sizeof(INTEL_VERSION_1000) - 1);
 	meta->config_size = INTEL_MAX_MD_SIZE(1);
-	meta->config_id = arc4random();
+	meta->config_id = meta->orig_config_id = arc4random();
 	meta->generation = 1;
 	meta->total_disks = 1;
 	meta->disk[0] = *d;
@@ -1318,7 +1319,7 @@ g_raid_md_create_intel(struct g_raid_md_object *md, struct g_class *mp,
 	char name[16];
 
 	mdi = (struct g_raid_md_intel_object *)md;
-	mdi->mdio_config_id = arc4random();
+	mdi->mdio_config_id = mdi->mdio_orig_config_id = arc4random();
 	mdi->mdio_generation = 0;
 	snprintf(name, sizeof(name), "Intel-%08x", mdi->mdio_config_id);
 	sc = g_raid_create_node(mp, name, md);
@@ -1463,6 +1464,7 @@ search:
 	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
 		mdi->mdio_config_id = meta->config_id;
+		mdi->mdio_orig_config_id = meta->orig_config_id;
 		snprintf(name, sizeof(name), "Intel-%08x", meta->config_id);
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
@@ -2292,6 +2294,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC) - 1);
 	meta->config_size = INTEL_MAX_MD_SIZE(numdisks);
 	meta->config_id = mdi->mdio_config_id;
+	meta->orig_config_id = mdi->mdio_orig_config_id;
 	meta->generation = mdi->mdio_generation;
 	meta->attributes = INTEL_ATTR_CHECKSUM;
 	meta->total_disks = numdisks;
