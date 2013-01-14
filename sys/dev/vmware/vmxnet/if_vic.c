@@ -840,10 +840,6 @@ vic_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct vic_softc *sc;
 	struct ifreq *ifr;
-#if defined(INET) || defined(INET6)
-	struct ifaddr *ifa = data;
-	int avoid_reset = 0;
-#endif
 	int mask, error;
 
 	sc = ifp->if_softc;
@@ -851,27 +847,6 @@ vic_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = 0;
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-#ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET)
-			avoid_reset = 1;
-#endif
-#ifdef INET6
-		if (ifa->ifa_addr->sa_family == AF_INET6)
-			avoid_reset = 1;
-#endif
-#if defined(INET) || defined(INET6)
-		if (avoid_reset != 0) {
-			ifp->if_flags |= IFF_UP;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-				vic_init(adapter);
-			if ((ifp->if_flags & IFF_NOARP) == 0)
-				arp_ifinit(ifp, ifa);
-		} else
-			error = ether_ioctl(ifp, command, data);
-#endif
-		break;
-
 	case SIOCSIFMTU:
 		VIC_LOCK(sc);
 		if (ifr->ifr_mtu < ETHERMIN)
