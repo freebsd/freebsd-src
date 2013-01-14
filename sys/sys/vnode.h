@@ -99,7 +99,6 @@ struct vnode {
 	 * Fields which define the identity of the vnode.  These fields are
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
-	enum	vtype v_type;			/* u vnode type */
 	const char *v_tag;			/* u type of underlying data */
 	struct	vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
@@ -122,10 +121,10 @@ struct vnode {
 	} v_un;
 
 	/*
-	 * vfs_hash:  (mount + inode) -> vnode hash.
+	 * vfs_hash: (mount + inode) -> vnode hash.  The hash value
+	 * itself is grouped with other int fields, to avoid padding.
 	 */
 	LIST_ENTRY(vnode)	v_hashlist;
-	u_int			v_hash;
 
 	/*
 	 * VFS_namecache stuff
@@ -135,24 +134,11 @@ struct vnode {
 	struct namecache *v_cache_dd;		/* c Cache entry for .. vnode */
 
 	/*
-	 * clustering stuff
-	 */
-	daddr_t	v_cstart;			/* v start block of cluster */
-	daddr_t	v_lasta;			/* v last allocation  */
-	daddr_t	v_lastw;			/* v last write  */
-	int	v_clen;				/* v length of cur. cluster */
-
-	/*
 	 * Locking
 	 */
 	struct	lock v_lock;			/* u (if fs don't have one) */
 	struct	mtx v_interlock;		/* lock for "i" things */
 	struct	lock *v_vnlock;			/* u pointer to vnode lock */
-	int	v_holdcnt;			/* i prevents recycling. */
-	int	v_usecount;			/* i ref count of users */
-	u_int	v_iflag;			/* i vnode flags (see below) */
-	u_int	v_vflag;			/* v vnode flags */
-	int	v_writecount;			/* v ref count of writers */
 
 	/*
 	 * The machinery of being a vnode
@@ -167,6 +153,22 @@ struct vnode {
 	struct label *v_label;			/* MAC label for vnode */
 	struct lockf *v_lockf;		/* Byte-level advisory lock list */
 	struct rangelock v_rl;			/* Byte-range lock */
+
+	/*
+	 * clustering stuff
+	 */
+	daddr_t	v_cstart;			/* v start block of cluster */
+	daddr_t	v_lasta;			/* v last allocation  */
+	daddr_t	v_lastw;			/* v last write  */
+	int	v_clen;				/* v length of cur. cluster */
+
+	int	v_holdcnt;			/* i prevents recycling. */
+	int	v_usecount;			/* i ref count of users */
+	u_int	v_iflag;			/* i vnode flags (see below) */
+	u_int	v_vflag;			/* v vnode flags */
+	int	v_writecount;			/* v ref count of writers */
+	u_int	v_hash;
+	enum	vtype v_type;			/* u vnode type */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
