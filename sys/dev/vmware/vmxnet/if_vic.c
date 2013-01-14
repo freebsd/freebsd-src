@@ -481,7 +481,7 @@ static void
 vic_init_shared_mem(struct vic_softc *sc)
 {
 	uint8_t *kva;
-	u_int offset;
+	size_t offset;
 	int q;
 
 	kva = sc->vic_dma_kva;
@@ -503,6 +503,10 @@ vic_init_shared_mem(struct vic_softc *sc)
 	sc->vic_txq = (struct vic_txdesc *) &kva[offset];
 	sc->vic_data->vd_tx_offset = offset;
 	sc->vic_data->vd_tx_length = sc->vic_tx_nbufs;
+
+	offset += sc->vic_tx_nbufs * sizeof(struct vic_txdesc);
+	KASSERT(offset == sc->vic_dma_size, ("%s: incorrect offset %zu/%zu",
+	    __func__, offset, sc->vic_dma_size));
 
 	if (sc->vic_flags & VIC_FLAGS_TSO)
 		sc->vic_data->vd_tx_maxfrags = VIC_TSO_MAXSEGS;
