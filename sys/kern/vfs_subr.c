@@ -279,6 +279,7 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 #define VSHOULDFREE(vp) (!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
 #define VSHOULDBUSY(vp) (((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
 
+/* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
 static int vnsz2log;
 
 /*
