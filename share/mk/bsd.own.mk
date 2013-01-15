@@ -428,6 +428,7 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
+    NMTREE \
     OFED \
     SHARED_TOOLCHAIN
 
