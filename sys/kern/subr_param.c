@@ -326,8 +326,11 @@ init_param2(long physpages)
 
 	/*
 	 * XXX: Does the callout wheel have to be so big?
+	 *
+	 * Clip callout to result of previous function of maxusers maximum
+	 * 384.  This is still huge, but acceptable.
 	 */
-	ncallout = 16 + maxproc + maxfiles;
+	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 
 	/*
