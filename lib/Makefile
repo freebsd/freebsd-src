@@ -87,6 +87,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmilter} \
 	${_libmp} \
 	${_libncp} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \
