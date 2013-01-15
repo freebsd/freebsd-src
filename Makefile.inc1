@@ -4,6 +4,8 @@
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
+#	-DDB_FROM_SRC use the user/group databases in src/etc instead of
+#	    the system database when installing.
 #	-DNO_SHARE do not go into share subdir
 #	-DKERNFAST define NO_KERNEL{CONFIG,CLEAN,DEPEND,OBJ}
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
@@ -11,10 +13,9 @@
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
+#	-DNO_ROOT install without using root privilege
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	-DNO_WWWUPDATE do not update www in ${MAKE} update
-#	-DDB_FROM_SRC use the user/group databases in src/etc instead of
-#	    the system database when installing.
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
@@ -22,6 +23,8 @@
 #	    to be created before files are installed
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
+#	METALOG="path to metadata log" to write permission and ownership
+#	    when NO_ROOT is set
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
@@ -346,14 +349,12 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 		${IMAKE_INSTALL}
 .endif
 
-.if !empty(METALOG)
-INSTALLFLAGS=	-M ${METALOG} -D ${DESTDIR}
+.if defined(NO_ROOT)
+METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
+INSTALLFLAGS=	-U -M ${METALOG} -D ${DESTDIR}
+MTREEFLAGS=	-W
 .endif
-USER!=	id -u
-.if ${USER} != 0
-INSTALLFLAGS+=	-U
-MTREEFLAGS+=	-W
-.endif
+
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
 		${IMAKE_INSTALL} ${IMAKE_MTREE}
