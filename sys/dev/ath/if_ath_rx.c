@@ -845,6 +845,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
+	int kickpcu = 0;
 
 	/* XXX we must not hold the ATH_LOCK here */
 	ATH_UNLOCK_ASSERT(sc);
@@ -852,6 +853,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
+	kickpcu = sc->sc_kickpcu;
 	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
@@ -866,7 +868,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		 * latency can jump by quite a bit, causing throughput
 		 * degredation.
 		 */
-		if (npkts >= ATH_RX_MAX)
+		if (!kickpcu && npkts >= ATH_RX_MAX)
 			break;
 
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
@@ -961,6 +963,9 @@ rx_proc_next:
 		    __func__, npkts);
 
 		/* XXX rxslink? */
+#if 0
+		ath_startrecv(sc);
+#else
 		/*
 		 * XXX can we hold the PCU lock here?
 		 * Are there any net80211 buffer calls involved?
@@ -970,6 +975,7 @@ rx_proc_next:
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+#endif
 
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;

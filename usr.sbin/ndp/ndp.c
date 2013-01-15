@@ -982,6 +982,9 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		SETFLAG("auto_linklocal", ND6_IFF_AUTO_LINKLOCAL);
 #endif
+#ifdef ND6_IFF_NO_PREFER_IFACE
+		SETFLAG("no_prefer_iface", ND6_IFF_NO_PREFER_IFACE);
+#endif
 		SETVALUE("basereachable", ND.basereachable);
 		SETVALUE("retrans", ND.retrans);
 		SETVALUE("curhlim", ND.chlim);
@@ -1054,6 +1057,10 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		if ((ND.flags & ND6_IFF_AUTO_LINKLOCAL))
 			printf("auto_linklocal ");
+#endif
+#ifdef ND6_IFF_NO_PREFER_IFACE
+		if ((ND.flags & ND6_IFF_NO_PREFER_IFACE))
+			printf("no_prefer_iface ");
 #endif
 	}
 	putc('\n', stdout);

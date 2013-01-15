@@ -13,6 +13,8 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	-DNO_WWWUPDATE do not update www in ${MAKE} update
+#	-DDB_FROM_SRC use the user/group databases in src/etc instead of
+#	    the system database when installing.
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
@@ -341,10 +343,9 @@ LIB32WMAKEFLAGS+=	\
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
-		INSTALL="install -N ${.CURDIR}/etc ${INSTALLFLAGS}"
+		${IMAKE_INSTALL}
 .endif
 
-# install stage
 .if !empty(METALOG)
 INSTALLFLAGS=	-M ${METALOG} -D ${DESTDIR}
 .endif
@@ -355,8 +356,7 @@ MTREEFLAGS+=	-W
 .endif
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
-		INSTALL="install -N ${.CURDIR}/etc ${INSTALLFLAGS}" \
-		MTREE_CMD="nmtree -N ${.CURDIR}/etc ${MTREEFLAGS}"
+		${IMAKE_INSTALL} ${IMAKE_MTREE}
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 		LD_LIBRARY_PATH=${INSTALLTMP} \
@@ -364,6 +364,10 @@ IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
 .else
 IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
+.endif
+.if defined(DB_FROM_SRC)
+IMAKE_INSTALL=	INSTALL="install -N ${.CURDIR}/etc ${INSTALLFLAGS}"
+IMAKE_MTREE=	MTREE_CMD="nmtree -N ${.CURDIR}/etc ${MTREEFLAGS}"
 .endif
 
 # kernel stage
@@ -606,9 +610,11 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 installcheck:
 
 #
-# Require DESTDIR to be set if installing for a different architecture.
+# Require DESTDIR to be set if installing for a different architecture or
+# using the user/group database in the source tree.
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE} || \
+    defined(DB_FROM_SRC)
 .if !make(distributeworld)
 installcheck: installcheck_DESTDIR
 installcheck_DESTDIR:
@@ -617,6 +623,36 @@ installcheck_DESTDIR:
 	false
 .endif
 .endif
+.endif
+
+.if !defined(DB_FROM_SRC)
+#
+# Check for missing UIDs/GIDs.
+#
+CHECK_UIDS=	auditdistd
+CHECK_GIDS=	audit
+.if ${MK_SENDMAIL} != "no"
+CHECK_UIDS+=	smmsp
+CHECK_GIDS+=	smmsp
+.endif
+.if ${MK_PF} != "no"
+CHECK_UIDS+=	proxy
+CHECK_GIDS+=	proxy authpf
+.endif
+installcheck: installcheck_UGID
+installcheck_UGID:
+.for uid in ${CHECK_UIDS}
+	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
+		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+.endfor
+.for gid in ${CHECK_GIDS}
+	@if ! `find / -prune -group ${gid} >/dev/null 2>&1`; then \
+		echo "ERROR: Required ${gid} group is missing, see /usr/src/UPDATING."; \
+		false; \
+	fi
+.endfor
 .endif
 
 #
@@ -737,7 +773,8 @@ redistribute:
 .endif
 
 distrib-dirs distribution:
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} ${.TARGET}
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    ${IMAKE_INSTALL} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -1043,6 +1080,11 @@ _lex=		usr.bin/lex
 _yacc=		usr.bin/yacc
 .endif
 
+.if defined(DB_FROM_SRC) && ${BOOTSTRAPPING} < 1000026
+_nmtree=	lib/libnetbsd \
+		usr.sbin/nmtree
+.endif
+
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
 _awk=		usr.bin/awk
 .endif
@@ -1106,7 +1148,7 @@ bootstrap-tools:
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
-    usr.sbin/nmtree
+    ${_nmtree}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \

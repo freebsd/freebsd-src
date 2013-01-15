@@ -290,7 +290,7 @@ _find_processes()
 		_interpbn=${1##*/}
 		_fp_args='_argv'
 		_fp_match='case "$_argv" in
-		    ${_interp}|"${_interp} "*|"${_interpbn}: ${_procname}"*)'
+		    ${_interp}|"${_interp} "*|"[${_interpbn}]"|"${_interpbn}: ${_procname}"*)'
 	else					# a normal daemon
 		_procnamebn=${_procname##*/}
 		_fp_args='_arg0 _argv'

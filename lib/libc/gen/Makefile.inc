@@ -40,6 +40,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 SRCS+=	pwcache.c pwcache.h
 
 .PATH: ${.CURDIR}/../../contrib/libc-vis
+CFLAGS+=	-I${.CURDIR}/../../contrib/libc-vis
 SRCS+=	unvis.c vis.c
 
 MISRCS+=modf.c

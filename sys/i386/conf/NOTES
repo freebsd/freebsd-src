@@ -771,6 +771,15 @@ device		glxiic		# AMD Geode LX CS5536 System Management Bus
 #
 device		glxsb		# AMD Geode LX Security Block
 
+#
+# VirtIO support
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI Interface
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device
+
 #####################################################################
 
 #

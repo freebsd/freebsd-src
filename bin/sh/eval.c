@@ -624,8 +624,8 @@ evalbackcmd(union node *n, struct backcmd *result)
 		exitstatus = 0;
 		goto out;
 	}
+	exitstatus = oexitstatus;
 	if (is_valid_fast_cmdsubst(n)) {
-		exitstatus = oexitstatus;
 		savelocalvars = localvars;
 		localvars = NULL;
 		forcelocal++;
@@ -649,7 +649,6 @@ evalbackcmd(union node *n, struct backcmd *result)
 		poplocalvars();
 		localvars = savelocalvars;
 	} else {
-		exitstatus = 0;
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
 		jp = makejob(n, 1);

@@ -63,6 +63,7 @@ if [ $bootable = yes ]; then
     if [ -s $BASE/boot/mfsroot.gz ]; then
 	cp $BASE/boot/mfsroot.gz $MNT/boot
     fi
+    cp $BASE/boot/color.4th $MNT/boot
     cp $BASE/boot/support.4th $MNT/boot
     cp $BASE/boot/check-password.4th $MNT/boot
     cp $BASE/boot/screen.4th $MNT/boot
