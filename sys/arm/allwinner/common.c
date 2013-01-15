@@ -1,8 +1,6 @@
 /*-
- * Copyright (c) 2012 Ganbold Tsagaankhuu
+ * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@gmail.com>
  * All rights reserved.
- *
- * Developed by Ganbold Tsagaankhuu <ganbold@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
