@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -57,6 +59,9 @@ __FBSDID("$FreeBSD$");
 
 static struct protosw ddp_protosw;
 static struct pr_usrreqs ddp_usrreqs;
+
+static struct protosw ddp6_protosw;
+static struct pr_usrreqs ddp6_usrreqs;
 
 /* Module ops */
 static int t4_tom_mod_load(void);
@@ -170,8 +175,12 @@ offload_socket(struct socket *so, struct toepcb *toep)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	sb->sb_flags |= SB_NOCOALESCE;
-	if (toep->ulp_mode == ULP_MODE_TCPDDP)
-		so->so_proto = &ddp_protosw;
+	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+		if (inp->inp_vflag & INP_IPV6)
+			so->so_proto = &ddp6_protosw;
+		else
+			so->so_proto = &ddp_protosw;
+	}
 	SOCKBUF_UNLOCK(sb);
 
 	/* Update TCP PCB */
@@ -394,7 +403,7 @@ int
 find_best_mtu_idx(struct adapter *sc, struct in_conninfo *inc, int pmss)
 {
 	unsigned short *mtus = &sc->params.mtus[0];
-	int i = 0, mss;
+	int i, mss, n;
 
 	KASSERT(inc != NULL || pmss > 0,
 	    ("%s: at least one of inc/pmss must be specified", __func__));
@@ -403,8 +412,13 @@ find_best_mtu_idx(struct adapter *sc, struct in_conninfo *inc, int pmss)
 	if (pmss > 0 && mss > pmss)
 		mss = pmss;
 
-	while (i < NMTUS - 1 && mtus[i + 1] <= mss + 40)
-		++i;
+	if (inc->inc_flags & INC_ISIPV6)
+		n = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+	else
+		n = sizeof(struct ip) + sizeof(struct tcphdr);
+
+	for (i = 0; i < NMTUS - 1 && mtus[i + 1] <= mss + n; i++)
+		continue;
 
 	return (i);
 }
@@ -511,6 +525,15 @@ select_ntuple(struct port_info *pi, struct l2t_entry *e, uint32_t filter_mode)
         }
 
 	return (htobe32(ntuple));
+}
+
+void
+set_tcpddp_ulp_mode(struct toepcb *toep)
+{
+
+	toep->ulp_mode = ULP_MODE_TCPDDP;
+	toep->ddp_flags = DDP_OK;
+	toep->ddp_score = DDP_LOW_SCORE;
 }
 
 static int
@@ -698,16 +721,23 @@ static int
 t4_tom_mod_load(void)
 {
 	int rc;
-	struct protosw *tcp_protosw;
+	struct protosw *tcp_protosw, *tcp6_protosw;
 
 	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
 	if (tcp_protosw == NULL)
 		return (ENOPROTOOPT);
-
 	bcopy(tcp_protosw, &ddp_protosw, sizeof(ddp_protosw));
 	bcopy(tcp_protosw->pr_usrreqs, &ddp_usrreqs, sizeof(ddp_usrreqs));
 	ddp_usrreqs.pru_soreceive = t4_soreceive_ddp;
 	ddp_protosw.pr_usrreqs = &ddp_usrreqs;
+
+	tcp6_protosw = pffindproto(PF_INET6, IPPROTO_TCP, SOCK_STREAM);
+	if (tcp6_protosw == NULL)
+		return (ENOPROTOOPT);
+	bcopy(tcp6_protosw, &ddp6_protosw, sizeof(ddp6_protosw));
+	bcopy(tcp6_protosw->pr_usrreqs, &ddp6_usrreqs, sizeof(ddp6_usrreqs));
+	ddp6_usrreqs.pru_soreceive = t4_soreceive_ddp;
+	ddp6_protosw.pr_usrreqs = &ddp6_usrreqs;
 
 	rc = t4_register_uld(&tom_uld_info);
 	if (rc != 0)
