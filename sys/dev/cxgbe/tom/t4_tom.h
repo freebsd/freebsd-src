@@ -109,6 +109,7 @@ struct toepcb {
 	struct sge_ofld_rxq *ofld_rxq;
 	struct sge_wrq *ctrlq;
 	struct l2t_entry *l2te;	/* L2 table entry used by this connection */
+	struct clip_entry *ce;	/* CLIP table entry used by this tid */
 	int tid;		/* Connection identifier */
 	unsigned int tx_credits;/* tx WR credits (in 16 byte units) remaining */
 	unsigned int sb_cc;	/* last noted value of so_rcv->sb_cc */
@@ -175,6 +176,12 @@ struct listen_ctx {
 
 TAILQ_HEAD(ppod_head, ppod_region);
 
+struct clip_entry {
+	TAILQ_ENTRY(clip_entry) link;
+	struct in6_addr lip;	/* local IPv6 address */
+	u_int refcount;
+};
+
 struct tom_data {
 	struct toedev tod;
 
@@ -192,6 +199,9 @@ struct tom_data {
 	int nppods_free;	/* # of available ppods */
 	int nppods_free_head;	/* # of available ppods at the begining */
 	struct ppod_head ppods;
+
+	struct mtx clip_table_lock;
+	TAILQ_HEAD(, clip_entry) clip_table;
 };
 
 static inline struct tom_data *
@@ -226,6 +236,8 @@ uint64_t calc_opt0(struct socket *, struct port_info *, struct l2t_entry *,
     int, int, int, int);
 uint32_t select_ntuple(struct port_info *, struct l2t_entry *, uint32_t);
 void set_tcpddp_ulp_mode(struct toepcb *);
+struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *);
+void release_lip(struct tom_data *, struct clip_entry *);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(struct adapter *);
