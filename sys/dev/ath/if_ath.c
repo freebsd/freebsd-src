@@ -152,7 +152,6 @@ static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
-static void	ath_start_queue(struct ifnet *ifp);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
 static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
@@ -212,6 +211,14 @@ static void	ath_announce(struct ath_softc *);
 static void	ath_dfs_tasklet(void *, int);
 static void	ath_node_powersave(struct ieee80211_node *, int);
 static int	ath_node_set_tim(struct ieee80211_node *, int);
+
+static int	ath_transmit(struct ifnet *ifp, struct mbuf *m);
+static void	ath_qflush(struct ifnet *ifp);
+
+static void	ath_txq_qinit(struct ifnet *ifp);
+static void	ath_txq_qflush(struct ifnet *ifp);
+static int	ath_txq_qadd(struct ifnet *ifp, struct mbuf *m0);
+static void	ath_txq_qrun(struct ifnet *ifp);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <dev/ath/if_ath_tdma.h>
@@ -429,12 +436,20 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", ifp->if_xname);
 
+	sc->sc_tx_tq = taskqueue_create("ath_tx_taskq", M_NOWAIT,
+		taskqueue_thread_enqueue, &sc->sc_tx_tq);
+	taskqueue_start_threads(&sc->sc_tx_tq, 1, PI_NET,
+		"%s TX taskq", ifp->if_xname);
+
 	TASK_INIT(&sc->sc_rxtask, 0, sc->sc_rx.recv_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
-	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
-	TASK_INIT(&sc->sc_fataltask,0, ath_fatal_proc, sc);
+	TASK_INIT(&sc->sc_txqtask, 0, ath_txq_sched_tasklet, sc);
+	TASK_INIT(&sc->sc_fataltask, 0, ath_fatal_proc, sc);
+
+	/* XXX make this a higher priority taskqueue? */
+	TASK_INIT(&sc->sc_txpkttask, 0, ath_start_task, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -554,12 +569,17 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-	ifp->if_start = ath_start_queue;
+	/* XXX net80211 uses if_start to re-start ifnet processing */
+	ifp->if_start = ath_start;
+	ifp->if_transmit = ath_transmit;
+	ifp->if_qflush = ath_qflush;
 	ifp->if_ioctl = ath_ioctl;
 	ifp->if_init = ath_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
+
+	ath_txq_qinit(ifp);
 
 	ic->ic_ifp = ifp;
 	/* XXX not right but it's not used anywhere important */
@@ -966,16 +986,16 @@ ath_detach(struct ath_softc *sc)
 	ath_stop(ifp);
 	ieee80211_ifdetach(ifp->if_l2com);
 	taskqueue_free(sc->sc_tq);
+	taskqueue_free(sc->sc_tx_tq);
 #ifdef ATH_TX99_DIAG
 	if (sc->sc_tx99 != NULL)
 		sc->sc_tx99->detach(sc->sc_tx99);
 #endif
 	ath_rate_detach(sc->sc_rc);
-
 #ifdef	ATH_DEBUG_ALQ
 	if_ath_alq_tidyup(&sc->sc_alq);
 #endif
-
+	ath_txq_qflush(ifp);
 	ath_spectral_detach(sc);
 	ath_dfs_detach(sc);
 	ath_desc_free(sc);
@@ -2454,6 +2474,14 @@ ath_buf_clone(struct ath_softc *sc, const struct ath_buf *bf)
 	tbf->bf_flags = bf->bf_flags & ~ATH_BUF_BUSY;
 	tbf->bf_status = bf->bf_status;
 	tbf->bf_m = bf->bf_m;
+	/*
+	 * XXX Copy the node reference, the caller is responsible
+	 * for deleting the node reference before it frees its
+	 * buffer.
+	 *
+	 * XXX It's done like this so we don't call the net80211
+	 * code whilst having active TX queue locks held.
+	 */
 	tbf->bf_node = bf->bf_node;
 	/* will be setup by the chain/setup function */
 	tbf->bf_lastds = NULL;
@@ -2498,13 +2526,70 @@ ath_getbuf(struct ath_softc *sc, ath_buf_type_t btype)
 }
 
 static void
-ath_start_queue(struct ifnet *ifp)
+ath_qflush(struct ifnet *ifp)
 {
-	struct ath_softc *sc = ifp->if_softc;
 
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: start");
+	/* XXX complete/suspend TX */
+	ath_txq_qflush(ifp);
+
+	/* Unsuspend TX? */
+}
+
+/*
+ * Transmit a frame from net80211.
+ */
+static int
+ath_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	struct ieee80211_node *ni;
+	struct ath_softc *sc = (struct ath_softc *) ifp->if_softc;
+
+	ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+
+	if (ath_txq_qadd(ifp, m) < 0) {
+		/*
+		 * If queuing fails, the if_transmit() API makes the
+		 * callee responsible for freeing the mbuf (rather than
+		 * the caller, who just assumes the mbuf has been dealt
+		 * with somehow).
+		 *
+		 * BUT, net80211 will free node references if if_transmit()
+		 * fails _on encapsulated buffers_.  Since drivers
+		 * only get fully encapsulated frames from net80211 (via
+		 * raw or otherwise APIs), we must be absolutely careful
+		 * to not free the node ref or things will get loopy
+		 * down the track.
+		 *
+		 * For tx fragments, the TX code must free whatever
+		 * new references it created, but NOT the original
+		 * TX node ref that was passed in.
+		 */
+		ath_freetx(m);
+		return (ENOBUFS);
+	}
+
+	/*
+	 * Unconditionally kick the taskqueue.
+	 *
+	 * Now, there's a subtle race condition possible here if we
+	 * went down the path of only kicking the taskqueue if it
+	 * wasn't running.  If we're not absolutely, positively
+	 * careful, we could have a small race window between
+	 * finishing the taskqueue and clearing the TX flag, which
+	 * would be interpreted in _this_ context as "we don't need
+	 * to kick the TX taskqueue, as said taskqueue is already
+	 * running."
+	 *
+	 * It's a problem in some of the 1GE/10GE NIC drivers.
+	 * So until a _correct_ method for implementing this is
+	 * drafted up and written, which avoids (potentially)
+	 * large amounts of locking contention per-frame, let's
+	 * just do the inefficient "kick taskqueue each time"
+	 * method.
+	 */
 	ath_tx_kick(sc);
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: finished");
+
+	return (0);
 }
 
 void
@@ -2531,9 +2616,7 @@ ath_start_task(void *arg, int npending)
 	sc->sc_txstart_cnt++;
 	ATH_PCU_UNLOCK(sc);
 
-	ATH_TX_LOCK(sc);
-	ath_start(sc->sc_ifp);
-	ATH_TX_UNLOCK(sc);
+	ath_txq_qrun(ifp);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
@@ -2541,91 +2624,298 @@ ath_start_task(void *arg, int npending)
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: finished");
 }
 
-void
-ath_start(struct ifnet *ifp)
+/*
+ * Pending TX buffer chain management routines.
+ */
+
+
+/*
+ * Initialise the TX queue!
+ */
+static void
+ath_txq_qinit(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
-	struct ieee80211_node *ni;
+
+	TAILQ_INIT(&sc->sc_txbuf_list);
+}
+
+/*
+ * Add this mbuf to the TX buffer chain.
+ *
+ * This allocates an ath_buf, links the mbuf into it, and
+ * appends it to the end of the TX buffer chain.
+ * It doesn't fill out the ath_buf in any way besides
+ * that.
+ *
+ * Since the mbuf may be a list of mbufs representing
+ * 802.11 fragments, handle allocating ath_bufs for each
+ * of the mbuf fragments.
+ *
+ * If we queued it, 0 is returned. Else, < 0 is returned.
+ *
+ * If <0 is returned, the sender is responsible for
+ * freeing the mbuf if appropriate.
+ */
+static int
+ath_txq_qadd(struct ifnet *ifp, struct mbuf *m0)
+{
+	struct ath_softc *sc = ifp->if_softc;
 	struct ath_buf *bf;
-	struct mbuf *m, *next;
 	ath_bufhead frags;
-	int npkts = 0;
+	struct ieee80211_node *ni;
+	struct mbuf *m;
+
+	/* XXX recursive TX completion -> TX? */
+	ATH_TX_UNLOCK_ASSERT(sc);
+
+	/*
+	 * We grab the node pointer, but we don't deref
+	 * the node.  The caller must be responsible for
+	 * freeing the node reference if it decides to
+	 * free the mbuf.
+	 */
+	ni = (struct ieee80211_node *) m0->m_pkthdr.rcvif;
+
+	ATH_TXBUF_LOCK(sc);
+	if (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree) {
+		/* XXX increment counter? */
+		ATH_TXBUF_UNLOCK(sc);
+		IF_LOCK(&ifp->if_snd);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
+		return (-1);
+	}
+	ATH_TXBUF_UNLOCK(sc);
+
+	/*
+	 * Grab a TX buffer and associated resources.
+	 */
+	bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
+	if (bf == NULL) {
+		device_printf(sc->sc_dev,
+		    "%s: couldn't allocate a buffer\n",
+		    __func__);
+		return (-1);
+	}
+
+	/* Setup the initial buffer node contents */
+	bf->bf_m = m0;
+	bf->bf_node = ni;
+
+	/*
+	 * Check for fragmentation.  If this frame
+	 * has been broken up verify we have enough
+	 * buffers to send all the fragments so all
+	 * go out or none...
+	 */
+	TAILQ_INIT(&frags);
+	if (m0->m_flags & M_FRAG)
+		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: txfrag\n", __func__);
+	if ((m0->m_flags & M_FRAG) &&
+	    !ath_txfrag_setup(sc, &frags, m0, ni)) {
+		DPRINTF(sc, ATH_DEBUG_XMIT,
+		    "%s: out of txfrag buffers\n", __func__);
+		sc->sc_stats.ast_tx_nofrag++;
+		ifp->if_oerrors++;
+		goto bad;
+	}
+
+	/*
+	 * Don't stuff the non-fragment frame onto the fragment
+	 * queue. ath_txfrag_cleanup() should only be called on fragments -
+	 * ie, the _extra_ ieee80211_node references - and not the single
+	 * node reference already done as part of the net08211 TX call
+	 * into the driver.
+	 */
+
+	ATH_TX_LOCK(sc);
+
+	/*
+	 * Throw the single frame onto the queue.
+	 */
+	TAILQ_INSERT_TAIL(&sc->sc_txbuf_list, bf, bf_list);
+
+	/*
+	 * Update next packet duration length if it's a fragment.
+	 * It's needed for accurate NAV calculations (which for
+	 * fragments include the length of the NEXT fragment.)
+	 */
+	if (m0->m_nextpkt != NULL)
+		bf->bf_state.bfs_nextpktlen =
+		    m0->m_nextpkt->m_pkthdr.len;
+
+	/*
+	 * Append the fragments.  We have to populate bf and node
+	 * references here as although the txfrag setup code does
+	 * create buffers and increment the node ref, it doesn't
+	 * populate the fields for us.
+	 */
+	m = m0->m_nextpkt;
+	while ( (bf = TAILQ_FIRST(&frags)) != NULL) {
+		bf->bf_m = m;
+		bf->bf_node = ni;
+		device_printf(sc->sc_dev, "%s: adding bf=%p, m=%p, ni=%p\n",
+		    __func__,
+		    bf,
+		    bf->bf_m,
+		    bf->bf_node);
+		TAILQ_REMOVE(&frags, bf, bf_list);
+		TAILQ_INSERT_TAIL(&sc->sc_txbuf_list, bf, bf_list);
+
+		/*
+		 * For duration (NAV) calculations, we need
+		 * to know the next fragment size.
+		 *
+		 * XXX This isn't entirely accurate as it doesn't
+		 * take pad bytes and such into account, but it'll do
+		 * for fragment length / NAV calculations.
+		 */
+		if (m->m_nextpkt != NULL)
+			bf->bf_state.bfs_nextpktlen =
+			    m->m_nextpkt->m_pkthdr.len;
+
+		m = m->m_nextpkt;
+	}
+	ATH_TX_UNLOCK(sc);
+
+	return (0);
+bad:
+	device_printf(sc->sc_dev, "%s: bad?!\n", __func__);
+	bf->bf_m = NULL;
+	bf->bf_node = NULL;
+	ATH_TXBUF_LOCK(sc);
+	ath_returnbuf_head(sc, bf);
+	ath_txfrag_cleanup(sc, &frags, ni);
+	ATH_TXBUF_UNLOCK(sc);
+	return (-1);
+}
+
+/*
+ * Flush the pending TX buffer chain.
+ */
+static void
+ath_txq_qflush(struct ifnet *ifp)
+{
+	struct ath_softc *sc = ifp->if_softc;
+	ath_bufhead txlist;
+	struct ath_buf *bf;
+
+	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	TAILQ_INIT(&txlist);
+
+	/* Grab lock */
+	ATH_TX_LOCK(sc);
+
+	/* Copy everything out of sc_txbuf_list into txlist */
+	TAILQ_CONCAT(&txlist, &sc->sc_txbuf_list, bf_list);
+
+	/* Unlock */
+	ATH_TX_UNLOCK(sc);
+
+	/* Now, walk the list, freeing things */
+	while ((bf = TAILQ_FIRST(&txlist)) != NULL) {
+		TAILQ_REMOVE(&txlist, bf, bf_list);
+	
+		if (bf->bf_node)
+			ieee80211_free_node(bf->bf_node);
+
+		m_free(bf->bf_m);
+
+		/* XXX paranoia! */
+		bf->bf_m = NULL;
+		bf->bf_node = NULL;
+
+		/*
+		 * XXX Perhaps do a second pass with the TXBUF lock
+		 * held and free them all at once?
+		 */
+		ATH_TXBUF_LOCK(sc);
+		ath_returnbuf_head(sc, bf);
+		ATH_TXBUF_UNLOCK(sc);
+	}
+}
+
+/*
+ * Walk the TX buffer queue and call ath_tx_start() on each
+ * of them.
+ */
+static void
+ath_txq_qrun(struct ifnet *ifp)
+{
+	struct ath_softc *sc = ifp->if_softc;
+	ath_bufhead txlist;
+	struct ath_buf *bf, *bf_next;
+	struct ieee80211_node *ni;
+	struct mbuf *m;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
 
-	ATH_TX_LOCK_ASSERT(sc);
+	TAILQ_INIT(&txlist);
 
-	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start: called");
+	/*
+	 * Grab the frames to transmit from the tx queue
+	 */
 
-	for (;;) {
-		ATH_TXBUF_LOCK(sc);
-		if (sc->sc_txbuf_cnt <= sc->sc_txq_data_minfree) {
-			/* XXX increment counter? */
-			ATH_TXBUF_UNLOCK(sc);
-			IF_LOCK(&ifp->if_snd);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IF_UNLOCK(&ifp->if_snd);
-			break;
-		}
-		ATH_TXBUF_UNLOCK(sc);
-		
-		/*
-		 * Grab a TX buffer and associated resources.
-		 */
-		bf = ath_getbuf(sc, ATH_BUFTYPE_NORMAL);
-		if (bf == NULL)
-			break;
+	/* Copy everything out of sc_txbuf_list into txlist */
+	ATH_TX_LOCK(sc);
+	TAILQ_CONCAT(&txlist, &sc->sc_txbuf_list, bf_list);
+	ATH_TX_UNLOCK(sc);
 
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL) {
-			ATH_TXBUF_LOCK(sc);
-			ath_returnbuf_head(sc, bf);
-			ATH_TXBUF_UNLOCK(sc);
-			break;
-		}
-		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		npkts ++;
+	/*
+	 * For now, the ath_tx_start() code sits behind the same lock;
+	 * worry about serialising this in a taskqueue later.
+	 */
+
+	ATH_TX_LOCK(sc);
+
+	/*
+	 * Attempt to transmit each frame.
+	 *
+	 * In the old code path - if a TX fragment fails, subsequent
+	 * fragments in that group would be aborted.
+	 *
+	 * It would be nice to chain together TX fragments in this
+	 * way so they can be aborted together.
+	 */
+	TAILQ_FOREACH_SAFE(bf, &txlist, bf_list, bf_next) {
 		/*
-		 * Check for fragmentation.  If this frame
-		 * has been broken up verify we have enough
-		 * buffers to send all the fragments so all
-		 * go out or none...
+		 * Clear, because we're going to reuse this
+		 * as a real ath_buf now
 		 */
-		TAILQ_INIT(&frags);
-		if ((m->m_flags & M_FRAG) &&
-		    !ath_txfrag_setup(sc, &frags, m, ni)) {
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: out of txfrag buffers\n", __func__);
-			sc->sc_stats.ast_tx_nofrag++;
-			ifp->if_oerrors++;
-			ath_freetx(m);
-			goto bad;
-		}
-		ifp->if_opackets++;
-	nextfrag:
+		ni = bf->bf_node;
+		m = bf->bf_m;
+
+		bf->bf_node = NULL;
+		bf->bf_m = NULL;
+
 		/*
-		 * Pass the frame to the h/w for transmission.
-		 * Fragmented frames have each frag chained together
-		 * with m_nextpkt.  We know there are sufficient ath_buf's
-		 * to send all the frags because of work done by
-		 * ath_txfrag_setup.  We leave m_nextpkt set while
-		 * calling ath_tx_start so it can use it to extend the
-		 * the tx duration to cover the subsequent frag and
-		 * so it can reclaim all the mbufs in case of an error;
-		 * ath_tx_start clears m_nextpkt once it commits to
-		 * handing the frame to the hardware.
+		 * Remove it from the list.
 		 */
-		next = m->m_nextpkt;
+		TAILQ_REMOVE(&txlist, bf, bf_list);
+
+		/*
+		 * If we fail, free this buffer and go to the next one;
+		 * ath_tx_start() frees the mbuf but not the node
+		 * reference.
+		 */
 		if (ath_tx_start(sc, ni, bf, m)) {
-	bad:
+			/*
+			 * XXX m is freed by ath_tx_start(); node reference
+			 * is not!
+			 */
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: failed; bf=%p, ni=%p, m=%p\n",
+			    __func__,
+			    bf,
+			    ni,
+			    m);
 			ifp->if_oerrors++;
-	reclaim:
 			bf->bf_m = NULL;
 			bf->bf_node = NULL;
 			ATH_TXBUF_LOCK(sc);
 			ath_returnbuf_head(sc, bf);
-			ath_txfrag_cleanup(sc, &frags, ni);
 			ATH_TXBUF_UNLOCK(sc);
 			/*
 			 * XXX todo, free the node outside of
@@ -2633,37 +2923,84 @@ ath_start(struct ifnet *ifp)
 			 */
 			if (ni != NULL)
 				ieee80211_free_node(ni);
-			continue;
+		} else {
+			/*
+			 * Check here if the node is in power save state.
+			 * XXX we should hold a node ref here, and release
+			 * it after the TX has completed.
+			 */
+			ath_tx_update_tim(sc, ni, 1);
+			ifp->if_opackets++;
 		}
 
 		/*
-		 * Check here if the node is in power save state.
+		 * XXX should check for state change and flip out
+		 * if needed.
 		 */
-		ath_tx_update_tim(sc, ni, 1);
+	}
+	ATH_TX_UNLOCK(sc);
 
-		if (next != NULL) {
-			/*
-			 * Beware of state changing between frags.
-			 * XXX check sta power-save state?
-			 */
-			if (ni->ni_vap->iv_state != IEEE80211_S_RUN) {
-				DPRINTF(sc, ATH_DEBUG_XMIT,
-				    "%s: flush fragmented packet, state %s\n",
-				    __func__,
-				    ieee80211_state_name[ni->ni_vap->iv_state]);
-				ath_freetx(next);
-				goto reclaim;
-			}
-			m = next;
-			bf = TAILQ_FIRST(&frags);
-			KASSERT(bf != NULL, ("no buf for txfrag"));
-			TAILQ_REMOVE(&frags, bf, bf_list);
-			goto nextfrag;
+	/*
+	 * If we break out early (eg a state change) we should prepend these
+	 * frames onto the TX queue.
+	 */
+}
+
+/*
+ * This is now primarily used by the net80211 layer to kick-start
+ * queue processing.
+ */
+void
+ath_start(struct ifnet *ifp)
+{
+	struct mbuf *m;
+	struct ath_softc *sc = ifp->if_softc;
+	struct ieee80211_node *ni;
+	int npkts = 0;
+
+	ATH_TX_UNLOCK_ASSERT(sc);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
+		return;
+
+	/*
+	 * If we're below the free buffer limit, don't dequeue anything.
+	 * The original code would not dequeue anything from the queue
+	 * if allocating an ath_buf failed.
+	 *
+	 * For if_transmit, we have to either queue or drop the frame.
+	 * So we have to try and queue it _somewhere_.
+	 */
+	for (;;) {
+		IFQ_DEQUEUE(&ifp->if_snd, m);
+		if (m == NULL) {
+			break;
 		}
 
-		sc->sc_wd_timer = 5;
+		/*
+		 * If we do fail here, just break out for now
+		 * and wait until we've transmitted something
+		 * before we attempt again?
+		 */
+		if (ath_txq_qadd(ifp, m) < 0) {
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: ath_txq_qadd failed\n",
+			    __func__);
+			ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+			if (ni != NULL)
+				ieee80211_free_node(ni);
+			ath_freetx(m);
+			break;
+		}
+		npkts++;
 	}
-	ATH_KTR(sc, ATH_KTR_TX, 1, "ath_start: finished; npkts=%d", npkts);
+
+	/*
+	 * Kick the taskqueue into activity, but only if we
+	 * queued something.
+	 */
+	if (npkts > 0)
+		ath_tx_kick(sc);
 }
 
 static int
