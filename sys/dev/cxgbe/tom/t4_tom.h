@@ -140,15 +140,6 @@ struct flowc_tx_params {
 #define	DDP_LOW_SCORE	1
 #define	DDP_HIGH_SCORE	3
 
-static inline void
-set_tcpddp_ulp_mode(struct toepcb *toep)
-{
-
-	toep->ulp_mode = ULP_MODE_TCPDDP;
-	toep->ddp_flags = DDP_OK;
-	toep->ddp_score = DDP_LOW_SCORE;
-}
-
 /*
  * Compressed state for embryonic connections for a listener.  Barely fits in
  * 64B, try not to grow it further.
@@ -234,6 +225,7 @@ int select_rcv_wscale(void);
 uint64_t calc_opt0(struct socket *, struct port_info *, struct l2t_entry *,
     int, int, int, int);
 uint32_t select_ntuple(struct port_info *, struct l2t_entry *, uint32_t);
+void set_tcpddp_ulp_mode(struct toepcb *);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(struct adapter *);
