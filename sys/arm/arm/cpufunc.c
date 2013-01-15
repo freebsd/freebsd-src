@@ -1146,7 +1146,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	/* Other functions */
 	
 	cpufunc_nullop,                 /* flush_prefetchbuf    */
-	arm11_drain_writebuf,           /* drain_writebuf       */
+	armv7_drain_writebuf,           /* drain_writebuf       */
 	cpufunc_nullop,                 /* flush_brnchtgt_C     */
 	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 	
@@ -1157,7 +1157,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	cpufunc_null_fixup,             /* dataabt_fixup        */
 	cpufunc_null_fixup,             /* prefetchabt_fixup    */
 	
-	arm11_context_switch,           /* context_switch       */
+	armv7_context_switch,           /* context_switch       */
 	
 	cortexa_setup                     /* cpu setup            */
 };
