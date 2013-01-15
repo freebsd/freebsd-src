@@ -1351,10 +1351,11 @@ static int
 ata_raid_read_metadata(device_t subdisk)
 {
     devclass_t pci_devclass = devclass_find("pci");
+    devclass_t atapci_devclass = devclass_find("atapci");
     devclass_t devclass=device_get_devclass(GRANDPARENT(GRANDPARENT(subdisk)));
 
     /* prioritize vendor native metadata layout if possible */
-    if (devclass == pci_devclass) {
+    if (devclass == pci_devclass || devclass == atapci_devclass) {
 	switch (pci_get_vendor(GRANDPARENT(device_get_parent(subdisk)))) {
 	case ATA_HIGHPOINT_ID: 
 	    if (ata_raid_hptv3_read_meta(subdisk, ata_raid_arrays))
