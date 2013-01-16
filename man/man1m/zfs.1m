@@ -25,6 +25,7 @@
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
 .\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright 2012 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\"
 .TH ZFS 1M "Sep 16, 2012"
 .SH NAME
@@ -912,7 +913,7 @@ Changing this property affects only newly-written data.
 .ne 2
 .na
 \fB\fBcompression\fR=\fBon\fR | \fBoff\fR | \fBlzjb\fR | \fBgzip\fR |
-\fBgzip-\fR\fIN\fR | \fBzle\fR\fR
+\fBgzip-\fR\fIN\fR | \fBzle\fR\fR | \fBlz4\fR
 .ad
 .sp .6
 .RS 4n
@@ -925,6 +926,14 @@ value \fBgzip-\fR\fIN\fR where \fIN\fR is an integer from 1 (fastest) to 9
 (best compression ratio). Currently, \fBgzip\fR is equivalent to \fBgzip-6\fR
 (which is also the default for \fBgzip\fR(1)). The \fBzle\fR compression
 algorithm compresses runs of zeros.
+.sp
+The \fBlz4\fR compression algorithm is a high-performance replacement
+for the \fBlzjb\fR algorithm. It features significantly faster
+compression and decompression, as well as a moderately higher
+compression ratio than \fBlzjb\fR, but can only be used on pools with
+the \fBlz4_compress\fR feature set to \fIenabled\fR. See
+\fBzpool-features\fR(5) for details on ZFS feature flags and the
+\fBlz4_compress\fR feature.
 .sp
 This property can also be referred to by its shortened column name
 \fBcompress\fR. Changing this property affects only newly-written data.
