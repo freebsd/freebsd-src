@@ -62,7 +62,7 @@ MROFF_CMD?=	groff -Tascii -mtty-char -man -t
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
 
-SECTIONS=	1 1aout 2 3 4 5 6 7 8 9
+SECTIONS=	1 2 3 4 5 6 7 8 9
 .SUFFIXES:	${SECTIONS:S/^/./g}
 
 # Backwards compatibility.
