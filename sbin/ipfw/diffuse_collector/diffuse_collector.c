@@ -889,8 +889,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 					c->cname[DI_MAX_NAME_STR_LEN - 1] =
 					    '\0';
 					offs += strlen(c->cname) + 1;
-					c->class =
-					    ntohs(*((uint16_t *)(rb + offs)));
+					c->class = be16toh(be16dec(rb + offs));
 					offs += sizeof(uint16_t);
 					SLIST_INSERT_HEAD(&n->flow_classes, c,
 					    next);
@@ -903,33 +902,33 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 		} else {
 			switch(t->fields[i].id) {
 			case DIP_IE_SRC_IPV4:
-				n->id.src_ip = *((uint32_t *)(rb + offs));
+				n->id.src_ip = be32dec(rb + offs);
 				n->id.addr_type = 4;
 				break;
 
 			case DIP_IE_DST_IPV4:
-				n->id.dst_ip = *((uint32_t *)(rb + offs));
+				n->id.dst_ip = be32dec(rb + offs);
 				n->id.addr_type = 4;
 				break;
 
 			case DIP_IE_SRC_PORT:
-				n->id.src_port = ntohs(*((uint16_t *)(rb + offs)));
+				n->id.src_port = be16toh(be16dec(rb + offs));
 				break;
 
 			case DIP_IE_DST_PORT:
-				n->id.dst_port = ntohs(*((uint16_t *)(rb + offs)));
+				n->id.dst_port = be16toh(be16dec(rb + offs));
 				break;
 
 			case DIP_IE_PROTO:
-				n->id.proto = *((uint8_t *)(rb + offs));
+				n->id.proto = *(rb + offs);
 				break;
 
 			case DIP_IE_TIMEOUT_TYPE:
-				n->expire_type = *((uint8_t *)(rb + offs));
+				n->expire_type = *(rb + offs);
 				break;
 
 			case DIP_IE_TIMEOUT:
-				n->expire = ntohs(*((uint16_t *)(rb + offs)));
+				n->expire = be16toh(be16dec(rb + offs));
 				break;
 
 			case DIP_IE_EXPORT_NAME:
@@ -945,7 +944,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 				break;
 
 			case DIP_IE_ACTION_FLAGS:
-				n->rtype = ntohs(*((uint16_t *)(rb + offs)));
+				n->rtype = be16toh(be16dec(rb + offs));
 				break;
 
 			case DIP_IE_ACTION_PARAMS:
@@ -955,7 +954,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 				break;
 
 			case DIP_IE_MSG_TYPE:
-				type = *((uint8_t *)(rb + offs));
+				type = *(rb + offs);
 				break;
 			}
 
@@ -1081,8 +1080,8 @@ parse_msg(struct class_node *cnode, char *buf, fd_set *rset, int *max_fd)
 				while (offs - toffs < ntohs(shdr->set_len) -
 				    sizeof(struct dip_set_header) -
 				    sizeof(struct dip_templ_header)) {
-					r->fields[r->fcnt].id = ntohs(
-					    *((uint16_t *)(buf + offs)));
+					r->fields[r->fcnt].id =
+					    be16toh(be16dec(buf + offs));
 					offs += sizeof(uint16_t);
 					info = diffuse_proto_get_info(
 					    r->fields[r->fcnt].id);
@@ -1090,8 +1089,7 @@ parse_msg(struct class_node *cnode, char *buf, fd_set *rset, int *max_fd)
 					r->fields[r->fcnt].len = info.len;
 					if (r->fields[r->fcnt].len == 0) {
 						r->fields[r->fcnt].len =
-						    ntohs(*((uint16_t *)(buf +
-						    offs)));
+						    be16toh(be16dec(buf + offs));
 						offs += sizeof(uint16_t);
 					}
 					r->fcnt++;
