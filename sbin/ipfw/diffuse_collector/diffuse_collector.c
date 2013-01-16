@@ -1505,7 +1505,7 @@ parse_config_file(char *cfpath)
 				errx(EX_CONFIG, "invalid section format");
 			p[strlen(p) - 1] = '\0'; /* Remove trailing ']'. */
 
-			for (i = 0, cursection = -1; i < NUM_INI_SECTIONS;
+			for (i = 0, cursection = -1; i < (int)NUM_INI_SECTIONS;
 			    i++) {
 				if (strcmp(p, config_sections[i]) == 0) {
 					cursection = i;
