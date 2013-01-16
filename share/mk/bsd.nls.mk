@@ -30,7 +30,7 @@ GENCAT?=	gencat
 .msg.cat:
 	${GENCAT} ${.TARGET} ${.IMPSRC}
 
-.if defined(NLS) && !empty(NLS) && ${MK_NLS} != "no"
+.if defined(NLS) && !empty(NLS) && ${MK_NLS} != "no" && !defined(LIBRARIES_ONLY)
 
 #
 # .msg file pre-build rules

@@ -22,6 +22,7 @@ CFLAGS+= -I${.CURDIR} -I${CONTRDIR}
 
 WARNS?=		3
 
+.if !defined(LIBRARIES_ONLY)
 CLEANFILES+=	magic magic.mgc
 
 FILES=		magic magic.mgc
@@ -52,5 +53,6 @@ ${mp}: ${mp:C/[0-9]/man/}
 		-e 's/__VERSION__/${FILEVER}/g' \
 		-e 's,__MAGIC__,${MAGICPATH}/magic,g' ${.ALLSRC} > ${.TARGET}
 .endfor
+.endif
 
 .include <bsd.lib.mk>

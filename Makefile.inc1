@@ -339,6 +339,7 @@ LIB32WMAKEFLAGS+=	\
 		CXX="${CXX} ${LIB32FLAGS}" \
 		DESTDIR=${LIB32TMP} \
 		-DCOMPAT_32BIT \
+		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
 		-DNO_CTF \
 		-DNO_LINT
@@ -351,8 +352,16 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 
 .if defined(NO_ROOT)
 METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
+.if !defined(DISTDIR) 
+INSTALL_DDIR=	/${DESTDIR}
+.elif defined(DESTDIR) && ${DESTDIR:M${DISTDIR}$$}
+# Avoid adding ${DISTDIR} again when called recursively
+INSTALL_DDIR=	${DESTDIR}
+.else
 INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
-INSTALLFLAGS=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g}
+.endif
+# XXX: Removing DISTBASE for recursive calls during distributeworld
+INSTALLFLAGS=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g:S:${DISTBASE}$$::}
 MTREEFLAGS=	-W
 .endif
 
@@ -366,6 +375,9 @@ IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
 .else
 IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
+.endif
+.if defined(NO_ROOT)
+IMAKE+=		-DNO_ROOT METALOG=${METALOG}
 .endif
 .if defined(DB_FROM_SRC)
 IMAKE_INSTALL=	INSTALL="install -N ${.CURDIR}/etc ${INSTALLFLAGS}"
@@ -725,26 +737,35 @@ distributeworld installworld: installcheck
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.if defined(NO_ROOT)
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
+	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
+	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
+	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
+.endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
-	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/base
+	${_+_}cd ${.CURDIR}; ${IMAKE} DISTBASE=/base \
+	    DESTDIR=${DESTDIR}/${DISTDIR}/base distrib-dirs
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
-.endfor
 .if defined(NO_ROOT)
-.for dist in base ${EXTRA_DISTRIBUTIONS}
-	#echo "#mtree 2.0" > ${DESTDIR}/${DISTDIR}/${dist}.meta
-	#grep ./${dist}/ ${METALOG} | sed -e s#^./${dist}/#./# >> \
-	#    ${DESTDIR}/${DISTDIR}/${dist}.meta
-	awk 'BEGIN { print "#mtree 2.0" } /^\.\/${dist}\// {sub(/^\.\/${dist}\//, "./"); print}' < \
-	    ${METALOG} > ${DESTDIR}/${DISTDIR}/${dist}.meta
-.endfor
+	@# For each file that exists in this dist, print the corresponding
+	@# line from the METALOG.  This relies on the fact that
+	@# a line containing only the filename will sort immediatly before
+	@# the relevent mtree line.
+	cd ${DESTDIR}/${DISTDIR}; \
+	find ./${dist} | sort -u ${METALOG} - | \
+	awk 'BEGIN { print "#mtree 2.0" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	${DESTDIR}/${DISTDIR}/${dist}.meta
 .endif
+.endfor
 .endif
 
 packageworld:
@@ -792,8 +813,10 @@ redistribute:
 .endif
 
 distrib-dirs distribution:
+	echo ====== ${DESTDIR}
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    ${IMAKE_INSTALL} ${.TARGET}
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} DISTBASE=${DISTBASE} \
+	    METALOG=${METALOG} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -1275,11 +1298,12 @@ cross-tools:
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier:
-	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
-.for _mtree in ${LOCAL_MTREE}
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/${_mtree} \
-	    -p ${DESTDIR}/
-.endfor
+.if defined(NO_ROOT)
+	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} \
+	    -DNO_ROOT METALOG=${METALOG} distrib-dirs
+.else
+	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
+.endif
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
