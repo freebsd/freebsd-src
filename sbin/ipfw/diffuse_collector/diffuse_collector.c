@@ -90,7 +90,7 @@ __FBSDID("$FreeBSD$");
 static const char *usage = "Usage: diffuse_collector [-hnv] "
     "[-c <collector-config>] [-s <sctp-port>] [-t <tcp-port>] [-u <udp-port>]";
 
-static char *config_sections[] = {
+static const char *config_sections[] = {
 #define	INI_SECTION_GENERAL		0
 	"general",
 #define	INI_SECTION_CLASSACTIONS	1
@@ -444,7 +444,7 @@ exec(char *command)
 	FILE *f;
 
 	if (config.no_fw)
-		command = "test";
+		command = (char *)"test";
 	if (config.verbose)
 		printf("Executing shell command: %s\n", command);
 	f = popen(command, "r");
