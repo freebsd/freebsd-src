@@ -351,7 +351,8 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 
 .if defined(NO_ROOT)
 METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
-INSTALLFLAGS=	-U -M ${METALOG} -D ${DESTDIR}
+INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
+INSTALLFLAGS=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g}
 MTREEFLAGS=	-W
 .endif
 
@@ -667,7 +668,7 @@ _zoneinfo=	zic tzsetup xargs
 .endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
-	date echo egrep find grep id ${_install-info} \
+	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	test true uname wc ${_zoneinfo}
 
@@ -712,7 +713,9 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
-	rm -f ${METALOG}
+.if defined(NO_ROOT)
+	echo "#mtree v2.0" > ${METALOG}
+.endif
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
@@ -733,12 +736,27 @@ distributeworld installworld: installcheck
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
 .endfor
+.if defined(NO_ROOT)
+.for dist in base ${EXTRA_DISTRIBUTIONS}
+	#echo "#mtree 2.0" > ${DESTDIR}/${DISTDIR}/${dist}.meta
+	#grep ./${dist}/ ${METALOG} | sed -e s#^./${dist}/#./# >> \
+	#    ${DESTDIR}/${DISTDIR}/${dist}.meta
+	awk 'BEGIN { print "#mtree 2.0" } /^\.\/${dist}\// {sub(/^\.\/${dist}\//, "./"); print}' < \
+	    ${METALOG} > ${DESTDIR}/${DISTDIR}/${dist}.meta
+.endfor
+.endif
 .endif
 
 packageworld:
 .for dist in base ${EXTRA_DISTRIBUTIONS}
+.if defined(NO_ROOT)
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
+	    @${DESTDIR}/${DISTDIR}/${dist}.meta
+.else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz .
+.endif
 .endfor
 
 #
