@@ -1286,12 +1286,12 @@ init_cnode(struct class_node *cnode)
 }
 
 static void
-parse_rule_nos(char *optarg)
+parse_rule_nos(char *oparg)
 {
 	char tmp[128];
 	char *errptr, *p;
 
-	strncpy(tmp, optarg, sizeof(tmp));
+	strncpy(tmp, oparg, sizeof(tmp));
 	p = strstr(tmp, "-");
 
 	if (p != NULL) {
