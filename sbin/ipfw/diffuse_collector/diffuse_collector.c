@@ -286,7 +286,7 @@ struct di_collector_config {
 	char	cli_get_rule_counters[1024];	/* Shell command to execute
 						 * to get the required rule
 						 * counters. */
-	struct sockaddr *classifiers;		/* Details for classifiers. */
+	struct sockaddr_storage *classifiers;	/* Details for classifiers. */
 	int	num_classifiers;		/* Size of classifiers array. */
 	int	min_rule_no;			/* Minimum rule number available
 						 * for use by colelctor. */
@@ -311,7 +311,7 @@ static int stop;
 static void
 print_collector_config(struct di_collector_config *conf)
 {
-	struct sockaddr *cdetails;
+	struct sockaddr_storage *cdetails;
 	int i;
 
 	printf("%-25s %s\n", "Config file path", conf->cfpath);
@@ -1421,7 +1421,7 @@ parse_classaction_config(int line_no, char *key, char *value)
 static void
 parse_general_config(int line_no, char *key, char *value)
 {
-	struct sockaddr *cdetails;
+	struct sockaddr_storage *cdetails;
 	char *errstr, *ip, *port;
 	int nclassifiers;
 
@@ -1446,7 +1446,7 @@ parse_general_config(int line_no, char *key, char *value)
 				errx(EX_CONFIG, "can't parse IP address: %s",
 				    ip);
 			}
-			cdetails->sa_family = AF_INET;
+			cdetails->ss_family = AF_INET;
 
 			if (port != NULL) {
 				((struct sockaddr_in *)cdetails)->sin_port =
@@ -1874,7 +1874,7 @@ request_classifier_state()
 	struct dip_header *hdr;
 	struct dip_set_header *shdr;
 	struct dip_templ_header *thdr;
-	struct sockaddr *cdetails;
+	struct sockaddr_storage *cdetails;
 	char reqstatepkt[64];
 	int i, offs, ret, tmpsock;
 
@@ -1928,7 +1928,8 @@ request_classifier_state()
 			continue;
 		}
 
-		ret = connect(tmpsock, cdetails, cdetails->sa_family == AF_INET ?
+		ret = connect(tmpsock, (struct sockaddr *)cdetails,
+		    cdetails->ss_family == AF_INET ?
 		    sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
 		if (ret != 0) {
 			printf("WARNING: Unable to connect to classifier "
