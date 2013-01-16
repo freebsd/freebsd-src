@@ -141,5 +141,6 @@ main(int argc, char *argv[])
 		nleft -= n;
 	}
 
+	free(e);
 	return 0;
 }
