@@ -40,43 +40,39 @@ __FBSDID("$FreeBSD$");
 #define	A10_UART_BASE	0xe1c28000 	/* UART0 */
 #endif
 
-int reg_shift = 2;
+#define	REG_SHIFT	2
 
-#define UART_DLL        0       /* Out: Divisor Latch Low */
-#define UART_DLM        1       /* Out: Divisor Latch High */
-#define UART_FCR        2       /* Out: FIFO Control Register */
-#define UART_LCR        3       /* Out: Line Control Register */
-#define UART_MCR        4       /* Out: Modem Control Register */
-#define UART_LSR        5       /* In:  Line Status Register */
-#define UART_LSR_THRE   0x20    /* Transmit-hold-register empty */
-#define UART_LSR_DR     0x01    /* Receiver data ready */
-#define UART_MSR        6       /* In:  Modem Status Register */
-#define UART_SCR        7       /* I/O: Scratch Register */
+#define	UART_DLL	0	/* Out: Divisor Latch Low */
+#define	UART_DLM	1	/* Out: Divisor Latch High */
+#define	UART_FCR	2	/* Out: FIFO Control Register */
+#define	UART_LCR	3	/* Out: Line Control Register */
+#define	UART_MCR	4	/* Out: Modem Control Register */
+#define	UART_LSR	5	/* In:  Line Status Register */
+#define	UART_LSR_THRE	0x20	/* Transmit-hold-register empty */
+#define	UART_LSR_DR	0x01	/* Receiver data ready */
+#define	UART_MSR	6	/* In:  Modem Status Register */
+#define	UART_SCR	7	/* I/O: Scratch Register */
 
-
-/*
- * uart related funcs
- */
-static u_int32_t
-uart_getreg(u_int32_t *bas)
+static uint32_t
+uart_getreg(uint32_t *bas)
 {
-	return *((volatile u_int32_t *)(bas)) & 0xff;
+	return *((volatile uint32_t *)(bas)) & 0xff;
 }
 
 static void
-uart_setreg(u_int32_t *bas, u_int32_t val)
+uart_setreg(uint32_t *bas, uint32_t val)
 {
-	*((volatile u_int32_t *)(bas)) = (u_int32_t)val;
+	*((volatile uint32_t *)(bas)) = val;
 }
 
 static int
 ub_getc(void)
 {
-	while ((uart_getreg((u_int32_t *)(A10_UART_BASE + 
-	    (UART_LSR << reg_shift))) & UART_LSR_DR) == 0);
+	while ((uart_getreg((uint32_t *)(A10_UART_BASE + 
+	    (UART_LSR << REG_SHIFT))) & UART_LSR_DR) == 0);
 		__asm __volatile("nop");
 
-	return (uart_getreg((u_int32_t *)A10_UART_BASE) & 0xff);
+	return (uart_getreg((uint32_t *)A10_UART_BASE) & 0xff);
 }
 
 static void
@@ -85,11 +81,11 @@ ub_putc(unsigned char c)
 	if (c == '\n')
 		ub_putc('\r');
 
-	while ((uart_getreg((u_int32_t *)(A10_UART_BASE + 
-	    (UART_LSR << reg_shift))) & UART_LSR_THRE) == 0)
+	while ((uart_getreg((uint32_t *)(A10_UART_BASE + 
+	    (UART_LSR << REG_SHIFT))) & UART_LSR_THRE) == 0)
 		__asm __volatile("nop");
 
-	uart_setreg((u_int32_t *)A10_UART_BASE, c);
+	uart_setreg((uint32_t *)A10_UART_BASE, c);
 }
 
 static cn_probe_t	uart_cnprobe;
@@ -121,8 +117,8 @@ uart_cnprobe(struct consdev *cp)
 static void
 uart_cninit(struct consdev *cp)
 {
-	uart_setreg((u_int32_t *)(A10_UART_BASE + 
-	    (UART_FCR << reg_shift)), 0x06);
+	uart_setreg((uint32_t *)(A10_UART_BASE + 
+	    (UART_FCR << REG_SHIFT)), 0x06);
 }
 
 void
