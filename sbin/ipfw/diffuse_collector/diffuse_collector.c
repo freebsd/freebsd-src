@@ -1125,7 +1125,8 @@ parse_msg(struct class_node *cnode, char *buf, fd_set *rset, int *max_fd)
 }
 
 static void
-handle_msg(struct class_node *s, char *buf, int n, fd_set *rset, int *max_fd)
+handle_msg(struct class_node *s, char *buf, int n __unused, fd_set *rset,
+    int *max_fd)
 {
 #ifdef DIFFUSE_DEBUG2
 	int i;
@@ -1325,7 +1326,7 @@ parse_rule_nos(char *optarg)
 }
 
 static void
-parse_firewall_config(int line_no, char *key, char *value)
+parse_firewall_config(int line_no __unused, char *key, char *value)
 {
 
 	if (strcmp(key, "exec") == 0) {
@@ -1362,7 +1363,7 @@ parse_firewall_config(int line_no, char *key, char *value)
 }
 
 static void
-parse_classaction_config(int line_no, char *key, char *value)
+parse_classaction_config(int line_no __unused, char *key, char *value)
 {
 	struct class_action *classact;
 	char *action, *action_params, *class, *cnode, *errstr;
@@ -1417,7 +1418,7 @@ parse_classaction_config(int line_no, char *key, char *value)
 }
 
 static void
-parse_general_config(int line_no, char *key, char *value)
+parse_general_config(int line_no __unused, char *key, char *value)
 {
 	struct sockaddr_storage *cdetails;
 	char *errstr, *ip, *port;
@@ -1952,7 +1953,7 @@ request_classifier_state()
 
 /* run() will terminate when stop is set to 1. */
 static void
-sigint_handler(int i)
+sigint_handler(int i __unused)
 {
 
 	stop = 1;
