@@ -102,7 +102,7 @@ struct dip_info_descr {
 	uint16_t	idx;
 	uint16_t	id;
 	int16_t		len; /* Length in bytes, 0/-1 = var/dynamic length. */
-	char		*name;
+	const char	*name;
 };
 
 struct dip_header {
