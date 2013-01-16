@@ -854,7 +854,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 {
 	struct flow_class *c;
 	struct rule_entry *n, *prev, *r;
-	int dlen, i, offs, toffs, type;
+	int dlen, i, offs, type;
 
 	offs = 0;
 	type = -1;
@@ -878,7 +878,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 
 			switch(t->fields[i].idx) {
 			case DIP_IE_CLASSES:
-				while (offs - toffs < dlen - 1) {
+				while (offs < dlen - 1) {
 					c = (struct flow_class *)malloc(
 					    sizeof(struct flow_class));
 					if (c == NULL)
