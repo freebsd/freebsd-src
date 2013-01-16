@@ -245,7 +245,7 @@ static RB_PROTOTYPE(class_action_head, class_action, node,
 static RB_GENERATE(class_action_head, class_action, node, class_action_compare);
 
 static struct class_action_head class_actions;
-static struct class_action def_action = { "", 0, "count", "" };
+static struct class_action def_action = { .action = "count" };
 
 struct pair {
 	char	token[32];
