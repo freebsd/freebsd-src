@@ -610,7 +610,7 @@ hash_packet(struct ipfw_flow_id *id)
 }
 
 /* Find rule in hash table. */
-struct rule_entry *
+static struct rule_entry *
 find_rule(struct ipfw_flow_id *f, struct rule_entry **prev)
 {
 	struct rule_entry *_prev, *q;
