@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2009
+.Dd Jan 10, 2013
 .Dt NDP 8
 .Os
 .\"
@@ -201,6 +201,15 @@ For more details about the entire algorithm of source address
 selection, see the
 .Pa IMPLEMENTATION
 file supplied with the KAME kit.
+.It Ic no_prefer_iface
+The address on the outgoing interface is preferred by source addess
+selection rule.
+If this flag is set, stop treating the address on the
+.Ar interface
+as special even when the
+.Ar interface
+is outgoing interface.
+The default value of this flag is off.
 .It Ic disabled
 Disable IPv6 operation on the interface.
 When disabled, the interface discards any IPv6 packets
