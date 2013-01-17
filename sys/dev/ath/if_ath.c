@@ -1883,11 +1883,19 @@ ath_bmiss_proc(void *arg, int pending)
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: pending %u\n", __func__, pending);
 
+	/*
+	 * Do a reset upon any becaon miss event.
+	 *
+	 * It may be a non-recognised RX clear hang which needs a reset
+	 * to clear.
+	 */
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
-		if_printf(ifp, "bb hang detected (0x%x), resetting\n", hangs);
 		ath_reset(ifp, ATH_RESET_NOLOSS);
-	} else
+		if_printf(ifp, "bb hang detected (0x%x), resetting\n", hangs);
+	} else {
+		ath_reset(ifp, ATH_RESET_NOLOSS);
 		ieee80211_beacon_miss(ifp->if_l2com);
+	}
 }
 
 /*
@@ -5056,6 +5064,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	int i, error, stamode;
 	u_int32_t rfilt;
 	int csa_run_transition = 0;
+
 	static const HAL_LED_STATE leds[] = {
 	    HAL_LED_INIT,	/* IEEE80211_S_INIT */
 	    HAL_LED_SCAN,	/* IEEE80211_S_SCAN */
@@ -5200,10 +5209,32 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * force a beacon update so we pick up a lack of
 			 * beacons from an AP in CAC and thus force a
 			 * scan.
+			 *
+			 * And, there's also corner cases here where
+			 * after a scan, the AP may have disappeared.
+			 * In that case, we may not receive an actual
+			 * beacon to update the beacon timer and thus we
+			 * won't get notified of the missing beacons.
 			 */
 			sc->sc_syncbeacon = 1;
+#if 0
 			if (csa_run_transition)
+#endif
 				ath_beacon_config(sc, vap);
+
+			/*
+			 * PR: kern/175227
+			 *
+			 * Reconfigure beacons during reset; as otherwise
+			 * we won't get the beacon timers reprogrammed
+			 * after a reset and thus we won't pick up a
+			 * beacon miss interrupt.
+			 *
+			 * Hopefully we'll see a beacon before the BMISS
+			 * timer fires (too often), leading to a STA
+			 * disassociation.
+			 */
+			sc->sc_beacons = 1;
 			break;
 		case IEEE80211_M_MONITOR:
 			/*
