@@ -118,7 +118,6 @@ struct class_node {
 LIST_HEAD(class_node_head, class_node);
 static struct class_node_head cnodes; /* Accepted TCP or SCTP clients. */
 static struct class_node_head mains; /* Main ports (max one for each proto). */
-static int cnode_cnt;
 
 /* List of flow classes per flow entry. */
 struct flow_class {
