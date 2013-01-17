@@ -245,6 +245,8 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	l = sc->rl_ldata.rl_rx_prodidx; /* next pkt to check */
 	j = netmap_idx_n2k(kring, l); /* the kring index */
 	if (netmap_no_pendintr || force_update) {
+		uint16_t slot_flags = kring->nkr_slot_flags;
+
 		for (n = kring->nr_hwavail; n < lim ; n++) {
 			struct rl_desc *cur_rx = &sc->rl_ldata.rl_rx_list[l];
 			uint32_t rxstat = le32toh(cur_rx->rl_cmdstat);
@@ -256,6 +258,7 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			/* XXX subtract crc */
 			total_len = (total_len < 4) ? 0 : total_len - 4;
 			kring->ring->slot[j].len = total_len;
+			kring->ring->slot[j].flags = slot_flags;
 			/*  sync was in re_newbuf() */
 			bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag,
 			    rxd[l].rx_dmamap, BUS_DMASYNC_POSTREAD);
