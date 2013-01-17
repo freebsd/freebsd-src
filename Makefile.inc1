@@ -717,7 +717,7 @@ distributeworld installworld: installcheck
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
 	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/base
+	    LOCAL_MTREE=${LOCAL_MTREE} DESTDIR=${DESTDIR}/${DISTDIR}/base
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
@@ -1248,11 +1248,7 @@ cross-tools:
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier:
-	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
-.for _mtree in ${LOCAL_MTREE}
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/${_mtree} \
-	    -p ${DESTDIR}/
-.endfor
+	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
