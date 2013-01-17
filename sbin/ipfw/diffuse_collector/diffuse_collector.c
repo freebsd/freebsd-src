@@ -1588,7 +1588,7 @@ add_main(int proto, char *port)
 
 /* Returns 0 on failure. */
 static int
-parse_rule_counters(char *buf, int64_t *rule_counters)
+parse_rule_counters(char *buf, uint64_t *rule_counters)
 {
 	const char *sep = ",";
 	char *tok, *endptr;
@@ -1599,7 +1599,7 @@ parse_rule_counters(char *buf, int64_t *rule_counters)
 	for (tok = strtok(buf, sep), count = 0;
 	    tok != NULL && count < NUM_RULE_COUNTERS;
 	    tok = strtok(NULL, sep), count++) {
-		rule_counters[count] = strtoll(tok, &endptr, 10);
+		rule_counters[count] = strtoull(tok, &endptr, 10);
 		if (rule_counters[count] == 0 && errno == EINVAL)
 			break;
 	}
@@ -1706,7 +1706,7 @@ process_fwaction_sockets(fd_set *rset, fd_set *_rset, int *max_fd, char *buf,
 {
 	struct fw_action *action, *tmp;
 	ssize_t nbytes;
-	int64_t rule_counters[NUM_RULE_COUNTERS];
+	uint64_t rule_counters[NUM_RULE_COUNTERS];
 	int fd;
 	uint16_t t;
 
