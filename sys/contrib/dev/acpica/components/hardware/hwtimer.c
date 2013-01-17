@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -203,10 +203,11 @@ AcpiGetTimerDuration (
     /*
      * Compute Duration (Requires a 64-bit multiply and divide):
      *
-     * TimeElapsed = (DeltaTicks * 1000000) / PM_TIMER_FREQUENCY;
+     * TimeElapsed (microseconds) =
+     *  (DeltaTicks * ACPI_USEC_PER_SEC) / ACPI_PM_TIMER_FREQUENCY;
      */
-    Status = AcpiUtShortDivide (((UINT64) DeltaTicks) * 1000000,
-                PM_TIMER_FREQUENCY, &Quotient, NULL);
+    Status = AcpiUtShortDivide (((UINT64) DeltaTicks) * ACPI_USEC_PER_SEC,
+                ACPI_PM_TIMER_FREQUENCY, &Quotient, NULL);
 
     *TimeElapsed = (UINT32) Quotient;
     return_ACPI_STATUS (Status);
