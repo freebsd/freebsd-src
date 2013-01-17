@@ -63,9 +63,6 @@
  *	This is tricky, much better to use TDH for now.
  */
 SYSCTL_DECL(_dev_netmap);
-static int ix_write_len;
-SYSCTL_INT(_dev_netmap, OID_AUTO, ix_write_len,
-    CTLFLAG_RW, &ix_write_len, 0, "write rx len");
 static int ix_rx_miss, ix_rx_miss_bufs, ix_use_dd, ix_crcstrip;
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
     CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
@@ -485,12 +482,8 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
-		/* XXX apparently the length field in advanced descriptors
-		 * does not include the CRC irrespective of the setting
-		 * of CRCSTRIP. The data sheets say differently.
-		 * Very strange.
-		 */
 		int crclen = ix_crcstrip ? 0 : 4;
+
 		l = rxr->next_to_check;
 		j = netmap_idx_n2k(kring, l);
 
@@ -501,8 +494,6 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			if ((staterr & IXGBE_RXD_STAT_DD) == 0)
 				break;
 			ring->slot[j].len = le16toh(curr->wb.upper.length) - crclen;
-			if (ix_write_len)
-				D("rx[%d] len %d", j, ring->slot[j].len);
 			bus_dmamap_sync(rxr->ptag,
 			    rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
 			j = (j == lim) ? 0 : j + 1;
