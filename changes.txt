@@ -1,8 +1,70 @@
 ----------------------------------------
-20 December 2012. Summary of changes for version 20121220:
+17 January 2013. Summary of changes for version 20130117:
 
-This release is available at https://www.acpica.org/downloads
-The ACPI 5.0 specification is available at www.acpi.info
+
+1) ACPICA Kernel-resident Subsystem:
+
+Updated the AcpiGetSleepTypeData interface: Allow the \_Sx methods to 
+return either 1 or 2 integers. Although the ACPI spec defines the \_Sx 
+objects to return a package containing one integer, most BIOS code returns 
+two integers and the previous code reflects that. However, we also need to 
+support BIOS code that actually implements to the ACPI spec, and this 
+change reflects this.
+
+Fixed two issues with the ACPI_DEBUG_PRINT macros:
+1) Added the ACPI_DO_WHILE macro to the main DEBUG_PRINT helper macro for 
+C compilers that require this support.
+2) Renamed the internal ACPI_DEBUG macro to ACPI_DO_DEBUG_PRINT since 
+ACPI_DEBUG is already used by many of the various hosts.
+
+Updated all ACPICA copyrights and signons to 2013. Added the 2013 
+copyright to all module headers and signons, including the standard Linux 
+header. This affects virtually every file in the ACPICA core subsystem, 
+iASL compiler, all ACPICA utilities, and the test suites.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  94.5K Code, 25.5K Data, 120.0K Total
+    Debug Version:     182.2K Code, 74.9K Data, 257.1K Total
+  Current Release:
+    Non-Debug Version:  94.5K Code, 25.4K Data, 119.9K Total
+    Debug Version:     182.3K Code, 75.0K Data, 257.3K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Generic Unix OSL: Use a buffer to eliminate multiple vfprintf()s and 
+prevent a possible fault on some hosts. Some C libraries modify the arg 
+pointer parameter to vfprintf making it difficult to call it twice in the 
+AcpiOsVprintf function. Use a local buffer to workaround this issue. This 
+does not affect the Windows OSL since the Win C library does not modify 
+the arg pointer. Chao Guan, Bob Moore.
+
+iASL: Fixed a possible infinite loop when the maximum error count is 
+reached. If an output file other than the .AML file is specified (such as 
+a listing file), and the maximum number of errors is reached, do not 
+attempt to flush data to the output file(s) as the compiler is aborting. 
+This can cause an infinite loop as the max error count code essentially 
+keeps calling itself.
+
+iASL/Disassembler: Added an option (-in) to ignore NOOP opcodes/operators. 
+Implemented for both the compiler and the disassembler. Often, the NOOP 
+opcode is used as padding for packages that are changed dynamically by the 
+BIOS. When disassembled and recompiled, these NOOPs will cause syntax 
+errors. This option causes the disassembler to ignore all NOOP opcodes 
+(0xA3), and it also causes the compiler to ignore all ASL source code NOOP 
+statements as well.
+
+Debugger: Enhanced the Sleep command to execute all sleep states. This 
+change allows Sleep to be invoked with no arguments and causes the 
+debugger to execute all of the sleep states, 0-5, automatically.
+
+----------------------------------------
+20 December 2012. Summary of changes for version 20121220:
 
 1) ACPICA Kernel-resident Subsystem:
 
@@ -87,9 +149,6 @@ been updated.
 
 ----------------------------------------
 14 November 2012. Summary of changes for version 20121114:
-
-This release is available at https://www.acpica.org/downloads
-The ACPI 5.0 specification is available at www.acpi.info
 
 1) ACPICA Kernel-resident Subsystem:
 

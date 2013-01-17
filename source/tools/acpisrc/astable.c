@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ ACPI_STRING_TABLE           StandardDataTypes[] = {
 
 char                        DualLicenseHeader[] =
 "/*\n"
-" * Copyright (C) 2000 - 2012, Intel Corp.\n"
+" * Copyright (C) 2000 - 2013, Intel Corp.\n"
 " * All rights reserved.\n"
 " *\n"
 " * Redistribution and use in source and binary forms, with or without\n"
@@ -820,11 +820,11 @@ ACPI_CONVERSION_TABLE       LicenseConversionTable = {
 ACPI_STRING_TABLE           CustomReplacements[] = {
 
 
+    {"(c) 1999 - 2012",     "(c) 1999 - 2013",         REPLACE_WHOLE_WORD}, /* Main ACPICA source */
+    {"(c) 2006 - 2012",     "(c) 2006 - 2013",         REPLACE_WHOLE_WORD}, /* Test suites */
+
 #if 0
     {"SUPPORT, ASSISTANCE", "SUPPORT, ASSISTANCE",     REPLACE_WHOLE_WORD}, /* Fix intel header */
-
-    {"(c) 1999 - 2012",     "(c) 1999 - 2012",         REPLACE_WHOLE_WORD}, /* Main ACPICA source */
-    {"(c) 2006 - 2012",     "(c) 2006 - 2012",         REPLACE_WHOLE_WORD}, /* Test suites */
 
     {"(ACPI_INTEGER)", "(UINT64)",   REPLACE_WHOLE_WORD},
     {"ACPI_INTEGER        ", "UINT64              ",   REPLACE_WHOLE_WORD},

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,6 +83,10 @@ AeTableOverride (
     ACPI_TABLE_HEADER       **NewTable);
 
 typedef void* (*PTHREAD_CALLBACK) (void *);
+
+/* Buffer used by AcpiOsVprintf */
+
+#define ACPI_VPRINTF_BUFFER_SIZE        512
 
 /* Apple-specific */
 
@@ -268,7 +272,8 @@ AcpiOsRedirectOutput (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Formatted output
+ * DESCRIPTION: Formatted output. Note: very similar to AcpiOsVprintf
+ *              (performance), changes should be tracked in both functions.
  *
  *****************************************************************************/
 
@@ -278,32 +283,6 @@ AcpiOsPrintf (
     ...)
 {
     va_list                 Args;
-
-
-    va_start (Args, Fmt);
-    AcpiOsVprintf (Fmt, Args);
-    va_end (Args);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsVprintf
- *
- * PARAMETERS:  fmt                 - Standard printf format
- *              args                - Argument list
- *
- * RETURN:      None
- *
- * DESCRIPTION: Formatted output with argument list pointer
- *
- *****************************************************************************/
-
-void
-AcpiOsVprintf (
-    const char              *Fmt,
-    va_list                 Args)
-{
     UINT8                   Flags;
 
 
@@ -316,7 +295,9 @@ AcpiOsVprintf (
         {
             /* Output file is open, send the output there */
 
+            va_start (Args, Fmt);
             vfprintf (AcpiGbl_DebugFile, Fmt, Args);
+            va_end (Args);
         }
         else
         {
@@ -328,7 +309,71 @@ AcpiOsVprintf (
 
     if (Flags & ACPI_DB_CONSOLE_OUTPUT)
     {
+        va_start (Args, Fmt);
         vfprintf (AcpiGbl_OutputFile, Fmt, Args);
+        va_end (Args);
+    }
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsVprintf
+ *
+ * PARAMETERS:  fmt                 - Standard printf format
+ *              args                - Argument list
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Formatted output with argument list pointer. Note: very
+ *              similar to AcpiOsPrintf, changes should be tracked in both
+ *              functions.
+ *
+ *****************************************************************************/
+
+void
+AcpiOsVprintf (
+    const char              *Fmt,
+    va_list                 Args)
+{
+    UINT8                   Flags;
+    char                    Buffer[ACPI_VPRINTF_BUFFER_SIZE];
+
+
+    /*
+     * We build the output string in a local buffer because we may be
+     * outputting the buffer twice. Using vfprintf is problematic because
+     * some implementations modify the args pointer/structure during
+     * execution. Thus, we use the local buffer for portability.
+     *
+     * Note: Since this module is intended for use by the various ACPICA
+     * utilities/applications, we can safely declare the buffer on the stack.
+     * Also, This function is used for relatively small error messages only.
+     */
+    vsnprintf (Buffer, ACPI_VPRINTF_BUFFER_SIZE, Fmt, Args);
+
+    Flags = AcpiGbl_DbOutputFlags;
+    if (Flags & ACPI_DB_REDIRECTABLE_OUTPUT)
+    {
+        /* Output is directable to either a file (if open) or the console */
+
+        if (AcpiGbl_DebugFile)
+        {
+            /* Output file is open, send the output there */
+
+            fputs (Buffer, AcpiGbl_DebugFile);
+        }
+        else
+        {
+            /* No redirection, send output to console (once only!) */
+
+            Flags |= ACPI_DB_CONSOLE_OUTPUT;
+        }
+    }
+
+    if (Flags & ACPI_DB_CONSOLE_OUTPUT)
+    {
+        fputs (Buffer, AcpiGbl_OutputFile);
     }
 }
 
@@ -929,7 +974,7 @@ AcpiOsSleep (
      * Sleep for remaining microseconds.
      * Arg to usleep() is in usecs and must be less than 1,000,000 (1 second).
      */
-    usleep ((milliseconds % ACPI_MSEC_PER_SEC) * ACPI_USEC_PER_MSEC); 
+    usleep ((milliseconds % ACPI_MSEC_PER_SEC) * ACPI_USEC_PER_MSEC);
 }
 
 

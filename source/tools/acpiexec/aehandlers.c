@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -696,7 +696,7 @@ AeInstallLateHandlers (
     {
         /* Install handler at the root object */
 
-        Status = AcpiInstallAddressSpaceHandler (AcpiGbl_RootNode,
+        Status = AcpiInstallAddressSpaceHandler (ACPI_ROOT_OBJECT,
                     SpaceIdList[i], AeRegionHandler,
                     AeRegionInit, &AeMyContext);
         if (ACPI_FAILURE (Status))
@@ -882,7 +882,7 @@ AeInstallEarlyHandlers (
     {
         /* Install handler at the root object */
 
-        Status = AcpiInstallAddressSpaceHandler (AcpiGbl_RootNode,
+        Status = AcpiInstallAddressSpaceHandler (ACPI_ROOT_OBJECT,
                     DefaultSpaceIdList[i], AeRegionHandler,
                     AeRegionInit, &AeMyContext);
         if (ACPI_FAILURE (Status))
