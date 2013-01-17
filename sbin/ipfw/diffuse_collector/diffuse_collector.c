@@ -1079,8 +1079,8 @@ parse_msg(struct class_node *cnode, char *buf, fd_set *rset, int *max_fd)
 				r->id = s.id;
 
 				while (offs - toffs < ntohs(shdr->set_len) -
-				    sizeof(struct dip_set_header) -
-				    sizeof(struct dip_templ_header)) {
+				    (int)sizeof(struct dip_set_header) -
+				    (int)sizeof(struct dip_templ_header)) {
 					r->fields[r->fcnt].id =
 					    be16toh(be16dec(buf + offs));
 					offs += sizeof(uint16_t);
@@ -1113,7 +1113,7 @@ parse_msg(struct class_node *cnode, char *buf, fd_set *rset, int *max_fd)
 				toffs = offs;
 
 				while (offs - toffs < ntohs(shdr->set_len) -
-				    sizeof(struct dip_set_header)) {
+				    (int)sizeof(struct dip_set_header)) {
 					offs += parse_rule(cnode, r, buf + offs,
 					    rset, max_fd);
 				}
