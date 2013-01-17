@@ -353,19 +353,14 @@ distrib-dirs:
 		    ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1; \
 	done
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		rm -rf "${DESTDIR}/usr/share/man/$$1"; \
+	while [ $$# -gt 0 ] ; do \
 		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/man/$$1"; \
-		rm -rf "${DESTDIR}/usr/share/openssl/man/$$1"; \
 		${INSTALL_SYMLINK} "$$2" \
 		    "${DESTDIR}/usr/share/openssl/man/$$1"; \
 		shift; shift; \
 	done
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		rm -rf "${DESTDIR}/usr/share/nls/$$1"; \
+	while [ $$# -gt 0 ] ; do \
 		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/nls/$$1"; \
 		shift; shift; \
 	done
