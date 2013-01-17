@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
@@ -220,10 +221,9 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
  * Options2 for active open.
  */
 static uint32_t
-calc_opt2a(struct socket *so)
+calc_opt2a(struct socket *so, struct toepcb *toep)
 {
 	struct tcpcb *tp = so_sototcpcb(so);
-	struct toepcb *toep = tp->t_toe;
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
 	uint32_t opt2 = 0;
@@ -260,6 +260,12 @@ t4_init_connect_cpl_handlers(struct adapter *sc)
 	t4_register_cpl_handler(sc, CPL_ACT_OPEN_RPL, do_act_open_rpl);
 }
 
+#define DONT_OFFLOAD_ACTIVE_OPEN(x)	do { \
+	reason = __LINE__; \
+	rc = (x); \
+	goto failed; \
+} while (0)
+
 /*
  * active open (soconnect).
  *
@@ -275,20 +281,19 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
     struct sockaddr *nam)
 {
 	struct adapter *sc = tod->tod_softc;
+	struct tom_data *td = tod_td(tod);
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
-	struct cpl_act_open_req *cpl;
-	struct l2t_entry *e = NULL;
 	struct ifnet *rt_ifp = rt->rt_ifp;
 	struct port_info *pi;
-	int atid = -1, mtu_idx, rscale, qid_atid, rc = ENOMEM;
+	int mtu_idx, rscale, qid_atid, rc, isipv6;
 	struct inpcb *inp = sotoinpcb(so);
 	struct tcpcb *tp = intotcpcb(inp);
+	int reason;
 
 	INP_WLOCK_ASSERT(inp);
-
-	if (nam->sa_family != AF_INET)
-		CXGBE_UNIMPLEMENTED("IPv6 connect");
+	KASSERT(nam->sa_family == AF_INET || nam->sa_family == AF_INET6,
+	    ("%s: dest addr %p has family %u", __func__, nam, nam->sa_family));
 
 	if (rt_ifp->if_type == IFT_ETHER)
 		pi = rt_ifp->if_softc;
@@ -297,30 +302,29 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 
 		pi = ifp->if_softc;
 	} else if (rt_ifp->if_type == IFT_IEEE8023ADLAG)
-		return (ENOSYS);	/* XXX: implement lagg support */
+		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
 	else
-		return (ENOTSUP);
+		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
 	toep = alloc_toepcb(pi, -1, -1, M_NOWAIT);
 	if (toep == NULL)
-		goto failed;
+		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	atid = alloc_atid(sc, toep);
-	if (atid < 0)
-		goto failed;
+	toep->tid = alloc_atid(sc, toep);
+	if (toep->tid < 0)
+		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	e = t4_l2t_get(pi, rt_ifp,
+	toep->l2te = t4_l2t_get(pi, rt_ifp,
 	    rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway : nam);
-	if (e == NULL)
-		goto failed;
+	if (toep->l2te == NULL)
+		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	wr = alloc_wrqe(sizeof(*cpl), toep->ctrlq);
+	isipv6 = nam->sa_family == AF_INET6;
+	wr = alloc_wrqe(isipv6 ? sizeof(struct cpl_act_open_req6) :
+	    sizeof(struct cpl_act_open_req), toep->ctrlq);
 	if (wr == NULL)
-		goto failed;
-	cpl = wrtod(wr);
+		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	toep->tid = atid;
-	toep->l2te = e;
 	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0)
 		set_tcpddp_ulp_mode(toep);
 	else
@@ -329,8 +333,6 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	/* opt0 rcv_bufsiz initially, assumes its normal meaning later */
 	toep->rx_credits = min(select_rcv_wnd(so) >> 10, M_RCV_BUFSIZ);
 	SOCKBUF_UNLOCK(&so->so_rcv);
-
-	offload_socket(so, toep);
 
 	/*
 	 * The kernel sets request_r_scale based on sb_max whereas we need to
@@ -342,39 +344,78 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	else
 		rscale = 0;
 	mtu_idx = find_best_mtu_idx(sc, &inp->inp_inc, 0);
-	qid_atid = (toep->ofld_rxq->iq.abs_id << 14) | atid;
+	qid_atid = (toep->ofld_rxq->iq.abs_id << 14) | toep->tid;
 
-	INIT_TP_WR(cpl, 0);
-	OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ, qid_atid));
-	inp_4tuple_get(inp, &cpl->local_ip, &cpl->local_port, &cpl->peer_ip,
-	    &cpl->peer_port);
-	cpl->opt0 = calc_opt0(so, pi, e, mtu_idx, rscale, toep->rx_credits,
-	    toep->ulp_mode);
-	cpl->params = select_ntuple(pi, e, sc->filter_mode);
-	cpl->opt2 = calc_opt2a(so);
+	if (isipv6) {
+		struct cpl_act_open_req6 *cpl = wrtod(wr);
+
+		if ((inp->inp_vflag & INP_IPV6) == 0) {
+			/* XXX think about this a bit more */
+			log(LOG_ERR,
+			    "%s: time to think about AF_INET6 + vflag 0x%x.\n",
+			    __func__, inp->inp_vflag);
+			DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
+		}
+
+		toep->ce = hold_lip(td, &inp->in6p_laddr);
+		if (toep->ce == NULL)
+			DONT_OFFLOAD_ACTIVE_OPEN(ENOENT);
+
+		INIT_TP_WR(cpl, 0);
+		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
+		    qid_atid));
+
+		cpl->local_port = inp->inp_lport;
+		cpl->local_ip_hi = *(uint64_t *)&inp->in6p_laddr.s6_addr[0];
+		cpl->local_ip_lo = *(uint64_t *)&inp->in6p_laddr.s6_addr[8];
+		cpl->peer_port = inp->inp_fport;
+		cpl->peer_ip_hi = *(uint64_t *)&inp->in6p_faddr.s6_addr[0];
+		cpl->peer_ip_lo = *(uint64_t *)&inp->in6p_faddr.s6_addr[8];
+		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
+		    toep->rx_credits, toep->ulp_mode);
+		cpl->params = select_ntuple(pi, toep->l2te, sc->filter_mode);
+		cpl->opt2 = calc_opt2a(so, toep);
+	} else {
+		struct cpl_act_open_req *cpl = wrtod(wr);
+
+		INIT_TP_WR(cpl, 0);
+		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
+		    qid_atid));
+		inp_4tuple_get(inp, &cpl->local_ip, &cpl->local_port,
+		    &cpl->peer_ip, &cpl->peer_port);
+		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
+		    toep->rx_credits, toep->ulp_mode);
+		cpl->params = select_ntuple(pi, toep->l2te, sc->filter_mode);
+		cpl->opt2 = calc_opt2a(so, toep);
+	}
 
 	CTR5(KTR_CXGBE, "%s: atid %u (%s), toep %p, inp %p", __func__,
 	    toep->tid, tcpstates[tp->t_state], toep, inp);
 
-	rc = t4_l2t_send(sc, wr, e);
+	offload_socket(so, toep);
+	rc = t4_l2t_send(sc, wr, toep->l2te);
 	if (rc == 0) {
 		toep->flags |= TPF_CPL_PENDING;
 		return (0);
 	}
 
 	undo_offload_socket(so);
+	reason = __LINE__;
 failed:
-	CTR5(KTR_CXGBE, "%s: FAILED, atid %d, toep %p, l2te %p, wr %p",
-	    __func__, atid, toep, e, wr);
+	CTR3(KTR_CXGBE, "%s: not offloading (%d), rc %d", __func__, reason, rc);
 
-	if (e)
-		t4_l2t_release(e);
 	if (wr)
 		free_wrqe(wr);
-	if (atid >= 0)
-		free_atid(sc, atid);
-	if (toep)
+
+	if (toep) {
+		if (toep->tid >= 0)
+			free_atid(sc, toep->tid);
+		if (toep->l2te)
+			t4_l2t_release(toep->l2te);
+		if (toep->ce)
+			release_lip(td, toep->ce);
 		free_toepcb(toep);
+	}
 
 	return (rc);
 }

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
@@ -14,7 +16,7 @@ LIB=		stdc++
 SHLIB_MAJOR=	6
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
-.if ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} == "no"
 CFLAGS+=	-D_GLIBCXX_SJLJ_EXCEPTIONS=1
 .endif
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
@@ -594,7 +596,13 @@ gthr-default.h: ${GCCDIR}/gthr-posix.h
 
 CLEANFILES+=	${THRHDRS}
 
+.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
+.else
 unwind.h: ${GCCDIR}/unwind-generic.h
+.endif
+
+unwind.h:
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 SRCS+=		unwind.h

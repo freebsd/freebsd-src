@@ -647,18 +647,18 @@ struct adapter {
 #define TXQ_LOCK_ASSERT_OWNED(txq)	EQ_LOCK_ASSERT_OWNED(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
 
-#define for_each_txq(pi, iter, txq) \
-	txq = &pi->adapter->sge.txq[pi->first_txq]; \
-	for (iter = 0; iter < pi->ntxq; ++iter, ++txq)
-#define for_each_rxq(pi, iter, rxq) \
-	rxq = &pi->adapter->sge.rxq[pi->first_rxq]; \
-	for (iter = 0; iter < pi->nrxq; ++iter, ++rxq)
-#define for_each_ofld_txq(pi, iter, ofld_txq) \
-	ofld_txq = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq]; \
-	for (iter = 0; iter < pi->nofldtxq; ++iter, ++ofld_txq)
-#define for_each_ofld_rxq(pi, iter, ofld_rxq) \
-	ofld_rxq = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq]; \
-	for (iter = 0; iter < pi->nofldrxq; ++iter, ++ofld_rxq)
+#define for_each_txq(pi, iter, q) \
+	q = &pi->adapter->sge.txq[pi->first_txq]; \
+	for (iter = 0; iter < pi->ntxq; ++iter, ++q)
+#define for_each_rxq(pi, iter, q) \
+	q = &pi->adapter->sge.rxq[pi->first_rxq]; \
+	for (iter = 0; iter < pi->nrxq; ++iter, ++q)
+#define for_each_ofld_txq(pi, iter, q) \
+	q = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq]; \
+	for (iter = 0; iter < pi->nofldtxq; ++iter, ++q)
+#define for_each_ofld_rxq(pi, iter, q) \
+	q = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq]; \
+	for (iter = 0; iter < pi->nofldrxq; ++iter, ++q)
 
 /* One for errors, one for firmware events */
 #define T4_EXTRA_INTR 2

@@ -47,7 +47,6 @@ pw_log(struct userconf * cnf, int mode, int which, char const * fmt,...)
 		}
 		if (logfile != NULL) {
 			va_list         argp;
-			int             l;
 			time_t          now = time(NULL);
 			struct tm      *t = localtime(&now);
 			char            nfmt[256];
@@ -57,7 +56,6 @@ pw_log(struct userconf * cnf, int mode, int which, char const * fmt,...)
 				name = "unknown";
 			/* ISO 8601 International Standard Date format */
 			strftime(nfmt, sizeof nfmt, "%Y-%m-%d %T ", t);
-			l = strlen(nfmt);
 			sprintf(nfmt + strlen(nfmt), "[%s:%s%s] %s\n", name, Which[which], Modes[mode], fmt);
 			va_start(argp, fmt);
 			vfprintf(logfile, nfmt, argp);
