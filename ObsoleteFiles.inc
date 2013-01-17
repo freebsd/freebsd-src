@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130116: removed long unused directories for .1aout section manpages
+OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
+OLD_FILES+=usr/share/man/en.UTF-8/man1aout
+OLD_DIRS+=usr/share/man/man1aout
+OLD_DIRS+=usr/share/man/cat1aout
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat1aout
+OLD_DIRS+=usr/share/man/en.UTF-8/cat1aout
 # 20121230: libdisk removed
 OLD_FILES+=usr/share/man/man3/libdisk.3.gz usr/include/libdisk.h
 OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a
