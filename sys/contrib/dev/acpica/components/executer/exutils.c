@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -229,14 +229,14 @@ AcpiExRelinquishInterpreter (
  *
  * PARAMETERS:  ObjDesc         - Object to be truncated
  *
- * RETURN:      none
+ * RETURN:      TRUE if a truncation was performed, FALSE otherwise.
  *
  * DESCRIPTION: Truncate an ACPI Integer to 32 bits if the execution mode is
  *              32-bit, as determined by the revision of the DSDT.
  *
  ******************************************************************************/
 
-void
+BOOLEAN
 AcpiExTruncateFor32bitTable (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
@@ -246,23 +246,27 @@ AcpiExTruncateFor32bitTable (
 
     /*
      * Object must be a valid number and we must be executing
-     * a control method. NS node could be there for AML_INT_NAMEPATH_OP.
+     * a control method. Object could be NS node for AML_INT_NAMEPATH_OP.
      */
     if ((!ObjDesc) ||
         (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_OPERAND) ||
         (ObjDesc->Common.Type != ACPI_TYPE_INTEGER))
     {
-        return;
+        return (FALSE);
     }
 
-    if (AcpiGbl_IntegerByteWidth == 4)
+    if ((AcpiGbl_IntegerByteWidth == 4) &&
+        (ObjDesc->Integer.Value > (UINT64) ACPI_UINT32_MAX))
     {
         /*
-         * We are running a method that exists in a 32-bit ACPI table.
+         * We are executing in a 32-bit ACPI table.
          * Truncate the value to 32 bits by zeroing out the upper 32-bit field
          */
         ObjDesc->Integer.Value &= (UINT64) ACPI_UINT32_MAX;
+        return (TRUE);
     }
+
+    return (FALSE);
 }
 
 
@@ -387,7 +391,7 @@ AcpiExDigitsNeeded (
 
     if (Value == 0)
     {
-        return_UINT32 (1);
+        return_VALUE (1);
     }
 
     CurrentValue = Value;
@@ -401,7 +405,7 @@ AcpiExDigitsNeeded (
         NumDigits++;
     }
 
-    return_UINT32 (NumDigits);
+    return_VALUE (NumDigits);
 }
 
 

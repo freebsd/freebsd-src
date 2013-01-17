@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -161,6 +161,34 @@ AcpiDbGenerateGpe (
 
 
 /*
+ * dbconvert - miscellaneous conversion routines
+ */
+ACPI_STATUS
+AcpiDbHexCharToValue (
+    int                     HexChar,
+    UINT8                   *ReturnValue);
+
+ACPI_STATUS
+AcpiDbConvertToPackage (
+    char                    *String,
+    ACPI_OBJECT             *Object);
+
+ACPI_STATUS
+AcpiDbConvertToObject (
+    ACPI_OBJECT_TYPE        Type,
+    char                    *String,
+    ACPI_OBJECT             *Object);
+
+UINT8 *
+AcpiDbEncodePldBuffer (
+    ACPI_PLD_INFO           *PldInfo);
+
+void
+AcpiDbDumpPldBuffer (
+    ACPI_OBJECT             *ObjDesc);
+
+
+/*
  * dbmethod - control method commands
  */
 void
@@ -298,6 +326,11 @@ AcpiDbCreateExecutionThreads (
     char                    *NumThreadsArg,
     char                    *NumLoopsArg,
     char                    *MethodNameArg);
+
+void
+AcpiDbDeleteObjects (
+    UINT32                  Count,
+    ACPI_OBJECT             *Objects);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 UINT32

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,10 +53,6 @@
         ACPI_MODULE_NAME    ("nsutils")
 
 /* Local prototypes */
-
-static BOOLEAN
-AcpiNsValidPathSeparator (
-    char                    Sep);
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 ACPI_NAME
@@ -112,48 +108,6 @@ AcpiNsPrintNodePathname (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsValidRootPrefix
- *
- * PARAMETERS:  Prefix          - Character to be checked
- *
- * RETURN:      TRUE if a valid prefix
- *
- * DESCRIPTION: Check if a character is a valid ACPI Root prefix
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiNsValidRootPrefix (
-    char                    Prefix)
-{
-
-    return ((BOOLEAN) (Prefix == '\\'));
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsValidPathSeparator
- *
- * PARAMETERS:  Sep         - Character to be checked
- *
- * RETURN:      TRUE if a valid path separator
- *
- * DESCRIPTION: Check if a character is a valid ACPI path separator
- *
- ******************************************************************************/
-
-static BOOLEAN
-AcpiNsValidPathSeparator (
-    char                    Sep)
-{
-
-    return ((BOOLEAN) (Sep == '.'));
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiNsGetType
  *
  * PARAMETERS:  Node        - Parent Node to be examined
@@ -174,10 +128,10 @@ AcpiNsGetType (
     if (!Node)
     {
         ACPI_WARNING ((AE_INFO, "Null Node parameter"));
-        return_UINT32 (ACPI_TYPE_ANY);
+        return_VALUE (ACPI_TYPE_ANY);
     }
 
-    return_UINT32 ((ACPI_OBJECT_TYPE) Node->Type);
+    return_VALUE (Node->Type);
 }
 
 
@@ -206,10 +160,10 @@ AcpiNsLocal (
         /* Type code out of range  */
 
         ACPI_WARNING ((AE_INFO, "Invalid Object Type 0x%X", Type));
-        return_UINT32 (ACPI_NS_NORMAL);
+        return_VALUE (ACPI_NS_NORMAL);
     }
 
-    return_UINT32 ((UINT32) AcpiGbl_NsProperties[Type] & ACPI_NS_LOCAL);
+    return_VALUE (AcpiGbl_NsProperties[Type] & ACPI_NS_LOCAL);
 }
 
 
@@ -250,14 +204,14 @@ AcpiNsGetInternalNameLength (
      *
      * strlen() + 1 covers the first NameSeg, which has no path separator
      */
-    if (AcpiNsValidRootPrefix (*NextExternalChar))
+    if (ACPI_IS_ROOT_PREFIX (*NextExternalChar))
     {
         Info->FullyQualified = TRUE;
         NextExternalChar++;
 
         /* Skip redundant RootPrefix, like \\_SB.PCI0.SBRG.EC0 */
 
-        while (AcpiNsValidRootPrefix (*NextExternalChar))
+        while (ACPI_IS_ROOT_PREFIX (*NextExternalChar))
         {
             NextExternalChar++;
         }
@@ -266,7 +220,7 @@ AcpiNsGetInternalNameLength (
     {
         /* Handle Carat prefixes */
 
-        while (*NextExternalChar == '^')
+        while (ACPI_IS_PARENT_PREFIX (*NextExternalChar))
         {
             Info->NumCarats++;
             NextExternalChar++;
@@ -283,7 +237,7 @@ AcpiNsGetInternalNameLength (
         Info->NumSegments = 1;
         for (i = 0; NextExternalChar[i]; i++)
         {
-            if (AcpiNsValidPathSeparator (NextExternalChar[i]))
+            if (ACPI_IS_PATH_SEPARATOR (NextExternalChar[i]))
             {
                 Info->NumSegments++;
             }
@@ -328,7 +282,7 @@ AcpiNsBuildInternalName (
 
     if (Info->FullyQualified)
     {
-        InternalName[0] = '\\';
+        InternalName[0] = AML_ROOT_PREFIX;
 
         if (NumSegments <= 1)
         {
@@ -357,7 +311,7 @@ AcpiNsBuildInternalName (
         {
             for (i = 0; i < Info->NumCarats; i++)
             {
-                InternalName[i] = '^';
+                InternalName[i] = AML_PARENT_PREFIX;
             }
         }
 
@@ -384,7 +338,7 @@ AcpiNsBuildInternalName (
     {
         for (i = 0; i < ACPI_NAME_SIZE; i++)
         {
-            if (AcpiNsValidPathSeparator (*ExternalName) ||
+            if (ACPI_IS_PATH_SEPARATOR (*ExternalName) ||
                (*ExternalName == 0))
             {
                 /* Pad the segment with underscore(s) if segment is short */
@@ -402,7 +356,7 @@ AcpiNsBuildInternalName (
 
         /* Now we must have a path separator, or the pathname is bad */
 
-        if (!AcpiNsValidPathSeparator (*ExternalName) &&
+        if (!ACPI_IS_PATH_SEPARATOR (*ExternalName) &&
             (*ExternalName != 0))
         {
             return_ACPI_STATUS (AE_BAD_PATHNAME);
@@ -542,14 +496,14 @@ AcpiNsExternalizeName (
 
     switch (InternalName[0])
     {
-    case '\\':
+    case AML_ROOT_PREFIX:
         PrefixLength = 1;
         break;
 
-    case '^':
+    case AML_PARENT_PREFIX:
         for (i = 0; i < InternalNameLength; i++)
         {
-            if (InternalName[i] == '^')
+            if (ACPI_IS_PARENT_PREFIX (InternalName[i]))
             {
                 PrefixLength = i + 1;
             }
@@ -829,6 +783,8 @@ AcpiNsGetNode (
     ACPI_FUNCTION_TRACE_PTR (NsGetNode, ACPI_CAST_PTR (char, Pathname));
 
 
+    /* Simplest case is a null pathname */
+
     if (!Pathname)
     {
         *ReturnNode = PrefixNode;
@@ -836,6 +792,14 @@ AcpiNsGetNode (
         {
             *ReturnNode = AcpiGbl_RootNode;
         }
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Quick check for a reference to the root */
+
+    if (ACPI_IS_ROOT_PREFIX (Pathname[0]) && (!Pathname[1]))
+    {
+        *ReturnNode = AcpiGbl_RootNode;
         return_ACPI_STATUS (AE_OK);
     }
 

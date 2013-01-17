@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,7 @@ AcpiGetHandle (
      *
      * Error for <null Parent + relative path>
      */
-    if (AcpiNsValidRootPrefix (Pathname[0]))
+    if (ACPI_IS_ROOT_PREFIX (Pathname[0]))
     {
         /* Pathname is fully qualified (starts with '\') */
 
