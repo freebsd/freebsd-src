@@ -5492,12 +5492,56 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = read_i2c(sc, (struct t4_i2c_data *)data);
 		break;
 	case CHELSIO_T4_CLEAR_STATS: {
+		int i;
 		u_int port_id = *(uint32_t *)data;
+		struct port_info *pi;
 
 		if (port_id >= sc->params.nports)
 			return (EINVAL);
 
+		/* MAC stats */
 		t4_clr_port_stats(sc, port_id);
+
+		pi = sc->port[port_id];
+		if (pi->flags & PORT_INIT_DONE) {
+			struct sge_rxq *rxq;
+			struct sge_txq *txq;
+			struct sge_wrq *wrq;
+
+			for_each_rxq(pi, i, rxq) {
+#if defined(INET) || defined(INET6)
+				rxq->lro.lro_queued = 0;
+				rxq->lro.lro_flushed = 0;
+#endif
+				rxq->rxcsum = 0;
+				rxq->vlan_extraction = 0;
+			}
+
+			for_each_txq(pi, i, txq) {
+				txq->txcsum = 0;
+				txq->tso_wrs = 0;
+				txq->vlan_insertion = 0;
+				txq->imm_wrs = 0;
+				txq->sgl_wrs = 0;
+				txq->txpkt_wrs = 0;
+				txq->txpkts_wrs = 0;
+				txq->txpkts_pkts = 0;
+				txq->no_dmamap = 0;
+				txq->no_desc = 0;
+			}
+
+#ifdef TCP_OFFLOAD
+			/* nothing to clear for each ofld_rxq */
+
+			for_each_ofld_txq(pi, i, wrq) {
+				wrq->tx_wrs = 0;
+				wrq->no_desc = 0;
+			}
+#endif
+			wrq = &sc->sge.ctrlq[pi->port_id];
+			wrq->tx_wrs = 0;
+			wrq->no_desc = 0;
+		}
 		break;
 	}
 	default:
