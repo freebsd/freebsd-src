@@ -324,26 +324,26 @@ distrib-dirs:
 		    -f $$m -p $$d; \
 		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
 	done; true
-	ln -sf usr/src/sys ${DESTDIR}/sys
+	ln -sfh usr/src/sys ${DESTDIR}/sys
 	cd ${DESTDIR}/usr/share/man; \
 	for mandir in man*; do \
-		ln -sf ../$$mandir ${DESTDIR}/usr/share/man/en.ISO8859-1/; \
-		ln -sf ../$$mandir ${DESTDIR}/usr/share/man/en.UTF-8/; \
+		ln -sfh ../$$mandir ${DESTDIR}/usr/share/man/en.ISO8859-1/; \
+		ln -sfh ../$$mandir ${DESTDIR}/usr/share/man/en.UTF-8/; \
 	done
 	cd ${DESTDIR}/usr/share/openssl/man; \
 	for mandir in man*; do \
-		ln -sf ../$$mandir \
+		ln -sfh ../$$mandir \
 		    ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1/; \
 	done
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
 	while [ $$# -gt 0 ] ; do \
-		ln -sf "$$2" "${DESTDIR}/usr/share/man/$$1"; \
-		ln -sf "$$2" "${DESTDIR}/usr/share/openssl/man/$$1"; \
+		ln -sfh "$$2" "${DESTDIR}/usr/share/man/$$1"; \
+		ln -sfh "$$2" "${DESTDIR}/usr/share/openssl/man/$$1"; \
 		shift; shift; \
 	done
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; do \
-		ln -sf "$$2" "${DESTDIR}/usr/share/nls/$$1"; \
+		ln -sfh "$$2" "${DESTDIR}/usr/share/nls/$$1"; \
 		shift; shift; \
 	done
 
