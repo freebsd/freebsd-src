@@ -1150,6 +1150,15 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 
 		/*
+		 * XXX: Some CPUs fault, hang, or trash the local APIC
+		 * registers if we use CLFLUSH on the local APIC
+		 * range.  The local APIC is always uncached, so we
+		 * don't need to flush for that range anyway.
+		 */
+		if (pmap_kextract(sva) == lapic_paddr)
+			return;
+
+		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
 		 * instruction to insure that previous stores are
 		 * included in the write-back.  The processor
