@@ -638,9 +638,12 @@ dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/altera/avgen/altera_avgen.c		optional altera_avgen
+dev/altera/avgen/altera_avgen_fdt.c	optional altera_avgen fdt
+dev/altera/avgen/altera_avgen_nexus.c	optional altera_avgen
 dev/altera/sdcard/altera_sdcard.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
+dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
@@ -1415,6 +1418,7 @@ dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/isf/isf.c			optional isf
+dev/isf/isf_fdt.c		optional isf fdt
 dev/isf/isf_nexus.c		optional isf
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
@@ -2276,15 +2280,6 @@ dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
-#
-# virtio support
-#
-dev/virtio/pci/virtio_pci.c    optional vtnet
-dev/virtio/virtio.c            optional vtnet
-dev/virtio/virtqueue.c         optional vtnet
-dev/virtio/network/if_vtnet.c  optional vtnet
-dev/virtio/virtio_bus_if.m     optional vtnet
-dev/virtio/virtio_if.m         optional vtnet
 
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci

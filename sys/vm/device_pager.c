@@ -158,6 +158,7 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 		object1->pg_color = color;
 		object1->handle = handle;
 		object1->un_pager.devp.ops = ops;
+		object1->un_pager.devp.dev = handle;
 		TAILQ_INIT(&object1->un_pager.devp.devp_pglist);
 		mtx_lock(&dev_pager_mtx);
 		object = vm_pager_object_lookup(&dev_pager_object_list, handle);
@@ -235,7 +236,7 @@ dev_pager_dealloc(object)
 	vm_page_t m;
 
 	VM_OBJECT_UNLOCK(object);
-	object->un_pager.devp.ops->cdev_pg_dtor(object->handle);
+	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.dev);
 
 	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);

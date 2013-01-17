@@ -4330,8 +4330,8 @@ fail:
 	 * the rings that completed, the failing case will have
 	 * cleaned up for itself. 'i' is the endpoint.
 	 */
-	for (int j = 0; j > i; ++j) {
-		rxr = &adapter->rx_rings[i];
+	for (int j = 0; j < i; ++j) {
+		rxr = &adapter->rx_rings[j];
 		IGB_RX_LOCK(rxr);
 		igb_free_receive_ring(rxr);
 		IGB_RX_UNLOCK(rxr);

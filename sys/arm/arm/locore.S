@@ -484,12 +484,29 @@ ENTRY_NP(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
+
+	/*
+	 * Call the sigreturn system call.
+	 * 
+	 * We have to load r7 manually rather than using
+	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
+	 * correct. Using the alternative places esigcode at the address
+	 * of the data rather than the address one past the data.
+	 */
+
+	ldr	r7, [pc, #12]	/* Load SYS_sigreturn */
 	swi	SYS_sigreturn
 
 	/* Well if that failed we better exit quick ! */
 
+	ldr	r7, [pc, #8]	/* Load SYS_exit */
 	swi	SYS_exit
-	b	. - 8
+
+	/* Branch back to retry SYS_sigreturn */
+	b	. - 16
+
+	.word	SYS_sigreturn
+	.word	SYS_exit
 
 	.align	0
 	.global _C_LABEL(esigcode)

@@ -1642,7 +1642,7 @@ vfs_write_suspend(mp)
 	else
 		MNT_IUNLOCK(mp);
 	if ((error = VFS_SYNC(mp, MNT_SUSPEND)) != 0)
-		vfs_write_resume(mp);
+		vfs_write_resume(mp, 0);
 	return (error);
 }
 
@@ -1650,7 +1650,7 @@ vfs_write_suspend(mp)
  * Request a filesystem to resume write operations.
  */
 void
-vfs_write_resume_flags(struct mount *mp, int flags)
+vfs_write_resume(struct mount *mp, int flags)
 {
 
 	MNT_ILOCK(mp);
@@ -1675,13 +1675,6 @@ vfs_write_resume_flags(struct mount *mp, int flags)
 	} else {
 		MNT_IUNLOCK(mp);
 	}
-}
-
-void
-vfs_write_resume(struct mount *mp)
-{
-
-	vfs_write_resume_flags(mp, 0);
 }
 
 /*
