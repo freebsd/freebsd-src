@@ -110,17 +110,17 @@ struct dip_header {
 	uint16_t	msg_len;
 	uint32_t	seq_no;
 	uint32_t	time;
-};
+} __packed;
 
 struct dip_set_header {
 	uint16_t	set_id;
 	uint16_t	set_len;
-};
+} __packed;
 
 struct dip_templ_header {
 	uint16_t	templ_id;
 	uint16_t	flags;
-};
+} __packed;
 
 #if defined(WITH_DIP_INFO)
 static struct dip_info_descr dip_info[] = {
