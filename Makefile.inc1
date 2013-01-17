@@ -767,7 +767,7 @@ redistribute:
 
 distrib-dirs distribution:
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    ${IMAKE_INSTALL} ${.TARGET}
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} ${.TARGET}
 
 #
 # buildkernel and installkernel
