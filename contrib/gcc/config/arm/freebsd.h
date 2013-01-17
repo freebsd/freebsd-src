@@ -84,7 +84,6 @@
   while (false)
 #else
 /* Default it to use ATPCS with soft-VFP.  */
-#undef TARGET_DEFAULT
 #define TARGET_DEFAULT			\
   (MASK_APCS_FRAME			\
    | TARGET_ENDIAN_DEFAULT)

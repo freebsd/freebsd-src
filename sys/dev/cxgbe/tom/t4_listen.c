@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
@@ -50,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet6/scope6_var.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
@@ -194,7 +197,7 @@ alloc_lctx(struct adapter *sc, struct inpcb *inp, struct port_info *pi)
 	if (lctx == NULL)
 		return (NULL);
 
-	lctx->stid = alloc_stid(sc, lctx, inp->inp_inc.inc_flags & INC_ISIPV6);
+	lctx->stid = alloc_stid(sc, lctx, inp->inp_vflag & INP_IPV6);
 	if (lctx->stid < 0) {
 		free(lctx, M_CXGBE);
 		return (NULL);
@@ -399,7 +402,7 @@ create_server(struct adapter *sc, struct listen_ctx *lctx)
 {
 	struct wrqe *wr;
 	struct cpl_pass_open_req *req;
-	struct in_conninfo *inc = &lctx->inp->inp_inc;
+	struct inpcb *inp = lctx->inp;
 
 	wr = alloc_wrqe(sizeof(*req), lctx->ctrlq);
 	if (wr == NULL) {
@@ -410,10 +413,40 @@ create_server(struct adapter *sc, struct listen_ctx *lctx)
 
 	INIT_TP_WR(req, 0);
 	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_PASS_OPEN_REQ, lctx->stid));
-	req->local_port = inc->inc_lport;
+	req->local_port = inp->inp_lport;
 	req->peer_port = 0;
-	req->local_ip = inc->inc_laddr.s_addr;
+	req->local_ip = inp->inp_laddr.s_addr;
 	req->peer_ip = 0;
+	req->opt0 = htobe64(V_TX_CHAN(lctx->ctrlq->eq.tx_chan));
+	req->opt1 = htobe64(V_CONN_POLICY(CPL_CONN_POLICY_ASK) |
+	    F_SYN_RSS_ENABLE | V_SYN_RSS_QUEUE(lctx->ofld_rxq->iq.abs_id));
+
+	t4_wrq_tx(sc, wr);
+	return (0);
+}
+
+static int
+create_server6(struct adapter *sc, struct listen_ctx *lctx)
+{
+	struct wrqe *wr;
+	struct cpl_pass_open_req6 *req;
+	struct inpcb *inp = lctx->inp;
+
+	wr = alloc_wrqe(sizeof(*req), lctx->ctrlq);
+	if (wr == NULL) {
+		log(LOG_ERR, "%s: allocation failure", __func__);
+		return (ENOMEM);
+	}
+	req = wrtod(wr);
+
+	INIT_TP_WR(req, 0);
+	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_PASS_OPEN_REQ6, lctx->stid));
+	req->local_port = inp->inp_lport;
+	req->peer_port = 0;
+	req->local_ip_hi = *(uint64_t *)&inp->in6p_laddr.s6_addr[0];
+	req->local_ip_lo = *(uint64_t *)&inp->in6p_laddr.s6_addr[8];
+	req->peer_ip_hi = 0;
+	req->peer_ip_lo = 0;
 	req->opt0 = htobe64(V_TX_CHAN(lctx->ctrlq->eq.tx_chan));
 	req->opt1 = htobe64(V_CONN_POLICY(CPL_CONN_POLICY_ASK) |
 	    F_SYN_RSS_ENABLE | V_SYN_RSS_QUEUE(lctx->ofld_rxq->iq.abs_id));
@@ -458,12 +491,9 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	struct port_info *pi;
 	struct inpcb *inp = tp->t_inpcb;
 	struct listen_ctx *lctx;
-	int i;
+	int i, rc;
 
 	INP_WLOCK_ASSERT(inp);
-
-	if ((inp->inp_vflag & INP_IPV4) == 0)
-		return (0);
 
 #if 0
 	ADAPTER_LOCK(sc);
@@ -481,8 +511,9 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 		goto done;	/* no port that's UP with IFCAP_TOE enabled */
 
 	/*
-	 * Find a running port with IFCAP_TOE4.  We'll use the first such port's
-	 * queues to send the passive open and receive the reply to it.
+	 * Find a running port with IFCAP_TOE (4 or 6).  We'll use the first
+	 * such port's queues to send the passive open and receive the reply to
+	 * it.
 	 *
 	 * XXX: need a way to mark a port in use by offload.  if_cxgbe should
 	 * then reject any attempt to bring down such a port (and maybe reject
@@ -490,7 +521,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	 */
 	for_each_port(sc, i) {
 		if (isset(&sc->open_device_map, i) &&
-		    sc->port[i]->ifp->if_capenable & IFCAP_TOE4)
+		    sc->port[i]->ifp->if_capenable & IFCAP_TOE)
 				break;
 	}
 	KASSERT(i < sc->params.nports,
@@ -509,12 +540,17 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	}
 	listen_hash_add(sc, lctx);
 
-	CTR5(KTR_CXGBE, "%s: stid %u (%s), lctx %p, inp %p", __func__,
-	    lctx->stid, tcpstates[tp->t_state], lctx, inp);
+	CTR6(KTR_CXGBE, "%s: stid %u (%s), lctx %p, inp %p vflag 0x%x",
+	    __func__, lctx->stid, tcpstates[tp->t_state], lctx, inp,
+	    inp->inp_vflag);
 
-	if (create_server(sc, lctx) != 0) {
-		log(LOG_ERR, "%s: %s failed to create hw listener.\n", __func__,
-		    device_get_nameunit(sc->dev));
+	if (inp->inp_vflag & INP_IPV6)
+		rc = create_server6(sc, lctx);
+	else
+		rc = create_server(sc, lctx);
+	if (rc != 0) {
+		log(LOG_ERR, "%s: %s failed to create hw listener: %d.\n",
+		    __func__, device_get_nameunit(sc->dev), rc);
 		(void) listen_hash_del(sc, inp);
 		inp = release_lctx(sc, lctx);
 		/* can't be freed, host stack has a reference */
@@ -618,7 +654,7 @@ t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 	struct l2t_entry *e;
 	struct tcpopt to;
 	struct ip *ip = mtod(m, struct ip *);
-	struct tcphdr *th = (void *)(ip + 1);
+	struct tcphdr *th;
 
 	wr = (struct wrqe *)atomic_readandclear_ptr(&synqe->wr);
 	if (wr == NULL) {
@@ -626,6 +662,10 @@ t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 		return (EALREADY);
 	}
 
+	if (ip->ip_v == IPVERSION)
+		th = (void *)(ip + 1);
+	else
+		th = (void *)((struct ip6_hdr *)ip + 1);
 	bzero(&to, sizeof(to));
 	tcp_dooptions(&to, (void *)(th + 1), (th->th_off << 2) - sizeof(*th),
 	    TO_SYN);
@@ -668,7 +708,7 @@ do_pass_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	lctx->flags &= ~LCTX_RPL_PENDING;
 
 	if (status != CPL_ERR_NONE)
-		log(LOG_ERR, "listener with stid %u failed: %d", stid, status);
+		log(LOG_ERR, "listener (stid %u) failed: %d\n", stid, status);
 
 #ifdef INVARIANTS
 	/*
@@ -738,7 +778,7 @@ do_close_server_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	CTR3(KTR_CXGBE, "%s: stid %u, status %u", __func__, stid, status);
 
 	if (status != CPL_ERR_NONE) {
-		log(LOG_ERR, "%s: failed (%u) to close listener for stid %u",
+		log(LOG_ERR, "%s: failed (%u) to close listener for stid %u\n",
 		    __func__, status, stid);
 		return (status);
 	}
@@ -996,27 +1036,134 @@ pass_accept_req_to_protohdrs(const struct mbuf *m, struct in_conninfo *inc,
 	const struct cpl_pass_accept_req *cpl = mtod(m, const void *);
 	const struct ether_header *eh;
 	unsigned int hlen = be32toh(cpl->hdr_len);
-	const struct ip *ip;
+	uintptr_t l3hdr;
 	const struct tcphdr *tcp;
 
 	eh = (const void *)(cpl + 1);
-	ip = (const void *)((uintptr_t)eh + G_ETH_HDR_LEN(hlen));
-	tcp = (const void *)((uintptr_t)ip + G_IP_HDR_LEN(hlen));
+	l3hdr = ((uintptr_t)eh + G_ETH_HDR_LEN(hlen));
+	tcp = (const void *)(l3hdr + G_IP_HDR_LEN(hlen));
 
 	if (inc) {
 		bzero(inc, sizeof(*inc));
-		inc->inc_faddr = ip->ip_src;
-		inc->inc_laddr = ip->ip_dst;
 		inc->inc_fport = tcp->th_sport;
 		inc->inc_lport = tcp->th_dport;
-		if (ip->ip_v == 6)
+		if (((struct ip *)l3hdr)->ip_v == IPVERSION) {
+			const struct ip *ip = (const void *)l3hdr;
+
+			inc->inc_faddr = ip->ip_src;
+			inc->inc_laddr = ip->ip_dst;
+		} else {
+			const struct ip6_hdr *ip6 = (const void *)l3hdr;
+
 			inc->inc_flags |= INC_ISIPV6;
+			inc->inc6_faddr = ip6->ip6_src;
+			inc->inc6_laddr = ip6->ip6_dst;
+		}
 	}
 
 	if (th) {
 		bcopy(tcp, th, sizeof(*th));
 		tcp_fields_to_host(th);		/* just like tcp_input */
 	}
+}
+
+static int
+ifnet_has_ip6(struct ifnet *ifp, struct in6_addr *ip6)
+{
+	struct ifaddr *ifa;
+	struct sockaddr_in6 *sin6;
+	int found = 0;
+	struct in6_addr in6 = *ip6;
+
+	/* Just as in ip6_input */
+	if (in6_clearscope(&in6) || in6_clearscope(&in6))
+		return (0);
+	in6_setscope(&in6, ifp, NULL);
+
+	if_addr_rlock(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		sin6 = (void *)ifa->ifa_addr;
+		if (sin6->sin6_family != AF_INET6)
+			continue;
+
+		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &in6)) {
+			found = 1;
+			break;
+		}
+	}
+	if_addr_runlock(ifp);
+
+	return (found);
+}
+
+static struct l2t_entry *
+get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
+    struct in_conninfo *inc)
+{
+	struct rtentry *rt;
+	struct l2t_entry *e;
+	struct sockaddr_in6 sin6;
+	struct sockaddr *dst = (void *)&sin6;
+ 
+	if (inc->inc_flags & INC_ISIPV6) {
+		dst->sa_len = sizeof(struct sockaddr_in6);
+		dst->sa_family = AF_INET6;
+		((struct sockaddr_in6 *)dst)->sin6_addr = inc->inc6_faddr;
+
+		if (IN6_IS_ADDR_LINKLOCAL(&inc->inc6_laddr)) {
+			/* no need for route lookup */
+			e = t4_l2t_get(pi, ifp, dst);
+			return (e);
+		}
+	} else {
+		dst->sa_len = sizeof(struct sockaddr_in);
+		dst->sa_family = AF_INET;
+		((struct sockaddr_in *)dst)->sin_addr = inc->inc_faddr;
+	}
+
+	rt = rtalloc1(dst, 0, 0);
+	if (rt == NULL)
+		return (NULL);
+	else {
+		struct sockaddr *nexthop;
+
+		RT_UNLOCK(rt);
+		if (rt->rt_ifp != ifp)
+			e = NULL;
+		else {
+			if (rt->rt_flags & RTF_GATEWAY)
+				nexthop = rt->rt_gateway;
+			else
+				nexthop = dst;
+			e = t4_l2t_get(pi, ifp, nexthop);
+		}
+		RTFREE(rt);
+	}
+
+	return (e);
+}
+
+static int
+ifnet_has_ip(struct ifnet *ifp, struct in_addr in)
+{
+	struct ifaddr *ifa;
+	struct sockaddr_in *sin;
+	int found = 0;
+
+	if_addr_rlock(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		sin = (void *)ifa->ifa_addr;
+		if (sin->sin_family != AF_INET)
+			continue;
+
+		if (sin->sin_addr.s_addr == in.s_addr) {
+			found = 1;
+			break;
+		}
+	}
+	if_addr_runlock(ifp);
+
+	return (found);
 }
 
 #define REJECT_PASS_ACCEPT()	do { \
@@ -1054,10 +1201,8 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	struct tcphdr th;
 	struct tcpopt to;
 	struct port_info *pi;
-	struct ifnet *ifp, *ifp_vlan = NULL;
+	struct ifnet *hw_ifp, *ifp;
 	struct l2t_entry *e = NULL;
-	struct rtentry *rt;
-	struct sockaddr_in nam;
 	int rscale, mtu_idx, rx_credits, rxqid, ulp_mode;
 	struct synq_entry *synqe = NULL;
 	int reject_reason;
@@ -1077,31 +1222,24 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	t4opt_to_tcpopt(&cpl->tcpopt, &to);
 
 	pi = sc->port[G_SYN_INTF(be16toh(cpl->l2info))];
-	ifp = pi->ifp;
-	m->m_pkthdr.rcvif = ifp;
-	tod = TOEDEV(ifp);
+	hw_ifp = pi->ifp;	/* the cxgbeX ifnet */
+	m->m_pkthdr.rcvif = hw_ifp;
+	tod = TOEDEV(hw_ifp);
 
 	/*
-	 * Don't offload if the interface that received the SYN doesn't have
-	 * IFCAP_TOE enabled.
-	 */
-	if ((ifp->if_capenable & IFCAP_TOE4) == 0)
-		REJECT_PASS_ACCEPT();
-
-	/* Don't offload IPv6 connections. XXX: add IPv6 support */
-	if (inc.inc_flags & INC_ISIPV6)
-		REJECT_PASS_ACCEPT();
-
-	/*
-	 * Don't offload if the SYN had a VLAN tag and the vid doesn't match
-	 * anything on this interface.
+	 * Figure out if there is a pseudo interface (vlan, lagg, etc.)
+	 * involved.  Don't offload if the SYN had a VLAN tag and the vid
+	 * doesn't match anything on this interface.
+	 *
+	 * XXX: lagg support, lagg + vlan support.
 	 */
 	vid = EVL_VLANOFTAG(be16toh(cpl->vlan));
 	if (vid != 0xfff) {
-		ifp_vlan = VLAN_DEVAT(ifp, vid);
-		if (ifp_vlan == NULL)
+		ifp = VLAN_DEVAT(hw_ifp, vid);
+		if (ifp == NULL)
 			REJECT_PASS_ACCEPT();
-	}
+	} else
+		ifp = hw_ifp;
 
 	/*
 	 * Don't offload if the peer requested a TCP option that's not known to
@@ -1110,30 +1248,35 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	if (cpl->tcpopt.unknown)
 		REJECT_PASS_ACCEPT();
 
-	/*
-	 * Don't offload if the outgoing interface for the route back to the
-	 * peer is not the same as the interface that received the SYN.
-	 * XXX: too restrictive.
-	 */
-	nam.sin_len = sizeof(nam);
-	nam.sin_family = AF_INET;
-	nam.sin_addr = inc.inc_faddr;
-	rt = rtalloc1((struct sockaddr *)&nam, 0, 0);
-	if (rt == NULL)
-		REJECT_PASS_ACCEPT();
-	else {
-		struct sockaddr *nexthop;
+	if (inc.inc_flags & INC_ISIPV6) {
 
-		RT_UNLOCK(rt);
-		nexthop = rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway :
-		    (struct sockaddr *)&nam;
-		if (rt->rt_ifp == ifp ||
-		    (ifp_vlan != NULL && rt->rt_ifp == ifp_vlan))
-			e = t4_l2t_get(pi, rt->rt_ifp, nexthop);
-		RTFREE(rt);
-		if (e == NULL)
-			REJECT_PASS_ACCEPT();	/* no l2te, or ifp mismatch */
+		/* Don't offload if the ifcap isn't enabled */
+		if ((ifp->if_capenable & IFCAP_TOE6) == 0)
+			REJECT_PASS_ACCEPT();
+
+		/*
+		 * SYN must be directed to an IP6 address on this ifnet.  This
+		 * is more restrictive than in6_localip.
+		 */
+		if (!ifnet_has_ip6(ifp, &inc.inc6_laddr))
+			REJECT_PASS_ACCEPT();
+	} else {
+
+		/* Don't offload if the ifcap isn't enabled */
+		if ((ifp->if_capenable & IFCAP_TOE4) == 0)
+			REJECT_PASS_ACCEPT();
+
+		/*
+		 * SYN must be directed to an IP address on this ifnet.  This
+		 * is more restrictive than in_localip.
+		 */
+		if (!ifnet_has_ip(ifp, inc.inc_laddr))
+			REJECT_PASS_ACCEPT();
 	}
+
+	e = get_l2te_for_nexthop(pi, ifp, &inc);
+	if (e == NULL)
+		REJECT_PASS_ACCEPT();
 
 	synqe = mbuf_to_synqe(m);
 	if (synqe == NULL)
@@ -1226,7 +1369,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 */
 		m = m_dup(synqe->syn, M_NOWAIT);
 		if (m)
-			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.rcvif = hw_ifp;
 
 		remove_tid(sc, synqe->tid);
 		free(wr, M_CXGBE);
@@ -1276,7 +1419,7 @@ reject:
 		m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID |
 		    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 		m->m_pkthdr.csum_data = 0xffff;
-		ifp->if_input(ifp, m);
+		hw_ifp->if_input(hw_ifp, m);
 	}
 
 	return (reject_reason);

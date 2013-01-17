@@ -1866,7 +1866,9 @@ get_params__post_init(struct adapter *sc)
 	param[1] = FW_PARAM_PFVF(EQ_START);
 	param[2] = FW_PARAM_PFVF(FILTER_START);
 	param[3] = FW_PARAM_PFVF(FILTER_END);
-	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
+	param[4] = FW_PARAM_PFVF(L2T_START);
+	param[5] = FW_PARAM_PFVF(L2T_END);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 	if (rc != 0) {
 		device_printf(sc->dev,
 		    "failed to query parameters (post_init): %d.\n", rc);
@@ -1877,6 +1879,11 @@ get_params__post_init(struct adapter *sc)
 	sc->sge.eq_start = val[1];
 	sc->tids.ftid_base = val[2];
 	sc->tids.nftids = val[3] - val[2] + 1;
+	sc->vres.l2t.start = val[4];
+	sc->vres.l2t.size = val[5] - val[4] + 1;
+	KASSERT(sc->vres.l2t.size <= L2T_SIZE,
+	    ("%s: L2 table size (%u) larger than expected (%u)",
+	    __func__, sc->vres.l2t.size, L2T_SIZE));
 
 	/* get capabilites */
 	bzero(&caps, sizeof(caps));
@@ -5485,12 +5492,56 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		rc = read_i2c(sc, (struct t4_i2c_data *)data);
 		break;
 	case CHELSIO_T4_CLEAR_STATS: {
+		int i;
 		u_int port_id = *(uint32_t *)data;
+		struct port_info *pi;
 
 		if (port_id >= sc->params.nports)
 			return (EINVAL);
 
+		/* MAC stats */
 		t4_clr_port_stats(sc, port_id);
+
+		pi = sc->port[port_id];
+		if (pi->flags & PORT_INIT_DONE) {
+			struct sge_rxq *rxq;
+			struct sge_txq *txq;
+			struct sge_wrq *wrq;
+
+			for_each_rxq(pi, i, rxq) {
+#if defined(INET) || defined(INET6)
+				rxq->lro.lro_queued = 0;
+				rxq->lro.lro_flushed = 0;
+#endif
+				rxq->rxcsum = 0;
+				rxq->vlan_extraction = 0;
+			}
+
+			for_each_txq(pi, i, txq) {
+				txq->txcsum = 0;
+				txq->tso_wrs = 0;
+				txq->vlan_insertion = 0;
+				txq->imm_wrs = 0;
+				txq->sgl_wrs = 0;
+				txq->txpkt_wrs = 0;
+				txq->txpkts_wrs = 0;
+				txq->txpkts_pkts = 0;
+				txq->no_dmamap = 0;
+				txq->no_desc = 0;
+			}
+
+#ifdef TCP_OFFLOAD
+			/* nothing to clear for each ofld_rxq */
+
+			for_each_ofld_txq(pi, i, wrq) {
+				wrq->tx_wrs = 0;
+				wrq->no_desc = 0;
+			}
+#endif
+			wrq = &sc->sge.ctrlq[pi->port_id];
+			wrq->tx_wrs = 0;
+			wrq->no_desc = 0;
+		}
 		break;
 	}
 	default:

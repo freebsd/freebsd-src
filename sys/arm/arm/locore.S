@@ -491,7 +491,7 @@ ENTRY_NP(sigcode)
 	 * We have to load r7 manually rather than using
 	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
 	 * correct. Using the alternative places esigcode at the address
-	 * of the datra rather than the address one past the data.
+	 * of the data rather than the address one past the data.
 	 */
 
 	ldr	r7, [pc, #12]	/* Load SYS_sigreturn */

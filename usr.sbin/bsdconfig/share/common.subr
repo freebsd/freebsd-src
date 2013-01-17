@@ -214,6 +214,50 @@ f_show_msg()
 	fi
 }
 
+
+# f_yesno $fmt [ $opts ... ]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+#
+f_yesno()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_yesno from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_yesno; then
+		f_dialog_yesno "$msg"
+	else
+		dialog --yesno "$msg" 0 0
+	fi
+}
+
+# f_noyes $fmt [ $opts ... ]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+# NOTE: THis is just like the f_yesno function except "No" is default.
+#
+f_noyes()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_noyes from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_noyes; then
+		f_dialog_noyes "$msg"
+	else
+		dialog --defaultno --yesno "$msg" 0 0
+	fi
+}
+
 # f_show_help $file
 #
 # Display a language help-file. Automatically takes $LANG and $LC_ALL into
