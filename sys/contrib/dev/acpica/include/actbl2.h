@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -285,6 +285,7 @@ typedef struct acpi_table_csrt
 
 } ACPI_TABLE_CSRT;
 
+
 /* Resource Group subtable */
 
 typedef struct acpi_csrt_group
@@ -296,11 +297,32 @@ typedef struct acpi_csrt_group
     UINT16                  SubdeviceId;
     UINT16                  Revision;
     UINT16                  Reserved;
-    UINT32                  InfoLength;
+    UINT32                  SharedInfoLength;
 
-    /* Shared data (length = InfoLength) immediately follows */
+    /* Shared data immediately follows (Length = SharedInfoLength) */
 
 } ACPI_CSRT_GROUP;
+
+/* Shared Info subtable */
+
+typedef struct acpi_csrt_shared_info
+{
+    UINT16                  MajorVersion;
+    UINT16                  MinorVersion;
+    UINT32                  MmioBaseLow;
+    UINT32                  MmioBaseHigh;
+    UINT32                  GsiInterrupt;
+    UINT8                   InterruptPolarity;
+    UINT8                   InterruptMode;
+    UINT8                   NumChannels;
+    UINT8                   DmaAddressWidth;
+    UINT16                  BaseRequestLine;
+    UINT16                  NumHandshakeSignals;
+    UINT32                  MaxBlockSize;
+
+    /* Resource descriptors immediately follow (Length = Group Length - SharedInfoLength) */
+
+} ACPI_CSRT_SHARED_INFO;
 
 /* Resource Descriptor subtable */
 
