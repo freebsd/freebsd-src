@@ -126,7 +126,8 @@ struct promise_raid_conf {
 	uint8_t		magic_6;
 	uint8_t		sector_size;
 	uint16_t	magic_7;
-	uint32_t	magic_8[32];
+	uint32_t	magic_8[31];
+	uint32_t	backup_time;
 	uint16_t	magic_9;
 	uint32_t	disk_offset_high;
 	uint32_t	disk_sectors_high;
@@ -228,6 +229,7 @@ g_raid_md_promise_print(struct promise_raid_conf *meta)
 	printf("magic_5             0x%08x\n", meta->magic_5);
 	printf("total_sectors_high  0x%08x\n", meta->total_sectors_high);
 	printf("sector_size         %u\n", meta->sector_size);
+	printf("backup_time         %d\n", meta->backup_time);
 	printf("disk_offset_high    0x%08x\n", meta->disk_offset_high);
 	printf("disk_sectors_high   0x%08x\n", meta->disk_sectors_high);
 	printf("disk_rebuild_high   0x%08x\n", meta->disk_rebuild_high);
@@ -398,6 +400,7 @@ next:
 			meta->disk_rebuild_high = 0;
 		if (meta->total_sectors_high == 0x15161718) {
 			meta->total_sectors_high = 0;
+			meta->backup_time = 0;
 			if (meta->rebuild_lba64 == 0x2122232425262728)
 				meta->rebuild_lba64 = UINT64_MAX;
 		}
@@ -793,7 +796,7 @@ nofit:
 			sd->sd_rebuild_pos = 0;
 		else {
 			sd->sd_rebuild_pos =
-			    (((off_t)pd->pd_meta[sdn]->disk_rebuild << 32) +
+			    (((off_t)pd->pd_meta[sdn]->disk_rebuild_high << 32) +
 			     pd->pd_meta[sdn]->disk_rebuild) * 512;
 		}
 	} else if (!(meta->disks[md_disk_pos].flags & PROMISE_F_ONLINE)) {
