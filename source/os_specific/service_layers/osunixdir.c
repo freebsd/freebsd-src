@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -214,37 +214,4 @@ AcpiOsCloseDirectory (
 
     closedir (ExternalInfo->DirPtr);
     free (DirHandle);
-}
-
-
-/* Other functions acpisrc uses but that aren't standard on Unix */
-
-/*******************************************************************************
- *
- * FUNCTION:    strlwr
- *
- * PARAMETERS:  str                 - String to be lowercased.
- *
- * RETURN:      str.
- *
- * DESCRIPTION: Lowercase a string in-place.
- *
- ******************************************************************************/
-
-char *
-strlwr  (
-   char         *str)
-{
-    int         length;
-    int         i;
-
-
-    length = strlen (str);
-
-    for (i = 0; i < length; i++)
-    {
-        str[i] = tolower ((int) str[i]);
-    }
-
-    return (str);
 }
