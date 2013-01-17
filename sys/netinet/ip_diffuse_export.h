@@ -151,7 +151,7 @@ static struct dip_info_descr dip_info[] = {
 };
 
 /* Default flow rule template. */
-static uint16_t def_flowrule_template[15] = {
+static uint16_t def_flowrule_template[15] __unused = {
 	DIP_IE_EXPORT_NAME,
 	DIP_IE_MSG_TYPE,
 	DIP_IE_SRC_IPV4,
