@@ -1,16 +1,17 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -29,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_pcb.h,v 1.21 2005/07/16 01:18:47 suz Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_pcb_h__
-#define __sctp_pcb_h__
+#ifndef _NETINET_SCTP_PCB_H_
+#define _NETINET_SCTP_PCB_H_
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp.h>
@@ -145,7 +144,12 @@ struct sctp_tagblock {
 
 
 struct sctp_epinfo {
-	struct socket *udp_tun_socket;
+#ifdef INET
+	struct socket *udp4_tun_socket;
+#endif
+#ifdef INET6
+	struct socket *udp6_tun_socket;
+#endif
 	struct sctpasochead *sctp_asochash;
 	u_long hashasocmark;
 
@@ -328,6 +332,7 @@ struct sctp_pcb {
 	uint8_t default_dscp;
 	char current_secret_number;
 	char last_secret_number;
+	uint16_t port;		/* remote UDP encapsulation port */
 };
 
 #ifndef SCTP_ALIGNMENT
@@ -398,6 +403,7 @@ struct sctp_inpcb {
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
 	uint32_t sctp_context;
+	uint8_t local_strreset_support;
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_ecn_enable;
 	struct sctp_nonpad_sndrcvinfo def_send;
@@ -526,7 +532,8 @@ sctp_inpcb_bind(struct socket *, struct sockaddr *,
     struct sctp_ifa *, struct thread *);
 
 struct sctp_tcb *
-sctp_findassociation_addr(struct mbuf *, int, int,
+sctp_findassociation_addr(struct mbuf *, int,
+    struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_chunkhdr *, struct sctp_inpcb **,
     struct sctp_nets **, uint32_t vrf_id);
 
@@ -557,7 +564,7 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *,
     sctp_assoc_t, int);
 
 struct sctp_tcb *
-sctp_findassociation_ep_asconf(struct mbuf *, int, int,
+sctp_findassociation_ep_asconf(struct mbuf *, int, struct sockaddr *,
     struct sctphdr *, struct sctp_inpcb **, struct sctp_nets **, uint32_t vrf_id);
 
 int sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id);
@@ -603,13 +610,13 @@ void sctp_del_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 
 int
 sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int, int,
-    int, struct sctphdr *, struct sockaddr *);
+    struct sockaddr *, struct sockaddr *, struct sockaddr *);
 
 int
 sctp_set_primary_addr(struct sctp_tcb *, struct sockaddr *,
     struct sctp_nets *);
 
-int sctp_is_vtag_good(struct sctp_inpcb *, uint32_t, uint16_t lport, uint16_t rport, struct timeval *, int);
+int sctp_is_vtag_good(uint32_t, uint16_t lport, uint16_t rport, struct timeval *);
 
 /* void sctp_drain(void); */
 

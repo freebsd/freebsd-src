@@ -57,15 +57,15 @@ static const char rcsid[] =
 #include <wchar.h>
 #include <wctype.h>
 
-int cflag, dflag, uflag, iflag;
-int numchars, numfields, repeats;
+static int cflag, dflag, uflag, iflag;
+static int numchars, numfields, repeats;
 
-FILE	*file(const char *, const char *);
-wchar_t	*convert(const char *);
-int	 inlcmp(const char *, const char *);
-void	 show(FILE *, const char *);
-wchar_t	*skip(wchar_t *);
-void	 obsolete(char *[]);
+static FILE	*file(const char *, const char *);
+static wchar_t	*convert(const char *);
+static int	 inlcmp(const char *, const char *);
+static void	 show(FILE *, const char *);
+static wchar_t	*skip(wchar_t *);
+static void	 obsolete(char *[]);
 static void	 usage(void);
 
 int
@@ -184,7 +184,7 @@ main (int argc, char *argv[])
 	exit(0);
 }
 
-wchar_t *
+static wchar_t *
 convert(const char *str)
 {
 	size_t n;
@@ -218,7 +218,7 @@ convert(const char *str)
 	return (ret);
 }
 
-int
+static int
 inlcmp(const char *s1, const char *s2)
 {
 	int c1, c2;
@@ -241,7 +241,7 @@ inlcmp(const char *s1, const char *s2)
  *	Output a line depending on the flags and number of repetitions
  *	of the line.
  */
-void
+static void
 show(FILE *ofp, const char *str)
 {
 
@@ -251,7 +251,7 @@ show(FILE *ofp, const char *str)
 		(void)fprintf(ofp, "%s", str);
 }
 
-wchar_t *
+static wchar_t *
 skip(wchar_t *str)
 {
 	int nchars, nfields;
@@ -267,7 +267,7 @@ skip(wchar_t *str)
 	return(str);
 }
 
-FILE *
+static FILE *
 file(const char *name, const char *mode)
 {
 	FILE *fp;
@@ -277,7 +277,7 @@ file(const char *name, const char *mode)
 	return(fp);
 }
 
-void
+static void
 obsolete(char *argv[])
 {
 	int len;

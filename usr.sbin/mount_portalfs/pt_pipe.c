@@ -92,7 +92,7 @@ int portal_pipe(struct portal_cred *pcr, char *key, char **v,
 	if (argc == 0)
 		return (ENOENT);
 
-	/* Swap priviledges. */
+	/* Swap privileges. */
 	if (set_user_credentials(pcr, &save_area) < 0)
 		return (errno);
 
@@ -137,7 +137,7 @@ int portal_pipe(struct portal_cred *pcr, char *key, char **v,
 	}
 
 done:
-	/* Re-establish our priviledges. */
+	/* Re-establish our privileges. */
 	if (restore_credentials(&save_area) < 0)
 		error = errno;
 

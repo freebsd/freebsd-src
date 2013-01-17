@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+NO_MAN=
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}
@@ -7,8 +10,9 @@
 PROG=	cc1
 SRCS=	main.c c-parser.c c-lang.c
 BINDIR=	/usr/libexec
-NO_MAN=
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=yes
+.endif
 
 OBJS+=  ${PROG}-checksum.o
 DPADD=	${LIBBACKEND} ${LIBCPP} ${LIBDECNUMBER} ${LIBIBERTY}

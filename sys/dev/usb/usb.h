@@ -93,31 +93,29 @@ MALLOC_DECLARE(M_USBHC);
 #define	USB_POWER_MODE_SUSPEND 3	/* force suspend */
 #define	USB_POWER_MODE_RESUME 4		/* force resume */
 
-#if 0
 /* These are the values from the USB specification. */
-#define	USB_PORT_RESET_DELAY	10	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY 50	/* ms */
-#define	USB_PORT_RESET_RECOVERY	10	/* ms */
-#define	USB_PORT_POWERUP_DELAY	100	/* ms */
-#define	USB_PORT_RESUME_DELAY	20	/* ms */
-#define	USB_SET_ADDRESS_SETTLE	2	/* ms */
-#define	USB_RESUME_DELAY	(20*5)	/* ms */
-#define	USB_RESUME_WAIT		10	/* ms */
-#define	USB_RESUME_RECOVERY	10	/* ms */
-#define	USB_EXTRA_POWER_UP_TIME	0	/* ms */
-#else
+#define	USB_PORT_RESET_DELAY_SPEC	10	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY_SPEC	50	/* ms */
+#define	USB_PORT_RESET_RECOVERY_SPEC	10	/* ms */
+#define	USB_PORT_POWERUP_DELAY_SPEC	100	/* ms */
+#define	USB_PORT_RESUME_DELAY_SPEC	20	/* ms */
+#define	USB_SET_ADDRESS_SETTLE_SPEC	2	/* ms */
+#define	USB_RESUME_DELAY_SPEC		(20*5)	/* ms */
+#define	USB_RESUME_WAIT_SPEC		10	/* ms */
+#define	USB_RESUME_RECOVERY_SPEC	10	/* ms */
+#define	USB_EXTRA_POWER_UP_TIME_SPEC	0	/* ms */
+
 /* Allow for marginal and non-conforming devices. */
-#define	USB_PORT_RESET_DELAY	50	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY 250	/* ms */
-#define	USB_PORT_RESET_RECOVERY	250	/* ms */
-#define	USB_PORT_POWERUP_DELAY	300	/* ms */
-#define	USB_PORT_RESUME_DELAY	(20*2)	/* ms */
-#define	USB_SET_ADDRESS_SETTLE	10	/* ms */
-#define	USB_RESUME_DELAY	(50*5)	/* ms */
-#define	USB_RESUME_WAIT		50	/* ms */
-#define	USB_RESUME_RECOVERY	50	/* ms */
-#define	USB_EXTRA_POWER_UP_TIME	20	/* ms */
-#endif
+#define	USB_PORT_RESET_DELAY		50	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY	250	/* ms */
+#define	USB_PORT_RESET_RECOVERY		250	/* ms */
+#define	USB_PORT_POWERUP_DELAY		300	/* ms */
+#define	USB_PORT_RESUME_DELAY		(20*2)	/* ms */
+#define	USB_SET_ADDRESS_SETTLE		10	/* ms */
+#define	USB_RESUME_DELAY		(50*5)	/* ms */
+#define	USB_RESUME_WAIT			50	/* ms */
+#define	USB_RESUME_RECOVERY		50	/* ms */
+#define	USB_EXTRA_POWER_UP_TIME		20	/* ms */
 
 #define	USB_MIN_POWER		100	/* mA */
 #define	USB_MAX_POWER		500	/* mA */
@@ -225,7 +223,8 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UR_RESET_TT		0x09
 #define	UR_GET_TT_STATE		0x0a
 #define	UR_STOP_TT		0x0b
-#define	UR_SET_HUB_DEPTH	0x0c
+#define	UR_SET_AND_TEST		0x0c	/* USB 2.0 only */
+#define	UR_SET_HUB_DEPTH	0x0c	/* USB 3.0 only */
 #define	USB_SS_HUB_DEPTH_MAX	5
 #define	UR_GET_PORT_ERR_COUNT	0x0d
 
@@ -248,6 +247,7 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UHF_PORT_LINK_STATE	5
 #define	UHF_PORT_POWER		8
 #define	UHF_PORT_LOW_SPEED	9
+#define	UHF_PORT_L1		10
 #define	UHF_C_PORT_CONNECTION	16
 #define	UHF_C_PORT_ENABLE	17
 #define	UHF_C_PORT_SUSPEND	18
@@ -255,6 +255,7 @@ typedef struct usb_device_request usb_device_request_t;
 #define	UHF_C_PORT_RESET	20
 #define	UHF_PORT_TEST		21
 #define	UHF_PORT_INDICATOR	22
+#define	UHF_C_PORT_L1		23
 
 /* SuperSpeed HUB specific features */
 #define	UHF_PORT_U1_TIMEOUT	23
@@ -323,8 +324,13 @@ struct usb_devcap_usb2ext_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDevCapabilityType;
-	uByte	bmAttributes;
-#define	USB_V2EXT_LPM 0x02
+	uDWord	bmAttributes;
+#define	USB_V2EXT_LPM (1U << 1)
+#define	USB_V2EXT_BESL_SUPPORTED (1U << 2)
+#define	USB_V2EXT_BESL_BASELINE_VALID (1U << 3)
+#define	USB_V2EXT_BESL_DEEP_VALID (1U << 4)
+#define	USB_V2EXT_BESL_BASELINE_GET(x) (((x) >> 8) & 0xF)
+#define	USB_V2EXT_BESL_DEEP_GET(x) (((x) >> 12) & 0xF)
 } __packed;
 typedef struct usb_devcap_usb2ext_descriptor usb_devcap_usb2ext_descriptor_t;
 
@@ -336,7 +342,7 @@ struct usb_devcap_ss_descriptor {
 	uWord	wSpeedsSupported;
 	uByte	bFunctionalitySupport;
 	uByte	bU1DevExitLat;
-	uByte	bU2DevExitLat;
+	uWord	wU2DevExitLat;
 } __packed;
 typedef struct usb_devcap_ss_descriptor usb_devcap_ss_descriptor_t;
 
@@ -538,6 +544,8 @@ struct usb_endpoint_ss_comp_descriptor {
 	uByte	bDescriptorType;
 	uByte	bMaxBurst;
 	uByte	bmAttributes;
+#define	UE_GET_BULK_STREAMS(x) ((x) & 0x0F)
+#define	UE_GET_SS_ISO_MULT(x) ((x) & 0x03)
 	uWord	wBytesPerInterval;
 } __packed;
 typedef struct usb_endpoint_ss_comp_descriptor
@@ -671,6 +679,7 @@ struct usb_port_status {
 #define	UPS_SUSPEND			0x0004
 #define	UPS_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_RESET			0x0010
+#define	UPS_PORT_L1			0x0020	/* USB 2.0 only */
 /* The link-state bits are valid for Super-Speed USB HUBs */
 #define	UPS_PORT_LINK_STATE_GET(x)	(((x) >> 5) & 0xF)
 #define	UPS_PORT_LINK_STATE_SET(x)	(((x) & 0xF) << 5)
@@ -688,6 +697,7 @@ struct usb_port_status {
 #define	UPS_PORT_LS_LOOPBACK	0x0B
 #define	UPS_PORT_LS_RESUME	0x0F
 #define	UPS_PORT_POWER			0x0100
+#define	UPS_PORT_POWER_SS		0x0200	/* super-speed only */
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
 #define	UPS_OTHER_SPEED			0x0600	/* currently FreeBSD specific */
@@ -700,7 +710,8 @@ struct usb_port_status {
 #define	UPS_C_SUSPEND			0x0004
 #define	UPS_C_OVERCURRENT_INDICATOR	0x0008
 #define	UPS_C_PORT_RESET		0x0010
-#define	UPS_C_BH_PORT_RESET		0x0020
+#define	UPS_C_PORT_L1			0x0020	/* USB 2.0 only */
+#define	UPS_C_BH_PORT_RESET		0x0020	/* USB 3.0 only */
 #define	UPS_C_PORT_LINK_STATE		0x0040
 #define	UPS_C_PORT_CONFIG_ERROR		0x0080
 } __packed;
@@ -733,7 +744,7 @@ enum usb_revision {
 #define	USB_REV_MAX	(USB_REV_3_0+1)
 
 /*
- * Supported host contoller modes.
+ * Supported host controller modes.
  */
 enum usb_hc_mode {
 	USB_MODE_HOST,		/* initiates transfers */
@@ -743,7 +754,7 @@ enum usb_hc_mode {
 #define	USB_MODE_MAX	(USB_MODE_DUAL+1)
 
 /*
- * The "USB_MODE" macros defines all the supported device states.
+ * The "USB_STATE" enums define all the supported device states.
  */
 enum usb_dev_state {
 	USB_STATE_DETACHED,
@@ -753,4 +764,18 @@ enum usb_dev_state {
 	USB_STATE_CONFIGURED,
 };
 #define	USB_STATE_MAX	(USB_STATE_CONFIGURED+1)
+
+/*
+ * The "USB_EP_MODE" macros define all the currently supported
+ * endpoint modes.
+ */
+enum usb_ep_mode {
+	USB_EP_MODE_DEFAULT,
+	USB_EP_MODE_STREAMS,	/* USB3.0 specific */
+	USB_EP_MODE_HW_MASS_STORAGE,
+	USB_EP_MODE_HW_SERIAL,
+	USB_EP_MODE_HW_ETHERNET_CDC,
+	USB_EP_MODE_HW_ETHERNET_NCM,
+	USB_EP_MODE_MAX
+};
 #endif					/* _USB_STANDARD_H_ */

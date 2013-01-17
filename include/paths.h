@@ -42,7 +42,6 @@
 /* Locate system binaries. */
 #define	_PATH_SYSPATH	"/sbin:/usr/sbin"
 
-#define	_PATH_AUTHCONF	"/etc/auth.conf"
 #define	_PATH_BSHELL	"/bin/sh"
 #define	_PATH_CAPABILITY	"/etc/capability"
 #define	_PATH_CAPABILITY_DB	"/etc/capability.db"
@@ -86,6 +85,7 @@
 #define	_PATH_SHELLS	"/etc/shells"
 #define	_PATH_TTY	"/dev/tty"
 #define	_PATH_UNIX	"don't use _PATH_UNIX"
+#define	_PATH_UFSSUSPEND	"/dev/ufssuspend"
 #define	_PATH_VI	"/usr/bin/vi"
 #define	_PATH_WALL	"/usr/bin/wall"
 

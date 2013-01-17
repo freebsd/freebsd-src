@@ -61,6 +61,13 @@ void SourceLocation::print(raw_ostream &OS, const SourceManager &SM)const{
   OS << '>';
 }
 
+std::string SourceLocation::printToString(const SourceManager &SM) const {
+  std::string S;
+  llvm::raw_string_ostream OS(S);
+  print(OS, SM);
+  return S;
+}
+
 void SourceLocation::dump(const SourceManager &SM) const {
   print(llvm::errs(), SM);
 }
@@ -113,6 +120,10 @@ bool FullSourceLoc::isInSystemHeader() const {
 bool FullSourceLoc::isBeforeInTranslationUnitThan(SourceLocation Loc) const {
   assert(isValid());
   return SrcMgr->isBeforeInTranslationUnit(*this, Loc);
+}
+
+void FullSourceLoc::dump() const {
+  SourceLocation::dump(*SrcMgr);
 }
 
 const char *FullSourceLoc::getCharacterData(bool *Invalid) const {

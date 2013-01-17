@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "cpucontrol.h"
 #include "amd.h"
 #include "intel.h"
+#include "via.h"
 
 int	verbosity_level = 0;
 
@@ -85,12 +86,13 @@ struct datadir {
 };
 static SLIST_HEAD(, datadir) datadirs = SLIST_HEAD_INITIALIZER(datadirs);
 
-struct ucode_handler {
+static struct ucode_handler {
 	ucode_probe_t *probe;
 	ucode_update_t *update;
 } handlers[] = {
 	{ intel_probe, intel_update },
 	{ amd_probe, amd_update },
+	{ via_probe, via_update },
 };
 #define NHANDLERS (sizeof(handlers) / sizeof(*handlers))
 
@@ -290,7 +292,7 @@ do_update(const char *dev)
 	int error;
 	struct ucode_handler *handler;
 	struct datadir *dir;
-	DIR *dirfd;
+	DIR *dirp;
 	struct dirent *direntry;
 	char buf[MAXPATHLEN];
 
@@ -319,12 +321,12 @@ do_update(const char *dev)
 	 * Process every image in specified data directories.
 	 */
 	SLIST_FOREACH(dir, &datadirs, next) {
-		dirfd  = opendir(dir->path);
-		if (dirfd == NULL) {
+		dirp = opendir(dir->path);
+		if (dirp == NULL) {
 			WARNX(1, "skipping directory %s: not accessible", dir->path);
 			continue;
 		}
-		while ((direntry = readdir(dirfd)) != NULL) {
+		while ((direntry = readdir(dirp)) != NULL) {
 			if (direntry->d_namlen == 0)
 				continue;
 			error = snprintf(buf, sizeof(buf), "%s/%s", dir->path,
@@ -338,7 +340,7 @@ do_update(const char *dev)
 			}
 			handler->update(dev, buf);
 		}
-		error = closedir(dirfd);
+		error = closedir(dirp);
 		if (error != 0)
 			WARN(0, "closedir(%s)", dir->path);
 	}

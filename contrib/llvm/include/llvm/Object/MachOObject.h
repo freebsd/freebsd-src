@@ -174,17 +174,20 @@ public:
   void ReadSymbol64TableEntry(
     uint64_t SymbolTableOffset, unsigned Index,
     InMemoryStruct<macho::Symbol64TableEntry> &Res) const;
+  void ReadDataInCodeTableEntry(
+    uint64_t TableOffset, unsigned Index,
+    InMemoryStruct<macho::DataInCodeTableEntry> &Res) const;
   void ReadULEB128s(uint64_t Index, SmallVectorImpl<uint64_t> &Out) const;
 
   /// @}
-  
+
   /// @name Object Dump Facilities
   /// @{
   /// dump - Support for debugging, callable in GDB: V->dump()
   //
   void dump() const;
   void dumpHeader() const;
-  
+
   /// print - Implement operator<< on Value.
   ///
   void print(raw_ostream &O) const;
@@ -192,7 +195,7 @@ public:
 
   /// @}
 };
-  
+
 inline raw_ostream &operator<<(raw_ostream &OS, const MachOObject &V) {
   V.print(OS);
   return OS;

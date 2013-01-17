@@ -693,7 +693,7 @@ enum { STATE_UNKNOWN, STATE_MANSTYLE, STATE_MDOCNAME, STATE_MDOCDESC };
 static void
 process_page(struct page_info *page, char *section_dir)
 {
-	gzFile *in;
+	gzFile in;
 	char buffer[4096];
 	char *line;
 	StringList *names;

@@ -114,7 +114,7 @@ __FBSDID("$FreeBSD$");
 
 
 /* Tunables */
-SYSCTL_NODE(_hw_usb, OID_AUTO, atp, CTLFLAG_RW, 0, "USB atp");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, atp, CTLFLAG_RW, 0, "USB atp");
 
 #ifdef USB_DEBUG
 enum atp_log_level {
@@ -761,7 +761,7 @@ atp_get_pressures(int *p, const int *cur, const int *base, int n)
 		 * threshold; this will reduce the contribution from
 		 * lower pressure readings.
 		 */
-		if (p[i] <= atp_sensor_noise_threshold)
+		if ((u_int)p[i] <= atp_sensor_noise_threshold)
 			p[i] = 0; /* filter away noise */
 		else
 			p[i] -= atp_sensor_noise_threshold;
@@ -887,7 +887,7 @@ atp_match_stroke_component(atp_stroke_component *component,
 
 	delta_mickeys = pspan->loc - component->loc;
 
-	if (abs(delta_mickeys) > atp_max_delta_mickeys)
+	if ((u_int)abs(delta_mickeys) > atp_max_delta_mickeys)
 		return (FALSE); /* the finger span is too far out; no match */
 
 	component->loc          = pspan->loc;
@@ -1164,9 +1164,10 @@ static void
 atp_add_new_strokes(struct atp_softc *sc, atp_pspan *pspans_x,
     u_int n_xpspans, atp_pspan *pspans_y, u_int n_ypspans)
 {
-	int       i, j;
 	atp_pspan spans[2][ATP_MAX_PSPANS_PER_AXIS];
-	u_int     nspans[2];
+	u_int nspans[2];
+	u_int i;
+	u_int j;
 
 	/* Copy unmatched pspans into the local arrays. */
 	for (i = 0, nspans[X] = 0; i < n_xpspans; i++) {
@@ -1373,9 +1374,9 @@ atp_terminate_stroke(struct atp_softc *sc,
 static __inline boolean_t
 atp_stroke_has_small_movement(const atp_stroke *stroke)
 {
-	return ((abs(stroke->components[X].delta_mickeys) <=
+	return (((u_int)abs(stroke->components[X].delta_mickeys) <=
 		atp_small_movement_threshold) &&
-	    (abs(stroke->components[Y].delta_mickeys) <=
+	    ((u_int)abs(stroke->components[Y].delta_mickeys) <=
 		atp_small_movement_threshold));
 }
 
@@ -1388,7 +1389,7 @@ static __inline void
 atp_update_pending_mickeys(atp_stroke_component *component)
 {
 	component->pending += component->delta_mickeys;
-	if (abs(component->pending) <= atp_small_movement_threshold)
+	if ((u_int)abs(component->pending) <= atp_small_movement_threshold)
 		component->delta_mickeys = 0;
 	else {
 		/*
@@ -1690,7 +1691,7 @@ atp_attach(device_t dev)
 
 	if (usb_fifo_attach(sc->sc_usb_device, sc, &sc->sc_mutex,
 		&atp_fifo_methods, &sc->sc_fifo,
-		device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+		device_get_unit(dev), -1, uaa->info.bIfaceIndex,
 		UID_ROOT, GID_OPERATOR, 0644)) {
 		goto detach;
 	}
@@ -1764,13 +1765,13 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		if (len > sc->sc_params->data_len) {
+		if (len > (int)sc->sc_params->data_len) {
 			DPRINTFN(ATP_LLEVEL_ERROR,
 			    "truncating large packet from %u to %u bytes\n",
 			    len, sc->sc_params->data_len);
 			len = sc->sc_params->data_len;
 		}
-		if (len < sc->sc_params->data_len)
+		if (len < (int)sc->sc_params->data_len)
 			goto tr_setup;
 
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -2213,9 +2214,9 @@ static device_method_t atp_methods[] = {
 };
 
 static driver_t atp_driver = {
-	ATP_DRIVER_NAME,
-	atp_methods,
-	sizeof(struct atp_softc)
+	.name = ATP_DRIVER_NAME,
+	.methods = atp_methods,
+	.size = sizeof(struct atp_softc)
 };
 
 static devclass_t atp_devclass;

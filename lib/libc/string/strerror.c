@@ -121,6 +121,6 @@ strerror(int num)
 	static char ebuf[NL_TEXTMAX];
 
 	if (strerror_r(num, ebuf, sizeof(ebuf)) != 0)
-	errno = EINVAL;
+		errno = EINVAL;
 	return (ebuf);
 }

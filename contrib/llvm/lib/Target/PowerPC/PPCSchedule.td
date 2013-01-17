@@ -1,10 +1,10 @@
-//===- PPCSchedule.td - PowerPC Scheduling Definitions -----*- tablegen -*-===//
-// 
+//===-- PPCSchedule.td - PowerPC Scheduling Definitions ----*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
@@ -25,6 +25,7 @@ def VFPU   : FuncUnit; // vector floating point unit
 //===----------------------------------------------------------------------===//
 // Instruction Itinerary classes used for PowerPC
 //
+def IntSimple    : InstrItinClass;
 def IntGeneral   : InstrItinClass;
 def IntCompare   : InstrItinClass;
 def IntDivD      : InstrItinClass;
@@ -39,6 +40,7 @@ def IntMulHWU    : InstrItinClass;
 def IntMulLI     : InstrItinClass;
 def IntRFID      : InstrItinClass;
 def IntRotateD   : InstrItinClass;
+def IntRotateDI  : InstrItinClass;
 def IntRotate    : InstrItinClass;
 def IntShift     : InstrItinClass;
 def IntTrapD     : InstrItinClass;
@@ -50,15 +52,19 @@ def BrMCRX       : InstrItinClass;
 def LdStDCBA     : InstrItinClass;
 def LdStDCBF     : InstrItinClass;
 def LdStDCBI     : InstrItinClass;
-def LdStGeneral  : InstrItinClass;
+def LdStLoad     : InstrItinClass;
+def LdStLoadUpd  : InstrItinClass;
+def LdStStore    : InstrItinClass;
+def LdStStoreUpd : InstrItinClass;
 def LdStDSS      : InstrItinClass;
 def LdStICBI     : InstrItinClass;
-def LdStUX       : InstrItinClass;
 def LdStLD       : InstrItinClass;
+def LdStLDU      : InstrItinClass;
 def LdStLDARX    : InstrItinClass;
 def LdStLFD      : InstrItinClass;
 def LdStLFDU     : InstrItinClass;
 def LdStLHA      : InstrItinClass;
+def LdStLHAU     : InstrItinClass;
 def LdStLMW      : InstrItinClass;
 def LdStLVecX    : InstrItinClass;
 def LdStLWA      : InstrItinClass;
@@ -67,6 +73,9 @@ def LdStSLBIA    : InstrItinClass;
 def LdStSLBIE    : InstrItinClass;
 def LdStSTD      : InstrItinClass;
 def LdStSTDCX    : InstrItinClass;
+def LdStSTDU     : InstrItinClass;
+def LdStSTFD     : InstrItinClass;
+def LdStSTFDU    : InstrItinClass;
 def LdStSTVEBX   : InstrItinClass;
 def LdStSTWCX    : InstrItinClass;
 def LdStSync     : InstrItinClass;
@@ -84,6 +93,7 @@ def SprMTSRIN    : InstrItinClass;
 def SprRFI       : InstrItinClass;
 def SprSC        : InstrItinClass;
 def FPGeneral    : InstrItinClass;
+def FPAddSub     : InstrItinClass;
 def FPCompare    : InstrItinClass;
 def FPDivD       : InstrItinClass;
 def FPDivS       : InstrItinClass;
@@ -103,9 +113,13 @@ def VecVSR       : InstrItinClass;
 // Processor instruction itineraries.
 
 include "PPCScheduleG3.td"
+include "PPCSchedule440.td"
 include "PPCScheduleG4.td"
 include "PPCScheduleG4Plus.td"
 include "PPCScheduleG5.td"
+include "PPCScheduleA2.td"
+include "PPCScheduleE500mc.td"
+include "PPCScheduleE5500.td"
 
 //===----------------------------------------------------------------------===//
 // Instruction to itinerary class map - When add new opcodes to the supported
@@ -114,17 +128,17 @@ include "PPCScheduleG5.td"
 //
 //    opcode     itinerary class
 //    ======     ===============
-//    add        IntGeneral
+//    add        IntSimple
 //    addc       IntGeneral
 //    adde       IntGeneral
-//    addi       IntGeneral
+//    addi       IntSimple
 //    addic      IntGeneral
 //    addic.     IntGeneral
-//    addis      IntGeneral
+//    addis      IntSimple
 //    addme      IntGeneral
 //    addze      IntGeneral
-//    and        IntGeneral
-//    andc       IntGeneral
+//    and        IntSimple
+//    andc       IntSimple
 //    andi.      IntGeneral
 //    andis.     IntGeneral
 //    b          BrB
@@ -149,8 +163,8 @@ include "PPCScheduleG5.td"
 //    dcbf       LdStDCBF
 //    dcbi       LdStDCBI
 //    dcbst      LdStDCBF
-//    dcbt       LdStGeneral
-//    dcbtst     LdStGeneral
+//    dcbt       LdStLoad
+//    dcbtst     LdStLoad
 //    dcbz       LdStDCBF
 //    divd       IntDivD
 //    divdu      IntDivD
@@ -159,15 +173,15 @@ include "PPCScheduleG5.td"
 //    dss        LdStDSS
 //    dst        LdStDSS
 //    dstst      LdStDSS
-//    eciwx      LdStGeneral
-//    ecowx      LdStGeneral
-//    eieio      LdStGeneral
-//    eqv        IntGeneral
-//    extsb      IntGeneral
-//    extsh      IntGeneral
-//    extsw      IntRotateD
+//    eciwx      LdStLoad
+//    ecowx      LdStLoad
+//    eieio      LdStLoad
+//    eqv        IntSimple
+//    extsb      IntSimple
+//    extsh      IntSimple
+//    extsw      IntSimple
 //    fabs       FPGeneral
-//    fadd       FPGeneral
+//    fadd       FPAddSub
 //    fadds      FPGeneral
 //    fcfid      FPGeneral
 //    fcmpo      FPCompare
@@ -197,36 +211,36 @@ include "PPCScheduleG5.td"
 //    fsel       FPGeneral
 //    fsqrt      FPSqrt
 //    fsqrts     FPSqrt
-//    fsub       FPGeneral
+//    fsub       FPAddSub
 //    fsubs      FPGeneral
 //    icbi       LdStICBI
 //    isync      SprISYNC
-//    lbz        LdStGeneral
-//    lbzu       LdStGeneral
-//    lbzux      LdStUX
-//    lbzx       LdStGeneral
+//    lbz        LdStLoad
+//    lbzu       LdStLoadUpd
+//    lbzux      LdStLoadUpd
+//    lbzx       LdStLoad
 //    ld         LdStLD
 //    ldarx      LdStLDARX
-//    ldu        LdStLD
-//    ldux       LdStLD
+//    ldu        LdStLDU
+//    ldux       LdStLDU
 //    ldx        LdStLD
 //    lfd        LdStLFD
 //    lfdu       LdStLFDU
 //    lfdux      LdStLFDU
-//    lfdx       LdStLFDU
-//    lfs        LdStLFDU
+//    lfdx       LdStLFD
+//    lfs        LdStLFD
 //    lfsu       LdStLFDU
 //    lfsux      LdStLFDU
-//    lfsx       LdStLFDU
+//    lfsx       LdStLFD
 //    lha        LdStLHA
-//    lhau       LdStLHA
-//    lhaux      LdStLHA
+//    lhau       LdStLHAU
+//    lhaux      LdStLHAU
 //    lhax       LdStLHA
-//    lhbrx      LdStGeneral
-//    lhz        LdStGeneral
-//    lhzu       LdStGeneral
-//    lhzux      LdStUX
-//    lhzx       LdStGeneral
+//    lhbrx      LdStLoad
+//    lhz        LdStLoad
+//    lhzu       LdStLoadUpd
+//    lhzux      LdStLoadUpd
+//    lhzx       LdStLoad
 //    lmw        LdStLMW
 //    lswi       LdStLMW
 //    lswx       LdStLMW
@@ -239,13 +253,13 @@ include "PPCScheduleG5.td"
 //    lvxl       LdStLVecX
 //    lwa        LdStLWA
 //    lwarx      LdStLWARX
-//    lwaux      LdStLHA
+//    lwaux      LdStLHAU
 //    lwax       LdStLHA
-//    lwbrx      LdStGeneral
-//    lwz        LdStGeneral
-//    lwzu       LdStGeneral
-//    lwzux      LdStUX
-//    lwzx       LdStGeneral
+//    lwbrx      LdStLoad
+//    lwz        LdStLoad
+//    lwzu       LdStLoadUpd
+//    lwzux      LdStLoadUpd
+//    lwzx       LdStLoad
 //    mcrf       BrMCR
 //    mcrfs      FPGeneral
 //    mcrxr      BrMCRX
@@ -277,21 +291,21 @@ include "PPCScheduleG5.td"
 //    mulld      IntMulHD
 //    mulli      IntMulLI
 //    mullw      IntMulHW
-//    nand       IntGeneral
-//    neg        IntGeneral
-//    nor        IntGeneral
-//    or         IntGeneral
-//    orc        IntGeneral
-//    ori        IntGeneral
-//    oris       IntGeneral
+//    nand       IntSimple
+//    neg        IntSimple
+//    nor        IntSimple
+//    or         IntSimple
+//    orc        IntSimple
+//    ori        IntSimple
+//    oris       IntSimple
 //    rfi        SprRFI
 //    rfid       IntRFID
 //    rldcl      IntRotateD
 //    rldcr      IntRotateD
-//    rldic      IntRotateD
-//    rldicl     IntRotateD
-//    rldicr     IntRotateD
-//    rldimi     IntRotateD
+//    rldic      IntRotateDI
+//    rldicl     IntRotateDI
+//    rldicr     IntRotateDI
+//    rldimi     IntRotateDI
 //    rlwimi     IntRotate
 //    rlwinm     IntGeneral
 //    rlwnm      IntGeneral
@@ -301,34 +315,34 @@ include "PPCScheduleG5.td"
 //    sld        IntRotateD
 //    slw        IntGeneral
 //    srad       IntRotateD
-//    sradi      IntRotateD
+//    sradi      IntRotateDI
 //    sraw       IntShift
 //    srawi      IntShift
 //    srd        IntRotateD
 //    srw        IntGeneral
-//    stb        LdStGeneral
-//    stbu       LdStGeneral
-//    stbux      LdStGeneral
-//    stbx       LdStGeneral
+//    stb        LdStStore
+//    stbu       LdStStoreUpd
+//    stbux      LdStStoreUpd
+//    stbx       LdStStore
 //    std        LdStSTD
 //    stdcx.     LdStSTDCX
-//    stdu       LdStSTD
-//    stdux      LdStSTD
+//    stdu       LdStSTDU
+//    stdux      LdStSTDU
 //    stdx       LdStSTD
-//    stfd       LdStUX
-//    stfdu      LdStUX
-//    stfdux     LdStUX
-//    stfdx      LdStUX
-//    stfiwx     LdStUX
-//    stfs       LdStUX
-//    stfsu      LdStUX
-//    stfsux     LdStUX
-//    stfsx      LdStUX
-//    sth        LdStGeneral
-//    sthbrx     LdStGeneral
-//    sthu       LdStGeneral
-//    sthux      LdStGeneral
-//    sthx       LdStGeneral
+//    stfd       LdStSTFD
+//    stfdu      LdStSTFDU
+//    stfdux     LdStSTFDU
+//    stfdx      LdStSTFD
+//    stfiwx     LdStSTFD
+//    stfs       LdStSTFD
+//    stfsu      LdStSTFDU
+//    stfsux     LdStSTFDU
+//    stfsx      LdStSTFD
+//    sth        LdStStore
+//    sthbrx     LdStStore
+//    sthu       LdStStoreUpd
+//    sthux      LdStStoreUpd
+//    sthx       LdStStore
 //    stmw       LdStLMW
 //    stswi      LdStLMW
 //    stswx      LdStLMW
@@ -337,12 +351,12 @@ include "PPCScheduleG5.td"
 //    stvewx     LdStSTVEBX
 //    stvx       LdStSTVEBX
 //    stvxl      LdStSTVEBX
-//    stw        LdStGeneral
-//    stwbrx     LdStGeneral
+//    stw        LdStStore
+//    stwbrx     LdStStore
 //    stwcx.     LdStSTWCX
-//    stwu       LdStGeneral
-//    stwux      LdStGeneral
-//    stwx       LdStGeneral
+//    stwu       LdStStoreUpd
+//    stwux      LdStStoreUpd
+//    stwx       LdStStore
 //    subf       IntGeneral
 //    subfc      IntGeneral
 //    subfe      IntGeneral
@@ -499,7 +513,7 @@ include "PPCScheduleG5.td"
 //    vupklsb    VecPerm
 //    vupklsh    VecPerm
 //    vxor       VecGeneral
-//    xor        IntGeneral
-//    xori       IntGeneral
-//    xoris      IntGeneral
+//    xor        IntSimple
+//    xori       IntSimple
+//    xoris      IntSimple
 //

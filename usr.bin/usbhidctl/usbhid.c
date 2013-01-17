@@ -42,7 +42,7 @@
 #include <usbhid.h>
 #include <dev/usb/usbhid.h>
 
-struct variable {
+static struct variable {
 	char *name;
 	int instance;
 	int val;
@@ -50,11 +50,11 @@ struct variable {
 	struct variable *next;
 } *vars;
 
-int verbose = 0;
-int noname = 0;
-int hexdump = 0;
-int wflag = 0;
-int zflag = 0;
+static int verbose = 0;
+static int noname = 0;
+static int hexdump = 0;
+static int wflag = 0;
+static int zflag = 0;
 
 static void usage(void);
 static void dumpitem(const char *label, struct hid_item *h);
@@ -182,11 +182,11 @@ usage(void)
 
 	fprintf(stderr,
                 "usage: %s -f device "
-                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] name ...\n",
+                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] [-z] name ...\n",
                 getprogname());
 	fprintf(stderr,
                 "       %s -f device "
-                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] -a\n",
+                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] [-z] -a\n",
                 getprogname());
 	fprintf(stderr,
                 "       %s -f device "
@@ -304,7 +304,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	u_char *dbuf;
 	enum hid_kind kind;
 
-	kind = 0;
+	kind = zflag ? 3 : 0;
 	rid = -1;
 	use_rid = !!hid_get_report_id(f);
 	do {

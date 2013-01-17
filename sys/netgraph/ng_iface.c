@@ -87,7 +87,7 @@
 #include <netgraph/ng_cisco.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_IFACE, "netgraph_iface", "netgraph iface node ");
+static MALLOC_DEFINE(M_NETGRAPH_IFACE, "netgraph_iface", "netgraph iface node");
 #else
 #define M_NETGRAPH_IFACE M_NETGRAPH
 #endif
@@ -394,7 +394,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	ng_iface_bpftap(ifp, m, dst->sa_family);
 
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		M_PREPEND(m, sizeof(sa_family_t), M_DONTWAIT);
+		M_PREPEND(m, sizeof(sa_family_t), M_NOWAIT);
 		if (m == NULL) {
 			IFQ_LOCK(&ifp->if_snd);
 			IFQ_INC_DROPS(&ifp->if_snd);

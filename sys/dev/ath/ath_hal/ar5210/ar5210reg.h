@@ -245,9 +245,20 @@
 #define	AR_SCR_SLDUR		0x0000ffff	/* sleep duration */
 #define	AR_SCR_SLE		0x00030000	/* sleep enable */
 #define	AR_SCR_SLE_S		16
-#define	AR_SCR_SLE_WAKE		0x00000000	/* force wake */
-#define	AR_SCR_SLE_SLP		0x00010000	/* force sleep */
-#define	AR_SCR_SLE_ALLOW	0x00020000	/* allow to control sleep */
+/*
+ * The previous values for the following three defines were:
+ *
+ *	AR_SCR_SLE_WAKE		0x00000000
+ *	AR_SCR_SLE_SLP		0x00010000
+ *	AR_SCR_SLE_ALLOW	0x00020000
+ *
+ * However, these have been pre-shifted with AR_SCR_SLE_S.  The
+ * OS_REG_READ() macro would attempt to shift them again, effectively
+ * shifting out any of the set bits completely.
+ */
+#define	AR_SCR_SLE_WAKE		0		/* force wake */
+#define	AR_SCR_SLE_SLP		1		/* force sleep */
+#define	AR_SCR_SLE_ALLOW	2		/* allow to control sleep */
 #define	AR_SCR_BITS	"\20\20SLE_SLP\21SLE_ALLOW"
 
 #define	AR_INTPEND_IP		0x00000001	/* interrupt pending */
@@ -374,6 +385,7 @@
 #define	AR_DIAG_SW_SCVRAM_SEED	0x0003f800	/* fixed scrambler seed */
 #define	AR_DIAG_SW_DIS_SEQ_INC	0x00040000	/* seq increment disable */
 #define	AR_DIAG_SW_FRAME_NV0	0x00080000	/* accept frame vers != 0 */
+#define	AR_DIAG_SW_DIS_CRYPTO	(AR_DIAG_SW_DIS_ENC | AR_DIAG_SW_DIS_DEC)
 #define	AR_DIAG_SW_BITS \
 	"\20\1DIS_WEP_ACK\2DIS_ACK\3DIS_CTS\4DIS_ENC\5DIS_DEC\6DIS_TX"\
 	"\7DIS_RX\10LOOP_BACK\11CORR_FCS\12CHAN_INFO\13EN_SCRAM_SEED"\

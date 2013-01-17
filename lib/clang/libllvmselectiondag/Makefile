@@ -14,12 +14,14 @@ SRCS=	DAGCombiner.cpp \
 	LegalizeTypesGeneric.cpp \
 	LegalizeVectorOps.cpp \
 	LegalizeVectorTypes.cpp \
+	ResourcePriorityQueue.cpp \
 	ScheduleDAGFast.cpp \
-	ScheduleDAGList.cpp \
 	ScheduleDAGRRList.cpp \
 	ScheduleDAGSDNodes.cpp \
+	ScheduleDAGVLIW.cpp \
 	SelectionDAG.cpp \
 	SelectionDAGBuilder.cpp \
+	SelectionDAGDumper.cpp \
 	SelectionDAGISel.cpp \
 	SelectionDAGPrinter.cpp \
 	TargetLowering.cpp \

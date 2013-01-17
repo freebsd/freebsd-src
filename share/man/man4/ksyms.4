@@ -42,15 +42,15 @@
 .Sh DESCRIPTION
 The
 .Pa /dev/ksyms
-character device provides a read-only interface to a snapshot of the kernel 
+character device provides a read-only interface to a snapshot of the kernel
 symbol table.  The in-kernel symbol manager is designed to be able to handle
-many types of symbols tables, however, only 
+many types of symbols tables, however, only
 .Xr elf 5
 symbol tables are supported by this device.  The ELF format image contains two
-sections: a symbol table and a corresponding string table.  
+sections: a symbol table and a corresponding string table.
 .Bl -tag -width indent -offset indent
 .It Dv Symbol Table
-The SYMTAB section contains the symbol table entries present in the current 
+The SYMTAB section contains the symbol table entries present in the current
 running kernel, including the symbol table entries of any loaded modules. The
 symbols are ordered by the kernel module load time starting with kernel file
 symbols first, followed by the first loaded module's symbols and so on.
@@ -65,10 +65,10 @@ file represents the state of the kernel at the time when the device is opened.
 Since
 .Pa /dev/ksyms
 has no text or data, most of the fields are initialized to NULL.
-The 
-.Nm 
+The
+.Nm
 driver does not block the loading or unloading of modules into the kernel
-while the 
+while the
 .Pa /dev/ksyms
 file is open but may contain stale data.
 .Sh IOCTLS
@@ -87,29 +87,29 @@ This can be used when allocating a buffer to make a copy of
 the kernel symbol table.
 .It Dv KIOCGADDR (void *)
 Returns the address of the kernel symbol table mapped in
-the process memory.  
+the process memory.
 .El
 .Sh FILES
 .Bl -tag -width /dev/ksymsX
 .It Pa /dev/ksyms
 .El
 .Sh ERRORS
-An 
+An
 .Xr open 2
 of
 .Pa /dev/ksyms
-will fail if: 
+will fail if:
 .Bl -tag -width Er
 .It Bq Er EBUSY
-The device is already open.  A process must close 
+The device is already open.  A process must close
 .Pa /dev/ksyms
-before it can be opened again. 
+before it can be opened again.
 .It Bq Er ENOMEM
 There is a resource shortage in the kernel.
 .It Bq Er ENXIO
 The driver was unsuccessful in creating a snapshot of the kernel symbol
 table.  This may occur if the kernel was in the process of loading or
-unloading a module. 
+unloading a module.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
@@ -128,7 +128,7 @@ The
 .Nm
 driver first appeared in
 .Fx 8.0
-to support 
+to support
 .Xr lockstat 1 .
 .Sh AUTHORS
 The
@@ -137,7 +137,7 @@ driver was written by
 .An Stacey Son
 .Aq sson@FreeBSD.org .
 .Sh BUGS
-Because files can be dynamically linked into the kernel at any time the symbol 
+Because files can be dynamically linked into the kernel at any time the symbol
 information can vary.  When you open the
 .Pa /dev/ksyms
 file, you have access to an ELF image which represents a snapshot of the state of the kernel symbol information at that instant in time. Keeping the device open does not block the loading or unloading of kernel modules.  To get a new snapshot you must close and re-open the device.
@@ -147,12 +147,12 @@ A process is only allowed to open the
 file once at a time.  The process must close the
 .Pa /dev/ksyms
 before it is allowed to open it again.
-.Pp 
+.Pp
 The
 .Nm
-driver uses the calling process' memory address space to store the snapshot.  
+driver uses the calling process' memory address space to store the snapshot.
 .Xr ioctl 2
 can be used to get the memory address where the symbol table is stored to
-save kernel memory. 
+save kernel memory.
 .Xr mmap 2
-may also be used but it will map it to another address. 
+may also be used but it will map it to another address.

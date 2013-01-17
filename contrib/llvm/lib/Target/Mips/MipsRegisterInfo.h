@@ -1,4 +1,4 @@
-//===- MipsRegisterInfo.h - Mips Register Information Impl ------*- C++ -*-===//
+//===-- MipsRegisterInfo.h - Mips Register Information Impl -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -22,14 +22,14 @@
 
 namespace llvm {
 class MipsSubtarget;
-class TargetInstrInfo;
 class Type;
 
-struct MipsRegisterInfo : public MipsGenRegisterInfo {
+class MipsRegisterInfo : public MipsGenRegisterInfo {
+protected:
   const MipsSubtarget &Subtarget;
-  const TargetInstrInfo &TII;
 
-  MipsRegisterInfo(const MipsSubtarget &Subtarget, const TargetInstrInfo &tii);
+public:
+  MipsRegisterInfo(const MipsSubtarget &Subtarget);
 
   /// getRegisterNumbering - Given the enum value for some register, e.g.
   /// Mips::RA, return the number that it corresponds to (e.g. 31).
@@ -42,13 +42,14 @@ struct MipsRegisterInfo : public MipsGenRegisterInfo {
   void adjustMipsStackFrame(MachineFunction &MF) const;
 
   /// Code Generation virtual methods...
-  const unsigned *getCalleeSavedRegs(const MachineFunction* MF = 0) const;
+  const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
+  const uint32_t *getCallPreservedMask(CallingConv::ID) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
+  virtual bool requiresRegisterScavenging(const MachineFunction &MF) const;
+
+  virtual bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
 
   /// Stack Frame Processing Methods
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
@@ -62,6 +63,11 @@ struct MipsRegisterInfo : public MipsGenRegisterInfo {
   /// Exception handling queries.
   unsigned getEHExceptionRegister() const;
   unsigned getEHHandlerRegister() const;
+
+private:
+  virtual void eliminateFI(MachineBasicBlock::iterator II, unsigned OpNo,
+                           int FrameIndex, uint64_t StackSize,
+                           int64_t SPOffset) const = 0;
 };
 
 } // end namespace llvm

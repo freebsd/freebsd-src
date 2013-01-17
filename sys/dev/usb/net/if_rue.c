@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int rue_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
 SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
     &rue_debug, 0, "Debug level");
 #endif
@@ -186,15 +186,12 @@ static device_method_t rue_methods[] = {
 	DEVMETHOD(device_attach, rue_attach),
 	DEVMETHOD(device_detach, rue_detach),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, rue_miibus_readreg),
 	DEVMETHOD(miibus_writereg, rue_miibus_writereg),
 	DEVMETHOD(miibus_statchg, rue_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t rue_driver = {
@@ -205,8 +202,9 @@ static driver_t rue_driver = {
 
 static devclass_t rue_devclass;
 
-DRIVER_MODULE(rue, uhub, rue_driver, rue_devclass, NULL, 0);
-DRIVER_MODULE(miibus, rue, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(rue, uhub, rue_driver, rue_devclass, NULL, NULL,
+    SI_ORDER_ANY);
+DRIVER_MODULE(miibus, rue, miibus_driver, miibus_devclass, NULL, NULL);
 MODULE_DEPEND(rue, uether, 1, 1, 1);
 MODULE_DEPEND(rue, usb, 1, 1, 1);
 MODULE_DEPEND(rue, ether, 1, 1, 1);
@@ -641,7 +639,7 @@ rue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 
 		if (ifp && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-		    actlen >= sizeof(pkt)) {
+		    actlen >= (int)sizeof(pkt)) {
 
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));

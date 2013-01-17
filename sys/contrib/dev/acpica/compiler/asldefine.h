@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asldefine.h - Common defines for the iASL compiler
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +55,7 @@
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
 
-#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 4.0a"
+#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 5.0"
 
 
 /* Configuration constants */
@@ -153,5 +152,24 @@
 #define POSITIVE                    0
 
 
-#endif /* ASLDEFINE.H */
+/* Helper macros for resource tag creation */
 
+#define RsCreateMultiBitField \
+    RsCreateResourceField
+
+#define RsCreateBitField(Op, Name, ByteOffset, BitOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, BitOffset, 1)
+
+#define RsCreateByteField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 8);
+
+#define RsCreateWordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 16);
+
+#define RsCreateDwordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 32);
+
+#define RsCreateQwordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 64);
+
+#endif /* ASLDEFINE.H */

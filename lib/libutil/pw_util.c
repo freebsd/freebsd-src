@@ -179,11 +179,8 @@ pw_lock(void)
 	for (;;) {
 		struct stat st;
 
-		lockfd = open(masterpasswd, O_RDONLY, 0);
-		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-			err(1, "%s", masterpasswd);
-		/* XXX vulnerable to race conditions */
-		if (flock(lockfd, LOCK_EX|LOCK_NB) == -1) {
+		lockfd = flopen(masterpasswd, O_RDONLY|O_NONBLOCK|O_CLOEXEC, 0);
+		if (lockfd == -1) {
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the password db file is busy");
 			} else {
@@ -347,7 +344,8 @@ pw_edit(int notsetuid)
 	sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 	if (stat(tempname, &st2) == -1)
 		return (-1);
-	return (st1.st_mtime != st2.st_mtime);
+	return (st1.st_mtim.tv_sec != st2.st_mtim.tv_sec ||
+	    st1.st_mtim.tv_nsec != st2.st_mtim.tv_nsec);
 }
 
 /*
@@ -406,23 +404,51 @@ pw_make(const struct passwd *pw)
 	    pw->pw_passwd, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid,
 	    pw->pw_class, (uintmax_t)pw->pw_change, (uintmax_t)pw->pw_expire,
 	    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
-	return line;
+	return (line);
 }
 
 /*
- * Copy password file from one descriptor to another, replacing or adding
- * a single record on the way.
+ * Make a passwd line (in v7 format) out of a struct passwd
+ */
+char *
+pw_make_v7(const struct passwd *pw)
+{
+	char *line;
+
+	asprintf(&line, "%s:*:%ju:%ju:%s:%s:%s", pw->pw_name,
+	    (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid,
+	    pw->pw_gecos, pw->pw_dir, pw->pw_shell);
+	return (line);
+}
+
+/*
+ * Copy password file from one descriptor to another, replacing, deleting
+ * or adding a single record on the way.
  */
 int
 pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 {
 	char buf[8192], *end, *line, *p, *q, *r, t;
 	struct passwd *fpw;
+	const struct passwd *spw;
 	size_t len;
 	int eof, readlen;
 
-	if ((line = pw_make(pw)) == NULL)
-		return (-1);
+	if (old_pw == NULL && pw == NULL)
+			return (-1);
+
+	spw = old_pw;
+	/* deleting a user */
+	if (pw == NULL) {
+		line = NULL;
+	} else {
+		if ((line = pw_make(pw)) == NULL)
+			return (-1);
+	}
+
+	/* adding a user */
+	if (spw == NULL)
+		spw = pw;
 
 	eof = 0;
 	len = 0;
@@ -489,7 +515,7 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		 */
 
 		*q = t;
-		if (fpw == NULL || strcmp(fpw->pw_name, pw->pw_name) != 0) {
+		if (fpw == NULL || strcmp(fpw->pw_name, spw->pw_name) != 0) {
 			/* nope */
 			if (fpw != NULL)
 				free(fpw);
@@ -506,11 +532,15 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		}
 		free(fpw);
 
-		/* it is, replace it */
-		len = strlen(line);
-		if (write(tfd, line, len) != (int)len)
-			goto err;
-
+		/* it is, replace or remove it */
+		if (line != NULL) {
+			len = strlen(line);
+			if (write(tfd, line, len) != (int)len)
+				goto err;
+		} else {
+			/* when removed, avoid the \n */
+			q++;
+		}
 		/* we're done, just copy the rest over */
 		for (;;) {
 			if (write(tfd, q, end - q) != end - q)
@@ -528,16 +558,22 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		goto done;
 	}
 
-	/* if we got here, we have a new entry */
+	/* if we got here, we didn't find the old entry */
+	if (line == NULL) {
+		errno = ENOENT;
+		goto err;
+	}
 	len = strlen(line);
 	if ((size_t)write(tfd, line, len) != len ||
 	    write(tfd, "\n", 1) != 1)
 		goto err;
  done:
-	free(line);
+	if (line != NULL)
+		free(line);
 	return (0);
  err:
-	free(line);
+	if (line != NULL)
+		free(line);
 	return (-1);
 }
 

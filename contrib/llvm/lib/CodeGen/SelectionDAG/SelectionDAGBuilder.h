@@ -66,12 +66,12 @@ class ShuffleVectorInst;
 class SIToFPInst;
 class StoreInst;
 class SwitchInst;
-class TargetData;
+class DataLayout;
+class TargetLibraryInfo;
 class TargetLowering;
 class TruncInst;
 class UIToFPInst;
 class UnreachableInst;
-class UnwindInst;
 class VAArgInst;
 class ZExtInst;
 
@@ -129,13 +129,13 @@ private:
   /// Case - A struct to record the Value for a switch case, and the
   /// case's target basic block.
   struct Case {
-    Constant* Low;
-    Constant* High;
+    const Constant *Low;
+    const Constant *High;
     MachineBasicBlock* BB;
     uint32_t ExtraWeight;
 
     Case() : Low(0), High(0), BB(0), ExtraWeight(0) { }
-    Case(Constant* low, Constant* high, MachineBasicBlock* bb,
+    Case(const Constant *low, const Constant *high, MachineBasicBlock *bb,
          uint32_t extraweight) : Low(low), High(high), BB(bb),
          ExtraWeight(extraweight) { }
 
@@ -150,9 +150,11 @@ private:
     uint64_t Mask;
     MachineBasicBlock* BB;
     unsigned Bits;
+    uint32_t ExtraWeight;
 
-    CaseBits(uint64_t mask, MachineBasicBlock* bb, unsigned bits):
-      Mask(mask), BB(bb), Bits(bits) { }
+    CaseBits(uint64_t mask, MachineBasicBlock* bb, unsigned bits,
+             uint32_t Weight):
+      Mask(mask), BB(bb), Bits(bits), ExtraWeight(Weight) { }
   };
 
   typedef std::vector<Case>           CaseVector;
@@ -179,17 +181,6 @@ private:
   };
 
   typedef std::vector<CaseRec> CaseRecVector;
-
-  /// The comparison function for sorting the switch case values in the vector.
-  /// WARNING: Case ranges should be disjoint!
-  struct CaseCmp {
-    bool operator()(const Case &C1, const Case &C2) {
-      assert(isa<ConstantInt>(C1.Low) && isa<ConstantInt>(C2.High));
-      const ConstantInt* CI1 = cast<const ConstantInt>(C1.Low);
-      const ConstantInt* CI2 = cast<const ConstantInt>(C2.High);
-      return CI1->getValue().slt(CI2->getValue());
-    }
-  };
 
   struct CaseBitsCmp {
     bool operator()(const CaseBits &C1, const CaseBits &C2) {
@@ -258,11 +249,13 @@ private:
   typedef std::pair<JumpTableHeader, JumpTable> JumpTableBlock;
 
   struct BitTestCase {
-    BitTestCase(uint64_t M, MachineBasicBlock* T, MachineBasicBlock* Tr):
-      Mask(M), ThisBB(T), TargetBB(Tr) { }
+    BitTestCase(uint64_t M, MachineBasicBlock* T, MachineBasicBlock* Tr,
+                uint32_t Weight):
+      Mask(M), ThisBB(T), TargetBB(Tr), ExtraWeight(Weight) { }
     uint64_t Mask;
     MachineBasicBlock *ThisBB;
     MachineBasicBlock *TargetBB;
+    uint32_t ExtraWeight;
   };
 
   typedef SmallVector<BitTestCase, 3> BitTestInfo;
@@ -292,8 +285,9 @@ public:
   const TargetMachine &TM;
   const TargetLowering &TLI;
   SelectionDAG &DAG;
-  const TargetData *TD;
+  const DataLayout *TD;
   AliasAnalysis *AA;
+  const TargetLibraryInfo *LibInfo;
 
   /// SwitchCases - Vector of CaseBlock structures used to communicate
   /// SwitchInst code generation information.
@@ -335,10 +329,11 @@ public:
                       CodeGenOpt::Level ol)
     : SDNodeOrder(0), TM(dag.getTarget()), TLI(dag.getTargetLoweringInfo()),
       DAG(dag), FuncInfo(funcinfo), OptLevel(ol),
-      HasTailCall(false), Context(dag.getContext()) {
+      HasTailCall(false) {
   }
 
-  void init(GCFunctionInfo *gfi, AliasAnalysis &aa);
+  void init(GCFunctionInfo *gfi, AliasAnalysis &aa,
+            const TargetLibraryInfo *li);
 
   /// clear - Clear out the current SelectionDAG and the associated
   /// state and prepare this SelectionDAGBuilder object to be used
@@ -349,7 +344,7 @@ public:
   void clear();
 
   /// clearDanglingDebugInfo - Clear the dangling debug information
-  /// map. This function is seperated from the clear so that debug
+  /// map. This function is separated from the clear so that debug
   /// information that is dangling in a basic block can be properly
   /// resolved in a different basic block. This allows the
   /// SelectionDAG to resolve dangling debug information attached
@@ -451,7 +446,8 @@ private:
                                 MachineBasicBlock* Default,
                                 MachineBasicBlock *SwitchBB);
 
-  uint32_t getEdgeWeight(MachineBasicBlock *Src, MachineBasicBlock *Dst);
+  uint32_t getEdgeWeight(const MachineBasicBlock *Src,
+                         const MachineBasicBlock *Dst) const;
   void addSuccessorWithWeight(MachineBasicBlock *Src, MachineBasicBlock *Dst,
                               uint32_t Weight = 0);
 public:
@@ -460,6 +456,7 @@ public:
   void visitBitTestHeader(BitTestBlock &B, MachineBasicBlock *SwitchBB);
   void visitBitTestCase(BitTestBlock &BB,
                         MachineBasicBlock* NextMBB,
+                        uint32_t BranchWeightToNext,
                         unsigned Reg,
                         BitTestCase &B,
                         MachineBasicBlock *SwitchBB);
@@ -471,7 +468,6 @@ private:
   // These all get lowered before this pass.
   void visitInvoke(const InvokeInst &I);
   void visitResume(const ResumeInst &I);
-  void visitUnwind(const UnwindInst &I);
 
   void visitBinary(const User &I, unsigned OpCode);
   void visitShift(const User &I, unsigned Opcode);
@@ -529,6 +525,7 @@ private:
   void visitPHI(const PHINode &I);
   void visitCall(const CallInst &I);
   bool visitMemCmpCall(const CallInst &I);
+  bool visitUnaryFloatCall(const CallInst &I, unsigned Opcode);
   void visitAtomicLoad(const LoadInst &I);
   void visitAtomicStore(const StoreInst &I);
 
@@ -554,8 +551,6 @@ private:
   void visitUserOp2(const Instruction &I) {
     llvm_unreachable("UserOp2 should not exist at instruction selection time!");
   }
-  
-  const char *implVisitAluOverflow(const CallInst &I, ISD::NodeType Op);
 
   void HandlePHINodesInSuccessorBlocks(const BasicBlock *LLVMBB);
 

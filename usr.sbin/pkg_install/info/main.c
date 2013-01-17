@@ -1,6 +1,6 @@
 /*
  *
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@ main(int argc, char **argv)
     char **pkgs, **start;
     char *pkgs_split;
 
+    warnpkgng();
     whead = malloc(sizeof(struct which_head));
     if (whead == NULL)
 	err(2, NULL);

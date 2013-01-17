@@ -16,15 +16,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "virtregmap"
+#define DEBUG_TYPE "regalloc"
 #include "VirtRegMap.h"
-#include "llvm/Function.h"
+#include "LiveDebugVariables.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -32,12 +33,8 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallSet.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -58,34 +55,11 @@ bool VirtRegMap::runOnMachineFunction(MachineFunction &mf) {
   TRI = mf.getTarget().getRegisterInfo();
   MF = &mf;
 
-  ReMatId = MAX_STACK_SLOT+1;
-  LowSpillSlot = HighSpillSlot = NO_STACK_SLOT;
-  
   Virt2PhysMap.clear();
   Virt2StackSlotMap.clear();
-  Virt2ReMatIdMap.clear();
   Virt2SplitMap.clear();
-  Virt2SplitKillMap.clear();
-  ReMatMap.clear();
-  ImplicitDefed.clear();
-  SpillSlotToUsesMap.clear();
-  MI2VirtMap.clear();
-  SpillPt2VirtMap.clear();
-  RestorePt2VirtMap.clear();
-  EmergencySpillMap.clear();
-  EmergencySpillSlots.clear();
-  
-  SpillSlotToUsesMap.resize(8);
-  ImplicitDefed.resize(MF->getRegInfo().getNumVirtRegs());
-
-  allocatableRCRegs.clear();
-  for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
-         E = TRI->regclass_end(); I != E; ++I)
-    allocatableRCRegs.insert(std::make_pair(*I,
-                                            TRI->getAllocatableSet(mf, *I)));
 
   grow();
-  
   return false;
 }
 
@@ -93,24 +67,12 @@ void VirtRegMap::grow() {
   unsigned NumRegs = MF->getRegInfo().getNumVirtRegs();
   Virt2PhysMap.resize(NumRegs);
   Virt2StackSlotMap.resize(NumRegs);
-  Virt2ReMatIdMap.resize(NumRegs);
   Virt2SplitMap.resize(NumRegs);
-  Virt2SplitKillMap.resize(NumRegs);
-  ReMatMap.resize(NumRegs);
-  ImplicitDefed.resize(NumRegs);
 }
 
 unsigned VirtRegMap::createSpillSlot(const TargetRegisterClass *RC) {
   int SS = MF->getFrameInfo()->CreateSpillStackObject(RC->getSize(),
                                                       RC->getAlignment());
-  if (LowSpillSlot == NO_STACK_SLOT)
-    LowSpillSlot = SS;
-  if (HighSpillSlot == NO_STACK_SLOT || SS > HighSpillSlot)
-    HighSpillSlot = SS;
-  assert(SS >= LowSpillSlot && "Unexpected low spill slot");
-  unsigned Idx = SS-LowSpillSlot;
-  while (Idx >= SpillSlotToUsesMap.size())
-    SpillSlotToUsesMap.resize(SpillSlotToUsesMap.size()*2);
   ++NumSpillSlots;
   return SS;
 }
@@ -144,123 +106,154 @@ void VirtRegMap::assignVirt2StackSlot(unsigned virtReg, int SS) {
   Virt2StackSlotMap[virtReg] = SS;
 }
 
-int VirtRegMap::assignVirtReMatId(unsigned virtReg) {
-  assert(TargetRegisterInfo::isVirtualRegister(virtReg));
-  assert(Virt2ReMatIdMap[virtReg] == NO_STACK_SLOT &&
-         "attempt to assign re-mat id to already spilled register");
-  Virt2ReMatIdMap[virtReg] = ReMatId;
-  return ReMatId++;
-}
-
-void VirtRegMap::assignVirtReMatId(unsigned virtReg, int id) {
-  assert(TargetRegisterInfo::isVirtualRegister(virtReg));
-  assert(Virt2ReMatIdMap[virtReg] == NO_STACK_SLOT &&
-         "attempt to assign re-mat id to already spilled register");
-  Virt2ReMatIdMap[virtReg] = id;
-}
-
-int VirtRegMap::getEmergencySpillSlot(const TargetRegisterClass *RC) {
-  std::map<const TargetRegisterClass*, int>::iterator I =
-    EmergencySpillSlots.find(RC);
-  if (I != EmergencySpillSlots.end())
-    return I->second;
-  return EmergencySpillSlots[RC] = createSpillSlot(RC);
-}
-
-void VirtRegMap::addSpillSlotUse(int FI, MachineInstr *MI) {
-  if (!MF->getFrameInfo()->isFixedObjectIndex(FI)) {
-    // If FI < LowSpillSlot, this stack reference was produced by
-    // instruction selection and is not a spill
-    if (FI >= LowSpillSlot) {
-      assert(FI >= 0 && "Spill slot index should not be negative!");
-      assert((unsigned)FI-LowSpillSlot < SpillSlotToUsesMap.size()
-             && "Invalid spill slot");
-      SpillSlotToUsesMap[FI-LowSpillSlot].insert(MI);
-    }
-  }
-}
-
-void VirtRegMap::virtFolded(unsigned VirtReg, MachineInstr *OldMI,
-                            MachineInstr *NewMI, ModRef MRInfo) {
-  // Move previous memory references folded to new instruction.
-  MI2VirtMapTy::iterator IP = MI2VirtMap.lower_bound(NewMI);
-  for (MI2VirtMapTy::iterator I = MI2VirtMap.lower_bound(OldMI),
-         E = MI2VirtMap.end(); I != E && I->first == OldMI; ) {
-    MI2VirtMap.insert(IP, std::make_pair(NewMI, I->second));
-    MI2VirtMap.erase(I++);
-  }
-
-  // add new memory reference
-  MI2VirtMap.insert(IP, std::make_pair(NewMI, std::make_pair(VirtReg, MRInfo)));
-}
-
-void VirtRegMap::virtFolded(unsigned VirtReg, MachineInstr *MI, ModRef MRInfo) {
-  MI2VirtMapTy::iterator IP = MI2VirtMap.lower_bound(MI);
-  MI2VirtMap.insert(IP, std::make_pair(MI, std::make_pair(VirtReg, MRInfo)));
-}
-
-void VirtRegMap::RemoveMachineInstrFromMaps(MachineInstr *MI) {
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    MachineOperand &MO = MI->getOperand(i);
-    if (!MO.isFI())
-      continue;
-    int FI = MO.getIndex();
-    if (MF->getFrameInfo()->isFixedObjectIndex(FI))
-      continue;
-    // This stack reference was produced by instruction selection and
-    // is not a spill
-    if (FI < LowSpillSlot)
-      continue;
-    assert((unsigned)FI-LowSpillSlot < SpillSlotToUsesMap.size()
-           && "Invalid spill slot");
-    SpillSlotToUsesMap[FI-LowSpillSlot].erase(MI);
-  }
-  MI2VirtMap.erase(MI);
-  SpillPt2VirtMap.erase(MI);
-  RestorePt2VirtMap.erase(MI);
-  EmergencySpillMap.erase(MI);
-}
-
-/// FindUnusedRegisters - Gather a list of allocatable registers that
-/// have not been allocated to any virtual register.
-bool VirtRegMap::FindUnusedRegisters(LiveIntervals* LIs) {
-  unsigned NumRegs = TRI->getNumRegs();
-  UnusedRegs.reset();
-  UnusedRegs.resize(NumRegs);
-
-  BitVector Used(NumRegs);
+void VirtRegMap::print(raw_ostream &OS, const Module*) const {
+  OS << "********** REGISTER MAP **********\n";
   for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
-    if (Virt2PhysMap[Reg] != (unsigned)VirtRegMap::NO_PHYS_REG)
-      Used.set(Virt2PhysMap[Reg]);
-  }
-
-  BitVector Allocatable = TRI->getAllocatableSet(*MF);
-  bool AnyUnused = false;
-  for (unsigned Reg = 1; Reg < NumRegs; ++Reg) {
-    if (Allocatable[Reg] && !Used[Reg] && !LIs->hasInterval(Reg)) {
-      bool ReallyUnused = true;
-      for (const unsigned *AS = TRI->getAliasSet(Reg); *AS; ++AS) {
-        if (Used[*AS] || LIs->hasInterval(*AS)) {
-          ReallyUnused = false;
-          break;
-        }
-      }
-      if (ReallyUnused) {
-        AnyUnused = true;
-        UnusedRegs.set(Reg);
-      }
+    if (Virt2PhysMap[Reg] != (unsigned)VirtRegMap::NO_PHYS_REG) {
+      OS << '[' << PrintReg(Reg, TRI) << " -> "
+         << PrintReg(Virt2PhysMap[Reg], TRI) << "] "
+         << MRI->getRegClass(Reg)->getName() << "\n";
     }
   }
 
-  return AnyUnused;
+  for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
+    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+    if (Virt2StackSlotMap[Reg] != VirtRegMap::NO_STACK_SLOT) {
+      OS << '[' << PrintReg(Reg, TRI) << " -> fi#" << Virt2StackSlotMap[Reg]
+         << "] " << MRI->getRegClass(Reg)->getName() << "\n";
+    }
+  }
+  OS << '\n';
 }
 
-void VirtRegMap::rewrite(SlotIndexes *Indexes) {
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+void VirtRegMap::dump() const {
+  print(dbgs());
+}
+#endif
+
+//===----------------------------------------------------------------------===//
+//                              VirtRegRewriter
+//===----------------------------------------------------------------------===//
+//
+// The VirtRegRewriter is the last of the register allocator passes.
+// It rewrites virtual registers to physical registers as specified in the
+// VirtRegMap analysis. It also updates live-in information on basic blocks
+// according to LiveIntervals.
+//
+namespace {
+class VirtRegRewriter : public MachineFunctionPass {
+  MachineFunction *MF;
+  const TargetMachine *TM;
+  const TargetRegisterInfo *TRI;
+  const TargetInstrInfo *TII;
+  MachineRegisterInfo *MRI;
+  SlotIndexes *Indexes;
+  LiveIntervals *LIS;
+  VirtRegMap *VRM;
+
+  void rewrite();
+  void addMBBLiveIns();
+public:
+  static char ID;
+  VirtRegRewriter() : MachineFunctionPass(ID) {}
+
+  virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+
+  virtual bool runOnMachineFunction(MachineFunction&);
+};
+} // end anonymous namespace
+
+char &llvm::VirtRegRewriterID = VirtRegRewriter::ID;
+
+INITIALIZE_PASS_BEGIN(VirtRegRewriter, "virtregrewriter",
+                      "Virtual Register Rewriter", false, false)
+INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
+INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
+INITIALIZE_PASS_DEPENDENCY(LiveDebugVariables)
+INITIALIZE_PASS_DEPENDENCY(LiveStacks)
+INITIALIZE_PASS_DEPENDENCY(VirtRegMap)
+INITIALIZE_PASS_END(VirtRegRewriter, "virtregrewriter",
+                    "Virtual Register Rewriter", false, false)
+
+char VirtRegRewriter::ID = 0;
+
+void VirtRegRewriter::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.setPreservesCFG();
+  AU.addRequired<LiveIntervals>();
+  AU.addRequired<SlotIndexes>();
+  AU.addPreserved<SlotIndexes>();
+  AU.addRequired<LiveDebugVariables>();
+  AU.addRequired<LiveStacks>();
+  AU.addPreserved<LiveStacks>();
+  AU.addRequired<VirtRegMap>();
+  MachineFunctionPass::getAnalysisUsage(AU);
+}
+
+bool VirtRegRewriter::runOnMachineFunction(MachineFunction &fn) {
+  MF = &fn;
+  TM = &MF->getTarget();
+  TRI = TM->getRegisterInfo();
+  TII = TM->getInstrInfo();
+  MRI = &MF->getRegInfo();
+  Indexes = &getAnalysis<SlotIndexes>();
+  LIS = &getAnalysis<LiveIntervals>();
+  VRM = &getAnalysis<VirtRegMap>();
   DEBUG(dbgs() << "********** REWRITE VIRTUAL REGISTERS **********\n"
                << "********** Function: "
-               << MF->getFunction()->getName() << '\n');
-  DEBUG(dump());
+               << MF->getName() << '\n');
+  DEBUG(VRM->dump());
+
+  // Add kill flags while we still have virtual registers.
+  LIS->addKillFlags(VRM);
+
+  // Live-in lists on basic blocks are required for physregs.
+  addMBBLiveIns();
+
+  // Rewrite virtual registers.
+  rewrite();
+
+  // Write out new DBG_VALUE instructions.
+  getAnalysis<LiveDebugVariables>().emitDebugValues(VRM);
+
+  // All machine operands and other references to virtual registers have been
+  // replaced. Remove the virtual registers and release all the transient data.
+  VRM->clearAllVirt();
+  MRI->clearVirtRegs();
+  return true;
+}
+
+// Compute MBB live-in lists from virtual register live ranges and their
+// assignments.
+void VirtRegRewriter::addMBBLiveIns() {
+  SmallVector<MachineBasicBlock*, 16> LiveIn;
+  for (unsigned Idx = 0, IdxE = MRI->getNumVirtRegs(); Idx != IdxE; ++Idx) {
+    unsigned VirtReg = TargetRegisterInfo::index2VirtReg(Idx);
+    if (MRI->reg_nodbg_empty(VirtReg))
+      continue;
+    LiveInterval &LI = LIS->getInterval(VirtReg);
+    if (LI.empty() || LIS->intervalIsInOneMBB(LI))
+      continue;
+    // This is a virtual register that is live across basic blocks. Its
+    // assigned PhysReg must be marked as live-in to those blocks.
+    unsigned PhysReg = VRM->getPhys(VirtReg);
+    assert(PhysReg != VirtRegMap::NO_PHYS_REG && "Unmapped virtual register.");
+
+    // Scan the segments of LI.
+    for (LiveInterval::const_iterator I = LI.begin(), E = LI.end(); I != E;
+         ++I) {
+      if (!Indexes->findLiveInMBBs(I->start, I->end, LiveIn))
+        continue;
+      for (unsigned i = 0, e = LiveIn.size(); i != e; ++i)
+        if (!LiveIn[i]->isLiveIn(PhysReg))
+          LiveIn[i]->addLiveIn(PhysReg);
+      LiveIn.clear();
+    }
+  }
+}
+
+void VirtRegRewriter::rewrite() {
   SmallVector<unsigned, 8> SuperDeads;
   SmallVector<unsigned, 8> SuperDefs;
   SmallVector<unsigned, 8> SuperKills;
@@ -268,19 +261,26 @@ void VirtRegMap::rewrite(SlotIndexes *Indexes) {
   for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end();
        MBBI != MBBE; ++MBBI) {
     DEBUG(MBBI->print(dbgs(), Indexes));
-    for (MachineBasicBlock::iterator MII = MBBI->begin(), MIE = MBBI->end();
-         MII != MIE;) {
+    for (MachineBasicBlock::instr_iterator
+           MII = MBBI->instr_begin(), MIE = MBBI->instr_end(); MII != MIE;) {
       MachineInstr *MI = MII;
       ++MII;
 
       for (MachineInstr::mop_iterator MOI = MI->operands_begin(),
            MOE = MI->operands_end(); MOI != MOE; ++MOI) {
         MachineOperand &MO = *MOI;
+
+        // Make sure MRI knows about registers clobbered by regmasks.
+        if (MO.isRegMask())
+          MRI->addPhysRegsUsedFromRegMask(MO.getRegMask());
+
         if (!MO.isReg() || !TargetRegisterInfo::isVirtualRegister(MO.getReg()))
           continue;
         unsigned VirtReg = MO.getReg();
-        unsigned PhysReg = getPhys(VirtReg);
-        assert(PhysReg != NO_PHYS_REG && "Instruction uses unmapped VirtReg");
+        unsigned PhysReg = VRM->getPhys(VirtReg);
+        assert(PhysReg != VirtRegMap::NO_PHYS_REG &&
+               "Instruction uses unmapped VirtReg");
+        assert(!MRI->isReserved(PhysReg) && "Reserved register assignment");
 
         // Preserve semantics of sub-register operands.
         if (MO.getSubReg()) {
@@ -332,7 +332,6 @@ void VirtRegMap::rewrite(SlotIndexes *Indexes) {
         ++NumIdCopies;
         if (MI->getNumOperands() == 2) {
           DEBUG(dbgs() << "Deleting identity copy.\n");
-          RemoveMachineInstrFromMaps(MI);
           if (Indexes)
             Indexes->removeMachineInstrFromMaps(MI);
           // It's safe to erase MI because MII has already been incremented.
@@ -350,32 +349,4 @@ void VirtRegMap::rewrite(SlotIndexes *Indexes) {
   for (unsigned Reg = 1, RegE = TRI->getNumRegs(); Reg != RegE; ++Reg)
     if (!MRI->reg_nodbg_empty(Reg))
       MRI->setPhysRegUsed(Reg);
-}
-
-void VirtRegMap::print(raw_ostream &OS, const Module* M) const {
-  const TargetRegisterInfo* TRI = MF->getTarget().getRegisterInfo();
-  const MachineRegisterInfo &MRI = MF->getRegInfo();
-
-  OS << "********** REGISTER MAP **********\n";
-  for (unsigned i = 0, e = MRI.getNumVirtRegs(); i != e; ++i) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
-    if (Virt2PhysMap[Reg] != (unsigned)VirtRegMap::NO_PHYS_REG) {
-      OS << '[' << PrintReg(Reg, TRI) << " -> "
-         << PrintReg(Virt2PhysMap[Reg], TRI) << "] "
-         << MRI.getRegClass(Reg)->getName() << "\n";
-    }
-  }
-
-  for (unsigned i = 0, e = MRI.getNumVirtRegs(); i != e; ++i) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
-    if (Virt2StackSlotMap[Reg] != VirtRegMap::NO_STACK_SLOT) {
-      OS << '[' << PrintReg(Reg, TRI) << " -> fi#" << Virt2StackSlotMap[Reg]
-         << "] " << MRI.getRegClass(Reg)->getName() << "\n";
-    }
-  }
-  OS << '\n';
-}
-
-void VirtRegMap::dump() const {
-  print(dbgs());
 }

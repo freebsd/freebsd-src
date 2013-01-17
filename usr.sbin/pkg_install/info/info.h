@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,7 @@ extern void	show_plist(const char *, Package *, plist_t, Boolean);
 extern void	show_files(const char *, Package *);
 extern void	show_index(const char *, const char *);
 extern void	show_size(const char *, Package *);
-extern void	show_cksum(const char *, Package *);
+extern int	show_cksum(const char *, Package *);
 extern void	show_origin(const char *, Package *);
 extern void	show_fmtrev(const char *, Package *);
 

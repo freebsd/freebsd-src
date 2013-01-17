@@ -155,6 +155,7 @@ static struct uuid gpt_uuid_bios_boot = GPT_ENT_TYPE_BIOS_BOOT;
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
+static struct uuid gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
 static struct uuid gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static struct uuid gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static struct uuid gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
@@ -163,6 +164,9 @@ static struct uuid gpt_uuid_linux_data = GPT_ENT_TYPE_LINUX_DATA;
 static struct uuid gpt_uuid_linux_lvm = GPT_ENT_TYPE_LINUX_LVM;
 static struct uuid gpt_uuid_linux_raid = GPT_ENT_TYPE_LINUX_RAID;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
+static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
+static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
+static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
 static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
 static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
@@ -192,6 +196,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI,		 0xee },
 	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD,		 0xa5 },
 	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT,	 0 },
+	{ &gpt_uuid_freebsd_nandfs, 	G_PART_ALIAS_FREEBSD_NANDFS,	 0 },
 	{ &gpt_uuid_freebsd_swap,	G_PART_ALIAS_FREEBSD_SWAP,	 0 },
 	{ &gpt_uuid_freebsd_ufs,	G_PART_ALIAS_FREEBSD_UFS,	 0 },
 	{ &gpt_uuid_freebsd_vinum,	G_PART_ALIAS_FREEBSD_VINUM,	 0 },
@@ -200,6 +205,9 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_linux_lvm,		G_PART_ALIAS_LINUX_LVM,		 0 },
 	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID,	 0 },
 	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP,	 0 },
+	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
+	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
+	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
 	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR,		 0 },
 	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA,	 0x0b },
 	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA,	 0 },
@@ -333,9 +341,6 @@ gpt_update_bootcamp(struct g_part_table *basetable)
 
  disable:
 	table->bootcamp = 0;
-	bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
-	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1ull,
-	    MIN(table->lba[GPT_ELT_SECHDR], UINT32_MAX));
 }
 
 static struct gpt_hdr *
@@ -581,10 +586,6 @@ g_part_gpt_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	codesz = MIN(codesz, gpp->gpp_codesize);
 	if (codesz > 0)
 		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
-
-	/* Mark the PMBR active since some BIOS require it. */
-	if (!table->bootcamp)
-		table->mbr[DOSPARTOFF] = 0x80;		/* status */
 	return (0);
 }
 
@@ -593,7 +594,6 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_provider *pp;
 	struct g_part_gpt_table *table;
-	quad_t last;
 	size_t tblsz;
 
 	/* We don't nest, which means that our depth should be 0. */
@@ -608,11 +608,6 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	    pp->mediasize < (3 + 2 * tblsz + basetable->gpt_entries) *
 	    pp->sectorsize)
 		return (ENOSPC);
-
-	last = (pp->mediasize / pp->sectorsize) - 1;
-
-	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
-	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1, MIN(last, UINT32_MAX));
 
 	/* Allocate space for the header */
 	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
@@ -1038,6 +1033,16 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	/* Reconstruct the MBR from the GPT if under Boot Camp. */
 	if (table->bootcamp)
 		gpt_update_bootcamp(basetable);
+
+	/* Update partition entries in the PMBR if Boot Camp disabled. */
+	if (!table->bootcamp) {
+		bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+		gpt_write_mbr_entry(table->mbr, 0, 0xee, 1,
+		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
+		/* Mark the PMBR active since some BIOS require it. */
+		table->mbr[DOSPARTOFF] = 0x80;
+	}
+	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
 
 	/* Write the PMBR */
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);

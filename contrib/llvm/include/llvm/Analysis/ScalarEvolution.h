@@ -30,7 +30,7 @@
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ConstantRange.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include <map>
 
 namespace llvm {
@@ -40,7 +40,8 @@ namespace llvm {
   class DominatorTree;
   class Type;
   class ScalarEvolution;
-  class TargetData;
+  class DataLayout;
+  class TargetLibraryInfo;
   class LLVMContext;
   class Loop;
   class LoopInfo;
@@ -69,8 +70,8 @@ namespace llvm {
     unsigned short SubclassData;
 
   private:
-    SCEV(const SCEV &);            // DO NOT IMPLEMENT
-    void operator=(const SCEV &);  // DO NOT IMPLEMENT
+    SCEV(const SCEV &) LLVM_DELETED_FUNCTION;
+    void operator=(const SCEV &) LLVM_DELETED_FUNCTION;
 
   public:
     /// NoWrapFlags are bitfield indices into SubclassData.
@@ -118,6 +119,10 @@ namespace llvm {
     ///
     bool isAllOnesValue() const;
 
+    /// isNonConstantNegative - Return true if the specified scev is negated,
+    /// but not a constant.
+    bool isNonConstantNegative() const;
+
     /// print - Print out the internal representation of this scalar to the
     /// specified stream.  This should really only be used for debugging
     /// purposes.
@@ -135,7 +140,7 @@ namespace llvm {
       ID = X.FastID;
     }
     static bool Equals(const SCEV &X, const FoldingSetNodeID &ID,
-                       FoldingSetNodeID &TempID) {
+                       unsigned IDHash, FoldingSetNodeID &TempID) {
       return ID == X.FastID;
     }
     static unsigned ComputeHash(const SCEV &X, FoldingSetNodeID &TempID) {
@@ -157,7 +162,6 @@ namespace llvm {
     SCEVCouldNotCompute();
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
-    static inline bool classof(const SCEVCouldNotCompute *S) { return true; }
     static bool classof(const SCEV *S);
   };
 
@@ -222,7 +226,11 @@ namespace llvm {
 
     /// TD - The target data information for the target we are targeting.
     ///
-    TargetData *TD;
+    DataLayout *TD;
+
+    /// TLI - The target library information for the target we are targeting.
+    ///
+    TargetLibraryInfo *TLI;
 
     /// DT - The dominator tree.
     ///
@@ -240,6 +248,9 @@ namespace llvm {
     /// ValueExprMap - This is a cache of the values we have analyzed so far.
     ///
     ValueExprMapType ValueExprMap;
+
+    /// Mark predicate values currently being processed by isImpliedCond.
+    DenseSet<Value*> PendingLoopPredicates;
 
     /// ExitLimit - Information about the number of loop iterations for
     /// which a loop exit's branch condition evaluates to the not-taken path.
@@ -721,16 +732,21 @@ namespace llvm {
                                      const SCEV *LHS, const SCEV *RHS);
 
     /// getSmallConstantTripCount - Returns the maximum trip count of this loop
-    /// as a normal unsigned value, if possible. Returns 0 if the trip count is
-    /// unknown or not constant.
-    unsigned getSmallConstantTripCount(Loop *L, BasicBlock *ExitBlock);
+    /// as a normal unsigned value. Returns 0 if the trip count is unknown or
+    /// not constant. This "trip count" assumes that control exits via
+    /// ExitingBlock. More precisely, it is the number of times that control may
+    /// reach ExitingBlock before taking the branch. For loops with multiple
+    /// exits, it may not be the number times that the loop header executes if
+    /// the loop exits prematurely via another branch.
+    unsigned getSmallConstantTripCount(Loop *L, BasicBlock *ExitingBlock);
 
     /// getSmallConstantTripMultiple - Returns the largest constant divisor of
     /// the trip count of this loop as a normal unsigned value, if
     /// possible. This means that the actual trip count is always a multiple of
     /// the returned value (don't forget the trip count could very well be zero
-    /// as well!).
-    unsigned getSmallConstantTripMultiple(Loop *L, BasicBlock *ExitBlock);
+    /// as well!). As explained in the comments for getSmallConstantTripCount,
+    /// this assumes that control exits the loop via ExitingBlock.
+    unsigned getSmallConstantTripMultiple(Loop *L, BasicBlock *ExitingBlock);
 
     // getExitCount - Get the expression for the number of loop iterations for
     // which this loop is guaranteed not to exit via ExitingBlock. Otherwise
@@ -820,7 +836,8 @@ namespace llvm {
     ///
     bool SimplifyICmpOperands(ICmpInst::Predicate &Pred,
                               const SCEV *&LHS,
-                              const SCEV *&RHS);
+                              const SCEV *&RHS,
+                              unsigned Depth = 0);
 
     /// getLoopDisposition - Return the "disposition" of the given SCEV with
     /// respect to the given loop.
@@ -856,6 +873,7 @@ namespace llvm {
     virtual void releaseMemory();
     virtual void getAnalysisUsage(AnalysisUsage &AU) const;
     virtual void print(raw_ostream &OS, const Module* = 0) const;
+    virtual void verifyAnalysis() const;
 
   private:
     FoldingSet<SCEV> UniqueSCEVs;

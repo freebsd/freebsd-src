@@ -63,7 +63,8 @@ static void ipmi_dtor(void *arg);
 int ipmi_attached = 0;
 
 static int on = 1;
-SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0, "IPMI driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0,
+    "IPMI driver parameters");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RW,
 	&on, 0, "");
 
@@ -75,7 +76,7 @@ static struct cdevsw ipmi_cdevsw = {
 	.d_name =	"ipmi",
 };
 
-MALLOC_DEFINE(M_IPMI, "ipmi", "ipmi");
+static MALLOC_DEFINE(M_IPMI, "ipmi", "ipmi");
 
 static int
 ipmi_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
@@ -652,11 +653,12 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 		if (timeout == 0)
 			timeout = 1;
 		e = ipmi_set_watchdog(sc, timeout);
-		if (e == 0)
+		if (e == 0) {
 			*error = 0;
-		else
+			sc->ipmi_watchdog_active = 1;
+		} else
 			(void)ipmi_set_watchdog(sc, 0);
-	} else {
+	} else if (atomic_readandclear_int(&sc->ipmi_watchdog_active) != 0) {
 		e = ipmi_set_watchdog(sc, 0);
 		if (e != 0 && cmd == 0)
 			*error = EOPNOTSUPP;

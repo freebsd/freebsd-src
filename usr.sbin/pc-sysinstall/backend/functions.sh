@@ -208,15 +208,11 @@ fetch_file()
   FETCHOUTFILE="$2"
   EXITFAILED="$3"
 
-  SIZEFILE="${TMPDIR}/.fetchSize"
   EXITFILE="${TMPDIR}/.fetchExit"
 
-  rm ${SIZEFILE} 2>/dev/null >/dev/null
   rm ${FETCHOUTFILE} 2>/dev/null >/dev/null
 
-  fetch -s "${FETCHFILE}" >${SIZEFILE}
-  SIZE="`cat ${SIZEFILE}`"
-  SIZE="`expr ${SIZE} / 1024`"
+  SIZE=$(( `fetch -s "${FETCHFILE}"` / 1024 ))
   echo "FETCH: ${FETCHFILE}"
   echo "FETCH: ${FETCHOUTFILE}" >>${LOGOUT}
 
@@ -276,11 +272,20 @@ get_zpool_name()
   else
     # Need to generate a zpool name for this device
     NUM=`ls ${TMPDIR}/.zpools/ | wc -l | sed 's| ||g'`
-    NEWNAME="${BASENAME}${NUM}"
+
+    # Is it used in another zpool?
+    while :
+    do
+      NEWNAME="${BASENAME}${NUM}"
+      zpool import | grep -qw "${NEWNAME}" || break
+      NUM=$((NUM+1))
+    done
+
+    # Now save the new tank name
     mkdir -p ${TMPDIR}/.zpools/`dirname $DEVICE`
     echo "$NEWNAME" >${TMPDIR}/.zpools/${DEVICE} 
     echo "${NEWNAME}"
-    return
+    return 0
   fi
 };
 

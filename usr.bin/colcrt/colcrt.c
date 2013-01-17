@@ -64,13 +64,13 @@ __FBSDID("$FreeBSD$");
  * Option -2 forces printing of all half lines.
  */
 
-wchar_t	page[267][132];
+static wchar_t	page[267][132];
 
-int	outline = 1;
-int	outcol;
+static int	outline = 1;
+static int	outcol;
 
-char	suppresul;
-char	printall;
+static char	suppresul;
+static char	printall;
 
 static void	move(int, int);
 static void	pflush(int);

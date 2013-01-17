@@ -67,8 +67,16 @@ ar5416IsInterruptPending(struct ath_hal *ah)
 HAL_BOOL
 ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 {
-	uint32_t isr, isr0, isr1, sync_cause = 0;
+	uint32_t isr, isr0, isr1, sync_cause = 0, o_sync_cause = 0;
 	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+
+#ifdef	AH_INTERRUPT_DEBUGGING
+	/*
+	 * Blank the interrupt debugging area regardless.
+	 */
+	bzero(&ah->ah_intrstate, sizeof(ah->ah_intrstate));
+	ah->ah_syncstate = 0;
+#endif
 
 	/*
 	 * Verify there's a mac interrupt and the RTC is on.
@@ -82,13 +90,26 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			isr = OS_REG_READ(ah, AR_ISR);
 		else
 			isr = 0;
-		sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
+#ifdef	AH_INTERRUPT_DEBUGGING
+		ah->ah_syncstate =
+#endif
+		o_sync_cause = sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
 		sync_cause &= AR_INTR_SYNC_DEFAULT;
 		*masked = 0;
 
 		if (isr == 0 && sync_cause == 0)
 			return AH_FALSE;
 	}
+
+#ifdef	AH_INTERRUPT_DEBUGGING
+	ah->ah_intrstate[0] = isr;
+	ah->ah_intrstate[1] = OS_REG_READ(ah, AR_ISR_S0);
+	ah->ah_intrstate[2] = OS_REG_READ(ah, AR_ISR_S1);
+	ah->ah_intrstate[3] = OS_REG_READ(ah, AR_ISR_S2);
+	ah->ah_intrstate[4] = OS_REG_READ(ah, AR_ISR_S3);
+	ah->ah_intrstate[5] = OS_REG_READ(ah, AR_ISR_S4);
+	ah->ah_intrstate[6] = OS_REG_READ(ah, AR_ISR_S5);
+#endif
 
 	if (isr != 0) {
 		struct ath_hal_5212 *ahp = AH5212(ah);
@@ -204,6 +225,9 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		return AH_TRUE;
 
 	if (sync_cause != 0) {
+		HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: sync_cause=0x%x\n",
+		    __func__,
+		    o_sync_cause);
 		if (sync_cause & (AR_INTR_SYNC_HOST1_FATAL | AR_INTR_SYNC_HOST1_PERR)) {
 			*masked |= HAL_INT_FATAL;
 		}

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.time.c,v 3.33 2006/03/02 18:46:44 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.time.c,v 3.35 2010/12/09 15:39:29 christos Exp $ */
 /*
  * sh.time.c: Shell time keeping and printing.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.time.c,v 3.33 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: sh.time.c,v 3.35 2010/12/09 15:39:29 christos Exp $")
 
 #ifdef SUNOS4
 # include <machine/param.h>
@@ -366,11 +366,11 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #endif /* !BSDTIMES */
 #ifdef TDEBUG
     xprintf("es->tms_utime %lu bs->tms_utime %lu\n",
-	    es->tms_utime, bs->tms_utime);
+	    (unsigned long)es->tms_utime, (unsigned long)bs->tms_utime);
     xprintf("es->tms_stime %lu bs->tms_stime %lu\n",
-	    es->tms_stime, bs->tms_stime);
-    xprintf("ms	%lu e %lu b %lu\n", ms,	e, b);
-    xprintf("t %lu\n", t);
+	    (unsigned long)es->tms_stime, (unsigned long)bs->tms_stime);
+    xprintf("ms	%llu e %p b %p\n", (unsigned long long)ms, e, b);
+    xprintf("t %llu\n", (unsigned long long)t);
 #endif /* TDEBUG */
 
     if (vp && vp->vec && vp->vec[0] && vp->vec[1])
@@ -480,8 +480,8 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", t == 0 ?	0L :
-			IADJUST(r1->ru_ixrss - r0->ru_ixrss) / t);
+		xprintf("%lld", (long long)(t == 0 ?	0L :
+			IADJUST(r1->ru_ixrss - r0->ru_ixrss) / t));
 #endif
 		break;
 
@@ -489,9 +489,9 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", t == 0 ?	0L :
+		xprintf("%lld", (long long)(t == 0 ?	0L :
 			IADJUST(r1->ru_idrss + r1->ru_isrss -
-				(r0->ru_idrss +	r0->ru_isrss)) / t);
+				(r0->ru_idrss +	r0->ru_isrss)) / t));
 #endif
 		break;
 
@@ -499,23 +499,23 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", t == 0 ?	0L :
+		xprintf("%lld", (long long)(t == 0 ? 0L :
 			IADJUST((r1->ru_ixrss +	r1->ru_isrss + r1->ru_idrss) -
-			   (r0->ru_ixrss + r0->ru_idrss	+ r0->ru_isrss)) / t);
+			   (r0->ru_ixrss + r0->ru_idrss	+ r0->ru_isrss)) / t));
 #endif
 		break;
 #endif /* convex */
 	    case 'M':		/* max.	Resident Set Size */
 #ifdef SUNOS4
-		xprintf("%ld", pagetok(r1->ru_maxrss));
+		xprintf("%ld", (long)pagetok(r1->ru_maxrss));
 #else
 # ifdef	convex
-		xprintf("%ld", r1->ru_maxrss * 4L);
+		xprintf("%ld", (long)(r1->ru_maxrss * 4L));
 # else /* !convex */
 #  ifdef _OSD_POSIX
 		xprintf("0",0);
 #  else
-		xprintf("%ld", r1->ru_maxrss / 2L);
+		xprintf("%ld", (long)r1->ru_maxrss);
 #  endif
 # endif	/* convex */
 #endif /* SUNOS4 */
@@ -525,7 +525,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_majflt - r0->ru_majflt);
+		xprintf("%ld", (long)(r1->ru_majflt - r0->ru_majflt));
 #endif
 		break;
 
@@ -533,7 +533,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_minflt - r0->ru_minflt);
+		xprintf("%ld", (long)(r1->ru_minflt - r0->ru_minflt));
 #endif
 		break;
 
@@ -541,7 +541,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_inblock -	r0->ru_inblock);
+		xprintf("%ld", (long)(r1->ru_inblock - r0->ru_inblock));
 #endif
 		break;
 
@@ -549,7 +549,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_oublock -	r0->ru_oublock);
+		xprintf("%ld", (long)(r1->ru_oublock - r0->ru_oublock));
 #endif
 		break;
 
@@ -567,7 +567,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_msgrcv - r0->ru_msgrcv);
+		xprintf("%ld", (long)(r1->ru_msgrcv - r0->ru_msgrcv));
 #endif
 		break;
 
@@ -575,7 +575,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_msgsnd - r0->ru_msgsnd);
+		xprintf("%ld", (long)(r1->ru_msgsnd - r0->ru_msgsnd));
 #endif
 		break;
 
@@ -583,7 +583,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_nsignals - r0->ru_nsignals);
+		xprintf("%ld", (long)(r1->ru_nsignals - r0->ru_nsignals));
 #endif
 		break;
 
@@ -591,7 +591,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_nvcsw - r0->ru_nvcsw);
+		xprintf("%ld", (long)(r1->ru_nvcsw - r0->ru_nvcsw));
 #endif
 		break;
 
@@ -599,42 +599,42 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #ifdef _OSD_POSIX
 		xprintf("0",0);
 #else
-		xprintf("%ld", r1->ru_nivcsw - r0->ru_nivcsw);
+		xprintf("%ld", (long)(r1->ru_nivcsw - r0->ru_nivcsw));
 #endif
 		break;
 #else /* BSDTIMES */
 # ifdef	_SEQUENT_
 	    case 'W':		/* number of swaps */
 		i = r1->ps_swap	- r0->ps_swap;
-		xprintf("%ld", i);
+		xprintf("%ld", (long)i);
 		break;
 
 	    case 'M':
-		xprintf("%ld", r1->ps_maxrss / 2);
+		xprintf("%ld", (long)r1->ps_maxrss);
 		break;
 
 	    case 'F':
-		xprintf("%ld", r1->ps_pagein - r0->ps_pagein);
+		xprintf("%ld", (long)(r1->ps_pagein - r0->ps_pagein));
 		break;
 
 	    case 'R':
-		xprintf("%ld", r1->ps_reclaim -	r0->ps_reclaim);
+		xprintf("%ld", (long)(r1->ps_reclaim -	r0->ps_reclaim));
 		break;
 
 	    case 'I':
-		xprintf("%ld", r1->ps_bread - r0->ps_bread);
+		xprintf("%ld", (long)(r1->ps_bread - r0->ps_bread));
 		break;
 
 	    case 'O':
-		xprintf("%ld", r1->ps_bwrite - r0->ps_bwrite);
+		xprintf("%ld", (long)(r1->ps_bwrite - r0->ps_bwrite));
 		break;
 
 	    case 'k':
-		xprintf("%ld", r1->ps_signal - r0->ps_signal);
+		xprintf("%ld", (long)(r1->ps_signal - r0->ps_signal));
 		break;
 
 	    case 'w':
-		xprintf("%ld", r1->ps_volcsw - r0->ps_volcsw);
+		xprintf("%ld", (long)(r1->ps_volcsw - r0->ps_volcsw));
 		break;
 
 	    case 'c':
@@ -642,35 +642,35 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 		break;
 
 	    case 'Z':
-		xprintf("%ld", r1->ps_zerofill - r0->ps_zerofill);
+		xprintf("%ld", (long)(r1->ps_zerofill - r0->ps_zerofill));
 		break;
 
 	    case 'i':
-		xprintf("%ld", r1->ps_pffincr -	r0->ps_pffincr);
+		xprintf("%ld", (long)(r1->ps_pffincr - r0->ps_pffincr));
 		break;
 
 	    case 'd':
-		xprintf("%ld", r1->ps_pffdecr -	r0->ps_pffdecr);
+		xprintf("%ld", (long)(r1->ps_pffdecr - r0->ps_pffdecr));
 		break;
 
 	    case 'Y':
-		xprintf("%ld", r1->ps_syscall -	r0->ps_syscall);
+		xprintf("%ld", (long)(r1->ps_syscall - r0->ps_syscall));
 		break;
 
 	    case 'l':
-		xprintf("%ld", r1->ps_lread - r0->ps_lread);
+		xprintf("%ld", (long)(r1->ps_lread - r0->ps_lread));
 		break;
 
 	    case 'm':
-		xprintf("%ld", r1->ps_lwrite - r0->ps_lwrite);
+		xprintf("%ld", (long)(r1->ps_lwrite - r0->ps_lwrite));
 		break;
 
 	    case 'p':
-		xprintf("%ld", r1->ps_phread - r0->ps_phread);
+		xprintf("%ld", (long)(r1->ps_phread - r0->ps_phread));
 		break;
 
 	    case 'q':
-		xprintf("%ld", r1->ps_phwrite -	r0->ps_phwrite);
+		xprintf("%ld", (long)(r1->ps_phwrite - r0->ps_phwrite));
 		break;
 # endif	/* _SEQUENT_ */
 #endif /* BSDTIMES */
@@ -687,7 +687,7 @@ pdeltat(timeval_t *t1, timeval_t *t0)
     timeval_t td;
 
     tvsub(&td, t1, t0);
-    xprintf("%ld.%03ld", td.tv_sec, td.tv_usec / 1000L);
+    xprintf("%lld.%03ld", (long long)td.tv_sec, (long)td.tv_usec / 1000L);
 }
 
 static void
@@ -734,6 +734,7 @@ pdtimet(clock_t eval, clock_t bval)
     val	= (eval	- bval)	* 100 /	clk_tck;
 #endif /* POSIX	*/
 
-    xprintf("%ld.%02ld", val / 100, val	- (val / 100 * 100));
+    xprintf("%lld.%02ld", (long long)(val / 100),
+	(long long)(val - (val / 100 * 100)));
 }
 #endif /* BSDTIMES || _SEQUENT_	*/

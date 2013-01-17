@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,19 +48,22 @@
  *
  * Interface to the EBT3000 specific devices
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
 #include "cvmx-config.h"
+#endif
 #include "cvmx.h"
+#include "cvmx-ebt3000.h"
 #include "cvmx-sysinfo.h"
 
 
 void ebt3000_char_write(int char_position, char val)
 {
     /* Note: phys_to_ptr won't work here, as we are most likely going to access the boot bus. */
-    void *led_base = CASTPTR(void, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, cvmx_sysinfo_get()->led_display_base_addr));
+    char *led_base = CASTPTR(char , CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, cvmx_sysinfo_get()->led_display_base_addr));
     if (!led_base)
         return;
     if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_EBT3000 && cvmx_sysinfo_get()->board_rev_major == 1)
@@ -82,10 +85,10 @@ void ebt3000_char_write(int char_position, char val)
 void ebt3000_str_write(const char *str)
 {
     /* Note: phys_to_ptr won't work here, as we are most likely going to access the boot bus. */
-    void *led_base;
+    char *led_base;
     if (!cvmx_sysinfo_get()->led_display_base_addr)
         return;
-    led_base = CASTPTR(void, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, cvmx_sysinfo_get()->led_display_base_addr));
+    led_base = CASTPTR(char, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, cvmx_sysinfo_get()->led_display_base_addr));
     if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_EBT3000 && cvmx_sysinfo_get()->board_rev_major == 1)
     {
         char *ptr = (char *)(led_base + 4);

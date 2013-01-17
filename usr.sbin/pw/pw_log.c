@@ -47,17 +47,15 @@ pw_log(struct userconf * cnf, int mode, int which, char const * fmt,...)
 		}
 		if (logfile != NULL) {
 			va_list         argp;
-			int             l;
 			time_t          now = time(NULL);
 			struct tm      *t = localtime(&now);
 			char            nfmt[256];
-			char           *name;
+			const char     *name;
 
 			if ((name = getenv("LOGNAME")) == NULL && (name = getenv("USER")) == NULL)
 				name = "unknown";
 			/* ISO 8601 International Standard Date format */
 			strftime(nfmt, sizeof nfmt, "%Y-%m-%d %T ", t);
-			l = strlen(nfmt);
 			sprintf(nfmt + strlen(nfmt), "[%s:%s%s] %s\n", name, Which[which], Modes[mode], fmt);
 			va_start(argp, fmt);
 			vfprintf(logfile, nfmt, argp);

@@ -31,30 +31,33 @@
 
 #include <machine/setjmp.h>
 
+struct pcb;
+struct thread;
+struct trapframe;
+
 typedef int dbbe_init_f(void);
 typedef void dbbe_trace_f(void);
+typedef void dbbe_trace_thread_f(struct thread *);
 typedef int dbbe_trap_f(int, int);
 
 struct kdb_dbbe {
 	const char	*dbbe_name;
 	dbbe_init_f	*dbbe_init;
 	dbbe_trace_f	*dbbe_trace;
+	dbbe_trace_thread_f *dbbe_trace_thread;
 	dbbe_trap_f	*dbbe_trap;
 	int		dbbe_active;
 };
 
-#define	KDB_BACKEND(name, init, trace, trap)		\
+#define	KDB_BACKEND(name, init, trace, trace_thread, trap) \
 	static struct kdb_dbbe name##_dbbe = {		\
 		.dbbe_name = #name,			\
 		.dbbe_init = init,			\
 		.dbbe_trace = trace,			\
+		.dbbe_trace_thread = trace_thread,	\
 		.dbbe_trap = trap			\
 	};						\
 	DATA_SET(kdb_dbbe_set, name##_dbbe)
-
-struct pcb;
-struct thread;
-struct trapframe;
 
 extern int kdb_active;			/* Non-zero while in debugger. */
 extern int debugger_on_panic;		/* enter the debugger on panic. */
@@ -67,6 +70,7 @@ int	kdb_alt_break(int, int *);
 int	kdb_alt_break_gdb(int, int *);
 int	kdb_break(void);
 void	kdb_backtrace(void);
+void	kdb_backtrace_thread(struct thread *);
 int	kdb_dbbe_select(const char *);
 void	kdb_enter(const char *, const char *);
 void	kdb_init(void);
@@ -93,6 +97,7 @@ int	kdb_trap(int, int, struct trapframe *);
 extern const char * volatile kdb_why;
 #define	KDB_WHY_UNSET		NULL		/* No reason set. */
 #define	KDB_WHY_PANIC		"panic"		/* panic() was called. */
+#define	KDB_WHY_KASSERT		"kassert"	/* kassert failed. */
 #define	KDB_WHY_SYSCTL		"sysctl"	/* Sysctl entered debugger. */
 #define	KDB_WHY_BOOTFLAGS	"bootflags"	/* Boot flags were set. */
 #define	KDB_WHY_WITNESS		"witness"	/* Witness entered debugger. */

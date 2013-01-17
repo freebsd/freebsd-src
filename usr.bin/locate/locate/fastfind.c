@@ -167,7 +167,7 @@ fastfind
 
 	/* find optimal (last) char for searching */
 	for (p = pathpart; *p != '\0'; p++)
-		if (index(LOCATE_REG, *p) != NULL)
+		if (strchr(LOCATE_REG, *p) != NULL)
 			break;
 
 	if (*p == '\0')

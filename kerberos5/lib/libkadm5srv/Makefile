@@ -5,6 +5,7 @@ LDFLAGS=	-Wl,--no-undefined
 LDADD=	-lcom_err -lhdb -lkrb5 -lroken
 DPADD=	${LIBCOM_ERR} ${LIBHDB} ${LIBKRB5} ${LIBROKEN}
 VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map
+MAN=	kadm5_pwcheck.3
 
 SRCS=	acl.c \
 	bump_pw_expire.c \

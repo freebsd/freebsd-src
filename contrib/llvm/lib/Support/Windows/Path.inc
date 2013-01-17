@@ -66,29 +66,20 @@ Path::operator=(StringRef that) {
   return *this;
 }
 
-// push_back 0 on create, and pop_back on delete.
-struct ScopedNullTerminator {
-  std::string &str;
-  ScopedNullTerminator(std::string &s) : str(s) { str.push_back(0); }
-  ~ScopedNullTerminator() {
-    // str.pop_back(); But wait, C++03 doesn't have this...
-    assert(!str.empty() && str[str.size() - 1] == 0
-      && "Null char not present!");
-    str.resize(str.size() - 1);
-  }
-};
-
 bool
 Path::isValid() const {
   if (path.empty())
     return false;
 
+  size_t len = path.size();
+  // If there is a null character, it and all its successors are ignored.
+  size_t pos = path.find_first_of('\0');
+  if (pos != std::string::npos)
+    len = pos;
+
   // If there is a colon, it must be the second character, preceded by a letter
   // and followed by something.
-  size_t len = path.size();
-  // This code assumes that path is null terminated, so make sure it is.
-  ScopedNullTerminator snt(path);
-  size_t pos = path.rfind(':',len);
+  pos = path.rfind(':',len);
   size_t rootslash = 0;
   if (pos != std::string::npos) {
     if (pos != 1 || !isalpha(path[0]) || len < 3)
@@ -118,13 +109,13 @@ Path::isValid() const {
   for (pos = 0; pos < len; ++pos) {
     // A component may not end in a space.
     if (path[pos] == ' ') {
-      if (path[pos+1] == '/' || path[pos+1] == '\0')
+      if (pos+1 == len || path[pos+1] == '/' || path[pos+1] == '\0')
         return false;
     }
 
     // A component may not end in a period.
     if (path[pos] == '.') {
-      if (path[pos+1] == '/' || path[pos+1] == '\0') {
+      if (pos+1 == len || path[pos+1] == '/') {
         // Unless it is the pseudo-directory "."...
         if (pos == 0 || path[pos-1] == '/' || path[pos-1] == ':')
           return true;
@@ -197,8 +188,20 @@ static Path *TempDirectory;
 
 Path
 Path::GetTemporaryDirectory(std::string* ErrMsg) {
-  if (TempDirectory)
+  if (TempDirectory) {
+#if defined(_MSC_VER)
+    // Visual Studio gets confused and emits a diagnostic about calling exists,
+    // even though this is the implementation for PathV1.  Temporarily 
+    // disable the deprecated warning message
+    #pragma warning(push)
+    #pragma warning(disable:4996)
+#endif
+    assert(TempDirectory->exists() && "Who has removed TempDirectory?");
+#if defined(_MSC_VER)
+    #pragma warning(pop)
+#endif
     return *TempDirectory;
+  }
 
   char pathname[MAX_PATH];
   if (!GetTempPath(MAX_PATH, pathname)) {
@@ -210,7 +213,7 @@ Path::GetTemporaryDirectory(std::string* ErrMsg) {
   Path result;
   result.set(pathname);
 
-  // Append a subdirectory passed on our process id so multiple LLVMs don't
+  // Append a subdirectory based on our process id so multiple LLVMs don't
   // step on each other's toes.
 #ifdef __MINGW32__
   // Mingw's Win32 header files are broken.
@@ -283,14 +286,6 @@ Path::GetBitcodeLibraryPaths(std::vector<sys::Path>& Paths) {
   }
 #endif
   GetSystemLibraryPaths(Paths);
-}
-
-Path
-Path::GetLLVMDefaultConfigDir() {
-  Path ret = GetUserHomeDirectory();
-  if (!ret.appendComponent(".llvm"))
-    assert(0 && "Failed to append .llvm");
-  return ret;
 }
 
 Path

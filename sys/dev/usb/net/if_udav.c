@@ -145,15 +145,12 @@ static device_method_t udav_methods[] = {
 	DEVMETHOD(device_attach, udav_attach),
 	DEVMETHOD(device_detach, udav_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, udav_miibus_readreg),
 	DEVMETHOD(miibus_writereg, udav_miibus_writereg),
 	DEVMETHOD(miibus_statchg, udav_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t udav_driver = {
@@ -184,10 +181,19 @@ static const struct usb_ether_methods udav_ue_methods = {
 	.ue_mii_sts = udav_ifmedia_status,
 };
 
+static const struct usb_ether_methods udav_ue_methods_nophy = {
+	.ue_attach_post = udav_attach_post,
+	.ue_start = udav_start,
+	.ue_init = udav_init,
+	.ue_stop = udav_stop,
+	.ue_setmulti = udav_setmulti,
+	.ue_setpromisc = udav_setpromisc,
+};
+
 #ifdef USB_DEBUG
 static int udav_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
 SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
     "Debug level");
 #endif
@@ -209,7 +215,8 @@ static const STRUCT_USB_HOST_ID udav_devs[] = {
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
 	/* Kontron AG USB Ethernet */
 	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
-	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082, 0)},
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082,
+	    UDAV_FLAG_NO_PHY)},
 };
 
 static void
@@ -262,11 +269,20 @@ udav_attach(device_t dev)
 		goto detach;
 	}
 
+	/*
+	 * The JP1082 has an unusable PHY and provides no link information.
+	 */
+	if (sc->sc_flags & UDAV_FLAG_NO_PHY) {
+		ue->ue_methods = &udav_ue_methods_nophy;
+		sc->sc_flags |= UDAV_FLAG_LINK;
+	} else {
+		ue->ue_methods = &udav_ue_methods;
+	}
+
 	ue->ue_sc = sc;
 	ue->ue_dev = dev;
 	ue->ue_udev = uaa->device;
 	ue->ue_mtx = &sc->sc_mtx;
-	ue->ue_methods = &udav_ue_methods;
 
 	error = uether_ifattach(ue);
 	if (error) {
@@ -645,7 +661,7 @@ udav_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (actlen < sizeof(stat) + ETHER_CRC_LEN) {
+		if (actlen < (int)(sizeof(stat) + ETHER_CRC_LEN)) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
@@ -715,7 +731,8 @@ udav_stop(struct usb_ether *ue)
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sc->sc_flags &= ~UDAV_FLAG_LINK;
+	if (!(sc->sc_flags & UDAV_FLAG_NO_PHY))
+		sc->sc_flags &= ~UDAV_FLAG_LINK;
 
 	/*
 	 * stop all the transfers, if not already stopped:

@@ -1,38 +1,37 @@
 /*
- * Copyright (c) 2005 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2005 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
-RCSID("$Id: ks_file.c 22465 2008-01-16 14:25:24Z lha $");
 
 typedef enum { USE_PEM, USE_DER } outformat;
 
@@ -47,10 +46,11 @@ struct ks_file {
  */
 
 static int
-parse_certificate(hx509_context context, const char *fn, 
-		  struct hx509_collector *c, 
+parse_certificate(hx509_context context, const char *fn,
+		  struct hx509_collector *c,
 		  const hx509_pem_header *headers,
-		  const void *data, size_t len)
+		  const void *data, size_t len,
+		  const AlgorithmIdentifier *ai)
 {
     hx509_cert cert;
     int ret;
@@ -112,7 +112,7 @@ try_decrypt(hx509_context context,
 	EVP_CipherInit_ex(&ctx, c, NULL, key, ivdata, 0);
 	EVP_Cipher(&ctx, clear.data, cipher, len);
 	EVP_CIPHER_CTX_cleanup(&ctx);
-    }	
+    }
 
     ret = _hx509_collector_private_key_add(context,
 					   collector,
@@ -130,10 +130,40 @@ out:
 }
 
 static int
-parse_rsa_private_key(hx509_context context, const char *fn,
-		      struct hx509_collector *c, 
+parse_pkcs8_private_key(hx509_context context, const char *fn,
+			struct hx509_collector *c,
+			const hx509_pem_header *headers,
+			const void *data, size_t length,
+			const AlgorithmIdentifier *ai)
+{
+    PKCS8PrivateKeyInfo ki;
+    heim_octet_string keydata;
+
+    int ret;
+
+    ret = decode_PKCS8PrivateKeyInfo(data, length, &ki, NULL);
+    if (ret)
+	return ret;
+
+    keydata.data = rk_UNCONST(data);
+    keydata.length = length;
+
+    ret = _hx509_collector_private_key_add(context,
+					   c,
+					   &ki.privateKeyAlgorithm,
+					   NULL,
+					   &ki.privateKey,
+					   &keydata);
+    free_PKCS8PrivateKeyInfo(&ki);
+    return ret;
+}
+
+static int
+parse_pem_private_key(hx509_context context, const char *fn,
+		      struct hx509_collector *c,
 		      const hx509_pem_header *headers,
-		      const void *data, size_t len)
+		      const void *data, size_t len,
+		      const AlgorithmIdentifier *ai)
 {
     int ret = 0;
     const char *enc;
@@ -147,7 +177,8 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 	const EVP_CIPHER *cipher;
 	const struct _hx509_password *pw;
 	hx509_lock lock;
-	int i, decrypted = 0;
+	int decrypted = 0;
+	size_t i;
 
 	lock = _hx509_collector_get_lock(c);
 	if (lock == NULL) {
@@ -159,7 +190,7 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 
 	if (strcmp(enc, "4,ENCRYPTED") != 0) {
 	    hx509_set_error_string(context, 0, HX509_PARSING_KEY_FAILED,
-				   "RSA key encrypted in unknown method %s "
+				   "Private key encrypted in unknown method %s "
 				   "in file",
 				   enc, fn);
 	    hx509_clear_error_string(context);
@@ -169,7 +200,7 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 	dek = hx509_pem_find_header(headers, "DEK-Info");
 	if (dek == NULL) {
 	    hx509_set_error_string(context, 0, HX509_PARSING_KEY_FAILED,
-				   "Encrypted RSA missing DEK-Info");
+				   "Encrypted private key missing DEK-Info");
 	    return HX509_PARSING_KEY_FAILED;
 	}
 
@@ -201,7 +232,7 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 	if (cipher == NULL) {
 	    free(ivdata);
 	    hx509_set_error_string(context, 0, HX509_ALG_NOT_SUPP,
-				   "RSA key encrypted with "
+				   "Private key encrypted with "
 				   "unsupported cipher: %s",
 				   type);
 	    free(type);
@@ -218,10 +249,11 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 	if (ssize < 0 || ssize < PKCS5_SALT_LEN || ssize < EVP_CIPHER_iv_length(cipher)) {
 	    free(ivdata);
 	    hx509_set_error_string(context, 0, HX509_PARSING_KEY_FAILED,
-				   "Salt have wrong length in RSA key file");
+				   "Salt have wrong length in "
+				   "private key file");
 	    return HX509_PARSING_KEY_FAILED;
 	}
-	
+
 	pw = _hx509_lock_get_passwords(lock);
 	if (pw != NULL) {
 	    const void *password;
@@ -230,10 +262,9 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 	    for (i = 0; i < pw->len; i++) {
 		password = pw->val[i];
 		passwordlen = strlen(password);
-		
-		ret = try_decrypt(context, c, hx509_signature_rsa(),
-				  cipher, ivdata, password, passwordlen,
-				  data, len);
+
+		ret = try_decrypt(context, c, ai, cipher, ivdata,
+				  password, passwordlen, data, len);
 		if (ret == 0) {
 		    decrypted = 1;
 		    break;
@@ -253,9 +284,8 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 
 	    ret = hx509_lock_prompt(lock, &prompt);
 	    if (ret == 0)
-		ret = try_decrypt(context, c, hx509_signature_rsa(),
-				  cipher, ivdata, password, strlen(password),
-				  data, len);
+		ret = try_decrypt(context, c, ai, cipher, ivdata, password,
+				  strlen(password), data, len);
 	    /* XXX add password to lock password collection ? */
 	    memset(password, 0, sizeof(password));
 	}
@@ -267,12 +297,8 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 	keydata.data = rk_UNCONST(data);
 	keydata.length = len;
 
-	ret = _hx509_collector_private_key_add(context,
-					       c,
-					       hx509_signature_rsa(),
-					       NULL,
-					       &keydata,
-					       NULL);
+	ret = _hx509_collector_private_key_add(context, c, ai, NULL,
+					       &keydata, NULL);
     }
 
     return ret;
@@ -281,11 +307,15 @@ parse_rsa_private_key(hx509_context context, const char *fn,
 
 struct pem_formats {
     const char *name;
-    int (*func)(hx509_context, const char *, struct hx509_collector *, 
-		const hx509_pem_header *, const void *, size_t);
+    int (*func)(hx509_context, const char *, struct hx509_collector *,
+		const hx509_pem_header *, const void *, size_t,
+		const AlgorithmIdentifier *);
+    const AlgorithmIdentifier *(*ai)(void);
 } formats[] = {
-    { "CERTIFICATE", parse_certificate },
-    { "RSA PRIVATE KEY", parse_rsa_private_key }
+    { "CERTIFICATE", parse_certificate, NULL },
+    { "PRIVATE KEY", parse_pkcs8_private_key, NULL },
+    { "RSA PRIVATE KEY", parse_pem_private_key, hx509_signature_rsa },
+    { "EC PRIVATE KEY", parse_pem_private_key, hx509_signature_ecPublicKey }
 };
 
 
@@ -300,14 +330,24 @@ pem_func(hx509_context context, const char *type,
 	 const void *data, size_t len, void *ctx)
 {
     struct pem_ctx *pem_ctx = (struct pem_ctx*)ctx;
-    int ret = 0, j;
+    int ret = 0;
+    size_t j;
 
     for (j = 0; j < sizeof(formats)/sizeof(formats[0]); j++) {
 	const char *q = formats[j].name;
 	if (strcasecmp(type, q) == 0) {
-	    ret = (*formats[j].func)(context, NULL, pem_ctx->c,  header, data, len);
-	    if (ret == 0)
-		break;
+	    const AlgorithmIdentifier *ai = NULL;
+	    if (formats[j].ai != NULL)
+		ai = (*formats[j].ai)();
+
+	    ret = (*formats[j].func)(context, NULL, pem_ctx->c,
+				     header, data, len, ai);
+	    if (ret && (pem_ctx->flags & HX509_CERTS_UNPROTECT_ALL)) {
+		hx509_set_error_string(context, HX509_ERROR_APPEND, ret,
+				       "Failed parseing PEM format %s", type);
+		return ret;
+	    }
+	    break;
 	}
     }
     if (j == sizeof(formats)/sizeof(formats[0])) {
@@ -316,8 +356,6 @@ pem_func(hx509_context context, const char *type,
 			       "Found no matching PEM format for %s", type);
 	return ret;
     }
-    if (ret && (pem_ctx->flags & HX509_CERTS_UNPROTECT_ALL))
-	return ret;
     return 0;
 }
 
@@ -327,11 +365,11 @@ pem_func(hx509_context context, const char *type,
 
 static int
 file_init_common(hx509_context context,
-		 hx509_certs certs, void **data, int flags, 
+		 hx509_certs certs, void **data, int flags,
 		 const char *residue, hx509_lock lock, outformat format)
 {
     char *p, *pnext;
-    struct ks_file *f = NULL;
+    struct ks_file *ksf = NULL;
     hx509_private_key *keys = NULL;
     int ret;
     struct pem_ctx pem_ctx;
@@ -344,31 +382,31 @@ file_init_common(hx509_context context,
     if (lock == NULL)
 	lock = _hx509_empty_lock;
 
-    f = calloc(1, sizeof(*f));
-    if (f == NULL) {
+    ksf = calloc(1, sizeof(*ksf));
+    if (ksf == NULL) {
 	hx509_clear_error_string(context);
 	return ENOMEM;
     }
-    f->format = format;
+    ksf->format = format;
 
-    f->fn = strdup(residue);
-    if (f->fn == NULL) {
+    ksf->fn = strdup(residue);
+    if (ksf->fn == NULL) {
 	hx509_clear_error_string(context);
 	ret = ENOMEM;
 	goto out;
     }
 
-    /* 
+    /*
      * XXX this is broken, the function should parse the file before
      * overwriting it
      */
 
     if (flags & HX509_CERTS_CREATE) {
-	ret = hx509_certs_init(context, "MEMORY:ks-file-create", 
-			       0, lock, &f->certs);
+	ret = hx509_certs_init(context, "MEMORY:ks-file-create",
+			       0, lock, &ksf->certs);
 	if (ret)
 	    goto out;
-	*data = f;
+	*data = ksf;
 	return 0;
     }
 
@@ -376,49 +414,56 @@ file_init_common(hx509_context context,
     if (ret)
 	goto out;
 
-    for (p = f->fn; p != NULL; p = pnext) {
+    for (p = ksf->fn; p != NULL; p = pnext) {
 	FILE *f;
 
 	pnext = strchr(p, ',');
 	if (pnext)
 	    *pnext++ = '\0';
-	
+
 
 	if ((f = fopen(p, "r")) == NULL) {
 	    ret = ENOENT;
-	    hx509_set_error_string(context, 0, ret, 
-				   "Failed to open PEM file \"%s\": %s", 
+	    hx509_set_error_string(context, 0, ret,
+				   "Failed to open PEM file \"%s\": %s",
 				   p, strerror(errno));
 	    goto out;
 	}
+	rk_cloexec_file(f);
 
 	ret = hx509_pem_read(context, f, pem_func, &pem_ctx);
-	fclose(f);		     
+	fclose(f);
 	if (ret != 0 && ret != HX509_PARSING_KEY_FAILED)
 	    goto out;
 	else if (ret == HX509_PARSING_KEY_FAILED) {
 	    size_t length;
 	    void *ptr;
-	    int i;
+	    size_t i;
 
-	    ret = _hx509_map_file(p, &ptr, &length, NULL);
+	    ret = rk_undumpdata(p, &ptr, &length);
 	    if (ret) {
 		hx509_clear_error_string(context);
 		goto out;
 	    }
 
 	    for (i = 0; i < sizeof(formats)/sizeof(formats[0]); i++) {
-		ret = (*formats[i].func)(context, p, pem_ctx.c, NULL, ptr, length);
+		const AlgorithmIdentifier *ai = NULL;
+		if (formats[i].ai != NULL)
+		    ai = (*formats[i].ai)();
+
+		ret = (*formats[i].func)(context, p, pem_ctx.c, NULL, ptr, length, ai);
 		if (ret == 0)
 		    break;
 	    }
-	    _hx509_unmap_file(ptr, length);
-	    if (ret)
+	    rk_xfree(ptr);
+	    if (ret) {
+		hx509_clear_error_string(context);
 		goto out;
+	    }
 	}
     }
 
-    ret = _hx509_collector_collect_certs(context, pem_ctx.c, &f->certs);
+    ret = _hx509_collector_collect_certs(context, pem_ctx.c, &ksf->certs);
     if (ret)
 	goto out;
 
@@ -427,17 +472,17 @@ file_init_common(hx509_context context,
 	int i;
 
 	for (i = 0; keys[i]; i++)
-	    _hx509_certs_keys_add(context, f->certs, keys[i]);
+	    _hx509_certs_keys_add(context, ksf->certs, keys[i]);
 	_hx509_certs_keys_free(context, keys);
     }
 
 out:
     if (ret == 0)
-	*data = f;
+	*data = ksf;
     else {
-	if (f->fn)
-	    free(f->fn);
-	free(f);
+	if (ksf->fn)
+	    free(ksf->fn);
+	free(ksf);
     }
     if (pem_ctx.c)
 	_hx509_collector_free(pem_ctx.c);
@@ -447,7 +492,7 @@ out:
 
 static int
 file_init_pem(hx509_context context,
-	      hx509_certs certs, void **data, int flags, 
+	      hx509_certs certs, void **data, int flags,
 	      const char *residue, hx509_lock lock)
 {
     return file_init_common(context, certs, data, flags, residue, lock, USE_PEM);
@@ -455,7 +500,7 @@ file_init_pem(hx509_context context,
 
 static int
 file_init_der(hx509_context context,
-	      hx509_certs certs, void **data, int flags, 
+	      hx509_certs certs, void **data, int flags,
 	      const char *residue, hx509_lock lock)
 {
     return file_init_common(context, certs, data, flags, residue, lock, USE_DER);
@@ -464,10 +509,10 @@ file_init_der(hx509_context context,
 static int
 file_free(hx509_certs certs, void *data)
 {
-    struct ks_file *f = data;
-    hx509_certs_free(&f->certs);
-    free(f->fn);
-    free(f);
+    struct ks_file *ksf = data;
+    hx509_certs_free(&ksf->certs);
+    free(ksf->fn);
+    free(ksf);
     return 0;
 }
 
@@ -486,19 +531,20 @@ store_func(hx509_context context, void *ctx, hx509_cert c)
     ret = hx509_cert_binary(context, c, &data);
     if (ret)
 	return ret;
-    
+
     switch (sc->format) {
     case USE_DER:
 	fwrite(data.data, data.length, 1, sc->f);
 	free(data.data);
 	break;
     case USE_PEM:
-	hx509_pem_write(context, "CERTIFICATE", NULL, sc->f, 
+	hx509_pem_write(context, "CERTIFICATE", NULL, sc->f,
 			data.data, data.length);
 	free(data.data);
 	if (_hx509_cert_private_key_exportable(c)) {
 	    hx509_private_key key = _hx509_cert_private_key(c);
-	    ret = _hx509_private_key_export(context, key, &data);
+	    ret = _hx509_private_key_export(context, key,
+					    HX509_KEY_FORMAT_DER, &data);
 	    if (ret)
 		break;
 	    hx509_pem_write(context, _hx509_private_pem_name(key), NULL, sc->f,
@@ -512,47 +558,48 @@ store_func(hx509_context context, void *ctx, hx509_cert c)
 }
 
 static int
-file_store(hx509_context context, 
+file_store(hx509_context context,
 	   hx509_certs certs, void *data, int flags, hx509_lock lock)
 {
-    struct ks_file *f = data;
+    struct ks_file *ksf = data;
     struct store_ctx sc;
     int ret;
 
-    sc.f = fopen(f->fn, "w");
+    sc.f = fopen(ksf->fn, "w");
     if (sc.f == NULL) {
 	hx509_set_error_string(context, 0, ENOENT,
 			       "Failed to open file %s for writing");
 	return ENOENT;
     }
-    sc.format = f->format;
+    rk_cloexec_file(sc.f);
+    sc.format = ksf->format;
 
-    ret = hx509_certs_iter(context, f->certs, store_func, &sc);
+    ret = hx509_certs_iter_f(context, ksf->certs, store_func, &sc);
     fclose(sc.f);
     return ret;
 }
 
-static int 
+static int
 file_add(hx509_context context, hx509_certs certs, void *data, hx509_cert c)
 {
-    struct ks_file *f = data;
-    return hx509_certs_add(context, f->certs, c);
+    struct ks_file *ksf = data;
+    return hx509_certs_add(context, ksf->certs, c);
 }
 
-static int 
+static int
 file_iter_start(hx509_context context,
 		hx509_certs certs, void *data, void **cursor)
 {
-    struct ks_file *f = data;
-    return hx509_certs_start_seq(context, f->certs, cursor);
+    struct ks_file *ksf = data;
+    return hx509_certs_start_seq(context, ksf->certs, cursor);
 }
 
 static int
 file_iter(hx509_context context,
 	  hx509_certs certs, void *data, void *iter, hx509_cert *cert)
 {
-    struct ks_file *f = data;
-    return hx509_certs_next_cert(context, f->certs, iter, cert);
+    struct ks_file *ksf = data;
+    return hx509_certs_next_cert(context, ksf->certs, iter, cert);
 }
 
 static int
@@ -561,8 +608,8 @@ file_iter_end(hx509_context context,
 	      void *data,
 	      void *cursor)
 {
-    struct ks_file *f = data;
-    return hx509_certs_end_seq(context, f->certs, cursor);
+    struct ks_file *ksf = data;
+    return hx509_certs_end_seq(context, ksf->certs, cursor);
 }
 
 static int
@@ -571,8 +618,8 @@ file_getkeys(hx509_context context,
 	     void *data,
 	     hx509_private_key **keys)
 {
-    struct ks_file *f = data;
-    return _hx509_certs_keys_get(context, f->certs, keys);
+    struct ks_file *ksf = data;
+    return _hx509_certs_keys_get(context, ksf->certs, keys);
 }
 
 static int
@@ -581,8 +628,8 @@ file_addkey(hx509_context context,
 	     void *data,
 	     hx509_private_key key)
 {
-    struct ks_file *f = data;
-    return _hx509_certs_keys_add(context, f->certs, key);
+    struct ks_file *ksf = data;
+    return _hx509_certs_keys_add(context, ksf->certs, key);
 }
 
 static struct hx509_keyset_ops keyset_file = {

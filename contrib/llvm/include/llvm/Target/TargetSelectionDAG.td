@@ -352,6 +352,8 @@ def bswap      : SDNode<"ISD::BSWAP"      , SDTIntUnaryOp>;
 def ctlz       : SDNode<"ISD::CTLZ"       , SDTIntUnaryOp>;
 def cttz       : SDNode<"ISD::CTTZ"       , SDTIntUnaryOp>;
 def ctpop      : SDNode<"ISD::CTPOP"      , SDTIntUnaryOp>;
+def ctlz_zero_undef : SDNode<"ISD::CTLZ_ZERO_UNDEF", SDTIntUnaryOp>;
+def cttz_zero_undef : SDNode<"ISD::CTTZ_ZERO_UNDEF", SDTIntUnaryOp>;
 def sext       : SDNode<"ISD::SIGN_EXTEND", SDTIntExtendOp>;
 def zext       : SDNode<"ISD::ZERO_EXTEND", SDTIntExtendOp>;
 def anyext     : SDNode<"ISD::ANY_EXTEND" , SDTIntExtendOp>;
@@ -402,10 +404,15 @@ def brind      : SDNode<"ISD::BRIND"      , SDTBrind,  [SDNPHasChain]>;
 def br         : SDNode<"ISD::BR"         , SDTBr,     [SDNPHasChain]>;
 def trap       : SDNode<"ISD::TRAP"       , SDTNone,
                         [SDNPHasChain, SDNPSideEffect]>;
+def debugtrap  : SDNode<"ISD::DEBUGTRAP"  , SDTNone,
+                        [SDNPHasChain, SDNPSideEffect]>;
 
 def prefetch   : SDNode<"ISD::PREFETCH"   , SDTPrefetch,
                         [SDNPHasChain, SDNPMayLoad, SDNPMayStore,
                          SDNPMemOperand]>;
+
+def readcyclecounter : SDNode<"ISD::READCYCLECOUNTER", SDTIntLeaf,
+                     [SDNPHasChain, SDNPSideEffect]>;
 
 def membarrier : SDNode<"ISD::MEMBARRIER" , SDTMemBarrier,
                         [SDNPHasChain, SDNPSideEffect]>;
@@ -438,9 +445,9 @@ def atomic_load_umin : SDNode<"ISD::ATOMIC_LOAD_UMIN", SDTAtomic2,
 def atomic_load_umax : SDNode<"ISD::ATOMIC_LOAD_UMAX", SDTAtomic2,
                     [SDNPHasChain, SDNPMayStore, SDNPMayLoad, SDNPMemOperand]>;
 def atomic_load      : SDNode<"ISD::ATOMIC_LOAD", SDTAtomicLoad,
-                    [SDNPHasChain, SDNPMayStore, SDNPMayLoad, SDNPMemOperand]>;
+                    [SDNPHasChain, SDNPMayLoad, SDNPMemOperand]>;
 def atomic_store     : SDNode<"ISD::ATOMIC_STORE", SDTAtomicStore,
-                    [SDNPHasChain, SDNPMayStore, SDNPMayLoad, SDNPMemOperand]>;
+                    [SDNPHasChain, SDNPMayStore, SDNPMemOperand]>;
 
 // Do not use ld, st directly. Use load, extload, sextload, zextload, store,
 // and truncst (see below).
@@ -591,6 +598,13 @@ def not  : PatFrag<(ops node:$in), (xor node:$in, -1)>;
 def vnot : PatFrag<(ops node:$in), (xor node:$in, immAllOnesV)>;
 def ineg : PatFrag<(ops node:$in), (sub 0, node:$in)>;
 
+// null_frag - The null pattern operator is used in multiclass instantiations
+// which accept an SDPatternOperator for use in matching patterns for internal
+// definitions. When expanding a pattern, if the null fragment is referenced
+// in the expansion, the pattern is discarded and it is as-if '[]' had been
+// specified. This allows multiclasses to have the isel patterns be optional.
+def null_frag : SDPatternOperator;
+
 // load fragments.
 def unindexedload : PatFrag<(ops node:$ptr), (ld node:$ptr), [{
   return cast<LoadSDNode>(N)->getAddressingMode() == ISD::UNINDEXED;
@@ -653,6 +667,51 @@ def zextloadi16 : PatFrag<(ops node:$ptr), (zextload node:$ptr), [{
 }]>;
 def zextloadi32 : PatFrag<(ops node:$ptr), (zextload node:$ptr), [{
   return cast<LoadSDNode>(N)->getMemoryVT() == MVT::i32;
+}]>;
+
+def extloadvi1  : PatFrag<(ops node:$ptr), (extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i1;
+}]>;
+def extloadvi8  : PatFrag<(ops node:$ptr), (extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i8;
+}]>;
+def extloadvi16 : PatFrag<(ops node:$ptr), (extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i16;
+}]>;
+def extloadvi32 : PatFrag<(ops node:$ptr), (extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i32;
+}]>;
+def extloadvf32 : PatFrag<(ops node:$ptr), (extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::f32;
+}]>;
+def extloadvf64 : PatFrag<(ops node:$ptr), (extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::f64;
+}]>;
+
+def sextloadvi1  : PatFrag<(ops node:$ptr), (sextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i1;
+}]>;
+def sextloadvi8  : PatFrag<(ops node:$ptr), (sextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i8;
+}]>;
+def sextloadvi16 : PatFrag<(ops node:$ptr), (sextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i16;
+}]>;
+def sextloadvi32 : PatFrag<(ops node:$ptr), (sextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i32;
+}]>;
+
+def zextloadvi1  : PatFrag<(ops node:$ptr), (zextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i1;
+}]>;
+def zextloadvi8  : PatFrag<(ops node:$ptr), (zextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i8;
+}]>;
+def zextloadvi16 : PatFrag<(ops node:$ptr), (zextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i16;
+}]>;
+def zextloadvi32 : PatFrag<(ops node:$ptr), (zextload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT().getScalarType() == MVT::i32;
 }]>;
 
 // store fragments.

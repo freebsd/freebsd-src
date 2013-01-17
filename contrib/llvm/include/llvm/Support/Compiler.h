@@ -19,6 +19,60 @@
 # define __has_feature(x) 0
 #endif
 
+/// LLVM_HAS_RVALUE_REFERENCES - Does the compiler provide r-value references?
+/// This implies that <utility> provides the one-argument std::move;  it
+/// does not imply the existence of any other C++ library features.
+#if (__has_feature(cxx_rvalue_references)   \
+     || defined(__GXX_EXPERIMENTAL_CXX0X__) \
+     || (defined(_MSC_VER) && _MSC_VER >= 1600))
+#define LLVM_USE_RVALUE_REFERENCES 1
+#else
+#define LLVM_USE_RVALUE_REFERENCES 0
+#endif
+
+/// llvm_move - Expands to ::std::move if the compiler supports
+/// r-value references; otherwise, expands to the argument.
+#if LLVM_USE_RVALUE_REFERENCES
+#define llvm_move(value) (::std::move(value))
+#else
+#define llvm_move(value) (value)
+#endif
+
+/// LLVM_DELETED_FUNCTION - Expands to = delete if the compiler supports it.
+/// Use to mark functions as uncallable. Member functions with this should
+/// be declared private so that some behavior is kept in C++03 mode.
+///
+/// class DontCopy {
+/// private:
+///   DontCopy(const DontCopy&) LLVM_DELETED_FUNCTION;
+///   DontCopy &operator =(const DontCopy&) LLVM_DELETED_FUNCTION;
+/// public:
+///   ...
+/// };
+#if (__has_feature(cxx_deleted_functions) \
+     || defined(__GXX_EXPERIMENTAL_CXX0X__))
+     // No version of MSVC currently supports this.
+#define LLVM_DELETED_FUNCTION = delete
+#else
+#define LLVM_DELETED_FUNCTION
+#endif
+
+/// LLVM_FINAL - Expands to 'final' if the compiler supports it.
+/// Use to mark classes or virtual methods as final.
+#if (__has_feature(cxx_override_control))
+#define LLVM_FINAL final
+#else
+#define LLVM_FINAL
+#endif
+
+/// LLVM_OVERRIDE - Expands to 'override' if the compiler supports it.
+/// Use to mark virtual methods as overriding a base class method.
+#if (__has_feature(cxx_override_control))
+#define LLVM_OVERRIDE override
+#else
+#define LLVM_OVERRIDE
+#endif
+
 /// LLVM_LIBRARY_VISIBILITY - If a class marked with this attribute is linked
 /// into a shared library, then the class should be private to the library and
 /// not accessible from outside it.  Can also be used to mark variables and
@@ -49,23 +103,32 @@
 #define LLVM_ATTRIBUTE_UNUSED
 #endif
 
-#ifdef __GNUC__ // aka 'ATTRIBUTE_CONST' but following LLVM Conventions.
-#define LLVM_ATTRIBUTE_READNONE __attribute__((__const__))
+#if (__GNUC__ >= 4) && !defined(__MINGW32__) && !defined(__CYGWIN__)
+#define LLVM_ATTRIBUTE_WEAK __attribute__((__weak__))
 #else
-#define LLVM_ATTRIBUTE_READNONE
+#define LLVM_ATTRIBUTE_WEAK
 #endif
 
-#ifdef __GNUC__  // aka 'ATTRIBUTE_PURE' but following LLVM Conventions.
-#define LLVM_ATTRIBUTE_READONLY __attribute__((__pure__))
+#ifdef __GNUC__ // aka 'CONST' but following LLVM Conventions.
+#define LLVM_READNONE __attribute__((__const__))
 #else
-#define LLVM_ATTRIBUTE_READONLY
+#define LLVM_READNONE
+#endif
+
+#ifdef __GNUC__  // aka 'PURE' but following LLVM Conventions.
+#define LLVM_READONLY __attribute__((__pure__))
+#else
+#define LLVM_READONLY
 #endif
 
 #if (__GNUC__ >= 4)
-#define BUILTIN_EXPECT(EXPR, VALUE) __builtin_expect((EXPR), (VALUE))
+#define LLVM_LIKELY(EXPR) __builtin_expect((bool)(EXPR), true)
+#define LLVM_UNLIKELY(EXPR) __builtin_expect((bool)(EXPR), false)
 #else
-#define BUILTIN_EXPECT(EXPR, VALUE) (EXPR)
+#define LLVM_LIKELY(EXPR) (EXPR)
+#define LLVM_UNLIKELY(EXPR) (EXPR)
 #endif
+
 
 // C++ doesn't support 'extern template' of template specializations.  GCC does,
 // but requires __extension__ before it.  In the header, use this:
@@ -95,7 +158,7 @@
 // 3.4 supported this but is buggy in various cases and produces unimplemented
 // errors, just use it in GCC 4.0 and later.
 #if __GNUC__ > 3
-#define LLVM_ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
+#define LLVM_ATTRIBUTE_ALWAYS_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
 #define LLVM_ATTRIBUTE_ALWAYS_INLINE __forceinline
 #else
@@ -109,6 +172,14 @@
 #define LLVM_ATTRIBUTE_NORETURN __declspec(noreturn)
 #else
 #define LLVM_ATTRIBUTE_NORETURN
+#endif
+
+// LLVM_EXTENSION - Support compilers where we have a keyword to suppress
+// pedantic diagnostics.
+#ifdef __GNUC__
+#define LLVM_EXTENSION __extension__
+#else
+#define LLVM_EXTENSION
 #endif
 
 // LLVM_ATTRIBUTE_DEPRECATED(decl, "message")
@@ -132,6 +203,15 @@
 #if defined(__clang__) || (__GNUC__ > 4) \
  || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
 # define LLVM_BUILTIN_UNREACHABLE __builtin_unreachable()
+#endif
+
+// LLVM_BUILTIN_TRAP - On compilers which support it, expands to an expression
+// which causes the program to exit abnormally.
+#if defined(__clang__) || (__GNUC__ > 4) \
+ || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+# define LLVM_BUILTIN_TRAP __builtin_trap()
+#else
+# define LLVM_BUILTIN_TRAP *(volatile int*)0x11 = 0
 #endif
 
 #endif

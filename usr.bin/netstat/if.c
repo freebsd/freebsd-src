@@ -81,6 +81,32 @@ static void catchalarm(int);
 static char addr_buf[NI_MAXHOST];		/* for getnameinfo() */
 #endif
 
+static const char* pfsyncacts[] = {
+	/* PFSYNC_ACT_CLR */		"clear all request",
+	/* PFSYNC_ACT_INS */		"state insert",
+	/* PFSYNC_ACT_INS_ACK */	"state inserted ack",
+	/* PFSYNC_ACT_UPD */		"state update",
+	/* PFSYNC_ACT_UPD_C */		"compressed state update",
+	/* PFSYNC_ACT_UPD_REQ */	"uncompressed state request",
+	/* PFSYNC_ACT_DEL */		"state delete",
+	/* PFSYNC_ACT_DEL_C */		"compressed state delete",
+	/* PFSYNC_ACT_INS_F */		"fragment insert",
+	/* PFSYNC_ACT_DEL_F */		"fragment delete",
+	/* PFSYNC_ACT_BUS */		"bulk update mark",
+	/* PFSYNC_ACT_TDB */		"TDB replay counter update",
+	/* PFSYNC_ACT_EOF */		"end of frame mark",
+};
+
+static void
+pfsync_acts_stats(const char *fmt, uint64_t *a)
+{
+	int i;
+
+	for (i = 0; i < PFSYNC_ACT_MAX; i++, a++)
+		if (*a || sflag <= 1)
+			printf(fmt, *a, pfsyncacts[i], plural(*a));
+}
+
 /*
  * Dump pfsync statistics structure.
  */
@@ -93,10 +119,10 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	if (live) {
 		if (zflag)
 			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
+		if (sysctlbyname("net.pfsync.stats", &pfsyncstat, &len,
 		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 			if (errno != ENOENT)
-				warn("sysctl: net.inet.pfsync.stats");
+				warn("sysctl: net.pfsync.stats");
 			return;
 		}
 	} else
@@ -106,11 +132,11 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 #define	p(f, m) if (pfsyncstat.f || sflag <= 1) \
 	printf(m, (uintmax_t)pfsyncstat.f, plural(pfsyncstat.f))
-#define	p2(f, m) if (pfsyncstat.f || sflag <= 1) \
-	printf(m, (uintmax_t)pfsyncstat.f)
 
 	p(pfsyncs_ipackets, "\t%ju packet%s received (IPv4)\n");
 	p(pfsyncs_ipackets6, "\t%ju packet%s received (IPv6)\n");
+	pfsync_acts_stats("\t    %ju %s%s received\n",
+	    &pfsyncstat.pfsyncs_iacts[0]);
 	p(pfsyncs_badif, "\t\t%ju packet%s discarded for bad interface\n");
 	p(pfsyncs_badttl, "\t\t%ju packet%s discarded for bad ttl\n");
 	p(pfsyncs_hdrops, "\t\t%ju packet%s shorter than header\n");
@@ -123,10 +149,11 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(pfsyncs_badstate, "\t\t%ju failed state lookup/insert%s\n");
 	p(pfsyncs_opackets, "\t%ju packet%s sent (IPv4)\n");
 	p(pfsyncs_opackets6, "\t%ju packet%s sent (IPv6)\n");
-	p2(pfsyncs_onomem, "\t\t%ju send failed due to mbuf memory error\n");
-	p2(pfsyncs_oerrors, "\t\t%ju send error\n");
+	pfsync_acts_stats("\t    %ju %s%s sent\n",
+	    &pfsyncstat.pfsyncs_oacts[0]);
+	p(pfsyncs_onomem, "\t\t%ju failure%s due to mbuf memory error\n");
+	p(pfsyncs_oerrors, "\t\t%ju send error%s\n");
 #undef p
-#undef p2
 }
 
 /*
@@ -188,7 +215,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 	} ifaddr;
 	u_long ifaddraddr;
 	u_long ifaddrfound;
-	u_long ifnetfound;
 	u_long opackets;
 	u_long ipackets;
 	u_long obytes;
@@ -249,14 +275,13 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 		link_layer = 0;
 
 		if (ifaddraddr == 0) {
-			ifnetfound = ifnetaddr;
 			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) != 0)
 				return;
 			strlcpy(name, ifnet.if_xname, sizeof(name));
 			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
 			if (interface != 0 && strcmp(name, interface) != 0)
 				continue;
-			cp = index(name, '\0');
+			cp = strchr(name, '\0');
 
 			if (pfunc) {
 				(*pfunc)(name);

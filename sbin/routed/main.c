@@ -414,7 +414,7 @@ usage:
 			continue;
 		}
 
-		/* Check the kernel table occassionally for mysteriously
+		/* Check the kernel table occasionally for mysteriously
 		 * evaporated routes
 		 */
 		timevalsub(&t2, &flush_kern_timer, &now);
@@ -446,7 +446,7 @@ usage:
 				 * the previous update was finished.
 				 * Even if we just started after discovering
 				 * a 2nd interface or were otherwise delayed,
-				 * pick a 30-second aniversary of the
+				 * pick a 30-second anniversary of the
 				 * original broadcast time.
 				 */
 				n = 1 + (0-t2.tv_sec)/SUPPLY_INTERVAL;

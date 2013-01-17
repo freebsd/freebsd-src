@@ -194,7 +194,7 @@ struct tcpcb {
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
-	struct toe_usrreqs *t_tu;	/* offload operations vector */
+	struct toedev	*tod;		/* toedev handling this connection */
 	int	t_sndrexmitpack;	/* retransmit packets sent */
 	int	t_rcvoopack;		/* out-of-order packets received */
 	void	*t_toe;			/* TOE pcb pointer */
@@ -203,7 +203,12 @@ struct tcpcb {
 	struct cc_var	*ccv;		/* congestion control specific vars */
 	struct osd	*osd;		/* storage for Khelp module data */
 
-	uint32_t t_ispare[12];		/* 4 keep timers, 5 UTO, 3 TBD */
+	u_int	t_keepinit;		/* time to establish connection */
+	u_int	t_keepidle;		/* time before keepalive probes begin */
+	u_int	t_keepintvl;		/* interval between keepalives */
+	u_int	t_keepcnt;		/* number of keepalives before close */
+
+	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 4 TBD */
 	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
@@ -606,6 +611,7 @@ VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
+VNET_DECLARE(int, tcp_do_initcwnd10);
 VNET_DECLARE(int, tcp_sendspace);
 VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, path_mtu_discovery);
@@ -618,6 +624,7 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
+#define	V_tcp_do_initcwnd10	VNET(tcp_do_initcwnd10)
 #define	V_tcp_sendspace		VNET(tcp_sendspace)
 #define	V_tcp_recvspace		VNET(tcp_recvspace)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
@@ -670,7 +677,8 @@ void	 tcp_reass_destroy(void);
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, int *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, int *);
-void	 tcp_mss_update(struct tcpcb *, int, struct hc_metrics_lite *, int *);
+void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
+	    int *);
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *

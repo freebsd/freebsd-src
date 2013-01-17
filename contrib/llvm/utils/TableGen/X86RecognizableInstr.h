@@ -50,17 +50,23 @@ private:
   uint8_t SegOvr;
   /// The hasOpSizePrefix field from the record
   bool HasOpSizePrefix;
+  /// The hasAdSizePrefix field from the record
+  bool HasAdSizePrefix;
   /// The hasREX_WPrefix field from the record
   bool HasREX_WPrefix;
   /// The hasVEXPrefix field from the record
   bool HasVEXPrefix;
   /// The hasVEX_4VPrefix field from the record
   bool HasVEX_4VPrefix;
+  /// The hasVEX_4VOp3Prefix field from the record
+  bool HasVEX_4VOp3Prefix;
   /// The hasVEX_WPrefix field from the record
   bool HasVEX_WPrefix;
   /// Inferred from the operands; indicates whether the L bit in the VEX prefix is set
   bool HasVEX_LPrefix;
-  // The ignoreVEX_L field from the record
+  /// The hasMemOp4Prefix field from the record
+  bool HasMemOp4Prefix;
+  /// The ignoreVEX_L field from the record
   bool IgnoresVEX_L;
   /// The hasLockPrefix field from the record
   bool HasLockPrefix;
@@ -70,7 +76,7 @@ private:
   bool Is64Bit;
   // Whether the instruction has the predicate "In32BitMode"
   bool Is32Bit;
-  
+
   /// The instruction name as listed in the tables
   std::string Name;
   /// The AT&T AsmString for the instruction
@@ -121,10 +127,7 @@ private:
 
   /// hasFROperands - Returns true if any operand is a FR operand.
   bool hasFROperands() const;
-  
-  /// has256BitOperands - Returns true if any operand is a 256-bit SSE operand.
-  bool has256BitOperands() const;
-  
+
   /// typeFromString - Translates an operand type from the string provided in
   ///   the LLVM tables to an OperandType for use in the operand specifier.
   ///
@@ -137,7 +140,7 @@ private:
   /// @param hasREX_WPrefix - Indicates whether the instruction has a REX.W
   ///                         prefix.  If it does, 32-bit register operands stay
   ///                         32-bit regardless of the operand size.
-  /// @param hasOpSizePrefix- Indicates whether the instruction has an OpSize
+  /// @param hasOpSizePrefix  Indicates whether the instruction has an OpSize
   ///                         prefix.  If it does not, then 16-bit register
   ///                         operands stay 16-bit.
   /// @return               - The operand's type.
@@ -198,7 +201,7 @@ private:
                      unsigned &operandIndex,
                      unsigned &physicalOperandIndex,
                      unsigned &numPhysicalOperands,
-                     unsigned *operandMapping,
+                     const unsigned *operandMapping,
                      OperandEncoding (*encodingFromString)
                        (const std::string&,
                         bool hasOpSizePrefix));
@@ -219,23 +222,23 @@ private:
   /// emitInstructionSpecifier - Loads the instruction specifier for the current
   ///   instruction into a DisassemblerTables.
   ///
-  /// @arg tables - The DisassemblerTables to populate with the specifier for
+  /// \param tables The DisassemblerTables to populate with the specifier for
   ///               the current instruction.
   void emitInstructionSpecifier(DisassemblerTables &tables);
   
   /// emitDecodePath - Populates the proper fields in the decode tables
   ///   corresponding to the decode paths for this instruction.
   ///
-  /// @arg tables - The DisassemblerTables to populate with the decode
+  /// \param tables The DisassemblerTables to populate with the decode
   ///               decode information for the current instruction.
   void emitDecodePath(DisassemblerTables &tables) const;
 
   /// Constructor - Initializes a RecognizableInstr with the appropriate fields
   ///   from a CodeGenInstruction.
   ///
-  /// @arg tables - The DisassemblerTables that the specifier will be added to.
-  /// @arg insn   - The CodeGenInstruction to extract information from.
-  /// @arg uid    - The unique ID of the current instruction.
+  /// \param tables The DisassemblerTables that the specifier will be added to.
+  /// \param insn   The CodeGenInstruction to extract information from.
+  /// \param uid    The unique ID of the current instruction.
   RecognizableInstr(DisassemblerTables &tables,
                     const CodeGenInstruction &insn,
                     InstrUID uid);
@@ -243,11 +246,11 @@ public:
   /// processInstr - Accepts a CodeGenInstruction and loads decode information
   ///   for it into a DisassemblerTables if appropriate.
   ///
-  /// @arg tables - The DiassemblerTables to be populated with decode
+  /// \param tables The DiassemblerTables to be populated with decode
   ///               information.
-  /// @arg insn   - The CodeGenInstruction to be used as a source for this
+  /// \param insn   The CodeGenInstruction to be used as a source for this
   ///               information.
-  /// @uid        - The unique ID of the instruction.
+  /// \param uid    The unique ID of the instruction.
   static void processInstr(DisassemblerTables &tables,
                            const CodeGenInstruction &insn,
                            InstrUID uid);

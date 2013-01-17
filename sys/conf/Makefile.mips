@@ -44,7 +44,7 @@ MKMODULESENV+=	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH}
 # We default to the MIPS32 ISA, if none specified in the
 # kernel configuration file.
 ARCH_FLAGS?=-march=mips32
-EXTRA_FLAGS=-fno-pic -mno-abicalls -G0
+EXTRA_FLAGS=-fno-pic -mno-abicalls -G0 -DKERNLOADADDR=${KERNLOADADDR}
 
 HACK_EXTRA_FLAGS=-shared
 
@@ -63,6 +63,7 @@ TRAMP_ELFSIZE=32
 # XXX hardcoded kernel entry point
 ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
 
+.if !defined(WITHOUT_KERNEL_TRAMPOLINE)
 KERNEL_EXTRA=trampoline
 trampoline: ${KERNEL_KO}.tramp.bin
 ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
@@ -78,6 +79,7 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 		-o ${KERNEL_KO}.tramp.elf
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.elf \
 		${KERNEL_KO}.tramp.bin
+.endif
 
 %BEFORE_DEPEND
 

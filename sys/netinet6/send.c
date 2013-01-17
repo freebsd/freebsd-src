@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/send.h>
 
-MALLOC_DEFINE(M_SEND, "send", "Secure Neighbour Discovery");
+static MALLOC_DEFINE(M_SEND, "send", "Secure Neighbour Discovery");
 
 /*
  * The socket used to communicate with the SeND daemon.

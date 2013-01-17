@@ -327,7 +327,6 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	FILE *fp;
 	char *cmd, *dialog;
 	char tmp_name[] = "/tmp/_kbd_lang.XXXX";
-	const char *ext;
 	int fd, i, size;
 
 	fd = mkstemp(tmp_name);
@@ -338,8 +337,6 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	}
 	asprintf(&dialog, "/usr/bin/dialog --clear --title \"Keyboard Menu\" "
 			  "--menu \"%s\" 0 0 0", menu);
-
-	ext = extract_name(dir);
 
 	/* start right font, assume that current font is equal
 	 * to default font in /etc/rc.conf
@@ -547,7 +544,7 @@ check_file(const char *keym)
 }
 
 /*
- * Read options from the relevent configuration file, then
+ * Read options from the relevant configuration file, then
  *  present to user.
  */
 static void

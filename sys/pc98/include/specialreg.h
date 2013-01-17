@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/specialreg.h>
+#include <x86/specialreg.h>

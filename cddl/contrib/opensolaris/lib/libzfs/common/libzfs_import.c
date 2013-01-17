@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /*
@@ -436,7 +438,7 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 	boolean_t config_seen;
 	uint64_t best_txg;
 	char *name, *hostname;
-	uint64_t version, guid;
+	uint64_t guid;
 	uint_t children = 0;
 	nvlist_t **child = NULL;
 	uint_t holes;
@@ -522,47 +524,54 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 				 * configuration:
 				 *
 				 *	version
-				 * 	pool guid
-				 * 	name
-				 * 	pool state
+				 *	pool guid
+				 *	name
+				 *	pool txg (if available)
+				 *	comment (if available)
+				 *	pool state
 				 *	hostid (if available)
 				 *	hostname (if available)
 				 */
-				uint64_t state;
+				uint64_t state, version, pool_txg;
+				char *comment = NULL;
 
-				verify(nvlist_lookup_uint64(tmp,
-				    ZPOOL_CONFIG_VERSION, &version) == 0);
-				if (nvlist_add_uint64(config,
-				    ZPOOL_CONFIG_VERSION, version) != 0)
-					goto nomem;
-				verify(nvlist_lookup_uint64(tmp,
-				    ZPOOL_CONFIG_POOL_GUID, &guid) == 0);
-				if (nvlist_add_uint64(config,
-				    ZPOOL_CONFIG_POOL_GUID, guid) != 0)
-					goto nomem;
-				verify(nvlist_lookup_string(tmp,
-				    ZPOOL_CONFIG_POOL_NAME, &name) == 0);
-				if (nvlist_add_string(config,
-				    ZPOOL_CONFIG_POOL_NAME, name) != 0)
-					goto nomem;
-				verify(nvlist_lookup_uint64(tmp,
-				    ZPOOL_CONFIG_POOL_STATE, &state) == 0);
-				if (nvlist_add_uint64(config,
-				    ZPOOL_CONFIG_POOL_STATE, state) != 0)
-					goto nomem;
+				version = fnvlist_lookup_uint64(tmp,
+				    ZPOOL_CONFIG_VERSION);
+				fnvlist_add_uint64(config,
+				    ZPOOL_CONFIG_VERSION, version);
+				guid = fnvlist_lookup_uint64(tmp,
+				    ZPOOL_CONFIG_POOL_GUID);
+				fnvlist_add_uint64(config,
+				    ZPOOL_CONFIG_POOL_GUID, guid);
+				name = fnvlist_lookup_string(tmp,
+				    ZPOOL_CONFIG_POOL_NAME);
+				fnvlist_add_string(config,
+				    ZPOOL_CONFIG_POOL_NAME, name);
+
+				if (nvlist_lookup_uint64(tmp,
+				    ZPOOL_CONFIG_POOL_TXG, &pool_txg) == 0)
+					fnvlist_add_uint64(config,
+					    ZPOOL_CONFIG_POOL_TXG, pool_txg);
+
+				if (nvlist_lookup_string(tmp,
+				    ZPOOL_CONFIG_COMMENT, &comment) == 0)
+					fnvlist_add_string(config,
+					    ZPOOL_CONFIG_COMMENT, comment);
+
+				state = fnvlist_lookup_uint64(tmp,
+				    ZPOOL_CONFIG_POOL_STATE);
+				fnvlist_add_uint64(config,
+				    ZPOOL_CONFIG_POOL_STATE, state);
+
 				hostid = 0;
 				if (nvlist_lookup_uint64(tmp,
 				    ZPOOL_CONFIG_HOSTID, &hostid) == 0) {
-					if (nvlist_add_uint64(config,
-					    ZPOOL_CONFIG_HOSTID, hostid) != 0)
-						goto nomem;
-					verify(nvlist_lookup_string(tmp,
-					    ZPOOL_CONFIG_HOSTNAME,
-					    &hostname) == 0);
-					if (nvlist_add_string(config,
-					    ZPOOL_CONFIG_HOSTNAME,
-					    hostname) != 0)
-						goto nomem;
+					fnvlist_add_uint64(config,
+					    ZPOOL_CONFIG_HOSTID, hostid);
+					hostname = fnvlist_lookup_string(tmp,
+					    ZPOOL_CONFIG_HOSTNAME);
+					fnvlist_add_string(config,
+					    ZPOOL_CONFIG_HOSTNAME, hostname);
 				}
 
 				config_seen = B_TRUE;
@@ -1129,7 +1138,7 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 	char *end, **dir = iarg->path;
 	size_t pathleft;
 	nvlist_t *ret = NULL;
-	static char *default_dir = "/dev/dsk";
+	static char *default_dir = "/dev";
 	pool_list_t pools = { 0 };
 	pool_entry_t *pe, *penext;
 	vdev_entry_t *ve, *venext;

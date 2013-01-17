@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(vimage, "VIMAGE kernel virtualization");
 
-MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
+static MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
 
 /*
  * The virtual network stack list has two read-write locks, one sleepable and
@@ -161,7 +161,7 @@ struct vnet *vnet0;
  */
 #define	VNET_BYTES	(VNET_STOP - VNET_START)
 
-MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
+static MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
 
 /*
  * VNET_MODMIN is the minimum number of bytes we will reserve for the sum of
@@ -203,7 +203,8 @@ struct vnet_data_free {
 	TAILQ_ENTRY(vnet_data_free) vnd_link;
 };
 
-MALLOC_DEFINE(M_VNET_DATA_FREE, "vnet_data_free", "VNET resource accounting");
+static MALLOC_DEFINE(M_VNET_DATA_FREE, "vnet_data_free",
+    "VNET resource accounting");
 static TAILQ_HEAD(, vnet_data_free) vnet_data_free_head =
 	    TAILQ_HEAD_INITIALIZER(vnet_data_free_head);
 static struct sx vnet_data_free_lock;

@@ -89,5 +89,9 @@ usb_error_t usbd_req_reset_tt(struct usb_device *udev, struct mtx *mtx,
 		    uint8_t port);
 usb_error_t usbd_req_clear_tt_buffer(struct usb_device *udev, struct mtx *mtx,
 		    uint8_t port, uint8_t addr, uint8_t type, uint8_t endpoint);
+usb_error_t usbd_req_set_port_link_state(struct usb_device *udev,
+		    struct mtx *mtx, uint8_t port, uint8_t link_state);
+usb_error_t usbd_req_set_lpm_info(struct usb_device *udev, struct mtx *mtx,
+		    uint8_t port, uint8_t besl, uint8_t addr, uint8_t rwe);
 
 #endif					/* _USB_REQUEST_H_ */

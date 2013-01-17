@@ -103,6 +103,11 @@ void	sched_user_prio(struct thread *td, u_char prio);
 void	sched_userret(struct thread *td);
 void	sched_wakeup(struct thread *td);
 void	sched_preempt(struct thread *td);
+#ifdef	RACCT
+#ifdef	SCHED_4BSD
+fixpt_t	sched_pctcpu_delta(struct thread *td);
+#endif
+#endif
 
 /*
  * Threads are moved on and off of run queues
@@ -138,16 +143,21 @@ int	sched_sizeof_thread(void);
  * functions.
  */
 char	*sched_tdname(struct thread *td);
+#ifdef KTR
+void	sched_clear_tdname(struct thread *td);
+#endif
 
 static __inline void
 sched_pin(void)
 {
 	curthread->td_pinned++;
+	__compiler_membar();
 }
 
 static __inline void
 sched_unpin(void)
 {
+	__compiler_membar();
 	curthread->td_pinned--;
 }
 

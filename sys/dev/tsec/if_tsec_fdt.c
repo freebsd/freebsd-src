@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #define	TSEC_RID_RXIRQ	1
 #define	TSEC_RID_ERRIRQ	2
 
-extern struct tsec_softc *tsec0_sc;
-
 static int tsec_fdt_probe(device_t dev);
 static int tsec_fdt_attach(device_t dev);
 static int tsec_fdt_detach(device_t dev);
@@ -88,15 +86,12 @@ static device_method_t tsec_methods[] = {
 	DEVMETHOD(device_suspend,	tsec_suspend),
 	DEVMETHOD(device_resume,	tsec_resume),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	tsec_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	tsec_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	tsec_miibus_statchg),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t tsec_fdt_driver = {
@@ -159,12 +154,9 @@ tsec_fdt_attach(device_t dev)
 	sc->dev = dev;
 	sc->node = ofw_bus_get_node(dev);
 
-	/* XXX add comment on weird FSL's MII registers access design */
-	if (device_get_unit(dev) == 0)
-		tsec0_sc = sc;
-
 	/* Get phy address from fdt */
-	if (fdt_get_phyaddr(sc->node, &sc->phyaddr) != 0)
+	if (fdt_get_phyaddr(sc->node, sc->dev, &sc->phyaddr,
+	    (void **)&sc->phy_sc) != 0)
 		return (ENXIO);
 
 	/* Init timer */

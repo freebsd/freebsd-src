@@ -48,7 +48,7 @@ typedef struct _entry {
 	int (*func)(char *, struct passwd *, struct _entry *);
 	int restricted;
 	size_t len;
-	char *except, *save;
+	const char *except, *save;
 } ENTRY;
 
 /* Field numbers. */

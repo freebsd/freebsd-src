@@ -29,7 +29,7 @@
 # define TIMESPEC_NS(timespec) 0
 #endif
 
-size_t nstrftime (char *, size_t, char const *, struct tm const *, int, int);
+size_t nstrftime (char *, size_t, char const *, struct tm const *, int, long);
 
 static char const *find_function (char const * const *, lin);
 static struct change *find_hunk (struct change *);
@@ -57,12 +57,12 @@ print_context_label (char const *mark,
       char buf[MAX (INT_STRLEN_BOUND (int) + 32,
 		    INT_STRLEN_BOUND (time_t) + 11)];
       struct tm const *tm = localtime (&inf->stat.st_mtime);
-      int nsec = TIMESPEC_NS (inf->stat.st_mtim);
+      long nsec = TIMESPEC_NS (inf->stat.st_mtim);
       if (! (tm && nstrftime (buf, sizeof buf, time_format, tm, 0, nsec)))
 	{
-	  long int sec = inf->stat.st_mtime;
+	  time_t sec = inf->stat.st_mtime;
 	  verify (info_preserved, sizeof inf->stat.st_mtime <= sizeof sec);
-	  sprintf (buf, "%ld.%.9d", sec, nsec);
+	  sprintf (buf, "%jd.%.9d", (intmax_t)sec, nsec);
 	}
       fprintf (outfile, "%s %s\t%s\n", mark, inf->name, buf);
     }

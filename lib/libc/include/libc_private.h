@@ -34,6 +34,7 @@
 
 #ifndef _LIBC_PRIVATE_H_
 #define _LIBC_PRIVATE_H_
+#include <sys/_types.h>
 #include <sys/_pthreadtypes.h>
 
 /*
@@ -42,6 +43,26 @@
  * when they are not required.
  */
 extern int	__isthreaded;
+
+/*
+ * Elf_Auxinfo *__elf_aux_vector, the pointer to the ELF aux vector
+ * provided by kernel. Either set for us by rtld, or found at runtime
+ * on stack for static binaries.
+ *
+ * Type is void to avoid polluting whole libc with ELF types.
+ */
+extern void	*__elf_aux_vector;
+
+/*
+ * libc should use libc_dlopen internally, which respects a global
+ * flag where loading of new shared objects can be restricted.
+ */
+void *libc_dlopen(const char *, int);
+
+/*
+ * For dynamic linker.
+ */
+void _rtld_error(const char *fmt, ...);
 
 /*
  * File lock contention is difficult to diagnose without knowing
@@ -60,6 +81,19 @@ extern int	__isthreaded;
  */
 #define	FLOCKFILE(fp)		if (__isthreaded) _FLOCKFILE(fp)
 #define	FUNLOCKFILE(fp)		if (__isthreaded) _funlockfile(fp)
+
+struct _spinlock;
+extern struct _spinlock __stdio_thread_lock;
+#define STDIO_THREAD_LOCK()				\
+do {							\
+	if (__isthreaded)				\
+		_SPINLOCK(&__stdio_thread_lock);	\
+} while (0)
+#define STDIO_THREAD_UNLOCK()				\
+do {							\
+	if (__isthreaded)				\
+		_SPINUNLOCK(&__stdio_thread_lock);	\
+} while (0)
 
 /*
  * Indexes into the pthread jump table.
@@ -212,12 +246,19 @@ extern void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t)
 /* Without back-compat translation */
 extern int	__sys_fcntl(int, int, ...);
 
+struct timespec;
+struct timeval;
+struct timezone;
+int	__sys_gettimeofday(struct timeval *, struct timezone *);
+int	__sys_clock_gettime(__clockid_t, struct timespec *ts);
+
 /* execve() with PATH processing to implement posix_spawnp() */
 int _execvpe(const char *, char * const *, char * const *);
 
 int _elf_aux_info(int aux, void *buf, int buflen);
 struct dl_phdr_info;
 int __elf_phdr_match_addr(struct dl_phdr_info *, void *);
+void __init_elf_aux_vector(void);
 
 void	_pthread_cancel_enter(int);
 void	_pthread_cancel_leave(int);

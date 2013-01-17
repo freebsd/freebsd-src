@@ -305,6 +305,10 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       {
 	_List_node_base _M_node;
 
+	_List_impl()
+	: _Node_alloc_type(), _M_node()
+	{ }
+
 	_List_impl(const _Node_alloc_type& __a)
 	: _Node_alloc_type(__a), _M_node()
 	{ }
@@ -338,6 +342,10 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       allocator_type
       get_allocator() const
       { return allocator_type(_M_get_Node_allocator()); }
+
+      _List_base()
+      : _M_impl()
+      { _M_init(); }
 
       _List_base(const allocator_type& __a)
       : _M_impl(__a)
@@ -468,8 +476,11 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       /**
        *  @brief  Default constructor creates no elements.
        */
+      list()
+      : _Base() { }
+
       explicit
-      list(const allocator_type& __a = allocator_type())
+      list(const allocator_type& __a)
       : _Base(__a) { }
 
       /**

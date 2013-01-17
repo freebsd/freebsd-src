@@ -46,7 +46,6 @@
 /*
  * software state for transmit job mbufs (may be elements of mbuf chains)
  */
-
 struct bm_txsoft {
 	struct mbuf *txs_mbuf;		/* head of our mbuf chain */
 	bus_dmamap_t txs_dmamap;	/* our DMA map */
@@ -70,7 +69,6 @@ struct bm_rxsoft {
 	int dbdma_slot;
 	bus_dma_segment_t segment;
 };
-
 
 struct bm_softc {
 	struct ifnet    	*sc_ifp;
@@ -113,13 +111,3 @@ struct bm_softc {
 
 	dbdma_channel_t		*sc_txdma, *sc_rxdma;
 };
-
-struct bm_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
-};
-

@@ -27,14 +27,18 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_dinode.h>
+#include <fs/ext2fs/ext2_extern.h>
+
+#define XTIME_TO_NSEC(x)	((x & EXT3_NSEC_MASK) >> 2)
+#define NSEC_TO_XTIME(t)	(le32toh(t << 2) & EXT3_NSEC_MASK)
 
 void
 ext2_print_inode( in )
@@ -42,7 +46,7 @@ ext2_print_inode( in )
 {
 	int i;
 
-	printf( "Inode: %5d", in->i_number);
+	printf( "Inode: %5ju", (uintmax_t)in->i_number);
 	printf( /* "Inode: %5d" */
 		" Type: %10s Mode: 0x%o Flags: 0x%x  Version: %d\n",
 		"n/a", in->i_mode, in->i_flags, in->i_gen);
@@ -83,6 +87,13 @@ ext2_ei2i(ei, ip)
 	ip->i_atime = ei->e2di_atime;
 	ip->i_mtime = ei->e2di_mtime;
 	ip->i_ctime = ei->e2di_ctime;
+	if (E2DI_HAS_XTIME(ip)) {
+		ip->i_atimensec = XTIME_TO_NSEC(ei->e2di_atime_extra);
+		ip->i_mtimensec = XTIME_TO_NSEC(ei->e2di_mtime_extra);
+		ip->i_ctimensec = XTIME_TO_NSEC(ei->e2di_ctime_extra);
+		ip->i_birthtime = ei->e2di_crtime;
+		ip->i_birthnsec = XTIME_TO_NSEC(ei->e2di_crtime_extra);
+	}
 	ip->i_flags = 0;
 	ip->i_flags |= (ei->e2di_flags & EXT2_APPEND) ? SF_APPEND : 0;
 	ip->i_flags |= (ei->e2di_flags & EXT2_IMMUTABLE) ? SF_IMMUTABLE : 0;
@@ -121,6 +132,13 @@ ext2_i2ei(ip, ei)
 	ei->e2di_atime = ip->i_atime;
 	ei->e2di_mtime = ip->i_mtime;
 	ei->e2di_ctime = ip->i_ctime;
+	if (E2DI_HAS_XTIME(ip)) {
+		ei->e2di_ctime_extra = NSEC_TO_XTIME(ip->i_ctimensec);
+		ei->e2di_mtime_extra = NSEC_TO_XTIME(ip->i_mtimensec);
+		ei->e2di_atime_extra = NSEC_TO_XTIME(ip->i_atimensec);
+		ei->e2di_crtime = ip->i_birthtime;
+		ei->e2di_crtime_extra = NSEC_TO_XTIME(ip->i_birthnsec);
+	}
 	ei->e2di_flags = ip->i_flags;
 	ei->e2di_flags = 0;
 	ei->e2di_flags |= (ip->i_flags & SF_APPEND) ? EXT2_APPEND: 0;

@@ -18,7 +18,7 @@
 #ifndef GENERIC_SIG_24_H
 #define GENERIC_SIG_24_H 1
 
-/* $Id: sig_24.h,v 1.26 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: sig_24.h,v 1.26 2007/06/19 23:47:17 tbox Exp $ */
 
 /*!
  *  \brief Per RFC2535 */

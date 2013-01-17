@@ -17,14 +17,13 @@
 #define LLVM_CODEGEN_CRITICALANTIDEPBREAKER_H
 
 #include "AntiDepBreaker.h"
-#include "RegisterClassInfo.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/SmallSet.h"
 #include <map>
 
 namespace llvm {
@@ -66,7 +65,7 @@ class TargetRegisterInfo;
 
     /// KeepRegs - A set of registers which are live and cannot be changed to
     /// break anti-dependencies.
-    SmallSet<unsigned, 4> KeepRegs;
+    BitVector KeepRegs;
 
   public:
     CriticalAntiDepBreaker(MachineFunction& MFi, const RegisterClassInfo&);

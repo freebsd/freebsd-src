@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Support functions for managing the MII management port
  *
- * <hr>$Revision: 49628 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #include "cvmx.h"
 #include "cvmx-bootmem.h"
@@ -56,7 +56,9 @@
 #include "cvmx-mdio.h"
 #include "cvmx-mgmt-port.h"
 #include "cvmx-sysinfo.h"
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "cvmx-error.h"
+#endif
 
 /**
  * Enum of MIX interface modes
@@ -114,9 +116,9 @@ CVMX_SHARED cvmx_mgmt_port_state_t *cvmx_mgmt_port_state_ptr = NULL;
  */
 static int __cvmx_mgmt_port_num_ports(void)
 {
-    if (OCTEON_IS_MODEL(OCTEON_CN56XX))
+    if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN68XX))
         return 1;
-    else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
+    else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN6XXX))
         return 2;
     else
         return 0;
@@ -140,7 +142,7 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
     if ((port < 0) || (port >= __cvmx_mgmt_port_num_ports()))
         return CVMX_MGMT_PORT_INVALID_PARAM;
 
-    cvmx_mgmt_port_state_ptr = cvmx_bootmem_alloc_named(CVMX_MGMT_PORT_NUM_PORTS * sizeof(cvmx_mgmt_port_state_t), 128, alloc_name);
+    cvmx_mgmt_port_state_ptr = cvmx_bootmem_alloc_named_flags(CVMX_MGMT_PORT_NUM_PORTS * sizeof(cvmx_mgmt_port_state_t), 128, alloc_name, CVMX_BOOTMEM_FLAG_END_ALLOC);
     if (cvmx_mgmt_port_state_ptr)
     {
         memset(cvmx_mgmt_port_state_ptr, 0, CVMX_MGMT_PORT_NUM_PORTS * sizeof(cvmx_mgmt_port_state_t));
@@ -363,6 +365,7 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
 
             /* Enable the componsation controller */
             agl_prtx_ctl.s.comp = 1;
+            agl_prtx_ctl.s.drv_byp = 0;
             cvmx_write_csr(CVMX_AGL_PRTX_CTL(port), agl_prtx_ctl.u64);
             cvmx_read_csr(CVMX_AGL_PRTX_CTL(port));  /* Force write out before wait */
             cvmx_wait(1024 * clock_scale); // for componsation state to lock.
@@ -388,7 +391,9 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
             cvmx_write_csr(CVMX_AGL_GMX_DRV_CTL, drv_ctl.u64);
         }
     }
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
     cvmx_error_enable_group(CVMX_ERROR_GROUP_MGMT_PORT, port);
+#endif
     return CVMX_MGMT_PORT_SUCCESS;
 }
 
@@ -407,7 +412,9 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_shutdown(int port)
     if ((port < 0) || (port >= __cvmx_mgmt_port_num_ports()))
         return CVMX_MGMT_PORT_INVALID_PARAM;
 
+#if !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
     cvmx_error_disable_group(CVMX_ERROR_GROUP_MGMT_PORT, port);
+#endif
 
     /* Stop packets from comming in */
     cvmx_mgmt_port_disable(port);

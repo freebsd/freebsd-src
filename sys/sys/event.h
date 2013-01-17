@@ -147,10 +147,6 @@ struct knlist {
 
 #ifdef _KERNEL
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_KQUEUE);
-#endif
-
 /*
  * Flags for knote call
  */
@@ -238,6 +234,7 @@ struct thread;
 struct proc;
 struct knlist;
 struct mtx;
+struct rwlock;
 
 extern void	knote(struct knlist *list, long hint, int lockflags);
 extern void	knote_fork(struct knlist *list, int pid);
@@ -249,6 +246,7 @@ extern void	knlist_init(struct knlist *knl, void *lock,
     void (*kl_lock)(void *), void (*kl_unlock)(void *),
     void (*kl_assert_locked)(void *), void (*kl_assert_unlocked)(void *));
 extern void	knlist_init_mtx(struct knlist *knl, struct mtx *lock);
+extern void	knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock);
 extern void	knlist_destroy(struct knlist *knl);
 extern void	knlist_cleardel(struct knlist *knl, struct thread *td,
 	int islocked, int killkn);

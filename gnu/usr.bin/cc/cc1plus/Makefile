@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+NO_MAN=
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 
 .PATH: ${GCCDIR}/cp ${GCCDIR}
@@ -13,8 +16,9 @@ SRCS+=	main.c cp-lang.c c-opts.c call.c class.c cvt.c cxx-pretty-print.c \
 	cp-objcp-common.c cp-gimplify.c tree-mudflap.c
 
 BINDIR=	/usr/libexec
-NO_MAN=
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=yes
+.endif
 
 CFLAGS+= -I${GCCDIR}/cp -I.
 

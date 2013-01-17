@@ -79,9 +79,11 @@ int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_load_inode(struct buf *, struct inode *, struct fs *, ino_t);
 int	ffs_mountroot(void);
 void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
+int	ffs_own_mount(const struct mount *mp);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, int, struct ucred *, struct buf **);
+int	ffs_reload(struct mount *, struct thread *, int);
 int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t,
@@ -92,14 +94,16 @@ void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
 void	process_deferred_inactive(struct mount *mp);
 void	ffs_sync_snap(struct mount *, int);
-int	ffs_syncvnode(struct vnode *vp, int waitfor);
-int	ffs_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
+int	ffs_syncvnode(struct vnode *vp, int waitfor, int flags);
+int	ffs_truncate(struct vnode *, off_t, int, struct ucred *);
 int	ffs_update(struct vnode *, int);
 int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 
 int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
 int	ffs_vgetf(struct mount *, ino_t, int, struct vnode **, int);
+void	ffs_susp_initialize(void);
+void	ffs_susp_uninitialize(void);
 
 #define	FFSV_FORCEINSMQ	0x0001
 
@@ -167,6 +171,12 @@ void	softdep_freework(struct workhead *);
 #define FLUSH_INODES_WAIT	2
 #define FLUSH_BLOCKS		3
 #define FLUSH_BLOCKS_WAIT	4
+/*
+ * Flag to ffs_syncvnode() to request flushing of data only,
+ * but skip the ffs_update() on the inode itself. Used to avoid
+ * deadlock when flushing snapshot inodes while holding snaplk.
+ */
+#define	NO_INO_UPDT		0x00000001
 
 int	ffs_rdonly(struct inode *);
 

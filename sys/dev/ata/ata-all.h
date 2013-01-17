@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,6 +142,7 @@
 #define         ATA_SC_SPD_NO_SPEED     0x00000000
 #define         ATA_SC_SPD_SPEED_GEN1   0x00000010
 #define         ATA_SC_SPD_SPEED_GEN2   0x00000020
+#define         ATA_SC_SPD_SPEED_GEN3   0x00000040
 
 #define         ATA_SC_IPM_MASK         0x00000f00
 #define         ATA_SC_IPM_NONE         0x00000000
@@ -396,6 +397,7 @@ struct ata_request {
 #define         ATA_R_REQUEUE           0x00000400
 #define         ATA_R_THREAD            0x00000800
 #define         ATA_R_DIRECT            0x00001000
+#define         ATA_R_NEEDRESULT        0x00002000
 
 #define         ATA_R_ATAPI16           0x00010000
 #define         ATA_R_ATAPI_INTR        0x00020000
@@ -622,7 +624,7 @@ int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);
 void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
-char *ata_unit2str(struct ata_device *atadev);
+const char *ata_unit2str(struct ata_device *atadev);
 const char *ata_mode2str(int mode);
 int ata_str2mode(const char *str);
 const char *ata_satarev2str(int rev);
@@ -649,7 +651,7 @@ void ata_timeout(struct ata_request *);
 void ata_catch_inflight(device_t dev);
 void ata_fail_requests(device_t dev);
 void ata_drop_requests(device_t dev);
-char *ata_cmd2str(struct ata_request *request);
+const char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(device_t dev);

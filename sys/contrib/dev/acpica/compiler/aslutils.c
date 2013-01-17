@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslutils -- compiler utilities
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,11 +52,6 @@
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslutils")
 
-char                        AslHexLookup[] =
-{
-    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
-};
-
 
 /* Local prototypes */
 
@@ -84,41 +78,41 @@ UtAttachNameseg (
  *
  ******************************************************************************/
 
+#define ACPI_TABLE_HELP_FORMAT  "%8u) %s    %s\n"
+
 void
 UtDisplaySupportedTables (
     void)
 {
     ACPI_DMTABLE_DATA       *TableData;
-    UINT32                  i = 6;
+    UINT32                  i;
 
 
-    printf ("\nACPI tables supported by iASL subsystems in "
-        "version %8.8X:\n"
-        "  ASL and Data Table compilers\n"
-        "  AML and Data Table disassemblers\n"
-        "  ACPI table template generator\n\n", ACPI_CA_VERSION);
+    printf ("\nACPI tables supported by iASL version %8.8X:\n"
+        "  (Compiler, Disassembler, Template Generator)\n\n",
+        ACPI_CA_VERSION);
 
     /* Special tables */
 
-    printf ("%8u) %s    %s\n", 1, ACPI_SIG_DSDT, "Differentiated System Description Table");
-    printf ("%8u) %s    %s\n", 2, ACPI_SIG_SSDT, "Secondary System Description Table");
-    printf ("%8u) %s    %s\n", 3, ACPI_SIG_FADT, "Fixed ACPI Description Table (FADT)");
-    printf ("%8u) %s    %s\n", 4, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
-    printf ("%8u) %s    %s\n", 5, ACPI_RSDP_NAME, "Root System Description Pointer");
+    printf ("  Special tables and AML tables:\n");
+    printf (ACPI_TABLE_HELP_FORMAT, 1, ACPI_RSDP_NAME, "Root System Description Pointer");
+    printf (ACPI_TABLE_HELP_FORMAT, 2, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
+    printf (ACPI_TABLE_HELP_FORMAT, 3, ACPI_SIG_DSDT, "Differentiated System Description Table");
+    printf (ACPI_TABLE_HELP_FORMAT, 4, ACPI_SIG_SSDT, "Secondary System Description Table");
 
     /* All data tables with common table header */
 
-    for (TableData = AcpiDmTableData; TableData->Signature; TableData++)
+    printf ("\n  Standard ACPI data tables:\n");
+    for (TableData = AcpiDmTableData, i = 5; TableData->Signature; TableData++, i++)
     {
-        printf ("%8u) %s    %s\n", i, TableData->Signature, TableData->Name);
-        i++;
+        printf (ACPI_TABLE_HELP_FORMAT, i, TableData->Signature, TableData->Name);
     }
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiPsDisplayConstantOpcodes
+ * FUNCTION:    UtDisplayConstantOpcodes
  *
  * PARAMETERS:  None
  *
@@ -151,11 +145,11 @@ UtDisplayConstantOpcodes (
  *
  * FUNCTION:    UtLocalCalloc
  *
- * PARAMETERS:  Size        - Bytes to be allocated
+ * PARAMETERS:  Size                - Bytes to be allocated
  *
- * RETURN:      Pointer to the allocated memory.  Guaranteed to be valid.
+ * RETURN:      Pointer to the allocated memory. Guaranteed to be valid.
  *
- * DESCRIPTION: Allocate zero-initialized memory.  Aborts the compile on an
+ * DESCRIPTION: Allocate zero-initialized memory. Aborts the compile on an
  *              allocation failure, on the assumption that nothing more can be
  *              accomplished.
  *
@@ -190,9 +184,9 @@ UtLocalCalloc (
  *
  * FUNCTION:    UtBeginEvent
  *
- * PARAMETERS:  Name        - Ascii name of this event
+ * PARAMETERS:  Name                - Ascii name of this event
  *
- * RETURN:      Event       - Event number (integer index)
+ * RETURN:      Event number (integer index)
  *
  * DESCRIPTION: Saves the current time with this event
  *
@@ -223,7 +217,7 @@ UtBeginEvent (
  *
  * FUNCTION:    UtEndEvent
  *
- * PARAMETERS:  Event       - Event number (integer index)
+ * PARAMETERS:  Event               - Event number (integer index)
  *
  * RETURN:      None
  *
@@ -233,7 +227,7 @@ UtBeginEvent (
 
 void
 UtEndEvent (
-    UINT8                  Event)
+    UINT8                   Event)
 {
 
     if (Event >= ASL_NUM_EVENTS)
@@ -251,7 +245,7 @@ UtEndEvent (
  *
  * FUNCTION:    UtHexCharToValue
  *
- * PARAMETERS:  HexChar         - Hex character in Ascii
+ * PARAMETERS:  HexChar             - Hex character in Ascii
  *
  * RETURN:      The binary value of the hex character
  *
@@ -282,12 +276,13 @@ UtHexCharToValue (
  *
  * FUNCTION:    UtConvertByteToHex
  *
- * PARAMETERS:  RawByte         - Binary data
- *              Buffer          - Pointer to where the hex bytes will be stored
+ * PARAMETERS:  RawByte             - Binary data
+ *              Buffer              - Pointer to where the hex bytes will be
+ *                                    stored
  *
  * RETURN:      Ascii hex byte is stored in Buffer.
  *
- * DESCRIPTION: Perform hex-to-ascii translation.  The return data is prefixed
+ * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
  *              with "0x"
  *
  ******************************************************************************/
@@ -310,12 +305,13 @@ UtConvertByteToHex (
  *
  * FUNCTION:    UtConvertByteToAsmHex
  *
- * PARAMETERS:  RawByte         - Binary data
- *              Buffer          - Pointer to where the hex bytes will be stored
+ * PARAMETERS:  RawByte             - Binary data
+ *              Buffer              - Pointer to where the hex bytes will be
+ *                                    stored
  *
  * RETURN:      Ascii hex byte is stored in Buffer.
  *
- * DESCRIPTION: Perform hex-to-ascii translation.  The return data is prefixed
+ * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
  *              with "0x"
  *
  ******************************************************************************/
@@ -337,13 +333,13 @@ UtConvertByteToAsmHex (
  *
  * FUNCTION:    DbgPrint
  *
- * PARAMETERS:  Type            - Type of output
- *              Fmt             - Printf format string
- *              ...             - variable printf list
+ * PARAMETERS:  Type                - Type of output
+ *              Fmt                 - Printf format string
+ *              ...                 - variable printf list
  *
  * RETURN:      None
  *
- * DESCRIPTION: Conditional print statement.  Prints to stderr only if the
+ * DESCRIPTION: Conditional print statement. Prints to stderr only if the
  *              debug flag is set.
  *
  ******************************************************************************/
@@ -417,7 +413,7 @@ UtPrintFormattedName (
  *
  * FUNCTION:    UtSetParseOpName
  *
- * PARAMETERS:  Op
+ * PARAMETERS:  Op                  - Parse op to be named.
  *
  * RETURN:      None
  *
@@ -439,7 +435,7 @@ UtSetParseOpName (
  *
  * FUNCTION:    UtDisplaySummary
  *
- * PARAMETERS:  FileID          - ID of outpout file
+ * PARAMETERS:  FileID              - ID of outpout file
  *
  * RETURN:      None
  *
@@ -451,35 +447,40 @@ void
 UtDisplaySummary (
     UINT32                  FileId)
 {
+    UINT32                  i;
+
 
     if (FileId != ASL_FILE_STDOUT)
     {
         /* Compiler name and version number */
 
-        FlPrintFile (FileId, "%s version %X%s\n",
+        FlPrintFile (FileId, "%s version %X%s\n\n",
             ASL_COMPILER_NAME, (UINT32) ACPI_CA_VERSION, ACPI_WIDTH);
     }
+
+    /* Summary of main input and output files */
 
     if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         FlPrintFile (FileId,
-            "Table Input:   %s - %u lines, %u bytes, %u fields\n",
+            "%-14s %s - %u lines, %u bytes, %u fields\n",
+            "Table Input:",
             Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
             Gbl_InputByteCount, Gbl_InputFieldCount);
 
         if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
         {
             FlPrintFile (FileId,
-                "Binary Output: %s - %u bytes\n\n",
+                "%-14s %s - %u bytes\n",
+                "Binary Output:",
                 Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength);
         }
     }
     else
     {
-        /* Input/Output summary */
-
         FlPrintFile (FileId,
-            "ASL Input:  %s - %u lines, %u bytes, %u keywords\n",
+            "%-14s %s - %u lines, %u bytes, %u keywords\n",
+            "ASL Input:",
             Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
             Gbl_InputByteCount, TotalKeywords);
 
@@ -488,16 +489,45 @@ UtDisplaySummary (
         if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
         {
             FlPrintFile (FileId,
-                "AML Output: %s - %u bytes, %u named objects, %u executable opcodes\n\n",
+                "%-14s %s - %u bytes, %u named objects, %u executable opcodes\n",
+                "AML Output:",
                 Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength,
                 TotalNamedObjects, TotalExecutableOpcodes);
         }
     }
 
+    /* Display summary of any optional files */
+
+    for (i = ASL_FILE_SOURCE_OUTPUT; i <= ASL_MAX_FILE_TYPE; i++)
+    {
+        if (!Gbl_Files[i].Filename || !Gbl_Files[i].Handle)
+        {
+            continue;
+        }
+
+        /* .SRC is a temp file unless specifically requested */
+
+        if ((i == ASL_FILE_SOURCE_OUTPUT) && (!Gbl_SourceOutputFlag))
+        {
+            continue;
+        }
+
+        /* .I is a temp file unless specifically requested */
+
+        if ((i == ASL_FILE_PREPROCESSOR) && (!Gbl_PreprocessorOutputFlag))
+        {
+            continue;
+        }
+
+        FlPrintFile (FileId, "%14s %s - %u bytes\n",
+            Gbl_Files[i].ShortDescription,
+            Gbl_Files[i].Filename, FlGetFileSize (i));
+    }
+
     /* Error summary */
 
     FlPrintFile (FileId,
-        "Compilation complete. %u Errors, %u Warnings, %u Remarks",
+        "\nCompilation complete. %u Errors, %u Warnings, %u Remarks",
         Gbl_ExceptionCount[ASL_ERROR],
         Gbl_ExceptionCount[ASL_WARNING] +
             Gbl_ExceptionCount[ASL_WARNING2] +
@@ -516,11 +546,11 @@ UtDisplaySummary (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtDisplaySummary
+ * FUNCTION:    UtCheckIntegerRange
  *
- * PARAMETERS:  Op              - Integer parse node
- *              LowValue        - Smallest allowed value
- *              HighValue       - Largest allowed value
+ * PARAMETERS:  Op                  - Integer parse node
+ *              LowValue            - Smallest allowed value
+ *              HighValue           - Largest allowed value
  *
  * RETURN:      Op if OK, otherwise NULL
  *
@@ -534,36 +564,23 @@ UtCheckIntegerRange (
     UINT32                  LowValue,
     UINT32                  HighValue)
 {
-    char                    *ParseError = NULL;
-    char                    Buffer[64];
-
 
     if (!Op)
     {
-        return NULL;
+        return (NULL);
     }
 
-    if (Op->Asl.Value.Integer < LowValue)
+    if ((Op->Asl.Value.Integer < LowValue) ||
+        (Op->Asl.Value.Integer > HighValue))
     {
-        ParseError = "Value below valid range";
-        Op->Asl.Value.Integer = LowValue;
+        sprintf (MsgBuffer, "0x%X, allowable: 0x%X-0x%X",
+            (UINT32) Op->Asl.Value.Integer, LowValue, HighValue);
+
+        AslError (ASL_ERROR, ASL_MSG_RANGE, Op, MsgBuffer);
+        return (NULL);
     }
 
-    if (Op->Asl.Value.Integer > HighValue)
-    {
-        ParseError = "Value above valid range";
-        Op->Asl.Value.Integer = HighValue;
-    }
-
-    if (ParseError)
-    {
-        sprintf (Buffer, "%s 0x%X-0x%X", ParseError, LowValue, HighValue);
-        AslCompilererror (Buffer);
-
-        return NULL;
-    }
-
-    return Op;
+    return (Op);
 }
 
 
@@ -571,11 +588,11 @@ UtCheckIntegerRange (
  *
  * FUNCTION:    UtGetStringBuffer
  *
- * PARAMETERS:  Length          - Size of buffer requested
+ * PARAMETERS:  Length              - Size of buffer requested
  *
- * RETURN:      Pointer to the buffer.  Aborts on allocation failure
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
  *
- * DESCRIPTION: Allocate a string buffer.  Bypass the local
+ * DESCRIPTION: Allocate a string buffer. Bypass the local
  *              dynamic memory manager for performance reasons (This has a
  *              major impact on the speed of the compiler.)
  *
@@ -602,12 +619,85 @@ UtGetStringBuffer (
 }
 
 
+/******************************************************************************
+ *
+ * FUNCTION:    UtExpandLineBuffers
+ *
+ * PARAMETERS:  None. Updates global line buffer pointers.
+ *
+ * RETURN:      None. Reallocates the global line buffers
+ *
+ * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
+ *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
+ *              Also used for the initial allocation of the buffers, when
+ *              all of the buffer pointers are NULL. Initial allocations are
+ *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
+ *
+ *****************************************************************************/
+
+void
+UtExpandLineBuffers (
+    void)
+{
+    UINT32                  NewSize;
+
+
+    /* Attempt to double the size of all line buffers */
+
+    NewSize = Gbl_LineBufferSize * 2;
+    if (Gbl_CurrentLineBuffer)
+    {
+        DbgPrint (ASL_DEBUG_OUTPUT,"Increasing line buffer size from %u to %u\n",
+            Gbl_LineBufferSize, NewSize);
+    }
+
+    Gbl_CurrentLineBuffer = realloc (Gbl_CurrentLineBuffer, NewSize);
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+    if (!Gbl_CurrentLineBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_MainTokenBuffer = realloc (Gbl_MainTokenBuffer, NewSize);
+    if (!Gbl_MainTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_MacroTokenBuffer = realloc (Gbl_MacroTokenBuffer, NewSize);
+    if (!Gbl_MacroTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_ExpressionTokenBuffer = realloc (Gbl_ExpressionTokenBuffer, NewSize);
+    if (!Gbl_ExpressionTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_LineBufferSize = NewSize;
+    return;
+
+
+    /* On error above, simply issue error messages and abort, cannot continue */
+
+ErrorExit:
+    printf ("Could not increase line buffer size from %u to %u\n",
+        Gbl_LineBufferSize, Gbl_LineBufferSize * 2);
+
+    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION,
+        NULL, NULL);
+    AslAbort ();
+}
+
+
 /*******************************************************************************
  *
  * FUNCTION:    UtInternalizeName
  *
- * PARAMETERS:  ExternalName            - Name to convert
- *              ConvertedName           - Where the converted name is returned
+ * PARAMETERS:  ExternalName        - Name to convert
+ *              ConvertedName       - Where the converted name is returned
  *
  * RETURN:      Status
  *
@@ -659,8 +749,8 @@ UtInternalizeName (
  *
  * FUNCTION:    UtPadNameWithUnderscores
  *
- * PARAMETERS:  NameSeg         - Input nameseg
- *              PaddedNameSeg   - Output padded nameseg
+ * PARAMETERS:  NameSeg             - Input nameseg
+ *              PaddedNameSeg       - Output padded nameseg
  *
  * RETURN:      Padded nameseg.
  *
@@ -697,8 +787,8 @@ UtPadNameWithUnderscores (
  *
  * FUNCTION:    UtAttachNameseg
  *
- * PARAMETERS:  Op              - Parent parse node
- *              Name            - Full ExternalName
+ * PARAMETERS:  Op                  - Parent parse node
+ *              Name                - Full ExternalName
  *
  * RETURN:      None; Sets the NameSeg field in parent node
  *
@@ -741,12 +831,12 @@ UtAttachNameseg (
             Name++;
         }
 
-        /* Remaing string should be one single nameseg */
+        /* Remaining string should be one single nameseg */
 
         UtPadNameWithUnderscores (Name, PaddedNameSeg);
     }
 
-    strncpy (Op->Asl.NameSeg, PaddedNameSeg, 4);
+    ACPI_MOVE_NAME (Op->Asl.NameSeg, PaddedNameSeg);
 }
 
 
@@ -754,12 +844,12 @@ UtAttachNameseg (
  *
  * FUNCTION:    UtAttachNamepathToOwner
  *
- * PARAMETERS:  Op            - Parent parse node
- *              NameOp        - Node that contains the name
+ * PARAMETERS:  Op                  - Parent parse node
+ *              NameOp              - Node that contains the name
  *
  * RETURN:      Sets the ExternalName and Namepath in the parent node
  *
- * DESCRIPTION: Store the name in two forms in the parent node:  The original
+ * DESCRIPTION: Store the name in two forms in the parent node: The original
  *              (external) name, and the internalized name that is used within
  *              the ACPI namespace manager.
  *
@@ -799,11 +889,11 @@ UtAttachNamepathToOwner (
  *
  * FUNCTION:    UtDoConstant
  *
- * PARAMETERS:  String      - Hex, Octal, or Decimal string
+ * PARAMETERS:  String              - Hex, Octal, or Decimal string
  *
  * RETURN:      Converted Integer
  *
- * DESCRIPTION: Convert a string to an integer.  With error checking.
+ * DESCRIPTION: Convert a string to an integer, with error checking.
  *
  ******************************************************************************/
 
@@ -834,10 +924,10 @@ UtDoConstant (
  *
  * FUNCTION:    UtStrtoul64
  *
- * PARAMETERS:  String          - Null terminated string
- *              Terminater      - Where a pointer to the terminating byte is
- *                                returned
- *              Base            - Radix of the string
+ * PARAMETERS:  String              - Null terminated string
+ *              Terminater          - Where a pointer to the terminating byte
+ *                                    is returned
+ *              Base                - Radix of the string
  *
  * RETURN:      Converted value
  *
@@ -1017,5 +1107,3 @@ ErrorExit:
 
     return (Status);
 }
-
-

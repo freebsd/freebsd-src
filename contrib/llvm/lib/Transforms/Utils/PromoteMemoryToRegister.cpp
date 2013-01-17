@@ -28,19 +28,20 @@
 #define DEBUG_TYPE "mem2reg"
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/DIBuilder.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Metadata.h"
 #include "llvm/Analysis/AliasSetTracker.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -66,7 +67,8 @@ struct DenseMapInfo<std::pair<BasicBlock*, unsigned> > {
     return EltTy(reinterpret_cast<BasicBlock*>(-2), 0U);
   }
   static unsigned getHashValue(const std::pair<BasicBlock*, unsigned> &Val) {
-    return DenseMapInfo<void*>::getHashValue(Val.first) + Val.second*2;
+    using llvm::hash_value;
+    return static_cast<unsigned>(hash_value(Val));
   }
   static bool isEqual(const EltTy &LHS, const EltTy &RHS) {
     return LHS == RHS;
@@ -210,9 +212,13 @@ namespace {
     ///
     DenseMap<AllocaInst*, unsigned>  AllocaLookup;
 
-    /// NewPhiNodes - The PhiNodes we're adding.
+    /// NewPhiNodes - The PhiNodes we're adding.  That map is used to simplify
+    /// some Phi nodes as we iterate over it, so it should have deterministic
+    /// iterators.  We could use a MapVector, but since we already maintain a
+    /// map from BasicBlock* to a stable numbering (BBNumbers), the DenseMap is
+    /// more efficient (also supports removal).
     ///
-    DenseMap<std::pair<BasicBlock*, unsigned>, PHINode*> NewPhiNodes;
+    DenseMap<std::pair<unsigned, unsigned>, PHINode*> NewPhiNodes;
     
     /// PhiToAllocaMap - For each PHI node, keep track of which entry in Allocas
     /// it corresponds to.
@@ -423,7 +429,8 @@ void PromoteMem2Reg::run() {
 
       // Finally, after the scan, check to see if the store is all that is left.
       if (Info.UsingBlocks.empty()) {
-        // Record debuginfo for the store and remove the declaration's debuginfo.
+        // Record debuginfo for the store and remove the declaration's 
+        // debuginfo.
         if (DbgDeclareInst *DDI = Info.DbgDeclare) {
           if (!DIB)
             DIB = new DIBuilder(*DDI->getParent()->getParent()->getParent());
@@ -585,12 +592,16 @@ void PromoteMem2Reg::run() {
   while (EliminatedAPHI) {
     EliminatedAPHI = false;
     
-    for (DenseMap<std::pair<BasicBlock*, unsigned>, PHINode*>::iterator I =
+    // Iterating over NewPhiNodes is deterministic, so it is safe to try to
+    // simplify and RAUW them as we go.  If it was not, we could add uses to
+    // the values we replace with in a non deterministic order, thus creating
+    // non deterministic def->use chains.
+    for (DenseMap<std::pair<unsigned, unsigned>, PHINode*>::iterator I =
            NewPhiNodes.begin(), E = NewPhiNodes.end(); I != E;) {
       PHINode *PN = I->second;
 
       // If this PHI node merges one value and/or undefs, get the value.
-      if (Value *V = SimplifyInstruction(PN, 0, &DT)) {
+      if (Value *V = SimplifyInstruction(PN, 0, 0, &DT)) {
         if (AST && PN->getType()->isPointerTy())
           AST->deleteValue(PN);
         PN->replaceAllUsesWith(V);
@@ -609,7 +620,7 @@ void PromoteMem2Reg::run() {
   // have incoming values for all predecessors.  Loop over all PHI nodes we have
   // created, inserting undef values if they are missing any incoming values.
   //
-  for (DenseMap<std::pair<BasicBlock*, unsigned>, PHINode*>::iterator I =
+  for (DenseMap<std::pair<unsigned, unsigned>, PHINode*>::iterator I =
          NewPhiNodes.begin(), E = NewPhiNodes.end(); I != E; ++I) {
     // We want to do this once per basic block.  As such, only process a block
     // when we find the PHI that is the first entry in the block.
@@ -989,7 +1000,7 @@ void PromoteMem2Reg::PromoteSingleBlockAlloca(AllocaInst *AI, AllocaInfo &Info,
 bool PromoteMem2Reg::QueuePhiNode(BasicBlock *BB, unsigned AllocaNo,
                                   unsigned &Version) {
   // Look up the basic-block in question.
-  PHINode *&PN = NewPhiNodes[std::make_pair(BB, AllocaNo)];
+  PHINode *&PN = NewPhiNodes[std::make_pair(BBNumbers[BB], AllocaNo)];
 
   // If the BB already has a phi node added for the i'th alloca then we're done!
   if (PN) return false;

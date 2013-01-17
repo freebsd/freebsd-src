@@ -24,6 +24,7 @@ namespace clang {
   /// clients that read ASTs and then require further semantic
   /// analysis of the entities in those ASTs.
   class SemaConsumer : public ASTConsumer {
+    virtual void anchor();
   public:
     SemaConsumer() {
       ASTConsumer::SemaConsumer = true;
@@ -41,7 +42,6 @@ namespace clang {
     static bool classof(const ASTConsumer *Consumer) {
       return Consumer->SemaConsumer;
     }
-    static bool classof(const SemaConsumer *) { return true; }
   };
 }
 

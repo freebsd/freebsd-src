@@ -941,7 +941,7 @@ handle_rtmsg(struct rt_msghdr *rtm)
 {
 	struct sockaddr *addrs[RTAX_MAX];
 	struct if_msghdr *ifm;
-	struct ifa_msghdr *ifam;
+	struct ifa_msghdr ifam;
 	struct ifma_msghdr *ifmam;
 #ifdef RTM_IFANNOUNCE
 	struct if_announcemsghdr *ifan;
@@ -961,17 +961,17 @@ handle_rtmsg(struct rt_msghdr *rtm)
 	switch (rtm->rtm_type) {
 
 	  case RTM_NEWADDR:
-		ifam = (struct ifa_msghdr *)rtm;
-		mib_extract_addrs(ifam->ifam_addrs, (u_char *)(ifam + 1), addrs);
+		memcpy(&ifam, rtm, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(&ifam + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL || addrs[RTAX_NETMASK] == NULL)
 			break;
 
 		sa = (struct sockaddr_in *)(void *)addrs[RTAX_IFA];
 		if ((ifa = mib_find_ifa(sa->sin_addr)) == NULL) {
 			/* unknown address */
-		    	if ((ifp = mib_find_if_sys(ifam->ifam_index)) == NULL) {
+		    	if ((ifp = mib_find_if_sys(ifam.ifam_index)) == NULL) {
 				syslog(LOG_WARNING, "RTM_NEWADDR for unknown "
-				    "interface %u", ifam->ifam_index);
+				    "interface %u", ifam.ifam_index);
 				break;
 			}
 		     	if ((ifa = alloc_ifa(ifp->index, sa->sin_addr)) == NULL)
@@ -988,8 +988,8 @@ handle_rtmsg(struct rt_msghdr *rtm)
 		break;
 
 	  case RTM_DELADDR:
-		ifam = (struct ifa_msghdr *)rtm;
-		mib_extract_addrs(ifam->ifam_addrs, (u_char *)(ifam + 1), addrs);
+		memcpy(&ifam, rtm, sizeof(ifam));
+		mib_extract_addrs(ifam.ifam_addrs, (u_char *)(&ifam + 1), addrs);
 		if (addrs[RTAX_IFA] == NULL)
 			break;
 

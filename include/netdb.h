@@ -276,7 +276,7 @@ int		getservbyport_r(int, const char *, struct servent *, char *,
 int		getservent_r(struct servent *, char *, size_t,
     struct servent **);
 void		herror(const char *);
-__const char	*hstrerror(int);
+const char	*hstrerror(int);
 int		innetgr(const char *, const char *, const char *, const char *);
 void		setnetgrent(const char *);
 #endif

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bitstring.h>
 #include <sys/condvar.h>
 #include <sys/callout.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>  
 #include <sys/kthread.h>
 #include <sys/limits.h>
@@ -73,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/sctp.h>
 
-#include <libkern/jenkins.h>
 #include <ddb/ddb.h>
 
 struct ipv4_tuple {
@@ -248,7 +248,8 @@ static VNET_DEFINE(int, flowtable_ready) = 0;
 #define	V_flowtable_nmbflows		VNET(flowtable_nmbflows)
 #define	V_flowtable_ready		VNET(flowtable_ready)
 
-SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
+static SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
+    "flowtable");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, debug, CTLFLAG_RW,
     &VNET_NAME(flowtable_debug), 0, "print debug info.");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,
@@ -373,7 +374,7 @@ SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, stats, CTLTYPE_STRING|CTLFLAG_RD
 
 #ifndef RADIX_MPATH
 static void
-in_rtalloc_ign_wrapper(struct route *ro, uint32_t hash, u_int fibnum)
+rtalloc_ign_wrapper(struct route *ro, uint32_t hash, u_int fibnum)
 {
 
 	rtalloc_ign_fib(ro, 0, fibnum);
@@ -584,7 +585,7 @@ ipv4_flow_lookup_hash_internal(
 	} else
 		offset = V_flow_hashjitter + proto;
 
-	return (jenkins_hashword(key, 3, offset));
+	return (jenkins_hash32(key, 3, offset));
 }
 
 static struct flentry *
@@ -618,6 +619,7 @@ flow_to_route(struct flentry *fle, struct route *ro)
 	sin->sin_addr.s_addr = hashkey[2];
 	ro->ro_rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	ro->ro_lle = __DEVOLATILE(struct llentry *, fle->f_lle);
+	ro->ro_flags |= RT_NORTREF;
 }
 #endif /* INET */
 
@@ -789,7 +791,7 @@ ipv6_flow_lookup_hash_internal(
 	} else
 		offset = V_flow_hashjitter + proto;
 
-	return (jenkins_hashword(key, 9, offset));
+	return (jenkins_hash32(key, 9, offset));
 }
 
 static struct flentry *
@@ -825,7 +827,7 @@ flow_to_route_in6(struct flentry *fle, struct route_in6 *ro)
 	memcpy(&sin6->sin6_addr, &hashkey[5], sizeof (struct in6_addr));
 	ro->ro_rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	ro->ro_lle = __DEVOLATILE(struct llentry *, fle->f_lle);
-
+	ro->ro_flags |= RT_NORTREF;
 }
 #endif /* INET6 */
 
@@ -1185,12 +1187,14 @@ keycheck:
 	rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	lle = __DEVOLATILE(struct llentry *, fle->f_lle);
 	if ((rt != NULL)
+	    && lle != NULL
 	    && fle->f_fhash == hash
 	    && flowtable_key_equal(fle, key)
 	    && (proto == fle->f_proto)
 	    && (fibnum == fle->f_fibnum)
 	    && (rt->rt_flags & RTF_UP)
-	    && (rt->rt_ifp != NULL)) {
+	    && (rt->rt_ifp != NULL)
+	    && (lle->la_flags & LLE_VALID)) {
 		fs->ft_hits++;
 		fle->f_uptime = time_uptime;
 		fle->f_flags |= flags;
@@ -1254,7 +1258,7 @@ uncached:
 			
 			else
 				l3addr = (struct sockaddr_storage *)&ro->ro_dst;
-			llentry_update(&lle, LLTABLE6(ifp), l3addr, ifp);
+			lle = llentry_alloc(ifp, LLTABLE6(ifp), l3addr);
 		}
 #endif	
 #ifdef INET
@@ -1263,7 +1267,7 @@ uncached:
 				l3addr = (struct sockaddr_storage *)rt->rt_gateway;
 			else
 				l3addr = (struct sockaddr_storage *)&ro->ro_dst;
-			llentry_update(&lle, LLTABLE(ifp), l3addr, ifp);	
+			lle = llentry_alloc(ifp, LLTABLE(ifp), l3addr);	
 		}
 			
 #endif
@@ -1312,7 +1316,7 @@ flowtable_alloc(char *name, int nentry, int flags)
 #ifdef RADIX_MPATH
 	ft->ft_rtalloc = rtalloc_mpath_fib;
 #else
-	ft->ft_rtalloc = in_rtalloc_ign_wrapper;
+	ft->ft_rtalloc = rtalloc_ign_wrapper;
 #endif
 	if (flags & FL_PCPU) {
 		ft->ft_lock = flowtable_pcpu_lock;

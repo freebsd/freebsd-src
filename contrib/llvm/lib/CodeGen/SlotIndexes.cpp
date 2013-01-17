@@ -34,7 +34,8 @@ void SlotIndexes::releaseMemory() {
   mi2iMap.clear();
   MBBRanges.clear();
   idx2MBBMap.clear();
-  clearList();
+  indexList.clear();
+  ileAllocator.Reset();
 }
 
 bool SlotIndexes::runOnMachineFunction(MachineFunction &fn) {
@@ -45,17 +46,15 @@ bool SlotIndexes::runOnMachineFunction(MachineFunction &fn) {
   // iterator in lock-step (though skipping it over indexes which have
   // null pointers in the instruction field).
   // At each iteration assert that the instruction pointed to in the index
-  // is the same one pointed to by the MI iterator. This 
+  // is the same one pointed to by the MI iterator. This
 
   // FIXME: This can be simplified. The mi2iMap_, Idx2MBBMap, etc. should
   // only need to be set up once after the first numbering is computed.
 
   mf = &fn;
-  initList();
 
   // Check that the list contains only the sentinal.
-  assert(indexListHead->getNext() == 0 &&
-         "Index list non-empty at initial numbering?");
+  assert(indexList.empty() && "Index list non-empty at initial numbering?");
   assert(idx2MBBMap.empty() &&
          "Index -> MBB mapping non-empty at initial numbering?");
   assert(MBBRanges.empty() &&
@@ -63,12 +62,11 @@ bool SlotIndexes::runOnMachineFunction(MachineFunction &fn) {
   assert(mi2iMap.empty() &&
          "MachineInstr -> Index mapping non-empty at initial numbering?");
 
-  functionSize = 0;
   unsigned index = 0;
   MBBRanges.resize(mf->getNumBlockIDs());
   idx2MBBMap.reserve(mf->size());
 
-  push_back(createEntry(0, index));
+  indexList.push_back(createEntry(0, index));
 
   // Iterate over the function.
   for (MachineFunction::iterator mbbItr = mf->begin(), mbbEnd = mf->end();
@@ -76,7 +74,7 @@ bool SlotIndexes::runOnMachineFunction(MachineFunction &fn) {
     MachineBasicBlock *mbb = &*mbbItr;
 
     // Insert an index for the MBB start.
-    SlotIndex blockStartIndex(back(), SlotIndex::LOAD);
+    SlotIndex blockStartIndex(&indexList.back(), SlotIndex::Slot_Block);
 
     for (MachineBasicBlock::iterator miItr = mbb->begin(), miEnd = mbb->end();
          miItr != miEnd; ++miItr) {
@@ -85,26 +83,26 @@ bool SlotIndexes::runOnMachineFunction(MachineFunction &fn) {
         continue;
 
       // Insert a store index for the instr.
-      push_back(createEntry(mi, index += SlotIndex::InstrDist));
+      indexList.push_back(createEntry(mi, index += SlotIndex::InstrDist));
 
       // Save this base index in the maps.
-      mi2iMap.insert(std::make_pair(mi, SlotIndex(back(), SlotIndex::LOAD)));
- 
-      ++functionSize;
+      mi2iMap.insert(std::make_pair(mi, SlotIndex(&indexList.back(),
+                                                  SlotIndex::Slot_Block)));
     }
 
     // We insert one blank instructions between basic blocks.
-    push_back(createEntry(0, index += SlotIndex::InstrDist));
+    indexList.push_back(createEntry(0, index += SlotIndex::InstrDist));
 
     MBBRanges[mbb->getNumber()].first = blockStartIndex;
-    MBBRanges[mbb->getNumber()].second = SlotIndex(back(), SlotIndex::LOAD);
+    MBBRanges[mbb->getNumber()].second = SlotIndex(&indexList.back(),
+                                                   SlotIndex::Slot_Block);
     idx2MBBMap.push_back(IdxMBBPair(blockStartIndex, mbb));
   }
 
   // Sort the Idx2MBBMap
   std::sort(idx2MBBMap.begin(), idx2MBBMap.end(), Idx2MBBCompare());
 
-  DEBUG(dump());
+  DEBUG(mf->print(dbgs(), this));
 
   // And we're done!
   return false;
@@ -117,38 +115,38 @@ void SlotIndexes::renumberIndexes() {
 
   unsigned index = 0;
 
-  for (IndexListEntry *curEntry = front(); curEntry != getTail();
-       curEntry = curEntry->getNext()) {
-    curEntry->setIndex(index);
+  for (IndexList::iterator I = indexList.begin(), E = indexList.end();
+       I != E; ++I) {
+    I->setIndex(index);
     index += SlotIndex::InstrDist;
   }
 }
 
-// Renumber indexes locally after curEntry was inserted, but failed to get a new
+// Renumber indexes locally after curItr was inserted, but failed to get a new
 // index.
-void SlotIndexes::renumberIndexes(IndexListEntry *curEntry) {
+void SlotIndexes::renumberIndexes(IndexList::iterator curItr) {
   // Number indexes with half the default spacing so we can catch up quickly.
   const unsigned Space = SlotIndex::InstrDist/2;
   assert((Space & 3) == 0 && "InstrDist must be a multiple of 2*NUM");
 
-  IndexListEntry *start = curEntry->getPrev();
-  unsigned index = start->getIndex();
-  IndexListEntry *tail = getTail();
+  IndexList::iterator startItr = prior(curItr);
+  unsigned index = startItr->getIndex();
   do {
-    curEntry->setIndex(index += Space);
-    curEntry = curEntry->getNext();
+    curItr->setIndex(index += Space);
+    ++curItr;
     // If the next index is bigger, we have caught up.
-  } while (curEntry != tail && curEntry->getIndex() <= index);
+  } while (curItr != indexList.end() && curItr->getIndex() <= index);
 
-  DEBUG(dbgs() << "\n*** Renumbered SlotIndexes " << start->getIndex() << '-'
+  DEBUG(dbgs() << "\n*** Renumbered SlotIndexes " << startItr->getIndex() << '-'
                << index << " ***\n");
   ++NumLocalRenum;
 }
 
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void SlotIndexes::dump() const {
-  for (const IndexListEntry *itr = front(); itr != getTail();
-       itr = itr->getNext()) {
+  for (IndexList::const_iterator itr = indexList.begin();
+       itr != indexList.end(); ++itr) {
     dbgs() << itr->getIndex() << " ";
 
     if (itr->getInstr() != 0) {
@@ -162,18 +160,21 @@ void SlotIndexes::dump() const {
     dbgs() << "BB#" << i << "\t[" << MBBRanges[i].first << ';'
            << MBBRanges[i].second << ")\n";
 }
+#endif
 
 // Print a SlotIndex to a raw_ostream.
 void SlotIndex::print(raw_ostream &os) const {
   if (isValid())
-    os << entry().getIndex() << "LudS"[getSlot()];
+    os << listEntry()->getIndex() << "Berd"[getSlot()];
   else
     os << "invalid";
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 // Dump a SlotIndex to stderr.
 void SlotIndex::dump() const {
   print(dbgs());
   dbgs() << "\n";
 }
+#endif
 

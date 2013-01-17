@@ -28,30 +28,31 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/elf32.h>
+#include <elf.h>
 #include <efi.h>
+#include <bootstrap.h>
 
-/*
- * XXX: we can't include sys/systm.h.
- */
-#ifndef CTASSERT                /* Allow lint to override */
-#define CTASSERT(x)             _CTASSERT(x, __LINE__)
-#define _CTASSERT(x, y)         __CTASSERT(x, y)
-#define __CTASSERT(x, y)        typedef char __assert ## y[(x) ? 1 : -1]
+#ifdef __i386__
+#define ElfW_Rel	Elf32_Rel
+#define	ElfW_Dyn	Elf32_Dyn
+#define	ELFW_R_TYPE	ELF32_R_TYPE
+#elif __amd64__
+#define ElfW_Rel	Elf64_Rel
+#define	ElfW_Dyn	Elf64_Dyn
+#define	ELFW_R_TYPE	ELF64_R_TYPE
 #endif
 
-
 /*
- * A simple relocator for IA32 EFI binaries.
+ * A simple relocator for IA32/AMD64 EFI binaries.
  */
 EFI_STATUS
-_reloc(unsigned long ImageBase, Elf32_Dyn *dynamic, EFI_HANDLE image_handle,
+_reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
     EFI_SYSTEM_TABLE *system_table)
 {
 	unsigned long relsz, relent;
 	unsigned long *newaddr;
-	Elf32_Rel *rel;
-	Elf32_Dyn *dynp;
+	ElfW_Rel *rel;
+	ElfW_Dyn *dynp;
 
 	/*
 	 * Find the relocation address, its size and the relocation entry.
@@ -60,14 +61,17 @@ _reloc(unsigned long ImageBase, Elf32_Dyn *dynamic, EFI_HANDLE image_handle,
 	relent = 0;
 	for (dynp = dynamic; dynp->d_tag != DT_NULL; dynp++) {
 		switch (dynp->d_tag) {
+		case DT_RELA:
 		case DT_REL:
-			rel = (Elf32_Rel *) ((unsigned long) dynp->d_un.d_ptr +
+			rel = (ElfW_Rel *) ((unsigned long) dynp->d_un.d_ptr +
 			    ImageBase);
 			break;
 		case DT_RELSZ:
+		case DT_RELASZ:
 			relsz = dynp->d_un.d_val;
 			break;
 		case DT_RELENT:
+		case DT_RELAENT:
 			relent = dynp->d_un.d_val;
 			break;
 		default:
@@ -83,7 +87,7 @@ _reloc(unsigned long ImageBase, Elf32_Dyn *dynamic, EFI_HANDLE image_handle,
 	CTASSERT(R_386_NONE == R_X86_64_NONE);
 	CTASSERT(R_386_RELATIVE == R_X86_64_RELATIVE);
 	for (; relsz > 0; relsz -= relent) {
-		switch (ELF32_R_TYPE(rel->r_info)) {
+		switch (ELFW_R_TYPE(rel->r_info)) {
 		case R_386_NONE:
 			/* No relocation needs be performed. */
 			break;
@@ -94,9 +98,9 @@ _reloc(unsigned long ImageBase, Elf32_Dyn *dynamic, EFI_HANDLE image_handle,
 			break;
 		default:
 			/* XXX: do we need other relocations ? */
-			return (EFI_LOAD_ERROR);
+			break;
 		}
-		rel = (Elf32_Rel *) ((caddr_t) rel + relent);
+		rel = (ElfW_Rel *) ((caddr_t) rel + relent);
 	}
 
 	return (EFI_SUCCESS);

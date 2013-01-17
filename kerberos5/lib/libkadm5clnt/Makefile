@@ -8,6 +8,7 @@ DPADD=	${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN}
 INCS=	admin.h \
 	kadm5-private.h \
 	kadm5-protos.h \
+	kadm5-pwcheck.h \
 	kadm5_err.h \
 	private.h
 

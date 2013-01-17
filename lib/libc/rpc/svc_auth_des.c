@@ -271,7 +271,7 @@ _svcauth_des(rqst, msg)
 			debug("timestamp before last seen");
 			return (AUTH_REJECTEDVERF);	/* replay */
 		}
-		(void) gettimeofday(&current, (struct timezone *)NULL);
+		(void)gettimeofday(&current, NULL);
 		current.tv_sec -= window;	/* allow for expiration */
 		if (!BEFORE(&current, &timestamp)) {
 			debug("timestamp expired");

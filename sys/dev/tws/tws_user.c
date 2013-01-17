@@ -94,41 +94,46 @@ tws_passthru(struct tws_softc *sc, void *buf)
     int error;
     u_int16_t lun4;
 
+
     if ( tws_get_state(sc) != TWS_ONLINE) {
         return(EBUSY);
     }
 
+    //==============================================================================================
+    // Get a command
+    //
     do {
         req = tws_get_request(sc, TWS_REQ_TYPE_PASSTHRU);
         if ( !req ) {
-            sc->chan = 1;
-            error = tsleep((void *)&sc->chan,  0, 
-                                   "tws_sleep", TWS_IOCTL_TIMEOUT*hz);
+            sc->chan = (void *)sc;
+            error = tsleep(sc->chan,  0, "tws_sleep", TWS_IOCTL_TIMEOUT*hz);
             if ( error == EWOULDBLOCK ) {
                 return(ETIMEDOUT);
             }
         } else {
+            // Make sure we are still ready for new commands...
+            if ( tws_get_state(sc) != TWS_ONLINE) {
+                return(EBUSY);
+            }
             break;
         }
-    }while(1);
+    } while(1);
 
-    req->length = ubuf->driver_pkt.buffer_length;
+    req->length = (ubuf->driver_pkt.buffer_length + 511) & ~511;
     TWS_TRACE_DEBUG(sc, "datal,rid", req->length, req->request_id);
     if ( req->length ) {
-        req->data = malloc(req->length, M_TWS, M_WAITOK | M_ZERO);
-        if ( !req->data ) {
-            TWS_TRACE_DEBUG(sc, "malloc failed", 0, req->request_id);
-            req->state = TWS_REQ_STATE_FREE;
-            ubuf->driver_pkt.os_status = ENOMEM;
-            if ( sc->chan ) {
-                sc->chan = 0;
-                wakeup_one((void *)&sc->chan);
-            }
-            return(ENOMEM);
-        }
-        bzero(req->data, req->length);
+        req->data = sc->ioctl_data_mem;
+        req->dma_map = sc->ioctl_data_map;
+
+        //==========================================================================================
+        // Copy data in from user space
+        //
         error = copyin(ubuf->pdata, req->data, req->length);
     }
+
+    //==============================================================================================
+    // Set command fields
+    //
     req->flags = TWS_DIR_IN | TWS_DIR_OUT;
     req->cb = tws_passthru_complete;
 
@@ -141,16 +146,22 @@ tws_passthru(struct tws_softc *sc, void *buf)
         req->cmd_pkt->cmd.pkt_a.lun_l4__req_id = lun4 | req->request_id;
     } else {
         req->cmd_pkt->cmd.pkt_g.generic.request_id = (u_int8_t) req->request_id;
-
     }
 
+    //==============================================================================================
+    // Send command to controller
+    //
     error = tws_map_request(sc, req);
     if (error) {
         ubuf->driver_pkt.os_status = error;
-        goto out;
+        goto out_data;
     }
 
-//==================================================================================================
+    if ( req->state == TWS_REQ_STATE_COMPLETE ) {
+        ubuf->driver_pkt.os_status = req->error_code;
+        goto out_unmap;
+    }
+
     mtx_lock(&sc->gen_lock);
     error = mtx_sleep(req, &sc->gen_lock, 0, "tws_passthru", TWS_IOCTL_TIMEOUT*hz);
     mtx_unlock(&sc->gen_lock);
@@ -159,6 +170,7 @@ tws_passthru(struct tws_softc *sc, void *buf)
             tws_timeout((void*) req);
     }
 
+out_unmap:
     if ( req->error_code == TWS_REQ_RET_RESET ) {
         error = EBUSY;
         req->error_code = EBUSY;
@@ -167,15 +179,20 @@ tws_passthru(struct tws_softc *sc, void *buf)
 
     tws_unmap_request(sc, req);
 
+    //==============================================================================================
+    // Return command status to user space
+    //
     memcpy(&ubuf->cmd_pkt.hdr, &req->cmd_pkt->hdr, sizeof(struct tws_command_apache));
     memcpy(&ubuf->cmd_pkt.cmd, &req->cmd_pkt->cmd, sizeof(struct tws_command_apache));
-    if ( !error && req->length ) {
-        error = copyout(req->data, ubuf->pdata, req->length);
-    }
-//==================================================================================================
 
-out:
-    free(req->data, M_TWS);
+out_data:
+    if ( req->length ) {
+        //==========================================================================================
+        // Copy data out to user space
+        //
+        if ( !error )
+            error = copyout(req->data, ubuf->pdata, ubuf->driver_pkt.buffer_length);
+    }
 
     if ( error ) 
         TWS_TRACE_DEBUG(sc, "errored", error, 0);
@@ -183,12 +200,13 @@ out:
     if ( req->error_code != TWS_REQ_RET_SUBMIT_SUCCESS )
         ubuf->driver_pkt.os_status = error;
 
+    //==============================================================================================
+    // Free command
+    //
     req->state = TWS_REQ_STATE_FREE;
 
-    if ( sc->chan && (tws_get_state(sc) == TWS_ONLINE) ) {
-        sc->chan = 0;
-        wakeup_one((void *)&sc->chan);
-    }
+    wakeup_one(sc->chan);
+
     return(error);
 }
 

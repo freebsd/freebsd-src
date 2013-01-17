@@ -6,10 +6,10 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-//  This file defines facilities for reading and writing on-disk hash
-//  tables.
-//
+///
+/// \file
+/// \brief Defines facilities for reading and writing on-disk hash tables.
+///
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_CLANG_BASIC_ON_DISK_HASH_TABLE_H
 #define LLVM_CLANG_BASIC_ON_DISK_HASH_TABLE_H
@@ -65,8 +65,7 @@ inline void Emit64(raw_ostream& Out, uint64_t V) {
 
 inline void Pad(raw_ostream& Out, unsigned A) {
   Offset off = (Offset) Out.tell();
-  uint32_t n = ((uintptr_t)(off+A-1) & ~(uintptr_t)(A-1)) - off;
-  for (; n ; --n)
+  for (uint32_t n = llvm::OffsetToAlignment(off, A); n; --n)
     Emit8(Out, 0);
 }
 
@@ -102,7 +101,7 @@ inline uint64_t ReadUnalignedLE64(const unsigned char *&Data) {
 inline uint32_t ReadLE32(const unsigned char *&Data) {
   // Hosts that directly support little-endian 32-bit loads can just
   // use them.  Big-endian hosts need a bswap.
-  uint32_t V = *((uint32_t*)Data);
+  uint32_t V = *((const uint32_t*)Data);
   if (llvm::sys::isBigEndianHost())
     V = llvm::ByteSwap_32(V);
   Data += 4;
@@ -132,7 +131,7 @@ class OnDiskChainedHashTableGenerator {
   class Bucket {
   public:
     io::Offset off;
-    Item*  head;
+    Item* head;
     unsigned length;
 
     Bucket() {}
@@ -201,6 +200,7 @@ public:
 
       // Write out the number of items in the bucket.
       Emit16(out, B.length);
+      assert(B.length != 0  && "Bucket has a head but zero length?");
 
       // Write out the entries in the bucket.
       for (Item *I = B.head; I ; I = I->next) {
@@ -356,7 +356,7 @@ public:
     friend bool operator!=(const key_iterator& X, const key_iterator &Y) {
       return X.NumEntriesLeft != Y.NumEntriesLeft;
     }
-    
+
     key_iterator& operator++() {  // Preincrement
       if (!NumItemsInBucketLeft) {
         // 'Items' starts with a 16-bit unsigned integer representing the
@@ -398,31 +398,30 @@ public:
   }
   key_iterator key_end() { return key_iterator(); }
 
-  /// \brief Iterates over all the entries in the table, returning
-  /// a key/data pair.
-  class item_iterator {
+  /// \brief Iterates over all the entries in the table, returning the data.
+  class data_iterator {
     const unsigned char* Ptr;
     unsigned NumItemsInBucketLeft;
     unsigned NumEntriesLeft;
     Info *InfoObj;
   public:
-    typedef std::pair<external_key_type, data_type> value_type;
+    typedef data_type value_type;
 
-    item_iterator(const unsigned char* const Ptr, unsigned NumEntries,
+    data_iterator(const unsigned char* const Ptr, unsigned NumEntries,
                   Info *InfoObj)
       : Ptr(Ptr), NumItemsInBucketLeft(0), NumEntriesLeft(NumEntries),
         InfoObj(InfoObj) { }
-    item_iterator()
+    data_iterator()
       : Ptr(0), NumItemsInBucketLeft(0), NumEntriesLeft(0), InfoObj(0) { }
 
-    bool operator==(const item_iterator& X) const {
+    bool operator==(const data_iterator& X) const {
       return X.NumEntriesLeft == NumEntriesLeft;
     }
-    bool operator!=(const item_iterator& X) const {
+    bool operator!=(const data_iterator& X) const {
       return X.NumEntriesLeft != NumEntriesLeft;
     }
-    
-    item_iterator& operator++() {  // Preincrement
+
+    data_iterator& operator++() {  // Preincrement
       if (!NumItemsInBucketLeft) {
         // 'Items' starts with a 16-bit unsigned integer representing the
         // number of items in this bucket.
@@ -438,8 +437,8 @@ public:
       --NumEntriesLeft;
       return *this;
     }
-    item_iterator operator++(int) {  // Postincrement
-      item_iterator tmp = *this; ++*this; return tmp;
+    data_iterator operator++(int) {  // Postincrement
+      data_iterator tmp = *this; ++*this; return tmp;
     }
 
     value_type operator*() const {
@@ -449,23 +448,22 @@ public:
       LocalPtr += 4; // Skip the hash.
 
       // Determine the length of the key and the data.
-      const std::pair<unsigned, unsigned>& L = Info::ReadKeyDataLength(LocalPtr);
+      const std::pair<unsigned, unsigned>& L =Info::ReadKeyDataLength(LocalPtr);
 
       // Read the key.
       const internal_key_type& Key =
         InfoObj->ReadKey(LocalPtr, L.first);
-      return std::make_pair(InfoObj->GetExternalKey(Key),
-                          InfoObj->ReadData(Key, LocalPtr + L.first, L.second));
+      return InfoObj->ReadData(Key, LocalPtr + L.first, L.second);
     }
   };
-  
-  item_iterator item_begin() {
-    return item_iterator(Base + 4, getNumEntries(), &InfoObj);
+
+  data_iterator data_begin() {
+    return data_iterator(Base + 4, getNumEntries(), &InfoObj);
   }
-  item_iterator item_end() { return item_iterator(); }
+  data_iterator data_end() { return data_iterator(); }
 
   Info &getInfoObj() { return InfoObj; }
-  
+
   static OnDiskChainedHashTable* Create(const unsigned char* buckets,
                                         const unsigned char* const base,
                                         const Info &InfoObj = Info()) {

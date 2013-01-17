@@ -41,7 +41,7 @@ int main (void)
 {
 char buffer[32768], buffer2[32768];
 int desc[2];
-int error, successes;
+int error, successes = 0;
 struct stat status;
 pid_t new_pid;
 

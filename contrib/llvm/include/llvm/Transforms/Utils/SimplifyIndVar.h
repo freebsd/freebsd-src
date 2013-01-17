@@ -17,21 +17,21 @@
 #define LLVM_TRANSFORMS_UTILS_SIMPLIFYINDVAR_H
 
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
 
-extern cl::opt<bool> DisableIVRewrite;
-
-class Loop;
-class LoopInfo;
-class DominatorTree;
-class ScalarEvolution;
-class LPPassManager;
+class CastInst;
 class IVUsers;
+class Loop;
+class LPPassManager;
+class PHINode;
+class ScalarEvolution;
 
 /// Interface for visiting interesting IV users that are recognized but not
 /// simplified by this utility.
 class IVVisitor {
+  virtual void anchor();
 public:
   virtual ~IVVisitor() {}
   virtual void visitCast(CastInst *Cast) = 0;
@@ -45,12 +45,6 @@ bool simplifyUsersOfIV(PHINode *CurrIV, ScalarEvolution *SE, LPPassManager *LPM,
 /// SimplifyLoopIVs - Simplify users of induction variables within this
 /// loop. This does not actually change or add IVs.
 bool simplifyLoopIVs(Loop *L, ScalarEvolution *SE, LPPassManager *LPM,
-                     SmallVectorImpl<WeakVH> &Dead);
-
-/// simplifyIVUsers - Simplify instructions recorded by the IVUsers pass.
-/// This is a legacy implementation to reproduce the behavior of the
-/// IndVarSimplify pass prior to DisableIVRewrite.
-bool simplifyIVUsers(IVUsers *IU, ScalarEvolution *SE, LPPassManager *LPM,
                      SmallVectorImpl<WeakVH> &Dead);
 
 } // namespace llvm

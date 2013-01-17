@@ -1,10 +1,10 @@
-//===- SparcInstrInfo.td - Target Description for Sparc Target ------------===//
-// 
+//===-- SparcInstrInfo.td - Target Description for Sparc Target -----------===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file describes the Sparc instructions in TableGen format.
@@ -129,7 +129,7 @@ def retflag       : SDNode<"SPISD::RET_FLAG", SDT_SPRet,
                            [SDNPHasChain, SDNPOptInGlue]>;
 
 def flushw        : SDNode<"SPISD::FLUSHW", SDTNone,
-                           [SDNPHasChain]>;
+                           [SDNPHasChain, SDNPSideEffect, SDNPMayStore]>;
 
 def getPCX        : Operand<i32> {
   let PrintMethod = "printGetPCX";

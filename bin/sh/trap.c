@@ -191,10 +191,11 @@ trapcmd(int argc, char **argv)
 			argv++;
 		}
 	}
-	while (*argv) {
+	for (; *argv; argv++) {
 		if ((signo = sigstring_to_signum(*argv)) == -1) {
 			warning("bad signal %s", *argv);
 			errors = 1;
+			continue;
 		}
 		INTOFF;
 		if (action)
@@ -205,7 +206,6 @@ trapcmd(int argc, char **argv)
 		if (signo != 0)
 			setsignal(signo);
 		INTON;
-		argv++;
 	}
 	return errors;
 }
@@ -368,6 +368,14 @@ ignoresig(int signo)
 }
 
 
+int
+issigchldtrapped(void)
+{
+
+	return (trap[SIGCHLD] != NULL && *trap[SIGCHLD] != '\0');
+}
+
+
 /*
  * Signal handler.
  */
@@ -412,10 +420,11 @@ void
 dotrap(void)
 {
 	int i;
-	int savestatus;
+	int savestatus, prev_evalskip, prev_skipcount;
 
 	in_dotrap++;
 	for (;;) {
+		pendingsigs = 0;
 		for (i = 1; i < NSIG; i++) {
 			if (gotsig[i]) {
 				gotsig[i] = 0;
@@ -427,10 +436,36 @@ dotrap(void)
 					 */
 					if (i == SIGCHLD)
 						ignore_sigchld++;
+
+					/*
+					 * Backup current evalskip
+					 * state and reset it before
+					 * executing a trap, so that the
+					 * trap is not disturbed by an
+					 * ongoing break/continue/return
+					 * statement.
+					 */
+					prev_evalskip  = evalskip;
+					prev_skipcount = skipcount;
+					evalskip = 0;
+
 					last_trapsig = i;
 					savestatus = exitstatus;
 					evalstring(trap[i], 0);
 					exitstatus = savestatus;
+
+					/*
+					 * If such a command was not
+					 * already in progress, allow a
+					 * break/continue/return in the
+					 * trap action to have an effect
+					 * outside of it.
+					 */
+					if (prev_evalskip != 0) {
+						evalskip  = prev_evalskip;
+						skipcount = prev_skipcount;
+					}
+
 					if (i == SIGCHLD)
 						ignore_sigchld--;
 				}
@@ -441,7 +476,6 @@ dotrap(void)
 			break;
 	}
 	in_dotrap--;
-	pendingsigs = 0;
 }
 
 
@@ -501,6 +535,11 @@ exitshell_savedstatus(void)
 	}
 	handler = &loc1;
 	if ((p = trap[0]) != NULL && *p != '\0') {
+		/*
+		 * Reset evalskip, or the trap on EXIT could be
+		 * interrupted if the last command was a "return".
+		 */
+		evalskip = 0;
 		trap[0] = NULL;
 		evalstring(p, 0);
 	}

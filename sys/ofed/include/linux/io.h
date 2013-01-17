@@ -90,7 +90,7 @@ writew(uint16_t b, void *addr)
 
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #define	ioremap_nocache(addr, size)					\
-    _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHED)
+    _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 #define	ioremap_wc(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
 #define	ioremap	ioremap_nocache

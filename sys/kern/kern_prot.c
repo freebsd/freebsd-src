@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef REGRESSION
 FEATURE(regression,
-    "Kernel support for interfaces nessesary for regression testing (SECURITY RISK!)");
+    "Kernel support for interfaces necessary for regression testing (SECURITY RISK!)");
 #endif
 
 #if defined(INET) || defined(INET6)
@@ -2084,8 +2084,10 @@ sys_getlogin(struct thread *td, struct getlogin_args *uap)
 	bcopy(p->p_session->s_login, login, uap->namelen);
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
+	if (strlen(login) + 1 > uap->namelen)
+		return (ERANGE);
 	error = copyout(login, uap->namebuf, uap->namelen);
-	return(error);
+	return (error);
 }
 
 /*

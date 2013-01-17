@@ -43,6 +43,9 @@ typedef	__ssize_t	ssize_t;
 #endif
 
 __BEGIN_DECLS
+#ifdef _XLOCALE_H_
+#include <xlocale/_monetary.h>
+#endif
 ssize_t	strfmon(char * __restrict, size_t, const char * __restrict, ...);
 __END_DECLS
 

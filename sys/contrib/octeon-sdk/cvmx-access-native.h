@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -183,12 +183,6 @@ static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
         cvmx_warn_if(physical_address==0, "cvmx_phys_to_ptr() passed a zero address\n");
 
 #ifdef CVMX_BUILD_FOR_UBOOT
-#if !CONFIG_OCTEON_UBOOT_TLB
-    if (physical_address >= 0x80000000)
-        return NULL;
-    else
-        return CASTPTR(void, (physical_address & 0x7FFFFFFF));
-#endif
 
     /* U-boot is a special case, as it is running in 32 bit mode, using the TLB to map code/data
     ** which can have a physical address above the 32 bit address space.  1-1 mappings are used
@@ -251,8 +245,9 @@ static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
         2nd 256MB is mapped at 0x10000000 and the rest of memory is 1:1 */
     if ((physical_address >= 0x10000000) && (physical_address < 0x20000000))
         return CASTPTR(void, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, physical_address));
-    else if (!OCTEON_IS_MODEL(OCTEON_CN6XXX) && (physical_address >= 0x410000000ull) &&
-                                                       (physical_address < 0x420000000ull))
+    else if ((OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX))
+              && (physical_address >= 0x410000000ull)
+              && (physical_address < 0x420000000ull))
         return CASTPTR(void, physical_address - 0x400000000ull);
     else
         return CASTPTR(void, physical_address);

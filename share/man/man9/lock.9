@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2009
+.Dd November 16, 2011
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -60,20 +60,20 @@
 .Ft void
 .Fn lockmgr_disown "struct lock *lkp"
 .Ft void
-.Fn lockmgr_printinfo "struct lock *lkp"
+.Fn lockmgr_printinfo "const struct lock *lkp"
 .Ft int
-.Fn lockmgr_recursed "struct lock *lkp"
+.Fn lockmgr_recursed "const struct lock *lkp"
 .Ft int
 .Fn lockmgr_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk"
 .Ft int
-.Fn lockmgr_waiters "struct lock *lkp"
+.Fn lockmgr_waiters "const struct lock *lkp"
 .Ft int
-.Fn lockstatus "struct lock *lkp"
+.Fn lockstatus "const struct lock *lkp"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
 .Ft void
-.Fn lockmgr_assert "struct lock *lkp" "int what"
+.Fn lockmgr_assert "const struct lock *lkp" "int what"
 .Sh DESCRIPTION
 The
 .Fn lockinit
@@ -148,7 +148,9 @@ Flags indicating what action is to be taken.
 .Bl -tag -width ".Dv LK_CANRECURSE"
 .It Dv LK_SHARED
 Acquire a shared lock.
-If an exclusive lock is currently held, it will be downgraded.
+If an exclusive lock is currently held,
+.Dv EDEADLK
+will be returned.
 .It Dv LK_EXCLUSIVE
 Acquire an exclusive lock.
 If an exclusive lock is already held, and
@@ -158,7 +160,8 @@ is not set, the system will
 .It Dv LK_DOWNGRADE
 Downgrade exclusive lock to a shared lock.
 Downgrading a shared lock is not permitted.
-If an exclusive lock has been recursed, all references will be downgraded.
+If an exclusive lock has been recursed, the system will
+.Xr panic 9 .
 .It Dv LK_UPGRADE
 Upgrade a shared lock to an exclusive lock.
 If this call fails, the shared lock is lost.
@@ -230,7 +233,7 @@ and
 The
 .Fn lockmgr_disown
 function switches the owner from the current thread to be
-.Dv LK_KERNPROC,
+.Dv LK_KERNPROC ,
 if the lock is already held.
 .Pp
 The
@@ -299,7 +302,6 @@ Assert that the current thread has a recursed lock on
 Assert that the current thread does not have a recursed lock on
 .Fa lkp .
 .El
-.Pp
 .Sh RETURN VALUES
 The
 .Fn lockmgr
@@ -364,7 +366,7 @@ or
 the
 .Fa ilk
 must be held prior to calling
-.Fn lockmgr 
+.Fn lockmgr
 or
 .Fn lockmgr_rw ,
 and will be returned unlocked.

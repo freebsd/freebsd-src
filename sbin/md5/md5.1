@@ -1,30 +1,39 @@
 .\" $FreeBSD$
-.Dd September 7, 2008
+.Dd July 31, 2012
 .Dt MD5 1
 .Os
 .Sh NAME
-.Nm md5 , sha1 , sha256, rmd160
+.Nm md5 , sha1 , sha256 , sha512, rmd160
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
 .Nm md5
 .Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Nm sha1
 .Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Nm sha256
 .Op Fl pqrtx
+.Op Fl c Ar string
+.Op Fl s Ar string
+.Op Ar
+.Nm sha512
+.Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Nm rmd160
 .Op Fl pqrtx
+.Op Fl c Ar string
 .Op Fl s Ar string
 .Op Ar
 .Sh DESCRIPTION
 The
-.Nm md5 , sha1 , sha256
+.Nm md5 , sha1 , sha256 , sha512
 and
 .Nm rmd160
 utilities take as input a message of arbitrary length and produce as
@@ -37,7 +46,7 @@ It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
 The
-.Tn MD5 , SHA-1 , SHA-256
+.Tn MD5 , SHA-1 , SHA-256 , SHA-512
 and
 .Tn RIPEMD-160
 algorithms are intended for digital signature applications, where a
@@ -73,6 +82,9 @@ precede any files named on the command line.
 The hexadecimal checksum of each file listed on the command line is printed
 after the options are processed.
 .Bl -tag -width indent
+.It Fl c Ar string
+Compare files to this md5 string.
+(Note that this option is not yet useful if multiple files are specified.)
 .It Fl s Ar string
 Print a checksum of the given
 .Ar string .
@@ -97,17 +109,19 @@ Run a built-in test script.
 .El
 .Sh EXIT STATUS
 The
-.Nm md5 , sha1 , sha256
+.Nm md5 , sha1 , sha256 , sha512
 and
 .Nm rmd160
 utilities exit 0 on success,
-and 1 if at least one of the input files could not be read.
+1 if at least one of the input files could not be read,
+and 2 if at least one file does not have the same hash as the -c option.
 .Sh SEE ALSO
 .Xr cksum 1 ,
 .Xr md5 3 ,
 .Xr ripemd 3 ,
 .Xr sha 3 ,
-.Xr sha256 3
+.Xr sha256 3 ,
+.Xr sha512 3
 .Rs
 .%A R. Rivest
 .%T The MD5 Message-Digest Algorithm

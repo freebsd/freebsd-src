@@ -1,92 +1,90 @@
-.\" Copyright (c) 1998 - 2003, 2006 Kungliga Tekniska Högskolan
-.\" (Royal Institute of Technology, Stockholm, Sweden). 
-.\" All rights reserved. 
+.\" Copyright (c) 1998 - 2003, 2006 Kungliga Tekniska HÃ¶gskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
 .\"
-.\" Redistribution and use in source and binary forms, with or without 
-.\" modification, are permitted provided that the following conditions 
-.\" are met: 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
 .\"
-.\" 1. Redistributions of source code must retain the above copyright 
-.\"    notice, this list of conditions and the following disclaimer. 
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
 .\"
-.\" 2. Redistributions in binary form must reproduce the above copyright 
-.\"    notice, this list of conditions and the following disclaimer in the 
-.\"    documentation and/or other materials provided with the distribution. 
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" 3. Neither the name of the Institute nor the names of its contributors 
-.\"    may be used to endorse or promote products derived from this software 
-.\"    without specific prior written permission. 
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
-.\" SUCH DAMAGE. 
-.\" 
-.\" $Id: kinit.1 17822 2006-07-10 14:46:58Z lha $
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
 .\"
 .Dd April 25, 2006
 .Dt KINIT 1
 .Os HEIMDAL
 .Sh NAME
 .Nm kinit
-.Nm kauth
 .Nd acquire initial tickets
 .Sh SYNOPSIS
 .Nm kinit
-.Op Fl 4 | Fl -524init
-.Op Fl 9 | Fl -524convert
-.Op Fl -afslog
+.Op Fl Fl afslog
 .Oo Fl c Ar cachename \*(Ba Xo
-.Fl -cache= Ns Ar cachename
+.Fl Fl cache= Ns Ar cachename
 .Xc
 .Oc
-.Op Fl f | Fl -forwardable
+.Op Fl f | Fl Fl no-forwardable
 .Oo Fl t Ar keytabname \*(Ba Xo
-.Fl -keytab= Ns Ar keytabname
+.Fl Fl keytab= Ns Ar keytabname
 .Xc
 .Oc
 .Oo Fl l Ar time \*(Ba Xo
-.Fl -lifetime= Ns Ar time
+.Fl Fl lifetime= Ns Ar time
 .Xc
 .Oc
-.Op Fl p | Fl -proxiable
-.Op Fl R | Fl -renew
-.Op Fl -renewable
+.Op Fl p | Fl Fl proxiable
+.Op Fl R | Fl Fl renew
+.Op Fl Fl renewable
 .Oo Fl r Ar time \*(Ba Xo
-.Fl -renewable-life= Ns Ar time
+.Fl Fl renewable-life= Ns Ar time
 .Xc
 .Oc
 .Oo Fl S Ar principal \*(Ba Xo
-.Fl -server= Ns Ar principal
+.Fl Fl server= Ns Ar principal
 .Xc
 .Oc
 .Oo Fl s Ar time \*(Ba Xo
-.Fl -start-time= Ns Ar time
+.Fl Fl start-time= Ns Ar time
 .Xc
 .Oc
-.Op Fl k | Fl -use-keytab
-.Op Fl v | Fl -validate
+.Op Fl k | Fl Fl use-keytab
+.Op Fl v | Fl Fl validate
 .Oo Fl e Ar enctypes \*(Ba Xo
-.Fl -enctypes= Ns Ar enctypes
+.Fl Fl enctypes= Ns Ar enctypes
 .Xc
 .Oc
 .Oo Fl a Ar addresses \*(Ba Xo
-.Fl -extra-addresses= Ns Ar addresses
+.Fl Fl extra-addresses= Ns Ar addresses
 .Xc
 .Oc
-.Op Fl -password-file= Ns Ar filename
-.Op Fl -fcache-version= Ns Ar version-number
-.Op Fl A | Fl -no-addresses
-.Op Fl -anonymous
-.Op Fl -version
-.Op Fl -help
+.Op Fl Fl password-file= Ns Ar filename
+.Op Fl Fl fcache-version= Ns Ar version-number
+.Op Fl A | Fl Fl no-addresses
+.Op Fl Fl anonymous
+.Op Fl Fl enterprise
+.Op Fl Fl version
+.Op Fl Fl help
 .Op Ar principal Op Ar command
 .Sh DESCRIPTION
 .Nm
@@ -96,97 +94,53 @@ or if none is given, a system generated default (typically your login
 name at the default realm), and acquire a ticket granting ticket that
 can later be used to obtain tickets for other services.
 .Pp
-If you have compiled
-.Nm kinit
-with Kerberos 4 support and you have a
-Kerberos 4 server,
-.Nm
-will detect this and get you Kerberos 4 tickets.
-.Pp
 Supported options:
 .Bl -tag -width Ds
-.It Xo
-.Fl c Ar cachename
-.Fl -cache= Ns Ar cachename
-.Xc
+.It Fl c Ar cachename Fl Fl cache= Ns Ar cachename
 The credentials cache to put the acquired ticket in, if other than
 default.
-.It Xo
-.Fl f ,
-.Fl -forwardable
-.Xc
-Get ticket that can be forwarded to another host.
-.It Xo
-.Fl t Ar keytabname ,
-.Fl -keytab= Ns Ar keytabname
-.Xc
+.It Fl f Fl Fl no-forwardable
+Get ticket that can be forwarded to another host, or if the negative
+flags use, don't get a forwardable flag.
+.It Fl t Ar keytabname , Fl Fl keytab= Ns Ar keytabname
 Don't ask for a password, but instead get the key from the specified
 keytab.
-.It Xo
-.Fl l Ar time ,
-.Fl -lifetime= Ns Ar time
-.Xc
+.It Fl l Ar time , Fl Fl lifetime= Ns Ar time
 Specifies the lifetime of the ticket.
 The argument can either be in seconds, or a more human readable string
 like
 .Sq 1h .
-.It Xo
-.Fl p ,
-.Fl -proxiable
-.Xc
+.It Fl p , Fl Fl proxiable
 Request tickets with the proxiable flag set.
-.It Xo
-.Fl R ,
-.Fl -renew
-.Xc
+.It Fl R , Fl Fl renew
 Try to renew ticket.
 The ticket must have the
 .Sq renewable
 flag set, and must not be expired.
-.It Fl -renewable
+.It Fl Fl renewable
 The same as
-.Fl -renewable-life ,
+.Fl Fl renewable-life ,
 with an infinite time.
-.It Xo
-.Fl r Ar time ,
-.Fl -renewable-life= Ns Ar time
-.Xc
+.It Fl r Ar time , Fl Fl renewable-life= Ns Ar time
 The max renewable ticket life.
-.It Xo
-.Fl S Ar principal ,
-.Fl -server= Ns Ar principal
-.Xc
+.It Fl S Ar principal , Fl Fl server= Ns Ar principal
 Get a ticket for a service other than krbtgt/LOCAL.REALM.
-.It Xo
-.Fl s Ar time ,
-.Fl -start-time= Ns Ar time
-.Xc
+.It Fl s Ar time , Fl Fl start-time= Ns Ar time
 Obtain a ticket that starts to be valid
 .Ar time
 (which can really be a generic time specification, like
 .Sq 1h )
 seconds into the future.
-.It Xo
-.Fl k ,
-.Fl -use-keytab
-.Xc
+.It Fl k , Fl Fl use-keytab
 The same as
-.Fl -keytab ,
+.Fl Fl keytab ,
 but with the default keytab name (normally
 .Ar FILE:/etc/krb5.keytab ) .
-.It Xo
-.Fl v ,
-.Fl -validate
-.Xc
+.It Fl v , Fl Fl validate
 Try to validate an invalid ticket.
-.It Xo
-.Fl e ,
-.Fl -enctypes= Ns Ar enctypes
-.Xc
+.It Fl e , Fl Fl enctypes= Ns Ar enctypes
 Request tickets with this particular enctype.
-.It Xo
-.Fl -password-file= Ns Ar filename
-.Xc
+.It Fl Fl password-file= Ns Ar filename
 read the password from the first line of
 .Ar filename .
 If the
@@ -194,15 +148,10 @@ If the
 is
 .Ar STDIN ,
 the password will be read from the standard input.
-.It Xo
-.Fl -fcache-version= Ns Ar version-number
-.Xc
+.It Fl Fl fcache-version= Ns Ar version-number
 Create a credentials cache of version
 .Ar version-number .
-.It Xo
-.Fl a ,
-.Fl -extra-addresses= Ns Ar enctypes
-.Xc
+.It Fl a , Fl Fl extra-addresses= Ns Ar enctypes
 Adds a set of addresses that will, in addition to the systems local
 addresses, be put in the ticket.
 This can be useful if all addresses a client can use can't be
@@ -212,36 +161,23 @@ Also settable via
 .Li libdefaults/extra_addresses
 in
 .Xr krb5.conf 5 .
-.It Xo
-.Fl A ,
-.Fl -no-addresses
-.Xc
+.It Fl A , Fl Fl no-addresses
 Request a ticket with no addresses.
-.It Xo
-.Fl -anonymous
-.Xc
+.It Fl Fl anonymous
 Request an anonymous ticket (which means that the ticket will be
 issued to an anonymous principal, typically
 .Dq anonymous@REALM ) .
-.El
-.Pp
-The following options are only available if
-.Nm
-has been compiled with support for Kerberos 4.
-.Bl -tag -width Ds
-.It Xo
-.Fl 4 ,
-.Fl -524init
-.Xc
-Try to convert the obtained Kerberos 5 krbtgt to a version 4
-compatible ticket.
-It will store this ticket in the default Kerberos 4 ticket file.
-.It Xo
-.Fl 9 ,
-.Fl -524convert
-.Xc
-only convert ticket to version 4
-.It Fl -afslog
+.It Fl Fl enterprise
+Parse principal as a enterprise (KRB5-NT-ENTERPRISE) name. Enterprise
+names are email like principals that are stored in the name part of
+the principal, and since there are two @ characters the parser needs
+to know that the first is not a realm.
+An example of an enterprise name is
+.Dq lha@e.kth.se@KTH.SE ,
+and this option is usually used with canonicalize so that the
+principal returned from the KDC will typically be the real principal
+name.
+.It Fl Fl afslog
 Gets AFS tickets, converts them to version 4 format, and stores them
 in the kernel.
 Only useful if you have AFS.
@@ -261,7 +197,7 @@ section in krb5.conf, see
 If  a
 .Ar command
 is given,
-.Nm kinit
+.Nm
 will set up new credentials caches, and AFS PAG, and then run the given
 command.
 When it finishes the credentials will be removed.

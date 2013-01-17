@@ -1,10 +1,14 @@
-# $Id: roken.awk 15409 2005-06-16 16:29:58Z lha $
+# $Id$
 
 BEGIN {
-	print "#ifdef HAVE_CONFIG_H"
 	print "#include <config.h>"
-	print "#endif"
 	print "#include <stdio.h>"
+	print "#ifdef HAVE_SYS_TYPES_H"
+	print "#include <sys/types.h>"
+	print "#endif"
+	print "#ifdef HAVE_SYS_SOCKET_H"
+	print "#include <sys/socket.h>"
+	print "#endif"
 	print ""
 	print "int main(int argc, char **argv)"
 	print "{"
@@ -32,7 +36,6 @@ $1 == "#ifdef" || $1 == "#ifndef" || $1 == "#if" || $1 == "#else" || $1 == "#eli
 }
 
 END {
-	print "puts(\"#define ROKEN_VERSION \" VERSION );"
 	print "puts(\"\");"
 	print "puts(\"#endif /* __ROKEN_H__ */\");"
 	print "return 0;"

@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 2002 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: ndbm_wrap.c 21634 2007-07-17 11:30:36Z lha $");
-#endif
 
 #include "ndbm_wrap.h"
-#if defined(HAVE_DB4_DB_H)
+#if defined(HAVE_DBHEADER)
+#include <db.h>
+#elif defined(HAVE_DB5_DB_H)
+#include <db5/db.h>
+#elif defined(HAVE_DB4_DB_H)
 #include <db4/db.h>
 #elif defined(HAVE_DB3_DB_H)
 #include <db3/db.h>
@@ -63,7 +64,7 @@ static DBC *cursor;
 
 #define D(X) ((DB*)(X))
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 dbm_close (DBM *db)
 {
 #ifdef HAVE_DB3
@@ -74,7 +75,7 @@ dbm_close (DBM *db)
 #endif
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 dbm_delete (DBM *db, datum dkey)
 {
     DBT key;
@@ -92,9 +93,9 @@ dbm_fetch (DBM *db, datum dkey)
     datum dvalue;
     DBT key, value;
     DATUM2DBT(&dkey, &key);
-    if(D(db)->get(D(db), 
+    if(D(db)->get(D(db),
 #ifdef HAVE_DB3
-	       NULL, 
+	       NULL,
 #endif
 	       &key, &value, 0) != 0) {
 	dvalue.dptr = NULL;
@@ -112,15 +113,16 @@ dbm_get (DB *db, int flags)
     DBT key, value;
     datum datum;
 #ifdef HAVE_DB3
-    if(cursor == NULL) 
+    if(cursor == NULL)
 	db->cursor(db, NULL, &cursor, 0);
     if(cursor->c_get(cursor, &key, &value, flags) != 0) {
 	datum.dptr = NULL;
 	datum.dsize = 0;
-    } else 
+    } else
 	DBT2DATUM(&value, &datum);
 #else
     db->seq(db, &key, &value, flags);
+    DBT2DATUM(&value, &datum);
 #endif
     return datum;
 }
@@ -132,23 +134,25 @@ dbm_get (DB *db, int flags)
 #define DB_KEYEXIST	1
 #endif
 
-datum ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION datum ROKEN_LIB_CALL
 dbm_firstkey (DBM *db)
 {
     return dbm_get(D(db), DB_FIRST);
 }
 
-datum ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION datum ROKEN_LIB_CALL
 dbm_nextkey (DBM *db)
 {
     return dbm_get(D(db), DB_NEXT);
 }
 
-DBM* ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION DBM* ROKEN_LIB_CALL
 dbm_open (const char *file, int flags, mode_t mode)
 {
-    DB *db;
+#ifdef HAVE_DB3
     int myflags = 0;
+#endif
+    DB *db;
     char *fn = malloc(strlen(file) + 4);
     if(fn == NULL)
 	return NULL;
@@ -187,7 +191,7 @@ dbm_open (const char *file, int flags, mode_t mode)
     return (DBM*)db;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 dbm_store (DBM *db, datum dkey, datum dvalue, int flags)
 {
     int ret;
@@ -196,10 +200,10 @@ dbm_store (DBM *db, datum dkey, datum dvalue, int flags)
     if((flags & DBM_REPLACE) == 0)
 	myflags |= DB_NOOVERWRITE;
     DATUM2DBT(&dkey, &key);
-    DATUM2DBT(&dvalue, &value);    
-    ret = D(db)->put(D(db), 
+    DATUM2DBT(&dvalue, &value);
+    ret = D(db)->put(D(db),
 #ifdef HAVE_DB3
-		     NULL, 
+		     NULL,
 #endif
 &key, &value, myflags);
     if(ret == DB_KEYEXIST)
@@ -207,13 +211,13 @@ dbm_store (DBM *db, datum dkey, datum dvalue, int flags)
     RETURN(ret);
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 dbm_error (DBM *db)
 {
     return 0;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 dbm_clearerr (DBM *db)
 {
     return 0;

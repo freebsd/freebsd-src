@@ -27,6 +27,7 @@
 #if defined(sun)
 #include <sys/sysmacros.h>
 #endif
+#include <sys/isa_defs.h>
 
 #include <strings.h>
 #include <unistd.h>
@@ -677,6 +678,7 @@ dt_printf(dtrace_hdl_t *dtp, FILE *fp, const char *format, ...)
 
 		dtp->dt_buffered_offs += needed;
 		assert(dtp->dt_buffered_buf[dtp->dt_buffered_offs] == '\0');
+		va_end(ap);
 		return (0);
 	}
 

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -118,6 +119,8 @@ main(int argc, char *argv[])
 		pidfile_write(pfh);
 		if (madvise(0, 0, MADV_PROTECT) != 0)
 			warn("madvise failed");
+		if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
+			warn("mlockall failed");
 
 		watchdog_loop();
 
@@ -278,7 +281,7 @@ parseargs(int argc, char *argv[])
 			if (a == 0)
 				timeout = WD_TO_NEVER;
 			else
-				timeout = 1.0 + log(a * 1e9) / log(2.0);
+				timeout = flsll(a * 1e9);
 			if (debugging)
 				printf("Timeout is 2^%d nanoseconds\n",
 				    timeout);

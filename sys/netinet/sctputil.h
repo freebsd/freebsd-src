@@ -1,17 +1,17 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -30,14 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-/* $KAME: sctputil.h,v 1.15 2005/03/06 16:04:19 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#ifndef __sctputil_h__
-#define __sctputil_h__
 
+#ifndef _NETINET_SCTP_UTIL_H_
+#define _NETINET_SCTP_UTIL_H_
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
@@ -88,6 +85,12 @@ int sctp_init_asoc(struct sctp_inpcb *, struct sctp_tcb *, uint32_t, uint32_t);
 void sctp_fill_random_store(struct sctp_pcb *);
 
 void
+sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin,
+    uint16_t numberout, int flag);
+void
+     sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32_t recv_tsn, int flag);
+
+void
 sctp_timer_start(int, struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 
@@ -127,7 +130,7 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
 void sctp_iterator_worker(void);
 
 uint32_t sctp_get_prev_mtu(uint32_t);
-uint32_t sctp_get_next_mtu(struct sctp_inpcb *, uint32_t);
+uint32_t sctp_get_next_mtu(uint32_t);
 
 void
      sctp_timeout_handler(void *);
@@ -164,7 +167,7 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 
 void 
-sctp_report_all_outbound(struct sctp_tcb *, int, int
+sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -173,7 +176,8 @@ sctp_report_all_outbound(struct sctp_tcb *, int, int
 int sctp_expand_mapping_array(struct sctp_association *, uint32_t);
 
 void 
-sctp_abort_notification(struct sctp_tcb *, int, int
+sctp_abort_notification(struct sctp_tcb *, uint8_t, uint16_t,
+    struct sctp_abort_chunk *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -181,13 +185,16 @@ sctp_abort_notification(struct sctp_tcb *, int, int
 
 /* We abort responding to an IP packet for some reason */
 void
-sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *,
-    struct mbuf *, int, struct sctphdr *, struct mbuf *, uint32_t, uint16_t);
+sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *, struct mbuf *,
+    int, struct sockaddr *, struct sockaddr *,
+    struct sctphdr *, struct mbuf *,
+    uint8_t, uint32_t,
+    uint32_t, uint16_t);
 
 
 /* We choose to abort via user input */
 void
-sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *, int,
+sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *,
     struct mbuf *, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -195,8 +202,11 @@ sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *, int,
 );
 
 void 
-sctp_handle_ootb(struct mbuf *, int, int, struct sctphdr *,
-    struct sctp_inpcb *, struct mbuf *, uint32_t, uint16_t);
+sctp_handle_ootb(struct mbuf *, int, int,
+    struct sockaddr *, struct sockaddr *,
+    struct sctphdr *, struct sctp_inpcb *,
+    uint8_t, uint32_t,
+    uint32_t, uint16_t);
 
 int 
 sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
@@ -233,11 +243,10 @@ struct sockaddr_in6 *
 int sctp_cmpaddr(struct sockaddr *, struct sockaddr *);
 
 void sctp_print_address(struct sockaddr *);
-void sctp_print_address_pkt(struct ip *, struct sctphdr *);
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
-    int, int
+    uint8_t, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -250,7 +259,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
     struct sockaddr *sa, sctp_assoc_t assoc_id,
     uint32_t vrf_id, int *error, void *p);
 void 
-sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
+sctp_bindx_delete_address(struct sctp_inpcb *inp,
     struct sockaddr *sa, sctp_assoc_t assoc_id,
     uint32_t vrf_id, int *error);
 
@@ -314,12 +323,8 @@ do { \
 } while (0)
 
 /* functions to start/stop udp tunneling */
-/* XXX: Remove the #ifdef after tunneling over IPv6 works also on FreeBSD. */
-#ifdef INET
 void sctp_over_udp_stop(void);
 int sctp_over_udp_start(void);
-
-#endif
 
 int
 sctp_soreceive(struct socket *so, struct sockaddr **psa,
@@ -333,7 +338,6 @@ void
 
 void
 sctp_wakeup_log(struct sctp_tcb *stcb,
-    uint32_t cumtsn,
     uint32_t wake_cnt, int from);
 
 void sctp_log_strm_del_alt(struct sctp_tcb *stcb, uint32_t, uint16_t, uint16_t, int);
@@ -359,7 +363,7 @@ void sctp_log_closing(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int16_t loc
 
 void sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from);
 void sctp_log_maxburst(struct sctp_tcb *stcb, struct sctp_nets *, int, int, uint8_t);
-void sctp_log_block(uint8_t, struct socket *, struct sctp_association *, int);
+void sctp_log_block(uint8_t, struct sctp_association *, int);
 void sctp_log_rwnd(uint8_t, uint32_t, uint32_t, uint32_t);
 void sctp_log_mbcnt(uint8_t, uint32_t, uint32_t, uint32_t, uint32_t);
 void sctp_log_rwnd_set(uint8_t, uint32_t, uint32_t, uint32_t, uint32_t);
@@ -378,7 +382,5 @@ sctp_auditing(int, struct sctp_inpcb *, struct sctp_tcb *,
 void sctp_audit_log(uint8_t, uint8_t);
 
 #endif
-
-
 #endif				/* _KERNEL */
 #endif

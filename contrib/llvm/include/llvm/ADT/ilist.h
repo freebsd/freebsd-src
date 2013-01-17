@@ -38,6 +38,7 @@
 #ifndef LLVM_ADT_ILIST_H
 #define LLVM_ADT_ILIST_H
 
+#include "llvm/Support/Compiler.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -331,8 +332,8 @@ class iplist : public Traits {
 
   // No fundamental reason why iplist can't be copyable, but the default
   // copy/copy-assign won't do.
-  iplist(const iplist &);         // do not implement
-  void operator=(const iplist &); // do not implement
+  iplist(const iplist &) LLVM_DELETED_FUNCTION;
+  void operator=(const iplist &) LLVM_DELETED_FUNCTION;
 
 public:
   typedef NodeTy *pointer;
@@ -652,10 +653,6 @@ struct ilist : public iplist<NodeTy> {
   void push_front(const NodeTy &val) { insert(this->begin(), val); }
   void push_back(const NodeTy &val) { insert(this->end(), val); }
 
-  // Special forms of insert...
-  template<class InIt> void insert(iterator where, InIt first, InIt last) {
-    for (; first != last; ++first) insert(where, *first);
-  }
   void insert(iterator where, size_type count, const NodeTy &val) {
     for (; count != 0; --count) insert(where, val);
   }

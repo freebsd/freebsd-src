@@ -142,6 +142,18 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_WESTMERE;
 			nclasses = 5;
 			break;
+		case 0x2A:	/* Per Intel document 253669-039US 05/2011. */
+			cputype = PMC_CPU_INTEL_SANDYBRIDGE;
+			nclasses = 5;
+			break;
+		case 0x2D:	/* Per Intel document 253669-044US 08/2012. */
+			cputype = PMC_CPU_INTEL_SANDYBRIDGE_XEON;
+			nclasses = 3;
+			break;
+		case 0x3A:	/* Per Intel document 253669-043US 05/2012. */
+			cputype = PMC_CPU_INTEL_IVYBRIDGE;
+			nclasses = 3;
+			break;
 		}
 		break;
 #if	defined(__i386__) || defined(__amd64__)
@@ -157,12 +169,10 @@ pmc_intel_initialize(void)
 		return (NULL);
 	}
 
-	pmc_mdep = malloc(sizeof(struct pmc_mdep) + nclasses *
-	    sizeof(struct pmc_classdep), M_PMC, M_WAITOK|M_ZERO);
+	/* Allocate base class and initialize machine dependent struct */
+	pmc_mdep = pmc_mdep_alloc(nclasses);
 
 	pmc_mdep->pmd_cputype 	 = cputype;
-	pmc_mdep->pmd_nclass	 = nclasses;
-
 	pmc_mdep->pmd_switch_in	 = intel_switch_in;
 	pmc_mdep->pmd_switch_out = intel_switch_out;
 
@@ -182,7 +192,10 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_IVYBRIDGE:
+	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
+	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 		error = pmc_core_initialize(pmc_mdep, ncpus);
 		break;
 
@@ -192,10 +205,6 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_PIV:
 		error = pmc_p4_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P4_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -210,10 +219,6 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PIII:
 	case PMC_CPU_INTEL_PM:
 		error = pmc_p6_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P6_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 
 		/*
@@ -222,16 +227,15 @@ pmc_intel_initialize(void)
 
 	case PMC_CPU_INTEL_P5:
 		error = pmc_p5_initialize(pmc_mdep, ncpus);
-
-		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS,
-		    ("[intel,%d] incorrect npmc count %d", __LINE__,
-		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
 	default:
 		KASSERT(0, ("[intel,%d] Unknown CPU type", __LINE__));
 	}
+
+	if (error)
+		goto error;
 
 	/*
 	 * Init the uncore class.
@@ -242,6 +246,7 @@ pmc_intel_initialize(void)
 		 * Intel Corei7 and Westmere processors.
 		 */
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
 		error = pmc_uncore_initialize(pmc_mdep, ncpus);
 		break;
@@ -271,7 +276,10 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_IVYBRIDGE:
+	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
+	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 		pmc_core_finalize(md);
 		break;
 
@@ -301,6 +309,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 #if	defined(__i386__) || defined(__amd64__)
 	switch (md->pmd_cputype) {
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
 		pmc_uncore_finalize(md);
 		break;

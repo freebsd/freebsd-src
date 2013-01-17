@@ -110,9 +110,15 @@ vrrp_print(register const u_char *bp, register u_int len, int ttl)
 		int i;
 		char c;
 
-		if (TTEST2(bp[0], len) && in_cksum((const u_short*)bp, len, 0))
-			printf(", (bad vrrp cksum %x)",
-				EXTRACT_16BITS(&bp[6]));
+		if (TTEST2(bp[0], len)) {
+			struct cksum_vec vec[1];
+
+			vec[0].ptr = bp;
+			vec[0].len = len;
+			if (in_cksum(vec, 1))
+				printf(", (bad vrrp cksum %x)",
+					EXTRACT_16BITS(&bp[6]));
+		}
 		printf(", addrs");
 		if (naddrs > 1)
 			printf("(%d)", naddrs);

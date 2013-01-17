@@ -37,6 +37,10 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
+
+#include <machine/sysarch.h>
+#include <machine/tls.h>
 
 #include "debug.h"
 #include "rtld.h"
@@ -244,9 +248,9 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 		_rtld_error("bind failed no symbol");
 
         target = (Elf_Addr)(defobj->relocbase + def->st_value);
-        dbg("bind now/fixup at %s sym # %d in %s --> was=%p new=%p",
+        dbg("bind now/fixup at %s sym # %jd in %s --> was=%p new=%p",
 	    obj->path,
-	    reloff, defobj->strtab + def->st_name, 
+	    (intmax_t)reloff, defobj->strtab + def->st_name, 
 	    (void *)got[obj->local_gotno + reloff - obj->gotsym],
 	    (void *)target);
         got[obj->local_gotno + reloff - obj->gotsym] = target;
@@ -254,7 +258,8 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 }
 
 int
-reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
+reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
+    RtldLockState *lockstate)
 {
 	const Elf_Rel *rel;
 	const Elf_Rel *rellim;
@@ -283,8 +288,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 
 	/* Relocate the local GOT entries */
 	got += i;
-	dbg("got:%p for %d entries adding %x",
-	    got, obj->local_gotno, (uint32_t)obj->relocbase);
+	dbg("got:%p for %d entries adding %p",
+	    got, obj->local_gotno, obj->relocbase);
 	for (; i < obj->local_gotno; i++) {
 		*got += (Elf_Addr)obj->relocbase;
 		got++;
@@ -313,7 +318,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			 * to 0 if there are non-PLT references, but older
 			 * versions of GNU ld do not do this.
 			 */
-			def = find_symdef(i, obj, &defobj, false, NULL,
+			def = find_symdef(i, obj, &defobj, flags, NULL,
 			    lockstate);
 			if (def == NULL)
 				return -1;
@@ -339,8 +344,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			 */
 			*got = sym->st_value + (Elf_Addr)obj->relocbase;
 			if ((Elf_Addr)(*got) == (Elf_Addr)obj->relocbase) {
-				dbg("Warning2, i:%d maps to relocbase address:%x",
-				    i, (uint32_t)obj->relocbase);
+				dbg("Warning2, i:%d maps to relocbase address:%p",
+				    i, obj->relocbase);
 			}
 
 		} else if (sym->st_info == ELF_ST_INFO(STB_GLOBAL, STT_SECTION)) {
@@ -349,22 +354,22 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 				*got = sym->st_value +
 				    (Elf_Addr)obj->relocbase;
 				if ((Elf_Addr)(*got) == (Elf_Addr)obj->relocbase) {
-					dbg("Warning3, i:%d maps to relocbase address:%x",
-					    i, (uint32_t)obj->relocbase);
+					dbg("Warning3, i:%d maps to relocbase address:%p",
+					    i, obj->relocbase);
 				}
 			}
 		} else {
 			/* TODO: add cache here */
-			def = find_symdef(i, obj, &defobj, false, NULL,
+			def = find_symdef(i, obj, &defobj, flags, NULL,
 			    lockstate);
 			if (def == NULL) {
-				dbg("Warning4, cant find symbole %d", i);
+				dbg("Warning4, can't find symbole %d", i);
 				return -1;
 			}
 			*got = def->st_value + (Elf_Addr)defobj->relocbase;
 			if ((Elf_Addr)(*got) == (Elf_Addr)obj->relocbase) {
-				dbg("Warning4, i:%d maps to relocbase address:%x",
-				    i, (uint32_t)obj->relocbase);
+				dbg("Warning4, i:%d maps to relocbase address:%p",
+				    i, obj->relocbase);
 				dbg("via first obj symbol %s",
 				    obj->strtab + obj->symtab[i].st_name);
 				dbg("found in obj %p:%s",
@@ -443,6 +448,89 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			break;
 		}
 
+#ifdef __mips_n64
+		case R_TYPE(TLS_DTPMOD64):
+#else
+		case R_TYPE(TLS_DTPMOD32): 
+#endif
+		{
+
+			const size_t rlen = sizeof(Elf_Addr);
+			Elf_Addr old = load_ptr(where, rlen);
+			Elf_Addr val = old;
+
+        		def = find_symdef(r_symndx, obj, &defobj, flags, NULL,
+	    			lockstate);
+			if (def == NULL)
+				return -1;
+
+			val += (Elf_Addr)defobj->tlsindex;
+
+			store_ptr(where, val, rlen);
+			dbg("DTPMOD %s in %s %p --> %p in %s",
+			    obj->strtab + obj->symtab[r_symndx].st_name,
+			    obj->path, (void *)old, (void*)val, defobj->path);
+			break;
+		}
+
+#ifdef __mips_n64
+		case R_TYPE(TLS_DTPREL64):
+#else
+		case R_TYPE(TLS_DTPREL32):
+#endif
+		{
+			const size_t rlen = sizeof(Elf_Addr);
+			Elf_Addr old = load_ptr(where, rlen);
+			Elf_Addr val = old;
+
+        		def = find_symdef(r_symndx, obj, &defobj, flags, NULL,
+	    			lockstate);
+			if (def == NULL)
+				return -1;
+
+			if (!defobj->tls_done && allocate_tls_offset(obj))
+				return -1;
+
+			val += (Elf_Addr)def->st_value - TLS_DTP_OFFSET;
+			store_ptr(where, val, rlen);
+
+			dbg("DTPREL %s in %s %p --> %p in %s",
+			    obj->strtab + obj->symtab[r_symndx].st_name,
+			    obj->path, (void*)old, (void *)val, defobj->path);
+			break;
+		}
+
+#ifdef __mips_n64
+		case R_TYPE(TLS_TPREL64):
+#else
+		case R_TYPE(TLS_TPREL32):
+#endif
+		{
+			const size_t rlen = sizeof(Elf_Addr);
+			Elf_Addr old = load_ptr(where, rlen);
+			Elf_Addr val = old;
+
+        		def = find_symdef(r_symndx, obj, &defobj, flags, NULL,
+	    			lockstate);
+
+			if (def == NULL)
+				return -1;
+
+			if (!defobj->tls_done && allocate_tls_offset(obj))
+				return -1;
+
+			val += (Elf_Addr)(def->st_value + defobj->tlsoffset
+			    - TLS_TP_OFFSET - TLS_TCB_SIZE);
+			store_ptr(where, val, rlen);
+
+			dbg("TPREL %s in %s %p --> %p in %s",
+			    obj->strtab + obj->symtab[r_symndx].st_name,
+			    obj->path, (void*)old, (void *)val, defobj->path);
+			break;
+		}
+
+
+
 		default:
 			dbg("sym = %lu, type = %lu, offset = %p, "
 			    "contents = %p, symbol = %s",
@@ -470,8 +558,8 @@ reloc_plt(Obj_Entry *obj)
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 		
-	dbg("reloc_plt obj:%p pltrel:%p sz:%d", obj, obj->pltrel, (int)obj->pltrelsize);
-	dbg("gottable %p num syms:%d", obj->pltgot, obj->symtabno );
+	dbg("reloc_plt obj:%p pltrel:%p sz:%s", obj, obj->pltrel, (int)obj->pltrelsize);
+	dbg("gottable %p num syms:%s", obj->pltgot, obj->symtabno );
 	dbg("*****************************************************");
 	rellim = (const Elf_Rel *)((char *)obj->pltrel +
 	    obj->pltrelsize);
@@ -490,11 +578,28 @@ reloc_plt(Obj_Entry *obj)
  * LD_BIND_NOW was set - force relocation for all jump slots
  */
 int
-reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
+reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 {
 	/* Do nothing */
 	obj->jmpslots_done = true;
 	
+	return (0);
+}
+
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, int flags,
+    struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
 	return (0);
 }
 
@@ -511,11 +616,29 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
+	char *tls;
 	
+	/*
+	 * Fix the size of the static TLS block by using the maximum
+	 * offset allocated so far and adding a bit for dynamic modules to
+	 * use.
+	 */
+	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+
+	tls = (char *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8);
+
+	sysarch(MIPS_SET_TLS, tls);
 }
 
 void *
 __tls_get_addr(tls_index* ti)
 {
-	return (NULL);
+	Elf_Addr** tls;
+	char *p;
+
+	sysarch(MIPS_GET_TLS, &tls);
+
+	p = tls_get_addr_common(tls, ti->ti_module, ti->ti_offset + TLS_DTP_OFFSET);
+
+	return (p);
 }

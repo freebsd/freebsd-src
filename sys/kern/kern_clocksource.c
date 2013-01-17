@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2010-2012 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,6 +99,7 @@ static struct bintime	hardperiod;	/* hardclock() events period. */
 static struct bintime	statperiod;	/* statclock() events period. */
 static struct bintime	profperiod;	/* profclock() events period. */
 static struct bintime	nexttick;	/* Next global timer tick time. */
+static struct bintime	nexthard;	/* Next global hardlock() event. */
 static u_int		busy = 0;	/* Reconfiguration is in progress. */
 static int		profiling = 0;	/* Profiling events enabled. */
 
@@ -110,10 +111,15 @@ TUNABLE_INT("kern.eventtimer.singlemul", &singlemul);
 SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RW, &singlemul,
     0, "Multiplier for periodic mode");
 
-static u_int		idletick = 0;	/* Idle mode allowed. */
+static u_int		idletick = 0;	/* Run periodic events when idle. */
 TUNABLE_INT("kern.eventtimer.idletick", &idletick);
 SYSCTL_UINT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RW, &idletick,
     0, "Run periodic events when idle");
+
+static u_int		activetick = 1;	/* Run all periodic events when active. */
+TUNABLE_INT("kern.eventtimer.activetick", &activetick);
+SYSCTL_UINT(_kern_eventtimer, OID_AUTO, activetick, CTLFLAG_RW, &activetick,
+    0, "Run all periodic events when active");
 
 static int		periodic = 0;	/* Periodic or one-shot mode. */
 static int		want_periodic = 0; /* What mode to prefer. */
@@ -162,8 +168,8 @@ hardclockintr(void)
 	state = DPCPU_PTR(timerstate);
 	now = state->now;
 	CTR4(KTR_SPARE2, "ipi  at %d:    now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	done = handleevents(&now, 0);
 	return (done ? FILTER_HANDLED : FILTER_STRAY);
 }
@@ -182,8 +188,8 @@ handleevents(struct bintime *now, int fake)
 	int done, runs;
 
 	CTR4(KTR_SPARE2, "handle at %d:  now  %d.%08x%08x",
-	    curcpu, now->sec, (unsigned int)(now->frac >> 32),
-		     (unsigned int)(now->frac & 0xffffffff));
+	    curcpu, now->sec, (u_int)(now->frac >> 32),
+		     (u_int)(now->frac & 0xffffffff));
 	done = 0;
 	if (fake) {
 		frame = NULL;
@@ -195,28 +201,39 @@ handleevents(struct bintime *now, int fake)
 		pc = TRAPF_PC(frame);
 	}
 
-	runs = 0;
 	state = DPCPU_PTR(timerstate);
 
+	runs = 0;
 	while (bintime_cmp(now, &state->nexthard, >=)) {
-		bintime_add(&state->nexthard, &hardperiod);
+		bintime_addx(&state->nexthard, hardperiod.frac);
+		runs++;
+	}
+	if (runs) {
+		if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 &&
+		    bintime_cmp(&state->nexthard, &nexthard, >))
+			nexthard = state->nexthard;
+		if (fake < 2) {
+			hardclock_cnt(runs, usermode);
+			done = 1;
+		}
+	}
+	runs = 0;
+	while (bintime_cmp(now, &state->nextstat, >=)) {
+		bintime_addx(&state->nextstat, statperiod.frac);
 		runs++;
 	}
 	if (runs && fake < 2) {
-		hardclock_anycpu(runs, usermode);
-		done = 1;
-	}
-	while (bintime_cmp(now, &state->nextstat, >=)) {
-		if (fake < 2)
-			statclock(usermode);
-		bintime_add(&state->nextstat, &statperiod);
+		statclock_cnt(runs, usermode);
 		done = 1;
 	}
 	if (profiling) {
+		runs = 0;
 		while (bintime_cmp(now, &state->nextprof, >=)) {
-			if (!fake)
-				profclock(usermode, pc);
-			bintime_add(&state->nextprof, &profperiod);
+			bintime_addx(&state->nextprof, profperiod.frac);
+			runs++;
+		}
+		if (runs && !fake) {
+			profclock_cnt(runs, usermode, pc);
 			done = 1;
 		}
 	} else
@@ -257,9 +274,11 @@ getnextcpuevent(struct bintime *event, int idle)
 	int skip;
 
 	state = DPCPU_PTR(timerstate);
+	/* Handle hardclock() events. */
 	*event = state->nexthard;
-	if (idle) { /* If CPU is idle - ask callouts for how long. */
-		skip = 4;
+	if (idle || (!activetick && !profiling &&
+	    (timer->et_flags & ET_FLAGS_PERCPU) == 0)) {
+		skip = idle ? 4 : (stathz / 2);
 		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > skip)
 			skip = tc_min_ticktock_freq;
 		skip = callout_tickstofirst(hz / skip) - 1;
@@ -267,7 +286,8 @@ getnextcpuevent(struct bintime *event, int idle)
 		tmp = hardperiod;
 		bintime_mul(&tmp, skip);
 		bintime_add(event, &tmp);
-	} else { /* If CPU is active - handle all types of events. */
+	}
+	if (!idle) { /* If CPU is active - handle other types of events. */
 		if (bintime_cmp(event, &state->nextstat, >))
 			*event = state->nextstat;
 		if (profiling && bintime_cmp(event, &state->nextprof, >))
@@ -289,27 +309,31 @@ getnextevent(struct bintime *event)
 #ifdef SMP
 	int	cpu;
 #endif
-	int	c;
+	int	c, nonidle;
 
 	state = DPCPU_PTR(timerstate);
 	*event = state->nextevent;
 	c = curcpu;
-#ifdef SMP
+	nonidle = !state->idle;
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
+#ifdef SMP
 		CPU_FOREACH(cpu) {
 			if (curcpu == cpu)
 				continue;
 			state = DPCPU_ID_PTR(cpu, timerstate);
+			nonidle += !state->idle;
 			if (bintime_cmp(event, &state->nextevent, >)) {
 				*event = state->nextevent;
 				c = cpu;
 			}
 		}
-	}
 #endif
+		if (nonidle != 0 && bintime_cmp(event, &nexthard, >))
+			*event = nexthard;
+	}
 	CTR5(KTR_SPARE2, "next at %d:    next %d.%08x%08x by %d",
-	    curcpu, event->sec, (unsigned int)(event->frac >> 32),
-			     (unsigned int)(event->frac & 0xffffffff), c);
+	    curcpu, event->sec, (u_int)(event->frac >> 32),
+			     (u_int)(event->frac & 0xffffffff), c);
 }
 
 /* Hardware timer callback function. */
@@ -332,17 +356,16 @@ timercb(struct eventtimer *et, void *arg)
 		next = &state->nexttick;
 	} else
 		next = &nexttick;
-	if (periodic) {
-		now = *next;	/* Ex-next tick time becomes present time. */
-		bintime_add(next, &timerperiod); /* Next tick in 1 period. */
-	} else {
-		binuptime(&now);	/* Get present time from hardware. */
-		next->sec = -1;		/* Next tick is not scheduled yet. */
-	}
+	binuptime(&now); 
+	if (periodic) { 
+		*next = now;
+		bintime_addx(next, timerperiod.frac); /* Next tick in 1 period. */
+	} else
+		next->sec = -1;	/* Next tick is not scheduled yet. */
 	state->now = now;
 	CTR4(KTR_SPARE2, "intr at %d:    now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, (int)(now.sec), (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 
 #ifdef SMP
 	/* Prepare broadcasting to other CPUs for non-per-CPU timers. */
@@ -411,10 +434,10 @@ loadtimer(struct bintime *now, int start)
 			new.sec = 0;
 			new.frac = timerperiod.frac - tmp;
 			if (new.frac < tmp)	/* Left less then passed. */
-				bintime_add(&new, &timerperiod);
+				bintime_addx(&new, timerperiod.frac);
 			CTR5(KTR_SPARE2, "load p at %d:   now %d.%08x first in %d.%08x",
-			    curcpu, now->sec, (unsigned int)(now->frac >> 32),
-			    new.sec, (unsigned int)(new.frac >> 32));
+			    curcpu, now->sec, (u_int)(now->frac >> 32),
+			    new.sec, (u_int)(new.frac >> 32));
 			*next = new;
 			bintime_add(next, now);
 			et_start(timer, &new, &timerperiod);
@@ -423,8 +446,8 @@ loadtimer(struct bintime *now, int start)
 		getnextevent(&new);
 		eq = bintime_cmp(&new, next, ==);
 		CTR5(KTR_SPARE2, "load at %d:    next %d.%08x%08x eq %d",
-		    curcpu, new.sec, (unsigned int)(new.frac >> 32),
-			     (unsigned int)(new.frac & 0xffffffff),
+		    curcpu, new.sec, (u_int)(new.frac >> 32),
+			     (u_int)(new.frac & 0xffffffff),
 			     eq);
 		if (!eq) {
 			*next = new;
@@ -509,7 +532,7 @@ configtimer(int start)
 	if (start) {
 		/* Initialize time machine parameters. */
 		next = now;
-		bintime_add(&next, &timerperiod);
+		bintime_addx(&next, timerperiod.frac);
 		if (periodic)
 			nexttick = next;
 		else
@@ -579,7 +602,8 @@ round_freq(struct eventtimer *et, int freq)
 		freq = (et->et_frequency + div / 2) / div;
 	}
 	if (et->et_min_period.sec > 0)
-		freq = 0;
+		panic("Event timer \"%s\" doesn't support sub-second periods!",
+		    et->et_name);
 	else if (et->et_min_period.frac != 0)
 		freq = min(freq, BT2FREQ(&et->et_min_period));
 	if (et->et_max_period.sec == 0 && et->et_max_period.frac != 0)
@@ -690,11 +714,7 @@ cpu_initclocks_ap(void)
 	state = DPCPU_PTR(timerstate);
 	binuptime(&now);
 	ET_HW_LOCK(state);
-	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 && periodic) {
-		state->now = nexttick;
-		bintime_sub(&state->now, &timerperiod);
-	} else
-		state->now = now;
+	state->now = now;
 	hardclock_sync(curcpu);
 	handleevents(&state->now, 2);
 	if (timer->et_flags & ET_FLAGS_PERCPU)
@@ -758,8 +778,8 @@ cpu_idleclock(void)
 	else
 		binuptime(&now);
 	CTR4(KTR_SPARE2, "idle at %d:    now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	getnextcpuevent(&t, 1);
 	ET_HW_LOCK(state);
 	state->idle = 1;
@@ -787,8 +807,8 @@ cpu_activeclock(void)
 	else
 		binuptime(&now);
 	CTR4(KTR_SPARE2, "active at %d:  now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	spinlock_enter();
 	td = curthread;
 	td->td_intr_nesting_level++;
@@ -811,11 +831,11 @@ clocksource_cyc_set(const struct bintime *t)
 		binuptime(&now);
 
 	CTR4(KTR_SPARE2, "set_cyc at %d:  now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	CTR4(KTR_SPARE2, "set_cyc at %d:  t  %d.%08x%08x",
-	    curcpu, t->sec, (unsigned int)(t->frac >> 32),
-			     (unsigned int)(t->frac & 0xffffffff));
+	    curcpu, t->sec, (u_int)(t->frac >> 32),
+			     (u_int)(t->frac & 0xffffffff));
 
 	ET_HW_LOCK(state);
 	if (bintime_cmp(t, &state->nextcyc, ==)) {
@@ -854,10 +874,11 @@ cpu_new_callout(int cpu, int ticks)
 	 * If timer is global - there is chance it is already programmed.
 	 */
 	if (periodic || (timer->et_flags & ET_FLAGS_PERCPU) == 0) {
-		state->nextevent = state->nexthard;
 		tmp = hardperiod;
 		bintime_mul(&tmp, ticks - 1);
-		bintime_add(&state->nextevent, &tmp);
+		bintime_add(&tmp, &state->nexthard);
+		if (bintime_cmp(&tmp, &state->nextevent, <))
+			state->nextevent = tmp;
 		if (periodic ||
 		    bintime_cmp(&state->nextevent, &nexttick, >=)) {
 			ET_HW_UNLOCK(state);

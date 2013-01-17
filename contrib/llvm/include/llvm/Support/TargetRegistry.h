@@ -44,12 +44,14 @@ namespace llvm {
   class MCTargetAsmLexer;
   class MCTargetAsmParser;
   class TargetMachine;
+  class TargetOptions;
   class raw_ostream;
   class formatted_raw_ostream;
 
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
                                 bool isVerboseAsm,
                                 bool useLoc, bool useCFI,
+                                bool useDwarfDirectory,
                                 MCInstPrinter *InstPrint,
                                 MCCodeEmitter *CE,
                                 MCAsmBackend *TAB,
@@ -73,7 +75,8 @@ namespace llvm {
                                             StringRef TT);
     typedef MCCodeGenInfo *(*MCCodeGenInfoCtorFnTy)(StringRef TT,
                                                     Reloc::Model RM,
-                                                    CodeModel::Model CM);
+                                                    CodeModel::Model CM,
+                                                    CodeGenOpt::Level OL);
     typedef MCInstrInfo *(*MCInstrInfoCtorFnTy)(void);
     typedef MCInstrAnalysis *(*MCInstrAnalysisCtorFnTy)(const MCInstrInfo*Info);
     typedef MCRegisterInfo *(*MCRegInfoCtorFnTy)(StringRef TT);
@@ -84,11 +87,15 @@ namespace llvm {
                                                   StringRef TT,
                                                   StringRef CPU,
                                                   StringRef Features,
+                                                  const TargetOptions &Options,
                                                   Reloc::Model RM,
-                                                  CodeModel::Model CM);
+                                                  CodeModel::Model CM,
+                                                  CodeGenOpt::Level OL);
     typedef AsmPrinter *(*AsmPrinterCtorTy)(TargetMachine &TM,
                                             MCStreamer &Streamer);
-    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T, StringRef TT);
+    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T,
+                                                StringRef TT,
+                                                StringRef CPU);
     typedef MCTargetAsmLexer *(*MCAsmLexerCtorTy)(const Target &T,
                                                   const MCRegisterInfo &MRI,
                                                   const MCAsmInfo &MAI);
@@ -99,8 +106,11 @@ namespace llvm {
     typedef MCInstPrinter *(*MCInstPrinterCtorTy)(const Target &T,
                                                   unsigned SyntaxVariant,
                                                   const MCAsmInfo &MAI,
+                                                  const MCInstrInfo &MII,
+                                                  const MCRegisterInfo &MRI,
                                                   const MCSubtargetInfo &STI);
     typedef MCCodeEmitter *(*MCCodeEmitterCtorTy)(const MCInstrInfo &II,
+                                                  const MCRegisterInfo &MRI,
                                                   const MCSubtargetInfo &STI,
                                                   MCContext &Ctx);
     typedef MCStreamer *(*MCObjectStreamerCtorTy)(const Target &T,
@@ -116,6 +126,7 @@ namespace llvm {
                                              bool isVerboseAsm,
                                              bool useLoc,
                                              bool useCFI,
+                                             bool useDwarfDirectory,
                                              MCInstPrinter *InstPrint,
                                              MCCodeEmitter *CE,
                                              MCAsmBackend *TAB,
@@ -143,8 +154,8 @@ namespace llvm {
     /// registered.
     MCAsmInfoCtorFnTy MCAsmInfoCtorFn;
 
-    /// MCCodeGenInfoCtorFn - Constructor function for this target's MCCodeGenInfo,
-    /// if registered.
+    /// MCCodeGenInfoCtorFn - Constructor function for this target's
+    /// MCCodeGenInfo, if registered.
     MCCodeGenInfoCtorFnTy MCCodeGenInfoCtorFn;
 
     /// MCInstrInfoCtorFn - Constructor function for this target's MCInstrInfo,
@@ -262,7 +273,7 @@ namespace llvm {
     /// createMCAsmInfo - Create a MCAsmInfo implementation for the specified
     /// target triple.
     ///
-    /// \arg Triple - This argument is used to determine the target machine
+    /// \param Triple This argument is used to determine the target machine
     /// feature set; it should always be provided. Generally this should be
     /// either the target triple from the module, or the target triple of the
     /// host if that does not exist.
@@ -275,10 +286,11 @@ namespace llvm {
     /// createMCCodeGenInfo - Create a MCCodeGenInfo implementation.
     ///
     MCCodeGenInfo *createMCCodeGenInfo(StringRef Triple, Reloc::Model RM,
-                                       CodeModel::Model CM) const {
+                                       CodeModel::Model CM,
+                                       CodeGenOpt::Level OL) const {
       if (!MCCodeGenInfoCtorFn)
         return 0;
-      return MCCodeGenInfoCtorFn(Triple, RM, CM);
+      return MCCodeGenInfoCtorFn(Triple, RM, CM, OL);
     }
 
     /// createMCInstrInfo - Create a MCInstrInfo implementation.
@@ -307,12 +319,12 @@ namespace llvm {
 
     /// createMCSubtargetInfo - Create a MCSubtargetInfo implementation.
     ///
-    /// \arg Triple - This argument is used to determine the target machine
+    /// \param Triple This argument is used to determine the target machine
     /// feature set; it should always be provided. Generally this should be
     /// either the target triple from the module, or the target triple of the
     /// host if that does not exist.
-    /// \arg CPU - This specifies the name of the target CPU.
-    /// \arg Features - This specifies the string representation of the
+    /// \param CPU This specifies the name of the target CPU.
+    /// \param Features This specifies the string representation of the
     /// additional target features.
     MCSubtargetInfo *createMCSubtargetInfo(StringRef Triple, StringRef CPU,
                                            StringRef Features) const {
@@ -322,29 +334,30 @@ namespace llvm {
     }
 
     /// createTargetMachine - Create a target specific machine implementation
-    /// for the specified \arg Triple.
+    /// for the specified \p Triple.
     ///
-    /// \arg Triple - This argument is used to determine the target machine
+    /// \param Triple This argument is used to determine the target machine
     /// feature set; it should always be provided. Generally this should be
     /// either the target triple from the module, or the target triple of the
     /// host if that does not exist.
     TargetMachine *createTargetMachine(StringRef Triple, StringRef CPU,
-                               StringRef Features,
-                               Reloc::Model RM = Reloc::Default,
-                               CodeModel::Model CM = CodeModel::Default) const {
+                             StringRef Features, const TargetOptions &Options,
+                             Reloc::Model RM = Reloc::Default,
+                             CodeModel::Model CM = CodeModel::Default,
+                             CodeGenOpt::Level OL = CodeGenOpt::Default) const {
       if (!TargetMachineCtorFn)
         return 0;
-      return TargetMachineCtorFn(*this, Triple, CPU, Features, RM, CM);
+      return TargetMachineCtorFn(*this, Triple, CPU, Features, Options,
+                                 RM, CM, OL);
     }
 
     /// createMCAsmBackend - Create a target specific assembly parser.
     ///
-    /// \arg Triple - The target triple string.
-    /// \arg Backend - The target independent assembler object.
-    MCAsmBackend *createMCAsmBackend(StringRef Triple) const {
+    /// \param Triple The target triple string.
+    MCAsmBackend *createMCAsmBackend(StringRef Triple, StringRef CPU) const {
       if (!MCAsmBackendCtorFn)
         return 0;
-      return MCAsmBackendCtorFn(*this, Triple);
+      return MCAsmBackendCtorFn(*this, Triple, CPU);
     }
 
     /// createMCAsmLexer - Create a target specific assembly lexer.
@@ -358,7 +371,7 @@ namespace llvm {
 
     /// createMCAsmParser - Create a target specific assembly parser.
     ///
-    /// \arg Parser - The target independent parser implementation to use for
+    /// \param Parser The target independent parser implementation to use for
     /// parsing and lexing.
     MCTargetAsmParser *createMCAsmParser(MCSubtargetInfo &STI,
                                          MCAsmParser &Parser) const {
@@ -383,31 +396,34 @@ namespace llvm {
 
     MCInstPrinter *createMCInstPrinter(unsigned SyntaxVariant,
                                        const MCAsmInfo &MAI,
+                                       const MCInstrInfo &MII,
+                                       const MCRegisterInfo &MRI,
                                        const MCSubtargetInfo &STI) const {
       if (!MCInstPrinterCtorFn)
         return 0;
-      return MCInstPrinterCtorFn(*this, SyntaxVariant, MAI, STI);
+      return MCInstPrinterCtorFn(*this, SyntaxVariant, MAI, MII, MRI, STI);
     }
 
 
     /// createMCCodeEmitter - Create a target specific code emitter.
     MCCodeEmitter *createMCCodeEmitter(const MCInstrInfo &II,
+                                       const MCRegisterInfo &MRI,
                                        const MCSubtargetInfo &STI,
                                        MCContext &Ctx) const {
       if (!MCCodeEmitterCtorFn)
         return 0;
-      return MCCodeEmitterCtorFn(II, STI, Ctx);
+      return MCCodeEmitterCtorFn(II, MRI, STI, Ctx);
     }
 
     /// createMCObjectStreamer - Create a target specific MCStreamer.
     ///
-    /// \arg TT - The target triple.
-    /// \arg Ctx - The target context.
-    /// \arg TAB - The target assembler backend object. Takes ownership.
-    /// \arg _OS - The stream object.
-    /// \arg _Emitter - The target independent assembler object.Takes ownership.
-    /// \arg RelaxAll - Relax all fixups?
-    /// \arg NoExecStack - Mark file as not needing a executable stack.
+    /// \param TT The target triple.
+    /// \param Ctx The target context.
+    /// \param TAB The target assembler backend object. Takes ownership.
+    /// \param _OS The stream object.
+    /// \param _Emitter The target independent assembler object.Takes ownership.
+    /// \param RelaxAll Relax all fixups?
+    /// \param NoExecStack Mark file as not needing a executable stack.
     MCStreamer *createMCObjectStreamer(StringRef TT, MCContext &Ctx,
                                        MCAsmBackend &TAB,
                                        raw_ostream &_OS,
@@ -426,13 +442,14 @@ namespace llvm {
                                   bool isVerboseAsm,
                                   bool useLoc,
                                   bool useCFI,
+                                  bool useDwarfDirectory,
                                   MCInstPrinter *InstPrint,
                                   MCCodeEmitter *CE,
                                   MCAsmBackend *TAB,
                                   bool ShowInst) const {
       // AsmStreamerCtorFn is default to llvm::createAsmStreamer
       return AsmStreamerCtorFn(Ctx, OS, isVerboseAsm, useLoc, useCFI,
-                               InstPrint, CE, TAB, ShowInst);
+                               useDwarfDirectory, InstPrint, CE, TAB, ShowInst);
     }
 
     /// @}
@@ -494,6 +511,21 @@ namespace llvm {
     /// \param Error - On failure, an error string describing why no target was
     /// found.
     static const Target *lookupTarget(const std::string &Triple,
+                                      std::string &Error);
+
+    /// lookupTarget - Lookup a target based on an architecture name
+    /// and a target triple.  If the architecture name is non-empty,
+    /// then the lookup is done by architecture.  Otherwise, the target
+    /// triple is used.
+    ///
+    /// \param ArchName - The architecture to use for finding a target.
+    /// \param TheTriple - The triple to use for finding a target.  The
+    /// triple is updated with canonical architecture name if a lookup
+    /// by architecture is done.
+    /// \param Error - On failure, an error string describing why no target was
+    /// found.
+    static const Target *lookupTarget(const std::string &ArchName,
+                                      Triple &TheTriple,
                                       std::string &Error);
 
     /// getClosestTargetForJIT - Pick the best target that is compatible with
@@ -776,7 +808,7 @@ namespace llvm {
   /// extern "C" void LLVMInitializeFooTargetInfo() {
   ///   RegisterTarget<Triple::foo> X(TheFooTarget, "foo", "Foo description");
   /// }
-  template<Triple::ArchType TargetArchType = Triple::InvalidArch,
+  template<Triple::ArchType TargetArchType = Triple::UnknownArch,
            bool HasJIT = false>
   struct RegisterTarget {
     RegisterTarget(Target &T, const char *Name, const char *Desc) {
@@ -840,8 +872,8 @@ namespace llvm {
       TargetRegistry::RegisterMCCodeGenInfo(T, &Allocator);
     }
   private:
-    static MCCodeGenInfo *Allocator(StringRef TT,
-                                    Reloc::Model RM, CodeModel::Model CM) {
+    static MCCodeGenInfo *Allocator(StringRef TT, Reloc::Model RM,
+                                    CodeModel::Model CM, CodeGenOpt::Level OL) {
       return new MCCodeGenInfoImpl();
     }
   };
@@ -1010,9 +1042,11 @@ namespace llvm {
   private:
     static TargetMachine *Allocator(const Target &T, StringRef TT,
                                     StringRef CPU, StringRef FS,
+                                    const TargetOptions &Options,
                                     Reloc::Model RM,
-                                    CodeModel::Model CM) {
-      return new TargetMachineImpl(T, TT, CPU, FS, RM, CM);
+                                    CodeModel::Model CM,
+                                    CodeGenOpt::Level OL) {
+      return new TargetMachineImpl(T, TT, CPU, FS, Options, RM, CM, OL);
     }
   };
 
@@ -1030,8 +1064,9 @@ namespace llvm {
     }
 
   private:
-    static MCAsmBackend *Allocator(const Target &T, StringRef Triple) {
-      return new MCAsmBackendImpl(T, Triple);
+    static MCAsmBackend *Allocator(const Target &T, StringRef Triple,
+                                   StringRef CPU) {
+      return new MCAsmBackendImpl(T, Triple, CPU);
     }
   };
 
@@ -1113,6 +1148,7 @@ namespace llvm {
 
   private:
     static MCCodeEmitter *Allocator(const MCInstrInfo &II,
+                                    const MCRegisterInfo &MRI,
                                     const MCSubtargetInfo &STI,
                                     MCContext &Ctx) {
       return new MCCodeEmitterImpl();

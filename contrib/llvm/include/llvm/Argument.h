@@ -30,6 +30,7 @@ template<typename ValueSubClass, typename ItemParentClass>
 /// the function was called with.
 /// @brief LLVM Argument representation  
 class Argument : public Value, public ilist_node<Argument> {
+  virtual void anchor();
   Function *Parent;
 
   friend class SymbolTableListTraits<Argument, Function>;
@@ -67,8 +68,8 @@ public:
   /// attribute on it in its containing function.
   bool hasNoCaptureAttr() const;
   
-  /// hasSRetAttr - Return true if this argument has the sret attribute on it in
-  /// its containing function.
+  /// hasStructRetAttr - Return true if this argument has the sret attribute on
+  /// it in its containing function.
   bool hasStructRetAttr() const;
 
   /// addAttr - Add a Attribute to an argument
@@ -80,7 +81,6 @@ public:
   /// classof - Methods for support type inquiry through isa, cast, and
   /// dyn_cast:
   ///
-  static inline bool classof(const Argument *) { return true; }
   static inline bool classof(const Value *V) {
     return V->getValueID() == ArgumentVal;
   }

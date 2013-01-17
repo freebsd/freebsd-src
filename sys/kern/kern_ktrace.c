@@ -101,6 +101,8 @@ struct ktr_request {
 		struct	ktr_genio ktr_genio;
 		struct	ktr_psig ktr_psig;
 		struct	ktr_csw ktr_csw;
+		struct	ktr_fault ktr_fault;
+		struct	ktr_faultend ktr_faultend;
 	} ktr_data;
 	STAILQ_ENTRY(ktr_request) ktr_list;
 };
@@ -119,6 +121,8 @@ static int data_lengths[] = {
 	sizeof(struct ktr_proc_ctor),		/* KTR_PROCCTOR */
 	0,					/* KTR_PROCDTOR */
 	sizeof(struct ktr_cap_fail),		/* KTR_CAPFAIL */
+	sizeof(struct ktr_fault),		/* KTR_FAULT */
+	sizeof(struct ktr_faultend),		/* KTR_FAULTEND */
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -478,7 +482,7 @@ ktrsysret(code, error, retval)
 	ktp = &req->ktr_data.ktr_sysret;
 	ktp->ktr_code = code;
 	ktp->ktr_error = error;
-	ktp->ktr_retval = retval;		/* what about val2 ? */
+	ktp->ktr_retval = ((error == 0) ? retval: 0);		/* what about val2 ? */
 	ktr_submitrequest(curthread, req);
 }
 
@@ -508,7 +512,6 @@ ktrprocexit(struct thread *td)
 	struct proc *p;
 	struct ucred *cred;
 	struct vnode *vp;
-	int vfslocked;
 
 	p = td->td_proc;
 	if (p->p_traceflag == 0)
@@ -526,11 +529,8 @@ ktrprocexit(struct thread *td)
 	ktr_freeproc(p, &cred, &vp);
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
-	if (vp != NULL) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (vp != NULL)
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (cred != NULL)
 		crfree(cred);
 	ktrace_exit(td);
@@ -684,7 +684,7 @@ ktrgenio(fd, rw, uio, error)
 	}
 	uio->uio_offset = 0;
 	uio->uio_rw = UIO_WRITE;
-	datalen = imin(uio->uio_resid, ktr_geniosize);
+	datalen = MIN(uio->uio_resid, ktr_geniosize);
 	buf = malloc(datalen, M_KTRACE, M_WAITOK);
 	error = uiomove(buf, datalen, uio);
 	free(uio, M_IOV);
@@ -729,8 +729,9 @@ ktrpsig(sig, action, mask, code)
 }
 
 void
-ktrcsw(out, user)
+ktrcsw(out, user, wmesg)
 	int out, user;
+	const char *wmesg;
 {
 	struct thread *td = curthread;
 	struct ktr_request *req;
@@ -742,6 +743,10 @@ ktrcsw(out, user)
 	kc = &req->ktr_data.ktr_csw;
 	kc->out = out;
 	kc->user = user;
+	if (wmesg != NULL)
+		strlcpy(kc->wmesg, wmesg, sizeof(kc->wmesg));
+	else
+		bzero(kc->wmesg, sizeof(kc->wmesg));
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
@@ -791,6 +796,42 @@ ktrcapfail(type, needed, held)
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }
+
+void
+ktrfault(vaddr, type)
+	vm_offset_t vaddr;
+	int type;
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+	struct ktr_fault *kf;
+
+	req = ktr_getrequest(KTR_FAULT);
+	if (req == NULL)
+		return;
+	kf = &req->ktr_data.ktr_fault;
+	kf->vaddr = vaddr;
+	kf->type = type;
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
+}
+
+void
+ktrfaultend(result)
+	int result;
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+	struct ktr_faultend *kf;
+
+	req = ktr_getrequest(KTR_FAULTEND);
+	if (req == NULL)
+		return;
+	kf = &req->ktr_data.ktr_faultend;
+	kf->result = result;
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
+}
 #endif /* KTRACE */
 
 /* Interface and common routines */
@@ -817,7 +858,7 @@ sys_ktrace(td, uap)
 	int ops = KTROP(uap->ops);
 	int descend = uap->ops & KTRFLAG_DESCEND;
 	int nfound, ret = 0;
-	int flags, error = 0, vfslocked;
+	int flags, error = 0;
 	struct nameidata nd;
 	struct ucred *cred;
 
@@ -832,25 +873,21 @@ sys_ktrace(td, uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
-		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_USERSPACE,
-		    uap->fname, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error) {
 			ktrace_exit(td);
 			return (error);
 		}
-		vfslocked = NDHASGIANT(&nd);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vp = nd.ni_vp;
 		VOP_UNLOCK(vp, 0);
 		if (vp->v_type != VREG) {
 			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			ktrace_exit(td);
 			return (EACCES);
 		}
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	/*
 	 * Clear all uses of the tracefile.
@@ -876,10 +913,8 @@ sys_ktrace(td, uap)
 		}
 		sx_sunlock(&allproc_lock);
 		if (vrele_count > 0) {
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			while (vrele_count-- > 0)
 				vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 		}
 		goto done;
 	}
@@ -945,11 +980,8 @@ sys_ktrace(td, uap)
 	if (!ret)
 		error = EPERM;
 done:
-	if (vp != NULL) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (vp != NULL)
 		(void) vn_close(vp, FWRITE, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	ktrace_exit(td);
 	return (error);
 #else /* !KTRACE */
@@ -1041,13 +1073,8 @@ ktrops(td, p, ops, facs, vp)
 	if ((p->p_traceflag & KTRFAC_MASK) != 0)
 		ktrprocctor_entered(td, p);
 	PROC_UNLOCK(p);
-	if (tracevp != NULL) {
-		int vfslocked;
-
-		vfslocked = VFS_LOCK_GIANT(tracevp->v_mount);
+	if (tracevp != NULL)
 		vrele(tracevp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (tracecred != NULL)
 		crfree(tracecred);
 
@@ -1101,7 +1128,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	struct iovec aiov[3];
 	struct mount *mp;
 	int datalen, buflen, vrele_count;
-	int error, vfslocked;
+	int error;
 
 	/*
 	 * We hold the vnode and credential for use in I/O in case ktrace is
@@ -1159,7 +1186,6 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		auio.uio_iovcnt++;
 	}
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
@@ -1172,10 +1198,8 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	crfree(cred);
 	if (!error) {
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return;
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	/*
 	 * If error encountered, give up tracing on this vnode.  We defer
@@ -1214,10 +1238,8 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	}
 	sx_sunlock(&allproc_lock);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	while (vrele_count-- > 0)
 		vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 /*

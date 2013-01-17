@@ -122,7 +122,7 @@ static uint32_t	encode_timeval(struct timeval);
 static uint32_t	encode_long(long);
 static void	acctwatch(void);
 static void	acct_thread(void *);
-static int	acct_disable(struct thread *);
+static int	acct_disable(struct thread *, int);
 
 /*
  * Accounting vnode pointer, saved vnode pointer, and flags for each.
@@ -196,7 +196,7 @@ int
 sys_acct(struct thread *td, struct acct_args *uap)
 {
 	struct nameidata nd;
-	int error, flags, vfslocked;
+	int error, flags, replacing;
 
 	error = priv_check(td, PRIV_ACCT);
 	if (error)
@@ -207,30 +207,26 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	 * appending and make sure it's a 'normal'.
 	 */
 	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE | AUDITVNODE1,
+		NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1,
 		    UIO_USERSPACE, uap->path, td);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error)
 			return (error);
-		vfslocked = NDHASGIANT(&nd);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
 		error = mac_system_check_acct(td->td_ucred, nd.ni_vp);
 		if (error) {
 			VOP_UNLOCK(nd.ni_vp, 0);
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			return (error);
 		}
 #endif
 		VOP_UNLOCK(nd.ni_vp, 0);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			return (EACCES);
 		}
-		VFS_UNLOCK_GIANT(vfslocked);
 #ifdef MAC
 	} else {
 		error = mac_system_check_acct(td->td_ucred, NULL);
@@ -246,17 +242,21 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	sx_xlock(&acct_sx);
 
 	/*
+	 * Don't log spurious disable/enable messages if we are
+	 * switching from one accounting file to another due to log
+	 * rotation.
+	 */
+	replacing = (acct_vp != NULL && uap->path != NULL);
+
+	/*
 	 * If accounting was previously enabled, kill the old space-watcher,
 	 * close the file, and (if no new file was specified, leave).  Reset
 	 * the suspended state regardless of whether accounting remains
 	 * enabled.
 	 */
 	acct_suspended = 0;
-	if (acct_vp != NULL) {
-		vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
-		error = acct_disable(td);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
+	if (acct_vp != NULL)
+		error = acct_disable(td, !replacing);
 	if (uap->path == NULL) {
 		if (acct_state & ACCT_RUNNING) {
 			acct_state |= ACCT_EXITREQ;
@@ -284,9 +284,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 		error = kproc_create(acct_thread, NULL, NULL, 0, 0,
 		    "accounting");
 		if (error) {
-			vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
 			(void) vn_close(acct_vp, acct_flags, acct_cred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			crfree(acct_cred);
 			acct_configured = 0;
 			acct_vp = NULL;
@@ -299,7 +297,8 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	}
 	acct_configured = 1;
 	sx_xunlock(&acct_sx);
-	log(LOG_NOTICE, "Accounting enabled\n");
+	if (!replacing)
+		log(LOG_NOTICE, "Accounting enabled\n");
 	return (error);
 }
 
@@ -308,7 +307,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
  * our reference to the credential, and clearing the vnode's flags.
  */
 static int
-acct_disable(struct thread *td)
+acct_disable(struct thread *td, int logging)
 {
 	int error;
 
@@ -319,7 +318,8 @@ acct_disable(struct thread *td)
 	acct_vp = NULL;
 	acct_cred = NULL;
 	acct_flags = 0;
-	log(LOG_NOTICE, "Accounting disabled\n");
+	if (logging)
+		log(LOG_NOTICE, "Accounting disabled\n");
 	return (error);
 }
 
@@ -337,7 +337,7 @@ acct_process(struct thread *td)
 	struct plimit *newlim, *oldlim;
 	struct proc *p;
 	struct rusage ru;
-	int t, ret, vfslocked;
+	int t, ret;
 
 	/*
 	 * Lockless check of accounting condition before doing the hard
@@ -433,11 +433,9 @@ acct_process(struct thread *td)
 	/*
 	 * Write the accounting information to the file.
 	 */
-	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
 	ret = vn_rdwr(UIO_WRITE, acct_vp, (caddr_t)&acct, sizeof (acct),
 	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, acct_cred, NOCRED,
 	    NULL, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	sx_sunlock(&acct_sx);
 	return (ret);
 }
@@ -554,7 +552,6 @@ static void
 acctwatch(void)
 {
 	struct statfs sb;
-	int vfslocked;
 
 	sx_assert(&acct_sx, SX_XLOCKED);
 
@@ -572,10 +569,8 @@ acctwatch(void)
 	 * If our vnode is no longer valid, tear it down and signal the
 	 * accounting thread to die.
 	 */
-	vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
 	if (acct_vp->v_type == VBAD) {
-		(void) acct_disable(NULL);
-		VFS_UNLOCK_GIANT(vfslocked);
+		(void) acct_disable(NULL, 1);
 		acct_state |= ACCT_EXITREQ;
 		return;
 	}
@@ -584,11 +579,8 @@ acctwatch(void)
 	 * Stopping here is better than continuing, maybe it will be VBAD
 	 * next time around.
 	 */
-	if (VFS_STATFS(acct_vp->v_mount, &sb) < 0) {
-		VFS_UNLOCK_GIANT(vfslocked);
+	if (VFS_STATFS(acct_vp->v_mount, &sb) < 0)
 		return;
-	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (acct_suspended) {
 		if (sb.f_bavail > (int64_t)(acctresume * sb.f_blocks /
 		    100)) {

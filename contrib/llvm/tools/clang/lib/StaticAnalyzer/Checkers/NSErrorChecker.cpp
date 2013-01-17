@@ -74,7 +74,7 @@ void NSErrorMethodChecker::checkASTDecl(const ObjCMethodDecl *D,
         "error occurred";
     PathDiagnosticLocation L =
       PathDiagnosticLocation::create(D, BR.getSourceManager());
-    BR.EmitBasicReport("Bad return type when passing NSError**",
+    BR.EmitBasicReport(D, "Bad return type when passing NSError**",
                        "Coding conventions (Apple)", err, L);
   }
 }
@@ -122,7 +122,7 @@ void CFErrorFunctionChecker::checkASTDecl(const FunctionDecl *D,
         "error occurred";
     PathDiagnosticLocation L =
       PathDiagnosticLocation::create(D, BR.getSourceManager());
-    BR.EmitBasicReport("Bad return type when passing CFErrorRef*",
+    BR.EmitBasicReport(D, "Bad return type when passing CFErrorRef*",
                        "Coding conventions (Apple)", err, L);
   }
 }
@@ -163,26 +163,12 @@ public:
 };
 }
 
-namespace { struct NSErrorOut {}; }
-namespace { struct CFErrorOut {}; }
-
 typedef llvm::ImmutableMap<SymbolRef, unsigned> ErrorOutFlag;
-
-namespace clang {
-namespace ento {
-  template <>
-  struct ProgramStateTrait<NSErrorOut> : public ProgramStatePartialTrait<ErrorOutFlag> {  
-    static void *GDMIndex() { static int index = 0; return &index; }
-  };
-  template <>
-  struct ProgramStateTrait<CFErrorOut> : public ProgramStatePartialTrait<ErrorOutFlag> {  
-    static void *GDMIndex() { static int index = 0; return &index; }
-  };
-}
-}
+REGISTER_TRAIT_WITH_PROGRAMSTATE(NSErrorOut, ErrorOutFlag)
+REGISTER_TRAIT_WITH_PROGRAMSTATE(CFErrorOut, ErrorOutFlag)
 
 template <typename T>
-static bool hasFlag(SVal val, const ProgramState *state) {
+static bool hasFlag(SVal val, ProgramStateRef state) {
   if (SymbolRef sym = val.getAsSymbol())
     if (const unsigned *attachedFlags = state->get<T>(sym))
       return *attachedFlags;
@@ -190,7 +176,7 @@ static bool hasFlag(SVal val, const ProgramState *state) {
 }
 
 template <typename T>
-static void setFlag(const ProgramState *state, SVal val, CheckerContext &C) {
+static void setFlag(ProgramStateRef state, SVal val, CheckerContext &C) {
   // We tag the symbol that the SVal wraps.
   if (SymbolRef sym = val.getAsSymbol())
     C.addTransition(state->set<T>(sym, true));
@@ -198,7 +184,7 @@ static void setFlag(const ProgramState *state, SVal val, CheckerContext &C) {
 
 static QualType parameterTypeFromSVal(SVal val, CheckerContext &C) {
   const StackFrameContext *
-    SFC = C.getPredecessor()->getLocationContext()->getCurrentStackFrame();
+    SFC = C.getLocationContext()->getCurrentStackFrame();
   if (const loc::MemRegionVal* X = dyn_cast<loc::MemRegionVal>(&val)) {
     const MemRegion* R = X->getRegion();
     if (const VarRegion *VR = R->getAs<VarRegion>())
@@ -220,7 +206,7 @@ void NSOrCFErrorDerefChecker::checkLocation(SVal loc, bool isLoad,
     return;
 
   ASTContext &Ctx = C.getASTContext();
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
 
   // If we are loading from NSError**/CFErrorRef* parameter, mark the resulting
   // SVal so that we can later check it when handling the
@@ -253,7 +239,7 @@ void NSOrCFErrorDerefChecker::checkEvent(ImplicitNullDerefEvent event) const {
     return;
 
   SVal loc = event.Location;
-  const ProgramState *state = event.SinkNode->getState();
+  ProgramStateRef state = event.SinkNode->getState();
   BugReporter &BR = *event.BR;
 
   bool isNSError = hasFlag<NSErrorOut>(loc, state);
@@ -285,7 +271,7 @@ void NSOrCFErrorDerefChecker::checkEvent(ImplicitNullDerefEvent event) const {
     bug = new CFErrorDerefBug();
   BugReport *report = new BugReport(*bug, os.str(),
                                                     event.SinkNode);
-  BR.EmitReport(report);
+  BR.emitReport(report);
 }
 
 static bool IsNSError(QualType T, IdentifierInfo *II) {

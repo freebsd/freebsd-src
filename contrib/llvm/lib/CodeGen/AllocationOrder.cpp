@@ -15,9 +15,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "AllocationOrder.h"
-#include "RegisterClassInfo.h"
 #include "VirtRegMap.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 
 using namespace llvm;
 
@@ -29,6 +29,7 @@ AllocationOrder::AllocationOrder(unsigned VirtReg,
   const TargetRegisterClass *RC = VRM.getRegInfo().getRegClass(VirtReg);
   std::pair<unsigned, unsigned> HintPair =
     VRM.getRegInfo().getRegAllocationHint(VirtReg);
+  const MachineRegisterInfo &MRI = VRM.getRegInfo();
 
   // HintPair.second is a register, phys or virt.
   Hint = HintPair.second;
@@ -41,7 +42,7 @@ AllocationOrder::AllocationOrder(unsigned VirtReg,
   if (HintPair.first) {
     const TargetRegisterInfo &TRI = VRM.getTargetRegInfo();
     // The remaining allocation order may depend on the hint.
-    ArrayRef<unsigned> Order =
+    ArrayRef<uint16_t> Order =
       TRI.getRawAllocationOrder(RC, HintPair.first, Hint,
                                 VRM.getMachineFunction());
     if (Order.empty())
@@ -52,7 +53,7 @@ AllocationOrder::AllocationOrder(unsigned VirtReg,
     unsigned *P = new unsigned[Order.size()];
     Begin = P;
     for (unsigned i = 0; i != Order.size(); ++i)
-      if (!RCI.isReserved(Order[i]))
+      if (!MRI.isReserved(Order[i]))
         *P++ = Order[i];
     End = P;
 
@@ -69,7 +70,7 @@ AllocationOrder::AllocationOrder(unsigned VirtReg,
 
   // The hint must be a valid physreg for allocation.
   if (Hint && (!TargetRegisterInfo::isPhysicalRegister(Hint) ||
-               !RC->contains(Hint) || RCI.isReserved(Hint)))
+               !RC->contains(Hint) || MRI.isReserved(Hint)))
     Hint = 0;
 }
 

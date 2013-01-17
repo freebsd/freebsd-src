@@ -101,9 +101,9 @@ static const struct usb_temp_packet_size mouse_intr_mps = {
 };
 
 static const struct usb_temp_interval mouse_intr_interval = {
-	.bInterval[USB_SPEED_LOW] = 2,
-	.bInterval[USB_SPEED_FULL] = 2,
-	.bInterval[USB_SPEED_HIGH] = 2 * 8,
+	.bInterval[USB_SPEED_LOW] = 2,		/* 2ms */
+	.bInterval[USB_SPEED_FULL] = 2,		/* 2ms */
+	.bInterval[USB_SPEED_HIGH] = 5,		/* 2ms */
 };
 
 static const struct usb_temp_endpoint_desc mouse_ep_0 = {

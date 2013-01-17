@@ -35,19 +35,19 @@
 
 #include <sys/types.h>
 #include <machine/sysarch.h>
+#include <machine/tls.h>
 #include <stddef.h>
 
 #define	CPU_SPINWAIT
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
 /*
- * Variant II tcb, first two members are required by rtld.
+ * Variant I tcb. The structure layout is fixed, don't blindly
+ * change it!
  */
 struct tcb {
-	struct tcb		*tcb_self;	/* required by rtld */
-	void			*tcb_dtv;	/* required by rtld */
-	struct pthread		*tcb_thread;	/* our hook */
-	void			*tcb_spare[1];
+	void			*tcb_dtv;
+	struct pthread		*tcb_thread;
 };
 
 /*
@@ -70,7 +70,7 @@ _tcb_set(struct tcb *tcb)
 static __inline struct tcb *
 _tcb_get(void)
 {
-	void *tcb;
+	struct tcb *tcb;
 
 	sysarch(MIPS_GET_TLS, &tcb);
 	return tcb;

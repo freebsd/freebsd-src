@@ -21,14 +21,10 @@
 namespace llvm {
   class MipsTargetMachine;
   class FunctionPass;
-  class MachineCodeEmitter;
-  class formatted_raw_ostream;
 
   FunctionPass *createMipsISelDag(MipsTargetMachine &TM);
   FunctionPass *createMipsDelaySlotFillerPass(MipsTargetMachine &TM);
-  FunctionPass *createMipsExpandPseudoPass(MipsTargetMachine &TM);
-  FunctionPass *createMipsEmitGPRestorePass(MipsTargetMachine &TM);
-
+  FunctionPass *createMipsLongBranchPass(MipsTargetMachine &TM);
   FunctionPass *createMipsJITCodeEmitterPass(MipsTargetMachine &TM,
                                              JITCodeEmitter &JCE);
 

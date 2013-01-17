@@ -15,16 +15,31 @@ hints           "TP-WN1043ND.hints"
 # Force the board memory - 32mb
 options         AR71XX_REALMEM=32*1024*1024
 
+# i2c GPIO bus
+device		gpioiic
+device		iicbb
+device		iicbus
+device		iic
+
+# ethernet switch device
+device		etherswitch
+
+# RTL8366RB support
+device		rtl8366rb
+
 # read MSDOS formatted disks - USB
 options		MSDOSFS
-options		GEOM_PART_BSD
-options		GEOM_PART_MBR
 
-# Just make sure the thing boots off of the first attached SCSI device for now!
-#options		ROOTDEVNAME=\"ufs:da0a\"
-# Or an MDROOT for testing.
-options		MD_ROOT
-options		MD_ROOT_SIZE=5120
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options		AR71XX_ENV_UBOOT
+
+# uzip - to boot natively from flash
 device		geom_uzip
 options		GEOM_UZIP
-options		ROOTDEVNAME=\"ufs:/dev/md0.uzip\"
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options		ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

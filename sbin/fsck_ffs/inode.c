@@ -285,7 +285,8 @@ ginode(ino_t inumber)
 	ufs2_daddr_t iblk;
 
 	if (inumber < ROOTINO || inumber > maxino)
-		errx(EEXIT, "bad inode number %d to ginode", inumber);
+		errx(EEXIT, "bad inode number %ju to ginode",
+		    (uintmax_t)inumber);
 	if (startinum == 0 ||
 	    inumber < startinum || inumber >= startinum + INOPB(&sblock)) {
 		iblk = ino_to_fsba(&sblock, inumber);
@@ -319,7 +320,8 @@ getnextinode(ino_t inumber, int rebuildcg)
 	static caddr_t nextinop;
 
 	if (inumber != nextino++ || inumber > lastvalidinum)
-		errx(EEXIT, "bad inode number %d to nextinode", inumber);
+		errx(EEXIT, "bad inode number %ju to nextinode",
+		    (uintmax_t)inumber);
 	if (inumber >= lastinum) {
 		readcnt++;
 		dblk = fsbtodb(&sblock, ino_to_fsba(&sblock, lastinum));
@@ -398,7 +400,8 @@ setinodebuf(ino_t inum)
 {
 
 	if (inum % sblock.fs_ipg != 0)
-		errx(EEXIT, "bad inode number %d to setinodebuf", inum);
+		errx(EEXIT, "bad inode number %ju to setinodebuf",
+		    (uintmax_t)inum);
 	lastvalidinum = inum + sblock.fs_ipg - 1;
 	startinum = 0;
 	nextino = inum;
@@ -489,7 +492,7 @@ getinoinfo(ino_t inumber)
 			continue;
 		return (inp);
 	}
-	errx(EEXIT, "cannot find inode %d", inumber);
+	errx(EEXIT, "cannot find inode %ju", (uintmax_t)inumber);
 	return ((struct inoinfo *)0);
 }
 

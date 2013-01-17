@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: varied.out,v 1.22 2010/07/02 00:06:27 christos Exp $
 # varied.out:  file(1) magic for various USG systems
 #
 #	Herewith many of the object file formats used by USG systems.
@@ -27,9 +28,12 @@
 0	string		gmon		GNU prof performance data
 >4	long		x		- version %ld
 # From: Dave Pearson <davep@davep.org>
-# Harbour <URL:http://www.harbour-project.org/> HRB files.
+# Harbour <URL:http://harbour-project.org/> HRB files.
 0	string		\xc0HRB		Harbour HRB file
->4	short		x		version %d
+>4	leshort		x		version %d
+# Harbour HBV files
+0	string		\xc0HBV		Harbour variable dump file
+>4	leshort		x		version %d
 
 # From: Alex Beregszaszi <alex@fsn.hu>
 # 0	string		exec 		BugOS executable

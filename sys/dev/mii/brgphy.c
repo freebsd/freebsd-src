@@ -82,7 +82,7 @@ static device_method_t brgphy_methods[] = {
 	DEVMETHOD(device_attach,	brgphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t brgphy_devclass;
@@ -139,9 +139,14 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(BROADCOM2, BCM5754),
 	MII_PHY_DESC(BROADCOM2, BCM5761),
 	MII_PHY_DESC(BROADCOM2, BCM5784),
+#ifdef notyet	/* better handled by ukphy(4) until WARs are implemented */
+	MII_PHY_DESC(BROADCOM2, BCM5785),
+#endif
 	MII_PHY_DESC(BROADCOM3, BCM5717C),
 	MII_PHY_DESC(BROADCOM3, BCM5719C),
+	MII_PHY_DESC(BROADCOM3, BCM5720C),
 	MII_PHY_DESC(BROADCOM3, BCM57765),
+	MII_PHY_DESC(BROADCOM3, BCM57780),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5906),
 	MII_PHY_END
 };
@@ -199,6 +204,13 @@ brgphy_attach(device_t dev)
 	    &brgphy_funcs, 0);
 
 	bsc->serdes_flags = 0;
+	ifp = sc->mii_pdata->mii_ifp;
+
+	/* Find the MAC driver associated with this PHY. */
+	if (strcmp(ifp->if_dname, "bge") == 0)
+		bge_sc = ifp->if_softc;
+	else if (strcmp(ifp->if_dname, "bce") == 0)
+		bce_sc = ifp->if_softc;
 
 	/* Handle any special cases based on the PHY ID */
 	switch (sc->mii_mpd_oui) {
@@ -221,7 +233,8 @@ brgphy_attach(device_t dev)
 				sc->mii_flags |= MIIF_HAVEFIBER;
 			}
 			break;
-		} break;
+		}
+		break;
 	case MII_OUI_BROADCOM2:
 		switch (sc->mii_mpd_model) {
 		case MII_MODEL_BROADCOM2_BCM5708S:
@@ -229,20 +242,19 @@ brgphy_attach(device_t dev)
 			sc->mii_flags |= MIIF_HAVEFIBER;
 			break;
 		case MII_MODEL_BROADCOM2_BCM5709S:
-			bsc->serdes_flags |= BRGPHY_5709S;
+			/*
+			 * XXX
+			 * 5720S and 5709S shares the same PHY id.
+			 * Assume 5720S PHY if parent device is bge(4).
+			 */
+			if (bge_sc != NULL)
+				bsc->serdes_flags |= BRGPHY_5708S;
+			else
+				bsc->serdes_flags |= BRGPHY_5709S;
 			sc->mii_flags |= MIIF_HAVEFIBER;
 			break;
 		}
 		break;
-	}
-
-	ifp = sc->mii_pdata->mii_ifp;
-
-	/* Find the MAC driver associated with this PHY. */
-	if (strcmp(ifp->if_dname, "bge") == 0)	{
-		bge_sc = ifp->if_softc;
-	} else if (strcmp(ifp->if_dname, "bce") == 0) {
-		bce_sc = ifp->if_softc;
 	}
 
 	PHY_RESET(sc);
@@ -602,6 +614,11 @@ brgphy_mii_phy_auto(struct mii_softc *sc, int media)
 		    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
 			anar |= BRGPHY_ANAR_PC | BRGPHY_ANAR_ASP;
 		PHY_WRITE(sc, BRGPHY_MII_ANAR, anar);
+		ktcr = BRGPHY_1000CTL_AFD | BRGPHY_1000CTL_AHD;
+		if (sc->mii_mpd_model == MII_MODEL_BROADCOM_BCM5701)
+			ktcr |= BRGPHY_1000CTL_MSE | BRGPHY_1000CTL_MSC;
+		PHY_WRITE(sc, BRGPHY_MII_1000CTL, ktcr);
+		PHY_READ(sc, BRGPHY_MII_1000CTL);
 	} else {
 		anar = BRGPHY_SERDES_ANAR_FDX | BRGPHY_SERDES_ANAR_HDX;
 		if ((media & IFM_FLOW) != 0 ||
@@ -609,12 +626,6 @@ brgphy_mii_phy_auto(struct mii_softc *sc, int media)
 			anar |= BRGPHY_SERDES_ANAR_BOTH_PAUSE;
 		PHY_WRITE(sc, BRGPHY_SERDES_ANAR, anar);
 	}
-
-	ktcr = BRGPHY_1000CTL_AFD | BRGPHY_1000CTL_AHD;
-	if (sc->mii_mpd_model == MII_MODEL_BROADCOM_BCM5701)
-		ktcr |= BRGPHY_1000CTL_MSE | BRGPHY_1000CTL_MSC;
-	PHY_WRITE(sc, BRGPHY_MII_1000CTL, ktcr);
-	ktcr = PHY_READ(sc, BRGPHY_MII_1000CTL);
 
 	PHY_WRITE(sc, BRGPHY_MII_BMCR, BRGPHY_BMCR_AUTOEN |
 	    BRGPHY_BMCR_STARTNEG);
@@ -912,6 +923,15 @@ brgphy_reset(struct mii_softc *sc)
 			break;
 		}
 		break;
+	case MII_OUI_BROADCOM3:
+		switch (sc->mii_mpd_model) {
+		case MII_MODEL_BROADCOM3_BCM5717C:
+		case MII_MODEL_BROADCOM3_BCM5719C:
+		case MII_MODEL_BROADCOM3_BCM5720C:
+		case MII_MODEL_BROADCOM3_BCM57765:
+			return;
+		}
+		break;
 	}
 
 	ifp = sc->mii_pdata->mii_ifp;
@@ -938,7 +958,8 @@ brgphy_reset(struct mii_softc *sc)
 		if (bge_sc->bge_phy_flags & BGE_PHY_JITTER_BUG)
 			brgphy_fixup_jitter_bug(sc);
 
-		brgphy_jumbo_settings(sc, ifp->if_mtu);
+		if (bge_sc->bge_flags & BGE_FLAG_JUMBO)
+			brgphy_jumbo_settings(sc, ifp->if_mtu);
 
 		if ((bge_sc->bge_phy_flags & BGE_PHY_NO_WIRESPEED) == 0)
 			brgphy_ethernet_wirespeed(sc);

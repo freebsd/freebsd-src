@@ -1,42 +1,44 @@
 /*
- * Copyright (c) 2003 - 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2003 - 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "test_locl.h"
-#include <gssapi.h>
+#include <gssapi/gssapi.h>
+#include <gssapi/gssapi_krb5.h>
+#include <gssapi/gssapi_spnego.h>
 #include "gss_common.h"
 #include <base64.h>
 
-RCSID("$Id: http_client.c 14861 2005-04-20 10:38:37Z lha $");
+RCSID("$Id$");
 
 /*
  * A simplistic client implementing draft-brezak-spnego-http-04.txt
@@ -84,7 +86,7 @@ fdprintf(int s, const char *fmt, ...)
     ssize_t ret;
     va_list ap;
     char *str, *buf;
-    
+
     va_start(ap, fmt);
     vasprintf(&str, fmt, ap);
     va_end(ap);
@@ -186,7 +188,7 @@ http_find_header(struct http_req *req, const char *header)
 
 
 static int
-http_query(const char *host, const char *page, 
+http_query(const char *host, const char *page,
 	   char **headers, int num_headers, struct http_req *req)
 {
     enum { RESPONSE, HEADER, BODY } state;
@@ -214,7 +216,7 @@ http_query(const char *host, const char *page,
 	    break;
 	else if (ret < 0)
 	    err (1, "read: %lu", (unsigned long)ret);
-	
+
 	in_buf[ret + in_len] = '\0';
 
 	if (state == HEADER || state == RESPONSE) {
@@ -235,12 +237,16 @@ http_query(const char *host, const char *page,
 		    in_ptr -= 2;
 		    break;
 		} else if (state == RESPONSE) {
-		    req->response = strndup(in_buf, p - in_buf);
+		    req->response = emalloc(p - in_buf + 1);
+		    memcpy(req->response, in_buf, p - in_buf);
+		    req->response[p - in_buf] = '\0';
 		    state = HEADER;
 		} else {
 		    req->headers = realloc(req->headers,
 					   (req->num_headers + 1) * sizeof(req->headers[0]));
-		    req->headers[req->num_headers] = strndup(in_buf, p - in_buf);
+		    req->headers[req->num_headers] = emalloc(p - in_buf + 1);
+		    memcpy(req->headers[req->num_headers], in_buf, p - in_buf);
+		    req->headers[req->num_headers][p - in_buf] = '\0';
 		    if (req->headers[req->num_headers] == NULL)
 			errx(1, "strdup");
 		    req->num_headers++;
@@ -332,7 +338,7 @@ main(int argc, char **argv)
 	print_body = 0;
 
 	http_query(host, page, headers, num_headers, &req);
-	for (i = 0 ; i < num_headers; i++) 
+	for (i = 0 ; i < num_headers; i++)
 	    free(headers[i]);
 	num_headers = 0;
 
@@ -356,7 +362,7 @@ main(int argc, char **argv)
 
 		if (verbose_flag)
 		    printf("Negotiate found\n");
-		
+
 		if (server == GSS_C_NO_NAME) {
 		    char *name;
 		    asprintf(&name, "%s@%s", gss_service, host);
@@ -468,7 +474,7 @@ main(int argc, char **argv)
 		    base64_encode(output_token.value,
 				  output_token.length,
 				  &neg_token);
-		    
+
 		    asprintf(&headers[0], "Authorization: Negotiate %s",
 			     neg_token);
 

@@ -56,6 +56,10 @@ class Compilation {
   /// Result files which should be removed on failure.
   ArgStringList ResultFiles;
 
+  /// Result files which are generated correctly on failure, and which should
+  /// only be removed if we crash.
+  ArgStringList FailureResultFiles;
+
   /// Redirection for stdout, stderr, etc.
   const llvm::sys::Path **Redirects;
 
@@ -72,6 +76,8 @@ public:
 
   const DerivedArgList &getArgs() const { return *TranslatedArgs; }
 
+  DerivedArgList &getArgs() { return *TranslatedArgs; }
+
   ActionList &getActions() { return Actions; }
   const ActionList &getActions() const { return Actions; }
 
@@ -84,9 +90,15 @@ public:
 
   const ArgStringList &getResultFiles() const { return ResultFiles; }
 
+  const ArgStringList &getFailureResultFiles() const {
+    return FailureResultFiles;
+  }
+
+  /// Returns the sysroot path.
+  StringRef getSysRoot() const;
+
   /// getArgsForToolChain - Return the derived argument list for the
-  /// tool chain \arg TC (or the default tool chain, if TC is not
-  /// specified).
+  /// tool chain \p TC (or the default tool chain, if TC is not specified).
   ///
   /// \param BoundArch - The bound architecture name, or 0.
   const DerivedArgList &getArgsForToolChain(const ToolChain *TC,
@@ -106,6 +118,13 @@ public:
     return Name;
   }
 
+  /// addFailureResultFile - Add a file to remove if we crash, and returns its
+  /// argument.
+  const char *addFailureResultFile(const char *Name) {
+    FailureResultFiles.push_back(Name);
+    return Name;
+  }
+
   /// CleanupFileList - Remove the files in the given list.
   ///
   /// \param IssueErrors - Report failures as errors.
@@ -121,6 +140,14 @@ public:
   /// \param Quote - Should separate arguments be quoted.
   void PrintJob(raw_ostream &OS, const Job &J,
                 const char *Terminator, bool Quote) const;
+
+  /// PrintDiagnosticJob - Print one job in -### format, but with the 
+  /// superfluous options removed, which are not necessary for 
+  /// reproducing the crash.
+  ///
+  /// \param OS - The stream to print on.
+  /// \param J - The job to print.
+  void PrintDiagnosticJob(raw_ostream &OS, const Job &J) const;
 
   /// ExecuteCommand - Execute an actual command.
   ///

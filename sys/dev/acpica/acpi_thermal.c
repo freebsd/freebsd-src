@@ -121,6 +121,8 @@ struct acpi_tz_softc {
     int				tz_cooling_saved_freq;
 };
 
+#define	TZ_ACTIVE_LEVEL(act)	((act) >= 0 ? (act) : TZ_NUMLEVELS)
+
 #define CPUFREQ_MAX_LEVELS	64 /* XXX cpufreq should export this */
 
 static int	acpi_tz_probe(device_t dev);
@@ -245,7 +247,7 @@ acpi_tz_attach(device_t dev)
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 		       OID_AUTO, "polling_rate", CTLFLAG_RW,
-		       &acpi_tz_polling_rate, 0, "monitor polling rate");
+		       &acpi_tz_polling_rate, 0, "monitor polling interval in seconds");
 	SYSCTL_ADD_INT(&acpi_tz_sysctl_ctx,
 		       SYSCTL_CHILDREN(acpi_tz_sysctl_tree), OID_AUTO,
 		       "user_override", CTLFLAG_RW, &acpi_tz_override, 0,
@@ -507,15 +509,8 @@ acpi_tz_monitor(void *Context)
      */
     newactive = TZ_ACTIVE_NONE;
     for (i = TZ_NUMLEVELS - 1; i >= 0; i--) {
-	if (sc->tz_zone.ac[i] != -1 && temp >= sc->tz_zone.ac[i]) {
+	if (sc->tz_zone.ac[i] != -1 && temp >= sc->tz_zone.ac[i])
 	    newactive = i;
-	    if (sc->tz_active != newactive) {
-		ACPI_VPRINT(sc->tz_dev,
-			    acpi_device_get_parent_softc(sc->tz_dev),
-			    "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
-			    TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
-	    }
-	}
     }
 
     /*
@@ -565,18 +560,21 @@ acpi_tz_monitor(void *Context)
     }
 
     if (newactive != sc->tz_active) {
-	/* Turn off the cooling devices that are on, if any are */
-	if (sc->tz_active != TZ_ACTIVE_NONE)
+	/* Turn off unneeded cooling devices that are on, if any are */
+	for (i = TZ_ACTIVE_LEVEL(sc->tz_active);
+	     i < TZ_ACTIVE_LEVEL(newactive); i++) {
 	    acpi_ForeachPackageObject(
-		(ACPI_OBJECT *)sc->tz_zone.al[sc->tz_active].Pointer,
+		(ACPI_OBJECT *)sc->tz_zone.al[i].Pointer,
 		acpi_tz_switch_cooler_off, sc);
-
+	}
 	/* Turn on cooling devices that are required, if any are */
-	if (newactive != TZ_ACTIVE_NONE) {
+	for (i = TZ_ACTIVE_LEVEL(sc->tz_active) - 1;
+	     i >= TZ_ACTIVE_LEVEL(newactive); i--) {
 	    acpi_ForeachPackageObject(
-		(ACPI_OBJECT *)sc->tz_zone.al[newactive].Pointer,
+		(ACPI_OBJECT *)sc->tz_zone.al[i].Pointer,
 		acpi_tz_switch_cooler_on, sc);
 	}
+
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 		    "switched from %s to %s: %d.%dC\n",
 		    acpi_tz_aclevel_string(sc->tz_active),

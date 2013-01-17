@@ -1,6 +1,6 @@
 /*
  *
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +67,7 @@ main(int argc, char **argv)
     const char *tmp;
     struct stat stat_s;
 
+    warnpkgng();
     pkgs = start = argv;
     while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1)
 	switch(ch) {

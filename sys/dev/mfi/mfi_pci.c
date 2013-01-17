@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
@@ -92,9 +93,8 @@ static device_method_t mfi_methods[] = {
 	DEVMETHOD(device_detach,	mfi_pci_detach),
 	DEVMETHOD(device_suspend,	mfi_pci_suspend),
 	DEVMETHOD(device_resume,	mfi_pci_resume),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t mfi_pci_driver = {
@@ -107,6 +107,11 @@ static devclass_t	mfi_devclass;
 DRIVER_MODULE(mfi, pci, mfi_pci_driver, mfi_devclass, 0, 0);
 MODULE_VERSION(mfi, 1);
 
+static int	mfi_msi = 1;
+TUNABLE_INT("hw.mfi.msi", &mfi_msi);
+SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
+    "Enable use of MSI interrupts");
+
 struct mfi_ident {
 	uint16_t	vendor;
 	uint16_t	device;
@@ -115,14 +120,28 @@ struct mfi_ident {
 	int		flags;
 	const char	*desc;
 } mfi_identifiers[] = {
+	{0x1000, 0x005b, 0x1028, 0x1f2d, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H810 Adapter"},
+	{0x1000, 0x005b, 0x1028, 0x1f30, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Embedded"},
+	{0x1000, 0x005b, 0x1028, 0x1f31, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710P Adapter"},
+	{0x1000, 0x005b, 0x1028, 0x1f33, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710P Mini (blades)"},
+	{0x1000, 0x005b, 0x1028, 0x1f34, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710P Mini (monolithics)"},
+	{0x1000, 0x005b, 0x1028, 0x1f35, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Adapter"},
+	{0x1000, 0x005b, 0x1028, 0x1f37, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Mini (blades)"},
+	{0x1000, 0x005b, 0x1028, 0x1f38, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Mini (monolithics)"},
+	{0x1000, 0x005b, 0x8086, 0x9265, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Intel (R) RAID Controller RS25DB080"},
+	{0x1000, 0x005b, 0x8086, 0x9285, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Intel (R) RAID Controller RS25NB008"},
+	{0x1000, 0x005b, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "ThunderBolt"},
 	{0x1000, 0x0060, 0x1028, 0xffff, MFI_FLAGS_1078,  "Dell PERC 6"},
 	{0x1000, 0x0060, 0xffff, 0xffff, MFI_FLAGS_1078,  "LSI MegaSAS 1078"},
+	{0x1000, 0x0071, 0xffff, 0xffff, MFI_FLAGS_SKINNY, "Drake Skinny"},
+	{0x1000, 0x0073, 0xffff, 0xffff, MFI_FLAGS_SKINNY, "Drake Skinny"},
 	{0x1000, 0x0078, 0xffff, 0xffff, MFI_FLAGS_GEN2,  "LSI MegaSAS Gen2"},
 	{0x1000, 0x0079, 0x1028, 0x1f15, MFI_FLAGS_GEN2,  "Dell PERC H800 Adapter"},
 	{0x1000, 0x0079, 0x1028, 0x1f16, MFI_FLAGS_GEN2,  "Dell PERC H700 Adapter"},
 	{0x1000, 0x0079, 0x1028, 0x1f17, MFI_FLAGS_GEN2,  "Dell PERC H700 Integrated"},
 	{0x1000, 0x0079, 0x1028, 0x1f18, MFI_FLAGS_GEN2,  "Dell PERC H700 Modular"},
 	{0x1000, 0x0079, 0x1028, 0x1f19, MFI_FLAGS_GEN2,  "Dell PERC H700"},
+	{0x1000, 0x0079, 0x1028, 0x1f1a, MFI_FLAGS_GEN2,  "Dell PERC H800 Proto Adapter"},
 	{0x1000, 0x0079, 0x1028, 0x1f1b, MFI_FLAGS_GEN2,  "Dell PERC H800"},
 	{0x1000, 0x0079, 0x1028, 0xffff, MFI_FLAGS_GEN2,  "Dell PERC Gen2"},
 	{0x1000, 0x0079, 0xffff, 0xffff, MFI_FLAGS_GEN2,  "LSI MegaSAS Gen2"},
@@ -169,7 +188,7 @@ mfi_pci_attach(device_t dev)
 	struct mfi_softc *sc;
 	struct mfi_ident *m;
 	uint32_t command;
-	int error;
+	int count, error;
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
@@ -196,8 +215,11 @@ mfi_pci_attach(device_t dev)
 	    (sc->mfi_flags & MFI_FLAGS_1078)) {
 		/* 1068/1078: Memory mapped BAR is at offset 0x10 */
 		sc->mfi_regs_rid = PCIR_BAR(0);
-	} else if (sc->mfi_flags & MFI_FLAGS_GEN2) {
-		/* GEN2: Memory mapped BAR is at offset 0x14 */
+	}
+	else if ((sc->mfi_flags & MFI_FLAGS_GEN2) ||
+		 (sc->mfi_flags & MFI_FLAGS_SKINNY) ||
+		(sc->mfi_flags & MFI_FLAGS_TBOLT)) { 
+		/* Gen2/Skinny: Memory mapped BAR is at offset 0x14 */
 		sc->mfi_regs_rid = PCIR_BAR(1);
 	}
 	if ((sc->mfi_regs_resource = bus_alloc_resource_any(sc->mfi_dev,
@@ -211,7 +233,7 @@ mfi_pci_attach(device_t dev)
 	error = ENOMEM;
 
 	/* Allocate parent DMA tag */
-	if (bus_dma_tag_create(	NULL,			/* parent */
+	if (bus_dma_tag_create(	bus_get_dma_tag(dev),	/* PCI parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -223,6 +245,20 @@ mfi_pci_attach(device_t dev)
 				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mfi_parent_dmat)) {
 		device_printf(dev, "Cannot allocate parent DMA tag\n");
+		goto out;
+	}
+
+	/* Allocate IRQ resource. */
+	sc->mfi_irq_rid = 0;
+	count = 1;
+	if (mfi_msi && pci_alloc_msi(sc->mfi_dev, &count) == 0) {
+		device_printf(sc->mfi_dev, "Using MSI\n");
+		sc->mfi_irq_rid = 1;
+	}
+	if ((sc->mfi_irq = bus_alloc_resource_any(sc->mfi_dev, SYS_RES_IRQ,
+	    &sc->mfi_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+		device_printf(sc->mfi_dev, "Cannot allocate interrupt\n");
+		error = EINVAL;
 		goto out;
 	}
 
@@ -240,8 +276,8 @@ static int
 mfi_pci_detach(device_t dev)
 {
 	struct mfi_softc *sc;
-	struct mfi_disk *ld;
-	int error;
+	int error, devcount, i;
+	device_t *devlist;
 
 	sc = device_get_softc(dev);
 
@@ -255,13 +291,13 @@ mfi_pci_detach(device_t dev)
 	sc->mfi_detaching = 1;
 	mtx_unlock(&sc->mfi_io_lock);
 
-	while ((ld = TAILQ_FIRST(&sc->mfi_ld_tqh)) != NULL) {
-		if ((error = device_delete_child(dev, ld->ld_dev)) != 0) {
-			sc->mfi_detaching = 0;
-			sx_xunlock(&sc->mfi_config_lock);
-			return (error);
-		}
+	if ((error = device_get_children(sc->mfi_dev, &devlist, &devcount)) != 0) {
+		sx_xunlock(&sc->mfi_config_lock);
+		return error;
 	}
+	for (i = 0; i < devcount; i++)
+		device_delete_child(sc->mfi_dev, devlist[i]);
+	free(devlist, M_TEMP);
 	sx_xunlock(&sc->mfi_config_lock);
 
 	EVENTHANDLER_DEREGISTER(shutdown_final, sc->mfi_eh);
@@ -280,6 +316,8 @@ mfi_pci_free(struct mfi_softc *sc)
 		bus_release_resource(sc->mfi_dev, SYS_RES_MEMORY,
 		    sc->mfi_regs_rid, sc->mfi_regs_resource);
 	}
+	if (sc->mfi_irq_rid != 0)
+		pci_release_msi(sc->mfi_dev);
 
 	return;
 }

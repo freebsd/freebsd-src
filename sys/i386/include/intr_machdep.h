@@ -60,10 +60,10 @@
  * - 1 ??? dummy counter.
  * - 2 counters for each I/O interrupt.
  * - 1 counter for each CPU for lapic timer.
- * - 7 counters for each CPU for IPI counters for SMP.
+ * - 9 counters for each CPU for IPI counters for SMP.
  */
 #ifdef SMP
-#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 7) * MAXCPU)
+#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 9) * MAXCPU)
 #else
 #define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + 1)
 #endif
@@ -123,6 +123,9 @@ struct trapframe;
 extern struct mtx icu_lock;
 extern int elcr_found;
 
+#ifndef DEV_ATPIC
+void	atpic_reset(void);
+#endif
 /* XXX: The elcr_* prototypes probably belong somewhere else. */
 int	elcr_probe(void);
 enum intr_trigger elcr_read_trigger(u_int irq);

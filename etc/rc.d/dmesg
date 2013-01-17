@@ -4,14 +4,14 @@
 #
 
 # PROVIDE: dmesg
-# REQUIRE: mountcritremote cleanvar
+# REQUIRE: mountcritremote FILESYSTEMS
 # BEFORE:  DAEMON
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="dmesg"
-rcvar=`set_rcvar`
+rcvar="dmesg_enable"
 dmesg_file="/var/run/dmesg.boot"
 start_cmd="do_dmesg"
 stop_cmd=":"

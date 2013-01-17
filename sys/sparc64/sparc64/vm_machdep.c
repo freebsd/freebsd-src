@@ -368,7 +368,7 @@ cpu_reset(void)
 		(cell_t)bspec
 	};
 
-	if ((chosen = OF_finddevice("/chosen")) != 0) {
+	if ((chosen = OF_finddevice("/chosen")) != -1) {
 		if (OF_getprop(chosen, "bootpath", bspec, sizeof(bspec)) == -1)
 			bspec[0] = '\0';
 		bspec[sizeof(bspec) - 1] = '\0';
@@ -493,7 +493,6 @@ swi_vm(void *v)
 void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	static vm_pindex_t color;
 	vm_paddr_t pa;
 	vm_page_t m;
 	int pflags;
@@ -502,17 +501,10 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	PMAP_STATS_INC(uma_nsmall_alloc);
 
 	*flags = UMA_SLAB_PRIV;
-
-	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-
-	if (wait & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
+	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
 	for (;;) {
-		m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);

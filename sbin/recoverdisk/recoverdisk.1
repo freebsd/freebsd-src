@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2011
+.Dd January 5, 2012
 .Dt RECOVERDISK 1
 .Os
 .Sh NAME
@@ -124,7 +124,11 @@ recoverdisk -b 0 /dev/ad3 /somewhere
 
 .Ed
 .Sh SEE ALSO
-.Xr dd 1
+.Xr dd 1 ,
+.Xr ada 4,
+.Xr cam 4,
+.Xr cd 4,
+.Xr da 4
 .Sh HISTORY
 The
 .Nm
@@ -149,6 +153,18 @@ flying by.
 This is harmless and can be avoided by setting
 .Fl b
 to no more than 128kB.
+.Pp
+.Nm
+needs to know about read errors as fast as possible, i.e. retries by lower
+layers will usually slow down the operation.
+When using
+.Xr cam 4
+attached drives, you may want to set kern.cam.XX.retry_count to zero, e.g.:
+.Bd -literal
+# sysctl kern.cam.ada.retry_count=0
+# sysctl kern.cam.cd.retry_count=0
+# sysctl kern.cam.da.retry_count=0
+.Ed
 .\".Pp
 .\"When reading from optical media, a bug in the GEOM framework will
 .\"prevent it from seeing that the media has been removed.

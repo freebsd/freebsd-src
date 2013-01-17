@@ -22,7 +22,6 @@ namespace clang {
 namespace serialization {
 
 enum DeclUpdateKind {
-  UPD_CXX_SET_DEFINITIONDATA,
   UPD_CXX_ADDED_IMPLICIT_MEMBER,
   UPD_CXX_ADDED_TEMPLATE_SPECIALIZATION,
   UPD_CXX_ADDED_ANONYMOUS_NAMESPACE,
@@ -51,6 +50,8 @@ TypeID MakeTypeID(ASTContext &Context, QualType T, IdxForTypeTy IdxForType) {
     return TypeIdx(PREDEF_TYPE_AUTO_DEDUCT).asTypeID(FastQuals);
   if (T == Context.AutoRRefDeductTy)
     return TypeIdx(PREDEF_TYPE_AUTO_RREF_DEDUCT).asTypeID(FastQuals);
+  if (T == Context.VaListTagTy)
+    return TypeIdx(PREDEF_TYPE_VA_LIST_TAG).asTypeID(FastQuals);
 
   return IdxForType(T).asTypeID(FastQuals);
 }

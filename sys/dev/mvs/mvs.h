@@ -61,6 +61,9 @@
 
 #define CHIP_SOC_LED		0x2C	/* SoC LED Configuration */
 
+/* Additional mask for SoC devices with less than 4 channels */
+#define CHIP_SOC_HC0_MASK(num)	(0xff >> ((4 - (num)) * 2))
+
 /* Chip CCC registers */
 #define CHIP_ICC		0x18008
 #define CHIP_ICC_ALL_PORTS	 (1 << 4)	/* all ports irq event */
@@ -379,6 +382,10 @@
 #define SATA_FISDW5			0x384	/* FIS DW5 */
 #define SATA_FISDW6			0x388	/* FIS DW6 */
 
+#define SATA_PHYM9_GEN2			0x398
+#define SATA_PHYM9_GEN1			0x39c
+#define SATA_PHYCFG_OFS			0x3a0	/* 65nm SoCs only */
+
 #define MVS_MAX_PORTS			8
 #define MVS_MAX_SLOTS			32
 
@@ -534,6 +541,7 @@ struct mvs_channel {
 #define MVS_Q_GENIIE	4
 #define MVS_Q_SOC	8
 #define MVS_Q_CT	16
+#define MVS_Q_SOC65	32
 	int			pm_level;	/* power management level */
 
 	struct mvs_slot		slot[MVS_MAX_SLOTS];

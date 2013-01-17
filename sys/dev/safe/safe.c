@@ -99,16 +99,12 @@ static device_method_t safe_methods[] = {
 	DEVMETHOD(device_resume,	safe_resume),
 	DEVMETHOD(device_shutdown,	safe_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	safe_newsession),
 	DEVMETHOD(cryptodev_freesession,safe_freesession),
 	DEVMETHOD(cryptodev_process,	safe_process),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t safe_driver = {
 	"safe",
@@ -147,7 +143,8 @@ static	void safe_totalreset(struct safe_softc *);
 
 static	int safe_free_entry(struct safe_softc *, struct safe_ringentry *);
 
-SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD, 0, "SafeNet driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD, 0,
+    "SafeNet driver parameters");
 
 #ifdef SAFE_DEBUG
 static	void safe_dump_dmastatus(struct safe_softc *, const char *);
@@ -291,7 +288,7 @@ safe_attach(device_t dev)
 	/*
 	 * Setup DMA descriptor area.
 	 */
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       1,			/* alignment */
 			       SAFE_DMA_BOUNDARY,	/* boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
@@ -306,7 +303,7 @@ safe_attach(device_t dev)
 		device_printf(dev, "cannot allocate DMA tag\n");
 		goto bad4;
 	}
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       1,			/* alignment */
 			       SAFE_MAX_DSIZE,		/* boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
@@ -1328,15 +1325,15 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 				totlen = re->re_src_mapsize;
 				if (re->re_src_m->m_flags & M_PKTHDR) {
 					len = MHLEN;
-					MGETHDR(m, M_DONTWAIT, MT_DATA);
+					MGETHDR(m, M_NOWAIT, MT_DATA);
 					if (m && !m_dup_pkthdr(m, re->re_src_m,
-					    M_DONTWAIT)) {
+					    M_NOWAIT)) {
 						m_free(m);
 						m = NULL;
 					}
 				} else {
 					len = MLEN;
-					MGET(m, M_DONTWAIT, MT_DATA);
+					MGET(m, M_NOWAIT, MT_DATA);
 				}
 				if (m == NULL) {
 					safestats.st_nombuf++;
@@ -1344,7 +1341,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 					goto errout;
 				}
 				if (totlen >= MINCLSIZE) {
-					MCLGET(m, M_DONTWAIT);
+					MCLGET(m, M_NOWAIT);
 					if ((m->m_flags & M_EXT) == 0) {
 						m_free(m);
 						safestats.st_nomcl++;
@@ -1360,7 +1357,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 
 				while (totlen > 0) {
 					if (top) {
-						MGET(m, M_DONTWAIT, MT_DATA);
+						MGET(m, M_NOWAIT, MT_DATA);
 						if (m == NULL) {
 							m_freem(top);
 							safestats.st_nombuf++;
@@ -1371,7 +1368,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 						len = MLEN;
 					}
 					if (top && totlen >= MINCLSIZE) {
-						MCLGET(m, M_DONTWAIT);
+						MCLGET(m, M_NOWAIT);
 						if ((m->m_flags & M_EXT) == 0) {
 							*mp = m;
 							m_freem(top);
@@ -1806,7 +1803,7 @@ safe_dma_malloc(
 {
 	int r;
 
-	r = bus_dma_tag_create(NULL,			/* parent */
+	r = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 			       sizeof(u_int32_t), 0,	/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */

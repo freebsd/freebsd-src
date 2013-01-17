@@ -17,18 +17,19 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/LexDiagnostic.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallString.h"
 using namespace clang;
 
 
 /// Create a TokenLexer for the specified macro with the specified actual
 /// arguments.  Note that this ctor takes ownership of the ActualArgs pointer.
-void TokenLexer::Init(Token &Tok, SourceLocation ELEnd, MacroArgs *Actuals) {
+void TokenLexer::Init(Token &Tok, SourceLocation ELEnd, MacroInfo *MI,
+                      MacroArgs *Actuals) {
   // If the client is reusing a TokenLexer, make sure to free any memory
   // associated with it.
   destroy();
 
-  Macro = PP.getMacroInfo(Tok.getIdentifierInfo());
+  Macro = MI;
   ActualArgs = Actuals;
   CurToken = 0;
 
@@ -118,6 +119,55 @@ void TokenLexer::destroy() {
   if (ActualArgs) ActualArgs->destroy(PP);
 }
 
+/// Remove comma ahead of __VA_ARGS__, if present, according to compiler dialect
+/// settings.  Returns true if the comma is removed.
+static bool MaybeRemoveCommaBeforeVaArgs(SmallVector<Token, 128> &ResultToks,
+                                         bool &NextTokGetsSpace,
+                                         bool HasPasteOperator,
+                                         MacroInfo *Macro, unsigned MacroArgNo,
+                                         Preprocessor &PP) {
+  // Is the macro argument __VA_ARGS__?
+  if (!Macro->isVariadic() || MacroArgNo != Macro->getNumArgs()-1)
+    return false;
+
+  // In Microsoft-compatibility mode, a comma is removed in the expansion
+  // of " ... , __VA_ARGS__ " if __VA_ARGS__ is empty.  This extension is
+  // not supported by gcc.
+  if (!HasPasteOperator && !PP.getLangOpts().MicrosoftMode)
+    return false;
+
+  // GCC removes the comma in the expansion of " ... , ## __VA_ARGS__ " if
+  // __VA_ARGS__ is empty, but not in strict C99 mode where there are no
+  // named arguments, where it remains.  In all other modes, including C99
+  // with GNU extensions, it is removed regardless of named arguments.
+  // Microsoft also appears to support this extension, unofficially.
+  if (PP.getLangOpts().C99 && !PP.getLangOpts().GNUMode
+        && Macro->getNumArgs() < 2)
+    return false;
+
+  // Is a comma available to be removed?
+  if (ResultToks.empty() || !ResultToks.back().is(tok::comma))
+    return false;
+
+  // Issue an extension diagnostic for the paste operator.
+  if (HasPasteOperator)
+    PP.Diag(ResultToks.back().getLocation(), diag::ext_paste_comma);
+
+  // Remove the comma.
+  ResultToks.pop_back();
+
+  // If the comma was right after another paste (e.g. "X##,##__VA_ARGS__"),
+  // then removal of the comma should produce a placemarker token (in C99
+  // terms) which we model by popping off the previous ##, giving us a plain
+  // "X" when __VA_ARGS__ is empty.
+  if (!ResultToks.empty() && ResultToks.back().is(tok::hashhash))
+    ResultToks.pop_back();
+
+  // Never add a space, even if the comma, ##, or arg had a space.
+  NextTokGetsSpace = false;
+  return true;
+}
+
 /// Expand the arguments of a function-like macro so that we can quickly
 /// return preexpanded tokens from Tokens.
 void TokenLexer::ExpandFunctionArguments() {
@@ -198,6 +248,14 @@ void TokenLexer::ExpandFunctionArguments() {
       !ResultToks.empty() && ResultToks.back().is(tok::hashhash);
     bool PasteAfter = i+1 != e && Tokens[i+1].is(tok::hashhash);
 
+    // In Microsoft mode, remove the comma before __VA_ARGS__ to ensure there
+    // are no trailing commas if __VA_ARGS__ is empty.
+    if (!PasteBefore && ActualArgs->isVarargsElidedUse() &&
+        MaybeRemoveCommaBeforeVaArgs(ResultToks, NextTokGetsSpace,
+                                     /*HasPasteOperator=*/false,
+                                     Macro, ArgNo, PP))
+      continue;
+
     // If it is not the LHS/RHS of a ## operator, we must pre-expand the
     // argument and substitute the expanded tokens into the result.  This is
     // C99 6.10.3.1p1.
@@ -252,9 +310,9 @@ void TokenLexer::ExpandFunctionArguments() {
     const Token *ArgToks = ActualArgs->getUnexpArgument(ArgNo);
     unsigned NumToks = MacroArgs::getArgLength(ArgToks);
     if (NumToks) {  // Not an empty argument?
-      // If this is the GNU ", ## __VA_ARG__" extension, and we just learned
-      // that __VA_ARG__ expands to multiple tokens, avoid a pasting error when
-      // the expander trys to paste ',' with the first token of the __VA_ARG__
+      // If this is the GNU ", ## __VA_ARGS__" extension, and we just learned
+      // that __VA_ARGS__ expands to multiple tokens, avoid a pasting error when
+      // the expander trys to paste ',' with the first token of the __VA_ARGS__
       // expansion.
       if (PasteBefore && ResultToks.size() >= 2 &&
           ResultToks[ResultToks.size()-2].is(tok::comma) &&
@@ -320,23 +378,13 @@ void TokenLexer::ExpandFunctionArguments() {
 
     // If this is the __VA_ARGS__ token, and if the argument wasn't provided,
     // and if the macro had at least one real argument, and if the token before
-    // the ## was a comma, remove the comma.
-    if ((unsigned)ArgNo == Macro->getNumArgs()-1 && // is __VA_ARGS__
-        ActualArgs->isVarargsElidedUse() &&       // Argument elided.
-        !ResultToks.empty() && ResultToks.back().is(tok::comma)) {
-      // Never add a space, even if the comma, ##, or arg had a space.
-      NextTokGetsSpace = false;
-      // Remove the paste operator, report use of the extension.
-      PP.Diag(ResultToks.back().getLocation(), diag::ext_paste_comma);
-      ResultToks.pop_back();
-      
-      // If the comma was right after another paste (e.g. "X##,##__VA_ARGS__"),
-      // then removal of the comma should produce a placemarker token (in C99
-      // terms) which we model by popping off the previous ##, giving us a plain
-      // "X" when __VA_ARGS__ is empty.
-      if (!ResultToks.empty() && ResultToks.back().is(tok::hashhash))
-        ResultToks.pop_back();
-    }
+    // the ## was a comma, remove the comma.  This is a GCC extension which is
+    // disabled when using -std=c99.
+    if (ActualArgs->isVarargsElidedUse())
+      MaybeRemoveCommaBeforeVaArgs(ResultToks, NextTokGetsSpace,
+                                   /*HasPasteOperator=*/true,
+                                   Macro, ArgNo, PP);
+
     continue;
   }
 
@@ -450,7 +498,7 @@ void TokenLexer::Lex(Token &Tok) {
 /// are more ## after it, chomp them iteratively.  Return the result as Tok.
 /// If this returns true, the caller should immediately return the token.
 bool TokenLexer::PasteTokens(Token &Tok) {
-  llvm::SmallString<128> Buffer;
+  SmallString<128> Buffer;
   const char *ResultTokStrPtr = 0;
   SourceLocation StartLoc = Tok.getLocation();
   SourceLocation PasteOpLoc;
@@ -494,7 +542,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
     // Claim that the tmp token is a string_literal so that we can get the
     // character pointer back from CreateString in getLiteralData().
     ResultTokTmp.setKind(tok::string_literal);
-    PP.CreateString(&Buffer[0], Buffer.size(), ResultTokTmp);
+    PP.CreateString(Buffer, ResultTokTmp);
     SourceLocation ResultTokLoc = ResultTokTmp.getLocation();
     ResultTokStrPtr = ResultTokTmp.getLiteralData();
 
@@ -527,7 +575,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
       // Make a lexer to lex this string from.  Lex just this one token.
       // Make a lexer object so that we lex and expand the paste result.
       Lexer TL(SourceMgr.getLocForStartOfFile(LocFileID),
-               PP.getLangOptions(), ScratchBufStart,
+               PP.getLangOpts(), ScratchBufStart,
                ResultTokStrPtr, ResultTokStrPtr+LHSLen+RHSLen);
 
       // Lex a token in raw mode.  This way it won't look up identifiers
@@ -546,14 +594,14 @@ bool TokenLexer::PasteTokens(Token &Tok) {
       if (isInvalid) {
         // Test for the Microsoft extension of /##/ turning into // here on the
         // error path.
-        if (PP.getLangOptions().MicrosoftExt && Tok.is(tok::slash) &&
+        if (PP.getLangOpts().MicrosoftExt && Tok.is(tok::slash) &&
             RHS.is(tok::slash)) {
           HandleMicrosoftCommentPaste(Tok);
           return true;
         }
 
         // Do not emit the error when preprocessing assembler code.
-        if (!PP.getLangOptions().AsmPreprocessor) {
+        if (!PP.getLangOpts().AsmPreprocessor) {
           // Explicitly convert the token location to have proper expansion
           // information so that the user knows where it came from.
           SourceManager &SM = PP.getSourceManager();
@@ -563,13 +611,13 @@ bool TokenLexer::PasteTokens(Token &Tok) {
           // error to a warning that defaults to an error.  This allows
           // disabling it.
           PP.Diag(Loc,
-                  PP.getLangOptions().MicrosoftExt ? diag::err_pp_bad_paste_ms 
+                  PP.getLangOpts().MicrosoftExt ? diag::err_pp_bad_paste_ms 
                                                    : diag::err_pp_bad_paste)
             << Buffer.str();
         }
 
-        // Do not consume the RHS.
-        --CurToken;
+        // An error has occurred so exit loop.
+        break;
       }
 
       // Turn ## into 'unknown' to avoid # ## # from looking like a paste
@@ -578,7 +626,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
         Result.setKind(tok::unknown);
     }
 
-    // Transfer properties of the LHS over the the Result.
+    // Transfer properties of the LHS over the Result.
     Result.setFlagValue(Token::StartOfLine , Tok.isAtStartOfLine());
     Result.setFlagValue(Token::LeadingSpace, Tok.hasLeadingSpace());
     

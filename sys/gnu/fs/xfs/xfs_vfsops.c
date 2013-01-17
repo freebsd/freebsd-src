@@ -1743,8 +1743,7 @@ xfs_parseargs(
 	while ((this_char = strsep(&options, ",")) != NULL) {
 		if (!*this_char)
 			continue;
-
-		if ((value = index(this_char, '=')) != NULL)
+		if ((value = strchr(this_char, '=')) != NULL)
 			*value++ = 0;
 
 		if (!strcmp(this_char, MNTOPT_LOGBUFS)) {
@@ -1955,7 +1954,7 @@ xfs_showargs(
 
 	for (xfs_infop = xfs_info; xfs_infop->flag; xfs_infop++) {
 		if (mp->m_flags & xfs_infop->flag)
-			sbuf_printf(m, xfs_infop->str);
+			sbuf_printf(m, "%s", xfs_infop->str);
 	}
 
 	if (mp->m_flags & XFS_MOUNT_IHASHSIZE)

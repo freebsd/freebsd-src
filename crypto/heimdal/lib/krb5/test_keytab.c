@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -32,8 +32,7 @@
 
 #include "krb5_locl.h"
 #include <err.h>
-
-RCSID("$Id: test_keytab.c 18809 2006-10-22 07:11:43Z lha $");
+#include <getarg.h>
 
 /*
  * Test that removal entry from of empty keytab doesn't corrupts
@@ -54,6 +53,10 @@ test_empty_keytab(krb5_context context, const char *keytab)
     memset(&entry, 0, sizeof(entry));
 
     krb5_kt_remove_entry(context, id, &entry);
+
+    ret = krb5_kt_have_content(context, id);
+    if (ret == 0)
+	krb5_errx(context, 1, "supposed to be empty keytab isn't");
 
     ret = krb5_kt_close(context, id);
     if (ret)
@@ -167,23 +170,120 @@ test_memory_keytab(krb5_context context, const char *keytab, const char *keytab2
     krb5_free_keyblock_contents(context, &entry3.keyblock);
 }
 
+static void
+perf_add(krb5_context context, krb5_keytab id, int times)
+{
+}
+
+static void
+perf_find(krb5_context context, krb5_keytab id, int times)
+{
+}
+
+static void
+perf_delete(krb5_context context, krb5_keytab id, int forward, int times)
+{
+}
+
+
+static int version_flag = 0;
+static int help_flag	= 0;
+static char *perf_str   = NULL;
+static int times = 1000;
+
+static struct getargs args[] = {
+    {"performance",	0,	arg_string,	&perf_str,
+     "test performance for named keytab", "keytab" },
+    {"times",	0,	arg_integer,	&times,
+     "number of times to run the perforamce test", "number" },
+    {"version",	0,	arg_flag,	&version_flag,
+     "print version", NULL },
+    {"help",	0,	arg_flag,	&help_flag,
+     NULL, NULL }
+};
+
+static void
+usage (int ret)
+{
+    arg_printusage (args,
+		    sizeof(args)/sizeof(*args),
+		    NULL,
+		    "");
+    exit (ret);
+}
+
 int
 main(int argc, char **argv)
 {
     krb5_context context;
     krb5_error_code ret;
+    int optidx = 0;
 
     setprogname(argv[0]);
+
+    if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
+	usage(1);
+
+    if (help_flag)
+	usage (0);
+
+    if(version_flag){
+	print_version(NULL);
+	exit(0);
+    }
+
+    argc -= optidx;
+    argv += optidx;
+
+    if (argc != 0)
+	errx(1, "argc != 0");
 
     ret = krb5_init_context(&context);
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
 
-    test_empty_keytab(context, "MEMORY:foo");
-    test_empty_keytab(context, "FILE:foo");
-    test_empty_keytab(context, "KRB4:foo");
+    if (perf_str) {
+	krb5_keytab id;
 
-    test_memory_keytab(context, "MEMORY:foo", "MEMORY:foo2");
+	ret = krb5_kt_resolve(context, perf_str, &id);
+	if (ret)
+	    krb5_err(context, 1, ret, "krb5_kt_resolve: %s", perf_str);
+
+	/* add, find, delete on keytab */
+	perf_add(context, id, times);
+	perf_find(context, id, times);
+	perf_delete(context, id, 0, times);
+
+	/* add and find again on used keytab */
+	perf_add(context, id, times);
+	perf_find(context, id, times);
+
+	ret = krb5_kt_destroy(context, id);
+	if (ret)
+	    krb5_err(context, 1, ret, "krb5_kt_destroy: %s", perf_str);
+
+	ret = krb5_kt_resolve(context, perf_str, &id);
+	if (ret)
+	    krb5_err(context, 1, ret, "krb5_kt_resolve: %s", perf_str);
+
+	/* try delete backwards */
+#if 0
+	perf_add(context, id, times);
+	perf_delete(context, id, 1, times);
+#endif
+
+	ret = krb5_kt_destroy(context, id);
+	if (ret)
+	    krb5_err(context, 1, ret, "krb5_kt_destroy");
+
+    } else {
+
+	test_empty_keytab(context, "MEMORY:foo");
+	test_empty_keytab(context, "FILE:foo");
+
+	test_memory_keytab(context, "MEMORY:foo", "MEMORY:foo2");
+
+    }
 
     krb5_free_context(context);
 

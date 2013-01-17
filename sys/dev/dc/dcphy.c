@@ -95,7 +95,7 @@ static device_method_t dcphy_methods[] = {
 	DEVMETHOD(device_attach,	dcphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t dcphy_devclass;
@@ -294,7 +294,7 @@ static void
 dcphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	int reg, anlpar, tstat = 0;
+	int anlpar, tstat;
 	struct dc_softc		*dc_sc;
 
 	dc_sc = mii->mii_ifp->if_softc;
@@ -305,13 +305,12 @@ dcphy_status(struct mii_softc *sc)
 	if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 		return;
 
-	reg = CSR_READ_4(dc_sc, DC_10BTSTAT);
-	if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
+	tstat = CSR_READ_4(dc_sc, DC_10BTSTAT);
+	if (!(tstat & DC_TSTAT_LS10) || !(tstat & DC_TSTAT_LS100))
 		mii->mii_media_status |= IFM_ACTIVE;
 
 	if (CSR_READ_4(dc_sc, DC_10BTCTRL) & DC_TCTL_AUTONEGENBL) {
 		/* Erg, still trying, I guess... */
-		tstat = CSR_READ_4(dc_sc, DC_10BTSTAT);
 		if ((tstat & DC_TSTAT_ANEGSTAT) != DC_ASTAT_AUTONEGCMP) {
 			if ((DC_IS_MACRONIX(dc_sc) || DC_IS_PNICII(dc_sc)) &&
 			    (tstat & DC_TSTAT_ANEGSTAT) == DC_ASTAT_DISABLE)
@@ -351,9 +350,9 @@ dcphy_status(struct mii_softc *sc)
 		 * and hope that the user is clever enough to manually
 		 * change the media settings if we're wrong.
 		 */
-		if (!(reg & DC_TSTAT_LS100))
+		if (!(tstat & DC_TSTAT_LS100))
 			mii->mii_media_active |= IFM_100_TX | IFM_HDX;
-		else if (!(reg & DC_TSTAT_LS10))
+		else if (!(tstat & DC_TSTAT_LS10))
 			mii->mii_media_active |= IFM_10_T | IFM_HDX;
 		else
 			mii->mii_media_active |= IFM_NONE;

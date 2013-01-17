@@ -100,52 +100,34 @@
 #define _MPT_H_
 
 /********************************* OS Includes ********************************/
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/condvar.h>
 #include <sys/endian.h>
 #include <sys/eventhandler.h>
-#if __FreeBSD_version < 500000  
 #include <sys/kernel.h>
-#include <sys/queue.h>
-#include <sys/malloc.h>
-#include <sys/devicestat.h>
-#else
 #include <sys/lock.h>
-#include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#endif
-#include <sys/proc.h>
-#include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/rman.h>
+#include <sys/types.h>
 
+#include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/resource.h>
-
-#if __FreeBSD_version < 500000  
-#include <machine/bus.h>
-#include <machine/clock.h>
-#endif
 
 #ifdef __sparc64__
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
 #endif
 
-#include <sys/rman.h>
-
-#if __FreeBSD_version < 500000  
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#else
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#endif
 
-#include <machine/bus.h>
 #include "opt_ddb.h"
 
 /**************************** Register Definitions ****************************/
@@ -241,7 +223,6 @@ int mpt_modevent(module_t, int, void *);
 #if __FreeBSD_version < 600000
 #define	bus_get_dma_tag(x)	NULL
 #endif
-#if __FreeBSD_version >= 501102
 #define mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
 			   lowaddr, highaddr, filter, filterarg,	\
 			   maxsize, nsegments, maxsegsz, flags,		\
@@ -251,17 +232,6 @@ int mpt_modevent(module_t, int, void *);
 			   maxsize, nsegments, maxsegsz, flags,		\
 			   busdma_lock_mutex, &(mpt)->mpt_lock,		\
 			   dma_tagp)
-#else
-#define mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)					\
-	bus_dma_tag_create(parent_tag, alignment, boundary,		\
-			   lowaddr, highaddr, filter, filterarg,	\
-			   maxsize, nsegments, maxsegsz, flags,		\
-			   dma_tagp)
-#endif
-
 struct mpt_map_info {
 	struct mpt_softc *mpt;
 	int		  error;
@@ -291,14 +261,9 @@ void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 	kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
 #define	mpt_kthread_exit(status)	\
 	kproc_exit(status)
-#elif __FreeBSD_version > 500005
-#define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#define	mpt_kthread_exit(status)	\
-	kthread_exit(status)
 #else
 #define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kthread_create(func, farg, proc_ptr, fmtstr, arg)
+	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
 #define	mpt_kthread_exit(status)	\
 	kthread_exit(status)
 #endif
@@ -599,16 +564,11 @@ struct mptsas_portinfo {
 
 struct mpt_softc {
 	device_t		dev;
-#if __FreeBSD_version < 500000  
-	uint32_t		mpt_islocked;	
-	int			mpt_splsaved;
-#else
 	struct mtx		mpt_lock;
 	int			mpt_locksetup;
-#endif
 	uint32_t		mpt_pers_mask;
 	uint32_t
-				: 8,
+				: 7,
 		unit		: 8,
 		ready		: 1,
 		fw_uploaded	: 1,
@@ -625,7 +585,8 @@ struct mpt_softc {
 		disabled	: 1,
 		is_spi		: 1,
 		is_sas		: 1,
-		is_fc		: 1;
+		is_fc		: 1,
+		is_1078		: 1;
 
 	u_int			cfg_role;
 	u_int			role;	/* role: none, ini, target, both */
@@ -675,7 +636,6 @@ struct mpt_softc {
 #define	mpt_fcport_speed	cfg.fc._port_speed
 		} fc;
 	} cfg;
-#if __FreeBSD_version >= 500000  
 	/*
 	 * Device config information stored up for sysctl to access
 	 */
@@ -688,7 +648,6 @@ struct mpt_softc {
 			char wwpn[19];
 		} fc;
 	} scinfo;
-#endif
 
 	/* Controller Info for RAID information */
 	CONFIG_PAGE_IOC_2 *	ioc_page2;
@@ -715,7 +674,9 @@ struct mpt_softc {
 	int			pci_msi_count;
 	struct resource *	pci_irq;	/* Interrupt map for chip */
 	void *			ih;		/* Interrupt handle */
+#if 0
 	struct mpt_pci_cfg	pci_cfg;	/* saved PCI conf registers */
+#endif
 
 	/*
 	 * DMA Mapping Stuff
@@ -827,75 +788,6 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 }
 
 /***************************** Locking Primitives *****************************/
-#if __FreeBSD_version < 500000  
-#define	MPT_IFLAGS		INTR_TYPE_CAM
-#define	MPT_LOCK(mpt)		mpt_lockspl(mpt)
-#define	MPT_UNLOCK(mpt)		mpt_unlockspl(mpt)
-#define	MPT_OWNED(mpt)		mpt->mpt_islocked
-#define	MPT_LOCK_ASSERT(mpt)
-#define	MPTLOCK_2_CAMLOCK	MPT_UNLOCK
-#define	CAMLOCK_2_MPTLOCK	MPT_LOCK
-#define	MPT_LOCK_SETUP(mpt)
-#define	MPT_LOCK_DESTROY(mpt)
-
-static __inline void mpt_lockspl(struct mpt_softc *mpt);
-static __inline void mpt_unlockspl(struct mpt_softc *mpt);
-
-static __inline void
-mpt_lockspl(struct mpt_softc *mpt)
-{
-       int s;
-
-       s = splcam();
-       if (mpt->mpt_islocked++ == 0) {  
-               mpt->mpt_splsaved = s;
-       } else {
-               splx(s);
-	       panic("Recursed lock with mask: 0x%x\n", s);
-       }
-}
-
-static __inline void
-mpt_unlockspl(struct mpt_softc *mpt)
-{
-       if (mpt->mpt_islocked) {
-               if (--mpt->mpt_islocked == 0) {
-                       splx(mpt->mpt_splsaved);
-               }
-       } else
-	       panic("Negative lock count\n");
-}
-
-static __inline int
-mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
-	   const char *wmesg, int timo)
-{
-	int saved_cnt;
-	int saved_spl;
-	int error;
-
-	KASSERT(mpt->mpt_islocked <= 1, ("Invalid lock count on tsleep"));
-	saved_cnt = mpt->mpt_islocked;
-	saved_spl = mpt->mpt_splsaved;
-	mpt->mpt_islocked = 0;
-	error = tsleep(ident, priority, wmesg, timo);
-	KASSERT(mpt->mpt_islocked == 0, ("Invalid lock count on wakeup"));
-	mpt->mpt_islocked = saved_cnt;
-	mpt->mpt_splsaved = saved_spl;
-	return (error);
-}
-
-#define mpt_req_timeout(req, ticks, func, arg) \
-	callout_reset(&(req)->callout, (ticks), (func), (arg));
-#define mpt_req_untimeout(req, func, arg) \
-	callout_stop(&(req)->callout)
-#define mpt_callout_init(mpt, c) \
-	callout_init(c)
-#define mpt_callout_drain(mpt, c) \
-	callout_stop(c)
-
-#else
-#if 1
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #define	MPT_LOCK_SETUP(mpt)						\
 		mtx_init(&mpt->mpt_lock, "mpt", NULL, MTX_DEF);		\
@@ -910,8 +802,6 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 #define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
 #define	MPT_OWNED(mpt)		mtx_owned(&(mpt)->mpt_lock)
 #define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&(mpt)->mpt_lock, MA_OWNED)
-#define	MPTLOCK_2_CAMLOCK(mpt)
-#define	CAMLOCK_2_MPTLOCK(mpt)
 #define mpt_sleep(mpt, ident, priority, wmesg, timo) \
 	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
 #define mpt_req_timeout(req, ticks, func, arg) \
@@ -922,39 +812,6 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 	callout_init_mtx(c, &(mpt)->mpt_lock, 0)
 #define mpt_callout_drain(mpt, c) \
 	callout_drain(c)
-
-#else
-
-#define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY
-#define	MPT_LOCK_SETUP(mpt)	do { } while (0)
-#define	MPT_LOCK_DESTROY(mpt)	do { } while (0)
-#define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&Giant, MA_OWNED)
-#define	MPT_LOCK(mpt)		mtx_lock(&Giant)
-#define	MPT_UNLOCK(mpt)		mtx_unlock(&Giant)
-#define	MPTLOCK_2_CAMLOCK(mpt)
-#define	CAMLOCK_2_MPTLOCK(mpt)
-
-#define mpt_req_timeout(req, ticks, func, arg) \
-	callout_reset(&(req)->callout, (ticks), (func), (arg))
-#define mpt_req_untimeout(req, func, arg) \
-	callout_stop(&(req)->callout)
-#define mpt_callout_init(mpt, c) \
-	callout_init(c, 0)
-#define mpt_callout_drain(mpt, c) \
-	callout_drain(c)
-
-static __inline int
-mpt_sleep(struct mpt_softc *, void *, int, const char *, int);
-
-static __inline int
-mpt_sleep(struct mpt_softc *mpt, void *i, int p, const char *w, int t)
-{
-	int r;
-	r = tsleep(i, p, w, t);
-	return (r);
-}
-#endif
-#endif
 
 /******************************* Register Access ******************************/
 static __inline void mpt_write(struct mpt_softc *, size_t, uint32_t);
@@ -982,12 +839,14 @@ mpt_read(struct mpt_softc *mpt, int offset)
 static __inline void
 mpt_pio_write(struct mpt_softc *mpt, size_t offset, uint32_t val)
 {
+	KASSERT(mpt->pci_pio_reg != NULL, ("no PIO resource"));
 	bus_space_write_4(mpt->pci_pio_st, mpt->pci_pio_sh, offset, val);
 }
 
 static __inline uint32_t
 mpt_pio_read(struct mpt_softc *mpt, int offset)
 {
+	KASSERT(mpt->pci_pio_reg != NULL, ("no PIO resource"));
 	return (bus_space_read_4(mpt->pci_pio_st, mpt->pci_pio_sh, offset));
 }
 /*********************** Reply Frame/Request Management ***********************/
@@ -1093,7 +952,6 @@ enum {
 	MPT_PRT_NONE=100
 };
 
-#if __FreeBSD_version > 500000
 #define mpt_lprt(mpt, level, ...)		\
 do {						\
 	if (level <= (mpt)->verbose)		\
@@ -1107,14 +965,7 @@ do {						\
 		mpt_prtc(mpt, __VA_ARGS__);	\
 } while (0)
 #endif
-#else
-void mpt_lprt(struct mpt_softc *, int, const char *, ...)
-	__printflike(3, 4);
-#if 0
-void mpt_lprtc(struct mpt_softc *, int, const char *, ...)
-	__printflike(3, 4);
-#endif
-#endif
+
 void mpt_prt(struct mpt_softc *, const char *, ...)
 	__printflike(2, 3);
 void mpt_prtc(struct mpt_softc *, const char *, ...)
@@ -1144,7 +995,7 @@ static __inline request_t *
 mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
 {
 	uint16_t rtg = (tag >> 18);
-	KASSERT(rtg < mpt->tgt_cmds_allocated, ("bad tag %d\n", tag));
+	KASSERT(rtg < mpt->tgt_cmds_allocated, ("bad tag %d", tag));
 	KASSERT(mpt->tgt_cmd_ptrs, ("no cmd backpointer array"));
 	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
 	return (mpt->tgt_cmd_ptrs[rtg]);
@@ -1211,7 +1062,7 @@ mpt_req_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
 			return;
 		}
 	}
-	panic("%s(%d): req %p:%u function %x not in els or tgt ptrs\n",
+	panic("%s(%d): req %p:%u function %x not in els or tgt ptrs",
 	    s, line, req, req->serno,
 	    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function);
 }
@@ -1225,13 +1076,13 @@ mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
 	int i;
 	for (i = 0; i < mpt->els_cmds_allocated; i++) {
 		KASSERT(req != mpt->els_cmd_ptrs[i],
-		    ("%s(%d): req %p:%u func %x in els ptrs at ioindex %d\n",
+		    ("%s(%d): req %p:%u func %x in els ptrs at ioindex %d",
 		    s, line, req, req->serno,
 		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
 	}
 	for (i = 0; i < mpt->tgt_cmds_allocated; i++) {
 		KASSERT(req != mpt->tgt_cmd_ptrs[i],
-		    ("%s(%d): req %p:%u func %x in tgt ptrs at ioindex %d\n",
+		    ("%s(%d): req %p:%u func %x in tgt ptrs at ioindex %d",
 		    s, line, req, req->serno,
 		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
 	}

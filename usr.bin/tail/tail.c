@@ -58,7 +58,7 @@ static const char sccsid[] = "@(#)tail.c	8.1 (Berkeley) 6/6/93";
 
 int Fflag, fflag, qflag, rflag, rval, no_files;
 
-file_info_t *files;
+static file_info_t *files;
 
 static void obsolete(char **);
 static void usage(void);

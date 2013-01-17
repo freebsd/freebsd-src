@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@
  * Version of the package tools - increase whenever you make a change
  * in the code that is not cosmetic only.
  */
-#define PKG_INSTALL_VERSION	20100403
+#define PKG_INSTALL_VERSION	20121109
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)
@@ -157,6 +157,7 @@ const char	*make_playpen(char *, off_t);
 char		*where_playpen(void);
 int		leave_playpen(void);
 off_t		min_free(const char *);
+void		warnpkgng(void);
 
 /* String */
 char 		*get_dash_string(char **);

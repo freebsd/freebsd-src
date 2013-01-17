@@ -315,7 +315,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	int i, inc, j, toff;
 
 	KASSERT(size == vp->v_mount->mnt_stat.f_iosize,
-	    ("cluster_rbuild: size %ld != filesize %jd\n",
+	    ("cluster_rbuild: size %ld != f_iosize %jd\n",
 	    size, (intmax_t)vp->v_mount->mnt_stat.f_iosize));
 
 	/*
@@ -604,7 +604,7 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount)
 	int async;
 
 	if (vp->v_type == VREG) {
-		async = vp->v_mount->mnt_kern_flag & MNTK_ASYNC;
+		async = DOINGASYNC(vp);
 		lblocksize = vp->v_mount->mnt_stat.f_iosize;
 	} else {
 		async = 0;

@@ -4,17 +4,18 @@
 #
 
 # PROVIDE: rarpd
-# REQUIRE: DAEMON cleanvar
+# REQUIRE: DAEMON FILESYSTEMS
 # BEFORE:  LOGIN
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="rarpd"
-rcvar=`set_rcvar`
+rcvar="rarpd_enable"
 command="/usr/sbin/${name}"
-pidfile="/var/run/${name}.pid"
 required_files="/etc/ethers"
 
 load_rc_config $name
+pidfile="${rarpd_pidfile:-/var/run/${name}.pid}"
+
 run_rc_command "$1"

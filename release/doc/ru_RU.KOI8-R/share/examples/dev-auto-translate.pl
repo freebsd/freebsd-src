@@ -6,7 +6,7 @@
 #
 # Example:
 # cd /usr/src/release/doc/ru_RU.KOI8-R
-# perl share/examples/dev-auto-translate.pl -o share/sgml/dev-auto-ru.sgml < ../share/sgml/dev-auto.sgml
+# perl share/examples/dev-auto-translate.pl -o share/xml/dev-auto-ru.sgml < ../share/xml/dev-auto.sgml
 #
 # This script is maintained only in HEAD branch.
 

@@ -94,7 +94,7 @@ MPEG-2 Transport Stream (MPEG TS) packet format according to IEC 61883:
 
 N.b. that CRCs are removed by firewire layer!
 
-The following fiels are fixed for IEEE-1394:
+The following fields are fixed for IEEE-1394:
 tag = 01b
 tcode = 1010b
 The length is payload length, i.e. includes CIP header and data size.

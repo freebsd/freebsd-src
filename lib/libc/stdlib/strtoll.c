@@ -2,6 +2,11 @@
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -37,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include "xlocale_private.h"
 
 /*
  * Convert a string to a long long integer.
@@ -45,13 +51,15 @@ __FBSDID("$FreeBSD$");
  * alphabets and digits are each contiguous.
  */
 long long
-strtoll(const char * __restrict nptr, char ** __restrict endptr, int base)
+strtoll_l(const char * __restrict nptr, char ** __restrict endptr, int base,
+		locale_t locale)
 {
 	const char *s;
 	unsigned long long acc;
 	char c;
 	unsigned long long cutoff;
 	int neg, any, cutlim;
+	FIX_LOCALE(locale);
 
 	/*
 	 * Skip white space and pick up leading +/- sign if any.
@@ -61,7 +69,7 @@ strtoll(const char * __restrict nptr, char ** __restrict endptr, int base)
 	s = nptr;
 	do {
 		c = *s++;
-	} while (isspace((unsigned char)c));
+	} while (isspace_l((unsigned char)c, locale));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -137,4 +145,9 @@ noconv:
 	if (endptr != NULL)
 		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
+}
+long long
+strtoll(const char * __restrict nptr, char ** __restrict endptr, int base)
+{
+	return strtoll_l(nptr, endptr, base, __get_locale());
 }

@@ -85,8 +85,8 @@ struct if_data {
 	u_char	ifi_addrlen;		/* media address length */
 	u_char	ifi_hdrlen;		/* media header length */
 	u_char	ifi_link_state;		/* current link state */
-	u_char	ifi_spare_char1;	/* spare byte */
-	u_char	ifi_spare_char2;	/* spare byte */
+	u_char	ifi_vhid;		/* carp vhid */
+	u_char	ifi_baudrate_pf;	/* baudrate power factor */
 	u_char	ifi_datalen;		/* length of this data struct */
 	u_long	ifi_mtu;		/* maximum transmission unit */
 	u_long	ifi_metric;		/* routing metric (external only) */
@@ -153,7 +153,6 @@ struct if_data {
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
-
 /*
  * Old names for driver flags so that user space tools can continue to use
  * the old (portable) names.
@@ -180,7 +179,7 @@ struct if_data {
  * Some convenience macros used for setting ifi_baudrate.
  * XXX 1000 vs. 1024? --thorpej@netbsd.org
  */
-#define	IF_Kbps(x)	((x) * 1000)		/* kilobits/sec. */
+#define	IF_Kbps(x)	((uintmax_t)(x) * 1000)	/* kilobits/sec. */
 #define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
 #define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
 
@@ -230,6 +229,10 @@ struct if_data {
 #define	IFCAP_VLAN_HWTSO	0x40000 /* can do IFCAP_TSO on VLANs */
 #define	IFCAP_LINKSTATE		0x80000 /* the runtime link state is dynamic */
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
+#define	IFCAP_RXCSUM_IPV6	0x200000  /* can offload checksum on IPv6 RX */
+#define	IFCAP_TXCSUM_IPV6	0x400000  /* can offload checksum on IPv6 TX */
+
+#define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
 #define IFCAP_HWCSUM	(IFCAP_RXCSUM | IFCAP_TXCSUM)
 #define	IFCAP_TSO	(IFCAP_TSO4 | IFCAP_TSO6)
@@ -244,6 +247,7 @@ struct if_data {
 /*
  * Message format for use in obtaining information about interfaces
  * from getkerninfo and the routing socket
+ * For the new, extensible interface see struct if_msghdrl below.
  */
 struct if_msghdr {
 	u_short	ifm_msglen;	/* to skip over non-understood messages */
@@ -256,8 +260,34 @@ struct if_msghdr {
 };
 
 /*
+ * The 'l' version shall be used by new interfaces, like NET_RT_IFLISTL.  It is
+ * extensible after ifm_data_off or within ifm_data.  Both the if_msghdr and
+ * if_data now have a member field detailing the struct length in addition to
+ * the routing message length.  Macros are provided to find the start of
+ * ifm_data and the start of the socket address strucutres immediately following
+ * struct if_msghdrl given a pointer to struct if_msghdrl.
+ */
+#define	IF_MSGHDRL_IFM_DATA(_l) \
+    (struct if_data *)((char *)(_l) + (_l)->ifm_data_off)
+#define	IF_MSGHDRL_RTA(_l) \
+    (void *)((uintptr_t)(_l) + (_l)->ifm_len)
+struct if_msghdrl {
+	u_short	ifm_msglen;	/* to skip over non-understood messages */
+	u_char	ifm_version;	/* future binary compatibility */
+	u_char	ifm_type;	/* message type */
+	int	ifm_addrs;	/* like rtm_addrs */
+	int	ifm_flags;	/* value of if_flags */
+	u_short	ifm_index;	/* index for associated ifp */
+	u_short _ifm_spare1;	/* spare space to grow if_index, see if_var.h */
+	u_short	ifm_len;	/* length of if_msghdrl incl. if_data */
+	u_short	ifm_data_off;	/* offset of if_data from beginning */
+	struct	if_data ifm_data;/* statistics and other data about if */
+};
+
+/*
  * Message format for use in obtaining information about interface addresses
  * from getkerninfo and the routing socket
+ * For the new, extensible interface see struct ifa_msghdrl below.
  */
 struct ifa_msghdr {
 	u_short	ifam_msglen;	/* to skip over non-understood messages */
@@ -267,6 +297,33 @@ struct ifa_msghdr {
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
 	int	ifam_metric;	/* value of ifa_metric */
+};
+
+/*
+ * The 'l' version shall be used by new interfaces, like NET_RT_IFLISTL.  It is
+ * extensible after ifam_metric or within ifam_data.  Both the ifa_msghdrl and
+ * if_data now have a member field detailing the struct length in addition to
+ * the routing message length.  Macros are provided to find the start of
+ * ifm_data and the start of the socket address strucutres immediately following
+ * struct ifa_msghdrl given a pointer to struct ifa_msghdrl.
+ */
+#define	IFA_MSGHDRL_IFAM_DATA(_l) \
+    (struct if_data *)((char *)(_l) + (_l)->ifam_data_off)
+#define	IFA_MSGHDRL_RTA(_l) \
+    (void *)((uintptr_t)(_l) + (_l)->ifam_len)
+struct ifa_msghdrl {
+	u_short	ifam_msglen;	/* to skip over non-understood messages */
+	u_char	ifam_version;	/* future binary compatibility */
+	u_char	ifam_type;	/* message type */
+	int	ifam_addrs;	/* like rtm_addrs */
+	int	ifam_flags;	/* value of ifa_flags */
+	u_short	ifam_index;	/* index for associated ifp */
+	u_short _ifam_spare1;	/* spare space to grow if_index, see if_var.h */
+	u_short	ifam_len;	/* length of ifa_msghdrl incl. if_data */
+	u_short	ifam_data_off;	/* offset of if_data from beginning */
+	int	ifam_metric;	/* value of ifa_metric */
+	struct	if_data ifam_data;/* statistics and other data about if or
+				 * address */
 };
 
 /*
@@ -354,6 +411,15 @@ struct	ifreq {
 
 struct ifaliasreq {
 	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
+	struct	sockaddr ifra_addr;
+	struct	sockaddr ifra_broadaddr;
+	struct	sockaddr ifra_mask;
+	int	ifra_vhid;
+};
+
+/* Compat with pre-10.x */
+struct oifaliasreq {
+	char	ifra_name[IFNAMSIZ];
 	struct	sockaddr ifra_addr;
 	struct	sockaddr ifra_broadaddr;
 	struct	sockaddr ifra_mask;

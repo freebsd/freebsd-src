@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <dirent.h>
 
+#include "gen-private.h"
 #include "telldir.h"
 
 void

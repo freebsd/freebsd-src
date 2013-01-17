@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="nfsuserd"
-rcvar=`set_rcvar`
+rcvar="nfsuserd_enable"
 command="/usr/sbin/${name}"
 sig_stop="USR1"
 

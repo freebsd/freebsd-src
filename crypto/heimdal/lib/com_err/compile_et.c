@@ -1,41 +1,42 @@
 /*
- * Copyright (c) 1998-2002 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1998-2002 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #undef ROKEN_RENAME
+
+#include "config.h"
+
 #include "compile_et.h"
 #include <getarg.h>
-
-RCSID("$Id: compile_et.c 15426 2005-06-16 19:21:42Z lha $");
 
 #include <roken.h>
 #include <err.h>
@@ -75,12 +76,14 @@ generate_c(void)
 	return 1;
 
     fprintf(c_file, "/* Generated from %s */\n", filename);
-    if(id_str) 
+    if(id_str)
 	fprintf(c_file, "/* %s */\n", id_str);
     fprintf(c_file, "\n");
     fprintf(c_file, "#include <stddef.h>\n");
     fprintf(c_file, "#include <com_err.h>\n");
     fprintf(c_file, "#include \"%s\"\n", hfn);
+    fprintf(c_file, "\n");
+    fprintf(c_file, "#define N_(x) (x)\n");
     fprintf(c_file, "\n");
 
     fprintf(c_file, "static const char *%s_error_strings[] = {\n", name);
@@ -90,9 +93,10 @@ generate_c(void)
 	    fprintf(c_file, "\t/* %03d */ \"Reserved %s error (%d)\",\n",
 		    n, name, n);
 	    n++;
-	    
+
 	}
-	fprintf(c_file, "\t/* %03d */ \"%s\",\n", ec->number, ec->string);
+	fprintf(c_file, "\t/* %03d */ N_(\"%s\"),\n",
+		ec->number, ec->string);
     }
 
     fprintf(c_file, "\tNULL\n");
@@ -100,11 +104,11 @@ generate_c(void)
     fprintf(c_file, "\n");
     fprintf(c_file, "#define num_errors %d\n", number);
     fprintf(c_file, "\n");
-    fprintf(c_file, 
-	    "void initialize_%s_error_table_r(struct et_list **list)\n", 
+    fprintf(c_file,
+	    "void initialize_%s_error_table_r(struct et_list **list)\n",
 	    name);
     fprintf(c_file, "{\n");
-    fprintf(c_file, 
+    fprintf(c_file,
 	    "    initialize_error_table_r(list, %s_error_strings, "
 	    "num_errors, ERROR_TABLE_BASE_%s);\n", name, name);
     fprintf(c_file, "}\n");
@@ -135,9 +139,9 @@ generate_h(void)
     for(p = fn; *p; p++)
 	if(!isalnum((unsigned char)*p))
 	    *p = '_';
-    
+
     fprintf(h_file, "/* Generated from %s */\n", filename);
-    if(id_str) 
+    if(id_str)
 	fprintf(h_file, "/* %s */\n", id_str);
     fprintf(h_file, "\n");
     fprintf(h_file, "#ifndef %s\n", fn);
@@ -145,24 +149,26 @@ generate_h(void)
     fprintf(h_file, "\n");
     fprintf(h_file, "struct et_list;\n");
     fprintf(h_file, "\n");
-    fprintf(h_file, 
+    fprintf(h_file,
 	    "void initialize_%s_error_table_r(struct et_list **);\n",
 	    name);
     fprintf(h_file, "\n");
     fprintf(h_file, "void initialize_%s_error_table(void);\n", name);
-    fprintf(h_file, "#define init_%s_err_tbl initialize_%s_error_table\n", 
+    fprintf(h_file, "#define init_%s_err_tbl initialize_%s_error_table\n",
 	    name, name);
     fprintf(h_file, "\n");
     fprintf(h_file, "typedef enum %s_error_number{\n", name);
 
     for(ec = codes; ec; ec = ec->next) {
-	fprintf(h_file, "\t%s = %ld%s\n", ec->name, base_id + ec->number, 
+	fprintf(h_file, "\t%s = %ld%s\n", ec->name, base_id + ec->number,
 		(ec->next != NULL) ? "," : "");
     }
 
     fprintf(h_file, "} %s_error_number;\n", name);
     fprintf(h_file, "\n");
     fprintf(h_file, "#define ERROR_TABLE_BASE_%s %ld\n", name, base_id);
+    fprintf(h_file, "\n");
+    fprintf(h_file, "#define COM_ERR_BINDDOMAIN_%s \"heim_com_err%ld\"\n", name, base_id);
     fprintf(h_file, "\n");
     fprintf(h_file, "#endif /* %s */\n", fn);
 
@@ -208,26 +214,26 @@ main(int argc, char **argv)
 	exit(0);
     }
 
-    if(optidx == argc) 
+    if(optidx == argc)
 	usage(1);
     filename = argv[optidx];
     yyin = fopen(filename, "r");
     if(yyin == NULL)
 	err(1, "%s", filename);
-	
-    
-    p = strrchr(filename, '/');
+
+
+    p = strrchr(filename, rk_PATH_DELIM);
     if(p)
 	p++;
     else
 	p = filename;
     strlcpy(Basename, p, sizeof(Basename));
-    
+
     Basename[strcspn(Basename, ".")] = '\0';
-    
+
     snprintf(hfn, sizeof(hfn), "%s.h", Basename);
     snprintf(cfn, sizeof(cfn), "%s.c", Basename);
-    
+
     yyparse();
     if(numerror)
 	return 1;

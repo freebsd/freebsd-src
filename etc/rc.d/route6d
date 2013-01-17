@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="route6d"
-rcvar=`set_rcvar`
+rcvar="route6d_enable"
 
 set_rcvar_obsolete ipv6_router_enable route6d_enable
 set_rcvar_obsolete ipv6_router route6d_program

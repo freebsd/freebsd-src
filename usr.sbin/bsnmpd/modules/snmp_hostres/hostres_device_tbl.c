@@ -200,7 +200,7 @@ device_entry_create(const char *name, const char *location, const char *descr)
 
 	/*
 	 * From here till the end of this function we reuse name_len
-	 * for a diferrent purpose - for device_entry::descr
+	 * for a different purpose - for device_entry::descr
 	 */
 	if (name[0] != '\0')
 		name_len = strlen(name) + strlen(descr) +

@@ -1,4 +1,4 @@
-//===- SPUInstrInfo.cpp - Cell SPU Instruction Information ----------------===//
+//===-- SPUInstrInfo.cpp - Cell SPU Instruction Information ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -140,29 +140,27 @@ SPUInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator MI,
                                   unsigned SrcReg, bool isKill, int FrameIdx,
                                   const TargetRegisterClass *RC,
-                                  const TargetRegisterInfo *TRI) const
-{
+                                  const TargetRegisterInfo *TRI) const {
   unsigned opc;
   bool isValidFrameIdx = (FrameIdx < SPUFrameLowering::maxFrameOffset());
-  if (RC == SPU::GPRCRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::STQDr128 : SPU::STQXr128);
-  } else if (RC == SPU::R64CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::STQDr64 : SPU::STQXr64);
-  } else if (RC == SPU::R64FPRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::STQDr64 : SPU::STQXr64);
-  } else if (RC == SPU::R32CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::STQDr32 : SPU::STQXr32);
-  } else if (RC == SPU::R32FPRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::STQDr32 : SPU::STQXr32);
-  } else if (RC == SPU::R16CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::STQDr16 : SPU::STQXr16);
-  } else if (RC == SPU::R8CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::STQDr8 : SPU::STQXr8);
-  } else if (RC == SPU::VECREGRegisterClass) {
-    opc = (isValidFrameIdx) ? SPU::STQDv16i8 : SPU::STQXv16i8;
-  } else {
+  if (RC == &SPU::GPRCRegClass)
+    opc = isValidFrameIdx ? SPU::STQDr128 : SPU::STQXr128;
+  else if (RC == &SPU::R64CRegClass)
+    opc = isValidFrameIdx ? SPU::STQDr64 : SPU::STQXr64;
+  else if (RC == &SPU::R64FPRegClass)
+    opc = isValidFrameIdx ? SPU::STQDr64 : SPU::STQXr64;
+  else if (RC == &SPU::R32CRegClass)
+    opc = isValidFrameIdx ? SPU::STQDr32 : SPU::STQXr32;
+  else if (RC == &SPU::R32FPRegClass)
+    opc = isValidFrameIdx ? SPU::STQDr32 : SPU::STQXr32;
+  else if (RC == &SPU::R16CRegClass)
+    opc = isValidFrameIdx ? SPU::STQDr16 : SPU::STQXr16;
+  else if (RC == &SPU::R8CRegClass)
+    opc = isValidFrameIdx ? SPU::STQDr8 : SPU::STQXr8;
+  else if (RC == &SPU::VECREGRegClass)
+    opc = isValidFrameIdx ? SPU::STQDv16i8 : SPU::STQXv16i8;
+  else
     llvm_unreachable("Unknown regclass!");
-  }
 
   DebugLoc DL;
   if (MI != MBB.end()) DL = MI->getDebugLoc();
@@ -175,29 +173,27 @@ SPUInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator MI,
                                    unsigned DestReg, int FrameIdx,
                                    const TargetRegisterClass *RC,
-                                   const TargetRegisterInfo *TRI) const
-{
+                                   const TargetRegisterInfo *TRI) const {
   unsigned opc;
   bool isValidFrameIdx = (FrameIdx < SPUFrameLowering::maxFrameOffset());
-  if (RC == SPU::GPRCRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::LQDr128 : SPU::LQXr128);
-  } else if (RC == SPU::R64CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::LQDr64 : SPU::LQXr64);
-  } else if (RC == SPU::R64FPRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::LQDr64 : SPU::LQXr64);
-  } else if (RC == SPU::R32CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::LQDr32 : SPU::LQXr32);
-  } else if (RC == SPU::R32FPRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::LQDr32 : SPU::LQXr32);
-  } else if (RC == SPU::R16CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::LQDr16 : SPU::LQXr16);
-  } else if (RC == SPU::R8CRegisterClass) {
-    opc = (isValidFrameIdx ? SPU::LQDr8 : SPU::LQXr8);
-  } else if (RC == SPU::VECREGRegisterClass) {
-    opc = (isValidFrameIdx) ? SPU::LQDv16i8 : SPU::LQXv16i8;
-  } else {
+  if (RC == &SPU::GPRCRegClass)
+    opc = isValidFrameIdx ? SPU::LQDr128 : SPU::LQXr128;
+  else if (RC == &SPU::R64CRegClass)
+    opc = isValidFrameIdx ? SPU::LQDr64 : SPU::LQXr64;
+  else if (RC == &SPU::R64FPRegClass)
+    opc = isValidFrameIdx ? SPU::LQDr64 : SPU::LQXr64;
+  else if (RC == &SPU::R32CRegClass)
+    opc = isValidFrameIdx ? SPU::LQDr32 : SPU::LQXr32;
+  else if (RC == &SPU::R32FPRegClass)
+    opc = isValidFrameIdx ? SPU::LQDr32 : SPU::LQXr32;
+  else if (RC == &SPU::R16CRegClass)
+    opc = isValidFrameIdx ? SPU::LQDr16 : SPU::LQXr16;
+  else if (RC == &SPU::R8CRegClass)
+    opc = isValidFrameIdx ? SPU::LQDr8 : SPU::LQXr8;
+  else if (RC == &SPU::VECREGRegClass)
+    opc = isValidFrameIdx ? SPU::LQDv16i8 : SPU::LQXv16i8;
+  else
     llvm_unreachable("Unknown regclass in loadRegFromStackSlot!");
-  }
 
   DebugLoc DL;
   if (MI != MBB.end()) DL = MI->getDebugLoc();
@@ -340,11 +336,11 @@ SPUInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 static MachineBasicBlock::iterator findHBRPosition(MachineBasicBlock &MBB)
 {
    MachineBasicBlock::iterator J = MBB.end();
-	for( int i=0; i<8; i++) {
-		if( J == MBB.begin() ) return J;
-		J--;
-	}
-	return J;
+   for( int i=0; i<8; i++) {
+     if( J == MBB.begin() ) return J;
+     J--;
+   }
+   return J;
 }
 
 unsigned
@@ -360,7 +356,7 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   MachineInstrBuilder MIB;
   //TODO: make a more accurate algorithm.
   bool haveHBR = MBB.size()>8;
-  
+
   removeHBR(MBB);
   MCSymbol *branchLabel = MBB.getParent()->getContext().CreateTempSymbol();
   // Add a label just before the branch
@@ -382,7 +378,7 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
         MIB = BuildMI( MBB, findHBRPosition(MBB), DL, get(SPU::HBRA));
         MIB.addSym(branchLabel);
         MIB.addMBB(TBB);
-      }	
+      }
     } else {
       // Conditional branch
       MIB = BuildMI(&MBB, DL, get(Cond[0].getImm()));
@@ -392,7 +388,7 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
         MIB = BuildMI(MBB, findHBRPosition(MBB), DL, get(SPU::HBRA));
         MIB.addSym(branchLabel);
         MIB.addMBB(TBB);
-      }	
+      }
 
       DEBUG(errs() << "Inserted one-way cond branch:   ");
       DEBUG((*MIB).dump());
@@ -410,7 +406,7 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
       MIB = BuildMI( MBB, findHBRPosition(MBB), DL, get(SPU::HBRA));
       MIB.addSym(branchLabel);
       MIB.addMBB(FBB);
-    }	
+    }
 
     DEBUG(errs() << "Inserted conditional branch:    ");
     DEBUG((*MIB).dump());

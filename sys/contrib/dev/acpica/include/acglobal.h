@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@
 
 /*
  * Enable "slack" in the AML interpreter?  Default is FALSE, and the
- * interpreter strictly follows the ACPI specification.  Setting to TRUE
+ * interpreter strictly follows the ACPI specification. Setting to TRUE
  * allows the interpreter to ignore certain errors and/or bad AML constructs.
  *
  * Currently, these features are enabled by this flag:
@@ -128,6 +128,12 @@ UINT8       ACPI_INIT_GLOBAL (AcpiGbl_CopyDsdtLocally, FALSE);
  */
 UINT8       ACPI_INIT_GLOBAL (AcpiGbl_TruncateIoAddresses, FALSE);
 
+/*
+ * Disable runtime checking and repair of values returned by control methods.
+ * Use only if the repair is causing a problem on a particular machine.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_DisableAutoRepair, FALSE);
+
 
 /* AcpiGbl_FADT is a local copy of the FADT, converted to a common format. */
 
@@ -137,7 +143,18 @@ UINT32                      AcpiGbl_TraceFlags;
 ACPI_NAME                   AcpiGbl_TraceMethodName;
 BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
 
-#endif
+/*
+ * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
+ * that the ACPI hardware is no longer required. A flag in the FADT indicates
+ * a reduced HW machine, and that flag is duplicated here for convenience.
+ */
+BOOLEAN                     AcpiGbl_ReducedHardware;
+
+#endif /* DEFINE_ACPI_GLOBALS */
+
+/* Do not disassemble buffers to resource descriptors */
+
+ACPI_EXTERN UINT8       ACPI_INIT_GLOBAL (AcpiGbl_NoResourceDisassembly, FALSE);
 
 /*****************************************************************************
  *
@@ -150,7 +167,11 @@ BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
  * found in the RSDT/XSDT.
  */
 ACPI_EXTERN ACPI_TABLE_LIST             AcpiGbl_RootTableList;
+
+#if (!ACPI_REDUCED_HARDWARE)
 ACPI_EXTERN ACPI_TABLE_FACS            *AcpiGbl_FACS;
+
+#endif /* !ACPI_REDUCED_HARDWARE */
 
 /* These addresses are calculated from the FADT Event Block addresses */
 
@@ -177,7 +198,7 @@ ACPI_EXTERN UINT8                       AcpiGbl_IntegerNybbleWidth;
 
 /*****************************************************************************
  *
- * Mutual exlusion within ACPICA subsystem
+ * Mutual exclusion within ACPICA subsystem
  *
  ****************************************************************************/
 
@@ -233,8 +254,7 @@ ACPI_EXTERN ACPI_CACHE_T               *AcpiGbl_OperandCache;
 
 /* Global handlers */
 
-ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_DeviceNotify;
-ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_SystemNotify;
+ACPI_EXTERN ACPI_GLOBAL_NOTIFY_HANDLER  AcpiGbl_GlobalNotify[2];
 ACPI_EXTERN ACPI_EXCEPTION_HANDLER      AcpiGbl_ExceptionHandler;
 ACPI_EXTERN ACPI_INIT_HANDLER           AcpiGbl_InitHandler;
 ACPI_EXTERN ACPI_TABLE_HANDLER          AcpiGbl_TableHandler;
@@ -265,17 +285,9 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_AcpiHardwarePresent;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_EventsInitialized;
 ACPI_EXTERN UINT8                       AcpiGbl_OsiData;
 ACPI_EXTERN ACPI_INTERFACE_INFO        *AcpiGbl_SupportedInterfaces;
-
+ACPI_EXTERN ACPI_ADDRESS_RANGE         *AcpiGbl_AddressRangeList[ACPI_ADDRESS_RANGE_MAX];
 
 #ifndef DEFINE_ACPI_GLOBALS
-
-/* Exception codes */
-
-extern char const                       *AcpiGbl_ExceptionNames_Env[];
-extern char const                       *AcpiGbl_ExceptionNames_Pgm[];
-extern char const                       *AcpiGbl_ExceptionNames_Tbl[];
-extern char const                       *AcpiGbl_ExceptionNames_Aml[];
-extern char const                       *AcpiGbl_ExceptionNames_Ctrl[];
 
 /* Other miscellaneous */
 
@@ -362,6 +374,8 @@ ACPI_EXTERN UINT8                       AcpiGbl_SleepTypeB;
  *
  ****************************************************************************/
 
+#if (!ACPI_REDUCED_HARDWARE)
+
 ACPI_EXTERN UINT8                       AcpiGbl_AllGpesInitialized;
 ACPI_EXTERN ACPI_GPE_XRUPT_INFO        *AcpiGbl_GpeXruptListHead;
 ACPI_EXTERN ACPI_GPE_BLOCK_INFO        *AcpiGbl_GpeFadtBlocks[ACPI_MAX_GPE_BLOCKS];
@@ -370,6 +384,7 @@ ACPI_EXTERN void                       *AcpiGbl_GlobalEventHandlerContext;
 ACPI_EXTERN ACPI_FIXED_EVENT_HANDLER    AcpiGbl_FixedEventHandlers[ACPI_NUM_FIXED_EVENTS];
 extern      ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS];
 
+#endif /* !ACPI_REDUCED_HARDWARE */
 
 /*****************************************************************************
  *
@@ -454,5 +469,15 @@ ACPI_EXTERN UINT32                      AcpiGbl_SizeOfNodeEntries;
 ACPI_EXTERN UINT32                      AcpiGbl_SizeOfAcpiObjects;
 
 #endif /* ACPI_DEBUGGER */
+
+
+/*****************************************************************************
+ *
+ * Info/help support
+ *
+ ****************************************************************************/
+
+extern const AH_PREDEFINED_NAME     AslPredefinedInfo[];
+
 
 #endif /* __ACGLOBAL_H__ */

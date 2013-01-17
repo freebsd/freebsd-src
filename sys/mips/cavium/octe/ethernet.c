@@ -74,8 +74,6 @@ TUNABLE_INT("hw.octe.pow_receive_group", &pow_receive_group);
 		 "\t\tgroup. Also any other software can submit packets to this\n"
 		 "\t\tgroup for the kernel to process." */
 
-extern int octeon_is_simulation(void);
-
 /**
  * Periodic timer to check auto negotiation
  */
@@ -96,15 +94,6 @@ static struct taskqueue *cvm_oct_link_taskq;
  * Number of buffers in output buffer pool.
  */
 static int cvm_oct_num_output_buffers;
-
-/*
- * The offset from mac_addr_base that should be used for the next port
- * that is configured.  By convention, if any mgmt ports exist on the
- * chip, they get the first mac addresses.  The ports controlled by
- * this driver are numbered sequencially following any mgmt addresses
- * that may exist.
- */
-unsigned int cvm_oct_mac_addr_offset;
 
 /**
  * Function to update link status.
@@ -237,14 +226,14 @@ static void cvm_oct_configure_common_hw(device_t bus)
 				      num_packet_buffers/8);
 
 	/* Enable the MII interface */
-	if (!octeon_is_simulation())
+	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM)
 		cvmx_write_csr(CVMX_SMI_EN, 1);
 
 	/* Register an IRQ hander for to receive POW interrupts */
         rid = 0;
         sc->sc_rx_irq = bus_alloc_resource(bus, SYS_RES_IRQ, &rid,
-					   CVMX_IRQ_WORKQ0 + pow_receive_group,
-					   CVMX_IRQ_WORKQ0 + pow_receive_group,
+					   OCTEON_IRQ_WORKQ0 + pow_receive_group,
+					   OCTEON_IRQ_WORKQ0 + pow_receive_group,
 					   1, RF_ACTIVE);
         if (sc->sc_rx_irq == NULL) {
                 device_printf(bus, "could not allocate workq irq");
@@ -319,22 +308,6 @@ int cvm_oct_init_module(device_t bus)
 	int fau = FAU_NUM_PACKET_BUFFERS_TO_FREE;
 	int qos;
 
-	printf("cavium-ethernet: %s\n", OCTEON_SDK_VERSION_STRING);
-
-	/*
-	 * MAC addresses for this driver start after the management
-	 * ports.
-	 *
-	 * XXX Would be nice if __cvmx_mgmt_port_num_ports() were
-	 *     not static to cvmx-mgmt-port.c.
-	 */
-	if (OCTEON_IS_MODEL(OCTEON_CN56XX))
-		cvm_oct_mac_addr_offset = 1;
-	else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
-		cvm_oct_mac_addr_offset = 2;
-	else
-		cvm_oct_mac_addr_offset = 0;
-
 	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw(bus);
 
@@ -375,15 +348,17 @@ int cvm_oct_init_module(device_t bus)
 		int num_ports = cvmx_helper_ports_on_interface(interface);
 		int port;
 
-		for (port = cvmx_helper_get_ipd_port(interface, 0); port < cvmx_helper_get_ipd_port(interface, num_ports); port++) {
+		for (port = cvmx_helper_get_ipd_port(interface, 0);
+		     port < cvmx_helper_get_ipd_port(interface, num_ports);
+		     ifnum++, port++) {
 			cvm_oct_private_t *priv;
 			struct ifnet *ifp;
 			
-			dev = BUS_ADD_CHILD(bus, 0, "octe", ifnum++);
+			dev = BUS_ADD_CHILD(bus, 0, "octe", ifnum);
 			if (dev != NULL)
 				ifp = if_alloc(IFT_ETHER);
 			if (dev == NULL || ifp == NULL) {
-				printf("\t\tFailed to allocate ethernet device for port %d\n", port);
+				printf("Failed to allocate ethernet device for interface %d port %d\n", interface, port);
 				continue;
 			}
 
@@ -454,12 +429,13 @@ int cvm_oct_init_module(device_t bus)
 			ifp->if_softc = priv;
 
 			if (!priv->init) {
-				panic("%s: unsupported device type, need to free ifp.", __func__);
-			} else
-			if (priv->init(ifp) < 0) {
-				printf("\t\tFailed to register ethernet device for interface %d, port %d\n",
-				interface, priv->port);
-				panic("%s: init failed, need to free ifp.", __func__);
+				printf("octe%d: unsupported device type interface %d, port %d\n",
+				       ifnum, interface, priv->port);
+				if_free(ifp);
+			} else if (priv->init(ifp) != 0) {
+				printf("octe%d: failed to register device for interface %d, port %d\n",
+				       ifnum, interface, priv->port);
+				if_free(ifp);
 			} else {
 				cvm_oct_device[priv->port] = ifp;
 				fau -= cvmx_pko_get_num_queues(priv->port) * sizeof(uint32_t);

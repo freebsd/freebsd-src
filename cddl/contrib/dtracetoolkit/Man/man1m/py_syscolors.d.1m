@@ -1,0 +1,61 @@
+.TH py_syscolors.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+py_syscolors.d - trace Python function flow plus syscalls, in color.
+.SH SYNOPSIS
+.B py_syscolors.d
+{ \-p PID | \-c cmd }	
+.SH DESCRIPTION
+This watches Python function entries and returns, and indents child
+function calls.
+
+Filename and function names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Python provider, which may change 
+as additional features are introduced. Check Python/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B py_syscolors.d
+.PP
+.SH FIELDS
+.TP
+C
+CPU-id
+.TP
+PID
+Process ID
+.TP
+DELTA(us)
+Elapsed time from previous line to this line
+.TP
+FILE
+Filename of the Python program
+.TP
+LINE
+Line number of filename
+.TP
+TYPE
+Type of call (func/syscall)
+.TP
+NAME
+Python function or syscall name
+.SH WARNING
+Watch the first column carefully, it prints the CPU-id. If it
+changes, then it is very likely that the output has been shuffled.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+py_syscolors.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

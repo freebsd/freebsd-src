@@ -83,14 +83,14 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 						    if (S_ISDIR(st.st_mode)) {	/* Recurse for this */
 							if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0)
 								copymkdir(dst, src, st.st_mode & _DEF_DIRMODE, uid, gid);
-								chflags(dst, st.st_flags);	/* propogate flags */
-						    } else if (S_ISLNK(st.st_mode) && (len = readlink(src, lnk, sizeof(lnk))) != -1) {
+								chflags(dst, st.st_flags);	/* propagate flags */
+						    } else if (S_ISLNK(st.st_mode) && (len = readlink(src, lnk, sizeof(lnk) - 1)) != -1) {
 							lnk[len] = '\0';
 							symlink(lnk, dst);
 							lchown(dst, uid, gid);
 							/*
-							 * Note: don't propogate special attributes
-							 * but do propogate file flags
+							 * Note: don't propagate special attributes
+							 * but do propagate file flags
 							 */
 						    } else if (S_ISREG(st.st_mode) && (outfd = open(dst, O_RDWR | O_CREAT | O_EXCL, st.st_mode)) != -1) {
 							if ((infd = open(src, O_RDONLY)) == -1) {
@@ -108,7 +108,7 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 									write(outfd, copybuf, b);
 								close(infd);
 								/*
-								 * Propogate special filesystem flags
+								 * Propagate special filesystem flags
 								 */
 								fchown(outfd, uid, gid);
 								fchflags(outfd, st.st_flags);

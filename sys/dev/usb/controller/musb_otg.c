@@ -85,7 +85,7 @@
 #ifdef USB_DEBUG
 static int musbotgdebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, musbotg, CTLFLAG_RW, 0, "USB musbotg");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, musbotg, CTLFLAG_RW, 0, "USB musbotg");
 SYSCTL_INT(_hw_usb_musbotg, OID_AUTO, debug, CTLFLAG_RW,
     &musbotgdebug, 0, "Debug level");
 #endif
@@ -1472,7 +1472,13 @@ musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+musbotg_xfer_stall(struct usb_xfer *xfer)
+{
+	musbotg_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+musbotg_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct musbotg_softc *sc;
@@ -1482,10 +1488,6 @@ musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(4, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		musbotg_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = MUSBOTG_BUS2SC(udev->bus);
 
@@ -1910,16 +1912,16 @@ musbotg_uninit(struct musbotg_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 musbotg_suspend(struct musbotg_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 musbotg_resume(struct musbotg_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -2192,14 +2194,13 @@ static const struct musbotg_config_desc musbotg_confd = {
 	},
 };
 
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
+
 static const struct usb_hub_descriptor_min musbotg_hubd = {
 	.bDescLength = sizeof(musbotg_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
-	.wHubCharacteristics[0] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
-	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 16,
+	HSETW(.wHubCharacteristics, (UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL)),
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */
@@ -2747,10 +2748,6 @@ musbotg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if ((udev->speed != USB_SPEED_FULL) &&
 		    (udev->speed != USB_SPEED_HIGH)) {
 			/* not supported */
@@ -2776,14 +2773,36 @@ musbotg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	}
 }
 
+static void
+musbotg_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		musbotg_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		musbotg_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		musbotg_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods musbotg_bus_methods =
 {
 	.endpoint_init = &musbotg_ep_init,
 	.xfer_setup = &musbotg_xfer_setup,
 	.xfer_unsetup = &musbotg_xfer_unsetup,
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,
+	.xfer_stall = &musbotg_xfer_stall,
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
 	.roothub_exec = &musbotg_roothub_exec,
 	.xfer_poll = &musbotg_do_poll,
+	.set_hw_power_sleep = &musbotg_set_hw_power_sleep,
 };

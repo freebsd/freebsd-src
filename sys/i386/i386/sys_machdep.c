@@ -553,7 +553,7 @@ user_ldt_free(struct thread *td)
 		return;
 	}
 
-	if (td == PCPU_GET(curthread)) {
+	if (td == curthread) {
 #ifdef XEN
 		i386_reset_ldt(&default_proc_ldt);
 		PCPU_SET(currentldt, (int)&default_proc_ldt);

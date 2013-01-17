@@ -136,7 +136,7 @@ static int	rt_miibus_writereg(device_t, int, int, int);
 static int	rt_ifmedia_upd(struct ifnet *);
 static void	rt_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-SYSCTL_NODE(_hw, OID_AUTO, rt, CTLFLAG_RD, 0, "RT driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, rt, CTLFLAG_RD, 0, "RT driver parameters");
 #ifdef IF_RT_DEBUG
 static int rt_debug = 0;
 SYSCTL_INT(_hw_rt, OID_AUTO, debug, CTLFLAG_RW, &rt_debug, 0,
@@ -383,7 +383,6 @@ rt_attach(device_t dev)
 	ifp->if_init = rt_init;
 	ifp->if_ioctl = rt_ioctl;
 	ifp->if_start = rt_start;
-	ifp->if_mtu = ETHERMTU;
 #define	RT_TX_QLEN	256
 
 	IFQ_SET_MAXLEN(&ifp->if_snd, RT_TX_QLEN);
@@ -893,7 +892,7 @@ rt_tx_data(struct rt_softc *sc, struct mbuf *m, int qid)
 			"mbuf: ndmasegs=%d, len=%d, error=%d\n",
 			ndmasegs, m->m_pkthdr.len, error);
 
-		m_d = m_collapse(m, M_DONTWAIT, 16);
+		m_d = m_collapse(m, M_NOWAIT, 16);
 		if (m_d == NULL) {
 			m_freem(m);
 			m = NULL;
@@ -1638,7 +1637,7 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 
 		nframes++;
 
-		mnew = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		mnew = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 		    MJUMPAGESIZE);
 		if (mnew == NULL) {
 			sc->rx_mbuf_alloc_errors++;
@@ -2010,7 +2009,7 @@ rt_alloc_rx_ring(struct rt_softc *sc, struct rt_softc_rx_ring *ring)
 			goto fail;
 		}
 
-		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		data->m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 		    MJUMPAGESIZE);
 		if (data->m == NULL) {
 			device_printf(sc->dev, "could not allocate Rx mbuf\n");
@@ -2588,17 +2587,14 @@ static device_method_t rt_dev_methods[] =
 	DEVMETHOD(device_suspend, rt_suspend),
 	DEVMETHOD(device_resume, rt_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 #ifdef IF_RT_PHY_SUPPORT
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	rt_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	rt_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	rt_miibus_statchg),
 #endif
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t rt_driver =

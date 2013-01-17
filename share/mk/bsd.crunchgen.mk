@@ -22,6 +22,8 @@
 # Specific links can be suppressed by setting
 # CRUNCH_SUPPRESS_LINK_$(NAME) to 1.
 #
+# If CRUNCH_GENERATE_LINKS is set to no, no links will be generated.
+#
 
 # $FreeBSD$
 
@@ -36,9 +38,12 @@ OUTPUTS=$(OUTMK) $(OUTC) $(PROG).cache
 CRUNCHOBJS= ${.OBJDIR}
 .if defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:= ${MAKEOBJDIRPREFIX}${.CURDIR}
+.elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
+CANONICALOBJDIR:=${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:= /usr/obj${.CURDIR}
 .endif
+CRUNCH_GENERATE_LINKS?=	yes
 
 CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
 
@@ -51,6 +56,7 @@ $(OUTPUTS): $(CRUNCH_SRCDIR_${P})/Makefile
 .else
 $(OUTPUTS): $(.CURDIR)/../../$(D)/$(P)/Makefile
 .endif
+.if ${CRUNCH_GENERATE_LINKS} == "yes"
 .ifndef CRUNCH_SUPPRESS_LINK_${P}
 LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(P)
 .endif
@@ -59,6 +65,7 @@ LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(P)
 LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(A)
 .endif
 .endfor
+.endif
 .endfor
 .endfor
 
@@ -100,7 +107,7 @@ $(CONF): Makefile
 .MAKEFLAGS:= ${.MAKEFLAGS:N-P}
 .ORDER: $(OUTPUTS) objs
 $(OUTPUTS): $(CONF)
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -fq -m $(OUTMK) \
+	MAKE=${MAKE} MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -fq -m $(OUTMK) \
 	    -c $(OUTC) $(CONF)
 
 $(PROG): $(OUTPUTS) objs

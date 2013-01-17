@@ -1404,7 +1404,7 @@ both definitions.  As an userland programmer, the most portable way of
 dealing with it is to:
 (1) ensure ss_family and/or ss_len are available on the platform, by using
     GNU autoconf,
-(2) have -Dss_family=__ss_family to unify all occurences (including header
+(2) have -Dss_family=__ss_family to unify all occurrences (including header
     file) into __ss_family, or
 (3) never touch __ss_family.  cast to sockaddr * and use sa_family like:
 	struct sockaddr_storage ss;
@@ -1414,7 +1414,7 @@ dealing with it is to:
 
 Some of IPv6 transition technologies embed IPv4 address into IPv6 address.
 These specifications themselves are fine, however, there can be certain
-set of attacks enabled by these specifications.  Recent speicifcation
+set of attacks enabled by these specifications.  Recent specification
 documents covers up those issues, however, there are already-published RFCs
 that does not have protection against those (like using source address of
 ::ffff:127.0.0.1 to bypass "reject packet from remote" filter).
@@ -1441,7 +1441,7 @@ compatible is very rare.  You should take caution if you see those on the wire.
 
 If we see IPv6 packets with IPv4 mapped address (::ffff:0.0.0.0/96) in the
 header in dual-stack environment (not in SIIT environment), they indicate
-that someone is trying to inpersonate IPv4 peer.  The packet should be dropped.
+that someone is trying to impersonate IPv4 peer.  The packet should be dropped.
 
 IPv6 specifications do not talk very much about IPv6 unspecified address (::)
 in the IPv6 source address field.  Clarification is in progress.
@@ -1456,10 +1456,10 @@ Here are couple of comments:
 - The following examples are seemingly illegal.  It seems that there's general
   consensus among ipngwg for those.  (1) Mobile IPv6 home address option,
   (2) offlink packets (so routers should not forward them).
-  KAME implmements (2) already.
+  KAME implements (2) already.
 
 KAME code is carefully written to avoid such incidents.  More specifically,
-KAME kernel will reject packets with certain source/dstination address in IPv6
+KAME kernel will reject packets with certain source/destination address in IPv6
 base header, or IPv6 routing header.  Also, KAME default configuration file
 is written carefully, to avoid those attacks.
 
@@ -1552,7 +1552,7 @@ KAME implementation treats them as follows:
 1.17 DNS resolver
 
 KAME ships with modified DNS resolver, in libinet6.a.
-libinet6.a has a comple of extensions against libc DNS resolver:
+libinet6.a has a couple of extensions against libc DNS resolver:
 - Can take "options insecure1" and "options insecure2" in /etc/resolv.conf,
   which toggles RES_INSECURE[12] option flag bit.
 - EDNS0 receive buffer size notification support.  It can be enabled by
@@ -1870,7 +1870,7 @@ Tunnel mode works basically fine, but comes with the following restrictions:
 - Path MTU discovery does not work across IPv6 IPsec tunnel gateway due to
   insufficient code.
 
-AH specificaton does not talk much about "multiple AH on a packet" case.
+AH specification does not talk much about "multiple AH on a packet" case.
 We incrementally compute AH checksum, from inside to outside.  Also, we
 treat inner AH to be immutable.
 For example, if we are to create the following packet:
@@ -1890,8 +1890,8 @@ to randomly pad packets shorter than N bytes, to random length smaller than
 or equal to N.  Note that N does not include ESP authentication data length.
 Also note that the random padding is not included in TCP segment
 size computation.  Negative value will turn off the functionality.
-Recommeded value for N is like 128, or 256.  If you use a too big number
-as N, you may experience inefficiency due to fragmented packtes.
+Recommended value for N is like 128, or 256.  If you use a too big number
+as N, you may experience inefficiency due to fragmented packets.
 
 4.4 IPComp handling
 
@@ -2097,7 +2097,7 @@ RFC2401 defines IPsec tunnel mode, within the context of IPsec.  RFC2401
 defines tunnel mode packet encapsulation/decapsulation on its own, and
 does not refer other tunnelling specifications.  Since RFC2401 advocates
 filter-based SPD database matches, it would be natural for us to implement
-IPsec IPsec tunnel mode as filters - not as pseudo interfaces.
+IPsec tunnel mode as filters - not as pseudo interfaces.
 
 There are some people who are trying to separate IPsec "tunnel mode" from
 the IPsec itself.  They would like to implement IPsec transport mode only,
@@ -2110,7 +2110,7 @@ interpretation.
 
 The KAME stack implements can be configured in two ways.  You may need
 to recompile your kernel to switch the behavior.
-- RFC2401 IPsec tunnel mode appraoch (4.8.1)
+- RFC2401 IPsec tunnel mode approach (4.8.1)
 - draft-touch-ipsec-vpn approach (4.8.2)
 	Works in all kernel configuration, but racoon(8) may not interoperate.
 
@@ -2226,7 +2226,7 @@ ALTQ occupies single character device number.  For FreeBSD, it is officially
 allocated.  For OpenBSD and NetBSD, we use the number which is not
 currently allocated (will eventually get an official number).
 The character device is enabled for i386 architecture only.  To enable and
-compile ALTQ-ready kernel for other archititectures, take the following steps:
+compile ALTQ-ready kernel for other architectures, take the following steps:
 - assume that your architecture is FOOBAA.
 - modify sys/arch/FOOBAA/FOOBAA/conf.c (or somewhere that defines cdevsw),
   to include a line for ALTQ.  look at sys/arch/i386/i386/conf.c for
@@ -2243,7 +2243,7 @@ compile ALTQ-ready kernel for other archititectures, take the following steps:
 6.1 KAME node as correspondent node
 
 Default installation recognizes home address option (in destination
-options header).  No sub-options are supported.  interaction with
+options header).  No sub-options are supported.  Interaction with
 IPsec, and/or 2292bis API, needs further study.
 
 6.2 KAME node as home agent/mobile node
@@ -2262,7 +2262,7 @@ are other implementations available:
 
 The KAME developers basically do not make a bother about coding
 style.  However, there is still some agreement on the style, in order
-to make the distributed develoment smooth.
+to make the distributed development smooth.
 
 - follow *BSD KNF where possible.  note: there are multiple KNF standards.
 - the tab character should be 8 columns wide (tabstops are at 8, 16, 24, ...
@@ -2291,13 +2291,13 @@ to make the distributed develoment smooth.
   where "(dollar)" is the dollar character ($), and around "$" are tabs.
   (this is for C.  For other language, you should use its own comment
   line.)
-  Once commited to the CVS repository, this line will contain its
+  Once committed to the CVS repository, this line will contain its
   version number (see, for example, at the top of this file).  This
   would make it easy to report a bug.
 - when creating a new file with the WIDE copyright, tap "make copyright.c" at
   the top-level, and use copyright.c as a template.  KAME RCS tag will be
   included automatically.
-- when editting a third-party package, keep its own coding style as
+- when editing a third-party package, keep its own coding style as
   much as possible, even if the style does not follow the items above.
 - it is recommended to always wrap an expression containing
   bitwise operators by parentheses, especially when the expression is
@@ -2384,7 +2384,7 @@ is free of IPR infringement, you MUST check it if you are to integrate
 KAME into your product (or whatever):
     READ CAREFULLY: Several countries have legal enforcement for
     export/import/use of cryptographic software.  Check it before playing
-    with the kit.  We do not intend to be your legalease clearing house
+    with the kit.  We do not intend to be your legalese clearing house
     (NO WARRANTY).  If you intend to include KAME stack into your product,
     you'll need to check if the licenses on each file fit your situations,
     and/or possible intellectual property right issues.

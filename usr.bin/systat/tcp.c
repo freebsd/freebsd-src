@@ -147,7 +147,7 @@ domode(struct tcpstat *ret)
 	switch(currentmode) {
 	case display_RATE:
 		sub = &oldstat;
-		divisor = naptime;
+		divisor = (delay > 1000000) ? delay / 1000000 : 1;
 		break;
 	case display_DELTA:
 		sub = &oldstat;
@@ -324,4 +324,3 @@ fetchtcp(void)
 	if (sysctl(name, 4, &curstat, &len, 0, 0) < 0)
 		return;
 }
-

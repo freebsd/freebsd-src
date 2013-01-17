@@ -507,6 +507,8 @@ gpart_autofill(struct gctl_req *req)
 	grade = ~0ULL;
 	a_first = ALIGNUP(first + offset, alignment);
 	last = ALIGNDOWN(last + offset, alignment);
+	if (a_first < start)
+		a_first = start;
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
 		lba = (off_t)strtoimax(s, NULL, 0);
@@ -536,7 +538,8 @@ gpart_autofill(struct gctl_req *req)
 
 		s = find_provcfg(pp, "end");
 		first = (off_t)strtoimax(s, NULL, 0) + 1;
-		a_first = ALIGNUP(first + offset, alignment);
+		if (first > a_first)
+			a_first = ALIGNUP(first + offset, alignment);
 	}
 	if (a_first <= last) {
 		/* Free space [first-last] */
@@ -718,7 +721,7 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	struct ggeom *gp;
 	const char *s, *scheme;
 	off_t sector, end;
-	off_t length, secsz;
+	off_t length;
 	int error, i, windex, wblocks, wtype;
 
 	if (gctl_get_int(req, "nargs") != 1)
@@ -744,7 +747,6 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	if (scheme == NULL)
 		abort();
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
-	secsz = pp->lg_sectorsize;
 	s = find_geomcfg(gp, "last");
 	wblocks = strlen(s);
 	wtype = 0;

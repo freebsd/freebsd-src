@@ -70,11 +70,20 @@ FunctionPass *createAggressiveDCEPass();
 
 //===----------------------------------------------------------------------===//
 //
+// SROA - Replace aggregates or pieces of aggregates with scalar SSA values.
+//
+FunctionPass *createSROAPass(bool RequiresDomTree = true);
+
+//===----------------------------------------------------------------------===//
+//
 // ScalarReplAggregates - Break up alloca's of aggregates into multiple allocas
 // if possible.
 //
 FunctionPass *createScalarReplAggregatesPass(signed Threshold = -1,
-                                             bool UseDomTree = true);
+                                             bool UseDomTree = true,
+                                             signed StructMemberThreshold = -1,
+                                             signed ArrayElementThreshold = -1,
+                                             signed ScalarLoadThreshold = -1);
 
 //===----------------------------------------------------------------------===//
 //
@@ -111,6 +120,8 @@ Pass *createLICMPass();
 // transformations are profitable.
 //
 Pass *createLoopStrengthReducePass(const TargetLowering *TLI = 0);
+
+Pass *createGlobalMergePass(const TargetLowering *TLI = 0);
 
 //===----------------------------------------------------------------------===//
 //
@@ -307,12 +318,6 @@ extern char &InstructionNamerID;
   
 //===----------------------------------------------------------------------===//
 //
-// GEPSplitter - Split complex GEPs into simple ones
-//
-FunctionPass *createGEPSplitterPass();
-
-//===----------------------------------------------------------------------===//
-//
 // Sink - Code Sinking
 //
 FunctionPass *createSinkingPass();
@@ -328,6 +333,12 @@ Pass *createLowerAtomicPass();
 // ValuePropagation - Propagate CFG-derived value information
 //
 Pass *createCorrelatedValuePropagationPass();
+
+//===----------------------------------------------------------------------===//
+//
+// ObjCARCAPElim - ObjC ARC autorelease pool elimination.
+//
+Pass *createObjCARCAPElimPass();
 
 //===----------------------------------------------------------------------===//
 //

@@ -265,7 +265,7 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 	specified_devices = (char **)malloc(sizeof(char *));
 
 	tmpstr = tmpstr1 = strdup(args);
-	cp = index(tmpstr1, '\n');
+	cp = strchr(tmpstr1, '\n');
 	if (cp)
 		*cp = '\0';
 	for (;;) {

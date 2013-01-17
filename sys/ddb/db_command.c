@@ -140,6 +140,7 @@ static struct command db_cmds[] = {
 	{ "unscript",	db_unscript_cmd,	CS_OWN,	0 },
 	{ "capture",	db_capture_cmd,		CS_OWN,	0 },
 	{ "textdump",	db_textdump_cmd,	CS_OWN, 0 },
+	{ "findstack",	db_findstack_cmd,	0,	0 },
 };
 struct command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
 
@@ -534,6 +535,11 @@ db_dump(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 {
 	int error;
 
+	if (textdump_pending) {
+		db_printf("textdump_pending set.\n"
+		    "run \"textdump unset\" first or \"textdump dump\" for a textdump.\n");
+		return;
+	}
 	error = doadump(FALSE);
 	if (error) {
 		db_printf("Cannot dump: ");

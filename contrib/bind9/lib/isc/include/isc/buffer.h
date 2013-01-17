@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: buffer.h,v 1.55 2010-12-20 23:47:21 tbox Exp $ */
+/* $Id: buffer.h,v 1.55 2010/12/20 23:47:21 tbox Exp $ */
 
 #ifndef ISC_BUFFER_H
 #define ISC_BUFFER_H 1

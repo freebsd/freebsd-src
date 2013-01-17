@@ -11,7 +11,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
 	int64_t *iarg  = (int64_t *) uarg;
 	switch (sysnum) {
-#if !defined(PAD64_REQUIRED) && defined(__powerpc__)
+#if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
 	/* nosys */
@@ -209,11 +209,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 29: {
 		struct freebsd32_recvfrom_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = p->buf; /* u_int32_t */
-		uarg[2] = p->len; /* u_int32_t */
+		uarg[1] = p->buf; /* uint32_t */
+		uarg[2] = p->len; /* uint32_t */
 		iarg[3] = p->flags; /* int */
-		uarg[4] = p->from; /* u_int32_t */
-		uarg[5] = p->fromlenaddr; /* u_int32_t */
+		uarg[4] = p->from; /* uint32_t */
+		uarg[5] = p->fromlenaddr; /* uint32_t */
 		*n_args = 6;
 		break;
 	}
@@ -248,7 +248,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 33: {
 		struct access_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		iarg[1] = p->amode; /* int */
 		*n_args = 2;
 		break;
 	}
@@ -402,8 +402,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 59: {
 		struct freebsd32_execve_args *p = params;
 		uarg[0] = (intptr_t) p->fname; /* char * */
-		uarg[1] = (intptr_t) p->argv; /* u_int32_t * */
-		uarg[2] = (intptr_t) p->envv; /* u_int32_t * */
+		uarg[1] = (intptr_t) p->argv; /* uint32_t * */
+		uarg[2] = (intptr_t) p->envv; /* uint32_t * */
 		*n_args = 3;
 		break;
 	}
@@ -996,9 +996,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[0] = (intptr_t) p->name; /* int * */
 		uarg[1] = p->namelen; /* u_int */
 		uarg[2] = (intptr_t) p->old; /* void * */
-		uarg[3] = (intptr_t) p->oldlenp; /* u_int32_t * */
+		uarg[3] = (intptr_t) p->oldlenp; /* uint32_t * */
 		uarg[4] = (intptr_t) p->new; /* void * */
-		uarg[5] = p->newlen; /* u_int32_t */
+		uarg[5] = p->newlen; /* uint32_t */
 		*n_args = 6;
 		break;
 	}
@@ -1203,6 +1203,36 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* ffclock_getcounter */
+	case 241: {
+		struct ffclock_getcounter_args *p = params;
+		uarg[0] = (intptr_t) p->ffcount; /* ffcounter * */
+		*n_args = 1;
+		break;
+	}
+	/* ffclock_setestimate */
+	case 242: {
+		struct ffclock_setestimate_args *p = params;
+		uarg[0] = (intptr_t) p->cest; /* struct ffclock_estimate * */
+		*n_args = 1;
+		break;
+	}
+	/* ffclock_getestimate */
+	case 243: {
+		struct ffclock_getestimate_args *p = params;
+		uarg[0] = (intptr_t) p->cest; /* struct ffclock_estimate * */
+		*n_args = 1;
+		break;
+	}
+	/* clock_getcpuclockid2 */
+	case 247: {
+		struct clock_getcpuclockid2_args *p = params;
+		iarg[0] = p->id; /* id_t */
+		iarg[1] = p->which; /* int */
+		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
+		*n_args = 3;
+		break;
+	}
 	/* minherit */
 	case 250: {
 		struct minherit_args *p = params;
@@ -1339,8 +1369,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->iovp; /* struct iovec32 * */
 		uarg[2] = p->iovcnt; /* u_int */
-		uarg[3] = p->offset1; /* u_int32_t */
-		uarg[4] = p->offset2; /* u_int32_t */
+		uarg[3] = p->offset1; /* uint32_t */
+		uarg[4] = p->offset2; /* uint32_t */
 		*n_args = 5;
 		break;
 	}
@@ -1350,8 +1380,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->iovp; /* struct iovec32 * */
 		uarg[2] = p->iovcnt; /* u_int */
-		uarg[3] = p->offset1; /* u_int32_t */
-		uarg[4] = p->offset2; /* u_int32_t */
+		uarg[3] = p->offset1; /* uint32_t */
+		uarg[4] = p->offset2; /* uint32_t */
 		*n_args = 5;
 		break;
 	}
@@ -1868,7 +1898,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 376: {
 		struct eaccess_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		iarg[1] = p->amode; /* int */
 		*n_args = 2;
 		break;
 	}
@@ -1912,8 +1942,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_sendfile_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->s; /* int */
-		uarg[2] = p->offset1; /* u_int32_t */
-		uarg[3] = p->offset2; /* u_int32_t */
+		uarg[2] = p->offset1; /* uint32_t */
+		uarg[3] = p->offset2; /* uint32_t */
 		uarg[4] = p->nbytes; /* size_t */
 		uarg[5] = (intptr_t) p->hdtr; /* struct sf_hdtr32 * */
 		uarg[6] = (intptr_t) p->sbytes; /* off_t * */
@@ -2479,8 +2509,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->buf; /* void * */
 		uarg[2] = p->nbyte; /* size_t */
 		iarg[3] = p->pad; /* int */
-		uarg[4] = p->offset1; /* u_int32_t */
-		uarg[5] = p->offset2; /* u_int32_t */
+		uarg[4] = p->offset1; /* uint32_t */
+		uarg[5] = p->offset2; /* uint32_t */
 		*n_args = 6;
 		break;
 	}
@@ -2491,8 +2521,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->buf; /* const void * */
 		uarg[2] = p->nbyte; /* size_t */
 		iarg[3] = p->pad; /* int */
-		uarg[4] = p->offset1; /* u_int32_t */
-		uarg[5] = p->offset2; /* u_int32_t */
+		uarg[4] = p->offset1; /* uint32_t */
+		uarg[5] = p->offset2; /* uint32_t */
 		*n_args = 6;
 		break;
 	}
@@ -2505,8 +2535,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[3] = p->flags; /* int */
 		iarg[4] = p->fd; /* int */
 		iarg[5] = p->pad; /* int */
-		uarg[6] = p->pos1; /* u_int32_t */
-		uarg[7] = p->pos2; /* u_int32_t */
+		uarg[6] = p->pos1; /* uint32_t */
+		uarg[7] = p->pos2; /* uint32_t */
 		*n_args = 8;
 		break;
 	}
@@ -2515,8 +2545,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_lseek_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->pad; /* int */
-		uarg[2] = p->offset1; /* u_int32_t */
-		uarg[3] = p->offset2; /* u_int32_t */
+		uarg[2] = p->offset1; /* uint32_t */
+		uarg[3] = p->offset2; /* uint32_t */
 		iarg[4] = p->whence; /* int */
 		*n_args = 5;
 		break;
@@ -2526,8 +2556,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_truncate_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
 		iarg[1] = p->pad; /* int */
-		uarg[2] = p->length1; /* u_int32_t */
-		uarg[3] = p->length2; /* u_int32_t */
+		uarg[2] = p->length1; /* uint32_t */
+		uarg[3] = p->length2; /* uint32_t */
 		*n_args = 4;
 		break;
 	}
@@ -2536,8 +2566,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_ftruncate_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->pad; /* int */
-		uarg[2] = p->length1; /* u_int32_t */
-		uarg[3] = p->length2; /* u_int32_t */
+		uarg[2] = p->length1; /* uint32_t */
+		uarg[3] = p->length2; /* uint32_t */
 		*n_args = 4;
 		break;
 	}
@@ -2548,8 +2578,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* void * */
 		uarg[2] = p->nbyte; /* size_t */
-		uarg[3] = p->offset1; /* u_int32_t */
-		uarg[4] = p->offset2; /* u_int32_t */
+		uarg[3] = p->offset1; /* uint32_t */
+		uarg[4] = p->offset2; /* uint32_t */
 		*n_args = 5;
 		break;
 	}
@@ -2559,8 +2589,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* const void * */
 		uarg[2] = p->nbyte; /* size_t */
-		uarg[3] = p->offset1; /* u_int32_t */
-		uarg[4] = p->offset2; /* u_int32_t */
+		uarg[3] = p->offset1; /* uint32_t */
+		uarg[4] = p->offset2; /* uint32_t */
 		*n_args = 5;
 		break;
 	}
@@ -2572,8 +2602,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[2] = p->prot; /* int */
 		iarg[3] = p->flags; /* int */
 		iarg[4] = p->fd; /* int */
-		uarg[5] = p->pos1; /* u_int32_t */
-		uarg[6] = p->pos2; /* u_int32_t */
+		uarg[5] = p->pos1; /* uint32_t */
+		uarg[6] = p->pos2; /* uint32_t */
 		*n_args = 7;
 		break;
 	}
@@ -2581,8 +2611,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 478: {
 		struct freebsd32_lseek_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->offset1; /* u_int32_t */
-		uarg[2] = p->offset2; /* u_int32_t */
+		uarg[1] = p->offset1; /* uint32_t */
+		uarg[2] = p->offset2; /* uint32_t */
 		iarg[3] = p->whence; /* int */
 		*n_args = 4;
 		break;
@@ -2591,8 +2621,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 479: {
 		struct freebsd32_truncate_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		uarg[1] = p->length1; /* u_int32_t */
-		uarg[2] = p->length2; /* u_int32_t */
+		uarg[1] = p->length1; /* uint32_t */
+		uarg[2] = p->length2; /* uint32_t */
 		*n_args = 3;
 		break;
 	}
@@ -2600,8 +2630,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 480: {
 		struct freebsd32_ftruncate_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->length1; /* u_int32_t */
-		uarg[2] = p->length2; /* u_int32_t */
+		uarg[1] = p->length1; /* uint32_t */
+		uarg[2] = p->length2; /* uint32_t */
 		*n_args = 3;
 		break;
 	}
@@ -2644,8 +2674,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_cpuset_setid_args *p = params;
 		iarg[0] = p->which; /* cpuwhich_t */
 		iarg[1] = p->pad; /* int */
-		uarg[2] = p->id1; /* u_int32_t */
-		uarg[3] = p->id2; /* u_int32_t */
+		uarg[2] = p->id1; /* uint32_t */
+		uarg[3] = p->id2; /* uint32_t */
 		iarg[4] = p->setid; /* cpusetid_t */
 		*n_args = 5;
 		break;
@@ -2655,8 +2685,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 485: {
 		struct freebsd32_cpuset_setid_args *p = params;
 		iarg[0] = p->which; /* cpuwhich_t */
-		uarg[1] = p->id1; /* u_int32_t */
-		uarg[2] = p->id2; /* u_int32_t */
+		uarg[1] = p->id1; /* uint32_t */
+		uarg[2] = p->id2; /* uint32_t */
 		iarg[3] = p->setid; /* cpusetid_t */
 		*n_args = 4;
 		break;
@@ -2667,8 +2697,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_cpuset_getid_args *p = params;
 		iarg[0] = p->level; /* cpulevel_t */
 		iarg[1] = p->which; /* cpuwhich_t */
-		uarg[2] = p->id1; /* u_int32_t */
-		uarg[3] = p->id2; /* u_int32_t */
+		uarg[2] = p->id1; /* uint32_t */
+		uarg[3] = p->id2; /* uint32_t */
 		uarg[4] = (intptr_t) p->setid; /* cpusetid_t * */
 		*n_args = 5;
 		break;
@@ -2678,8 +2708,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_cpuset_getaffinity_args *p = params;
 		iarg[0] = p->level; /* cpulevel_t */
 		iarg[1] = p->which; /* cpuwhich_t */
-		uarg[2] = p->id1; /* u_int32_t */
-		uarg[3] = p->id2; /* u_int32_t */
+		uarg[2] = p->id1; /* uint32_t */
+		uarg[3] = p->id2; /* uint32_t */
 		uarg[4] = p->cpusetsize; /* size_t */
 		uarg[5] = (intptr_t) p->mask; /* cpuset_t * */
 		*n_args = 6;
@@ -2690,8 +2720,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct freebsd32_cpuset_setaffinity_args *p = params;
 		iarg[0] = p->level; /* cpulevel_t */
 		iarg[1] = p->which; /* cpuwhich_t */
-		uarg[2] = p->id1; /* u_int32_t */
-		uarg[3] = p->id2; /* u_int32_t */
+		uarg[2] = p->id1; /* uint32_t */
+		uarg[3] = p->id2; /* uint32_t */
 		uarg[4] = p->cpusetsize; /* size_t */
 		uarg[5] = (intptr_t) p->mask; /* const cpuset_t * */
 		*n_args = 6;
@@ -2702,7 +2732,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct faccessat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->path; /* char * */
-		iarg[2] = p->mode; /* int */
+		iarg[2] = p->amode; /* int */
 		iarg[3] = p->flag; /* int */
 		*n_args = 4;
 		break;
@@ -2732,8 +2762,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 492: {
 		struct freebsd32_fexecve_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->argv; /* u_int32_t * */
-		uarg[2] = (intptr_t) p->envv; /* u_int32_t * */
+		uarg[1] = (intptr_t) p->argv; /* uint32_t * */
+		uarg[2] = (intptr_t) p->envv; /* uint32_t * */
 		*n_args = 3;
 		break;
 	}
@@ -2922,7 +2952,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 514: {
 		struct cap_new_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* u_int64_t */
+		uarg[1] = p->rights; /* uint64_t */
 		*n_args = 2;
 		break;
 	}
@@ -2930,7 +2960,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 515: {
 		struct cap_getrights_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->rightsp; /* u_int64_t * */
+		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
 		*n_args = 2;
 		break;
 	}
@@ -3034,17 +3064,41 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+	/* freebsd32_posix_fadvise */
+	case 531: {
+		struct freebsd32_posix_fadvise_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->offset1; /* uint32_t */
+		uarg[2] = p->offset2; /* uint32_t */
+		uarg[3] = p->len1; /* uint32_t */
+		uarg[4] = p->len2; /* uint32_t */
+		iarg[5] = p->advice; /* int */
+		*n_args = 6;
+		break;
+	}
+	/* freebsd32_wait6 */
+	case 532: {
+		struct freebsd32_wait6_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->id; /* int */
+		uarg[2] = (intptr_t) p->status; /* int * */
+		iarg[3] = p->options; /* int */
+		uarg[4] = (intptr_t) p->wrusage; /* struct wrusage32 * */
+		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
+		*n_args = 6;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
 	};
 }
 static void
-systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
+systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 {
 	const char *p = NULL;
 	switch (sysnum) {
-#if !defined(PAD64_REQUIRED) && defined(__powerpc__)
+#if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
 #define PAD64_REQUIRED
 #endif
 	/* nosys */
@@ -3347,19 +3401,19 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
 			p = "int";
 			break;
 		case 4:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 5:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -3646,10 +3700,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "char *";
 			break;
 		case 1:
-			p = "u_int32_t *";
+			p = "uint32_t *";
 			break;
 		case 2:
-			p = "u_int32_t *";
+			p = "uint32_t *";
 			break;
 		default:
 			break;
@@ -4631,13 +4685,13 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "void *";
 			break;
 		case 3:
-			p = "u_int32_t *";
+			p = "uint32_t *";
 			break;
 		case 4:
 			p = "void *";
 			break;
 		case 5:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -4928,6 +4982,52 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* ffclock_getcounter */
+	case 241:
+		switch(ndx) {
+		case 0:
+			p = "ffcounter *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ffclock_setestimate */
+	case 242:
+		switch(ndx) {
+		case 0:
+			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ffclock_getestimate */
+	case 243:
+		switch(ndx) {
+		case 0:
+			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
+		switch(ndx) {
+		case 0:
+			p = "id_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "clockid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* minherit */
 	case 250:
 		switch(ndx) {
@@ -5154,10 +5254,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "u_int";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -5176,10 +5276,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "u_int";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -6099,10 +6199,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
 			p = "size_t";
@@ -7072,10 +7172,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 4:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 5:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7097,10 +7197,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 4:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 5:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7128,10 +7228,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 6:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 7:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7147,10 +7247,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
 			p = "int";
@@ -7169,10 +7269,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7188,10 +7288,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7211,10 +7311,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "size_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7233,10 +7333,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "size_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7261,10 +7361,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 5:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 6:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7277,10 +7377,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
 			p = "int";
@@ -7296,10 +7396,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "char *";
 			break;
 		case 1:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7312,10 +7412,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		default:
 			break;
@@ -7385,10 +7485,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
 			p = "cpusetid_t";
@@ -7405,10 +7505,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cpuwhich_t";
 			break;
 		case 1:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
 			p = "cpusetid_t";
@@ -7428,10 +7528,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cpuwhich_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
 			p = "cpusetid_t *";
@@ -7450,10 +7550,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cpuwhich_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
 			p = "size_t";
@@ -7475,10 +7575,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "cpuwhich_t";
 			break;
 		case 2:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "u_int32_t";
+			p = "uint32_t";
 			break;
 		case 4:
 			p = "size_t";
@@ -7557,10 +7657,10 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int32_t *";
+			p = "uint32_t *";
 			break;
 		case 2:
-			p = "u_int32_t *";
+			p = "uint32_t *";
 			break;
 		default:
 			break;
@@ -7896,7 +7996,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int64_t";
+			p = "uint64_t";
 			break;
 		default:
 			break;
@@ -7909,7 +8009,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "u_int64_t *";
+			p = "uint64_t *";
 			break;
 		default:
 			break;
@@ -8092,6 +8192,1818 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		default:
 			break;
 		};
+		break;
+	/* freebsd32_posix_fadvise */
+	case 531:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_wait6 */
+	case 532:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "struct wrusage32 *";
+			break;
+		case 5:
+			p = "siginfo_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	default:
+		break;
+	};
+	if (p != NULL)
+		strlcpy(desc, p, descsz);
+}
+static void
+systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
+{
+	const char *p = NULL;
+	switch (sysnum) {
+#if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
+#define PAD64_REQUIRED
+#endif
+	/* nosys */
+	case 0:
+	/* sys_exit */
+	case 1:
+		if (ndx == 0 || ndx == 1)
+			p = "void";
+		break;
+	/* fork */
+	case 2:
+	/* read */
+	case 3:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* write */
+	case 4:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* open */
+	case 5:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* close */
+	case 6:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_wait4 */
+	case 7:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* link */
+	case 9:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* unlink */
+	case 10:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* chdir */
+	case 12:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchdir */
+	case 13:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mknod */
+	case 14:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* chmod */
+	case 15:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* chown */
+	case 16:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* obreak */
+	case 17:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getpid */
+	case 20:
+	/* mount */
+	case 21:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* unmount */
+	case 22:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setuid */
+	case 23:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getuid */
+	case 24:
+	/* geteuid */
+	case 25:
+	/* ptrace */
+	case 26:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_recvmsg */
+	case 27:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sendmsg */
+	case 28:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_recvfrom */
+	case 29:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* accept */
+	case 30:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getpeername */
+	case 31:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getsockname */
+	case 32:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* access */
+	case 33:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* chflags */
+	case 34:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchflags */
+	case 35:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sync */
+	case 36:
+	/* kill */
+	case 37:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getppid */
+	case 39:
+	/* dup */
+	case 41:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pipe */
+	case 42:
+	/* getegid */
+	case 43:
+	/* profil */
+	case 44:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ktrace */
+	case 45:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getgid */
+	case 47:
+	/* getlogin */
+	case 49:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setlogin */
+	case 50:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* acct */
+	case 51:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sigaltstack */
+	case 53:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ioctl */
+	case 54:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* reboot */
+	case 55:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* revoke */
+	case 56:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* symlink */
+	case 57:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* readlink */
+	case 58:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_execve */
+	case 59:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* umask */
+	case 60:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* chroot */
+	case 61:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* msync */
+	case 65:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* vfork */
+	case 66:
+	/* sbrk */
+	case 69:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sstk */
+	case 70:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ovadvise */
+	case 72:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* munmap */
+	case 73:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_mprotect */
+	case 74:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* madvise */
+	case 75:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mincore */
+	case 78:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getgroups */
+	case 79:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setgroups */
+	case 80:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getpgrp */
+	case 81:
+	/* setpgid */
+	case 82:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_setitimer */
+	case 83:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* swapon */
+	case 85:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_getitimer */
+	case 86:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getdtablesize */
+	case 89:
+	/* dup2 */
+	case 90:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fcntl */
+	case 92:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_select */
+	case 93:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fsync */
+	case 95:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setpriority */
+	case 96:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* socket */
+	case 97:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* connect */
+	case 98:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getpriority */
+	case 100:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* bind */
+	case 104:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setsockopt */
+	case 105:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* listen */
+	case 106:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_gettimeofday */
+	case 116:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_getrusage */
+	case 117:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getsockopt */
+	case 118:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_readv */
+	case 120:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_writev */
+	case 121:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_settimeofday */
+	case 122:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchown */
+	case 123:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchmod */
+	case 124:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setreuid */
+	case 126:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setregid */
+	case 127:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rename */
+	case 128:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* flock */
+	case 131:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mkfifo */
+	case 132:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sendto */
+	case 133:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shutdown */
+	case 134:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* socketpair */
+	case 135:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mkdir */
+	case 136:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rmdir */
+	case 137:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_utimes */
+	case 138:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_adjtime */
+	case 140:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setsid */
+	case 147:
+	/* quotactl */
+	case 148:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getfh */
+	case 161:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sysarch */
+	case 165:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rtprio */
+	case 166:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_semsys */
+	case 169:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_msgsys */
+	case 170:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_shmsys */
+	case 171:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ntp_adjtime */
+	case 176:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setgid */
+	case 181:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setegid */
+	case 182:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* seteuid */
+	case 183:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_stat */
+	case 188:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_fstat */
+	case 189:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_lstat */
+	case 190:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pathconf */
+	case 191:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fpathconf */
+	case 192:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getrlimit */
+	case 194:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setrlimit */
+	case 195:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_getdirentries */
+	case 196:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* nosys */
+	case 198:
+	/* freebsd32_sysctl */
+	case 202:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mlock */
+	case 203:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* munlock */
+	case 204:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* undelete */
+	case 205:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_futimes */
+	case 206:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getpgid */
+	case 207:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* poll */
+	case 209:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* lkmnosys */
+	case 210:
+	/* lkmnosys */
+	case 211:
+	/* lkmnosys */
+	case 212:
+	/* lkmnosys */
+	case 213:
+	/* lkmnosys */
+	case 214:
+	/* lkmnosys */
+	case 215:
+	/* lkmnosys */
+	case 216:
+	/* lkmnosys */
+	case 217:
+	/* lkmnosys */
+	case 218:
+	/* lkmnosys */
+	case 219:
+	/* semget */
+	case 221:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* semop */
+	case 222:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* msgget */
+	case 225:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_msgsnd */
+	case 226:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_msgrcv */
+	case 227:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shmat */
+	case 228:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shmdt */
+	case 230:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shmget */
+	case 231:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_clock_gettime */
+	case 232:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_clock_settime */
+	case 233:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_clock_getres */
+	case 234:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_nanosleep */
+	case 240:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_getcounter */
+	case 241:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_setestimate */
+	case 242:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_getestimate */
+	case 243:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* minherit */
+	case 250:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rfork */
+	case 251:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* openbsd_poll */
+	case 252:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* issetugid */
+	case 253:
+	/* lchown */
+	case 254:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_read */
+	case 255:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_write */
+	case 256:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_lio_listio */
+	case 257:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getdents */
+	case 272:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* lchmod */
+	case 274:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* lchown */
+	case 275:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_lutimes */
+	case 276:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* msync */
+	case 277:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* nstat */
+	case 278:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* nfstat */
+	case 279:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* nlstat */
+	case 280:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_preadv */
+	case 289:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_pwritev */
+	case 290:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* fhopen */
+	case 298:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fhstat */
+	case 299:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* modnext */
+	case 300:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_modstat */
+	case 301:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* modfnext */
+	case 302:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* modfind */
+	case 303:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kldload */
+	case 304:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kldunload */
+	case 305:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kldfind */
+	case 306:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kldnext */
+	case 307:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_kldstat */
+	case 308:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kldfirstmod */
+	case 309:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getsid */
+	case 310:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setresuid */
+	case 311:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setresgid */
+	case 312:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_return */
+	case 314:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_suspend */
+	case 315:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_cancel */
+	case 316:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_error */
+	case 317:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_oaio_read */
+	case 318:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_oaio_write */
+	case 319:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_olio_listio */
+	case 320:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* yield */
+	case 321:
+	/* mlockall */
+	case 324:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* munlockall */
+	case 325:
+	/* __getcwd */
+	case 326:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_setparam */
+	case 327:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_getparam */
+	case 328:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_setscheduler */
+	case 329:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_getscheduler */
+	case 330:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_yield */
+	case 331:
+	/* sched_get_priority_max */
+	case 332:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_get_priority_min */
+	case 333:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sched_rr_get_interval */
+	case 334:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* utrace */
+	case 335:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kldsym */
+	case 337:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_jail */
+	case 338:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sigprocmask */
+	case 340:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sigsuspend */
+	case 341:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sigpending */
+	case 343:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sigtimedwait */
+	case 345:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sigwaitinfo */
+	case 346:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_get_file */
+	case 347:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_set_file */
+	case 348:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_get_fd */
+	case 349:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_set_fd */
+	case 350:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_delete_file */
+	case 351:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_delete_fd */
+	case 352:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_aclcheck_file */
+	case 353:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_aclcheck_fd */
+	case 354:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattrctl */
+	case 355:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattr_set_file */
+	case 356:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattr_get_file */
+	case 357:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* extattr_delete_file */
+	case 358:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_waitcomplete */
+	case 359:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getresuid */
+	case 360:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getresgid */
+	case 361:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kqueue */
+	case 362:
+	/* freebsd32_kevent */
+	case 363:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattr_set_fd */
+	case 371:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattr_get_fd */
+	case 372:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* extattr_delete_fd */
+	case 373:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __setugid */
+	case 374:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* eaccess */
+	case 376:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_nmount */
+	case 378:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kenv */
+	case 390:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* lchflags */
+	case 391:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* uuidgen */
+	case 392:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sendfile */
+	case 393:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getfsstat */
+	case 395:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* statfs */
+	case 396:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fstatfs */
+	case 397:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fhstatfs */
+	case 398:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ksem_close */
+	case 400:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ksem_post */
+	case 401:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ksem_wait */
+	case 402:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ksem_trywait */
+	case 403:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ksem_init */
+	case 404:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ksem_open */
+	case 405:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ksem_unlink */
+	case 406:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ksem_getvalue */
+	case 407:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ksem_destroy */
+	case 408:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattr_set_link */
+	case 412:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattr_get_link */
+	case 413:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* extattr_delete_link */
+	case 414:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sigaction */
+	case 416:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_sigreturn */
+	case 417:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_getcontext */
+	case 421:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_setcontext */
+	case 422:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_swapcontext */
+	case 423:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_get_link */
+	case 425:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_set_link */
+	case 426:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_delete_link */
+	case 427:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* __acl_aclcheck_link */
+	case 428:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sigwait */
+	case 429:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* thr_exit */
+	case 431:
+		if (ndx == 0 || ndx == 1)
+			p = "void";
+		break;
+	/* thr_self */
+	case 432:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* thr_kill */
+	case 433:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_umtx_lock */
+	case 434:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_umtx_unlock */
+	case 435:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* jail_attach */
+	case 436:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* extattr_list_fd */
+	case 437:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* extattr_list_file */
+	case 438:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* extattr_list_link */
+	case 439:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_ksem_timedwait */
+	case 441:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_thr_suspend */
+	case 442:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* thr_wake */
+	case 443:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kldunloadf */
+	case 444:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* audit */
+	case 445:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* auditon */
+	case 446:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getauid */
+	case 447:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setauid */
+	case 448:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getaudit */
+	case 449:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setaudit */
+	case 450:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getaudit_addr */
+	case 451:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setaudit_addr */
+	case 452:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* auditctl */
+	case 453:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_umtx_op */
+	case 454:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_thr_new */
+	case 455:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sigqueue */
+	case 456:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_kmq_open */
+	case 457:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_kmq_setattr */
+	case 458:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_kmq_timedreceive */
+	case 459:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_kmq_timedsend */
+	case 460:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kmq_notify */
+	case 461:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kmq_unlink */
+	case 462:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* abort2 */
+	case 463:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* thr_set_name */
+	case 464:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_fsync */
+	case 465:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rtprio_thread */
+	case 466:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sctp_peeloff */
+	case 471:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sctp_generic_sendmsg */
+	case 472:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sctp_generic_sendmsg_iov */
+	case 473:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* sctp_generic_recvmsg */
+	case 474:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#ifdef PAD64_REQUIRED
+	/* freebsd32_pread */
+	case 475:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_pwrite */
+	case 476:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_mmap */
+	case 477:
+		if (ndx == 0 || ndx == 1)
+			p = "caddr_t";
+		break;
+	/* freebsd32_lseek */
+	case 478:
+		if (ndx == 0 || ndx == 1)
+			p = "off_t";
+		break;
+	/* freebsd32_truncate */
+	case 479:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ftruncate */
+	case 480:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#else
+	/* freebsd32_pread */
+	case 475:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_pwrite */
+	case 476:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* freebsd32_mmap */
+	case 477:
+		if (ndx == 0 || ndx == 1)
+			p = "caddr_t";
+		break;
+	/* freebsd32_lseek */
+	case 478:
+		if (ndx == 0 || ndx == 1)
+			p = "off_t";
+		break;
+	/* freebsd32_truncate */
+	case 479:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ftruncate */
+	case 480:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#endif
+	/* thr_kill2 */
+	case 481:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shm_open */
+	case 482:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* shm_unlink */
+	case 483:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cpuset */
+	case 484:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#ifdef PAD64_REQUIRED
+	/* freebsd32_cpuset_setid */
+	case 485:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#else
+	/* freebsd32_cpuset_setid */
+	case 485:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#endif
+	/* freebsd32_cpuset_getid */
+	case 486:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_cpuset_getaffinity */
+	case 487:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_cpuset_setaffinity */
+	case 488:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* faccessat */
+	case 489:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchmodat */
+	case 490:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchownat */
+	case 491:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_fexecve */
+	case 492:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_fstatat */
+	case 493:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_futimesat */
+	case 494:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linkat */
+	case 495:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mkdirat */
+	case 496:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mkfifoat */
+	case 497:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* mknodat */
+	case 498:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* openat */
+	case 499:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* readlinkat */
+	case 500:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* renameat */
+	case 501:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* symlinkat */
+	case 502:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* unlinkat */
+	case 503:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* posix_openpt */
+	case 504:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_jail_get */
+	case 506:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_jail_set */
+	case 507:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* jail_remove */
+	case 508:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* closefrom */
+	case 509:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_semctl */
+	case 510:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_msgctl */
+	case 511:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_shmctl */
+	case 512:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* lpathconf */
+	case 513:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cap_new */
+	case 514:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cap_getrights */
+	case 515:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cap_enter */
+	case 516:
+	/* cap_getmode */
+	case 517:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_pselect */
+	case 522:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getloginclass */
+	case 523:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setloginclass */
+	case 524:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rctl_get_racct */
+	case 525:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rctl_get_rules */
+	case 526:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rctl_get_limits */
+	case 527:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rctl_add_rule */
+	case 528:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* rctl_remove_rule */
+	case 529:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_posix_fallocate */
+	case 530:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_posix_fadvise */
+	case 531:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_wait6 */
+	case 532:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
 		break;
 	default:
 		break;

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2011
+.Dd September 16, 2012
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ and with clean checkouts of specific versions of the doc, src, and ports
 trees. For this purpose, a script
 .Pq Pa src/release/generate-release.sh
 is provided to automate these checkouts and then execute
-.Dq Li "make release" 
+.Dq Li "make release"
 in a clean
 .Xr chroot 8 .
 .Pp
@@ -65,7 +65,7 @@ and should have experience upgrading systems from source.
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
-.Dq Li "make buildworld" 
+.Dq Li "make buildworld"
 and
 .Dq Li "make buildkernel" .
 This is necessary to provide the object files for the release or, when
@@ -105,11 +105,7 @@ environment in
 It then checks out the src tree specified by
 .Ar svn-branch
 using
-.Xr svn 1
-and (optionally) the ports and documentation trees using
-.Xr csup 1
-or
-.Xr cvs 1 .
+.Xr svn 1 .
 Once the various source trees have been obtained, it executes
 .Dq Li "make release"
 within the
@@ -122,33 +118,24 @@ release media.
 .Pp
 Environment variables:
 .Bl -tag -width ".Cm MAKE_FLAGS"
-.It Ev CVSUP_HOST
-The CVSUP server to use for the doc and ports trees. One of
-.Ev CVSUP_HOST
-or
-.Ev CVSROOT
-must be specified for ports and documentation to be included in the release.
-.It Ev CVSROOT
-The location of the
-.Fx
-CVS repository to use for the doc and ports trees. One of
-.Ev CVSUP_HOST
-or
-.Ev CVSROOT
-must be specified for ports and documentation to be included in the release.
-.It Ev CVS_TAG
-If the variable
-.Ev CVS_TAG
-is set, that tag will be used for CVS checkouts (doc and ports), otherwise 
-.Ic generate-release.sh
-will use HEAD.
 .It Ev MAKE_FLAGS
 This environment variable can be set to pass flags (e.g. -j) to
 .Xr make 1
 when invoked by the script.
 .It Ev SVNROOT
-The location of the FreeBSD SVN source repository. Defaults to
-.Pa svn://svn.freebsd.org/base .
+The location of the FreeBSD SVN source, doc, and ports repositories.
+Defaults to
+.Pa svn://svn.freebsd.org/base
+for the source tree,
+.Pa svn://svn.freebsd.org/ports/head
+for the Ports Collection, and
+.Pa svn://svn.freebsd.org/doc/head
+for the Documentation Project source.
+.It Ev RELSTRING
+Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
+Defaults to the output of
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
@@ -165,12 +152,12 @@ targets.
 Meta-target to build all release media and distributions applicable to this
 platform.
 .It Cm install
-Copy all produced release media to 
+Copy all produced release media to
 .Pa ${DESTDIR} .
 .It Cm cdrom
 Builds installation CD-ROM images. On some systems, this may require that
 .Xr mkisofs 8
-be installed 
+be installed
 .Pq Pa sysutils/cdrtools
 and possibly that the
 .Xr md 4
@@ -216,7 +203,7 @@ hardware guide, and installation instructions. Other documentation (e.g.
 the Handbook) is built during the
 .Cm base.txz
 target invoked by
-.Cm packagesystem.
+.Cm packagesystem .
 .El
 .Sh ENVIRONMENT
 Optional variables:
@@ -234,14 +221,14 @@ Location of a directory containing the doc tree. By default,
 .Pa /usr/doc .
 If it is unset or cannot be found, most documentation will not be included in
 the release; see
-.Ev NODOC 
+.Ev NODOC
 below.
 .It Va NOPORTS
 If defined, the Ports Collection will be omitted from the release.
 .It Va NOSRC
 If set, do not include system source code in the release.
 .It Va NODOC
-If defined, the SGML-based documentation from the
+If defined, the XML-based documentation from the
 .Fx
 Documentation Project will not be built.
 However, the
@@ -278,7 +265,7 @@ Typically, one only needs to set
 .Va TARGET .
 .El
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -compact -width Pa
 .It Pa /usr/doc/Makefile
 .It Pa /usr/doc/share/mk/doc.project.mk
 .It Pa /usr/ports/Mk/bsd.port.mk
@@ -311,10 +298,8 @@ The following sequence of commands can be used to build a
 .Dq "-CURRENT snapshot"
 in a clean environment, including ports and documentation:
 .Bd -literal -offset indent
-cd /usr/src
-make buildworld
-cd release
-export CVSUP_HOST=cvsupN.freebsd.org
+cd /usr/src/release
+export SVNROOT=svn://svn.freebsd.org/base
 sh generate-release.sh head /local3/release
 .Ed
 .Pp
@@ -323,7 +308,6 @@ After running these commands, all prepared release files are available in the
 directory.
 .Sh SEE ALSO
 .Xr cc 1 ,
-.Xr cvs 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr svn 1 Pq Pa ports/devel/subversion-freebsd ,
@@ -366,14 +350,14 @@ of building a release in a sterile environment.
 .Pp
 For the
 .Fx 9.0
-release, 
+release,
 .Pa src/release/Makefile
 was overhauled and the wrapper script
 .Pa src/release/generate-release.sh
 introduced to support the introduction of a new installer.
 .Pp
 At near 1000 revisions spread over multiple branches, the
-.Xr cvs 1
+.Xr svn 1
 log of
 .Pa src/release/Makefile
 contains a vivid historical record of some

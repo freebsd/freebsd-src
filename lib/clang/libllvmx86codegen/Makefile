@@ -6,7 +6,6 @@ SRCDIR=	lib/Target/X86
 SRCS=	X86AsmPrinter.cpp \
 	X86COFFMachineModuleInfo.cpp \
 	X86CodeEmitter.cpp \
-	X86ELFWriterInfo.cpp \
 	X86FastISel.cpp \
 	X86FloatingPoint.cpp \
 	X86FrameLowering.cpp \
@@ -15,6 +14,7 @@ SRCS=	X86AsmPrinter.cpp \
 	X86InstrInfo.cpp \
 	X86JITInfo.cpp \
 	X86MCInstLower.cpp \
+	X86MachineFunctionInfo.cpp \
 	X86RegisterInfo.cpp \
 	X86SelectionDAGInfo.cpp \
 	X86Subtarget.cpp \

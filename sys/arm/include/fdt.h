@@ -44,7 +44,7 @@
 /* Max interrupt number */
 #define FDT_INTR_MAX	NIRQ
 
-/* Map phandle/intpin pair to global IRQ number */ 
+/* Map phandle/intpin pair to global IRQ number */
 #define	FDT_MAP_IRQ(node, pin)	(pin)
 
 /*
@@ -57,6 +57,7 @@ struct mem_region {
 	vm_size_t	mr_size;
 };
 
+int fdt_localbus_devmap(phandle_t, struct pmap_devmap *, int, int *);
 int fdt_pci_devmap(phandle_t, struct pmap_devmap *devmap, vm_offset_t,
     vm_offset_t);
 

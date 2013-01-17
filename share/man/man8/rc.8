@@ -35,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2009
+.Dd January 14, 2012
 .Dt RC 8
 .Os
 .Sh NAME
@@ -253,7 +253,7 @@ The boot does not stop if such a script terminates with a non-zero status,
 but a script can stop the boot if necessary by invoking the
 .Fn stop_boot
 function (from
-.Xr rc.subr 8 ).
+.Xr rc.subr 8 ) .
 .El
 .Pp
 Each script should contain
@@ -452,7 +452,7 @@ before starting the daemon.
 Following tradition, all startup files reside in
 .Pa /etc .
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -compact -width Pa
 .It Pa /etc/rc
 .It Pa /etc/rc.conf
 .It Pa /etc/rc.conf.local
@@ -485,7 +485,7 @@ Most scripts require little more than the following.
 \&. /etc/rc.subr
 
 name="foo"
-rcvar=`set_rcvar`
+rcvar=foo_enable
 command="/usr/local/bin/foo"
 
 load_rc_config $name
@@ -506,7 +506,7 @@ The script may list and define as many commands at it needs.
 \&. /etc/rc.subr
 
 name="foo"
-rcvar=`set_rcvar`
+rcvar=foo_enable
 command="/usr/local/bin/foo"
 extra_commands="nop hello"
 hello_cmd="echo Hello World."

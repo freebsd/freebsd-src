@@ -35,7 +35,7 @@ CFLAGS+=	-I${.CURDIR}/../../common
 FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
-LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_ARCH}
+LDSCRIPT=	${.CURDIR}/ldscript.i386
 LDFLAGS=	-Wl,-T${LDSCRIPT} -shared -symbolic
 
 ${PROG}:	${LDSCRIPT}
@@ -64,6 +64,13 @@ CFLAGS+=	-I${.CURDIR}/../libi386
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBEFI} -lstand
+LDADD=		${LIBFICL} ${LIBEFI} ${LIBSTAND}
 
 .include <bsd.prog.mk>
+
+.if ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=        -I.
+beforedepend ${OBJS}: machine
+machine:
+	ln -sf ${.CURDIR}/../../../i386/include machine
+.endif

@@ -73,6 +73,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -81,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/sdt.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
 
 #include <security/mac/mac_framework.h>

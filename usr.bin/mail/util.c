@@ -324,7 +324,7 @@ alter(char *name)
 
 	if (stat(name, &sb))
 		return;
-	(void)gettimeofday(&tv[0], (struct timezone *)NULL);
+	(void)gettimeofday(&tv[0], NULL);
 	tv[0].tv_sec++;
 	TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
 	(void)utimes(name, tv);
@@ -550,7 +550,7 @@ newname:
 }
 
 /*
- * Count the occurances of c in str
+ * Count the occurrences of c in str
  */
 int
 charcount(char *str, int c)

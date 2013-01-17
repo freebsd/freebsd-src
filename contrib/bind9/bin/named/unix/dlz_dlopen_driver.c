@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dlz_dlopen_driver.c,v 1.1.4.4 2011-03-17 09:41:06 fdupont Exp $ */
+/* $Id: dlz_dlopen_driver.c,v 1.1.4.6 2012/02/22 23:46:35 tbox Exp $ */
 
 #include <config.h>
 
@@ -250,7 +250,7 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 	isc_mutex_init(&cd->lock);
 
 	/* Open the library */
-	dlopen_flags = RTLD_NOW;
+	dlopen_flags = RTLD_NOW|RTLD_GLOBAL;
 
 #ifdef RTLD_DEEPBIND
 	/*
@@ -313,6 +313,8 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 		dl_load_symbol(cd, "dlz_subrdataset", ISC_FALSE);
 	cd->dlz_delrdataset = (dlz_dlopen_delrdataset_t *)
 		dl_load_symbol(cd, "dlz_delrdataset", ISC_FALSE);
+	cd->dlz_destroy = (dlz_dlopen_destroy_t *)
+		dl_load_symbol(cd, "dlz_destroy", ISC_FALSE);
 
 	/* Check the version of the API is the same */
 	cd->version = cd->dlz_version(&cd->flags);

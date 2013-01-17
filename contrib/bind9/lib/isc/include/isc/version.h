@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: version.h,v 1.9 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: version.h,v 1.9 2007/06/19 23:47:18 tbox Exp $ */
 
 /*! \file isc/version.h */
 

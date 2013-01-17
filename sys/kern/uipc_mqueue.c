@@ -186,7 +186,7 @@ struct mqueue_msg {
 	/* following real data... */
 };
 
-SYSCTL_NODE(_kern, OID_AUTO, mqueue, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern, OID_AUTO, mqueue, CTLFLAG_RW, 0,
 	"POSIX real time message queue");
 
 static int	default_maxmsg  = 10;
@@ -582,7 +582,6 @@ mqfs_mount(struct mount *mp)
 	mp->mnt_data = &mqfs_data;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 	vfs_getnewfsid(mp);
 
@@ -703,7 +702,7 @@ do_recycle(void *context, int pending __unused)
 {
 	struct vnode *vp = (struct vnode *)context;
 
-	vrecycle(vp, curthread);
+	vrecycle(vp);
 	vdrop(vp);
 }
 
@@ -1065,7 +1064,7 @@ mqfs_inactive(struct vop_inactive_args *ap)
 	struct mqfs_node *pn = VTON(ap->a_vp);
 
 	if (pn->mn_deleted)
-		vrecycle(ap->a_vp, ap->a_td);
+		vrecycle(ap->a_vp);
 	return (0);
 }
 
@@ -1974,7 +1973,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	 * characters. 
 	 */
 	len = strlen(path);
-	if (len < 2  || path[0] != '/' || index(path + 1, '/') != NULL)
+	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
 
 	error = falloc(td, &fp, &fd, 0);
@@ -2077,7 +2076,7 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 		return (error);
 
 	len = strlen(path);
-	if (len < 2  || path[0] != '/' || index(path + 1, '/') != NULL)
+	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
 
 	sx_xlock(&mqfs_data.mi_lock);
@@ -2717,7 +2716,7 @@ freebsd32_kmq_timedsend(struct thread *td,
 	int error;
 	int waitok;
 
-	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
+	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
 	if (uap->abs_timeout != NULL) {
@@ -2746,7 +2745,7 @@ freebsd32_kmq_timedreceive(struct thread *td,
 	struct timespec *abs_timeout, ets;
 	int error, waitok;
 
-	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
+	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
 	if (uap->abs_timeout != NULL) {

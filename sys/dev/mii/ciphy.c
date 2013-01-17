@@ -67,7 +67,7 @@ static device_method_t ciphy_methods[] = {
 	DEVMETHOD(device_attach,	ciphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t ciphy_devclass;
@@ -91,8 +91,10 @@ static const struct mii_phydesc ciphys[] = {
 	MII_PHY_DESC(xxCICADA, CS8201B),
 	MII_PHY_DESC(xxCICADA, CS8204),
 	MII_PHY_DESC(xxCICADA, VSC8211),
+	MII_PHY_DESC(xxCICADA, VSC8221),
 	MII_PHY_DESC(xxCICADA, CS8244),
 	MII_PHY_DESC(xxVITESSE, VSC8601),
+	MII_PHY_DESC(xxVITESSE, VSC8641),
 	MII_PHY_END
 };
 
@@ -368,8 +370,10 @@ ciphy_fixup(struct mii_softc *sc)
 
 		break;
 	case MII_MODEL_xxCICADA_VSC8211:
+	case MII_MODEL_xxCICADA_VSC8221:
 	case MII_MODEL_xxCICADA_CS8244:
 	case MII_MODEL_xxVITESSE_VSC8601:
+	case MII_MODEL_xxVITESSE_VSC8641:
 		break;
 	default:
 		device_printf(sc->mii_dev, "unknown CICADA PHY model %x\n",

@@ -76,9 +76,7 @@ double LLVMGenericValueToFloat(LLVMTypeRef TyRef, LLVMGenericValueRef GenVal) {
     return unwrap(GenVal)->DoubleVal;
   default:
     llvm_unreachable("LLVMGenericValueToFloat supports only float and double.");
-    break;
   }
-  return 0; // Not reached
 }
 
 void LLVMDisposeGenericValue(LLVMGenericValueRef GenVal) {
@@ -241,7 +239,7 @@ void *LLVMRecompileAndRelinkFunction(LLVMExecutionEngineRef EE, LLVMValueRef Fn)
 }
 
 LLVMTargetDataRef LLVMGetExecutionEngineTargetData(LLVMExecutionEngineRef EE) {
-  return wrap(unwrap(EE)->getTargetData());
+  return wrap(unwrap(EE)->getDataLayout());
 }
 
 void LLVMAddGlobalMapping(LLVMExecutionEngineRef EE, LLVMValueRef Global,

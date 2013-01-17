@@ -1,17 +1,17 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -284,16 +284,16 @@ sctp_print_key(sctp_key_t * key, const char *str)
 	uint32_t i;
 
 	if (key == NULL) {
-		printf("%s: [Null key]\n", str);
+		SCTP_PRINTF("%s: [Null key]\n", str);
 		return;
 	}
-	printf("%s: len %u, ", str, key->keylen);
+	SCTP_PRINTF("%s: len %u, ", str, key->keylen);
 	if (key->keylen) {
 		for (i = 0; i < key->keylen; i++)
-			printf("%02x", key->key[i]);
-		printf("\n");
+			SCTP_PRINTF("%02x", key->key[i]);
+		SCTP_PRINTF("\n");
 	} else {
-		printf("[Null key]\n");
+		SCTP_PRINTF("[Null key]\n");
 	}
 }
 
@@ -303,16 +303,16 @@ sctp_show_key(sctp_key_t * key, const char *str)
 	uint32_t i;
 
 	if (key == NULL) {
-		printf("%s: [Null key]\n", str);
+		SCTP_PRINTF("%s: [Null key]\n", str);
 		return;
 	}
-	printf("%s: len %u, ", str, key->keylen);
+	SCTP_PRINTF("%s: len %u, ", str, key->keylen);
 	if (key->keylen) {
 		for (i = 0; i < key->keylen; i++)
-			printf("%02x", key->key[i]);
-		printf("\n");
+			SCTP_PRINTF("%02x", key->key[i]);
+		SCTP_PRINTF("\n");
 	} else {
-		printf("[Null key]\n");
+		SCTP_PRINTF("[Null key]\n");
 	}
 }
 
@@ -469,7 +469,6 @@ sctp_compute_hashkey(sctp_key_t * key1, sctp_key_t * key2, sctp_key_t * shared)
 		}
 		if (sctp_get_keylen(key2)) {
 			bcopy(key2->key, key_ptr, key2->keylen);
-			key_ptr += key2->keylen;
 		}
 	} else {
 		/* key is shared + key2 + key1 */
@@ -483,7 +482,6 @@ sctp_compute_hashkey(sctp_key_t * key1, sctp_key_t * key2, sctp_key_t * shared)
 		}
 		if (sctp_get_keylen(key1)) {
 			bcopy(key1->key, key_ptr, key1->keylen);
-			key_ptr += key1->keylen;
 		}
 	}
 	return (new_key);
@@ -593,7 +591,7 @@ sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t key_id)
 		atomic_add_int(&skey->refcount, 1);
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount acquire to %d\n",
-		    __FUNCTION__, stcb, key_id, skey->refcount);
+		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
 	}
 }
 
@@ -614,7 +612,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 		sctp_free_sharedkey(skey);
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount release to %d\n",
-		    __FUNCTION__, stcb, key_id, skey->refcount);
+		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
 
 		/* see if a notification should be generated */
 		if ((skey->refcount <= 1) && (skey->deactivated)) {
@@ -623,7 +621,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 			    key_id, 0, so_locked);
 			SCTPDBG(SCTP_DEBUG_AUTH2,
 			    "%s: stcb %p key %u no longer used, %d\n",
-			    __FUNCTION__, stcb, key_id, skey->refcount);
+			    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
 		}
 	}
 }
@@ -1765,7 +1763,7 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 		 * report this in an Error Chunk: Unsupported HMAC
 		 * Identifier
 		 */
-		m_err = sctp_get_mbuf_for_msg(sizeof(*err), 0, M_DONTWAIT,
+		m_err = sctp_get_mbuf_for_msg(sizeof(*err), 0, M_NOWAIT,
 		    1, MT_HEADER);
 		if (m_err != NULL) {
 			/* pre-reserve some space */
@@ -1803,7 +1801,7 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 			 * shared_key_id, (void
 			 * *)stcb->asoc.authinfo.recv_keyid);
 			 */
-			sctp_notify_authentication(stcb, SCTP_AUTH_NEWKEY,
+			sctp_notify_authentication(stcb, SCTP_AUTH_NEW_KEY,
 			    shared_key_id, stcb->asoc.authinfo.recv_keyid,
 			    SCTP_SO_NOT_LOCKED);
 		/* compute a new recv assoc key and cache it */
@@ -1871,7 +1869,7 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 		return;
 
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_authkey_event),
-	    0, M_DONTWAIT, 1, MT_HEADER);
+	    0, M_NOWAIT, 1, MT_HEADER);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -1891,7 +1889,7 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 
 	/* append to socket */
 	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
-	    0, 0, 0, 0, 0, 0, m_notify);
+	    0, 0, stcb->asoc.context, 0, 0, 0, m_notify);
 	if (control == NULL) {
 		/* no memory */
 		sctp_m_freem(m_notify);

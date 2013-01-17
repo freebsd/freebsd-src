@@ -256,6 +256,13 @@ null_input(struct ifnet *ifp, struct mbuf *m)
 	m_freem(m);
 }
 
+static void
+null_update_chw(struct ieee80211com *ic)
+{
+
+	if_printf(ic->ic_ifp, "%s: need callback\n", __func__);
+}
+
 /*
  * Attach/setup the common net80211 state.  Called by
  * the driver on attach to prior to creating any vap's.
@@ -276,7 +283,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	/* Create a taskqueue for all state changes */
 	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
-	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s taskq",
+	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
 	    ifp->if_xname);
 	/*
 	 * Fill in 802.11 available channel set, mark all
@@ -287,6 +294,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	ic->ic_update_mcast = null_update_mcast;
 	ic->ic_update_promisc = null_update_promisc;
+	ic->ic_update_chw = null_update_chw;
 
 	ic->ic_hash_key = arc4random();
 	ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;
@@ -309,7 +317,11 @@ ieee80211_ifattach(struct ieee80211com *ic,
 
 	ifp->if_addrlen = IEEE80211_ADDR_LEN;
 	ifp->if_hdrlen = 0;
+
+	CURVNET_SET(vnet0);
+
 	if_attach(ifp);
+
 	ifp->if_mtu = IEEE80211_MTU_MAX;
 	ifp->if_broadcastaddr = ieee80211broadcastaddr;
 	ifp->if_output = null_output;
@@ -323,6 +335,8 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	sdl->sdl_alen = IEEE80211_ADDR_LEN;
 	IEEE80211_ADDR_COPY(LLADDR(sdl), macaddr);
 	ifa_free(ifa);
+
+	CURVNET_RESTORE();
 }
 
 /*
@@ -337,8 +351,18 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211vap *vap;
 
+	/*
+	 * This detaches the main interface, but not the vaps.
+	 * Each VAP may be in a separate VIMAGE.
+	 */
+	CURVNET_SET(ifp->if_vnet);
 	if_detach(ifp);
+	CURVNET_RESTORE();
 
+	/*
+	 * The VAP is responsible for setting and clearing
+	 * the VIMAGE context.
+	 */
 	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL)
 		ieee80211_vap_destroy(vap);
 	ieee80211_waitfor_parent(ic);
@@ -357,7 +381,9 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_power_detach(ic);
 	ieee80211_node_detach(ic);
 
+	/* XXX VNET needed? */
 	ifmedia_removeall(&ic->ic_media);
+
 	taskqueue_free(ic->ic_tq);
 	IEEE80211_LOCK_DESTROY(ic);
 }
@@ -384,9 +410,9 @@ default_reset(struct ieee80211vap *vap, u_long cmd)
  */
 int
 ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t macaddr[IEEE80211_ADDR_LEN])
+    const char name[IFNAMSIZ], int unit, enum ieee80211_opmode opmode,
+    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp;
 
@@ -447,6 +473,8 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 		}
 		break;
 #endif
+	default:
+		break;
 	}
 	/* auto-enable s/w beacon miss support */
 	if (flags & IEEE80211_CLONE_NOBEACONS)
@@ -576,6 +604,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
 
+	CURVNET_SET(ifp->if_vnet);
+
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s parent %s\n",
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
 	    ic->ic_ifp->if_xname);
@@ -628,6 +658,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_sysctl_vdetach(vap);
 
 	if_free(ifp);
+
+	CURVNET_RESTORE();
 }
 
 /*
@@ -1008,7 +1040,8 @@ ieee80211_media_setup(struct ieee80211com *ic,
 	struct ifmedia *media, int caps, int addsta,
 	ifm_change_cb_t media_change, ifm_stat_cb_t media_stat)
 {
-	int i, j, mode, rate, maxrate, mword, r;
+	int i, j, rate, maxrate, mword, r;
+	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
 	struct ieee80211_rateset allrates;
 
@@ -1137,7 +1170,8 @@ void
 ieee80211_announce(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	int i, mode, rate, mword;
+	int i, rate, mword;
+	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
 
 	/* NB: skip AUTO since it has no rates */

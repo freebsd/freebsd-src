@@ -32,6 +32,7 @@ hint.arge.1.maddr=0x1a000000
 hint.arge.1.msize=0x1000
 hint.arge.1.irq=3
 
+# XXX The ath device hangs off of the AHB, rather than the Nexus.
 hint.ath.0.at="nexus0"
 hint.ath.0.maddr=0x180c0000
 hint.ath.0.msize=0x30000
@@ -50,3 +51,9 @@ hint.mx25l.0.cs=0
 
 # Watchdog
 hint.ar71xx_wdog.0.at="nexus0"
+
+# The GPIO function and pin mask is configured per-board
+hint.gpio.0.at="apb0"
+hint.gpio.0.maddr=0x18040000
+hint.gpio.0.msize=0x1000
+hint.gpio.0.irq=2

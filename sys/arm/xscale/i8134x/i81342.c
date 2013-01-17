@@ -425,15 +425,16 @@ i81342_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-i81342_setup_intr(device_t dev, device_t child, struct resource *ires, 
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+i81342_setup_intr(device_t dev, device_t child, struct resource *ires,
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
-	
+	int error;
 
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr,
-	    arg, cookiep);
-	arm_unmask_irq(rman_get_start(ires));
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+	    filt, intr, arg, cookiep);
+	if (error)
+		return (error);
 	return (0);
 }
 

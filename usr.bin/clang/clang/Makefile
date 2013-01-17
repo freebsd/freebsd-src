@@ -9,13 +9,26 @@ SRCS=	cc1_main.cpp \
 	cc1as_main.cpp \
 	driver.cpp
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
+NO_SHARED?= yes
+.endif
+
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 	${BINDIR}/clang ${BINDIR}/clang-cpp
 MLINKS=	clang.1 clang++.1 \
 	clang.1 clang-cpp.1
+.if ${MK_CLANG_IS_CC} != "no"
+LINKS+=	${BINDIR}/clang ${BINDIR}/cc \
+	${BINDIR}/clang ${BINDIR}/c++ \
+	${BINDIR}/clang ${BINDIR}/CC \
+	${BINDIR}/clang ${BINDIR}/cpp
+MLINKS+= clang.1 cc.1 \
+	clang.1 c++.1 \
+	clang.1 CC.1 \
+	clang.1 cpp.1
+.endif
 
 TGHDRS=	CC1AsOptions \
-	CC1Options \
 	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
@@ -33,13 +46,17 @@ LIBDEPS=clangfrontendtool \
 	clangstaticanalyzercheckers \
 	clangstaticanalyzercore \
 	clanganalysis \
-	clangindex \
 	clangarcmigrate \
-	clangrewrite \
+	clangrewritefrontend \
+	clangrewritecore \
+	clangedit \
 	clangast \
 	clanglex \
 	clangbasic \
+	llvmlinker \
+	llvmarchive \
 	llvmipo \
+	llvmvectorize \
 	llvminstrumentation \
 	llvmbitwriter \
 	llvmbitreader \
@@ -48,20 +65,20 @@ LIBDEPS=clangfrontendtool \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvmarmdesc \
-	llvmarminstprinter \
 	llvmarminfo \
+	llvmarminstprinter \
+	llvmmipsasmparser \
 	llvmmipscodegen \
 	llvmmipsdesc \
 	llvmmipsinstprinter \
+	llvmmipsdisassembler \
 	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
-	llvmx86disassembler \
+	llvmpowerpcinstprinter \
 	llvmx86asmparser \
 	llvmx86codegen \
-	llvmx86desc \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
@@ -71,12 +88,15 @@ LIBDEPS=clangfrontendtool \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
+	llvmx86disassembler \
+	llvmx86desc \
+	llvmx86info \
 	llvmtarget \
 	llvmx86instprinter \
+	llvmmc \
+	llvmobject \
 	llvmx86utils \
 	llvmcore \
-	llvmx86info \
-	llvmmc \
 	llvmsupport
 
 .include "../clang.prog.mk"

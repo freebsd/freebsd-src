@@ -30,9 +30,6 @@ __FBSDID("$FreeBSD$");
 
 #include "ed.h"
 
-
-extern int scripted;
-
 /* read_file: read a named file/pipe into the buffer; return line count */
 long
 read_file(char *fn, long n)
@@ -53,15 +50,13 @@ read_file(char *fn, long n)
 		errmsg = "cannot close input file";
 		return ERR;
 	}
-	fprintf(stdout, !scripted ? "%lu\n" : "", size);
+	if (!scripted)
+		fprintf(stdout, "%lu\n", size);
 	return current_addr - n;
 }
 
-
-extern int des;
-
-char *sbuf;			/* file i/o buffer */
-int sbufsz;			/* file i/o buffer size */
+static char *sbuf;		/* file i/o buffer */
+static int sbufsz;		/* file i/o buffer size */
 int newline_added;		/* if set, newline appended to input file */
 
 /* read_stream: read a stream into the editor buffer; return status */
@@ -161,7 +156,8 @@ write_file(char *fn, const char *mode, long n, long m)
 		errmsg = "cannot close output file";
 		return ERR;
 	}
-	fprintf(stdout, !scripted ? "%lu\n" : "", size);
+	if (!scripted)
+		fprintf(stdout, "%lu\n", size);
 	return n ? m - n + 1 : 0;
 }
 
@@ -295,9 +291,6 @@ get_tty_line(void)
 
 #define ESCAPES "\a\b\f\n\r\t\v\\"
 #define ESCCHARS "abfnrtv\\"
-
-extern int rows;
-extern int cols;
 
 /* put_tty_line: print text to stdout */
 int

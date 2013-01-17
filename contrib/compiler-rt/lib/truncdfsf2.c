@@ -37,11 +37,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <stdint.h>
-#include <limits.h>
-#include <stdbool.h>
-
-#include "abi.h"
+#include "int_lib.h"
 
 typedef double src_t;
 typedef uint64_t src_rep_t;
@@ -68,7 +64,7 @@ static inline dst_t dstFromRep(dst_rep_t x) {
 
 // End helper routines.  Conversion implementation follows.
 
-ARM_EABI_FNALIAS(d2f, truncdfsf2);
+ARM_EABI_FNALIAS(d2f, truncdfsf2)
 
 COMPILER_RT_ABI dst_t
 __truncdfsf2(src_t a) {

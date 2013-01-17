@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/asmacros.h>
 #include <machine/fsr.h>
 #include <machine/intr_machdep.h>
-#include <machine/ktr.h>
 #include <machine/pcb.h>
 #include <machine/pstate.h>
 #include <machine/wstate.h>
@@ -580,8 +579,8 @@ fpu_fault_begin:
  * void spitfire_block_copy(void *src, void *dst, size_t len)
  */
 ENTRY(spitfire_block_copy)
-	rdpr	%pil, %o3
-	wrpr	%g0, PIL_TICK, %pil
+	rdpr	%pstate, %o3
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	wr	%g0, ASI_BLK_S, %asi
 	wr	%g0, FPRS_FEF, %fprs
@@ -591,10 +590,10 @@ ENTRY(spitfire_block_copy)
 	andcc	%o5, FPRS_FEF, %g0
 	bz,a,pt	%xcc, 1f
 	 nop
-	stda	%f0, [PCB_REG + PCB_UFP + (0 * 64)] %asi
-	stda	%f16, [PCB_REG + PCB_UFP + (1 * 64)] %asi
-	stda	%f32, [PCB_REG + PCB_UFP + (2 * 64)] %asi
-	stda	%f48, [PCB_REG + PCB_UFP + (3 * 64)] %asi
+	stda	%f0, [PCB_REG + PCB_UFP + (0 * VIS_BLOCKSIZE)] %asi
+	stda	%f16, [PCB_REG + PCB_UFP + (1 * VIS_BLOCKSIZE)] %asi
+	stda	%f32, [PCB_REG + PCB_UFP + (2 * VIS_BLOCKSIZE)] %asi
+	stda	%f48, [PCB_REG + PCB_UFP + (3 * VIS_BLOCKSIZE)] %asi
 	membar	#Sync
 
 	andn	%o5, FPRS_FEF, %o5
@@ -603,11 +602,11 @@ ENTRY(spitfire_block_copy)
 	or	%o4, PCB_FEF, %o4
 	stx	%o4, [PCB_REG + PCB_FLAGS]
 
-1:	wrpr	%o3, 0, %pil
+1:	wrpr	%o3, 0, %pstate
 
 	ldda	[%o0] %asi, %f0
-	add	%o0, 64, %o0
-	sub	%o2, 64, %o2
+	add	%o0, VIS_BLOCKSIZE, %o0
+	sub	%o2, VIS_BLOCKSIZE, %o2
 
 2:	ldda	[%o0] %asi, %f16
 	fsrc1	%f0, %f32
@@ -619,10 +618,10 @@ ENTRY(spitfire_block_copy)
 	fsrc1	%f12, %f44
 	fsrc1	%f14, %f46
 	stda	%f32, [%o1] %asi
-	add	%o0, 64, %o0
-	subcc	%o2, 64, %o2
+	add	%o0, VIS_BLOCKSIZE, %o0
+	subcc	%o2, VIS_BLOCKSIZE, %o2
 	bz,pn	%xcc, 3f
-	 add	%o1, 64, %o1
+	 add	%o1, VIS_BLOCKSIZE, %o1
 	ldda	[%o0] %asi, %f0
 	fsrc1	%f16, %f32
 	fsrc1	%f18, %f34
@@ -633,10 +632,10 @@ ENTRY(spitfire_block_copy)
 	fsrc1	%f28, %f44
 	fsrc1	%f30, %f46
 	stda	%f32, [%o1] %asi
-	add	%o0, 64, %o0
-	sub	%o2, 64, %o2
+	add	%o0, VIS_BLOCKSIZE, %o0
+	sub	%o2, VIS_BLOCKSIZE, %o2
 	ba,pt	%xcc, 2b
-	 add	%o1, 64, %o1
+	 add	%o1, VIS_BLOCKSIZE, %o1
 
 3:	membar	#Sync
 
@@ -651,10 +650,10 @@ END(spitfire_block_copy)
  * void zeus_block_copy(void *src, void *dst, size_t len)
  */
 ENTRY(zeus_block_copy)
-	prefetch [%o0 + (0 * 64)], 0
+	prefetch [%o0 + (0 * VIS_BLOCKSIZE)], 0
 
-	rdpr	%pil, %o3
-	wrpr	%g0, PIL_TICK, %pil
+	rdpr	%pstate, %o3
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	wr	%g0, ASI_BLK_S, %asi
 	wr	%g0, FPRS_FEF, %fprs
@@ -664,10 +663,10 @@ ENTRY(zeus_block_copy)
 	andcc	%o5, FPRS_FEF, %g0
 	bz,a,pt	%xcc, 1f
 	 nop
-	stda	%f0, [PCB_REG + PCB_UFP + (0 * 64)] %asi
-	stda	%f16, [PCB_REG + PCB_UFP + (1 * 64)] %asi
-	stda	%f32, [PCB_REG + PCB_UFP + (2 * 64)] %asi
-	stda	%f48, [PCB_REG + PCB_UFP + (3 * 64)] %asi
+	stda	%f0, [PCB_REG + PCB_UFP + (0 * VIS_BLOCKSIZE)] %asi
+	stda	%f16, [PCB_REG + PCB_UFP + (1 * VIS_BLOCKSIZE)] %asi
+	stda	%f32, [PCB_REG + PCB_UFP + (2 * VIS_BLOCKSIZE)] %asi
+	stda	%f48, [PCB_REG + PCB_UFP + (3 * VIS_BLOCKSIZE)] %asi
 	membar	#Sync
 
 	andn	%o5, FPRS_FEF, %o5
@@ -676,35 +675,35 @@ ENTRY(zeus_block_copy)
 	or	%o4, PCB_FEF, %o4
 	stx	%o4, [PCB_REG + PCB_FLAGS]
 
-1:	wrpr	%o3, 0, %pil
+1:	wrpr	%o3, 0, %pstate
 
 	ldd	[%o0 + (0 * 8)], %f0
-	prefetch [%o0 + (1 * 64)], 0
+	prefetch [%o0 + (1 * VIS_BLOCKSIZE)], 0
 	ldd	[%o0 + (1 * 8)], %f2
-	prefetch [%o0 + (2 * 64)], 0
+	prefetch [%o0 + (2 * VIS_BLOCKSIZE)], 0
 	fmovd	%f0, %f32
 	ldd	[%o0 + (2 * 8)], %f4
-	prefetch [%o0 + (3 * 64)], 0
+	prefetch [%o0 + (3 * VIS_BLOCKSIZE)], 0
 	fmovd	%f2, %f34
 	ldd	[%o0 + (3 * 8)], %f6
-	prefetch [%o0 + (4 * 64)], 1
+	prefetch [%o0 + (4 * VIS_BLOCKSIZE)], 1
 	fmovd	%f4, %f36
 	ldd	[%o0 + (4 * 8)], %f8
-	prefetch [%o0 + (8 * 64)], 1
+	prefetch [%o0 + (8 * VIS_BLOCKSIZE)], 1
 	fmovd	%f6, %f38
 	ldd	[%o0 + (5 * 8)], %f10
-	prefetch [%o0 + (12 * 64)], 1
+	prefetch [%o0 + (12 * VIS_BLOCKSIZE)], 1
 	fmovd	%f8, %f40
 	ldd	[%o0 + (6 * 8)], %f12
-	prefetch [%o0 + (16 * 64)], 1
+	prefetch [%o0 + (16 * VIS_BLOCKSIZE)], 1
 	fmovd	%f10, %f42
 	ldd	[%o0 + (7 * 8)], %f14
 	ldd	[%o0 + (8 * 8)], %f0
-	sub	%o2, 64, %o2
-	add	%o0, 64, %o0
-	prefetch [%o0 + (19 * 64)], 1
+	sub	%o2, VIS_BLOCKSIZE, %o2
+	add	%o0, VIS_BLOCKSIZE, %o0
+	prefetch [%o0 + (19 * VIS_BLOCKSIZE)], 1
 	ba,pt	%xcc, 2f
-	 prefetch [%o0 + (23 * 64)], 1
+	 prefetch [%o0 + (23 * VIS_BLOCKSIZE)], 1
 	.align	32
 
 2:	ldd	[%o0 + (1 * 8)], %f2
@@ -724,14 +723,14 @@ ENTRY(zeus_block_copy)
 	fmovd	%f8, %f40
 	ldd	[%o0 + (8 * 8)], %f0
 	fmovd	%f10, %f42
-	sub	%o2, 64, %o2
-	prefetch [%o0 + (3 * 64)], 0
-	add	%o1, 64, %o1
-	prefetch [%o0 + (24 * 64)], 1
-	add	%o0, 64, %o0
-	cmp	%o2, 64 + 8
+	sub	%o2, VIS_BLOCKSIZE, %o2
+	prefetch [%o0 + (3 * VIS_BLOCKSIZE)], 0
+	add	%o1, VIS_BLOCKSIZE, %o1
+	prefetch [%o0 + (24 * VIS_BLOCKSIZE)], 1
+	add	%o0, VIS_BLOCKSIZE, %o0
+	cmp	%o2, VIS_BLOCKSIZE + 8
 	bgu,pt	%xcc, 2b
-	 prefetch [%o0 + (12 * 64)], 1
+	 prefetch [%o0 + (12 * VIS_BLOCKSIZE)], 1
 	ldd	[%o0 + (1 * 8)], %f2
 	fsrc1	%f12, %f44
 	ldd	[%o0 + (2 * 8)], %f4
@@ -747,7 +746,7 @@ ENTRY(zeus_block_copy)
 	fsrc1	%f6, %f38
 	ldd	[%o0 + (7 * 8)], %f14
 	fsrc1	%f8, %f40
-	add	%o1, 64, %o1
+	add	%o1, VIS_BLOCKSIZE, %o1
 	fsrc1	%f10, %f42
 	fsrc1	%f12, %f44
 	fsrc1	%f14, %f46
@@ -764,8 +763,8 @@ END(zeus_block_copy)
  */
 ALTENTRY(zeus_block_zero)
 ENTRY(spitfire_block_zero)
-	rdpr	%pil, %o3
-	wrpr	%g0, PIL_TICK, %pil
+	rdpr	%pstate, %o3
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	wr	%g0, ASI_BLK_S, %asi
 	wr	%g0, FPRS_FEF, %fprs
@@ -775,10 +774,10 @@ ENTRY(spitfire_block_zero)
 	andcc	%o5, FPRS_FEF, %g0
 	bz,a,pt	%xcc, 1f
 	 nop
-	stda	%f0, [PCB_REG + PCB_UFP + (0 * 64)] %asi
-	stda	%f16, [PCB_REG + PCB_UFP + (1 * 64)] %asi
-	stda	%f32, [PCB_REG + PCB_UFP + (2 * 64)] %asi
-	stda	%f48, [PCB_REG + PCB_UFP + (3 * 64)] %asi
+	stda	%f0, [PCB_REG + PCB_UFP + (0 * VIS_BLOCKSIZE)] %asi
+	stda	%f16, [PCB_REG + PCB_UFP + (1 * VIS_BLOCKSIZE)] %asi
+	stda	%f32, [PCB_REG + PCB_UFP + (2 * VIS_BLOCKSIZE)] %asi
+	stda	%f48, [PCB_REG + PCB_UFP + (3 * VIS_BLOCKSIZE)] %asi
 	membar	#Sync
 
 	andn	%o5, FPRS_FEF, %o5
@@ -787,7 +786,7 @@ ENTRY(spitfire_block_zero)
 	or	%o4, PCB_FEF, %o4
 	stx	%o4, [PCB_REG + PCB_FLAGS]
 
-1:	wrpr	%o3, 0, %pil
+1:	wrpr	%o3, 0, %pstate
 
 	fzero	%f0
 	fzero	%f2
@@ -798,13 +797,13 @@ ENTRY(spitfire_block_zero)
 	fzero	%f12
 	fzero	%f14
 
-1:	stda	%f0, [%o0] %asi
-	stda	%f0, [%o0 + 64] %asi
-	stda	%f0, [%o0 + 128] %asi
-	stda	%f0, [%o0 + 192] %asi
-	sub	%o1, 256, %o1
+1:	stda	%f0, [%o0 + (0 * VIS_BLOCKSIZE)] %asi
+	stda	%f0, [%o0 + (1 * VIS_BLOCKSIZE)] %asi
+	stda	%f0, [%o0 + (2 * VIS_BLOCKSIZE)] %asi
+	stda	%f0, [%o0 + (3 * VIS_BLOCKSIZE)] %asi
+	sub	%o1, (4 * VIS_BLOCKSIZE), %o1
 	brnz,pt	%o1, 1b
-	 add	%o0, 256, %o0
+	 add	%o0, (4 * VIS_BLOCKSIZE), %o0
 	membar	#Sync
 
 	retl

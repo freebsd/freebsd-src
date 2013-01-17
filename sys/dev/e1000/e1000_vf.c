@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -36,21 +36,21 @@
 #include "e1000_api.h"
 
 
-static s32       e1000_init_phy_params_vf(struct e1000_hw *hw);
-static s32       e1000_init_nvm_params_vf(struct e1000_hw *hw);
-static void      e1000_release_vf(struct e1000_hw *hw);
-static s32       e1000_acquire_vf(struct e1000_hw *hw);
-static s32       e1000_setup_link_vf(struct e1000_hw *hw);
-static s32       e1000_get_bus_info_pcie_vf(struct e1000_hw *hw);
-static s32       e1000_init_mac_params_vf(struct e1000_hw *hw);
-static s32       e1000_check_for_link_vf(struct e1000_hw *hw);
-static s32       e1000_get_link_up_info_vf(struct e1000_hw *hw, u16 *speed,
-                                              u16 *duplex);
-static s32       e1000_init_hw_vf(struct e1000_hw *hw);
-static s32       e1000_reset_hw_vf(struct e1000_hw *hw);
-static void      e1000_update_mc_addr_list_vf(struct e1000_hw *hw, u8 *, u32);
-static void      e1000_rar_set_vf(struct e1000_hw *, u8 *, u32);
-static s32       e1000_read_mac_addr_vf(struct e1000_hw *);
+static s32 e1000_init_phy_params_vf(struct e1000_hw *hw);
+static s32 e1000_init_nvm_params_vf(struct e1000_hw *hw);
+static void e1000_release_vf(struct e1000_hw *hw);
+static s32 e1000_acquire_vf(struct e1000_hw *hw);
+static s32 e1000_setup_link_vf(struct e1000_hw *hw);
+static s32 e1000_get_bus_info_pcie_vf(struct e1000_hw *hw);
+static s32 e1000_init_mac_params_vf(struct e1000_hw *hw);
+static s32 e1000_check_for_link_vf(struct e1000_hw *hw);
+static s32 e1000_get_link_up_info_vf(struct e1000_hw *hw, u16 *speed,
+				     u16 *duplex);
+static s32 e1000_init_hw_vf(struct e1000_hw *hw);
+static s32 e1000_reset_hw_vf(struct e1000_hw *hw);
+static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw, u8 *, u32);
+static void e1000_rar_set_vf(struct e1000_hw *, u8 *, u32);
+static s32 e1000_read_mac_addr_vf(struct e1000_hw *);
 
 /**
  *  e1000_init_phy_params_vf - Inits PHY params
@@ -219,7 +219,7 @@ static s32 e1000_get_bus_info_pcie_vf(struct e1000_hw *hw)
  *  the status register's data which is often stale and inaccurate.
  **/
 static s32 e1000_get_link_up_info_vf(struct e1000_hw *hw, u16 *speed,
-                                     u16 *duplex)
+				     u16 *duplex)
 {
 	s32 status;
 
@@ -288,7 +288,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
 		if (!ret_val) {
 			if (msgbuf[0] == (E1000_VF_RESET |
-						E1000_VT_MSGTYPE_ACK))
+			    E1000_VT_MSGTYPE_ACK))
 				memcpy(hw->mac.perm_addr, addr, 6);
 			else
 				ret_val = -E1000_ERR_MAC_INIT;
@@ -369,9 +369,20 @@ static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
 		bit_shift++;
 
 	hash_value = hash_mask & (((mc_addr[4] >> (8 - bit_shift)) |
-	                          (((u16) mc_addr[5]) << bit_shift)));
+				  (((u16) mc_addr[5]) << bit_shift)));
 
 	return hash_value;
+}
+
+static void e1000_write_msg_read_ack(struct e1000_hw *hw,
+				     u32 *msg, u16 size)
+{
+	struct e1000_mbx_info *mbx = &hw->mbx;
+	u32 retmsg[E1000_VFMAILBOX_SIZE];
+	s32 retval = mbx->ops.write_posted(hw, msg, size, 0);
+
+	if (!retval)
+		mbx->ops.read_posted(hw, retmsg, E1000_VFMAILBOX_SIZE, 0);
 }
 
 /**
@@ -384,9 +395,8 @@ static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
  *  The caller must have a packed mc_addr_list of multicast addresses.
  **/
 void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
-                                  u8 *mc_addr_list, u32 mc_addr_count)
+				  u8 *mc_addr_list, u32 mc_addr_count)
 {
-	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[E1000_VFMAILBOX_SIZE];
 	u16 *hash_list = (u16 *)&msgbuf[1];
 	u32 hash_value;
@@ -420,7 +430,7 @@ void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
 		mc_addr_list += ETH_ADDR_LEN;
 	}
 
-	mbx->ops.write_posted(hw, msgbuf, E1000_VFMAILBOX_SIZE, 0);
+	e1000_write_msg_read_ack(hw, msgbuf, E1000_VFMAILBOX_SIZE);
 }
 
 /**
@@ -431,7 +441,6 @@ void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
  **/
 void e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
 {
-	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 
 	msgbuf[0] = E1000_VF_SET_VLAN;
@@ -440,7 +449,7 @@ void e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
 	if (set)
 		msgbuf[0] |= E1000_VF_SET_VLAN_ADD;
 
-	mbx->ops.write_posted(hw, msgbuf, 2, 0);
+	e1000_write_msg_read_ack(hw, msgbuf, 2);
 }
 
 /** e1000_rlpml_set_vf - Set the maximum receive packet length
@@ -449,13 +458,12 @@ void e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
  **/
 void e1000_rlpml_set_vf(struct e1000_hw *hw, u16 max_size)
 {
-	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 
 	msgbuf[0] = E1000_VF_SET_LPE;
 	msgbuf[1] = max_size;
 
-	mbx->ops.write_posted(hw, msgbuf, 2, 0);
+	e1000_write_msg_read_ack(hw, msgbuf, 2);
 }
 
 /**

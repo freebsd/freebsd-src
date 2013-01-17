@@ -158,6 +158,24 @@ sysinit_add(struct sysinit **set, struct sysinit **set_end)
 	newsysinit_end = newset + count;
 }
 
+#if defined (DDB) && defined(VERBOSE_SYSINIT)
+static const char *
+symbol_name(vm_offset_t va, db_strategy_t strategy)
+{
+	const char *name;
+	c_db_sym_t sym;
+	db_expr_t  offset;
+
+	if (va == 0)
+		return (NULL);
+	sym = db_search_symbol(va, strategy, &offset);
+	if (offset != 0)
+		return (NULL);
+	db_symbol_values(sym, &name, NULL);
+	return (name);
+}
+#endif
+
 /*
  * System startup; initialize the world, create process 0, mount root
  * filesystem, and fork to create init and pagedaemon.  Most of the
@@ -238,15 +256,16 @@ restart:
 		}
 		if (verbose) {
 #if defined(DDB)
-			const char *name;
-			c_db_sym_t sym;
-			db_expr_t  offset;
+			const char *func, *data;
 
-			sym = db_search_symbol((vm_offset_t)(*sipp)->func,
-			    DB_STGY_PROC, &offset);
-			db_symbol_values(sym, &name, NULL);
-			if (name != NULL)
-				printf("   %s(%p)... ", name, (*sipp)->udata);
+			func = symbol_name((vm_offset_t)(*sipp)->func,
+			    DB_STGY_PROC);
+			data = symbol_name((vm_offset_t)(*sipp)->udata,
+			    DB_STGY_ANY);
+			if (func != NULL && data != NULL)
+				printf("   %s(&%s)... ", func, data);
+			else if (func != NULL)
+				printf("   %s(%p)... ", func, (*sipp)->udata);
 			else
 #endif
 				printf("   %p(%p)... ", (*sipp)->func,
@@ -457,6 +476,7 @@ proc0_init(void *dummy __unused)
 	knlist_init_mtx(&p->p_klist, &p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
+	/* pid_max cannot be greater than PID_MAX */
 	td->td_tid = PID_MAX + 1;
 	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	td->td_state = TDS_RUNNING;
@@ -467,7 +487,8 @@ proc0_init(void *dummy __unused)
 	td->td_priority = PVM;
 	td->td_base_pri = PVM;
 	td->td_oncpu = 0;
-	td->td_flags = TDF_INMEM|TDP_KTHREAD;
+	td->td_flags = TDF_INMEM;
+	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
 	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
 	p->p_peers = 0;
@@ -477,7 +498,7 @@ proc0_init(void *dummy __unused)
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
 	strncpy(td->td_name, "swapper", sizeof (td->td_name));
 
-	callout_init(&p->p_itcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 
@@ -641,7 +662,7 @@ static char init_path[MAXPATHLEN] =
 #ifdef	INIT_PATH
     __XSTRING(INIT_PATH);
 #else
-    "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init:/stand/sysinstall";
+    "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init";
 #endif
 SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
 	"Path used to search the init process");

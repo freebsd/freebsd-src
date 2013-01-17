@@ -15,8 +15,8 @@
 #define LLVM_MC_MCSECTIONCOFF_H
 
 #include "llvm/MC/MCSection.h"
-
 #include "llvm/Support/COFF.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
@@ -61,7 +61,6 @@ namespace llvm {
     static bool classof(const MCSection *S) {
       return S->getVariant() == SV_COFF;
     }
-    static bool classof(const MCSectionCOFF *) { return true; }
   };
 
 } // end namespace llvm

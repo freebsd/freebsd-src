@@ -34,6 +34,9 @@
 #define	PCI_USB_REV_3_0		0x30	/* USB 3.0 */
 #define	PCI_XHCI_FLADJ		0x61	/* RW frame length adjust */
 
+#define	PCI_XHCI_INTEL_XUSB2PR	0xD0	/* Intel USB2 Port Routing */
+#define	PCI_XHCI_INTEL_USB3_PSSEN 0xD8	/* Intel USB3 Port SuperSpeed Enable */
+
 /* XHCI capability registers */
 #define	XHCI_CAPLENGTH		0x00	/* RO capability */
 #define	XHCI_RESERVED		0x01	/* Reserved */
@@ -115,7 +118,7 @@
 #define	XHCI_PS_PR		0x00000010	/* RW - port reset */
 #define	XHCI_PS_PLS_GET(x)	(((x) >> 5) & 0xF)	/* RW - port link state */
 #define	XHCI_PS_PLS_SET(x)	(((x) & 0xF) << 5)	/* RW - port link state */
-#define	XHCI_PS_PP		0x00000100	/* RW - port power */
+#define	XHCI_PS_PP		0x00000200	/* RW - port power */
 #define	XHCI_PS_SPEED_GET(x)	(((x) >> 10) & 0xF)	/* RO - port speed */
 #define	XHCI_PS_PIC_GET(x)	(((x) >> 14) & 0x3)	/* RW - port indicator */
 #define	XHCI_PS_PIC_SET(x)	(((x) & 0x3) << 14)	/* RW - port indicator */

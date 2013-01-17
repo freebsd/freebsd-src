@@ -985,10 +985,10 @@ typedef	u_int32_t	u_32_t;
 typedef struct mbuf mb_t;
 # endif /* _KERNEL */
 
-# if __FreeBSD__ < 3
+# if __FreeBSD_version < 300000
 #  include <machine/spl.h>
 # else
-#  if __FreeBSD__ == 3
+#  if __FreeBSD_version < 400000
 #   if defined(IPFILTER_LKM) && !defined(ACTUALLY_LKM_NOT_KERNEL)
 #    define	ACTUALLY_LKM_NOT_KERNEL
 #   endif

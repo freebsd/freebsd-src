@@ -221,6 +221,19 @@
 #define AR_PHY_RADAR_0_FIRPWR	0x7F000000	/* Radar firpwr threshold */
 #define AR_PHY_RADAR_0_FIRPWR_S	24
 
+/* ar5413 specific */
+#define	AR_PHY_RADAR_2		0x9958		/* radar detection settings */
+#define	AR_PHY_RADAR_2_ENRELSTEPCHK 0x00002000	/* Enable using max rssi */
+#define	AR_PHY_RADAR_2_ENMAXRSSI    0x00004000	/* Enable using max rssi */
+#define	AR_PHY_RADAR_2_BLOCKOFDMWEAK 0x00008000	/* En block OFDM weak sig as radar */
+#define	AR_PHY_RADAR_2_USEFIR128    0x00400000	/* En measuring pwr over 128 cycles */
+#define	AR_PHY_RADAR_2_ENRELPWRCHK  0x00800000	/* Enable using max rssi */
+#define	AR_PHY_RADAR_2_MAXLEN	0x000000FF	/* Max Pulse duration threshold */
+#define	AR_PHY_RADAR_2_MAXLEN_S	0
+#define	AR_PHY_RADAR_2_RELSTEP	0x00001F00	/* Pulse relative step threshold */
+#define	AR_PHY_RADAR_2_RELSTEP_S	8
+#define	AR_PHY_RADAR_2_RELPWR	0x003F0000	/* pulse relative power threshold */
+#define	AR_PHY_RADAR_2_RELPWR_S	16
 
 #define	AR_PHY_SIGMA_DELTA	0x996C      /* AR5312 only */
 #define	AR_PHY_SIGMA_DELTA_ADC_SEL	0x00000003

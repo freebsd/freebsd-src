@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/fpu.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
-#include <i386/include/psl.h>
+#include <x86/include/psl.h>
 
 #include <security/audit/audit.h>
 
@@ -278,6 +278,5 @@ ia32_trap(int vector, struct trapframe *tf)
 
 out:
 	userret(td, tf);
-	mtx_assert(&Giant, MA_NOTOWNED);
 	do_ast(tf);
 }

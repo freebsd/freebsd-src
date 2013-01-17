@@ -43,7 +43,8 @@
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/PassManager.h"
 #include "llvm/IntrinsicInst.h"
@@ -102,7 +103,8 @@ namespace {
     Module *Mod;
     AliasAnalysis *AA;
     DominatorTree *DT;
-    TargetData *TD;
+    DataLayout *TD;
+    TargetLibraryInfo *TLI;
 
     std::string Messages;
     raw_string_ostream MessagesStr;
@@ -117,6 +119,7 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
       AU.addRequired<AliasAnalysis>();
+      AU.addRequired<TargetLibraryInfo>();
       AU.addRequired<DominatorTree>();
     }
     virtual void print(raw_ostream &O, const Module *M) const {}
@@ -149,6 +152,7 @@ namespace {
 char Lint::ID = 0;
 INITIALIZE_PASS_BEGIN(Lint, "lint", "Statically lint-checks LLVM IR",
                       false, true)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_END(Lint, "lint", "Statically lint-checks LLVM IR",
@@ -173,7 +177,8 @@ bool Lint::runOnFunction(Function &F) {
   Mod = F.getParent();
   AA = &getAnalysis<AliasAnalysis>();
   DT = &getAnalysis<DominatorTree>();
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
+  TLI = &getAnalysis<TargetLibraryInfo>();
   visit(F);
   dbgs() << MessagesStr.str();
   Messages.clear();
@@ -406,15 +411,50 @@ void Lint::visitMemoryReference(Instruction &I,
             "Undefined behavior: Branch to non-blockaddress", &I);
   }
 
+  // Check for buffer overflows and misalignment.
   if (TD) {
-    if (Align == 0 && Ty) Align = TD->getABITypeAlignment(Ty);
+    // Only handles memory references that read/write something simple like an
+    // alloca instruction or a global variable.
+    int64_t Offset = 0;
+    if (Value *Base = GetPointerBaseWithConstantOffset(Ptr, Offset, *TD)) {
+      // OK, so the access is to a constant offset from Ptr.  Check that Ptr is
+      // something we can handle and if so extract the size of this base object
+      // along with its alignment.
+      uint64_t BaseSize = AliasAnalysis::UnknownSize;
+      unsigned BaseAlign = 0;
 
-    if (Align != 0) {
-      unsigned BitWidth = TD->getTypeSizeInBits(Ptr->getType());
-      APInt Mask = APInt::getAllOnesValue(BitWidth),
-                   KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-      ComputeMaskedBits(Ptr, Mask, KnownZero, KnownOne, TD);
-      Assert1(!(KnownOne & APInt::getLowBitsSet(BitWidth, Log2_32(Align))),
+      if (AllocaInst *AI = dyn_cast<AllocaInst>(Base)) {
+        Type *ATy = AI->getAllocatedType();
+        if (!AI->isArrayAllocation() && ATy->isSized())
+          BaseSize = TD->getTypeAllocSize(ATy);
+        BaseAlign = AI->getAlignment();
+        if (BaseAlign == 0 && ATy->isSized())
+          BaseAlign = TD->getABITypeAlignment(ATy);
+      } else if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Base)) {
+        // If the global may be defined differently in another compilation unit
+        // then don't warn about funky memory accesses.
+        if (GV->hasDefinitiveInitializer()) {
+          Type *GTy = GV->getType()->getElementType();
+          if (GTy->isSized())
+            BaseSize = TD->getTypeAllocSize(GTy);
+          BaseAlign = GV->getAlignment();
+          if (BaseAlign == 0 && GTy->isSized())
+            BaseAlign = TD->getABITypeAlignment(GTy);
+        }
+      }
+
+      // Accesses from before the start or after the end of the object are not
+      // defined.
+      Assert1(Size == AliasAnalysis::UnknownSize ||
+              BaseSize == AliasAnalysis::UnknownSize ||
+              (Offset >= 0 && Offset + Size <= BaseSize),
+              "Undefined behavior: Buffer overflow", &I);
+
+      // Accesses that say that the memory is more aligned than it is are not
+      // defined.
+      if (Align == 0 && Ty && Ty->isSized())
+        Align = TD->getABITypeAlignment(Ty);
+      Assert1(!BaseAlign || Align <= MinAlign(BaseAlign, Offset),
               "Undefined behavior: Memory reference address is misaligned", &I);
     }
   }
@@ -466,14 +506,13 @@ void Lint::visitShl(BinaryOperator &I) {
             "Undefined result: Shift count out of range", &I);
 }
 
-static bool isZero(Value *V, TargetData *TD) {
+static bool isZero(Value *V, DataLayout *TD) {
   // Assume undef could be zero.
   if (isa<UndefValue>(V)) return true;
 
   unsigned BitWidth = cast<IntegerType>(V->getType())->getBitWidth();
-  APInt Mask = APInt::getAllOnesValue(BitWidth),
-               KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-  ComputeMaskedBits(V, Mask, KnownZero, KnownOne, TD);
+  APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
+  ComputeMaskedBits(V, KnownZero, KnownOne, TD);
   return KnownZero.isAllOnesValue();
 }
 
@@ -614,10 +653,10 @@ Value *Lint::findValueImpl(Value *V, bool OffsetOk,
 
   // As a last resort, try SimplifyInstruction or constant folding.
   if (Instruction *Inst = dyn_cast<Instruction>(V)) {
-    if (Value *W = SimplifyInstruction(Inst, TD, DT))
+    if (Value *W = SimplifyInstruction(Inst, TD, TLI, DT))
       return findValueImpl(W, OffsetOk, Visited);
   } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V)) {
-    if (Value *W = ConstantFoldConstantExpression(CE, TD))
+    if (Value *W = ConstantFoldConstantExpression(CE, TD, TLI))
       if (W != V)
         return findValueImpl(W, OffsetOk, Visited);
   }

@@ -1,17 +1,17 @@
 /*-
  * Copyright (c) 2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -33,8 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_sysctl_h__
-#define __sctp_sysctl_h__
+#ifndef _NETINET_SCTP_SYSCTL_H_
+#define _NETINET_SCTP_SYSCTL_H_
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_constants.h>
@@ -47,10 +47,6 @@ struct sctp_sysctl {
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
-#if !defined(SCTP_WITH_NO_CSUM)
-	uint32_t sctp_no_csum_on_loopback;
-#endif
-	uint32_t sctp_strict_init;
 	uint32_t sctp_peer_chunk_oh;
 	uint32_t sctp_max_burst_default;
 	uint32_t sctp_max_chunks_on_queue;
@@ -110,12 +106,12 @@ struct sctp_sysctl {
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_log sctp_log;
 #endif
-	uint32_t sctp_udp_tunneling_for_client_enable;
 	uint32_t sctp_udp_tunneling_port;
 	uint32_t sctp_enable_sack_immediately;
 	uint32_t sctp_vtag_time_wait;
 	uint32_t sctp_buffer_splitting;
 	uint32_t sctp_initial_cwnd;
+	uint32_t sctp_blackhole;
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
@@ -168,12 +164,6 @@ struct sctp_sysctl {
 #define SCTPCTL_LOOPBACK_NOCSUM_MIN	0
 #define SCTPCTL_LOOPBACK_NOCSUM_MAX	1
 #define SCTPCTL_LOOPBACK_NOCSUM_DEFAULT	1
-
-/* strict_init: Enable strict INIT/INIT-ACK singleton enforcement */
-#define SCTPCTL_STRICT_INIT_DESC	"Enable strict INIT/INIT-ACK singleton enforcement"
-#define SCTPCTL_STRICT_INIT_MIN		0
-#define SCTPCTL_STRICT_INIT_MAX		1
-#define SCTPCTL_STRICT_INIT_DEFAULT	1
 
 /* peer_chkoh: Amount to debit peers rwnd per chunk sent */
 #define SCTPCTL_PEER_CHKOH_DESC		"Amount to debit peers rwnd per chunk sent"
@@ -384,7 +374,7 @@ struct sctp_sysctl {
 #define SCTPCTL_ABC_L_VAR_DESC		"SCTP ABC max increase per SACK (L)"
 #define SCTPCTL_ABC_L_VAR_MIN		0
 #define SCTPCTL_ABC_L_VAR_MAX		0xFFFFFFFF
-#define SCTPCTL_ABC_L_VAR_DEFAULT	1
+#define SCTPCTL_ABC_L_VAR_DEFAULT	2
 
 /* max_chained_mbufs: Default max number of small mbufs on a chain */
 #define SCTPCTL_MAX_CHAINED_MBUFS_DESC	"Default max number of small mbufs on a chain"
@@ -464,12 +454,6 @@ struct sctp_sysctl {
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MAX	1
 #define SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT	SCTP_DEFAULT_MOBILITY_FASTHANDOFF
 
-/* Enable SCTP/UDP tunneling for clients*/
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DESC	"Enable SCTP/UDP tunneling for client"
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN	0
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX	1
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DEFAULT	SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN
-
 /* Enable SCTP/UDP tunneling port */
 #define SCTPCTL_UDP_TUNNELING_PORT_DESC		"Set the SCTP/UDP tunneling port"
 #define SCTPCTL_UDP_TUNNELING_PORT_MIN		0
@@ -533,6 +517,11 @@ struct sctp_sysctl {
 #define SCTPCTL_RTTVAR_DCCCECN_MAX	1
 #define SCTPCTL_RTTVAR_DCCCECN_DEFAULT	1	/* 0 means disable feature */
 
+#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing"
+#define SCTPCTL_BLACKHOLE_MIN		0
+#define SCTPCTL_BLACKHOLE_MAX		2
+#define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
+
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
 #define SCTPCTL_DEBUG_DESC	"Configure debug output"
@@ -542,7 +531,7 @@ struct sctp_sysctl {
 #endif
 
 
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 #define SCTPCTL_OUTPUT_UNLOCKED_DESC	"Unlock socket when sending packets down to IP."
 #define SCTPCTL_OUTPUT_UNLOCKED_MIN	0
 #define SCTPCTL_OUTPUT_UNLOCKED_MAX	1

@@ -39,7 +39,7 @@ class ReturnInst;
 class CallSite;
 class Trace;
 class CallGraph;
-class TargetData;
+class DataLayout;
 class Loop;
 class LoopInfo;
 class AllocaInst;
@@ -56,21 +56,13 @@ struct ClonedCodeInfo {
   /// call instruction.
   bool ContainsCalls;
   
-  /// ContainsUnwinds - This is set to true if the cloned code contains an
-  /// unwind instruction.
-  bool ContainsUnwinds;
-  
   /// ContainsDynamicAllocas - This is set to true if the cloned code contains
   /// a 'dynamic' alloca.  Dynamic allocas are allocas that are either not in
   /// the entry block or they are in the entry block but are not a constant
   /// size.
   bool ContainsDynamicAllocas;
   
-  ClonedCodeInfo() {
-    ContainsCalls = false;
-    ContainsUnwinds = false;
-    ContainsDynamicAllocas = false;
-  }
+  ClonedCodeInfo() : ContainsCalls(false), ContainsDynamicAllocas(false) {}
 };
 
 
@@ -124,18 +116,11 @@ Function *CloneFunction(const Function *F,
                         bool ModuleLevelChanges,
                         ClonedCodeInfo *CodeInfo = 0);
 
-/// CloneFunction - Version of the function that doesn't need the VMap.
-///
-inline Function *CloneFunction(const Function *F, ClonedCodeInfo *CodeInfo = 0){
-  ValueToValueMapTy VMap;
-  return CloneFunction(F, VMap, CodeInfo);
-}
-
 /// Clone OldFunc into NewFunc, transforming the old arguments into references
 /// to VMap values.  Note that if NewFunc already has basic blocks, the ones
 /// cloned into it will be added to the end of the function.  This function
-/// fills in a list of return instructions, and can optionally append the
-/// specified suffix to all values cloned.
+/// fills in a list of return instructions, and can optionally remap types
+/// and/or append the specified suffix to all values cloned.
 ///
 /// If ModuleLevelChanges is false, VMap contains no non-identity GlobalValue
 /// mappings.
@@ -145,7 +130,8 @@ void CloneFunctionInto(Function *NewFunc, const Function *OldFunc,
                        bool ModuleLevelChanges,
                        SmallVectorImpl<ReturnInst*> &Returns,
                        const char *NameSuffix = "", 
-                       ClonedCodeInfo *CodeInfo = 0);
+                       ClonedCodeInfo *CodeInfo = 0,
+                       ValueMapTypeRemapper *TypeMapper = 0);
 
 /// CloneAndPruneFunctionInto - This works exactly like CloneFunctionInto,
 /// except that it does some simple constant prop and DCE on the fly.  The
@@ -164,7 +150,7 @@ void CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
                                SmallVectorImpl<ReturnInst*> &Returns,
                                const char *NameSuffix = "", 
                                ClonedCodeInfo *CodeInfo = 0,
-                               const TargetData *TD = 0,
+                               const DataLayout *TD = 0,
                                Instruction *TheCall = 0);
 
   
@@ -172,13 +158,13 @@ void CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
 /// InlineFunction call, and records the auxiliary results produced by it. 
 class InlineFunctionInfo {
 public:
-  explicit InlineFunctionInfo(CallGraph *cg = 0, const TargetData *td = 0)
+  explicit InlineFunctionInfo(CallGraph *cg = 0, const DataLayout *td = 0)
     : CG(cg), TD(td) {}
   
   /// CG - If non-null, InlineFunction will update the callgraph to reflect the
   /// changes it makes.
   CallGraph *CG;
-  const TargetData *TD;
+  const DataLayout *TD;
 
   /// StaticAllocas - InlineFunction fills this in with all static allocas that
   /// get copied into the caller.
@@ -204,9 +190,9 @@ public:
 /// exists in the instruction stream.  Similarly this will inline a recursive
 /// function by one level.
 ///
-bool InlineFunction(CallInst *C, InlineFunctionInfo &IFI);
-bool InlineFunction(InvokeInst *II, InlineFunctionInfo &IFI);
-bool InlineFunction(CallSite CS, InlineFunctionInfo &IFI);
+bool InlineFunction(CallInst *C, InlineFunctionInfo &IFI, bool InsertLifetime = true);
+bool InlineFunction(InvokeInst *II, InlineFunctionInfo &IFI, bool InsertLifetime = true);
+bool InlineFunction(CallSite CS, InlineFunctionInfo &IFI, bool InsertLifetime = true);
 
 } // End llvm namespace
 

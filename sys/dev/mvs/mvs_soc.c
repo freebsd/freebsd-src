@@ -63,6 +63,7 @@ static struct {
 } mvs_ids[] = {
 	{MV_DEV_88F5182, 0x00,   "Marvell 88F5182",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_88F6281, 0x00,   "Marvell 88F6281",	2, MVS_Q_GENIIE|MVS_Q_SOC},
+	{MV_DEV_88F6282, 0x00,   "Marvell 88F6282",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_MV78100, 0x00,   "Marvell MV78100",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_MV78100_Z0, 0x00,"Marvell MV78100",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{0,              0x00,   NULL,			0, 0}
@@ -135,6 +136,8 @@ mvs_attach(device_t dev)
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
+	if (ATA_INL(ctlr->r_mem, PORT_BASE(0) + SATA_PHYCFG_OFS) != 0)
+		ctlr->quirks |= MVS_Q_SOC65;
 	/* Setup our own memory management for channels. */
 	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
 	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);
@@ -173,15 +176,10 @@ static int
 mvs_detach(device_t dev)
 {
 	struct mvs_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
+
 	/* Free interrupt. */
 	if (ctlr->irq.r_irq) {
 		bus_teardown_intr(dev, ctlr->irq.r_irq,
@@ -221,7 +219,9 @@ mvs_ctlr_setup(device_t dev)
 	if (ccc)
 		ccim |= IC_HC0_COAL_DONE;
 	/* Enable chip interrupts */
-	ctlr->gmim = (ccc ? IC_HC0_COAL_DONE : IC_DONE_HC0) | IC_ERR_HC0;
+	ctlr->gmim = ((ccc ? IC_HC0_COAL_DONE :
+	    (IC_DONE_HC0 & CHIP_SOC_HC0_MASK(ctlr->channels))) |
+	    (IC_ERR_HC0 & CHIP_SOC_HC0_MASK(ctlr->channels)));
 	ATA_OUTL(ctlr->r_mem, CHIP_SOC_MIM, ctlr->gmim | ctlr->pmim);
 	return (0);
 }
@@ -296,25 +296,26 @@ mvs_intr(void *data)
 	struct mvs_controller *ctlr = data;
 	struct mvs_intr_arg arg;
 	void (*function)(void *);
-	int p;
+	int p, chan_num;
 	u_int32_t ic, aic;
 
 	ic = ATA_INL(ctlr->r_mem, CHIP_SOC_MIC);
 	if ((ic & IC_HC0) == 0)
 		return;
+
 	/* Acknowledge interrupts of this HC. */
 	aic = 0;
-	if (ic & (IC_DONE_IRQ << 0))
-		aic |= HC_IC_DONE(0) | HC_IC_DEV(0);
-	if (ic & (IC_DONE_IRQ << 2))
-		aic |= HC_IC_DONE(1) | HC_IC_DEV(1);
-	if (ic & (IC_DONE_IRQ << 4))
-		aic |= HC_IC_DONE(2) | HC_IC_DEV(2);
-	if (ic & (IC_DONE_IRQ << 6))
-		aic |= HC_IC_DONE(3) | HC_IC_DEV(3);
+
+	/* Processing interrupts from each initialized channel */
+	for (chan_num = 0; chan_num < ctlr->channels; chan_num++) {
+		if (ic & (IC_DONE_IRQ << (chan_num * 2)))
+			aic |= HC_IC_DONE(chan_num) | HC_IC_DEV(chan_num);
+	}
+
 	if (ic & IC_HC0_COAL_DONE)
 		aic |= HC_IC_COAL;
 	ATA_OUTL(ctlr->r_mem, HC_IC, ~aic);
+
 	/* Call per-port interrupt handler. */
 	for (p = 0; p < ctlr->channels; p++) {
 		arg.cause = ic & (IC_ERR_IRQ|IC_DONE_IRQ);

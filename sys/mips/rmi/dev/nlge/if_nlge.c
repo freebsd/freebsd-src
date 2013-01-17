@@ -257,10 +257,8 @@ static device_method_t nlna_methods[] = {
 
 	/* bus interface : TBD : what are these for ? */
 	DEVMETHOD(bus_setup_intr,       bus_generic_setup_intr),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t	nlna_driver = {
@@ -2160,7 +2158,7 @@ get_buf(void)
 	vm_paddr_t	temp1, temp2;
 #endif
 
-	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+	if ((m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	m_adj(m_new, XLR_CACHELINE_SIZE - ((uintptr_t)m_new->m_data & 0x1f));

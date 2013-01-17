@@ -34,11 +34,6 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
 
-.if ${CC:T:Mclang} == "clang"
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS+=	${.IMPSRC:T:Mgptldr.S:C/^.+$/-no-integrated-as/}
-.endif
-
 LDFLAGS=-static -N --gc-sections
 
 # Pick up ../Makefile.inc early.
@@ -77,3 +72,7 @@ machine:
 .endif
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.gptldr.S=	${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

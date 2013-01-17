@@ -67,7 +67,8 @@ __FBSDID("$FreeBSD$");
 
 #define LV1_STORAGE_ATA_HDDOUT 		0x23
 
-SYSCTL_NODE(_hw, OID_AUTO, ps3disk, CTLFLAG_RD, 0, "PS3 Disk driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ps3disk, CTLFLAG_RD, 0,
+    "PS3 Disk driver parameters");
 
 #ifdef PS3DISK_DEBUG
 static int ps3disk_debug = 0;

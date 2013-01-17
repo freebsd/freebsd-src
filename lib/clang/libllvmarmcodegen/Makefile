@@ -9,11 +9,9 @@ SRCS=	ARMAsmPrinter.cpp \
 	ARMCodeEmitter.cpp \
 	ARMConstantIslandPass.cpp \
 	ARMConstantPoolValue.cpp \
-	ARMELFWriterInfo.cpp \
 	ARMExpandPseudoInsts.cpp \
 	ARMFastISel.cpp \
 	ARMFrameLowering.cpp \
-	ARMGlobalMerge.cpp \
 	ARMHazardRecognizer.cpp \
 	ARMISelDAGToDAG.cpp \
 	ARMISelLowering.cpp \
@@ -21,6 +19,7 @@ SRCS=	ARMAsmPrinter.cpp \
 	ARMJITInfo.cpp \
 	ARMLoadStoreOptimizer.cpp \
 	ARMMCInstLower.cpp \
+	ARMMachineFunctionInfo.cpp \
 	ARMRegisterInfo.cpp \
 	ARMSelectionDAGInfo.cpp \
 	ARMSubtarget.cpp \

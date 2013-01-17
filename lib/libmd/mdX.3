@@ -52,8 +52,7 @@ This net result is a
 .Dq fingerprint
 of the input-data, which does not disclose the actual input.
 .Pp
-MD2 is the slowest, MD4 is the fastest and MD5 is somewhere in the middle.
-MD2 can only be used for Privacy-Enhanced Mail.
+MD4 is the fastest and MD5 is somewhat slower.
 MD4 has now been broken; it should only be used where necessary for
 backward compatibility.
 MD5 has not yet (1999-02-11) been broken, but sufficient attacks have been
@@ -144,15 +143,9 @@ If the
 .Fa buf
 argument is non-null it must point to at least 33 characters of buffer space.
 .Sh SEE ALSO
-.Xr md2 3 ,
 .Xr md4 3 ,
 .Xr md5 3 ,
 .Xr sha 3
-.Rs
-.%A B. Kaliski
-.%T The MD2 Message-Digest Algorithm
-.%O RFC 1319
-.Re
 .Rs
 .%A R. Rivest
 .%T The MD4 Message-Digest Algorithm
@@ -192,6 +185,3 @@ Phk ristede runen.
 No method is known to exist which finds two files having the same hash value,
 nor to find a file with a specific hash value.
 There is on the other hand no guarantee that such a method does not exist.
-.Pp
-MD2 has only been licensed for use in Privacy Enhanced Mail.
-Use MD4 or MD5 if that is not what you are doing.

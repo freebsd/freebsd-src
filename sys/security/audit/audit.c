@@ -81,7 +81,7 @@ MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
 MALLOC_DEFINE(M_AUDITGIDSET, "audit_gidset", "Audit GID set storage");
 
-SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
     "TrustedBSD audit controls");
 
 /*
@@ -691,7 +691,7 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	if (path != NULL) {
 		pathp = &ar->k_ar.ar_arg_upath1;
 		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
-		audit_canon_path(td, path, *pathp);
+		audit_canon_path(td, AT_FDCWD, path, *pathp);
 		ARG_SET_VALID(ar, ARG_UPATH1);
 	}
 	ar->k_ar.ar_arg_signum = td->td_proc->p_sig;

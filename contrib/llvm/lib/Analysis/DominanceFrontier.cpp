@@ -35,6 +35,8 @@ namespace {
   };
 }
 
+void DominanceFrontier::anchor() { }
+
 const DominanceFrontier::DomSetType &
 DominanceFrontier::calculate(const DominatorTree &DT,
                              const DomTreeNode *Node) {
@@ -131,7 +133,9 @@ void DominanceFrontierBase::print(raw_ostream &OS, const Module* ) const {
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void DominanceFrontierBase::dump() const {
   print(dbgs());
 }
+#endif
 

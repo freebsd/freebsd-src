@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <syslog.h>
 #include <dirent.h>
+#include <err.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -93,7 +94,7 @@ main(int argc, char *argv[])
 	printer = NULL;
 	uid = getuid();
 	euid = geteuid();
-	seteuid(uid);	/* be safe */
+	PRIV_END	/* be safe */
 	progname = argv[0];
 	gethostname(local_host, sizeof(local_host));
 	openlog("lpd", 0, LOG_LPR);

@@ -107,7 +107,7 @@ This is a 64-bit signed integer.
 This is an opaque data structure.
 .It Dv CTLTYPE_STRUCT
 Alias for
-.Dv CTLTYPE_OPAQUE.
+.Dv CTLTYPE_OPAQUE .
 .It Dv CTLTYPE_UINT
 This is an unsigned integer.
 .It Dv CTLTYPE_LONG
@@ -138,9 +138,9 @@ This sysctl can be written to by processes in
 .It Dv CTLFLAG_SKIP
 When iterating the sysctl name space, do not list this sysctl.
 .It Dv CTLFLAG_TUN
-Also declare a system tunable with the same name to initialize this variable.
+Advisory flag that a system tunable also exists for this variable.
 .It Dv CTLFLAG_RDTUN
-Also declare a system tunable with the same name to initialize this variable;
+Advisory flag that a system tunable also exists for this variable;
 however, the run-time variable is read-only.
 .El
 .Pp

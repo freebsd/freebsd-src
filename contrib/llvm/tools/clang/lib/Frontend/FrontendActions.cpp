@@ -9,6 +9,7 @@
 
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/AST/ASTConsumer.h"
+#include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Pragma.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Parse/Parser.h"
@@ -20,6 +21,7 @@
 #include "clang/Frontend/Utils.h"
 #include "clang/Serialization/ASTWriter.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
@@ -45,13 +47,18 @@ void InitOnlyAction::ExecuteAction() {
 ASTConsumer *ASTPrintAction::CreateASTConsumer(CompilerInstance &CI,
                                                StringRef InFile) {
   if (raw_ostream *OS = CI.createDefaultOutputFile(false, InFile))
-    return CreateASTPrinter(OS);
+    return CreateASTPrinter(OS, CI.getFrontendOpts().ASTDumpFilter);
   return 0;
 }
 
 ASTConsumer *ASTDumpAction::CreateASTConsumer(CompilerInstance &CI,
                                               StringRef InFile) {
-  return CreateASTDumper();
+  return CreateASTDumper(CI.getFrontendOpts().ASTDumpFilter);
+}
+
+ASTConsumer *ASTDeclListAction::CreateASTConsumer(CompilerInstance &CI,
+                                                  StringRef InFile) {
+  return CreateASTDeclNodeLister();
 }
 
 ASTConsumer *ASTDumpXMLAction::CreateASTConsumer(CompilerInstance &CI,
@@ -85,8 +92,7 @@ ASTConsumer *GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI,
 
   if (!CI.getFrontendOpts().RelocatablePCH)
     Sysroot.clear();
-  return new PCHGenerator(CI.getPreprocessor(), OutputFile, MakeModule, 
-                          Sysroot, OS);
+  return new PCHGenerator(CI.getPreprocessor(), OutputFile, 0, Sysroot, OS);
 }
 
 bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
@@ -113,6 +119,206 @@ bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
   return false;
 }
 
+ASTConsumer *GenerateModuleAction::CreateASTConsumer(CompilerInstance &CI,
+                                                     StringRef InFile) {
+  std::string Sysroot;
+  std::string OutputFile;
+  raw_ostream *OS = 0;
+  if (ComputeASTConsumerArguments(CI, InFile, Sysroot, OutputFile, OS))
+    return 0;
+  
+  return new PCHGenerator(CI.getPreprocessor(), OutputFile, Module, 
+                          Sysroot, OS);
+}
+
+static SmallVectorImpl<char> &
+operator+=(SmallVectorImpl<char> &Includes, StringRef RHS) {
+  Includes.append(RHS.begin(), RHS.end());
+  return Includes;
+}
+
+static void addHeaderInclude(StringRef HeaderName,
+                             SmallVectorImpl<char> &Includes,
+                             const LangOptions &LangOpts) {
+  if (LangOpts.ObjC1)
+    Includes += "#import \"";
+  else
+    Includes += "#include \"";
+  Includes += HeaderName;
+  Includes += "\"\n";
+}
+
+static void addHeaderInclude(const FileEntry *Header,
+                             SmallVectorImpl<char> &Includes,
+                             const LangOptions &LangOpts) {
+  addHeaderInclude(Header->getName(), Includes, LangOpts);
+}
+
+/// \brief Collect the set of header includes needed to construct the given 
+/// module and update the TopHeaders file set of the module.
+///
+/// \param Module The module we're collecting includes from.
+///
+/// \param Includes Will be augmented with the set of \#includes or \#imports
+/// needed to load all of the named headers.
+static void collectModuleHeaderIncludes(const LangOptions &LangOpts,
+                                        FileManager &FileMgr,
+                                        ModuleMap &ModMap,
+                                        clang::Module *Module,
+                                        SmallVectorImpl<char> &Includes) {
+  // Don't collect any headers for unavailable modules.
+  if (!Module->isAvailable())
+    return;
+
+  // Add includes for each of these headers.
+  for (unsigned I = 0, N = Module->Headers.size(); I != N; ++I) {
+    const FileEntry *Header = Module->Headers[I];
+    Module->TopHeaders.insert(Header);
+    addHeaderInclude(Header, Includes, LangOpts);
+  }
+
+  if (const FileEntry *UmbrellaHeader = Module->getUmbrellaHeader()) {
+    Module->TopHeaders.insert(UmbrellaHeader);
+    if (Module->Parent) {
+      // Include the umbrella header for submodules.
+      addHeaderInclude(UmbrellaHeader, Includes, LangOpts);
+    }
+  } else if (const DirectoryEntry *UmbrellaDir = Module->getUmbrellaDir()) {
+    // Add all of the headers we find in this subdirectory.
+    llvm::error_code EC;
+    SmallString<128> DirNative;
+    llvm::sys::path::native(UmbrellaDir->getName(), DirNative);
+    for (llvm::sys::fs::recursive_directory_iterator Dir(DirNative.str(), EC), 
+                                                     DirEnd;
+         Dir != DirEnd && !EC; Dir.increment(EC)) {
+      // Check whether this entry has an extension typically associated with 
+      // headers.
+      if (!llvm::StringSwitch<bool>(llvm::sys::path::extension(Dir->path()))
+          .Cases(".h", ".H", ".hh", ".hpp", true)
+          .Default(false))
+        continue;
+      
+      // If this header is marked 'unavailable' in this module, don't include 
+      // it.
+      if (const FileEntry *Header = FileMgr.getFile(Dir->path())) {
+        if (ModMap.isHeaderInUnavailableModule(Header))
+          continue;
+        Module->TopHeaders.insert(Header);
+      }
+      
+      // Include this header umbrella header for submodules.
+      addHeaderInclude(Dir->path(), Includes, LangOpts);
+    }
+  }
+  
+  // Recurse into submodules.
+  for (clang::Module::submodule_iterator Sub = Module->submodule_begin(),
+                                      SubEnd = Module->submodule_end();
+       Sub != SubEnd; ++Sub)
+    collectModuleHeaderIncludes(LangOpts, FileMgr, ModMap, *Sub, Includes);
+}
+
+bool GenerateModuleAction::BeginSourceFileAction(CompilerInstance &CI, 
+                                                 StringRef Filename) {
+  // Find the module map file.  
+  const FileEntry *ModuleMap = CI.getFileManager().getFile(Filename);
+  if (!ModuleMap)  {
+    CI.getDiagnostics().Report(diag::err_module_map_not_found)
+      << Filename;
+    return false;
+  }
+  
+  // Parse the module map file.
+  HeaderSearch &HS = CI.getPreprocessor().getHeaderSearchInfo();
+  if (HS.loadModuleMapFile(ModuleMap))
+    return false;
+  
+  if (CI.getLangOpts().CurrentModule.empty()) {
+    CI.getDiagnostics().Report(diag::err_missing_module_name);
+    
+    // FIXME: Eventually, we could consider asking whether there was just
+    // a single module described in the module map, and use that as a 
+    // default. Then it would be fairly trivial to just "compile" a module
+    // map with a single module (the common case).
+    return false;
+  }
+  
+  // Dig out the module definition.
+  Module = HS.lookupModule(CI.getLangOpts().CurrentModule, 
+                           /*AllowSearch=*/false);
+  if (!Module) {
+    CI.getDiagnostics().Report(diag::err_missing_module)
+      << CI.getLangOpts().CurrentModule << Filename;
+    
+    return false;
+  }
+
+  // Check whether we can build this module at all.
+  StringRef Feature;
+  if (!Module->isAvailable(CI.getLangOpts(), CI.getTarget(), Feature)) {
+    CI.getDiagnostics().Report(diag::err_module_unavailable)
+      << Module->getFullModuleName()
+      << Feature;
+
+    return false;
+  }
+
+  FileManager &FileMgr = CI.getFileManager();
+
+  // Collect the set of #includes we need to build the module.
+  SmallString<256> HeaderContents;
+  if (const FileEntry *UmbrellaHeader = Module->getUmbrellaHeader())
+    addHeaderInclude(UmbrellaHeader, HeaderContents, CI.getLangOpts());
+  collectModuleHeaderIncludes(CI.getLangOpts(), FileMgr,
+    CI.getPreprocessor().getHeaderSearchInfo().getModuleMap(),
+    Module, HeaderContents);
+
+  StringRef InputName = Module::getModuleInputBufferName();
+
+  // We consistently construct a buffer as input to build the module.
+  // This means the main file for modules will always be a virtual one.
+  // FIXME: Maybe allow using a memory buffer as input directly instead of
+  // messing with virtual files.
+  const FileEntry *HeaderFile = FileMgr.getVirtualFile(InputName, 
+                                                       HeaderContents.size(), 
+                                                       time(0));
+  llvm::MemoryBuffer *HeaderContentsBuf
+    = llvm::MemoryBuffer::getMemBufferCopy(HeaderContents);
+  CI.getSourceManager().overrideFileContents(HeaderFile, HeaderContentsBuf);  
+  setCurrentInput(FrontendInputFile(InputName, getCurrentFileKind(),
+                                    Module->IsSystem));
+  return true;
+}
+
+bool GenerateModuleAction::ComputeASTConsumerArguments(CompilerInstance &CI,
+                                                       StringRef InFile,
+                                                       std::string &Sysroot,
+                                                       std::string &OutputFile,
+                                                       raw_ostream *&OS) {
+  // If no output file was provided, figure out where this module would go
+  // in the module cache.
+  if (CI.getFrontendOpts().OutputFile.empty()) {
+    HeaderSearch &HS = CI.getPreprocessor().getHeaderSearchInfo();
+    SmallString<256> ModuleFileName(HS.getModuleCachePath());
+    llvm::sys::path::append(ModuleFileName, 
+                            CI.getLangOpts().CurrentModule + ".pcm");
+    CI.getFrontendOpts().OutputFile = ModuleFileName.str();
+  }
+  
+  // We use createOutputFile here because this is exposed via libclang, and we
+  // must disable the RemoveFileOnSignal behavior.
+  // We use a temporary to avoid race conditions.
+  OS = CI.createOutputFile(CI.getFrontendOpts().OutputFile, /*Binary=*/true,
+                           /*RemoveFileOnSignal=*/false, InFile,
+                           /*Extension=*/"", /*useTemporary=*/true,
+                           /*CreateMissingDirectories=*/true);
+  if (!OS)
+    return true;
+  
+  OutputFile = CI.getFrontendOpts().OutputFile;
+  return false;
+}
+
 ASTConsumer *SyntaxOnlyAction::CreateASTConsumer(CompilerInstance &CI,
                                                  StringRef InFile) {
   return new ASTConsumer();
@@ -128,7 +334,7 @@ void DumpRawTokensAction::ExecuteAction() {
 
   // Start lexing the specified input file.
   const llvm::MemoryBuffer *FromFile = SM.getBuffer(SM.getMainFileID());
-  Lexer RawLex(SM.getMainFileID(), FromFile, SM, PP.getLangOptions());
+  Lexer RawLex(SM.getMainFileID(), FromFile, SM, PP.getLangOpts());
   RawLex.SetKeepWhitespaceMode(true);
 
   Token RawTok;

@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <sys/spa.h>
@@ -101,11 +102,11 @@ spa_history_create_obj(spa_t *spa, dmu_tx_t *tx)
 
 	/*
 	 * Figure out maximum size of history log.  We set it at
-	 * 1% of pool size, with a max of 32MB and min of 128KB.
+	 * 0.1% of pool size, with a max of 1G and min of 128KB.
 	 */
 	shpp->sh_phys_max_off =
-	    metaslab_class_get_dspace(spa_normal_class(spa)) / 100;
-	shpp->sh_phys_max_off = MIN(shpp->sh_phys_max_off, 32<<20);
+	    metaslab_class_get_dspace(spa_normal_class(spa)) / 1000;
+	shpp->sh_phys_max_off = MIN(shpp->sh_phys_max_off, 1<<30);
 	shpp->sh_phys_max_off = MAX(shpp->sh_phys_max_off, 128<<10);
 
 	dmu_buf_rele(dbp, FTAG);
@@ -305,6 +306,9 @@ spa_history_log(spa_t *spa, const char *history_str, history_log_type_t what)
 
 	ASSERT(what != LOG_INTERNAL);
 
+	if (spa_version(spa) < SPA_VERSION_ZPOOL_HISTORY || !spa_writeable(spa))
+		return (EINVAL);
+
 	tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
 	err = dmu_tx_assign(tx, TXG_WAIT);
 	if (err) {
@@ -434,8 +438,9 @@ log_internal(history_internal_events_t event, spa_t *spa,
 	/*
 	 * If this is part of creating a pool, not everything is
 	 * initialized yet, so don't bother logging the internal events.
+	 * Likewise if the pool is not writeable.
 	 */
-	if (tx->tx_txg == TXG_INITIAL)
+	if (tx->tx_txg == TXG_INITIAL || !spa_writeable(spa))
 		return;
 
 	va_copy(adx2, adx);

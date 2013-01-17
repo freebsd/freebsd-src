@@ -77,18 +77,18 @@ static const char rcsid[] =
 #define	afs	disk.d_fs
 #define	acg	disk.d_cg
 
-struct uufsd disk;
+static struct uufsd disk;
 
-int	dumpfs(const char *);
-int	dumpfsid(void);
-int	dumpcg(void);
-int	dumpfreespace(const char *, int);
-void	dumpfreespacecg(int);
-int	marshal(const char *);
-void	pbits(void *, int);
-void	pblklist(void *, int, off_t, int);
-void	ufserr(const char *);
-void	usage(void) __dead2;
+static int	dumpfs(const char *);
+static int	dumpfsid(void);
+static int	dumpcg(void);
+static int	dumpfreespace(const char *, int);
+static void	dumpfreespacecg(int);
+static int	marshal(const char *);
+static void	pbits(void *, int);
+static void	pblklist(void *, int, off_t, int);
+static void	ufserr(const char *);
+static void	usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 	exit(eval);
 }
 
-int
+static int
 dumpfsid(void)
 {
 
@@ -151,7 +151,7 @@ dumpfsid(void)
 	return 0;
 }
 
-int
+static int
 dumpfs(const char *name)
 {
 	time_t fstime;
@@ -277,8 +277,9 @@ dumpfs(const char *name)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
 	printf("fsmnt\t%s\n", afs.fs_fsmnt);
-	printf("volname\t%s\tswuid\t%ju\n",
-		afs.fs_volname, (uintmax_t)afs.fs_swuid);
+	printf("volname\t%s\tswuid\t%ju\tprovidersize\t%ju\n",
+		afs.fs_volname, (uintmax_t)afs.fs_swuid,
+		(uintmax_t)afs.fs_providersize);
 	printf("\ncs[].cs_(nbfree,ndir,nifree,nffree):\n\t");
 	afs.fs_csp = calloc(1, afs.fs_cssize);
 	if (bread(&disk, fsbtodb(&afs, afs.fs_csaddr), afs.fs_csp, afs.fs_cssize) == -1)
@@ -309,7 +310,7 @@ err:	ufserr(name);
 	return (1);
 }
 
-int
+static int
 dumpcg(void)
 {
 	time_t cgtime;
@@ -370,7 +371,7 @@ dumpcg(void)
 	return (0);
 }
 
-int
+static int
 dumpfreespace(const char *name, int fflag)
 {
 	int i;
@@ -386,7 +387,7 @@ err:
 	return (1);
 }
 
-void
+static void
 dumpfreespacecg(int fflag)
 {
 
@@ -394,7 +395,7 @@ dumpfreespacecg(int fflag)
 	    fflag);
 }
 
-int
+static int
 marshal(const char *name)
 {
 	struct fs *fs;
@@ -419,6 +420,8 @@ marshal(const char *name)
 	/* -i is dumb */
 	if (fs->fs_flags & FS_SUJ)
 		printf("-j ");
+	if (fs->fs_flags & FS_GJOURNAL)
+		printf("-J ");
 	/* -k..l unimplemented */
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */
@@ -444,7 +447,7 @@ marshal(const char *name)
 	return 0;
 }
 
-void
+static void
 pbits(void *vp, int max)
 {
 	int i;
@@ -466,7 +469,7 @@ pbits(void *vp, int max)
 	printf("\n");
 }
 
-void
+static void
 pblklist(void *vp, int max, off_t offset, int fflag)
 {
 	int i, j;
@@ -487,7 +490,7 @@ pblklist(void *vp, int max, off_t offset, int fflag)
 	}
 }
 
-void
+static void
 ufserr(const char *name)
 {
 	if (disk.d_error != NULL)
@@ -496,9 +499,9 @@ ufserr(const char *name)
 		warn("%s", name);
 }
 
-void
+static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: dumpfs [-fm] filesys | device\n");
+	(void)fprintf(stderr, "usage: dumpfs [-flm] filesys | device\n");
 	exit(1);
 }

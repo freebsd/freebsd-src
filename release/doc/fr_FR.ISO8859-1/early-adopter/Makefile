@@ -18,7 +18,7 @@ FORMATS?= html
 INSTALL_COMPRESSED?=gz
 INSTALL_ONLY_COMPRESSED?=
 
-SRCS+= article.sgml
+SRCS+= article.xml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"

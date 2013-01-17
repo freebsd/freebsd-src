@@ -14,6 +14,7 @@
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/ADT/StringExtras.h"
 using namespace llvm;
 using namespace dwarf;
 
@@ -23,19 +24,11 @@ using namespace dwarf;
 
 void ARMElfTargetObjectFile::Initialize(MCContext &Ctx,
                                         const TargetMachine &TM) {
+  bool isAAPCS_ABI = TM.getSubtarget<ARMSubtarget>().isAAPCS_ABI();
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
+  InitializeELF(isAAPCS_ABI);
 
-  if (TM.getSubtarget<ARMSubtarget>().isAAPCS_ABI()) {
-    StaticCtorSection =
-      getContext().getELFSection(".init_array", ELF::SHT_INIT_ARRAY,
-                                 ELF::SHF_WRITE |
-                                 ELF::SHF_ALLOC,
-                                 SectionKind::getDataRel());
-    StaticDtorSection =
-      getContext().getELFSection(".fini_array", ELF::SHT_FINI_ARRAY,
-                                 ELF::SHF_WRITE |
-                                 ELF::SHF_ALLOC,
-                                 SectionKind::getDataRel());
+  if (isAAPCS_ABI) {
     LSDASection = NULL;
   }
 

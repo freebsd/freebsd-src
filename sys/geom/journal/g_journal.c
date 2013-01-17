@@ -93,7 +93,8 @@ static u_int g_journal_accept_immediately = 64;
 static u_int g_journal_record_entries = GJ_RECORD_HEADER_NENTRIES;
 static u_int g_journal_do_optimize = 1;
 
-SYSCTL_NODE(_kern_geom, OID_AUTO, journal, CTLFLAG_RW, 0, "GEOM_JOURNAL stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, journal, CTLFLAG_RW, 0,
+    "GEOM_JOURNAL stuff");
 SYSCTL_INT(_kern_geom_journal, OID_AUTO, debug, CTLFLAG_RW, &g_journal_debug, 0,
     "Debug level");
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, switch_time, CTLFLAG_RW,
@@ -140,7 +141,7 @@ static u_int g_journal_cache_misses = 0;
 static u_int g_journal_cache_alloc_failures = 0;
 static u_int g_journal_cache_low = 0;
 
-SYSCTL_NODE(_kern_geom_journal, OID_AUTO, cache, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_journal, OID_AUTO, cache, CTLFLAG_RW, 0,
     "GEOM_JOURNAL cache");
 SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, used, CTLFLAG_RD,
     &g_journal_cache_used, 0, "Number of allocated bytes");
@@ -195,7 +196,7 @@ static u_long g_journal_stats_wait_for_copy = 0;
 static u_long g_journal_stats_journal_full = 0;
 static u_long g_journal_stats_low_mem = 0;
 
-SYSCTL_NODE(_kern_geom_journal, OID_AUTO, stats, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_journal, OID_AUTO, stats, CTLFLAG_RW, 0,
     "GEOM_JOURNAL statistics");
 SYSCTL_ULONG(_kern_geom_journal_stats, OID_AUTO, skipped_bytes, CTLFLAG_RW,
     &g_journal_stats_bytes_skipped, 0, "Number of skipped bytes");
@@ -2869,7 +2870,7 @@ g_journal_do_switch(struct g_class *classp)
 	struct mount *mp;
 	struct bintime bt;
 	char *mountpoint;
-	int error, vfslocked;
+	int error, save;
 
 	DROP_GIANT();
 	g_topology_lock();
@@ -2921,20 +2922,14 @@ g_journal_do_switch(struct g_class *classp)
 
 		mountpoint = mp->mnt_stat.f_mntonname;
 
-		vfslocked = VFS_LOCK_GIANT(mp);
-
 		error = vn_start_write(NULL, &mp, V_WAIT);
 		if (error != 0) {
-			VFS_UNLOCK_GIANT(vfslocked);
 			GJ_DEBUG(0, "vn_start_write(%s) failed (error=%d).",
 			    mountpoint, error);
 			goto next;
 		}
 
-		MNT_ILOCK(mp);
-		mp->mnt_noasync++;
-		mp->mnt_kern_flag &= ~MNTK_ASYNC;
-		MNT_IUNLOCK(mp);
+		save = curthread_pflags_set(TDP_SYNCIO);
 
 		GJ_TIMER_START(1, &bt);
 		vfs_msync(mp, MNT_NOWAIT);
@@ -2949,18 +2944,12 @@ g_journal_do_switch(struct g_class *classp)
 			    mountpoint, error);
 		}
 
-		MNT_ILOCK(mp);
-		mp->mnt_noasync--;
-		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
-			mp->mnt_kern_flag |= MNTK_ASYNC;
-		MNT_IUNLOCK(mp);
+		curthread_pflags_restore(save);
 
 		vn_finished_write(mp);
 
-		if (error != 0) {
-			VFS_UNLOCK_GIANT(vfslocked);
+		if (error != 0)
 			goto next;
-		}
 
 		/*
 		 * Send BIO_FLUSH before freezing the file system, so it can be
@@ -2972,7 +2961,6 @@ g_journal_do_switch(struct g_class *classp)
 
 		GJ_TIMER_START(1, &bt);
 		error = vfs_write_suspend(mp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		GJ_TIMER_STOP(1, &bt, "Suspend time of %s", mountpoint);
 		if (error != 0) {
 			GJ_DEBUG(0, "Cannot suspend file system %s (error=%d).",
@@ -2988,7 +2976,7 @@ g_journal_do_switch(struct g_class *classp)
 		g_journal_switch_wait(sc);
 		mtx_unlock(&sc->sc_mtx);
 
-		vfs_write_resume(mp);
+		vfs_write_resume(mp, 0);
 next:
 		mtx_lock(&mountlist_mtx);
 		vfs_unbusy(mp);

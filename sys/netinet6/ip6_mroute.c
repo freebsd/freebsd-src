@@ -81,7 +81,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
@@ -156,7 +155,7 @@ static VNET_DEFINE(int, ip6_mrouter_ver) = 0;
 
 SYSCTL_DECL(_net_inet6);
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
+static SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
 
 static struct mrt6stat mrt6stat;
 SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
@@ -250,7 +249,7 @@ static mifi_t nummifs = 0;
 static mifi_t reg_mif_num = (mifi_t)-1;
 
 static struct pim6stat pim6stat;
-SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RD,
+SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RW,
     &pim6stat, pim6stat,
     "PIM Statistics (struct pim6stat, netinet6/pim_var.h)");
 
@@ -717,7 +716,6 @@ add_m6if(struct mif6ctl *mifcp)
 	mifp->m6_pkt_out   = 0;
 	mifp->m6_bytes_in  = 0;
 	mifp->m6_bytes_out = 0;
-	bzero(&mifp->m6_route, sizeof(mifp->m6_route));
 
 	/* Adjust nummifs up if the mifi is higher than nummifs */
 	if (nummifs <= mifcp->mif6c_mifi)
@@ -1576,10 +1574,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	struct mbuf *mb_copy;
 	struct ifnet *ifp = mifp->m6_ifp;
 	int error = 0;
-	struct sockaddr_in6 *dst6;
 	u_long linkmtu;
-
-	dst6 = &mifp->m6_route.ro_dst;
 
 	/*
 	 * Make a new reference to the packet; make sure that
@@ -1610,8 +1605,8 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 		/* XXX: ip6_output will override ip6->ip6_hlim */
 		im6o.im6o_multicast_hlim = ip6->ip6_hlim;
 		im6o.im6o_multicast_loop = 1;
-		error = ip6_output(mb_copy, NULL, &mifp->m6_route,
-				   IPV6_FORWARDING, &im6o, NULL, NULL);
+		error = ip6_output(mb_copy, NULL, NULL, IPV6_FORWARDING, &im6o,
+		    NULL, NULL);
 
 #ifdef MRT6DEBUG
 		if (V_mrt6debug & DEBUG_XMIT)
@@ -1626,10 +1621,13 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 * loop back a copy now.
 	 */
 	if (in6_mcast_loop) {
-		dst6->sin6_len = sizeof(struct sockaddr_in6);
-		dst6->sin6_family = AF_INET6;
-		dst6->sin6_addr = ip6->ip6_dst;
-		ip6_mloopback(ifp, m, &mifp->m6_route.ro_dst);
+		struct sockaddr_in6 dst6;
+
+		bzero(&dst6, sizeof(dst6));
+		dst6.sin6_len = sizeof(struct sockaddr_in6);
+		dst6.sin6_family = AF_INET6;
+		dst6.sin6_addr = ip6->ip6_dst;
+		ip6_mloopback(ifp, m, &dst6);
 	}
 
 	/*
@@ -1638,15 +1636,18 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 */
 	linkmtu = IN6_LINKMTU(ifp);
 	if (mb_copy->m_pkthdr.len <= linkmtu || linkmtu < IPV6_MMTU) {
-		dst6->sin6_len = sizeof(struct sockaddr_in6);
-		dst6->sin6_family = AF_INET6;
-		dst6->sin6_addr = ip6->ip6_dst;
+		struct sockaddr_in6 dst6;
+
+		bzero(&dst6, sizeof(dst6));
+		dst6.sin6_len = sizeof(struct sockaddr_in6);
+		dst6.sin6_family = AF_INET6;
+		dst6.sin6_addr = ip6->ip6_dst;
 		/*
 		 * We just call if_output instead of nd6_output here, since
 		 * we need no ND for a multicast forwarded packet...right?
 		 */
 		error = (*ifp->if_output)(ifp, mb_copy,
-		    (struct sockaddr *)&mifp->m6_route.ro_dst, NULL);
+		    (struct sockaddr *)&dst6, NULL);
 #ifdef MRT6DEBUG
 		if (V_mrt6debug & DEBUG_XMIT)
 			log(LOG_DEBUG, "phyint_send on mif %d err %d\n",
@@ -1698,7 +1699,7 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 	++pim6stat.pim6s_snd_registers;
 
 	/* Make a copy of the packet to send to the user level process */
-	MGETHDR(mm, M_DONTWAIT, MT_HEADER);
+	MGETHDR(mm, M_NOWAIT, MT_HEADER);
 	if (mm == NULL)
 		return (ENOBUFS);
 	mm->m_pkthdr.rcvif = NULL;

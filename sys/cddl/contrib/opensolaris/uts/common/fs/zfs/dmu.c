@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -39,66 +40,89 @@
 #include <sys/zfs_ioctl.h>
 #include <sys/zap.h>
 #include <sys/zio_checksum.h>
+#include <sys/zio_compress.h>
 #include <sys/sa.h>
 #ifdef _KERNEL
 #include <sys/zfs_znode.h>
 #endif
 
+/*
+ * Enable/disable nopwrite feature.
+ */
+int zfs_nopwrite_enabled = 1;
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.nopwrite_enabled", &zfs_nopwrite_enabled);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, nopwrite_enabled, CTLFLAG_RDTUN,
+    &zfs_nopwrite_enabled, 0, "Enable nopwrite feature");
+
 const dmu_object_type_info_t dmu_ot[DMU_OT_NUMTYPES] = {
-	{	byteswap_uint8_array,	TRUE,	"unallocated"		},
-	{	zap_byteswap,		TRUE,	"object directory"	},
-	{	byteswap_uint64_array,	TRUE,	"object array"		},
-	{	byteswap_uint8_array,	TRUE,	"packed nvlist"		},
-	{	byteswap_uint64_array,	TRUE,	"packed nvlist size"	},
-	{	byteswap_uint64_array,	TRUE,	"bpobj"			},
-	{	byteswap_uint64_array,	TRUE,	"bpobj header"		},
-	{	byteswap_uint64_array,	TRUE,	"SPA space map header"	},
-	{	byteswap_uint64_array,	TRUE,	"SPA space map"		},
-	{	byteswap_uint64_array,	TRUE,	"ZIL intent log"	},
-	{	dnode_buf_byteswap,	TRUE,	"DMU dnode"		},
-	{	dmu_objset_byteswap,	TRUE,	"DMU objset"		},
-	{	byteswap_uint64_array,	TRUE,	"DSL directory"		},
-	{	zap_byteswap,		TRUE,	"DSL directory child map"},
-	{	zap_byteswap,		TRUE,	"DSL dataset snap map"	},
-	{	zap_byteswap,		TRUE,	"DSL props"		},
-	{	byteswap_uint64_array,	TRUE,	"DSL dataset"		},
-	{	zfs_znode_byteswap,	TRUE,	"ZFS znode"		},
-	{	zfs_oldacl_byteswap,	TRUE,	"ZFS V0 ACL"		},
-	{	byteswap_uint8_array,	FALSE,	"ZFS plain file"	},
-	{	zap_byteswap,		TRUE,	"ZFS directory"		},
-	{	zap_byteswap,		TRUE,	"ZFS master node"	},
-	{	zap_byteswap,		TRUE,	"ZFS delete queue"	},
-	{	byteswap_uint8_array,	FALSE,	"zvol object"		},
-	{	zap_byteswap,		TRUE,	"zvol prop"		},
-	{	byteswap_uint8_array,	FALSE,	"other uint8[]"		},
-	{	byteswap_uint64_array,	FALSE,	"other uint64[]"	},
-	{	zap_byteswap,		TRUE,	"other ZAP"		},
-	{	zap_byteswap,		TRUE,	"persistent error log"	},
-	{	byteswap_uint8_array,	TRUE,	"SPA history"		},
-	{	byteswap_uint64_array,	TRUE,	"SPA history offsets"	},
-	{	zap_byteswap,		TRUE,	"Pool properties"	},
-	{	zap_byteswap,		TRUE,	"DSL permissions"	},
-	{	zfs_acl_byteswap,	TRUE,	"ZFS ACL"		},
-	{	byteswap_uint8_array,	TRUE,	"ZFS SYSACL"		},
-	{	byteswap_uint8_array,	TRUE,	"FUID table"		},
-	{	byteswap_uint64_array,	TRUE,	"FUID table size"	},
-	{	zap_byteswap,		TRUE,	"DSL dataset next clones"},
-	{	zap_byteswap,		TRUE,	"scan work queue"	},
-	{	zap_byteswap,		TRUE,	"ZFS user/group used"	},
-	{	zap_byteswap,		TRUE,	"ZFS user/group quota"	},
-	{	zap_byteswap,		TRUE,	"snapshot refcount tags"},
-	{	zap_byteswap,		TRUE,	"DDT ZAP algorithm"	},
-	{	zap_byteswap,		TRUE,	"DDT statistics"	},
-	{	byteswap_uint8_array,	TRUE,	"System attributes"	},
-	{	zap_byteswap,		TRUE,	"SA master node"	},
-	{	zap_byteswap,		TRUE,	"SA attr registration"	},
-	{	zap_byteswap,		TRUE,	"SA attr layouts"	},
-	{	zap_byteswap,		TRUE,	"scan translations"	},
-	{	byteswap_uint8_array,	FALSE,	"deduplicated block"	},
-	{	zap_byteswap,		TRUE,	"DSL deadlist map"	},
-	{	byteswap_uint64_array,	TRUE,	"DSL deadlist map hdr"	},
-	{	zap_byteswap,		TRUE,	"DSL dir clones"	},
-	{	byteswap_uint64_array,	TRUE,	"bpobj subobj"		},
+	{	DMU_BSWAP_UINT8,	TRUE,	"unallocated"		},
+	{	DMU_BSWAP_ZAP,		TRUE,	"object directory"	},
+	{	DMU_BSWAP_UINT64,	TRUE,	"object array"		},
+	{	DMU_BSWAP_UINT8,	TRUE,	"packed nvlist"		},
+	{	DMU_BSWAP_UINT64,	TRUE,	"packed nvlist size"	},
+	{	DMU_BSWAP_UINT64,	TRUE,	"bpobj"			},
+	{	DMU_BSWAP_UINT64,	TRUE,	"bpobj header"		},
+	{	DMU_BSWAP_UINT64,	TRUE,	"SPA space map header"	},
+	{	DMU_BSWAP_UINT64,	TRUE,	"SPA space map"		},
+	{	DMU_BSWAP_UINT64,	TRUE,	"ZIL intent log"	},
+	{	DMU_BSWAP_DNODE,	TRUE,	"DMU dnode"		},
+	{	DMU_BSWAP_OBJSET,	TRUE,	"DMU objset"		},
+	{	DMU_BSWAP_UINT64,	TRUE,	"DSL directory"		},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DSL directory child map"},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DSL dataset snap map"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DSL props"		},
+	{	DMU_BSWAP_UINT64,	TRUE,	"DSL dataset"		},
+	{	DMU_BSWAP_ZNODE,	TRUE,	"ZFS znode"		},
+	{	DMU_BSWAP_OLDACL,	TRUE,	"ZFS V0 ACL"		},
+	{	DMU_BSWAP_UINT8,	FALSE,	"ZFS plain file"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS directory"		},
+	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS master node"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS delete queue"	},
+	{	DMU_BSWAP_UINT8,	FALSE,	"zvol object"		},
+	{	DMU_BSWAP_ZAP,		TRUE,	"zvol prop"		},
+	{	DMU_BSWAP_UINT8,	FALSE,	"other uint8[]"		},
+	{	DMU_BSWAP_UINT64,	FALSE,	"other uint64[]"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"other ZAP"		},
+	{	DMU_BSWAP_ZAP,		TRUE,	"persistent error log"	},
+	{	DMU_BSWAP_UINT8,	TRUE,	"SPA history"		},
+	{	DMU_BSWAP_UINT64,	TRUE,	"SPA history offsets"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"Pool properties"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DSL permissions"	},
+	{	DMU_BSWAP_ACL,		TRUE,	"ZFS ACL"		},
+	{	DMU_BSWAP_UINT8,	TRUE,	"ZFS SYSACL"		},
+	{	DMU_BSWAP_UINT8,	TRUE,	"FUID table"		},
+	{	DMU_BSWAP_UINT64,	TRUE,	"FUID table size"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DSL dataset next clones"},
+	{	DMU_BSWAP_ZAP,		TRUE,	"scan work queue"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS user/group used"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"ZFS user/group quota"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"snapshot refcount tags"},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DDT ZAP algorithm"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DDT statistics"	},
+	{	DMU_BSWAP_UINT8,	TRUE,	"System attributes"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"SA master node"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"SA attr registration"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"SA attr layouts"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"scan translations"	},
+	{	DMU_BSWAP_UINT8,	FALSE,	"deduplicated block"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DSL deadlist map"	},
+	{	DMU_BSWAP_UINT64,	TRUE,	"DSL deadlist map hdr"	},
+	{	DMU_BSWAP_ZAP,		TRUE,	"DSL dir clones"	},
+	{	DMU_BSWAP_UINT64,	TRUE,	"bpobj subobj"		}
+};
+
+const dmu_object_byteswap_info_t dmu_ot_byteswap[DMU_BSWAP_NUMFUNCS] = {
+	{	byteswap_uint8_array,	"uint8"		},
+	{	byteswap_uint16_array,	"uint16"	},
+	{	byteswap_uint32_array,	"uint32"	},
+	{	byteswap_uint64_array,	"uint64"	},
+	{	zap_byteswap,		"zap"		},
+	{	dnode_buf_byteswap,	"dnode"		},
+	{	dmu_objset_byteswap,	"objset"	},
+	{	zfs_znode_byteswap,	"znode"		},
+	{	zfs_oldacl_byteswap,	"oldacl"	},
+	{	zfs_acl_byteswap,	"acl"		}
 };
 
 int
@@ -175,7 +199,7 @@ dmu_set_bonustype(dmu_buf_t *db_fake, dmu_object_type_t type, dmu_tx_t *tx)
 	DB_DNODE_ENTER(db);
 	dn = DB_DNODE(db);
 
-	if (type > DMU_OT_NUMTYPES) {
+	if (!DMU_OT_IS_VALID(type)) {
 		error = EINVAL;
 	} else if (dn->dn_bonus != db) {
 		error = EINVAL;
@@ -1273,6 +1297,16 @@ dmu_sync_done(zio_t *zio, arc_buf_t *buf, void *varg)
 	mutex_enter(&db->db_mtx);
 	ASSERT(dr->dt.dl.dr_override_state == DR_IN_DMU_SYNC);
 	if (zio->io_error == 0) {
+		dr->dt.dl.dr_nopwrite = !!(zio->io_flags & ZIO_FLAG_NOPWRITE);
+		if (dr->dt.dl.dr_nopwrite) {
+			blkptr_t *bp = zio->io_bp;
+			blkptr_t *bp_orig = &zio->io_bp_orig;
+			uint8_t chksum = BP_GET_CHECKSUM(bp_orig);
+
+			ASSERT(BP_EQUAL(bp, bp_orig));
+			ASSERT(zio->io_prop.zp_compress != ZIO_COMPRESS_OFF);
+			ASSERT(zio_checksum_table[chksum].ci_dedup);
+		}
 		dr->dt.dl.dr_overridden_by = *zio->io_bp;
 		dr->dt.dl.dr_override_state = DR_OVERRIDDEN;
 		dr->dt.dl.dr_copies = zio->io_prop.zp_copies;
@@ -1294,11 +1328,22 @@ dmu_sync_late_arrival_done(zio_t *zio)
 {
 	blkptr_t *bp = zio->io_bp;
 	dmu_sync_arg_t *dsa = zio->io_private;
+	blkptr_t *bp_orig = &zio->io_bp_orig;
 
 	if (zio->io_error == 0 && !BP_IS_HOLE(bp)) {
-		ASSERT(zio->io_bp->blk_birth == zio->io_txg);
-		ASSERT(zio->io_txg > spa_syncing_txg(zio->io_spa));
-		zio_free(zio->io_spa, zio->io_txg, zio->io_bp);
+		/*
+		 * If we didn't allocate a new block (i.e. ZIO_FLAG_NOPWRITE)
+		 * then there is nothing to do here. Otherwise, free the
+		 * newly allocated block in this txg.
+		 */
+		if (zio->io_flags & ZIO_FLAG_NOPWRITE) {
+			ASSERT(BP_EQUAL(bp, bp_orig));
+		} else {
+			ASSERT(BP_IS_HOLE(bp_orig) || !BP_EQUAL(bp, bp_orig));
+			ASSERT(zio->io_bp->blk_birth == zio->io_txg);
+			ASSERT(zio->io_txg > spa_syncing_txg(zio->io_spa));
+			zio_free(zio->io_spa, zio->io_txg, zio->io_bp);
+		}
 	}
 
 	dmu_tx_commit(dsa->dsa_tx);
@@ -1343,7 +1388,7 @@ dmu_sync_late_arrival(zio_t *pio, objset_t *os, dmu_sync_cb_t *done, zgd_t *zgd,
  *
  * Return values:
  *
- *	EEXIST: this txg has already been synced, so there's nothing to to.
+ *	EEXIST: this txg has already been synced, so there's nothing to do.
  *		The caller should not log the write.
  *
  *	ENOENT: the block was dbuf_free_range()'d, so there's nothing to do.
@@ -1375,7 +1420,6 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 	dnode_t *dn;
 
 	ASSERT(pio != NULL);
-	ASSERT(BP_IS_HOLE(bp));
 	ASSERT(txg != 0);
 
 	SET_BOOKMARK(&zb, ds->ds_object,
@@ -1429,6 +1473,23 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 		mutex_exit(&db->db_mtx);
 		return (ENOENT);
 	}
+
+	ASSERT(dr->dr_next == NULL || dr->dr_next->dr_txg < txg);
+
+	/*
+	 * Assume the on-disk data is X, the current syncing data is Y,
+	 * and the current in-memory data is Z (currently in dmu_sync).
+	 * X and Z are identical but Y is has been modified. Normally,
+	 * when X and Z are the same we will perform a nopwrite but if Y
+	 * is different we must disable nopwrite since the resulting write
+	 * of Y to disk can free the block containing X. If we allowed a
+	 * nopwrite to occur the block pointing to Z would reference a freed
+	 * block. Since this is a rare case we simplify this by disabling
+	 * nopwrite if the current dmu_sync-ing dbuf has been modified in
+	 * a previous transaction.
+	 */
+	if (dr->dr_next)
+		zp.zp_nopwrite = B_FALSE;
 
 	ASSERT(dr->dr_txg == txg);
 	if (dr->dt.dl.dr_override_state == DR_IN_DMU_SYNC ||
@@ -1505,7 +1566,6 @@ dmu_object_set_compress(objset_t *os, uint64_t object, uint8_t compress,
 
 int zfs_mdcomp_disable = 0;
 TUNABLE_INT("vfs.zfs.mdcomp_disable", &zfs_mdcomp_disable);
-SYSCTL_DECL(_vfs_zfs);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, mdcomp_disable, CTLFLAG_RW,
     &zfs_mdcomp_disable, 0, "Disable metadata compression");
 
@@ -1513,19 +1573,31 @@ void
 dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 {
 	dmu_object_type_t type = dn ? dn->dn_type : DMU_OT_OBJSET;
-	boolean_t ismd = (level > 0 || dmu_ot[type].ot_metadata ||
+	boolean_t ismd = (level > 0 || DMU_OT_IS_METADATA(type) ||
 	    (wp & WP_SPILL));
 	enum zio_checksum checksum = os->os_checksum;
 	enum zio_compress compress = os->os_compress;
 	enum zio_checksum dedup_checksum = os->os_dedup_checksum;
-	boolean_t dedup;
+	boolean_t dedup = B_FALSE;
+	boolean_t nopwrite = B_FALSE;
 	boolean_t dedup_verify = os->os_dedup_verify;
 	int copies = os->os_copies;
 
 	/*
-	 * Determine checksum setting.
+	 * We maintain different write policies for each of the following
+	 * types of data:
+	 *	 1. metadata
+	 *	 2. preallocated blocks (i.e. level-0 blocks of a dump device)
+	 *	 3. all other level 0 blocks
 	 */
 	if (ismd) {
+		/*
+		 * XXX -- we should design a compression algorithm
+		 * that specializes in arrays of bps.
+		 */
+		compress = zfs_mdcomp_disable ? ZIO_COMPRESS_EMPTY :
+		    ZIO_COMPRESS_LZJB;
+
 		/*
 		 * Metadata always gets checksummed.  If the data
 		 * checksum is multi-bit correctable, and it's not a
@@ -1536,45 +1608,47 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		if (zio_checksum_table[checksum].ci_correctable < 1 ||
 		    zio_checksum_table[checksum].ci_eck)
 			checksum = ZIO_CHECKSUM_FLETCHER_4;
-	} else {
-		checksum = zio_checksum_select(dn->dn_checksum, checksum);
-	}
+	} else if (wp & WP_NOFILL) {
+		ASSERT(level == 0);
 
-	/*
-	 * Determine compression setting.
-	 */
-	if (ismd) {
 		/*
-		 * XXX -- we should design a compression algorithm
-		 * that specializes in arrays of bps.
+		 * If we're writing preallocated blocks, we aren't actually
+		 * writing them so don't set any policy properties.  These
+		 * blocks are currently only used by an external subsystem
+		 * outside of zfs (i.e. dump) and not written by the zio
+		 * pipeline.
 		 */
-		compress = zfs_mdcomp_disable ? ZIO_COMPRESS_EMPTY :
-		    ZIO_COMPRESS_LZJB;
+		compress = ZIO_COMPRESS_OFF;
+		checksum = ZIO_CHECKSUM_OFF;
 	} else {
 		compress = zio_compress_select(dn->dn_compress, compress);
-	}
 
-	/*
-	 * Determine dedup setting.  If we are in dmu_sync(), we won't
-	 * actually dedup now because that's all done in syncing context;
-	 * but we do want to use the dedup checkum.  If the checksum is not
-	 * strong enough to ensure unique signatures, force dedup_verify.
-	 */
-	dedup = (!ismd && dedup_checksum != ZIO_CHECKSUM_OFF);
-	if (dedup) {
-		checksum = dedup_checksum;
-		if (!zio_checksum_table[checksum].ci_dedup)
-			dedup_verify = 1;
-	}
+		checksum = (dedup_checksum == ZIO_CHECKSUM_OFF) ?
+		    zio_checksum_select(dn->dn_checksum, checksum) :
+		    dedup_checksum;
 
-	if (wp & WP_DMU_SYNC)
-		dedup = 0;
+		/*
+		 * Determine dedup setting.  If we are in dmu_sync(),
+		 * we won't actually dedup now because that's all
+		 * done in syncing context; but we do want to use the
+		 * dedup checkum.  If the checksum is not strong
+		 * enough to ensure unique signatures, force
+		 * dedup_verify.
+		 */
+		if (dedup_checksum != ZIO_CHECKSUM_OFF) {
+			dedup = (wp & WP_DMU_SYNC) ? B_FALSE : B_TRUE;
+			if (!zio_checksum_table[checksum].ci_dedup)
+				dedup_verify = B_TRUE;
+		}
 
-	if (wp & WP_NOFILL) {
-		ASSERT(!ismd && level == 0);
-		checksum = ZIO_CHECKSUM_OFF;
-		compress = ZIO_COMPRESS_OFF;
-		dedup = B_FALSE;
+		/*
+		 * Enable nopwrite if we have a cryptographically secure
+		 * checksum that has no known collisions (i.e. SHA-256)
+		 * and compression is enabled.  We don't enable nopwrite if
+		 * dedup is enabled as the two features are mutually exclusive.
+		 */
+		nopwrite = (!dedup && zio_checksum_table[checksum].ci_dedup &&
+		    compress != ZIO_COMPRESS_OFF && zfs_nopwrite_enabled);
 	}
 
 	zp->zp_checksum = checksum;
@@ -1584,6 +1658,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	zp->zp_copies = MIN(copies + ismd, spa_max_replication(os->os_spa));
 	zp->zp_dedup = dedup;
 	zp->zp_dedup_verify = dedup && dedup_verify;
+	zp->zp_nopwrite = nopwrite;
 }
 
 int
@@ -1755,15 +1830,15 @@ dmu_init(void)
 	dnode_init();
 	dbuf_init();
 	zfetch_init();
-	arc_init();
 	l2arc_init();
+	arc_init();
 }
 
 void
 dmu_fini(void)
 {
-	l2arc_fini();
 	arc_fini();
+	l2arc_fini();
 	zfetch_fini();
 	dbuf_fini();
 	dnode_fini();

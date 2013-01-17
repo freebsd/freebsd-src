@@ -34,12 +34,12 @@ ProgramPoint ProgramPoint::getProgramPoint(const Stmt *S, ProgramPoint::Kind K,
       return PostLoad(S, LC, tag);
     case ProgramPoint::PreStoreKind:
       return PreStore(S, LC, tag);
-    case ProgramPoint::PostStoreKind:
-      return PostStore(S, LC, tag);
     case ProgramPoint::PostLValueKind:
       return PostLValue(S, LC, tag);
-    case ProgramPoint::PostPurgeDeadSymbolsKind:
-      return PostPurgeDeadSymbols(S, LC, tag);
+    case ProgramPoint::PostStmtPurgeDeadSymbolsKind:
+      return PostStmtPurgeDeadSymbols(S, LC, tag);
+    case ProgramPoint::PreStmtPurgeDeadSymbolsKind:
+      return PreStmtPurgeDeadSymbols(S, LC, tag);
   }
 }
 

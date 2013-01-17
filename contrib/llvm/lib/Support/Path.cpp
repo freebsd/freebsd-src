@@ -38,16 +38,6 @@ bool Path::operator<(const Path& that) const {
   return path < that.path;
 }
 
-Path
-Path::GetLLVMConfigDir() {
-  Path result;
-#ifdef LLVM_ETCDIR
-  if (result.set(LLVM_ETCDIR))
-    return result;
-#endif
-  return GetLLVMDefaultConfigDir();
-}
-
 LLVMFileType
 sys::IdentifyFileType(const char *magic, unsigned length) {
   assert(magic && "Invalid magic number string");
@@ -70,8 +60,11 @@ sys::IdentifyFileType(const char *magic, unsigned length) {
 
     case '\177':
       if (magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F') {
-        if (length >= 18 && magic[17] == 0)
-          switch (magic[16]) {
+        bool Data2MSB = magic[5] == 2;
+        unsigned high = Data2MSB ? 16 : 17;
+        unsigned low  = Data2MSB ? 17 : 16;
+        if (length >= 18 && magic[high] == 0)
+          switch (magic[low]) {
             default: break;
             case 1: return ELF_Relocatable_FileType;
             case 2: return ELF_Executable_FileType;
@@ -100,7 +93,7 @@ sys::IdentifyFileType(const char *magic, unsigned length) {
     case 0xCF: {
       uint16_t type = 0;
       if (magic[0] == char(0xFE) && magic[1] == char(0xED) &&
-          magic[2] == char(0xFA) && 
+          magic[2] == char(0xFA) &&
           (magic[3] == char(0xCE) || magic[3] == char(0xCF))) {
         /* Native endian */
         if (length >= 16) type = magic[14] << 8 | magic[15];
@@ -162,31 +155,31 @@ sys::IdentifyFileType(const char *magic, unsigned length) {
 
 bool
 Path::isArchive() const {
-  LLVMFileType type;
+  fs::file_magic type;
   if (fs::identify_magic(str(), type))
     return false;
-  return type == Archive_FileType;
+  return type == fs::file_magic::archive;
 }
 
 bool
 Path::isDynamicLibrary() const {
-  LLVMFileType type;
+  fs::file_magic type;
   if (fs::identify_magic(str(), type))
     return false;
   switch (type) {
     default: return false;
-    case Mach_O_FixedVirtualMemorySharedLib_FileType:
-    case Mach_O_DynamicallyLinkedSharedLib_FileType:
-    case Mach_O_DynamicallyLinkedSharedLibStub_FileType:
-    case ELF_SharedObject_FileType:
-    case COFF_FileType:  return true;
+    case fs::file_magic::macho_fixed_virtual_memory_shared_lib:
+    case fs::file_magic::macho_dynamically_linked_shared_lib:
+    case fs::file_magic::macho_dynamically_linked_shared_lib_stub:
+    case fs::file_magic::elf_shared_object:
+    case fs::file_magic::pecoff_executable:  return true;
   }
 }
 
 bool
 Path::isObjectFile() const {
-  LLVMFileType type;
-  if (fs::identify_magic(str(), type) || type == Unknown_FileType)
+  fs::file_magic type;
+  if (fs::identify_magic(str(), type) || type == fs::file_magic::unknown)
     return false;
   return true;
 }
@@ -222,10 +215,10 @@ Path::appendSuffix(StringRef suffix) {
 
 bool
 Path::isBitcodeFile() const {
-  LLVMFileType type;
+  fs::file_magic type;
   if (fs::identify_magic(str(), type))
     return false;
-  return type == Bitcode_FileType;
+  return type == fs::file_magic::bitcode;
 }
 
 bool Path::hasMagicNumber(StringRef Magic) const {

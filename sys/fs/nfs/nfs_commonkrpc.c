@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
-#include "opt_inet6.h"
 #include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 #include "opt_nfs.h"
@@ -77,23 +76,27 @@ dtrace_nfsclient_nfs23_done_probe_func_t
 /*
  * Registered probes by RPC type.
  */
-uint32_t	nfscl_nfs2_start_probes[NFS_NPROCS + 1];
-uint32_t	nfscl_nfs2_done_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs2_start_probes[NFSV41_NPROCS + 1];
+uint32_t	nfscl_nfs2_done_probes[NFSV41_NPROCS + 1];
 
-uint32_t	nfscl_nfs3_start_probes[NFS_NPROCS + 1];
-uint32_t	nfscl_nfs3_done_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs3_start_probes[NFSV41_NPROCS + 1];
+uint32_t	nfscl_nfs3_done_probes[NFSV41_NPROCS + 1];
 
-uint32_t	nfscl_nfs4_start_probes[NFS_NPROCS + 1];
-uint32_t	nfscl_nfs4_done_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs4_start_probes[NFSV41_NPROCS + 1];
+uint32_t	nfscl_nfs4_done_probes[NFSV41_NPROCS + 1];
 #endif
 
 NFSSTATESPINLOCK;
 NFSREQSPINLOCK;
+NFSDLOCKMUTEX;
 extern struct nfsstats newnfsstats;
 extern struct nfsreqhead nfsd_reqq;
 extern int nfscl_ticks;
 extern void (*ncl_call_invalcaches)(struct vnode *);
+extern int nfs_numnfscbd;
+extern int nfscl_debuglevel;
 
+SVCPOOL		*nfscbd_pool;
 static int	nfsrv_gsscallbackson = 0;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
@@ -168,6 +171,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	struct socket *so;
 	int one = 1, retries, error = 0;
 	struct thread *td = curthread;
+	SVCXPRT *xprt;
+	struct timeval timo;
 
 	/*
 	 * We need to establish the socket using the credentials of
@@ -264,10 +269,37 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			CLNT_CONTROL(client, CLSET_INTERRUPTIBLE, &one);
 		if ((nmp->nm_flag & NFSMNT_RESVPORT))
 			CLNT_CONTROL(client, CLSET_PRIVPORT, &one);
-		if (NFSHASSOFT(nmp))
-			retries = nmp->nm_retry;
-		else
+		if (NFSHASSOFT(nmp)) {
+			if (nmp->nm_sotype == SOCK_DGRAM)
+				/*
+				 * For UDP, the large timeout for a reconnect
+				 * will be set to "nm_retry * nm_timeo / 2", so
+				 * we only want to do 2 reconnect timeout
+				 * retries.
+				 */
+				retries = 2;
+			else
+				retries = nmp->nm_retry;
+		} else
 			retries = INT_MAX;
+		if (NFSHASNFSV4N(nmp)) {
+			/*
+			 * Make sure the nfscbd_pool doesn't get destroyed
+			 * while doing this.
+			 */
+			NFSD_LOCK();
+			if (nfs_numnfscbd > 0) {
+				nfs_numnfscbd++;
+				NFSD_UNLOCK();
+				xprt = svc_vc_create_backchannel(nfscbd_pool);
+				CLNT_CONTROL(client, CLSET_BACKCHANNEL, xprt);
+				NFSD_LOCK();
+				nfs_numnfscbd--;
+				if (nfs_numnfscbd == 0)
+					wakeup(&nfs_numnfscbd);
+			}
+			NFSD_UNLOCK();
+		}
 	} else {
 		/*
 		 * Three cases:
@@ -283,6 +315,27 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		}
 	}
 	CLNT_CONTROL(client, CLSET_RETRIES, &retries);
+
+	if (nmp != NULL) {
+		/*
+		 * For UDP, there are 2 timeouts:
+		 * - CLSET_RETRY_TIMEOUT sets the initial timeout for the timer
+		 *   that does a retransmit of an RPC request using the same 
+		 *   socket and xid. This is what you normally want to do,
+		 *   since NFS servers depend on "same xid" for their
+		 *   Duplicate Request Cache.
+		 * - timeout specified in CLNT_CALL_MBUF(), which specifies when
+		 *   retransmits on the same socket should fail and a fresh
+		 *   socket created. Each of these timeouts counts as one
+		 *   CLSET_RETRIES as set above.
+		 * Set the initial retransmit timeout for UDP. This timeout
+		 * doesn't exist for TCP and the following call just fails,
+		 * which is ok.
+		 */
+		timo.tv_sec = nmp->nm_timeo / NFS_HZ;
+		timo.tv_usec = (nmp->nm_timeo % NFS_HZ) * 1000000 / NFS_HZ;
+		CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, &timo);
+	}
 
 	mtx_lock(&nrp->nr_mtx);
 	if (nrp->nr_client != NULL) {
@@ -438,12 +491,13 @@ int
 newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
     struct nfsclient *clp, struct nfssockreq *nrp, vnode_t vp,
     struct thread *td, struct ucred *cred, u_int32_t prog, u_int32_t vers,
-    u_char *retsum, int toplevel, u_int64_t *xidp)
+    u_char *retsum, int toplevel, u_int64_t *xidp, struct nfsclsession *sep)
 {
-	u_int32_t *tl;
+	u_int32_t retseq, retval, *tl;
 	time_t waituntil;
-	int i, j, set_uid = 0, set_sigset = 0;
+	int i = 0, j = 0, opcnt, set_sigset = 0, slot;
 	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
+	int freeslot, timeo;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
 	struct nfs_feedback_arg nf;
@@ -453,8 +507,8 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	enum clnt_stat stat;
 	struct nfsreq *rep = NULL;
 	char *srv_principal = NULL;
-	uid_t saved_uid = (uid_t)-1;
 	sigset_t oldset;
+	struct ucred *authcred;
 
 	if (xidp != NULL)
 		*xidp = 0;
@@ -463,6 +517,14 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		m_freem(nd->nd_mreq);
 		return (ESTALE);
 	}
+
+	/*
+	 * Set authcred, which is used to acquire RPC credentials to
+	 * the cred argument, by default. The crhold() should not be
+	 * necessary, but will ensure that some future code change
+	 * doesn't result in the credential being free'd prematurely.
+	 */
+	authcred = crhold(cred);
 
 	/* For client side interruptible mounts, mask off the signals. */
 	if (nmp != NULL && td != NULL && NFSHASINT(nmp)) {
@@ -502,13 +564,16 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 			/*
 			 * If there is a client side host based credential,
 			 * use that, otherwise use the system uid, if set.
+			 * The system uid is in the nmp->nm_sockreq.nr_cred
+			 * credentials.
 			 */
 			if (nmp->nm_krbnamelen > 0) {
 				usegssname = 1;
 			} else if (nmp->nm_uid != (uid_t)-1) {
-				saved_uid = cred->cr_uid;
-				cred->cr_uid = nmp->nm_uid;
-				set_uid = 1;
+				KASSERT(nmp->nm_sockreq.nr_cred != NULL,
+				    ("newnfs_request: NULL nr_cred"));
+				crfree(authcred);
+				authcred = crhold(nmp->nm_sockreq.nr_cred);
 			}
 		} else if (nmp->nm_krbnamelen == 0 &&
 		    nmp->nm_uid != (uid_t)-1 && cred->cr_uid == (uid_t)0) {
@@ -517,10 +582,13 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 			 * the system uid is set and this is root, use the
 			 * system uid, since root won't have user
 			 * credentials in a credentials cache file.
+			 * The system uid is in the nmp->nm_sockreq.nr_cred
+			 * credentials.
 			 */
-			saved_uid = cred->cr_uid;
-			cred->cr_uid = nmp->nm_uid;
-			set_uid = 1;
+			KASSERT(nmp->nm_sockreq.nr_cred != NULL,
+			    ("newnfs_request: NULL nr_cred"));
+			crfree(authcred);
+			authcred = crhold(nmp->nm_sockreq.nr_cred);
 		}
 		if (NFSHASINTEGRITY(nmp))
 			secflavour = RPCSEC_GSS_KRB5I;
@@ -536,13 +604,13 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		 * Use the uid that did the mount when the RPC is doing
 		 * NFSv4 system operations, as indicated by the
 		 * ND_USEGSSNAME flag, for the AUTH_SYS case.
+		 * The credentials in nm_sockreq.nr_cred were used for the
+		 * mount.
 		 */
-		saved_uid = cred->cr_uid;
-		if (nmp->nm_uid != (uid_t)-1)
-			cred->cr_uid = nmp->nm_uid;
-		else
-			cred->cr_uid = 0;
-		set_uid = 1;
+		KASSERT(nmp->nm_sockreq.nr_cred != NULL,
+		    ("newnfs_request: NULL nr_cred"));
+		crfree(authcred);
+		authcred = crhold(nmp->nm_sockreq.nr_cred);
 	}
 
 	if (nmp != NULL) {
@@ -558,12 +626,11 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		auth = authnone_create();
 	else if (usegssname)
 		auth = nfs_getauth(nrp, secflavour, nmp->nm_krbname,
-		    srv_principal, NULL, cred);
+		    srv_principal, NULL, authcred);
 	else
 		auth = nfs_getauth(nrp, secflavour, NULL,
-		    srv_principal, NULL, cred);
-	if (set_uid)
-		cred->cr_uid = saved_uid;
+		    srv_principal, NULL, authcred);
+	crfree(authcred);
 	if (auth == NULL) {
 		m_freem(nd->nd_mreq);
 		if (set_sigset)
@@ -627,7 +694,15 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 #endif
 	}
 	trycnt = 0;
+	freeslot = -1;		/* Set to slot that needs to be free'd */
 tryagain:
+	slot = -1;		/* Slot that needs a sequence# increment. */
+	/*
+	 * This timeout specifies when a new socket should be created,
+	 * along with new xid values. For UDP, this should be done
+	 * infrequently, since retransmits of RPC requests should normally
+	 * use the same xid.
+	 */
 	if (nmp == NULL) {
 		timo.tv_usec = 0;
 		if (clp == NULL)
@@ -642,8 +717,22 @@ tryagain:
 			else
 				timo.tv_sec = NFS_TCPTIMEO;
 		} else {
-			timo.tv_sec = nmp->nm_timeo / NFS_HZ;
-			timo.tv_usec = (nmp->nm_timeo * 1000000) / NFS_HZ;
+			if (NFSHASSOFT(nmp)) {
+				/*
+				 * CLSET_RETRIES is set to 2, so this should be
+				 * half of the total timeout required.
+				 */
+				timeo = nmp->nm_retry * nmp->nm_timeo / 2;
+				if (timeo < 1)
+					timeo = 1;
+				timo.tv_sec = timeo / NFS_HZ;
+				timo.tv_usec = (timeo % NFS_HZ) * 1000000 /
+				    NFS_HZ;
+			} else {
+				/* For UDP hard mounts, use a large value. */
+				timo.tv_sec = NFS_MAXTIMEO / NFS_HZ;
+				timo.tv_usec = 0;
+			}
 		}
 
 		if (rep != NULL) {
@@ -678,12 +767,18 @@ tryagain:
 	if (stat == RPC_SUCCESS) {
 		error = 0;
 	} else if (stat == RPC_TIMEDOUT) {
+		NFSINCRGLOBAL(newnfsstats.rpctimeouts);
 		error = ETIMEDOUT;
 	} else if (stat == RPC_VERSMISMATCH) {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EOPNOTSUPP;
 	} else if (stat == RPC_PROGVERSMISMATCH) {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EPROTONOSUPPORT;
+	} else if (stat == RPC_INTR) {
+		error = EINTR;
 	} else {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EACCES;
 	}
 	if (error) {
@@ -709,11 +804,66 @@ tryagain:
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
 	if (nd->nd_procnum != NFSPROC_NULL) {
+		/* If sep == NULL, set it to the default in nmp. */
+		if (sep == NULL && nmp != NULL)
+			sep = NFSMNT_MDSSESSION(nmp);
 		/*
 		 * and now the actual NFS xdr.
 		 */
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		nd->nd_repstat = fxdr_unsigned(u_int32_t, *tl);
+		if (nd->nd_repstat >= 10000)
+			NFSCL_DEBUG(1, "proc=%d reps=%d\n", (int)nd->nd_procnum,
+			    (int)nd->nd_repstat);
+
+		/*
+		 * Get rid of the tag, return count and SEQUENCE result for
+		 * NFSv4.
+		 */
+		if ((nd->nd_flag & ND_NFSV4) != 0) {
+			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+			i = fxdr_unsigned(int, *tl);
+			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
+			if (error)
+				goto nfsmout;
+			NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+			opcnt = fxdr_unsigned(int, *tl++);
+			i = fxdr_unsigned(int, *tl++);
+			j = fxdr_unsigned(int, *tl);
+			if (j >= 10000)
+				NFSCL_DEBUG(1, "fop=%d fst=%d\n", i, j);
+			/*
+			 * If the first op is Sequence, free up the slot.
+			 */
+			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0)
+				NFSCL_DEBUG(1, "failed seq=%d\n", j);
+			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) {
+				NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
+				    5 * NFSX_UNSIGNED);
+				mtx_lock(&sep->nfsess_mtx);
+				tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
+				retseq = fxdr_unsigned(uint32_t, *tl++);
+				slot = fxdr_unsigned(int, *tl++);
+				freeslot = slot;
+				if (retseq != sep->nfsess_slotseq[slot])
+					printf("retseq diff 0x%x\n", retseq);
+				retval = fxdr_unsigned(uint32_t, *++tl);
+				if ((retval + 1) < sep->nfsess_foreslots)
+					sep->nfsess_foreslots = (retval + 1);
+				else if ((retval + 1) > sep->nfsess_foreslots)
+					sep->nfsess_foreslots = (retval < 64) ?
+					    (retval + 1) : 64;
+				mtx_unlock(&sep->nfsess_mtx);
+
+				/* Grab the op and status for the next one. */
+				if (opcnt > 1) {
+					NFSM_DISSECT(tl, uint32_t *,
+					    2 * NFSX_UNSIGNED);
+					i = fxdr_unsigned(int, *tl++);
+					j = fxdr_unsigned(int, *tl);
+				}
+			}
+		}
 		if (nd->nd_repstat != 0) {
 			if (((nd->nd_repstat == NFSERR_DELAY ||
 			      nd->nd_repstat == NFSERR_GRACE) &&
@@ -721,7 +871,9 @@ tryagain:
 			     nd->nd_procnum != NFSPROC_DELEGRETURN &&
 			     nd->nd_procnum != NFSPROC_SETATTR &&
 			     nd->nd_procnum != NFSPROC_READ &&
+			     nd->nd_procnum != NFSPROC_READDS &&
 			     nd->nd_procnum != NFSPROC_WRITE &&
+			     nd->nd_procnum != NFSPROC_WRITEDS &&
 			     nd->nd_procnum != NFSPROC_OPEN &&
 			     nd->nd_procnum != NFSPROC_CREATE &&
 			     nd->nd_procnum != NFSPROC_OPENCONFIRM &&
@@ -738,6 +890,13 @@ tryagain:
 				while (NFSD_MONOSEC < waituntil)
 					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
+				if (slot != -1) {
+					mtx_lock(&sep->nfsess_mtx);
+					sep->nfsess_slotseq[slot]++;
+					*nd->nd_slotseq = txdr_unsigned(
+					    sep->nfsess_slotseq[slot]);
+					mtx_unlock(&sep->nfsess_mtx);
+				}
 				m_freem(nd->nd_mrep);
 				nd->nd_mrep = NULL;
 				goto tryagain;
@@ -754,34 +913,22 @@ tryagain:
 					(*ncl_call_invalcaches)(vp);
 			}
 		}
-
-		/*
-		 * Get rid of the tag, return count, and PUTFH result for V4.
-		 */
-		if (nd->nd_flag & ND_NFSV4) {
-			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-			i = fxdr_unsigned(int, *tl);
-			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
-			if (error)
-				goto nfsmout;
-			NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-			i = fxdr_unsigned(int, *++tl);
-
+		if ((nd->nd_flag & ND_NFSV4) != 0) {
+			/* Free the slot, as required. */
+			if (freeslot != -1)
+				nfsv4_freeslot(sep, freeslot);
 			/*
-			 * If the first op's status is non-zero, mark that
-			 * there is no more data to process.
+			 * If this op is Putfh, throw its results away.
 			 */
-			if (*++tl)
-				nd->nd_flag |= ND_NOMOREDATA;
-
-			/*
-			 * If the first op is Putfh, throw its results away
-			 * and toss the op# and status for the first op.
-			 */
-			if (nmp != NULL && i == NFSV4OP_PUTFH && *tl == 0) {
+			if (j >= 10000)
+				NFSCL_DEBUG(1, "nop=%d nst=%d\n", i, j);
+			if (nmp != NULL && i == NFSV4OP_PUTFH && j == 0) {
 				NFSM_DISSECT(tl,u_int32_t *,2 * NFSX_UNSIGNED);
 				i = fxdr_unsigned(int, *tl++);
 				j = fxdr_unsigned(int, *tl);
+				if (j >= 10000)
+					NFSCL_DEBUG(1, "n2op=%d n2st=%d\n", i,
+					    j);
 				/*
 				 * All Compounds that do an Op that must
 				 * be in sequence consist of NFSV4OP_PUTFH
@@ -804,19 +951,20 @@ tryagain:
 				      j != NFSERR_RESOURCE &&
 				      j != NFSERR_NOFILEHANDLE)))		 
 					nd->nd_flag |= ND_INCRSEQID;
-				/*
-				 * If the first op's status is non-zero, mark
-				 * that there is no more data to process.
-				 */
-				if (j)
-					nd->nd_flag |= ND_NOMOREDATA;
 			}
+			/*
+			 * If this op's status is non-zero, mark
+			 * that there is no more data to process.
+			 */
+			if (j)
+				nd->nd_flag |= ND_NOMOREDATA;
 
 			/*
 			 * If R_DONTRECOVER is set, replace the stale error
 			 * reply, so that recovery isn't initiated.
 			 */
 			if ((nd->nd_repstat == NFSERR_STALECLIENTID ||
+			     nd->nd_repstat == NFSERR_BADSESSION ||
 			     nd->nd_repstat == NFSERR_STALESTATEID) &&
 			    rep != NULL && (rep->r_flags & R_DONTRECOVER))
 				nd->nd_repstat = NFSERR_STALEDONTRECOVER;

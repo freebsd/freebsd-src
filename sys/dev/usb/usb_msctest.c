@@ -83,7 +83,7 @@ enum {
 	DIR_NONE,
 };
 
-#define	SCSI_MAX_LEN	0x100
+#define	SCSI_MAX_LEN	MAX(0x100, BULK_SIZE)
 #define	SCSI_INQ_LEN	0x24
 #define	SCSI_SENSE_LEN	0xFF
 
@@ -103,6 +103,8 @@ static uint8_t scsi_sync_cache[] =	{ 0x35, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_request_sense[] =	{ 0x03, 0x00, 0x00, 0x00, 0x12, 0x00,
 					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_read_capacity[] =	{ 0x25, 0x00, 0x00, 0x00, 0x00, 0x00,
+					  0x00, 0x00, 0x00, 0x00 };
 
 #define	BULK_SIZE		64	/* dummy */
 #define	ERR_CSW_FAILED		-1
@@ -137,8 +139,8 @@ struct bbb_csw {
 struct bbb_transfer {
 	struct mtx mtx;
 	struct cv cv;
-	struct bbb_cbw cbw;
-	struct bbb_csw csw;
+	struct bbb_cbw *cbw;
+	struct bbb_csw *csw;
 
 	struct usb_xfer *xfer[ST_MAX];
 
@@ -148,6 +150,7 @@ struct bbb_transfer {
 	usb_size_t data_rem;		/* bytes */
 	usb_timeout_t data_timeout;	/* ms */
 	usb_frlength_t actlen;		/* bytes */
+	usb_frlength_t buffer_size;    	/* bytes */
 
 	uint8_t	cmd_len;		/* bytes */
 	uint8_t	dir;
@@ -156,7 +159,7 @@ struct bbb_transfer {
 	uint8_t	status_try;
 	int	error;
 
-	uint8_t	buffer[SCSI_MAX_LEN] __aligned(4);
+	uint8_t	*buffer;
 };
 
 static usb_callback_t bbb_command_callback;
@@ -182,7 +185,6 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = sizeof(struct bbb_cbw),
-		.flags = {.ext_buffer = 1,},
 		.callback = &bbb_command_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -191,8 +193,8 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = BULK_SIZE,
-		.flags = {.ext_buffer = 1,.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.bufsize = SCSI_MAX_LEN,
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_data_read_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -210,7 +212,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.bufsize = BULK_SIZE,
+		.bufsize = SCSI_MAX_LEN,
 		.flags = {.ext_buffer = 1,.proxy_buffer = 1,},
 		.callback = &bbb_data_write_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
@@ -230,7 +232,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = sizeof(struct bbb_csw),
-		.flags = {.ext_buffer = 1,.short_xfer_ok = 1,},
+		.flags = {.short_xfer_ok = 1,},
 		.callback = &bbb_status_callback,
 		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
@@ -239,7 +241,6 @@ static const struct usb_config bbb_config[ST_MAX] = {
 static void
 bbb_done(struct bbb_transfer *sc, int error)
 {
-
 	sc->error = error;
 	sc->state = ST_COMMAND;
 	sc->status_try = 1;
@@ -288,18 +289,19 @@ bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	case USB_ST_SETUP:
 		sc->status_try = 0;
-		tag = UGETDW(sc->cbw.dCBWTag) + 1;
-		USETDW(sc->cbw.dCBWSignature, CBWSIGNATURE);
-		USETDW(sc->cbw.dCBWTag, tag);
-		USETDW(sc->cbw.dCBWDataTransferLength, (uint32_t)sc->data_len);
-		sc->cbw.bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
-		sc->cbw.bCBWLUN = sc->lun;
-		sc->cbw.bCDBLength = sc->cmd_len;
-		if (sc->cbw.bCDBLength > sizeof(sc->cbw.CBWCDB)) {
-			sc->cbw.bCDBLength = sizeof(sc->cbw.CBWCDB);
+		tag = UGETDW(sc->cbw->dCBWTag) + 1;
+		USETDW(sc->cbw->dCBWSignature, CBWSIGNATURE);
+		USETDW(sc->cbw->dCBWTag, tag);
+		USETDW(sc->cbw->dCBWDataTransferLength, (uint32_t)sc->data_len);
+		sc->cbw->bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
+		sc->cbw->bCBWLUN = sc->lun;
+		sc->cbw->bCDBLength = sc->cmd_len;
+		if (sc->cbw->bCDBLength > sizeof(sc->cbw->CBWCDB)) {
+			sc->cbw->bCDBLength = sizeof(sc->cbw->CBWCDB);
 			DPRINTFN(0, "Truncating long command\n");
 		}
-		usbd_xfer_set_frame_data(xfer, 0, &sc->cbw, sizeof(sc->cbw));
+		usbd_xfer_set_frame_len(xfer, 0,
+		    sizeof(struct bbb_cbw));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -386,7 +388,7 @@ bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if (sc->data_rem == 0) {
 			bbb_transfer_start(sc, ST_STATUS);
-			return;
+			break;
 		}
 		if (max_bulk > sc->data_rem) {
 			max_bulk = sc->data_rem;
@@ -394,7 +396,7 @@ bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		usbd_xfer_set_timeout(xfer, sc->data_timeout);
 		usbd_xfer_set_frame_data(xfer, 0, sc->data_ptr, max_bulk);
 		usbd_transfer_submit(xfer);
-		return;
+		break;
 
 	default:			/* Error */
 		if (error == USB_ERR_CANCELLED) {
@@ -402,8 +404,7 @@ bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		} else {
 			bbb_transfer_start(sc, ST_DATA_WR_CS);
 		}
-		return;
-
+		break;
 	}
 }
 
@@ -418,7 +419,8 @@ static void
 bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
-	int actlen, sumlen;
+	int actlen;
+	int sumlen;
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
@@ -427,9 +429,9 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* very simple status check */
 
-		if (actlen < sizeof(sc->csw)) {
+		if (actlen < (int)sizeof(struct bbb_csw)) {
 			bbb_done(sc, USB_ERR_SHORT_XFER);
-		} else if (sc->csw.bCSWStatus == CSWSTATUS_GOOD) {
+		} else if (sc->csw->bCSWStatus == CSWSTATUS_GOOD) {
 			bbb_done(sc, 0);	/* success */
 		} else {
 			bbb_done(sc, ERR_CSW_FAILED);	/* error */
@@ -437,7 +439,8 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	case USB_ST_SETUP:
-		usbd_xfer_set_frame_data(xfer, 0, &sc->csw, sizeof(sc->csw));
+		usbd_xfer_set_frame_len(xfer, 0,
+		    sizeof(struct bbb_csw));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -475,9 +478,9 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->data_timeout = (data_timeout + USB_MS_HZ);
 	sc->actlen = 0;
 	sc->cmd_len = cmd_len;
-	bzero(&sc->cbw.CBWCDB, sizeof(sc->cbw.CBWCDB));
-	bcopy(cmd_ptr, &sc->cbw.CBWCDB, cmd_len);
-	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, &sc->cbw.CBWCDB, ":");
+	memset(&sc->cbw->CBWCDB, 0, sizeof(sc->cbw->CBWCDB));
+	memcpy(&sc->cbw->CBWCDB, cmd_ptr, cmd_len);
+	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, (char *)sc->cbw->CBWCDB, ":");
 
 	mtx_lock(&sc->mtx);
 	usbd_transfer_start(sc->xfer[sc->state]);
@@ -551,6 +554,16 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 		bbb_detach(sc);
 		return (NULL);
 	}
+	/* store pointer to DMA buffers */
+	sc->buffer = usbd_xfer_get_frame_buffer(
+	    sc->xfer[ST_DATA_RD], 0);
+	sc->buffer_size =
+	    usbd_xfer_max_len(sc->xfer[ST_DATA_RD]);
+	sc->cbw = usbd_xfer_get_frame_buffer(
+	    sc->xfer[ST_COMMAND], 0);
+	sc->csw = usbd_xfer_get_frame_buffer(
+	    sc->xfer[ST_STATUS], 0);
+
 	return (sc);
 }
 
@@ -603,6 +616,29 @@ usb_iface_is_cdrom(struct usb_device *udev, uint8_t iface_index)
 	return (is_cdrom);
 }
 
+static uint8_t
+usb_msc_get_max_lun(struct usb_device *udev, uint8_t iface_index)
+{
+	struct usb_device_request req;
+	usb_error_t err;
+	uint8_t buf = 0;
+
+
+	/* The Get Max Lun command is a class-specific request. */
+	req.bmRequestType = UT_READ_CLASS_INTERFACE;
+	req.bRequest = 0xFE;		/* GET_MAX_LUN */
+	USETW(req.wValue, 0);
+	req.wIndex[0] = iface_index;
+	req.wIndex[1] = 0;
+	USETW(req.wLength, 1);
+
+	err = usbd_do_request(udev, NULL, &req, &buf);
+	if (err)
+		buf = 0;
+
+	return (buf);
+}
+
 usb_error_t
 usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 {
@@ -622,8 +658,13 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 	 */
 	usb_pause_mtx(NULL, hz);
 
+	if (usb_msc_get_max_lun(udev, iface_index) == 0) {
+		DPRINTF("Device has only got one LUN.\n");
+		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_GETMAXLUN);
+	}
+
 	is_no_direct = 1;
-	for (timeout = 4; timeout; timeout--) {
+	for (timeout = 4; timeout != 0; timeout--) {
 		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
 		    SCSI_INQ_LEN, &scsi_inquiry, sizeof(scsi_inquiry),
 		    USB_MS_HZ);
@@ -633,8 +674,11 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 			if (sid_type == 0x00)
 				is_no_direct = 0;
 			break;
-		} else if (err != ERR_CSW_FAILED)
-			break;	/* non retryable error */
+		} else if (err != ERR_CSW_FAILED) {
+			DPRINTF("Device is not responding "
+			    "properly to SCSI INQUIRY command.\n");
+			goto error;	/* non retryable error */
+		}
 		usb_pause_mtx(NULL, hz);
 	}
 
@@ -652,7 +696,9 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 		if (err != ERR_CSW_FAILED)
 			goto error;
 	}
+	timeout = 1;
 
+retry_sync_cache:
 	err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
 	    &scsi_sync_cache, sizeof(scsi_sync_cache),
 	    USB_MS_HZ);
@@ -665,6 +711,42 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 		DPRINTF("Device doesn't handle synchronize cache\n");
 
 		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
+
+	} else {
+
+		/*
+		 * Certain Kingston memory sticks fail the first
+		 * read capacity after a synchronize cache command
+		 * has been issued. Disable the synchronize cache
+		 * command for such devices.
+		 */
+
+		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 8,
+		    &scsi_read_capacity, sizeof(scsi_read_capacity),
+		    USB_MS_HZ);
+
+		if (err != 0) {
+			if (err != ERR_CSW_FAILED)
+				goto error;
+
+			err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 8,
+			    &scsi_read_capacity, sizeof(scsi_read_capacity),
+			    USB_MS_HZ);
+
+			if (err == 0) {
+				if (timeout--)
+					goto retry_sync_cache;
+
+				DPRINTF("Device most likely doesn't "
+				    "handle synchronize cache\n");
+
+				usbd_add_dynamic_quirk(udev,
+				    UQ_MSC_NO_SYNC_CACHE);
+			} else {
+				if (err != ERR_CSW_FAILED)
+					goto error;
+			}
+		}
 	}
 
 	/* clear sense status of any failed commands on the device */
@@ -757,8 +839,8 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		 * TCTMobile needs DIR_IN flag. To get it, we
 		 * supply a dummy data with the command.
 		 */
-		err = bbb_command_start(sc, DIR_IN, 0, &sc->buffer,
-		    sizeof(sc->buffer), &scsi_tct_eject,
+		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+		    sc->buffer_size, &scsi_tct_eject,
 		    sizeof(scsi_tct_eject), USB_MS_HZ);
 		break;
 	default:

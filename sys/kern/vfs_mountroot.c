@@ -42,10 +42,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/mdioctl.h>
 #include <sys/mount.h>
@@ -486,7 +486,7 @@ parse_dir_ask(char **conf)
 	do {
 		error = EINVAL;
 		printf("\nmountroot> ");
-		gets(name, sizeof(name), GETS_ECHO);
+		cngets(name, sizeof(name), GETS_ECHO);
 		if (name[0] == '\0')
 			break;
 		if (name[0] == '?' && name[1] == '\0') {
@@ -672,10 +672,11 @@ parse_mount_dev_present(const char *dev)
 	return (error != 0) ? 0 : 1;
 }
 
+#define	ERRMSGL	255
 static int
 parse_mount(char **conf)
 {
-	char errmsg[255];
+	char *errmsg;
 	struct mntarg *ma;
 	char *dev, *fs, *opts, *tok;
 	int delay, error, timeout;
@@ -707,7 +708,7 @@ parse_mount(char **conf)
 	printf("Trying to mount root from %s:%s [%s]...\n", fs, dev,
 	    (opts != NULL) ? opts : "");
 
-	bzero(errmsg, sizeof(errmsg));
+	errmsg = malloc(ERRMSGL, M_TEMP, M_WAITOK | M_ZERO);
 
 	if (vfs_byname(fs) == NULL) {
 		strlcpy(errmsg, "unknown file system", sizeof(errmsg));
@@ -734,7 +735,7 @@ parse_mount(char **conf)
 	ma = mount_arg(ma, "fstype", fs, -1);
 	ma = mount_arg(ma, "fspath", "/", -1);
 	ma = mount_arg(ma, "from", dev, -1);
-	ma = mount_arg(ma, "errmsg", errmsg, sizeof(errmsg));
+	ma = mount_arg(ma, "errmsg", errmsg, ERRMSGL);
 	ma = mount_arg(ma, "ro", NULL, 0);
 	ma = parse_mountroot_options(ma, opts);
 	error = kernel_mount(ma, MNT_ROOTFS);
@@ -748,11 +749,13 @@ parse_mount(char **conf)
 		printf(".\n");
 	}
 	free(fs, M_TEMP);
+	free(errmsg, M_TEMP);
 	if (opts != NULL)
 		free(opts, M_TEMP);
 	/* kernel_mount can return -1 on error. */
 	return ((error < 0) ? EDOOFUS : error);
 }
+#undef ERRMSGL
 
 static int
 vfs_mountroot_parse(struct sbuf *sb, struct mount *mpdevfs)
@@ -871,18 +874,15 @@ vfs_mountroot_readconf(struct thread *td, struct sbuf *sb)
 	static char buf[128];
 	struct nameidata nd;
 	off_t ofs;
-	int error, flags;
-	int len, resid;
-	int vfslocked;
+	ssize_t resid;
+	int error, flags, len;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE,
-	    "/.mount.conf", td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/.mount.conf", td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return (error);
 
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	ofs = 0;
 	len = sizeof(buf) - 1;
@@ -901,7 +901,6 @@ vfs_mountroot_readconf(struct thread *td, struct sbuf *sb)
 
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 

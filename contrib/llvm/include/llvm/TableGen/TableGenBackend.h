@@ -1,4 +1,4 @@
-//===- llvm/TableGen/TableGenBackend.h - Backend base class -----*- C++ -*-===//
+//===- llvm/TableGen/TableGenBackend.h - Backend utilities ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,36 +7,22 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The TableGenBackend class is provided as a common interface for all TableGen
-// backends.  It provides useful services and an standardized interface.
+// Useful utilities for TableGen backends.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_TABLEGEN_TABLEGENBACKEND_H
 #define LLVM_TABLEGEN_TABLEGENBACKEND_H
 
-#include "llvm/Support/raw_ostream.h"
-#include <string>
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
-class Record;
-class RecordKeeper;
+class raw_ostream;
 
-struct TableGenBackend {
-  virtual ~TableGenBackend() {}
-
-  // run - All TableGen backends should implement the run method, which should
-  // be the main entry point.
-  virtual void run(raw_ostream &OS) = 0;
-
-
-public:   // Useful helper routines...
-  /// EmitSourceFileHeader - Output a LLVM style file header to the specified
-  /// ostream.
-  void EmitSourceFileHeader(const std::string &Desc, raw_ostream &OS) const;
-
-};
+/// emitSourceFileHeader - Output a LLVM style file header to the specified
+/// raw_ostream.
+void emitSourceFileHeader(StringRef Desc, raw_ostream &OS);
 
 } // End llvm namespace
 

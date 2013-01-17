@@ -41,7 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cputype.h"
+#include "opt_compat.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>
+#include <sys/sysent.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -163,7 +164,36 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
 #ifdef CPU_CNMIPS
-	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	if (td1->td_md.md_flags & MDTD_COP2USED) {
+		if (td1->td_md.md_cop2owner == COP2_OWNER_USERLAND) {
+			if (td1->td_md.md_ucop2)
+				octeon_cop2_save(td1->td_md.md_ucop2);
+			else
+				panic("cpu_fork: ucop2 is NULL but COP2 is enabled");
+		}
+		else {
+			if (td1->td_md.md_cop2)
+				octeon_cop2_save(td1->td_md.md_cop2);
+			else
+				panic("cpu_fork: cop2 is NULL but COP2 is enabled");
+		}
+	}
+
+	if (td1->td_md.md_cop2) {
+		td2->td_md.md_cop2 = octeon_cop2_alloc_ctx();
+		memcpy(td2->td_md.md_cop2, td1->td_md.md_cop2, 
+			sizeof(*td1->td_md.md_cop2));
+	}
+	if (td1->td_md.md_ucop2) {
+		td2->td_md.md_ucop2 = octeon_cop2_alloc_ctx();
+		memcpy(td2->td_md.md_ucop2, td1->td_md.md_ucop2, 
+			sizeof(*td1->td_md.md_ucop2));
+	}
+	td2->td_md.md_cop2owner = td1->td_md.md_cop2owner;
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	/* Clear COP2 bits for userland & kernel */
+	td2->td_frame->sr &= ~MIPS_SR_COP_2_BIT;
+	pcb2->pcb_context[PCB_REG_SR] &= ~MIPS_SR_COP_2_BIT;
 #endif
 }
 
@@ -195,11 +225,27 @@ cpu_thread_exit(struct thread *td)
 
 	if (PCPU_GET(fpcurthread) == td)
 		PCPU_GET(fpcurthread) = (struct thread *)0;
+#ifdef  CPU_CNMIPS
+	if (td->td_md.md_cop2)
+		memset(td->td_md.md_cop2, 0,
+			sizeof(*td->td_md.md_cop2));
+	if (td->td_md.md_ucop2)
+		memset(td->td_md.md_ucop2, 0,
+			sizeof(*td->td_md.md_ucop2));
+#endif
 }
 
 void
 cpu_thread_free(struct thread *td)
 {
+#ifdef  CPU_CNMIPS
+	if (td->td_md.md_cop2)
+		octeon_cop2_free_ctx(td->td_md.md_cop2);
+	if (td->td_md.md_ucop2)
+		octeon_cop2_free_ctx(td->td_md.md_ucop2);
+	td->td_md.md_cop2 = NULL;
+	td->td_md.md_ucop2 = NULL;
+#endif
 }
 
 void
@@ -256,7 +302,12 @@ cpu_set_syscall_retval(struct thread *td, int error)
 
 	code = locr0->v0;
 	quad_syscall = 0;
-#if defined(__mips_o32)
+#if defined(__mips_n32) || defined(__mips_n64)
+#ifdef COMPAT_FREEBSD32
+	if (code == SYS___syscall && SV_PROC_FLAG(td->td_proc, SV_ILP32))
+		quad_syscall = 1;
+#endif
+#else
 	if (code == SYS___syscall)
 		quad_syscall = 1;
 #endif
@@ -354,12 +405,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td->td_frame;
 	/* Dont set IE bit in SR. sched lock release will take care of it */
 	pcb2->pcb_context[PCB_REG_SR] = mips_rd_status() &
-	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
-
-#ifdef CPU_CNMIPS
-	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
-	  MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
-#endif
+	    (MIPS_SR_PX | MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
 
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
@@ -423,10 +469,6 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 #elif  defined(__mips_n64)
 	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
 #endif
-#ifdef CPU_CNMIPS
-	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_PX | MIPS_SR_UX |
-	  MIPS_SR_KX;
-#endif
 /*	tf->sr |= (ALL_INT_MASK & idle_mask) | SR_INT_ENAB; */
 	/**XXX the above may now be wrong -- mips2 implements this as panic */
 	/*
@@ -434,19 +476,6 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 * Setup any other CPU-Specific registers (Not MIPS Standard)
 	 * that are needed.
 	 */
-}
-/*
- * Convert kernel VA to physical address
- */
-u_long
-kvtop(void *addr)
-{
-	vm_offset_t va;
-
-	va = pmap_kextract((vm_offset_t)addr);
-	if (va == 0)
-		panic("kvtop: zero page frame");
-	return((intptr_t)va);
 }
 
 /*
@@ -556,7 +585,8 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	td->td_md.md_tls = tls_base;
+	td->td_md.md_tls = (char*)tls_base;
+
 	return (0);
 }
 

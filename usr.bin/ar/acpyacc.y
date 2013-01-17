@@ -54,7 +54,6 @@ struct list {
 
 
 extern int	yylex(void);
-extern int	yyparse(void);
 
 static void	yyerror(const char *);
 static void	arscp_addlib(char *archive, struct list *list);

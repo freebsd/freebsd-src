@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #define	TICK_QUALITY_MP	10
 #define	TICK_QUALITY_UP	1000
 
-SYSCTL_NODE(_machdep, OID_AUTO, tick, CTLFLAG_RD, 0, "tick statistics");
+static SYSCTL_NODE(_machdep, OID_AUTO, tick, CTLFLAG_RD, 0, "tick statistics");
 
 static int adjust_edges = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_edges, CTLFLAG_RD, &adjust_edges,
@@ -245,14 +245,16 @@ tick_process(struct trapframe *tf)
 	struct trapframe *oldframe;
 	struct thread *td;
 
+	td = curthread;
+	td->td_intr_nesting_level++;
 	critical_enter();
 	if (tick_et.et_active) {
-		td = curthread;
 		oldframe = td->td_intr_frame;
 		td->td_intr_frame = tf;
 		tick_et.et_event_cb(&tick_et, tick_et.et_arg);
 		td->td_intr_frame = oldframe;
 	}
+	td->td_intr_nesting_level--;
 	critical_exit();
 }
 
@@ -332,7 +334,7 @@ stick_get_timecount_mp(struct timecounter *tc)
 	if (curcpu == 0)
 		stick = rdstick();
 	else
-		ipi_wait(ipi_rd(0, tl_ipi_stick_rd, &stick));
+		ipi_wait_unlocked(ipi_rd(0, tl_ipi_stick_rd, &stick));
 	sched_unpin();
 	return (stick);
 }
@@ -346,7 +348,7 @@ tick_get_timecount_mp(struct timecounter *tc)
 	if (curcpu == 0)
 		tick = rd(tick);
 	else
-		ipi_wait(ipi_rd(0, tl_ipi_tick_rd, &tick));
+		ipi_wait_unlocked(ipi_rd(0, tl_ipi_tick_rd, &tick));
 	sched_unpin();
 	return (tick);
 }

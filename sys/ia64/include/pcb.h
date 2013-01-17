@@ -65,10 +65,10 @@ struct trapframe;
 
 void makectx(struct trapframe *, struct pcb *);
 void restorectx(struct pcb *) __dead2;
-int swapctx(struct pcb *old, struct pcb *new);
+int swapctx(struct pcb *old, struct pcb *new) __returns_twice;
 
 void ia32_restorectx(struct pcb *);
-void ia32_savectx(struct pcb *);
+void ia32_savectx(struct pcb *) __returns_twice;
 
 #endif
 

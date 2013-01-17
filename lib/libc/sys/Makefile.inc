@@ -15,6 +15,10 @@
 #
 .sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
 
+SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
+NOASM+=  clock_gettime.o gettimeofday.o
+PSEUDO+= _clock_gettime.o _gettimeofday.o
+
 # Sources common to both syscall interfaces:
 SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)
@@ -80,7 +84,7 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	bind.2 brk.2 cap_enter.2 cap_new.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 closefrom.2 \
 	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 _exit.2 \
-	extattr_get_file.2 fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
+	extattr_get_file.2 fcntl.2 ffclock.2 fhopen.2 flock.2 fork.2 fsync.2 \
 	getdirentries.2 getdtablesize.2 \
 	getfh.2 getfsstat.2 getgid.2 getgroups.2 getitimer.2 getlogin.2 \
 	getloginclass.2 getpeername.2 getpgrp.2 getpid.2 getpriority.2 \
@@ -96,7 +100,8 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	mq_setattr.2 \
 	msgctl.2 msgget.2 msgrcv.2 msgsnd.2 \
 	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 open.2 \
-	pathconf.2 pdfork.2 pipe.2 poll.2 posix_fallocate.2 posix_openpt.2 profil.2 \
+	pathconf.2 pdfork.2 pipe.2 poll.2 posix_fadvise.2 posix_fallocate.2 \
+	posix_openpt.2 profil.2 \
 	pselect.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2
@@ -141,6 +146,8 @@ MLINKS+=extattr_get_file.2 extattr.2 \
 	extattr_get_file.2 extattr_set_fd.2 \
 	extattr_get_file.2 extattr_set_file.2 \
 	extattr_get_file.2 extattr_set_link.2
+MLINKS+=ffclock.2 ffclock_getcounter.2 ffclock.2 ffclock_getestimate.2 \
+	ffclock.2 ffclock_setestimate.2
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getfh.2 lgetfh.2
@@ -162,7 +169,7 @@ MLINKS+=jail.2 jail_attach.2 \
 	jail.2 jail_remove.2 \
 	jail.2 jail_set.2
 MLINKS+=kldunload.2 kldunloadf.2
-MLINKS+=kqueue.2 kevent.2
+MLINKS+=kqueue.2 kevent.2 kqueue.2 EV_SET.3
 MLINKS+=link.2 linkat.2
 MLINKS+=madvise.2 posix_madvise.2
 MLINKS+=mkdir.2 mkdirat.2
@@ -185,6 +192,7 @@ MLINKS+=read.2 pread.2 read.2 preadv.2 read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
 MLINKS+=rename.2 renameat.2
+MLINKS+=rtprio.2 rtprio_thread.2
 .if !defined(NO_P1003_1B)
 MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2
@@ -209,5 +217,6 @@ MLINKS+=timer_settime.2 timer_getoverrun.2 timer_settime.2 timer_gettime.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
 MLINKS+=utimes.2 futimes.2 utimes.2 futimesat.2 utimes.2 lutimes.2
-MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
+MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2 \
+	wait.2 waitid.2 wait.2 wait6.2
 MLINKS+=write.2 pwrite.2 write.2 pwritev.2 write.2 writev.2

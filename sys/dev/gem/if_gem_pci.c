@@ -82,16 +82,12 @@ static device_method_t gem_pci_methods[] = {
 	/* Use the suspend handler here, it is all that is required. */
 	DEVMETHOD(device_shutdown,	gem_pci_suspend),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	gem_mii_readreg),
 	DEVMETHOD(miibus_writereg,	gem_mii_writereg),
 	DEVMETHOD(miibus_statchg,	gem_mii_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t gem_pci_driver = {
@@ -108,7 +104,7 @@ static const struct gem_pci_dev {
 	uint32_t	gpd_devid;
 	int		gpd_variant;
 	const char	*gpd_desc;
-} const gem_pci_devlist[] = {
+} gem_pci_devlist[] = {
 	{ 0x1101108e, GEM_SUN_ERI,	"Sun ERI 10/100 Ethernet" },
 	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet" },
 	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple UniNorth GMAC Ethernet" },

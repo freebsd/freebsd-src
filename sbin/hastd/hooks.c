@@ -105,26 +105,26 @@ descriptors(void)
 	 * Redirect stdin, stdout and stderr to /dev/null.
 	 */
 	fd = open(_PATH_DEVNULL, O_RDONLY);
-	if (fd < 0) {
+	if (fd == -1) {
 		pjdlog_errno(LOG_WARNING, "Unable to open %s for reading",
 		    _PATH_DEVNULL);
 	} else if (fd != STDIN_FILENO) {
-		if (dup2(fd, STDIN_FILENO) < 0) {
+		if (dup2(fd, STDIN_FILENO) == -1) {
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to duplicate descriptor for stdin");
 		}
 		close(fd);
 	}
 	fd = open(_PATH_DEVNULL, O_WRONLY);
-	if (fd < 0) {
+	if (fd == -1) {
 		pjdlog_errno(LOG_WARNING, "Unable to open %s for writing",
 		    _PATH_DEVNULL);
 	} else {
-		if (fd != STDOUT_FILENO && dup2(fd, STDOUT_FILENO) < 0) {
+		if (fd != STDOUT_FILENO && dup2(fd, STDOUT_FILENO) == -1) {
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to duplicate descriptor for stdout");
 		}
-		if (fd != STDERR_FILENO && dup2(fd, STDERR_FILENO) < 0) {
+		if (fd != STDERR_FILENO && dup2(fd, STDERR_FILENO) == -1) {
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to duplicate descriptor for stderr");
 		}

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/md5.h>
+#include <sys/proc.h>
 
 #include <sys/diskmbr.h>
 #include <sys/sbuf.h>
@@ -482,8 +483,8 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				    ((off_t)dp[0].dp_size) << 9ULL,
 				    sectorsize,
 				    "%*.*s%d",
-				    strlen(gp->name) - 1,
-				    strlen(gp->name) - 1,
+				    (int)strlen(gp->name) - 1,
+				    (int)strlen(gp->name) - 1,
 				    gp->name,
 				    slice + 5);
 				g_topology_unlock();

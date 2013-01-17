@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 NFSDLOCKMUTEX;
+NFSV4ROOTLOCKMUTEX;
+struct nfsv4lock nfsd_suspend_lock;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -221,9 +223,24 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
+		/*
+		 * Get a refcnt (shared lock) on nfsd_suspend_lock.
+		 * NFSSVC_SUSPENDNFSD will take an exclusive lock on
+		 * nfsd_suspend_lock to suspend these threads.
+		 * This must be done here, before the check of
+		 * nfsv4root exports by nfsvno_v4rootexport().
+		 */
+		NFSLOCKV4ROOTMUTEX();
+		nfsv4_getref(&nfsd_suspend_lock, NULL, NFSV4ROOTLOCKMUTEXPTR,
+		    NULL);
+		NFSUNLOCKV4ROOTMUTEX();
+
 		if ((nd.nd_flag & ND_NFSV4) != 0) {
 			nd.nd_repstat = nfsvno_v4rootexport(&nd);
 			if (nd.nd_repstat != 0) {
+				NFSLOCKV4ROOTMUTEX();
+				nfsv4_relref(&nfsd_suspend_lock);
+				NFSUNLOCKV4ROOTMUTEX();
 				svcerr_weakauth(rqst);
 				svc_freereq(rqst);
 				m_freem(nd.nd_mrep);
@@ -233,6 +250,9 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt->xp_socket,
 		    xprt->xp_sockref, &rp);
+		NFSLOCKV4ROOTMUTEX();
+		nfsv4_relref(&nfsd_suspend_lock);
+		NFSUNLOCKV4ROOTMUTEX();
 	} else {
 		NFSMGET(nd.nd_mreq);
 		nd.nd_mreq->m_len = 0;

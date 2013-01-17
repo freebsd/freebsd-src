@@ -435,7 +435,7 @@ macb_new_rxbuf(struct macb_softc *sc, int index)
 	bus_dma_segment_t seg[1];
 	int error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES - ETHER_ALIGN;
@@ -730,7 +730,7 @@ macb_rx(struct macb_softc *sc)
 
 		m = sc->rx_desc[sc->rx_cons].buff;
 
-		bus_dmamap_sync(sc->dmatag_ring_rx, 
+		bus_dmamap_sync(sc->dmatag_ring_rx,
 		    sc->rx_desc[sc->rx_cons].dmamap, BUS_DMASYNC_POSTREAD);
 		if (macb_new_rxbuf(sc, sc->rx_cons) != 0) {
 			ifp->if_iqdrops++;
@@ -739,7 +739,7 @@ macb_rx(struct macb_softc *sc)
 			do  {
 				rxdesc->flags = DATA_SIZE;
 				MACB_DESC_INC(sc->rx_cons, MACB_MAX_RX_BUFFERS);
-				if ((rxdesc->flags & RD_EOF) != 0) 
+				if ((rxdesc->flags & RD_EOF) != 0)
 					break;
 				rxdesc = &(sc->desc_rx[sc->rx_cons]);
 			} while (sc->rx_cons != first);
@@ -776,7 +776,7 @@ macb_rx(struct macb_softc *sc)
 			if (nsegs > 1) {
 				sc->macb_cdata.rxtail->m_len = (rxbytes -
 				    ((nsegs - 1) * DATA_SIZE)) + 2;
-			} 
+			}
 
 			m = sc->macb_cdata.rxhead;
 			m->m_flags |= M_PKTHDR;
@@ -878,7 +878,7 @@ macb_encap(struct macb_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->dmatag_ring_tx, txd->dmamap,
 	    *m_head, segs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, MAX_FRAGMENT);
+		m = m_collapse(*m_head, M_NOWAIT, MAX_FRAGMENT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -973,7 +973,7 @@ macbstart_locked(struct ifnet *ifp)
 #if 0
 		if (m0->m_next != NULL) {
 			/* Fragmented mbuf chain, collapse it. */
-			m_new = m_defrag(m0, M_DONTWAIT);
+			m_new = m_defrag(m0, M_NOWAIT);
 			if (m_new != NULL) {
 				/* Original frame freed. */
 				m0 = m_new;
@@ -1102,7 +1102,7 @@ set_filter(struct macb_softc *sc)
 	int count;
 	uint32_t multicast_filter[2];
 
-	ifp = sc->ifp;       
+	ifp = sc->ifp;
 
 	config = read_4(sc, EMAC_NCFGR);
 	
@@ -1132,7 +1132,7 @@ set_filter(struct macb_softc *sc)
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		count++;
-		set_mac_filter(multicast_filter, 
+		set_mac_filter(multicast_filter,
 			   LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 	}
 	if (count) {
@@ -1501,7 +1501,7 @@ macb_miibus_statchg(device_t dev)
 
 	mii = device_get_softc(sc->miibus);
 
-	sc->flags &= ~MACB_FLAG_LINK;       
+	sc->flags &= ~MACB_FLAG_LINK;
 
 	config = read_4(sc, EMAC_NCFGR);
 

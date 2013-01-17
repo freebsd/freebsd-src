@@ -71,9 +71,9 @@ typedef struct __mcontext32 {
 #define	mc_ctr		mc_frame[35]
 #define mc_srr0		mc_frame[36]
 #define mc_srr1		mc_frame[37]
-#define mc_dar		mc_frame[38]
-#define mc_dsisr	mc_frame[39]
-#define mc_exc		mc_frame[40]
+#define mc_exc		mc_frame[38]
+#define mc_dar		mc_frame[39]
+#define mc_dsisr	mc_frame[40]
 
 /* floating-point state */
 #define mc_fpscr	mc_fpreg[32]

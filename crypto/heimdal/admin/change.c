@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997-2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: change.c 15578 2005-07-07 20:44:48Z lha $");
+RCSID("$Id$");
 
 static krb5_error_code
 change_entry (krb5_keytab keytab,
@@ -61,19 +61,19 @@ change_entry (krb5_keytab keytab,
     conf.realm = strdup(realm);
     if (conf.realm == NULL) {
 	free (client_name);
-	krb5_set_error_string(context, "malloc failed");
+	krb5_set_error_message(context, ENOMEM, "malloc failed");
 	return ENOMEM;
     }
     conf.mask |= KADM5_CONFIG_REALM;
-    
+
     if (admin_server) {
 	conf.admin_server = strdup(admin_server);
 	if (conf.admin_server == NULL) {
 	    free(client_name);
 	    free(conf.realm);
-	    krb5_set_error_string(context, "malloc failed");
+	    krb5_set_error_message(context, ENOMEM, "malloc failed");
 	    return ENOMEM;
-	}	    
+	}
 	conf.mask |= KADM5_CONFIG_ADMIN_SERVER;
     }
 
@@ -140,7 +140,7 @@ kt_change (struct change_options *opt, int argc, char **argv)
     int i, j, max;
     struct change_set *changeset;
     int errors = 0;
-    
+
     if((keytab = ktutil_open_keytab()) == NULL)
 	return 1;
 
@@ -222,20 +222,20 @@ kt_change (struct change_options *opt, int argc, char **argv)
 	    if (verbose_flag) {
 		char *client_name;
 
-		ret = krb5_unparse_name (context, changeset[i].principal, 
+		ret = krb5_unparse_name (context, changeset[i].principal,
 					 &client_name);
 		if (ret) {
 		    krb5_warn (context, ret, "krb5_unparse_name");
 		} else {
-		    printf("Changing %s kvno %d\n", 
+		    printf("Changing %s kvno %d\n",
 			   client_name, changeset[i].kvno);
 		    free(client_name);
 		}
 	    }
-	    ret = change_entry (keytab, 
+	    ret = change_entry (keytab,
 				changeset[i].principal, changeset[i].kvno,
-				opt->realm_string, 
-				opt->admin_server_string, 
+				opt->realm_string,
+				opt->admin_server_string,
 				opt->server_port_integer);
 	    if (ret != 0)
 		errors = 1;

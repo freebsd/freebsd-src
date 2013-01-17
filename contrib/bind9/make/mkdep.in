@@ -140,25 +140,37 @@ if [ X"${MKDEPPROG}" != X ]; then
 else
     @MKDEPCC@ @MKDEPCFLAGS@ ${newargs} |
     sed "
-	s; \./; ;g
+	s; \\./; ;g
+	s; \\\\; ;g
 	@LIBTOOL_MKDEP_SED@
 	$SED" |
-    awk '{
-	if ($1 != prev) {
+    awk '$1 ~ /:$/ {
 		if (rec != "")
-			print rec;
-		rec = $0;
-		prev = $1;
-	}
-	else {
-		if (length(rec $2) > 78) {
-			print rec;
-			rec = $0;
-		}
+			 print rec;
+		if (NF == 1)
+			rec = $1;
 		else
-			rec = rec " " $2
+			rec = $1 " " $2;
+		for (i = 3; i <= NF; i++) {
+			if (length(rec $i) > 76) {
+				print rec " \\";
+				rec = "    " $i;
+			} else {
+				rec = rec " " $i;
+			}
+		}
+		next;
 	}
-    }
+	{
+		for (i = 1; i <= NF; i++) {
+			if (length(rec $i) > 76) {
+				print rec, "\\";
+				rec =  "    " $i;
+			} else {
+				rec = rec " " $i;
+			}
+		}
+	}
     END {
 	print rec
     }' >> $TMP

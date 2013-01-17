@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 Kungliga Tekniska Högskolan
+# Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
 # (Royal Institute of Technology, Stockholm, Sweden). 
 # All rights reserved. 
 #
@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
 # SUCH DAMAGE. 
 #
-# $Id: test_crypto.in 20898 2007-06-04 23:07:46Z lha $
+# $Id$
 #
 
 srcdir="@srcdir@"
@@ -144,12 +144,12 @@ ${hxtool} crypto-select \
 cmp test ${srcdir}/tst-crypto-select7 > /dev/null || \
 	{ echo "select7 failure"; exit 1; }
 
-echo "crypto available1"
-${hxtool} crypto-available \
-	--type=all \
-	> test || { echo "available1"; exit 1; }
-cmp test ${srcdir}/tst-crypto-available1 > /dev/null || \
-	{ echo "available1 failure"; exit 1; }
+#echo "crypto available1"
+#${hxtool} crypto-available \
+#	--type=all \
+#	> test || { echo "available1"; exit 1; }
+#cmp test ${srcdir}/tst-crypto-available1 > /dev/null || \
+#	{ echo "available1 failure"; exit 1; }
 
 echo "crypto available2"
 ${hxtool} crypto-available \
@@ -158,12 +158,12 @@ ${hxtool} crypto-available \
 cmp test ${srcdir}/tst-crypto-available2 > /dev/null || \
 	{ echo "available2 failure"; exit 1; }
 
-echo "crypto available3"
-${hxtool} crypto-available \
-	--type=public-sig \
-	> test || { echo "available3"; exit 1; }
-cmp test ${srcdir}/tst-crypto-available3 > /dev/null || \
-	{ echo "available3 failure"; exit 1; }
+#echo "crypto available3"
+#${hxtool} crypto-available \
+#	--type=public-sig \
+#	> test || { echo "available3"; exit 1; }
+#cmp test ${srcdir}/tst-crypto-available3 > /dev/null || \
+#	{ echo "available3 failure"; exit 1; }
 
 echo "copy keystore FILE existing -> FILE"
 ${hxtool} certificate-copy \
@@ -183,5 +183,10 @@ ${hxtool} certificate-copy \
 echo "print certificate with utf8"
 ${hxtool} print \
 	FILE:$srcdir/data/j.pem >/dev/null 2>/dev/null || exit 1
+
+echo "Make sure that we can parse EC private keys"
+${hxtool} print --content \
+    FILE:$srcdir/data/pkinit-ec.crt,$srcdir/data/pkinit-ec.key \
+    > /dev/null || exit 1
 
 exit 0

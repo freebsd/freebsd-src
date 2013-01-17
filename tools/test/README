@@ -10,5 +10,6 @@ Please make a subdir per program, and add a brief description to this file.
 devrandom	Programs to test /dev/*random.
 dtrace		DTrace test suite
 malloc		A program to test and benchmark malloc().
+netfibs		Programs to test multi-FIB network stacks.
 posixshm	A program to test POSIX shared memory.
 testfloat	Programs to test floating-point implementations

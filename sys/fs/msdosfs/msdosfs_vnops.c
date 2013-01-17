@@ -476,7 +476,7 @@ msdosfs_setattr(ap)
 			 */
 			break;
 		}
-		error = detrunc(dep, vap->va_size, 0, cred, td);
+		error = detrunc(dep, vap->va_size, 0, cred);
 		if (error)
 			return error;
 	}
@@ -543,7 +543,7 @@ msdosfs_read(ap)
 	int error = 0;
 	int blsize;
 	int isadir;
-	int orig_resid;
+	ssize_t orig_resid;
 	u_int n;
 	u_long diff;
 	u_long on;
@@ -643,7 +643,7 @@ msdosfs_write(ap)
 {
 	int n;
 	int croffset;
-	int resid;
+	ssize_t resid;
 	u_long osize;
 	int error = 0;
 	u_long count;
@@ -835,11 +835,11 @@ msdosfs_write(ap)
 errexit:
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			detrunc(dep, osize, ioflag & IO_SYNC, NOCRED, NULL);
+			detrunc(dep, osize, ioflag & IO_SYNC, NOCRED);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		} else {
-			detrunc(dep, dep->de_FileSize, ioflag & IO_SYNC, NOCRED, NULL);
+			detrunc(dep, dep->de_FileSize, ioflag & IO_SYNC, NOCRED);
 			if (uio->uio_resid != resid)
 				error = 0;
 		}
@@ -1249,7 +1249,7 @@ abortit:
 		putushort(dotdotp->deStartCluster, dp->de_StartCluster);
 		if (FAT32(pmp))
 			putushort(dotdotp->deHighClust, dp->de_StartCluster >> 16);
-		if (fvp->v_mount->mnt_flag & MNT_ASYNC)
+		if (DOINGASYNC(fvp))
 			bdwrite(bp);
 		else if ((error = bwrite(bp)) != 0) {
 			/* XXX should downgrade to ro here, fs is corrupt */
@@ -1383,7 +1383,7 @@ msdosfs_mkdir(ap)
 		putushort(denp[1].deHighClust, pdep->de_StartCluster >> 16);
 	}
 
-	if (ap->a_dvp->v_mount->mnt_flag & MNT_ASYNC)
+	if (DOINGASYNC(ap->a_dvp))
 		bdwrite(bp);
 	else if ((error = bwrite(bp)) != 0)
 		goto bad;
@@ -1429,7 +1429,6 @@ msdosfs_rmdir(ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct componentname *cnp = ap->a_cnp;
 	struct denode *ip, *dp;
-	struct thread *td = cnp->cn_thread;
 	int error;
 
 	ip = VTODE(vp);
@@ -1467,7 +1466,7 @@ msdosfs_rmdir(ap)
 	/*
 	 * Truncate the directory that is being deleted.
 	 */
-	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, td);
+	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred);
 	cache_purge(vp);
 
 out:

@@ -17,20 +17,19 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MachineLocation.h"
-#include "llvm/MC/MCObjectWriter.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/Compiler.h"
 #include <vector>
 
 namespace llvm {
   class MCContext;
-  class MCExpr;
+  class MCObjectWriter;
   class MCSection;
-  class MCSectionData;
   class MCStreamer;
   class MCSymbol;
-  class MCObjectStreamer;
-  class raw_ostream;
+  class SourceMgr;
+  class SMLoc;
 
   /// MCDwarfFile - Instances of this class represent the name of the dwarf
   /// .file directive and its associated dwarf file number in the MC file,
@@ -50,8 +49,8 @@ namespace llvm {
     MCDwarfFile(StringRef name, unsigned dirIndex)
       : Name(name), DirIndex(dirIndex) {}
 
-    MCDwarfFile(const MCDwarfFile&);       // DO NOT IMPLEMENT
-    void operator=(const MCDwarfFile&); // DO NOT IMPLEMENT
+    MCDwarfFile(const MCDwarfFile&) LLVM_DELETED_FUNCTION;
+    void operator=(const MCDwarfFile&) LLVM_DELETED_FUNCTION;
   public:
     /// getName - Get the base name of this MCDwarfFile.
     StringRef getName() const { return Name; }
@@ -60,7 +59,7 @@ namespace llvm {
     unsigned getDirIndex() const { return DirIndex; }
 
 
-    /// print - Print the value to the stream \arg OS.
+    /// print - Print the value to the stream \p OS.
     void print(raw_ostream &OS) const;
 
     /// dump - Print the value to stderr.
@@ -179,8 +178,8 @@ namespace llvm {
   class MCLineSection {
 
   private:
-    MCLineSection(const MCLineSection&);  // DO NOT IMPLEMENT
-    void operator=(const MCLineSection&); // DO NOT IMPLEMENT
+    MCLineSection(const MCLineSection&) LLVM_DELETED_FUNCTION;
+    void operator=(const MCLineSection&) LLVM_DELETED_FUNCTION;
 
   public:
     // Constructor to create an MCLineSection with an empty MCLineEntries
@@ -210,7 +209,7 @@ namespace llvm {
     //
     // This emits the Dwarf file and the line tables.
     //
-    static void Emit(MCStreamer *MCOS);
+    static const MCSymbol *Emit(MCStreamer *MCOS);
   };
 
   class MCDwarfLineAddr {
@@ -227,23 +226,63 @@ namespace llvm {
                       int64_t LineDelta, uint64_t AddrDelta);
   };
 
+  class MCGenDwarfInfo {
+  public:
+    //
+    // When generating dwarf for assembly source files this emits the Dwarf
+    // sections.
+    //
+    static void Emit(MCStreamer *MCOS, const MCSymbol *LineSectionSymbol);
+  };
+
+  // When generating dwarf for assembly source files this is the info that is
+  // needed to be gathered for each symbol that will have a dwarf label.
+  class MCGenDwarfLabelEntry {
+  private:
+    // Name of the symbol without a leading underbar, if any.
+    StringRef Name;
+    // The dwarf file number this symbol is in.
+    unsigned FileNumber;
+    // The line number this symbol is at.
+    unsigned LineNumber;
+    // The low_pc for the dwarf label is taken from this symbol.
+    MCSymbol *Label;
+
+  public:
+    MCGenDwarfLabelEntry(StringRef name, unsigned fileNumber,
+                         unsigned lineNumber, MCSymbol *label) :
+      Name(name), FileNumber(fileNumber), LineNumber(lineNumber), Label(label){}
+
+    StringRef getName() const { return Name; }
+    unsigned getFileNumber() const { return FileNumber; }
+    unsigned getLineNumber() const { return LineNumber; }
+    MCSymbol *getLabel() const { return Label; }
+
+    // This is called when label is created when we are generating dwarf for
+    // assembly source files.
+    static void Make(MCSymbol *Symbol, MCStreamer *MCOS, SourceMgr &SrcMgr,
+                     SMLoc &Loc);
+  };
+
   class MCCFIInstruction {
   public:
-    enum OpType { SameValue, Remember, Restore, Move, RelMove };
+    enum OpType { SameValue, RememberState, RestoreState, Move, RelMove, Escape,
+                  Restore};
   private:
     OpType Operation;
     MCSymbol *Label;
     // Move to & from location.
     MachineLocation Destination;
     MachineLocation Source;
+    std::vector<char> Values;
   public:
     MCCFIInstruction(OpType Op, MCSymbol *L)
       : Operation(Op), Label(L) {
-      assert(Op == Remember || Op == Restore);
+      assert(Op == RememberState || Op == RestoreState);
     }
     MCCFIInstruction(OpType Op, MCSymbol *L, unsigned Register)
       : Operation(Op), Label(L), Destination(Register) {
-      assert(Op == SameValue);
+      assert(Op == SameValue || Op == Restore);
     }
     MCCFIInstruction(MCSymbol *L, const MachineLocation &D,
                      const MachineLocation &S)
@@ -254,16 +293,24 @@ namespace llvm {
       : Operation(Op), Label(L), Destination(D), Source(S) {
       assert(Op == RelMove);
     }
+    MCCFIInstruction(OpType Op, MCSymbol *L, StringRef Vals)
+      : Operation(Op), Label(L), Values(Vals.begin(), Vals.end()) {
+      assert(Op == Escape);
+    }
     OpType getOperation() const { return Operation; }
     MCSymbol *getLabel() const { return Label; }
     const MachineLocation &getDestination() const { return Destination; }
     const MachineLocation &getSource() const { return Source; }
+    const StringRef getValues() const {
+      return StringRef(&Values[0], Values.size());
+    }
   };
 
   struct MCDwarfFrameInfo {
     MCDwarfFrameInfo() : Begin(0), End(0), Personality(0), Lsda(0),
                          Function(0), Instructions(), PersonalityEncoding(),
-                         LsdaEncoding(0), CompactUnwindEncoding(0) {}
+                         LsdaEncoding(0), CompactUnwindEncoding(0),
+                         IsSignalFrame(false) {}
     MCSymbol *Begin;
     MCSymbol *End;
     const MCSymbol *Personality;
@@ -273,6 +320,7 @@ namespace llvm {
     unsigned PersonalityEncoding;
     unsigned LsdaEncoding;
     uint32_t CompactUnwindEncoding;
+    bool IsSignalFrame;
   };
 
   class MCDwarfFrameEmitter {

@@ -203,10 +203,10 @@ static struct mbuf *makembuf (void *buf, unsigned len)
 {
 	struct mbuf *m;
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_DONTWAIT);
+	MCLGET (m, M_NOWAIT);
 	if (! (m->m_flags & M_EXT)) {
 		m_freem (m);
 		return 0;
@@ -1052,9 +1052,11 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			IFP2SP(d->ifp)->pp_flags &= ~(PP_FR);
 			IFP2SP(d->ifp)->pp_flags |= PP_KEEPALIVE;
 			d->ifp->if_flags |= PP_CISCO;
-		} else if (! strcmp ("fr", (char*)data) && PP_FR) {
+#if PP_FR != 0
+		} else if (! strcmp ("fr", (char*)data)) {
 			d->ifp->if_flags &= ~(PP_CISCO);
 			IFP2SP(d->ifp)->pp_flags |= PP_FR | PP_KEEPALIVE;
+#endif
 		} else if (! strcmp ("ppp", (char*)data)) {
 			IFP2SP(d->ifp)->pp_flags &= ~PP_FR;
 			IFP2SP(d->ifp)->pp_flags &= ~PP_KEEPALIVE;

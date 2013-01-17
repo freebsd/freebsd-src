@@ -38,6 +38,10 @@
  */
 DECLARE_CLASS(pci_driver);
 
+struct pci_softc {
+	bus_dma_tag_t sc_dma_tag;
+};
+
 extern int 	pci_do_power_resume;
 extern int 	pci_do_power_suspend;
 
@@ -46,6 +50,7 @@ void		pci_add_children(device_t dev, int domain, int busno,
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
+int		pci_attach_common(device_t dev);
 void		pci_delete_child(device_t dev, device_t child);
 void		pci_driver_added(device_t dev, driver_t *driver);
 int		pci_print_child(device_t dev, device_t child);
@@ -74,7 +79,11 @@ int		pci_enable_busmaster_method(device_t dev, device_t child);
 int		pci_disable_busmaster_method(device_t dev, device_t child);
 int		pci_enable_io_method(device_t dev, device_t child, int space);
 int		pci_disable_io_method(device_t dev, device_t child, int space);
+int		pci_find_cap_method(device_t dev, device_t child,
+		    int capability, int *capreg);
 int		pci_find_extcap_method(device_t dev, device_t child,
+		    int capability, int *capreg);
+int		pci_find_htcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
 int		pci_alloc_msi_method(device_t dev, device_t child, int *count);
 int		pci_alloc_msix_method(device_t dev, device_t child, int *count);

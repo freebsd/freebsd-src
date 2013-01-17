@@ -94,6 +94,7 @@ struct var vps2;
 struct var vps4;
 struct var vvers;
 static struct var voptind;
+struct var vdisvfork;
 
 int forcelocal;
 
@@ -125,6 +126,8 @@ static const struct varinit varinit[] = {
 #endif
 	{ &voptind,	0,				"OPTIND=1",
 	  getoptsreset },
+	{ &vdisvfork,	VUNSET,				"SH_DISABLE_VFORK=",
+	  NULL },
 	{ NULL,	0,				NULL,
 	  NULL }
 };
@@ -600,7 +603,7 @@ showvarscmd(int argc __unused, char **argv __unused)
 		}
 	}
 
-	INTON;
+	INTOFF;
 	vars = ckmalloc(n * sizeof(*vars));
 	i = 0;
 	for (vpp = vartab; vpp < vartab + VTABSIZE; vpp++) {
@@ -625,7 +628,7 @@ showvarscmd(int argc __unused, char **argv __unused)
 		out1c('\n');
 	}
 	ckfree(vars);
-	INTOFF;
+	INTON;
 
 	return 0;
 }
@@ -637,10 +640,11 @@ showvarscmd(int argc __unused, char **argv __unused)
  */
 
 int
-exportcmd(int argc, char **argv)
+exportcmd(int argc __unused, char **argv)
 {
 	struct var **vpp;
 	struct var *vp;
+	char **ap;
 	char *name;
 	char *p;
 	char *cmdname;
@@ -648,26 +652,19 @@ exportcmd(int argc, char **argv)
 	int flag = argv[0][0] == 'r'? VREADONLY : VEXPORT;
 
 	cmdname = argv[0];
-	optreset = optind = 1;
-	opterr = 0;
 	values = 0;
-	while ((ch = getopt(argc, argv, "p")) != -1) {
+	while ((ch = nextopt("p")) != '\0') {
 		switch (ch) {
 		case 'p':
 			values = 1;
 			break;
-		case '?':
-		default:
-			error("unknown option: -%c", optopt);
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
-	if (values && argc != 0)
+	if (values && *argptr != NULL)
 		error("-p requires no arguments");
-	if (argc != 0) {
-		while ((name = *argv++) != NULL) {
+	if (*argptr != NULL) {
+		for (ap = argptr; (name = *ap) != NULL; ap++) {
 			if ((p = strchr(name, '=')) != NULL) {
 				p++;
 			} else {

@@ -27,6 +27,9 @@
 
 /* prototypes from "uaudio.c" used by "uaudio_pcm.c" */
 
+#ifndef _UAUDIO_H_
+#define	_UAUDIO_H_
+
 struct uaudio_chan;
 struct uaudio_softc;
 struct snd_dbuf;
@@ -63,3 +66,5 @@ extern uint32_t	uaudio_mixer_setrecsrc(struct uaudio_softc *sc, uint32_t src);
 int	uaudio_get_vendor(device_t dev);
 int	uaudio_get_product(device_t dev);
 int	uaudio_get_release(device_t dev);
+
+#endif			/* _UAUDIO_H_ */

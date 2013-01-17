@@ -19,38 +19,49 @@
  * CDDL HEADER END
  *
  * $FreeBSD$
- *
+ */
+/*
+ * Copyright 2007 John Birrell <jb@FreeBSD.org>. All rights reserved.
+ * Copyright 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
+#include <sys/assfail.h>
 #include <sys/cmn_err.h>
 
 void
 vcmn_err(int ce, const char *fmt, va_list adx)
 {
 	char buf[256];
+	const char *prefix;
 
+	prefix = NULL; /* silence unwitty compilers */
 	switch (ce) {
 	case CE_CONT:
-		snprintf(buf, sizeof(buf), "Solaris(cont): %s\n", fmt);
+		prefix = "Solaris(cont): ";
 		break;
 	case CE_NOTE:
-		snprintf(buf, sizeof(buf), "Solaris: NOTICE: %s\n", fmt);
+		prefix = "Solaris: NOTICE: ";
 		break;
 	case CE_WARN:
-		snprintf(buf, sizeof(buf), "Solaris: WARNING: %s\n", fmt);
+		prefix = "Solaris: WARNING: ";
 		break;
 	case CE_PANIC:
-		snprintf(buf, sizeof(buf), "Solaris(panic): %s\n", fmt);
+		prefix = "Solaris(panic): ";
 		break;
 	case CE_IGNORE:
 		break;
 	default:
 		panic("Solaris: unknown severity level");
 	}
-	if (ce == CE_PANIC)
-		panic("%s", buf);
-	if (ce != CE_IGNORE)
-		vprintf(buf, adx);
+	if (ce == CE_PANIC) {
+		vsnprintf(buf, sizeof(buf), fmt, adx);
+		panic("%s%s", prefix, buf);
+	}
+	if (ce != CE_IGNORE) {
+		printf("%s", prefix);
+		vprintf(fmt, adx);
+		printf("\n");
+	}
 }
 
 void
@@ -61,4 +72,20 @@ cmn_err(int type, const char *fmt, ...)
 	va_start(ap, fmt);
 	vcmn_err(type, fmt, ap);
 	va_end(ap);
+}
+
+int
+assfail(const char *a, const char *f, int l) {
+
+	panic("solaris assert: %s, file: %s, line: %d", a, f, l);
+
+	return (0);
+}
+
+void
+assfail3(const char *a, uintmax_t lv, const char *op, uintmax_t rv,
+    const char *f, int l) {
+
+	panic("solaris assert: %s (0x%jx %s 0x%jx), file: %s, line: %d",
+	    a, lv, op, rv, f, l);
 }

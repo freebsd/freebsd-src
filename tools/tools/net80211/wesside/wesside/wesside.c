@@ -2091,7 +2091,7 @@ void save_key(unsigned char *key, int len)
 			strcat(k, ":");
 	}
 
-	fd = open(KEY_FILE, O_WRONLY | O_CREAT | 0644);
+	fd = open(KEY_FILE, O_WRONLY | O_CREAT, 0644);
 	if (fd == -1)
 		err(1, "open()");
 

@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,7 +123,7 @@ find_plist_option(Package *pkg, const char *name)
 
 /*
  * Delete plist item 'type' in the list (if 'name' is non-null, match it
- * too.)  If 'all' is set, delete all items, not just the first occurance.
+ * too.)  If 'all' is set, delete all items, not just the first occurrence.
  */
 void
 delete_plist(Package *pkg, Boolean all, plist_t type, const char *name)
@@ -286,7 +286,8 @@ read_plist(Package *pkg, FILE *fp)
 	if (*cp == '\0') {
 	    cp = NULL;
 	    if (cmd == PLIST_PKGDEP) {
-		warnx("corrupted record (pkgdep line without argument), ignoring");
+		warnx("corrupted record for package %s (pkgdep line without "
+			"argument), ignoring", pkg->name);
 		cmd = FAIL;
 	    }
 	    goto bottom;
@@ -457,7 +458,10 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 
 	case PLIST_FILE:
 	    last_file = p->name;
-	    sprintf(tmp, "%s/%s", Where, p->name);
+	    if (*p->name == '/')
+		strlcpy(tmp, p->name, FILENAME_MAX);
+	    else
+		sprintf(tmp, "%s/%s", Where, p->name);
 	    if (isdir(tmp) && fexists(tmp) && !issymlink(tmp)) {
 		warnx("cannot delete specified file '%s' - it is a directory!\n"
 	   "this packing list is incorrect - ignoring delete request", tmp);

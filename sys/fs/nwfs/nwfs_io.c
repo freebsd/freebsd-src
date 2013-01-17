@@ -38,6 +38,7 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -452,41 +453,13 @@ nwfs_getpages(ap)
 			    ("nwfs_getpages: page %p is dirty", m));
 		} else {
 			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_valid(m, 0, nvalid);
+			vm_page_set_valid_range(m, 0, nvalid);
 			KASSERT((m->dirty & vm_page_bits(0, nvalid)) == 0,
 			    ("nwfs_getpages: page %p is dirty", m));
 		}
 
-		if (i != ap->a_reqpage) {
-			/*
-			 * Whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere (it already is in the object).  Result:
-			 * It appears that emperical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * Just in case someone was asking for this page we
-			 * now tell them that it is ok to use.
-			 */
-			if (!error) {
-				if (m->oflags & VPO_WANTED) {
-					vm_page_lock(m);
-					vm_page_activate(m);
-					vm_page_unlock(m);
-				} else {
-					vm_page_lock(m);
-					vm_page_deactivate(m);
-					vm_page_unlock(m);
-				}
-				vm_page_wakeup(m);
-			} else {
-				vm_page_lock(m);
-				vm_page_free(m);
-				vm_page_unlock(m);
-			}
-		}
+		if (i != ap->a_reqpage)
+			vm_page_readahead_finish(m);
 	}
 	VM_OBJECT_UNLOCK(object);
 	return 0;

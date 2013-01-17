@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 2002 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ndbm_wrap.h 14773 2005-04-12 11:29:18Z lha $ */
+/* $Id$ */
 
 #ifndef __ndbm_wrap_h__
 #define __ndbm_wrap_h__
@@ -41,9 +41,11 @@
 
 #ifndef ROKEN_LIB_FUNCTION
 #ifdef _WIN32
-#define ROKEN_LIB_FUNCTION _stdcall
+#define ROKEN_LIB_FUNCTION
+#define ROKEN_LIB_CALL     __cdecl
 #else
 #define ROKEN_LIB_FUNCTION
+#define ROKEN_LIB_CALL
 #endif
 #endif
 
@@ -78,14 +80,14 @@ typedef struct {
 } DBM;
 #endif
 
-int ROKEN_LIB_FUNCTION dbm_clearerr (DBM*);
-void ROKEN_LIB_FUNCTION dbm_close (DBM*);
-int ROKEN_LIB_FUNCTION dbm_delete (DBM*, datum);
-int ROKEN_LIB_FUNCTION dbm_error (DBM*);
-datum ROKEN_LIB_FUNCTION dbm_fetch (DBM*, datum);
-datum ROKEN_LIB_FUNCTION dbm_firstkey (DBM*);
-datum ROKEN_LIB_FUNCTION dbm_nextkey (DBM*);
-DBM* ROKEN_LIB_FUNCTION dbm_open (const char*, int, mode_t);
-int ROKEN_LIB_FUNCTION dbm_store (DBM*, datum, datum, int);
+ROKEN_LIB_FUNCTION int   ROKEN_LIB_CALL dbm_clearerr (DBM*);
+ROKEN_LIB_FUNCTION void  ROKEN_LIB_CALL dbm_close (DBM*);
+ROKEN_LIB_FUNCTION int   ROKEN_LIB_CALL dbm_delete (DBM*, datum);
+ROKEN_LIB_FUNCTION int   ROKEN_LIB_CALL dbm_error (DBM*);
+ROKEN_LIB_FUNCTION datum ROKEN_LIB_CALL dbm_fetch (DBM*, datum);
+ROKEN_LIB_FUNCTION datum ROKEN_LIB_CALL dbm_firstkey (DBM*);
+ROKEN_LIB_FUNCTION datum ROKEN_LIB_CALL dbm_nextkey (DBM*);
+ROKEN_LIB_FUNCTION DBM*  ROKEN_LIB_CALL dbm_open (const char*, int, mode_t);
+ROKEN_LIB_FUNCTION int   ROKEN_LIB_CALL dbm_store (DBM*, datum, datum, int);
 
 #endif /* __ndbm_wrap_h__ */

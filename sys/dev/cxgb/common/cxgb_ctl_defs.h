@@ -60,14 +60,12 @@ struct mtutab {
 	const unsigned short *mtus; /* the MTU table values */
 };
 
-struct net_device;
-
 /*
- * Structure used to request the adapter net_device owning a given MAC address.
+ * Structure used to request the ifnet that owns a given MAC address.
  */
 struct iff_mac {
-	struct net_device *dev;          /* the net_device */
-	const unsigned char *mac_addr;   /* MAC address to lookup */
+	struct ifnet *dev;
+	const unsigned char *mac_addr;
 	u16 vlan_tag;
 };
 
@@ -85,7 +83,7 @@ struct ddp_params {
 
 struct adap_ports {
 	unsigned int nports;     /* number of ports on this adapter */
-	struct net_device *lldevs[MAX_NPORTS];
+	struct ifnet *lldevs[MAX_NPORTS];
 };
 
 /*

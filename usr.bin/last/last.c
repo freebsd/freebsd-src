@@ -70,20 +70,20 @@ typedef struct arg {
 	int	type;				/* type of arg */
 	struct arg	*next;			/* linked list pointer */
 } ARG;
-ARG	*arglist;				/* head of linked list */
+static ARG	*arglist;			/* head of linked list */
 
-LIST_HEAD(idlisthead, idtab) idlist;
+static SLIST_HEAD(, idtab) idlist;
 
 struct idtab {
 	time_t	logout;				/* log out time */
 	char	id[sizeof ((struct utmpx *)0)->ut_id]; /* identifier */
-	LIST_ENTRY(idtab) list;
+	SLIST_ENTRY(idtab) list;
 };
 
 static const	char *crmsg;			/* cause of last reboot */
 static time_t	currentout;			/* current logout value */
 static long	maxrec;				/* records to display */
-static const	char *file = NULL;		/* wtmp file */
+static const	char *file = NULL;		/* utx.log file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int	yflag;				/* show year */
@@ -94,17 +94,17 @@ static time_t	snaptime;			/* if != 0, we will only
 						 * at this snapshot time
 						 */
 
-void	 addarg(int, char *);
-time_t	 dateconv(char *);
-void	 doentry(struct utmpx *);
-void	 hostconv(char *);
-void	 printentry(struct utmpx *, struct idtab *);
-char	*ttyconv(char *);
-int	 want(struct utmpx *);
-void	 usage(void);
-void	 wtmp(void);
+static void	 addarg(int, char *);
+static time_t	 dateconv(char *);
+static void	 doentry(struct utmpx *);
+static void	 hostconv(char *);
+static void	 printentry(struct utmpx *, struct idtab *);
+static char	*ttyconv(char *);
+static int	 want(struct utmpx *);
+static void	 usage(void);
+static void	 wtmp(void);
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
@@ -194,9 +194,9 @@ main(int argc, char *argv[])
 
 /*
  * wtmp --
- *	read through the wtmp file
+ *	read through the utx.log file
  */
-void
+static void
 wtmp(void)
 {
 	struct utmpx *buf = NULL;
@@ -206,7 +206,7 @@ wtmp(void)
 	char ct[80];
 	struct tm *tm;
 
-	LIST_INIT(&idlist);
+	SLIST_INIT(&idlist);
 	(void)time(&t);
 
 	/* Load the last entries from the file. */
@@ -229,27 +229,25 @@ wtmp(void)
 		doentry(&buf[--amount]);
 
 	tm = localtime(&t);
-	(void) strftime(ct, sizeof(ct), "\nwtmp begins %+\n", tm);
-	printf("%s", ct);
+	(void) strftime(ct, sizeof(ct), "%+", tm);
+	printf("\n%s begins %s\n", ((file == NULL) ? "utx.log" : file), ct);
 }
 
 /*
  * doentry --
- *	process a single wtmp entry
+ *	process a single utx.log entry
  */
-void
+static void
 doentry(struct utmpx *bp)
 {
-	struct idtab	*tt, *ttx;		/* idlist entry */
+	struct idtab *tt;
 
 	/* the machine stopped */
 	if (bp->ut_type == BOOT_TIME || bp->ut_type == SHUTDOWN_TIME) {
 		/* everybody just logged out */
-		for (tt = LIST_FIRST(&idlist); tt;) {
-			LIST_REMOVE(tt, list);
-			ttx = tt;
-			tt = LIST_NEXT(tt, list);
-			free(ttx);
+		while ((tt = SLIST_FIRST(&idlist)) != NULL) {
+			SLIST_REMOVE_HEAD(&idlist, list);
+			free(tt);
 		}
 		currentout = -bp->ut_tv.tv_sec;
 		crmsg = bp->ut_type != SHUTDOWN_TIME ?
@@ -279,7 +277,7 @@ doentry(struct utmpx *bp)
 		return;
 
 	/* find associated identifier */
-	LIST_FOREACH(tt, &idlist, list)
+	SLIST_FOREACH(tt, &idlist, list)
 	    if (!memcmp(tt->id, bp->ut_id, sizeof bp->ut_id))
 		    break;
 
@@ -290,7 +288,7 @@ doentry(struct utmpx *bp)
 			errx(1, "malloc failure");
 		tt->logout = currentout;
 		memcpy(tt->id, bp->ut_id, sizeof bp->ut_id);
-		LIST_INSERT_HEAD(&idlist, tt, list);
+		SLIST_INSERT_HEAD(&idlist, tt, list);
 	}
 
 	/*
@@ -313,7 +311,7 @@ doentry(struct utmpx *bp)
  * If `tt' is non-NULL, use it and `crmsg' to print the logout time or
  * logout type (crash/shutdown) as appropriate.
  */
-void
+static void
 printentry(struct utmpx *bp, struct idtab *tt)
 {
 	char ct[80];
@@ -378,7 +376,7 @@ printentry(struct utmpx *bp, struct idtab *tt)
  * want --
  *	see if want this entry
  */
-int
+static int
 want(struct utmpx *bp)
 {
 	ARG *step;
@@ -411,7 +409,7 @@ want(struct utmpx *bp)
  * addarg --
  *	add an entry to a linked list of arguments
  */
-void
+static void
 addarg(int type, char *arg)
 {
 	ARG *cur;
@@ -430,7 +428,7 @@ addarg(int type, char *arg)
  *	has a domain attached that is the same as the current domain, rip
  *	off the domain suffix since that's what login(1) does.
  */
-void
+static void
 hostconv(char *arg)
 {
 	static int first = 1;
@@ -453,7 +451,7 @@ hostconv(char *arg)
  * ttyconv --
  *	convert tty to correct name.
  */
-char *
+static char *
 ttyconv(char *arg)
 {
 	char *mval;
@@ -485,7 +483,7 @@ ttyconv(char *arg)
  * 	[[CC]YY]MMDDhhmm[.SS]] to a time_t.
  * 	Derived from atime_arg1() in usr.bin/touch/touch.c
  */
-time_t
+static time_t
 dateconv(char *arg)
 {
         time_t timet;

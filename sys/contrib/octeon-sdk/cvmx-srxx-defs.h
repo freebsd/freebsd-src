@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_SRXX_TYPEDEFS_H__
-#define __CVMX_SRXX_TYPEDEFS_H__
+#ifndef __CVMX_SRXX_DEFS_H__
+#define __CVMX_SRXX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRXX_COM_CTL(unsigned long block_id)
@@ -137,12 +137,10 @@ static inline uint64_t CVMX_SRXX_SW_TICK_DAT(unsigned long block_id)
  * setup before writing the Interface enable (INF_EN) and Status channel
  * enabled (ST_EN) asserted.
  */
-union cvmx_srxx_com_ctl
-{
+union cvmx_srxx_com_ctl {
 	uint64_t u64;
-	struct cvmx_srxx_com_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_srxx_com_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t prts                         : 4;  /**< Number of ports in the receiver (write: ports - 1)
                                                          - 0:  1 port
@@ -194,12 +192,10 @@ typedef union cvmx_srxx_com_ctl cvmx_srxx_com_ctl_t;
  * Watcher will never find a cycle where the TPA for the selected port is
  * deasserted in order to increment its count.
  */
-union cvmx_srxx_ign_rx_full
-{
+union cvmx_srxx_ign_rx_full {
 	uint64_t u64;
-	struct cvmx_srxx_ign_rx_full_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_srxx_ign_rx_full_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t ignore                       : 16; /**< This port should ignore backpressure hints from
                                                           GMX when the RX FIFO fills up
@@ -243,12 +239,10 @@ typedef union cvmx_srxx_ign_rx_full cvmx_srxx_ign_rx_full_t;
  *          completely setup before writing the Interface enable (INF_EN) and
  *          Status channel enabled (ST_EN) asserted.
  */
-union cvmx_srxx_spi4_calx
-{
+union cvmx_srxx_spi4_calx {
 	uint64_t u64;
-	struct cvmx_srxx_spi4_calx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_srxx_spi4_calx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t oddpar                       : 1;  /**< Odd parity over SRX_SPI4_CAL[15:0]
                                                          (^SRX_SPI4_CAL[16:0] === 1'b1)                  |   $NS       NS */
@@ -286,12 +280,10 @@ typedef union cvmx_srxx_spi4_calx cvmx_srxx_spi4_calx_t;
  *
  * Current rev only supports LVTTL status IO
  */
-union cvmx_srxx_spi4_stat
-{
+union cvmx_srxx_spi4_stat {
 	uint64_t u64;
-	struct cvmx_srxx_spi4_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_srxx_spi4_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t m                            : 8;  /**< CALENDAR_M (from spi4.2 spec) */
 	uint64_t reserved_7_7                 : 1;
@@ -316,12 +308,10 @@ typedef union cvmx_srxx_spi4_stat cvmx_srxx_spi4_stat_t;
  * SRX_SW_TICK_CTL - Create a software tick of Spi4 data.  A write to this register will create a data tick.
  *
  */
-union cvmx_srxx_sw_tick_ctl
-{
+union cvmx_srxx_sw_tick_ctl {
 	uint64_t u64;
-	struct cvmx_srxx_sw_tick_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_srxx_sw_tick_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t eop                          : 1;  /**< SW Tick EOP
                                                          (PASS3 only) */
@@ -354,12 +344,10 @@ typedef union cvmx_srxx_sw_tick_ctl cvmx_srxx_sw_tick_ctl_t;
  * SRX_SW_TICK_DAT - Create a software tick of Spi4 data
  *
  */
-union cvmx_srxx_sw_tick_dat
-{
+union cvmx_srxx_sw_tick_dat {
 	uint64_t u64;
-	struct cvmx_srxx_sw_tick_dat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_srxx_sw_tick_dat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t dat                          : 64; /**< Data tick when SRX_SW_TICK_CTL is written
                                                          (PASS3 only) */
 #else

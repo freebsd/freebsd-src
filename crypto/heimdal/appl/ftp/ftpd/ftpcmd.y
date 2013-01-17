@@ -43,7 +43,7 @@
 %{
 
 #include "ftpd_locl.h"
-RCSID("$Id: ftpcmd.y 15677 2005-07-19 18:33:08Z lha $");
+RCSID("$Id$");
 
 off_t	restart_point;
 
@@ -150,15 +150,26 @@ cmd
 		    memset ($3, 0, strlen($3));
 		    free($3);
 		}
+
 	| PORT SP host_port CRLF check_secure
 		{
 		    if ($5) {
-			usedefault = 0;
-			if (pdata >= 0) {
+			if (paranoid &&
+			    (data_dest->sa_family != his_addr->sa_family ||
+			     (socket_get_port(data_dest) < IPPORT_RESERVED) ||
+			     memcmp(socket_get_address(data_dest),
+				    socket_get_address(his_addr),
+				    socket_addr_size(his_addr)) != 0)) {
+			    usedefault = 1;
+			    reply(500, "Illegal PORT range rejected.");
+			} else {
+			    usedefault = 0;
+			    if (pdata >= 0) {
 				close(pdata);
 				pdata = -1;
+			    }
+			    reply(200, "PORT command successful.");
 			}
-			reply(200, "PORT command successful.");
 		    }
 		}
 	| EPRT SP STRING CRLF check_secure
@@ -352,8 +363,12 @@ cmd
 		}
 	| CWD CRLF check_login
 		{
-			if ($3)
-				cwd(pw->pw_dir);
+			if ($3) {
+				const char *path = pw->pw_dir;
+				if (dochroot || guest)
+					path = "/";
+				cwd(path);
+			}
 		}
 	| CWD SP pathname CRLF check_login
 		{
@@ -501,26 +516,7 @@ cmd
 
 	| SITE SP KAUTH SP STRING CRLF check_login
 		{
-#ifdef KRB4
-			char *p;
-			
-			if(guest)
-				reply(500, "Can't be done as guest.");
-			else{
-				if($7 && $5 != NULL){
-				    p = strpbrk($5, " \t");
-				    if(p){
-					*p++ = 0;
-					kauth($5, p + strspn(p, " \t"));
-				    }else
-					kauth($5, NULL);
-				}
-			}
-			if($5 != NULL)
-			    free($5);
-#else
 			reply(500, "Command not implemented.");
-#endif
 		}
 	| SITE SP KLIST CRLF check_login
 		{
@@ -529,29 +525,15 @@ cmd
 		}
 	| SITE SP KDESTROY CRLF check_login
 		{
-#ifdef KRB4
-		    if($5)
-			kdestroy();
-#else
 		    reply(500, "Command not implemented.");
-#endif
 		}
 	| SITE SP KRBTKFILE SP STRING CRLF check_login
 		{
-#ifdef KRB4
-		    if(guest)
-			reply(500, "Can't be done as guest.");
-		    else if($7 && $5)
-			krbtkfile($5);
-		    if($5)
-			free($5);
-#else
 		    reply(500, "Command not implemented.");
-#endif
 		}
 	| SITE SP AFSLOG CRLF check_login
 		{
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 		    if(guest)
 			reply(500, "Can't be done as guest.");
 		    else if($5)
@@ -562,7 +544,7 @@ cmd
 		}
 	| SITE SP AFSLOG SP STRING CRLF check_login
 		{
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 		    if(guest)
 			reply(500, "Can't be done as guest.");
 		    else if($7)
@@ -754,7 +736,7 @@ host_port
 
 			sin4->sin_family = AF_INET;
 			sin4->sin_port = htons($9 * 256 + $11);
-			sin4->sin_addr.s_addr = 
+			sin4->sin_addr.s_addr =
 			    htonl(($1 << 24) | ($3 << 16) | ($5 << 8) | $7);
 		}
 	;
@@ -1031,7 +1013,7 @@ struct tab sitetab[] = {
 	{ "FIND", LOCATE, STR1, 1,	"<sp> globexpr" },
 
 	{ "URL",  URL,  ARGS, 1,	"?" },
-	
+
 	{ NULL,   0,    0,    0,	0 }
 };
 

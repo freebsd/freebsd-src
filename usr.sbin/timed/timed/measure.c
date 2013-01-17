@@ -128,7 +128,7 @@ measure(maxmsec, wmsec, hname, addr, print)
 
 	FD_ZERO(&ready);
 
-	(void)gettimeofday(&tdone, 0);
+	(void)gettimeofday(&tdone, NULL);
 	mstotvround(&tout, maxmsec);
 	timevaladd(&tdone, &tout);		/* when we give up */
 
@@ -136,7 +136,7 @@ measure(maxmsec, wmsec, hname, addr, print)
 
 	rcvcount = 0;
 	while (rcvcount < MSGS) {
-		(void)gettimeofday(&tcur, 0);
+		(void)gettimeofday(&tcur, NULL);
 
 		/*
 		 * keep sending until we have sent the max
@@ -173,7 +173,7 @@ measure(maxmsec, wmsec, hname, addr, print)
 			FD_SET(sock_raw, &ready);
 			count = select(sock_raw+1, &ready, (fd_set *)0,
 				       (fd_set *)0, &tout);
-			(void)gettimeofday(&tcur, (struct timezone *)0);
+			(void)gettimeofday(&tcur, NULL);
 			if (count <= 0)
 				break;
 

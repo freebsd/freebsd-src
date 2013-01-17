@@ -93,16 +93,12 @@ static device_method_t hme_pci_methods[] = {
 	/* Can just use the suspend method here. */
 	DEVMETHOD(device_shutdown,	hme_pci_suspend),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	hme_mii_readreg),
 	DEVMETHOD(miibus_writereg,	hme_mii_writereg),
 	DEVMETHOD(miibus_statchg,	hme_mii_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hme_pci_driver = {

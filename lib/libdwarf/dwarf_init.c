@@ -396,6 +396,10 @@ dwarf_init_attr(Dwarf_Debug dbg, Elf_Data **dp, uint64_t *offsetp,
 		avref.u[1].s = elf_strptr(dbg->dbg_elf,
 		    dbg->dbg_s[DWARF_debug_str].s_shnum, avref.u[0].u64);
 		break;
+	case DW_FORM_flag_present:
+		/* This form has no value encoded in the DIE. */
+		avref.u[0].u64 = 1;
+		break;
 	default:
 		DWARF_SET_ERROR(error, DWARF_E_NOT_IMPLEMENTED);
 		ret = DWARF_E_NOT_IMPLEMENTED;
@@ -547,7 +551,7 @@ dwarf_init_info(Dwarf_Debug dbg, Dwarf_Error *error)
 			Dwarf_Attribute at;
 			Dwarf_Die die;
 			uint64_t abnum;
-			uint64_t die_offset = offset;;
+			uint64_t die_offset = offset;
 
 			abnum = dwarf_read_uleb128(&d, &offset);
 

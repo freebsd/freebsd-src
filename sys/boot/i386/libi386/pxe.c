@@ -88,6 +88,12 @@ static int	pxe_netif_get(struct iodesc *desc, void *pkt, size_t len,
 static int	pxe_netif_put(struct iodesc *desc, void *pkt, size_t len);
 static void	pxe_netif_end(struct netif *nif);
 
+#ifdef OLD_NFSV2
+int nfs_getrootfh(struct iodesc*, char*, u_char*);
+#else
+int nfs_getrootfh(struct iodesc*, char*, uint32_t*, u_char*);
+#endif
+
 extern struct netif_stats	pxe_st[];
 extern u_int16_t		__bangpxeseg;
 extern u_int16_t		__bangpxeoff;
@@ -355,18 +361,11 @@ pxe_close(struct open_file *f)
 static void
 pxe_print(int verbose)
 {
-	if (pxe_call != NULL) {
-		if (*bootplayer.Sname == '\0') {
-			printf("      "IP_STR":%s\n",
-			       IP_ARGS(htonl(bootplayer.sip)),
-			       bootplayer.bootfile);
-		} else {
-			printf("      %s:%s\n", bootplayer.Sname,
-			       bootplayer.bootfile);
-		}
-	}
 
-	return;
+	if (pxe_call == NULL)
+		return;
+
+	printf("    pxe0:    %s:%s\n", inet_ntoa(rootip), rootpath);
 }
 
 static void
@@ -405,6 +404,7 @@ pxe_perror(int err)
 	return;
 }
 
+#ifdef LOADER_NFS_SUPPORT
 /*
  * Reach inside the libstand NFS code and dig out an NFS handle
  * for the root filesystem.
@@ -515,6 +515,7 @@ pxe_setnfshandle(char *rootpath)
 	setenv("boot.nfsroot.nfshandlelen", buf, 1);
 }
 #endif	/* OLD_NFSV2 */
+#endif /* LOADER_NFS_SUPPORT */
 
 void
 pxenv_call(int func)

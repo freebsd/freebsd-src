@@ -1,5 +1,5 @@
 /*	$NetBSD: queue.h,v 1.38 2004/04/18 14:12:05 lukem Exp $	*/
-/*	$Id: asn1_queue.h 15617 2005-07-12 06:27:42Z lha $ */
+/*	$Id$ */
 
 /*
  * Copyright (c) 1991, 1993

@@ -392,16 +392,18 @@ KfRaiseIrql(uint8_t irql)
 {
 	uint8_t			oldirql;
 
+	sched_pin();
 	oldirql = KeGetCurrentIrql();
 
 	/* I am so going to hell for this. */
 	if (oldirql > irql)
-		panic("IRQL_NOT_LESS_THAN");
+		panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
 
-	if (oldirql != DISPATCH_LEVEL) {
-		sched_pin();
+	if (oldirql != DISPATCH_LEVEL) 
 		mtx_lock(&disp_lock[curthread->td_oncpu]);
-	}
+	else
+		sched_unpin();	
+
 /*printf("RAISE IRQL: %d %d\n", irql, oldirql);*/
 
 	return (oldirql);

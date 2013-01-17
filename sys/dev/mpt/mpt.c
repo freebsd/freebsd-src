@@ -148,7 +148,7 @@ static __inline struct mpt_personality *
 mpt_pers_find(struct mpt_softc *mpt, u_int start_at)
 {
 	KASSERT(start_at <= MPT_MAX_PERSONALITIES,
-		("mpt_pers_find: starting position out of range\n"));
+		("mpt_pers_find: starting position out of range"));
 
 	while (start_at < MPT_MAX_PERSONALITIES
 	    && (mpt->mpt_pers_mask & (0x1 << start_at)) == 0) {
@@ -286,10 +286,8 @@ mpt_modevent(module_t mod, int type, void *data)
 	}
 	case MOD_SHUTDOWN:
 		break;
-#if __FreeBSD_version >= 500000
 	case MOD_QUIESCE:
 		break;
-#endif
 	case MOD_UNLOAD:
 		error = pers->unload(pers);
 		mpt_personalities[pers->id] = NULL;
@@ -1053,6 +1051,12 @@ mpt_hard_reset(struct mpt_softc *mpt)
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "hard reset\n");
 
+	if (mpt->is_1078) {
+		mpt_write(mpt, MPT_OFFSET_RESET_1078, 0x07);
+		DELAY(1000);
+		return;
+	}
+
 	error = mpt_enable_diag_mode(mpt);
 	if (error) {
 		mpt_prt(mpt, "WARNING - Could not enter diagnostic mode !\n");
@@ -1197,8 +1201,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	uint32_t offset, reply_baddr;
 	
 	if (req == NULL || req != &mpt->request_pool[req->index]) {
-		panic("mpt_free_request bad req ptr\n");
-		return;
+		panic("mpt_free_request: bad req ptr");
 	}
 	if ((nxt = req->chain) != NULL) {
 		req->chain = NULL;
@@ -1261,7 +1264,7 @@ retry:
 	req = TAILQ_FIRST(&mpt->request_free_list);
 	if (req != NULL) {
 		KASSERT(req == &mpt->request_pool[req->index],
-		    ("mpt_get_request: corrupted request free list\n"));
+		    ("mpt_get_request: corrupted request free list"));
 		KASSERT(req->state == REQ_STATE_FREE,
 		    ("req %p:%u not free on free list %x index %d function %x",
 		    req, req->serno, req->state, req->index,
@@ -1466,15 +1469,9 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	 */
 	if ((reply_len >> 1) != hdr->MsgLength &&
 	    (hdr->Function != MPI_FUNCTION_IOC_FACTS)){
-#if __FreeBSD_version >= 500000
 		mpt_prt(mpt, "reply length does not match message length: "
 			"got %x; expected %zx for function %x\n",
 			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
-#else
-		mpt_prt(mpt, "reply length does not match message length: "
-			"got %x; expected %x for function %x\n",
-			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
-#endif
 	}
 
 	/* Get rest of the reply; but don't overflow the provided buffer */
@@ -2084,7 +2081,7 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 
 	mpt_send_cmd(mpt, req);
 	error = mpt_wait_req(mpt, req, REQ_STATE_DONE, REQ_STATE_DONE,
-	    FALSE, (mpt->is_sas || mpt->is_fc)? 30000 : 3000);
+	    FALSE, (mpt->is_sas || mpt->is_fc)? 300000 : 30000);
 	if (error != 0) {
 		mpt_prt(mpt, "port %d enable timed out\n", port);
 		return (-1);
@@ -2150,7 +2147,6 @@ mpt_disable_ints(struct mpt_softc *mpt)
 static void
 mpt_sysctl_attach(struct mpt_softc *mpt)
 {
-#if __FreeBSD_version >= 500000
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
@@ -2164,7 +2160,6 @@ mpt_sysctl_attach(struct mpt_softc *mpt)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "failure_id", CTLFLAG_RW, &mpt->failure_id, -1,
 		       "Next Target to Fail");
-#endif
 #endif
 }
 
@@ -2450,6 +2445,11 @@ mpt_download_fw(struct mpt_softc *mpt)
 	int error;
 	uint32_t ext_offset;
 	uint32_t data;
+
+	if (mpt->pci_pio_reg == NULL) {
+		mpt_prt(mpt, "No PIO resource!\n");
+		return (ENXIO);
+	}
 
 	mpt_prt(mpt, "Downloading Firmware - Image Size %d\n",
 		mpt->fw_image_size);

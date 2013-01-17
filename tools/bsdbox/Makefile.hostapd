@@ -1,0 +1,15 @@
+#
+# Build hostap/wpa_supplicant and supporting utilities.
+#
+# $FreeBSD$
+#
+CRUNCH_PROGS_usr.sbin+=	hostapd hostapd_cli
+CRUNCH_SRCDIR_hostapd=	$(.CURDIR)/../../usr.sbin/wpa/hostapd
+CRUNCH_SRCDIR_hostapd_cli=	$(.CURDIR)/../../usr.sbin/wpa/hostapd_cli
+
+#CRUNCH_PROGS_usr.sbin+=	wpa_supplicant wpa_cli
+#CRUNCH_SRCDIR_wpa_supplicant=	$(.CURDIR)/../../usr.sbin/wpa/wpa_supplicant
+#CRUNCH_SRCDIR_wpa_cli=	$(.CURDIR)/../../usr.sbin/wpa/wpa_cli
+
+CRUNCH_LIBS+=	-lpcap
+

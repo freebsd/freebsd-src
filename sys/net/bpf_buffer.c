@@ -2,7 +2,7 @@
  * Copyright (c) 2007 Seccuris Inc.
  * All rights reserved.
  *
- * This sofware was developed by Robert N. M. Watson under contract to
+ * This software was developed by Robert N. M. Watson under contract to
  * Seccuris Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,6 +79,8 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf_buffer.h>
 #include <net/bpfdesc.h>
 
+#define PRINET  26			/* interruptible */
+
 /*
  * Implement historical kernel memory buffering model for BPF: two malloc(9)
  * kernel buffers are hung off of the descriptor.  The size is fixed prior to
@@ -92,21 +94,6 @@ SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
 static int bpf_maxbufsize = BPF_MAXBUFSIZE;
 SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
     &bpf_maxbufsize, 0, "Maximum capture buffer in bytes");
-
-void
-bpf_buffer_alloc(struct bpf_d *d)
-{
-
-	KASSERT(d->bd_fbuf == NULL, ("bpf_buffer_alloc: bd_fbuf != NULL"));
-	KASSERT(d->bd_sbuf == NULL, ("bpf_buffer_alloc: bd_sbuf != NULL"));
-	KASSERT(d->bd_hbuf == NULL, ("bpf_buffer_alloc: bd_hbuf != NULL"));
-
-	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
-	d->bd_sbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
-	d->bd_hbuf = NULL;
-	d->bd_slen = 0;
-	d->bd_hlen = 0;
-}
 
 /*
  * Simple data copy to the current kernel buffer.
@@ -183,18 +170,45 @@ int
 bpf_buffer_ioctl_sblen(struct bpf_d *d, u_int *i)
 {
 	u_int size;
+	caddr_t fbuf, sbuf;
 
-	BPFD_LOCK(d);
-	if (d->bd_bif != NULL) {
-		BPFD_UNLOCK(d);
-		return (EINVAL);
-	}
 	size = *i;
 	if (size > bpf_maxbufsize)
 		*i = size = bpf_maxbufsize;
 	else if (size < BPF_MINBUFSIZE)
 		*i = size = BPF_MINBUFSIZE;
+
+	/* Allocate buffers immediately */
+	fbuf = (caddr_t)malloc(size, M_BPF, M_WAITOK);
+	sbuf = (caddr_t)malloc(size, M_BPF, M_WAITOK);
+
+	BPFD_LOCK(d);
+	if (d->bd_bif != NULL) {
+		/* Interface already attached, unable to change buffers */
+		BPFD_UNLOCK(d);
+		free(fbuf, M_BPF);
+		free(sbuf, M_BPF);
+		return (EINVAL);
+	}
+
+	while (d->bd_hbuf_in_use)
+		mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+		    PRINET, "bd_hbuf", 0);
+	/* Free old buffers if set */
+	if (d->bd_fbuf != NULL)
+		free(d->bd_fbuf, M_BPF);
+	if (d->bd_sbuf != NULL)
+		free(d->bd_sbuf, M_BPF);
+
+	/* Fill in new data */
 	d->bd_bufsize = size;
+	d->bd_fbuf = fbuf;
+	d->bd_sbuf = sbuf;
+
+	d->bd_hbuf = NULL;
+	d->bd_slen = 0;
+	d->bd_hlen = 0;
+
 	BPFD_UNLOCK(d);
 	return (0);
 }

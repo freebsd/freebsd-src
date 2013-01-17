@@ -287,7 +287,7 @@ int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req, int max)
 	}
 	i--;
 	if (i >= max) {
-		tx_req->mb = mb = m_defrag(mb, M_DONTWAIT);
+		tx_req->mb = mb = m_defrag(mb, M_NOWAIT);
 		if (mb == NULL)
 			return -EIO;
 		for (m = mb, i = 0; m != NULL; m = m->m_next, i++);
@@ -345,7 +345,6 @@ static void ipoib_ib_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	ipoib_dma_unmap_tx(priv->ca, tx_req);
 
 	++dev->if_opackets;
-	dev->if_obytes += tx_req->mb->m_pkthdr.len;
 
 	m_freem(tx_req->mb);
 

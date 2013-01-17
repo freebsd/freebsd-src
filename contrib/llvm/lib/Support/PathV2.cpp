@@ -13,6 +13,7 @@
 
 #include "llvm/Support/PathV2.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cctype>
 #include <cstdio>
@@ -23,14 +24,12 @@ namespace {
   using llvm::sys::path::is_separator;
 
 #ifdef LLVM_ON_WIN32
-  const StringRef separators = "\\/";
-  const char      prefered_separator = '\\';
+  const char *separators = "\\/";
+  const char  prefered_separator = '\\';
 #else
-  const StringRef separators = "/";
-  const char      prefered_separator = '/';
+  const char  separators = '/';
+  const char  prefered_separator = '/';
 #endif
-
-  const llvm::error_code success;
 
   StringRef find_first_component(StringRef path) {
     // Look for this first component in the following order.
@@ -347,7 +346,7 @@ const StringRef root_directory(StringRef path) {
 
 const StringRef relative_path(StringRef path) {
   StringRef root = root_path(path);
-  return root.substr(root.size());
+  return path.substr(root.size());
 }
 
 void append(SmallVectorImpl<char> &path, const Twine &a,
@@ -492,7 +491,7 @@ bool is_separator(char value) {
 
 void system_temp_directory(bool erasedOnReboot, SmallVectorImpl<char> &result) {
   result.clear();
-  
+
   // Check whether the temporary directory is specified by an environment
   // variable.
   const char *EnvironmentVariable;
@@ -505,7 +504,7 @@ void system_temp_directory(bool erasedOnReboot, SmallVectorImpl<char> &result) {
     result.append(RequestedDir, RequestedDir + strlen(RequestedDir));
     return;
   }
-    
+
   // Fall back to a system default.
   const char *DefaultResult;
 #ifdef LLVM_ON_WIN32
@@ -519,7 +518,7 @@ void system_temp_directory(bool erasedOnReboot, SmallVectorImpl<char> &result) {
 #endif
   result.append(DefaultResult, DefaultResult + strlen(DefaultResult));
 }
-  
+
 bool has_root_name(const Twine &path) {
   SmallString<128> path_storage;
   StringRef p = path.toStringRef(path_storage);
@@ -601,12 +600,16 @@ namespace fs {
 error_code make_absolute(SmallVectorImpl<char> &path) {
   StringRef p(path.data(), path.size());
 
-  bool rootName      = path::has_root_name(p),
-       rootDirectory = path::has_root_directory(p);
+  bool rootDirectory = path::has_root_directory(p),
+#ifdef LLVM_ON_WIN32
+       rootName = path::has_root_name(p);
+#else
+       rootName = true;
+#endif
 
   // Already absolute.
   if (rootName && rootDirectory)
-    return success;
+    return error_code::success();
 
   // All of the following conditions will need the current directory.
   SmallString<128> current_dir;
@@ -618,7 +621,7 @@ error_code make_absolute(SmallVectorImpl<char> &path) {
     path::append(current_dir, p);
     // Set path to the result.
     path.swap(current_dir);
-    return success;
+    return error_code::success();
   }
 
   if (!rootName && rootDirectory) {
@@ -627,7 +630,7 @@ error_code make_absolute(SmallVectorImpl<char> &path) {
     path::append(curDirRootName, p);
     // Set path to the result.
     path.swap(curDirRootName);
-    return success;
+    return error_code::success();
   }
 
   if (rootName && !rootDirectory) {
@@ -639,7 +642,7 @@ error_code make_absolute(SmallVectorImpl<char> &path) {
     SmallString<128> res;
     path::append(res, pRootName, bRootDirectory, bRelativePath, pRelativePath);
     path.swap(res);
-    return success;
+    return error_code::success();
   }
 
   llvm_unreachable("All rootName and rootDirectory combinations should have "
@@ -651,12 +654,13 @@ error_code create_directories(const Twine &path, bool &existed) {
   StringRef p = path.toStringRef(path_storage);
 
   StringRef parent = path::parent_path(p);
-  bool parent_exists;
+  if (!parent.empty()) {
+    bool parent_exists;
+    if (error_code ec = fs::exists(parent, parent_exists)) return ec;
 
-  if (error_code ec = fs::exists(parent, parent_exists)) return ec;
-
-  if (!parent_exists)
-    if (error_code ec = create_directories(parent, existed)) return ec;
+    if (!parent_exists)
+      if (error_code ec = create_directories(parent, existed)) return ec;
+  }
 
   return create_directory(p, existed);
 }
@@ -678,7 +682,7 @@ error_code is_directory(const Twine &path, bool &result) {
   if (error_code ec = status(path, st))
     return ec;
   result = is_directory(st);
-  return success;
+  return error_code::success();
 }
 
 bool is_regular_file(file_status status) {
@@ -690,7 +694,7 @@ error_code is_regular_file(const Twine &path, bool &result) {
   if (error_code ec = status(path, st))
     return ec;
   result = is_regular_file(st);
-  return success;
+  return error_code::success();
 }
 
 bool is_symlink(file_status status) {
@@ -702,7 +706,7 @@ error_code is_symlink(const Twine &path, bool &result) {
   if (error_code ec = status(path, st))
     return ec;
   result = is_symlink(st);
-  return success;
+  return error_code::success();
 }
 
 bool is_other(file_status status) {
@@ -729,23 +733,136 @@ error_code has_magic(const Twine &path, const Twine &magic, bool &result) {
     if (ec == errc::value_too_large) {
       // Magic.size() > file_size(Path).
       result = false;
-      return success;
+      return error_code::success();
     }
     return ec;
   }
 
   result = Magic == Buffer;
-  return success;
+  return error_code::success();
 }
 
-error_code identify_magic(const Twine &path, LLVMFileType &result) {
+/// @brief Identify the magic in magic.
+file_magic identify_magic(StringRef magic) {
+  if (magic.size() < 4)
+    return file_magic::unknown;
+  switch ((unsigned char)magic[0]) {
+    case 0xDE:  // 0x0B17C0DE = BC wraper
+      if (magic[1] == (char)0xC0 && magic[2] == (char)0x17 &&
+          magic[3] == (char)0x0B)
+        return file_magic::bitcode;
+      break;
+    case 'B':
+      if (magic[1] == 'C' && magic[2] == (char)0xC0 && magic[3] == (char)0xDE)
+        return file_magic::bitcode;
+      break;
+    case '!':
+      if (magic.size() >= 8)
+        if (memcmp(magic.data(),"!<arch>\n",8) == 0)
+          return file_magic::archive;
+      break;
+
+    case '\177':
+      if (magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F') {
+        if (magic.size() >= 18 && magic[17] == 0)
+          switch (magic[16]) {
+            default: break;
+            case 1: return file_magic::elf_relocatable;
+            case 2: return file_magic::elf_executable;
+            case 3: return file_magic::elf_shared_object;
+            case 4: return file_magic::elf_core;
+          }
+      }
+      break;
+
+    case 0xCA:
+      if (magic[1] == char(0xFE) && magic[2] == char(0xBA) &&
+          magic[3] == char(0xBE)) {
+        // This is complicated by an overlap with Java class files.
+        // See the Mach-O section in /usr/share/file/magic for details.
+        if (magic.size() >= 8 && magic[7] < 43)
+          // FIXME: Universal Binary of any type.
+          return file_magic::macho_dynamically_linked_shared_lib;
+      }
+      break;
+
+      // The two magic numbers for mach-o are:
+      // 0xfeedface - 32-bit mach-o
+      // 0xfeedfacf - 64-bit mach-o
+    case 0xFE:
+    case 0xCE:
+    case 0xCF: {
+      uint16_t type = 0;
+      if (magic[0] == char(0xFE) && magic[1] == char(0xED) &&
+          magic[2] == char(0xFA) &&
+          (magic[3] == char(0xCE) || magic[3] == char(0xCF))) {
+        /* Native endian */
+        if (magic.size() >= 16) type = magic[14] << 8 | magic[15];
+      } else if ((magic[0] == char(0xCE) || magic[0] == char(0xCF)) &&
+                 magic[1] == char(0xFA) && magic[2] == char(0xED) &&
+                 magic[3] == char(0xFE)) {
+        /* Reverse endian */
+        if (magic.size() >= 14) type = magic[13] << 8 | magic[12];
+      }
+      switch (type) {
+        default: break;
+        case 1: return file_magic::macho_object;
+        case 2: return file_magic::macho_executable;
+        case 3: return file_magic::macho_fixed_virtual_memory_shared_lib;
+        case 4: return file_magic::macho_core;
+        case 5: return file_magic::macho_preload_executabl;
+        case 6: return file_magic::macho_dynamically_linked_shared_lib;
+        case 7: return file_magic::macho_dynamic_linker;
+        case 8: return file_magic::macho_bundle;
+        case 9: return file_magic::macho_dynamic_linker;
+        case 10: return file_magic::macho_dsym_companion;
+      }
+      break;
+    }
+    case 0xF0: // PowerPC Windows
+    case 0x83: // Alpha 32-bit
+    case 0x84: // Alpha 64-bit
+    case 0x66: // MPS R4000 Windows
+    case 0x50: // mc68K
+    case 0x4c: // 80386 Windows
+      if (magic[1] == 0x01)
+        return file_magic::coff_object;
+
+    case 0x90: // PA-RISC Windows
+    case 0x68: // mc68K Windows
+      if (magic[1] == 0x02)
+        return file_magic::coff_object;
+      break;
+
+    case 0x4d: // Possible MS-DOS stub on Windows PE file
+      if (magic[1] == 0x5a) {
+        uint32_t off =
+          *reinterpret_cast<const support::ulittle32_t*>(magic.data() + 0x3c);
+        // PE/COFF file, either EXE or DLL.
+        if (off < magic.size() && memcmp(magic.data() + off, "PE\0\0",4) == 0)
+          return file_magic::pecoff_executable;
+      }
+      break;
+
+    case 0x64: // x86-64 Windows.
+      if (magic[1] == char(0x86))
+        return file_magic::coff_object;
+      break;
+
+    default:
+      break;
+  }
+  return file_magic::unknown;
+}
+
+error_code identify_magic(const Twine &path, file_magic &result) {
   SmallString<32> Magic;
   error_code ec = get_magic(path, Magic.capacity(), Magic);
   if (ec && ec != errc::value_too_large)
     return ec;
 
-  result = IdentifyFileType(Magic.data(), Magic.size());
-  return success;
+  result = identify_magic(Magic);
+  return error_code::success();
 }
 
 namespace {
@@ -753,7 +870,9 @@ error_code remove_all_r(StringRef path, file_type ft, uint32_t &count) {
   if (ft == file_type::directory_file) {
     // This code would be a lot better with exceptions ;/.
     error_code ec;
-    for (directory_iterator i(path, ec), e; i != e; i.increment(ec)) {
+    directory_iterator i(path, ec);
+    if (ec) return ec;
+    for (directory_iterator e; i != e; i.increment(ec)) {
       if (ec) return ec;
       file_status st;
       if (error_code ec = i->status(st)) return ec;
@@ -770,7 +889,7 @@ error_code remove_all_r(StringRef path, file_type ft, uint32_t &count) {
     ++count;
   }
 
-  return success;
+  return error_code::success();
 }
 } // end unnamed namespace
 

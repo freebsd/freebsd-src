@@ -186,6 +186,16 @@ struct {
  */
 static uma_zone_t mt_zone;
 
+static vm_offset_t vm_min_kernel_address = VM_MIN_KERNEL_ADDRESS;
+SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
+    &vm_min_kernel_address, 0, "Min kernel address");
+
+#ifndef __sparc64__
+static vm_offset_t vm_max_kernel_address = VM_MAX_KERNEL_ADDRESS;
+#endif
+SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
+    &vm_max_kernel_address, 0, "Max kernel address");
+
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
@@ -231,7 +241,7 @@ static int sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS);
 static time_t t_malloc_fail;
 
 #if defined(MALLOC_MAKE_FAILURES) || (MALLOC_DEBUG_MAXZONES > 1)
-SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
     "Kernel malloc debugging options");
 #endif
 
@@ -405,6 +415,43 @@ malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 #endif
 
 	critical_exit();
+}
+
+/*
+ *	contigmalloc:
+ *
+ *	Allocate a block of physically contiguous memory.
+ *
+ *	If M_NOWAIT is set, this routine will not block and return NULL if
+ *	the allocation fails.
+ */
+void *
+contigmalloc(unsigned long size, struct malloc_type *type, int flags,
+    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
+    vm_paddr_t boundary)
+{
+	void *ret;
+
+	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
+	    alignment, boundary, VM_MEMATTR_DEFAULT);
+	if (ret != NULL)
+		malloc_type_allocated(type, round_page(size));
+	return (ret);
+}
+
+/*
+ *	contigfree:
+ *
+ *	Free a block of memory allocated by contigmalloc.
+ *
+ *	This routine may not block.
+ */
+void
+contigfree(void *addr, unsigned long size, struct malloc_type *type)
+{
+
+	kmem_free(kernel_map, (vm_offset_t)addr, size);
+	malloc_type_freed(type, round_page(size));
 }
 
 /*
@@ -661,12 +708,9 @@ kmeminit(void *dummy)
 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is
-	 * more applicable for a wider range of machine sizes.
-	 * On an X86, a VM_KMEM_SIZE_SCALE value of 4 is good, while
-	 * a VM_KMEM_SIZE of 12MB is a fair compromise.  The
+	 * more applicable for a wider range of machine sizes.  The
 	 * VM_KMEM_SIZE_MAX is dependent on the maximum KVA space
-	 * available, and on an X86 with a total KVA space of 256MB,
-	 * try to keep VM_KMEM_SIZE_MAX at 80MB or below.
+	 * available.
 	 *
 	 * Note that the kmem_map is also used by the zone allocator,
 	 * so make sure that there is enough space.
@@ -703,14 +747,14 @@ kmeminit(void *dummy)
 	/*
 	 * Limit kmem virtual size to twice the physical memory.
 	 * This allows for kmem map sparseness, but limits the size
-	 * to something sane. Be careful to not overflow the 32bit
-	 * ints while doing the check.
+	 * to something sane.  Be careful to not overflow the 32bit
+	 * ints while doing the check or the adjustment.
 	 */
-	if (((vm_kmem_size / 2) / PAGE_SIZE) > cnt.v_page_count)
-		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
+	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
+		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
 #ifdef DEBUG_MEMGUARD
-	tmp = memguard_fudge(vm_kmem_size, vm_kmem_size_max);
+	tmp = memguard_fudge(vm_kmem_size, kernel_map);
 #else
 	tmp = vm_kmem_size;
 #endif
@@ -966,6 +1010,8 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 		db_printf("%18s %12ju %12juK %12ju\n",
 		    mtp->ks_shortdesc, allocs - frees,
 		    (alloced - freed + 1023) / 1024, allocs);
+		if (db_pager_quit)
+			break;
 	}
 }
 
@@ -995,6 +1041,8 @@ DB_SHOW_COMMAND(multizone_matches, db_show_multizone_matches)
 		if (mtip->mti_zone != subzone)
 			continue;
 		db_printf("%s\n", mtp->ks_shortdesc);
+		if (db_pager_quit)
+			break;
 	}
 }
 #endif /* MALLOC_DEBUG_MAXZONES > 1 */

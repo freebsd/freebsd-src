@@ -68,17 +68,17 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmpx.h>
 
-int	debug = 0;
+static int	debug = 0;
 #define	dsyslog	if (debug) syslog
 
 #define MAXIDLE	120
 
-char	hostname[MAXHOSTNAMELEN];
+static char	hostname[MAXHOSTNAMELEN];
 
-void jkfprintf(FILE *, char[], char[], off_t);
-void mailfor(char *);
-void notify(struct utmpx *, char[], off_t, int);
-void reapchildren(int);
+static void	jkfprintf(FILE *, char[], char[], off_t);
+static void	mailfor(char *);
+static void	notify(struct utmpx *, char[], off_t, int);
+static void	reapchildren(int);
 
 int
 main(int argc __unused, char *argv[] __unused)
@@ -115,13 +115,13 @@ main(int argc __unused, char *argv[] __unused)
 	}
 }
 
-void
+static void
 reapchildren(int signo __unused)
 {
 	while (wait3(NULL, WNOHANG, NULL) > 0);
 }
 
-void
+static void
 mailfor(char *name)
 {
 	struct utmpx *utp;
@@ -157,7 +157,7 @@ mailfor(char *name)
 
 static const char *cr;
 
-void
+static void
 notify(struct utmpx *utp, char file[], off_t offset, int folder)
 {
 	FILE *tp;
@@ -219,7 +219,7 @@ notify(struct utmpx *utp, char file[], off_t offset, int folder)
 	_exit(0);
 }
 
-void
+static void
 jkfprintf(FILE *tp, char user[], char file[], off_t offset)
 {
 	unsigned char *cp, ch;

@@ -1294,8 +1294,8 @@ kernel_sysctlbyname(struct thread *td, char *name, void *old, size_t *oldlenp,
 static int
 sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 {
-	int error = 0;
 	size_t i, len, origidx;
+	int error;
 
 	origidx = req->oldidx;
 	req->oldidx += l;
@@ -1316,10 +1316,14 @@ sysctl_old_user(struct sysctl_req *req, const void *p, size_t l)
 	else {
 		if (i > len - origidx)
 			i = len - origidx;
-		error = copyout(p, (char *)req->oldptr + origidx, i);
+		if (req->lock == REQ_WIRED) {
+			error = copyout_nofault(p, (char *)req->oldptr +
+			    origidx, i);
+		} else
+			error = copyout(p, (char *)req->oldptr + origidx, i);
+		if (error != 0)
+			return (error);
 	}
-	if (error)
-		return (error);
 	if (i < l)
 		return (ENOMEM);
 	return (0);

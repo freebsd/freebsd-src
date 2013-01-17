@@ -70,7 +70,7 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct snd_dbuf *b = (struct snd_dbuf *)arg;
 
-	if (bootverbose) {
+	if (snd_verbose > 3) {
 		device_printf(b->dev, "sndbuf_setmap %lx, %lx; ",
 		    (u_long)segs[0].ds_addr, (u_long)segs[0].ds_len);
 		printf("%p -> %lx\n", b->buf, (u_long)segs[0].ds_addr);
@@ -299,6 +299,15 @@ sndbuf_fillsilence(struct snd_dbuf *b)
 		memset(sndbuf_getbuf(b), sndbuf_zerodata(b->fmt), b->bufsize);
 	b->rp = 0;
 	b->rl = b->bufsize;
+}
+
+void
+sndbuf_fillsilence_rl(struct snd_dbuf *b, u_int rl)
+{
+	if (b->bufsize > 0)
+		memset(sndbuf_getbuf(b), sndbuf_zerodata(b->fmt), b->bufsize);
+	b->rp = 0;
+	b->rl = min(b->bufsize, rl);
 }
 
 /**

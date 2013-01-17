@@ -1,40 +1,38 @@
 /*
- * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kadmin_locl.h"
 #include <parse_units.h>
-
-RCSID("$Id: util.c 21745 2007-07-31 16:11:25Z lha $");
 
 /*
  * util.c - functions for parsing, unparsing, and editing different
@@ -45,7 +43,7 @@ static int
 get_response(const char *prompt, const char *def, char *buf, size_t len);
 
 /*
- * attributes 
+ * attributes
  */
 
 struct units kdb_attrs[] = {
@@ -67,7 +65,7 @@ struct units kdb_attrs[] = {
     { "disallow-tgt-based",	KRB5_KDB_DISALLOW_TGT_BASED },
     { "disallow-forwardable",	KRB5_KDB_DISALLOW_FORWARDABLE },
     { "disallow-postdated",	KRB5_KDB_DISALLOW_POSTDATED },
-    { NULL }
+    { NULL, 0 }
 };
 
 /*
@@ -155,7 +153,7 @@ edit_attributes (const char *prompt, krb5_flags *attr, int *mask, int bit)
 /*
  * Convert the time `t' to a string representation in `str' (of max
  * size `len').  If include_time also include time, otherwise just
- * date.  
+ * date.
  */
 
 void
@@ -183,6 +181,18 @@ str2time_t (const char *str, time_t *t)
 
     memset (&tm, 0, sizeof (tm));
     memset (&tm2, 0, sizeof (tm2));
+
+    while(isspace((unsigned char)*str))
+	str++;
+
+    if (str[0] == '+') {
+	str++;
+	*t = parse_time(str, "month");
+	if (*t < 0)
+	    return -1;
+	*t += time(NULL);
+	return 0;
+    }
 
     if(strcasecmp(str, "never") == 0) {
 	*t = 0;
@@ -233,7 +243,7 @@ parse_timet (const char *resp, krb5_timestamp *value, int *mask, int bit)
 	if(mask)
 	    *mask |= bit;
 	return 0;
-    } 
+    }
     if(*resp != '?')
 	fprintf (stderr, "Unable to parse time \"%s\"\n", resp);
     fprintf (stderr, "Print date on format YYYY-mm-dd [hh:mm:ss]\n");
@@ -393,7 +403,7 @@ edit_entry(kadm5_principal_ent_t ent, int *mask,
     if(edit_deltat ("Max ticket life", &ent->max_life, mask,
 		    KADM5_MAX_LIFE) != 0)
 	return 1;
-    
+
     if(edit_deltat ("Max renewable life", &ent->max_renewable_life, mask,
 		    KADM5_MAX_RLIFE) != 0)
 	return 1;
@@ -420,7 +430,7 @@ edit_entry(kadm5_principal_ent_t ent, int *mask,
  */
 
 int
-set_entry(krb5_context context,
+set_entry(krb5_context contextp,
 	  kadm5_principal_ent_t ent,
 	  int *mask,
 	  const char *max_ticket_life,
@@ -430,38 +440,38 @@ set_entry(krb5_context context,
 	  const char *attributes)
 {
     if (max_ticket_life != NULL) {
-	if (parse_deltat (max_ticket_life, &ent->max_life, 
+	if (parse_deltat (max_ticket_life, &ent->max_life,
 			  mask, KADM5_MAX_LIFE)) {
-	    krb5_warnx (context, "unable to parse `%s'", max_ticket_life);
+	    krb5_warnx (contextp, "unable to parse `%s'", max_ticket_life);
 	    return 1;
 	}
     }
     if (max_renewable_life != NULL) {
-	if (parse_deltat (max_renewable_life, &ent->max_renewable_life, 
+	if (parse_deltat (max_renewable_life, &ent->max_renewable_life,
 			  mask, KADM5_MAX_RLIFE)) {
-	    krb5_warnx (context, "unable to parse `%s'", max_renewable_life);
+	    krb5_warnx (contextp, "unable to parse `%s'", max_renewable_life);
 	    return 1;
 	}
     }
 
     if (expiration) {
-	if (parse_timet (expiration, &ent->princ_expire_time, 
+	if (parse_timet (expiration, &ent->princ_expire_time,
 			mask, KADM5_PRINC_EXPIRE_TIME)) {
-	    krb5_warnx (context, "unable to parse `%s'", expiration);
+	    krb5_warnx (contextp, "unable to parse `%s'", expiration);
 	    return 1;
 	}
     }
     if (pw_expiration) {
-	if (parse_timet (pw_expiration, &ent->pw_expiration, 
+	if (parse_timet (pw_expiration, &ent->pw_expiration,
 			 mask, KADM5_PW_EXPIRATION)) {
-	    krb5_warnx (context, "unable to parse `%s'", pw_expiration);
+	    krb5_warnx (contextp, "unable to parse `%s'", pw_expiration);
 	    return 1;
 	}
     }
     if (attributes != NULL) {
-	if (parse_attributes (attributes, &ent->attributes, 
+	if (parse_attributes (attributes, &ent->attributes,
 			      mask, KADM5_ATTRIBUTES)) {
-	    krb5_warnx (context, "unable to parse `%s'", attributes);
+	    krb5_warnx (contextp, "unable to parse `%s'", attributes);
 	    return 1;
 	}
     }
@@ -485,7 +495,7 @@ is_expression(const char *string)
 	}
 	if(*p == '\\')
 	    quote++;
-	else if(strchr("[]*?", *p) != NULL) 
+	else if(strchr("[]*?", *p) != NULL)
 	    return 1;
     }
     return 0;
@@ -497,13 +507,13 @@ is_expression(const char *string)
  * processed.
  */
 int
-foreach_principal(const char *exp_str, 
-		  int (*func)(krb5_principal, void*), 
+foreach_principal(const char *exp_str,
+		  int (*func)(krb5_principal, void*),
 		  const char *funcname,
 		  void *data)
 {
-    char **princs;
-    int num_princs;
+    char **princs = NULL;
+    int num_princs = 0;
     int i;
     krb5_error_code saved_ret = 0, ret = 0;
     krb5_principal princ_ent;
@@ -522,7 +532,7 @@ foreach_principal(const char *exp_str,
 	if(princs == NULL)
 	    return ENOMEM;
 	princs[0] = strdup(exp_str);
-	if(princs[0] == NULL){ 
+	if(princs[0] == NULL){
 	    free(princs);
 	    return ENOMEM;
 	}
@@ -538,7 +548,7 @@ foreach_principal(const char *exp_str,
 	}
 	ret = (*func)(princ_ent, data);
 	if(ret) {
-	    krb5_clear_error_string(context);
+	    krb5_clear_error_message(context);
 	    krb5_warn(context, ret, "%s %s", funcname, princs[i]);
 	    if (saved_ret == 0)
 		saved_ret = ret;

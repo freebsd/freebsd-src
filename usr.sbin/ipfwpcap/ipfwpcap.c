@@ -87,7 +87,7 @@ okay(int pn)
 	char *p, numbuf[80];
 
 	if (pidfile[0] == '\0') {
-		p = rindex(prog, '/');
+		p = strrchr(prog, '/');
 		p = (p == NULL) ? prog : p + 1;
 
 		snprintf(pidfile, sizeof pidfile,

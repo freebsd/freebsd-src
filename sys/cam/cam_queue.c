@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_queue.h>
 #include <cam/cam_debug.h>
 
-MALLOC_DEFINE(M_CAMQ, "CAM queue", "CAM queue buffers");
-MALLOC_DEFINE(M_CAMDEVQ, "CAM dev queue", "CAM dev queue buffers");
-MALLOC_DEFINE(M_CAMCCBQ, "CAM ccb queue", "CAM ccb queue buffers");
+static MALLOC_DEFINE(M_CAMQ, "CAM queue", "CAM queue buffers");
+static MALLOC_DEFINE(M_CAMDEVQ, "CAM dev queue", "CAM dev queue buffers");
+static MALLOC_DEFINE(M_CAMCCBQ, "CAM ccb queue", "CAM ccb queue buffers");
 
 static __inline int
 		queue_cmp(cam_pinfo **queue_array, int i, int j);
@@ -121,11 +121,9 @@ camq_resize(struct camq *queue, int new_size)
 {
 	cam_pinfo **new_array;
 
-#ifdef DIAGNOSTIC
-	if (new_size < queue->entries)
-		panic("camq_resize: New queue size can't accomodate "
-		      "queued entries.");
-#endif
+	KASSERT(new_size >= queue->entries, ("camq_resize: "
+	    "New queue size can't accomodate queued entries (%d < %d).",
+	    new_size, queue->entries));
 	new_array = (cam_pinfo **)malloc(new_size * sizeof(cam_pinfo *),
 					 M_CAMQ, M_NOWAIT);
 	if (new_array == NULL) {
@@ -156,10 +154,10 @@ camq_resize(struct camq *queue, int new_size)
 void
 camq_insert(struct camq *queue, cam_pinfo *new_entry)
 {
-#ifdef DIAGNOSTIC
-	if (queue->entries >= queue->array_size)
-		panic("camq_insert: Attempt to insert into a full queue");
-#endif
+
+	KASSERT(queue->entries < queue->array_size,
+	    ("camq_insert: Attempt to insert into a full queue (%d >= %d)",
+	    queue->entries, queue->array_size));
 	queue->entries++;
 	queue->queue_array[queue->entries] = new_entry;
 	new_entry->index = queue->entries;
@@ -316,7 +314,8 @@ cam_ccbq_resize(struct cam_ccbq *ccbq, int new_size)
 	 * same size once the outstanding entries have been processed.
 	 */
 	if (space_left < 0
-	 || camq_resize(&ccbq->queue, new_size) == CAM_REQ_CMP) {
+	 || camq_resize(&ccbq->queue, new_size + (CAM_RL_VALUES - 1)) ==
+	    CAM_REQ_CMP) {
 		ccbq->devq_openings += delta;
 		ccbq->dev_openings += delta;
 		return (CAM_REQ_CMP);
@@ -329,7 +328,7 @@ int
 cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 {
 	bzero(ccbq, sizeof(*ccbq));
-	if (camq_init(&ccbq->queue, openings) != 0) {
+	if (camq_init(&ccbq->queue, openings + (CAM_RL_VALUES - 1)) != 0) {
 		return (1);
 	}
 	ccbq->devq_openings = openings;

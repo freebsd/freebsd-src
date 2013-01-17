@@ -349,8 +349,6 @@ struct uss820dci_softc {
 
 usb_error_t uss820dci_init(struct uss820dci_softc *sc);
 void	uss820dci_uninit(struct uss820dci_softc *sc);
-void	uss820dci_suspend(struct uss820dci_softc *sc);
-void	uss820dci_resume(struct uss820dci_softc *sc);
 void	uss820dci_interrupt(struct uss820dci_softc *sc);
 
 #endif					/* _USS820_DCI_H_ */

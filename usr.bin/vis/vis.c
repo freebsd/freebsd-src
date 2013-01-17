@@ -50,9 +50,12 @@ static const char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 6/6/93";
 
 #include "extern.h"
 
-int eflags, fold, foldwidth=80, none, markeol, debug;
+static int eflags, fold, foldwidth = 80, none, markeol;
+#ifdef DEBUG
+static int debug;
+#endif
 
-void process(FILE *);
+static void process(FILE *);
 static void usage(void);
 
 int
@@ -133,7 +136,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 process(FILE *fp)
 {
 	static int col = 0;

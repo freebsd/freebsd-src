@@ -17,11 +17,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "Unix.h"
+#include "llvm/Support/Process.h"
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
 #if HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
 #endif
 #if HAVE_DIRENT_H
 # include <dirent.h>
@@ -44,6 +48,17 @@
 #endif
 #if HAVE_LIMITS_H
 #include <limits.h>
+#endif
+
+// Both stdio.h and cstdio are included via different pathes and
+// stdcxx's cstdio doesn't include stdio.h, so it doesn't #undef the macros
+// either.
+#undef ferror
+#undef feof
+
+// For GNU Hurd
+#if defined(__GNU__) && !defined(PATH_MAX)
+# define PATH_MAX 4096
 #endif
 
 using namespace llvm;
@@ -87,7 +102,7 @@ namespace {
     result.clear();
     StringRef d(dir);
     result.append(d.begin(), d.end());
-    return success;
+    return error_code::success();
   }
 }
 
@@ -96,7 +111,12 @@ namespace sys  {
 namespace fs {
 
 error_code current_path(SmallVectorImpl<char> &result) {
+#ifdef MAXPATHLEN
   result.reserve(MAXPATHLEN);
+#else
+// For GNU Hurd
+  result.reserve(1024);
+#endif
 
   while (true) {
     if (::getcwd(result.data(), result.capacity()) == 0) {
@@ -110,7 +130,7 @@ error_code current_path(SmallVectorImpl<char> &result) {
   }
 
   result.set_size(strlen(result.data()));
-  return success;
+  return error_code::success();
 }
 
 error_code copy_file(const Twine &from, const Twine &to, copy_option copt) {
@@ -169,7 +189,7 @@ error_code copy_file(const Twine &from, const Twine &to, copy_option copt) {
   if (sz_read < 0)
     return error_code(errno, system_category());
 
-  return success;
+  return error_code::success();
 }
 
 error_code create_directory(const Twine &path, bool &existed) {
@@ -183,7 +203,7 @@ error_code create_directory(const Twine &path, bool &existed) {
   } else
     existed = false;
 
-  return success;
+  return error_code::success();
 }
 
 error_code create_hard_link(const Twine &to, const Twine &from) {
@@ -196,7 +216,7 @@ error_code create_hard_link(const Twine &to, const Twine &from) {
   if (::link(t.begin(), f.begin()) == -1)
     return error_code(errno, system_category());
 
-  return success;
+  return error_code::success();
 }
 
 error_code create_symlink(const Twine &to, const Twine &from) {
@@ -209,7 +229,7 @@ error_code create_symlink(const Twine &to, const Twine &from) {
   if (::symlink(t.begin(), f.begin()) == -1)
     return error_code(errno, system_category());
 
-  return success;
+  return error_code::success();
 }
 
 error_code remove(const Twine &path, bool &existed) {
@@ -223,7 +243,7 @@ error_code remove(const Twine &path, bool &existed) {
   } else
     existed = true;
 
-  return success;
+  return error_code::success();
 }
 
 error_code rename(const Twine &from, const Twine &to) {
@@ -245,7 +265,7 @@ error_code rename(const Twine &from, const Twine &to) {
       return error_code(errno, system_category());
   }
 
-  return success;
+  return error_code::success();
 }
 
 error_code resize_file(const Twine &path, uint64_t size) {
@@ -255,47 +275,35 @@ error_code resize_file(const Twine &path, uint64_t size) {
   if (::truncate(p.begin(), size) == -1)
     return error_code(errno, system_category());
 
-  return success;
+  return error_code::success();
 }
 
 error_code exists(const Twine &path, bool &result) {
   SmallString<128> path_storage;
   StringRef p = path.toNullTerminatedStringRef(path_storage);
 
-  struct stat status;
-  if (::stat(p.begin(), &status) == -1) {
+  if (::access(p.begin(), F_OK) == -1) {
     if (errno != errc::no_such_file_or_directory)
       return error_code(errno, system_category());
     result = false;
   } else
     result = true;
 
-  return success;
+  return error_code::success();
+}
+
+bool equivalent(file_status A, file_status B) {
+  assert(status_known(A) && status_known(B));
+  return A.fs_st_dev == B.fs_st_dev &&
+         A.fs_st_ino == B.fs_st_ino;
 }
 
 error_code equivalent(const Twine &A, const Twine &B, bool &result) {
-  // Get arguments.
-  SmallString<128> a_storage;
-  SmallString<128> b_storage;
-  StringRef a = A.toNullTerminatedStringRef(a_storage);
-  StringRef b = B.toNullTerminatedStringRef(b_storage);
-
-  struct stat stat_a, stat_b;
-  int error_b = ::stat(b.begin(), &stat_b);
-  int error_a = ::stat(a.begin(), &stat_a);
-
-  // If both are invalid, it's an error. If only one is, the result is false.
-  if (error_a != 0 || error_b != 0) {
-    if (error_a == error_b)
-      return error_code(errno, system_category());
-    result = false;
-  } else {
-    result =
-      stat_a.st_dev == stat_b.st_dev &&
-      stat_a.st_ino == stat_b.st_ino;
-  }
-
-  return success;
+  file_status fsA, fsB;
+  if (error_code ec = status(A, fsA)) return ec;
+  if (error_code ec = status(B, fsB)) return ec;
+  result = equivalent(fsA, fsB);
+  return error_code::success();
 }
 
 error_code file_size(const Twine &path, uint64_t &result) {
@@ -309,7 +317,7 @@ error_code file_size(const Twine &path, uint64_t &result) {
     return make_error_code(errc::operation_not_permitted);
 
   result = status.st_size;
-  return success;
+  return error_code::success();
 }
 
 error_code status(const Twine &path, file_status &result) {
@@ -326,27 +334,62 @@ error_code status(const Twine &path, file_status &result) {
     return ec;
   }
 
+  perms prms = static_cast<perms>(status.st_mode & perms_mask);
+  
   if (S_ISDIR(status.st_mode))
-    result = file_status(file_type::directory_file);
+    result = file_status(file_type::directory_file, prms);
   else if (S_ISREG(status.st_mode))
-    result = file_status(file_type::regular_file);
+    result = file_status(file_type::regular_file, prms);
   else if (S_ISBLK(status.st_mode))
-    result = file_status(file_type::block_file);
+    result = file_status(file_type::block_file, prms);
   else if (S_ISCHR(status.st_mode))
-    result = file_status(file_type::character_file);
+    result = file_status(file_type::character_file, prms);
   else if (S_ISFIFO(status.st_mode))
-    result = file_status(file_type::fifo_file);
+    result = file_status(file_type::fifo_file, prms);
   else if (S_ISSOCK(status.st_mode))
-    result = file_status(file_type::socket_file);
+    result = file_status(file_type::socket_file, prms);
   else
-    result = file_status(file_type::type_unknown);
+    result = file_status(file_type::type_unknown, prms);
 
-  return success;
+  result.fs_st_dev = status.st_dev;
+  result.fs_st_ino = status.st_ino;
+
+  return error_code::success();
 }
 
+// Modifies permissions on a file.
+error_code permissions(const Twine &path, perms prms) {
+  if ((prms & add_perms) && (prms & remove_perms))
+    llvm_unreachable("add_perms and remove_perms are mutually exclusive");
+
+  // Get current permissions
+  file_status info;
+  if (error_code ec = status(path, info)) {
+    return ec;
+  }
+  
+  // Set updated permissions.
+  SmallString<128> path_storage;
+  StringRef p = path.toNullTerminatedStringRef(path_storage);
+  perms permsToSet;
+  if (prms & add_perms) {
+    permsToSet = (info.permissions() | prms) & perms_mask;
+  } else if (prms & remove_perms) {
+    permsToSet = (info.permissions() & ~prms) & perms_mask;
+  } else {
+    permsToSet = prms & perms_mask;
+  }
+  if (::chmod(p.begin(), static_cast<mode_t>(permsToSet))) {
+    return error_code(errno, system_category()); 
+  }
+
+  return error_code::success();
+}
+
+// Since this is most often used for temporary files, mode defaults to 0600.
 error_code unique_file(const Twine &model, int &result_fd,
-                             SmallVectorImpl<char> &result_path,
-                             bool makeAbsolute) {
+                       SmallVectorImpl<char> &result_path,
+                       bool makeAbsolute, unsigned mode) {
   SmallString<128> Model;
   model.toVector(Model);
   // Null terminate.
@@ -363,37 +406,20 @@ error_code unique_file(const Twine &model, int &result_fd,
     }
   }
 
-  // Replace '%' with random chars. From here on, DO NOT modify model. It may be
-  // needed if the randomly chosen path already exists.
-  SmallString<128> RandomPath;
-  RandomPath.reserve(Model.size() + 1);
-  ::srand(::time(NULL));
+  // From here on, DO NOT modify model. It may be needed if the randomly chosen
+  // path already exists.
+  SmallString<128> RandomPath = Model;
 
 retry_random_path:
-  // This is opened here instead of above to make it easier to track when to
-  // close it. Collisions should be rare enough for the possible extra syscalls
-  // not to matter.
-  FILE *RandomSource = ::fopen("/dev/urandom", "r");
-  RandomPath.set_size(0);
-  for (SmallVectorImpl<char>::const_iterator i = Model.begin(),
-                                             e = Model.end(); i != e; ++i) {
-    if (*i == '%') {
-      char val = 0;
-      if (RandomSource)
-        val = fgetc(RandomSource);
-      else
-        val = ::rand();
-      RandomPath.push_back("0123456789abcdef"[val & 15]);
-    } else
-      RandomPath.push_back(*i);
+  // Replace '%' with random chars.
+  for (unsigned i = 0, e = Model.size(); i != e; ++i) {
+    if (Model[i] == '%')
+      RandomPath[i] = "0123456789abcdef"[sys::Process::GetRandomNumber() & 15];
   }
-
-  if (RandomSource)
-    ::fclose(RandomSource);
 
   // Try to open + create the file.
 rety_open_create:
-  int RandomFD = ::open(RandomPath.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+  int RandomFD = ::open(RandomPath.c_str(), O_RDWR | O_CREAT | O_EXCL, mode);
   if (RandomFD == -1) {
     // If the file existed, try again, otherwise, error.
     if (errno == errc::file_exists)
@@ -436,10 +462,123 @@ rety_open_create:
   result_path.append(d.begin(), d.end());
 
   result_fd = RandomFD;
-  return success;
+  return error_code::success();
 }
 
-error_code directory_iterator_construct(directory_iterator &it, StringRef path){
+error_code mapped_file_region::init(int fd, uint64_t offset) {
+  AutoFD FD(fd);
+
+  // Figure out how large the file is.
+  struct stat FileInfo;
+  if (fstat(fd, &FileInfo) == -1)
+    return error_code(errno, system_category());
+  uint64_t FileSize = FileInfo.st_size;
+
+  if (Size == 0)
+    Size = FileSize;
+  else if (FileSize < Size) {
+    // We need to grow the file.
+    if (ftruncate(fd, Size) == -1)
+      return error_code(errno, system_category());
+  }
+
+  int flags = (Mode == readwrite) ? MAP_SHARED : MAP_PRIVATE;
+  int prot = (Mode == readonly) ? PROT_READ : (PROT_READ | PROT_WRITE);
+#ifdef MAP_FILE
+  flags |= MAP_FILE;
+#endif
+  Mapping = ::mmap(0, Size, prot, flags, fd, offset);
+  if (Mapping == MAP_FAILED)
+    return error_code(errno, system_category());
+  return error_code::success();
+}
+
+mapped_file_region::mapped_file_region(const Twine &path,
+                                       mapmode mode,
+                                       uint64_t length,
+                                       uint64_t offset,
+                                       error_code &ec)
+  : Mode(mode)
+  , Size(length)
+  , Mapping() {
+  // Make sure that the requested size fits within SIZE_T.
+  if (length > std::numeric_limits<size_t>::max()) {
+    ec = make_error_code(errc::invalid_argument);
+    return;
+  }
+
+  SmallString<128> path_storage;
+  StringRef name = path.toNullTerminatedStringRef(path_storage);
+  int oflags = (mode == readonly) ? O_RDONLY : O_RDWR;
+  int ofd = ::open(name.begin(), oflags);
+  if (ofd == -1) {
+    ec = error_code(errno, system_category());
+    return;
+  }
+
+  ec = init(ofd, offset);
+  if (ec)
+    Mapping = 0;
+}
+
+mapped_file_region::mapped_file_region(int fd,
+                                       mapmode mode,
+                                       uint64_t length,
+                                       uint64_t offset,
+                                       error_code &ec)
+  : Mode(mode)
+  , Size(length)
+  , Mapping() {
+  // Make sure that the requested size fits within SIZE_T.
+  if (length > std::numeric_limits<size_t>::max()) {
+    ec = make_error_code(errc::invalid_argument);
+    return;
+  }
+
+  ec = init(fd, offset);
+  if (ec)
+    Mapping = 0;
+}
+
+mapped_file_region::~mapped_file_region() {
+  if (Mapping)
+    ::munmap(Mapping, Size);
+}
+
+#if LLVM_USE_RVALUE_REFERENCES
+mapped_file_region::mapped_file_region(mapped_file_region &&other)
+  : Mode(other.Mode), Size(other.Size), Mapping(other.Mapping) {
+  other.Mapping = 0;
+}
+#endif
+
+mapped_file_region::mapmode mapped_file_region::flags() const {
+  assert(Mapping && "Mapping failed but used anyway!");
+  return Mode;
+}
+
+uint64_t mapped_file_region::size() const {
+  assert(Mapping && "Mapping failed but used anyway!");
+  return Size;
+}
+
+char *mapped_file_region::data() const {
+  assert(Mapping && "Mapping failed but used anyway!");
+  assert(Mode != readonly && "Cannot get non const data for readonly mapping!");
+  return reinterpret_cast<char*>(Mapping);
+}
+
+const char *mapped_file_region::const_data() const {
+  assert(Mapping && "Mapping failed but used anyway!");
+  return reinterpret_cast<const char*>(Mapping);
+}
+
+int mapped_file_region::alignment() {
+  return Process::GetPageSize();
+}
+
+error_code detail::directory_iterator_construct(detail::DirIterState &it,
+                                                StringRef path){
   SmallString<128> path_null(path);
   DIR *directory = ::opendir(path_null.c_str());
   if (directory == 0)
@@ -452,15 +591,15 @@ error_code directory_iterator_construct(directory_iterator &it, StringRef path){
   return directory_iterator_increment(it);
 }
 
-error_code directory_iterator_destruct(directory_iterator& it) {
+error_code detail::directory_iterator_destruct(detail::DirIterState &it) {
   if (it.IterationHandle)
     ::closedir(reinterpret_cast<DIR *>(it.IterationHandle));
   it.IterationHandle = 0;
   it.CurrentEntry = directory_entry();
-  return success;
+  return error_code::success();
 }
 
-error_code directory_iterator_increment(directory_iterator& it) {
+error_code detail::directory_iterator_increment(detail::DirIterState &it) {
   errno = 0;
   dirent *cur_dir = ::readdir(reinterpret_cast<DIR *>(it.IterationHandle));
   if (cur_dir == 0 && errno != 0) {
@@ -474,7 +613,7 @@ error_code directory_iterator_increment(directory_iterator& it) {
   } else
     return directory_iterator_destruct(it);
 
-  return success;
+  return error_code::success();
 }
 
 error_code get_magic(const Twine &path, uint32_t len,
@@ -505,8 +644,38 @@ error_code get_magic(const Twine &path, uint32_t len,
   }
   std::fclose(file);
   result.set_size(len);
-  return success;
+  return error_code::success();
 }
+
+error_code map_file_pages(const Twine &path, off_t file_offset, size_t size,  
+                                            bool map_writable, void *&result) {
+  SmallString<128> path_storage;
+  StringRef name = path.toNullTerminatedStringRef(path_storage);
+  int oflags = map_writable ? O_RDWR : O_RDONLY;
+  int ofd = ::open(name.begin(), oflags);
+  if ( ofd == -1 )
+    return error_code(errno, system_category());
+  AutoFD fd(ofd);
+  int flags = map_writable ? MAP_SHARED : MAP_PRIVATE;
+  int prot = map_writable ? (PROT_READ|PROT_WRITE) : PROT_READ;
+#ifdef MAP_FILE
+  flags |= MAP_FILE;
+#endif
+  result = ::mmap(0, size, prot, flags, fd, file_offset);
+  if (result == MAP_FAILED) {
+    return error_code(errno, system_category());
+  }
+  
+  return error_code::success();
+}
+
+error_code unmap_file_pages(void *base, size_t size) {
+  if ( ::munmap(base, size) == -1 )
+    return error_code(errno, system_category());
+   
+  return error_code::success();
+}
+
 
 } // end namespace fs
 } // end namespace sys

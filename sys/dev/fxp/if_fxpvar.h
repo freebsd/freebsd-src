@@ -219,6 +219,7 @@ struct fxp_softc {
 	int if_flags;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
+	uint16_t eeprom[256];
 };
 
 #define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */
@@ -236,6 +237,7 @@ struct fxp_softc {
 #define FXP_FLAG_WOLCAP		0x2000	/* WOL capability */
 #define FXP_FLAG_WOL		0x4000	/* WOL active */
 #define FXP_FLAG_RXBUG		0x8000	/* Rx lock-up bug */
+#define FXP_FLAG_NO_UCODE	0x10000	/* ucode is not applicable */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)		bus_read_1(sc->fxp_res[0], reg)

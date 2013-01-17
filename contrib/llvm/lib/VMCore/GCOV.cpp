@@ -28,19 +28,19 @@ GCOVFile::~GCOVFile() {
 }
 
 /// isGCDAFile - Return true if Format identifies a .gcda file.
-static bool isGCDAFile(GCOVFormat Format) {
-  return Format == GCDA_402 || Format == GCDA_404;
+static bool isGCDAFile(GCOV::GCOVFormat Format) {
+  return Format == GCOV::GCDA_402 || Format == GCOV::GCDA_404;
 }
 
 /// isGCNOFile - Return true if Format identifies a .gcno file.
-static bool isGCNOFile(GCOVFormat Format) {
-  return Format == GCNO_402 || Format == GCNO_404;
+static bool isGCNOFile(GCOV::GCOVFormat Format) {
+  return Format == GCOV::GCNO_402 || Format == GCOV::GCNO_404;
 }
 
 /// read - Read GCOV buffer.
 bool GCOVFile::read(GCOVBuffer &Buffer) {
-  GCOVFormat Format = Buffer.readGCOVFormat();
-  if (Format == InvalidGCOV)
+  GCOV::GCOVFormat Format = Buffer.readGCOVFormat();
+  if (Format == GCOV::InvalidGCOV)
     return false;
 
   unsigned i = 0;
@@ -48,7 +48,7 @@ bool GCOVFile::read(GCOVBuffer &Buffer) {
     GCOVFunction *GFun = NULL;
     if (isGCDAFile(Format)) {
       // Use existing function while reading .gcda file.
-      assert (i < Functions.size() && ".gcda data does not match .gcno data");
+      assert(i < Functions.size() && ".gcda data does not match .gcno data");
       GFun = Functions[i];
     } else if (isGCNOFile(Format)){
       GFun = new GCOVFunction();
@@ -64,7 +64,7 @@ bool GCOVFile::read(GCOVBuffer &Buffer) {
 /// dump - Dump GCOVFile content on standard out for debugging purposes.
 void GCOVFile::dump() {
   for (SmallVector<GCOVFunction *, 16>::iterator I = Functions.begin(),
-	 E = Functions.end(); I != E; ++I)
+         E = Functions.end(); I != E; ++I)
     (*I)->dump();
 }
 
@@ -72,7 +72,7 @@ void GCOVFile::dump() {
 /// reading .gcno and .gcda files.
 void GCOVFile::collectLineCounts(FileInfo &FI) {
   for (SmallVector<GCOVFunction *, 16>::iterator I = Functions.begin(),
-	 E = Functions.end(); I != E; ++I) 
+         E = Functions.end(); I != E; ++I) 
     (*I)->collectLineCounts(FI);
   FI.print();
 }
@@ -87,33 +87,35 @@ GCOVFunction::~GCOVFunction() {
 
 /// read - Read a aunction from the buffer. Return false if buffer cursor
 /// does not point to a function tag.
-bool GCOVFunction::read(GCOVBuffer &Buff, GCOVFormat Format) {
+bool GCOVFunction::read(GCOVBuffer &Buff, GCOV::GCOVFormat Format) {
   if (!Buff.readFunctionTag())
     return false;
 
   Buff.readInt(); // Function header length
   Ident = Buff.readInt(); 
   Buff.readInt(); // Checksum #1
-  if (Format != GCNO_402)
+  if (Format != GCOV::GCNO_402)
     Buff.readInt(); // Checksum #2
 
   Name = Buff.readString();
-  if (Format == GCNO_402 || Format == GCNO_404)
+  if (Format == GCOV::GCNO_402 || Format == GCOV::GCNO_404)
     Filename = Buff.readString();
 
-  if (Format == GCDA_402 || Format == GCDA_404) {
+  if (Format == GCOV::GCDA_402 || Format == GCOV::GCDA_404) {
     Buff.readArcTag();
     uint32_t Count = Buff.readInt() / 2;
     for (unsigned i = 0, e = Count; i != e; ++i) {
       Blocks[i]->addCount(Buff.readInt64());
     }
-    return true;;
+    return true;
   }
 
   LineNumber = Buff.readInt();
 
   // read blocks.
-  assert (Buff.readBlockTag() && "Block Tag not found!");
+  bool BlockTagFound = Buff.readBlockTag();
+  (void)BlockTagFound;
+  assert(BlockTagFound && "Block Tag not found!");
   uint32_t BlockCount = Buff.readInt();
   for (int i = 0, e = BlockCount; i != e; ++i) {
     Buff.readInt(); // Block flags;
@@ -124,7 +126,7 @@ bool GCOVFunction::read(GCOVBuffer &Buff, GCOVFormat Format) {
   while (Buff.readEdgeTag()) {
     uint32_t EdgeCount = (Buff.readInt() - 1) / 2;
     uint32_t BlockNo = Buff.readInt();
-    assert (BlockNo < BlockCount && "Unexpected Block number!");
+    assert(BlockNo < BlockCount && "Unexpected Block number!");
     for (int i = 0, e = EdgeCount; i != e; ++i) {
       Blocks[BlockNo]->addEdge(Buff.readInt());
       Buff.readInt(); // Edge flag
@@ -136,14 +138,14 @@ bool GCOVFunction::read(GCOVBuffer &Buff, GCOVFormat Format) {
     uint32_t LineTableLength = Buff.readInt();
     uint32_t Size = Buff.getCursor() + LineTableLength*4;
     uint32_t BlockNo = Buff.readInt();
-    assert (BlockNo < BlockCount && "Unexpected Block number!");
+    assert(BlockNo < BlockCount && "Unexpected Block number!");
     GCOVBlock *Block = Blocks[BlockNo];
     Buff.readInt(); // flag
     while (Buff.getCursor() != (Size - 4)) {
       StringRef Filename = Buff.readString();
       if (Buff.getCursor() == (Size - 4)) break;
       while (uint32_t L = Buff.readInt())
-	Block->addLine(Filename, L);
+        Block->addLine(Filename, L);
     }
     Buff.readInt(); // flag
   }
@@ -154,7 +156,7 @@ bool GCOVFunction::read(GCOVBuffer &Buff, GCOVFormat Format) {
 void GCOVFunction::dump() {
   outs() <<  "===== " << Name << " @ " << Filename << ":" << LineNumber << "\n";
   for (SmallVector<GCOVBlock *, 16>::iterator I = Blocks.begin(),
-	 E = Blocks.end(); I != E; ++I)
+         E = Blocks.end(); I != E; ++I)
     (*I)->dump();
 }
 
@@ -162,7 +164,7 @@ void GCOVFunction::dump() {
 /// reading .gcno and .gcda files.
 void GCOVFunction::collectLineCounts(FileInfo &FI) {
   for (SmallVector<GCOVBlock *, 16>::iterator I = Blocks.begin(),
-	 E = Blocks.end(); I != E; ++I)
+         E = Blocks.end(); I != E; ++I)
     (*I)->collectLineCounts(FI);
 }
 
@@ -186,7 +188,7 @@ void GCOVBlock::addLine(StringRef Filename, uint32_t LineNo) {
 /// reading .gcno and .gcda files.
 void GCOVBlock::collectLineCounts(FileInfo &FI) {
   for (StringMap<GCOVLines *>::iterator I = Lines.begin(),
-	 E = Lines.end(); I != E; ++I)
+         E = Lines.end(); I != E; ++I)
     I->second->collectLineCounts(FI, I->first(), Counter);
 }
 
@@ -196,14 +198,14 @@ void GCOVBlock::dump() {
   if (!Edges.empty()) {
     outs() << "\tEdges : ";
     for (SmallVector<uint32_t, 16>::iterator I = Edges.begin(), E = Edges.end();
-	 I != E; ++I)
+         I != E; ++I)
       outs() << (*I) << ",";
     outs() << "\n";
   }
   if (!Lines.empty()) {
     outs() << "\tLines : ";
     for (StringMap<GCOVLines *>::iterator LI = Lines.begin(),
-	   LE = Lines.end(); LI != LE; ++LI) {
+           LE = Lines.end(); LI != LE; ++LI) {
       outs() << LI->first() << " -> ";
       LI->second->dump();
       outs() << "\n";
@@ -217,16 +219,16 @@ void GCOVBlock::dump() {
 /// collectLineCounts - Collect line counts. This must be used after
 /// reading .gcno and .gcda files.
 void GCOVLines::collectLineCounts(FileInfo &FI, StringRef Filename, 
-				  uint32_t Count) {
+                                  uint32_t Count) {
   for (SmallVector<uint32_t, 16>::iterator I = Lines.begin(),
-	 E = Lines.end(); I != E; ++I)
+         E = Lines.end(); I != E; ++I)
     FI.addLineCount(Filename, *I, Count);
 }
 
 /// dump - Dump GCOVLines content on standard out for debugging purposes.
 void GCOVLines::dump() {
   for (SmallVector<uint32_t, 16>::iterator I = Lines.begin(),
-	 E = Lines.end(); I != E; ++I)
+         E = Lines.end(); I != E; ++I)
     outs() << (*I) << ",";
 }
 
@@ -266,12 +268,12 @@ void FileInfo::print() {
     StringRef AllLines = Buff.take()->getBuffer();
     for (unsigned i = 0, e = L.size(); i != e; ++i) {
       if (L[i])
-	outs() << L[i] << ":\t";
+        outs() << L[i] << ":\t";
       else
-	outs() << " :\t";
+        outs() << " :\t";
       std::pair<StringRef, StringRef> P = AllLines.split('\n');
       if (AllLines != P.first)
-	outs() << P.first;
+        outs() << P.first;
       outs() << "\n";
       AllLines = P.second;
     }

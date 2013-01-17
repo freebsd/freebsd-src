@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nxt_30.c,v 1.65 2009-12-04 22:06:37 tbox Exp $ */
+/* $Id: nxt_30.c,v 1.65 2009/12/04 22:06:37 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 18:21:15 PST 2000 by brister */
 

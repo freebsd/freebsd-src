@@ -11,22 +11,20 @@
 . /etc/rc.subr
 
 name="ypbind"
-command="/usr/sbin/${name}"
-start_precmd="ypbind_precmd"
+rcvar="nis_client_enable"
 
 load_rc_config $name
-rcvar="nis_client_enable"
+
+command="/usr/sbin/${name}"
 command_args="${nis_client_flags}"
+
+start_precmd="ypbind_precmd"
 
 ypbind_precmd()
 {
 	local _domain
 
-	if ! checkyesno rpcbind_enable  && \
-	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
-	then
-		force_depend rpcbind || return 1
-	fi
+	force_depend rpcbind || return 1
 
 	_domain=`domainname`
 	if [ -z "$_domain" ]; then

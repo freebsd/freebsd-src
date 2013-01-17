@@ -714,7 +714,7 @@ struct bwn_txhdr {
 			uint16_t	tx_status;
 			struct bwn_plcp6	rts_plcp;
 			uint8_t		rts_frame[16];
-			uint8_t		pad1[2];;
+			uint8_t		pad1[2];
 			struct bwn_plcp6	plcp;
 		} __packed old;
 		/* format > r410 */

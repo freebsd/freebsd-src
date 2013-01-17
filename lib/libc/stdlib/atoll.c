@@ -2,6 +2,11 @@
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,10 +36,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
+#include <xlocale.h>
 
 long long
 atoll(str)
 	const char *str;
 {
 	return strtoll(str, (char **)NULL, 10);
+}
+
+long long
+atoll_l(str, locale)
+	const char *str;
+	locale_t locale;
+{
+	return strtoll_l(str, (char **)NULL, 10, locale);
 }

@@ -138,6 +138,7 @@ ask(int def, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	vsnprintf(prompt, sizeof(prompt), fmt, ap);
+	va_end(ap);
 	if (alwaysyes || rdonly) {
 		printf("%s? %s\n", prompt, rdonly ? "no" : "yes");
 		return !rdonly;

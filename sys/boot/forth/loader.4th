@@ -40,15 +40,42 @@ s" arch-i386" environment? [if] [if]
 2048 dictincrease !  \ 2048 additional cells each time
 
 include /boot/support.4th
-
-\ ***** boot-conf
-\
-\	Prepares to boot as specified by loaded configuration files.
+include /boot/color.4th
 
 only forth also support-functions also builtins definitions
 
+: try-menu-unset
+  \ menu-unset may not be present
+  s" beastie_disable" getenv
+  dup -1 <> if
+    s" YES" compare-insensitive 0= if
+      exit
+    then
+  else
+    drop
+  then
+  s" menu-unset"
+  sfind if
+    execute
+  else
+    drop
+  then
+  s" menusets-unset"
+  sfind if
+    execute
+  else
+    drop
+  then
+;
+
 : boot
   0= if ( interpreted ) get_arguments then
+
+  loader_color? if
+    ." [37;44mBooting...[0m" cr
+  else
+    ." Booting..." cr
+  then
 
   \ Unload only if a path was passed
   dup if
@@ -57,23 +84,31 @@ only forth also support-functions also builtins definitions
       0 1 unload drop
     else
       s" kernelname" getenv? if ( a kernel has been loaded )
+        try-menu-unset
         1 boot exit
       then
       load_kernel_and_modules
       ?dup if exit then
+      try-menu-unset
       0 1 boot exit
     then
   else
     s" kernelname" getenv? if ( a kernel has been loaded )
+      try-menu-unset
       1 boot exit
     then
     load_kernel_and_modules
     ?dup if exit then
+    try-menu-unset
     0 1 boot exit
   then
   load_kernel_and_modules
   ?dup 0= if 0 1 boot then
 ;
+
+\ ***** boot-conf
+\
+\	Prepares to boot as specified by loaded configuration files.
 
 : boot-conf
   0= if ( interpreted ) get_arguments then

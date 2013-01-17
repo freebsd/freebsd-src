@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2010
+.Dd December 22, 2011
 .Dt AR 1
 .Os
 .Sh NAME
@@ -198,11 +198,11 @@ from the archive specified by argument
 The archive's symbol table, if present, is updated to reflect
 the new contents of the archive.
 .It Fl D
-When used in combination with the 
+When used in combination with the
 .Fl r
 or
 .Fl q
-option, insert 0's instead of the real mtime, uid and gid values 
+option, insert 0's instead of the real mtime, uid and gid values
 and 0644 instead of file mode from the members named by arguments
 .Ar .
 This ensures that checksums on the resulting archives are reproducible
@@ -414,7 +414,7 @@ character.
 The
 .Dq Li *
 and
-.Dq Li "\;"
+.Dq Li "\&;"
 characters start a comment.
 Comments extend till the end of the line.
 .Pp
@@ -531,7 +531,7 @@ using MRI librarian commands, use the following script:
 .Bd -literal -offset indent
 create ex.a		 * specify the output archive
 addmod ex1.o ex2.o	 * add modules
-save			 * save pending changes 
+save			 * save pending changes
 end			 * exit the utility
 .Ed
 .Sh DIAGNOSTICS

@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <libproc.h>
 #include <gelf.h>
+#include <string.h>
 
 int
 main(int argc, char *argv[])

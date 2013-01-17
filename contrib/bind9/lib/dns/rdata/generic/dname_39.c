@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dname_39.c,v 1.40 2009-12-04 22:06:37 tbox Exp $ */
+/* $Id: dname_39.c,v 1.40 2009/12/04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Wed Mar 15 16:52:38 PST 2000 by explorer */
 

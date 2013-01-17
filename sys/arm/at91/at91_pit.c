@@ -48,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_pitreg.h>
 
+#ifndef PIT_PRESCALE
+#define PIT_PRESCALE (16)
+#endif
+
 static struct pit_softc {
 	struct resource	*mem_res;	/* Memory resource */
 	void		*intrhand;	/* Interrupt handle */
@@ -55,28 +59,48 @@ static struct pit_softc {
 } *sc;
 
 static uint32_t timecount = 0;
+static unsigned at91_pit_get_timecount(struct timecounter *tc);
+static int pit_intr(void *arg);
 
 static inline uint32_t
 RD4(struct pit_softc *sc, bus_size_t off)
 {
+
 	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
 WR4(struct pit_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_write_4(sc->mem_res, off, val);
 }
 
-static unsigned at91pit_get_timecount(struct timecounter *tc);
-static int pit_intr(void *arg);
+void
+at91_pit_delay(int us)
+{
+	int32_t cnt, last, piv;
+	uint64_t pit_freq;
+	const uint64_t mhz  = 1E6;
 
-#ifndef PIT_PRESCALE
-#define PIT_PRESCALE (16)
-#endif
+	last = PIT_PIV(RD4(sc, PIT_PIIR));
 
-static struct timecounter at91pit_timecounter = {
-	at91pit_get_timecount, /* get_timecount */
+	/* Max delay ~= 260s. @ 133Mhz */
+	pit_freq = at91_master_clock / PIT_PRESCALE;
+	cnt  = ((pit_freq * us) + (mhz -1)) / mhz;
+	cnt  = (cnt <= 0) ? 1 : cnt;
+
+	while (cnt > 0) {
+		piv = PIT_PIV(RD4(sc, PIT_PIIR));
+			cnt  -= piv - last ;
+		if (piv < last)
+			cnt -= PIT_PIV(~0u) - last;
+		last = piv;
+	}
+}
+
+static struct timecounter at91_pit_timecounter = {
+	at91_pit_get_timecount, /* get_timecount */
 	NULL, /* no poll_pps */
 	0xffffffff, /* counter mask */
 	0 / PIT_PRESCALE, /* frequency */
@@ -85,18 +109,15 @@ static struct timecounter at91pit_timecounter = {
 };
 
 static int
-at91pit_probe(device_t dev)
+at91_pit_probe(device_t dev)
 {
 
-	if (at91_is_sam9()) {
-		device_set_desc(dev, "AT91SAM9 PIT");
-		return (0);
-	}
-	return (ENXIO);
+	device_set_desc(dev, "AT91SAM9 PIT");
+        return (0);
 }
 
 static int
-at91pit_attach(device_t dev)
+at91_pit_attach(device_t dev)
 {
 	void *ih;
 	int rid, err = 0;
@@ -112,11 +133,11 @@ at91pit_attach(device_t dev)
 	    RF_ACTIVE);
 
 	if (sc->mem_res == NULL)
-	       panic("couldn't allocate register resources");
+		panic("couldn't allocate register resources");
 
 	rid = 0;
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 1, 1, 1,
-	  RF_ACTIVE | RF_SHAREABLE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (!irq) {
 		device_printf(dev, "could not allocate interrupt resources.\n");
 		err = ENOMEM;
@@ -124,35 +145,35 @@ at91pit_attach(device_t dev)
 	}
 
 	/* Activate the interrupt. */
-	err = bus_setup_intr(dev, irq, INTR_TYPE_CLK, pit_intr,
-		NULL, NULL, &ih);
-	
-	at91pit_timecounter.tc_frequency =  at91_master_clock / PIT_PRESCALE;
-	tc_init(&at91pit_timecounter);
+	err = bus_setup_intr(dev, irq, INTR_TYPE_CLK, pit_intr, NULL, NULL,
+	    &ih);
 
-	//Enable the PIT here.
-	WR4(sc, PIT_MR,
-		PIT_PIV(at91_master_clock / PIT_PRESCALE / hz) |
-		PIT_EN | PIT_IEN);
+	at91_pit_timecounter.tc_frequency =  at91_master_clock / PIT_PRESCALE;
+	tc_init(&at91_pit_timecounter);
+
+	/* Enable the PIT here. */
+	WR4(sc, PIT_MR, PIT_PIV(at91_master_clock / PIT_PRESCALE / hz) |
+	    PIT_EN | PIT_IEN);
 out:
 	return (err);
 }
 
-static device_method_t at91pit_methods[] = {
-	DEVMETHOD(device_probe, at91pit_probe),
-	DEVMETHOD(device_attach, at91pit_attach),
-	{0,0},
+static device_method_t at91_pit_methods[] = {
+	DEVMETHOD(device_probe, at91_pit_probe),
+	DEVMETHOD(device_attach, at91_pit_attach),
+	DEVMETHOD_END
 };
 
-static driver_t at91pit_driver = {
+static driver_t at91_pit_driver = {
 	"at91_pit",
-	at91pit_methods,
+	at91_pit_methods,
 	sizeof(struct pit_softc),
 };
 
-static devclass_t at91pit_devclass;
+static devclass_t at91_pit_devclass;
 
-DRIVER_MODULE(at91_pit, atmelarm, at91pit_driver, at91pit_devclass, 0, 0);
+DRIVER_MODULE(at91_pit, atmelarm, at91_pit_driver, at91_pit_devclass, NULL,
+    NULL);
 
 static int
 pit_intr(void *arg)
@@ -173,52 +194,11 @@ pit_intr(void *arg)
 }
 
 static unsigned
-at91pit_get_timecount(struct timecounter *tc)
+at91_pit_get_timecount(struct timecounter *tc)
 {
-	uint32_t piir, icnt;	
+	uint32_t piir, icnt;
 
 	piir = RD4(sc, PIT_PIIR); /* Current  count | over flows */
 	icnt = piir >> 20;	/* Overflows */
 	return (timecount + PIT_PIV(piir) + PIT_PIV(RD4(sc, PIT_MR)) * icnt);
-}
-
-void
-DELAY(int us)
-{
-	int32_t cnt, last, piv;
-	uint64_t pit_freq;
-	const uint64_t mhz  = 1E6;
-
-	last = PIT_PIV(RD4(sc, PIT_PIIR));
-
-	/* Max delay ~= 260s. @ 133Mhz */
-        pit_freq = at91_master_clock / PIT_PRESCALE;
-	cnt  = ((pit_freq * us) + (mhz -1)) / mhz;
-	cnt  = (cnt <= 0) ? 1 : cnt;
-
-	while (cnt > 0) {
-		piv = PIT_PIV(RD4(sc, PIT_PIIR));
-			cnt  -= piv - last ;
-		if (piv < last)
-			cnt -= PIT_PIV(~0u) - last;
-		last = piv;
-	}
-}
-
-/*
- * The 3 next functions must be implement with the future PLL code.
- */
-void
-cpu_startprofclock(void)
-{
-}
-
-void
-cpu_stopprofclock(void)
-{
-}
-
-void
-cpu_initclocks(void)
-{
 }

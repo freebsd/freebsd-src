@@ -1,4 +1,4 @@
-//===- MBlazeRegisterInfo.cpp - MBlaze Register Information -== -*- C++ -*-===//
+//===-- MBlazeRegisterInfo.cpp - MBlaze Register Information --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,9 +14,9 @@
 
 #define DEBUG_TYPE "mblaze-frame-info"
 
+#include "MBlazeRegisterInfo.h"
 #include "MBlaze.h"
 #include "MBlazeSubtarget.h"
-#include "MBlazeRegisterInfo.h"
 #include "MBlazeMachineFunction.h"
 #include "llvm/Constants.h"
 #include "llvm/Type.h"
@@ -54,10 +54,10 @@ unsigned MBlazeRegisterInfo::getPICCallReg() {
 //===----------------------------------------------------------------------===//
 
 /// MBlaze Callee Saved Registers
-const unsigned* MBlazeRegisterInfo::
+const uint16_t* MBlazeRegisterInfo::
 getCalleeSavedRegs(const MachineFunction *MF) const {
   // MBlaze callee-save register range is R20 - R31
-  static const unsigned CalleeSavedRegs[] = {
+  static const uint16_t CalleeSavedRegs[] = {
     MBlaze::R20, MBlaze::R21, MBlaze::R22, MBlaze::R23,
     MBlaze::R24, MBlaze::R25, MBlaze::R26, MBlaze::R27,
     MBlaze::R28, MBlaze::R29, MBlaze::R30, MBlaze::R31,
@@ -140,7 +140,7 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
 
   unsigned oi = i == 2 ? 1 : 2;
 
-  DEBUG(dbgs() << "\nFunction : " << MF.getFunction()->getName() << "\n";
+  DEBUG(dbgs() << "\nFunction : " << MF.getName() << "\n";
         dbgs() << "<--------->\n" << MI);
 
   int FrameIndex = MI.getOperand(i).getIndex();
@@ -184,10 +184,8 @@ unsigned MBlazeRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
 
 unsigned MBlazeRegisterInfo::getEHExceptionRegister() const {
   llvm_unreachable("What is the exception register");
-  return 0;
 }
 
 unsigned MBlazeRegisterInfo::getEHHandlerRegister() const {
   llvm_unreachable("What is the exception handler register");
-  return 0;
 }

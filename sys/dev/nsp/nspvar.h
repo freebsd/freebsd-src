@@ -43,16 +43,6 @@
 struct nsp_softc {
 	struct scsi_low_softc sc_sclow;		/* generic data */
 
-#ifdef	__NetBSD__
-	bus_space_tag_t sc_iot;
-	bus_space_handle_t sc_ioh;
-	bus_space_tag_t sc_memt;
-	bus_space_handle_t sc_memh;
-
-	void *sc_ih;
-#endif	/* __NetBSD__ */
-
-#ifdef __FreeBSD__
 	bus_space_tag_t sc_iot;
 	bus_space_handle_t sc_ioh;
 	bus_space_tag_t sc_memt;
@@ -66,7 +56,6 @@ struct nsp_softc {
 	struct resource *mem_res;
 
 	void *nsp_intrhand;
-#endif	/* __FreeBSD__ */
 
 	int sc_tmaxcnt;				/* timeout count */
 	int sc_seltout;				/* selection timeout counter */
@@ -102,12 +91,6 @@ struct nsp_targ_info {
  *****************************************************************/
 int nspprobesubr(bus_space_tag_t, bus_space_handle_t, u_int);
 void nspattachsubr(struct nsp_softc *);
-int nspprint(void *, const char *);
 int nspintr(void *);
 
-#if	defined(__i386__) && 0
-#define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
-#else	/* !__i386__ */
-#define	SOFT_INTR_REQUIRED(slp)
-#endif	/* !__i386__ */
 #endif	/* !_NSPVAR_H_ */

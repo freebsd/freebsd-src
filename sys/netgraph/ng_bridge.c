@@ -84,7 +84,8 @@
 #include <netgraph/ng_bridge.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node");
+static MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge",
+    "netgraph bridge node");
 #else
 #define M_NETGRAPH_BRIDGE M_NETGRAPH
 #endif
@@ -718,7 +719,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			 * It's usable link but not the reserved (first) one.
 			 * Copy mbuf info for sending.
 			 */
-			m2 = m_dup(m, M_DONTWAIT);	/* XXX m_copypacket() */
+			m2 = m_dup(m, M_NOWAIT);	/* XXX m_copypacket() */
 			if (m2 == NULL) {
 				link->stats.memoryFailures++;
 				NG_FREE_ITEM(item);

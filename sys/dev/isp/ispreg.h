@@ -456,21 +456,16 @@
  *  2300/2400: 32 MBOX registers
  */
 #define	MBOX_OFF(n)	(MBOX_BLOCK + ((n) << 1))
-#define	NMBOX(isp)	\
-	(((((isp)->isp_type & ISP_HA_SCSI) >= ISP_HA_SCSI_1040A) || \
-	 ((isp)->isp_type & ISP_HA_FC))? 12 : 6)
-#define	NMBOX_BMASK(isp)	\
-	(((((isp)->isp_type & ISP_HA_SCSI) >= ISP_HA_SCSI_1040A) || \
-	 ((isp)->isp_type & ISP_HA_FC))? 0xfff : 0x3f)
-
-#define	MAX_MAILBOX(isp)	((IS_FC(isp))? 12 : 8)
-#define	MAILBOX_STORAGE		12
+#define	ISP_NMBOX(isp)	((IS_24XX(isp) || IS_23XX(isp))? 32 : (IS_2200(isp) ? 24 : 8))
+#define	ISP_NMBOX_BMASK(isp)	\
+	((IS_24XX(isp) || IS_23XX(isp))? 0xffffffff : (IS_2200(isp)? 0x00ffffff : 0xff))
+#define	MAX_MAILBOX	32
 /* if timeout == 0, then default timeout is picked */
 #define	MBCMD_DEFAULT_TIMEOUT	100000	/* 100 ms */
 typedef struct {
-	uint16_t param[MAILBOX_STORAGE];
-	uint16_t ibits;
-	uint16_t obits;
+	uint16_t param[MAX_MAILBOX];
+	uint32_t ibits;
+	uint32_t obits;
 	uint32_t
 		lineno	: 16,
 			: 12,

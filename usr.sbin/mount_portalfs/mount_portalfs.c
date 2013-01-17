@@ -31,7 +31,7 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -140,7 +140,8 @@ main(int argc, char *argv[])
 	}
 
 	/* resolve the mountpoint with realpath(3) */
-	(void)checkpath(argv[optind+1], mountpt);
+	if (checkpath(argv[optind+1], mountpt) != 0)
+		err(EX_USAGE, "%s", mountpt);
 
 	/*
 	 * Construct the listening socket

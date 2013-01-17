@@ -71,19 +71,15 @@ namespace {
       AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
-    const char *getPassName() const {
-      return "Local Stack Slot Allocation";
-    }
 
   private:
   };
 } // end anonymous namespace
 
 char LocalStackSlotPass::ID = 0;
-
-FunctionPass *llvm::createLocalStackSlotAllocationPass() {
-  return new LocalStackSlotPass();
-}
+char &llvm::LocalStackSlotAllocationID = LocalStackSlotPass::ID;
+INITIALIZE_PASS(LocalStackSlotPass, "localstackalloc",
+                "Local Stack Slot Allocation", false, false)
 
 bool LocalStackSlotPass::runOnMachineFunction(MachineFunction &MF) {
   MachineFrameInfo *MFI = MF.getFrameInfo();
@@ -318,7 +314,8 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
             // No previously defined register was in range, so create a
             // new one.
             int64_t InstrOffset = TRI->getFrameIndexInstrOffset(MI, idx);
-            const TargetRegisterClass *RC = TRI->getPointerRegClass();
+            const MachineFunction *MF = MI->getParent()->getParent();
+            const TargetRegisterClass *RC = TRI->getPointerRegClass(*MF);
             BaseReg = Fn.getRegInfo().createVirtualRegister(RC);
 
             DEBUG(dbgs() << "  Materializing base register " << BaseReg <<

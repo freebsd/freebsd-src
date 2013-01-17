@@ -1,11 +1,10 @@
 # <pre>
-# @(#)europe	8.39
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
-# tz@elsie.nci.nih.gov for general use in the future).
+# tz@iana.org for general use in the future).
 
 # From Paul Eggert (2006-03-22):
 # A good source for time zone historical data outside the U.S. is
@@ -211,8 +210,14 @@
 # the history of summer time legislation in the United Kingdom.
 # Since 1998 Joseph S. Myers has been updating
 # and extending this list, which can be found in
-# <a href="http://student.cusu.cam.ac.uk/~jsm28/british-time/">
+# http://student.cusu.cam.ac.uk/~jsm28/british-time/
+# <a href="http://www.polyomino.org.uk/british-time/">
 # History of legal time in Britain
+# </a>
+# Rob Crowther (2012-01-04) reports that that URL no longer
+# exists, and the article can now be found at:
+# <a href="http://www.polyomino.org.uk/british-time/">
+# http://www.polyomino.org.uk/british-time/
 # </a>
 
 # From Joseph S. Myers (1998-01-06):
@@ -569,12 +574,12 @@ Rule	Russia	1996	2010	-	Oct	lastSun	 2:00s	0	-
 # According to Kremlin press service, Russian President Dmitry Medvedev
 # signed a federal law "On calculation of time" on June 9, 2011.
 # According to the law Russia is abolishing daylight saving time.
-# 
-# Medvedev signed a law "On the Calculation of Time" (in russian): 
+#
+# Medvedev signed a law "On the Calculation of Time" (in russian):
 # <a href="http://bmockbe.ru/events/?ID=7583">
 # http://bmockbe.ru/events/?ID=7583
 # </a>
-# 
+#
 # Medvedev signed a law on the calculation of the time (in russian):
 # <a href="http://www.regnum.ru/news/polit/1413906.html">
 # http://www.regnum.ru/news/polit/1413906.html
@@ -1151,10 +1156,10 @@ Rule	France	1940	only	-	Feb	25	 2:00	1:00	S
 # write that they were used in Monaco and in many French locations.
 # Le Corre writes that the upper limit of the free zone was Arneguy, Orthez,
 # Mont-de-Marsan, Bazas, Langon, Lamotte-Montravel, Marouil, La
-# Rochefoucault, Champagne-Mouton, La Roche-Posay, La Haye-Decartes,
+# Rochefoucault, Champagne-Mouton, La Roche-Posay, La Haye-Descartes,
 # Loches, Montrichard, Vierzon, Bourges, Moulins, Digoin,
 # Paray-le-Monial, Montceau-les-Mines, Chalons-sur-Saone, Arbois,
-# Dole, Morez, St-Claude, and Collognes (Haute-Savioe).
+# Dole, Morez, St-Claude, and Collonges (Haute-Savoie).
 Rule	France	1941	only	-	May	 5	 0:00	2:00	M # Midsummer
 # Shanks & Pottenger say this transition occurred at Oct 6 1:00,
 # but go with Denis Excoffier (1997-12-12),
@@ -1678,6 +1683,18 @@ Zone	Europe/Malta	0:58:04 -	LMT	1893 Nov  2 0:00s # Valletta
 # a pre-1880 LMT offset of 1:58:32.
 #
 # (which agrees with the earlier entry that had been removed)
+#
+# From Alexander Krivenyshev (2011-10-26)
+# NO need to divide Moldova into two timezones at this point.
+# As of today, Transnistria (Pridnestrovie)- Tiraspol reversed its own
+# decision to abolish DST this winter.
+# Following Moldova and neighboring Ukraine- Transnistria (Pridnestrovie)-
+# Tiraspol will go back to winter time on October 30, 2011.
+# News from Moldova (in russian):
+# <a href="http://ru.publika.md/link_317061.html">
+# http://ru.publika.md/link_317061.html
+# </a>
+
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Chisinau	1:55:20 -	LMT	1880
@@ -1693,21 +1710,6 @@ Zone	Europe/Chisinau	1:55:20 -	LMT	1880
 			2:00	E-Eur	EE%sT	1997
 # See Romania commentary for the guessed 1997 transition to EU rules.
 			2:00	EU	EE%sT
-
-Zone	Europe/Tiraspol	1:58:32 -	LMT	1880
-			1:55	-	CMT	1918 Feb 15 # Chisinau MT
-			1:44:24	-	BMT	1931 Jul 24 # Bucharest MT
-			2:00	Romania	EE%sT	1940 Aug 15
-			2:00	1:00	EEST	1941 Jul 17
-			1:00	C-Eur	CE%sT	1944 Aug 24
-			3:00	Russia	MSK/MSD	1990
-			3:00	-	MSK	1990 May 6
-			2:00	-	EET	1991
-			2:00	Russia	EE%sT	1992
-			2:00	E-Eur	EE%sT	1997
-# See Romania commentary for the guessed 1997 transition to EU rules.
-			2:00	EU	EE%sT	2011 Mar lastSun 1:00u
-			3:00	-	FET # Further-eastern European Time
 
 # Monaco
 # Shanks & Pottenger give 0:09:20 for Paris Mean Time; go with Howse's
@@ -2575,11 +2577,11 @@ Zone	Europe/Zurich	0:34:08 -	LMT	1848 Sep 12
 # http://www.alomaliye.com/bkk_2002_3769.htm
 
 # From G&ouml;kdeniz Karada&#x011f; (2011-03-10):
-# 
+#
 # According to the articles linked below, Turkey will change into summer
 # time zone (GMT+3) on March 28, 2011 at 3:00 a.m. instead of March 27.
 # This change is due to a nationwide exam on 27th.
-# 
+#
 # <a href="http://www.worldbulletin.net/?aType=haber&ArticleID=70872">
 # http://www.worldbulletin.net/?aType=haber&ArticleID=70872
 # </a>
@@ -2696,7 +2698,7 @@ Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 # time this year after all.
 #
 # From Udo Schwedt (2011-10-18):
-# As far as I understand, the recent change to the Ukranian time zone 
+# As far as I understand, the recent change to the Ukranian time zone
 # (Europe/Kiev) to introduce permanent daylight saving time (similar
 # to Russia) was reverted today:
 #

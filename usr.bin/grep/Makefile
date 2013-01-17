@@ -25,13 +25,7 @@ LINKS=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep \
 	${BINDIR}/grep ${BINDIR}/zgrep \
 	${BINDIR}/grep ${BINDIR}/zegrep \
-	${BINDIR}/grep ${BINDIR}/zfgrep \
-	${BINDIR}/grep ${BINDIR}/xzgrep \
-	${BINDIR}/grep ${BINDIR}/xzegrep \
-	${BINDIR}/grep ${BINDIR}/xzfgrep \
-	${BINDIR}/grep ${BINDIR}/lzgrep \
-	${BINDIR}/grep ${BINDIR}/lzegrep \
-	${BINDIR}/grep ${BINDIR}/lzfgrep
+	${BINDIR}/grep ${BINDIR}/zfgrep
 
 MLINKS= grep.1 egrep.1 \
 	grep.1 fgrep.1 \
@@ -46,10 +40,24 @@ MLINKS= grep.1 egrep.1 \
 	grep.1 lzfgrep.1
 .endif
 
-LDADD=	-lz -llzma
-DPADD=	${LIBZ} ${LIBLZMA}
+LDADD=	-lz
+DPADD=	${LIBZ}
 
-.if !defined(WITHOUT_BZIP2)
+.if !defined(WITHOUT_LZMA_SUPPORT)
+LDADD+=	-llzma
+DPADD+=	${LIBLZMA}
+
+LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
+	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
+	${BINDIR}/${PROG} ${BINDIR}/xzfgrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzgrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzegrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzfgrep
+.else
+CFLAGS+= -DWITHOUT_LZMA
+.endif
+
+.if !defined(WITHOUT_BZIP2_SUPPORT)
 LDADD+=	-lbz2
 DPADD+=	${LIBBZ2}
 

@@ -18,7 +18,7 @@
 #ifndef IN_1_AAAA_28_H
 #define IN_1_AAAA_28_H 1
 
-/* $Id: aaaa_28.h,v 1.21 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: aaaa_28.h,v 1.21 2007/06/19 23:47:17 tbox Exp $ */
 
 /*! 
  *  \brief Per RFC1886 */

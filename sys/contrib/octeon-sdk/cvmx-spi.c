@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Support library for the SPI
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <linux/module.h>
@@ -182,9 +182,7 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
     if (!(OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX)))
         return res;
 
-#if CVMX_ENABLE_DEBUG_PRINTS
     cvmx_dprintf ("SPI%d: Restart %s\n", interface, modes[mode]);
-#endif
 
     // Callback to perform SPI4 reset
     INVOKE_CB(cvmx_spi_callbacks.reset_cb, interface,mode);
@@ -652,6 +650,13 @@ int cvmx_spi_interface_up_cb(int interface, cvmx_spi_mode_t mode)
 
     gmxx_rxx_frm_min.u64 = 0;
     gmxx_rxx_frm_min.s.len = 64;
+#ifdef OCTEON_VENDOR_RADISYS
+    /*
+     * Incoming packets on the RSYS4GBE have the FCS stripped.
+     */
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE)
+	    gmxx_rxx_frm_min.s.len -= 4;
+#endif
     cvmx_write_csr(CVMX_GMXX_RXX_FRM_MIN(0,interface), gmxx_rxx_frm_min.u64);
     gmxx_rxx_frm_max.u64 = 0;
     gmxx_rxx_frm_max.s.len = 64*1024 - 4;

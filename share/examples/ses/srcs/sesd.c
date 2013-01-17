@@ -32,14 +32,18 @@
  * mjacob@feral.com
  */
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_enc.h>
 
 #define	ALLSTAT (SES_ENCSTAT_UNRECOV | SES_ENCSTAT_CRITICAL | \
 	SES_ENCSTAT_NONCRITICAL | SES_ENCSTAT_INFO)
@@ -52,29 +56,33 @@ int
 main(int a, char **v)
 {
 	static const char *usage =
-	    "usage: %s [ -d ] [ -t pollinterval ] device [ device ]\n";
-	int fd, polltime, dev, devbase, nodaemon;
-	ses_encstat stat, *carray;
+	    "usage: %s [ -c ] [ -d ] [ -t pollinterval ] device [ device ]\n";
+	int fd, polltime, dev, nodaemon, clear, c;
+	encioc_enc_status_t stat, nstat, *carray;
 
 	if (a < 2) {
 		fprintf(stderr, usage, *v);
 		return (1);
 	}
 
-	devbase = 1;
-
-	if (strcmp(v[1], "-d") == 0) {
-		nodaemon = 1;
-		devbase++;
-	} else {
-		nodaemon = 0;
-	}
-
-	if (a > 2 && strcmp(v[2], "-t") == 0) {
-		devbase += 2;
-		polltime = atoi(v[3]);
-	} else {
-		polltime = 30;
+	nodaemon = 0;
+	polltime = 30;
+	clear = 0;
+	while ((c = getopt(a, v, "cdt:")) != -1) {
+		switch (c) {
+		case 'c':
+			clear = 1;
+			break;
+		case 'd':
+			nodaemon = 1;
+			break;
+		case 't':
+			polltime = atoi(optarg);
+			break;
+		default:
+			fprintf(stderr, usage, *v);
+			return (1);
+		}
 	}
 
 	carray = malloc(a);
@@ -82,20 +90,20 @@ main(int a, char **v)
 		perror("malloc");
 		return (1);
 	}
-	for (dev = devbase; dev < a; dev++)
-		carray[dev] = (ses_encstat) -1;
+	for (dev = optind; dev < a; dev++)
+		carray[dev] = (encioc_enc_status_t) -1;
 
 	/*
 	 * Check to make sure we can open all devices
 	 */
-	for (dev = devbase; dev < a; dev++) {
+	for (dev = optind; dev < a; dev++) {
 		fd = open(v[dev], O_RDWR);
 		if (fd < 0) {
 			perror(v[dev]);
 			return (1);
 		}
-		if (ioctl(fd, SESIOC_INIT, NULL) < 0) {
-			fprintf(stderr, "%s: SESIOC_INIT fails- %s\n",
+		if (ioctl(fd, ENCIOC_INIT, NULL) < 0) {
+			fprintf(stderr, "%s: ENCIOC_INIT fails- %s\n",
 			    v[dev], strerror(errno));
 			return (1);
 		}
@@ -112,7 +120,7 @@ main(int a, char **v)
 	}
 
 	for (;;) {
-		for (dev = devbase; dev < a; dev++) {
+		for (dev = optind; dev < a; dev++) {
 			fd = open(v[dev], O_RDWR);
 			if (fd < 0) {
 				syslog(LOG_ERR, "%s: %m", v[dev]);
@@ -122,11 +130,19 @@ main(int a, char **v)
 			/*
 			 * Get the actual current enclosure status.
 			 */
-			if (ioctl(fd, SESIOC_GETENCSTAT, (caddr_t) &stat) < 0) {
+			if (ioctl(fd, ENCIOC_GETENCSTAT, (caddr_t) &stat) < 0) {
 				syslog(LOG_ERR,
-				    "%s: SESIOC_GETENCSTAT- %m", v[dev]);
+				    "%s: ENCIOC_GETENCSTAT- %m", v[dev]);
 				(void) close(fd);
 				continue;
+			}
+			if (stat != 0 && clear) {
+				nstat = 0;
+				if (ioctl(fd, ENCIOC_SETENCSTAT,
+				    (caddr_t) &nstat) < 0) {
+					syslog(LOG_ERR,
+					    "%s: ENCIOC_SETENCSTAT- %m", v[dev]);
+				}
 			}
 			(void) close(fd);
 
@@ -139,9 +155,8 @@ main(int a, char **v)
 				    "%s: Enclosure Status OK", v[dev]);
 			}
 			if (stat & SES_ENCSTAT_INFO) {
-				syslog(LOG_INFO,
-				    "%s: Enclosure Status Has Information",
-				    v[dev]);
+				syslog(LOG_NOTICE,
+				    "%s: Enclosure Has Information", v[dev]);
 			}
 			if (stat & SES_ENCSTAT_NONCRITICAL) {
 				syslog(LOG_WARNING,

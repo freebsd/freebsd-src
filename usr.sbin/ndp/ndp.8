@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2009
+.Dd Jan 10, 2013
 .Dt NDP 8
 .Os
 .\"
@@ -192,15 +192,15 @@ on
 This flag is set by
 .Va net.inet6.ip6.auto_linklocal
 sysctl variable.
-.It Ic prefer_source
-Prefer addresses on the
+.It Ic no_prefer_iface
+The address on the outgoing interface is preferred by source addess
+selection rule.
+If this flag is set, stop treating the address on the
 .Ar interface
-as candidates of the source address for outgoing packets.
+as special even when the
+.Ar interface
+is outgoing interface.
 The default value of this flag is off.
-For more details about the entire algorithm of source address
-selection, see the
-.Pa IMPLEMENTATION
-file supplied with the KAME kit.
 .It Ic disabled
 Disable IPv6 operation on the interface.
 When disabled, the interface discards any IPv6 packets
@@ -240,8 +240,8 @@ responding to requests for
 .Ar hostname
 even though the host address is not its own.
 .It Fl t
-Print timestamp on each entry,
-making it possible to merge output with
+Print timestamp for each entry,
+to make it possible to merge the output with
 .Xr tcpdump 1 .
 Most useful when used with
 .Fl A .

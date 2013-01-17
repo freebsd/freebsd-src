@@ -1,45 +1,47 @@
 /*
- * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hdb_locl.h"
 
-RCSID("$Id: db3.c 21610 2007-07-17 07:10:45Z lha $");
-
 #if HAVE_DB3
 
-#ifdef HAVE_DB4_DB_H
+#ifdef HAVE_DBHEADER
+#include <db.h>
+#elif HAVE_DB5_DB_H
+#include <db5/db.h>
+#elif HAVE_DB4_DB_H
 #include <db4/db.h>
-#elif defined(HAVE_DB3_DB_H)
+#elif HAVE_DB3_DB_H
 #include <db3/db.h>
 #else
 #include <db.h>
@@ -125,7 +127,7 @@ DB_seq(krb5_context context, HDB *db,
 	entry->entry.principal = malloc(sizeof(*entry->entry.principal));
 	if (entry->entry.principal == NULL) {
 	    hdb_free_entry (context, entry);
-	    krb5_set_error_string(context, "malloc: out of memory");
+	    krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	    return ENOMEM;
 	} else {
 	    hdb_key2principal(context, &key_data, entry->entry.principal);
@@ -161,7 +163,7 @@ DB_rename(krb5_context context, HDB *db, const char *new_name)
     free(new);
     if(ret)
 	return errno;
-    
+
     free(db->hdb_name);
     db->hdb_name = strdup(new_name);
     return 0;
@@ -193,7 +195,7 @@ DB__get(krb5_context context, HDB *db, krb5_data key, krb5_data *reply)
 }
 
 static krb5_error_code
-DB__put(krb5_context context, HDB *db, int replace, 
+DB__put(krb5_context context, HDB *db, int replace,
 	krb5_data key, krb5_data value)
 {
     DB *d = (DB*)db->hdb_db;
@@ -264,10 +266,14 @@ DB_open(krb5_context context, HDB *db, int flags, mode_t mode)
 
     asprintf(&fn, "%s.db", db->hdb_name);
     if (fn == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
-    db_create(&d, NULL, 0);
+    if (db_create(&d, NULL, 0) != 0) {
+	free(fn);
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
+	return ENOMEM;
+    }
     db->hdb_db = d;
 
 #if (DB_VERSION_MAJOR >= 4) && (DB_VERSION_MINOR >= 1)
@@ -282,14 +288,14 @@ DB_open(krb5_context context, HDB *db, int flags, mode_t mode)
 	ret = (*d->open)(db->hdb_db, NULL, db->hdb_name, NULL, DB_BTREE,
 			 myflags, mode);
 #else
-	ret = (*d->open)(db->hdb_db, db->hdb_name, NULL, DB_BTREE, 
+	ret = (*d->open)(db->hdb_db, db->hdb_name, NULL, DB_BTREE,
 			 myflags, mode);
 #endif
     }
 
     if (ret) {
 	free(fn);
-	krb5_set_error_string(context, "opening %s: %s",
+	krb5_set_error_message(context, ret, "opening %s: %s",
 			      db->hdb_name, strerror(ret));
 	return ret;
     }
@@ -297,7 +303,7 @@ DB_open(krb5_context context, HDB *db, int flags, mode_t mode)
 
     ret = (*d->cursor)(d, NULL, &dbc, 0);
     if (ret) {
-	krb5_set_error_string(context, "d->cursor: %s", strerror(ret));
+	krb5_set_error_message(context, ret, "d->cursor: %s", strerror(ret));
         return ret;
     }
     db->hdb_dbc = dbc;
@@ -310,38 +316,39 @@ DB_open(krb5_context context, HDB *db, int flags, mode_t mode)
 	return 0;
     if (ret) {
 	DB_close(context, db);
-	krb5_set_error_string(context, "hdb_open: failed %s database %s",
-			      (flags & O_ACCMODE) == O_RDONLY ? 
-			      "checking format of" : "initialize", 
-			      db->hdb_name);
+	krb5_set_error_message(context, ret, "hdb_open: failed %s database %s",
+			       (flags & O_ACCMODE) == O_RDONLY ?
+			       "checking format of" : "initialize",
+			       db->hdb_name);
     }
 
     return ret;
 }
 
 krb5_error_code
-hdb_db_create(krb5_context context, HDB **db, 
+hdb_db_create(krb5_context context, HDB **db,
 	      const char *filename)
 {
     *db = calloc(1, sizeof(**db));
     if (*db == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
 
     (*db)->hdb_db = NULL;
     (*db)->hdb_name = strdup(filename);
     if ((*db)->hdb_name == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
 	free(*db);
 	*db = NULL;
+	krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
 	return ENOMEM;
     }
     (*db)->hdb_master_key_set = 0;
     (*db)->hdb_openp = 0;
+    (*db)->hdb_capability_flags = HDB_CAP_F_HANDLE_ENTERPRISE_PRINCIPAL;
     (*db)->hdb_open  = DB_open;
     (*db)->hdb_close = DB_close;
-    (*db)->hdb_fetch = _hdb_fetch;
+    (*db)->hdb_fetch_kvno = _hdb_fetch_kvno;
     (*db)->hdb_store = _hdb_store;
     (*db)->hdb_remove = _hdb_remove;
     (*db)->hdb_firstkey = DB_firstkey;

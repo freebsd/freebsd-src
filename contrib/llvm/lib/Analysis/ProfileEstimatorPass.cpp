@@ -286,7 +286,7 @@ void ProfileEstimatorPass::recurseBasicBlock(BasicBlock *BB) {
     }
   }
 
-  double fraction = floor(BBWeight/Edges.size());
+  double fraction = Edges.size() ? floor(BBWeight/Edges.size()) : 0.0;
   // Finally we know what flow is still not leaving the block, distribute this
   // flow onto the empty edges.
   for (SmallVector<Edge, 8>::iterator ei = Edges.begin(), ee = Edges.end();
@@ -332,7 +332,7 @@ bool ProfileEstimatorPass::runOnFunction(Function &F) {
   // Clear Minimal Edges.
   MinimalWeight.clear();
 
-  DEBUG(dbgs() << "Working on function " << F.getNameStr() << "\n");
+  DEBUG(dbgs() << "Working on function " << F.getName() << "\n");
 
   // Since the entry block is the first one and has no predecessors, the edge
   // (0,entry) is inserted with the starting weight of 1.

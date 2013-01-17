@@ -1,0 +1,32 @@
+You have a file descriptor (probably from a syscall), and you want the
+corresponding pathname.
+
+If you are on newer versions of DTrace, there is the fds[] array,
+
+# dtrace -n 'syscall::read:entry { @[fds[arg0].fi_pathname] = count(); }'
+dtrace: description 'syscall::read:entry ' matched 1 probe
+^C
+
+  /etc/minor_perm                                                   2
+  /etc/mnttab                                                       2
+  /etc/motd                                                         2
+  /etc/magic                                                        4
+  /usr/sbin/clri                                                    5
+  /devices/pseudo/clone@0:ptm                                       6
+  /sbin/mount                                                       6
+  /dev/pts/28                                                       7
+  /devices/pseudo/consms@0:mouse                                   31
+  /devices/pseudo/conskbd@0:kbd                                    47
+  <unknown>                                                       351
+
+easy.
+
+but if you are on an older version of DTrace, try this to convert from
+this->fd to self->vpath,
+
+        this->filep =
+	    curthread->t_procp->p_user.u_finfo.fi_list[this->fd].uf_file;
+        this->vnodep = this->filep != 0 ? this->filep->f_vnode : 0;
+        self->vpath = this->vnodep ? (this->vnodep->v_path != 0 ?
+            cleanpath(this->vnodep->v_path) : "<unknown>") : "<unknown>";
+

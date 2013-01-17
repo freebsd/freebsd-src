@@ -1870,13 +1870,13 @@ fe_get_packet (struct fe_softc * sc, u_short len)
 	 */
 
 	/* Allocate an mbuf with packet header info.  */
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return -1;
 
 	/* Attach a cluster if this packet doesn't fit in a normal mbuf.  */
 	if (len > MHLEN - NFS_MAGIC_OFFSET) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if (!(m->m_flags & M_EXT)) {
 			m_freem(m);
 			return -1;
@@ -2255,6 +2255,7 @@ fe_medchange (struct ifnet *ifp)
 static void
 fe_medstat (struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	(void)ifp;
-	(void)ifmr;
+	struct fe_softc *sc = ifp->if_softc;
+
+	ifmr->ifm_active = sc->media.ifm_media;
 }

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -50,7 +50,7 @@
  *
  * Bootloader definitions that are shared with other programs
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 
@@ -127,9 +127,9 @@ typedef enum
     BL_HEADER_IMAGE_PCIBOOT,     /* Binary bootloader for PCI boot */
     BL_HEADER_IMAGE_UBOOT_ENV,  /* Environment for u-boot */
     BL_HEADER_IMAGE_MAX,
-    /* Range for customer private use.  Will not be used by Cavium Networks */
+    /* Range for customer private use.  Will not be used by Cavium Inc. */
     BL_HEADER_IMAGE_CUST_RESERVED_MIN = 0x1000,
-    BL_HEADER_IMAGE_CUST_RESERVED_MAX = 0x1fff,
+    BL_HEADER_IMAGE_CUST_RESERVED_MAX = 0x1fff
 } bootloader_image_t;
 
 #endif /* __ASSEMBLY__ */
@@ -139,7 +139,7 @@ typedef enum
 #define MAX_NAND_SEARCH_ADDR   0x400000
 
 /* Maximum address to look for start of normal bootloader */
-#define MAX_NOR_SEARCH_ADDR   0x100000
+#define MAX_NOR_SEARCH_ADDR   0x200000
 
 /* Defines for RAM based environment set by the host or the previous bootloader
 ** in a chain boot configuration. */
@@ -147,5 +147,6 @@ typedef enum
 #define U_BOOT_RAM_ENV_ADDR     (0x1000)
 #define U_BOOT_RAM_ENV_SIZE     (0x1000)
 #define U_BOOT_RAM_ENV_CRC_SIZE (0x4)
+#define U_BOOT_RAM_ENV_ADDR_2	(U_BOOT_RAM_ENV_ADDR + U_BOOT_RAM_ENV_SIZE)
 
 #endif /* __CVMX_BOOTLOADER__ */

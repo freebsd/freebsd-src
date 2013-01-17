@@ -178,8 +178,10 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_FILE)
 #include <vm/vm.h>
+
+struct file;
 
 struct shmfd {
 	size_t		shm_size;
@@ -188,6 +190,7 @@ struct shmfd {
 	uid_t		shm_uid;
 	gid_t		shm_gid;
 	mode_t		shm_mode;
+	int		shm_kmappings;
 
 	/*
 	 * Values maintained solely to make this a better-behaved file
@@ -199,10 +202,16 @@ struct shmfd {
 	struct timespec	shm_birthtime;
 
 	struct label	*shm_label;		/* MAC label */
+	const char	*shm_path;
 };
+#endif
 
+#ifdef _KERNEL
 int	shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
 	    vm_object_t *obj);
+int	shm_map(struct file *fp, size_t size, off_t offset, void **memp);
+int	shm_unmap(struct file *fp, void *mem, size_t size);
+void	shm_path(struct shmfd *shmfd, char *path, size_t size);
 
 #else /* !_KERNEL */
 

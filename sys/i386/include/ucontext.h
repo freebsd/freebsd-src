@@ -31,11 +31,18 @@
 #ifndef _MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
+/* Keep _MC_* values similar to amd64 */
+#define	_MC_HASSEGS	0x1
+#define	_MC_HASBASES	0x2
+#define	_MC_HASFPXSTATE	0x4
+#define	_MC_FLAG_MASK	(_MC_HASSEGS | _MC_HASBASES | _MC_HASFPXSTATE)
+
 typedef struct __mcontext {
 	/*
-	 * The first 20 fields must match the definition of
-	 * sigcontext. So that we can support sigcontext
-	 * and ucontext_t at the same time.
+	 * The definition of mcontext_t must match the layout of
+	 * struct sigcontext after the sc_mask member.  This is so
+	 * that we can support sigcontext and ucontext_t at the same
+	 * time.
 	 */
 	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
 	__register_t	mc_gs;		/* machine state (struct trapframe) */
@@ -67,7 +74,7 @@ typedef struct __mcontext {
 #define	_MC_FPOWNED_FPU		0x20001	/* FP state came from FPU */
 #define	_MC_FPOWNED_PCB		0x20002	/* FP state came from PCB */
 	int	mc_ownedfp;
-	int	mc_spare1[1];		/* align next field to 16 bytes */
+	__register_t mc_flags;
 	/*
 	 * See <machine/npx.h> for the internals of mc_fpstate[].
 	 */
@@ -76,11 +83,13 @@ typedef struct __mcontext {
 	__register_t mc_fsbase;
 	__register_t mc_gsbase;
 
-	int	mc_spare2[6];
+	__register_t mc_xfpustate;
+	__register_t mc_xfpustate_len;
+
+	int	mc_spare2[4];
 } mcontext_t;
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
-
 struct mcontext4 {
 	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
 	__register_t	mc_gs;		/* machine state (struct trapframe) */

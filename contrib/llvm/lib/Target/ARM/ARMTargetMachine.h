@@ -15,7 +15,6 @@
 #define ARMTARGETMACHINE_H
 
 #include "ARMInstrInfo.h"
-#include "ARMELFWriterInfo.h"
 #include "ARMFrameLowering.h"
 #include "ARMJITInfo.h"
 #include "ARMSubtarget.h"
@@ -25,7 +24,8 @@
 #include "Thumb1FrameLowering.h"
 #include "Thumb2InstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetTransformImpl.h"
+#include "llvm/DataLayout.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/ADT/OwningPtr.h"
 
@@ -41,7 +41,9 @@ private:
 public:
   ARMBaseTargetMachine(const Target &T, StringRef TT,
                        StringRef CPU, StringRef FS,
-                       Reloc::Model RM, CodeModel::Model CM);
+                       const TargetOptions &Options,
+                       Reloc::Model RM, CodeModel::Model CM,
+                       CodeGenOpt::Level OL);
 
   virtual       ARMJITInfo       *getJITInfo()         { return &JITInfo; }
   virtual const ARMSubtarget  *getSubtargetImpl() const { return &Subtarget; }
@@ -50,28 +52,28 @@ public:
   }
 
   // Pass Pipeline Configuration
-  virtual bool addPreISel(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addPreRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addPreSched2(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              JITCodeEmitter &MCE);
+  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
+
+  virtual bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &MCE);
 };
 
 /// ARMTargetMachine - ARM target machine.
 ///
 class ARMTargetMachine : public ARMBaseTargetMachine {
+  virtual void anchor();
   ARMInstrInfo        InstrInfo;
-  const TargetData    DataLayout;       // Calculates type size & alignment
-  ARMELFWriterInfo    ELFWriterInfo;
+  const DataLayout    DL;       // Calculates type size & alignment
   ARMTargetLowering   TLInfo;
   ARMSelectionDAGInfo TSInfo;
   ARMFrameLowering    FrameLowering;
+  ScalarTargetTransformImpl STTI;
+  VectorTargetTransformImpl VTTI;
  public:
   ARMTargetMachine(const Target &T, StringRef TT,
                    StringRef CPU, StringRef FS,
-                   Reloc::Model RM, CodeModel::Model CM);
+                   const TargetOptions &Options,
+                   Reloc::Model RM, CodeModel::Model CM,
+                   CodeGenOpt::Level OL);
 
   virtual const ARMRegisterInfo  *getRegisterInfo() const {
     return &InstrInfo.getRegisterInfo();
@@ -87,12 +89,14 @@ class ARMTargetMachine : public ARMBaseTargetMachine {
   virtual const ARMFrameLowering *getFrameLowering() const {
     return &FrameLowering;
   }
-
-  virtual const ARMInstrInfo     *getInstrInfo() const { return &InstrInfo; }
-  virtual const TargetData       *getTargetData() const { return &DataLayout; }
-  virtual const ARMELFWriterInfo *getELFWriterInfo() const {
-    return Subtarget.isTargetELF() ? &ELFWriterInfo : 0;
+  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
+    return &STTI;
   }
+  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
+    return &VTTI;
+  }
+  virtual const ARMInstrInfo     *getInstrInfo() const { return &InstrInfo; }
+  virtual const DataLayout       *getDataLayout() const { return &DL; }
 };
 
 /// ThumbTargetMachine - Thumb target machine.
@@ -100,18 +104,22 @@ class ARMTargetMachine : public ARMBaseTargetMachine {
 ///   Thumb-1 and Thumb-2.
 ///
 class ThumbTargetMachine : public ARMBaseTargetMachine {
+  virtual void anchor();
   // Either Thumb1InstrInfo or Thumb2InstrInfo.
   OwningPtr<ARMBaseInstrInfo> InstrInfo;
-  const TargetData    DataLayout;   // Calculates type size & alignment
-  ARMELFWriterInfo    ELFWriterInfo;
+  const DataLayout    DL;   // Calculates type size & alignment
   ARMTargetLowering   TLInfo;
   ARMSelectionDAGInfo TSInfo;
   // Either Thumb1FrameLowering or ARMFrameLowering.
   OwningPtr<ARMFrameLowering> FrameLowering;
+  ScalarTargetTransformImpl STTI;
+  VectorTargetTransformImpl VTTI;
 public:
   ThumbTargetMachine(const Target &T, StringRef TT,
                      StringRef CPU, StringRef FS,
-                     Reloc::Model RM, CodeModel::Model CM);
+                     const TargetOptions &Options,
+                     Reloc::Model RM, CodeModel::Model CM,
+                     CodeGenOpt::Level OL);
 
   /// returns either Thumb1RegisterInfo or Thumb2RegisterInfo
   virtual const ARMBaseRegisterInfo *getRegisterInfo() const {
@@ -134,10 +142,13 @@ public:
   virtual const ARMFrameLowering *getFrameLowering() const {
     return FrameLowering.get();
   }
-  virtual const TargetData       *getTargetData() const { return &DataLayout; }
-  virtual const ARMELFWriterInfo *getELFWriterInfo() const {
-    return Subtarget.isTargetELF() ? &ELFWriterInfo : 0;
+  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
+    return &STTI;
   }
+  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
+    return &VTTI;
+  }
+  virtual const DataLayout       *getDataLayout() const { return &DL; }
 };
 
 } // end namespace llvm

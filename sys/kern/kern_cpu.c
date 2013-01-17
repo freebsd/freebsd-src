@@ -135,7 +135,8 @@ static int		cf_lowest_freq;
 static int		cf_verbose;
 TUNABLE_INT("debug.cpufreq.lowest", &cf_lowest_freq);
 TUNABLE_INT("debug.cpufreq.verbose", &cf_verbose);
-SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL, "cpufreq debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL,
+    "cpufreq debugging");
 SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RW, &cf_lowest_freq, 1,
     "Don't provide levels below this frequency.");
 SYSCTL_INT(_debug_cpufreq, OID_AUTO, verbose, CTLFLAG_RW, &cf_verbose, 1,
@@ -311,7 +312,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	}
 
 	/* If already at this level, just return. */
-	if (CPUFREQ_CMP(sc->curr_level.total_set.freq, level->total_set.freq)) {
+	if (sc->curr_level.total_set.freq == level->total_set.freq) {
 		CF_DEBUG("skipping freq %d, same as current level %d\n",
 		    level->total_set.freq, sc->curr_level.total_set.freq);
 		goto skip;
@@ -470,7 +471,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 		if (CPUFREQ_DRV_GET(devs[n], &set) != 0)
 			continue;
 		for (i = 0; i < count; i++) {
-			if (CPUFREQ_CMP(set.freq, levels[i].total_set.freq)) {
+			if (set.freq == levels[i].total_set.freq) {
 				sc->curr_level = levels[i];
 				break;
 			}
@@ -626,16 +627,6 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 	/* Finally, output the list of levels. */
 	i = 0;
 	TAILQ_FOREACH(lev, &sc->all_levels, link) {
-		/*
-		 * Skip levels that are too close in frequency to the
-		 * previous levels.  Some systems report bogus duplicate
-		 * settings (i.e., for acpi_perf).
-		 */
-		if (i > 0 && CPUFREQ_CMP(lev->total_set.freq,
-		    levels[i - 1].total_set.freq)) {
-			sc->all_count--;
-			continue;
-		}
 
 		/* Skip levels that have a frequency that is too low. */
 		if (lev->total_set.freq < cf_lowest_freq) {
@@ -869,7 +860,7 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct cpufreq_softc *sc;
 	struct cf_level *levels;
-	int count, devcount, error, freq, i, n;
+	int best, count, diff, bdiff, devcount, error, freq, i, n;
 	device_t *devs;
 
 	devs = NULL;
@@ -901,17 +892,16 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 			"cpufreq: need to increase CF_MAX_LEVELS\n");
 			break;
 		}
+		best = 0;
+		bdiff = 1 << 30;
 		for (i = 0; i < count; i++) {
-			if (CPUFREQ_CMP(levels[i].total_set.freq, freq)) {
-				error = CPUFREQ_SET(devs[n], &levels[i],
-				    CPUFREQ_PRIO_USER);
-				break;
+			diff = abs(levels[i].total_set.freq - freq);
+			if (diff < bdiff) {
+				bdiff = diff;
+				best = i;
 			}
 		}
-		if (i == count) {
-			error = EINVAL;
-			break;
-		}
+		error = CPUFREQ_SET(devs[n], &levels[best], CPUFREQ_PRIO_USER);
 	}
 
 out:

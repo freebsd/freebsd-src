@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 struct bus_dma_tag {
 	bus_dma_tag_t	parent;
 	bus_size_t	alignment;
-	bus_size_t	boundary;
+	bus_addr_t	boundary;
 	bus_addr_t	lowaddr;
 	bus_addr_t	highaddr;
 	bus_dma_filter_t *filter;
@@ -88,7 +88,7 @@ static int total_bpages;
 static int total_bounced;
 static int total_deferred;
 
-SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, free_bpages, CTLFLAG_RD, &free_bpages, 0,
     "Free bounce pages");
 SYSCTL_INT(_hw_busdma, OID_AUTO, reserved_bpages, CTLFLAG_RD, &reserved_bpages,
@@ -139,7 +139,7 @@ static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr,
 static __inline int
 run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t len)
 {
-	bus_size_t bndy;
+	bus_addr_t bndy;
 	int retval;
 
 	retval = 0;
@@ -199,7 +199,7 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
  */
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-    bus_size_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
+    bus_addr_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
     bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
     int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
     void *lockfuncarg, bus_dma_tag_t *dmat)
@@ -262,7 +262,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			atomic_add_int(&parent->ref_count, 1);
 	}
 
-	if (newtag->lowaddr < ptoa(Maxmem) && (flags & BUS_DMA_ALLOCNOW) != 0) {
+	if (newtag->lowaddr < paddr_max && (flags & BUS_DMA_ALLOCNOW) != 0) {
 		/* Must bounce */
 
 		if (ptoa(total_bpages) < maxsize) {
@@ -340,7 +340,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * exclusion region, a data alignment that is stricter than 1, and/or
 	 * an active address boundary.
 	 */
-	if (dmat->lowaddr < ptoa(Maxmem)) {
+	if (dmat->lowaddr < paddr_max) {
 		/* Must bounce */
 		int maxpages;
 
@@ -356,7 +356,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 * Attempt to add pages to our pool on a per-instance
 		 * basis up to a sane limit.
 		 */
-		maxpages = MIN(MAX_BPAGES, Maxmem - atop(dmat->lowaddr));
+		maxpages = MIN(MAX_BPAGES, atop(paddr_max - dmat->lowaddr));
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
 		 || (dmat->map_count > 0 && total_bpages < maxpages)) {
 			int pages;
@@ -438,7 +438,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	 */
 	if ((dmat->maxsize <= PAGE_SIZE) &&
 	   (dmat->alignment < dmat->maxsize) &&
-	    dmat->lowaddr >= ptoa(Maxmem)) {
+	    dmat->lowaddr >= paddr_max) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
 	} else {
 		/*
@@ -473,7 +473,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		panic("bus_dmamem_free: Invalid map freed\n");
 	if ((dmat->maxsize <= PAGE_SIZE) &&
 	   (dmat->alignment < dmat->maxsize) &&
-	    dmat->lowaddr >= ptoa(Maxmem))
+	    dmat->lowaddr >= paddr_max)
 		free(vaddr, M_DEVBUF);
 	else {
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
@@ -506,7 +506,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	else
 		pmap = NULL;
 
-	if ((dmat->lowaddr < ptoa(Maxmem) || dmat->boundary > 0 ||
+	if ((dmat->lowaddr < paddr_max || dmat->boundary > 0 ||
 	    dmat->alignment > 1) && map != &nobounce_dmamap &&
 	    map->pagesneeded == 0) {
 		vm_offset_t vendaddr;

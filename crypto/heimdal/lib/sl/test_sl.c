@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -31,8 +31,6 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "sl_locl.h"
-
-RCSID("$Id: test_sl.c 19555 2006-12-28 23:40:17Z lha $");
 
 struct {
     int ok;
@@ -82,7 +80,7 @@ main(int argc, char **argv)
 	} else if (!lines[i].ok)
 	    errx(1, "sl_make_argv passed test %d when it shouldn't", i);
 	if (rargc != lines[i].argc)
-	    errx(1, "result argc (%d) != should be argc (%d) for test %d", 
+	    errx(1, "result argc (%d) != should be argc (%d) for test %d",
 		 rargc, lines[i].argc, i);
 	for (j = 0; j < rargc; j++)
 	    if (strcmp(rargv[j], lines[i].argv[j]) != 0)

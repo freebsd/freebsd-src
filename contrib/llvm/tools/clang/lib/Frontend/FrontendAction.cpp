@@ -14,67 +14,102 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Frontend/ASTUnit.h"
+#include "clang/Frontend/ChainedIncludesSource.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
+#include "clang/Frontend/LayoutOverrideSource.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Parse/ParseAST.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
 #include "clang/Serialization/ASTReader.h"
-#include "clang/Serialization/ChainedIncludesSource.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/Timer.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
+#include "llvm/Support/Timer.h"
 using namespace clang;
 
 namespace {
 
-/// \brief Dumps deserialized declarations.
-class DeserializedDeclsDumper : public ASTDeserializationListener {
+class DelegatingDeserializationListener : public ASTDeserializationListener {
   ASTDeserializationListener *Previous;
 
 public:
-  DeserializedDeclsDumper(ASTDeserializationListener *Previous)
+  explicit DelegatingDeserializationListener(
+                                           ASTDeserializationListener *Previous)
     : Previous(Previous) { }
+
+  virtual void ReaderInitialized(ASTReader *Reader) {
+    if (Previous)
+      Previous->ReaderInitialized(Reader);
+  }
+  virtual void IdentifierRead(serialization::IdentID ID,
+                              IdentifierInfo *II) {
+    if (Previous)
+      Previous->IdentifierRead(ID, II);
+  }
+  virtual void TypeRead(serialization::TypeIdx Idx, QualType T) {
+    if (Previous)
+      Previous->TypeRead(Idx, T);
+  }
+  virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
+    if (Previous)
+      Previous->DeclRead(ID, D);
+  }
+  virtual void SelectorRead(serialization::SelectorID ID, Selector Sel) {
+    if (Previous)
+      Previous->SelectorRead(ID, Sel);
+  }
+  virtual void MacroDefinitionRead(serialization::PreprocessedEntityID PPID, 
+                                   MacroDefinition *MD) {
+    if (Previous)
+      Previous->MacroDefinitionRead(PPID, MD);
+  }
+};
+
+/// \brief Dumps deserialized declarations.
+class DeserializedDeclsDumper : public DelegatingDeserializationListener {
+public:
+  explicit DeserializedDeclsDumper(ASTDeserializationListener *Previous)
+    : DelegatingDeserializationListener(Previous) { }
 
   virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
     llvm::outs() << "PCH DECL: " << D->getDeclKindName();
     if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
-      llvm::outs() << " - " << ND->getNameAsString();
+      llvm::outs() << " - " << *ND;
     llvm::outs() << "\n";
 
-    if (Previous)
-      Previous->DeclRead(ID, D);
+    DelegatingDeserializationListener::DeclRead(ID, D);
   }
 };
 
-  /// \brief Checks deserialized declarations and emits error if a name
-  /// matches one given in command-line using -error-on-deserialized-decl.
-  class DeserializedDeclsChecker : public ASTDeserializationListener {
-    ASTContext &Ctx;
-    std::set<std::string> NamesToCheck;
-    ASTDeserializationListener *Previous;
+/// \brief Checks deserialized declarations and emits error if a name
+/// matches one given in command-line using -error-on-deserialized-decl.
+class DeserializedDeclsChecker : public DelegatingDeserializationListener {
+  ASTContext &Ctx;
+  std::set<std::string> NamesToCheck;
 
-  public:
-    DeserializedDeclsChecker(ASTContext &Ctx,
-                             const std::set<std::string> &NamesToCheck, 
-                             ASTDeserializationListener *Previous)
-      : Ctx(Ctx), NamesToCheck(NamesToCheck), Previous(Previous) { }
+public:
+  DeserializedDeclsChecker(ASTContext &Ctx,
+                           const std::set<std::string> &NamesToCheck,
+                           ASTDeserializationListener *Previous)
+    : DelegatingDeserializationListener(Previous),
+      Ctx(Ctx), NamesToCheck(NamesToCheck) { }
 
-    virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
-      if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
-        if (NamesToCheck.find(ND->getNameAsString()) != NamesToCheck.end()) {
-          unsigned DiagID
-            = Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
-                                                   "%0 was deserialized");
-          Ctx.getDiagnostics().Report(Ctx.getFullLoc(D->getLocation()), DiagID)
-              << ND->getNameAsString();
-        }
+  virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
+    if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
+      if (NamesToCheck.find(ND->getNameAsString()) != NamesToCheck.end()) {
+        unsigned DiagID
+          = Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
+                                                 "%0 was deserialized");
+        Ctx.getDiagnostics().Report(Ctx.getFullLoc(D->getLocation()), DiagID)
+            << ND->getNameAsString();
+      }
 
-      if (Previous)
-        Previous->DeclRead(ID, D);
-    }
+    DelegatingDeserializationListener::DeclRead(ID, D);
+  }
 };
 
 } // end anonymous namespace
@@ -83,10 +118,9 @@ FrontendAction::FrontendAction() : Instance(0) {}
 
 FrontendAction::~FrontendAction() {}
 
-void FrontendAction::setCurrentFile(StringRef Value, InputKind Kind,
-                                    ASTUnit *AST) {
-  CurrentFile = Value;
-  CurrentFileKind = Kind;
+void FrontendAction::setCurrentInput(const FrontendInputFile &CurrentInput,
+                                     ASTUnit *AST) {
+  this->CurrentInput = CurrentInput;
   CurrentASTUnit.reset(AST);
 }
 
@@ -112,7 +146,7 @@ ASTConsumer* FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
         ie = FrontendPluginRegistry::end();
         it != ie; ++it) {
       if (it->getName() == CI.getFrontendOpts().AddPluginActions[i]) {
-        llvm::OwningPtr<PluginASTAction> P(it->instantiate());
+        OwningPtr<PluginASTAction> P(it->instantiate());
         FrontendAction* c = P.get();
         if (P->ParseArgs(CI, CI.getFrontendOpts().AddPluginArgs[i]))
           Consumers.push_back(c->CreateASTConsumer(CI, InFile));
@@ -123,33 +157,35 @@ ASTConsumer* FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
   return new MultiplexConsumer(Consumers);
 }
 
+
 bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
-                                     StringRef Filename,
-                                     InputKind InputKind) {
+                                     const FrontendInputFile &Input) {
   assert(!Instance && "Already processing a source file!");
-  assert(!Filename.empty() && "Unexpected empty filename!");
-  setCurrentFile(Filename, InputKind);
+  assert(!Input.isEmpty() && "Unexpected empty filename!");
+  setCurrentInput(Input);
   setCompilerInstance(&CI);
 
+  StringRef InputFile = Input.getFile();
+  bool HasBegunSourceFile = false;
   if (!BeginInvocation(CI))
     goto failure;
 
   // AST files follow a very different path, since they share objects via the
   // AST unit.
-  if (InputKind == IK_AST) {
+  if (Input.getKind() == IK_AST) {
     assert(!usesPreprocessorOnly() &&
            "Attempt to pass AST file to preprocessor only action!");
     assert(hasASTFileSupport() &&
            "This action does not have AST file support!");
 
-    llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
     std::string Error;
-    ASTUnit *AST = ASTUnit::LoadFromASTFile(Filename, Diags,
+    ASTUnit *AST = ASTUnit::LoadFromASTFile(InputFile, Diags,
                                             CI.getFileSystemOpts());
     if (!AST)
       goto failure;
 
-    setCurrentFile(Filename, InputKind, AST);
+    setCurrentInput(Input, AST);
 
     // Set the shared objects, these are reset when we finish processing the
     // file, otherwise the CompilerInstance will happily destroy them.
@@ -159,11 +195,11 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.setASTContext(&AST->getASTContext());
 
     // Initialize the action.
-    if (!BeginSourceFileAction(CI, Filename))
+    if (!BeginSourceFileAction(CI, InputFile))
       goto failure;
 
     /// Create the AST consumer.
-    CI.setASTConsumer(CreateWrappedASTConsumer(CI, Filename));
+    CI.setASTConsumer(CreateWrappedASTConsumer(CI, InputFile));
     if (!CI.hasASTConsumer())
       goto failure;
 
@@ -177,18 +213,58 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.createSourceManager(CI.getFileManager());
 
   // IR files bypass the rest of initialization.
-  if (InputKind == IK_LLVM_IR) {
+  if (Input.getKind() == IK_LLVM_IR) {
     assert(hasIRSupport() &&
            "This action does not have IR file support!");
 
     // Inform the diagnostic client we are processing a source file.
     CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(), 0);
+    HasBegunSourceFile = true;
 
     // Initialize the action.
-    if (!BeginSourceFileAction(CI, Filename))
+    if (!BeginSourceFileAction(CI, InputFile))
       goto failure;
 
     return true;
+  }
+
+  // If the implicit PCH include is actually a directory, rather than
+  // a single file, search for a suitable PCH file in that directory.
+  if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
+    FileManager &FileMgr = CI.getFileManager();
+    PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+    StringRef PCHInclude = PPOpts.ImplicitPCHInclude;
+    if (const DirectoryEntry *PCHDir = FileMgr.getDirectory(PCHInclude)) {
+      llvm::error_code EC;
+      SmallString<128> DirNative;
+      llvm::sys::path::native(PCHDir->getName(), DirNative);
+      bool Found = false;
+      for (llvm::sys::fs::directory_iterator Dir(DirNative.str(), EC), DirEnd;
+           Dir != DirEnd && !EC; Dir.increment(EC)) {
+        // Check whether this is an acceptable AST file.
+        if (ASTReader::isAcceptableASTFile(Dir->path(), FileMgr,
+                                           CI.getLangOpts(),
+                                           CI.getTargetOpts(),
+                                           CI.getPreprocessorOpts())) {
+          for (unsigned I = 0, N = PPOpts.Includes.size(); I != N; ++I) {
+            if (PPOpts.Includes[I] == PPOpts.ImplicitPCHInclude) {
+              PPOpts.Includes[I] = Dir->path();
+              PPOpts.ImplicitPCHInclude = Dir->path();
+              Found = true;
+              break;
+            }
+          }
+
+          assert(Found && "Implicit PCH include not in includes list?");
+          break;
+        }
+      }
+
+      if (!Found) {
+        CI.getDiagnostics().Report(diag::err_fe_no_pch_in_dir) << PCHInclude;
+        return true;
+      }
+    }
   }
 
   // Set up the preprocessor.
@@ -197,9 +273,10 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   // Inform the diagnostic client we are processing a source file.
   CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(),
                                            &CI.getPreprocessor());
+  HasBegunSourceFile = true;
 
   // Initialize the action.
-  if (!BeginSourceFileAction(CI, Filename))
+  if (!BeginSourceFileAction(CI, InputFile))
     goto failure;
 
   /// Create the AST context and consumer unless this is a preprocessor only
@@ -207,16 +284,18 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   if (!usesPreprocessorOnly()) {
     CI.createASTContext();
 
-    llvm::OwningPtr<ASTConsumer> Consumer(
-        CreateWrappedASTConsumer(CI, Filename));
+    OwningPtr<ASTConsumer> Consumer(
+                                   CreateWrappedASTConsumer(CI, InputFile));
     if (!Consumer)
       goto failure;
 
     CI.getASTContext().setASTMutationListener(Consumer->GetASTMutationListener());
-
+    CI.getPreprocessor().setPPMutationListener(
+      Consumer->GetPPMutationListener());
+    
     if (!CI.getPreprocessorOpts().ChainedIncludes.empty()) {
       // Convert headers to PCH and chain them.
-      llvm::OwningPtr<ExternalASTSource> source;
+      OwningPtr<ExternalASTSource> source;
       source.reset(ChainedIncludesSource::create(CI));
       if (!source)
         goto failure;
@@ -236,7 +315,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
       CI.createPCHExternalASTSource(
                                 CI.getPreprocessorOpts().ImplicitPCHInclude,
                                 CI.getPreprocessorOpts().DisablePCHValidation,
-                                CI.getPreprocessorOpts().DisableStatCache,
+                            CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
                                 DeserialListener);
       if (!CI.getASTContext().getExternalSource())
         goto failure;
@@ -252,9 +331,19 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   if (!CI.hasASTContext() || !CI.getASTContext().getExternalSource()) {
     Preprocessor &PP = CI.getPreprocessor();
     PP.getBuiltinInfo().InitializeBuiltins(PP.getIdentifierTable(),
-                                           PP.getLangOptions());
+                                           PP.getLangOpts());
   }
 
+  // If there is a layout overrides file, attach an external AST source that
+  // provides the layouts from that file.
+  if (!CI.getFrontendOpts().OverrideRecordLayoutsFile.empty() && 
+      CI.hasASTContext() && !CI.getASTContext().getExternalSource()) {
+    OwningPtr<ExternalASTSource> 
+      Override(new LayoutOverrideSource(
+                     CI.getFrontendOpts().OverrideRecordLayoutsFile));
+    CI.getASTContext().setExternalSource(Override);
+  }
+  
   return true;
 
   // If we failed, reset state since the client will not end up calling the
@@ -267,29 +356,22 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.setFileManager(0);
   }
 
-  CI.getDiagnosticClient().EndSourceFile();
-  setCurrentFile("", IK_None);
+  if (HasBegunSourceFile)
+    CI.getDiagnosticClient().EndSourceFile();
+  CI.clearOutputFiles(/*EraseFiles=*/true);
+  setCurrentInput(FrontendInputFile());
   setCompilerInstance(0);
   return false;
 }
 
-void FrontendAction::Execute() {
+bool FrontendAction::Execute() {
   CompilerInstance &CI = getCompilerInstance();
 
   // Initialize the main file entry. This needs to be delayed until after PCH
   // has loaded.
-  if (isCurrentFileAST()) {
-    // Set the main file ID to an empty file.
-    //
-    // FIXME: We probably shouldn't need this, but for now this is the
-    // simplest way to reuse the logic in ParseAST.
-    const char *EmptyStr = "";
-    llvm::MemoryBuffer *SB =
-      llvm::MemoryBuffer::getMemBuffer(EmptyStr, "<dummy input>");
-    CI.getSourceManager().createMainFileIDForMemBuffer(SB);
-  } else {
-    if (!CI.InitializeSourceManager(getCurrentFile()))
-      return;
+  if (!isCurrentFileAST()) {
+    if (!CI.InitializeSourceManager(getCurrentInput()))
+      return false;
   }
 
   if (CI.hasFrontendTimer()) {
@@ -297,6 +379,8 @@ void FrontendAction::Execute() {
     ExecuteAction();
   }
   else ExecuteAction();
+
+  return true;
 }
 
 void FrontendAction::EndSourceFile() {
@@ -352,7 +436,7 @@ void FrontendAction::EndSourceFile() {
   }
 
   setCompilerInstance(0);
-  setCurrentFile("", IK_None);
+  setCurrentInput(FrontendInputFile());
 }
 
 //===----------------------------------------------------------------------===//
@@ -376,8 +460,11 @@ void ASTFrontendAction::ExecuteAction() {
   if (!CI.hasSema())
     CI.createSema(getTranslationUnitKind(), CompletionConsumer);
 
-  ParseAST(CI.getSema(), CI.getFrontendOpts().ShowStats);
+  ParseAST(CI.getSema(), CI.getFrontendOpts().ShowStats,
+           CI.getFrontendOpts().SkipFunctionBodies);
 }
+
+void PluginASTAction::anchor() { }
 
 ASTConsumer *
 PreprocessorFrontendAction::CreateASTConsumer(CompilerInstance &CI,
@@ -394,7 +481,7 @@ bool WrapperFrontendAction::BeginInvocation(CompilerInstance &CI) {
 }
 bool WrapperFrontendAction::BeginSourceFileAction(CompilerInstance &CI,
                                                   StringRef Filename) {
-  WrappedAction->setCurrentFile(getCurrentFile(), getCurrentFileKind());
+  WrappedAction->setCurrentInput(getCurrentInput());
   WrappedAction->setCompilerInstance(&CI);
   return WrappedAction->BeginSourceFileAction(CI, Filename);
 }

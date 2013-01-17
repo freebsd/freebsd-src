@@ -114,7 +114,7 @@ grscan(int search, int gid)
 			return(0);
 		bp = line;
 		/* skip lines that are too big */
-		if (!index(line, '\n')) {
+		if (!strchr(line, '\n')) {
 			int ch;
 
 			while ((ch = getc(_gr_fp)) != '\n' && ch != EOF)

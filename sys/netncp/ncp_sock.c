@@ -157,7 +157,7 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 	int error, flags=0;
 
 	for (;;) {
-		m = m_copym(top, 0, M_COPYALL, M_WAIT);
+		m = m_copym(top, 0, M_COPYALL, M_WAITOK);
 /*		NCPDDEBUG(m);*/
 		error = sosend(so, to, 0, m, 0, flags, td);
 		if (error == 0 || error == EINTR || error == ENETDOWN)

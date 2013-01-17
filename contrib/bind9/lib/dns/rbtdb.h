@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.h,v 1.18.814.2 2011-03-03 23:47:09 tbox Exp $ */
+/* $Id$ */
 
 #ifndef DNS_RBTDB_H
 #define DNS_RBTDB_H 1

@@ -86,10 +86,10 @@ static int stream_ch = 1;
 static int tx_speed = 2;
 static int rx_queue_len = FWMAXQUEUE;
 
-MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
+static MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RW, &fwedebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
-SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
 	"Ethernet emulation subsystem");
 SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, stream_ch, CTLFLAG_RW, &stream_ch, 0,
 	"Stream channel to use");
@@ -214,7 +214,6 @@ fwe_attach(device_t dev)
 #endif
 	ifp->if_start = fwe_start;
 	ifp->if_ioctl = fwe_ioctl;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
 
@@ -358,7 +357,7 @@ fwe_init(void *arg)
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
 		for (i = 0; i < xferq->bnchunk; i ++) {
-			m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
 			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
 			STAILQ_INSERT_TAIL(&xferq->stfree,
@@ -607,7 +606,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 #endif
 
 		/* keep ip packet alignment for alpha */
-		M_PREPEND(m, ETHER_ALIGN, M_DONTWAIT);
+		M_PREPEND(m, ETHER_ALIGN, M_NOWAIT);
 		fp = &xfer->send.hdr;
 		*(uint32_t *)&xfer->send.hdr = *(int32_t *)&fwe->pkt_hdr;
 		fp->mode.stream.len = m->m_pkthdr.len;
@@ -658,7 +657,7 @@ fwe_as_input(struct fw_xferq *xferq)
 		m = sxfer->mbuf;
 
 		/* insert new rbuf */
-		sxfer->mbuf = m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		sxfer->mbuf = m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m0 != NULL) {
 			m0->m_len = m0->m_pkthdr.len = m0->m_ext.ext_size;
 			STAILQ_INSERT_TAIL(&xferq->stfree, sxfer, link);

@@ -52,11 +52,18 @@ struct fetchconn {
 	size_t		 bufsize;	/* buffer size */
 	size_t		 buflen;	/* length of buffer contents */
 	int		 err;		/* last protocol reply code */
+	struct {			/* data cached after an interrupted
+					   read */
+		char	*buf;
+		size_t	 size;
+		size_t	 pos;
+		size_t	 len;
+	} cache;
 #ifdef WITH_SSL
 	SSL		*ssl;		/* SSL handle */
 	SSL_CTX		*ssl_ctx;	/* SSL context */
 	X509		*ssl_cert;	/* server certificate */
-	SSL_METHOD	*ssl_meth;	/* SSL method */
+	const SSL_METHOD *ssl_meth;	/* SSL method */
 #endif
 	int		 ref;		/* reference count */
 };

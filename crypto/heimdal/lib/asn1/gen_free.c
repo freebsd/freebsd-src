@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_free.c 19539 2006-12-28 17:15:05Z lha $");
+RCSID("$Id$");
 
 static void
 free_primitive (const char *typename, const char *name)
@@ -82,7 +82,7 @@ free_type (const char *name, const Type *t, int preserve)
 
 	if(t->type == TChoice)
 	    fprintf(codefile, "switch((%s)->element) {\n", name);
-      
+
 	ASN1_TAILQ_FOREACH(m, t->members, members) {
 	    char *s;
 
@@ -93,16 +93,15 @@ free_type (const char *name, const Type *t, int preserve)
 
 	    if(t->type == TChoice)
 		fprintf(codefile, "case %s:\n", m->label);
-	    asprintf (&s, "%s(%s)->%s%s",
-		      m->optional ? "" : "&", name, 
-		      t->type == TChoice ? "u." : "", m->gen_name);
-	    if (s == NULL)
+	    if (asprintf (&s, "%s(%s)->%s%s",
+			  m->optional ? "" : "&", name,
+			  t->type == TChoice ? "u." : "", m->gen_name) < 0 || s == NULL)
 		errx(1, "malloc");
 	    if(m->optional)
 		fprintf(codefile, "if(%s) {\n", s);
 	    free_type (s, m->type, FALSE);
 	    if(m->optional)
-		fprintf(codefile, 
+		fprintf(codefile,
 			"free(%s);\n"
 			"%s = NULL;\n"
 			"}\n",s, s);
@@ -110,7 +109,7 @@ free_type (const char *name, const Type *t, int preserve)
 	    if(t->type == TChoice)
 		fprintf(codefile, "break;\n");
 	}
-	
+
 	if(t->type == TChoice) {
 	    if (have_ellipsis)
 		fprintf(codefile,
@@ -128,11 +127,10 @@ free_type (const char *name, const Type *t, int preserve)
 	char *n;
 
 	fprintf (codefile, "while((%s)->len){\n", name);
-	asprintf (&n, "&(%s)->val[(%s)->len-1]", name, name);
-	if (n == NULL)
+	if (asprintf (&n, "&(%s)->val[(%s)->len-1]", name, name) < 0 || n == NULL)
 	    errx(1, "malloc");
 	free_type(n, t->subtype, FALSE);
-	fprintf(codefile, 
+	fprintf(codefile,
 		"(%s)->len--;\n"
 		"}\n",
 		name);
@@ -143,6 +141,9 @@ free_type (const char *name, const Type *t, int preserve)
 	break;
     }
     case TGeneralString:
+	free_primitive ("general_string", name);
+	break;
+    case TTeletexString:
 	free_primitive ("general_string", name);
 	break;
     case TUTF8String:
@@ -177,18 +178,14 @@ free_type (const char *name, const Type *t, int preserve)
 void
 generate_type_free (const Symbol *s)
 {
-  int preserve = preserve_type(s->name) ? TRUE : FALSE;
+    int preserve = preserve_type(s->name) ? TRUE : FALSE;
 
-  fprintf (headerfile,
-	   "void   free_%s  (%s *);\n",
-	   s->gen_name, s->gen_name);
+    fprintf (codefile, "void ASN1CALL\n"
+	     "free_%s(%s *data)\n"
+	     "{\n",
+	     s->gen_name, s->gen_name);
 
-  fprintf (codefile, "void\n"
-	   "free_%s(%s *data)\n"
-	   "{\n",
-	   s->gen_name, s->gen_name);
-
-  free_type ("data", s->type, preserve);
-  fprintf (codefile, "}\n\n");
+    free_type ("data", s->type, preserve);
+    fprintf (codefile, "}\n\n");
 }
 

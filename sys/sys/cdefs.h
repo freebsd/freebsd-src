@@ -82,6 +82,13 @@
 # define __GNUC_VA_LIST_COMPATIBILITY 1
 #endif
 
+/*
+ * Compiler memory barriers, specific to gcc and clang.
+ */
+#if defined(__GNUC__)
+#define	__compiler_membar()	__asm __volatile(" " : : : "memory")
+#endif
+
 #ifndef __INTEL_COMPILER
 # define __GNUCLIKE_BUILTIN_NEXT_ARG 1
 # define __GNUCLIKE_MATH_BUILTIN_RELOPS
@@ -218,6 +225,55 @@
 #endif
 #endif
 
+#if !__GNUC_PREREQ__(2, 95)
+#define	__alignof(x)	__offsetof(struct { char __a; x __b; }, __b)
+#endif
+
+/*
+ * Keywords added in C11.
+ */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Alignas(e)		alignas(e)
+#define	_Alignof(e)		alignof(e)
+#define	_Noreturn		[[noreturn]]
+#define	_Static_assert(e, s)	static_assert(e, s)
+/* FIXME: change this to thread_local when clang in base supports it */
+#define	_Thread_local		__thread
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+/* Do nothing.  They are language keywords. */
+#else
+/* Not supported.  Implement them using our versions. */
+#define	_Alignas(x)		__aligned(x)
+#define	_Alignof(x)		__alignof(x)
+#define	_Noreturn		__dead2
+#define	_Thread_local		__thread
+#ifdef __COUNTER__
+#define	_Static_assert(x, y)	__Static_assert(x, __COUNTER__)
+#define	__Static_assert(x, y)	___Static_assert(x, y)
+#define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1]
+#else
+#define	_Static_assert(x, y)	struct __hack
+#endif
+#endif
+
+/*
+ * Emulation of C11 _Generic().  Unlike the previously defined C11
+ * keywords, it is not possible to implement this using exactly the same
+ * syntax.  Therefore implement something similar under the name
+ * __generic().  Unlike _Generic(), this macro can only distinguish
+ * between a single type, so it requires nested invocations to
+ * distinguish multiple cases.
+ */
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define	__generic(expr, t, yes, no)					\
+	_Generic(expr, t: yes, default: no)
+#elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
+#define	__generic(expr, t, yes, no)					\
+	__builtin_choose_expr(						\
+	    __builtin_types_compatible_p(__typeof(expr), t), yes, no)
+#endif
+
 #if __GNUC_PREREQ__(2, 96)
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
@@ -244,6 +300,18 @@
 #define __nonnull(x)
 #endif
 
+#if __GNUC_PREREQ__(3, 4)
+#define	__fastcall	__attribute__((__fastcall__))
+#else
+#define	__fastcall
+#endif
+
+#if __GNUC_PREREQ__(4, 1)
+#define	__returns_twice	__attribute__((__returns_twice__))
+#else
+#define	__returns_twice
+#endif
+
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
 #if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
 #define	__func__	NULL
@@ -251,6 +319,17 @@
 
 #if (defined(__INTEL_COMPILER) || (defined(__GNUC__) && __GNUC__ >= 2)) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
 #define	__LONG_LONG_SUPPORTED
+#endif
+
+/* C++11 exposes a load of C99 stuff */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	__LONG_LONG_SUPPORTED
+#ifndef	__STDC_LIMIT_MACROS
+#define	__STDC_LIMIT_MACROS
+#endif
+#ifndef	__STDC_CONSTANT_MACROS
+#define	__STDC_CONSTANT_MACROS
+#endif
 #endif
 
 /*
@@ -319,16 +398,33 @@
 #define __offsetof(type, field)	 __builtin_offsetof(type, field)
 #else
 #ifndef __cplusplus
-#define	__offsetof(type, field)	((size_t)(&((type *)0)->field))
+#define	__offsetof(type, field) \
+	((__size_t)(__uintptr_t)((const volatile void *)&((type *)0)->field))
 #else
 #define __offsetof(type, field)					\
-  (__offsetof__ (reinterpret_cast <size_t>			\
+  (__offsetof__ (reinterpret_cast <__size_t>			\
                  (&reinterpret_cast <const volatile char &>	\
                   (static_cast<type *> (0)->field))))
 #endif
 #endif
 #define	__rangeof(type, start, end) \
 	(__offsetof(type, end) - __offsetof(type, start))
+
+/*
+ * Given the pointer x to the member m of the struct s, return
+ * a pointer to the containing structure.  When using GCC, we first
+ * assign pointer x to a local variable, to check that its type is
+ * compatible with member m.
+ */
+#if __GNUC_PREREQ__(3, 1)
+#define	__containerof(x, s, m) ({					\
+	const volatile __typeof(((s *)0)->m) *__x = (x);		\
+	__DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));\
+})
+#else
+#define	__containerof(x, s, m)						\
+	__DEQUALIFY(s *, (const volatile char *)(x) - __offsetof(s, m))
+#endif
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like
@@ -340,16 +436,23 @@
 #define	__printflike(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #define	__format_arg(fmtarg)
+#define	__strfmonlike(fmtarg, firstvararg)
+#define	__strftimelike(fmtarg, firstvararg)
 #else
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
 #define	__scanflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
 #define	__format_arg(fmtarg)	__attribute__((__format_arg__ (fmtarg)))
+#define	__strfmonlike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__strfmon__, fmtarg, firstvararg)))
+#define	__strftimelike(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
-#if __FreeBSD_cc_version >= 300001 && defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
+    defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else
@@ -450,15 +553,15 @@
 #endif
 
 #ifndef	__DECONST
-#define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
+#define	__DECONST(type, var)	((type)(__uintptr_t)(const void *)(var))
 #endif
 
 #ifndef	__DEVOLATILE
-#define	__DEVOLATILE(type, var)	((type)(uintptr_t)(volatile void *)(var))
+#define	__DEVOLATILE(type, var)	((type)(__uintptr_t)(volatile void *)(var))
 #endif
 
 #ifndef	__DEQUALIFY
-#define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
+#define	__DEQUALIFY(type, var)	((type)(__uintptr_t)(const volatile void *)(var))
 #endif
 
 /*-
@@ -566,12 +669,34 @@
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1999
+#elif defined(_C11_SOURCE)	/* Localism to specify strict C11 env. */
+#define	__POSIX_VISIBLE		0
+#define	__XSI_VISIBLE		0
+#define	__BSD_VISIBLE		0
+#define	__ISO_C_VISIBLE		2011
 #else				/* Default environment: show everything. */
 #define	__POSIX_VISIBLE		200809
 #define	__XSI_VISIBLE		700
 #define	__BSD_VISIBLE		1
-#define	__ISO_C_VISIBLE		1999
+#define	__ISO_C_VISIBLE		2011
 #endif
+#endif
+
+#ifndef	__has_extension
+#define	__has_extension  __has_feature
+#endif
+#ifndef	__has_feature
+#define	__has_feature(x) 0
+#endif
+#ifndef	__has_include
+#define	__has_include(x) 0
+#endif
+#ifndef	__has_builtin
+#define	__has_builtin(x) 0
+#endif
+
+#if defined(__mips) || defined(__powerpc64__)
+#define __NO_TLS 1
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */

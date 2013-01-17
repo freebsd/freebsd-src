@@ -61,7 +61,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_HCI_RAW, "netgraph_btsocks_hci_raw",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_HCI_RAW, "netgraph_btsocks_hci_raw",
 	"Netgraph Bluetooth raw HCI sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_HCI_RAW M_NETGRAPH
@@ -123,7 +123,7 @@ static int					ng_btsocket_hci_raw_curpps;
  
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_hci_sockets);
-SYSCTL_NODE(_net_bluetooth_hci_sockets, OID_AUTO, raw, CTLFLAG_RW,
+static SYSCTL_NODE(_net_bluetooth_hci_sockets, OID_AUTO, raw, CTLFLAG_RW,
         0, "Bluetooth raw HCI sockets family");
 SYSCTL_UINT(_net_bluetooth_hci_sockets_raw, OID_AUTO, debug_level, CTLFLAG_RW,
         &ng_btsocket_hci_raw_debug_level, NG_BTSOCKET_WARN_LEVEL,
@@ -310,7 +310,7 @@ ng_btsocket_hci_raw_node_rcvdata(hook_p hook, item_p item)
 	 * for now
 	 */
 
-	MGET(nam, M_DONTWAIT, MT_SONAME);
+	MGET(nam, M_NOWAIT, MT_SONAME);
 	if (nam != NULL) {
 		struct sockaddr_hci	*sa = mtod(nam, struct sockaddr_hci *);
 
@@ -519,7 +519,7 @@ ng_btsocket_hci_raw_data_input(struct mbuf *nam)
 		 * will check if socket has enough buffer space.
 		 */
 
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 		if (m != NULL) {
 			struct mbuf	*ctl = NULL;
 
@@ -1585,7 +1585,7 @@ ng_btsocket_hci_raw_send(struct socket *so, int flags, struct mbuf *m,
 		sa = (struct sockaddr *) &pcb->addr;
 	}
 
-	MGET(nam, M_DONTWAIT, MT_SONAME);
+	MGET(nam, M_NOWAIT, MT_SONAME);
 	if (nam == NULL) {
 		mtx_unlock(&pcb->pcb_mtx);
 		error = ENOBUFS;

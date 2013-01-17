@@ -10,18 +10,20 @@ mdconfig -a -t swap -s 128m -u 10
 bsdlabel -w md10 auto
 newfs_msdos -F 16 -b 8192 /dev/md10a
 mount_msdosfs -L ja_JP.eucJP -D CP932 -l /dev/md10a /tmp/msdosfstest
-# touch /tmp/msdosfstest/U+FF71 (HALFWIDTH KATAKANA LETTER A)
-touch /tmp/msdosfstest/Ž±
+# The comment is UTF-8, the actual command uses the eucJP representation.
+# touch /tmp/msdosfstest/ï½± (HALFWIDTH KATAKANA LETTER A)
+touch /tmp/msdosfstest/$'\216\261'
 if [ $? -eq 0 ]; then
 	umount /tmp/msdosfstest
 	mount_msdosfs -L ja_JP.eucJP -D CP932 -s /dev/md10a /tmp/msdosfstest
-	ls /tmp/msdosfstest/Ž±
+	ls /tmp/msdosfstest/$'\216\261'
 	if [ $? -eq 0 ]; then
 		echo "ok 5 (pass stage 1/2)"
 		umount /tmp/msdosfstest
 		mount_msdosfs -L uk_UA.KOI8-U -D CP866 -l /dev/md10a /tmp/msdosfstest
-		# ls /tmp/msdosfstest/0xb1 (MEDIUM SHADE)
-		ls /tmp/msdosfstest/‘
+		# The comment is UTF-8, the actual command uses the KOI8-U representation.
+		# ls /tmp/msdosfstest/â–’ (MEDIUM SHADE)
+		ls /tmp/msdosfstest/$'\221'
 		if [ $? -ne 0 ]; then
 			# assume that U+FF71 was recorded with long name
 			echo "ok 5 (pass stage 2/2)"

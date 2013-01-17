@@ -158,16 +158,12 @@ static device_method_t sge_methods[] = {
 	DEVMETHOD(device_resume,	sge_resume),
 	DEVMETHOD(device_shutdown,	sge_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	sge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	sge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	sge_miibus_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t sge_driver = {
@@ -1087,7 +1083,7 @@ sge_newbuf(struct sge_softc *sc, int prod)
 	SGE_LOCK_ASSERT(sc);
 
 	cd = &sc->sge_cdata;
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1411,7 +1407,7 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 
 		if (M_WRITABLE(*m_head) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1468,7 +1464,7 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->sge_cdata.sge_txmbuf_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, SGE_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, SGE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

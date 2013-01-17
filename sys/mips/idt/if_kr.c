@@ -118,16 +118,12 @@ static device_method_t kr_methods[] = {
 	DEVMETHOD(device_resume,	kr_resume),
 	DEVMETHOD(device_shutdown,	kr_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	kr_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	kr_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	kr_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t kr_driver = {
@@ -1309,7 +1305,7 @@ kr_newbuf(struct kr_softc *sc, int idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;

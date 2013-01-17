@@ -91,7 +91,7 @@ static void siis_process_request_sense(device_t dev, union ccb *ccb);
 static void siisaction(struct cam_sim *sim, union ccb *ccb);
 static void siispoll(struct cam_sim *sim);
 
-MALLOC_DEFINE(M_SIIS, "SIIS driver", "SIIS driver data buffers");
+static MALLOC_DEFINE(M_SIIS, "SIIS driver", "SIIS driver data buffers");
 
 static struct {
 	uint32_t	id;
@@ -205,15 +205,10 @@ static int
 siis_detach(device_t dev)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
+
 	/* Free interrupts. */
 	if (ctlr->irq.r_irq) {
 		bus_teardown_intr(dev, ctlr->irq.r_irq,
@@ -835,7 +830,9 @@ siis_ch_intr_locked(void *data)
 	struct siis_channel *ch = device_get_softc(dev);
 
 	mtx_lock(&ch->mtx);
+	xpt_batch_start(ch->sim);
 	siis_ch_intr(data);
+	xpt_batch_done(ch->sim);
 	mtx_unlock(&ch->mtx);
 }
 
@@ -1887,7 +1884,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
 			d = &ch->user[ccb->ccb_h.target_id];
-		cts->protocol = PROTO_ATA;
+		cts->protocol = PROTO_UNSPECIFIED;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;

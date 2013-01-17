@@ -1,4 +1,4 @@
-//=====-- MBlazeMCAsmInfo.h - MBlaze asm properties -----------*- C++ -*--====//
+//===-- MBlazeMCAsmInfo.h - MBlaze asm properties --------------*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,13 +14,13 @@
 #ifndef MBLAZETARGETASMINFO_H
 #define MBLAZETARGETASMINFO_H
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCAsmInfo.h"
 
 namespace llvm {
   class Target;
 
   class MBlazeMCAsmInfo : public MCAsmInfo {
+    virtual void anchor();
   public:
     explicit MBlazeMCAsmInfo();
   };

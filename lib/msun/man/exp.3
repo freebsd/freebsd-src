@@ -28,13 +28,14 @@
 .\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2008
+.Dd July 10, 2012
 .Dt EXP 3
 .Os
 .Sh NAME
 .Nm exp ,
 .Nm expf ,
-.\" The sorting error is intentional.  exp and expf should be adjacent.
+.Nm expl ,
+.\" The sorting error is intentional.  exp, expf, and expl should be adjacent.
 .Nm exp2 ,
 .Nm exp2f ,
 .Nm exp2l ,
@@ -51,6 +52,8 @@
 .Fn exp "double x"
 .Ft float
 .Fn expf "float x"
+.Ft long double
+.Fn expl "long double x"
 .Ft double
 .Fn exp2 "double x"
 .Ft float
@@ -67,9 +70,10 @@
 .Fn powf "float x" "float y"
 .Sh DESCRIPTION
 The
-.Fn exp
-and the
-.Fn expf
+.Fn exp ,
+.Fn expf ,
+and
+.Fn expl
 functions compute the base
 .Ms e
 exponential value of the given argument

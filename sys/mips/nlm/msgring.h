@@ -29,15 +29,24 @@
  * $FreeBSD$
  */
 
+#ifndef _NLM_MSGRING_H
+#define	_NLM_MSGRING_H
+#define	CMS_DEFAULT_CREDIT	50
+/*
+ * packets are sent to VC 0 of a thread
+ * freebacks are sent to VC 3 of a thread
+ */
+#define	XLPGE_RX_VC		0
+#define	XLPGE_FB_VC		3
+
 extern uint32_t xlp_msg_thread_mask;
+
+struct nlm_fmn_msg;
 typedef void (*msgring_handler)(int, int, int, int, struct nlm_fmn_msg *, void *);
+
 int register_msgring_handler(int startb, int endb, msgring_handler action,
 		                    void *arg);
-int xlp_handle_msg_vc(int vc, int max_msgs);
-void xlp_msgring_cpu_init(uint32_t);
-void xlp_msgring_config(void);
-void xlp_cpu_msgring_handler(int bucket, int size, int code, int stid,
-		    struct nlm_fmn_msg *msg, void *data);
-
-void nlm_cms_credit_setup(int credit);
-void xlp_msgring_iodi_config(void);
+int xlp_handle_msg_vc(u_int vcmask, int max_msgs);
+void xlp_msgring_cpu_init(int, int, int);
+void xlp_cms_enable_intr(int , int , int , int);
+#endif /* _NLM_MSGRING_H */

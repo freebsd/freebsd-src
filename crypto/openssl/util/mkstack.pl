@@ -21,7 +21,7 @@ while (@ARGV) {
 }
 
 
-@source = (<crypto/*.[ch]>, <crypto/*/*.[ch]>, <ssl/*.[ch]>);
+@source = (<crypto/*.[ch]>, <crypto/*/*.[ch]>, <ssl/*.[ch]>, <apps/*.[ch]>);
 foreach $file (@source) {
 	next if -l $file;
 
@@ -31,10 +31,18 @@ foreach $file (@source) {
 	while(<IN>) {
 		if (/^DECLARE_STACK_OF\(([^)]+)\)/) {
 			push @stacklst, $1;
-		} if (/^DECLARE_ASN1_SET_OF\(([^)]+)\)/) {
+		}
+	        if (/^DECLARE_SPECIAL_STACK_OF\(([^,\s]+)\s*,\s*([^>\s]+)\)/) {
+		    	push @sstacklst, [$1, $2];
+		}
+		if (/^DECLARE_ASN1_SET_OF\(([^)]+)\)/) {
 			push @asn1setlst, $1;
-		} if (/^DECLARE_PKCS12_STACK_OF\(([^)]+)\)/) {
+		}
+		if (/^DECLARE_PKCS12_STACK_OF\(([^)]+)\)/) {
 			push @p12stklst, $1;
+		}
+		if (/^DECLARE_LHASH_OF\(([^)]+)\)/) {
+			push @lhashlst, $1;
 		}
 	}
 	close(IN);
@@ -65,7 +73,7 @@ while(<IN>) {
 	foreach $type_thing (sort @stacklst) {
 		$new_stackfile .= <<EOF;
 
-#define sk_${type_thing}_new(st) SKM_sk_new($type_thing, (st))
+#define sk_${type_thing}_new(cmp) SKM_sk_new($type_thing, (cmp))
 #define sk_${type_thing}_new_null() SKM_sk_new_null($type_thing)
 #define sk_${type_thing}_free(st) SKM_sk_free($type_thing, (st))
 #define sk_${type_thing}_num(st) SKM_sk_num($type_thing, (st))
@@ -88,6 +96,39 @@ while(<IN>) {
 #define sk_${type_thing}_is_sorted(st) SKM_sk_is_sorted($type_thing, (st))
 EOF
 	}
+
+	foreach $type_thing (sort @sstacklst) {
+	    my $t1 = $type_thing->[0];
+	    my $t2 = $type_thing->[1];
+	    $new_stackfile .= <<EOF;
+
+#define sk_${t1}_new(cmp) ((STACK_OF($t1) *)sk_new(CHECKED_SK_CMP_FUNC($t2, cmp)))
+#define sk_${t1}_new_null() ((STACK_OF($t1) *)sk_new_null())
+#define sk_${t1}_push(st, val) sk_push(CHECKED_STACK_OF($t1, st), CHECKED_PTR_OF($t2, val))
+#define sk_${t1}_find(st, val) sk_find(CHECKED_STACK_OF($t1, st), CHECKED_PTR_OF($t2, val))
+#define sk_${t1}_value(st, i) (($t1)sk_value(CHECKED_STACK_OF($t1, st), i))
+#define sk_${t1}_num(st) SKM_sk_num($t1, st)
+#define sk_${t1}_pop_free(st, free_func) sk_pop_free(CHECKED_STACK_OF($t1, st), CHECKED_SK_FREE_FUNC2($t1, free_func))
+#define sk_${t1}_insert(st, val, i) sk_insert(CHECKED_STACK_OF($t1, st), CHECKED_PTR_OF($t2, val), i)
+#define sk_${t1}_free(st) SKM_sk_free(${t1}, st)
+#define sk_${t1}_set(st, i, val) sk_set(CHECKED_STACK_OF($t1, st), i, CHECKED_PTR_OF($t2, val))
+#define sk_${t1}_zero(st) SKM_sk_zero($t1, (st))
+#define sk_${t1}_unshift(st, val) sk_unshift(CHECKED_STACK_OF($t1, st), CHECKED_PTR_OF($t2, val))
+#define sk_${t1}_find_ex(st, val) sk_find_ex((_STACK *)CHECKED_CONST_PTR_OF(STACK_OF($t1), st), CHECKED_CONST_PTR_OF($t2, val))
+#define sk_${t1}_delete(st, i) SKM_sk_delete($t1, (st), (i))
+#define sk_${t1}_delete_ptr(st, ptr) ($t1 *)sk_delete_ptr(CHECKED_STACK_OF($t1, st), CHECKED_PTR_OF($t2, ptr))
+#define sk_${t1}_set_cmp_func(st, cmp)  \\
+	((int (*)(const $t2 * const *,const $t2 * const *)) \\
+	sk_set_cmp_func(CHECKED_STACK_OF($t1, st), CHECKED_SK_CMP_FUNC($t2, cmp)))
+#define sk_${t1}_dup(st) SKM_sk_dup($t1, st)
+#define sk_${t1}_shift(st) SKM_sk_shift($t1, (st))
+#define sk_${t1}_pop(st) ($t2 *)sk_pop(CHECKED_STACK_OF($t1, st))
+#define sk_${t1}_sort(st) SKM_sk_sort($t1, (st))
+#define sk_${t1}_is_sorted(st) SKM_sk_is_sorted($t1, (st))
+
+EOF
+	}
+
 	foreach $type_thing (sort @asn1setlst) {
 		$new_stackfile .= <<EOF;
 
@@ -108,6 +149,31 @@ EOF
 	SKM_PKCS12_decrypt_d2i($type_thing, (algor), (d2i_func), (free_func), (pass), (passlen), (oct), (seq))
 EOF
 	}
+
+	foreach $type_thing (sort @lhashlst) {
+		my $lc_tt = lc $type_thing;
+		$new_stackfile .= <<EOF;
+
+#define lh_${type_thing}_new() LHM_lh_new(${type_thing},${lc_tt})
+#define lh_${type_thing}_insert(lh,inst) LHM_lh_insert(${type_thing},lh,inst)
+#define lh_${type_thing}_retrieve(lh,inst) LHM_lh_retrieve(${type_thing},lh,inst)
+#define lh_${type_thing}_delete(lh,inst) LHM_lh_delete(${type_thing},lh,inst)
+#define lh_${type_thing}_doall(lh,fn) LHM_lh_doall(${type_thing},lh,fn)
+#define lh_${type_thing}_doall_arg(lh,fn,arg_type,arg) \\
+  LHM_lh_doall_arg(${type_thing},lh,fn,arg_type,arg)
+#define lh_${type_thing}_error(lh) LHM_lh_error(${type_thing},lh)
+#define lh_${type_thing}_num_items(lh) LHM_lh_num_items(${type_thing},lh)
+#define lh_${type_thing}_down_load(lh) LHM_lh_down_load(${type_thing},lh)
+#define lh_${type_thing}_node_stats_bio(lh,out) \\
+  LHM_lh_node_stats_bio(${type_thing},lh,out)
+#define lh_${type_thing}_node_usage_stats_bio(lh,out) \\
+  LHM_lh_node_usage_stats_bio(${type_thing},lh,out)
+#define lh_${type_thing}_stats_bio(lh,out) \\
+  LHM_lh_stats_bio(${type_thing},lh,out)
+#define lh_${type_thing}_free(lh) LHM_lh_free(${type_thing},lh)
+EOF
+	}
+
 	$new_stackfile .= "/* End of util/mkstack.pl block, you may now edit :-) */\n";
 	$inside_block = 2;
 }

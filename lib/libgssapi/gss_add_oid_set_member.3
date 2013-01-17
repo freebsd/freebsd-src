@@ -71,7 +71,7 @@ the
 .Fa oid_set
 should remain unchanged.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor_status"
 .It minor_status
 Mechanism specific status code.
 .It member_oid
@@ -80,7 +80,7 @@ The object identifier to copied into the set.
 The set in which the object identifier should be inserted.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .El
@@ -88,7 +88,7 @@ Successful completion
 .Xr gss_create_empty_oid_set 3 ,
 .Xr gss_acquire_cred 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

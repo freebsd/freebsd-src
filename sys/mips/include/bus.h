@@ -707,11 +707,19 @@ void	__bs_c(f,_bs_c_8) (void *t, bus_space_handle_t bsh1,	\
 #define BUS_SPACE_ALIGNED_POINTER(p, t) ALIGNED_POINTER(p, t)
 
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
-#define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
-#define BUS_SPACE_MAXADDR 	0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE_24BIT	0xFFFFFF
+
+#define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXSIZE_32BIT	0xFFFFFFFF
-#define BUS_SPACE_MAXSIZE 	0xFFFFFFFF
+
+#if defined(__mips_n64)
+#define BUS_SPACE_MAXADDR 	0xFFFFFFFFFFFFFFFFUL
+#define BUS_SPACE_MAXSIZE 	0xFFFFFFFFFFFFFFFFUL
+#else
+#define BUS_SPACE_MAXADDR 	0xFFFFFFFFUL
+#define BUS_SPACE_MAXSIZE 	0xFFFFFFFFUL
+#endif
+
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
@@ -720,6 +728,8 @@ void	__bs_c(f,_bs_c_8) (void *t, bus_space_handle_t bsh1,	\
  */
 DECLARE_BUS_SPACE_PROTOTYPES(generic);
 extern bus_space_tag_t mips_bus_space_generic;
+extern bus_space_tag_t mips_bus_space_fdt;
+
 /* Special bus space for RMI processors */
 #if defined(CPU_RMI) || defined (CPU_NLM)
 extern bus_space_tag_t rmi_bus_space;

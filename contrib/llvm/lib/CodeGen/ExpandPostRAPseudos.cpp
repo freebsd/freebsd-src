@@ -14,7 +14,6 @@
 
 #define DEBUG_TYPE "postrapseudos"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -35,10 +34,6 @@ private:
 public:
   static char ID; // Pass identification, replacement for typeid
   ExpandPostRA() : MachineFunctionPass(ID) {}
-
-  const char *getPassName() const {
-    return "Post-RA pseudo instruction expansion pass";
-  }
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.setPreservesCFG();
@@ -61,10 +56,10 @@ private:
 } // end anonymous namespace
 
 char ExpandPostRA::ID = 0;
+char &llvm::ExpandPostRAPseudosID = ExpandPostRA::ID;
 
-FunctionPass *llvm::createExpandPostRAPseudosPass() {
-  return new ExpandPostRA();
-}
+INITIALIZE_PASS(ExpandPostRA, "postrapseudos",
+                "Post-RA pseudo instruction expansion pass", false, false)
 
 /// TransferDeadFlag - MI is a pseudo-instruction with DstReg dead,
 /// and the lowered replacement instructions immediately precede it.
@@ -135,13 +130,16 @@ bool ExpandPostRA::LowerSubregToReg(MachineInstr *MI) {
   } else {
     TII->copyPhysReg(*MBB, MI, MI->getDebugLoc(), DstSubReg, InsReg,
                      MI->getOperand(2).isKill());
+
+    // Implicitly define DstReg for subsequent uses.
+    MachineBasicBlock::iterator CopyMI = MI;
+    --CopyMI;
+    CopyMI->addRegisterDefined(DstReg);
+
     // Transfer the kill/dead flags, if needed.
     if (MI->getOperand(0).isDead())
       TransferDeadFlag(MI, DstSubReg, TRI);
-    DEBUG({
-        MachineBasicBlock::iterator dMI = MI;
-        dbgs() << "subreg: " << *(--dMI);
-      });
+    DEBUG(dbgs() << "subreg: " << *CopyMI);
   }
 
   DEBUG(dbgs() << '\n');
@@ -191,8 +189,7 @@ bool ExpandPostRA::LowerCopy(MachineInstr *MI) {
 bool ExpandPostRA::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "Machine Function\n"
                << "********** EXPANDING POST-RA PSEUDO INSTRS **********\n"
-               << "********** Function: "
-               << MF.getFunction()->getName() << '\n');
+               << "********** Function: " << MF.getName() << '\n');
   TRI = MF.getTarget().getRegisterInfo();
   TII = MF.getTarget().getInstrInfo();
 
@@ -207,7 +204,7 @@ bool ExpandPostRA::runOnMachineFunction(MachineFunction &MF) {
       ++mi;
 
       // Only expand pseudos.
-      if (!MI->getDesc().isPseudo())
+      if (!MI->isPseudo())
         continue;
 
       // Give targets a chance to expand even standard pseudos.

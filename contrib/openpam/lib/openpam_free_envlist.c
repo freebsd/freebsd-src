@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2005-2011 Dag-Erling SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: openpam_free_envlist.c 320 2006-02-16 20:33:19Z des $
+ * $Id: openpam_free_envlist.c 447 2011-10-22 02:47:36Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <stdlib.h>
 
@@ -63,4 +67,6 @@ openpam_free_envlist(char **envlist)
  * frees all the environment variables in an environment list, and the
  * list itself.
  * It is suitable for freeing the return value from =pam_getenvlist.
+ *
+ * AUTHOR DES
  */

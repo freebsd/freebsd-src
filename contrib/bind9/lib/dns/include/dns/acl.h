@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acl.h,v 1.33.426.2 2011-06-17 23:47:11 tbox Exp $ */
+/* $Id$ */
 
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1

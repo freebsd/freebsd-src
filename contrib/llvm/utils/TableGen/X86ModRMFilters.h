@@ -27,6 +27,7 @@ namespace X86Disassembler {
 /// ModRMFilter - Abstract base class for clases that recognize patterns in
 ///   ModR/M bytes.
 class ModRMFilter {
+  virtual void anchor();
 public:
   /// Destructor    - Override as necessary.
   virtual ~ModRMFilter() { }
@@ -49,6 +50,7 @@ public:
 ///   require a ModR/M byte or instructions where the entire ModR/M byte is used
 ///   for operands.
 class DumbFilter : public ModRMFilter {
+  virtual void anchor();
 public:
   bool isDumb() const {
     return true;
@@ -63,12 +65,12 @@ public:
 ///   Some instructions are classified based on whether they are 11 or anything
 ///   else.  This filter performs that classification.
 class ModFilter : public ModRMFilter {
-private:
+  virtual void anchor();
   bool R;
 public:
   /// Constructor
   ///
-  /// @r            - True if the mod bits of the ModR/M byte must be 11; false
+  /// \param r        True if the mod bits of the ModR/M byte must be 11; false
   ///                 otherwise.  The name r derives from the fact that the mod
   ///                 bits indicate whether the R/M bits [bits 2-0] signify a
   ///                 register or a memory operand.
@@ -90,17 +92,18 @@ public:
 ///   possible value.  Otherwise, there is one instruction for each value of the
 ///   nnn field [bits 5-3], known elsewhere as the reg field.
 class EscapeFilter : public ModRMFilter {
-private:
+  virtual void anchor();
   bool C0_FF;
   uint8_t NNN_or_ModRM;
 public:
   /// Constructor
   ///
-  /// @c0_ff        - True if the ModR/M byte must fall between 0xc0 and 0xff;
-  ///                 false otherwise.
-  /// @nnn_or_modRM - If c0_ff is true, the required value of the entire ModR/M
-  ///                 byte.  If c0_ff is false, the required value of the nnn
-  ///                 field.
+  /// \param c0_ff True if the ModR/M byte must fall between 0xc0 and 0xff;
+  ///              false otherwise.
+  ///
+  /// \param nnn_or_modRM If c0_ff is true, the required value of the entire
+  ///                     ModR/M byte.  If c0_ff is false, the required value
+  ///                     of the nnn field.
   EscapeFilter(bool c0_ff, uint8_t nnn_or_modRM) :
     ModRMFilter(),
     C0_FF(c0_ff),
@@ -121,13 +124,13 @@ public:
 ///   maps to a single instruction.  Such instructions require the ModR/M byte
 ///   to fall between 0xc0 and 0xff.
 class AddRegEscapeFilter : public ModRMFilter {
-private:
+  virtual void anchor();
   uint8_t ModRM;
 public:
   /// Constructor
   ///
-  /// @modRM        - The value of the ModR/M byte when the register operand
-  ///                 refers to the first register in the register set.
+  /// \param modRM The value of the ModR/M byte when the register operand
+  ///              refers to the first register in the register set.
   AddRegEscapeFilter(uint8_t modRM) : ModRM(modRM) {
   }
   
@@ -142,15 +145,15 @@ public:
 /// ExtendedFilter - Extended opcodes are classified based on the value of the
 ///   mod field [bits 7-6] and the value of the nnn field [bits 5-3]. 
 class ExtendedFilter : public ModRMFilter {
-private:
+  virtual void anchor();
   bool R;
   uint8_t NNN;
 public:
   /// Constructor
   ///
-  /// @r            - True if the mod field must be set to 11; false otherwise.
-  ///                 The name is explained at ModFilter.
-  /// @nnn          - The required value of the nnn field.
+  /// \param r   True if the mod field must be set to 11; false otherwise.
+  ///            The name is explained at ModFilter.
+  /// \param nnn The required value of the nnn field.
   ExtendedFilter(bool r, uint8_t nnn) : 
     ModRMFilter(),
     R(r),
@@ -169,14 +172,13 @@ public:
 
 /// ExactFilter - The occasional extended opcode (such as VMCALL or MONITOR)
 ///   requires the ModR/M byte to have a specific value.
-class ExactFilter : public ModRMFilter
-{
-private:
+class ExactFilter : public ModRMFilter {
+  virtual void anchor();
   uint8_t ModRM;
 public:
   /// Constructor
   ///
-  /// @modRM        - The required value of the full ModR/M byte.
+  /// \param modRM The required value of the full ModR/M byte.
   ExactFilter(uint8_t modRM) :
     ModRMFilter(),
     ModRM(modRM) {

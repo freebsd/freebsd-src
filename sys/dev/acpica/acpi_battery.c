@@ -205,6 +205,14 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	    bif->lfcap = (bif->lfcap * bif->dvol) / 1000;
 	}
 
+	/*
+	 * The calculation above may set bif->lfcap to zero. This was
+	 * seen on a laptop with a broken battery. The result of the
+	 * division was rounded to zero.
+	 */
+	if (!acpi_battery_bif_valid(bif))
+	    continue;
+
 	/* Calculate percent capacity remaining. */
 	bi[i].cap = (100 * bst[i].cap) / bif->lfcap;
 

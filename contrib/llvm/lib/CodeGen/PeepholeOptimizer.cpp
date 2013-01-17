@@ -31,6 +31,15 @@
 //     same flag that the "cmp" instruction sets and that "bz" uses, then we can
 //     eliminate the "cmp" instruction.
 //
+//     Another instance, in this code:
+//
+//       sub r1, r3 | sub r1, imm
+//       cmp r3, r1 or cmp r1, r3 | cmp r1, imm
+//       bge L1
+//
+//     If the branch instruction can use flag from "sub", then we can replace
+//     "sub" with "subs" and eliminate the "cmp" instruction.
+//
 // - Optimize Bitcast pairs:
 //
 //     v1 = bitcast v0
@@ -39,7 +48,7 @@
 //   =>
 //     v1 = bitcast v0
 //        = v0
-// 
+//
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "peephole-opt"
@@ -68,7 +77,9 @@ DisablePeephole("disable-peephole", cl::Hidden, cl::init(false),
 STATISTIC(NumReuse,      "Number of extension results reused");
 STATISTIC(NumBitcasts,   "Number of bitcasts eliminated");
 STATISTIC(NumCmps,       "Number of compares eliminated");
-STATISTIC(NumImmFold,    "Number of move immediate foled");
+STATISTIC(NumImmFold,    "Number of move immediate folded");
+STATISTIC(NumLoadFold,   "Number of loads folded");
+STATISTIC(NumSelects,    "Number of selects optimized");
 
 namespace {
   class PeepholeOptimizer : public MachineFunctionPass {
@@ -95,60 +106,73 @@ namespace {
     }
 
   private:
-    bool OptimizeBitcastInstr(MachineInstr *MI, MachineBasicBlock *MBB);
-    bool OptimizeCmpInstr(MachineInstr *MI, MachineBasicBlock *MBB);
-    bool OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
+    bool optimizeBitcastInstr(MachineInstr *MI, MachineBasicBlock *MBB);
+    bool optimizeCmpInstr(MachineInstr *MI, MachineBasicBlock *MBB);
+    bool optimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
                           SmallPtrSet<MachineInstr*, 8> &LocalMIs);
+    bool optimizeSelect(MachineInstr *MI);
     bool isMoveImmediate(MachineInstr *MI,
                          SmallSet<unsigned, 4> &ImmDefRegs,
                          DenseMap<unsigned, MachineInstr*> &ImmDefMIs);
-    bool FoldImmediate(MachineInstr *MI, MachineBasicBlock *MBB,
+    bool foldImmediate(MachineInstr *MI, MachineBasicBlock *MBB,
                        SmallSet<unsigned, 4> &ImmDefRegs,
                        DenseMap<unsigned, MachineInstr*> &ImmDefMIs);
+    bool isLoadFoldable(MachineInstr *MI, unsigned &FoldAsLoadDefReg);
   };
 }
 
 char PeepholeOptimizer::ID = 0;
+char &llvm::PeepholeOptimizerID = PeepholeOptimizer::ID;
 INITIALIZE_PASS_BEGIN(PeepholeOptimizer, "peephole-opts",
                 "Peephole Optimizations", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_END(PeepholeOptimizer, "peephole-opts",
                 "Peephole Optimizations", false, false)
 
-FunctionPass *llvm::createPeepholeOptimizerPass() {
-  return new PeepholeOptimizer();
-}
-
-/// OptimizeExtInstr - If instruction is a copy-like instruction, i.e. it reads
+/// optimizeExtInstr - If instruction is a copy-like instruction, i.e. it reads
 /// a single register and writes a single register and it does not modify the
 /// source, and if the source value is preserved as a sub-register of the
 /// result, then replace all reachable uses of the source with the subreg of the
 /// result.
-/// 
+///
 /// Do not generate an EXTRACT that is used only in a debug use, as this changes
 /// the code. Since this code does not currently share EXTRACTs, just ignore all
 /// debug uses.
 bool PeepholeOptimizer::
-OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
+optimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
                  SmallPtrSet<MachineInstr*, 8> &LocalMIs) {
   unsigned SrcReg, DstReg, SubIdx;
   if (!TII->isCoalescableExtInstr(*MI, SrcReg, DstReg, SubIdx))
     return false;
-  
+
   if (TargetRegisterInfo::isPhysicalRegister(DstReg) ||
       TargetRegisterInfo::isPhysicalRegister(SrcReg))
     return false;
 
-  MachineRegisterInfo::use_nodbg_iterator UI = MRI->use_nodbg_begin(SrcReg);
-  if (++UI == MRI->use_nodbg_end())
+  if (MRI->hasOneNonDBGUse(SrcReg))
     // No other uses.
     return false;
+
+  // Ensure DstReg can get a register class that actually supports
+  // sub-registers. Don't change the class until we commit.
+  const TargetRegisterClass *DstRC = MRI->getRegClass(DstReg);
+  DstRC = TM->getRegisterInfo()->getSubClassWithSubReg(DstRC, SubIdx);
+  if (!DstRC)
+    return false;
+
+  // The ext instr may be operating on a sub-register of SrcReg as well.
+  // PPC::EXTSW is a 32 -> 64-bit sign extension, but it reads a 64-bit
+  // register.
+  // If UseSrcSubIdx is Set, SubIdx also applies to SrcReg, and only uses of
+  // SrcReg:SubIdx should be replaced.
+  bool UseSrcSubIdx = TM->getRegisterInfo()->
+    getSubClassWithSubReg(MRI->getRegClass(SrcReg), SubIdx) != 0;
 
   // The source has other uses. See if we can replace the other uses with use of
   // the result of the extension.
   SmallPtrSet<MachineBasicBlock*, 4> ReachedBBs;
-  UI = MRI->use_nodbg_begin(DstReg);
-  for (MachineRegisterInfo::use_nodbg_iterator UE = MRI->use_nodbg_end();
+  for (MachineRegisterInfo::use_nodbg_iterator
+       UI = MRI->use_nodbg_begin(DstReg), UE = MRI->use_nodbg_end();
        UI != UE; ++UI)
     ReachedBBs.insert(UI->getParent());
 
@@ -159,8 +183,8 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
   SmallVector<MachineOperand*, 8> ExtendedUses;
 
   bool ExtendLife = true;
-  UI = MRI->use_nodbg_begin(SrcReg);
-  for (MachineRegisterInfo::use_nodbg_iterator UE = MRI->use_nodbg_end();
+  for (MachineRegisterInfo::use_nodbg_iterator
+       UI = MRI->use_nodbg_begin(SrcReg), UE = MRI->use_nodbg_end();
        UI != UE; ++UI) {
     MachineOperand &UseMO = UI.getOperand();
     MachineInstr *UseMI = &*UI;
@@ -171,6 +195,10 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
       ExtendLife = false;
       continue;
     }
+
+    // Only accept uses of SrcReg:SubIdx.
+    if (UseSrcSubIdx && UseMO.getSubReg() != SubIdx)
+      continue;
 
     // It's an error to translate this:
     //
@@ -226,9 +254,9 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
     // Look for PHI uses of the extended result, we don't want to extend the
     // liveness of a PHI input. It breaks all kinds of assumptions down
     // stream. A PHI use is expected to be the kill of its source values.
-    UI = MRI->use_nodbg_begin(DstReg);
     for (MachineRegisterInfo::use_nodbg_iterator
-           UE = MRI->use_nodbg_end(); UI != UE; ++UI)
+         UI = MRI->use_nodbg_begin(DstReg), UE = MRI->use_nodbg_end();
+         UI != UE; ++UI)
       if (UI->isPHI())
         PHIBBs.insert(UI->getParent());
 
@@ -240,11 +268,21 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
       if (PHIBBs.count(UseMBB))
         continue;
 
-      unsigned NewVR = MRI->createVirtualRegister(RC);
-      BuildMI(*UseMBB, UseMI, UseMI->getDebugLoc(),
-              TII->get(TargetOpcode::COPY), NewVR)
-        .addReg(DstReg, 0, SubIdx);
+      // About to add uses of DstReg, clear DstReg's kill flags.
+      if (!Changed) {
+        MRI->clearKillFlags(DstReg);
+        MRI->constrainRegClass(DstReg, DstRC);
+      }
 
+      unsigned NewVR = MRI->createVirtualRegister(RC);
+      MachineInstr *Copy = BuildMI(*UseMBB, UseMI, UseMI->getDebugLoc(),
+                                   TII->get(TargetOpcode::COPY), NewVR)
+        .addReg(DstReg, 0, SubIdx);
+      // SubIdx applies to both SrcReg and DstReg when UseSrcSubIdx is set.
+      if (UseSrcSubIdx) {
+        Copy->getOperand(0).setSubReg(SubIdx);
+        Copy->getOperand(0).setIsUndef();
+      }
       UseMO->setReg(NewVR);
       ++NumReuse;
       Changed = true;
@@ -254,7 +292,7 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
   return Changed;
 }
 
-/// OptimizeBitcastInstr - If the instruction is a bitcast instruction A that
+/// optimizeBitcastInstr - If the instruction is a bitcast instruction A that
 /// cannot be optimized away during isel (e.g. ARM::VMOVSR, which bitcast
 /// a value cross register classes), and the source is defined by another
 /// bitcast instruction B. And if the register class of source of B matches
@@ -264,7 +302,7 @@ OptimizeExtInstr(MachineInstr *MI, MachineBasicBlock *MBB,
 ///   %vreg3<def> = VMOVRS %vreg0
 ///   Replace all uses of vreg3 with vreg1.
 
-bool PeepholeOptimizer::OptimizeBitcastInstr(MachineInstr *MI,
+bool PeepholeOptimizer::optimizeBitcastInstr(MachineInstr *MI,
                                              MachineBasicBlock *MBB) {
   unsigned NumDefs = MI->getDesc().getNumDefs();
   unsigned NumSrcs = MI->getDesc().getNumOperands() - NumDefs;
@@ -292,7 +330,7 @@ bool PeepholeOptimizer::OptimizeBitcastInstr(MachineInstr *MI,
   assert(Def && Src && "Malformed bitcast instruction!");
 
   MachineInstr *DefMI = MRI->getVRegDef(Src);
-  if (!DefMI || !DefMI->getDesc().isBitcast())
+  if (!DefMI || !DefMI->isBitcast())
     return false;
 
   unsigned SrcSrc = 0;
@@ -326,22 +364,23 @@ bool PeepholeOptimizer::OptimizeBitcastInstr(MachineInstr *MI,
   return true;
 }
 
-/// OptimizeCmpInstr - If the instruction is a compare and the previous
+/// optimizeCmpInstr - If the instruction is a compare and the previous
 /// instruction it's comparing against all ready sets (or could be modified to
 /// set) the same flag as the compare, then we can remove the comparison and use
 /// the flag from the previous instruction.
-bool PeepholeOptimizer::OptimizeCmpInstr(MachineInstr *MI,
+bool PeepholeOptimizer::optimizeCmpInstr(MachineInstr *MI,
                                          MachineBasicBlock *MBB) {
   // If this instruction is a comparison against zero and isn't comparing a
   // physical register, we can try to optimize it.
-  unsigned SrcReg;
+  unsigned SrcReg, SrcReg2;
   int CmpMask, CmpValue;
-  if (!TII->AnalyzeCompare(MI, SrcReg, CmpMask, CmpValue) ||
-      TargetRegisterInfo::isPhysicalRegister(SrcReg))
+  if (!TII->analyzeCompare(MI, SrcReg, SrcReg2, CmpMask, CmpValue) ||
+      TargetRegisterInfo::isPhysicalRegister(SrcReg) ||
+      (SrcReg2 != 0 && TargetRegisterInfo::isPhysicalRegister(SrcReg2)))
     return false;
 
   // Attempt to optimize the comparison instruction.
-  if (TII->OptimizeCompareInstr(MI, SrcReg, CmpMask, CmpValue, MRI)) {
+  if (TII->optimizeCompareInstr(MI, SrcReg, SrcReg2, CmpMask, CmpValue, MRI)) {
     ++NumCmps;
     return true;
   }
@@ -349,11 +388,52 @@ bool PeepholeOptimizer::OptimizeCmpInstr(MachineInstr *MI,
   return false;
 }
 
+/// Optimize a select instruction.
+bool PeepholeOptimizer::optimizeSelect(MachineInstr *MI) {
+  unsigned TrueOp = 0;
+  unsigned FalseOp = 0;
+  bool Optimizable = false;
+  SmallVector<MachineOperand, 4> Cond;
+  if (TII->analyzeSelect(MI, Cond, TrueOp, FalseOp, Optimizable))
+    return false;
+  if (!Optimizable)
+    return false;
+  if (!TII->optimizeSelect(MI))
+    return false;
+  MI->eraseFromParent();
+  ++NumSelects;
+  return true;
+}
+
+/// isLoadFoldable - Check whether MI is a candidate for folding into a later
+/// instruction. We only fold loads to virtual registers and the virtual
+/// register defined has a single use.
+bool PeepholeOptimizer::isLoadFoldable(MachineInstr *MI,
+                                       unsigned &FoldAsLoadDefReg) {
+  if (!MI->canFoldAsLoad() || !MI->mayLoad())
+    return false;
+  const MCInstrDesc &MCID = MI->getDesc();
+  if (MCID.getNumDefs() != 1)
+    return false;
+
+  unsigned Reg = MI->getOperand(0).getReg();
+  // To reduce compilation time, we check MRI->hasOneUse when inserting
+  // loads. It should be checked when processing uses of the load, since
+  // uses can be removed during peephole.
+  if (!MI->getOperand(0).getSubReg() &&
+      TargetRegisterInfo::isVirtualRegister(Reg) &&
+      MRI->hasOneUse(Reg)) {
+    FoldAsLoadDefReg = Reg;
+    return true;
+  }
+  return false;
+}
+
 bool PeepholeOptimizer::isMoveImmediate(MachineInstr *MI,
                                         SmallSet<unsigned, 4> &ImmDefRegs,
                                  DenseMap<unsigned, MachineInstr*> &ImmDefMIs) {
   const MCInstrDesc &MCID = MI->getDesc();
-  if (!MCID.isMoveImmediate())
+  if (!MI->isMoveImmediate())
     return false;
   if (MCID.getNumDefs() != 1)
     return false;
@@ -363,14 +443,14 @@ bool PeepholeOptimizer::isMoveImmediate(MachineInstr *MI,
     ImmDefRegs.insert(Reg);
     return true;
   }
-  
+
   return false;
 }
 
-/// FoldImmediate - Try folding register operands that are defined by move
+/// foldImmediate - Try folding register operands that are defined by move
 /// immediate instructions, i.e. a trivial constant folding optimization, if
 /// and only if the def and use are in the same BB.
-bool PeepholeOptimizer::FoldImmediate(MachineInstr *MI, MachineBasicBlock *MBB,
+bool PeepholeOptimizer::foldImmediate(MachineInstr *MI, MachineBasicBlock *MBB,
                                       SmallSet<unsigned, 4> &ImmDefRegs,
                                  DenseMap<unsigned, MachineInstr*> &ImmDefMIs) {
   for (unsigned i = 0, e = MI->getDesc().getNumOperands(); i != e; ++i) {
@@ -395,7 +475,7 @@ bool PeepholeOptimizer::FoldImmediate(MachineInstr *MI, MachineBasicBlock *MBB,
 bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
   if (DisablePeephole)
     return false;
-  
+
   TM  = &MF.getTarget();
   TII = TM->getInstrInfo();
   MRI = &MF.getRegInfo();
@@ -406,59 +486,79 @@ bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
   SmallPtrSet<MachineInstr*, 8> LocalMIs;
   SmallSet<unsigned, 4> ImmDefRegs;
   DenseMap<unsigned, MachineInstr*> ImmDefMIs;
+  unsigned FoldAsLoadDefReg;
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I) {
     MachineBasicBlock *MBB = &*I;
-    
+
     bool SeenMoveImm = false;
     LocalMIs.clear();
     ImmDefRegs.clear();
     ImmDefMIs.clear();
+    FoldAsLoadDefReg = 0;
 
-    bool First = true;
-    MachineBasicBlock::iterator PMII;
     for (MachineBasicBlock::iterator
            MII = I->begin(), MIE = I->end(); MII != MIE; ) {
       MachineInstr *MI = &*MII;
+      // We may be erasing MI below, increment MII now.
+      ++MII;
       LocalMIs.insert(MI);
 
+      // If there exists an instruction which belongs to the following
+      // categories, we will discard the load candidate.
       if (MI->isLabel() || MI->isPHI() || MI->isImplicitDef() ||
           MI->isKill() || MI->isInlineAsm() || MI->isDebugValue() ||
           MI->hasUnmodeledSideEffects()) {
-        ++MII;
+        FoldAsLoadDefReg = 0;
         continue;
       }
+      if (MI->mayStore() || MI->isCall())
+        FoldAsLoadDefReg = 0;
 
-      const MCInstrDesc &MCID = MI->getDesc();
-
-      if (MCID.isBitcast()) {
-        if (OptimizeBitcastInstr(MI, MBB)) {
-          // MI is deleted.
-          LocalMIs.erase(MI);
-          Changed = true;
-          MII = First ? I->begin() : llvm::next(PMII);
-          continue;
-        }        
-      } else if (MCID.isCompare()) {
-        if (OptimizeCmpInstr(MI, MBB)) {
-          // MI is deleted.
-          LocalMIs.erase(MI);
-          Changed = true;
-          MII = First ? I->begin() : llvm::next(PMII);
-          continue;
-        }
+      if ((MI->isBitcast() && optimizeBitcastInstr(MI, MBB)) ||
+          (MI->isCompare() && optimizeCmpInstr(MI, MBB)) ||
+          (MI->isSelect() && optimizeSelect(MI))) {
+        // MI is deleted.
+        LocalMIs.erase(MI);
+        Changed = true;
+        continue;
       }
 
       if (isMoveImmediate(MI, ImmDefRegs, ImmDefMIs)) {
         SeenMoveImm = true;
       } else {
-        Changed |= OptimizeExtInstr(MI, MBB, LocalMIs);
+        Changed |= optimizeExtInstr(MI, MBB, LocalMIs);
+        // optimizeExtInstr might have created new instructions after MI
+        // and before the already incremented MII. Adjust MII so that the
+        // next iteration sees the new instructions.
+        MII = MI;
+        ++MII;
         if (SeenMoveImm)
-          Changed |= FoldImmediate(MI, MBB, ImmDefRegs, ImmDefMIs);
+          Changed |= foldImmediate(MI, MBB, ImmDefRegs, ImmDefMIs);
       }
 
-      First = false;
-      PMII = MII;
-      ++MII;
+      // Check whether MI is a load candidate for folding into a later
+      // instruction. If MI is not a candidate, check whether we can fold an
+      // earlier load into MI.
+      if (!isLoadFoldable(MI, FoldAsLoadDefReg) && FoldAsLoadDefReg) {
+        // We need to fold load after optimizeCmpInstr, since optimizeCmpInstr
+        // can enable folding by converting SUB to CMP.
+        MachineInstr *DefMI = 0;
+        MachineInstr *FoldMI = TII->optimizeLoadInstr(MI, MRI,
+                                                      FoldAsLoadDefReg, DefMI);
+        if (FoldMI) {
+          // Update LocalMIs since we replaced MI with FoldMI and deleted DefMI.
+          LocalMIs.erase(MI);
+          LocalMIs.erase(DefMI);
+          LocalMIs.insert(FoldMI);
+          MI->eraseFromParent();
+          DefMI->eraseFromParent();
+          ++NumLoadFold;
+
+          // MI is replaced with FoldMI.
+          Changed = true;
+          continue;
+        }
+      }
     }
   }
 

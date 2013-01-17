@@ -740,8 +740,7 @@ ar5312SetResetReg(struct ath_hal *ah, uint32_t resetMask)
         if ((resetMask & AR_RC_MAC) == 0) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
 #ifdef AH_NEED_DESC_SWAP
 			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD;

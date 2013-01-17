@@ -1,4 +1,4 @@
-/* $NetBSD: softfloat.c,v 1.2 2003/07/26 19:24:52 salo Exp $ */
+/* $NetBSD: softfloat.c,v 1.8 2011/07/10 04:52:23 matt Exp $ */
 
 /*
  * This version hacked for use with gcc -msoft-float by bjh21.
@@ -71,8 +71,8 @@ Floating-point rounding mode, extended double-precision rounding precision,
 and exception flags.
 -------------------------------------------------------------------------------
 */
-fp_rnd_t float_rounding_mode = float_round_nearest_even;
-fp_except float_exception_flags = 0;
+int float_rounding_mode = float_round_nearest_even;
+int float_exception_flags = 0;
 #ifdef FLOATX80
 int8 floatx80_rounding_precision = 80;
 #endif
@@ -1126,6 +1126,17 @@ float32 int32_to_float32( int32 a )
 
 }
 
+#ifndef SOFTFLOAT_FOR_GCC /* __floatunsisf is in libgcc */
+float32 uint32_to_float32( uint32 a )
+{
+    if ( a == 0 ) return 0;
+    if ( a & (bits32) 0x80000000 )
+	return normalizeRoundAndPackFloat32( 0, 0x9D, a >> 1 );
+    return normalizeRoundAndPackFloat32( 0, 0x9C, a );
+}
+#endif
+
+
 /*
 -------------------------------------------------------------------------------
 Returns the result of converting the 32-bit two's complement integer `a'
@@ -1148,6 +1159,19 @@ float64 int32_to_float64( int32 a )
     return packFloat64( zSign, 0x432 - shiftCount, zSig<<shiftCount );
 
 }
+
+#ifndef SOFTFLOAT_FOR_GCC /* __floatunsidf is in libgcc */
+float64 uint32_to_float64( uint32 a )
+{
+    int8 shiftCount;
+    bits64 zSig = a;
+
+    if ( a == 0 ) return 0;
+    shiftCount = countLeadingZeros32( a ) + 21;
+    return packFloat64( 0, 0x432 - shiftCount, zSig<<shiftCount );
+
+}
+#endif
 
 #ifdef FLOATX80
 
@@ -1175,6 +1199,17 @@ floatx80 int32_to_floatx80( int32 a )
 
 }
 
+floatx80 uint32_to_floatx80( uint32 a )
+{
+    int8 shiftCount;
+    bits64 zSig = a;
+
+    if ( a == 0 ) return packFloatx80( 0, 0, 0 );
+    shiftCount = countLeadingZeros32( a ) + 32;
+    return packFloatx80( 0, 0x403E - shiftCount, zSig<<shiftCount );
+
+}
+
 #endif
 
 #ifdef FLOAT128
@@ -1199,6 +1234,17 @@ float128 int32_to_float128( int32 a )
     shiftCount = countLeadingZeros32( absA ) + 17;
     zSig0 = absA;
     return packFloat128( zSign, 0x402E - shiftCount, zSig0<<shiftCount, 0 );
+
+}
+
+float128 uint32_to_float128( uint32 a )
+{
+    int8 shiftCount;
+    bits64 zSig0 = a;
+
+    if ( a == 0 ) return packFloat128( 0, 0, 0, 0 );
+    shiftCount = countLeadingZeros32( a ) + 17;
+    return packFloat128( 0, 0x402E - shiftCount, zSig0<<shiftCount, 0 );
 
 }
 
@@ -4438,6 +4484,59 @@ int64 float128_to_int64_round_to_zero( float128 a )
 
 }
 
+#if (defined(SOFTFLOATSPARC64_FOR_GCC) || defined(SOFTFLOAT_FOR_GCC)) \
+    && defined(SOFTFLOAT_NEED_FIXUNS)
+/*
+ * just like above - but do not care for overflow of signed results
+ */
+uint64 float128_to_uint64_round_to_zero( float128 a )
+{
+    flag aSign;
+    int32 aExp, shiftCount;
+    bits64 aSig0, aSig1;
+    uint64 z;
+
+    aSig1 = extractFloat128Frac1( a );
+    aSig0 = extractFloat128Frac0( a );
+    aExp = extractFloat128Exp( a );
+    aSign = extractFloat128Sign( a );
+    if ( aExp ) aSig0 |= LIT64( 0x0001000000000000 );
+    shiftCount = aExp - 0x402F;
+    if ( 0 < shiftCount ) {
+        if ( 0x403F <= aExp ) {
+            aSig0 &= LIT64( 0x0000FFFFFFFFFFFF );
+            if (    ( a.high == LIT64( 0xC03E000000000000 ) )
+                 && ( aSig1 < LIT64( 0x0002000000000000 ) ) ) {
+                if ( aSig1 ) float_exception_flags |= float_flag_inexact;
+            }
+            else {
+                float_raise( float_flag_invalid );
+            }
+            return LIT64( 0xFFFFFFFFFFFFFFFF );
+        }
+        z = ( aSig0<<shiftCount ) | ( aSig1>>( ( - shiftCount ) & 63 ) );
+        if ( (bits64) ( aSig1<<shiftCount ) ) {
+            float_exception_flags |= float_flag_inexact;
+        }
+    }
+    else {
+        if ( aExp < 0x3FFF ) {
+            if ( aExp | aSig0 | aSig1 ) {
+                float_exception_flags |= float_flag_inexact;
+            }
+            return 0;
+        }
+        z = aSig0>>( - shiftCount );
+        if (aSig1 || ( shiftCount && (bits64) ( aSig0<<( shiftCount & 63 ) ) ) ) {
+            float_exception_flags |= float_flag_inexact;
+        }
+    }
+    if ( aSign ) z = - z;
+    return z;
+
+}
+#endif /* (SOFTFLOATSPARC64_FOR_GCC || SOFTFLOAT_FOR_GCC) && SOFTFLOAT_NEED_FIXUNS */
+
 /*
 -------------------------------------------------------------------------------
 Returns the result of converting the quadruple-precision floating-point
@@ -5110,7 +5209,7 @@ float128 float128_rem( float128 a, float128 b )
         sub128( aSig0, aSig1, bSig0, bSig1, &aSig0, &aSig1 );
     } while ( 0 <= (sbits64) aSig0 );
     add128(
-        aSig0, aSig1, alternateASig0, alternateASig1, &sigMean0, &sigMean1 );
+        aSig0, aSig1, alternateASig0, alternateASig1, (bits64 *)&sigMean0, &sigMean1 );
     if (    ( sigMean0 < 0 )
          || ( ( ( sigMean0 | sigMean1 ) == 0 ) && ( q & 1 ) ) ) {
         aSig0 = alternateASig0;

@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <powerpc/ofw/ofw_syscons.h>
 
 static int ofwfb_ignore_mmap_checks = 1;
-SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
+static SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
 SYSCTL_INT(_hw_ofwfb, OID_AUTO, relax_mmap, CTLFLAG_RW,
     &ofwfb_ignore_mmap_checks, 0, "relaxed mmap bounds checking");
 
@@ -940,6 +940,12 @@ ofwfb_scidentify(driver_t *driver, device_t parent)
 	device_t child;
 
 	/*
+	 * The Nintendo Wii doesn't have open firmware, so don't probe ofwfb
+	 * because otherwise we will crash.
+	 */
+	if (strcmp(installed_platform(), "wii") == 0)
+		return;
+	/*
 	 * Add with a priority guaranteed to make it last on
 	 * the device list
 	 */
@@ -984,7 +990,7 @@ static driver_t ofwfb_sc_driver = {
 
 static devclass_t	sc_devclass;
 
-DRIVER_MODULE(sc, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
+DRIVER_MODULE(ofwfb, nexus, ofwfb_sc_driver, sc_devclass, 0, 0);
 
 /*
  * Define a stub keyboard driver in case one hasn't been

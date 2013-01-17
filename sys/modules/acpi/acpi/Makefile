@@ -12,17 +12,17 @@
 .error "The ACPI module is only for amd64 and i386"
 .endif
 
-.PATH:	${.CURDIR}/../../../contrib/dev/acpica/debugger \
-	${.CURDIR}/../../../contrib/dev/acpica/disassembler \
-	${.CURDIR}/../../../contrib/dev/acpica/dispatcher \
-	${.CURDIR}/../../../contrib/dev/acpica/events \
-	${.CURDIR}/../../../contrib/dev/acpica/executer \
-	${.CURDIR}/../../../contrib/dev/acpica/hardware \
-	${.CURDIR}/../../../contrib/dev/acpica/namespace \
-	${.CURDIR}/../../../contrib/dev/acpica/parser \
-	${.CURDIR}/../../../contrib/dev/acpica/resources \
-	${.CURDIR}/../../../contrib/dev/acpica/tables \
-	${.CURDIR}/../../../contrib/dev/acpica/utilities \
+.PATH:	${.CURDIR}/../../../contrib/dev/acpica/components/debugger \
+	${.CURDIR}/../../../contrib/dev/acpica/components/disassembler \
+	${.CURDIR}/../../../contrib/dev/acpica/components/dispatcher \
+	${.CURDIR}/../../../contrib/dev/acpica/components/events \
+	${.CURDIR}/../../../contrib/dev/acpica/components/executer \
+	${.CURDIR}/../../../contrib/dev/acpica/components/hardware \
+	${.CURDIR}/../../../contrib/dev/acpica/components/namespace \
+	${.CURDIR}/../../../contrib/dev/acpica/components/parser \
+	${.CURDIR}/../../../contrib/dev/acpica/components/resources \
+	${.CURDIR}/../../../contrib/dev/acpica/components/tables \
+	${.CURDIR}/../../../contrib/dev/acpica/components/utilities \
 	${.CURDIR}/../../../pci \
 	${.CURDIR}/../../../dev/acpica \
 	${.CURDIR}/../../../dev/acpica/Osd \
@@ -34,8 +34,8 @@ KMOD=	acpi
 # ACPI CA sources
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbmethod.c
 SRCS+=	dbnames.c dbstats.c dbutils.c dbxface.c
-SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
-SRCS+=	dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmobject.c dmresrc.c
+SRCS+=	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c dsmthdat.c
 SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c dswload2.c
 SRCS+=	dswscope.c dswstate.c
@@ -45,19 +45,21 @@ SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
 SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
 SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
 SRCS+=	exresop.c exstore.c exstoren.c exstorob.c exsystem.c exutils.c
-SRCS+=	hwacpi.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c hwvalid.c
-SRCS+=	hwxface.c
+SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c
+SRCS+=	hwvalid.c hwxface.c hwxfsleep.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
 SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nsrepair2.c nssearch.c
 SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c pstree.c psutils.c
 SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
-SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
-SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c utdelete.c uteval.c
-SRCS+=	utglobal.c utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c
-SRCS+=	utobject.c utosi.c utresrc.c utstate.c utxface.c utxferror.c
+SRCS+=	rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
+SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfload.c tbxfroot.c
+SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
+SRCS+=	utdelete.c uteval.c utexcep.c utglobal.c utids.c utinit.c utlock.c
+SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c
+SRCS+=	utxface.c utxferror.c utxfinit.c
+#SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c
@@ -84,6 +86,9 @@ SRCS+=	opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h opt_hwpmc_hooks.h
 .if KTR
 CFLAGS+=-DKTR
 .endif
+.if SMP
+CFLAGS+=-DSMP
+.endif
 .if ACPI_MAX_TASKS
 CFLAGS+=-DACPI_MAX_TASKS=${ACPI_MAX_TASKS}
 .endif
@@ -107,20 +112,11 @@ CLEANFILES+=acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o acpi_wakedata.h
 
 SRCS+=	opt_global.h
 
-ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
-NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
-NM?=		nm
+.include <bsd.kmod.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64"
-.if !defined(KERNBUILDDIR)
-CFLAGS+=-DSMP
-.endif
-SRCS+=	acpi_switch.S
-acpi_switch.o:	acpi_switch.S
-	${NORMAL_S}
-.endif
 acpi_wakecode.o: acpi_wakecode.S assym.s
-	${NORMAL_S}
+	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} ${CLANG_NO_IAS} \
+	    ${WERROR} ${.IMPSRC}
 acpi_wakecode.bin: acpi_wakecode.o
 	objcopy -S -O binary acpi_wakecode.o ${.TARGET}
 acpi_wakecode.h: acpi_wakecode.bin
@@ -131,5 +127,3 @@ acpi_wakedata.h: acpi_wakecode.o
 	    while read offset dummy what; do \
 	    echo "#define	$${what}	0x$${offset}"; \
 	    done > ${.TARGET}
-
-.include <bsd.kmod.mk>

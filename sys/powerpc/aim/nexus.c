@@ -51,9 +51,10 @@
  * SUCH DAMAGE.
  *
  * 	from: FreeBSD: src/sys/i386/i386/nexus.c,v 1.43 2001/02/09
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -162,7 +163,6 @@ static device_method_t nexus_methods[] = {
 
 	/* Bus interface. Resource management is business of the children... */
 	DEVMETHOD(bus_add_child,	nexus_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
@@ -184,7 +184,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(ofw_bus_get_type, nexus_ofw_get_type),
 	DEVMETHOD(ofw_bus_get_compat, nexus_ofw_get_compat),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nexus_driver = {

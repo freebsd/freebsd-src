@@ -46,7 +46,7 @@ static const char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
 #include <ttyent.h>
 #include "extern.h"
 
-char    tbuf[1024];      		/* Termcap entry. */
+static char tbuf[1024];		/* Termcap entry. */
 
 const char *askuser(const char *);
 char	*ttys(char *);
@@ -74,7 +74,7 @@ get_termcap_entry(char *userarg, char **tcapbufp)
 
 	/* Try ttyname(3); check for dialup or other mapping. */
 	if ((ttypath = ttyname(STDERR_FILENO))) {
-		if ((p = rindex(ttypath, '/')))
+		if ((p = strrchr(ttypath, '/')))
 			++p;
 		else
 			p = ttypath;
@@ -146,7 +146,7 @@ askuser(const char *dflt)
 			return (dflt);
 		}
 
-		if ((p = index(answer, '\n')))
+		if ((p = strchr(answer, '\n')))
 			*p = '\0';
 		if (answer[0])
 			return (answer);

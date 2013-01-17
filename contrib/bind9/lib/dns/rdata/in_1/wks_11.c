@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: wks_11.c,v 1.57 2009-12-04 21:09:34 marka Exp $ */
+/* $Id$ */
 
 /* Reviewed: Fri Mar 17 15:01:49 PST 2000 by explorer */
 
@@ -27,16 +27,46 @@
 
 #include <isc/net.h>
 #include <isc/netdb.h>
+#include <isc/once.h>
 
 #define RRTYPE_WKS_ATTRIBUTES (0)
 
+static isc_mutex_t wks_lock;
+
+static void init_lock(void) {
+	RUNTIME_CHECK(isc_mutex_init(&wks_lock) == ISC_R_SUCCESS);
+}
+
+static isc_boolean_t
+mygetprotobyname(const char *name, long *proto) {
+	struct protoent *pe;
+
+	LOCK(&wks_lock);
+	pe = getprotobyname(name);
+	if (pe != NULL)
+		*proto = pe->p_proto;
+	UNLOCK(&wks_lock);
+	return (ISC_TF(pe != NULL));
+}
+
+static isc_boolean_t
+mygetservbyname(const char *name, const char *proto, long *port) {
+	struct servent *se;
+
+	LOCK(&wks_lock);
+	se = getservbyname(name, proto);
+	if (se != NULL)
+		*port = ntohs(se->s_port);
+	UNLOCK(&wks_lock);
+	return (ISC_TF(se != NULL));
+}
+
 static inline isc_result_t
 fromtext_in_wks(ARGS_FROMTEXT) {
+	static isc_once_t once = ISC_ONCE_INIT;
 	isc_token_t token;
 	isc_region_t region;
 	struct in_addr addr;
-	struct protoent *pe;
-	struct servent *se;
 	char *e;
 	long proto;
 	unsigned char bm[8*1024]; /* 64k bits */
@@ -54,6 +84,8 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 	UNUSED(origin);
 	UNUSED(options);
 	UNUSED(rdclass);
+
+	RUNTIME_CHECK(isc_once_do(&once, init_lock) == ISC_R_SUCCESS);
 
 	/*
 	 * IPv4 dotted quad.
@@ -78,10 +110,9 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 	proto = strtol(DNS_AS_STR(token), &e, 10);
 	if (*e == 0)
 		;
-	else if ((pe = getprotobyname(DNS_AS_STR(token))) != NULL)
-		proto = pe->p_proto;
-	else
+	else if (!mygetprotobyname(DNS_AS_STR(token), &proto))
 		RETTOK(DNS_R_UNKNOWNPROTO);
+
 	if (proto < 0 || proto > 0xff)
 		RETTOK(ISC_R_RANGE);
 
@@ -112,12 +143,8 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 		port = strtol(DNS_AS_STR(token), &e, 10);
 		if (*e == 0)
 			;
-		else if ((se = getservbyname(service, ps)) != NULL)
-			port = ntohs(se->s_port);
-		else if ((se = getservbyname(DNS_AS_STR(token), ps))
-			  != NULL)
-			port = ntohs(se->s_port);
-		else
+		else if (!mygetservbyname(service, ps, &port) &&
+			 !mygetservbyname(DNS_AS_STR(token), ps, &port))
 			RETTOK(DNS_R_UNKNOWNSERVICE);
 		if (port < 0 || port > 0xffff)
 			RETTOK(ISC_R_RANGE);

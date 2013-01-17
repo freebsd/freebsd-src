@@ -19,12 +19,6 @@ SRCS=	${PROG}.S
 OPTS ?= -DVOLUME_SERIAL -DPXE
 CFLAGS += ${OPTS}
 
-.if ${CC:T:Mclang} == "clang"
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS+=	${.IMPSRC:T:Mboot0.S:C/^.+$/-no-integrated-as/}
-CFLAGS+=	${.IMPSRC:T:Mboot0ext.S:C/^.+$/-no-integrated-as/}
-.endif
-
 # Flags used in the boot0.S code:
 #   0x0f	all valid partitions enabled.
 #   0x80	'packet', use BIOS EDD (LBA) extensions instead of CHS
@@ -83,3 +77,8 @@ CFLAGS+=-DFLAGS=${BOOT_BOOT0_FLAGS} \
 LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N,-S,--oformat,binary
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.boot0.S=		${CLANG_NO_IAS}
+CFLAGS.boot0ext.S=	${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

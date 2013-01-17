@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -225,7 +225,7 @@ extract_plist(const char *home, Package *pkg)
 		printf("extract: CWD to %s\n", p->name);
 	    PUSHOUT(Directory);
 	    if (strcmp(p->name, ".")) {
-		if (!Fake && make_hierarchy(p->name) == FAIL) {
+		if (!Fake && make_hierarchy(p->name, TRUE) == FAIL) {
 		    cleanup(0);
 		    errx(2, "%s: unable to cwd to '%s'", __func__, p->name);
 		}

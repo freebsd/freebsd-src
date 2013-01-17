@@ -43,11 +43,11 @@ void
 procstat_bin(struct kinfo_proc *kipp)
 {
 	char pathname[PATH_MAX];
-	int error, name[4];
+	int error, osrel, name[4];
 	size_t len;
 
 	if (!hflag)
-		printf("%5s %-16s %-53s\n", "PID", "COMM", "PATH");
+		printf("%5s %-16s %8s %s\n", "PID", "COMM", "OSREL", "PATH");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -65,7 +65,19 @@ procstat_bin(struct kinfo_proc *kipp)
 	if (len == 0 || strlen(pathname) == 0)
 		strcpy(pathname, "-");
 
+	name[2] = KERN_PROC_OSREL;
+
+	len = sizeof(osrel);
+	error = sysctl(name, 4, &osrel, &len, NULL, 0);
+	if (error < 0 && errno != ESRCH) {
+		warn("sysctl: kern.proc.osrel: %d", kipp->ki_pid);
+		return;
+	}
+	if (error < 0)
+		return;
+
 	printf("%5d ", kipp->ki_pid);
 	printf("%-16s ", kipp->ki_comm);
+	printf("%8d ", osrel);
 	printf("%s\n", pathname);
 }

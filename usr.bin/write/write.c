@@ -60,12 +60,14 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <utmpx.h>
+#include <wchar.h>
+#include <wctype.h>
 
 void done(int);
 void do_write(char *, char *, uid_t);
 static void usage(void);
 int term_chk(char *, int *, time_t *, int);
-void wr_fputs(unsigned char *s);
+void wr_fputs(wchar_t *s);
 void search_utmp(char *, char *, char *, uid_t);
 int utmp_chk(char *, char *);
 
@@ -243,7 +245,8 @@ do_write(char *tty, char *mytty, uid_t myuid)
 	char *nows;
 	struct passwd *pwd;
 	time_t now;
-	char path[MAXPATHLEN], host[MAXHOSTNAMELEN], line[512];
+	char path[MAXPATHLEN], host[MAXHOSTNAMELEN];
+	wchar_t line[512];
 
 	/* Determine our login name before we reopen() stdout */
 	if ((login = getlogin()) == NULL) {
@@ -269,7 +272,7 @@ do_write(char *tty, char *mytty, uid_t myuid)
 	(void)printf("\r\n\007\007\007Message from %s@%s on %s at %s ...\r\n",
 	    login, host, mytty, nows + 11);
 
-	while (fgets(line, sizeof(line), stdin) != NULL)
+	while (fgetws(line, sizeof(line)/sizeof(wchar_t), stdin) != NULL)
 		wr_fputs(line);
 }
 
@@ -288,30 +291,20 @@ done(int n __unused)
  *     turns \n into \r\n
  */
 void
-wr_fputs(unsigned char *s)
+wr_fputs(wchar_t *s)
 {
 
-#define	PUTC(c)	if (putchar(c) == EOF) err(1, NULL);
+#define	PUTC(c)	if (putwchar(c) == WEOF) err(1, NULL);
 
-	for (; *s != '\0'; ++s) {
-		if (*s == '\n') {
-			PUTC('\r');
-		} else if (((*s & 0x80) && *s < 0xA0) ||
-			   /* disable upper controls */
-			   (!isprint(*s) && !isspace(*s) &&
-			    *s != '\a' && *s != '\b')
-			  ) {
-			if (*s & 0x80) {
-				*s &= ~0x80;
-				PUTC('M');
-				PUTC('-');
-			}
-			if (iscntrl(*s)) {
-				*s ^= 0x40;
-				PUTC('^');
-			}
+	for (; *s != L'\0'; ++s) {
+		if (*s == L'\n') {
+			PUTC(L'\r');
+			PUTC(L'\n');
+		} else if (iswprint(*s) || iswspace(*s)) {
+			PUTC(*s);
+		} else {
+			wprintf(L"<0x%X>", *s);
 		}
-		PUTC(*s);
 	}
 	return;
 #undef PUTC

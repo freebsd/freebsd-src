@@ -117,33 +117,38 @@ bool llvm::isCriticalEdge(const TerminatorInst *TI, unsigned SuccNum,
   return false;
 }
 
-/// CreatePHIsForSplitLoopExit - When a loop exit edge is split, LCSSA form
+/// createPHIsForSplitLoopExit - When a loop exit edge is split, LCSSA form
 /// may require new PHIs in the new exit block. This function inserts the
-/// new PHIs, as needed.  Preds is a list of preds inside the loop, SplitBB
+/// new PHIs, as needed. Preds is a list of preds inside the loop, SplitBB
 /// is the new loop exit block, and DestBB is the old loop exit, now the
 /// successor of SplitBB.
-static void CreatePHIsForSplitLoopExit(SmallVectorImpl<BasicBlock *> &Preds,
+static void createPHIsForSplitLoopExit(ArrayRef<BasicBlock *> Preds,
                                        BasicBlock *SplitBB,
                                        BasicBlock *DestBB) {
   // SplitBB shouldn't have anything non-trivial in it yet.
-  assert(SplitBB->getFirstNonPHI() == SplitBB->getTerminator() &&
-         "SplitBB has non-PHI nodes!");
+  assert((SplitBB->getFirstNonPHI() == SplitBB->getTerminator() ||
+          SplitBB->isLandingPad()) && "SplitBB has non-PHI nodes!");
 
-  // For each PHI in the destination block...
+  // For each PHI in the destination block.
   for (BasicBlock::iterator I = DestBB->begin();
        PHINode *PN = dyn_cast<PHINode>(I); ++I) {
     unsigned Idx = PN->getBasicBlockIndex(SplitBB);
     Value *V = PN->getIncomingValue(Idx);
+
     // If the input is a PHI which already satisfies LCSSA, don't create
     // a new one.
     if (const PHINode *VP = dyn_cast<PHINode>(V))
       if (VP->getParent() == SplitBB)
         continue;
+
     // Otherwise a new PHI is needed. Create one and populate it.
-    PHINode *NewPN = PHINode::Create(PN->getType(), Preds.size(), "split",
-                                     SplitBB->getTerminator());
+    PHINode *NewPN =
+      PHINode::Create(PN->getType(), Preds.size(), "split",
+                      SplitBB->isLandingPad() ?
+                      SplitBB->begin() : SplitBB->getTerminator());
     for (unsigned i = 0, e = Preds.size(); i != e; ++i)
       NewPN->addIncoming(V, Preds[i]);
+
     // Update the original PHI.
     PN->setIncomingValue(Idx, NewPN);
   }
@@ -168,7 +173,8 @@ static void CreatePHIsForSplitLoopExit(SmallVectorImpl<BasicBlock *> &Preds,
 ///
 BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
                                     Pass *P, bool MergeIdenticalEdges,
-                                    bool DontDeleteUselessPhis) {
+                                    bool DontDeleteUselessPhis,
+                                    bool SplitLandingPads) {
   if (!isCriticalEdge(TI, SuccNum, MergeIdenticalEdges)) return 0;
 
   assert(!isa<IndirectBrInst>(TI) &&
@@ -335,11 +341,8 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
                "Split point for loop exit is contained in loop!");
 
         // Update LCSSA form in the newly created exit block.
-        if (P->mustPreserveAnalysisID(LCSSAID)) {
-          SmallVector<BasicBlock *, 1> OrigPred;
-          OrigPred.push_back(TIBB);
-          CreatePHIsForSplitLoopExit(OrigPred, NewBB, DestBB);
-        }
+        if (P->mustPreserveAnalysisID(LCSSAID))
+          createPHIsForSplitLoopExit(TIBB, NewBB, DestBB);
 
         // For each unique exit block...
         // FIXME: This code is functionally equivalent to the corresponding
@@ -371,11 +374,19 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
           // getUniqueExitBlocks above because that depends on LoopSimplify
           // form, which we're in the process of restoring!
           if (!Preds.empty() && HasPredOutsideOfLoop) {
-            BasicBlock *NewExitBB =
-              SplitBlockPredecessors(Exit, Preds.data(), Preds.size(),
-                                     "split", P);
-            if (P->mustPreserveAnalysisID(LCSSAID))
-              CreatePHIsForSplitLoopExit(Preds, NewExitBB, Exit);
+            if (!Exit->isLandingPad()) {
+              BasicBlock *NewExitBB =
+                SplitBlockPredecessors(Exit, Preds, "split", P);
+              if (P->mustPreserveAnalysisID(LCSSAID))
+                createPHIsForSplitLoopExit(Preds, NewExitBB, Exit);
+            } else if (SplitLandingPads) {
+              SmallVector<BasicBlock*, 8> NewBBs;
+              SplitLandingPadPredecessors(Exit, Preds,
+                                          ".split1", ".split2",
+                                          P, NewBBs);
+              if (P->mustPreserveAnalysisID(LCSSAID))
+                createPHIsForSplitLoopExit(Preds, NewBBs[0], Exit);
+            }
           }
         }
       }

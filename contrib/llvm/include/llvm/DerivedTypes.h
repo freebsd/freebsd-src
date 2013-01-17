@@ -20,6 +20,7 @@
 
 #include "llvm/Type.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/Compiler.h"
 
 namespace llvm {
 
@@ -84,7 +85,6 @@ public:
   bool isPowerOf2ByteWidth() const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const IntegerType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == IntegerTyID;
   }
@@ -94,8 +94,8 @@ public:
 /// FunctionType - Class to represent function types
 ///
 class FunctionType : public Type {
-  FunctionType(const FunctionType &);                   // Do not implement
-  const FunctionType &operator=(const FunctionType &);  // Do not implement
+  FunctionType(const FunctionType &) LLVM_DELETED_FUNCTION;
+  const FunctionType &operator=(const FunctionType &) LLVM_DELETED_FUNCTION;
   FunctionType(Type *Result, ArrayRef<Type*> Params, bool IsVarArgs);
 
 public:
@@ -133,7 +133,6 @@ public:
   unsigned getNumParams() const { return NumContainedTys - 1; }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const FunctionType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == FunctionTyID;
   }
@@ -156,7 +155,6 @@ public:
   bool indexValid(unsigned Idx) const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const CompositeType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == ArrayTyID ||
            T->getTypeID() == StructTyID ||
@@ -183,21 +181,22 @@ public:
 /// Independent of what kind of struct you have, the body of a struct type are
 /// laid out in memory consequtively with the elements directly one after the
 /// other (if the struct is packed) or (if not packed) with padding between the
-/// elements as defined by TargetData (which is required to match what the code
+/// elements as defined by DataLayout (which is required to match what the code
 /// generator for a target expects).
 ///
 class StructType : public CompositeType {
-  StructType(const StructType &);                   // Do not implement
-  const StructType &operator=(const StructType &);  // Do not implement
+  StructType(const StructType &) LLVM_DELETED_FUNCTION;
+  const StructType &operator=(const StructType &) LLVM_DELETED_FUNCTION;
   StructType(LLVMContext &C)
     : CompositeType(C, StructTyID), SymbolTableEntry(0) {}
   enum {
     // This is the contents of the SubClassData field.
     SCDB_HasBody = 1,
     SCDB_Packed = 2,
-    SCDB_IsLiteral = 4
+    SCDB_IsLiteral = 4,
+    SCDB_IsSized = 8
   };
-  
+
   /// SymbolTableEntry - For a named struct that actually has a name, this is a
   /// pointer to the symbol table entry (maintained by LLVMContext) for the
   /// struct.  This is null if the type is an literal struct or if it is
@@ -248,6 +247,9 @@ public:
   /// isOpaque - Return true if this is a type with an identity that has no body
   /// specified yet.  These prints as 'opaque' in .ll files.
   bool isOpaque() const { return (getSubclassData() & SCDB_HasBody) == 0; }
+
+  /// isSized - Return true if this is a sized type.
+  bool isSized() const;
   
   /// hasName - Return true if this is a named struct that has a non-empty name.
   bool hasName() const { return SymbolTableEntry != 0; }
@@ -288,7 +290,6 @@ public:
   }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const StructType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == StructTyID;
   }
@@ -304,8 +305,8 @@ public:
 ///
 class SequentialType : public CompositeType {
   Type *ContainedType;               ///< Storage for the single contained type.
-  SequentialType(const SequentialType &);                  // Do not implement!
-  const SequentialType &operator=(const SequentialType &); // Do not implement!
+  SequentialType(const SequentialType &) LLVM_DELETED_FUNCTION;
+  const SequentialType &operator=(const SequentialType &) LLVM_DELETED_FUNCTION;
 
 protected:
   SequentialType(TypeID TID, Type *ElType)
@@ -318,7 +319,6 @@ public:
   Type *getElementType() const { return ContainedTys[0]; }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const SequentialType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == ArrayTyID ||
            T->getTypeID() == PointerTyID ||
@@ -332,8 +332,8 @@ public:
 class ArrayType : public SequentialType {
   uint64_t NumElements;
 
-  ArrayType(const ArrayType &);                   // Do not implement
-  const ArrayType &operator=(const ArrayType &);  // Do not implement
+  ArrayType(const ArrayType &) LLVM_DELETED_FUNCTION;
+  const ArrayType &operator=(const ArrayType &) LLVM_DELETED_FUNCTION;
   ArrayType(Type *ElType, uint64_t NumEl);
 public:
   /// ArrayType::get - This static method is the primary way to construct an
@@ -348,7 +348,6 @@ public:
   uint64_t getNumElements() const { return NumElements; }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const ArrayType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == ArrayTyID;
   }
@@ -359,8 +358,8 @@ public:
 class VectorType : public SequentialType {
   unsigned NumElements;
 
-  VectorType(const VectorType &);                   // Do not implement
-  const VectorType &operator=(const VectorType &);  // Do not implement
+  VectorType(const VectorType &) LLVM_DELETED_FUNCTION;
+  const VectorType &operator=(const VectorType &) LLVM_DELETED_FUNCTION;
   VectorType(Type *ElType, unsigned NumEl);
 public:
   /// VectorType::get - This static method is the primary way to construct an
@@ -374,6 +373,7 @@ public:
   ///
   static VectorType *getInteger(VectorType *VTy) {
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
+    assert(EltBits && "Element size must be of a non-zero size");
     Type *EltTy = IntegerType::get(VTy->getContext(), EltBits);
     return VectorType::get(EltTy, VTy->getNumElements());
   }
@@ -408,12 +408,12 @@ public:
   unsigned getNumElements() const { return NumElements; }
 
   /// @brief Return the number of bits in the Vector type.
+  /// Returns zero when the vector is a vector of pointers.
   unsigned getBitWidth() const {
     return NumElements * getElementType()->getPrimitiveSizeInBits();
   }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const VectorType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == VectorTyID;
   }
@@ -423,8 +423,8 @@ public:
 /// PointerType - Class to represent pointers.
 ///
 class PointerType : public SequentialType {
-  PointerType(const PointerType &);                   // Do not implement
-  const PointerType &operator=(const PointerType &);  // Do not implement
+  PointerType(const PointerType &) LLVM_DELETED_FUNCTION;
+  const PointerType &operator=(const PointerType &) LLVM_DELETED_FUNCTION;
   explicit PointerType(Type *ElType, unsigned AddrSpace);
 public:
   /// PointerType::get - This constructs a pointer to an object of the specified
@@ -445,7 +445,6 @@ public:
   inline unsigned getAddressSpace() const { return getSubclassData(); }
 
   // Implement support type inquiry through isa, cast, and dyn_cast.
-  static inline bool classof(const PointerType *) { return true; }
   static inline bool classof(const Type *T) {
     return T->getTypeID() == PointerTyID;
   }

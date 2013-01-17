@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -89,6 +89,9 @@ uint64_t cvmx_clock_get_rate(cvmx_clock_t clock)
 
     if (cvmx_unlikely(!rate_eclk))
     {
+	/* Note: The order of these checks is important.
+	** octeon_has_feature(OCTEON_FEATURE_PCIE) is true for both 6XXX
+	** and 52XX/56XX, so OCTEON_FEATURE_NPEI _must_ be checked first */
         if (octeon_has_feature(OCTEON_FEATURE_NPEI))
         {
             cvmx_npei_dbg_data_t npei_dbg_data;
@@ -124,7 +127,7 @@ uint64_t cvmx_clock_get_rate(cvmx_clock_t clock)
             return rate_eclk;
 
         case CVMX_CLOCK_DDR:
-#if !defined(CVMX_BUILD_FOR_LINUX_HOST) && !defined(__OCTEON_NEWLIB__)
+#if !defined(CVMX_BUILD_FOR_LINUX_HOST) && !defined(CVMX_BUILD_FOR_TOOLCHAIN)
             if (cvmx_unlikely(!rate_dclk))
                 rate_dclk = cvmx_sysinfo_get()->dram_data_rate_hz;
 #endif

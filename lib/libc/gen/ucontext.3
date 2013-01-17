@@ -92,6 +92,9 @@ structures:
 .Ft int
 .Fn getcontext "ucontext_t *" ;
 .It
+.Ft "ucontext_t *"
+.Fn getcontextx "void" ;
+.It
 .Ft int
 .Fn setcontext "const ucontext_t *" ;
 .It
@@ -104,4 +107,5 @@ structures:
 .Sh SEE ALSO
 .Xr sigaltstack 2 ,
 .Xr getcontext 3 ,
+.Xr getcontextx 3 ,
 .Xr makecontext 3

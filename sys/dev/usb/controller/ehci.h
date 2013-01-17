@@ -333,8 +333,6 @@ typedef struct ehci_softc {
 
 	uint32_t sc_terminate_self;	/* TD short packet termination pointer */
 	uint32_t sc_eintrs;
-	uint32_t sc_cmd;		/* shadow of cmd register during
-					 * suspend */
 
 	uint16_t sc_intr_stat[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	uint16_t sc_id_vendor;		/* vendor ID for root hub */
@@ -347,6 +345,8 @@ typedef struct ehci_softc {
 #define	EHCI_SCFLG_TT		0x0020	/* transaction translator present */
 #define	EHCI_SCFLG_LOSTINTRBUG	0x0040	/* workaround for VIA / ATI chipsets */
 #define	EHCI_SCFLG_IAADBUG	0x0080	/* workaround for nVidia chipsets */
+#define	EHCI_SCFLG_DONTRESET	0x0100	/* don't reset ctrl. in ehci_init() */
+#define	EHCI_SCFLG_DONEINIT	0x1000	/* ehci_init() has been called. */
 
 	uint8_t	sc_offs;		/* offset to operational registers */
 	uint8_t	sc_doorbell_disable;	/* set on doorbell failure */
@@ -445,9 +445,6 @@ usb_bus_mem_cb_t ehci_iterate_hw_softc;
 usb_error_t ehci_reset(ehci_softc_t *sc);
 usb_error_t ehci_init(ehci_softc_t *sc);
 void	ehci_detach(struct ehci_softc *sc);
-void	ehci_suspend(struct ehci_softc *sc);
-void	ehci_resume(struct ehci_softc *sc);
-void	ehci_shutdown(ehci_softc_t *sc);
 void	ehci_interrupt(ehci_softc_t *sc);
 
 #endif					/* _EHCI_H_ */

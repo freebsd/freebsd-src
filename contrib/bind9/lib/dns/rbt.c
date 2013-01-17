@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.c,v 1.146.278.2 2011-03-12 04:59:17 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -1929,6 +1929,8 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 					sibling = RIGHT(parent);
 				}
 
+				INSIST(sibling != NULL);
+
 				if (IS_BLACK(LEFT(sibling)) &&
 				    IS_BLACK(RIGHT(sibling))) {
 					MAKE_RED(sibling);
@@ -1964,6 +1966,8 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 					rotate_right(parent, rootp);
 					sibling = LEFT(parent);
 				}
+
+				INSIST(sibling != NULL);
 
 				if (IS_BLACK(LEFT(sibling)) &&
 				    IS_BLACK(RIGHT(sibling))) {

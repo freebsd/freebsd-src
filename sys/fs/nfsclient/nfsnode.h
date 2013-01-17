@@ -99,9 +99,6 @@ struct nfsnode {
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
-	struct timespec		n_ctime;	/* Prev create time. */
-	struct timespec		n_dmtime;	/* Prev dir modify time. */
-	int			n_dmtime_ticks;	/* Tick of -ve cache entry */
 	struct nfsfh		*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */
@@ -126,6 +123,7 @@ struct nfsnode {
 	int                     n_directio_asyncwr;
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
+	struct ucred		*n_writecred;	/* Cred. for putpages */
 };
 
 #define	n_atim		n_un1.nf_atim
@@ -157,6 +155,8 @@ struct nfsnode {
 #define	NREMOVEWANT	0x00004000  /* Want notification that remove is done */
 #define	NLOCK		0x00008000  /* Sleep lock the node */
 #define	NLOCKWANT	0x00010000  /* Want the sleep lock */
+#define	NNOLAYOUT	0x00020000  /* Can't get a layout for this file */
+#define	NWRITEOPENED	0x00040000  /* Has been opened for writing */
 
 /*
  * Convert between nfsnode pointers and vnode pointers

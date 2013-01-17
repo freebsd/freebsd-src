@@ -1,11 +1,10 @@
-# $Id: Makefile.am 22459 2008-01-15 21:46:20Z lha $
-
 include $(top_srcdir)/Makefile.am.common
 
 lib_LTLIBRARIES = libhx509.la
-libhx509_la_LDFLAGS = -version-info 3:0:0
+libhx509_la_LDFLAGS = -version-info 5:0:0
 
 BUILT_SOURCES =				\
+	sel-gram.h			\
 	$(gen_files_ocsp:.x=.c)		\
 	$(gen_files_pkcs10:.x=.c)	\
 	hx509_err.c			\
@@ -50,9 +49,12 @@ gen_files_crmf = 			\
 	asn1_ProofOfPossession.x	\
 	asn1_SubsequentMessage.x	
 
+AM_YFLAGS = -d
+
 dist_libhx509_la_SOURCES = \
 	ca.c \
 	cert.c \
+	char_map.h \
 	cms.c \
 	collector.c \
 	crypto.c \
@@ -64,6 +66,10 @@ dist_libhx509_la_SOURCES = \
 	hx509-protos.h \
 	hx509.h \
 	hx_locl.h \
+	sel.c \
+	sel.h \
+	sel-gram.y \
+	sel-lex.l \
 	keyset.c \
 	ks_dir.c \
 	ks_file.c \
@@ -81,10 +87,15 @@ dist_libhx509_la_SOURCES = \
 	req.c \
 	revoke.c
 
+sel-lex.c: sel-gram.h
+
+libhx509_la_DEPENDENCIES = version-script.map
+
 libhx509_la_LIBADD = \
 	$(LIB_com_err) \
 	$(LIB_hcrypto) \
 	$(top_builddir)/lib/asn1/libasn1.la \
+	$(top_builddir)/lib/wind/libwind.la \
 	$(LIBADD_roken) \
 	$(LIB_dlopen)
 
@@ -95,38 +106,44 @@ endif
 if versionscript
 libhx509_la_LDFLAGS += $(LDFLAGS_VERSION_SCRIPT)$(srcdir)/version-script.map
 endif
-$(libhx509_la_OBJECTS): $(srcdir)/version-script.map
+$(libhx509_la_OBJECTS): $(srcdir)/version-script.map $(nodist_include_HEADERS) $(priv_headers)
 
 libhx509_la_CPPFLAGS = -I$(srcdir)/ref $(INCLUDE_hcrypto)
 nodist_libhx509_la_SOURCES = $(BUILT_SOURCES)
 
-$(gen_files_ocsp) ocsp_asn1.h: ocsp_asn1_files
-$(gen_files_pkcs10) pkcs10_asn1.h: pkcs10_asn1_files
-$(gen_files_crmf) crmf_asn1.h: crmf_asn1_files
+$(gen_files_ocsp) ocsp_asn1.hx ocsp_asn1-priv.hx: ocsp_asn1_files
+$(gen_files_pkcs10) pkcs10_asn1.hx pkcs10_asn1-priv.hx: pkcs10_asn1_files
+$(gen_files_crmf) crmf_asn1.hx crmf_asn1-priv.hx: crmf_asn1_files
 
-asn1_compile = ../asn1/asn1_compile$(EXEEXT)
+dist_include_HEADERS = hx509.h hx509-protos.h
 
-ocsp_asn1_files: $(asn1_compile) $(srcdir)/ocsp.asn1
-	$(asn1_compile) --preserve-binary=OCSPTBSRequest --preserve-binary=OCSPResponseData $(srcdir)/ocsp.asn1 ocsp_asn1 || (rm -f ocsp_asn1_files ; exit 1)
+nodist_include_HEADERS = hx509_err.h
+nodist_include_HEADERS += ocsp_asn1.h
+nodist_include_HEADERS += pkcs10_asn1.h
+nodist_include_HEADERS += crmf_asn1.h
 
-pkcs10_asn1_files: $(asn1_compile) $(srcdir)/pkcs10.asn1
-	$(asn1_compile) --preserve-binary=CertificationRequestInfo $(srcdir)/pkcs10.asn1 pkcs10_asn1 || (rm -f pkcs10_asn1_files ; exit 1)
+priv_headers  = ocsp_asn1-priv.h
+priv_headers += pkcs10_asn1-priv.h
+priv_headers += crmf_asn1-priv.h
 
-crmf_asn1_files: $(asn1_compile) $(srcdir)/crmf.asn1
-	$(asn1_compile) $(srcdir)/crmf.asn1 crmf_asn1 || (rm -f crmf_asn1_files ; exit 1)
 
-$(libhx509_la_OBJECTS): $(srcdir)/hx509-protos.h $(srcdir)/hx509-private.h
+ocsp_asn1_files: $(ASN1_COMPILE_DEP) $(srcdir)/ocsp.asn1 $(srcdir)/ocsp.opt
+	$(ASN1_COMPILE) --option-file=$(srcdir)/ocsp.opt $(srcdir)/ocsp.asn1 ocsp_asn1 || (rm -f ocsp_asn1_files ; exit 1)
+
+pkcs10_asn1_files: $(ASN1_COMPILE_DEP) $(srcdir)/pkcs10.asn1 $(srcdir)/pkcs10.opt
+	$(ASN1_COMPILE) --option-file=$(srcdir)/pkcs10.opt $(srcdir)/pkcs10.asn1 pkcs10_asn1 || (rm -f pkcs10_asn1_files ; exit 1)
+
+crmf_asn1_files: $(ASN1_COMPILE_DEP) $(srcdir)/crmf.asn1
+	$(ASN1_COMPILE) $(srcdir)/crmf.asn1 crmf_asn1 || (rm -f crmf_asn1_files ; exit 1)
+
+$(libhx509_la_OBJECTS): $(srcdir)/hx509-protos.h $(srcdir)/hx509-private.h $(srcdir)/hx_locl.h
+$(libhx509_la_OBJECTS): ocsp_asn1.h pkcs10_asn1.h
 
 $(srcdir)/hx509-protos.h:
-	cd $(srcdir) && perl ../../cf/make-proto.pl -R '^(_|^C)' -E HX509_LIB_FUNCTION -q -P comment -o hx509-protos.h $(dist_libhx509_la_SOURCES) || rm -f hx509-protos.h
+	cd $(srcdir) && perl ../../cf/make-proto.pl -R '^(_|^C)' -E HX509_LIB -q -P comment -o hx509-protos.h $(dist_libhx509_la_SOURCES) || rm -f hx509-protos.h
 
 $(srcdir)/hx509-private.h:
 	cd $(srcdir) && perl ../../cf/make-proto.pl -q -P comment -p hx509-private.h $(dist_libhx509_la_SOURCES) || rm -f hx509-private.h
-
-dist_include_HEADERS = hx509.h hx509-protos.h
-nodist_include_HEADERS = hx509_err.h
-
-SLC = $(top_builddir)/lib/sl/slc
 
 bin_PROGRAMS = hxtool
 
@@ -146,14 +163,18 @@ hxtool_LDADD = \
 	$(LIB_roken) \
 	$(top_builddir)/lib/sl/libsl.la
 
-CLEANFILES = $(BUILT_SOURCES) \
-	$(gen_files_ocsp) ocsp_asn1_files ocsp_asn1.h \
-	$(gen_files_pkcs10) pkcs10_asn1_files pkcs10_asn1.h \
-	$(gen_files_crmf) crmf_asn1_files crmf_asn1.h \
+CLEANFILES = $(BUILT_SOURCES) sel-gram.c sel-lex.c \
+	$(gen_files_ocsp) ocsp_asn1_files ocsp_asn1{,-priv}.h* \
+	ocsp_asn1-template.[ch]* \
+	$(gen_files_pkcs10) pkcs10_asn1_files pkcs10_asn1{,-priv}.h* \
+	pkcs10_asn1-template.[ch]* \
+	$(gen_files_crmf) crmf_asn1_files crmf_asn1{,-priv}.h* \
+	crmf_asn1-template.[ch]* \
 	$(TESTS) \
 	hxtool-commands.c hxtool-commands.h *.tmp \
 	request.out \
 	out.pem out2.pem \
+	sd sd.pem \
 	sd.data sd.data.out \
 	ev.data ev.data.out \
 	cert-null.pem cert-sub-ca2.pem \
@@ -180,10 +201,14 @@ LDADD = libhx509.la
 test_soft_pkcs11_LDADD = libhx509.la
 test_soft_pkcs11_CPPFLAGS = -I$(srcdir)/ref
 
+test_name_CPPFLAGS = $(INCLUDE_hcrypto)
+test_name_LDADD = libhx509.la $(LIB_roken)
+
 TESTS = $(SCRIPT_TESTS) $(PROGRAM_TESTS)
 
 PROGRAM_TESTS = 		\
-	test_name
+	test_name		\
+	test_expr
 
 SCRIPT_TESTS = 			\
 	test_ca			\
@@ -202,7 +227,8 @@ SCRIPT_TESTS = 			\
 	test_query
 
 do_subst = sed -e 's,[@]srcdir[@],$(srcdir),g' \
-	-e 's,[@]objdir[@],$(top_builddir)/lib/hx509,g'
+	-e 's,[@]objdir[@],$(top_builddir)/lib/hx509,g' \
+	-e 's,[@]egrep[@],$(EGREP),g'
 
 test_ca: test_ca.in Makefile
 	$(do_subst) < $(srcdir)/test_ca.in > test_ca.tmp
@@ -275,13 +301,18 @@ test_query: test_query.in Makefile
 	mv test_query.tmp test_query
 
 EXTRA_DIST = \
+	NTMakefile \
+	hxtool-version.rc \
+	libhx509-exports.def \
 	version-script.map \
 	crmf.asn1 \
-	data/bleichenbacher-bad.pem \
 	hx509_err.et \
 	hxtool-commands.in \
+	quote.py \
 	ocsp.asn1 \
+	ocsp.opt \
 	pkcs10.asn1 \
+	pkcs10.opt \
 	test_ca.in \
 	test_chain.in \
 	test_cert.in \
@@ -307,6 +338,17 @@ EXTRA_DIST = \
 	tst-crypto-select5 \
 	tst-crypto-select6 \
 	tst-crypto-select7 \
+	data/n0ll.pem \
+	data/secp160r1TestCA.cert.pem \
+	data/secp160r1TestCA.key.pem \
+	data/secp160r1TestCA.pem \
+	data/secp160r2TestClient.cert.pem \
+	data/secp160r2TestClient.key.pem \
+	data/secp160r2TestClient.pem \
+	data/secp160r2TestServer.cert.pem \
+	data/secp160r2TestServer.key.pem \
+	data/secp160r2TestServer.pem \
+	data/bleichenbacher-bad.pem \
 	data/bleichenbacher-good.pem \
 	data/bleichenbacher-sf-pad-correct.pem \
 	data/ca.crt \
@@ -342,6 +384,8 @@ EXTRA_DIST = \
 	data/pkinit-pw.key \
 	data/pkinit.crt \
 	data/pkinit.key \
+	data/pkinit-ec.crt \
+	data/pkinit-ec.key \
 	data/proxy-level-test.crt \
 	data/proxy-level-test.key \
 	data/proxy-test.crt \
@@ -377,10 +421,14 @@ EXTRA_DIST = \
 	data/test-signed-data \
 	data/test-signed-data-noattr \
 	data/test-signed-data-noattr-nocerts \
+	data/test-signed-sha-1 \
+	data/test-signed-sha-256 \
+	data/test-signed-sha-512 \
 	data/test.combined.crt \
 	data/test.crt \
 	data/test.key \
 	data/test.p12 \
+	data/win-u16-in-printablestring.der \
 	data/yutaka-pad-broken-ca.pem \
 	data/yutaka-pad-broken-cert.pem \
 	data/yutaka-pad-ok-ca.pem \

@@ -30,7 +30,7 @@
  */
 
 #ifndef __NLM_HAL_SYS_H__
-#define __NLM_HAL_SYS_H__
+#define	__NLM_HAL_SYS_H__
 
 /**
 * @file_name sys.h
@@ -120,6 +120,25 @@
 #define	nlm_write_sys_reg(b, r, v)	nlm_write_reg(b, r, v)
 #define	nlm_get_sys_pcibase(node) nlm_pcicfg_base(XLP_IO_SYS_OFFSET(node))
 #define	nlm_get_sys_regbase(node) (nlm_get_sys_pcibase(node) + XLP_IO_PCI_HDRSZ)
+
+enum {
+	/* Don't change order and it must start from zero */
+	DFS_DEVICE_NAE = 0,
+	DFS_DEVICE_SAE,
+	DFS_DEVICE_RSA,
+	DFS_DEVICE_DTRE,
+	DFS_DEVICE_CMP,
+	DFS_DEVICE_KBP,
+	DFS_DEVICE_DMC,
+	DFS_DEVICE_NAND,
+	DFS_DEVICE_MMC,
+	DFS_DEVICE_NOR,
+	DFS_DEVICE_CORE,
+	DFS_DEVICE_REGEX_SLOW,
+	DFS_DEVICE_REGEX_FAST,
+	DFS_DEVICE_SATA,
+	INVALID_DFS_DEVICE = 0xFF
+};
 
 #endif
 #endif

@@ -17,11 +17,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "Windows.h"
-#include <wincrypt.h>
 #include <fcntl.h>
 #include <io.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#undef max
 
 // MinGW doesn't define this.
 #ifndef _ERRNO_T_DEFINED
@@ -63,7 +64,7 @@ namespace {
     utf16.push_back(0);
     utf16.pop_back();
 
-    return success;
+    return error_code::success();
   }
 
   error_code UTF16ToUTF8(const wchar_t *utf16, size_t utf16_len,
@@ -93,7 +94,7 @@ namespace {
     utf8.push_back(0);
     utf8.pop_back();
 
-    return success;
+    return error_code::success();
   }
 
   error_code TempDir(SmallVectorImpl<wchar_t> &result) {
@@ -109,17 +110,9 @@ namespace {
     }
 
     result.set_size(len);
-    return success;
+    return error_code::success();
   }
 
-  // Forwarder for ScopedHandle.
-  BOOL WINAPI CryptReleaseContext(HCRYPTPROV Provider) {
-    return ::CryptReleaseContext(Provider, 0);
-  }
-
-  typedef ScopedHandle<HCRYPTPROV, uintptr_t(-1),
-                       BOOL (WINAPI*)(HCRYPTPROV), CryptReleaseContext>
-    ScopedCryptContext;
   bool is_separator(const wchar_t value) {
     switch (value) {
     case L'\\':
@@ -176,7 +169,7 @@ retry_cur_dir:
   if (len == 0)
     return windows_error(::GetLastError());
 
-  return success;
+  return error_code::success();
 }
 
 error_code copy_file(const Twine &from, const Twine &to, copy_option copt) {
@@ -199,7 +192,7 @@ error_code copy_file(const Twine &from, const Twine &to, copy_option copt) {
   if (res == 0)
     return windows_error(::GetLastError());
 
-  return success;
+  return error_code::success();
 }
 
 error_code create_directory(const Twine &path, bool &existed) {
@@ -219,7 +212,7 @@ error_code create_directory(const Twine &path, bool &existed) {
   } else
     existed = false;
 
-  return success;
+  return error_code::success();
 }
 
 error_code create_hard_link(const Twine &to, const Twine &from) {
@@ -238,7 +231,7 @@ error_code create_hard_link(const Twine &to, const Twine &from) {
   if (!::CreateHardLinkW(wide_from.begin(), wide_to.begin(), NULL))
     return windows_error(::GetLastError());
 
-  return success;
+  return error_code::success();
 }
 
 error_code create_symlink(const Twine &to, const Twine &from) {
@@ -261,7 +254,7 @@ error_code create_symlink(const Twine &to, const Twine &from) {
   if (!create_symbolic_link_api(wide_from.begin(), wide_to.begin(), 0))
     return windows_error(::GetLastError());
 
-  return success;
+  return error_code::success();
 }
 
 error_code remove(const Twine &path, bool &existed) {
@@ -294,7 +287,7 @@ error_code remove(const Twine &path, bool &existed) {
       existed = true;
   }
 
-  return success;
+  return error_code::success();
 }
 
 error_code rename(const Twine &from, const Twine &to) {
@@ -310,11 +303,21 @@ error_code rename(const Twine &from, const Twine &to) {
   if (error_code ec = UTF8ToUTF16(f, wide_from)) return ec;
   if (error_code ec = UTF8ToUTF16(t, wide_to)) return ec;
 
-  if (!::MoveFileExW(wide_from.begin(), wide_to.begin(),
-                     MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING))
-    return windows_error(::GetLastError());
+  error_code ec = error_code::success();
+  for (int i = 0; i < 2000; i++) {
+    if (::MoveFileExW(wide_from.begin(), wide_to.begin(),
+                      MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING))
+      return error_code::success();
+    ec = windows_error(::GetLastError());
+    if (ec != windows_error::access_denied)
+      break;
+    // Retry MoveFile() at ACCESS_DENIED.
+    // System scanners (eg. indexer) might open the source file when
+    // It is written and closed.
+    ::Sleep(1);
+  }
 
-  return success;
+  return ec;
 }
 
 error_code resize_file(const Twine &path, uint64_t size) {
@@ -356,72 +359,26 @@ error_code exists(const Twine &path, bool &result) {
     result = false;
   } else
     result = true;
-  return success;
+  return error_code::success();
+}
+
+bool equivalent(file_status A, file_status B) {
+  assert(status_known(A) && status_known(B));
+  return A.FileIndexHigh      == B.FileIndexHigh &&
+         A.FileIndexLow       == B.FileIndexLow &&
+         A.FileSizeHigh       == B.FileSizeHigh &&
+         A.FileSizeLow        == B.FileSizeLow &&
+         A.LastWriteTimeHigh  == B.LastWriteTimeHigh &&
+         A.LastWriteTimeLow   == B.LastWriteTimeLow &&
+         A.VolumeSerialNumber == B.VolumeSerialNumber;
 }
 
 error_code equivalent(const Twine &A, const Twine &B, bool &result) {
-  // Get arguments.
-  SmallString<128> a_storage;
-  SmallString<128> b_storage;
-  StringRef a = A.toStringRef(a_storage);
-  StringRef b = B.toStringRef(b_storage);
-
-  // Convert to utf-16.
-  SmallVector<wchar_t, 128> wide_a;
-  SmallVector<wchar_t, 128> wide_b;
-  if (error_code ec = UTF8ToUTF16(a, wide_a)) return ec;
-  if (error_code ec = UTF8ToUTF16(b, wide_b)) return ec;
-
-  AutoHandle HandleB(
-    ::CreateFileW(wide_b.begin(),
-                  0,
-                  FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                  0,
-                  OPEN_EXISTING,
-                  FILE_FLAG_BACKUP_SEMANTICS,
-                  0));
-
-  AutoHandle HandleA(
-    ::CreateFileW(wide_a.begin(),
-                  0,
-                  FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                  0,
-                  OPEN_EXISTING,
-                  FILE_FLAG_BACKUP_SEMANTICS,
-                  0));
-
-  // If both handles are invalid, it's an error.
-  if (HandleA == INVALID_HANDLE_VALUE &&
-      HandleB == INVALID_HANDLE_VALUE)
-    return windows_error(::GetLastError());
-
-  // If only one is invalid, it's false.
-  if (HandleA == INVALID_HANDLE_VALUE &&
-      HandleB == INVALID_HANDLE_VALUE) {
-    result = false;
-    return success;
-  }
-
-  // Get file information.
-  BY_HANDLE_FILE_INFORMATION InfoA, InfoB;
-  if (!::GetFileInformationByHandle(HandleA, &InfoA))
-    return windows_error(::GetLastError());
-  if (!::GetFileInformationByHandle(HandleB, &InfoB))
-    return windows_error(::GetLastError());
-
-  // See if it's all the same.
-  result =
-    InfoA.dwVolumeSerialNumber           == InfoB.dwVolumeSerialNumber &&
-    InfoA.nFileIndexHigh                 == InfoB.nFileIndexHigh &&
-    InfoA.nFileIndexLow                  == InfoB.nFileIndexLow &&
-    InfoA.nFileSizeHigh                  == InfoB.nFileSizeHigh &&
-    InfoA.nFileSizeLow                   == InfoB.nFileSizeLow &&
-    InfoA.ftLastWriteTime.dwLowDateTime  ==
-      InfoB.ftLastWriteTime.dwLowDateTime &&
-    InfoA.ftLastWriteTime.dwHighDateTime ==
-      InfoB.ftLastWriteTime.dwHighDateTime;
-
-  return success;
+  file_status fsA, fsB;
+  if (error_code ec = status(A, fsA)) return ec;
+  if (error_code ec = status(B, fsB)) return ec;
+  result = equivalent(fsA, fsB);
+  return error_code::success();
 }
 
 error_code file_size(const Twine &path, uint64_t &result) {
@@ -442,7 +399,7 @@ error_code file_size(const Twine &path, uint64_t &result) {
     (uint64_t(FileData.nFileSizeHigh) << (sizeof(FileData.nFileSizeLow) * 8))
     + FileData.nFileSizeLow;
 
-  return success;
+  return error_code::success();
 }
 
 static bool isReservedName(StringRef path) {
@@ -475,11 +432,10 @@ error_code status(const Twine &path, file_status &result) {
   StringRef path8 = path.toStringRef(path_storage);
   if (isReservedName(path8)) {
     result = file_status(file_type::character_file);
-    return success;
+    return error_code::success();
   }
 
-  if (error_code ec = UTF8ToUTF16(path8,
-                                  path_utf16))
+  if (error_code ec = UTF8ToUTF16(path8, path_utf16))
     return ec;
 
   DWORD attr = ::GetFileAttributesW(path_utf16.begin());
@@ -488,7 +444,7 @@ error_code status(const Twine &path, file_status &result) {
 
   // Handle reparse points.
   if (attr & FILE_ATTRIBUTE_REPARSE_POINT) {
-    AutoHandle h(
+    ScopedFileHandle h(
       ::CreateFileW(path_utf16.begin(),
                     0, // Attributes only.
                     FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -496,16 +452,37 @@ error_code status(const Twine &path, file_status &result) {
                     OPEN_EXISTING,
                     FILE_FLAG_BACKUP_SEMANTICS,
                     0));
-    if (h == INVALID_HANDLE_VALUE)
+    if (!h)
       goto handle_status_error;
   }
 
   if (attr & FILE_ATTRIBUTE_DIRECTORY)
     result = file_status(file_type::directory_file);
-  else
+  else {
     result = file_status(file_type::regular_file);
+    ScopedFileHandle h(
+      ::CreateFileW(path_utf16.begin(),
+                    0, // Attributes only.
+                    FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    NULL,
+                    OPEN_EXISTING,
+                    FILE_FLAG_BACKUP_SEMANTICS,
+                    0));
+    if (!h)
+      goto handle_status_error;
+    BY_HANDLE_FILE_INFORMATION Info;
+    if (!::GetFileInformationByHandle(h, &Info))
+      goto handle_status_error;
+    result.FileIndexHigh      = Info.nFileIndexHigh;
+    result.FileIndexLow       = Info.nFileIndexLow;
+    result.FileSizeHigh       = Info.nFileSizeHigh;
+    result.FileSizeLow        = Info.nFileSizeLow;
+    result.LastWriteTimeHigh  = Info.ftLastWriteTime.dwHighDateTime;
+    result.LastWriteTimeLow   = Info.ftLastWriteTime.dwLowDateTime;
+    result.VolumeSerialNumber = Info.dwVolumeSerialNumber;
+  }
 
-  return success;
+  return error_code::success();
 
 handle_status_error:
   error_code ec = windows_error(::GetLastError());
@@ -519,12 +496,49 @@ handle_status_error:
     return ec;
   }
 
-  return success;
+  return error_code::success();
 }
 
+
+// Modifies permissions on a file.
+error_code permissions(const Twine &path, perms prms) {
+#if 0 // verify code below before enabling:
+  // If the permissions bits are not trying to modify
+  // "write" permissions, there is nothing to do.
+  if (!(prms & (owner_write|group_write|others_write)))
+    return error_code::success();
+  
+  SmallString<128> path_storage;
+  SmallVector<wchar_t, 128> path_utf16;
+
+  if (error_code ec = UTF8ToUTF16(path.toStringRef(path_storage),
+                                  path_utf16))
+    return ec;
+
+  DWORD attributes = ::GetFileAttributesW(path_utf16.begin());
+
+  if (prms & add_perms) {
+    attributes &= ~FILE_ATTRIBUTE_READONLY;
+  }
+  else if (prms & remove_perms) {
+    attributes |= FILE_ATTRIBUTE_READONLY;
+  }
+  else {
+    assert(0 && "neither add_perms or remove_perms is set");
+  }
+
+  if ( ! ::SetFileAttributesW(path_utf16.begin(), attributes))
+    return windows_error(::GetLastError());
+#endif    
+  return error_code::success();
+}
+
+
+// FIXME: mode should be used here and default to user r/w only,
+// it currently comes in as a UNIX mode.
 error_code unique_file(const Twine &model, int &result_fd,
-                             SmallVectorImpl<char> &result_path,
-                             bool makeAbsolute) {
+                       SmallVectorImpl<char> &result_path,
+                       bool makeAbsolute, unsigned mode) {
   // Use result_path as temp storage.
   result_path.set_size(0);
   StringRef m = model.toStringRef(result_path);
@@ -535,7 +549,7 @@ error_code unique_file(const Twine &model, int &result_fd,
   if (makeAbsolute) {
     // Make model absolute by prepending a temp directory if it's not already.
     bool absolute = path::is_absolute(m);
-  
+
     if (!absolute) {
       SmallVector<wchar_t, 64> temp_dir;
       if (error_code ec = TempDir(temp_dir)) return ec;
@@ -646,7 +660,7 @@ retry_create_file:
   }
 
   result_fd = fd;
-  return success;
+  return error_code::success();
 }
 
 error_code get_magic(const Twine &path, uint32_t len,
@@ -688,10 +702,208 @@ error_code get_magic(const Twine &path, uint32_t len,
   }
 
   result.set_size(len);
-  return success;
+  return error_code::success();
 }
 
-error_code directory_iterator_construct(directory_iterator &it, StringRef path){
+error_code mapped_file_region::init(int FD, uint64_t Offset) {
+  FileDescriptor = FD;
+  // Make sure that the requested size fits within SIZE_T.
+  if (Size > std::numeric_limits<SIZE_T>::max()) {
+    if (FileDescriptor)
+      _close(FileDescriptor);
+    else
+      ::CloseHandle(FileHandle);
+    return make_error_code(errc::invalid_argument);
+  }
+
+  DWORD flprotect;
+  switch (Mode) {
+  case readonly:  flprotect = PAGE_READONLY; break;
+  case readwrite: flprotect = PAGE_READWRITE; break;
+  case priv:      flprotect = PAGE_WRITECOPY; break;
+  default: llvm_unreachable("invalid mapping mode");
+  }
+
+  FileMappingHandle = ::CreateFileMapping(FileHandle,
+                                          0,
+                                          flprotect,
+                                          Size >> 32,
+                                          Size & 0xffffffff,
+                                          0);
+  if (FileMappingHandle == NULL) {
+    error_code ec = windows_error(GetLastError());
+    if (FileDescriptor)
+      _close(FileDescriptor);
+    else
+      ::CloseHandle(FileHandle);
+    return ec;
+  }
+
+  DWORD dwDesiredAccess;
+  switch (Mode) {
+  case readonly:  dwDesiredAccess = FILE_MAP_READ; break;
+  case readwrite: dwDesiredAccess = FILE_MAP_WRITE; break;
+  case priv:      dwDesiredAccess = FILE_MAP_COPY; break;
+  default: llvm_unreachable("invalid mapping mode");
+  }
+  Mapping = ::MapViewOfFile(FileMappingHandle,
+                            dwDesiredAccess,
+                            Offset >> 32,
+                            Offset & 0xffffffff,
+                            Size);
+  if (Mapping == NULL) {
+    error_code ec = windows_error(GetLastError());
+    ::CloseHandle(FileMappingHandle);
+    if (FileDescriptor)
+      _close(FileDescriptor);
+    else
+      ::CloseHandle(FileHandle);
+    return ec;
+  }
+
+  if (Size == 0) {
+    MEMORY_BASIC_INFORMATION mbi;
+    SIZE_T Result = VirtualQuery(Mapping, &mbi, sizeof(mbi));
+    if (Result == 0) {
+      error_code ec = windows_error(GetLastError());
+      ::UnmapViewOfFile(Mapping);
+      ::CloseHandle(FileMappingHandle);
+      if (FileDescriptor)
+        _close(FileDescriptor);
+      else
+        ::CloseHandle(FileHandle);
+      return ec;
+    }
+    Size = mbi.RegionSize;
+  }
+  return error_code::success();
+}
+
+mapped_file_region::mapped_file_region(const Twine &path,
+                                       mapmode mode,
+                                       uint64_t length,
+                                       uint64_t offset,
+                                       error_code &ec) 
+  : Mode(mode)
+  , Size(length)
+  , Mapping()
+  , FileDescriptor()
+  , FileHandle(INVALID_HANDLE_VALUE)
+  , FileMappingHandle() {
+  SmallString<128> path_storage;
+  SmallVector<wchar_t, 128> path_utf16;
+
+  // Convert path to UTF-16.
+  if ((ec = UTF8ToUTF16(path.toStringRef(path_storage), path_utf16)))
+    return;
+
+  // Get file handle for creating a file mapping.
+  FileHandle = ::CreateFileW(c_str(path_utf16),
+                             Mode == readonly ? GENERIC_READ
+                                              : GENERIC_READ | GENERIC_WRITE,
+                             Mode == readonly ? FILE_SHARE_READ
+                                              : 0,
+                             0,
+                             Mode == readonly ? OPEN_EXISTING
+                                              : OPEN_ALWAYS,
+                             Mode == readonly ? FILE_ATTRIBUTE_READONLY
+                                              : FILE_ATTRIBUTE_NORMAL,
+                             0);
+  if (FileHandle == INVALID_HANDLE_VALUE) {
+    ec = windows_error(::GetLastError());
+    return;
+  }
+
+  FileDescriptor = 0;
+  ec = init(FileDescriptor, offset);
+  if (ec) {
+    Mapping = FileMappingHandle = 0;
+    FileHandle = INVALID_HANDLE_VALUE;
+    FileDescriptor = 0;
+  }
+}
+
+mapped_file_region::mapped_file_region(int fd,
+                                       mapmode mode,
+                                       uint64_t length,
+                                       uint64_t offset,
+                                       error_code &ec)
+  : Mode(mode)
+  , Size(length)
+  , Mapping()
+  , FileDescriptor(fd)
+  , FileHandle(INVALID_HANDLE_VALUE)
+  , FileMappingHandle() {
+  FileHandle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
+  if (FileHandle == INVALID_HANDLE_VALUE) {
+    _close(FileDescriptor);
+    FileDescriptor = 0;
+    ec = make_error_code(errc::bad_file_descriptor);
+    return;
+  }
+
+  ec = init(FileDescriptor, offset);
+  if (ec) {
+    Mapping = FileMappingHandle = 0;
+    FileHandle = INVALID_HANDLE_VALUE;
+    FileDescriptor = 0;
+  }
+}
+
+mapped_file_region::~mapped_file_region() {
+  if (Mapping)
+    ::UnmapViewOfFile(Mapping);
+  if (FileMappingHandle)
+    ::CloseHandle(FileMappingHandle);
+  if (FileDescriptor)
+    _close(FileDescriptor);
+  else if (FileHandle != INVALID_HANDLE_VALUE)
+    ::CloseHandle(FileHandle);
+}
+
+#if LLVM_USE_RVALUE_REFERENCES
+mapped_file_region::mapped_file_region(mapped_file_region &&other)
+  : Mode(other.Mode)
+  , Size(other.Size)
+  , Mapping(other.Mapping)
+  , FileDescriptor(other.FileDescriptor)
+  , FileHandle(other.FileHandle)
+  , FileMappingHandle(other.FileMappingHandle) {
+  other.Mapping = other.FileMappingHandle = 0;
+  other.FileHandle = INVALID_HANDLE_VALUE;
+  other.FileDescriptor = 0;
+}
+#endif
+
+mapped_file_region::mapmode mapped_file_region::flags() const {
+  assert(Mapping && "Mapping failed but used anyway!");
+  return Mode;
+}
+
+uint64_t mapped_file_region::size() const {
+  assert(Mapping && "Mapping failed but used anyway!");
+  return Size;
+}
+
+char *mapped_file_region::data() const {
+  assert(Mode != readonly && "Cannot get non const data for readonly mapping!");
+  assert(Mapping && "Mapping failed but used anyway!");
+  return reinterpret_cast<char*>(Mapping);
+}
+
+const char *mapped_file_region::const_data() const {
+  assert(Mapping && "Mapping failed but used anyway!");
+  return reinterpret_cast<const char*>(Mapping);
+}
+
+int mapped_file_region::alignment() {
+  SYSTEM_INFO SysInfo;
+  ::GetSystemInfo(&SysInfo);
+  return SysInfo.dwAllocationGranularity;
+}
+
+error_code detail::directory_iterator_construct(detail::DirIterState &it,
+                                                StringRef path){
   SmallVector<wchar_t, 128> path_utf16;
 
   if (error_code ec = UTF8ToUTF16(path,
@@ -722,7 +934,7 @@ error_code directory_iterator_construct(directory_iterator &it, StringRef path){
       error_code ec = windows_error(::GetLastError());
       // Check for end.
       if (ec == windows_error::no_more_files)
-        return directory_iterator_destruct(it);
+        return detail::directory_iterator_destruct(it);
       return ec;
     } else
       FilenameLen = ::wcslen(FirstFind.cFileName);
@@ -739,25 +951,25 @@ error_code directory_iterator_construct(directory_iterator &it, StringRef path){
   path::append(directory_entry_path, directory_entry_name_utf8.str());
   it.CurrentEntry = directory_entry(directory_entry_path.str());
 
-  return success;
+  return error_code::success();
 }
 
-error_code directory_iterator_destruct(directory_iterator& it) {
+error_code detail::directory_iterator_destruct(detail::DirIterState &it) {
   if (it.IterationHandle != 0)
     // Closes the handle if it's valid.
     ScopedFindHandle close(HANDLE(it.IterationHandle));
   it.IterationHandle = 0;
   it.CurrentEntry = directory_entry();
-  return success;
+  return error_code::success();
 }
 
-error_code directory_iterator_increment(directory_iterator& it) {
+error_code detail::directory_iterator_increment(detail::DirIterState &it) {
   WIN32_FIND_DATAW FindData;
   if (!::FindNextFileW(HANDLE(it.IterationHandle), &FindData)) {
     error_code ec = windows_error(::GetLastError());
     // Check for end.
     if (ec == windows_error::no_more_files)
-      return directory_iterator_destruct(it);
+      return detail::directory_iterator_destruct(it);
     return ec;
   }
 
@@ -774,8 +986,21 @@ error_code directory_iterator_increment(directory_iterator& it) {
     return ec;
 
   it.CurrentEntry.replace_filename(Twine(directory_entry_path_utf8));
-  return success;
+  return error_code::success();
 }
+
+error_code map_file_pages(const Twine &path, off_t file_offset, size_t size,  
+                                            bool map_writable, void *&result) {
+  assert(0 && "NOT IMPLEMENTED");
+  return windows_error::invalid_function;
+}
+
+error_code unmap_file_pages(void *base, size_t size) {
+  assert(0 && "NOT IMPLEMENTED");
+  return windows_error::invalid_function;
+}
+
+
 
 } // end namespace fs
 } // end namespace sys

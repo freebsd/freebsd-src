@@ -14,8 +14,9 @@
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <limits.h>
@@ -45,22 +46,27 @@ namespace llvm {
     /* Number of bits in the significand.  This includes the integer
        bit.  */
     unsigned int precision;
-
-    /* True if arithmetic is supported.  */
-    unsigned int arithmeticOK;
   };
 
-  const fltSemantics APFloat::IEEEhalf = { 15, -14, 11, true };
-  const fltSemantics APFloat::IEEEsingle = { 127, -126, 24, true };
-  const fltSemantics APFloat::IEEEdouble = { 1023, -1022, 53, true };
-  const fltSemantics APFloat::IEEEquad = { 16383, -16382, 113, true };
-  const fltSemantics APFloat::x87DoubleExtended = { 16383, -16382, 64, true };
-  const fltSemantics APFloat::Bogus = { 0, 0, 0, true };
+  const fltSemantics APFloat::IEEEhalf = { 15, -14, 11 };
+  const fltSemantics APFloat::IEEEsingle = { 127, -126, 24 };
+  const fltSemantics APFloat::IEEEdouble = { 1023, -1022, 53 };
+  const fltSemantics APFloat::IEEEquad = { 16383, -16382, 113 };
+  const fltSemantics APFloat::x87DoubleExtended = { 16383, -16382, 64 };
+  const fltSemantics APFloat::Bogus = { 0, 0, 0 };
 
-  // The PowerPC format consists of two doubles.  It does not map cleanly
-  // onto the usual format above.  For now only storage of constants of
-  // this type is supported, no arithmetic.
-  const fltSemantics APFloat::PPCDoubleDouble = { 1023, -1022, 106, false };
+  /* The PowerPC format consists of two doubles.  It does not map cleanly
+     onto the usual format above.  It is approximated using twice the
+     mantissa bits.  Note that for exponents near the double minimum,
+     we no longer can represent the full 106 mantissa bits, so those
+     will be treated as denormal numbers.
+
+     FIXME: While this approximation is equivalent to what GCC uses for
+     compile-time arithmetic on PPC double-double numbers, it is not able
+     to represent all possible values held by a PPC double-double number,
+     for example: (long double) 1.0 + (long double) 0x1p-106
+     Should this be replaced by a full emulation of PPC double-double?  */
+  const fltSemantics APFloat::PPCDoubleDouble = { 1023, -1022 + 53, 53 + 53 };
 
   /* A tight upper bound on number of parts required to hold the value
      pow(5, power) is
@@ -113,12 +119,6 @@ hexDigitValue(unsigned int c)
     return r + 10;
 
   return -1U;
-}
-
-static inline void
-assertArithmeticOK(const llvm::fltSemantics &semantics) {
-  assert(semantics.arithmeticOK &&
-         "Compile-time arithmetic does not support these semantics");
 }
 
 /* Return the value of a decimal exponent of the form
@@ -195,8 +195,10 @@ totalExponent(StringRef::iterator p, StringRef::iterator end,
     assert(value < 10U && "Invalid character in exponent");
 
     unsignedExponent = unsignedExponent * 10 + value;
-    if (unsignedExponent > 32767)
+    if (unsignedExponent > 32767) {
       overflow = true;
+      break;
+    }
   }
 
   if (exponentAdjustment > 32767 || exponentAdjustment < -32768)
@@ -609,8 +611,6 @@ APFloat::assign(const APFloat &rhs)
   sign = rhs.sign;
   category = rhs.category;
   exponent = rhs.exponent;
-  sign2 = rhs.sign2;
-  exponent2 = rhs.exponent2;
   if (category == fcNormal || category == fcNaN)
     copySignificand(rhs);
 }
@@ -704,15 +704,9 @@ APFloat::bitwiseIsEqual(const APFloat &rhs) const {
       category != rhs.category ||
       sign != rhs.sign)
     return false;
-  if (semantics==(const llvm::fltSemantics*)&PPCDoubleDouble &&
-      sign2 != rhs.sign2)
-    return false;
   if (category==fcZero || category==fcInfinity)
     return true;
   else if (category==fcNormal && exponent!=rhs.exponent)
-    return false;
-  else if (semantics==(const llvm::fltSemantics*)&PPCDoubleDouble &&
-           exponent2!=rhs.exponent2)
     return false;
   else {
     int i= partCount();
@@ -726,9 +720,7 @@ APFloat::bitwiseIsEqual(const APFloat &rhs) const {
   }
 }
 
-APFloat::APFloat(const fltSemantics &ourSemantics, integerPart value)
-  : exponent2(0), sign2(0) {
-  assertArithmeticOK(ourSemantics);
+APFloat::APFloat(const fltSemantics &ourSemantics, integerPart value) {
   initialize(&ourSemantics);
   sign = 0;
   zeroSignificand();
@@ -737,24 +729,19 @@ APFloat::APFloat(const fltSemantics &ourSemantics, integerPart value)
   normalize(rmNearestTiesToEven, lfExactlyZero);
 }
 
-APFloat::APFloat(const fltSemantics &ourSemantics) : exponent2(0), sign2(0) {
-  assertArithmeticOK(ourSemantics);
+APFloat::APFloat(const fltSemantics &ourSemantics) {
   initialize(&ourSemantics);
   category = fcZero;
   sign = false;
 }
 
-APFloat::APFloat(const fltSemantics &ourSemantics, uninitializedTag tag)
-  : exponent2(0), sign2(0) {
-  assertArithmeticOK(ourSemantics);
+APFloat::APFloat(const fltSemantics &ourSemantics, uninitializedTag tag) {
   // Allocates storage if necessary but does not initialize it.
   initialize(&ourSemantics);
 }
 
 APFloat::APFloat(const fltSemantics &ourSemantics,
-                 fltCategory ourCategory, bool negative)
-  : exponent2(0), sign2(0) {
-  assertArithmeticOK(ourSemantics);
+                 fltCategory ourCategory, bool negative) {
   initialize(&ourSemantics);
   category = ourCategory;
   sign = negative;
@@ -764,14 +751,12 @@ APFloat::APFloat(const fltSemantics &ourSemantics,
     makeNaN();
 }
 
-APFloat::APFloat(const fltSemantics &ourSemantics, StringRef text)
-  : exponent2(0), sign2(0) {
-  assertArithmeticOK(ourSemantics);
+APFloat::APFloat(const fltSemantics &ourSemantics, StringRef text) {
   initialize(&ourSemantics);
   convertFromString(text, rmNearestTiesToEven);
 }
 
-APFloat::APFloat(const APFloat &rhs) : exponent2(0), sign2(0) {
+APFloat::APFloat(const APFloat &rhs) {
   initialize(rhs.semantics);
   assign(rhs);
 }
@@ -1150,9 +1135,6 @@ APFloat::roundAwayFromZero(roundingMode rounding_mode,
   assert(lost_fraction != lfExactlyZero);
 
   switch (rounding_mode) {
-  default:
-    llvm_unreachable(0);
-
   case rmNearestTiesToAway:
     return lost_fraction == lfExactlyHalf || lost_fraction == lfMoreThanHalf;
 
@@ -1175,6 +1157,7 @@ APFloat::roundAwayFromZero(roundingMode rounding_mode,
   case rmTowardNegative:
     return sign == true;
   }
+  llvm_unreachable("Invalid rounding mode found");
 }
 
 APFloat::opStatus
@@ -1560,8 +1543,6 @@ APFloat::addOrSubtract(const APFloat &rhs, roundingMode rounding_mode,
 {
   opStatus fs;
 
-  assertArithmeticOK(*semantics);
-
   fs = addOrSubtractSpecials(rhs, subtract);
 
   /* This return code means it was not a simple case.  */
@@ -1606,7 +1587,6 @@ APFloat::multiply(const APFloat &rhs, roundingMode rounding_mode)
 {
   opStatus fs;
 
-  assertArithmeticOK(*semantics);
   sign ^= rhs.sign;
   fs = multiplySpecials(rhs);
 
@@ -1626,7 +1606,6 @@ APFloat::divide(const APFloat &rhs, roundingMode rounding_mode)
 {
   opStatus fs;
 
-  assertArithmeticOK(*semantics);
   sign ^= rhs.sign;
   fs = divideSpecials(rhs);
 
@@ -1648,7 +1627,6 @@ APFloat::remainder(const APFloat &rhs)
   APFloat V = *this;
   unsigned int origSign = sign;
 
-  assertArithmeticOK(*semantics);
   fs = V.divide(rhs, rmNearestTiesToEven);
   if (fs == opDivByZero)
     return fs;
@@ -1683,7 +1661,6 @@ APFloat::opStatus
 APFloat::mod(const APFloat &rhs, roundingMode rounding_mode)
 {
   opStatus fs;
-  assertArithmeticOK(*semantics);
   fs = modSpecials(rhs);
 
   if (category == fcNormal && rhs.category == fcNormal) {
@@ -1727,8 +1704,6 @@ APFloat::fusedMultiplyAdd(const APFloat &multiplicand,
 {
   opStatus fs;
 
-  assertArithmeticOK(*semantics);
-
   /* Post-multiplication sign, before addition.  */
   sign ^= multiplicand.sign;
 
@@ -1766,13 +1741,55 @@ APFloat::fusedMultiplyAdd(const APFloat &multiplicand,
   return fs;
 }
 
+/* Rounding-mode corrrect round to integral value.  */
+APFloat::opStatus APFloat::roundToIntegral(roundingMode rounding_mode) {
+  opStatus fs;
+
+  // If the exponent is large enough, we know that this value is already
+  // integral, and the arithmetic below would potentially cause it to saturate
+  // to +/-Inf.  Bail out early instead.
+  if (category == fcNormal && exponent+1 >= (int)semanticsPrecision(*semantics))
+    return opOK;
+
+  // The algorithm here is quite simple: we add 2^(p-1), where p is the
+  // precision of our format, and then subtract it back off again.  The choice
+  // of rounding modes for the addition/subtraction determines the rounding mode
+  // for our integral rounding as well.
+  // NOTE: When the input value is negative, we do subtraction followed by
+  // addition instead.
+  APInt IntegerConstant(NextPowerOf2(semanticsPrecision(*semantics)), 1);
+  IntegerConstant <<= semanticsPrecision(*semantics)-1;
+  APFloat MagicConstant(*semantics);
+  fs = MagicConstant.convertFromAPInt(IntegerConstant, false,
+                                      rmNearestTiesToEven);
+  MagicConstant.copySign(*this);
+
+  if (fs != opOK)
+    return fs;
+
+  // Preserve the input sign so that we can handle 0.0/-0.0 cases correctly.
+  bool inputSign = isNegative();
+
+  fs = add(MagicConstant, rounding_mode);
+  if (fs != opOK && fs != opInexact)
+    return fs;
+
+  fs = subtract(MagicConstant, rounding_mode);
+
+  // Restore the input sign.
+  if (inputSign != isNegative())
+    changeSign();
+
+  return fs;
+}
+
+
 /* Comparison requires normalized numbers.  */
 APFloat::cmpResult
 APFloat::compare(const APFloat &rhs) const
 {
   cmpResult result;
 
-  assertArithmeticOK(*semantics);
   assert(semantics == rhs.semantics);
 
   switch (convolve(category, rhs.category)) {
@@ -1854,20 +1871,31 @@ APFloat::convert(const fltSemantics &toSemantics,
   lostFraction lostFraction;
   unsigned int newPartCount, oldPartCount;
   opStatus fs;
+  int shift;
+  const fltSemantics &fromSemantics = *semantics;
 
-  assertArithmeticOK(*semantics);
-  assertArithmeticOK(toSemantics);
   lostFraction = lfExactlyZero;
   newPartCount = partCountForBits(toSemantics.precision + 1);
   oldPartCount = partCount();
+  shift = toSemantics.precision - fromSemantics.precision;
 
-  /* Handle storage complications.  If our new form is wider,
-     re-allocate our bit pattern into wider storage.  If it is
-     narrower, we ignore the excess parts, but if narrowing to a
-     single part we need to free the old storage.
-     Be careful not to reference significandParts for zeroes
-     and infinities, since it aborts.  */
+  bool X86SpecialNan = false;
+  if (&fromSemantics == &APFloat::x87DoubleExtended &&
+      &toSemantics != &APFloat::x87DoubleExtended && category == fcNaN &&
+      (!(*significandParts() & 0x8000000000000000ULL) ||
+       !(*significandParts() & 0x4000000000000000ULL))) {
+    // x86 has some unusual NaNs which cannot be represented in any other
+    // format; note them here.
+    X86SpecialNan = true;
+  }
+
+  // If this is a truncation, perform the shift before we narrow the storage.
+  if (shift < 0 && (category==fcNormal || category==fcNaN))
+    lostFraction = shiftRight(significandParts(), oldPartCount, -shift);
+
+  // Fix the storage so it can hold to new value.
   if (newPartCount > oldPartCount) {
+    // The new type requires more storage; make it available.
     integerPart *newParts;
     newParts = new integerPart[newPartCount];
     APInt::tcSet(newParts, 0, newPartCount);
@@ -1875,61 +1903,36 @@ APFloat::convert(const fltSemantics &toSemantics,
       APInt::tcAssign(newParts, significandParts(), oldPartCount);
     freeSignificand();
     significand.parts = newParts;
-  } else if (newPartCount < oldPartCount) {
-    /* Capture any lost fraction through truncation of parts so we get
-       correct rounding whilst normalizing.  */
-    if (category==fcNormal)
-      lostFraction = lostFractionThroughTruncation
-        (significandParts(), oldPartCount, toSemantics.precision);
-    if (newPartCount == 1) {
-        integerPart newPart = 0;
-        if (category==fcNormal || category==fcNaN)
-          newPart = significandParts()[0];
-        freeSignificand();
-        significand.part = newPart;
-    }
+  } else if (newPartCount == 1 && oldPartCount != 1) {
+    // Switch to built-in storage for a single part.
+    integerPart newPart = 0;
+    if (category==fcNormal || category==fcNaN)
+      newPart = significandParts()[0];
+    freeSignificand();
+    significand.part = newPart;
   }
 
+  // Now that we have the right storage, switch the semantics.
+  semantics = &toSemantics;
+
+  // If this is an extension, perform the shift now that the storage is
+  // available.
+  if (shift > 0 && (category==fcNormal || category==fcNaN))
+    APInt::tcShiftLeft(significandParts(), newPartCount, shift);
+
   if (category == fcNormal) {
-    /* Re-interpret our bit-pattern.  */
-    exponent += toSemantics.precision - semantics->precision;
-    semantics = &toSemantics;
     fs = normalize(rounding_mode, lostFraction);
     *losesInfo = (fs != opOK);
   } else if (category == fcNaN) {
-    int shift = toSemantics.precision - semantics->precision;
-    // Do this now so significandParts gets the right answer
-    const fltSemantics *oldSemantics = semantics;
-    semantics = &toSemantics;
-    *losesInfo = false;
-    // No normalization here, just truncate
-    if (shift>0)
-      APInt::tcShiftLeft(significandParts(), newPartCount, shift);
-    else if (shift < 0) {
-      unsigned ushift = -shift;
-      // Figure out if we are losing information.  This happens
-      // if are shifting out something other than 0s, or if the x87 long
-      // double input did not have its integer bit set (pseudo-NaN), or if the
-      // x87 long double input did not have its QNan bit set (because the x87
-      // hardware sets this bit when converting a lower-precision NaN to
-      // x87 long double).
-      if (APInt::tcLSB(significandParts(), newPartCount) < ushift)
-        *losesInfo = true;
-      if (oldSemantics == &APFloat::x87DoubleExtended &&
-          (!(*significandParts() & 0x8000000000000000ULL) ||
-           !(*significandParts() & 0x4000000000000000ULL)))
-        *losesInfo = true;
-      APInt::tcShiftRight(significandParts(), newPartCount, ushift);
-    }
+    *losesInfo = lostFraction != lfExactlyZero || X86SpecialNan;
     // gcc forces the Quiet bit on, which means (float)(double)(float_sNan)
     // does not give you back the same bits.  This is dubious, and we
     // don't currently do it.  You're really supposed to get
     // an invalid operation signal at runtime, but nobody does that.
     fs = opOK;
   } else {
-    semantics = &toSemantics;
-    fs = opOK;
     *losesInfo = false;
+    fs = opOK;
   }
 
   return fs;
@@ -1954,8 +1957,6 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
   lostFraction lost_fraction;
   const integerPart *src;
   unsigned int dstPartsCount, truncatedBits;
-
-  assertArithmeticOK(*semantics);
 
   *isExact = false;
 
@@ -2118,7 +2119,6 @@ APFloat::convertFromUnsignedParts(const integerPart *src,
   integerPart *dst;
   lostFraction lost_fraction;
 
-  assertArithmeticOK(*semantics);
   category = fcNormal;
   omsb = APInt::tcMSB(src, srcCount) + 1;
   dst = significandParts();
@@ -2169,7 +2169,6 @@ APFloat::convertFromSignExtendedInteger(const integerPart *src,
 {
   opStatus status;
 
-  assertArithmeticOK(*semantics);
   if (isSigned &&
       APInt::tcExtractBit(src, srcCount * integerPartWidth - 1)) {
     integerPart *copy;
@@ -2303,7 +2302,7 @@ APFloat::roundSignificandWithExponent(const integerPart *decSigParts,
                                       roundingMode rounding_mode)
 {
   unsigned int parts, pow5PartCount;
-  fltSemantics calcSemantics = { 32767, -32767, 0, true };
+  fltSemantics calcSemantics = { 32767, -32767, 0 };
   integerPart pow5Parts[maxPowerOfFiveParts];
   bool isNearest;
 
@@ -2495,7 +2494,6 @@ APFloat::convertFromDecimalString(StringRef str, roundingMode rounding_mode)
 APFloat::opStatus
 APFloat::convertFromString(StringRef str, roundingMode rounding_mode)
 {
-  assertArithmeticOK(*semantics);
   assert(!str.empty() && "Invalid string length");
 
   /* Handle a leading minus sign.  */
@@ -2546,8 +2544,6 @@ APFloat::convertToHexString(char *dst, unsigned int hexDigits,
                             bool upperCase, roundingMode rounding_mode) const
 {
   char *p;
-
-  assertArithmeticOK(*semantics);
 
   p = dst;
   if (sign)
@@ -2695,21 +2691,19 @@ APFloat::convertNormalToHexString(char *dst, unsigned int hexDigits,
   return writeSignedDecimal (dst, exponent);
 }
 
-// For good performance it is desirable for different APFloats
-// to produce different integers.
-uint32_t
-APFloat::getHashValue() const
-{
-  if (category==fcZero) return sign<<8 | semantics->precision ;
-  else if (category==fcInfinity) return sign<<9 | semantics->precision;
-  else if (category==fcNaN) return 1<<10 | semantics->precision;
-  else {
-    uint32_t hash = sign<<11 | semantics->precision | exponent<<12;
-    const integerPart* p = significandParts();
-    for (int i=partCount(); i>0; i--, p++)
-      hash ^= ((uint32_t)*p) ^ (uint32_t)((*p)>>32);
-    return hash;
-  }
+hash_code llvm::hash_value(const APFloat &Arg) {
+  if (Arg.category != APFloat::fcNormal)
+    return hash_combine((uint8_t)Arg.category,
+                        // NaN has no sign, fix it at zero.
+                        Arg.isNaN() ? (uint8_t)0 : (uint8_t)Arg.sign,
+                        Arg.semantics->precision);
+
+  // Normal floats need their exponent and significand hashed.
+  return hash_combine((uint8_t)Arg.category, (uint8_t)Arg.sign,
+                      Arg.semantics->precision, Arg.exponent,
+                      hash_combine_range(
+                        Arg.significandParts(),
+                        Arg.significandParts() + Arg.partCount()));
 }
 
 // Conversion from APFloat to/from host float/double.  It may eventually be
@@ -2759,42 +2753,46 @@ APFloat::convertPPCDoubleDoubleAPFloatToAPInt() const
   assert(semantics == (const llvm::fltSemantics*)&PPCDoubleDouble);
   assert(partCount()==2);
 
-  uint64_t myexponent, mysignificand, myexponent2, mysignificand2;
+  uint64_t words[2];
+  opStatus fs;
+  bool losesInfo;
 
-  if (category==fcNormal) {
-    myexponent = exponent + 1023; //bias
-    myexponent2 = exponent2 + 1023;
-    mysignificand = significandParts()[0];
-    mysignificand2 = significandParts()[1];
-    if (myexponent==1 && !(mysignificand & 0x10000000000000LL))
-      myexponent = 0;   // denormal
-    if (myexponent2==1 && !(mysignificand2 & 0x10000000000000LL))
-      myexponent2 = 0;   // denormal
-  } else if (category==fcZero) {
-    myexponent = 0;
-    mysignificand = 0;
-    myexponent2 = 0;
-    mysignificand2 = 0;
-  } else if (category==fcInfinity) {
-    myexponent = 0x7ff;
-    myexponent2 = 0;
-    mysignificand = 0;
-    mysignificand2 = 0;
+  // Convert number to double.  To avoid spurious underflows, we re-
+  // normalize against the "double" minExponent first, and only *then*
+  // truncate the mantissa.  The result of that second conversion
+  // may be inexact, but should never underflow.
+  APFloat extended(*this);
+  fltSemantics extendedSemantics = *semantics;
+  extendedSemantics.minExponent = IEEEdouble.minExponent;
+  fs = extended.convert(extendedSemantics, rmNearestTiesToEven, &losesInfo);
+  assert(fs == opOK && !losesInfo);
+  (void)fs;
+
+  APFloat u(extended);
+  fs = u.convert(IEEEdouble, rmNearestTiesToEven, &losesInfo);
+  assert(fs == opOK || fs == opInexact);
+  (void)fs;
+  words[0] = *u.convertDoubleAPFloatToAPInt().getRawData();
+
+  // If conversion was exact or resulted in a special case, we're done;
+  // just set the second double to zero.  Otherwise, re-convert back to
+  // the extended format and compute the difference.  This now should
+  // convert exactly to double.
+  if (u.category == fcNormal && losesInfo) {
+    fs = u.convert(extendedSemantics, rmNearestTiesToEven, &losesInfo);
+    assert(fs == opOK && !losesInfo);
+    (void)fs;
+
+    APFloat v(extended);
+    v.subtract(u, rmNearestTiesToEven);
+    fs = v.convert(IEEEdouble, rmNearestTiesToEven, &losesInfo);
+    assert(fs == opOK && !losesInfo);
+    (void)fs;
+    words[1] = *v.convertDoubleAPFloatToAPInt().getRawData();
   } else {
-    assert(category == fcNaN && "Unknown category");
-    myexponent = 0x7ff;
-    mysignificand = significandParts()[0];
-    myexponent2 = exponent2;
-    mysignificand2 = significandParts()[1];
+    words[1] = 0;
   }
 
-  uint64_t words[2];
-  words[0] =  ((uint64_t)(sign & 1) << 63) |
-              ((myexponent & 0x7ff) <<  52) |
-              (mysignificand & 0xfffffffffffffLL);
-  words[1] =  ((uint64_t)(sign2 & 1) << 63) |
-              ((myexponent2 & 0x7ff) <<  52) |
-              (mysignificand2 & 0xfffffffffffffLL);
   return APInt(128, words);
 }
 
@@ -3014,47 +3012,23 @@ APFloat::initFromPPCDoubleDoubleAPInt(const APInt &api)
   assert(api.getBitWidth()==128);
   uint64_t i1 = api.getRawData()[0];
   uint64_t i2 = api.getRawData()[1];
-  uint64_t myexponent = (i1 >> 52) & 0x7ff;
-  uint64_t mysignificand = i1 & 0xfffffffffffffLL;
-  uint64_t myexponent2 = (i2 >> 52) & 0x7ff;
-  uint64_t mysignificand2 = i2 & 0xfffffffffffffLL;
+  opStatus fs;
+  bool losesInfo;
 
-  initialize(&APFloat::PPCDoubleDouble);
-  assert(partCount()==2);
+  // Get the first double and convert to our format.
+  initFromDoubleAPInt(APInt(64, i1));
+  fs = convert(PPCDoubleDouble, rmNearestTiesToEven, &losesInfo);
+  assert(fs == opOK && !losesInfo);
+  (void)fs;
 
-  sign = static_cast<unsigned int>(i1>>63);
-  sign2 = static_cast<unsigned int>(i2>>63);
-  if (myexponent==0 && mysignificand==0) {
-    // exponent, significand meaningless
-    // exponent2 and significand2 are required to be 0; we don't check
-    category = fcZero;
-  } else if (myexponent==0x7ff && mysignificand==0) {
-    // exponent, significand meaningless
-    // exponent2 and significand2 are required to be 0; we don't check
-    category = fcInfinity;
-  } else if (myexponent==0x7ff && mysignificand!=0) {
-    // exponent meaningless.  So is the whole second word, but keep it
-    // for determinism.
-    category = fcNaN;
-    exponent2 = myexponent2;
-    significandParts()[0] = mysignificand;
-    significandParts()[1] = mysignificand2;
-  } else {
-    category = fcNormal;
-    // Note there is no category2; the second word is treated as if it is
-    // fcNormal, although it might be something else considered by itself.
-    exponent = myexponent - 1023;
-    exponent2 = myexponent2 - 1023;
-    significandParts()[0] = mysignificand;
-    significandParts()[1] = mysignificand2;
-    if (myexponent==0)          // denormal
-      exponent = -1022;
-    else
-      significandParts()[0] |= 0x10000000000000LL;  // integer bit
-    if (myexponent2==0)
-      exponent2 = -1022;
-    else
-      significandParts()[1] |= 0x10000000000000LL;  // integer bit
+  // Unless we have a special case, add in second double.
+  if (category == fcNormal) {
+    APFloat v(APInt(64, i2));
+    fs = v.convert(PPCDoubleDouble, rmNearestTiesToEven, &losesInfo);
+    assert(fs == opOK && !losesInfo);
+    (void)fs;
+
+    add(v, rmNearestTiesToEven);
   }
 }
 
@@ -3280,29 +3254,21 @@ APFloat APFloat::getSmallestNormalized(const fltSemantics &Sem, bool Negative) {
   return Val;
 }
 
-APFloat::APFloat(const APInt& api, bool isIEEE) : exponent2(0), sign2(0) {
+APFloat::APFloat(const APInt& api, bool isIEEE) {
   initFromAPInt(api, isIEEE);
 }
 
-APFloat::APFloat(float f) : exponent2(0), sign2(0) {
+APFloat::APFloat(float f) {
   initFromAPInt(APInt::floatToBits(f));
 }
 
-APFloat::APFloat(double d) : exponent2(0), sign2(0) {
+APFloat::APFloat(double d) {
   initFromAPInt(APInt::doubleToBits(d));
 }
 
 namespace {
-  static void append(SmallVectorImpl<char> &Buffer,
-                     unsigned N, const char *Str) {
-    unsigned Start = Buffer.size();
-    Buffer.set_size(Start + N);
-    memcpy(&Buffer[Start], Str, N);
-  }
-
-  template <unsigned N>
-  void append(SmallVectorImpl<char> &Buffer, const char (&Str)[N]) {
-    append(Buffer, N, Str);
+  void append(SmallVectorImpl<char> &Buffer, StringRef Str) {
+    Buffer.append(Str.begin(), Str.end());
   }
 
   /// Removes data from the given significand until it is no more
@@ -3354,7 +3320,7 @@ namespace {
     // Rounding down is just a truncation, except we also want to drop
     // trailing zeros from the new result.
     if (buffer[FirstSignificant - 1] < '5') {
-      while (buffer[FirstSignificant] == '0')
+      while (FirstSignificant < N && buffer[FirstSignificant] == '0')
         FirstSignificant++;
 
       exp += FirstSignificant;
@@ -3587,11 +3553,6 @@ void APFloat::toString(SmallVectorImpl<char> &Str,
 }
 
 bool APFloat::getExactInverse(APFloat *inv) const {
-  // We can only guarantee the existence of an exact inverse for IEEE floats.
-  if (semantics != &IEEEhalf && semantics != &IEEEsingle &&
-      semantics != &IEEEdouble && semantics != &IEEEquad)
-    return false;
-
   // Special floats and denormals have no exact inverse.
   if (category != fcNormal)
     return false;

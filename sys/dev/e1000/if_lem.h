@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -217,7 +217,7 @@
 #define EM_BAR_MEM_TYPE_64BIT	0x00000004
 #define EM_MSIX_BAR		3	/* On 82575 */
 
-#if !defined(SYSCTL_ADD_UQUAD)
+#if __FreeBSD_version < 900000
 #define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
 #endif
 

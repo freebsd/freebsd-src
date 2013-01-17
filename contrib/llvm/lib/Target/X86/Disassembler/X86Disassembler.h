@@ -1,4 +1,4 @@
-//===- X86Disassembler.h - Disassembler for x86 and x86_64 ------*- C++ -*-===//
+//===-- X86Disassembler.h - Disassembler for x86 and x86_64 -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,7 +20,7 @@
 // 2. Read the opcode, and determine what kind of opcode it is.  The
 //    disassembler distinguishes four kinds of opcodes, which are enumerated in
 //    OpcodeType (X86DisassemblerDecoderCommon.h): one-byte (0xnn), two-byte
-//    (0x0f 0xnn), three-byte-38 (0x0f 0x38 0xnn), or three-byte-3a 
+//    (0x0f 0xnn), three-byte-38 (0x0f 0x38 0xnn), or three-byte-3a
 //    (0x0f 0x3a 0xnn).  Mandatory prefixes are treated as part of the context.
 //
 // 3. Depending on the opcode type, look in one of four ClassDecision structures
@@ -74,11 +74,11 @@
 #ifndef X86DISASSEMBLER_H
 #define X86DISASSEMBLER_H
 
-#define INSTRUCTION_SPECIFIER_FIELDS  \
-  const char*             name;
+#define INSTRUCTION_SPECIFIER_FIELDS \
+  uint16_t operands;
 
 #define INSTRUCTION_IDS               \
-  const InstrUID *instructionIDs;
+  uint16_t instructionIDs;
 
 #include "X86DisassemblerDecoderCommon.h"
 
@@ -87,30 +87,32 @@
 
 #include "llvm/MC/MCDisassembler.h"
 
-struct InternalInstruction;
-
 namespace llvm {
-  
+
 class MCInst;
+class MCInstrInfo;
 class MCSubtargetInfo;
 class MemoryObject;
 class raw_ostream;
 
 struct EDInstInfo;
-  
+
 namespace X86Disassembler {
 
 /// X86GenericDisassembler - Generic disassembler for all X86 platforms.
 ///   All each platform class should have to do is subclass the constructor, and
 ///   provide a different disassemblerMode value.
 class X86GenericDisassembler : public MCDisassembler {
-protected:
+  const MCInstrInfo *MII;
+public:
   /// Constructor     - Initializes the disassembler.
   ///
   /// @param mode     - The X86 architecture mode to decode for.
-  X86GenericDisassembler(const MCSubtargetInfo &STI, DisassemblerMode mode);
-public:
+  X86GenericDisassembler(const MCSubtargetInfo &STI, DisassemblerMode mode,
+                         const MCInstrInfo *MII);
+private:
   ~X86GenericDisassembler();
+public:
 
   /// getInstruction - See MCDisassembler.
   DecodeStatus getInstruction(MCInst &instr,
@@ -121,37 +123,13 @@ public:
                               raw_ostream &cStream) const;
 
   /// getEDInfo - See MCDisassembler.
-  EDInstInfo *getEDInfo() const;
+  const EDInstInfo *getEDInfo() const;
 private:
   DisassemblerMode              fMode;
 };
 
-/// X86_16Disassembler - 16-bit X86 disassembler.
-class X86_16Disassembler : public X86GenericDisassembler {
-public:
-  X86_16Disassembler(const MCSubtargetInfo &STI) :
-    X86GenericDisassembler(STI, MODE_16BIT) {
-  }
-};  
-
-/// X86_16Disassembler - 32-bit X86 disassembler.
-class X86_32Disassembler : public X86GenericDisassembler {
-public:
-  X86_32Disassembler(const MCSubtargetInfo &STI) :
-    X86GenericDisassembler(STI, MODE_32BIT) {
-  }
-};
-
-/// X86_16Disassembler - 64-bit X86 disassembler.
-class X86_64Disassembler : public X86GenericDisassembler {
-public:
-  X86_64Disassembler(const MCSubtargetInfo &STI) :
-    X86GenericDisassembler(STI, MODE_64BIT) {
-  }
-};
-
 } // namespace X86Disassembler
-  
+
 } // namespace llvm
-  
+
 #endif

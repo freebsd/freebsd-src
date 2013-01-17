@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
@@ -512,6 +513,10 @@ knote_fork(struct knlist *list, int pid)
 	list->kl_unlock(list->kl_lockarg);
 }
 
+/*
+ * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
+ * interval timer support code.
+ */
 static int
 timertoticks(intptr_t data)
 {
@@ -525,7 +530,6 @@ timertoticks(intptr_t data)
 	return tticks;
 }
 
-/* XXX - move to kern_timeout.c? */
 static void
 filt_timerexpire(void *knx)
 {
@@ -535,9 +539,16 @@ filt_timerexpire(void *knx)
 	kn->kn_data++;
 	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
 
+	/*
+	 * timertoticks() uses tvtohz() which always adds 1 to allow
+	 * for the time until the next clock interrupt being strictly
+	 * less than 1 clock tick.  We don't want that here since we
+	 * want to appear to be in sync with the clock interrupt even
+	 * when we're delayed.
+	 */
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata),
+		callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata) - 1,
 		    filt_timerexpire, kn);
 	}
 }
@@ -545,7 +556,6 @@ filt_timerexpire(void *knx)
 /*
  * data contains amount of time to sleep, in milliseconds
  */
-/* XXX - move to kern_timeout.c? */
 static int
 filt_timerattach(struct knote *kn)
 {
@@ -569,7 +579,6 @@ filt_timerattach(struct knote *kn)
 	return (0);
 }
 
-/* XXX - move to kern_timeout.c? */
 static void
 filt_timerdetach(struct knote *kn)
 {
@@ -582,7 +591,6 @@ filt_timerdetach(struct knote *kn)
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove usually clears it */
 }
 
-/* XXX - move to kern_timeout.c? */
 static int
 filt_timer(struct knote *kn, long hint)
 {
@@ -691,7 +699,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	if (error)
 		goto done2;
 
-	/* An extra reference on `nfp' has been held for us by falloc(). */
+	/* An extra reference on `fp' has been held for us by falloc(). */
 	kq = malloc(sizeof *kq, M_KQUEUE, M_WAITOK | M_ZERO);
 	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
 	TAILQ_INIT(&kq->kq_head);
@@ -1869,6 +1877,7 @@ knlist_remove_inevent(struct knlist *knl, struct knote *kn)
 int
 knlist_empty(struct knlist *knl)
 {
+
 	KNL_ASSERT_LOCKED(knl);
 	return SLIST_EMPTY(&knl->kl_list);
 }
@@ -1882,25 +1891,57 @@ static void knlist_mtx_unlock(void *arg);
 static void
 knlist_mtx_lock(void *arg)
 {
+
 	mtx_lock((struct mtx *)arg);
 }
 
 static void
 knlist_mtx_unlock(void *arg)
 {
+
 	mtx_unlock((struct mtx *)arg);
 }
 
 static void
 knlist_mtx_assert_locked(void *arg)
 {
+
 	mtx_assert((struct mtx *)arg, MA_OWNED);
 }
 
 static void
 knlist_mtx_assert_unlocked(void *arg)
 {
+
 	mtx_assert((struct mtx *)arg, MA_NOTOWNED);
+}
+
+static void
+knlist_rw_rlock(void *arg)
+{
+
+	rw_rlock((struct rwlock *)arg);
+}
+
+static void
+knlist_rw_runlock(void *arg)
+{
+
+	rw_runlock((struct rwlock *)arg);
+}
+
+static void
+knlist_rw_assert_locked(void *arg)
+{
+
+	rw_assert((struct rwlock *)arg, RA_LOCKED);
+}
+
+static void
+knlist_rw_assert_unlocked(void *arg)
+{
+
+	rw_assert((struct rwlock *)arg, RA_UNLOCKED);
 }
 
 void
@@ -1939,6 +1980,14 @@ knlist_init_mtx(struct knlist *knl, struct mtx *lock)
 {
 
 	knlist_init(knl, lock, NULL, NULL, NULL, NULL);
+}
+
+void
+knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock)
+{
+
+	knlist_init(knl, lock, knlist_rw_rlock, knlist_rw_runlock,
+	    knlist_rw_assert_locked, knlist_rw_assert_unlocked);
 }
 
 void

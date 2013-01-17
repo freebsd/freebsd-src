@@ -18,9 +18,9 @@
 #include "XCoreSubtarget.h"
 #include "XCoreTargetMachine.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -31,7 +31,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -112,7 +112,7 @@ void XCoreAsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
       EmitSpecialLLVMGlobal(GV))
     return;
 
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
   OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(GV, Mang,TM));
 
   
@@ -260,7 +260,17 @@ void XCoreAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
 bool XCoreAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                                       unsigned AsmVariant,const char *ExtraCode,
                                       raw_ostream &O) {
-  printOperand(MI, OpNo, O);
+  // Does this asm operand have a single letter operand modifier?
+  if (ExtraCode && ExtraCode[0])
+    if (ExtraCode[1] != 0) return true; // Unknown modifier.
+
+    switch (ExtraCode[0]) {
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNo, AsmVariant, ExtraCode, O);
+    }
+
+printOperand(MI, OpNo, O);
   return false;
 }
 

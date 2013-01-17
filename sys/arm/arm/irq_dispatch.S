@@ -98,13 +98,12 @@ ASENTRY_NP(irq_entry)
 	PULLFRAMEFROMSVCANDEXIT
 	movs	pc, lr			/* Exit */
 
-	.bss
+	.data
 	.align	0
-
 
 	.global _C_LABEL(intrnames), _C_LABEL(sintrnames)
 	.global _C_LABEL(intrcnt), _C_LABEL(sintrcnt)
-_C_LABEL(intrnames): 
+_C_LABEL(intrnames):
 	.space NIRQ * (MAXCOMLEN + 1)
 _C_LABEL(intrcnt):
 	.space NIRQ * 4

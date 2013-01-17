@@ -16,8 +16,8 @@
 
 #define DEBUG_TYPE "lexicalscopes"
 #include "llvm/CodeGen/LexicalScopes.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/Function.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/Support/Debug.h"
@@ -310,6 +310,8 @@ bool LexicalScopes::dominates(DebugLoc DL, MachineBasicBlock *MBB) {
   }
   return Result;
 }
+
+void LexicalScope::anchor() { }
 
 /// dump - Print data structures.
 void LexicalScope::dump() const {

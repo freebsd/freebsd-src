@@ -53,6 +53,7 @@ static struct cdevsw sndstat_cdevsw = {
 	.d_close =	sndstat_close,
 	.d_read =	sndstat_read,
 	.d_name =	"sndstat",
+	.d_flags =	D_TRACKCLOSE,
 };
 
 struct sndstat_entry {
@@ -63,7 +64,7 @@ struct sndstat_entry {
 	int type, unit;
 };
 
-static struct mtx sndstat_lock;
+static struct sx sndstat_lock;
 static struct sbuf sndstat_sbuf;
 static struct cdev *sndstat_dev = NULL;
 static int sndstat_bufptr = -1;
@@ -93,16 +94,14 @@ sysctl_hw_snd_sndstat_pid(SYSCTL_HANDLER_ARGS)
 	if (sndstat_dev == NULL)
 		return (EINVAL);
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	val = (int)SNDSTAT_PID(sndstat_dev);
-	mtx_unlock(&sndstat_lock);
 	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err == 0 && req->newptr != NULL && val == 0) {
-		mtx_lock(&sndstat_lock);
 		SNDSTAT_FLUSH();
 		SNDSTAT_PID_SET(sndstat_dev, 0);
-		mtx_unlock(&sndstat_lock);
 	}
+	sx_unlock(&sndstat_lock);
 	return (err);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, sndstat_pid, CTLTYPE_INT | CTLFLAG_RW,
@@ -119,12 +118,10 @@ sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
 	verbose = snd_verbose;
 	error = sysctl_handle_int(oidp, &verbose, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		mtx_lock(&sndstat_lock);
 		if (verbose < 0 || verbose > 4)
 			error = EINVAL;
 		else
 			snd_verbose = verbose;
-		mtx_unlock(&sndstat_lock);
 	}
 	return error;
 }
@@ -137,20 +134,19 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (sndstat_dev == NULL || i_dev != sndstat_dev)
 		return EBADF;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	if (SNDSTAT_PID(i_dev) != 0) {
-		mtx_unlock(&sndstat_lock);
+		sx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
 	SNDSTAT_PID_SET(i_dev, td->td_proc->p_pid);
-	mtx_unlock(&sndstat_lock);
 	if (sbuf_new(&sndstat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
-		mtx_lock(&sndstat_lock);
 		SNDSTAT_PID_SET(i_dev, 0);
-		mtx_unlock(&sndstat_lock);
+		sx_unlock(&sndstat_lock);
 		return ENXIO;
 	}
 	sndstat_bufptr = 0;
+	sx_unlock(&sndstat_lock);
 	return 0;
 }
 
@@ -160,16 +156,16 @@ sndstat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	if (sndstat_dev == NULL || i_dev != sndstat_dev)
 		return EBADF;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	if (SNDSTAT_PID(i_dev) == 0) {
-		mtx_unlock(&sndstat_lock);
+		sx_unlock(&sndstat_lock);
 		return EBADF;
 	}
 
 	SNDSTAT_FLUSH();
 	SNDSTAT_PID_SET(i_dev, 0);
 
-	mtx_unlock(&sndstat_lock);
+	sx_unlock(&sndstat_lock);
 
 	return 0;
 }
@@ -182,20 +178,18 @@ sndstat_read(struct cdev *i_dev, struct uio *buf, int flag)
 	if (sndstat_dev == NULL || i_dev != sndstat_dev)
 		return EBADF;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	if (SNDSTAT_PID(i_dev) != buf->uio_td->td_proc->p_pid ||
 	    sndstat_bufptr == -1) {
-		mtx_unlock(&sndstat_lock);
+		sx_unlock(&sndstat_lock);
 		return EBADF;
 	}
-	mtx_unlock(&sndstat_lock);
 
 	if (sndstat_bufptr == 0) {
 		err = (sndstat_prepare(&sndstat_sbuf) > 0) ? 0 : ENOMEM;
 		if (err) {
-			mtx_lock(&sndstat_lock);
 			SNDSTAT_FLUSH();
-			mtx_unlock(&sndstat_lock);
+			sx_unlock(&sndstat_lock);
 			return err;
 		}
 	}
@@ -203,6 +197,7 @@ sndstat_read(struct cdev *i_dev, struct uio *buf, int flag)
     	l = min(buf->uio_resid, sbuf_len(&sndstat_sbuf) - sndstat_bufptr);
 	err = (l > 0)? uiomove(sbuf_data(&sndstat_sbuf) + sndstat_bufptr, l, buf) : 0;
 	sndstat_bufptr += l;
+	sx_unlock(&sndstat_lock);
 
 	return err;
 }
@@ -228,13 +223,13 @@ sndstat_acquire(struct thread *td)
 	if (sndstat_dev == NULL)
 		return EBADF;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	if (SNDSTAT_PID(sndstat_dev) != 0) {
-		mtx_unlock(&sndstat_lock);
+		sx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
 	SNDSTAT_PID_SET(sndstat_dev, td->td_proc->p_pid);
-	mtx_unlock(&sndstat_lock);
+	sx_unlock(&sndstat_lock);
 	return 0;
 }
 
@@ -244,13 +239,13 @@ sndstat_release(struct thread *td)
 	if (sndstat_dev == NULL)
 		return EBADF;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	if (SNDSTAT_PID(sndstat_dev) != td->td_proc->p_pid) {
-		mtx_unlock(&sndstat_lock);
+		sx_unlock(&sndstat_lock);
 		return EBADF;
 	}
 	SNDSTAT_PID_SET(sndstat_dev, 0);
-	mtx_unlock(&sndstat_lock);
+	sx_unlock(&sndstat_lock);
 	return 0;
 }
 
@@ -284,12 +279,12 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 	ent->unit = unit;
 	ent->handler = handler;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	SLIST_INSERT_HEAD(&sndstat_devlist, ent, link);
 	if (type == SS_TYPE_MODULE)
 		sndstat_files++;
 	sndstat_maxunit = (unit > sndstat_maxunit)? unit : sndstat_maxunit;
-	mtx_unlock(&sndstat_lock);
+	sx_unlock(&sndstat_lock);
 
 	return 0;
 }
@@ -305,17 +300,17 @@ sndstat_unregister(device_t dev)
 {
 	struct sndstat_entry *ent;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	SLIST_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == dev) {
 			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
-			mtx_unlock(&sndstat_lock);
+			sx_unlock(&sndstat_lock);
 			free(ent, M_DEVBUF);
 
 			return 0;
 		}
 	}
-	mtx_unlock(&sndstat_lock);
+	sx_unlock(&sndstat_lock);
 
 	return ENXIO;
 }
@@ -325,18 +320,18 @@ sndstat_unregisterfile(char *str)
 {
 	struct sndstat_entry *ent;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	SLIST_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == NULL && ent->str == str) {
 			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
 			sndstat_files--;
-			mtx_unlock(&sndstat_lock);
+			sx_unlock(&sndstat_lock);
 			free(ent, M_DEVBUF);
 
 			return 0;
 		}
 	}
-	mtx_unlock(&sndstat_lock);
+	sx_unlock(&sndstat_lock);
 
 	return ENXIO;
 }
@@ -399,7 +394,7 @@ sndstat_init(void)
 {
 	if (sndstat_dev != NULL)
 		return EINVAL;
-	mtx_init(&sndstat_lock, "sndstat", "sndstat lock", MTX_DEF);
+	sx_init(&sndstat_lock, "sndstat lock");
 	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS,
 	    UID_ROOT, GID_WHEEL, 0444, "sndstat");
 	return 0;
@@ -411,20 +406,20 @@ sndstat_uninit(void)
 	if (sndstat_dev == NULL)
 		return EINVAL;
 
-	mtx_lock(&sndstat_lock);
+	sx_xlock(&sndstat_lock);
 	if (SNDSTAT_PID(sndstat_dev) != curthread->td_proc->p_pid) {
-		mtx_unlock(&sndstat_lock);
+		sx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
 
-	SNDSTAT_FLUSH();
-
-	mtx_unlock(&sndstat_lock);
-
+	/* XXXPHO: use destroy_dev_sched() */
 	destroy_dev(sndstat_dev);
 	sndstat_dev = NULL;
 
-	mtx_destroy(&sndstat_lock);
+	SNDSTAT_FLUSH();
+
+	sx_unlock(&sndstat_lock);
+	sx_destroy(&sndstat_lock);
 	return 0;
 }
 

@@ -33,13 +33,13 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define _SYSCALL(x)						\
+#define	_SYSCALL(name)						\
 	.text;							\
 	.align 2;						\
-	li	0,(__CONCAT(SYS_,x));				\
+	li	0,(__CONCAT(SYS_, name));			\
 	sc
 
-#define	SYSCALL(x)						\
+#define	SYSCALL(name)						\
 	.text;							\
 	.align 2;						\
 2:	mflr	%r0;						\
@@ -51,21 +51,18 @@
 	ld	%r0,16(%r1);					\
 	mtlr	%r0;						\
 	blr;							\
-ENTRY(__CONCAT(__sys_,x));					\
-	.weak	CNAME(x);					\
-	.set	CNAME(x),CNAME(__CONCAT(__sys_,x));		\
-	.weak	CNAME(__CONCAT(_,x));				\
-	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x));	\
-	_SYSCALL(x);						\
+ENTRY(__CONCAT(__sys_, name));						\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), name);			\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name)); 	\
+	_SYSCALL(name);							\
 	bso	2b
 
-#define	PSEUDO(x)						\
+#define	PSEUDO(name)						\
 	.text;							\
 	.align 2;						\
-ENTRY(__CONCAT(__sys_,x));					\
-	.weak	CNAME(__CONCAT(_,x));				\
-	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x));	\
-	_SYSCALL(x);						\
+ENTRY(__CONCAT(__sys_, name));					\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name));   \
+	_SYSCALL(name);						\
 	bnslr;							\
 	mflr	%r0;						\
 	std	%r0,16(%r1);					\
@@ -77,15 +74,13 @@ ENTRY(__CONCAT(__sys_,x));					\
 	mtlr	%r0;						\
 	blr;
 
-#define	RSYSCALL(x)						\
+#define	RSYSCALL(name)						\
 	.text;							\
 	.align 2;						\
-ENTRY(__CONCAT(__sys_,x));					\
-	.weak	CNAME(x);					\
-	.set	CNAME(x),CNAME(__CONCAT(__sys_,x));		\
-	.weak	CNAME(__CONCAT(_,x));				\
-	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x));	\
-	_SYSCALL(x);						\
+ENTRY(__CONCAT(__sys_, name));					\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), name);		\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name));\
+	_SYSCALL(name);						\
 	bnslr;							\
 								\
 	mflr	%r0;						\

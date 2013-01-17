@@ -33,4 +33,3 @@
  */
 
 int yylex(void);
-int yyparse(void);

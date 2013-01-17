@@ -123,17 +123,13 @@ static device_method_t ubsec_methods[] = {
 	DEVMETHOD(device_resume,	ubsec_resume),
 	DEVMETHOD(device_shutdown,	ubsec_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	ubsec_newsession),
 	DEVMETHOD(cryptodev_freesession,ubsec_freesession),
 	DEVMETHOD(cryptodev_process,	ubsec_process),
 	DEVMETHOD(cryptodev_kprocess,	ubsec_kprocess),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ubsec_driver = {
 	"ubsec",
@@ -177,7 +173,8 @@ static	int ubsec_ksigbits(struct crparam *);
 static	void ubsec_kshift_r(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 static	void ubsec_kshift_l(u_int, u_int8_t *, u_int, u_int8_t *, u_int);
 
-SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ubsec, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 #ifdef UBSEC_DEBUG
 static	void ubsec_dump_pb(volatile struct ubsec_pktbuf *);
@@ -372,7 +369,7 @@ ubsec_attach(device_t dev)
 	/*
 	 * Setup DMA descriptor area.
 	 */
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -1378,18 +1375,18 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 				ubsecstats.hst_unaligned++;
 				totlen = q->q_src_mapsize;
 				if (totlen >= MINCLSIZE) {
-					m = m_getcl(M_DONTWAIT, MT_DATA,
+					m = m_getcl(M_NOWAIT, MT_DATA,
 					    q->q_src_m->m_flags & M_PKTHDR);
 					len = MCLBYTES;
 				} else if (q->q_src_m->m_flags & M_PKTHDR) {
-					m = m_gethdr(M_DONTWAIT, MT_DATA);
+					m = m_gethdr(M_NOWAIT, MT_DATA);
 					len = MHLEN;
 				} else {
-					m = m_get(M_DONTWAIT, MT_DATA);
+					m = m_get(M_NOWAIT, MT_DATA);
 					len = MLEN;
 				}
 				if (m && q->q_src_m->m_flags & M_PKTHDR &&
-				    !m_dup_pkthdr(m, q->q_src_m, M_DONTWAIT)) {
+				    !m_dup_pkthdr(m, q->q_src_m, M_NOWAIT)) {
 					m_free(m);
 					m = NULL;
 				}
@@ -1405,11 +1402,11 @@ ubsec_process(device_t dev, struct cryptop *crp, int hint)
 
 				while (totlen > 0) {
 					if (totlen >= MINCLSIZE) {
-						m = m_getcl(M_DONTWAIT,
+						m = m_getcl(M_NOWAIT,
 						    MT_DATA, 0);
 						len = MCLBYTES;
 					} else {
-						m = m_get(M_DONTWAIT, MT_DATA);
+						m = m_get(M_NOWAIT, MT_DATA);
 						len = MLEN;
 					}
 					if (m == NULL) {
@@ -1858,7 +1855,7 @@ ubsec_dma_malloc(
 	int r;
 
 	/* XXX could specify sc_dmat as parent but that just adds overhead */
-	r = bus_dma_tag_create(NULL,			/* parent */
+	r = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */

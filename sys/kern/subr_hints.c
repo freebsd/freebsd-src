@@ -29,7 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 
@@ -40,6 +42,85 @@ __FBSDID("$FreeBSD$");
 static int checkmethod = 1;
 static int use_kenv;
 static char *hintp;
+
+/*
+ * Define kern.hintmode sysctl, which only accept value 2, that cause to
+ * switch from Static KENV mode to Dynamic KENV. So systems that have hints
+ * compiled into kernel will be able to see/modify KENV (and hints too).
+ */
+
+static int
+sysctl_hintmode(SYSCTL_HANDLER_ARGS)
+{
+	const char *cp;
+	char *line, *eq;
+	int eqidx, error, from_kenv, i, value;
+
+	from_kenv = 0;
+	cp = kern_envp;
+	value = hintmode;
+
+	/* Fetch candidate for new hintmode value */
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	if (value != 2)
+		/* Only accept swithing to hintmode 2 */
+		return (EINVAL);
+
+	/* Migrate from static to dynamic hints */
+	switch (hintmode) {
+	case 0:
+		if (dynamic_kenv) {
+			/*
+			 * Already here. But assign hintmode to 2, to not
+			 * check it in the future.
+			 */
+			hintmode = 2;
+			return (0);
+		}
+		from_kenv = 1;
+		cp = kern_envp;
+		break;
+	case 1:
+		cp = static_hints;
+		break;
+	case 2:
+		/* Nothing to do, hintmode already 2 */
+		return (0);
+	}
+
+	while (cp) {
+		i = strlen(cp);
+		if (i == 0)
+			break;
+		if (from_kenv) {
+			if (strncmp(cp, "hint.", 5) != 0)
+				/* kenv can have not only hints */
+				continue;
+		}
+		eq = strchr(cp, '=');
+		if (eq == NULL)
+			/* Bad hint value */
+			continue;
+		eqidx = eq - cp;
+
+		line = malloc(i+1, M_TEMP, M_WAITOK);
+		strcpy(line, cp);
+		line[eqidx] = '\0';
+		setenv(line, line + eqidx + 1);
+		free(line, M_TEMP);
+		cp += i + 1;
+	}
+
+	hintmode = value;
+	use_kenv = 1;
+	return (0);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, hintmode, CTLTYPE_INT|CTLFLAG_RW,
+    &hintmode, 0, sysctl_hintmode, "I", "Get/set current hintmode");
 
 /*
  * Evil wildcarding resource string lookup.
@@ -133,8 +214,7 @@ res_find(int *line, int *startln,
 			    r_name, &r_unit, r_resname, r_value);
 		if (hit && n != 4) {
 			printf("CONFIG: invalid hint '%s'\n", cp);
-			/* XXX: abuse bogus index() declaration */
-			p = index(cp, 'h');
+			p = strchr(cp, 'h');
 			*p = 'H';
 			hit = 0;
 		}
@@ -172,18 +252,18 @@ res_find(int *line, int *startln,
 	s = cp;
 	/* This is a bit of a hack, but at least is reentrant */
 	/* Note that it returns some !unterminated! strings. */
-	s = index(s, '.') + 1;		/* start of device */
+	s = strchr(s, '.') + 1;		/* start of device */
 	if (ret_name)
 		*ret_name = s;
-	s = index(s, '.') + 1;		/* start of unit */
+	s = strchr(s, '.') + 1;		/* start of unit */
 	if (ret_namelen && ret_name)
 		*ret_namelen = s - *ret_name - 1; /* device length */
 	if (ret_unit)
 		*ret_unit = r_unit;
-	s = index(s, '.') + 1;		/* start of resname */
+	s = strchr(s, '.') + 1;		/* start of resname */
 	if (ret_resname)
 		*ret_resname = s;
-	s = index(s, '=') + 1;		/* start of value */
+	s = strchr(s, '=') + 1;		/* start of value */
 	if (ret_resnamelen && ret_resname)
 		*ret_resnamelen = s - *ret_resname - 1; /* value len */
 	if (ret_value)

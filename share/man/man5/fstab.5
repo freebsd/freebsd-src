@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2011
+.Dd October 11, 2012
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -66,12 +66,20 @@ The first field,
 .Pq Fa fs_spec ,
 describes the special device or
 remote file system to be mounted.
+The contents are decoded by the
+.Xr strunvis 3
+function.
+This allows using spaces or tabs in the device name which would be
+interpreted as field separators otherwise.
 .Pp
 The second field,
 .Pq Fa fs_file ,
 describes the mount point for the file system.
 For swap partitions, this field should be specified as
 .Dq none .
+The contents are decoded by the
+.Xr strunvis 3
+function, as above.
 .Pp
 The third field,
 .Pq Fa fs_vfstype ,
@@ -235,7 +243,7 @@ programs to determine the order in which file system and quota
 checks are done at reboot time.
 The
 .Fa fs_passno
-field can be any value between 0 and 
+field can be any value between 0 and
 .Ql INT_MAX Ns -1 .
 .Pp
 The root file system should be specified with a
@@ -245,7 +253,7 @@ of 1, and other file systems should have a
 of 2 or greater.
 A file system with a
 .Fa fs_passno
-value of 1 is always checked sequentially and be completed before 
+value of 1 is always checked sequentially and be completed before
 another file system is processed, and it will be processed before
 all file systems with a larger
 .Fa fs_passno .
@@ -269,7 +277,7 @@ will assume that the file system does not need to be checked.
 .Pp
 The
 .Fa fs_passno
-field can be used to implement finer control when 
+field can be used to implement finer control when
 the system utilities may determine that the file system resides
 on a different physical device, when it actually does not, as with a
 .Xr ccd 4
@@ -338,6 +346,7 @@ resides in
 .Xr mount 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
+.Xr strunvis 3 ,
 .Xr swapon 8 ,
 .Xr umount 8
 .Sh HISTORY

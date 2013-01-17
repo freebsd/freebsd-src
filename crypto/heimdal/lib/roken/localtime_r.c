@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,10 +31,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: localtime_r.c 14773 2005-04-12 11:29:18Z lha $");
-#endif
 
 #include <stdio.h>
 #include <time.h>
@@ -42,16 +39,22 @@ RCSID("$Id: localtime_r.c 14773 2005-04-12 11:29:18Z lha $");
 
 #ifndef HAVE_LOCALTIME_R
 
-struct tm * ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION struct tm * ROKEN_LIB_CALL
 localtime_r(const time_t *timer, struct tm *result)
 {
+#ifdef _MSC_VER
+
+    return (localtime_s(result, timer) == 0)? result : NULL;
+
+#else
     struct tm *tm;
-    
+
     tm = localtime((time_t *)timer);
     if (tm == NULL)
 	return NULL;
     *result = *tm;
     return result;
+#endif
 }
 
 #endif

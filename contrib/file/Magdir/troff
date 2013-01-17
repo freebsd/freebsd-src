@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: troff,v 1.10 2009/09/19 16:28:12 christos Exp $
 # troff:  file(1) magic for *roff
 #
 # updated by Daniel Quinlan (quinlan@yggdrasil.com)

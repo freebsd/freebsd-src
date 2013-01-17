@@ -24,7 +24,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <vector>
-#include <sstream>
 #include <string>
 
 namespace llvm {
@@ -41,7 +40,7 @@ class MachineBlockFrequencyInfo;
 template<class BlockT, class FunctionT, class BlockProbInfoT>
 class BlockFrequencyImpl {
 
-  DenseMap<BlockT *, BlockFrequency> Freqs;
+  DenseMap<const BlockT *, BlockFrequency> Freqs;
 
   BlockProbInfoT *BPI;
 
@@ -52,15 +51,16 @@ class BlockFrequencyImpl {
   const uint32_t EntryFreq;
 
   std::string getBlockName(BasicBlock *BB) const {
-    return BB->getNameStr();
+    return BB->getName().str();
   }
 
   std::string getBlockName(MachineBasicBlock *MBB) const {
-    std::stringstream ss;
+    std::string str;
+    raw_string_ostream ss(str);
     ss << "BB#" << MBB->getNumber();
 
     if (const BasicBlock *BB = MBB->getBasicBlock())
-      ss << " derived from LLVM BB " << BB->getNameStr();
+      ss << " derived from LLVM BB " << BB->getName();
 
     return ss.str();
   }
@@ -217,7 +217,7 @@ class BlockFrequencyImpl {
     divBlockFreq(BB, BranchProbability(Numerator, EntryFreq));
   }
 
-  /// doLoop - Propagate block frequency down throught the loop.
+  /// doLoop - Propagate block frequency down through the loop.
   void doLoop(BlockT *Head, BlockT *Tail) {
     DEBUG(dbgs() << "doLoop(" << getBlockName(Head) << ", "
                  << getBlockName(Tail) << ")\n");
@@ -308,8 +308,9 @@ class BlockFrequencyImpl {
 
 public:
   /// getBlockFreq - Return block frequency. Return 0 if we don't have it.
-  BlockFrequency getBlockFreq(BlockT *BB) const {
-    typename DenseMap<BlockT *, BlockFrequency>::const_iterator I = Freqs.find(BB);
+  BlockFrequency getBlockFreq(const BlockT *BB) const {
+    typename DenseMap<const BlockT *, BlockFrequency>::const_iterator
+      I = Freqs.find(BB);
     if (I != Freqs.end())
       return I->second;
     return 0;

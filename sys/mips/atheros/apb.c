@@ -36,6 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/pmc.h>
+#include <sys/pmckern.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -43,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/apbvar.h>
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_setup.h>
+
+#define	APB_INTR_PMC	5
 
 #undef APB_DEBUG
 #ifdef APB_DEBUG
@@ -63,7 +69,7 @@ static int	apb_deactivate_resource(device_t, device_t, int, int,
 static struct resource_list *
 		apb_get_resource_list(device_t, device_t);
 static void	apb_hinted_child(device_t, const char *, int);
-static int	apb_intr(void *);
+static int	apb_filter(void *);
 static int	apb_probe(device_t);
 static int	apb_release_resource(device_t, device_t, int, int,
 		    struct resource *);
@@ -132,7 +138,7 @@ apb_attach(device_t dev)
 	}
 
 	if ((bus_setup_intr(dev, sc->sc_misc_irq, INTR_TYPE_MISC, 
-	    apb_intr, NULL, sc, &sc->sc_misc_ih))) {
+	    apb_filter, NULL, sc, &sc->sc_misc_ih))) {
 		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
 		return (ENXIO);
@@ -141,6 +147,12 @@ apb_attach(device_t dev)
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
 	bus_generic_attach(dev);
+
+	/*
+	 * Unmask performance counter IRQ
+	 */
+	apb_unmask_irq((void*)APB_INTR_PMC);
+	sc->sc_intr_counter[APB_INTR_PMC] = mips_intrcnt_create("apb irq5: pmc");
 
 	return (0);
 }
@@ -329,11 +341,13 @@ apb_teardown_intr(device_t dev, device_t child, struct resource *ires,
 }
 
 static int
-apb_intr(void *arg)
+apb_filter(void *arg)
 {
 	struct apb_softc *sc = arg;
 	struct intr_event *event;
 	uint32_t reg, irq;
+	struct thread *td;
+	struct trapframe *tf;
 
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_STATUS);
 	for (irq = 0; irq < APB_NIRQS; irq++) {
@@ -354,14 +368,24 @@ apb_intr(void *arg)
 
 			event = sc->sc_eventstab[irq];
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+				if (irq == APB_INTR_PMC) {
+					td = PCPU_GET(curthread);
+					tf = td->td_intr_frame;
+
+					if (pmc_intr)
+						(*pmc_intr)(PCPU_GET(cpuid), tf);
+
+					mips_intrcnt_inc(sc->sc_intr_counter[irq]);
+
+					continue;
+				}
 				/* Ignore timer interrupts */
 				if (irq != 0)
 					printf("Stray APB IRQ %d\n", irq);
 				continue;
 			}
 
-			/* TODO: frame instead of NULL? */
-			intr_event_handle(event, NULL);
+			intr_event_handle(event, PCPU_GET(curthread)->td_intr_frame);
 			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 		}
 	}
@@ -455,7 +479,6 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	apb_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	apb_get_resource_list),
 	DEVMETHOD(bus_hinted_child,		apb_hinted_child),
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_release_resource,		apb_release_resource),
 	DEVMETHOD(bus_setup_intr,		apb_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		apb_teardown_intr),
@@ -464,7 +487,7 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
 	DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t apb_driver = {

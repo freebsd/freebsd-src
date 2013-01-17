@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,7 +49,7 @@
  * Helper functions to abstract board specific data about
  * network ports from the rest of the cvmx-helper files.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifndef __CVMX_HELPER_BOARD_H__
 #define __CVMX_HELPER_BOARD_H__
@@ -65,6 +65,11 @@ typedef enum {
     USB_CLOCK_TYPE_REF_48,
     USB_CLOCK_TYPE_CRYSTAL_12,
 } cvmx_helper_board_usb_clock_types_t;
+
+typedef enum {
+    BROADCOM_GENERIC_PHY,
+    MARVELL_GENERIC_PHY,
+} cvmx_phy_type_t;
 
 typedef enum {
     set_phy_link_flags_autoneg                  = 0x1,

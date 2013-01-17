@@ -79,8 +79,8 @@ private:
   void setParent(Function *parent);
   friend class SymbolTableListTraits<BasicBlock, Function>;
 
-  BasicBlock(const BasicBlock &);     // Do not implement
-  void operator=(const BasicBlock &); // Do not implement
+  BasicBlock(const BasicBlock &) LLVM_DELETED_FUNCTION;
+  void operator=(const BasicBlock &) LLVM_DELETED_FUNCTION;
 
   /// BasicBlock ctor - If the function parameter is specified, the basic block
   /// is automatically inserted at either the end of the function (if
@@ -109,12 +109,6 @@ public:
   ///
   const Function *getParent() const { return Parent; }
         Function *getParent()       { return Parent; }
-
-  /// use_back - Specialize the methods defined in Value, as we know that an
-  /// BasicBlock can only be used by Users (specifically terminators
-  /// and BlockAddress's).
-  User       *use_back()       { return cast<User>(*use_begin());}
-  const User *use_back() const { return cast<User>(*use_begin());}
 
   /// getTerminator() - If this is a well formed basic block, then this returns
   /// a pointer to the terminator instruction.  If it is not, then you get a
@@ -219,7 +213,6 @@ public:
   ValueSymbolTable *getValueSymbolTable();
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const BasicBlock *) { return true; }
   static inline bool classof(const Value *V) {
     return V->getValueID() == Value::BasicBlockVal;
   }
@@ -274,6 +267,7 @@ public:
   /// getLandingPadInst() - Return the landingpad instruction associated with
   /// the landing pad.
   LandingPadInst *getLandingPadInst();
+  const LandingPadInst *getLandingPadInst() const;
 
 private:
   /// AdjustBlockAddressRefCount - BasicBlock stores the number of BlockAddress

@@ -221,6 +221,19 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	/* offset now points to data portion */
 	offset += sizeof(struct ip6_frag);
 
+	/*
+	 * XXX-BZ RFC XXXX (draft-gont-6man-ipv6-atomic-fragments)
+	 * Handle "atomic" fragments (offset and m bit set to 0) upfront,
+	 * unrelated to any reassembly.  Just skip the fragment header.
+	 */
+	if ((ip6f->ip6f_offlg & ~IP6F_RESERVED_MASK) == 0) {
+		/* XXX-BZ we want dedicated counters for this. */
+		V_ip6stat.ip6s_reassembled++;
+		in6_ifstat_inc(dstifp, ifs6_reass_ok);
+		*offp = offset;
+		return (ip6f->ip6f_nxt);
+	}
+
 	IP6Q_LOCK();
 
 	/*
@@ -552,7 +565,7 @@ insert:
 		m->m_len -= sizeof(struct ip6_frag);
 	} else {
 		/* this comes with no copy if the boundary is on cluster */
-		if ((t = m_split(m, offset, M_DONTWAIT)) == NULL) {
+		if ((t = m_split(m, offset, M_NOWAIT)) == NULL) {
 			frag6_remque(q6);
 			V_frag6_nfrags -= q6->ip6q_nfrag;
 #ifdef MAC

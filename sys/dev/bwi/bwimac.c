@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_bwi.h"
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/endian.h>

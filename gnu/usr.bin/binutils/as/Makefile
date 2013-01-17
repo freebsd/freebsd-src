@@ -4,8 +4,13 @@
 # BINDIR
 .include "${.CURDIR}/../../Makefile.inc"
 .include "${.CURDIR}/../Makefile.inc0"
+.include <bsd.own.mk>
 
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
+
+.if ${TARGET_ARCH:Marm*} || ${TARGET_ARCH} == "powerpc64"
+NO_WERROR.clang=
+.endif
 
 PROG=	as
 SRCS+=	app.c \
@@ -41,8 +46,19 @@ SRCS+=	app.c \
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
 
+.if ${TARGET_ARCH} == "armv6" || ${TARGET_ARCH} == "armv6eb"
+CFLAGS+=	-DCPU_DEFAULT=ARM_ARCH_V6K
+.endif
+
 .if ${TARGET_CPUARCH} == "mips"
 SRCS+=	itbl-ops.c itbl-parse.y itbl-lex.l
+.if ${TARGET_ARCH:Mmips64*} != ""
+CFLAGS+=	-DMIPS_DEFAULT_ABI=N64_ABI -DMIPS_DEFAULT_64BIT=1
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+CFLAGS+=	-DMIPS_DEFAULT_ABI=N32_ABI
+.else
+MIPS_ABI_DEFAULT=ABI_32
+.endif
 .endif
 
 .if ${TARGET_ARCH} == "amd64"
@@ -72,7 +88,9 @@ CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/bfd -I${SRCDIR}/gas/config -I${SRCDIR}
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_CPUARCH}-freebsd
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=	yes
+.endif
 
 DPADD=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a

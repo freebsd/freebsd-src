@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,25 +47,33 @@
 
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000      /* 16K buffer for return objects */
 
-typedef struct CommandInfo
+typedef struct acpi_db_command_info
 {
     char                    *Name;          /* Command Name */
     UINT8                   MinArgs;        /* Minimum arguments required */
 
-} COMMAND_INFO;
+} ACPI_DB_COMMAND_INFO;
 
-typedef struct ArgumentInfo
+typedef struct acpi_db_command_help
+{
+    UINT8                   LineCount;      /* Number of help lines */
+    char                    *Invocation;    /* Command Invocation */
+    char                    *Description;   /* Command Description */
+
+} ACPI_DB_COMMAND_HELP;
+
+typedef struct acpi_db_argument_info
 {
     char                    *Name;          /* Argument Name */
 
-} ARGUMENT_INFO;
+} ACPI_DB_ARGUMENT_INFO;
 
-typedef struct acpi_execute_walk
+typedef struct acpi_db_execute_walk
 {
     UINT32                  Count;
     UINT32                  MaxCount;
 
-} ACPI_EXECUTE_WALK;
+} ACPI_DB_EXECUTE_WALK;
 
 
 #define PARAM_LIST(pl)                  pl
@@ -107,9 +115,12 @@ AcpiDbDisplayTableInfo (
     char                    *TableArg);
 
 void
+AcpiDbDisplayTemplate (
+    char                    *BufferArg);
+
+void
 AcpiDbUnloadAcpiTable (
-    char                    *TableArg,
-    char                    *InstanceArg);
+    char                    *Name);
 
 void
 AcpiDbSendNotify (
@@ -133,18 +144,20 @@ void
 AcpiDbDisplayResources (
     char                    *ObjectArg);
 
+ACPI_HW_DEPENDENT_RETURN_VOID (
 void
 AcpiDbDisplayGpes (
-    void);
+    void))
 
 void
 AcpiDbDisplayHandlers (
     void);
 
+ACPI_HW_DEPENDENT_RETURN_VOID (
 void
 AcpiDbGenerateGpe (
     char                    *GpeArg,
-    char                    *BlockArg);
+    char                    *BlockArg))
 
 
 /*
@@ -299,7 +312,7 @@ AcpiDbGetCacheInfo (
 ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     char                    *UserArgument,
-    ARGUMENT_INFO           *Arguments);
+    ACPI_DB_ARGUMENT_INFO   *Arguments);
 
 void
 AcpiDbCloseDebugFile (
@@ -399,7 +412,7 @@ AcpiDbLocalNsLookup (
     char                    *Name);
 
 void
-AcpiDbUInt32ToHexString (
+AcpiDbUint32ToHexString (
     UINT32                  Value,
     char                    *Buffer);
 

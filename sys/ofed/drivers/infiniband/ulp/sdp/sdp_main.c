@@ -85,7 +85,7 @@ RW_SYSINIT(sdplockinit, &sdp_lock, "SDP lock");
 #define	SDP_LIST_RLOCK_ASSERT()	rw_assert(&sdp_lock, RW_RLOCKED)
 #define	SDP_LIST_LOCK_ASSERT()	rw_assert(&sdp_lock, RW_LOCKED)
 
-MALLOC_DEFINE(M_SDP, "sdp", "Socket Direct Protocol");
+static MALLOC_DEFINE(M_SDP, "sdp", "Socket Direct Protocol");
 
 static void sdp_stop_keepalive_timer(struct socket *so);
 
@@ -855,7 +855,7 @@ sdp_append(struct sdp_sock *ssk, struct sockbuf *sb, struct mbuf *mb, int cnt)
 	int ncnt;
 
 	SOCKBUF_LOCK_ASSERT(sb);
-	SBLASTRECORDCHK(sb)
+	SBLASTRECORDCHK(sb);
 	KASSERT(mb->m_flags & M_PKTHDR,
 		("sdp_append: %p Missing packet header.\n", mb));
 	n = sb->sb_lastrecord;
@@ -928,12 +928,12 @@ sdp_send(struct socket *so, int flags, struct mbuf *m,
 	ssk = sdp_sk(so);
 	KASSERT(m->m_flags & M_PKTHDR,
 	    ("sdp_send: %p no packet header", m));
-	M_PREPEND(m, SDP_HEAD_SIZE, M_WAIT);
+	M_PREPEND(m, SDP_HEAD_SIZE, M_WAITOK);
 	mtod(m, struct sdp_bsdh *)->mid = SDP_MID_DATA; 
 	for (n = m, cnt = 0; n->m_next; n = n->m_next)
 		cnt++;
 	if (cnt > SDP_MAX_SEND_SGES) {
-		n = m_collapse(m, M_WAIT, SDP_MAX_SEND_SGES);
+		n = m_collapse(m, M_WAITOK, SDP_MAX_SEND_SGES);
 		if (n == NULL) {
 			m_freem(m);
 			return (EMSGSIZE);
@@ -1196,7 +1196,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 
 	KASSERT(flags & MSG_OOB, ("soreceive_rcvoob: (flags & MSG_OOB) == 0"));
 
-	m = m_get(M_WAIT, MT_DATA);
+	m = m_get(M_WAITOK, MT_DATA);
 	error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
 	if (error)
 		goto bad;
@@ -1351,7 +1351,7 @@ deliver:
 			KASSERT(sb->sb_mb != NULL,
 			    ("%s: len > 0 && sb->sb_mb empty", __func__));
 
-			m = m_copym(sb->sb_mb, 0, len, M_DONTWAIT);
+			m = m_copym(sb->sb_mb, 0, len, M_NOWAIT);
 			if (m == NULL)
 				len = 0;	/* Don't flush data from sockbuf. */
 			else
@@ -1878,7 +1878,7 @@ next:
 	return (error);
 }
 
-SYSCTL_NODE(_net_inet, -1,  sdp,    CTLFLAG_RW, 0,  "SDP");
+static SYSCTL_NODE(_net_inet, -1,  sdp,    CTLFLAG_RW, 0,  "SDP");
 
 SYSCTL_PROC(_net_inet_sdp, TCPCTL_PCBLIST, pcblist,
     CTLFLAG_RD | CTLTYPE_STRUCT, 0, 0, sdp_pcblist, "S,xtcpcb",

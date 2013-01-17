@@ -165,7 +165,8 @@
 
 #define VM_MAXUSER_ADDRESS	VADDR(PTDPTDI, 0)
 
-#define USRSTACK		VM_MAXUSER_ADDRESS
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	USRSTACK		SHAREDPAGE
 
 #define VM_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
@@ -186,11 +187,12 @@
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Ceiling on the amount of kmem_map KVA space: 40% of the entire KVA space
+ * rounded to the nearest multiple of the superpage size.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
-    VM_MIN_KERNEL_ADDRESS) * 2 / 5)
+#define	VM_KMEM_SIZE_MAX	(((((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS) >> (PDRSHIFT - 2)) + 5) / 10) << PDRSHIFT)
 #endif
 
 /* initial pagein size of beginning of executable file */
@@ -199,5 +201,14 @@
 #endif
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
+#ifndef VM_MAX_AUTOTUNE_MAXUSERS
+#define VM_MAX_AUTOTUNE_MAXUSERS 384
+#endif
+
+#ifndef VM_MAX_AUTOTUNE_NMBCLUSTERS
+/* old maxusers max value. */
+#define VM_MAX_AUTOTUNE_NMBCLUSTERS (1024 + VM_MAX_AUTOTUNE_MAXUSERS * 64)
+#endif
 
 #endif /* _MACHINE_VMPARAM_H_ */

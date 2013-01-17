@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001,2002,2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2001,2002,2003 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,7 @@ iop_pci_attach(device_t dev)
     sc->ibase = rman_get_virtual(sc->r_mem);
     sc->reg = (struct i2o_registers *)sc->ibase;
     sc->dev = dev;
-    mtx_init(&sc->mtx, "pst lock", MTX_DEF, 0);
+    mtx_init(&sc->mtx, "pst lock", NULL, MTX_DEF);
 
     if (!iop_init(sc))
 	return 0;

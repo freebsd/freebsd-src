@@ -5,8 +5,8 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2011 Douglas Barton
-# dougb@FreeBSD.org
+# Copyright (c) 1998-2012 Douglas Barton, All rights reserved
+# Please see detailed copyright below
 
 # $FreeBSD$
 
@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvhpCP] [-a|[-iFU]]'
+  echo 'Usage: mergemaster [-scrvhpCP] [-a|[-iFU]] [--run-updates=always|never]'
   echo '    [-m /path] [-t /path] [-d] [-u N] [-w N] [-A arch] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -31,6 +31,7 @@ display_usage () {
   echo '  -P  Preserve files that are overwritten'
   echo "  -U  Attempt to auto upgrade files that have not been user modified"
   echo '      ***DANGEROUS***'
+  echo '  --run-updates=  Specify always or never to run newalises, pwd_mkdb, etc.'
   echo ''
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
@@ -262,6 +263,20 @@ if [ -r "$HOME/.mergemasterrc" ]; then
   . "$HOME/.mergemasterrc"
 fi
 
+for var in "$@" ; do
+  case "$var" in
+  --run-updates*)
+    RUN_UPDATES=`echo ${var#--run-updates=} | tr [:upper:] [:lower:]`
+    ;;
+  *)
+    newopts="$newopts $var"
+    ;;
+  esac
+done
+
+set -- $newopts
+unset var newopts
+
 # Check the command line options
 #
 while getopts ":ascrvhipCPm:t:du:w:D:A:FU" COMMAND_LINE_ARGUMENT ; do
@@ -406,10 +421,10 @@ check_pager () {
     echo "     I cannot execute it.  So, what would you like to do?"
     echo ''
     echo "  Use 'e' to exit mergemaster and fix your PAGER variable"
-    if [ -x /usr/bin/less -o -x /usr/local/bin/less ]; then
     echo "  Use 'l' to set PAGER to 'less' for this run"
-    fi
     echo "  Use 'm' to use plain old 'more' as your PAGER for this run"
+    echo ''
+    echo "  or you may type an absolute path to PAGER for this run"
     echo ''
     echo "  Default is to use plain old 'more' "
     echo ''
@@ -421,20 +436,13 @@ check_pager () {
        exit 0
        ;;
     [lL])
-       if [ -x /usr/bin/less ]; then
-         PAGER=/usr/bin/less
-       elif [ -x /usr/local/bin/less ]; then
-         PAGER=/usr/local/bin/less
-       else
-         echo ''
-         echo " *** Fatal Error:"
-         echo "     You asked to use 'less' as your pager, but I can't"
-         echo "     find it in /usr/bin or /usr/local/bin"
-         exit 1
-       fi
+       PAGER=less
        ;;
     [mM]|'')
        PAGER=more
+       ;;
+    /*)
+       PAGER="$FIXPAGER"
        ;;
     *)
        echo ''
@@ -517,9 +525,9 @@ if [ -t 0 ]; then
   esac
 fi
 
-# Define what CVS $Id tag to look for to aid portability.
+# Define what $Id tag to look for to aid portability.
 #
-CVS_ID_TAG=FreeBSD
+ID_TAG=FreeBSD
 
 delete_temproot () {
   rm -rf "${TEMPROOT}" 2>/dev/null
@@ -1080,17 +1088,17 @@ for COMPFILE in `find . -type f | sort`; do
 
   case "${STRICT}" in
   '' | [Nn][Oo])
-    # Compare CVS $Id's first so if the file hasn't been modified
+    # Compare $Id's first so if the file hasn't been modified
     # local changes will be ignored.
     # If the files have the same $Id, delete the one in temproot so the
     # user will have less to wade through if files are left to merge by hand.
     #
-    CVSID1=`grep "[$]${CVS_ID_TAG}:" ${DESTDIR}${COMPFILE#.} 2>/dev/null`
-    CVSID2=`grep "[$]${CVS_ID_TAG}:" ${COMPFILE} 2>/dev/null` || CVSID2=none
+    ID1=`grep "[$]${ID_TAG}:" ${DESTDIR}${COMPFILE#.} 2>/dev/null`
+    ID2=`grep "[$]${ID_TAG}:" ${COMPFILE} 2>/dev/null` || ID2=none
 
-    case "${CVSID2}" in
-    "${CVSID1}")
-      echo " *** Temp ${COMPFILE} and installed have the same CVS Id, deleting"
+    case "${ID2}" in
+    "${ID1}")
+      echo " *** Temp ${COMPFILE} and installed have the same Id, deleting"
       rm "${COMPFILE}"
       ;;
     esac
@@ -1224,34 +1232,43 @@ case "${AUTO_UPGRADED_FILES}" in
 esac
 
 run_it_now () {
-  case "${AUTO_RUN}" in
-  '')
-    unset YES_OR_NO
-    echo ''
-    echo -n '    Would you like to run it now? y or n [n] '
-    read YES_OR_NO
+  [ -n "$AUTO_RUN" ] && return
 
-    case "${YES_OR_NO}" in
+  local answer
+
+  echo ''
+  while : ; do
+    if [ "$RUN_UPDATES" = always ]; then
+      answer=y
+    elif [ "$RUN_UPDATES" = never ]; then
+      answer=n
+    else
+      echo -n '    Would you like to run it now? y or n [n] '
+      read answer
+    fi
+
+    case "$answer" in
     y)
       echo "    Running ${1}"
       echo ''
       eval "${1}"
+      return
       ;;
     ''|n)
-      echo ''
-      echo "       *** Cancelled"
-      echo ''
+      if [ ! "$RUN_UPDATES" = never ]; then
+        echo ''
+        echo "       *** Cancelled"
+        echo ''
+      fi
       echo "    Make sure to run ${1} yourself"
+      return
       ;;
     *)
       echo ''
-      echo "       *** Sorry, I do not understand your answer (${YES_OR_NO})"
+      echo "       *** Sorry, I do not understand your answer (${answer})"
       echo ''
-      echo "    Make sure to run ${1} yourself"
     esac
-    ;;
-  *) ;;
-  esac
+  done
 }
 
 case "${NEED_NEWALIASES}" in
@@ -1310,6 +1327,19 @@ case "${NEED_PWD_MKDB}" in
   ;;
 esac
 
+if [ -e "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
+  echo ''
+  [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
+  if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then
+    echo "*** Reinstalling `cat ${DESTDIR}/var/db/zoneinfo` as ${DESTDIR}/etc/localtime"
+    tzsetup $tzs_args -r
+  else
+    echo "*** There is no ${DESTDIR}/var/db/zoneinfo file to update ${DESTDIR}/etc/localtime."
+    echo '    You should run tzsetup'
+    run_it_now "tzsetup $tzs_args"
+  fi
+fi
+
 echo ''
 
 if [ -r "${MM_EXIT_SCRIPT}" ]; then
@@ -1343,29 +1373,35 @@ case "${COMP_CONFS}" in
   ;;
 esac
 
-case "${PRE_WORLD}" in
-'') ;;
-*)
-  MAKE_CONF="${SOURCEDIR}/share/examples/etc/make.conf"
-
-  (echo ''
-  echo '*** Comparing make variables'
-  echo ''
-  echo "*** From ${DESTDIR}/etc/make.conf"
-  echo "*** From ${MAKE_CONF}"
-
-  for MAKE_VAR in `grep -i ^[a-z] ${DESTDIR}/etc/make.conf | cut -d '=' -f 1`; do
-    echo ''
-    grep -w ^${MAKE_VAR} ${DESTDIR}/etc/make.conf
-    grep -w ^#${MAKE_VAR} ${MAKE_CONF} ||
-      echo ' * No example variable with this name'
-  done) | ${PAGER}
-  ;;
-esac
-
 if [ -n "${PRESERVE_FILES}" ]; then
   find -d $PRESERVE_FILES_DIR -type d -empty -delete 2>/dev/null
   rmdir $PRESERVE_FILES_DIR 2>/dev/null
 fi
 
 exit 0
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#  Copyright (c) 1998-2012 Douglas Barton
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.

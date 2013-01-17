@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: spf_99.c,v 1.6 2009-12-04 22:06:37 tbox Exp $ */
+/* $Id: spf_99.c,v 1.6 2009/12/04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 15:40:00 PST 2000 by bwelling */
 

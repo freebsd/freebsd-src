@@ -1,4 +1,4 @@
-//===-- SPUTargetMachine.h - Define TargetMachine for Cell SPU ----*- C++ -*-=//
+//===-- SPUTargetMachine.h - Define TargetMachine for Cell SPU --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,27 +20,28 @@
 #include "SPUSelectionDAGInfo.h"
 #include "SPUFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetTransformImpl.h"
+#include "llvm/DataLayout.h"
 
 namespace llvm {
-class PassManager;
-class GlobalValue;
-class TargetFrameLowering;
 
 /// SPUTargetMachine
 ///
 class SPUTargetMachine : public LLVMTargetMachine {
   SPUSubtarget        Subtarget;
-  const TargetData    DataLayout;
+  const DataLayout    DL;
   SPUInstrInfo        InstrInfo;
   SPUFrameLowering    FrameLowering;
   SPUTargetLowering   TLInfo;
   SPUSelectionDAGInfo TSInfo;
   InstrItineraryData  InstrItins;
+  ScalarTargetTransformImpl STTI;
+  VectorTargetTransformImpl VTTI;
 public:
   SPUTargetMachine(const Target &T, StringRef TT,
-                   StringRef CPU, StringRef FS,
-                   Reloc::Model RM, CodeModel::Model CM);
+                   StringRef CPU, StringRef FS, const TargetOptions &Options,
+                   Reloc::Model RM, CodeModel::Model CM,
+                   CodeGenOpt::Level OL);
 
   /// Return the subtarget implementation object
   virtual const SPUSubtarget     *getSubtargetImpl() const {
@@ -60,7 +61,7 @@ public:
     return NULL;
   }
 
-  virtual const SPUTargetLowering *getTargetLowering() const { 
+  virtual const SPUTargetLowering *getTargetLowering() const {
    return &TLInfo;
   }
 
@@ -71,19 +72,23 @@ public:
   virtual const SPURegisterInfo *getRegisterInfo() const {
     return &InstrInfo.getRegisterInfo();
   }
-  
-  virtual const TargetData *getTargetData() const {
-    return &DataLayout;
+
+  virtual const DataLayout *getDataLayout() const {
+    return &DL;
   }
 
   virtual const InstrItineraryData *getInstrItineraryData() const {
     return &InstrItins;
   }
-  
+  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
+    return &STTI;
+  }
+  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
+    return &VTTI;
+  }
+
   // Pass Pipeline Configuration
-  virtual bool addInstSelector(PassManagerBase &PM,
-                               CodeGenOpt::Level OptLevel);
-  virtual bool addPreEmitPass(PassManagerBase &, CodeGenOpt::Level);	
+  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
 };
 
 } // end namespace llvm

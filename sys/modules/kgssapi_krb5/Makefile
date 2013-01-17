@@ -13,10 +13,11 @@ SRCS=	krb5_mech.c \
 
 SRCS+=		kgss_if.h gssd.h
 MFILES=		kgssapi/kgss_if.m
+CLEANFILES=	gssd.h
 
 S=		${.CURDIR}/../..
 
 gssd.h:		$S/kgssapi/gssd.x
-	rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h
+	RPCGEN_CPP=${CPP:Q} rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h
 
 .include <bsd.kmod.mk>

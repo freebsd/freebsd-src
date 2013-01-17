@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Guido van Rossum.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -89,6 +94,25 @@ __FBSDID("$FreeBSD$");
 
 #include "collate.h"
 
+/*
+ * glob(3) expansion limits. Stop the expansion if any of these limits
+ * is reached. This caps the runtime in the face of DoS attacks. See
+ * also CVE-2010-2632
+ */
+#define	GLOB_LIMIT_BRACE	128	/* number of brace calls */
+#define	GLOB_LIMIT_PATH		65536	/* number of path elements */
+#define	GLOB_LIMIT_READDIR	16384	/* number of readdirs */
+#define	GLOB_LIMIT_STAT		1024	/* number of stat system calls */
+#define	GLOB_LIMIT_STRING	ARG_MAX	/* maximum total size for paths */
+
+struct glob_limit {
+	size_t	l_brace_cnt;
+	size_t	l_path_lim;
+	size_t	l_readdir_cnt;	
+	size_t	l_stat_cnt;	
+	size_t	l_string_cnt;
+};
+
 #define	DOLLAR		'$'
 #define	DOT		'.'
 #define	EOS		'\0'
@@ -148,25 +172,29 @@ static const Char *g_strchr(const Char *, wchar_t);
 static Char	*g_strcat(Char *, const Char *);
 #endif
 static int	 g_stat(Char *, struct stat *, glob_t *);
-static int	 glob0(const Char *, glob_t *, size_t *);
-static int	 glob1(Char *, glob_t *, size_t *);
-static int	 glob2(Char *, Char *, Char *, Char *, glob_t *, size_t *);
-static int	 glob3(Char *, Char *, Char *, Char *, Char *, glob_t *, size_t *);
-static int	 globextend(const Char *, glob_t *, size_t *);
-static const Char *	
+static int	 glob0(const Char *, glob_t *, struct glob_limit *);
+static int	 glob1(Char *, glob_t *, struct glob_limit *);
+static int	 glob2(Char *, Char *, Char *, Char *, glob_t *,
+    struct glob_limit *);
+static int	 glob3(Char *, Char *, Char *, Char *, Char *, glob_t *,
+    struct glob_limit *);
+static int	 globextend(const Char *, glob_t *, struct glob_limit *);
+static const Char *
 		 globtilde(const Char *, Char *, size_t, glob_t *);
-static int	 globexp1(const Char *, glob_t *, size_t *);
-static int	 globexp2(const Char *, const Char *, glob_t *, int *, size_t *);
+static int	 globexp1(const Char *, glob_t *, struct glob_limit *);
+static int	 globexp2(const Char *, const Char *, glob_t *, int *,
+    struct glob_limit *);
 static int	 match(Char *, Char *, Char *);
 #ifdef DEBUG
 static void	 qprintf(const char *, Char *);
 #endif
 
 int
-glob(const char *pattern, int flags, int (*errfunc)(const char *, int), glob_t *pglob)
+glob(const char * __restrict pattern, int flags,
+	 int (*errfunc)(const char *, int), glob_t * __restrict pglob)
 {
+	struct glob_limit limit = { 0, 0, 0, 0, 0 };
 	const char *patnext;
-	size_t limit;
 	Char *bufnext, *bufend, patbuf[MAXPATHLEN], prot;
 	mbstate_t mbs;
 	wchar_t wc;
@@ -180,11 +208,10 @@ glob(const char *pattern, int flags, int (*errfunc)(const char *, int), glob_t *
 			pglob->gl_offs = 0;
 	}
 	if (flags & GLOB_LIMIT) {
-		limit = pglob->gl_matchc;
-		if (limit == 0)
-			limit = ARG_MAX;
-	} else
-		limit = 0;
+		limit.l_path_lim = pglob->gl_matchc;
+		if (limit.l_path_lim == 0)
+			limit.l_path_lim = GLOB_LIMIT_PATH;
+	}
 	pglob->gl_flags = flags & ~GLOB_MAGCHAR;
 	pglob->gl_errfunc = errfunc;
 	pglob->gl_matchc = 0;
@@ -226,9 +253,9 @@ glob(const char *pattern, int flags, int (*errfunc)(const char *, int), glob_t *
 	*bufnext = EOS;
 
 	if (flags & GLOB_BRACE)
-	    return globexp1(patbuf, pglob, &limit);
+	    return (globexp1(patbuf, pglob, &limit));
 	else
-	    return glob0(patbuf, pglob, &limit);
+	    return (glob0(patbuf, pglob, &limit));
 }
 
 /*
@@ -237,10 +264,16 @@ glob(const char *pattern, int flags, int (*errfunc)(const char *, int), glob_t *
  * characters
  */
 static int
-globexp1(const Char *pattern, glob_t *pglob, size_t *limit)
+globexp1(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
 {
 	const Char* ptr = pattern;
 	int rv;
+
+	if ((pglob->gl_flags & GLOB_LIMIT) &&
+	    limit->l_brace_cnt++ >= GLOB_LIMIT_BRACE) {
+		errno = 0;
+		return (GLOB_NOSPACE);
+	}
 
 	/* Protect a single {}, for find(1), like csh */
 	if (pattern[0] == LBRACE && pattern[1] == RBRACE && pattern[2] == EOS)
@@ -260,7 +293,8 @@ globexp1(const Char *pattern, glob_t *pglob, size_t *limit)
  * If it fails then it tries to glob the rest of the pattern and returns.
  */
 static int
-globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv, size_t *limit)
+globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv,
+    struct glob_limit *limit)
 {
 	int     i;
 	Char   *lm, *ls;
@@ -298,7 +332,7 @@ globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv, size_t *l
 	/* Non matching braces; just glob the pattern */
 	if (i != 0 || *pe == EOS) {
 		*rv = glob0(patbuf, pglob, limit);
-		return 0;
+		return (0);
 	}
 
 	for (i = 0, pl = pm = ptr; pm <= pe; pm++)
@@ -355,7 +389,7 @@ globexp2(const Char *ptr, const Char *pattern, glob_t *pglob, int *rv, size_t *l
 			break;
 		}
 	*rv = 0;
-	return 0;
+	return (0);
 }
 
 
@@ -372,7 +406,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 	Char *b, *eb;
 
 	if (*pattern != TILDE || !(pglob->gl_flags & GLOB_TILDE))
-		return pattern;
+		return (pattern);
 
 	/* 
 	 * Copy up to the end of the string or / 
@@ -397,7 +431,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 			    (pwd = getpwuid(getuid())) != NULL)
 				h = pwd->pw_dir;
 			else
-				return pattern;
+				return (pattern);
 		}
 	}
 	else {
@@ -405,7 +439,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 		 * Expand a ~user
 		 */
 		if ((pwd = getpwnam((char*) patbuf)) == NULL)
-			return pattern;
+			return (pattern);
 		else
 			h = pwd->pw_dir;
 	}
@@ -419,7 +453,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
 		continue;
 	*b = EOS;
 
-	return patbuf;
+	return (patbuf);
 }
 
 
@@ -430,7 +464,7 @@ globtilde(const Char *pattern, Char *patbuf, size_t patbuf_len, glob_t *pglob)
  * if things went well, nonzero if errors occurred.
  */
 static int
-glob0(const Char *pattern, glob_t *pglob, size_t *limit)
+glob0(const Char *pattern, glob_t *pglob, struct glob_limit *limit)
 {
 	const Char *qpatnext;
 	int err;
@@ -506,31 +540,31 @@ glob0(const Char *pattern, glob_t *pglob, size_t *limit)
 		if (((pglob->gl_flags & GLOB_NOCHECK) ||
 		    ((pglob->gl_flags & GLOB_NOMAGIC) &&
 			!(pglob->gl_flags & GLOB_MAGCHAR))))
-			return(globextend(pattern, pglob, limit));
+			return (globextend(pattern, pglob, limit));
 		else
-			return(GLOB_NOMATCH);
+			return (GLOB_NOMATCH);
 	}
 	if (!(pglob->gl_flags & GLOB_NOSORT))
 		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
 		    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
-	return(0);
+	return (0);
 }
 
 static int
 compare(const void *p, const void *q)
 {
-	return(strcmp(*(char **)p, *(char **)q));
+	return (strcmp(*(char **)p, *(char **)q));
 }
 
 static int
-glob1(Char *pattern, glob_t *pglob, size_t *limit)
+glob1(Char *pattern, glob_t *pglob, struct glob_limit *limit)
 {
 	Char pathbuf[MAXPATHLEN];
 
 	/* A null pathname is invalid -- POSIX 1003.1 sect. 2.4. */
 	if (*pattern == EOS)
-		return(0);
-	return(glob2(pathbuf, pathbuf, pathbuf + MAXPATHLEN - 1,
+		return (0);
+	return (glob2(pathbuf, pathbuf, pathbuf + MAXPATHLEN - 1,
 	    pattern, pglob, limit));
 }
 
@@ -541,7 +575,7 @@ glob1(Char *pattern, glob_t *pglob, size_t *limit)
  */
 static int
 glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
-      glob_t *pglob, size_t *limit)
+      glob_t *pglob, struct glob_limit *limit)
 {
 	struct stat sb;
 	Char *p, *q;
@@ -555,8 +589,17 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 		if (*pattern == EOS) {		/* End of pattern? */
 			*pathend = EOS;
 			if (g_lstat(pathbuf, &sb, pglob))
-				return(0);
+				return (0);
 
+			if ((pglob->gl_flags & GLOB_LIMIT) &&
+			    limit->l_stat_cnt++ >= GLOB_LIMIT_STAT) {
+				errno = 0;
+				if (pathend + 1 > pathend_last)
+					return (GLOB_ABORTED);
+				*pathend++ = SEP;
+				*pathend = EOS;
+				return (GLOB_NOSPACE);
+			}
 			if (((pglob->gl_flags & GLOB_MARK) &&
 			    pathend[-1] != SEP) && (S_ISDIR(sb.st_mode)
 			    || (S_ISLNK(sb.st_mode) &&
@@ -568,7 +611,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 				*pathend = EOS;
 			}
 			++pglob->gl_matchc;
-			return(globextend(pathbuf, pglob, limit));
+			return (globextend(pathbuf, pglob, limit));
 		}
 
 		/* Find end of next segment, copy tentatively to pathend. */
@@ -591,8 +634,8 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 				*pathend++ = *pattern++;
 			}
 		} else			/* Need expansion, recurse. */
-			return(glob3(pathbuf, pathend, pathend_last, pattern, p,
-			    pglob, limit));
+			return (glob3(pathbuf, pathend, pathend_last, pattern,
+			    p, pglob, limit));
 	}
 	/* NOTREACHED */
 }
@@ -600,7 +643,7 @@ glob2(Char *pathbuf, Char *pathend, Char *pathend_last, Char *pattern,
 static int
 glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
       Char *pattern, Char *restpattern,
-      glob_t *pglob, size_t *limit)
+      glob_t *pglob, struct glob_limit *limit)
 {
 	struct dirent *dp;
 	DIR *dirp;
@@ -629,7 +672,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 			    pglob->gl_flags & GLOB_ERR)
 				return (GLOB_ABORTED);
 		}
-		return(0);
+		return (0);
 	}
 
 	err = 0;
@@ -645,6 +688,19 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		wchar_t wc;
 		size_t clen;
 		mbstate_t mbs;
+
+		if ((pglob->gl_flags & GLOB_LIMIT) &&
+		    limit->l_readdir_cnt++ >= GLOB_LIMIT_READDIR) {
+			errno = 0;
+			if (pathend + 1 > pathend_last)
+				err = GLOB_ABORTED;
+			else {
+				*pathend++ = SEP;
+				*pathend = EOS;
+				err = GLOB_NOSPACE;
+			}
+			break;
+		}
 
 		/* Initial DOT must be matched literally. */
 		if (dp->d_name[0] == DOT && *pattern != DOT)
@@ -677,7 +733,7 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
 		(*pglob->gl_closedir)(dirp);
 	else
 		closedir(dirp);
-	return(err);
+	return (err);
 }
 
 
@@ -696,29 +752,24 @@ glob3(Char *pathbuf, Char *pathend, Char *pathend_last,
  *	gl_pathv points to (gl_offs + gl_pathc + 1) items.
  */
 static int
-globextend(const Char *path, glob_t *pglob, size_t *limit)
+globextend(const Char *path, glob_t *pglob, struct glob_limit *limit)
 {
 	char **pathv;
 	size_t i, newsize, len;
 	char *copy;
 	const Char *p;
 
-	if (*limit && pglob->gl_pathc > *limit) {
+	if ((pglob->gl_flags & GLOB_LIMIT) &&
+	    pglob->gl_matchc > limit->l_path_lim) {
 		errno = 0;
 		return (GLOB_NOSPACE);
 	}
 
 	newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
-	pathv = pglob->gl_pathv ?
-		    realloc((char *)pglob->gl_pathv, newsize) :
-		    malloc(newsize);
-	if (pathv == NULL) {
-		if (pglob->gl_pathv) {
-			free(pglob->gl_pathv);
-			pglob->gl_pathv = NULL;
-		}
-		return(GLOB_NOSPACE);
-	}
+	/* realloc(NULL, newsize) is equivalent to malloc(newsize). */
+	pathv = realloc((void *)pglob->gl_pathv, newsize);
+	if (pathv == NULL)
+		return (GLOB_NOSPACE);
 
 	if (pglob->gl_pathv == NULL && pglob->gl_offs > 0) {
 		/* first time around -- clear initial gl_offs items */
@@ -731,6 +782,12 @@ globextend(const Char *path, glob_t *pglob, size_t *limit)
 	for (p = path; *p++;)
 		continue;
 	len = MB_CUR_MAX * (size_t)(p - path);	/* XXX overallocation */
+	limit->l_string_cnt += len;
+	if ((pglob->gl_flags & GLOB_LIMIT) &&
+	    limit->l_string_cnt >= GLOB_LIMIT_STRING) {
+		errno = 0;
+		return (GLOB_NOSPACE);
+	}
 	if ((copy = malloc(len)) != NULL) {
 		if (g_Ctoc(path, copy, len)) {
 			free(copy);
@@ -739,7 +796,7 @@ globextend(const Char *path, glob_t *pglob, size_t *limit)
 		pathv[pglob->gl_offs + pglob->gl_pathc++] = copy;
 	}
 	pathv[pglob->gl_offs + pglob->gl_pathc] = NULL;
-	return(copy == NULL ? GLOB_NOSPACE : 0);
+	return (copy == NULL ? GLOB_NOSPACE : 0);
 }
 
 /*
@@ -751,49 +808,51 @@ match(Char *name, Char *pat, Char *patend)
 {
 	int ok, negate_range;
 	Char c, k;
+	struct xlocale_collate *table =
+		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
 
 	while (pat < patend) {
 		c = *pat++;
 		switch (c & M_MASK) {
 		case M_ALL:
 			if (pat == patend)
-				return(1);
+				return (1);
 			do
 			    if (match(name, pat, patend))
-				    return(1);
+				    return (1);
 			while (*name++ != EOS);
-			return(0);
+			return (0);
 		case M_ONE:
 			if (*name++ == EOS)
-				return(0);
+				return (0);
 			break;
 		case M_SET:
 			ok = 0;
 			if ((k = *name++) == EOS)
-				return(0);
+				return (0);
 			if ((negate_range = ((*pat & M_MASK) == M_NOT)) != EOS)
 				++pat;
 			while (((c = *pat++) & M_MASK) != M_END)
 				if ((*pat & M_MASK) == M_RNG) {
-					if (__collate_load_error ?
+					if (table->__collate_load_error ?
 					    CHAR(c) <= CHAR(k) && CHAR(k) <= CHAR(pat[1]) :
-					       __collate_range_cmp(CHAR(c), CHAR(k)) <= 0
-					    && __collate_range_cmp(CHAR(k), CHAR(pat[1])) <= 0
+					       __collate_range_cmp(table, CHAR(c), CHAR(k)) <= 0
+					    && __collate_range_cmp(table, CHAR(k), CHAR(pat[1])) <= 0
 					   )
 						ok = 1;
 					pat += 2;
 				} else if (c == k)
 					ok = 1;
 			if (ok == negate_range)
-				return(0);
+				return (0);
 			break;
 		default:
 			if (*name++ != c)
-				return(0);
+				return (0);
 			break;
 		}
 	}
-	return(*name == EOS);
+	return (*name == EOS);
 }
 
 /* Free allocated data belonging to a glob_t structure. */
@@ -826,9 +885,9 @@ g_opendir(Char *str, glob_t *pglob)
 	}
 
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
-		return((*pglob->gl_opendir)(buf));
+		return ((*pglob->gl_opendir)(buf));
 
-	return(opendir(buf));
+	return (opendir(buf));
 }
 
 static int
@@ -842,7 +901,7 @@ g_lstat(Char *fn, struct stat *sb, glob_t *pglob)
 	}
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		return((*pglob->gl_lstat)(buf, sb));
-	return(lstat(buf, sb));
+	return (lstat(buf, sb));
 }
 
 static int
@@ -855,8 +914,8 @@ g_stat(Char *fn, struct stat *sb, glob_t *pglob)
 		return (-1);
 	}
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
-		return((*pglob->gl_stat)(buf, sb));
-	return(stat(buf, sb));
+		return ((*pglob->gl_stat)(buf, sb));
+	return (stat(buf, sb));
 }
 
 static const Char *

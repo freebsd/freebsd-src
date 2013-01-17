@@ -266,14 +266,13 @@ static struct mtx nblock;
 /*
  * Definitions for the buffer free lists.
  */
-#define BUFFER_QUEUES	6	/* number of free buffer queues */
+#define BUFFER_QUEUES	5	/* number of free buffer queues */
 
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_CLEAN	1	/* non-B_DELWRI buffers */
 #define QUEUE_DIRTY	2	/* B_DELWRI buffers */
-#define QUEUE_DIRTY_GIANT 3	/* B_DELWRI buffers that need giant */
-#define QUEUE_EMPTYKVA	4	/* empty buffer headers w/KVA assignment */
-#define QUEUE_EMPTY	5	/* empty buffer headers */
+#define QUEUE_EMPTYKVA	3	/* empty buffer headers w/KVA assignment */
+#define QUEUE_EMPTY	4	/* empty buffer headers */
 #define QUEUE_SENTINEL	1024	/* not an queue index, but mark for sentinel */
 
 /* Queues for free buffers with various properties */
@@ -782,21 +781,6 @@ bremfreel(struct buf *bp)
 	}
 }
 
-
-/*
- * Get a buffer with the specified data.  Look in the cache first.  We
- * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
- * is set, the buffer is valid and we do not have to do anything ( see
- * getblk() ).  This is really just a special case of breadn().
- */
-int
-bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
-    struct buf **bpp)
-{
-
-	return (breadn(vp, blkno, size, 0, 0, 0, cred, bpp));
-}
-
 /*
  * Attempt to initiate asynchronous I/O on read-ahead blocks.  We must
  * clear BIO_ERROR and B_INVAL prior to initiating I/O . If B_CACHE is set,
@@ -834,19 +818,28 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 }
 
 /*
- * Operates like bread, but also starts asynchronous I/O on
- * read-ahead blocks.
+ * Entry point for bread() and breadn() via #defines in sys/buf.h.
+ *
+ * Get a buffer with the specified data.  Look in the cache first.  We
+ * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
+ * is set, the buffer is valid and we do not have to do anything, see
+ * getblk(). Also starts asynchronous I/O on read-ahead blocks.
  */
 int
-breadn(struct vnode * vp, daddr_t blkno, int size,
-    daddr_t * rablkno, int *rabsize,
-    int cnt, struct ucred * cred, struct buf **bpp)
+breadn_flags(struct vnode * vp, daddr_t blkno, int size,
+    daddr_t * rablkno, int *rabsize, int cnt,
+    struct ucred * cred, int flags, struct buf **bpp)
 {
 	struct buf *bp;
 	int rv = 0, readwait = 0;
 
 	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
-	*bpp = bp = getblk(vp, blkno, size, 0, 0, 0);
+	/*
+	 * Can only return NULL if GB_LOCK_NOWAIT flag is specified.
+	 */
+	*bpp = bp = getblk(vp, blkno, size, 0, 0, flags);
+	if (bp == NULL)
+		return (EBUSY);
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
@@ -1467,10 +1460,7 @@ brelse(struct buf *bp)
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
 	/* remaining buffers */
 	} else {
-		if ((bp->b_flags & (B_DELWRI|B_NEEDSGIANT)) ==
-		    (B_DELWRI|B_NEEDSGIANT))
-			bp->b_qindex = QUEUE_DIRTY_GIANT;
-		else if (bp->b_flags & B_DELWRI)
+		if (bp->b_flags & B_DELWRI)
 			bp->b_qindex = QUEUE_DIRTY;
 		else
 			bp->b_qindex = QUEUE_CLEAN;
@@ -1567,10 +1557,7 @@ bqrelse(struct buf *bp)
 		panic("bqrelse: free buffer onto another queue???");
 	/* buffers with stale but valid contents */
 	if (bp->b_flags & B_DELWRI) {
-		if (bp->b_flags & B_NEEDSGIANT)
-			bp->b_qindex = QUEUE_DIRTY_GIANT;
-		else
-			bp->b_qindex = QUEUE_DIRTY;
+		bp->b_qindex = QUEUE_DIRTY;
 		TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
 	} else {
 		/*
@@ -2120,15 +2107,16 @@ restart:
 
 		if (maxsize != bp->b_kvasize) {
 			vm_offset_t addr = 0;
+			int rv;
 
 			bfreekva(bp);
 
 			vm_map_lock(buffer_map);
 			if (vm_map_findspace(buffer_map,
-				vm_map_min(buffer_map), maxsize, &addr)) {
+			    vm_map_min(buffer_map), maxsize, &addr)) {
 				/*
-				 * Uh oh.  Buffer map is to fragmented.  We
-				 * must defragment the map.
+				 * Buffer map is too fragmented.
+				 * We must defragment the map.
 				 */
 				atomic_add_int(&bufdefragcnt, 1);
 				vm_map_unlock(buffer_map);
@@ -2137,22 +2125,21 @@ restart:
 				brelse(bp);
 				goto restart;
 			}
-			if (addr) {
-				vm_map_insert(buffer_map, NULL, 0,
-					addr, addr + maxsize,
-					VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
-
-				bp->b_kvabase = (caddr_t) addr;
-				bp->b_kvasize = maxsize;
-				atomic_add_long(&bufspace, bp->b_kvasize);
-				atomic_add_int(&bufreusecnt, 1);
-			}
+			rv = vm_map_insert(buffer_map, NULL, 0, addr,
+			    addr + maxsize, VM_PROT_ALL, VM_PROT_ALL,
+			    MAP_NOFAULT);
+			KASSERT(rv == KERN_SUCCESS,
+			    ("vm_map_insert(buffer_map) rv %d", rv));
 			vm_map_unlock(buffer_map);
+			bp->b_kvabase = (caddr_t)addr;
+			bp->b_kvasize = maxsize;
+			atomic_add_long(&bufspace, bp->b_kvasize);
+			atomic_add_int(&bufreusecnt, 1);
 		}
 		bp->b_saveaddr = bp->b_kvabase;
 		bp->b_data = bp->b_saveaddr;
 	}
-	return(bp);
+	return (bp);
 }
 
 /*
@@ -2176,12 +2163,6 @@ buf_do_flush(struct vnode *vp)
 	int flushed;
 
 	flushed = flushbufqueues(vp, QUEUE_DIRTY, 0);
-	/* The list empty check here is slightly racy */
-	if (!TAILQ_EMPTY(&bufqueues[QUEUE_DIRTY_GIANT])) {
-		mtx_lock(&Giant);
-		flushed += flushbufqueues(vp, QUEUE_DIRTY_GIANT, 0);
-		mtx_unlock(&Giant);
-	}
 	if (flushed == 0) {
 		/*
 		 * Could not find any buffers without rollback
@@ -2189,12 +2170,6 @@ buf_do_flush(struct vnode *vp)
 		 * in the hopes of eventually making progress.
 		 */
 		flushbufqueues(vp, QUEUE_DIRTY, 1);
-		if (!TAILQ_EMPTY(
-			    &bufqueues[QUEUE_DIRTY_GIANT])) {
-			mtx_lock(&Giant);
-			flushbufqueues(vp, QUEUE_DIRTY_GIANT, 1);
-			mtx_unlock(&Giant);
-		}
 	}
 	return (flushed);
 }
@@ -2234,7 +2209,7 @@ buf_daemon()
 		while (numdirtybuffers > lodirtybuffers) {
 			if (buf_do_flush(NULL) == 0)
 				break;
-			kern_yield(PRI_UNCHANGED);
+			kern_yield(PRI_USER);
 		}
 		lodirtybuffers = lodirtysave;
 
@@ -2630,8 +2605,6 @@ loop:
          * If this check ever becomes a bottleneck it may be better to
          * move it into the else, when gbincore() fails.  At the moment
          * it isn't a problem.
-	 *
-	 * XXX remove if 0 sections (clean this up after its proven)
          */
 	if (numfreebuffers == 0) {
 		if (TD_IS_IDLETHREAD(curthread))
@@ -2646,8 +2619,8 @@ loop:
 	if (bp != NULL) {
 		int lockflags;
 		/*
-		 * Buffer is in-core.  If the buffer is not busy, it must
-		 * be on a queue.
+		 * Buffer is in-core.  If the buffer is not busy nor managed,
+		 * it must be on a queue.
 		 */
 		lockflags = LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK;
 
@@ -2677,9 +2650,13 @@ loop:
 			bp->b_flags &= ~B_CACHE;
 		else if ((bp->b_flags & (B_VMIO | B_INVAL)) == 0)
 			bp->b_flags |= B_CACHE;
-		BO_LOCK(bo);
-		bremfree(bp);
-		BO_UNLOCK(bo);
+		if (bp->b_flags & B_MANAGED)
+			MPASS(bp->b_qindex == QUEUE_NONE);
+		else {
+			BO_LOCK(bo);
+			bremfree(bp);
+			BO_UNLOCK(bo);
+		}
 
 		/*
 		 * check for size inconsistancies for non-VMIO case.
@@ -3062,7 +3039,7 @@ allocbuf(struct buf *bp, int size)
 
 				/*
 				 * We must allocate system pages since blocking
-				 * here could intefere with paging I/O, no
+				 * here could interfere with paging I/O, no
 				 * matter which process we are.
 				 *
 				 * We can only test VPO_BUSY here.  Blocking on
@@ -3499,7 +3476,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 	 * entire page.
 	 */
 	if (eoff > off)
-		vm_page_set_valid(m, off & PAGE_MASK, eoff - off);
+		vm_page_set_valid_range(m, off & PAGE_MASK, eoff - off);
 }
 
 /*
@@ -3662,7 +3639,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 		m = bp->b_pages[i];
 		if (n > size)
 			n = size;
-		vm_page_set_valid(m, base & PAGE_MASK, n);
+		vm_page_set_valid_range(m, base & PAGE_MASK, n);
 		base += n;
 		size -= n;
 		n = PAGE_SIZE;
@@ -3760,10 +3737,9 @@ tryagain:
 		 * could interfere with paging I/O, no matter which
 		 * process we are.
 		 */
-		p = vm_page_alloc(NULL, pg >> PAGE_SHIFT, VM_ALLOC_NOOBJ |
-		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
-		    VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
-		if (!p) {
+		p = vm_page_alloc(NULL, 0, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
+		    VM_ALLOC_WIRED | VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
+		if (p == NULL) {
 			VM_WAIT;
 			goto tryagain;
 		}
@@ -3998,7 +3974,9 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	}
 
 	db_printf("buf at %p\n", bp);
-	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
+	db_printf("b_flags = 0x%b, b_xflags=0x%b, b_vflags=0x%b\n",
+	    (u_int)bp->b_flags, PRINT_BUF_FLAGS, (u_int)bp->b_xflags,
+	    PRINT_BUF_XFLAGS, (u_int)bp->b_vflags, PRINT_BUF_VFLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
 	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd, b_lblkno = %jd, "

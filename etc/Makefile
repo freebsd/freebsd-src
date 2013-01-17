@@ -7,18 +7,47 @@
 SUBDIR=	sendmail
 .endif
 
-BIN1=	auth.conf \
-	crontab devd.conf devfs.conf \
-	ddb.conf dhclient.conf disktab fbtab \
-	ftpusers gettytab group \
-	hosts hosts.allow hosts.equiv \
-	inetd.conf libalias.conf login.access login.conf mac.conf motd \
-	netconfig network.subr networks newsyslog.conf nsswitch.conf \
-	phones profile protocols \
-	rc rc.bsdextended rc.firewall rc.initdiskless \
-	rc.sendmail rc.shutdown \
-	rc.subr remote rpc services shells \
-	sysctl.conf syslog.conf termcap.small
+BIN1=	crontab \
+	devd.conf \
+	devfs.conf \
+	ddb.conf \
+	dhclient.conf \
+	disktab \
+	fbtab \
+	ftpusers \
+	gettytab \
+	group \
+	hosts \
+	hosts.allow \
+	hosts.equiv \
+	inetd.conf \
+	libalias.conf \
+	login.access \
+	login.conf \
+	mac.conf \
+	motd \
+	netconfig \
+	network.subr \
+	networks \
+	newsyslog.conf \
+	nsswitch.conf \
+	phones \
+	profile \
+	protocols \
+	rc \
+	rc.bsdextended \
+	rc.firewall \
+	rc.initdiskless \
+	rc.sendmail \
+	rc.shutdown \
+	rc.subr \
+	remote \
+	rpc \
+	services \
+	shells \
+	sysctl.conf \
+	syslog.conf \
+	termcap.small
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
@@ -169,6 +198,9 @@ distribution:
 .endif
 	pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
 	    ${DESTDIR}/etc/master.passwd
+.if ${MK_ATF} != "no"
+	${_+_}cd ${.CURDIR}/atf; ${MAKE} install
+.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
@@ -188,8 +220,7 @@ distribution:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_BIND_MTREE} != "no"
-	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
-		set -x; \
+	if [ ! -e ${DESTDIR}/etc/namedb ]; then \
 		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
 	fi
 .endif
@@ -235,9 +266,8 @@ distribution:
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
-	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
+	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
 	      ! -f ${DESTDIR}/etc/aliases ]; then \
-		set -x; \
 		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
@@ -261,26 +291,39 @@ distribution:
 		${DESTDIR}/etc/nsswitch.conf
 .endif
 
-distrib-dirs:
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
-		-p ${DESTDIR}/usr/include
+MTREE_CMD?=	mtree
+
+MTREES=		mtree/BSD.root.dist		/		\
+		mtree/BSD.var.dist		/var		\
+		mtree/BSD.usr.dist		/usr		\
+		mtree/BSD.include.dist		/usr/include
 .if ${MK_BIND_LIBS} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
-	    -p ${DESTDIR}/usr/include
+MTREES+=	mtree/BIND.include.dist		/usr/include
 .endif
 .if ${MK_BIND_MTREE} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
-	    -p ${DESTDIR}/var/named
+MTREES+=	mtree/BIND.chroot.dist		/var/named
 .endif
 .if ${MK_GROFF} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.groff.dist -p ${DESTDIR}/usr
+MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
 .if ${MK_SENDMAIL} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
+MTREES+=	mtree/BSD.sendmail.dist		/
 .endif
+.for mtree in ${LOCAL_MTREE}
+MTREES+=	../${mtree}			/
+.endfor
+
+distrib-dirs:
+	@set ${MTREES}; \
+	while test $$# -ge 2; do \
+		m=${.CURDIR}/$$1; \
+		shift; \
+		d=${DESTDIR}$$1; \
+		shift; \
+		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
+		    -f $$m -p $$d; \
+		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
+	done; true
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/man/en.ISO8859-1; ln -sf ../man* .
 	cd ${DESTDIR}/usr/share/man/en.UTF-8; ln -sf ../man* .

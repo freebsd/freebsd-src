@@ -224,11 +224,11 @@ __sigev_get_sigevent(struct sigev_node *sn, struct sigevent *newevp,
 	sigev_id_t id)
 {
 	/*
-	 * Build a new sigevent, and tell kernel to deliver SIGSERVICE
+	 * Build a new sigevent, and tell kernel to deliver SIGLIBRT
 	 * signal to the new thread.
 	 */
 	newevp->sigev_notify = SIGEV_THREAD_ID;
-	newevp->sigev_signo  = SIGSERVICE;
+	newevp->sigev_signo  = SIGLIBRT;
 	newevp->sigev_notify_thread_id = (lwpid_t)sn->sn_tn->tn_lwpid;
 	newevp->sigev_value.sival_ptr = (void *)id;
 }
@@ -279,7 +279,7 @@ __sigev_delete_node(struct sigev_node *sn)
 	LIST_REMOVE(sn, sn_link);
 
 	if (--sn->sn_tn->tn_refcount == 0)
-		_pthread_kill(sn->sn_tn->tn_thread, SIGSERVICE);
+		_pthread_kill(sn->sn_tn->tn_thread, SIGLIBRT);
 	if (sn->sn_flags & SNF_WORKING)
 		sn->sn_flags |= SNF_REMOVED;
 	else
@@ -326,7 +326,7 @@ sigev_thread_create(int usedefault)
 	LIST_INSERT_HEAD(&sigev_threads, tn, tn_link);
 	__sigev_list_unlock();
 
-	sigfillset(&set);	/* SIGSERVICE is masked. */
+	sigfillset(&set);	/* SIGLIBRT is masked. */
 	sigdelset(&set, SIGBUS);
 	sigdelset(&set, SIGILL);
 	sigdelset(&set, SIGFPE);
@@ -378,7 +378,7 @@ sigev_service_loop(void *arg)
 	__sigev_list_unlock();
 
 	sigemptyset(&set);
-	sigaddset(&set, SIGSERVICE);
+	sigaddset(&set, SIGLIBRT);
 	for (;;) {
 		ret = sigwaitinfo(&set, &si);
 

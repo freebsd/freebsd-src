@@ -183,12 +183,11 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 		if (bp)
 			bqrelse(bp);
 
-		ap->in_exists = 1;
 		bp = getblk(vp, metalbn, bsize, 0, 0, 0);
 		if ((bp->b_flags & B_CACHE) == 0) {
 #ifdef DIAGNOSTIC
 			if (!daddr)
-				panic("ufs_bmaparray: indirect block not in cache");
+				panic("ext2_bmaparray: indirect block not in cache");
 #endif
 			bp->b_blkno = blkptrtodb(ump, daddr);
 			bp->b_iocmd = BIO_READ;
@@ -215,7 +214,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 			    ++bn, ++*runp);
 			bn = ap->in_off;
 			if (runb && bn) {
-				for(--bn; bn >= 0 && *runb < maxrun &&
+				for (--bn; bn >= 0 && *runb < maxrun &&
 			    		is_sequential(ump, ((int32_t *)bp->b_data)[bn],
 					    ((int32_t *)bp->b_data)[bn+1]);
 			    		--bn, ++*runb);
@@ -310,7 +309,6 @@ ext2_getlbns(vp, bn, ap, nump)
 	 */
 	ap->in_lbn = metalbn;
 	ap->in_off = off = NIADDR - i;
-	ap->in_exists = 0;
 	ap++;
 	for (++numlevels; i <= NIADDR; i++) {
 		/* If searching for a meta-data block, quit when found. */
@@ -322,7 +320,6 @@ ext2_getlbns(vp, bn, ap, nump)
 		++numlevels;
 		ap->in_lbn = metalbn;
 		ap->in_off = off;
-		ap->in_exists = 0;
 		++ap;
 
 		metalbn -= -1 + off * blockcnt;

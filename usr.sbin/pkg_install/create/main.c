@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Jordan K. Hubbard
@@ -72,6 +72,7 @@ main(int argc, char **argv)
     int ch;
     char **pkgs, **start, *tmp;
 
+    warnpkgng();
     pkgs = start = argv;
     while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1)
 	switch(ch) {

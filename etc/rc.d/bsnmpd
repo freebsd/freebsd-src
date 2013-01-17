@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="bsnmpd"
-rcvar=`set_rcvar`
+rcvar="bsnmpd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/snmpd.pid"
 

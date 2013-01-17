@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SPU.h"
 #include "SPUFrameLowering.h"
+#include "SPU.h"
 #include "SPUInstrBuilder.h"
 #include "SPUInstrInfo.h"
 #include "llvm/Function.h"
@@ -22,7 +22,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
@@ -47,7 +47,8 @@ bool SPUFrameLowering::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
 
   return MFI->getStackSize() &&
-    (DisableFramePointerElim(MF) || MFI->hasVarSizedObjects());
+    (MF.getTarget().Options.DisableFramePointerElim(MF) ||
+     MFI->hasVarSizedObjects());
 }
 
 

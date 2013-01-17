@@ -1,4 +1,4 @@
-//===-- PPCAsmPrinter.cpp - Print machine instrs to PowerPC assembly --------=//
+//===-- PPCAsmPrinter.cpp - Print machine instrs to PowerPC assembly ------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,9 +20,10 @@
 #include "PPC.h"
 #include "PPCTargetMachine.h"
 #include "PPCSubtarget.h"
+#include "InstPrinter/PPCInstPrinter.h"
 #include "MCTargetDesc/PPCPredicates.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
 #include "llvm/Assembly/Writer.h"
@@ -39,6 +40,7 @@
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSectionELF.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -49,16 +51,16 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ELF.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/SmallString.h"
-#include "InstPrinter/PPCInstPrinter.h"
+#include "llvm/ADT/MapVector.h"
 using namespace llvm;
 
 namespace {
   class PPCAsmPrinter : public AsmPrinter {
   protected:
-    DenseMap<MCSymbol*, MCSymbol*> TOC;
+    MapVector<MCSymbol*, MCSymbol*> TOC;
     const PPCSubtarget &Subtarget;
     uint64_t TOCLabelID;
   public:
@@ -108,6 +110,8 @@ namespace {
     bool doFinalization(Module &M);
 
     virtual void EmitFunctionEntryLabel();
+
+    void EmitFunctionBodyEnd();
   };
 
   /// PPCDarwinAsmPrinter - PowerPC assembly printer, customized for Darwin/Mac
@@ -247,7 +251,9 @@ bool PPCAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
     if (ExtraCode[1] != 0) return true; // Unknown modifier.
 
     switch (ExtraCode[0]) {
-    default: return true;  // Unknown modifier.
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNo, AsmVariant, ExtraCode, O);
     case 'c': // Don't print "$" before a global var name or constant.
       break; // PPC never has a prefix.
     case 'L': // Write second word of DImode reference.
@@ -279,8 +285,22 @@ bool PPCAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
                                           unsigned AsmVariant,
                                           const char *ExtraCode,
                                           raw_ostream &O) {
-  if (ExtraCode && ExtraCode[0])
-    return true; // Unknown modifier.
+  if (ExtraCode && ExtraCode[0]) {
+    if (ExtraCode[1] != 0) return true; // Unknown modifier.
+
+    switch (ExtraCode[0]) {
+    default: return true;  // Unknown modifier.
+    case 'y': // A memory reference for an X-form instruction
+      {
+        const char *RegName = "r0";
+        if (!Subtarget.isDarwin()) RegName = stripRegisterPrefix(RegName);
+        O << RegName << ", ";
+        printOperand(MI, OpNo, O);
+        return false;
+      }
+    }
+  }
+
   assert(MI->getOperand(OpNo).isReg());
   O << "0(";
   printOperand(MI, OpNo, O);
@@ -342,23 +362,37 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     OutStreamer.EmitLabel(PICBase);
     return;
   }
+  case PPC::LDtocJTI:
+  case PPC::LDtocCPT:
   case PPC::LDtoc: {
     // Transform %X3 = LDtoc <ga:@min1>, %X2
     LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
-      
+
     // Change the opcode to LD, and the global address operand to be a
     // reference to the TOC entry we will synthesize later.
     TmpInst.setOpcode(PPC::LD);
     const MachineOperand &MO = MI->getOperand(1);
-    assert(MO.isGlobal());
-      
-    // Map symbol -> label of TOC entry.
-    MCSymbol *&TOCEntry = TOC[Mang->getSymbol(MO.getGlobal())];
-    if (TOCEntry == 0)
-      TOCEntry = GetTempSymbol("C", TOCLabelID++);
-      
+
+    // Map symbol -> label of TOC entry
+    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI());
+    MCSymbol *MOSymbol = 0;
+    if (MO.isGlobal())
+      MOSymbol = Mang->getSymbol(MO.getGlobal());
+    else if (MO.isCPI())
+      MOSymbol = GetCPISymbol(MO.getIndex());
+    else if (MO.isJTI())
+      MOSymbol = GetJTISymbol(MO.getIndex());
+    MCSymbol *&TOCEntry = TOC[MOSymbol];
+    // To avoid name clash check if the name already exists.
+    while (TOCEntry == 0) {
+      if (OutContext.LookupSymbol(Twine(MAI->getPrivateGlobalPrefix()) +
+                                  "C" + Twine(TOCLabelID++)) == 0) {
+        TOCEntry = GetTempSymbol("C", TOCLabelID);
+      }
+    }
+
     const MCExpr *Exp =
-      MCSymbolRefExpr::Create(TOCEntry, MCSymbolRefExpr::VK_PPC_TOC,
+      MCSymbolRefExpr::Create(TOCEntry, MCSymbolRefExpr::VK_PPC_TOC_ENTRY,
                               OutContext);
     TmpInst.getOperand(1) = MCOperand::CreateExpr(Exp);
     OutStreamer.EmitInstruction(TmpInst);
@@ -366,14 +400,21 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   }
       
   case PPC::MFCRpseud:
+  case PPC::MFCR8pseud:
     // Transform: %R3 = MFCRpseud %CR7
     // Into:      %R3 = MFCR      ;; cr7
     OutStreamer.AddComment(PPCInstPrinter::
                            getRegisterName(MI->getOperand(1).getReg()));
-    TmpInst.setOpcode(PPC::MFCR);
+    TmpInst.setOpcode(Subtarget.isPPC64() ? PPC::MFCR8 : PPC::MFCR);
     TmpInst.addOperand(MCOperand::CreateReg(MI->getOperand(0).getReg()));
     OutStreamer.EmitInstruction(TmpInst);
     return;
+  case PPC::SYNC:
+    // In Book E sync is called msync, handle this special case here...
+    if (Subtarget.isBookE()) {
+      OutStreamer.EmitRawText(StringRef("\tmsync"));
+      return;
+    }
   }
 
   LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
@@ -385,57 +426,99 @@ void PPCLinuxAsmPrinter::EmitFunctionEntryLabel() {
     return AsmPrinter::EmitFunctionEntryLabel();
     
   // Emit an official procedure descriptor.
-  // FIXME 64-bit SVR4: Use MCSection here!
-  OutStreamer.EmitRawText(StringRef("\t.section\t\".opd\",\"aw\""));
-  OutStreamer.EmitRawText(StringRef("\t.align 3"));
+  const MCSection *Current = OutStreamer.getCurrentSection();
+  const MCSectionELF *Section = OutStreamer.getContext().getELFSection(".opd",
+      ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC,
+      SectionKind::getReadOnly());
+  OutStreamer.SwitchSection(Section);
   OutStreamer.EmitLabel(CurrentFnSym);
-  OutStreamer.EmitRawText("\t.quad .L." + Twine(CurrentFnSym->getName()) +
-                          ",.TOC.@tocbase");
-  OutStreamer.EmitRawText(StringRef("\t.previous"));
-  OutStreamer.EmitRawText(".L." + Twine(CurrentFnSym->getName()) + ":");
+  OutStreamer.EmitValueToAlignment(8);
+  MCSymbol *Symbol1 = 
+    OutContext.GetOrCreateSymbol(".L." + Twine(CurrentFnSym->getName()));
+  // Generates a R_PPC64_ADDR64 (from FK_DATA_8) relocation for the function
+  // entry point.
+  OutStreamer.EmitValue(MCSymbolRefExpr::Create(Symbol1, OutContext),
+                        8/*size*/, 0/*addrspace*/);
+  MCSymbol *Symbol2 = OutContext.GetOrCreateSymbol(StringRef(".TOC."));
+  // Generates a R_PPC64_TOC relocation for TOC base insertion.
+  OutStreamer.EmitValue(MCSymbolRefExpr::Create(Symbol2,
+                        MCSymbolRefExpr::VK_PPC_TOC, OutContext),
+                        8/*size*/, 0/*addrspace*/);
+  // Emit a null environment pointer.
+  OutStreamer.EmitIntValue(0, 8 /* size */, 0 /* addrspace */);
+  OutStreamer.SwitchSection(Current);
+
+  MCSymbol *RealFnSym = OutContext.GetOrCreateSymbol(
+                          ".L." + Twine(CurrentFnSym->getName()));
+  OutStreamer.EmitLabel(RealFnSym);
+  CurrentFnSymForSize = RealFnSym;
 }
 
 
 bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
 
   bool isPPC64 = TD->getPointerSizeInBits() == 64;
 
   if (isPPC64 && !TOC.empty()) {
-    // FIXME 64-bit SVR4: Use MCSection here?
-    OutStreamer.EmitRawText(StringRef("\t.section\t\".toc\",\"aw\""));
+    const MCSectionELF *Section = OutStreamer.getContext().getELFSection(".toc",
+        ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC,
+        SectionKind::getReadOnly());
+    OutStreamer.SwitchSection(Section);
 
-    // FIXME: This is nondeterminstic!
-    for (DenseMap<MCSymbol*, MCSymbol*>::iterator I = TOC.begin(),
+    for (MapVector<MCSymbol*, MCSymbol*>::iterator I = TOC.begin(),
          E = TOC.end(); I != E; ++I) {
       OutStreamer.EmitLabel(I->second);
-      OutStreamer.EmitRawText("\t.tc " + Twine(I->first->getName()) +
-                              "[TC]," + I->first->getName());
+      MCSymbol *S = OutContext.GetOrCreateSymbol(I->first->getName());
+      OutStreamer.EmitTCEntry(*S);
     }
   }
 
   return AsmPrinter::doFinalization(M);
 }
 
+/// EmitFunctionBodyEnd - Print the traceback table before the .size
+/// directive.
+///
+void PPCLinuxAsmPrinter::EmitFunctionBodyEnd() {
+  // Only the 64-bit target requires a traceback table.  For now,
+  // we only emit the word of zeroes that GDB requires to find
+  // the end of the function, and zeroes for the eight-byte
+  // mandatory fields.
+  // FIXME: We should fill in the eight-byte mandatory fields as described in
+  // the PPC64 ELF ABI (this is a low-priority item because GDB does not
+  // currently make use of these fields).
+  if (Subtarget.isPPC64()) {
+    OutStreamer.EmitIntValue(0, 4/*size*/);
+    OutStreamer.EmitIntValue(0, 8/*size*/);
+  }
+}
+
 void PPCDarwinAsmPrinter::EmitStartOfAsmFile(Module &M) {
   static const char *const CPUDirectives[] = {
     "",
     "ppc",
+    "ppc440",
     "ppc601",
     "ppc602",
     "ppc603",
     "ppc7400",
     "ppc750",
     "ppc970",
+    "ppcA2",
+    "ppce500mc",
+    "ppce5500",
+    "power6",
+    "power7",
     "ppc64"
   };
 
   unsigned Directive = Subtarget.getDarwinDirective();
-  if (Subtarget.isGigaProcessor() && Directive < PPC::DIR_970)
+  if (Subtarget.hasMFOCRF() && Directive < PPC::DIR_970)
     Directive = PPC::DIR_970;
   if (Subtarget.hasAltivec() && Directive < PPC::DIR_7400)
     Directive = PPC::DIR_7400;
-  if (Subtarget.isPPC64() && Directive < PPC::DIR_970)
+  if (Subtarget.isPPC64() && Directive < PPC::DIR_64)
     Directive = PPC::DIR_64;
   assert(Directive <= PPC::DIR_64 && "Directive out of range.");
   
@@ -480,7 +563,7 @@ static MCSymbol *GetAnonSym(MCSymbol *Sym, MCContext &Ctx) {
 
 void PPCDarwinAsmPrinter::
 EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
-  bool isPPC64 = TM.getTargetData()->getPointerSizeInBits() == 64;
+  bool isPPC64 = TM.getDataLayout()->getPointerSizeInBits() == 64;
   
   const TargetLoweringObjectFileMachO &TLOFMacho = 
     static_cast<const TargetLoweringObjectFileMachO &>(getObjFileLowering());
@@ -575,7 +658,7 @@ EmitFunctionStubs(const MachineModuleInfoMachO::SymbolListTy &Stubs) {
 
 
 bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
-  bool isPPC64 = TM.getTargetData()->getPointerSizeInBits() == 64;
+  bool isPPC64 = TM.getDataLayout()->getPointerSizeInBits() == 64;
 
   // Darwin/PPC always uses mach-o.
   const TargetLoweringObjectFileMachO &TLOFMacho = 

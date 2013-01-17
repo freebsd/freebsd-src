@@ -16,7 +16,8 @@ stop_cmd=':'
 
 devfs_start()
 {
-	if [ -n "$devfs_system_ruleset" -o -n "$devfs_set_rulesets" ]; then
+	if [ -n "$devfs_system_ruleset" -o -n "$devfs_set_rulesets" ] ||
+	    checkyesno devfs_load_rulesets; then
 		devfs_init_rulesets
 		if [ -n "$devfs_system_ruleset" ]; then
 			devfs_set_ruleset $devfs_system_ruleset /dev

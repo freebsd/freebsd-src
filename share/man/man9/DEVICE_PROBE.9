@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2008
+.Dd February 8, 2012
 .Dt DEVICE_PROBE 9
 .Os
 .Sh NAME
@@ -96,7 +96,7 @@ all the rules, or special needs drivers).
 .It BUS_PROBE_VENDOR
 The device is supported by a vendor driver.
 This is for source or binary drivers that are not yet integrated into the
-.Fx 
+.Fx
 tree.
 Its use in the base OS is prohibited.
 .It BUS_PROBE_DEFAULT
@@ -119,8 +119,8 @@ drivers matching particular types of serial ports that need special
 treatment for some reason.
 .It BUS_PROBE_HOOVER
 The driver matches all unclaimed devices on a bus.
-The 
-.Xr ugen 5 
+The
+.Xr ugen 4
 device is one example.
 .It BUS_PROBE_NOWILDCARD
 The driver expects its parent to tell it which children to manage

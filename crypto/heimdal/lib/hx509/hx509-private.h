@@ -30,7 +30,7 @@ void
 _hx509_abort (
 	const char */*fmt*/,
 	...)
-    __attribute__ ((noreturn, format (printf, 1, 2)));
+     __attribute__ ((noreturn, format (printf, 1, 2)));
 
 int
 _hx509_calculate_path (
@@ -83,19 +83,17 @@ _hx509_cert_private_key (hx509_cert /*p*/);
 int
 _hx509_cert_private_key_exportable (hx509_cert /*p*/);
 
-int
-_hx509_cert_public_encrypt (
-	hx509_context /*context*/,
-	const heim_octet_string */*cleartext*/,
-	const hx509_cert /*p*/,
-	heim_oid */*encryption_oid*/,
-	heim_octet_string */*ciphertext*/);
-
 void
 _hx509_cert_set_release (
 	hx509_cert /*cert*/,
 	_hx509_cert_release_func /*release*/,
 	void */*ctx*/);
+
+int
+_hx509_cert_to_env (
+	hx509_context /*context*/,
+	hx509_cert /*cert*/,
+	hx509_env */*env*/);
 
 int
 _hx509_certs_keys_add (
@@ -113,9 +111,6 @@ _hx509_certs_keys_get (
 	hx509_context /*context*/,
 	hx509_certs /*certs*/,
 	hx509_private_key **/*keys*/);
-
-hx509_certs
-_hx509_certs_ref (hx509_certs /*certs*/);
 
 int
 _hx509_check_key_usage (
@@ -180,6 +175,18 @@ _hx509_create_signature_bitstring (
 	const heim_octet_string */*data*/,
 	AlgorithmIdentifier */*signatureAlgorithm*/,
 	heim_bit_string */*sig*/);
+
+int
+_hx509_expr_eval (
+	hx509_context /*context*/,
+	hx509_env /*env*/,
+	struct hx_expr */*expr*/);
+
+void
+_hx509_expr_free (struct hx_expr */*expr*/);
+
+struct hx_expr *
+_hx509_expr_parse (const char */*buf*/);
 
 int
 _hx509_find_extension_subject_key_id (
@@ -253,33 +260,33 @@ _hx509_lock_get_passwords (hx509_lock /*lock*/);
 hx509_certs
 _hx509_lock_unlock_certs (hx509_lock /*lock*/);
 
-int
-_hx509_map_file (
-	const char */*fn*/,
-	void **/*data*/,
-	size_t */*length*/,
-	struct stat */*rsb*/);
+struct hx_expr *
+_hx509_make_expr (
+	enum hx_expr_op /*op*/,
+	void */*arg1*/,
+	void */*arg2*/);
 
 int
 _hx509_map_file_os (
 	const char */*fn*/,
-	heim_octet_string */*os*/,
-	struct stat */*rsb*/);
+	heim_octet_string */*os*/);
 
 int
 _hx509_match_keys (
 	hx509_cert /*c*/,
-	hx509_private_key /*private_key*/);
+	hx509_private_key /*key*/);
 
 int
 _hx509_name_cmp (
 	const Name */*n1*/,
-	const Name */*n2*/);
+	const Name */*n2*/,
+	int */*c*/);
 
 int
 _hx509_name_ds_cmp (
 	const DirectoryString */*ds1*/,
-	const DirectoryString */*ds2*/);
+	const DirectoryString */*ds2*/,
+	int */*diff*/);
 
 int
 _hx509_name_from_Name (
@@ -293,14 +300,6 @@ _hx509_name_modify (
 	int /*append*/,
 	const heim_oid */*oid*/,
 	const char */*str*/);
-
-int
-_hx509_parse_private_key (
-	hx509_context /*context*/,
-	const heim_oid */*key_oid*/,
-	const void */*data*/,
-	size_t /*len*/,
-	hx509_private_key */*private_key*/);
 
 int
 _hx509_path_append (
@@ -335,27 +334,14 @@ _hx509_pi_printf (
 	...);
 
 int
-_hx509_private_key2SPKI (
-	hx509_context /*context*/,
-	hx509_private_key /*private_key*/,
-	SubjectPublicKeyInfo */*spki*/);
-
-void
-_hx509_private_key_assign_rsa (
-	hx509_private_key /*key*/,
-	void */*ptr*/);
-
-int
 _hx509_private_key_export (
 	hx509_context /*context*/,
 	const hx509_private_key /*key*/,
+	hx509_key_format_t /*format*/,
 	heim_octet_string */*data*/);
 
 int
 _hx509_private_key_exportable (hx509_private_key /*key*/);
-
-int
-_hx509_private_key_free (hx509_private_key */*key*/);
 
 BIGNUM *
 _hx509_private_key_get_internal (
@@ -364,24 +350,10 @@ _hx509_private_key_get_internal (
 	const char */*type*/);
 
 int
-_hx509_private_key_init (
-	hx509_private_key */*key*/,
-	hx509_private_key_ops */*ops*/,
-	void */*keydata*/);
-
-int
 _hx509_private_key_oid (
 	hx509_context /*context*/,
 	const hx509_private_key /*key*/,
 	heim_oid */*data*/);
-
-int
-_hx509_private_key_private_decrypt (
-	hx509_context /*context*/,
-	const heim_octet_string */*ciphertext*/,
-	const heim_oid */*encryption_oid*/,
-	hx509_private_key /*p*/,
-	heim_octet_string */*cleartext*/);
 
 hx509_private_key
 _hx509_private_key_ref (hx509_private_key /*key*/);
@@ -430,26 +402,6 @@ _hx509_request_add_email (
 	hx509_request /*req*/,
 	const char */*email*/);
 
-void
-_hx509_request_free (hx509_request */*req*/);
-
-int
-_hx509_request_get_SubjectPublicKeyInfo (
-	hx509_context /*context*/,
-	hx509_request /*req*/,
-	SubjectPublicKeyInfo */*key*/);
-
-int
-_hx509_request_get_name (
-	hx509_context /*context*/,
-	hx509_request /*req*/,
-	hx509_name */*name*/);
-
-int
-_hx509_request_init (
-	hx509_context /*context*/,
-	hx509_request */*req*/);
-
 int
 _hx509_request_parse (
 	hx509_context /*context*/,
@@ -463,18 +415,6 @@ _hx509_request_print (
 	FILE */*f*/);
 
 int
-_hx509_request_set_SubjectPublicKeyInfo (
-	hx509_context /*context*/,
-	hx509_request /*req*/,
-	const SubjectPublicKeyInfo */*key*/);
-
-int
-_hx509_request_set_name (
-	hx509_context /*context*/,
-	hx509_request /*req*/,
-	hx509_name /*name*/);
-
-int
 _hx509_request_to_pkcs10 (
 	hx509_context /*context*/,
 	const hx509_request /*req*/,
@@ -484,6 +424,14 @@ _hx509_request_to_pkcs10 (
 hx509_revoke_ctx
 _hx509_revoke_ref (hx509_revoke_ctx /*ctx*/);
 
+void
+_hx509_sel_yyerror (const char */*s*/);
+
+int
+_hx509_self_signed_valid (
+	hx509_context /*context*/,
+	const AlgorithmIdentifier */*alg*/);
+
 int
 _hx509_set_cert_attribute (
 	hx509_context /*context*/,
@@ -491,10 +439,11 @@ _hx509_set_cert_attribute (
 	const heim_oid */*oid*/,
 	const heim_octet_string */*attr*/);
 
-void
-_hx509_unmap_file (
-	void */*data*/,
-	size_t /*len*/);
+int
+_hx509_signature_best_before (
+	hx509_context /*context*/,
+	const AlgorithmIdentifier */*alg*/,
+	time_t /*t*/);
 
 void
 _hx509_unmap_file_os (heim_octet_string */*os*/);
@@ -504,10 +453,13 @@ _hx509_unparse_Name (
 	const Name */*aname*/,
 	char **/*str*/);
 
+time_t
+_hx509_verify_get_time (hx509_verify_ctx /*ctx*/);
+
 int
 _hx509_verify_signature (
 	hx509_context /*context*/,
-	const Certificate */*signer*/,
+	const hx509_cert /*cert*/,
 	const AlgorithmIdentifier */*alg*/,
 	const heim_octet_string */*data*/,
 	const heim_octet_string */*sig*/);
@@ -515,7 +467,7 @@ _hx509_verify_signature (
 int
 _hx509_verify_signature_bitstring (
 	hx509_context /*context*/,
-	const Certificate */*signer*/,
+	const hx509_cert /*signer*/,
 	const AlgorithmIdentifier */*alg*/,
 	const heim_octet_string */*data*/,
 	const heim_bit_string */*sig*/);

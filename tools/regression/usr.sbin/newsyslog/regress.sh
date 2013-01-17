@@ -70,8 +70,8 @@ cknt()
 	fi
 }
 
-# Check if a file is there, depending of if it's suposed to or not -
-# basically how many log files we are suposed to keep vs. how many we
+# Check if a file is there, depending of if it's supposed to or not -
+# basically how many log files we are supposed to keep vs. how many we
 # actually keep.
 ckntfe()
 {

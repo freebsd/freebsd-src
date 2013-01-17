@@ -23,6 +23,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
+
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
 #include <sys/vdev_impl.h>
@@ -127,7 +131,8 @@ vdev_mirror_map_alloc(zio_t *zio)
 }
 
 static int
-vdev_mirror_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
+vdev_mirror_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
+    uint64_t *ashift)
 {
 	int numerrors = 0;
 	int lasterror = 0;
@@ -149,6 +154,7 @@ vdev_mirror_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
 		}
 
 		*asize = MIN(*asize - 1, cvd->vdev_asize - 1) + 1;
+		*max_asize = MIN(*max_asize - 1, cvd->vdev_max_asize - 1) + 1;
 		*ashift = MAX(*ashift, cvd->vdev_ashift);
 	}
 
@@ -287,10 +293,11 @@ vdev_mirror_io_start(zio_t *zio)
 		c = vdev_mirror_child_select(zio);
 		children = (c >= 0);
 	} else {
-		ASSERT(zio->io_type == ZIO_TYPE_WRITE);
+		ASSERT(zio->io_type == ZIO_TYPE_WRITE ||
+		    zio->io_type == ZIO_TYPE_FREE);
 
 		/*
-		 * Writes go to all children.
+		 * Writes and frees go to all children.
 		 */
 		c = 0;
 		children = mm->mm_children;
@@ -370,6 +377,8 @@ vdev_mirror_io_done(zio_t *zio)
 			if (good_copies == 0 || zio->io_vd == NULL)
 				zio->io_error = vdev_mirror_worst_error(mm);
 		}
+		return;
+	} else if (zio->io_type == ZIO_TYPE_FREE) {
 		return;
 	}
 

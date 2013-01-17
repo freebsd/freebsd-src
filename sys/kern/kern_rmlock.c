@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <sys/kernel.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -65,14 +66,10 @@ __FBSDID("$FreeBSD$");
  * does not seem very useful
  */
 
-static __inline void compiler_memory_barrier(void) {
-	__asm __volatile("":::"memory");
-}
-
-static void	assert_rm(struct lock_object *lock, int what);
+static void	assert_rm(const struct lock_object *lock, int what);
 static void	lock_rm(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
-static int	owner_rm(struct lock_object *lock, struct thread **owner);
+static int	owner_rm(const struct lock_object *lock, struct thread **owner);
 #endif
 static int	unlock_rm(struct lock_object *lock);
 
@@ -93,7 +90,7 @@ struct lock_class lock_class_rm = {
 };
 
 static void
-assert_rm(struct lock_object *lock, int what)
+assert_rm(const struct lock_object *lock, int what)
 {
 
 	panic("assert_rm called");
@@ -115,7 +112,7 @@ unlock_rm(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 static int
-owner_rm(struct lock_object *lock, struct thread **owner)
+owner_rm(const struct lock_object *lock, struct thread **owner)
 {
 
 	panic("owner_rm called");
@@ -227,7 +224,7 @@ rm_destroy(struct rmlock *rm)
 }
 
 int
-rm_wowned(struct rmlock *rm)
+rm_wowned(const struct rmlock *rm)
 {
 
 	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
@@ -344,13 +341,16 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	struct thread *td = curthread;
 	struct pcpu *pc;
 
+	if (SCHEDULER_STOPPED())
+		return (1);
+
 	tracker->rmp_flags  = 0;
 	tracker->rmp_thread = td;
 	tracker->rmp_rmlock = rm;
 
 	td->td_critnest++;	/* critical_enter(); */
 
-	compiler_memory_barrier();
+	__compiler_membar();
 
 	pc = cpuid_to_pcpu[td->td_oncpu]; /* pcpu_find(td->td_oncpu); */
 
@@ -358,7 +358,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 
 	sched_pin();
 
-	compiler_memory_barrier();
+	__compiler_membar();
 
 	td->td_critnest--;
 
@@ -413,6 +413,9 @@ _rm_runlock(struct rmlock *rm, struct rm_priotracker *tracker)
 	struct pcpu *pc;
 	struct thread *td = tracker->rmp_thread;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	td->td_critnest++;	/* critical_enter(); */
 	pc = cpuid_to_pcpu[td->td_oncpu]; /* pcpu_find(td->td_oncpu); */
 	rm_tracker_remove(pc, tracker);
@@ -431,6 +434,9 @@ _rm_wlock(struct rmlock *rm)
 	struct rm_priotracker *prio;
 	struct turnstile *ts;
 	cpuset_t readcpus;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
 		sx_xlock(&rm->rm_lock_sx);
@@ -486,6 +492,12 @@ _rm_wunlock(struct rmlock *rm)
 void _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
+
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("rm_wlock() by idle thread %p on rmlock %s @ %s:%d",
+	    curthread, rm->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line, NULL);
 
@@ -507,6 +519,9 @@ void
 _rm_wunlock_debug(struct rmlock *rm, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	curthread->td_locks--;
 	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
 		WITNESS_UNLOCK(&rm->rm_lock_sx.lock_object, LOP_EXCLUSIVE,
@@ -521,6 +536,13 @@ int
 _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
     int trylock, const char *file, int line)
 {
+
+	if (SCHEDULER_STOPPED())
+		return (1);
+
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("rm_rlock() by idle thread %p on rmlock %s @ %s:%d",
+	    curthread, rm->lock_object.lo_name, file, line));
 	if (!trylock && (rm->lock_object.lo_flags & RM_SLEEPABLE))
 		WITNESS_CHECKORDER(&rm->rm_lock_sx.lock_object, LOP_NEWORDER,
 		    file, line, NULL);
@@ -543,6 +565,9 @@ void
 _rm_runlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
     const char *file, int line)
 {
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&rm->lock_object, 0, file, line);

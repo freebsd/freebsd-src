@@ -72,9 +72,6 @@ __FBSDID("$FreeBSD$");
 #define I2C_BAUD_RATE_DEF	0x3F
 #define I2C_DFSSR_DIV		0x10
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef  DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
 #else

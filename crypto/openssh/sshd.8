@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.263 2011/08/02 01:22:11 djm Exp $
+.\" $OpenBSD: sshd.8,v 1.266 2012/06/18 12:07:07 dtucker Exp $
 .\" $FreeBSD$
-.Dd August 2, 2011
+.Dd June 18 2012
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -115,6 +115,8 @@ The connection parameters are supplied as keyword=value pairs.
 The keywords are
 .Dq user ,
 .Dq host ,
+.Dq laddr ,
+.Dq lport ,
 and
 .Dq addr .
 All are required and may be supplied in any order, either with multiple
@@ -611,6 +613,9 @@ Multiple
 options may be applied separated by commas.
 No pattern matching is performed on the specified hostnames,
 they must be literal domains or addresses.
+A port specification of
+.Cm *
+matches any port.
 .It Cm principals="principals"
 On a
 .Cm cert-authority
@@ -884,7 +889,7 @@ rlogin/rsh.
 .It Pa /etc/ssh/ssh_host_dsa_key
 .It Pa /etc/ssh/ssh_host_ecdsa_key
 .It Pa /etc/ssh/ssh_host_rsa_key
-These three files contain the private parts of the host keys.
+These files contain the private parts of the host keys.
 These files should only be owned by root, readable only by root, and not
 accessible to others.
 Note that
@@ -895,7 +900,7 @@ does not start if these files are group/world-accessible.
 .It Pa /etc/ssh/ssh_host_dsa_key.pub
 .It Pa /etc/ssh/ssh_host_ecdsa_key.pub
 .It Pa /etc/ssh/ssh_host_rsa_key.pub
-These three files contain the public parts of the host keys.
+These files contain the public parts of the host keys.
 These files should be world-readable but writable only by
 root.
 Their contents should match the respective private parts.

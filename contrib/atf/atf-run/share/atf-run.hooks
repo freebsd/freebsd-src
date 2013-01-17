@@ -1,0 +1,94 @@
+#
+# Automated Testing Framework (atf)
+#
+# Copyright (c) 2007 The NetBSD Foundation, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+# CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+# GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+# IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+# IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+atf_tps_writer_info()
+{
+    class=${1}; shift
+    echo "info: ${class}, $*"
+}
+
+info_start_hook()
+{
+    default_info_start_hook "${@}"
+}
+
+default_info_start_hook()
+{
+    atf_tps_writer_info "atf.version" $(atf-version | head -n 1)
+
+    atf_tps_writer_info "tests.root" $(pwd)
+
+    atf_tps_writer_info "time.start" $(date)
+
+    atf_tps_writer_info "uname.sysname" $(uname -s)
+    atf_tps_writer_info "uname.nodename" $(uname -n)
+    atf_tps_writer_info "uname.release" $(uname -r)
+    atf_tps_writer_info "uname.version" $(uname -v)
+    atf_tps_writer_info "uname.machine" $(uname -m)
+
+    # Add all the environment variables to the report.  We have to be
+    # careful with those that span over multiple lines; otherwise their
+    # values could be printed as multiple different variables (one per
+    # line), which is incorrect.
+    oldifs="${IFS}"
+    IFS='
+'
+    set -- $(env)
+    val=${1}; shift
+    while [ ${#} -gt 0 ]; do
+        if echo "${1}" | grep '^[a-zA-Z0-0_][a-zA-Z0-9_]*=' >/dev/null; then
+            atf_tps_writer_info "env" "${val}"
+            val="${1}"
+        else
+            val="${val} ${1}"
+        fi
+        shift
+    done
+    atf_tps_writer_info "env" "${val}"
+    IFS="${oldifs}"
+}
+
+info_end_hook()
+{
+    default_info_end_hook "${@}"
+}
+
+default_info_end_hook()
+{
+    atf_tps_writer_info "time.end" $(date)
+}
+
+sitehooks=$(atf-config -t atf_confdir)/atf-run.hooks
+userhooks=${HOME}/.atf/atf-run.hooks
+[ -f ${sitehooks} ] && . ${sitehooks}
+[ -f ${userhooks} ] && . ${userhooks}
+
+eval ${1}
+
+# vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

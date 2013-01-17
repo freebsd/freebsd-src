@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  *
@@ -34,8 +34,6 @@
 #include "krb5_locl.h"
 #include "store-int.h"
 
-RCSID("$Id: store_fd.c 17779 2006-06-30 21:23:19Z lha $");
-
 typedef struct fd_storage {
     int fd;
 } fd_storage;
@@ -60,18 +58,53 @@ fd_seek(krb5_storage * sp, off_t offset, int whence)
     return lseek(FD(sp), offset, whence);
 }
 
+static int
+fd_trunc(krb5_storage * sp, off_t offset)
+{
+    if (ftruncate(FD(sp), offset) == -1)
+	return errno;
+    return 0;
+}
+
 static void
 fd_free(krb5_storage * sp)
 {
     close(FD(sp));
 }
 
-krb5_storage * KRB5_LIB_FUNCTION
-krb5_storage_from_fd(int fd)
+/**
+ *
+ *
+ * @return A krb5_storage on success, or NULL on out of memory error.
+ *
+ * @ingroup krb5_storage
+ *
+ * @sa krb5_storage_emem()
+ * @sa krb5_storage_from_mem()
+ * @sa krb5_storage_from_readonly_mem()
+ * @sa krb5_storage_from_data()
+ */
+
+KRB5_LIB_FUNCTION krb5_storage * KRB5_LIB_CALL
+krb5_storage_from_fd(krb5_socket_t fd_in)
 {
     krb5_storage *sp;
+    int fd;
 
-    fd = dup(fd);
+#ifdef SOCKET_IS_NOT_AN_FD
+#ifdef _MSC_VER
+    if (_get_osfhandle(fd_in) != -1) {
+	fd = dup(fd_in);
+    } else {
+	fd = _open_osfhandle(fd_in, 0);
+    }
+#else
+#error Dont know how to deal with fd that may or may not be a socket.
+#endif
+#else  /* SOCKET_IS_NOT_AN_FD */
+    fd = dup(fd_in);
+#endif
+
     if (fd < 0)
 	return NULL;
 
@@ -93,6 +126,8 @@ krb5_storage_from_fd(int fd)
     sp->fetch = fd_fetch;
     sp->store = fd_store;
     sp->seek = fd_seek;
+    sp->trunc = fd_trunc;
     sp->free = fd_free;
+    sp->max_alloc = UINT_MAX/8;
     return sp;
 }

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hash.h,v 1.12 2009-01-17 23:47:43 tbox Exp $ */
+/* $Id: hash.h,v 1.12 2009/01/17 23:47:43 tbox Exp $ */
 
 #ifndef ISC_HASH_H
 #define ISC_HASH_H 1

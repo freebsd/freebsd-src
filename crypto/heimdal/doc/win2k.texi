@@ -1,41 +1,36 @@
-@c $Id: win2k.texi 21991 2007-10-19 13:28:07Z lha $
+@c $Id$
 
-@node Windows 2000 compatability, Programming with Kerberos, Kerberos 4 issues, Top
+
+@node Windows compatibility, Programming with Kerberos, Kerberos 4 issues, Top
 @comment  node-name,  next,  previous,  up
-@chapter Windows 2000 compatability
+@chapter Windows compatibility
 
-Windows 2000 (formerly known as Windows NT 5) from Microsoft implements
-Kerberos 5.  Their implementation, however, has some quirks,
-peculiarities, and bugs.  This chapter is a short summary of the things
-that we have found out while trying to test Heimdal against Windows
-2000.  Another big problem with the Kerberos implementation in Windows
-2000 is that the available documentation is more focused on getting
+Microsoft Windows, starting from version 2000 (formerly known as Windows NT 5), implements Kerberos 5. Their implementation, however, has some quirks,
+peculiarities, and bugs. This chapter is a short summary of the compatibility
+issues between Heimdal and various Windows versions.
+
+The big problem with the Kerberos implementation in Windows
+is that the available documentation is more focused on getting
 things to work rather than how they work, and not that useful in figuring
-out how things really work.
-
-This information should apply to Heimdal @value{VERSION} and Windows
-2000 Professional.  It's of course subject to change all the time and
+out how things really work. It's of course subject to change all the time and
 mostly consists of our not so inspired guesses.  Hopefully it's still
 somewhat useful.
 
 @menu
-* Configuring Windows 2000 to use a Heimdal KDC::  
-* Inter-Realm keys (trust) between Windows 2000 and a Heimdal KDC::  
+* Configuring Windows to use a Heimdal KDC::  
+* Inter-Realm keys (trust) between Windows and a Heimdal KDC::  
 * Create account mappings::     
 * Encryption types::            
 * Authorisation data::          
 * Quirks of Windows 2000 KDC::  
-* Useful links when reading about the Windows 2000::  
+* Useful links when reading about the Windows::  
 @end menu
 
-@node Configuring Windows 2000 to use a Heimdal KDC, Inter-Realm keys (trust) between Windows 2000 and a Heimdal KDC, Windows 2000 compatability, Windows 2000 compatability
+@node Configuring Windows to use a Heimdal KDC, Inter-Realm keys (trust) between Windows and a Heimdal KDC, Windows compatibility, Windows compatibility
 @comment node-name, next, precious, up
-@section Configuring Windows 2000 to use a Heimdal KDC
+@section Configuring Windows to use a Heimdal KDC
 
-You need the command line program called @command{ksetup.exe} which is available
-in the file @file{SUPPORT/TOOLS/SUPPORT.CAB} on the Windows 2000 Professional
-CD-ROM. This program is used to configure the Kerberos settings on a
-Workstation.
+You need the command line program called @command{ksetup.exe}. This program comes with the Windows Support Tools, available from either the installation CD-ROM (@file{SUPPORT/TOOLS/SUPPORT.CAB}), or from Microsoft web site. Starting from Windows 2008, it is already installed. This program is used to configure the Kerberos settings on a Workstation.
 
 @command{Ksetup} store the domain information under the registry key:
 @code{HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\LSA\Kerberos\Domains}.
@@ -88,13 +83,13 @@ The Windows machine will now map any user to the corresponding principal,
 for example @samp{nisse} to the principal @samp{nisse@@MY.REALM}.
 (This is most likely what you want.)
 
-@node Inter-Realm keys (trust) between Windows 2000 and a Heimdal KDC, Create account mappings, Configuring Windows 2000 to use a Heimdal KDC, Windows 2000 compatability
+@node Inter-Realm keys (trust) between Windows and a Heimdal KDC, Create account mappings, Configuring Windows to use a Heimdal KDC, Windows compatibility
 @comment node-name, next, precious, up
-@section Inter-Realm keys (trust) between Windows 2000 and a Heimdal KDC
+@section Inter-Realm keys (trust) between Windows and a Heimdal KDC
 
 See also the Step-by-Step guide from Microsoft, referenced below.
 
-Install Windows 2000, and create a new controller (Active Directory
+Install Windows, and create a new controller (Active Directory
 Server) for the domain.
 
 By default the trust will be non-transitive. This means that only users
@@ -102,8 +97,8 @@ directly from the trusted domain may authenticate. This can be changed
 to transitive by using the @command{netdom.exe} tool. @command{netdom.exe} 
 can also be used to add the trust between two realms.
 
-You need to tell Windows 2000 on what hosts to find the KDCs for the
-non-Windows realm with @command{ksetup}, see @xref{Configuring Windows 2000
+You need to tell Windows on what hosts to find the KDCs for the
+non-Windows realm with @command{ksetup}, see @xref{Configuring Windows 
 to use a Heimdal KDC}.
 
 This needs to be done on all computers that want enable cross-realm
@@ -127,33 +122,37 @@ Management tool, you do it like this:
 netdom trust NT.REALM.EXAMPLE.COM /Domain:EXAMPLE.COM /add /realm /passwordt:TrustPassword
 @end example
 
-You also need to add the inter-realm keys to the Heimdal KDC. Make sure
-you have matching encryption types (DES, Arcfour and AES in case of Longhorn)
+You also need to add the inter-realm keys to the Heimdal KDC. But take
+care to the encryption types and salting used for those keys. There should be
+no encryption type stronger than the one configured on Windows side for this
+relationship, itself limited to the ones supported by this specific version of
+Windows, nor any Kerberos 4 salted hashes, as Windows does not seem to
+understand them. Otherwise, the trust will not works.
 
-Another issue is salting.  Since Windows 2000 does not seem to
-understand Kerberos 4 salted hashes you might need to turn off anything
-similar to the following if you have it, at least while adding the
-principals that are going to share keys with Windows 2000.
+Here are the version-specific needed information:
+@enumerate
+@item Windows 2000: maximum encryption type is DES
+@item Windows 2003: maximum encryption type is DES
+@item Windows 2003RC2: maximum encryption type is RC4, relationship defaults to DES
+@item Windows 2008: maximum encryption type is AES, relationship defaults to RC4
+@end enumerate
+
+For Windows 2003RC2, to change the trust encryption type, you have to use the
+@command{ktpass}, from the Windows 2003 Resource kit *service pack2*, available
+from Microsoft web site.
 
 @example
-[kadmin]
-        default_keys = v5 v4
+C:> ktpass /MITRealmName UNIX.EXAMPLE.COM /TrustEncryp RC4 
 @end example
 
-So remove v4 from default keys.
-
-What you probably want to use is this:
+For Windows 2008, the same operation can be done with the @command{ksetup}, installed by default.
 
 @example
-[kadmin]
-        default_keys = des-cbc-crc:pw-salt arcfour-hmac-md5:pw-salt
+C:> ksetup /SetEncTypeAttre EXAMPLE.COM AES256-SHA1 
 @end example
 
-@c XXX check this
-@c It is definitely not supported in base 2003.  I haven't been able to
-@c get SP1 installed here, but it is supposed to work in that.
-
-Once that is also done, you can add the required inter-realm keys:
+Once the relationship is correctly configured, you can add the required
+inter-realm keys, using heimdal default encryption types:
 
 @example
 kadmin add krbtgt/NT.REALM.EXAMPLE.COM@@EXAMPLE.COM
@@ -162,11 +161,20 @@ kadmin add krbtgt/REALM.EXAMPLE.COM@@NT.EXAMPLE.COM
 
 Use the same passwords for both keys.
 
+And if needed, to remove unsupported encryptions, such as the following ones for a Windows 2003RC2 server.
+
+@example
+kadmin del_enctype krbtgt/REALM.EXAMPLE.COM@@NT.EXAMPLE.COM aes256-cts-hmac-sha1-96
+kadmin del_enctype krbtgt/REALM.EXAMPLE.COM@@NT.EXAMPLE.COM des3-cbc-sha1
+kadmin del_enctype krbtgt/NT.EXAMPLE.COM@@EXAMPLE.COM aes256-cts-hmac-sha1-96
+kadmin del_enctype krbtgt/NT.EXAMPLE.COM@@EXAMPLE.COM des3-cbc-sha1
+@end example
+
 Do not forget to reboot before trying the new realm-trust (after
 running @command{ksetup}). It looks like it might work, but packets are
 never sent to the non-Windows KDC.
 
-@node Create account mappings, Encryption types, Inter-Realm keys (trust) between Windows 2000 and a Heimdal KDC, Windows 2000 compatability
+@node Create account mappings, Encryption types, Inter-Realm keys (trust) between Windows and a Heimdal KDC, Windows compatibility
 @comment node-name, next, precious, up
 @section Create account mappings
 
@@ -183,7 +191,7 @@ This adds @samp{authorizationNames} entry to the users LDAP entry to
 the Active Directory LDAP catalog. When you create users by script you
 can add this entry instead.
 
-@node Encryption types, Authorisation data, Create account mappings, Windows 2000 compatability
+@node Encryption types, Authorisation data, Create account mappings, Windows compatibility
 @comment  node-name,  next,  previous,  up
 @section Encryption types
 
@@ -195,7 +203,7 @@ MD4 and DES keys.  Users that are converted from a NT4 database, will
 only have MD4 passwords and will need a password change to get a DES
 key.
 
-@node Authorisation data, Quirks of Windows 2000 KDC, Encryption types, Windows 2000 compatability
+@node Authorisation data, Quirks of Windows 2000 KDC, Encryption types, Windows compatibility
 @comment  node-name,  next,  previous,  up
 @section Authorisation data
 
@@ -223,7 +231,7 @@ the file.
 analysing the data.
 @end enumerate
 
-@node Quirks of Windows 2000 KDC, Useful links when reading about the Windows 2000, Authorisation data, Windows 2000 compatability
+@node Quirks of Windows 2000 KDC, Useful links when reading about the Windows, Authorisation data, Windows compatibility
 @comment  node-name,  next,  previous,  up
 @section Quirks of Windows 2000 KDC
 
@@ -255,9 +263,9 @@ You should also add the following entries to the @file{krb5.conf} file:
 These configuration options will make sure that no checksums of the
 unsupported types are generated.
 
-@node Useful links when reading about the Windows 2000,  , Quirks of Windows 2000 KDC, Windows 2000 compatability
+@node Useful links when reading about the Windows,  , Quirks of Windows 2000 KDC, Windows compatibility
 @comment  node-name,  next,  previous,  up
-@section Useful links when reading about the Windows 2000
+@section Useful links when reading about the Windows
 
 See also our paper presented at the 2001 Usenix Annual Technical
 Conference, available in the proceedings or at
@@ -272,7 +280,7 @@ short list of the interesting documents that we have managed to find.
 @uref{http://www.microsoft.com/technet/prodtechnol/windows2000serv/howto/kerbstep.mspx}.
 Kerberos GSS-API (in Windows-eze SSPI), Windows as a client in a
 non-Windows KDC realm, adding unix clients to a Windows 2000 KDC, and
-adding cross-realm trust (@pxref{Inter-Realm keys (trust) between Windows 2000
+adding cross-realm trust (@pxref{Inter-Realm keys (trust) between Windows
 and a Heimdal KDC}).
 
 @item Windows 2000 Kerberos Authentication:

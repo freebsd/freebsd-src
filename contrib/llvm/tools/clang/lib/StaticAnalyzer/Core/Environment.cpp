@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
@@ -19,7 +20,45 @@
 using namespace clang;
 using namespace ento;
 
-SVal Environment::lookupExpr(const Stmt *E) const {
+static const Expr *ignoreTransparentExprs(const Expr *E) {
+  E = E->IgnoreParens();
+
+  switch (E->getStmtClass()) {
+  case Stmt::OpaqueValueExprClass:
+    E = cast<OpaqueValueExpr>(E)->getSourceExpr();
+    break;
+  case Stmt::ExprWithCleanupsClass:
+    E = cast<ExprWithCleanups>(E)->getSubExpr();
+    break;
+  case Stmt::CXXBindTemporaryExprClass:
+    E = cast<CXXBindTemporaryExpr>(E)->getSubExpr();
+    break;
+  case Stmt::SubstNonTypeTemplateParmExprClass:
+    E = cast<SubstNonTypeTemplateParmExpr>(E)->getReplacement();
+    break;
+  case Stmt::CXXDefaultArgExprClass:
+    E = cast<CXXDefaultArgExpr>(E)->getExpr();
+    break;
+  default:
+    // This is the base case: we can't look through more than we already have.
+    return E;
+  }
+
+  return ignoreTransparentExprs(E);
+}
+
+static const Stmt *ignoreTransparentExprs(const Stmt *S) {
+  if (const Expr *E = dyn_cast<Expr>(S))
+    return ignoreTransparentExprs(E);
+  return S;
+}
+
+EnvironmentEntry::EnvironmentEntry(const Stmt *S, const LocationContext *L)
+  : std::pair<const Stmt *,
+              const StackFrameContext *>(ignoreTransparentExprs(S),
+                                         L ? L->getCurrentStackFrame() : 0) {}
+
+SVal Environment::lookupExpr(const EnvironmentEntry &E) const {
   const SVal* X = ExprBindings.lookup(E);
   if (X) {
     SVal V = *X;
@@ -28,97 +67,99 @@ SVal Environment::lookupExpr(const Stmt *E) const {
   return UnknownVal();
 }
 
-SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder,
-			  bool useOnlyDirectBindings) const {
+SVal Environment::getSVal(const EnvironmentEntry &Entry,
+                          SValBuilder& svalBuilder) const {
+  const Stmt *S = Entry.getStmt();
+  const LocationContext *LCtx = Entry.getLocationContext();
 
-  if (useOnlyDirectBindings) {
-    // This branch is rarely taken, but can be exercised by
-    // checkers that explicitly bind values to arbitrary
-    // expressions.  It is crucial that we do not ignore any
-    // expression here, and do a direct lookup.
-    return lookupExpr(E);
+  switch (S->getStmtClass()) {
+  case Stmt::CXXBindTemporaryExprClass:
+  case Stmt::CXXDefaultArgExprClass:
+  case Stmt::ExprWithCleanupsClass:
+  case Stmt::GenericSelectionExprClass:
+  case Stmt::OpaqueValueExprClass:
+  case Stmt::ParenExprClass:
+  case Stmt::SubstNonTypeTemplateParmExprClass:
+    llvm_unreachable("Should have been handled by ignoreTransparentExprs");
+
+  case Stmt::AddrLabelExprClass:
+    return svalBuilder.makeLoc(cast<AddrLabelExpr>(S));
+
+  case Stmt::CharacterLiteralClass: {
+    const CharacterLiteral *C = cast<CharacterLiteral>(S);
+    return svalBuilder.makeIntVal(C->getValue(), C->getType());
   }
 
-  for (;;) {
-    if (const Expr *Ex = dyn_cast<Expr>(E))
-      E = Ex->IgnoreParens();
+  case Stmt::CXXBoolLiteralExprClass:
+    return svalBuilder.makeBoolVal(cast<CXXBoolLiteralExpr>(S));
 
-    switch (E->getStmtClass()) {
-      case Stmt::AddrLabelExprClass:
-        return svalBuilder.makeLoc(cast<AddrLabelExpr>(E));
-      case Stmt::OpaqueValueExprClass: {
-        const OpaqueValueExpr *ope = cast<OpaqueValueExpr>(E);
-        E = ope->getSourceExpr();
-        continue;        
-      }        
-      case Stmt::ParenExprClass:
-      case Stmt::GenericSelectionExprClass:
-        llvm_unreachable("ParenExprs and GenericSelectionExprs should "
-                         "have been handled by IgnoreParens()");
-        return UnknownVal();
-      case Stmt::CharacterLiteralClass: {
-        const CharacterLiteral* C = cast<CharacterLiteral>(E);
-        return svalBuilder.makeIntVal(C->getValue(), C->getType());
-      }
-      case Stmt::CXXBoolLiteralExprClass: {
-        const SVal *X = ExprBindings.lookup(E);
-        if (X) 
-          return *X;
-        else 
-          return svalBuilder.makeBoolVal(cast<CXXBoolLiteralExpr>(E));
-      }
-      case Stmt::IntegerLiteralClass: {
-        // In C++, this expression may have been bound to a temporary object.
-        SVal const *X = ExprBindings.lookup(E);
-        if (X)
-          return *X;
-        else
-          return svalBuilder.makeIntVal(cast<IntegerLiteral>(E));
-      }
-      // For special C0xx nullptr case, make a null pointer SVal.
-      case Stmt::CXXNullPtrLiteralExprClass:
-        return svalBuilder.makeNull();
-      case Stmt::ExprWithCleanupsClass:
-        E = cast<ExprWithCleanups>(E)->getSubExpr();
-        continue;
-      case Stmt::CXXBindTemporaryExprClass:
-        E = cast<CXXBindTemporaryExpr>(E)->getSubExpr();
-        continue;
-      case Stmt::ObjCPropertyRefExprClass:
-        return loc::ObjCPropRef(cast<ObjCPropertyRefExpr>(E));
-        
-      // Handle all other Stmt* using a lookup.
-      default:
-        break;
-    };
+  case Stmt::CXXScalarValueInitExprClass:
+  case Stmt::ImplicitValueInitExprClass: {
+    QualType Ty = cast<Expr>(S)->getType();
+    return svalBuilder.makeZeroVal(Ty);
+  }
+
+  case Stmt::IntegerLiteralClass:
+    return svalBuilder.makeIntVal(cast<IntegerLiteral>(S));
+
+  case Stmt::ObjCBoolLiteralExprClass:
+    return svalBuilder.makeBoolVal(cast<ObjCBoolLiteralExpr>(S));
+
+  // For special C0xx nullptr case, make a null pointer SVal.
+  case Stmt::CXXNullPtrLiteralExprClass:
+    return svalBuilder.makeNull();
+
+  case Stmt::ObjCStringLiteralClass: {
+    MemRegionManager &MRMgr = svalBuilder.getRegionManager();
+    const ObjCStringLiteral *SL = cast<ObjCStringLiteral>(S);
+    return svalBuilder.makeLoc(MRMgr.getObjCStringRegion(SL));
+  }
+
+  case Stmt::StringLiteralClass: {
+    MemRegionManager &MRMgr = svalBuilder.getRegionManager();
+    const StringLiteral *SL = cast<StringLiteral>(S);
+    return svalBuilder.makeLoc(MRMgr.getStringRegion(SL));
+  }
+
+  case Stmt::ReturnStmtClass: {
+    const ReturnStmt *RS = cast<ReturnStmt>(S);
+    if (const Expr *RE = RS->getRetValue())
+      return getSVal(EnvironmentEntry(RE, LCtx), svalBuilder);
+    return UndefinedVal();        
+  }
+    
+  // Handle all other Stmt* using a lookup.
+  default:
     break;
   }
-  return lookupExpr(E);
+  
+  return lookupExpr(EnvironmentEntry(S, LCtx));
 }
 
-Environment EnvironmentManager::bindExpr(Environment Env, const Stmt *S,
-                                         SVal V, bool Invalidate) {
-  assert(S);
-
+Environment EnvironmentManager::bindExpr(Environment Env,
+                                         const EnvironmentEntry &E,
+                                         SVal V,
+                                         bool Invalidate) {
   if (V.isUnknown()) {
     if (Invalidate)
-      return Environment(F.remove(Env.ExprBindings, S));
+      return Environment(F.remove(Env.ExprBindings, E));
     else
       return Env;
   }
-
-  return Environment(F.add(Env.ExprBindings, S, V));
+  return Environment(F.add(Env.ExprBindings, E, V));
 }
 
-static inline const Stmt *MakeLocation(const Stmt *S) {
-  return (const Stmt*) (((uintptr_t) S) | 0x1);
+EnvironmentEntry EnvironmentEntry::makeLocation() const {
+  EnvironmentEntry Result = *this;
+  reinterpret_cast<uintptr_t &>(Result.first) |= 0x1;
+  return Result;
 }
 
 Environment EnvironmentManager::bindExprAndLocation(Environment Env,
-                                                    const Stmt *S,
+                                                    const EnvironmentEntry &E,
                                                     SVal location, SVal V) {
-  return Environment(F.add(F.add(Env.ExprBindings, MakeLocation(S), location),
-                           S, V));
+  return Environment(F.add(F.add(Env.ExprBindings, E.makeLocation(), location),
+                           E, V));
 }
 
 namespace {
@@ -126,14 +167,22 @@ class MarkLiveCallback : public SymbolVisitor {
   SymbolReaper &SymReaper;
 public:
   MarkLiveCallback(SymbolReaper &symreaper) : SymReaper(symreaper) {}
-  bool VisitSymbol(SymbolRef sym) { SymReaper.markLive(sym); return true; }
+  bool VisitSymbol(SymbolRef sym) {
+    SymReaper.markLive(sym);
+    return true;
+  }
+  bool VisitMemRegion(const MemRegion *R) {
+    SymReaper.markLive(R);
+    return true;
+  }
 };
 } // end anonymous namespace
 
-// In addition to mapping from Stmt * - > SVals in the Environment, we also
-// maintain a mapping from Stmt * -> SVals (locations) that were used during
-// a load and store.
-static inline bool IsLocation(const Stmt *S) {
+// In addition to mapping from EnvironmentEntry - > SVals in the Environment,
+// we also maintain a mapping from EnvironmentEntry -> SVals (locations)
+// that were used during a load and store.
+static inline bool IsLocation(const EnvironmentEntry &E) {
+  const Stmt *S = E.getStmt();
   return (bool) (((uintptr_t) S) & 0x1);
 }
 
@@ -147,19 +196,19 @@ static inline bool IsLocation(const Stmt *S) {
 Environment
 EnvironmentManager::removeDeadBindings(Environment Env,
                                        SymbolReaper &SymReaper,
-                                       const ProgramState *ST) {
+                                       ProgramStateRef ST) {
 
   // We construct a new Environment object entirely, as this is cheaper than
   // individually removing all the subexpression bindings (which will greatly
   // outnumber block-level expression bindings).
   Environment NewEnv = getInitialEnvironment();
   
-  SmallVector<std::pair<const Stmt*, SVal>, 10> deferredLocations;
+  SmallVector<std::pair<EnvironmentEntry, SVal>, 10> deferredLocations;
 
   MarkLiveCallback CB(SymReaper);
   ScanReachableSymbols RSScaner(ST, CB);
 
-  llvm::ImmutableMapRef<const Stmt*,SVal>
+  llvm::ImmutableMapRef<EnvironmentEntry,SVal>
     EBMapRef(NewEnv.ExprBindings.getRootWithoutRetain(),
              F.getTreeFactory());
 
@@ -167,7 +216,7 @@ EnvironmentManager::removeDeadBindings(Environment Env,
   for (Environment::iterator I = Env.begin(), E = Env.end();
        I != E; ++I) {
 
-    const Stmt *BlkExpr = I.getKey();
+    const EnvironmentEntry &BlkExpr = I.getKey();
     // For recorded locations (used when evaluating loads and stores), we
     // consider them live only when their associated normal expression is
     // also live.
@@ -179,7 +228,7 @@ EnvironmentManager::removeDeadBindings(Environment Env,
     }
     const SVal &X = I.getData();
 
-    if (SymReaper.isLive(BlkExpr)) {
+    if (SymReaper.isLive(BlkExpr.getStmt(), BlkExpr.getLocationContext())) {
       // Copy the binding to the new map.
       EBMapRef = EBMapRef.add(BlkExpr, X);
 
@@ -193,24 +242,63 @@ EnvironmentManager::removeDeadBindings(Environment Env,
       RSScaner.scan(X);
       continue;
     }
-
-    // Otherwise the expression is dead with a couple exceptions.
-    // Do not misclean LogicalExpr or ConditionalOperator.  It is dead at the
-    // beginning of itself, but we need its UndefinedVal to determine its
-    // SVal.
-    if (X.isUndef() && cast<UndefinedVal>(X).getData())
-      EBMapRef = EBMapRef.add(BlkExpr, X);
   }
   
   // Go through he deferred locations and add them to the new environment if
   // the correspond Stmt* is in the map as well.
-  for (SmallVectorImpl<std::pair<const Stmt*, SVal> >::iterator
+  for (SmallVectorImpl<std::pair<EnvironmentEntry, SVal> >::iterator
       I = deferredLocations.begin(), E = deferredLocations.end(); I != E; ++I) {
-    const Stmt *S = (Stmt*) (((uintptr_t) I->first) & (uintptr_t) ~0x1);
-    if (EBMapRef.lookup(S))
-      EBMapRef = EBMapRef.add(I->first, I->second);
+    const EnvironmentEntry &En = I->first;
+    const Stmt *S = (Stmt*) (((uintptr_t) En.getStmt()) & (uintptr_t) ~0x1);
+    if (EBMapRef.lookup(EnvironmentEntry(S, En.getLocationContext())))
+      EBMapRef = EBMapRef.add(En, I->second);
   }
 
   NewEnv.ExprBindings = EBMapRef.asImmutableMap();
   return NewEnv;
+}
+
+void Environment::print(raw_ostream &Out, const char *NL,
+                        const char *Sep) const {
+  printAux(Out, false, NL, Sep);
+  printAux(Out, true, NL, Sep);
+}
+  
+void Environment::printAux(raw_ostream &Out, bool printLocations,
+                           const char *NL,
+                           const char *Sep) const{
+
+  bool isFirst = true;
+
+  for (Environment::iterator I = begin(), E = end(); I != E; ++I) {
+    const EnvironmentEntry &En = I.getKey();
+    if (IsLocation(En)) {
+      if (!printLocations)
+        continue;
+    }
+    else {
+      if (printLocations)
+        continue;
+    }
+    
+    if (isFirst) {
+      Out << NL << NL
+          << (printLocations ? "Load/Store locations:" : "Expressions:")
+          << NL;      
+      isFirst = false;
+    } else {
+      Out << NL;
+    }
+    
+    const Stmt *S = En.getStmt();
+    if (printLocations) {
+      S = (Stmt*) (((uintptr_t) S) & ((uintptr_t) ~0x1));
+    }
+    
+    Out << " (" << (const void*) En.getLocationContext() << ','
+      << (const void*) S << ") ";
+    LangOptions LO; // FIXME.
+    S->printPretty(Out, 0, PrintingPolicy(LO));
+    Out << " : " << I.getData();
+  }
 }

@@ -120,13 +120,15 @@ class MachineFunction {
   /// Alignment - The alignment of the function.
   unsigned Alignment;
 
-  /// CallsSetJmp - True if the function calls setjmp or sigsetjmp. This is used
-  /// to limit optimizations which cannot reason about the control flow of
-  /// setjmp.
-  bool CallsSetJmp;
+  /// ExposesReturnsTwice - True if the function calls setjmp or related
+  /// functions with attribute "returns twice", but doesn't have
+  /// the attribute itself.
+  /// This is used to limit optimizations which cannot reason
+  /// about the control flow of such functions.
+  bool ExposesReturnsTwice;
 
-  MachineFunction(const MachineFunction &); // DO NOT IMPLEMENT
-  void operator=(const MachineFunction&);   // DO NOT IMPLEMENT
+  MachineFunction(const MachineFunction &) LLVM_DELETED_FUNCTION;
+  void operator=(const MachineFunction&) LLVM_DELETED_FUNCTION;
 public:
   MachineFunction(const Function *Fn, const TargetMachine &TM,
                   unsigned FunctionNum, MachineModuleInfo &MMI,
@@ -136,15 +138,19 @@ public:
   MachineModuleInfo &getMMI() const { return MMI; }
   GCModuleInfo *getGMI() const { return GMI; }
   MCContext &getContext() const { return Ctx; }
-  
+
   /// getFunction - Return the LLVM function that this machine code represents
   ///
   const Function *getFunction() const { return Fn; }
 
+  /// getName - Return the name of the corresponding LLVM function.
+  ///
+  StringRef getName() const;
+
   /// getFunctionNumber - Return a unique ID for the current function.
   ///
   unsigned getFunctionNumber() const { return FunctionNumber; }
-  
+
   /// getTarget - Return the target machine this machine code is compiled with
   ///
   const TargetMachine &getTarget() const { return Target; }
@@ -187,20 +193,22 @@ public:
   ///
   void setAlignment(unsigned A) { Alignment = A; }
 
-  /// EnsureAlignment - Make sure the function is at least 'A' bits aligned.
-  void EnsureAlignment(unsigned A) {
+  /// ensureAlignment - Make sure the function is at least 1 << A bytes aligned.
+  void ensureAlignment(unsigned A) {
     if (Alignment < A) Alignment = A;
   }
 
-  /// callsSetJmp - Returns true if the function calls setjmp or sigsetjmp.
-  bool callsSetJmp() const {
-    return CallsSetJmp;
+  /// exposesReturnsTwice - Returns true if the function calls setjmp or
+  /// any other similar functions with attribute "returns twice" without
+  /// having the attribute itself.
+  bool exposesReturnsTwice() const {
+    return ExposesReturnsTwice;
   }
 
-  /// setCallsSetJmp - Set a flag that indicates if there's a call to setjmp or
-  /// sigsetjmp.
-  void setCallsSetJmp(bool B) {
-    CallsSetJmp = B;
+  /// setCallsSetJmp - Set a flag that indicates if there's a call to
+  /// a "returns twice" function.
+  void setExposesReturnsTwice(bool B) {
+    ExposesReturnsTwice = B;
   }
   
   /// getInfo - Keep track of various per-function pieces of information for
@@ -376,7 +384,8 @@ public:
   MachineMemOperand *getMachineMemOperand(MachinePointerInfo PtrInfo,
                                           unsigned f, uint64_t s,
                                           unsigned base_alignment,
-                                          const MDNode *TBAAInfo = 0);
+                                          const MDNode *TBAAInfo = 0,
+                                          const MDNode *Ranges = 0);
   
   /// getMachineMemOperand - Allocate a new MachineMemOperand by copying
   /// an existing one, adjusting by an offset and using the given size.
@@ -437,6 +446,7 @@ template <> struct GraphTraits<MachineFunction*> :
   typedef MachineFunction::iterator nodes_iterator;
   static nodes_iterator nodes_begin(MachineFunction *F) { return F->begin(); }
   static nodes_iterator nodes_end  (MachineFunction *F) { return F->end(); }
+  static unsigned       size       (MachineFunction *F) { return F->size(); }
 };
 template <> struct GraphTraits<const MachineFunction*> :
   public GraphTraits<const MachineBasicBlock*> {
@@ -451,6 +461,9 @@ template <> struct GraphTraits<const MachineFunction*> :
   }
   static nodes_iterator nodes_end  (const MachineFunction *F) {
     return F->end();
+  }
+  static unsigned       size       (const MachineFunction *F)  {
+    return F->size();
   }
 };
 

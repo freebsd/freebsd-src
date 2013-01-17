@@ -1,17 +1,17 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -30,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_structs.h,v 1.13 2005/03/06 16:04:18 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_structs_h__
-#define __sctp_structs_h__
+#ifndef _NETINET_SCTP_STRUCTS_H_
+#define _NETINET_SCTP_STRUCTS_H_
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_header.h>
@@ -79,8 +77,8 @@ TAILQ_HEAD(sctpnetlisthead, sctp_nets);
 struct sctp_stream_reset_list {
 	TAILQ_ENTRY(sctp_stream_reset_list) next_resp;
 	uint32_t tsn;
-	int number_entries;
-	struct sctp_stream_reset_out_request req;
+	uint32_t number_entries;
+	uint16_t list_of_streams[];
 };
 
 TAILQ_HEAD(sctp_resethead, sctp_stream_reset_list);
@@ -416,7 +414,7 @@ TAILQ_HEAD(sctpchunk_listhead, sctp_tmit_chunk);
 #define CHUNK_FLAGS_PR_SCTP_BUF	        SCTP_PR_SCTP_BUF
 #define CHUNK_FLAGS_PR_SCTP_RTX         SCTP_PR_SCTP_RTX
 
-/* The upper byte is used a a bit mask */
+/* The upper byte is used as a bit mask */
 #define CHUNK_FLAGS_FRAGMENT_OK	        0x0100
 
 struct chk_id {
@@ -519,7 +517,6 @@ struct sctp_stream_queue_pending {
 	uint32_t context;
 	uint16_t sinfo_flags;
 	uint16_t stream;
-	uint16_t strseq;
 	uint16_t act_flags;
 	uint16_t auth_keyid;
 	uint8_t holds_key_ref;
@@ -591,8 +588,9 @@ union scheduling_parameters {
 struct sctp_stream_out {
 	struct sctp_streamhead outqueue;
 	union scheduling_parameters ss_params;
+	uint32_t chunks_on_queues;
 	uint16_t stream_no;
-	uint16_t next_sequence_sent;	/* next one I expect to send out */
+	uint16_t next_sequence_send;	/* next one I expect to send out */
 	uint8_t last_msg_incomplete;
 };
 
@@ -1095,6 +1093,7 @@ struct sctp_association {
 	uint16_t streamincnt;
 	uint16_t streamoutcnt;
 	uint16_t strm_realoutsize;
+	uint16_t strm_pending_add_size;
 	/* my maximum number of retrans of INIT and SEND */
 	/* copied from SCTP but should be individually setable */
 	uint16_t max_init_times;
@@ -1156,6 +1155,9 @@ struct sctp_association {
 	/* Flag to tell if ECN is allowed */
 	uint8_t ecn_allowed;
 
+	/* Did the peer make the stream config (add out) request */
+	uint8_t peer_req_out;
+
 	/* flag to indicate if peer can do asconf */
 	uint8_t peer_supports_asconf;
 	/* EY - flag to indicate if peer can do nr_sack */
@@ -1166,6 +1168,7 @@ struct sctp_association {
 	uint8_t peer_supports_auth;
 	/* stream resets are supported by the peer */
 	uint8_t peer_supports_strreset;
+	uint8_t local_strreset_support;
 
 	uint8_t peer_supports_nat;
 	/*
@@ -1213,6 +1216,7 @@ struct sctp_association {
 	uint8_t sctp_cmt_pf;
 	uint8_t use_precise_time;
 	uint32_t sctp_features;
+	uint16_t port;		/* remote UDP encapsulation port */
 	/*
 	 * The mapping array is used to track out of order sequences above
 	 * last_acked_seq. 0 indicates packet missing 1 indicates packet

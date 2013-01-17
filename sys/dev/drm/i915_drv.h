@@ -560,7 +560,7 @@ extern void opregion_enable_asle(struct drm_device *dev);
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) && !defined(__bool_true_false_are_defined)
 typedef boolean_t bool;
 #endif
 

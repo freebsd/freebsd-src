@@ -1,4 +1,4 @@
-//===-- ARMMCExpr.h - ARM specific MC expression classes ------------------===//
+//===-- ARMMCExpr.h - ARM specific MC expression classes --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -28,7 +28,7 @@ private:
 
   explicit ARMMCExpr(VariantKind _Kind, const MCExpr *_Expr)
     : Kind(_Kind), Expr(_Expr) {}
-  
+
 public:
   /// @name Construction
   /// @{
@@ -67,9 +67,6 @@ public:
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;
   }
-  
-  static bool classof(const ARMMCExpr *) { return true; }
-
 };
 } // end namespace llvm
 

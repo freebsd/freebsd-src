@@ -66,26 +66,24 @@ host adapter chips.
 The following tables list the AdvanSys products using these chips,
 their bus attachment type, maximum sync rate, and the maximum number of
 commands that can be handled by the adapter concurrently.
-.Pp
 .Bd -ragged -offset indent
-.Bl -column "ABP510/5150 " "ISA PnP " "Yes " "10MHz " "Commands " Footnotes
 Connectivity Products:
-.Pp
-.Em "Adapter       Bus   Floppy      MaxSync   Commands  Footnotes"
-ABP510/5150   ISA     No         10MHz       240    1
-ABP5140     ISA PnP   No         10MHz       16     1, 3
-ABP5142     ISA PnP   Yes        10MHz       16     4
-ABP[3]902     PCI     No         10MHz       16
-ABP3905       PCI     No         10MHz       16
-ABP915        PCI     No         10MHz       16
-ABP920        PCI     No         10MHz       16
-ABP3922       PCI     No         10MHz       16
-ABP3925       PCI     No         10MHz       16
-ABP930        PCI     No         10MHz       16     5
-ABP930U       PCI     No         20MHz       16
-ABP930UA      PCI     No         20MHz       16
-ABP960        PCI     No         10MHz       16
-ABP960U       PCI     No         20MHz       16
+.Bl -column "ABP510/5150 " "ISA PnP " "Floppy " "MaxSync " "Commands " "Footnotes "
+.Em "Adapter" Ta Em "Bus" Ta Em "Floppy" Ta Em "MaxSync" Ta Em "Commands" Ta Em "Footnotes"
+.It "ABP510/5150" Ta "ISA" Ta "\&No" Ta "10MHz" Ta "240" Ta "1"
+.It "ABP5140" Ta "ISA PnP" Ta "\&No" Ta "10MHz" Ta "16" Ta "1, 3"
+.It "ABP5142" Ta "ISA PnP" Ta "Yes" Ta "10MHz" Ta "16" Ta "4"
+.It "ABP[3]902" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
+.It "ABP3905" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
+.It "ABP915" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
+.It "ABP920" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
+.It "ABP3922" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
+.It "ABP3925" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
+.It "ABP930" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta "5"
+.It "ABP930U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta ""
+.It "ABP930UA" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta ""
+.It "ABP960" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "16" Ta ""
+.It "ABP960U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta ""
 .El
 .Pp
 Footnotes:
@@ -104,35 +102,31 @@ This board has been sold by SIIG as the i542 SpeedMaster.
 This board has been sold by SIIG as the Fast SCSI Pro PCI.
 .El
 .Ed
-.Pp
 .Bd -ragged -offset indent
-.Bl -column "ABP510/5150 " "ISA PnP " "Yes " "10MHz " Commands
 Single Channel Products:
-.Pp
-.Em "Adapter       Bus   Floppy      MaxSync   Commands"
-ABP542        ISA     Yes        10MHz       240
-ABP742        EISA    Yes        10MHz       240
-ABP842        VL      Yes        10MHz       240
-ABP940        PCI     No         10MHz       240
-ABP[3]940UA   PCI     No         20MHz       240
-ABP940U       PCI     No         20MHz       240
-ABP3960UA     PCI     No         20MHz       240
-ABP970        PCI     No         10MHz       240
-ABP970U       PCI     No         20MHz       240
+.Bl -column "ABPX3X940UA " "EISA " "Floppy " "MaxSync " "Commands"
+.Em "Adapter" Ta Em "Bus" Ta Em "Floppy" Ta Em "MaxSync" Ta Em "Commands"
+.It "ABP542" Ta "ISA" Ta "Yes" Ta "10MHz" Ta "240"
+.It "ABP742" Ta "EISA" Ta "Yes" Ta "10MHz" Ta "240"
+.It "ABP842" Ta "VL" Ta "Yes" Ta "10MHz" Ta "240"
+.It "ABP940" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "240"
+.It "ABP[3]940UA" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "240"
+.It "ABP940U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "240"
+.It "ABP3960UA" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "240"
+.It "ABP970" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "240"
+.It "ABP970U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "240"
 .El
 .Ed
-.Pp
 .Bd -ragged -offset indent
-.Bl -column "ABP510/5150 " "ISA PnP " "Yes " "10MHz " "Commands " "Channels "
 Multi Channel Products (Commands are per-channel):
-.Pp
-.Em "Adapter       Bus   Floppy      MaxSync   Commands  Channels"
-ABP752       EISA     Yes        10MHz       240      2
-ABP852        VL      Yes        10MHz       240      2
-ABP950        PCI     No         10MHz       240      2
-ABP980        PCI     No         10MHz       240      4
-ABP980U       PCI     No         20MHz       240      4
-ABP[3]980UA   PCI     No         20MHz       16       4
+.Bl -column "ABPX3X980UA " "EISA " "Floppy " "MaxSync " "Commands " "Channels"
+.Em "Adapter" Ta Em "Bus" Ta Em "Floppy" Ta Em "MaxSync" Ta Em "Commands" Ta Em "Channels"
+.It "ABP752" Ta "EISA" Ta "Yes" Ta "10MHz" Ta "240" Ta "2"
+.It "ABP852" Ta "VL" Ta "Yes" Ta "10MHz" Ta "240" Ta "2"
+.It "ABP950" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "240" Ta "2"
+.It "ABP980" Ta "PCI" Ta "\&No" Ta "10MHz" Ta "240" Ta "4"
+.It "ABP980U" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "240" Ta "4"
+.It "ABP[3]980UA" Ta "PCI" Ta "\&No" Ta "20MHz" Ta "16" Ta "4"
 .El
 .Ed
 .Pp

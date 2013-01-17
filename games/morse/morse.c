@@ -143,26 +143,31 @@ static const struct morsetab mtab[] = {
 	{'\0', ""}
 };
 
-
+/*
+ * Code-points for some Latin1 chars in ISO-8859-1 encoding.
+ * UTF-8 encoded chars in the comments.
+ */
 static const struct morsetab iso8859_1tab[] = {
-	{'·', ".--.-"},
-	{'‡', ".--.-"},
-	{'‚', ".--.-"},
-	{'‰', ".-.-"},
-	{'Á', "-.-.."},
-	{'È', "..-.."},
-	{'Ë', "..-.."},
-	{'Í', "-..-."},
-	{'ˆ', "---."},
-	{'¸', "..--"},
+	{'\340', ".--.-"},	/* √† */
+	{'\341', ".--.-"},	/* √° */
+	{'\342', ".--.-"},	/* √¢ */
+	{'\344', ".-.-"},	/* √§ */
+	{'\347', "-.-.."},	/* √ß */
+	{'\350', "..-.."},	/* √® */
+	{'\351', "..-.."},	/* √© */
+	{'\352', "-..-."},	/* √™ */
+	{'\366', "---."},	/* √∂ */
+	{'\374', "..--"},	/* √º */
 
 	{'\0', ""}
 };
 
+/*
+ * Code-points for some Greek chars in ISO-8859-7 encoding.
+ * UTF-8 encoded chars in the comments.
+ */
 static const struct morsetab iso8859_7tab[] = {
 	/*
-	 * The Greek alphabet; you'll need an ISO8859-7 font in order
-	 * to see the actual characters.
 	 * This table does not implement:
 	 * - the special sequences for the seven diphthongs,
 	 * - the punctuation differences.
@@ -180,114 +185,114 @@ static const struct morsetab iso8859_7tab[] = {
 	 * ;	..-.-
 	 * !	--..--
 	 */
-	{'·', ".-"},	/* alpha */
-	{'‹', ".-"},	/* alpha with acute */
-	{'‚', "-..."},	/* beta */
-	{'„', "--."},	/* gamma */
-	{'‰', "-.."},	/* delta */
-	{'Â', "."},	/* epsilon */
-	{'›', "."},	/* epsilon with acute */
-	{'Ê', "--.."},	/* zeta */
-	{'Á', "...."},	/* eta */
-	{'ﬁ', "...."},	/* eta with acute */
-	{'Ë', "-.-."},	/* theta */
-	{'È', ".."},	/* iota */
-	{'ﬂ', ".."},	/* iota with acute */
-	{'˙', ".."},	/* iota with diaeresis */
-	{'¿', ".."},	/* iota with acute and diaeresis */
-	{'Í', "-.-"},	/* kappa */
-	{'Î', ".-.."},	/* lambda */
-	{'Ï', "--"},	/* mu */
-	{'Ì', "-."},	/* nu */
-	{'Ó', "-..-"},	/* xi */
-	{'Ô', "---"},	/* omicron */
-	{'¸', "---"},	/* omicron with acute */
-	{'', ".--."},	/* pi */
-	{'Ò', ".-."},	/* rho */
-	{'Û', "..."},	/* sigma */
-	{'Ú', "..."},	/* final sigma */
-	{'Ù', "-"},	/* tau */
-	{'ı', "-.--"},	/* upsilon */
-	{'˝', "-.--"},	/* upsilon with acute */
-	{'˚', "-.--"},	/* upsilon and diaeresis */
-	{'‡', "-.--"},	/* upsilon with acute and diaeresis */
-	{'ˆ', "..-."},	/* phi */
-	{'˜', "----"},	/* chi */
-	{'¯', "--.-"},	/* psi */
-	{'˘', ".--"},	/* omega */
-	{'˛', ".--"},	/* omega with acute */
+	{'\341', ".-"},		/* Œ±, alpha */
+	{'\334', ".-"},		/* Œ¨, alpha with acute */
+	{'\342', "-..."},	/* Œ≤, beta */
+	{'\343', "--."},	/* Œ≥, gamma */
+	{'\344', "-.."},	/* Œ¥, delta */
+	{'\345', "."},		/* Œµ, epsilon */
+	{'\335', "."},		/* Œ≠, epsilon with acute */
+	{'\346', "--.."},	/* Œ∂, zeta */
+	{'\347', "...."},	/* Œ∑, eta */
+	{'\336', "...."},	/* ŒÆ, eta with acute */
+	{'\350', "-.-."},	/* Œ∏, theta */
+	{'\351', ".."},		/* Œπ, iota */
+	{'\337', ".."},		/* ŒØ, iota with acute */
+	{'\372', ".."},		/* œä, iota with diaeresis */
+	{'\300', ".."},		/* Œê, iota with acute and diaeresis */
+	{'\352', "-.-"},	/* Œ∫, kappa */
+	{'\353', ".-.."},	/* Œª, lambda */
+	{'\354', "--"},		/* Œº, mu */
+	{'\355', "-."},		/* ŒΩ, nu */
+	{'\356', "-..-"},	/* Œæ, xi */
+	{'\357', "---"},	/* Œø, omicron */
+	{'\374', "---"},	/* œå, omicron with acute */
+	{'\360', ".--."},	/* œÄ, pi */
+	{'\361', ".-."},	/* œÅ, rho */
+	{'\363', "..."},	/* œÉ, sigma */
+	{'\362', "..."},	/* œÇ, final sigma */
+	{'\364', "-"},		/* œÑ, tau */
+	{'\365', "-.--"},	/* œÖ, upsilon */
+	{'\375', "-.--"},	/* œç, upsilon with acute */
+	{'\373', "-.--"},	/* œã, upsilon and diaeresis */
+	{'\340', "-.--"},	/* Œ∞, upsilon with acute and diaeresis */
+	{'\366', "..-."},	/* œÜ, phi */
+	{'\367', "----"},	/* œá, chi */
+	{'\370', "--.-"},	/* œà, psi */
+	{'\371', ".--"},	/* œâ, omega */
+	{'\376', ".--"},	/* œé, omega with acute */
 
 	{'\0', ""}
 };
 
+/*
+ * Code-points for the Cyrillic alphabet in KOI8-R encoding.
+ * UTF-8 encoded chars in the comments.
+ */
 static const struct morsetab koi8rtab[] = {
-	/*
-	 * The Cyrillic alphabet; you'll need a KOI8-R font in order
-	 * to see the actual characters
-	 */
-	{'¡', ".-"},	/* a */
-	{'¬', "-..."},	/* be */
-	{'◊', ".--"},	/* ve */
-	{'«', "--."},	/* ge */
-	{'ƒ', "-.."},	/* de */
-	{'≈', "."},	/* ye */
-	{'£', "."},	/* yo, the same as ye */
-	{'÷', "...-"},	/* she */
-	{'⁄', "--.."},	/* ze */
-	{'…', ".."},	/* i */
-	{' ', ".---"},	/* i kratkoye */
-	{'À', "-.-"},	/* ka */
-	{'Ã', ".-.."},	/* el */
-	{'Õ', "--"},	/* em */
-	{'Œ', "-."},	/* en */
-	{'œ', "---"},	/* o */
-	{'–', ".--."},	/* pe */
-	{'“', ".-."},	/* er */
-	{'”', "..."},	/* es */
-	{'‘', "-"},	/* te */
-	{'’', "..-"},	/* u */
-	{'∆', "..-."},	/* ef */
-	{'»', "...."},	/* kha */
-	{'√', "-.-."},	/* ce */
-	{'ﬁ', "---."},	/* che */
-	{'€', "----"},	/* sha */
-	{'›', "--.-"},	/* shcha */
-	{'Ÿ', "-.--"},	/* yi */
-	{'ÿ', "-..-"},	/* myakhkij znak */
-	{'‹', "..-.."},	/* ae */
-	{'¿', "..--"},	/* yu */
-	{'—', ".-.-"},	/* ya */
+	{'\301', ".-"},		/* –∞, a */
+	{'\302', "-..."},	/* –±, be */
+	{'\327', ".--"},	/* –≤, ve */
+	{'\307', "--."},	/* –≥, ge */
+	{'\304', "-.."},	/* –¥, de */
+	{'\305', "."},		/* –µ, ye */
+	{'\243', "."},		/* —ë, yo, the same as ye */
+	{'\326', "...-"},	/* –∂, she */
+	{'\332', "--.."},	/* –∑, ze */
+	{'\311', ".."},		/* –∏, i */
+	{'\312', ".---"},	/* –π, i kratkoye */
+	{'\313', "-.-"},	/* –∫, ka */
+	{'\314', ".-.."},	/* –ª, el */
+	{'\315', "--"},		/* –º, em */
+	{'\316', "-."},		/* –Ω, en */
+	{'\317', "---"},	/* –æ, o */
+	{'\320', ".--."},	/* –ø, pe */
+	{'\322', ".-."},	/* —Ä, er */
+	{'\323', "..."},	/* —Å, es */
+	{'\324', "-"},		/* —Ç, te */
+	{'\325', "..-"},	/* —É, u */
+	{'\306', "..-."},	/* —Ñ, ef */
+	{'\310', "...."},	/* —Ö, kha */
+	{'\303', "-.-."},	/* —Ü, ce */
+	{'\336', "---."},	/* —á, che */
+	{'\333', "----"},	/* —à, sha */
+	{'\335', "--.-"},	/* —â, shcha */
+	{'\331', "-.--"},	/* —ã, yi */
+	{'\330', "-..-"},	/* —å, myakhkij znak */
+	{'\334', "..-.."},	/* —ç, ae */
+	{'\300', "..--"},	/* —é, yu */
+	{'\321', ".-.-"},	/* —è, ya */
 
 	{'\0', ""}
 };
 
-void            show(const char *), play(const char *), morse(char);
-void		ttyout(const char *);
-void		sighandler(int);
+static void	show(const char *), play(const char *), morse(char);
+static void	ttyout(const char *);
+static void	sighandler(int);
 
 #define GETOPTOPTS "c:d:ef:lsw:"
 #define USAGE \
 "usage: morse [-els] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
 
-static int      pflag, lflag, sflag, eflag;
-static int      wpm = 20;	/* effective words per minute */
-static int      cpm;		/* effective words per minute between
+static int	pflag, lflag, sflag, eflag;
+static int	wpm = 20;	/* effective words per minute */
+static int	cpm;		/* effective words per minute between
 				 * characters */
 #define FREQUENCY 600
-static int      freq = FREQUENCY;
+static int	freq = FREQUENCY;
 static char	*device;	/* for tty-controlled generator */
 
 #define DASH_LEN 3
 #define CHAR_SPACE 3
 #define WORD_SPACE (7 - CHAR_SPACE - 1)
-static float    dot_clock;
-static float    cdot_clock;
-int             spkr, line;
-struct termios	otty, ntty;
-int		olflags;
+static float	dot_clock;
+static float	cdot_clock;
+static int	spkr, line;
+static struct termios otty, ntty;
+static int	olflags;
 
 #ifdef SPEAKER
-tone_t          sound;
+static tone_t	sound;
 #undef GETOPTOPTS
 #define GETOPTOPTS "c:d:ef:lpsw:"
 #undef USAGE
@@ -439,7 +444,7 @@ main(int argc, char **argv)
 	exit(0);
 }
 
-void
+static void
 morse(char c)
 {
 	const struct morsetab *m;
@@ -473,7 +478,7 @@ morse(char c)
 	}
 }
 
-void
+static void
 show(const char *s)
 {
 	if (lflag) {
@@ -488,7 +493,7 @@ show(const char *s)
 	}
 }
 
-void
+static void
 play(const char *s)
 {
 #ifdef SPEAKER
@@ -530,7 +535,7 @@ play(const char *s)
 #endif
 }
 
-void
+static void
 ttyout(const char *s)
 {
 	const char *c;
@@ -572,7 +577,7 @@ ttyout(const char *s)
 	usleep(duration);
 }
 
-void
+static void
 sighandler(int signo)
 {
 

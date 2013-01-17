@@ -1,0 +1,47 @@
+.TH minfbyproc.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+minfbyproc.d \- minor faults by process name. Uses DTrace.
+.SH SYNOPSIS
+.B minfbyproc.d
+.SH DESCRIPTION
+minfbyproc.d is a DTrace OneLiner to a report the number of minor
+faults by process name.
+
+Docs/oneliners.txt and Docs/Examples/oneliners_examples.txt
+in the DTraceToolkit contain this as a oneliner that can be cut-n-paste
+to run.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the vminfo provider.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B minfbyproc.d
+.PP
+.SH FIELDS
+.TP
+first field
+The process name. There may be several PIDs that have the 
+same process name, for example with numerous instances of "bash". The
+value reported will be the sum of them all.
+.TP
+second field
+The number minor faults
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+minfbyproc.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), truss(1)
+

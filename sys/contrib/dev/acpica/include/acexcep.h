@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,7 @@
 #define AE_CODE_ACPI_TABLES             0x2000
 #define AE_CODE_AML                     0x3000
 #define AE_CODE_CONTROL                 0x4000
+#define AE_CODE_MAX                     0x4000
 #define AE_CODE_MASK                    0xF000
 
 
@@ -92,8 +93,9 @@
 #define AE_SAME_HANDLER                 (ACPI_STATUS) (0x0019 | AE_CODE_ENVIRONMENTAL)
 #define AE_NO_HANDLER                   (ACPI_STATUS) (0x001A | AE_CODE_ENVIRONMENTAL)
 #define AE_OWNER_ID_LIMIT               (ACPI_STATUS) (0x001B | AE_CODE_ENVIRONMENTAL)
+#define AE_NOT_CONFIGURED               (ACPI_STATUS) (0x001C | AE_CODE_ENVIRONMENTAL)
 
-#define AE_CODE_ENV_MAX                 0x001B
+#define AE_CODE_ENV_MAX                 0x001C
 
 
 /*
@@ -125,7 +127,7 @@
 
 
 /*
- * AML exceptions.  These are caused by problems with
+ * AML exceptions. These are caused by problems with
  * the actual AML byte stream
  */
 #define AE_AML_BAD_OPCODE               (ACPI_STATUS) (0x0001 | AE_CODE_AML)
@@ -187,7 +189,7 @@
 
 /* Exception strings for AcpiFormatException */
 
-#ifdef DEFINE_ACPI_GLOBALS
+#ifdef ACPI_DEFINE_EXCEPTION_TABLE
 
 /*
  * String versions of the exception codes above
@@ -222,7 +224,8 @@ char const   *AcpiGbl_ExceptionNames_Env[] =
     "AE_ABORT_METHOD",
     "AE_SAME_HANDLER",
     "AE_NO_HANDLER",
-    "AE_OWNER_ID_LIMIT"
+    "AE_OWNER_ID_LIMIT",
+    "AE_NOT_CONFIGURED"
 };
 
 char const   *AcpiGbl_ExceptionNames_Pgm[] =
@@ -305,6 +308,6 @@ char const   *AcpiGbl_ExceptionNames_Ctrl[] =
     "AE_CTRL_PARSE_PENDING"
 };
 
-#endif /* ACPI GLOBALS */
+#endif /* EXCEPTION_TABLE */
 
 #endif /* __ACEXCEP_H__ */

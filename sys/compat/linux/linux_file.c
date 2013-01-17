@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1995 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
+
+/* XXX */
+int	do_pipe(struct thread *td, int fildes[2], int flags);
 
 int
 linux_creat(struct thread *td, struct linux_creat_args *args)
@@ -334,7 +337,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	struct l_dirent64 *linux_dirent64;
 	int buflen, error, eofflag, nbytes, justone;
 	u_long *cookies = NULL, *cookiep;
-	int ncookies, vfslocked;
+	int ncookies;
 
 	nbytes = args->count;
 	if (nbytes == 1) {
@@ -354,15 +357,14 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		return (EBADF);
 	}
 
+	off = foffset_lock(fp, 0);
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
-		VFS_UNLOCK_GIANT(vfslocked);
+		foffset_unlock(fp, off, 0);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
 
-	off = fp->f_offset;
 
 	buflen = max(LINUX_DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
@@ -379,11 +381,6 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	auio.uio_td = td;
 	auio.uio_resid = buflen;
 	auio.uio_offset = off;
-
-	if (cookies) {
-		free(cookies, M_TEMP);
-		cookies = NULL;
-	}
 
 #ifdef MAC
 	/*
@@ -511,7 +508,6 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		goto eof;
 	}
 
-	fp->f_offset = off;
 	if (justone)
 		nbytes = resid + linuxreclen;
 
@@ -523,7 +519,7 @@ out:
 		free(cookies, M_TEMP);
 
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
+	foffset_unlock(fp, off, 0);
 	fdrop(fp, td);
 	free(buf, M_TEMP);
 	free(lbuf, M_TEMP);
@@ -565,16 +561,16 @@ linux_access(struct thread *td, struct linux_access_args *args)
 	int error;
 
 	/* linux convention */
-	if (args->flags & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->flags);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
-	error = kern_access(td, path, UIO_SYSSPACE, args->flags);
+	error = kern_access(td, path, UIO_SYSSPACE, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -584,10 +580,12 @@ int
 linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 {
 	char *path;
-	int error, dfd;
+	int error, dfd, flag;
 
+	if (args->flag & ~LINUX_AT_EACCESS)
+		return (EINVAL);
 	/* linux convention */
-	if (args->mode & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
@@ -595,11 +593,11 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->mode);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
 
-	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0 /* XXX */,
-	    args->mode);
+	flag = (args->flag & LINUX_AT_EACCESS) == 0 ? 0 : AT_EACCESS;
+	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, flag, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -982,13 +980,9 @@ int
 linux_linkat(struct thread *td, struct linux_linkat_args *args)
 {
 	char *path, *to;
-	int error, olddfd, newdfd;
+	int error, olddfd, newdfd, follow;
 
-	/*
-	 * They really introduced flags argument which is forbidden to
-	 * use.
-	 */
-	if (args->flags != 0)
+	if (args->flag & ~LINUX_AT_SYMLINK_FOLLOW)
 		return (EINVAL);
 
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
@@ -1004,10 +998,12 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 #ifdef DEBUG
 	if (ldebug(linkat))
 		printf(ARGS(linkat, "%i, %s, %i, %s, %i"), args->olddfd, path,
-			args->newdfd, to, args->flags);
+			args->newdfd, to, args->flag);
 #endif
 
-	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, FOLLOW);
+	follow = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? NOFOLLOW :
+	    FOLLOW;
+	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, follow);
 	LFREEPATH(path);
 	LFREEPATH(to);
 	return (error);
@@ -1493,7 +1489,7 @@ int
 linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 {
 	char *path;
-	int error, dfd, follow;
+	int error, dfd, flag;
 
 	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
 		return (EINVAL);
@@ -1506,10 +1502,10 @@ linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 		printf(ARGS(fchownat, "%s, %d, %d"), path, args->uid, args->gid);
 #endif
 
-	follow = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
 	    AT_SYMLINK_NOFOLLOW;
 	error = kern_fchownat(td, dfd, path, UIO_SYSSPACE, args->uid, args->gid,
-	    follow);
+	    flag);
 	LFREEPATH(path);
 	return (error);
 }
@@ -1529,4 +1525,95 @@ linux_lchown(struct thread *td, struct linux_lchown_args *args)
 	error = kern_lchown(td, path, UIO_SYSSPACE, args->uid, args->gid);
 	LFREEPATH(path);
 	return (error);
+}
+
+static int
+convert_fadvice(int advice)
+{
+	switch (advice) {
+	case LINUX_POSIX_FADV_NORMAL:
+		return (POSIX_FADV_NORMAL);
+	case LINUX_POSIX_FADV_RANDOM:
+		return (POSIX_FADV_RANDOM);
+	case LINUX_POSIX_FADV_SEQUENTIAL:
+		return (POSIX_FADV_SEQUENTIAL);
+	case LINUX_POSIX_FADV_WILLNEED:
+		return (POSIX_FADV_WILLNEED);
+	case LINUX_POSIX_FADV_DONTNEED:
+		return (POSIX_FADV_DONTNEED);
+	case LINUX_POSIX_FADV_NOREUSE:
+		return (POSIX_FADV_NOREUSE);
+	default:
+		return (-1);
+	}
+}
+
+int
+linux_fadvise64(struct thread *td, struct linux_fadvise64_args *args)
+{
+	int advice;
+
+	advice = convert_fadvice(args->advice);
+	if (advice == -1)
+		return (EINVAL);
+	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
+	    advice));
+}
+
+int
+linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
+{
+	int advice;
+
+	advice = convert_fadvice(args->advice);
+	if (advice == -1)
+		return (EINVAL);
+	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
+	    advice));
+}
+
+int
+linux_pipe(struct thread *td, struct linux_pipe_args *args)
+{
+	int fildes[2];
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(pipe))
+		printf(ARGS(pipe, "*"));
+#endif
+
+	error = do_pipe(td, fildes, 0);
+	if (error)
+		return (error);
+
+	/* XXX: Close descriptors on error. */
+	return (copyout(fildes, args->pipefds, sizeof(fildes)));
+}
+
+int
+linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
+{
+	int fildes[2];
+	int error, flags;
+
+#ifdef DEBUG
+	if (ldebug(pipe2))
+		printf(ARGS(pipe2, "*, %d"), args->flags);
+#endif
+
+	if ((args->flags & ~(LINUX_O_NONBLOCK | LINUX_O_CLOEXEC)) != 0)
+		return (EINVAL);
+
+	flags = 0;
+	if ((args->flags & LINUX_O_NONBLOCK) != 0)
+		flags |= O_NONBLOCK;
+	if ((args->flags & LINUX_O_CLOEXEC) != 0)
+		flags |= O_CLOEXEC;
+	error = do_pipe(td, fildes, flags);
+	if (error)
+		return (error);
+
+	/* XXX: Close descriptors on error. */
+	return (copyout(fildes, args->pipefds, sizeof(fildes)));
 }

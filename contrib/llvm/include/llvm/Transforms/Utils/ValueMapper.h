@@ -20,12 +20,12 @@
 namespace llvm {
   class Value;
   class Instruction;
-  typedef ValueMap<const Value *, TrackingVH<Value> > ValueToValueMapTy;
+  typedef ValueMap<const Value *, WeakVH> ValueToValueMapTy;
 
   /// ValueMapTypeRemapper - This is a class that can be implemented by clients
   /// to remap types when cloning constants and instructions.
   class ValueMapTypeRemapper {
-    virtual void Anchor();  // Out of line method.
+    virtual void anchor();  // Out of line method.
   public:
     virtual ~ValueMapTypeRemapper() {}
     

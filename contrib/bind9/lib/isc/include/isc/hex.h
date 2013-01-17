@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hex.h,v 1.13 2008-09-25 04:02:39 tbox Exp $ */
+/* $Id: hex.h,v 1.13 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef ISC_HEX_H
 #define ISC_HEX_H 1

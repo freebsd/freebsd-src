@@ -2621,7 +2621,8 @@ create_ring(softc_t *sc, struct desc_ring *ring, int num_descs)
 #ifdef __FreeBSD__
 
   /* Create a DMA tag for descriptors and buffers. */
-  if ((error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+  if ((error = bus_dma_tag_create(bus_get_dma_tag(sc->dev),
+   4, 0, BUS_SPACE_MAXADDR_32BIT,
    BUS_SPACE_MAXADDR, NULL, NULL, PAGE_SIZE, 2, PAGE_SIZE, BUS_DMA_ALLOCNOW,
 # if (__FreeBSD_version >= 502000)
    NULL, NULL,
@@ -2915,7 +2916,7 @@ rxintr_cleanup(softc_t *sc)
     /* Optimization: copy a small pkt into a small mbuf. */
     if (first_mbuf->m_pkthdr.len <= COPY_BREAK)
       {
-      MGETHDR(new_mbuf, M_DONTWAIT, MT_DATA);
+      MGETHDR(new_mbuf, M_NOWAIT, MT_DATA);
       if (new_mbuf != NULL)
         {
         new_mbuf->m_pkthdr.rcvif = first_mbuf->m_pkthdr.rcvif;
@@ -3015,7 +3016,7 @@ rxintr_setup(softc_t *sc)
     return 0;  /* ring is full; nothing to do */
 
   /* Allocate a small mbuf and attach an mbuf cluster. */
-  MGETHDR(m, M_DONTWAIT, MT_DATA);
+  MGETHDR(m, M_NOWAIT, MT_DATA);
   if (m == NULL)
     {
     sc->status.cntrs.rxdma++;
@@ -3023,7 +3024,7 @@ rxintr_setup(softc_t *sc)
       printf("%s: rxintr_setup: MGETHDR() failed\n", NAME_UNIT);
     return 0;
     }
-  MCLGET(m, M_DONTWAIT);
+  MCLGET(m, M_NOWAIT);
   if ((m->m_flags & M_EXT) == 0)
     {
     m_freem(m);
@@ -4945,7 +4946,9 @@ lmc_ifnet_detach(softc_t *sc)
   /* Detach from the ifnet kernel interface. */
   if_detach(sc->ifp);
 
-# if (__FreeBSD_version >= 600000)
+# if (defined(__FreeBSD__) && __FreeBSD_version >= 800082)
+  if_free(sc->ifp);
+# elif (defined(__FreeBSD__) && __FreeBSD_version >= 600000)
   if_free_type(sc->ifp, NSPPP ? IFT_PPP : IFT_OTHER);
 # endif
   }

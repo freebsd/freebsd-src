@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2000 - 2001 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -30,14 +30,9 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
-#include "snprintf-test.h"
 #include "roken.h"
 #include <limits.h>
-
-RCSID("$Id: snprintf-test.c 21627 2007-07-17 10:53:17Z lha $");
 
 static int
 try (const char *format, ...)
@@ -47,7 +42,7 @@ try (const char *format, ...)
     char buf1[256], buf2[256];
 
     va_start (ap, format);
-    ret = vsnprintf (buf1, sizeof(buf1), format, ap);
+    ret = rk_vsnprintf (buf1, sizeof(buf1), format, ap);
     if (ret >= sizeof(buf1))
 	errx (1, "increase buf and try again");
     va_end (ap);
@@ -224,7 +219,7 @@ cmp_with_sprintf_float (void)
 static int
 test_null (void)
 {
-    return snprintf (NULL, 0, "foo") != 3;
+    return rk_snprintf (NULL, 0, "foo") != 3;
 }
 
 static int
@@ -242,7 +237,7 @@ test_sizet (void)
 	tot += try("%zX", sizet_values[i]);
 #else
 	char buf[256];
-	snprintf(buf, sizeof(buf), "%zu", sizet_values[i]);
+	rk_snprintf(buf, sizeof(buf), "%zu", sizet_values[i]);
 	if (strcmp(buf, result[i]) != 0) {
 	    printf("%s != %s", buf, result[i]);
 	    tot++;

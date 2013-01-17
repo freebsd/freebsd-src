@@ -1,4 +1,4 @@
-$NetBSD: softfloat.txt,v 1.1 2000/06/06 08:15:10 bjh21 Exp $
+$NetBSD: softfloat.txt,v 1.2 2006/11/24 19:46:58 christos Exp $
 $FreeBSD$
 
 SoftFloat Release 2a General Documentation
@@ -27,7 +27,7 @@ Limitations
 
 SoftFloat is written in C and is designed to work with other C code.  The
 SoftFloat header files assume an ISO/ANSI-style C compiler.  No attempt
-has been made to accomodate compilers that are not ISO-conformant.  In
+has been made to accommodate compilers that are not ISO-conformant.  In
 particular, the distributed header files will not be acceptable to any
 compiler that does not recognize function prototypes.
 

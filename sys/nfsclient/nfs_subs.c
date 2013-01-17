@@ -181,9 +181,9 @@ nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
 {
 	struct mbuf *mb;
 
-	MGET(mb, M_WAIT, MT_DATA);
+	MGET(mb, M_WAITOK, MT_DATA);
 	if (hsiz >= MINCLSIZE)
-		MCLGET(mb, M_WAIT);
+		MCLGET(mb, M_WAITOK);
 	mb->m_len = 0;
 	return (mb);
 }
@@ -218,9 +218,9 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 		while (left > 0) {
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
-				MGET(mp, M_WAIT, MT_DATA);
+				MGET(mp, M_WAITOK, MT_DATA);
 				if (clflg)
-					MCLGET(mp, M_WAIT);
+					MCLGET(mp, M_WAITOK);
 				mp->m_len = 0;
 				mp2->m_next = mp;
 				mp2 = mp;
@@ -251,7 +251,7 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 	}
 	if (rem > 0) {
 		if (rem > M_TRAILINGSPACE(mp)) {
-			MGET(mp, M_WAIT, MT_DATA);
+			MGET(mp, M_WAITOK, MT_DATA);
 			mp->m_len = 0;
 			mp2->m_next = mp;
 		}
@@ -296,9 +296,9 @@ nfsm_strtmbuf(struct mbuf **mb, char **bpos, const char *cp, long siz)
 	}
 	/* Loop around adding mbufs */
 	while (siz > 0) {
-		MGET(m1, M_WAIT, MT_DATA);
+		MGET(m1, M_WAITOK, MT_DATA);
 		if (siz > MLEN)
-			MCLGET(m1, M_WAIT);
+			MCLGET(m1, M_WAITOK);
 		m1->m_len = NFSMSIZ(m1);
 		m2->m_next = m1;
 		m2 = m1;
@@ -481,7 +481,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
-	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAIT);
+	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAITOK);
 	if (cp2 == NULL) {
 		error = EBADRPC;
 		goto out;
@@ -865,17 +865,10 @@ nfs_clearcommit(struct mount *mp)
 	struct buf *bp, *nbp;
 	struct bufobj *bo;
 
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
 		bo = &vp->v_bufobj;
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
 		vholdl(vp);
 		VI_UNLOCK(vp);
-		MNT_IUNLOCK(mp);
 		BO_LOCK(bo);
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (!BUF_ISLOCKED(bp) &&
@@ -885,9 +878,7 @@ nfs_clearcommit(struct mount *mp)
 		}
 		BO_UNLOCK(bo);
 		vdrop(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -978,8 +969,8 @@ nfsm_loadattr_xx(struct vnode **v, struct vattr *va, struct mbuf **md,
 }
 
 int
-nfsm_postop_attr_xx(struct vnode **v, int *f, struct mbuf **md,
-		    caddr_t *dpos)
+nfsm_postop_attr_xx(struct vnode **v, int *f, struct vattr *va,
+		    struct mbuf **md, caddr_t *dpos)
 {
 	u_int32_t *tl;
 	int t1;
@@ -990,7 +981,7 @@ nfsm_postop_attr_xx(struct vnode **v, int *f, struct mbuf **md,
 		return EBADRPC;
 	*f = fxdr_unsigned(int, *tl);
 	if (*f != 0) {
-		t1 = nfs_loadattrcache(&ttvp, md, dpos, NULL, 1);
+		t1 = nfs_loadattrcache(&ttvp, md, dpos, va, 1);
 		if (t1 != 0) {
 			*f = 0;
 			return t1;
@@ -1020,7 +1011,7 @@ nfsm_wcc_data_xx(struct vnode **v, int *f, struct mbuf **md, caddr_t *dpos)
 				  VTONFS(*v)->n_mtime.tv_nsec == fxdr_unsigned(u_int32_t, *(tl + 3))); 
 		mtx_unlock(&(VTONFS(*v))->n_mtx);
 	}
-	t1 = nfsm_postop_attr_xx(v, &ttattrf, md, dpos);
+	t1 = nfsm_postop_attr_xx(v, &ttattrf, NULL, md, dpos);
 	if (t1)
 		return t1;
 	if (*f)
@@ -1119,7 +1110,7 @@ nfsm_v3attrbuild_xx(struct vattr *va, int full, struct mbuf **mb,
 		*tl = nfs_false;
 	}
 	if (va->va_atime.tv_sec != VNOVAL) {
-		if (va->va_atime.tv_sec != time_second) {
+		if ((va->va_vaflags & VA_UTIMES_NULL) == 0) {
 			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
 			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 			txdr_nfsv3time(&va->va_atime, tl);
@@ -1132,7 +1123,7 @@ nfsm_v3attrbuild_xx(struct vattr *va, int full, struct mbuf **mb,
 		*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 	}
 	if (va->va_mtime.tv_sec != VNOVAL) {
-		if (va->va_mtime.tv_sec != time_second) {
+		if ((va->va_vaflags & VA_UTIMES_NULL) == 0) {
 			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
 			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 			txdr_nfsv3time(&va->va_mtime, tl);

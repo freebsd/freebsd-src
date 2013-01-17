@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: mercurial,v 1.4 2009/09/19 16:28:10 christos Exp $
 # mercurial:  file(1) magic for Mercurial changeset bundles
 # http://www.selenic.com/mercurial/wiki/
 #

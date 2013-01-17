@@ -12,6 +12,7 @@ MAN=	accept_filter.9 \
 	boot.9 \
 	bpf.9 \
 	buf.9 \
+	buf_ring.9 \
 	BUF_ISLOCKED.9 \
 	BUF_LOCK.9 \
 	BUF_LOCKFREE.9 \
@@ -25,6 +26,8 @@ MAN=	accept_filter.9 \
 	bus_alloc_resource.9 \
 	BUS_BIND_INTR.9 \
 	bus_child_present.9 \
+	BUS_CHILD_DELETED.9 \
+	BUS_CHILD_DETACHED.9 \
 	BUS_CONFIG_INTR.9 \
 	BUS_DESCRIBE_INTR.9 \
 	bus_dma.9 \
@@ -99,9 +102,11 @@ MAN=	accept_filter.9 \
 	devtoname.9 \
 	disk.9 \
 	domain.9 \
+	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
+	eventtimers.9 \
 	extattr.9 \
 	fail.9 \
 	fetch.9 \
@@ -163,6 +168,7 @@ MAN=	accept_filter.9 \
 	mbuf_tags.9 \
 	MD5.9 \
 	mdchain.9 \
+	memcchr.9 \
 	memguard.9 \
 	microseq.9 \
 	microtime.9 \
@@ -234,6 +240,7 @@ MAN=	accept_filter.9 \
 	sema.9 \
 	sf_buf.9 \
 	sglist.9 \
+	shm_map.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
@@ -273,7 +280,6 @@ MAN=	accept_filter.9 \
 	vfs_getnewfsid.9 \
 	vfs_getopt.9 \
 	vfs_getvfs.9 \
-	VFS_LOCK_GIANT.9 \
 	VFS_MOUNT.9 \
 	vfs_mount.9 \
 	vfs_mountedfrom.9 \
@@ -407,6 +413,16 @@ MLINKS+=bpf.9 bpfattach.9 \
 	bpf.9 bpf_tap.9 \
 	bpf.9 bpf_validate.9
 MLINKS+=buf.9 bp.9
+MLINKS+=buf_ring.9 buf_ring_alloc.9 \
+	buf_ring.9 buf_ring_free.9 \
+	buf_ring.9 buf_ring_enqueue.9 \
+	buf_ring.9 buf_ring_enqueue_bytes.9 \
+	buf_ring.9 buf_ring_dequeue_mc.9 \
+	buf_ring.9 buf_ring_dequeue_sc.9 \
+	buf_ring.9 buf_ring_count.9 \
+	buf_ring.9 buf_ring_empty.9 \
+	buf_ring.9 buf_ring_full.9 \
+	buf_ring.9 buf_ring_peek.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
 MLINKS+=bus_alloc_resource.9 bus_alloc_resource_any.9
 MLINKS+=BUS_BIND_INTR.9 bus_bind_intr.9
@@ -598,13 +614,26 @@ MLINKS+=devstat.9 devicestat.9 \
 MLINKS+=disk.9 disk_alloc.9 \
 	disk.9 disk_create.9 \
 	disk.9 disk_destroy.9 \
-	disk.9 disk_gone.9
+	disk.9 disk_gone.9 \
+	disk.9 disk_resize.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
-	domain.9 net_add_domain.9 \
+	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
 	domain.9 pfctlinput2.9 \
+	domain.9 pffinddomain.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
+MLINKS+=drbr.9 drbr_free.9 \
+	drbr.9 drbr_enqueue.9 \
+	drbr.9 drbr_dequeue.9 \
+	drbr.9 drbr_dequeue_cond.9 \
+	drbr.9 drbr_flush.9 \
+	drbr.9 drbr_empty.9 \
+	drbr.9 drbr_inuse.9 \
+	drbr.9 drbr_stats_update.9
+MLINKS+=DRIVER_MODULE.9 DRIVER_MODULE_ORDERED.9 \
+	DRIVER_MODULE.9 EARLY_DRIVER_MODULE.9 \
+	DRIVER_MODULE.9 EARLY_DRIVER_MODULE_ORDERED.9
 MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
 	EVENTHANDLER.9 eventhandler_deregister.9 \
@@ -613,6 +642,16 @@ MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 eventhandler_prune_list.9 \
 	EVENTHANDLER.9 EVENTHANDLER_REGISTER.9 \
 	EVENTHANDLER.9 eventhandler_register.9
+MLINKS+=eventtimers.9 et_register.9 \
+	eventtimers.9 et_deregister.9 \
+	eventtimers.9 et_ban.9 \
+	eventtimers.9 et_find.9 \
+	eventtimers.9 et_free.9 \
+	eventtimers.9 et_init.9 \
+	eventtimers.9 ET_LOCK.9 \
+	eventtimers.9 ET_UNLOCK.9 \
+	eventtimers.9 et_start.9 \
+	eventtimers.9 et_stop.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fuword.9 \
@@ -724,7 +763,8 @@ MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_class_free.9 \
 	kobj.9 kobj_create.9 \
 	kobj.9 kobj_delete.9 \
-	kobj.9 kobj_init.9
+	kobj.9 kobj_init.9 \
+	kobj.9 kobj_init_static.9
 MLINKS+=kproc.9 kproc_create.9 \
 	kproc.9 kproc_exit.9 \
 	kproc.9 kproc_resume.9 \
@@ -739,6 +779,8 @@ MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 knlist_destroy.9 \
 	kqueue.9 knlist_empty.9 \
 	kqueue.9 knlist_init.9 \
+	kqueue.9 knlist_init_mtx.9 \
+	kqueue.9 knlist_init_rw_reader.9 \
 	kqueue.9 knlist_remove.9 \
 	kqueue.9 knlist_remove_inevent.9 \
 	kqueue.9 knote_fdclose.9 \
@@ -937,16 +979,32 @@ MLINKS+=namei.9 NDFREE.9 \
 MLINKS+=pbuf.9 getpbuf.9 \
 	pbuf.9 relpbuf.9 \
 	pbuf.9 trypbuf.9
-MLINKS+=pci.9 pci_disable_busmaster.9 \
+MLINKS+=pci.9 pci_alloc_msi.9 \
+	pci.9 pci_alloc_msix.9 \
+	pci.9 pci_disable_busmaster.9 \
 	pci.9 pci_disable_io.9 \
 	pci.9 pci_enable_busmaster.9 \
 	pci.9 pci_enable_io.9 \
 	pci.9 pci_find_bsf.9 \
+	pci.9 pci_find_cap.9 \
 	pci.9 pci_find_dbsf.9 \
 	pci.9 pci_find_device.9 \
+	pci.9 pci_find_extcap.9 \
+	pci.9 pci_find_htcap.9 \
+	pci.9 pci_get_max_read_req.9 \
 	pci.9 pci_get_powerstate.9 \
+	pci.9 pci_get_vpd_ident.9 \
+	pci.9 pci_get_vpd_readonly.9 \
+	pci.9 pci_msi_count.9 \
+	pci.9 pci_msix_count.9 \
+	pci.9 pci_pending_msix.9 \
 	pci.9 pci_read_config.9 \
+	pci.9 pci_release_msi.9 \
+	pci.9 pci_remap_msix.9 \
+	pci.9 pci_restore_state.9 \
+	pci.9 pci_save_state.9 \
 	pci.9 pci_set_powerstate.9 \
+	pci.9 pci_set_max_read_req.9 \
 	pci.9 pci_write_config.9
 MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_hook_get.9 \
@@ -1022,8 +1080,12 @@ MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_wunlock.9
 MLINKS+=rtalloc.9 rtalloc1.9 \
 	rtalloc.9 rtalloc_ign.9 \
+	rtalloc.9 RTFREE_LOCKED.9 \
 	rtalloc.9 RTFREE.9 \
-	rtalloc.9 rtfree.9
+	rtalloc.9 rtfree.9 \
+	rtalloc.9 rtalloc1_fib.9 \
+	rtalloc.9 rtalloc_ign_fib.9 \
+	rtalloc.9 rtalloc_fib.9
 MLINKS+=runqueue.9 choosethread.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
@@ -1106,6 +1168,7 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_reset.9 \
 	sglist.9 sglist_slice.9 \
 	sglist.9 sglist_split.9
+MLINKS+=shm_map.9 shm_unmap.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
@@ -1193,6 +1256,7 @@ MLINKS+=store.9 subyte.9 \
 	store.9 suword32.9 \
 	store.9 suword64.9
 MLINKS+=swi.9 swi_add.9 \
+	swi.9 swi_remove.9 \
 	swi.9 swi_sched.9
 MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_destroy.9 \
@@ -1243,6 +1307,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_free.9
 MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
+	taskqueue.9 TASK_INITIALIZER.9 \
 	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
 	taskqueue.9 taskqueue_create_fast.9 \
@@ -1349,7 +1414,6 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_setopt.9 \
 	vfs_getopt.9 vfs_setopt_part.9 \
 	vfs_getopt.9 vfs_setopts.9
-MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vhold.9 vdrop.9 \
 	vhold.9 vdropl.9 \
 	vhold.9 vholdl.9

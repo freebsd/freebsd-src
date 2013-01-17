@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,5 +71,6 @@ y_or_n(Boolean def, const char *msg, ...)
 	    ch = (def) ? 'Y' : 'N';
     }
     fclose(tty) ;
+    va_end(args);
     return (ch == 'Y') ? TRUE : FALSE;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getnameinfo.c,v 1.4.346.2 2011-03-12 04:59:18 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 

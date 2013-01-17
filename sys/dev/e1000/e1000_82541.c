@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -300,7 +300,7 @@ void e1000_init_function_pointers_82541(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 {
-	u32 ledctl, ctrl, manc;
+	u32 ledctl, ctrl, icr, manc;
 
 	DEBUGFUNC("e1000_reset_hw_82541");
 
@@ -364,7 +364,7 @@ static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_IMC, 0xFFFFFFFF);
 
 	/* Clear any pending interrupt events. */
-	E1000_READ_REG(hw, E1000_ICR);
+	icr = E1000_READ_REG(hw, E1000_ICR);
 
 	return E1000_SUCCESS;
 }
@@ -390,7 +390,7 @@ static s32 e1000_init_hw_82541(struct e1000_hw *hw)
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
 	}
-
+        
 	/* Storing the Speed Power Down  value for later use */
 	ret_val = hw->phy.ops.read_reg(hw,
 	                               IGP01E1000_GMII_FIFO,
@@ -549,8 +549,6 @@ static s32 e1000_setup_copper_link_82541(struct e1000_hw *hw)
 	ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
 
-	hw->phy.reset_disable = FALSE;
-
 	/* Earlier revs of the IGP phy require us to force MDI. */
 	if (hw->mac.type == e1000_82541 || hw->mac.type == e1000_82547) {
 		dev_spec->dsp_config = e1000_dsp_config_disabled;
@@ -644,7 +642,7 @@ static s32 e1000_check_for_link_82541(struct e1000_hw *hw)
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
-	e1000_config_collision_dist_generic(hw);
+	mac->ops.config_collision_dist(hw);
 
 	/*
 	 * Configure Flow Control now that Auto-Neg has completed.

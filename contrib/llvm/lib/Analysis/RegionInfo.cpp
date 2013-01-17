@@ -186,18 +186,16 @@ std::string Region::getNameStr() const {
     raw_string_ostream OS(entryName);
 
     WriteAsOperand(OS, getEntry(), false);
-    entryName = OS.str();
   } else
-    entryName = getEntry()->getNameStr();
+    entryName = getEntry()->getName();
 
   if (getExit()) {
     if (getExit()->getName().empty()) {
       raw_string_ostream OS(exitName);
 
       WriteAsOperand(OS, getExit(), false);
-      exitName = OS.str();
     } else
-      exitName = getExit()->getNameStr();
+      exitName = getExit()->getName();
   } else
     exitName = "<Function Return>";
 
@@ -246,22 +244,6 @@ void Region::verifyRegionNest() const {
     (*RI)->verifyRegionNest();
 
   verifyRegion();
-}
-
-Region::block_iterator Region::block_begin() {
-  return GraphTraits<FlatIt<Region*> >::nodes_begin(this);
-}
-
-Region::block_iterator Region::block_end() {
-  return GraphTraits<FlatIt<Region*> >::nodes_end(this);
-}
-
-Region::const_block_iterator Region::block_begin() const {
-  return GraphTraits<FlatIt<const Region*> >::nodes_begin(this);
-}
-
-Region::const_block_iterator Region::block_end() const {
-  return GraphTraits<FlatIt<const Region*> >::nodes_end(this);
 }
 
 Region::element_iterator Region::element_begin() {
@@ -427,8 +409,8 @@ void Region::print(raw_ostream &OS, bool print_tree, unsigned level,
     OS.indent(level*2 + 2);
 
     if (Style == PrintBB) {
-      for (const_block_iterator I = block_begin(), E = block_end(); I!=E; ++I)
-        OS << **I << ", "; // TODO: remove the last ","
+      for (const_block_iterator I = block_begin(), E = block_end(); I != E; ++I)
+        OS << (*I)->getName() << ", "; // TODO: remove the last ","
     } else if (Style == PrintRN) {
       for (const_element_iterator I = element_begin(), E = element_end(); I!=E; ++I)
         OS << **I << ", "; // TODO: remove the last ",
@@ -445,9 +427,11 @@ void Region::print(raw_ostream &OS, bool print_tree, unsigned level,
     OS.indent(level*2) << "} \n";
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void Region::dump() const {
   print(dbgs(), true, getDepth(), printStyle.getValue());
 }
+#endif
 
 void Region::clearNodeCache() {
   // Free the cached nodes.
@@ -652,7 +636,7 @@ void RegionInfo::buildRegionsTree(DomTreeNode *N, Region *region) {
   // This basic block is a start block of a region. It is already in the
   // BBtoRegion relation. Only the child basic blocks have to be updated.
   if (it != BBtoRegion.end()) {
-    Region *newRegion = it->second;;
+    Region *newRegion = it->second;
     region->addSubRegion(getTopMostParent(newRegion));
     region = newRegion;
   } else {

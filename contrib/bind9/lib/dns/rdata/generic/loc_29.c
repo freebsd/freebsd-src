@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: loc_29.c,v 1.50 2009-12-04 21:09:33 marka Exp $ */
+/* $Id: loc_29.c,v 1.50 2009/12/04 21:09:33 marka Exp $ */
 
 /* Reviewed: Wed Mar 15 18:13:09 PST 2000 by explorer */
 

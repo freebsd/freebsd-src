@@ -32,7 +32,7 @@
 .\"     @(#)strftime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2004
+.Dd June 25, 2012
 .Dt STRFTIME 3
 .Os
 .Sh NAME
@@ -49,6 +49,8 @@
 .Fa "const char * restrict format"
 .Fa "const struct tm * restrict timeptr"
 .Fc
+.Ft size_t
+.Fn strftime_l "char *restrict buf" "size_t maxsize" "const char * restrict format" "const struct tm *restrict timeptr" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strftime
@@ -58,6 +60,11 @@ into the buffer
 .Fa buf
 according to the string pointed to by
 .Fa format .
+The function
+.Fn strftime_l
+does the same as
+.Fn strftime
+but takes an explicit locale rather than using the current locale.
 .Pp
 The
 .Fa format
@@ -268,6 +275,10 @@ The peculiar week number and year in the replacements of
 and
 .Ql \&%V
 are defined in ISO 8601: 1988.
+The
+.Fn strftime_l
+function conforms to
+.St -p1003.1-2008 .
 .Sh BUGS
 There is no conversion specification for the phase of the moon.
 .Pp

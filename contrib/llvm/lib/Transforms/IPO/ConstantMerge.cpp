@@ -23,7 +23,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -50,7 +50,7 @@ namespace {
     // alignment to a concrete value.
     unsigned getAlignment(GlobalVariable *GV) const;
 
-    const TargetData *TD;
+    const DataLayout *TD;
   };
 }
 
@@ -98,7 +98,7 @@ unsigned ConstantMerge::getAlignment(GlobalVariable *GV) const {
 }
 
 bool ConstantMerge::runOnModule(Module &M) {
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
 
   // Find all the globals that are marked "used".  These cannot be merged.
   SmallPtrSet<const GlobalValue*, 8> UsedGlobals;
@@ -107,7 +107,7 @@ bool ConstantMerge::runOnModule(Module &M) {
   
   // Map unique <constants, has-unknown-alignment> pairs to globals.  We don't
   // want to merge globals of unknown alignment with those of explicit
-  // alignment.  If we have TargetData, we always know the alignment.
+  // alignment.  If we have DataLayout, we always know the alignment.
   DenseMap<PointerIntPair<Constant*, 1, bool>, GlobalVariable*> CMap;
 
   // Replacements - This vector contains a list of replacements to perform.
@@ -140,18 +140,24 @@ bool ConstantMerge::runOnModule(Module &M) {
           UsedGlobals.count(GV))
         continue;
 
+      // This transformation is legal for weak ODR globals in the sense it
+      // doesn't change semantics, but we really don't want to perform it
+      // anyway; it's likely to pessimize code generation, and some tools
+      // (like the Darwin linker in cases involving CFString) don't expect it.
+      if (GV->isWeakForLinker())
+        continue;
+
       Constant *Init = GV->getInitializer();
 
       // Check to see if the initializer is already known.
       PointerIntPair<Constant*, 1, bool> Pair(Init, hasKnownAlignment(GV));
       GlobalVariable *&Slot = CMap[Pair];
 
-      // If this is the first constant we find or if the old on is local,
-      // replace with the current one. It the current is externally visible
+      // If this is the first constant we find or if the old one is local,
+      // replace with the current one. If the current is externally visible
       // it cannot be replace, but can be the canonical constant we merge with.
-      if (Slot == 0 || IsBetterCannonical(*GV, *Slot)) {
+      if (Slot == 0 || IsBetterCannonical(*GV, *Slot))
         Slot = GV;
-      }
     }
 
     // Second: identify all globals that can be merged together, filling in

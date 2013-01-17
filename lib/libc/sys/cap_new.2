@@ -107,17 +107,17 @@ Permit checking of an ACL on a file descriptor; there is no cross-reference
 for this system call.
 .It Dv CAP_ACL_DELETE
 Permit
-.Xr acl_delete_fd_np 2 .
+.Xr acl_delete_fd_np 3 .
 .It Dv CAP_ACL_GET
 Permit
-.Xr acl_get_fd 2
+.Xr acl_get_fd 3
 and
-.Xr acl_get_fd_np 2 .
+.Xr acl_get_fd_np 3 .
 .It Dv CAP_ACL_SET
 Permit
-.Xr acl_set_fd 2
+.Xr acl_set_fd 3
 and
-.Xr acl_set_fd_np 2 .
+.Xr acl_set_fd_np 3 .
 .It Dv CAP_BIND
 Permit
 .Xr bind 2 .
@@ -240,10 +240,10 @@ a global name space; see
 for details.
 .It Dv CAP_MAC_GET
 Permit
-.Xr mac_get_fd 2 .
+.Xr mac_get_fd 3 .
 .It Dv CAP_MAC_SET
 Permit
-.Xr mac_set_fd 2 .
+.Xr mac_set_fd 3 .
 .It Dv CAP_MMAP
 Permit
 .Xr mmap 2 ;
@@ -385,12 +385,8 @@ argument is not a capability.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
-.Xr acl_delete_fd_np 2 ,
-.Xr acl_get_fd 2 ,
-.Xr acl_get_fd_np 2 ,
-.Xr acl_set_fd_np 2 ,
-.Xr aio_read 2 ,
 .Xr aio_fsync 2 ,
+.Xr aio_read 2 ,
 .Xr aio_write 2 ,
 .Xr bind 2 ,
 .Xr cap_enter 2 ,
@@ -421,8 +417,6 @@ argument is not a capability.
 .Xr kqueue 2 ,
 .Xr linkat 2 ,
 .Xr listen 2 ,
-.Xr mac_get_fd 2 ,
-.Xr mac_set_fd 2 ,
 .Xr mmap 2 ,
 .Xr mq_open 2 ,
 .Xr open 2 ,
@@ -450,25 +444,32 @@ argument is not a capability.
 .Xr socketpair 2 ,
 .Xr unlinkat 2 ,
 .Xr write 2 ,
+.Xr acl_delete_fd_np 3 ,
+.Xr acl_get_fd 3 ,
+.Xr acl_get_fd_np 3 ,
+.Xr acl_set_fd_np 3 ,
 .Xr cap_limitfd 3 ,
 .Xr libcapsicum 3 ,
+.Xr mac_get_fd 3 ,
+.Xr mac_set_fd 3 ,
 .Xr sem_getvalue 3 ,
 .Xr sem_post 3 ,
 .Xr sem_trywait 3 ,
 .Xr sem_wait 3 ,
+.Xr capsicum 4 ,
 .Xr snp 4
 .Sh HISTORY
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
 Project.
+.Sh AUTHORS
+These functions and the capability facility were created by
+.An "Robert N. M. Watson"
+at the University of Cambridge Computer Laboratory with support from a grant
+from Google, Inc.
 .Sh BUGS
 This man page should list the set of permitted system calls more specifically
 for each capability right.
 .Pp
 Capability rights sometimes have unclear indirect impacts, which should be
 documented, or at least hinted at.
-.Sh AUTHORS
-These functions and the capability facility were created by
-.An "Robert N. M. Watson" 
-at the University of Cambridge Computer Laboratory with support from a grant
-from Google, Inc.

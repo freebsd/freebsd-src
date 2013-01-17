@@ -50,7 +50,7 @@
 .Ft void
 .Fn netisr_clearqdrops "const struct netisr_handler *nhp"
 .Ft void
-.Fn netisr_getqdrops "const struct netisr_handler *nhp" "u_int64_t *qdropsp"
+.Fn netisr_getqdrops "const struct netisr_handler *nhp" "uint64_t *qdropsp"
 .Ft void
 .Fn netisr_getqlimit "const struct netisr_handler *nhp" "u_int *qlimitp"
 .Ft int
@@ -78,7 +78,7 @@ and may also manage queue limits and statistics using the
 .Fn netisr_getqdrops ,
 .Fn netisr_getqlimit ,
 and
-.Fn netisr_setqlimit.
+.Fn netisr_setqlimit .
 .Pp
 .Nm
 supports multi-processor execution of handlers, and relies on a combination

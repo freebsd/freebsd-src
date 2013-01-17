@@ -250,7 +250,7 @@ parameter limits the output to entries at the specified class or higher.
 The default class is
 .Dq warn .
 The available classes from lowest priority to highest are:
-.Bl -tag -width -indent
+.Bl -tag -width indent
 .It Cm debug
 Debug messages.
 .It Cm progress
@@ -300,7 +300,7 @@ and
 parameters.
 Each of these parameters can either be specified as a log entry number or as
 one of the following aliases:
-.Bl -tag -width -indent
+.Bl -tag -width indent
 .It Cm newest
 The newest entry in the event log.
 .It Cm oldest
@@ -597,7 +597,6 @@ Configure the adapter to run periodic patrol reads once a week with the first
 patrol read starting in 5 minutes:
 .Pp
 .Dl Nm Cm patrol auto 604800 300
-.Pp
 .Sh SEE ALSO
 .Xr mfi 4
 .Sh HISTORY

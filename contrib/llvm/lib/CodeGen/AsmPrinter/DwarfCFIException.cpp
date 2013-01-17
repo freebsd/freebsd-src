@@ -25,7 +25,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
@@ -142,12 +142,14 @@ void DwarfCFIException::EndFunction() {
 
   Asm->OutStreamer.EmitCFIEndProc();
 
+  if (!shouldEmitPersonality)
+    return;
+
   Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_func_end",
                                                 Asm->getFunctionNumber()));
 
   // Map all labels and get rid of any dead landing pads.
   MMI->TidyLandingPads();
 
-  if (shouldEmitPersonality)
-    EmitExceptionTable();
+  EmitExceptionTable();
 }

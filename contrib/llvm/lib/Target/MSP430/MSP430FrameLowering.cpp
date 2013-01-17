@@ -1,4 +1,4 @@
-//======-- MSP430FrameLowering.cpp - MSP430 Frame Information -------=========//
+//===-- MSP430FrameLowering.cpp - MSP430 Frame Information ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -20,7 +20,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/CommandLine.h"
 
@@ -29,7 +29,7 @@ using namespace llvm;
 bool MSP430FrameLowering::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
 
-  return (DisableFramePointerElim(MF) ||
+  return (MF.getTarget().Options.DisableFramePointerElim(MF) ||
           MF.getFrameInfo()->hasVarSizedObjects() ||
           MFI->isFrameAddressTaken());
 }
@@ -140,7 +140,7 @@ void MSP430FrameLowering::emitEpilogue(MachineFunction &MF,
   while (MBBI != MBB.begin()) {
     MachineBasicBlock::iterator PI = prior(MBBI);
     unsigned Opc = PI->getOpcode();
-    if (Opc != MSP430::POP16r && !PI->getDesc().isTerminator())
+    if (Opc != MSP430::POP16r && !PI->isTerminator())
       break;
     --MBBI;
   }
@@ -220,4 +220,18 @@ MSP430FrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
     BuildMI(MBB, MI, DL, TII.get(MSP430::POP16r), CSI[i].getReg());
 
   return true;
+}
+
+void
+MSP430FrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
+                                                                         const {
+  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+
+  // Create a frame entry for the FPW register that must be saved.
+  if (TFI->hasFP(MF)) {
+    int FrameIdx = MF.getFrameInfo()->CreateFixedObject(2, -4, true);
+    (void)FrameIdx;
+    assert(FrameIdx == MF.getFrameInfo()->getObjectIndexBegin() &&
+           "Slot for FPW register must be last in order to be found!");
+  }
 }

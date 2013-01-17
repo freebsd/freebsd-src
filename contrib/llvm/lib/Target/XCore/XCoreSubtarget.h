@@ -1,4 +1,4 @@
-//=====-- XCoreSubtarget.h - Define Subtarget for the XCore -----*- C++ -*--==//
+//===-- XCoreSubtarget.h - Define Subtarget for the XCore -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -25,6 +25,7 @@ namespace llvm {
 class StringRef;
 
 class XCoreSubtarget : public XCoreGenSubtargetInfo {
+  virtual void anchor();
 
 public:
   /// This constructor initializes the data members to match that

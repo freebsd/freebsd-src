@@ -104,16 +104,22 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
+#ifndef __mips__
 CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
 CTASSERT(sizeof(struct itimerval32) == 16);
+#endif
 CTASSERT(sizeof(struct statfs32) == 256);
+#ifndef __mips__
 CTASSERT(sizeof(struct rusage32) == 72);
+#endif
 CTASSERT(sizeof(struct sigaltstack32) == 12);
 CTASSERT(sizeof(struct kevent32) == 20);
 CTASSERT(sizeof(struct iovec32) == 8);
 CTASSERT(sizeof(struct msghdr32) == 28);
+#ifndef __mips__
 CTASSERT(sizeof(struct stat32) == 96);
+#endif
 CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
@@ -170,6 +176,42 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 	if (uap->rusage != NULL && error == 0) {
 		freebsd32_rusage_out(&ru, &ru32);
 		error = copyout(&ru32, uap->rusage, sizeof(ru32));
+	}
+	return (error);
+}
+
+int
+freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
+{
+	struct wrusage32 wru32;
+	struct __wrusage wru, *wrup;
+	struct siginfo32 si32;
+	struct __siginfo si, *sip;
+	int error, status;
+
+	if (uap->wrusage != NULL)
+		wrup = &wru;
+	else
+		wrup = NULL;
+	if (uap->info != NULL) {
+		sip = &si;
+		bzero(sip, sizeof(*sip));
+	} else
+		sip = NULL;
+	error = kern_wait6(td, uap->idtype, uap->id, &status, uap->options,
+	    wrup, sip);
+	if (error != 0)
+		return (error);
+	if (uap->status != NULL)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->wrusage != NULL && error == 0) {
+		freebsd32_rusage_out(&wru.wru_self, &wru32.wru_self);
+		freebsd32_rusage_out(&wru.wru_children, &wru32.wru_children);
+		error = copyout(&wru32, uap->wrusage, sizeof(wru32));
+	}
+	if (uap->info != NULL && error == 0) {
+		siginfo_to_siginfo32 (&si, &si32);
+		error = copyout(&si32, uap->info, sizeof(si32));
 	}
 	return (error);
 }
@@ -946,7 +988,11 @@ freebsd32_copyoutmsghdr(struct msghdr *msg, struct msghdr32 *msg32)
 	return (error);
 }
 
+#ifndef __mips__
 #define FREEBSD32_ALIGNBYTES	(sizeof(int) - 1)
+#else
+#define FREEBSD32_ALIGNBYTES	(sizeof(long) - 1)
+#endif
 #define FREEBSD32_ALIGN(p)	\
 	(((u_long)(p) + FREEBSD32_ALIGNBYTES) & ~FREEBSD32_ALIGNBYTES)
 #define	FREEBSD32_CMSG_SPACE(l)	\
@@ -1518,7 +1564,8 @@ freebsd32_getdirentries(struct thread *td,
 	int32_t base32;
 	int error;
 
-	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
+	    NULL, UIO_USERSPACE);
 	if (error)
 		return (error);
 	if (uap->basep != NULL) {
@@ -2485,9 +2532,17 @@ freebsd32_nmount(struct thread *td,
     } */ *uap)
 {
 	struct uio *auio;
+	uint64_t flags;
 	int error;
 
-	AUDIT_ARG_FFLAGS(uap->flags);
+	/*
+	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * 32-bits are passed in, but from here on everything handles
+	 * 64-bit flags correctly.
+	 */
+	flags = uap->flags;
+
+	AUDIT_ARG_FFLAGS(flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
@@ -2496,7 +2551,7 @@ freebsd32_nmount(struct thread *td,
 	 * MNT_ROOTFS should only be set by the kernel when mounting its
 	 * root file system.
 	 */
-	uap->flags &= ~MNT_ROOTFS;
+	flags &= ~MNT_ROOTFS;
 
 	/*
 	 * check that we have an even number of iovec's
@@ -2508,7 +2563,7 @@ freebsd32_nmount(struct thread *td,
 	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
-	error = vfs_donmount(td, uap->flags, auio);
+	error = vfs_donmount(td, flags, auio);
 
 	free(auio, M_IOV);
 	return error;
@@ -2828,10 +2883,16 @@ int
 freebsd32_posix_fallocate(struct thread *td,
     struct freebsd32_posix_fallocate_args *uap)
 {
-	struct posix_fallocate_args ap;
 
-	ap.fd = uap->fd;
-	ap.offset = PAIR32TO64(off_t, uap->offset);
-	ap.len = PAIR32TO64(off_t, uap->len);
-	return (sys_posix_fallocate(td, &ap));
+	return (kern_posix_fallocate(td, uap->fd,
+	    PAIR32TO64(off_t, uap->offset), PAIR32TO64(off_t, uap->len)));
+}
+
+int
+freebsd32_posix_fadvise(struct thread *td,
+    struct freebsd32_posix_fadvise_args *uap)
+{
+
+	return (kern_posix_fadvise(td, uap->fd, PAIR32TO64(off_t, uap->offset),
+	    PAIR32TO64(off_t, uap->len), uap->advice));
 }

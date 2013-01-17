@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NATIVE_EMULATION=	elf64ppc
+NATIVE_EMULATION=	elf64ppc_fbsd
 
 SRCS+=		e${NATIVE_EMULATION}.c
 CLEANFILES+=	e${NATIVE_EMULATION}.c
@@ -11,7 +11,7 @@ e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    ${NATIVE_EMULATION} ""  no ${NATIVE_EMULATION} ${TARGET_TUPLE}
 
-PPC32_EMULATION= elf32ppc
+PPC32_EMULATION= elf32ppc_fbsd
 _ppc32_path=	\"${TOOLS_PREFIX}/usr/lib32\"
 EMS+=		${PPC32_EMULATION}
 .for ext in ${ELF_SCR_EXT}

@@ -22,6 +22,6 @@ These are some of OpenPAM's features:
      /usr/local/etc/pam.d/ and /usr/local/etc/pam.conf, in that order;
      this will be made configurable in a future release.
 
-Please direct bug reports and inquiries to des@freebsd.org.
+Please direct bug reports and inquiries to <des@des.no>.
 
-$Id: README 320 2006-02-16 20:33:19Z des $
+$Id: README 424 2009-10-29 17:10:22Z des $

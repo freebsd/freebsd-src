@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+PMC_SOFT_DEFINE( , , page_fault, all);
+PMC_SOFT_DEFINE( , , page_fault, read);
+PMC_SOFT_DEFINE( , , page_fault, write);
 #endif
 
 #include <vm/vm.h>
@@ -125,7 +128,7 @@ void dblfault_handler(struct trapframe *frame);
 static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 
-#define MAX_TRAP_MSG		30
+#define MAX_TRAP_MSG		33
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -158,6 +161,9 @@ static char *trap_msg[] = {
 	"machine check trap",			/* 28 T_MCHK */
 	"SIMD floating-point exception",	/* 29 T_XMMFLT */
 	"reserved (unknown) fault",		/* 30 T_RESERVED */
+	"",					/* 31 unused (reserved) */
+	"DTrace pid return trap",		/* 32 T_DTRACE_RET */
+	"DTrace fasttrap probe trap",		/* 33 T_DTRACE_PROBE */
 };
 
 #ifdef KDB
@@ -170,9 +176,14 @@ static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
 TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
-static int prot_fault_translation = 0;
+static int prot_fault_translation;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
-	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
+    &prot_fault_translation, 0,
+    "Select signal to deliver on protection fault");
+static int uprintf_signal;
+SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
+    &uprintf_signal, 0,
+    "Print debugging information on trap signal to ctty");
 
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
@@ -227,8 +238,7 @@ trap(struct trapframe *frame)
 #endif
 
 	if (type == T_MCHK) {
-		if (!mca_intr())
-			trap_fatal(frame, 0);
+		mca_intr();
 		goto out;
 	}
 
@@ -245,28 +255,26 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if (dtrace_trap_func != NULL)
-		if ((*dtrace_trap_func)(frame, type))
-			goto out;
 	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
 	    type == T_BPTFLT) {
 		struct reg regs;
-		
+
 		fill_frame_regs(frame, &regs);
 		if (type == T_DTRACE_PROBE &&
 		    dtrace_fasttrap_probe_ptr != NULL &&
 		    dtrace_fasttrap_probe_ptr(&regs) == 0)
-				goto out;
-		if (type == T_BPTFLT &&
+			goto out;
+		else if (type == T_BPTFLT &&
 		    dtrace_pid_probe_ptr != NULL &&
 		    dtrace_pid_probe_ptr(&regs) == 0)
-				goto out;
-		if (type == T_DTRACE_RET &&
+			goto out;
+		else if (type == T_DTRACE_RET &&
 		    dtrace_return_probe_ptr != NULL &&
 		    dtrace_return_probe_ptr(&regs) == 0)
 			goto out;
-
 	}
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+		goto out;
 #endif
 
 	if ((frame->tf_rflags & PSL_I) == 0) {
@@ -300,26 +308,6 @@ trap(struct trapframe *frame)
 	}
 
 	code = frame->tf_err;
-	if (type == T_PAGEFLT) {
-		/*
-		 * If we get a page fault while in a critical section, then
-		 * it is most likely a fatal kernel page fault.  The kernel
-		 * is already going to panic trying to get a sleep lock to
-		 * do the VM lookup, so just consider it a fatal trap so the
-		 * kernel can print out a useful trap message and even get
-		 * to the debugger.
-		 *
-		 * If we get a page fault while holding a non-sleepable
-		 * lock, then it is most likely a fatal kernel page fault.
-		 * If WITNESS is enabled, then it's going to whine about
-		 * bogus LORs with various VM locks, so just skip to the
-		 * fatal trap handling directly.
-		 */
-		if (td->td_critnest != 0 ||
-		    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
-		    "Kernel page fault") != 0)
-			trap_fatal(frame, frame->tf_addr);
-	}
 
         if (ISPL(frame->tf_cs) == SEL_UPL) {
 		/* user trap */
@@ -345,7 +333,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
-			ucode = fputrap();
+			ucode = fputrap_x87();
 			if (ucode == -1)
 				goto userout;
 			i = SIGFPE;
@@ -459,7 +447,9 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-			ucode = 0; /* XXX */
+			ucode = fputrap_sse();
+			if (ucode == -1)
+				goto userout;
 			i = SIGFPE;
 			break;
 		}
@@ -535,9 +525,8 @@ trap(struct trapframe *frame)
 				frame->tf_rip = (long)fsbase_load_fault;
 				goto out;
 			}
-			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
-				frame->tf_rip =
-				    (long)PCPU_GET(curpcb)->pcb_onfault;
+			if (curpcb->pcb_onfault != NULL) {
+				frame->tf_rip = (long)curpcb->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -626,11 +615,25 @@ trap(struct trapframe *frame)
 	ksi.ksi_code = ucode;
 	ksi.ksi_trapno = type;
 	ksi.ksi_addr = (void *)addr;
+	if (uprintf_signal) {
+		uprintf("pid %d comm %s: signal %d err %lx code %d type %d "
+		    "addr 0x%lx rip 0x%lx "
+		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
+		    p->p_pid, p->p_comm, i, frame->tf_err, ucode, type, addr,
+		    frame->tf_rip,
+		    fubyte((void *)(frame->tf_rip + 0)),
+		    fubyte((void *)(frame->tf_rip + 1)),
+		    fubyte((void *)(frame->tf_rip + 2)),
+		    fubyte((void *)(frame->tf_rip + 3)),
+		    fubyte((void *)(frame->tf_rip + 4)),
+		    fubyte((void *)(frame->tf_rip + 5)),
+		    fubyte((void *)(frame->tf_rip + 6)),
+		    fubyte((void *)(frame->tf_rip + 7)));
+	}
 	trapsignal(td, &ksi);
 
 user:
 	userret(td, frame);
-	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("Return from trap with kernel FPU ctx leaked"));
 userout:
@@ -644,7 +647,7 @@ trap_pfault(frame, usermode)
 	int usermode;
 {
 	vm_offset_t va;
-	struct vmspace *vm = NULL;
+	struct vmspace *vm;
 	vm_map_t map;
 	int rv = 0;
 	vm_prot_t ftype;
@@ -652,6 +655,50 @@ trap_pfault(frame, usermode)
 	struct proc *p = td->td_proc;
 	vm_offset_t eva = frame->tf_addr;
 
+	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
+		/*
+		 * Due to both processor errata and lazy TLB invalidation when
+		 * access restrictions are removed from virtual pages, memory
+		 * accesses that are allowed by the physical mapping layer may
+		 * nonetheless cause one spurious page fault per virtual page. 
+		 * When the thread is executing a "no faulting" section that
+		 * is bracketed by vm_fault_{disable,enable}_pagefaults(),
+		 * every page fault is treated as a spurious page fault,
+		 * unless it accesses the same virtual address as the most
+		 * recent page fault within the same "no faulting" section.
+		 */
+		if (td->td_md.md_spurflt_addr != eva ||
+		    (td->td_pflags & TDP_RESETSPUR) != 0) {
+			/*
+			 * Do nothing to the TLB.  A stale TLB entry is
+			 * flushed automatically by a page fault.
+			 */
+			td->td_md.md_spurflt_addr = eva;
+			td->td_pflags &= ~TDP_RESETSPUR;
+			return (0);
+		}
+	} else {
+		/*
+		 * If we get a page fault while in a critical section, then
+		 * it is most likely a fatal kernel page fault.  The kernel
+		 * is already going to panic trying to get a sleep lock to
+		 * do the VM lookup, so just consider it a fatal trap so the
+		 * kernel can print out a useful trap message and even get
+		 * to the debugger.
+		 *
+		 * If we get a page fault while holding a non-sleepable
+		 * lock, then it is most likely a fatal kernel page fault.
+		 * If WITNESS is enabled, then it's going to whine about
+		 * bogus LORs with various VM locks, so just skip to the
+		 * fatal trap handling directly.
+		 */
+		if (td->td_critnest != 0 ||
+		    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
+		    "Kernel page fault") != 0) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
+	}
 	va = trunc_page(eva);
 	if (va >= VM_MIN_KERNEL_ADDRESS) {
 		/*
@@ -663,14 +710,10 @@ trap_pfault(frame, usermode)
 		map = kernel_map;
 	} else {
 		/*
-		 * This is a fault on non-kernel virtual memory.
-		 * vm is initialized above to NULL. If curproc is NULL
-		 * or curproc->p_vmspace is NULL the fault is fatal.
+		 * This is a fault on non-kernel virtual memory.  If either
+		 * p or p->p_vmspace is NULL, then the fault is fatal.
 		 */
-		if (p != NULL)
-			vm = p->p_vmspace;
-
-		if (vm == NULL)
+		if (p == NULL || (vm = p->p_vmspace) == NULL)
 			goto nogo;
 
 		map = &vm->vm_map;
@@ -683,7 +726,7 @@ trap_pfault(frame, usermode)
 		 * it normally, and panic immediately.
 		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+		    curpcb->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}
@@ -722,20 +765,31 @@ trap_pfault(frame, usermode)
 		 */
 		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
-	if (rv == KERN_SUCCESS)
+	if (rv == KERN_SUCCESS) {
+#ifdef HWPMC_HOOKS
+		if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
+			PMC_SOFT_CALL_TF( , , page_fault, all, frame);
+			if (ftype == VM_PROT_READ)
+				PMC_SOFT_CALL_TF( , , page_fault, read,
+				    frame);
+			else
+				PMC_SOFT_CALL_TF( , , page_fault, write,
+				    frame);
+		}
+#endif
 		return (0);
+	}
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
-		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
-			frame->tf_rip = (long)PCPU_GET(curpcb)->pcb_onfault;
+		    curpcb->pcb_onfault != NULL) {
+			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);
 		return (-1);
 	}
-
-	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+	return ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
 
 static void
@@ -899,9 +953,9 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 /*
- *	syscall -	system call request C handler
- *
- *	A system call is essentially treated as a trap.
+ * System call handler for native binaries.  The trap frame is already
+ * set up by the assembler trampoline and a pointer to it is saved in
+ * td_frame.
  */
 void
 amd64_syscall(struct thread *td, int traced)
@@ -933,9 +987,20 @@ amd64_syscall(struct thread *td, int traced)
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("System call %s returing with kernel FPU ctx leaked",
 	     syscallname(td->td_proc, sa.code)));
-	KASSERT(td->td_pcb->pcb_save == &td->td_pcb->pcb_user_save,
+	KASSERT(td->td_pcb->pcb_save == get_pcb_user_save_td(td),
 	    ("System call %s returning with mangled pcb_save",
 	     syscallname(td->td_proc, sa.code)));
 
 	syscallret(td, error, &sa);
+
+	/*
+	 * If the user-supplied value of %rip is not a canonical
+	 * address, then some CPUs will trigger a ring 0 #GP during
+	 * the sysret instruction.  However, the fault handler would
+	 * execute in ring 0 with the user's %gs and %rsp which would
+	 * not be safe.  Instead, use the full return path which
+	 * catches the problem safely.
+	 */
+	if (td->td_frame->tf_rip >= VM_MAXUSER_ADDRESS)
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }

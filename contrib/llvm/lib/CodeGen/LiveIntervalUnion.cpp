@@ -21,6 +21,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
+#include <algorithm>
+
 using namespace llvm;
 
 
@@ -79,7 +81,6 @@ void LiveIntervalUnion::extract(LiveInterval &VirtReg) {
 
 void
 LiveIntervalUnion::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
-  OS << "LIU " << PrintReg(RepReg, TRI);
   if (empty()) {
     OS << " empty\n";
     return;
@@ -206,4 +207,27 @@ bool LiveIntervalUnion::Query::checkLoopInterference(MachineLoopRange *Loop) {
 
     VRI = VirtReg->advanceTo(VRI, Overlaps.start());
   }
+}
+
+void LiveIntervalUnion::Array::init(LiveIntervalUnion::Allocator &Alloc,
+                                    unsigned NSize) {
+  // Reuse existing allocation.
+  if (NSize == Size)
+    return;
+  clear();
+  Size = NSize;
+  LIUs = static_cast<LiveIntervalUnion*>(
+    malloc(sizeof(LiveIntervalUnion)*NSize));
+  for (unsigned i = 0; i != Size; ++i)
+    new(LIUs + i) LiveIntervalUnion(Alloc);
+}
+
+void LiveIntervalUnion::Array::clear() {
+  if (!LIUs)
+    return;
+  for (unsigned i = 0; i != Size; ++i)
+    LIUs[i].~LiveIntervalUnion();
+  free(LIUs);
+  Size =  0;
+  LIUs = 0;
 }

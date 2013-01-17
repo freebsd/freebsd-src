@@ -12,9 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/IRBuilder.h"
-#include "llvm/GlobalVariable.h"
 #include "llvm/Function.h"
+#include "llvm/GlobalVariable.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/LLVMContext.h"
 using namespace llvm;
@@ -24,11 +24,11 @@ using namespace llvm;
 /// specified.  If Name is specified, it is the name of the global variable
 /// created.
 Value *IRBuilderBase::CreateGlobalString(StringRef Str, const Twine &Name) {
-  Constant *StrConstant = ConstantArray::get(Context, Str, true);
+  Constant *StrConstant = ConstantDataArray::getString(Context, Str);
   Module &M = *BB->getParent()->getParent();
   GlobalVariable *GV = new GlobalVariable(M, StrConstant->getType(),
-                                          true, GlobalValue::InternalLinkage,
-                                          StrConstant, "", 0, false);
+                                          true, GlobalValue::PrivateLinkage,
+                                          StrConstant);
   GV->setName(Name);
   GV->setUnnamedAddr(true);
   return GV;
@@ -80,7 +80,7 @@ CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
 
 CallInst *IRBuilderBase::
 CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
-             bool isVolatile, MDNode *TBAATag) {
+             bool isVolatile, MDNode *TBAATag, MDNode *TBAAStructTag) {
   Dst = getCastedInt8PtrValue(Dst);
   Src = getCastedInt8PtrValue(Src);
 
@@ -94,6 +94,10 @@ CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
   // Set the TBAA info if present.
   if (TBAATag)
     CI->setMetadata(LLVMContext::MD_tbaa, TBAATag);
+
+  // Set the TBAA Struct info if present.
+  if (TBAAStructTag)
+    CI->setMetadata(LLVMContext::MD_tbaa_struct, TBAAStructTag);
   
   return CI;  
 }
@@ -120,13 +124,13 @@ CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
 
 CallInst *IRBuilderBase::CreateLifetimeStart(Value *Ptr, ConstantInt *Size) {
   assert(isa<PointerType>(Ptr->getType()) &&
-	 "lifetime.start only applies to pointers.");
+         "lifetime.start only applies to pointers.");
   Ptr = getCastedInt8PtrValue(Ptr);
   if (!Size)
     Size = getInt64(-1);
   else
     assert(Size->getType() == getInt64Ty() &&
-	   "lifetime.start requires the size to be an i64");
+           "lifetime.start requires the size to be an i64");
   Value *Ops[] = { Size, Ptr };
   Module *M = BB->getParent()->getParent();
   Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_start);
@@ -135,13 +139,13 @@ CallInst *IRBuilderBase::CreateLifetimeStart(Value *Ptr, ConstantInt *Size) {
 
 CallInst *IRBuilderBase::CreateLifetimeEnd(Value *Ptr, ConstantInt *Size) {
   assert(isa<PointerType>(Ptr->getType()) &&
-	 "lifetime.end only applies to pointers.");
+         "lifetime.end only applies to pointers.");
   Ptr = getCastedInt8PtrValue(Ptr);
   if (!Size)
     Size = getInt64(-1);
   else
     assert(Size->getType() == getInt64Ty() &&
-	   "lifetime.end requires the size to be an i64");
+           "lifetime.end requires the size to be an i64");
   Value *Ops[] = { Size, Ptr };
   Module *M = BB->getParent()->getParent();
   Value *TheFn = Intrinsic::getDeclaration(M, Intrinsic::lifetime_end);

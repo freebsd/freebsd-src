@@ -30,7 +30,7 @@
  */
 
 #ifndef __NLM_HAL_MMIO_H__
-#define __NLM_HAL_MMIO_H__
+#define	__NLM_HAL_MMIO_H__
 
 /*
  * This file contains platform specific memory mapped IO implementation

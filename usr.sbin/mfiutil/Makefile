@@ -6,7 +6,6 @@ SRCS=	mfiutil.c mfi_cmd.c mfi_config.c mfi_drive.c mfi_evt.c mfi_flash.c \
 MAN8=	mfiutil.8
 
 CFLAGS+= -fno-builtin-strftime
-WARNS?=3
 
 DPADD=	${LIBUTIL}
 LDADD=	-lutil

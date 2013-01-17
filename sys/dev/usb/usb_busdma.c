@@ -80,9 +80,9 @@ void
 usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
     struct usb_page_search *res)
 {
+#if USB_HAVE_BUSDMA
 	struct usb_page *page;
 
-#if USB_HAVE_BUSDMA
 	if (pc->page_start) {
 
 		/* Case 1 - something has been loaded into DMA */
@@ -108,7 +108,7 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 			res->length = USB_PAGE_SIZE - offset;
 			res->physaddr = page->physaddr + offset;
 		} else {
-			res->length = 0 - 1;
+			res->length = (usb_size_t)-1;
 			res->physaddr = page->physaddr + offset;
 		}
 		if (!pc->buffer) {
@@ -123,7 +123,7 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 	/* Case 2 - Plain PIO */
 
 	res->buffer = USB_ADD_BYTES(pc->buffer, offset);
-	res->length = 0 - 1;
+	res->length = (usb_size_t)-1;
 #if USB_HAVE_BUSDMA
 	res->physaddr = 0;
 #endif
@@ -145,7 +145,7 @@ usbd_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
 		if (buf_res.length > len) {
 			buf_res.length = len;
 		}
-		bcopy(ptr, buf_res.buffer, buf_res.length);
+		memcpy(buf_res.buffer, ptr, buf_res.length);
 
 		offset += buf_res.length;
 		len -= buf_res.length;
@@ -267,7 +267,7 @@ usbd_copy_out(struct usb_page_cache *cache, usb_frlength_t offset,
 		if (res.length > len) {
 			res.length = len;
 		}
-		bcopy(res.buffer, ptr, res.length);
+		memcpy(ptr, res.buffer, res.length);
 
 		offset += res.length;
 		len -= res.length;
@@ -325,7 +325,7 @@ usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 		if (res.length > len) {
 			res.length = len;
 		}
-		bzero(res.buffer, res.length);
+		memset(res.buffer, 0, res.length);
 
 		offset += res.length;
 		len -= res.length;
@@ -358,8 +358,7 @@ usb_dma_tag_create(struct usb_dma_tag *udt,
 	if (bus_dma_tag_create
 	    ( /* parent    */ udt->tag_parent->tag,
 	     /* alignment */ align,
-	     /* boundary  */ (align == 1) ?
-	    USB_PAGE_SIZE : 0,
+	     /* boundary  */ 0,
 	     /* lowaddr   */ (2ULL << (udt->tag_parent->dma_bits - 1)) - 1,
 	     /* highaddr  */ BUS_SPACE_MAXADDR,
 	     /* filter    */ NULL,
@@ -418,6 +417,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	struct usb_page_cache *pc;
 	struct usb_page *pg;
 	usb_size_t rem;
+	bus_size_t off;
 	uint8_t owned;
 
 	pc = arg;
@@ -433,6 +433,8 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	if (error) {
 		goto done;
 	}
+
+	off = 0;
 	pg = pc->page_start;
 	pg->physaddr = segs->ds_addr & ~(USB_PAGE_SIZE - 1);
 	rem = segs->ds_addr & (USB_PAGE_SIZE - 1);
@@ -450,10 +452,16 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	}
 #endif
 	while (nseg > 0) {
-		nseg--;
-		segs++;
+		off += USB_PAGE_SIZE;
+		if (off >= (segs->ds_len + rem)) {
+			/* page crossing */
+			nseg--;
+			segs++;
+			off = 0;
+			rem = 0;
+		}
 		pg++;
-		pg->physaddr = segs->ds_addr & ~(USB_PAGE_SIZE - 1);
+		pg->physaddr = (segs->ds_addr + off) & ~(USB_PAGE_SIZE - 1);
 	}
 
 done:
@@ -560,7 +568,7 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 		bus_dmamem_free(utag->tag, ptr, map);
 		goto error;
 	}
-	bzero(ptr, size);
+	memset(ptr, 0, size);
 
 	usb_pc_cpu_flush(pc);
 
@@ -797,7 +805,7 @@ usb_dma_tag_setup(struct usb_dma_parent_tag *udpt,
     struct mtx *mtx, usb_dma_callback_t *func,
     uint8_t ndmabits, uint8_t nudt)
 {
-	bzero(udpt, sizeof(*udpt));
+	memset(udpt, 0, sizeof(*udpt));
 
 	/* sanity checking */
 	if ((nudt == 0) ||
@@ -818,7 +826,7 @@ usb_dma_tag_setup(struct usb_dma_parent_tag *udpt,
 	udpt->dma_bits = ndmabits;
 
 	while (nudt--) {
-		bzero(udt, sizeof(*udt));
+		memset(udt, 0, sizeof(*udt));
 		udt->tag_parent = udpt;
 		udt++;
 	}

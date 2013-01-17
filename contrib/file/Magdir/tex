@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: tex,v 1.18 2011/02/08 13:45:15 christos Exp $
 # tex:  file(1) magic for TeX files
 #
 # XXX - needs byte-endian stuff (big-endian and little-endian DVI?)
@@ -35,34 +37,42 @@
 !:mime	text/x-info
 
 # TeX documents, from Daniel Quinlan (quinlan@yggdrasil.com)
-0	search/400	\\input		TeX document text
+0	search/4096	\\input		TeX document text
 !:mime	text/x-tex
-0	search/400	\\section	LaTeX document text
+!:strength + 15
+0	search/4096	\\section	LaTeX document text
 !:mime	text/x-tex
-0	search/400	\\setlength	LaTeX document text
+!:strength + 18
+0	search/4096	\\setlength	LaTeX document text
 !:mime	text/x-tex
-0	search/400	\\documentstyle	LaTeX document text
+!:strength + 15
+0	search/4096	\\documentstyle	LaTeX document text
 !:mime	text/x-tex
-0	search/400	\\chapter	LaTeX document text
+!:strength + 18
+0	search/4096	\\chapter	LaTeX document text
 !:mime	text/x-tex
-0	search/400	\\documentclass	LaTeX 2e document text
+!:strength + 18
+0	search/4096	\\documentclass	LaTeX 2e document text
 !:mime	text/x-tex
-0	search/400	\\relax		LaTeX auxiliary file
+!:strength + 15
+0	search/4096	\\relax		LaTeX auxiliary file
 !:mime	text/x-tex
-0	search/400	\\contentsline	LaTeX table of contents
+!:strength + 15
+0	search/4096	\\contentsline	LaTeX table of contents
 !:mime	text/x-tex
-0	search/400	%\ -*-latex-*-	LaTeX document text
+!:strength + 15
+0	search/4096	%\ -*-latex-*-	LaTeX document text
 !:mime	text/x-tex
 
 # Tex document, from Hendrik Scholz <hendrik@scholz.net>
 0   	search/1	\\ifx		TeX document text
 
 # Index and glossary files
-0	search/400	\\indexentry	LaTeX raw index file
-0	search/400	\\begin{theindex}	LaTeX sorted index
-0	search/400	\\glossaryentry	LaTeX raw glossary
-0	search/400	\\begin{theglossary}	LaTeX sorted glossary
-0	search/400	This\ is\ makeindex	Makeindex log file
+0	search/4096	\\indexentry	LaTeX raw index file
+0	search/4096	\\begin{theindex}	LaTeX sorted index
+0	search/4096	\\glossaryentry	LaTeX raw glossary
+0	search/4096	\\begin{theglossary}	LaTeX sorted glossary
+0	search/4096	This\ is\ makeindex	Makeindex log file
 
 # End of TeX
 
@@ -91,3 +101,5 @@
 0	search/1	%\ BibTeX\ `	BibTeX custom bibliography style text file
 
 0	search/1	@c\ @mapfile{	TeX font aliases text file
+
+0	string		#LyX		LyX document text

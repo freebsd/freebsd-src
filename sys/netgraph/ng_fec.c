@@ -753,7 +753,7 @@ static int
 ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifreq *const ifr = (struct ifreq *) data;
-	int s, error = 0;
+	int error = 0;
 	struct ng_fec_private	*priv;
 	struct ng_fec_bundle	*b;
 
@@ -763,7 +763,6 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 #ifdef DEBUG
 	ng_fec_print_ioctl(ifp, command, data);
 #endif
-	s = splimp();
 	switch (command) {
 
 	/* These two are mostly handled at a higher layer */
@@ -843,7 +842,6 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = EINVAL;
 		break;
 	}
-	(void) splx(s);
 	return (error);
 }
 
@@ -1332,7 +1330,7 @@ ng_fec_shutdown(node_p node)
 	}
 
 	ether_ifdetach(priv->ifp);
-	if_free_type(priv->ifp, IFT_ETHER);
+	if_free(priv->ifp);
 	ifmedia_removeall(&priv->ifmedia);
 	ng_fec_free_unit(priv->unit);
 	free(priv, M_NETGRAPH);

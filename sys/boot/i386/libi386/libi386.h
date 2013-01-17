@@ -30,7 +30,8 @@
 /*
  * i386 fully-qualified device descriptor.
  * Note, this must match the 'struct devdesc' declaration
- * in bootstrap.h.
+ * in bootstrap.h and also with struct zfs_devdesc for zfs
+ * support.
  */
 struct i386_devdesc
 {
@@ -44,11 +45,18 @@ struct i386_devdesc
 	    void	*data;
 	    int		slice;
 	    int		partition;
+	    off_t	offset;
 	} biosdisk;
 	struct
 	{
 	    void	*data;
 	} bioscd;
+	struct
+	{
+	    void	*data;
+	    uint64_t	pool_guid;
+	    uint64_t	root_guid;
+	} zfs;
     } d_kind;
 };
 
@@ -58,7 +66,8 @@ int	i386_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 extern struct devdesc	currdev;	/* our current device */
 
-#define MAXDEV	31			/* maximum number of distinct devices */
+#define MAXDEV		31		/* maximum number of distinct devices */
+#define MAXBDDEV	MAXDEV
 
 /* exported devices XXX rename? */
 extern struct devsw bioscd;
@@ -97,6 +106,7 @@ extern vm_offset_t	high_heap_base;	/* for use as the heap */
 int biospci_find_devclass(uint32_t class, int index, uint32_t *locator);
 int biospci_write_config(uint32_t locator, int offset, int width, uint32_t val);
 int biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);
+uint32_t biospci_locator(int8_t bus, uint8_t device, uint8_t function);
 
 void	biosacpi_detect(void);
 

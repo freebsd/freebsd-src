@@ -11,7 +11,6 @@
  *
  * ===----------------------------------------------------------------------===
  */
-#include "abi.h"
 
 #include "int_lib.h"
 /* Returns: convert a to a unsigned long long, rounding toward zero.
@@ -26,7 +25,7 @@
 
 /* seee eeee emmm mmmm mmmm mmmm mmmm mmmm */
 
-ARM_EABI_FNALIAS(f2ulz, fixunssfdi);
+ARM_EABI_FNALIAS(f2ulz, fixunssfdi)
 
 COMPILER_RT_ABI du_int
 __fixunssfdi(float a)

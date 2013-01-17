@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
  *        a FreeBSD domain to other domains.
  */
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -63,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/bitstring.h>
+#include <sys/sdt.h>
 
 #include <geom/geom.h>
 
@@ -121,10 +124,10 @@ __FBSDID("$FreeBSD$");
 /**
  * Custom malloc type for all driver allocations.
  */
-MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
+static MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
 
 #ifdef XBB_DEBUG
-#define DPRINTF(fmt, args...) \
+#define DPRINTF(fmt, args...)					\
     printf("xbb(%s:%d): " fmt, __FUNCTION__, __LINE__, ##args)
 #else
 #define DPRINTF(fmt, args...) do {} while(0)
@@ -134,7 +137,7 @@ MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
  * The maximum mapped region size per request we will allow in a negotiated
  * block-front/back communication channel.
  */
-#define	XBB_MAX_REQUEST_SIZE		\
+#define	XBB_MAX_REQUEST_SIZE					\
 	MIN(MAXPHYS, BLKIF_MAX_SEGMENTS_PER_REQUEST * PAGE_SIZE)
 
 /**
@@ -142,9 +145,9 @@ MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
  * segment blocks) per request we will allow in a negotiated block-front/back
  * communication channel.
  */
-#define	XBB_MAX_SEGMENTS_PER_REQUEST			\
-	(MIN(UIO_MAXIOV,				\
-	     MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,	\
+#define	XBB_MAX_SEGMENTS_PER_REQUEST				\
+	(MIN(UIO_MAXIOV,					\
+	     MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,		\
 		 (XBB_MAX_REQUEST_SIZE / PAGE_SIZE) + 1)))
 
 /**
@@ -980,9 +983,10 @@ xbb_get_gntaddr(struct xbb_xen_reqlist *reqlist, int pagenr, int sector)
 static uint8_t *
 xbb_get_kva(struct xbb_softc *xbb, int nr_pages)
 {
-	intptr_t first_clear, num_clear;
+	intptr_t first_clear;
+	intptr_t num_clear;
 	uint8_t *free_kva;
-	int i;
+	int      i;
 
 	KASSERT(nr_pages != 0, ("xbb_get_kva of zero length"));
 
@@ -1681,19 +1685,19 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 			req_ring_idx++;
 			switch (xbb->abi) {
 			case BLKIF_PROTOCOL_NATIVE:
-				sg = BLKRING_GET_SG_REQUEST(&xbb->rings.native,
-							    req_ring_idx);
+				sg = BLKRING_GET_SEG_BLOCK(&xbb->rings.native,
+							   req_ring_idx);
 				break;
 			case BLKIF_PROTOCOL_X86_32:
 			{
-				sg = BLKRING_GET_SG_REQUEST(&xbb->rings.x86_32,
-							    req_ring_idx);
+				sg = BLKRING_GET_SEG_BLOCK(&xbb->rings.x86_32,
+							   req_ring_idx);
 				break;
 			}
 			case BLKIF_PROTOCOL_X86_64:
 			{
-				sg = BLKRING_GET_SG_REQUEST(&xbb->rings.x86_64,
-							    req_ring_idx);
+				sg = BLKRING_GET_SEG_BLOCK(&xbb->rings.x86_64,
+							   req_ring_idx);
 				break;
 			}
 			default:
@@ -1817,8 +1821,8 @@ xbb_run_queue(void *context, int pending)
 	struct xbb_xen_reqlist *reqlist;
 
 
-	xbb	      = (struct xbb_softc *)context;
-	rings	      = &xbb->rings;
+	xbb   = (struct xbb_softc *)context;
+	rings = &xbb->rings;
 
 	/*
 	 * Work gather and dispatch loop.  Note that we have a bias here
@@ -2032,6 +2036,13 @@ xbb_intr(void *arg)
 	taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
 }
 
+SDT_PROVIDER_DEFINE(xbb);
+SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_dev, flush, flush, "int");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, read, read, "int", "uint64_t",
+		  "uint64_t");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, write, write, "int",
+		  "uint64_t", "uint64_t");
+
 /*----------------------------- Backend Handlers -----------------------------*/
 /**
  * Backend handler for character device access.
@@ -2086,6 +2097,9 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		bio->bio_pblkno	 = 0;
 
 		nreq->pendcnt	 = 1;
+
+		SDT_PROBE1(xbb, kernel, xbb_dispatch_dev, flush,
+			   device_get_unit(xbb->dev));
 
 		(*dev_data->csw->d_strategy)(bio);
 
@@ -2181,6 +2195,17 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 			       bios[bio_idx]->bio_bcount);
 		}
 #endif
+		if (operation == BIO_READ) {
+			SDT_PROBE3(xbb, kernel, xbb_dispatch_dev, read,
+				   device_get_unit(xbb->dev),
+				   bios[bio_idx]->bio_offset,
+				   bios[bio_idx]->bio_length);
+		} else if (operation == BIO_WRITE) {
+			SDT_PROBE3(xbb, kernel, xbb_dispatch_dev, write,
+				   device_get_unit(xbb->dev),
+				   bios[bio_idx]->bio_offset,
+				   bios[bio_idx]->bio_length);
+		}
 		(*dev_data->csw->d_strategy)(bios[bio_idx]);
 	}
 
@@ -2192,6 +2217,12 @@ fail_free_bios:
 	
 	return (error);
 }
+
+SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_file, flush, flush, "int");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, read, read, "int", "uint64_t",
+		  "uint64_t");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, write, write, "int",
+		  "uint64_t", "uint64_t");
 
 /**
  * Backend handler for file access.
@@ -2219,7 +2250,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	void                **p_vaddr;
 	int                   saved_uio_iovcnt;
 #endif /* XBB_USE_BOUNCE_BUFFERS */
-	int                   vfs_is_locked;
 	int                   error;
 
 	file_data = &xbb->backend.file;
@@ -2237,7 +2267,8 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	case BIO_FLUSH: {
 		struct mount *mountpoint;
 
-		vfs_is_locked = VFS_LOCK_GIANT(xbb->vn->v_mount);
+		SDT_PROBE1(xbb, kernel, xbb_dispatch_file, flush,
+			   device_get_unit(xbb->dev));
 
 		(void) vn_start_write(xbb->vn, &mountpoint, V_WAIT);
 
@@ -2246,8 +2277,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		VOP_UNLOCK(xbb->vn, 0);
 
 		vn_finished_write(mountpoint);
-
-		VFS_UNLOCK_GIANT(vfs_is_locked);
 
 		goto bailout_send_response;
 		/* NOTREACHED */
@@ -2332,9 +2361,12 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	}
 #endif /* XBB_USE_BOUNCE_BUFFERS */
 
-	vfs_is_locked = VFS_LOCK_GIANT(xbb->vn->v_mount);
 	switch (operation) {
 	case BIO_READ:
+
+		SDT_PROBE3(xbb, kernel, xbb_dispatch_file, read,
+			   device_get_unit(xbb->dev), xuio.uio_offset,
+			   xuio.uio_resid);
 
 		vn_lock(xbb->vn, LK_EXCLUSIVE | LK_RETRY);
 
@@ -2365,6 +2397,10 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		break;
 	case BIO_WRITE: {
 		struct mount *mountpoint;
+
+		SDT_PROBE3(xbb, kernel, xbb_dispatch_file, write,
+			   device_get_unit(xbb->dev), xuio.uio_offset,
+			   xuio.uio_resid);
 
 		(void)vn_start_write(xbb->vn, &mountpoint, V_WAIT);
 
@@ -2400,7 +2436,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		panic("invalid operation %d", operation);
 		/* NOTREACHED */
 	}
-	VFS_UNLOCK_GIANT(vfs_is_locked);
 
 #ifdef XBB_USE_BOUNCE_BUFFERS
 	/* We only need to copy here for read operations */
@@ -2447,7 +2482,6 @@ xbb_close_backend(struct xbb_softc *xbb)
 	DPRINTF("closing dev=%s\n", xbb->dev_name);
 	if (xbb->vn) {
 		int flags = FREAD;
-		int vfs_is_locked = 0;
 
 		if ((xbb->flags & XBBF_READ_ONLY) == 0)
 			flags |= FWRITE;
@@ -2462,7 +2496,6 @@ xbb_close_backend(struct xbb_softc *xbb)
 			}
 			break;
 		case XBB_TYPE_FILE:
-			vfs_is_locked = VFS_LOCK_GIANT(xbb->vn->v_mount);
 			break;
 		case XBB_TYPE_NONE:
 		default:
@@ -2477,7 +2510,6 @@ xbb_close_backend(struct xbb_softc *xbb)
 		case XBB_TYPE_DISK:
 			break;
 		case XBB_TYPE_FILE:
-			VFS_UNLOCK_GIANT(vfs_is_locked);
 			if (xbb->backend.file.cred != NULL) {
 				crfree(xbb->backend.file.cred);
 				xbb->backend.file.cred = NULL;
@@ -2642,7 +2674,6 @@ xbb_open_backend(struct xbb_softc *xbb)
 	struct nameidata nd;
 	int		 flags;
 	int		 error;
-	int		 vfs_is_locked;
 
 	flags = FREAD;
 	error = 0;
@@ -2702,8 +2733,6 @@ xbb_open_backend(struct xbb_softc *xbb)
 		return (error);
 	}
 
-	vfs_is_locked = NDHASGIANT(&nd);
-
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 		
 	xbb->vn = nd.ni_vp;
@@ -2719,7 +2748,6 @@ xbb_open_backend(struct xbb_softc *xbb)
 				 "or file", xbb->dev_name);
 	}
 	VOP_UNLOCK(xbb->vn, 0);
-	VFS_UNLOCK_GIANT(vfs_is_locked);
 
 	if (error != 0) {
 		xbb_close_backend(xbb);
@@ -3028,6 +3056,8 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 	const char *otherend_path;
 	int	    error;
 	u_int	    ring_idx;
+	u_int	    ring_page_order;
+	size_t	    ring_size;
 
 	otherend_path = xenbus_get_otherend_path(xbb->dev);
 
@@ -3035,23 +3065,19 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 	 * Protocol defaults valid even if all negotiation fails.
 	 */
 	xbb->ring_config.ring_pages = 1;
-	xbb->max_requests	    = BLKIF_MAX_RING_REQUESTS(PAGE_SIZE);
 	xbb->max_request_segments   = BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK;
 	xbb->max_request_size	    = xbb->max_request_segments * PAGE_SIZE;
 
 	/*
 	 * Mandatory data (used in all versions of the protocol) first.
 	 */
-	error = xs_gather(XST_NIL, otherend_path,
-			  "ring-ref", "%" PRIu32,
-			  &xbb->ring_config.ring_ref[0],
-			  "event-channel", "%" PRIu32,
-			  &xbb->ring_config.evtchn,
-			  NULL);
+	error = xs_scanf(XST_NIL, otherend_path,
+			 "event-channel", NULL, "%" PRIu32,
+			 &xbb->ring_config.evtchn);
 	if (error != 0) {
 		xenbus_dev_fatal(xbb->dev, error,
-				 "Unable to retrieve ring information from "
-				 "frontend %s.  Unable to connect.",
+				 "Unable to retrieve event-channel information "
+				 "from frontend %s.  Unable to connect.",
 				 xenbus_get_otherend_path(xbb->dev));
 		return (error);
 	}
@@ -3065,10 +3091,20 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 	 *       we must use independant calls in order to guarantee
 	 *       we don't miss information in a sparsly populated front-end
 	 *       tree.
+	 *
+	 * \note xs_scanf() does not update variables for unmatched
+	 *       fields.
 	 */
+	ring_page_order = 0;
 	(void)xs_scanf(XST_NIL, otherend_path,
-		       "ring-pages", NULL, "%u",
+		       "ring-page-order", NULL, "%u",
+		       &ring_page_order);
+	xbb->ring_config.ring_pages = 1 << ring_page_order;
+	(void)xs_scanf(XST_NIL, otherend_path,
+		       "num-ring-pages", NULL, "%u",
 		       &xbb->ring_config.ring_pages);
+	ring_size = PAGE_SIZE * xbb->ring_config.ring_pages;
+	xbb->max_requests = BLKIF_MAX_RING_REQUESTS(ring_size);
 
 	(void)xs_scanf(XST_NIL, otherend_path,
 		       "max-requests", NULL, "%u",
@@ -3084,7 +3120,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 
 	if (xbb->ring_config.ring_pages	> XBB_MAX_RING_PAGES) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed ring-pages of %u "
+				 "Front-end specified ring-pages of %u "
 				 "exceeds backend limit of %zu.  "
 				 "Unable to connect.",
 				 xbb->ring_config.ring_pages,
@@ -3092,7 +3128,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 		return (EINVAL);
 	} else if (xbb->max_requests > XBB_MAX_REQUESTS) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed max_requests of %u "
+				 "Front-end specified max_requests of %u "
 				 "exceeds backend limit of %u.  "
 				 "Unable to connect.",
 				 xbb->max_requests,
@@ -3100,7 +3136,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 		return (EINVAL);
 	} else if (xbb->max_request_segments > XBB_MAX_SEGMENTS_PER_REQUEST) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed max_requests_segments "
+				 "Front-end specified max_requests_segments "
 				 "of %u exceeds backend limit of %u.  "
 				 "Unable to connect.",
 				 xbb->max_request_segments,
@@ -3108,7 +3144,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 		return (EINVAL);
 	} else if (xbb->max_request_size > XBB_MAX_REQUEST_SIZE) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed max_request_size "
+				 "Front-end specified max_request_size "
 				 "of %u exceeds backend limit of %u.  "
 				 "Unable to connect.",
 				 xbb->max_request_size,
@@ -3116,21 +3152,38 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 		return (EINVAL);
 	}
 
-	/* If using a multi-page ring, pull in the remaining references. */
-	for (ring_idx = 1; ring_idx < xbb->ring_config.ring_pages; ring_idx++) {
-		char ring_ref_name[]= "ring_refXX";
-
-		snprintf(ring_ref_name, sizeof(ring_ref_name),
-			 "ring-ref%u", ring_idx);
-		error = xs_scanf(XST_NIL, otherend_path,
-				 ring_ref_name, NULL, "%" PRIu32,
-			         &xbb->ring_config.ring_ref[ring_idx]);
+	if (xbb->ring_config.ring_pages	== 1) {
+		error = xs_gather(XST_NIL, otherend_path,
+				  "ring-ref", "%" PRIu32,
+				  &xbb->ring_config.ring_ref[0],
+				  NULL);
 		if (error != 0) {
 			xenbus_dev_fatal(xbb->dev, error,
-					 "Failed to retriev grant reference "
-					 "for page %u of shared ring.  Unable "
-					 "to connect.", ring_idx);
+					 "Unable to retrieve ring information "
+					 "from frontend %s.  Unable to "
+					 "connect.",
+					 xenbus_get_otherend_path(xbb->dev));
 			return (error);
+		}
+	} else {
+		/* Multi-page ring format. */
+		for (ring_idx = 0; ring_idx < xbb->ring_config.ring_pages;
+		     ring_idx++) {
+			char ring_ref_name[]= "ring_refXX";
+
+			snprintf(ring_ref_name, sizeof(ring_ref_name),
+				 "ring-ref%u", ring_idx);
+			error = xs_scanf(XST_NIL, otherend_path,
+					 ring_ref_name, NULL, "%" PRIu32,
+					 &xbb->ring_config.ring_ref[ring_idx]);
+			if (error != 0) {
+				xenbus_dev_fatal(xbb->dev, error,
+						 "Failed to retriev grant "
+						 "reference for page %u of "
+						 "shared ring.  Unable "
+						 "to connect.", ring_idx);
+				return (error);
+			}
 		}
 	}
 
@@ -3197,8 +3250,8 @@ xbb_alloc_requests(struct xbb_softc *xbb)
 static int
 xbb_alloc_request_lists(struct xbb_softc *xbb)
 {
-	int i;
 	struct xbb_xen_reqlist *reqlist;
+	int			i;
 
 	/*
 	 * If no requests can be merged, we need 1 request list per
@@ -3318,7 +3371,7 @@ xbb_publish_backend_info(struct xbb_softc *xbb)
 static void
 xbb_connect(struct xbb_softc *xbb)
 {
-	int		      error;
+	int error;
 
 	if (xenbus_get_state(xbb->dev) == XenbusStateConnected)
 		return;
@@ -3399,7 +3452,8 @@ xbb_connect(struct xbb_softc *xbb)
 static int
 xbb_shutdown(struct xbb_softc *xbb)
 {
-	int error;
+	XenbusState frontState;
+	int	    error;
 
 	DPRINTF("\n");
 
@@ -3411,6 +3465,20 @@ xbb_shutdown(struct xbb_softc *xbb)
 	 * race to try back later. 
 	 */
 	if ((xbb->flags & XBBF_IN_SHUTDOWN) != 0)
+		return (EAGAIN);
+
+	xbb->flags |= XBBF_IN_SHUTDOWN;
+	mtx_unlock(&xbb->lock);
+
+	if (xenbus_get_state(xbb->dev) < XenbusStateClosing)
+		xenbus_set_state(xbb->dev, XenbusStateClosing);
+
+	frontState = xenbus_get_otherend_state(xbb->dev);
+	mtx_lock(&xbb->lock);
+	xbb->flags &= ~XBBF_IN_SHUTDOWN;
+
+	/* The front can submit I/O until entering the closed state. */
+	if (frontState < XenbusStateClosed)
 		return (EAGAIN);
 
 	DPRINTF("\n");
@@ -3433,15 +3501,6 @@ xbb_shutdown(struct xbb_softc *xbb)
 	}
 
 	DPRINTF("\n");
-
-	xbb->flags |= XBBF_IN_SHUTDOWN;
-	mtx_unlock(&xbb->lock);
-
-	if (xenbus_get_state(xbb->dev) < XenbusStateClosing)
-		xenbus_set_state(xbb->dev, XenbusStateClosing);
-
-	mtx_lock(&xbb->lock);
-	xbb->flags &= ~XBBF_IN_SHUTDOWN;
 
 	/* Indicate to xbb_detach() that is it safe to proceed. */
 	wakeup(xbb);
@@ -3569,6 +3628,16 @@ xbb_setup_sysctl(struct xbb_softc *xbb)
 		        "max_request_segments", CTLFLAG_RD,
 		        &xbb->max_request_segments, 0,
 		        "maximum number of pages per requests (negotiated)");
+
+	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+		        "max_request_size", CTLFLAG_RD,
+		        &xbb->max_request_size, 0,
+		        "maximum size in bytes of a request (negotiated)");
+
+	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+		        "ring_pages", CTLFLAG_RD,
+		        &xbb->ring_config.ring_pages, 0,
+		        "communication channel pages (negotiated)");
 }
 
 /**
@@ -3583,6 +3652,7 @@ xbb_attach(device_t dev)
 {
 	struct xbb_softc	*xbb;
 	int			 error;
+	u_int			 max_ring_page_order;
 
 	DPRINTF("Attaching to %s\n", xenbus_get_node(dev));
 
@@ -3617,10 +3687,23 @@ xbb_attach(device_t dev)
 		return (error);
 	}
 
+	/*
+	 * Amazon EC2 client compatility.  They refer to max-ring-pages
+	 * instead of to max-ring-page-order.
+	 */
 	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
 			  "max-ring-pages", "%zu", XBB_MAX_RING_PAGES);
 	if (error) {
 		xbb_attach_failed(xbb, error, "writing %s/max-ring-pages",
+				  xenbus_get_node(xbb->dev));
+		return (error);
+	}
+
+	max_ring_page_order = flsl(XBB_MAX_RING_PAGES) - 1;
+	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
+			  "max-ring-page-order", "%u", max_ring_page_order);
+	if (error) {
+		xbb_attach_failed(xbb, error, "writing %s/max-ring-page-order",
 				  xenbus_get_node(xbb->dev));
 		return (error);
 	}

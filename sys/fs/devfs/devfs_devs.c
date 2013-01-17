@@ -121,7 +121,7 @@ devfs_alloc(int flags)
 	struct cdev *cdev;
 	struct timespec ts;
 
-	cdp = malloc(sizeof *cdp, M_CDEVP, M_USE_RESERVE | M_ZERO |
+	cdp = malloc(sizeof *cdp, M_CDEVP, M_ZERO |
 	    ((flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK));
 	if (cdp == NULL)
 		return (NULL);
@@ -133,7 +133,6 @@ devfs_alloc(int flags)
 
 	cdev = &cdp->cdp_c;
 
-	cdev->si_name = cdev->__si_namebuf;
 	LIST_INIT(&cdev->si_children);
 	vfs_timestamp(&ts);
 	cdev->si_atime = cdev->si_mtime = cdev->si_ctime = ts;

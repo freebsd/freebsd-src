@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,13 +85,15 @@ ACPI_STATUS
 AcpiEvInitGlobalLockHandler (
     void);
 
+ACPI_HW_DEPENDENT_RETURN_OK (
 ACPI_STATUS
 AcpiEvAcquireGlobalLock(
-    UINT16                  Timeout);
+    UINT16                  Timeout))
 
+ACPI_HW_DEPENDENT_RETURN_OK (
 ACPI_STATUS
 AcpiEvReleaseGlobalLock(
-    void);
+    void))
 
 ACPI_STATUS
 AcpiEvRemoveGlobalLockHandler (
@@ -154,9 +156,10 @@ AcpiEvInitializeGpeBlock (
     ACPI_GPE_BLOCK_INFO     *GpeBlock,
     void                    *Context);
 
+ACPI_HW_DEPENDENT_RETURN_OK (
 ACPI_STATUS
 AcpiEvDeleteGpeBlock (
-    ACPI_GPE_BLOCK_INFO     *GpeBlock);
+    ACPI_GPE_BLOCK_INFO     *GpeBlock))
 
 UINT32
 AcpiEvGpeDispatch (
@@ -171,9 +174,10 @@ ACPI_STATUS
 AcpiEvGpeInitialize (
     void);
 
+ACPI_HW_DEPENDENT_RETURN_VOID (
 void
 AcpiEvUpdateGpes (
-    ACPI_OWNER_ID           TableOwnerId);
+    ACPI_OWNER_ID           TableOwnerId))
 
 ACPI_STATUS
 AcpiEvMatchGpeMethod (
@@ -228,7 +232,8 @@ AcpiEvInitializeOpRegions (
 
 ACPI_STATUS
 AcpiEvAddressSpaceDispatch (
-    ACPI_OPERAND_OBJECT    *RegionObj,
+    ACPI_OPERAND_OBJECT     *RegionObj,
+    ACPI_OPERAND_OBJECT     *FieldObj,
     UINT32                  Function,
     UINT32                  RegionOffset,
     UINT32                  BitWidth,
@@ -334,9 +339,9 @@ UINT32
 AcpiEvInitializeSCI (
     UINT32                  ProgramSCI);
 
+ACPI_HW_DEPENDENT_RETURN_VOID (
 void
 AcpiEvTerminate (
-    void);
-
+    void))
 
 #endif  /* __ACEVENTS_H__  */

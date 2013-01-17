@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -184,7 +185,7 @@ ffs_fsync(struct vop_fsync_args *ap)
 	vp = ap->a_vp;
 	bo = &vp->v_bufobj;
 retry:
-	error = ffs_syncvnode(vp, ap->a_waitfor);
+	error = ffs_syncvnode(vp, ap->a_waitfor, 0);
 	if (error)
 		return (error);
 	if (ap->a_waitfor == MNT_WAIT && DOINGSOFTDEP(vp)) {
@@ -209,7 +210,7 @@ retry:
 }
 
 int
-ffs_syncvnode(struct vnode *vp, int waitfor)
+ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 {
 	struct inode *ip;
 	struct bufobj *bo;
@@ -300,7 +301,10 @@ next:
 	}
 	if (waitfor != MNT_WAIT) {
 		BO_UNLOCK(bo);
-		return (ffs_update(vp, waitfor));
+		if ((flags & NO_INO_UPDT) != 0)
+			return (0);
+		else
+			return (ffs_update(vp, 0));
 	}
 	/* Drain IO to see if we're done. */
 	bufobj_wwait(bo, 0, 0);
@@ -317,9 +321,9 @@ next:
 	 */
 	if (bo->bo_dirty.bv_cnt > 0) {
 		/* Write the inode after sync passes to flush deps. */
-		if (wait && DOINGSOFTDEP(vp)) {
+		if (wait && DOINGSOFTDEP(vp) && (flags & NO_INO_UPDT) == 0) {
 			BO_UNLOCK(bo);
-			ffs_update(vp, MNT_WAIT);
+			ffs_update(vp, 1);
 			BO_LOCK(bo);
 		}
 		/* switch between sync/async. */
@@ -332,7 +336,9 @@ next:
 #endif
 	}
 	BO_UNLOCK(bo);
-	error = ffs_update(vp, MNT_WAIT);
+	error = 0;
+	if ((flags & NO_INO_UPDT) == 0)
+		error = ffs_update(vp, 1);
 	if (DOINGSUJ(vp))
 		softdep_journal_fsync(VTOI(vp));
 	return (error);
@@ -402,7 +408,6 @@ ffs_lock(ap)
 /*
  * Vnode op for reading.
  */
-/* ARGSUSED */
 static int
 ffs_read(ap)
 	struct vop_read_args /* {
@@ -420,7 +425,8 @@ ffs_read(ap)
 	ufs_lbn_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
-	int error, orig_resid;
+	ssize_t orig_resid;
+	int error;
 	int seqcount;
 	int ioflag;
 
@@ -562,7 +568,7 @@ ffs_read(ap)
 			xfersize = size;
 		}
 
-		error = uiomove((char *)bp->b_data + blkoffset,
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
 		    (int)xfersize, uio);
 		if (error)
 			break;
@@ -633,8 +639,9 @@ ffs_write(ap)
 	struct buf *bp;
 	ufs_lbn_t lbn;
 	off_t osize;
+	ssize_t resid;
 	int seqcount;
-	int blkoffset, error, flags, ioflag, resid, size, xfersize;
+	int blkoffset, error, flags, ioflag, size, xfersize;
 
 	vp = ap->a_vp;
 	uio = ap->a_uio;
@@ -718,15 +725,6 @@ ffs_write(ap)
 			vnode_pager_setsize(vp, ip->i_size);
 			break;
 		}
-		/*
-		 * If the buffer is not valid we have to clear out any
-		 * garbage data from the pages instantiated for the buffer.
-		 * If we do not, a failed uiomove() during a write can leave
-		 * the prior contents of the pages exposed to a userland
-		 * mmap().  XXX deal with uiomove() errors a better way.
-		 */
-		if ((bp->b_flags & B_CACHE) == 0 && fs->fs_bsize <= xfersize)
-			vfs_bio_clrbuf(bp);
 		if (ioflag & IO_DIRECT)
 			bp->b_flags |= B_DIRECT;
 		if ((ioflag & (IO_SYNC|IO_INVAL)) == (IO_SYNC|IO_INVAL))
@@ -741,8 +739,28 @@ ffs_write(ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		error = vn_io_fault_uiomove((char *)bp->b_data + blkoffset,
+		    (int)xfersize, uio);
+		/*
+		 * If the buffer is not already filled and we encounter an
+		 * error while trying to fill it, we have to clear out any
+		 * garbage data from the pages instantiated for the buffer.
+		 * If we do not, a failed uiomove() during a write can leave
+		 * the prior contents of the pages exposed to a userland mmap.
+		 *
+		 * Note that we need only clear buffers with a transfer size
+		 * equal to the block size because buffers with a shorter
+		 * transfer size were cleared above by the call to UFS_BALLOC()
+		 * with the BA_CLRBUF flag set.
+		 *
+		 * If the source region for uiomove identically mmaps the
+		 * buffer, uiomove() performed the NOP copy, and the buffer
+		 * content remains valid because the page fault handler
+		 * validated the pages.
+		 */
+		if (error != 0 && (bp->b_flags & B_CACHE) == 0 &&
+		    fs->fs_bsize == xfersize)
+			vfs_bio_clrbuf(bp);
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
 		   (LIST_EMPTY(&bp->b_dep))) {
 			bp->b_flags |= B_RELBUF;
@@ -795,8 +813,7 @@ ffs_write(ap)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_NORMAL | (ioflag & IO_SYNC),
-			    ap->a_cred, uio->uio_td);
+			    IO_NORMAL | (ioflag & IO_SYNC), ap->a_cred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -860,7 +877,8 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	ufs_lbn_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
-	int error, orig_resid;
+	ssize_t orig_resid;
+	int error;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
@@ -1013,7 +1031,8 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	struct buf *bp;
 	ufs_lbn_t lbn;
 	off_t osize;
-	int blkoffset, error, flags, resid, size, xfersize;
+	ssize_t resid;
+	int blkoffset, error, flags, size, xfersize;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
@@ -1116,7 +1135,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)ffs_truncate(vp, osize,
-			    IO_EXT | (ioflag&IO_SYNC), ucred, uio->uio_td);
+			    IO_EXT | (ioflag&IO_SYNC), ucred);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
@@ -1307,7 +1326,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 		luio.uio_td = td;
 		/* XXX: I'm not happy about truncating to zero size */
 		if (ip->i_ea_len < dp->di_extsize)
-			error = ffs_truncate(vp, 0, IO_EXT, cred, td);
+			error = ffs_truncate(vp, 0, IO_EXT, cred);
 		error = ffs_extwrite(vp, &luio, IO_EXT | IO_SYNC, cred);
 	}
 	if (--ip->i_ea_refs == 0) {
@@ -1630,7 +1649,8 @@ vop_setextattr {
 	struct inode *ip;
 	struct fs *fs;
 	uint32_t ealength, ul;
-	int ealen, olen, eapad1, eapad2, error, i, easize;
+	ssize_t ealen;
+	int olen, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
 
 	ip = VTOI(ap->a_vp);
@@ -1649,6 +1669,10 @@ vop_setextattr {
 	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (EROFS);
 
+	ealen = ap->a_uio->uio_resid;
+	if (ealen < 0 || ealen > lblktosize(fs, NXADDR))
+		return (EINVAL);
+
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
@@ -1666,7 +1690,6 @@ vop_setextattr {
 	if (error)
 		return (error);
 
-	ealen = ap->a_uio->uio_resid;
 	ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
 	eapad1 = 8 - (ealength % 8);
 	if (eapad1 == 8)
@@ -1694,7 +1717,7 @@ vop_setextattr {
 			easize += (ealength - ul);
 		}
 	}
-	if (easize > NXADDR * fs->fs_bsize) {
+	if (easize > lblktosize(fs, NXADDR)) {
 		free(eae, M_TEMP);
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)

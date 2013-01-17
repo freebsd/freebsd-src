@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1998-2002, 2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998-2002, 2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -37,7 +37,7 @@
 #include "ftp_locl.h"
 #endif
 
-RCSID("$Id: security.c 21225 2007-06-20 10:16:02Z lha $");
+RCSID("$Id$");
 
 static enum protection_level command_prot;
 static enum protection_level data_prot;
@@ -74,14 +74,14 @@ level_to_name(enum protection_level level)
 }
 
 #ifndef FTP_SERVER /* not used in server */
-static enum protection_level 
+static enum protection_level
 name_to_level(const char *name)
 {
     int i;
     for(i = 0; i < sizeof(level_names) / sizeof(level_names[0]); i++)
 	if(!strncasecmp(level_names[i].name, name, strlen(name)))
 	    return level_names[i].level;
-    return (enum protection_level)-1;
+    return prot_invalid;
 }
 #endif
 
@@ -90,9 +90,6 @@ name_to_level(const char *name)
 static struct sec_server_mech *mechs[] = {
 #ifdef KRB5
     &gss_server_mech,
-#endif
-#ifdef KRB4
-    &krb4_server_mech,
 #endif
     NULL
 };
@@ -104,9 +101,6 @@ static struct sec_server_mech *mech;
 static struct sec_client_mech *mechs[] = {
 #ifdef KRB5
     &gss_client_mech,
-#endif
-#ifdef KRB4
-    &krb4_client_mech,
 #endif
     NULL
 };
@@ -229,12 +223,12 @@ sec_read(int fd, void *dataptr, int length)
 	in_buffer.eof_flag = 0;
 	return 0;
     }
-    
+
     len = buffer_read(&in_buffer, dataptr, length);
     length -= len;
     rx += len;
     dataptr = (char*)dataptr + len;
-    
+
     while(length){
 	int ret;
 
@@ -286,7 +280,7 @@ sec_write(int fd, char *dataptr, int length)
 {
     int len = buffer_size;
     int tx = 0;
-      
+
     if(data_prot == prot_clear)
 	return write(fd, dataptr, length);
 
@@ -337,7 +331,7 @@ sec_putc(int c, FILE *F)
     char ch = c;
     if(data_prot == prot_clear)
 	return putc(c, F);
-    
+
     buffer_write(&out_buffer, &ch, 1);
     if(c == '\n' || out_buffer.index >= 1024 /* XXX */) {
 	sec_write(fileno(F), out_buffer.data, out_buffer.index);
@@ -352,14 +346,14 @@ sec_read_msg(char *s, int level)
     int len;
     char *buf;
     int return_code;
-    
+
     buf = malloc(strlen(s));
     len = base64_decode(s + 4, buf); /* XXX */
-    
+
     len = (*mech->decode)(app_data, buf, len, level);
     if(len < 0)
 	return -1;
-    
+
     buf[len] = '\0';
 
     if(buf[3] == '-')
@@ -381,7 +375,7 @@ sec_vfprintf(FILE *f, const char *fmt, va_list ap)
     int len;
     if(!sec_complete)
 	return vfprintf(f, fmt, ap);
-    
+
     if (vasprintf(&buf, fmt, ap) == -1) {
 	printf("Failed to allocate command.\n");
 	return -1;
@@ -520,10 +514,10 @@ prot(char *pl)
 	reply(504, "Unrecognized protection level.");
 	return;
     }
-    
+
     if(sec_complete){
 	if((*mech->check_prot)(app_data, p)){
-	    reply(536, "%s does not support %s protection.", 
+	    reply(536, "%s does not support %s protection.",
 		  mech->name, level_to_name(p));
 	}else{
 	    data_prot = (enum protection_level)p;
@@ -556,14 +550,20 @@ void mec(char *msg, enum protection_level level)
     }
     buf_size = strlen(msg) + 2;
     buf = malloc(buf_size);
+    if (buf == NULL) {
+	reply(501, "Failed to allocate %lu", (unsigned long)buf_size);
+	return;
+    }
     len = base64_decode(msg, buf);
     command_prot = level;
     if(len == (size_t)-1) {
+	free(buf);
 	reply(501, "Failed to base64-decode command");
 	return;
     }
     len = (*mech->decode)(app_data, buf, len, level);
     if(len == (size_t)-1) {
+	free(buf);
 	reply(535, "Failed to decode command");
 	return;
     }
@@ -628,7 +628,7 @@ sec_status(void)
 	printf("Using %s command channel.\n", level_to_name(command_prot));
 	printf("Using %s data channel.\n", level_to_name(data_prot));
 	if(buffer_size > 0)
-	    printf("Protection buffer size: %lu.\n", 
+	    printf("Protection buffer size: %lu.\n",
 		   (unsigned long)buffer_size);
     }else{
 	printf("Not using any security mechanism.\n");
@@ -669,7 +669,7 @@ sec_prot_internal(int level)
 	printf("Failed to set protection level.\n");
 	return -1;
     }
-    
+
     data_prot = (enum protection_level)level;
     return 0;
 }
@@ -683,7 +683,7 @@ set_command_prot(enum protection_level level)
 	ret = command("CCC");
 	if(ret != COMPLETE) {
 	    printf("Failed to clear command channel.\n");
-	    return -1;
+	    return prot_invalid;
 	}
     }
     command_prot = level;
@@ -708,17 +708,17 @@ sec_prot(int argc, char **argv)
 	return;
     }
     level = name_to_level(argv[argc - 1]);
-    
+
     if(level == -1)
 	goto usage;
-    
+
     if((*mech->check_prot)(app_data, level)) {
-	printf("%s does not implement %s protection.\n", 
+	printf("%s does not implement %s protection.\n",
 	       mech->name, level_to_name(level));
 	code = -1;
 	return;
     }
-    
+
     if(argc == 2 || strncasecmp(argv[1], "data", strlen(argv[1])) == 0) {
 	if(sec_prot_internal(level) < 0){
 	    code = -1;
@@ -759,9 +759,9 @@ sec_prot_command(int argc, char **argv)
 	level = name_to_level(argv[1]);
 	if(level == -1)
 	    goto usage;
-    
+
 	if((*mech->check_prot)(app_data, level)) {
-	    printf("%s does not implement %s protection.\n", 
+	    printf("%s does not implement %s protection.\n",
 		   mech->name, level_to_name(level));
 	    code = -1;
 	    return;
@@ -808,7 +808,7 @@ sec_login(char *host)
 
     verbose = -1; /* shut up all messages this will produce (they
 		     are usually not very user friendly) */
-    
+
     for(m = mechs; *m && (*m)->name; m++) {
 	void *tmp;
 
@@ -818,7 +818,7 @@ sec_login(char *host)
 	    return -1;
 	}
 	app_data = tmp;
-	    
+
 	if((*m)->init && (*(*m)->init)(app_data) != 0) {
 	    printf("Skipping %s...\n", (*m)->name);
 	    continue;
@@ -840,7 +840,7 @@ sec_login(char *host)
 	}
 
 	ret = (*(*m)->auth)(app_data, host);
-	
+
 	if(ret == AUTH_CONTINUE)
 	    continue;
 	else if(ret != AUTH_OK){
@@ -852,13 +852,13 @@ sec_login(char *host)
 	sec_complete = 1;
 	if(doencrypt) {
 	    command_prot = prot_private;
-	    request_data_prot = prot_private; 
+	    request_data_prot = prot_private;
 	} else {
 	    command_prot = prot_safe;
 	}
 	break;
     }
-    
+
     verbose = old_verbose;
     return *m == NULL;
 }

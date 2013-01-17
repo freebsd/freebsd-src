@@ -13,192 +13,200 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "EDEmitter.h"
-
 #include "AsmWriterInst.h"
 #include "CodeGenTarget.h"
-
-#include "llvm/TableGen/Record.h"
 #include "llvm/MC/EDInstInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <string>
 #include <vector>
 
 using namespace llvm;
 
+// TODO: There's a suspiciously large amount of "table" data in this
+// backend which should probably be in the TableGen file itself.
+
 ///////////////////////////////////////////////////////////
 // Support classes for emitting nested C data structures //
 ///////////////////////////////////////////////////////////
 
+// TODO: These classes are probably generally useful to other backends;
+// add them to TableGen's "helper" API's.
+
 namespace {
+class EnumEmitter {
+private:
+  std::string Name;
+  std::vector<std::string> Entries;
+public:
+  EnumEmitter(const char *N) : Name(N) {
+  }
+  int addEntry(const char *e) {
+    Entries.push_back(std::string(e));
+    return Entries.size() - 1;
+  }
+  void emit(raw_ostream &o, unsigned int &i) {
+    o.indent(i) << "enum " << Name.c_str() << " {" << "\n";
+    i += 2;
 
-  class EnumEmitter {
-  private:
-    std::string Name;
-    std::vector<std::string> Entries;
-  public:
-    EnumEmitter(const char *N) : Name(N) {
-    }
-    int addEntry(const char *e) {
-      Entries.push_back(std::string(e));
-      return Entries.size() - 1;
-    }
-    void emit(raw_ostream &o, unsigned int &i) {
-      o.indent(i) << "enum " << Name.c_str() << " {" << "\n";
-      i += 2;
-
-      unsigned int index = 0;
-      unsigned int numEntries = Entries.size();
-      for (index = 0; index < numEntries; ++index) {
-        o.indent(i) << Entries[index];
-        if (index < (numEntries - 1))
-          o << ",";
-        o << "\n";
-      }
-
-      i -= 2;
-      o.indent(i) << "};" << "\n";
+    unsigned int index = 0;
+    unsigned int numEntries = Entries.size();
+    for (index = 0; index < numEntries; ++index) {
+      o.indent(i) << Entries[index];
+      if (index < (numEntries - 1))
+        o << ",";
+      o << "\n";
     }
 
-    void emitAsFlags(raw_ostream &o, unsigned int &i) {
-      o.indent(i) << "enum " << Name.c_str() << " {" << "\n";
-      i += 2;
+    i -= 2;
+    o.indent(i) << "};" << "\n";
+  }
 
-      unsigned int index = 0;
-      unsigned int numEntries = Entries.size();
-      unsigned int flag = 1;
-      for (index = 0; index < numEntries; ++index) {
-        o.indent(i) << Entries[index] << " = " << format("0x%x", flag);
-        if (index < (numEntries - 1))
-          o << ",";
-        o << "\n";
-        flag <<= 1;
-      }
+  void emitAsFlags(raw_ostream &o, unsigned int &i) {
+    o.indent(i) << "enum " << Name.c_str() << " {" << "\n";
+    i += 2;
 
-      i -= 2;
-      o.indent(i) << "};" << "\n";
+    unsigned int index = 0;
+    unsigned int numEntries = Entries.size();
+    unsigned int flag = 1;
+    for (index = 0; index < numEntries; ++index) {
+      o.indent(i) << Entries[index] << " = " << format("0x%x", flag);
+      if (index < (numEntries - 1))
+        o << ",";
+      o << "\n";
+      flag <<= 1;
     }
+
+    i -= 2;
+    o.indent(i) << "};" << "\n";
+  }
+};
+} // End anonymous namespace
+
+namespace {
+class ConstantEmitter {
+public:
+  virtual ~ConstantEmitter() { }
+  virtual void emit(raw_ostream &o, unsigned int &i) = 0;
+};
+} // End anonymous namespace
+
+namespace {
+class LiteralConstantEmitter : public ConstantEmitter {
+private:
+  bool IsNumber;
+  union {
+    int Number;
+    const char* String;
   };
+public:
+  LiteralConstantEmitter(int number = 0) :
+    IsNumber(true),
+    Number(number) {
+  }
+  void set(const char *string) {
+    IsNumber = false;
+    Number = 0;
+    String = string;
+  }
+  bool is(const char *string) {
+    return !strcmp(String, string);
+  }
+  void emit(raw_ostream &o, unsigned int &i) {
+    if (IsNumber)
+      o << Number;
+    else
+      o << String;
+  }
+};
+} // End anonymous namespace
 
-  class ConstantEmitter {
-  public:
-    virtual ~ConstantEmitter() { }
-    virtual void emit(raw_ostream &o, unsigned int &i) = 0;
-  };
+namespace {
+class CompoundConstantEmitter : public ConstantEmitter {
+private:
+  unsigned int Padding;
+  std::vector<ConstantEmitter *> Entries;
+public:
+  CompoundConstantEmitter(unsigned int padding = 0) : Padding(padding) {
+  }
+  CompoundConstantEmitter &addEntry(ConstantEmitter *e) {
+    Entries.push_back(e);
 
-  class LiteralConstantEmitter : public ConstantEmitter {
-  private:
-    bool IsNumber;
-    union {
-      int Number;
-      const char* String;
-    };
-  public:
-    LiteralConstantEmitter(int number = 0) :
-      IsNumber(true),
-      Number(number) {
+    return *this;
+  }
+  ~CompoundConstantEmitter() {
+    while (Entries.size()) {
+      ConstantEmitter *entry = Entries.back();
+      Entries.pop_back();
+      delete entry;
     }
-    void set(const char *string) {
-      IsNumber = false;
-      Number = 0;
-      String = string;
+  }
+  void emit(raw_ostream &o, unsigned int &i) {
+    o << "{" << "\n";
+    i += 2;
+
+    unsigned int index;
+    unsigned int numEntries = Entries.size();
+
+    unsigned int numToPrint;
+
+    if (Padding) {
+      if (numEntries > Padding) {
+        fprintf(stderr, "%u entries but %u padding\n", numEntries, Padding);
+        llvm_unreachable("More entries than padding");
+      }
+      numToPrint = Padding;
+    } else {
+      numToPrint = numEntries;
     }
-    bool is(const char *string) {
-      return !strcmp(String, string);
-    }
-    void emit(raw_ostream &o, unsigned int &i) {
-      if (IsNumber)
-        o << Number;
+
+    for (index = 0; index < numToPrint; ++index) {
+      o.indent(i);
+      if (index < numEntries)
+        Entries[index]->emit(o, i);
       else
-        o << String;
+        o << "-1";
+
+      if (index < (numToPrint - 1))
+        o << ",";
+      o << "\n";
     }
-  };
 
-  class CompoundConstantEmitter : public ConstantEmitter {
-  private:
-    unsigned int Padding;
-    std::vector<ConstantEmitter *> Entries;
-  public:
-    CompoundConstantEmitter(unsigned int padding = 0) : Padding(padding) {
+    i -= 2;
+    o.indent(i) << "}";
+  }
+};
+} // End anonymous namespace
+
+namespace {
+class FlagsConstantEmitter : public ConstantEmitter {
+private:
+  std::vector<std::string> Flags;
+public:
+  FlagsConstantEmitter() {
+  }
+  FlagsConstantEmitter &addEntry(const char *f) {
+    Flags.push_back(std::string(f));
+    return *this;
+  }
+  void emit(raw_ostream &o, unsigned int &i) {
+    unsigned int index;
+    unsigned int numFlags = Flags.size();
+    if (numFlags == 0)
+      o << "0";
+
+    for (index = 0; index < numFlags; ++index) {
+      o << Flags[index].c_str();
+      if (index < (numFlags - 1))
+        o << " | ";
     }
-    CompoundConstantEmitter &addEntry(ConstantEmitter *e) {
-      Entries.push_back(e);
-
-      return *this;
-    }
-    ~CompoundConstantEmitter() {
-      while (Entries.size()) {
-        ConstantEmitter *entry = Entries.back();
-        Entries.pop_back();
-        delete entry;
-      }
-    }
-    void emit(raw_ostream &o, unsigned int &i) {
-      o << "{" << "\n";
-      i += 2;
-
-      unsigned int index;
-      unsigned int numEntries = Entries.size();
-
-      unsigned int numToPrint;
-
-      if (Padding) {
-        if (numEntries > Padding) {
-          fprintf(stderr, "%u entries but %u padding\n", numEntries, Padding);
-          llvm_unreachable("More entries than padding");
-        }
-        numToPrint = Padding;
-      } else {
-        numToPrint = numEntries;
-      }
-
-      for (index = 0; index < numToPrint; ++index) {
-        o.indent(i);
-        if (index < numEntries)
-          Entries[index]->emit(o, i);
-        else
-          o << "-1";
-
-        if (index < (numToPrint - 1))
-          o << ",";
-        o << "\n";
-      }
-
-      i -= 2;
-      o.indent(i) << "}";
-    }
-  };
-
-  class FlagsConstantEmitter : public ConstantEmitter {
-  private:
-    std::vector<std::string> Flags;
-  public:
-    FlagsConstantEmitter() {
-    }
-    FlagsConstantEmitter &addEntry(const char *f) {
-      Flags.push_back(std::string(f));
-      return *this;
-    }
-    void emit(raw_ostream &o, unsigned int &i) {
-      unsigned int index;
-      unsigned int numFlags = Flags.size();
-      if (numFlags == 0)
-        o << "0";
-
-      for (index = 0; index < numFlags; ++index) {
-        o << Flags[index].c_str();
-        if (index < (numFlags - 1))
-          o << " | ";
-      }
-    }
-  };
-}
-
-EDEmitter::EDEmitter(RecordKeeper &R) : Records(R) {
-}
+  }
+};
+} // End anonymous namespace
 
 /// populateOperandOrder - Accepts a CodeGenInstruction and generates its
 ///   AsmWriterInst for the desired assembly syntax, giving an ordered list of
@@ -213,9 +221,9 @@ EDEmitter::EDEmitter(RecordKeeper &R) : Records(R) {
 ///                     representing an index in the operand descriptor array.
 /// @arg inst         - The instruction to use when looking up the operands
 /// @arg syntax       - The syntax to use, according to LLVM's enumeration
-void populateOperandOrder(CompoundConstantEmitter *operandOrder,
-                          const CodeGenInstruction &inst,
-                          unsigned syntax) {
+static void populateOperandOrder(CompoundConstantEmitter *operandOrder,
+                                 const CodeGenInstruction &inst,
+                                 unsigned syntax) {
   unsigned int numArgs = 0;
 
   AsmWriterInst awInst(inst, syntax, -1, -1);
@@ -287,6 +295,7 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   IMM("i64i8imm");
   IMM("i64i32imm");
   IMM("SSECC");
+  IMM("AVXCC");
 
   // all R, I, R, I, R
   MEM("i8mem");
@@ -309,6 +318,11 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
   MEM("f128mem");
   MEM("f256mem");
   MEM("opaque512mem");
+  // Gather
+  MEM("vx32mem")
+  MEM("vy32mem")
+  MEM("vx64mem")
+  MEM("vy64mem")
 
   // all R, I, R, I
   LEA("lea32mem");
@@ -345,8 +359,8 @@ static int X86TypeFromOpName(LiteralConstantEmitter *type,
 /// X86PopulateOperands - Handles all the operands in an X86 instruction, adding
 ///   the appropriate flags to their descriptors
 ///
-/// @operandFlags - A reference the array of operand flag objects
-/// @inst         - The instruction to use as a source of information
+/// \param operandTypes A reference the array of operand type objects
+/// \param inst         The instruction to use as a source of information
 static void X86PopulateOperands(
   LiteralConstantEmitter *(&operandTypes)[EDIS_MAX_OPERANDS],
   const CodeGenInstruction &inst) {
@@ -372,11 +386,12 @@ static void X86PopulateOperands(
 
 /// decorate1 - Decorates a named operand with a new flag
 ///
-/// @operandFlags - The array of operand flag objects, which don't have names
-/// @inst         - The CodeGenInstruction, which provides a way to translate
-///                 between names and operand indices
-/// @opName       - The name of the operand
-/// @flag         - The name of the flag to add
+/// \param operandFlags The array of operand flag objects, which don't have
+///                     names
+/// \param inst         The CodeGenInstruction, which provides a way to
+//                      translate between names and operand indices
+/// \param opName       The name of the operand
+/// \param opFlag       The name of the flag to add
 static inline void decorate1(
   FlagsConstantEmitter *(&operandFlags)[EDIS_MAX_OPERANDS],
   const CodeGenInstruction &inst,
@@ -425,9 +440,9 @@ static inline void decorate1(
 ///   instruction to determine what sort of an instruction it is and then adds
 ///   the appropriate flags to the instruction and its operands
 ///
-/// @arg instType     - A reference to the type for the instruction as a whole
-/// @arg operandFlags - A reference to the array of operand flag object pointers
-/// @arg inst         - A reference to the original instruction
+/// \param instType     A reference to the type for the instruction as a whole
+/// \param operandFlags A reference to the array of operand flag object pointers
+/// \param inst         A reference to the original instruction
 static void X86ExtractSemantics(
   LiteralConstantEmitter &instType,
   FlagsConstantEmitter *(&operandFlags)[EDIS_MAX_OPERANDS],
@@ -519,6 +534,8 @@ static void X86ExtractSemantics(
       // ignore (doesn't go anywhere we know about)
     } else if (name.find("VMCALL") != name.npos) {
       // ignore (rather different semantics than a regular call)
+    } else if (name.find("VMMCALL") != name.npos) {
+      // ignore (rather different semantics than a regular call)
     } else if (name.find("FAR") != name.npos && name.find("i") != name.npos) {
       CALL("off");
     } else {
@@ -552,8 +569,8 @@ static void X86ExtractSemantics(
 /// ARMFlagFromOpName - Processes the name of a single ARM operand (which is
 ///   actually its type) and translates it into an operand type
 ///
-/// @arg type     - The type object to set
-/// @arg name     - The name of the operand
+/// \param type The type object to set
+/// \param name The name of the operand
 static int ARMFlagFromOpName(LiteralConstantEmitter *type,
                              const std::string &name) {
   REG("GPR");
@@ -567,12 +584,23 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   REG("DPR");
   REG("DPR_VFP2");
   REG("DPR_8");
+  REG("DPair");
   REG("SPR");
   REG("QPR");
   REG("QQPR");
   REG("QQQQPR");
+  REG("VecListOneD");
+  REG("VecListDPair");
+  REG("VecListDPairSpaced");
+  REG("VecListThreeD");
+  REG("VecListFourD");
+  REG("VecListOneDAllLanes");
+  REG("VecListDPairAllLanes");
+  REG("VecListDPairSpacedAllLanes");
 
   IMM("i32imm");
+  IMM("fbits16");
+  IMM("fbits32");
   IMM("i32imm_hilo16");
   IMM("bf_inv_mask_imm");
   IMM("lsb_pos_imm");
@@ -580,6 +608,7 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("jtblock_operand");
   IMM("nohash_imm");
   IMM("p_imm");
+  IMM("pf_imm");
   IMM("c_imm");
   IMM("coproc_option_imm");
   IMM("imod_op");
@@ -597,6 +626,20 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
   IMM("imm1_16");
   IMM("imm1_32");
   IMM("nModImm");
+  IMM("nImmSplatI8");
+  IMM("nImmSplatI16");
+  IMM("nImmSplatI32");
+  IMM("nImmSplatI64");
+  IMM("nImmVMOVI32");
+  IMM("nImmVMOVF32");
+  IMM("imm8");
+  IMM("imm16");
+  IMM("imm32");
+  IMM("imm1_7");
+  IMM("imm1_15");
+  IMM("imm1_31");
+  IMM("imm0_1");
+  IMM("imm0_3");
   IMM("imm0_7");
   IMM("imm0_15");
   IMM("imm0_255");
@@ -709,8 +752,8 @@ static int ARMFlagFromOpName(LiteralConstantEmitter *type,
 /// ARMPopulateOperands - Handles all the operands in an ARM instruction, adding
 ///   the appropriate flags to their descriptors
 ///
-/// @operandFlags - A reference the array of operand flag objects
-/// @inst         - The instruction to use as a source of information
+/// \param operandTypes A reference the array of operand type objects
+/// \param inst         The instruction to use as a source of information
 static void ARMPopulateOperands(
   LiteralConstantEmitter *(&operandTypes)[EDIS_MAX_OPERANDS],
   const CodeGenInstruction &inst) {
@@ -735,7 +778,7 @@ static void ARMPopulateOperands(
       errs() << "Operand type: " << rec.getName() << '\n';
       errs() << "Operand name: " << operandInfo.Name << '\n';
       errs() << "Instruction name: " << inst.TheDef->getName() << '\n';
-      llvm_unreachable("Unhandled type");
+      PrintFatalError("Unhandled type in EDEmitter");
     }
   }
 }
@@ -749,10 +792,10 @@ static void ARMPopulateOperands(
 ///   instruction to determine what sort of an instruction it is and then adds
 ///   the appropriate flags to the instruction and its operands
 ///
-/// @arg instType     - A reference to the type for the instruction as a whole
-/// @arg operandTypes - A reference to the array of operand type object pointers
-/// @arg operandFlags - A reference to the array of operand flag object pointers
-/// @arg inst         - A reference to the original instruction
+/// \param instType     A reference to the type for the instruction as a whole
+/// \param operandTypes A reference to the array of operand type object pointers
+/// \param operandFlags A reference to the array of operand flag object pointers
+/// \param inst         A reference to the original instruction
 static void ARMExtractSemantics(
   LiteralConstantEmitter &instType,
   LiteralConstantEmitter *(&operandTypes)[EDIS_MAX_OPERANDS],
@@ -790,8 +833,8 @@ static void ARMExtractSemantics(
 /// populateInstInfo - Fills an array of InstInfos with information about each
 ///   instruction in a target
 ///
-/// @arg infoArray  - The array of InstInfo objects to populate
-/// @arg target     - The CodeGenTarget to use as a source of instructions
+/// \param infoArray The array of InstInfo objects to populate
+/// \param target    The CodeGenTarget to use as a source of instructions
 static void populateInstInfo(CompoundConstantEmitter &infoArray,
                              CodeGenTarget &target) {
   const std::vector<const CodeGenInstruction*> &numberedInstructions =
@@ -946,21 +989,23 @@ static void emitCommonEnums(raw_ostream &o, unsigned int &i) {
   o << "\n";
 }
 
-void EDEmitter::run(raw_ostream &o) {
+namespace llvm {
+
+void EmitEnhancedDisassemblerInfo(RecordKeeper &RK, raw_ostream &OS) {
+  emitSourceFileHeader("Enhanced Disassembler Info", OS);
   unsigned int i = 0;
 
   CompoundConstantEmitter infoArray;
-  CodeGenTarget target(Records);
+  CodeGenTarget target(RK);
 
   populateInstInfo(infoArray, target);
 
-  emitCommonEnums(o, i);
+  emitCommonEnums(OS, i);
 
-  o << "namespace {\n";
-
-  o << "llvm::EDInstInfo instInfo" << target.getName().c_str() << "[] = ";
-  infoArray.emit(o, i);
-  o << ";" << "\n";
-
-  o << "}\n";
+  OS << "static const llvm::EDInstInfo instInfo"
+     << target.getName() << "[] = ";
+  infoArray.emit(OS, i);
+  OS << ";" << "\n";
 }
+
+} // End llvm namespace

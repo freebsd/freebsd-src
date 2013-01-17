@@ -68,7 +68,7 @@ static device_method_t rgephy_methods[] = {
 	DEVMETHOD(device_attach,	rgephy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t rgephy_devclass;
@@ -110,10 +110,15 @@ static int
 rgephy_attach(device_t dev)
 {
 	struct mii_softc *sc;
+	struct mii_attach_args *ma;
+	u_int flags;
 
 	sc = device_get_softc(dev);
-
-	mii_phy_dev_attach(dev, 0, &rgephy_funcs, 0);
+	ma = device_get_ivars(dev);
+	flags = 0;
+	if (strcmp(ma->mii_data->mii_ifp->if_dname, "re") == 0)
+		flags |= MIIF_PHYPRIV0;
+	mii_phy_dev_attach(dev, flags, &rgephy_funcs, 0);
 
 	/* RTL8169S do not report auto-sense; add manually. */
 	sc->mii_capabilities = (PHY_READ(sc, MII_BMSR) | BMSR_ANEG) &
@@ -243,7 +248,8 @@ setit:
 		 * Check to see if we have link.  If we do, we don't
 		 * need to restart the autonegotiation process.
 		 */
-		if (sc->mii_mpd_rev >= 2) {
+		if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 &&
+		    sc->mii_mpd_rev >= 2) {
 			/* RTL8211B(L) */
 			reg = PHY_READ(sc, RGEPHY_MII_SSR);
 			if (reg & RGEPHY_SSR_LINK) {
@@ -298,7 +304,7 @@ rgephy_status(struct mii_softc *sc)
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
-	if (sc->mii_mpd_rev >= 2) {
+	if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 && sc->mii_mpd_rev >= 2) {
 		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
 		if (ssr & RGEPHY_SSR_LINK)
 			mii->mii_media_status |= IFM_ACTIVE;
@@ -328,7 +334,7 @@ rgephy_status(struct mii_softc *sc)
 		}
 	}
 
-	if (sc->mii_mpd_rev >= 2) {
+	if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 && sc->mii_mpd_rev >= 2) {
 		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
 		switch (ssr & RGEPHY_SSR_SPD_MASK) {
 		case RGEPHY_SSR_S1000:
@@ -484,7 +490,7 @@ rgephy_reset(struct mii_softc *sc)
 {
 	uint16_t ssr;
 
-	if (sc->mii_mpd_rev == 3) {
+	if ((sc->mii_flags & MIIF_PHYPRIV0) == 0 && sc->mii_mpd_rev == 3) {
 		/* RTL8211C(L) */
 		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
 		if ((ssr & RGEPHY_SSR_ALDPS) != 0) {

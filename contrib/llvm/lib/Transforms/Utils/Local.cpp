@@ -14,30 +14,32 @@
 
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Constants.h"
+#include "llvm/DIBuilder.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/DerivedTypes.h"
 #include "llvm/GlobalAlias.h"
 #include "llvm/GlobalVariable.h"
-#include "llvm/DerivedTypes.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/Intrinsics.h"
+#include "llvm/MDBuilder.h"
 #include "llvm/Metadata.h"
 #include "llvm/Operator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/DataLayout.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -51,7 +53,8 @@ using namespace llvm;
 /// Also calls RecursivelyDeleteTriviallyDeadInstructions() on any branch/switch
 /// conditions and indirectbr addresses this might make dead if
 /// DeleteDeadConditions is true.
-bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
+bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions,
+                                  const TargetLibraryInfo *TLI) {
   TerminatorInst *T = BB->getTerminator();
   IRBuilder<> Builder(T);
 
@@ -95,7 +98,7 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
       Value *Cond = BI->getCondition();
       BI->eraseFromParent();
       if (DeleteDeadConditions)
-        RecursivelyDeleteTriviallyDeadInstructions(Cond);
+        RecursivelyDeleteTriviallyDeadInstructions(Cond, TLI);
       return true;
     }
     return false;
@@ -105,33 +108,53 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
     // If we are switching on a constant, we can convert the switch into a
     // single branch instruction!
     ConstantInt *CI = dyn_cast<ConstantInt>(SI->getCondition());
-    BasicBlock *TheOnlyDest = SI->getSuccessor(0);  // The default dest
+    BasicBlock *TheOnlyDest = SI->getDefaultDest();
     BasicBlock *DefaultDest = TheOnlyDest;
-    assert(TheOnlyDest == SI->getDefaultDest() &&
-           "Default destination is not successor #0?");
 
     // Figure out which case it goes to.
-    for (unsigned i = 1, e = SI->getNumSuccessors(); i != e; ++i) {
+    for (SwitchInst::CaseIt i = SI->case_begin(), e = SI->case_end();
+         i != e; ++i) {
       // Found case matching a constant operand?
-      if (SI->getSuccessorValue(i) == CI) {
-        TheOnlyDest = SI->getSuccessor(i);
+      if (i.getCaseValue() == CI) {
+        TheOnlyDest = i.getCaseSuccessor();
         break;
       }
 
       // Check to see if this branch is going to the same place as the default
       // dest.  If so, eliminate it as an explicit compare.
-      if (SI->getSuccessor(i) == DefaultDest) {
+      if (i.getCaseSuccessor() == DefaultDest) {
+        MDNode* MD = SI->getMetadata(LLVMContext::MD_prof);
+        // MD should have 2 + NumCases operands.
+        if (MD && MD->getNumOperands() == 2 + SI->getNumCases()) {
+          // Collect branch weights into a vector.
+          SmallVector<uint32_t, 8> Weights;
+          for (unsigned MD_i = 1, MD_e = MD->getNumOperands(); MD_i < MD_e;
+               ++MD_i) {
+            ConstantInt* CI = dyn_cast<ConstantInt>(MD->getOperand(MD_i));
+            assert(CI);
+            Weights.push_back(CI->getValue().getZExtValue());
+          }
+          // Merge weight of this case to the default weight.
+          unsigned idx = i.getCaseIndex();
+          Weights[0] += Weights[idx+1];
+          // Remove weight for this case.
+          std::swap(Weights[idx+1], Weights.back());
+          Weights.pop_back();
+          SI->setMetadata(LLVMContext::MD_prof,
+                          MDBuilder(BB->getContext()).
+                          createBranchWeights(Weights));
+        }
         // Remove this entry.
         DefaultDest->removePredecessor(SI->getParent());
         SI->removeCase(i);
-        --i; --e;  // Don't skip an entry...
+        --i; --e;
         continue;
       }
 
       // Otherwise, check to see if the switch only branches to one destination.
       // We do this by reseting "TheOnlyDest" to null when we find two non-equal
       // destinations.
-      if (SI->getSuccessor(i) != TheOnlyDest) TheOnlyDest = 0;
+      if (i.getCaseSuccessor() != TheOnlyDest) TheOnlyDest = 0;
     }
 
     if (CI && !TheOnlyDest) {
@@ -161,22 +184,41 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
       Value *Cond = SI->getCondition();
       SI->eraseFromParent();
       if (DeleteDeadConditions)
-        RecursivelyDeleteTriviallyDeadInstructions(Cond);
+        RecursivelyDeleteTriviallyDeadInstructions(Cond, TLI);
       return true;
     }
     
-    if (SI->getNumSuccessors() == 2) {
+    if (SI->getNumCases() == 1) {
       // Otherwise, we can fold this switch into a conditional branch
       // instruction if it has only one non-default destination.
-      Value *Cond = Builder.CreateICmpEQ(SI->getCondition(),
-                                         SI->getSuccessorValue(1), "cond");
+      SwitchInst::CaseIt FirstCase = SI->case_begin();
+      IntegersSubset& Case = FirstCase.getCaseValueEx();
+      if (Case.isSingleNumber()) {
+        // FIXME: Currently work with ConstantInt based numbers.
+        Value *Cond = Builder.CreateICmpEQ(SI->getCondition(),
+             Case.getSingleNumber(0).toConstantInt(),
+            "cond");
 
-      // Insert the new branch.
-      Builder.CreateCondBr(Cond, SI->getSuccessor(1), SI->getSuccessor(0));
+        // Insert the new branch.
+        BranchInst *NewBr = Builder.CreateCondBr(Cond,
+                                FirstCase.getCaseSuccessor(),
+                                SI->getDefaultDest());
+        MDNode* MD = SI->getMetadata(LLVMContext::MD_prof);
+        if (MD && MD->getNumOperands() == 3) {
+          ConstantInt *SICase = dyn_cast<ConstantInt>(MD->getOperand(2));
+          ConstantInt *SIDef = dyn_cast<ConstantInt>(MD->getOperand(1));
+          assert(SICase && SIDef);
+          // The TrueWeight should be the weight for the single case of SI.
+          NewBr->setMetadata(LLVMContext::MD_prof,
+                 MDBuilder(BB->getContext()).
+                 createBranchWeights(SICase->getValue().getZExtValue(),
+                                     SIDef->getValue().getZExtValue()));
+        }
 
-      // Delete the old switch.
-      SI->eraseFromParent();
-      return true;
+        // Delete the old switch.
+        SI->eraseFromParent();
+        return true;
+      }
     }
     return false;
   }
@@ -198,7 +240,7 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
       Value *Address = IBI->getAddress();
       IBI->eraseFromParent();
       if (DeleteDeadConditions)
-        RecursivelyDeleteTriviallyDeadInstructions(Address);
+        RecursivelyDeleteTriviallyDeadInstructions(Address, TLI);
       
       // If we didn't find our destination in the IBI successor list, then we
       // have undefined behavior.  Replace the unconditional branch with an
@@ -223,7 +265,8 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
 /// isInstructionTriviallyDead - Return true if the result produced by the
 /// instruction is not used, and the instruction has no side effects.
 ///
-bool llvm::isInstructionTriviallyDead(Instruction *I) {
+bool llvm::isInstructionTriviallyDead(Instruction *I,
+                                      const TargetLibraryInfo *TLI) {
   if (!I->use_empty() || isa<TerminatorInst>(I)) return false;
 
   // We don't want the landingpad instruction removed by anything this general.
@@ -257,6 +300,13 @@ bool llvm::isInstructionTriviallyDead(Instruction *I) {
         II->getIntrinsicID() == Intrinsic::lifetime_end)
       return isa<UndefValue>(II->getArgOperand(1));
   }
+
+  if (isAllocLikeFn(I, TLI)) return true;
+
+  if (CallInst *CI = isFreeCall(I, TLI))
+    if (Constant *C = dyn_cast<Constant>(CI->getArgOperand(0)))
+      return C->isNullValue() || isa<UndefValue>(C);
+
   return false;
 }
 
@@ -264,9 +314,11 @@ bool llvm::isInstructionTriviallyDead(Instruction *I) {
 /// trivially dead instruction, delete it.  If that makes any of its operands
 /// trivially dead, delete them too, recursively.  Return true if any
 /// instructions were deleted.
-bool llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V) {
+bool
+llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V,
+                                                 const TargetLibraryInfo *TLI) {
   Instruction *I = dyn_cast<Instruction>(V);
-  if (!I || !I->use_empty() || !isInstructionTriviallyDead(I))
+  if (!I || !I->use_empty() || !isInstructionTriviallyDead(I, TLI))
     return false;
   
   SmallVector<Instruction*, 16> DeadInsts;
@@ -287,7 +339,7 @@ bool llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V) {
       // operand, and if it is 'trivially' dead, delete it in a future loop
       // iteration.
       if (Instruction *OpI = dyn_cast<Instruction>(OpV))
-        if (isInstructionTriviallyDead(OpI))
+        if (isInstructionTriviallyDead(OpI, TLI))
           DeadInsts.push_back(OpI);
     }
     
@@ -320,19 +372,20 @@ static bool areAllUsesEqual(Instruction *I) {
 /// either forms a cycle or is terminated by a trivially dead instruction,
 /// delete it.  If that makes any of its operands trivially dead, delete them
 /// too, recursively.  Return true if a change was made.
-bool llvm::RecursivelyDeleteDeadPHINode(PHINode *PN) {
+bool llvm::RecursivelyDeleteDeadPHINode(PHINode *PN,
+                                        const TargetLibraryInfo *TLI) {
   SmallPtrSet<Instruction*, 4> Visited;
   for (Instruction *I = PN; areAllUsesEqual(I) && !I->mayHaveSideEffects();
        I = cast<Instruction>(*I->use_begin())) {
     if (I->use_empty())
-      return RecursivelyDeleteTriviallyDeadInstructions(I);
+      return RecursivelyDeleteTriviallyDeadInstructions(I, TLI);
 
     // If we find an instruction more than once, we're on a cycle that
     // won't prove fruitful.
     if (!Visited.insert(I)) {
       // Break the cycle and delete the instruction and its operands.
       I->replaceAllUsesWith(UndefValue::get(I->getType()));
-      (void)RecursivelyDeleteTriviallyDeadInstructions(I);
+      (void)RecursivelyDeleteTriviallyDeadInstructions(I, TLI);
       return true;
     }
   }
@@ -344,25 +397,31 @@ bool llvm::RecursivelyDeleteDeadPHINode(PHINode *PN) {
 ///
 /// This returns true if it changed the code, note that it can delete
 /// instructions in other blocks as well in this block.
-bool llvm::SimplifyInstructionsInBlock(BasicBlock *BB, const TargetData *TD) {
+bool llvm::SimplifyInstructionsInBlock(BasicBlock *BB, const DataLayout *TD,
+                                       const TargetLibraryInfo *TLI) {
   bool MadeChange = false;
-  for (BasicBlock::iterator BI = BB->begin(), E = BB->end(); BI != E; ) {
+
+#ifndef NDEBUG
+  // In debug builds, ensure that the terminator of the block is never replaced
+  // or deleted by these simplifications. The idea of simplification is that it
+  // cannot introduce new instructions, and there is no way to replace the
+  // terminator of a block without introducing a new instruction.
+  AssertingVH<Instruction> TerminatorVH(--BB->end());
+#endif
+
+  for (BasicBlock::iterator BI = BB->begin(), E = --BB->end(); BI != E; ) {
+    assert(!BI->isTerminator());
     Instruction *Inst = BI++;
-    
-    if (Value *V = SimplifyInstruction(Inst, TD)) {
-      WeakVH BIHandle(BI);
-      ReplaceAndSimplifyAllUses(Inst, V, TD);
+
+    WeakVH BIHandle(BI);
+    if (recursivelySimplifyInstruction(Inst, TD)) {
       MadeChange = true;
       if (BIHandle != BI)
         BI = BB->begin();
       continue;
     }
 
-    if (Inst->isTerminator())
-      break;
-
-    WeakVH BIHandle(BI);
-    MadeChange |= RecursivelyDeleteTriviallyDeadInstructions(Inst);
+    MadeChange |= RecursivelyDeleteTriviallyDeadInstructions(Inst, TLI);
     if (BIHandle != BI)
       BI = BB->begin();
   }
@@ -386,7 +445,7 @@ bool llvm::SimplifyInstructionsInBlock(BasicBlock *BB, const TargetData *TD) {
 /// .. and delete the predecessor corresponding to the '1', this will attempt to
 /// recursively fold the and to 0.
 void llvm::RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred,
-                                        TargetData *TD) {
+                                        DataLayout *TD) {
   // This only adjusts blocks with PHI nodes.
   if (!isa<PHINode>(BB->begin()))
     return;
@@ -399,17 +458,11 @@ void llvm::RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred,
   WeakVH PhiIt = &BB->front();
   while (PHINode *PN = dyn_cast<PHINode>(PhiIt)) {
     PhiIt = &*++BasicBlock::iterator(cast<Instruction>(PhiIt));
-
-    Value *PNV = SimplifyInstruction(PN, TD);
-    if (PNV == 0) continue;
-
-    // If we're able to simplify the phi to a single value, substitute the new
-    // value into all of its uses.
-    assert(PNV != PN && "SimplifyInstruction broken!");
-    
     Value *OldPhiIt = PhiIt;
-    ReplaceAndSimplifyAllUses(PN, PNV, TD);
-    
+
+    if (!recursivelySimplifyInstruction(PN, TD))
+      continue;
+
     // If recursive simplification ended up deleting the next PHI node we would
     // iterate to, then our iterator is invalid, restart scanning from the top
     // of the block.
@@ -486,22 +539,8 @@ static bool CanPropagatePredecessorsForPHIs(BasicBlock *BB, BasicBlock *Succ) {
   if (Succ->getSinglePredecessor()) return true;
 
   // Make a list of the predecessors of BB
-  typedef SmallPtrSet<BasicBlock*, 16> BlockSet;
-  BlockSet BBPreds(pred_begin(BB), pred_end(BB));
+  SmallPtrSet<BasicBlock*, 16> BBPreds(pred_begin(BB), pred_end(BB));
 
-  // Use that list to make another list of common predecessors of BB and Succ
-  BlockSet CommonPreds;
-  for (pred_iterator PI = pred_begin(Succ), PE = pred_end(Succ);
-       PI != PE; ++PI) {
-    BasicBlock *P = *PI;
-    if (BBPreds.count(P))
-      CommonPreds.insert(P);
-  }
-
-  // Shortcut, if there are no common predecessors, merging is always safe
-  if (CommonPreds.empty())
-    return true;
-  
   // Look at all the phi nodes in Succ, to see if they present a conflict when
   // merging these blocks
   for (BasicBlock::iterator I = Succ->begin(); isa<PHINode>(I); ++I) {
@@ -512,28 +551,28 @@ static bool CanPropagatePredecessorsForPHIs(BasicBlock *BB, BasicBlock *Succ) {
     // merge the phi nodes and then the blocks can still be merged
     PHINode *BBPN = dyn_cast<PHINode>(PN->getIncomingValueForBlock(BB));
     if (BBPN && BBPN->getParent() == BB) {
-      for (BlockSet::iterator PI = CommonPreds.begin(), PE = CommonPreds.end();
-            PI != PE; PI++) {
-        if (BBPN->getIncomingValueForBlock(*PI) 
-              != PN->getIncomingValueForBlock(*PI)) {
+      for (unsigned PI = 0, PE = PN->getNumIncomingValues(); PI != PE; ++PI) {
+        BasicBlock *IBB = PN->getIncomingBlock(PI);
+        if (BBPreds.count(IBB) &&
+            BBPN->getIncomingValueForBlock(IBB) != PN->getIncomingValue(PI)) {
           DEBUG(dbgs() << "Can't fold, phi node " << PN->getName() << " in " 
                 << Succ->getName() << " is conflicting with " 
                 << BBPN->getName() << " with regard to common predecessor "
-                << (*PI)->getName() << "\n");
+                << IBB->getName() << "\n");
           return false;
         }
       }
     } else {
       Value* Val = PN->getIncomingValueForBlock(BB);
-      for (BlockSet::iterator PI = CommonPreds.begin(), PE = CommonPreds.end();
-            PI != PE; PI++) {
+      for (unsigned PI = 0, PE = PN->getNumIncomingValues(); PI != PE; ++PI) {
         // See if the incoming value for the common predecessor is equal to the
         // one for BB, in which case this phi node will not prevent the merging
         // of the block.
-        if (Val != PN->getIncomingValueForBlock(*PI)) {
+        BasicBlock *IBB = PN->getIncomingBlock(PI);
+        if (BBPreds.count(IBB) && Val != PN->getIncomingValue(PI)) {
           DEBUG(dbgs() << "Can't fold, phi node " << PN->getName() << " in " 
                 << Succ->getName() << " is conflicting with regard to common "
-                << "predecessor " << (*PI)->getName() << "\n");
+                << "predecessor " << IBB->getName() << "\n");
           return false;
         }
       }
@@ -706,7 +745,7 @@ bool llvm::EliminateDuplicatePHINodes(BasicBlock *BB) {
         CollisionMap[PN] = Old;
         break;
       }
-      // Procede to the next PHI in the list.
+      // Proceed to the next PHI in the list.
       OtherPN = I->second;
     }
   }
@@ -721,7 +760,7 @@ bool llvm::EliminateDuplicatePHINodes(BasicBlock *BB) {
 /// their preferred alignment from the beginning.
 ///
 static unsigned enforceKnownAlignment(Value *V, unsigned Align,
-                                      unsigned PrefAlign, const TargetData *TD) {
+                                      unsigned PrefAlign, const DataLayout *TD) {
   V = V->stripPointerCasts();
 
   if (AllocaInst *AI = dyn_cast<AllocaInst>(V)) {
@@ -740,6 +779,10 @@ static unsigned enforceKnownAlignment(Value *V, unsigned Align,
     // If there is a large requested alignment and we can, bump up the alignment
     // of the global.
     if (GV->isDeclaration()) return Align;
+    // If the memory we set aside for the global may not be the memory used by
+    // the final program then it is impossible for us to reliably enforce the
+    // preferred alignment.
+    if (GV->isWeakForLinker()) return Align;
     
     if (GV->getAlignment() >= PrefAlign)
       return GV->getAlignment();
@@ -760,13 +803,12 @@ static unsigned enforceKnownAlignment(Value *V, unsigned Align,
 /// and it is more than the alignment of the ultimate object, see if we can
 /// increase the alignment of the ultimate object, making this check succeed.
 unsigned llvm::getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
-                                          const TargetData *TD) {
+                                          const DataLayout *TD) {
   assert(V->getType()->isPointerTy() &&
          "getOrEnforceKnownAlignment expects a pointer!");
   unsigned BitWidth = TD ? TD->getPointerSizeInBits() : 64;
-  APInt Mask = APInt::getAllOnesValue(BitWidth);
   APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-  ComputeMaskedBits(V, Mask, KnownZero, KnownOne, TD);
+  ComputeMaskedBits(V, KnownZero, KnownOne, TD);
   unsigned TrailZ = KnownZero.countTrailingOnes();
   
   // Avoid trouble with rediculously large TrailZ values, such as

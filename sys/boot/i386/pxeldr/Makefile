@@ -23,10 +23,7 @@ CFLAGS+=-DPROBE_KEYBOARD
 CFLAGS+=-DALWAYS_SERIAL
 .endif
 
-.if ${CC:T:Mclang} == "clang"
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS+=${.IMPSRC:T:Mpxeldr.S:C/^.+$/-no-integrated-as/}
-.endif
+CFLAGS+=-I${.CURDIR}/../common
 
 LOADERBIN= ${.OBJDIR}/../loader/loader.bin
 
@@ -46,3 +43,7 @@ ${LOADER}: ${LOADERBIN} ${BTXLDR} ${BTXKERN}
 	    -b ${BTXKERN} ${LOADERBIN}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.pxeldr.S=	${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

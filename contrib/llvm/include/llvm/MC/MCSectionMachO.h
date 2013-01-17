@@ -15,6 +15,7 @@
 #define LLVM_MC_MCSECTIONMACHO_H
 
 #include "llvm/MC/MCSection.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
@@ -173,7 +174,6 @@ public:
   static bool classof(const MCSection *S) {
     return S->getVariant() == SV_MachO;
   }
-  static bool classof(const MCSectionMachO *) { return true; }
 };
 
 } // end namespace llvm

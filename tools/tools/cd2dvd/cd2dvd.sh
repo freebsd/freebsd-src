@@ -229,7 +229,7 @@ then
 	echo "Error: less than two CD images specified."
 fi
 
-## Some usefull variables
+## Some useful variables
 pwd=`pwd`
 tmpdirin="${pwd}/tmp-$$-in"
 tmpdirout="${pwd}/tmp-$$-out"

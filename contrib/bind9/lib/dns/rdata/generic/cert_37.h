@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cert_37.h,v 1.20 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: cert_37.h,v 1.20 2007/06/19 23:47:17 tbox Exp $ */
 
 #ifndef GENERIC_CERT_37_H
 #define GENERIC_CERT_37_H 1

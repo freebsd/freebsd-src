@@ -1,0 +1,110 @@
+/* $Id: example.style.css,v 1.49 2011/12/15 12:18:57 kristaps Exp $ */
+/*
+ * This is an example style-sheet provided for mandoc(1) and the -Thtml
+ * or -Txhtml output mode.
+ * It mimics the appearance of the legacy man.cgi output.
+ * See mdoc(7) and man(7) for macro explanations.
+ */
+
+div.mandoc			{ min-width: 102ex; 
+				  width: 102ex; 
+				  font-family: monospace; } /* This is the outer node of all mandoc -T[x]html documents. */
+div.mandoc h1			{ margin-bottom: 0ex; font-size: inherit; margin-left: -4ex; } /* Section header (Sh, SH). */
+div.mandoc h2			{ margin-bottom: 0ex; font-size: inherit; margin-left: -2ex; } /* Sub-section header (Ss, SS). */
+div.mandoc table		{ width: 100%; margin-top: 0ex; margin-bottom: 0ex; } /* All tables. */
+div.mandoc td			{ vertical-align: top; } /* All table cells. */
+div.mandoc p			{ } /* Paragraph: Pp, Lp. */
+div.mandoc blockquote		{ margin-left: 5ex; margin-top: 0ex; margin-bottom: 0ex; } /* D1, Dl. */
+div.mandoc div.section		{ margin-bottom: 2ex; margin-left: 5ex; } /* Sections (Sh, SH). */
+div.mandoc div.subsection	{ } /* Sub-sections (Ss, SS). */
+div.mandoc table.synopsis	{ } /* SYNOPSIS section table. */
+div.mandoc table.foot		{ } /* Document footer. */
+div.mandoc td.foot-date		{ width: 50%; } /* Document footer: date. */
+div.mandoc td.foot-os		{ width: 50%; text-align: right; } /* Document footer: OS/source. */
+div.mandoc table.head		{ } /* Document header. */
+div.mandoc td.head-ltitle	{ width: 10%; } /* Document header: left-title. */
+div.mandoc td.head-vol		{ width: 80%; text-align: center; } /* Document header: volume. */
+div.mandoc td.head-rtitle	{ width: 10%; text-align: right; } /* Document header: right-title. */
+div.mandoc .display		{ } /* All Bd, D1, Dl. */
+div.mandoc .list		{ } /* All Bl. */
+div.mandoc i			{ } /* Italic: BI, IB, I, (implicit). */
+div.mandoc b			{ } /* Bold: SB, BI, IB, BR, RB, B, (implicit). */
+div.mandoc small		{ } /* Small: SB, SM. */
+div.mandoc .emph		{ font-style: italic; font-weight: normal; } /* Emphasis: Em, Bl -emphasis. */
+div.mandoc .symb		{ font-style: normal; font-weight: bold; } /* Symbolic: Sy, Ms, Bf -symbolic. */
+div.mandoc .lit			{ font-style: normal; font-weight: normal; font-family: monospace; } /* Literal: Dl, Li, Ql, Bf -literal, Bl -literal, Bl -unfilled. */
+div.mandoc i.addr		{ font-weight: normal; } /* Address (Ad). */
+div.mandoc i.arg		{ font-weight: normal; } /* Command argument (Ar). */
+div.mandoc span.author		{ } /* Author name (An). */
+div.mandoc b.cmd		{ font-style: normal; } /* Command (Cm). */ 
+div.mandoc b.config		{ font-style: normal; } /* Config statement (Cd). */
+div.mandoc span.define		{ } /* Defines (Dv). */
+div.mandoc span.desc		{ } /* Nd.  After em-dash. */
+div.mandoc b.diag		{ font-style: normal; } /* Diagnostic (Bl -diag). */
+div.mandoc span.env		{ } /* Environment variables (Ev). */
+div.mandoc span.errno		{ } /* Error string (Er). */
+div.mandoc i.farg		{ font-weight: normal; } /* Function argument (Fa, Fn). */
+div.mandoc i.file		{ font-weight: normal; } /* File (Pa). */
+div.mandoc b.flag		{ font-style: normal; } /* Flag (Fl, Cm). */
+div.mandoc b.fname		{ font-style: normal; } /* Function name (Fa, Fn, Rv). */
+div.mandoc i.ftype		{ font-weight: normal; } /* Function types (Ft, Fn). */
+div.mandoc b.includes		{ font-style: normal; } /* Header includes (In). */
+div.mandoc span.lib		{ } /* Library (Lb). */
+div.mandoc i.link-sec		{ font-weight: normal; } /* Section links (Sx). */
+div.mandoc b.macro		{ font-style: normal; } /* Macro-ish thing (Fd). */
+div.mandoc b.name		{ font-style: normal; } /* Name of utility (Nm). */
+div.mandoc span.opt		{ } /* Options (Op, Oo/Oc). */
+div.mandoc span.ref		{ } /* Citations (Rs). */
+div.mandoc span.ref-auth	{ } /* Reference author (%A). */
+div.mandoc i.ref-book		{ font-weight: normal; } /* Reference book (%B). */
+div.mandoc span.ref-city	{ } /* Reference city (%C). */
+div.mandoc span.ref-date	{ } /* Reference date (%D). */
+div.mandoc i.ref-issue		{ font-weight: normal; } /* Reference issuer/publisher (%I). */
+div.mandoc i.ref-jrnl		{ font-weight: normal; } /* Reference journal (%J). */
+div.mandoc span.ref-num		{ } /* Reference number (%N). */
+div.mandoc span.ref-opt		{ } /* Reference optionals (%O). */
+div.mandoc span.ref-page	{ } /* Reference page (%P). */
+div.mandoc span.ref-corp	{ } /* Reference corporate/foreign author (%Q). */
+div.mandoc span.ref-rep		{ } /* Reference report (%R). */
+div.mandoc span.ref-title	{ text-decoration: underline; } /* Reference title (%T). */
+div.mandoc span.ref-vol		{ } /* Reference volume (%V). */
+div.mandoc span.type		{ font-style: italic; font-weight: normal; } /* Variable types (Vt). */
+div.mandoc span.unix		{ } /* Unices (Ux, Ox, Nx, Fx, Bx, Bsx, Dx). */
+div.mandoc b.utility		{ font-style: normal; } /* Name of utility (Ex). */
+div.mandoc b.var		{ font-style: normal; } /* Variables (Rv). */
+div.mandoc a.link-ext		{ } /* Off-site link (Lk). */
+div.mandoc a.link-includes	{ } /* Include-file link (In). */
+div.mandoc a.link-mail		{ } /* Mailto links (Mt). */
+div.mandoc a.link-man		{ } /* Manual links (Xr). */
+div.mandoc a.link-ref		{ } /* Reference section links (%Q). */
+div.mandoc a.link-sec		{ } /* Section links (Sx). */
+div.mandoc dl.list-diag		{ } /* Formatting for lists.  See mdoc(7). */
+div.mandoc dt.list-diag		{ }
+div.mandoc dd.list-diag		{ }
+div.mandoc dl.list-hang		{ }
+div.mandoc dt.list-hang		{ }
+div.mandoc dd.list-hang		{ }
+div.mandoc dl.list-inset	{ }
+div.mandoc dt.list-inset	{ }
+div.mandoc dd.list-inset	{ }
+div.mandoc dl.list-ohang	{ }
+div.mandoc dt.list-ohang	{ }
+div.mandoc dd.list-ohang	{ margin-left: 0ex; }
+div.mandoc dl.list-tag		{ }
+div.mandoc dt.list-tag		{ }
+div.mandoc dd.list-tag		{ }
+div.mandoc table.list-col	{ }
+div.mandoc tr.list-col		{ }
+div.mandoc td.list-col		{ }
+div.mandoc ul.list-bul		{ list-style-type: disc; padding-left: 1em; }
+div.mandoc li.list-bul		{ }
+div.mandoc ul.list-dash		{ list-style-type: none; padding-left: 0em; }
+div.mandoc li.list-dash:before	{ content: "\2014  "; }
+div.mandoc ul.list-hyph		{ list-style-type: none; padding-left: 0em; }
+div.mandoc li.list-hyph:before	{ content: "\2013  "; }
+div.mandoc ul.list-item		{ list-style-type: none; padding-left: 0em; }
+div.mandoc li.list-item		{ }
+div.mandoc ol.list-enum		{ padding-left: 2em; }
+div.mandoc li.list-enum		{ }
+div.mandoc span.eqn		{ } /* Equation modes.  See eqn(7). */
+div.mandoc table.tbl		{ } /* Table modes.  See tbl(7). */

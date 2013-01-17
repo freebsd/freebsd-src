@@ -12,6 +12,7 @@
 
 #include "clang/ARCMigrate/FileRemapper.h"
 #include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Basic/SourceLocation.h"
 
 namespace clang {
   class ASTContext;
@@ -37,7 +38,7 @@ namespace arcmt {
 ///
 /// \returns false if no error is produced, true otherwise.
 bool checkForManualIssues(CompilerInvocation &CI,
-                          StringRef Filename, InputKind Kind,
+                          const FrontendInputFile &Input,
                           DiagnosticConsumer *DiagClient,
                           bool emitPremigrationARCErrors = false,
                           StringRef plistOut = StringRef());
@@ -47,11 +48,11 @@ bool checkForManualIssues(CompilerInvocation &CI,
 ///
 /// \returns false if no error is produced, true otherwise.
 bool applyTransformations(CompilerInvocation &origCI,
-                          StringRef Filename, InputKind Kind,
+                          const FrontendInputFile &Input,
                           DiagnosticConsumer *DiagClient);
 
 /// \brief Applies automatic modifications and produces temporary files
-/// and metadata into the \arg outputDir path.
+/// and metadata into the \p outputDir path.
 ///
 /// \param emitPremigrationARCErrors if true all ARC errors will get emitted
 /// even if the migrator can fix them, but the function will still return false
@@ -62,13 +63,13 @@ bool applyTransformations(CompilerInvocation &origCI,
 ///
 /// \returns false if no error is produced, true otherwise.
 bool migrateWithTemporaryFiles(CompilerInvocation &origCI,
-                               StringRef Filename, InputKind Kind,
+                               const FrontendInputFile &Input,
                                DiagnosticConsumer *DiagClient,
                                StringRef outputDir,
                                bool emitPremigrationARCErrors,
                                StringRef plistOut);
 
-/// \brief Get the set of file remappings from the \arg outputDir path that
+/// \brief Get the set of file remappings from the \p outputDir path that
 /// migrateWithTemporaryFiles produced.
 ///
 /// \returns false if no error is produced, true otherwise.
@@ -76,9 +77,19 @@ bool getFileRemappings(std::vector<std::pair<std::string,std::string> > &remap,
                        StringRef outputDir,
                        DiagnosticConsumer *DiagClient);
 
+/// \brief Get the set of file remappings from a list of files with remapping
+/// info.
+///
+/// \returns false if no error is produced, true otherwise.
+bool getFileRemappingsFromFileList(
+                        std::vector<std::pair<std::string,std::string> > &remap,
+                        ArrayRef<StringRef> remapFiles,
+                        DiagnosticConsumer *DiagClient);
+
 typedef void (*TransformFn)(MigrationPass &pass);
 
-std::vector<TransformFn> getAllTransformations();
+std::vector<TransformFn> getAllTransformations(LangOptions::GCMode OrigGCMode,
+                                               bool NoFinalizeRemoval);
 
 class MigrationProcess {
   CompilerInvocation OrigCI;

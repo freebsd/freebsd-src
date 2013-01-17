@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+include 	"../at91/std.at91sam9"
+
+# Supported SoCs for the at91 platform
+device		at91rm9200
+device		at91sam9260
+device		at91sam9g20
+device		at91sam9g45
+device		at91sam9x5
+
+# bring in the sam specific timers and such
+device		at91sam9

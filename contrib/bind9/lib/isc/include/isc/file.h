@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: file.h,v 1.39.10.2 2011-03-04 23:47:28 tbox Exp $ */
+/* $Id$ */
 
 #ifndef ISC_FILE_H
 #define ISC_FILE_H 1
@@ -25,12 +25,16 @@
 #include <stdio.h>
 
 #include <isc/lang.h>
+#include <isc/stat.h>
 #include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_file_settime(const char *file, isc_time_t *time);
+
+isc_result_t
+isc_file_mode(const char *file, mode_t *modep);
 
 isc_result_t
 isc_file_getmodtime(const char *file, isc_time_t *time);
@@ -97,15 +101,22 @@ isc_file_mktemplate(const char *path, char *buf, size_t buflen);
  *				of the path with the internal template string.
  */
 
-
 isc_result_t
 isc_file_openunique(char *templet, FILE **fp);
 isc_result_t
 isc_file_openuniqueprivate(char *templet, FILE **fp);
 isc_result_t
 isc_file_openuniquemode(char *templet, int mode, FILE **fp);
+isc_result_t
+isc_file_bopenunique(char *templet, FILE **fp);
+isc_result_t
+isc_file_bopenuniqueprivate(char *templet, FILE **fp);
+isc_result_t
+isc_file_bopenuniquemode(char *templet, int mode, FILE **fp);
 /*!<
  * \brief Create and open a file with a unique name based on 'templet'.
+ *	isc_file_bopen*() open the file in binary mode in Windows. 
+ *	isc_file_open*() open the file in text mode in Windows. 
  *
  * Notes:
  *\li	'template' is a reserved work in C++.  If you want to complain

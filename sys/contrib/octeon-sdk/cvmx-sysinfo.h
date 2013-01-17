@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -43,7 +43,7 @@
  *
  * This module provides system/board information obtained by the bootloader.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 
@@ -115,6 +115,7 @@ struct cvmx_sysinfo {
 	uint32_t dfa_ref_clock_hz;  /**< DFA reference clock in hz (if applicable)*/
 	uint32_t bootloader_config_flags;  /**< configuration flags from bootloader */
 	uint8_t  console_uart_num;         /** < Uart number used for console */
+     uint64_t fdt_addr; /** pointer to device tree */
 };
 
 #ifndef CVMX_BUILD_FOR_LINUX_KERNEL
@@ -131,6 +132,19 @@ typedef struct cvmx_sysinfo cvmx_sysinfo_t;
  */
 
 extern struct cvmx_sysinfo *cvmx_sysinfo_get(void);
+
+/**
+ * This function adds the current cpu to sysinfo coremask
+ * 
+ */
+
+void cvmx_sysinfo_add_self_to_core_mask(void);
+
+/**
+ * This function removes the current cpu to sysinfo coremask
+ * 
+ */
+void cvmx_sysinfo_remove_self_from_core_mask(void);
 
 #ifndef CVMX_BUILD_FOR_LINUX_KERNEL
 /**

@@ -56,10 +56,9 @@ namespace {
 }
 
 char OptimizePHIs::ID = 0;
+char &llvm::OptimizePHIsID = OptimizePHIs::ID;
 INITIALIZE_PASS(OptimizePHIs, "opt-phis",
                 "Optimize machine instruction PHIs", false, false)
-
-FunctionPass *llvm::createOptimizePHIsPass() { return new OptimizePHIs(); }
 
 bool OptimizePHIs::runOnMachineFunction(MachineFunction &Fn) {
   MRI = &Fn.getRegInfo();
@@ -165,7 +164,11 @@ bool OptimizePHIs::OptimizeBB(MachineBasicBlock &MBB) {
     InstrSet PHIsInCycle;
     if (IsSingleValuePHICycle(MI, SingleValReg, PHIsInCycle) &&
         SingleValReg != 0) {
-      MRI->replaceRegWith(MI->getOperand(0).getReg(), SingleValReg);
+      unsigned OldReg = MI->getOperand(0).getReg();
+      if (!MRI->constrainRegClass(SingleValReg, MRI->getRegClass(OldReg)))
+        continue;
+
+      MRI->replaceRegWith(OldReg, SingleValReg);
       MI->eraseFromParent();
       ++NumPHICycles;
       Changed = true;

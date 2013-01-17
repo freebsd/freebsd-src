@@ -28,6 +28,7 @@
 #ifndef ARM_AT91_AT91_PIOREG_H
 #define ARM_AT91_AT91_PIOREG_H
 
+#ifndef ATMEL_ENV
 /* Registers */
 #define PIO_PER		0x00		/* PIO Enable Register */
 #define PIO_PDR		0x04		/* PIO Disable Register */
@@ -65,6 +66,7 @@
 #define PIO_OWDR	0xa4		/* PIO Output Write Disable Register */
 #define PIO_OWSR	0xa8		/* PIO Output Write Status Register */
 		/*	0xac		   reserved */
+#endif
 
 #define AT91C_PIO_PA0        ((unsigned int) 1 <<  0) // Pin Controlled by PA0
 #define AT91C_PIO_PA1        ((unsigned int) 1 <<  1) // Pin Controlled by PA1

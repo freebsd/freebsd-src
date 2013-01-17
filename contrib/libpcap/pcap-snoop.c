@@ -100,7 +100,7 @@ again:
 
 	/*
 	 * XXX - Sigh, snoop_packetlen is a 16 bit quantity.  If we
-	 * got a short length, but read a full sized snoop pakcet,
+	 * got a short length, but read a full sized snoop packet,
 	 * assume we overflowed and add back the 64K...
 	 */
 	if (cc == (p->snapshot + sizeof(struct snoopheader)) &&

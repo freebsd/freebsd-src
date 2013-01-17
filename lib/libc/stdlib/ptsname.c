@@ -77,7 +77,6 @@ ptsname(int fildes)
 {
 	static char pt_slave[sizeof _PATH_DEV + SPECNAMELEN] = _PATH_DEV;
 	char *ret = NULL;
-	int sverrno = errno;
 
 	/* Make sure fildes points to a master device. */
 	if (__isptmaster(fildes) != 0)
@@ -87,7 +86,6 @@ ptsname(int fildes)
 	    sizeof pt_slave - (sizeof _PATH_DEV - 1)) != NULL)
 		ret = pt_slave;
 
-done:	/* Make sure ptsname() does not overwrite errno. */
-	errno = sverrno;
+done:
 	return (ret);
 }

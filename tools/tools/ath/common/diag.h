@@ -38,6 +38,7 @@
 #include <stdio.h>
 
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211.h>
 #include "if_athioctl.h"
 
 struct statshandler {

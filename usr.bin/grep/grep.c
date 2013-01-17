@@ -82,14 +82,15 @@ int		 eflags = REG_STARTEND;
 bool		 matchall;
 
 /* Searching patterns */
-unsigned int	 patterns, pattern_sz;
+unsigned int	 patterns;
+static unsigned int pattern_sz;
 struct pat	*pattern;
 regex_t		*r_pattern;
 fastmatch_t	*fg_pattern;
 
 /* Filename exclusion/inclusion patterns */
-unsigned int	 fpatterns, fpattern_sz;
-unsigned int	 dpatterns, dpattern_sz;
+unsigned int	fpatterns, dpatterns;
+static unsigned int fpattern_sz, dpattern_sz;
 struct epat	*dpattern, *fpattern;
 
 /* For regex errors  */
@@ -107,6 +108,7 @@ bool	 iflag;		/* -i: ignore case */
 bool	 lflag;		/* -l: only show names of files with matches */
 bool	 mflag;		/* -m x: stop reading the files after x matches */
 long long mcount;	/* count for -m */
+long long mlimit;	/* requested value for -m */
 bool	 nflag;		/* -n: show line numbers in front of matching lines */
 bool	 oflag;		/* -o: print only matching part */
 bool	 qflag;		/* -q: quiet mode (don't output anything) */
@@ -148,7 +150,7 @@ static inline const char	*init_color(const char *);
 bool	 first = true;	/* flag whether we are processing the first match */
 bool	 prev;		/* flag whether or not the previous line matched */
 int	 tail;		/* lines left to print */
-bool	 notfound;	/* file not found */
+bool	 file_err;	/* file reading error */
 
 /*
  * Prints usage information and returns 2.
@@ -158,7 +160,6 @@ usage(void)
 {
 	fprintf(stderr, getstr(4), getprogname());
 	fprintf(stderr, "%s", getstr(5));
-	fprintf(stderr, "%s", getstr(5));
 	fprintf(stderr, "%s", getstr(6));
 	fprintf(stderr, "%s", getstr(7));
 	exit(2);
@@ -166,7 +167,7 @@ usage(void)
 
 static const char	*optstr = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy";
 
-struct option long_options[] =
+static const struct option long_options[] =
 {
 	{"binary-files",	required_argument,	NULL, BIN_OPT},
 	{"help",		no_argument,		NULL, HELP_OPT},
@@ -478,7 +479,13 @@ main(int argc, char *argv[])
 			grepbehave = GREP_EXTENDED;
 			break;
 		case 'e':
-			add_pattern(optarg, strlen(optarg));
+			{
+				char *token;
+				char *string = strdup(optarg);
+
+				while ((token = strsep(&string, "\n")) != NULL)
+					add_pattern(token, strlen(token));
+			}
 			needpattern = 0;
 			break;
 		case 'F':
@@ -524,7 +531,7 @@ main(int argc, char *argv[])
 		case 'm':
 			mflag = true;
 			errno = 0;
-			mcount = strtoll(optarg, &ep, 10);
+			mlimit = mcount = strtoll(optarg, &ep, 10);
 			if (((errno == ERANGE) && (mcount == LLONG_MAX)) ||
 			    ((errno == EINVAL) && (mcount == 0)))
 				err(2, NULL);
@@ -667,7 +674,11 @@ main(int argc, char *argv[])
 
 	/* Process patterns from command line */
 	if (aargc != 0 && needpattern) {
-		add_pattern(*aargv, strlen(*aargv));
+		char *token;
+		char *string = strdup(*aargv);
+
+		while ((token = strsep(&string, "\n")) != NULL)
+			add_pattern(token, strlen(token));
 		--aargc;
 		++aargv;
 	}
@@ -728,5 +739,5 @@ main(int argc, char *argv[])
 
 	/* Find out the correct return value according to the
 	   results and the command line option. */
-	exit(c ? (notfound ? (qflag ? 0 : 2) : 0) : (notfound ? 2 : 1));
+	exit(c ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
 }

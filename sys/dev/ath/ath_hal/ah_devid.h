@@ -73,15 +73,25 @@
 
 /* AR5416 compatible devid's  */
 #define AR5416_DEVID_PCI	0x0023          /* AR5416 PCI (MB/CB) Owl */
-#define AR5416_DEVID_PCIE	0x0024          /* AR5416 PCI-E (XB) Owl */
+#define AR5416_DEVID_PCIE	0x0024          /* AR5418 PCI-E (XB) Owl */
 #define	AR5416_AR9130_DEVID     0x000b          /* AR9130 SoC WiMAC */
 #define AR9160_DEVID_PCI	0x0027          /* AR9160 PCI Sowl */
 #define AR9280_DEVID_PCI	0x0029          /* AR9280 PCI Merlin */
-#define AR9280_DEVID_PCIE	0x002a          /* AR9280 PCI-E Merlin */
+#define AR9280_DEVID_PCIE	0x002a          /* AR9220 PCI-E Merlin */
 #define AR9285_DEVID_PCIE	0x002b          /* AR9285 PCI-E Kite */
 #define	AR2427_DEVID_PCIE	0x002c		/* AR2427 PCI-E w/ 802.11n bonded out */
 #define	AR9287_DEVID_PCI	0x002d		/* AR9227 PCI Kiwi */
 #define	AR9287_DEVID_PCIE	0x002e		/* AR9287 PCI-E Kiwi */
+
+/* AR9300 */
+#define	AR9300_DEVID_AR9380_PCIE	0x0030
+#define	AR9300_DEVID_EMU_PCIE		0xabcd
+#define	AR9300_DEVID_AR9340		0x0031
+#define	AR9300_DEVID_AR9485_PCIE	0x0032
+#define	AR9300_DEVID_AR9580_PCIE	0x0033
+#define	AR9300_DEVID_AR946X_PCIE	0x0034
+#define	AR9300_DEVID_AR9330		0x0035
+#define	AR9300_DEVID_QCA955X		0x0039
 
 #define	AR_SUBVENDOR_ID_NOG	0x0e11		/* No 11G subvendor ID */
 #define AR_SUBVENDOR_ID_NEW_A	0x7065		/* Update device to new RD */

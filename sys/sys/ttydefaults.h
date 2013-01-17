@@ -79,9 +79,9 @@
 #define	CSTART		CTRL('Q')
 #define	CSTOP		CTRL('S')
 #define	CLNEXT		CTRL('V')
-#define	CDISCARD 	CTRL('O')
-#define	CWERASE 	CTRL('W')
-#define	CREPRINT 	CTRL('R')
+#define	CDISCARD	CTRL('O')
+#define	CWERASE		CTRL('W')
+#define	CREPRINT	CTRL('R')
 #define	CEOT		CEOF
 /* compat */
 #define	CBRK		CEOL

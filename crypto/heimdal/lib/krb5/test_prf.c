@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -33,8 +33,6 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: test_prf.c 20843 2007-06-03 14:23:20Z lha $");
-
 #include <hex.h>
 #include <err.h>
 
@@ -42,7 +40,7 @@ RCSID("$Id: test_prf.c 20843 2007-06-03 14:23:20Z lha $");
  * key: string2key(aes256, "testkey", "testkey", default_params)
  * input: unhex(1122334455667788)
  * output: 58b594b8a61df6e9439b7baa991ff5c1
- * 
+ *
  * key: string2key(aes128, "testkey", "testkey", default_params)
  * input: unhex(1122334455667788)
  * output: ffa2f823aa7f83a8ce3c5fb730587129
@@ -93,7 +91,7 @@ main(int argc, char **argv)
     krb5_data_free(&output2);
 
     krb5_crypto_destroy(context, crypto);
-    
+
     krb5_free_keyblock_contents(context, &key);
 
     krb5_free_context(context);

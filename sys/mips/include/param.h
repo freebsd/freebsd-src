@@ -59,15 +59,21 @@
 #ifndef MACHINE_ARCH
 #if _BYTE_ORDER == _BIG_ENDIAN
 #ifdef __mips_n64
-#define	MACHINE_ARCH	"mips64eb"
+#define	MACHINE_ARCH	"mips64"
+#ifndef	MACHINE_ARCH32
+#define	MACHINE_ARCH32	"mips"
+#endif
 #elif defined(__mips_n32)
-#define	MACHINE_ARCH	"mipsn32eb"
+#define	MACHINE_ARCH	"mipsn32"
 #else
-#define	MACHINE_ARCH	"mipseb"
+#define	MACHINE_ARCH	"mips"
 #endif
 #else
 #ifdef __mips_n64
 #define	MACHINE_ARCH	"mips64el"
+#ifndef	MACHINE_ARCH32
+#define	MACHINE_ARCH32	"mipsel"
+#endif
 #elif defined(__mips_n32)
 #define	MACHINE_ARCH	"mipsn32el"
 #else
@@ -156,20 +162,6 @@
  */
 #define	KSTACK_PAGES		2	/* kernel stack */
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
-
-#define	UPAGES			2
-
-/* pages ("clicks") (4096 bytes) to disk blocks */
-#define	ctod(x)			((x) << (PAGE_SHIFT - DEV_BSHIFT))
-#define	dtoc(x)			((x) >> (PAGE_SHIFT - DEV_BSHIFT))
-
-/*
- * Map a ``block device block'' to a file system block.
- * This should be device dependent, and should use the bsize
- * field from the disk label.
- * For now though just use DEV_BSIZE.
- */
-#define	bdbtofsb(bn)		((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
 
 /*
  * Mach derived conversion macros

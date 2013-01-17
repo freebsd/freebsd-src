@@ -564,7 +564,7 @@ usb_clear_halt(struct usb_device *dev, struct usb_host_endpoint *uhe)
 	type = uhe->desc.bmAttributes & UE_XFERTYPE;
 	addr = uhe->desc.bEndpointAddress;
 
-	bzero(cfg, sizeof(cfg));
+	memset(cfg, 0, sizeof(cfg));
 
 	cfg[0].type = type;
 	cfg[0].endpoint = addr & UE_ADDR;
@@ -709,12 +709,12 @@ usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *uhe,
 	urb->dev = dev;
 	urb->endpoint = uhe;
 
-	bcopy(&req, urb->setup_packet, sizeof(req));
+	memcpy(urb->setup_packet, &req, sizeof(req));
 
 	if (size && (!(req.bmRequestType & UT_READ))) {
 		/* move the data to a real buffer */
-		bcopy(data, USB_ADD_BYTES(urb->setup_packet,
-		    sizeof(req)), size);
+		memcpy(USB_ADD_BYTES(urb->setup_packet, sizeof(req)),
+		    data, size);
 	}
 	err = usb_start_wait_urb(urb, timeout, &actlen);
 
@@ -789,7 +789,7 @@ usb_setup_endpoint(struct usb_device *dev,
 	if (bufsize == 0) {
 		return (0);
 	}
-	bzero(cfg, sizeof(cfg));
+	memset(cfg, 0, sizeof(cfg));
 
 	if (type == UE_ISOCHRONOUS) {
 
@@ -880,7 +880,7 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 	 */
 	for (pass = 0; pass < 2; pass++) {
 
-		iface_no_curr = 0 - 1;
+		iface_no_curr = 0xFFFF;
 		niface_total = 0;
 		iface_index = 0;
 		nedesc = 0;
@@ -1251,7 +1251,7 @@ usb_init_urb(struct urb *urb)
 	if (urb == NULL) {
 		return;
 	}
-	bzero(urb, sizeof(*urb));
+	memset(urb, 0, sizeof(*urb));
 }
 
 /*------------------------------------------------------------------------*

@@ -161,7 +161,7 @@ bracket(STR *s)
 	repeat:
 		if ((p = strpbrk(s->str + 2, "*]")) == NULL)
 			return (0);
-		if (p[0] != '*' || index(p, ']') == NULL)
+		if (p[0] != '*' || strchr(p, ']') == NULL)
 			return (0);
 		s->str += 1;
 		genseq(s);

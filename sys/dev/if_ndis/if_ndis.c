@@ -150,9 +150,9 @@ static funcptr ndis_resettask_wrap;
 static funcptr ndis_inputtask_wrap;
 
 static struct	ieee80211vap *ndis_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void ndis_vap_delete	(struct ieee80211vap *);
 static void ndis_tick		(void *);
 static void ndis_ticktask	(device_object *, void *);
@@ -714,7 +714,6 @@ ndis_attach(dev)
 	ndis_probe_offload(sc);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ndis_ioctl;
 	ifp->if_start = ndis_start;
@@ -973,10 +972,10 @@ fail:
 }
 
 static struct ieee80211vap *
-ndis_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+ndis_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct ndis_vap *nvp;
 	struct ieee80211vap *vap;
@@ -1175,7 +1174,7 @@ ndis_rxeof_eth(adapter, ctx, addr, hdr, hdrlen, lookahead, lookaheadlen, pktlen)
 
 	block = adapter;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return;
 
@@ -1419,7 +1418,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 		} else {
 #ifdef notdef
 			if (p->np_oob.npo_status == NDIS_STATUS_RESOURCES) {
-				m = m_dup(m0, M_DONTWAIT);
+				m = m_dup(m0, M_NOWAIT);
 				/*
 				 * NOTE: we want to destroy the mbuf here, but
 				 * we don't actually want to return it to the
@@ -1437,7 +1436,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 			} else
 				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 #endif
-			m = m_dup(m0, M_DONTWAIT);
+			m = m_dup(m0, M_NOWAIT);
 			if (p->np_oob.npo_status == NDIS_STATUS_RESOURCES)
 				p->np_refcnt++;
 			else

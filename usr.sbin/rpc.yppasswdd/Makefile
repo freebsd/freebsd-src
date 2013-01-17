@@ -25,7 +25,7 @@ LDADD=	-lrpcsvc -lcrypt -lutil
 
 CLEANFILES= ${GENSRCS}
 
-RPCGEN=	rpcgen -I -C
+RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yppasswdd_main.c can see it.

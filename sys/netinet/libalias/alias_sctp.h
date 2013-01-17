@@ -92,7 +92,6 @@
 #ifndef _KERNEL
 #include <stdlib.h>
 #include <stdio.h>
-#include <curses.h>
 #endif //#ifdef _KERNEL
 
 

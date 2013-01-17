@@ -1,0 +1,87 @@
+.TH cputimes 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+cputimes \- print time by Kernel/Idle/Process. Uses DTrace.
+.SH SYNOPSIS
+.B cputimes
+[\-ahTV] [\-t top] [interval [count]]
+.SH DESCRIPTION
+cputimes prints the CPU time consumed by the Kernel, Idle threads and
+by Processes. 
+
+This program accurately measures time consumed by the kernel, but in
+doing so creates extra kernel load of it's own. This extra kernel
+activity can be measured by running one cputimes and then another, and
+comparing the difference in kernel consumed time. This method can be
+used to estimate the load caused by other DTrace scripts.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the sysinfo and sched providers.
+.SH OPTIONS
+.TP
+\-a
+print all processes
+.TP
+\-T
+print totals
+.TP
+\-V
+don't print timestamps
+.TP
+\-t num
+print top num lines only
+.SH EXAMPLES
+.TP
+Default, print Kernel/Idle/Process time, 1 x 1 second sample,
+# 
+.B cputimes
+.PP
+.TP
+Print every 1 second,
+# 
+.B cputimes
+1
+.PP
+.TP
+Print all processes every 10 seconds,
+#
+.B cputimes
+\-a 10
+.PP
+.TP
+Print top 8 lines every 5 seconds,
+#
+.B cputimes
+\-at 8 5
+.PP
+.SH FIELDS
+.TP
+THREADS
+Either KERNEL, IDLE, PROCESS or process name.
+.TP
+IDLE
+Idle time - CPU running idle thread
+.TP
+KERNEL
+Kernel time - Kernel servicing interrupts, ...
+.TP
+PROCESS
+Process time - PIDs running on the system
+.TP
+TIME (ns)
+Sum of the CPU time, ns (nanoseconds)
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+cputimes will run once, unless a count is specified.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), vmstat(1M)
+

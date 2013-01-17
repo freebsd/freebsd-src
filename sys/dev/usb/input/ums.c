@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ums_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
 SYSCTL_INT(_hw_usb_ums, OID_AUTO, debug, CTLFLAG_RW,
     &ums_debug, 0, "Debug level");
 #endif
@@ -134,6 +134,7 @@ struct ums_softc {
 	struct usb_xfer *sc_xfer[UMS_N_TRANSFER];
 
 	int sc_pollrate;
+	int sc_fflags;
 
 	uint8_t	sc_buttons;
 	uint8_t	sc_iid;
@@ -201,7 +202,7 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(6, "sc=%p actlen=%d\n", sc, len);
 
-		if (len > sizeof(sc->sc_temp)) {
+		if (len > (int)sizeof(sc->sc_temp)) {
 			DPRINTFN(6, "truncating large packet to %zu bytes\n",
 			    sizeof(sc->sc_temp));
 			len = sizeof(sc->sc_temp);
@@ -367,9 +368,7 @@ ums_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	void *d_ptr;
-	struct hid_data *hd;
-	struct hid_item hi;
-	int error, mdepth, found;
+	int error;
 	uint16_t d_len;
 
 	DPRINTFN(11, "\n");
@@ -378,6 +377,9 @@ ums_probe(device_t dev)
 		return (ENXIO);
 
 	if (uaa->info.bInterfaceClass != UICLASS_HID)
+		return (ENXIO);
+
+	if (usb_test_quirk(uaa, UQ_UMS_IGNORE))
 		return (ENXIO);
 
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
@@ -390,44 +392,13 @@ ums_probe(device_t dev)
 	if (error)
 		return (ENXIO);
 
-	hd = hid_start_parse(d_ptr, d_len, 1 << hid_input);
-	if (hd == NULL)
-		return (0);
-	mdepth = 0;
-	found = 0;
-	while (hid_get_item(hd, &hi)) {
-		switch (hi.kind) {
-		case hid_collection:
-			if (mdepth != 0)
-				mdepth++;
-			else if (hi.collection == 1 &&
-			     hi.usage ==
-			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))
-				mdepth++;
-			break;
-		case hid_endcollection:
-			if (mdepth != 0)
-				mdepth--;
-			break;
-		case hid_input:
-			if (mdepth == 0)
-				break;
-			if (hi.usage ==
-			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X) &&
-			    (hi.flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
-				found++;
-			if (hi.usage ==
-			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y) &&
-			    (hi.flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
-				found++;
-			break;
-		default:
-			break;
-		}
-	}
-	hid_end_parse(hd);
+	if (hid_is_mouse(d_ptr, d_len))
+		error = BUS_PROBE_DEFAULT;
+	else
+		error = ENXIO;
+
 	free(d_ptr, M_TEMP);
-	return (found ? BUS_PROBE_DEFAULT : ENXIO);
+	return (error);
 }
 
 static void
@@ -644,7 +615,7 @@ ums_attach(device_t dev)
 		/* Some wheels need the Z axis reversed. */
 		info->sc_flags |= UMS_FLAG_REVZ;
 	}
-	if (isize > usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT])) {
+	if (isize > (int)usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT])) {
 		DPRINTF("WARNING: report size, %d bytes, is larger "
 		    "than interrupt size, %d bytes!\n", isize,
 		    usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT]));
@@ -677,32 +648,13 @@ ums_attach(device_t dev)
 	DPRINTF("size=%d, id=%d\n", isize, sc->sc_iid);
 #endif
 
-	if (sc->sc_buttons > MOUSE_MSC_MAXBUTTON)
-		sc->sc_hw.buttons = MOUSE_MSC_MAXBUTTON;
-	else
-		sc->sc_hw.buttons = sc->sc_buttons;
-
-	sc->sc_hw.iftype = MOUSE_IF_USB;
-	sc->sc_hw.type = MOUSE_MOUSE;
-	sc->sc_hw.model = MOUSE_MODEL_GENERIC;
-	sc->sc_hw.hwid = 0;
-
-	sc->sc_mode.protocol = MOUSE_PROTO_MSC;
-	sc->sc_mode.rate = -1;
-	sc->sc_mode.resolution = MOUSE_RES_UNKNOWN;
-	sc->sc_mode.accelfactor = 0;
-	sc->sc_mode.level = 0;
-	sc->sc_mode.packetsize = MOUSE_MSC_PACKETSIZE;
-	sc->sc_mode.syncmask[0] = MOUSE_MSC_SYNCMASK;
-	sc->sc_mode.syncmask[1] = MOUSE_MSC_SYNC;
-
 	err = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ums_fifo_methods, &sc->sc_fifo,
-	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+	    device_get_unit(dev), -1, uaa->info.bIfaceIndex,
   	    UID_ROOT, GID_OPERATOR, 0644);
-	if (err) {
+	if (err)
 		goto detach;
-	}
+
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "parseinfo", CTLTYPE_STRING|CTLFLAG_RD,
@@ -825,7 +777,7 @@ ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy,
 static void
 ums_reset_buf(struct ums_softc *sc)
 {
-	/* reset read queue */
+	/* reset read queue, must be called locked */
 	usb_fifo_reset(sc->sc_fifo.fp[USB_FIFO_RX]);
 }
 
@@ -836,7 +788,33 @@ ums_open(struct usb_fifo *fifo, int fflags)
 
 	DPRINTFN(2, "\n");
 
-	if (fflags & FREAD) {
+	/* check for duplicate open, should not happen */
+	if (sc->sc_fflags & fflags)
+		return (EBUSY);
+
+	/* check for first open */
+	if (sc->sc_fflags == 0) {
+
+		/* reset all USB mouse parameters */
+
+		if (sc->sc_buttons > MOUSE_MSC_MAXBUTTON)
+			sc->sc_hw.buttons = MOUSE_MSC_MAXBUTTON;
+		else
+			sc->sc_hw.buttons = sc->sc_buttons;
+
+		sc->sc_hw.iftype = MOUSE_IF_USB;
+		sc->sc_hw.type = MOUSE_MOUSE;
+		sc->sc_hw.model = MOUSE_MODEL_GENERIC;
+		sc->sc_hw.hwid = 0;
+
+		sc->sc_mode.protocol = MOUSE_PROTO_MSC;
+		sc->sc_mode.rate = -1;
+		sc->sc_mode.resolution = MOUSE_RES_UNKNOWN;
+		sc->sc_mode.accelfactor = 0;
+		sc->sc_mode.level = 0;
+		sc->sc_mode.packetsize = MOUSE_MSC_PACKETSIZE;
+		sc->sc_mode.syncmask[0] = MOUSE_MSC_SYNCMASK;
+		sc->sc_mode.syncmask[1] = MOUSE_MSC_SYNC;
 
 		/* reset status */
 
@@ -847,21 +825,31 @@ ums_open(struct usb_fifo *fifo, int fflags)
 		sc->sc_status.dy = 0;
 		sc->sc_status.dz = 0;
 		/* sc->sc_status.dt = 0; */
+	}
 
+	if (fflags & FREAD) {
+		/* allocate RX buffer */
 		if (usb_fifo_alloc_buffer(fifo,
 		    UMS_BUF_SIZE, UMS_IFQ_MAXLEN)) {
 			return (ENOMEM);
 		}
 	}
+
+	sc->sc_fflags |= fflags & (FREAD | FWRITE);
 	return (0);
 }
 
 static void
 ums_close(struct usb_fifo *fifo, int fflags)
 {
-	if (fflags & FREAD) {
+	struct ums_softc *sc = usb_fifo_softc(fifo);
+
+	DPRINTFN(2, "\n");
+
+	if (fflags & FREAD)
 		usb_fifo_free_buffer(fifo);
-	}
+
+	sc->sc_fflags &= ~(fflags & (FREAD | FWRITE));
 }
 
 static int
@@ -891,7 +879,7 @@ ums_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 			/* don't change the current setting */
 		} else if ((mode.level < 0) || (mode.level > 1)) {
 			error = EINVAL;
-			goto done;
+			break;
 		} else {
 			sc->sc_mode.level = mode.level;
 		}
@@ -928,7 +916,7 @@ ums_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 	case MOUSE_SETLEVEL:
 		if (*(int *)addr < 0 || *(int *)addr > 1) {
 			error = EINVAL;
-			goto done;
+			break;
 		}
 		sc->sc_mode.level = *(int *)addr;
 
@@ -975,9 +963,9 @@ ums_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 		}
 	default:
 		error = ENOTTY;
+		break;
 	}
 
-done:
 	mtx_unlock(&sc->sc_mtx);
 	return (error);
 }

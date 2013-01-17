@@ -76,8 +76,9 @@ usage(void)
 	    (program == BSNMPWALK) ? "[-dhnK]" :
 	    (program == BSNMPSET) ? "[-adehnK]" :
 	    "",
-	(program == BSNMPGET) ? " [-M max-repetitions] [-N non-repeaters]" : "",
-	(program == BSNMPGET) ? "[-p pdu] " : "",
+	(program == BSNMPGET || program == BSNMPWALK) ?
+	" [-M max-repetitions] [-N non-repeaters]" : "",
+	(program == BSNMPGET || program == BSNMPWALK) ? "[-p pdu] " : "",
 	(program == BSNMPGET) ? " OID [OID ...]" :
 	    (program == BSNMPWALK || program == BSNMPSET) ? " [OID ...]" :
 	    ""
@@ -150,7 +151,7 @@ snmptool_parse_options(struct snmp_toolinfo *snmptoolctx, int argc, char **argv)
 
 	switch (program) {
 		case BSNMPWALK:
-			opts = "dhnKA:b:C:I:i:l:o:P:r:s:t:U:v:";
+			opts = "dhnKA:b:C:I:i:l:M:N:o:P:p:r:s:t:U:v:";
 			break;
 		case BSNMPGET:
 			opts = "aDdehnKA:b:C:I:i:l:M:N:o:P:p:r:s:t:U:v:";
@@ -248,9 +249,9 @@ snmptool_parse_options(struct snmp_toolinfo *snmptoolctx, int argc, char **argv)
 
 /*
  * Read user input OID - one of following formats:
- * 1) 1.2.1.1.2.1.0 - that is if option numeric was giveni;
+ * 1) 1.2.1.1.2.1.0 - that is if option numeric was given;
  * 2) string - in such case append .0 to the asn_oid subs;
- * 3) string.1 - no additional proccessing required in such case.
+ * 3) string.1 - no additional processing required in such case.
  */
 static char *
 snmptools_parse_stroid(struct snmp_toolinfo *snmptoolctx,
@@ -398,7 +399,7 @@ snmptool_get(struct snmp_toolinfo *snmptoolctx)
 		}
 
 		if (snmp_parse_resp(&resp, &req) >= 0) {
-			snmp_output_resp(snmptoolctx, &resp);
+			snmp_output_resp(snmptoolctx, &resp, NULL);
 			break;
 		}
 
@@ -458,10 +459,16 @@ static int
 snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 {
 	struct snmp_pdu req, resp;
-	struct asn_oid root;	/* Keep the inital oid. */
+	struct asn_oid root;	/* Keep the initial oid. */
 	int32_t outputs, rc;
+	uint32_t op;
 
-	snmp_pdu_create(&req, SNMP_PDU_GETNEXT);
+	if (GET_PDUTYPE(snmptoolctx) == SNMP_PDU_GETBULK)
+		op = SNMP_PDU_GETBULK;
+	else
+		op = SNMP_PDU_GETNEXT;
+
+	snmp_pdu_create(&req, op);
 
 	while ((rc = snmp_pdu_add_bindings(snmptoolctx, NULL,
 	    snmptool_add_vbind, &req, 1)) > 0) {
@@ -469,6 +476,10 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 		/* Remember the root where the walk started from. */
 		memset(&root, 0, sizeof(struct asn_oid));
 		asn_append_oid(&root, &(req.bindings[0].var));
+
+		if (op == SNMP_PDU_GETBULK)
+			snmpget_fix_getbulk(&req, GET_MAXREP(snmptoolctx),
+			    GET_NONREP(snmptoolctx));
 
 		outputs = 0;
 		while (snmp_dialog(&req, &resp) >= 0) {
@@ -479,21 +490,24 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 				break;
 			}
 
-			if (!(asn_is_suboid(&root, &(resp.bindings[0].var)))) {
-				snmp_pdu_free(&resp);
-				break;
-			}
-
-			if (snmp_output_resp(snmptoolctx, &resp)!= 0) {
+			rc = snmp_output_resp(snmptoolctx, &resp, &root);
+			if (rc < 0) {
 				snmp_pdu_free(&resp);
 				outputs = -1;
 				break;
 			}
-			outputs++;
+
+			outputs += rc;
 			snmp_pdu_free(&resp);
 
-			snmpwalk_nextpdu_create(SNMP_PDU_GETNEXT,
-			    &(resp.bindings[0].var), &req);
+			if (rc < resp.nbindings)
+				break;
+
+			snmpwalk_nextpdu_create(op,
+			    &(resp.bindings[resp.nbindings - 1].var), &req);
+			if (op == SNMP_PDU_GETBULK)
+				snmpget_fix_getbulk(&req, GET_MAXREP(snmptoolctx),
+				    GET_NONREP(snmptoolctx));
 		}
 
 		/* Just in case our root was a leaf. */
@@ -503,7 +517,7 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 				if (snmp_parse_resp(&resp,&req) < 0)
 					snmp_output_err_resp(snmptoolctx, &resp);
 				else
-					snmp_output_resp(snmptoolctx, &(resp));
+					snmp_output_resp(snmptoolctx, &(resp), NULL);
 
 				snmp_pdu_free(&resp);
 			} else
@@ -515,7 +529,7 @@ snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 			break;
 		}
 
-		snmp_pdu_create(&req, SNMP_PDU_GETNEXT);
+		snmp_pdu_create(&req, op);
 	}
 
 	if (rc == 0)
@@ -1076,7 +1090,7 @@ snmptool_set(struct snmp_toolinfo *snmptoolctx)
 
 		if (snmp_pdu_check(&req, &resp) > 0) {
 			if (GET_OUTPUT(snmptoolctx) != OUTPUT_QUIET)
-				snmp_output_resp(snmptoolctx, &resp);
+				snmp_output_resp(snmptoolctx, &resp, NULL);
 			break;
 		}
 
@@ -1105,13 +1119,13 @@ snmptool_set(struct snmp_toolinfo *snmptoolctx)
  */
 /*
  * According to command line options prepare SNMP Get | GetNext | GetBulk PDU.
- * Wait for a responce and print it.
+ * Wait for a response and print it.
  */
 /*
  * Do a 'snmp walk' - according to command line options request for values
  * lexicographically subsequent and subrooted at a common node. Send a GetNext
- * PDU requesting the value for each next variable and print the responce. Stop
- * when a Responce PDU is received that contains the value of a variable not
+ * PDU requesting the value for each next variable and print the response. Stop
+ * when a Response PDU is received that contains the value of a variable not
  * subrooted at the variable the walk started.
  */
 int

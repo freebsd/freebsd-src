@@ -301,7 +301,6 @@ ep_attach(struct ep_softc *sc)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = epstart;
 	ifp->if_ioctl = epioctl;
@@ -747,11 +746,11 @@ read_again:
 	rx_fifo = rx_fifo2 = status & RX_BYTES_MASK;
 
 	if (EP_FTST(sc, F_RX_FIRST)) {
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (!m)
 			goto out;
 		if (rx_fifo >= MINCLSIZE)
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 		sc->top = sc->mcur = top = m;
 #define EROUND  ((sizeof(struct ether_header) + 3) & ~3)
 #define EOFF    (EROUND - sizeof(struct ether_header))
@@ -775,11 +774,11 @@ read_again:
 		lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
 		if (lenthisone == 0) {	/* no room in this one */
 			mcur = m;
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (!m)
 				goto out;
 			if (rx_fifo >= MINCLSIZE)
-				MCLGET(m, M_DONTWAIT);
+				MCLGET(m, M_NOWAIT);
 			m->m_len = 0;
 			mcur->m_next = m;
 			lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));

@@ -212,7 +212,7 @@ ibcs2_utssys(td, uap)
 			IBCS2_UNAME_VERSION, sizeof(sut.version) - 1);
 		getcredhostname(td->td_ucred, machine_name,
 		    sizeof(machine_name) - 1);
-		p = index(machine_name, '.');
+		p = strchr(machine_name, '.');
 		if ( p )
 			*p = '\0';
 		strncpy(sut.nodename, machine_name, sizeof(sut.nodename) - 1);

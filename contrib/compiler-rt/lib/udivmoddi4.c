@@ -11,7 +11,6 @@
  *
  * ===----------------------------------------------------------------------===
  */
-#include "abi.h"
 
 #include "int_lib.h"
 
@@ -20,8 +19,6 @@
  */
 
 /* Translated from Figure 3-40 of The PowerPC Compiler Writer's Guide */
-
-ARM_EABI_FNALIAS(uldivmod, udivmoddi4);
 
 COMPILER_RT_ABI du_int
 __udivmoddi4(du_int a, du_int b, du_int* rem)
@@ -133,7 +130,7 @@ __udivmoddi4(du_int a, du_int b, du_int* rem)
                     *rem = n.s.low & (d.s.low - 1);
                 if (d.s.low == 1)
                     return n.all;
-                unsigned sr = __builtin_ctz(d.s.low);
+                sr = __builtin_ctz(d.s.low);
                 q.s.high = n.s.high >> sr;
                 q.s.low = (n.s.high << (n_uword_bits - sr)) | (n.s.low >> sr);
                 return q.all;

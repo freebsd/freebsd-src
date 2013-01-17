@@ -41,14 +41,14 @@
 #define	IV_SHIFT	6
 
 #define	PIL_LOW		1	/* stray interrupts */
-#define	PIL_ITHREAD	2	/* interrupts that use ithreads */
-#define	PIL_RENDEZVOUS	3	/* smp rendezvous ipi */
-#define	PIL_AST		4	/* ast ipi */
-#define	PIL_STOP	5	/* stop cpu ipi */
-#define	PIL_PREEMPT	6	/* preempt idle thread cpu ipi */
-#define	PIL_HARDCLOCK	7	/* hardclock broadcast */
-#define	PIL_FILTER	12	/* filter interrupts */
-#define	PIL_BRIDGE	13	/* bridge interrupts */
+#define	PIL_PREEMPT	2	/* preempt idle thread CPU IPI */
+#define	PIL_ITHREAD	3	/* interrupts that use ithreads */
+#define	PIL_RENDEZVOUS	4	/* SMP rendezvous IPI */
+#define	PIL_AST		5	/* asynchronous trap IPI */
+#define	PIL_HARDCLOCK	6	/* hardclock broadcast */
+#define	PIL_FILTER	11	/* filter interrupts */
+#define	PIL_BRIDGE	12	/* bridge interrupts */
+#define	PIL_STOP	13	/* stop CPU IPI */
 #define	PIL_TICK	14	/* tick interrupts */
 
 #ifndef LOCORE

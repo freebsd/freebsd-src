@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: request.c,v 1.87.148.2 2011-03-12 04:59:17 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -1133,9 +1133,7 @@ req_render(dns_message_t *message, isc_buffer_t **bufferp,
  */
 static void
 send_if_done(dns_request_t *request, isc_result_t result) {
-	if (!DNS_REQUEST_CONNECTING(request) &&
-	    !DNS_REQUEST_SENDING(request) &&
-	    !request->canceling)
+	if (request->event != NULL && !request->canceling)
 		req_sendevent(request, result);
 }
 
@@ -1319,8 +1317,8 @@ req_senddone(isc_task_t *task, isc_event_t *event) {
 		else
 			send_if_done(request, ISC_R_CANCELED);
 	} else if (sevent->result != ISC_R_SUCCESS) {
-			req_cancel(request);
-			send_if_done(request, ISC_R_CANCELED);
+		req_cancel(request);
+		send_if_done(request, ISC_R_CANCELED);
 	}
 	UNLOCK(&request->requestmgr->locks[request->hash]);
 

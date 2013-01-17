@@ -29,31 +29,26 @@
 #include "at91rm9200_lowlevel.h"
 #include "spi_flash.h"
 
-#define LOADER_OFFSET 0
-#define FPGA_OFFSET  (15 * FLASH_PAGE_SIZE)
-#define OFFSET FPGA_OFFSET
+#define OFFSET 0
 
-int
+void
 main(void)
 {
 	int len, i, j, off, sec;
 	char *addr = (char *)SDRAM_BASE + (1 << 20); /* download at + 1MB */
 	char *addr2 = (char *)SDRAM_BASE + (2 << 20); /* readback to + 2MB */
-	char *addr3 = (char *)SDRAM_BASE + (3 << 20); /* extra copy at + 3MB */
 
 	SPI_InitFlash();
 	printf("Waiting for data\n");
 	while ((len = xmodem_rx(addr)) == -1)
 		continue;
-	// Need extra copy at addr3
-	memcpy(addr3, addr, (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE * FLASH_PAGE_SIZE);
-	printf("Writing %u bytes to flash at %u\n", len, OFFSET);
+	printf("Writing %u bytes at %u\n", len, OFFSET);
 	for (i = 0; i < len; i+= FLASH_PAGE_SIZE) {
+		off = i + OFFSET;
 		for (j = 0; j < 10; j++) {
-			off = i + OFFSET;
 			SPI_WriteFlash(off, addr + i, FLASH_PAGE_SIZE);
 			SPI_ReadFlash(off, addr2 + i, FLASH_PAGE_SIZE);
-			if (p_memcmp(addr3 + i, addr2 + i, FLASH_PAGE_SIZE) == 0)
+			if (p_memcmp(addr + i, addr2 + i, FLASH_PAGE_SIZE) == 0)
 				break;
 		}
 		if (j >= 10)
@@ -64,5 +59,4 @@ main(void)
 	    continue;
 	printf("Done\n");
 	reset();
-	return (1);
 }

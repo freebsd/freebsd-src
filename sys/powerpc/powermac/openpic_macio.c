@@ -94,6 +94,10 @@ openpic_macio_probe(device_t dev)
 	if (strcmp(type, "open-pic") != 0)
                 return (ENXIO);
 
+	/* On some U4 systems, there is a phantom MPIC in the mac-io cell */
+	if (OF_finddevice("/u4") != (phandle_t)-1)
+		return (ENXIO);
+
 	device_set_desc(dev, OPENPIC_DEVSTR);
 	return (0);
 }

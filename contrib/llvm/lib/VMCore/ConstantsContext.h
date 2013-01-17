@@ -15,6 +15,8 @@
 #ifndef LLVM_CONSTANTSCONTEXT_H
 #define LLVM_CONSTANTSCONTEXT_H
 
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Instructions.h"
 #include "llvm/Operator.h"
@@ -30,7 +32,8 @@ struct ConstantTraits;
 /// UnaryConstantExpr - This class is private to Constants.cpp, and is used
 /// behind the scenes to implement unary constant exprs.
 class UnaryConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -46,7 +49,8 @@ public:
 /// BinaryConstantExpr - This class is private to Constants.cpp, and is used
 /// behind the scenes to implement binary constant exprs.
 class BinaryConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -66,7 +70,8 @@ public:
 /// SelectConstantExpr - This class is private to Constants.cpp, and is used
 /// behind the scenes to implement select constant exprs.
 class SelectConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
   void *operator new(size_t s) {
@@ -86,7 +91,8 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// extractelement constant exprs.
 class ExtractElementConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -106,7 +112,8 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// insertelement constant exprs.
 class InsertElementConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
   void *operator new(size_t s) {
@@ -127,7 +134,8 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// shufflevector constant exprs.
 class ShuffleVectorConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
   void *operator new(size_t s) {
@@ -151,7 +159,8 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// extractvalue constant exprs.
 class ExtractValueConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -176,7 +185,8 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// insertvalue constant exprs.
 class InsertValueConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -202,11 +212,12 @@ public:
 /// GetElementPtrConstantExpr - This class is private to Constants.cpp, and is
 /// used behind the scenes to implement getelementpr constant exprs.
 class GetElementPtrConstantExpr : public ConstantExpr {
-  GetElementPtrConstantExpr(Constant *C, const std::vector<Constant*> &IdxList,
+  virtual void anchor();
+  GetElementPtrConstantExpr(Constant *C, ArrayRef<Constant*> IdxList,
                             Type *DestTy);
 public:
   static GetElementPtrConstantExpr *Create(Constant *C,
-                                           const std::vector<Constant*>&IdxList,
+                                           ArrayRef<Constant*> IdxList,
                                            Type *DestTy,
                                            unsigned Flags) {
     GetElementPtrConstantExpr *Result =
@@ -221,8 +232,10 @@ public:
 // CompareConstantExpr - This class is private to Constants.cpp, and is used
 // behind the scenes to implement ICmp and FCmp constant expressions. This is
 // needed in order to store the predicate value for these instructions.
-struct CompareConstantExpr : public ConstantExpr {
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+class CompareConstantExpr : public ConstantExpr {
+  virtual void anchor();
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
+public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
     return User::operator new(s, 2);
@@ -339,18 +352,21 @@ struct ExprMapKeyType {
 struct InlineAsmKeyType {
   InlineAsmKeyType(StringRef AsmString,
                    StringRef Constraints, bool hasSideEffects,
-                   bool isAlignStack)
+                   bool isAlignStack, InlineAsm::AsmDialect asmDialect)
     : asm_string(AsmString), constraints(Constraints),
-      has_side_effects(hasSideEffects), is_align_stack(isAlignStack) {}
+      has_side_effects(hasSideEffects), is_align_stack(isAlignStack),
+      asm_dialect(asmDialect) {}
   std::string asm_string;
   std::string constraints;
   bool has_side_effects;
   bool is_align_stack;
+  InlineAsm::AsmDialect asm_dialect;
   bool operator==(const InlineAsmKeyType& that) const {
     return this->asm_string == that.asm_string &&
            this->constraints == that.constraints &&
            this->has_side_effects == that.has_side_effects &&
-           this->is_align_stack == that.is_align_stack;
+           this->is_align_stack == that.is_align_stack &&
+           this->asm_dialect == that.asm_dialect;
   }
   bool operator<(const InlineAsmKeyType& that) const {
     if (this->asm_string != that.asm_string)
@@ -361,6 +377,8 @@ struct InlineAsmKeyType {
       return this->has_side_effects < that.has_side_effects;
     if (this->is_align_stack != that.is_align_stack)
       return this->is_align_stack < that.is_align_stack;
+    if (this->asm_dialect != that.asm_dialect)
+      return this->asm_dialect < that.asm_dialect;
     return false;
   }
 
@@ -394,6 +412,13 @@ template<class ConstantClass, class TypeClass, class ValType>
 struct ConstantCreator {
   static ConstantClass *create(TypeClass *Ty, const ValType &V) {
     return new(ConstantTraits<ValType>::uses(V)) ConstantClass(Ty, V);
+  }
+};
+
+template<class ConstantClass, class TypeClass>
+struct ConstantArrayCreator {
+  static ConstantClass *create(TypeClass *Ty, ArrayRef<Constant*> V) {
+    return new(V.size()) ConstantClass(Ty, V);
   }
 };
 
@@ -447,7 +472,6 @@ struct ConstantCreator<ConstantExpr, Type, ExprMapKeyType> {
       return new CompareConstantExpr(Ty, Instruction::FCmp, V.subclassdata,
                                      V.operands[0], V.operands[1]);
     llvm_unreachable("Invalid ConstantExpr!");
-    return 0;
   }
 };
 
@@ -467,95 +491,12 @@ struct ConstantKeyData<ConstantExpr> {
   }
 };
 
-// ConstantAggregateZero does not take extra "value" argument...
-template<class ValType>
-struct ConstantCreator<ConstantAggregateZero, Type, ValType> {
-  static ConstantAggregateZero *create(Type *Ty, const ValType &V){
-    return new ConstantAggregateZero(Ty);
-  }
-};
-
-template<>
-struct ConstantKeyData<ConstantVector> {
-  typedef std::vector<Constant*> ValType;
-  static ValType getValType(ConstantVector *CP) {
-    std::vector<Constant*> Elements;
-    Elements.reserve(CP->getNumOperands());
-    for (unsigned i = 0, e = CP->getNumOperands(); i != e; ++i)
-      Elements.push_back(CP->getOperand(i));
-    return Elements;
-  }
-};
-
-template<>
-struct ConstantKeyData<ConstantAggregateZero> {
-  typedef char ValType;
-  static ValType getValType(ConstantAggregateZero *C) {
-    return 0;
-  }
-};
-
-template<>
-struct ConstantKeyData<ConstantArray> {
-  typedef std::vector<Constant*> ValType;
-  static ValType getValType(ConstantArray *CA) {
-    std::vector<Constant*> Elements;
-    Elements.reserve(CA->getNumOperands());
-    for (unsigned i = 0, e = CA->getNumOperands(); i != e; ++i)
-      Elements.push_back(cast<Constant>(CA->getOperand(i)));
-    return Elements;
-  }
-};
-
-template<>
-struct ConstantKeyData<ConstantStruct> {
-  typedef std::vector<Constant*> ValType;
-  static ValType getValType(ConstantStruct *CS) {
-    std::vector<Constant*> Elements;
-    Elements.reserve(CS->getNumOperands());
-    for (unsigned i = 0, e = CS->getNumOperands(); i != e; ++i)
-      Elements.push_back(cast<Constant>(CS->getOperand(i)));
-    return Elements;
-  }
-};
-
-// ConstantPointerNull does not take extra "value" argument...
-template<class ValType>
-struct ConstantCreator<ConstantPointerNull, PointerType, ValType> {
-  static ConstantPointerNull *create(PointerType *Ty, const ValType &V){
-    return new ConstantPointerNull(Ty);
-  }
-};
-
-template<>
-struct ConstantKeyData<ConstantPointerNull> {
-  typedef char ValType;
-  static ValType getValType(ConstantPointerNull *C) {
-    return 0;
-  }
-};
-
-// UndefValue does not take extra "value" argument...
-template<class ValType>
-struct ConstantCreator<UndefValue, Type, ValType> {
-  static UndefValue *create(Type *Ty, const ValType &V) {
-    return new UndefValue(Ty);
-  }
-};
-
-template<>
-struct ConstantKeyData<UndefValue> {
-  typedef char ValType;
-  static ValType getValType(UndefValue *C) {
-    return 0;
-  }
-};
-
 template<>
 struct ConstantCreator<InlineAsm, PointerType, InlineAsmKeyType> {
   static InlineAsm *create(PointerType *Ty, const InlineAsmKeyType &Key) {
     return new InlineAsm(Ty, Key.asm_string, Key.constraints,
-                         Key.has_side_effects, Key.is_align_stack);
+                         Key.has_side_effects, Key.is_align_stack,
+                         Key.asm_dialect);
   }
 };
 
@@ -564,7 +505,8 @@ struct ConstantKeyData<InlineAsm> {
   typedef InlineAsmKeyType ValType;
   static ValType getValType(InlineAsm *Asm) {
     return InlineAsmKeyType(Asm->getAsmString(), Asm->getConstraintString(),
-                            Asm->hasSideEffects(), Asm->isAlignStack());
+                            Asm->hasSideEffects(), Asm->isAlignStack(),
+                            Asm->getDialect());
   }
 };
 
@@ -697,6 +639,129 @@ public:
       assert(I->second == C && "Bad inversemap entry!");
       InverseMap[C] = I;
     }
+  }
+
+  void dump() const {
+    DEBUG(dbgs() << "Constant.cpp: ConstantUniqueMap\n");
+  }
+};
+
+// Unique map for aggregate constants
+template<class TypeClass, class ConstantClass>
+class ConstantAggrUniqueMap {
+public:
+  typedef ArrayRef<Constant*> Operands;
+  typedef std::pair<TypeClass*, Operands> LookupKey;
+private:
+  struct MapInfo {
+    typedef DenseMapInfo<ConstantClass*> ConstantClassInfo;
+    typedef DenseMapInfo<Constant*> ConstantInfo;
+    typedef DenseMapInfo<TypeClass*> TypeClassInfo;
+    static inline ConstantClass* getEmptyKey() {
+      return ConstantClassInfo::getEmptyKey();
+    }
+    static inline ConstantClass* getTombstoneKey() {
+      return ConstantClassInfo::getTombstoneKey();
+    }
+    static unsigned getHashValue(const ConstantClass *CP) {
+      SmallVector<Constant*, 8> CPOperands;
+      CPOperands.reserve(CP->getNumOperands());
+      for (unsigned I = 0, E = CP->getNumOperands(); I < E; ++I)
+        CPOperands.push_back(CP->getOperand(I));
+      return getHashValue(LookupKey(CP->getType(), CPOperands));
+    }
+    static bool isEqual(const ConstantClass *LHS, const ConstantClass *RHS) {
+      return LHS == RHS;
+    }
+    static unsigned getHashValue(const LookupKey &Val) {
+      return hash_combine(Val.first, hash_combine_range(Val.second.begin(),
+                                                        Val.second.end()));
+    }
+    static bool isEqual(const LookupKey &LHS, const ConstantClass *RHS) {
+      if (RHS == getEmptyKey() || RHS == getTombstoneKey())
+        return false;
+      if (LHS.first != RHS->getType()
+          || LHS.second.size() != RHS->getNumOperands())
+        return false;
+      for (unsigned I = 0, E = RHS->getNumOperands(); I < E; ++I) {
+        if (LHS.second[I] != RHS->getOperand(I))
+          return false;
+      }
+      return true;
+    }
+  };
+public:
+  typedef DenseMap<ConstantClass *, char, MapInfo> MapTy;
+
+private:
+  /// Map - This is the main map from the element descriptor to the Constants.
+  /// This is the primary way we avoid creating two of the same shape
+  /// constant.
+  MapTy Map;
+
+public:
+  typename MapTy::iterator map_begin() { return Map.begin(); }
+  typename MapTy::iterator map_end() { return Map.end(); }
+
+  void freeConstants() {
+    for (typename MapTy::iterator I=Map.begin(), E=Map.end();
+         I != E; ++I) {
+      // Asserts that use_empty().
+      delete I->first;
+    }
+  }
+
+private:
+  typename MapTy::iterator findExistingElement(ConstantClass *CP) {
+    return Map.find(CP);
+  }
+
+  ConstantClass *Create(TypeClass *Ty, Operands V, typename MapTy::iterator I) {
+    ConstantClass* Result =
+      ConstantArrayCreator<ConstantClass,TypeClass>::create(Ty, V);
+
+    assert(Result->getType() == Ty && "Type specified is not correct!");
+    Map[Result] = '\0';
+
+    return Result;
+  }
+public:
+
+  /// getOrCreate - Return the specified constant from the map, creating it if
+  /// necessary.
+  ConstantClass *getOrCreate(TypeClass *Ty, Operands V) {
+    LookupKey Lookup(Ty, V);
+    ConstantClass* Result = 0;
+
+    typename MapTy::iterator I = Map.find_as(Lookup);
+    // Is it in the map?
+    if (I != Map.end())
+      Result = I->first;
+
+    if (!Result) {
+      // If no preexisting value, create one now...
+      Result = Create(Ty, V, I);
+    }
+
+    return Result;
+  }
+
+  /// Find the constant by lookup key.
+  typename MapTy::iterator find(LookupKey Lookup) {
+    return Map.find_as(Lookup);
+  }
+
+  /// Insert the constant into its proper slot.
+  void insert(ConstantClass *CP) {
+    Map[CP] = '\0';
+  }
+
+  /// Remove this constant from the map
+  void remove(ConstantClass *CP) {
+    typename MapTy::iterator I = findExistingElement(CP);
+    assert(I != Map.end() && "Constant not found in constant table!");
+    assert(I->first == CP && "Didn't find correct element?");
+    Map.erase(I);
   }
 
   void dump() const {

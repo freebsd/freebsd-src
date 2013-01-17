@@ -58,7 +58,7 @@ static const char rcsid[] =
 #define	MAX_SYSCTL_TRY	5
 #define	ND6BITS	"\020\001PERFORMNUD\002ACCEPT_RTADV\003PREFER_SOURCE" \
 		"\004IFDISABLED\005DONT_SET_IFROUTE\006AUTO_LINKLOCAL" \
-		"\007NO_RADR\020DEFAULTIF"
+		"\007NO_RADR\010NO_PREFER_IFACE\020DEFAULTIF"
 
 static int isnd6defif(int);
 void setnd6flags(const char *, int, int, const struct afswtch *);
@@ -148,12 +148,14 @@ nd6_status(int s)
 	memset(&nd, 0, sizeof(nd));
 	strncpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
 	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		warn("socket(AF_INET6, SOCK_DGRAM)");
+		if (errno != EAFNOSUPPORT)
+			warn("socket(AF_INET6, SOCK_DGRAM)");
 		return;
 	}
 	error = ioctl(s6, SIOCGIFINFO_IN6, &nd);
 	if (error) {
-		warn("ioctl(SIOCGIFINFO_IN6)");
+		if (errno != EPFNOSUPPORT)
+			warn("ioctl(SIOCGIFINFO_IN6)");
 		close(s6);
 		return;
 	}

@@ -92,15 +92,15 @@ static uint16_t intr_stray_count[IV_MAX];
 static const char *const pil_names[] = {
 	"stray",
 	"low",		/* PIL_LOW */
+	"preempt",	/* PIL_PREEMPT */
 	"ithrd",	/* PIL_ITHREAD */
 	"rndzvs",	/* PIL_RENDEZVOUS */
 	"ast",		/* PIL_AST */
-	"stop",		/* PIL_STOP */
-	"preempt",	/* PIL_PREEMPT */
 	"hardclock",	/* PIL_HARDCLOCK */
 	"stray", "stray", "stray", "stray",
 	"filter",	/* PIL_FILTER */
 	"bridge",	/* PIL_BRIDGE */
+	"stop",		/* PIL_STOP */
 	"tick",		/* PIL_TICK */
 };
 
@@ -456,7 +456,7 @@ intr_describe(int vec, void *ih, const char *descr)
  * allocate CPUs round-robin.
  */
 
-static cpuset_t intr_cpus;
+static cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu;
 
 static void
@@ -527,9 +527,6 @@ intr_shuffle_irqs(void *arg __unused)
 	struct pcpu *pc;
 	struct intr_vector *iv;
 	int i;
-
-	/* The BSP is always a valid target. */
-	CPU_SETOF(0, &intr_cpus);
 
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)

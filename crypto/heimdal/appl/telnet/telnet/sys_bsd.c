@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: sys_bsd.c 10941 2002-04-18 16:18:43Z joda $");
+RCSID("$Id$");
 
 /*
  * The following routines try to encapsulate what is system dependent
@@ -608,11 +608,11 @@ TerminalSpeeds(long *input_speed, long *output_speed)
 int
 TerminalWindowSize(long *rows, long *cols)
 {
-    struct winsize ws;
+    int irows, icols;
 
-    if (get_window_size (STDIN_FILENO, &ws) == 0) {
-	*rows = ws.ws_row;
-	*cols = ws.ws_col;
+    if (get_window_size(STDIN_FILENO, &irows, &icols) == 0) {
+	*rows = irows;
+	*cols = icols;
 	return 1;
     } else
 	return 0;
@@ -641,7 +641,7 @@ static RETSIGTYPE deadpeer(int),
 #ifdef SIGINFO
 static RETSIGTYPE ayt(int);
 #endif
-  
+
 
     /* ARGSUSED */
 static RETSIGTYPE

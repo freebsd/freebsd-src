@@ -44,6 +44,8 @@
 .In string.h
 .Ft int
 .Fn strcoll "const char *s1" "const char *s2"
+.Ft int
+.Fn strcoll_l "const char *s1" "const char *s2" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strcoll
@@ -54,7 +56,7 @@ and
 .Fa s2
 according to the current locale collation
 and returns an integer greater than, equal to, or less than 0,
-according as
+depending on whether
 .Fa s1
 is greater than, equal to, or less than
 .Fa s2 .
@@ -62,6 +64,9 @@ If information about the current locale collation is not available,
 the value of
 .Fn strcmp s1 s2
 is returned.
+The
+.Fn strcoll_l
+function uses an explicit locale argument rather than the system locale.
 .Sh SEE ALSO
 .Xr setlocale 3 ,
 .Xr strcmp 3 ,
@@ -70,6 +75,9 @@ is returned.
 .Sh STANDARDS
 The
 .Fn strcoll
-function
-conforms to
+function conforms to
 .St -isoC .
+The
+.Fn strcoll_l
+function conforms to
+.St -p1003.1-2008 .

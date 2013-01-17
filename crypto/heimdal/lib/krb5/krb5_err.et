@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: krb5_err.et 21050 2007-06-12 02:00:40Z lha $"
+id "$Id$"
 
 error_table krb5
 
@@ -106,11 +106,17 @@ error_code PUBLIC_KEY_ENCRYPTION_NOT_SUPPORTED, "Public key encryption not suppo
 #error_code ERR_KDC_NOT_FOUND,	"IAKERB proxy could not find a KDC"
 #error_code ERR_KDC_NO_RESPONSE,	"IAKERB proxy never reeived a response from a KDC"
 
-# 82-127 are reserved
+# 82-93 are reserved
+
+index 94
+error_code INVALID_HASH_ALG, "Invalid OTP digest algorithm"
+error_code INVALID_ITERATION_COUNT, "Invalid OTP iteration count"
+
+# 97-127 are reserved
 
 index 128
 prefix
-error_code KRB5_ERR_RCSID,	"$Id: krb5_err.et 21050 2007-06-12 02:00:40Z lha $"
+error_code KRB5_ERR_RCSID,	"$Id$"
 
 error_code KRB5_LIBOS_BADLOCKFLAG,	"Invalid flag for file lock mode"
 error_code KRB5_LIBOS_CANTREADPWD,	"Cannot read password"
@@ -262,5 +268,7 @@ error_code KRB5_ERR_BAD_S2K_PARAMS, "Invalid key generation parameters from KDC"
 error_code KRB5_ERR_NO_SERVICE,	"Service not available"
 error_code KRB5_CC_NOSUPP,      "Credential cache function not supported"
 error_code KRB5_DELTAT_BADFORMAT,	"Invalid format of Kerberos lifetime or clock skew string"
+error_code KRB5_PLUGIN_NO_HANDLE,	"Supplied data not handled by this plugin"
+error_code KRB5_PLUGIN_OP_NOTSUPP,	"Plugin does not support the operaton"
 
 end

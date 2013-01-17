@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * PCI / PCIe packet engine related structures.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_NPI_H__
@@ -66,7 +66,7 @@ typedef union
     uint64_t u64;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t            r :     1;      /**< Packet is RAW */
         uint64_t            g :     1;      /**< Gather list is used */
         uint64_t            dlengsz : 14;   /**< Data length / Gather list size */
@@ -98,7 +98,7 @@ typedef union
     uint64_t dptr0;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    es      : 2;    /**< Endian swap mode */
         uint64_t    ns      : 1;    /**< No snoop */
         uint64_t    ro      : 1;    /**< Relaxed ordering */
@@ -112,7 +112,7 @@ typedef union
     } dptr1;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    pm      : 2;    /**< Parse mode */
         uint64_t    sl      : 7;    /**< Skip length */
         uint64_t    addr    : 55;   /**< PCI/PCIe address */
@@ -124,7 +124,7 @@ typedef union
     } dptr2;
     struct
     {
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef __BIG_ENDIAN_BITFIELD
         uint64_t    es      : 2;    /**< Endian swap mode */
         uint64_t    ns      : 1;    /**< No snoop */
         uint64_t    ro      : 1;    /**< Relaxed ordering */

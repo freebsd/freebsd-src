@@ -55,11 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#include "mtree.h"
 
 /* Bootstrap aid - this doesn't exist in most older releases */
 #ifndef MAP_FAILED
@@ -73,13 +76,12 @@ __FBSDID("$FreeBSD$");
 #define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
 #define	BACKUP_SUFFIX	".old"
 
-struct passwd *pp;
-struct group *gp;
-gid_t gid;
-uid_t uid;
-int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
-mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-const char *suffix = BACKUP_SUFFIX;
+static gid_t gid;
+static uid_t uid;
+static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy,
+    verbose;
+static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+static const char *suffix = BACKUP_SUFFIX;
 
 static int	compare(int, const char *, size_t, int, const char *, size_t);
 static void	copy(int, const char *, int, const char *, off_t);
@@ -87,7 +89,7 @@ static int	create_newfile(const char *, int, struct stat *);
 static int	create_tempfile(const char *, char *, size_t);
 static void	install(const char *, const char *, u_long, u_int);
 static void	install_dir(char *);
-static u_long	numeric_id(const char *, const char *);
+static int	parseid(const char *, id_t *);
 static void	strip(const char *);
 static int	trymmap(int);
 static void	usage(void);
@@ -105,7 +107,7 @@ main(int argc, char *argv[])
 
 	iflags = 0;
 	group = owner = NULL;
-	while ((ch = getopt(argc, argv, "B:bCcdf:g:Mm:o:pSsv")) != -1)
+	while ((ch = getopt(argc, argv, "B:bCcdf:g:Mm:N:o:pSsv")) != -1)
 		switch((char)ch) {
 		case 'B':
 			suffix = optarg;
@@ -140,6 +142,11 @@ main(int argc, char *argv[])
 				     optarg);
 			mode = getmode(set, 0);
 			free(set);
+			break;
+		case 'N':
+			if (!setup_getid(optarg))
+				err(1, "Unable to use user and group "
+				    "databases in `%s'", optarg);
 			break;
 		case 'o':
 			owner = optarg;
@@ -184,18 +191,22 @@ main(int argc, char *argv[])
 
 	/* get group and owner id's */
 	if (group != NULL) {
-		if ((gp = getgrnam(group)) != NULL)
-			gid = gp->gr_gid;
-		else
-			gid = (gid_t)numeric_id(group, "group");
+		if (gid_from_group(group, &gid) == -1) {
+			id_t id;  
+			if (!parseid(group, &id))
+				errx(1, "unknown group %s", group);
+			gid = id;
+		}
 	} else
 		gid = (gid_t)-1;
 
 	if (owner != NULL) {
-		if ((pp = getpwnam(owner)) != NULL)
-			uid = pp->pw_uid;
-		else
-			uid = (uid_t)numeric_id(owner, "user");
+		if (uid_from_user(owner, &uid) == -1) {
+			id_t id;
+			if (!parseid(owner, &id))
+				errx(1, "unknown user %s", owner);
+			uid = id;
+		}
 	} else
 		uid = (uid_t)-1;
 
@@ -242,23 +253,19 @@ main(int argc, char *argv[])
 	/* NOTREACHED */
 }
 
-static u_long
-numeric_id(const char *name, const char *type)
+/*
+ * parseid --
+ *	parse uid or gid from arg into id, returning non-zero if successful
+ */
+static int
+parseid(const char *name, id_t *id)
 {
-	u_long val;
-	char *ep;
-
-	/*
-	 * XXX
-	 * We know that uid_t's and gid_t's are unsigned longs.
-	 */
+	char	*ep;
 	errno = 0;
-	val = strtoul(name, &ep, 10);
-	if (errno)
-		err(EX_NOUSER, "%s", name);
-	if (*ep != '\0')
-		errx(EX_NOUSER, "unknown %s %s", type, name);
-	return (val);
+	*id = (id_t)strtoul(name, &ep, 10);
+	if (errno || *ep != '\0')
+		return (0);
+	return (1);
 }
 
 /*
@@ -670,11 +677,18 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (size <= 8 * 1048576 && trymmap(from_fd) &&
 	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
 		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
-		if ((nw = write(to_fd, p, size)) != size) {
+		nw = write(to_fd, p, size);
+		if (nw != size) {
 			serrno = errno;
 			(void)unlink(to_name);
-			errno = nw > 0 ? EIO : serrno;
-			err(EX_OSERR, "%s", to_name);
+			if (nw >= 0) {
+				errx(EX_OSERR,
+     "short write to %s: %jd bytes written, %jd bytes asked to write",
+				    to_name, (uintmax_t)nw, (uintmax_t)size);
+			} else {
+				errno = serrno;
+				err(EX_OSERR, "%s", to_name);
+			}
 		}
 		done_copy = 1;
 	}
@@ -683,8 +697,15 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 			if ((nw = write(to_fd, buf, nr)) != nr) {
 				serrno = errno;
 				(void)unlink(to_name);
-				errno = nw > 0 ? EIO : serrno;
-				err(EX_OSERR, "%s", to_name);
+				if (nw >= 0) {
+					errx(EX_OSERR,
+     "short write to %s: %jd bytes written, %jd bytes asked to write",
+					    to_name, (uintmax_t)nw,
+					    (uintmax_t)size);
+				} else {
+					errno = serrno;
+					err(EX_OSERR, "%s", to_name);
+				}
 			}
 		if (nr != 0) {
 			serrno = errno;
@@ -770,10 +791,11 @@ usage(void)
 {
 	(void)fprintf(stderr,
 "usage: install [-bCcMpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"               [-o owner] file1 file2\n"
+"               [-N dbdir] [-o owner] file1 file2\n"
 "       install [-bCcMpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"               [-o owner] file1 ... fileN directory\n"
-"       install -d [-v] [-g group] [-m mode] [-o owner] directory ...\n");
+"               [-N dbdir] [-o owner] file1 ... fileN directory\n"
+"       install -d [-v] [-g group] [-m mode] [-N dbdir] [-o owner]\n"
+"               directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }

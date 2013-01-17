@@ -1,14 +1,12 @@
-# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
-AM_CPPFLAGS += $(INCLUDE_readline) $(INCLUDE_hcrypto) -I$(srcdir)/../lib/krb5
+AM_CPPFLAGS += $(INCLUDE_libintl) $(INCLUDE_readline) $(INCLUDE_hcrypto) -I$(srcdir)/../lib/krb5 -I$(top_builddir)/include/gssapi
 
 sbin_PROGRAMS = kadmin
 
 libexec_PROGRAMS = kadmind
-
-SLC = $(top_builddir)/lib/sl/slc
 
 man_MANS = kadmin.8 kadmind.8
 
@@ -47,10 +45,10 @@ kadmin-commands.c kadmin-commands.h: kadmin-commands.in
 	$(SLC) $(srcdir)/kadmin-commands.in
 
 kadmind_SOURCES =				\
-	kadmind.c				\
+	rpc.c					\
 	server.c				\
+	kadmind.c				\
 	kadmin_locl.h				\
-	$(version4_c)				\
 	kadm_conn.c
 
 add_random_users_SOURCES = add-random-users.c
@@ -63,7 +61,6 @@ check_PROGRAMS = $(TESTS)
 
 LDADD_common = \
 	$(top_builddir)/lib/hdb/libhdb.la \
-	$(LIB_openldap) \
 	$(top_builddir)/lib/krb5/libkrb5.la \
 	$(LIB_hcrypto) \
 	$(top_builddir)/lib/asn1/libasn1.la \
@@ -71,6 +68,7 @@ LDADD_common = \
 	$(DBLIB)
 
 kadmind_LDADD = $(top_builddir)/lib/kadm5/libkadm5srv.la \
+	../lib/gssapi/libgssapi.la \
 	$(LDADD_common) \
 	$(LIB_pidfile) \
 	$(LIB_dlopen)
@@ -91,4 +89,9 @@ add_random_users_LDADD = \
 
 test_util_LDADD = $(kadmin_LDADD)
 
-EXTRA_DIST = $(man_MANS) kadmin-commands.in
+EXTRA_DIST = \
+	NTMakefile \
+	kadmin-version.rc \
+	kadmind-version.rc \
+	$(man_MANS) \
+	kadmin-commands.in

@@ -38,7 +38,7 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
 
 # standalone components and stuff we have modified locally
-SRCS+=	zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
+SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
 	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
@@ -54,10 +54,10 @@ SRCS+= ntoh.c
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "powerpc" || \
 	${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "amd64" || \
 	${MACHINE_CPUARCH} == "arm"
-SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
-        memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
-        strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
-	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
+SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
+	memmove.c memset.c qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
+	strcspn.c strlen.c strncat.c strncmp.c strncpy.c strpbrk.c \
+	strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .endif
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${.CURDIR}/../libc/arm/gen
@@ -65,10 +65,9 @@ SRCS+= divsi3.S
 .endif
 .if ${MACHINE_CPUARCH} == "ia64"
 .PATH: ${.CURDIR}/../libc/ia64/string
-SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
-	memcpy.S memmove.S memset.c rindex.c strcat.c strchr.c \
-	strcmp.c strcpy.c strcspn.c strlen.c \
-	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
+SRCS+=	bcmp.c bcopy.S bzero.S ffs.S memccpy.c memchr.c memcmp.c memcpy.S \
+	memmove.S memset.c strcat.c strchr.c strcmp.c strcpy.c strcspn.c \
+	strlen.c strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
 	strspn.c strstr.c strtok.c swab.c
 
 .PATH: ${.CURDIR}/../libc/ia64/gen
@@ -119,23 +118,29 @@ libstand_bzlib_private.h: bzlib_private.h
 # decompression functionality from libz
 .PATH: ${.CURDIR}/../libz
 CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../libz
-SRCS+=	adler32.c crc32.c libstand_zutil.h
+SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c
 SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed "s|zutil\.h|libstand_zutil.h|" ${.ALLSRC} > ${.TARGET}
+	sed -e "s|zutil\.h|libstand_zutil.h|" \
+	    -e "s|gzguts\.h|libstand_gzguts.h|" \
+	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
 # depend on stand.h being able to be included multiple times
-CLEANFILES+= libstand_zutil.h
-libstand_zutil.h: zutil.h
-	sed -e 's|<stddef.h>|"stand.h"|' \
+.for file in zutil.h gzguts.h
+CLEANFILES+= libstand_${file}
+libstand_${file}: ${file}
+	sed -e 's|<fcntl.h>|"stand.h"|' \
+	    -e 's|<stddef.h>|"stand.h"|' \
 	    -e 's|<string.h>|"stand.h"|' \
+	    -e 's|<stdio.h>|"stand.h"|' \
 	    -e 's|<stdlib.h>|"stand.h"|' \
 	    ${.ALLSRC} > ${.TARGET}
+.endfor
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
@@ -151,6 +156,9 @@ SRCS+=	bootp.c rarp.c bootparam.c
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
+.if ${MK_NAND} != "no"
+SRCS+=	nandfs.c
+.endif
 
 .include <bsd.lib.mk>
 

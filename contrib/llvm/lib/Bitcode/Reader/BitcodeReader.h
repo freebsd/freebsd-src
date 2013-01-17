@@ -126,8 +126,11 @@ class BitcodeReader : public GVMaterializer {
   Module *TheModule;
   MemoryBuffer *Buffer;
   bool BufferOwned;
-  BitstreamReader StreamFile;
+  OwningPtr<BitstreamReader> StreamFile;
   BitstreamCursor Stream;
+  DataStreamer *LazyStreamer;
+  uint64_t NextUnreadBit;
+  bool SeenValueSymbolTable;
   
   const char *ErrorString;
   
@@ -135,6 +138,7 @@ class BitcodeReader : public GVMaterializer {
   BitcodeReaderValueList ValueList;
   BitcodeReaderMDValueList MDValueList;
   SmallVector<Instruction *, 64> InstructionList;
+  SmallVector<SmallVector<uint64_t, 64>, 64> UseListRecords;
 
   std::vector<std::pair<GlobalVariable*, unsigned> > GlobalInits;
   std::vector<std::pair<GlobalAlias*, unsigned> > AliasInits;
@@ -160,9 +164,10 @@ class BitcodeReader : public GVMaterializer {
   // Map the bitcode's custom MDKind ID to the Module's MDKind ID.
   DenseMap<unsigned, unsigned> MDKindMap;
   
-  // After the module header has been read, the FunctionsWithBodies list is 
-  // reversed.  This keeps track of whether we've done this yet.
-  bool HasReversedFunctionsWithBodies;
+  // Several operations happen after the module header has been read, but
+  // before function bodies are processed. This keeps track of whether
+  // we've done this yet.
+  bool SeenFirstFunctionBody;
   
   /// DeferredFunctionInfo - When function bodies are initially scanned, this
   /// map contains info about where to find deferred function body in the
@@ -174,16 +179,34 @@ class BitcodeReader : public GVMaterializer {
   typedef std::pair<unsigned, GlobalVariable*> BlockAddrRefTy;
   DenseMap<Function*, std::vector<BlockAddrRefTy> > BlockAddrFwdRefs;
 
+  /// UseRelativeIDs - Indicates that we are using a new encoding for
+  /// instruction operands where most operands in the current
+  /// FUNCTION_BLOCK are encoded relative to the instruction number,
+  /// for a more compact encoding.  Some instruction operands are not
+  /// relative to the instruction ID: basic block numbers, and types.
+  /// Once the old style function blocks have been phased out, we would
+  /// not need this flag.
+  bool UseRelativeIDs;
+
 public:
   explicit BitcodeReader(MemoryBuffer *buffer, LLVMContext &C)
     : Context(C), TheModule(0), Buffer(buffer), BufferOwned(false),
-      ErrorString(0), ValueList(C), MDValueList(C) {
-    HasReversedFunctionsWithBodies = false;
+      LazyStreamer(0), NextUnreadBit(0), SeenValueSymbolTable(false),
+      ErrorString(0), ValueList(C), MDValueList(C),
+      SeenFirstFunctionBody(false), UseRelativeIDs(false) {
+  }
+  explicit BitcodeReader(DataStreamer *streamer, LLVMContext &C)
+    : Context(C), TheModule(0), Buffer(0), BufferOwned(false),
+      LazyStreamer(streamer), NextUnreadBit(0), SeenValueSymbolTable(false),
+      ErrorString(0), ValueList(C), MDValueList(C),
+      SeenFirstFunctionBody(false), UseRelativeIDs(false) {
   }
   ~BitcodeReader() {
     FreeState();
   }
-  
+
+  void materializeForwardReferencedFunctions();
+
   void FreeState();
   
   /// setBufferOwned - If this is true, the reader will destroy the MemoryBuffer
@@ -209,9 +232,11 @@ public:
   /// @brief Cheap mechanism to just extract module triple
   /// @returns true if an error occurred.
   bool ParseTriple(std::string &Triple);
+
+  static uint64_t decodeSignRotatedValue(uint64_t V);
+
 private:
   Type *getTypeByID(unsigned ID);
-  Type *getTypeByIDOrNull(unsigned ID);
   Value *getFnValueByID(unsigned ID, Type *Ty) {
     if (Ty && Ty->isMetadataTy())
       return MDValueList.getValueFwdRef(ID);
@@ -234,6 +259,9 @@ private:
                         unsigned InstNum, Value *&ResVal) {
     if (Slot == Record.size()) return true;
     unsigned ValNo = (unsigned)Record[Slot++];
+    // Adjust the ValNo, if it was encoded relative to the InstNum.
+    if (UseRelativeIDs)
+      ValNo = InstNum - ValNo;
     if (ValNo < InstNum) {
       // If this is not a forward reference, just return the value we already
       // have.
@@ -242,35 +270,74 @@ private:
     } else if (Slot == Record.size()) {
       return true;
     }
-    
+
     unsigned TypeNo = (unsigned)Record[Slot++];
     ResVal = getFnValueByID(ValNo, getTypeByID(TypeNo));
     return ResVal == 0;
   }
-  bool getValue(SmallVector<uint64_t, 64> &Record, unsigned &Slot,
-                Type *Ty, Value *&ResVal) {
-    if (Slot == Record.size()) return true;
-    unsigned ValNo = (unsigned)Record[Slot++];
-    ResVal = getFnValueByID(ValNo, Ty);
+
+  /// popValue - Read a value out of the specified record from slot 'Slot'.
+  /// Increment Slot past the number of slots used by the value in the record.
+  /// Return true if there is an error.
+  bool popValue(SmallVector<uint64_t, 64> &Record, unsigned &Slot,
+                unsigned InstNum, Type *Ty, Value *&ResVal) {
+    if (getValue(Record, Slot, InstNum, Ty, ResVal))
+      return true;
+    // All values currently take a single record slot.
+    ++Slot;
+    return false;
+  }
+
+  /// getValue -- Like popValue, but does not increment the Slot number.
+  bool getValue(SmallVector<uint64_t, 64> &Record, unsigned Slot,
+                unsigned InstNum, Type *Ty, Value *&ResVal) {
+    ResVal = getValue(Record, Slot, InstNum, Ty);
     return ResVal == 0;
   }
 
-  
-  bool ParseModule();
+  /// getValue -- Version of getValue that returns ResVal directly,
+  /// or 0 if there is an error.
+  Value *getValue(SmallVector<uint64_t, 64> &Record, unsigned Slot,
+                  unsigned InstNum, Type *Ty) {
+    if (Slot == Record.size()) return 0;
+    unsigned ValNo = (unsigned)Record[Slot];
+    // Adjust the ValNo, if it was encoded relative to the InstNum.
+    if (UseRelativeIDs)
+      ValNo = InstNum - ValNo;
+    return getFnValueByID(ValNo, Ty);
+  }
+
+  /// getValueSigned -- Like getValue, but decodes signed VBRs.
+  Value *getValueSigned(SmallVector<uint64_t, 64> &Record, unsigned Slot,
+                        unsigned InstNum, Type *Ty) {
+    if (Slot == Record.size()) return 0;
+    unsigned ValNo = (unsigned)decodeSignRotatedValue(Record[Slot]);
+    // Adjust the ValNo, if it was encoded relative to the InstNum.
+    if (UseRelativeIDs)
+      ValNo = InstNum - ValNo;
+    return getFnValueByID(ValNo, Ty);
+  }
+
+  bool ParseModule(bool Resume);
   bool ParseAttributeBlock();
   bool ParseTypeTable();
-  bool ParseOldTypeTable();         // FIXME: Remove in LLVM 3.1
   bool ParseTypeTableBody();
 
-  bool ParseOldTypeSymbolTable();   // FIXME: Remove in LLVM 3.1
   bool ParseValueSymbolTable();
   bool ParseConstants();
   bool RememberAndSkipFunctionBody();
   bool ParseFunctionBody(Function *F);
+  bool GlobalCleanup();
   bool ResolveGlobalAndAliasInits();
   bool ParseMetadata();
   bool ParseMetadataAttachment();
   bool ParseModuleTriple(std::string &Triple);
+  bool ParseUseLists();
+  bool InitStream();
+  bool InitStreamFromBuffer();
+  bool InitLazyStream();
+  bool FindFunctionInStream(Function *F,
+         DenseMap<Function*, uint64_t>::iterator DeferredFunctionInfoIterator);
 };
   
 } // End llvm namespace

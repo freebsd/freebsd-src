@@ -5,6 +5,7 @@ LIB=	llvmpowerpccodegen
 SRCDIR=	lib/Target/PowerPC
 SRCS=	PPCAsmPrinter.cpp \
 	PPCBranchSelector.cpp \
+	PPCCTRLoops.cpp \
 	PPCCodeEmitter.cpp \
 	PPCFrameLowering.cpp \
 	PPCHazardRecognizers.cpp \
@@ -13,6 +14,7 @@ SRCS=	PPCAsmPrinter.cpp \
 	PPCInstrInfo.cpp \
 	PPCJITInfo.cpp \
 	PPCMCInstLower.cpp \
+	PPCMachineFunctionInfo.cpp \
 	PPCRegisterInfo.cpp \
 	PPCSelectionDAGInfo.cpp \
 	PPCSubtarget.cpp \

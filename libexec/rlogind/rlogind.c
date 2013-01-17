@@ -543,16 +543,17 @@ extern	char **environ;
 void
 setup_term(int fd)
 {
-	char *cp = index(term+ENVSIZE, '/');
+	char *cp;
 	char *speed;
 	struct termios tt, def;
 
+	cp = strchr(term + ENVSIZE, '/');
 #ifndef notyet
 	tcgetattr(fd, &tt);
 	if (cp) {
 		*cp++ = '\0';
 		speed = cp;
-		cp = index(speed, '/');
+		cp = strchr(speed, '/');
 		if (cp)
 			*cp++ = '\0';
 		cfsetspeed(&tt, atoi(speed));
@@ -567,7 +568,7 @@ setup_term(int fd)
 	if (cp) {
 		*cp++ = '\0';
 		speed = cp;
-		cp = index(speed, '/');
+		cp = strchr(speed, '/');
 		if (cp)
 			*cp++ = '\0';
 		tcgetattr(fd, &tt);

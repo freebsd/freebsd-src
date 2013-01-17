@@ -60,7 +60,7 @@ static void usage(void);
 static int swap_on_off(char *name, int ignoreebusy);
 static void swaplist(int, int, int);
 
-enum { SWAPON, SWAPOFF, SWAPCTL } orig_prog, which_prog = SWAPCTL;
+static enum { SWAPON, SWAPOFF, SWAPCTL } orig_prog, which_prog = SWAPCTL;
 
 int
 main(int argc, char **argv)

@@ -39,6 +39,7 @@ public:
     PreprocessJobClass,
     PrecompileJobClass,
     AnalyzeJobClass,
+    MigrateJobClass,
     CompileJobClass,
     AssembleJobClass,
     LinkJobClass,
@@ -89,11 +90,10 @@ public:
   iterator end() { return Inputs.end(); }
   const_iterator begin() const { return Inputs.begin(); }
   const_iterator end() const { return Inputs.end(); }
-
-  static bool classof(const Action *) { return true; }
 };
 
 class InputAction : public Action {
+  virtual void anchor();
   const Arg &Input;
 public:
   InputAction(const Arg &_Input, types::ID _Type);
@@ -103,10 +103,10 @@ public:
   static bool classof(const Action *A) {
     return A->getKind() == InputClass;
   }
-  static bool classof(const InputAction *) { return true; }
 };
 
 class BindArchAction : public Action {
+  virtual void anchor();
   /// The architecture to bind, or 0 if the default architecture
   /// should be bound.
   const char *ArchName;
@@ -119,10 +119,10 @@ public:
   static bool classof(const Action *A) {
     return A->getKind() == BindArchClass;
   }
-  static bool classof(const BindArchAction *) { return true; }
 };
 
 class JobAction : public Action {
+  virtual void anchor();
 protected:
   JobAction(ActionClass Kind, Action *Input, types::ID Type);
   JobAction(ActionClass Kind, const ActionList &Inputs, types::ID Type);
@@ -132,96 +132,105 @@ public:
     return (A->getKind() >= JobClassFirst &&
             A->getKind() <= JobClassLast);
   }
-  static bool classof(const JobAction *) { return true; }
 };
 
 class PreprocessJobAction : public JobAction {
+  virtual void anchor();
 public:
   PreprocessJobAction(Action *Input, types::ID OutputType);
 
   static bool classof(const Action *A) {
     return A->getKind() == PreprocessJobClass;
   }
-  static bool classof(const PreprocessJobAction *) { return true; }
 };
 
 class PrecompileJobAction : public JobAction {
+  virtual void anchor();
 public:
   PrecompileJobAction(Action *Input, types::ID OutputType);
 
   static bool classof(const Action *A) {
     return A->getKind() == PrecompileJobClass;
   }
-  static bool classof(const PrecompileJobAction *) { return true; }
 };
 
 class AnalyzeJobAction : public JobAction {
+  virtual void anchor();
 public:
   AnalyzeJobAction(Action *Input, types::ID OutputType);
 
   static bool classof(const Action *A) {
     return A->getKind() == AnalyzeJobClass;
   }
-  static bool classof(const AnalyzeJobAction *) { return true; }
+};
+
+class MigrateJobAction : public JobAction {
+  virtual void anchor();
+public:
+  MigrateJobAction(Action *Input, types::ID OutputType);
+
+  static bool classof(const Action *A) {
+    return A->getKind() == MigrateJobClass;
+  }
 };
 
 class CompileJobAction : public JobAction {
+  virtual void anchor();
 public:
   CompileJobAction(Action *Input, types::ID OutputType);
 
   static bool classof(const Action *A) {
     return A->getKind() == CompileJobClass;
   }
-  static bool classof(const CompileJobAction *) { return true; }
 };
 
 class AssembleJobAction : public JobAction {
+  virtual void anchor();
 public:
   AssembleJobAction(Action *Input, types::ID OutputType);
 
   static bool classof(const Action *A) {
     return A->getKind() == AssembleJobClass;
   }
-  static bool classof(const AssembleJobAction *) { return true; }
 };
 
 class LinkJobAction : public JobAction {
+  virtual void anchor();
 public:
   LinkJobAction(ActionList &Inputs, types::ID Type);
 
   static bool classof(const Action *A) {
     return A->getKind() == LinkJobClass;
   }
-  static bool classof(const LinkJobAction *) { return true; }
 };
 
 class LipoJobAction : public JobAction {
+  virtual void anchor();
 public:
   LipoJobAction(ActionList &Inputs, types::ID Type);
 
   static bool classof(const Action *A) {
     return A->getKind() == LipoJobClass;
   }
-  static bool classof(const LipoJobAction *) { return true; }
 };
 
 class DsymutilJobAction : public JobAction {
+  virtual void anchor();
 public:
   DsymutilJobAction(ActionList &Inputs, types::ID Type);
 
   static bool classof(const Action *A) {
     return A->getKind() == DsymutilJobClass;
   }
-  static bool classof(const DsymutilJobAction *) { return true; }
 };
 
 class VerifyJobAction : public JobAction {
+  virtual void anchor();
 public:
   VerifyJobAction(ActionList &Inputs, types::ID Type);
   static bool classof(const Action *A) {
     return A->getKind() == VerifyJobClass;
   }
-  static bool classof(const VerifyJobAction *) { return true; }
 };
 
 } // end namespace driver

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: named
-# REQUIRE: SERVERS cleanvar
+# REQUIRE: SERVERS FILESYSTEMS
 # KEYWORD: shutdown
 
 . /etc/rc.subr
@@ -96,7 +96,7 @@ make_symlinks()
 	    ln -fs "${named_chrootdir}${pidfile}" ${pidfile}
 }
 
-named_poststart () {
+named_poststart() {
 	make_symlinks
 
 	if checkyesno named_wait; then
@@ -156,7 +156,7 @@ named_poststop()
 	fi
 }
 
-create_file () {
+create_file() {
 	if [ -e "$1" ]; then
 		unlink $1
 	fi

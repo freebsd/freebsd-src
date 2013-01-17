@@ -60,7 +60,7 @@ int fsirand(char *);
  */
 static int sblock_try[] = SBLOCKSEARCH;
 
-int printonly = 0, force = 0, ignorelabel = 0;
+static int printonly = 0, force = 0, ignorelabel = 0;
 
 int
 main(int argc, char *argv[])
@@ -115,7 +115,7 @@ fsirand(char *device)
 	caddr_t inodebuf;
 	ssize_t ibufsize;
 	struct fs *sblock;
-	ino_t inumber, maxino;
+	ino_t inumber;
 	ufs2_daddr_t sblockloc, dblk;
 	char sbuf[SBLOCKSIZE], sbuftmp[SBLOCKSIZE];
 	int i, devfd, n, cg;
@@ -165,7 +165,6 @@ fsirand(char *device)
 		fprintf(stderr, "Cannot find file system superblock\n");
 		return (1);
 	}
-	maxino = sblock->fs_ncg * sblock->fs_ipg;
 
 	if (sblock->fs_magic == FS_UFS1_MAGIC &&
 	    sblock->fs_old_inodefmt < FS_44INODEFMT) {
@@ -275,8 +274,8 @@ fsirand(char *device)
 				dp2 = &((struct ufs2_dinode *)inodebuf)[n];
 			if (inumber >= ROOTINO) {
 				if (printonly)
-					(void)printf("ino %d gen %08x\n",
-					    inumber,
+					(void)printf("ino %ju gen %08x\n",
+					    (uintmax_t)inumber,
 					    sblock->fs_magic == FS_UFS1_MAGIC ?
 					    dp1->di_gen : dp2->di_gen);
 				else if (sblock->fs_magic == FS_UFS1_MAGIC) 

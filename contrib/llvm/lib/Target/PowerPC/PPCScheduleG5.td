@@ -1,10 +1,10 @@
-//===- PPCScheduleG5.td - PPC G5 Scheduling Definitions ----*- tablegen -*-===//
-// 
+//===-- PPCScheduleG5.td - PPC G5 Scheduling Definitions ---*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file defines the itinerary class data for the G5 (970) processor.
@@ -13,6 +13,7 @@
 
 def G5Itineraries : ProcessorItineraries<
   [IU1, IU2, SLU, BPU, FPU1, FPU2, VFPU, VIU1, VIU2, VPU], [], [
+  InstrItinData<IntSimple   , [InstrStage<2, [IU1, IU2]>]>,
   InstrItinData<IntGeneral  , [InstrStage<2, [IU1, IU2]>]>,
   InstrItinData<IntCompare  , [InstrStage<3, [IU1, IU2]>]>,
   InstrItinData<IntDivD     , [InstrStage<68, [IU1]>]>,
@@ -26,6 +27,7 @@ def G5Itineraries : ProcessorItineraries<
   InstrItinData<IntMulLI    , [InstrStage<4, [IU1, IU2]>]>,
   InstrItinData<IntRFID     , [InstrStage<1, [IU2]>]>,
   InstrItinData<IntRotateD  , [InstrStage<2, [IU1, IU2]>]>,
+  InstrItinData<IntRotateDI , [InstrStage<2, [IU1, IU2]>]>,  
   InstrItinData<IntRotate   , [InstrStage<4, [IU1, IU2]>]>,
   InstrItinData<IntShift    , [InstrStage<2, [IU1, IU2]>]>,
   InstrItinData<IntTrapD    , [InstrStage<1, [IU1, IU2]>]>,
@@ -35,15 +37,21 @@ def G5Itineraries : ProcessorItineraries<
   InstrItinData<BrMCR       , [InstrStage<2, [BPU]>]>,
   InstrItinData<BrMCRX      , [InstrStage<3, [BPU]>]>,
   InstrItinData<LdStDCBF    , [InstrStage<3, [SLU]>]>,
-  InstrItinData<LdStGeneral , [InstrStage<3, [SLU]>]>,
+  InstrItinData<LdStLoad    , [InstrStage<3, [SLU]>]>,
+  InstrItinData<LdStLoadUpd , [InstrStage<3, [SLU]>]>,  
+  InstrItinData<LdStStore   , [InstrStage<3, [SLU]>]>,
+  InstrItinData<LdStStoreUpd, [InstrStage<3, [SLU]>]>,  
   InstrItinData<LdStDSS     , [InstrStage<10, [SLU]>]>,
   InstrItinData<LdStICBI    , [InstrStage<40, [SLU]>]>,
-  InstrItinData<LdStUX      , [InstrStage<4, [SLU]>]>,
+  InstrItinData<LdStSTFD    , [InstrStage<4, [SLU]>]>,
+  InstrItinData<LdStSTFDU   , [InstrStage<4, [SLU]>]>,  
   InstrItinData<LdStLD      , [InstrStage<3, [SLU]>]>,
+  InstrItinData<LdStLDU     , [InstrStage<3, [SLU]>]>,
   InstrItinData<LdStLDARX   , [InstrStage<11, [SLU]>]>,
   InstrItinData<LdStLFD     , [InstrStage<3, [SLU]>]>,
   InstrItinData<LdStLFDU    , [InstrStage<5, [SLU]>]>,
   InstrItinData<LdStLHA     , [InstrStage<5, [SLU]>]>,
+  InstrItinData<LdStLHAU    , [InstrStage<5, [SLU]>]>,  
   InstrItinData<LdStLMW     , [InstrStage<64, [SLU]>]>,
   InstrItinData<LdStLVecX   , [InstrStage<3, [SLU]>]>,
   InstrItinData<LdStLWA     , [InstrStage<5, [SLU]>]>,
@@ -51,6 +59,7 @@ def G5Itineraries : ProcessorItineraries<
   InstrItinData<LdStSLBIA   , [InstrStage<40, [SLU]>]>, // needs work
   InstrItinData<LdStSLBIE   , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStSTD     , [InstrStage<3, [SLU]>]>,
+  InstrItinData<LdStSTDU    , [InstrStage<3, [SLU]>]>,
   InstrItinData<LdStSTDCX   , [InstrStage<11, [SLU]>]>,
   InstrItinData<LdStSTVEBX  , [InstrStage<5, [SLU]>]>,
   InstrItinData<LdStSTWCX   , [InstrStage<11, [SLU]>]>,
@@ -67,6 +76,7 @@ def G5Itineraries : ProcessorItineraries<
   InstrItinData<SprMTSPR    , [InstrStage<8, [IU2]>]>,
   InstrItinData<SprSC       , [InstrStage<1, [IU2]>]>,
   InstrItinData<FPGeneral   , [InstrStage<6, [FPU1, FPU2]>]>,
+  InstrItinData<FPAddSub    , [InstrStage<6, [FPU1, FPU2]>]>,
   InstrItinData<FPCompare   , [InstrStage<8, [FPU1, FPU2]>]>,
   InstrItinData<FPDivD      , [InstrStage<33, [FPU1, FPU2]>]>,
   InstrItinData<FPDivS      , [InstrStage<33, [FPU1, FPU2]>]>,

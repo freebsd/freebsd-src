@@ -29,7 +29,7 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_XSCALE	0
+#define	PMC_MDEP_CLASS_INDEX_XSCALE	1
 /*
  * On the ARM platform we support the following PMCs.
  *
@@ -50,9 +50,23 @@ union pmc_md_pmc {
 	struct pmc_md_xscale_pmc	pm_xscale;
 };
 
-#define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_pc)
-#define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_usr_lr)
-#define	PMC_TRAPFRAME_TO_SP(TF)	((TF)->tf_usr_sp)
+#define	PMC_IN_KERNEL_STACK(S,START,END)		\
+	((S) >= (START) && (S) < (END))
+#define	PMC_IN_KERNEL(va) (((va) >= USRSTACK) &&	\
+	((va) < VM_MAX_KERNEL_ADDRESS))
+
+#define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
+
+#define	PMC_TRAPFRAME_TO_PC(TF)		((TF)->tf_pc)
+#define	PMC_TRAPFRAME_TO_FP(TF)		((TF)->tf_r11)
+#define	PMC_TRAPFRAME_TO_SVC_SP(TF)	((TF)->tf_svc_sp)
+#define	PMC_TRAPFRAME_TO_USR_SP(TF)	((TF)->tf_usr_sp)
+
+/* Build a fake kernel trapframe from current instruction pointer. */
+#define PMC_FAKE_TRAPFRAME(TF)						\
+	do {								\
+	__asm __volatile("mov %0, pc" : "=r" ((TF)->tf_pc));		\
+	} while (0)
 
 /*
  * Prototypes

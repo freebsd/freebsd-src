@@ -91,7 +91,7 @@ _gethostbynis(const char *name, char *map, int af, struct hostent *he,
 	free(result);
 	result = (char *)&ypbuf;
 
-	if ((cp = index(result, '\n')))
+	if ((cp = strchr(result, '\n')))
 		*cp = '\0';
 
 	cp = strpbrk(result, " \t");

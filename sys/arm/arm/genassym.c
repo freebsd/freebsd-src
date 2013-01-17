@@ -34,7 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <machine/vmparam.h>
 #include <machine/armreg.h>
 #include <machine/pcb.h>
@@ -105,9 +107,22 @@ ASSYM(TF_PC, offsetof(struct trapframe, tf_pc));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
 ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
+#ifdef ARM_TP_ADDRESS
 ASSYM(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 ASSYM(ARM_RAS_START, ARM_RAS_START);
 ASSYM(ARM_RAS_END, ARM_RAS_END);
+#endif
+
+#ifdef ARM_VFP_SUPPORT
+ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
+ASSYM(PCB_VFPCPU, offsetof(struct pcb, pcb_vfpcpu));
+
+ASSYM(PC_VFPCTHREAD, offsetof(struct pcpu, pc_vfpcthread));
+ASSYM(PC_CPU, offsetof(struct pcpu, pc_cpu));
+
+ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
+#endif
+
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(PDESIZE, PDESIZE);
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);

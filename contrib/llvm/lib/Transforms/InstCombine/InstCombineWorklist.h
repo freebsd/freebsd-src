@@ -26,8 +26,8 @@ class LLVM_LIBRARY_VISIBILITY InstCombineWorklist {
   SmallVector<Instruction*, 256> Worklist;
   DenseMap<Instruction*, unsigned> WorklistMap;
   
-  void operator=(const InstCombineWorklist&RHS);   // DO NOT IMPLEMENT
-  InstCombineWorklist(const InstCombineWorklist&); // DO NOT IMPLEMENT
+  void operator=(const InstCombineWorklist&RHS) LLVM_DELETED_FUNCTION;
+  InstCombineWorklist(const InstCombineWorklist&) LLVM_DELETED_FUNCTION;
 public:
   InstCombineWorklist() {}
   
@@ -55,9 +55,9 @@ public:
     Worklist.reserve(NumEntries+16);
     WorklistMap.resize(NumEntries);
     DEBUG(errs() << "IC: ADDING: " << NumEntries << " instrs to worklist\n");
-    for (; NumEntries; --NumEntries) {
+    for (unsigned Idx = 0; NumEntries; --NumEntries) {
       Instruction *I = List[NumEntries-1];
-      WorklistMap.insert(std::make_pair(I, Worklist.size()));
+      WorklistMap.insert(std::make_pair(I, Idx++));
       Worklist.push_back(I);
     }
   }

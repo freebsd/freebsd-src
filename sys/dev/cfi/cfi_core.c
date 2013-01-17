@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>   
 #include <sys/module.h>
@@ -54,7 +55,7 @@ devclass_t cfi_devclass;
 devclass_t cfi_diskclass;
 
 uint32_t
-cfi_read(struct cfi_softc *sc, u_int ofs)
+cfi_read_raw(struct cfi_softc *sc, u_int ofs)
 {
 	uint32_t val;
 
@@ -76,6 +77,32 @@ cfi_read(struct cfi_softc *sc, u_int ofs)
 	return (val);
 }
 
+uint32_t
+cfi_read(struct cfi_softc *sc, u_int ofs)
+{
+	uint32_t val;
+	uint16_t sval;
+
+	ofs &= ~(sc->sc_width - 1);
+	switch (sc->sc_width) {
+	case 1:
+		val = bus_space_read_1(sc->sc_tag, sc->sc_handle, ofs);
+		break;
+	case 2:
+		sval = bus_space_read_2(sc->sc_tag, sc->sc_handle, ofs);
+		val = le16toh(sval);
+		break;
+	case 4:
+		val = bus_space_read_4(sc->sc_tag, sc->sc_handle, ofs);
+		val = le32toh(val);
+		break;
+	default:
+		val = ~0;
+		break;
+	}
+	return (val);
+}
+
 static void
 cfi_write(struct cfi_softc *sc, u_int ofs, u_int val)
 {
@@ -86,10 +113,10 @@ cfi_write(struct cfi_softc *sc, u_int ofs, u_int val)
 		bus_space_write_1(sc->sc_tag, sc->sc_handle, ofs, val);
 		break;
 	case 2:
-		bus_space_write_2(sc->sc_tag, sc->sc_handle, ofs, val);
+		bus_space_write_2(sc->sc_tag, sc->sc_handle, ofs, htole16(val));
 		break;
 	case 4:
-		bus_space_write_4(sc->sc_tag, sc->sc_handle, ofs, val);
+		bus_space_write_4(sc->sc_tag, sc->sc_handle, ofs, htole32(val));
 		break;
 	}
 }

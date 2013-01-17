@@ -32,11 +32,9 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
+
 #include "roken.h"
-RCSID("$Id: getcap.c 22071 2007-11-14 20:04:50Z lha $");
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -45,7 +43,7 @@ RCSID("$Id: getcap.c 22071 2007-11-14 20:04:50Z lha $");
 #elif defined(HAVE_DB_H)
 #include <db.h>
 #endif
-#include <errno.h>	
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -85,24 +83,24 @@ static int 	getent (char **, size_t *, char **, int, const char *, int, char *);
 static int	nfcmp (char *, char *);
 
 
-int ROKEN_LIB_FUNCTION cgetset(const char *ent);
-char *ROKEN_LIB_FUNCTION cgetcap(char *buf, const char *cap, int type);
-int ROKEN_LIB_FUNCTION cgetent(char **buf, char **db_array, const char *name);
-int ROKEN_LIB_FUNCTION cgetmatch(const char *buf, const char *name);
-int ROKEN_LIB_FUNCTION cgetclose(void);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL cgetset(const char *ent);
+ROKEN_LIB_FUNCTION char * ROKEN_LIB_CALL cgetcap(char *buf, const char *cap, int type);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL cgetent(char **buf, char **db_array, const char *name);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL cgetmatch(const char *buf, const char *name);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL cgetclose(void);
 #if 0
 int cgetfirst(char **buf, char **db_array);
 int cgetnext(char **bp, char **db_array);
 #endif
-int ROKEN_LIB_FUNCTION cgetstr(char *buf, const char *cap, char **str);
-int ROKEN_LIB_FUNCTION cgetustr(char *buf, const char *cap, char **str);
-int ROKEN_LIB_FUNCTION cgetnum(char *buf, const char *cap, long *num);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL cgetstr(char *buf, const char *cap, char **str);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL cgetustr(char *buf, const char *cap, char **str);
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL cgetnum(char *buf, const char *cap, long *num);
 /*
  * Cgetset() allows the addition of a user specified buffer to be added
  * to the database array, in effect "pushing" the buffer on top of the
  * virtual database. 0 is returned on success, -1 on failure.
  */
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 cgetset(const char *ent)
 {
     const char *source, *check;
@@ -155,7 +153,7 @@ cgetset(const char *ent)
  * If (cap, '@') or (cap, terminator, '@') is found before (cap, terminator)
  * return NULL.
  */
-char * ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION char * ROKEN_LIB_CALL
 cgetcap(char *buf, const char *cap, int type)
 {
     char *bp;
@@ -206,7 +204,7 @@ cgetcap(char *buf, const char *cap, int type)
  * encountered (couldn't open/read a file, etc.), and -3 if a potential
  * reference loop is detected.
  */
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 cgetent(char **buf, char **db_array, const char *name)
 {
     size_t dummy;
@@ -233,14 +231,14 @@ cgetent(char **buf, char **db_array, const char *name)
  *	  MAX_RECURSION.
  */
 static int
-getent(char **cap, size_t *len, char **db_array, int fd, 
+getent(char **cap, size_t *len, char **db_array, int fd,
        const char *name, int depth, char *nfield)
 {
     char *r_end, *rp = NULL, **db_p;	/* pacify gcc */
     int myfd = 0, eof, foundit;
     char *record;
     int tc_not_resolved;
-	
+
     /*
      * Return with ``loop detected'' error if we've recursed more than
      * MAX_RECURSION times.
@@ -358,7 +356,7 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 		for (;;) {
 		    if (bp >= b_end) {
 			int n;
-		
+
 			n = read(fd, buf, sizeof(buf));
 			if (n <= 0) {
 			    if (myfd)
@@ -375,7 +373,7 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 			b_end = buf+n;
 			bp = buf;
 		    }
-	
+
 		    c = *bp++;
 		    if (c == '\n') {
 			if (slash) {
@@ -412,7 +410,7 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 		    *rp++ = c;
 
 				/*
-				 * Enforce loop invariant: if no room 
+				 * Enforce loop invariant: if no room
 				 * left in record buffer, try to get
 				 * some more.
 				 */
@@ -444,13 +442,13 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 		 */
 		if (eof)
 		    break;
-				
+
 		/*
 		 * Toss blank lines and comments.
 		 */
 		if (*record == '\0' || *record == '#')
 		    continue;
-	
+
 		/*
 		 * See if this is the record we want ...
 		 */
@@ -510,7 +508,7 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 	    tclen = s - tcstart;
 	    tcend = s;
 
-	    iret = getent(&icap, &ilen, db_p, fd, tc, depth+1, 
+	    iret = getent(&icap, &ilen, db_p, fd, tc, depth+1,
 			  NULL);
 	    newicap = icap;		/* Put into a register. */
 	    newilen = ilen;
@@ -526,11 +524,11 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 		    tc_not_resolved = 1;
 				/* couldn't resolve tc */
 		if (iret == -1) {
-		    *(s - 1) = ':';			
+		    *(s - 1) = ':';
 		    scan = s - 1;
 		    tc_not_resolved = 1;
 		    continue;
-					
+
 		}
 	    }
 	    /* not interested in name field of tc'ed record */
@@ -593,7 +591,7 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 	     */
 	    scan = s-1;
 	}
-	
+
     }
     /*
      * Close file (if we opened it), give back any extra memory, and
@@ -603,17 +601,17 @@ getent(char **cap, size_t *len, char **db_array, int fd,
 	(void)close(fd);
     *len = rp - record - 1;	/* don't count NUL */
     if (r_end > rp)
-	if ((record = 
+	if ((record =
 	     realloc(record, (size_t)(rp - record))) == NULL) {
 	    errno = ENOMEM;
 	    return (-2);
 	}
-		
+
     *cap = record;
     if (tc_not_resolved)
 	return (1);
     return (0);
-}	
+}
 
 #ifdef USE_DB
 static int
@@ -642,7 +640,7 @@ cdbget(DB *capdbp, char **bp, const char *name)
 		key.data = (char *)data.data + 1;
 		key.size = data.size - 1;
 	}
-	
+
 	*bp = (char *)data.data + 1;
 	return (((char *)(data.data))[0] == TCERR ? 1 : 0);
 }
@@ -702,7 +700,7 @@ static FILE *pfp;
 static int slash;
 static char **dbp;
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 cgetclose(void)
 {
     if (pfp != NULL) {
@@ -717,7 +715,7 @@ cgetclose(void)
 
 #if 0
 /*
- * Cgetnext() gets either the first or next entry in the logical database 
+ * Cgetnext() gets either the first or next entry in the logical database
  * specified by db_array.  It returns 0 upon completion of the database, 1
  * upon returning an entry with more remaining, and -1 if an error occurs.
  */
@@ -777,10 +775,10 @@ cgetnext(char **bp, char **db_array)
 		slash = 1;
 	    else
 		slash = 0;
-	}			
+	}
 
 
-	/* 
+	/*
 	 * Line points to a name line.
 	 */
 	done = 0;
@@ -822,12 +820,12 @@ cgetnext(char **bp, char **db_array)
 		*rp++ = *cp;
 
 	*rp = '\0';
-	/* 
-	 * XXX 
+	/*
+	 * XXX
 	 * Last argument of getent here should be nbuf if we want true
-	 * sequential access in the case of duplicates.  
+	 * sequential access in the case of duplicates.
 	 * With NULL, getent will return the first entry found
-	 * rather than the duplicate entry record.  This is a 
+	 * rather than the duplicate entry record.  This is a
 	 * matter of semantics that should be resolved.
 	 */
 	status = getent(bp, &dummy, db_array, -1, buf, 0, NULL);
@@ -849,14 +847,16 @@ cgetnext(char **bp, char **db_array)
  * couldn't be found, -2 if a system error was encountered (storage
  * allocation failure).
  */
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 cgetstr(char *buf, const char *cap, char **str)
 {
     u_int m_room;
     const char *bp;
     char *mp;
     int len;
-    char *mem;
+    char *mem, *nmem;
+
+    *str = NULL;
 
     /*
      * Find string capability cap
@@ -943,8 +943,11 @@ cgetstr(char *buf, const char *cap, char **str)
 	if (m_room == 0) {
 	    size_t size = mp - mem;
 
-	    if ((mem = realloc(mem, size + SFRAG)) == NULL)
+	    if ((nmem = realloc(mem, size + SFRAG)) == NULL) {
+		free(mem);
 		return (-2);
+	    }
+	    mem = nmem;
 	    m_room = SFRAG;
 	    mp = mem + size;
 	}
@@ -956,9 +959,13 @@ cgetstr(char *buf, const char *cap, char **str)
     /*
      * Give back any extra memory and return value and success.
      */
-    if (m_room != 0)
-	if ((mem = realloc(mem, (size_t)(mp - mem))) == NULL)
+    if (m_room != 0) {
+	if ((nmem = realloc(mem, (size_t)(mp - mem))) == NULL) {
+	    free(mem);
 	    return (-2);
+	}
+	mem = nmem;
+    }
     *str = mem;
     return (len);
 }
@@ -967,13 +974,13 @@ cgetstr(char *buf, const char *cap, char **str)
  * Cgetustr retrieves the value of the string capability cap from the
  * capability record pointed to by buf.  The difference between cgetustr()
  * and cgetstr() is that cgetustr does not decode escapes but rather treats
- * all characters literally.  A pointer to a  NUL terminated malloc'd 
- * copy of the string is returned in the char pointed to by str.  The 
+ * all characters literally.  A pointer to a  NUL terminated malloc'd
+ * copy of the string is returned in the char pointed to by str.  The
  * length of the string not including the trailing NUL is returned on success,
- * -1 if the requested string capability couldn't be found, -2 if a system 
+ * -1 if the requested string capability couldn't be found, -2 if a system
  * error was encountered (storage allocation failure).
  */
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 cgetustr(char *buf, const char *cap, char **str)
 {
     u_int m_room;
@@ -1042,7 +1049,7 @@ cgetustr(char *buf, const char *cap, char **str)
  * the long pointed to by num.  0 is returned on success, -1 if the requested
  * numeric capability couldn't be found.
  */
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 cgetnum(char *buf, const char *cap, long *num)
 {
     long n;
@@ -1109,10 +1116,10 @@ nfcmp(char *nf, char *rec)
 {
     char *cp, tmp;
     int ret;
-	
+
     for (cp = rec; *cp != ':'; cp++)
 	;
-	
+
     tmp = *(cp + 1);
     *(cp + 1) = '\0';
     ret = strcmp(nf, rec);

@@ -3,22 +3,22 @@
  * Copyright (C) Stefan Metzmacher 2006 <metze@samba.org>
  *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -59,9 +59,7 @@
 
 #else /* _SAMBA_BUILD_ */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 #undef SOCKET_WRAPPER_REPLACE
 
 #include <sys/types.h>
@@ -131,7 +129,7 @@
 
 /* LD_PRELOAD doesn't work yet, so REWRITE_CALLS is all we support
  * for now */
-#define REWRITE_CALLS 
+#define REWRITE_CALLS
 
 #ifdef REWRITE_CALLS
 #define real_accept accept
@@ -161,8 +159,8 @@
 
 /* we need to use a very terse format here as IRIX 6.4 silently
    truncates names to 16 chars, so if we use a longer name then we
-   can't tell which port a packet came from with recvfrom() 
-   
+   can't tell which port a packet came from with recvfrom()
+
    with this format we have 8 chars left for the directory name
 */
 #define SOCKET_FORMAT "%c%02X%04X"
@@ -298,7 +296,7 @@ static int convert_un_in(const struct sockaddr_un *un, struct sockaddr *in, sock
 	case SOCKET_TYPE_CHAR_TCP:
 	case SOCKET_TYPE_CHAR_UDP: {
 		struct sockaddr_in *in2 = (struct sockaddr_in *)in;
-		
+
 		if ((*len) < sizeof(*in2)) {
 		    errno = EINVAL;
 		    return -1;
@@ -316,7 +314,7 @@ static int convert_un_in(const struct sockaddr_un *un, struct sockaddr *in, sock
 	case SOCKET_TYPE_CHAR_TCP_V6:
 	case SOCKET_TYPE_CHAR_UDP_V6: {
 		struct sockaddr_in6 *in2 = (struct sockaddr_in6 *)in;
-		
+
 		if ((*len) < sizeof(*in2)) {
 			errno = EINVAL;
 			return -1;
@@ -351,7 +349,7 @@ static int convert_in_un_remote(struct socket_info *si, const struct sockaddr *i
 
 	switch (si->family) {
 	case AF_INET: {
-		const struct sockaddr_in *in = 
+		const struct sockaddr_in *in =
 		    (const struct sockaddr_in *)inaddr;
 		unsigned int addr = ntohl(in->sin_addr.s_addr);
 		char u_type = '\0';
@@ -394,7 +392,7 @@ static int convert_in_un_remote(struct socket_info *si, const struct sockaddr *i
 	}
 #ifdef HAVE_IPV6
 	case AF_INET6: {
-		const struct sockaddr_in6 *in = 
+		const struct sockaddr_in6 *in =
 		    (const struct sockaddr_in6 *)inaddr;
 
 		switch (si->type) {
@@ -410,7 +408,7 @@ static int convert_in_un_remote(struct socket_info *si, const struct sockaddr *i
 
 		prt = ntohs(in->sin6_port);
 		iface = SW_IPV6_ADDRESS;
-		
+
 		break;
 	}
 #endif
@@ -425,13 +423,13 @@ static int convert_in_un_remote(struct socket_info *si, const struct sockaddr *i
 	}
 
 	if (is_bcast) {
-		snprintf(un->sun_path, sizeof(un->sun_path), "%s/EINVAL", 
+		snprintf(un->sun_path, sizeof(un->sun_path), "%s/EINVAL",
 			 socket_wrapper_dir());
 		/* the caller need to do more processing */
 		return 0;
 	}
 
-	snprintf(un->sun_path, sizeof(un->sun_path), "%s/"SOCKET_FORMAT, 
+	snprintf(un->sun_path, sizeof(un->sun_path), "%s/"SOCKET_FORMAT,
 		 socket_wrapper_dir(), type, iface, prt);
 
 	return 0;
@@ -450,7 +448,7 @@ static int convert_in_un_alloc(struct socket_info *si, const struct sockaddr *in
 
 	switch (si->family) {
 	case AF_INET: {
-		const struct sockaddr_in *in = 
+		const struct sockaddr_in *in =
 		    (const struct sockaddr_in *)inaddr;
 		unsigned int addr = ntohl(in->sin_addr.s_addr);
 		char u_type = '\0';
@@ -501,7 +499,7 @@ static int convert_in_un_alloc(struct socket_info *si, const struct sockaddr *in
 	}
 #ifdef HAVE_IPV6
 	case AF_INET6: {
-		const struct sockaddr_in6 *in = 
+		const struct sockaddr_in6 *in =
 		    (const struct sockaddr_in6 *)inaddr;
 
 		switch (si->type) {
@@ -517,7 +515,7 @@ static int convert_in_un_alloc(struct socket_info *si, const struct sockaddr *in
 
 		prt = ntohs(in->sin6_port);
 		iface = SW_IPV6_ADDRESS;
-		
+
 		break;
 	}
 #endif
@@ -532,7 +530,7 @@ static int convert_in_un_alloc(struct socket_info *si, const struct sockaddr *in
 	if (prt == 0) {
 		/* handle auto-allocation of ephemeral ports */
 		for (prt = 5001; prt < 10000; prt++) {
-			snprintf(un->sun_path, sizeof(un->sun_path), "%s/"SOCKET_FORMAT, 
+			snprintf(un->sun_path, sizeof(un->sun_path), "%s/"SOCKET_FORMAT,
 				 socket_wrapper_dir(), type, iface, prt);
 			if (stat(un->sun_path, &st) == 0) continue;
 
@@ -540,7 +538,7 @@ static int convert_in_un_alloc(struct socket_info *si, const struct sockaddr *in
 		}
 	}
 
-	snprintf(un->sun_path, sizeof(un->sun_path), "%s/"SOCKET_FORMAT, 
+	snprintf(un->sun_path, sizeof(un->sun_path), "%s/"SOCKET_FORMAT,
 		 socket_wrapper_dir(), type, iface, prt);
 	return 0;
 }
@@ -549,14 +547,14 @@ static struct socket_info *find_socket_info(int fd)
 {
 	struct socket_info *i;
 	for (i = sockets; i; i = i->next) {
-		if (i->fd == fd) 
+		if (i->fd == fd)
 			return i;
 	}
 
 	return NULL;
 }
 
-static int sockaddr_convert_to_un(struct socket_info *si, const struct sockaddr *in_addr, socklen_t in_len, 
+static int sockaddr_convert_to_un(struct socket_info *si, const struct sockaddr *in_addr, socklen_t in_len,
 				  struct sockaddr_un *out_addr, int alloc_sock, int *bcast)
 {
 	if (!out_addr)
@@ -585,19 +583,19 @@ static int sockaddr_convert_to_un(struct socket_info *si, const struct sockaddr 
 	default:
 		break;
 	}
-	
+
 	errno = EAFNOSUPPORT;
 	return -1;
 }
 
-static int sockaddr_convert_from_un(const struct socket_info *si, 
-				    const struct sockaddr_un *in_addr, 
+static int sockaddr_convert_from_un(const struct socket_info *si,
+				    const struct sockaddr_un *in_addr,
 				    socklen_t un_addrlen,
 				    int family,
 				    struct sockaddr *out_addr,
 				    socklen_t *out_addrlen)
 {
-	if (out_addr == NULL || out_addrlen == NULL) 
+	if (out_addr == NULL || out_addrlen == NULL)
 		return 0;
 
 	if (un_addrlen == 0) {
@@ -650,7 +648,7 @@ enum swrap_packet_type {
 
 struct swrap_file_hdr {
 	unsigned long	magic;
-	unsigned short	version_major;	
+	unsigned short	version_major;
 	unsigned short	version_minor;
 	long		timezone;
 	unsigned long	sigfigs;
@@ -732,7 +730,7 @@ static const char *socket_wrapper_pcap_file(void)
 	/*
 	 * TODO: don't use the structs use plain buffer offsets
 	 *       and PUSH_U8(), PUSH_U16() and PUSH_U32()
-	 * 
+	 *
 	 * for now make sure we disable PCAP support
 	 * if the struct has alignment!
 	 */
@@ -913,7 +911,7 @@ static int swrap_get_pcap_fd(const char *fname)
 	if (fd != -1) {
 		struct swrap_file_hdr file_hdr;
 		file_hdr.magic		= 0xA1B2C3D4;
-		file_hdr.version_major	= 0x0002;	
+		file_hdr.version_major	= 0x0002;
 		file_hdr.version_minor	= 0x0004;
 		file_hdr.timezone	= 0x00000000;
 		file_hdr.sigfigs	= 0x00000000;
@@ -1284,7 +1282,7 @@ _PUBLIC_ int swrap_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 		return real_accept(s, addr, addrlen);
 	}
 
-	/* 
+	/*
 	 * assume out sockaddr have the same size as the in parent
 	 * socket family
 	 */
@@ -1412,7 +1410,7 @@ static int swrap_auto_bind(struct socket_info *si)
 
 		memset(&in, 0, sizeof(in));
 		in.sin_family = AF_INET;
-		in.sin_addr.s_addr = htonl(127<<24 | 
+		in.sin_addr.s_addr = htonl(127<<24 |
 					   socket_wrapper_default_iface());
 
 		si->myname_len = sizeof(in);
@@ -1454,11 +1452,11 @@ static int swrap_auto_bind(struct socket_info *si)
 
 	for (i=0;i<1000;i++) {
 		port = autobind_start + i;
-		snprintf(un_addr.sun_path, sizeof(un_addr.sun_path), 
+		snprintf(un_addr.sun_path, sizeof(un_addr.sun_path),
 			 "%s/"SOCKET_FORMAT, socket_wrapper_dir(),
 			 type, socket_wrapper_default_iface(), port);
 		if (stat(un_addr.sun_path, &st) == 0) continue;
-		
+
 		ret = real_bind(si->fd, (struct sockaddr *)&un_addr, sizeof(un_addr));
 		if (ret == -1) return ret;
 
@@ -1503,7 +1501,7 @@ _PUBLIC_ int swrap_connect(int s, const struct sockaddr *serv_addr, socklen_t ad
 
 	swrap_dump_packet(si, serv_addr, SWRAP_CONNECT_SEND, NULL, 0);
 
-	ret = real_connect(s, (struct sockaddr *)&un_addr, 
+	ret = real_connect(s, (struct sockaddr *)&un_addr,
 			   sizeof(struct sockaddr_un));
 
 	/* to give better errors */
@@ -1610,7 +1608,7 @@ _PUBLIC_ int swrap_getsockopt(int s, int level, int optname, void *optval, sockl
 
 	if (level == SOL_SOCKET) {
 		return real_getsockopt(s, level, optname, optval, optlen);
-	} 
+	}
 
 	errno = ENOPROTOOPT;
 	return -1;
@@ -1651,7 +1649,7 @@ _PUBLIC_ ssize_t swrap_recvfrom(int s, void *buf, size_t len, int flags, struct 
 	/* irix 6.4 forgets to null terminate the sun_path string :-( */
 	memset(&un_addr, 0, sizeof(un_addr));
 	ret = real_recvfrom(s, buf, len, flags, (struct sockaddr *)&un_addr, &un_addrlen);
-	if (ret == -1) 
+	if (ret == -1)
 		return ret;
 
 	if (sockaddr_convert_from_un(si, &un_addr, un_addrlen,
@@ -1685,32 +1683,32 @@ _PUBLIC_ ssize_t swrap_sendto(int s, const void *buf, size_t len, int flags, con
 			ret = swrap_auto_bind(si);
 			if (ret == -1) return -1;
 		}
-		
+
 		ret = sockaddr_convert_to_un(si, to, tolen, &un_addr, 0, &bcast);
 		if (ret == -1) return -1;
-		
+
 		if (bcast) {
 			struct stat st;
 			unsigned int iface;
 			unsigned int prt = ntohs(((const struct sockaddr_in *)to)->sin_port);
 			char type;
-			
+
 			type = SOCKET_TYPE_CHAR_UDP;
-			
+
 			for(iface=0; iface <= MAX_WRAPPED_INTERFACES; iface++) {
-				snprintf(un_addr.sun_path, sizeof(un_addr.sun_path), "%s/"SOCKET_FORMAT, 
+				snprintf(un_addr.sun_path, sizeof(un_addr.sun_path), "%s/"SOCKET_FORMAT,
 					 socket_wrapper_dir(), type, iface, prt);
 				if (stat(un_addr.sun_path, &st) != 0) continue;
-				
+
 				/* ignore the any errors in broadcast sends */
 				real_sendto(s, buf, len, flags, (struct sockaddr *)&un_addr, sizeof(un_addr));
 			}
-			
+
 			swrap_dump_packet(si, to, SWRAP_SENDTO, buf, len);
-			
+
 			return len;
 		}
-		
+
 		ret = real_sendto(s, buf, len, flags, (struct sockaddr *)&un_addr, sizeof(un_addr));
 		break;
 	default:
@@ -1718,7 +1716,7 @@ _PUBLIC_ ssize_t swrap_sendto(int s, const void *buf, size_t len, int flags, con
 		errno = EHOSTUNREACH;
 		break;
 	}
-		
+
 	/* to give better errors */
 	if (ret == -1 && errno == ENOENT) {
 		errno = EHOSTUNREACH;
@@ -1858,7 +1856,7 @@ dup_internal(const struct socket_info *si_oldd, int fd)
 	si_newd->myname =
 	    sockaddr_dup(si_oldd->myname, si_oldd->myname_len);
 	si_newd->myname_len = si_oldd->myname_len;
-	si_newd->peername = 
+	si_newd->peername =
 	    sockaddr_dup(si_oldd->peername, si_oldd->peername_len);
 	si_newd->peername_len = si_oldd->peername_len;
 

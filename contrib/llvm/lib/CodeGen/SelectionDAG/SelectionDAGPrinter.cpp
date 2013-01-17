@@ -13,14 +13,12 @@
 
 #include "ScheduleDAGSDNodes.h"
 #include "llvm/Constants.h"
-#include "llvm/Function.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
-#include "llvm/CodeGen/PseudoSourceValue.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/Debug.h"
@@ -28,7 +26,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Config/config.h"
 using namespace llvm;
 
 namespace llvm {
@@ -52,7 +49,7 @@ namespace llvm {
 
     template<typename EdgeIter>
     static std::string getEdgeSourceLabel(const void *Node, EdgeIter I) {
-      return itostr(I - SDNodeIterator::begin((SDNode *) Node));
+      return itostr(I - SDNodeIterator::begin((const SDNode *) Node));
     }
 
     /// edgeTargetsEdgeSource - This method returns true if this outgoing edge
@@ -75,7 +72,7 @@ namespace llvm {
     }
 
     static std::string getGraphName(const SelectionDAG *G) {
-      return G->getMachineFunction().getFunction()->getName();
+      return G->getMachineFunction().getName();
     }
 
     static bool renderGraphFromBottomUp() {
@@ -148,7 +145,7 @@ std::string DOTGraphTraits<SelectionDAG*>::getNodeLabel(const SDNode *Node,
 void SelectionDAG::viewGraph(const std::string &Title) {
 // This code is only for debugging!
 #ifndef NDEBUG
-  ViewGraph(this, "dag." + getMachineFunction().getFunction()->getNameStr(),
+  ViewGraph(this, "dag." + getMachineFunction().getName(),
             false, Title);
 #else
   errs() << "SelectionDAG::viewGraph is only available in debug builds on "

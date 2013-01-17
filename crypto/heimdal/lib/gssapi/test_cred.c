@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2003-2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2003-2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -35,16 +35,16 @@
 #include <config.h>
 #endif
 
+#include <roken.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <gssapi.h>
+#include <gssapi_krb5.h>
+#include <gssapi_spnego.h>
 #include <err.h>
-#include <roken.h>
 #include <getarg.h>
-
-RCSID("$Id: test_cred.c 17750 2006-06-30 11:55:28Z lha $");
 
 static void
 gss_print_errors (int min_stat)
@@ -62,7 +62,8 @@ gss_print_errors (int min_stat)
 				  &msg_ctx,
 				  &status_string);
 	if (!GSS_ERROR(ret)) {
-	    fprintf (stderr, "%s\n", (char *)status_string.value);
+	    fprintf (stderr, "%.*s\n", (int)status_string.length,
+					(char *)status_string.value);
 	    gss_release_buffer (&new_stat, &status_string);
 	}
     } while (!GSS_ERROR(ret) && msg_ctx != 0);
@@ -96,12 +97,12 @@ acquire_release_loop(gss_name_t name, int counter, gss_cred_usage_t usage)
 				    NULL,
 				    NULL);
 	if (maj_stat != GSS_S_COMPLETE)
-	    gss_err(1, min_stat, "aquire %d %d != GSS_S_COMPLETE", 
+	    gss_err(1, min_stat, "aquire %d %d != GSS_S_COMPLETE",
 		    i, (int)maj_stat);
-				    
+
 	maj_stat = gss_release_cred(&min_stat, &cred);
 	if (maj_stat != GSS_S_COMPLETE)
-	    gss_err(1, min_stat, "release %d %d != GSS_S_COMPLETE", 
+	    gss_err(1, min_stat, "release %d %d != GSS_S_COMPLETE",
 		    i, (int)maj_stat);
     }
 }
@@ -122,7 +123,7 @@ acquire_add_release_add(gss_name_t name, gss_cred_usage_t usage)
 				NULL);
     if (maj_stat != GSS_S_COMPLETE)
 	gss_err(1, min_stat, "aquire %d != GSS_S_COMPLETE", (int)maj_stat);
-    
+
     maj_stat = gss_add_cred(&min_stat,
 			    cred,
 			    GSS_C_NO_NAME,
@@ -134,7 +135,7 @@ acquire_add_release_add(gss_name_t name, gss_cred_usage_t usage)
 			    NULL,
 			    NULL,
 			    NULL);
-			    
+
     if (maj_stat != GSS_S_COMPLETE)
 	gss_err(1, min_stat, "add_cred %d != GSS_S_COMPLETE", (int)maj_stat);
 
@@ -191,7 +192,7 @@ main(int argc, char **argv)
     setprogname(argv[0]);
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optidx))
 	usage(1);
-    
+
     if (help_flag)
 	usage (0);
 

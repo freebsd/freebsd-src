@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: view.c,v 1.178.8.1 2011-03-11 06:47:06 marka Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -193,6 +193,8 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->v4_aaaa = dns_v4_aaaa_ok;
 	view->v4_aaaa_acl = NULL;
 	ISC_LIST_INIT(view->rpz_zones);
+	view->rpz_recursive_only = ISC_TRUE;
+	view->rpz_break_dnssec = ISC_FALSE;
 	dns_fixedname_init(&view->dlv_fixed);
 	view->managed_keys = NULL;
 #ifdef BIND9
@@ -1713,6 +1715,9 @@ isc_result_t
 dns_view_issecuredomain(dns_view_t *view, dns_name_t *name,
 			 isc_boolean_t *secure_domain) {
 	REQUIRE(DNS_VIEW_VALID(view));
+
+	if (view->secroots_priv == NULL)
+		return (ISC_R_NOTFOUND);
 	return (dns_keytable_issecuredomain(view->secroots_priv, name,
 					    secure_domain));
 }

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: offset.h,v 1.17 2008-12-01 23:47:45 tbox Exp $ */
+/* $Id: offset.h,v 1.17 2008/12/01 23:47:45 tbox Exp $ */
 
 #ifndef ISC_OFFSET_H
 #define ISC_OFFSET_H 1

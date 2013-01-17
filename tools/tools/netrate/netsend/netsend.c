@@ -29,6 +29,7 @@
 #include <sys/endian.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <net/if.h>		/* if_nametoindex() */
 #include <sys/time.h>
 
 #include <netinet/in.h>
@@ -40,13 +41,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <netdb.h>
+
 /* program arguments */
 struct _a {
 	int s;
+	int ipv6;
 	struct timespec interval;
 	int port, port_max;
 	long duration;
 	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
 	int packet_len;
 	void *packet;
 };
@@ -139,26 +144,32 @@ timing_loop(struct _a *a)
 	long finishtime;
 	long send_errors, send_calls;
 	/* do not call gettimeofday more than every 20us */
-	long minres_ns = 20000;
+	long minres_ns = 200000;
 	int ic, gettimeofday_cycles;
 	int cur_port;
+	uint64_t n, ns;
 
 	if (clock_getres(CLOCK_REALTIME, &tmptime) == -1) {
 		perror("clock_getres");
 		return (-1);
 	}
 
+	ns = a->interval.tv_nsec;
 	if (timespec_ge(&tmptime, &a->interval))
 		fprintf(stderr,
 		    "warning: interval (%jd.%09ld) less than resolution (%jd.%09ld)\n",
 		    (intmax_t)a->interval.tv_sec, a->interval.tv_nsec,
 		    (intmax_t)tmptime.tv_sec, tmptime.tv_nsec);
-	if (a->interval.tv_nsec < minres_ns) {
-		gettimeofday_cycles = minres_ns/(tmptime.tv_nsec + 1);
-		fprintf(stderr,
-		    "calling time every %d cycles\n", gettimeofday_cycles);
-	} else
-		gettimeofday_cycles = 0;
+		/* interval too short, limit the number of gettimeofday()
+		 * calls, but also make sure there is at least one every
+		 * some 100 packets.
+		 */
+	if ((long)ns < minres_ns/100)
+		gettimeofday_cycles = 100;
+	else
+		gettimeofday_cycles = minres_ns/ns;
+	fprintf(stderr,
+	    "calling time every %d cycles\n", gettimeofday_cycles);
 
 	if (clock_gettime(CLOCK_REALTIME, &starttime) == -1) {
 		perror("clock_gettime");
@@ -179,9 +190,16 @@ timing_loop(struct _a *a)
 	ic = gettimeofday_cycles;
 	cur_port = a->port;
 	if (a->port == a->port_max) {
-		if (connect(a->s, (struct sockaddr *)&a->sin, sizeof(a->sin))) {
-			perror("connect");
-			return (-1);
+		if (a->ipv6) {
+			if (connect(a->s, (struct sockaddr *)&a->sin6, sizeof(a->sin6))) {
+				perror("connect (ipv6)");
+				return (-1);
+			}
+		} else {
+			if (connect(a->s, (struct sockaddr *)&a->sin, sizeof(a->sin))) {
+				perror("connect (ipv4)");
+				return (-1);
+			}
 		}
 	}
 	while (1) {
@@ -215,8 +233,13 @@ timing_loop(struct _a *a)
 			a->sin.sin_port = htons(cur_port++);
 			if (cur_port > a->port_max)
 				cur_port = a->port;
+			if (a->ipv6) {
+			ret = sendto(a->s, a->packet, a->packet_len, 0,
+			    (struct sockaddr *)&a->sin6, sizeof(a->sin6));
+			} else {
 			ret = sendto(a->s, a->packet, a->packet_len, 0,
 				(struct sockaddr *)&a->sin, sizeof(a->sin));
+			}
 		}
 		if (ret < 0)
 			send_errors++;
@@ -240,6 +263,13 @@ done:
 	printf("send errors:       %ld\n", send_errors);
 	printf("approx send rate:  %ld pps\n", (send_calls - send_errors) /
 	    a->duration);
+	n = send_calls - send_errors;
+	if (n > 0) {
+		ns = (tmptime.tv_sec - starttime.tv_sec) * 1000000000UL +
+			(tmptime.tv_nsec - starttime.tv_nsec);
+		n = ns / n;
+	}
+	printf("time/packet:       %u ns\n", (u_int)n);
 	printf("approx error rate: %ld\n", (send_errors / send_calls));
 	printf("waited:            %lld\n", waited);
 	printf("approx waits/sec:  %lld\n", (long long)(waited / a->duration));
@@ -254,25 +284,48 @@ main(int argc, char *argv[])
 	long rate, payloadsize, port;
 	char *dummy;
 	struct _a a;	/* arguments */
+	struct addrinfo hints, *res, *ressave;
 
 	bzero(&a, sizeof(a));
 
 	if (argc != 6)
 		usage();
 
-	a.sin.sin_len = sizeof(a.sin);
-	a.sin.sin_family = AF_INET;
-	if (inet_aton(argv[1], &a.sin.sin_addr) == 0) {
-		perror(argv[1]);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+
+	if (getaddrinfo(argv[1], NULL, &hints, &res) != 0) {
+		fprintf(stderr, "Couldn't resolv %s\n", argv[1]);
 		return (-1);
 	}
+	ressave = res;
+	while (res) {
+		if (res->ai_family == AF_INET) {
+			memcpy(&a.sin, res->ai_addr, res->ai_addrlen);
+			a.ipv6 = 0;
+			break;
+		} else if (res->ai_family == AF_INET6) {
+			memcpy(&a.sin6, res->ai_addr, res->ai_addrlen);
+			a.ipv6 = 1;
+			break;
+		} 
+		res = res->ai_next;
+	}
+	if (!res) {
+		fprintf(stderr, "Couldn't resolv %s\n", argv[1]);
+		exit(1);
+	}
+	freeaddrinfo(ressave);
 
 	port = strtoul(argv[2], &dummy, 10);
 	if (port < 1 || port > 65535)
 		usage();
 	if (*dummy != '\0' && *dummy != '-')
 		usage();
-	a.sin.sin_port = htons(port);
+	if (a.ipv6)
+		a.sin6.sin6_port = htons(port);
+	else
+		a.sin.sin_port = htons(port);
 	a.port = a.port_max = port;
 	if (*dummy == '-') {	/* set high port */
 		port = strtoul(dummy + 1, &dummy, 10);
@@ -328,7 +381,10 @@ main(int argc, char *argv[])
 	    "seconds\n", payloadsize, (intmax_t)a.interval.tv_sec,
 	    a.interval.tv_nsec, a.duration);
 
-	a.s = socket(PF_INET, SOCK_DGRAM, 0);
+	if (a.ipv6)
+		a.s = socket(PF_INET6, SOCK_DGRAM, 0);
+	else
+		a.s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (a.s == -1) {
 		perror("socket");
 		return (-1);

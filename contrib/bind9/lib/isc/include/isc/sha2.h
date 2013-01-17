@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sha2.h,v 1.12 2009-10-22 02:21:31 each Exp $ */
+/* $Id: sha2.h,v 1.12 2009/10/22 02:21:31 each Exp $ */
 
 /*	$FreeBSD$	*/
 /*	$KAME: sha2.h,v 1.3 2001/03/12 08:27:48 itojun Exp $	*/

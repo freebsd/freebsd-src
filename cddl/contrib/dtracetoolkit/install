@@ -1,0 +1,151 @@
+#!/usr/bin/ksh
+#
+# install - installer for the DTraceToolkit
+#
+# This is a fairly simple script, most of it is error checking.
+# All the script does is copy the DTraceToolkit files to another directory,
+# with various checks. The user could have copied the files themselves, this
+# script doesn't do anything special to them. It's really here in case
+# people extrace the toolkit and go looking for an installer.
+#
+# 15-May-2005	Brendan Gregg	Created this.
+
+DEBUG=0		# print debug data
+TEETH=1		# does this script have teeth
+SLEEP=1		# pause on messages
+PATH=/usr/bin
+
+### Ensure we know where we are,
+dir=${0%/*}
+cd $dir
+(( DEBUG )) && print "DEBUG: dir $dir"
+
+### Print welcome,
+print "DTraceToolkit Installation\n---------------------------"
+cat Version
+print "\nhit Ctrl-C any time you wish to quit.\n\n"
+
+### Fetch location,
+print -n "Enter target directory for installation [/opt/DTT]: "
+read loc junk
+if [[ "$loc" == "" ]]; then loc="/opt/DTT"; fi
+print ""
+(( DEBUG )) && print "DEBUG: loc $loc"
+
+### Sanity check,
+if print "$loc" | grep '^[./]*$' > /dev/null; then 
+	print "ERROR1: Location \"$loc\" is ambiguous.\n."
+	(( SLEEP )) && sleep 1
+	print ".\tTry a full path, like \"/opt/DTT\"\n."
+	print ".\tSorry!\n"
+	exit 1
+fi
+
+### Evilness check,
+if print "$loc" | grep '[^a-zA-Z0-9_.-/]' > /dev/null; then 
+	print "ERROR2: Sorry, location \"$loc\" contains bad characters.\n."
+	(( SLEEP )) && sleep 1
+	print ".\tTry a path like \"/opt/DTT\"\n."
+	print ".\tSorry!\n"
+	exit 2
+fi
+
+### Process location,
+basename=${loc%/*}
+nodename=${loc##*/}
+if [[ "$basename" == "" ]]; then basename="/"; fi
+(( DEBUG )) && print "DEBUG: basename $basename"
+(( DEBUG )) && print "DEBUG: nodename $nodename"
+
+### Check parent dir exists,
+if [[ ! -d "$basename" ]]; then
+	print "ERROR3: Parent directory \"$basename\" does not exist!\n."
+	(( SLEEP )) && sleep 1
+	print ".\tI'm not sure what you want me to do here, if you were"
+	print ".\tserious about the above parent directory - then run"
+	print ".\ta \"mkdir -p $basename\" first, then rerun this script.\n."
+	print ".\tSorry!\n"
+	exit 3
+fi
+
+### Check parent dir perms,
+if [[ ! -w "$basename" ]]; then
+	print "ERROR4: Can't write to parent directory \"$basename\"!\n."
+	(( SLEEP )) && sleep 1
+	print ".\tSince I can't write to this directory, I can't install the"
+	print ".\tDTraceToolkit. You are currently logged in as,\n."
+	id | sed 's/^/.		/'
+	print ".\n.\tand the directory has permissions,\n."
+	ls -ld "$basename" | awk '{ print ".\t\t",$1,$2,$3,$4,"..." }'
+	owner=`ls -ld "$basename" | awk '{ print $3 }'`
+	print ".\n.\tMaybe you need to run \"su - $owner\" first?\n."
+	print ".\tSorry!\n"
+	exit 4
+fi
+
+### Check if toolkit is already installed,
+if [[ -d "$loc" ]]; then
+	print "Warning: Possible old version of the DTraceToolkit found."
+	print "\tThis will DELETE the files in $loc, then install the toolkit."
+	(( SLEEP )) && sleep 1
+	if [[ ! -f "$loc/Version" ]]; then
+		print "\nWARNING: $loc doesn't look like an old DTraceToolkit!"
+		(( SLEEP )) && sleep 1
+	fi
+	print -n "\nContinue (will run \"rm -rf $loc\"). Are you sure (y/N)?: "
+	read ans junk
+	if [[ "$ans" != "y" ]]; then
+		print "\nExiting..."
+		exit 5
+	fi
+	if (( TEETH )); then
+		rm -rf "$loc"
+	else
+		print COMMAND: rm -rf \"$loc\"
+	fi
+fi
+
+### Make new toolkit dir,
+print "\nMaking directory \"$loc\"...\n"
+if (( TEETH )); then
+	mkdir -p "$loc"
+else
+	print COMMAND: mkdir -p \"$loc\"
+fi
+if [[ ! -d "$loc" || ! -w "$loc" ]]; then
+	print "ERROR6: Creation of \"$loc\" failed.\n."
+	(( SLEEP )) && sleep 1
+	print ".\tCheck directory location and try again.\n."
+	print ".\tSorry!\n"
+	exit 6
+fi
+
+### Copy files across,
+print "\nCopying DTraceToolkit files...\n"
+if (( TEETH )); then
+	tar cf - . | (cd "$loc"; tar xvf -)
+else 
+	print COMMAND: "tar cf - . | (cd \"$loc\"; tar xvf -)"
+fi
+error=$?
+if [[ ! -f "$loc/install" ]]; then error=1; fi
+if (( error )); then
+	print "ERROR7: Failure during copy.\n."
+	(( SLEEP )) && sleep 1
+	print ".\tCheck source \"$dir\" and destination \"$loc\", then"
+	print ".\ttry again.\n."
+	print ".\tSorry!\n"
+	exit 7
+fi
+
+### Delete installer,
+if (( TEETH )); then
+	rm "$loc/install"
+else
+	print COMMAND: rm \"$loc/install\"
+fi
+
+### Finished,
+print "\nFinished.\n"
+print "Installed to \"$loc\". See $loc/Guide for how to get started.\n"
+

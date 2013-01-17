@@ -63,6 +63,7 @@ Boston, MA 02110-1301, USA.  */
 /* All FreeBSD Architectures support the ELF object file format.  */
 #undef  OBJECT_FORMAT_ELF
 #define OBJECT_FORMAT_ELF	1
+#undef  TARGET_ELF
 #define TARGET_ELF		1
 
 /* Don't assume anything about the header files.  */

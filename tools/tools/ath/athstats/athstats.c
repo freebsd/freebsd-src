@@ -284,10 +284,14 @@ static const struct fmt athstats[] = {
 	{ 5,	"txdataunderrun",	"TXDAU",	"A-MPDU TX FIFO data underrun" },
 #define	S_TX_DELIM_UNDERRUN	AFTER(S_TX_DATA_UNDERRUN)
 	{ 5,	"txdelimunderrun",	"TXDEU",	"A-MPDU TX Delimiter underrun" },
-#define	S_TX_AGGR_FAIL		AFTER(S_TX_DELIM_UNDERRUN)
-	{ 10,	"txaggrfail",	"txaggrfail",	"A-MPDU TX attempt failed" },
+#define	S_TX_AGGR_OK		AFTER(S_TX_DELIM_UNDERRUN)
+	{ 5,	"txaggrok",	"TXAOK",	"A-MPDU sub-frame TX attempt success" },
+#define	S_TX_AGGR_FAIL		AFTER(S_TX_AGGR_OK)
+	{ 4,	"txaggrfail",	"TXAF",	"A-MPDU sub-frame TX attempt failures" },
+#define	S_TX_AGGR_FAILALL	AFTER(S_TX_AGGR_FAIL)
+	{ 7,	"txaggrfailall",	"TXAFALL",	"A-MPDU TX frame failures" },
 #ifndef __linux__
-#define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAIL)
+#define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAILALL)
 	{ 5,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
 #define	S_CABQ_BUSY	AFTER(S_CABQ_XMIT)
 	{ 5,	"cabqbusy",	"cabqbusy",	"cabq xmit overflowed beacon interval" },
@@ -299,7 +303,7 @@ static const struct fmt athstats[] = {
 	{ 5,	"rxbusdma",	"rxbusdma",	"rx setup failed for dma resrcs" },
 #define	S_FF_TXOK	AFTER(S_RX_BUSDMA)
 #else
-#define	S_FF_TXOK	AFTER(S_TX_AGGR_FAIL)
+#define	S_FF_TXOK	AFTER(S_TX_AGGR_FAILALL)
 #endif
 	{ 5,	"fftxok",	"fftxok",	"fast frames xmit successfully" },
 #define	S_FF_TXERR	AFTER(S_FF_TXOK)
@@ -486,7 +490,7 @@ ath_zerostats(struct athstatfoo *wf0)
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
 
 	if (ioctl(wf->s, SIOCZATHSTATS, &wf->ifr) < 0)
-		err(-1, wf->ifr.ifr_name);
+		err(-1, "ioctl: %s", wf->ifr.ifr_name);
 }
 
 static void
@@ -494,21 +498,21 @@ ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 {
 	wf->ifr.ifr_data = (caddr_t) &stats->ath;
 	if (ioctl(wf->s, SIOCGATHSTATS, &wf->ifr) < 0)
-		err(1, wf->ifr.ifr_name);
+		err(1, "ioctl: %s", wf->ifr.ifr_name);
 #ifdef ATH_SUPPORT_ANI
 	if (wf->optstats & ATHSTATS_ANI) {
 		wf->atd.ad_id = 5;
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_state;
 		wf->atd.ad_out_size = sizeof(stats->ani_state);
 		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0) {
-			warn(wf->atd.ad_name);
+			warn("ioctl: %s", wf->atd.ad_name);
 			wf->optstats &= ~ATHSTATS_ANI;
 		}
 		wf->atd.ad_id = 8;
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_stats;
 		wf->atd.ad_out_size = sizeof(stats->ani_stats);
 		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0)
-			warn(wf->atd.ad_name);
+			warn("ioctl: %s", wf->atd.ad_name);
 	}
 #endif /* ATH_SUPPORT_ANI */
 }
@@ -570,12 +574,14 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	switch (s) {
 	case S_INPUT:
 		snprintf(b, bs, "%lu",
-		    (wf->cur.ath.ast_rx_packets - wf->total.ath.ast_rx_packets) -
-		    (wf->cur.ath.ast_rx_mgt - wf->total.ath.ast_rx_mgt));
+		    (unsigned long)
+		    ((wf->cur.ath.ast_rx_packets - wf->total.ath.ast_rx_packets) -
+		    (wf->cur.ath.ast_rx_mgt - wf->total.ath.ast_rx_mgt)));
 		return 1;
 	case S_OUTPUT:
 		snprintf(b, bs, "%lu",
-		    wf->cur.ath.ast_tx_packets - wf->total.ath.ast_tx_packets);
+		    (unsigned long)
+		    (wf->cur.ath.ast_tx_packets - wf->total.ath.ast_tx_packets));
 		return 1;
 	case S_RATE:
 		snprintrate(b, bs, wf->cur.ath.ast_tx_rate);
@@ -775,7 +781,9 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_SWRETRIES_MAX:	STAT(tx_swretrymax);
 	case S_TX_DATA_UNDERRUN:	STAT(tx_data_underrun);
 	case S_TX_DELIM_UNDERRUN:	STAT(tx_delim_underrun);
-	case S_TX_AGGR_FAIL:		STAT(tx_aggrfail);
+	case S_TX_AGGR_OK:		STAT(tx_aggr_ok);
+	case S_TX_AGGR_FAIL:		STAT(tx_aggr_fail);
+	case S_TX_AGGR_FAILALL:		STAT(tx_aggr_failall);
 	}
 	b[0] = '\0';
 	return 0;
@@ -1014,9 +1022,10 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_SWRETRIES_MAX:	STAT(tx_swretrymax);
 	case S_TX_DATA_UNDERRUN:	STAT(tx_data_underrun);
 	case S_TX_DELIM_UNDERRUN:	STAT(tx_delim_underrun);
-	case S_TX_AGGR_FAIL:		STAT(tx_aggrfail);
+	case S_TX_AGGR_OK:		STAT(tx_aggr_ok);
+	case S_TX_AGGR_FAIL:		STAT(tx_aggr_fail);
+	case S_TX_AGGR_FAILALL:		STAT(tx_aggr_failall);
 	}
-
 	b[0] = '\0';
 	return 0;
 #undef RXANT

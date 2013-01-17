@@ -114,8 +114,8 @@ extern int __rpc_sockisbound(struct socket*);
 extern int bindresvport(struct socket *so, struct sockaddr *sa);
 
 struct xucred;
-struct __rpc_xdr;
-bool_t xdr_authunix_parms(struct __rpc_xdr *xdrs, uint32_t *time, struct xucred *cred);
+struct XDR;
+bool_t xdr_authunix_parms(struct XDR *xdrs, uint32_t *time, struct xucred *cred);
 #endif
 
 __END_DECLS

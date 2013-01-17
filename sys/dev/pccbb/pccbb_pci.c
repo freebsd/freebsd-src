@@ -465,6 +465,11 @@ cbb_chipinit(struct cbb_softc *sc)
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_LATTIMER, 0x20, 1);
 
+	/* Restore bus configuration */
+	pci_write_config(sc->dev, PCIR_PRIBUS_2, sc->pribus, 1);
+	pci_write_config(sc->dev, PCIR_SECBUS_2, sc->secbus, 1);
+	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->subbus, 1);
+
 	/* Enable memory access */
 	PCI_MASK_CONFIG(sc->dev, PCIR_COMMAND,
 	    | PCIM_CMD_MEMEN
@@ -822,7 +827,6 @@ static device_method_t cbb_methods[] = {
 	DEVMETHOD(device_resume,		cbb_resume),
 
 	/* bus methods */
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),
 	DEVMETHOD(bus_write_ivar,		cbb_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		cbb_alloc_resource),
@@ -849,7 +853,7 @@ static device_method_t cbb_methods[] = {
 	DEVMETHOD(pcib_write_config,		cbb_write_config),
 	DEVMETHOD(pcib_route_interrupt,		cbb_route_interrupt),
 
-	{0,0}
+	DEVMETHOD_END
 };
 
 static driver_t cbb_driver = {

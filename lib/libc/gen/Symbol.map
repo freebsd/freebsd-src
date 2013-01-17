@@ -298,7 +298,6 @@ FBSD_1.0 {
 	ualarm;
 	ulimit;
 	uname;
-	unvis;
 	strunvis;
 	strunvisx;
 	usleep;
@@ -379,6 +378,31 @@ FBSD_1.2 {
 	sem_wait;
 	setutxdb;
 	setutxent;
+};
+
+FBSD_1.3 {
+	clock_getcpuclockid;
+	dirfd;
+	 fdlopen;
+	__FreeBSD_libc_enter_restricted_mode;
+	getcontextx;
+	gid_from_group;
+	nvis;
+	pwcache_userdb;
+	pwcache_groupdb;
+	snvis;
+	strnunvis;
+	strnunvisx;
+	strnvis;
+	strnvisx;
+	strsnvis;
+	strsnvisx;
+	strsvis;
+	strsvisx;
+	svis;
+	uid_from_user;
+	unvis;
+	waitid;
 };
 
 FBSDprivate_1.0 {
@@ -502,4 +526,6 @@ FBSDprivate_1.0 {
 
 	__elf_aux_vector;
 	__pthread_map_stacks_exec;
+	__fillcontextx;
+	__getcontextx_size;
 };

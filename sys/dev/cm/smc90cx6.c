@@ -502,7 +502,7 @@ cm_srint_locked(vsc)
 	buffer = sc->sc_rx_act ^ 1;
 
 	/* Allocate header mbuf */
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 
 	if (m == 0) {
 		/*
@@ -539,7 +539,7 @@ cm_srint_locked(vsc)
 	 */
 	if ((len + 2 + 2) > MHLEN) {
 		/* attach an mbuf cluster */
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		/* Insist on getting a cluster */
 		if ((m->m_flags & M_EXT) == 0) {
@@ -596,7 +596,7 @@ cleanup:
 	}
 }
 
-__inline static void
+static inline void
 cm_tint_locked(sc, isr)
 	struct cm_softc *sc;
 	int isr;

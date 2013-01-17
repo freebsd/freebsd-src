@@ -91,6 +91,7 @@ static void usage(void);
 static void cleanheaders(char *);
 static void kernconfdump(const char *);
 static void checkversion(void);
+extern int yyparse(void);
 
 struct hdr_list {
 	char *h_name;
@@ -626,7 +627,7 @@ remember(const char *file)
 	else
 		s = ns(file);
 
-	if (index(s, '_') && strncmp(s, "opt_", 4) != 0) {
+	if (strchr(s, '_') && strncmp(s, "opt_", 4) != 0) {
 		free(s);
 		return;
 	}

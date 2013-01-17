@@ -145,7 +145,7 @@ struct compress_types {
 	const char *path;	/* Path to compression program */
 };
 
-const struct compress_types compress_type[COMPRESS_TYPES] = {
+static const struct compress_types compress_type[COMPRESS_TYPES] = {
 	{ "", "", "" },					/* no compression */
 	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP },	/* gzip compression */
 	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2 },	/* bzip2 compression */
@@ -206,42 +206,44 @@ typedef enum {
 }	fk_entry;
 
 STAILQ_HEAD(cflist, conf_entry);
-SLIST_HEAD(swlisthead, sigwork_entry) swhead = SLIST_HEAD_INITIALIZER(swhead);
-SLIST_HEAD(zwlisthead, zipwork_entry) zwhead = SLIST_HEAD_INITIALIZER(zwhead);
+static SLIST_HEAD(swlisthead, sigwork_entry) swhead =
+    SLIST_HEAD_INITIALIZER(swhead);
+static SLIST_HEAD(zwlisthead, zipwork_entry) zwhead =
+    SLIST_HEAD_INITIALIZER(zwhead);
 STAILQ_HEAD(ilist, include_entry);
 
 int dbg_at_times;		/* -D Show details of 'trim_at' code */
 
-int archtodir = 0;		/* Archive old logfiles to other directory */
-int createlogs;			/* Create (non-GLOB) logfiles which do not */
+static int archtodir = 0;	/* Archive old logfiles to other directory */
+static int createlogs;		/* Create (non-GLOB) logfiles which do not */
 				/*    already exist.  1=='for entries with */
 				/*    C flag', 2=='for all entries'. */
 int verbose = 0;		/* Print out what's going on */
-int needroot = 1;		/* Root privs are necessary */
+static int needroot = 1;	/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
-int norotate = 0;		/* Don't rotate */
-int nosignal;			/* Do not send any signals */
-int enforcepid = 0;		/* If PID file does not exist or empty, do nothing */
-int force = 0;			/* Force the trim no matter what */
-int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
+static int norotate = 0;	/* Don't rotate */
+static int nosignal;		/* Do not send any signals */
+static int enforcepid = 0;	/* If PID file does not exist or empty, do nothing */
+static int force = 0;		/* Force the trim no matter what */
+static int rotatereq = 0;	/* -R = Always rotate the file(s) as given */
 				/*    on the command (this also requires   */
 				/*    that a list of files *are* given on  */
 				/*    the run command). */
-char *requestor;		/* The name given on a -R request */
-char *timefnamefmt = NULL;	/* Use time based filenames instead of .0 etc */
-char *archdirname;		/* Directory path to old logfiles archive */
-char *destdir = NULL;		/* Directory to treat at root for logs */
-const char *conf;		/* Configuration file to use */
+static char *requestor;		/* The name given on a -R request */
+static char *timefnamefmt = NULL;/* Use time based filenames instead of .0 */
+static char *archdirname;	/* Directory path to old logfiles archive */
+static char *destdir = NULL;	/* Directory to treat at root for logs */
+static const char *conf;	/* Configuration file to use */
 
 struct ptime_data *dbg_timenow;	/* A "timenow" value set via -D option */
-struct ptime_data *timenow;	/* The time to use for checking at-fields */
+static struct ptime_data *timenow; /* The time to use for checking at-fields */
 
 #define	DAYTIME_LEN	16
-char daytime[DAYTIME_LEN];	/* The current time in human readable form,
-				 * used for rotation-tracking messages. */
-char hostname[MAXHOSTNAMELEN];	/* hostname */
+static char daytime[DAYTIME_LEN];/* The current time in human readable form,
+				  * used for rotation-tracking messages. */
+static char hostname[MAXHOSTNAMELEN]; /* hostname */
 
-const char *path_syslogpid = _PATH_SYSLOGPID;
+static const char *path_syslogpid = _PATH_SYSLOGPID;
 
 static struct cflist *get_worklist(char **files);
 static void parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
@@ -484,12 +486,14 @@ do_entry(struct conf_entry * ent)
 	fk_entry free_or_keep;
 	double diffsecs;
 	char temp_reason[REASON_MAX];
+	int oversized;
 
 	free_or_keep = FREE_ENT;
 	if (verbose)
 		printf("%s <%d%s>: ", ent->log, ent->numlogs,
 		    compress_type[ent->compress].flag);
 	ent->fsize = sizefile(ent->log);
+	oversized = ((ent->trsize > 0) && (ent->fsize >= ent->trsize));
 	modtime = age_old_log(ent->log);
 	ent->rotate = 0;
 	ent->firstcreate = 0;
@@ -518,7 +522,8 @@ do_entry(struct conf_entry * ent)
 			printf("does not exist, skipped%s.\n", temp_reason);
 		}
 	} else {
-		if (ent->flags & CE_TRIMAT && !force && !rotatereq) {
+		if (ent->flags & CE_TRIMAT && !force && !rotatereq &&
+		    !oversized) {
 			diffsecs = ptimeget_diff(timenow, ent->trim_at);
 			if (diffsecs < 0.0) {
 				/* trim_at is some time in the future. */
@@ -574,7 +579,7 @@ do_entry(struct conf_entry * ent)
 		} else if (force) {
 			ent->rotate = 1;
 			snprintf(temp_reason, REASON_MAX, " due to -F request");
-		} else if ((ent->trsize > 0) && (ent->fsize >= ent->trsize)) {
+		} else if (oversized) {
 			ent->rotate = 1;
 			snprintf(temp_reason, REASON_MAX, " due to size>%dK",
 			    ent->trsize);
@@ -639,7 +644,7 @@ parse_args(int argc, char **argv)
 			break;
 		case 'n':
 			noaction++;
-			break;
+			/* FALLTHROUGH */
 		case 'r':
 			needroot = 0;
 			break;
@@ -1448,7 +1453,7 @@ static void
 delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 {
 	char *logfname, *s, *dir, errbuf[80];
-	int dirfd, i, logcnt, max_logcnt, valid;
+	int dir_fd, i, logcnt, max_logcnt, valid;
 	struct oldlog_entry *oldlogs;
 	size_t logfname_len;
 	struct dirent *dp;
@@ -1483,7 +1488,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 	/* First we create a 'list' of all archived logfiles */
 	if ((dirp = opendir(dir)) == NULL)
 		err(1, "Cannot open log directory '%s'", dir);
-	dirfd = dirfd(dirp);
+	dir_fd = dirfd(dirp);
 	while ((dp = readdir(dirp)) != NULL) {
 		if (dp->d_type != DT_REG)
 			continue;
@@ -1575,9 +1580,9 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 			if (noaction)
 				printf("\trm -f %s/%s\n", dir,
 				    oldlogs[i].fname);
-			else if (unlinkat(dirfd, oldlogs[i].fname, 0) != 0) {
+			else if (unlinkat(dir_fd, oldlogs[i].fname, 0) != 0) {
 				snprintf(errbuf, sizeof(errbuf),
-				    "Could not delet old logfile '%s'",
+				    "Could not delete old logfile '%s'",
 				    oldlogs[i].fname);
 				perror(errbuf);
 			}
@@ -1597,10 +1602,10 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 }
 
 /*
- * Generate a log filename, when using clasic filenames.
+ * Generate a log filename, when using classic filenames.
  */
 static void
-gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
+gen_classiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
     const char *namepart, int numlogs_c)
 {
 
@@ -1612,15 +1617,15 @@ gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
 }
 
 /*
- * Delete a rotated logfiles, when using clasic filenames.
+ * Delete a rotated logfile, when using classic filenames.
  */
 static void
-delete_clasiclog(const char *archive_dir, const char *namepart, int numlog_c)
+delete_classiclog(const char *archive_dir, const char *namepart, int numlog_c)
 {
 	char file1[MAXPATHLEN], zfile1[MAXPATHLEN];
 	int c;
 
-	gen_clasiclog_fname(file1, sizeof(file1), archive_dir, namepart,
+	gen_classiclog_fname(file1, sizeof(file1), archive_dir, namepart,
 	    numlog_c);
 
 	for (c = 0; c < COMPRESS_TYPES; c++) {
@@ -1710,7 +1715,7 @@ do_rotate(const struct conf_entry *ent)
 		} else {	/* relative */
 			/* get directory part of logfile */
 			strlcpy(dirpart, ent->log, sizeof(dirpart));
-			if ((p = rindex(dirpart, '/')) == NULL)
+			if ((p = strrchr(dirpart, '/')) == NULL)
 				dirpart[0] = '\0';
 			else
 				*(p + 1) = '\0';
@@ -1722,7 +1727,7 @@ do_rotate(const struct conf_entry *ent)
 			createdir(ent, dirpart);
 
 		/* get filename part of logfile */
-		if ((p = rindex(ent->log, '/')) == NULL)
+		if ((p = strrchr(ent->log, '/')) == NULL)
 			strlcpy(namepart, ent->log, sizeof(namepart));
 		else
 			strlcpy(namepart, p + 1, sizeof(namepart));
@@ -1744,10 +1749,10 @@ do_rotate(const struct conf_entry *ent)
 		 * kept ent->numlogs + 1 files.  This code can go away
 		 * at some point in the future.
 		 */
-		delete_clasiclog(dirpart, namepart, ent->numlogs);
+		delete_classiclog(dirpart, namepart, ent->numlogs);
 
 		if (ent->numlogs > 0)
-			delete_clasiclog(dirpart, namepart, ent->numlogs - 1);
+			delete_classiclog(dirpart, namepart, ent->numlogs - 1);
 
 	}
 
@@ -1768,7 +1773,7 @@ do_rotate(const struct conf_entry *ent)
 		/* Don't run the code to move down logs */
 		numlogs_c = -1;
 	} else {
-		gen_clasiclog_fname(file1, sizeof(file1), dirpart, namepart,
+		gen_classiclog_fname(file1, sizeof(file1), dirpart, namepart,
 		    ent->numlogs - 1);
 		numlogs_c = ent->numlogs - 2;		/* copy for countdown */
 	}
@@ -1777,7 +1782,7 @@ do_rotate(const struct conf_entry *ent)
 	for (; numlogs_c >= 0; numlogs_c--) {
 		(void) strlcpy(file2, file1, sizeof(file2));
 
-		gen_clasiclog_fname(file1, sizeof(file1), dirpart, namepart,
+		gen_classiclog_fname(file1, sizeof(file1), dirpart, namepart,
 		    numlogs_c);
 
 		logfile_suffix = get_logfile_suffix(file1);
@@ -1809,12 +1814,21 @@ do_rotate(const struct conf_entry *ent)
 				printf("\tcp %s %s\n", ent->log, file1);
 			else
 				printf("\tln %s %s\n", ent->log, file1);
+			printf("\ttouch %s\t\t"
+			    "# Update mtime for 'when'-interval processing\n",
+			    file1);
 		} else {
 			if (!(flags & CE_BINARY)) {
 				/* Report the trimming to the old log */
 				log_trim(ent->log, ent);
 			}
 			savelog(ent->log, file1);
+			/*
+			 * Interval-based rotations are done using the mtime of
+			 * the most recently archived log, so make sure it gets
+			 * updated during a rotation.
+			 */
+			utimes(file1, NULL);
 		}
 		change_attrs(file1, ent);
 	}
@@ -1946,9 +1960,10 @@ do_zipwork(struct zipwork_entry *zwork)
 	char zresult[MAXPATHLEN];
 	int c;
 
+	assert(zwork != NULL);
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
-	if (zwork != NULL && zwork->zw_conf != NULL &&
+	if (zwork->zw_conf != NULL &&
 	    zwork->zw_conf->compress > COMPRESS_NONE)
 		for (c = 1; c < COMPRESS_TYPES; c++) {
 			if (zwork->zw_conf->compress == c) {
@@ -1968,7 +1983,8 @@ do_zipwork(struct zipwork_entry *zwork)
 	else
 		pgm_name++;
 
-	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_pidok <= 0) {
+	if (zwork->zw_swork != NULL && zwork->zw_swork->run_cmd == 0 &&
+	    zwork->zw_swork->sw_pidok <= 0) {
 		warnx(
 		    "log %s not compressed because daemon(s) not notified",
 		    zwork->zw_fname);
@@ -2254,7 +2270,7 @@ age_old_log(char *file)
 		} else {	/* relative */
 			/* get directory part of logfile */
 			strlcpy(tmp, file, sizeof(tmp));
-			if ((p = rindex(tmp, '/')) == NULL)
+			if ((p = strrchr(tmp, '/')) == NULL)
 				tmp[0] = '\0';
 			else
 				*(p + 1) = '\0';
@@ -2264,7 +2280,7 @@ age_old_log(char *file)
 		strlcat(tmp, "/", sizeof(tmp));
 
 		/* get filename part of logfile */
-		if ((p = rindex(file, '/')) == NULL)
+		if ((p = strrchr(file, '/')) == NULL)
 			strlcat(tmp, file, sizeof(tmp));
 		else
 			strlcat(tmp, p + 1, sizeof(tmp));

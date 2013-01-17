@@ -26,7 +26,7 @@
  *	$FreeBSD$
  */
 /*
- * Copyright (c) 1998 - 2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -58,7 +58,7 @@
  * SUCH DAMAGE. 
  */
 /*
- * Copyright (c) 1998 - 2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -173,7 +173,7 @@ supplementary_error(OM_uint32 v)
 	return msgs[v];
 }
 
-#if defined(__sparc64__) || defined(__arm__) || defined(__mips__)
+#if defined(__NO_TLS)
 
 /*
  * These platforms don't support TLS on FreeBSD - threads will just
@@ -337,4 +337,14 @@ gss_display_status(OM_uint32 *minor_status,
 	}
 	_gss_buffer_zero(status_string);
 	return (GSS_S_BAD_STATUS);
+}
+
+void
+_gss_mg_collect_error(gss_OID mech, OM_uint32 maj, OM_uint32 min)
+{
+	struct _gss_mech_switch *m;
+
+	m = _gss_find_mech_switch(mech);
+	if (m != NULL)
+		_gss_mg_error(m, maj, min);
 }

@@ -31,6 +31,8 @@ static cl::opt<bool> StressSchedOpt(
   cl::desc("Stress test instruction scheduling"));
 #endif
 
+void SchedulingPriorityQueue::anchor() { }
+
 ScheduleDAG::ScheduleDAG(MachineFunction &mf)
   : TM(mf.getTarget()),
     TII(TM.getInstrInfo()),
@@ -44,42 +46,17 @@ ScheduleDAG::ScheduleDAG(MachineFunction &mf)
 
 ScheduleDAG::~ScheduleDAG() {}
 
+/// Clear the DAG state (e.g. between scheduling regions).
+void ScheduleDAG::clearDAG() {
+  SUnits.clear();
+  EntrySU = SUnit();
+  ExitSU = SUnit();
+}
+
 /// getInstrDesc helper to handle SDNodes.
 const MCInstrDesc *ScheduleDAG::getNodeDesc(const SDNode *Node) const {
   if (!Node || !Node->isMachineOpcode()) return NULL;
   return &TII->get(Node->getMachineOpcode());
-}
-
-/// dump - dump the schedule.
-void ScheduleDAG::dumpSchedule() const {
-  for (unsigned i = 0, e = Sequence.size(); i != e; i++) {
-    if (SUnit *SU = Sequence[i])
-      SU->dump(this);
-    else
-      dbgs() << "**** NOOP ****\n";
-  }
-}
-
-
-/// Run - perform scheduling.
-///
-void ScheduleDAG::Run(MachineBasicBlock *bb,
-                      MachineBasicBlock::iterator insertPos) {
-  BB = bb;
-  InsertPos = insertPos;
-
-  SUnits.clear();
-  Sequence.clear();
-  EntrySU = SUnit();
-  ExitSU = SUnit();
-
-  Schedule();
-
-  DEBUG({
-      dbgs() << "*** Final schedule ***\n";
-      dumpSchedule();
-      dbgs() << '\n';
-    });
 }
 
 /// addPred - This adds the specified edge as a pred of the current node if
@@ -87,10 +64,27 @@ void ScheduleDAG::Run(MachineBasicBlock *bb,
 /// specified node.
 bool SUnit::addPred(const SDep &D) {
   // If this node already has this depenence, don't add a redundant one.
-  for (SmallVector<SDep, 4>::const_iterator I = Preds.begin(), E = Preds.end();
-       I != E; ++I)
-    if (*I == D)
+  for (SmallVector<SDep, 4>::iterator I = Preds.begin(), E = Preds.end();
+       I != E; ++I) {
+    if (I->overlaps(D)) {
+      // Extend the latency if needed. Equivalent to removePred(I) + addPred(D).
+      if (I->getLatency() < D.getLatency()) {
+        SUnit *PredSU = I->getSUnit();
+        // Find the corresponding successor in N.
+        SDep ForwardD = *I;
+        ForwardD.setSUnit(this);
+        for (SmallVector<SDep, 4>::iterator II = PredSU->Succs.begin(),
+               EE = PredSU->Succs.end(); II != EE; ++II) {
+          if (*II == ForwardD) {
+            II->setLatency(D.getLatency());
+            break;
+          }
+        }
+        I->setLatency(D.getLatency());
+      }
       return false;
+    }
+  }
   // Now add a corresponding succ to N.
   SDep P = D;
   P.setSUnit(this);
@@ -285,6 +279,7 @@ void SUnit::ComputeHeight() {
   } while (!WorkList.empty());
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// SUnit - Scheduling unit. It's an wrapper around either a single SDNode or
 /// a group of nodes flagged together.
 void SUnit::dump(const ScheduleDAG *G) const {
@@ -313,13 +308,12 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
       case SDep::Output:      dbgs() << "out "; break;
       case SDep::Order:       dbgs() << "ch  "; break;
       }
-      dbgs() << "#";
-      dbgs() << I->getSUnit() << " - SU(" << I->getSUnit()->NodeNum << ")";
+      dbgs() << "SU(" << I->getSUnit()->NodeNum << ")";
       if (I->isArtificial())
         dbgs() << " *";
       dbgs() << ": Latency=" << I->getLatency();
       if (I->isAssignedRegDep())
-        dbgs() << " Reg=" << G->TRI->getName(I->getReg());
+        dbgs() << " Reg=" << PrintReg(I->getReg(), G->TRI);
       dbgs() << "\n";
     }
   }
@@ -334,8 +328,7 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
       case SDep::Output:      dbgs() << "out "; break;
       case SDep::Order:       dbgs() << "ch  "; break;
       }
-      dbgs() << "#";
-      dbgs() << I->getSUnit() << " - SU(" << I->getSUnit()->NodeNum << ")";
+      dbgs() << "SU(" << I->getSUnit()->NodeNum << ")";
       if (I->isArtificial())
         dbgs() << " *";
       dbgs() << ": Latency=" << I->getLatency();
@@ -344,15 +337,15 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
   }
   dbgs() << "\n";
 }
+#endif
 
 #ifndef NDEBUG
-/// VerifySchedule - Verify that all SUnits were scheduled and that
-/// their state is consistent.
+/// VerifyScheduledDAG - Verify that all SUnits were scheduled and that
+/// their state is consistent. Return the number of scheduled nodes.
 ///
-void ScheduleDAG::VerifySchedule(bool isBottomUp) {
+unsigned ScheduleDAG::VerifyScheduledDAG(bool isBottomUp) {
   bool AnyNotSched = false;
   unsigned DeadNodes = 0;
-  unsigned Noops = 0;
   for (unsigned i = 0, e = SUnits.size(); i != e; ++i) {
     if (!SUnits[i].isScheduled) {
       if (SUnits[i].NumPreds == 0 && SUnits[i].NumSuccs == 0) {
@@ -393,12 +386,8 @@ void ScheduleDAG::VerifySchedule(bool isBottomUp) {
       }
     }
   }
-  for (unsigned i = 0, e = Sequence.size(); i != e; ++i)
-    if (!Sequence[i])
-      ++Noops;
   assert(!AnyNotSched);
-  assert(Sequence.size() + DeadNodes - Noops == SUnits.size() &&
-         "The number of nodes scheduled doesn't match the expected number!");
+  return SUnits.size() - DeadNodes;
 }
 #endif
 

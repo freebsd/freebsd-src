@@ -123,6 +123,10 @@ struct pipestat {
 	uint64_t	addr;
 	uint64_t	peer;
 };
+struct shmstat {
+	uint64_t	size;
+	uint16_t	mode;
+};
 struct sockstat {
 	uint64_t	inp_ppcb;
 	uint64_t	so_addr;
@@ -140,6 +144,7 @@ struct sockstat {
 
 STAILQ_HEAD(filestat_list, filestat);
 
+__BEGIN_DECLS
 void	procstat_close(struct procstat *procstat);
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
@@ -152,11 +157,14 @@ int	procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
     struct pipestat *pipe, char *errbuf);
 int	procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
     struct ptsstat *pts, char *errbuf);
+int	procstat_get_shm_info(struct procstat *procstat, struct filestat *fst,
+    struct shmstat *shm, char *errbuf);
 int	procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
     struct sockstat *sock, char *errbuf);
 int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
 struct procstat	*procstat_open_sysctl(void);
 struct procstat	*procstat_open_kvm(const char *nlistf, const char *memf);
+__END_DECLS
 
 #endif	/* !_LIBPROCSTAT_H_ */

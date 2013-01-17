@@ -167,7 +167,7 @@ client_request(void)
 		goto err;
 	}
 	daemon_uid = pw->pw_uid;
-	/* drop our root priviledges */
+	/* drop our root privileges */
 	(void)lockd_seteuid(daemon_uid);
 
 	for (;;) {
@@ -595,7 +595,7 @@ show(LOCKD_MSG *mp)
 	syslog(LOG_DEBUG, "fh_len %d, fh %s\n", (int)mp->lm_fh_len, buf);
 
 	/* Show flock structure. */
-	syslog(LOG_DEBUG, "start %qu; len %qu; pid %lu; type %d; whence %d\n",
+	syslog(LOG_DEBUG, "start %llu; len %llu; pid %lu; type %d; whence %d\n",
 	    (unsigned long long)mp->lm_fl.l_start,
 	    (unsigned long long)mp->lm_fl.l_len, (u_long)mp->lm_fl.l_pid,
 	    mp->lm_fl.l_type, mp->lm_fl.l_whence);

@@ -224,14 +224,13 @@ get_disk_mediasize()
   export VAL="${mediasize}"
 };
 
-# Function which exports all zpools, making them safe to overwrite potentially
-export_all_zpools()
+# Function which returns a target disks mediasize in megabytes
+get_disk_mediasize_mb()
 {
-  # Export any zpools
-  for i in `zpool list -H -o name`
-  do
-    zpool export -f ${i}
-  done
+  mediasize=`diskinfo -v ${1} | grep "# mediasize in bytes" | tr -s ' ' | cut -f 2`
+  mediasize=`expr $mediasize / 1024`
+  mediasize=`expr $mediasize / 1024`
+  export VAL="${mediasize}"
 };
 
 # Function to delete all gparts before starting an install
@@ -268,10 +267,15 @@ delete_all_gpart()
 # Function to export all zpools before starting an install
 stop_all_zfs()
 {
-  # Export all zpools again, so that we can overwrite these partitions potentially
+  local DISK="`echo ${1} | sed 's|/dev/||g'`"
+
+  # Export any zpools using this device so we can overwrite
   for i in `zpool list -H -o name`
   do
-    zpool export -f ${i}
+    ztst=`zpool status ${i} | grep "ONLINE" | awk '{print $1}' | grep -q ${DISK}`
+    if [ "$ztst" = "$DISK" ] ; then
+      zpool export -f ${i}
+    fi
   done
 };
 
@@ -324,9 +328,6 @@ setup_disk_slice()
   disknum="0"
   gmnum="0"
 
-  # Make sure all zpools are exported
-  export_all_zpools
-
   # We are ready to start setting up the disks, lets read the config and do the actions
   while read line
   do
@@ -354,7 +355,7 @@ setup_disk_slice()
       stop_all_geli ${DISK}
 
       # Make sure we don't have any zpools loaded
-      stop_all_zfs
+      stop_all_zfs ${DISK}
 
      fi
 
@@ -375,6 +376,16 @@ setup_disk_slice()
       then
         exit_err "ERROR: The mirror disk ${MIRRORDISK} does not exist!"
       fi
+
+      # Make sure we stop any gmirrors on this mirror disk
+      stop_all_gmirror ${MIRRORDISK}
+
+      # Make sure we stop any geli stuff on this mirror disk
+      stop_all_geli ${MIRRORDISK}
+
+      # Make sure we don't have any zpools mirror loaded
+      stop_all_zfs ${MIRRORDISK}
+
     fi
 
     # Lets see if we have been given a mirror balance choice
@@ -417,7 +428,7 @@ setup_disk_slice()
 
         if [ $LASTSLICE -gt 4 ]
         then
-          exit_err "ERROR: BSD only supports primary partitions, and there are none availble on $DISK"
+          exit_err "ERROR: BSD only supports primary partitions, and there are none available on $DISK"
         fi
 
       fi
@@ -462,6 +473,12 @@ setup_disk_slice()
       # Found our flag to commit this disk setup / lets do sanity check and do it
       if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
       then
+	# Make sure we are only installing ppc to full disk
+	if [ `uname -m` = "powerpc" -o `uname -m` = "powerpc64" ]; then
+	  if [ "$PTYPE" != "all" ] ; then
+	    exit_err "powerpc can only be installed to a full disk"
+	  fi
+	fi
 
         case ${PTYPE} in
           all)
@@ -470,7 +487,8 @@ setup_disk_slice()
               # Default to round-robin if the user didn't specify
               if [ -z "$MIRRORBAL" ]; then MIRRORBAL="round-robin" ; fi
 
-              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$DISK
+	      _mFile=`echo $DISK | sed 's|/|%|g'`
+              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$_mFile
 	      init_gmirror "$gmnum" "$MIRRORBAL" "$DISK" "$MIRRORDISK"
 
 	      # Reset DISK to the gmirror device
@@ -485,6 +503,12 @@ setup_disk_slice()
               tmpSLICE="${DISK}p1"  
             fi
 
+	    if [ `uname -m` = "powerpc" -o `uname -m` = "powerpc64" ]
+	    then
+              PSCHEME="APM"
+              tmpSLICE="${DISK}s1"  
+	    fi
+
             run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}"
             ;;
 
@@ -493,6 +517,13 @@ setup_disk_slice()
             # Get the number of the slice we are working on
             s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
             run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
+            ;;
+
+          p1|p2|p3|p4|p5|p6|p7|p8|p9|p10|p11|p12|p13|p14|p15|p16|p17|p18|p19|p20)
+            tmpSLICE="${DISK}${PTYPE}" 
+            # Get the number of the gpt partition we are working on
+            s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
+            run_gpart_gpt_part "${DISK}" "${BMANAGER}" "${s}"
             ;;
 
           free)
@@ -587,6 +618,30 @@ clear_backup_gpt_table()
   rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=`diskinfo ${1} | awk '{print int($3 / (1024*1024)) - 4;}'`"
 } ;
 
+# Function which runs gpart and creates a single large APM partition scheme
+init_apm_full_disk()
+{
+  _intDISK=$1
+ 
+  # Set our sysctl so we can overwrite any geom using drives
+  sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+
+  # Stop any journaling
+  stop_gjournal "${_intDISK}"
+
+  # Remove any existing partitions
+  delete_all_gpart "${_intDISK}"
+
+  sleep 2
+
+  echo_log "Running gpart on ${_intDISK}"
+  rc_halt "gpart create -s APM ${_intDISK}"
+  rc_halt "gpart add -s 800k -t freebsd-boot ${_intDISK}"
+  
+  echo_log "Stamping boot sector on ${_intDISK}"
+  rc_halt "gpart bootcode -p /boot/boot1.hfs -i 1 ${_intDISK}"
+
+}
 
 # Function which runs gpart and creates a single large GPT partition scheme
 init_gpt_full_disk()
@@ -633,40 +688,19 @@ init_mbr_full_disk()
   sleep 2
 
   echo_log "Running gpart on ${_intDISK}"
-  rc_halt "gpart create -s mbr ${_intDISK}"
-
-  # Lets figure out disk size in blocks
-  # Get the cyl of this disk
-  get_disk_cyl "${_intDISK}"
-  cyl="${VAL}"
-
-  # Get the heads of this disk
-  get_disk_heads "${_intDISK}"
-  head="${VAL}"
-
-  # Get the tracks/sectors of this disk
-  get_disk_sectors "${_intDISK}"
-  sec="${VAL}"
-
-  # Multiply them all together to get our total blocks
-  totalblocks="`expr ${cyl} \* ${head} 2>/dev/null`"
-  totalblocks="`expr ${totalblocks} \* ${sec} 2>/dev/null`"
-  if [ -z "${totalblocks}" ]
-  then
-    totalblocks=`gpart show "${_intDISK}"|tail -2|head -1|awk '{ print $2 }'`
-  fi
-
-  # Now set the ending block to the total disk block size
-  sizeblock="`expr ${totalblocks} - ${startblock}`"
+  rc_halt "gpart create -s mbr -f active ${_intDISK}"
 
   # Install new partition setup
   echo_log "Running gpart add on ${_intDISK}"
-  rc_halt "gpart add -b ${startblock} -s ${sizeblock} -t freebsd -i 1 ${_intDISK}"
+  rc_halt "gpart add -a 4k -t freebsd -i 1 ${_intDISK}"
   sleep 2
   
   echo_log "Cleaning up ${_intDISK}s1"
   rc_halt "dd if=/dev/zero of=${_intDISK}s1 count=1024"
   
+  # Make the partition active
+  rc_halt "gpart set -a active -i 1 ${_intDISK}"
+
   if [ "$_intBOOT" = "bsd" ] ; then
     echo_log "Stamping boot0 on ${_intDISK}"
     rc_halt "gpart bootcode -b /boot/boot0 ${_intDISK}"
@@ -684,13 +718,72 @@ run_gpart_full()
   BOOT=$2
   SCHEME=$3
 
-  if [ "$SCHEME" = "MBR" ] ; then
+  if [ "$SCHEME" = "APM" ] ; then
+    init_apm_full_disk "$DISK"
+    slice=`echo "${DISK}:1:apm" | sed 's|/|-|g'`
+  elif [ "$SCHEME" = "MBR" ] ; then
     init_mbr_full_disk "$DISK" "$BOOT"
     slice=`echo "${DISK}:1:mbr" | sed 's|/|-|g'`
   else
     init_gpt_full_disk "$DISK"
     slice=`echo "${DISK}:1:gpt" | sed 's|/|-|g'`
   fi
+
+  # Lets save our slice, so we know what to look for in the config file later on
+  if [ -z "$WORKINGSLICES" ]
+  then
+    WORKINGSLICES="${slice}"
+    export WORKINGSLICES
+  else
+    WORKINGSLICES="${WORKINGSLICES} ${slice}"
+    export WORKINGSLICES
+  fi
+};
+
+# Function which runs gpart on a specified gpt partition
+run_gpart_gpt_part()
+{
+  DISK=$1
+
+  # Set the slice we will use later
+  slice="${1}p${3}"
+ 
+  # Set our sysctl so we can overwrite any geom using drives
+  sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+
+  # Get the number of the slice we are working on
+  slicenum="$3"
+
+  # Stop any journaling
+  stop_gjournal "${slice}"
+
+  # Make sure we have disabled swap on this drive
+  if [ -e "${slice}b" ]
+  then
+   swapoff ${slice}b >/dev/null 2>/dev/null
+   swapoff ${slice}b.eli >/dev/null 2>/dev/null
+  fi
+
+  # Modify partition type
+  echo_log "Running gpart modify on ${DISK}"
+  rc_halt "gpart modify -t freebsd -i ${slicenum} ${DISK}"
+  sleep 2
+
+  # Clean up old partition
+  echo_log "Cleaning up $slice"
+  rc_halt "dd if=/dev/zero of=${DISK}p${slicenum} count=1024"
+
+  sleep 4
+
+  # Init the MBR partition
+  rc_halt "gpart create -s BSD ${DISK}p${slicenum}"
+
+  # Stamp the bootloader
+  sleep 4
+  rc_halt "gpart bootcode -b /boot/boot ${DISK}p${slicenum}"
+
+  # Set the slice to the format we'll be using for gpart later
+  slice=`echo "${1}:${3}:gptslice" | sed 's|/|-|g'`
 
   # Lets save our slice, so we know what to look for in the config file later on
   if [ -z "$WORKINGSLICES" ]
@@ -785,44 +878,9 @@ run_gpart_free()
     rc_halt "gpart create -s mbr ${DISK}"
   fi
 
-  # Lets get the starting block first
-  if [ "${slicenum}" = "1" ]
-  then
-     startblock="63"
-  else
-     # Lets figure out where the prior slice ends
-     checkslice=$((slicenum-1))
-
-     # Get starting block of this slice
-     sblk=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 2`
-     blksize=`gpart show ${DISK} | grep -v ${DISK} | tr -s '\t' ' ' | sed '/^$/d' | grep " ${checkslice} " | cut -d ' ' -f 3`
-     startblock=$((sblk+blksiz))
-  fi
-
-  # No slice after the new slice, lets figure out the free space remaining and use it
-  # Get the cyl of this disk
-  get_disk_cyl "${DISK}"
-  cyl="${VAL}"
-
-  # Get the heads of this disk
-  get_disk_heads "${DISK}"
-  head="${VAL}"
-
-  # Get the tracks/sectors of this disk
-  get_disk_sectors "${DISK}"
-  sec="${VAL}"
-
-  # Multiply them all together to get our total blocks
-  totalblocks=$((cyl*head))
-  totalblocks=$((totalblocks*sec))
-
-
-  # Now set the ending block to the total disk block size
-  sizeblock=$((totalblocks-startblock))
-
   # Install new partition setup
   echo_log "Running gpart on ${DISK}"
-  rc_halt "gpart add -b ${startblock} -s ${sizeblock} -t freebsd -i ${slicenum} ${DISK}"
+  rc_halt "gpart add -a 4k -t freebsd -i ${slicenum} ${DISK}"
   sleep 2
   
   echo_log "Cleaning up $slice"

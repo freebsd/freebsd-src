@@ -12,27 +12,31 @@
 
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCFixup.h"
-#include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
+class MCAsmLayout;
+class MCAssembler;
 class MCELFObjectTargetWriter;
-class MCFixup;
+struct MCFixupKindInfo;
+class MCFragment;
 class MCInst;
+class MCInstFragment;
 class MCObjectWriter;
 class MCSection;
-template<typename T>
-class SmallVectorImpl;
+class MCValue;
 class raw_ostream;
 
 /// MCAsmBackend - Generic interface to target specific assembler backends.
 class MCAsmBackend {
-  MCAsmBackend(const MCAsmBackend &);   // DO NOT IMPLEMENT
-  void operator=(const MCAsmBackend &);  // DO NOT IMPLEMENT
+  MCAsmBackend(const MCAsmBackend &) LLVM_DELETED_FUNCTION;
+  void operator=(const MCAsmBackend &) LLVM_DELETED_FUNCTION;
 protected: // Can only create subclasses.
   MCAsmBackend();
 
   unsigned HasReliableSymbolDifference : 1;
+  unsigned HasDataInCodeSupport : 1;
 
 public:
   virtual ~MCAsmBackend();
@@ -44,8 +48,8 @@ public:
   /// createELFObjectTargetWriter - Create a new ELFObjectTargetWriter to enable
   /// non-standard ELFObjectWriters.
   virtual  MCELFObjectTargetWriter *createELFObjectTargetWriter() const {
-    assert(0 && "createELFObjectTargetWriter is not supported by asm backend");
-    return 0;
+    llvm_unreachable("createELFObjectTargetWriter is not supported by asm "
+                     "backend");
   }
 
   /// hasReliableSymbolDifference - Check whether this target implements
@@ -60,6 +64,12 @@ public:
   /// eventually should be eliminated.
   bool hasReliableSymbolDifference() const {
     return HasReliableSymbolDifference;
+  }
+
+  /// hasDataInCodeSupport - Check whether this target implements data-in-code
+  /// markers. If not, data region directives will be ignored.
+  bool hasDataInCodeSupport() const {
+    return HasDataInCodeSupport;
   }
 
   /// doesSectionRequireSymbols - Check whether the given section requires that
@@ -85,12 +95,21 @@ public:
   /// getFixupKindInfo - Get information on a fixup kind.
   virtual const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const;
 
+  /// processFixupValue - Target hook to adjust the literal value of a fixup
+  /// if necessary. IsResolved signals whether the caller believes a relocation
+  /// is needed; the target can modify the value. The default does nothing.
+  virtual void processFixupValue(const MCAssembler &Asm,
+                                 const MCAsmLayout &Layout,
+                                 const MCFixup &Fixup, const MCFragment *DF,
+                                 MCValue &Target, uint64_t &Value,
+                                 bool &IsResolved) {}
+
   /// @}
 
-  /// ApplyFixup - Apply the \arg Value for given \arg Fixup into the provided
+  /// applyFixup - Apply the \p Value for given \p Fixup into the provided
   /// data fragment, at the offset specified by the fixup and following the
   /// fixup kind as appropriate.
-  virtual void ApplyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+  virtual void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
                           uint64_t Value) const = 0;
 
   /// @}
@@ -98,32 +117,46 @@ public:
   /// @name Target Relaxation Interfaces
   /// @{
 
-  /// MayNeedRelaxation - Check whether the given instruction may need
+  /// mayNeedRelaxation - Check whether the given instruction may need
   /// relaxation.
   ///
   /// \param Inst - The instruction to test.
-  virtual bool MayNeedRelaxation(const MCInst &Inst) const = 0;
+  virtual bool mayNeedRelaxation(const MCInst &Inst) const = 0;
+
+  /// fixupNeedsRelaxation - Target specific predicate for whether a given
+  /// fixup requires the associated instruction to be relaxed.
+  virtual bool fixupNeedsRelaxation(const MCFixup &Fixup,
+                                    uint64_t Value,
+                                    const MCInstFragment *DF,
+                                    const MCAsmLayout &Layout) const = 0;
 
   /// RelaxInstruction - Relax the instruction in the given fragment to the next
   /// wider instruction.
   ///
-  /// \param Inst - The instruction to relax, which may be the same as the
+  /// \param Inst The instruction to relax, which may be the same as the
   /// output.
-  /// \parm Res [output] - On return, the relaxed instruction.
-  virtual void RelaxInstruction(const MCInst &Inst, MCInst &Res) const = 0;
+  /// \param [out] Res On return, the relaxed instruction.
+  virtual void relaxInstruction(const MCInst &Inst, MCInst &Res) const = 0;
 
   /// @}
 
-  /// WriteNopData - Write an (optimal) nop sequence of Count bytes to the given
+  /// getMinimumNopSize - Returns the minimum size of a nop in bytes on this
+  /// target. The assembler will use this to emit excess padding in situations
+  /// where the padding required for simple alignment would be less than the
+  /// minimum nop size.
+  ///
+  virtual unsigned getMinimumNopSize() const { return 1; }
+
+  /// writeNopData - Write an (optimal) nop sequence of Count bytes to the given
   /// output. If the target cannot generate such a sequence, it should return an
   /// error.
   ///
   /// \return - True on success.
-  virtual bool WriteNopData(uint64_t Count, MCObjectWriter *OW) const = 0;
+  virtual bool writeNopData(uint64_t Count, MCObjectWriter *OW) const = 0;
 
-  /// HandleAssemblerFlag - Handle any target-specific assembler flags.
+  /// handleAssemblerFlag - Handle any target-specific assembler flags.
   /// By default, do nothing.
-  virtual void HandleAssemblerFlag(MCAssemblerFlag Flag) {}
+  virtual void handleAssemblerFlag(MCAssemblerFlag Flag) {}
 };
 
 } // End llvm namespace

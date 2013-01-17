@@ -58,8 +58,9 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * driver for National Semiconductor's DP83843 `PHYTER' ethernet 10/100 PHY
- * Data Sheet available from www.national.com
+ * Driver for the National Semiconductor's DP83843, DP83847 and DP83849
+ * `PHYTER' Ethernet 10/100 PHYs
+ * Data Sheets are available from http://www.national.com
  *
  * We also support the DP83815 `MacPHYTER' internal PHY since, for our
  * purposes, they are compatible.
@@ -93,7 +94,7 @@ static device_method_t nsphyter_methods[] = {
 	DEVMETHOD(device_attach,	nsphyter_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t nsphyter_devclass;
@@ -114,6 +115,7 @@ static const struct mii_phydesc nsphyters[] = {
 	MII_PHY_DESC(xxNATSEMI, DP83815),
 	MII_PHY_DESC(xxNATSEMI, DP83843),
 	MII_PHY_DESC(xxNATSEMI, DP83847),
+	MII_PHY_DESC(xxNATSEMI, DP83849),
 	MII_PHY_END
 };
 

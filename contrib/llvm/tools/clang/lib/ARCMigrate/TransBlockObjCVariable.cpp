@@ -9,7 +9,7 @@
 //
 // rewriteBlockObjCVariable:
 //
-// Adding __block to an obj-c variable could be either because the the variable
+// Adding __block to an obj-c variable could be either because the variable
 // is used for output storage or the user wanted to break a retain cycle.
 // This transformation checks whether a reference of the variable for the block
 // is actually needed (it is assigned to or its address is taken) or not.
@@ -27,6 +27,7 @@
 
 #include "Transforms.h"
 #include "Internals.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Basic/SourceManager.h"
 
 using namespace clang;
@@ -37,8 +38,7 @@ namespace {
 
 class RootBlockObjCVarRewriter :
                           public RecursiveASTVisitor<RootBlockObjCVarRewriter> {
-  MigrationPass &Pass;
-  llvm::DenseSet<VarDecl *> CheckedVars;
+  llvm::DenseSet<VarDecl *> &VarsToChange;
 
   class BlockVarChecker : public RecursiveASTVisitor<BlockVarChecker> {
     VarDecl *Var;
@@ -48,13 +48,13 @@ class RootBlockObjCVarRewriter :
     BlockVarChecker(VarDecl *var) : Var(var) { }
   
     bool TraverseImplicitCastExpr(ImplicitCastExpr *castE) {
-      if (BlockDeclRefExpr *
-            ref = dyn_cast<BlockDeclRefExpr>(castE->getSubExpr())) {
+      if (DeclRefExpr *
+            ref = dyn_cast<DeclRefExpr>(castE->getSubExpr())) {
         if (ref->getDecl() == Var) {
           if (castE->getCastKind() == CK_LValueToRValue)
             return true; // Using the value of the variable.
           if (castE->getCastKind() == CK_NoOp && castE->isLValue() &&
-              Var->getASTContext().getLangOptions().CPlusPlus)
+              Var->getASTContext().getLangOpts().CPlusPlus)
             return true; // Binding to const C++ reference.
         }
       }
@@ -62,7 +62,7 @@ class RootBlockObjCVarRewriter :
       return base::TraverseImplicitCastExpr(castE);
     }
 
-    bool VisitBlockDeclRefExpr(BlockDeclRefExpr *E) {
+    bool VisitDeclRefExpr(DeclRefExpr *E) {
       if (E->getDecl() == Var)
         return false; // The reference of the variable, and not just its value,
                       //  is needed.
@@ -71,7 +71,8 @@ class RootBlockObjCVarRewriter :
   };
 
 public:
-  RootBlockObjCVarRewriter(MigrationPass &pass) : Pass(pass) { }
+  RootBlockObjCVarRewriter(llvm::DenseSet<VarDecl *> &VarsToChange)
+    : VarsToChange(VarsToChange) { }
 
   bool VisitBlockDecl(BlockDecl *block) {
     SmallVector<VarDecl *, 4> BlockVars;
@@ -80,7 +81,6 @@ public:
            I = block->capture_begin(), E = block->capture_end(); I != E; ++I) {
       VarDecl *var = I->getVariable();
       if (I->isByRef() &&
-          !isAlreadyChecked(var) &&
           var->getType()->isObjCObjectPointerType() &&
           isImplicitStrong(var->getType())) {
         BlockVars.push_back(var);
@@ -89,32 +89,19 @@ public:
 
     for (unsigned i = 0, e = BlockVars.size(); i != e; ++i) {
       VarDecl *var = BlockVars[i];
-      CheckedVars.insert(var);
 
       BlockVarChecker checker(var);
       bool onlyValueOfVarIsNeeded = checker.TraverseStmt(block->getBody());
-      if (onlyValueOfVarIsNeeded) {
-        BlocksAttr *attr = var->getAttr<BlocksAttr>();
-        if(!attr)
-          continue;
-        bool useWeak = canApplyWeak(Pass.Ctx, var->getType());
-        SourceManager &SM = Pass.Ctx.getSourceManager();
-        Transaction Trans(Pass.TA);
-        Pass.TA.replaceText(SM.getExpansionLoc(attr->getLocation()),
-                            "__block",
-                            useWeak ? "__weak" : "__unsafe_unretained");
-      }
-
+      if (onlyValueOfVarIsNeeded)
+        VarsToChange.insert(var);
+      else
+        VarsToChange.erase(var);
     }
 
     return true;
   }
 
 private:
-  bool isAlreadyChecked(VarDecl *VD) {
-    return CheckedVars.count(VD);
-  }
-
   bool isImplicitStrong(QualType ty) {
     if (isa<AttributedType>(ty.getTypePtr()))
       return false;
@@ -123,20 +110,38 @@ private:
 };
 
 class BlockObjCVarRewriter : public RecursiveASTVisitor<BlockObjCVarRewriter> {
-  MigrationPass &Pass;
+  llvm::DenseSet<VarDecl *> &VarsToChange;
 
 public:
-  BlockObjCVarRewriter(MigrationPass &pass) : Pass(pass) { }
+  BlockObjCVarRewriter(llvm::DenseSet<VarDecl *> &VarsToChange)
+    : VarsToChange(VarsToChange) { }
 
   bool TraverseBlockDecl(BlockDecl *block) {
-    RootBlockObjCVarRewriter(Pass).TraverseDecl(block);
+    RootBlockObjCVarRewriter(VarsToChange).TraverseDecl(block);
     return true;
   }
 };
 
 } // anonymous namespace
 
-void trans::rewriteBlockObjCVariable(MigrationPass &pass) {
-  BlockObjCVarRewriter trans(pass);
-  trans.TraverseDecl(pass.Ctx.getTranslationUnitDecl());
+void BlockObjCVariableTraverser::traverseBody(BodyContext &BodyCtx) {
+  MigrationPass &Pass = BodyCtx.getMigrationContext().Pass;
+  llvm::DenseSet<VarDecl *> VarsToChange;
+
+  BlockObjCVarRewriter trans(VarsToChange);
+  trans.TraverseStmt(BodyCtx.getTopStmt());
+
+  for (llvm::DenseSet<VarDecl *>::iterator
+         I = VarsToChange.begin(), E = VarsToChange.end(); I != E; ++I) {
+    VarDecl *var = *I;
+    BlocksAttr *attr = var->getAttr<BlocksAttr>();
+    if(!attr)
+      continue;
+    bool useWeak = canApplyWeak(Pass.Ctx, var->getType());
+    SourceManager &SM = Pass.Ctx.getSourceManager();
+    Transaction Trans(Pass.TA);
+    Pass.TA.replaceText(SM.getExpansionLoc(attr->getLocation()),
+                        "__block",
+                        useWeak ? "__weak" : "__unsafe_unretained");
+  }
 }

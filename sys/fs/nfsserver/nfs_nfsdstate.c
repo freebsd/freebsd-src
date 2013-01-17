@@ -315,7 +315,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		for (i = 0; i < NFSSTATEHASHSIZE; i++) {
 			LIST_NEWHEAD(&new_clp->lc_stateid[i],
 			    &clp->lc_stateid[i], ls_hash);
-			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_list)
+			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 				tstp->ls_clp = new_clp;
 		}
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
@@ -331,11 +331,13 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		 * Must wait until any outstanding callback on the old clp
 		 * completes.
 		 */
+		NFSLOCKSTATE();
 		while (clp->lc_cbref) {
 			clp->lc_flags |= LCL_WAKEUPWANTED;
-			(void) tsleep((caddr_t)clp, PZERO - 1,
+			(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1,
 			    "nfsd clp", 10 * hz);
 		}
+		NFSUNLOCKSTATE();
 		nfsrv_zapclient(clp, p);
 		*new_clpp = NULL;
 		goto out;
@@ -369,7 +371,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	for (i = 0; i < NFSSTATEHASHSIZE; i++) {
 		LIST_NEWHEAD(&new_clp->lc_stateid[i], &clp->lc_stateid[i],
 		    ls_hash);
-		LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_list)
+		LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 			tstp->ls_clp = new_clp;
 	}
 	LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
@@ -385,10 +387,13 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	 * Must wait until any outstanding callback on the old clp
 	 * completes.
 	 */
+	NFSLOCKSTATE();
 	while (clp->lc_cbref) {
 		clp->lc_flags |= LCL_WAKEUPWANTED;
-		(void) tsleep((caddr_t)clp, PZERO - 1, "nfsd clp", 10 * hz);
+		(void)mtx_sleep(clp, NFSSTATEMUTEXPTR, PZERO - 1, "nfsd clp",
+		    10 * hz);
 	}
+	NFSUNLOCKSTATE();
 	nfsrv_zapclient(clp, p);
 	*new_clpp = NULL;
 
@@ -3721,7 +3726,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	/*
 	 * Get the first mbuf for the request.
 	 */
-	MGET(m, M_WAIT, MT_DATA);
+	MGET(m, M_WAITOK, MT_DATA);
 	mbuf_setlen(m, 0);
 	nd->nd_mreq = nd->nd_mb = m;
 	nd->nd_bpos = NFSMTOD(m, caddr_t);
@@ -3775,7 +3780,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	newnfs_sndunlock(&clp->lc_req.nr_lock);
 	if (!error) {
 		error = newnfs_request(nd, NULL, clp, &clp->lc_req, NULL,
-		    NULL, cred, clp->lc_program, NFSV4_CBVERS, NULL, 1, NULL);
+		    NULL, cred, clp->lc_program, NFSV4_CBVERS, NULL, 1, NULL,
+		    NULL);
 	}
 	NFSFREECRED(cred);
 
@@ -3816,11 +3822,9 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	clp->lc_cbref--;
 	if ((clp->lc_flags & LCL_WAKEUPWANTED) && clp->lc_cbref == 0) {
 		clp->lc_flags &= ~LCL_WAKEUPWANTED;
-		NFSUNLOCKSTATE();
-		wakeup((caddr_t)clp);
-	} else {
-		NFSUNLOCKSTATE();
+		wakeup(clp);
 	}
+	NFSUNLOCKSTATE();
 
 	NFSEXITCODE(error);
 	return (error);
@@ -3962,7 +3966,7 @@ nfsrv_setupstable(NFSPROC_T *p)
 	struct nfst_rec *tsp;
 	int error, i, tryagain;
 	off_t off = 0;
-	int aresid, len;
+	ssize_t aresid, len;
 	struct timeval curtime;
 
 	/*

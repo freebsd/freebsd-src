@@ -108,13 +108,13 @@ We note that a special flags value of
 (defined below)
 should handle most applications.
 That is, porting simple applications to use IPv6 replaces the call
-.Bd -literal -offset
-   hptr = gethostbyname(name);
+.Bd -literal -offset indent
+hptr = gethostbyname(name);
 .Ed
 .Pp
 with
-.Bd -literal -offset
-   hptr = getipnodebyname(name, AF_INET6, AI_DEFAULT, &error_num);
+.Bd -literal -offset indent
+hptr = getipnodebyname(name, AF_INET6, AI_DEFAULT, &error_num);
 .Ed
 .Pp
 Applications desiring finer control over the types of addresses
@@ -270,8 +270,8 @@ records are returned as IPv4-mapped IPv6 addresses;
 The special flags value of
 .Dv AI_DEFAULT
 is defined as
-.Bd -literal -offset
-   #define  AI_DEFAULT  (AI_V4MAPPED_CFG | AI_ADDRCONFIG)
+.Bd -literal -offset indent
+#define  AI_DEFAULT  (AI_V4MAPPED_CFG | AI_ADDRCONFIG)
 .Ed
 .Pp
 We noted that the

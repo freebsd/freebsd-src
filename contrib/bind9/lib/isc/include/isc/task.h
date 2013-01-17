@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.h,v 1.69.14.2 2011-02-28 01:20:04 tbox Exp $ */
+/* $Id$ */
 
 #ifndef ISC_TASK_H
 #define ISC_TASK_H 1
@@ -106,6 +106,8 @@ typedef struct isc_taskmgrmethods {
 	isc_result_t	(*taskcreate)(isc_taskmgr_t *manager,
 				      unsigned int quantum,
 				      isc_task_t **taskp);
+	void (*setexcltask)(isc_taskmgr_t *mgr, isc_task_t *task);
+	isc_result_t (*excltask)(isc_taskmgr_t *mgr, isc_task_t **taskp);
 } isc_taskmgrmethods_t;
 
 typedef struct isc_taskmethods {
@@ -696,6 +698,31 @@ isc_taskmgr_destroy(isc_taskmgr_t **managerp);
  *\li	All resources used by the task manager, and any tasks it managed,
  *	have been freed.
  */
+
+void
+isc_taskmgr_setexcltask(isc_taskmgr_t *mgr, isc_task_t *task);
+/*%<
+ * Set a task which will be used for all task-exclusive operations.
+ *
+ * Requires:
+ *\li	'manager' is a valid task manager.
+ *
+ *\li	'task' is a valid task.
+ */
+
+isc_result_t
+isc_taskmgr_excltask(isc_taskmgr_t *mgr, isc_task_t **taskp);
+/*%<
+ * Attach '*taskp' to the task set by isc_taskmgr_getexcltask().
+ * This task should be used whenever running in task-exclusive mode,
+ * so as to prevent deadlock between two exclusive tasks.
+ *
+ * Requires:
+ *\li	'manager' is a valid task manager.
+
+ *\li	taskp != NULL && *taskp == NULL
+ */
+
 
 #ifdef HAVE_LIBXML2
 

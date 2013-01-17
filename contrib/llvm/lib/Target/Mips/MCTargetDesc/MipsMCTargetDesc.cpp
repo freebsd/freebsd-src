@@ -1,4 +1,4 @@
-//===-- MipsMCTargetDesc.cpp - Mips Target Descriptions ---------*- C++ -*-===//
+//===-- MipsMCTargetDesc.cpp - Mips Target Descriptions -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MipsMCTargetDesc.h"
 #include "MipsMCAsmInfo.h"
+#include "MipsMCTargetDesc.h"
 #include "InstPrinter/MipsInstPrinter.h"
 #include "llvm/MC/MachineLocation.h"
 #include "llvm/MC/MCCodeGenInfo.h"
@@ -20,6 +20,7 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
 #define GET_INSTRINFO_MC_DESC
@@ -32,6 +33,38 @@
 #include "MipsGenRegisterInfo.inc"
 
 using namespace llvm;
+
+static std::string ParseMipsTriple(StringRef TT, StringRef CPU) {
+  std::string MipsArchFeature;
+  size_t DashPosition = 0;
+  StringRef TheTriple;
+
+  // Let's see if there is a dash, like mips-unknown-linux.
+  DashPosition = TT.find('-');
+
+  if (DashPosition == StringRef::npos) {
+    // No dash, we check the string size.
+    TheTriple = TT.substr(0);
+  } else {
+    // We are only interested in substring before dash.
+    TheTriple = TT.substr(0,DashPosition);
+  }
+
+  if (TheTriple == "mips" || TheTriple == "mipsel") {
+    if (CPU.empty() || CPU == "mips32") {
+      MipsArchFeature = "+mips32";
+    } else if (CPU == "mips32r2") {
+      MipsArchFeature = "+mips32r2";
+    }
+  } else {
+      if (CPU.empty() || CPU == "mips64") {
+        MipsArchFeature = "+mips64";
+      } else if (CPU == "mips64r2") {
+        MipsArchFeature = "+mips64r2";
+      }
+  }
+  return MipsArchFeature;
+}
 
 static MCInstrInfo *createMipsMCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
@@ -47,8 +80,15 @@ static MCRegisterInfo *createMipsMCRegisterInfo(StringRef TT) {
 
 static MCSubtargetInfo *createMipsMCSubtargetInfo(StringRef TT, StringRef CPU,
                                                   StringRef FS) {
+  std::string ArchFS = ParseMipsTriple(TT,CPU);
+  if (!FS.empty()) {
+    if (!ArchFS.empty())
+      ArchFS = ArchFS + "," + FS.str();
+    else
+      ArchFS = FS;
+  }
   MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitMipsMCSubtargetInfo(X, TT, CPU, FS);
+  InitMipsMCSubtargetInfo(X, TT, CPU, ArchFS);
   return X;
 }
 
@@ -63,19 +103,24 @@ static MCAsmInfo *createMipsMCAsmInfo(const Target &T, StringRef TT) {
 }
 
 static MCCodeGenInfo *createMipsMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                              CodeModel::Model CM) {
+                                              CodeModel::Model CM,
+                                              CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
-  if (RM == Reloc::Default)
+  if (CM == CodeModel::JITDefault)
+    RM = Reloc::Static;
+  else if (RM == Reloc::Default)
     RM = Reloc::PIC_;
-  X->InitMCCodeGenInfo(RM, CM);
+  X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
 static MCInstPrinter *createMipsMCInstPrinter(const Target &T,
                                               unsigned SyntaxVariant,
                                               const MCAsmInfo &MAI,
+                                              const MCInstrInfo &MII,
+                                              const MCRegisterInfo &MRI,
                                               const MCSubtargetInfo &STI) {
-  return new MipsInstPrinter(MAI);
+  return new MipsInstPrinter(MAI, MII, MRI);
 }
 
 static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
@@ -110,7 +155,8 @@ extern "C" void LLVMInitializeMipsTargetMC() {
   TargetRegistry::RegisterMCInstrInfo(TheMipsTarget, createMipsMCInstrInfo);
   TargetRegistry::RegisterMCInstrInfo(TheMipselTarget, createMipsMCInstrInfo);
   TargetRegistry::RegisterMCInstrInfo(TheMips64Target, createMipsMCInstrInfo);
-  TargetRegistry::RegisterMCInstrInfo(TheMips64elTarget, createMipsMCInstrInfo);
+  TargetRegistry::RegisterMCInstrInfo(TheMips64elTarget,
+                                      createMipsMCInstrInfo);
 
   // Register the MC register info.
   TargetRegistry::RegisterMCRegInfo(TheMipsTarget, createMipsMCRegisterInfo);
@@ -120,25 +166,31 @@ extern "C" void LLVMInitializeMipsTargetMC() {
                                     createMipsMCRegisterInfo);
 
   // Register the MC Code Emitter
-  TargetRegistry::RegisterMCCodeEmitter(TheMipsTarget, createMipsMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(TheMipsTarget,
+                                        createMipsMCCodeEmitterEB);
   TargetRegistry::RegisterMCCodeEmitter(TheMipselTarget,
-                                        createMipsMCCodeEmitter);
+                                        createMipsMCCodeEmitterEL);
   TargetRegistry::RegisterMCCodeEmitter(TheMips64Target,
-                                        createMipsMCCodeEmitter);
+                                        createMipsMCCodeEmitterEB);
   TargetRegistry::RegisterMCCodeEmitter(TheMips64elTarget,
-                                        createMipsMCCodeEmitter);
+                                        createMipsMCCodeEmitterEL);
 
   // Register the object streamer.
   TargetRegistry::RegisterMCObjectStreamer(TheMipsTarget, createMCStreamer);
   TargetRegistry::RegisterMCObjectStreamer(TheMipselTarget, createMCStreamer);
   TargetRegistry::RegisterMCObjectStreamer(TheMips64Target, createMCStreamer);
-  TargetRegistry::RegisterMCObjectStreamer(TheMips64elTarget, createMCStreamer);
+  TargetRegistry::RegisterMCObjectStreamer(TheMips64elTarget,
+                                           createMCStreamer);
 
   // Register the asm backend.
-  TargetRegistry::RegisterMCAsmBackend(TheMipsTarget, createMipsAsmBackend);
-  TargetRegistry::RegisterMCAsmBackend(TheMipselTarget, createMipsAsmBackend);
-  TargetRegistry::RegisterMCAsmBackend(TheMips64Target, createMipsAsmBackend);
-  TargetRegistry::RegisterMCAsmBackend(TheMips64elTarget, createMipsAsmBackend);
+  TargetRegistry::RegisterMCAsmBackend(TheMipsTarget,
+                                       createMipsAsmBackendEB32);
+  TargetRegistry::RegisterMCAsmBackend(TheMipselTarget,
+                                       createMipsAsmBackendEL32);
+  TargetRegistry::RegisterMCAsmBackend(TheMips64Target,
+                                       createMipsAsmBackendEB64);
+  TargetRegistry::RegisterMCAsmBackend(TheMips64elTarget,
+                                       createMipsAsmBackendEL64);
 
   // Register the MC subtarget info.
   TargetRegistry::RegisterMCSubtargetInfo(TheMipsTarget,

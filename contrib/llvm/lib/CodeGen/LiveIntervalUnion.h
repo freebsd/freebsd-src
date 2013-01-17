@@ -20,8 +20,6 @@
 #include "llvm/ADT/IntervalMap.h"
 #include "llvm/CodeGen/LiveInterval.h"
 
-#include <algorithm>
-
 namespace llvm {
 
 class MachineLoopRange;
@@ -62,13 +60,11 @@ public:
   class Query;
 
 private:
-  const unsigned RepReg;  // representative register number
   unsigned Tag;           // unique tag for current contents.
   LiveSegments Segments;  // union of virtual reg segments
 
 public:
-  LiveIntervalUnion(unsigned r, Allocator &a) : RepReg(r), Tag(0), Segments(a)
-    {}
+  explicit LiveIntervalUnion(Allocator &a) : Tag(0), Segments(a) {}
 
   // Iterate over all segments in the union of live virtual registers ordered
   // by their starting position.
@@ -182,8 +178,30 @@ public:
     bool checkLoopInterference(MachineLoopRange*);
 
   private:
-    Query(const Query&);          // DO NOT IMPLEMENT
-    void operator=(const Query&); // DO NOT IMPLEMENT
+    Query(const Query&) LLVM_DELETED_FUNCTION;
+    void operator=(const Query&) LLVM_DELETED_FUNCTION;
+  };
+
+  // Array of LiveIntervalUnions.
+  class Array {
+    unsigned Size;
+    LiveIntervalUnion *LIUs;
+  public:
+    Array() : Size(0), LIUs(0) {}
+    ~Array() { clear(); }
+
+    // Initialize the array to have Size entries.
+    // Reuse an existing allocation if the size matches.
+    void init(LiveIntervalUnion::Allocator&, unsigned Size);
+
+    unsigned size() const { return Size; }
+
+    void clear();
+
+    LiveIntervalUnion& operator[](unsigned idx) {
+      assert(idx <  Size && "idx out of bounds");
+      return LIUs[idx];
+    }
   };
 };
 

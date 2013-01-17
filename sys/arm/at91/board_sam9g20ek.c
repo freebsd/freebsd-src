@@ -23,13 +23,9 @@
  * SUCH DAMAGE.
  */
 
-/* 
+/*
  * This board file can be used for both:
- * Atmel AT91SAM9260-B Development Card and
- * Atmel AT91SAM9G20-EK Rev. B Development Card 
- * 
- * Since the AT91SAM9260 and AT91SAM9G20 have identical memory maps and 
- * pin configurations we can use the same file for both.
+ * Atmel SAM9G20-EK Development Card
  */
 
 #include <sys/cdefs.h>
@@ -37,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/board.h>
 #include <arm/at91/at91board.h>
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91var.h>
@@ -45,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pio_sam9g20.h>
 //#include <arm/at91/at91_led.h>
 
-long
+BOARD_INIT long
 board_init(void)
 {
 	/* PIOB's A periph: Turn USART 0's TX/RX pins */
@@ -73,7 +70,7 @@ board_init(void)
 	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE,AT91C_PA24_TWCK, 1);
 
 #if 1
-	/* 
+	/*
 	 * Turn off Clock to DataFlash, conflicts with MCI clock.
 	 */
 	at91_pio_use_gpio(AT91SAM9G20_PIOA_BASE,AT91C_PIO_PA2);
@@ -126,3 +123,5 @@ board_init(void)
 
 	return (at91_ramsize());
 }
+
+ARM_BOARD(AT91SAM9G20, "Atmel SAM9G20-EK Development Card");

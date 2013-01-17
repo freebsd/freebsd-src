@@ -44,7 +44,7 @@ static	char sccsid[] = "@(#)check_bound.c 1.11 89/04/21 Copyr 1989 Sun Micro";
 /*
  * check_bound.c
  * Checks to see whether the program is still bound to the
- * claimed address and returns the univeral merged address
+ * claimed address and returns the universal merged address
  *
  */
 

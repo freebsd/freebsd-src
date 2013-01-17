@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 /*
  * This implements an empty DFS module.
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 
@@ -80,7 +81,7 @@ __FBSDID("$FreeBSD$");
 int
 ath_dfs_attach(struct ath_softc *sc)
 {
-	return 1;
+	return (1);
 }
 
 /*
@@ -89,25 +90,89 @@ ath_dfs_attach(struct ath_softc *sc)
 int
 ath_dfs_detach(struct ath_softc *sc)
 {
-	return 1;
+	return (1);
 }
 
 /*
- * Enable radar check
+ * Enable radar check.  Return 1 if the driver should
+ * enable radar PHY errors, or 0 if not.
  */
-void
+int
 ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
+#if 0
+	HAL_PHYERR_PARAM pe;
+
+	/* Check if the hardware supports radar reporting */
+	/* XXX TODO: migrate HAL_CAP_RADAR/HAL_CAP_AR to somewhere public! */
+	if (ath_hal_getcapability(sc->sc_ah,
+	    HAL_CAP_PHYDIAG, 0, NULL) != HAL_OK)
+		return (0);
+
 	/* Check if the current channel is radar-enabled */
 	if (! IEEE80211_IS_CHAN_DFS(chan))
-		return;
+		return (0);
+
+	/* Fetch the default parameters */
+	memset(&pe, '\0', sizeof(pe));
+	if (! ath_hal_getdfsdefaultthresh(sc->sc_ah, &pe))
+		return (0);
+
+	/* Enable radar PHY error reporting */
+	sc->sc_dodfs = 1;
+
+	/* Tell the hardware to enable radar reporting */
+	pe.pe_enabled = 1;
+
+	/* Flip on extension channel events only if doing HT40 */
+	if (IEEE80211_IS_CHAN_HT40(chan))
+		pe.pe_extchannel = 1;
+	else
+		pe.pe_extchannel = 0;
+
+	ath_hal_enabledfs(sc->sc_ah, &pe);
+
+	/*
+	 * Disable strong signal fast diversity - needed for
+	 * AR5212 and similar PHYs for reliable short pulse
+	 * duration.
+	 */
+	(void) ath_hal_setcapability(sc->sc_ah, HAL_CAP_DIVERSITY, 2, 0, NULL);
+
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+/*
+ * Explicity disable radar reporting.
+ *
+ * Return 0 if it was disabled, < 0 on error.
+ */
+int
+ath_dfs_radar_disable(struct ath_softc *sc)
+{
+#if 0
+	HAL_PHYERR_PARAM pe;
+
+	(void) ath_hal_getdfsthresh(sc->sc_ah, &pe);
+	pe.pe_enabled = 0;
+	(void) ath_hal_enabledfs(sc->sc_ah, &pe);
+	return (0);
+#else
+	return (0);
+#endif
 }
 
 /*
  * Process DFS related PHY errors
+ *
+ * The mbuf is not "ours" and if we want a copy, we have
+ * to take a copy.  It'll be freed after this function returns.
  */
 void
-ath_dfs_process_phy_err(struct ath_softc *sc, const char *buf,
+ath_dfs_process_phy_err(struct ath_softc *sc, struct mbuf *m,
     uint64_t tsf, struct ath_rx_status *rxstat)
 {
 
@@ -124,7 +189,7 @@ int
 ath_dfs_process_radar_event(struct ath_softc *sc,
     struct ieee80211_channel *chan)
 {
-	return 0;
+	return (0);
 }
 
 /*
@@ -137,7 +202,7 @@ ath_dfs_process_radar_event(struct ath_softc *sc,
 int
 ath_dfs_tasklet_needed(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
-	return 0;
+	return (0);
 }
 
 /*
@@ -214,7 +279,7 @@ bad:
 		free(indata, M_TEMP);
 	if ((ad->ad_id & ATH_DIAG_DYN) && outdata != NULL)
 		free(outdata, M_TEMP);
-	return error;
+	return (error);
 }
 
 /*
@@ -224,5 +289,5 @@ int
 ath_dfs_get_thresholds(struct ath_softc *sc, HAL_PHYERR_PARAM *param)
 {
 	ath_hal_getdfsthresh(sc->sc_ah, param);
-	return 1;
+	return (1);
 }

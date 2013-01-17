@@ -57,15 +57,15 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <wchar.h>
 
-wchar_t *delim;
-int delimcnt;
+static wchar_t *delim;
+static int delimcnt;
 
-int parallel(char **);
-int sequential(char **);
-int tr(wchar_t *);
+static int parallel(char **);
+static int sequential(char **);
+static int tr(wchar_t *);
 static void usage(void);
 
-wchar_t tab[] = L"\t";
+static wchar_t tab[] = L"\t";
 
 int
 main(int argc, char *argv[])
@@ -125,7 +125,7 @@ typedef struct _list {
 	char *name;
 } LIST;
 
-int
+static int
 parallel(char **argv)
 {
 	LIST *lp;
@@ -195,7 +195,7 @@ parallel(char **argv)
 	return (0);
 }
 
-int
+static int
 sequential(char **argv)
 {
 	FILE *fp;
@@ -235,7 +235,7 @@ sequential(char **argv)
 	return (failed != 0);
 }
 
-int
+static int
 tr(wchar_t *arg)
 {
 	int cnt;

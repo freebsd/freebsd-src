@@ -1,0 +1,10 @@
+The following are examples of the results of running php_who.d.
+
+# php_who.d 
+Tracing... Hit Ctrl-C to end.
+^C
+      PID    UID  FUNCS FILE
+   158525     80      7 /opt/coolstack/apache2/htdocs/php/func_abc.php
+
+Running the php_who.d while the func_abc.php program runs, we can see that
+while func_abc.php was running, it called seven functions. 

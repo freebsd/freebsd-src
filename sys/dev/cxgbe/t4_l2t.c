@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Chelsio Communications, Inc.
+ * Copyright (c) 2012 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -37,44 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
-#include <net/if.h>
-#include <net/ethernet.h>
-#include <net/if_vlan_var.h>
-#include <net/if_dl.h>
-#include <net/if_llatbl.h>
-#include <net/route.h>
+#include <sys/sbuf.h>
 #include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/if_ether.h>
 
 #include "common/common.h"
-#include "common/jhash.h"
 #include "common/t4_msg.h"
-#include "offload.h"
 #include "t4_l2t.h"
-
-/* identifies sync vs async L2T_WRITE_REQs */
-#define S_SYNC_WR    12
-#define V_SYNC_WR(x) ((x) << S_SYNC_WR)
-#define F_SYNC_WR    V_SYNC_WR(1)
-
-enum {
-	L2T_STATE_VALID,	/* entry is up to date */
-	L2T_STATE_STALE,	/* entry may be used but needs revalidation */
-	L2T_STATE_RESOLVING,	/* entry needs address resolution */
-	L2T_STATE_SYNC_WRITE,	/* synchronous write of entry underway */
-
-	/* when state is one of the below the entry is not hashed */
-	L2T_STATE_SWITCHING,	/* entry is being used by a switching filter */
-	L2T_STATE_UNUSED	/* entry not in use */
-};
-
-struct l2t_data {
-	struct rwlock lock;
-	volatile int nfree;	/* number of free entries */
-	struct l2t_entry *rover;/* starting point for next allocation */
-	struct l2t_entry l2tab[L2T_SIZE];
-};
 
 /*
  * Module locking notes:  There is a RW lock protecting the L2 table as a
@@ -93,120 +62,12 @@ struct l2t_data {
  * the TOE and the sockets already hold references to the interfaces and the
  * lifetime of an L2T entry is fully contained in the lifetime of the TOE.
  */
-static inline unsigned int
-vlan_prio(const struct l2t_entry *e)
-{
-	return e->vlan >> 13;
-}
-
-static inline void
-l2t_hold(struct l2t_data *d, struct l2t_entry *e)
-{
-	if (atomic_fetchadd_int(&e->refcnt, 1) == 0)  /* 0 -> 1 transition */
-		atomic_add_int(&d->nfree, -1);
-}
-
-/*
- * To avoid having to check address families we do not allow v4 and v6
- * neighbors to be on the same hash chain.  We keep v4 entries in the first
- * half of available hash buckets and v6 in the second.
- */
-enum {
-	L2T_SZ_HALF = L2T_SIZE / 2,
-	L2T_HASH_MASK = L2T_SZ_HALF - 1
-};
-
-static inline unsigned int
-arp_hash(const uint32_t *key, int ifindex)
-{
-	return jhash_2words(*key, ifindex, 0) & L2T_HASH_MASK;
-}
-
-static inline unsigned int
-ipv6_hash(const uint32_t *key, int ifindex)
-{
-	uint32_t xor = key[0] ^ key[1] ^ key[2] ^ key[3];
-
-	return L2T_SZ_HALF + (jhash_2words(xor, ifindex, 0) & L2T_HASH_MASK);
-}
-
-static inline unsigned int
-addr_hash(const uint32_t *addr, int addr_len, int ifindex)
-{
-	return addr_len == 4 ? arp_hash(addr, ifindex) :
-			       ipv6_hash(addr, ifindex);
-}
-
-/*
- * Checks if an L2T entry is for the given IP/IPv6 address.  It does not check
- * whether the L2T entry and the address are of the same address family.
- * Callers ensure an address is only checked against L2T entries of the same
- * family, something made trivial by the separation of IP and IPv6 hash chains
- * mentioned above.  Returns 0 if there's a match,
- */
-static inline int
-addreq(const struct l2t_entry *e, const uint32_t *addr)
-{
-	if (e->v6)
-		return (e->addr[0] ^ addr[0]) | (e->addr[1] ^ addr[1]) |
-		       (e->addr[2] ^ addr[2]) | (e->addr[3] ^ addr[3]);
-	return e->addr[0] ^ addr[0];
-}
-
-/*
- * Write an L2T entry.  Must be called with the entry locked (XXX: really?).
- * The write may be synchronous or asynchronous.
- */
-static int
-write_l2e(struct adapter *sc, struct l2t_entry *e, int sync)
-{
-	struct mbuf *m;
-	struct cpl_l2t_write_req *req;
-
-	if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
-		return (ENOMEM);
-
-	req = mtod(m, struct cpl_l2t_write_req *);
-	m->m_pkthdr.len = m->m_len = sizeof(*req);
-
-	INIT_TP_WR(req, 0);
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, e->idx |
-	    V_SYNC_WR(sync) | V_TID_QID(sc->sge.fwq.abs_id)));
-	req->params = htons(V_L2T_W_PORT(e->lport) | V_L2T_W_NOREPLY(!sync));
-	req->l2t_idx = htons(e->idx);
-	req->vlan = htons(e->vlan);
-	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
-
-	t4_mgmt_tx(sc, m);
-
-	if (sync && e->state != L2T_STATE_SWITCHING)
-		e->state = L2T_STATE_SYNC_WRITE;
-
-	return (0);
-}
-
-/*
- * Add a packet to an L2T entry's queue of packets awaiting resolution.
- * Must be called with the entry's lock held.
- */
-static inline void
-arpq_enqueue(struct l2t_entry *e, struct mbuf *m)
-{
-	mtx_assert(&e->lock, MA_OWNED);
-
-	m->m_next = NULL;
-	if (e->arpq_head)
-		e->arpq_tail->m_next = m;
-	else
-		e->arpq_head = m;
-	e->arpq_tail = m;
-}
 
 /*
  * Allocate a free L2T entry.  Must be called with l2t_data.lock held.
  */
-static struct l2t_entry *
-alloc_l2e(struct l2t_data *d)
+struct l2t_entry *
+t4_alloc_l2e(struct l2t_data *d)
 {
 	struct l2t_entry *end, *e, **p;
 
@@ -216,14 +77,15 @@ alloc_l2e(struct l2t_data *d)
 		return (NULL);
 
 	/* there's definitely a free entry */
-	for (e = d->rover, end = &d->l2tab[L2T_SIZE]; e != end; ++e)
+	for (e = d->rover, end = &d->l2tab[d->l2t_size]; e != end; ++e)
 		if (atomic_load_acq_int(&e->refcnt) == 0)
 			goto found;
 
-	for (e = d->l2tab; atomic_load_acq_int(&e->refcnt); ++e) ;
+	for (e = d->l2tab; atomic_load_acq_int(&e->refcnt); ++e)
+		continue;
 found:
 	d->rover = e + 1;
-	atomic_add_int(&d->nfree, -1);
+	atomic_subtract_int(&d->nfree, 1);
 
 	/*
 	 * The entry we found may be an inactive entry that is
@@ -240,51 +102,41 @@ found:
 	}
 
 	e->state = L2T_STATE_UNUSED;
-	return e;
+	return (e);
 }
 
 /*
- * Called when an L2T entry has no more users.  The entry is left in the hash
- * table since it is likely to be reused but we also bump nfree to indicate
- * that the entry can be reallocated for a different neighbor.  We also drop
- * the existing neighbor reference in case the neighbor is going away and is
- * waiting on our reference.
- *
- * Because entries can be reallocated to other neighbors once their ref count
- * drops to 0 we need to take the entry's lock to avoid races with a new
- * incarnation.
+ * Write an L2T entry.  Must be called with the entry locked.
+ * The write may be synchronous or asynchronous.
  */
-static void
-t4_l2e_free(struct l2t_entry *e)
+int
+t4_write_l2e(struct adapter *sc, struct l2t_entry *e, int sync)
 {
-	struct llentry *lle = NULL;
-	struct l2t_data *d;
+	struct wrqe *wr;
+	struct cpl_l2t_write_req *req;
+	int idx = e->idx + sc->vres.l2t.start;
 
-	mtx_lock(&e->lock);
-	if (atomic_load_acq_int(&e->refcnt) == 0) {  /* hasn't been recycled */
-		lle = e->lle;
-		e->lle = NULL;
-		/*
-		 * Don't need to worry about the arpq, an L2T entry can't be
-		 * released if any packets are waiting for resolution as we
-		 * need to be able to communicate with the device to close a
-		 * connection.
-		 */
-	}
-	mtx_unlock(&e->lock);
+	mtx_assert(&e->lock, MA_OWNED);
 
-	d = container_of(e, struct l2t_data, l2tab[e->idx]);
-	atomic_add_int(&d->nfree, 1);
+	wr = alloc_wrqe(sizeof(*req), &sc->sge.mgmtq);
+	if (wr == NULL)
+		return (ENOMEM);
+	req = wrtod(wr);
 
-	if (lle)
-		LLE_FREE(lle);
-}
+	INIT_TP_WR(req, 0);
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, idx |
+	    V_SYNC_WR(sync) | V_TID_QID(sc->sge.fwq.abs_id)));
+	req->params = htons(V_L2T_W_PORT(e->lport) | V_L2T_W_NOREPLY(!sync));
+	req->l2t_idx = htons(idx);
+	req->vlan = htons(e->vlan);
+	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
-void
-t4_l2t_release(struct l2t_entry *e)
-{
-	if (atomic_fetchadd_int(&e->refcnt, -1) == 1)
-		t4_l2e_free(e);
+	t4_wrq_tx(sc, wr);
+
+	if (sync && e->state != L2T_STATE_SWITCHING)
+		e->state = L2T_STATE_SYNC_WRITE;
+
+	return (0);
 }
 
 /*
@@ -297,15 +149,15 @@ t4_l2t_alloc_switching(struct l2t_data *d)
 {
 	struct l2t_entry *e;
 
-	rw_rlock(&d->lock);
-	e = alloc_l2e(d);
+	rw_wlock(&d->lock);
+	e = t4_alloc_l2e(d);
 	if (e) {
 		mtx_lock(&e->lock);          /* avoid race with t4_l2t_free */
 		e->state = L2T_STATE_SWITCHING;
 		atomic_store_rel_int(&e->refcnt, 1);
 		mtx_unlock(&e->lock);
 	}
-	rw_runlock(&d->lock);
+	rw_wunlock(&d->lock);
 	return e;
 }
 
@@ -317,34 +169,51 @@ int
 t4_l2t_set_switching(struct adapter *sc, struct l2t_entry *e, uint16_t vlan,
     uint8_t port, uint8_t *eth_addr)
 {
+	int rc;
+
 	e->vlan = vlan;
 	e->lport = port;
 	memcpy(e->dmac, eth_addr, ETHER_ADDR_LEN);
-	return write_l2e(sc, e, 0);
+	mtx_lock(&e->lock);
+	rc = t4_write_l2e(sc, e, 0);
+	mtx_unlock(&e->lock);
+	return (rc);
 }
 
-struct l2t_data *
-t4_init_l2t(int flags)
+int
+t4_init_l2t(struct adapter *sc, int flags)
 {
-	int i;
+	int i, l2t_size;
 	struct l2t_data *d;
 
-	d = malloc(sizeof(*d), M_CXGBE, M_ZERO | flags);
-	if (!d)
-		return (NULL);
+	l2t_size = sc->vres.l2t.size;
+	if (l2t_size < 2)	/* At least 1 bucket for IP and 1 for IPv6 */
+		return (EINVAL);
 
+	d = malloc(sizeof(*d) + l2t_size * sizeof (struct l2t_entry), M_CXGBE,
+	    M_ZERO | flags);
+	if (!d)
+		return (ENOMEM);
+
+	d->l2t_size = l2t_size;
 	d->rover = d->l2tab;
-	atomic_store_rel_int(&d->nfree, L2T_SIZE);
+	atomic_store_rel_int(&d->nfree, l2t_size);
 	rw_init(&d->lock, "L2T");
 
-	for (i = 0; i < L2T_SIZE; i++) {
-		d->l2tab[i].idx = i;
-		d->l2tab[i].state = L2T_STATE_UNUSED;
-		mtx_init(&d->l2tab[i].lock, "L2T_E", NULL, MTX_DEF);
-		atomic_store_rel_int(&d->l2tab[i].refcnt, 0);
+	for (i = 0; i < l2t_size; i++) {
+		struct l2t_entry *e = &d->l2tab[i];
+
+		e->idx = i;
+		e->state = L2T_STATE_UNUSED;
+		mtx_init(&e->lock, "L2T_E", NULL, MTX_DEF);
+		STAILQ_INIT(&e->wr_list);
+		atomic_store_rel_int(&e->refcnt, 0);
 	}
 
-	return (d);
+	sc->l2t = d;
+	t4_register_cpl_handler(sc, CPL_L2T_WRITE_RPL, do_l2t_write_rpl);
+
+	return (0);
 }
 
 int
@@ -352,10 +221,109 @@ t4_free_l2t(struct l2t_data *d)
 {
 	int i;
 
-	for (i = 0; i < L2T_SIZE; i++)
+	for (i = 0; i < d->l2t_size; i++)
 		mtx_destroy(&d->l2tab[i].lock);
 	rw_destroy(&d->lock);
 	free(d, M_CXGBE);
 
 	return (0);
 }
+
+int
+do_l2t_write_rpl(struct sge_iq *iq, const struct rss_header *rss,
+    struct mbuf *m)
+{
+	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
+	unsigned int tid = GET_TID(rpl);
+	unsigned int idx = tid % L2T_SIZE;
+
+	if (__predict_false(rpl->status != CPL_ERR_NONE)) {
+		log(LOG_ERR,
+		    "Unexpected L2T_WRITE_RPL (%u) for entry at hw_idx %u\n",
+		    rpl->status, idx);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+#ifdef SBUF_DRAIN
+static inline unsigned int
+vlan_prio(const struct l2t_entry *e)
+{
+	return e->vlan >> 13;
+}
+
+static char
+l2e_state(const struct l2t_entry *e)
+{
+	switch (e->state) {
+	case L2T_STATE_VALID: return 'V';  /* valid, fast-path entry */
+	case L2T_STATE_STALE: return 'S';  /* needs revalidation, but usable */
+	case L2T_STATE_SYNC_WRITE: return 'W';
+	case L2T_STATE_RESOLVING: return STAILQ_EMPTY(&e->wr_list) ? 'R' : 'A';
+	case L2T_STATE_SWITCHING: return 'X';
+	default: return 'U';
+	}
+}
+
+int
+sysctl_l2t(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct l2t_data *l2t = sc->l2t;
+	struct l2t_entry *e;
+	struct sbuf *sb;
+	int rc, i, header = 0;
+	char ip[INET6_ADDRSTRLEN];
+
+	if (l2t == NULL)
+		return (ENXIO);
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	e = &l2t->l2tab[0];
+	for (i = 0; i < l2t->l2t_size; i++, e++) {
+		mtx_lock(&e->lock);
+		if (e->state == L2T_STATE_UNUSED)
+			goto skip;
+
+		if (header == 0) {
+			sbuf_printf(sb, " Idx IP address      "
+			    "Ethernet address  VLAN/P LP State Users Port");
+			header = 1;
+		}
+		if (e->state == L2T_STATE_SWITCHING)
+			ip[0] = 0;
+		else {
+			inet_ntop(e->ipv6 ? AF_INET6 : AF_INET, &e->addr[0],
+			    &ip[0], sizeof(ip));
+		}
+
+		/*
+		 * XXX: e->ifp may not be around.
+		 * XXX: IPv6 addresses may not align properly in the output.
+		 */
+		sbuf_printf(sb, "\n%4u %-15s %02x:%02x:%02x:%02x:%02x:%02x %4d"
+			   " %u %2u   %c   %5u %s",
+			   e->idx, ip, e->dmac[0], e->dmac[1], e->dmac[2],
+			   e->dmac[3], e->dmac[4], e->dmac[5],
+			   e->vlan & 0xfff, vlan_prio(e), e->lport,
+			   l2e_state(e), atomic_load_acq_int(&e->refcnt),
+			   e->ifp->if_xname);
+skip:
+		mtx_unlock(&e->lock);
+	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+#endif

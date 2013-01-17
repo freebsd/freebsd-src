@@ -1,0 +1,114 @@
+The following is a demonstration of the lockbyproc.d script,
+
+   # lockbydist.d
+   dtrace: description 'lockstat:::adaptive-block ' matched 1 probe
+   ^C
+
+     metadata-manager                                  
+              value  ------------- Distribution ------------- count    
+             131072 |                                         0        
+             262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             524288 |                                         0        
+   
+     sched                                             
+              value  ------------- Distribution ------------- count    
+              16384 |                                         0        
+              32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 9        
+              65536 |                                         0        
+   
+     oracle                                            
+              value  ------------- Distribution ------------- count    
+              16384 |                                         0        
+              32768 |@@@@@@@@@@@@@@@@@@@                      9        
+              65536 |@@@@@@@@@@@@@@@@@@@@@                    10       
+             131072 |                                         0        
+
+In the above output, oracle can be seen to have blocked 10 times from 
+65 to 131 microseconds, and 9 times from 32 to 65 microseconds. sched,
+the kernel, has blocked several times also. metadata-manager only
+blocked once, which was at least 262 microseconds.
+
+
+
+The following is a longer sample,
+
+   # lockbydist.d
+   dtrace: description 'lockstat:::adaptive-block ' matched 1 probe
+   ^C
+
+     svc.startd                                        
+              value  ------------- Distribution ------------- count    
+               8192 |                                         0        
+              16384 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32768 |                                         0        
+   
+     java                                              
+              value  ------------- Distribution ------------- count    
+              16384 |                                         0        
+              32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              65536 |                                         0        
+   
+     oracle                                            
+              value  ------------- Distribution ------------- count    
+              16384 |                                         0        
+              32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              4        
+              65536 |@@@@@@@@@@@@@                            2        
+             131072 |                                         0        
+   
+     mysql-test-run                                    
+              value  ------------- Distribution ------------- count    
+              65536 |                                         0        
+             131072 |@@@@@@@@@@@@@@@@@@@@                     1        
+             262144 |@@@@@@@@@@@@@@@@@@@@                     1        
+             524288 |                                         0        
+   
+     pageout                                           
+              value  ------------- Distribution ------------- count    
+              16384 |                                         0        
+              32768 |@@@@@@@@@@@@@                            1        
+              65536 |                                         0        
+             131072 |                                         0        
+             262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              2        
+             524288 |                                         0        
+   
+     mysqltest                                         
+              value  ------------- Distribution ------------- count    
+              16384 |                                         0        
+              32768 |@@@@@@                                   1        
+              65536 |@@@@@@@@@@@                              2        
+             131072 |@@@@@@@@@@@                              2        
+             262144 |@@@@@@@@@@@                              2        
+             524288 |                                         0        
+   
+     sched                                             
+              value  ------------- Distribution ------------- count    
+               8192 |                                         0        
+              16384 |@@@@@@@@@@@                              11       
+              32768 |@@@@@@@@@@@@@@@@@@@@@@@@@@               25       
+              65536 |                                         0        
+             131072 |@                                        1        
+             262144 |@@                                       2        
+             524288 |                                         0        
+   
+     mysqld                                            
+              value  ------------- Distribution ------------- count    
+              16384 |                                         0        
+              32768 |@@@@@@@@@@@@@@@@@@@@@                    22       
+              65536 |@@@@@@@@@                                9        
+             131072 |                                         0        
+             262144 |@@@@                                     4        
+             524288 |                                         0        
+            1048576 |                                         0        
+            2097152 |                                         0        
+            4194304 |@@                                       2        
+            8388608 |@@@@                                     4        
+           16777216 |                                         0      
+   
+The length of time threads were blocked, and the number of such blocks 
+can be easily observed from the above output.
+
+mysqld can be seen to have many short blocks: 22 from 32 -> 65 microseconds,
+and a few larger blocks: 4 from 8 -> 16 ms.
+   
+   
+   

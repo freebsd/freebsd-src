@@ -26,6 +26,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "MacroArgs.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/HeaderSearch.h"
@@ -40,7 +41,7 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Capacity.h"
@@ -49,23 +50,86 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 ExternalPreprocessorSource::~ExternalPreprocessorSource() { }
 
-Preprocessor::Preprocessor(DiagnosticsEngine &diags, LangOptions &opts,
+PPMutationListener::~PPMutationListener() { }
+
+Preprocessor::Preprocessor(llvm::IntrusiveRefCntPtr<PreprocessorOptions> PPOpts,
+                           DiagnosticsEngine &diags, LangOptions &opts,
                            const TargetInfo *target, SourceManager &SM,
                            HeaderSearch &Headers, ModuleLoader &TheModuleLoader,
                            IdentifierInfoLookup* IILookup,
                            bool OwnsHeaders,
-                           bool DelayInitialization)
-  : Diags(&diags), Features(opts), Target(target),FileMgr(Headers.getFileMgr()),
+                           bool DelayInitialization,
+                           bool IncrProcessing)
+  : PPOpts(PPOpts), Diags(&diags), LangOpts(opts), Target(target),
+    FileMgr(Headers.getFileMgr()),
     SourceMgr(SM), HeaderInfo(Headers), TheModuleLoader(TheModuleLoader),
-    ExternalSource(0), 
-    Identifiers(opts, IILookup), CodeComplete(0),
+    ExternalSource(0), Identifiers(opts, IILookup), 
+    IncrementalProcessing(IncrProcessing), CodeComplete(0), 
     CodeCompletionFile(0), CodeCompletionOffset(0), CodeCompletionReached(0),
     SkipMainFilePreamble(0, true), CurPPLexer(0), 
-    CurDirLookup(0), CurLexerKind(CLK_Lexer), Callbacks(0), MacroArgCache(0), 
-    Record(0), MIChainHead(0), MICache(0) 
+    CurDirLookup(0), CurLexerKind(CLK_Lexer), Callbacks(0), Listener(0),
+    MacroArgCache(0), Record(0), MIChainHead(0), MICache(0) 
 {
   OwnsHeaderSearch = OwnsHeaders;
   
+  ScratchBuf = new ScratchBuffer(SourceMgr);
+  CounterValue = 0; // __COUNTER__ starts at 0.
+  
+  // Clear stats.
+  NumDirectives = NumDefined = NumUndefined = NumPragma = 0;
+  NumIf = NumElse = NumEndif = 0;
+  NumEnteredSourceFiles = 0;
+  NumMacroExpanded = NumFnMacroExpanded = NumBuiltinMacroExpanded = 0;
+  NumFastMacroExpanded = NumTokenPaste = NumFastTokenPaste = 0;
+  MaxIncludeStackDepth = 0;
+  NumSkipped = 0;
+  
+  // Default to discarding comments.
+  KeepComments = false;
+  KeepMacroComments = false;
+  SuppressIncludeNotFoundError = false;
+  
+  // Macro expansion is enabled.
+  DisableMacroExpansion = false;
+  MacroExpansionInDirectivesOverride = false;
+  InMacroArgs = false;
+  InMacroArgPreExpansion = false;
+  NumCachedTokenLexers = 0;
+  PragmasEnabled = true;
+
+  CachedLexPos = 0;
+  
+  // We haven't read anything from the external source.
+  ReadMacrosFromExternalSource = false;
+  
+  // "Poison" __VA_ARGS__, which can only appear in the expansion of a macro.
+  // This gets unpoisoned where it is allowed.
+  (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
+  SetPoisonReason(Ident__VA_ARGS__,diag::ext_pp_bad_vaargs_use);
+  
+  // Initialize the pragma handlers.
+  PragmaHandlers = new PragmaNamespace(StringRef());
+  RegisterBuiltinPragmas();
+  
+  // Initialize builtin macros like __LINE__ and friends.
+  RegisterBuiltinMacros();
+  
+  if(LangOpts.Borland) {
+    Ident__exception_info        = getIdentifierInfo("_exception_info");
+    Ident___exception_info       = getIdentifierInfo("__exception_info");
+    Ident_GetExceptionInfo       = getIdentifierInfo("GetExceptionInformation");
+    Ident__exception_code        = getIdentifierInfo("_exception_code");
+    Ident___exception_code       = getIdentifierInfo("__exception_code");
+    Ident_GetExceptionCode       = getIdentifierInfo("GetExceptionCode");
+    Ident__abnormal_termination  = getIdentifierInfo("_abnormal_termination");
+    Ident___abnormal_termination = getIdentifierInfo("__abnormal_termination");
+    Ident_AbnormalTermination    = getIdentifierInfo("AbnormalTermination");
+  } else {
+    Ident__exception_info = Ident__exception_code = Ident__abnormal_termination = 0;
+    Ident___exception_info = Ident___exception_code = Ident___abnormal_termination = 0;
+    Ident_GetExceptionInfo = Ident_GetExceptionCode = Ident_AbnormalTermination = 0;
+  }
+
   if (!DelayInitialization) {
     assert(Target && "Must provide target information for PP initialization");
     Initialize(*Target);
@@ -74,9 +138,6 @@ Preprocessor::Preprocessor(DiagnosticsEngine &diags, LangOptions &opts,
 
 Preprocessor::~Preprocessor() {
   assert(BacktrackPositions.empty() && "EnableBacktrack/Backtrack imbalance!");
-  assert(((MacroExpandingLexersStack.empty() && MacroExpandedTokens.empty()) ||
-          isCodeCompletionReached()) &&
-         "Preprocessor::HandleEndOfTokenLexer should have cleared those");
 
   while (!IncludeMacroStack.empty()) {
     delete IncludeMacroStack.back().TheLexer;
@@ -116,62 +177,7 @@ void Preprocessor::Initialize(const TargetInfo &Target) {
   
   // Initialize information about built-ins.
   BuiltinInfo.InitializeTarget(Target);
-  
-  ScratchBuf = new ScratchBuffer(SourceMgr);
-  CounterValue = 0; // __COUNTER__ starts at 0.
-  
-  // Clear stats.
-  NumDirectives = NumDefined = NumUndefined = NumPragma = 0;
-  NumIf = NumElse = NumEndif = 0;
-  NumEnteredSourceFiles = 0;
-  NumMacroExpanded = NumFnMacroExpanded = NumBuiltinMacroExpanded = 0;
-  NumFastMacroExpanded = NumTokenPaste = NumFastTokenPaste = 0;
-  MaxIncludeStackDepth = 0;
-  NumSkipped = 0;
-  
-  // Default to discarding comments.
-  KeepComments = false;
-  KeepMacroComments = false;
-  SuppressIncludeNotFoundError = false;
-  AutoModuleImport = false;
-  
-  // Macro expansion is enabled.
-  DisableMacroExpansion = false;
-  InMacroArgs = false;
-  NumCachedTokenLexers = 0;
-  
-  CachedLexPos = 0;
-  
-  // We haven't read anything from the external source.
-  ReadMacrosFromExternalSource = false;
-  
-  // "Poison" __VA_ARGS__, which can only appear in the expansion of a macro.
-  // This gets unpoisoned where it is allowed.
-  (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
-  SetPoisonReason(Ident__VA_ARGS__,diag::ext_pp_bad_vaargs_use);
-  
-  // Initialize the pragma handlers.
-  PragmaHandlers = new PragmaNamespace(StringRef());
-  RegisterBuiltinPragmas();
-  
-  // Initialize builtin macros like __LINE__ and friends.
-  RegisterBuiltinMacros();
-  
-  if(Features.Borland) {
-    Ident__exception_info        = getIdentifierInfo("_exception_info");
-    Ident___exception_info       = getIdentifierInfo("__exception_info");
-    Ident_GetExceptionInfo       = getIdentifierInfo("GetExceptionInformation");
-    Ident__exception_code        = getIdentifierInfo("_exception_code");
-    Ident___exception_code       = getIdentifierInfo("__exception_code");
-    Ident_GetExceptionCode       = getIdentifierInfo("GetExceptionCode");
-    Ident__abnormal_termination  = getIdentifierInfo("_abnormal_termination");
-    Ident___abnormal_termination = getIdentifierInfo("__abnormal_termination");
-    Ident_AbnormalTermination    = getIdentifierInfo("AbnormalTermination");
-  } else {
-    Ident__exception_info = Ident__exception_code = Ident__abnormal_termination = 0;
-    Ident___exception_info = Ident___exception_code = Ident___abnormal_termination = 0;
-    Ident_GetExceptionInfo = Ident_GetExceptionCode = Ident_AbnormalTermination = 0;
-  } 
+  HeaderInfo.setTarget(Target);
 }
 
 void Preprocessor::setPTHManager(PTHManager* pm) {
@@ -236,6 +242,20 @@ void Preprocessor::PrintStats() {
   llvm::errs() << (NumFastTokenPaste+NumTokenPaste)
              << " token paste (##) operations performed, "
              << NumFastTokenPaste << " on the fast path.\n";
+
+  llvm::errs() << "\nPreprocessor Memory: " << getTotalMemory() << "B total";
+
+  llvm::errs() << "\n  BumpPtr: " << BP.getTotalMemory();
+  llvm::errs() << "\n  Macro Expanded Tokens: "
+               << llvm::capacity_in_bytes(MacroExpandedTokens);
+  llvm::errs() << "\n  Predefines Buffer: " << Predefines.capacity();
+  llvm::errs() << "\n  Macros: " << llvm::capacity_in_bytes(Macros);
+  llvm::errs() << "\n  #pragma push_macro Info: "
+               << llvm::capacity_in_bytes(PragmaPushMacroInfo);
+  llvm::errs() << "\n  Poison Reasons: "
+               << llvm::capacity_in_bytes(PoisonReasons);
+  llvm::errs() << "\n  Comment Handlers: "
+               << llvm::capacity_in_bytes(CommentHandlers) << "\n";
 }
 
 Preprocessor::macro_iterator
@@ -268,6 +288,50 @@ Preprocessor::macro_end(bool IncludeExternalMacros) const {
   }
 
   return Macros.end();
+}
+
+/// \brief Compares macro tokens with a specified token value sequence.
+static bool MacroDefinitionEquals(const MacroInfo *MI,
+                                  llvm::ArrayRef<TokenValue> Tokens) {
+  return Tokens.size() == MI->getNumTokens() &&
+      std::equal(Tokens.begin(), Tokens.end(), MI->tokens_begin());
+}
+
+StringRef Preprocessor::getLastMacroWithSpelling(
+                                    SourceLocation Loc,
+                                    ArrayRef<TokenValue> Tokens) const {
+  SourceLocation BestLocation;
+  StringRef BestSpelling;
+  for (Preprocessor::macro_iterator I = macro_begin(), E = macro_end();
+       I != E; ++I) {
+    if (!I->second->isObjectLike())
+      continue;
+    const MacroInfo *MI = I->second->findDefinitionAtLoc(Loc, SourceMgr);
+    if (!MI)
+      continue;
+    if (!MacroDefinitionEquals(MI, Tokens))
+      continue;
+    SourceLocation Location = I->second->getDefinitionLoc();
+    // Choose the macro defined latest.
+    if (BestLocation.isInvalid() ||
+        (Location.isValid() &&
+         SourceMgr.isBeforeInTranslationUnit(BestLocation, Location))) {
+      BestLocation = Location;
+      BestSpelling = I->first->getName();
+    }
+  }
+  return BestSpelling;
+}
+
+void Preprocessor::recomputeCurLexerKind() {
+  if (CurLexer)
+    CurLexerKind = CLK_Lexer;
+  else if (CurPTHLexer)
+    CurLexerKind = CLK_PTHLexer;
+  else if (CurTokenLexer)
+    CurLexerKind = CLK_TokenLexer;
+  else 
+    CurLexerKind = CLK_CachingLexer;
 }
 
 bool Preprocessor::SetCodeCompletionPoint(const FileEntry *File,
@@ -352,17 +416,17 @@ StringRef Preprocessor::getSpelling(const Token &Tok,
 /// CreateString - Plop the specified string into a scratch buffer and return a
 /// location for it.  If specified, the source location provides a source
 /// location for the token.
-void Preprocessor::CreateString(const char *Buf, unsigned Len, Token &Tok,
+void Preprocessor::CreateString(StringRef Str, Token &Tok,
                                 SourceLocation ExpansionLocStart,
                                 SourceLocation ExpansionLocEnd) {
-  Tok.setLength(Len);
+  Tok.setLength(Str.size());
 
   const char *DestPtr;
-  SourceLocation Loc = ScratchBuf->getToken(Buf, Len, DestPtr);
+  SourceLocation Loc = ScratchBuf->getToken(Str.data(), Str.size(), DestPtr);
 
   if (ExpansionLocStart.isValid())
     Loc = SourceMgr.createExpansionLoc(Loc, ExpansionLocStart,
-                                       ExpansionLocEnd, Len);
+                                       ExpansionLocEnd, Str.size());
   Tok.setLocation(Loc);
 
   // If this is a raw identifier or a literal token, set the pointer data.
@@ -372,7 +436,12 @@ void Preprocessor::CreateString(const char *Buf, unsigned Len, Token &Tok,
     Tok.setLiteralData(DestPtr);
 }
 
-
+Module *Preprocessor::getCurrentModule() {
+  if (getLangOpts().CurrentModule.empty())
+    return 0;
+  
+  return getHeaderSearchInfo().lookupModule(getLangOpts().CurrentModule);
+}
 
 //===----------------------------------------------------------------------===//
 // Preprocessor Initialization Methods
@@ -388,19 +457,23 @@ void Preprocessor::EnterMainSourceFile() {
   assert(NumEnteredSourceFiles == 0 && "Cannot reenter the main file!");
   FileID MainFileID = SourceMgr.getMainFileID();
 
-  // Enter the main file source buffer.
-  EnterSourceFile(MainFileID, 0, SourceLocation());
-
-  // If we've been asked to skip bytes in the main file (e.g., as part of a
-  // precompiled preamble), do so now.
-  if (SkipMainFilePreamble.first > 0)
-    CurLexer->SkipBytes(SkipMainFilePreamble.first, 
-                        SkipMainFilePreamble.second);
+  // If MainFileID is loaded it means we loaded an AST file, no need to enter
+  // a main file.
+  if (!SourceMgr.isLoadedFileID(MainFileID)) {
+    // Enter the main file source buffer.
+    EnterSourceFile(MainFileID, 0, SourceLocation());
   
-  // Tell the header info that the main file was entered.  If the file is later
-  // #imported, it won't be re-entered.
-  if (const FileEntry *FE = SourceMgr.getFileEntryForID(MainFileID))
-    HeaderInfo.IncrementIncludeCount(FE);
+    // If we've been asked to skip bytes in the main file (e.g., as part of a
+    // precompiled preamble), do so now.
+    if (SkipMainFilePreamble.first > 0)
+      CurLexer->SkipBytes(SkipMainFilePreamble.first, 
+                          SkipMainFilePreamble.second);
+    
+    // Tell the header info that the main file was entered.  If the file is later
+    // #imported, it won't be re-entered.
+    if (const FileEntry *FE = SourceMgr.getFileEntryForID(MainFileID))
+      HeaderInfo.IncrementIncludeCount(FE);
+  }
 
   // Preprocess Predefines to populate the initial preprocessor state.
   llvm::MemoryBuffer *SB =
@@ -437,7 +510,7 @@ IdentifierInfo *Preprocessor::LookUpIdentifierInfo(Token &Identifier) const {
                                            Identifier.getLength()));
   } else {
     // Cleaning needed, alloca a buffer, clean into it, then use the buffer.
-    llvm::SmallString<64> IdentifierBuffer;
+    SmallString<64> IdentifierBuffer;
     StringRef CleanedStr = getSpelling(Identifier, IdentifierBuffer);
     II = getIdentifierInfo(CleanedStr);
   }
@@ -492,6 +565,23 @@ void Preprocessor::HandleIdentifier(Token &Identifier) {
 
   IdentifierInfo &II = *Identifier.getIdentifierInfo();
 
+  // If the information about this identifier is out of date, update it from
+  // the external source.
+  // We have to treat __VA_ARGS__ in a special way, since it gets
+  // serialized with isPoisoned = true, but our preprocessor may have
+  // unpoisoned it if we're defining a C99 macro.
+  if (II.isOutOfDate()) {
+    bool CurrentIsPoisoned = false;
+    if (&II == Ident__VA_ARGS__)
+      CurrentIsPoisoned = Ident__VA_ARGS__->isPoisoned();
+
+    ExternalSource->updateOutOfDateIdentifier(II);
+    Identifier.setKind(II.getTokenID());
+
+    if (&II == Ident__VA_ARGS__)
+      II.setIsPoisoned(CurrentIsPoisoned);
+  }
+  
   // If this identifier was poisoned, and if it was not produced from a macro
   // expansion, emit an error.
   if (II.isPoisoned() && CurPPLexer) {
@@ -500,8 +590,10 @@ void Preprocessor::HandleIdentifier(Token &Identifier) {
 
   // If this is a macro to be expanded, do it.
   if (MacroInfo *MI = getMacroInfo(&II)) {
-    if (!DisableMacroExpansion && !Identifier.isExpandDisabled()) {
-      if (MI->isEnabled()) {
+    if (!DisableMacroExpansion) {
+      if (Identifier.isExpandDisabled()) {
+        Diag(Identifier, diag::pp_disabled_macro_expansion);
+      } else if (MI->isEnabled()) {
         if (!HandleMacroExpandedIdentifier(Identifier, MI))
           return;
       } else {
@@ -509,6 +601,7 @@ void Preprocessor::HandleIdentifier(Token &Identifier) {
         // expanded, even if it's in a context where it could be expanded in the
         // future.
         Identifier.setFlag(Token::DisableExpand);
+        Diag(Identifier, diag::pp_disabled_macro_expansion);
       }
     }
   }
@@ -537,53 +630,73 @@ void Preprocessor::HandleIdentifier(Token &Identifier) {
   if (II.isExtensionToken() && !DisableMacroExpansion)
     Diag(Identifier, diag::ext_token_used);
   
-  // If this is the '__import_module__' keyword, note that the next token
-  // indicates a module name.
-  if (II.getTokenID() == tok::kw___import_module__ &&
-      !InMacroArgs && !DisableMacroExpansion) {
+  // If this is the '__experimental_modules_import' contextual keyword, note
+  // that the next token indicates a module name.
+  //
+  // Note that we do not treat '__experimental_modules_import' as a contextual
+  // keyword when we're in a caching lexer, because caching lexers only get
+  // used in contexts where import declarations are disallowed.
+  if (II.isModulesImport() && !InMacroArgs && !DisableMacroExpansion &&
+      getLangOpts().Modules && CurLexerKind != CLK_CachingLexer) {
     ModuleImportLoc = Identifier.getLocation();
+    ModuleImportPath.clear();
+    ModuleImportExpectsIdentifier = true;
     CurLexerKind = CLK_LexAfterModuleImport;
   }
 }
 
-/// \brief Lex a token following the __import_module__ keyword.
+/// \brief Lex a token following the 'import' contextual keyword.
+///
 void Preprocessor::LexAfterModuleImport(Token &Result) {
   // Figure out what kind of lexer we actually have.
-  if (CurLexer)
-    CurLexerKind = CLK_Lexer;
-  else if (CurPTHLexer)
-    CurLexerKind = CLK_PTHLexer;
-  else if (CurTokenLexer)
-    CurLexerKind = CLK_TokenLexer;
-  else 
-    CurLexerKind = CLK_CachingLexer;
+  recomputeCurLexerKind();
   
   // Lex the next token.
   Lex(Result);
 
   // The token sequence 
   //
-  //   __import_module__ identifier
+  //   import identifier (. identifier)*
   //
-  // indicates a module import directive. We already saw the __import_module__
-  // keyword, so now we're looking for the identifier.
-  if (Result.getKind() != tok::identifier)
+  // indicates a module import directive. We already saw the 'import' 
+  // contextual keyword, so now we're looking for the identifiers.
+  if (ModuleImportExpectsIdentifier && Result.getKind() == tok::identifier) {
+    // We expected to see an identifier here, and we did; continue handling
+    // identifiers.
+    ModuleImportPath.push_back(std::make_pair(Result.getIdentifierInfo(),
+                                              Result.getLocation()));
+    ModuleImportExpectsIdentifier = false;
+    CurLexerKind = CLK_LexAfterModuleImport;
     return;
+  }
   
-  // Load the module.
-  (void)TheModuleLoader.loadModule(ModuleImportLoc,
-                                   *Result.getIdentifierInfo(), 
-                                   Result.getLocation());
+  // If we're expecting a '.' or a ';', and we got a '.', then wait until we
+  // see the next identifier.
+  if (!ModuleImportExpectsIdentifier && Result.getKind() == tok::period) {
+    ModuleImportExpectsIdentifier = true;
+    CurLexerKind = CLK_LexAfterModuleImport;
+    return;
+  }
+
+  // If we have a non-empty module path, load the named module.
+  if (!ModuleImportPath.empty()) {
+    Module *Imported = TheModuleLoader.loadModule(ModuleImportLoc,
+                                                  ModuleImportPath,
+                                                  Module::MacrosVisible,
+                                                  /*IsIncludeDirective=*/false);
+    if (Callbacks)
+      Callbacks->moduleImport(ModuleImportLoc, ModuleImportPath, Imported);
+  }
 }
 
-void Preprocessor::AddCommentHandler(CommentHandler *Handler) {
+void Preprocessor::addCommentHandler(CommentHandler *Handler) {
   assert(Handler && "NULL comment handler");
   assert(std::find(CommentHandlers.begin(), CommentHandlers.end(), Handler) ==
          CommentHandlers.end() && "Comment handler already registered");
   CommentHandlers.push_back(Handler);
 }
 
-void Preprocessor::RemoveCommentHandler(CommentHandler *Handler) {
+void Preprocessor::removeCommentHandler(CommentHandler *Handler) {
   std::vector<CommentHandler *>::iterator Pos
   = std::find(CommentHandlers.begin(), CommentHandlers.end(), Handler);
   assert(Pos != CommentHandlers.end() && "Comment handler not registered");
@@ -610,12 +723,11 @@ CommentHandler::~CommentHandler() { }
 
 CodeCompletionHandler::~CodeCompletionHandler() { }
 
-void Preprocessor::createPreprocessingRecord(
-                                      bool IncludeNestedMacroExpansions) {
+void Preprocessor::createPreprocessingRecord(bool RecordConditionalDirectives) {
   if (Record)
     return;
   
   Record = new PreprocessingRecord(getSourceManager(),
-                                   IncludeNestedMacroExpansions);
+                                   RecordConditionalDirectives);
   addPPCallbacks(Record);
 }

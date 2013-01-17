@@ -1,4 +1,4 @@
-//===--- DumpXML.cpp - Detailed XML dumping ---------------------*- C++ -*-===//
+//===--- DumpXML.cpp - Detailed XML dumping -------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -39,8 +39,7 @@
 #include "clang/AST/TypeVisitor.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/SmallString.h"
 
 using namespace clang;
 
@@ -65,8 +64,9 @@ template <class Impl> struct XMLDeclVisitor {
   static_cast<Impl*>(this)->NAME(static_cast<CLASS*>(D))
 
   void dispatch(Decl *D) {
+    if (D->isUsed())
+      static_cast<Impl*>(this)->set("used", "1");
     switch (D->getKind()) {
-      default: llvm_unreachable("Decl that isn't part of DeclNodes.inc!");
 #define DECL(DERIVED, BASE) \
       case Decl::DERIVED: \
         DISPATCH(dispatch##DERIVED##DeclAttrs, DERIVED##Decl); \
@@ -121,7 +121,6 @@ template <class Impl> struct XMLTypeVisitor {
 
   void dispatch(Type *T) {
     switch (T->getTypeClass()) {
-      default: llvm_unreachable("Type that isn't part of TypeNodes.inc!");
 #define TYPE(DERIVED, BASE) \
       case Type::DERIVED: \
         DISPATCH(dispatch##DERIVED##TypeAttrs, DERIVED##Type); \
@@ -167,7 +166,6 @@ static StringRef getTypeKindName(Type *T) {
   }
 
   llvm_unreachable("unknown type kind!");
-  return "unknown_type";
 }
 
 struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
@@ -227,7 +225,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   //---- General utilities -------------------------------------------//
 
   void setPointer(StringRef prop, const void *p) {
-    llvm::SmallString<10> buffer;
+    SmallString<10> buffer;
     llvm::raw_svector_ostream os(buffer);
     os << p;
     os.flush();
@@ -243,7 +241,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
 
   void setInteger(StringRef prop, unsigned n) {
-    llvm::SmallString<10> buffer;
+    SmallString<10> buffer;
     llvm::raw_svector_ostream os(buffer);
     os << n;
     os.flush();
@@ -320,6 +318,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     }
     case TemplateArgument::Template:
     case TemplateArgument::TemplateExpansion:
+    case TemplateArgument::NullPtr:
       // FIXME: Implement!
       break;
         
@@ -329,7 +328,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     }
     case TemplateArgument::Integral: {
       push("integer");
-      setInteger("value", *A.getAsIntegral());
+      setInteger("value", A.getAsIntegral());
       completeAttrs();
       pop();
       break;
@@ -411,7 +410,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
 
   template <class T> void visitRedeclarableAttrs(T *D) {
-    if (T *Prev = D->getPreviousDeclaration())
+    if (T *Prev = D->getPreviousDecl())
       setPointer("previous", Prev);
   }
 
@@ -465,7 +464,13 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     if (D->getStorageClass() != SC_None)
       set("storage",
           VarDecl::getStorageClassSpecifierString(D->getStorageClass()));
-    setFlag("directinit", D->hasCXXDirectInitializer());
+    StringRef initStyle = "";
+    switch (D->getInitStyle()) {
+    case VarDecl::CInit: initStyle = "c"; break;
+    case VarDecl::CallInit: initStyle = "call"; break;
+    case VarDecl::ListInit: initStyle = "list"; break;
+    }
+    set("initstyle", initStyle);
     setFlag("nrvo", D->isNRVOVariable());
     // TODO: instantiation, etc.
   }
@@ -494,6 +499,10 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   void visitFunctionDeclChildren(FunctionDecl *D) {
     for (FunctionDecl::param_iterator
            I = D->param_begin(), E = D->param_end(); I != E; ++I)
+      dispatch(*I);
+    for (llvm::ArrayRef<NamedDecl*>::iterator
+           I = D->getDeclsInPrototypeScope().begin(), E = D->getDeclsInPrototypeScope().end();
+         I != E; ++I)
       dispatch(*I);
     if (D->doesThisDeclarationHaveABody())
       dispatch(D->getBody());
@@ -740,11 +749,6 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     visitDeclContext(D);
   }
 
-  // ObjCClassDecl
-  void visitObjCClassDeclChildren(ObjCClassDecl *D) {
-    visitDeclRef(D->getForwardInterfaceDecl());
-  }
-
   // ObjCInterfaceDecl
   void visitCategoryList(ObjCCategoryDecl *D) {
     if (!D) return;
@@ -755,7 +759,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
   void visitObjCInterfaceDeclAttrs(ObjCInterfaceDecl *D) {
     setPointer("typeptr", D->getTypeForDecl());
-    setFlag("forward_decl", D->isForwardDecl());
+    setFlag("forward_decl", !D->isThisDeclarationADefinition());
     setFlag("implicit_interface", D->isImplicitInterfaceDecl());
   }
   void visitObjCInterfaceDeclChildren(ObjCInterfaceDecl *D) {
@@ -776,7 +780,6 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   // ObjCCategoryDecl
   void visitObjCCategoryDeclAttrs(ObjCCategoryDecl *D) {
     setFlag("extension", D->IsClassExtension());
-    setFlag("synth_bitfield", D->hasSynthBitfield());
   }
   void visitObjCCategoryDeclChildren(ObjCCategoryDecl *D) {
     visitDeclRef("interface", D->getClassInterface());
@@ -802,7 +805,6 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
   // ObjCImplementationDecl
   void visitObjCImplementationDeclAttrs(ObjCImplementationDecl *D) {
-    setFlag("synth_bitfield", D->hasSynthBitfield());
     set("identifier", D->getName());
   }
   void visitObjCImplementationDeclChildren(ObjCImplementationDecl *D) {
@@ -815,18 +817,11 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     }
   }
 
-  // ObjCForwardProtocolDecl
-  void visitObjCForwardProtocolDeclChildren(ObjCForwardProtocolDecl *D) {
-    for (ObjCForwardProtocolDecl::protocol_iterator
-           I = D->protocol_begin(), E = D->protocol_end(); I != E; ++I)
-      visitDeclRef(*I);
-  }
-
   // ObjCProtocolDecl
-  void visitObjCProtocolDeclAttrs(ObjCProtocolDecl *D) {
-    setFlag("forward_decl", D->isForwardDecl());
-  }
   void visitObjCProtocolDeclChildren(ObjCProtocolDecl *D) {
+    if (!D->isThisDeclarationADefinition())
+      return;
+    
     if (D->protocol_begin() != D->protocol_end()) {
       TemporaryContainer C(*this, "protocols");
       for (ObjCInterfaceDecl::protocol_iterator
@@ -835,6 +830,9 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     }
   }
   void visitObjCProtocolDeclAsContext(ObjCProtocolDecl *D) {
+    if (!D->isThisDeclarationADefinition())
+      return;
+    
     visitDeclContext(D);
   }
 
@@ -845,7 +843,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
     setFlag("instance", D->isInstanceMethod());
     setFlag("variadic", D->isVariadic());
-    setFlag("synthesized", D->isSynthesized());
+    setFlag("property_accessor", D->isPropertyAccessor());
     setFlag("defined", D->isDefined());
     setFlag("related_result_type", D->hasRelatedResultType());
   }
@@ -924,6 +922,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     case CC_X86Pascal: return set("cc", "x86_pascal");
     case CC_AAPCS: return set("cc", "aapcs");
     case CC_AAPCS_VFP: return set("cc", "aapcs_vfp");
+    case CC_PnaclCall: return set("cc", "pnaclcall");
     }
   }
 
@@ -975,9 +974,19 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
 
   void visitFunctionProtoTypeAttrs(FunctionProtoType *T) {
-    setFlag("const", T->getTypeQuals() & Qualifiers::Const);
-    setFlag("volatile", T->getTypeQuals() & Qualifiers::Volatile);
-    setFlag("restrict", T->getTypeQuals() & Qualifiers::Restrict);
+    setFlag("const", T->isConst());
+    setFlag("volatile", T->isVolatile());
+    setFlag("restrict", T->isRestrict());
+    switch (T->getExceptionSpecType()) {
+    case EST_None: break;
+    case EST_DynamicNone: set("exception_spec", "throw()"); break;
+    case EST_Dynamic: set("exception_spec", "throw(T)"); break;
+    case EST_MSAny: set("exception_spec", "throw(...)"); break;
+    case EST_BasicNoexcept: set("exception_spec", "noexcept"); break;
+    case EST_ComputedNoexcept: set("exception_spec", "noexcept(expr)"); break;
+    case EST_Unevaluated: set("exception_spec", "unevaluated"); break;
+    case EST_Uninstantiated: set("exception_spec", "uninstantiated"); break;
+    }
   }
   void visitFunctionProtoTypeChildren(FunctionProtoType *T) {
     push("parameters");

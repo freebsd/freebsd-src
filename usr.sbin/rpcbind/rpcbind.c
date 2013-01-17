@@ -289,7 +289,7 @@ init_transport(struct netconfig *nconf)
 	     */
 	    if ((fd = __rpc_nconf2fd(nconf)) < 0) {
 		int non_fatal = 0;
-		if (errno == EPROTONOSUPPORT)
+		if (errno == EAFNOSUPPORT)
 		    non_fatal = 1;
 		syslog(non_fatal?LOG_DEBUG:LOG_ERR, "cannot create socket for %s",
 		    nconf->nc_netid);
@@ -352,7 +352,7 @@ init_transport(struct netconfig *nconf)
 		 */
 		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
 		    int non_fatal = 0;
-		    if (errno == EPROTONOSUPPORT &&
+		    if (errno == EAFNOSUPPORT &&
 			nconf->nc_semantics != NC_TPI_CLTS) 
 			non_fatal = 1;
 		    syslog(non_fatal ? LOG_DEBUG : LOG_ERR, 
@@ -366,7 +366,7 @@ init_transport(struct netconfig *nconf)
 			hints.ai_flags &= AI_NUMERICHOST;
 		    } else {
 			/*
-			 * Skip if we have an AF_INET6 adress.
+			 * Skip if we have an AF_INET6 address.
 			 */
 			if (inet_pton(AF_INET6,
 			    hosts[nhostsbak], host_addr) == 1) {
@@ -381,7 +381,7 @@ init_transport(struct netconfig *nconf)
 			hints.ai_flags &= AI_NUMERICHOST;
 		    } else {
 			/*
-			 * Skip if we have an AF_INET adress.
+			 * Skip if we have an AF_INET address.
 			 */
 			if (inet_pton(AF_INET, hosts[nhostsbak],
 			    host_addr) == 1) {

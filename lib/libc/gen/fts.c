@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "gen-private.h"
+
 static FTSENT	*fts_alloc(FTS *, char *, size_t);
 static FTSENT	*fts_build(FTS *, int);
 static void	 fts_lfree(FTSENT *);
@@ -132,9 +134,8 @@ fts_open(argv, options, compar)
 	}
 
 	/* Allocate/initialize the stream. */
-	if ((priv = malloc(sizeof(*priv))) == NULL)
+	if ((priv = calloc(1, sizeof(*priv))) == NULL)
 		return (NULL);
-	memset(priv, 0, sizeof(*priv));
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
@@ -213,7 +214,8 @@ fts_open(argv, options, compar)
 	 * and ".." are all fairly nasty problems.  Note, if we can't get the
 	 * descriptor we run anyway, just more slowly.
 	 */
-	if (!ISSET(FTS_NOCHDIR) && (sp->fts_rfd = _open(".", O_RDONLY, 0)) < 0)
+	if (!ISSET(FTS_NOCHDIR) &&
+	    (sp->fts_rfd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		SET(FTS_NOCHDIR);
 
 	return (sp);
@@ -226,9 +228,7 @@ mem1:	free(sp);
 }
 
 static void
-fts_load(sp, p)
-	FTS *sp;
-	FTSENT *p;
+fts_load(FTS *sp, FTSENT *p)
 {
 	size_t len;
 	char *cp;
@@ -252,8 +252,7 @@ fts_load(sp, p)
 }
 
 int
-fts_close(sp)
-	FTS *sp;
+fts_close(FTS *sp)
 {
 	FTSENT *freep, *p;
 	int saved_errno;
@@ -307,8 +306,7 @@ fts_close(sp)
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
 FTSENT *
-fts_read(sp)
-	FTS *sp;
+fts_read(FTS *sp)
 {
 	FTSENT *p, *tmp;
 	int instr;
@@ -342,7 +340,8 @@ fts_read(sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = _open(".", O_RDONLY, 0)) < 0) {
+			if ((p->fts_symfd = _open(".", O_RDONLY | O_CLOEXEC,
+			    0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
 			} else
@@ -433,7 +432,7 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-				    _open(".", O_RDONLY, 0)) < 0) {
+				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
 				} else
@@ -501,10 +500,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int
-fts_set(sp, p, instr)
-	FTS *sp;
-	FTSENT *p;
-	int instr;
+fts_set(FTS *sp, FTSENT *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -516,9 +512,7 @@ fts_set(sp, p, instr)
 }
 
 FTSENT *
-fts_children(sp, instr)
-	FTS *sp;
-	int instr;
+fts_children(FTS *sp, int instr)
 {
 	FTSENT *p;
 	int fd;
@@ -574,7 +568,7 @@ fts_children(sp, instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = _open(".", O_RDONLY, 0)) < 0)
+	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
 	if (fchdir(fd)) {
@@ -628,9 +622,7 @@ fts_set_clientptr(FTS *sp, void *clientptr)
  * been found, cutting the stat calls by about 2/3.
  */
 static FTSENT *
-fts_build(sp, type)
-	FTS *sp;
-	int type;
+fts_build(FTS *sp, int type)
 {
 	struct dirent *dp;
 	FTSENT *p, *head;
@@ -708,7 +700,7 @@ fts_build(sp, type)
 	 */
 	cderrno = 0;
 	if (nlinks || type == BREAD) {
-		if (fts_safe_changedir(sp, cur, dirfd(dirp), NULL)) {
+		if (fts_safe_changedir(sp, cur, _dirfd(dirp), NULL)) {
 			if (nlinks && type == BREAD)
 				cur->fts_errno = errno;
 			cur->fts_flags |= FTS_DONTCHDIR;
@@ -876,10 +868,7 @@ mem1:				saved_errno = errno;
 }
 
 static int
-fts_stat(sp, p, follow)
-	FTS *sp;
-	FTSENT *p;
-	int follow;
+fts_stat(FTS *sp, FTSENT *p, int follow)
 {
 	FTSENT *t;
 	dev_t dev;
@@ -974,10 +963,7 @@ fts_compar(const void *a, const void *b)
 }
 
 static FTSENT *
-fts_sort(sp, head, nitems)
-	FTS *sp;
-	FTSENT *head;
-	size_t nitems;
+fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 {
 	FTSENT **ap, *p;
 
@@ -1006,10 +992,7 @@ fts_sort(sp, head, nitems)
 }
 
 static FTSENT *
-fts_alloc(sp, name, namelen)
-	FTS *sp;
-	char *name;
-	size_t namelen;
+fts_alloc(FTS *sp, char *name, size_t namelen)
 {
 	FTSENT *p;
 	size_t len;
@@ -1056,8 +1039,7 @@ fts_alloc(sp, name, namelen)
 }
 
 static void
-fts_lfree(head)
-	FTSENT *head;
+fts_lfree(FTSENT *head)
 {
 	FTSENT *p;
 
@@ -1075,9 +1057,7 @@ fts_lfree(head)
  * plus 256 bytes so don't realloc the path 2 bytes at a time.
  */
 static int
-fts_palloc(sp, more)
-	FTS *sp;
-	size_t more;
+fts_palloc(FTS *sp, size_t more)
 {
 
 	sp->fts_pathlen += more + 256;
@@ -1090,9 +1070,7 @@ fts_palloc(sp, more)
  * already returned.
  */
 static void
-fts_padjust(sp, head)
-	FTS *sp;
-	FTSENT *head;
+fts_padjust(FTS *sp, FTSENT *head)
 {
 	FTSENT *p;
 	char *addr = sp->fts_path;
@@ -1133,11 +1111,7 @@ fts_maxarglen(argv)
  * Assumes p->fts_dev and p->fts_ino are filled in.
  */
 static int
-fts_safe_changedir(sp, p, fd, path)
-	FTS *sp;
-	FTSENT *p;
-	int fd;
-	char *path;
+fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
 	struct stat sb;
@@ -1145,7 +1119,7 @@ fts_safe_changedir(sp, p, fd, path)
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
 		return (0);
-	if (fd < 0 && (newfd = _open(path, O_RDONLY, 0)) < 0)
+	if (fd < 0 && (newfd = _open(path, O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (-1);
 	if (_fstat(newfd, &sb)) {
 		ret = -1;

@@ -70,7 +70,7 @@
  * We allocate one inode slot per NFPI fragments, expecting this
  * to be far more than we will ever need.
  */
-#define	NFPI		4
+#define	NFPI		2
 
 /*
  * variables set up by front end.
@@ -81,12 +81,14 @@ extern int	Nflag;		/* run mkfs without writing file system */
 extern int	Oflag;		/* build UFS1 format file system */
 extern int	Rflag;		/* regression test */
 extern int	Uflag;		/* enable soft updates for file system */
+extern int	jflag;		/* enable soft updates journaling for filesys */
 extern int	Xflag;		/* exit in middle of newfs for testing */
 extern int	Jflag;		/* enable gjournal for file system */
 extern int	lflag;		/* enable multilabel MAC for file system */
 extern int	nflag;		/* do not create .snap directory */
 extern int	tflag;		/* enable TRIM */
 extern intmax_t	fssize;		/* file system size */
+extern off_t	mediasize;	/* device size */
 extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
 extern int	fsize;		/* fragment size */

@@ -206,6 +206,11 @@ struct usb_fs_open {
 	uint8_t	ep_no;			/* bEndpointNumber */
 };
 
+struct usb_fs_open_stream {
+	struct usb_fs_open fs_open;
+	uint16_t stream_id;
+};
+
 struct usb_fs_close {
 	uint8_t	ep_index;
 };
@@ -289,6 +294,10 @@ struct usb_gen_quirk {
 #define	USB_GET_CM_OVER_DATA	_IOR ('U', 180, int)
 #define	USB_SET_CM_OVER_DATA	_IOW ('U', 181, int)
 
+/* GPIO control */
+#define	USB_GET_GPIO		_IOR ('U', 182, int)
+#define	USB_SET_GPIO		_IOW ('U', 183, int)
+
 /* USB file system interface */
 #define	USB_FS_START		_IOW ('U', 192, struct usb_fs_start)
 #define	USB_FS_STOP		_IOW ('U', 193, struct usb_fs_stop)
@@ -298,6 +307,7 @@ struct usb_gen_quirk {
 #define	USB_FS_OPEN		_IOWR('U', 197, struct usb_fs_open)
 #define	USB_FS_CLOSE		_IOW ('U', 198, struct usb_fs_close)
 #define	USB_FS_CLEAR_STALL_SYNC _IOW ('U', 199, struct usb_fs_clear_stall_sync)
+#define	USB_FS_OPEN_STREAM	_IOWR('U', 200, struct usb_fs_open_stream)
 
 /* USB quirk system interface */
 #define	USB_DEV_QUIRK_GET	_IOWR('Q', 0, struct usb_gen_quirk)

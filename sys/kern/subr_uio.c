@@ -53,11 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#ifdef ZERO_COPY_SOCKETS
-#include <vm/vm_param.h>
+#ifdef SOCKET_SEND_COW
 #include <vm/vm_object.h>
 #endif
 
@@ -66,7 +66,7 @@ SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
 
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_SEND_COW
 /* Declared in uipc_socket.c */
 extern int so_zero_copy_receive;
 
@@ -128,7 +128,7 @@ retry:
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_SEND_COW */
 
 int
 copyin_nofault(const void *udaddr, void *kaddr, size_t len)
@@ -171,7 +171,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 {
 	struct thread *td;
 	struct iovec *iov;
-	u_int cnt;
+	size_t cnt;
 	int error, newflags, save;
 
 	td = curthread;
@@ -187,8 +187,12 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 
 	/* XXX does it make a sense to set TDP_DEADLKTREAT for UIO_SYSSPACE ? */
 	newflags = TDP_DEADLKTREAT;
-	if (uio->uio_segflg == UIO_USERSPACE && nofault)
-		newflags |= TDP_NOFAULTING;
+	if (uio->uio_segflg == UIO_USERSPACE && nofault) {
+		/*
+		 * Fail if a non-spurious page fault occurs.
+		 */
+		newflags |= TDP_NOFAULTING | TDP_RESETSPUR;
+	}
 	save = curthread_pflags_set(newflags);
 
 	while (n > 0 && uio->uio_resid) {
@@ -245,19 +249,19 @@ out:
 int
 uiomove_frombuf(void *buf, int buflen, struct uio *uio)
 {
-	unsigned int offset, n;
+	size_t offset, n;
 
 	if (uio->uio_offset < 0 || uio->uio_resid < 0 ||
 	    (offset = uio->uio_offset) != uio->uio_offset)
 		return (EINVAL);
 	if (buflen <= 0 || offset >= buflen)
 		return (0);
-	if ((n = buflen - offset) > INT_MAX)
+	if ((n = buflen - offset) > IOSIZE_MAX)
 		return (EINVAL);
 	return (uiomove((char *)buf + offset, n, uio));
 }
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_RECV_PFLIP
 /*
  * Experimental support for zero-copy I/O
  */
@@ -352,7 +356,7 @@ uiomoveco(void *cp, int n, struct uio *uio, int disposable)
 	}
 	return (0);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_RECV_PFLIP */
 
 /*
  * Give next character to user as result of read.
@@ -385,7 +389,6 @@ again:
 	case UIO_SYSSPACE:
 		iov_base = iov->iov_base;
 		*iov_base = c;
-		iov->iov_base = iov_base;
 		break;
 
 	case UIO_NOCOPY:
@@ -437,7 +440,7 @@ copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
 }
 
 int
-copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
+copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 {
 	u_int iovlen;
 
@@ -455,7 +458,7 @@ copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 }
 
 int
-copyinuio(struct iovec *iovp, u_int iovcnt, struct uio **uiop)
+copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 {
 	struct iovec *iov;
 	struct uio *uio;
@@ -479,7 +482,7 @@ copyinuio(struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 	uio->uio_offset = -1;
 	uio->uio_resid = 0;
 	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - uio->uio_resid) {
+		if (iov->iov_len > IOSIZE_MAX - uio->uio_resid) {
 			free(uio, M_IOV);
 			return (EINVAL);
 		}

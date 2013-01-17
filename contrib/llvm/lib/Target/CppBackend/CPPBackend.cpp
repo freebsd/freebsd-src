@@ -33,8 +33,9 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 #include <algorithm>
-#include <set>
+#include <cstdio>
 #include <map>
+#include <set>
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -129,6 +130,7 @@ namespace {
   private:
     void printLinkageType(GlobalValue::LinkageTypes LT);
     void printVisibilityType(GlobalValue::VisibilityTypes VisTypes);
+    void printThreadLocalMode(GlobalVariable::ThreadLocalMode TLM);
     void printCallingConv(CallingConv::ID cc);
     void printEscapedString(const std::string& str);
     void printCFP(const ConstantFP* CFP);
@@ -189,11 +191,22 @@ static std::string getTypePrefix(Type *Ty) {
   case Type::VectorTyID:   return "packed_";
   default:                 return "other_";
   }
-  return "unknown_";
 }
 
 void CppWriter::error(const std::string& msg) {
   report_fatal_error(msg);
+}
+
+static inline std::string ftostr(const APFloat& V) {
+  std::string Buf;
+  if (&V.getSemantics() == &APFloat::IEEEdouble) {
+    raw_string_ostream(Buf) << V.convertToDouble();
+    return Buf;
+  } else if (&V.getSemantics() == &APFloat::IEEEsingle) {
+    raw_string_ostream(Buf) << (double)V.convertToFloat();
+    return Buf;
+  }
+  return "<unknown format in ftostr>"; // error
 }
 
 // printCFP - Print a floating point constant .. very carefully :)
@@ -272,14 +285,14 @@ void CppWriter::printLinkageType(GlobalValue::LinkageTypes LT) {
     Out << "GlobalValue::LinkerPrivateLinkage"; break;
   case GlobalValue::LinkerPrivateWeakLinkage:
     Out << "GlobalValue::LinkerPrivateWeakLinkage"; break;
-  case GlobalValue::LinkerPrivateWeakDefAutoLinkage:
-    Out << "GlobalValue::LinkerPrivateWeakDefAutoLinkage"; break;
   case GlobalValue::AvailableExternallyLinkage:
     Out << "GlobalValue::AvailableExternallyLinkage "; break;
   case GlobalValue::LinkOnceAnyLinkage:
     Out << "GlobalValue::LinkOnceAnyLinkage "; break;
   case GlobalValue::LinkOnceODRLinkage:
     Out << "GlobalValue::LinkOnceODRLinkage "; break;
+  case GlobalValue::LinkOnceODRAutoHideLinkage:
+    Out << "GlobalValue::LinkOnceODRAutoHideLinkage"; break;
   case GlobalValue::WeakAnyLinkage:
     Out << "GlobalValue::WeakAnyLinkage"; break;
   case GlobalValue::WeakODRLinkage:
@@ -301,7 +314,6 @@ void CppWriter::printLinkageType(GlobalValue::LinkageTypes LT) {
 
 void CppWriter::printVisibilityType(GlobalValue::VisibilityTypes VisType) {
   switch (VisType) {
-  default: llvm_unreachable("Unknown GVar visibility");
   case GlobalValue::DefaultVisibility:
     Out << "GlobalValue::DefaultVisibility";
     break;
@@ -311,6 +323,26 @@ void CppWriter::printVisibilityType(GlobalValue::VisibilityTypes VisType) {
   case GlobalValue::ProtectedVisibility:
     Out << "GlobalValue::ProtectedVisibility";
     break;
+  }
+}
+
+void CppWriter::printThreadLocalMode(GlobalVariable::ThreadLocalMode TLM) {
+  switch (TLM) {
+    case GlobalVariable::NotThreadLocal:
+      Out << "GlobalVariable::NotThreadLocal";
+      break;
+    case GlobalVariable::GeneralDynamicTLSModel:
+      Out << "GlobalVariable::GeneralDynamicTLSModel";
+      break;
+    case GlobalVariable::LocalDynamicTLSModel:
+      Out << "GlobalVariable::LocalDynamicTLSModel";
+      break;
+    case GlobalVariable::InitialExecTLSModel:
+      Out << "GlobalVariable::InitialExecTLSModel";
+      break;
+    case GlobalVariable::LocalExecTLSModel:
+      Out << "GlobalVariable::LocalExecTLSModel";
+      break;
   }
 }
 
@@ -442,13 +474,15 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
     Out << "AttributeWithIndex PAWI;"; nl(Out);
     for (unsigned i = 0; i < PAL.getNumSlots(); ++i) {
       unsigned index = PAL.getSlot(i).Index;
-      Attributes attrs = PAL.getSlot(i).Attrs;
-      Out << "PAWI.Index = " << index << "U; PAWI.Attrs = 0 ";
-#define HANDLE_ATTR(X)                 \
-      if (attrs & Attribute::X)      \
-        Out << " | Attribute::" #X;  \
-      attrs &= ~Attribute::X;
-      
+      AttrBuilder attrs(PAL.getSlot(i).Attrs);
+      Out << "PAWI.Index = " << index << "U;\n";
+      Out << " {\n    AttrBuilder B;\n";
+
+#define HANDLE_ATTR(X)                                     \
+      if (attrs.hasAttribute(Attributes::X))               \
+        Out << "    B.addAttribute(Attributes::" #X ");\n"; \
+      attrs.removeAttribute(Attributes::X);
+
       HANDLE_ATTR(SExt);
       HANDLE_ATTR(ZExt);
       HANDLE_ATTR(NoReturn);
@@ -473,19 +507,18 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
       HANDLE_ATTR(ReturnsTwice);
       HANDLE_ATTR(UWTable);
       HANDLE_ATTR(NonLazyBind);
+      HANDLE_ATTR(MinSize);
 #undef HANDLE_ATTR
-      if (attrs & Attribute::StackAlignment)
-        Out << " | Attribute::constructStackAlignmentFromInt("
-            << Attribute::getStackAlignmentFromAttrs(attrs)
-            << ")"; 
-      attrs &= ~Attribute::StackAlignment;
-      assert(attrs == 0 && "Unhandled attribute!");
-      Out << ";";
+      if (attrs.hasAttribute(Attributes::StackAlignment))
+        Out << "    B.addStackAlignmentAttr(" << attrs.getStackAlignment() << ")\n";
+      attrs.removeAttribute(Attributes::StackAlignment);
+      assert(!attrs.hasAttributes() && "Unhandled attribute!");
+      Out << "    PAWI.Attrs = Attributes::get(mod->getContext(), B);\n }";
       nl(Out);
       Out << "Attrs.push_back(PAWI);";
       nl(Out);
     }
-    Out << name << "_PAL = AttrListPtr::get(Attrs.begin(), Attrs.end());";
+    Out << name << "_PAL = AttrListPtr::get(mod->getContext(), Attrs);";
     nl(Out);
     out(); nl(Out);
     Out << '}'; nl(Out);
@@ -678,11 +711,6 @@ void CppWriter::printConstant(const Constant *CV) {
   std::string constName(getCppName(CV));
   std::string typeName(getCppName(CV->getType()));
 
-  if (isa<GlobalValue>(CV)) {
-    // Skip variables and functions, we emit them elsewhere
-    return;
-  }
-
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     std::string constValue = CI->getValue().toString(10, true);
     Out << "ConstantInt* " << constName
@@ -700,38 +728,17 @@ void CppWriter::printConstant(const Constant *CV) {
     printCFP(CFP);
     Out << ";";
   } else if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
-    if (CA->isString() &&
-        CA->getType()->getElementType() ==
-            Type::getInt8Ty(CA->getContext())) {
-      Out << "Constant* " << constName <<
-             " = ConstantArray::get(mod->getContext(), \"";
-      std::string tmp = CA->getAsString();
-      bool nullTerminate = false;
-      if (tmp[tmp.length()-1] == 0) {
-        tmp.erase(tmp.length()-1);
-        nullTerminate = true;
-      }
-      printEscapedString(tmp);
-      // Determine if we want null termination or not.
-      if (nullTerminate)
-        Out << "\", true"; // Indicate that the null terminator should be
-                           // added.
-      else
-        Out << "\", false";// No null terminator
-      Out << ");";
-    } else {
-      Out << "std::vector<Constant*> " << constName << "_elems;";
+    Out << "std::vector<Constant*> " << constName << "_elems;";
+    nl(Out);
+    unsigned N = CA->getNumOperands();
+    for (unsigned i = 0; i < N; ++i) {
+      printConstant(CA->getOperand(i)); // recurse to print operands
+      Out << constName << "_elems.push_back("
+          << getCppName(CA->getOperand(i)) << ");";
       nl(Out);
-      unsigned N = CA->getNumOperands();
-      for (unsigned i = 0; i < N; ++i) {
-        printConstant(CA->getOperand(i)); // recurse to print operands
-        Out << constName << "_elems.push_back("
-            << getCppName(CA->getOperand(i)) << ");";
-        nl(Out);
-      }
-      Out << "Constant* " << constName << " = ConstantArray::get("
-          << typeName << ", " << constName << "_elems);";
     }
+    Out << "Constant* " << constName << " = ConstantArray::get("
+        << typeName << ", " << constName << "_elems);";
   } else if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
     Out << "std::vector<Constant*> " << constName << "_fields;";
     nl(Out);
@@ -744,14 +751,14 @@ void CppWriter::printConstant(const Constant *CV) {
     }
     Out << "Constant* " << constName << " = ConstantStruct::get("
         << typeName << ", " << constName << "_fields);";
-  } else if (const ConstantVector *CP = dyn_cast<ConstantVector>(CV)) {
+  } else if (const ConstantVector *CVec = dyn_cast<ConstantVector>(CV)) {
     Out << "std::vector<Constant*> " << constName << "_elems;";
     nl(Out);
-    unsigned N = CP->getNumOperands();
+    unsigned N = CVec->getNumOperands();
     for (unsigned i = 0; i < N; ++i) {
-      printConstant(CP->getOperand(i));
+      printConstant(CVec->getOperand(i));
       Out << constName << "_elems.push_back("
-          << getCppName(CP->getOperand(i)) << ");";
+          << getCppName(CVec->getOperand(i)) << ");";
       nl(Out);
     }
     Out << "Constant* " << constName << " = ConstantVector::get("
@@ -759,6 +766,41 @@ void CppWriter::printConstant(const Constant *CV) {
   } else if (isa<UndefValue>(CV)) {
     Out << "UndefValue* " << constName << " = UndefValue::get("
         << typeName << ");";
+  } else if (const ConstantDataSequential *CDS =
+               dyn_cast<ConstantDataSequential>(CV)) {
+    if (CDS->isString()) {
+      Out << "Constant *" << constName <<
+      " = ConstantDataArray::getString(mod->getContext(), \"";
+      StringRef Str = CDS->getAsString();
+      bool nullTerminate = false;
+      if (Str.back() == 0) {
+        Str = Str.drop_back();
+        nullTerminate = true;
+      }
+      printEscapedString(Str);
+      // Determine if we want null termination or not.
+      if (nullTerminate)
+        Out << "\", true);";
+      else
+        Out << "\", false);";// No null terminator
+    } else {
+      // TODO: Could generate more efficient code generating CDS calls instead.
+      Out << "std::vector<Constant*> " << constName << "_elems;";
+      nl(Out);
+      for (unsigned i = 0; i != CDS->getNumElements(); ++i) {
+        Constant *Elt = CDS->getElementAsConstant(i);
+        printConstant(Elt);
+        Out << constName << "_elems.push_back(" << getCppName(Elt) << ");";
+        nl(Out);
+      }
+      Out << "Constant* " << constName;
+      
+      if (isa<ArrayType>(CDS->getType()))
+        Out << " = ConstantArray::get(";
+      else
+        Out << " = ConstantVector::get(";
+      Out << typeName << ", " << constName << "_elems);";
+    }
   } else if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
     if (CE->getOpcode() == Instruction::GetElementPtr) {
       Out << "std::vector<Constant*> " << constName << "_indices;";
@@ -976,7 +1018,9 @@ void CppWriter::printVariableHead(const GlobalVariable *GV) {
   }
   if (GV->isThreadLocal()) {
     printCppName(GV);
-    Out << "->setThreadLocal(true);";
+    Out << "->setThreadLocalMode(";
+    printThreadLocalMode(GV->getThreadLocalMode());
+    Out << ");";
     nl(Out);
   }
   if (is_inline) {
@@ -1014,6 +1058,27 @@ std::string CppWriter::getOpName(const Value* V) {
   nl(Out);
   ForwardRefs[V] = result;
   return result;
+}
+
+static StringRef ConvertAtomicOrdering(AtomicOrdering Ordering) {
+  switch (Ordering) {
+    case NotAtomic: return "NotAtomic";
+    case Unordered: return "Unordered";
+    case Monotonic: return "Monotonic";
+    case Acquire: return "Acquire";
+    case Release: return "Release";
+    case AcquireRelease: return "AcquireRelease";
+    case SequentiallyConsistent: return "SequentiallyConsistent";
+  }
+  llvm_unreachable("Unknown ordering");
+}
+
+static StringRef ConvertAtomicSynchScope(SynchronizationScope SynchScope) {
+  switch (SynchScope) {
+    case SingleThread: return "SingleThread";
+    case CrossThread: return "CrossThread";
+  }
+  llvm_unreachable("Unknown synch scope");
 }
 
 // printInstruction - This member is called for each Instruction in a function.
@@ -1062,10 +1127,10 @@ void CppWriter::printInstruction(const Instruction *I,
         << getOpName(SI->getDefaultDest()) << ", "
         << SI->getNumCases() << ", " << bbname << ");";
     nl(Out);
-    unsigned NumCases = SI->getNumCases();
-    for (unsigned i = 1; i < NumCases; ++i) {
-      const ConstantInt* CaseVal = SI->getCaseValue(i);
-      const BasicBlock* BB = SI->getSuccessor(i);
+    for (SwitchInst::ConstCaseIt i = SI->case_begin(), e = SI->case_end();
+         i != e; ++i) {
+      const IntegersSubset CaseVal = i.getCaseValueEx();
+      const BasicBlock *BB = i.getCaseSuccessor();
       Out << iName << "->addCase("
           << getOpName(CaseVal) << ", "
           << getOpName(BB) << ");";
@@ -1112,11 +1177,6 @@ void CppWriter::printInstruction(const Instruction *I,
     printAttributes(inv->getAttributes(), iName);
     Out << iName << "->setAttributes(" << iName << "_PAL);";
     nl(Out);
-    break;
-  }
-  case Instruction::Unwind: {
-    Out << "new UnwindInst("
-        << bbname << ");";
     break;
   }
   case Instruction::Unreachable: {
@@ -1237,15 +1297,33 @@ void CppWriter::printInstruction(const Instruction *I,
     printEscapedString(load->getName());
     Out << "\", " << (load->isVolatile() ? "true" : "false" )
         << ", " << bbname << ");";
+    if (load->getAlignment())
+      nl(Out) << iName << "->setAlignment("
+              << load->getAlignment() << ");";
+    if (load->isAtomic()) {
+      StringRef Ordering = ConvertAtomicOrdering(load->getOrdering());
+      StringRef CrossThread = ConvertAtomicSynchScope(load->getSynchScope());
+      nl(Out) << iName << "->setAtomic("
+              << Ordering << ", " << CrossThread << ");";
+    }
     break;
   }
   case Instruction::Store: {
     const StoreInst* store = cast<StoreInst>(I);
-    Out << " new StoreInst("
+    Out << "StoreInst* " << iName << " = new StoreInst("
         << opNames[0] << ", "
         << opNames[1] << ", "
         << (store->isVolatile() ? "true" : "false")
         << ", " << bbname << ");";
+    if (store->getAlignment())
+      nl(Out) << iName << "->setAlignment("
+              << store->getAlignment() << ");";
+    if (store->isAtomic()) {
+      StringRef Ordering = ConvertAtomicOrdering(store->getOrdering());
+      StringRef CrossThread = ConvertAtomicSynchScope(store->getSynchScope());
+      nl(Out) << iName << "->setAtomic("
+              << Ordering << ", " << CrossThread << ");";
+    }
     break;
   }
   case Instruction::GetElementPtr: {
@@ -1315,7 +1393,7 @@ void CppWriter::printInstruction(const Instruction *I,
     case Instruction::PtrToInt: Out << "PtrToIntInst"; break;
     case Instruction::IntToPtr: Out << "IntToPtrInst"; break;
     case Instruction::BitCast:  Out << "BitCastInst"; break;
-    default: assert(0 && "Unreachable"); break;
+    default: llvm_unreachable("Unreachable");
     }
     Out << "(" << opNames[0] << ", "
         << getCppName(cst->getType()) << ", \"";
@@ -1445,6 +1523,60 @@ void CppWriter::printInstruction(const Instruction *I,
         << iName << "_indices, \"";
     printEscapedString(ivi->getName());
     Out << "\", " << bbname << ");";
+    break;
+  }
+  case Instruction::Fence: {
+    const FenceInst *fi = cast<FenceInst>(I);
+    StringRef Ordering = ConvertAtomicOrdering(fi->getOrdering());
+    StringRef CrossThread = ConvertAtomicSynchScope(fi->getSynchScope());
+    Out << "FenceInst* " << iName
+        << " = new FenceInst(mod->getContext(), "
+        << Ordering << ", " << CrossThread << ", " << bbname
+        << ");";
+    break;
+  }
+  case Instruction::AtomicCmpXchg: {
+    const AtomicCmpXchgInst *cxi = cast<AtomicCmpXchgInst>(I);
+    StringRef Ordering = ConvertAtomicOrdering(cxi->getOrdering());
+    StringRef CrossThread = ConvertAtomicSynchScope(cxi->getSynchScope());
+    Out << "AtomicCmpXchgInst* " << iName
+        << " = new AtomicCmpXchgInst("
+        << opNames[0] << ", " << opNames[1] << ", " << opNames[2] << ", "
+        << Ordering << ", " << CrossThread << ", " << bbname
+        << ");";
+    nl(Out) << iName << "->setName(\"";
+    printEscapedString(cxi->getName());
+    Out << "\");";
+    break;
+  }
+  case Instruction::AtomicRMW: {
+    const AtomicRMWInst *rmwi = cast<AtomicRMWInst>(I);
+    StringRef Ordering = ConvertAtomicOrdering(rmwi->getOrdering());
+    StringRef CrossThread = ConvertAtomicSynchScope(rmwi->getSynchScope());
+    StringRef Operation;
+    switch (rmwi->getOperation()) {
+      case AtomicRMWInst::Xchg: Operation = "AtomicRMWInst::Xchg"; break;
+      case AtomicRMWInst::Add:  Operation = "AtomicRMWInst::Add"; break;
+      case AtomicRMWInst::Sub:  Operation = "AtomicRMWInst::Sub"; break;
+      case AtomicRMWInst::And:  Operation = "AtomicRMWInst::And"; break;
+      case AtomicRMWInst::Nand: Operation = "AtomicRMWInst::Nand"; break;
+      case AtomicRMWInst::Or:   Operation = "AtomicRMWInst::Or"; break;
+      case AtomicRMWInst::Xor:  Operation = "AtomicRMWInst::Xor"; break;
+      case AtomicRMWInst::Max:  Operation = "AtomicRMWInst::Max"; break;
+      case AtomicRMWInst::Min:  Operation = "AtomicRMWInst::Min"; break;
+      case AtomicRMWInst::UMax: Operation = "AtomicRMWInst::UMax"; break;
+      case AtomicRMWInst::UMin: Operation = "AtomicRMWInst::UMin"; break;
+      case AtomicRMWInst::BAD_BINOP: llvm_unreachable("Bad atomic operation");
+    }
+    Out << "AtomicRMWInst* " << iName
+        << " = new AtomicRMWInst("
+        << Operation << ", "
+        << opNames[0] << ", " << opNames[1] << ", "
+        << Ordering << ", " << CrossThread << ", " << bbname
+        << ");";
+    nl(Out) << iName << "->setName(\"";
+    printEscapedString(rmwi->getName());
+    Out << "\");";
     break;
   }
   }
@@ -1623,7 +1755,9 @@ void CppWriter::printFunctionBody(const Function *F) {
       Out << "Value* " << getCppName(AI) << " = args++;";
       nl(Out);
       if (AI->hasName()) {
-        Out << getCppName(AI) << "->setName(\"" << AI->getName() << "\");";
+        Out << getCppName(AI) << "->setName(\"";
+        printEscapedString(AI->getName());
+        Out << "\");";
         nl(Out);
       }
     }
@@ -1954,8 +2088,6 @@ bool CppWriter::runOnModule(Module &M) {
       fname = "makeLLVMType";
     printType(fname,tgtname);
     break;
-   default:
-    error("Invalid generation option");
   }
 
   return false;
@@ -1970,8 +2102,9 @@ char CppWriter::ID = 0;
 bool CPPTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
                                            formatted_raw_ostream &o,
                                            CodeGenFileType FileType,
-                                           CodeGenOpt::Level OptLevel,
-                                           bool DisableVerify) {
+                                           bool DisableVerify,
+                                           AnalysisID StartAfter,
+                                           AnalysisID StopAfter) {
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   PM.add(new CppWriter(o));
   return false;

@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="ipsec"
-rcvar=`set_rcvar`
+rcvar="ipsec_enable"
 start_precmd="ipsec_prestart"
 start_cmd="ipsec_start"
 stop_precmd="test -f $ipsec_file"

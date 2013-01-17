@@ -449,7 +449,7 @@ With the following configuration,
 overrides the router lifetime parameter for the
 .Li ne0
 interface.
-.Bd -literal -offset
+.Bd -literal -offset indent
 ne0:\\
 	:rltime#0:
 .Ed
@@ -461,7 +461,7 @@ The configuration must be used with the
 .Fl s
 option to
 .Xr rtadvd 8 .
-.Bd -literal -offset
+.Bd -literal -offset indent
 ef0:\\
 	:addr="2001:db8:ffff:1000::":prefixlen#64:
 .Ed
@@ -470,7 +470,7 @@ The following example configures the
 .Li wlan0
 interface and adds two DNS servers and a DNS domain search options
 using the default option lifetime values.
-.Bd -literal -offset
+.Bd -literal -offset indent
 wlan0:\\
 	:addr="2001:db8:ffff:1000::":prefixlen#64:\\
 	:rdnss="2001:db8:ffff::10,2001:db8:ffff::2:43":\\
@@ -480,7 +480,7 @@ wlan0:\\
 The following example presents the default values in an explicit manner.
 The configuration is provided just for reference purposes;
 YOU DO NOT NEED TO HAVE IT AT ALL.
-.Bd -literal -offset
+.Bd -literal -offset indent
 default:\\
 	:chlim#64:raflags#0:rltime#1800:rtime#0:retrans#0:\\
 	:pinfoflags="la":vltime#2592000:pltime#604800:mtu#0:

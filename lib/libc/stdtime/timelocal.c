@@ -3,6 +3,11 @@
  * Copyright (c) 1997 FreeBSD Inc.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,9 +38,13 @@ __FBSDID("$FreeBSD$");
 #include "ldpart.h"
 #include "timelocal.h"
 
-static struct lc_time_T _time_locale;
-static int _time_using_locale;
-static char *time_locale_buf;
+struct xlocale_time {
+	struct xlocale_component header;
+	char *buffer;
+	struct lc_time_T locale;
+};
+
+struct xlocale_time __xlocale_global_time;
 
 #define LCTIME_SIZE (sizeof(struct lc_time_T) / sizeof(char *))
 
@@ -99,19 +108,47 @@ static const struct lc_time_T	_C_time_locale = {
 	"%I:%M:%S %p"
 };
 
-struct lc_time_T *
-__get_current_time_locale(void)
+static void destruct_time(void *v)
 {
-	return (_time_using_locale
-		? &_time_locale
+	struct xlocale_time *l = v;
+	if (l->buffer)
+		free(l->buffer);
+	free(l);
+}
+
+#include <stdio.h>
+struct lc_time_T *
+__get_current_time_locale(locale_t loc)
+{
+	return (loc->using_time_locale
+		? &((struct xlocale_time *)loc->components[XLC_TIME])->locale
 		: (struct lc_time_T *)&_C_time_locale);
 }
 
+static int
+time_load_locale(struct xlocale_time *l, int *using_locale, const char *name)
+{
+	struct lc_time_T *time_locale = &l->locale;
+	return (__part_load_locale(name, using_locale,
+			&l->buffer, "LC_TIME",
+			LCTIME_SIZE, LCTIME_SIZE,
+			(const char **)time_locale));
+}
 int
 __time_load_locale(const char *name)
 {
-	return (__part_load_locale(name, &_time_using_locale,
-			&time_locale_buf, "LC_TIME",
-			LCTIME_SIZE, LCTIME_SIZE,
-			(const char **)&_time_locale));
+	return time_load_locale(&__xlocale_global_time,
+			&__xlocale_global_locale.using_time_locale, name);
 }
+void* __time_load(const char* name, locale_t loc)
+{
+	struct xlocale_time *new = calloc(sizeof(struct xlocale_time), 1);
+	new->header.header.destructor = destruct_time;
+	if (time_load_locale(new, &loc->using_time_locale, name) == _LDP_ERROR)
+	{
+		xlocale_release(new);
+		return NULL;
+	}
+	return new;
+}
+

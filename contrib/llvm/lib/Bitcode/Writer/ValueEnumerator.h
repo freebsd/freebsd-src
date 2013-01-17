@@ -32,6 +32,7 @@ class NamedMDNode;
 class AttrListPtr;
 class ValueSymbolTable;
 class MDSymbolTable;
+class raw_ostream;
 
 class ValueEnumerator {
 public:
@@ -77,11 +78,14 @@ private:
 
   unsigned FirstFuncConstantID;
   unsigned FirstInstID;
-  
-  ValueEnumerator(const ValueEnumerator &);  // DO NOT IMPLEMENT
-  void operator=(const ValueEnumerator &);   // DO NOT IMPLEMENT
+
+  ValueEnumerator(const ValueEnumerator &) LLVM_DELETED_FUNCTION;
+  void operator=(const ValueEnumerator &) LLVM_DELETED_FUNCTION;
 public:
   ValueEnumerator(const Module *M);
+
+  void dump() const;
+  void print(raw_ostream &OS, const ValueMapType &Map, const char *Name) const;
 
   unsigned getValueID(const Value *V) const;
 

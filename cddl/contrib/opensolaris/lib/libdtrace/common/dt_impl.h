@@ -24,6 +24,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
+
 #ifndef	_DT_IMPL_H
 #define	_DT_IMPL_H
 
@@ -640,6 +644,8 @@ extern void dt_format_destroy(dtrace_hdl_t *);
 extern int dt_print_quantize(dtrace_hdl_t *, FILE *,
     const void *, size_t, uint64_t);
 extern int dt_print_lquantize(dtrace_hdl_t *, FILE *,
+    const void *, size_t, uint64_t);
+extern int dt_print_llquantize(dtrace_hdl_t *, FILE *,
     const void *, size_t, uint64_t);
 extern int dt_print_agg(const dtrace_aggdata_t *, void *);
 

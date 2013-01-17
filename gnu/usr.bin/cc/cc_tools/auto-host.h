@@ -261,7 +261,7 @@
 
 /* Define if your assembler supports R_PPC_REL16 relocs. */
 #ifndef USED_FOR_TARGET
-/* #undef HAVE_AS_REL16 */
+#define HAVE_AS_REL16
 #endif
 
 
@@ -287,9 +287,7 @@
 
 /* Define if your assembler supports thread-local storage. */
 #ifndef USED_FOR_TARGET
-#if !defined(__arm__)
 #define HAVE_AS_TLS 1
-#endif
 #endif
 
 

@@ -11,7 +11,6 @@
  *
  * ===----------------------------------------------------------------------===
  */
-#include "abi.h"
 
 #include "int_lib.h"
 
@@ -19,7 +18,7 @@
 
 /* Precondition:  0 <= b < bits_in_dword */
 
-ARM_EABI_FNALIAS(llsl, ashldi3);
+ARM_EABI_FNALIAS(llsl, ashldi3)
 
 COMPILER_RT_ABI di_int
 __ashldi3(di_int a, si_int b)

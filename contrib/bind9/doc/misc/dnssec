@@ -81,4 +81,4 @@ future as we consider them inferior to the use of TSIG or SIG(0) to
 ensure the integrity of zone transfers.
 
 
-$Id: dnssec,v 1.19 2004-03-05 05:04:53 marka Exp $
+$Id: dnssec,v 1.19 2004/03/05 05:04:53 marka Exp $

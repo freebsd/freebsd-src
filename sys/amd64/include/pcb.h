@@ -91,8 +91,20 @@ struct pcb {
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
 
+	/* model specific registers */
+	register_t	pcb_efer;
+	register_t	pcb_star;
+	register_t	pcb_lstar;
+	register_t	pcb_cstar;
+	register_t	pcb_sfmask;
+	register_t	pcb_xsmask;
+
+	/* fpu context for suspend/resume */
+	void		*pcb_fpususpend;
+
 	struct savefpu	*pcb_save;
-	struct savefpu	pcb_user_save;
+
+	uint64_t	pcb_pad[3];
 };
 
 #ifdef _KERNEL
@@ -129,7 +141,9 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 }
 
 void	makectx(struct trapframe *, struct pcb *);
-int	savectx(struct pcb *);
+int	savectx(struct pcb *) __returns_twice;
+void	resumectx(struct pcb *);
+
 #endif
 
 #endif /* _AMD64_PCB_H_ */

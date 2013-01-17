@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.90 2011/05/24 07:15:47 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.91 2011/09/23 07:45:05 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -25,6 +25,7 @@ typedef struct {
 	char	 *connect_host;		/* Host to connect. */
 	int	  connect_port;		/* Port to connect on connect_host. */
 	int	  allocated_port;	/* Dynamically allocated listen port */
+	int	  handle;		/* Handle for dynamic listen ports */
 }       Forward;
 /* Data structure for representing option data. */
 
@@ -133,7 +134,9 @@ typedef struct {
 	int	visual_host_key;
 
 	int	use_roaming;
+
 	int	request_tty;
+	char   *version_addendum;	/* Appended to SSH banner */
 
 	int	hpn_disabled;	/* Switch to disable HPN buffer management. */
 	int	hpn_buffer_size;	/* User definable size for HPN buffer

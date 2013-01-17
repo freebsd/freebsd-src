@@ -78,6 +78,12 @@ static int	dirent_exists(struct vnode *vp, const char *dirname,
 
 #define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
 
+static int vop_stdis_text(struct vop_is_text_args *ap);
+static int vop_stdset_text(struct vop_set_text_args *ap);
+static int vop_stdunset_text(struct vop_unset_text_args *ap);
+static int vop_stdget_writecount(struct vop_get_writecount_args *ap);
+static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
+
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
  * implement a particular VOP.
@@ -96,6 +102,7 @@ struct vop_vector default_vnodeops = {
 
 	.vop_access =		vop_stdaccess,
 	.vop_accessx =		vop_stdaccessx,
+	.vop_advise =		vop_stdadvise,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
 	.vop_advlockpurge =	vop_stdadvlockpurge,
@@ -122,6 +129,14 @@ struct vop_vector default_vnodeops = {
 	.vop_unlock =		vop_stdunlock,
 	.vop_vptocnp =		vop_stdvptocnp,
 	.vop_vptofh =		vop_stdvptofh,
+	.vop_unp_bind =		vop_stdunp_bind,
+	.vop_unp_connect =	vop_stdunp_connect,
+	.vop_unp_detach =	vop_stdunp_detach,
+	.vop_is_text =		vop_stdis_text,
+	.vop_set_text =		vop_stdset_text,
+	.vop_unset_text =	vop_stdunset_text,
+	.vop_get_writecount =	vop_stdget_writecount,
+	.vop_add_writecount =	vop_stdadd_writecount,
 };
 
 /*
@@ -339,8 +354,8 @@ dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
 		if (error)
 			goto out;
 
-		if ((dp->d_type != DT_WHT) &&
-		    !strcmp(dp->d_name, dirname)) {
+		if (dp->d_type != DT_WHT && dp->d_fileno != 0 &&
+		    strcmp(dp->d_name, dirname) == 0) {
 			found = 1;
 			goto out;
 		}
@@ -642,8 +657,17 @@ loop2:
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
-			continue;
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
+			if (ap->a_waitfor != MNT_WAIT)
+				continue;
+			if (BUF_LOCK(bp,
+			    LK_EXCLUSIVE | LK_INTERLOCK | LK_SLEEPFAIL,
+			    BO_MTX(bo)) != 0) {
+				BO_LOCK(bo);
+				goto loop1;
+			}
+			BO_LOCK(bo);
+		}
 		BO_UNLOCK(bo);
 		KASSERT(bp->b_bufobj == bo,
 		    ("bp %p wrong b_bufobj %p should be %p",
@@ -843,7 +867,7 @@ out:
 	free(dirbuf, M_TEMP);
 	if (!error) {
 		*buflen = i;
-		vhold(*dvp);
+		vref(*dvp);
 	}
 	if (covered) {
 		vput(*dvp);
@@ -984,6 +1008,118 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	return (error);
 }
 
+int
+vop_stdadvise(struct vop_advise_args *ap)
+{
+	struct vnode *vp;
+	off_t start, end;
+	int error;
+
+	vp = ap->a_vp;
+	switch (ap->a_advice) {
+	case POSIX_FADV_WILLNEED:
+		/*
+		 * Do nothing for now.  Filesystems should provide a
+		 * custom method which starts an asynchronous read of
+		 * the requested region.
+		 */
+		error = 0;
+		break;
+	case POSIX_FADV_DONTNEED:
+		/*
+		 * Flush any open FS buffers and then remove pages
+		 * from the backing VM object.  Using vinvalbuf() here
+		 * is a bit heavy-handed as it flushes all buffers for
+		 * the given vnode, not just the buffers covering the
+		 * requested range.
+		 */
+		error = 0;
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if (vp->v_iflag & VI_DOOMED) {
+			VOP_UNLOCK(vp, 0);
+			break;
+		}
+		vinvalbuf(vp, V_CLEANONLY, 0, 0);
+		if (vp->v_object != NULL) {
+			start = trunc_page(ap->a_start);
+			end = round_page(ap->a_end);
+			VM_OBJECT_LOCK(vp->v_object);
+			vm_object_page_cache(vp->v_object, OFF_TO_IDX(start),
+			    OFF_TO_IDX(end));
+			VM_OBJECT_UNLOCK(vp->v_object);
+		}
+		VOP_UNLOCK(vp, 0);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+int
+vop_stdunp_bind(struct vop_unp_bind_args *ap)
+{
+
+	ap->a_vp->v_socket = ap->a_socket;
+	return (0);
+}
+
+int
+vop_stdunp_connect(struct vop_unp_connect_args *ap)
+{
+
+	*ap->a_socket = ap->a_vp->v_socket;
+	return (0);
+}
+
+int
+vop_stdunp_detach(struct vop_unp_detach_args *ap)
+{
+
+	ap->a_vp->v_socket = NULL;
+	return (0);
+}
+
+static int
+vop_stdis_text(struct vop_is_text_args *ap)
+{
+
+	return ((ap->a_vp->v_vflag & VV_TEXT) != 0);
+}
+
+static int
+vop_stdset_text(struct vop_set_text_args *ap)
+{
+
+	ap->a_vp->v_vflag |= VV_TEXT;
+	return (0);
+}
+
+static int
+vop_stdunset_text(struct vop_unset_text_args *ap)
+{
+
+	ap->a_vp->v_vflag &= ~VV_TEXT;
+	return (0);
+}
+
+static int
+vop_stdget_writecount(struct vop_get_writecount_args *ap)
+{
+
+	*ap->a_writecount = ap->a_vp->v_writecount;
+	return (0);
+}
+
+static int
+vop_stdadd_writecount(struct vop_add_writecount_args *ap)
+{
+
+	ap->a_vp->v_writecount += ap->a_inc;
+	return (0);
+}
+
 /*
  * vfs default ops
  * used to fill the vfs function table to get reasonable default return values.
@@ -1034,18 +1170,15 @@ vfs_stdsync(mp, waitfor)
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
-	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		/* bv_cnt is an acceptable race here. */
-		if (vp->v_bufobj.bo_dirty.bv_cnt == 0)
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		if (vp->v_bufobj.bo_dirty.bv_cnt == 0) {
+			VI_UNLOCK(vp);
 			continue;
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+		}
 		if ((error = vget(vp, lockreq, td)) != 0) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
 			}
 			continue;
@@ -1054,9 +1187,7 @@ loop:
 		if (error)
 			allerror = error;
 		vput(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (allerror);
 }
 

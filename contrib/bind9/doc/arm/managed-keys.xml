@@ -15,7 +15,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: managed-keys.xml,v 1.3 2010-02-03 23:49:07 tbox Exp $ -->
+<!-- $Id: managed-keys.xml,v 1.3 2010/02/03 23:49:07 tbox Exp $ -->
 
 <sect1 id="rfc5011.support">
   <title>Dynamic Trust Anchor Management</title>

@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 1997 - 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kafs_locl.h"
-
-RCSID("$Id: common.c 15461 2005-06-16 22:52:33Z lha $");
 
 #define AUTH_SUPERUSER "afs"
 
@@ -75,7 +73,7 @@ kafs_settoken_rxkad(const char *cell, struct ClearToken *ct,
     struct ViceIoctl parms;
     char buf[2048], *t;
     int32_t sizeof_x;
-    
+
     t = buf;
     /*
      * length of secret token followed by secret token
@@ -141,47 +139,18 @@ _kafs_fixup_viceid(struct ClearToken *ct, uid_t uid)
     }
 }
 
-
-int
-_kafs_v4_to_kt(CREDENTIALS *c, uid_t uid, struct kafs_token *kt)
-{
-    kt->ticket = NULL;
-
-    if (c->ticket_st.length > MAX_KTXT_LEN)
-	return EINVAL;
-
-    kt->ticket = malloc(c->ticket_st.length);
-    if (kt->ticket == NULL)
-	return ENOMEM;
-    kt->ticket_len = c->ticket_st.length;
-    memcpy(kt->ticket, c->ticket_st.dat, kt->ticket_len);
-    
-    /*
-     * Build a struct ClearToken
-     */
-    kt->ct.AuthHandle = c->kvno;
-    memcpy (kt->ct.HandShakeKey, c->session, sizeof(c->session));
-    kt->ct.ViceId = uid;
-    kt->ct.BeginTimestamp = c->issue_date;
-    kt->ct.EndTimestamp = krb_life_to_time(c->issue_date, c->lifetime);
-
-    _kafs_fixup_viceid(&kt->ct, uid);
-
-    return 0;
-}
-
 /* Try to get a db-server for an AFS cell from a AFSDB record */
 
 static int
 dns_find_cell(const char *cell, char *dbserver, size_t len)
 {
-    struct dns_reply *r;
+    struct rk_dns_reply *r;
     int ok = -1;
-    r = dns_lookup(cell, "afsdb");
+    r = rk_dns_lookup(cell, "afsdb");
     if(r){
-	struct resource_record *rr = r->head;
+	struct rk_resource_record *rr = r->head;
 	while(rr){
-	    if(rr->type == T_AFSDB && rr->u.afsdb->preference == 1){
+	    if(rr->type == rk_ns_t_afsdb && rr->u.afsdb->preference == 1){
 		strlcpy(dbserver,
 				rr->u.afsdb->domain,
 				len);
@@ -190,7 +159,7 @@ dns_find_cell(const char *cell, char *dbserver, size_t len)
 	    }
 	    rr = rr->next;
 	}
-	dns_free_data(r);
+	rk_dns_free_data(r);
     }
     return ok;
 }
@@ -282,7 +251,7 @@ _kafs_afslog_all_local_cells(struct kafs_data *data,
     find_cells(_PATH_ARLA_DEBIAN_THISCELL, &cells, &idx);
     find_cells(_PATH_ARLA_OPENBSD_THESECELLS, &cells, &idx);
     find_cells(_PATH_ARLA_OPENBSD_THISCELL, &cells, &idx);
-    
+
     ret = afslog_cells(data, cells, idx, uid, homedir);
     while(idx > 0)
 	free(cells[--idx]);
@@ -292,7 +261,7 @@ _kafs_afslog_all_local_cells(struct kafs_data *data,
 
 
 static int
-file_find_cell(struct kafs_data *data, 
+file_find_cell(struct kafs_data *data,
 	       const char *cell, char **realm, int exact)
 {
     FILE *F;
@@ -378,11 +347,14 @@ _kafs_try_get_cred(struct kafs_data *data, const char *user, const char *cell,
 
     ret = (*data->get_cred)(data, user, cell, realm, uid, kt);
     if (kafs_verbose) {
+	const char *estr = (*data->get_error)(data, ret);
 	char *str;
-	asprintf(&str, "%s tried afs%s%s@%s -> %d",
-		 data->name, cell[0] == '\0' ? "" : "/", 
-		 cell, realm, ret);
+	asprintf(&str, "%s tried afs%s%s@%s -> %s (%d)",
+		 data->name, cell ? "/" : "",
+		 cell ? cell : "", realm, estr ? estr : "unknown", ret);
 	(*kafs_verbose)(kafs_verbose_ctx, str);
+	if (estr)
+	    (*data->free_error)(data, estr);
 	free(str);
     }
 
@@ -392,7 +364,7 @@ _kafs_try_get_cred(struct kafs_data *data, const char *user, const char *cell,
 
 int
 _kafs_get_cred(struct kafs_data *data,
-	       const char *cell, 
+	       const char *cell,
 	       const char *realm_hint,
 	       const char *realm,
 	       uid_t uid,
@@ -419,23 +391,32 @@ _kafs_get_cred(struct kafs_data *data,
      * really a long shot.
      *
      */
-  
+
     /* comments on the ordering of these tests */
 
     /* If the user passes a realm, she probably knows something we don't
      * know and we should try afs@realm_hint.
      */
-  
+
     if (realm_hint) {
 	ret = _kafs_try_get_cred(data, AUTH_SUPERUSER,
 				 cell, realm_hint, uid, kt);
 	if (ret == 0) return 0;
 	ret = _kafs_try_get_cred(data, AUTH_SUPERUSER,
-				 "", realm_hint, uid, kt);
+				 NULL, realm_hint, uid, kt);
 	if (ret == 0) return 0;
     }
 
     _kafs_foldup(CELL, cell);
+
+    /*
+     * If the AFS servers have a file /usr/afs/etc/krb.conf containing
+     * REALM we still don't have to resort to cross-cell authentication.
+     * Try afs.cell@REALM.
+     */
+    ret = _kafs_try_get_cred(data, AUTH_SUPERUSER,
+			     cell, realm, uid, kt);
+    if (ret == 0) return 0;
 
     /*
      * If cell == realm we don't need no cross-cell authentication.
@@ -443,19 +424,9 @@ _kafs_get_cred(struct kafs_data *data,
      */
     if (strcmp(CELL, realm) == 0) {
         ret = _kafs_try_get_cred(data, AUTH_SUPERUSER,
-				 "", realm, uid, kt);
+				 NULL, realm, uid, kt);
 	if (ret == 0) return 0;
-	/* Try afs.cell@REALM below. */
     }
-
-    /*
-     * If the AFS servers have a file /usr/afs/etc/krb.conf containing
-     * REALM we still don't have to resort to cross-cell authentication.
-     * Try afs.cell@REALM.
-     */
-    ret = _kafs_try_get_cred(data, AUTH_SUPERUSER, 
-			     cell, realm, uid, kt);
-    if (ret == 0) return 0;
 
     /*
      * We failed to get ``first class tickets'' for afs,
@@ -464,9 +435,9 @@ _kafs_get_cred(struct kafs_data *data,
      * Try afs.cell@CELL.
      */
     ret = _kafs_try_get_cred(data, AUTH_SUPERUSER,
-			     "", CELL, uid, kt);
+			     NULL, CELL, uid, kt);
     if (ret == 0) return 0;
-    ret = _kafs_try_get_cred(data, AUTH_SUPERUSER, 
+    ret = _kafs_try_get_cred(data, AUTH_SUPERUSER,
 			     cell, CELL, uid, kt);
     if (ret == 0) return 0;
 
@@ -483,7 +454,7 @@ _kafs_get_cred(struct kafs_data *data,
 				 cell, vl_realm, uid, kt);
 	if (ret)
 	    ret = _kafs_try_get_cred(data, AUTH_SUPERUSER,
-				     "", vl_realm, uid, kt);
+				     NULL, vl_realm, uid, kt);
 	free(vl_realm);
 	if (ret == 0) return 0;
     }

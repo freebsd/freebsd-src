@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslrestype1 - Miscellaneous small resource descriptors
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,7 +178,7 @@ RsDoMemory24Descriptor (
         case 1: /* Min Address */
 
             Descriptor->Memory24.Minimum = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MINADDR,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_MINADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Minimum));
             MinOp = InitializerOp;
             break;
@@ -187,7 +186,7 @@ RsDoMemory24Descriptor (
         case 2: /* Max Address */
 
             Descriptor->Memory24.Maximum = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MAXADDR,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_MAXADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Maximum));
             MaxOp = InitializerOp;
             break;
@@ -195,14 +194,14 @@ RsDoMemory24Descriptor (
         case 3: /* Alignment */
 
             Descriptor->Memory24.Alignment = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.Alignment));
             break;
 
         case 4: /* Length */
 
             Descriptor->Memory24.AddressLength = (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_LENGTH,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory24.AddressLength));
             LengthOp = InitializerOp;
             break;
@@ -286,7 +285,7 @@ RsDoMemory32Descriptor (
         case 1:  /* Min Address */
 
             Descriptor->Memory32.Minimum = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MINADDR,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_MINADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Minimum));
             MinOp = InitializerOp;
             break;
@@ -294,7 +293,7 @@ RsDoMemory32Descriptor (
         case 2: /* Max Address */
 
             Descriptor->Memory32.Maximum = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MAXADDR,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_MAXADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Maximum));
             MaxOp = InitializerOp;
             break;
@@ -302,7 +301,7 @@ RsDoMemory32Descriptor (
         case 3: /* Alignment */
 
             Descriptor->Memory32.Alignment = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_ALIGNMENT,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.Alignment));
             AlignOp = InitializerOp;
             break;
@@ -310,7 +309,7 @@ RsDoMemory32Descriptor (
         case 4: /* Length */
 
             Descriptor->Memory32.AddressLength = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_LENGTH,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Memory32.AddressLength));
             LengthOp = InitializerOp;
             break;
@@ -390,14 +389,14 @@ RsDoMemory32FixedDescriptor (
         case 1: /* Address */
 
             Descriptor->FixedMemory32.Address = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (FixedMemory32.Address));
             break;
 
         case 2: /* Length */
 
             Descriptor->FixedMemory32.AddressLength = (UINT32) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_LENGTH,
+            RsCreateDwordField (InitializerOp, ACPI_RESTAG_LENGTH,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (FixedMemory32.AddressLength));
             break;
 
@@ -453,6 +452,10 @@ RsDoStartDependentDescriptor (
     PreviousRnode = Rnode;
     Descriptor = Rnode->Buffer;
 
+    /* Increment offset past StartDependent descriptor */
+
+    CurrentByteOffset += sizeof (AML_RESOURCE_START_DEPENDENT);
+
     /* Descriptor has priority byte */
 
     Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
@@ -494,7 +497,7 @@ RsDoStartDependentDescriptor (
 
             /*
              * Update current byte offset to indicate the number of bytes from the
-             * start of the buffer.  Buffer can include multiple descriptors, we
+             * start of the buffer. Buffer can include multiple descriptors, we
              * must keep track of the offset of not only each descriptor, but each
              * element (field) within each descriptor as well.
              */
@@ -545,6 +548,10 @@ RsDoStartDependentNoPriDescriptor (
                                       ASL_RDESC_ST_DEPEND_SIZE;
     PreviousRnode = Rnode;
 
+    /* Increment offset past StartDependentNoPri descriptor */
+
+    CurrentByteOffset += sizeof (AML_RESOURCE_START_DEPENDENT_NOPRIO);
+
     /* Process all child initialization nodes */
 
     State = ACPI_RSTATE_START_DEPENDENT;
@@ -555,7 +562,7 @@ RsDoStartDependentNoPriDescriptor (
 
         /*
          * Update current byte offset to indicate the number of bytes from the
-         * start of the buffer.  Buffer can include multiple descriptors, we
+         * start of the buffer. Buffer can include multiple descriptors, we
          * must keep track of the offset of not only each descriptor, but each
          * element (field) within each descriptor as well.
          */
@@ -642,4 +649,3 @@ RsDoVendorSmallDescriptor (
     Descriptor->VendorSmall.DescriptorType |= (UINT8) i;
     return (Rnode);
 }
-

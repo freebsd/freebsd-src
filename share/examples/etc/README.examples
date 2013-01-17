@@ -9,7 +9,6 @@ This directory contains the following files:
 
 amd.map		- filesystem automounter lookup resolution map (see amd(8))
 apmd.conf	- configuration file for apmd(8)
-auth.conf	- authentication capability database (see auth.conf(5))
 bsd-style-copyright	- copyright style for bsd system
 crontab		- system scheduled command table (see crontab(5))
 csh.cshrc	- sample .cshrc (see csh(1))
@@ -41,7 +40,6 @@ netstart	- network startup script run from /etc/rc
 network.subr	- routines for network configuration scripts
 networks	- see networks(5)
 newsyslog.conf	- configuration for system log file rotator newsyslog(8)
-nsmb.conf	- smbfs lookups configuration file
 opieaccess	- OPIE database of trusted networks
 pf.conf		- pf(4) example configuration file
 pf.os		- SYN fingerprint database

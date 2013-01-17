@@ -11,9 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
@@ -30,12 +30,12 @@ using namespace clang;
 /// argument vector.
 CompilerInvocation *
 clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
-                            llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags) {
+                            IntrusiveRefCntPtr<DiagnosticsEngine> Diags) {
   if (!Diags.getPtr()) {
     // No diagnostics engine was provided, so create our own diagnostics object
     // with the default options.
-    DiagnosticOptions DiagOpts;
-    Diags = CompilerInstance::createDiagnostics(DiagOpts, ArgList.size(),
+    Diags = CompilerInstance::createDiagnostics(new DiagnosticOptions,
+                                                ArgList.size(),
                                                 ArgList.begin());
   }
 
@@ -43,18 +43,17 @@ clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
   Args.push_back("<clang>"); // FIXME: Remove dummy argument.
   Args.insert(Args.end(), ArgList.begin(), ArgList.end());
 
-  // FIXME: Find a cleaner way to force the driver into restricted modes. We
-  // also want to force it to use clang.
+  // FIXME: Find a cleaner way to force the driver into restricted modes.
   Args.push_back("-fsyntax-only");
 
   // FIXME: We shouldn't have to pass in the path info.
-  driver::Driver TheDriver("clang", llvm::sys::getHostTriple(),
+  driver::Driver TheDriver("clang", llvm::sys::getDefaultTargetTriple(),
                            "a.out", false, *Diags);
 
   // Don't check that inputs exist, they may have been remapped.
   TheDriver.setCheckInputsExist(false);
 
-  llvm::OwningPtr<driver::Compilation> C(TheDriver.BuildCompilation(Args));
+  OwningPtr<driver::Compilation> C(TheDriver.BuildCompilation(Args));
 
   // Just print the cc1 options if -### was present.
   if (C->getArgs().hasArg(driver::options::OPT__HASH_HASH_HASH)) {
@@ -66,7 +65,7 @@ clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
   // failed.
   const driver::JobList &Jobs = C->getJobs();
   if (Jobs.size() != 1 || !isa<driver::Command>(*Jobs.begin())) {
-    llvm::SmallString<256> Msg;
+    SmallString<256> Msg;
     llvm::raw_svector_ostream OS(Msg);
     C->PrintJob(OS, C->getJobs(), "; ", true);
     Diags->Report(diag::err_fe_expected_compiler_job) << OS.str();
@@ -80,11 +79,12 @@ clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
   }
 
   const driver::ArgStringList &CCArgs = Cmd->getArguments();
-  CompilerInvocation *CI = new CompilerInvocation();
-  CompilerInvocation::CreateFromArgs(*CI,
+  OwningPtr<CompilerInvocation> CI(new CompilerInvocation());
+  if (!CompilerInvocation::CreateFromArgs(*CI,
                                      const_cast<const char **>(CCArgs.data()),
                                      const_cast<const char **>(CCArgs.data()) +
                                      CCArgs.size(),
-                                     *Diags);
-  return CI;
+                                     *Diags))
+    return 0;
+  return CI.take();
 }

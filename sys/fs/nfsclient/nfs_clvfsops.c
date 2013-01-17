@@ -80,6 +80,8 @@ extern int nfscl_ticks;
 extern struct timeval nfsboottime;
 extern struct nfsstats	newnfsstats;
 extern int nfsrv_useacl;
+extern int nfscl_debuglevel;
+NFSCLSTATEMUTEX;
 
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
 MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
@@ -104,7 +106,7 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, u_char *, int, u_char *, int,
 		    u_char *, int, struct vnode **, struct ucred *,
-		    struct thread *, int);
+		    struct thread *, int, int, int);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
@@ -296,9 +298,11 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	if (!error)
 		error = nfsrpc_statfs(vp, &sb, &fs, td->td_ucred, td, &nfsva,
 		    &attrflag, NULL);
+	if (error != 0)
+		NFSCL_DEBUG(2, "statfs=%d\n", error);
 	if (attrflag == 0) {
 		ret = nfsrpc_getattrnovp(nmp, nmp->nm_fh, nmp->nm_fhsize, 1,
-		    td->td_ucred, td, &nfsva, NULL);
+		    td->td_ucred, td, &nfsva, NULL, NULL);
 		if (ret) {
 			/*
 			 * Just set default values to get things going.
@@ -459,10 +463,10 @@ nfs_mountroot(struct mount *mp)
 		sin.sin_len = sizeof(sin);
                 /* XXX MRT use table 0 for this sort of thing */
 		CURVNET_SET(TD_TO_VNET(td));
-		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
+		error = rtrequest_fib(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
-		    RTF_UP | RTF_GATEWAY, NULL);
+		    RTF_UP | RTF_GATEWAY, NULL, RT_DEFAULT_FIB);
 		CURVNET_RESTORE();
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
@@ -520,7 +524,8 @@ nfs_mountdiskless(char *path,
 		dirlen = 0;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
-	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
+	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NAMETIMEO, 
+	    NFS_DEFAULT_NEGNAMETIMEO, 0)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -714,8 +719,8 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
-    "principal", "nfsv4", "gssname", "allgssname", "dirpath",
-    "negnametimeo", "nocto",
+    "principal", "nfsv4", "gssname", "allgssname", "dirpath", "minorversion",
+    "nametimeo", "negnametimeo", "nocto", "pnfs", "wcommitsize",
     NULL };
 
 /*
@@ -760,7 +765,9 @@ nfs_mount(struct mount *mp)
 	char hst[MNAMELEN];
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *opt, *name, *secname;
+	int nametimeo = NFS_DEFAULT_NAMETIMEO;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
+	int minvers = 0;
 	int dirlen, has_nfs_args_opt, krbnamelen, srvkrbnamelen;
 	size_t hstlen;
 
@@ -834,6 +841,8 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_ALLGSSNAME;
 	if (vfs_getopt(mp->mnt_optnew, "nocto", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOCTO;
+	if (vfs_getopt(mp->mnt_optnew, "pnfs", NULL, NULL) == 0)
+		args.flags |= NFSMNT_PNFS;
 	if (vfs_getopt(mp->mnt_optnew, "readdirsize", (void **)&opt, NULL) == 0) {
 		if (opt == NULL) { 
 			vfs_mount_error(mp, "illegal readdirsize");
@@ -949,6 +958,15 @@ nfs_mount(struct mount *mp)
 		}
 		args.flags |= NFSMNT_ACDIRMAX;
 	}
+	if (vfs_getopt(mp->mnt_optnew, "wcommitsize", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.wcommitsize);
+		if (ret != 1 || args.wcommitsize < 0) {
+			vfs_mount_error(mp, "illegal wcommitsize: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_WCOMMITSIZE;
+	}
 	if (vfs_getopt(mp->mnt_optnew, "timeout", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.timeo);
 		if (ret != 1 || args.timeo <= 0) {
@@ -959,12 +977,30 @@ nfs_mount(struct mount *mp)
 		}
 		args.flags |= NFSMNT_TIMEO;
 	}
+	if (vfs_getopt(mp->mnt_optnew, "nametimeo", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &nametimeo);
+		if (ret != 1 || nametimeo < 0) {
+			vfs_mount_error(mp, "illegal nametimeo: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
+	}
 	if (vfs_getopt(mp->mnt_optnew, "negnametimeo", (void **)&opt, NULL)
 	    == 0) {
 		ret = sscanf(opt, "%d", &negnametimeo);
 		if (ret != 1 || negnametimeo < 0) {
 			vfs_mount_error(mp, "illegal negnametimeo: %s",
 			    opt);
+			error = EINVAL;
+			goto out;
+		}
+	}
+	if (vfs_getopt(mp->mnt_optnew, "minorversion", (void **)&opt, NULL) ==
+	    0) {
+		ret = sscanf(opt, "%d", &minvers);
+		if (ret != 1 || minvers < 0 || minvers > 1 ||
+		    (args.flags & NFSMNT_NFSV4) == 0) {
+			vfs_mount_error(mp, "illegal minorversion: %s", opt);
 			error = EINVAL;
 			goto out;
 		}
@@ -980,6 +1016,19 @@ nfs_mount(struct mount *mp)
 			error = EIO;
 			goto out;
 		}
+
+		/*
+		 * If a change from TCP->UDP is done and there are thread(s)
+		 * that have I/O RPC(s) in progress with a tranfer size
+		 * greater than NFS_MAXDGRAMDATA, those thread(s) will be
+		 * hung, retrying the RPC(s) forever. Usually these threads
+		 * will be seen doing an uninterruptible sleep on wait channel
+		 * "newnfsreq" (truncated to "newnfsre" by procstat).
+		 */
+		if (args.sotype == SOCK_DGRAM && nmp->nm_sotype == SOCK_STREAM)
+			tprintf(td->td_proc, LOG_WARNING,
+	"Warning: mount -u that changes TCP->UDP can result in hung threads\n");
+
 		/*
 		 * When doing an update, we can't change version,
 		 * security, switch lockd strategies or change cookie
@@ -1100,11 +1149,11 @@ nfs_mount(struct mount *mp)
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, krbname, krbnamelen, dirpath,
 	    dirlen, srvkrbname, srvkrbnamelen, &vp, td->td_ucred, td,
-	    negnametimeo);
+	    nametimeo, negnametimeo, minvers);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
-		mp->mnt_kern_flag |= (MNTK_MPSAFE|MNTK_LOOKUP_SHARED);
+		mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_NO_IOPF;
 		MNT_IUNLOCK(mp);
 	}
 	return (error);
@@ -1122,7 +1171,7 @@ out:
  */
 /* ARGSUSED */
 static int
-nfs_cmount(struct mntarg *ma, void *data, int flags)
+nfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	int error;
 	struct nfs_args args;
@@ -1144,14 +1193,20 @@ static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
     char *hst, u_char *krbname, int krbnamelen, u_char *dirpath, int dirlen,
     u_char *srvkrbname, int srvkrbnamelen, struct vnode **vpp,
-    struct ucred *cred, struct thread *td, int negnametimeo)
+    struct ucred *cred, struct thread *td, int nametimeo, int negnametimeo,
+    int minvers)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
 	int error, trycnt, ret;
 	struct nfsvattr nfsva;
+	struct nfsclclient *clp;
+	struct nfsclds *dsp, *tdsp;
+	uint32_t lease;
 	static u_int64_t clval = 0;
 
+	NFSCL_DEBUG(3, "in mnt\n");
+	clp = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
@@ -1211,8 +1266,26 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
-	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);			
+	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);
+
+	/*
+	 * Since nfs_decode_args() might optionally set them, these
+	 * need to be set to defaults before the call, so that the
+	 * optional settings aren't overwritten.
+	 */
+	nmp->nm_nametimeo = nametimeo;
 	nmp->nm_negnametimeo = negnametimeo;
+	nmp->nm_timeo = NFS_TIMEO;
+	nmp->nm_retry = NFS_RETRANS;
+	nmp->nm_readahead = NFS_DEFRAHEAD;
+	if (desiredvnodes >= 11000)
+		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
+	else
+		nmp->nm_wcommitsize = hibufspace / 10;
+	if ((argp->flags & NFSMNT_NFSV4) != 0)
+		nmp->nm_minorvers = minvers;
+	else
+		nmp->nm_minorvers = 0;
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
@@ -1223,24 +1296,18 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 *
 	 * For V3, ncl_fsinfo will adjust this as necessary.  Assume maximum
 	 * that we can handle until we find out otherwise.
-	 * XXX Our "safe" limit on the client is what we can store in our
-	 * buffer cache using signed(!) block numbers.
 	 */
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0)
 		nmp->nm_maxfilesize = 0xffffffffLL;
 	else
 		nmp->nm_maxfilesize = OFF_MAX;
 
-	nmp->nm_timeo = NFS_TIMEO;
-	nmp->nm_retry = NFS_RETRANS;
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0) {
 		nmp->nm_wsize = NFS_WSIZE;
 		nmp->nm_rsize = NFS_RSIZE;
 		nmp->nm_readdirsize = NFS_READDIRSIZE;
 	}
-	nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
 	nmp->nm_numgrps = NFS_MAXGRPS;
-	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_tprintf_delay = nfs_tprintf_delay;
 	if (nmp->nm_tprintf_delay < 0)
 		nmp->nm_tprintf_delay = 0;
@@ -1266,6 +1333,35 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	if ((error = newnfs_connect(nmp, &nmp->nm_sockreq, cred, td, 0)))
 		goto bad;
+	/* For NFSv4.1, get the clientid now. */
+	if (nmp->nm_minorvers > 0) {
+		NFSCL_DEBUG(3, "at getcl\n");
+		error = nfscl_getcl(mp, cred, td, 0, &clp);
+		NFSCL_DEBUG(3, "aft getcl=%d\n", error);
+		if (error != 0)
+			goto bad;
+	}
+
+	if (nmp->nm_fhsize == 0 && (nmp->nm_flag & NFSMNT_NFSV4) &&
+	    nmp->nm_dirpathlen > 0) {
+		NFSCL_DEBUG(3, "in dirp\n");
+		/*
+		 * If the fhsize on the mount point == 0 for V4, the mount
+		 * path needs to be looked up.
+		 */
+		trycnt = 3;
+		do {
+			error = nfsrpc_getdirpath(nmp, NFSMNT_DIRPATH(nmp),
+			    cred, td);
+			NFSCL_DEBUG(3, "aft dirp=%d\n", error);
+			if (error)
+				(void) nfs_catnap(PZERO, error, "nfsgetdirp");
+		} while (error && --trycnt > 0);
+		if (error) {
+			error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
+			goto bad;
+		}
+	}
 
 	/*
 	 * A reference count is needed on the nfsnode representing the
@@ -1275,24 +1371,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 * this problem, because one can identify root inodes by their
 	 * number == ROOTINO (2).
 	 */
-	if (nmp->nm_fhsize == 0 && (nmp->nm_flag & NFSMNT_NFSV4) &&
-	    nmp->nm_dirpathlen > 0) {
-		/*
-		 * If the fhsize on the mount point == 0 for V4, the mount
-		 * path needs to be looked up.
-		 */
-		trycnt = 3;
-		do {
-			error = nfsrpc_getdirpath(nmp, NFSMNT_DIRPATH(nmp),
-			    cred, td);
-			if (error)
-				(void) nfs_catnap(PZERO, error, "nfsgetdirp");
-		} while (error && --trycnt > 0);
-		if (error) {
-			error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
-			goto bad;
-		}
-	}
 	if (nmp->nm_fhsize > 0) {
 		/*
 		 * Set f_iosize to NFS_DIRBLKSIZ so that bo_bsize gets set
@@ -1312,7 +1390,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		 * (*vpp)->v_type with the correct value.
 		 */
 		ret = nfsrpc_getattrnovp(nmp, nmp->nm_fh, nmp->nm_fhsize, 1,
-		    cred, td, &nfsva, NULL);
+		    cred, td, &nfsva, NULL, &lease);
 		if (ret) {
 			/*
 			 * Just set default values to get things going.
@@ -1327,8 +1405,25 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			nfsva.na_vattr.va_gen = 1;
 			nfsva.na_vattr.va_blocksize = NFS_FABLKSIZE;
 			nfsva.na_vattr.va_size = 512 * 1024;
+			lease = 60;
 		}
 		(void) nfscl_loadattrcache(vpp, &nfsva, NULL, NULL, 0, 1);
+		if (nmp->nm_minorvers > 0) {
+			NFSCL_DEBUG(3, "lease=%d\n", (int)lease);
+			NFSLOCKCLSTATE();
+			clp->nfsc_renew = NFSCL_RENEW(lease);
+			clp->nfsc_expire = NFSD_MONOSEC + clp->nfsc_renew;
+			clp->nfsc_clientidrev++;
+			if (clp->nfsc_clientidrev == 0)
+				clp->nfsc_clientidrev++;
+			NFSUNLOCKCLSTATE();
+			/*
+			 * Mount will succeed, so the renew thread can be
+			 * started now.
+			 */
+			nfscl_start_renewthread(clp);
+			nfscl_clientrelease(clp);
+		}
 		if (argp->flags & NFSMNT_NFSV3)
 			ncl_fsinfo(nmp, *vpp, cred, td);
 	
@@ -1350,10 +1445,20 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	error = EIO;
 
 bad:
+	if (clp != NULL)
+		nfscl_clientrelease(clp);
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
+	if (nmp->nm_clp != NULL) {
+		NFSLOCKCLSTATE();
+		LIST_REMOVE(nmp->nm_clp, nfsc_list);
+		NFSUNLOCKCLSTATE();
+		free(nmp->nm_clp, M_NFSCLCLIENT);
+	}
+	TAILQ_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
+		nfscl_freenfsclds(dsp);
 	FREE(nmp, M_NEWNFSMNT);
 	FREE(nam, M_SONAME);
 	return (error);
@@ -1368,6 +1473,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 	struct thread *td;
 	struct nfsmount *nmp;
 	int error, flags = 0, trycnt = 0;
+	struct nfsclds *dsp, *tdsp;
 
 	td = curthread;
 
@@ -1408,6 +1514,8 @@ nfs_unmount(struct mount *mp, int mntflags)
 
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
+	TAILQ_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
+		nfscl_freenfsclds(dsp);
 	FREE(nmp, M_NEWNFSMNT);
 out:
 	return (error);
@@ -1468,24 +1576,21 @@ nfs_sync(struct mount *mp, int waitfor)
 		MNT_IUNLOCK(mp);
 		return (EBADF);
 	}
+	MNT_IUNLOCK(mp);
 
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
 loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/* XXX Racy bv_cnt check. */
 		if (NFSVOPISLOCKED(vp) || vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		error = VOP_FSYNC(vp, waitfor, td);
@@ -1493,10 +1598,7 @@ loop:
 			allerror = error;
 		NFSVOPUNLOCK(vp, 0);
 		vrele(vp);
-
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (allerror);
 }
 
@@ -1591,5 +1693,113 @@ nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, size_t *fhlenp,
 		timeop->tv_sec = nmp->nm_timeo / NFS_HZ;
 		timeop->tv_usec = (nmp->nm_timeo % NFS_HZ) * (1000000 / NFS_HZ);
 	}
+}
+
+/*
+ * This function prints out an option name, based on the conditional
+ * argument.
+ */
+static __inline void nfscl_printopt(struct nfsmount *nmp, int testval,
+    char *opt, char **buf, size_t *blen)
+{
+	int len;
+
+	if (testval != 0 && *blen > strlen(opt)) {
+		len = snprintf(*buf, *blen, "%s", opt);
+		if (len != strlen(opt))
+			printf("EEK!!\n");
+		*buf += len;
+		*blen -= len;
+	}
+}
+
+/*
+ * This function printf out an options integer value.
+ */
+static __inline void nfscl_printoptval(struct nfsmount *nmp, int optval,
+    char *opt, char **buf, size_t *blen)
+{
+	int len;
+
+	if (*blen > strlen(opt) + 1) {
+		/* Could result in truncated output string. */
+		len = snprintf(*buf, *blen, "%s=%d", opt, optval);
+		if (len < *blen) {
+			*buf += len;
+			*blen -= len;
+		}
+	}
+}
+
+/*
+ * Load the option flags and values into the buffer.
+ */
+void nfscl_retopts(struct nfsmount *nmp, char *buffer, size_t buflen)
+{
+	char *buf;
+	size_t blen;
+
+	buf = buffer;
+	blen = buflen;
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NFSV4) != 0, "nfsv4", &buf,
+	    &blen);
+	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0) {
+		nfscl_printoptval(nmp, nmp->nm_minorvers, ",minorversion", &buf,
+		    &blen);
+		nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_PNFS) != 0, ",pnfs",
+		    &buf, &blen);
+	}
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NFSV3) != 0, "nfsv3", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0,
+	    "nfsv2", &buf, &blen);
+	nfscl_printopt(nmp, nmp->nm_sotype == SOCK_STREAM, ",tcp", &buf, &blen);
+	nfscl_printopt(nmp, nmp->nm_sotype != SOCK_STREAM, ",udp", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_RESVPORT) != 0, ",resvport",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCONN) != 0, ",noconn",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_SOFT) == 0, ",hard", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_SOFT) != 0, ",soft", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_INT) != 0, ",intr", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCTO) == 0, ",cto", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCTO) != 0, ",nocto", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==
+	    0, ",lockd", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==
+	    NFSMNT_NOLOCKD, ",nolockd", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_RDIRPLUS) != 0, ",rdirplus",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_KERB) == 0, ",sec=sys",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_KERB | NFSMNT_INTEGRITY |
+	    NFSMNT_PRIVACY)) == NFSMNT_KERB, ",sec=krb5", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_KERB | NFSMNT_INTEGRITY |
+	    NFSMNT_PRIVACY)) == (NFSMNT_KERB | NFSMNT_INTEGRITY), ",sec=krb5i",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_KERB | NFSMNT_INTEGRITY |
+	    NFSMNT_PRIVACY)) == (NFSMNT_KERB | NFSMNT_PRIVACY), ",sec=krb5p",
+	    &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acdirmin, ",acdirmin", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acdirmax, ",acdirmax", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acregmin, ",acregmin", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acregmax, ",acregmax", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_nametimeo, ",nametimeo", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_negnametimeo, ",negnametimeo", &buf,
+	    &blen);
+	nfscl_printoptval(nmp, nmp->nm_rsize, ",rsize", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_wsize, ",wsize", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_readdirsize, ",readdirsize", &buf,
+	    &blen);
+	nfscl_printoptval(nmp, nmp->nm_readahead, ",readahead", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_wcommitsize, ",wcommitsize", &buf,
+	    &blen);
+	nfscl_printoptval(nmp, nmp->nm_timeo, ",timeout", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_retry, ",retrans", &buf, &blen);
 }
 

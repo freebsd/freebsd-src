@@ -1,4 +1,4 @@
-//===-- ARM.h - Top-level interface for ARM representation---- --*- C++ -*-===//
+//===-- ARM.h - Top-level interface for ARM representation ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,9 +18,7 @@
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetMachine.h"
-#include <cassert>
 
 namespace llvm {
 
@@ -39,6 +37,7 @@ FunctionPass *createARMJITCodeEmitterPass(ARMBaseTargetMachine &TM,
 
 FunctionPass *createARMLoadStoreOptimizationPass(bool PreAlloc = false);
 FunctionPass *createARMExpandPseudoPass();
+FunctionPass *createARMGlobalBaseRegPass();
 FunctionPass *createARMGlobalMergePass(const TargetLowering* tli);
 FunctionPass *createARMConstantIslandPass();
 FunctionPass *createMLxExpansionPass();

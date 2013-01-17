@@ -317,7 +317,7 @@ usb_dump(struct usb_device_id *id, uint32_t nid)
 		printf("	match \"intprotocol\" \"0x%02x\";\n",
 		    id->bInterfaceProtocol);
 	}
-	printf("	action \"kldload %s\";\n"
+	printf("	action \"kldload -n %s\";\n"
 	    "};\n\n", id->module_name);
 
 	return (n);

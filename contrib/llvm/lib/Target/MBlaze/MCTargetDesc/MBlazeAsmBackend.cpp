@@ -27,7 +27,7 @@ using namespace llvm;
 
 static unsigned getFixupKindSize(unsigned Kind) {
   switch (Kind) {
-  default: assert(0 && "invalid fixup kind!");
+  default: llvm_unreachable("invalid fixup kind!");
   case FK_Data_1: return 1;
   case FK_PCRel_2:
   case FK_Data_2: return 2;
@@ -39,12 +39,6 @@ static unsigned getFixupKindSize(unsigned Kind) {
 
 
 namespace {
-class MBlazeELFObjectWriter : public MCELFObjectTargetWriter {
-public:
-  MBlazeELFObjectWriter(Triple::OSType OSType)
-    : MCELFObjectTargetWriter(/*is64Bit*/ false, OSType, ELF::EM_MBLAZE,
-                              /*HasRelocationAddend*/ true) {}
-};
 
 class MBlazeAsmBackend : public MCAsmBackend {
 public:
@@ -56,11 +50,16 @@ public:
     return 2;
   }
 
-  bool MayNeedRelaxation(const MCInst &Inst) const;
+  bool mayNeedRelaxation(const MCInst &Inst) const;
 
-  void RelaxInstruction(const MCInst &Inst, MCInst &Res) const;
+  bool fixupNeedsRelaxation(const MCFixup &Fixup,
+                            uint64_t Value,
+                            const MCInstFragment *DF,
+                            const MCAsmLayout &Layout) const;
 
-  bool WriteNopData(uint64_t Count, MCObjectWriter *OW) const;
+  void relaxInstruction(const MCInst &Inst, MCInst &Res) const;
+
+  bool writeNopData(uint64_t Count, MCObjectWriter *OW) const;
 
   unsigned getPointerSize() const {
     return 4;
@@ -76,7 +75,7 @@ static unsigned getRelaxedOpcode(unsigned Op) {
     }
 }
 
-bool MBlazeAsmBackend::MayNeedRelaxation(const MCInst &Inst) const {
+bool MBlazeAsmBackend::mayNeedRelaxation(const MCInst &Inst) const {
   if (getRelaxedOpcode(Inst.getOpcode()) == Inst.getOpcode())
     return false;
 
@@ -87,12 +86,24 @@ bool MBlazeAsmBackend::MayNeedRelaxation(const MCInst &Inst) const {
   return hasExprOrImm;
 }
 
-void MBlazeAsmBackend::RelaxInstruction(const MCInst &Inst, MCInst &Res) const {
+bool MBlazeAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup,
+                                            uint64_t Value,
+                                            const MCInstFragment *DF,
+                                            const MCAsmLayout &Layout) const {
+  // FIXME: Is this right? It's what the "generic" code was doing before,
+  // but is X86 specific. Is it actually true for MBlaze also, or was it
+  // just close enough to not be a big deal?
+  //
+  // Relax if the value is too big for a (signed) i8.
+  return int64_t(Value) != int64_t(int8_t(Value));
+}
+
+void MBlazeAsmBackend::relaxInstruction(const MCInst &Inst, MCInst &Res) const {
   Res = Inst;
   Res.setOpcode(getRelaxedOpcode(Inst.getOpcode()));
 }
 
-bool MBlazeAsmBackend::WriteNopData(uint64_t Count, MCObjectWriter *OW) const {
+bool MBlazeAsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
   if ((Count % 4) != 0)
     return false;
 
@@ -106,20 +117,19 @@ bool MBlazeAsmBackend::WriteNopData(uint64_t Count, MCObjectWriter *OW) const {
 namespace {
 class ELFMBlazeAsmBackend : public MBlazeAsmBackend {
 public:
-  Triple::OSType OSType;
-  ELFMBlazeAsmBackend(const Target &T, Triple::OSType _OSType)
-    : MBlazeAsmBackend(T), OSType(_OSType) { }
+  uint8_t OSABI;
+  ELFMBlazeAsmBackend(const Target &T, uint8_t _OSABI)
+    : MBlazeAsmBackend(T), OSABI(_OSABI) { }
 
-  void ApplyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
                   uint64_t Value) const;
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    return createELFObjectWriter(new MBlazeELFObjectWriter(OSType), OS,
-                                 /*IsLittleEndian*/ false);
+    return createMBlazeELFObjectWriter(OS, OSABI);
   }
 };
 
-void ELFMBlazeAsmBackend::ApplyFixup(const MCFixup &Fixup, char *Data,
+void ELFMBlazeAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
                                      unsigned DataSize, uint64_t Value) const {
   unsigned Size = getFixupKindSize(Fixup.getKind());
 
@@ -146,7 +156,8 @@ void ELFMBlazeAsmBackend::ApplyFixup(const MCFixup &Fixup, char *Data,
 }
 } // end anonymous namespace
 
-MCAsmBackend *llvm::createMBlazeAsmBackend(const Target &T, StringRef TT) {
+MCAsmBackend *llvm::createMBlazeAsmBackend(const Target &T, StringRef TT,
+                                           StringRef CPU) {
   Triple TheTriple(TT);
 
   if (TheTriple.isOSDarwin())
@@ -155,5 +166,6 @@ MCAsmBackend *llvm::createMBlazeAsmBackend(const Target &T, StringRef TT) {
   if (TheTriple.isOSWindows())
     assert(0 && "Windows not supported on MBlaze");
 
-  return new ELFMBlazeAsmBackend(T, TheTriple.getOS());
+  uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());
+  return new ELFMBlazeAsmBackend(T, OSABI);
 }

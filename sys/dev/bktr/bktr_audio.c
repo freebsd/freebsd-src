@@ -498,7 +498,7 @@ void msp_autodetect( bktr_ptr_t bktr ) {
   }
 
 
-  /* MSP3415D SPECIAL CASE Use the Tuner's Mono audio ouput for the MSP */
+  /* MSP3415D SPECIAL CASE Use the Tuner's Mono audio output for the MSP */
   /* (for Hauppauge 44xxx card with Tuner Type 0x2a) */
   else if (  ( (strncmp("3415D", bktr->msp_version_string, 5) == 0)
                &&(bktr->msp_use_mono_source == 1)

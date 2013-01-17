@@ -51,11 +51,6 @@
 
 /* BEGIN: these are going away */
 
-#define	SR_KSU_MASK		0x00000018
-#define	SR_KSU_USER		0x00000010
-#define	SR_KSU_SUPER		0x00000008
-#define	SR_KSU_KERNEL		0x00000000
-
 #define	soft_int_mask(softintr)	(1 << ((softintr) + 8))
 #define	hard_int_mask(hardintr)	(1 << ((hardintr) + 10))
 
@@ -69,7 +64,7 @@
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 
-#define	TRAPF_USERMODE(framep)  (((framep)->sr & SR_KSU_USER) != 0)
+#define	TRAPF_USERMODE(framep)  (((framep)->sr & MIPS_SR_KSU_USER) != 0)
 #define	TRAPF_PC(framep)	((framep)->pc)
 #define	cpu_getstack(td)	((td)->td_frame->sp)
 #define	cpu_setstack(td, nsp)	((td)->td_frame->sp = (nsp))

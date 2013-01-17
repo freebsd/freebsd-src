@@ -1,4 +1,4 @@
-//===- SPURegisterInfo.h - Cell SPU Register Information Impl ----*- C++ -*-==//
+//===-- SPURegisterInfo.h - Cell SPU Register Information Impl --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -46,7 +46,7 @@ namespace llvm {
     /// getPointerRegClass - Return the register class to use to hold pointers.
     /// This is used for addressing modes.
     virtual const TargetRegisterClass *
-    getPointerRegClass(unsigned Kind = 0) const;
+    getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
 
     /// After allocating this many registers, the allocator should feel
     /// register pressure. The value is a somewhat random guess, based on the
@@ -57,10 +57,15 @@ namespace llvm {
     }
 
     //! Return the array of callee-saved registers
-    virtual const unsigned* getCalleeSavedRegs(const MachineFunction *MF) const;
+    virtual const uint16_t* getCalleeSavedRegs(const MachineFunction *MF) const;
 
     //! Allow for scavenging, so we can get scratch registers when needed.
     virtual bool requiresRegisterScavenging(const MachineFunction &MF) const
+    { return true; }
+
+    //! Enable tracking of liveness after register allocation, since register
+    // scavenging is enabled.
+    virtual bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const
     { return true; }
 
     //! Return the reserved registers

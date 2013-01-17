@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2001
+.Dd January 19, 2012
 .Dt DEV_MODULE 9
 .Os
 .Sh NAME
@@ -68,7 +68,7 @@ on load and to destroy it when it is unloaded using
 
 static struct cdevsw foo_devsw = { ... };
 
-static dev_t sdev;
+static struct cdev *sdev;
 
 static int
 foo_load(module_t mod, int cmd, void *arg)

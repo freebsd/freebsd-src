@@ -101,19 +101,20 @@
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
 #include <ctype.h>
+#include <devstat.h>
+#include <err.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <kvm.h>
+#include <limits.h>
+#include <math.h>
 #include <nlist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include <limits.h>
-#include <devstat.h>
-#include <math.h>
 
 struct nlist namelist[] = {
 #define X_TK_NIN	0
@@ -730,10 +731,10 @@ devstats(int perf_select, long double etime, int havelast)
 	u_int64_t total_bytes, total_transfers, total_blocks;
 	u_int64_t total_bytes_read, total_transfers_read;
 	u_int64_t total_bytes_write, total_transfers_write;
-	long double busy_pct;
+	long double busy_pct, busy_time;
 	u_int64_t queue_len;
 	long double total_mb;
-	long double blocks_per_second, ms_per_transaction;
+	long double blocks_per_second, ms_per_transaction, total_duration;
 	int firstline = 1;
 	char *devname;
 
@@ -744,14 +745,13 @@ devstats(int perf_select, long double etime, int havelast)
 		if (Cflag > 0)
 			printf("           cpu ");
 		printf("\n");
-		if (Iflag == 0)
-			printf(
-		"device     r/s   w/s    kr/s    kw/s qlen svc_t  %%b  "
-			    );
-		else
-			printf(
-		"device     r/i   w/i    kr/i    kw/i qlen svc_t  %%b  "
-			    );
+		if (Iflag == 0) {
+			printf("device     r/s   w/s    kr/s    kw/s qlen "
+			    "svc_t  %%b  ");
+		} else {
+			printf("device           r/i         w/i         kr/i"
+			    "         kw/i qlen   tsvc_t/i      sb/i  ");
+		}
 		if (Tflag > 0)
 			printf("tin  tout ");
 		if (Cflag > 0)
@@ -788,6 +788,8 @@ devstats(int perf_select, long double etime, int havelast)
 		    DSM_MS_PER_TRANSACTION, &ms_per_transaction,
 		    DSM_BUSY_PCT, &busy_pct,
 		    DSM_QUEUE_LENGTH, &queue_len,
+		    DSM_TOTAL_DURATION, &total_duration,
+		    DSM_TOTAL_BUSY_TIME, &busy_time,
 		    DSM_NONE) != 0)
 			errx(1, "%s", devstat_errbuf);
 
@@ -818,7 +820,7 @@ devstats(int perf_select, long double etime, int havelast)
 			    mb_per_second_write > ((long double).0005)/1024 ||
 			    busy_pct > 0.5) {
 				if (Iflag == 0)
-					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
+					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4" PRIu64 " %5.1Lf %3.0Lf ",
 					    devname, transfers_per_second_read,
 					    transfers_per_second_write,
 					    mb_per_second_read * 1024,
@@ -826,7 +828,9 @@ devstats(int perf_select, long double etime, int havelast)
 					    queue_len,
 					    ms_per_transaction, busy_pct);
 				else
-					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
+					printf("%-8.8s %11.1Lf %11.1Lf "
+					    "%12.1Lf %12.1Lf %4" PRIu64
+					    " %10.1Lf %9.1Lf ",
 					    devname,
 					    (long double)total_transfers_read,
 					    (long double)total_transfers_write,
@@ -835,7 +839,7 @@ devstats(int perf_select, long double etime, int havelast)
 					    (long double)
 					        total_bytes_write / 1024,
 					    queue_len,
-					    ms_per_transaction, busy_pct);
+					    total_duration, busy_time);
 				if (firstline) {
 					/*
 					 * If this is the first device
@@ -863,7 +867,7 @@ devstats(int perf_select, long double etime, int havelast)
 				       msdig,
 				       ms_per_transaction);
 			else
-				printf("%4.1qu%4.1qu%5.*Lf ",
+				printf("%4.1" PRIu64 "%4.1" PRIu64 "%5.*Lf ",
 				       total_blocks,
 				       total_transfers,
 				       msdig,
@@ -878,7 +882,7 @@ devstats(int perf_select, long double etime, int havelast)
 				total_mb = total_bytes;
 				total_mb /= 1024 * 1024;
 
-				printf(" %5.2Lf %3.1qu %5.2Lf ",
+				printf(" %5.2Lf %3.1" PRIu64 " %5.2Lf ",
 				       kb_per_transfer,
 				       total_transfers,
 				       total_mb);

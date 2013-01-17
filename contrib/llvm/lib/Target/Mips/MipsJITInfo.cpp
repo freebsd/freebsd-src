@@ -1,4 +1,4 @@
-//===- MipsJITInfo.cpp - Implement the JIT interfaces for the Mips target -===//
+//===-- MipsJITInfo.cpp - Implement the Mips JIT Interface ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -27,7 +27,52 @@ using namespace llvm;
 
 
 void MipsJITInfo::replaceMachineCodeForFunction(void *Old, void *New) {
-  report_fatal_error("MipsJITInfo::replaceMachineCodeForFunction");
+  unsigned NewAddr = (intptr_t)New;
+  unsigned OldAddr = (intptr_t)Old;
+  const unsigned NopInstr = 0x0;
+
+  // If the functions are in the same memory segment, insert PC-region branch.
+  if ((NewAddr & 0xF0000000) == ((OldAddr + 4) & 0xF0000000)) {
+    unsigned *OldInstruction = (unsigned *)Old;
+    *OldInstruction = 0x08000000;
+    unsigned JTargetAddr = NewAddr & 0x0FFFFFFC;
+
+    JTargetAddr >>= 2;
+    *OldInstruction |= JTargetAddr;
+
+    // Insert a NOP.
+    OldInstruction++;
+    *OldInstruction = NopInstr;
+
+    sys::Memory::InvalidateInstructionCache(Old, 2 * 4);
+  } else {
+    // We need to clear hint bits from the instruction, in case it is 'jr ra'.
+    const unsigned HintMask = 0xFFFFF83F, ReturnSequence = 0x03e00008;
+    unsigned* CurrentInstr = (unsigned*)Old;
+    unsigned CurrInstrHintClear = (*CurrentInstr) & HintMask;
+    unsigned* NextInstr = CurrentInstr + 1;
+    unsigned NextInstrHintClear = (*NextInstr) & HintMask;
+
+    // Do absolute jump if there are 2 or more instructions before return from
+    // the old function.
+    if ((CurrInstrHintClear != ReturnSequence) &&
+        (NextInstrHintClear != ReturnSequence)) {
+      const unsigned LuiT0Instr = 0x3c080000, AddiuT0Instr = 0x25080000;
+      const unsigned JrT0Instr = 0x01000008;
+      // lui  t0,  high 16 bit of the NewAddr
+      (*(CurrentInstr++)) = LuiT0Instr | ((NewAddr & 0xffff0000) >> 16);
+      // addiu  t0, t0, low 16 bit of the NewAddr
+      (*(CurrentInstr++)) = AddiuT0Instr | (NewAddr & 0x0000ffff);
+      // jr t0
+      (*(CurrentInstr++)) = JrT0Instr;
+      (*CurrentInstr) = NopInstr;
+
+      sys::Memory::InvalidateInstructionCache(Old, 4 * 4);
+    } else {
+      // Unsupported case
+      report_fatal_error("MipsJITInfo::replaceMachineCodeForFunction");
+    }
+  }
 }
 
 /// JITCompilerFunction - This contains the address of the JIT function used to
@@ -57,11 +102,11 @@ void MipsCompilationCallback();
     ".globl " ASMPREFIX "MipsCompilationCallback\n"
     ASMPREFIX "MipsCompilationCallback:\n"
     ".ent " ASMPREFIX "MipsCompilationCallback\n"
-    ".frame  $29, 32, $31\n"
+    ".frame  $sp, 32, $ra\n"
     ".set  noreorder\n"
     ".cpload $t9\n"
 
-    "addiu $sp, $sp, -60\n"
+    "addiu $sp, $sp, -64\n"
     ".cprestore 16\n"
 
     // Save argument registers a0, a1, a2, a3, f12, f14 since they may contain
@@ -76,8 +121,8 @@ void MipsCompilationCallback();
     "sw $a3, 32($sp)\n"
     "sw $ra, 36($sp)\n"
     "sw $t8, 40($sp)\n"
-    "sdc1 $f12, 44($sp)\n"
-    "sdc1 $f14, 52($sp)\n"
+    "sdc1 $f12, 48($sp)\n"
+    "sdc1 $f14, 56($sp)\n"
 
     // t8 points at the end of function stub. Pass the beginning of the stub
     // to the MipsCompilationCallbackC.
@@ -92,9 +137,9 @@ void MipsCompilationCallback();
     "lw $a3, 32($sp)\n"
     "lw $ra, 36($sp)\n"
     "lw $t8, 40($sp)\n"
-    "ldc1 $f12, 44($sp)\n"
-    "ldc1 $f14, 52($sp)\n"
-    "addiu $sp, $sp, 60\n"
+    "ldc1 $f12, 48($sp)\n"
+    "ldc1 $f14, 56($sp)\n"
+    "addiu $sp, $sp, 64\n"
 
     // Jump to the (newly modified) stub to invoke the real function.
     "addiu $t8, $t8, -16\n"
@@ -154,8 +199,8 @@ TargetJITInfo::StubLayout MipsJITInfo::getStubLayout() {
   return Result;
 }
 
-void *MipsJITInfo::emitFunctionStub(const Function* F, void *Fn,
-    JITCodeEmitter &JCE) {
+void *MipsJITInfo::emitFunctionStub(const Function *F, void *Fn,
+                                    JITCodeEmitter &JCE) {
   JCE.emitAlignment(4);
   void *Addr = (void*) (JCE.getCurrentPCValue());
   if (!sys::Memory::setRangeWritable(Addr, 16))
@@ -177,10 +222,17 @@ void *MipsJITInfo::emitFunctionStub(const Function* F, void *Fn,
   // addiu t9, t9, %lo(EmittedAddr)
   // jalr t8, t9
   // nop
-  JCE.emitWordLE(0xf << 26 | 25 << 16 | Hi);
-  JCE.emitWordLE(9 << 26 | 25 << 21 | 25 << 16 | Lo);
-  JCE.emitWordLE(25 << 21 | 24 << 11 | 9);
-  JCE.emitWordLE(0);
+  if (IsLittleEndian) {
+    JCE.emitWordLE(0xf << 26 | 25 << 16 | Hi);
+    JCE.emitWordLE(9 << 26 | 25 << 21 | 25 << 16 | Lo);
+    JCE.emitWordLE(25 << 21 | 24 << 11 | 9);
+    JCE.emitWordLE(0);
+  } else {
+    JCE.emitWordBE(0xf << 26 | 25 << 16 | Hi);
+    JCE.emitWordBE(9 << 26 | 25 << 21 | 25 << 16 | Lo);
+    JCE.emitWordBE(25 << 21 | 24 << 11 | 9);
+    JCE.emitWordBE(0);
+  }
 
   sys::Memory::InvalidateInstructionCache(Addr, 16);
   if (!sys::Memory::setRangeExecutable(Addr, 16))
@@ -193,14 +245,14 @@ void *MipsJITInfo::emitFunctionStub(const Function* F, void *Fn,
 /// it must rewrite the code to contain the actual addresses of any
 /// referenced global symbols.
 void MipsJITInfo::relocate(void *Function, MachineRelocation *MR,
-    unsigned NumRelocs, unsigned char* GOTBase) {
+                           unsigned NumRelocs, unsigned char *GOTBase) {
   for (unsigned i = 0; i != NumRelocs; ++i, ++MR) {
 
     void *RelocPos = (char*) Function + MR->getMachineCodeOffset();
     intptr_t ResultPtr = (intptr_t) MR->getResultPointer();
 
     switch ((Mips::RelocationType) MR->getRelocationType()) {
-    case Mips::reloc_mips_branch:
+    case Mips::reloc_mips_pc16:
       ResultPtr = (((ResultPtr - (intptr_t) RelocPos) - 4) >> 2) & 0xffff;
       *((unsigned*) RelocPos) |= (unsigned) ResultPtr;
       break;
@@ -218,13 +270,16 @@ void MipsJITInfo::relocate(void *Function, MachineRelocation *MR,
       *((unsigned*) RelocPos) |= (unsigned) ResultPtr;
       break;
 
-    case Mips::reloc_mips_lo:
-      ResultPtr = ResultPtr & 0xffff;
+    case Mips::reloc_mips_lo: {
+      // Addend is needed for unaligned load/store instructions, where offset
+      // for the second load/store in the expanded instruction sequence must
+      // be modified by +1 or +3. Otherwise, Addend is 0.
+      int Addend = *((unsigned*) RelocPos) & 0xffff;
+      ResultPtr = (ResultPtr + Addend) & 0xffff;
+      *((unsigned*) RelocPos) &= 0xffff0000;
       *((unsigned*) RelocPos) |= (unsigned) ResultPtr;
       break;
-
-    default:
-      llvm_unreachable("ERROR: Unknown Mips relocation.");
+    }
     }
   }
 }

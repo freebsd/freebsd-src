@@ -48,9 +48,9 @@
  * __FreeBSD_version numbers are documented in the Porter's Handbook.
  * If you bump the version for any reason, you should update the documentation
  * there.
- * Currently this lives here:
+ * Currently this lives here in the doc/ repository:
  *
- *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
+ *	head/en_US.ISO8859-1/books/porters-handbook/book.xml
  *
  * scheme is:  <major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
@@ -58,7 +58,23 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1000000	/* Master, propagated to newvers */
+#define __FreeBSD_version 1000026	/* Master, propagated to newvers */
+
+/*
+ * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
+ * which by definition is always true on FreeBSD. This macro is also defined
+ * on other systems that use the kernel of FreeBSD, such as GNU/kFreeBSD.
+ *
+ * It is tempting to use this macro in userland code when we want to enable
+ * kernel-specific routines, and in fact it's fine to do this in code that
+ * is part of FreeBSD itself.  However, be aware that as presence of this
+ * macro is still not widespread (e.g. older FreeBSD versions, 3rd party
+ * compilers, etc), it is STRONGLY DISCOURAGED to check for this macro in
+ * external applications without also checking for __FreeBSD__ as an
+ * alternative.
+ */
+#undef __FreeBSD_kernel__
+#define __FreeBSD_kernel__
 
 #ifdef _KERNEL
 #define	P_OSREL_SIGWAIT		700000
@@ -80,7 +96,7 @@
 
 #define	MAXCOMLEN	19		/* max command name remembered */
 #define	MAXINTERP	PATH_MAX	/* max interpreter file name length */
-#define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
+#define	MAXLOGNAME	33		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
 #define	NGROUPS		(NGROUPS_MAX+1)	/* max number groups */
@@ -257,7 +273,9 @@
 #ifndef howmany
 #define	howmany(x, y)	(((x)+((y)-1))/(y))
 #endif
+#define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define	rounddown(x, y)	(((x)/(y))*(y))
+#define	rounddown2(x, y) ((x)&(~((y)-1)))          /* if y is power of two */
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))  /* to any y */
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 #define powerof2(x)	((((x)-1)&(x))==0)
@@ -314,8 +332,7 @@ __END_DECLS
 	((db) << (PAGE_SHIFT - DEV_BSHIFT))
 
 /*
- * Given the pointer x to the member m of the struct s, return
- * a pointer to the containing structure.
+ * Old spelling of __containerof().
  */
 #define	member2struct(s, m, x)						\
 	((struct s *)(void *)((char *)(x) - offsetof(struct s, m)))
@@ -324,6 +341,6 @@ __END_DECLS
  * Access a variable length array that has been declared as a fixed
  * length array.
  */
-#define __PAST_END(array, offset) (((typeof(*(array)) *)(array))[offset])
+#define __PAST_END(array, offset) (((__typeof__(*(array)) *)(array))[offset])
 
 #endif	/* _SYS_PARAM_H_ */

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2011
+.Dd December 23, 2012
 .Dt NFSV4 4
 .Os
 .Sh NAME
@@ -98,6 +98,8 @@ allows a limited subset of operations to be performed on non-exported subtrees
 of the local file system, so that traversal of the tree to the exported
 subtrees is possible.
 As such, the ``<rootdir>'' can be in a non-exported file system.
+The exception is ZFS, which checks exports and, as such, all ZFS file systems
+below the ``<rootdir>'' must be exported.
 However,
 the entire tree that is rooted at that point must be in local file systems
 that are of types that can be NFS exported.
@@ -152,7 +154,6 @@ However, if you run
 with RPCSEC_GSS (sec=krb5, krb5i, krb5p), only names and KerberosV tickets
 will go on the wire.
 .Sh SERVER SETUP
-.Pp
 To set up the NFS server that supports
 .Nm ,
 you will need to either set the variables in
@@ -219,7 +220,6 @@ must be specified in the kernel's
 .Xr config 5
 file.
 .Sh CLIENT MOUNTS
-.Pp
 To do an
 .Nm
 mount, specify the ``nfsv4'' option on the
@@ -301,7 +301,7 @@ backup copy of the file
 .Xr nfsd 8 ,
 .Xr nfsdumpstate 8 ,
 .Xr nfsrevoke 8 ,
-.Xr nfsuserd 8 ,
+.Xr nfsuserd 8
 .Sh BUGS
 At this time, there is no recall of delegations for local file system
 operations.

@@ -115,7 +115,7 @@ struct pkthdr {
 	/* variables for ip and tcp reassembly */
 	void		*header;	/* pointer to packet header */
 	int		 len;		/* total packet length */
-	uint32_t	 flowid;	/* packet's 4-tuple system 
+	uint32_t	 flowid;	/* packet's 4-tuple system
 					 * flow identifier
 					 */
 	/* variables for hardware checksum */
@@ -279,19 +279,27 @@ struct mbuf {
 #define	CSUM_IP			0x0001		/* will csum IP */
 #define	CSUM_TCP		0x0002		/* will csum TCP */
 #define	CSUM_UDP		0x0004		/* will csum UDP */
-#define	CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
 #define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
 #define	CSUM_TSO		0x0020		/* will do TSO */
 #define	CSUM_SCTP		0x0040		/* will csum SCTP */
+#define CSUM_SCTP_IPV6		0x0080		/* will csum IPv6/SCTP */
 
 #define	CSUM_IP_CHECKED		0x0100		/* did csum IP */
 #define	CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
 #define	CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
 #define	CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
 #define	CSUM_SCTP_VALID		0x1000		/* SCTP checksum is valid */
+#define	CSUM_UDP_IPV6		0x2000		/* will csum IPv6/UDP */
+#define	CSUM_TCP_IPV6		0x4000		/* will csum IPv6/TCP */
+/*	CSUM_TSO_IPV6		0x8000		will do IPv6/TSO */
+
+/*	CSUM_FRAGMENT_IPV6	0x10000		will do IPv6 fragementation */
+
+#define	CSUM_DELAY_DATA_IPV6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
+#define	CSUM_DATA_VALID_IPV6	CSUM_DATA_VALID
 
 #define	CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
-#define	CSUM_DELAY_IP		(CSUM_IP)	/* XXX add ipv6 here too? */
+#define	CSUM_DELAY_IP		(CSUM_IP)	/* Only v4, no v6 IP hdr csum */
 
 /*
  * mbuf types.
@@ -338,18 +346,7 @@ struct mbstat {
 };
 
 /*
- * Flags specifying how an allocation should be made.
- *
- * The flag to use is as follows:
- * - M_DONTWAIT or M_NOWAIT from an interrupt handler to not block allocation.
- * - M_WAIT or M_WAITOK from wherever it is safe to block.
- *
- * M_DONTWAIT/M_NOWAIT means that we will not block the thread explicitly and
- * if we cannot allocate immediately we may return NULL, whereas
- * M_WAIT/M_WAITOK means that if we cannot allocate resources we
- * will block until they are available, and thus never return NULL.
- *
- * XXX Eventually just phase this out to use M_WAITOK/M_NOWAIT.
+ * Compatibility with historic mbuf allocator.
  */
 #define	MBTOM(how)	(how)
 #define	M_DONTWAIT	M_NOWAIT
@@ -387,7 +384,7 @@ struct mbstat {
  *
  * The rest of it is defined in kern/kern_mbuf.c
  */
-
+extern quad_t		maxmbufmem;
 extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
 extern uma_zone_t	zone_pack;
@@ -398,6 +395,8 @@ extern uma_zone_t	zone_ext_refcnt;
 
 static __inline struct mbuf	*m_getcl(int how, short type, int flags);
 static __inline struct mbuf	*m_get(int how, short type);
+static __inline struct mbuf	*m_get2(int how, short type, int flags,
+				    u_int size);
 static __inline struct mbuf	*m_gethdr(int how, short type);
 static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
 				    int size);
@@ -416,7 +415,7 @@ static __inline int
 m_gettype(int size)
 {
 	int type;
-	
+
 	switch (size) {
 	case MSIZE:
 		type = EXT_MBUF;
@@ -436,7 +435,7 @@ m_gettype(int size)
 		type = EXT_JUMBO16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster size", __func__);
+		panic("%s: invalid cluster size", __func__);
 	}
 
 	return (type);
@@ -446,11 +445,8 @@ static __inline uma_zone_t
 m_getzone(int size)
 {
 	uma_zone_t zone;
-	
+
 	switch (size) {
-	case MSIZE:
-		zone = zone_mbuf;
-		break;
 	case MCLBYTES:
 		zone = zone_clust;
 		break;
@@ -466,7 +462,7 @@ m_getzone(int size)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster type", __func__);
+		panic("%s: invalid cluster size", __func__);
 	}
 
 	return (zone);
@@ -547,6 +543,52 @@ m_getcl(int how, short type, int flags)
 }
 
 /*
+ * m_get2() allocates minimum mbuf that would fit "size" argument.
+ *
+ * XXX: This is rather large, should be real function maybe.
+ */
+static __inline struct mbuf *
+m_get2(int how, short type, int flags, u_int size)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+	uma_zone_t zone;
+
+	args.flags = flags;
+	args.type = type;
+
+	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
+		return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	if (size <= MCLBYTES)
+		return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
+
+	if (size > MJUM16BYTES)
+		return (NULL);
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return (NULL);
+
+#if MJUMPAGESIZE != MCLBYTES
+	if (size <= MJUMPAGESIZE)
+		zone = zone_jumbop;
+	else
+#endif
+	if (size <= MJUM9BYTES)
+		zone = zone_jumbo9;
+	else
+		zone = zone_jumbo16;
+
+	n = uma_zalloc_arg(zone, m, how);
+	if (n == NULL) {
+		uma_zfree(zone_mbuf, m);
+		return (NULL);
+	}
+
+	return (m);
+}
+
+/*
  * m_getjcl() returns an mbuf with a cluster of the specified size attached.
  * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
  *
@@ -585,7 +627,7 @@ m_free_fast(struct mbuf *m)
 	if (m->m_flags & M_PKTHDR)
 		KASSERT(SLIST_EMPTY(&m->m_pkthdr.tags), ("doing fast free of mbuf with tags"));
 #endif
-	
+
 	uma_zfree_arg(zone_mbuf, m, (void *)MB_NOTAGS);
 }
 
@@ -645,7 +687,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 {
 	uma_zone_t zone;
 	int size;
-	
+
 	switch (type) {
 	case EXT_CLUSTER:
 		size = MCLBYTES;
@@ -666,7 +708,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("unknown cluster type");
+		panic("%s: unknown cluster type", __func__);
 		break;
 	}
 
@@ -693,16 +735,6 @@ m_last(struct mbuf *m)
 	while (m->m_next)
 		m = m->m_next;
 	return (m);
-}
-
-extern void (*m_addr_chg_pf_p)(struct mbuf *m);
-
-static __inline void 
-m_addr_changed(struct mbuf *m)
-{
-
-	if (m_addr_chg_pf_p)
-		m_addr_chg_pf_p(m);
 }
 
 /*
@@ -822,7 +854,7 @@ m_addr_changed(struct mbuf *m)
 #define	M_COPYALL	1000000000
 
 /* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
 
 extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
@@ -944,7 +976,7 @@ struct mbuf	*m_unshare(struct mbuf *, int how);
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
 #define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
-#define	PACKET_TAG_PF				21 /* PF + ALTQ information */
+#define	PACKET_TAG_PF		(21 | MTAG_PERSISTENT) /* PF/ALTQ information */
 #define	PACKET_TAG_RTSOCKFAM			25 /* rtsock sa family */
 #define	PACKET_TAG_IPOPTIONS			27 /* Saved IP options */
 #define	PACKET_TAG_CARP				28 /* CARP info */
@@ -1065,7 +1097,7 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 #define M_SETFIB(_m, _fib) do {						\
 	_m->m_flags &= ~M_FIB;					   	\
 	_m->m_flags |= (((_fib) << M_FIBSHIFT) & M_FIB);  \
-} while (0) 
+} while (0)
 
 #endif /* _KERNEL */
 

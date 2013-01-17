@@ -17,8 +17,11 @@
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/IdentifierTable.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/Compiler.h"
 #include <vector>
 
 namespace clang {
@@ -56,8 +59,8 @@ namespace clang {
       /// \brief A macro definition.
       MacroDefinitionKind,
       
-      /// \brief An inclusion directive, such as \c #include, \c
-      /// #import, or \c #include_next.
+      /// \brief An inclusion directive, such as \c \#include, \c
+      /// \#import, or \c \#include_next.
       InclusionDirectiveKind,
 
       /// @}
@@ -85,14 +88,11 @@ namespace clang {
     
     /// \brief Retrieve the source range that covers this entire preprocessed 
     /// entity.
-    SourceRange getSourceRange() const { return Range; }
+    SourceRange getSourceRange() const LLVM_READONLY { return Range; }
 
     /// \brief Returns true if there was a problem loading the preprocessed
     /// entity.
     bool isInvalid() const { return Kind == InvalidKind; }
-
-    // Implement isa/cast/dyncast/etc.
-    static bool classof(const PreprocessedEntity *) { return true; }
 
     // Only allow allocation of preprocessed entities using the allocator 
     // in PreprocessingRecord or by doing a placement new.
@@ -130,7 +130,6 @@ namespace clang {
       return PD->getKind() >= FirstPreprocessingDirective &&
              PD->getKind() <= LastPreprocessingDirective;
     }
-    static bool classof(const PreprocessingDirective *) { return true; }    
   };
   
   /// \brief Record the location of a macro definition.
@@ -152,7 +151,6 @@ namespace clang {
     static bool classof(const PreprocessedEntity *PE) {
       return PE->getKind() == MacroDefinitionKind;
     }
-    static bool classof(const MacroDefinition *) { return true; }
   };
   
   /// \brief Records the location of a macro expansion.
@@ -190,23 +188,22 @@ namespace clang {
     static bool classof(const PreprocessedEntity *PE) {
       return PE->getKind() == MacroExpansionKind;
     }
-    static bool classof(const MacroExpansion *) { return true; }
   };
 
   /// \brief Record the location of an inclusion directive, such as an
-  /// \c #include or \c #import statement.
+  /// \c \#include or \c \#import statement.
   class InclusionDirective : public PreprocessingDirective {
   public:
     /// \brief The kind of inclusion directives known to the
     /// preprocessor.
     enum InclusionKind {
-      /// \brief An \c #include directive.
+      /// \brief An \c \#include directive.
       Include,
-      /// \brief An Objective-C \c #import directive.
+      /// \brief An Objective-C \c \#import directive.
       Import,
-      /// \brief A GNU \c #include_next directive.
+      /// \brief A GNU \c \#include_next directive.
       IncludeNext,
-      /// \brief A Clang \c #__include_macros directive.
+      /// \brief A Clang \c \#__include_macros directive.
       IncludeMacros
     };
 
@@ -224,13 +221,18 @@ namespace clang {
     /// This is a value of type InclusionKind.
     unsigned Kind : 2;
 
+    /// \brief Whether the inclusion directive was automatically turned into
+    /// a module import.
+    unsigned ImportedModule : 1;
+
     /// \brief The file that was included.
     const FileEntry *File;
 
   public:
     InclusionDirective(PreprocessingRecord &PPRec,
                        InclusionKind Kind, StringRef FileName, 
-                       bool InQuotes, const FileEntry *File, SourceRange Range);
+                       bool InQuotes, bool ImportedModule,
+                       const FileEntry *File, SourceRange Range);
     
     /// \brief Determine what kind of inclusion directive this is.
     InclusionKind getKind() const { return static_cast<InclusionKind>(Kind); }
@@ -241,6 +243,10 @@ namespace clang {
     /// \brief Determine whether the included file name was written in quotes;
     /// otherwise, it was written in angle brackets.
     bool wasInQuotes() const { return InQuotes; }
+
+    /// \brief Determine whether the inclusion directive was automatically
+    /// turned into a module import.
+    bool importedModule() const { return ImportedModule; }
     
     /// \brief Retrieve the file entry for the actual file that was included
     /// by this directive.
@@ -250,7 +256,6 @@ namespace clang {
     static bool classof(const PreprocessedEntity *PE) {
       return PE->getKind() == InclusionDirectiveKind;
     }
-    static bool classof(const InclusionDirective *) { return true; }
   };
   
   /// \brief An abstract class that should be subclassed by any external source
@@ -266,9 +271,16 @@ namespace clang {
     virtual PreprocessedEntity *ReadPreprocessedEntity(unsigned Index) = 0;
 
     /// \brief Returns a pair of [Begin, End) indices of preallocated
-    /// preprocessed entities that \arg Range encompasses.
+    /// preprocessed entities that \p Range encompasses.
     virtual std::pair<unsigned, unsigned>
         findPreprocessedEntitiesInRange(SourceRange Range) = 0;
+
+    /// \brief Optionally returns true or false if the preallocated preprocessed
+    /// entity with index \p Index came from file \p FID.
+    virtual llvm::Optional<bool> isPreprocessedEntityInFileID(unsigned Index,
+                                                              FileID FID) {
+      return llvm::Optional<bool>();
+    }
   };
   
   /// \brief A record of the steps taken while preprocessing a source file,
@@ -276,10 +288,6 @@ namespace clang {
   /// expanded, etc.
   class PreprocessingRecord : public PPCallbacks {
     SourceManager &SourceMgr;
-
-    /// \brief Whether we should include nested macro expansions in
-    /// the preprocessing record.
-    bool IncludeNestedMacroExpansions;
     
     /// \brief Allocator used to store preprocessing objects.
     llvm::BumpPtrAllocator BumpAlloc;
@@ -295,18 +303,63 @@ namespace clang {
     /// and are referenced by the iterator using negative indices.
     std::vector<PreprocessedEntity *> LoadedPreprocessedEntities;
 
+    bool RecordCondDirectives;
+    unsigned CondDirectiveNextIdx;
+    SmallVector<unsigned, 6> CondDirectiveStack; 
+
+    class CondDirectiveLoc {
+      SourceLocation Loc;
+      unsigned Idx;
+
+    public:
+      CondDirectiveLoc(SourceLocation Loc, unsigned Idx) : Loc(Loc), Idx(Idx) {}
+
+      SourceLocation getLoc() const { return Loc; }
+      unsigned getIdx() const { return Idx; }
+
+      class Comp {
+        SourceManager &SM;
+      public:
+        explicit Comp(SourceManager &SM) : SM(SM) {}
+        bool operator()(const CondDirectiveLoc &LHS,
+                        const CondDirectiveLoc &RHS) {
+          return SM.isBeforeInTranslationUnit(LHS.getLoc(), RHS.getLoc());
+        }
+        bool operator()(const CondDirectiveLoc &LHS, SourceLocation RHS) {
+          return SM.isBeforeInTranslationUnit(LHS.getLoc(), RHS);
+        }
+        bool operator()(SourceLocation LHS, const CondDirectiveLoc &RHS) {
+          return SM.isBeforeInTranslationUnit(LHS, RHS.getLoc());
+        }
+      };
+    };
+
+    typedef std::vector<CondDirectiveLoc> CondDirectiveLocsTy; 
+    /// \brief The locations of conditional directives in source order.
+    CondDirectiveLocsTy CondDirectiveLocs;
+
+    void addCondDirectiveLoc(CondDirectiveLoc DirLoc);
+    unsigned findCondDirectiveIdx(SourceLocation Loc) const;
+
     /// \brief Global (loaded or local) ID for a preprocessed entity.
     /// Negative values are used to indicate preprocessed entities
     /// loaded from the external source while non-negative values are used to
     /// indicate preprocessed entities introduced by the current preprocessor.
-    /// If M is the number of loaded preprocessed entities, value -M
-    /// corresponds to element 0 in the loaded entities vector, position -M+1
-    /// corresponds to element 1 in the loaded entities vector, etc.
-    typedef int PPEntityID;
+    /// Value -1 corresponds to element 0 in the loaded entities vector,
+    /// value -2 corresponds to element 1 in the loaded entities vector, etc.
+    /// Value 0 is an invalid value, the index to local entities is 1-based,
+    /// value 1 corresponds to element 0 in the local entities vector,
+    /// value 2 corresponds to element 1 in the local entities vector, etc.
+    class PPEntityID {
+      int ID;
+      explicit PPEntityID(int ID) : ID(ID) {}
+      friend class PreprocessingRecord;
+    public:
+      PPEntityID() : ID(0) {}
+    };
 
-    PPEntityID getPPEntityID(unsigned Index, bool isLoaded) const {
-      return isLoaded ? PPEntityID(Index) - LoadedPreprocessedEntities.size()
-                      : Index;
+    static PPEntityID getPPEntityID(unsigned Index, bool isLoaded) {
+      return isLoaded ? PPEntityID(-int(Index)-1) : PPEntityID(Index+1);
     }
 
     /// \brief Mapping from MacroInfo structures to their definitions.
@@ -328,7 +381,7 @@ namespace clang {
     }
 
     /// \brief Returns a pair of [Begin, End) indices of local preprocessed
-    /// entities that \arg Range encompasses.
+    /// entities that \p Range encompasses.
     std::pair<unsigned, unsigned>
       findLocalPreprocessedEntitiesInRange(SourceRange Range) const;
     unsigned findBeginLocalPreprocessedEntity(SourceLocation Loc) const;
@@ -345,7 +398,7 @@ namespace clang {
     
   public:
     /// \brief Construct a new preprocessing record.
-    PreprocessingRecord(SourceManager &SM, bool IncludeNestedMacroExpansions);
+    PreprocessingRecord(SourceManager &SM, bool RecordConditionalDirectives);
     
     /// \brief Allocate memory in the preprocessing record.
     void *Allocate(unsigned Size, unsigned Align = 8) {
@@ -375,7 +428,7 @@ namespace clang {
       /// corresponds to element 0 in the loaded entities vector, position -M+1
       /// corresponds to element 1 in the loaded entities vector, etc. This
       /// gives us a reasonably efficient, source-order walk.
-      PPEntityID Position;
+      int Position;
       
     public:
       typedef PreprocessedEntity *value_type;
@@ -386,11 +439,15 @@ namespace clang {
       
       iterator() : Self(0), Position(0) { }
       
-      iterator(PreprocessingRecord *Self, int Position) 
+      iterator(PreprocessingRecord *Self, int Position)
         : Self(Self), Position(Position) { }
       
       value_type operator*() const {
-        return Self->getPreprocessedEntity(Position);
+        bool isLoaded = Position < 0;
+        unsigned Index = isLoaded ?
+            Self->LoadedPreprocessedEntities.size() + Position : Position;
+        PPEntityID ID = Self->getPPEntityID(Index, isLoaded);
+        return Self->getPreprocessedEntity(ID);
       }
       
       value_type operator[](difference_type D) {
@@ -471,6 +528,7 @@ namespace clang {
         X.Position -= D;
         return X;
       }
+      friend class PreprocessingRecord;
     };
     friend class iterator;
 
@@ -494,13 +552,54 @@ namespace clang {
       return iterator(this, PreprocessedEntities.size());
     }
 
+    /// \brief begin/end iterator pair for the given range of loaded
+    /// preprocessed entities.
+    std::pair<iterator, iterator>
+    getIteratorsForLoadedRange(unsigned start, unsigned count) {
+      unsigned end = start + count;
+      assert(end <= LoadedPreprocessedEntities.size());
+      return std::make_pair(
+                   iterator(this, int(start)-LoadedPreprocessedEntities.size()),
+                   iterator(this, int(end)-LoadedPreprocessedEntities.size()));
+    }
+
     /// \brief Returns a pair of [Begin, End) iterators of preprocessed entities
-    /// that source range \arg R encompasses.
+    /// that source range \p R encompasses.
+    ///
+    /// \param R the range to look for preprocessed entities.
+    ///
     std::pair<iterator, iterator> getPreprocessedEntitiesInRange(SourceRange R);
 
+    /// \brief Returns true if the preprocessed entity that \p PPEI iterator
+    /// points to is coming from the file \p FID.
+    ///
+    /// Can be used to avoid implicit deserializations of preallocated
+    /// preprocessed entities if we only care about entities of a specific file
+    /// and not from files \#included in the range given at
+    /// \see getPreprocessedEntitiesInRange.
+    bool isEntityInFileID(iterator PPEI, FileID FID);
+
     /// \brief Add a new preprocessed entity to this record.
-    void addPreprocessedEntity(PreprocessedEntity *Entity);
-    
+    PPEntityID addPreprocessedEntity(PreprocessedEntity *Entity);
+
+    /// \brief Returns true if this PreprocessingRecord is keeping track of
+    /// conditional directives locations.
+    bool isRecordingConditionalDirectives() const {
+      return RecordCondDirectives;
+    }
+
+    /// \brief Returns true if the given range intersects with a conditional
+    /// directive. if a \#if/\#endif block is fully contained within the range,
+    /// this function will return false.
+    bool rangeIntersectsConditionalDirective(SourceRange Range) const;
+
+    /// \brief Returns true if the given locations are in different regions,
+    /// separated by conditional directive blocks.
+    bool areInDifferentConditionalDirectiveRegion(SourceLocation LHS,
+                                                  SourceLocation RHS) const {
+      return findCondDirectiveIdx(LHS) != findCondDirectiveIdx(RHS);
+    }
+
     /// \brief Set the external source for preprocessed entities.
     void SetExternalSource(ExternalPreprocessingRecordSource &Source);
 
@@ -513,6 +612,7 @@ namespace clang {
     /// \c MacroInfo.
     MacroDefinition *findMacroDefinition(const MacroInfo *MI);
         
+  private:
     virtual void MacroExpands(const Token &Id, const MacroInfo* MI,
                               SourceRange Range);
     virtual void MacroDefined(const Token &Id, const MacroInfo *MI);
@@ -521,10 +621,27 @@ namespace clang {
                                     const Token &IncludeTok,
                                     StringRef FileName,
                                     bool IsAngled,
+                                    CharSourceRange FilenameRange,
                                     const FileEntry *File,
-                                    SourceLocation EndLoc,
                                     StringRef SearchPath,
-                                    StringRef RelativePath);
+                                    StringRef RelativePath,
+                                    const Module *Imported);
+    virtual void If(SourceLocation Loc, SourceRange ConditionRange);
+    virtual void Elif(SourceLocation Loc, SourceRange ConditionRange,
+                      SourceLocation IfLoc);
+    virtual void Ifdef(SourceLocation Loc, const Token &MacroNameTok);
+    virtual void Ifndef(SourceLocation Loc, const Token &MacroNameTok);
+    virtual void Else(SourceLocation Loc, SourceLocation IfLoc);
+    virtual void Endif(SourceLocation Loc, SourceLocation IfLoc);
+
+    /// \brief Cached result of the last \see getPreprocessedEntitiesInRange
+    /// query.
+    struct {
+      SourceRange Range;
+      std::pair<int, int> Result;
+    } CachedRangeQuery;
+
+    std::pair<int, int> getPreprocessedEntitiesInRangeSlow(SourceRange R);
 
     friend class ASTReader;
     friend class ASTWriter;

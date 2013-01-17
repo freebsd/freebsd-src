@@ -106,9 +106,7 @@ static device_method_t amr_methods[] = {
     DEVMETHOD(device_suspend,	amr_pci_suspend),
     DEVMETHOD(device_resume,	amr_pci_resume),
 
-    DEVMETHOD(bus_print_child,	bus_generic_print_child),
-    DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t amr_pci_driver = {
@@ -277,7 +275,7 @@ amr_pci_attach(device_t dev)
     /*
      * Allocate the parent bus DMA tag appropriate for PCI.
      */
-    if (bus_dma_tag_create(NULL, 			/* parent */
+    if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* PCI parent */
 			   1, 0, 			/* alignment,boundary */
 			   AMR_IS_SG64(sc) ?
 			   BUS_SPACE_MAXADDR :
@@ -341,11 +339,11 @@ amr_pci_attach(device_t dev)
     /*
      * Build the scatter/gather buffers.
      */
-    if (amr_sglist_map(sc))
+    if ((error = amr_sglist_map(sc)) != 0)
 	goto out;
     debug(2, "s/g list mapped");
 
-    if (amr_ccb_map(sc))
+    if ((error = amr_ccb_map(sc)) != 0)
 	goto out;
     debug(2, "ccb mapped");
 

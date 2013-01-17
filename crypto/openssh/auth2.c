@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.123 2011/03/10 02:52:57 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.124 2011/12/07 05:44:38 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -115,7 +115,7 @@ auth2_read_banner(void)
 		close(fd);
 		return (NULL);
 	}
-	if (st.st_size > 1*1024*1024) {
+	if (st.st_size <= 0 || st.st_size > 1*1024*1024) {
 		close(fd);
 		return (NULL);
 	}
@@ -223,8 +223,8 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	login_cap_t *lc;
 	const char *from_host, *from_ip;
 
-        from_host = get_canonical_hostname(options.use_dns);
-        from_ip = get_remote_ipaddr();
+	from_host = get_canonical_hostname(options.use_dns);
+	from_ip = get_remote_ipaddr();
 #endif
 
 	if (authctxt == NULL)
@@ -272,23 +272,23 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	}
 
 #ifdef HAVE_LOGIN_CAP
-        if (authctxt->pw != NULL) {
-                lc = login_getpwclass(authctxt->pw);
-                if (lc == NULL)
-                        lc = login_getclassbyname(NULL, authctxt->pw);
-                if (!auth_hostok(lc, from_host, from_ip)) {
-                        logit("Denied connection for %.200s from %.200s [%.200s].",
-                            authctxt->pw->pw_name, from_host, from_ip);
-                        packet_disconnect("Sorry, you are not allowed to connect.");
-                }
-                if (!auth_timeok(lc, time(NULL))) {
-                        logit("LOGIN %.200s REFUSED (TIME) FROM %.200s",
-                            authctxt->pw->pw_name, from_host);
-                        packet_disconnect("Logins not available right now.");
-                }
-                login_close(lc);
-                lc = NULL;
-        }
+	if (authctxt->pw != NULL) {
+		lc = login_getpwclass(authctxt->pw);
+		if (lc == NULL)
+			lc = login_getclassbyname(NULL, authctxt->pw);
+		if (!auth_hostok(lc, from_host, from_ip)) {
+			logit("Denied connection for %.200s from %.200s [%.200s].",
+			    authctxt->pw->pw_name, from_host, from_ip);
+			packet_disconnect("Sorry, you are not allowed to connect.");
+		}
+		if (!auth_timeok(lc, time(NULL))) {
+			logit("LOGIN %.200s REFUSED (TIME) FROM %.200s",
+			    authctxt->pw->pw_name, from_host);
+			packet_disconnect("Logins not available right now.");
+		}
+		login_close(lc);
+		lc = NULL;
+	}
 #endif  /* HAVE_LOGIN_CAP */
 
 	/* reset state */

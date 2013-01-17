@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -50,32 +50,11 @@
  */
 #include "cvmx.h"
 #include "cvmx-tlb.h"
+#include "cvmx-core.h"
+#include <math.h>
 
+extern __uint32_t  __log2(__uint32_t);
 //#define DEBUG
-
-/**
- * @INTERNAL
- * Convert page mask to string
- */
-static inline const char* __mask_to_str(uint64_t mask)
-{
-    /* Most OCTEON processor does not support 1K page sizes */
-    uint64_t non_1k_mask = mask + CVMX_TLB_PAGEMASK_4K;
-
-    switch (non_1k_mask) {
-    case CVMX_TLB_PAGEMASK_4K:     return "4kb";
-    case CVMX_TLB_PAGEMASK_16K:    return "16kb";
-    case CVMX_TLB_PAGEMASK_64K:    return "64kb";
-    case CVMX_TLB_PAGEMASK_256K:   return "256kb";
-    case CVMX_TLB_PAGEMASK_1M:     return "1Mb";
-    case CVMX_TLB_PAGEMASK_4M:     return "4Mb";
-    case CVMX_TLB_PAGEMASK_16M:    return "16Mb";
-    case CVMX_TLB_PAGEMASK_64M:    return "64Mb";
-    case CVMX_TLB_PAGEMASK_256M:   return "256Mb";
-    }
-
-    return "";
-}
 
 /**
  * @INTERNAL
@@ -125,7 +104,7 @@ static inline int __tlb_probe(uint64_t hi){
  */
 static inline int __tlb_read_index(uint32_t tlbi){
 
-    if (tlbi >= cvmx_tlb_size_limit()) {
+    if (tlbi >= (uint32_t)cvmx_core_get_tlb_entries()) {
         return -1;
     }
 
@@ -147,7 +126,7 @@ static inline int __tlb_write_index(uint32_t tlbi,
 				    uint64_t lo1, uint64_t pagemask)
 {
 
-    if (tlbi >= cvmx_tlb_size_limit()) {
+    if (tlbi >= (uint32_t)cvmx_core_get_tlb_entries()) {
         return -1;
     }
 
@@ -175,7 +154,7 @@ static inline int __tlb_entry_is_free(uint32_t tlbi) {
     int ret = 0;
     uint64_t lo0 = 0, lo1 = 0;
 
-    if (tlbi < cvmx_tlb_size_limit()) {
+    if (tlbi < (uint32_t)cvmx_core_get_tlb_entries()) {
 
         __tlb_read_index(tlbi);
 
@@ -198,7 +177,7 @@ static inline int __tlb_entry_is_free(uint32_t tlbi) {
  */
 static inline void __tlb_dump_index(uint32_t tlbi)
 {
-    if (tlbi < cvmx_tlb_size_limit()) {
+    if (tlbi < (uint32_t)cvmx_core_get_tlb_entries()) {
 
         if (__tlb_entry_is_free(tlbi)) {
 #ifdef DEBUG
@@ -206,8 +185,9 @@ static inline void __tlb_dump_index(uint32_t tlbi)
 #endif
         } else {
             uint64_t lo0, lo1, pgmask;
-            uint32_t hi, c0, c1;
+            uint32_t hi;
 #ifdef DEBUG
+            uint32_t c0, c1;
             int width = 13;
 #endif
 
@@ -218,15 +198,10 @@ static inline void __tlb_dump_index(uint32_t tlbi)
             CVMX_MF_ENTRY_LO_1(lo1);
             CVMX_MF_PAGEMASK(pgmask);
 
-
 #ifdef DEBUG
-            cvmx_dprintf("Index: %3d pgmask=%s ", tlbi, __mask_to_str(pgmask));
-#endif
-
             c0 = ( lo0 >> 3 ) & 7;
             c1 = ( lo1 >> 3 ) & 7;
 
-#ifdef DEBUG
             cvmx_dprintf("va=%0*lx asid=%02x\n",
                                width, (hi & ~0x1fffUL), hi & 0xff);
 
@@ -260,43 +235,6 @@ static inline uint32_t __tlb_wired_index() {
 }
 
 /**
- *  Set up a wired entry. This function is designed to be used by Simple
- *  Executive to set up its virtual to physical address mapping at start up
- *  time. After the mapping is set up, the remaining unused TLB entries can
- *  be use for run time shared memory mapping.
- *
- *  Calling this function causes the C0 wired index register to increase.
- *  Wired index register points to the separation between fixed TLB mapping
- *  and run time shared memory mapping.
- *
- *  @param  hi      Entry Hi
- *  @param  lo0     Entry Low0
- *  @param  lo1     Entry Low1
- *  @param  pagemask Pagemask
- *
- *  @return 0: the entry is added
- *  @return -1: out of TLB entry
- */
-int cvmx_tlb_add_wired_entry( uint64_t hi, uint64_t lo0,
-                              uint64_t lo1, uint64_t pagemask)
-{
-    uint64_t index;
-    int ret = -1;
-
-    index = __tlb_wired_index();
-
-    /* Check to make sure if the index is free to use */
-    if (index < cvmx_tlb_size_limit() && __tlb_entry_is_free(index) ) {
-        /* increase the wired index by 1*/
-        __tlb_write_index(index, hi, lo0, lo1, pagemask);
-        CVMX_MT_TLB_WIRED(index + 1);
-        ret = 0;
-    }
-
-    return ret;
-}
-
-/**
  *  Find a free entry that can be used for share memory mapping.
  *
  *  @return -1: no free entry found
@@ -306,7 +244,7 @@ int cvmx_tlb_allocate_runtime_entry(void)
 {
     uint32_t i, ret = -1;
 
-    for (i = __tlb_wired_index(); i< cvmx_tlb_size_limit(); i++) {
+    for (i = __tlb_wired_index(); i< (uint32_t)cvmx_core_get_tlb_entries(); i++) {
 
     	/* Check to make sure the index is free to use */
         if (__tlb_entry_is_free(i)) {
@@ -325,7 +263,7 @@ int cvmx_tlb_allocate_runtime_entry(void)
 void cvmx_tlb_free_runtime_entry(uint32_t tlbi)
 {
     /* Invalidate an unwired TLB entry */
-    if ((tlbi < cvmx_tlb_size_limit()) && (tlbi >= __tlb_wired_index())) {
+    if ((tlbi < (uint32_t)cvmx_core_get_tlb_entries()) && (tlbi >= __tlb_wired_index())) {
         __tlb_write_index(tlbi, 0xffffffff80000000ULL, 0, 0, 0);
     }
 }
@@ -392,7 +330,7 @@ int cvmx_tlb_add_fixed_entry( uint64_t vaddr, uint64_t paddr, uint64_t size, uin
     CVMX_MF_TLB_WIRED(index);
 
     /* Check to make sure if the index is free to use */
-    if (index < cvmx_tlb_size_limit() && __tlb_entry_is_free(index) ) {
+    if (index < (uint32_t)cvmx_core_get_tlb_entries() && __tlb_entry_is_free(index) ) {
 	cvmx_tlb_write_entry(index, vaddr, paddr, size, tlb_flags);
 
 	if (!__tlb_entry_is_free(index)) {
@@ -439,7 +377,7 @@ void cvmx_tlb_write_runtime_entry(int index, uint64_t vaddr, uint64_t paddr,
  *           >=0 TLB TLB index
  */
 int cvmx_tlb_lookup(uint64_t vaddr) {
-	uint64_t hi= (vaddr >> 12 ) << 12; /* We always use ASID 0 */
+	uint64_t hi= (vaddr >> 13 ) << 13; /* We always use ASID 0 */
 
 	return  __tlb_probe(hi);
 }
@@ -450,7 +388,7 @@ int cvmx_tlb_lookup(uint64_t vaddr) {
 void cvmx_tlb_dump_shared_mapping(void) {
     uint32_t tlbi;
 
-    for ( tlbi = __tlb_wired_index(); tlbi<cvmx_tlb_size_limit(); tlbi++ ) {
+    for ( tlbi = __tlb_wired_index(); tlbi<(uint32_t)cvmx_core_get_tlb_entries(); tlbi++ ) {
         __tlb_dump_index(tlbi);
     }
 }
@@ -463,7 +401,7 @@ void cvmx_tlb_dump_all(void) {
 
     uint32_t tlbi;
 
-    for (tlbi = 0; tlbi<= cvmx_tlb_size_limit(); tlbi++ ) {
+    for (tlbi = 0; tlbi<= (uint32_t)cvmx_core_get_tlb_entries(); tlbi++ ) {
         __tlb_dump_index(tlbi);
     }
 }

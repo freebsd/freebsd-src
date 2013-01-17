@@ -19,6 +19,13 @@
 #include <stddef.h>
 
 /**
+ * @defgroup LLVMCDisassembler Disassembler
+ * @ingroup LLVMC
+ *
+ * @{
+ */
+
+/**
  * An opaque reference to a disassembler context.
  */
 typedef void *LLVMDisasmContextRef;
@@ -102,9 +109,9 @@ struct LLVMOpInfo1 {
  */
 typedef const char *(*LLVMSymbolLookupCallback)(void *DisInfo,
                                                 uint64_t ReferenceValue,
-						uint64_t *ReferenceType,
-						uint64_t ReferencePC,
-						const char **ReferenceName);
+                                                uint64_t *ReferenceType,
+                                                uint64_t ReferencePC,
+                                                const char **ReferenceName);
 /**
  * The reference types on input and output.
  */
@@ -139,6 +146,15 @@ LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
                                       LLVMSymbolLookupCallback SymbolLookUp);
 
 /**
+ * Set the disassembler's options.  Returns 1 if it can set the Options and 0
+ * otherwise.
+ */
+int LLVMSetDisasmOptions(LLVMDisasmContextRef DC, uint64_t Options);
+
+/* The option to produce marked up assembly. */
+#define LLVMDisassembler_Option_UseMarkup 1
+
+/**
  * Dispose of a disassembler context.
  */
 void LLVMDisasmDispose(LLVMDisasmContextRef DC);
@@ -156,6 +172,10 @@ void LLVMDisasmDispose(LLVMDisasmContextRef DC);
 size_t LLVMDisasmInstruction(LLVMDisasmContextRef DC, uint8_t *Bytes,
                              uint64_t BytesSize, uint64_t PC,
                              char *OutString, size_t OutStringSize);
+
+/**
+ * @}
+ */
 
 #ifdef __cplusplus
 }

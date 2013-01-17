@@ -42,7 +42,7 @@
 #include <contrib/rdma/ib_verbs.h>
 
 
-#define MAX_ADDR_LEN ETHER_ADDR_LEN	/* XXX doesn't support IB! */
+#define MAX_ADDR_LEN	20
 
 struct rdma_addr_client {
 	int refcount;

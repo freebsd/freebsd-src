@@ -103,7 +103,7 @@ struct bus_dma_tag {
 	void		*dt_cookie;		/* cookie used in the guts */
 	bus_dma_tag_t	dt_parent;
 	bus_size_t	dt_alignment;
-	bus_size_t	dt_boundary;
+	bus_addr_t	dt_boundary;
 	bus_addr_t	dt_lowaddr;
 	bus_addr_t	dt_highaddr;
 	bus_dma_filter_t	*dt_filter;

@@ -23,6 +23,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
+
 #include <stdlib.h>
 #include <strings.h>
 #include <errno.h>
@@ -686,6 +690,121 @@ dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	return (0);
 }
 
+int
+dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
+    size_t size, uint64_t normal)
+{
+	int i, first_bin, last_bin, bin = 1, order, levels;
+	uint16_t factor, low, high, nsteps;
+	const int64_t *data = addr;
+	int64_t value = 1, next, step;
+	char positives = 0, negatives = 0;
+	long double total = 0;
+	uint64_t arg;
+	char c[32];
+
+	if (size < sizeof (uint64_t))
+		return (dt_set_errno(dtp, EDT_DMISMATCH));
+
+	arg = *data++;
+	size -= sizeof (uint64_t);
+
+	factor = DTRACE_LLQUANTIZE_FACTOR(arg);
+	low = DTRACE_LLQUANTIZE_LOW(arg);
+	high = DTRACE_LLQUANTIZE_HIGH(arg);
+	nsteps = DTRACE_LLQUANTIZE_NSTEP(arg);
+
+	/*
+	 * We don't expect to be handed invalid llquantize() parameters here,
+	 * but sanity check them (to a degree) nonetheless.
+	 */
+	if (size > INT32_MAX || factor < 2 || low >= high ||
+	    nsteps == 0 || factor > nsteps)
+		return (dt_set_errno(dtp, EDT_DMISMATCH));
+
+	levels = (int)size / sizeof (uint64_t);
+
+	first_bin = 0;
+	last_bin = levels - 1;
+
+	while (first_bin < levels && data[first_bin] == 0)
+		first_bin++;
+
+	if (first_bin == levels) {
+		first_bin = 0;
+		last_bin = 1;
+	} else {
+		if (first_bin > 0)
+			first_bin--;
+
+		while (last_bin > 0 && data[last_bin] == 0)
+			last_bin--;
+
+		if (last_bin < levels - 1)
+			last_bin++;
+	}
+
+	for (i = first_bin; i <= last_bin; i++) {
+		positives |= (data[i] > 0);
+		negatives |= (data[i] < 0);
+		total += dt_fabsl((long double)data[i]);
+	}
+
+	if (dt_printf(dtp, fp, "\n%16s %41s %-9s\n", "value",
+	    "------------- Distribution -------------", "count") < 0)
+		return (-1);
+
+	for (order = 0; order < low; order++)
+		value *= factor;
+
+	next = value * factor;
+	step = next > nsteps ? next / nsteps : 1;
+
+	if (first_bin == 0) {
+		(void) snprintf(c, sizeof (c), "< %lld", (long long)value);
+
+		if (dt_printf(dtp, fp, "%16s ", c) < 0)
+			return (-1);
+
+		if (dt_print_quantline(dtp, fp, data[0], normal,
+		    total, positives, negatives) < 0)
+			return (-1);
+	}
+
+	while (order <= high) {
+		if (bin >= first_bin && bin <= last_bin) {
+			if (dt_printf(dtp, fp, "%16lld ", (long long)value) < 0)
+				return (-1);
+
+			if (dt_print_quantline(dtp, fp, data[bin],
+			    normal, total, positives, negatives) < 0)
+				return (-1);
+		}
+
+		assert(value < next);
+		bin++;
+
+		if ((value += step) != next)
+			continue;
+
+		next = value * factor;
+		step = next > nsteps ? next / nsteps : 1;
+		order++;
+	}
+
+	if (last_bin < bin)
+		return (0);
+
+	assert(last_bin == bin);
+	(void) snprintf(c, sizeof (c), ">= %lld", (long long)value);
+
+	if (dt_printf(dtp, fp, "%16s ", c) < 0)
+		return (-1);
+
+	return (dt_print_quantline(dtp, fp, data[bin], normal,
+	    total, positives, negatives));
+}
+
 /*ARGSUSED*/
 static int
 dt_print_average(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
@@ -873,7 +992,7 @@ dt_print_stack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 			if (pc > sym.st_value) {
 				(void) snprintf(c, sizeof (c), "%s`%s+0x%llx",
 				    dts.dts_object, dts.dts_name,
-				    pc - sym.st_value);
+				    (u_longlong_t)(pc - sym.st_value));
 			} else {
 				(void) snprintf(c, sizeof (c), "%s`%s",
 				    dts.dts_object, dts.dts_name);
@@ -886,9 +1005,10 @@ dt_print_stack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 			 */
 			if (dtrace_lookup_by_addr(dtp, pc, NULL, &dts) == 0) {
 				(void) snprintf(c, sizeof (c), "%s`0x%llx",
-				    dts.dts_object, pc);
+				    dts.dts_object, (u_longlong_t)pc);
 			} else {
-				(void) snprintf(c, sizeof (c), "0x%llx", pc);
+				(void) snprintf(c, sizeof (c), "0x%llx",
+				    (u_longlong_t)pc);
 			}
 		}
 
@@ -1709,6 +1829,9 @@ dt_print_datum(dtrace_hdl_t *dtp, FILE *fp, dtrace_recdesc_t *rec,
 
 	case DTRACEAGG_LQUANTIZE:
 		return (dt_print_lquantize(dtp, fp, addr, size, normal));
+
+	case DTRACEAGG_LLQUANTIZE:
+		return (dt_print_llquantize(dtp, fp, addr, size, normal));
 
 	case DTRACEAGG_AVG:
 		return (dt_print_average(dtp, fp, addr, size, normal));

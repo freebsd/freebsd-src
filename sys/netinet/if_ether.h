@@ -115,12 +115,21 @@ struct ifaddr;
 int	arpresolve(struct ifnet *ifp, struct rtentry *rt,
 		    struct mbuf *m, struct sockaddr *dst, u_char *desten,
 		    struct llentry **lle);
+void	arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
+		    u_char *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
 void	arp_ifinit2(struct ifnet *, struct ifaddr *, u_char *);
+void	arp_ifscrub(struct ifnet *, uint32_t);
 
 #include <sys/eventhandler.h>
-typedef void (*llevent_arp_update_fn)(void *, struct llentry *);
-EVENTHANDLER_DECLARE(arp_update_event, llevent_arp_update_fn);
+enum {
+	LLENTRY_RESOLVED,
+	LLENTRY_TIMEDOUT,
+	LLENTRY_DELETED,
+	LLENTRY_EXPIRED,
+};
+typedef void (*lle_event_fn)(void *, struct llentry *, int);
+EVENTHANDLER_DECLARE(lle_event, lle_event_fn);
 
 #endif
 

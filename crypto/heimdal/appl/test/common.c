@@ -1,39 +1,39 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "test_locl.h"
 
-RCSID("$Id: common.c 12796 2003-09-09 03:38:04Z lha $");
+RCSID("$Id$");
 
 static int help_flag;
 static int version_flag;
@@ -43,12 +43,14 @@ krb5_keytab keytab;
 char *service = SERVICE;
 char *mech = "krb5";
 int fork_flag;
+char *password = NULL;
 
 static struct getargs args[] = {
     { "port", 'p', arg_string, &port_str, "port to listen to", "port" },
     { "service", 's', arg_string, &service, "service to use", "service" },
     { "keytab", 'k', arg_string, &keytab_str, "keytab to use", "keytab" },
     { "mech", 'm', arg_string, &mech, "gssapi mech to use", "mech" },
+    { "password", 'P', arg_string, &password, "password to use", "password" },
     { "fork", 'f', arg_flag, &fork_flag, "do fork" },
     { "help", 'h', arg_flag, &help_flag },
     { "version", 0, arg_flag, &version_flag }
@@ -72,7 +74,7 @@ client_usage(int code, struct getargs *args, int num_args)
 
 
 static int
-common_setup(krb5_context *context, int *argc, char **argv, 
+common_setup(krb5_context *context, int *argc, char **argv,
 	     void (*usage)(int, struct getargs*, int))
 {
     int port = 0;
@@ -84,7 +86,7 @@ common_setup(krb5_context *context, int *argc, char **argv,
 	print_version(NULL);
 	exit(0);
     }
-    
+
     if(port_str){
 	struct servent *s = roken_getservbyname(port_str, "tcp");
 	if(s)
@@ -101,7 +103,7 @@ common_setup(krb5_context *context, int *argc, char **argv,
 
     if (port == 0)
 	port = krb5_getportbyname (*context, PORT, "tcp", 4711);
-    
+
     return port;
 }
 

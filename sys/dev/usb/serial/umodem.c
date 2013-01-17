@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int umodem_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
 SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
     &umodem_debug, 0, "Debug level");
 #endif
@@ -127,7 +127,11 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 	/* Generic Modem class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
-	USB_IFACE_PROTOCOL(UIPROTO_CDC_AT)},
+		USB_IFACE_PROTOCOL(UIPROTO_CDC_AT)},
+	/* Huawei Modem class match */
+	{USB_IFACE_CLASS(UICLASS_CDC),
+		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
+		USB_IFACE_PROTOCOL(0xFF)},
 	/* Kyocera AH-K3001V */
 	{USB_VPI(USB_VENDOR_KYOCERA, USB_PRODUCT_KYOCERA_AHK3001V, 1)},
 	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720, 1)},
@@ -135,7 +139,7 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 };
 
 /*
- * As speeds for umodem deivces increase, these numbers will need to
+ * As speeds for umodem devices increase, these numbers will need to
  * be increased. They should be good for G3 speeds and below.
  *
  * TODO: The TTY buffers should be increased!
@@ -174,11 +178,13 @@ struct umodem_softc {
 static device_probe_t umodem_probe;
 static device_attach_t umodem_attach;
 static device_detach_t umodem_detach;
+static void umodem_free_softc(struct umodem_softc *);
 
 static usb_callback_t umodem_intr_callback;
 static usb_callback_t umodem_write_callback;
 static usb_callback_t umodem_read_callback;
 
+static void	umodem_free(struct ucom_softc *);
 static void	umodem_start_read(struct ucom_softc *);
 static void	umodem_stop_read(struct ucom_softc *);
 static void	umodem_start_write(struct ucom_softc *);
@@ -246,13 +252,14 @@ static const struct ucom_callback umodem_callback = {
 	.ucom_start_write = &umodem_start_write,
 	.ucom_stop_write = &umodem_stop_write,
 	.ucom_poll = &umodem_poll,
+	.ucom_free = &umodem_free,
 };
 
 static device_method_t umodem_methods[] = {
 	DEVMETHOD(device_probe, umodem_probe),
 	DEVMETHOD(device_attach, umodem_attach),
 	DEVMETHOD(device_detach, umodem_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t umodem_devclass;
@@ -298,6 +305,7 @@ umodem_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "umodem", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_ctrl_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index[1] = uaa->info.bIfaceIndex;
@@ -313,7 +321,7 @@ umodem_attach(device_t dev)
 
 		cud = usbd_find_descriptor(uaa->device, NULL,
 		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
-		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
+		    0xFF, UDESCSUB_CDC_UNION, 0xFF);
 
 		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
 			DPRINTF("Missing descriptor. "
@@ -536,7 +544,7 @@ umodem_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	DPRINTF("sc=%p\n", sc);
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 
@@ -698,7 +706,7 @@ umodem_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			    "%d bytes\n", actlen);
 			goto tr_setup;
 		}
-		if (actlen > sizeof(pkt)) {
+		if (actlen > (int)sizeof(pkt)) {
 			DPRINTF("truncating message\n");
 			actlen = sizeof(pkt);
 		}
@@ -838,7 +846,7 @@ static void *
 umodem_get_desc(struct usb_attach_arg *uaa, uint8_t type, uint8_t subtype)
 {
 	return (usbd_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
-	    type, 0 - 1, subtype, 0 - 1));
+	    type, 0xFF, subtype, 0xFF));
 }
 
 static usb_error_t
@@ -871,9 +879,29 @@ umodem_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UMODEM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	umodem_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(umodem);
+
+static void
+umodem_free_softc(struct umodem_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+umodem_free(struct ucom_softc *ucom)
+{
+	umodem_free_softc(ucom->sc_parent);
 }
 
 static void

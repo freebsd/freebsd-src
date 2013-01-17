@@ -34,26 +34,18 @@ AsmWriterFlavor("x86-asm-syntax", cl::init(ATT),
              clEnumValN(Intel, "intel", "Emit Intel-style assembly"),
              clEnumValEnd));
 
+static cl::opt<bool>
+MarkedJTDataRegions("mark-data-regions", cl::init(false),
+  cl::desc("Mark code section jump table data regions."),
+  cl::Hidden);
 
-static const char *const x86_asm_table[] = {
-  "{si}", "S",
-  "{di}", "D",
-  "{ax}", "a",
-  "{cx}", "c",
-  "{memory}", "memory",
-  "{flags}", "",
-  "{dirflag}", "",
-  "{fpsr}", "",
-  "{fpcr}", "",
-  "{cc}", "cc",
-  0,0};
+void X86MCAsmInfoDarwin::anchor() { }
 
 X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &T) {
   bool is64Bit = T.getArch() == Triple::x86_64;
   if (is64Bit)
     PointerSize = 8;
 
-  AsmTransCBE = x86_asm_table;
   AssemblerDialect = AsmWriterFlavor;
 
   TextAlignFillValue = 0x90;
@@ -71,6 +63,7 @@ X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &T) {
 
   SupportsDebugInformation = true;
   DwarfUsesInlineInfoSection = true;
+  UseDataRegionDirectives = MarkedJTDataRegions;
 
   // Exceptions handling
   ExceptionsType = ExceptionHandling::DwarfCFI;
@@ -80,11 +73,12 @@ X86_64MCAsmInfoDarwin::X86_64MCAsmInfoDarwin(const Triple &Triple)
   : X86MCAsmInfoDarwin(Triple) {
 }
 
+void X86ELFMCAsmInfo::anchor() { }
+
 X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
   if (T.getArch() == Triple::x86_64)
     PointerSize = 8;
 
-  AsmTransCBE = x86_asm_table;
   AssemblerDialect = AsmWriterFlavor;
 
   TextAlignFillValue = 0x90;
@@ -102,9 +96,10 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
   // Exceptions handling
   ExceptionsType = ExceptionHandling::DwarfCFI;
 
-  // OpenBSD has buggy support for .quad in 32-bit mode, just split into two
-  // .words.
-  if (T.getOS() == Triple::OpenBSD && T.getArch() == Triple::x86)
+  // OpenBSD and Bitrig have buggy support for .quad in 32-bit mode, just split
+  // into two .words.
+  if ((T.getOS() == Triple::OpenBSD || T.getOS() == Triple::Bitrig) &&
+       T.getArch() == Triple::x86)
     Data64bitsDirective = 0;
 }
 
@@ -125,14 +120,31 @@ getNonexecutableStackSection(MCContext &Ctx) const {
                            0, SectionKind::getMetadata());
 }
 
-X86MCAsmInfoCOFF::X86MCAsmInfoCOFF(const Triple &Triple) {
+void X86MCAsmInfoMicrosoft::anchor() { }
+
+X86MCAsmInfoMicrosoft::X86MCAsmInfoMicrosoft(const Triple &Triple) {
   if (Triple.getArch() == Triple::x86_64) {
     GlobalPrefix = "";
     PrivateGlobalPrefix = ".L";
   }
 
-  AsmTransCBE = x86_asm_table;
   AssemblerDialect = AsmWriterFlavor;
 
   TextAlignFillValue = 0x90;
+}
+
+void X86MCAsmInfoGNUCOFF::anchor() { }
+
+X86MCAsmInfoGNUCOFF::X86MCAsmInfoGNUCOFF(const Triple &Triple) {
+  if (Triple.getArch() == Triple::x86_64) {
+    GlobalPrefix = "";
+    PrivateGlobalPrefix = ".L";
+  }
+
+  AssemblerDialect = AsmWriterFlavor;
+
+  TextAlignFillValue = 0x90;
+
+  // Exceptions handling
+  ExceptionsType = ExceptionHandling::DwarfCFI;
 }

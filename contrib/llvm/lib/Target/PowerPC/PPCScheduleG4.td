@@ -1,10 +1,10 @@
-//===- PPCScheduleG4.td - PPC G4 Scheduling Definitions ----*- tablegen -*-===//
-// 
+//===-- PPCScheduleG4.td - PPC G4 Scheduling Definitions ---*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file defines the itinerary class data for the G4 (7400) processor.
@@ -13,6 +13,7 @@
 
 def G4Itineraries : ProcessorItineraries<
   [IU1, IU2, SLU, SRU, BPU, FPU1, VIU1, VIU2, VPU, VFPU], [], [
+  InstrItinData<IntSimple   , [InstrStage<1, [IU1, IU2]>]>,
   InstrItinData<IntGeneral  , [InstrStage<1, [IU1, IU2]>]>,
   InstrItinData<IntCompare  , [InstrStage<1, [IU1, IU2]>]>,
   InstrItinData<IntDivW     , [InstrStage<19, [IU1]>]>,
@@ -31,13 +32,18 @@ def G4Itineraries : ProcessorItineraries<
   InstrItinData<BrMCRX      , [InstrStage<1, [SRU]>]>,
   InstrItinData<LdStDCBF    , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStDCBI    , [InstrStage<2, [SLU]>]>,
-  InstrItinData<LdStGeneral , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStLoad    , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStLoadUpd , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStStore   , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStStoreUpd, [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStDSS     , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStICBI    , [InstrStage<2, [SLU]>]>,
-  InstrItinData<LdStUX      , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStSTFD    , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStSTFDU   , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStLFD     , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStLFDU    , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStLHA     , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStLHAU    , [InstrStage<2, [SLU]>]>, 
   InstrItinData<LdStLMW     , [InstrStage<34, [SLU]>]>,
   InstrItinData<LdStLVecX   , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStLWARX   , [InstrStage<3, [SLU]>]>,
@@ -58,6 +64,7 @@ def G4Itineraries : ProcessorItineraries<
   InstrItinData<SprRFI      , [InstrStage<2, [SRU]>]>,
   InstrItinData<SprSC       , [InstrStage<2, [SRU]>]>,
   InstrItinData<FPGeneral   , [InstrStage<1, [FPU1]>]>,
+  InstrItinData<FPAddSub    , [InstrStage<1, [FPU1]>]>,
   InstrItinData<FPCompare   , [InstrStage<1, [FPU1]>]>,
   InstrItinData<FPDivD      , [InstrStage<31, [FPU1]>]>,
   InstrItinData<FPDivS      , [InstrStage<17, [FPU1]>]>,

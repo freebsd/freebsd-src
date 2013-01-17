@@ -48,7 +48,8 @@ FEATURE(geom_cache, "GEOM cache module");
 static MALLOC_DEFINE(M_GCACHE, "gcache_data", "GEOM_CACHE Data");
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, cache, CTLFLAG_RW, 0, "GEOM_CACHE stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, cache, CTLFLAG_RW, 0,
+    "GEOM_CACHE stuff");
 static u_int g_cache_debug = 0;
 SYSCTL_UINT(_kern_geom_cache, OID_AUTO, debug, CTLFLAG_RW, &g_cache_debug, 0,
     "Debug level");
@@ -501,7 +502,7 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 		return (NULL);
 	}
 
-	gp = g_new_geomf(mp, md->md_name);
+	gp = g_new_geomf(mp, "%s", md->md_name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_type = type;
 	sc->sc_bshift = bshift;

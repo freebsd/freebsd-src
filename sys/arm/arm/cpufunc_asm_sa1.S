@@ -35,7 +35,7 @@
  * SA-1 assembly functions for CPU / MMU / TLB specific operations
  *
  */
- 
+
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -58,7 +58,7 @@ ENTRY(sa1_setttb)
 #else
 	ldr	r3, .Lblock_userspace_access
 	ldr	r2, [r3]
-	orr	r1, r2, #1 
+	orr	r1, r2, #1
 	str	r1, [r3]
 #endif
 	stmfd	sp!, {r0-r3, lr}
@@ -67,7 +67,7 @@ ENTRY(sa1_setttb)
 	mcr	p15, 0, r0, c7, c5, 0	/* invalidate I$ and BTB */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write and fill buffer */
 
-	/* Write the TTB */ 
+	/* Write the TTB */
 	mcr	p15, 0, r0, c2, c0, 0
 
 	/* If we have updated the TTB we must flush the TLB */

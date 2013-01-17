@@ -180,6 +180,9 @@ ithread_update(struct intr_thread *ithd)
 
 	/* Update name and priority. */
 	strlcpy(td->td_name, ie->ie_fullname, sizeof(td->td_name));
+#ifdef KTR
+	sched_clear_tdname(td);
+#endif
 	thread_lock(td);
 	sched_prio(td, pri);
 	thread_unlock(td);
@@ -542,17 +545,6 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		}
 	}
 
-	/* Add the new handler to the event in priority order. */
-	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
-		if (temp_ih->ih_pri > ih->ih_pri)
-			break;
-	}
-	if (temp_ih == NULL)
-		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
-	else
-		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
-	intr_event_update(ie);
-
 	/* Create a thread if we need one. */
 	while (ie->ie_thread == NULL && handler != NULL) {
 		if (ie->ie_flags & IE_ADDING_THREAD)
@@ -569,6 +561,18 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 			wakeup(ie);
 		}
 	}
+
+	/* Add the new handler to the event in priority order. */
+	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
+		if (temp_ih->ih_pri > ih->ih_pri)
+			break;
+	}
+	if (temp_ih == NULL)
+		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
+	else
+		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
+	intr_event_update(ie);
+
 	CTR3(KTR_INTR, "%s: added %s to %s", __func__, ih->ih_name,
 	    ie->ie_name);
 	mtx_unlock(&ie->ie_lock);
@@ -615,25 +619,14 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		}
 	}
 
-	/* Add the new handler to the event in priority order. */
-	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
-		if (temp_ih->ih_pri > ih->ih_pri)
-			break;
-	}
-	if (temp_ih == NULL)
-		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
-	else
-		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
-	intr_event_update(ie);
-
 	/* For filtered handlers, create a private ithread to run on. */
-	if (filter != NULL && handler != NULL) { 
+	if (filter != NULL && handler != NULL) {
 		mtx_unlock(&ie->ie_lock);
-		it = ithread_create("intr: newborn", ih);		
+		it = ithread_create("intr: newborn", ih);
 		mtx_lock(&ie->ie_lock);
-		it->it_event = ie; 
+		it->it_event = ie;
 		ih->ih_thread = it;
-		ithread_update(it); // XXX - do we really need this?!?!?
+		ithread_update(it); /* XXX - do we really need this?!?!? */
 	} else { /* Create the global per-event thread if we need one. */
 		while (ie->ie_thread == NULL && handler != NULL) {
 			if (ie->ie_flags & IE_ADDING_THREAD)
@@ -651,6 +644,18 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 			}
 		}
 	}
+
+	/* Add the new handler to the event in priority order. */
+	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
+		if (temp_ih->ih_pri > ih->ih_pri)
+			break;
+	}
+	if (temp_ih == NULL)
+		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
+	else
+		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
+	intr_event_update(ie);
+
 	CTR3(KTR_INTR, "%s: added %s to %s", __func__, ih->ih_name,
 	    ie->ie_name);
 	mtx_unlock(&ie->ie_lock);
@@ -693,9 +698,9 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	 * description at that point.  If one is not found, find the
 	 * end of the name to use as the insertion point.
 	 */
-	start = index(ih->ih_name, ':');
+	start = strchr(ih->ih_name, ':');
 	if (start == NULL)
-		start = index(ih->ih_name, 0);
+		start = strchr(ih->ih_name, 0);
 
 	/*
 	 * See if there is enough remaining room in the string for the
@@ -1139,10 +1144,20 @@ swi_sched(void *cookie, int flags)
 {
 	struct intr_handler *ih = (struct intr_handler *)cookie;
 	struct intr_event *ie = ih->ih_event;
+	struct intr_entropy entropy;
 	int error;
 
 	CTR3(KTR_INTR, "swi_sched: %s %s need=%d", ie->ie_name, ih->ih_name,
 	    ih->ih_need);
+
+	if (harvest.swi) {
+		CTR2(KTR_INTR, "swi_sched: pid %d (%s) gathering entropy",
+		    curproc->p_pid, curthread->td_name);
+		entropy.event = (uintptr_t)ih;
+		entropy.td = curthread;
+		random_harvest(&entropy, sizeof(entropy), 1, 0,
+		    RANDOM_INTERRUPT);
+	}
 
 	/*
 	 * Set ih_need for this handler so that if the ithread is already
@@ -1832,8 +1847,8 @@ DB_SHOW_COMMAND(intr, db_show_intr)
 	struct intr_event *ie;
 	int all, verbose;
 
-	verbose = index(modif, 'v') != NULL;
-	all = index(modif, 'a') != NULL;
+	verbose = strchr(modif, 'v') != NULL;
+	all = strchr(modif, 'a') != NULL;
 	TAILQ_FOREACH(ie, &event_list, ie_list) {
 		if (!all && TAILQ_EMPTY(&ie->ie_handlers))
 			continue;
@@ -1878,6 +1893,24 @@ SYSCTL_PROC(_hw, OID_AUTO, intrnames, CTLTYPE_OPAQUE | CTLFLAG_RD,
 static int
 sysctl_intrcnt(SYSCTL_HANDLER_ARGS)
 {
+#ifdef SCTL_MASK32
+	uint32_t *intrcnt32;
+	unsigned i;
+	int error;
+
+	if (req->flags & SCTL_MASK32) {
+		if (!req->oldptr)
+			return (sysctl_handle_opaque(oidp, NULL, sintrcnt / 2, req));
+		intrcnt32 = malloc(sintrcnt / 2, M_TEMP, M_NOWAIT);
+		if (intrcnt32 == NULL)
+			return (ENOMEM);
+		for (i = 0; i < sintrcnt / sizeof (u_long); i++)
+			intrcnt32[i] = intrcnt[i];
+		error = sysctl_handle_opaque(oidp, intrcnt32, sintrcnt / 2, req);
+		free(intrcnt32, M_TEMP);
+		return (error);
+	}
+#endif
 	return (sysctl_handle_opaque(oidp, intrcnt, sintrcnt, req));
 }
 

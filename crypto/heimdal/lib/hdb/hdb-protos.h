@@ -146,6 +146,11 @@ hdb_entry_get_pkinit_acl (
 	const HDB_Ext_PKINIT_acl **/*a*/);
 
 krb5_error_code
+hdb_entry_get_pkinit_cert (
+	const hdb_entry */*entry*/,
+	const HDB_Ext_PKINIT_cert **/*a*/);
+
+krb5_error_code
 hdb_entry_get_pkinit_hash (
 	const hdb_entry */*entry*/,
 	const HDB_Ext_PKINIT_hash **/*a*/);
@@ -238,11 +243,10 @@ hdb_key2principal (
 	krb5_principal /*p*/);
 
 krb5_error_code
-hdb_ldap_common (
+hdb_keytab_create (
 	krb5_context /*context*/,
 	HDB ** /*db*/,
-	const char */*search_base*/,
-	const char */*url*/);
+	const char */*arg*/);
 
 krb5_error_code
 hdb_ldap_create (
@@ -265,6 +269,12 @@ krb5_error_code
 hdb_lock (
 	int /*fd*/,
 	int /*operation*/);
+
+krb5_error_code
+hdb_mdb_create (
+	krb5_context /*context*/,
+	HDB **/*db*/,
+	const char */*filename*/);
 
 krb5_error_code
 hdb_ndbm_create (
@@ -347,6 +357,12 @@ hdb_set_master_keyfile (
 	krb5_context /*context*/,
 	HDB */*db*/,
 	const char */*keyfile*/);
+
+krb5_error_code
+hdb_sqlite_create (
+	krb5_context /*context*/,
+	HDB **/*db*/,
+	const char */*argument*/);
 
 krb5_error_code
 hdb_unlock (int /*fd*/);

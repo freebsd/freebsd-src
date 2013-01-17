@@ -1129,7 +1129,6 @@ devclass_driver_deleted(devclass_t busclass, devclass_t dc, driver_t *driver)
 			    dev->parent->devclass == busclass) {
 				if ((error = device_detach(dev)) != 0)
 					return (error);
-				device_set_driver(dev, NULL);
 				BUS_PROBE_NOMATCH(dev->parent, dev);
 				devnomatch(dev);
 				dev->flags |= DF_DONENOMATCH;
@@ -1811,6 +1810,8 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 
 	PDEBUG(("%s at %s with order %u as unit %d",
 	    name, DEVICENAME(dev), order, unit));
+	KASSERT(name != NULL || unit == -1,
+	    ("child device with wildcard name and specific unit number"));
 
 	child = make_device(dev, name, unit);
 	if (child == NULL)
@@ -1862,7 +1863,7 @@ device_delete_child(device_t dev, device_t child)
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
 	/* remove children first */
-	while ( (grandchild = TAILQ_FIRST(&child->children)) ) {
+	while ((grandchild = TAILQ_FIRST(&child->children)) != NULL) {
 		error = device_delete_child(child, grandchild);
 		if (error)
 			return (error);
@@ -1872,12 +1873,47 @@ device_delete_child(device_t dev, device_t child)
 		return (error);
 	if (child->devclass)
 		devclass_delete_device(child->devclass, child);
+	if (child->parent)
+		BUS_CHILD_DELETED(dev, child);
 	TAILQ_REMOVE(&dev->children, child, link);
 	TAILQ_REMOVE(&bus_data_devices, child, devlink);
 	kobj_delete((kobj_t) child, M_BUS);
 
 	bus_data_generation_update();
 	return (0);
+}
+
+/**
+ * @brief Delete all children devices of the given device, if any.
+ *
+ * This function deletes all children devices of the given device, if
+ * any, using the device_delete_child() function for each device it
+ * finds. If a child device cannot be deleted, this function will
+ * return an error code.
+ * 
+ * @param dev		the parent device
+ *
+ * @retval 0		success
+ * @retval non-zero	a device would not detach
+ */
+int
+device_delete_children(device_t dev)
+{
+	device_t child;
+	int error;
+
+	PDEBUG(("Deleting all children of %s", DEVICENAME(dev)));
+
+	error = 0;
+
+	while ((child = TAILQ_FIRST(&dev->children)) != NULL) {
+		error = device_delete_child(dev, child);
+		if (error) {
+			PDEBUG(("Failed deleting %s", DEVICENAME(child)));
+			break;
+		}
+	}
+	return (error);
 }
 
 /**
@@ -1974,19 +2010,29 @@ device_probe_child(device_t dev, device_t child)
 		for (dl = first_matching_driver(dc, child);
 		     dl;
 		     dl = next_matching_driver(dc, child, dl)) {
-
 			/* If this driver's pass is too high, then ignore it. */
 			if (dl->pass > bus_current_pass)
 				continue;
 
 			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
-			device_set_driver(child, dl->driver);
+			result = device_set_driver(child, dl->driver);
+			if (result == ENOMEM)
+				return (result);
+			else if (result != 0)
+				continue;
 			if (!hasclass) {
-				if (device_set_devclass(child, dl->driver->name)) {
-					printf("driver bug: Unable to set devclass (devname: %s)\n",
-					    (child ? device_get_name(child) :
-						"no device"));
-					device_set_driver(child, NULL);
+				if (device_set_devclass(child,
+				    dl->driver->name) != 0) {
+					char const * devname =
+					    device_get_name(child);
+					if (devname == NULL)
+						devname = "(unknown)";
+					printf("driver bug: Unable to set "
+					    "devclass (class: %s "
+					    "devname: %s)\n",
+					    dl->driver->name,
+					    devname);
+					(void)device_set_driver(child, NULL);
 					continue;
 				}
 			}
@@ -2000,7 +2046,7 @@ device_probe_child(device_t dev, device_t child)
 			/* Reset flags and devclass before the next probe. */
 			child->devflags = 0;
 			if (!hasclass)
-				device_set_devclass(child, NULL);
+				(void)device_set_devclass(child, NULL);
 
 			/*
 			 * If the driver returns SUCCESS, there can be
@@ -2017,7 +2063,7 @@ device_probe_child(device_t dev, device_t child)
 			 * certainly doesn't match.
 			 */
 			if (result > 0) {
-				device_set_driver(child, NULL);
+				(void)device_set_driver(child, NULL);
 				continue;
 			}
 
@@ -2054,7 +2100,7 @@ device_probe_child(device_t dev, device_t child)
 	/* XXX What happens if we rebid and got no best? */
 	if (best) {
 		/*
-		 * If this device was atached, and we were asked to
+		 * If this device was attached, and we were asked to
 		 * rescan, and it is a different driver, then we have
 		 * to detach the old driver and reattach this new one.
 		 * Note, we don't have to check for DF_REBID here
@@ -2080,7 +2126,9 @@ device_probe_child(device_t dev, device_t child)
 			if (result != 0)
 				return (result);
 		}
-		device_set_driver(child, best->driver);
+		result = device_set_driver(child, best->driver);
+		if (result != 0)
+			return (result);
 		resource_int_value(best->driver->name, child->unit,
 		    "flags", &child->devflags);
 
@@ -2370,6 +2418,35 @@ device_set_softc(device_t dev, void *softc)
 }
 
 /**
+ * @brief Free claimed softc
+ *
+ * Most drivers do not need to use this since the softc is freed
+ * automatically when the driver is detached.
+ */
+void
+device_free_softc(void *softc)
+{
+	free(softc, M_BUS_SC);
+}
+
+/**
+ * @brief Claim softc
+ *
+ * This function can be used to let the driver free the automatically
+ * allocated softc using "device_free_softc()". This function is
+ * useful when the driver is refcounting the softc and the softc
+ * cannot be freed when the "device_detach" method is called.
+ */
+void
+device_claim_softc(device_t dev)
+{
+	if (dev->softc)
+		dev->flags |= DF_EXTERNALSOFTC;
+	else
+		dev->flags &= ~DF_EXTERNALSOFTC;
+}
+
+/**
  * @brief Get the device's ivars field
  *
  * The ivars field is used by the parent device to store per-device
@@ -2428,12 +2505,13 @@ device_disable(device_t dev)
 void
 device_busy(device_t dev)
 {
-	if (dev->state < DS_ATTACHED)
+	if (dev->state < DS_ATTACHING)
 		panic("device_busy: called for unattached device");
 	if (dev->busy == 0 && dev->parent)
 		device_busy(dev->parent);
 	dev->busy++;
-	dev->state = DS_BUSY;
+	if (dev->state == DS_ATTACHED)
+		dev->state = DS_BUSY;
 }
 
 /**
@@ -2442,14 +2520,16 @@ device_busy(device_t dev)
 void
 device_unbusy(device_t dev)
 {
-	if (dev->state != DS_BUSY)
+	if (dev->busy != 0 && dev->state != DS_BUSY &&
+	    dev->state != DS_ATTACHING)
 		panic("device_unbusy: called for non-busy device %s",
 		    device_get_nameunit(dev));
 	dev->busy--;
 	if (dev->busy == 0) {
 		if (dev->parent)
 			device_unbusy(dev->parent);
-		dev->state = DS_ATTACHED;
+		if (dev->state == DS_BUSY)
+			dev->state = DS_ATTACHED;
 	}
 }
 
@@ -2559,6 +2639,7 @@ device_set_driver(device_t dev, driver_t *driver)
 		free(dev->softc, M_BUS_SC);
 		dev->softc = NULL;
 	}
+	device_set_desc(dev, NULL);
 	kobj_delete((kobj_t) dev, NULL);
 	dev->driver = driver;
 	if (driver) {
@@ -2681,22 +2762,33 @@ device_attach(device_t dev)
 {
 	int error;
 
+	if (resource_disabled(dev->driver->name, dev->unit)) {
+		device_disable(dev);
+		if (bootverbose)
+			 device_printf(dev, "disabled via hints entry\n");
+		return (ENXIO);
+	}
+
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
+	dev->state = DS_ATTACHING;
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
-		/* Unset the class; set in device_probe_child */
-		if (dev->devclass == NULL)
-			device_set_devclass(dev, NULL);
-		device_set_driver(dev, NULL);
+		if (!(dev->flags & DF_FIXEDCLASS))
+			devclass_delete_device(dev->devclass, dev);
+		(void)device_set_driver(dev, NULL);
 		device_sysctl_fini(dev);
+		KASSERT(dev->busy == 0, ("attach failed but busy"));
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
 	device_sysctl_update(dev);
-	dev->state = DS_ATTACHED;
+	if (dev->busy)
+		dev->state = DS_BUSY;
+	else
+		dev->state = DS_ATTACHED;
 	dev->flags &= ~DF_DONENOMATCH;
 	devadded(dev);
 	return (0);
@@ -2743,8 +2835,7 @@ device_detach(device_t dev)
 		devclass_delete_device(dev->devclass, dev);
 
 	dev->state = DS_NOTPRESENT;
-	device_set_driver(dev, NULL);
-	device_set_desc(dev, NULL);
+	(void)device_set_driver(dev, NULL);
 	device_sysctl_fini(dev);
 
 	return (0);
@@ -4579,7 +4670,6 @@ print_driver(driver_t *driver, int indent)
 
 	print_driver_short(driver, indent);
 }
-
 
 static void
 print_driver_list(driver_list_t drivers, int indent)

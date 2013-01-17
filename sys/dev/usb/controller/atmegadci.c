@@ -83,7 +83,8 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int atmegadci_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0,
+    "USB ATMEGA DCI");
 SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
@@ -1112,7 +1113,13 @@ atmegadci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+atmegadci_xfer_stall(struct usb_xfer *xfer)
+{
+	atmegadci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+atmegadci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct atmegadci_softc *sc;
@@ -1122,10 +1129,6 @@ atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		atmegadci_device_done(xfer, USB_ERR_STALLED);
-	}
 	sc = ATMEGA_BUS2SC(udev->bus);
 	/* get endpoint number */
 	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -1351,16 +1354,16 @@ atmegadci_uninit(struct atmegadci_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 atmegadci_suspend(struct atmegadci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 atmegadci_resume(struct atmegadci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -1547,14 +1550,13 @@ static const struct atmegadci_config_desc atmegadci_confd = {
 	},
 };
 
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
+
 static const struct usb_hub_descriptor_min atmegadci_hubd = {
 	.bDescLength = sizeof(atmegadci_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
-	.wHubCharacteristics[0] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
-	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 8,
+	HSETW(.wHubCharacteristics, (UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL)),
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */
@@ -2110,10 +2112,6 @@ atmegadci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if (udev->speed != USB_SPEED_FULL) {
 			/* not supported */
 			return;
@@ -2125,14 +2123,36 @@ atmegadci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 	}
 }
 
+static void
+atmegadci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct atmegadci_softc *sc = ATMEGA_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		atmegadci_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		atmegadci_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		atmegadci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods atmegadci_bus_methods =
 {
 	.endpoint_init = &atmegadci_ep_init,
 	.xfer_setup = &atmegadci_xfer_setup,
 	.xfer_unsetup = &atmegadci_xfer_unsetup,
 	.get_hw_ep_profile = &atmegadci_get_hw_ep_profile,
+	.xfer_stall = &atmegadci_xfer_stall,
 	.set_stall = &atmegadci_set_stall,
 	.clear_stall = &atmegadci_clear_stall,
 	.roothub_exec = &atmegadci_roothub_exec,
 	.xfer_poll = &atmegadci_do_poll,
+	.set_hw_power_sleep = &atmegadci_set_hw_power_sleep,
 };

@@ -15,9 +15,9 @@
 #ifndef XCOREISELLOWERING_H
 #define XCOREISELLOWERING_H
 
+#include "XCore.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/Target/TargetLowering.h"
-#include "XCore.h"
 
 namespace llvm {
 
@@ -151,7 +151,7 @@ namespace llvm {
     // Inline asm support
     std::pair<unsigned, const TargetRegisterClass*>
     getRegForInlineAsmConstraint(const std::string &Constraint,
-				 EVT VT) const;
+                                 EVT VT) const;
 
     // Expand specifics
     SDValue TryExpandADDWithMul(SDNode *Op, SelectionDAG &DAG) const;
@@ -160,7 +160,6 @@ namespace llvm {
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
     virtual void computeMaskedBitsForTargetNode(const SDValue Op,
-                                                const APInt &Mask,
                                                 APInt &KnownZero,
                                                 APInt &KnownOne,
                                                 const SelectionDAG &DAG,
@@ -175,13 +174,7 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
-      LowerCall(SDValue Chain, SDValue Callee,
-                CallingConv::ID CallConv, bool isVarArg,
-                bool &isTailCall,
-                const SmallVectorImpl<ISD::OutputArg> &Outs,
-                const SmallVectorImpl<SDValue> &OutVals,
-                const SmallVectorImpl<ISD::InputArg> &Ins,
-                DebugLoc dl, SelectionDAG &DAG,
+      LowerCall(TargetLowering::CallLoweringInfo &CLI,
                 SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
@@ -193,7 +186,7 @@ namespace llvm {
 
     virtual bool
       CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
-		     bool isVarArg,
+                     bool isVarArg,
                      const SmallVectorImpl<ISD::OutputArg> &ArgsFlags,
                      LLVMContext &Context) const;
   };

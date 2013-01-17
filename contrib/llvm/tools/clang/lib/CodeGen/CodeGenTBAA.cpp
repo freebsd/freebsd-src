@@ -17,7 +17,9 @@
 
 #include "CodeGenTBAA.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/AST/Mangle.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Metadata.h"
 #include "llvm/Constants.h"
@@ -26,9 +28,10 @@ using namespace clang;
 using namespace CodeGen;
 
 CodeGenTBAA::CodeGenTBAA(ASTContext &Ctx, llvm::LLVMContext& VMContext,
+                         const CodeGenOptions &CGO,
                          const LangOptions &Features, MangleContext &MContext)
-  : Context(Ctx), VMContext(VMContext), Features(Features), MContext(MContext),
-    Root(0), Char(0) {
+  : Context(Ctx), CodeGenOpts(CGO), Features(Features), MContext(MContext),
+    MDHelper(VMContext), Root(0), Char(0) {
 }
 
 CodeGenTBAA::~CodeGenTBAA() {
@@ -40,7 +43,7 @@ llvm::MDNode *CodeGenTBAA::getRoot() {
   // (or a different version of this front-end), their TBAA trees will
   // remain distinct, and the optimizer will treat them conservatively.
   if (!Root)
-    Root = getTBAAInfoForNamedType("Simple C/C++ TBAA", 0);
+    Root = MDHelper.createTBAARoot("Simple C/C++ TBAA");
 
   return Root;
 }
@@ -51,31 +54,9 @@ llvm::MDNode *CodeGenTBAA::getChar() {
   // these special powers only cover user-accessible memory, and doesn't
   // include things like vtables.
   if (!Char)
-    Char = getTBAAInfoForNamedType("omnipotent char", getRoot());
+    Char = MDHelper.createTBAANode("omnipotent char", getRoot());
 
   return Char;
-}
-
-/// getTBAAInfoForNamedType - Create a TBAA tree node with the given string
-/// as its identifier, and the given Parent node as its tree parent.
-llvm::MDNode *CodeGenTBAA::getTBAAInfoForNamedType(StringRef NameStr,
-                                                   llvm::MDNode *Parent,
-                                                   bool Readonly) {
-  // Currently there is only one flag defined - the readonly flag.
-  llvm::Value *Flags = 0;
-  if (Readonly)
-    Flags = llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext), true);
-
-  // Set up the mdnode operand list.
-  llvm::Value *Ops[] = {
-    llvm::MDString::get(VMContext, NameStr),
-    Parent,
-    Flags
-  };
-
-  // Create the mdnode.
-  unsigned Len = llvm::array_lengthof(Ops) - !Flags;
-  return llvm::MDNode::get(VMContext, llvm::makeArrayRef(Ops, Len));
 }
 
 static bool TypeHasMayAlias(QualType QTy) {
@@ -96,6 +77,10 @@ static bool TypeHasMayAlias(QualType QTy) {
 
 llvm::MDNode *
 CodeGenTBAA::getTBAAInfo(QualType QTy) {
+  // At -O0 TBAA is not emitted for regular types.
+  if (CodeGenOpts.OptimizationLevel == 0 || CodeGenOpts.RelaxedAliasing)
+    return NULL;
+
   // If the type has the may_alias attribute (even on a typedef), it is
   // effectively in the general char alias class.
   if (TypeHasMayAlias(QTy))
@@ -137,7 +122,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
     // "underlying types".
     default:
       return MetadataCache[Ty] =
-               getTBAAInfoForNamedType(BTy->getName(Features), getChar());
+        MDHelper.createTBAANode(BTy->getName(Features), getChar());
     }
   }
 
@@ -145,7 +130,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
   // TODO: Implement C++'s type "similarity" and consider dis-"similar"
   // pointers distinct.
   if (Ty->isPointerType())
-    return MetadataCache[Ty] = getTBAAInfoForNamedType("any pointer",
+    return MetadataCache[Ty] = MDHelper.createTBAANode("any pointer",
                                                        getChar());
 
   // Enum types are distinct types. In C++ they have "underlying types",
@@ -169,13 +154,73 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
 
     // TODO: This is using the RTTI name. Is there a better way to get
     // a unique string for a type?
-    llvm::SmallString<256> OutName;
+    SmallString<256> OutName;
     llvm::raw_svector_ostream Out(OutName);
     MContext.mangleCXXRTTIName(QualType(ETy, 0), Out);
     Out.flush();
-    return MetadataCache[Ty] = getTBAAInfoForNamedType(OutName, getChar());
+    return MetadataCache[Ty] = MDHelper.createTBAANode(OutName, getChar());
   }
 
   // For now, handle any other kind of type conservatively.
   return MetadataCache[Ty] = getChar();
+}
+
+llvm::MDNode *CodeGenTBAA::getTBAAInfoForVTablePtr() {
+  return MDHelper.createTBAANode("vtable pointer", getRoot());
+}
+
+bool
+CodeGenTBAA::CollectFields(uint64_t BaseOffset,
+                           QualType QTy,
+                           SmallVectorImpl<llvm::MDBuilder::TBAAStructField> &
+                             Fields,
+                           bool MayAlias) {
+  /* Things not handled yet include: C++ base classes, bitfields, */
+
+  if (const RecordType *TTy = QTy->getAs<RecordType>()) {
+    const RecordDecl *RD = TTy->getDecl()->getDefinition();
+    if (RD->hasFlexibleArrayMember())
+      return false;
+
+    // TODO: Handle C++ base classes.
+    if (const CXXRecordDecl *Decl = dyn_cast<CXXRecordDecl>(RD))
+      if (Decl->bases_begin() != Decl->bases_end())
+        return false;
+
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+
+    unsigned idx = 0;
+    for (RecordDecl::field_iterator i = RD->field_begin(),
+         e = RD->field_end(); i != e; ++i, ++idx) {
+      uint64_t Offset = BaseOffset +
+                        Layout.getFieldOffset(idx) / Context.getCharWidth();
+      QualType FieldQTy = i->getType();
+      if (!CollectFields(Offset, FieldQTy, Fields,
+                         MayAlias || TypeHasMayAlias(FieldQTy)))
+        return false;
+    }
+    return true;
+  }
+
+  /* Otherwise, treat whatever it is as a field. */
+  uint64_t Offset = BaseOffset;
+  uint64_t Size = Context.getTypeSizeInChars(QTy).getQuantity();
+  llvm::MDNode *TBAAInfo = MayAlias ? getChar() : getTBAAInfo(QTy);
+  Fields.push_back(llvm::MDBuilder::TBAAStructField(Offset, Size, TBAAInfo));
+  return true;
+}
+
+llvm::MDNode *
+CodeGenTBAA::getTBAAStructInfo(QualType QTy) {
+  const Type *Ty = Context.getCanonicalType(QTy).getTypePtr();
+
+  if (llvm::MDNode *N = StructMetadataCache[Ty])
+    return N;
+
+  SmallVector<llvm::MDBuilder::TBAAStructField, 4> Fields;
+  if (CollectFields(0, QTy, Fields, TypeHasMayAlias(QTy)))
+    return MDHelper.createTBAAStructNode(Fields);
+
+  // For now, handle any other kind of type conservatively.
+  return StructMetadataCache[Ty] = NULL;
 }

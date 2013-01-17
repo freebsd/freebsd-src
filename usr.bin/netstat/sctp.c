@@ -107,6 +107,7 @@ struct xraddr_entry {
  * If numeric_addr has been supplied, give
  * numeric value, otherwise try for symbolic name.
  */
+#ifdef INET
 static char *
 inetname(struct in_addr *inp)
 {
@@ -146,6 +147,7 @@ inetname(struct in_addr *inp)
 	}
 	return (line);
 }
+#endif
 
 #ifdef INET6
 static char ntop_buf[INET6_ADDRSTRLEN];
@@ -162,7 +164,7 @@ inet6name(struct in6_addr *in6p)
 	if (first && !numeric_addr) {
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.')))
+		    (cp = strchr(domain, '.')))
 			(void) strcpy(domain, cp + 1);
 		else
 			domain[0] = 0;
@@ -171,7 +173,7 @@ inet6name(struct in6_addr *in6p)
 	if (!numeric_addr && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
 		hp = gethostbyaddr((char *)in6p, sizeof(*in6p), AF_INET6);
 		if (hp) {
-			if ((cp = index(hp->h_name, '.')) &&
+			if ((cp = strchr(hp->h_name, '.')) &&
 			    !strcmp(cp + 1, domain))
 				*cp = 0;
 			cp = hp->h_name;
@@ -197,9 +199,11 @@ sctp_print_address(union sctp_sockstore *address, int port, int num_port)
 	int width;
 
 	switch (address->sa.sa_family) {
+#ifdef INET
 	case AF_INET:
 		sprintf(line, "%.*s.", Wflag ? 39 : 16, inetname(&address->sin.sin_addr));
 		break;
+#endif
 #ifdef INET6
 	case AF_INET6:
 		sprintf(line, "%.*s.", Wflag ? 39 : 16, inet6name(&address->sin6.sin6_addr));
@@ -209,7 +213,7 @@ sctp_print_address(union sctp_sockstore *address, int port, int num_port)
 		sprintf(line, "%.*s.", Wflag ? 39 : 16, "");
 		break;
 	}
-	cp = index(line, '\0');
+	cp = strchr(line, '\0');
 	if (!num_port && port)
 		sp = getservbyport((int)port, "sctp");
 	if (sp || port == 0)
@@ -611,7 +615,8 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			memset(&zerostat, 0, len);
 		if (sysctlbyname("net.inet.sctp.stats", &sctpstat, &len,
 		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.sctp.stats");
+			if (errno != ENOENT)
+				warn("sysctl: net.inet.sctp.stats");
 			return;
 		}
 	} else

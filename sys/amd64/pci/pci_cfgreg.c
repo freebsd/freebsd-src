@@ -302,11 +302,19 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	(((func) & 0x7) << 12)		|	\
 	((reg) & 0xfff)))
 
+/*
+ * AMD BIOS And Kernel Developer's Guides for CPU families starting with 10h
+ * have a requirement that all accesses to the memory mapped PCI configuration
+ * space are done using AX class of registers.
+ * Since other vendors do not currently have any contradicting requirements
+ * the AMD access pattern is applied universally.
+ */
+
 static int
 pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
     unsigned bytes)
 {
-	volatile vm_offset_t va;
+	vm_offset_t va;
 	int data = -1;
 
 	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
@@ -317,13 +325,16 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 
 	switch (bytes) {
 	case 4:
-		data = *(volatile uint32_t *)(va);
+		__asm("movl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint32_t *)va));
 		break;
 	case 2:
-		data = *(volatile uint16_t *)(va);
+		__asm("movzwl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint16_t *)va));
 		break;
 	case 1:
-		data = *(volatile uint8_t *)(va);
+		__asm("movzbl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint8_t *)va));
 		break;
 	}
 
@@ -334,7 +345,7 @@ static void
 pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
     unsigned bytes)
 {
-	volatile vm_offset_t va;
+	vm_offset_t va;
 
 	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
 	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
@@ -344,13 +355,16 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
 
 	switch (bytes) {
 	case 4:
-		*(volatile uint32_t *)(va) = data;
+		__asm("movl %1, %0" : "=m" (*(volatile uint32_t *)va)
+		    : "a" (data));
 		break;
 	case 2:
-		*(volatile uint16_t *)(va) = data;
+		__asm("movw %1, %0" : "=m" (*(volatile uint16_t *)va)
+		    : "a" ((uint16_t)data));
 		break;
 	case 1:
-		*(volatile uint8_t *)(va) = data;
+		__asm("movb %1, %0" : "=m" (*(volatile uint8_t *)va)
+		    : "a" ((uint8_t)data));
 		break;
 	}
 }

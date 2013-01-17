@@ -4,8 +4,8 @@
  * $FreeBSD$
  */
 
-#ifndef _hr_HR_ISO8859_2_praznici
-#define _hr_HR_ISO8859_2_praznici
+#ifndef _hr_HR_ISO8859_2_praznici_
+#define _hr_HR_ISO8859_2_praznici_
 
 LANG=hr_HR.ISO8859-2
 
@@ -41,4 +41,4 @@ Easter+39	Uza¹a¹æe
 03/NedjeljaLast	Poèetak ljetnog vremena
 10/NedjeljaLast	Kraj ljetnog vremena
 
-#endif /* !_hr_HR_ISO8859_2_praznici */
+#endif /* !_hr_HR_ISO8859_2_praznici_ */

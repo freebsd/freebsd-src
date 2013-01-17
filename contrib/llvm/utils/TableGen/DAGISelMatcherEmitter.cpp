@@ -526,10 +526,10 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
       // Print the result #'s for EmitNode.
       if (const EmitNodeMatcher *E = dyn_cast<EmitNodeMatcher>(EN)) {
         if (unsigned NumResults = EN->getNumVTs()) {
-          OS.PadToColumn(CommentIndent) << "// Results = ";
+          OS.PadToColumn(CommentIndent) << "// Results =";
           unsigned First = E->getFirstResultSlot();
           for (unsigned i = 0; i != NumResults; ++i)
-            OS << "#" << First+i << " ";
+            OS << " #" << First+i;
         }
       }
       OS << '\n';
@@ -573,8 +573,7 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
     return 2 + NumResultBytes;
   }
   }
-  assert(0 && "Unreachable");
-  return 0;
+  llvm_unreachable("Unreachable");
 }
 
 /// EmitMatcherList - Emit the bytes for the specified matcher subtree.
@@ -599,9 +598,9 @@ EmitMatcherList(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
 void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   // Emit pattern predicates.
   if (!PatternPredicates.empty()) {
-    OS << "bool CheckPatternPredicate(unsigned PredNo) const {\n";
+    OS << "virtual bool CheckPatternPredicate(unsigned PredNo) const {\n";
     OS << "  switch (PredNo) {\n";
-    OS << "  default: assert(0 && \"Invalid predicate in table?\");\n";
+    OS << "  default: llvm_unreachable(\"Invalid predicate in table?\");\n";
     for (unsigned i = 0, e = PatternPredicates.size(); i != e; ++i)
       OS << "  case " << i << ": return "  << PatternPredicates[i] << ";\n";
     OS << "  }\n";
@@ -617,9 +616,10 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
     PFsByName[I->first->getName()] = I->second;
 
   if (!NodePredicates.empty()) {
-    OS << "bool CheckNodePredicate(SDNode *Node, unsigned PredNo) const {\n";
+    OS << "virtual bool CheckNodePredicate(SDNode *Node,\n";
+    OS << "                                unsigned PredNo) const {\n";
     OS << "  switch (PredNo) {\n";
-    OS << "  default: assert(0 && \"Invalid predicate in table?\");\n";
+    OS << "  default: llvm_unreachable(\"Invalid predicate in table?\");\n";
     for (unsigned i = 0, e = NodePredicates.size(); i != e; ++i) {
       // Emit the predicate code corresponding to this pattern.
       TreePredicateFn PredFn = NodePredicates[i];
@@ -636,12 +636,12 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   // Emit CompletePattern matchers.
   // FIXME: This should be const.
   if (!ComplexPatterns.empty()) {
-    OS << "bool CheckComplexPattern(SDNode *Root, SDNode *Parent, SDValue N,\n";
-    OS << "                         unsigned PatternNo,\n";
+    OS << "virtual bool CheckComplexPattern(SDNode *Root, SDNode *Parent,\n";
+    OS << "                                 SDValue N, unsigned PatternNo,\n";
     OS << "         SmallVectorImpl<std::pair<SDValue, SDNode*> > &Result) {\n";
     OS << "  unsigned NextRes = Result.size();\n";
     OS << "  switch (PatternNo) {\n";
-    OS << "  default: assert(0 && \"Invalid pattern # in table?\");\n";
+    OS << "  default: llvm_unreachable(\"Invalid pattern # in table?\");\n";
     for (unsigned i = 0, e = ComplexPatterns.size(); i != e; ++i) {
       const ComplexPattern &P = *ComplexPatterns[i];
       unsigned NumOps = P.getNumOperands();
@@ -677,9 +677,9 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
   // Emit SDNodeXForm handlers.
   // FIXME: This should be const.
   if (!NodeXForms.empty()) {
-    OS << "SDValue RunSDNodeXForm(SDValue V, unsigned XFormNo) {\n";
+    OS << "virtual SDValue RunSDNodeXForm(SDValue V, unsigned XFormNo) {\n";
     OS << "  switch (XFormNo) {\n";
-    OS << "  default: assert(0 && \"Invalid xform # in table?\");\n";
+    OS << "  default: llvm_unreachable(\"Invalid xform # in table?\");\n";
 
     // FIXME: The node xform could take SDValue's instead of SDNode*'s.
     for (unsigned i = 0, e = NodeXForms.size(); i != e; ++i) {

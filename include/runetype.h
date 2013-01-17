@@ -83,8 +83,24 @@ typedef struct {
 } _RuneLocale;
 
 #define	_RUNE_MAGIC_1	"RuneMagi"	/* Indicates version 0 of RuneLocale */
+__BEGIN_DECLS
+extern const _RuneLocale _DefaultRuneLocale;
+extern const _RuneLocale *_CurrentRuneLocale;
+#if defined(__NO_TLS) || defined(__RUNETYPE_INTERNAL)
+extern const _RuneLocale *__getCurrentRuneLocale(void);
+#else
+extern _Thread_local const _RuneLocale *_ThreadRuneLocale;
+static __inline const _RuneLocale *__getCurrentRuneLocale(void)
+{
 
-extern _RuneLocale _DefaultRuneLocale;
-extern _RuneLocale *_CurrentRuneLocale;
+	if (_ThreadRuneLocale) 
+		return _ThreadRuneLocale;
+	if (_CurrentRuneLocale) 
+		return _CurrentRuneLocale;
+	return &_DefaultRuneLocale;
+}
+#endif /* __NO_TLS || __RUNETYPE_INTERNAL */
+#define _CurrentRuneLocale (__getCurrentRuneLocale())
+__END_DECLS
 
 #endif	/* !_RUNETYPE_H_ */

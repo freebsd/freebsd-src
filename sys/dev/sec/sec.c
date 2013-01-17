@@ -135,16 +135,12 @@ static device_method_t sec_methods[] = {
 	DEVMETHOD(device_resume,	sec_resume),
 	DEVMETHOD(device_shutdown,	sec_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* Crypto methods */
 	DEVMETHOD(cryptodev_newsession,	sec_newsession),
 	DEVMETHOD(cryptodev_freesession,sec_freesession),
 	DEVMETHOD(cryptodev_process,	sec_process),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t sec_driver = {
 	"sec",
@@ -229,6 +225,10 @@ sec_probe(device_t dev)
 		break;
 	case SEC_30_ID:
 		device_set_desc(dev, "Freescale Security Engine 3.0");
+		sc->sc_version = 3;
+		break;
+	case SEC_31_ID:
+		device_set_desc(dev, "Freescale Security Engine 3.1");
 		sc->sc_version = 3;
 		break;
 	default:

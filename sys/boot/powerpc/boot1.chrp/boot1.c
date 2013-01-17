@@ -45,7 +45,6 @@ static char bootargs[128];
 static ofwh_t bootdev;
 
 static struct fs fs;
-static ino_t inomap;
 static char blkbuf[BSIZEMAX];
 static unsigned int fsblks;
 
@@ -62,7 +61,7 @@ static void usage(void);
 static void bcopy(const void *src, void *dst, size_t len);
 static void bzero(void *b, size_t len);
 
-static int mount(const char *device, int quiet);
+static int domount(const char *device, int quiet);
 
 static void panic(const char *fmt, ...) __dead2;
 static int printf(const char *fmt, ...);
@@ -76,6 +75,8 @@ static int __puts(const char *s, putc_func_t *putc, void *arg);
 static int __sputc(char c, void *arg);
 static char *__uitoa(char *buf, u_int val, int base);
 static char *__ultoa(char *buf, u_long val, int base);
+
+void __syncicache(void *, int);
 
 /*
  * Open Firmware interface functions
@@ -430,7 +431,7 @@ main(int ac, char **av)
 				bootpath_full[len+2] = '\0';
 			}
 				
-			if (mount(bootpath_full,1) >= 0)
+			if (domount(bootpath_full,1) >= 0)
 				break;
 
 			if (bootdev > 0)
@@ -438,10 +439,10 @@ main(int ac, char **av)
 		}
 
 		if (i >= 16)
-			panic("mount");
+			panic("domount");
 	} else {
-		if (mount(bootpath_full,0) == -1)
-			panic("mount");
+		if (domount(bootpath_full,0) == -1)
+			panic("domount");
 	}
 
 	printf("   Boot volume:   %s\n",bootpath_full);
@@ -468,17 +469,17 @@ exit(int code)
 static struct dmadat __dmadat;
 
 static int
-mount(const char *device, int quiet)
+domount(const char *device, int quiet)
 {
 
 	dmadat = &__dmadat;
 	if ((bootdev = ofw_open(device)) == -1) {
-		printf("mount: can't open device\n");
+		printf("domount: can't open device\n");
 		return (-1);
 	}
 	if (fsread(0, NULL, 0)) {
 		if (!quiet)
-			printf("mount: can't read superblock\n");
+			printf("domount: can't read superblock\n");
 		return (-1);
 	}
 	return (0);
@@ -490,7 +491,7 @@ load(const char *fname)
 	Elf32_Ehdr eh;
 	Elf32_Phdr ph;
 	caddr_t p;
-	ino_t ino;
+	ufs_ino_t ino;
 	int i;
 
 	if ((ino = lookup(fname)) == 0) {
@@ -523,6 +524,7 @@ load(const char *fname)
 		}
 		if (ph.p_filesz != ph.p_memsz)
 			bzero(p + ph.p_filesz, ph.p_memsz - ph.p_filesz);
+		__syncicache(p, ph.p_memsz);
 	}
 	ofw_close(bootdev);
 	(*(void (*)(void *, int, ofwfp_t, char *, int))eh.e_entry)(NULL, 0, 

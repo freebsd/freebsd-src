@@ -625,24 +625,6 @@ void Interpreter::visitReturnInst(ReturnInst &I) {
   popStackAndReturnValueToCaller(RetTy, Result);
 }
 
-void Interpreter::visitUnwindInst(UnwindInst &I) {
-  // Unwind stack
-  Instruction *Inst;
-  do {
-    ECStack.pop_back();
-    if (ECStack.empty())
-      report_fatal_error("Empty stack during unwind!");
-    Inst = ECStack.back().Caller.getInstruction();
-  } while (!(Inst && isa<InvokeInst>(Inst)));
-
-  // Return from invoke
-  ExecutionContext &InvokingSF = ECStack.back();
-  InvokingSF.Caller = CallSite();
-
-  // Go to exceptional destination BB of invoke instruction
-  SwitchToNewBasicBlock(cast<InvokeInst>(Inst)->getUnwindDest(), InvokingSF);
-}
-
 void Interpreter::visitUnreachableInst(UnreachableInst &I) {
   report_fatal_error("Program executed an 'unreachable' instruction!");
 }
@@ -668,14 +650,41 @@ void Interpreter::visitSwitchInst(SwitchInst &I) {
 
   // Check to see if any of the cases match...
   BasicBlock *Dest = 0;
-  unsigned NumCases = I.getNumCases();
-  // Skip the first item since that's the default case.
-  for (unsigned i = 1; i < NumCases; ++i) {
-    GenericValue CaseVal = getOperandValue(I.getCaseValue(i), SF);
-    if (executeICMP_EQ(CondVal, CaseVal, ElTy).IntVal != 0) {
-      Dest = cast<BasicBlock>(I.getSuccessor(i));
-      break;
+  for (SwitchInst::CaseIt i = I.case_begin(), e = I.case_end(); i != e; ++i) {
+    IntegersSubset& Case = i.getCaseValueEx();
+    if (Case.isSingleNumber()) {
+      // FIXME: Currently work with ConstantInt based numbers.
+      const ConstantInt *CI = Case.getSingleNumber(0).toConstantInt();
+      GenericValue Val = getOperandValue(const_cast<ConstantInt*>(CI), SF);
+      if (executeICMP_EQ(Val, CondVal, ElTy).IntVal != 0) {
+        Dest = cast<BasicBlock>(i.getCaseSuccessor());
+        break;        
+      }
     }
+    if (Case.isSingleNumbersOnly()) {
+      for (unsigned n = 0, en = Case.getNumItems(); n != en; ++n) {
+        // FIXME: Currently work with ConstantInt based numbers.
+        const ConstantInt *CI = Case.getSingleNumber(n).toConstantInt();
+        GenericValue Val = getOperandValue(const_cast<ConstantInt*>(CI), SF);
+        if (executeICMP_EQ(Val, CondVal, ElTy).IntVal != 0) {
+          Dest = cast<BasicBlock>(i.getCaseSuccessor());
+          break;        
+        }
+      }      
+    } else
+      for (unsigned n = 0, en = Case.getNumItems(); n != en; ++n) {
+        IntegersSubset::Range r = Case.getItem(n);
+        // FIXME: Currently work with ConstantInt based numbers.
+        const ConstantInt *LowCI = r.getLow().toConstantInt();
+        const ConstantInt *HighCI = r.getHigh().toConstantInt();
+        GenericValue Low = getOperandValue(const_cast<ConstantInt*>(LowCI), SF);
+        GenericValue High = getOperandValue(const_cast<ConstantInt*>(HighCI), SF);
+        if (executeICMP_ULE(Low, CondVal, ElTy).IntVal != 0 &&
+            executeICMP_ULE(CondVal, High, ElTy).IntVal != 0) {
+          Dest = cast<BasicBlock>(i.getCaseSuccessor());
+          break;        
+        }
+      }
   }
   if (!Dest) Dest = I.getDefaultDest();   // No cases matched: use default
   SwitchToNewBasicBlock(Dest, SF);
@@ -1253,8 +1262,7 @@ GenericValue Interpreter::getConstantExprValue (ConstantExpr *CE,
     break;
   default:
     dbgs() << "Unhandled ConstantExpr: " << *CE << "\n";
-    llvm_unreachable(0);
-    return GenericValue();
+    llvm_unreachable("Unhandled ConstantExpr");
   }
   return Dest;
 }

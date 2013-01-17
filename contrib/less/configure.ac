@@ -30,11 +30,9 @@ AC_CHECK_LIB(ncurses, initscr, [have_ncurses=yes], [have_ncurses=no])
 AC_CHECK_LIB(curses, initscr, [have_curses=yes], [have_curses=no])
 AC_CHECK_LIB(termcap, tgetent, [have_termcap=yes], [have_termcap=no])
 AC_CHECK_LIB(termlib, tgetent, [have_termlib=yes], [have_termlib=no])
-# Regular expressions (regcmp) are in -lgen on Solaris 2,
-# and in -lintl on SCO Unix.
-AC_CHECK_LIB(gen, regcmp)
-AC_CHECK_LIB(intl, regcmp)
-AC_CHECK_LIB(PW, regcmp)
+# Regular expressions (regcmp) are in -lgen on Solaris 2, (but in libc
+# at least on Solaris 10 (2.10)) and in -lintl on SCO Unix.
+AC_SEARCH_LIBS([regcmp], [gen intl PW])
 
 # Checks for terminal libraries
 AC_MSG_CHECKING([for working terminal libraries])
@@ -179,6 +177,8 @@ AC_TYPE_SIZE_T
 AC_HEADER_TIME
 
 # Autoheader templates for symbols defined later by AC_DEFINE.
+AH_TEMPLATE([HAVE_GNU_REGEX],
+	[GNU regex library])
 AH_TEMPLATE([HAVE_POSIX_REGCOMP],
 	[POSIX regcomp() and regex.h])
 AH_TEMPLATE([HAVE_PCRE],
@@ -383,18 +383,19 @@ fi
 # Checks for regular expression functions.
 have_regex=no
 have_posix_regex=unknown
-AC_MSG_CHECKING(for regcomp)
+supported_regex=""
 
 # Select a regular expression library.
 WANT_REGEX=auto
 AC_ARG_WITH(regex,
-  [  --with-regex={auto,pcre,posix,regcmp,re_comp,regcomp,regcomp-local}  Select a regular expression library  [auto]],
+  [  --with-regex={auto,gnu,pcre,posix,regcmp,re_comp,regcomp,regcomp-local,none}  Select a regular expression library  [auto]],
   WANT_REGEX="$withval")
 
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = posix; then
 # Some versions of Solaris have a regcomp() function, but it doesn't work!
 # So we run a test program.  If we're cross-compiling, do it the old way.
+AC_MSG_CHECKING(for POSIX regcomp)
 AC_TRY_RUN([
 #include <sys/types.h>
 #include <regex.h>
@@ -409,16 +410,16 @@ if (rm.rm_sp != text + 1) exit(1); /* check for correct offset */
 exit(0); }],
   have_posix_regex=yes, have_posix_regex=no, have_posix_regex=unknown)
 if test $have_posix_regex = yes; then
-  AC_MSG_RESULT(using POSIX regcomp)
-  AC_DEFINE(HAVE_POSIX_REGCOMP)
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_POSIX_REGCOMP) supported_regex="$supported_regex posix"
   have_regex=yes
 elif test $have_posix_regex = unknown; then
   AC_TRY_LINK([
 #include <sys/types.h>
 #include <regex.h>],
   [regex_t *r; regfree(r);],
-  AC_MSG_RESULT(using POSIX regcomp)
-  AC_DEFINE(HAVE_POSIX_REGCOMP) have_regex=yes)
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_POSIX_REGCOMP) have_regex=yes; supported_regex="$supported_regex posix")
 else
   AC_MSG_RESULT(no)
 fi
@@ -428,40 +429,59 @@ fi
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = pcre; then
 AC_CHECK_LIB(pcre, pcre_compile, 
-[AC_MSG_RESULT(using pcre); AC_DEFINE(HAVE_PCRE) LIBS="$LIBS -lpcre" have_regex=yes], [])
+[AC_DEFINE(HAVE_PCRE) LIBS="$LIBS -lpcre" have_regex=yes; supported_regex="$supported_regex pcre"], [])
+fi
+fi
+
+if test $have_regex = no; then
+if test $WANT_REGEX = auto -o $WANT_REGEX = gnu; then
+AC_CHECK_LIB(c, re_compile_pattern, 
+[AC_DEFINE(HAVE_GNU_REGEX) have_regex=yes; supported_regex="$supported_regex gnu"], [])
 fi
 fi
 
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = regcmp; then
 AC_CHECK_FUNC(regcmp, 
-AC_MSG_RESULT(using regcmp); AC_DEFINE(HAVE_REGCMP) have_regex=yes)
+[AC_DEFINE(HAVE_REGCMP) have_regex=yes; supported_regex="$supported_regex regcmp"],[])
 fi
 fi
 
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = regcomp; then
+AC_MSG_CHECKING(for V8 regcomp)
 AC_TRY_LINK([
 #include "regexp.h"], [regcomp("");],
-AC_MSG_RESULT(using V8 regcomp); AC_DEFINE(HAVE_V8_REGCOMP) have_regex=yes)
+[AC_MSG_RESULT(yes); AC_DEFINE(HAVE_V8_REGCOMP) have_regex=yes; supported_regex="$supported_regex regcomp"],[AC_MSG_RESULT(no)])
 fi
 fi
 
 if test $have_regex = no && test -f ${srcdir}/regexp.c; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = regcomp-local; then
-AC_MSG_RESULT(using V8 regcomp -- local source); AC_DEFINE(HAVE_V8_REGCOMP) AC_DEFINE(HAVE_REGEXEC2) REGEX_O='regexp.$(O)' AC_SUBST(REGEX_O) have_regex=yes
+AC_MSG_RESULT(using V8 regcomp -- local source); AC_DEFINE(HAVE_V8_REGCOMP) 
+supported_regex="$supported_regex regcomp-local"
+AC_DEFINE(HAVE_REGEXEC2) REGEX_O='regexp.$(O)' AC_SUBST(REGEX_O) have_regex=yes
 fi
 fi
 
 if test $have_regex = no; then
 if test $WANT_REGEX = auto -o $WANT_REGEX = re_comp; then
-AC_MSG_RESULT(using re_comp); AC_CHECK_FUNC(re_comp, AC_DEFINE(HAVE_RE_COMP) have_regex=yes)
+AC_MSG_CHECKING(for re_comp)
+AC_CHECK_FUNC(re_comp,
+[AC_DEFINE(HAVE_RE_COMP) have_regex=yes; supported_regex="$supported_regex re_comp"],[])
 fi
 fi
 
 if test $have_regex = no; then
-AC_MSG_RESULT(cannot find regular expression library); AC_DEFINE(NO_REGEX)
+if test $WANT_REGEX = auto -o $WANT_REGEX = none; then
+AC_MSG_RESULT(using no regex)
+else
+AC_MSG_WARN(cannot find regular expression library)
 fi
+AC_DEFINE(NO_REGEX) supported_regex="$supported_regex none"
+fi
+
+AC_MSG_RESULT(regular expression library: $supported_regex)
 
 AC_ARG_WITH(editor,
   [  --with-editor=PROGRAM   use PROGRAM as the default editor [vi]],
@@ -649,6 +669,7 @@ AH_TOP([
 /*
  * Sizes of various buffers.
  */
+#if 0 /* old sizes for small memory machines */
 #define	CMDBUF_SIZE	512	/* Buffer for multichar commands */
 #define	UNGOT_SIZE	100	/* Max chars to unget() */
 #define	LINEBUF_SIZE	1024	/* Max size of line in input file */
@@ -658,6 +679,17 @@ AH_TOP([
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	512	/* Max size of line in tags file */
 #define	TABSTOP_MAX	32	/* Max number of custom tab stops */
+#else /* more reasonable sizes for modern machines */
+#define	CMDBUF_SIZE	2048	/* Buffer for multichar commands */
+#define	UNGOT_SIZE	200	/* Max chars to unget() */
+#define	LINEBUF_SIZE	1024	/* Initial max size of line in input file */
+#define	OUTBUF_SIZE	1024	/* Output buffer */
+#define	PROMPT_SIZE	2048	/* Max size of prompt string */
+#define	TERMBUF_SIZE	2048	/* Termcap buffer for tgetent */
+#define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
+#define	TAGLINE_SIZE	1024	/* Max size of line in tags file */
+#define	TABSTOP_MAX	128	/* Max number of custom tab stops */
+#endif
 
 /* Settings automatically determined by configure.  */
 ])

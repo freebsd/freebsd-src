@@ -678,9 +678,9 @@ tw_osl_complete_io(struct tw_cl_req_handle *req_handle)
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		else {
 			if (req_pkt->status & TW_CL_ERR_REQ_INVALID_TARGET)
-				ccb->ccb_h.status |= CAM_TID_INVALID;
+				ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
 			else if (req_pkt->status & TW_CL_ERR_REQ_INVALID_LUN)
-				ccb->ccb_h.status |= CAM_LUN_INVALID;
+				ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
 			else if (req_pkt->status & TW_CL_ERR_REQ_SCSI_ERROR)
 				ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 			else if (req_pkt->status & TW_CL_ERR_REQ_BUS_RESET)

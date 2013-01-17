@@ -861,10 +861,8 @@ sscop_send_manage(struct sscop *sscop, void *p, enum sscop_maasig sig,
 static int
 ng_sscop_mod_event(module_t mod, int event, void *data)
 {
-	int s;
 	int error = 0;
 
-	s = splnet();
 	switch (event) {
 
 	  case MOD_LOAD:
@@ -877,6 +875,5 @@ ng_sscop_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }

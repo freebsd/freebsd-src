@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.set.c,v 3.72 2007/09/28 21:02:03 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.set.c,v 3.83 2012/01/15 17:15:28 christos Exp $ */
 /*
  * sh.set.c: Setting and Clearing of variables
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.set.c,v 3.72 2007/09/28 21:02:03 christos Exp $")
+RCSID("$tcsh: sh.set.c,v 3.83 2012/01/15 17:15:28 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -50,7 +50,7 @@ static	void		 asx		(Char *, int, Char *);
 static	struct varent 	*getvx		(Char *, int);
 static	Char		*xset		(Char *, Char ***);
 static	Char		*operate	(int, Char *, Char *);
-static	void	 	 putn1		(unsigned);
+static	void	 	 putn1		(tcsh_number_t);
 static	struct varent	*madrof		(Char *, struct varent *);
 static	void		 unsetv1	(struct varent *);
 static	void		 exportpath	(Char **);
@@ -76,13 +76,19 @@ update_vars(Char *vp)
 	Char *pn = varval(vp);
 
 	HIST = *pn++;
-	HISTSUB = *pn;
+	if (HIST)
+	    HISTSUB = *pn;
+	else
+	    HISTSUB = HIST;
     }
     else if (eq(vp, STRpromptchars)) {
 	Char *pn = varval(vp);
 
 	PRCH = *pn++;
-	PRCHROOT = *pn;
+	if (PRCH)
+	    PRCHROOT = *pn;
+	else
+	    PRCHROOT = PRCH;
     }
     else if (eq(vp, STRhistlit)) {
 	HistLit = 1;
@@ -99,6 +105,9 @@ update_vars(Char *vp)
     }
     else if (eq(vp, STRloginsh)) {
 	loginsh = 1;
+    }
+    else if (eq(vp, STRanyerror)) {
+	anyerror = 1;
     }
     else if (eq(vp, STRsymlinks)) {
 	Char *pn = varval(vp);
@@ -184,7 +193,7 @@ update_vars(Char *vp)
 	tw_cmd_free();
     }
     else if (eq(vp, STRkillring)) {
-	SetKillRing(getn(varval(vp)));
+	SetKillRing((int)getn(varval(vp)));
     }
 #ifndef HAVENOUTMP
     else if (eq(vp, STRwatch)) {
@@ -222,7 +231,7 @@ void
 doset(Char **v, struct command *c)
 {
     Char *p;
-    Char   *vp, op;
+    Char   *vp;
     Char  **vecp;
     int    hadsub;
     int     subscr;
@@ -262,27 +271,26 @@ doset(Char **v, struct command *c)
     do {
 	hadsub = 0;
 	vp = p;
-	if (letter(*p))
-	    for (; alnum(*p); p++)
-		continue;
-	if (vp == p || !letter(*vp))
+	if (!letter(*p))
 	    stderror(ERR_NAME | ERR_VARBEGIN);
+	do {
+	    p++;
+	} while (alnum(*p));
 	if (*p == '[') {
 	    hadsub++;
 	    p = getinx(p, &subscr);
 	}
-	if ((op = *p) != 0) {
-	    *p++ = 0;
-	    if (*p == 0 && *v && **v == '(')
+	if (*p != '\0' && *p != '=')
+	    stderror(ERR_NAME | ERR_VARALNUM);
+	if (*p == '=') {
+	    *p++ = '\0';
+	    if (*p == '\0' && *v != NULL && **v == '(')
 		p = *v++;
 	}
 	else if (*v && eq(*v, STRequal)) {
-	    op = '=', v++;
-	    if (*v)
+	    if (*++v != NULL)
 		p = *v++;
 	}
-	if (op && op != '=')
-	    stderror(ERR_NAME | ERR_SYNTAX);
 	if (eq(p, STRLparen)) {
 	    Char **e = v;
 
@@ -479,7 +487,7 @@ operate(int op, Char *vp, Char *p)
     Char   *vec[5];
     Char **v = vec;
     Char  **vecp = v;
-    int i;
+    tcsh_number_t i;
 
     if (op != '=') {
 	if (*vp)
@@ -500,10 +508,10 @@ operate(int op, Char *vp, Char *p)
 
 static Char *putp;
 
-Char   *
-putn(int n)
+Char *
+putn(tcsh_number_t n)
 {
-    Char nbuf[(CHAR_BIT * sizeof (n) + 2) / 3 + 2]; /* Enough even for octal */
+    Char nbuf[1024]; /* Enough even for octal */
 
     putp = nbuf;
     if (n < 0) {
@@ -516,17 +524,17 @@ putn(int n)
 }
 
 static void
-putn1(unsigned n)
+putn1(tcsh_number_t n)
 {
     if (n > 9)
 	putn1(n / 10);
-    *putp++ = n % 10 + '0';
+    *putp++ = (Char)(n % 10 + '0');
 }
 
-int
-getn(Char *cp)
+tcsh_number_t
+getn(const Char *cp)
 {
-    int n;
+    tcsh_number_t n;
     int     sign;
     int base;
 
@@ -543,7 +551,7 @@ getn(Char *cp)
 	    stderror(ERR_NAME | ERR_BADNUM);
     }
 
-    if (cp[0] == '0' && cp[1])
+    if (cp[0] == '0' && cp[1] && is_set(STRparseoctal))
 	base = 8;
     else
 	base = 10;
@@ -751,13 +759,15 @@ unset(Char **v, struct command *c)
     if (adrof(STRignoreeof) == 0)
 	numeof = 0;
     if (adrof(STRpromptchars) == 0) {
-	PRCH = '>';
+	PRCH = tcsh ? '>' : '%';
 	PRCHROOT = '#';
     }
     if (adrof(STRhistlit) == 0)
 	HistLit = 0;
     if (adrof(STRloginsh) == 0)
 	loginsh = 0;
+    if (adrof(STRanyerror) == 0)
+	anyerror = 0;
     if (adrof(STRwordchars) == 0)
 	word_chars = STR_WORD_CHARS;
     if (adrof(STRedit) == 0)
@@ -861,10 +871,11 @@ unsetv1(struct varent *p)
     balance(pp, f, 1);
 }
 
+/* Set variable name to NULL. */
 void
-setNS(Char *cp)
+setNS(const Char *varName)
 {
-    setcopy(cp, STRNULL, VAR_READWRITE);
+    setcopy(varName, STRNULL, VAR_READWRITE);
 }
 
 /*ARGSUSED*/
@@ -1091,7 +1102,8 @@ x:
     }
 }
 
-#if defined(KANJI) && defined(SHORT_STRINGS) && defined(DSPMBYTE)
+#if defined(KANJI)
+# if defined(SHORT_STRINGS) && defined(DSPMBYTE)
 extern int dspmbyte_ls;
 
 void
@@ -1222,7 +1234,7 @@ autoset_dspmbyte(const Char *pcp)
 	{ STRLANGEUCJPB, STReuc },
 	{ STRLANGEUCKRB, STReuc },
 	{ STRLANGEUCZHB, STReuc },
-#ifdef linux
+#ifdef __linux__
 	{ STRLANGEUCJPC, STReuc },
 #endif
 	{ STRLANGSJIS, STRsjis },
@@ -1266,4 +1278,26 @@ autoset_dspmbyte(const Char *pcp)
 	}
     }
 }
+# elif defined(AUTOSET_KANJI)
+void
+autoset_kanji(void)
+{
+    char *codeset = nl_langinfo(CODESET);
+    
+    if (*codeset == '\0') {
+	if (adrof(STRnokanji) == NULL)
+	    setNS(STRnokanji);
+	return;
+    }
+
+    if (strcasestr(codeset, "SHIFT_JIS") == (char*)0) {
+	if (adrof(STRnokanji) == NULL)
+	    setNS(STRnokanji);
+	return;
+    }
+
+    if (adrof(STRnokanji) != NULL)
+	unsetv(STRnokanji);
+}
+#endif
 #endif

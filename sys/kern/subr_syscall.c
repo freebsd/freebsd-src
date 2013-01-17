@@ -77,15 +77,18 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(sa->code, sa->narg, sa->args);
 #endif
-
-	CTR6(KTR_SYSC,
-"syscall: td=%p pid %d %s (%#lx, %#lx, %#lx)",
-	    td, td->td_proc->p_pid, syscallname(p, sa->code),
-	    sa->args[0], sa->args[1], sa->args[2]);
+	KTR_START4(KTR_SYSC, "syscall", syscallname(p, sa->code),
+	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "arg0:%p", sa->args[0],
+	    "arg1:%p", sa->args[1], "arg2:%p", sa->args[2]);
 
 	if (error == 0) {
+
 		STOPEVENT(p, S_SCE, sa->narg);
-		PTRACESTOP_SC(p, td, S_PT_SCE);
+		if (p->p_flag & P_TRACED && p->p_stops & S_PT_SCE) {
+			PROC_LOCK(p);
+			ptracestop((td), SIGTRAP);
+			PROC_UNLOCK(p);
+		}
 		if (td->td_dbgflags & TDB_USERWR) {
 			/*
 			 * Reread syscall number and arguments if
@@ -132,7 +135,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		AUDIT_SYSCALL_EXIT(error, td);
 
 		/* Save the latest error return value. */
-		td->td_errno = error;
+		if ((td->td_pflags & TDP_NERRNO) == 0)
+			td->td_errno = error;
 
 #ifdef KDTRACE_HOOKS
 		/*
@@ -145,10 +149,12 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			    sa->callp, NULL, (error) ? -1 : td->td_retval[0]);
 #endif
 		syscall_thread_exit(td, sa->callp);
-		CTR4(KTR_SYSC, "syscall: p=%p error=%d return %#lx %#lx",
-		    p, error, td->td_retval[0], td->td_retval[1]);
 	}
  retval:
+	KTR_STOP4(KTR_SYSC, "syscall", syscallname(p, sa->code),
+	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
+	    "retval0:%#lx", td->td_retval[0], "retval1:%#lx",
+	    td->td_retval[1]);
 	if (traced) {
 		PROC_LOCK(p);
 		td->td_dbgflags &= ~TDB_SCE;
@@ -161,35 +167,23 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 static inline void
 syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 {
-	struct proc *p;
+	struct proc *p, *p2;
 	int traced;
 
 	p = td->td_proc;
-
-	/*
-	 * Check for misbehavior.
-	 */
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    syscallname(p, sa->code));
-	KASSERT(td->td_critnest == 0,
-	    ("System call %s returning in a critical section",
-	    syscallname(p, sa->code)));
-	KASSERT(td->td_locks == 0,
-	    ("System call %s returning with %d locks held",
-	     syscallname(p, sa->code), td->td_locks));
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
 	userret(td, td->td_frame);
 
-	CTR4(KTR_SYSC, "syscall %s exit thread %p pid %d proc %s",
-	    syscallname(p, sa->code), td, td->td_proc->p_pid, td->td_name);
-
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(sa->code, error, td->td_retval[0]);
+	if (KTRPOINT(td, KTR_SYSRET)) {
+		ktrsysret(sa->code, (td->td_pflags & TDP_NERRNO) == 0 ?
+		    error : td->td_errno, td->td_retval[0]);
+	}
 #endif
+	td->td_pflags &= ~TDP_NERRNO;
 
 	if (p->p_flag & P_TRACED) {
 		traced = 1;
@@ -212,10 +206,30 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 		 * executes.  If debugger requested tracing of syscall
 		 * returns, do it now too.
 		 */
-		if (traced && ((td->td_dbgflags & TDB_EXEC) != 0 ||
+		if (traced &&
+		    ((td->td_dbgflags & (TDB_FORK | TDB_EXEC)) != 0 ||
 		    (p->p_stops & S_PT_SCX) != 0))
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
+	}
+
+	if (td->td_pflags & TDP_RFPPWAIT) {
+		/*
+		 * Preserve synchronization semantics of vfork.  If
+		 * waiting for child to exec or exit, fork set
+		 * P_PPWAIT on child, and there we sleep on our proc
+		 * (in case of exit).
+		 *
+		 * Do it after the ptracestop() above is finished, to
+		 * not block our debugger until child execs or exits
+		 * to finish vfork wait.
+		 */
+		td->td_pflags &= ~TDP_RFPPWAIT;
+		p2 = td->td_rfppwait_p;
+		PROC_LOCK(p2);
+		while (p2->p_flag & P_PPWAIT)
+			cv_wait(&p2->p_pwait, &p2->p_mtx);
+		PROC_UNLOCK(p2);
 	}
 }

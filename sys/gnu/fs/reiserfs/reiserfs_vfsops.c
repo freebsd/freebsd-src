@@ -2,7 +2,7 @@
  * Copyright 2000 Hans Reiser
  * See README for licensing and copyright details
  * 
- * Ported to FreeBSD by Jean-Sébastien Pédron <jspedron@club-internet.fr>
+ * Ported to FreeBSD by Jean-SÃ©bastien PÃ©dron <jspedron@club-internet.fr>
  * 
  * $FreeBSD$
  */
@@ -49,7 +49,7 @@ MALLOC_DEFINE(M_REISERFSNODE, "reiserfs_node", "ReiserFS vnode private part");
  * -------------------------------------------------------------------*/
 
 static int
-reiserfs_cmount(struct mntarg *ma, void *data, int flags)
+reiserfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct reiserfs_args args;
 	struct export_args exp;
@@ -227,10 +227,11 @@ reiserfs_unmount(struct mount *mp, int mntflags)
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(rmp->rm_cp->geom, ENXIO);
+	g_vfs_close(rmp->rm_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(rmp->rm_devvp);
+	dev_rel(rmp->rm_dev);
 
 	if (sbi) {
 		reiserfs_log(LOG_DEBUG, "free sbi\n");
@@ -430,21 +431,25 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	struct reiserfs_mount *rmp;
 	struct reiserfs_sb_info *sbi;
 	struct reiserfs_super_block *rs;
-	struct cdev *dev = devvp->v_rdev;
+	struct cdev *dev;
 
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
 	//ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
+	dev = devvp->v_rdev;
+	dev_ref(dev);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "reiserfs", /* read-only */ 0);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
-	if (error)
+	if (error) {
+		dev_rel(dev);
 		return (error);
+	}
 
 	bo = &devvp->v_bufobj;
 	bo->bo_private = cp;
@@ -590,7 +595,8 @@ out:
 			for (i = 0; i < SB_BMAP_NR(sbi); i++) {
 				if (!SB_AP_BITMAP(sbi)[i].bp_data)
 					break;
-				free(SB_AP_BITMAP(sbi)[i].bp_data, M_REISERFSMNT);
+				free(SB_AP_BITMAP(sbi)[i].bp_data,
+				    M_REISERFSMNT);
 			}
 			free(SB_AP_BITMAP(sbi), M_REISERFSMNT);
 		}
@@ -604,7 +610,7 @@ out:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_wither_geom_close(cp->geom, ENXIO);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
@@ -613,6 +619,7 @@ out:
 		free(sbi, M_REISERFSMNT);
 	if (rmp)
 		free(rmp, M_REISERFSMNT);
+	dev_rel(dev);
 	return (error);
 }
 

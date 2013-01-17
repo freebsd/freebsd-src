@@ -176,6 +176,11 @@ typedef union {
 #define	OP_LDL		032
 #define	OP_LDR		033
 
+#define OP_SPECIAL2	034
+#define OP_JALX		035
+
+#define OP_SPECIAL3	037
+
 #define	OP_LB		040
 #define	OP_LH		041
 #define	OP_LWL		042
@@ -387,6 +392,11 @@ typedef union {
 #define	OP_R_BGEZAL	OP_BGEZAL
 #define	OP_R_BLTZALL	OP_BLTZALL
 #define	OP_R_BGEZALL	OP_BGEZALL
+
+/*
+ * Values for the 'func' field when 'op' == OP_SPECIAL3.
+ */
+#define	OP_RDHWR	073
 
 /*
  * Values for the 'rs' field when 'op' == OP_COPz.

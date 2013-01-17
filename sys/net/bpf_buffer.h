@@ -2,7 +2,7 @@
  * Copyright (c) 2007 Seccuris Inc.
  * All rights reserved.
  *
- * This sofware was developed by Robert N. M. Watson under contract to
+ * This software was developed by Robert N. M. Watson under contract to
  * Seccuris Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,6 @@
 #error "no user-serviceable parts inside"
 #endif
 
-void	bpf_buffer_alloc(struct bpf_d *d);
 void	bpf_buffer_append_bytes(struct bpf_d *d, caddr_t buf, u_int offset,
 	    void *src, u_int len);
 void	bpf_buffer_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset,

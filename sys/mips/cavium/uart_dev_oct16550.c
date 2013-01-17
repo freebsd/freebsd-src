@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <mips/cavium/octeon_pcmap_regs.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
 
 #include "uart_if.h"
 
@@ -460,19 +459,6 @@ oct16550_bus_attach (struct uart_softc *sc)
 	uart_setreg(bas, REG_IER, oct16550->ier);
 	uart_barrier(bas);
 
-	/*
-	 * Enable the interrupt in CIU.     // UART-x2 @ IP2
-	 */
-	switch (unit) {
-	case 0:
-		cvmx_interrupt_unmask_irq(CVMX_IRQ_UART0);
-		break;
-	case 1:
-		cvmx_interrupt_unmask_irq(CVMX_IRQ_UART1);
-		break;
-	default:
-		panic("%s: invalid UART %d", __func__, unit);
-	}
 	return (0);
 }
 
@@ -645,13 +631,6 @@ oct16550_bus_ipend(struct uart_softc *sc)
                 }
 	}
 	uart_unlock(sc->sc_hwmtx);
-
-//#define OCTEON_VISUAL_UART 1
-#ifdef OCTEON_VISUAL_UART
-        static int where1 = 0;
-
-        if (ipend)	octeon_led_run_wheel(&where1, 6 + device_get_unit(sc->sc_dev));
-#endif
 
 	return (ipend);
 }

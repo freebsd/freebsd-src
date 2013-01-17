@@ -1,10 +1,10 @@
-//===- ARMSchedule.td - ARM Scheduling Definitions ---------*- tablegen -*-===//
-// 
+//===-- ARMSchedule.td - ARM Scheduling Definitions --------*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
@@ -55,6 +55,7 @@ def IIC_iMUL32     : InstrItinClass;
 def IIC_iMAC32     : InstrItinClass;
 def IIC_iMUL64     : InstrItinClass;
 def IIC_iMAC64     : InstrItinClass;
+def IIC_iDIV     : InstrItinClass;
 def IIC_iLoad_i    : InstrItinClass;
 def IIC_iLoad_r    : InstrItinClass;
 def IIC_iLoad_si   : InstrItinClass;
@@ -70,11 +71,11 @@ def IIC_iLoad_bh_siu : InstrItinClass;
 def IIC_iLoad_d_i  : InstrItinClass;
 def IIC_iLoad_d_r  : InstrItinClass;
 def IIC_iLoad_d_ru : InstrItinClass;
-def IIC_iLoad_m    : InstrItinClass<0>;  // micro-coded
-def IIC_iLoad_mu   : InstrItinClass<0>;  // micro-coded
-def IIC_iLoad_mBr  : InstrItinClass<0>;  // micro-coded
-def IIC_iPop       : InstrItinClass<0>;  // micro-coded
-def IIC_iPop_Br    : InstrItinClass<0>;  // micro-coded
+def IIC_iLoad_m    : InstrItinClass;
+def IIC_iLoad_mu   : InstrItinClass;
+def IIC_iLoad_mBr  : InstrItinClass;
+def IIC_iPop       : InstrItinClass;
+def IIC_iPop_Br    : InstrItinClass;
 def IIC_iLoadiALU  : InstrItinClass;
 def IIC_iStore_i   : InstrItinClass;
 def IIC_iStore_r   : InstrItinClass;
@@ -91,8 +92,8 @@ def IIC_iStore_bh_siu : InstrItinClass;
 def IIC_iStore_d_i   : InstrItinClass;
 def IIC_iStore_d_r   : InstrItinClass;
 def IIC_iStore_d_ru  : InstrItinClass;
-def IIC_iStore_m   : InstrItinClass<0>;  // micro-coded
-def IIC_iStore_mu  : InstrItinClass<0>;  // micro-coded
+def IIC_iStore_m   : InstrItinClass;
+def IIC_iStore_mu  : InstrItinClass;
 def IIC_Preload    : InstrItinClass;
 def IIC_Br         : InstrItinClass;
 def IIC_fpSTAT     : InstrItinClass;
@@ -118,18 +119,20 @@ def IIC_fpMUL32    : InstrItinClass;
 def IIC_fpMUL64    : InstrItinClass;
 def IIC_fpMAC32    : InstrItinClass;
 def IIC_fpMAC64    : InstrItinClass;
+def IIC_fpFMAC32   : InstrItinClass;
+def IIC_fpFMAC64   : InstrItinClass;
 def IIC_fpDIV32    : InstrItinClass;
 def IIC_fpDIV64    : InstrItinClass;
 def IIC_fpSQRT32   : InstrItinClass;
 def IIC_fpSQRT64   : InstrItinClass;
 def IIC_fpLoad32   : InstrItinClass;
 def IIC_fpLoad64   : InstrItinClass;
-def IIC_fpLoad_m   : InstrItinClass<0>;  // micro-coded
-def IIC_fpLoad_mu  : InstrItinClass<0>;  // micro-coded
+def IIC_fpLoad_m   : InstrItinClass;
+def IIC_fpLoad_mu  : InstrItinClass;
 def IIC_fpStore32  : InstrItinClass;
 def IIC_fpStore64  : InstrItinClass;
-def IIC_fpStore_m  : InstrItinClass<0>;  // micro-coded
-def IIC_fpStore_mu : InstrItinClass<0>;  // micro-coded
+def IIC_fpStore_m  : InstrItinClass;
+def IIC_fpStore_mu : InstrItinClass;
 def IIC_VLD1       : InstrItinClass;
 def IIC_VLD1x2     : InstrItinClass;
 def IIC_VLD1x3     : InstrItinClass;
@@ -208,6 +211,8 @@ def IIC_VPERMQ     : InstrItinClass;
 def IIC_VPERMQ3    : InstrItinClass;
 def IIC_VMACD      : InstrItinClass;
 def IIC_VMACQ      : InstrItinClass;
+def IIC_VFMACD     : InstrItinClass;
+def IIC_VFMACQ     : InstrItinClass;
 def IIC_VRECSD     : InstrItinClass;
 def IIC_VRECSQ     : InstrItinClass;
 def IIC_VCNTiD     : InstrItinClass;
@@ -254,8 +259,7 @@ def IIC_VTBX4      : InstrItinClass;
 //===----------------------------------------------------------------------===//
 // Processor instruction itineraries.
 
-def GenericItineraries : ProcessorItineraries<[], [], []>;
-
 include "ARMScheduleV6.td"
 include "ARMScheduleA8.td"
 include "ARMScheduleA9.td"
+include "ARMScheduleSwift.td"

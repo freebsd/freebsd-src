@@ -298,7 +298,7 @@ cd9660_susp_initialize_node(cd9660node *node)
 	 * CE: is added for us where needed
 	 * ST: not sure if it is even required, but if so, should be
 	 *     handled by the CE code
-	 * PD: isnt needed (though might be added for testing)
+	 * PD: isn't needed (though might be added for testing)
 	 * SP: is stored ONLY on the . record of the root directory
 	 * ES: not sure
 	 */

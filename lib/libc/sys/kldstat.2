@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2011
+.Dd March 28, 2012
 .Dt KLDSTAT 2
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@ into
 .Fa stat .
 .Bd -literal
 struct kld_file_stat {
-	int         version;        /* set to sizeof(linker_file_stat) */
+	int         version;    /* set to sizeof(struct kld_file_stat) */
 	char        name[MAXPATHLEN];
 	int         refs;
 	int         id;

@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <uwx.h>
 
-MALLOC_DEFINE(M_UNWIND, "Unwind", "Unwind information");
+static MALLOC_DEFINE(M_UNWIND, "Unwind", "Unwind information");
 
 struct unw_entry {
 	uint64_t	ue_start;	/* procedure start */

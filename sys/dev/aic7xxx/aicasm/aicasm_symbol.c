@@ -44,7 +44,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#ifdef BSD
+#if defined(BSD) && !defined(__GNU__)
 #include <db.h>
 #else
 #include <db_185.h>

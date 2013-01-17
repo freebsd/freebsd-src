@@ -16,33 +16,44 @@
 #include "CGCUDARuntime.h"
 #include "CGCXXABI.h"
 #include "CGDebugInfo.h"
-#include "CGException.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/AST/APValue.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/Frontend/CodeGenOptions.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Intrinsics.h"
+#include "llvm/MDBuilder.h"
+#include "llvm/DataLayout.h"
 using namespace clang;
 using namespace CodeGen;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule &cgm)
+CodeGenFunction::CodeGenFunction(CodeGenModule &cgm, bool suppressNewContext)
   : CodeGenTypeCache(cgm), CGM(cgm),
-    Target(CGM.getContext().getTargetInfo()), Builder(cgm.getModule().getContext()),
+    Target(CGM.getContext().getTargetInfo()),
+    Builder(cgm.getModule().getContext()),
+    SanitizePerformTypeCheck(CGM.getLangOpts().SanitizeNull |
+                             CGM.getLangOpts().SanitizeAlignment |
+                             CGM.getLangOpts().SanitizeObjectSize |
+                             CGM.getLangOpts().SanitizeVptr),
     AutoreleaseResult(false), BlockInfo(0), BlockPointer(0),
-    NormalCleanupDest(0), NextCleanupDestIndex(1),
-    EHResumeBlock(0), ExceptionSlot(0), EHSelectorSlot(0),
+    LambdaThisCaptureField(0), NormalCleanupDest(0), NextCleanupDestIndex(1),
+    FirstBlockInfo(0), EHResumeBlock(0), ExceptionSlot(0), EHSelectorSlot(0),
     DebugInfo(0), DisableDebugInfo(false), DidCallStackSave(false),
     IndirectBranch(0), SwitchInsn(0), CaseRangeBlock(0), UnreachableBlock(0),
-    CXXThisDecl(0), CXXThisValue(0), CXXVTTDecl(0), CXXVTTValue(0),
-    OutermostConditional(0), TerminateLandingPad(0), TerminateHandler(0),
-    TrapBB(0) {
+    CXXABIThisDecl(0), CXXABIThisValue(0), CXXThisValue(0), CXXVTTDecl(0),
+    CXXVTTValue(0), OutermostConditional(0), TerminateLandingPad(0),
+    TerminateHandler(0), TrapBB(0) {
+  if (!suppressNewContext)
+    CGM.getCXXABI().getMangleContext().startNewFunction();
+}
 
-  CatchUndefined = getContext().getLangOptions().CatchUndefined;
-  CGM.getCXXABI().getMangleContext().startNewFunction();
+CodeGenFunction::~CodeGenFunction() {
+  // If there are any unclaimed block infos, go ahead and destroy them
+  // now.  This can happen if IR-gen gets clever and skips evaluating
+  // something.
+  if (FirstBlockInfo)
+    destroyBlockInfos(FirstBlockInfo);
 }
 
 
@@ -222,8 +233,7 @@ void CodeGenFunction::EmitFunctionInstrumentation(const char *Fn) {
   llvm::PointerType *PointerTy = Int8PtrTy;
   llvm::Type *ProfileFuncArgs[] = { PointerTy, PointerTy };
   llvm::FunctionType *FunctionTy =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()),
-                            ProfileFuncArgs, false);
+    llvm::FunctionType::get(VoidTy, ProfileFuncArgs, false);
 
   llvm::Constant *F = CGM.CreateRuntimeFunction(FunctionTy, Fn);
   llvm::CallInst *CallSite = Builder.CreateCall(
@@ -237,12 +247,86 @@ void CodeGenFunction::EmitFunctionInstrumentation(const char *Fn) {
 }
 
 void CodeGenFunction::EmitMCountInstrumentation() {
-  llvm::FunctionType *FTy =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()), false);
+  llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, false);
 
   llvm::Constant *MCountFn = CGM.CreateRuntimeFunction(FTy,
                                                        Target.getMCountName());
   Builder.CreateCall(MCountFn);
+}
+
+// OpenCL v1.2 s5.6.4.6 allows the compiler to store kernel argument
+// information in the program executable. The argument information stored
+// includes the argument name, its type, the address and access qualifiers used.
+// FIXME: Add type, address, and access qualifiers.
+static void GenOpenCLArgMetadata(const FunctionDecl *FD, llvm::Function *Fn,
+                                 CodeGenModule &CGM,llvm::LLVMContext &Context,
+                                 llvm::SmallVector <llvm::Value*, 5> &kernelMDArgs) {
+  
+  // Create MDNodes that represents the kernel arg metadata.
+  // Each MDNode is a list in the form of "key", N number of values which is
+  // the same number of values as their are kernel arguments.
+  
+  // MDNode for the kernel argument names.
+  SmallVector<llvm::Value*, 8> argNames;
+  argNames.push_back(llvm::MDString::get(Context, "kernel_arg_name"));
+  
+  for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
+    const ParmVarDecl *parm = FD->getParamDecl(i);
+    
+    // Get argument name.
+    argNames.push_back(llvm::MDString::get(Context, parm->getName()));
+    
+  }
+  // Add MDNode to the list of all metadata.
+  kernelMDArgs.push_back(llvm::MDNode::get(Context, argNames));
+}
+
+void CodeGenFunction::EmitOpenCLKernelMetadata(const FunctionDecl *FD, 
+                                               llvm::Function *Fn)
+{
+  if (!FD->hasAttr<OpenCLKernelAttr>())
+    return;
+
+  llvm::LLVMContext &Context = getLLVMContext();
+
+  llvm::SmallVector <llvm::Value*, 5> kernelMDArgs;
+  kernelMDArgs.push_back(Fn);
+
+  if (CGM.getCodeGenOpts().EmitOpenCLArgMetadata)
+    GenOpenCLArgMetadata(FD, Fn, CGM, Context, kernelMDArgs);
+  
+  if (FD->hasAttr<WorkGroupSizeHintAttr>()) {
+    llvm::SmallVector <llvm::Value*, 5> attrMDArgs;
+    attrMDArgs.push_back(llvm::MDString::get(Context, "work_group_size_hint"));
+    WorkGroupSizeHintAttr *attr = FD->getAttr<WorkGroupSizeHintAttr>();
+    llvm::Type *iTy = llvm::IntegerType::get(Context, 32);
+    attrMDArgs.push_back(llvm::ConstantInt::get(iTy,
+       llvm::APInt(32, (uint64_t)attr->getXDim())));
+    attrMDArgs.push_back(llvm::ConstantInt::get(iTy,
+       llvm::APInt(32, (uint64_t)attr->getYDim())));
+    attrMDArgs.push_back(llvm::ConstantInt::get(iTy,
+       llvm::APInt(32, (uint64_t)attr->getZDim())));
+    kernelMDArgs.push_back(llvm::MDNode::get(Context, attrMDArgs));
+  }
+
+  if (FD->hasAttr<ReqdWorkGroupSizeAttr>()) {
+    llvm::SmallVector <llvm::Value*, 5> attrMDArgs;
+    attrMDArgs.push_back(llvm::MDString::get(Context, "reqd_work_group_size"));
+    ReqdWorkGroupSizeAttr *attr = FD->getAttr<ReqdWorkGroupSizeAttr>();
+    llvm::Type *iTy = llvm::IntegerType::get(Context, 32);
+    attrMDArgs.push_back(llvm::ConstantInt::get(iTy,
+       llvm::APInt(32, (uint64_t)attr->getXDim())));
+    attrMDArgs.push_back(llvm::ConstantInt::get(iTy,
+       llvm::APInt(32, (uint64_t)attr->getYDim())));
+    attrMDArgs.push_back(llvm::ConstantInt::get(iTy,
+       llvm::APInt(32, (uint64_t)attr->getZDim())));
+    kernelMDArgs.push_back(llvm::MDNode::get(Context, attrMDArgs));
+  }
+
+  llvm::MDNode *kernelMDNode = llvm::MDNode::get(Context, kernelMDArgs);
+  llvm::NamedMDNode *OpenCLKernelMetadata =
+    CGM.getModule().getOrInsertNamedMetadata("opencl.kernels");
+  OpenCLKernelMetadata->addOperand(kernelMDNode);
 }
 
 void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
@@ -261,25 +345,19 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   // Pass inline keyword to optimizer if it appears explicitly on any
   // declaration.
-  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
-    for (FunctionDecl::redecl_iterator RI = FD->redecls_begin(),
-           RE = FD->redecls_end(); RI != RE; ++RI)
-      if (RI->isInlineSpecified()) {
-        Fn->addFnAttr(llvm::Attribute::InlineHint);
-        break;
-      }
+  if (!CGM.getCodeGenOpts().NoInline) 
+    if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
+      for (FunctionDecl::redecl_iterator RI = FD->redecls_begin(),
+             RE = FD->redecls_end(); RI != RE; ++RI)
+        if (RI->isInlineSpecified()) {
+          Fn->addFnAttr(llvm::Attributes::InlineHint);
+          break;
+        }
 
-  if (getContext().getLangOptions().OpenCL) {
+  if (getLangOpts().OpenCL) {
     // Add metadata for a kernel function.
     if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
-      if (FD->hasAttr<OpenCLKernelAttr>()) {
-        llvm::LLVMContext &Context = getLLVMContext();
-        llvm::NamedMDNode *OpenCLMetadata = 
-          CGM.getModule().getOrInsertNamedMetadata("opencl.kernels");
-          
-        llvm::Value *Op = Fn;
-        OpenCLMetadata->addOperand(llvm::MDNode::get(Context, Op));
-      }
+      EmitOpenCLKernelMetadata(FD, Fn);
   }
 
   llvm::BasicBlock *EntryBB = createBasicBlock("entry", CurFn);
@@ -298,11 +376,18 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   // Emit subprogram debug descriptor.
   if (CGDebugInfo *DI = getDebugInfo()) {
-    // FIXME: what is going on here and why does it ignore all these
-    // interesting type properties?
+    unsigned NumArgs = 0;
+    QualType *ArgsArray = new QualType[Args.size()];
+    for (FunctionArgList::const_iterator i = Args.begin(), e = Args.end();
+	 i != e; ++i) {
+      ArgsArray[NumArgs++] = (*i)->getType();
+    }
+
     QualType FnType =
-      getContext().getFunctionType(RetTy, 0, 0,
+      getContext().getFunctionType(RetTy, ArgsArray, NumArgs,
                                    FunctionProtoType::ExtProtoInfo());
+
+    delete[] ArgsArray;
 
     DI->setLocation(StartLoc);
     DI->EmitFunctionStart(GD, FnType, CurFn, Builder);
@@ -328,7 +413,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     // Tell the epilog emitter to autorelease the result.  We do this
     // now so that various specialized functions can suppress it
     // during their IR-generation.
-    if (getLangOptions().ObjCAutoRefCount &&
+    if (getLangOpts().ObjCAutoRefCount &&
         !CurFnInfo->isReturnsRetained() &&
         RetTy->isObjCRetainableType())
       AutoreleaseResult = true;
@@ -339,8 +424,31 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   PrologueCleanupDepth = EHStack.stable_begin();
   EmitFunctionProlog(*CurFnInfo, CurFn, Args);
 
-  if (D && isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isInstance())
+  if (D && isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isInstance()) {
     CGM.getCXXABI().EmitInstanceFunctionProlog(*this);
+    const CXXMethodDecl *MD = cast<CXXMethodDecl>(D);
+    if (MD->getParent()->isLambda() &&
+        MD->getOverloadedOperator() == OO_Call) {
+      // We're in a lambda; figure out the captures.
+      MD->getParent()->getCaptureFields(LambdaCaptureFields,
+                                        LambdaThisCaptureField);
+      if (LambdaThisCaptureField) {
+        // If this lambda captures this, load it.
+        QualType LambdaTagType =
+            getContext().getTagDeclType(LambdaThisCaptureField->getParent());
+        LValue LambdaLV = MakeNaturalAlignAddrLValue(CXXABIThisValue,
+                                                     LambdaTagType);
+        LValue ThisLValue = EmitLValueForField(LambdaLV,
+                                               LambdaThisCaptureField);
+        CXXThisValue = EmitLoadOfLValue(ThisLValue).getScalarVal();
+      }
+    } else {
+      // Not in a lambda; just use 'this' from the method.
+      // FIXME: Should we generate a new load for each use of 'this'?  The
+      // fast register allocator would be happier...
+      CXXThisValue = CXXABIThisValue;
+    }
+  }
 
   // If any of the arguments have a variably modified type, make sure to
   // emit the type size.
@@ -379,7 +487,7 @@ static void TryMarkNoThrow(llvm::Function *F) {
       } else if (isa<llvm::ResumeInst>(&*BI)) {
         return;
       }
-  F->setDoesNotThrow(true);
+  F->setDoesNotThrow();
 }
 
 void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
@@ -387,8 +495,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
   
   // Check if we should generate debug info for this function.
-  if (CGM.getModuleDebugInfo() && !FD->hasAttr<NoDebugAttr>())
-    DebugInfo = CGM.getModuleDebugInfo();
+  if (!FD->hasAttr<NoDebugAttr>())
+    maybeInitializeDebugInfo();
 
   FunctionArgList Args;
   QualType ResTy = FD->getResultType();
@@ -397,9 +505,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   if (isa<CXXMethodDecl>(FD) && cast<CXXMethodDecl>(FD)->isInstance())
     CGM.getCXXABI().BuildInstanceFunctionParams(*this, ResTy, Args);
 
-  if (FD->getNumParams())
-    for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i)
-      Args.push_back(FD->getParamDecl(i));
+  for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i)
+    Args.push_back(FD->getParamDecl(i));
 
   SourceRange BodyRange;
   if (Stmt *Body = FD->getBody()) BodyRange = Body->getSourceRange();
@@ -412,12 +519,41 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
     EmitDestructorBody(Args);
   else if (isa<CXXConstructorDecl>(FD))
     EmitConstructorBody(Args);
-  else if (getContext().getLangOptions().CUDA &&
+  else if (getLangOpts().CUDA &&
            !CGM.getCodeGenOpts().CUDAIsDevice &&
            FD->hasAttr<CUDAGlobalAttr>())
     CGM.getCUDARuntime().EmitDeviceStubBody(*this, Args);
+  else if (isa<CXXConversionDecl>(FD) &&
+           cast<CXXConversionDecl>(FD)->isLambdaToBlockPointerConversion()) {
+    // The lambda conversion to block pointer is special; the semantics can't be
+    // expressed in the AST, so IRGen needs to special-case it.
+    EmitLambdaToBlockPointerBody(Args);
+  } else if (isa<CXXMethodDecl>(FD) &&
+             cast<CXXMethodDecl>(FD)->isLambdaStaticInvoker()) {
+    // The lambda "__invoke" function is special, because it forwards or
+    // clones the body of the function call operator (but is actually static).
+    EmitLambdaStaticInvokeFunction(cast<CXXMethodDecl>(FD));
+  }
   else
     EmitFunctionBody(Args);
+
+  // C++11 [stmt.return]p2:
+  //   Flowing off the end of a function [...] results in undefined behavior in
+  //   a value-returning function.
+  // C11 6.9.1p12:
+  //   If the '}' that terminates a function is reached, and the value of the
+  //   function call is used by the caller, the behavior is undefined.
+  if (getLangOpts().CPlusPlus && !FD->hasImplicitReturnZero() &&
+      !FD->getResultType()->isVoidType() && Builder.GetInsertBlock()) {
+    if (getLangOpts().SanitizeReturn)
+      EmitCheck(Builder.getFalse(), "missing_return",
+                EmitCheckSourceLocation(FD->getLocation()),
+                llvm::ArrayRef<llvm::Value*>());
+    else if (CGM.getCodeGenOpts().OptimizationLevel == 0)
+      Builder.CreateCall(CGM.getIntrinsic(llvm::Intrinsic::trap));
+    Builder.CreateUnreachable();
+    Builder.ClearInsertionPoint();
+  }
 
   // Emit the standard function epilogue.
   FinishFunction(BodyRange.getEnd());
@@ -490,7 +626,7 @@ bool CodeGenFunction::containsBreak(const Stmt *S) {
 /// constant folds return true and set the boolean result in Result.
 bool CodeGenFunction::ConstantFoldsToSimpleInteger(const Expr *Cond,
                                                    bool &ResultBool) {
-  llvm::APInt ResultInt;
+  llvm::APSInt ResultInt;
   if (!ConstantFoldsToSimpleInteger(Cond, ResultInt))
     return false;
   
@@ -502,18 +638,17 @@ bool CodeGenFunction::ConstantFoldsToSimpleInteger(const Expr *Cond,
 /// to a constant, or if it does but contains a label, return false.  If it
 /// constant folds return true and set the folded value.
 bool CodeGenFunction::
-ConstantFoldsToSimpleInteger(const Expr *Cond, llvm::APInt &ResultInt) {
+ConstantFoldsToSimpleInteger(const Expr *Cond, llvm::APSInt &ResultInt) {
   // FIXME: Rename and handle conversion of other evaluatable things
   // to bool.
-  Expr::EvalResult Result;
-  if (!Cond->Evaluate(Result, getContext()) || !Result.Val.isInt() ||
-      Result.HasSideEffects)
+  llvm::APSInt Int;
+  if (!Cond->EvaluateAsInt(Int, getContext()))
     return false;  // Not foldable, not integer or not fully evaluatable.
-  
+
   if (CodeGenFunction::ContainsLabel(Cond))
     return false;  // Contains a label.
-  
-  ResultInt = Result.Val.getInt();
+
+  ResultInt = Int;
   return true;
 }
 
@@ -606,29 +741,24 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
   }
 
   if (const ConditionalOperator *CondOp = dyn_cast<ConditionalOperator>(Cond)) {
-    // Handle ?: operator.
+    // br(c ? x : y, t, f) -> br(c, br(x, t, f), br(y, t, f))
+    llvm::BasicBlock *LHSBlock = createBasicBlock("cond.true");
+    llvm::BasicBlock *RHSBlock = createBasicBlock("cond.false");
 
-    // Just ignore GNU ?: extension.
-    if (CondOp->getLHS()) {
-      // br(c ? x : y, t, f) -> br(c, br(x, t, f), br(y, t, f))
-      llvm::BasicBlock *LHSBlock = createBasicBlock("cond.true");
-      llvm::BasicBlock *RHSBlock = createBasicBlock("cond.false");
+    ConditionalEvaluation cond(*this);
+    EmitBranchOnBoolExpr(CondOp->getCond(), LHSBlock, RHSBlock);
 
-      ConditionalEvaluation cond(*this);
-      EmitBranchOnBoolExpr(CondOp->getCond(), LHSBlock, RHSBlock);
+    cond.begin(*this);
+    EmitBlock(LHSBlock);
+    EmitBranchOnBoolExpr(CondOp->getLHS(), TrueBlock, FalseBlock);
+    cond.end(*this);
 
-      cond.begin(*this);
-      EmitBlock(LHSBlock);
-      EmitBranchOnBoolExpr(CondOp->getLHS(), TrueBlock, FalseBlock);
-      cond.end(*this);
+    cond.begin(*this);
+    EmitBlock(RHSBlock);
+    EmitBranchOnBoolExpr(CondOp->getRHS(), TrueBlock, FalseBlock);
+    cond.end(*this);
 
-      cond.begin(*this);
-      EmitBlock(RHSBlock);
-      EmitBranchOnBoolExpr(CondOp->getRHS(), TrueBlock, FalseBlock);
-      cond.end(*this);
-
-      return;
-    }
+    return;
   }
 
   // Emit the code with the fully general case.
@@ -646,10 +776,10 @@ void CodeGenFunction::ErrorUnsupported(const Stmt *S, const char *Type,
 /// emitNonZeroVLAInit - Emit the "zero" initialization of a
 /// variable-length array whose elements have a non-zero bit-pattern.
 ///
+/// \param baseType the inner-most element type of the array
 /// \param src - a char* pointing to the bit-pattern for a single
 /// base element of the array
 /// \param sizeInChars - the total size of the VLA, in chars
-/// \param align - the total alignment of the VLA
 static void emitNonZeroVLAInit(CodeGenFunction &CGF, QualType baseType,
                                llvm::Value *dest, llvm::Value *src, 
                                llvm::Value *sizeInChars) {
@@ -696,7 +826,7 @@ static void emitNonZeroVLAInit(CodeGenFunction &CGF, QualType baseType,
 void
 CodeGenFunction::EmitNullInitialization(llvm::Value *DestPtr, QualType Ty) {
   // Ignore empty classes in C++.
-  if (getContext().getLangOptions().CPlusPlus) {
+  if (getLangOpts().CPlusPlus) {
     if (const RecordType *RT = Ty->getAs<RecordType>()) {
       if (cast<CXXRecordDecl>(RT->getDecl())->isEmpty())
         return;
@@ -840,33 +970,48 @@ llvm::Value *CodeGenFunction::emitArrayLength(const ArrayType *origArrayType,
   llvm::ConstantInt *zero = Builder.getInt32(0);
   gepIndices.push_back(zero);
 
-  // It's more efficient to calculate the count from the LLVM
-  // constant-length arrays than to re-evaluate the array bounds.
   uint64_t countFromCLAs = 1;
+  QualType eltType;
 
   llvm::ArrayType *llvmArrayType =
-    cast<llvm::ArrayType>(
+    dyn_cast<llvm::ArrayType>(
       cast<llvm::PointerType>(addr->getType())->getElementType());
-  while (true) {
+  while (llvmArrayType) {
     assert(isa<ConstantArrayType>(arrayType));
     assert(cast<ConstantArrayType>(arrayType)->getSize().getZExtValue()
              == llvmArrayType->getNumElements());
 
     gepIndices.push_back(zero);
     countFromCLAs *= llvmArrayType->getNumElements();
+    eltType = arrayType->getElementType();
 
     llvmArrayType =
       dyn_cast<llvm::ArrayType>(llvmArrayType->getElementType());
-    if (!llvmArrayType) break;
-
     arrayType = getContext().getAsArrayType(arrayType->getElementType());
-    assert(arrayType && "LLVM and Clang types are out-of-synch");
+    assert((!llvmArrayType || arrayType) &&
+           "LLVM and Clang types are out-of-synch");
   }
 
-  baseType = arrayType->getElementType();
+  if (arrayType) {
+    // From this point onwards, the Clang array type has been emitted
+    // as some other type (probably a packed struct). Compute the array
+    // size, and just emit the 'begin' expression as a bitcast.
+    while (arrayType) {
+      countFromCLAs *=
+          cast<ConstantArrayType>(arrayType)->getSize().getZExtValue();
+      eltType = arrayType->getElementType();
+      arrayType = getContext().getAsArrayType(eltType);
+    }
 
-  // Create the actual GEP.
-  addr = Builder.CreateInBoundsGEP(addr, gepIndices, "array.begin");
+    unsigned AddressSpace = addr->getType()->getPointerAddressSpace();
+    llvm::Type *BaseType = ConvertType(eltType)->getPointerTo(AddressSpace);
+    addr = Builder.CreateBitCast(addr, BaseType, "array.begin");
+  } else {
+    // Create the actual GEP.
+    addr = Builder.CreateInBoundsGEP(addr, gepIndices, "array.begin");
+  }
+
+  baseType = eltType;
 
   llvm::Value *numElements
     = llvm::ConstantInt::get(SizeTy, countFromCLAs);
@@ -901,6 +1046,7 @@ CodeGenFunction::getVLASize(const VariableArrayType *type) {
       numElements = vlaSize;
     } else {
       // It's undefined behavior if this wraps around, so mark it that way.
+      // FIXME: Teach -fcatch-undefined-behavior to trap this.
       numElements = Builder.CreateNUWMul(numElements, vlaSize);
     }
   } while ((type = getContext().getAsVariableArrayType(elementType)));
@@ -916,19 +1062,19 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
 
   // We're going to walk down into the type and look for VLA
   // expressions.
-  type = type.getCanonicalType();
   do {
     assert(type->isVariablyModifiedType());
 
     const Type *ty = type.getTypePtr();
     switch (ty->getTypeClass()) {
+
 #define TYPE(Class, Base)
 #define ABSTRACT_TYPE(Class, Base)
-#define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
+#define NON_CANONICAL_TYPE(Class, Base)
 #define DEPENDENT_TYPE(Class, Base) case Type::Class:
-#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
-      llvm_unreachable("unexpected dependent or non-canonical type!");
+      llvm_unreachable("unexpected dependent type!");
 
     // These types are never variably-modified.
     case Type::Builtin:
@@ -937,6 +1083,8 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
     case Type::ExtVector:
     case Type::Record:
     case Type::Enum:
+    case Type::Elaborated:
+    case Type::TemplateSpecialization:
     case Type::ObjCObject:
     case Type::ObjCInterface:
     case Type::ObjCObjectPointer:
@@ -976,20 +1124,56 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
         // e.g. with a typedef and a pointer to it.
         llvm::Value *&entry = VLASizeMap[size];
         if (!entry) {
+          llvm::Value *Size = EmitScalarExpr(size);
+
+          // C11 6.7.6.2p5:
+          //   If the size is an expression that is not an integer constant
+          //   expression [...] each time it is evaluated it shall have a value
+          //   greater than zero.
+          if (getLangOpts().SanitizeVLABound &&
+              size->getType()->isSignedIntegerType()) {
+            llvm::Value *Zero = llvm::Constant::getNullValue(Size->getType());
+            llvm::Constant *StaticArgs[] = {
+              EmitCheckSourceLocation(size->getLocStart()),
+              EmitCheckTypeDescriptor(size->getType())
+            };
+            EmitCheck(Builder.CreateICmpSGT(Size, Zero),
+                      "vla_bound_not_positive", StaticArgs, Size);
+          }
+
           // Always zexting here would be wrong if it weren't
           // undefined behavior to have a negative bound.
-          entry = Builder.CreateIntCast(EmitScalarExpr(size), SizeTy,
-                                        /*signed*/ false);
+          entry = Builder.CreateIntCast(Size, SizeTy, /*signed*/ false);
         }
       }
       type = vat->getElementType();
       break;
     }
 
-    case Type::FunctionProto: 
+    case Type::FunctionProto:
     case Type::FunctionNoProto:
       type = cast<FunctionType>(ty)->getResultType();
       break;
+
+    case Type::Paren:
+    case Type::TypeOf:
+    case Type::UnaryTransform:
+    case Type::Attributed:
+    case Type::SubstTemplateTypeParm:
+      // Keep walking after single level desugaring.
+      type = type.getSingleStepDesugaredType(getContext());
+      break;
+
+    case Type::Typedef:
+    case Type::Decltype:
+    case Type::Auto:
+      // Stop walking: nothing to do.
+      return;
+
+    case Type::TypeOfExpr:
+      // Stop walking: emit typeof expression.
+      EmitIgnoredExpr(cast<TypeOfExprType>(ty)->getUnderlyingExpr());
+      return;
 
     case Type::Atomic:
       type = cast<AtomicType>(ty)->getValueType();
@@ -1008,7 +1192,8 @@ void CodeGenFunction::EmitDeclRefExprDbgValue(const DeclRefExpr *E,
                                               llvm::Constant *Init) {
   assert (Init && "Invalid DeclRefExpr initializer!");
   if (CGDebugInfo *Dbg = getDebugInfo())
-    Dbg->EmitGlobalVariable(E->getDecl(), Init);
+    if (CGM.getCodeGenOpts().getDebugInfo() >= CodeGenOptions::LimitedDebugInfo)
+      Dbg->EmitGlobalVariable(E->getDecl(), Init);
 }
 
 CodeGenFunction::PeepholeProtection

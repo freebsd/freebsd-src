@@ -97,15 +97,15 @@ int parsenleft;			/* copy of parsefile->nleft */
 MKINIT int parselleft;		/* copy of parsefile->lleft */
 char *parsenextc;		/* copy of parsefile->nextc */
 MKINIT struct parsefile basepf;	/* top level input file */
-char basebuf[BUFSIZ];		/* buffer for top level input file */
+char basebuf[BUFSIZ + 1];	/* buffer for top level input file */
 static struct parsefile *parsefile = &basepf;	/* current input file */
-int init_editline = 0;		/* editline library initialized? */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 EditLine *el;			/* cookie for editline package */
 
 static void pushfile(void);
 static int preadfd(void);
+static void popstring(void);
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -185,11 +185,11 @@ retry:
 		if (rl_cp == NULL)
 			rl_cp = el_gets(el, &el_len);
 		if (rl_cp == NULL)
-			nr = 0;
+			nr = el_len == 0 ? 0 : -1;
 		else {
 			nr = el_len;
-			if (nr > BUFSIZ - 1)
-				nr = BUFSIZ - 1;
+			if (nr > BUFSIZ)
+				nr = BUFSIZ;
 			memcpy(parsenextc, rl_cp, nr);
 			if (nr != el_len) {
 				el_len -= nr;
@@ -199,7 +199,7 @@ retry:
 		}
 	} else
 #endif
-		nr = read(parsefile->fd, parsenextc, BUFSIZ - 1);
+		nr = read(parsefile->fd, parsenextc, BUFSIZ);
 
 	if (nr <= 0) {
                 if (nr < 0) {
@@ -349,7 +349,7 @@ pungetc(void)
  * We handle aliases this way.
  */
 void
-pushstring(char *s, int len, void *ap)
+pushstring(char *s, int len, struct alias *ap)
 {
 	struct strpush *sp;
 
@@ -364,15 +364,15 @@ pushstring(char *s, int len, void *ap)
 	sp->prevstring = parsenextc;
 	sp->prevnleft = parsenleft;
 	sp->prevlleft = parselleft;
-	sp->ap = (struct alias *)ap;
+	sp->ap = ap;
 	if (ap)
-		((struct alias *)ap)->flag |= ALIASINUSE;
+		ap->flag |= ALIASINUSE;
 	parsenextc = s;
 	parsenleft = len;
 	INTON;
 }
 
-void
+static void
 popstring(void)
 {
 	struct strpush *sp = parsefile->strpush;
@@ -427,13 +427,13 @@ setinputfd(int fd, int push)
 	(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
 	if (push) {
 		pushfile();
-		parsefile->buf = ckmalloc(BUFSIZ);
+		parsefile->buf = ckmalloc(BUFSIZ + 1);
 	}
 	if (parsefile->fd > 0)
 		close(parsefile->fd);
 	parsefile->fd = fd;
 	if (parsefile->buf == NULL)
-		parsefile->buf = ckmalloc(BUFSIZ);
+		parsefile->buf = ckmalloc(BUFSIZ + 1);
 	parselleft = parsenleft = 0;
 	plinno = 1;
 }

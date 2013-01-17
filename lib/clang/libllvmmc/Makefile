@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmc
 
 SRCDIR=	lib/MC
@@ -10,8 +12,9 @@ SRCS=	ELFObjectWriter.cpp \
 	MCAsmInfoDarwin.cpp \
 	MCAsmStreamer.cpp \
 	MCAssembler.cpp \
-	MCCodeGenInfo.cpp \
+	MCAtom.cpp \
 	MCCodeEmitter.cpp \
+	MCCodeGenInfo.cpp \
 	MCContext.cpp \
 	MCDwarf.cpp \
 	MCELF.cpp \
@@ -21,14 +24,16 @@ SRCS=	ELFObjectWriter.cpp \
 	MCInst.cpp \
 	MCInstPrinter.cpp \
 	MCInstrAnalysis.cpp \
-	MCLoggingStreamer.cpp \
+	MCLabel.cpp \
 	MCMachOStreamer.cpp \
 	MCMachObjectTargetWriter.cpp \
+	MCModule.cpp \
 	MCNullStreamer.cpp \
 	MCObjectFileInfo.cpp \
 	MCObjectStreamer.cpp \
 	MCObjectWriter.cpp \
 	MCPureStreamer.cpp \
+	MCRegisterInfo.cpp \
 	MCSection.cpp \
 	MCSectionCOFF.cpp \
 	MCSectionELF.cpp \
@@ -37,10 +42,15 @@ SRCS=	ELFObjectWriter.cpp \
 	MCSubtargetInfo.cpp \
 	MCSymbol.cpp \
 	MCTargetAsmLexer.cpp \
+	MCValue.cpp \
 	MCWin64EH.cpp \
 	MachObjectWriter.cpp \
 	SubtargetFeature.cpp \
 	WinCOFFObjectWriter.cpp \
 	WinCOFFStreamer.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	MCDisassembler.cpp
+.endif
 
 .include "../clang.lib.mk"

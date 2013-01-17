@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2005 Kungliga Tekniska Högskolan
+ * Copyright (c) 2004-2005 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  *
@@ -31,17 +31,15 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
+
 #include <config.h>
-RCSID("$Id: hex.c 16504 2006-01-09 17:09:29Z lha $");
-#endif
 #include "roken.h"
 #include <ctype.h>
 #include "hex.h"
 
-const static char hexchar[] = "0123456789ABCDEF";
+static const char hexchar[16] = "0123456789ABCDEF";
 
-static int 
+static int
 pos(char c)
 {
     const char *p;
@@ -52,7 +50,7 @@ pos(char c)
     return -1;
 }
 
-ssize_t ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION ssize_t ROKEN_LIB_CALL
 hex_encode(const void *data, size_t size, char **str)
 {
     const unsigned char *q = data;
@@ -60,13 +58,17 @@ hex_encode(const void *data, size_t size, char **str)
     char *p;
 
     /* check for overflow */
-    if (size * 2 < size)
+    if (size * 2 < size) {
+        *str = NULL;
 	return -1;
+    }
 
     p = malloc(size * 2 + 1);
-    if (p == NULL)
+    if (p == NULL) {
+        *str = NULL;
 	return -1;
-    
+    }
+
     for (i = 0; i < size; i++) {
 	p[i * 2] = hexchar[(*q >> 4) & 0xf];
 	p[i * 2 + 1] = hexchar[*q & 0xf];
@@ -78,20 +80,19 @@ hex_encode(const void *data, size_t size, char **str)
     return i * 2;
 }
 
-ssize_t ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION ssize_t ROKEN_LIB_CALL
 hex_decode(const char *str, void *data, size_t len)
 {
     size_t l;
     unsigned char *p = data;
     size_t i;
-	
+
     l = strlen(str);
-    
+
     /* check for overflow, same as (l+1)/2 but overflow safe */
     if ((l/2) + (l&1) > len)
 	return -1;
 
-    i = 0;
     if (l & 1) {
 	p[0] = pos(str[0]);
 	str++;

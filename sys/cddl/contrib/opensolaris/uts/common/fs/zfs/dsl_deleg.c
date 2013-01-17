@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /*
@@ -170,10 +171,8 @@ dsl_deleg_set_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 		VERIFY(nvpair_value_nvlist(whopair, &perms) == 0);
 
 		if (zap_lookup(mos, zapobj, whokey, 8, 1, &jumpobj) != 0) {
-			jumpobj = zap_create(mos, DMU_OT_DSL_PERMS,
-			    DMU_OT_NONE, 0, tx);
-			VERIFY(zap_update(mos, zapobj,
-			    whokey, 8, 1, &jumpobj, tx) == 0);
+			jumpobj = zap_create_link(mos, DMU_OT_DSL_PERMS,
+			    zapobj, whokey, tx);
 		}
 
 		while (permpair = nvlist_next_nvpair(perms, permpair)) {
@@ -525,10 +524,12 @@ dsl_load_user_sets(objset_t *mos, uint64_t zapobj, avl_tree_t *avl,
 }
 
 /*
- * Check if user has requested permission.
+ * Check if user has requested permission.  If descendent is set, must have
+ * descendent perms.
  */
 int
-dsl_deleg_access_impl(dsl_dataset_t *ds, const char *perm, cred_t *cr)
+dsl_deleg_access_impl(dsl_dataset_t *ds, boolean_t descendent, const char *perm,
+    cred_t *cr)
 {
 	dsl_dir_t *dd;
 	dsl_pool_t *dp;
@@ -549,7 +550,7 @@ dsl_deleg_access_impl(dsl_dataset_t *ds, const char *perm, cred_t *cr)
 	    SPA_VERSION_DELEGATED_PERMS)
 		return (EPERM);
 
-	if (dsl_dataset_is_snapshot(ds)) {
+	if (dsl_dataset_is_snapshot(ds) || descendent) {
 		/*
 		 * Snapshots are treated as descendents only,
 		 * local permissions do not apply.
@@ -642,7 +643,7 @@ dsl_deleg_access(const char *dsname, const char *perm, cred_t *cr)
 	if (error)
 		return (error);
 
-	error = dsl_deleg_access_impl(ds, perm, cr);
+	error = dsl_deleg_access_impl(ds, B_FALSE, perm, cr);
 	dsl_dataset_rele(ds, FTAG);
 
 	return (error);

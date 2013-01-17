@@ -56,9 +56,9 @@
 
 #include "route6d.h"
 
-int	s;
-struct sockaddr_in6 sin6;
-struct rip6	*ripbuf;
+static int	s;
+static struct sockaddr_in6 sin6;
+static struct rip6	*ripbuf;
 
 #define	RIPSIZE(n)	(sizeof(struct rip6) + (n-1) * sizeof(struct netinfo6))
 

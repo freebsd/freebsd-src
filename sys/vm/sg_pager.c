@@ -38,9 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sglist.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/uma.h>
 
 static vm_object_t sg_pager_alloc(void *, vm_ooffset_t, vm_prot_t,

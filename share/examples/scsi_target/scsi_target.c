@@ -88,7 +88,7 @@ static void		handle_read(void);
 /* static int		work_atio(struct ccb_accept_tio *); */
 static void		queue_io(struct ccb_scsiio *);
 static int		run_queue(struct ccb_accept_tio *);
-static int		work_inot(struct ccb_immed_notify *);
+static int		work_inot(struct ccb_immediate_notify *);
 static struct ccb_scsiio *
 			get_ctio(void);
 /* static void		free_ccb(union ccb *); */
@@ -100,8 +100,8 @@ static void		usage(void);
 int
 main(int argc, char *argv[])
 {
-	int ch, unit;
-	char *file_name, targname[16];
+	int ch;
+	char *file_name;
 	u_int16_t req_flags, sim_flags;
 	off_t user_size;
 
@@ -283,17 +283,11 @@ main(int argc, char *argv[])
 			warnx("aio support tested ok");
 	}
 
-	/* Go through all the control devices and find one that isn't busy. */
-	unit = 0;
-	do {
-		snprintf(targname, sizeof(targname), "/dev/targ%d", unit++);
-    		targ_fd = open(targname, O_RDWR);
-	} while (targ_fd < 0 && errno == EBUSY);
-
+	targ_fd = open("/dev/targ", O_RDWR);
 	if (targ_fd < 0)
-    	    errx(1, "Tried to open %d devices, none available", unit);
+    	    err(1, "/dev/targ");
 	else
-	    warnx("opened %s", targname);
+	    warnx("opened /dev/targ");
 
 	/* The first three are handled by kevent() later */
 	signal(SIGHUP, SIG_IGN);
@@ -393,7 +387,7 @@ init_ccbs()
 			warn("malloc INOT");
 			return (-1);
 		}
-		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
+		inot->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		send_ccb((union ccb *)inot, /*priority*/1);
 	}
 
@@ -501,8 +495,8 @@ request_loop()
 				/* Start one more transfer. */
 				retval = work_atio(&ccb->atio);
 				break;
-			case XPT_IMMED_NOTIFY:
-				retval = work_inot(&ccb->cin);
+			case XPT_IMMEDIATE_NOTIFY:
+				retval = work_inot(&ccb->cin1);
 				break;
 			default:
 				warnx("Unhandled ccb type %#x on workq",
@@ -657,7 +651,7 @@ work_atio(struct ccb_accept_tio *atio)
 			warnx("ATIO with %u bytes sense received",
 			      atio->sense_len);
 		}
-		sense = &atio->sense_data;
+		sense = (struct scsi_sense_data_fixed *)&atio->sense_data;
 		tcmd_sense(ctio->init_id, ctio, sense->flags,
 			   sense->add_sense_code, sense->add_sense_code_qual);
 		send_ccb((union ccb *)ctio, /*priority*/1);
@@ -778,16 +772,14 @@ run_queue(struct ccb_accept_tio *atio)
 }
 
 static int
-work_inot(struct ccb_immed_notify *inot)
+work_inot(struct ccb_immediate_notify *inot)
 {
 	cam_status status;
-	int sense;
 
 	if (debug)
 		warnx("Working on INOT %p", inot);
 
 	status = inot->ccb_h.status;
-	sense = (status & CAM_AUTOSNS_VALID) != 0;
 	status &= CAM_STATUS_MASK;
 
 	switch (status) {
@@ -800,7 +792,7 @@ work_inot(struct ccb_immed_notify *inot)
 		abort_all_pending();
 		break;
 	case CAM_MESSAGE_RECV:
-		switch (inot->message_args[0]) {
+		switch (inot->arg) {
 		case MSG_TASK_COMPLETE:
 		case MSG_INITIATOR_DET_ERR:
 		case MSG_ABORT_TASK_SET:
@@ -811,7 +803,7 @@ work_inot(struct ccb_immed_notify *inot)
 		case MSG_ABORT_TASK:
 		case MSG_CLEAR_TASK_SET:
 		default:
-			warnx("INOT message %#x", inot->message_args[0]);
+			warnx("INOT message %#x", inot->arg);
 			break;
 		}
 		break;
@@ -821,17 +813,6 @@ work_inot(struct ccb_immed_notify *inot)
 	default:
 		warnx("Unhandled INOT status %#x", status);
 		break;
-	}
-
-	/* If there is sense data, use it */
-	if (sense != 0) {
-		struct scsi_sense_data_fixed *sense;
-
-		sense = (struct scsi_sense_data_fixed *)&inot->sense_data;
-		tcmd_sense(inot->initiator_id, NULL, sense->flags,
-			   sense->add_sense_code, sense->add_sense_code_qual);
-		if (debug)
-			warnx("INOT has sense: %#x", sense->flags);
 	}
 
 	/* Requeue on SIM */

@@ -12,8 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/CXXInheritance.h"
+#include "clang/AST/DeclObjC.h"
 
 using namespace clang;
 using namespace ento;
@@ -22,9 +25,21 @@ StoreManager::StoreManager(ProgramStateManager &stateMgr)
   : svalBuilder(stateMgr.getSValBuilder()), StateMgr(stateMgr),
     MRMgr(svalBuilder.getRegionManager()), Ctx(stateMgr.getContext()) {}
 
-StoreRef StoreManager::enterStackFrame(const ProgramState *state,
-                                       const StackFrameContext *frame) {
-  return StoreRef(state->getStore(), *this);
+StoreRef StoreManager::enterStackFrame(Store OldStore,
+                                       const CallEvent &Call,
+                                       const StackFrameContext *LCtx) {
+  StoreRef Store = StoreRef(OldStore, *this);
+
+  SmallVector<CallEvent::FrameBindingTy, 16> InitialBindings;
+  Call.getInitialStackFrameContents(LCtx, InitialBindings);
+
+  for (CallEvent::BindingsTy::iterator I = InitialBindings.begin(),
+                                       E = InitialBindings.end();
+       I != E; ++I) {
+    Store = Bind(Store.getStore(), I->first, I->second);
+  }
+
+  return Store;
 }
 
 const MemRegion *StoreManager::MakeElementRegion(const MemRegion *Base,
@@ -101,8 +116,10 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
     case MemRegion::StackArgumentsSpaceRegionKind:
     case MemRegion::HeapSpaceRegionKind:
     case MemRegion::UnknownSpaceRegionKind:
-    case MemRegion::NonStaticGlobalSpaceRegionKind:
-    case MemRegion::StaticGlobalSpaceRegionKind: {
+    case MemRegion::StaticGlobalSpaceRegionKind:
+    case MemRegion::GlobalInternalSpaceRegionKind:
+    case MemRegion::GlobalSystemSpaceRegionKind:
+    case MemRegion::GlobalImmutableSpaceRegionKind: {
       llvm_unreachable("Invalid region cast");
     }
 
@@ -116,6 +133,7 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
     case MemRegion::CompoundLiteralRegionKind:
     case MemRegion::FieldRegionKind:
     case MemRegion::ObjCIvarRegionKind:
+    case MemRegion::ObjCStringRegionKind:
     case MemRegion::VarRegionKind:
     case MemRegion::CXXTempObjectRegionKind:
     case MemRegion::CXXBaseObjectRegionKind:
@@ -205,6 +223,102 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
   llvm_unreachable("unreachable");
 }
 
+SVal StoreManager::evalDerivedToBase(SVal Derived, const CastExpr *Cast) {
+  // Walk through the cast path to create nested CXXBaseRegions.
+  SVal Result = Derived;
+  for (CastExpr::path_const_iterator I = Cast->path_begin(),
+                                     E = Cast->path_end();
+       I != E; ++I) {
+    Result = evalDerivedToBase(Result, (*I)->getType());
+  }
+  return Result;
+}
+
+SVal StoreManager::evalDerivedToBase(SVal Derived, const CXXBasePath &Path) {
+  // Walk through the path to create nested CXXBaseRegions.
+  SVal Result = Derived;
+  for (CXXBasePath::const_iterator I = Path.begin(), E = Path.end();
+       I != E; ++I) {
+    Result = evalDerivedToBase(Result, I->Base->getType());
+  }
+  return Result;
+}
+
+SVal StoreManager::evalDerivedToBase(SVal Derived, QualType BaseType) {
+  loc::MemRegionVal *DerivedRegVal = dyn_cast<loc::MemRegionVal>(&Derived);
+  if (!DerivedRegVal)
+    return Derived;
+
+  const CXXRecordDecl *BaseDecl = BaseType->getPointeeCXXRecordDecl();
+  if (!BaseDecl)
+    BaseDecl = BaseType->getAsCXXRecordDecl();
+  assert(BaseDecl && "not a C++ object?");
+
+  const MemRegion *BaseReg =
+    MRMgr.getCXXBaseObjectRegion(BaseDecl, DerivedRegVal->getRegion());
+
+  return loc::MemRegionVal(BaseReg);
+}
+
+SVal StoreManager::evalDynamicCast(SVal Base, QualType DerivedType,
+                                   bool &Failed) {
+  Failed = false;
+
+  loc::MemRegionVal *BaseRegVal = dyn_cast<loc::MemRegionVal>(&Base);
+  if (!BaseRegVal)
+    return UnknownVal();
+  const MemRegion *BaseRegion = BaseRegVal->stripCasts(/*StripBases=*/false);
+
+  // Assume the derived class is a pointer or a reference to a CXX record.
+  DerivedType = DerivedType->getPointeeType();
+  assert(!DerivedType.isNull());
+  const CXXRecordDecl *DerivedDecl = DerivedType->getAsCXXRecordDecl();
+  if (!DerivedDecl && !DerivedType->isVoidType())
+    return UnknownVal();
+
+  // Drill down the CXXBaseObject chains, which represent upcasts (casts from
+  // derived to base).
+  const MemRegion *SR = BaseRegion;
+  while (const TypedRegion *TSR = dyn_cast_or_null<TypedRegion>(SR)) {
+    QualType BaseType = TSR->getLocationType()->getPointeeType();
+    assert(!BaseType.isNull());
+    const CXXRecordDecl *SRDecl = BaseType->getAsCXXRecordDecl();
+    if (!SRDecl)
+      return UnknownVal();
+
+    // If found the derived class, the cast succeeds.
+    if (SRDecl == DerivedDecl)
+      return loc::MemRegionVal(TSR);
+
+    if (!DerivedType->isVoidType()) {
+      // Static upcasts are marked as DerivedToBase casts by Sema, so this will
+      // only happen when multiple or virtual inheritance is involved.
+      CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/true,
+                         /*DetectVirtual=*/false);
+      if (SRDecl->isDerivedFrom(DerivedDecl, Paths))
+        return evalDerivedToBase(loc::MemRegionVal(TSR), Paths.front());
+    }
+
+    if (const CXXBaseObjectRegion *R = dyn_cast<CXXBaseObjectRegion>(TSR))
+      // Drill down the chain to get the derived classes.
+      SR = R->getSuperRegion();
+    else {
+      // We reached the bottom of the hierarchy.
+
+      // If this is a cast to void*, return the region.
+      if (DerivedType->isVoidType())
+        return loc::MemRegionVal(TSR);
+
+      // We did not find the derived class. We we must be casting the base to
+      // derived, so the cast should fail.
+      Failed = true;
+      return UnknownVal();
+    }
+  }
+  
+  return UnknownVal();
+}
+
 
 /// CastRetrievedVal - Used by subclasses of StoreManager to implement
 ///  implicit casts that arise from loads from regions that are reinterpreted
@@ -212,7 +326,7 @@ const MemRegion *StoreManager::castRegion(const MemRegion *R, QualType CastToTy)
 SVal StoreManager::CastRetrievedVal(SVal V, const TypedValueRegion *R,
                                     QualType castTy, bool performTestOnly) {
   
-  if (castTy.isNull())
+  if (castTy.isNull() || V.isUnknownOrUndef())
     return V;
   
   ASTContext &Ctx = svalBuilder.getContext();
@@ -227,12 +341,7 @@ SVal StoreManager::CastRetrievedVal(SVal V, const TypedValueRegion *R,
     return V;
   }
   
-  if (const Loc *L = dyn_cast<Loc>(&V))
-    return svalBuilder.evalCastFromLoc(*L, castTy);
-  else if (const NonLoc *NL = dyn_cast<NonLoc>(&V))
-    return svalBuilder.evalCastFromNonLoc(*NL, castTy);
-  
-  return V;
+  return svalBuilder.dispatchCast(V, castTy);
 }
 
 SVal StoreManager::getLValueFieldOrIvar(const Decl *D, SVal Base) {
@@ -268,6 +377,10 @@ SVal StoreManager::getLValueFieldOrIvar(const Decl *D, SVal Base) {
     return loc::MemRegionVal(MRMgr.getObjCIvarRegion(ID, BaseR));
 
   return loc::MemRegionVal(MRMgr.getFieldRegion(cast<FieldDecl>(D), BaseR));
+}
+
+SVal StoreManager::getLValueIvar(const ObjCIvarDecl *decl, SVal base) {
+  return getLValueFieldOrIvar(decl, base);
 }
 
 SVal StoreManager::getLValueElement(QualType elementType, NonLoc Offset, 
@@ -336,3 +449,20 @@ SVal StoreManager::getLValueElement(QualType elementType, NonLoc Offset,
 
 StoreManager::BindingsHandler::~BindingsHandler() {}
 
+bool StoreManager::FindUniqueBinding::HandleBinding(StoreManager& SMgr,
+                                                    Store store,
+                                                    const MemRegion* R,
+                                                    SVal val) {
+  SymbolRef SymV = val.getAsLocSymbol();
+  if (!SymV || SymV != Sym)
+    return true;
+
+  if (Binding) {
+    First = false;
+    return false;
+  }
+  else
+    Binding = R;
+
+  return true;
+}

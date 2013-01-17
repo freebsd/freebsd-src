@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <netdb.h>
 #include <pthread.h>
 #include <signal.h>
@@ -726,8 +727,10 @@ proto_printf(struct stream *wr, const char *format, ...)
 	while ((cp = strchr(fmt, '%')) != NULL) {
 		if (cp > fmt) {
 			n = stream_write(wr, fmt, cp - fmt);
-			if (n == -1)
+			if (n == -1) {
+				va_end(ap);
 				return (-1);
+			}
 		}
 		if (*++cp == '\0')
 			goto done;
@@ -751,7 +754,7 @@ proto_printf(struct stream *wr, const char *format, ...)
 			break;
 		case 'O':
 			off = va_arg(ap, off_t);
-			rv = stream_printf(wr, "%llu", off);
+			rv = stream_printf(wr, "%" PRId64, off);
 			break;
 		case 'S':
 			s = va_arg(ap, char *);
@@ -788,18 +791,24 @@ proto_printf(struct stream *wr, const char *format, ...)
 
 		case '%':
 			n = stream_write(wr, "%", 1);
-			if (n == -1)
+			if (n == -1) {
+				va_end(ap);
 				return (-1);
+			}
 			break;
 		}
-		if (rv == -1)
+		if (rv == -1) {
+			va_end(ap);
 			return (-1);
+		}
 		fmt = cp + 1;
 	}
 	if (*fmt != '\0') {
 		rv = stream_printf(wr, "%s", fmt);
-		if (rv == -1)
+		if (rv == -1) {
+			va_end(ap);
 			return (-1);
+		}
 	}
 done:
 	va_end(ap);

@@ -1,35 +1,35 @@
-.\" Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
-.\" (Royal Institute of Technology, Stockholm, Sweden). 
-.\" All rights reserved. 
+.\" Copyright (c) 1997 - 2004 Kungliga Tekniska HÃ¶gskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
 .\"
-.\" Redistribution and use in source and binary forms, with or without 
-.\" modification, are permitted provided that the following conditions 
-.\" are met: 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
 .\"
-.\" 1. Redistributions of source code must retain the above copyright 
-.\"    notice, this list of conditions and the following disclaimer. 
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
 .\"
-.\" 2. Redistributions in binary form must reproduce the above copyright 
-.\"    notice, this list of conditions and the following disclaimer in the 
-.\"    documentation and/or other materials provided with the distribution. 
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" 3. Neither the name of the Institute nor the names of its contributors 
-.\"    may be used to endorse or promote products derived from this software 
-.\"    without specific prior written permission. 
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
-.\" SUCH DAMAGE. 
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
 .\"
-.\" $Id: kstash.8 20316 2007-04-11 11:53:20Z lha $
+.\" $Id$
 .\"
 .Dd April 10, 2007
 .Dt KSTASH 8
@@ -41,19 +41,19 @@
 .Nm
 .Bk -words
 .Oo Fl e Ar string \*(Ba Xo
-.Fl -enctype= Ns Ar string
+.Fl Fl enctype= Ns Ar string
 .Xc
 .Oc
 .Oo Fl k Ar file \*(Ba Xo
-.Fl -key-file= Ns Ar file
+.Fl Fl key-file= Ns Ar file
 .Xc
 .Oc
-.Op Fl -convert-file
-.Op Fl -random-key
-.Op Fl -master-key-fd= Ns Ar fd
-.Op Fl -random-key
-.Op Fl h | Fl -help
-.Op Fl -version
+.Op Fl Fl convert-file
+.Op Fl Fl random-key
+.Op Fl Fl master-key-fd= Ns Ar fd
+.Op Fl Fl random-key
+.Op Fl h | Fl Fl help
+.Op Fl Fl version
 .Ek
 .Sh DESCRIPTION
 .Nm
@@ -62,28 +62,16 @@ used by the KDC.
 .Pp
 Supported options:
 .Bl -tag -width Ds
-.It Xo
-.Fl e Ar string ,
-.Fl -enctype= Ns Ar string
-.Xc
+.It Fl e Ar string , Fl Fl enctype= Ns Ar string
 the encryption type to use, defaults to DES3-CBC-SHA1.
-.It Xo
-.Fl k Ar file ,
-.Fl -key-file= Ns Ar file
-.Xc
+.It Fl k Ar file , Fl Fl key-file= Ns Ar file
 the name of the master key file.
-.It Xo
-.Fl -convert-file
-.Xc
+.It Fl Fl convert-file
 don't ask for a new master key, just read an old master key file, and
 write it back in the new keyfile format.
-.It Xo
-.Fl -random-key
-.Xc
+.It Fl Fl random-key
 generate a random master key.
-.It Xo
-.Fl -master-key-fd= Ns Ar fd
-.Xc
+.It Fl Fl master-key-fd= Ns Ar fd
 filedescriptor to read passphrase from, if not specified the
 passphrase will be read from the terminal.
 .El

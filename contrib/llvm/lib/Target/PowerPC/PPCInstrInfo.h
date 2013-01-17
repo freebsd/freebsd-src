@@ -1,4 +1,4 @@
-//===- PPCInstrInfo.h - PowerPC Instruction Information ---------*- C++ -*-===//
+//===-- PPCInstrInfo.h - PowerPC Instruction Information --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef POWERPC32_INSTRUCTIONINFO_H
-#define POWERPC32_INSTRUCTIONINFO_H
+#ifndef POWERPC_INSTRUCTIONINFO_H
+#define POWERPC_INSTRUCTIONINFO_H
 
 #include "PPC.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "PPCRegisterInfo.h"
+#include "llvm/Target/TargetInstrInfo.h"
 
 #define GET_INSTRINFO_HEADER
 #include "PPCGenInstrInfo.inc"
@@ -72,7 +72,7 @@ class PPCInstrInfo : public PPCGenInstrInfo {
                            unsigned SrcReg, bool isKill, int FrameIdx,
                            const TargetRegisterClass *RC,
                            SmallVectorImpl<MachineInstr*> &NewMIs) const;
-  void LoadRegFromStackSlot(MachineFunction &MF, DebugLoc DL,
+  bool LoadRegFromStackSlot(MachineFunction &MF, DebugLoc DL,
                             unsigned DestReg, int FrameIdx,
                             const TargetRegisterClass *RC,
                             SmallVectorImpl<MachineInstr*> &NewMIs) const;
@@ -88,7 +88,13 @@ public:
   ScheduleHazardRecognizer *
   CreateTargetHazardRecognizer(const TargetMachine *TM,
                                const ScheduleDAG *DAG) const;
+  ScheduleHazardRecognizer *
+  CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
+                                     const ScheduleDAG *DAG) const;
 
+  bool isCoalescableExtInstr(const MachineInstr &MI,
+                             unsigned &SrcReg, unsigned &DstReg,
+                             unsigned &SubIdx) const;
   unsigned isLoadFromStackSlot(const MachineInstr *MI,
                                int &FrameIndex) const;
   unsigned isStoreToStackSlot(const MachineInstr *MI,

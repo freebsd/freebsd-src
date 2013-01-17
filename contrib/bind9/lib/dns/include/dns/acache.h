@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acache.h,v 1.8 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: acache.h,v 1.8 2007/06/19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_ACACHE_H
 #define DNS_ACACHE_H 1

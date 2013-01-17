@@ -1,10 +1,10 @@
 //===- PPCCallingConv.td - Calling Conventions for PowerPC -*- tablegen -*-===//
-// 
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This describes the calling conventions for the PowerPC 32- and 64-bit
@@ -22,6 +22,9 @@ class CCIfSubtarget<string F, CCAction A>
 
 // Return-value convention for PowerPC
 def RetCC_PPC : CallingConv<[
+  // On PPC64, integer return values are always promoted to i64
+  CCIfType<[i32], CCIfSubtarget<"isPPC64()", CCPromoteToType<i64>>>,
+
   CCIfType<[i32], CCAssignToReg<[R3, R4, R5, R6, R7, R8, R9, R10]>>,
   CCIfType<[i64], CCAssignToReg<[X3, X4, X5, X6]>>,
   
@@ -130,3 +133,34 @@ def CC_PPC_SVR4_ByVal : CallingConv<[
   CCCustom<"CC_PPC_SVR4_Custom_Dummy">
 ]>;
 
+def CSR_Darwin32 : CalleeSavedRegs<(add R13, R14, R15, R16, R17, R18, R19, R20,
+                                        R21, R22, R23, R24, R25, R26, R27, R28,
+                                        R29, R30, R31, F14, F15, F16, F17, F18,
+                                        F19, F20, F21, F22, F23, F24, F25, F26,
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
+                                        V20, V21, V22, V23, V24, V25, V26, V27,
+                                        V28, V29, V30, V31)>;
+
+def CSR_SVR432   : CalleeSavedRegs<(add R14, R15, R16, R17, R18, R19, R20, VRSAVE,
+                                        R21, R22, R23, R24, R25, R26, R27, R28,
+                                        R29, R30, R31, F14, F15, F16, F17, F18,
+                                        F19, F20, F21, F22, F23, F24, F25, F26,
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
+                                        V20, V21, V22, V23, V24, V25, V26, V27,
+                                        V28, V29, V30, V31)>;
+
+def CSR_Darwin64 : CalleeSavedRegs<(add X13, X14, X15, X16, X17, X18, X19, X20,
+                                        X21, X22, X23, X24, X25, X26, X27, X28,
+                                        X29, X30, X31, F14, F15, F16, F17, F18,
+                                        F19, F20, F21, F22, F23, F24, F25, F26,
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
+                                        V20, V21, V22, V23, V24, V25, V26, V27,
+                                        V28, V29, V30, V31)>;
+
+def CSR_SVR464   : CalleeSavedRegs<(add X14, X15, X16, X17, X18, X19, X20, VRSAVE,
+                                        X21, X22, X23, X24, X25, X26, X27, X28,
+                                        X29, X30, X31, F14, F15, F16, F17, F18,
+                                        F19, F20, F21, F22, F23, F24, F25, F26,
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
+                                        V20, V21, V22, V23, V24, V25, V26, V27,
+                                        V28, V29, V30, V31)>;

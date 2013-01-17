@@ -1,4 +1,4 @@
-//===- MipsJITInfo.h - Mips implementation of the JIT interface -*- C++ -*-===//
+//===- MipsJITInfo.h - Mips Implementation of the JIT Interface -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -19,8 +19,6 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/Target/TargetJITInfo.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
 class MipsTargetMachine;
@@ -28,10 +26,11 @@ class MipsTargetMachine;
 class MipsJITInfo : public TargetJITInfo {
 
   bool IsPIC;
+  bool IsLittleEndian;
 
   public:
     explicit MipsJITInfo() :
-      IsPIC(false) {}
+      IsPIC(false), IsLittleEndian(true) {}
 
     /// replaceMachineCodeForFunction - Make it so that calling the function
     /// whose machine code is at OLD turns into a call to NEW, perhaps by
@@ -47,8 +46,8 @@ class MipsJITInfo : public TargetJITInfo {
     /// emitFunctionStub - Use the specified JITCodeEmitter object to emit a
     /// small native function that simply calls the function at the specified
     /// address.
-    virtual void *emitFunctionStub(const Function* F, void *Fn,
-        JITCodeEmitter &JCE);
+    virtual void *emitFunctionStub(const Function *F, void *Fn,
+                                   JITCodeEmitter &JCE);
 
     /// getLazyResolverFunction - Expose the lazy resolver to the JIT.
     virtual LazyResolverFn getLazyResolverFunction(JITCompilerFn);
@@ -57,11 +56,13 @@ class MipsJITInfo : public TargetJITInfo {
     /// it must rewrite the code to contain the actual addresses of any
     /// referenced global symbols.
     virtual void relocate(void *Function, MachineRelocation *MR,
-        unsigned NumRelocs, unsigned char* GOTBase);
+                          unsigned NumRelocs, unsigned char *GOTBase);
 
     /// Initialize - Initialize internal stage for the function being JITted.
-    void Initialize(const MachineFunction &MF, bool isPIC) {
+    void Initialize(const MachineFunction &MF, bool isPIC,
+                    bool isLittleEndian) {
       IsPIC = isPIC;
+      IsLittleEndian = isLittleEndian;
     }
 
 };

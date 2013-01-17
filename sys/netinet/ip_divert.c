@@ -30,14 +30,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#if !defined(KLD_MODULE)
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_sctp.h"
 #ifndef INET
-#error "IPDIVERT requires INET."
+#error "IPDIVERT requires INET"
 #endif
-#endif
-#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -210,17 +208,13 @@ divert_packet(struct mbuf *m, int incoming)
 
 	/* Delayed checksums are currently not compatible with divert. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-		ip->ip_len = ntohs(ip->ip_len);
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-		ip->ip_len = htons(ip->ip_len);
 	}
 #ifdef SCTP
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
-		ip->ip_len = ntohs(ip->ip_len);
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
-		ip->ip_len = htons(ip->ip_len);
 	}
 #endif
 	bzero(&divsrc, sizeof(divsrc));
@@ -392,10 +386,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				INP_RUNLOCK(inp);
 				goto cantsend;
 			}
-
-			/* Convert fields to host order for ip_output() */
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
 			break;
 #ifdef INET6
 		case IPV6_VERSION >> 4:
@@ -408,8 +398,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				INP_RUNLOCK(inp);
 				goto cantsend;
 			}
-
-			ip6->ip6_plen = ntohs(ip6->ip6_plen);
 			break;
 		    }
 #endif
@@ -738,7 +726,8 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef SYSCTL_NODE
-SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert, CTLFLAG_RW, 0, "IPDIVERT");
+static SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert, CTLFLAG_RW, 0,
+    "IPDIVERT");
 SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, div_pcblist, "S,xinpcb", "List of active divert sockets");
 #endif

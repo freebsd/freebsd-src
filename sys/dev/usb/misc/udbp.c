@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int udbp_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, udbp, CTLFLAG_RW, 0, "USB udbp");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, udbp, CTLFLAG_RW, 0, "USB udbp");
 SYSCTL_INT(_hw_usb_udbp, OID_AUTO, debug, CTLFLAG_RW,
     &udbp_debug, 0, "udbp debug level");
 #endif
@@ -410,12 +410,12 @@ udbp_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* allocate new mbuf */
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 
 		if (m == NULL) {
 			goto tr_setup;
 		}
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		if (!(m->m_flags & M_EXT)) {
 			m_freem(m);

@@ -87,7 +87,7 @@ help(void)
  * which includes the program name and a NULL entry at the end.
  * If we are called with a single string, we split it on whitespace.
  * Also, arguments with a trailing ',' are joined to the next one.
- * The pointers (av[]) and data are in a a single chunk of memory.
+ * The pointers (av[]) and data are in a single chunk of memory.
  * av[0] points to the original program name, all other entries
  * point into the allocated chunk.
  */
@@ -122,9 +122,9 @@ ipfw_main(int oldac, char **oldav)
 				break;
 			if (copy) {
 				arg[j++] = arg[i];
-				copy = !index("," WHITESP, arg[i]);
+				copy = !strchr("," WHITESP, arg[i]);
 			} else {
-				copy = !index(WHITESP, arg[i]);
+				copy = !strchr(WHITESP, arg[i]);
 				if (copy)
 					arg[j++] = arg[i];
 			}
@@ -141,7 +141,7 @@ ipfw_main(int oldac, char **oldav)
 		 * processing, this is just the number of blanks plus 1.
 		 */
 		for (i = 0, ac = 1; i < l; i++)
-			if (index(WHITESP, arg[i]) != NULL)
+			if (strchr(WHITESP, arg[i]) != NULL)
 				ac++;
 
 		/*
@@ -162,12 +162,12 @@ ipfw_main(int oldac, char **oldav)
 		 */
 		av_p = (char *)&av[ac+1];
 		for (ac = 1, i = j = 0; i < l; i++) {
-			if (index(WHITESP, arg[i]) != NULL || i == l-1) {
+			if (strchr(WHITESP, arg[i]) != NULL || i == l-1) {
 				if (i == l-1)
 					i++;
 				bcopy(arg+j, av_p, i-j);
 				av[ac] = av_p;
-				av_p += i-j;	/* the lenght of the string */
+				av_p += i-j;	/* the length of the string */
 				*av_p++ = '\0';
 				ac++;
 				j = i + 1;
@@ -240,7 +240,7 @@ ipfw_main(int oldac, char **oldav)
 				"	ipfw sysctl -a\n");
 			return 0;
 		}
-		s = index(av[2], '=');
+		s = strchr(av[2], '=');
 		if (s == NULL) {
 			s = !strcmp(av[2], "-a") ? NULL : av[2];
 			sysctlbyname(s, NULL, NULL, NULL, 0);
@@ -309,6 +309,7 @@ ipfw_main(int oldac, char **oldav)
 		case 'p':
 			errx(EX_USAGE, "An absolute pathname must be used "
 			    "with -p option.");
+			/* NOTREACHED */
 
 		case 'q':
 			co.do_quiet = 1;

@@ -47,7 +47,7 @@ futx_open(const char *file)
 	struct stat sb;
 	int fd;
 
-	fd = _open(file, O_CREAT|O_RDWR|O_EXLOCK, 0644);
+	fd = _open(file, O_CREAT|O_RDWR|O_EXLOCK|O_CLOEXEC, 0644);
 	if (fd < 0)
 		return (NULL);
 
@@ -86,6 +86,9 @@ utx_active_add(const struct futx *fu)
 		return (-1);
 	while (fread(&fe, sizeof(fe), 1, fp) == 1) {
 		switch (fe.fu_type) {
+		case BOOT_TIME:
+			/* Leave these intact. */
+			break;
 		case USER_PROCESS:
 		case INIT_PROCESS:
 		case LOGIN_PROCESS:
@@ -171,6 +174,19 @@ utx_active_remove(struct futx *fu)
 }
 
 static void
+utx_active_init(const struct futx *fu)
+{
+	int fd;
+
+	/* Initialize utx.active with a single BOOT_TIME record. */
+	fd = _open(_PATH_UTX_ACTIVE, O_CREAT|O_RDWR|O_TRUNC, 0644);
+	if (fd < 0)
+		return;
+	_write(fd, fu, sizeof(*fu));
+	_close(fd);
+}
+
+static void
 utx_active_purge(void)
 {
 
@@ -219,7 +235,7 @@ utx_lastlogin_upgrade(void)
 	struct stat sb;
 	int fd;
 
-	fd = _open(_PATH_UTX_LASTLOGIN, O_RDWR, 0644);
+	fd = _open(_PATH_UTX_LASTLOGIN, O_RDWR|O_CLOEXEC, 0644);
 	if (fd < 0)
 		return;
 
@@ -253,7 +269,7 @@ utx_log_add(const struct futx *fu)
 	vec[1].iov_len = l;
 	l = htobe16(l);
 
-	fd = _open(_PATH_UTX_LOG, O_CREAT|O_WRONLY|O_APPEND, 0644);
+	fd = _open(_PATH_UTX_LOG, O_CREAT|O_WRONLY|O_APPEND|O_CLOEXEC, 0644);
 	if (fd < 0)
 		return (-1);
 	if (_writev(fd, vec, 2) == -1)
@@ -277,9 +293,11 @@ pututxline(const struct utmpx *utmpx)
 
 	switch (fu.fu_type) {
 	case BOOT_TIME:
+		utx_active_init(&fu);
+		utx_lastlogin_upgrade();
+		break;
 	case SHUTDOWN_TIME:
 		utx_active_purge();
-		utx_lastlogin_upgrade();
 		break;
 	case OLD_TIME:
 	case NEW_TIME:

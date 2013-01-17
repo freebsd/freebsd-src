@@ -150,11 +150,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 	int error, flags;
 	struct proc *p2;
 
-#ifdef XEN
-	flags = RFFDG | RFPROC; /* validate that this is still an issue */
-#else
 	flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
-#endif		
 	error = fork1(td, flags, 0, &p2, NULL, 0);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
@@ -209,8 +205,8 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 	pid = randompid;
 	error = sysctl_handle_int(oidp, &pid, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
-			pid = PID_MAX - 100;
+		if (pid < 0 || pid > pid_max - 100)	/* out of range */
+			pid = pid_max - 100;
 		else if (pid < 2)			/* NOP */
 			pid = 0;
 		else if (pid < 100)			/* Make it reasonable */
@@ -259,8 +255,8 @@ retry:
 	 * restart somewhat above 0, as the low-numbered procs
 	 * tend to include daemons that don't exit.
 	 */
-	if (trypid >= PID_MAX) {
-		trypid = trypid % PID_MAX;
+	if (trypid >= pid_max) {
+		trypid = trypid % pid_max;
 		if (trypid < 100)
 			trypid += 100;
 		pidchecked = 0;
@@ -475,7 +471,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	bcopy(&p2->p_comm, &td2->td_name, sizeof(td2->td_name));
 	td2->td_sigstk = td->td_sigstk;
-	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
 	td2->td_lend_user_pri = PRI_MAX;
 
@@ -590,8 +585,9 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
+	LIST_INIT(&p2->p_orphans);
 
-	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&p2->p_itcallout, &p2->p_mtx, 0);
 
 	/*
 	 * If PF_FORK is set, the child process inherits the
@@ -707,6 +703,10 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		_PHOLD(p2);
 		p2_held = 1;
 	}
+	if (flags & RFPPWAIT) {
+		td->td_pflags |= TDP_RFPPWAIT;
+		td->td_rfppwait_p = p2;
+	}
 	PROC_UNLOCK(p2);
 	if ((flags & RFSTOPPED) == 0) {
 		/*
@@ -739,14 +739,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		cv_wait(&p2->p_dbgwait, &p2->p_mtx);
 	if (p2_held)
 		_PRELE(p2);
-
-	/*
-	 * Preserve synchronization semantics of vfork.  If waiting for
-	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
-	 * proc (in case of exit).
-	 */
-	while (p2->p_flag & P_PPWAIT)
-		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
 }
 
@@ -925,8 +917,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		 */
 		*procp = newproc;
 #ifdef PROCDESC
-		if (flags & RFPROCDESC)
+		if (flags & RFPROCDESC) {
 			procdesc_finit(newproc->p_procdesc, fp_procdesc);
+			fdrop(fp_procdesc, td);
+		}
 #endif
 		racct_proc_fork_done(newproc);
 		return (0);
@@ -942,14 +936,16 @@ fail:
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif
-fail1:
 	racct_proc_exit(newproc);
+fail1:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 #ifdef PROCDESC
-	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL))
+	if (((flags & RFPROCDESC) != 0) && (fp_procdesc != NULL)) {
+		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
 		fdrop(fp_procdesc, td);
+	}
 #endif
 	pause("fork", hz / 2);
 	return (error);
@@ -1035,7 +1031,9 @@ fork_return(struct thread *td, struct trapframe *frame)
 			p->p_oppid = p->p_pptr->p_pid;
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
+			td->td_dbgflags |= TDB_CHILD;
 			ptracestop(td, SIGSTOP);
+			td->td_dbgflags &= ~TDB_CHILD;
 		} else {
 			/*
 			 * ... otherwise clear the request.
@@ -1053,5 +1051,4 @@ fork_return(struct thread *td, struct trapframe *frame)
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(SYS_fork, 0, 0);
 #endif
-	mtx_assert(&Giant, MA_NOTOWNED);
 }

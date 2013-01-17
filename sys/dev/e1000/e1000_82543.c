@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -901,7 +901,7 @@ static s32 e1000_phy_hw_reset_82543(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_82543(struct e1000_hw *hw)
 {
-	u32 ctrl;
+	u32 ctrl, icr;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_reset_hw_82543");
@@ -943,7 +943,7 @@ static s32 e1000_reset_hw_82543(struct e1000_hw *hw)
 
 	/* Masking off and clearing any pending interrupts */
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
-	E1000_READ_REG(hw, E1000_ICR);
+	icr = E1000_READ_REG(hw, E1000_ICR);
 
 	return ret_val;
 }
@@ -1079,7 +1079,6 @@ static s32 e1000_setup_copper_link_82543(struct e1000_hw *hw)
 		ret_val = hw->phy.ops.reset(hw);
 		if (ret_val)
 			goto out;
-		hw->phy.reset_disable = FALSE;
 	} else {
 		ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 		E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
@@ -1127,7 +1126,7 @@ static s32 e1000_setup_copper_link_82543(struct e1000_hw *hw)
 		DEBUGOUT("Valid link established!!!\n");
 		/* Config the MAC and PHY after link is up */
 		if (hw->mac.type == e1000_82544) {
-			e1000_config_collision_dist_generic(hw);
+			hw->mac.ops.config_collision_dist(hw);
 		} else {
 			ret_val = e1000_config_mac_to_phy_82543(hw);
 			if (ret_val)
@@ -1161,7 +1160,7 @@ static s32 e1000_setup_fiber_link_82543(struct e1000_hw *hw)
 	/* Take the link out of reset */
 	ctrl &= ~E1000_CTRL_LRST;
 
-	e1000_config_collision_dist_generic(hw);
+	hw->mac.ops.config_collision_dist(hw);
 
 	ret_val = e1000_commit_fc_settings_generic(hw);
 	if (ret_val)
@@ -1260,7 +1259,7 @@ static s32 e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 	 * settings.
 	 */
 	if (mac->type == e1000_82544)
-		e1000_config_collision_dist_generic(hw);
+		hw->mac.ops.config_collision_dist(hw);
 	else {
 		ret_val = e1000_config_mac_to_phy_82543(hw);
 		if (ret_val) {
@@ -1434,7 +1433,7 @@ static s32 e1000_config_mac_to_phy_82543(struct e1000_hw *hw)
 	if (phy_data & M88E1000_PSSR_DPLX)
 		ctrl |= E1000_CTRL_FD;
 
-	e1000_config_collision_dist_generic(hw);
+	hw->mac.ops.config_collision_dist(hw);
 
 	/*
 	 * Set up speed in the Device Control register depending on

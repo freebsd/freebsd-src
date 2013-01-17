@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 
 #include <sys/module.h>
@@ -50,30 +51,6 @@ __FBSDID("$FreeBSD$");
  * http://www.dmtf.org/standards/published_documents/DSP0134.pdf
  */
 
-/*
- * SMBIOS Entry Point Structure
- */
-struct smbios_eps {
-	u_int8_t	Anchor[4];		/* '_SM_' */
-	u_int8_t	Checksum;
-	u_int8_t	Length;
-
-	u_int8_t	SMBIOS_Major;
-	u_int8_t	SMBIOS_Minor;
-	u_int16_t	Max_Size;
-	u_int8_t	Revision;
-	u_int8_t	Formatted_Area[5];
-
-	u_int8_t	Intermediate_Anchor[5];	/* '_DMI_' */
-	u_int8_t	Intermediate_Checksum;
-
-	u_int16_t	Structure_Table_Length;
-	u_int32_t	Structure_Table_Address;
-	u_int16_t	Structure_Count;
-
-	u_int8_t	SMBIOS_BCD_Revision;
-} __packed;
-
 struct smbios_softc {
 	device_t		dev;
 	struct resource *	res;
@@ -81,12 +58,6 @@ struct smbios_softc {
 
 	struct smbios_eps *	eps;
 };
-
-#define	SMBIOS_START	0xf0000
-#define	SMBIOS_STEP	0x10
-#define	SMBIOS_OFF	0
-#define	SMBIOS_LEN	4
-#define	SMBIOS_SIG	"_SM_"
 
 #define	RES2EPS(res)	((struct smbios_eps *)rman_get_virtual(res))
 #define	ADDR2EPS(addr)  ((struct smbios_eps *)BIOS_PADDRTOVADDR(addr))
@@ -116,13 +87,13 @@ smbios_identify (driver_t *driver, device_t parent)
 			      SMBIOS_STEP, SMBIOS_OFF);
 	if (addr != 0) {
 		rid = 0;
-		length = ADDR2EPS(addr)->Length;
+		length = ADDR2EPS(addr)->length;
 
 		if (length != 0x1f) {
 			u_int8_t major, minor;
 
-			major = ADDR2EPS(addr)->SMBIOS_Major;
-			minor = ADDR2EPS(addr)->SMBIOS_Minor;
+			major = ADDR2EPS(addr)->major_version;
+			minor = ADDR2EPS(addr)->minor_version;
 
 			/* SMBIOS v2.1 implementation might use 0x1e. */
 			if (length == 0x1e && major == 2 && minor == 1)
@@ -189,11 +160,11 @@ smbios_attach (device_t dev)
 	sc->eps = RES2EPS(sc->res);
 
 	device_printf(dev, "Version: %u.%u",
-		sc->eps->SMBIOS_Major, sc->eps->SMBIOS_Minor);
-	if (bcd2bin(sc->eps->SMBIOS_BCD_Revision))
+	    sc->eps->major_version, sc->eps->minor_version);
+	if (bcd2bin(sc->eps->BCD_revision))
 		printf(", BCD Revision: %u.%u",
-			bcd2bin(sc->eps->SMBIOS_BCD_Revision >> 4),
-			bcd2bin(sc->eps->SMBIOS_BCD_Revision & 0x0f));
+			bcd2bin(sc->eps->BCD_revision >> 4),
+			bcd2bin(sc->eps->BCD_revision & 0x0f));
 	printf("\n");
 
 	return (0);
@@ -234,6 +205,7 @@ smbios_modevent (mod, what, arg)
 		for (i = 0; i < count; i++) {
 			device_delete_child(device_get_parent(devs[i]), devs[i]);
 		}
+		free(devs, M_TEMP);
 		break;
 	default:
 		break;
@@ -269,7 +241,7 @@ smbios_cksum (struct smbios_eps *e)
 
 	ptr = (u_int8_t *)e;
 	cksum = 0;
-	for (i = 0; i < e->Length; i++) {
+	for (i = 0; i < e->length; i++) {
 		cksum += ptr[i];
 	}
 

@@ -21,14 +21,15 @@
 cpu		AIM
 ident		GENERIC
 
-machine		powerpc	powerpc
+machine 	powerpc powerpc
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
-options		MAMBO			#IBM Mambo Full System Simulator
+options 	MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -40,6 +41,7 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
+options 	QUOTA			#Enable disk quotas for UFS
 options 	MD_ROOT			#MD is a potential root device
 options 	NFSCL			#New Network Filesystem Client
 options 	NFSD			#New Network Filesystem Server
@@ -49,6 +51,7 @@ options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	GEOM_PART_APM		#Apple Partition Maps.
 options 	GEOM_PART_GPT		#GUID Partition Tables.
 options 	GEOM_LABEL		#Provides labelization
 options 	COMPAT_FREEBSD4		#Keep this for a while
@@ -64,11 +67,18 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
 options 	MAC			# TrustedBSD MAC Framework
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
-# Debugging for use in -current
-options 	KDB			#Enable the kernel debugger
+# Debugging support.  Always need this:
+options 	KDB			# Enable kernel debugger support.
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use this instead:
 options 	DDB			#Support DDB
 #options 	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
@@ -77,7 +87,7 @@ options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
-# To make an SMP kernel, the next line is needed
+# Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 # CPU frequency control
@@ -102,6 +112,7 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
 # ATA/SCSI peripherals
@@ -121,6 +132,7 @@ makeoptions	SC_DFLT_FONT=cp437
 # Serial (COM) ports
 device		scc
 device		uart
+device		uart_z8530
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
@@ -136,7 +148,6 @@ device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
-device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		ofwd		# Open Firmware disks
 device		gif		# IPv6 and IPv4 tunneling
@@ -169,22 +180,23 @@ device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
-# FireWire support
-device		firewire	# FireWire bus code
-# sbp(4) works for some systems but causes boot failure on others
-device		sbp		# SCSI over FireWire (Requires scbus and da)
-device		fwe		# Ethernet over FireWire (non-standard!)
+# Wireless NIC cards
+options		IEEE80211_SUPPORT_MESH
+options		AH_SUPPORT_AR5416
 
 # Misc
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
 device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
 device		windtunnel	# Apple G4 MDD fan controller
+device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
+device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
 
 # ADB support
 device		adb

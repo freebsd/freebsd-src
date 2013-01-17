@@ -63,7 +63,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_SCO, "netgraph_btsocks_sco",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_SCO, "netgraph_btsocks_sco",
 		"Netgraph Bluetooth SCO sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_SCO M_NETGRAPH
@@ -110,7 +110,7 @@ static int					ng_btsocket_sco_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_sco_sockets);
-SYSCTL_NODE(_net_bluetooth_sco_sockets, OID_AUTO, seq, CTLFLAG_RW,
+static SYSCTL_NODE(_net_bluetooth_sco_sockets, OID_AUTO, seq, CTLFLAG_RW,
 	0, "Bluetooth SEQPACKET SCO sockets family");
 SYSCTL_UINT(_net_bluetooth_sco_sockets_seq, OID_AUTO, debug_level,
 	CTLFLAG_RW,
@@ -1746,14 +1746,14 @@ ng_btsocket_sco_send2(ng_btsocket_sco_pcb_p pcb)
 	while (pcb->rt->pending < pcb->rt->num_pkts &&
 	       pcb->so->so_snd.sb_cc > 0) {
 		/* Get a copy of the first packet on send queue */
-		m = m_dup(pcb->so->so_snd.sb_mb, M_DONTWAIT);
+		m = m_dup(pcb->so->so_snd.sb_mb, M_NOWAIT);
 		if (m == NULL) {
 			error = ENOBUFS;
 			break;
 		}
 
 		/* Create SCO packet header */
-		M_PREPEND(m, sizeof(*hdr), M_DONTWAIT);
+		M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 		if (m != NULL)
 			if (m->m_len < sizeof(*hdr))
 				m = m_pullup(m, sizeof(*hdr));

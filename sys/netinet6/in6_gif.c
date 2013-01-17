@@ -167,7 +167,7 @@ in6_gif_output(struct ifnet *ifp,
 			eiphdr.eip_resvh = 0;
 		}
 		/* prepend Ethernet-in-IP header */
-		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct etherip_header), M_NOWAIT);
 		if (m && m->m_len < sizeof(struct etherip_header))
 			m = m_pullup(m, sizeof(struct etherip_header));
 		if (m == NULL)
@@ -191,7 +191,7 @@ in6_gif_output(struct ifnet *ifp,
 	if (family == AF_LINK)
 		len += ETHERIP_ALIGN;
 #endif
-	M_PREPEND(m, len, M_DONTWAIT);
+	M_PREPEND(m, len, M_NOWAIT);
 	if (m != NULL && m->m_len < len)
 		m = m_pullup(m, len);
 	if (m == NULL) {
@@ -228,6 +228,8 @@ in6_gif_output(struct ifnet *ifp,
 	ip6->ip6_flow &= ~htonl(0xff << 20);
 	ip6->ip6_flow |= htonl((u_int32_t)otos << 20);
 
+	M_SETFIB(m, sc->gif_fibnum);
+
 	if (dst->sin6_family != sin6_dst->sin6_family ||
 	     !IN6_ARE_ADDR_EQUAL(&dst->sin6_addr, &sin6_dst->sin6_addr)) {
 		/* cache route doesn't match */
@@ -245,7 +247,7 @@ in6_gif_output(struct ifnet *ifp,
 	}
 
 	if (sc->gif_ro6.ro_rt == NULL) {
-		rtalloc((struct route *)&sc->gif_ro6);
+		in6_rtalloc(&sc->gif_ro6, sc->gif_fibnum);
 		if (sc->gif_ro6.ro_rt == NULL) {
 			m_freem(m);
 			return ENETUNREACH;
@@ -261,8 +263,6 @@ in6_gif_output(struct ifnet *ifp,
 			- sizeof(struct ip6_hdr);
 #endif
 	}
-
-	m_addr_changed(m);
 
 #ifdef IPV6_MINMTU
 	/*
@@ -404,7 +404,8 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 		sin6.sin6_addr = ip6->ip6_src;
 		sin6.sin6_scope_id = 0; /* XXX */
 
-		rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
+		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL,
+		    sc->gif_fibnum);
 		if (!rt || rt->rt_ifp != ifp) {
 #if 0
 			char ip6buf[INET6_ADDRSTRLEN];

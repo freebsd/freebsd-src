@@ -1167,7 +1167,7 @@ bridge_port_find_ifstplist(uint8_t port_no, struct ifbpstpreq *buf,
 /*
  * Read the initial info for all members of a bridge interface.
  * Returns the number of ports, 0 - if none, otherwise
- * -1 if some other error occured.
+ * -1 if some other error occurred.
  */
 int
 bridge_getinfo_bif_ports(struct bridge_if *bif)
@@ -1358,7 +1358,7 @@ bridge_addrs_getinfo_ifalist(struct bridge_if *bif, struct ifbareq **buf)
 /*
  * Read the initial info for all addresses on a bridge interface.
  * Returns the number of addresses, 0 - if none, otherwise
- * -1 if some other error occured.
+ * -1 if some other error occurred.
  */
 int
 bridge_getinfo_bif_addrs(struct bridge_if *bif)

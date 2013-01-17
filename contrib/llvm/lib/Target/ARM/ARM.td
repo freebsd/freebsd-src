@@ -1,4 +1,4 @@
-//===- ARM.td - Describe the ARM Target Machine ------------*- tablegen -*-===//
+//===-- ARM.td - Describe the ARM Target Machine -----------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -23,9 +23,6 @@ include "llvm/Target/Target.td"
 def ModeThumb  : SubtargetFeature<"thumb-mode", "InThumbMode", "true",
                                   "Thumb mode">;
 
-def ModeNaCl   : SubtargetFeature<"nacl-mode", "InNaClMode", "true",
-                                  "Native client mode">;
-
 //===----------------------------------------------------------------------===//
 // ARM Subtarget features.
 //
@@ -44,10 +41,16 @@ def FeatureNoARM  : SubtargetFeature<"noarm", "NoARM", "true",
                                      "Does not support ARM mode execution">;
 def FeatureFP16   : SubtargetFeature<"fp16", "HasFP16", "true",
                                      "Enable half-precision floating point">;
+def FeatureVFP4   : SubtargetFeature<"vfp4", "HasVFPv4", "true",
+                                     "Enable VFP4 instructions",
+                                     [FeatureVFP3, FeatureFP16]>;
 def FeatureD16    : SubtargetFeature<"d16", "HasD16", "true",
                                      "Restrict VFP3 to 16 double registers">;
 def FeatureHWDiv  : SubtargetFeature<"hwdiv", "HasHardwareDivide", "true",
                                      "Enable divide instructions">;
+def FeatureHWDivARM  : SubtargetFeature<"hwdiv-arm",
+                                        "HasHardwareDivideInARM", "true",
+                                      "Enable divide instructions in ARM mode">;
 def FeatureT2XtPk : SubtargetFeature<"t2xtpk", "HasT2ExtractPack", "true",
                                  "Enable Thumb2 extract and pack instructions">;
 def FeatureDB     : SubtargetFeature<"db", "HasDataBarrier", "true",
@@ -85,6 +88,11 @@ def FeaturePref32BitThumb : SubtargetFeature<"32bit", "Pref32BitThumb", "true",
 def FeatureAvoidPartialCPSR : SubtargetFeature<"avoid-partial-cpsr",
                                                "AvoidCPSRPartialUpdate", "true",
                                  "Avoid CPSR partial update for OOO execution">;
+
+// Some processors perform return stack prediction. CodeGen should avoid issue
+// "normal" call instructions to callees which do not return.
+def FeatureHasRAS : SubtargetFeature<"ras", "HasRAS", "true",
+                                     "Has return address stack">;
 
 /// Some M architectures don't have the DSP extension (v7E-M vs. v7M)
 def FeatureDSPThumb2 : SubtargetFeature<"t2dsp", "Thumb2DSP", "true",
@@ -134,9 +142,21 @@ def ProcA9      : SubtargetFeature<"a9", "ARMProcFamily", "CortexA9",
                                    [FeatureVMLxForwarding,
                                     FeatureT2XtPk, FeatureFP16,
                                     FeatureAvoidPartialCPSR]>;
+def ProcSwift   : SubtargetFeature<"swift", "ARMProcFamily", "Swift",
+                                   "Swift ARM processors",
+                                   [FeatureNEONForFP, FeatureT2XtPk,
+                                    FeatureVFP4, FeatureMP, FeatureHWDiv,
+                                    FeatureHWDivARM, FeatureAvoidPartialCPSR,
+                                    FeatureHasSlowFPVMLx]>;
+
+// FIXME: It has not been determined if A15 has these features.
+def ProcA15      : SubtargetFeature<"a15", "ARMProcFamily", "CortexA15",
+                                   "Cortex-A15 ARM processors",
+                                   [FeatureT2XtPk, FeatureFP16,
+                                    FeatureAvoidPartialCPSR]>;
 
 class ProcNoItin<string Name, list<SubtargetFeature> Features>
- : Processor<Name, GenericItineraries, Features>;
+ : Processor<Name, NoItineraries, Features>;
 
 // V4 Processors.
 def : ProcNoItin<"generic",         []>;
@@ -199,15 +219,20 @@ def : Processor<"arm1156t2f-s",     ARMV6Itineraries, [HasV6T2Ops, FeatureVFP2,
                                                        FeatureDSPThumb2]>;
 
 // V7a Processors.
-def : Processor<"cortex-a8",        CortexA8Itineraries,
+def : ProcessorModel<"cortex-a8",   CortexA8Model,
                                     [ProcA8, HasV7Ops, FeatureNEON, FeatureDB,
-                                     FeatureDSPThumb2]>;
-def : Processor<"cortex-a9",        CortexA9Itineraries,
+                                     FeatureDSPThumb2, FeatureHasRAS]>;
+def : ProcessorModel<"cortex-a9",   CortexA9Model,
                                     [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
-                                     FeatureDSPThumb2]>;
-def : Processor<"cortex-a9-mp",     CortexA9Itineraries,
+                                     FeatureDSPThumb2, FeatureHasRAS]>;
+def : ProcessorModel<"cortex-a9-mp", CortexA9Model,
                                     [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
-                                     FeatureDSPThumb2, FeatureMP]>;
+                                     FeatureDSPThumb2, FeatureMP,
+                                     FeatureHasRAS]>;
+// FIXME: A15 has currently the same ProcessorModel as A9.
+def : ProcessorModel<"cortex-a15",   CortexA9Model,
+                                    [ProcA15, HasV7Ops, FeatureNEON, FeatureDB,
+                                     FeatureDSPThumb2, FeatureHasRAS]>;
 
 // V7M Processors.
 def : ProcNoItin<"cortex-m3",       [HasV7Ops,
@@ -218,8 +243,14 @@ def : ProcNoItin<"cortex-m3",       [HasV7Ops,
 def : ProcNoItin<"cortex-m4",       [HasV7Ops,
                                      FeatureThumb2, FeatureNoARM, FeatureDB,
                                      FeatureHWDiv, FeatureDSPThumb2,
-                                     FeatureT2XtPk, FeatureVFP2,
+                                     FeatureT2XtPk, FeatureVFP4,
                                      FeatureVFPOnlySP, FeatureMClass]>;
+
+// Swift uArch Processors.
+def : ProcessorModel<"swift",       SwiftModel,
+                                    [ProcSwift, HasV7Ops, FeatureNEON,
+                                     FeatureDB, FeatureDSPThumb2,
+                                     FeatureHasRAS]>;
 
 //===----------------------------------------------------------------------===//
 // Register File Description

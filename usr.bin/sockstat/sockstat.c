@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2002 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 static int	 opt_4;		/* Show IPv4 sockets */
 static int	 opt_6;		/* Show IPv6 sockets */
 static int	 opt_c;		/* Show connected sockets */
+static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
 static int	 opt_u;		/* Show Unix domain sockets */
@@ -86,6 +87,7 @@ static int	*ports;
 struct sock {
 	void *socket;
 	void *pcb;
+	int shown;
 	int vflag;
 	int family;
 	int proto;
@@ -295,7 +297,7 @@ gather_inet(int proto)
 				break;
 			if (errno == ENOENT)
 				goto out;
-			if (errno != ENOMEM)
+			if (errno != ENOMEM || len != bufsize)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
 		}
@@ -323,6 +325,7 @@ gather_inet(int proto)
 			}
 			inp = &xtp->xt_inp;
 			so = &xtp->xt_socket;
+			protoname = xtp->xt_tp.t_flags & TF_TOE ? "toe" : "tcp";
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
@@ -423,7 +426,7 @@ gather_unix(int proto)
 			len = bufsize;
 			if (sysctlbyname(varname, buf, &len, NULL, 0) == 0)
 				break;
-			if (errno != ENOMEM)
+			if (errno != ENOMEM || len != bufsize)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
 		}
@@ -475,14 +478,15 @@ out:
 static void
 getfiles(void)
 {
-	size_t len;
+	size_t len, olen;
 
-	if ((xfiles = malloc(len = sizeof *xfiles)) == NULL)
+	olen = len = sizeof *xfiles;
+	if ((xfiles = malloc(len)) == NULL)
 		err(1, "malloc()");
 	while (sysctlbyname("kern.file", xfiles, &len, 0, 0) == -1) {
-		if (errno != ENOMEM)
+		if (errno != ENOMEM || len != olen)
 			err(1, "sysctlbyname()");
-		len *= 2;
+		olen = len *= 2;
 		if ((xfiles = realloc(xfiles, len)) == NULL)
 			err(1, "realloc()");
 	}
@@ -547,6 +551,27 @@ getprocname(pid_t pid)
 }
 
 static int
+getprocjid(pid_t pid)
+{
+	static struct kinfo_proc proc;
+	size_t len;
+	int mib[4];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PID;
+	mib[3] = (int)pid;
+	len = sizeof proc;
+	if (sysctl(mib, 4, &proc, &len, NULL, 0) == -1) {
+		/* Do not warn if the process exits before we get its jid. */
+		if (errno != ESRCH)
+			warn("sysctl()");
+		return (-1);
+	}
+	return (proc.ki_jid);
+}
+
+static int
 check_ports(struct sock *s)
 {
 	int port;
@@ -571,12 +596,67 @@ check_ports(struct sock *s)
 }
 
 static void
+displaysock(struct sock *s, int pos)
+{
+	void *p;
+	int hash;
+
+	while (pos < 29)
+		pos += xprintf(" ");
+	pos += xprintf("%s", s->protoname);
+	if (s->vflag & INP_IPV4)
+		pos += xprintf("4 ");
+	if (s->vflag & INP_IPV6)
+		pos += xprintf("6 ");
+	while (pos < 36)
+		pos += xprintf(" ");
+	switch (s->family) {
+	case AF_INET:
+	case AF_INET6:
+		pos += printaddr(s->family, &s->laddr);
+		if (s->family == AF_INET6 && pos >= 58)
+			pos += xprintf(" ");
+		while (pos < 58)
+			pos += xprintf(" ");
+		pos += printaddr(s->family, &s->faddr);
+		break;
+	case AF_UNIX:
+		/* server */
+		if (s->laddr.ss_len > 0) {
+			pos += printaddr(s->family, &s->laddr);
+			break;
+		}
+		/* client */
+		p = *(void **)&s->faddr;
+		if (p == NULL) {
+			pos += xprintf("(not connected)");
+			break;
+		}
+		pos += xprintf("-> ");
+		for (hash = 0; hash < HASHSIZE; ++hash) {
+			for (s = sockhash[hash]; s != NULL; s = s->next)
+				if (s->pcb == p)
+					break;
+			if (s != NULL)
+				break;
+		}
+		if (s == NULL || s->laddr.ss_len == 0)
+			pos += xprintf("??");
+		else
+			pos += printaddr(s->family, &s->laddr);
+		break;
+	default:
+		abort();
+	}
+	xprintf("\n");
+}
+
+static void
 display(void)
 {
 	struct passwd *pwd;
 	struct xfile *xf;
 	struct sock *s;
-	void *p;
 	int hash, n, pos;
 
 	printf("%-8s %-10s %-5s %-2s %-6s %-21s %-21s\n",
@@ -586,6 +666,8 @@ display(void)
 	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
 		if (xf->xf_data == NULL)
 			continue;
+		if (opt_j >= 0 && opt_j != getprocjid(xf->xf_pid))
+			continue;
 		hash = (int)((uintptr_t)xf->xf_data % HASHSIZE);
 		for (s = sockhash[hash]; s != NULL; s = s->next)
 			if ((void *)s->socket == xf->xf_data)
@@ -594,6 +676,7 @@ display(void)
 			continue;
 		if (!check_ports(s))
 			continue;
+		s->shown = 1;
 		pos = 0;
 		if ((pwd = getpwuid(xf->xf_uid)) == NULL)
 			pos += xprintf("%lu ", (u_long)xf->xf_uid);
@@ -608,54 +691,21 @@ display(void)
 		while (pos < 26)
 			pos += xprintf(" ");
 		pos += xprintf("%d ", xf->xf_fd);
-		while (pos < 29)
-			pos += xprintf(" ");
-		pos += xprintf("%s", s->protoname);
-		if (s->vflag & INP_IPV4)
-			pos += xprintf("4 ");
-		if (s->vflag & INP_IPV6)
-			pos += xprintf("6 ");
-		while (pos < 36)
-			pos += xprintf(" ");
-		switch (s->family) {
-		case AF_INET:
-		case AF_INET6:
-			pos += printaddr(s->family, &s->laddr);
-			if (s->family == AF_INET6 && pos >= 58)
-				pos += xprintf(" ");
-			while (pos < 58)
-				pos += xprintf(" ");
-			pos += printaddr(s->family, &s->faddr);
-			break;
-		case AF_UNIX:
-			/* server */
-			if (s->laddr.ss_len > 0) {
-				pos += printaddr(s->family, &s->laddr);
-				break;
-			}
-			/* client */
-			p = *(void **)&s->faddr;
-			if (p == NULL) {
-				pos += xprintf("(not connected)");
-				break;
-			}
-			pos += xprintf("-> ");
-			for (hash = 0; hash < HASHSIZE; ++hash) {
-				for (s = sockhash[hash]; s != NULL; s = s->next)
-					if (s->pcb == p)
-						break;
-				if (s != NULL)
-					break;
-			}
-			if (s == NULL || s->laddr.ss_len == 0)
-				pos += xprintf("??");
-			else
-				pos += printaddr(s->family, &s->laddr);
-			break;
-		default:
-			abort();
+		displaysock(s, pos);
+	}
+	if (opt_j >= 0)
+		return;
+	for (hash = 0; hash < HASHSIZE; hash++) {
+		for (s = sockhash[hash]; s != NULL; s = s->next) {
+			if (s->shown)
+				continue;
+			if (!check_ports(s))
+				continue;
+			pos = 0;
+			pos += xprintf("%-8s %-10s %-5s %-2s ",
+			    "?", "?", "?", "?");
+			displaysock(s, pos);
 		}
-		xprintf("\n");
 	}
 }
 
@@ -683,7 +733,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: sockstat [-46cLlu] [-p ports] [-P protocols]\n");
+	    "Usage: sockstat [-46cLlu] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
@@ -693,7 +743,8 @@ main(int argc, char *argv[])
 	int protos_defined = -1;
 	int o, i;
 
-	while ((o = getopt(argc, argv, "46cLlp:P:uv")) != -1)
+	opt_j = -1;
+	while ((o = getopt(argc, argv, "46cj:Llp:P:uv")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -703,6 +754,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			opt_c = 1;
+			break;
+		case 'j':
+			opt_j = atoi(optarg);
 			break;
 		case 'L':
 			opt_L = 1;

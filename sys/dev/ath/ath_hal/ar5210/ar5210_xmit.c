@@ -518,7 +518,8 @@ ar5210SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl1 = 0;
 	if (flags & HAL_TXDESC_RTSENA) {
 		ads->ds_ctl0 |= AR_RTSCTSEnable;
-		ads->ds_ctl1 |= rtsctsDuration & AR_RTSDuration;
+		ads->ds_ctl1 |= (rtsctsDuration << AR_RTSDuration_S)
+		    & AR_RTSDuration;
 	}
 	return AH_TRUE;
 }
@@ -546,12 +547,16 @@ ar5210IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *ds)
 
 HAL_BOOL
 ar5210FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
-	u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+	HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList, u_int descId,
+	u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 	const struct ath_desc *ds0)
 {
 	struct ar5210_desc *ads = AR5210DESC(ds);
+	uint32_t segLen = segLenList[0];
 
 	HALASSERT((segLen &~ AR_BufLen) == 0);
+
+	ds->ds_data = bufAddrList[0];
 
 	if (firstSeg) {
 		/*
@@ -629,4 +634,37 @@ HAL_BOOL
 ar5210GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *rates, int *tries)
 {
 	return AH_FALSE;
+}
+
+/*
+ * Set the TX descriptor link pointer
+ */
+void
+ar5210SetTxDescLink(struct ath_hal *ah, void *ds, uint32_t link)
+{
+	struct ar5210_desc *ads = AR5210DESC(ds);
+
+	ads->ds_link = link;
+}
+
+/*
+ * Get the TX descriptor link pointer
+ */
+void
+ar5210GetTxDescLink(struct ath_hal *ah, void *ds, uint32_t *link)
+{
+	struct ar5210_desc *ads = AR5210DESC(ds);
+
+	*link = ads->ds_link;
+}
+
+/*
+ * Get a pointer to the TX descriptor link pointer
+ */
+void
+ar5210GetTxDescLinkPtr(struct ath_hal *ah, void *ds, uint32_t **linkptr)
+{
+	struct ar5210_desc *ads = AR5210DESC(ds);
+
+	*linkptr = &ads->ds_link;
 }

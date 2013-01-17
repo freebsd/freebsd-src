@@ -80,7 +80,7 @@
 #ifdef USB_DEBUG
 static int uvisor_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
 SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
     &uvisor_debug, 0, "Debug level");
 #endif
@@ -189,12 +189,14 @@ struct uvisor_softc {
 static device_probe_t uvisor_probe;
 static device_attach_t uvisor_attach;
 static device_detach_t uvisor_detach;
+static void uvisor_free_softc(struct uvisor_softc *);
 
 static usb_callback_t uvisor_write_callback;
 static usb_callback_t uvisor_read_callback;
 
 static usb_error_t uvisor_init(struct uvisor_softc *, struct usb_device *,
 		    struct usb_config *);
+static void	uvisor_free(struct ucom_softc *);
 static void	uvisor_cfg_open(struct ucom_softc *);
 static void	uvisor_cfg_close(struct ucom_softc *);
 static void	uvisor_start_read(struct ucom_softc *);
@@ -231,13 +233,14 @@ static const struct ucom_callback uvisor_callback = {
 	.ucom_stop_read = &uvisor_stop_read,
 	.ucom_start_write = &uvisor_start_write,
 	.ucom_stop_write = &uvisor_stop_write,
+	.ucom_free = &uvisor_free,
 };
 
 static device_method_t uvisor_methods[] = {
 	DEVMETHOD(device_probe, uvisor_probe),
 	DEVMETHOD(device_attach, uvisor_attach),
 	DEVMETHOD(device_detach, uvisor_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t uvisor_devclass;
@@ -311,11 +314,13 @@ uvisor_attach(device_t dev)
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
-	bcopy(uvisor_config, uvisor_config_copy,
+	memcpy(uvisor_config_copy, uvisor_config,
 	    sizeof(uvisor_config_copy));
+
 	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "uvisor", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -364,9 +369,29 @@ uvisor_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVISOR_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uvisor_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uvisor);
+
+static void
+uvisor_free_softc(struct uvisor_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uvisor_free(struct ucom_softc *ucom)
+{
+	uvisor_free_softc(ucom->sc_parent);
 }
 
 static usb_error_t

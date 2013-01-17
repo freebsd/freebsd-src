@@ -276,6 +276,7 @@ biospnp_call(int func, const char *fmt, ...)
 	    break;
 	}
     }
+    va_end(ap);
 
     /* BIOS segment last */
     *(u_int16_t *)argp = pnp_Icheck->pnp_rmds;

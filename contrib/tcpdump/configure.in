@@ -29,7 +29,7 @@ AC_C___ATTRIBUTE__
 if test "$ac_cv___attribute__" = "yes"; then
 	AC_C___ATTRIBUTE___FORMAT_FUNCTION_POINTER
 fi
-AC_CHECK_HEADERS(fcntl.h rpc/rpcent.h netdnet/dnetdb.h)
+AC_CHECK_HEADERS(fcntl.h rpc/rpc.h rpc/rpcent.h netdnet/dnetdb.h)
 AC_CHECK_HEADERS(net/pfvar.h, , , [#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>])
@@ -59,6 +59,33 @@ fi
 AC_HEADER_TIME
 
 case "$host_os" in
+
+darwin*)
+	AC_ARG_ENABLE(universal,
+	AC_HELP_STRING([--disable-universal],[don't build universal on OS X]))
+	if test "$enable_universal" != "no"; then
+		case "$host_os" in
+
+		darwin9.*)
+			#
+			# Leopard.  Build for x86 and 32-bit PowerPC, with
+			# x86 first.  (That's what Apple does.)
+			#
+			V_CCOPT="$V_CCOPT -arch i386 -arch ppc"
+			LDFLAGS="$LDFLAGS -arch i386 -arch ppc"
+			;;
+
+		darwin10.*)
+			#
+			# Snow Leopard.  Build for x86-64 and x86, with
+			# x86-64 first.  (That's what Apple does.)
+			#
+			V_CCOPT="$V_CCOPT -arch x86_64 -arch i386"
+			LDFLAGS="$LDFLAGS -arch x86_64 -arch i386"
+			;;
+		esac
+	fi
+	;;
 
 linux*)
 	AC_MSG_CHECKING(Linux kernel version)
@@ -172,7 +199,7 @@ AC_ARG_ENABLE(ipv6,
   --disable-ipv6          disable ipv6 support],
 [ case "$enableval" in
 yes)   AC_MSG_RESULT(yes)
-       LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c $LOCALSRC"
+       LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
        AC_DEFINE(INET6)
        ipv6=yes
        ;;
@@ -194,7 +221,7 @@ main()
 }
 ],
 [ AC_MSG_RESULT(yes)
-  LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c $LOCALSRC"
+  LOCALSRC="print-ip6.c print-ip6opts.c print-mobility.c print-ripng.c print-icmp6.c print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-babel.c $LOCALSRC"
   AC_DEFINE(INET6)
   ipv6=yes],
 [ AC_MSG_RESULT(no)
@@ -468,15 +495,6 @@ if test "$td_cv_decl_netdnet_dnetdb_h_dnet_htoa" = yes; then
 fi
 
 dnl
-dnl check sizeof basic types.
-dnl They're very likely to be wrong for cross-compiling.
-AC_CHECK_SIZEOF(char, 1)
-AC_CHECK_SIZEOF(short, 2)
-AC_CHECK_SIZEOF(int, 4)
-AC_CHECK_SIZEOF(long, 4)
-AC_CHECK_SIZEOF(long long, 8)
-
-dnl
 dnl Checks for addrinfo structure
 AC_STRUCT_ADDRINFO(ac_cv_addrinfo)
 if test "$ac_cv_addrinfo" = no; then
@@ -504,34 +522,8 @@ if test "$ac_cv_sa_storage" = no; then
 	missing_includes=yes
 fi
 
-dnl
-dnl Checks for IN[6]ADDRSZ
-AC_CHECK_ADDRSZ(ac_cv_addrsz)
-if test "$ac_cv_addrsz" = no; then
-	missing_includes=yes
-fi
-
-dnl
-dnl Checks for RES_USE_INET6
-AC_CHECK_RES_USE_INET6(ac_cv_res_inet6)
-if test "$ac_cv_res_inet6" = no; then
-	missing_includes=yes
-fi
-
-dnl
-dnl Checks for res_state_ext structure
-AC_STRUCT_RES_STATE_EXT(ac_cv_res_state_ext)
-if test "$ac_cv_res_state_ext" = no; then
-	missing_includes=yes
-fi
-
-dnl
-dnl Checks if res_state structure has nsort member.
-AC_STRUCT_RES_STATE(ac_cv_res_state)
-
-
 AC_REPLACE_FUNCS(vfprintf strcasecmp strlcat strlcpy strdup strsep)
-AC_CHECK_FUNCS(strftime)
+AC_CHECK_FUNCS(fork vfork strftime)
 AC_CHECK_FUNCS(setlinebuf alarm)
 
 needsnprintf=no
@@ -723,15 +715,24 @@ fi
 
 #
 # Do we have the new open API?  Check for pcap_create, and assume that,
-# if we do, we also have pcap_activate() and the other new routines.
+# if we do, we also have pcap_activate() and the other new routines
+# introduced in libpcap 1.0.0.
+#
 AC_CHECK_FUNCS(pcap_create)
+if test $ac_cv_func_pcap_create = "yes" ; then
+	#
+	# OK, do we have pcap_set_tstamp_type?  If so, assume we have
+	# pcap_list_tstamp_types and pcap_free_tstamp_types as well.
+	#
+	AC_CHECK_FUNCS(pcap_set_tstamp_type)
+fi
 
 AC_CHECK_FUNCS(pcap_findalldevs pcap_dump_flush pcap_lib_version)
 if test $ac_cv_func_pcap_findalldevs = "yes" ; then
 dnl Check for Mac OS X, which may ship pcap.h from 0.6 but libpcap may
 dnl be 0.8; this means that lib has pcap_findalldevs but header doesn't
 dnl have pcap_if_t.
-    savedppflags="$CPPLAGS"
+    savedcppflags="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $V_INCLS"
     AC_CHECK_TYPES(pcap_if_t, , , [#include <pcap.h>])
     CPPFLAGS="$savedcppflags"
@@ -803,7 +804,7 @@ case "$host_os" in
 
 aix*)
 	dnl Workaround to enable certain features
-	AC_DEFINE(_SUN)
+	AC_DEFINE(_SUN,1,[define on AIX to get certain functions])
 	;;
 
 hpux*)
@@ -848,16 +849,6 @@ esac
 if test -f /dev/bpf0 ; then
 	V_GROUP=bpf
 fi
-
-#
-# Check for some headers introduced in later versions of libpcap
-# and used by some printers.
-#
-savedcppflags="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $V_INCLS"
-AC_CHECK_HEADERS(pcap/bluetooth.h)
-AC_CHECK_HEADERS(pcap/usb.h)
-CPPFLAGS="$savedcppflags"
 
 AC_CHECK_HEADERS(sys/bitypes.h)
 
@@ -980,6 +971,19 @@ if test "$ac_lbl_inttypes_h_defines_formats" = no; then
     ])
 fi
 
+#
+# Check for some headers introduced in later versions of libpcap
+# and used by some printers.
+#
+# Those headers use the {u_}intN_t types, so we must do this after
+# we check for what's needed to get them defined.
+#
+savedcppflags="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $V_INCLS"
+AC_CHECK_HEADERS(pcap/bluetooth.h,,,[#include <tcpdump-stdinc.h>])
+AC_CHECK_HEADERS(pcap/usb.h,,,[#include <tcpdump-stdinc.h>])
+CPPFLAGS="$savedcppflags"
+
 AC_PROG_RANLIB
 
 AC_LBL_DEVEL(V_CCOPT)
@@ -1063,8 +1067,10 @@ if test "$want_libcrypto" != "no"; then
 		fi
 		AC_CHECK_LIB(crypto, DES_cbc_encrypt)
 
+		savedcppflags="$CPPFLAGS"
 		CPPFLAGS="$CPPFLAGS $V_INCLS"
 		AC_CHECK_HEADERS(openssl/evp.h)
+		CPPFLAGS="$savedcppflags"
 	else
 		#
 		# Not found.  Did the user explicitly ask for it?
@@ -1079,8 +1085,8 @@ fi
 dnl
 dnl set additional include path if necessary
 if test "$missing_includes" = "yes"; then
-	CPPFLAGS="$CPPFLAGS -I\$(srcdir)/missing"
-	V_INCLS="$V_INCLS -I\$(srcdir)/missing"
+	CPPFLAGS="$CPPFLAGS -I$srcdir/missing"
+	V_INCLS="$V_INCLS -I$srcdir/missing"
 fi
 
 AC_SUBST(V_CCOPT)

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../../dev/nxge
-VPATH = ${.CURDIR}/../../dev/nxge/xgehal
+.PATH: ${.CURDIR}/../../dev/nxge/xgehal
 
 CFLAGS_NXGE = 
 
@@ -39,3 +39,13 @@ SRCS+=  xgehal-mgmt.c
 SRCS+=  device_if.h bus_if.h pci_if.h
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.if_nxge.c=		${NO_WSELF_ASSIGN}
+CWARNFLAGS.xgehal-device.c=	${NO_WSELF_ASSIGN}
+CWARNFLAGS.xgehal-driver.c=	${NO_WSELF_ASSIGN}
+CWARNFLAGS.xgehal-ring.c=	${NO_WSELF_ASSIGN}
+CWARNFLAGS.xgehal-channel.c=	${NO_WSELF_ASSIGN}
+CWARNFLAGS.xgehal-fifo.c=	${NO_WSELF_ASSIGN}
+CWARNFLAGS.xgehal-stats.c=	${NO_WSELF_ASSIGN}
+CWARNFLAGS.xgehal-mgmt.c=	${NO_WSELF_ASSIGN}
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

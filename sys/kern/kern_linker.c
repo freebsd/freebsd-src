@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kld.h"
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/param.h>
@@ -64,8 +65,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KLD_DEBUG
 int kld_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW,
-        &kld_debug, 0, "Set various levels of KLD debug");
+SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RW | CTLFLAG_TUN,
+    &kld_debug, 0, "Set various levels of KLD debug");
+TUNABLE_INT("debug.kld_debug", &kld_debug);
 #endif
 
 #define	KLD_LOCK()		sx_xlock(&kld_sx)
@@ -310,7 +312,7 @@ linker_file_unregister_sysctls(linker_file_t lf)
 {
 	struct sysctl_oid **start, **stop, **oidp;
 
-	KLD_DPF(FILE, ("linker_file_unregister_sysctls: registering SYSCTLs"
+	KLD_DPF(FILE, ("linker_file_unregister_sysctls: unregistering SYSCTLs"
 	    " for %s\n", lf->filename));
 
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
@@ -378,7 +380,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 {
 	linker_class_t lc;
 	linker_file_t lf;
-	int foundfile, error;
+	int foundfile, error, modules;
 
 	/* Refuse to load modules if securelevel raised */
 	if (prison0.pr_securelevel > 0)
@@ -417,11 +419,22 @@ linker_load_file(const char *filename, linker_file_t *result)
 				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 				return (error);
 			}
+			modules = !TAILQ_EMPTY(&lf->modules);
 			KLD_UNLOCK();
 			linker_file_register_sysctls(lf);
 			linker_file_sysinit(lf);
 			KLD_LOCK();
 			lf->flags |= LINKER_FILE_LINKED;
+
+			/*
+			 * If all of the modules in this file failed
+			 * to load, unload the file and return an
+			 * error of ENOEXEC.
+			 */
+			if (modules && TAILQ_EMPTY(&lf->modules)) {
+				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+				return (ENOEXEC);
+			}
 			*result = lf;
 			return (0);
 		}
@@ -625,7 +638,7 @@ linker_file_unload(linker_file_t file, int flags)
 
 	/*
 	 * Inform any modules associated with this file that they are
-	 * being be unloaded.
+	 * being unloaded.
 	 */
 	MOD_XLOCK;
 	for (mod = TAILQ_FIRST(&file->modules); mod; mod = next) {
@@ -636,8 +649,12 @@ linker_file_unload(linker_file_t file, int flags)
 		 * Give the module a chance to veto the unload.
 		 */
 		if ((error = module_unload(mod)) != 0) {
+#ifdef KLD_DEBUG
+			MOD_SLOCK;
 			KLD_DPF(FILE, ("linker_file_unload: module %s"
 			    " failed unload\n", module_getname(mod)));
+			MOD_SUNLOCK;
+#endif
 			return (error);
 		}
 		MOD_XLOCK;
@@ -1012,7 +1029,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	 * (kldname.ko, or kldname.ver.ko) treat it as an interface
 	 * name.
 	 */
-	if (index(file, '/') || index(file, '.')) {
+	if (strchr(file, '/') || strchr(file, '.')) {
 		kldname = file;
 		modname = NULL;
 	} else {
@@ -1688,7 +1705,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 	struct nameidata nd;
 	struct thread *td = curthread;	/* XXX */
 	char *result, **cpp, *sep;
-	int error, len, extlen, reclen, flags, vfslocked;
+	int error, len, extlen, reclen, flags;
 	enum vtype type;
 
 	extlen = 0;
@@ -1709,18 +1726,16 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 		 * Attempt to open the file, and return the path if
 		 * we succeed and it's a regular file.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, result, td);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, td);
 		flags = FREAD;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error == 0) {
-			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			type = nd.ni_vp->v_type;
 			if (vap)
 				VOP_GETATTR(nd.ni_vp, vap, td->td_ucred);
 			VOP_UNLOCK(nd.ni_vp, 0);
 			vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			if (type == VREG)
 				return (result);
 		}
@@ -1747,8 +1762,8 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	struct vattr vattr, mattr;
 	u_char *hints = NULL;
 	u_char *cp, *recptr, *bufend, *result, *best, *pathbuf, *sep;
-	int error, ival, bestver, *intp, reclen, found, flags, clen, blen;
-	int vfslocked = 0;
+	int error, ival, bestver, *intp, found, flags, clen, blen;
+	ssize_t reclen;
 
 	result = NULL;
 	bestver = found = 0;
@@ -1760,12 +1775,11 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	snprintf(pathbuf, reclen, "%.*s%s%s", pathlen, path, sep,
 	    linker_hintfile);
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, pathbuf, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pathbuf, td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		goto bad;
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG)
 		goto bad;
@@ -1789,10 +1803,9 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 		goto bad;
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, cred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	nd.ni_vp = NULL;
 	if (reclen != 0) {
-		printf("can't read %d\n", reclen);
+		printf("can't read %zd\n", reclen);
 		goto bad;
 	}
 	intp = (int *)hints;
@@ -1858,7 +1871,6 @@ bad:
 	if (nd.ni_vp != NULL) {
 		VOP_UNLOCK(nd.ni_vp, 0);
 		vn_close(nd.ni_vp, FREAD, cred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	/*
 	 * If nothing found or hints is absent - fallback to the old
@@ -1905,7 +1917,7 @@ linker_search_kld(const char *name)
 	int len;
 
 	/* qualified at all? */
-	if (index(name, '/'))
+	if (strchr(name, '/'))
 		return (linker_strdup(name));
 
 	/* traverse the linker path */
@@ -1926,7 +1938,7 @@ linker_basename(const char *path)
 {
 	const char *filename;
 
-	filename = rindex(path, '/');
+	filename = strrchr(path, '/');
 	if (filename == NULL)
 		return path;
 	if (filename[1])

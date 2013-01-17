@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
  
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,7 +95,7 @@ static device_method_t driver_methods[] = {
 	DEVMETHOD(device_detach,	hpt_detach),
 
 	DEVMETHOD(device_shutdown,	hpt_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hpt_pci_driver = {
@@ -107,6 +108,7 @@ static devclass_t	hpt_devclass;
 
 #define __DRIVER_MODULE(p1, p2, p3, p4, p5, p6) DRIVER_MODULE(p1, p2, p3, p4, p5, p6)
 __DRIVER_MODULE(PROC_DIR_NAME, pci, hpt_pci_driver, hpt_devclass, 0, 0);
+MODULE_DEPEND(PROC_DIR_NAME, cam, 1, 1, 1);
 
 #define ccb_ccb_ptr spriv_ptr0
 #define ccb_adapter ccb_h.spriv_ptr1
@@ -1325,7 +1327,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	_vbus_p->OsExt = (void *)pAdapter; 
 	pMvSataAdapter->IALData = pAdapter;
 
-	if (bus_dma_tag_create(NULL,/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(pAdapter->hpt_dev),/* parent */
 			4,	/* alignment */
 			BUS_SPACE_MAXADDR_32BIT+1, /* boundary */
 			BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -2371,7 +2373,10 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 
 		case XPT_CALC_GEOMETRY:
-		{
+#if __FreeBSD_version >= 500000
+			cam_calc_geometry(&ccb->ccg, 1);
+#else
+			{
 			struct	  ccb_calc_geometry *ccg;
 			u_int32_t size_mb;
 			u_int32_t secs_per_cylinder;
@@ -2389,9 +2394,10 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 			secs_per_cylinder = ccg->heads * ccg->secs_per_track;
 			ccg->cylinders = ccg->volume_size / secs_per_cylinder;
 			ccb->ccb_h.status = CAM_REQ_CMP;
+			}
+#endif
 			xpt_done(ccb);
 			break;
-		}
 
 		case XPT_PATH_INQ:		/* Path routing inquiry */
 		{
@@ -3040,7 +3046,7 @@ fOsCommandDone(_VBUS_ARG PCommand pCmd)
 	if (pCmd->cf_data_in) {
 		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_POSTREAD);
 	}
-	else if (pCmd->cf_data_in) {
+	else if (pCmd->cf_data_out) {
 		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_POSTWRITE);
 	}
 	

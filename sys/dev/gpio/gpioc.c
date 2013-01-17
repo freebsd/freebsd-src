@@ -102,7 +102,7 @@ gpioc_detach(device_t dev)
 	struct gpioc_softc *sc = device_get_softc(dev);
 	int err;
 
-	if (sc->sc_ctl_dev);
+	if (sc->sc_ctl_dev)
 		destroy_dev(sc->sc_ctl_dev);
 
 	if ((err = bus_generic_detach(dev)) != 0)

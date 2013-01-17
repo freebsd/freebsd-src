@@ -65,7 +65,7 @@ typedef struct {
 	u_int ffactor;
 	u_int nelem;
 	u_int cachesize;
-	u_int32_t (*hash)(const void *, size_t);
+	uint32_t (*hash)(const void *, size_t);
 	int lorder;
 } HASHINFO;
 .Ed

@@ -1,5 +1,4 @@
 # $FreeBSD$
 
-SUBDIR+=	mount_smbfs
 SUBDIR+=	nvram
 SUBDIR+=	ofwdump

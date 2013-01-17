@@ -69,6 +69,7 @@ static device_detach_t ohci_atmelarm_detach;
 
 struct at91_ohci_softc {
 	struct ohci_softc sc_ohci;	/* must be first */
+	struct at91_pmc_clock *mclk;
 	struct at91_pmc_clock *iclk;
 	struct at91_pmc_clock *fclk;
 };
@@ -76,6 +77,7 @@ struct at91_ohci_softc {
 static int
 ohci_atmelarm_probe(device_t dev)
 {
+
 	device_set_desc(dev, "AT91 integrated OHCI controller");
 	return (BUS_PROBE_DEFAULT);
 }
@@ -97,6 +99,7 @@ ohci_atmelarm_attach(device_t dev)
 	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
+	sc->mclk = at91_pmc_clock_ref("mck");
 	sc->iclk = at91_pmc_clock_ref("ohci_clk");
 	sc->fclk = at91_pmc_clock_ref("uhpck");
 
@@ -142,6 +145,7 @@ ohci_atmelarm_attach(device_t dev)
 	/*
 	 * turn on the clocks from the AT91's point of view.  Keep the unit in reset.
 	 */
+	at91_pmc_clock_enable(sc->mclk);
 	at91_pmc_clock_enable(sc->iclk);
 	at91_pmc_clock_enable(sc->fclk);
 	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl,
@@ -174,7 +178,7 @@ ohci_atmelarm_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	/*
 	 * Put the controller into reset, then disable clocks and do
@@ -190,8 +194,10 @@ ohci_atmelarm_detach(device_t dev)
 
 	at91_pmc_clock_disable(sc->fclk);
 	at91_pmc_clock_disable(sc->iclk);
+	at91_pmc_clock_disable(sc->mclk);
 	at91_pmc_clock_deref(sc->fclk);
 	at91_pmc_clock_deref(sc->iclk);
+	at91_pmc_clock_deref(sc->mclk);
 
 	if (sc->sc_ohci.sc_irq_res && sc->sc_ohci.sc_intr_hdl) {
 		/*
@@ -221,18 +227,17 @@ static device_method_t ohci_methods[] = {
 	DEVMETHOD(device_probe, ohci_atmelarm_probe),
 	DEVMETHOD(device_attach, ohci_atmelarm_attach),
 	DEVMETHOD(device_detach, ohci_atmelarm_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ohci_driver = {
-	"ohci",
-	ohci_methods,
-	sizeof(struct at91_ohci_softc),
+	.name = "ohci",
+	.methods = ohci_methods,
+	.size = sizeof(struct at91_ohci_softc),
 };
 
 static devclass_t ohci_devclass;

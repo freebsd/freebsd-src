@@ -57,6 +57,7 @@ extern struct mount nfsv4root_mnt;
 extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern void (*nfsd_call_servertimer)(void);
 extern SVCPOOL	*nfsrvd_pool;
+extern struct nfsv4lock nfsd_suspend_lock;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct mtx nfs_cache_mutex;
@@ -90,18 +91,76 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, issue_delegations, CTLFLAG_RW,
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
     &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 
-#define	NUM_HEURISTIC		1017
+#define	MAX_REORDERED_RPC	16
+#define	NUM_HEURISTIC		1031
 #define	NHUSE_INIT		64
 #define	NHUSE_INC		16
 #define	NHUSE_MAX		2048
 
 static struct nfsheur {
 	struct vnode *nh_vp;	/* vp to match (unreferenced pointer) */
-	off_t nh_nextr;		/* next offset for sequential detection */
+	off_t nh_nextoff;	/* next offset for sequential detection */
 	int nh_use;		/* use count for selection */
 	int nh_seqcount;	/* heuristic */
 } nfsheur[NUM_HEURISTIC];
 
+
+/*
+ * Heuristic to detect sequential operation.
+ */
+static struct nfsheur *
+nfsrv_sequential_heuristic(struct uio *uio, struct vnode *vp)
+{
+	struct nfsheur *nh;
+	int hi, try;
+
+	/* Locate best candidate. */
+	try = 32;
+	hi = ((int)(vm_offset_t)vp / sizeof(struct vnode)) % NUM_HEURISTIC;
+	nh = &nfsheur[hi];
+	while (try--) {
+		if (nfsheur[hi].nh_vp == vp) {
+			nh = &nfsheur[hi];
+			break;
+		}
+		if (nfsheur[hi].nh_use > 0)
+			--nfsheur[hi].nh_use;
+		hi = (hi + 1) % NUM_HEURISTIC;
+		if (nfsheur[hi].nh_use < nh->nh_use)
+			nh = &nfsheur[hi];
+	}
+
+	/* Initialize hint if this is a new file. */
+	if (nh->nh_vp != vp) {
+		nh->nh_vp = vp;
+		nh->nh_nextoff = uio->uio_offset;
+		nh->nh_use = NHUSE_INIT;
+		if (uio->uio_offset == 0)
+			nh->nh_seqcount = 4;
+		else
+			nh->nh_seqcount = 1;
+	}
+
+	/* Calculate heuristic. */
+	if ((uio->uio_offset == 0 && nh->nh_seqcount > 0) ||
+	    uio->uio_offset == nh->nh_nextoff) {
+		/* See comments in vfs_vnops.c:sequential_heuristic(). */
+		nh->nh_seqcount += howmany(uio->uio_resid, 16384);
+		if (nh->nh_seqcount > IO_SEQMAX)
+			nh->nh_seqcount = IO_SEQMAX;
+	} else if (qabs(uio->uio_offset - nh->nh_nextoff) <= MAX_REORDERED_RPC *
+	    imax(vp->v_mount->mnt_stat.f_iosize, uio->uio_resid)) {
+		/* Probably a reordered RPC, leave seqcount alone. */
+	} else if (nh->nh_seqcount > 1) {
+		nh->nh_seqcount /= 2;
+	} else {
+		nh->nh_seqcount = 0;
+	}
+	nh->nh_use += NHUSE_INC;
+	if (nh->nh_use > NHUSE_MAX)
+		nh->nh_use = NHUSE_MAX;
+	return (nh);
+}
 
 /*
  * Get attributes into nfsvattr structure.
@@ -194,7 +253,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		 * the inode, try to free it up once.  If
 		 * we fail, we can't allow writing.
 		 */
-		if ((vp->v_vflag & VV_TEXT) != 0 && error == 0)
+		if (VOP_IS_TEXT(vp) && error == 0)
 			error = ETXTBSY;
 	}
 	if (error != 0) {
@@ -261,11 +320,7 @@ nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 }
 
 /*
- * Set up nameidata for a lookup() call and do it
- * For the cases where we are crossing mount points
- * (looking up the public fh path or the v4 root path when
- *  not using a pseudo-root fs), set/release the Giant lock,
- * as required.
+ * Set up nameidata for a lookup() call and do it.
  */
 int
 nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
@@ -341,6 +396,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	cnp->cn_thread = p;
 	ndp->ni_startdir = dp;
 	ndp->ni_rootdir = rootvnode;
+	ndp->ni_topdir = NULL;
 
 	if (!lockleaf)
 		cnp->cn_flags |= LOCKLEAF;
@@ -450,11 +506,10 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 
 out:
 	if (error) {
-		uma_zfree(namei_zone, cnp->cn_pnbuf);
+		nfsvno_relpathbuf(ndp);
 		ndp->ni_vp = NULL;
 		ndp->ni_dvp = NULL;
 		ndp->ni_startdir = NULL;
-		cnp->cn_flags &= ~HASBUF;
 	} else if ((ndp->ni_cnd.cn_flags & (WANTPARENT|LOCKPARENT)) == 0) {
 		ndp->ni_dvp = NULL;
 	}
@@ -510,7 +565,7 @@ nfsvno_readlink(struct vnode *vp, struct ucred *cred, struct thread *p,
 	i = 0;
 	while (len < NFS_MAXPATHLEN) {
 		NFSMGET(mp);
-		MCLGET(mp, M_WAIT);
+		MCLGET(mp, M_WAITOK);
 		mp->m_len = NFSMSIZ(mp);
 		if (len == 0) {
 			mp3 = mp2 = mp;
@@ -567,59 +622,10 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	int i;
 	struct iovec *iv;
 	struct iovec *iv2;
-	int error = 0, len, left, siz, tlen, ioflag = 0, hi, try = 32;
+	int error = 0, len, left, siz, tlen, ioflag = 0;
 	struct mbuf *m2 = NULL, *m3;
 	struct uio io, *uiop = &io;
 	struct nfsheur *nh;
-
-	/*
-	 * Calculate seqcount for heuristic
-	 */
-	/*
-	 * Locate best candidate
-	 */
-
-	hi = ((int)(vm_offset_t)vp / sizeof(struct vnode)) % NUM_HEURISTIC;
-	nh = &nfsheur[hi];
-
-	while (try--) {
-		if (nfsheur[hi].nh_vp == vp) {
-			nh = &nfsheur[hi];
-			break;
-		}
-		if (nfsheur[hi].nh_use > 0)
-			--nfsheur[hi].nh_use;
-		hi = (hi + 1) % NUM_HEURISTIC;
-		if (nfsheur[hi].nh_use < nh->nh_use)
-			nh = &nfsheur[hi];
-	}
-
-	if (nh->nh_vp != vp) {
-		nh->nh_vp = vp;
-		nh->nh_nextr = off;
-		nh->nh_use = NHUSE_INIT;
-		if (off == 0)
-			nh->nh_seqcount = 4;
-		else
-			nh->nh_seqcount = 1;
-	}
-
-	/*
-	 * Calculate heuristic
-	 */
-
-	if ((off == 0 && nh->nh_seqcount > 0) || off == nh->nh_nextr) {
-		if (++nh->nh_seqcount > IO_SEQMAX)
-			nh->nh_seqcount = IO_SEQMAX;
-	} else if (nh->nh_seqcount > 1) {
-		nh->nh_seqcount = 1;
-	} else {
-		nh->nh_seqcount = 0;
-	}
-	nh->nh_use += NHUSE_INC;
-	if (nh->nh_use > NHUSE_MAX)
-		nh->nh_use = NHUSE_MAX;
-	ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 
 	len = left = NFSM_RNDUP(cnt);
 	m3 = NULL;
@@ -629,7 +635,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	i = 0;
 	while (left > 0) {
 		NFSMGET(m);
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_WAITOK);
 		m->m_len = 0;
 		siz = min(M_TRAILINGSPACE(m), left);
 		left -= siz;
@@ -665,6 +671,8 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	uiop->uio_resid = len;
 	uiop->uio_rw = UIO_READ;
 	uiop->uio_segflg = UIO_SYSSPACE;
+	nh = nfsrv_sequential_heuristic(uiop, vp);
+	ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 	error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
 	FREE((caddr_t)iv2, M_TEMP);
 	if (error) {
@@ -672,6 +680,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 		*mpp = NULL;
 		goto out;
 	}
+	nh->nh_nextoff = uiop->uio_offset;
 	tlen = len - uiop->uio_resid;
 	cnt = cnt < tlen ? cnt : tlen;
 	tlen = NFSM_RNDUP(cnt);
@@ -700,6 +709,7 @@ nfsvno_write(struct vnode *vp, off_t off, int retlen, int cnt, int stable,
 	struct iovec *iv;
 	int ioflags, error;
 	struct uio io, *uiop = &io;
+	struct nfsheur *nh;
 
 	MALLOC(ivp, struct iovec *, cnt * sizeof (struct iovec), M_TEMP,
 	    M_WAITOK);
@@ -733,7 +743,11 @@ nfsvno_write(struct vnode *vp, off_t off, int retlen, int cnt, int stable,
 	uiop->uio_segflg = UIO_SYSSPACE;
 	NFSUIOPROC(uiop, p);
 	uiop->uio_offset = off;
+	nh = nfsrv_sequential_heuristic(uiop, vp);
+	ioflags |= nh->nh_seqcount << IO_SEQSHIFT;
 	error = VOP_WRITE(vp, uiop, ioflags, cred);
+	if (error == 0)
+		nh->nh_nextoff = uiop->uio_offset;
 	FREE((caddr_t)iv, M_TEMP);
 
 	NFSEXITCODE(error);
@@ -1033,6 +1047,8 @@ nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
+	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
+		nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1072,6 +1088,8 @@ out:
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
+	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
+		nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1237,7 +1255,13 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 {
 	int error = 0;
 
-	if (cnt > MAX_COMMIT_COUNT) {
+	/*
+	 * RFC 1813 3.3.21: if count is 0, a flush from offset to the end of
+	 * file is done.  At this time VOP_FSYNC does not accept offset and
+	 * byte count parameters so call VOP_FSYNC the whole file for now.
+	 * The same is true for NFSv4: RFC 3530 Sec. 14.2.3.
+	 */
+	if (cnt == 0 || cnt > MAX_COMMIT_COUNT) {
 		/*
 		 * Give up and do the whole thing
 		 */
@@ -2036,8 +2060,7 @@ again:
 						cn.cn_nameptr = dp->d_name;
 						cn.cn_namelen = nlen;
 						cn.cn_flags = ISLASTCN |
-						    NOFOLLOW | LOCKLEAF |
-						    MPSAFE;
+						    NOFOLLOW | LOCKLEAF;
 						if (nlen == 2 &&
 						    dp->d_name[0] == '.' &&
 						    dp->d_name[1] == '.')
@@ -2414,7 +2437,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 				goto nfsmout;
 			}
 			if (!nd->nd_repstat) {
-				nd->nd_repstat = nfsv4_strtouid(cp,j,&uid,p);
+				nd->nd_repstat = nfsv4_strtouid(nd, cp, j, &uid,
+				    p);
 				if (!nd->nd_repstat)
 					nvap->na_uid = uid;
 			}
@@ -2440,7 +2464,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 				goto nfsmout;
 			}
 			if (!nd->nd_repstat) {
-				nd->nd_repstat = nfsv4_strtogid(cp,j,&gid,p);
+				nd->nd_repstat = nfsv4_strtogid(nd, cp, j, &gid,
+				    p);
 				if (!nd->nd_repstat)
 					nvap->na_gid = gid;
 			}
@@ -2621,10 +2646,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 
 	*credp = NULL;
 	exp->nes_numsecflavor = 0;
-	if (VFS_NEEDSGIANT(mp))
-		error = ESTALE;
-	else
-		error = VFS_FHTOVP(mp, &fhp->fh_fid, LK_EXCLUSIVE, vpp);
+	error = VFS_FHTOVP(mp, &fhp->fh_fid, lktype, vpp);
 	if (error != 0)
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
@@ -2645,14 +2667,6 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 				exp->nes_secflavors[i] = secflavors[i];
 		}
 	}
-	if (error == 0 && lktype == LK_SHARED)
-		/*
-		 * It would be much better to pass lktype to VFS_FHTOVP(),
-		 * but this will have to do until VFS_FHTOVP() has a lock
-		 * type argument like VFS_VGET().
-		 */
-		NFSVOPLOCK(*vpp, LK_DOWNGRADE | LK_RETRY);
-
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -2807,7 +2821,7 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 		/*
 		 * If fspec != NULL, this is the v4root path.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_USERSPACE,
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE,
 		    nfsexargp->fspec, p);
 		if ((error = namei(&nd)) != 0)
 			goto out;
@@ -2895,12 +2909,14 @@ nfsd_mntinit(void)
 	inited = 1;
 	nfsv4root_mnt.mnt_flag = (MNT_RDONLY | MNT_EXPORTED);
 	TAILQ_INIT(&nfsv4root_mnt.mnt_nvnodelist);
+	TAILQ_INIT(&nfsv4root_mnt.mnt_activevnodelist);
 	nfsv4root_mnt.mnt_export = NULL;
 	TAILQ_INIT(&nfsv4root_opt);
 	TAILQ_INIT(&nfsv4root_newopt);
 	nfsv4root_mnt.mnt_opt = &nfsv4root_opt;
 	nfsv4root_mnt.mnt_optnew = &nfsv4root_newopt;
 	nfsv4root_mnt.mnt_nvnodelistsize = 0;
+	nfsv4root_mnt.mnt_activevnodelistsize = 0;
 }
 
 /*
@@ -3076,8 +3092,9 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct nfsd_dumplocks *dumplocks;
 	struct nameidata nd;
 	vnode_t vp;
-	int error = EINVAL;
+	int error = EINVAL, igotlock;
 	struct proc *procp;
+	static int suspend_nfsd = 0;
 
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
@@ -3156,6 +3173,26 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		nfsd_master_start = procp->p_stats->p_start;
 		nfsd_master_proc = procp;
 		PROC_UNLOCK(procp);
+	} else if ((uap->flag & NFSSVC_SUSPENDNFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd == 0) {
+			/* Lock out all nfsd threads */
+			do {
+				igotlock = nfsv4_lock(&nfsd_suspend_lock, 1,
+				    NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
+			} while (igotlock == 0 && suspend_nfsd == 0);
+			suspend_nfsd = 1;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
+	} else if ((uap->flag & NFSSVC_RESUMENFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd != 0) {
+			nfsv4_unlock(&nfsd_suspend_lock, 0);
+			suspend_nfsd = 0;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
 	}
 
 	NFSEXITCODE(error);

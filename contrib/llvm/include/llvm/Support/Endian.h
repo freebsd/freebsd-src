@@ -49,7 +49,7 @@ struct alignment_access_helper<value_type, unaligned>
 
 namespace endian {
   template<typename value_type, alignment align>
-  static value_type read_le(const void *memory) {
+  inline value_type read_le(const void *memory) {
     value_type t =
       reinterpret_cast<const detail::alignment_access_helper
         <value_type, align> *>(memory)->val;
@@ -59,7 +59,7 @@ namespace endian {
   }
 
   template<typename value_type, alignment align>
-  static void write_le(void *memory, value_type value) {
+  inline void write_le(void *memory, value_type value) {
     if (sys::isBigEndianHost())
       value = sys::SwapByteOrder(value);
     reinterpret_cast<detail::alignment_access_helper<value_type, align> *>
@@ -67,7 +67,7 @@ namespace endian {
   }
 
   template<typename value_type, alignment align>
-  static value_type read_be(const void *memory) {
+  inline value_type read_be(const void *memory) {
     value_type t =
       reinterpret_cast<const detail::alignment_access_helper
         <value_type, align> *>(memory)->val;
@@ -77,7 +77,7 @@ namespace endian {
   }
 
   template<typename value_type, alignment align>
-  static void write_be(void *memory, value_type value) {
+  inline void write_be(void *memory, value_type value) {
     if (sys::isLittleEndianHost())
       value = sys::SwapByteOrder(value);
     reinterpret_cast<detail::alignment_access_helper<value_type, align> *>
@@ -98,6 +98,9 @@ public:
   operator value_type() const {
     return endian::read_le<value_type, unaligned>(Value);
   }
+  void operator=(value_type newValue) {
+    endian::write_le<value_type, unaligned>((void *)&Value, newValue);
+  }
 private:
   uint8_t Value[sizeof(value_type)];
 };
@@ -107,6 +110,9 @@ class packed_endian_specific_integral<value_type, big, unaligned> {
 public:
   operator value_type() const {
     return endian::read_be<value_type, unaligned>(Value);
+  }
+  void operator=(value_type newValue) {
+    endian::write_be<value_type, unaligned>((void *)&Value, newValue);
   }
 private:
   uint8_t Value[sizeof(value_type)];
@@ -118,6 +124,9 @@ public:
   operator value_type() const {
     return endian::read_le<value_type, aligned>(&Value);
   }
+  void operator=(value_type newValue) {
+    endian::write_le<value_type, aligned>((void *)&Value, newValue);
+  }
 private:
   value_type Value;
 };
@@ -127,6 +136,9 @@ class packed_endian_specific_integral<value_type, big, aligned> {
 public:
   operator value_type() const {
     return endian::read_be<value_type, aligned>(&Value);
+  }
+  void operator=(value_type newValue) {
+    endian::write_be<value_type, aligned>((void *)&Value, newValue);
   }
 private:
   value_type Value;

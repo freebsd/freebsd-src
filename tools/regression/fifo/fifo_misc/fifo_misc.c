@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2012 Jilles Tjoelker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -115,7 +116,7 @@ test_lseek(void)
 		exit(-1);
 	}
 
-	if (lseek(reader_fd, SEEK_CUR, 1) >= 0) {
+	if (lseek(reader_fd, 1, SEEK_CUR) >= 0) {
 		warnx("%s: lseek succeeded instead of returning ESPIPE",
 		    __func__);
 		cleanfifo("testfifo", reader_fd, writer_fd);
@@ -223,6 +224,97 @@ test_ioctl(void)
 	cleanfifo("testfifo", reader_fd, writer_fd);
 }
 
+/*
+ * fchmod(2)/fchown(2) on FIFO should work.
+ */
+static void
+test_chmodchown(void)
+{
+	struct stat sb;
+	int reader_fd, writer_fd;
+	uid_t u;
+	gid_t g;
+
+	makefifo("testfifo", __func__);
+
+	if (openfifo("testfifo", __func__, &reader_fd, &writer_fd) < 0) {
+		warn("%s: openfifo", __func__);
+		cleanfifo("testfifo", -1, -1);
+		exit(-1);
+	}
+
+	if (fchmod(reader_fd, 0666) != 0) {
+		warn("%s: fchmod", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (stat("testfifo", &sb) != 0) {
+		warn("%s: stat", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if ((sb.st_mode & 0777) != 0666) {
+		warnx("%s: stat chmod result", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (fstat(writer_fd, &sb) != 0) {
+		warn("%s: fstat", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if ((sb.st_mode & 0777) != 0666) {
+		warnx("%s: fstat chmod result", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (fchown(reader_fd, -1, -1) != 0) {
+		warn("%s: fchown 1", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	u = geteuid();
+	if (u == 0)
+		u = 1;
+	g = getegid();
+	if (fchown(reader_fd, u, g) != 0) {
+		warn("%s: fchown 2", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+	if (stat("testfifo", &sb) != 0) {
+		warn("%s: stat", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (sb.st_uid != u || sb.st_gid != g) {
+		warnx("%s: stat chown result", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (fstat(writer_fd, &sb) != 0) {
+		warn("%s: fstat", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	if (sb.st_uid != u || sb.st_gid != g) {
+		warnx("%s: fstat chown result", __func__);
+		cleanfifo("testfifo", reader_fd, writer_fd);
+		exit(-1);
+	}
+
+	cleanfifo("testfifo", -1, -1);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -238,6 +330,7 @@ main(int argc, char *argv[])
 	test_lseek();
 	test_truncate();
 	test_ioctl();
+	test_chmodchown();
 
 	return (0);
 }

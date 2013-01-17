@@ -6368,7 +6368,7 @@ void
 ahc_send_lstate_events(struct ahc_softc *ahc, struct ahc_tmode_lstate *lstate)
 {
 	struct ccb_hdr *ccbh;
-	struct ccb_immed_notify *inot;
+	struct ccb_immediate_notify *inot;
 
 	while (lstate->event_r_idx != lstate->event_w_idx
 	    && (ccbh = SLIST_FIRST(&lstate->immed_notifies)) != NULL) {
@@ -6376,19 +6376,18 @@ ahc_send_lstate_events(struct ahc_softc *ahc, struct ahc_tmode_lstate *lstate)
 
 		event = &lstate->event_buffer[lstate->event_r_idx];
 		SLIST_REMOVE_HEAD(&lstate->immed_notifies, sim_links.sle);
-		inot = (struct ccb_immed_notify *)ccbh;
+		inot = (struct ccb_immediate_notify *)ccbh;
 		switch (event->event_type) {
 		case EVENT_TYPE_BUS_RESET:
 			ccbh->status = CAM_SCSI_BUS_RESET|CAM_DEV_QFRZN;
 			break;
 		default:
 			ccbh->status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
-			inot->message_args[0] = event->event_type;
-			inot->message_args[1] = event->event_arg;
+			inot->arg = event->event_type;
+			inot->seq_id = event->event_arg;
 			break;
 		}
 		inot->initiator_id = event->initiator_id;
-		inot->sense_len = 0;
 		xpt_done((union ccb *)inot);
 		lstate->event_r_idx++;
 		if (lstate->event_r_idx == AHC_TMODE_EVENT_BUFFER_SIZE)

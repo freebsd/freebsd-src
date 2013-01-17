@@ -283,7 +283,7 @@ static const STRUCT_USB_HOST_ID uhso_devs[] = {
 #undef UHSO_DEV
 };
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uhso, CTLFLAG_RW, 0, "USB uhso");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhso, CTLFLAG_RW, 0, "USB uhso");
 static int uhso_autoswitch = 1;
 SYSCTL_INT(_hw_usb_uhso, OID_AUTO, auto_switch, CTLFLAG_RW,
     &uhso_autoswitch, 0, "Automatically switch to modem mode");
@@ -455,6 +455,7 @@ static int  uhso_driver_loaded(struct module *, int, void *);
 static int uhso_radio_sysctl(SYSCTL_HANDLER_ARGS);
 static int uhso_radio_ctrl(struct uhso_softc *, int);
 
+static void uhso_free(struct ucom_softc *);
 static void uhso_ucom_start_read(struct ucom_softc *);
 static void uhso_ucom_stop_read(struct ucom_softc *);
 static void uhso_ucom_start_write(struct ucom_softc *);
@@ -473,6 +474,7 @@ static void uhso_if_rxflush(void *);
 static device_probe_t uhso_probe;
 static device_attach_t uhso_attach;
 static device_detach_t uhso_detach;
+static void uhso_free_softc(struct uhso_softc *);
 
 static device_method_t uhso_methods[] = {
 	DEVMETHOD(device_probe,		uhso_probe),
@@ -482,9 +484,9 @@ static device_method_t uhso_methods[] = {
 };
 
 static driver_t uhso_driver = {
-	"uhso",
-	uhso_methods,
-	sizeof(struct uhso_softc)
+	.name = "uhso",
+	.methods = uhso_methods,
+	.size = sizeof(struct uhso_softc)
 };
 
 static devclass_t uhso_devclass;
@@ -500,7 +502,8 @@ static struct ucom_callback uhso_ucom_callback = {
 	.ucom_start_read = uhso_ucom_start_read,
 	.ucom_stop_read = uhso_ucom_stop_read,
 	.ucom_start_write = uhso_ucom_start_write,
-	.ucom_stop_write = uhso_ucom_stop_write
+	.ucom_stop_write = uhso_ucom_stop_write,
+	.ucom_free = &uhso_free,
 };
 
 static int
@@ -537,7 +540,6 @@ uhso_attach(device_t self)
 {
 	struct uhso_softc *sc = device_get_softc(self);
 	struct usb_attach_arg *uaa = device_get_ivars(self);
-	struct usb_config_descriptor *cd;
 	struct usb_interface_descriptor *id;
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
@@ -552,12 +554,12 @@ uhso_attach(device_t self)
 	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
 	mtx_init(&sc->sc_mtx, "uhso", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_ucom = NULL;
 	sc->sc_ttys = 0;
 	sc->sc_radio = 1;
 
-	cd = usbd_get_config_descriptor(uaa->device);
 	id = usbd_get_interface_descriptor(uaa->iface);
 	sc->sc_ctrl_iface_no = id->bInterfaceNumber;
 
@@ -692,8 +694,28 @@ uhso_detach(device_t self)
 		usbd_transfer_unsetup(sc->sc_if_xfer, UHSO_IFNET_MAX);
 	}
 
-	mtx_destroy(&sc->sc_mtx);
+	device_claim_softc(self);
+
+	uhso_free_softc(sc);
+
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uhso);
+
+static void
+uhso_free_softc(struct uhso_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uhso_free(struct ucom_softc *ucom)
+{
+	uhso_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -1153,7 +1175,7 @@ uhso_mux_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		bzero(&req, sizeof(struct usb_device_request));
+		memset(&req, 0, sizeof(struct usb_device_request));
 		req.bmRequestType = UT_READ_CLASS_INTERFACE;
 		req.bRequest = UCDC_GET_ENCAPSULATED_RESPONSE;
 		USETW(req.wValue, 0);
@@ -1206,7 +1228,7 @@ uhso_mux_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			usbd_get_page(pc, 0, &res);
 
-			bzero(&req, sizeof(struct usb_device_request));
+			memset(&req, 0, sizeof(struct usb_device_request));
 			req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 			req.bRequest = UCDC_SEND_ENCAPSULATED_COMMAND;
 			USETW(req.wValue, 0);
@@ -1366,7 +1388,7 @@ uhso_bs_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			UHSO_DPRINTF(0, "UCDC notification too short: %d\n", actlen);
 			goto tr_setup;
 		}
-		else if (actlen > sizeof(struct usb_cdc_notification)) {
+		else if (actlen > (int)sizeof(struct usb_cdc_notification)) {
 			UHSO_DPRINTF(0, "UCDC notification too large: %d\n", actlen);
 			actlen = sizeof(struct usb_cdc_notification);
 		}
@@ -1597,7 +1619,7 @@ uhso_ifnet_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		if (actlen > 0 && (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			pc = usbd_xfer_get_frame(xfer, 0);
-			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			usbd_copy_out(pc, 0, mtod(m, uint8_t *), actlen);
 			m->m_pkthdr.len = m->m_len = actlen;
 			/* Enqueue frame for further processing */
@@ -1730,13 +1752,13 @@ uhso_if_rxflush(void *arg)
 			 * Allocate a new mbuf for this IP packet and
 			 * copy the IP-packet into it.
 			 */
-			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-			bcopy(mtod(m0, uint8_t *), mtod(m, uint8_t *), iplen);
+			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+			memcpy(mtod(m, uint8_t *), mtod(m0, uint8_t *), iplen);
 			m->m_pkthdr.len = m->m_len = iplen;
 
 			/* Adjust the size of the original mbuf */
 			m_adj(m0, iplen);
-			m0 = m_defrag(m0, M_WAIT);
+			m0 = m_defrag(m0, M_WAITOK);
 
 			UHSO_DPRINTF(3, "New mbuf=%p, len=%d/%d, m0=%p, "
 			    "m0_len=%d/%d\n", m, m->m_pkthdr.len, m->m_len,

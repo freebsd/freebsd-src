@@ -56,6 +56,7 @@ Boston, MA 02110-1301, USA.  */
     %{v:-V} \
     %{assert*} %{R*} %{rpath*} %{defsym*} \
     %{shared:-Bshareable %{h*} %{soname*}} \
+    %{!static:--enable-new-dtags} \
     %{!shared: \
       %{!static: \
 	%{rdynamic: -export-dynamic} \
@@ -351,4 +352,5 @@ Boston, MA 02110-1301, USA.  */
 #endif
 
 /************************[  Debugger stuff  ]*********************************/
-
+#undef DBX_DEBUGGING_INFO
+#undef MIPS_DEBUGGING_INFO

@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-MALLOC_DEFINE(M_SCSIBH, "SCSI bh", "SCSI blackhole buffers");
+static MALLOC_DEFINE(M_SCSIBH, "SCSI bh", "SCSI blackhole buffers");
 
 typedef enum {
 	TARGBH_STATE_NORMAL,
@@ -604,7 +604,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 			atio->ccb_h.flags |= CAM_DIR_IN;
 			descr->data = &no_lun_inq_data;
 			descr->data_resid = MIN(sizeof(no_lun_inq_data),
-						SCSI_CDB6_LEN(inq->length));
+						scsi_2btoul(inq->length));
 			descr->data_increment = descr->data_resid;
 			descr->timeout = 5 * 1000;
 			descr->status = SCSI_STATUS_OK;

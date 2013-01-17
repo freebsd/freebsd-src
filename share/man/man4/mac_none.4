@@ -45,7 +45,7 @@ configuration file:
 .Cd "options MAC_NONE"
 .Ed
 .Pp
-Alternately, to load the sample module at boot time, place the following line
+Alternately, to load the none module at boot time, place the following line
 in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options MAC"
@@ -59,7 +59,7 @@ mac_none_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-policy module implements a sample MAC policy that has no effect on
+policy module implements a none MAC policy that has no effect on
 access control in the system.
 Unlike
 .Xr mac_stub 4 ,

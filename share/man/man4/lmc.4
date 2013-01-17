@@ -43,7 +43,7 @@
 .\" this program; if not, write to the Free Software Foundation, Inc., 59
 .\" Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 .\"
-.Dd July 23, 2011
+.Dd February 8, 2012
 .Dt LMC 4
 .Os
 .\"
@@ -179,7 +179,7 @@ higher-level issues like protocol multiplexing and security.
 This driver is compatible with several line protocol packages:
 .Bl -tag -width "Generic HDLC"
 .It Sy "Netgraph"
-.Xr Netgraph 4
+.Xr netgraph 4
 implements many basic packet-handling functions as kernel loadable modules.
 They can be interconnected in a graph to implement many protocols.
 Configuration is done from userland without rebuilding the kernel.
@@ -407,7 +407,7 @@ When testing an HSSI card with a null modem cable, configure it
 with
 .Xr lmcconfig 8 :
 .Pp
-.Dl "lmcconfig lmc0 -a 2
+.Dl "lmcconfig lmc0 -a 2"
 .Pp
 .Dq Fl a Li 2
 selects the PCI bus clock as the transmit clock.

@@ -1,4 +1,4 @@
-//===- ARMBaseInstrInfo.h - ARM Base Instruction Information ----*- C++ -*-===//
+//===-- ARMBaseInstrInfo.h - ARM Base Instruction Information ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -35,6 +35,9 @@ protected:
   explicit ARMBaseInstrInfo(const ARMSubtarget &STI);
 
 public:
+  // Return whether the target has an explicit NOP encoding.
+  bool hasNOP() const;
+
   // Return the non-pre/post incrementing version of 'Opc'. Return 0
   // if there is not such an opcode.
   virtual unsigned getUnindexedOpcode(unsigned Opc) const =0;
@@ -69,10 +72,7 @@ public:
   bool ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const;
 
   // Predication support.
-  bool isPredicated(const MachineInstr *MI) const {
-    int PIdx = MI->findFirstPredOperandIdx();
-    return PIdx != -1 && MI->getOperand(PIdx).getImm() != ARMCC::AL;
-  }
+  bool isPredicated(const MachineInstr *MI) const;
 
   ARMCC::CondCodes getPredicate(const MachineInstr *MI) const {
     int PIdx = MI->findFirstPredOperandIdx();
@@ -139,6 +139,8 @@ public:
 
   MachineInstr *duplicate(MachineInstr *Orig, MachineFunction &MF) const;
 
+  MachineInstr *commuteInstruction(MachineInstr*, bool=false) const;
+
   virtual bool produceSameValue(const MachineInstr *MI0,
                                 const MachineInstr *MI1,
                                 const MachineRegisterInfo *MRI) const;
@@ -180,21 +182,35 @@ public:
   virtual bool isProfitableToDupForIfCvt(MachineBasicBlock &MBB,
                                          unsigned NumCycles,
                                          const BranchProbability
-                                           &Probability) const {
+                                         &Probability) const {
     return NumCycles == 1;
   }
 
-  /// AnalyzeCompare - For a comparison instruction, return the source register
-  /// in SrcReg and the value it compares against in CmpValue. Return true if
-  /// the comparison instruction can be analyzed.
-  virtual bool AnalyzeCompare(const MachineInstr *MI, unsigned &SrcReg,
-                              int &CmpMask, int &CmpValue) const;
+  virtual bool isProfitableToUnpredicate(MachineBasicBlock &TMBB,
+                                         MachineBasicBlock &FMBB) const;
 
-  /// OptimizeCompareInstr - Convert the instruction to set the zero flag so
-  /// that we can remove a "comparison with zero".
-  virtual bool OptimizeCompareInstr(MachineInstr *CmpInstr, unsigned SrcReg,
-                                    int CmpMask, int CmpValue,
+  /// analyzeCompare - For a comparison instruction, return the source registers
+  /// in SrcReg and SrcReg2 if having two register operands, and the value it
+  /// compares against in CmpValue. Return true if the comparison instruction
+  /// can be analyzed.
+  virtual bool analyzeCompare(const MachineInstr *MI, unsigned &SrcReg,
+                              unsigned &SrcReg2, int &CmpMask,
+                              int &CmpValue) const;
+
+  /// optimizeCompareInstr - Convert the instruction to set the zero flag so
+  /// that we can remove a "comparison with zero"; Remove a redundant CMP
+  /// instruction if the flags can be updated in the same way by an earlier
+  /// instruction such as SUB.
+  virtual bool optimizeCompareInstr(MachineInstr *CmpInstr, unsigned SrcReg,
+                                    unsigned SrcReg2, int CmpMask, int CmpValue,
                                     const MachineRegisterInfo *MRI) const;
+
+  virtual bool analyzeSelect(const MachineInstr *MI,
+                             SmallVectorImpl<MachineOperand> &Cond,
+                             unsigned &TrueOp, unsigned &FalseOp,
+                             bool &Optimizable) const;
+
+  virtual MachineInstr *optimizeSelect(MachineInstr *MI, bool) const;
 
   /// FoldImmediate - 'Reg' is known to be defined by a move immediate
   /// instruction, try to fold the immediate into the use instruction.
@@ -218,7 +234,16 @@ public:
   getExecutionDomain(const MachineInstr *MI) const;
   void setExecutionDomain(MachineInstr *MI, unsigned Domain) const;
 
+  unsigned getPartialRegUpdateClearance(const MachineInstr*, unsigned,
+                                        const TargetRegisterInfo*) const;
+  void breakPartialRegDependency(MachineBasicBlock::iterator, unsigned,
+                                 const TargetRegisterInfo *TRI) const;
+  /// Get the number of addresses by LDM or VLDM or zero for unknown.
+  unsigned getNumLDMAddresses(const MachineInstr *MI) const;
+
 private:
+  unsigned getInstBundleLength(const MachineInstr *MI) const;
+
   int getVLDMDefCycle(const InstrItineraryData *ItinData,
                       const MCInstrDesc &DefMCID,
                       unsigned DefClass,
@@ -241,8 +266,9 @@ private:
                         const MCInstrDesc &UseMCID,
                         unsigned UseIdx, unsigned UseAlign) const;
 
-  int getInstrLatency(const InstrItineraryData *ItinData,
-                      const MachineInstr *MI, unsigned *PredCost = 0) const;
+  unsigned getInstrLatency(const InstrItineraryData *ItinData,
+                           const MachineInstr *MI,
+                           unsigned *PredCost = 0) const;
 
   int getInstrLatency(const InstrItineraryData *ItinData,
                       SDNode *Node) const;
@@ -339,6 +365,11 @@ ARMCC::CondCodes getInstrPredicate(const MachineInstr *MI, unsigned &PredReg);
 
 int getMatchingCondBranchOpcode(int Opc);
 
+/// Determine if MI can be folded into an ARM MOVCC instruction, and return the
+/// opcode of the SSA instruction representing the conditional MI.
+unsigned canFoldARMInstrIntoMOVCC(unsigned Reg,
+                                  MachineInstr *&MI,
+                                  const MachineRegisterInfo &MRI);
 
 /// Map pseudo instructions that imply an 'S' bit onto real opcodes. Whether
 /// the instruction is encoded with an 'S' bit is determined by the optional

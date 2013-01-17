@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2001 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -308,7 +308,6 @@ pfs_mount(struct pfs_info *pi, struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 	mp->mnt_data = pi;
 	vfs_getnewfsid(mp);
@@ -330,7 +329,7 @@ pfs_mount(struct pfs_info *pi, struct mount *mp)
  * Compatibility shim for old mount(2) system call
  */
 int
-pfs_cmount(struct mntarg *ma, void *data, int flags)
+pfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	int error;
 

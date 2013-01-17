@@ -123,7 +123,6 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
-	struct timespec ts, ts2, *tsp;
 	int flags;
 	int ret;
 
@@ -162,18 +161,8 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		return (EINVAL);
 
 	for (;;) {
-		if (abstime) {
-			clock_gettime(CLOCK_REALTIME, &ts);
-			TIMESPEC_SUB(&ts2, abstime, &ts);
-			if (ts2.tv_sec < 0 || 
-			    (ts2.tv_sec == 0 && ts2.tv_nsec <= 0))
-				return (ETIMEDOUT);
-			tsp = &ts2;
-		} else
-			tsp = NULL;
-
 		/* goto kernel and lock it */
-		ret = __thr_rwlock_rdlock(&prwlock->lock, flags, tsp);
+		ret = __thr_rwlock_rdlock(&prwlock->lock, flags, abstime);
 		if (ret != EINTR)
 			break;
 
@@ -255,7 +244,6 @@ rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 {
 	struct pthread *curthread = _get_curthread();
 	pthread_rwlock_t prwlock;
-	struct timespec ts, ts2, *tsp;
 	int ret;
 
 	CHECK_AND_INIT_RWLOCK
@@ -275,18 +263,8 @@ rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		return (EINVAL);
 
 	for (;;) {
-		if (abstime != NULL) {
-			clock_gettime(CLOCK_REALTIME, &ts);
-			TIMESPEC_SUB(&ts2, abstime, &ts);
-			if (ts2.tv_sec < 0 || 
-			    (ts2.tv_sec == 0 && ts2.tv_nsec <= 0))
-				return (ETIMEDOUT);
-			tsp = &ts2;
-		} else
-			tsp = NULL;
-
 		/* goto kernel and lock it */
-		ret = __thr_rwlock_wrlock(&prwlock->lock, tsp);
+		ret = __thr_rwlock_wrlock(&prwlock->lock, abstime);
 		if (ret == 0) {
 			prwlock->owner = curthread;
 			break;

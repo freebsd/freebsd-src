@@ -157,6 +157,9 @@ static int	ie_debug = IED_RNR;
 
 #define IE_BUF_LEN	ETHER_MAX_LEN	/* length of transmit buffer */
 
+/* XXX this driver uses `volatile' and `caddr_t' to a fault. */
+typedef	volatile char *v_caddr_t;	/* core address, pointer to volatile */
+
 /* Forward declaration */
 struct ie_softc;
 
@@ -313,7 +316,6 @@ ie_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = iestart;
 	ifp->if_ioctl = ieioctl;
@@ -696,7 +698,7 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 		return (-1);
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m) {
 		ie_drop_packet_buffer(sc);
 		/* XXXX if_ierrors++; */
@@ -725,7 +727,7 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 		 * single mbuf which may or may not be big enough. Got that?
 		 */
 		if (top) {
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (!m) {
 				m_freem(top);
 				ie_drop_packet_buffer(sc);
@@ -734,7 +736,7 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 			m->m_len = MLEN;
 		}
 		if (resid >= MINCLSIZE) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if (m->m_flags & M_EXT)
 				m->m_len = min(resid, MCLBYTES);
 		} else {

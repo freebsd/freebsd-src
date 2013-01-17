@@ -49,7 +49,8 @@
 
 #include "opt_netgraph.h"
 
-MALLOC_DEFINE(M_NETGRAPH_DEFLATE, "netgraph_deflate", "netgraph deflate node ");
+static MALLOC_DEFINE(M_NETGRAPH_DEFLATE, "netgraph_deflate",
+    "netgraph deflate node");
 
 /* DEFLATE header length */
 #define DEFLATE_HDRLEN		2
@@ -461,7 +462,7 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	}
 
 	/* We must own the mbuf chain exclusively to modify it. */
-	m = m_unshare(m, M_DONTWAIT);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		priv->stats.Errors++;
 		return (ENOMEM);
@@ -555,7 +556,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	}
 
 	/* We must own the mbuf chain exclusively to modify it. */
-	m = m_unshare(m, M_DONTWAIT);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		priv->stats.Errors++;
 		return (ENOMEM);

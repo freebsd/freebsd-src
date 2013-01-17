@@ -300,7 +300,10 @@ extern "C" {
     SIZE(X86CompilationCallback_SSE)
   );
 # else
-  void X86CompilationCallback2(intptr_t *StackPtr, intptr_t RetAddr);
+  // the following function is called only from this translation unit,
+  // unless we are under 64bit Windows with MSC, where there is
+  // no support for inline assembly
+  static void X86CompilationCallback2(intptr_t *StackPtr, intptr_t RetAddr);
 
   _declspec(naked) void X86CompilationCallback(void) {
     __asm {
@@ -424,7 +427,9 @@ X86CompilationCallback2(intptr_t *StackPtr, intptr_t RetAddr) {
 
 TargetJITInfo::LazyResolverFn
 X86JITInfo::getLazyResolverFunction(JITCompilerFn F) {
+  TsanIgnoreWritesBegin();
   JITCompilerFunction = F;
+  TsanIgnoreWritesEnd();
 
 #if defined (X86_32_JIT) && !defined (_MSC_VER)
   if (Subtarget->hasSSE1())
@@ -527,6 +532,15 @@ uintptr_t X86JITInfo::getPICJumpTableEntry(uintptr_t BB, uintptr_t Entry) {
 #endif
 }
 
+template<typename T> static void addUnaligned(void *Pos, T Delta) {
+  T Value;
+  std::memcpy(reinterpret_cast<char*>(&Value), reinterpret_cast<char*>(Pos),
+              sizeof(T));
+  Value += Delta;
+  std::memcpy(reinterpret_cast<char*>(Pos), reinterpret_cast<char*>(&Value),
+              sizeof(T));
+}
+
 /// relocate - Before the JIT can run a block of code that has been emitted,
 /// it must rewrite the code to contain the actual addresses of any
 /// referenced global symbols.
@@ -540,24 +554,24 @@ void X86JITInfo::relocate(void *Function, MachineRelocation *MR,
       // PC relative relocation, add the relocated value to the value already in
       // memory, after we adjust it for where the PC is.
       ResultPtr = ResultPtr -(intptr_t)RelocPos - 4 - MR->getConstantVal();
-      *((unsigned*)RelocPos) += (unsigned)ResultPtr;
+      addUnaligned<unsigned>(RelocPos, ResultPtr);
       break;
     }
     case X86::reloc_picrel_word: {
       // PIC base relative relocation, add the relocated value to the value
       // already in memory, after we adjust it for where the PIC base is.
       ResultPtr = ResultPtr - ((intptr_t)Function + MR->getConstantVal());
-      *((unsigned*)RelocPos) += (unsigned)ResultPtr;
+      addUnaligned<unsigned>(RelocPos, ResultPtr);
       break;
     }
     case X86::reloc_absolute_word:
     case X86::reloc_absolute_word_sext:
       // Absolute relocation, just add the relocated value to the value already
       // in memory.
-      *((unsigned*)RelocPos) += (unsigned)ResultPtr;
+      addUnaligned<unsigned>(RelocPos, ResultPtr);
       break;
     case X86::reloc_absolute_dword:
-      *((intptr_t*)RelocPos) += ResultPtr;
+      addUnaligned<intptr_t>(RelocPos, ResultPtr);
       break;
     }
   }
@@ -569,6 +583,5 @@ char* X86JITInfo::allocateThreadLocalMemory(size_t size) {
   return TLSOffset;
 #else
   llvm_unreachable("Cannot allocate thread local storage on this arch!");
-  return 0;
 #endif
 }

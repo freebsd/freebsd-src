@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * This module provides system/board/application information obtained by the bootloader.
  *
- * <hr>$Revision: 52004 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  */
 
@@ -117,6 +117,27 @@ struct cvmx_sysinfo *cvmx_sysinfo_get(void)
 {
     return &(state.sysinfo);
 }
+
+void cvmx_sysinfo_add_self_to_core_mask(void)
+{
+    int core = cvmx_get_core_num();
+    uint32_t core_mask = 1 << core;
+    
+    cvmx_spinlock_lock(&state.lock);
+    state.sysinfo.core_mask = state.sysinfo.core_mask | core_mask;
+    cvmx_spinlock_unlock(&state.lock);
+}
+
+void cvmx_sysinfo_remove_self_from_core_mask(void)
+{
+    int core = cvmx_get_core_num();
+    uint32_t core_mask = 1 << core;
+    
+    cvmx_spinlock_lock(&state.lock);
+    state.sysinfo.core_mask = state.sysinfo.core_mask & ~core_mask;
+    cvmx_spinlock_unlock(&state.lock);
+}
+
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 EXPORT_SYMBOL(cvmx_sysinfo_get);
 #endif
@@ -195,7 +216,7 @@ void cvmx_sysinfo_linux_userspace_initialize(void)
             sscanf(valueS, "%lli", &value);
 
             if (strcmp(field, "dram_size:") == 0)
-                system_info->system_dram_size = value;
+                system_info->system_dram_size = value << 20;
             else if (strcmp(field, "phy_mem_desc_addr:") == 0)
                 system_info->phy_mem_desc_addr = value;
             else if (strcmp(field, "eclock_hz:") == 0)
@@ -220,6 +241,8 @@ void cvmx_sysinfo_linux_userspace_initialize(void)
             }
             else if (strcmp(field, "mac_addr_count:") == 0)
                 system_info->mac_addr_count = value;
+            else if (strcmp(field, "fdt_addr:") == 0)
+                system_info->fdt_addr = UNMAPPED_PTR(value);
             else if (strcmp(field, "32bit_shared_mem_base:") == 0)
                 linux_mem32_min = value;
             else if (strcmp(field, "32bit_shared_mem_size:") == 0)
@@ -230,6 +253,11 @@ void cvmx_sysinfo_linux_userspace_initialize(void)
                 linux_mem32_wired = value;
         }
     }
+
+    /*
+     * set up the feature map.
+     */
+    octeon_feature_init();
 
     system_info->cpu_clock_hz = cvmx_clock_get_rate(CVMX_CLOCK_CORE);
 }

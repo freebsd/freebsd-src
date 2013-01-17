@@ -145,7 +145,7 @@ static  void	*ffs_build_dinode2(struct ufs2_dinode *, dirbuf_t *, fsnode *,
 
 int	sectorsize;		/* XXX: for buf.c::getblk() */
 
-	/* publically visible functions */
+	/* publicly visible functions */
 
 void
 ffs_prep_opts(fsinfo_t *fsopts)
@@ -493,13 +493,25 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 		bufsize = sfs.f_iosize;
 #endif
 	bufrem = fsopts->size;
-	if (debug & DEBUG_FS_CREATE_IMAGE)
-		printf(
-		    "zero-ing image `%s', %lld sectors, using %d byte chunks\n",
-		    image, (long long)bufrem, bufsize);
-	if ((buf = calloc(1, bufsize)) == NULL) {
-		warn("Can't create buffer for sector");
-		return (-1);
+	if (fsopts->sparse) {
+		if (ftruncate(fsopts->fd, bufrem) == -1) {
+			warn("sparse option disabled.\n");
+			fsopts->sparse = 0;
+		}
+	}
+	if (fsopts->sparse) {
+		/* File truncated at bufrem. Remaining is 0 */
+		bufrem = 0;
+		buf = NULL;
+	} else {
+		if (debug & DEBUG_FS_CREATE_IMAGE)
+			printf("zero-ing image `%s', %lld sectors, "
+			    "using %d byte chunks\n", image, (long long)bufrem,
+			    bufsize);
+		if ((buf = calloc(1, bufsize)) == NULL) {
+			warn("Can't create buffer for sector");
+			return (-1);
+		}
 	}
 	while (bufrem > 0) {
 		i = write(fsopts->fd, buf, MIN(bufsize, bufrem));
@@ -511,7 +523,8 @@ ffs_create_image(const char *image, fsinfo_t *fsopts)
 		}
 		bufrem -= i;
 	}
-	free(buf);
+	if (buf)
+		free(buf);
 
 		/* make the file system */
 	if (debug & DEBUG_FS_CREATE_IMAGE)
@@ -780,8 +793,8 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 		cur->inode->flags |= FI_WRITTEN;
 
 		if (cur->contents == NULL) {
-			if (snprintf(path, sizeof(path), "%s/%s", dir,
-			    cur->name) >= sizeof(path))
+			if (snprintf(path, sizeof(path), "%s/%s/%s", cur->root,
+			    cur->path, cur->name) >= (int)sizeof(path))
 				errx(1, "Pathname too long.");
 		}
 

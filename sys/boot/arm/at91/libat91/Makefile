@@ -2,9 +2,11 @@
 
 .include "${.CURDIR}/../Makefile.inc"
 
+SOC?=at91rm9200
+
 LIB=		at91
 INTERNALLIB=
-SRCS=at91rm9200_lowlevel.c delay.c eeprom.c emac.c emac_init.c getc.c \
+SRCS=${SOC}_lowlevel.c delay.c eeprom.c emac.c emac_init.c getc.c \
 	putchar.c printf.c reset.c spi_flash.c xmodem.c \
 	sd-card.c strcvt.c strlen.c strcmp.c memcpy.c strcpy.c \
 	memset.c memcmp.c

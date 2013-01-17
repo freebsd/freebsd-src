@@ -79,7 +79,8 @@
 #ifdef USB_DEBUG
 static int uss820dcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uss820dci, CTLFLAG_RW, 0, "USB uss820dci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uss820dci, CTLFLAG_RW, 0,
+    "USB uss820dci");
 SYSCTL_INT(_hw_usb_uss820dci, OID_AUTO, debug, CTLFLAG_RW,
     &uss820dcidebug, 0, "uss820dci debug level");
 #endif
@@ -1209,7 +1210,13 @@ uss820dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+uss820dci_xfer_stall(struct usb_xfer *xfer)
+{
+	uss820dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+uss820dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct uss820dci_softc *sc;
@@ -1222,10 +1229,6 @@ uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		uss820dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = USS820_DCI_BUS2SC(udev->bus);
 	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -1512,16 +1515,16 @@ uss820dci_uninit(struct uss820dci_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 uss820dci_suspend(struct uss820dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 uss820dci_resume(struct uss820dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -1788,14 +1791,13 @@ static const struct uss820dci_config_desc uss820dci_confd = {
 	},
 };
 
+#define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
+
 static const struct usb_hub_descriptor_min uss820dci_hubd = {
 	.bDescLength = sizeof(uss820dci_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 1,
-	.wHubCharacteristics[0] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) & 0xFF,
-	.wHubCharacteristics[1] =
-	(UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL) >> 8,
+	HSETW(.wHubCharacteristics, (UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL)),
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
 	.DeviceRemovable = {0},		/* port is removable */
@@ -2331,10 +2333,6 @@ uss820dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if (udev->speed != USB_SPEED_FULL) {
 			/* not supported */
 			return;
@@ -2359,14 +2357,36 @@ uss820dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 	}
 }
 
+static void
+uss820dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		uss820dci_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		uss820dci_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		uss820dci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods uss820dci_bus_methods =
 {
 	.endpoint_init = &uss820dci_ep_init,
 	.xfer_setup = &uss820dci_xfer_setup,
 	.xfer_unsetup = &uss820dci_xfer_unsetup,
 	.get_hw_ep_profile = &uss820dci_get_hw_ep_profile,
+	.xfer_stall = &uss820dci_xfer_stall,
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,
 	.roothub_exec = &uss820dci_roothub_exec,
 	.xfer_poll = &uss820dci_do_poll,
+	.set_hw_power_sleep = uss820dci_set_hw_power_sleep,
 };

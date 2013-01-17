@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
+#include "usb_if.h"
 
 #define	PCI_EHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_EHCI_VENDORID_AMD		0x1022
@@ -92,54 +93,10 @@ __FBSDID("$FreeBSD$");
 #define	PCI_EHCI_VENDORID_NVIDIA2	0x10DE
 #define	PCI_EHCI_VENDORID_VIA		0x1106
 
-static void ehci_pci_takecontroller(device_t self);
-
 static device_probe_t ehci_pci_probe;
 static device_attach_t ehci_pci_attach;
 static device_detach_t ehci_pci_detach;
-static device_suspend_t ehci_pci_suspend;
-static device_resume_t ehci_pci_resume;
-static device_shutdown_t ehci_pci_shutdown;
-
-static int
-ehci_pci_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_pci_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_pci_takecontroller(self);
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_pci_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
+static usb_take_controller_t ehci_pci_take_controller;
 
 static const char *
 ehci_pci_match(device_t self)
@@ -147,9 +104,6 @@ ehci_pci_match(device_t self)
 	uint32_t device_id = pci_get_devid(self);
 
 	switch (device_id) {
-	case 0x268c8086:
-		return ("Intel 63XXESB USB 2.0 controller");
-
 	case 0x523910b9:
 		return "ALi M5239 USB 2.0 controller";
 
@@ -163,7 +117,13 @@ ehci_pci_match(device_t self)
 		return "ATI SB200 USB 2.0 controller";
 	case 0x43731002:
 		return "ATI SB400 USB 2.0 controller";
+	case 0x43961002:
+		return ("AMD SB7x0/SB8x0/SB9x0 USB 2.0 controller");
 
+	case 0x1e268086:
+		return ("Intel Panther Point USB 2.0 controller");
+	case 0x1e2d8086:
+		return ("Intel Panther Point USB 2.0 controller");
 	case 0x25ad8086:
 		return "Intel 6300ESB USB 2.0 controller";
 	case 0x24cd8086:
@@ -172,9 +132,10 @@ ehci_pci_match(device_t self)
 		return "Intel 82801EB/R (ICH5) USB 2.0 controller";
 	case 0x265c8086:
 		return "Intel 82801FB (ICH6) USB 2.0 controller";
+	case 0x268c8086:
+		return ("Intel 63XXESB USB 2.0 controller");
 	case 0x27cc8086:
 		return "Intel 82801GB/R (ICH7) USB 2.0 controller";
-
 	case 0x28368086:
 		return "Intel 82801H (ICH8) USB 2.0 controller USB2-A";
 	case 0x283a8086:
@@ -286,6 +247,7 @@ ehci_pci_via_quirk(device_t self)
 		val = pci_read_config(self, 0x4b, 1);
 		if (val & 0x20)
 			return;
+		val |= 0x20;
 		pci_write_config(self, 0x4b, val, 1);
 		device_printf(self, "VIA-quirk applied\n");
 	}
@@ -418,7 +380,7 @@ ehci_pci_attach(device_t self)
 		sc->sc_intr_hdl = NULL;
 		goto error;
 	}
-	ehci_pci_takecontroller(self);
+	ehci_pci_take_controller(self);
 
 	/* Undocumented quirks taken from Linux */
 
@@ -498,7 +460,7 @@ ehci_pci_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
 	pci_disable_busmaster(self);
 
@@ -530,8 +492,8 @@ ehci_pci_detach(device_t self)
 	return (0);
 }
 
-static void
-ehci_pci_takecontroller(device_t self)
+static int
+ehci_pci_take_controller(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	uint32_t cparams;
@@ -573,24 +535,25 @@ ehci_pci_takecontroller(device_t self)
 			usb_pause_mtx(NULL, hz / 100);	/* wait 10ms */
 		}
 	}
+	return (0);
 }
 
-static driver_t ehci_driver =
-{
-	.name = "ehci",
-	.methods = (device_method_t[]){
-		/* device interface */
-		DEVMETHOD(device_probe, ehci_pci_probe),
-		DEVMETHOD(device_attach, ehci_pci_attach),
-		DEVMETHOD(device_detach, ehci_pci_detach),
-		DEVMETHOD(device_suspend, ehci_pci_suspend),
-		DEVMETHOD(device_resume, ehci_pci_resume),
-		DEVMETHOD(device_shutdown, ehci_pci_shutdown),
-		/* bus interface */
-		DEVMETHOD(bus_print_child, bus_generic_print_child),
+static device_method_t ehci_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, ehci_pci_probe),
+	DEVMETHOD(device_attach, ehci_pci_attach),
+	DEVMETHOD(device_detach, ehci_pci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(usb_take_controller, ehci_pci_take_controller),
 
-		{0, 0}
-	},
+	DEVMETHOD_END
+};
+
+static driver_t ehci_driver = {
+	.name = "ehci",
+	.methods = ehci_pci_methods,
 	.size = sizeof(struct ehci_softc),
 };
 

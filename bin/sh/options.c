@@ -401,9 +401,10 @@ setcmd(int argc, char **argv)
 void
 getoptsreset(const char *value)
 {
-	if (number(value) == 1) {
+	while (*value == '0')
+		value++;
+	if (strcmp(value, "1") == 0)
 		shellparam.reset = 1;
-	}
 }
 
 /*
@@ -530,10 +531,6 @@ out:
 }
 
 /*
- * XXX - should get rid of.  have all builtins use getopt(3).  the
- * library getopt must have the BSD extension static variable "optreset"
- * otherwise it can't be used within the shell safely.
- *
  * Standard option processing (a la getopt) for builtin routines.  The
  * only argument that is passed to nextopt is the option string; the
  * other arguments are unnecessary.  It return the character, or '\0' on

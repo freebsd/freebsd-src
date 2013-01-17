@@ -1,4 +1,4 @@
-//===- XCoreInstrInfo.td - Target Description for XCore ----*- tablegen -*-===//
+//===-- XCoreInstrInfo.td - Target Description for XCore ---*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -33,7 +33,7 @@ def XCoreBranchLink     : SDNode<"XCoreISD::BL",SDT_XCoreBranchLink,
                              SDNPVariadic]>;
 
 def XCoreRetsp       : SDNode<"XCoreISD::RETSP", SDTBrind,
-                         [SDNPHasChain, SDNPOptInGlue]>;
+                         [SDNPHasChain, SDNPOptInGlue, SDNPMayLoad]>;
 
 def SDT_XCoreBR_JT    : SDTypeProfile<0, 2,
                                       [SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
@@ -58,7 +58,7 @@ def cprelwrapper : SDNode<"XCoreISD::CPRelativeWrapper", SDT_XCoreAddress,
 
 def SDT_XCoreStwsp    : SDTypeProfile<0, 2, [SDTCisInt<1>]>;
 def XCoreStwsp        : SDNode<"XCoreISD::STWSP", SDT_XCoreStwsp,
-                               [SDNPHasChain]>;
+                               [SDNPHasChain, SDNPMayStore]>;
 
 // These are target-independent nodes, but have target-specific formats.
 def SDT_XCoreCallSeqStart : SDCallSeqStart<[ SDTCisVT<0, i32> ]>;
@@ -741,14 +741,12 @@ let isCall=1,
 // All calls clobber the link register and the non-callee-saved registers:
 Defs = [R0, R1, R2, R3, R11, LR], Uses = [SP] in {
 def BL_u10 : _FU10<
-                  (outs),
-                  (ins calltarget:$target, variable_ops),
+                  (outs), (ins calltarget:$target),
                   "bl $target",
                   [(XCoreBranchLink immU10:$target)]>;
 
 def BL_lu10 : _FLU10<
-                  (outs),
-                  (ins calltarget:$target, variable_ops),
+                  (outs), (ins calltarget:$target),
                   "bl $target",
                   [(XCoreBranchLink immU20:$target)]>;
 }
@@ -796,7 +794,7 @@ def MKMSK_rus : _FRUS<(outs GRRegs:$dst), (ins i32imm:$size),
 
 def MKMSK_2r : _FRUS<(outs GRRegs:$dst), (ins GRRegs:$size),
                  "mkmsk $dst, $size",
-                 [(set GRRegs:$dst, (add (shl 1, GRRegs:$size), 0xffffffff))]>;
+                 [(set GRRegs:$dst, (add (shl 1, GRRegs:$size), -1))]>;
 
 def GETR_rus : _FRUS<(outs GRRegs:$dst), (ins i32imm:$type),
                  "getr $dst, $type",
@@ -950,10 +948,10 @@ def ENDIN_l2r : _FL2R<(outs GRRegs:$dst), (ins GRRegs:$src),
 // dgetreg
 def MSYNC_1r : _F1R<(outs), (ins GRRegs:$i),
                     "msync res[$i]",
-		    [(int_xcore_msync GRRegs:$i)]>;
+                    [(int_xcore_msync GRRegs:$i)]>;
 def MJOIN_1r : _F1R<(outs), (ins GRRegs:$i),
                     "mjoin res[$i]",
-		    [(int_xcore_mjoin GRRegs:$i)]>;
+                    [(int_xcore_mjoin GRRegs:$i)]>;
 
 let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1 in
 def BAU_1r : _F1R<(outs), (ins GRRegs:$addr),
@@ -988,7 +986,7 @@ def ECALLF_1r : _F1R<(outs), (ins GRRegs:$src),
 let isCall=1, 
 // All calls clobber the link register and the non-callee-saved registers:
 Defs = [R0, R1, R2, R3, R11, LR], Uses = [SP] in {
-def BLA_1r : _F1R<(outs), (ins GRRegs:$addr, variable_ops),
+def BLA_1r : _F1R<(outs), (ins GRRegs:$addr),
                  "bla $addr",
                  [(XCoreBranchLink GRRegs:$addr)]>;
 }
@@ -1038,7 +1036,7 @@ def GETET_0R : _F0R<(outs), (ins),
 
 def SSYNC_0r : _F0R<(outs), (ins),
                     "ssync",
-		    [(int_xcore_ssync)]>;
+                    [(int_xcore_ssync)]>;
 
 let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1,
     hasSideEffects = 1 in

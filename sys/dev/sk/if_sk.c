@@ -296,11 +296,7 @@ static device_method_t skc_methods[] = {
 	DEVMETHOD(device_resume,	skc_resume),
 	DEVMETHOD(device_shutdown,	skc_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t skc_driver = {
@@ -318,16 +314,12 @@ static device_method_t sk_methods[] = {
 	DEVMETHOD(device_detach,	sk_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	sk_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	sk_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	sk_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sk_driver = {
@@ -973,7 +965,7 @@ sk_newbuf(sc_if, idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1018,7 +1010,7 @@ sk_jumbo_newbuf(sc_if, idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 	if (m == NULL)
 		return (ENOBUFS);
 	if ((m->m_flags & M_EXT) == 0) {
@@ -1358,7 +1350,6 @@ sk_attach(dev)
 	}
 	ifp->if_softc = sc_if;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	/*
 	 * SK_GENESIS has a bug in checksum offload - From linux.
@@ -2402,7 +2393,7 @@ sk_encap(sc_if, m_head)
 	error = bus_dmamap_load_mbuf_sg(sc_if->sk_cdata.sk_tx_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nseg, 0);
 	if (error == EFBIG) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

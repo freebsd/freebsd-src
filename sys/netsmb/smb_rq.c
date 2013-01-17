@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_subr.h>
 #include <netsmb/smb_tran.h>
 
-MALLOC_DEFINE(M_SMBRQ, "SMBRQ", "SMB request");
+static MALLOC_DEFINE(M_SMBRQ, "SMBRQ", "SMB request");
 
 MODULE_DEPEND(netsmb, libmchain, 1, 1, 1);
 
@@ -427,7 +427,7 @@ smb_t2_placedata(struct mbuf *mtop, u_int16_t offset, u_int16_t count,
 	struct mbuf *m, *m0;
 	int len;
 
-	m0 = m_split(mtop, offset, M_WAIT);
+	m0 = m_split(mtop, offset, M_WAITOK);
 	len = m_length(m0, &m);
 	m->m_len -= len - count;
 	if (mdp->md_top == NULL) {

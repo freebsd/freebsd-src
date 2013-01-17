@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_mwl.h"
+#include "opt_wlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -83,9 +84,9 @@ __FBSDID("$FreeBSD$");
 #define	SM(v,x)	(((v) << x##_S) & x)
 
 static struct ieee80211vap *mwl_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	mwl_vap_delete(struct ieee80211vap *);
 static int	mwl_setupdma(struct mwl_softc *);
 static int	mwl_hal_reset(struct mwl_softc *sc);
@@ -262,7 +263,7 @@ static	void mwl_printtxbuf(const struct mwl_txbuf *bf, u_int qnum, u_int ix);
 } while (0)
 #endif
 
-MALLOC_DEFINE(M_MWLDEV, "mwldev", "mwl driver dma buffers");
+static MALLOC_DEFINE(M_MWLDEV, "mwldev", "mwl driver dma buffers");
 
 /*
  * Each packet has fixed front matter: a 2-byte length
@@ -308,6 +309,12 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 		return ENOSPC;
 	}
 	ic = ifp->if_l2com;
+
+	/*
+	 * Setup the RX free list lock early, so it can be consistently
+	 * removed.
+	 */
+	MWL_RXFREE_INIT(sc);
 
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
@@ -530,6 +537,7 @@ bad2:
 bad1:
 	mwl_hal_detach(mh);
 bad:
+	MWL_RXFREE_DESTROY(sc);
 	if_free(ifp);
 	sc->sc_invalid = 1;
 	return error;
@@ -560,6 +568,7 @@ mwl_detach(struct mwl_softc *sc)
 	ieee80211_ifdetach(ic);
 	callout_drain(&sc->sc_watchdog);
 	mwl_dma_cleanup(sc);
+	MWL_RXFREE_DESTROY(sc);
 	mwl_tx_cleanup(sc);
 	mwl_hal_detach(sc->sc_mh);
 	if_free(ifp);
@@ -601,10 +610,10 @@ reclaim_address(struct mwl_softc *sc, uint8_t mac[IEEE80211_ADDR_LEN])
 }
 
 static struct ieee80211vap *
-mwl_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+mwl_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct mwl_softc *sc = ifp->if_softc;
@@ -2273,7 +2282,6 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 		SLIST_INSERT_HEAD(&sc->sc_rxfree, rbuf, next);
 		sc->sc_nrxfree++;
 	}
-	MWL_RXFREE_INIT(sc);
 	return 0;
 }
 #undef DS2PHYS
@@ -2297,7 +2305,6 @@ mwl_rxdma_cleanup(struct mwl_softc *sc)
 	}
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		mwl_desc_cleanup(sc, &sc->sc_rxdma);
-	MWL_RXFREE_DESTROY(sc);
 }
 
 static int
@@ -2803,7 +2810,7 @@ mwl_rx_proc(void *arg, int npending)
 		 * be a net loss.  The tradeoff might be system
 		 * dependent (cache architecture is important).
 		 */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			DPRINTF(sc, MWL_DEBUG_ANY,
 			    "%s: no rx mbuf\n", __func__);
@@ -3080,9 +3087,9 @@ mwl_tx_dmasetup(struct mwl_softc *sc, struct mwl_txbuf *bf, struct mbuf *m0)
 	if (error == EFBIG) {		/* too many desc's, linearize */
 		sc->sc_stats.mst_tx_linear++;
 #if MWL_TXDESC > 1
-		m = m_collapse(m0, M_DONTWAIT, MWL_TXDESC);
+		m = m_collapse(m0, M_NOWAIT, MWL_TXDESC);
 #else
-		m = m_defrag(m0, M_DONTWAIT);
+		m = m_defrag(m0, M_NOWAIT);
 #endif
 		if (m == NULL) {
 			m_freem(m0);
@@ -3739,7 +3746,7 @@ mwl_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 		/* NB: no held reference to ni */
 		sp = mwl_hal_bastream_alloc(MWL_VAP(vap)->mv_hvap,
 		    (baparamset & IEEE80211_BAPS_POLICY_IMMEDIATE) != 0,
-		    ni->ni_macaddr, WME_AC_TO_TID(tap->txa_ac), ni->ni_htparam,
+		    ni->ni_macaddr, tap->txa_tid, ni->ni_htparam,
 		    ni, tap);
 		if (sp == NULL) {
 			/*
@@ -3776,8 +3783,8 @@ mwl_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	if (bas == NULL) {
 		/* XXX should not happen */
 		DPRINTF(sc, MWL_DEBUG_AMPDU,
-		    "%s: no BA stream allocated, AC %d\n",
-		    __func__, tap->txa_ac);
+		    "%s: no BA stream allocated, TID %d\n",
+		    __func__, tap->txa_tid);
 		sc->sc_stats.mst_addba_nostream++;
 		return 0;
 	}
@@ -3805,18 +3812,18 @@ mwl_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 			tap->txa_private = NULL;
 
 			DPRINTF(sc, MWL_DEBUG_AMPDU,
-			    "%s: create failed, error %d, bufsiz %d AC %d "
+			    "%s: create failed, error %d, bufsiz %d TID %d "
 			    "htparam 0x%x\n", __func__, error, bufsiz,
-			    tap->txa_ac, ni->ni_htparam);
+			    tap->txa_tid, ni->ni_htparam);
 			sc->sc_stats.mst_bacreate_failed++;
 			return 0;
 		}
 		/* NB: cache txq to avoid ptr indirect */
-		mwl_bastream_setup(bas, tap->txa_ac, bas->bastream->txq);
+		mwl_bastream_setup(bas, tap->txa_tid, bas->bastream->txq);
 		DPRINTF(sc, MWL_DEBUG_AMPDU,
-		    "%s: bastream %p assigned to txq %d AC %d bufsiz %d "
+		    "%s: bastream %p assigned to txq %d TID %d bufsiz %d "
 		    "htparam 0x%x\n", __func__, bas->bastream,
-		    bas->txq, tap->txa_ac, bufsiz, ni->ni_htparam);
+		    bas->txq, tap->txa_tid, bufsiz, ni->ni_htparam);
 	} else {
 		/*
 		 * Other side NAK'd us; return the resources.

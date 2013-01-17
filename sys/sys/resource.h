@@ -79,6 +79,13 @@ struct rusage {
 #define	ru_last		ru_nivcsw
 };
 
+#if __BSD_VISIBLE
+struct __wrusage {
+	struct rusage	wru_self;
+	struct rusage	wru_children;
+};
+#endif
+
 /*
  * Resource limits
  */
@@ -108,7 +115,7 @@ struct rusage {
  */
 
 #ifdef _RLIMIT_IDENT
-static char *rlimit_ident[RLIM_NLIMITS] = {
+static const char *rlimit_ident[RLIM_NLIMITS] = {
 	"cpu",
 	"fsize",
 	"data",

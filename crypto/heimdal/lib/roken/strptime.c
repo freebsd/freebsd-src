@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 1999, 2003, 2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1999, 2003, 2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -30,16 +30,12 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
+#include "roken.h"
 #ifdef TEST_STRPFTIME
 #include "strpftime-test.h"
 #endif
 #include <ctype.h>
-#include "roken.h"
-
-RCSID("$Id: strptime.c 21895 2007-08-09 08:45:54Z lha $");
 
 static const char *abb_weekdays[] = {
     "Sun",
@@ -181,7 +177,7 @@ first_day (int year)
     int ret = 4;
 
     for (; year > 1970; --year)
-	ret = (ret + 365 + is_leap_year (year) ? 1 : 0) % 7;
+	ret = (ret + (is_leap_year (year) ? 366 : 365)) % 7;
     return ret;
 }
 
@@ -241,7 +237,7 @@ set_week_number_mon4 (struct tm *timeptr, int wnum)
  *
  */
 
-char * ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION char * ROKEN_LIB_CALL
 strptime (const char *buf, const char *format, struct tm *timeptr)
 {
     char c;

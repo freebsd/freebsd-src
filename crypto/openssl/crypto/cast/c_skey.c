@@ -56,12 +56,8 @@
  * [including the GNU Public Licence.]
  */
 
-#include <openssl/cast.h>
 #include <openssl/crypto.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
+#include <openssl/cast.h>
 #include "cast_lcl.h"
 #include "cast_s.h"
 
@@ -76,8 +72,14 @@
 #define S5 CAST_S_table5
 #define S6 CAST_S_table6
 #define S7 CAST_S_table7
-
-FIPS_NON_FIPS_VCIPHER_Init(CAST)
+void CAST_set_key(CAST_KEY *key, int len, const unsigned char *data)
+#ifdef OPENSSL_FIPS
+	{
+	fips_cipher_abort(CAST);
+	private_CAST_set_key(key, len, data);
+	}
+void private_CAST_set_key(CAST_KEY *key, int len, const unsigned char *data)
+#endif
 	{
 	CAST_LONG x[16];
 	CAST_LONG z[16];

@@ -12,9 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclFriend.h"
 #include "clang/AST/DeclTemplate.h"
 using namespace clang;
+
+void FriendDecl::anchor() { }
+
+FriendDecl *FriendDecl::getNextFriendSlowCase() {
+  return cast_or_null<FriendDecl>(
+                           NextFriend.get(getASTContext().getExternalSource()));
+}
 
 FriendDecl *FriendDecl::Create(ASTContext &C, DeclContext *DC,
                                SourceLocation L,
@@ -40,6 +48,7 @@ FriendDecl *FriendDecl::Create(ASTContext &C, DeclContext *DC,
   return FD;
 }
 
-FriendDecl *FriendDecl::Create(ASTContext &C, EmptyShell Empty) {
-  return new (C) FriendDecl(Empty);
+FriendDecl *FriendDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
+  void *Mem = AllocateDeserializedDecl(C, ID, sizeof(FriendDecl));
+  return new (Mem) FriendDecl(EmptyShell());
 }

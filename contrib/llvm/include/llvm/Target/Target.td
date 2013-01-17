@@ -22,8 +22,30 @@ include "llvm/Intrinsics.td"
 class RegisterClass; // Forward def
 
 // SubRegIndex - Use instances of SubRegIndex to identify subregisters.
-class SubRegIndex {
+class SubRegIndex<list<SubRegIndex> comps = []> {
   string Namespace = "";
+
+  // ComposedOf - A list of two SubRegIndex instances, [A, B].
+  // This indicates that this SubRegIndex is the result of composing A and B.
+  list<SubRegIndex> ComposedOf = comps;
+
+  // CoveringSubRegIndices - A list of two or more sub-register indexes that
+  // cover this sub-register.
+  //
+  // This field should normally be left blank as TableGen can infer it.
+  //
+  // TableGen automatically detects sub-registers that straddle the registers
+  // in the SubRegs field of a Register definition. For example:
+  //
+  //   Q0    = dsub_0 -> D0, dsub_1 -> D1
+  //   Q1    = dsub_0 -> D2, dsub_1 -> D3
+  //   D1_D2 = dsub_0 -> D1, dsub_1 -> D2
+  //   QQ0   = qsub_0 -> Q0, qsub_1 -> Q1
+  //
+  // TableGen will infer that D1_D2 is a sub-register of QQ0. It will be given
+  // the synthetic index dsub_1_dsub_2 unless some SubRegIndex is defined with
+  // CoveringSubRegIndices = [dsub_1, dsub_2].
+  list<SubRegIndex> CoveringSubRegIndices = [];
 }
 
 // RegAltNameIndex - The alternate name set to use for register operands of
@@ -60,18 +82,6 @@ class Register<string n, list<string> altNames = []> {
   // register.
   list<RegAltNameIndex> RegAltNameIndices = [];
 
-  // CompositeIndices - Specify subreg indices that don't correspond directly to
-  // a register in SubRegs and are not inherited. The following formats are
-  // supported:
-  //
-  // (a)     Identity  - Reg:a == Reg
-  // (a b)   Alias     - Reg:a == Reg:b
-  // (a b,c) Composite - Reg:a == (Reg:b):c
-  //
-  // This can be used to disambiguate a sub-sub-register that exists in more
-  // than one subregister and other weird stuff.
-  list<dag> CompositeIndices = [];
-
   // DwarfNumbers - Numbers used internally by gcc/gdb to identify the register.
   // These values can be determined by locating the <target>.h file in the
   // directory llvmgcc/gcc/config/<target>/ and looking for REGISTER_NAMES.  The
@@ -83,9 +93,18 @@ class Register<string n, list<string> altNames = []> {
   // CostPerUse - Additional cost of instructions using this register compared
   // to other registers in its class. The register allocator will try to
   // minimize the number of instructions using a register with a CostPerUse.
-  // This is used by the x86-64 and ARM Thumb targets where some registers 
+  // This is used by the x86-64 and ARM Thumb targets where some registers
   // require larger instruction encodings.
   int CostPerUse = 0;
+
+  // CoveredBySubRegs - When this bit is set, the value of this register is
+  // completely determined by the value of its sub-registers.  For example, the
+  // x86 register AX is covered by its sub-registers AL and AH, but EAX is not
+  // covered by its sub-register AX.
+  bit CoveredBySubRegs = 0;
+
+  // HWEncoding - The target specific hardware encoding for this register.
+  bits<16> HWEncoding = 0;
 }
 
 // RegisterWithSubRegs - This can be used to define instances of Register which
@@ -98,13 +117,20 @@ class RegisterWithSubRegs<string n, list<Register> subregs> : Register<n> {
   let SubRegs = subregs;
 }
 
+// DAGOperand - An empty base class that unifies RegisterClass's and other forms
+// of Operand's that are legal as type qualifiers in DAG patterns.  This should
+// only ever be used for defining multiclasses that are polymorphic over both
+// RegisterClass's and other Operand's.
+class DAGOperand { }
+
 // RegisterClass - Now that all of the registers are defined, and aliases
 // between registers are defined, specify which registers belong to which
 // register classes.  This also defines the default allocation order of
 // registers by register allocators.
 //
 class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
-                    dag regList, RegAltNameIndex idx = NoRegAltName> {
+                    dag regList, RegAltNameIndex idx = NoRegAltName>
+  : DAGOperand {
   string Namespace = namespace;
 
   // RegType - Specify the list ValueType of the registers in this register
@@ -140,10 +166,6 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
   // of this register class. Every register in the register class must have
   // a valid alternate name for the given index.
   RegAltNameIndex altNameIndex = idx;
-
-  // SubRegClasses - Specify the register class of subregisters as a list of
-  // dags: (RegClass SubRegIndex, SubRegindex, ...)
-  list<dag> SubRegClasses = [];
 
   // isAllocatable - Specify that the register class can be used for virtual
   // registers and register allocation.  Some register classes are only used to
@@ -182,7 +204,8 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
 // also in the second set.
 //
 // (sequence "R%u", 0, 15) -> [R0, R1, ..., R15]. Generate a sequence of
-// numbered registers.
+// numbered registers.  Takes an optional 4th operand which is a stride to use
+// when generating the sequence.
 //
 // (shl GPR, 4) - Remove the first N elements.
 //
@@ -194,12 +217,15 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
 //
 // (decimate GPR, 2) - Pick every N'th element, starting with the first.
 //
+// (interleave A, B, ...) - Interleave the elements from each argument list.
+//
 // All of these operators work on ordered sets, not lists. That means
 // duplicates are removed from sub-expressions.
 
 // Set operators. The rest is defined in TargetSelectionDAG.td.
 def sequence;
 def decimate;
+def interleave;
 
 // RegisterTuples - Automatically generate super-registers by forming tuples of
 // sub-registers. This is useful for modeling register sequence constraints
@@ -232,9 +258,6 @@ class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs> {
   // SubRegIndices - N SubRegIndex instances. This provides the names of the
   // sub-registers in the synthesized super-registers.
   list<SubRegIndex> SubRegIndices = Indices;
-
-  // Compose sub-register indices like in a normal Register.
-  list<dag> CompositeIndices = [];
 }
 
 
@@ -316,11 +339,12 @@ class Instruction {
   bit isCompare    = 0;     // Is this instruction a comparison instruction?
   bit isMoveImm    = 0;     // Is this instruction a move immediate instruction?
   bit isBitcast    = 0;     // Is this instruction a bitcast instruction?
+  bit isSelect     = 0;     // Is this instruction a select instruction?
   bit isBarrier    = 0;     // Can control flow fall through this instruction?
   bit isCall       = 0;     // Is this instruction a call instruction?
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?
-  bit mayLoad      = 0;     // Is it possible for this inst to read memory?
-  bit mayStore     = 0;     // Is it possible for this inst to write memory?
+  bit mayLoad      = ?;     // Is it possible for this inst to read memory?
+  bit mayStore     = ?;     // Is it possible for this inst to write memory?
   bit isConvertibleToThreeAddress = 0;  // Can this 2-addr instruction promote?
   bit isCommutable = 0;     // Is this 3 operand instruction commutable?
   bit isTerminator = 0;     // Is this part of the terminator for a basic block?
@@ -345,7 +369,7 @@ class Instruction {
   //
   //  neverHasSideEffects - Set on an instruction with no pattern if it has no
   //    side effects.
-  bit hasSideEffects = 0;
+  bit hasSideEffects = ?;
   bit neverHasSideEffects = 0;
 
   // Is this instruction a "real" instruction (with a distinct machine
@@ -356,6 +380,15 @@ class Instruction {
   // associated with them. Once we've migrated all of them over to true
   // pseudo-instructions that are lowered to real instructions prior to
   // the printer/emitter, we can remove this attribute and just use isPseudo.
+  //
+  // The intended use is:
+  // isPseudo: Does not have encoding information and should be expanded,
+  //   at the latest, during lowering to MCInst.
+  //
+  // isCodeGenOnly: Does have encoding information and can go through to the
+  //   CodeEmitter unchanged, but duplicates a canonical instruction
+  //   definition's encoding and should be ignored when constructing the
+  //   assembler match tables.
   bit isCodeGenOnly = 0;
 
   // Is this instruction a pseudo instruction for use by the assembler parser.
@@ -379,6 +412,13 @@ class Instruction {
   ///@{
 
   string AsmMatchConverter = "";
+
+  /// TwoOperandAliasConstraint - Enable TableGen to auto-generate a
+  /// two-operand matcher inst-alias for a three operand instruction.
+  /// For example, the arm instruction "add r3, r3, r5" can be written
+  /// as "add r3, r5". The constraint is of the same form as a tied-operand
+  /// constraint. For example, "$Rn = $Rd".
+  string TwoOperandAliasConstraint = "";
 
   ///@}
 }
@@ -409,12 +449,16 @@ class Predicate<string cond> {
   /// e.g. "ModeThumb,FeatureThumb2" is translated to
   ///      "(Bits & ModeThumb) != 0 && (Bits & FeatureThumb2) != 0".
   string AssemblerCondString = "";
+
+  /// PredicateName - User-level name to use for the predicate. Mainly for use
+  /// in diagnostics such as missing feature errors in the asm matcher.
+  string PredicateName = "";
 }
 
 /// NoHonorSignDependentRounding - This predicate is true if support for
 /// sign-dependent-rounding is not enabled.
 def NoHonorSignDependentRounding
- : Predicate<"!HonorSignDependentRoundingFPMath()">;
+ : Predicate<"!TM.Options.HonorSignDependentRoundingFPMath()">;
 
 class Requires<list<Predicate> preds> {
   list<Predicate> Predicates = preds;
@@ -451,7 +495,8 @@ def ptr_rc : PointerLikeRegClass<0>;
 
 /// unknown definition - Mark this operand as being of unknown type, causing
 /// it to be resolved by inference in the context it is used.
-def unknown;
+class unknown_class;
+def unknown : unknown_class;
 
 /// AsmOperandClass - Representation for the kinds of operands which the target
 /// specific parser can create and the assembly matcher may need to distinguish.
@@ -490,6 +535,11 @@ class AsmOperandClass {
   /// to immediates or registers and are very instruction specific (as flags to
   /// set in a processor register, coprocessor number, ...).
   string ParserMethod = ?;
+
+  // The diagnostic type to present when referencing this operand in a
+  // match failure error message. By default, use a generic "invalid operand"
+  // diagnostic. The target AsmParser maps these codes to text.
+  string DiagnosticType = "";
 }
 
 def ImmAsmOperand : AsmOperandClass {
@@ -499,7 +549,7 @@ def ImmAsmOperand : AsmOperandClass {
 /// Operand Types - These provide the built-in operand types that may be used
 /// by a target.  Targets can optionally provide their own operand types as
 /// needed, though this should not be needed for RISC targets.
-class Operand<ValueType ty> {
+class Operand<ValueType ty> : DAGOperand {
   ValueType Type = ty;
   string PrintMethod = "printOperand";
   string EncoderMethod = "";
@@ -519,7 +569,8 @@ class Operand<ValueType ty> {
   AsmOperandClass ParserMatchClass = ImmAsmOperand;
 }
 
-class RegisterOperand<RegisterClass regclass, string pm = "printOperand"> {
+class RegisterOperand<RegisterClass regclass, string pm = "printOperand">
+  : DAGOperand {
   // RegClass - The register class of the operand.
   RegisterClass RegClass = regclass;
   // PrintMethod - The target method to call to print register operands of
@@ -552,23 +603,31 @@ def f64imm : Operand<f64>;
 ///
 def zero_reg;
 
+/// OperandWithDefaultOps - This Operand class can be used as the parent class
+/// for an Operand that needs to be initialized with a default value if
+/// no value is supplied in a pattern.  This class can be used to simplify the
+/// pattern definitions for instructions that have target specific flags
+/// encoded as immediate operands.
+class OperandWithDefaultOps<ValueType ty, dag defaultops>
+  : Operand<ty> {
+  dag DefaultOps = defaultops;
+}
+
 /// PredicateOperand - This can be used to define a predicate operand for an
 /// instruction.  OpTypes specifies the MIOperandInfo for the operand, and
 /// AlwaysVal specifies the value of this predicate when set to "always
 /// execute".
 class PredicateOperand<ValueType ty, dag OpTypes, dag AlwaysVal>
-  : Operand<ty> {
+  : OperandWithDefaultOps<ty, AlwaysVal> {
   let MIOperandInfo = OpTypes;
-  dag DefaultOps = AlwaysVal;
 }
 
 /// OptionalDefOperand - This is used to define a optional definition operand
 /// for an instruction. DefaultOps is the register the operand represents if
 /// none is supplied, e.g. zero_reg.
 class OptionalDefOperand<ValueType ty, dag OpTypes, dag defaultops>
-  : Operand<ty> {
+  : OperandWithDefaultOps<ty, defaultops> {
   let MIOperandInfo = OpTypes;
-  dag DefaultOps = defaultops;
 }
 
 
@@ -581,6 +640,17 @@ class InstrInfo {
   // Sparc manual specifies its instructions in the format [31..0] (big), while
   // PowerPC specifies them using the format [0..31] (little).
   bit isLittleEndianEncoding = 0;
+
+  // The instruction properties mayLoad, mayStore, and hasSideEffects are unset
+  // by default, and TableGen will infer their value from the instruction
+  // pattern when possible.
+  //
+  // Normally, TableGen will issue an error it it can't infer the value of a
+  // property that hasn't been set explicitly. When guessInstructionProperties
+  // is set, it will guess a safe value instead.
+  //
+  // This option is a temporary migration help. It will go away.
+  bit guessInstructionProperties = 1;
 }
 
 // Standard Pseudo Instructions.
@@ -679,6 +749,23 @@ def COPY : Instruction {
   let neverHasSideEffects = 1;
   let isAsCheapAsAMove = 1;
 }
+def BUNDLE : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins variable_ops);
+  let AsmString = "BUNDLE";
+}
+def LIFETIME_START : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i32imm:$id);
+  let AsmString = "LIFETIME_START";
+  let neverHasSideEffects = 1;
+}
+def LIFETIME_END : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i32imm:$id);
+  let AsmString = "LIFETIME_END";
+  let neverHasSideEffects = 1;
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -699,6 +786,18 @@ class AsmParser {
   // This can be used to perform target specific instruction post-processing.
   string AsmParserInstCleanup  = "";
 
+  //ShouldEmitMatchRegisterName - Set to false if the target needs a hand
+  //written register name matcher
+  bit ShouldEmitMatchRegisterName = 1;
+}
+def DefaultAsmParser : AsmParser;
+
+//===----------------------------------------------------------------------===//
+// AsmParserVariant - Subtargets can have multiple different assembly parsers
+// (e.g. AT&T vs Intel syntax on X86 for example). This class can be
+// implemented by targets to describe such variants.
+//
+class AsmParserVariant {
   // Variant - AsmParsers can be of multiple different variants.  Variants are
   // used to support targets that need to parser multiple formats for the
   // assembly language.
@@ -715,16 +814,30 @@ class AsmParser {
   // purposes of matching.
   string RegisterPrefix = "";
 }
-def DefaultAsmParser : AsmParser;
+def DefaultAsmParserVariant : AsmParserVariant;
 
 /// AssemblerPredicate - This is a Predicate that can be used when the assembler
 /// matches instructions and aliases.
-class AssemblerPredicate<string cond> {
+class AssemblerPredicate<string cond, string name = ""> {
   bit AssemblerMatcherPredicate = 1;
   string AssemblerCondString = cond;
+  string PredicateName = name;
 }
 
-
+/// TokenAlias - This class allows targets to define assembler token
+/// operand aliases. That is, a token literal operand which is equivalent
+/// to another, canonical, token literal. For example, ARM allows:
+///   vmov.u32 s4, #0  -> vmov.i32, #0
+/// 'u32' is a more specific designator for the 32-bit integer type specifier
+/// and is legal for any instruction which accepts 'i32' as a datatype suffix.
+///   def : TokenAlias<".u32", ".i32">;
+///
+/// This works by marking the match class of 'From' as a subclass of the
+/// match class of 'To'.
+class TokenAlias<string From, string To> {
+  string FromToken = From;
+  string ToToken = To;
+}
 
 /// MnemonicAlias - This class allows targets to define assembler mnemonic
 /// aliases.  This should be used when all forms of one mnemonic are accepted
@@ -813,6 +926,10 @@ class Target {
   // AssemblyParsers - The AsmParser instances available for this target.
   list<AsmParser> AssemblyParsers = [DefaultAsmParser];
 
+  /// AssemblyParserVariants - The AsmParserVariant instances available for
+  /// this target.
+  list<AsmParserVariant> AssemblyParserVariants = [DefaultAsmParserVariant];
+
   // AssemblyWriters - The AsmWriter instances available for this target.
   list<AsmWriter> AssemblyWriters = [DefaultAsmWriter];
 }
@@ -857,12 +974,76 @@ class Processor<string n, ProcessorItineraries pi, list<SubtargetFeature> f> {
   //
   string Name = n;
 
+  // SchedModel - The machine model for scheduling and instruction cost.
+  //
+  SchedMachineModel SchedModel = NoSchedModel;
+
   // ProcItin - The scheduling information for the target processor.
   //
   ProcessorItineraries ProcItin = pi;
 
   // Features - list of
   list<SubtargetFeature> Features = f;
+}
+
+// ProcessorModel allows subtargets to specify the more general
+// SchedMachineModel instead if a ProcessorItinerary. Subtargets will
+// gradually move to this newer form.
+//
+// Although this class always passes NoItineraries to the Processor
+// class, the SchedMachineModel may still define valid Itineraries.
+class ProcessorModel<string n, SchedMachineModel m, list<SubtargetFeature> f>
+  : Processor<n, NoItineraries, f> {
+  let SchedModel = m;
+}
+
+//===----------------------------------------------------------------------===//
+// InstrMapping - This class is used to create mapping tables to relate
+// instructions with each other based on the values specified in RowFields,
+// ColFields, KeyCol and ValueCols.
+//
+class InstrMapping {
+  // FilterClass - Used to limit search space only to the instructions that
+  // define the relationship modeled by this InstrMapping record.
+  string FilterClass;
+
+  // RowFields - List of fields/attributes that should be same for all the
+  // instructions in a row of the relation table. Think of this as a set of
+  // properties shared by all the instructions related by this relationship
+  // model and is used to categorize instructions into subgroups. For instance,
+  // if we want to define a relation that maps 'Add' instruction to its
+  // predicated forms, we can define RowFields like this:
+  //
+  // let RowFields = BaseOp
+  // All add instruction predicated/non-predicated will have to set their BaseOp
+  // to the same value.
+  //
+  // def Add: { let BaseOp = 'ADD'; let predSense = 'nopred' }
+  // def Add_predtrue: { let BaseOp = 'ADD'; let predSense = 'true' }
+  // def Add_predfalse: { let BaseOp = 'ADD'; let predSense = 'false'  }
+  list<string> RowFields = [];
+
+  // List of fields/attributes that are same for all the instructions
+  // in a column of the relation table.
+  // Ex: let ColFields = 'predSense' -- It means that the columns are arranged
+  // based on the 'predSense' values. All the instruction in a specific
+  // column have the same value and it is fixed for the column according
+  // to the values set in 'ValueCols'.
+  list<string> ColFields = [];
+
+  // Values for the fields/attributes listed in 'ColFields'.
+  // Ex: let KeyCol = 'nopred' -- It means that the key instruction (instruction
+  // that models this relation) should be non-predicated.
+  // In the example above, 'Add' is the key instruction.
+  list<string> KeyCol = [];
+
+  // List of values for the fields/attributes listed in 'ColFields', one for
+  // each column in the relation table.
+  //
+  // Ex: let ValueCols = [['true'],['false']] -- It adds two columns in the
+  // table. First column requires all the instructions to have predSense
+  // set to 'true' and second column requires it to be 'false'.
+  list<list<string> > ValueCols = [];
 }
 
 //===----------------------------------------------------------------------===//

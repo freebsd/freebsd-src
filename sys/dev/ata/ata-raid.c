@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -595,11 +595,11 @@ ata_raid_strategy(struct bio *bp)
 		}
 		if (bp->bio_cmd == BIO_WRITE) { 
 		    ata_raid_send_request(request);
-		    // sikre at læs-modify-skriv til hver disk er atomarisk.
+		    // sikre at lÃ¦s-modify-skriv til hver disk er atomarisk.
 		    // par kopi af request
-		    // læse orgdata fra drv
+		    // lÃ¦se orgdata fra drv
 		    // skriv nydata til drv
-		    // læse parorgdata fra par
+		    // lÃ¦se parorgdata fra par
 		    // skriv orgdata xor parorgdata xor nydata til par
 		}
 	    }
@@ -1351,10 +1351,11 @@ static int
 ata_raid_read_metadata(device_t subdisk)
 {
     devclass_t pci_devclass = devclass_find("pci");
+    devclass_t atapci_devclass = devclass_find("atapci");
     devclass_t devclass=device_get_devclass(GRANDPARENT(GRANDPARENT(subdisk)));
 
     /* prioritize vendor native metadata layout if possible */
-    if (devclass == pci_devclass) {
+    if (devclass == pci_devclass || devclass == atapci_devclass) {
 	switch (pci_get_vendor(GRANDPARENT(device_get_parent(subdisk)))) {
 	case ATA_HIGHPOINT_ID: 
 	    if (ata_raid_hptv3_read_meta(subdisk, ata_raid_arrays))
@@ -4546,7 +4547,7 @@ static device_method_t ata_raid_sub_methods[] = {
     DEVMETHOD(device_probe,     ata_raid_subdisk_probe),
     DEVMETHOD(device_attach,    ata_raid_subdisk_attach),
     DEVMETHOD(device_detach,    ata_raid_subdisk_detach),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t ata_raid_sub_driver = {

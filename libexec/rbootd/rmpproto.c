@@ -401,7 +401,7 @@ SendReadRepl(RMPCONN *rconn)
 	int madeconn = 0;
 
 	/*
-	 *  Find the old connection.  If one doesnt exist, create one only
+	 *  Find the old connection.  If one doesn't exist, create one only
 	 *  to return the error code.
 	 */
 	if ((oldconn = FindConn(rconn)) == NULL) {
@@ -515,7 +515,7 @@ BootDone(RMPCONN *rconn)
 	struct rmp_packet *rpl;
 
 	/*
-	 *  If we cant find the connection, ignore the request.
+	 *  If we can't find the connection, ignore the request.
 	 */
 	if ((oldconn = FindConn(rconn)) == NULL) {
 		syslog(LOG_ERR, "BootDone: no existing connection (%s)",
@@ -575,7 +575,7 @@ SendPacket(RMPCONN *rconn)
 	/*
 	 *  Last time this connection was active.
 	 */
-	(void) gettimeofday(&rconn->tstamp, (struct timezone *)0);
+	(void)gettimeofday(&rconn->tstamp, NULL);
 
 	if (DbgFp != NULL)			/* display packet */
 		DispPkt(rconn,DIR_SENT);

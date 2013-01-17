@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991-1997 Søren Schmidt
+ * Copyright (c) 1991-1997 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,36 +198,205 @@ get_planar:
   return 0;		/* XXX black? */
 }
 
+ /*
+  * Symmetric Double Step Line Algorithm by Brian Wyvill from
+  * "Graphics Gems", Academic Press, 1990.
+  */
+
+#define SL_SWAP(a,b)           {a^=b; b^=a; a^=b;}
+#define SL_ABSOLUTE(i,j,k)     ( (i-j)*(k = ( (i-j)<0 ? -1 : 1)))
+
+void
+plot(VGLBitmap * object, int x, int y, int flag, byte color)
+{
+  /* non-zero flag indicates the pixels need swapping back. */
+  if (flag)
+    VGLSetXY(object, y, x, color);
+  else
+    VGLSetXY(object, x, y, color);
+}
+
+
 void
 VGLLine(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color)
 {
-  int d, x, y, ax, ay, sx, sy, dx, dy;
+  int dx, dy, incr1, incr2, D, x, y, xend, c, pixels_left;
+  int sign_x, sign_y, step, reverse, i;
 
-  dx = x2-x1; ax = ABS(dx)<<1; sx = SGN(dx); x = x1;
-  dy = y2-y1; ay = ABS(dy)<<1; sy = SGN(dy); y = y1;
+  dx = SL_ABSOLUTE(x2, x1, sign_x);
+  dy = SL_ABSOLUTE(y2, y1, sign_y);
+  /* decide increment sign by the slope sign */
+  if (sign_x == sign_y)
+    step = 1;
+  else
+    step = -1;
 
-  if (ax>ay) {					/* x dominant */
-    d = ay-(ax>>1);
-    for (;;) {
-      VGLSetXY(object, x, y, color);
-      if (x==x2)
-	break;
-      if (d>=0) {
-	y += sy; d -= ax;
-      }
-      x += sx; d += ay;
-    }
+  if (dy > dx) {	/* chooses axis of greatest movement (make dx) */
+    SL_SWAP(x1, y1);
+    SL_SWAP(x2, y2);
+    SL_SWAP(dx, dy);
+    reverse = 1;
+  } else
+    reverse = 0;
+  /* note error check for dx==0 should be included here */
+  if (x1 > x2) {      /* start from the smaller coordinate */
+    x = x2;
+    y = y2;
+/*  x1 = x1;
+    y1 = y1; */
+  } else {
+    x = x1;
+    y = y1;
+    x1 = x2;
+    y1 = y2;
   }
-  else {					/* y dominant */
-    d = ax-(ay>>1);
-    for (;;) {
-      VGLSetXY(object, x, y, color);
-      if (y==y2) 
-	break;
-      if (d>=0) {
-	x += sx; d -= ay;
+
+
+  /* Note dx=n implies 0 - n or (dx+1) pixels to be set */
+  /* Go round loop dx/4 times then plot last 0,1,2 or 3 pixels */
+  /* In fact (dx-1)/4 as 2 pixels are already plotted */
+  xend = (dx - 1) / 4;
+  pixels_left = (dx - 1) % 4;  /* number of pixels left over at the
+           * end */
+  plot(object, x, y, reverse, color);
+  if (pixels_left < 0)
+    return;      /* plot only one pixel for zero length
+           * vectors */
+  plot(object, x1, y1, reverse, color);  /* plot first two points */
+  incr2 = 4 * dy - 2 * dx;
+  if (incr2 < 0) {    /* slope less than 1/2 */
+    c = 2 * dy;
+    incr1 = 2 * c;
+    D = incr1 - dx;
+
+    for (i = 0; i < xend; i++) {  /* plotting loop */
+      ++x;
+      --x1;
+      if (D < 0) {
+        /* pattern 1 forwards */
+        plot(object, x, y, reverse, color);
+        plot(object, ++x, y, reverse, color);
+        /* pattern 1 backwards */
+        plot(object, x1, y1, reverse, color);
+        plot(object, --x1, y1, reverse, color);
+        D += incr1;
+      } else {
+        if (D < c) {
+          /* pattern 2 forwards */
+          plot(object, x, y, reverse, color);
+          plot(object, ++x, y += step, reverse,
+              color);
+          /* pattern 2 backwards */
+          plot(object, x1, y1, reverse, color);
+          plot(object, --x1, y1 -= step, reverse,
+              color);
+        } else {
+          /* pattern 3 forwards */
+          plot(object, x, y += step, reverse, color);
+          plot(object, ++x, y, reverse, color);
+          /* pattern 3 backwards */
+          plot(object, x1, y1 -= step, reverse,
+              color);
+          plot(object, --x1, y1, reverse, color);
+        }
+        D += incr2;
       }
-      y += sy; d += ax;
+    }      /* end for */
+
+    /* plot last pattern */
+    if (pixels_left) {
+      if (D < 0) {
+        plot(object, ++x, y, reverse, color);  /* pattern 1 */
+        if (pixels_left > 1)
+          plot(object, ++x, y, reverse, color);
+        if (pixels_left > 2)
+          plot(object, --x1, y1, reverse, color);
+      } else {
+        if (D < c) {
+          plot(object, ++x, y, reverse, color);  /* pattern 2  */
+          if (pixels_left > 1)
+            plot(object, ++x, y += step, reverse, color);
+          if (pixels_left > 2)
+            plot(object, --x1, y1, reverse, color);
+        } else {
+          /* pattern 3 */
+          plot(object, ++x, y += step, reverse, color);
+          if (pixels_left > 1)
+            plot(object, ++x, y, reverse, color);
+          if (pixels_left > 2)
+            plot(object, --x1, y1 -= step, reverse, color);
+        }
+      }
+    }      /* end if pixels_left */
+  }
+  /* end slope < 1/2 */
+  else {        /* slope greater than 1/2 */
+    c = 2 * (dy - dx);
+    incr1 = 2 * c;
+    D = incr1 + dx;
+    for (i = 0; i < xend; i++) {
+      ++x;
+      --x1;
+      if (D > 0) {
+        /* pattern 4 forwards */
+        plot(object, x, y += step, reverse, color);
+        plot(object, ++x, y += step, reverse, color);
+        /* pattern 4 backwards */
+        plot(object, x1, y1 -= step, reverse, color);
+        plot(object, --x1, y1 -= step, reverse, color);
+        D += incr1;
+      } else {
+        if (D < c) {
+          /* pattern 2 forwards */
+          plot(object, x, y, reverse, color);
+          plot(object, ++x, y += step, reverse,
+              color);
+
+          /* pattern 2 backwards */
+          plot(object, x1, y1, reverse, color);
+          plot(object, --x1, y1 -= step, reverse,
+              color);
+        } else {
+          /* pattern 3 forwards */
+          plot(object, x, y += step, reverse, color);
+          plot(object, ++x, y, reverse, color);
+          /* pattern 3 backwards */
+          plot(object, x1, y1 -= step, reverse, color);
+          plot(object, --x1, y1, reverse, color);
+        }
+        D += incr2;
+      }
+    }      /* end for */
+    /* plot last pattern */
+    if (pixels_left) {
+      if (D > 0) {
+        plot(object, ++x, y += step, reverse, color);  /* pattern 4 */
+        if (pixels_left > 1)
+          plot(object, ++x, y += step, reverse,
+              color);
+        if (pixels_left > 2)
+          plot(object, --x1, y1 -= step, reverse,
+              color);
+      } else {
+        if (D < c) {
+          plot(object, ++x, y, reverse, color);  /* pattern 2  */
+          if (pixels_left > 1)
+            plot(object, ++x, y += step, reverse, color);
+          if (pixels_left > 2)
+            plot(object, --x1, y1, reverse, color);
+        } else {
+          /* pattern 3 */
+          plot(object, ++x, y += step, reverse, color);
+          if (pixels_left > 1)
+            plot(object, ++x, y, reverse, color);
+          if (pixels_left > 2) {
+            if (D > c)  /* step 3 */
+              plot(object, --x1, y1 -= step, reverse, color);
+            else  /* step 2 */
+              plot(object, --x1, y1, reverse, color);
+          }
+        }
+      }
     }
   }
 }

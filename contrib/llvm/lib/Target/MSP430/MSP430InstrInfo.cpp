@@ -1,4 +1,4 @@
-//===- MSP430InstrInfo.cpp - MSP430 Instruction Information ---------------===//
+//===-- MSP430InstrInfo.cpp - MSP430 Instruction Information --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,15 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MSP430.h"
 #include "MSP430InstrInfo.h"
+#include "MSP430.h"
 #include "MSP430MachineFunctionInfo.h"
 #include "MSP430TargetMachine.h"
 #include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
@@ -30,7 +29,7 @@ using namespace llvm;
 
 MSP430InstrInfo::MSP430InstrInfo(MSP430TargetMachine &tm)
   : MSP430GenInstrInfo(MSP430::ADJCALLSTACKDOWN, MSP430::ADJCALLSTACKUP),
-    RI(tm, *this), TM(tm) {}
+    RI(tm, *this) {}
 
 void MSP430InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                           MachineBasicBlock::iterator MI,
@@ -43,8 +42,7 @@ void MSP430InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   MachineFrameInfo &MFI = *MF.getFrameInfo();
 
   MachineMemOperand *MMO =
-    MF.getMachineMemOperand(
-              MachinePointerInfo(PseudoSourceValue::getFixedStack(FrameIdx)),
+    MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIdx),
                             MachineMemOperand::MOStore,
                             MFI.getObjectSize(FrameIdx),
                             MFI.getObjectAlignment(FrameIdx));
@@ -72,8 +70,7 @@ void MSP430InstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   MachineFrameInfo &MFI = *MF.getFrameInfo();
 
   MachineMemOperand *MMO =
-    MF.getMachineMemOperand(
-              MachinePointerInfo(PseudoSourceValue::getFixedStack(FrameIdx)),
+    MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIdx),
                             MachineMemOperand::MOLoad,
                             MFI.getObjectSize(FrameIdx),
                             MFI.getObjectAlignment(FrameIdx));
@@ -133,9 +130,7 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   MSP430CC::CondCodes CC = static_cast<MSP430CC::CondCodes>(Cond[0].getImm());
 
   switch (CC) {
-  default:
-    assert(0 && "Invalid branch condition!");
-    break;
+  default: llvm_unreachable("Invalid branch condition!");
   case MSP430CC::COND_E:
     CC = MSP430CC::COND_NE;
     break;
@@ -161,13 +156,12 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
 }
 
 bool MSP430InstrInfo::isUnpredicatedTerminator(const MachineInstr *MI) const {
-  const MCInstrDesc &MCID = MI->getDesc();
-  if (!MCID.isTerminator()) return false;
+  if (!MI->isTerminator()) return false;
 
   // Conditional branch is a special case.
-  if (MCID.isBranch() && !MCID.isBarrier())
+  if (MI->isBranch() && !MI->isBarrier())
     return true;
-  if (!MCID.isPredicable())
+  if (!MI->isPredicable())
     return true;
   return !isPredicated(MI);
 }
@@ -192,7 +186,7 @@ bool MSP430InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
     // A terminator that isn't a branch can't easily be handled
     // by this analysis.
-    if (!I->getDesc().isBranch())
+    if (!I->isBranch())
       return true;
 
     // Cannot handle indirect branches.
@@ -301,8 +295,7 @@ unsigned MSP430InstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   switch (Desc.TSFlags & MSP430II::SizeMask) {
   default:
     switch (Desc.getOpcode()) {
-    default:
-      assert(0 && "Unknown instruction size!");
+    default: llvm_unreachable("Unknown instruction size!");
     case TargetOpcode::PROLOG_LABEL:
     case TargetOpcode::EH_LABEL:
     case TargetOpcode::IMPLICIT_DEF:
@@ -318,8 +311,7 @@ unsigned MSP430InstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
     }
   case MSP430II::SizeSpecial:
     switch (MI->getOpcode()) {
-    default:
-      assert(0 && "Unknown instruction size!");
+    default: llvm_unreachable("Unknown instruction size!");
     case MSP430::SAR8r1c:
     case MSP430::SAR16r1c:
       return 4;
@@ -331,6 +323,4 @@ unsigned MSP430InstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   case MSP430II::Size6Bytes:
     return 6;
   }
-
-  return 6;
 }

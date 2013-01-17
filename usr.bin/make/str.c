@@ -50,10 +50,10 @@ __FBSDID("$FreeBSD$");
 
 /**
  * Initialize the argument array object.  The array is initially
- * eight positions, and will be expaned as neccessary.  The first
+ * eight positions, and will be expanded as necessary.  The first
  * position is set to NULL since everything ignores it.  We allocate
  * (size + 1) since we need space for the terminating NULL.  The
- * buffer is set to NULL, since no common buffer is alloated yet.
+ * buffer is set to NULL, since no common buffer is allocated yet.
  */
 void
 ArgArray_Init(ArgArray *aa)

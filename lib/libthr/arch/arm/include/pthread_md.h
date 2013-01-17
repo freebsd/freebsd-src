@@ -43,10 +43,8 @@
  * Variant II tcb, first two members are required by rtld.
  */
 struct tcb {
-	struct tcb		*tcb_self;	/* required by rtld */
 	void			*tcb_dtv;	/* required by rtld */
 	struct pthread		*tcb_thread;	/* our hook */
-	void			*tcb_spare[1];
 };
 
 /*
@@ -59,7 +57,11 @@ void		_tcb_dtor(struct tcb *);
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	*((struct tcb **)ARM_TP_ADDRESS) = tcb;
+#ifdef ARM_TP_ADDRESS
+	*((struct tcb **)ARM_TP_ADDRESS) = tcb;	/* avoids a system call */
+#else
+	sysarch(ARM_SET_TP, tcb);
+#endif
 }
 
 /*
@@ -68,7 +70,15 @@ _tcb_set(struct tcb *tcb)
 static __inline struct tcb *
 _tcb_get(void)
 {
+#ifdef ARM_TP_ADDRESS
 	return (*((struct tcb **)ARM_TP_ADDRESS));
+#else
+	struct tcb *tcb;
+
+	__asm __volatile("mrc  p15, 0, %0, c13, c0, 3"		\
+	   		 : "=r" (tcb));
+	return (tcb);
+#endif
 }
 
 extern struct pthread *_thr_initial;

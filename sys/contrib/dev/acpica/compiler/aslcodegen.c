@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcodegen - AML code generation
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,7 +88,7 @@ CgWriteNode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Generate AML code.  Currently generates the listing file
+ * DESCRIPTION: Generate AML code. Currently generates the listing file
  *              simultaneously.
  *
  ******************************************************************************/
@@ -264,19 +263,24 @@ CgWriteAmlOpcode (
         /* These opcodes should not get here */
 
         printf ("Found a node with an unassigned AML opcode\n");
-        fprintf (stderr, "Found a node with an unassigned AML opcode\n");
+        FlPrintFile (ASL_FILE_STDERR, "Found a node with an unassigned AML opcode\n");
         return;
 
     case AML_INT_RESERVEDFIELD_OP:
 
         /* Special opcodes for within a field definition */
 
-        Aml.Opcode = 0x00;
+        Aml.Opcode = AML_FIELD_OFFSET_OP;
         break;
 
     case AML_INT_ACCESSFIELD_OP:
 
-        Aml.Opcode = 0x01;
+        Aml.Opcode = AML_FIELD_ACCESS_OP;
+        break;
+
+    case AML_INT_CONNECTION_OP:
+
+        Aml.Opcode = AML_FIELD_CONNECTION_OP;
         break;
 
     default:
@@ -441,7 +445,7 @@ CgWriteTableHeader (
 
     /* Compiler ID */
 
-    strncpy (TableHeader.AslCompilerId, ASL_CREATOR_ID, 4);
+    ACPI_MOVE_NAME (TableHeader.AslCompilerId, ASL_CREATOR_ID);
 
     /* Compiler version */
 
@@ -584,5 +588,3 @@ CgWriteNode (
         break;
     }
 }
-
-

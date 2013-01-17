@@ -147,7 +147,7 @@ newfs_command(const char *fstype, char *command, int use_default)
 				strcat(command, "-F 32 ");
 			else if (strcmp(items[i].name, "FAT16") == 0)
 				strcat(command, "-F 16 ");
-			else if (strcmp(items[i].name, "SUJ") == 0)
+			else if (strcmp(items[i].name, "FAT12") == 0)
 				strcat(command, "-F 12 ");
 		}
 	} else {
@@ -301,7 +301,7 @@ gpart_bootcode(struct ggeom *gp)
 		return;
 
 	bootfd = open(bootcode, O_RDONLY);
-	if (bootfd <= 0) {
+	if (bootfd < 0) {
 		dialog_msgbox("Bootcode Error", strerror(errno), 0, 0,
 		    TRUE);
 		return;

@@ -34,6 +34,8 @@ class MCObjectStreamer : public MCStreamer {
   MCSectionData *CurSectionData;
 
   virtual void EmitInstToData(const MCInst &Inst) = 0;
+  virtual void EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame);
+  virtual void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame);
 
 protected:
   MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
@@ -70,14 +72,25 @@ public:
   virtual void ChangeSection(const MCSection *Section);
   virtual void EmitInstruction(const MCInst &Inst);
   virtual void EmitInstToFragment(const MCInst &Inst);
-  virtual void EmitValueToOffset(const MCExpr *Offset, unsigned char Value);
+  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
+  virtual void EmitValueToAlignment(unsigned ByteAlignment,
+                                    int64_t Value = 0,
+                                    unsigned ValueSize = 1,
+                                    unsigned MaxBytesToEmit = 0);
+  virtual void EmitCodeAlignment(unsigned ByteAlignment,
+                                 unsigned MaxBytesToEmit = 0);
+  virtual bool EmitValueToOffset(const MCExpr *Offset, unsigned char Value);
   virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                         const MCSymbol *LastLabel,
                                         const MCSymbol *Label,
                                         unsigned PointerSize);
   virtual void EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
                                          const MCSymbol *Label);
-  virtual void Finish();
+  virtual void EmitGPRel32Value(const MCExpr *Value);
+  virtual void EmitGPRel64Value(const MCExpr *Value);
+  virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue,
+                        unsigned AddrSpace);
+  virtual void FinishImpl();
 
   /// @}
 };

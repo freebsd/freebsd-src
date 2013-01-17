@@ -19,16 +19,18 @@
 
 namespace llvm {
   class Constant;
-  class TargetData;
+  class DataLayout;
+  class TargetLibraryInfo;
   class Value;
   
 /// LazyValueInfo - This pass computes, caches, and vends lazy value constraint
 /// information.
 class LazyValueInfo : public FunctionPass {
-  class TargetData *TD;
+  class DataLayout *TD;
+  class TargetLibraryInfo *TLI;
   void *PImpl;
-  LazyValueInfo(const LazyValueInfo&); // DO NOT IMPLEMENT.
-  void operator=(const LazyValueInfo&); // DO NOT IMPLEMENT.
+  LazyValueInfo(const LazyValueInfo&) LLVM_DELETED_FUNCTION;
+  void operator=(const LazyValueInfo&) LLVM_DELETED_FUNCTION;
 public:
   static char ID;
   LazyValueInfo() : FunctionPass(ID), PImpl(0) {
@@ -68,9 +70,7 @@ public:
   
   // Implementation boilerplate.
   
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.setPreservesAll();
-  }
+  virtual void getAnalysisUsage(AnalysisUsage &AU) const;
   virtual void releaseMemory();
   virtual bool runOnFunction(Function &F);
 };

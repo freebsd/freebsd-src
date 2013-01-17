@@ -400,11 +400,7 @@ static device_method_t bxe_methods[] = {
 	DEVMETHOD(device_detach,	bxe_detach),
 	DEVMETHOD(device_shutdown,	bxe_shutdown),
 
-	/* Bus interface (bus_if.h) */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 
@@ -423,7 +419,7 @@ DRIVER_MODULE(bxe, pci, bxe_driver, bxe_devclass, 0, 0);
 /*
  * Tunable device values
  */
-SYSCTL_NODE(_hw, OID_AUTO, bxe, CTLFLAG_RD, 0, "bxe driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bxe, CTLFLAG_RD, 0, "bxe driver parameters");
 /* Allowable values are TRUE (1) or FALSE (0). */
 
 static int bxe_dcc_enable = FALSE;
@@ -2140,12 +2136,11 @@ bxe_attach(device_t dev)
 #endif
 
 	ifp->if_init = bxe_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_hwassist = BXE_IF_HWASSIST;
 	ifp->if_capabilities = BXE_IF_CAPABILITIES;
 	/* TPA not enabled by default. */
 	ifp->if_capenable = BXE_IF_CAPABILITIES & ~IFCAP_LRO;
-	ifp->if_baudrate = IF_Gbps(10UL);
+	if_initbaudrate(ifp, IF_Gbps(10));
 
 	ifp->if_snd.ifq_drv_maxlen = sc->tx_ring_size;
 
@@ -3559,8 +3554,14 @@ bxe_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 	DBENTER(BXE_INFO_LOAD | BXE_INFO_RESET | BXE_INFO_UNLOAD);
 
+	/* Stop the controller, but only if it was ever started.
+	 * Stopping an uninitialized controller can cause
+	 * IPMI bus errors on some systems.
+	 */
 	BXE_CORE_LOCK(sc);
-	bxe_stop_locked(sc, UNLOAD_NORMAL);
+	if (sc->state != BXE_STATE_CLOSED) {
+		bxe_stop_locked(sc, UNLOAD_NORMAL);
+	}
 	BXE_CORE_UNLOCK(sc);
 
 	DBEXIT(BXE_INFO_LOAD | BXE_INFO_RESET | BXE_INFO_UNLOAD);
@@ -3756,7 +3757,7 @@ bxe_alloc_buf_rings(struct bxe_softc *sc)
 
 		if (fp != NULL) {
 			fp->br = buf_ring_alloc(BXE_BR_SIZE,
-			    M_DEVBUF, M_DONTWAIT, &fp->mtx);
+			    M_DEVBUF, M_NOWAIT, &fp->mtx);
 			if (fp->br == NULL) {
 				rc = ENOMEM;
 				goto bxe_alloc_buf_rings_exit;
@@ -8959,7 +8960,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 		} else if (error == EFBIG) {
 			/* Possibly recoverable with defragmentation. */
 			fp->mbuf_defrag_attempts++;
-			m0 = m_defrag(*m_head, M_DONTWAIT);
+			m0 = m_defrag(*m_head, M_NOWAIT);
 			if (m0 == NULL) {
 				fp->mbuf_defrag_failures++;
 				rc = ENOBUFS;
@@ -9555,6 +9556,11 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 
 		/* The transmit frame was enqueued successfully. */
 		tx_count++;
+
+		/* Update stats */
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 
 		/* Send a copy of the frame to any BPF listeners. */
 		BPF_MTAP(ifp, next);
@@ -10461,7 +10467,7 @@ bxe_alloc_tpa_mbuf(struct bxe_fastpath *fp, int queue)
 #endif
 
 	/* Allocate the new TPA mbuf. */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
 	if (__predict_false(m == NULL)) {
 		fp->mbuf_tpa_alloc_failed++;
 		rc = ENOBUFS;
@@ -10655,7 +10661,7 @@ bxe_alloc_rx_sge_mbuf(struct bxe_fastpath *fp, uint16_t index)
 #endif
 
 	/* Allocate a new SGE mbuf. */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
 	if (__predict_false(m == NULL)) {
 		fp->mbuf_sge_alloc_failed++;
 		rc = ENOMEM;
@@ -10845,7 +10851,7 @@ bxe_alloc_rx_bd_mbuf(struct bxe_fastpath *fp, uint16_t index)
 #endif
 
 	/* Allocate the new RX BD mbuf. */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
 	if (__predict_false(m == NULL)) {
 		fp->mbuf_rx_bd_alloc_failed++;
 		rc = ENOBUFS;
@@ -13587,7 +13593,8 @@ bxe_host_structures_alloc(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-	rc = bus_dma_tag_create(NULL,	/* parent tag */
+	rc = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),	/* PCI parent tag */
 	    1,				/* alignment for segs */
 	    BXE_DMA_BOUNDARY,		/* cannot cross */
 	    BUS_SPACE_MAXADDR,		/* restricted low */
@@ -14119,7 +14126,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 			i = 0;
 			config = BXE_SP(sc, mcast_config);
 
-			IF_ADDR_LOCK(ifp);
+			if_maddr_rlock(ifp);
 
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -14148,7 +14155,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 				    config_table->cam_entry.lsb_mac_addr);
 			}
 
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 
 			old = config->hdr.length;
 
@@ -14176,7 +14183,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 			/* Accept one or more multicasts */
 			memset(mc_filter, 0, 4 * MC_HASH_SIZE);
 
-			IF_ADDR_LOCK(ifp);
+			if_maddr_rlock(ifp);
 
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -14188,7 +14195,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 				bit &= 0x1f;
 				mc_filter[regidx] |= (1 << bit);
 			}
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 
 			for (i = 0; i < MC_HASH_SIZE; i++)
 				REG_WR(sc, MC_HASH_OFFSET(sc, i), mc_filter[i]);
@@ -16274,7 +16281,7 @@ void bxe_dump_mbuf(struct bxe_softc *sc, struct mbuf *m)
 			    "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
 			    "\22M_PROMISC\23M_NOFREE",
 			    m->m_pkthdr.csum_flags,
-			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP"
 			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
 			    "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
 			    "\14CSUM_PSEUDO_HDR");

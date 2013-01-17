@@ -225,9 +225,9 @@ i80321_attach(struct i80321_softc *sc)
 
 static __inline uint32_t
 i80321_iintsrc_read(void)
-{       
-	uint32_t iintsrc;                                       
-		                                                                
+{
+	uint32_t iintsrc;
+		
 	__asm __volatile("mrc p6, 0, %0, c8, c0, 0"
 	    : "=r" (iintsrc));
 	

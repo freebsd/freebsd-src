@@ -29,10 +29,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/pmc.h>
+#include <sys/pmckern.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -266,4 +270,9 @@ cpu_intr(struct trapframe *tf)
 	KASSERT(i == 0, ("all interrupts handled"));
 
 	critical_exit();
+
+#ifdef HWPMC_HOOKS
+	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
+#endif
 }

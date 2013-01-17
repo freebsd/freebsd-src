@@ -64,23 +64,24 @@ static const char rcsid[] =
 #define main printfcmd
 #include "bltin/bltin.h"
 #include "error.h"
+#include "options.h"
 #endif
 
-#define PF(f, func) do { \
-	char *b = NULL; \
-	if (havewidth) \
-		if (haveprec) \
+#define PF(f, func) do {						\
+	char *b = NULL;							\
+	if (havewidth)							\
+		if (haveprec)						\
 			(void)asprintf(&b, f, fieldwidth, precision, func); \
-		else \
-			(void)asprintf(&b, f, fieldwidth, func); \
-	else if (haveprec) \
-		(void)asprintf(&b, f, precision, func); \
-	else \
-		(void)asprintf(&b, f, func); \
-	if (b) { \
-		(void)fputs(b, stdout); \
-		free(b); \
-	} \
+		else							\
+			(void)asprintf(&b, f, fieldwidth, func);	\
+	else if (haveprec)						\
+		(void)asprintf(&b, f, precision, func);			\
+	else								\
+		(void)asprintf(&b, f, func);				\
+	if (b) {							\
+		(void)fputs(b, stdout);					\
+		free(b);						\
+	}								\
 } while (0)
 
 static int	 asciicode(void);
@@ -101,15 +102,19 @@ int
 main(int argc, char *argv[])
 {
 	size_t len;
-	int ch, chopped, end, rval;
+	int chopped, end, rval;
 	char *format, *fmt, *start;
-
 #ifndef SHELL
+	int ch;
+
 	(void) setlocale(LC_ALL, "");
 #endif
+
 #ifdef SHELL
-	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
-#endif
+	nextopt("");
+	argc -= argptr - argv;
+	argv = argptr;
+#else
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
 		case '?':
@@ -119,6 +124,7 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+#endif
 
 	if (argc < 1) {
 		usage();
@@ -357,10 +363,10 @@ mknum(char *str, char ch)
 static int
 escape(char *fmt, int percent, size_t *len)
 {
-	char *save, *store;
-	int value, c;
+	char *save, *store, c;
+	int value;
 
-	for (save = store = fmt; (c = *fmt); ++fmt, ++store) {
+	for (save = store = fmt; ((c = *fmt) != 0); ++fmt, ++store) {
 		if (c != '\\') {
 			*store = c;
 			continue;
@@ -414,7 +420,7 @@ escape(char *fmt, int percent, size_t *len)
 				*store++ = '%';
 				*store = '%';
 			} else
-				*store = value;
+				*store = (char)value;
 			break;
 		default:
 			*store = *fmt;
@@ -467,7 +473,7 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	int rval;
 
 	if (!*gargv) {
-		*ip = 0;
+		*ip = *uip = 0;
 		return (0);
 	}
 	if (**gargv == '"' || **gargv == '\'') {

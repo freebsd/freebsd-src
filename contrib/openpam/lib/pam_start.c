@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,14 +32,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_start.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_start.c 503 2011-12-18 14:00:33Z des $
  */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+#include "openpam_strlcpy.h"
+
+#ifdef _SC_HOST_NAME_MAX
+#define HOST_NAME_MAX sysconf(_SC_HOST_NAME_MAX)
+#else
+#define HOST_NAME_MAX 1024
+#endif
 
 /*
  * XSSO 4.2.1
@@ -54,6 +67,7 @@ pam_start(const char *service,
 	const struct pam_conv *pam_conv,
 	pam_handle_t **pamh)
 {
+	char hostname[HOST_NAME_MAX + 1];
 	struct pam_handle *ph;
 	int r;
 
@@ -62,20 +76,20 @@ pam_start(const char *service,
 		RETURNC(PAM_BUF_ERR);
 	if ((r = pam_set_item(ph, PAM_SERVICE, service)) != PAM_SUCCESS)
 		goto fail;
+	if (gethostname(hostname, sizeof hostname) != 0)
+		strlcpy(hostname, "localhost", sizeof hostname);
+	if ((r = pam_set_item(ph, PAM_HOST, hostname)) != PAM_SUCCESS)
+		goto fail;
 	if ((r = pam_set_item(ph, PAM_USER, user)) != PAM_SUCCESS)
 		goto fail;
 	if ((r = pam_set_item(ph, PAM_CONV, pam_conv)) != PAM_SUCCESS)
 		goto fail;
-
-	r = openpam_configure(ph, service);
-	if (r != PAM_SUCCESS)
+	if ((r = openpam_configure(ph, service)) != PAM_SUCCESS)
 		goto fail;
-
 	*pamh = ph;
 	openpam_log(PAM_LOG_DEBUG, "pam_start(\"%s\") succeeded", service);
 	RETURNC(PAM_SUCCESS);
-
- fail:
+fail:
 	pam_end(ph, r);
 	RETURNC(r);
 }

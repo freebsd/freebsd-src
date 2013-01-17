@@ -10,32 +10,30 @@ if [ ! $# -eq 1 ]; then
 fi
 
 src=$1
-wrk=`realpath ./_acpi_ca_unpack`
-dst=`realpath ./acpi_ca_destination`
+wrk="$(realpath .)/_acpi_ca_unpack"
+dst="$(realpath .)/acpi_ca_destination"
 
 # files that should keep their full directory path
-fulldirs="common compiler debugger disassembler dispatcher events	\
-	executer hardware include namespace parser resources tables	\
-	tools utilities"
+fulldirs="common compiler components include os_specific"
 
 # files to remove
-stripdirs="acpinames acpisrc acpixtract examples generate os_specific	\
-	tests"
-stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
-	acos2.h accygwin.h acefi.h acwin.h acwin64.h aeexec.c		\
-	aehandlers.c aemain.c aetables.c aetables.h osunixdir.c		\
+stripdirs="generate libraries tests tools"
+stripfiles="Makefile README accygwin.h acefi.h achaiku.h acintel.h	\
+	aclinux.h acmsvc.h acnetbsd.h acos2.h acwin.h acwin64.h		\
+	new_table.txt osunixdir.c oswindir.c oswintbl.c oswinxf.c	\
 	readme.txt utclib.c"
 
 # include files to canonify
-src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
-	acdispat.h acevents.h acexcep.h acglobal.h achware.h acinterp.h	\
-	aclocal.h acmacros.h acnames.h acnamesp.h acobject.h acopcode.h	\
-	acoutput.h acparser.h acpi.h acpiosxf.h acpixf.h acpredef.h	\
-	acresrc.h acrestyp.h acstruct.h actables.h actbl.h actbl1.h	\
-	actbl2.h actypes.h acutils.h amlcode.h amlresrc.h		\
-	platform/acenv.h platform/acfreebsd.h platform/acgcc.h"
+src_headers="acapps.h acbuffer.h accommon.h acconfig.h acdebug.h	\
+	acdisasm.h acdispat.h acevents.h acexcep.h acglobal.h achware.h	\
+	acinterp.h aclocal.h acmacros.h acnames.h acnamesp.h acobject.h	\
+	acopcode.h acoutput.h acparser.h acpi.h acpiosxf.h acpixf.h	\
+	acpredef.h acresrc.h acrestyp.h acstruct.h actables.h actbl.h	\
+	actbl1.h actbl2.h actbl3.h actypes.h acutils.h amlcode.h	\
+	amlresrc.h platform/acenv.h platform/acfreebsd.h		\
+	platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
-	asltypes.h dtcompiler.h dttemplate.h"
+	aslsupport.l asltypes.h dtcompiler.h dttemplate.h preprocess.h"
 platform_headers="acfreebsd.h acgcc.h"
 
 # pre-clean
@@ -71,7 +69,8 @@ for H in ${src_headers}; do
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/$H\>|g"
 done
 for H in ${comp_headers}; do
-	find ${dst}/common ${dst}/compiler -name "*.[chly]" -type f |	\
+	find ${dst}/common ${dst}/compiler ${dst}/components \
+	    -name "*.[chly]" -type f |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/compiler/$H\>|g"
 done
 for H in ${platform_headers}; do
@@ -84,8 +83,8 @@ echo post-clean
 rm -rf ${wrk}
 
 # assist the developer in generating a diff
-echo "Directories you may want to 'cvs diff':"
-echo "    src/sys/contrib/dev/acpica src/sys/dev/acpica \\"
-echo "    src/sys/amd64/acpica src/sys/i386/acpica src/sys/ia64/acpica \\"
-echo "    src/sys/amd64/include src/sys/i386/include src/sys/ia64/include \\"
-echo "    src/sys/boot src/sys/conf src/sys/modules/acpi src/usr.sbin/acpi"
+echo "Directories you may want to 'svn diff':"
+echo "    sys/contrib/dev/acpica sys/dev/acpica \\"
+echo "    sys/amd64/acpica sys/i386/acpica sys/ia64/acpica sys/x86/acpica \\"
+echo "    sys/amd64/include sys/i386/include sys/ia64/include \\"
+echo "    sys/boot sys/conf sys/modules/acpi usr.sbin/acpi"

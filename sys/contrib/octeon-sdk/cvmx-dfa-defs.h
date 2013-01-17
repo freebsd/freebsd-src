@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,14 +49,14 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_DFA_TYPEDEFS_H__
-#define __CVMX_DFA_TYPEDEFS_H__
+#ifndef __CVMX_DFA_DEFS_H__
+#define __CVMX_DFA_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_DFA_BIST0 CVMX_DFA_BIST0_FUNC()
 static inline uint64_t CVMX_DFA_BIST0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_BIST0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800370007F0ull);
 }
@@ -67,7 +67,7 @@ static inline uint64_t CVMX_DFA_BIST0_FUNC(void)
 #define CVMX_DFA_BIST1 CVMX_DFA_BIST1_FUNC()
 static inline uint64_t CVMX_DFA_BIST1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_BIST1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800370007F8ull);
 }
@@ -111,7 +111,7 @@ static inline uint64_t CVMX_DFA_CFG_FUNC(void)
 #define CVMX_DFA_CONFIG CVMX_DFA_CONFIG_FUNC()
 static inline uint64_t CVMX_DFA_CONFIG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_CONFIG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000000ull);
 }
@@ -122,7 +122,7 @@ static inline uint64_t CVMX_DFA_CONFIG_FUNC(void)
 #define CVMX_DFA_CONTROL CVMX_DFA_CONTROL_FUNC()
 static inline uint64_t CVMX_DFA_CONTROL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_CONTROL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000020ull);
 }
@@ -133,7 +133,7 @@ static inline uint64_t CVMX_DFA_CONTROL_FUNC(void)
 #define CVMX_DFA_DBELL CVMX_DFA_DBELL_FUNC()
 static inline uint64_t CVMX_DFA_DBELL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DBELL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001370000000000ull);
 }
@@ -254,7 +254,7 @@ static inline uint64_t CVMX_DFA_DDR2_TMG_FUNC(void)
 #define CVMX_DFA_DEBUG0 CVMX_DFA_DEBUG0_FUNC()
 static inline uint64_t CVMX_DFA_DEBUG0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DEBUG0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000040ull);
 }
@@ -265,7 +265,7 @@ static inline uint64_t CVMX_DFA_DEBUG0_FUNC(void)
 #define CVMX_DFA_DEBUG1 CVMX_DFA_DEBUG1_FUNC()
 static inline uint64_t CVMX_DFA_DEBUG1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DEBUG1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000048ull);
 }
@@ -276,7 +276,7 @@ static inline uint64_t CVMX_DFA_DEBUG1_FUNC(void)
 #define CVMX_DFA_DEBUG2 CVMX_DFA_DEBUG2_FUNC()
 static inline uint64_t CVMX_DFA_DEBUG2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DEBUG2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000050ull);
 }
@@ -287,7 +287,7 @@ static inline uint64_t CVMX_DFA_DEBUG2_FUNC(void)
 #define CVMX_DFA_DEBUG3 CVMX_DFA_DEBUG3_FUNC()
 static inline uint64_t CVMX_DFA_DEBUG3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DEBUG3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000058ull);
 }
@@ -298,7 +298,7 @@ static inline uint64_t CVMX_DFA_DEBUG3_FUNC(void)
 #define CVMX_DFA_DIFCTL CVMX_DFA_DIFCTL_FUNC()
 static inline uint64_t CVMX_DFA_DIFCTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DIFCTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001370600000000ull);
 }
@@ -309,7 +309,7 @@ static inline uint64_t CVMX_DFA_DIFCTL_FUNC(void)
 #define CVMX_DFA_DIFRDPTR CVMX_DFA_DIFRDPTR_FUNC()
 static inline uint64_t CVMX_DFA_DIFRDPTR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DIFRDPTR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001370200000000ull);
 }
@@ -320,7 +320,7 @@ static inline uint64_t CVMX_DFA_DIFRDPTR_FUNC(void)
 #define CVMX_DFA_DTCFADR CVMX_DFA_DTCFADR_FUNC()
 static inline uint64_t CVMX_DFA_DTCFADR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_DTCFADR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000060ull);
 }
@@ -353,7 +353,7 @@ static inline uint64_t CVMX_DFA_ERR_FUNC(void)
 #define CVMX_DFA_ERROR CVMX_DFA_ERROR_FUNC()
 static inline uint64_t CVMX_DFA_ERROR_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_ERROR not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000028ull);
 }
@@ -364,7 +364,7 @@ static inline uint64_t CVMX_DFA_ERROR_FUNC(void)
 #define CVMX_DFA_INTMSK CVMX_DFA_INTMSK_FUNC()
 static inline uint64_t CVMX_DFA_INTMSK_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_INTMSK not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000030ull);
 }
@@ -430,7 +430,7 @@ static inline uint64_t CVMX_DFA_MEMFCR_FUNC(void)
 #define CVMX_DFA_MEMHIDAT CVMX_DFA_MEMHIDAT_FUNC()
 static inline uint64_t CVMX_DFA_MEMHIDAT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_MEMHIDAT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001370700000000ull);
 }
@@ -463,7 +463,7 @@ static inline uint64_t CVMX_DFA_NCBCTL_FUNC(void)
 #define CVMX_DFA_PFC0_CNT CVMX_DFA_PFC0_CNT_FUNC()
 static inline uint64_t CVMX_DFA_PFC0_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC0_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000090ull);
 }
@@ -474,7 +474,7 @@ static inline uint64_t CVMX_DFA_PFC0_CNT_FUNC(void)
 #define CVMX_DFA_PFC0_CTL CVMX_DFA_PFC0_CTL_FUNC()
 static inline uint64_t CVMX_DFA_PFC0_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC0_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000088ull);
 }
@@ -485,7 +485,7 @@ static inline uint64_t CVMX_DFA_PFC0_CTL_FUNC(void)
 #define CVMX_DFA_PFC1_CNT CVMX_DFA_PFC1_CNT_FUNC()
 static inline uint64_t CVMX_DFA_PFC1_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC1_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800370000A0ull);
 }
@@ -496,7 +496,7 @@ static inline uint64_t CVMX_DFA_PFC1_CNT_FUNC(void)
 #define CVMX_DFA_PFC1_CTL CVMX_DFA_PFC1_CTL_FUNC()
 static inline uint64_t CVMX_DFA_PFC1_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC1_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000098ull);
 }
@@ -507,7 +507,7 @@ static inline uint64_t CVMX_DFA_PFC1_CTL_FUNC(void)
 #define CVMX_DFA_PFC2_CNT CVMX_DFA_PFC2_CNT_FUNC()
 static inline uint64_t CVMX_DFA_PFC2_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC2_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800370000B0ull);
 }
@@ -518,7 +518,7 @@ static inline uint64_t CVMX_DFA_PFC2_CNT_FUNC(void)
 #define CVMX_DFA_PFC2_CTL CVMX_DFA_PFC2_CTL_FUNC()
 static inline uint64_t CVMX_DFA_PFC2_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC2_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800370000A8ull);
 }
@@ -529,7 +529,7 @@ static inline uint64_t CVMX_DFA_PFC2_CTL_FUNC(void)
 #define CVMX_DFA_PFC3_CNT CVMX_DFA_PFC3_CNT_FUNC()
 static inline uint64_t CVMX_DFA_PFC3_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC3_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800370000C0ull);
 }
@@ -540,7 +540,7 @@ static inline uint64_t CVMX_DFA_PFC3_CNT_FUNC(void)
 #define CVMX_DFA_PFC3_CTL CVMX_DFA_PFC3_CTL_FUNC()
 static inline uint64_t CVMX_DFA_PFC3_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC3_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800370000B8ull);
 }
@@ -551,7 +551,7 @@ static inline uint64_t CVMX_DFA_PFC3_CTL_FUNC(void)
 #define CVMX_DFA_PFC_GCTL CVMX_DFA_PFC_GCTL_FUNC()
 static inline uint64_t CVMX_DFA_PFC_GCTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX) || OCTEON_IS_MODEL(OCTEON_CN68XX)))
 		cvmx_warn("CVMX_DFA_PFC_GCTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x0001180037000080ull);
 }
@@ -621,12 +621,96 @@ static inline uint64_t CVMX_DFA_SBD_DBG3_FUNC(void)
  *
  * Description:
  */
-union cvmx_dfa_bist0
-{
+union cvmx_dfa_bist0 {
 	uint64_t u64;
-	struct cvmx_dfa_bist0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_bist0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_27_63               : 37;
+	uint64_t gfb                          : 3;  /**< Bist Results for GFB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_22_23               : 2;
+	uint64_t stx2                         : 2;  /**< Bist Results for STX2 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t stx1                         : 2;  /**< Bist Results for STX1 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t stx                          : 2;  /**< Bist Results for STX0 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_14_15               : 2;
+	uint64_t dtx2                         : 2;  /**< Bist Results for DTX2 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dtx1                         : 2;  /**< Bist Results for DTX1 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dtx                          : 2;  /**< Bist Results for DTX0 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_7_7                 : 1;
+	uint64_t rdf                          : 3;  /**< Bist Results for RWB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_3_3                 : 1;
+	uint64_t pdb                          : 3;  /**< Bist Results for PDB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+#else
+	uint64_t pdb                          : 3;
+	uint64_t reserved_3_3                 : 1;
+	uint64_t rdf                          : 3;
+	uint64_t reserved_7_7                 : 1;
+	uint64_t dtx                          : 2;
+	uint64_t dtx1                         : 2;
+	uint64_t dtx2                         : 2;
+	uint64_t reserved_14_15               : 2;
+	uint64_t stx                          : 2;
+	uint64_t stx1                         : 2;
+	uint64_t stx2                         : 2;
+	uint64_t reserved_22_23               : 2;
+	uint64_t gfb                          : 3;
+	uint64_t reserved_27_63               : 37;
+#endif
+	} s;
+	struct cvmx_dfa_bist0_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_25_63               : 39;
+	uint64_t gfb                          : 1;  /**< Bist Results for GFB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_18_23               : 6;
+	uint64_t stx                          : 2;  /**< Bist Results for STX0 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_10_15               : 6;
+	uint64_t dtx                          : 2;  /**< Bist Results for DTX0 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_5_7                 : 3;
+	uint64_t rdf                          : 1;  /**< Bist Results for RWB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_1_3                 : 3;
+	uint64_t pdb                          : 1;  /**< Bist Results for PDB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+#else
+	uint64_t pdb                          : 1;
+	uint64_t reserved_1_3                 : 3;
+	uint64_t rdf                          : 1;
+	uint64_t reserved_5_7                 : 3;
+	uint64_t dtx                          : 2;
+	uint64_t reserved_10_15               : 6;
+	uint64_t stx                          : 2;
+	uint64_t reserved_18_23               : 6;
+	uint64_t gfb                          : 1;
+	uint64_t reserved_25_63               : 39;
+#endif
+	} cn61xx;
+	struct cvmx_dfa_bist0_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t mwb                          : 1;  /**< Bist Results for MWB RAM(s)
                                                          - 0: GOOD (or bist in progress/never run)
@@ -665,9 +749,67 @@ union cvmx_dfa_bist0
 	uint64_t mwb                          : 1;
 	uint64_t reserved_29_63               : 35;
 #endif
-	} s;
-	struct cvmx_dfa_bist0_s               cn63xx;
-	struct cvmx_dfa_bist0_s               cn63xxp1;
+	} cn63xx;
+	struct cvmx_dfa_bist0_cn63xx          cn63xxp1;
+	struct cvmx_dfa_bist0_cn63xx          cn66xx;
+	struct cvmx_dfa_bist0_cn68xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_30_63               : 34;
+	uint64_t mrp                          : 2;  /**< Bist Results for MRP RAM(s) (per-DLC)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_27_27               : 1;
+	uint64_t gfb                          : 3;  /**< Bist Results for GFB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_22_23               : 2;
+	uint64_t stx2                         : 2;  /**< Bist Results for STX2 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t stx1                         : 2;  /**< Bist Results for STX1 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t stx                          : 2;  /**< Bist Results for STX0 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_14_15               : 2;
+	uint64_t dtx2                         : 2;  /**< Bist Results for DTX2 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dtx1                         : 2;  /**< Bist Results for DTX1 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dtx                          : 2;  /**< Bist Results for DTX0 RAM(s)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_7_7                 : 1;
+	uint64_t rdf                          : 3;  /**< Bist Results for RWB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_3_3                 : 1;
+	uint64_t pdb                          : 3;  /**< Bist Results for PDB RAM(s) (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+#else
+	uint64_t pdb                          : 3;
+	uint64_t reserved_3_3                 : 1;
+	uint64_t rdf                          : 3;
+	uint64_t reserved_7_7                 : 1;
+	uint64_t dtx                          : 2;
+	uint64_t dtx1                         : 2;
+	uint64_t dtx2                         : 2;
+	uint64_t reserved_14_15               : 2;
+	uint64_t stx                          : 2;
+	uint64_t stx1                         : 2;
+	uint64_t stx2                         : 2;
+	uint64_t reserved_22_23               : 2;
+	uint64_t gfb                          : 3;
+	uint64_t reserved_27_27               : 1;
+	uint64_t mrp                          : 2;
+	uint64_t reserved_30_63               : 34;
+#endif
+	} cn68xx;
+	struct cvmx_dfa_bist0_cn68xx          cn68xxp1;
 };
 typedef union cvmx_dfa_bist0 cvmx_dfa_bist0_t;
 
@@ -678,12 +820,146 @@ typedef union cvmx_dfa_bist0 cvmx_dfa_bist0_t;
  *
  * Description:
  */
-union cvmx_dfa_bist1
-{
+union cvmx_dfa_bist1 {
 	uint64_t u64;
-	struct cvmx_dfa_bist1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_bist1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_21_63               : 43;
+	uint64_t dlc1ram                      : 1;  /**< DLC1 Bist Results
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dlc0ram                      : 1;  /**< DLC0 Bist Results
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dc2ram3                      : 1;  /**< Cluster#2 Bist Results for RAM3 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dc2ram2                      : 1;  /**< Cluster#2 Bist Results for RAM2 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dc2ram1                      : 1;  /**< Cluster#2 Bist Results for RAM1 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dc1ram3                      : 1;  /**< Cluster#1 Bist Results for RAM3 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dc1ram2                      : 1;  /**< Cluster#1 Bist Results for RAM2 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t dc1ram1                      : 1;  /**< Cluster#1 Bist Results for RAM1 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t ram3                         : 1;  /**< Cluster#0 Bist Results for RAM3 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t ram2                         : 1;  /**< Cluster#0 Bist Results for RAM2 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t ram1                         : 1;  /**< Cluster#0 Bist Results for RAM1 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t crq                          : 1;  /**< Bist Results for CRQ RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gutv                         : 1;  /**< Bist Results for GUTV RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_7_7                 : 1;
+	uint64_t gutp                         : 3;  /**< Bist Results for GUTP RAMs (per-cluster)
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t ncd                          : 1;  /**< Bist Results for NCD RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gif                          : 1;  /**< Bist Results for GIF RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gib                          : 1;  /**< Bist Results for GIB RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gfu                          : 1;  /**< Bist Results for GFU RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+#else
+	uint64_t gfu                          : 1;
+	uint64_t gib                          : 1;
+	uint64_t gif                          : 1;
+	uint64_t ncd                          : 1;
+	uint64_t gutp                         : 3;
+	uint64_t reserved_7_7                 : 1;
+	uint64_t gutv                         : 1;
+	uint64_t crq                          : 1;
+	uint64_t ram1                         : 1;
+	uint64_t ram2                         : 1;
+	uint64_t ram3                         : 1;
+	uint64_t dc1ram1                      : 1;
+	uint64_t dc1ram2                      : 1;
+	uint64_t dc1ram3                      : 1;
+	uint64_t dc2ram1                      : 1;
+	uint64_t dc2ram2                      : 1;
+	uint64_t dc2ram3                      : 1;
+	uint64_t dlc0ram                      : 1;
+	uint64_t dlc1ram                      : 1;
+	uint64_t reserved_21_63               : 43;
+#endif
+	} s;
+	struct cvmx_dfa_bist1_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_20_63               : 44;
+	uint64_t dlc0ram                      : 1;  /**< DLC0 Bist Results
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_13_18               : 6;
+	uint64_t ram3                         : 1;  /**< Cluster#0 Bist Results for RAM3 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t ram2                         : 1;  /**< Cluster#0 Bist Results for RAM2 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t ram1                         : 1;  /**< Cluster#0 Bist Results for RAM1 RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t crq                          : 1;  /**< Bist Results for CRQ RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gutv                         : 1;  /**< Bist Results for GUTV RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t reserved_5_7                 : 3;
+	uint64_t gutp                         : 1;  /**< Bist Results for GUTP RAMs
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t ncd                          : 1;  /**< Bist Results for NCD RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gif                          : 1;  /**< Bist Results for GIF RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gib                          : 1;  /**< Bist Results for GIB RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+	uint64_t gfu                          : 1;  /**< Bist Results for GFU RAM
+                                                         - 0: GOOD (or bist in progress/never run)
+                                                         - 1: BAD */
+#else
+	uint64_t gfu                          : 1;
+	uint64_t gib                          : 1;
+	uint64_t gif                          : 1;
+	uint64_t ncd                          : 1;
+	uint64_t gutp                         : 1;
+	uint64_t reserved_5_7                 : 3;
+	uint64_t gutv                         : 1;
+	uint64_t crq                          : 1;
+	uint64_t ram1                         : 1;
+	uint64_t ram2                         : 1;
+	uint64_t ram3                         : 1;
+	uint64_t reserved_13_18               : 6;
+	uint64_t dlc0ram                      : 1;
+	uint64_t reserved_20_63               : 44;
+#endif
+	} cn61xx;
+	struct cvmx_dfa_bist1_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_13_63               : 51;
 	uint64_t ram3                         : 1;  /**< Bist Results for RAM3 RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -730,9 +1006,11 @@ union cvmx_dfa_bist1
 	uint64_t ram3                         : 1;
 	uint64_t reserved_13_63               : 51;
 #endif
-	} s;
-	struct cvmx_dfa_bist1_s               cn63xx;
-	struct cvmx_dfa_bist1_s               cn63xxp1;
+	} cn63xx;
+	struct cvmx_dfa_bist1_cn63xx          cn63xxp1;
+	struct cvmx_dfa_bist1_cn63xx          cn66xx;
+	struct cvmx_dfa_bist1_s               cn68xx;
+	struct cvmx_dfa_bist1_s               cn68xxp1;
 };
 typedef union cvmx_dfa_bist1 cvmx_dfa_bist1_t;
 
@@ -743,12 +1021,10 @@ typedef union cvmx_dfa_bist1 cvmx_dfa_bist1_t;
  *
  * Description:
  */
-union cvmx_dfa_bst0
-{
+union cvmx_dfa_bst0 {
 	uint64_t u64;
-	struct cvmx_dfa_bst0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_bst0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t rdf                          : 16; /**< Bist Results for RDF[3:0] RAM(s)
                                                          - 0: GOOD (or bist in progress/never run)
@@ -765,9 +1041,8 @@ union cvmx_dfa_bst0
 	struct cvmx_dfa_bst0_s                cn31xx;
 	struct cvmx_dfa_bst0_s                cn38xx;
 	struct cvmx_dfa_bst0_s                cn38xxp2;
-	struct cvmx_dfa_bst0_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_bst0_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t rdf                          : 4;  /**< Bist Results for RDF[3:0] RAM(s)
                                                          - 0: GOOD (or bist in progress/never run)
@@ -794,12 +1069,10 @@ typedef union cvmx_dfa_bst0 cvmx_dfa_bst0_t;
  *
  * Description:
  */
-union cvmx_dfa_bst1
-{
+union cvmx_dfa_bst1 {
 	uint64_t u64;
-	struct cvmx_dfa_bst1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_bst1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t crq                          : 1;  /**< Bist Results for CRQ RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -841,9 +1114,8 @@ union cvmx_dfa_bst1
 	uint64_t reserved_23_63               : 41;
 #endif
 	} s;
-	struct cvmx_dfa_bst1_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_bst1_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t crq                          : 1;  /**< Bist Results for CRQ RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -873,9 +1145,8 @@ union cvmx_dfa_bst1
 	} cn31xx;
 	struct cvmx_dfa_bst1_s                cn38xx;
 	struct cvmx_dfa_bst1_s                cn38xxp2;
-	struct cvmx_dfa_bst1_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_bst1_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t crq                          : 1;  /**< Bist Results for CRQ RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -928,12 +1199,10 @@ typedef union cvmx_dfa_bst1 cvmx_dfa_bst1_t;
  *
  * Description:
  */
-union cvmx_dfa_cfg
-{
+union cvmx_dfa_cfg {
 	uint64_t u64;
-	struct cvmx_dfa_cfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_cfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t nrpl_ena                     : 1;  /**< When set, allows the per-node replication feature to be
                                                          enabled.
@@ -1011,9 +1280,8 @@ union cvmx_dfa_cfg
 #endif
 	} s;
 	struct cvmx_dfa_cfg_s                 cn38xx;
-	struct cvmx_dfa_cfg_cn38xxp2
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_cfg_cn38xxp2 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t sarb                         : 1;  /**< DFA Source Arbiter Mode
                                                          Selects the arbitration mode used to select DFA
@@ -1042,12 +1310,113 @@ typedef union cvmx_dfa_cfg cvmx_dfa_cfg_t;
  *
  * Description:
  */
-union cvmx_dfa_config
-{
+union cvmx_dfa_config {
 	uint64_t u64;
-	struct cvmx_dfa_config_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_config_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_11_63               : 53;
+	uint64_t dlcclear_bist                : 1;  /**< When DLCSTART_BIST is written 0->1, if DLCCLEAR_BIST=1, all
+                                                         previous DLC BiST state is cleared.
+                                                         NOTES:
+                                                         1) DLCCLEAR_BIST must be written to 1 before DLCSTART_BIST
+                                                         is written to 1 udsing a separate CSR write.
+                                                         2) DLCCLEAR_BIST must not be changed after writing DLCSTART_BIST
+                                                         0->1 until the BIST operation completes. */
+	uint64_t dlcstart_bist                : 1;  /**< When software writes DLCSTART_BIST=0->1, a BiST is executed
+                                                         for the DLC sub-block RAMs which contains DCLK domain
+                                                         asynchronous RAMs.
+                                                         NOTES:
+                                                         1) This bit should only be written after DCLK has been enabled
+                                                         by software and is stable.
+                                                         (see LMC initialization routine for details on how to enable
+                                                         the DDR3 memory (DCLK) - which requires LMC PLL init, clock
+                                                         divider and proper DLL initialization sequence). */
+	uint64_t repl_ena                     : 1;  /**< Replication Mode Enable
+                                                         *** o63-P2 NEW ***
+                                                         When set, enables replication mode performance enhancement
+                                                         feature. This enables the DFA to communicate address
+                                                         replication information during memory references to the
+                                                         memory controller.
+                                                         For o63-P2: This is used by the memory controller
+                                                         to support graph data in multiple banks (or bank sets), so that
+                                                         the least full bank can be selected to minimize the effects of
+                                                         DDR3 bank conflicts (ie: tRC=row cycle time).
+                                                         For o68: This is used by the memory controller to support graph
+                                                         data in multiple ports (or port sets), so that the least full
+                                                         port can be selected to minimize latency effects.
+                                                         SWNOTE: Using this mode requires the DFA SW compiler and DFA
+                                                         driver to be aware of the address replication changes.
+                                                         This involves changes to the MLOAD/GWALK DFA instruction format
+                                                         (see: IWORD2.SREPL), as well as changes to node arc and metadata
+                                                         definitions which now support an additional REPL field.
+                                                         When clear, replication mode is disabled, and DFA will interpret
+                                                         DFA instructions and node-arc formats which DO NOT have
+                                                         address replication information. */
+	uint64_t clmskcrip                    : 4;  /**< Cluster Cripple Mask
+                                                         A one in each bit of the mask represents which DTE cluster to
+                                                         cripple.
+                                                         NOTE: o63 has only a single Cluster (therefore CLMSKCRIP[0]
+                                                         is the only bit used.
+                                                         o2 has 4 clusters, where all CLMSKCRIP mask bits are used.
+                                                         SWNOTE: The MIO_FUS___DFA_CLMASK_CRIPPLE[3:0] fuse bits will
+                                                         be forced into this register at reset. Any fuse bits that
+                                                         contain '1' will be disallowed during a write and will always
+                                                         be read as '1'. */
+	uint64_t cldtecrip                    : 3;  /**< Encoding which represents \#of DTEs to cripple for each
+                                                         cluster. Typically DTE_CLCRIP=0 which enables all DTEs
+                                                         within each cluster. However, when the DFA performance
+                                                         counters are used, SW may want to limit the \#of DTEs
+                                                         per cluster available, as there are only 4 parallel
+                                                         performance counters.
+                                                            DTE_CLCRIP | \#DTEs crippled(per cluster)
+                                                         ------------+-----------------------------
+                                                                0    |  0      DTE[15:0]:ON
+                                                                1    |  1/2    DTE[15:8]:OFF  /DTE[7:0]:ON
+                                                                2    |  1/4    DTE[15:12]:OFF /DTE[11:0]:ON
+                                                                3    |  3/4    DTE[15:4]:OFF  /DTE[3:0]:ON
+                                                                4    |  1/8    DTE[15:14]:OFF /DTE[13:0]:ON
+                                                                5    |  5/8    DTE[15:6]:OFF  /DTE[5:0]:ON
+                                                                6    |  3/8    DTE[15:10]:OFF /DTE[9:0]:ON
+                                                                7    |  7/8    DTE[15:2]:OFF  /DTE[1:0]:ON
+                                                         NOTE: Higher numbered DTEs are crippled first. For instance,
+                                                         on o63 (with 16 DTEs/cluster), if DTE_CLCRIP=1(1/2), then
+                                                         DTE#s [15:8] within the cluster are crippled and only
+                                                         DTE#s [7:0] are available.
+                                                         IMPNOTE: The encodings are done in such a way as to later
+                                                         be used with fuses (for future o2 revisions which will disable
+                                                         some \#of DTEs). Blowing a fuse has the effect that there will
+                                                         always be fewer DTEs available. [ie: we never want a customer
+                                                         to blow additional fuses to get more DTEs].
+                                                         SWNOTE: The MIO_FUS___DFA_NUMDTE_CRIPPLE[2:0] fuse bits will
+                                                         be forced into this register at reset. Any fuse bits that
+                                                         contain '1' will be disallowed during a write and will always
+                                                         be read as '1'. */
+	uint64_t dteclkdis                    : 1;  /**< DFA Clock Disable Source
+                                                         When SET, the DFA clocks for DTE(thread engine)
+                                                         operation are disabled (to conserve overall chip clocking
+                                                         power when the DFA function is not used).
+                                                         NOTE: When SET, SW MUST NEVER issue NCB-Direct CSR
+                                                         operations to the DFA (will result in NCB Bus Timeout
+                                                         errors).
+                                                         NOTE: This should only be written to a different value
+                                                         during power-on SW initialization.
+                                                         SWNOTE: The MIO_FUS___DFA_DTE_DISABLE fuse bit will
+                                                         be forced into this register at reset. If the fuse bit
+                                                         contains '1', writes to DTECLKDIS are disallowed and
+                                                         will always be read as '1'. */
+#else
+	uint64_t dteclkdis                    : 1;
+	uint64_t cldtecrip                    : 3;
+	uint64_t clmskcrip                    : 4;
+	uint64_t repl_ena                     : 1;
+	uint64_t dlcstart_bist                : 1;
+	uint64_t dlcclear_bist                : 1;
+	uint64_t reserved_11_63               : 53;
+#endif
+	} s;
+	struct cvmx_dfa_config_s              cn61xx;
+	struct cvmx_dfa_config_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t repl_ena                     : 1;  /**< Replication Mode Enable
                                                          *** o63-P2 NEW ***
@@ -1125,11 +1494,9 @@ union cvmx_dfa_config
 	uint64_t repl_ena                     : 1;
 	uint64_t reserved_9_63                : 55;
 #endif
-	} s;
-	struct cvmx_dfa_config_s              cn63xx;
-	struct cvmx_dfa_config_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	} cn63xx;
+	struct cvmx_dfa_config_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t clmskcrip                    : 4;  /**< Cluster Cripple Mask
                                                          A one in each bit of the mask represents which DTE cluster to
@@ -1190,6 +1557,9 @@ union cvmx_dfa_config
 	uint64_t reserved_8_63                : 56;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfa_config_cn63xx         cn66xx;
+	struct cvmx_dfa_config_s              cn68xx;
+	struct cvmx_dfa_config_s              cn68xxp1;
 };
 typedef union cvmx_dfa_config cvmx_dfa_config_t;
 
@@ -1200,17 +1570,55 @@ typedef union cvmx_dfa_config cvmx_dfa_config_t;
  *
  * Description:
  */
-union cvmx_dfa_control
-{
+union cvmx_dfa_control {
 	uint64_t u64;
-	struct cvmx_dfa_control_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_12_63               : 52;
+	uint64_t sbdnum                       : 6;  /**< SBD Debug Entry#
+                                                         *FOR INTERNAL USE ONLY*
+                                                         DFA Scoreboard debug control
+                                                         Selects which one of 48 DFA Scoreboard entries is
+                                                         latched into the DFA_SBD_DBG[0-3] registers. */
+	uint64_t sbdlck                       : 1;  /**< DFA Scoreboard LOCK Strobe
+                                                         *FOR INTERNAL USE ONLY*
+                                                         DFA Scoreboard debug control
+                                                         When written with a '1', the DFA Scoreboard Debug
+                                                         registers (DFA_SBD_DBG[0-3]) are all locked down.
+                                                         This allows SW to lock down the contents of the entire
+                                                         SBD for a single instant in time. All subsequent reads
+                                                         of the DFA scoreboard registers will return the data
+                                                         from that instant in time. */
+	uint64_t reserved_3_4                 : 2;
+	uint64_t pmode                        : 1;  /**< NCB-NRP Arbiter Mode
+                                                         (0=Fixed Priority [LP=WQF,DFF,HP=RGF]/1=RR
+                                                         NOTE: This should only be written to a different value
+                                                         during power-on SW initialization. */
+	uint64_t qmode                        : 1;  /**< NCB-NRQ Arbiter Mode
+                                                         (0=Fixed Priority [LP=IRF,RWF,PRF,HP=GRF]/1=RR
+                                                         NOTE: This should only be written to a different value
+                                                         during power-on SW initialization. */
+	uint64_t imode                        : 1;  /**< NCB-Inbound Arbiter
+                                                         (0=FP [LP=NRQ,HP=NRP], 1=RR)
+                                                         NOTE: This should only be written to a different value
+                                                         during power-on SW initialization. */
+#else
+	uint64_t imode                        : 1;
+	uint64_t qmode                        : 1;
+	uint64_t pmode                        : 1;
+	uint64_t reserved_3_4                 : 2;
+	uint64_t sbdlck                       : 1;
+	uint64_t sbdnum                       : 6;
+	uint64_t reserved_12_63               : 52;
+#endif
+	} s;
+	struct cvmx_dfa_control_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t sbdnum                       : 4;  /**< SBD Debug Entry#
                                                          *FOR INTERNAL USE ONLY*
                                                          DFA Scoreboard debug control
-                                                         Selects which one of 8 DFA Scoreboard entries is
+                                                         Selects which one of 16 DFA Scoreboard entries is
                                                          latched into the DFA_SBD_DBG[0-3] registers. */
 	uint64_t sbdlck                       : 1;  /**< DFA Scoreboard LOCK Strobe
                                                          *FOR INTERNAL USE ONLY*
@@ -1243,9 +1651,12 @@ union cvmx_dfa_control
 	uint64_t sbdnum                       : 4;
 	uint64_t reserved_10_63               : 54;
 #endif
-	} s;
-	struct cvmx_dfa_control_s             cn63xx;
-	struct cvmx_dfa_control_s             cn63xxp1;
+	} cn61xx;
+	struct cvmx_dfa_control_cn61xx        cn63xx;
+	struct cvmx_dfa_control_cn61xx        cn63xxp1;
+	struct cvmx_dfa_control_cn61xx        cn66xx;
+	struct cvmx_dfa_control_s             cn68xx;
+	struct cvmx_dfa_control_s             cn68xxp1;
 };
 typedef union cvmx_dfa_control cvmx_dfa_control_t;
 
@@ -1261,12 +1672,10 @@ typedef union cvmx_dfa_control cvmx_dfa_control_t;
  *  NOTE: If DFA_CONFIG[DTECLKDIS]=1 (DFA-DTE clocks disabled), reads/writes to the DFA_DBELL register do not take effect.
  *  NOTE: If FUSE[TBD]="DFA DTE disable" is blown, reads/writes to the DFA_DBELL register do not take effect.
  */
-union cvmx_dfa_dbell
-{
+union cvmx_dfa_dbell {
 	uint64_t u64;
-	struct cvmx_dfa_dbell_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_dbell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t dbell                        : 20; /**< Represents the cumulative total of pending
                                                          DFA instructions which SW has previously written
@@ -1290,8 +1699,12 @@ union cvmx_dfa_dbell
 	struct cvmx_dfa_dbell_s               cn38xxp2;
 	struct cvmx_dfa_dbell_s               cn58xx;
 	struct cvmx_dfa_dbell_s               cn58xxp1;
+	struct cvmx_dfa_dbell_s               cn61xx;
 	struct cvmx_dfa_dbell_s               cn63xx;
 	struct cvmx_dfa_dbell_s               cn63xxp1;
+	struct cvmx_dfa_dbell_s               cn66xx;
+	struct cvmx_dfa_dbell_s               cn68xx;
+	struct cvmx_dfa_dbell_s               cn68xxp1;
 };
 typedef union cvmx_dfa_dbell cvmx_dfa_dbell_t;
 
@@ -1304,12 +1717,10 @@ typedef union cvmx_dfa_dbell cvmx_dfa_dbell_t;
  * Description: The following registers are used to compose the DFA's DDR2 address into ROW/COL/BNK
  *              etc.
  */
-union cvmx_dfa_ddr2_addr
-{
+union cvmx_dfa_ddr2_addr {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_addr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_addr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t rdimm_ena                    : 1;  /**< If there is a need to insert a register chip on the
                                                          system (the equivalent of a registered DIMM) to
@@ -1385,12 +1796,10 @@ typedef union cvmx_dfa_ddr2_addr cvmx_dfa_ddr2_addr_t;
  *              \#Cycles of Data Transfer/\#Cycles since init or
  *              \#Cycles of Data Transfer/\#Cycles that memory controller is active
  */
-union cvmx_dfa_ddr2_bus
-{
+union cvmx_dfa_ddr2_bus {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_bus_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_bus_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t bus_cnt                      : 47; /**< Counter counts the \# cycles of Data transfer */
 #else
@@ -1409,12 +1818,10 @@ typedef union cvmx_dfa_ddr2_bus cvmx_dfa_ddr2_bus_t;
  *
  * Description:
  */
-union cvmx_dfa_ddr2_cfg
-{
+union cvmx_dfa_ddr2_cfg {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_cfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_cfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_41_63               : 23;
 	uint64_t trfc                         : 5;  /**< Establishes tRFC(from DDR2 data sheets) in \# of
                                                          4 fclk intervals.
@@ -1611,12 +2018,10 @@ typedef union cvmx_dfa_ddr2_cfg cvmx_dfa_ddr2_cfg_t;
  *
  * Description: The following are registers to program the DDR2 PLL and DLL
  */
-union cvmx_dfa_ddr2_comp
-{
+union cvmx_dfa_ddr2_comp {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_comp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_comp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t dfa__pctl                    : 4;  /**< DFA DDR pctl from compensation circuit
                                                          Internal DBG only */
 	uint64_t dfa__nctl                    : 4;  /**< DFA DDR nctl from compensation circuit
@@ -1652,12 +2057,10 @@ typedef union cvmx_dfa_ddr2_comp cvmx_dfa_ddr2_comp_t;
  * For DDR-II please consult your device's data sheet for further details:
  *
  */
-union cvmx_dfa_ddr2_emrs
-{
+union cvmx_dfa_ddr2_emrs {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_emrs_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_emrs_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_31_63               : 33;
 	uint64_t emrs1_ocd                    : 15; /**< Memory Address[14:0] during "EMRS1 (OCD Calibration)"
                                                          step \#12a "EMRS OCD Default Command" A[9:7]=111
@@ -1716,12 +2119,10 @@ typedef union cvmx_dfa_ddr2_emrs cvmx_dfa_ddr2_emrs_t;
  *
  * Description: This FCLK cycle counter gets going after memory has been initialized
  */
-union cvmx_dfa_ddr2_fcnt
-{
+union cvmx_dfa_ddr2_fcnt {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_fcnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_fcnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t fcyc_cnt                     : 47; /**< Counter counts FCLK cycles or \# cycles that the memory
                                                          controller has requests queued up depending on FCNT_MODE
@@ -1751,12 +2152,10 @@ typedef union cvmx_dfa_ddr2_fcnt cvmx_dfa_ddr2_fcnt_t;
  * For DDR-II please consult your device's data sheet for further details:
  *
  */
-union cvmx_dfa_ddr2_mrs
-{
+union cvmx_dfa_ddr2_mrs {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_mrs_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_mrs_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_31_63               : 33;
 	uint64_t mrs                          : 15; /**< Memory Address[14:0] during "MRS without resetting
                                                          DLL A[8]=0" step of HW initialization sequence.
@@ -1802,12 +2201,10 @@ typedef union cvmx_dfa_ddr2_mrs cvmx_dfa_ddr2_mrs_t;
  *
  * Description: The following are registers to tweak certain parameters to boost performance
  */
-union cvmx_dfa_ddr2_opt
-{
+union cvmx_dfa_ddr2_opt {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_opt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_opt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t max_read_batch               : 5;  /**< Maximum number of consecutive read to service before
                                                          allowing write to interrupt. */
@@ -1831,12 +2228,10 @@ typedef union cvmx_dfa_ddr2_opt cvmx_dfa_ddr2_opt_t;
  *
  * Description: The following are registers to program the DDR2 PLL and DLL
  */
-union cvmx_dfa_ddr2_pll
-{
+union cvmx_dfa_ddr2_pll {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_pll_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_pll_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pll_setting                  : 17; /**< Internal Debug Use Only */
 	uint64_t reserved_32_46               : 15;
 	uint64_t setting90                    : 5;  /**< Contains the setting of DDR DLL; Internal DBG only */
@@ -1892,12 +2287,10 @@ typedef union cvmx_dfa_ddr2_pll cvmx_dfa_ddr2_pll_t;
  *
  * Description: The following are registers to program the DDR2 memory timing parameters.
  */
-union cvmx_dfa_ddr2_tmg
-{
+union cvmx_dfa_ddr2_tmg {
 	uint64_t u64;
-	struct cvmx_dfa_ddr2_tmg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ddr2_tmg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t fcnt_mode                    : 1;  /**< If FCNT_MODE = 0, this counter counts the \# FCLK cycles
                                                          If FCNT_MODE = 1, this counter counts the \# cycles the
@@ -2070,12 +2463,10 @@ typedef union cvmx_dfa_ddr2_tmg cvmx_dfa_ddr2_tmg_t;
  * on the reads unless the DTE Engine specified by DFA_CONTROL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_debug0
-{
+union cvmx_dfa_debug0 {
 	uint64_t u64;
-	struct cvmx_dfa_debug0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_debug0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd0                         : 64; /**< DFA ScoreBoard \#0 Data
                                                          (DFA Scoreboard Debug)
                                                             [63:38]   (26) rptr[28:3]: Result Base Pointer (QW-aligned)
@@ -2104,8 +2495,12 @@ union cvmx_dfa_debug0
 	uint64_t sbd0                         : 64;
 #endif
 	} s;
+	struct cvmx_dfa_debug0_s              cn61xx;
 	struct cvmx_dfa_debug0_s              cn63xx;
 	struct cvmx_dfa_debug0_s              cn63xxp1;
+	struct cvmx_dfa_debug0_s              cn66xx;
+	struct cvmx_dfa_debug0_s              cn68xx;
+	struct cvmx_dfa_debug0_s              cn68xxp1;
 };
 typedef union cvmx_dfa_debug0 cvmx_dfa_debug0_t;
 
@@ -2121,12 +2516,10 @@ typedef union cvmx_dfa_debug0 cvmx_dfa_debug0_t;
  * on the reads unless the DTE Engine specified by DFA_CONTROL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_debug1
-{
+union cvmx_dfa_debug1 {
 	uint64_t u64;
-	struct cvmx_dfa_debug1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_debug1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd1                         : 64; /**< DFA ScoreBoard \#1 Data
                                                          DFA Scoreboard Debug Data
                                                             [63:56]   (8) UNUSED
@@ -2136,8 +2529,12 @@ union cvmx_dfa_debug1
 	uint64_t sbd1                         : 64;
 #endif
 	} s;
+	struct cvmx_dfa_debug1_s              cn61xx;
 	struct cvmx_dfa_debug1_s              cn63xx;
 	struct cvmx_dfa_debug1_s              cn63xxp1;
+	struct cvmx_dfa_debug1_s              cn66xx;
+	struct cvmx_dfa_debug1_s              cn68xx;
+	struct cvmx_dfa_debug1_s              cn68xxp1;
 };
 typedef union cvmx_dfa_debug1 cvmx_dfa_debug1_t;
 
@@ -2153,12 +2550,10 @@ typedef union cvmx_dfa_debug1 cvmx_dfa_debug1_t;
  * on the reads unless the DTE Engine specified by DFA_CONTROL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_debug2
-{
+union cvmx_dfa_debug2 {
 	uint64_t u64;
-	struct cvmx_dfa_debug2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_debug2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd2                         : 64; /**< DFA ScoreBoard \#2 Data
                                                          [63:45] (19) UNUSED
                                                          [44:42]  (3) Instruction Type
@@ -2168,8 +2563,12 @@ union cvmx_dfa_debug2
 	uint64_t sbd2                         : 64;
 #endif
 	} s;
+	struct cvmx_dfa_debug2_s              cn61xx;
 	struct cvmx_dfa_debug2_s              cn63xx;
 	struct cvmx_dfa_debug2_s              cn63xxp1;
+	struct cvmx_dfa_debug2_s              cn66xx;
+	struct cvmx_dfa_debug2_s              cn68xx;
+	struct cvmx_dfa_debug2_s              cn68xxp1;
 };
 typedef union cvmx_dfa_debug2 cvmx_dfa_debug2_t;
 
@@ -2185,12 +2584,10 @@ typedef union cvmx_dfa_debug2 cvmx_dfa_debug2_t;
  * on the reads unless the DTE Engine specified by DFA_CONTROL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_debug3
-{
+union cvmx_dfa_debug3 {
 	uint64_t u64;
-	struct cvmx_dfa_debug3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_debug3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd3                         : 64; /**< DFA ScoreBoard \#3 Data
                                                          [63:52] (11) rptr[39:29]: Result Base Pointer (QW-aligned)
                                                          [52:16] (37) glptr[39:3]: Gather List Pointer
@@ -2199,8 +2596,12 @@ union cvmx_dfa_debug3
 	uint64_t sbd3                         : 64;
 #endif
 	} s;
+	struct cvmx_dfa_debug3_s              cn61xx;
 	struct cvmx_dfa_debug3_s              cn63xx;
 	struct cvmx_dfa_debug3_s              cn63xxp1;
+	struct cvmx_dfa_debug3_s              cn66xx;
+	struct cvmx_dfa_debug3_s              cn68xx;
+	struct cvmx_dfa_debug3_s              cn68xxp1;
 };
 typedef union cvmx_dfa_debug3 cvmx_dfa_debug3_t;
 
@@ -2219,12 +2620,72 @@ typedef union cvmx_dfa_debug3 cvmx_dfa_debug3_t;
  *  NOTE: If DFA_CONFIG[DTECLKDIS]=1 (DFA-DTE clocks disabled), reads/writes to the DFA_DIFCTL register do not take effect.
  *  NOTE: If FUSE[TBD]="DFA DTE disable" is blown, reads/writes to the DFA_DIFCTL register do not take effect.
  */
-union cvmx_dfa_difctl
-{
+union cvmx_dfa_difctl {
 	uint64_t u64;
-	struct cvmx_dfa_difctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_difctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_26_63               : 38;
+	uint64_t msegbase                     : 6;  /**< Memory Segmentation Base Address
+                                                         For debug purposes, backdoor accesses to the DFA
+                                                         memory are supported via NCB-Direct CSR accesses to
+                                                         the DFA Memory REGION(if addr[34:32]=5. However due
+                                                         to the existing NCB address decoding scheme, the
+                                                         address only offers a 4GB extent into the DFA memory
+                                                         REGION. Therefore, the MSEGBASE CSR field provides
+                                                         the additional upper memory address bits to allow access
+                                                         to the full extent of memory (128GB MAX).
+                                                         For DFA Memory REGION read NCB-Direct CSR accesses, the
+                                                         38bit L2/DRAM memory byte address is generated as follows:
+                                                           memaddr[37:0] = [DFA_DIFCTL[MSEGBASE],ncb_addr[31:3],3'b0]
+                                                         NOTE: See the upper 6bits of the memory address are sourced
+                                                         from DFA_DIFCTL[MSEGBASE] CSR field. The lower 4GB address
+                                                         offset is directly referenced using the NCB address bits during
+                                                         the reference itself.
+                                                         NOTE: The DFA_DIFCTL[MSEGBASE] is shared amongst all references.
+                                                         As such, if multiple PPs are accessing different segments in memory,
+                                                         their must be a SW mutual exclusive lock during each DFA Memory
+                                                         REGION access to avoid collisions between PPs using the same MSEGBASE
+                                                         CSR field.
+                                                         NOTE: See also DFA_ERROR[DFANXM] programmable interrupt which is
+                                                         flagged if SW tries to access non-existent memory space (address hole
+                                                         or upper unused region of 38bit address space). */
+	uint64_t dwbcnt                       : 8;  /**< Represents the \# of cache lines in the instruction
+                                                         buffer that may be dirty and should not be
+                                                         written-back to memory when the instruction
+                                                         chunk is returned to the Free Page list.
+                                                         NOTE: Typically SW will want to mark all DFA
+                                                         Instruction memory returned to the Free Page list
+                                                         as DWB (Don't WriteBack), therefore SW should
+                                                         seed this register as:
+                                                           DFA_DIFCTL[DWBCNT] = (DFA_DIFCTL[SIZE] + 4)/4 */
+	uint64_t pool                         : 3;  /**< Represents the 3bit buffer pool-id  used by DFA HW
+                                                         when the DFA instruction chunk is recycled back
+                                                         to the Free Page List maintained by the FPA HW
+                                                         (once the DFA instruction has been issued). */
+	uint64_t size                         : 9;  /**< Represents the \# of 32B instructions contained
+                                                         within each DFA instruction chunk. At Power-on,
+                                                         SW will seed the SIZE register with a fixed
+                                                         chunk-size. (Must be at least 3)
+                                                         DFA HW uses this field to determine the size
+                                                         of each DFA instruction chunk, in order to:
+                                                            a) determine when to read the next DFA
+                                                               instruction chunk pointer which is
+                                                               written by SW at the end of the current
+                                                               DFA instruction chunk (see DFA description
+                                                               of next chunk buffer Ptr for format).
+                                                            b) determine when a DFA instruction chunk
+                                                               can be returned to the Free Page List
+                                                               maintained by the FPA HW. */
+#else
+	uint64_t size                         : 9;
+	uint64_t pool                         : 3;
+	uint64_t dwbcnt                       : 8;
+	uint64_t msegbase                     : 6;
+	uint64_t reserved_26_63               : 38;
+#endif
+	} s;
+	struct cvmx_dfa_difctl_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t dwbcnt                       : 8;  /**< Represents the \# of cache lines in the instruction
                                                          buffer that may be dirty and should not be
@@ -2259,14 +2720,17 @@ union cvmx_dfa_difctl
 	uint64_t dwbcnt                       : 8;
 	uint64_t reserved_20_63               : 44;
 #endif
-	} s;
-	struct cvmx_dfa_difctl_s              cn31xx;
-	struct cvmx_dfa_difctl_s              cn38xx;
-	struct cvmx_dfa_difctl_s              cn38xxp2;
-	struct cvmx_dfa_difctl_s              cn58xx;
-	struct cvmx_dfa_difctl_s              cn58xxp1;
-	struct cvmx_dfa_difctl_s              cn63xx;
-	struct cvmx_dfa_difctl_s              cn63xxp1;
+	} cn31xx;
+	struct cvmx_dfa_difctl_cn31xx         cn38xx;
+	struct cvmx_dfa_difctl_cn31xx         cn38xxp2;
+	struct cvmx_dfa_difctl_cn31xx         cn58xx;
+	struct cvmx_dfa_difctl_cn31xx         cn58xxp1;
+	struct cvmx_dfa_difctl_s              cn61xx;
+	struct cvmx_dfa_difctl_cn31xx         cn63xx;
+	struct cvmx_dfa_difctl_cn31xx         cn63xxp1;
+	struct cvmx_dfa_difctl_cn31xx         cn66xx;
+	struct cvmx_dfa_difctl_s              cn68xx;
+	struct cvmx_dfa_difctl_s              cn68xxp1;
 };
 typedef union cvmx_dfa_difctl cvmx_dfa_difctl_t;
 
@@ -2282,12 +2746,10 @@ typedef union cvmx_dfa_difctl cvmx_dfa_difctl_t;
  *  NOTE: If DFA_CONFIG[DTECLKDIS]=1 (DFA-DTE clocks disabled), reads/writes to the DFA_DIFRDPTR register do not take effect.
  *  NOTE: If FUSE[TBD]="DFA DTE disable" is blown, reads/writes to the DFA_DIFRDPTR register do not take effect.
  */
-union cvmx_dfa_difrdptr
-{
+union cvmx_dfa_difrdptr {
 	uint64_t u64;
-	struct cvmx_dfa_difrdptr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_difrdptr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t rdptr                        : 35; /**< Represents the 32B-aligned address of the current
                                                          instruction in the DFA Instruction FIFO in main
@@ -2311,9 +2773,8 @@ union cvmx_dfa_difrdptr
 	uint64_t reserved_40_63               : 24;
 #endif
 	} s;
-	struct cvmx_dfa_difrdptr_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_difrdptr_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t rdptr                        : 31; /**< Represents the 32B-aligned address of the current
                                                          instruction in the DFA Instruction FIFO in main
@@ -2341,8 +2802,12 @@ union cvmx_dfa_difrdptr
 	struct cvmx_dfa_difrdptr_cn31xx       cn38xxp2;
 	struct cvmx_dfa_difrdptr_cn31xx       cn58xx;
 	struct cvmx_dfa_difrdptr_cn31xx       cn58xxp1;
+	struct cvmx_dfa_difrdptr_s            cn61xx;
 	struct cvmx_dfa_difrdptr_s            cn63xx;
 	struct cvmx_dfa_difrdptr_s            cn63xxp1;
+	struct cvmx_dfa_difrdptr_s            cn66xx;
+	struct cvmx_dfa_difrdptr_s            cn68xx;
+	struct cvmx_dfa_difrdptr_s            cn68xxp1;
 };
 typedef union cvmx_dfa_difrdptr cvmx_dfa_difrdptr_t;
 
@@ -2355,28 +2820,34 @@ typedef union cvmx_dfa_difrdptr cvmx_dfa_difrdptr_t;
  * This register contains useful information to help in isolating a Node Cache RAM failure.
  * NOTE: The first detected PERR failure is captured in DFA_DTCFADR (locked down), until the
  * corresponding PERR Interrupt is cleared by writing one (W1C). (see: DFA_ERR[DC0PERR[2:0]]).
+ * NOTE: In the rare event that multiple parity errors are detected in the same cycle from multiple
+ * clusters, the FADR register will be locked down for the least signicant cluster \# (0->3).
  */
-union cvmx_dfa_dtcfadr
-{
+union cvmx_dfa_dtcfadr {
 	uint64_t u64;
-	struct cvmx_dfa_dtcfadr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_dtcfadr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_44_63               : 20;
 	uint64_t ram3fadr                     : 12; /**< DFA RAM3 Failing Address
                                                          If DFA_ERR[DC0PERR<2>]=1, this field indicates the
                                                          failing RAM3 Address. The failing address is locked
-                                                         down until the DC0PERR<2> W1C occurs. */
+                                                         down until the DC0PERR<2> W1C occurs.
+                                                         NOTE: If multiple DC0PERR<0>=1 errors are detected,
+                                                         then the lsb cluster error information is captured. */
 	uint64_t reserved_25_31               : 7;
 	uint64_t ram2fadr                     : 9;  /**< DFA RAM2 Failing Address
                                                          If DFA_ERR[DC0PERR<1>]=1, this field indicates the
                                                          failing RAM2 Address. The failing address is locked
-                                                         down until the DC0PERR<1> W1C occurs. */
+                                                         down until the DC0PERR<1> W1C occurs.
+                                                         NOTE: If multiple DC0PERR<0>=1 errors are detected,
+                                                         then the lsb cluster error information is captured. */
 	uint64_t reserved_14_15               : 2;
 	uint64_t ram1fadr                     : 14; /**< DFA RAM1 Failing Address
                                                          If DFA_ERR[DC0PERR<0>]=1, this field indicates the
                                                          failing RAM1 Address. The failing address is locked
-                                                         down until the DC0PERR<0> W1C occurs. */
+                                                         down until the DC0PERR<0> W1C occurs.
+                                                         NOTE: If multiple DC0PERR<0>=1 errors are detected,
+                                                         then the lsb cluster error information is captured. */
 #else
 	uint64_t ram1fadr                     : 14;
 	uint64_t reserved_14_15               : 2;
@@ -2386,8 +2857,12 @@ union cvmx_dfa_dtcfadr
 	uint64_t reserved_44_63               : 20;
 #endif
 	} s;
+	struct cvmx_dfa_dtcfadr_s             cn61xx;
 	struct cvmx_dfa_dtcfadr_s             cn63xx;
 	struct cvmx_dfa_dtcfadr_s             cn63xxp1;
+	struct cvmx_dfa_dtcfadr_s             cn66xx;
+	struct cvmx_dfa_dtcfadr_s             cn68xx;
+	struct cvmx_dfa_dtcfadr_s             cn68xxp1;
 };
 typedef union cvmx_dfa_dtcfadr cvmx_dfa_dtcfadr_t;
 
@@ -2400,12 +2875,10 @@ typedef union cvmx_dfa_dtcfadr cvmx_dfa_dtcfadr_t;
  *
  * Description:
  */
-union cvmx_dfa_eclkcfg
-{
+union cvmx_dfa_eclkcfg {
 	uint64_t u64;
-	struct cvmx_dfa_eclkcfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_eclkcfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t sbdnum                       : 3;  /**< SBD Debug Entry#
                                                          For internal use only. (DFA Scoreboard debug)
@@ -2503,12 +2976,10 @@ typedef union cvmx_dfa_eclkcfg cvmx_dfa_eclkcfg_t;
  *
  * Description:
  */
-union cvmx_dfa_err
-{
+union cvmx_dfa_err {
 	uint64_t u64;
-	struct cvmx_dfa_err_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_err_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_33_63               : 31;
 	uint64_t dblina                       : 1;  /**< Doorbell Overflow Interrupt Enable bit.
                                                          When set, doorbell overflow conditions are reported. */
@@ -2689,12 +3160,206 @@ typedef union cvmx_dfa_err cvmx_dfa_err_t;
  *
  * Description:
  */
-union cvmx_dfa_error
-{
+union cvmx_dfa_error {
 	uint64_t u64;
-	struct cvmx_dfa_error_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_error_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_19_63               : 45;
+	uint64_t replerr                      : 1;  /**< DFA Illegal Replication Factor Error
+                                                         For o68: DFA only supports 1x, 2x, and 4x port replication.
+                                                         Legal configurations for memory are to support 2 port or
+                                                         4 port configurations.
+                                                         The REPLERR interrupt will be set in the following illegal
+                                                         configuration cases:
+                                                             1) An 8x replication factor is detected for any memory reference.
+                                                             2) A 4x replication factor is detected for any memory reference
+                                                                when only 2 memory ports are enabled.
+                                                         NOTE: If REPLERR is set during a DFA Graph Walk operation,
+                                                         then the walk will prematurely terminate with RWORD0[REA]=ERR.
+                                                         If REPLERR is set during a NCB-Direct CSR read access to DFA
+                                                         Memory REGION, then the CSR read response data is UNPREDICTABLE. */
+	uint64_t dfanxm                       : 1;  /**< DFA Non-existent Memory Access
+                                                         For o68: DTEs (and backdoor CSR DFA Memory REGION reads)
+                                                         have access to the following 38bit L2/DRAM address space
+                                                         which maps to a 37bit physical DDR3 SDRAM address space.
+                                                         see:
+                                                         DR0: 0x0 0000 0000 0000 to 0x0 0000 0FFF FFFF
+                                                                 maps to lower 256MB of physical DDR3 SDRAM
+                                                         DR1: 0x0 0000 2000 0000 to 0x0 0020 0FFF FFFF
+                                                                 maps to upper 127.75GB of DDR3 SDRAM
+                                                                    L2/DRAM address space                     Physical DDR3 SDRAM Address space
+                                                                      (38bit address)                           (37bit address)
+                                                                       +-----------+ 0x0020.0FFF.FFFF
+
+                                                                      ===   DR1   ===                          +-----------+ 0x001F.FFFF.FFFF
+                                                          (128GB-256MB)|           |
+                                                                       |           |                     =>    |           |  (128GB-256MB)
+                                                                       +-----------+ 0x0000.1FFF.FFFF          |   DR1
+                                                               256MB   |   HOLE    |   (DO NOT USE)
+                                                                       +-----------+ 0x0000.0FFF.FFFF          +-----------+ 0x0000.0FFF.FFFF
+                                                               256MB   |    DR0    |                           |   DR0     |   (256MB)
+                                                                       +-----------+ 0x0000.0000.0000          +-----------+ 0x0000.0000.0000
+                                                         In the event the DFA generates a reference to the L2/DRAM
+                                                         address hole (0x0000.0FFF.FFFF - 0x0000.1FFF.FFFF) or to
+                                                         an address above 0x0020.0FFF.FFFF, the DFANXM programmable
+                                                         interrupt bit will be set.
+                                                         SWNOTE: Both the 1) SW DFA Graph compiler and the 2) SW NCB-Direct CSR
+                                                         accesses to DFA Memory REGION MUST avoid making references
+                                                         to these non-existent memory regions.
+                                                         NOTE: If DFANXM is set during a DFA Graph Walk operation,
+                                                         then the walk will prematurely terminate with RWORD0[REA]=ERR.
+                                                         If DFANXM is set during a NCB-Direct CSR read access to DFA
+                                                         Memory REGION, then the CSR read response data is forced to
+                                                         128'hBADE_FEED_DEAD_BEEF_FACE_CAFE_BEAD_C0DE. (NOTE: the QW
+                                                         being accessed, either the upper or lower QW will be returned). */
+	uint64_t cndrd                        : 1;  /**< If Any of the cluster's detected a Parity error on RAM1
+                                                         this additional bit further specifies that the
+                                                         RAM1 parity error was detected during a CND-RD
+                                                         (Cache Node Metadata Read).
+
+                                                         For CNDRD Parity Error, the previous CNA arc fetch
+                                                         information is written to RWORD1+ as follows:
+                                                            RWORD1+[NTYPE]=MNODE
+                                                            RWORD1+[NDNID]=cna.ndnid
+                                                            RWORD1+[NHMSK]=cna.hmsk
+                                                            RWORD1+[NNPTR]=cna.nnptr[13:0]
+                                                         NOTE: This bit is set if ANY node cluster's RAM1 accesses
+                                                         detect a CNDRD error. */
+	uint64_t reserved_15_15               : 1;
+	uint64_t dlc1_ovferr                  : 1;  /**< DLC1 Fifo Overflow Error Detected
+                                                         This condition should NEVER architecturally occur, and
+                                                         is here in case HW credit/debit scheme is not working. */
+	uint64_t dlc0_ovferr                  : 1;  /**< DLC0 Fifo Overflow Error Detected
+                                                         This condition should NEVER architecturally occur, and
+                                                         is here in case HW credit/debit scheme is not working. */
+	uint64_t reserved_10_12               : 3;
+	uint64_t dc2perr                      : 3;  /**< Cluster#2 RAM[3:1] Parity Error Detected
+                                                         See also DFA_DTCFADR register which contains the
+                                                         failing addresses for the internal node cache RAMs. */
+	uint64_t dc1perr                      : 3;  /**< Cluster#1 RAM[3:1] Parity Error Detected
+                                                         See also DFA_DTCFADR register which contains the
+                                                         failing addresses for the internal node cache RAMs. */
+	uint64_t dc0perr                      : 3;  /**< Cluster#0 RAM[3:1] Parity Error Detected
+                                                         See also DFA_DTCFADR register which contains the
+                                                         failing addresses for the internal node cache RAMs. */
+	uint64_t dblovf                       : 1;  /**< Doorbell Overflow detected - Status bit
+                                                         When set, the 20b accumulated doorbell register
+                                                         had overflowed (SW wrote too many doorbell requests).
+                                                         If the DBLINA had previously been enabled(set),
+                                                         an interrupt will be posted. Software can clear
+                                                         the interrupt by writing a 1 to this register bit.
+                                                         NOTE: Detection of a Doorbell Register overflow
+                                                         is a catastrophic error which may leave the DFA
+                                                         HW in an unrecoverable state. */
+#else
+	uint64_t dblovf                       : 1;
+	uint64_t dc0perr                      : 3;
+	uint64_t dc1perr                      : 3;
+	uint64_t dc2perr                      : 3;
+	uint64_t reserved_10_12               : 3;
+	uint64_t dlc0_ovferr                  : 1;
+	uint64_t dlc1_ovferr                  : 1;
+	uint64_t reserved_15_15               : 1;
+	uint64_t cndrd                        : 1;
+	uint64_t dfanxm                       : 1;
+	uint64_t replerr                      : 1;
+	uint64_t reserved_19_63               : 45;
+#endif
+	} s;
+	struct cvmx_dfa_error_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_19_63               : 45;
+	uint64_t replerr                      : 1;  /**< DFA Illegal Replication Factor Error
+                                                         For o68: DFA only supports 1x, 2x, and 4x port replication.
+                                                         Legal configurations for memory are to support 2 port or
+                                                         4 port configurations.
+                                                         The REPLERR interrupt will be set in the following illegal
+                                                         configuration cases:
+                                                             1) An 8x replication factor is detected for any memory reference.
+                                                             2) A 4x replication factor is detected for any memory reference
+                                                                when only 2 memory ports are enabled.
+                                                         NOTE: If REPLERR is set during a DFA Graph Walk operation,
+                                                         then the walk will prematurely terminate with RWORD0[REA]=ERR.
+                                                         If REPLERR is set during a NCB-Direct CSR read access to DFA
+                                                         Memory REGION, then the CSR read response data is UNPREDICTABLE. */
+	uint64_t dfanxm                       : 1;  /**< DFA Non-existent Memory Access
+                                                         For o68/o61: DTEs (and backdoor CSR DFA Memory REGION reads)
+                                                         have access to the following 38bit L2/DRAM address space
+                                                         which maps to a 37bit physical DDR3 SDRAM address space.
+                                                         see:
+                                                         DR0: 0x0 0000 0000 0000 to 0x0 0000 0FFF FFFF
+                                                                 maps to lower 256MB of physical DDR3 SDRAM
+                                                         DR1: 0x0 0000 2000 0000 to 0x0 0020 0FFF FFFF
+                                                                 maps to upper 127.75GB of DDR3 SDRAM
+                                                                    L2/DRAM address space                     Physical DDR3 SDRAM Address space
+                                                                      (38bit address)                           (37bit address)
+                                                                       +-----------+ 0x0020.0FFF.FFFF
+                                                                       |
+                                                                      ===   DR1   ===                          +-----------+ 0x001F.FFFF.FFFF
+                                                          (128GB-256MB)|           |                           |
+                                                                       |           |                     =>    |           |  (128GB-256MB)
+                                                                       +-----------+ 0x0000.1FFF.FFFF          |   DR1
+                                                               256MB   |   HOLE    |   (DO NOT USE)            |
+                                                                       +-----------+ 0x0000.0FFF.FFFF          +-----------+ 0x0000.0FFF.FFFF
+                                                               256MB   |    DR0    |                           |   DR0     |   (256MB)
+                                                                       +-----------+ 0x0000.0000.0000          +-----------+ 0x0000.0000.0000
+                                                         In the event the DFA generates a reference to the L2/DRAM
+                                                         address hole (0x0000.0FFF.FFFF - 0x0000.1FFF.FFFF) or to
+                                                         an address above 0x0020.0FFF.FFFF, the DFANXM programmable
+                                                         interrupt bit will be set.
+                                                         SWNOTE: Both the 1) SW DFA Graph compiler and the 2) SW NCB-Direct CSR
+                                                         accesses to DFA Memory REGION MUST avoid making references
+                                                         to these non-existent memory regions.
+                                                         NOTE: If DFANXM is set during a DFA Graph Walk operation,
+                                                         then the walk will prematurely terminate with RWORD0[REA]=ERR.
+                                                         If DFANXM is set during a NCB-Direct CSR read access to DFA
+                                                         Memory REGION, then the CSR read response data is forced to
+                                                         128'hBADE_FEED_DEAD_BEEF_FACE_CAFE_BEAD_C0DE. (NOTE: the QW
+                                                         being accessed, either the upper or lower QW will be returned). */
+	uint64_t cndrd                        : 1;  /**< If any of the cluster's detected a Parity error on RAM1
+                                                         this additional bit further specifies that the
+                                                         RAM1 parity error was detected during a CND-RD
+                                                         (Cache Node Metadata Read).
+
+                                                         For CNDRD Parity Error, the previous CNA arc fetch
+                                                         information is written to RWORD1+ as follows:
+                                                            RWORD1+[NTYPE]=MNODE
+                                                            RWORD1+[NDNID]=cna.ndnid
+                                                            RWORD1+[NHMSK]=cna.hmsk
+                                                            RWORD1+[NNPTR]=cna.nnptr[13:0]
+                                                         NOTE: This bit is set if ANY node cluster's RAM1 accesses
+                                                         detect a CNDRD error. */
+	uint64_t reserved_14_15               : 2;
+	uint64_t dlc0_ovferr                  : 1;  /**< DLC0 Fifo Overflow Error Detected
+                                                         This condition should NEVER architecturally occur, and
+                                                         is here in case HW credit/debit scheme is not working. */
+	uint64_t reserved_4_12                : 9;
+	uint64_t dc0perr                      : 3;  /**< Cluster#0 RAM[3:1] Parity Error Detected
+                                                         See also DFA_DTCFADR register which contains the
+                                                         failing addresses for the internal node cache RAMs. */
+	uint64_t dblovf                       : 1;  /**< Doorbell Overflow detected - Status bit
+                                                         When set, the 20b accumulated doorbell register
+                                                         had overflowed (SW wrote too many doorbell requests).
+                                                         If the DBLINA had previously been enabled(set),
+                                                         an interrupt will be posted. Software can clear
+                                                         the interrupt by writing a 1 to this register bit.
+                                                         NOTE: Detection of a Doorbell Register overflow
+                                                         is a catastrophic error which may leave the DFA
+                                                         HW in an unrecoverable state. */
+#else
+	uint64_t dblovf                       : 1;
+	uint64_t dc0perr                      : 3;
+	uint64_t reserved_4_12                : 9;
+	uint64_t dlc0_ovferr                  : 1;
+	uint64_t reserved_14_15               : 2;
+	uint64_t cndrd                        : 1;
+	uint64_t dfanxm                       : 1;
+	uint64_t replerr                      : 1;
+	uint64_t reserved_19_63               : 45;
+#endif
+	} cn61xx;
+	struct cvmx_dfa_error_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t cndrd                        : 1;  /**< If DC0PERR[0]=1 indicating a RAM1 Parity error,
                                                          this additional bit further specifies that the
@@ -2727,9 +3392,11 @@ union cvmx_dfa_error
 	uint64_t cndrd                        : 1;
 	uint64_t reserved_17_63               : 47;
 #endif
-	} s;
-	struct cvmx_dfa_error_s               cn63xx;
-	struct cvmx_dfa_error_s               cn63xxp1;
+	} cn63xx;
+	struct cvmx_dfa_error_cn63xx          cn63xxp1;
+	struct cvmx_dfa_error_cn63xx          cn66xx;
+	struct cvmx_dfa_error_s               cn68xx;
+	struct cvmx_dfa_error_s               cn68xxp1;
 };
 typedef union cvmx_dfa_error cvmx_dfa_error_t;
 
@@ -2740,12 +3407,60 @@ typedef union cvmx_dfa_error cvmx_dfa_error_t;
  *
  * Description:
  */
-union cvmx_dfa_intmsk
-{
+union cvmx_dfa_intmsk {
 	uint64_t u64;
-	struct cvmx_dfa_intmsk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_intmsk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_19_63               : 45;
+	uint64_t replerrena                   : 1;  /**< DFA Illegal Replication Factor Interrupt Enable */
+	uint64_t dfanxmena                    : 1;  /**< DFA Non-existent Memory Access Interrupt Enable */
+	uint64_t reserved_15_16               : 2;
+	uint64_t dlc1_ovfena                  : 1;  /**< DLC1 Fifo Overflow Error Interrupt Enable */
+	uint64_t dlc0_ovfena                  : 1;  /**< DLC0 Fifo Overflow Error Interrupt Enable */
+	uint64_t reserved_10_12               : 3;
+	uint64_t dc2pena                      : 3;  /**< RAM[3:1] Parity Error Enabled Node Cluster \#2 */
+	uint64_t dc1pena                      : 3;  /**< RAM[3:1] Parity Error Enabled Node Cluster \#1 */
+	uint64_t dc0pena                      : 3;  /**< RAM[3:1] Parity Error Enabled Node Cluster \#0 */
+	uint64_t dblina                       : 1;  /**< Doorbell Overflow Interrupt Enable bit.
+                                                         When set, doorbell overflow conditions are reported. */
+#else
+	uint64_t dblina                       : 1;
+	uint64_t dc0pena                      : 3;
+	uint64_t dc1pena                      : 3;
+	uint64_t dc2pena                      : 3;
+	uint64_t reserved_10_12               : 3;
+	uint64_t dlc0_ovfena                  : 1;
+	uint64_t dlc1_ovfena                  : 1;
+	uint64_t reserved_15_16               : 2;
+	uint64_t dfanxmena                    : 1;
+	uint64_t replerrena                   : 1;
+	uint64_t reserved_19_63               : 45;
+#endif
+	} s;
+	struct cvmx_dfa_intmsk_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_19_63               : 45;
+	uint64_t replerrena                   : 1;  /**< DFA Illegal Replication Factor Interrupt Enable */
+	uint64_t dfanxmena                    : 1;  /**< DFA Non-existent Memory Access Interrupt Enable */
+	uint64_t reserved_14_16               : 3;
+	uint64_t dlc0_ovfena                  : 1;  /**< DLC0 Fifo Overflow Error Interrupt Enable */
+	uint64_t reserved_4_12                : 9;
+	uint64_t dc0pena                      : 3;  /**< RAM[3:1] Parity Error Enabled Node Cluster \#0 */
+	uint64_t dblina                       : 1;  /**< Doorbell Overflow Interrupt Enable bit.
+                                                         When set, doorbell overflow conditions are reported. */
+#else
+	uint64_t dblina                       : 1;
+	uint64_t dc0pena                      : 3;
+	uint64_t reserved_4_12                : 9;
+	uint64_t dlc0_ovfena                  : 1;
+	uint64_t reserved_14_16               : 3;
+	uint64_t dfanxmena                    : 1;
+	uint64_t replerrena                   : 1;
+	uint64_t reserved_19_63               : 45;
+#endif
+	} cn61xx;
+	struct cvmx_dfa_intmsk_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t dc0pena                      : 3;  /**< RAM[3:1] Parity Error Enabled Node Cluster \#0 */
 	uint64_t dblina                       : 1;  /**< Doorbell Overflow Interrupt Enable bit.
@@ -2755,9 +3470,11 @@ union cvmx_dfa_intmsk
 	uint64_t dc0pena                      : 3;
 	uint64_t reserved_4_63                : 60;
 #endif
-	} s;
-	struct cvmx_dfa_intmsk_s              cn63xx;
-	struct cvmx_dfa_intmsk_s              cn63xxp1;
+	} cn63xx;
+	struct cvmx_dfa_intmsk_cn63xx         cn63xxp1;
+	struct cvmx_dfa_intmsk_cn63xx         cn66xx;
+	struct cvmx_dfa_intmsk_s              cn68xx;
+	struct cvmx_dfa_intmsk_s              cn68xxp1;
 };
 typedef union cvmx_dfa_intmsk cvmx_dfa_intmsk_t;
 
@@ -2768,12 +3485,10 @@ typedef union cvmx_dfa_intmsk cvmx_dfa_intmsk_t;
  *
  * Description:
  */
-union cvmx_dfa_memcfg0
-{
+union cvmx_dfa_memcfg0 {
 	uint64_t u64;
-	struct cvmx_dfa_memcfg0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memcfg0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t rldqck90_rst                 : 1;  /**< RLDCK90 and RLDQK90 DLL SW Reset
                                                          When written with a '1' the RLDCK90 and RLDQK90 DLL are
@@ -3062,9 +3777,8 @@ union cvmx_dfa_memcfg0
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
-	struct cvmx_dfa_memcfg0_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memcfg0_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t lpp_ena                      : 1;  /**< PP Linear Port Addressing Mode Enable
                                                          When enabled, PP-core LLM accesses to the lower-512MB
@@ -3349,9 +4063,8 @@ union cvmx_dfa_memcfg0
 	uint64_t reserved_28_63               : 36;
 #endif
 	} cn38xx;
-	struct cvmx_dfa_memcfg0_cn38xxp2
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memcfg0_cn38xxp2 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t bunk_init                    : 2;  /**< Controls the CS_N[1:0] during a) a HW Initialization
                                                          sequence (triggered by DFA_MEMCFG0[INIT_Px]) or
@@ -3618,12 +4331,10 @@ typedef union cvmx_dfa_memcfg0 cvmx_dfa_memcfg0_t;
  *
  * Description:
  */
-union cvmx_dfa_memcfg1
-{
+union cvmx_dfa_memcfg1 {
 	uint64_t u64;
-	struct cvmx_dfa_memcfg1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memcfg1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t ref_intlo                    : 9;  /**< Burst Refresh Interval[8:0] (\#dclks)
                                                          For finer refresh interval granularity control.
@@ -3798,12 +4509,10 @@ typedef union cvmx_dfa_memcfg1 cvmx_dfa_memcfg1_t;
  *
  * Description: Additional Memory Configuration CSRs to support FCRAM-II/II+ and Network DRAM-II
  */
-union cvmx_dfa_memcfg2
-{
+union cvmx_dfa_memcfg2 {
 	uint64_t u64;
-	struct cvmx_dfa_memcfg2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memcfg2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t dteclkdis                    : 1;  /**< DFA DTE Clock Disable
                                                          When SET, the DFA clocks for DTE(thread engine)
@@ -3864,12 +4573,10 @@ typedef union cvmx_dfa_memcfg2 cvmx_dfa_memcfg2_t;
  * via the FSRC field.
  * NOTE: If DFA_MEMCFG2[DTECLKDIS]=1, the contents of this register are UNDEFINED.
  */
-union cvmx_dfa_memfadr
-{
+union cvmx_dfa_memfadr {
 	uint64_t u64;
-	struct cvmx_dfa_memfadr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memfadr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t maddr                        : 24; /**< Memory Address */
 #else
@@ -3877,9 +4584,8 @@ union cvmx_dfa_memfadr
 	uint64_t reserved_24_63               : 40;
 #endif
 	} s;
-	struct cvmx_dfa_memfadr_cn31xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memfadr_cn31xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t fdst                         : 9;  /**< Fill-Destination
                                                             FSRC[1:0]    | FDST[8:0]
@@ -3913,9 +4619,8 @@ union cvmx_dfa_memfadr
 	uint64_t reserved_40_63               : 24;
 #endif
 	} cn31xx;
-	struct cvmx_dfa_memfadr_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memfadr_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_39_63               : 25;
 	uint64_t fdst                         : 9;  /**< Fill-Destination
                                                             FSRC[1:0]    | FDST[8:0]
@@ -3999,12 +4704,10 @@ typedef union cvmx_dfa_memfadr cvmx_dfa_memfadr_t;
  *    A[2:0]      ODTDQ         On Die Termination (DQ)
  *                                 [0: ODT Disable /1: 15ohm termination /(2-7): RESERVED]
  */
-union cvmx_dfa_memfcr
-{
+union cvmx_dfa_memfcr {
 	uint64_t u64;
-	struct cvmx_dfa_memfcr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memfcr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t emrs2                        : 15; /**< Memory Address[14:0] during EMRS2(for FCRAM-II+)
                                                          *** CN58XX UNSUPPORTED *** */
@@ -4057,26 +4760,32 @@ typedef union cvmx_dfa_memfcr cvmx_dfa_memfcr_t;
  *
  *  NOTE: If DFA_CONFIG[DTECLKDIS]=1 (DFA-DTE clocks disabled), reads/writes to the DFA_MEMHIDAT register do not take effect.
  *  NOTE: If FUSE[TBD]="DFA DTE disable" is blown, reads/writes to the DFA_MEMHIDAT register do not take effect.
+ *
+ * NOTE: PLEASE REMOVE DEFINITION FROM o68 HRM
  */
-union cvmx_dfa_memhidat
-{
+union cvmx_dfa_memhidat {
 	uint64_t u64;
-	struct cvmx_dfa_memhidat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memhidat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t hidat                        : 64; /**< DFA Hi-QW of Write data during NCB-Direct DFM DDR3
                                                          Memory accesses.
                                                          All DFM DDR3 memory accesses are OW(128b) references,
                                                          and since NCB-Direct Mode writes only support QW(64b),
                                                          the Hi QW of data must be sourced from a CSR register.
                                                          NOTE: This single register is 'shared' for ALL DFM
-                                                         DDR3 Memory writes. */
+                                                         DDR3 Memory writes.
+                                                         For o68: This register is UNUSED. Treat as spare bits.
+                                                         NOTE: PLEASE REMOVE DEFINITION FROM o68 HRM */
 #else
 	uint64_t hidat                        : 64;
 #endif
 	} s;
+	struct cvmx_dfa_memhidat_s            cn61xx;
 	struct cvmx_dfa_memhidat_s            cn63xx;
 	struct cvmx_dfa_memhidat_s            cn63xxp1;
+	struct cvmx_dfa_memhidat_s            cn66xx;
+	struct cvmx_dfa_memhidat_s            cn68xx;
+	struct cvmx_dfa_memhidat_s            cn68xxp1;
 };
 typedef union cvmx_dfa_memhidat cvmx_dfa_memhidat_t;
 
@@ -4087,12 +4796,10 @@ typedef union cvmx_dfa_memhidat cvmx_dfa_memhidat_t;
  *
  * Description:
  */
-union cvmx_dfa_memrld
-{
+union cvmx_dfa_memrld {
 	uint64_t u64;
-	struct cvmx_dfa_memrld_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_memrld_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_23_63               : 41;
 	uint64_t mrsdat                       : 23; /**< This field represents the data driven onto the
                                                          A[22:0] address lines during MRS(Mode Register Set)
@@ -4143,12 +4850,10 @@ typedef union cvmx_dfa_memrld cvmx_dfa_memrld_t;
  *
  * Description:
  */
-union cvmx_dfa_ncbctl
-{
+union cvmx_dfa_ncbctl {
 	uint64_t u64;
-	struct cvmx_dfa_ncbctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ncbctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_11_63               : 53;
 	uint64_t sbdnum                       : 5;  /**< SBD Debug Entry#
                                                          For internal use only. (DFA Scoreboard debug)
@@ -4193,9 +4898,8 @@ union cvmx_dfa_ncbctl
 	uint64_t reserved_11_63               : 53;
 #endif
 	} s;
-	struct cvmx_dfa_ncbctl_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_ncbctl_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t sbdnum                       : 4;  /**< SBD Debug Entry#
                                                          For internal use only. (DFA Scoreboard debug)
@@ -4253,12 +4957,10 @@ typedef union cvmx_dfa_ncbctl cvmx_dfa_ncbctl_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc0_cnt
-{
+union cvmx_dfa_pfc0_cnt {
 	uint64_t u64;
-	struct cvmx_dfa_pfc0_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc0_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pfcnt0                       : 64; /**< Performance Counter \#0
                                                          When DFA_PFC_GCTL[CNT0ENA]=1, the event selected
                                                          by DFA_PFC0_CTL[EVSEL] is counted.
@@ -4269,8 +4971,12 @@ union cvmx_dfa_pfc0_cnt
 	uint64_t pfcnt0                       : 64;
 #endif
 	} s;
+	struct cvmx_dfa_pfc0_cnt_s            cn61xx;
 	struct cvmx_dfa_pfc0_cnt_s            cn63xx;
 	struct cvmx_dfa_pfc0_cnt_s            cn63xxp1;
+	struct cvmx_dfa_pfc0_cnt_s            cn66xx;
+	struct cvmx_dfa_pfc0_cnt_s            cn68xx;
+	struct cvmx_dfa_pfc0_cnt_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc0_cnt cvmx_dfa_pfc0_cnt_t;
 
@@ -4281,12 +4987,10 @@ typedef union cvmx_dfa_pfc0_cnt cvmx_dfa_pfc0_cnt_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc0_ctl
-{
+union cvmx_dfa_pfc0_ctl {
 	uint64_t u64;
-	struct cvmx_dfa_pfc0_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc0_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t evsel                        : 6;  /**< Performance Counter#0 Event Selector
                                                          // Events [0-31] are based on PMODE(0:per cluster-DTE 1:per graph)
@@ -4347,8 +5051,12 @@ union cvmx_dfa_pfc0_ctl
 	uint64_t reserved_14_63               : 50;
 #endif
 	} s;
+	struct cvmx_dfa_pfc0_ctl_s            cn61xx;
 	struct cvmx_dfa_pfc0_ctl_s            cn63xx;
 	struct cvmx_dfa_pfc0_ctl_s            cn63xxp1;
+	struct cvmx_dfa_pfc0_ctl_s            cn66xx;
+	struct cvmx_dfa_pfc0_ctl_s            cn68xx;
+	struct cvmx_dfa_pfc0_ctl_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc0_ctl cvmx_dfa_pfc0_ctl_t;
 
@@ -4359,12 +5067,10 @@ typedef union cvmx_dfa_pfc0_ctl cvmx_dfa_pfc0_ctl_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc1_cnt
-{
+union cvmx_dfa_pfc1_cnt {
 	uint64_t u64;
-	struct cvmx_dfa_pfc1_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc1_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pfcnt1                       : 64; /**< Performance Counter \#1
                                                          When DFA_PFC_GCTL[CNT1ENA]=1, the event selected
                                                          by DFA_PFC1_CTL[EVSEL] is counted.
@@ -4375,8 +5081,12 @@ union cvmx_dfa_pfc1_cnt
 	uint64_t pfcnt1                       : 64;
 #endif
 	} s;
+	struct cvmx_dfa_pfc1_cnt_s            cn61xx;
 	struct cvmx_dfa_pfc1_cnt_s            cn63xx;
 	struct cvmx_dfa_pfc1_cnt_s            cn63xxp1;
+	struct cvmx_dfa_pfc1_cnt_s            cn66xx;
+	struct cvmx_dfa_pfc1_cnt_s            cn68xx;
+	struct cvmx_dfa_pfc1_cnt_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc1_cnt cvmx_dfa_pfc1_cnt_t;
 
@@ -4387,12 +5097,10 @@ typedef union cvmx_dfa_pfc1_cnt cvmx_dfa_pfc1_cnt_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc1_ctl
-{
+union cvmx_dfa_pfc1_ctl {
 	uint64_t u64;
-	struct cvmx_dfa_pfc1_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc1_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t evsel                        : 6;  /**< Performance Counter#1 Event Selector
                                                          - 0:  \#Cycles
@@ -4445,8 +5153,12 @@ union cvmx_dfa_pfc1_ctl
 	uint64_t reserved_14_63               : 50;
 #endif
 	} s;
+	struct cvmx_dfa_pfc1_ctl_s            cn61xx;
 	struct cvmx_dfa_pfc1_ctl_s            cn63xx;
 	struct cvmx_dfa_pfc1_ctl_s            cn63xxp1;
+	struct cvmx_dfa_pfc1_ctl_s            cn66xx;
+	struct cvmx_dfa_pfc1_ctl_s            cn68xx;
+	struct cvmx_dfa_pfc1_ctl_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc1_ctl cvmx_dfa_pfc1_ctl_t;
 
@@ -4457,12 +5169,10 @@ typedef union cvmx_dfa_pfc1_ctl cvmx_dfa_pfc1_ctl_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc2_cnt
-{
+union cvmx_dfa_pfc2_cnt {
 	uint64_t u64;
-	struct cvmx_dfa_pfc2_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc2_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pfcnt2                       : 64; /**< Performance Counter \#2
                                                          When DFA_PFC_GCTL[CNT2ENA]=1, the event selected
                                                          by DFA_PFC2_CTL[EVSEL] is counted.
@@ -4473,8 +5183,12 @@ union cvmx_dfa_pfc2_cnt
 	uint64_t pfcnt2                       : 64;
 #endif
 	} s;
+	struct cvmx_dfa_pfc2_cnt_s            cn61xx;
 	struct cvmx_dfa_pfc2_cnt_s            cn63xx;
 	struct cvmx_dfa_pfc2_cnt_s            cn63xxp1;
+	struct cvmx_dfa_pfc2_cnt_s            cn66xx;
+	struct cvmx_dfa_pfc2_cnt_s            cn68xx;
+	struct cvmx_dfa_pfc2_cnt_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc2_cnt cvmx_dfa_pfc2_cnt_t;
 
@@ -4485,12 +5199,10 @@ typedef union cvmx_dfa_pfc2_cnt cvmx_dfa_pfc2_cnt_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc2_ctl
-{
+union cvmx_dfa_pfc2_ctl {
 	uint64_t u64;
-	struct cvmx_dfa_pfc2_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc2_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t evsel                        : 6;  /**< Performance Counter#2 Event Selector
                                                          - 0:  \#Cycles
@@ -4543,8 +5255,12 @@ union cvmx_dfa_pfc2_ctl
 	uint64_t reserved_14_63               : 50;
 #endif
 	} s;
+	struct cvmx_dfa_pfc2_ctl_s            cn61xx;
 	struct cvmx_dfa_pfc2_ctl_s            cn63xx;
 	struct cvmx_dfa_pfc2_ctl_s            cn63xxp1;
+	struct cvmx_dfa_pfc2_ctl_s            cn66xx;
+	struct cvmx_dfa_pfc2_ctl_s            cn68xx;
+	struct cvmx_dfa_pfc2_ctl_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc2_ctl cvmx_dfa_pfc2_ctl_t;
 
@@ -4555,12 +5271,10 @@ typedef union cvmx_dfa_pfc2_ctl cvmx_dfa_pfc2_ctl_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc3_cnt
-{
+union cvmx_dfa_pfc3_cnt {
 	uint64_t u64;
-	struct cvmx_dfa_pfc3_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc3_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t pfcnt3                       : 64; /**< Performance Counter \#3
                                                          When DFA_PFC_GCTL[CNT3ENA]=1, the event selected
                                                          by DFA_PFC3_CTL[EVSEL] is counted.
@@ -4571,8 +5285,12 @@ union cvmx_dfa_pfc3_cnt
 	uint64_t pfcnt3                       : 64;
 #endif
 	} s;
+	struct cvmx_dfa_pfc3_cnt_s            cn61xx;
 	struct cvmx_dfa_pfc3_cnt_s            cn63xx;
 	struct cvmx_dfa_pfc3_cnt_s            cn63xxp1;
+	struct cvmx_dfa_pfc3_cnt_s            cn66xx;
+	struct cvmx_dfa_pfc3_cnt_s            cn68xx;
+	struct cvmx_dfa_pfc3_cnt_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc3_cnt cvmx_dfa_pfc3_cnt_t;
 
@@ -4583,12 +5301,10 @@ typedef union cvmx_dfa_pfc3_cnt cvmx_dfa_pfc3_cnt_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc3_ctl
-{
+union cvmx_dfa_pfc3_ctl {
 	uint64_t u64;
-	struct cvmx_dfa_pfc3_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc3_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t evsel                        : 6;  /**< Performance Counter#3 Event Selector
                                                          - 0:  \#Cycles
@@ -4641,8 +5357,12 @@ union cvmx_dfa_pfc3_ctl
 	uint64_t reserved_14_63               : 50;
 #endif
 	} s;
+	struct cvmx_dfa_pfc3_ctl_s            cn61xx;
 	struct cvmx_dfa_pfc3_ctl_s            cn63xx;
 	struct cvmx_dfa_pfc3_ctl_s            cn63xxp1;
+	struct cvmx_dfa_pfc3_ctl_s            cn66xx;
+	struct cvmx_dfa_pfc3_ctl_s            cn68xx;
+	struct cvmx_dfa_pfc3_ctl_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc3_ctl cvmx_dfa_pfc3_ctl_t;
 
@@ -4653,12 +5373,10 @@ typedef union cvmx_dfa_pfc3_ctl cvmx_dfa_pfc3_ctl_t;
  * *FOR INTERNAL USE ONLY*
  * Description:
  */
-union cvmx_dfa_pfc_gctl
-{
+union cvmx_dfa_pfc_gctl {
 	uint64_t u64;
-	struct cvmx_dfa_pfc_gctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_pfc_gctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t vgid                         : 8;  /**< Virtual Graph Id#
                                                          When PMODE=1(per-graph selector), this field is used
@@ -4776,8 +5494,12 @@ union cvmx_dfa_pfc_gctl
 	uint64_t reserved_29_63               : 35;
 #endif
 	} s;
+	struct cvmx_dfa_pfc_gctl_s            cn61xx;
 	struct cvmx_dfa_pfc_gctl_s            cn63xx;
 	struct cvmx_dfa_pfc_gctl_s            cn63xxp1;
+	struct cvmx_dfa_pfc_gctl_s            cn66xx;
+	struct cvmx_dfa_pfc_gctl_s            cn68xx;
+	struct cvmx_dfa_pfc_gctl_s            cn68xxp1;
 };
 typedef union cvmx_dfa_pfc_gctl cvmx_dfa_pfc_gctl_t;
 
@@ -4787,12 +5509,10 @@ typedef union cvmx_dfa_pfc_gctl cvmx_dfa_pfc_gctl_t;
  * DFA_RODT_COMP_CTL = DFA RLD Compensation control (For read "on die termination")
  *
  */
-union cvmx_dfa_rodt_comp_ctl
-{
+union cvmx_dfa_rodt_comp_ctl {
 	uint64_t u64;
-	struct cvmx_dfa_rodt_comp_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_rodt_comp_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t enable                       : 1;  /**< Read On Die Termination Enable
                                                          (0=disable, 1=enable) */
@@ -4826,12 +5546,10 @@ typedef union cvmx_dfa_rodt_comp_ctl cvmx_dfa_rodt_comp_ctl_t;
  * on the reads unless the DTE Engine specified by DFA_NCBCTL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_sbd_dbg0
-{
+union cvmx_dfa_sbd_dbg0 {
 	uint64_t u64;
-	struct cvmx_dfa_sbd_dbg0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_sbd_dbg0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd0                         : 64; /**< DFA ScoreBoard \#0 Data
                                                          For internal use only! (DFA Scoreboard Debug)
                                                          [63:40] rptr[26:3]: Result Base Pointer
@@ -4887,12 +5605,10 @@ typedef union cvmx_dfa_sbd_dbg0 cvmx_dfa_sbd_dbg0_t;
  * on the reads unless the DTE Engine specified by DFA_NCBCTL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_sbd_dbg1
-{
+union cvmx_dfa_sbd_dbg1 {
 	uint64_t u64;
-	struct cvmx_dfa_sbd_dbg1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_sbd_dbg1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd1                         : 64; /**< DFA ScoreBoard \#1 Data
                                                          For internal use only! (DFA Scoreboard Debug)
                                                          [63:61] wqptr[35:33]: Work Queue Pointer
@@ -4923,12 +5639,10 @@ typedef union cvmx_dfa_sbd_dbg1 cvmx_dfa_sbd_dbg1_t;
  * on the reads unless the DTE Engine specified by DFA_NCBCTL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_sbd_dbg2
-{
+union cvmx_dfa_sbd_dbg2 {
 	uint64_t u64;
-	struct cvmx_dfa_sbd_dbg2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_sbd_dbg2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd2                         : 64; /**< DFA ScoreBoard \#2 Data
                                                          [63:49] wqptr[17:3]: Work Queue Pointer
                                                          [48:16] rwptr[35:3]: Result Write Pointer
@@ -4957,12 +5671,10 @@ typedef union cvmx_dfa_sbd_dbg2 cvmx_dfa_sbd_dbg2_t;
  * on the reads unless the DTE Engine specified by DFA_NCBCTL[SBDNUM] has previously been assigned an
  * instruction.
  */
-union cvmx_dfa_sbd_dbg3
-{
+union cvmx_dfa_sbd_dbg3 {
 	uint64_t u64;
-	struct cvmx_dfa_sbd_dbg3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfa_sbd_dbg3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t sbd3                         : 64; /**< DFA ScoreBoard \#3 Data
                                                          [63:49] wqptr[32:18]: Work Queue Pointer
                                                          [48:16] glptr[35:3]: Gather List Pointer

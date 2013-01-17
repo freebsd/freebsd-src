@@ -145,7 +145,7 @@ ParseConfig(void)
 		 */
 		if ((addr = ParseAddr(bcp)) == NULL) {
 			syslog(LOG_ERR,
-			       "ParseConfig: line %d: cant parse <%s>",
+			       "ParseConfig: line %d: can't parse <%s>",
 			       linecnt, bcp);
 			continue;
 		}
@@ -193,7 +193,7 @@ ParseConfig(void)
 			/*
 			 *  Restricted list of boot files were spec'd,
 			 *  however, none of them were found.  Since we
-			 *  apparently cant let them boot "just anything",
+			 *  apparently can't let them boot "just anything",
 			 *  the entire record is invalidated.
 			 */
 			if (i == 0) {
@@ -355,7 +355,7 @@ GetBootFiles(void)
 
 	(void) closedir(dfd);			/* close BootDir */
 
-	if (i == 0)				/* cant find any boot files */
+	if (i == 0)				/* can't find any boot files */
 		syslog(LOG_ERR, "GetBootFiles: no boot files (%s)\n", BootDir);
 
 	return(i);

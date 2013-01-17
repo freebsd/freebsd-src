@@ -15,9 +15,9 @@
 #ifndef SPU_ISELLOWERING_H
 #define SPU_ISELLOWERING_H
 
+#include "SPU.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "SPU.h"
 
 namespace llvm {
   namespace SPUISD {
@@ -86,7 +86,6 @@ namespace llvm {
   class SPUTargetLowering :
     public TargetLowering
   {
-    int VarArgsFrameIndex;            // FrameIndex for start of varargs area.
     SPUTargetMachine &SPUTM;
 
   public:
@@ -121,7 +120,6 @@ namespace llvm {
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
     virtual void computeMaskedBitsForTargetNode(const SDValue Op,
-                                                const APInt &Mask,
                                                 APInt &KnownZero,
                                                 APInt &KnownOne,
                                                 const SelectionDAG &DAG,
@@ -160,13 +158,7 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
-      LowerCall(SDValue Chain, SDValue Callee,
-                CallingConv::ID CallConv, bool isVarArg,
-                bool &isTailCall,
-                const SmallVectorImpl<ISD::OutputArg> &Outs,
-                const SmallVectorImpl<SDValue> &OutVals,
-                const SmallVectorImpl<ISD::InputArg> &Ins,
-                DebugLoc dl, SelectionDAG &DAG,
+      LowerCall(TargetLowering::CallLoweringInfo &CLI,
                 SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue

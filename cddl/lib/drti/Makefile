@@ -18,4 +18,4 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common \
 		-DPIC ${PICFLAG}
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>

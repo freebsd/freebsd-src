@@ -69,6 +69,9 @@ struct usb_bus {
 	struct usb_bus_msg explore_msg[2];
 	struct usb_bus_msg detach_msg[2];
 	struct usb_bus_msg attach_msg[2];
+	struct usb_bus_msg suspend_msg[2];
+	struct usb_bus_msg resume_msg[2];
+	struct usb_bus_msg shutdown_msg[2];
 	/*
 	 * This mutex protects the USB hardware:
 	 */
@@ -98,7 +101,8 @@ struct usb_bus {
 	enum usb_revision usbrev;	/* USB revision. See "USB_REV_XXX". */
 
 	uint8_t	devices_max;		/* maximum number of USB devices */
-	uint8_t	do_probe;		/* set if USB BUS should be re-probed */
+	uint8_t	do_probe;		/* set if USB should be re-probed */
+	uint8_t no_explore;		/* don't explore USB ports */
 
 	/* 
 	 * The scratch area can only be used inside the explore thread

@@ -126,6 +126,11 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 		*fstype = (u_int)lt;
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS);
+	if (!strcasecmp(type, alias)) {
+		*fstype = FS_NANDFS;
+		return (0);
+	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
 	if (!strcasecmp(type, alias)) {
 		*fstype = FS_SWAP;
@@ -389,10 +394,6 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		goto invalid_label;
 	if (heads != basetable->gpt_heads && !basetable->gpt_fixgeom)
 		basetable->gpt_heads = heads;
-	if (sectors != basetable->gpt_sectors || heads != basetable->gpt_heads)
-		printf("GEOM: %s: geometry does not match label"
-		    " (%uh,%us != %uh,%us).\n", pp->name, heads, sectors,
-		    basetable->gpt_heads, basetable->gpt_sectors);
 
 	chs = le32dec(buf + 60);
 	if (chs < 1)
@@ -402,9 +403,6 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		chs = msize;
 		le32enc(buf + 60, msize);
 	}
-	if (chs != msize)
-		printf("GEOM: %s: media size does not match label.\n",
-		    pp->name);
 
 	basetable->gpt_first = 0;
 	basetable->gpt_last = msize - 1;
@@ -457,6 +455,8 @@ g_part_bsd_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 
 	entry = (struct g_part_bsd_entry *)baseentry;
 	type = entry->part.p_fstype;
+	if (type == FS_NANDFS)
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS));
 	if (type == FS_SWAP)
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP));
 	if (type == FS_BSDFFS)

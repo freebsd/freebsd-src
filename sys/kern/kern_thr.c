@@ -58,15 +58,16 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
+static SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0,
+    "thread allocation");
 
 static int max_threads_per_proc = 1500;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
-	&max_threads_per_proc, 0, "Limit on threads per proc");
+    &max_threads_per_proc, 0, "Limit on threads per proc");
 
 static int max_threads_hits;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
-	&max_threads_hits, 0, "");
+    &max_threads_hits, 0, "kern.threads.max_threads_per_proc hit count");
 
 #ifdef COMPAT_FREEBSD32
 
@@ -200,6 +201,8 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		goto fail;
 	}
 
+	cpu_set_upcall(newtd, td);
+
 	/*
 	 * Try the copyout as soon as we allocate the td so we don't
 	 * have to tear things down in a failure case below.
@@ -225,8 +228,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	newtd->td_proc = td->td_proc;
 	newtd->td_ucred = crhold(td->td_ucred);
 
-	cpu_set_upcall(newtd, td);
-
 	if (ctx != NULL) { /* old way to set user context */
 		error = set_mcontext(newtd, ctx);
 		if (error != 0) {
@@ -251,7 +252,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 	PROC_LOCK(td->td_proc);
 	td->td_proc->p_flag |= P_HADTHREADS;
-	newtd->td_sigmask = td->td_sigmask;
 	thread_link(newtd, p); 
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 	thread_lock(td);
@@ -316,13 +316,13 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 	rw_wlock(&tidhash_lock);
 
 	PROC_LOCK(p);
-	racct_sub(p, RACCT_NTHR, 1);
 
 	/*
 	 * Shutting down last thread in the proc.  This will actually
 	 * call exit() in the trampoline when it returns.
 	 */
 	if (p->p_numthreads != 1) {
+		racct_sub(p, RACCT_NTHR, 1);
 		LIST_REMOVE(td, td_hash);
 		rw_wunlock(&tidhash_lock);
 		tdsigcleanup(td);
@@ -449,8 +449,7 @@ sys_thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 
 	tsp = NULL;
 	if (uap->timeout != NULL) {
-		error = copyin((const void *)uap->timeout, (void *)&ts,
-		    sizeof(struct timespec));
+		error = umtx_copyin_timeout(uap->timeout, &ts);
 		if (error != 0)
 			return (error);
 		tsp = &ts;
@@ -473,8 +472,6 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 	}
 
 	if (tsp != NULL) {
-		if (tsp->tv_nsec < 0 || tsp->tv_nsec > 1000000000)
-			return (EINVAL);
 		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
 			error = EWOULDBLOCK;
 		else {
@@ -550,6 +547,9 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	if (ttd == NULL)
 		return (ESRCH);
 	strcpy(ttd->td_name, name);
+#ifdef KTR
+	sched_clear_tdname(ttd);
+#endif
 	PROC_UNLOCK(p);
 	return (error);
 }

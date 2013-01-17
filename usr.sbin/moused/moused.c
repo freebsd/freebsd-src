@@ -174,14 +174,14 @@ typedef struct {
 
 /* global variables */
 
-int	debug = 0;
-int	nodaemon = FALSE;
-int	background = FALSE;
-int	paused = FALSE;
-int	identify = ID_NONE;
-int	extioctl = FALSE;
-const char *pidfile = "/var/run/moused.pid";
-struct pidfh *pfh;
+static int	debug = 0;
+static int	nodaemon = FALSE;
+static int	background = FALSE;
+static int	paused = FALSE;
+static int	identify = ID_NONE;
+static int	extioctl = FALSE;
+static const char *pidfile = "/var/run/moused.pid";
+static struct pidfh *pfh;
 
 #define SCROLL_NOTSCROLLING	0
 #define SCROLL_PREPARE		1
@@ -408,6 +408,7 @@ static struct rodentparam {
     int cfd;			/* /dev/consolectl file descriptor */
     int mremsfd;		/* mouse remote server file descriptor */
     int mremcfd;		/* mouse remote client file descriptor */
+    int is_removable;		/* set if device is removable, like USB */
     long clickthreshold;	/* double click speed in msec */
     long button2timeout;	/* 3 button emulation timeout */
     mousehw_t hw;		/* mouse device hardware information */
@@ -434,6 +435,7 @@ static struct rodentparam {
     .cfd = -1,
     .mremsfd = -1,
     .mremcfd = -1,
+    .is_removable = 0,
     .clickthreshold = DFLT_CLICKTHRESHOLD,
     .button2timeout = DFLT_BUTTON2TIMEOUT,
     .accelx = 1.0,
@@ -564,15 +566,12 @@ static void	mremote_clientchg(int add);
 static int	kidspad(u_char rxc, mousestatus_t *act);
 static int	gtco_digipad(u_char, mousestatus_t *);
 
-static int	usbmodule(void);
-
 int
 main(int argc, char *argv[])
 {
     int c;
     int	i;
     int	j;
-    static int retry;
 
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
@@ -878,11 +877,8 @@ main(int argc, char *argv[])
 	usage();
     }
 
-    retry = 1;
-    if (strncmp(rodent.portname, "/dev/ums", 8) == 0) {
-	if (usbmodule() != 0)
-	    retry = 5;
-    }
+    if (strncmp(rodent.portname, "/dev/ums", 8) == 0)
+	rodent.is_removable = 1;
 
     for (;;) {
 	if (setjmp(env) == 0) {
@@ -891,13 +887,8 @@ main(int argc, char *argv[])
 	    signal(SIGQUIT, cleanup);
 	    signal(SIGTERM, cleanup);
 	    signal(SIGUSR1, pause_mouse);
-	    for (i = 0; i < retry; ++i) {
-		if (i > 0)
-		    sleep(2);
-		rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK);
-		if (rodent.mfd != -1 || errno != ENOENT)
-		    break;
-	    }
+
+	    rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK);
 	    if (rodent.mfd == -1)
 		logerr(1, "unable to open %s", rodent.portname);
 	    if (r_identify() == MOUSE_PROTO_UNKNOWN) {
@@ -947,16 +938,12 @@ main(int argc, char *argv[])
 	if (rodent.cfd != -1)
 	    close(rodent.cfd);
 	rodent.mfd = rodent.cfd = -1;
+	if (rodent.is_removable)
+		exit(0);
     }
     /* NOT REACHED */
 
     exit(0);
-}
-
-static int
-usbmodule(void)
-{
-    return (kld_isloaded("uhub/ums") || kld_load("ums") != -1);
 }
 
 /*
@@ -1025,7 +1012,7 @@ moused(void)
 {
     struct mouse_info mouse;
     mousestatus_t action0;		/* original mouse action */
-    mousestatus_t action;		/* interrim buffer */
+    mousestatus_t action;		/* interim buffer */
     mousestatus_t action2;		/* mapped action */
     struct timeval timeout;
     fd_set fds;
@@ -2278,7 +2265,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    act->button |= ((pBuf[0] & MOUSE_PS2_TAP)) ? 0 : MOUSE_BUTTON4DOWN;
 	    break;
 	case MOUSE_MODEL_NETSCROLL:
-	    /* three addtional bytes encode buttons and wheel events */
+	    /* three additional bytes encode buttons and wheel events */
 	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON3DOWN)
 		? MOUSE_BUTTON4DOWN : 0;
 	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON1DOWN)
@@ -3242,7 +3229,7 @@ kidspad(u_char rxc, mousestatus_t *act)
     static int buf[5];
     static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1;
     static k_status status = S_IDLE;
-    static struct timespec old, now;
+    static struct timespec now;
 
     int x, y;
 
@@ -3280,7 +3267,6 @@ kidspad(u_char rxc, mousestatus_t *act)
 	x_prev = x;
 	y_prev = y;
     }
-    old = now;
     act->dx = x - x_prev;
     act->dy = y - y_prev;
     if (act->dx || act->dy)

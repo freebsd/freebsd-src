@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1999 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -32,8 +32,6 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: n-fold.c 22190 2007-12-06 16:24:22Z lha $");
-
 static krb5_error_code
 rr13(unsigned char *buf, size_t len)
 {
@@ -45,7 +43,7 @@ rr13(unsigned char *buf, size_t len)
     {
 	const int bits = 13 % len;
 	const int lbit = len % 8;
-    
+
 	tmp = malloc(bytes);
 	if (tmp == NULL)
 	    return ENOMEM;
@@ -66,11 +64,11 @@ rr13(unsigned char *buf, size_t len)
 	    /* byte offset and shift count */
 	    b1 = bb / 8;
 	    s1 = bb % 8;
-	
-	    if(bb + 8 > bytes * 8) 
+
+	    if(bb + 8 > bytes * 8)
 		/* watch for wraparound */
 		s2 = (len + 8 - s1) % 8;
-	    else 
+	    else
 		s2 = 8 - s1;
 	    b2 = (b1 + 1) % bytes;
 	    buf[i] = (tmp[b1] << s1) | (tmp[b2] >> s2);
@@ -98,7 +96,7 @@ add1(unsigned char *a, unsigned char *b, size_t len)
     }
 }
 
-krb5_error_code KRB5_LIB_FUNCTION
+KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL
 _krb5_n_fold(const void *str, size_t len, void *key, size_t size)
 {
     /* if len < size we need at most N * len bytes, ie < 2 * size;
@@ -108,9 +106,11 @@ _krb5_n_fold(const void *str, size_t len, void *key, size_t size)
     size_t l = 0;
     unsigned char *tmp = malloc(maxlen);
     unsigned char *buf = malloc(len);
-    
-    if (tmp == NULL || buf == NULL) 
-	return ENOMEM;
+
+    if (tmp == NULL || buf == NULL) {
+        ret = ENOMEM;
+	goto out;
+    }
 
     memcpy(buf, str, len);
     memset(key, 0, size);
@@ -129,9 +129,13 @@ _krb5_n_fold(const void *str, size_t len, void *key, size_t size)
 	}
     } while(l != 0);
 out:
-    memset(buf, 0, len);
-    free(buf);
-    memset(tmp, 0, maxlen);
-    free(tmp);
+    if (buf) {
+        memset(buf, 0, len);
+	free(buf);
+    }
+    if (tmp) {
+        memset(tmp, 0, maxlen);
+	free(tmp);
+    }
     return ret;
 }

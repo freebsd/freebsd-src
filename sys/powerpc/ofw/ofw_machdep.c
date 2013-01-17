@@ -171,10 +171,10 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	 */
 	phandle = OF_finddevice("/");
 	if (OF_getprop(phandle, "#address-cells", &address_cells, 
-	    sizeof(address_cells)) < sizeof(address_cells))
+	    sizeof(address_cells)) < (ssize_t)sizeof(address_cells))
 		address_cells = 1;
 	if (OF_getprop(phandle, "#size-cells", &size_cells, 
-	    sizeof(size_cells)) < sizeof(size_cells))
+	    sizeof(size_cells)) < (ssize_t)sizeof(size_cells))
 		size_cells = 1;
 
 	/*

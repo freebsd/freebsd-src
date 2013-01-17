@@ -3,13 +3,18 @@
 LIB=	clanganalysis
 
 SRCDIR=	tools/clang/lib/Analysis
-SRCS=	AnalysisContext.cpp \
+SRCS=	AnalysisDeclContext.cpp \
+	BodyFarm.cpp \
 	CFG.cpp \
 	CFGReachabilityAnalysis.cpp \
 	CFGStmtMap.cpp \
+	CallGraph.cpp \
 	CocoaConventions.cpp \
+	Dominators.cpp \
 	FormatString.cpp \
 	LiveVariables.cpp \
+	ObjCNoReturn.cpp \
+	PostOrderCFGView.cpp \
 	PrintfFormatString.cpp \
 	ProgramPoint.cpp \
 	PseudoConstantAnalysis.cpp \
@@ -20,6 +25,7 @@ SRCS=	AnalysisContext.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticAnalysisKinds \
 	DiagnosticCommonKinds \

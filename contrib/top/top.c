@@ -70,7 +70,6 @@ int pcpu_stats = No;
 
 /* signal handling routines */
 sigret_t leave();
-sigret_t onalrm();
 sigret_t tstop();
 #ifdef SIGWINCH
 sigret_t winch();
@@ -122,6 +121,8 @@ int i_cpustates();
 int u_cpustates();
 int i_memory();
 int u_memory();
+int i_arc();
+int u_arc();
 int i_swap();
 int u_swap();
 int i_message();
@@ -136,6 +137,7 @@ int (*d_loadave)() = i_loadave;
 int (*d_procstates)() = i_procstates;
 int (*d_cpustates)() = i_cpustates;
 int (*d_memory)() = i_memory;
+int (*d_arc)() = i_arc;
 int (*d_swap)() = i_swap;
 int (*d_message)() = i_message;
 int (*d_header)() = i_header;
@@ -648,6 +650,7 @@ restart:
 
 	/* display memory stats */
 	(*d_memory)(system_info.memory);
+	(*d_arc)(system_info.arc);
 
 	/* display swap stats */
 	(*d_swap)(system_info.swap);
@@ -713,6 +716,7 @@ restart:
 		    d_procstates = u_procstates;
 		    d_cpustates = u_cpustates;
 		    d_memory = u_memory;
+		    d_arc = u_arc;
 		    d_swap = u_swap;
 		    d_message = u_message;
 		    d_header = u_header;
@@ -723,12 +727,11 @@ restart:
 	    no_command = Yes;
 	    if (!interactive)
 	    {
-		/* set up alarm */
-		(void) signal(SIGALRM, onalrm);
-		(void) alarm((unsigned)delay);
-    
-		/* wait for the rest of it .... */
-		pause();
+		sleep(delay);
+		if (leaveflag) {
+		    end_screen();
+		    exit(0);
+		}
 	    }
 	    else while (no_command)
 	    {
@@ -1131,6 +1134,7 @@ reset_display()
     d_procstates = i_procstates;
     d_cpustates  = i_cpustates;
     d_memory     = i_memory;
+    d_arc        = i_arc;
     d_swap       = i_swap;
     d_message	 = i_message;
     d_header	 = i_header;
@@ -1174,11 +1178,3 @@ int status;
     exit(status);
     /*NOTREACHED*/
 }
-
-sigret_t onalrm()	/* SIGALRM handler */
-
-{
-    /* this is only used in batch mode to break out of the pause() */
-    /* return; */
-}
-

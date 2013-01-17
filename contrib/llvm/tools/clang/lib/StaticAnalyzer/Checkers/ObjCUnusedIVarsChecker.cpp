@@ -47,6 +47,15 @@ static void Scan(IvarUsageMap& M, const Stmt *S) {
     return;
   }
 
+  if (const PseudoObjectExpr *POE = dyn_cast<PseudoObjectExpr>(S))
+    for (PseudoObjectExpr::const_semantics_iterator
+        i = POE->semantics_begin(), e = POE->semantics_end(); i != e; ++i) {
+      const Expr *sub = *i;
+      if (const OpaqueValueExpr *OVE = dyn_cast<OpaqueValueExpr>(sub))
+        sub = OVE->getSourceExpr();
+      Scan(M, sub);
+    }
+
   for (Stmt::const_child_iterator I=S->child_begin(),E=S->child_end(); I!=E;++I)
     Scan(M, *I);
 }
@@ -161,7 +170,7 @@ static void checkObjCUnusedIvar(const ObjCImplementationDecl *D,
 
       PathDiagnosticLocation L =
         PathDiagnosticLocation::create(I->first, BR.getSourceManager());
-      BR.EmitBasicReport("Unused instance variable", "Optimization",
+      BR.EmitBasicReport(D, "Unused instance variable", "Optimization",
                          os.str(), L);
     }
 }

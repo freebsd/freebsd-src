@@ -327,7 +327,7 @@ here in clarifying some of this.
 
 A succesful execution of isp_init will lead to the driver 'registering'
 itself with this platform's SCSI subsystem. One assumed action for this
-is the registry of a function the SCSI subsystem for this platform
+is the registry of a function that the SCSI subsystem for this platform
 will call when it has a SCSI command to run.
 
 The platform specific module function that receives this will do whatever

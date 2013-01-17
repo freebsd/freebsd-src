@@ -1,7 +1,6 @@
-
 /******************************************************************************
  *
- * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL).  These
+ * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL). These
  *                    interfaces must be implemented by OSL to interface the
  *                    ACPI components to the host operating system.
  *
@@ -9,7 +8,7 @@
 
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,13 +111,21 @@ AcpiOsTableOverride (
     ACPI_TABLE_HEADER       *ExistingTable,
     ACPI_TABLE_HEADER       **NewTable);
 
+ACPI_STATUS
+AcpiOsPhysicalTableOverride (
+    ACPI_TABLE_HEADER       *ExistingTable,
+    ACPI_PHYSICAL_ADDRESS   *NewAddress,
+    UINT32                  *NewTableLength);
+
 
 /*
  * Spinlock primitives
  */
+#ifndef AcpiOsCreateLock
 ACPI_STATUS
 AcpiOsCreateLock (
     ACPI_SPINLOCK           *OutHandle);
+#endif
 
 void
 AcpiOsDeleteLock (
@@ -269,7 +276,7 @@ AcpiOsExecute (
 
 void
 AcpiOsWaitEventsComplete (
-    void                    *Context);
+    void);
 
 void
 AcpiOsSleep (
@@ -302,13 +309,13 @@ AcpiOsWritePort (
 ACPI_STATUS
 AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
-    UINT32                  *Value,
+    UINT64                  *Value,
     UINT32                  Width);
 
 ACPI_STATUS
 AcpiOsWriteMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
-    UINT32                  Value,
+    UINT64                  Value,
     UINT32                  Width);
 
 

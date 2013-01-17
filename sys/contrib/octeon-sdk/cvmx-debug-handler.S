@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights 
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights 
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.  
@@ -26,7 +26,7 @@
  * countries. 
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS" 
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -52,12 +52,13 @@
 #include <asm/octeon/cvmx-asm.h>
 #include <asm/octeon/octeon-boot-info.h>
 #else
-#include "executive-config.h"
+
 #include "cvmx-asm.h"
 
-#ifndef __OCTEON_NEWLIB__
-#include "../../bootloader/u-boot/include/octeon_mem_map.h"
+#ifndef _OCTEON_TOOLCHAIN_RUNTIME
+#include <octeon_mem_map.h>
 #else
+#include "cvmx-platform.h"
 #include "octeon-boot-info.h"
 #endif
 
@@ -97,7 +98,7 @@
 	sd k1, 0(t0);		\
 	addi k0, -8
 
-#define REG_SAVE_BASE_DIV_4  (BOOTLOADER_DEBUG_REG_SAVE_BASE >> 2)
+#define REG_SAVE_BASE_DIV_8  (BOOTLOADER_DEBUG_REG_SAVE_BASE >> 3)
 
 
 #define HW_INSTRUCTION_BREAKPOINT_STATUS            (0xFFFFFFFFFF301000)
@@ -145,10 +146,14 @@ __cvmx_debug_handler_stage2:
         andi    k0, 0xff    // mask off core ID
         sll     k0, 12      // multiply by 4096 (512 dwords) DEBUG_NUMREGS
 
-        addiu   k0,  REG_SAVE_BASE_DIV_4    
-        addiu   k0,  REG_SAVE_BASE_DIV_4
-        addiu   k0,  REG_SAVE_BASE_DIV_4
-        addiu   k0,  REG_SAVE_BASE_DIV_4
+        addiu   k0,  REG_SAVE_BASE_DIV_8
+        addiu   k0,  REG_SAVE_BASE_DIV_8
+        addiu   k0,  REG_SAVE_BASE_DIV_8
+        addiu   k0,  REG_SAVE_BASE_DIV_8
+        addiu   k0,  REG_SAVE_BASE_DIV_8
+        addiu   k0,  REG_SAVE_BASE_DIV_8
+        addiu   k0,  REG_SAVE_BASE_DIV_8
+        addiu   k0,  REG_SAVE_BASE_DIV_8
 		// add base offset - after exeption vectors for all cores
 
         rotr    k0, k0, 31   // set bit 31 for kseg0 access
@@ -241,6 +246,8 @@ noexc:
 #else
 	ld	sp,0(sp)
 #endif
+	mflo	$4
+	mfhi	$5
 	jal	__cvmx_debug_handler_stage3
 	nop
 

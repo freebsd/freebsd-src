@@ -51,6 +51,7 @@
 
 const char *progname;
 
+/* XXX TODO: include if_ath_debug.h */
 enum {
 	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	ATH_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
@@ -81,7 +82,7 @@ enum {
 
 static struct {
 	const char	*name;
-	u_int		bit;
+	uint64_t	bit;
 } flags[] = {
 	{ "xmit",	ATH_DEBUG_XMIT },
 	{ "xmit_desc",	ATH_DEBUG_XMIT_DESC },
@@ -109,7 +110,7 @@ static struct {
 	{ "fatal",	ATH_DEBUG_FATAL },
 };
 
-static u_int
+static uint64_t
 getflag(const char *name, int len)
 {
 	int i;
@@ -150,7 +151,7 @@ main(int argc, char *argv[])
 	const char *cp, *tp;
 	const char *sep;
 	int c, op, i;
-	u_int32_t debug, ndebug;
+	uint64_t debug, ndebug;
 	size_t debuglen;
 	char oid[256];
 
@@ -205,20 +206,20 @@ main(int argc, char *argv[])
 						bit = strtoul(cp, NULL, 0);
 					else
 						errx(1, "unknown flag %.*s",
-							tp-cp, cp);
+							(int) (tp-cp), cp);
 				}
 				ndebug = bit;
 			}
 		} while (*(cp = tp) != '\0');
 	}
 	if (debug != ndebug) {
-		printf("%s: 0x%x => ", oid, debug);
+		printf("%s: 0x%llx => ", oid, (long long) debug);
 		if (sysctlbyname(oid, NULL, NULL, &ndebug, sizeof(ndebug)) < 0)
 			err(1, "sysctl-set(%s)", oid);
-		printf("0x%x", ndebug);
+		printf("0x%llx", (long long) ndebug);
 		debug = ndebug;
 	} else
-		printf("%s: 0x%x", oid, debug);
+		printf("%s: 0x%llx", oid, (long long) debug);
 	sep = "<";
 	for (i = 0; i < N(flags); i++)
 		if (debug & flags[i].bit) {

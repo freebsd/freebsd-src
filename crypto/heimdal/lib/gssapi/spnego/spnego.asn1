@@ -1,4 +1,4 @@
--- $Id: spnego.asn1 21403 2007-07-04 08:13:12Z lha $
+-- $Id$
 
 SPNEGO DEFINITIONS ::=
 BEGIN

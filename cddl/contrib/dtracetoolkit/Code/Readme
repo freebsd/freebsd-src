@@ -1,0 +1,16 @@
+Code - Example Programs
+
+   This directory contains example software sorted by language, which may
+   be used as the target for DTrace scripts. These examples are simple and
+   to the point, and are intended as example targets for when learing
+   DTrace.
+
+   Some people attempt to learn DTrace by tracing their complex real
+   world application first. That's the hard way. Try these programs instead,
+   and once you are confident here, move onto harder targets.
+
+   Some of these programs feature in the example files in the /Examples
+   directory.
+
+   This directory does not contain DTrace scripts.
+

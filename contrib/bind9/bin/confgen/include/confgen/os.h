@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.h,v 1.3 2009-06-11 23:47:55 tbox Exp $ */
+/* $Id: os.h,v 1.3 2009/06/11 23:47:55 tbox Exp $ */
 
 /*! \file */
 

@@ -24,15 +24,18 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/STLExtras.h"
 using namespace llvm;
 
 STATISTIC(NumFastStores, "Number of stores deleted");
@@ -42,25 +45,28 @@ namespace {
   struct DSE : public FunctionPass {
     AliasAnalysis *AA;
     MemoryDependenceAnalysis *MD;
+    DominatorTree *DT;
+    const TargetLibraryInfo *TLI;
 
     static char ID; // Pass identification, replacement for typeid
-    DSE() : FunctionPass(ID), AA(0), MD(0) {
+    DSE() : FunctionPass(ID), AA(0), MD(0), DT(0) {
       initializeDSEPass(*PassRegistry::getPassRegistry());
     }
 
     virtual bool runOnFunction(Function &F) {
       AA = &getAnalysis<AliasAnalysis>();
       MD = &getAnalysis<MemoryDependenceAnalysis>();
-      DominatorTree &DT = getAnalysis<DominatorTree>();
+      DT = &getAnalysis<DominatorTree>();
+      TLI = AA->getTargetLibraryInfo();
 
       bool Changed = false;
       for (Function::iterator I = F.begin(), E = F.end(); I != E; ++I)
         // Only check non-dead blocks.  Dead blocks may have strange pointer
         // cycles that will confuse alias analysis.
-        if (DT.isReachableFromEntry(I))
+        if (DT->isReachableFromEntry(I))
           Changed |= runOnBasicBlock(*I);
 
-      AA = 0; MD = 0;
+      AA = 0; MD = 0; DT = 0;
       return Changed;
     }
 
@@ -68,7 +74,7 @@ namespace {
     bool HandleFree(CallInst *F);
     bool handleEndBlock(BasicBlock &BB);
     void RemoveAccessedObjects(const AliasAnalysis::Location &LoadedLoc,
-                               SmallPtrSet<Value*, 16> &DeadStackObjects);
+                               SmallSetVector<Value*, 16> &DeadStackObjects);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
@@ -103,7 +109,8 @@ FunctionPass *llvm::createDeadStoreEliminationPass() { return new DSE(); }
 ///
 static void DeleteDeadInstruction(Instruction *I,
                                   MemoryDependenceAnalysis &MD,
-                                  SmallPtrSet<Value*, 16> *ValueSet = 0) {
+                                  const TargetLibraryInfo *TLI,
+                                  SmallSetVector<Value*, 16> *ValueSet = 0) {
   SmallVector<Instruction*, 32> NowDeadInsts;
 
   NowDeadInsts.push_back(I);
@@ -127,20 +134,20 @@ static void DeleteDeadInstruction(Instruction *I,
       if (!Op->use_empty()) continue;
 
       if (Instruction *OpI = dyn_cast<Instruction>(Op))
-        if (isInstructionTriviallyDead(OpI))
+        if (isInstructionTriviallyDead(OpI, TLI))
           NowDeadInsts.push_back(OpI);
     }
 
     DeadInst->eraseFromParent();
 
-    if (ValueSet) ValueSet->erase(DeadInst);
+    if (ValueSet) ValueSet->remove(DeadInst);
   } while (!NowDeadInsts.empty());
 }
 
 
 /// hasMemoryWrite - Does this instruction write some memory?  This only returns
 /// true for things that we can analyze with other helpers below.
-static bool hasMemoryWrite(Instruction *I) {
+static bool hasMemoryWrite(Instruction *I, const TargetLibraryInfo *TLI) {
   if (isa<StoreInst>(I))
     return true;
   if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
@@ -153,6 +160,26 @@ static bool hasMemoryWrite(Instruction *I) {
     case Intrinsic::init_trampoline:
     case Intrinsic::lifetime_end:
       return true;
+    }
+  }
+  if (CallSite CS = I) {
+    if (Function *F = CS.getCalledFunction()) {
+      if (TLI && TLI->has(LibFunc::strcpy) &&
+          F->getName() == TLI->getName(LibFunc::strcpy)) {
+        return true;
+      }
+      if (TLI && TLI->has(LibFunc::strncpy) &&
+          F->getName() == TLI->getName(LibFunc::strncpy)) {
+        return true;
+      }
+      if (TLI && TLI->has(LibFunc::strcat) &&
+          F->getName() == TLI->getName(LibFunc::strcat)) {
+        return true;
+      }
+      if (TLI && TLI->has(LibFunc::strncat) &&
+          F->getName() == TLI->getName(LibFunc::strncat)) {
+        return true;
+      }
     }
   }
   return false;
@@ -172,7 +199,7 @@ getLocForWrite(Instruction *Inst, AliasAnalysis &AA) {
     // If we don't have target data around, an unknown size in Location means
     // that we should use the size of the pointee type.  This isn't valid for
     // memset/memcpy, which writes more than an i8.
-    if (Loc.Size == AliasAnalysis::UnknownSize && AA.getTargetData() == 0)
+    if (Loc.Size == AliasAnalysis::UnknownSize && AA.getDataLayout() == 0)
       return AliasAnalysis::Location();
     return Loc;
   }
@@ -186,7 +213,7 @@ getLocForWrite(Instruction *Inst, AliasAnalysis &AA) {
     // If we don't have target data around, an unknown size in Location means
     // that we should use the size of the pointee type.  This isn't valid for
     // init.trampoline, which writes more than an i8.
-    if (AA.getTargetData() == 0) return AliasAnalysis::Location();
+    if (AA.getDataLayout() == 0) return AliasAnalysis::Location();
 
     // FIXME: We don't know the size of the trampoline, so we can't really
     // handle it here.
@@ -202,7 +229,8 @@ getLocForWrite(Instruction *Inst, AliasAnalysis &AA) {
 /// instruction if any.
 static AliasAnalysis::Location
 getLocForRead(Instruction *Inst, AliasAnalysis &AA) {
-  assert(hasMemoryWrite(Inst) && "Unknown instruction case");
+  assert(hasMemoryWrite(Inst, AA.getTargetLibraryInfo()) &&
+         "Unknown instruction case");
 
   // The only instructions that both read and write are the mem transfer
   // instructions (memcpy/memmove).
@@ -219,23 +247,52 @@ static bool isRemovable(Instruction *I) {
   if (StoreInst *SI = dyn_cast<StoreInst>(I))
     return SI->isUnordered();
 
-  IntrinsicInst *II = cast<IntrinsicInst>(I);
-  switch (II->getIntrinsicID()) {
-  default: assert(0 && "doesn't pass 'hasMemoryWrite' predicate");
-  case Intrinsic::lifetime_end:
-    // Never remove dead lifetime_end's, e.g. because it is followed by a
-    // free.
-    return false;
-  case Intrinsic::init_trampoline:
-    // Always safe to remove init_trampoline.
-    return true;
+  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
+    switch (II->getIntrinsicID()) {
+    default: llvm_unreachable("doesn't pass 'hasMemoryWrite' predicate");
+    case Intrinsic::lifetime_end:
+      // Never remove dead lifetime_end's, e.g. because it is followed by a
+      // free.
+      return false;
+    case Intrinsic::init_trampoline:
+      // Always safe to remove init_trampoline.
+      return true;
 
-  case Intrinsic::memset:
-  case Intrinsic::memmove:
-  case Intrinsic::memcpy:
-    // Don't remove volatile memory intrinsics.
-    return !cast<MemIntrinsic>(II)->isVolatile();
+    case Intrinsic::memset:
+    case Intrinsic::memmove:
+    case Intrinsic::memcpy:
+      // Don't remove volatile memory intrinsics.
+      return !cast<MemIntrinsic>(II)->isVolatile();
+    }
   }
+
+  if (CallSite CS = I)
+    return CS.getInstruction()->use_empty();
+
+  return false;
+}
+
+
+/// isShortenable - Returns true if this instruction can be safely shortened in
+/// length.
+static bool isShortenable(Instruction *I) {
+  // Don't shorten stores for now
+  if (isa<StoreInst>(I))
+    return false;
+
+  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
+    switch (II->getIntrinsicID()) {
+      default: return false;
+      case Intrinsic::memset:
+      case Intrinsic::memcpy:
+        // Do shorten memory intrinsics.
+        return true;
+    }
+  }
+
+  // Don't shorten libcalls calls for now.
+
+  return false;
 }
 
 /// getStoredPointerOperand - Return the pointer that is being written to.
@@ -245,48 +302,45 @@ static Value *getStoredPointerOperand(Instruction *I) {
   if (MemIntrinsic *MI = dyn_cast<MemIntrinsic>(I))
     return MI->getDest();
 
-  IntrinsicInst *II = cast<IntrinsicInst>(I);
-  switch (II->getIntrinsicID()) {
-  default: assert(false && "Unexpected intrinsic!");
-  case Intrinsic::init_trampoline:
-    return II->getArgOperand(0);
-  }
-}
-
-static uint64_t getPointerSize(Value *V, AliasAnalysis &AA) {
-  const TargetData *TD = AA.getTargetData();
-  if (TD == 0)
-    return AliasAnalysis::UnknownSize;
-
-  if (AllocaInst *A = dyn_cast<AllocaInst>(V)) {
-    // Get size information for the alloca
-    if (ConstantInt *C = dyn_cast<ConstantInt>(A->getArraySize()))
-      return C->getZExtValue() * TD->getTypeAllocSize(A->getAllocatedType());
-    return AliasAnalysis::UnknownSize;
+  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
+    switch (II->getIntrinsicID()) {
+    default: llvm_unreachable("Unexpected intrinsic!");
+    case Intrinsic::init_trampoline:
+      return II->getArgOperand(0);
+    }
   }
 
-  assert(isa<Argument>(V) && "Expected AllocaInst or Argument!");
-  PointerType *PT = cast<PointerType>(V->getType());
-  return TD->getTypeAllocSize(PT->getElementType());
+  CallSite CS = I;
+  // All the supported functions so far happen to have dest as their first
+  // argument.
+  return CS.getArgument(0);
 }
 
-/// isObjectPointerWithTrustworthySize - Return true if the specified Value* is
-/// pointing to an object with a pointer size we can trust.
-static bool isObjectPointerWithTrustworthySize(const Value *V) {
-  if (const AllocaInst *AI = dyn_cast<AllocaInst>(V))
-    return !AI->isArrayAllocation();
-  if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
-    return !GV->mayBeOverridden();
-  if (const Argument *A = dyn_cast<Argument>(V))
-    return A->hasByValAttr();
-  return false;
+static uint64_t getPointerSize(const Value *V, AliasAnalysis &AA) {
+  uint64_t Size;
+  if (getObjectSize(V, Size, AA.getDataLayout(), AA.getTargetLibraryInfo()))
+    return Size;
+  return AliasAnalysis::UnknownSize;
 }
 
-/// isCompleteOverwrite - Return true if a store to the 'Later' location
+namespace {
+  enum OverwriteResult
+  {
+    OverwriteComplete,
+    OverwriteEnd,
+    OverwriteUnknown
+  };
+}
+
+/// isOverwrite - Return 'OverwriteComplete' if a store to the 'Later' location
 /// completely overwrites a store to the 'Earlier' location.
-static bool isCompleteOverwrite(const AliasAnalysis::Location &Later,
-                                const AliasAnalysis::Location &Earlier,
-                                AliasAnalysis &AA) {
+/// 'OverwriteEnd' if the end of the 'Earlier' location is completely
+/// overwritten by 'Later', or 'OverwriteUnknown' if nothing can be determined
+static OverwriteResult isOverwrite(const AliasAnalysis::Location &Later,
+                                   const AliasAnalysis::Location &Earlier,
+                                   AliasAnalysis &AA,
+                                   int64_t &EarlierOff,
+                                   int64_t &LaterOff) {
   const Value *P1 = Earlier.Ptr->stripPointerCasts();
   const Value *P2 = Later.Ptr->stripPointerCasts();
 
@@ -297,31 +351,32 @@ static bool isCompleteOverwrite(const AliasAnalysis::Location &Later,
     // comparison.
     if (Later.Size == AliasAnalysis::UnknownSize ||
         Earlier.Size == AliasAnalysis::UnknownSize) {
-      // If we have no TargetData information around, then the size of the store
+      // If we have no DataLayout information around, then the size of the store
       // is inferrable from the pointee type.  If they are the same type, then
       // we know that the store is safe.
-      if (AA.getTargetData() == 0)
-        return Later.Ptr->getType() == Earlier.Ptr->getType();
-      return false;
+      if (AA.getDataLayout() == 0 &&
+          Later.Ptr->getType() == Earlier.Ptr->getType())
+        return OverwriteComplete;
+
+      return OverwriteUnknown;
     }
 
     // Make sure that the Later size is >= the Earlier size.
-    if (Later.Size < Earlier.Size)
-      return false;
-    return true;
+    if (Later.Size >= Earlier.Size)
+      return OverwriteComplete;
   }
 
   // Otherwise, we have to have size information, and the later store has to be
   // larger than the earlier one.
   if (Later.Size == AliasAnalysis::UnknownSize ||
       Earlier.Size == AliasAnalysis::UnknownSize ||
-      Later.Size <= Earlier.Size || AA.getTargetData() == 0)
-    return false;
+      AA.getDataLayout() == 0)
+    return OverwriteUnknown;
 
   // Check to see if the later store is to the entire object (either a global,
   // an alloca, or a byval argument).  If so, then it clearly overwrites any
   // other store to the same object.
-  const TargetData &TD = *AA.getTargetData();
+  const DataLayout &TD = *AA.getDataLayout();
 
   const Value *UO1 = GetUnderlyingObject(P1, &TD),
               *UO2 = GetUnderlyingObject(P2, &TD);
@@ -329,26 +384,25 @@ static bool isCompleteOverwrite(const AliasAnalysis::Location &Later,
   // If we can't resolve the same pointers to the same object, then we can't
   // analyze them at all.
   if (UO1 != UO2)
-    return false;
+    return OverwriteUnknown;
 
   // If the "Later" store is to a recognizable object, get its size.
-  if (isObjectPointerWithTrustworthySize(UO2)) {
-    uint64_t ObjectSize =
-      TD.getTypeAllocSize(cast<PointerType>(UO2->getType())->getElementType());
-    if (ObjectSize == Later.Size)
-      return true;
-  }
+  uint64_t ObjectSize = getPointerSize(UO2, AA);
+  if (ObjectSize != AliasAnalysis::UnknownSize)
+    if (ObjectSize == Later.Size && ObjectSize >= Earlier.Size)
+      return OverwriteComplete;
 
   // Okay, we have stores to two completely different pointers.  Try to
   // decompose the pointer into a "base + constant_offset" form.  If the base
   // pointers are equal, then we can reason about the two stores.
-  int64_t EarlierOff = 0, LaterOff = 0;
+  EarlierOff = 0;
+  LaterOff = 0;
   const Value *BP1 = GetPointerBaseWithConstantOffset(P1, EarlierOff, TD);
   const Value *BP2 = GetPointerBaseWithConstantOffset(P2, LaterOff, TD);
 
   // If the base pointers still differ, we have two completely different stores.
   if (BP1 != BP2)
-    return false;
+    return OverwriteUnknown;
 
   // The later store completely overlaps the earlier store if:
   //
@@ -366,11 +420,25 @@ static bool isCompleteOverwrite(const AliasAnalysis::Location &Later,
   //
   // We have to be careful here as *Off is signed while *.Size is unsigned.
   if (EarlierOff >= LaterOff &&
+      Later.Size >= Earlier.Size &&
       uint64_t(EarlierOff - LaterOff) + Earlier.Size <= Later.Size)
-    return true;
+    return OverwriteComplete;
+
+  // The other interesting case is if the later store overwrites the end of
+  // the earlier store
+  //
+  //      |--earlier--|
+  //                |--   later   --|
+  //
+  // In this case we may want to trim the size of earlier to avoid generating
+  // writes to addresses which will definitely be overwritten later
+  if (LaterOff > EarlierOff &&
+      LaterOff < int64_t(EarlierOff + Earlier.Size) &&
+      int64_t(LaterOff + Later.Size) >= int64_t(EarlierOff + Earlier.Size))
+    return OverwriteEnd;
 
   // Otherwise, they don't completely overlap.
-  return false;
+  return OverwriteUnknown;
 }
 
 /// isPossibleSelfRead - If 'Inst' might be a self read (i.e. a noop copy of a
@@ -428,13 +496,13 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
     Instruction *Inst = BBI++;
 
     // Handle 'free' calls specially.
-    if (CallInst *F = isFreeCall(Inst)) {
+    if (CallInst *F = isFreeCall(Inst, TLI)) {
       MadeChange |= HandleFree(F);
       continue;
     }
 
     // If we find something that writes memory, get its memory dependence.
-    if (!hasMemoryWrite(Inst))
+    if (!hasMemoryWrite(Inst, TLI))
       continue;
 
     MemDepResult InstDep = MD->getDependency(Inst);
@@ -457,7 +525,7 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
           // in case we need it.
           WeakVH NextInst(BBI);
 
-          DeleteDeadInstruction(SI, *MD);
+          DeleteDeadInstruction(SI, *MD, TLI);
 
           if (NextInst == 0)  // Next instruction deleted.
             BBI = BB.begin();
@@ -494,22 +562,52 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
       // If we find a write that is a) removable (i.e., non-volatile), b) is
       // completely obliterated by the store to 'Loc', and c) which we know that
       // 'Inst' doesn't load from, then we can remove it.
-      if (isRemovable(DepWrite) && isCompleteOverwrite(Loc, DepLoc, *AA) &&
+      if (isRemovable(DepWrite) &&
           !isPossibleSelfRead(Inst, Loc, DepWrite, *AA)) {
-        DEBUG(dbgs() << "DSE: Remove Dead Store:\n  DEAD: "
-              << *DepWrite << "\n  KILLER: " << *Inst << '\n');
+        int64_t InstWriteOffset, DepWriteOffset;
+        OverwriteResult OR = isOverwrite(Loc, DepLoc, *AA,
+                                         DepWriteOffset, InstWriteOffset);
+        if (OR == OverwriteComplete) {
+          DEBUG(dbgs() << "DSE: Remove Dead Store:\n  DEAD: "
+                << *DepWrite << "\n  KILLER: " << *Inst << '\n');
 
-        // Delete the store and now-dead instructions that feed it.
-        DeleteDeadInstruction(DepWrite, *MD);
-        ++NumFastStores;
-        MadeChange = true;
+          // Delete the store and now-dead instructions that feed it.
+          DeleteDeadInstruction(DepWrite, *MD, TLI);
+          ++NumFastStores;
+          MadeChange = true;
 
-        // DeleteDeadInstruction can delete the current instruction in loop
-        // cases, reset BBI.
-        BBI = Inst;
-        if (BBI != BB.begin())
-          --BBI;
-        break;
+          // DeleteDeadInstruction can delete the current instruction in loop
+          // cases, reset BBI.
+          BBI = Inst;
+          if (BBI != BB.begin())
+            --BBI;
+          break;
+        } else if (OR == OverwriteEnd && isShortenable(DepWrite)) {
+          // TODO: base this on the target vector size so that if the earlier
+          // store was too small to get vector writes anyway then its likely
+          // a good idea to shorten it
+          // Power of 2 vector writes are probably always a bad idea to optimize
+          // as any store/memset/memcpy is likely using vector instructions so
+          // shortening it to not vector size is likely to be slower
+          MemIntrinsic* DepIntrinsic = cast<MemIntrinsic>(DepWrite);
+          unsigned DepWriteAlign = DepIntrinsic->getAlignment();
+          if (llvm::isPowerOf2_64(InstWriteOffset) ||
+              ((DepWriteAlign != 0) && InstWriteOffset % DepWriteAlign == 0)) {
+
+            DEBUG(dbgs() << "DSE: Remove Dead Store:\n  OW END: "
+                  << *DepWrite << "\n  KILLER (offset "
+                  << InstWriteOffset << ", "
+                  << DepLoc.Size << ")"
+                  << *Inst << '\n');
+
+            Value* DepWriteLength = DepIntrinsic->getLength();
+            Value* TrimmedLength = ConstantInt::get(DepWriteLength->getType(),
+                                                    InstWriteOffset -
+                                                    DepWriteOffset);
+            DepIntrinsic->setLength(TrimmedLength);
+            MadeChange = true;
+          }
+        }
       }
 
       // If this is a may-aliased store that is clobbering the store value, we
@@ -538,39 +636,85 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
   return MadeChange;
 }
 
+/// Find all blocks that will unconditionally lead to the block BB and append
+/// them to F.
+static void FindUnconditionalPreds(SmallVectorImpl<BasicBlock *> &Blocks,
+                                   BasicBlock *BB, DominatorTree *DT) {
+  for (pred_iterator I = pred_begin(BB), E = pred_end(BB); I != E; ++I) {
+    BasicBlock *Pred = *I;
+    if (Pred == BB) continue;
+    TerminatorInst *PredTI = Pred->getTerminator();
+    if (PredTI->getNumSuccessors() != 1)
+      continue;
+
+    if (DT->isReachableFromEntry(Pred))
+      Blocks.push_back(Pred);
+  }
+}
+
 /// HandleFree - Handle frees of entire structures whose dependency is a store
 /// to a field of that structure.
 bool DSE::HandleFree(CallInst *F) {
   bool MadeChange = false;
 
-  MemDepResult Dep = MD->getDependency(F);
+  AliasAnalysis::Location Loc = AliasAnalysis::Location(F->getOperand(0));
+  SmallVector<BasicBlock *, 16> Blocks;
+  Blocks.push_back(F->getParent());
 
-  while (Dep.isDef() || Dep.isClobber()) {
-    Instruction *Dependency = Dep.getInst();
-    if (!hasMemoryWrite(Dependency) || !isRemovable(Dependency))
-      return MadeChange;
+  while (!Blocks.empty()) {
+    BasicBlock *BB = Blocks.pop_back_val();
+    Instruction *InstPt = BB->getTerminator();
+    if (BB == F->getParent()) InstPt = F;
 
-    Value *DepPointer =
-      GetUnderlyingObject(getStoredPointerOperand(Dependency));
+    MemDepResult Dep = MD->getPointerDependencyFrom(Loc, false, InstPt, BB);
+    while (Dep.isDef() || Dep.isClobber()) {
+      Instruction *Dependency = Dep.getInst();
+      if (!hasMemoryWrite(Dependency, TLI) || !isRemovable(Dependency))
+        break;
 
-    // Check for aliasing.
-    if (!AA->isMustAlias(F->getArgOperand(0), DepPointer))
-      return MadeChange;
+      Value *DepPointer =
+        GetUnderlyingObject(getStoredPointerOperand(Dependency));
 
-    // DCE instructions only used to calculate that store
-    DeleteDeadInstruction(Dependency, *MD);
-    ++NumFastStores;
-    MadeChange = true;
+      // Check for aliasing.
+      if (!AA->isMustAlias(F->getArgOperand(0), DepPointer))
+        break;
 
-    // Inst's old Dependency is now deleted. Compute the next dependency,
-    // which may also be dead, as in
-    //    s[0] = 0;
-    //    s[1] = 0; // This has just been deleted.
-    //    free(s);
-    Dep = MD->getDependency(F);
-  };
+      Instruction *Next = llvm::next(BasicBlock::iterator(Dependency));
+
+      // DCE instructions only used to calculate that store
+      DeleteDeadInstruction(Dependency, *MD, TLI);
+      ++NumFastStores;
+      MadeChange = true;
+
+      // Inst's old Dependency is now deleted. Compute the next dependency,
+      // which may also be dead, as in
+      //    s[0] = 0;
+      //    s[1] = 0; // This has just been deleted.
+      //    free(s);
+      Dep = MD->getPointerDependencyFrom(Loc, false, Next, BB);
+    }
+
+    if (Dep.isNonLocal())
+      FindUnconditionalPreds(Blocks, BB, DT);
+  }
 
   return MadeChange;
+}
+
+namespace {
+  struct CouldRef {
+    typedef Value *argument_type;
+    const CallSite CS;
+    AliasAnalysis *AA;
+
+    bool operator()(Value *I) {
+      // See if the call site touches the value.
+      AliasAnalysis::ModRefResult A =
+        AA->getModRefInfo(CS, I, getPointerSize(I, *AA));
+
+      return A == AliasAnalysis::ModRef || A == AliasAnalysis::Ref;
+    }
+  };
 }
 
 /// handleEndBlock - Remove dead stores to stack-allocated locations in the
@@ -584,13 +728,19 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
 
   // Keep track of all of the stack objects that are dead at the end of the
   // function.
-  SmallPtrSet<Value*, 16> DeadStackObjects;
+  SmallSetVector<Value*, 16> DeadStackObjects;
 
   // Find all of the alloca'd pointers in the entry block.
   BasicBlock *Entry = BB.getParent()->begin();
-  for (BasicBlock::iterator I = Entry->begin(), E = Entry->end(); I != E; ++I)
-    if (AllocaInst *AI = dyn_cast<AllocaInst>(I))
-      DeadStackObjects.insert(AI);
+  for (BasicBlock::iterator I = Entry->begin(), E = Entry->end(); I != E; ++I) {
+    if (isa<AllocaInst>(I))
+      DeadStackObjects.insert(I);
+
+    // Okay, so these are dead heap objects, but if the pointer never escapes
+    // then it's leaked by this function anyways.
+    else if (isAllocLikeFn(I, TLI) && !PointerMayBeCaptured(I, true, true))
+      DeadStackObjects.insert(I);
+  }
 
   // Treat byval arguments the same, stores to them are dead at the end of the
   // function.
@@ -604,19 +754,35 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
     --BBI;
 
     // If we find a store, check to see if it points into a dead stack value.
-    if (hasMemoryWrite(BBI) && isRemovable(BBI)) {
+    if (hasMemoryWrite(BBI, TLI) && isRemovable(BBI)) {
       // See through pointer-to-pointer bitcasts
-      Value *Pointer = GetUnderlyingObject(getStoredPointerOperand(BBI));
+      SmallVector<Value *, 4> Pointers;
+      GetUnderlyingObjects(getStoredPointerOperand(BBI), Pointers);
 
       // Stores to stack values are valid candidates for removal.
-      if (DeadStackObjects.count(Pointer)) {
+      bool AllDead = true;
+      for (SmallVectorImpl<Value *>::iterator I = Pointers.begin(),
+           E = Pointers.end(); I != E; ++I)
+        if (!DeadStackObjects.count(*I)) {
+          AllDead = false;
+          break;
+        }
+
+      if (AllDead) {
         Instruction *Dead = BBI++;
 
         DEBUG(dbgs() << "DSE: Dead Store at End of Block:\n  DEAD: "
-                     << *Dead << "\n  Object: " << *Pointer << '\n');
+                     << *Dead << "\n  Objects: ";
+              for (SmallVectorImpl<Value *>::iterator I = Pointers.begin(),
+                   E = Pointers.end(); I != E; ++I) {
+                dbgs() << **I;
+                if (llvm::next(I) != E)
+                  dbgs() << ", ";
+              }
+              dbgs() << '\n');
 
         // DCE instructions only used to calculate that store.
-        DeleteDeadInstruction(Dead, *MD, &DeadStackObjects);
+        DeleteDeadInstruction(Dead, *MD, TLI, &DeadStackObjects);
         ++NumFastStores;
         MadeChange = true;
         continue;
@@ -624,20 +790,27 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
     }
 
     // Remove any dead non-memory-mutating instructions.
-    if (isInstructionTriviallyDead(BBI)) {
+    if (isInstructionTriviallyDead(BBI, TLI)) {
       Instruction *Inst = BBI++;
-      DeleteDeadInstruction(Inst, *MD, &DeadStackObjects);
+      DeleteDeadInstruction(Inst, *MD, TLI, &DeadStackObjects);
       ++NumFastOther;
       MadeChange = true;
       continue;
     }
 
-    if (AllocaInst *A = dyn_cast<AllocaInst>(BBI)) {
-      DeadStackObjects.erase(A);
+    if (isa<AllocaInst>(BBI)) {
+      // Remove allocas from the list of dead stack objects; there can't be
+      // any references before the definition.
+      DeadStackObjects.remove(BBI);
       continue;
     }
 
     if (CallSite CS = cast<Value>(BBI)) {
+      // Remove allocation function calls from the list of dead stack objects; 
+      // there can't be any references before the definition.
+      if (isAllocLikeFn(BBI, TLI))
+        DeadStackObjects.remove(BBI);
+
       // If this call does not access memory, it can't be loading any of our
       // pointers.
       if (AA->doesNotAccessMemory(CS))
@@ -645,25 +818,13 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
 
       // If the call might load from any of our allocas, then any store above
       // the call is live.
-      SmallVector<Value*, 8> LiveAllocas;
-      for (SmallPtrSet<Value*, 16>::iterator I = DeadStackObjects.begin(),
-           E = DeadStackObjects.end(); I != E; ++I) {
-        // See if the call site touches it.
-        AliasAnalysis::ModRefResult A =
-          AA->getModRefInfo(CS, *I, getPointerSize(*I, *AA));
-
-        if (A == AliasAnalysis::ModRef || A == AliasAnalysis::Ref)
-          LiveAllocas.push_back(*I);
-      }
-
-      for (SmallVector<Value*, 8>::iterator I = LiveAllocas.begin(),
-           E = LiveAllocas.end(); I != E; ++I)
-        DeadStackObjects.erase(*I);
+      CouldRef Pred = { CS, AA };
+      DeadStackObjects.remove_if(Pred);
 
       // If all of the allocas were clobbered by the call then we're not going
       // to find anything else to process.
       if (DeadStackObjects.empty())
-        return MadeChange;
+        break;
 
       continue;
     }
@@ -701,11 +862,25 @@ bool DSE::handleEndBlock(BasicBlock &BB) {
   return MadeChange;
 }
 
+namespace {
+  struct CouldAlias {
+    typedef Value *argument_type;
+    const AliasAnalysis::Location &LoadedLoc;
+    AliasAnalysis *AA;
+
+    bool operator()(Value *I) {
+      // See if the loaded location could alias the stack location.
+      AliasAnalysis::Location StackLoc(I, getPointerSize(I, *AA));
+      return !AA->isNoAlias(StackLoc, LoadedLoc);
+    }
+  };
+}
+
 /// RemoveAccessedObjects - Check to see if the specified location may alias any
 /// of the stack objects in the DeadStackObjects set.  If so, they become live
 /// because the location is being loaded.
 void DSE::RemoveAccessedObjects(const AliasAnalysis::Location &LoadedLoc,
-                                SmallPtrSet<Value*, 16> &DeadStackObjects) {
+                                SmallSetVector<Value*, 16> &DeadStackObjects) {
   const Value *UnderlyingPointer = GetUnderlyingObject(LoadedLoc.Ptr);
 
   // A constant can't be in the dead pointer set.
@@ -715,21 +890,11 @@ void DSE::RemoveAccessedObjects(const AliasAnalysis::Location &LoadedLoc,
   // If the kill pointer can be easily reduced to an alloca, don't bother doing
   // extraneous AA queries.
   if (isa<AllocaInst>(UnderlyingPointer) || isa<Argument>(UnderlyingPointer)) {
-    DeadStackObjects.erase(const_cast<Value*>(UnderlyingPointer));
+    DeadStackObjects.remove(const_cast<Value*>(UnderlyingPointer));
     return;
   }
 
-  SmallVector<Value*, 16> NowLive;
-  for (SmallPtrSet<Value*, 16>::iterator I = DeadStackObjects.begin(),
-       E = DeadStackObjects.end(); I != E; ++I) {
-    // See if the loaded location could alias the stack location.
-    AliasAnalysis::Location StackLoc(*I, getPointerSize(*I, *AA));
-    if (!AA->isNoAlias(StackLoc, LoadedLoc))
-      NowLive.push_back(*I);
-  }
-
-  for (SmallVector<Value*, 16>::iterator I = NowLive.begin(), E = NowLive.end();
-       I != E; ++I)
-    DeadStackObjects.erase(*I);
+  // Remove objects that could alias LoadedLoc.
+  CouldAlias Pred = { LoadedLoc, AA };
+  DeadStackObjects.remove_if(Pred);
 }
-

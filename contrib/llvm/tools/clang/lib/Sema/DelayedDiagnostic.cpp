@@ -20,13 +20,17 @@ using namespace clang;
 using namespace sema;
 
 DelayedDiagnostic DelayedDiagnostic::makeDeprecation(SourceLocation Loc,
-                                                     const NamedDecl *D,
-                                                     StringRef Msg) {
+                                    const NamedDecl *D,
+                                    const ObjCInterfaceDecl *UnknownObjCClass,
+                                    const ObjCPropertyDecl  *ObjCProperty,
+                                    StringRef Msg) {
   DelayedDiagnostic DD;
   DD.Kind = Deprecation;
   DD.Triggered = false;
   DD.Loc = Loc;
   DD.DeprecationData.Decl = D;
+  DD.DeprecationData.UnknownObjCClass = UnknownObjCClass;
+  DD.DeprecationData.ObjCProperty = ObjCProperty;
   char *MessageData = 0;
   if (Msg.size()) {
     MessageData = new char [Msg.size()];

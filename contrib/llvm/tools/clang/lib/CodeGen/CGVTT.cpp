@@ -18,13 +18,11 @@
 using namespace clang;
 using namespace CodeGen;
 
-#define D1(x)
-
-llvm::Constant *GetAddrOfVTTVTable(CodeGenVTables &CGVT,
-                                   const CXXRecordDecl *MostDerivedClass,
-                                   const VTTVTable &VTable,
-                                   llvm::GlobalVariable::LinkageTypes Linkage,
-                       llvm::DenseMap<BaseSubobject, uint64_t> &AddressPoints) {
+static llvm::Constant *
+GetAddrOfVTTVTable(CodeGenVTables &CGVT, const CXXRecordDecl *MostDerivedClass,
+                   const VTTVTable &VTable,
+                   llvm::GlobalVariable::LinkageTypes Linkage,
+                   llvm::DenseMap<BaseSubobject, uint64_t> &AddressPoints) {
   if (VTable.getBase() == MostDerivedClass) {
     assert(VTable.getBaseOffset().isZero() &&
            "Most derived class vtable must have a zero offset!");
@@ -45,8 +43,7 @@ CodeGenVTables::EmitVTTDefinition(llvm::GlobalVariable *VTT,
                                   const CXXRecordDecl *RD) {
   VTTBuilder Builder(CGM.getContext(), RD, /*GenerateDefinition=*/true);
 
-  llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext()),
-             *Int64Ty = llvm::Type::getInt64Ty(CGM.getLLVMContext());
+  llvm::Type *Int8PtrTy = CGM.Int8PtrTy, *Int64Ty = CGM.Int64Ty;
   llvm::ArrayType *ArrayType = 
     llvm::ArrayType::get(Int8PtrTy, Builder.getVTTComponents().size());
   
@@ -102,7 +99,7 @@ CodeGenVTables::EmitVTTDefinition(llvm::GlobalVariable *VTT,
 llvm::GlobalVariable *CodeGenVTables::GetAddrOfVTT(const CXXRecordDecl *RD) {
   assert(RD->getNumVBases() && "Only classes with virtual bases need a VTT");
 
-  llvm::SmallString<256> OutName;
+  SmallString<256> OutName;
   llvm::raw_svector_ostream Out(OutName);
   CGM.getCXXABI().getMangleContext().mangleCXXVTT(RD, Out);
   Out.flush();
@@ -113,10 +110,8 @@ llvm::GlobalVariable *CodeGenVTables::GetAddrOfVTT(const CXXRecordDecl *RD) {
 
   VTTBuilder Builder(CGM.getContext(), RD, /*GenerateDefinition=*/false);
 
-  llvm::Type *Int8PtrTy = 
-    llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
   llvm::ArrayType *ArrayType = 
-    llvm::ArrayType::get(Int8PtrTy, Builder.getVTTComponents().size());
+    llvm::ArrayType::get(CGM.Int8PtrTy, Builder.getVTTComponents().size());
 
   llvm::GlobalVariable *GV =
     CGM.CreateOrReplaceCXXRuntimeVariable(Name, ArrayType, 

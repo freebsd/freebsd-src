@@ -199,13 +199,6 @@ _thr_sleep(struct pthread *curthread, int clockid,
 	const struct timespec *abstime)
 {
 
-	curthread->will_sleep = 0;
-	if (curthread->nwaiter_defer > 0) {
-		_thr_wake_all(curthread->defer_waiters,
-			curthread->nwaiter_defer);
-		curthread->nwaiter_defer = 0;
-	}
-
 	if (curthread->wake_addr->value != 0)
 		return (0);
 

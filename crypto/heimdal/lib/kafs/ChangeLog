@@ -1,30 +1,40 @@
-2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-07-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* common.c: Try afs/cell@REALM before afs@REALM since that is what
+	OpenAFS folks have been saying is best pratices for some time
+	now. Patch from Derrick Brashear.
+
+2008-04-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+	* afssys.c: Avoid using entry points depending on _IOWR if there
+	is no _IOWR (on cygwin).
+
+2007-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: New library version.
 
-2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs.h: Add VIOCSETTOK2
 	
-2006-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: unbreak previous
 	
 	* Makefile.am: split dist and nodist sources
 	
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: add more files
 	
-2006-05-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-05-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
-	* kafs.3: Spelling, from Björn Sandell.
+	* kafs.3: Spelling, from BjÃ¶rn Sandell.
 	
-2006-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afssys.c: use afs_ioctlnum, From Tomas Olsson <tol@it.su.se>
 	
-2006-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afssys.c: Try harder to get the pioctl to work via the /proc or
 	/dev interface, OpenAFS choose to reuse the same ioctl number,
@@ -34,13 +44,13 @@
 	* afskrb5.c (afslog_uid_int): use the simpler
 	krb5_principal_get_realm function.
 	
-2005-12-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-12-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Remove dependency on config.h, breaks IRIX build,
 	could depend on libkafs_la_OBJECTS, but that is just asking for
 	trubble.
 	
-2005-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afssys.c (k_hasafs_recheck): new function, allow rechecking if
 	AFS client have started now, internaly it resets the internal
@@ -48,7 +58,7 @@
 	with calling k_hasaf() is that is plays around with signals, and
 	that cases problem for some systems/applications.
 	
-2005-10-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs_locl.h: Maybe include <sys/sysctl.h>.
 
@@ -57,22 +67,22 @@
 	version.  Every after 10.0 (darwin 8.0) uses the /dev/ version of
 	the pioctl.
 	
-2005-10-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afssys.c: Support the new MacOS X 10.4 ioctl interface that is a
 	device node. Patched from Tomas Olson <tol@it.su.se>.
 	
-2005-08-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afskrb5.c: Default to use 2b tokens.
 
-2005-06-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* common.c: rename index to idx
 
 	* afssys.c (k_afs_cell_of_file): unconst path
 	
-2005-06-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* use struct kafs_data everywhere, don't mix with the typedef
 	kafs_data
@@ -82,19 +92,19 @@
 	* afssys.c: Don't building map_syscall_name_to_number where its
 	not used.
 
-2005-02-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-02-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: bump version to 4:1:4
 
-2005-02-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-02-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs.h: de-__P
 	
-2004-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-12-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afskrb5.c: s/KEYTYPE_DES/ETYPE_DES_CBC_CRC/
 	
-2004-08-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-08-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afssysdefs.h: ifdef protect AFS_SYSCALL for DragonFly since they
 	still define __FreeBSD__ (and __FreeBSD_version), but claim that
@@ -102,14 +112,14 @@
 	
 	* afssysdefs.h: dragonflybsd uses 339 just like freebsd5
 	
-2004-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-06-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afssys.c: s/arla/nnpfs/
 	
 	* afssys.c: support the linux /proc/fs/mumel/afs_ioctl afs
 	"syscall" interface
 
-2004-01-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-01-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* common.c: search paths for AFS configuration files for the
 	OpenAFS MacOS X, fix comment
@@ -117,42 +127,42 @@
 	* kafs.h: search paths for AFS configuration files for the OpenAFS
 	MacOS X
 
-2003-12-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-12-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* common.c: add _PATH_ARLA_OPENBSD & c/o
 	
 	* kafs.h: add _PATH_ARLA_OPENBSD & c/o
 	
-2003-11-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* common.c: typo, Bruno Rohee <bruno@rohee.com>
 	
-2003-11-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-11-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs.3: spelling, partly from jmc <jmc@prioris.mini.pw.edu.pl>
 	
-2003-09-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afskrb5.c (krb5_afslog_uid_home): be even more friendly to the
 	user and fetch context and id ourself
 	
-2003-09-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afskrb5.c (afslog_uid_int): just belive that realm hint the user
 	passed us
 
-2003-07-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-07-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: always include v4 symbols
 	
 	* afskrb.c: provide dummy krb_ function to there is no need to
 	bump major
 
-2003-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-06-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afskrb5.c (v5_convert): rename one of the two c to cred4
 	
-2003-04-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* common.c, kafs.h: drop the int argument (the error code) from
 	the logging function
@@ -162,12 +172,12 @@
 	* afskrb5.c (v5_convert): better match what other functions do
 	with values from krb5.conf, like case insensitivity
 
-2003-04-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs.3: Change .Fd #include <header.h> to .In header.h
 	from Thomas Klausner <wiz@netbsd.org>
 
-2003-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: (libkafs_la_LDFLAGS): update version
 	
@@ -192,7 +202,7 @@
 	* kafs_locl.h (kafs_data): add name
 	(_kafs_foldup): internally export
 
-2003-04-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs.3: tell that cell-name is uppercased
 	
@@ -204,18 +214,18 @@
 	have updated their servers but not afs/cell@REALM. Add constant
 	KAFS_RXKAD_2B_KVNO.
 
-2003-04-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-04-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs.3: s/kerberos/Kerberos/
 	
-2003-03-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-03-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* kafs.3: spelling, from <jmc@prioris.mini.pw.edu.pl>
 	
 	* kafs.3: document the kafs_settoken functions write about the
 	krb5_appdefault option for kerberos 5 afs tokens fix prototypes
 	
-2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-03-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afskrb5.c (kafs_settoken5): change signature to include a
 	krb5_context, use v5_convert
@@ -254,7 +264,7 @@
 	internal structure struct kafs_token that carries around for rxkad
 	data that is independant of kerberos version
 	
-2003-02-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-02-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* dlfcn.h: s/intialize/initialize, from
 	<jmc@prioris.mini.pw.edu.pl>
@@ -263,7 +273,7 @@
 
 	* afssysdefs.h: fix FreeBSD section
 
-2003-02-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-02-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* afssysdefs.h: use syscall 208 on openbsd (all version) use
 	syscall 339 on freebsd 5.0 and later, use 210 on 4.x and earlier

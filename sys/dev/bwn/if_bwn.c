@@ -73,7 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 /*
  * Tunable & sysctl variables.
@@ -192,8 +193,8 @@ static void	bwn_scan_start(struct ieee80211com *);
 static void	bwn_scan_end(struct ieee80211com *);
 static void	bwn_set_channel(struct ieee80211com *);
 static struct ieee80211vap *bwn_vap_create(struct ieee80211com *,
-		    const char [IFNAMSIZ], int, int,
-		    int, const uint8_t [IEEE80211_ADDR_LEN],
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	bwn_vap_delete(struct ieee80211vap *);
 static void	bwn_stop(struct bwn_softc *, int);
@@ -1427,7 +1428,7 @@ bwn_pio_tx_start(struct bwn_mac *mac, struct ieee80211_node *ni, struct mbuf *m)
 		/*
 		 * XXX please removes m_defrag(9)
 		 */
-		m_new = m_defrag(m, M_DONTWAIT);
+		m_new = m_defrag(m, M_NOWAIT);
 		if (m_new == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: can't defrag TX buffer\n",
@@ -1543,7 +1544,7 @@ bwn_dma_tx_start(struct bwn_mac *mac, struct ieee80211_node *ni, struct mbuf *m)
 	if (error) {    /* error == EFBIG */
 		struct mbuf *m_new;
 
-		m_new = m_defrag(m, M_DONTWAIT);
+		m_new = m_defrag(m, M_NOWAIT);
 		if (m_new == NULL) {
 			if_printf(ifp, "%s: can't defrag TX buffer\n",
 			    __func__);
@@ -2926,10 +2927,10 @@ fail:
 }
 
 static struct ieee80211vap *
-bwn_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+bwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct bwn_softc *sc = ifp->if_softc;
@@ -9123,7 +9124,7 @@ ready:
 	padding = (macstat & BWN_RX_MAC_PADDING) ? 2 : 0;
 	totlen = len + padding;
 	KASSERT(totlen <= MCLBYTES, ("too big..\n"));
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "%s: out of memory", __func__);
 		goto error;
@@ -9182,7 +9183,7 @@ bwn_dma_newbuf(struct bwn_dma_ring *dr, struct bwn_dmadesc_generic *desc,
 	struct mbuf *m;
 	int error;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		error = ENOBUFS;
 
@@ -14225,7 +14226,7 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_detach,	bwn_detach),
 	DEVMETHOD(device_suspend,	bwn_suspend),
 	DEVMETHOD(device_resume,	bwn_resume),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 static driver_t bwn_driver = {
 	"bwn",

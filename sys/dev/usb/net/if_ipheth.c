@@ -81,7 +81,7 @@ static uether_fn_t ipheth_setpromisc;
 #ifdef USB_DEBUG
 static int ipheth_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ipheth, CTLFLAG_RW, 0, "USB iPhone ethernet");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ipheth, CTLFLAG_RW, 0, "USB iPhone ethernet");
 SYSCTL_INT(_hw_usb_ipheth, OID_AUTO, debug, CTLFLAG_RW, &ipheth_debug, 0, "Debug level");
 #endif
 
@@ -159,6 +159,9 @@ static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_4,
+	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
+	    IPHETH_USBINTF_PROTO)},
+	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_5,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
 };
@@ -471,7 +474,7 @@ ipheth_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->sc_rx_buf[x] = NULL;
 			len = usbd_xfer_frame_len(xfer, x);
 
-			if (len < (sizeof(struct ether_header) +
+			if (len < (int)(sizeof(struct ether_header) +
 			    IPHETH_RX_ADJ)) {
 				m_freem(m);
 				continue;

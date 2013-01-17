@@ -103,7 +103,7 @@ static struct atmhw_list atmhw_list;
 /*
  * Read ATM hardware table
  */
-const struct snmp_table atmhw_table = {
+static const struct snmp_table atmhw_table = {
 	OIDX_begemotAtmHWTable,
 	OIDX_begemotAtmIfTableLastChange, 2,
 	sizeof(struct atmhw),

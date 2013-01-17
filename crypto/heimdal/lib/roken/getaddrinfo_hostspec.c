@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,17 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getaddrinfo_hostspec.c 14773 2005-04-12 11:29:18Z lha $");
-#endif
 
 #include "roken.h"
 
 /* getaddrinfo via string specifying host and port */
 
-int ROKEN_LIB_FUNCTION
-roken_getaddrinfo_hostspec2(const char *hostspec, 
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+roken_getaddrinfo_hostspec2(const char *hostspec,
 			    int socktype,
 			    int port,
 			    struct addrinfo **ai)
@@ -60,15 +57,15 @@ roken_getaddrinfo_hostspec2(const char *hostspec,
     } *hstp, hst[] = {
 	{ "http://", SOCK_STREAM, IPPROTO_TCP, 80 },
 	{ "http/", SOCK_STREAM, IPPROTO_TCP, 80 },
-	{ "tcp/", SOCK_STREAM, IPPROTO_TCP },
-	{ "udp/", SOCK_DGRAM, IPPROTO_UDP },
-	{ NULL }
+	{ "tcp/", SOCK_STREAM, IPPROTO_TCP, 0 },
+	{ "udp/", SOCK_DGRAM, IPPROTO_UDP, 0 },
+	{ NULL, 0, 0, 0 }
     };
 
     memset(&hints, 0, sizeof(hints));
 
     hints.ai_socktype = socktype;
-	
+
     for(hstp = hst; hstp->prefix; hstp++) {
 	if(strncmp(hostspec, hstp->prefix, strlen(hstp->prefix)) == 0) {
 	    hints.ai_socktype = hstp->socktype;
@@ -79,7 +76,7 @@ roken_getaddrinfo_hostspec2(const char *hostspec,
 	    break;
 	}
     }
-    
+
     p = strchr (hostspec, ':');
     if (p != NULL) {
 	char *end;
@@ -90,13 +87,13 @@ roken_getaddrinfo_hostspec2(const char *hostspec,
 	hostspec_len = strlen(hostspec);
     }
     snprintf (portstr, sizeof(portstr), "%u", port);
-    
+
     snprintf (host, sizeof(host), "%.*s", hostspec_len, hostspec);
     return getaddrinfo (host, portstr, &hints, ai);
 }
 
-int ROKEN_LIB_FUNCTION
-roken_getaddrinfo_hostspec(const char *hostspec, 
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+roken_getaddrinfo_hostspec(const char *hostspec,
 			   int port,
 			   struct addrinfo **ai)
 {

@@ -1,17 +1,17 @@
 /*-
  * Copyright (c) 2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -55,10 +55,6 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_multiple_asconfs) = SCTPCTL_MULTIPLEASCONFS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_ecn_enable) = SCTPCTL_ECN_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_strict_sacks) = SCTPCTL_STRICT_SACKS_DEFAULT;
-#if !defined(SCTP_WITH_NO_CSUM)
-	SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) = SCTPCTL_LOOPBACK_NOCSUM_DEFAULT;
-#endif
-	SCTP_BASE_SYSCTL(sctp_strict_init) = SCTPCTL_STRICT_INIT_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_peer_chunk_oh) = SCTPCTL_PEER_CHKOH_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_max_burst_default) = SCTPCTL_MAXBURST_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_fr_max_burst_default) = SCTPCTL_FRMAXBURST_DEFAULT;
@@ -118,11 +114,11 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_rttvar_eqret) = SCTPCTL_RTTVAR_EQRET_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_steady_step) = SCTPCTL_RTTVAR_STEADYS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_use_dccc_ecn) = SCTPCTL_RTTVAR_DCCCECN_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_blackhole) = SCTPCTL_BLACKHOLE_DEFAULT;
 
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 #endif
-	SCTP_BASE_SYSCTL(sctp_udp_tunneling_for_client_enable) = SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_udp_tunneling_port) = SCTPCTL_UDP_TUNNELING_PORT_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_enable_sack_immediately) = SCTPCTL_SACK_IMMEDIATELY_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_inits_include_nat_friendly) = SCTPCTL_NAT_FRIENDLY_INITS_DEFAULT;
@@ -139,7 +135,7 @@ sctp_init_sysctls()
 static unsigned int
 number_of_addresses(struct sctp_inpcb *inp)
 {
-	int cnt;
+	unsigned int cnt;
 	struct sctp_vrf *vrf;
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
@@ -389,12 +385,12 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 
 		/* request some more memory than needed */
 		req->oldidx = (n + n / 8);
-		return 0;
+		return (0);
 	}
 	if (req->newptr != USER_ADDR_NULL) {
 		SCTP_INP_INFO_RUNLOCK();
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_SYSCTL, EPERM);
-		return EPERM;
+		return (EPERM);
 	}
 	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
 		SCTP_INP_RLOCK(inp);
@@ -425,14 +421,14 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
 		if (error) {
 			SCTP_INP_DECR_REF(inp);
-			return error;
+			return (error);
 		}
 		SCTP_INP_INFO_RLOCK();
 		SCTP_INP_RLOCK(inp);
 		error = copy_out_local_addresses(inp, NULL, req);
 		if (error) {
 			SCTP_INP_DECR_REF(inp);
-			return error;
+			return (error);
 		}
 		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 			SCTP_TCB_LOCK(stcb);
@@ -476,7 +472,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			if (error) {
 				SCTP_INP_DECR_REF(inp);
 				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-				return error;
+				return (error);
 			}
 			SCTP_INP_INFO_RLOCK();
 			SCTP_INP_RLOCK(inp);
@@ -484,7 +480,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			if (error) {
 				SCTP_INP_DECR_REF(inp);
 				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-				return error;
+				return (error);
 			}
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 				xraddr.last = 0;
@@ -510,7 +506,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				if (error) {
 					SCTP_INP_DECR_REF(inp);
 					atomic_subtract_int(&stcb->asoc.refcnt, 1);
-					return error;
+					return (error);
 				}
 				SCTP_INP_INFO_RLOCK();
 				SCTP_INP_RLOCK(inp);
@@ -523,7 +519,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
 			if (error) {
 				SCTP_INP_DECR_REF(inp);
-				return error;
+				return (error);
 			}
 			SCTP_INP_INFO_RLOCK();
 			SCTP_INP_RLOCK(inp);
@@ -535,7 +531,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		xstcb.last = 1;
 		error = SYSCTL_OUT(req, &xstcb, sizeof(struct xsctp_tcb));
 		if (error) {
-			return error;
+			return (error);
 		}
 skip:
 		SCTP_INP_INFO_RLOCK();
@@ -545,7 +541,7 @@ skip:
 	memset((void *)&xinpcb, 0, sizeof(struct xsctp_inpcb));
 	xinpcb.last = 1;
 	error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
-	return error;
+	return (error);
 }
 
 
@@ -553,8 +549,6 @@ skip:
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
 
-/* XXX: Remove the #if after tunneling over IPv6 works also on FreeBSD. */
-#if !defined(__FreeBSD__) || defined(INET)
 static int
 sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 {
@@ -586,8 +580,6 @@ out:
 	return (error);
 }
 
-#endif
-
 
 static int
 sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
@@ -605,10 +597,6 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_auto_asconf), SCTPCTL_AUTOASCONF_MIN, SCTPCTL_AUTOASCONF_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_ecn_enable), SCTPCTL_ECN_ENABLE_MIN, SCTPCTL_ECN_ENABLE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_strict_sacks), SCTPCTL_STRICT_SACKS_MIN, SCTPCTL_STRICT_SACKS_MAX);
-#if !defined(SCTP_WITH_NO_CSUM)
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback), SCTPCTL_LOOPBACK_NOCSUM_MIN, SCTPCTL_LOOPBACK_NOCSUM_MAX);
-#endif
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_strict_init), SCTPCTL_STRICT_INIT_MIN, SCTPCTL_STRICT_INIT_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_peer_chunk_oh), SCTPCTL_PEER_CHKOH_MIN, SCTPCTL_PEER_CHKOH_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_max_burst_default), SCTPCTL_MAXBURST_MIN, SCTPCTL_MAXBURST_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_fr_max_burst_default), SCTPCTL_FRMAXBURST_MIN, SCTPCTL_FRMAXBURST_MAX);
@@ -666,17 +654,14 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_use_dccc_ecn), SCTPCTL_RTTVAR_DCCCECN_MIN, SCTPCTL_RTTVAR_DCCCECN_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_base), SCTPCTL_MOBILITY_BASE_MIN, SCTPCTL_MOBILITY_BASE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_fasthandoff), SCTPCTL_MOBILITY_FASTHANDOFF_MIN, SCTPCTL_MOBILITY_FASTHANDOFF_MAX);
-/* XXX: Remove the #if after tunneling over IPv6 works also on FreeBSD. */
-#if !defined(__FreeBSD__) || defined(INET)
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_udp_tunneling_for_client_enable), SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN, SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX);
-#endif
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_enable_sack_immediately), SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN, SCTPCTL_SACK_IMMEDIATELY_ENABLE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_inits_include_nat_friendly), SCTPCTL_NAT_FRIENDLY_INITS_MIN, SCTPCTL_NAT_FRIENDLY_INITS_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_blackhole), SCTPCTL_BLACKHOLE_MIN, SCTPCTL_BLACKHOLE_MAX);
 
 #ifdef SCTP_DEBUG
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_debug_on), SCTPCTL_DEBUG_MIN, SCTPCTL_DEBUG_MAX);
 #endif
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_output_unlocked), SCTPCTL_OUTPUT_UNLOCKED_MIN, SCTPCTL_OUTPUT_UNLOCKED_MAX);
 #endif
 	}
@@ -875,15 +860,6 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, strict_sacks, CTLTYPE_UINT | CTLFLAG_
     &SCTP_BASE_SYSCTL(sctp_strict_sacks), 0, sysctl_sctp_check, "IU",
     SCTPCTL_STRICT_SACKS_DESC);
 
-#if !defined(SCTP_WITH_NO_CSUM)
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, loopback_nocsum, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_LOOPBACK_NOCSUM_DESC);
-#endif
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, strict_init, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_strict_init), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_STRICT_INIT_DESC);
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, peer_chkoh, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_peer_chunk_oh), 0, sysctl_sctp_check, "IU",
@@ -1087,16 +1063,9 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, clear_trace, CTLTYPE_UINT | CTLFLAG_R
     "Clear SCTP Logging buffer");
 #endif
 
-/* XXX: Remove the #if after tunneling over IPv6 works also on FreeBSD. */
-#if !defined(__FreeBSD__) || defined(INET)
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_for_client_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_udp_tunneling_for_client_enable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DESC);
-
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_port, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_udp_tunneling_port), 0, sysctl_sctp_udp_tunneling_check, "IU",
     SCTPCTL_UDP_TUNNELING_PORT_DESC);
-#endif
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, enable_sack_immediately, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_enable_sack_immediately), 0, sysctl_sctp_check, "IU",
@@ -1138,6 +1107,10 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, use_dcccecn, CTLTYPE_UINT | CTLFLAG_R
     &SCTP_BASE_SYSCTL(sctp_use_dccc_ecn), 0, sysctl_sctp_check, "IU",
     SCTPCTL_RTTVAR_DCCCECN_DESC);
 
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, blackhole, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_blackhole), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_BLACKHOLE_DESC);
+
 #ifdef SCTP_DEBUG
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_debug_on), 0, sysctl_sctp_check, "IU",
@@ -1145,7 +1118,7 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_UINT | CTLFLAG_RW,
 #endif
 
 
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, output_unlocked, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_output_unlocked), 0, sysctl_sctp_check, "IU",
     SCTPCTL_OUTPUT_UNLOCKED_DESC);

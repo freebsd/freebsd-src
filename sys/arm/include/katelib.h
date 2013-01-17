@@ -43,7 +43,7 @@
  *
  * This should not really be a separate header file. Eventually I will merge
  * this into other header files once I have decided where the declarations
- * should go. 
+ * should go.
  *
  * Created      : 18/09/94
  *

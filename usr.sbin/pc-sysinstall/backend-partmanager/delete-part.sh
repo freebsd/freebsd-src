@@ -73,7 +73,7 @@ DISK="`echo $PARTITION | cut -c 1-${CHARS}`"
 
 # Make sure we have a valid disk name still
 if [ ! -e "/dev/${DISK}" ] ; then
-  echo "Error: Disk: ${DISK} doesnt exist!"
+  echo "Error: Disk: ${DISK} doesn't exist!"
   exit 1
 fi
 

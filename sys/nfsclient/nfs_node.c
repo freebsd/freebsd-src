@@ -128,12 +128,6 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 		*npp = VTONFS(nvp);
 		return (0);
 	}
-
-	/*
-	 * Allocate before getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if zalloc should block.
-	 */
 	np = uma_zalloc(nfsnode_zone, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("nfs", mntp, &nfs_vnodeops, &nvp);
@@ -270,6 +264,8 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 			free((caddr_t)dp2, M_NFSDIROFF);
 		}
 	}
+	if (np->n_writecred != NULL)
+		crfree(np->n_writecred);
 	if (np->n_fhsize > NFS_SMALLFH) {
 		free((caddr_t)np->n_fhp, M_NFSBIGFH);
 	}

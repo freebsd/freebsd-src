@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2011
+.Dd December 4, 2012
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -80,6 +80,7 @@ struct timeout_task;
 .Ft void
 .Fn taskqueue_run "struct taskqueue *queue"
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t func" "void *context"
+.Fn TASK_INITIALIZER "int priority" "task_fn_t func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
 .Fn TASKQUEUE_FAST_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
@@ -115,8 +116,8 @@ thread).
 The memory location where the thread identity is recorded is used
 to signal the service thread(s) to terminate--when this value is set to
 zero and the thread is signaled it will terminate.
-If the queue is intended for use in fast interrupt handlers 
-.Fn taskqueue_create_fast 
+If the queue is intended for use in fast interrupt handlers
+.Fn taskqueue_create_fast
 should be used in place of
 .Fn taskqueue_create .
 .Pp
@@ -179,6 +180,13 @@ is used to schedule the enqueue after the specified amount of
 Only non-fast task queues can be used for
 .Va timeout_task
 scheduling.
+If the
+.Va ticks
+argument is negative, the already scheduled enqueueing is not re-scheduled.
+Otherwise, the task is scheduled for enqueueing in the future,
+after the absolute value of
+.Va ticks
+is passed.
 .Pp
 The
 .Fn taskqueue_cancel
@@ -188,8 +196,8 @@ The
 count is cleared, and the old value returned in the reference
 parameter
 .Fa pendp ,
-if it is non-
-.Dv NULL .
+if it is
+.Pf non- Dv NULL .
 If the task is currently running,
 .Dv EBUSY
 is returned, otherwise 0.
@@ -243,9 +251,14 @@ A convenience macro,
 is provided to initialise a
 .Va task
 structure.
+The
+.Fn TASK_INITIALIZER
+macro generates an initializer for a task structure.
 A macro
 .Fn TIMEOUT_TASK_INIT "queue" "timeout_task" "priority" "func" "context"
-initializes the timeout_task structure.
+initializes the
+.Va timeout_task
+structure.
 The values of
 .Va priority ,
 .Va func ,
@@ -290,9 +303,9 @@ The variable
 is used to enqueue tasks onto the queue.
 .Pp
 .Fn TASKQUEUE_FAST_DEFINE
-and 
+and
 .Fn TASKQUEUE_FAST_DEFINE_THREAD
-act just like 
+act just like
 .Fn TASKQUEUE_DEFINE
 and
 .Fn TASKQUEUE_DEFINE_THREAD

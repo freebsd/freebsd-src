@@ -83,7 +83,7 @@ the implementation should not return a value via
 .Dv max_input_bytes
 that is greater than this length.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It req_output_size"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -109,7 +109,7 @@ be no larger than
 bytes.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CONTEXT_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion.
 .It GSS_S_NO_CONTEXT
@@ -122,7 +122,7 @@ The specified QOP is not supported by the mechanism.
 .Sh SEE ALSO
 .Xr gss_wrap 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

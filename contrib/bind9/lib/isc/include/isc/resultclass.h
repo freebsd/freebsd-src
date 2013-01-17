@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resultclass.h,v 1.20 2009-09-02 23:48:03 tbox Exp $ */
+/* $Id: resultclass.h,v 1.20 2009/09/02 23:48:03 tbox Exp $ */
 
 #ifndef ISC_RESULTCLASS_H
 #define ISC_RESULTCLASS_H 1

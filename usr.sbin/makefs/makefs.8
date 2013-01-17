@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2009
+.Dd August 22, 2012
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd create a file system image from a directory tree or a mtree manifest
 .Sh SYNOPSIS
 .Nm
-.Op Fl x
+.Op Fl px
 .Op Fl B Ar byte-order
 .Op Fl b Ar free-blocks
 .Op Fl d Ar debug-mask
@@ -58,6 +58,7 @@
 .Op Fl t Ar fs-type
 .Ar image-file
 .Ar directory | manifest
+.Op Ar extra-directory ...
 .Sh DESCRIPTION
 The utility
 .Nm
@@ -67,6 +68,15 @@ from the directory tree
 .Ar directory
 or from the mtree manifest
 .Ar manifest .
+If optional directory tree
+.Ar extra-directory
+is passed, then the directory tree of each argument will be merged
+into the
+.Ar directory
+or
+.Ar manifest
+first before creating
+.Ar image-file .
 No special devices or privileges are required to perform this task.
 .Pp
 The options are as follows:
@@ -178,6 +188,8 @@ Set file system specific options.
 .Ar fs-options
 is a comma separated list of options.
 Valid file system specific options are detailed below.
+.It Fl p
+Create the image as a sparse file.
 .It Fl S Ar sector-size
 Set the file system sector size to
 .Ar sector-size .

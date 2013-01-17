@@ -38,7 +38,7 @@
 #include "debug.h"
 #include "rtld.h"
 
-static Elf_Ehdr *get_elf_header (int, const char *);
+static Elf_Ehdr *get_elf_header(int, const char *);
 static int convert_prot(int);	/* Elf flags -> mmap protection */
 static int convert_flags(int); /* Elf flags -> mmap flags */
 
@@ -65,7 +65,6 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Phdr *phtls;
     caddr_t mapbase;
     size_t mapsize;
-    Elf_Off base_offset;
     Elf_Addr base_vaddr;
     Elf_Addr base_vlimit;
     caddr_t base_addr;
@@ -84,6 +83,10 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr bss_vlimit;
     caddr_t bss_addr;
     Elf_Word stack_flags;
+    Elf_Addr relro_page;
+    size_t relro_size;
+    Elf_Addr note_start;
+    Elf_Addr note_end;
 
     hdr = get_elf_header(fd, path);
     if (hdr == NULL)
@@ -100,6 +103,10 @@ map_object(int fd, const char *path, const struct stat *sb)
     nsegs = -1;
     phdyn = phinterp = phtls = NULL;
     phdr_vaddr = 0;
+    relro_page = 0;
+    relro_size = 0;
+    note_start = 0;
+    note_end = 0;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
     stack_flags = RTLD_DEFAULT_STACK_PF_EXEC | PF_R | PF_W;
     while (phdr < phlimit) {
@@ -114,7 +121,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     	    if ((segs[nsegs]->p_align & (PAGE_SIZE - 1)) != 0) {
 		_rtld_error("%s: PT_LOAD segment %d not page-aligned",
 		    path, nsegs);
-		return NULL;
+		goto error;
 	    }
 	    break;
 
@@ -134,25 +141,37 @@ map_object(int fd, const char *path, const struct stat *sb)
 	case PT_GNU_STACK:
 	    stack_flags = phdr->p_flags;
 	    break;
+
+	case PT_GNU_RELRO:
+	    relro_page = phdr->p_vaddr;
+	    relro_size = phdr->p_memsz;
+	    break;
+
+	case PT_NOTE:
+	    if (phdr->p_offset > PAGE_SIZE ||
+	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE)
+		break;
+	    note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+	    note_end = note_start + phdr->p_filesz;
+	    break;
 	}
 
 	++phdr;
     }
     if (phdyn == NULL) {
 	_rtld_error("%s: object is not dynamically-linked", path);
-	return NULL;
+	goto error;
     }
 
     if (nsegs < 0) {
 	_rtld_error("%s: too few PT_LOAD segments", path);
-	return NULL;
+	goto error;
     }
 
     /*
      * Map the entire address space of the object, to stake out our
      * contiguous region, and to establish the base address for relocation.
      */
-    base_offset = trunc_page(segs[0]->p_offset);
     base_vaddr = trunc_page(segs[0]->p_vaddr);
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
@@ -162,14 +181,13 @@ map_object(int fd, const char *path, const struct stat *sb)
       MAP_NOCORE, -1, 0);
     if (mapbase == (caddr_t) -1) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
-	  path, strerror(errno));
-	return NULL;
+	  path, rtld_strerror(errno));
+	goto error;
     }
     if (base_addr != NULL && mapbase != base_addr) {
 	_rtld_error("%s: mmap returned wrong address: wanted %p, got %p",
 	  path, base_addr, mapbase);
-	munmap(mapbase, mapsize);
-	return NULL;
+	goto error1;
     }
 
     for (i = 0; i <= nsegs; i++) {
@@ -181,9 +199,10 @@ map_object(int fd, const char *path, const struct stat *sb)
 	data_prot = convert_prot(segs[i]->p_flags);
 	data_flags = convert_flags(segs[i]->p_flags) | MAP_FIXED;
 	if (mmap(data_addr, data_vlimit - data_vaddr, data_prot,
-	  data_flags, fd, data_offset) == (caddr_t) -1) {
-	    _rtld_error("%s: mmap of data failed: %s", path, strerror(errno));
-	    return NULL;
+	  data_flags | MAP_PREFAULT_READ, fd, data_offset) == (caddr_t) -1) {
+	    _rtld_error("%s: mmap of data failed: %s", path,
+		rtld_strerror(errno));
+	    goto error1;
 	}
 
 	/* Do BSS setup */
@@ -199,8 +218,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 		if ((data_prot & PROT_WRITE) == 0 && -1 ==
 		     mprotect(clear_page, PAGE_SIZE, data_prot|PROT_WRITE)) {
 			_rtld_error("%s: mprotect failed: %s", path,
-			    strerror(errno));
-			return NULL;
+			    rtld_strerror(errno));
+			goto error1;
 		}
 
 		memset(clear_addr, 0, nclear);
@@ -218,8 +237,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 		if (mmap(bss_addr, bss_vlimit - bss_vaddr, data_prot,
 		    data_flags | MAP_ANON, -1, 0) == (caddr_t)-1) {
 		    _rtld_error("%s: mmap of bss failed: %s", path,
-			strerror(errno));
-		    return NULL;
+			rtld_strerror(errno));
+		    goto error1;
 		}
 	    }
 	}
@@ -252,7 +271,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 	if (obj->phdr == NULL) {
 	    obj_free(obj);
 	    _rtld_error("%s: cannot allocate program header", path);
-	     return NULL;
+	    goto error1;
 	}
 	memcpy((char *)obj->phdr, (char *)hdr + hdr->e_phoff, phsize);
 	obj->phdr_alloc = true;
@@ -269,63 +288,76 @@ map_object(int fd, const char *path, const struct stat *sb)
 	obj->tlsinit = mapbase + phtls->p_vaddr;
     }
     obj->stack_flags = stack_flags;
-    return obj;
+    obj->relro_page = obj->relocbase + trunc_page(relro_page);
+    obj->relro_size = round_page(relro_size);
+    if (note_start < note_end)
+	digest_notes(obj, note_start, note_end);
+    munmap(hdr, PAGE_SIZE);
+    return (obj);
+
+error1:
+    munmap(mapbase, mapsize);
+error:
+    munmap(hdr, PAGE_SIZE);
+    return (NULL);
 }
 
 static Elf_Ehdr *
-get_elf_header (int fd, const char *path)
+get_elf_header(int fd, const char *path)
 {
-    static union {
-	Elf_Ehdr hdr;
-	char buf[PAGE_SIZE];
-    } u;
-    ssize_t nbytes;
+	Elf_Ehdr *hdr;
 
-    if ((nbytes = pread(fd, u.buf, PAGE_SIZE, 0)) == -1) {
-	_rtld_error("%s: read error: %s", path, strerror(errno));
-	return NULL;
-    }
+	hdr = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE | MAP_PREFAULT_READ,
+	    fd, 0);
+	if (hdr == (Elf_Ehdr *)MAP_FAILED) {
+		_rtld_error("%s: read error: %s", path, rtld_strerror(errno));
+		return (NULL);
+	}
 
-    /* Make sure the file is valid */
-    if (nbytes < (ssize_t)sizeof(Elf_Ehdr) || !IS_ELF(u.hdr)) {
-	_rtld_error("%s: invalid file format", path);
-	return NULL;
-    }
-    if (u.hdr.e_ident[EI_CLASS] != ELF_TARG_CLASS
-      || u.hdr.e_ident[EI_DATA] != ELF_TARG_DATA) {
-	_rtld_error("%s: unsupported file layout", path);
-	return NULL;
-    }
-    if (u.hdr.e_ident[EI_VERSION] != EV_CURRENT
-      || u.hdr.e_version != EV_CURRENT) {
-	_rtld_error("%s: unsupported file version", path);
-	return NULL;
-    }
-    if (u.hdr.e_type != ET_EXEC && u.hdr.e_type != ET_DYN) {
-	_rtld_error("%s: unsupported file type", path);
-	return NULL;
-    }
-    if (u.hdr.e_machine != ELF_TARG_MACH) {
-	_rtld_error("%s: unsupported machine", path);
-	return NULL;
-    }
+	/* Make sure the file is valid */
+	if (!IS_ELF(*hdr)) {
+		_rtld_error("%s: invalid file format", path);
+		goto error;
+	}
+	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
+	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
+		_rtld_error("%s: unsupported file layout", path);
+		goto error;
+	}
+	if (hdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	    hdr->e_version != EV_CURRENT) {
+		_rtld_error("%s: unsupported file version", path);
+		goto error;
+	}
+	if (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN) {
+		_rtld_error("%s: unsupported file type", path);
+		goto error;
+	}
+	if (hdr->e_machine != ELF_TARG_MACH) {
+		_rtld_error("%s: unsupported machine", path);
+		goto error;
+	}
 
-    /*
-     * We rely on the program header being in the first page.  This is
-     * not strictly required by the ABI specification, but it seems to
-     * always true in practice.  And, it simplifies things considerably.
-     */
-    if (u.hdr.e_phentsize != sizeof(Elf_Phdr)) {
-	_rtld_error(
-	  "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
-	return NULL;
-    }
-    if (u.hdr.e_phoff + u.hdr.e_phnum * sizeof(Elf_Phdr) > (size_t)nbytes) {
-	_rtld_error("%s: program header too large", path);
-	return NULL;
-    }
+	/*
+	 * We rely on the program header being in the first page.  This is
+	 * not strictly required by the ABI specification, but it seems to
+	 * always true in practice.  And, it simplifies things considerably.
+	 */
+	if (hdr->e_phentsize != sizeof(Elf_Phdr)) {
+		_rtld_error(
+	    "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
+		goto error;
+	}
+	if (hdr->e_phoff + hdr->e_phnum * sizeof(Elf_Phdr) >
+	    (size_t)PAGE_SIZE) {
+		_rtld_error("%s: program header too large", path);
+		goto error;
+	}
+	return (hdr);
 
-    return (&u.hdr);
+error:
+	munmap(hdr, PAGE_SIZE);
+	return (NULL);
 }
 
 void

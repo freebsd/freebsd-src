@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/module.h>
 #include <sys/endian.h>
 #include <sys/limits.h>
 #include <sys/proc.h>
@@ -53,11 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 #include <sys/syslog.h>
+#include <netinet/in.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <contrib/rdma/rdma_cm.h>
+#include <linux/types.h>
+#include <rdma/rdma_cm.h>
 
 #include "getopt.h"
 #include "krping.h"
@@ -83,6 +84,7 @@ static const struct krping_option krping_opts[] = {
 	{"bw", OPT_NOPARAM, 'B'},
 	{"tx-depth", OPT_INT, 't'},
   	{"poll", OPT_NOPARAM, 'P'},
+  	{"memlimit", OPT_INT, 'm'},
 	{NULL, 0, 0}
 };
 
@@ -254,10 +256,14 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 		ib_req_notify_cq(cb->cq, IB_CQ_NEXT_COMP);
 	while ((ret = ib_poll_cq(cb->cq, 1, &wc)) == 1) {
 		if (wc.status) {
-			if (wc.status != IB_WC_WR_FLUSH_ERR)
-				log(LOG_ERR, "cq completion failed status %d\n",
+			if (wc.status == IB_WC_WR_FLUSH_ERR) {
+				DEBUG_LOG("cq flushed\n");
+				continue;
+			} else {
+				log(LOG_CRIT, "cq completion failed status %d\n",
 					wc.status);
-			goto error;
+				goto error;
+			}
 		}
 
 		switch (wc.opcode) {
@@ -432,8 +438,17 @@ static int krping_setup_buffers(struct krping_cb *cb)
 		}
 	}
 
-	cb->rdma_buf = contigmalloc(cb->size, M_DEVBUF, M_WAITOK, 0, -1UL,
-		PAGE_SIZE, 0);
+	/* RNIC adapters have a limit upto which it can register physical memory
+	 * If DMA-MR memory mode is set then normally driver registers maximum
+	 * supported memory. After that if contigmalloc allocates memory beyond the
+	 * specified RNIC limit then Krping may not work.
+	 */
+	if (cb->use_dmamr && cb->memlimit)
+		cb->rdma_buf = contigmalloc(cb->size, M_DEVBUF, M_WAITOK, 0, cb->memlimit,
+					    PAGE_SIZE, 0);
+	else 
+		cb->rdma_buf = contigmalloc(cb->size, M_DEVBUF, M_WAITOK, 0, -1UL,
+					    PAGE_SIZE, 0);
 
 	if (!cb->rdma_buf) {
 		log(LOG_ERR, "rdma_buf malloc failed\n");
@@ -458,8 +473,12 @@ static int krping_setup_buffers(struct krping_cb *cb)
 	}
 
 	if (!cb->server || cb->wlat || cb->rlat || cb->bw) {
-		cb->start_buf = contigmalloc(cb->size, M_DEVBUF, M_WAITOK,
-			0, -1UL, PAGE_SIZE, 0);
+		if (cb->use_dmamr && cb->memlimit)
+			cb->start_buf = contigmalloc(cb->size, M_DEVBUF, M_WAITOK,
+						     0, cb->memlimit, PAGE_SIZE, 0);
+		else
+			cb->start_buf = contigmalloc(cb->size, M_DEVBUF, M_WAITOK,
+						     0, -1UL, PAGE_SIZE, 0);
 		if (!cb->start_buf) {
 			log(LOG_ERR, "start_buf malloc failed\n");
 			ret = ENOMEM;
@@ -1636,6 +1655,8 @@ int krping_doit(char *cmd)
 	cb->state = IDLE;
 	cb->size = 64;
 	cb->txdepth = RPING_SQ_DEPTH;
+	cb->use_dmamr = 1;
+	cb->memlimit = 0;
 	mtx_init(&cb->lock, "krping mtx", NULL, MTX_DUPOK|MTX_DEF);
 
 	while ((op = krping_getopt("krping", &cmd, krping_opts, NULL, &optarg,
@@ -1713,6 +1734,15 @@ int krping_doit(char *cmd)
 		case 'd':
 			debug++;
 			break;
+		case 'm':
+                        cb->memlimit = optint;
+                        if (cb->memlimit < 1) {
+                                log(LOG_ERR, "Invalid memory limit %ju\n",
+				    cb->memlimit);
+                                ret = EINVAL;
+                        } else
+                                DEBUG_LOG(PFX "memory limit %d\n", (int)optint);
+                        break;
 		default:
 			log(LOG_ERR, "unknown opt %s\n", optarg);
 			ret = EINVAL;

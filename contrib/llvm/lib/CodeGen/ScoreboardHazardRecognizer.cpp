@@ -39,13 +39,11 @@ ScoreboardHazardRecognizer(const InstrItineraryData *II,
   DebugType = ParentDebugType;
 #endif
 
-  // Determine the maximum depth of any itinerary. This determines the
-  // depth of the scoreboard. We always make the scoreboard at least 1
-  // cycle deep to avoid dealing with the boundary condition.
+  // Determine the maximum depth of any itinerary. This determines the depth of
+  // the scoreboard. We always make the scoreboard at least 1 cycle deep to
+  // avoid dealing with the boundary condition.
   unsigned ScoreboardDepth = 1;
   if (ItinData && !ItinData->isEmpty()) {
-    IssueWidth = ItinData->IssueWidth;
-
     for (unsigned idx = 0; ; ++idx) {
       if (ItinData->isEndMarker(idx))
         break;
@@ -63,16 +61,26 @@ ScoreboardHazardRecognizer(const InstrItineraryData *II,
       // Find the next power-of-2 >= ItinDepth
       while (ItinDepth > ScoreboardDepth) {
         ScoreboardDepth *= 2;
+        // Don't set MaxLookAhead until we find at least one nonzero stage.
+        // This way, an itinerary with no stages has MaxLookAhead==0, which
+        // completely bypasses the scoreboard hazard logic.
+        MaxLookAhead = ScoreboardDepth;
       }
     }
-    MaxLookAhead = ScoreboardDepth;
   }
 
   ReservedScoreboard.reset(ScoreboardDepth);
   RequiredScoreboard.reset(ScoreboardDepth);
 
-  DEBUG(dbgs() << "Using scoreboard hazard recognizer: Depth = "
-               << ScoreboardDepth << '\n');
+  // If MaxLookAhead is not set above, then we are not enabled.
+  if (!isEnabled())
+    DEBUG(dbgs() << "Disabled scoreboard hazard recognizer\n");
+  else {
+    // A nonempty itinerary must have a SchedModel.
+    IssueWidth = ItinData->SchedModel->IssueWidth;
+    DEBUG(dbgs() << "Using scoreboard hazard recognizer: Depth = "
+          << ScoreboardDepth << '\n');
+  }
 }
 
 void ScoreboardHazardRecognizer::Reset() {
@@ -81,6 +89,7 @@ void ScoreboardHazardRecognizer::Reset() {
   ReservedScoreboard.reset();
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void ScoreboardHazardRecognizer::Scoreboard::dump() const {
   dbgs() << "Scoreboard:\n";
 
@@ -96,6 +105,7 @@ void ScoreboardHazardRecognizer::Scoreboard::dump() const {
     dbgs() << '\n';
   }
 }
+#endif
 
 bool ScoreboardHazardRecognizer::atIssueLimit() const {
   if (IssueWidth == 0)
@@ -140,8 +150,6 @@ ScoreboardHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
 
       unsigned freeUnits = IS->getUnits();
       switch (IS->getReservationKind()) {
-      default:
-       assert(0 && "Invalid FU reservation");
       case InstrStage::Required:
         // Required FUs conflict with both reserved and required ones
         freeUnits &= ~ReservedScoreboard[StageCycle];
@@ -153,7 +161,7 @@ ScoreboardHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
       }
 
       if (!freeUnits) {
-        DEBUG(dbgs() << "*** Hazard in cycle " << (cycle + i) << ", ");
+        DEBUG(dbgs() << "*** Hazard in cycle +" << StageCycle << ", ");
         DEBUG(dbgs() << "SU(" << SU->NodeNum << "): ");
         DEBUG(DAG->dumpNode(SU));
         return Hazard;
@@ -194,8 +202,6 @@ void ScoreboardHazardRecognizer::EmitInstruction(SUnit *SU) {
 
       unsigned freeUnits = IS->getUnits();
       switch (IS->getReservationKind()) {
-      default:
-       assert(0 && "Invalid FU reservation");
       case InstrStage::Required:
         // Required FUs conflict with both reserved and required ones
         freeUnits &= ~ReservedScoreboard[cycle + i];

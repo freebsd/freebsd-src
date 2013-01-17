@@ -10,11 +10,12 @@
 #include "llvm/Object/MachOObject.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/SwapByteOrder.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/DataExtractor.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SwapByteOrder.h"
 
 using namespace llvm;
 using namespace llvm::object;
@@ -356,28 +357,29 @@ void MachOObject::ReadSymbol64TableEntry(uint64_t SymbolTableOffset,
   ReadInMemoryStruct(*this, Buffer->getBuffer(), Offset, Res);
 }
 
+template<>
+void SwapStruct(macho::DataInCodeTableEntry &Value) {
+  SwapValue(Value.Offset);
+  SwapValue(Value.Length);
+  SwapValue(Value.Kind);
+}
+void MachOObject::ReadDataInCodeTableEntry(uint64_t TableOffset,
+                                           unsigned Index,
+                       InMemoryStruct<macho::DataInCodeTableEntry> &Res) const {
+  uint64_t Offset = (TableOffset +
+                     Index * sizeof(macho::DataInCodeTableEntry));
+  ReadInMemoryStruct(*this, Buffer->getBuffer(), Offset, Res);
+}
 
 void MachOObject::ReadULEB128s(uint64_t Index,
                                SmallVectorImpl<uint64_t> &Out) const {
-  const char *ptr = Buffer->getBufferStart() + Index;
-  uint64_t data = 0;
-  uint64_t delta = 0;
-  uint32_t shift = 0;
-  while (true) {
-    assert(ptr < Buffer->getBufferEnd() && "index out of bounds");
-    assert(shift < 64 && "too big for uint64_t");
+  DataExtractor extractor(Buffer->getBuffer(), true, 0);
 
-    uint8_t byte = *ptr++;
-    delta |= ((byte & 0x7F) << shift);
-    shift += 7;
-    if (byte < 0x80) {
-      if (delta == 0)
-        break;
-      data += delta;
-      Out.push_back(data);
-      delta = 0;
-      shift = 0;
-    }
+  uint32_t offset = Index;
+  uint64_t data = 0;
+  while (uint64_t delta = extractor.getULEB128(&offset)) {
+    data += delta;
+    Out.push_back(data);
   }
 }
 
@@ -393,7 +395,7 @@ void MachOObject::printHeader(raw_ostream &O) const {
   O << "('num_load_commands', " << Header.NumLoadCommands << ")\n";
   O << "('load_commands_size', " << Header.SizeOfLoadCommands << ")\n";
   O << "('flag', " << Header.Flags << ")\n";
-  
+
   // Print extended header if 64-bit.
   if (is64Bit())
     O << "('reserved', " << Header64Ext.Reserved << ")\n";
@@ -403,6 +405,6 @@ void MachOObject::print(raw_ostream &O) const {
   O << "Header:\n";
   printHeader(O);
   O << "Load Commands:\n";
-  
+
   O << "Buffer:\n";
 }

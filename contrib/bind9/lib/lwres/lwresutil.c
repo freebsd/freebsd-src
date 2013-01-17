@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresutil.c,v 1.34 2007-06-19 23:47:22 tbox Exp $ */
+/* $Id: lwresutil.c,v 1.34 2007/06/19 23:47:22 tbox Exp $ */
 
 /*! \file */
 

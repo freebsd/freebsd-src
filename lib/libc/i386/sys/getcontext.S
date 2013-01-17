@@ -42,12 +42,9 @@ ENTRY(__sys_getcontext)
 	movl	(%esp),%ecx	/* save getcontext return address */
 	mov	$SYS_getcontext,%eax
 	KERNCALL
-	jb	1f
+	jb	HIDENAME(cerror)
 	addl	$4,%esp		/* remove stale (setcontext) return address */
 	jmp	*%ecx		/* restore return address */
-1:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
 END(__sys_getcontext)
 
 	.section .note.GNU-stack,"",%progbits

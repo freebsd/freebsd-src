@@ -794,7 +794,7 @@ xge_hal_fifo_dtr_free(xge_hal_channel_h channelh, xge_hal_dtr_h dtr)
  * in fifo descriptor.
  * @channelh: Channel handle.
  * @dtrh: Descriptor handle.
- * @frag_idx: Index of the data buffer in the caller's scatter-gather listá
+ * @frag_idx: Index of the data buffer in the caller's scatter-gather list
  *            (of buffers).
  * @vaddr: Virtual address of the data buffer.
  * @dma_pointer: DMA address of the data buffer referenced by @frag_idx.
@@ -1015,7 +1015,7 @@ xge_hal_fifo_dtr_buffer_finalize(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
  * descriptor.
  * @channelh: Channel handle.
  * @dtrh: Descriptor handle.
- * @frag_idx: Index of the data buffer in the caller's scatter-gather listá
+ * @frag_idx: Index of the data buffer in the caller's scatter-gather list
  *            (of buffers).
  * @dma_pointer: DMA address of the data buffer referenced by @frag_idx.
  * @size: Size of the data buffer (in bytes).

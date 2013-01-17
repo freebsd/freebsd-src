@@ -42,10 +42,10 @@ SRCS=		dt_aggregate.c \
 		dt_subr.c \
 		dt_work.c \
 		dt_xlator.c \
-		gmatch.c \
-		dis_tables.c
+		gmatch.c
 
 DSRCS=		errno.d			\
+		io.d			\
 		psinfo.d		\
 		signal.d		\
 		unistd.d
@@ -70,12 +70,21 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel -DDIS_MEM
 .elif ${MACHINE_CPUARCH} == "sparc64"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/sparc
+.elif ${MACHINE_CPUARCH} == "mips"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
+.elif ${MACHINE_CPUARCH} == "powerpc"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/powerpc
 .else
 # temporary hack
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+SRCS+=		dis_tables.c
 DSRCS+=		regs_x86.d
 .endif
 
@@ -94,7 +103,7 @@ dt_names.c:
 beforedepend:	dt_errtags.c dt_names.c
 
 beforeinstall:
-.if exists(${DESTDIR}/usr/lib/dtrace)
+.if !defined(LIBRARIES_ONLY) && exists(${DESTDIR}/usr/lib/dtrace)
 .for file in ${DSRCS}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${.CURDIR}/${file} ${DESTDIR}/usr/lib/dtrace
 .endfor

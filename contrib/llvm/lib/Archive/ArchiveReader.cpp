@@ -12,9 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "ArchiveInternals.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Module.h"
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 using namespace llvm;
@@ -77,17 +79,12 @@ Archive::parseMemberHeader(const char*& At, const char* End, std::string* error)
   }
 
   // Cast archive member header
-  ArchiveMemberHeader* Hdr = (ArchiveMemberHeader*)At;
+  const ArchiveMemberHeader* Hdr = (const ArchiveMemberHeader*)At;
   At += sizeof(ArchiveMemberHeader);
 
-  // Extract the size and determine if the file is
-  // compressed or not (negative length).
   int flags = 0;
   int MemberSize = atoi(Hdr->size);
-  if (MemberSize < 0) {
-    flags |= ArchiveMember::CompressedFlag;
-    MemberSize = -MemberSize;
-  }
+  assert(MemberSize >= 0);
 
   // Check the size of the member for sanity
   if (At + MemberSize > End) {
@@ -199,7 +196,7 @@ Archive::parseMemberHeader(const char*& At, const char* End, std::string* error)
       /* FALL THROUGH */
 
     default:
-      char* slash = (char*) memchr(Hdr->name, '/', 16);
+      const char* slash = (const char*) memchr(Hdr->name, '/', 16);
       if (slash == 0)
         slash = Hdr->name + 16;
       pathname.assign(Hdr->name, slash - Hdr->name);
@@ -504,7 +501,7 @@ Archive::findModuleDefiningSymbol(const std::string& symbol,
 // Modules that define those symbols.
 bool
 Archive::findModulesDefiningSymbols(std::set<std::string>& symbols,
-                                    std::set<Module*>& result,
+                                    SmallVectorImpl<Module*>& result,
                                     std::string* error) {
   if (!mapfile || !base) {
     if (error)
@@ -569,21 +566,26 @@ Archive::findModulesDefiningSymbols(std::set<std::string>& symbols,
   // At this point we have a valid symbol table (one way or another) so we
   // just use it to quickly find the symbols requested.
 
+  SmallPtrSet<Module*, 16> Added;
   for (std::set<std::string>::iterator I=symbols.begin(),
-       E=symbols.end(); I != E;) {
+         Next = I,
+         E=symbols.end(); I != E; I = Next) {
+    // Increment Next before we invalidate it.
+    ++Next;
+
     // See if this symbol exists
     Module* m = findModuleDefiningSymbol(*I,error);
-    if (m) {
-      // The symbol exists, insert the Module into our result, duplicates will
-      // be ignored.
-      result.insert(m);
+    if (!m)
+      continue;
+    bool NewMember = Added.insert(m);
+    if (!NewMember)
+      continue;
 
-      // Remove the symbol now that its been resolved, being careful to
-      // post-increment the iterator.
-      symbols.erase(I++);
-    } else {
-      ++I;
-    }
+    // The symbol exists, insert the Module into our result.
+    result.push_back(m);
+
+    // Remove the symbol now that its been resolved.
+    symbols.erase(I);
   }
   return true;
 }

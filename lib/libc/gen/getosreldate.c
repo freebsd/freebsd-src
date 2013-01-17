@@ -33,12 +33,11 @@ static char sccsid[] = "@(#)gethostid.c	8.1 (Berkeley) 6/2/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/sysctl.h>
-#include <errno.h>
-#include <stdlib.h>
 
-#include <osreldate.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 int
 getosreldate(void)

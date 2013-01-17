@@ -331,6 +331,8 @@ _yp_dobind(char *dom, struct dom_binding **ypdb)
 
 	if (ysd == NULL) {
 		ysd = (struct dom_binding *)malloc(sizeof *ysd);
+		if (ysd == NULL)
+			return (YPERR_RESRC);
 		bzero((char *)ysd, sizeof *ysd);
 		ysd->dom_socket = -1;
 		ysd->dom_vers = 0;
@@ -373,7 +375,7 @@ again:
 			ysd->dom_socket = -1;
 		}
 		snprintf(path, sizeof(path), "%s/%s.%d", BINDINGDIR, dom, 2);
-		if ((fd = _open(path, O_RDONLY)) == -1) {
+		if ((fd = _open(path, O_RDONLY | O_CLOEXEC)) == -1) {
 			/* no binding file, YP is dead. */
 			/* Try to bring it back to life. */
 			_close(fd);
@@ -683,11 +685,18 @@ yp_match(char *indomain, char *inmap, const char *inkey, int inkeylen,
 */
 		*outvallen = yprv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
+		if (*outval == NULL) {
+			_yp_unbind(ysd);
+			*outvallen = 0;
+			YPUNLOCK();
+			return (YPERR_RESRC);
+		}
 		bcopy(yprv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 		YPUNLOCK();
 		return (0);
 	}
+	_yp_unbind(ysd);
 #endif
 
 again:
@@ -713,6 +722,13 @@ again:
 	if (!(r = ypprot_err(yprv.stat))) {
 		*outvallen = yprv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
+		if (*outval == NULL) {
+			_yp_unbind(ysd);
+			*outvallen = 0;
+			xdr_free((xdrproc_t)xdr_ypresp_val, &yprv);
+			YPUNLOCK();
+			return (YPERR_RESRC);
+		}
 		bcopy(yprv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 #ifdef YPMATCHCACHE
@@ -791,10 +807,25 @@ again:
 	if (!(r = ypprot_err(yprkv.stat))) {
 		*outkeylen = yprkv.key.keydat_len;
 		*outkey = (char *)malloc(*outkeylen+1);
+		if (*outkey == NULL) {
+			_yp_unbind(ysd);
+			*outkeylen = 0;
+			xdr_free((xdrproc_t)xdr_ypresp_key_val, &yprkv);
+			YPUNLOCK();
+			return (YPERR_RESRC);
+		}
 		bcopy(yprkv.key.keydat_val, *outkey, *outkeylen);
 		(*outkey)[*outkeylen] = '\0';
 		*outvallen = yprkv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
+		if (*outval == NULL) {
+			free(*outkey);
+			_yp_unbind(ysd);
+			*outkeylen = *outvallen = 0;
+			xdr_free((xdrproc_t)xdr_ypresp_key_val, &yprkv);
+			YPUNLOCK();
+			return (YPERR_RESRC);
+		}
 		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 	}
@@ -851,10 +882,25 @@ again:
 	if (!(r = ypprot_err(yprkv.stat))) {
 		*outkeylen = yprkv.key.keydat_len;
 		*outkey = (char *)malloc(*outkeylen+1);
+		if (*outkey == NULL) {
+			_yp_unbind(ysd);
+			*outkeylen = 0;
+			xdr_free((xdrproc_t)xdr_ypresp_key_val, &yprkv);
+			YPUNLOCK();
+			return (YPERR_RESRC);
+		}
 		bcopy(yprkv.key.keydat_val, *outkey, *outkeylen);
 		(*outkey)[*outkeylen] = '\0';
 		*outvallen = yprkv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
+		if (*outval == NULL) {
+			free(*outkey);
+			_yp_unbind(ysd);
+			*outkeylen = *outvallen = 0;
+			xdr_free((xdrproc_t)xdr_ypresp_key_val, &yprkv);
+			YPUNLOCK();
+			return (YPERR_RESRC);
+		}
 		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
 	}

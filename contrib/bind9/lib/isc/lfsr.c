@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lfsr.c,v 1.20 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: lfsr.c,v 1.20 2007/06/19 23:47:17 tbox Exp $ */
 
 /*! \file */
 

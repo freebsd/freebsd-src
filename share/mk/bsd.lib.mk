@@ -33,20 +33,13 @@ CFLAGS+= -DNDEBUG
 NO_WERROR=
 .endif
 
-# Enable CTF conversion on request.
-.if defined(WITH_CTF)
-.undef NO_CTF
-.endif
-
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 
-.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
-.endif
-
-.if !defined(DEBUG_FLAGS)
+.else
 STRIP?=	-s
 .endif
 
@@ -67,67 +60,56 @@ PICFLAG=-fpic
 
 PO_FLAG=-pg
 
+.c.o:
+	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
 .c.po:
-	${CC} ${PO_FLAG} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
 .c.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
+
+.cc.o .C.o .cpp.o .cxx.o:
+	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
-	${CXX} ${PO_FLAG} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PO_FLAG} ${STATIC_CXXFLAGS} ${PO_CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.So .C.So .cpp.So .cxx.So:
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .s.po .s.So:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .asm.po:
 	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} ${ACFLAGS} \
 		-c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .S.po:
 	${CC} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .S.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 all: objwarn
 
@@ -151,9 +133,9 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 .else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 .endif
 	${RANLIB} ${.TARGET}
 .endif
@@ -168,9 +150,9 @@ lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
 .else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
 .endif
 	${RANLIB} ${.TARGET}
 .endif
@@ -183,28 +165,48 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
-.if target(beforelinking)
-${SHLIB_NAME}: ${SOBJS} beforelinking
+.if defined(DEBUG_FLAGS)
+SHLIB_NAME_FULL=${SHLIB_NAME}.debug
 .else
-${SHLIB_NAME}: ${SOBJS}
+SHLIB_NAME_FULL=${SHLIB_NAME}
 .endif
+
+SOLINKOPTS=	-shared -Wl,-x
+.if !defined(ALLOW_SHARED_TEXTREL)
+SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
+.endif
+
+.if target(beforelinking)
+beforelinking: ${SOBJS}
+${SHLIB_NAME_FULL}: beforelinking
+.endif
+${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
-	@rm -f ${.TARGET} ${SHLIB_LINK}
+	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
-	@ln -fs ${.TARGET} ${SHLIB_LINK}
+	@ln -fs ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
+	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .else
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
+	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS} && \
-		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS})
+.if ${MK_CTF} != "no"
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
+.endif
+
+.if defined(DEBUG_FLAGS)
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
+	    ${SHLIB_NAME_FULL} ${.TARGET}
+
+${SHLIB_NAME}.symbols: ${SHLIB_NAME_FULL}
+	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
+.endif
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
@@ -213,7 +215,7 @@ _LIBS+=		lib${LIB}_pic.a
 lib${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} ${SOBJS} ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${.TARGET}
 .endif
 
@@ -281,7 +283,31 @@ _libinstall:
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
+.if defined(DEBUG_FLAGS)
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} \
+	    ${SHLIB_NAME}.symbols ${DESTDIR}${SHLIBDIR}
+.endif
 .if defined(SHLIB_LINK)
+# ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
+# and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
+# prefix where shared objects will be installed.  ${_LDSCRIPTROOT} is the
+# directory prefix that will be used in generated ld(1) scripts.  They cannot
+# be coalesced because of the way ld(1) handles the sysroot prefix (used in the
+# cross-toolchain):
+# - 64 bits libs are located under sysroot, so ${_LDSCRIPTROOT} must be empty.
+# - 32 bits shims are not, so ${_LDSCRIPTROOT} is used to specify their full
+#   path.  Note that ld(1) scripts are generated both during buildworld and
+#   installworld; in the later case ${_LDSCRIPTROOT} must be obviously empty.
+# On the other hand, the use of ${_SHLIBDIRPREFIX} is more consistent since it
+# does not involve the logic of a tool we do not own.
+.if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
+	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${SHLIBDIR}/${SHLIB_NAME},g' \
+	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${LIBDIR},g' \
+	    ${.CURDIR}/${SHLIB_LDSCRIPT} > lib${LIB}.ld
+	${INSTALL} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} lib${LIB}.ld ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.else
 .if ${SHLIBDIR} == ${LIBDIR}
 	ln -fs ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .else
@@ -292,8 +318,9 @@ _libinstall:
 	rm -f ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
 .endif
 .endif
-.endif
-.endif
+.endif # SHLIB_LDSCRIPT
+.endif # SHLIB_LINK
+.endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
@@ -304,9 +331,12 @@ _libinstall:
 .endif
 .endif # !defined(INTERNALLIB)
 
+.if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
+.endif
+
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no"
@@ -321,7 +351,7 @@ lint: ${SRCS:M*.c}
 	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 .include <bsd.man.mk>
 .endif
 
@@ -361,6 +391,9 @@ clean:
 .endif
 .if defined(SHLIB_NAME)
 .if defined(SHLIB_LINK)
+.if defined(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
+	rm -f lib${LIB}.ld
+.endif
 	rm -f ${SHLIB_LINK}
 .endif
 .if defined(LIB) && !empty(LIB)

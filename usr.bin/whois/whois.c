@@ -81,9 +81,9 @@ __FBSDID("$FreeBSD$");
 
 #define ishost(h) (isalnum((unsigned char)h) || h == '.' || h == '-')
 
-const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST,
-			   FNICHOST, NULL };
-const char *port = DEFAULT_PORT;
+static const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST,
+				  FNICHOST, NULL };
+static const char *port = DEFAULT_PORT;
 
 static char *choose_server(char *);
 static struct addrinfo *gethostinfo(char const *host, int exit_on_error);

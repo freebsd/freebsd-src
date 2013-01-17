@@ -42,10 +42,10 @@ class JumpScopeChecker {
     /// the parent scope is the function body.
     unsigned ParentScope;
 
-    /// InDiag - The diagnostic to emit if there is a jump into this scope.
+    /// InDiag - The note to emit if there is a jump into this scope.
     unsigned InDiag;
 
-    /// OutDiag - The diagnostic to emit if there is an indirect jump out
+    /// OutDiag - The note to emit if there is an indirect jump out
     /// of this scope.  Direct jumps always clean up their current scope
     /// in an orderly way.
     unsigned OutDiag;
@@ -74,10 +74,12 @@ private:
   
   void VerifyJumps();
   void VerifyIndirectJumps();
+  void NoteJumpIntoScopes(ArrayRef<unsigned> ToScopes);
   void DiagnoseIndirectJump(IndirectGotoStmt *IG, unsigned IGScope,
                             LabelDecl *Target, unsigned TargetScope);
   void CheckJump(Stmt *From, Stmt *To, SourceLocation DiagLoc,
-                 unsigned JumpDiag, unsigned JumpDiagWarning);
+                 unsigned JumpDiag, unsigned JumpDiagWarning,
+                 unsigned JumpDiagCXX98Compat);
 
   unsigned GetDeepestCommonScope(unsigned A, unsigned B);
 };
@@ -121,7 +123,7 @@ typedef std::pair<unsigned,unsigned> ScopePair;
 /// diagnostic that should be emitted if control goes over it. If not, return 0.
 static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
   if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
-    unsigned InDiag = 0, OutDiag = 0;
+    unsigned InDiag = 0;
     if (VD->getType()->isVariablyModifiedType())
       InDiag = diag::note_protected_by_vla;
 
@@ -133,7 +135,7 @@ static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
       return ScopePair(diag::note_protected_by_cleanup,
                        diag::note_exits_cleanup);
 
-    if (Context.getLangOptions().ObjCAutoRefCount && VD->hasLocalStorage()) {
+    if (Context.getLangOpts().ObjCAutoRefCount && VD->hasLocalStorage()) {
       switch (VD->getType().getObjCLifetime()) {
       case Qualifiers::OCL_None:
       case Qualifiers::OCL_ExplicitNone:
@@ -147,8 +149,8 @@ static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
       }
     }
 
-    if (Context.getLangOptions().CPlusPlus && VD->hasLocalStorage()) {
-      // C++0x [stmt.dcl]p3:
+    if (Context.getLangOpts().CPlusPlus && VD->hasLocalStorage()) {
+      // C++11 [stmt.dcl]p3:
       //   A program that jumps from a point where a variable with automatic
       //   storage duration is not in scope to a point where it is in scope
       //   is ill-formed unless the variable has scalar type, class type with
@@ -162,44 +164,53 @@ static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
       //   where it is in scope is ill-formed unless the variable has
       //   POD type and is declared without an initializer.
 
-      if (const Expr *init = VD->getInit()) {
-        // We actually give variables of record type (or array thereof)
-        // an initializer even if that initializer only calls a trivial
-        // ctor.  Detect that case.
-        // FIXME: With generalized initializer lists, this may
-        // classify "X x{};" as having no initializer.
-        unsigned inDiagToUse = diag::note_protected_by_variable_init;
+      const Expr *Init = VD->getInit();
+      if (!Init)
+        return ScopePair(InDiag, 0);
 
-        const CXXRecordDecl *record = 0;
+      const ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(Init);
+      if (EWC)
+        Init = EWC->getSubExpr();
 
-        if (const CXXConstructExpr *cce = dyn_cast<CXXConstructExpr>(init)) {
-          const CXXConstructorDecl *ctor = cce->getConstructor();
-          record = ctor->getParent();
+      const MaterializeTemporaryExpr *M = NULL;
+      Init = Init->findMaterializedTemporary(M);
 
-          if (ctor->isTrivial() && ctor->isDefaultConstructor()) {
-            if (Context.getLangOptions().CPlusPlus0x) {
-              inDiagToUse = (record->hasTrivialDestructor() ? 0 :
-                        diag::note_protected_by_variable_nontriv_destructor);
-            } else {
-              if (record->isPOD())
-                inDiagToUse = 0;
-            }
-          }
-        } else if (VD->getType()->isArrayType()) {
-          record = VD->getType()->getBaseElementTypeUnsafe()
-                                ->getAsCXXRecordDecl();
+      SmallVector<SubobjectAdjustment, 2> Adjustments;
+      Init = Init->skipRValueSubobjectAdjustments(Adjustments);
+
+      QualType QT = Init->getType();
+      if (QT.isNull())
+        return ScopePair(diag::note_protected_by_variable_init, 0);
+
+      const Type *T = QT.getTypePtr();
+      if (T->isArrayType())
+        T = T->getBaseElementTypeUnsafe();
+
+      const CXXRecordDecl *Record = T->getAsCXXRecordDecl();
+      if (!Record)
+        return ScopePair(diag::note_protected_by_variable_init, 0);
+
+      // If we need to call a non trivial destructor for this variable,
+      // record an out diagnostic.
+      unsigned OutDiag = 0;
+      if (!Init->isGLValue() && !Record->hasTrivialDestructor())
+        OutDiag = diag::note_exits_dtor;
+
+      if (const CXXConstructExpr *cce = dyn_cast<CXXConstructExpr>(Init)) {
+        const CXXConstructorDecl *ctor = cce->getConstructor();
+        if (ctor->isTrivial() && ctor->isDefaultConstructor()) {
+          if (OutDiag)
+            InDiag = diag::note_protected_by_variable_nontriv_destructor;
+          else if (!Record->isPOD())
+            InDiag = diag::note_protected_by_variable_non_pod;
+          return ScopePair(InDiag, OutDiag);
         }
-
-        if (inDiagToUse)
-          InDiag = inDiagToUse;
-
-        // Also object to indirect jumps which leave scopes with dtors.
-        if (record && !record->hasTrivialDestructor())
-          OutDiag = diag::note_exits_dtor;
       }
+
+      return ScopePair(diag::note_protected_by_variable_init, OutDiag);
     }
-    
-    return ScopePair(InDiag, OutDiag);    
+
+    return ScopePair(InDiag, 0);
   }
 
   if (const TypedefDecl *TD = dyn_cast<TypedefDecl>(D)) {
@@ -258,7 +269,7 @@ void JumpScopeChecker::BuildScopeInformation(VarDecl *D,
                           diag::note_exits_block_captures_weak);
         break;
       case QualType::DK_none:
-        llvm_unreachable("no-liftime captured variable");
+        llvm_unreachable("non-lifetime captured variable");
     }
     SourceLocation Loc = D->getLocation();
     if (Loc.isInvalid())
@@ -320,6 +331,29 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned &origParentScope)
     LabelAndGotoScopes[S] = ParentScope;
     Jumps.push_back(S);
     break;
+
+  case Stmt::CXXTryStmtClass: {
+    CXXTryStmt *TS = cast<CXXTryStmt>(S);
+    unsigned newParentScope;
+    Scopes.push_back(GotoScope(ParentScope,
+                               diag::note_protected_by_cxx_try,
+                               diag::note_exits_cxx_try,
+                               TS->getSourceRange().getBegin()));
+    if (Stmt *TryBlock = TS->getTryBlock())
+      BuildScopeInformation(TryBlock, (newParentScope = Scopes.size()-1));
+
+    // Jump from the catch into the try is not allowed either.
+    for (unsigned I = 0, E = TS->getNumHandlers(); I != E; ++I) {
+      CXXCatchStmt *CS = TS->getHandler(I);
+      Scopes.push_back(GotoScope(ParentScope,
+                                 diag::note_protected_by_cxx_catch,
+                                 diag::note_exits_cxx_catch,
+                                 CS->getSourceRange().getBegin()));
+      BuildScopeInformation(CS->getHandlerBlock(), 
+                            (newParentScope = Scopes.size()-1));
+    }
+    return;
+  }
 
   default:
     break;
@@ -417,30 +451,6 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned &origParentScope)
       continue;
     }
 
-    // Disallow jumps into any part of a C++ try statement. This is pretty
-    // much the same as for Obj-C.
-    if (CXXTryStmt *TS = dyn_cast<CXXTryStmt>(SubStmt)) {
-      Scopes.push_back(GotoScope(ParentScope,
-                                 diag::note_protected_by_cxx_try,
-                                 diag::note_exits_cxx_try,
-                                 TS->getSourceRange().getBegin()));
-      if (Stmt *TryBlock = TS->getTryBlock())
-        BuildScopeInformation(TryBlock, (newParentScope = Scopes.size()-1));
-
-      // Jump from the catch into the try is not allowed either.
-      for (unsigned I = 0, E = TS->getNumHandlers(); I != E; ++I) {
-        CXXCatchStmt *CS = TS->getHandler(I);
-        Scopes.push_back(GotoScope(ParentScope,
-                                   diag::note_protected_by_cxx_catch,
-                                   diag::note_exits_cxx_catch,
-                                   CS->getSourceRange().getBegin()));
-        BuildScopeInformation(CS->getHandlerBlock(), 
-                              (newParentScope = Scopes.size()-1));
-      }
-
-      continue;
-    }
-
     // Disallow jumps into the protected statement of an @autoreleasepool.
     if (ObjCAutoreleasePoolStmt *AS = dyn_cast<ObjCAutoreleasePoolStmt>(SubStmt)){
       // Recursively walk the AST for the @autoreleasepool part, protected by a new
@@ -452,14 +462,19 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned &origParentScope)
       BuildScopeInformation(AS->getSubStmt(), (newParentScope = Scopes.size()-1));
       continue;
     }
-    
-    if (const BlockExpr *BE = dyn_cast<BlockExpr>(SubStmt)) {
-        const BlockDecl *BDecl = BE->getBlockDecl();
+
+    // Disallow jumps past full-expressions that use blocks with
+    // non-trivial cleanups of their captures.  This is theoretically
+    // implementable but a lot of work which we haven't felt up to doing.
+    if (ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(SubStmt)) {
+      for (unsigned i = 0, e = EWC->getNumObjects(); i != e; ++i) {
+        const BlockDecl *BDecl = EWC->getObject(i);
         for (BlockDecl::capture_const_iterator ci = BDecl->capture_begin(),
              ce = BDecl->capture_end(); ci != ce; ++ci) {
           VarDecl *variable = ci->getVariable();
           BuildScopeInformation(variable, BDecl, ParentScope);
         }
+      }
     }
     
     // Recursively walk the AST.
@@ -477,7 +492,8 @@ void JumpScopeChecker::VerifyJumps() {
     if (GotoStmt *GS = dyn_cast<GotoStmt>(Jump)) {
       CheckJump(GS, GS->getLabel()->getStmt(), GS->getGotoLoc(),
                 diag::err_goto_into_protected_scope,
-                diag::warn_goto_into_protected_scope);
+                diag::warn_goto_into_protected_scope,
+                diag::warn_cxx98_compat_goto_into_protected_scope);
       continue;
     }
 
@@ -486,7 +502,8 @@ void JumpScopeChecker::VerifyJumps() {
       LabelDecl *Target = IGS->getConstantTarget();
       CheckJump(IGS, Target->getStmt(), IGS->getGotoLoc(),
                 diag::err_goto_into_protected_scope,
-                diag::warn_goto_into_protected_scope);
+                diag::warn_goto_into_protected_scope,
+                diag::warn_cxx98_compat_goto_into_protected_scope);
       continue;
     }
 
@@ -495,7 +512,8 @@ void JumpScopeChecker::VerifyJumps() {
          SC = SC->getNextSwitchCase()) {
       assert(LabelAndGotoScopes.count(SC) && "Case not visited?");
       CheckJump(SS, SC, SC->getLocStart(),
-                diag::err_switch_into_protected_scope, 0);
+                diag::err_switch_into_protected_scope, 0,
+                diag::warn_cxx98_compat_switch_into_protected_scope);
     }
   }
 }
@@ -639,6 +657,39 @@ void JumpScopeChecker::VerifyIndirectJumps() {
   }
 }
 
+/// Return true if a particular error+note combination must be downgraded to a
+/// warning in Microsoft mode.
+static bool IsMicrosoftJumpWarning(unsigned JumpDiag, unsigned InDiagNote) {
+  return (JumpDiag == diag::err_goto_into_protected_scope &&
+         (InDiagNote == diag::note_protected_by_variable_init ||
+          InDiagNote == diag::note_protected_by_variable_nontriv_destructor));
+}
+
+/// Return true if a particular note should be downgraded to a compatibility
+/// warning in C++11 mode.
+static bool IsCXX98CompatWarning(Sema &S, unsigned InDiagNote) {
+  return S.getLangOpts().CPlusPlus0x &&
+         InDiagNote == diag::note_protected_by_variable_non_pod;
+}
+
+/// Produce primary diagnostic for an indirect jump statement.
+static void DiagnoseIndirectJumpStmt(Sema &S, IndirectGotoStmt *Jump,
+                                     LabelDecl *Target, bool &Diagnosed) {
+  if (Diagnosed)
+    return;
+  S.Diag(Jump->getGotoLoc(), diag::err_indirect_goto_in_protected_scope);
+  S.Diag(Target->getStmt()->getIdentLoc(), diag::note_indirect_goto_target);
+  Diagnosed = true;
+}
+
+/// Produce note diagnostics for a jump into a protected scope.
+void JumpScopeChecker::NoteJumpIntoScopes(ArrayRef<unsigned> ToScopes) {
+  assert(!ToScopes.empty());
+  for (unsigned I = 0, E = ToScopes.size(); I != E; ++I)
+    if (Scopes[ToScopes[I]].InDiag)
+      S.Diag(Scopes[ToScopes[I]].Loc, Scopes[ToScopes[I]].InDiag);
+}
+
 /// Diagnose an indirect jump which is known to cross scopes.
 void JumpScopeChecker::DiagnoseIndirectJump(IndirectGotoStmt *Jump,
                                             unsigned JumpScope,
@@ -646,36 +697,41 @@ void JumpScopeChecker::DiagnoseIndirectJump(IndirectGotoStmt *Jump,
                                             unsigned TargetScope) {
   assert(JumpScope != TargetScope);
 
-  S.Diag(Jump->getGotoLoc(), diag::err_indirect_goto_in_protected_scope);
-  S.Diag(Target->getStmt()->getIdentLoc(), diag::note_indirect_goto_target);
-
   unsigned Common = GetDeepestCommonScope(JumpScope, TargetScope);
+  bool Diagnosed = false;
 
   // Walk out the scope chain until we reach the common ancestor.
   for (unsigned I = JumpScope; I != Common; I = Scopes[I].ParentScope)
-    if (Scopes[I].OutDiag)
+    if (Scopes[I].OutDiag) {
+      DiagnoseIndirectJumpStmt(S, Jump, Target, Diagnosed);
       S.Diag(Scopes[I].Loc, Scopes[I].OutDiag);
+    }
+
+  SmallVector<unsigned, 10> ToScopesCXX98Compat;
 
   // Now walk into the scopes containing the label whose address was taken.
   for (unsigned I = TargetScope; I != Common; I = Scopes[I].ParentScope)
-    if (Scopes[I].InDiag)
+    if (IsCXX98CompatWarning(S, Scopes[I].InDiag))
+      ToScopesCXX98Compat.push_back(I);
+    else if (Scopes[I].InDiag) {
+      DiagnoseIndirectJumpStmt(S, Jump, Target, Diagnosed);
       S.Diag(Scopes[I].Loc, Scopes[I].InDiag);
-}
+    }
 
-/// Return true if a particular error+note combination must be downgraded
-/// to a warning in Microsoft mode.
-static bool IsMicrosoftJumpWarning(unsigned JumpDiag, unsigned InDiagNote)
-{
-    return (JumpDiag == diag::err_goto_into_protected_scope && 
-           (InDiagNote == diag::note_protected_by_variable_init || 
-            InDiagNote == diag::note_protected_by_variable_nontriv_destructor));
+  // Diagnose this jump if it would be ill-formed in C++98.
+  if (!Diagnosed && !ToScopesCXX98Compat.empty()) {
+    S.Diag(Jump->getGotoLoc(),
+           diag::warn_cxx98_compat_indirect_goto_in_protected_scope);
+    S.Diag(Target->getStmt()->getIdentLoc(), diag::note_indirect_goto_target);
+    NoteJumpIntoScopes(ToScopesCXX98Compat);
+  }
 }
-
 
 /// CheckJump - Validate that the specified jump statement is valid: that it is
 /// jumping within or out of its current scope, not into a deeper one.
 void JumpScopeChecker::CheckJump(Stmt *From, Stmt *To, SourceLocation DiagLoc,
-                             unsigned JumpDiagError, unsigned JumpDiagWarning) {
+                               unsigned JumpDiagError, unsigned JumpDiagWarning,
+                                 unsigned JumpDiagCXX98Compat) {
   assert(LabelAndGotoScopes.count(From) && "Jump didn't get added to scopes?");
   unsigned FromScope = LabelAndGotoScopes[From];
 
@@ -691,12 +747,15 @@ void JumpScopeChecker::CheckJump(Stmt *From, Stmt *To, SourceLocation DiagLoc,
   if (CommonScope == ToScope) return;
 
   // Pull out (and reverse) any scopes we might need to diagnose skipping.
+  SmallVector<unsigned, 10> ToScopesCXX98Compat;
   SmallVector<unsigned, 10> ToScopesError;
   SmallVector<unsigned, 10> ToScopesWarning;
   for (unsigned I = ToScope; I != CommonScope; I = Scopes[I].ParentScope) {
-    if (S.getLangOptions().MicrosoftMode && JumpDiagWarning != 0 &&
+    if (S.getLangOpts().MicrosoftMode && JumpDiagWarning != 0 &&
         IsMicrosoftJumpWarning(JumpDiagError, Scopes[I].InDiag))
       ToScopesWarning.push_back(I);
+    else if (IsCXX98CompatWarning(S, Scopes[I].InDiag))
+      ToScopesCXX98Compat.push_back(I);
     else if (Scopes[I].InDiag)
       ToScopesError.push_back(I);
   }
@@ -704,16 +763,19 @@ void JumpScopeChecker::CheckJump(Stmt *From, Stmt *To, SourceLocation DiagLoc,
   // Handle warnings.
   if (!ToScopesWarning.empty()) {
     S.Diag(DiagLoc, JumpDiagWarning);
-    for (unsigned i = 0, e = ToScopesWarning.size(); i != e; ++i)
-      S.Diag(Scopes[ToScopesWarning[i]].Loc, Scopes[ToScopesWarning[i]].InDiag);
+    NoteJumpIntoScopes(ToScopesWarning);
   }
 
   // Handle errors.
   if (!ToScopesError.empty()) {
     S.Diag(DiagLoc, JumpDiagError);
-    // Emit diagnostics note for whatever is left in ToScopesError.
-    for (unsigned i = 0, e = ToScopesError.size(); i != e; ++i)
-      S.Diag(Scopes[ToScopesError[i]].Loc, Scopes[ToScopesError[i]].InDiag);
+    NoteJumpIntoScopes(ToScopesError);
+  }
+
+  // Handle -Wc++98-compat warnings if the jump is well-formed.
+  if (ToScopesError.empty() && !ToScopesCXX98Compat.empty()) {
+    S.Diag(DiagLoc, JumpDiagCXX98Compat);
+    NoteJumpIntoScopes(ToScopesCXX98Compat);
   }
 }
 

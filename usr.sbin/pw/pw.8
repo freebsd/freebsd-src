@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2007
+.Dd October 29, 2012
 .Dt PW 8
 .Os
 .Sh NAME
@@ -714,6 +714,17 @@ are also removed if the user's uid is unique and not also used by another accoun
 system.
 .Pp
 The
+.Ar usermod
+command adds one additional option:
+.Bl -tag -width "-G grouplist"
+.It Fl l Ar name
+This option allows changing of an existing account name to
+.Ql \&name .
+The new name must not already exist, and any attempt to duplicate an
+existing account name will be rejected.
+.El
+.Pp
+The
 .Ar usershow
 command allows viewing of an account in one of two formats.
 By default, the format is identical to the format used in
@@ -893,12 +904,6 @@ A Version 7 format password file
 The user capabilities database
 .It Pa /etc/group
 The group database
-.It Pa /etc/master.passwd.new
-Temporary copy of the master password file
-.It Pa /etc/passwd.new
-Temporary copy of the Version 7 password file
-.It Pa /etc/group.new
-Temporary copy of the group file
 .It Pa /etc/pw.conf
 Pw default options file
 .It Pa /var/log/userlog

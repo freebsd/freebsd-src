@@ -43,7 +43,7 @@ SYSCTL_DECL(_kern_iconv);
 SYSCTL_NODE(_kern, OID_AUTO, iconv, CTLFLAG_RW, NULL, "kernel iconv interface");
 
 MALLOC_DEFINE(M_ICONV, "iconv", "ICONV structures");
-MALLOC_DEFINE(M_ICONVDATA, "iconv_data", "ICONV data");
+static MALLOC_DEFINE(M_ICONVDATA, "iconv_data", "ICONV data");
 
 MODULE_VERSION(libiconv, 2);
 
@@ -84,9 +84,11 @@ iconv_mod_unload(void)
 	struct iconv_cspair *csp;
 
 	sx_xlock(&iconv_lock);
-	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL) {
-		if (csp->cp_refcount)
+	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
+		if (csp->cp_refcount) {
+			sx_xunlock(&iconv_lock);
 			return EBUSY;
+		}
 	}
 
 	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL)
@@ -133,6 +135,7 @@ iconv_register_converter(struct iconv_converter_class *dcp)
 static int
 iconv_unregister_converter(struct iconv_converter_class *dcp)
 {
+	dcp->refs--;
 	if (dcp->refs > 1) {
 		ICDEBUG("converter have %d referenses left\n", dcp->refs);
 		return EBUSY;
@@ -377,6 +380,18 @@ iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_iconv, OID_AUTO, cslist, CTLFLAG_RD | CTLTYPE_OPAQUE,
 	    NULL, 0, iconv_sysctl_cslist, "S,xlat", "registered charset pairs");
 
+int
+iconv_add(const char *converter, const char *to, const char *from)
+{
+	struct iconv_converter_class *dcp;
+	struct iconv_cspair *csp;
+
+	if (iconv_lookupconv(converter, &dcp) != 0)
+		return EINVAL;
+
+	return iconv_register_cspair(to, from, dcp, NULL, &csp);
+}
+
 /*
  * Add new charset pair
  */
@@ -537,9 +552,7 @@ int
 iconv_lookupcp(char **cpp, const char *s)
 {
 	if (cpp == NULL) {
-		ICDEBUG("warning a NULL list passed\n", ""); /* XXX ISO variadic								macros cannot
-								leave out the
-								variadic args */
+		ICDEBUG("warning a NULL list passed\n", "");
 		return ENOENT;
 	}
 	for (; *cpp; cpp++)

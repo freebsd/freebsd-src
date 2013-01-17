@@ -112,8 +112,8 @@ const Stmt *DeadCodeScan::findDeadCode(const clang::CFGBlock *Block) {
 
 static int SrcCmp(const void *p1, const void *p2) {
   return
-    ((std::pair<const CFGBlock *, const Stmt *>*) p2)->second->getLocStart() <
-    ((std::pair<const CFGBlock *, const Stmt *>*) p1)->second->getLocStart();
+    ((const std::pair<const CFGBlock *, const Stmt *>*) p2)->second->getLocStart() <
+    ((const std::pair<const CFGBlock *, const Stmt *>*) p1)->second->getLocStart();
 }
 
 unsigned DeadCodeScan::scanBackwards(const clang::CFGBlock *Start,
@@ -251,7 +251,9 @@ void DeadCodeScan::reportDeadCode(const Stmt *S,
 }
 
 namespace clang { namespace reachable_code {
-  
+
+void Callback::anchor() { }  
+
 unsigned ScanReachableFromBlock(const CFGBlock *Start,
                                 llvm::BitVector &Reachable) {
   unsigned count = 0;
@@ -287,7 +289,7 @@ unsigned ScanReachableFromBlock(const CFGBlock *Start,
   return count;
 }
   
-void FindUnreachableCode(AnalysisContext &AC, Callback &CB) {
+void FindUnreachableCode(AnalysisDeclContext &AC, Callback &CB) {
   CFG *cfg = AC.getCFG();
   if (!cfg)
     return;

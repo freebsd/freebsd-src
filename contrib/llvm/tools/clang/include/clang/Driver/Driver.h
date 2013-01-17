@@ -16,6 +16,7 @@
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
 
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Path.h" // FIXME: Kill when CompilationInfo
@@ -35,7 +36,6 @@ namespace driver {
   class Command;
   class Compilation;
   class DerivedArgList;
-  class HostInfo;
   class InputArgList;
   class InputInfo;
   class JobAction;
@@ -86,18 +86,14 @@ public:
   /// If the standard library is used
   bool UseStdLib;
 
-  /// Default host triple.
-  std::string DefaultHostTriple;
+  /// Default target triple.
+  std::string DefaultTargetTriple;
 
   /// Default name for linked images (e.g., "a.out").
   std::string DefaultImageName;
 
   /// Driver title to use with help.
   std::string DriverTitle;
-
-  /// Host information for the platform the driver is running as. This
-  /// will generally be the actual host platform, but not always.
-  const HostInfo *Host;
 
   /// Information about the host which can be overridden by the user.
   std::string HostBits, HostMachine, HostSystem, HostRelease;
@@ -117,7 +113,7 @@ public:
   /// Whether the driver should follow g++ like behavior.
   unsigned CCCIsCXX : 1;
 
-  /// Whether the driver is just the preprocessor
+  /// Whether the driver is just the preprocessor.
   unsigned CCCIsCPP : 1;
 
   /// Echo commands while executing (in -v style).
@@ -150,30 +146,23 @@ private:
   /// jobs.
   unsigned CheckInputsExist : 1;
 
-  /// Use the clang compiler where possible.
-  unsigned CCCUseClang : 1;
-
-  /// Use clang for handling C++ and Objective-C++ inputs.
-  unsigned CCCUseClangCXX : 1;
-
-  /// Use clang as a preprocessor (clang's preprocessor will still be
-  /// used where an integrated CPP would).
-  unsigned CCCUseClangCPP : 1;
-
 public:
   /// Use lazy precompiled headers for PCH support.
   unsigned CCCUsePCH : 1;
 
 private:
-  /// Only use clang for the given architectures (only used when
-  /// non-empty).
-  std::set<llvm::Triple::ArchType> CCCClangArchs;
-
   /// Certain options suppress the 'no input files' warning.
   bool SuppressMissingInputWarning : 1;
 
   std::list<std::string> TempFiles;
   std::list<std::string> ResultFiles;
+
+  /// \brief Cache of all the ToolChains in use by the driver.
+  ///
+  /// This maps from the string representation of a triple to a ToolChain
+  /// created targeting that triple. The driver owns all the ToolChain objects
+  /// stored in it, and will clean them up when torn down.
+  mutable llvm::StringMap<ToolChain *> ToolChains;
 
 private:
   /// TranslateInputArgs - Create a new derived argument list from the input
@@ -187,7 +176,7 @@ private:
 
 public:
   Driver(StringRef _ClangExecutable,
-         StringRef _DefaultHostTriple,
+         StringRef _DefaultTargetTriple,
          StringRef _DefaultImageName,
          bool IsProduction,
          DiagnosticsEngine &_Diags);
@@ -278,7 +267,7 @@ public:
   /// BuildJobs - Bind actions to concrete tools and translate
   /// arguments to form the list of jobs to run.
   ///
-  /// \arg C - The compilation that is being built.
+  /// \param C - The compilation that is being built.
   void BuildJobs(Compilation &C) const;
 
   /// ExecuteCompilation - Execute the compilation according to the command line
@@ -314,26 +303,21 @@ public:
   /// PrintVersion - Print the driver version.
   void PrintVersion(const Compilation &C, raw_ostream &OS) const;
 
-  /// GetFilePath - Lookup \arg Name in the list of file search paths.
+  /// GetFilePath - Lookup \p Name in the list of file search paths.
   ///
-  /// \arg TC - The tool chain for additional information on
+  /// \param TC - The tool chain for additional information on
   /// directories to search.
   //
   // FIXME: This should be in CompilationInfo.
   std::string GetFilePath(const char *Name, const ToolChain &TC) const;
 
-  /// GetProgramPath - Lookup \arg Name in the list of program search
-  /// paths.
+  /// GetProgramPath - Lookup \p Name in the list of program search paths.
   ///
-  /// \arg TC - The provided tool chain for additional information on
+  /// \param TC - The provided tool chain for additional information on
   /// directories to search.
-  ///
-  /// \arg WantFile - False when searching for an executable file, otherwise
-  /// true.  Defaults to false.
   //
   // FIXME: This should be in CompilationInfo.
-  std::string GetProgramPath(const char *Name, const ToolChain &TC,
-                              bool WantFile = false) const;
+  std::string GetProgramPath(const char *Name, const ToolChain &TC) const;
 
   /// HandleImmediateArgs - Handle any arguments which should be
   /// treated before building actions or binding tools.
@@ -343,14 +327,14 @@ public:
   bool HandleImmediateArgs(const Compilation &C);
 
   /// ConstructAction - Construct the appropriate action to do for
-  /// \arg Phase on the \arg Input, taking in to account arguments
+  /// \p Phase on the \p Input, taking in to account arguments
   /// like -fsyntax-only or --analyze.
   Action *ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
                                Action *Input) const;
 
 
   /// BuildJobsForAction - Construct the jobs to perform for the
-  /// action \arg A.
+  /// action \p A.
   void BuildJobsForAction(Compilation &C,
                           const Action *A,
                           const ToolChain *TC,
@@ -360,7 +344,7 @@ public:
                           InputInfo &Result) const;
 
   /// GetNamedOutputPath - Return the name to use for the output of
-  /// the action \arg JA. The result is appended to the compilation's
+  /// the action \p JA. The result is appended to the compilation's
   /// list of temporary or result files, as appropriate.
   ///
   /// \param C - The compilation.
@@ -379,10 +363,6 @@ public:
   /// GCC goes to extra lengths here to be a bit more robust.
   std::string GetTemporaryPath(StringRef Prefix, const char *Suffix) const;
 
-  /// GetHostInfo - Construct a new host info object for the given
-  /// host triple.
-  const HostInfo *GetHostInfo(const char *HostTriple) const;
-
   /// ShouldUseClangCompilar - Should the clang compiler be used to
   /// handle this action.
   bool ShouldUseClangCompiler(const Compilation &C, const JobAction &JA,
@@ -390,8 +370,17 @@ public:
 
   bool IsUsingLTO(const ArgList &Args) const;
 
+private:
+  /// \brief Retrieves a ToolChain for a particular target triple.
+  ///
+  /// Will cache ToolChains for the life of the driver object, and create them
+  /// on-demand.
+  const ToolChain &getToolChain(const ArgList &Args,
+                                StringRef DarwinArchName = "") const;
+
   /// @}
 
+public:
   /// GetReleaseVersion - Parse (([0-9]+)(.([0-9]+)(.([0-9]+)?))?)? and
   /// return the grouped values as integers. Numbers which are not
   /// provided are set to 0.

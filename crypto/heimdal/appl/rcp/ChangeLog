@@ -1,12 +1,17 @@
-2007-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-04-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* Sync with NetBSD rcp, add v6 parsing support and no setuid code
+	at all.
+
+2007-12-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add missing files, from Buchan Milne.
 
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: more files
 	
-2006-08-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-08-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* util.c: Check return values from setuid, prompted by MIT
 	advisory.  Thanks to Tom Yu at MIT, and Michael Calmer and Marcus
@@ -20,16 +25,16 @@
 	advisory.  Thanks to Tom Yu at MIT, and Michael Calmer and Marcus
 	Meissner at SUSE.  Either of CVE-2006-3083 or CVE-2006-3084.
 	
-2005-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rcp.c: Check return value from asprintf instead of string !=
-	NULL since it undefined behavior on Linux. From Björn Sandell
+	NULL since it undefined behavior on Linux. From BjÃ¶rn Sandell
 	
-2005-08-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* util.c: Explicit typecast to avoid signess warning.
 	
-2005-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rcp_locl.h: undef _PATH_RSH to make sure our version is used
 	
@@ -38,11 +43,11 @@
 	* rcp.c: MODEMASK is defined in sys/vnode.h on Solaris, so undef
 	it before we define our own.
 
-2005-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rcp_locl.h: use BINDIR instead of "/usr/bin/ with _PATH_RSH
 
-2005-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* util.c: use unsigned char * to make sure its not negative when
 	passing it to is* functions

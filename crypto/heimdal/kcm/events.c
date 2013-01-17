@@ -32,7 +32,7 @@
 
 #include "kcm_locl.h"
 
-RCSID("$Id: events.c 15294 2005-05-30 01:43:23Z lukeh $");
+RCSID("$Id$");
 
 /* thread-safe in case we multi-thread later */
 static HEIMDAL_MUTEX events_mutex = HEIMDAL_MUTEX_INITIALIZER;
@@ -161,7 +161,7 @@ kcm_remove_event_internal(krb5_context context,
     (*e)->fire_count = 0;
     (*e)->expire_time = 0;
     (*e)->backoff_time = 0;
-    kcm_release_ccache(context, &(*e)->ccache);
+    kcm_release_ccache(context, (*e)->ccache);
     (*e)->next = NULL;
     free(*e);
 
@@ -206,7 +206,7 @@ kcm_ccache_make_default_event(krb5_context context,
     krb5_error_code ret = 0;
     kcm_ccache ccache = event->ccache;
 
-    event->fire_time = 0; 
+    event->fire_time = 0;
     event->expire_time = 0;
     event->backoff_time = KCM_EVENT_DEFAULT_BACKOFF_TIME;
 
@@ -353,7 +353,7 @@ kcm_fire_event(krb5_context context,
     event->fire_count++;
 
     if (ret) {
-	/* Reschedule failed event for another time */ 
+	/* Reschedule failed event for another time */
 	event->fire_time += event->backoff_time;
 	if (event->backoff_time < KCM_EVENT_MAX_BACKOFF_TIME)
 	    event->backoff_time *= 2;
@@ -394,8 +394,7 @@ kcm_fire_event(krb5_context context,
 }
 
 krb5_error_code
-kcm_run_events(krb5_context context,
-	       time_t now)
+kcm_run_events(krb5_context context, time_t now)
 {
     krb5_error_code ret;
     kcm_event **e;

@@ -152,7 +152,7 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 	puts("fifo");
 	break;
     }
-    printf("I=%lu MODE=%o SIZE=%ju", (u_long)inum, DIP(dp, di_mode),
+    printf("I=%ju MODE=%o SIZE=%ju", (uintmax_t)inum, DIP(dp, di_mode),
 	(uintmax_t)DIP(dp, di_size));
     if (sblock.fs_magic != FS_UFS1_MAGIC) {
 	t = _time64_to_time(dp->dp2.di_birthtime);
@@ -193,7 +193,7 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 
     blocks = DIP(dp, di_blocks);
     gen = DIP(dp, di_gen);
-    printf("LINKCNT=%hd FLAGS=%#x BLKCNT=%jx GEN=%jx\n", DIP(dp, di_nlink),
+    printf("LINKCNT=%d FLAGS=%#x BLKCNT=%jx GEN=%jx\n", DIP(dp, di_nlink),
 	DIP(dp, di_flags), (intmax_t)blocks, (intmax_t)gen);
 }
 
@@ -290,25 +290,24 @@ printblocks(ino_t inum, union dinode *dp)
     long ndb, offset;
     ufs2_daddr_t blkno;
 
-    printf("Blocks for inode %d:\n", inum);
+    printf("Blocks for inode %ju:\n", (uintmax_t)inum);
     printf("Direct blocks:\n");
     ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
-    for (i = 0; i < NDADDR; i++) {
-	if (DIP(dp, di_db[i]) == 0) {
-	    putchar('\n');
-	    return;
-	}
+    for (i = 0; i < NDADDR && i < ndb; i++) {
 	if (i > 0)
 	    printf(", ");
 	blkno = DIP(dp, di_db[i]);
 	printf("%jd", (intmax_t)blkno);
-	if (--ndb == 0 && (offset = blkoff(&sblock, DIP(dp, di_size))) != 0) {
+    }
+    if (ndb <= NDADDR) {
+	offset = blkoff(&sblock, DIP(dp, di_size));
+	if (offset != 0) {
 	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
 	    printf(" (%d frag%s)", nfrags, nfrags > 1? "s": "");
 	}
     }
     putchar('\n');
-    if (ndb == 0)
+    if (ndb <= NDADDR)
 	return;
 
     bufp = malloc((unsigned int)sblock.fs_bsize);
@@ -339,7 +338,7 @@ checkactivedir(void)
 	return 0;
     }
     if ((DIP(curinode, di_mode) & IFMT) != IFDIR) {
-	warnx("inode %d not a directory", curinum);
+	warnx("inode %ju not a directory", (uintmax_t)curinum);
 	return 0;
     }
     return 1;
@@ -364,11 +363,12 @@ printactive(int doblocks)
 	    printstat("current inode", curinum, curinode);
 	break;
     case 0:
-	printf("current inode %d: unallocated inode\n", curinum);
+	printf("current inode %ju: unallocated inode\n", (uintmax_t)curinum);
 	break;
     default:
-	printf("current inode %d: screwy itype 0%o (mode 0%o)?\n",
-	       curinum, DIP(curinode, di_mode) & IFMT, DIP(curinode, di_mode));
+	printf("current inode %ju: screwy itype 0%o (mode 0%o)?\n",
+	    (uintmax_t)curinum, DIP(curinode, di_mode) & IFMT,
+	    DIP(curinode, di_mode));
 	break;
     }
     return 0;

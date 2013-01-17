@@ -257,7 +257,7 @@ tulip_txprobe(tulip_softc_t * const sc)
      * to verify the connectivity.
      */
     TULIP_LOCK_ASSERT(sc);
-    MGETHDR(m, M_DONTWAIT, MT_DATA);
+    MGETHDR(m, M_NOWAIT, MT_DATA);
     if (m == NULL)
 	return 0;
     /*
@@ -1567,7 +1567,7 @@ tulip_null_media_poll(tulip_softc_t * const sc, tulip_mediapoll_event_t event)
 #endif
 }
 
-__inline static void
+static inline void
 tulip_21140_mediainit(tulip_softc_t * const sc, tulip_media_info_t * const mip,
     tulip_media_t const media, unsigned gpdata, unsigned cmdmode)
 {
@@ -3517,7 +3517,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	    ms->m_pkthdr.len = total_len;
 	    ms->m_pkthdr.rcvif = ifp;
 	    m0 = ms;
-	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	    ms = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 #endif
 	    TULIP_UNLOCK(sc);
 	    CTR1(KTR_TULIP, "tulip_rx_intr: passing %p to upper layer", m0);
@@ -3528,7 +3528,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	     * If we are priming the TULIP with mbufs, then allocate
 	     * a new cluster for the next descriptor.
 	     */
-	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	    ms = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 
 #ifndef __NO_STRICT_ALIGNMENT
     skip_input:
@@ -3970,7 +3970,7 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	     * to recopy it into one mbuf and then try again.  If
 	     * we can't recopy it, try again later.
 	     */
-	    m0 = m_defrag(m, M_DONTWAIT);
+	    m0 = m_defrag(m, M_NOWAIT);
 	    if (m0 == NULL) {
 		sc->tulip_flags |= TULIP_WANTTXSTART;
 #if defined(TULIP_DEBUG)
@@ -4492,7 +4492,8 @@ tulip_busdma_allocring(device_t dev, tulip_softc_t * const sc, size_t count,
     /* First, setup a tag. */
     ri->ri_max = count;
     size = count * sizeof(tulip_desc_t);
-    error = bus_dma_tag_create(NULL, 32, 0, BUS_SPACE_MAXADDR_32BIT,
+    error = bus_dma_tag_create(bus_get_dma_tag(dev),
+	32, 0, BUS_SPACE_MAXADDR_32BIT,
 	BUS_SPACE_MAXADDR, NULL, NULL, size, 1, size, 0, NULL, NULL,
 	&ri->ri_ring_tag);
     if (error) {
@@ -4520,7 +4521,7 @@ tulip_busdma_allocring(device_t dev, tulip_softc_t * const sc, size_t count,
     }
 
     /* Allocate a tag for the data buffers. */
-    error = bus_dma_tag_create(NULL, align, 0,
+    error = bus_dma_tag_create(bus_get_dma_tag(dev), align, 0,
 	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	MCLBYTES * nsegs, nsegs, MCLBYTES, 0, NULL, NULL, &ri->ri_data_tag);
     if (error) {
@@ -4600,7 +4601,7 @@ tulip_busdma_init(device_t dev, tulip_softc_t * const sc)
     /*
      * Allocate a DMA tag, memory, and map for setup descriptor
      */
-    error = bus_dma_tag_create(NULL, 32, 0,
+    error = bus_dma_tag_create(bus_get_dma_tag(dev), 32, 0,
 	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	sizeof(sc->tulip_setupdata), 1, sizeof(sc->tulip_setupdata), 0,
 	NULL, NULL, &sc->tulip_setup_tag);

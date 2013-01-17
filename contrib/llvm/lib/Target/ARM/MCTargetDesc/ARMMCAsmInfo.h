@@ -1,4 +1,4 @@
-//=====-- ARMMCAsmInfo.h - ARM asm properties -------------*- C++ -*--====//
+//===-- ARMMCAsmInfo.h - ARM asm properties --------------------*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,11 +18,15 @@
 
 namespace llvm {
 
-  struct ARMMCAsmInfoDarwin : public MCAsmInfoDarwin {
+  class ARMMCAsmInfoDarwin : public MCAsmInfoDarwin {
+    virtual void anchor();
+  public:
     explicit ARMMCAsmInfoDarwin();
   };
 
-  struct ARMELFMCAsmInfo : public MCAsmInfo {
+  class ARMELFMCAsmInfo : public MCAsmInfo {
+    virtual void anchor();
+  public:
     explicit ARMELFMCAsmInfo();
   };
 

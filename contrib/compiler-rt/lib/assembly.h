@@ -25,9 +25,11 @@
 #if defined(__APPLE__)
 #define HIDDEN_DIRECTIVE .private_extern
 #define LOCAL_LABEL(name) L_##name
+#define FILE_LEVEL_DIRECTIVE  .subsections_via_symbols
 #else
 #define HIDDEN_DIRECTIVE .hidden
 #define LOCAL_LABEL(name) .L_##name
+#define FILE_LEVEL_DIRECTIVE  
 #endif
 
 #define GLUE2(a, b) a ## b
@@ -35,15 +37,17 @@
 #define SYMBOL_NAME(name) GLUE(__USER_LABEL_PREFIX__, name)
 
 #ifdef VISIBILITY_HIDDEN
-#define DEFINE_COMPILERRT_FUNCTION(name)                   \
-  .globl SYMBOL_NAME(name) SEPARATOR                       \
-  HIDDEN_DIRECTIVE SYMBOL_NAME(name) SEPARATOR             \
-  SYMBOL_NAME(name):
+#define DECLARE_SYMBOL_VISIBILITY(name)                    \
+  HIDDEN_DIRECTIVE SYMBOL_NAME(name) SEPARATOR
 #else
-#define DEFINE_COMPILERRT_FUNCTION(name)                   \
-  .globl SYMBOL_NAME(name) SEPARATOR                       \
-  SYMBOL_NAME(name):
+#define DECLARE_SYMBOL_VISIBILITY(name)
 #endif
+
+#define DEFINE_COMPILERRT_FUNCTION(name)                   \
+  FILE_LEVEL_DIRECTIVE     SEPARATOR                       \
+  .globl SYMBOL_NAME(name) SEPARATOR                       \
+  DECLARE_SYMBOL_VISIBILITY(name)                          \
+  SYMBOL_NAME(name):
 
 #define DEFINE_COMPILERRT_PRIVATE_FUNCTION(name)           \
   .globl SYMBOL_NAME(name) SEPARATOR                       \

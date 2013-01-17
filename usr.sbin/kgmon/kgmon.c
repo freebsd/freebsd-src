@@ -90,7 +90,9 @@ main(int argc, char **argv)
 	struct kvmvars kvmvars;
 	char *system, *kmemf;
 
-	seteuid(getuid());
+	if (seteuid(getuid()) != 0) {
+		err(1, "seteuid failed\n");
+	}
 	kmemf = NULL;
 	system = NULL;
 	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) != -1) {
@@ -240,13 +242,13 @@ kern_readonly(mode)
 	if (pflag && (mode == GMON_PROF_HIRES || mode == GMON_PROF_ON))
 		(void)fprintf(stderr, "data may be inconsistent\n");
 	if (rflag)
-		(void)fprintf(stderr, "-r supressed\n");
+		(void)fprintf(stderr, "-r suppressed\n");
 	if (Bflag)
-		(void)fprintf(stderr, "-B supressed\n");
+		(void)fprintf(stderr, "-B suppressed\n");
 	if (bflag)
-		(void)fprintf(stderr, "-b supressed\n");
+		(void)fprintf(stderr, "-b suppressed\n");
 	if (hflag)
-		(void)fprintf(stderr, "-h supressed\n");
+		(void)fprintf(stderr, "-h suppressed\n");
 	rflag = Bflag = bflag = hflag = 0;
 }
 

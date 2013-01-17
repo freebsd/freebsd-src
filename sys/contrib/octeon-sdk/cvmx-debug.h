@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -67,7 +67,7 @@ void cvmx_debug_init(void);
 void cvmx_debug_finish(void);
 void cvmx_debug_trigger_exception(void);
 
-#ifdef __OCTEON_NEWLIB__
+#ifdef CVMX_BUILD_FOR_TOOLCHAIN
 extern int __octeon_debug_booted;
 
 static inline int cvmx_debug_booted(void)
@@ -247,9 +247,6 @@ typedef struct
 
 typedef int cvmx_debug_state_t_should_fit_inside_a_cache_block[sizeof(cvmx_debug_state_t)+sizeof(cvmx_spinlock_t)+4*sizeof(uint64_t) > 128 ? -1 : 1];
 
-/* Total number of cores in Octeon. */
-#define CVMX_DEBUG_MAX_CORES 16
-
 typedef struct cvmx_debug_globals_s
 {
     uint64_t version; /* This is always the first element of this struct */
@@ -260,7 +257,7 @@ typedef struct cvmx_debug_globals_s
     uint32_t state[sizeof(cvmx_debug_state_t)/sizeof(uint32_t)];
     cvmx_spinlock_t lock;
 
-    volatile cvmx_debug_core_context_t contextes[CVMX_DEBUG_MAX_CORES];
+    volatile cvmx_debug_core_context_t contextes[CVMX_MAX_CORES];
 } cvmx_debug_globals_t;
 
 typedef union

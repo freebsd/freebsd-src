@@ -1,0 +1,36 @@
+The following is an example of using the httpdstat.d script.
+
+
+This Solaris 10 server is running Apache as a webserver. The script matches
+on the process name "httpd". Here it shows many GET connections,
+
+   # httpdstat.d
+   TIME                    NUM    GET  POST  HEAD TRACE
+   2005 Nov 29 18:46:46     38     38     0     0     0
+   2005 Nov 29 18:46:47    109    109     0     0     0
+   2005 Nov 29 18:46:48    112    112     0     0     0
+   2005 Nov 29 18:46:49    113    113     0     0     0
+   2005 Nov 29 18:46:50    107    107     0     0     0
+   2005 Nov 29 18:46:51     56     56     0     0     0
+   2005 Nov 29 18:46:52      0      0     0     0     0
+   2005 Nov 29 18:46:53      0      0     0     0     0
+   2005 Nov 29 18:46:54     20     20     0     0     0
+   2005 Nov 29 18:46:55     48     48     0     0     0
+   ^C
+
+For a few seconds we had around 100 GETs per second.
+
+
+
+httpdstat.d accepts an argument as the sample interval, here we print a
+line every 30 seconds,
+
+   # httpdstat.d 30
+   TIME                    NUM    GET  POST  HEAD TRACE
+   2005 Nov 29 18:50:49    462    458     3     1     0
+   2005 Nov 29 18:51:19    421    413     5     2     1
+   2005 Nov 29 18:51:49   1361   1358     3     0     0
+   ^C
+
+The values are for the entire interval.
+

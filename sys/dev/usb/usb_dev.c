@@ -81,10 +81,9 @@
 #ifdef USB_DEBUG
 static int usb_fifo_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
-SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
+SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_fifo_debug, 0, "Debug Level");
-
 TUNABLE_INT("hw.usb.dev.debug", &usb_fifo_debug);
 #endif
 
@@ -842,7 +841,7 @@ usb_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	struct usb_cdev_privdata *cpd;
 	int err, ep;
 
-	DPRINTFN(2, "%s fflags=0x%08x\n", dev->si_name, fflags);
+	DPRINTFN(2, "%s fflags=0x%08x\n", devtoname(dev), fflags);
 
 	KASSERT(fflags & (FREAD|FWRITE), ("invalid open flags"));
 	if (((fflags & FREAD) && !(pd->mode & FREAD)) ||
@@ -1653,7 +1652,7 @@ usb_fifo_check_methods(struct usb_fifo_methods *pm)
 int
 usb_fifo_attach(struct usb_device *udev, void *priv_sc,
     struct mtx *priv_mtx, struct usb_fifo_methods *pm,
-    struct usb_fifo_sc *f_sc, uint16_t unit, uint16_t subunit,
+    struct usb_fifo_sc *f_sc, uint16_t unit, int16_t subunit,
     uint8_t iface_index, uid_t uid, gid_t gid, int mode)
 {
 	struct usb_fifo *f_tx;
@@ -1730,7 +1729,7 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 		if (pm->basename[n] == NULL) {
 			continue;
 		}
-		if (subunit == 0xFFFF) {
+		if (subunit < 0) {
 			if (snprintf(devname, sizeof(devname),
 			    "%s%u%s", pm->basename[n],
 			    unit, pm->postfix[n] ?
@@ -1739,7 +1738,7 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 			}
 		} else {
 			if (snprintf(devname, sizeof(devname),
-			    "%s%u.%u%s", pm->basename[n],
+			    "%s%u.%d%s", pm->basename[n],
 			    unit, subunit, pm->postfix[n] ?
 			    pm->postfix[n] : "")) {
 				/* ignore */
@@ -1809,8 +1808,8 @@ usb_fifo_free_buffer(struct usb_fifo *f)
 	}
 	/* reset queues */
 
-	bzero(&f->free_q, sizeof(f->free_q));
-	bzero(&f->used_q, sizeof(f->used_q));
+	memset(&f->free_q, 0, sizeof(f->free_q));
+	memset(&f->used_q, 0, sizeof(f->used_q));
 }
 
 void
@@ -1909,7 +1908,7 @@ usb_fifo_put_data_linear(struct usb_fifo *f, void *ptr,
 
 			io_len = MIN(len, m->cur_data_len);
 
-			bcopy(ptr, m->cur_data_ptr, io_len);
+			memcpy(m->cur_data_ptr, ptr, io_len);
 
 			m->cur_data_len = io_len;
 			ptr = USB_ADD_BYTES(ptr, io_len);
@@ -2052,7 +2051,7 @@ usb_fifo_get_data_linear(struct usb_fifo *f, void *ptr,
 
 			io_len = MIN(len, m->cur_data_len);
 
-			bcopy(m->cur_data_ptr, ptr, io_len);
+			memcpy(ptr, m->cur_data_ptr, io_len);
 
 			len -= io_len;
 			ptr = USB_ADD_BYTES(ptr, io_len);

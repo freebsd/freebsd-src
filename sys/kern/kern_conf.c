@@ -55,6 +55,7 @@ struct mtx devmtx;
 static void destroy_devl(struct cdev *dev);
 static int destroy_dev_sched_cbl(struct cdev *dev,
     void (*cb)(void *), void *arg);
+static void destroy_dev_tq(void *ctx, int pending);
 static int make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw,
     int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
     va_list ap);
@@ -306,7 +307,6 @@ dead_strategy(struct bio *bp)
 
 static struct cdevsw dead_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT, /* XXX: does dead_strategy need this ? */
 	.d_open =	dead_open,
 	.d_close =	dead_close,
 	.d_read =	dead_read,
@@ -689,16 +689,22 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 
 	mtx_assert(&devmtx, MA_OWNED);
 
-	len = vsnrprintf(dev->__si_namebuf, sizeof(dev->__si_namebuf), 32,
-	    fmt, ap);
-	if (len > sizeof(dev->__si_namebuf) - 1)
+	len = vsnrprintf(dev->si_name, sizeof(dev->si_name), 32, fmt, ap);
+	if (len > sizeof(dev->si_name) - 1)
 		return (ENAMETOOLONG);
 
 	/* Strip leading slashes. */
-	for (from = dev->__si_namebuf; *from == '/'; from++)
+	for (from = dev->si_name; *from == '/'; from++)
 		;
 
-	for (to = dev->__si_namebuf; *from != '\0'; from++, to++) {
+	for (to = dev->si_name; *from != '\0'; from++, to++) {
+		/*
+		 * Spaces and double quotation marks cause
+		 * problems for the devctl(4) protocol.
+		 * Reject names containing those characters.
+		 */
+		if (isspace(*from) || *from == '"')
+			return (EINVAL);
 		/* Treat multiple sequential slashes as single. */
 		while (from[0] == '/' && from[1] == '/')
 			from++;
@@ -709,11 +715,11 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 	}
 	*to = '\0';
 
-	if (dev->__si_namebuf[0] == '\0')
+	if (dev->si_name[0] == '\0')
 		return (EINVAL);
 
 	/* Disallow "." and ".." components. */
-	for (s = dev->__si_namebuf;;) {
+	for (s = dev->si_name;;) {
 		for (q = s; *q != '/' && *q != '\0'; q++)
 			;
 		if (q - s == 1 && s[0] == '.')
@@ -725,7 +731,7 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 		s = q + 1;
 	}
 
-	if (devfs_dev_exists(dev->__si_namebuf) != 0)
+	if (devfs_dev_exists(dev->si_name) != 0)
 		return (EEXIST);
 
 	return (0);
@@ -993,9 +999,10 @@ make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev,
 	max_parentpath_len = SPECNAMELEN - physpath_len - /*/*/1;
 	parentpath_len = strlen(pdev->si_name);
 	if (max_parentpath_len < parentpath_len) {
-		printf("make_dev_physpath_alias: WARNING - Unable to alias %s "
-		    "to %s/%s - path too long\n",
-		    pdev->si_name, physpath, pdev->si_name);
+		if (bootverbose)
+			printf("WARNING: Unable to alias %s "
+			    "to %s/%s - path too long\n",
+			    pdev->si_name, physpath, pdev->si_name);
 		ret = ENAMETOOLONG;
 		goto out;
 	}
@@ -1009,14 +1016,13 @@ make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev,
 	}
 
 	sprintf(devfspath, "%s/%s", physpath, pdev->si_name);
-	if (old_alias != NULL
-	 && strcmp(old_alias->si_name, devfspath) == 0) {
+	if (old_alias != NULL && strcmp(old_alias->si_name, devfspath) == 0) {
 		/* Retain the existing alias. */
 		*cdev = old_alias;
 		old_alias = NULL;
 		ret = 0;
 	} else {
-		ret = make_dev_alias_p(flags, cdev, pdev, devfspath);
+		ret = make_dev_alias_p(flags, cdev, pdev, "%s", devfspath);
 	}
 out:
 	if (old_alias != NULL)	
@@ -1299,7 +1305,7 @@ clone_cleanup(struct clonedevs **cdp)
 
 static TAILQ_HEAD(, cdev_priv) dev_ddtr =
 	TAILQ_HEAD_INITIALIZER(dev_ddtr);
-static struct task dev_dtr_task;
+static struct task dev_dtr_task = TASK_INITIALIZER(0, destroy_dev_tq, NULL);
 
 static void
 destroy_dev_tq(void *ctx, int pending)
@@ -1387,15 +1393,6 @@ drain_dev_clone_events(void)
 	sx_xunlock(&clone_drain_lock);
 }
 
-static void
-devdtr_init(void *dummy __unused)
-{
-
-	TASK_INIT(&dev_dtr_task, 0, destroy_dev_tq, NULL);
-}
-
-SYSINIT(devdtr, SI_SUB_DEVFS, SI_ORDER_SECOND, devdtr_init, NULL);
-
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>
@@ -1441,10 +1438,7 @@ DB_SHOW_COMMAND(cdev, db_show_cdev)
 	SI_FLAG(SI_NAMED);
 	SI_FLAG(SI_CHEAPCLONE);
 	SI_FLAG(SI_CHILD);
-	SI_FLAG(SI_DEVOPEN);
-	SI_FLAG(SI_CONSOPEN);
 	SI_FLAG(SI_DUMPDEV);
-	SI_FLAG(SI_CANDELETE);
 	SI_FLAG(SI_CLONELIST);
 	db_printf("si_flags %s\n", buf);
 

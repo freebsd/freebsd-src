@@ -309,9 +309,8 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	} else
 		pc = pcpup;
 
-	pc->pc_acpi_id = acpi_id;
-	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
-
+	cpu_pcpu_setup(pc, acpi_id, sapic_id);
+ 
 	CPU_SET(pc->pc_cpuid, &all_cpus);
 }
 
@@ -466,6 +465,7 @@ cpu_mp_unleash(void *dummy)
 	 */
 	ia64_bind_intr();
 }
+SYSINIT(start_aps, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, cpu_mp_unleash, NULL);
 
 /*
  * send an IPI to a set of cpus.
@@ -522,5 +522,3 @@ ipi_send(struct pcpu *cpu, int xiv)
 	ia64_mf_a();
 	CTR3(KTR_SMP, "ipi_send(%p, %d): cpuid=%d", cpu, xiv, PCPU_GET(cpuid));
 }
-
-SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);

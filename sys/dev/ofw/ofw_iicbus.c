@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
@@ -68,7 +69,7 @@ static device_method_t ofw_iicbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 struct ofw_iicbus_devinfo {
@@ -88,7 +89,7 @@ static int
 ofw_iicbus_probe(device_t dev)
 {
 
-	if (ofw_bus_get_node(dev) == 0)
+	if (ofw_bus_get_node(dev) == -1)
 		return (ENXIO);
 	device_set_desc(dev, "OFW I2C bus");
 
@@ -101,6 +102,7 @@ ofw_iicbus_attach(device_t dev)
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
 	struct ofw_iicbus_devinfo *dinfo;
 	phandle_t child;
+	pcell_t paddr;
 	device_t childdev;
 	uint32_t addr;
 
@@ -121,10 +123,11 @@ ofw_iicbus_attach(device_t dev)
 		 * property, then try the reg property.  It moves around
 		 * on different systems.
 		 */
-		if (OF_getprop(child, "i2c-address", &addr, sizeof(addr)) == -1)
-			if (OF_getprop(child, "reg", &addr, sizeof(addr)) == -1)
+		if (OF_getprop(child, "i2c-address", &paddr, sizeof(paddr)) == -1)
+			if (OF_getprop(child, "reg", &paddr, sizeof(paddr)) == -1)
 				continue;
 
+		addr = fdt32_to_cpu(paddr);
 		/*
 		 * Now set up the I2C and OFW bus layer devinfo and add it
 		 * to the bus.

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: tokenizer.c,v 1.14 2003/12/05 13:37:48 lukem Exp $
+ *	$NetBSD: tokenizer.c,v 1.15 2009/02/15 21:55:23 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -198,7 +198,7 @@ tok_line(Tokenizer *tok, const LineInfo *line,
 			ptr = "";
 		if (ptr == line->cursor) {
 			cc = tok->argc;
-			co = tok->wptr - tok->wstart;
+			co = (int)(tok->wptr - tok->wstart);
 		}
 		switch (*ptr) {
 		case '\'':
@@ -417,7 +417,7 @@ tok_line(Tokenizer *tok, const LineInfo *line,
  tok_line_outok:
 	if (cc == -1 && co == -1) {
 		cc = tok->argc;
-		co = tok->wptr - tok->wstart;
+		co = (int)(tok->wptr - tok->wstart);
 	}
 	if (cursorc != NULL)
 		*cursorc = cc;

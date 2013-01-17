@@ -126,7 +126,7 @@
 #define	VM_LEVEL_0_ORDER	9
 #endif
 
-/*
+/**
  * Address space layout.
  *
  * UltraSPARC I and II implement a 44 bit virtual address space.  The address
@@ -218,7 +218,7 @@
  * is the total KVA space allocated for kmem_map.
  */
 #ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(tsb_kernel_ldd_phys == 0 ? 3 : 1)
+#define	VM_KMEM_SIZE_SCALE	(tsb_kernel_ldd_phys == 0 ? 3 : 2)
 #endif
 
 /*

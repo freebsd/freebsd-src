@@ -71,8 +71,8 @@ struct instance {
 static LIST_HEAD(, instance) root = LIST_HEAD_INITIALIZER(root);
 
 struct libalias *mla;
-struct instance *mip;
-int ninstance = 1;
+static struct instance *mip;
+static int ninstance = 1;
 
 /* 
  * Default values for input and output
@@ -1330,7 +1330,7 @@ static void ParseOption (const char* option, const char* parms)
 	struct in_addr		addrValue;
 	int			max;
 	char*			end;
-	CODE* 			fac_record = NULL;
+	const CODE* 		fac_record = NULL;
 /*
  * Find option from table.
  */
@@ -1509,7 +1509,7 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 
 	case LogIpfwDenied:
-		logIpfwDenied = yesNoValue;;
+		logIpfwDenied = yesNoValue;
 		break;
 
 	case PidFile:

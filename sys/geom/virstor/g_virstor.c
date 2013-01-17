@@ -80,7 +80,8 @@ struct g_class g_virstor_class = {
 
 /* Declare sysctl's and loader tunables */
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, virstor, CTLFLAG_RW, 0, "GEOM_GVIRSTOR information");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, virstor, CTLFLAG_RW, 0,
+    "GEOM_GVIRSTOR information");
 
 static u_int g_virstor_debug = 2; /* XXX: lower to 2 when released to public */
 TUNABLE_INT("kern.geom.virstor.debug", &g_virstor_debug);
@@ -234,6 +235,12 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 			return;
 		}
 		sc = virstor_find_geom(cp, name);
+		if (sc == NULL) {
+			gctl_error(req, "Don't know anything about '%s'", name);
+			g_topology_unlock();
+			return;
+		}
+
 		LOG_MSG(LVL_INFO, "Stopping %s by the userland command",
 		    sc->geom->name);
 		update_metadata(sc);

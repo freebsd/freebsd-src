@@ -191,6 +191,9 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_PPT29,    "Intel Panther Point watchdog timer",	10 },
 	{ DEVICEID_PPT30,    "Intel Panther Point watchdog timer",	10 },
 	{ DEVICEID_PPT31,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_LPT0,     "Intel Lynx Point watchdog timer",		10 },
+	{ DEVICEID_LPT1,     "Intel Lynx Point watchdog timer",		10 },
+	{ DEVICEID_LPT2,     "Intel Lynx Point watchdog timer",		10 },
 	{ DEVICEID_DH89XXCC_LPC,  "Intel DH89xxCC watchdog timer",	10 },
 	{ 0, NULL, 0 },
 };
@@ -198,26 +201,26 @@ static struct ichwd_device ichwd_devices[] = {
 static devclass_t ichwd_devclass;
 
 #define ichwd_read_tco_1(sc, off) \
-	bus_space_read_1((sc)->tco_bst, (sc)->tco_bsh, (off))
+	bus_read_1((sc)->tco_res, (off))
 #define ichwd_read_tco_2(sc, off) \
-	bus_space_read_2((sc)->tco_bst, (sc)->tco_bsh, (off))
+	bus_read_2((sc)->tco_res, (off))
 #define ichwd_read_tco_4(sc, off) \
-	bus_space_read_4((sc)->tco_bst, (sc)->tco_bsh, (off))
+	bus_read_4((sc)->tco_res, (off))
 #define ichwd_read_smi_4(sc, off) \
-	bus_space_read_4((sc)->smi_bst, (sc)->smi_bsh, (off))
+	bus_read_4((sc)->smi_res, (off))
 #define ichwd_read_gcs_4(sc, off) \
-	bus_space_read_4((sc)->gcs_bst, (sc)->gcs_bsh, (off))
+	bus_read_4((sc)->gcs_res, (off))
 
 #define ichwd_write_tco_1(sc, off, val) \
-	bus_space_write_1((sc)->tco_bst, (sc)->tco_bsh, (off), (val))
+	bus_write_1((sc)->tco_res, (off), (val))
 #define ichwd_write_tco_2(sc, off, val) \
-	bus_space_write_2((sc)->tco_bst, (sc)->tco_bsh, (off), (val))
+	bus_write_2((sc)->tco_res, (off), (val))
 #define ichwd_write_tco_4(sc, off, val) \
-	bus_space_write_4((sc)->tco_bst, (sc)->tco_bsh, (off), (val))
+	bus_write_4((sc)->tco_res, (off), (val))
 #define ichwd_write_smi_4(sc, off, val) \
-	bus_space_write_4((sc)->smi_bst, (sc)->smi_bsh, (off), (val))
+	bus_write_4((sc)->smi_res, (off), (val))
 #define ichwd_write_gcs_4(sc, off, val) \
-	bus_space_write_4((sc)->gcs_bst, (sc)->gcs_bsh, (off), (val))
+	bus_write_4((sc)->gcs_res, (off), (val))
 
 #define ichwd_verbose_printf(dev, ...) \
 	do {						\
@@ -519,8 +522,6 @@ ichwd_attach(device_t dev)
 		device_printf(dev, "unable to reserve SMI registers\n");
 		goto fail;
 	}
-	sc->smi_bst = rman_get_bustag(sc->smi_res);
-	sc->smi_bsh = rman_get_bushandle(sc->smi_res);
 
 	sc->tco_rid = 1;
 	sc->tco_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->tco_rid,
@@ -530,8 +531,6 @@ ichwd_attach(device_t dev)
 		device_printf(dev, "unable to reserve TCO registers\n");
 		goto fail;
 	}
-	sc->tco_bst = rman_get_bustag(sc->tco_res);
-	sc->tco_bsh = rman_get_bushandle(sc->tco_res);
 
 	sc->gcs_rid = 0;
 	if (sc->ich_version >= 6) {
@@ -541,12 +540,6 @@ ichwd_attach(device_t dev)
 			device_printf(dev, "unable to reserve GCS registers\n");
 			goto fail;
 		}
-		sc->gcs_bst = rman_get_bustag(sc->gcs_res);
-		sc->gcs_bsh = rman_get_bushandle(sc->gcs_res);
-	} else {
-		sc->gcs_res = 0;
-		sc->gcs_bst = 0;
-		sc->gcs_bsh = 0;
 	}
 
 	if (ichwd_clear_noreboot(sc) != 0)

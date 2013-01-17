@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.109.108.2 2011-07-08 23:47:16 tbox Exp $
+# $Id$
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@

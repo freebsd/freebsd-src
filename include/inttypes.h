@@ -45,6 +45,9 @@ typedef struct {
 } imaxdiv_t;
 
 __BEGIN_DECLS
+#ifdef _XLOCALE_H_
+#include <xlocale/_inttypes.h>
+#endif
 intmax_t	imaxabs(intmax_t) __pure2;
 imaxdiv_t	imaxdiv(intmax_t, intmax_t) __pure2;
 

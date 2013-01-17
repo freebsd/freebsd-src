@@ -717,7 +717,7 @@ make_ctf_data(tdata_t *td, Elf *elf, const char *file, size_t *lenp, int flags)
 
 	iiburst = sort_iidescs(elf, file, td, flags & CTF_FUZZY_MATCH,
 	    flags & CTF_USE_DYNSYM);
-	data = ctf_gen(iiburst, lenp, flags & CTF_COMPRESS);
+	data = ctf_gen(iiburst, lenp, flags & (CTF_COMPRESS |  CTF_SWAP_BYTES));
 
 	iiburst_free(iiburst);
 
@@ -730,10 +730,12 @@ write_ctf(tdata_t *td, const char *curname, const char *newname, int flags)
 	struct stat st;
 	Elf *elf = NULL;
 	Elf *telf = NULL;
+	GElf_Ehdr ehdr;
 	caddr_t data;
 	size_t len;
 	int fd = -1;
 	int tfd = -1;
+	int byteorder;
 
 	(void) elf_version(EV_CURRENT);
 	if ((fd = open(curname, O_RDONLY)) < 0 || fstat(fd, &st) < 0)
@@ -745,6 +747,22 @@ write_ctf(tdata_t *td, const char *curname, const char *newname, int flags)
 		terminate("Cannot open temp file %s for writing", newname);
 	if ((telf = elf_begin(tfd, ELF_C_WRITE, NULL)) == NULL)
 		elfterminate(curname, "Cannot write");
+
+	if (gelf_getehdr(elf, &ehdr)) {
+#if BYTE_ORDER == _BIG_ENDIAN
+		byteorder = ELFDATA2MSB;
+#else
+		byteorder = ELFDATA2LSB;
+#endif
+		/*
+		 * If target and host has the same byte order
+		 * clear byte swapping request
+		 */
+		if  (ehdr.e_ident[EI_DATA] == byteorder)
+			flags &= ~CTF_SWAP_BYTES;
+	}
+	else 
+		elfterminate(curname, "Failed to get EHDR");
 
 	data = make_ctf_data(td, elf, curname, &len, flags);
 	write_file(elf, curname, telf, newname, data, len, flags);

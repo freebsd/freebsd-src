@@ -55,7 +55,7 @@ ConstantRange ConstantRange::makeICmpRegion(unsigned Pred,
 
   uint32_t W = CR.getBitWidth();
   switch (Pred) {
-    default: assert(0 && "Invalid ICmp predicate to makeICmpRegion()");
+    default: llvm_unreachable("Invalid ICmp predicate to makeICmpRegion()");
     case CmpInst::ICMP_EQ:
       return CR;
     case CmpInst::ICMP_NE:
@@ -143,16 +143,17 @@ bool ConstantRange::isSignWrappedSet() const {
 /// getSetSize - Return the number of elements in this set.
 ///
 APInt ConstantRange::getSetSize() const {
-  if (isEmptySet()) 
-    return APInt(getBitWidth(), 0);
-  if (getBitWidth() == 1) {
-    if (Lower != Upper)  // One of T or F in the set...
-      return APInt(2, 1);
-    return APInt(2, 2);      // Must be full set...
+  if (isEmptySet())
+    return APInt(getBitWidth()+1, 0);
+
+  if (isFullSet()) {
+    APInt Size(getBitWidth()+1, 0);
+    Size.setBit(getBitWidth());
+    return Size;
   }
 
-  // Simply subtract the bounds...
-  return Upper - Lower;
+  // This is also correct for wrapped sets.
+  return (Upper - Lower).zext(getBitWidth()+1);
 }
 
 /// getUnsignedMax - Return the largest unsigned value contained in the
@@ -161,8 +162,7 @@ APInt ConstantRange::getSetSize() const {
 APInt ConstantRange::getUnsignedMax() const {
   if (isFullSet() || isWrappedSet())
     return APInt::getMaxValue(getBitWidth());
-  else
-    return getUpper() - 1;
+  return getUpper() - 1;
 }
 
 /// getUnsignedMin - Return the smallest unsigned value contained in the
@@ -171,8 +171,7 @@ APInt ConstantRange::getUnsignedMax() const {
 APInt ConstantRange::getUnsignedMin() const {
   if (isFullSet() || (isWrappedSet() && getUpper() != 0))
     return APInt::getMinValue(getBitWidth());
-  else
-    return getLower();
+  return getLower();
 }
 
 /// getSignedMax - Return the largest signed value contained in the
@@ -183,14 +182,11 @@ APInt ConstantRange::getSignedMax() const {
   if (!isWrappedSet()) {
     if (getLower().sle(getUpper() - 1))
       return getUpper() - 1;
-    else
-      return SignedMax;
-  } else {
-    if (getLower().isNegative() == getUpper().isNegative())
-      return SignedMax;
-    else
-      return getUpper() - 1;
+    return SignedMax;
   }
+  if (getLower().isNegative() == getUpper().isNegative())
+    return SignedMax;
+  return getUpper() - 1;
 }
 
 /// getSignedMin - Return the smallest signed value contained in the
@@ -201,18 +197,13 @@ APInt ConstantRange::getSignedMin() const {
   if (!isWrappedSet()) {
     if (getLower().sle(getUpper() - 1))
       return getLower();
-    else
-      return SignedMin;
-  } else {
-    if ((getUpper() - 1).slt(getLower())) {
-      if (getUpper() != SignedMin)
-        return SignedMin;
-      else
-        return getLower();
-    } else {
-      return getLower();
-    }
+    return SignedMin;
   }
+  if ((getUpper() - 1).slt(getLower())) {
+    if (getUpper() != SignedMin)
+      return SignedMin;
+  }
+  return getLower();
 }
 
 /// contains - Return true if the specified value is in the set.
@@ -223,8 +214,7 @@ bool ConstantRange::contains(const APInt &V) const {
 
   if (!isWrappedSet())
     return Lower.ule(V) && V.ult(Upper);
-  else
-    return Lower.ule(V) || V.ult(Upper);
+  return Lower.ule(V) || V.ult(Upper);
 }
 
 /// contains - Return true if the argument is a subset of this range.
@@ -259,6 +249,12 @@ ConstantRange ConstantRange::subtract(const APInt &Val) const {
   return ConstantRange(Lower - Val, Upper - Val);
 }
 
+/// \brief Subtract the specified range from this range (aka relative complement
+/// of the sets).
+ConstantRange ConstantRange::difference(const ConstantRange &CR) const {
+  return intersectWith(CR.inverse());
+}
+
 /// intersectWith - Return the range that results from the intersection of this
 /// range with another range.  The resultant range is guaranteed to include all
 /// elements contained in both input ranges, and to have the smallest possible
@@ -284,15 +280,14 @@ ConstantRange ConstantRange::intersectWith(const ConstantRange &CR) const {
         return ConstantRange(CR.Lower, Upper);
 
       return CR;
-    } else {
-      if (Upper.ult(CR.Upper))
-        return *this;
-
-      if (Lower.ult(CR.Upper))
-        return ConstantRange(Lower, CR.Upper);
-
-      return ConstantRange(getBitWidth(), false);
     }
+    if (Upper.ult(CR.Upper))
+      return *this;
+
+    if (Lower.ult(CR.Upper))
+      return ConstantRange(Lower, CR.Upper);
+
+    return ConstantRange(getBitWidth(), false);
   }
 
   if (isWrappedSet() && !CR.isWrappedSet()) {
@@ -300,14 +295,14 @@ ConstantRange ConstantRange::intersectWith(const ConstantRange &CR) const {
       if (CR.Upper.ult(Upper))
         return CR;
 
-      if (CR.Upper.ult(Lower))
+      if (CR.Upper.ule(Lower))
         return ConstantRange(CR.Lower, Upper);
 
       if (getSetSize().ult(CR.getSetSize()))
         return *this;
-      else
-        return CR;
-    } else if (CR.Lower.ult(Lower)) {
+      return CR;
+    }
+    if (CR.Lower.ult(Lower)) {
       if (CR.Upper.ule(Lower))
         return ConstantRange(getBitWidth(), false);
 
@@ -320,15 +315,15 @@ ConstantRange ConstantRange::intersectWith(const ConstantRange &CR) const {
     if (CR.Lower.ult(Upper)) {
       if (getSetSize().ult(CR.getSetSize()))
         return *this;
-      else
-        return CR;
+      return CR;
     }
 
     if (CR.Lower.ult(Lower))
       return ConstantRange(Lower, CR.Upper);
 
     return CR;
-  } else if (CR.Upper.ult(Lower)) {
+  }
+  if (CR.Upper.ule(Lower)) {
     if (CR.Lower.ult(Lower))
       return *this;
 
@@ -336,8 +331,7 @@ ConstantRange ConstantRange::intersectWith(const ConstantRange &CR) const {
   }
   if (getSetSize().ult(CR.getSetSize()))
     return *this;
-  else
-    return CR;
+  return CR;
 }
 
 
@@ -362,8 +356,7 @@ ConstantRange ConstantRange::unionWith(const ConstantRange &CR) const {
       APInt d1 = CR.Lower - Upper, d2 = Lower - CR.Upper;
       if (d1.ult(d2))
         return ConstantRange(Lower, CR.Upper);
-      else
-        return ConstantRange(CR.Lower, Upper);
+      return ConstantRange(CR.Lower, Upper);
     }
 
     APInt L = Lower, U = Upper;
@@ -396,8 +389,7 @@ ConstantRange ConstantRange::unionWith(const ConstantRange &CR) const {
       APInt d1 = CR.Lower - Upper, d2 = Lower - CR.Upper;
       if (d1.ult(d2))
         return ConstantRange(Lower, CR.Upper);
-      else
-        return ConstantRange(CR.Lower, Upper);
+      return ConstantRange(CR.Lower, Upper);
     }
 
     // ----U     L----- : this
@@ -407,12 +399,10 @@ ConstantRange ConstantRange::unionWith(const ConstantRange &CR) const {
 
     // ------U    L---- : this
     //    L-----U       : CR
-    if (CR.Lower.ult(Upper) && CR.Upper.ult(Lower))
-      return ConstantRange(Lower, CR.Upper);
+    assert(CR.Lower.ult(Upper) && CR.Upper.ult(Lower) &&
+           "ConstantRange::unionWith missed a case with one range wrapped");
+    return ConstantRange(Lower, CR.Upper);
   }
-
-  assert(isWrappedSet() && CR.isWrappedSet() &&
-         "ConstantRange::unionWith missed wrapped union unwrapped case");
 
   // ------U    L----  and  ------U    L---- : this
   // -U  L-----------  and  ------------U  L : CR
@@ -437,9 +427,13 @@ ConstantRange ConstantRange::zeroExtend(uint32_t DstTySize) const {
 
   unsigned SrcTySize = getBitWidth();
   assert(SrcTySize < DstTySize && "Not a value extension");
-  if (isFullSet() || isWrappedSet())
+  if (isFullSet() || isWrappedSet()) {
     // Change into [0, 1 << src bit width)
-    return ConstantRange(APInt(DstTySize,0), APInt(DstTySize,1).shl(SrcTySize));
+    APInt LowerExt(DstTySize, 0);
+    if (!Upper) // special case: [X, 0) -- not really wrapping around
+      LowerExt = Lower.zext(DstTySize);
+    return ConstantRange(LowerExt, APInt(DstTySize, 1).shl(SrcTySize));
+  }
 
   return ConstantRange(Lower.zext(DstTySize), Upper.zext(DstTySize));
 }
@@ -466,13 +460,54 @@ ConstantRange ConstantRange::signExtend(uint32_t DstTySize) const {
 /// correspond to the possible range of values as if the source range had been
 /// truncated to the specified type.
 ConstantRange ConstantRange::truncate(uint32_t DstTySize) const {
-  unsigned SrcTySize = getBitWidth();
-  assert(SrcTySize > DstTySize && "Not a value truncation");
-  APInt Size(APInt::getLowBitsSet(SrcTySize, DstTySize));
-  if (isFullSet() || getSetSize().ugt(Size))
+  assert(getBitWidth() > DstTySize && "Not a value truncation");
+  if (isEmptySet())
+    return ConstantRange(DstTySize, /*isFullSet=*/false);
+  if (isFullSet())
     return ConstantRange(DstTySize, /*isFullSet=*/true);
 
-  return ConstantRange(Lower.trunc(DstTySize), Upper.trunc(DstTySize));
+  APInt MaxValue = APInt::getMaxValue(DstTySize).zext(getBitWidth());
+  APInt MaxBitValue(getBitWidth(), 0);
+  MaxBitValue.setBit(DstTySize);
+
+  APInt LowerDiv(Lower), UpperDiv(Upper);
+  ConstantRange Union(DstTySize, /*isFullSet=*/false);
+
+  // Analyze wrapped sets in their two parts: [0, Upper) \/ [Lower, MaxValue]
+  // We use the non-wrapped set code to analyze the [Lower, MaxValue) part, and
+  // then we do the union with [MaxValue, Upper)
+  if (isWrappedSet()) {
+    // if Upper is greater than Max Value, it covers the whole truncated range.
+    if (Upper.uge(MaxValue))
+      return ConstantRange(DstTySize, /*isFullSet=*/true);
+
+    Union = ConstantRange(APInt::getMaxValue(DstTySize),Upper.trunc(DstTySize));
+    UpperDiv = APInt::getMaxValue(getBitWidth());
+
+    // Union covers the MaxValue case, so return if the remaining range is just
+    // MaxValue.
+    if (LowerDiv == UpperDiv)
+      return Union;
+  }
+
+  // Chop off the most significant bits that are past the destination bitwidth.
+  if (LowerDiv.uge(MaxValue)) {
+    APInt Div(getBitWidth(), 0);
+    APInt::udivrem(LowerDiv, MaxBitValue, Div, LowerDiv);
+    UpperDiv = UpperDiv - MaxBitValue * Div;
+  }
+
+  if (UpperDiv.ule(MaxValue))
+    return ConstantRange(LowerDiv.trunc(DstTySize),
+                         UpperDiv.trunc(DstTySize)).unionWith(Union);
+
+  // The truncated value wrapps around. Check if we can do better than fullset.
+  APInt UpperModulo = UpperDiv - MaxBitValue;
+  if (UpperModulo.ult(LowerDiv))
+    return ConstantRange(LowerDiv.trunc(DstTySize),
+                         UpperModulo.trunc(DstTySize)).unionWith(Union);
+
+  return ConstantRange(DstTySize, /*isFullSet=*/true);
 }
 
 /// zextOrTrunc - make this range have the bit width given by \p DstTySize. The
@@ -481,10 +516,9 @@ ConstantRange ConstantRange::zextOrTrunc(uint32_t DstTySize) const {
   unsigned SrcTySize = getBitWidth();
   if (SrcTySize > DstTySize)
     return truncate(DstTySize);
-  else if (SrcTySize < DstTySize)
+  if (SrcTySize < DstTySize)
     return zeroExtend(DstTySize);
-  else
-    return *this;
+  return *this;
 }
 
 /// sextOrTrunc - make this range have the bit width given by \p DstTySize. The
@@ -493,10 +527,9 @@ ConstantRange ConstantRange::sextOrTrunc(uint32_t DstTySize) const {
   unsigned SrcTySize = getBitWidth();
   if (SrcTySize > DstTySize)
     return truncate(DstTySize);
-  else if (SrcTySize < DstTySize)
+  if (SrcTySize < DstTySize)
     return signExtend(DstTySize);
-  else
-    return *this;
+  return *this;
 }
 
 ConstantRange
@@ -550,8 +583,6 @@ ConstantRange::multiply(const ConstantRange &Other) const {
 
   if (isEmptySet() || Other.isEmptySet())
     return ConstantRange(getBitWidth(), /*isFullSet=*/false);
-  if (isFullSet() || Other.isFullSet())
-    return ConstantRange(getBitWidth(), /*isFullSet=*/true);
 
   APInt this_min = getUnsignedMin().zext(getBitWidth() * 2);
   APInt this_max = getUnsignedMax().zext(getBitWidth() * 2);
@@ -675,11 +706,10 @@ ConstantRange::lshr(const ConstantRange &Other) const {
 }
 
 ConstantRange ConstantRange::inverse() const {
-  if (isFullSet()) {
+  if (isFullSet())
     return ConstantRange(getBitWidth(), /*isFullSet=*/false);
-  } else if (isEmptySet()) {
+  if (isEmptySet())
     return ConstantRange(getBitWidth(), /*isFullSet=*/true);
-  }
   return ConstantRange(Upper, Lower);
 }
 

@@ -6,7 +6,8 @@
 #
 
 # PROVIDE: addswap
-# REQUIRE: FILESYSTEMS
+# REQUIRE: FILESYSTEMS kld
+# BEFORE:  netif
 # KEYWORD: nojail
 
 . /etc/rc.subr

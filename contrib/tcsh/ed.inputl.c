@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.inputl.c,v 3.70 2009/06/25 21:15:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.inputl.c,v 3.71 2010/12/22 17:26:04 christos Exp $ */
 /*
  * ed.inputl.c: Input line handling.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: ed.inputl.c,v 3.70 2009/06/25 21:15:37 christos Exp $")
+RCSID("$tcsh: ed.inputl.c,v 3.71 2010/12/22 17:26:04 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -683,7 +683,7 @@ GetNextCommand(KEYCMD *cmdnum, Char *ch)
 #ifdef DSPMBYTE
 	     _enable_mbdisp &&
 #else
-	     MB_LEN_MAX == 1 &&
+	     MB_CUR_MAX == 1 &&
 #endif
 	     !adrof(STRnokanji) && (*ch & META)) {
 	    MetaNext = 0;

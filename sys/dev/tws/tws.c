@@ -30,10 +30,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
-*/
+ */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dev/tws/tws.h>
 #include <dev/tws/tws_services.h>
@@ -197,7 +197,7 @@ tws_attach(device_t dev)
     mtx_init( &sc->q_lock, "tws_q_lock", NULL, MTX_DEF);
     mtx_init( &sc->sim_lock,  "tws_sim_lock", NULL, MTX_DEF);
     mtx_init( &sc->gen_lock,  "tws_gen_lock", NULL, MTX_DEF);
-    mtx_init( &sc->io_lock,  "tws_io_lock", NULL, MTX_DEF);
+    mtx_init( &sc->io_lock,  "tws_io_lock", NULL, MTX_DEF | MTX_RECURSE);
 
     if ( tws_init_trace_q(sc) == FAILURE )
         printf("trace init failure\n");
@@ -405,6 +405,8 @@ tws_detach(device_t dev)
     free(sc->reqs, M_TWS);
     free(sc->sense_bufs, M_TWS);
     free(sc->scan_ccb, M_TWS);
+    if (sc->ioctl_data_mem)
+            bus_dmamem_free(sc->data_tag, sc->ioctl_data_mem, sc->ioctl_data_map);
     free(sc->aen_q.q, M_TWS);
     free(sc->trace_q.q, M_TWS);
     mtx_destroy(&sc->q_lock);
@@ -521,7 +523,7 @@ tws_init(struct tws_softc *sc)
                                  TWS_MAX_32BIT_SG_ELEMENTS;
     dma_mem_size = (sizeof(struct tws_command_packet) * tws_queue_depth) +
                              (TWS_SECTOR_SIZE) ;
-    if ( bus_dma_tag_create(NULL,                    /* parent */          
+    if ( bus_dma_tag_create(bus_get_dma_tag(sc->tws_dev), /* PCI parent */ 
                             TWS_ALIGNMENT,           /* alignment */
                             0,                       /* boundary */
                             BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
@@ -609,6 +611,11 @@ tws_init(struct tws_softc *sc)
         TWS_TRACE_DEBUG(sc, "ccb malloc failed", 0, sc->is64bit);
         return(ENOMEM);
     }
+    if (bus_dmamem_alloc(sc->data_tag, (void **)&sc->ioctl_data_mem,
+            (BUS_DMA_NOWAIT | BUS_DMA_ZERO), &sc->ioctl_data_map)) {
+        device_printf(sc->tws_dev, "Cannot allocate ioctl data mem\n");
+        return(ENOMEM);
+    }
 
     if ( !tws_ctlr_ready(sc) )
         if( !tws_ctlr_reset(sc) )
@@ -685,6 +692,7 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
     {
         if (bus_dmamap_create(sc->data_tag, 0, &sc->reqs[i].dma_map)) {
             /* log a ENOMEM failure msg here */
+            mtx_unlock(&sc->q_lock);
             return(FAILURE);
         } 
         sc->reqs[i].cmd_pkt =  &cmd_buf[i];
@@ -882,9 +890,7 @@ static device_method_t tws_methods[] = {
     DEVMETHOD(device_suspend,   tws_suspend),
     DEVMETHOD(device_resume,    tws_resume),
 
-    DEVMETHOD(bus_print_child,      bus_generic_print_child),
-    DEVMETHOD(bus_driver_added,     bus_generic_driver_added),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t tws_driver = {

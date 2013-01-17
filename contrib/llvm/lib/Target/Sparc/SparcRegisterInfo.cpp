@@ -1,4 +1,4 @@
-//===- SparcRegisterInfo.cpp - SPARC Register Information -------*- C++ -*-===//
+//===-- SparcRegisterInfo.cpp - SPARC Register Information ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,15 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sparc.h"
 #include "SparcRegisterInfo.h"
+#include "Sparc.h"
 #include "SparcSubtarget.h"
+#include "llvm/Type.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Type.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -33,9 +33,9 @@ SparcRegisterInfo::SparcRegisterInfo(SparcSubtarget &st,
   : SparcGenRegisterInfo(SP::I7), Subtarget(st), TII(tii) {
 }
 
-const unsigned* SparcRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
+const uint16_t* SparcRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
                                                                          const {
-  static const unsigned CalleeSavedRegs[] = { 0 };
+  static const uint16_t CalleeSavedRegs[] = { 0 };
   return CalleeSavedRegs;
 }
 
@@ -109,19 +109,14 @@ SparcRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 }
 
-void SparcRegisterInfo::
-processFunctionBeforeFrameFinalized(MachineFunction &MF) const {}
-
 unsigned SparcRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return SP::I6;
 }
 
 unsigned SparcRegisterInfo::getEHExceptionRegister() const {
   llvm_unreachable("What is the exception register");
-  return 0;
 }
 
 unsigned SparcRegisterInfo::getEHHandlerRegister() const {
   llvm_unreachable("What is the exception handler register");
-  return 0;
 }

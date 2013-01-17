@@ -122,7 +122,7 @@ extern FILE *yyin, *yyout;
 #define EOB_ACT_LAST_MATCH 2
 
 /* The funky do-while in the following #define is used to turn the definition
- * int a single C statement (which needs a semi-colon terminator).  This
+ * into a single C statement (which needs a semi-colon terminator).  This
  * avoids problems with code like:
  *
  * 	if ( condition_holds )
@@ -143,12 +143,12 @@ extern FILE *yyin, *yyout;
 		/* Undo effects of setting up yytext. */ \
 		*yy_cp = yy_hold_char; \
 		YY_RESTORE_YY_MORE_OFFSET \
-		yy_c_buf_p = yy_cp = yy_bp + n - YY_MORE_ADJ; \
+		yy_c_buf_p = yy_cp = yy_bp + (n) - YY_MORE_ADJ; \
 		YY_DO_BEFORE_ACTION; /* set up yytext again */ \
 		} \
 	while ( 0 )
 
-#define unput(c) yyunput( c, yytext_ptr )
+#define unput(c) yyunput( (c), yytext_ptr )
 
 /* The following is because we cannot portably get our hands on size_t
  * (without autoconf's help, which isn't available because we want

@@ -60,8 +60,8 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_L2CAP_RAW, "netgraph_btsocks_l2cap_raw",
-		"Netgraph Bluetooth raw L2CAP sockets");
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_L2CAP_RAW,
+    "netgraph_btsocks_l2cap_raw", "Netgraph Bluetooth raw L2CAP sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_L2CAP_RAW M_NETGRAPH
 #endif /* NG_SEPARATE_MALLOC */
@@ -123,7 +123,7 @@ static int					ng_btsocket_l2cap_raw_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_l2cap_sockets);
-SYSCTL_NODE(_net_bluetooth_l2cap_sockets, OID_AUTO, raw, CTLFLAG_RW,
+static SYSCTL_NODE(_net_bluetooth_l2cap_sockets, OID_AUTO, raw, CTLFLAG_RW,
 	0, "Bluetooth raw L2CAP sockets family");
 SYSCTL_UINT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, debug_level,
 	CTLFLAG_RW,

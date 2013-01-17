@@ -81,8 +81,6 @@ static char password_hash[] =		PASSWORD_HASH;
 #define PAM_OPT_LOCAL_PASS	"local_pass"
 #define PAM_OPT_NIS_PASS	"nis_pass"
 
-char *tempname = NULL;
-
 /*
  * authentication management
  */
@@ -96,13 +94,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	const char *pass, *user, *realpw, *prompt;
 
 	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF)) {
-		pwd = getpwnam(getlogin());
+		user = getlogin();
 	} else {
 		retval = pam_get_user(pamh, &user, NULL);
 		if (retval != PAM_SUCCESS)
 			return (retval);
-		pwd = getpwnam(user);
 	}
+	pwd = getpwnam(user);
 
 	PAM_LOG("Got user: %s", user);
 

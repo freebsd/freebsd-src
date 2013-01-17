@@ -25,15 +25,27 @@
 # SUCH DAMAGE.
 #
 
+.include <bsd.own.mk>
+
+# Modules that include binary-only blobs of microcode should be selectable by
+# MK_SOURCELESS_UCODE option (see below).
+
 SUBDIR = usb
-SUBDIR += ehci musb ohci uhci xhci uss820dci ${_at91dci} ${_atmegadci}
-SUBDIR += rum run uath upgt usie ural zyd ${_urtw}
+SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} ${_atmegadci} ${_avr32dci}
+SUBDIR += ${_rum} run ${_uath} upgt usie ural ${_zyd} ${_urtw}
 SUBDIR += atp uhid ukbd ums udbp ufm uep
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
-SUBDIR += uether aue axe cdce cue kue mos rue udav uhso ipheth
+SUBDIR += uether aue axe cdce cue ${_kue} mos rue udav uhso ipheth
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
+
+.if ${MK_SOURCELESS_UCODE} != "no"
+_rum=		rum
+_uath=		uath
+_zyd=		zyd
+_kue=		kue
+.endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _urtw=		urtw
@@ -42,10 +54,17 @@ _urtw=		urtw
 .if ${MACHINE_CPUARCH} == "arm"
 _at91dci=	at91dci
 _atmegadci=	atmegadci
+_dwc_otg=	dwc_otg
+_musb=		musb
+_uss820dci=	uss820dci
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
 _urtw=		urtw
+.endif
+
+.if ${MACHINE_CPUARCH} == "avr32"
+_avr32dci=	avr32dci
 .endif
 
 .include <bsd.subdir.mk>

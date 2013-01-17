@@ -69,7 +69,8 @@
 #include <netatalk/at.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock", "netgraph ksock node ");
+static MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock",
+    "netgraph ksock node");
 #else
 #define M_NETGRAPH_KSOCKET M_NETGRAPH
 #endif
@@ -222,7 +223,7 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 	/* Get socket address family followed by a slash */
 	while (isspace(s[*off]))
 		(*off)++;
-	if ((t = index(s + *off, '/')) == NULL)
+	if ((t = strchr(s + *off, '/')) == NULL)
 		return (EINVAL);
 	if ((len = t - (s + *off)) > sizeof(fambuf) - 1)
 		return (EINVAL);
@@ -523,7 +524,9 @@ ng_ksocket_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_WAITOK | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
+	if (priv == NULL)
+		return (ENOMEM);
 
 	LIST_INIT(&priv->embryos);
 	/* cross link them */
@@ -564,14 +567,14 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 		/* Extract family, type, and protocol from hook name */
 		snprintf(name, sizeof(name), "%s", name0);
 		s1 = name;
-		if ((s2 = index(s1, '/')) == NULL)
+		if ((s2 = strchr(s1, '/')) == NULL)
 			return (EINVAL);
 		*s2++ = '\0';
 		family = ng_ksocket_parse(ng_ksocket_families, s1, 0);
 		if (family == -1)
 			return (EINVAL);
 		s1 = s2;
-		if ((s2 = index(s1, '/')) == NULL)
+		if ((s2 = strchr(s1, '/')) == NULL)
 			return (EINVAL);
 		*s2++ = '\0';
 		type = ng_ksocket_parse(ng_ksocket_types, s1, 0);
@@ -1042,9 +1045,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 	struct ng_mesg *response;
 	struct uio auio;
-	int s, flags, error;
-
-	s = splnet();
+	int flags, error;
 
 	/* so = priv->so; *//* XXX could have derived this like so */
 	KASSERT(so == priv->so, ("%s: wrong socket", __func__));
@@ -1091,10 +1092,8 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * the hook gets created and is connected, this upcall function
 	 * will be called again.
 	 */
-	if (priv->hook == NULL) {
-		splx(s);
+	if (priv->hook == NULL)
 		return;
-	}
 
 	/* Read and forward available mbuf's */
 	auio.uio_td = NULL;
@@ -1162,7 +1161,6 @@ sendit:		/* Forward data with optional peer sockaddr as packet tag */
 		}
 		priv->flags |= KSF_EOFSEEN;
 	}
-	splx(s);
 }
 
 /*

@@ -143,6 +143,13 @@ trap(struct trapframe *frame)
 	int		sig, type, user;
 	ksiginfo_t	ksi;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	PCPU_INC(cnt.v_trap);
 
 	td = curthread;
@@ -242,7 +249,6 @@ trap(struct trapframe *frame)
 	}
 
 	userret(td, frame);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 static void

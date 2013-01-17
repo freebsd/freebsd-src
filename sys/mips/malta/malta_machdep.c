@@ -199,19 +199,6 @@ mips_init(void)
 #endif
 }
 
-void
-platform_halt(void)
-{
-
-}
-
-
-void
-platform_identify(void)
-{
-
-}
-
 /*
  * Perform a board-level soft-reset.
  * Note that this is not emulated by gxemul.
@@ -223,18 +210,6 @@ platform_reset(void)
 
 	c = (char *)MIPS_PHYS_TO_KSEG0(MALTA_SOFTRES);
 	*c = MALTA_GORESET;
-}
-
-void
-platform_trap_enter(void)
-{
-
-}
-
-void
-platform_trap_exit(void)
-{
-
 }
 
 static uint64_t

@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_param.h>
 
-MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
+static MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUS
@@ -152,6 +152,7 @@ static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 static BOOLEAN	acpi_has_hid(ACPI_HANDLE handle);
+static void	acpi_resync_clock(struct acpi_softc *sc);
 static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_run_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_prep_walk(int sstate);
@@ -277,11 +278,13 @@ TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
+#ifdef __amd64__
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
 TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
 SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
     &acpi_reset_clock, 1, "Reset system clock while resuming.");
+#endif
 
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
@@ -1476,7 +1479,7 @@ static int
 acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
 {
     ACPI_DEVICE_INFO	*devinfo;
-    ACPI_DEVICE_ID	*ids;
+    ACPI_PNP_DEVICE_ID	*ids;
     ACPI_HANDLE		h;
     uint32_t		*pnpid;
     int			i, valid;
@@ -1812,23 +1815,29 @@ acpi_probe_children(device_t bus)
 static void
 acpi_probe_order(ACPI_HANDLE handle, int *order)
 {
-    ACPI_OBJECT_TYPE type;
+	ACPI_OBJECT_TYPE type;
 
-    /*
-     * 1. CPUs
-     * 2. I/O port and memory system resource holders
-     * 3. Embedded controllers (to handle early accesses)
-     * 4. PCI Link Devices
-     */
-    AcpiGetType(handle, &type);
-    if (type == ACPI_TYPE_PROCESSOR)
-	*order = 1;
-    else if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
-	*order = 2;
-    else if (acpi_MatchHid(handle, "PNP0C09"))
-	*order = 3;
-    else if (acpi_MatchHid(handle, "PNP0C0F"))
-	*order = 4;
+	/*
+	 * 0. CPUs
+	 * 1. I/O port and memory system resource holders
+	 * 2. Clocks and timers (to handle early accesses)
+	 * 3. Embedded controllers (to handle early accesses)
+	 * 4. PCI Link Devices
+	 */
+	AcpiGetType(handle, &type);
+	if (type == ACPI_TYPE_PROCESSOR)
+		*order = 0;
+	else if (acpi_MatchHid(handle, "PNP0C01") ||
+	    acpi_MatchHid(handle, "PNP0C02"))
+		*order = 1;
+	else if (acpi_MatchHid(handle, "PNP0100") ||
+	    acpi_MatchHid(handle, "PNP0103") ||
+	    acpi_MatchHid(handle, "PNP0B00"))
+		*order = 2;
+	else if (acpi_MatchHid(handle, "PNP0C09"))
+		*order = 3;
+	else if (acpi_MatchHid(handle, "PNP0C0F"))
+		*order = 4;
 }
 
 /*
@@ -1889,7 +1898,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * resources).
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
-	    order = level * 10 + 100;
+	    order = level * 10 + ACPI_DEV_BASE_ORDER;
 	    acpi_probe_order(handle, &order);
 	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
 	    if (child == NULL)
@@ -1951,6 +1960,7 @@ static void
 acpi_shutdown_final(void *arg, int howto)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
+    register_t intr;
     ACPI_STATUS status;
 
     /*
@@ -1966,13 +1976,15 @@ acpi_shutdown_final(void *arg, int howto)
 	    return;
 	}
 	device_printf(sc->acpi_dev, "Powering system off\n");
-	ACPI_DISABLE_IRQS();
+	intr = intr_disable();
 	status = AcpiEnterSleepState(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
 		AcpiFormatException(status));
-	else {
+	} else {
 	    DELAY(1000000);
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
 	}
     } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
@@ -2429,15 +2441,29 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 
 #if defined(__amd64__) || defined(__i386__)
 static void
+acpi_sleep_force_task(void *context)
+{
+    struct acpi_softc *sc = (struct acpi_softc *)context;
+
+    if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
+	device_printf(sc->acpi_dev, "force sleep state S%d failed\n",
+	    sc->acpi_next_sstate);
+}
+
+static void
 acpi_sleep_force(void *arg)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
 
     device_printf(sc->acpi_dev,
 	"suspend request timed out, forcing sleep now\n");
-    if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
-	device_printf(sc->acpi_dev, "force sleep state S%d failed\n",
-	    sc->acpi_next_sstate);
+    /*
+     * XXX Suspending from callout cause the freeze in DEVICE_SUSPEND().
+     * Suspend from acpi_task thread in stead.
+     */
+    if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
+	acpi_sleep_force_task, sc)))
+	device_printf(sc->acpi_dev, "AcpiOsExecute() for sleeping failed\n");
 }
 #endif
 
@@ -2459,13 +2485,19 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     if (!acpi_sleep_states[state])
 	return (EOPNOTSUPP);
 
-    ACPI_LOCK(acpi);
-
     /* If a suspend request is already in progress, just return. */
     if (sc->acpi_next_sstate != 0) {
-    	ACPI_UNLOCK(acpi);
 	return (0);
     }
+
+    /* Wait until sleep is enabled. */
+    while (sc->acpi_sleep_disabled) {
+	AcpiOsSleep(1000);
+    }
+
+    ACPI_LOCK(acpi);
+
+    sc->acpi_next_sstate = state;
 
     /* S5 (soft-off) should be entered directly with no waiting. */
     if (state == ACPI_STATE_S5) {
@@ -2475,7 +2507,6 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
     }
 
     /* Record the pending state and notify all apm devices. */
-    sc->acpi_next_sstate = state;
     STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
 	clone->notify_status = APM_EV_NONE;
 	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
@@ -2624,8 +2655,10 @@ enum acpi_sleep_state {
 static ACPI_STATUS
 acpi_EnterSleepState(struct acpi_softc *sc, int state)
 {
-    ACPI_STATUS	status;
+    register_t intr;
+    ACPI_STATUS status;
     enum acpi_sleep_state slp_state;
+    int sleep_result;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
@@ -2705,15 +2738,26 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (sc->acpi_sleep_delay > 0)
 	DELAY(sc->acpi_sleep_delay * 1000000);
 
+    intr = intr_disable();
     if (state != ACPI_STATE_S1) {
-	acpi_sleep_machdep(sc, state);
+	sleep_result = acpi_sleep_machdep(sc, state);
+	acpi_wakeup_machdep(sc, state, sleep_result, 0);
+	AcpiLeaveSleepStatePrep(state);
+	intr_restore(intr);
+
+	/* call acpi_wakeup_machdep() again with interrupt enabled */
+	acpi_wakeup_machdep(sc, state, sleep_result, 1);
+
+	if (sleep_result == -1)
+		goto backout;
 
 	/* Re-enable ACPI hardware on wakeup from sleep state 4. */
 	if (state == ACPI_STATE_S4)
 	    AcpiEnable();
     } else {
-	ACPI_DISABLE_IRQS();
 	status = AcpiEnterSleepState(state);
+	AcpiLeaveSleepStatePrep(state);
+	intr_restore(intr);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
 			  AcpiFormatException(status));
@@ -2731,12 +2775,14 @@ backout:
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
     }
-    if (slp_state >= ACPI_SS_SLP_PREP)
-	AcpiLeaveSleepState(state);
     if (slp_state >= ACPI_SS_DEV_SUSPEND)
 	DEVICE_RESUME(root_bus);
-    if (slp_state >= ACPI_SS_SLEPT)
+    if (slp_state >= ACPI_SS_SLP_PREP)
+	AcpiLeaveSleepState(state);
+    if (slp_state >= ACPI_SS_SLEPT) {
+	acpi_resync_clock(sc);
 	acpi_enable_fixed_events(sc);
+    }
     sc->acpi_next_sstate = 0;
 
     mtx_unlock(&Giant);
@@ -2759,10 +2805,10 @@ backout:
     return_ACPI_STATUS (status);
 }
 
-void
+static void
 acpi_resync_clock(struct acpi_softc *sc)
 {
-
+#ifdef __amd64__
     if (!acpi_reset_clock)
 	return;
 
@@ -2772,6 +2818,7 @@ acpi_resync_clock(struct acpi_softc *sc)
     (void)timecounter->tc_get_timecount(timecounter);
     (void)timecounter->tc_get_timecount(timecounter);
     inittodr(time_second + sc->acpi_sleep_delay);
+#endif
 }
 
 /* Enable or disable the device's wake GPE. */
@@ -3517,6 +3564,7 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_INIT",		ACPI_LV_INIT},
     {"ACPI_LV_DEBUG_OBJECT",	ACPI_LV_DEBUG_OBJECT},
     {"ACPI_LV_INFO",		ACPI_LV_INFO},
+    {"ACPI_LV_REPAIR",		ACPI_LV_REPAIR},
     {"ACPI_LV_ALL_EXCEPTIONS",	ACPI_LV_ALL_EXCEPTIONS},
 
     /* Trace verbosity level 1 [Standard Trace Level] */

@@ -42,7 +42,7 @@
 
 int
 ntfs_uncompblock(
-	u_int8_t * buf,
+	u_int8_t * dbuf,
 	u_int8_t * cbuf)
 {
 	u_int32_t       ctag;
@@ -60,8 +60,8 @@ ntfs_uncompblock(
 			dprintf(("ntfs_uncompblock: len: %x instead of %d\n",
 			    len, 0xfff));
 		}
-		memcpy(buf, cbuf + 2, len + 1);
-		bzero(buf + len + 1, NTFS_COMPBLOCK_SIZE - 1 - len);
+		memcpy(dbuf, cbuf + 2, len + 1);
+		memset(dbuf + len + 1, 0, NTFS_COMPBLOCK_SIZE - 1 - len);
 		return len + 3;
 	}
 	cpos = 2;
@@ -78,12 +78,12 @@ ntfs_uncompblock(
 				boff = -1 - (GET_UINT16(cbuf + cpos) >> dshift);
 				blen = 3 + (GET_UINT16(cbuf + cpos) & lmask);
 				for (j = 0; (j < blen) && (pos < NTFS_COMPBLOCK_SIZE); j++) {
-					buf[pos] = buf[pos + boff];
+					dbuf[pos] = dbuf[pos + boff];
 					pos++;
 				}
 				cpos += 2;
 			} else {
-				buf[pos++] = cbuf[cpos++];
+				dbuf[pos++] = cbuf[cpos++];
 			}
 			ctag >>= 1;
 		}

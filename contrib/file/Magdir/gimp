@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: gimp,v 1.7 2010/09/20 18:55:20 rrt Exp $
 # GIMP Gradient: file(1) magic for the GIMP's gradient data files
 # by Federico Mena <federico@nuclecu.unam.mx>
 
@@ -10,6 +12,7 @@
 #       ('Bucky' LaDieu, nega@vt.edu)
 
 0	string		gimp\ xcf	GIMP XCF image data,
+!:mime	image/x-xcf
 >9	string		file		version 0,
 >9	string		v		version
 >>10	string		>\0		%s,

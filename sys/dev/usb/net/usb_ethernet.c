@@ -57,7 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_process.h>
 #include <dev/usb/net/usb_ethernet.h>
 
-SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0, "USB Ethernet parameters");
+static SYSCTL_NODE(_net, OID_AUTO, ue, CTLFLAG_RD, 0,
+    "USB Ethernet parameters");
 
 #define	UE_LOCK(_ue)		mtx_lock((_ue)->ue_mtx)
 #define	UE_UNLOCK(_ue)		mtx_unlock((_ue)->ue_mtx)
@@ -218,7 +219,6 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 		ue->ue_ifp = ifp;
 		error = ue->ue_methods->ue_attach_post_sub(ue);
 	} else {
-		ifp->if_mtu = ETHERMTU;
 		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 		if (ue->ue_methods->ue_ioctl != NULL)
 			ifp->if_ioctl = ue->ue_methods->ue_ioctl;
@@ -557,7 +557,7 @@ uether_newbuf(void)
 {
 	struct mbuf *m_new;
 
-	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m_new == NULL)
 		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;

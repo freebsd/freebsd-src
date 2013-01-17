@@ -1,18 +1,24 @@
-2007-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-07-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* Makefile.am: no krb4
+
+	* su.c: Drop kerberos 4 support.
+
+2007-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* su.c: read environment from _PATH_ETC_ENVIRONMENT
 
 	* supaths.c: paths
 
-2007-08-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* su.c: Check all local realms when su-ing, from Magnus Holmberg.
 
-2007-06-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* su.c: If not root and not setuid, print warning.
 
-2006-01-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* su.c (group_member_p): rename from group_member to avoid name
 	pollution from glibc headers. Fixed based on report from David Love.
@@ -21,16 +27,16 @@
 
 	* su.c: fix reversed logic when deciding to print tty or not
 	
-2005-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-10-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* su.c: Check return value from asprintf instead of string != NULL
-	since it undefined behavior on Linux. From Björn Sandell
+	since it undefined behavior on Linux. From BjÃ¶rn Sandell
 	
 2005-05-10  Dave Love  <fx@gnu.org>
 
 	* su.c: Include <crypt.h>.
 
-2003-09-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-09-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* su.c: s/des_read_pw_string/UI_UTIL_read_pw_string/
 	
@@ -39,7 +45,7 @@
 	* su.c: remove accidentally committed code that prints the command
 	being executed
 
-2003-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-03-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* su.c (krb5_start_session): krb5_afslog doesn't depend on KRB4
 	any more

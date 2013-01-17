@@ -93,8 +93,7 @@ struct bgp_opt {
 	/* variable length */
 };
 #define BGP_OPT_SIZE		2	/* some compilers may pad to 4 bytes */
-
-#define BGP_UPDATE_MINSIZE      23
+#define BGP_CAP_HEADER_SIZE	2	/* some compilers may pad to 4 bytes */
 
 struct bgp_notification {
 	u_int8_t bgpn_marker[16];
@@ -115,19 +114,10 @@ struct bgp_route_refresh {
 };                    /* EXTRACT_16BITS(&bgp_route_refresh->afi) (sigh)      */ 
 #define BGP_ROUTE_REFRESH_SIZE          23
 
-struct bgp_attr {
-	u_int8_t bgpa_flags;
-	u_int8_t bgpa_type;
-	union {
-		u_int8_t len;
-		u_int16_t elen;
-	} bgpa_len;
-#define bgp_attr_len(p) \
-	(((p)->bgpa_flags & 0x10) ? \
-		EXTRACT_16BITS(&(p)->bgpa_len.elen) : (p)->bgpa_len.len)
-#define bgp_attr_off(p) \
-	(((p)->bgpa_flags & 0x10) ? 4 : 3)
-};
+#define bgp_attr_lenlen(flags, p) \
+	(((flags) & 0x10) ? 2 : 1)
+#define bgp_attr_len(flags, p) \
+	(((flags) & 0x10) ? EXTRACT_16BITS(p) : *(p))
 
 #define BGPTYPE_ORIGIN			1
 #define BGPTYPE_AS_PATH			2
@@ -401,8 +391,11 @@ static struct tok bgp_safi_values[] = {
 
 #define BGP_EXT_COM_L2INFO      0x800a  /* draft-kompella-ppvpn-l2vpn */
 
-#define BGP_EXT_COM_SOURCE_AS   0x0009  /* draft-ietf-l3vpn-2547bis-mcast-bgp-02.txt */
-#define BGP_EXT_COM_VRF_RT_IMP  0x010a  /* draft-ietf-l3vpn-2547bis-mcast-bgp-02.txt */
+#define BGP_EXT_COM_SOURCE_AS   0x0009  /* RFC-ietf-l3vpn-2547bis-mcast-bgp-08.txt */
+#define BGP_EXT_COM_VRF_RT_IMP  0x010b  /* RFC-ietf-l3vpn-2547bis-mcast-bgp-08.txt */
+#define BGP_EXT_COM_L2VPN_RT_0  0x000a  /* L2VPN Identifier,Format AS(2bytes):AN(4bytes) */
+#define BGP_EXT_COM_L2VPN_RT_1  0xF10a  /* L2VPN Identifier,Format IP address:AN(2bytes) */
+
 
 /* http://www.cisco.com/en/US/tech/tk436/tk428/technologies_tech_note09186a00801eb09a.shtml  */
 #define BGP_EXT_COM_EIGRP_GEN   0x8800
@@ -443,6 +436,8 @@ static struct tok bgp_extd_comm_subtype_values[] = {
     { BGP_EXT_COM_EIGRP_EXT_REMPROTO_REMMETRIC , "eigrp-external-route (remote-proto, remote-metric)" },
     { BGP_EXT_COM_SOURCE_AS, "source-AS" },
     { BGP_EXT_COM_VRF_RT_IMP, "vrf-route-import"},
+    { BGP_EXT_COM_L2VPN_RT_0, "l2vpn-id"},
+    { BGP_EXT_COM_L2VPN_RT_1, "l2vpn-id"},
     { 0, NULL},
 };
 
@@ -488,38 +483,49 @@ as_printf (char *str, int size, u_int asnum)
 	return str;
 }
 
+#define ITEMCHECK(minlen) if (itemlen < minlen) goto badtlv;
+
 int
-decode_prefix4(const u_char *pptr, char *buf, u_int buflen)
+decode_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in_addr addr;
-	u_int plen;
+	u_int plen, plenbytes;
 
 	TCHECK(pptr[0]);
+	ITEMCHECK(1);
 	plen = pptr[0];
 	if (32 < plen)
 		return -1;
+	itemlen -= 1;
 
 	memset(&addr, 0, sizeof(addr));
-	TCHECK2(pptr[1], (plen + 7) / 8);
-	memcpy(&addr, &pptr[1], (plen + 7) / 8);
+	plenbytes = (plen + 7) / 8;
+	TCHECK2(pptr[1], plenbytes);
+	ITEMCHECK(plenbytes);
+	memcpy(&addr, &pptr[1], plenbytes);
 	if (plen % 8) {
-		((u_char *)&addr)[(plen + 7) / 8 - 1] &=
+		((u_char *)&addr)[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
 	snprintf(buf, buflen, "%s/%d", getname((u_char *)&addr), plen);
-	return 1 + (plen + 7) / 8;
+	return 1 + plenbytes;
 
 trunc:
 	return -2;
+
+badtlv:
+	return -3;
 }
 
 static int
-decode_labeled_prefix4(const u_char *pptr, char *buf, u_int buflen)
+decode_labeled_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in_addr addr;
-	u_int plen;
+	u_int plen, plenbytes;
 
-	TCHECK(pptr[0]);
+	/* prefix length and label = 4 bytes */
+	TCHECK2(pptr[0], 4);
+	ITEMCHECK(4);
 	plen = pptr[0];   /* get prefix length */
 
         /* this is one of the weirdnesses of rfc3107
@@ -537,12 +543,15 @@ decode_labeled_prefix4(const u_char *pptr, char *buf, u_int buflen)
 
 	if (32 < plen)
 		return -1;
+	itemlen -= 4;
 
 	memset(&addr, 0, sizeof(addr));
-	TCHECK2(pptr[4], (plen + 7) / 8);
-	memcpy(&addr, &pptr[4], (plen + 7) / 8);
+	plenbytes = (plen + 7) / 8;
+	TCHECK2(pptr[4], plenbytes);
+	ITEMCHECK(plenbytes);
+	memcpy(&addr, &pptr[4], plenbytes);
 	if (plen % 8) {
-		((u_char *)&addr)[(plen + 7) / 8 - 1] &=
+		((u_char *)&addr)[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
@@ -552,10 +561,13 @@ decode_labeled_prefix4(const u_char *pptr, char *buf, u_int buflen)
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
 
-	return 4 + (plen + 7) / 8;
+	return 4 + plenbytes;
 
 trunc:
 	return -2;
+
+badtlv:
+	return -3;
 }
 
 /*
@@ -951,57 +963,84 @@ decode_labeled_vpn_l2(const u_char *pptr, char *buf, u_int buflen)
         plen=EXTRACT_16BITS(pptr);
         tlen=plen;
         pptr+=2;
-	TCHECK2(pptr[0],15);
-	buf[0]='\0';
-        strlen=snprintf(buf, buflen, "RD: %s, CE-ID: %u, Label-Block Offset: %u, Label Base %u",
-                        bgp_vpn_rd_print(pptr),
-                        EXTRACT_16BITS(pptr+8),
-                        EXTRACT_16BITS(pptr+10),
-                        EXTRACT_24BITS(pptr+12)>>4); /* the label is offsetted by 4 bits so lets shift it right */
-        UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-        pptr+=15;
-        tlen-=15;
+	/* Old and new L2VPN NLRI share AFI/SAFI
+         *   -> Assume a 12 Byte-length NLRI is auto-discovery-only
+         *      and > 17 as old format. Complain for the middle case
+         */
+        if (plen==12) { 
+	    /* assume AD-only with RD, BGPNH */
+	    TCHECK2(pptr[0],12);
+	    buf[0]='\0';
+	    strlen=snprintf(buf, buflen, "RD: %s, BGPNH: %s",
+			    bgp_vpn_rd_print(pptr), 
+			    /* need something like getname() here */
+			    getname(pptr+8)
+			    );
+	    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+	    pptr+=12;
+	    tlen-=12;
+	    return plen;
+        } else if (plen>17) { 
+	    /* assume old format */
+	    /* RD, ID, LBLKOFF, LBLBASE */
 
-        /* ok now the variable part - lets read out TLVs*/
-        while (tlen>0) {
-            if (tlen < 3)
-                return -1;
-            TCHECK2(pptr[0], 3);
-            tlv_type=*pptr++;
-            tlv_len=EXTRACT_16BITS(pptr);
-            ttlv_len=tlv_len;
-            pptr+=2;
+	    TCHECK2(pptr[0],15);
+	    buf[0]='\0';
+	    strlen=snprintf(buf, buflen, "RD: %s, CE-ID: %u, Label-Block Offset: %u, Label Base %u",
+			    bgp_vpn_rd_print(pptr),
+			    EXTRACT_16BITS(pptr+8),
+			    EXTRACT_16BITS(pptr+10),
+			    EXTRACT_24BITS(pptr+12)>>4); /* the label is offsetted by 4 bits so lets shift it right */
+	    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+	    pptr+=15;
+	    tlen-=15;
 
-            switch(tlv_type) {
-            case 1:
-                if (buflen!=0) {
-                    strlen=snprintf(buf,buflen, "\n\t\tcircuit status vector (%u) length: %u: 0x",
-                                    tlv_type,
-                                    tlv_len);
-                    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-                }
-                ttlv_len=ttlv_len/8+1; /* how many bytes do we need to read ? */
-                while (ttlv_len>0) {
-                    TCHECK(pptr[0]);
-                    if (buflen!=0) {
-                        strlen=snprintf(buf,buflen, "%02x",*pptr++);
-                        UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-                    }
-                    ttlv_len--;
-                }
-                break;
-            default:
-                if (buflen!=0) {
-                    strlen=snprintf(buf,buflen, "\n\t\tunknown TLV #%u, length: %u",
-                                    tlv_type,
-                                    tlv_len);
-                    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
-                }
-                break;
-            }
-            tlen-=(tlv_len<<3); /* the tlv-length is expressed in bits so lets shift it right */
+	    /* ok now the variable part - lets read out TLVs*/
+	    while (tlen>0) {
+		if (tlen < 3)
+		    return -1;
+		TCHECK2(pptr[0], 3);
+		tlv_type=*pptr++;
+		tlv_len=EXTRACT_16BITS(pptr);
+		ttlv_len=tlv_len;
+		pptr+=2;
+
+		switch(tlv_type) {
+		case 1:
+		    if (buflen!=0) {
+			strlen=snprintf(buf,buflen, "\n\t\tcircuit status vector (%u) length: %u: 0x",
+					tlv_type,
+					tlv_len);
+			UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+		    }
+		    ttlv_len=ttlv_len/8+1; /* how many bytes do we need to read ? */
+		    while (ttlv_len>0) {
+			TCHECK(pptr[0]);
+			if (buflen!=0) {
+			    strlen=snprintf(buf,buflen, "%02x",*pptr++);
+			    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+			}
+			ttlv_len--;
+		    }
+		    break;
+		default:
+		    if (buflen!=0) {
+			strlen=snprintf(buf,buflen, "\n\t\tunknown TLV #%u, length: %u",
+					tlv_type,
+					tlv_len);
+			UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+		    }
+		    break;
+		}
+		tlen-=(tlv_len<<3); /* the tlv-length is expressed in bits so lets shift it right */
+	    }
+	    return plen+2;
+	    
+        } else {
+	    /* complain bitterly ? */
+	    /* fall through */
+            goto trunc;
         }
-        return plen+2;
 
 trunc:
         return -2;
@@ -1009,37 +1048,46 @@ trunc:
 
 #ifdef INET6
 int
-decode_prefix6(const u_char *pd, char *buf, u_int buflen)
+decode_prefix6(const u_char *pd, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in6_addr addr;
-	u_int plen;
+	u_int plen, plenbytes;
 
 	TCHECK(pd[0]);
+	ITEMCHECK(1);
 	plen = pd[0];
 	if (128 < plen)
 		return -1;
+	itemlen -= 1;
 
 	memset(&addr, 0, sizeof(addr));
-	TCHECK2(pd[1], (plen + 7) / 8);
-	memcpy(&addr, &pd[1], (plen + 7) / 8);
+	plenbytes = (plen + 7) / 8;
+	TCHECK2(pd[1], plenbytes);
+	ITEMCHECK(plenbytes);
+	memcpy(&addr, &pd[1], plenbytes);
 	if (plen % 8) {
-		addr.s6_addr[(plen + 7) / 8 - 1] &=
+		addr.s6_addr[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
 	snprintf(buf, buflen, "%s/%d", getname6((u_char *)&addr), plen);
-	return 1 + (plen + 7) / 8;
+	return 1 + plenbytes;
 
 trunc:
 	return -2;
+
+badtlv:
+	return -3;
 }
 
 static int
-decode_labeled_prefix6(const u_char *pptr, char *buf, u_int buflen)
+decode_labeled_prefix6(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in6_addr addr;
-	u_int plen;
+	u_int plen, plenbytes;
 
-	TCHECK(pptr[0]);
+	/* prefix length and label = 4 bytes */
+	TCHECK2(pptr[0], 4);
+	ITEMCHECK(4);
 	plen = pptr[0]; /* get prefix length */
 
 	if (24 > plen)
@@ -1049,12 +1097,14 @@ decode_labeled_prefix6(const u_char *pptr, char *buf, u_int buflen)
 
 	if (128 < plen)
 		return -1;
+	itemlen -= 4;
 
 	memset(&addr, 0, sizeof(addr));
-	TCHECK2(pptr[4], (plen + 7) / 8);
-	memcpy(&addr, &pptr[4], (plen + 7) / 8);
+	plenbytes = (plen + 7) / 8;
+	TCHECK2(pptr[4], plenbytes);
+	memcpy(&addr, &pptr[4], plenbytes);
 	if (plen % 8) {
-		addr.s6_addr[(plen + 7) / 8 - 1] &=
+		addr.s6_addr[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
@@ -1064,10 +1114,13 @@ decode_labeled_prefix6(const u_char *pptr, char *buf, u_int buflen)
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
 
-	return 4 + (plen + 7) / 8;
+	return 4 + plenbytes;
 
 trunc:
 	return -2;
+
+badtlv:
+	return -3;
 }
 
 static int
@@ -1234,7 +1287,7 @@ trunc:
 }
 
 static int
-bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
+bgp_attr_print(u_int atype, const u_char *pptr, u_int len)
 {
 	int i;
 	u_int16_t af;
@@ -1244,7 +1297,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
             u_int32_t i;
         } bw;
 	int advance;
-	int tlen;
+	u_int tlen;
 	const u_char *tptr;
 	char buf[MAXHOSTNAMELEN + 100];
 	char tokbuf[TOKBUFSIZE];
@@ -1253,7 +1306,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
         tptr = pptr;
         tlen=len;
 
-	switch (attr->bgpa_type) {
+	switch (atype) {
 	case BGPTYPE_ORIGIN:
 		if (len != 1)
 			printf("invalid len");
@@ -1289,7 +1342,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                  * 2 bytes first, and it does not pass, assume that ASs are
                  * encoded in 4 bytes format and move on.
                  */
-                as_size = bgp_attr_get_as_size(attr->bgpa_type, pptr, len);
+                as_size = bgp_attr_get_as_size(atype, pptr, len);
 
 		while (tptr < pptr + len) {
 			TCHECK(tptr[0]);
@@ -1625,20 +1678,24 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                     case (AFNUM_INET<<8 | SAFNUM_UNICAST):
                     case (AFNUM_INET<<8 | SAFNUM_MULTICAST):
                     case (AFNUM_INET<<8 | SAFNUM_UNIMULTICAST):
-                        advance = decode_prefix4(tptr, buf, sizeof(buf));
+                        advance = decode_prefix4(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
                     case (AFNUM_INET<<8 | SAFNUM_LABUNICAST):
-                        advance = decode_labeled_prefix4(tptr, buf, sizeof(buf));
+                        advance = decode_labeled_prefix4(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
@@ -1686,20 +1743,24 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                     case (AFNUM_INET6<<8 | SAFNUM_UNICAST):
                     case (AFNUM_INET6<<8 | SAFNUM_MULTICAST):
                     case (AFNUM_INET6<<8 | SAFNUM_UNIMULTICAST):
-                        advance = decode_prefix6(tptr, buf, sizeof(buf));
+                        advance = decode_prefix6(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
                     case (AFNUM_INET6<<8 | SAFNUM_LABUNICAST):
-                        advance = decode_labeled_prefix6(tptr, buf, sizeof(buf));
+                        advance = decode_labeled_prefix6(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
@@ -1789,20 +1850,24 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                     case (AFNUM_INET<<8 | SAFNUM_UNICAST):
                     case (AFNUM_INET<<8 | SAFNUM_MULTICAST):
                     case (AFNUM_INET<<8 | SAFNUM_UNIMULTICAST):
-                        advance = decode_prefix4(tptr, buf, sizeof(buf));
+                        advance = decode_prefix4(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
                     case (AFNUM_INET<<8 | SAFNUM_LABUNICAST):
-                        advance = decode_labeled_prefix4(tptr, buf, sizeof(buf));
+                        advance = decode_labeled_prefix4(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
@@ -1821,20 +1886,24 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                     case (AFNUM_INET6<<8 | SAFNUM_UNICAST):
                     case (AFNUM_INET6<<8 | SAFNUM_MULTICAST):
                     case (AFNUM_INET6<<8 | SAFNUM_UNIMULTICAST):
-                        advance = decode_prefix6(tptr, buf, sizeof(buf));
+                        advance = decode_prefix6(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
                     case (AFNUM_INET6<<8 | SAFNUM_LABUNICAST):
-                        advance = decode_labeled_prefix6(tptr, buf, sizeof(buf));
+                        advance = decode_labeled_prefix6(tptr, len, buf, sizeof(buf));
                         if (advance == -1)
                             printf("\n\t    (illegal prefix length)");
                         else if (advance == -2)
                             goto trunc;
+                        else if (advance == -3)
+                            break; /* bytes left, but not enough */
                         else
                             printf("\n\t      %s", buf);
                         break;
@@ -1939,6 +2008,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                     switch(extd_comm) {
                     case BGP_EXT_COM_RT_0:
                     case BGP_EXT_COM_RO_0:
+                    case BGP_EXT_COM_L2VPN_RT_0:
                         printf(": %u:%u (= %s)",
                                EXTRACT_16BITS(tptr+2),
                                EXTRACT_32BITS(tptr+4),
@@ -1946,6 +2016,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                         break;
                     case BGP_EXT_COM_RT_1:
                     case BGP_EXT_COM_RO_1:
+                    case BGP_EXT_COM_L2VPN_RT_1:
                     case BGP_EXT_COM_VRF_RT_IMP:
                         printf(": %s:%u",
                                getname(tptr+2),
@@ -2063,40 +2134,50 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
         }
         case BGPTYPE_ATTR_SET:
                 TCHECK2(tptr[0], 4);
+                if (len < 4)
+                	goto trunc;
 		printf("\n\t    Origin AS: %s",
 		    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(tptr)));
 		tptr+=4;
                 len -=4;
 
-                while (len >= 2 ) {
-                    int alen;
-                    struct bgp_attr bgpa;
+                while (len) {
+                    u_int aflags, atype, alenlen, alen;
                     
-                    TCHECK2(tptr[0], sizeof(bgpa));
-                    memcpy(&bgpa, tptr, sizeof(bgpa));
-                    alen = bgp_attr_len(&bgpa);
-                    tptr += bgp_attr_off(&bgpa);
-                    len -= bgp_attr_off(&bgpa);
+                    TCHECK2(tptr[0], 2);
+                    if (len < 2)
+                        goto trunc;
+                    aflags = *tptr;
+                    atype = *(tptr + 1);
+                    tptr += 2;
+                    len -= 2;
+                    alenlen = bgp_attr_lenlen(aflags, tptr);
+                    TCHECK2(tptr[0], alenlen);
+                    if (len < alenlen)
+                        goto trunc;
+                    alen = bgp_attr_len(aflags, tptr);
+                    tptr += alenlen;
+                    len -= alenlen;
                     
                     printf("\n\t      %s (%u), length: %u",
                            tok2strbuf(bgp_attr_values,
-				      "Unknown Attribute", bgpa.bgpa_type,
-				      tokbuf, sizeof(tokbuf)),
-                           bgpa.bgpa_type,
+                                      "Unknown Attribute", atype,
+                                      tokbuf, sizeof(tokbuf)),
+                           atype,
                            alen);
                     
-                    if (bgpa.bgpa_flags) {
+                    if (aflags) {
                         printf(", Flags [%s%s%s%s",
-                               bgpa.bgpa_flags & 0x80 ? "O" : "",
-                               bgpa.bgpa_flags & 0x40 ? "T" : "",
-                               bgpa.bgpa_flags & 0x20 ? "P" : "",
-                               bgpa.bgpa_flags & 0x10 ? "E" : "");
-                        if (bgpa.bgpa_flags & 0xf)
-                            printf("+%x", bgpa.bgpa_flags & 0xf);
+                               aflags & 0x80 ? "O" : "",
+                               aflags & 0x40 ? "T" : "",
+                               aflags & 0x20 ? "P" : "",
+                               aflags & 0x10 ? "E" : "");
+                        if (aflags & 0xf)
+                            printf("+%x", aflags & 0xf);
                         printf("]: ");
                     }
                     /* FIXME check for recursion */
-                    if (!bgp_attr_print(&bgpa, tptr, alen))
+                    if (!bgp_attr_print(atype, tptr, alen))
                         return 0;
                     tptr += alen;
                     len -= alen;
@@ -2106,7 +2187,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
 
 	default:
 	    TCHECK2(*pptr,len);
-            printf("\n\t    no Attribute %u decoder",attr->bgpa_type); /* we have no decoder for the attribute */
+            printf("\n\t    no Attribute %u decoder",atype); /* we have no decoder for the attribute */
             if (vflag <= 1)
                 print_unknown_data(pptr,"\n\t    ",len);
             break;
@@ -2122,14 +2203,97 @@ trunc:
 }
 
 static void
+bgp_capabilities_print(const u_char *opt, int caps_len)
+{
+	char tokbuf[TOKBUFSIZE];
+	char tokbuf2[TOKBUFSIZE];
+	int cap_type, cap_len, tcap_len, cap_offset;
+        int i = 0;
+
+        while (i < caps_len) {
+                TCHECK2(opt[i], BGP_CAP_HEADER_SIZE);
+                cap_type=opt[i];
+                cap_len=opt[i+1];
+                tcap_len=cap_len;
+                printf("\n\t      %s (%u), length: %u",
+                       tok2strbuf(bgp_capcode_values, "Unknown",
+                                  cap_type, tokbuf, sizeof(tokbuf)),
+                       cap_type,
+                       cap_len);
+                TCHECK2(opt[i+2], cap_len);
+                switch (cap_type) {
+                case BGP_CAPCODE_MP:
+                    printf("\n\t\tAFI %s (%u), SAFI %s (%u)",
+                           tok2strbuf(af_values, "Unknown",
+                                      EXTRACT_16BITS(opt+i+2),
+                                      tokbuf, sizeof(tokbuf)),
+                           EXTRACT_16BITS(opt+i+2),
+                           tok2strbuf(bgp_safi_values, "Unknown",
+                                      opt[i+5],
+                                      tokbuf, sizeof(tokbuf)),
+                           opt[i+5]);
+                    break;
+                case BGP_CAPCODE_RESTART:
+                    printf("\n\t\tRestart Flags: [%s], Restart Time %us",
+                           ((opt[i+2])&0x80) ? "R" : "none",
+                           EXTRACT_16BITS(opt+i+2)&0xfff);
+                    tcap_len-=2;
+                    cap_offset=4;
+                    while(tcap_len>=4) {
+                        printf("\n\t\t  AFI %s (%u), SAFI %s (%u), Forwarding state preserved: %s",
+                               tok2strbuf(af_values,"Unknown",
+                                          EXTRACT_16BITS(opt+i+cap_offset),
+                                          tokbuf, sizeof(tokbuf)),
+                               EXTRACT_16BITS(opt+i+cap_offset),
+                               tok2strbuf(bgp_safi_values,"Unknown",
+                                          opt[i+cap_offset+2],
+                                          tokbuf2, sizeof(tokbuf2)),
+                               opt[i+cap_offset+2],
+                               ((opt[i+cap_offset+3])&0x80) ? "yes" : "no" );
+                        tcap_len-=4;
+                        cap_offset+=4;
+                    }
+                    break;
+                case BGP_CAPCODE_RR:
+                case BGP_CAPCODE_RR_CISCO:
+                    break;
+                case BGP_CAPCODE_AS_NEW:
+
+                    /*
+                     * Extract the 4 byte AS number encoded.
+                     */
+                    if (cap_len == 4) {
+                        printf("\n\t\t 4 Byte AS %s",
+                            as_printf(astostr, sizeof(astostr),
+                            EXTRACT_32BITS(opt + i + 2)));
+                    }
+                    break;
+                default:
+                    printf("\n\t\tno decoder for Capability %u",
+                           cap_type);
+                    if (vflag <= 1)
+                        print_unknown_data(&opt[i+2],"\n\t\t",cap_len);
+                    break;
+                }
+                if (vflag > 1 && cap_len > 0) {
+                    print_unknown_data(&opt[i+2],"\n\t\t",cap_len);
+                }
+                i += BGP_CAP_HEADER_SIZE + cap_len;
+        }
+        return;
+
+trunc:
+	printf("[|BGP]");
+}
+
+static void
 bgp_open_print(const u_char *dat, int length)
 {
 	struct bgp_open bgpo;
 	struct bgp_opt bgpopt;
 	const u_char *opt;
-	int i,cap_type,cap_len,tcap_len,cap_offset;
+	int i;
 	char tokbuf[TOKBUFSIZE];
-	char tokbuf2[TOKBUFSIZE];
 
 	TCHECK2(dat[0], BGP_OPEN_SIZE);
 	memcpy(&bgpo, dat, BGP_OPEN_SIZE);
@@ -2154,96 +2318,31 @@ bgp_open_print(const u_char *dat, int length)
 		TCHECK2(opt[i], BGP_OPT_SIZE);
 		memcpy(&bgpopt, &opt[i], BGP_OPT_SIZE);
 		if (i + 2 + bgpopt.bgpopt_len > bgpo.bgpo_optlen) {
-                        printf("\n\t     Option %d, length: %u", bgpopt.bgpopt_type, bgpopt.bgpopt_len);
+			printf("\n\t     Option %d, length: %u", bgpopt.bgpopt_type, bgpopt.bgpopt_len);
 			break;
 		}
 
 		printf("\n\t    Option %s (%u), length: %u",
-                       tok2strbuf(bgp_opt_values,"Unknown",
+		       tok2strbuf(bgp_opt_values,"Unknown",
 				  bgpopt.bgpopt_type,
 				  tokbuf, sizeof(tokbuf)),
-                       bgpopt.bgpopt_type,
-                       bgpopt.bgpopt_len);
+		       bgpopt.bgpopt_type,
+		       bgpopt.bgpopt_len);
 
-                /* now lets decode the options we know*/
-                switch(bgpopt.bgpopt_type) {
-                case BGP_OPT_CAP:
-                    cap_type=opt[i+BGP_OPT_SIZE];
-                    cap_len=opt[i+BGP_OPT_SIZE+1];
-                    tcap_len=cap_len;
-                    printf("\n\t      %s (%u), length: %u",
-                           tok2strbuf(bgp_capcode_values, "Unknown",
-				      cap_type, tokbuf, sizeof(tokbuf)),
-                           cap_type,
-                           cap_len);
-                    switch(cap_type) {
-                    case BGP_CAPCODE_MP:
-                        printf("\n\t\tAFI %s (%u), SAFI %s (%u)",
-                               tok2strbuf(af_values, "Unknown",
-					  EXTRACT_16BITS(opt+i+BGP_OPT_SIZE+2),
-					  tokbuf, sizeof(tokbuf)),
-                               EXTRACT_16BITS(opt+i+BGP_OPT_SIZE+2),
-                               tok2strbuf(bgp_safi_values, "Unknown",
-					  opt[i+BGP_OPT_SIZE+5],
-					  tokbuf, sizeof(tokbuf)),
-                               opt[i+BGP_OPT_SIZE+5]);
-                        break;
-                    case BGP_CAPCODE_RESTART:
-                        printf("\n\t\tRestart Flags: [%s], Restart Time %us",
-                               ((opt[i+BGP_OPT_SIZE+2])&0x80) ? "R" : "none",
-                               EXTRACT_16BITS(opt+i+BGP_OPT_SIZE+2)&0xfff);
-                        tcap_len-=2;
-                        cap_offset=4;
-                        while(tcap_len>=4) {
-                            printf("\n\t\t  AFI %s (%u), SAFI %s (%u), Forwarding state preserved: %s",
-                                   tok2strbuf(af_values,"Unknown",
-					      EXTRACT_16BITS(opt+i+BGP_OPT_SIZE+cap_offset),
-					      tokbuf, sizeof(tokbuf)),
-                                   EXTRACT_16BITS(opt+i+BGP_OPT_SIZE+cap_offset),
-                                   tok2strbuf(bgp_safi_values,"Unknown",
-					      opt[i+BGP_OPT_SIZE+cap_offset+2],
-					      tokbuf2, sizeof(tokbuf2)),
-                                   opt[i+BGP_OPT_SIZE+cap_offset+2],
-                                   ((opt[i+BGP_OPT_SIZE+cap_offset+3])&0x80) ? "yes" : "no" );
-                            tcap_len-=4;
-                            cap_offset+=4;
-                        }
-                        break;
-                    case BGP_CAPCODE_RR:
-                    case BGP_CAPCODE_RR_CISCO:
-                        break;
-                    case BGP_CAPCODE_AS_NEW:
+		/* now let's decode the options we know*/
+		switch(bgpopt.bgpopt_type) {
 
-                        /*
-                         * Extract the 4 byte AS number encoded.
-                         */
-                        TCHECK2(opt[i + BGP_OPT_SIZE + 2], cap_len);
-                        if (cap_len == 4) {
-			    printf("\n\t\t 4 Byte AS %s",
-				as_printf(astostr, sizeof(astostr),
-				EXTRACT_32BITS(opt + i + BGP_OPT_SIZE + 2)));
-                        }
-                        break;
-                    default:
-                        TCHECK2(opt[i+BGP_OPT_SIZE+2],cap_len);
-                        printf("\n\t\tno decoder for Capability %u",
-                               cap_type);
-                        if (vflag <= 1)
-                            print_unknown_data(&opt[i+BGP_OPT_SIZE+2],"\n\t\t",cap_len);
-                        break;
-                    }
-                    if (vflag > 1) {
-                        TCHECK2(opt[i+BGP_OPT_SIZE+2],cap_len);
-                        print_unknown_data(&opt[i+BGP_OPT_SIZE+2],"\n\t\t",cap_len);
-                    }
-                    break;
-                case BGP_OPT_AUTH:
-                default:
-                       printf("\n\t      no decoder for option %u",
-                           bgpopt.bgpopt_type);
-                       break;
-                }
+		case BGP_OPT_CAP:
+			bgp_capabilities_print(&opt[i+BGP_OPT_SIZE],
+			    bgpopt.bgpopt_len);
+			break;
 
+		case BGP_OPT_AUTH:
+		default:
+		       printf("\n\t      no decoder for option %u",
+			   bgpopt.bgpopt_type);
+		       break;
+		}
 		i += BGP_OPT_SIZE + bgpopt.bgpopt_len;
 	}
 	return;
@@ -2255,107 +2354,163 @@ static void
 bgp_update_print(const u_char *dat, int length)
 {
 	struct bgp bgp;
-	struct bgp_attr bgpa;
 	const u_char *p;
+	int withdrawn_routes_len;
 	int len;
 	int i;
 	char tokbuf[TOKBUFSIZE];
+#ifndef INET6
+	char buf[MAXHOSTNAMELEN + 100];
+	int wpfx;
+#endif
 
 	TCHECK2(dat[0], BGP_SIZE);
+	if (length < BGP_SIZE)
+		goto trunc;
 	memcpy(&bgp, dat, BGP_SIZE);
 	p = dat + BGP_SIZE;	/*XXX*/
+	length -= BGP_SIZE;
 
 	/* Unfeasible routes */
-	len = EXTRACT_16BITS(p);
-	if (len) {
+	TCHECK2(p[0], 2);
+	if (length < 2)
+		goto trunc;
+	withdrawn_routes_len = EXTRACT_16BITS(p);
+	p += 2;
+	length -= 2;
+	if (withdrawn_routes_len) {
 		/*
 		 * Without keeping state from the original NLRI message,
 		 * it's not possible to tell if this a v4 or v6 route,
 		 * so only try to decode it if we're not v6 enabled.
 	         */
+		TCHECK2(p[0], withdrawn_routes_len);
+		if (length < withdrawn_routes_len)
+			goto trunc;
 #ifdef INET6
-		printf("\n\t  Withdrawn routes: %d bytes", len);
+		printf("\n\t  Withdrawn routes: %d bytes", withdrawn_routes_len);
+		p += withdrawn_routes_len;
+		length -= withdrawn_routes_len;
 #else
-		char buf[MAXHOSTNAMELEN + 100];
-		int wpfx;
+		if (withdrawn_routes_len < 2)
+			goto trunc;
+		length -= 2;
+		withdrawn_routes_len -= 2;
 
-		TCHECK2(p[2], len);
-		i = 2;
 
 		printf("\n\t  Withdrawn routes:");
 
-		while(i < 2 + len) {
-			wpfx = decode_prefix4(&p[i], buf, sizeof(buf));
+		while(withdrawn_routes_len > 0) {
+			wpfx = decode_prefix4(p, withdrawn_routes_len, buf, sizeof(buf));
 			if (wpfx == -1) {
 				printf("\n\t    (illegal prefix length)");
 				break;
 			} else if (wpfx == -2)
 				goto trunc;
+			else if (wpfx == -3)
+				goto trunc; /* bytes left, but not enough */
 			else {
-				i += wpfx;
 				printf("\n\t    %s", buf);
+				p += wpfx;
+				length -= wpfx;
+				withdrawn_routes_len -= wpfx;
 			}
 		}
 #endif
 	}
-	p += 2 + len;
 
 	TCHECK2(p[0], 2);
+	if (length < 2)
+		goto trunc;
 	len = EXTRACT_16BITS(p);
+	p += 2;
+	length -= 2;
 
-        if (len == 0 && length == BGP_UPDATE_MINSIZE) {
+        if (withdrawn_routes_len == 0 && len == 0 && length == 0) {
+            /* No withdrawn routes, no path attributes, no NLRI */
             printf("\n\t  End-of-Rib Marker (empty NLRI)");
             return;
         }
 
 	if (len) {
 		/* do something more useful!*/
-		i = 2;
-		while (i < 2 + len) {
-			int alen, aoff;
+		while (len) {
+			int aflags, atype, alenlen, alen;
 
-			TCHECK2(p[i], sizeof(bgpa));
-			memcpy(&bgpa, &p[i], sizeof(bgpa));
-			alen = bgp_attr_len(&bgpa);
-			aoff = bgp_attr_off(&bgpa);
+			TCHECK2(p[0], 2);
+			if (len < 2)
+			    goto trunc;
+			if (length < 2)
+			    goto trunc;
+			aflags = *p;
+			atype = *(p + 1);
+			p += 2;
+			len -= 2;
+			length -= 2;
+			alenlen = bgp_attr_lenlen(aflags, p);
+			TCHECK2(p[0], alenlen);
+			if (len < alenlen)
+			    goto trunc;
+			if (length < alenlen)
+			    goto trunc;
+			alen = bgp_attr_len(aflags, p);
+			p += alenlen;
+			len -= alenlen;
+			length -= alenlen;
 
-		       printf("\n\t  %s (%u), length: %u",
+			printf("\n\t  %s (%u), length: %u",
                               tok2strbuf(bgp_attr_values, "Unknown Attribute",
-					 bgpa.bgpa_type,
+					 atype,
 					 tokbuf, sizeof(tokbuf)),
-                              bgpa.bgpa_type,
+                              atype,
                               alen);
 
-			if (bgpa.bgpa_flags) {
+			if (aflags) {
 				printf(", Flags [%s%s%s%s",
-					bgpa.bgpa_flags & 0x80 ? "O" : "",
-					bgpa.bgpa_flags & 0x40 ? "T" : "",
-					bgpa.bgpa_flags & 0x20 ? "P" : "",
-					bgpa.bgpa_flags & 0x10 ? "E" : "");
-				if (bgpa.bgpa_flags & 0xf)
-					printf("+%x", bgpa.bgpa_flags & 0xf);
+					aflags & 0x80 ? "O" : "",
+					aflags & 0x40 ? "T" : "",
+					aflags & 0x20 ? "P" : "",
+					aflags & 0x10 ? "E" : "");
+				if (aflags & 0xf)
+					printf("+%x", aflags & 0xf);
 				printf("]: ");
 			}
-			if (!bgp_attr_print(&bgpa, &p[i + aoff], alen))
+			if (len < alen)
 				goto trunc;
-			i += aoff + alen;
+			if (length < alen)
+				goto trunc;
+			if (!bgp_attr_print(atype, p, alen))
+				goto trunc;
+			p += alen;
+			len -= alen;
+			length -= alen;
 		}
 	} 
-	p += 2 + len;
 
-	if (dat + length > p) {
+	if (length) {
+		/*
+		 * XXX - what if they're using the "Advertisement of
+		 * Multiple Paths in BGP" feature:
+		 *
+		 * https://datatracker.ietf.org/doc/draft-ietf-idr-add-paths/
+		 *
+		 * http://tools.ietf.org/html/draft-ietf-idr-add-paths-06
+		 */
 		printf("\n\t  Updated routes:");
-		while (dat + length > p) {
+		while (length) {
 			char buf[MAXHOSTNAMELEN + 100];
-			i = decode_prefix4(p, buf, sizeof(buf));
+			i = decode_prefix4(p, length, buf, sizeof(buf));
 			if (i == -1) {
 				printf("\n\t    (illegal prefix length)");
 				break;
 			} else if (i == -2)
 				goto trunc;
+			else if (i == -3)
+				goto trunc; /* bytes left, but not enough */
 			else {
 				printf("\n\t    %s", buf);
 				p += i;
+				length -= i;
 			}
 		}
 	}

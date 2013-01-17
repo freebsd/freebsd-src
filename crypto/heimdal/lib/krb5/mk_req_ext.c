@@ -1,39 +1,37 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include <krb5_locl.h>
-
-RCSID("$Id: mk_req_ext.c 19511 2006-12-27 12:07:22Z lha $");
+#include "krb5_locl.h"
 
 krb5_error_code
 _krb5_mk_req_internal(krb5_context context,
@@ -61,10 +59,10 @@ _krb5_mk_req_internal(krb5_context context,
 	ret = krb5_auth_con_init(context, &ac);
     if(ret)
 	return ret;
-      
+
     if(ac->local_subkey == NULL && (ap_req_options & AP_OPTS_USE_SUBKEY)) {
 	ret = krb5_auth_con_generatelocalsubkey(context,
-						ac, 
+						ac,
 						&in_creds->session);
 	if(ret)
 	    goto out;
@@ -74,7 +72,7 @@ _krb5_mk_req_internal(krb5_context context,
     ret = krb5_copy_keyblock(context, &in_creds->session, &ac->keyblock);
     if (ret)
 	goto out;
-  
+
     /* it's unclear what type of checksum we can use.  try the best one, except:
      * a) if it's configured differently for the current realm, or
      * b) if the session key is des-cbc-crc
@@ -83,7 +81,7 @@ _krb5_mk_req_internal(krb5_context context,
     if (in_data) {
 	if(ac->keyblock->keytype == ETYPE_DES_CBC_CRC) {
 	    /* this is to make DCE secd (and older MIT kdcs?) happy */
-	    ret = krb5_create_checksum(context, 
+	    ret = krb5_create_checksum(context,
 				       NULL,
 				       0,
 				       CKSUMTYPE_RSA_MD4,
@@ -94,8 +92,8 @@ _krb5_mk_req_internal(krb5_context context,
 		  ac->keyblock->keytype == ETYPE_ARCFOUR_HMAC_MD5_56 ||
 		  ac->keyblock->keytype == ETYPE_DES_CBC_MD4 ||
 		  ac->keyblock->keytype == ETYPE_DES_CBC_MD5) {
-	    /* this is to make MS kdc happy */ 
-	    ret = krb5_create_checksum(context, 
+	    /* this is to make MS kdc happy */
+	    ret = krb5_create_checksum(context,
 				       NULL,
 				       0,
 				       CKSUMTYPE_RSA_MD5,
@@ -108,7 +106,7 @@ _krb5_mk_req_internal(krb5_context context,
 	    ret = krb5_crypto_init(context, ac->keyblock, 0, &crypto);
 	    if (ret)
 		goto out;
-	    ret = krb5_create_checksum(context, 
+	    ret = krb5_create_checksum(context,
 				       crypto,
 				       checksum_usage,
 				       0,
@@ -124,13 +122,12 @@ _krb5_mk_req_internal(krb5_context context,
 
     if (ret)
 	goto out;
-  
-    ret = krb5_build_authenticator (context,
+
+    ret = _krb5_build_authenticator(context,
 				    ac,
 				    ac->keyblock->keytype,
 				    in_creds,
 				    c_opt,
-				    NULL,
 				    &authenticator,
 				    encrypt_usage);
     if (c_opt)
@@ -138,7 +135,7 @@ _krb5_mk_req_internal(krb5_context context,
     if (ret)
 	goto out;
 
-    ret = krb5_build_ap_req (context, ac->keyblock->keytype, 
+    ret = krb5_build_ap_req (context, ac->keyblock->keytype,
 			     in_creds, ap_req_options, authenticator, outbuf);
 out:
     if(auth_context == NULL)
@@ -146,7 +143,7 @@ out:
     return ret;
 }
 
-krb5_error_code KRB5_LIB_FUNCTION
+KRB5_LIB_FUNCTION krb5_error_code KRB5_LIB_CALL
 krb5_mk_req_extended(krb5_context context,
 		     krb5_auth_context *auth_context,
 		     const krb5_flags ap_req_options,

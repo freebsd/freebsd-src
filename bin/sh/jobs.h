@@ -84,13 +84,13 @@ enum {
 
 extern int job_warning;		/* user was warned about stopped jobs */
 extern int in_waitcmd;		/* are we in waitcmd()? */
-extern int in_dowait;		/* are we in dowait()? */
 extern volatile sig_atomic_t breakwaitcmd; /* break wait to process traps? */
 
 void setjobctl(int);
 void showjobs(int, int);
 struct job *makejob(union node *, int);
 pid_t forkshell(struct job *, union node *, int);
+pid_t vforkexecshell(struct job *, char **, char **, const char *, int, int []);
 int waitforjob(struct job *, int *);
 int stoppedjobs(void);
 int backgndpidset(void);

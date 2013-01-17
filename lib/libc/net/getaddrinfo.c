@@ -155,7 +155,6 @@ struct explore {
 	int e_af;
 	int e_socktype;
 	int e_protocol;
-	const char *e_protostr;
 	int e_wild;
 #define WILD_AF(ex)		((ex)->e_wild & 0x01)
 #define WILD_SOCKTYPE(ex)	((ex)->e_wild & 0x02)
@@ -164,21 +163,21 @@ struct explore {
 
 static const struct explore explore[] = {
 #if 0
-	{ PF_LOCAL, ANY, ANY, NULL, 0x01 },
+	{ PF_LOCAL, ANY, ANY, 0x01 },
 #endif
 #ifdef INET6
-	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
-	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
-	{ PF_INET6, SOCK_STREAM, IPPROTO_SCTP, "sctp", 0x03 },
-	{ PF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP, "sctp", 0x07 },
-	{ PF_INET6, SOCK_RAW, ANY, NULL, 0x05 },
+	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDP, 0x07 },
+	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP, 0x07 },
+	{ PF_INET6, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
+	{ PF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
+	{ PF_INET6, SOCK_RAW, ANY, 0x05 },
 #endif
-	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
-	{ PF_INET, SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
-	{ PF_INET, SOCK_STREAM, IPPROTO_SCTP, "sctp", 0x03 },
-	{ PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP, "sctp", 0x07 },
-	{ PF_INET, SOCK_RAW, ANY, NULL, 0x05 },
-	{ -1, 0, 0, NULL, 0 },
+	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP, 0x07 },
+	{ PF_INET, SOCK_STREAM, IPPROTO_TCP, 0x07 },
+	{ PF_INET, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
+	{ PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
+	{ PF_INET, SOCK_RAW, ANY, 0x05 },
+	{ -1, 0, 0, 0 },
 };
 
 #ifdef INET6
@@ -464,7 +463,7 @@ getaddrinfo(const char *hostname, const char *servname,
 		}
 		error = get_portmatch(pai, servname);
 		if (error)
-			ERR(error);
+			goto bad;
 
 		*pai = ai0;
 	}
@@ -693,6 +692,8 @@ get_addrselectpolicy(struct policyhead *head)
 
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0)
 		return (0);
+	if (l == 0)
+		return (0);
 	if ((buf = malloc(l)) == NULL)
 		return (0);
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
@@ -847,8 +848,6 @@ set_source(struct ai_order *aio, struct policyhead *ph)
 		struct in6_ifreq ifr6;
 		u_int32_t flags6;
 
-		/* XXX: interface name should not be hardcoded */
-		strncpy(ifr6.ifr_name, "lo0", sizeof(ifr6.ifr_name));
 		memset(&ifr6, 0, sizeof(ifr6));
 		memcpy(&ifr6.ifr_addr, ai.ai_addr, ai.ai_addrlen);
 		if (_ioctl(s, SIOCGIFAFLAG_IN6, &ifr6) == 0) {
@@ -1576,7 +1575,8 @@ ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
 	if (*scope == '\0')
 		return -1;
 
-	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) {
+	if (IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6) ||
+	    IN6_IS_ADDR_MC_NODELOCAL(a6)) {
 		/*
 		 * We currently assume a one-to-one mapping between links
 		 * and interfaces, so we simply use interface indices for

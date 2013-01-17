@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -329,16 +329,19 @@ LsDoOneNamespaceObject (
 
         case ACPI_TYPE_LOCAL_RESOURCE_FIELD:
 
-            if (Node->Flags & 0x80)
+            FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
+                "   [Field Offset    0x%.4X Bits 0x%.4X Bytes] ",
+                Node->Value, Node->Value / 8);
+
+            if (Node->Flags & ANOBJ_IS_REFERENCED)
             {
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
-                    "   [Field Offset    0x%.4X Bits 0x%.4X Bytes]",
-                    Node->Value, Node->Value / 8);
+                    "Referenced");
             }
             else
             {
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
-                    "   [Field Offset    0x%.4X Bytes]", Node->Value);
+                    "Name not referenced");
             }
             break;
 
@@ -423,7 +426,7 @@ LsDoOnePathname (
  * RETURN:      Status
  *
  * DESCRIPTION: Walk the namespace an display information about each node
- *              in the tree.  Information is written to the optional
+ *              in the tree. Information is written to the optional
  *              namespace output file.
  *
  ******************************************************************************/
@@ -691,8 +694,8 @@ LkFindUnreferencedObjects (
  * RETURN:      Status
  *
  * DESCRIPTION: Perform a cross reference check of the parse tree against the
- *              namespace.  Every named referenced within the parse tree
- *              should be get resolved with a namespace lookup.  If not, the
+ *              namespace. Every named referenced within the parse tree
+ *              should be get resolved with a namespace lookup. If not, the
  *              original reference in the ASL code is invalid -- i.e., refers
  *              to a non-existent object.
  *
@@ -718,14 +721,14 @@ LkCrossReferenceNamespace (
     WalkState = AcpiDsCreateWalkState (0, NULL, NULL, NULL);
     if (!WalkState)
     {
-        return AE_NO_MEMORY;
+        return (AE_NO_MEMORY);
     }
 
     /* Walk the entire parse tree */
 
     TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE, LkNamespaceLocateBegin,
                         LkNamespaceLocateEnd, WalkState);
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -759,7 +762,7 @@ LkCheckFieldRange (
 
 
     /*
-     * Check each field unit against the region size.  The entire
+     * Check each field unit against the region size. The entire
      * field unit (start offset plus length) must fit within the
      * region.
      */
@@ -775,7 +778,7 @@ LkCheckFieldRange (
 
     /*
      * Now check that the field plus AccessWidth doesn't go beyond
-     * the end-of-region.  Assumes AccessBitWidth is a power of 2
+     * the end-of-region. Assumes AccessBitWidth is a power of 2
      */
     FieldEndBitOffset = ACPI_ROUND_UP (FieldEndBitOffset, AccessBitWidth);
 
@@ -795,13 +798,13 @@ LkCheckFieldRange (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Descending callback used during cross-reference.  For named
+ * DESCRIPTION: Descending callback used during cross-reference. For named
  *              object references, attempt to locate the name in the
  *              namespace.
  *
  * NOTE: ASL references to named fields within resource descriptors are
- *       resolved to integer values here.  Therefore, this step is an
- *       important part of the code generation.  We don't know that the
+ *       resolved to integer values here. Therefore, this step is an
+ *       important part of the code generation. We don't know that the
  *       name refers to a resource descriptor until now.
  *
  ******************************************************************************/
@@ -822,7 +825,10 @@ LkNamespaceLocateBegin (
     ACPI_PARSE_OBJECT       *OwningOp;
     ACPI_PARSE_OBJECT       *SpaceIdOp;
     UINT32                  MinimumLength;
-    UINT32                  Temp;
+    UINT32                  Offset;
+    UINT32                  FieldBitLength;
+    UINT32                  TagBitLength;
+    UINT8                   Message = 0;
     const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  Flags;
 
@@ -832,7 +838,7 @@ LkNamespaceLocateBegin (
     /*
      * If this node is the actual declaration of a name
      * [such as the XXXX name in "Method (XXXX)"],
-     * we are not interested in it here.  We only care about names that are
+     * we are not interested in it here. We only care about names that are
      * references to other objects within the namespace and the parent objects
      * of name declarations
      */
@@ -918,7 +924,7 @@ LkNamespaceLocateBegin (
         "Type=%s\n", AcpiUtGetTypeName (ObjectType)));
 
     /*
-     * Lookup the name in the namespace.  Name must exist at this point, or it
+     * Lookup the name in the namespace. Name must exist at this point, or it
      * is an invalid reference.
      *
      * The namespace is also used as a lookup table for references to resource
@@ -1026,74 +1032,106 @@ LkNamespaceLocateBegin (
     /* 2) Check for a reference to a resource descriptor */
 
     if ((Node->Type == ACPI_TYPE_LOCAL_RESOURCE_FIELD) ||
-             (Node->Type == ACPI_TYPE_LOCAL_RESOURCE))
+        (Node->Type == ACPI_TYPE_LOCAL_RESOURCE))
     {
         /*
-         * This was a reference to a field within a resource descriptor.  Extract
-         * the associated field offset (either a bit or byte offset depending on
-         * the field type) and change the named reference into an integer for
-         * AML code generation
+         * This was a reference to a field within a resource descriptor.
+         * Extract the associated field offset (either a bit or byte
+         * offset depending on the field type) and change the named
+         * reference into an integer for AML code generation
          */
-        Temp = Node->Value;
-        if (Node->Flags & ANOBJ_IS_BIT_OFFSET)
+        Offset = Node->Value;
+        TagBitLength = Node->Length;
+
+        /*
+         * If a field is being created, generate the length (in bits) of
+         * the field. Note: Opcodes other than CreateXxxField and Index
+         * can come through here. For other opcodes, we just need to
+         * convert the resource tag reference to an integer offset.
+         */
+        switch (Op->Asl.Parent->Asl.AmlOpcode)
         {
-            Op->Asl.CompileFlags |= NODE_IS_BIT_OFFSET;
+        case AML_CREATE_FIELD_OP: /* Variable "Length" field, in bits */
+            /*
+             * We know the length operand is an integer constant because
+             * we know that it contains a reference to a resource
+             * descriptor tag.
+             */
+            FieldBitLength = (UINT32) Op->Asl.Next->Asl.Value.Integer;
+            break;
+
+        case AML_CREATE_BIT_FIELD_OP:
+            FieldBitLength = 1;
+            break;
+
+        case AML_CREATE_BYTE_FIELD_OP:
+        case AML_INDEX_OP:
+            FieldBitLength = 8;
+            break;
+
+        case AML_CREATE_WORD_FIELD_OP:
+            FieldBitLength = 16;
+            break;
+
+        case AML_CREATE_DWORD_FIELD_OP:
+            FieldBitLength = 32;
+            break;
+
+        case AML_CREATE_QWORD_FIELD_OP:
+            FieldBitLength = 64;
+            break;
+
+        default:
+            FieldBitLength = 0;
+            break;
         }
 
-        /* Perform BitOffset <--> ByteOffset conversion if necessary */
+        /* Check the field length against the length of the resource tag */
+
+        if (FieldBitLength)
+        {
+            if (TagBitLength < FieldBitLength)
+            {
+                Message = ASL_MSG_TAG_SMALLER;
+            }
+            else if (TagBitLength > FieldBitLength)
+            {
+                Message = ASL_MSG_TAG_LARGER;
+            }
+
+            if (Message)
+            {
+                sprintf (MsgBuffer, "Size mismatch, Tag: %u bit%s, Field: %u bit%s",
+                    TagBitLength, (TagBitLength > 1) ? "s" : "",
+                    FieldBitLength, (FieldBitLength > 1) ? "s" : "");
+
+                AslError (ASL_WARNING, Message, Op, MsgBuffer);
+            }
+        }
+
+        /* Convert the BitOffset to a ByteOffset for certain opcodes */
 
         switch (Op->Asl.Parent->Asl.AmlOpcode)
         {
-        case AML_CREATE_FIELD_OP:
-
-            /* We allow a Byte offset to Bit Offset conversion for this op */
-
-            if (!(Op->Asl.CompileFlags & NODE_IS_BIT_OFFSET))
-            {
-                /* Simply multiply byte offset times 8 to get bit offset */
-
-                Temp = ACPI_MUL_8 (Temp);
-            }
-            break;
-
-
-        case AML_CREATE_BIT_FIELD_OP:
-
-            /* This op requires a Bit Offset */
-
-            if (!(Op->Asl.CompileFlags & NODE_IS_BIT_OFFSET))
-            {
-                AslError (ASL_ERROR, ASL_MSG_BYTES_TO_BITS, Op, NULL);
-            }
-            break;
-
-
         case AML_CREATE_BYTE_FIELD_OP:
         case AML_CREATE_WORD_FIELD_OP:
         case AML_CREATE_DWORD_FIELD_OP:
         case AML_CREATE_QWORD_FIELD_OP:
         case AML_INDEX_OP:
 
-            /* These Ops require Byte offsets */
-
-            if (Op->Asl.CompileFlags & NODE_IS_BIT_OFFSET)
-            {
-                AslError (ASL_ERROR, ASL_MSG_BITS_TO_BYTES, Op, NULL);
-            }
+            Offset = ACPI_DIV_8 (Offset);
             break;
 
-
         default:
-            /* Nothing to do for other opcodes */
             break;
         }
 
         /* Now convert this node to an integer whose value is the field offset */
 
-        Op->Asl.AmlLength       = 0;
-        Op->Asl.ParseOpcode     = PARSEOP_INTEGER;
-        Op->Asl.Value.Integer   = (UINT64) Temp;
-        Op->Asl.CompileFlags   |= NODE_IS_RESOURCE_FIELD;
+        Op->Asl.AmlLength = 0;
+        Op->Asl.ParseOpcode = PARSEOP_INTEGER;
+        Op->Asl.Value.Integer = (UINT64) Offset;
+        Op->Asl.CompileFlags |= NODE_IS_RESOURCE_FIELD;
 
         OpcGenerateAmlOpcode (Op);
     }
@@ -1191,9 +1229,9 @@ LkNamespaceLocateBegin (
              (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_BANKFIELD)))
     {
         /*
-         * Offset checking for fields.  If the parent operation region has a
+         * Offset checking for fields. If the parent operation region has a
          * constant length (known at compile time), we can check fields
-         * defined in that region against the region length.  This will catch
+         * defined in that region against the region length. This will catch
          * fields and field units that cannot possibly fit within the region.
          *
          * Note: Index fields do not directly reference an operation region,
@@ -1203,7 +1241,7 @@ LkNamespaceLocateBegin (
         {
             /*
              * This is the first child of the field node, which is
-             * the name of the region.  Get the parse node for the
+             * the name of the region. Get the parse node for the
              * region -- which contains the length of the region.
              */
             OwningOp = Node->Op;
@@ -1253,6 +1291,7 @@ LkNamespaceLocateBegin (
             {
             case ACPI_ADR_SPACE_EC:
             case ACPI_ADR_SPACE_CMOS:
+            case ACPI_ADR_SPACE_GPIO:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BYTE)
                 {
@@ -1262,6 +1301,7 @@ LkNamespaceLocateBegin (
 
             case ACPI_ADR_SPACE_SMBUS:
             case ACPI_ADR_SPACE_IPMI:
+            case ACPI_ADR_SPACE_GSBUS:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BUFFER)
                 {
@@ -1278,7 +1318,7 @@ LkNamespaceLocateBegin (
         else
         {
             /*
-             * This is one element of the field list.  Check to make sure
+             * This is one element of the field list. Check to make sure
              * that it does not go beyond the end of the parent operation region.
              *
              * In the code below:
@@ -1311,7 +1351,7 @@ LkNamespaceLocateBegin (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Ascending callback used during cross reference.  We only
+ * DESCRIPTION: Ascending callback used during cross reference. We only
  *              need to worry about scope management here.
  *
  ******************************************************************************/
@@ -1360,5 +1400,3 @@ LkNamespaceLocateEnd (
 
     return (AE_OK);
 }
-
-

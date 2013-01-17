@@ -68,9 +68,7 @@ static device_method_t aac_methods[] = {
 	DEVMETHOD(device_suspend,	aac_suspend),
 	DEVMETHOD(device_resume,	aac_resume),
 
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t aac_pci_driver = {
@@ -404,7 +402,7 @@ aac_pci_attach(device_t dev)
 	 *
 	 * Note that some of these controllers are 64-bit capable.
 	 */
-	if (bus_dma_tag_create(NULL, 			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->aac_dev), /* parent */
 			       PAGE_SIZE, 0,		/* algnmnt, boundary */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */

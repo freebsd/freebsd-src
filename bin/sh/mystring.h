@@ -35,7 +35,6 @@
 
 #include <string.h>
 
-void scopyn(const char *, char *, int);
 int prefix(const char *, const char *);
 int number(const char *);
 int is_number(const char *);

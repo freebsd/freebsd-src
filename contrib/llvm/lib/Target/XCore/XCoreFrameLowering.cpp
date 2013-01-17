@@ -1,4 +1,4 @@
-//===-- XCoreFrameLowering.cpp - Frame info for XCore Target -----*- C++ -*-==//
+//===-- XCoreFrameLowering.cpp - Frame info for XCore Target --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "XCore.h"
 #include "XCoreFrameLowering.h"
+#include "XCore.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreMachineFunctionInfo.h"
 #include "llvm/Function.h"
@@ -23,7 +23,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -78,13 +78,13 @@ static void storeToStack(MachineBasicBlock &MBB,
 //===----------------------------------------------------------------------===//
 
 XCoreFrameLowering::XCoreFrameLowering(const XCoreSubtarget &sti)
-  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 4, 0),
-    STI(sti) {
+  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 4, 0) {
   // Do nothing
 }
 
 bool XCoreFrameLowering::hasFP(const MachineFunction &MF) const {
-  return DisableFramePointerElim(MF) || MF.getFrameInfo()->hasVarSizedObjects();
+  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
+    MF.getFrameInfo()->hasVarSizedObjects();
 }
 
 void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
@@ -92,20 +92,19 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
   MachineBasicBlock::iterator MBBI = MBB.begin();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineModuleInfo *MMI = &MF.getMMI();
-  const XCoreRegisterInfo *RegInfo =
-    static_cast<const XCoreRegisterInfo*>(MF.getTarget().getRegisterInfo());
   const XCoreInstrInfo &TII =
     *static_cast<const XCoreInstrInfo*>(MF.getTarget().getInstrInfo());
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   bool FP = hasFP(MF);
-  bool Nested = MF.getFunction()->
-                getAttributes().hasAttrSomewhere(Attribute::Nest);
+  const AttrListPtr &PAL = MF.getFunction()->getAttributes();
 
-  if (Nested) {
-    loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
-  }
+  for (unsigned I = 0, E = PAL.getNumAttrs(); I != E; ++I)
+    if (PAL.getAttributesAtIndex(I).hasAttribute(Attributes::Nest)) {
+      loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
+      break;
+    }
 
   // Work out frame sizes.
   int FrameSize = MFI->getStackSize();
@@ -118,7 +117,7 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
     // FIXME could emit multiple instructions.
     report_fatal_error("emitPrologue Frame size too big: " + Twine(FrameSize));
   }
-  bool emitFrameMoves = RegInfo->needsFrameMoves(MF);
+  bool emitFrameMoves = XCoreRegisterInfo::needsFrameMoves(MF);
 
   // Do we need to allocate space on the stack?
   if (FrameSize) {
@@ -342,7 +341,7 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const TargetRegisterInfo *RegInfo = MF.getTarget().getRegisterInfo();
   bool LRUsed = MF.getRegInfo().isPhysRegUsed(XCore::LR);
-  const TargetRegisterClass *RC = XCore::GRRegsRegisterClass;
+  const TargetRegisterClass *RC = &XCore::GRRegsRegClass;
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   if (LRUsed) {
     MF.getRegInfo().setPhysRegUnused(XCore::LR);
@@ -372,9 +371,4 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                                RC->getAlignment(),
                                                false));
   }
-}
-
-void XCoreFrameLowering::
-processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
-
 }

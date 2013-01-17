@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ extern char	*PkgAddCmd;
 extern char	FirstPen[];
 extern add_mode_t AddMode;
 
-int		make_hierarchy(char *);
+int		make_hierarchy(char *, Boolean);
 void		extract_plist(const char *, Package *);
 void		apply_perms(const char *, const char *);
 

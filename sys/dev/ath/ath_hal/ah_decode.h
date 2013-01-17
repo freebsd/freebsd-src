@@ -29,6 +29,7 @@
  * existing file.
  */
 struct athregrec {
+	uint32_t	threadid;
 	uint32_t	op	: 8,
 			reg	: 24;
 	uint32_t	val;

@@ -168,6 +168,7 @@ localize_key_layout()
   # Set the keylayout in rc.conf
   case ${KEYLAYOUT} in
     am) KEYLAYOUT_CONSOLE="hy.armscii-8" ;;
+    ca) KEYLAYOUT_CONSOLE="fr_CA.acc.iso" ;;
     ch) KEYLAYOUT_CONSOLE="swissgerman.iso" ;;
     cz) KEYLAYOUT_CONSOLE="cz.iso2" ;;
     de) KEYLAYOUT_CONSOLE="german.iso" ;;

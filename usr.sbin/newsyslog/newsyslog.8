@@ -125,7 +125,9 @@ reasons for either trimming that log or skipping it.
 Cause
 .Nm
 not to trim the logs, but to print out what it would do if this option
-were not specified.
+were not specified. This option implies the
+.Fl r
+option.
 .It Fl r
 Remove the restriction that
 .Nm
@@ -166,7 +168,7 @@ is used.
 If the
 .Ar timefmt
 string is changed the old files created using the previous time format
-will not be be automatically removed (unless the new format is very
+will not be automatically removed (unless the new format is very
 similar to the old format).
 This is also the case when changing from sequential filenames to time
 based file names, and the other way around.

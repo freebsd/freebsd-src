@@ -17,17 +17,10 @@ SUBDIR+=	btxld
 SUBDIR+=	cpucontrol
 SUBDIR+=	kgmon
 SUBDIR+=	lptcontrol
-.if ${MK_NCP} != "no"
-SUBDIR+=	mount_nwfs
-.endif
-SUBDIR+=	mount_smbfs
 SUBDIR+=	mptable
 .if ${MK_NDIS} != "no"
 SUBDIR+=	ndiscvt
 .endif
 SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
-.if ${MK_SYSINSTALL} != "no"
-SUBDIR+=	sade
-.endif
 SUBDIR+=	zzz

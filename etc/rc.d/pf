@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="pf"
-rcvar=`set_rcvar`
+rcvar="pf_enable"
 load_rc_config $name
 start_cmd="pf_start"
 stop_cmd="pf_stop"

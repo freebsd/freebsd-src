@@ -23,8 +23,8 @@ device		ispfw
 # address properly may cause data corruption when used in a machine with more
 # than 4 gigabytes of memory.
 
+
 nodevice	ahb
-nodevice	amd
 nodevice	sym
 nodevice	trm
 
@@ -37,6 +37,8 @@ nodevice	bt
 nodevice	ncv
 nodevice	nsp
 nodevice	stg
+
+nodevice	ctl
 
 nodevice	asr
 nodevice	dpt
@@ -73,7 +75,7 @@ nodevice	sn
 nodevice	xe
 
 nodevice	an
-nodevice	ath		# Atheros pci/cardbus NIC's
+nodevice	ath		# Atheros pci/cardbus NICs
 nodevice	ath_pci
 nodevice	ath_hal
 nodevice	ath_rate_sample	# SampleRate tx rate control for ath

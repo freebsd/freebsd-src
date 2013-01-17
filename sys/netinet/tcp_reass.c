@@ -74,24 +74,19 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
-static int tcp_reass_sysctl_maxseg(SYSCTL_HANDLER_ARGS);
 static int tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
 static VNET_DEFINE(int, tcp_reass_maxseg) = 0;
 #define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
-SYSCTL_VNET_PROC(_net_inet_tcp_reass, OID_AUTO, maxsegments,
-    CTLTYPE_INT | CTLFLAG_RDTUN,
-    &VNET_NAME(tcp_reass_maxseg), 0, &tcp_reass_sysctl_maxseg, "I",
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_reass_maxseg), 0,
     "Global maximum number of TCP Segments in Reassembly Queue");
 
-static VNET_DEFINE(int, tcp_reass_qsize) = 0;
-#define	V_tcp_reass_qsize		VNET(tcp_reass_qsize)
 SYSCTL_VNET_PROC(_net_inet_tcp_reass, OID_AUTO, cursegments,
-    CTLTYPE_INT | CTLFLAG_RD,
-    &VNET_NAME(tcp_reass_qsize), 0, &tcp_reass_sysctl_qsize, "I",
+    (CTLTYPE_INT | CTLFLAG_RD), NULL, 0, &tcp_reass_sysctl_qsize, "I",
     "Global number of TCP Segments currently in Reassembly Queue");
 
 static VNET_DEFINE(int, tcp_reass_overflows) = 0;
@@ -109,8 +104,10 @@ static void
 tcp_reass_zone_change(void *tag)
 {
 
+	/* Set the zone limit and read back the effective value. */
 	V_tcp_reass_maxseg = nmbclusters / 16;
 	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
+	V_tcp_reass_maxseg = uma_zone_get_max(V_tcp_reass_zone);
 }
 
 void
@@ -122,7 +119,9 @@ tcp_reass_init(void)
 	    &V_tcp_reass_maxseg);
 	V_tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	/* Set the zone limit and read back the effective value. */
 	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
+	V_tcp_reass_maxseg = uma_zone_get_max(V_tcp_reass_zone);
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 }
@@ -156,17 +155,12 @@ tcp_reass_flush(struct tcpcb *tp)
 }
 
 static int
-tcp_reass_sysctl_maxseg(SYSCTL_HANDLER_ARGS)
-{
-	V_tcp_reass_maxseg = uma_zone_get_max(V_tcp_reass_zone);
-	return (sysctl_handle_int(oidp, arg1, arg2, req));
-}
-
-static int
 tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS)
 {
-	V_tcp_reass_qsize = uma_zone_get_cur(V_tcp_reass_zone);
-	return (sysctl_handle_int(oidp, arg1, arg2, req));
+	int qsize;
+
+	qsize = uma_zone_get_cur(V_tcp_reass_zone);
+	return (sysctl_handle_int(oidp, &qsize, 0, req));
 }
 
 int
@@ -233,23 +227,28 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * when the zone is exhausted. Otherwise we may get stuck.
 	 */
 	te = uma_zalloc(V_tcp_reass_zone, M_NOWAIT);
-	if (te == NULL && th->th_seq != tp->rcv_nxt) {
-		TCPSTAT_INC(tcps_rcvmemdrop);
-		m_freem(m);
-		*tlenp = 0;
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: global zone limit reached, "
-			    "segment dropped\n", s, __func__);
-			free(s, M_TCPLOG);
-		}
-		return (0);
-	} else if (th->th_seq == tp->rcv_nxt) {
-		bzero(&tqs, sizeof(struct tseg_qent));
-		te = &tqs;
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: global zone limit reached, "
-			    "using stack for missing segment\n", s, __func__);
-			free(s, M_TCPLOG);
+	if (te == NULL) {
+		if (th->th_seq != tp->rcv_nxt) {
+			TCPSTAT_INC(tcps_rcvmemdrop);
+			m_freem(m);
+			*tlenp = 0;
+			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
+			    NULL))) {
+				log(LOG_DEBUG, "%s; %s: global zone limit "
+				    "reached, segment dropped\n", s, __func__);
+				free(s, M_TCPLOG);
+			}
+			return (0);
+		} else {
+			bzero(&tqs, sizeof(struct tseg_qent));
+			te = &tqs;
+			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
+			    NULL))) {
+				log(LOG_DEBUG,
+				    "%s; %s: global zone limit reached, using "
+				    "stack for missing segment\n", s, __func__);
+				free(s, M_TCPLOG);
+			}
 		}
 	}
 	tp->t_segqlen++;

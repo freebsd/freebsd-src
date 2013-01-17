@@ -18,6 +18,7 @@
 #define LLVM_CODEGEN_REGISTER_SCAVENGING_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/ADT/BitVector.h"
 
 namespace llvm {
@@ -59,14 +60,14 @@ class RegScavenger {
   ///
   BitVector CalleeSavedRegs;
 
-  /// ReservedRegs - A bitvector of reserved registers.
-  ///
-  BitVector ReservedRegs;
-
   /// RegsAvailable - The current state of all the physical registers immediately
   /// before MBBI. One bit per physical register. If bit is set that means it's
   /// available, unset means the register is currently being used.
   BitVector RegsAvailable;
+
+  // These BitVectors are only used internally to forward(). They are members
+  // to avoid frequent reallocations.
+  BitVector KillRegs, DefRegs;
 
 public:
   RegScavenger()
@@ -126,12 +127,13 @@ public:
   void setUsed(unsigned Reg);
 private:
   /// isReserved - Returns true if a register is reserved. It is never "unused".
-  bool isReserved(unsigned Reg) const { return ReservedRegs.test(Reg); }
+  bool isReserved(unsigned Reg) const { return MRI->isReserved(Reg); }
 
   /// isUsed / isUnused - Test if a register is currently being used.
   ///
-  bool isUsed(unsigned Reg) const   { return !RegsAvailable.test(Reg); }
-  bool isUnused(unsigned Reg) const { return RegsAvailable.test(Reg); }
+  bool isUsed(unsigned Reg) const   {
+    return !RegsAvailable.test(Reg) || isReserved(Reg);
+  }
 
   /// isAliasUsed - Is Reg or an alias currently in use?
   bool isAliasUsed(unsigned Reg) const;
@@ -139,7 +141,7 @@ private:
   /// setUsed / setUnused - Mark the state of one or a number of registers.
   ///
   void setUsed(BitVector &Regs) {
-    RegsAvailable &= ~Regs;
+    RegsAvailable.reset(Regs);
   }
   void setUnused(BitVector &Regs) {
     RegsAvailable |= Regs;
@@ -147,9 +149,6 @@ private:
 
   /// Add Reg and all its sub-registers to BV.
   void addRegWithSubRegs(BitVector &BV, unsigned Reg);
-
-  /// Add Reg and its aliases to BV.
-  void addRegWithAliases(BitVector &BV, unsigned Reg);
 
   /// findSurvivorReg - Return the candidate register that is unused for the
   /// longest after StartMI. UseMI is set to the instruction where the search

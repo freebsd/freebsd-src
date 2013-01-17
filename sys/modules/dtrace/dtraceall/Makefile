@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 KMOD=		dtraceall
-SRCS=		dtraceall.c opt_compat.h
+SRCS=		dtraceall.c opt_compat.h opt_nfs.h
 
 CFLAGS+=	-I${.CURDIR}/../../..
 

@@ -161,7 +161,6 @@ kmem_alloc(map, size)
 {
 	vm_offset_t addr;
 	vm_offset_t offset;
-	vm_offset_t i;
 
 	size = round_page(size);
 
@@ -187,40 +186,141 @@ kmem_alloc(map, size)
 	vm_map_unlock(map);
 
 	/*
-	 * Guarantee that there are pages already in this object before
-	 * calling vm_map_wire.  This is to prevent the following
-	 * scenario:
-	 *
-	 * 1) Threads have swapped out, so that there is a pager for the
-	 * kernel_object. 2) The kmsg zone is empty, and so we are
-	 * kmem_allocing a new page for it. 3) vm_map_wire calls vm_fault;
-	 * there is no page, but there is a pager, so we call
-	 * pager_data_request.  But the kmsg zone is empty, so we must
-	 * kmem_alloc. 4) goto 1 5) Even if the kmsg zone is not empty: when
-	 * we get the data back from the pager, it will be (very stale)
-	 * non-zero data.  kmem_alloc is defined to return zero-filled memory.
-	 *
-	 * We're intentionally not activating the pages we allocate to prevent a
-	 * race with page-out.  vm_map_wire will wire the pages.
-	 */
-	VM_OBJECT_LOCK(kernel_object);
-	for (i = 0; i < size; i += PAGE_SIZE) {
-		vm_page_t mem;
-
-		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
-		    VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-		mem->valid = VM_PAGE_BITS_ALL;
-		KASSERT((mem->oflags & VPO_UNMANAGED) != 0,
-		    ("kmem_alloc: page %p is managed", mem));
-	}
-	VM_OBJECT_UNLOCK(kernel_object);
-
-	/*
 	 * And finally, mark the data as non-pageable.
 	 */
 	(void) vm_map_wire(map, addr, addr + size,
 	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 
+	return (addr);
+}
+
+/*
+ *	Allocates a region from the kernel address map and physical pages
+ *	within the specified address range to the kernel object.  Creates a
+ *	wired mapping from this region to these pages, and returns the
+ *	region's starting virtual address.  The allocated pages are not
+ *	necessarily physically contiguous.  If M_ZERO is specified through the
+ *	given flags, then the pages are zeroed before they are mapped.
+ */
+vm_offset_t
+kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, vm_memattr_t memattr)
+{
+	vm_object_t object = kernel_object;
+	vm_offset_t addr;
+	vm_ooffset_t end_offset, offset;
+	vm_page_t m;
+	int pflags, tries;
+
+	size = round_page(size);
+	vm_map_lock(map);
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+		vm_map_unlock(map);
+		return (0);
+	}
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	vm_object_reference(object);
+	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, 0);
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
+	VM_OBJECT_LOCK(object);
+	end_offset = offset + size;
+	for (; offset < end_offset; offset += PAGE_SIZE) {
+		tries = 0;
+retry:
+		m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags, 1,
+		    low, high, PAGE_SIZE, 0, memattr);
+		if (m == NULL) {
+			VM_OBJECT_UNLOCK(object);
+			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
+				vm_map_unlock(map);
+				vm_pageout_grow_cache(tries, low, high);
+				vm_map_lock(map);
+				VM_OBJECT_LOCK(object);
+				tries++;
+				goto retry;
+			}
+
+			/*
+			 * Since the pages that were allocated by any previous
+			 * iterations of this loop are not busy, they can be
+			 * freed by vm_object_page_remove(), which is called
+			 * by vm_map_delete().
+			 */
+			vm_map_delete(map, addr, addr + size);
+			vm_map_unlock(map);
+			return (0);
+		}
+		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+	VM_OBJECT_UNLOCK(object);
+	vm_map_unlock(map);
+	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
+	    VM_MAP_WIRE_NOHOLES);
+	return (addr);
+}
+
+/*
+ *	Allocates a region from the kernel address map and physically
+ *	contiguous pages within the specified address range to the kernel
+ *	object.  Creates a wired mapping from this region to these pages, and
+ *	returns the region's starting virtual address.  If M_ZERO is specified
+ *	through the given flags, then the pages are zeroed before they are
+ *	mapped.
+ */
+vm_offset_t
+kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    vm_memattr_t memattr)
+{
+	vm_object_t object = kernel_object;
+	vm_offset_t addr;
+	vm_ooffset_t offset;
+	vm_page_t end_m, m;
+	int pflags, tries;
+ 
+	size = round_page(size);
+	vm_map_lock(map);
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
+		vm_map_unlock(map);
+		return (0);
+	}
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	vm_object_reference(object);
+	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, 0);
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
+	VM_OBJECT_LOCK(object);
+	tries = 0;
+retry:
+	m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags,
+	    atop(size), low, high, alignment, boundary, memattr);
+	if (m == NULL) {
+		VM_OBJECT_UNLOCK(object);
+		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
+			vm_map_unlock(map);
+			vm_pageout_grow_cache(tries, low, high);
+			vm_map_lock(map);
+			VM_OBJECT_LOCK(object);
+			tries++;
+			goto retry;
+		}
+		vm_map_delete(map, addr, addr + size);
+		vm_map_unlock(map);
+		return (0);
+	}
+	end_m = m + atop(size);
+	for (; m < end_m; m++) {
+		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			pmap_zero_page(m);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+	VM_OBJECT_UNLOCK(object);
+	vm_map_unlock(map);
+	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
+	    VM_MAP_WIRE_NOHOLES);
 	return (addr);
 }
 
@@ -375,13 +475,7 @@ kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
 	    entry->wired_count == 0 && (entry->eflags & MAP_ENTRY_IN_TRANSITION)
 	    == 0, ("kmem_back: entry not found or misaligned"));
 
-	if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-
-	if (flags & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
 
 	VM_OBJECT_LOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
@@ -543,7 +637,7 @@ kmem_init_zero_region(void)
 	 * zeros, while not using much more physical resources.
 	 */
 	addr = kmem_alloc_nofault(kernel_map, ZERO_REGION_SIZE);
-	m = vm_page_alloc(NULL, OFF_TO_IDX(addr - VM_MIN_KERNEL_ADDRESS),
+	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);

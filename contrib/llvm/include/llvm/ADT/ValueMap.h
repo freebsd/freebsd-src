@@ -35,7 +35,7 @@
 
 namespace llvm {
 
-template<typename KeyT, typename ValueT, typename Config, typename ValueInfoT>
+template<typename KeyT, typename ValueT, typename Config>
 class ValueMapCallbackVH;
 
 template<typename DenseMapT, typename KeyT>
@@ -72,18 +72,16 @@ struct ValueMapConfig {
 };
 
 /// See the file comment.
-template<typename KeyT, typename ValueT, typename Config = ValueMapConfig<KeyT>,
-         typename ValueInfoT = DenseMapInfo<ValueT> >
+template<typename KeyT, typename ValueT, typename Config =ValueMapConfig<KeyT> >
 class ValueMap {
-  friend class ValueMapCallbackVH<KeyT, ValueT, Config, ValueInfoT>;
-  typedef ValueMapCallbackVH<KeyT, ValueT, Config, ValueInfoT> ValueMapCVH;
-  typedef DenseMap<ValueMapCVH, ValueT, DenseMapInfo<ValueMapCVH>,
-                   ValueInfoT> MapT;
+  friend class ValueMapCallbackVH<KeyT, ValueT, Config>;
+  typedef ValueMapCallbackVH<KeyT, ValueT, Config> ValueMapCVH;
+  typedef DenseMap<ValueMapCVH, ValueT, DenseMapInfo<ValueMapCVH> > MapT;
   typedef typename Config::ExtraData ExtraData;
   MapT Map;
   ExtraData Data;
-  ValueMap(const ValueMap&); // DO NOT IMPLEMENT
-  ValueMap& operator=(const ValueMap&); // DO NOT IMPLEMENT
+  ValueMap(const ValueMap&) LLVM_DELETED_FUNCTION;
+  ValueMap& operator=(const ValueMap&) LLVM_DELETED_FUNCTION;
 public:
   typedef KeyT key_type;
   typedef ValueT mapped_type;
@@ -113,20 +111,21 @@ public:
 
   /// count - Return true if the specified key is in the map.
   bool count(const KeyT &Val) const {
-    return Map.count(Wrap(Val));
+    return Map.find_as(Val) != Map.end();
   }
 
   iterator find(const KeyT &Val) {
-    return iterator(Map.find(Wrap(Val)));
+    return iterator(Map.find_as(Val));
   }
   const_iterator find(const KeyT &Val) const {
-    return const_iterator(Map.find(Wrap(Val)));
+    return const_iterator(Map.find_as(Val));
   }
 
   /// lookup - Return the entry for the specified key, or a default
   /// constructed value if no such entry exists.
   ValueT lookup(const KeyT &Val) const {
-    return Map.lookup(Wrap(Val));
+    typename MapT::const_iterator I = Map.find_as(Val);
+    return I != Map.end() ? I->second : ValueT();
   }
 
   // Inserts key,value pair into the map if the key isn't already in the map.
@@ -147,7 +146,12 @@ public:
 
 
   bool erase(const KeyT &Val) {
-    return Map.erase(Wrap(Val));
+    typename MapT::iterator I = Map.find_as(Val);
+    if (I == Map.end())
+      return false;
+
+    Map.erase(I);
+    return true;
   }
   void erase(iterator I) {
     return Map.erase(I.base());
@@ -190,11 +194,11 @@ private:
 
 // This CallbackVH updates its ValueMap when the contained Value changes,
 // according to the user's preferences expressed through the Config object.
-template<typename KeyT, typename ValueT, typename Config, typename ValueInfoT>
+template<typename KeyT, typename ValueT, typename Config>
 class ValueMapCallbackVH : public CallbackVH {
-  friend class ValueMap<KeyT, ValueT, Config, ValueInfoT>;
+  friend class ValueMap<KeyT, ValueT, Config>;
   friend struct DenseMapInfo<ValueMapCallbackVH>;
-  typedef ValueMap<KeyT, ValueT, Config, ValueInfoT> ValueMapT;
+  typedef ValueMap<KeyT, ValueT, Config> ValueMapT;
   typedef typename llvm::remove_pointer<KeyT>::type KeySansPointerT;
 
   ValueMapT *Map;
@@ -244,9 +248,9 @@ public:
   }
 };
 
-template<typename KeyT, typename ValueT, typename Config, typename ValueInfoT>
-struct DenseMapInfo<ValueMapCallbackVH<KeyT, ValueT, Config, ValueInfoT> > {
-  typedef ValueMapCallbackVH<KeyT, ValueT, Config, ValueInfoT> VH;
+template<typename KeyT, typename ValueT, typename Config>
+struct DenseMapInfo<ValueMapCallbackVH<KeyT, ValueT, Config> > {
+  typedef ValueMapCallbackVH<KeyT, ValueT, Config> VH;
   typedef DenseMapInfo<KeyT> PointerInfo;
 
   static inline VH getEmptyKey() {
@@ -258,8 +262,14 @@ struct DenseMapInfo<ValueMapCallbackVH<KeyT, ValueT, Config, ValueInfoT> > {
   static unsigned getHashValue(const VH &Val) {
     return PointerInfo::getHashValue(Val.Unwrap());
   }
+  static unsigned getHashValue(const KeyT &Val) {
+    return PointerInfo::getHashValue(Val);
+  }
   static bool isEqual(const VH &LHS, const VH &RHS) {
     return LHS == RHS;
+  }
+  static bool isEqual(const KeyT &LHS, const VH &RHS) {
+    return LHS == RHS.getValPtr();
   }
 };
 

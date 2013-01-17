@@ -1,6 +1,6 @@
 /*
  * Test the POSIX shared-memory API.
- * Dedicated to tyhe public domain by Garrett A. Wollman, 2000.
+ * Dedicated to the public domain by Garrett A. Wollman, 2000.
  * $FreeBSD$
  */
 

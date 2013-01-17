@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2008
+.Dd October 14, 2012
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -55,10 +55,6 @@ In a normal update operation,
 .Nm
 will routinely restore modified files to their unmodified state and
 delete unrecognized local files.
-This behavior is different to
-.Xr cvs 1
-and
-.Xr cvsup 1 .
 .Sh OPTIONS
 The following options are supported:
 .Bl -tag -width "-f conffile"
@@ -110,6 +106,12 @@ command only, operate only on parts of the ports tree starting with
 .Ar sysutils/port
 would extract sysutils/portsman, sysutils/portsnap,
 sysutils/portupgrade, etc.)
+.It Fl Fl interactive
+override auto-detection of calling process.
+Only use this when calling portsnap from an
+.Sy interactive, non-terminal application.
+(Cron jobs are particularly bad since they cause
+load spikes on the Portsnap mirrors.)
 .El
 .Sh COMMANDS
 The
@@ -174,6 +176,23 @@ can quickly be extracted into
 If your clock is set to UTC, please pick a random time other
 than 3AM, to avoid overly imposing an uneven load on the
 server(s) hosting the snapshots.
+.Pp
+Note that running
+.Nm
+.Cm cron
+or
+.Nm
+.Cm fetch
+does not apply the changes that were received: they only download
+them.
+To apply the changes, you must follow these commands with
+.Nm
+.Cm update .
+The
+.Nm
+.Cm update
+command is normally run by hand at a time when you are sure that
+no one is manually working in the ports tree.
 .It
 Running
 .Nm

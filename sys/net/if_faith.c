@@ -79,8 +79,6 @@
 #include <netinet6/ip6_var.h>
 #endif
 
-#define FAITHNAME	"faith"
-
 struct faith_softc {
 	struct ifnet *sc_ifp;
 };
@@ -95,12 +93,12 @@ static int faithprefix(struct in6_addr *);
 
 static int faithmodevent(module_t, int, void *);
 
-static MALLOC_DEFINE(M_FAITH, FAITHNAME, "Firewall Assisted Tunnel Interface");
+static const char faithname[] = "faith";
+static MALLOC_DEFINE(M_FAITH, faithname, "Firewall Assisted Tunnel Interface");
 
 static int	faith_clone_create(struct if_clone *, int, caddr_t);
 static void	faith_clone_destroy(struct ifnet *);
-
-IFC_SIMPLE_DECLARE(faith, 0);
+static struct if_clone *faith_cloner;
 
 #define	FAITHMTU	1500
 
@@ -113,8 +111,8 @@ faithmodevent(mod, type, data)
 
 	switch (type) {
 	case MOD_LOAD:
-		if_clone_attach(&faith_cloner);
-
+		faith_cloner = if_clone_simple(faithname, faith_clone_create,
+		    faith_clone_destroy, 0);
 #ifdef INET6
 		faithprefix_p = faithprefix;
 #endif
@@ -125,7 +123,7 @@ faithmodevent(mod, type, data)
 		faithprefix_p = NULL;
 #endif
 
-		if_clone_detach(&faith_cloner);
+		if_clone_detach(faith_cloner);
 		break;
 	default:
 		return EOPNOTSUPP;
@@ -159,7 +157,7 @@ faith_clone_create(ifc, unit, params)
 	}
 
 	ifp->if_softc = sc;
-	if_initname(sc->sc_ifp, ifc->ifc_name, unit);
+	if_initname(sc->sc_ifp, faithname, unit);
 
 	ifp->if_mtu = FAITHMTU;
 	/* Change to BROADCAST experimentaly to announce its prefix. */
@@ -338,7 +336,7 @@ faithprefix(in6)
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_addr = *in6;
-	rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
+	rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt && rt->rt_ifp && rt->rt_ifp->if_type == IFT_FAITH &&
 	    (rt->rt_ifp->if_flags & IFF_UP) != 0)
 		ret = 1;

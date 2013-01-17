@@ -21,11 +21,43 @@ class MCParsedAsmOperand;
 class MCInst;
 template <typename T> class SmallVectorImpl;
 
+enum AsmRewriteKind {
+  AOK_DotOperator,    // Rewrite a dot operator expression as an immediate.
+                      // E.g., [eax].foo.bar -> [eax].8
+  AOK_Emit,           // Rewrite _emit as .byte.
+  AOK_Imm,            // Rewrite as $$N.
+  AOK_ImmPrefix,      // Add $$ before a parsed Imm.
+  AOK_Input,          // Rewrite in terms of $N.
+  AOK_Output,         // Rewrite in terms of $N.
+  AOK_SizeDirective,  // Add a sizing directive (e.g., dword ptr).
+  AOK_Skip            // Skip emission (e.g., offset/type operators).
+};
+
+struct AsmRewrite {
+  AsmRewriteKind Kind;
+  SMLoc Loc;
+  unsigned Len;
+  unsigned Val;
+public:
+  AsmRewrite(AsmRewriteKind kind, SMLoc loc, unsigned len = 0, unsigned val = 0)
+    : Kind(kind), Loc(loc), Len(len), Val(val) {}
+};
+
+struct ParseInstructionInfo {
+
+  SmallVectorImpl<AsmRewrite> *AsmRewrites;
+
+  ParseInstructionInfo() : AsmRewrites(0) {}
+  ParseInstructionInfo(SmallVectorImpl<AsmRewrite> *rewrites)
+    : AsmRewrites(rewrites) {}
+
+  ~ParseInstructionInfo() {}
+};
+
 /// MCTargetAsmParser - Generic interface to target specific assembly parsers.
 class MCTargetAsmParser : public MCAsmParserExtension {
 public:
   enum MatchResultTy {
-    Match_ConversionFail,
     Match_InvalidOperand,
     Match_MissingFeature,
     Match_MnemonicFail,
@@ -34,19 +66,33 @@ public:
   };
 
 private:
-  MCTargetAsmParser(const MCTargetAsmParser &);   // DO NOT IMPLEMENT
-  void operator=(const MCTargetAsmParser &);  // DO NOT IMPLEMENT
+  MCTargetAsmParser(const MCTargetAsmParser &) LLVM_DELETED_FUNCTION;
+  void operator=(const MCTargetAsmParser &) LLVM_DELETED_FUNCTION;
 protected: // Can only create subclasses.
   MCTargetAsmParser();
 
   /// AvailableFeatures - The current set of available features.
   unsigned AvailableFeatures;
 
+  /// ParsingInlineAsm - Are we parsing ms-style inline assembly?
+  bool ParsingInlineAsm;
+
+  /// SemaCallback - The Sema callback implementation.  Must be set when parsing
+  /// ms-style inline assembly.
+  MCAsmParserSemaCallback *SemaCallback;
+
 public:
   virtual ~MCTargetAsmParser();
 
   unsigned getAvailableFeatures() const { return AvailableFeatures; }
   void setAvailableFeatures(unsigned Value) { AvailableFeatures = Value; }
+
+  bool isParsingInlineAsm () { return ParsingInlineAsm; }
+  void setParsingInlineAsm (bool Value) { ParsingInlineAsm = Value; }
+
+  void setSemaCallback(MCAsmParserSemaCallback *Callback) {
+    SemaCallback = Callback;
+  }
 
   virtual bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                              SMLoc &EndLoc) = 0;
@@ -64,7 +110,8 @@ public:
   /// \param Operands [out] - The list of parsed operands, this returns
   ///        ownership of them to the caller.
   /// \return True on failure.
-  virtual bool ParseInstruction(StringRef Name, SMLoc NameLoc,
+  virtual bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
+                                SMLoc NameLoc,
                             SmallVectorImpl<MCParsedAsmOperand*> &Operands) = 0;
 
   /// ParseDirective - Parse a target specific assembler directive
@@ -79,6 +126,10 @@ public:
   /// \param DirectiveID - the identifier token of the directive.
   virtual bool ParseDirective(AsmToken DirectiveID) = 0;
 
+  /// mnemonicIsValid - This returns true if this is a valid mnemonic and false
+  /// otherwise.
+  virtual bool mnemonicIsValid(StringRef Mnemonic) = 0;
+
   /// MatchAndEmitInstruction - Recognize a series of operands of a parsed
   /// instruction as an actual MCInst and emit it to the specified MCStreamer.
   /// This returns false on success and returns true on failure to match.
@@ -86,9 +137,10 @@ public:
   /// On failure, the target parser is responsible for emitting a diagnostic
   /// explaining the match failure.
   virtual bool
-  MatchAndEmitInstruction(SMLoc IDLoc,
+  MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                           SmallVectorImpl<MCParsedAsmOperand*> &Operands,
-                          MCStreamer &Out) = 0;
+                          MCStreamer &Out, unsigned &ErrorInfo,
+                          bool MatchingInlineAsm) = 0;
 
   /// checkTargetMatchPredicate - Validate the instruction match against
   /// any complex target predicates not expressible via match classes.
@@ -96,6 +148,8 @@ public:
     return Match_Success;
   }
 
+  virtual void convertToMapAndConstraints(unsigned Kind,
+                      const SmallVectorImpl<MCParsedAsmOperand*> &Operands) = 0;
 };
 
 } // End llvm namespace

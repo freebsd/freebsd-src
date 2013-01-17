@@ -93,6 +93,7 @@ struct ip_moptions {
 	u_short	imo_max_memberships;	/* max memberships this socket */
 	struct	in_multi **imo_membership;	/* group memberships */
 	struct	in_mfilter *imo_mfilters;	/* source filters */
+	STAILQ_ENTRY(ip_moptions) imo_link;
 };
 
 struct	ipstat {
@@ -162,6 +163,7 @@ void	kmod_ipstat_dec(int statnum);
  * mbuf flag used by ip_fastfwd
  */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
+#define	M_IP_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1
@@ -187,6 +189,7 @@ VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
 extern int	(*legal_vif_num)(int);
 extern u_long	(*ip_mcast_src)(int);
 VNET_DECLARE(int, rsvp_on);
+VNET_DECLARE(int, drop_redirect);
 extern struct	pr_usrreqs rip_usrreqs;
 
 #define	V_ipstat		VNET(ipstat)
@@ -199,6 +202,7 @@ extern struct	pr_usrreqs rip_usrreqs;
 #define	V_ip_rsvpd		VNET(ip_rsvpd)
 #define	V_ip_mrouter		VNET(ip_mrouter)
 #define	V_rsvp_on		VNET(rsvp_on)
+#define	V_drop_redirect		VNET(drop_redirect)
 
 void	inp_freemoptions(struct ip_moptions *);
 int	inp_getmoptions(struct inpcb *, struct sockopt *);
@@ -207,7 +211,7 @@ int	inp_setmoptions(struct inpcb *, struct sockopt *);
 int	ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	ip_drain(void);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
-	    u_long if_hwassist_flags, int sw_csum);
+	    u_long if_hwassist_flags);
 void	ip_forward(struct mbuf *m, int srcrt);
 void	ip_init(void);
 #ifdef VIMAGE
@@ -291,9 +295,7 @@ enum {
 struct ip_fw_args;
 typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);
 typedef int	(*ip_fw_ctl_ptr_t)(struct sockopt *);
-VNET_DECLARE(ip_fw_chk_ptr_t, ip_fw_chk_ptr);
 VNET_DECLARE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr);
-#define	V_ip_fw_chk_ptr		VNET(ip_fw_chk_ptr)
 #define	V_ip_fw_ctl_ptr		VNET(ip_fw_ctl_ptr)
 
 /* Divert hooks. */

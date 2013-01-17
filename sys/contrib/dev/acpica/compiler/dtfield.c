@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -523,9 +523,22 @@ DtCompileFlag (
         break;
 
 
+    case ACPI_DMT_FLAGS1:
+
+        BitPosition = 1;
+        BitLength = 2;
+        break;
+
+
     case ACPI_DMT_FLAGS2:
 
         BitPosition = 2;
+        BitLength = 2;
+        break;
+
+    case ACPI_DMT_FLAGS4:
+
+        BitPosition = 4;
         BitLength = 2;
         break;
 

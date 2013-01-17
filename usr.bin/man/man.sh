@@ -369,7 +369,7 @@ man_display_page() {
 		while getopts 'egprtv' preproc_arg; do
 			case "${preproc_arg}" in
 			e)	pipeline="$pipeline | $EQN" ;;
-			g)	;; # Ignore for compatability.
+			g)	;; # Ignore for compatibility.
 			p)	pipeline="$pipeline | $PIC" ;;
 			r)	pipeline="$pipeline | $REFER" ;;
 			t)	pipeline="$pipeline | $TBL" ;;
@@ -945,7 +945,7 @@ STTY=/bin/stty
 SYSCTL=/sbin/sysctl
 
 debug=0
-man_default_sections='1:1aout:8:2:3:n:4:5:6:7:9:l'
+man_default_sections='1:8:2:3:n:4:5:6:7:9:l'
 man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/man'
 cattool='/usr/bin/zcat -f'
 

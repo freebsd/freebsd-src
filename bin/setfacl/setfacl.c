@@ -42,6 +42,35 @@ __FBSDID("$FreeBSD$");
 
 #include "setfacl.h"
 
+/* file operations */
+#define	OP_MERGE_ACL		0x00	/* merge acl's (-mM) */
+#define	OP_REMOVE_DEF		0x01	/* remove default acl's (-k) */
+#define	OP_REMOVE_EXT		0x02	/* remove extended acl's (-b) */
+#define	OP_REMOVE_ACL		0x03	/* remove acl's (-xX) */
+#define	OP_REMOVE_BY_NUMBER	0x04	/* remove acl's (-xX) by acl entry number */
+#define	OP_ADD_ACL		0x05	/* add acls entries at a given position */
+
+/* TAILQ entry for acl operations */
+struct sf_entry {
+	uint	op;
+	acl_t	acl;
+	uint	entry_number;
+	TAILQ_ENTRY(sf_entry) next;
+};
+static TAILQ_HEAD(, sf_entry) entrylist;
+
+/* TAILQ entry for files */
+struct sf_file {
+	const char *filename;
+	TAILQ_ENTRY(sf_file) next;
+};
+static TAILQ_HEAD(, sf_file) filelist;
+
+uint have_mask;
+uint need_mask;
+uint have_stdin;
+uint n_flag;
+
 static void	add_filename(const char *filename);
 static void	usage(void);
 
@@ -73,6 +102,7 @@ main(int argc, char *argv[])
 {
 	acl_t acl;
 	acl_type_t acl_type;
+	acl_entry_t unused_entry;
 	char filename[PATH_MAX];
 	int local_error, carried_error, ch, i, entry_number, ret;
 	int h_flag;
@@ -263,6 +293,17 @@ main(int argc, char *argv[])
 				need_mask = 1;
 				break;
 			case OP_REMOVE_EXT:
+				/*
+				 * Don't try to call remove_ext() for empty
+				 * default ACL.
+				 */
+				if (acl_type == ACL_TYPE_DEFAULT &&
+				    acl_get_entry(acl, ACL_FIRST_ENTRY,
+				    &unused_entry) == 0) {
+					local_error += remove_default(&acl,
+					    file->filename);
+					break;
+				}
 				remove_ext(&acl, file->filename);
 				need_mask = 0;
 				break;
@@ -294,6 +335,20 @@ main(int argc, char *argv[])
 				need_mask = 1;
 				break;
 			}
+		}
+
+		/*
+		 * Don't try to set an empty default ACL; it will always fail.
+		 * Use acl_delete_def_file(3) instead.
+		 */
+		if (acl_type == ACL_TYPE_DEFAULT &&
+		    acl_get_entry(acl, ACL_FIRST_ENTRY, &unused_entry) == 0) {
+			if (acl_delete_def_file(file->filename) == -1) {
+				warn("%s: acl_delete_def_file() failed",
+				    file->filename);
+				carried_error++;
+			}
+			continue;
 		}
 
 		/* don't bother setting the ACL if something is broken */

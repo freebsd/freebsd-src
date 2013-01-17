@@ -1,0 +1,14 @@
+The following is a demonstration of the pgpginbypid.d script,
+
+
+Here we run it for a few seconds then hit Ctrl-C,
+
+   # pgpginbypid.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+      PID CMD                         PAGES
+    10692 find                          128
+    10693 tar                         11928
+
+In the output above, we can see which processes are responsible for page ins,
+as well as the number of pages paged in.

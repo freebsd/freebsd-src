@@ -20,9 +20,7 @@ LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
 # Set by zfsloader Makefile
 .if defined(LOADER_ZFS_SUPPORT)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
-LIBZFS=		${.OBJDIR}/../../zfs/libzfsboot.a
-.else
-LIBZFS=
+LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
 .endif
 
 # Enable PXE TFTP or NFS support, not both.
@@ -52,11 +50,11 @@ CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .if !defined(LOADER_NO_GZIP_SUPPORT)
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
 .endif
-.if !defined(LOADER_NO_GPT_SUPPORT)
-CFLAGS+=	-DLOADER_GPT_SUPPORT
+.if defined(LOADER_NANDFS_SUPPORT)
+CFLAGS+=	-DLOADER_NANDFS_SUPPORT
 .endif
 
-# Always add MI sources 
+# Always add MI sources
 .PATH:		${.CURDIR}/../../common
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
@@ -101,11 +99,11 @@ FILES=	${LOADER}
 FILESMODE_${LOADER}= ${BINMODE} -b
 
 .if !defined(LOADER_ONLY)
-.PATH: ${.CURDIR}/../../forth 
+.PATH: ${.CURDIR}/../../forth
 FILES+=	loader.help loader.4th support.4th loader.conf
 FILES+= screen.4th frames.4th beastie.4th
 FILES+= brand.4th check-password.4th color.4th delay.4th
-FILES+= menu.4th menu-commands.4th shortcuts.4th version.4th
+FILES+= menu.4th menu-commands.4th menusets.4th shortcuts.4th version.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
@@ -117,16 +115,17 @@ FILES+= menu.rc
 .endif
 
 # XXX crt0.o needs to be first for pxeboot(8) to work
-OBJS=	${BTXCRT} 
+OBJS=	${BTXCRT}
 
-DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} ${LIBSTAND}
+DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND}
+LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND}
 
 .include <bsd.prog.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
+CFLAGS+=	-DLOADER_PREFER_AMD64
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif

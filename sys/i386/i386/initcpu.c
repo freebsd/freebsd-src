@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #define CPU_ENABLE_SSE
 #endif
 
-void initializecpu(void);
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
 void	enable_K5_wt_alloc(void);
 void	enable_K6_wt_alloc(void);
@@ -650,6 +649,8 @@ enable_sse(void)
 #endif
 }
 
+extern int elf32_nxstack;
+
 void
 initializecpu(void)
 {
@@ -739,6 +740,7 @@ initializecpu(void)
 			msr = rdmsr(MSR_EFER) | EFER_NXE;
 			wrmsr(MSR_EFER, msr);
 			pg_nx = PG_NX;
+			elf32_nxstack = 1;
 		}
 #endif
 		break;

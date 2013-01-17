@@ -31,7 +31,7 @@
 
 /*
  * Confirm that various UID/GID/etc-related system calls require root
- * privilege in the absense of any saved/real/etc variations in the
+ * privilege in the absence of any saved/real/etc variations in the
  * credential.  It would be nice to also check cases where those bits of the
  * credential are more interesting.
  *

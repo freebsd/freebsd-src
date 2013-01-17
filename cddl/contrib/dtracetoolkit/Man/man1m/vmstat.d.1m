@@ -1,0 +1,79 @@
+.TH vmstat.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+vmstat.d \- vmstat demo in DTrace. Uses DTrace.
+.SH SYNOPSIS
+.B vmstat.d
+.SH DESCRIPTION
+This has been written to demonstrate fetching the same data as vmstat
+from DTrace. This program is intended as a starting point for other
+DTrace scripts, by beginning with familiar statistics.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - uses various kernel symbols.
+.SH EXAMPLES
+.TP
+Print virtual memory statistics every second,
+# 
+.B vmstat.d
+.PP
+.SH FIELDS
+.TP
+w
+swapped out light weight processes
+.TP
+swap
+virtual memory free, Kbytes
+.TP
+free
+free RAM, Kbytes
+.TP
+re
+page reclaims, Kbytes
+.TP
+mf
+minor faults, Kbytes
+.TP
+pi
+page ins, Kbytes
+.TP
+po
+page outs, Kbytes
+.TP
+fr
+pages freed, Kbytes
+.TP
+sr
+scan rate, pages
+.TP
+in
+interrupts, number
+.TP
+sy
+system calls, number
+.TP
+cs
+context switches, number
+.PP
+.SH NOTES
+Most of the statistics are in units of kilobytes, unlike the
+original vmstat command which sometimes uses page counts.
+
+As this program does not use Kstat, there is no summary since boot line.
+
+Free RAM is both free free + cache free.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+vmstat.d will run until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+vmstat(1M), dtrace(1M)

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2004 Tom Rhodes
+.\" Copyright (c) 2011 Marius Strobl <marius@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,158 +25,91 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2005
+.Dd November 1, 2011
 .Dt ESP 4
 .Os
 .Sh NAME
 .Nm esp
-.Nd Qlogic FEPS and FAS366 SCSI driver
+.Nd Emulex ESP, NCR 53C9x and QLogic FAS families based SCSI controllers
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
+To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device scbus"
 .Cd "device esp"
 .Ed
-.Sh HARDWARE
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_esp_load="YES"
+.Ed
+.Sh DESCRIPTION
 The
 .Nm
 driver provides support for the
-.Tn Qlogic
-FAS216 and FAS408
+.Tn AMD
+Am53C974, the
+.Tn Emulex
+ESP100, ESP100A, ESP200 and ESP406, the
+.Tn NCR
+53C90, 53C94 and 53C96 as well as the
+.Tn QLogic
+FAS100A, FAS216, FAS366 and FAS408
 .Tn SCSI
 controller chips found in a wide variety of systems and peripheral boards.
-This includes the
-.Tn Qlogic
-.Tn SCSI
-cards found in most
-.Tn Sun
-.Tn Ultra 1e
-and
-.Tn Ultra 2
-machines.
-.Pp
-For
-.Tn Qlogic
-.Tn PCI
-.Tn SCSI
-host adapters, the
-.Xr isp 4
-driver should be used in place of the
+.Sh HARDWARE
+Controllers supported by the
 .Nm
-driver.
-.Sh IMPLEMENTATION NOTES
-During the boot sequence, the
-.Nm
-driver
-searches the linked list for LUN info by LUN ID.
-At this point the driver will attach on that instance,
-and then attempt to attach every sub-device.
+driver include:
 .Pp
-There are at least 4 variations of the
-configuration 3 register.
-A second config register must be loaded to inquire the chip revision,
-otherwise the
-.Fn ncr53c9x_reset
-function will not set the defaults correctly.
-.Pp
-The drive attach routine attempts to set the appropriate
-bit to put the chip into Fast
-.Tn SCSI
-mode so that it does not
-have to be figured out each time.
-This will then be stored in the
-.Tn NCR
-registers for later use.
-.Pp
-The
-.Nm
-driver makes use of the
-.Tn LSI
-64854
-.Tn DMA
-engine which contains three independent
-channels designed to interface with
-an NCR539X
-.Tn SCSI
-controller;
-an AM7990 Ethernet controller;
-and certain types of parallel port hardware.
-As such this driver may eventually replace the
-.Xr amd 4
-driver for network hardware.
-.Sh DIAGNOSTICS
-The following driver specific error messages
-may be reported:
-.Bl -diag
-.It "esp: cannot map %d segments"
-The device was unable to map segments while mapping the
-.Tn SCSI
-devices in
-.Tn DMA
-mode.
-.It "unknown variant %d, devices not attached"
-An unknown version of the card was found and devices will
-not be attached.
-.It "Unhandled function code %d"
-The device returned a function code which the driver is
-unable to handle, most likely during negotiation.
-.It "esp:%d:%d: selection failed %d left in FIFO"
-The target left the command phase prematurely.
-If a command did not reach the device then it will
-be reported as shown above.
-.It "invalid state: %d"
-The device has reached an invalid state.
+.Bl -bullet -compact
+.It
+MELCO IFC-DP (PC-98)
+.It
+Sun ESP family
+.It
+Sun FAS family
+.It
+Tekram DC390
+.It
+Tekram DC390T
 .El
 .Sh SEE ALSO
-.Xr amd 4 ,
-.Xr isp 4 ,
-.Xr scbus 4 ,
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr pci 4 ,
+.Xr sa 4 ,
+.Xr sbus 4 ,
+.Xr scsi 4 ,
 .Xr camcontrol 8
-.Pp
-.Bl -item -compact
-.It
-.Pa http://www.qlc.com/
-.It
-.Pa http://www.sun.com/
-.El
 .Sh HISTORY
 The
 .Nm
-driver was written for
-.Nx
-by
-.An Eric S. Hvozda .
+driver first appeared in
+.Nx 1.3 .
+The first
+.Fx
+version to include it was
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
 The
 .Nm
-driver was then ported to
-.Fx 5.3
+driver was ported to
+.Fx
 by
-.An Scott Long Aq scottl@FreeBSD.org .
-.Sh AUTHORS
-This manual page was written by
-.An Tom Rhodes Aq trhodes@FreeBSD.org
-instead of porting the original from
-.Nx .
+.An Scott Long
+.Aq scottl@FreeBSD.org
+and later on considerably improved by
+.An Marius Strobl
+.Aq marius@FreeBSD.org .
 .Sh BUGS
 The
 .Nm
-driver includes the sbus front-end but lacks the
-.Tn PCI
-front-end.
-Thus it can only support the
-.Tn FEPS/FAS366
-.Tn SCSI
-found in
-.Tn Sun
-.Tn Ultra 1e
-and
-.Tn Ultra 2
-machines at this time.
-.Pp
-This driver should eventually replace the
-.Xr amd 4
-driver, but that requires porting the
-.Tn PCI
-front-end mentioned above.
+driver should read the EEPROM settings of
+.Tn Tekram
+controllers.

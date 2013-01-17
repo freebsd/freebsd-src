@@ -14,7 +14,7 @@
 #include "llvm/Target/Mangler.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Support/raw_ostream.h"
@@ -22,12 +22,13 @@
 #include "llvm/ADT/Twine.h"
 using namespace llvm;
 
-static bool isAcceptableChar(char C, bool AllowPeriod) {
+static bool isAcceptableChar(char C, bool AllowPeriod, bool AllowUTF8) {
   if ((C < 'a' || C > 'z') &&
       (C < 'A' || C > 'Z') &&
       (C < '0' || C > '9') &&
       C != '_' && C != '$' && C != '@' &&
-      !(AllowPeriod && C == '.'))
+      !(AllowPeriod && C == '.') &&
+      !(AllowUTF8 && (C & 0x80)))
     return false;
   return true;
 }
@@ -43,7 +44,7 @@ static void MangleLetter(SmallVectorImpl<char> &OutName, unsigned char C) {
   OutName.push_back('_');
 }
 
-/// NameNeedsEscaping - Return true if the identifier \arg Str needs quotes
+/// NameNeedsEscaping - Return true if the identifier \p Str needs quotes
 /// for this assembler.
 static bool NameNeedsEscaping(StringRef Str, const MCAsmInfo &MAI) {
   assert(!Str.empty() && "Cannot create an empty MCSymbol");
@@ -56,8 +57,9 @@ static bool NameNeedsEscaping(StringRef Str, const MCAsmInfo &MAI) {
   // If any of the characters in the string is an unacceptable character, force
   // quotes.
   bool AllowPeriod = MAI.doesAllowPeriodsInName();
+  bool AllowUTF8 = MAI.doesAllowUTF8();
   for (unsigned i = 0, e = Str.size(); i != e; ++i)
-    if (!isAcceptableChar(Str[i], AllowPeriod))
+    if (!isAcceptableChar(Str[i], AllowPeriod, AllowUTF8))
       return true;
   return false;
 }
@@ -74,8 +76,9 @@ static void appendMangledName(SmallVectorImpl<char> &OutName, StringRef Str,
   }
 
   bool AllowPeriod = MAI.doesAllowPeriodsInName();
+  bool AllowUTF8 = MAI.doesAllowUTF8();
   for (unsigned i = 0, e = Str.size(); i != e; ++i) {
-    if (!isAcceptableChar(Str[i], AllowPeriod))
+    if (!isAcceptableChar(Str[i], AllowPeriod, AllowUTF8))
       MangleLetter(OutName, Str[i]);
     else
       OutName.push_back(Str[i]);
@@ -154,7 +157,7 @@ void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
 /// a suffix on their name indicating the number of words of arguments they
 /// take.
 static void AddFastCallStdCallSuffix(SmallVectorImpl<char> &OutName,
-                                     const Function *F, const TargetData &TD) {
+                                     const Function *F, const DataLayout &TD) {
   // Calculate arguments size total.
   unsigned ArgWords = 0;
   for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end();
@@ -180,8 +183,7 @@ void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
   ManglerPrefixTy PrefixTy = Mangler::Default;
   if (GV->hasPrivateLinkage() || isImplicitlyPrivate)
     PrefixTy = Mangler::Private;
-  else if (GV->hasLinkerPrivateLinkage() || GV->hasLinkerPrivateWeakLinkage() ||
-           GV->hasLinkerPrivateWeakDefAutoLinkage())
+  else if (GV->hasLinkerPrivateLinkage() || GV->hasLinkerPrivateWeakLinkage())
     PrefixTy = Mangler::LinkerPrivate;
   
   // If this global has a name, handle it simply.

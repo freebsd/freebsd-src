@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.599.8.12 2011-08-02 04:58:45 each Exp $ */
+/* $Id: server.c,v 1.599.8.19 2012/02/22 00:33:32 each Exp $ */
 
 /*! \file */
 
@@ -1358,7 +1358,7 @@ dns64_reverse(dns_view_t *view, isc_mem_t *mctx, isc_netaddr_t *na,
 {
 	char *cp;
 	char reverse[48+sizeof("ip6.arpa.")];
-	const char *dns64_dbtype[4] = { "_builtin", "dns64", ".", "." };
+	const char *dns64_dbtype[4] = { "_dns64", "dns64", ".", "." };
 	const char *sep = ": view ";
 	const char *viewname = view->name;
 	const unsigned char *s6;
@@ -1430,15 +1430,14 @@ cleanup:
 }
 
 static isc_result_t
-configure_rpz(dns_view_t *view, const cfg_listelt_t *element) {
-	const cfg_obj_t *rpz_obj, *policy_obj;
+configure_rpz(dns_view_t *view, const cfg_listelt_t *element,
+	      isc_boolean_t recursive_only_def, dns_ttl_t ttl_def)
+{
+	const cfg_obj_t *rpz_obj, *policy_obj, *obj;
 	const char *str;
-	dns_fixedname_t fixed;
-	dns_name_t *origin;
 	dns_rpz_zone_t *old, *new;
 	dns_zone_t *zone = NULL;
 	isc_result_t result;
-	unsigned int l1, l2;
 
 	new = isc_mem_get(view->mctx, sizeof(*new));
 	if (new == NULL) {
@@ -1447,9 +1446,10 @@ configure_rpz(dns_view_t *view, const cfg_listelt_t *element) {
 	}
 
 	memset(new, 0, sizeof(*new));
-	dns_name_init(&new->nsdname, NULL);
 	dns_name_init(&new->origin, NULL);
+	dns_name_init(&new->nsdname, NULL);
 	dns_name_init(&new->cname, NULL);
+	dns_name_init(&new->passthru, NULL);
 	ISC_LIST_INITANDAPPEND(view->rpz_zones, new, link);
 
 	rpz_obj = cfg_listelt_value(element);
@@ -1457,15 +1457,31 @@ configure_rpz(dns_view_t *view, const cfg_listelt_t *element) {
 	if (cfg_obj_isvoid(policy_obj)) {
 		new->policy = DNS_RPZ_POLICY_GIVEN;
 	} else {
-		str = cfg_obj_asstring(policy_obj);
+		str = cfg_obj_asstring(cfg_tuple_get(policy_obj,
+						     "policy name"));
 		new->policy = dns_rpz_str2policy(str);
 		INSIST(new->policy != DNS_RPZ_POLICY_ERROR);
 	}
 
-	dns_fixedname_init(&fixed);
-	origin = dns_fixedname_name(&fixed);
-	str = cfg_obj_asstring(cfg_tuple_get(rpz_obj, "name"));
-	result = dns_name_fromstring(origin, str, DNS_NAME_DOWNCASE, NULL);
+	obj = cfg_tuple_get(rpz_obj, "recursive-only");
+	if (cfg_obj_isvoid(obj)) {
+		new->recursive_only = recursive_only_def;
+	} else {
+		new->recursive_only = cfg_obj_asboolean(obj);
+	}
+	if (!new->recursive_only)
+		view->rpz_recursive_only = ISC_FALSE;
+
+	obj = cfg_tuple_get(rpz_obj, "max-policy-ttl");
+	if (cfg_obj_isuint32(obj)) {
+		new->max_policy_ttl = cfg_obj_asuint32(obj);
+	} else {
+		new->max_policy_ttl = ttl_def;
+	}
+
+	str = cfg_obj_asstring(cfg_tuple_get(rpz_obj, "zone name"));
+	result = dns_name_fromstring(&new->origin, str, DNS_NAME_DOWNCASE,
+				     view->mctx);
 	if (result != ISC_R_SUCCESS) {
 		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
 			    "invalid zone '%s'", str);
@@ -1473,31 +1489,28 @@ configure_rpz(dns_view_t *view, const cfg_listelt_t *element) {
 	}
 
 	result = dns_name_fromstring2(&new->nsdname, DNS_RPZ_NSDNAME_ZONE,
-				      origin, DNS_NAME_DOWNCASE, view->mctx);
+				      &new->origin, DNS_NAME_DOWNCASE,
+				      view->mctx);
 	if (result != ISC_R_SUCCESS) {
 		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
 			    "invalid zone '%s'", str);
 		goto cleanup;
 	}
 
-	/*
-	 * The origin is part of 'nsdname' so we don't need to keep it
-	 * seperately.
-	 */
-	l1 = dns_name_countlabels(&new->nsdname);
-	l2 = dns_name_countlabels(origin);
-	dns_name_getlabelsequence(&new->nsdname, l1 - l2, l2, &new->origin);
+	result = dns_name_fromstring(&new->passthru, DNS_RPZ_PASSTHRU_ZONE,
+				     DNS_NAME_DOWNCASE, view->mctx);
+	if (result != ISC_R_SUCCESS) {
+		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
+			    "invalid zone '%s'", str);
+		goto cleanup;
+	}
 
-	/*
-	 * Are we configured to with the reponse policy zone?
-	 */
 	result = dns_view_findzone(view, &new->origin, &zone);
 	if (result != ISC_R_SUCCESS) {
 		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
 			    "unknown zone '%s'", str);
 		goto cleanup;
 	}
-
 	if (dns_zone_gettype(zone) != dns_zone_master &&
 	    dns_zone_gettype(zone) != dns_zone_slave) {
 		cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
@@ -1521,8 +1534,9 @@ configure_rpz(dns_view_t *view, const cfg_listelt_t *element) {
 	}
 
 	if (new->policy == DNS_RPZ_POLICY_CNAME) {
-		str = cfg_obj_asstring(cfg_tuple_get(rpz_obj, "cname"));
-		result = dns_name_fromstring(&new->cname, str, 0, view->mctx);
+		str = cfg_obj_asstring(cfg_tuple_get(policy_obj, "cname"));
+		result = dns_name_fromstring(&new->cname, str,
+					     DNS_NAME_DOWNCASE, view->mctx);
 		if (result != ISC_R_SUCCESS) {
 			cfg_obj_log(rpz_obj, ns_g_lctx, DNS_RPZ_ERROR_LEVEL,
 				    "invalid cname '%s'", str);
@@ -2596,14 +2610,19 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	if (result == ISC_R_SUCCESS) {
 		/* If set to "auto", use the version from the defaults */
 		const cfg_obj_t *dlvobj;
+		const char *dom;
 		dlvobj = cfg_listelt_value(cfg_list_first(obj));
-		if (!strcmp(cfg_obj_asstring(cfg_tuple_get(dlvobj, "domain")),
-			    "auto") &&
-		    cfg_obj_isvoid(cfg_tuple_get(dlvobj, "trust-anchor"))) {
-			auto_dlv = ISC_TRUE;
-			obj = NULL;
-			result = cfg_map_get(ns_g_defaults,
-					     "dnssec-lookaside", &obj);
+		dom = cfg_obj_asstring(cfg_tuple_get(dlvobj, "domain"));
+		if (cfg_obj_isvoid(cfg_tuple_get(dlvobj, "trust-anchor"))) {
+			/* If "no", skip; if "auto", use global default */
+			if (!strcasecmp(dom, "no"))
+				result = ISC_R_NOTFOUND;
+			else if (!strcasecmp(dom, "auto")) {
+				auto_dlv = ISC_TRUE;
+				obj = NULL;
+				result = cfg_map_get(ns_g_defaults,
+						     "dnssec-lookaside", &obj);
+			}
 		}
 	}
 
@@ -2704,7 +2723,7 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 		rfc1918 = ISC_FALSE;
 		empty_zones_enable = ISC_FALSE;
 	}
-	if (empty_zones_enable) {
+	if (empty_zones_enable && !lwresd_g_useresolvconf) {
 		const char *empty;
 		int empty_zone = 0;
 		dns_fixedname_t fixed;
@@ -2842,7 +2861,8 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 			CHECK(dns_zone_create(&zone, mctx));
 			CHECK(dns_zone_setorigin(zone, name));
 			dns_zone_setview(zone, view);
-			CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr, zone));
+			CHECK(dns_zonemgr_managezone(ns_g_server->zonemgr,
+						     zone));
 			dns_zone_setclass(zone, view->rdclass);
 			dns_zone_settype(zone, dns_zone_master);
 			dns_zone_setstats(zone, ns_g_server->zonestats);
@@ -2870,19 +2890,39 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 	 * Make the list of response policy zone names for views that
 	 * are used for real lookups and so care about hints.
 	 */
-	zonelist = NULL;
-	if (view->rdclass == dns_rdataclass_in && need_hints) {
-		obj = NULL;
-		result = ns_config_get(maps, "response-policy", &obj);
-		if (result == ISC_R_SUCCESS)
-			cfg_map_get(obj, "zone", &zonelist);
-	}
+	obj = NULL;
+	if (view->rdclass == dns_rdataclass_in && need_hints &&
+	    ns_config_get(maps, "response-policy", &obj) == ISC_R_SUCCESS) {
+		const cfg_obj_t *recursive_only_obj;
+		const cfg_obj_t *break_dnssec_obj, *ttl_obj;
+		isc_boolean_t recursive_only_def;
+		dns_ttl_t ttl_def;
 
-	if (zonelist != NULL) {
-		for (element = cfg_list_first(zonelist);
+		recursive_only_obj = cfg_tuple_get(obj, "recursive-only");
+		if (!cfg_obj_isvoid(recursive_only_obj) &&
+		    !cfg_obj_asboolean(recursive_only_obj))
+			recursive_only_def = ISC_FALSE;
+		else
+			recursive_only_def = ISC_TRUE;
+
+		break_dnssec_obj = cfg_tuple_get(obj, "break-dnssec");
+		if (!cfg_obj_isvoid(break_dnssec_obj) &&
+		    cfg_obj_asboolean(break_dnssec_obj))
+			view->rpz_break_dnssec = ISC_TRUE;
+		else
+			view->rpz_break_dnssec = ISC_FALSE;
+
+		ttl_obj = cfg_tuple_get(obj, "max-policy-ttl");
+		if (cfg_obj_isuint32(ttl_obj))
+			ttl_def = cfg_obj_asuint32(ttl_obj);
+		else
+			ttl_def = DNS_RPZ_MAX_TTL_DEFAULT;
+
+		for (element = cfg_list_first(cfg_tuple_get(obj, "zone list"));
 		     element != NULL;
 		     element = cfg_list_next(element)) {
-			result = configure_rpz(view, element);
+			result = configure_rpz(view, element,
+					       recursive_only_def, ttl_def);
 			if (result != ISC_R_SUCCESS)
 				goto cleanup;
 			dns_rpz_set_need(ISC_TRUE);
@@ -3449,6 +3489,12 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	 */
 	CHECK(dns_view_addzone(view, zone));
 
+	/*
+	 * Ensure that zone keys are reloaded on reconfig
+	 */
+	if ((dns_zone_getkeyopts(zone) & DNS_ZONEKEY_MAINTAIN) != 0)
+		dns_zone_rekey(zone, ISC_FALSE);
+
  cleanup:
 	if (zone != NULL)
 		dns_zone_detach(&zone);
@@ -3489,6 +3535,7 @@ add_keydata_zone(dns_view_t *view, const char *directory, isc_mem_t *mctx) {
 		dns_zone_attach(pview->managed_keys, &view->managed_keys);
 		dns_zone_setview(pview->managed_keys, view);
 		dns_view_detach(&pview);
+		dns_zone_synckeyzone(view->managed_keys);
 		return (ISC_R_SUCCESS);
 	}
 
@@ -4278,14 +4325,11 @@ load_configuration(const char *filename, ns_server_t *server,
 	ns_cache_t *nsc;
 	struct cfg_context *nzctx;
 	int num_zones = 0;
+	isc_boolean_t exclusive = ISC_FALSE;
 
 	ISC_LIST_INIT(viewlist);
 	ISC_LIST_INIT(builtin_viewlist);
 	ISC_LIST_INIT(cachelist);
-
-	/* Ensure exclusive access to configuration data. */
-	result = isc_task_beginexclusive(server->task);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
 	/* Create the ACL configuration context */
 	if (ns_g_aclconfctx != NULL)
@@ -4380,6 +4424,13 @@ load_configuration(const char *filename, ns_server_t *server,
 		result = cfg_parse_file(bindkeys_parser, server->bindkeysfile,
 					&cfg_type_bindkeys, &bindkeys);
 		CHECK(result);
+	}
+
+	/* Ensure exclusive access to configuration data. */
+	if (!exclusive) {
+		result = isc_task_beginexclusive(server->task);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
+		exclusive = ISC_TRUE;
 	}
 
 	/*
@@ -5149,7 +5200,8 @@ load_configuration(const char *filename, ns_server_t *server,
 		adjust_interfaces(server, ns_g_mctx);
 
 	/* Relinquish exclusive access to configuration data. */
-	isc_task_endexclusive(server->task);
+	if (exclusive)
+		isc_task_endexclusive(server->task);
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
 		      ISC_LOG_DEBUG(1), "load_configuration: %s",
@@ -5416,11 +5468,13 @@ ns_server_create(isc_mem_t *mctx, ns_server_t **serverp) {
 
 	/*
 	 * Setup the server task, which is responsible for coordinating
-	 * startup and shutdown of the server.
+	 * startup and shutdown of the server, as well as all exclusive
+	 * tasks.
 	 */
 	CHECKFATAL(isc_task_create(ns_g_taskmgr, 0, &server->task),
 		   "creating server task");
 	isc_task_setname(server->task, "server", server);
+	isc_taskmgr_setexcltask(ns_g_taskmgr, server->task);
 	CHECKFATAL(isc_task_onshutdown(server->task, shutdown_server, server),
 		   "isc_task_onshutdown");
 	CHECKFATAL(isc_app_onrun(ns_g_mctx, server->task, run_server, server),
@@ -7352,13 +7406,14 @@ ns_server_add_zone(ns_server_t *server, char *args) {
 	CHECK(isc_stdio_open(view->new_zone_file, "a", &fp));
 
 	/* Mark view unfrozen so that zone can be added */
+	isc_task_beginexclusive(server->task);
 	dns_view_thaw(view);
 	result = configure_zone(cfg->config, parms, vconfig,
 				server->mctx, view, cfg->actx, ISC_FALSE);
 	dns_view_freeze(view);
-	if (result != ISC_R_SUCCESS) {
+	isc_task_endexclusive(server->task);
+	if (result != ISC_R_SUCCESS)
 		goto cleanup;
-	}
 
 	/* Is it there yet? */
 	CHECK(dns_zt_find(view->zonetable, &dnsname, 0, NULL, &zone));

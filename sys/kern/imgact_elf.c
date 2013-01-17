@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2000 David O'Brien
- * Copyright (c) 1995-1996 Søren Schmidt
+ * Copyright (c) 1995-1996 SÃ¸ren Schmidt
  * Copyright (c) 1996 Peter Wemm
  * All rights reserved.
  *
@@ -83,12 +83,12 @@ __FBSDID("$FreeBSD$");
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
 static Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
-    const char *interp, int32_t *osrel);
+    const char *interp, int interp_name_len, int32_t *osrel);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry, size_t pagesize);
-static int __elfN(load_section)(struct vmspace *vmspace, vm_object_t object,
-    vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
-    vm_prot_t prot, size_t pagesize);
+static int __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
+    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
+    size_t pagesize);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 static boolean_t __elfN(freebsd_trans_osrel)(const Elf_Note *note,
     int32_t *osrel);
@@ -118,7 +118,12 @@ static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
 
-static int __elfN(nxstack) = 0;
+int __elfN(nxstack) =
+#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */
+	1;
+#else
+	0;
+#endif
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     nxstack, CTLFLAG_RW, &__elfN(nxstack), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
@@ -249,7 +254,7 @@ __elfN(brand_inuse)(Elf_Brandinfo *entry)
 
 static Elf_Brandinfo *
 __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
-    int32_t *osrel)
+    int interp_name_len, int32_t *osrel)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	Elf_Brandinfo *bi;
@@ -295,7 +300,10 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
 				continue;
 			if (hdr->e_machine == bi->machine &&
-			    strcmp(interp, bi->interp_path) == 0)
+			    /* ELF image p_filesz includes terminating zero */
+			    strlen(bi->interp_path) + 1 == interp_name_len &&
+			    strncmp(interp, bi->interp_path, interp_name_len)
+			    == 0)
 				return (bi);
 		}
 	}
@@ -445,13 +453,14 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 }
 
 static int
-__elfN(load_section)(struct vmspace *vmspace,
-	vm_object_t object, vm_offset_t offset,
-	caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
-	size_t pagesize)
+__elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
+    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
+    size_t pagesize)
 {
 	struct sf_buf *sf;
 	size_t map_len;
+	vm_map_t map;
+	vm_object_t object;
 	vm_offset_t map_addr;
 	int error, rv, cow;
 	size_t copy_len;
@@ -466,12 +475,13 @@ __elfN(load_section)(struct vmspace *vmspace,
 	 * While I'm here, might as well check for something else that
 	 * is invalid: filsz cannot be greater than memsz.
 	 */
-	if ((off_t)filsz + offset > object->un_pager.vnp.vnp_size ||
-	    filsz > memsz) {
+	if ((off_t)filsz + offset > imgp->attr->va_size || filsz > memsz) {
 		uprintf("elf_load_section: truncated ELF file\n");
 		return (ENOEXEC);
 	}
 
+	object = imgp->object;
+	map = &imgp->proc->p_vmspace->vm_map;
 	map_addr = trunc_page_ps((vm_offset_t)vmaddr, pagesize);
 	file_addr = trunc_page_ps(offset, pagesize);
 
@@ -491,7 +501,7 @@ __elfN(load_section)(struct vmspace *vmspace,
 		cow = MAP_COPY_ON_WRITE | MAP_PREFAULT |
 		    (prot & VM_PROT_WRITE ? 0 : MAP_DISABLE_COREDUMP);
 
-		rv = __elfN(map_insert)(&vmspace->vm_map,
+		rv = __elfN(map_insert)(map,
 				      object,
 				      file_addr,	/* file offset */
 				      map_addr,		/* virtual start */
@@ -521,8 +531,8 @@ __elfN(load_section)(struct vmspace *vmspace,
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
-		rv = __elfN(map_insert)(&vmspace->vm_map, NULL, 0, map_addr,
-		    map_addr + map_len, VM_PROT_ALL, 0);
+		rv = __elfN(map_insert)(map, NULL, 0, map_addr, map_addr +
+		    map_len, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (EINVAL);
 		}
@@ -550,8 +560,8 @@ __elfN(load_section)(struct vmspace *vmspace,
 	 * set it to the specified protection.
 	 * XXX had better undo the damage from pasting over the cracks here!
 	 */
-	vm_map_protect(&vmspace->vm_map, trunc_page(map_addr),
-	    round_page(map_addr + map_len),  prot, FALSE);
+	vm_map_protect(map, trunc_page(map_addr), round_page(map_addr +
+	    map_len), prot, FALSE);
 
 	return (0);
 }
@@ -580,13 +590,12 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	const Elf_Ehdr *hdr = NULL;
 	const Elf_Phdr *phdr = NULL;
 	struct nameidata *nd;
-	struct vmspace *vmspace = p->p_vmspace;
 	struct vattr *attr;
 	struct image_params *imgp;
 	vm_prot_t prot;
 	u_long rbase;
 	u_long base_addr = 0;
-	int vfslocked, error, i, numsegs;
+	int error, i, numsegs;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -612,14 +621,11 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->object = NULL;
 	imgp->execlabel = NULL;
 
-	NDINIT(nd, LOOKUP, MPSAFE|LOCKLEAF|FOLLOW, UIO_SYSSPACE, file,
-	    curthread);
-	vfslocked = 0;
+	NDINIT(nd, LOOKUP, LOCKLEAF | FOLLOW, UIO_SYSSPACE, file, curthread);
 	if ((error = namei(nd)) != 0) {
 		nd->ni_vp = NULL;
 		goto fail;
 	}
-	vfslocked = NDHASGIANT(nd);
 	NDFREE(nd, NDF_ONLY_PNBUF);
 	imgp->vp = nd->ni_vp;
 
@@ -638,7 +644,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	 * Also make certain that the interpreter stays the same, so set
 	 * its VV_TEXT flag, too.
 	 */
-	nd->ni_vp->v_vflag |= VV_TEXT;
+	VOP_SET_TEXT(nd->ni_vp);
 
 	imgp->object = nd->ni_vp->v_object;
 
@@ -672,11 +678,10 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 		if (phdr[i].p_type == PT_LOAD && phdr[i].p_memsz != 0) {
 			/* Loadable segment */
 			prot = __elfN(trans_prot)(phdr[i].p_flags);
-			if ((error = __elfN(load_section)(vmspace,
-			    imgp->object, phdr[i].p_offset,
+			error = __elfN(load_section)(imgp, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
-			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
-			    pagesize)) != 0)
+			    phdr[i].p_memsz, phdr[i].p_filesz, prot, pagesize);
+			if (error != 0)
 				goto fail;
 			/*
 			 * Establish the base address if this is the
@@ -698,7 +703,6 @@ fail:
 	if (nd->ni_vp)
 		vput(nd->ni_vp);
 
-	VFS_UNLOCK_GIANT(vfslocked);
 	free(tempdata, M_TEMP);
 
 	return (error);
@@ -717,7 +721,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long seg_size, seg_addr;
 	u_long addr, baddr, et_dyn_addr, entry = 0, proghdr = 0;
 	int32_t osrel = 0;
-	int error = 0, i, n;
+	int error = 0, i, n, interp_name_len = 0;
 	const char *interp = NULL, *newinterp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
@@ -758,9 +762,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_INTERP:
 			/* Path to interpreter */
 			if (phdr[i].p_filesz > MAXPATHLEN ||
-			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE)
+			    phdr[i].p_offset >= PAGE_SIZE ||
+			    phdr[i].p_offset + phdr[i].p_filesz >= PAGE_SIZE)
 				return (ENOEXEC);
 			interp = imgp->image_header + phdr[i].p_offset;
+			interp_name_len = phdr[i].p_filesz;
 			break;
 		case PT_GNU_STACK:
 			if (__elfN(nxstack))
@@ -770,7 +776,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		}
 	}
 
-	brand_info = __elfN(get_brandinfo)(imgp, interp, &osrel);
+	brand_info = __elfN(get_brandinfo)(imgp, interp, interp_name_len,
+	    &osrel);
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
@@ -800,6 +807,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * than zero.  Consequently, the vnode lock is not needed by vrele().
 	 * However, in cases where the vnode lock is external, such as nullfs,
 	 * v_usecount may become zero.
+	 *
+	 * The VV_TEXT flag prevents modifications to the executable while
+	 * the vnode is unlocked.
 	 */
 	VOP_UNLOCK(imgp->vp, 0);
 
@@ -809,8 +819,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 	if (error)
 		return (error);
-
-	vmspace = imgp->proc->p_vmspace;
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		switch (phdr[i].p_type) {
@@ -828,11 +836,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				prot |= VM_PROT_EXECUTE;
 #endif
 
-			if ((error = __elfN(load_section)(vmspace,
-			    imgp->object, phdr[i].p_offset,
+			error = __elfN(load_section)(imgp, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + et_dyn_addr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
-			    sv->sv_pagesize)) != 0)
+			    sv->sv_pagesize);
+			if (error != 0)
 				return (error);
 
 			/*
@@ -901,6 +909,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		return (ENOMEM);
 	}
 
+	vmspace = imgp->proc->p_vmspace;
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
 	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr;
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
@@ -912,8 +921,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * calculation is that it leaves room for the heap to grow to
 	 * its maximum allowed size.
 	 */
-	addr = round_page((vm_offset_t)imgp->proc->p_vmspace->vm_daddr +
-	    lim_max(imgp->proc, RLIMIT_DATA));
+	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(imgp->proc,
+	    RLIMIT_DATA));
 	PROC_UNLOCK(imgp->proc);
 
 	imgp->entry_addr = entry;
@@ -1003,6 +1012,10 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	if (imgp->pagesizes != 0) {
 		AUXARGS_ENTRY(pos, AT_PAGESIZES, imgp->pagesizes);
 		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
+	}
+	if (imgp->sysent->sv_timekeep_base != 0) {
+		AUXARGS_ENTRY(pos, AT_TIMEKEEP,
+		    imgp->sysent->sv_timekeep_base);
 	}
 	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
@@ -1542,33 +1555,16 @@ __elfN(putnote)(void *dst, size_t *off, const char *name, int type,
 	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
 }
 
-/*
- * Try to find the appropriate ABI-note section for checknote,
- * fetch the osreldate for binary from the ELF OSABI-note. Only the
- * first page of the image is searched, the same as for headers.
- */
 static boolean_t
-__elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
-    int32_t *osrel)
+__elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
+    int32_t *osrel, const Elf_Phdr *pnote)
 {
 	const Elf_Note *note, *note0, *note_end;
-	const Elf_Phdr *phdr, *pnote;
-	const Elf_Ehdr *hdr;
 	const char *note_name;
 	int i;
 
-	pnote = NULL;
-	hdr = (const Elf_Ehdr *)imgp->image_header;
-	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
-
-	for (i = 0; i < hdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_NOTE) {
-			pnote = &phdr[i];
-			break;
-		}
-	}
-
 	if (pnote == NULL || pnote->p_offset >= PAGE_SIZE ||
+	    pnote->p_filesz > PAGE_SIZE ||
 	    pnote->p_offset + pnote->p_filesz >= PAGE_SIZE)
 		return (FALSE);
 
@@ -1576,15 +1572,17 @@ __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
 	note_end = (const Elf_Note *)(imgp->image_header +
 	    pnote->p_offset + pnote->p_filesz);
 	for (i = 0; i < 100 && note >= note0 && note < note_end; i++) {
-		if (!aligned(note, Elf32_Addr))
+		if (!aligned(note, Elf32_Addr) || (const char *)note_end -
+		    (const char *)note < sizeof(Elf_Note))
 			return (FALSE);
 		if (note->n_namesz != checknote->hdr.n_namesz ||
 		    note->n_descsz != checknote->hdr.n_descsz ||
 		    note->n_type != checknote->hdr.n_type)
 			goto nextnote;
 		note_name = (const char *)(note + 1);
-		if (strncmp(checknote->vendor, note_name,
-		    checknote->hdr.n_namesz) != 0)
+		if (note_name + checknote->hdr.n_namesz >=
+		    (const char *)note_end || strncmp(checknote->vendor,
+		    note_name, checknote->hdr.n_namesz) != 0)
 			goto nextnote;
 
 		/*
@@ -1603,6 +1601,31 @@ nextnote:
 	}
 
 	return (FALSE);
+}
+
+/*
+ * Try to find the appropriate ABI-note section for checknote,
+ * fetch the osreldate for binary from the ELF OSABI-note. Only the
+ * first page of the image is searched, the same as for headers.
+ */
+static boolean_t
+__elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
+    int32_t *osrel)
+{
+	const Elf_Phdr *phdr;
+	const Elf_Ehdr *hdr;
+	int i;
+
+	hdr = (const Elf_Ehdr *)imgp->image_header;
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+
+	for (i = 0; i < hdr->e_phnum; i++) {
+		if (phdr[i].p_type == PT_NOTE &&
+		    __elfN(parse_notes)(imgp, checknote, osrel, &phdr[i]))
+			return (TRUE);
+	}
+	return (FALSE);
+
 }
 
 /*

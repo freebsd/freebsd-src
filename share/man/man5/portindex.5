@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2009
+.Dd October 14, 2012
 .Dt PORTINDEX 5
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ branch, i.e.:
 .Pa INDEX-7 ,
 or
 .Pa INDEX-8 .
-.Bl -tag -compact -width indent
+.Bl -tag -width XXXXXXXXXX
 .It Cm \&name
 The name of the package.
 .It Cm \&path
@@ -77,7 +77,7 @@ Ports that may be required to patch this port.
 Ports that may be required to fetch this port.
 .El
 .Sh FILES
-.Bl -tag -width /usr/ports/INDEX-8
+.Bl -tag -width /usr/ports/INDEX-8XX
 .It Pa /usr/ports/INDEX- Ns Ar N
 where
 .Ar N
@@ -90,8 +90,7 @@ branch.
 vim-6.3.15|/usr/ports/editors/vim|/usr/local|Vi "workalike", with many additional features|/usr/ports/editors/vim/pkg-descr|obrien@FreeBSD.org|editors|libiconv-1.9.2_1|libiconv-1.9.2_1|http://www.vim.org/|||
 .Ed
 .Sh SEE ALSO
-.Xr build 1 ,
-.Xr csup 1 ,
+.Xr build 7 ,
 .Xr ports 7
 .Sh AUTHORS
 .An -nosplit

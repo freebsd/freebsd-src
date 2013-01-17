@@ -765,29 +765,6 @@ _C_LABEL(x):
 			:			/* no  outputs */	\
 			: "r" (data), "i" (spr), "i" (sel)); /* inputs */
 
-/*
- * The DYNAMIC_STATUS_MASK option adds an additional masking operation
- * when updating the hardware interrupt mask in the status register.
- *
- * This is useful for platforms that need to at run-time mask
- * interrupts based on motherboard configuration or to handle
- * slowly clearing interrupts.
- *
- * XXX this is only currently implemented for mips3.
- */
-#ifdef MIPS_DYNAMIC_STATUS_MASK
-#define	DYNAMIC_STATUS_MASK(sr,scratch)			\
-	lw	scratch, mips_dynamic_status_mask;	\
-	and	sr, sr, scratch
-
-#define	DYNAMIC_STATUS_MASK_TOUSER(sr,scratch1)		\
-	ori	sr, (MIPS_INT_MASK | MIPS_SR_INT_IE);	\
-	DYNAMIC_STATUS_MASK(sr,scratch1)
-#else
-#define	DYNAMIC_STATUS_MASK(sr,scratch)
-#define	DYNAMIC_STATUS_MASK_TOUSER(sr,scratch1)
-#endif
-
 #define	GET_CPU_PCPU(reg)		\
 	PTR_L	reg, _C_LABEL(pcpup);
 
@@ -855,6 +832,15 @@ _C_LABEL(x):
  * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
  *    For Programmers Volume III: The MIPS32 Privileged Resource Architecture"
  */
+#if defined(CPU_NLM)
+#define	HAZARD_DELAY	sll $0,3
+#define	ITLBNOPFIX	sll $0,3
+#elif defined(CPU_RMI)
+#define	HAZARD_DELAY
+#define	ITLBNOPFIX
+#else
 #define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
 #define	HAZARD_DELAY	nop;nop;nop;nop;nop;
+#endif
+
 #endif /* !_MACHINE_ASM_H_ */

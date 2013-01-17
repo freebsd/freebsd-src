@@ -43,9 +43,10 @@ extern int iamremote;
 
 BUF	*allocbuf (BUF *, int, int);
 char	*colon (char *);
+char    *unbracket(char *);
 void	 lostconn (int);
 void	 nospace (void);
 int	 okname (char *);
 void	 run_err (const char *, ...);
-int	 susystem (char *, int);
+int	 susystem (char *);
 void	 verifydir (char *);

@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -32,7 +32,7 @@
  */
 
 #include "common.h"
-RCSID("$Id: gssmask.c 21229 2007-06-20 10:19:19Z lha $");
+RCSID("$Id$");
 
 /*
  *
@@ -151,7 +151,7 @@ find_handle(struct handle *h, int32_t idx, enum handle_type type)
 {
     if (idx == 0)
 	return NULL;
-    
+
     while (h) {
 	if (h->idx == idx) {
 	    if (type == h->type)
@@ -160,7 +160,7 @@ find_handle(struct handle *h, int32_t idx, enum handle_type type)
 	}
 	h = h->next;
     }
-    return NULL;    
+    return NULL;
 }
 
 
@@ -229,7 +229,7 @@ acquire_cred(struct client *c,
 		   "krb5_get_init_creds failed: %d", ret);
 	return convert_krb5_to_gsm(ret);
     }
-	
+
     ret = krb5_cc_new_unique(context, "MEMORY", NULL, &id);
     if (ret)
 	krb5_err (context, 1, ret, "krb5_cc_initialize");
@@ -237,7 +237,7 @@ acquire_cred(struct client *c,
     ret = krb5_cc_initialize (context, id, cred.client);
     if (ret)
 	krb5_err (context, 1, ret, "krb5_cc_initialize");
-    
+
     ret = krb5_cc_store_cred (context, id, &cred);
     if (ret)
 	krb5_err (context, 1, ret, "krb5_cc_store_cred");
@@ -284,14 +284,14 @@ static int
 HandleOP(GoodBye)
 {
     struct handle *h = c->handles;
-    int i = 0;
+    unsigned int i = 0;
 
     while (h) {
 	h = h->next;
 	i++;
     }
 
-    if (i != 0)
+    if (i)
 	logmessage(c, __FILE__, __LINE__, 0,
 		   "Did not toast all resources: %d", i);
     return 1;
@@ -358,7 +358,7 @@ HandleOP(InitContext)
 	if (ctx)
 	    krb5_errx(context, 1, "initcreds, context not NULL, but first req");
     }
-	
+
     if ((flags & GSS_C_DELEG_FLAG) != 0)
 	logmessage(c, __FILE__, __LINE__, 0, "init_sec_context delegating");
     if ((flags & GSS_C_DCE_STYLE) != 0)
@@ -370,7 +370,7 @@ HandleOP(InitContext)
 				    gss_target_name,
 				    oid,
 				    flags & 0x7f,
-				    0, 
+				    0,
 				    NULL,
 				    input_token_ptr,
 				    NULL,
@@ -382,7 +382,7 @@ HandleOP(InitContext)
 	    del_handle(&c->handles, hContext);
 	new_context_id = 0;
 	logmessage(c, __FILE__, __LINE__, 0,
-		   "gss_init_sec_context returns code: %d/%d", 
+		   "gss_init_sec_context returns code: %d/%d",
 		   maj_stat, min_stat);
     } else {
 	if (input_token.length == 0)
@@ -461,7 +461,7 @@ HandleOP(AcceptContext)
 	if (hContext != 0)
 	    del_handle(&c->handles, hContext);
 	logmessage(c, __FILE__, __LINE__, 0,
-		   "gss_accept_sec_context returns code: %d/%d", 
+		   "gss_accept_sec_context returns code: %d/%d",
 		   maj_stat, min_stat);
 	new_context_id = 0;
     } else {
@@ -484,8 +484,8 @@ HandleOP(AcceptContext)
 	gss_release_cred(&min_stat, &deleg_cred);
 	deleg_hcred = 0;
     }
-	 
-    
+
+
     gsm_error = convert_gss_to_gsm(maj_stat);
 
     put32(c, new_context_id);
@@ -534,11 +534,11 @@ HandleOP(AcquireCreds)
 	gsm_error = convert_krb5_to_gsm(ret);
 	goto out;
     }
-    
+
     ret = krb5_get_init_creds_opt_alloc (context, &opt);
     if (ret)
 	krb5_err(context, 1, ret, "krb5_get_init_creds_opt_alloc");
-    
+
     krb5_get_init_creds_opt_set_pa_password(context, opt, password, NULL);
 
     gsm_error = acquire_cred(c, principal, opt, &handle);
@@ -580,22 +580,22 @@ HandleOP(Sign)
 
     input_token.length = token.length;
     input_token.value = token.data;
-    
+
     maj_stat = gss_get_mic(&min_stat, ctx, 0, &input_token,
 			   &output_token);
     if (maj_stat != GSS_S_COMPLETE)
 	errx(1, "gss_get_mic failed");
-    
+
     krb5_data_free(&token);
-    
+
     token.data = output_token.value;
     token.length = output_token.length;
-    
+
     put32(c, 0); /* XXX fix gsm_error */
     putdata(c, token);
-    
+
     gss_release_buffer(&min_stat, &output_token);
-    
+
     return 0;
 }
 
@@ -621,7 +621,7 @@ HandleOP(Verify)
 
     msg_token.length = msg.length;
     msg_token.value = msg.data;
-    
+
     retdata(c, mic);
 
     mic_token.length = mic.length;
@@ -631,12 +631,12 @@ HandleOP(Verify)
 			      &mic_token, &qop);
     if (maj_stat != GSS_S_COMPLETE)
 	errx(1, "gss_verify_mic failed");
-    
+
     krb5_data_free(&mic);
     krb5_data_free(&msg);
-    
+
     put32(c, 0); /* XXX fix gsm_error */
-    
+
     return 0;
 }
 
@@ -653,7 +653,7 @@ HandleOP(GetVersionAndCapabilities)
     {
 	struct utsname ut;
 	if (uname(&ut) == 0) {
-	    snprintf(name, sizeof(name), "%s-%s-%s", 
+	    snprintf(name, sizeof(name), "%s-%s-%s",
 		     ut.sysname, ut.version, ut.machine);
 	}
     }
@@ -663,7 +663,7 @@ HandleOP(GetVersionAndCapabilities)
 
     put32(c, GSSMAGGOTPROTOCOL);
     put32(c, cap);
-    putstring(c, str); 
+    putstring(c, str);
     free(str);
 
     return 0;
@@ -711,12 +711,12 @@ HandleOP(SetLoggingSocket)
 
     krb5_store_int32(c->logging, eLogSetMoniker);
     store_string(c->logging, c->moniker);
-    
+
     logmessage(c, __FILE__, __LINE__, 0, "logging turned on");
 
     return 0;
 }
-    
+
 
 static int
 HandleOP(ChangePassword)
@@ -751,22 +751,22 @@ HandleOP(Wrap)
 
     input_token.length = token.length;
     input_token.value = token.data;
-    
+
     maj_stat = gss_wrap(&min_stat, ctx, flags, 0, &input_token,
 			&conf_state, &output_token);
     if (maj_stat != GSS_S_COMPLETE)
 	errx(1, "gss_wrap failed");
-    
+
     krb5_data_free(&token);
-    
+
     token.data = output_token.value;
     token.length = output_token.length;
-    
+
     put32(c, 0); /* XXX fix gsm_error */
     putdata(c, token);
-    
+
     gss_release_buffer(&min_stat, &output_token);
-    
+
     return 0;
 }
 
@@ -793,13 +793,13 @@ HandleOP(Unwrap)
 
     input_token.length = token.length;
     input_token.value = token.data;
-    
+
     maj_stat = gss_unwrap(&min_stat, ctx, &input_token,
 			  &output_token, &conf_state, &qop_state);
-    
+
     if (maj_stat != GSS_S_COMPLETE)
 	errx(1, "gss_unwrap failed: %d/%d", maj_stat, min_stat);
-	
+
     krb5_data_free(&token);
     if (maj_stat == GSS_S_COMPLETE) {
 	token.data = output_token.value;
@@ -853,16 +853,177 @@ HandleOP(AcquirePKInitCreds)
 {
     int32_t flags;
     krb5_data pfxdata;
+    char fn[] = "FILE:/tmp/pkcs12-creds-XXXXXXX";
+    krb5_principal principal = NULL;
+    int fd;
 
     ret32(c, flags);
     retdata(c, pfxdata);
 
-    /* get credentials */
+    fd = mkstemp(fn + 5);
+    if (fd < 0)
+	errx(1, "mkstemp");
 
+    net_write(fd, pfxdata.data, pfxdata.length);
     krb5_data_free(&pfxdata);
+    close(fd);
+
+    if (principal)
+	krb5_free_principal(context, principal);
 
     put32(c, -1); /* hResource */
     put32(c, GSMERR_NOT_SUPPORTED);
+    return 0;
+}
+
+static int
+HandleOP(WrapExt)
+{
+    OM_uint32 maj_stat, min_stat;
+    int32_t hContext, flags, bflags;
+    krb5_data token, header, trailer;
+    gss_ctx_id_t ctx;
+    unsigned char *p;
+    int conf_state, iov_len;
+    gss_iov_buffer_desc iov[6];
+
+    ret32(c, hContext);
+    ret32(c, flags);
+    ret32(c, bflags);
+    retdata(c, header);
+    retdata(c, token);
+    retdata(c, trailer);
+
+    ctx = find_handle(c->handles, hContext, handle_context);
+    if (ctx == NULL)
+	errx(1, "wrap: reference to unknown context");
+
+    memset(&iov, 0, sizeof(iov));
+
+    iov_len = sizeof(iov)/sizeof(iov[0]);
+
+    if (bflags & WRAP_EXP_ONLY_HEADER)
+	iov_len -= 2; /* skip trailer and padding, aka dce-style */
+
+    iov[0].type = GSS_IOV_BUFFER_TYPE_HEADER | GSS_IOV_BUFFER_TYPE_FLAG_ALLOCATE;
+    if (header.length != 0) {
+	iov[1].type = GSS_IOV_BUFFER_TYPE_SIGN_ONLY;
+	iov[1].buffer.length = header.length;
+	iov[1].buffer.value = header.data;
+    } else {
+	iov[1].type = GSS_IOV_BUFFER_TYPE_EMPTY;
+    }
+    iov[2].type = GSS_IOV_BUFFER_TYPE_DATA;
+    iov[2].buffer.length = token.length;
+    iov[2].buffer.value = token.data;
+    if (trailer.length != 0) {
+	iov[3].type = GSS_IOV_BUFFER_TYPE_SIGN_ONLY;
+	iov[3].buffer.length = trailer.length;
+	iov[3].buffer.value = trailer.data;
+    } else {
+	iov[3].type = GSS_IOV_BUFFER_TYPE_EMPTY;
+    }
+    iov[4].type = GSS_IOV_BUFFER_TYPE_PADDING | GSS_IOV_BUFFER_TYPE_FLAG_ALLOCATE;
+    iov[5].type = GSS_IOV_BUFFER_TYPE_TRAILER | GSS_IOV_BUFFER_TYPE_FLAG_ALLOCATE;
+
+    maj_stat = gss_wrap_iov_length(&min_stat, ctx, flags, 0, &conf_state,
+				   iov, iov_len);
+    if (maj_stat != GSS_S_COMPLETE)
+	errx(1, "gss_wrap_iov_length failed");
+
+    maj_stat = gss_wrap_iov(&min_stat, ctx, flags, 0, &conf_state,
+			    iov, iov_len);
+    if (maj_stat != GSS_S_COMPLETE)
+	errx(1, "gss_wrap_iov failed");
+
+    krb5_data_free(&token);
+
+    token.length = iov[0].buffer.length + iov[2].buffer.length + iov[4].buffer.length + iov[5].buffer.length;
+    token.data = malloc(token.length);
+
+    p = token.data;
+    memcpy(p, iov[0].buffer.value, iov[0].buffer.length);
+    p += iov[0].buffer.length;
+    memcpy(p, iov[2].buffer.value, iov[2].buffer.length);
+    p += iov[2].buffer.length;
+    memcpy(p, iov[4].buffer.value, iov[4].buffer.length);
+    p += iov[4].buffer.length;
+    memcpy(p, iov[5].buffer.value, iov[5].buffer.length);
+    p += iov[5].buffer.length;
+
+    gss_release_iov_buffer(NULL, iov, iov_len);
+
+    put32(c, 0); /* XXX fix gsm_error */
+    putdata(c, token);
+
+    free(token.data);
+
+    return 0;
+}
+
+
+static int
+HandleOP(UnwrapExt)
+{
+    OM_uint32 maj_stat, min_stat;
+    int32_t hContext, flags, bflags;
+    krb5_data token, header, trailer;
+    gss_ctx_id_t ctx;
+    gss_iov_buffer_desc iov[3];
+    int conf_state, iov_len;
+    gss_qop_t qop_state;
+
+    ret32(c, hContext);
+    ret32(c, flags);
+    ret32(c, bflags);
+    retdata(c, header);
+    retdata(c, token);
+    retdata(c, trailer);
+
+    iov_len = sizeof(iov)/sizeof(iov[0]);
+
+    if (bflags & WRAP_EXP_ONLY_HEADER)
+	iov_len -= 1; /* skip trailer and padding, aka dce-style */
+
+    ctx = find_handle(c->handles, hContext, handle_context);
+    if (ctx == NULL)
+	errx(1, "unwrap: reference to unknown context");
+
+    if (header.length != 0) {
+	iov[0].type = GSS_IOV_BUFFER_TYPE_SIGN_ONLY;
+	iov[0].buffer.length = header.length;
+	iov[0].buffer.value = header.data;
+    } else {
+	iov[0].type = GSS_IOV_BUFFER_TYPE_EMPTY;
+    }
+    iov[1].type = GSS_IOV_BUFFER_TYPE_DATA;
+    iov[1].buffer.length = token.length;
+    iov[1].buffer.value = token.data;
+
+    if (trailer.length != 0) {
+	iov[2].type = GSS_IOV_BUFFER_TYPE_SIGN_ONLY;
+	iov[2].buffer.length = trailer.length;
+	iov[2].buffer.value = trailer.data;
+    } else {
+	iov[2].type = GSS_IOV_BUFFER_TYPE_EMPTY;
+    }
+
+    maj_stat = gss_unwrap_iov(&min_stat, ctx, &conf_state, &qop_state,
+			      iov, iov_len);
+
+    if (maj_stat != GSS_S_COMPLETE)
+	errx(1, "gss_unwrap failed: %d/%d", maj_stat, min_stat);
+
+    if (maj_stat == GSS_S_COMPLETE) {
+	token.data = iov[1].buffer.value;
+	token.length = iov[1].buffer.length;
+    } else {
+	token.data = NULL;
+	token.length = 0;
+    }
+    put32(c, 0); /* XXX fix gsm_error */
+    putdata(c, token);
+
     return 0;
 }
 
@@ -899,7 +1060,9 @@ struct handler handlers[] = {
     S(ConnectLoggingService2),
     S(GetMoniker),
     S(CallExtension),
-    S(AcquirePKInitCreds)
+    S(AcquirePKInitCreds),
+    S(WrapExt),
+    S(UnwrapExt),
 };
 
 #undef S
@@ -937,16 +1100,16 @@ create_client(int fd, int port, const char *moniker)
     {
 	c->salen = sizeof(c->sa);
 	getpeername(fd, (struct sockaddr *)&c->sa, &c->salen);
-	
-	getnameinfo((struct sockaddr *)&c->sa, c->salen, 
-		    c->servername, sizeof(c->servername), 
+
+	getnameinfo((struct sockaddr *)&c->sa, c->salen,
+		    c->servername, sizeof(c->servername),
 		    NULL, 0, NI_NUMERICHOST);
     }
 
     c->sock = krb5_storage_from_fd(fd);
     if (c->sock == NULL)
 	errx(1, "krb5_storage_from_fd");
-    
+
     close(fd);
 
     return c;
@@ -987,7 +1150,7 @@ handleServer(void *ptr)
 	}
 
 	logmessage(c, __FILE__, __LINE__, 0,
-		   "---> Got op %s from server %s", 
+		   "---> Got op %s from server %s",
 		   handler->name, c->servername);
 
 	if ((handler->func)(handler->op, c))
@@ -1072,11 +1235,11 @@ main(int argc, char **argv)
 	    err(1, "error opening %s", lf);
     }
 
-    mini_inetd(htons(port));
+    mini_inetd(htons(port), NULL);
     fprintf(logfile, "connected\n");
 
     {
-	struct client *c; 
+	struct client *c;
 
 	c = create_client(0, port, moniker_str);
 	/* close(0); */

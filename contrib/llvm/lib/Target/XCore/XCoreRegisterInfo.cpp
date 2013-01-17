@@ -1,4 +1,4 @@
-//===- XCoreRegisterInfo.cpp - XCore Register Information -------*- C++ -*-===//
+//===-- XCoreRegisterInfo.cpp - XCore Register Information ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,6 +14,8 @@
 #include "XCoreRegisterInfo.h"
 #include "XCoreMachineFunctionInfo.h"
 #include "XCore.h"
+#include "llvm/Type.h"
+#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -24,8 +26,6 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Type.h"
-#include "llvm/Function.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
@@ -54,28 +54,14 @@ static inline bool isImmU16(unsigned val) {
   return val < (1 << 16);
 }
 
-static const unsigned XCore_ArgRegs[] = {
-  XCore::R0, XCore::R1, XCore::R2, XCore::R3
-};
-
-const unsigned * XCoreRegisterInfo::getArgRegs(const MachineFunction *MF)
-{
-  return XCore_ArgRegs;
-}
-
-unsigned XCoreRegisterInfo::getNumArgRegs(const MachineFunction *MF)
-{
-  return array_lengthof(XCore_ArgRegs);
-}
-
 bool XCoreRegisterInfo::needsFrameMoves(const MachineFunction &MF) {
   return MF.getMMI().hasDebugInfo() ||
     MF.getFunction()->needsUnwindTableEntry();
 }
 
-const unsigned* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
+const uint16_t* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
                                                                          const {
-  static const unsigned CalleeSavedRegs[] = {
+  static const uint16_t CalleeSavedRegs[] = {
     XCore::R4, XCore::R5, XCore::R6, XCore::R7,
     XCore::R8, XCore::R9, XCore::R10, XCore::LR,
     0
@@ -103,6 +89,11 @@ XCoreRegisterInfo::requiresRegisterScavenging(const MachineFunction &MF) const {
 
   // TODO can we estimate stack size?
   return TFI->hasFP(MF);
+}
+
+bool
+XCoreRegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
+  return requiresRegisterScavenging(MF);
 }
 
 bool
@@ -185,7 +176,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   #ifndef NDEBUG
   DEBUG(errs() << "\nFunction         : " 
-        << MF.getFunction()->getName() << "\n");
+        << MF.getName() << "\n");
   DEBUG(errs() << "<--------->\n");
   DEBUG(MI.print(errs()));
   DEBUG(errs() << "FrameIndex         : " << FrameIndex << "\n");
@@ -219,8 +210,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   unsigned Reg = MI.getOperand(0).getReg();
   bool isKill = MI.getOpcode() == XCore::STWFI && MI.getOperand(0).isKill();
 
-  assert(XCore::GRRegsRegisterClass->contains(Reg) &&
-         "Unexpected register operand");
+  assert(XCore::GRRegsRegClass.contains(Reg) && "Unexpected register operand");
   
   MachineBasicBlock &MBB = *MI.getParent();
   
@@ -231,7 +221,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       if (!RS)
         report_fatal_error("eliminateFrameIndex Frame size too big: " +
                            Twine(Offset));
-      unsigned ScratchReg = RS->scavengeRegister(XCore::GRRegsRegisterClass, II,
+      unsigned ScratchReg = RS->scavengeRegister(&XCore::GRRegsRegClass, II,
                                                  SPAdj);
       loadConstant(MBB, II, ScratchReg, Offset, dl);
       switch (MI.getOpcode()) {

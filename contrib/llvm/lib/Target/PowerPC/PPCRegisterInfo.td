@@ -1,10 +1,10 @@
-//===- PPCRegisterInfo.td - The PowerPC Register File ------*- tablegen -*-===//
-// 
+//===-- PPCRegisterInfo.td - The PowerPC Register File -----*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 //
@@ -314,12 +314,18 @@ def CRBITRC : RegisterClass<"PPC", [i32], 32,
 }
 
 def CRRC : RegisterClass<"PPC", [i32], 32, (add CR0, CR1, CR5, CR6,
-                                                CR7, CR2, CR3, CR4)> {
-  let SubRegClasses = [(CRBITRC sub_lt, sub_gt, sub_eq, sub_un)];
+                                                CR7, CR2, CR3, CR4)>;
+
+// The CTR registers are not allocatable because they're used by the
+// decrement-and-branch instructions, and thus need to stay live across
+// multiple basic blocks.
+def CTRRC : RegisterClass<"PPC", [i32], 32, (add CTR)> {
+  let isAllocatable = 0;
+}
+def CTRRC8 : RegisterClass<"PPC", [i64], 64, (add CTR8)> {
+  let isAllocatable = 0;
 }
 
-def CTRRC : RegisterClass<"PPC", [i32], 32, (add CTR)>;
-def CTRRC8 : RegisterClass<"PPC", [i64], 64, (add CTR8)>;
 def VRSAVERC : RegisterClass<"PPC", [i32], 32, (add VRSAVE)>;
 def CARRYRC : RegisterClass<"PPC", [i32], 32, (add CARRY)> {
   let CopyCost = -1;

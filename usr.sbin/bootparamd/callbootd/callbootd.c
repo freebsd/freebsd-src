@@ -81,7 +81,6 @@ char **argv;
 
   long the_inet_addr;
   CLIENT *clnt;
-  enum clnt_stat clnt_stat;
 
   stat_whoami_res.client_name = cln;
   stat_whoami_res.domain_name = dmn;
@@ -117,7 +116,7 @@ char **argv;
       } else
 	exit(0);
      } else {
-       clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
+       (void)clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_WHOAMI,
 			       (xdrproc_t)xdr_bp_whoami_arg,
 			       (char *)&whoami_arg,
@@ -140,7 +139,7 @@ char **argv;
       } else
 	exit(0);
     } else {
-      clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
+      (void)clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_GETFILE,
 			       (xdrproc_t)xdr_bp_getfile_arg,
 			       (char *)&getfile_arg,

@@ -111,7 +111,7 @@ typedef	__pid_t		pid_t;
 
 #if __BSD_VISIBLE
 /* Attempt to bypass buffer cache */
-#define O_DIRECT	0x00010000
+#define	O_DIRECT	0x00010000
 #endif
 
 /* Defined by POSIX Extended API Set Part 2 */
@@ -213,18 +213,28 @@ typedef	__pid_t		pid_t;
 #define	F_SETFL		4		/* set file status flags */
 #if __BSD_VISIBLE || __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
 #define	F_GETOWN	5		/* get SIGIO/SIGURG proc/pgrp */
-#define F_SETOWN	6		/* set SIGIO/SIGURG proc/pgrp */
+#define	F_SETOWN	6		/* set SIGIO/SIGURG proc/pgrp */
 #endif
+#if __BSD_VISIBLE
 #define	F_OGETLK	7		/* get record locking information */
 #define	F_OSETLK	8		/* set record locking information */
 #define	F_OSETLKW	9		/* F_SETLK; wait if blocked */
 #define	F_DUP2FD	10		/* duplicate file descriptor to arg */
+#endif
 #define	F_GETLK		11		/* get record locking information */
 #define	F_SETLK		12		/* set record locking information */
 #define	F_SETLKW	13		/* F_SETLK; wait if blocked */
+#if __BSD_VISIBLE
 #define	F_SETLK_REMOTE	14		/* debugging support for remote locks */
 #define	F_READAHEAD	15		/* read ahead */
 #define	F_RDAHEAD	16		/* Darwin compatible read ahead */
+#endif
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+#define	F_DUPFD_CLOEXEC	17		/* Like F_DUPFD, but FD_CLOEXEC is set */
+#endif
+#if __BSD_VISIBLE
+#define	F_DUP2FD_CLOEXEC 18		/* Like F_DUP2FD, but FD_CLOEXEC is set */
+#endif
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define	FD_CLOEXEC	1		/* close-on-exec flag */
@@ -233,14 +243,16 @@ typedef	__pid_t		pid_t;
 #define	F_RDLCK		1		/* shared or read lock */
 #define	F_UNLCK		2		/* unlock */
 #define	F_WRLCK		3		/* exclusive or write lock */
+#if __BSD_VISIBLE
 #define	F_UNLCKSYS	4		/* purge locks for a given system ID */ 
 #define	F_CANCEL	5		/* cancel an async lock request */
+#endif
 #ifdef _KERNEL
 #define	F_WAIT		0x010		/* Wait until lock is granted */
 #define	F_FLOCK		0x020	 	/* Use flock(2) semantics for lock */
 #define	F_POSIX		0x040	 	/* Use POSIX semantics for lock */
 #define	F_REMOTE	0x080		/* Lock owner is remote NFS client */
-#define F_NOINTR	0x100		/* Ignore signals when waiting */
+#define	F_NOINTR	0x100		/* Ignore signals when waiting */
 #endif
 
 /*
@@ -256,18 +268,19 @@ struct flock {
 	int	l_sysid;	/* remote system id or zero for local */
 };
 
+#if __BSD_VISIBLE
 /*
  * Old advisory file segment locking data type,
  * before adding l_sysid.
  */
-struct oflock {
+struct __oflock {
 	off_t	l_start;	/* starting offset */
 	off_t	l_len;		/* len = 0 means until end of file */
 	pid_t	l_pid;		/* lock owner */
 	short	l_type;		/* lock type: read/write, etc. */
 	short	l_whence;	/* type of l_start */
 };
-
+#endif
 
 #if __BSD_VISIBLE
 /* lock operations for flock(2) */
@@ -277,23 +290,32 @@ struct oflock {
 #define	LOCK_UN		0x08		/* unlock file */
 #endif
 
+#if __POSIX_VISIBLE >= 200112
 /*
- * XXX missing posix_fadvise() and POSIX_FADV_* macros.
+ * Advice to posix_fadvise
  */
+#define	POSIX_FADV_NORMAL	0	/* no special treatment */
+#define	POSIX_FADV_RANDOM	1	/* expect random page references */
+#define	POSIX_FADV_SEQUENTIAL	2	/* expect sequential page references */
+#define	POSIX_FADV_WILLNEED	3	/* will need these pages */
+#define	POSIX_FADV_DONTNEED	4	/* dont need these pages */
+#define	POSIX_FADV_NOREUSE	5	/* access data only once */
+#endif
 
 #ifndef _KERNEL
 __BEGIN_DECLS
 int	open(const char *, int, ...);
 int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
+#if __BSD_VISIBLE
+int	flock(int, int);
+#endif
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 int	openat(int, const char *, int, ...);
 #endif
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112
+int	posix_fadvise(int, off_t, off_t, int);
 int	posix_fallocate(int, off_t, off_t);
-#endif
-#if __BSD_VISIBLE
-int	flock(int, int);
 #endif
 __END_DECLS
 #endif

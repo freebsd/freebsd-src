@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="ntpdate"
-rcvar=`set_rcvar`
+rcvar="ntpdate_enable"
 stop_cmd=":"
 start_cmd="ntpdate_start"
 

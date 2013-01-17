@@ -51,16 +51,12 @@ _pthread_set_name_np(pthread_t thread, const char *name)
 		if (thr_set_name(thread->tid, name))
 			ret = errno;
 	} else {
-		if (_thr_ref_add(curthread, thread, 0) == 0) {
-			THR_THREAD_LOCK(curthread, thread);
+		if ((ret=_thr_find_thread(curthread, thread, 0)) == 0) {
 			if (thread->state != PS_DEAD) {
 				if (thr_set_name(thread->tid, name))
 					ret = errno;
 			}
 			THR_THREAD_UNLOCK(curthread, thread);
-			_thr_ref_delete(curthread, thread);
-		} else {
-			ret = ESRCH;
 		}
 	}
 #if 0

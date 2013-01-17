@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -37,6 +37,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -54,6 +55,7 @@
 #include <dev/pci/pcireg.h>
 
 #define ASSERT(x) if(!(x)) panic("IXGBE: x")
+#define EWARN(H, W, S) printf(W)
 
 /* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
 #define usec_delay(x) DELAY(x)
@@ -67,12 +69,17 @@
 	#define DEBUGOUT1(S,A)      printf(S "\n",A)
 	#define DEBUGOUT2(S,A,B)    printf(S "\n",A,B)
 	#define DEBUGOUT3(S,A,B,C)  printf(S "\n",A,B,C)
+	#define DEBUGOUT4(S,A,B,C,D)  printf(S "\n",A,B,C,D)
+	#define DEBUGOUT5(S,A,B,C,D,E)  printf(S "\n",A,B,C,D,E)
+	#define DEBUGOUT6(S,A,B,C,D,E,F)  printf(S "\n",A,B,C,D,E,F)
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)  printf(S "\n",A,B,C,D,E,F,G)
 #else
 	#define DEBUGOUT(S)
 	#define DEBUGOUT1(S,A)
 	#define DEBUGOUT2(S,A,B)
 	#define DEBUGOUT3(S,A,B,C)
+	#define DEBUGOUT4(S,A,B,C,D)
+	#define DEBUGOUT5(S,A,B,C,D,E)
 	#define DEBUGOUT6(S,A,B,C,D,E,F)
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)
 #endif
@@ -83,11 +90,21 @@
 #define true                1
 #define CMD_MEM_WRT_INVALIDATE          0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER            PCIR_COMMAND
+
+/* Bunch of defines for shared code bogosity */
 #define UNREFERENCED_PARAMETER(_p)
+#define UNREFERENCED_1PARAMETER(_p)
+#define UNREFERENCED_2PARAMETER(_p, _q)
+#define UNREFERENCED_3PARAMETER(_p, _q, _r)
+#define UNREFERENCED_4PARAMETER(_p, _q, _r, _s)
 
 
 #define IXGBE_NTOHL(_i)	ntohl(_i)
 #define IXGBE_NTOHS(_i)	ntohs(_i)
+
+/* XXX these need to be revisited */
+#define IXGBE_CPU_TO_LE32 le32toh
+#define IXGBE_LE32_TO_CPUS le32dec
 
 typedef uint8_t		u8;
 typedef int8_t		s8;
@@ -95,7 +112,17 @@ typedef uint16_t	u16;
 typedef uint32_t	u32;
 typedef int32_t		s32;
 typedef uint64_t	u64;
+#ifndef __bool_true_false_are_defined
 typedef boolean_t	bool;
+#endif
+
+/* shared code requires this */
+#define __le16  u16
+#define __le32  u32
+#define __le64  u64
+#define __be16  u16
+#define __be32  u32
+#define __be64  u64
 
 #define le16_to_cpu 
 
@@ -120,6 +147,25 @@ void prefetch(void *x)
 #else
 #define prefetch(x)
 #endif
+
+/*
+ * Optimized bcopy thanks to Luigi Rizzo's investigative work.  Assumes
+ * non-overlapping regions and 32-byte padding on both src and dst.
+ */
+static __inline int
+ixgbe_bcopy(void *_src, void *_dst, int l)
+{
+	uint64_t *src = _src;
+	uint64_t *dst = _dst;
+
+	for (; l > 0; l -= 32) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
+	return (0);
+}
 
 struct ixgbe_osdep
 {

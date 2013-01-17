@@ -57,6 +57,9 @@ TEMPLATE_INSTANTIATION(class opt<char>);
 TEMPLATE_INSTANTIATION(class opt<bool>);
 } } // end namespace llvm::cl
 
+void GenericOptionValue::anchor() {}
+void OptionValue<boolOrDefault>::anchor() {}
+void OptionValue<std::string>::anchor() {}
 void Option::anchor() {}
 void basic_parser_impl::anchor() {}
 void parser<bool>::anchor() {}
@@ -216,10 +219,10 @@ static Option *LookupNearestOption(StringRef Arg,
       if (!Best || Distance < BestDistance) {
         Best = O;
         BestDistance = Distance;
-	if (RHS.empty() || !PermitValue)
-	  NearestString = OptionNames[i];
-	else
-	  NearestString = std::string(OptionNames[i]) + "=" + RHS.str();
+        if (RHS.empty() || !PermitValue)
+          NearestString = OptionNames[i];
+        else
+          NearestString = std::string(OptionNames[i]) + "=" + RHS.str();
       }
     }
   }
@@ -263,8 +266,8 @@ static bool CommaSeparateAndAddOccurence(Option *Handler, unsigned pos,
 /// and a null value (StringRef()).  The later is accepted for arguments that
 /// don't allow a value (-foo) the former is rejected (-foo=).
 static inline bool ProvideOption(Option *Handler, StringRef ArgName,
-                                 StringRef Value, int argc, char **argv,
-                                 int &i) {
+                                 StringRef Value, int argc,
+                                 const char *const *argv, int &i) {
   // Is this a multi-argument option?
   unsigned NumAdditionalVals = Handler->getNumAdditionalVals();
 
@@ -289,12 +292,6 @@ static inline bool ProvideOption(Option *Handler, StringRef ArgName,
     break;
   case ValueOptional:
     break;
-
-  default:
-    errs() << ProgramName
-         << ": Bad ValueMask flag! CommandLine usage error:"
-         << Handler->getValueExpectedFlag() << "\n";
-    llvm_unreachable(0);
   }
 
   // If this isn't a multi-arg option, just run the handler.
@@ -467,7 +464,7 @@ static void ParseCStringVector(std::vector<char *> &OutputVector,
 /// an environment variable (whose name is given in ENVVAR).
 ///
 void cl::ParseEnvironmentOptions(const char *progName, const char *envVar,
-                                 const char *Overview, bool ReadResponseFiles) {
+                                 const char *Overview) {
   // Check args.
   assert(progName && "Program name not specified");
   assert(envVar && "Environment variable name missing");
@@ -486,7 +483,7 @@ void cl::ParseEnvironmentOptions(const char *progName, const char *envVar,
   // and hand it off to ParseCommandLineOptions().
   ParseCStringVector(newArgv, envValue);
   int newArgc = static_cast<int>(newArgv.size());
-  ParseCommandLineOptions(newArgc, &newArgv[0], Overview, ReadResponseFiles);
+  ParseCommandLineOptions(newArgc, &newArgv[0], Overview);
 
   // Free all the strdup()ed strings.
   for (std::vector<char*>::iterator i = newArgv.begin(), e = newArgv.end();
@@ -498,10 +495,10 @@ void cl::ParseEnvironmentOptions(const char *progName, const char *envVar,
 /// ExpandResponseFiles - Copy the contents of argv into newArgv,
 /// substituting the contents of the response files for the arguments
 /// of type @file.
-static void ExpandResponseFiles(unsigned argc, char** argv,
+static void ExpandResponseFiles(unsigned argc, const char*const* argv,
                                 std::vector<char*>& newArgv) {
   for (unsigned i = 1; i != argc; ++i) {
-    char *arg = argv[i];
+    const char *arg = argv[i];
 
     if (arg[0] == '@') {
       sys::PathWithStatus respFile(++arg);
@@ -531,8 +528,8 @@ static void ExpandResponseFiles(unsigned argc, char** argv,
   }
 }
 
-void cl::ParseCommandLineOptions(int argc, char **argv,
-                                 const char *Overview, bool ReadResponseFiles) {
+void cl::ParseCommandLineOptions(int argc, const char * const *argv,
+                                 const char *Overview) {
   // Process all registered options.
   SmallVector<Option*, 4> PositionalOpts;
   SmallVector<Option*, 4> SinkOpts;
@@ -544,12 +541,10 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
 
   // Expand response files.
   std::vector<char*> newArgv;
-  if (ReadResponseFiles) {
-    newArgv.push_back(strdup(argv[0]));
-    ExpandResponseFiles(argc, argv, newArgv);
-    argv = &newArgv[0];
-    argc = static_cast<int>(newArgv.size());
-  }
+  newArgv.push_back(strdup(argv[0]));
+  ExpandResponseFiles(argc, argv, newArgv);
+  argv = &newArgv[0];
+  argc = static_cast<int>(newArgv.size());
 
   // Copy the program name into ProgName, making sure not to overflow it.
   std::string ProgName = sys::path::filename(argv[0]);
@@ -842,12 +837,10 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
   MoreHelp->clear();
 
   // Free the memory allocated by ExpandResponseFiles.
-  if (ReadResponseFiles) {
-    // Free all the strdup()ed strings.
-    for (std::vector<char*>::iterator i = newArgv.begin(), e = newArgv.end();
-         i != e; ++i)
-      free(*i);
-  }
+  // Free all the strdup()ed strings.
+  for (std::vector<char*>::iterator i = newArgv.begin(), e = newArgv.end();
+       i != e; ++i)
+    free(*i);
 
   // If we had an error processing our arguments, don't let the program execute
   if (ErrorParsing) exit(1);
@@ -885,7 +878,6 @@ bool Option::addOccurrence(unsigned pos, StringRef ArgName,
   case OneOrMore:
   case ZeroOrMore:
   case ConsumeAfter: break;
-  default: return error("bad num occurrences flag value!");
   }
 
   return handleOccurrence(pos, ArgName, Value);
@@ -1195,7 +1187,7 @@ printOptionNoValue(const Option &O, size_t GlobalWidth) const {
 static int OptNameCompare(const void *LHS, const void *RHS) {
   typedef std::pair<const char *, Option*> pair_ty;
 
-  return strcmp(((pair_ty*)LHS)->first, ((pair_ty*)RHS)->first);
+  return strcmp(((const pair_ty*)LHS)->first, ((const pair_ty*)RHS)->first);
 }
 
 // Copy Options into a vector so we can sort them as we like.
@@ -1349,7 +1341,7 @@ class VersionPrinter {
 public:
   void print() {
     raw_ostream &OS = outs();
-    OS << "Low Level Virtual Machine (http://llvm.org/):\n"
+    OS << "LLVM (http://llvm.org/):\n"
        << "  " << PACKAGE_NAME << " version " << PACKAGE_VERSION;
 #ifdef LLVM_VERSION_INFO
     OS << LLVM_VERSION_INFO;
@@ -1369,7 +1361,7 @@ public:
 #if (ENABLE_TIMESTAMPS == 1)
        << "  Built " << __DATE__ << " (" << __TIME__ << ").\n"
 #endif
-       << "  Host: " << sys::getHostTriple() << '\n'
+       << "  Default target: " << sys::getDefaultTargetTriple() << '\n'
        << "  Host CPU: " << CPU << '\n';
   }
   void operator=(bool OptionWasSpecified) {

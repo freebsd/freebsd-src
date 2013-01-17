@@ -76,6 +76,8 @@ static cn_init_t	cfe_cninit;
 static cn_term_t	cfe_cnterm;
 static cn_getc_t	cfe_cngetc;
 static cn_putc_t	cfe_cnputc;
+static cn_grab_t	cfe_cngrab;
+static cn_ungrab_t	cfe_cnungrab;
 
 CONSOLE_DRIVER(cfe);
 
@@ -179,6 +181,18 @@ cfe_cninit(struct consdev *cp)
 
 static void
 cfe_cnterm(struct consdev *cp)
+{
+
+}
+
+static void
+cfe_cngrab(struct consdev *cp)
+{
+
+}
+
+static void
+cfe_cnungrab(struct consdev *cp)
 {
 
 }

@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="hastd"
-rcvar=`set_rcvar`
+rcvar="hastd_enable"
 pidfile="/var/run/${name}.pid"
 command="/sbin/${name}"
 hastctl="/sbin/hastctl"

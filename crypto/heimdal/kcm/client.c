@@ -2,6 +2,8 @@
  * Copyright (c) 2005, PADL Software Pty Ltd.
  * All rights reserved.
  *
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,8 +35,6 @@
 #include "kcm_locl.h"
 #include <pwd.h>
 
-RCSID("$Id: client.c 20487 2007-04-21 06:25:06Z lha $");
-
 krb5_error_code
 kcm_ccache_resolve_client(krb5_context context,
 			  kcm_client *client,
@@ -54,7 +54,7 @@ kcm_ccache_resolve_client(krb5_context context,
     ret = kcm_access(context, client, opcode, *ccache);
     if (ret) {
 	ret = KRB5_FCC_NOFILE; /* don't disclose */
-	kcm_release_ccache(context, ccache);
+	kcm_release_ccache(context, *ccache);
     }
 
     return ret;
@@ -76,19 +76,12 @@ kcm_ccache_destroy_client(krb5_context context,
     }
 
     ret = kcm_access(context, client, KCM_OP_DESTROY, ccache);
-    if (ret) {
-	kcm_release_ccache(context, &ccache);
+    kcm_cleanup_events(context, ccache);
+    kcm_release_ccache(context, ccache);
+    if (ret)
 	return ret;
-    }
 
-    ret = kcm_ccache_destroy(context, ccache->name);
-    if (ret == 0) {
-	/* don't leave any events dangling */
-	kcm_cleanup_events(context, ccache);
-    }
-
-    kcm_release_ccache(context, &ccache);
-    return ret;
+    return kcm_ccache_destroy(context, name);
 }
 
 krb5_error_code
@@ -121,7 +114,7 @@ kcm_ccache_new_client(krb5_context context,
 	if (bad && !CLIENT_IS_ROOT(client))
 	    return KRB5_CC_BADNAME;
     }
-	
+
     ret = kcm_ccache_resolve(context, name, &ccache);
     if (ret == 0) {
 	if ((ccache->uid != client->uid ||
@@ -142,12 +135,13 @@ kcm_ccache_new_client(krb5_context context,
 	/* bind to current client */
 	ccache->uid = client->uid;
 	ccache->gid = client->gid;
+	ccache->session = client->session;
     } else {
 	ret = kcm_zero_ccache_data(context, ccache);
 	if (ret) {
 	    kcm_log(1, "Failed to empty cache %s: %s",
 		    name, krb5_get_err_text(context, ret));
-	    kcm_release_ccache(context, &ccache);
+	    kcm_release_ccache(context, ccache);
 	    return ret;
 	}
 	kcm_cleanup_events(context, ccache);
@@ -155,12 +149,12 @@ kcm_ccache_new_client(krb5_context context,
 
     ret = kcm_access(context, client, KCM_OP_INITIALIZE, ccache);
     if (ret) {
-	kcm_release_ccache(context, &ccache);
+	kcm_release_ccache(context, ccache);
 	kcm_ccache_destroy(context, name);
 	return ret;
     }
 
-    /* 
+    /*
      * Finally, if the user is root and the cache was created under
      * another user's name, chown the cache to that user and their
      * default gid.
@@ -178,7 +172,7 @@ kcm_ccache_new_client(krb5_context context,
 	    }
 	}
     }
-    
+
     *ccache_p = ccache;
     return 0;
 }

@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
-.\" Copyright (c) 2004-2007 Dag-Erling Smørgrav
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4$
+.\" $Id$
 .\"
-.Dd December 21, 2007
+.Dd May 26, 2012
 .Dt PAM_GET_ITEM 3
 .Os
 .Sh NAME
@@ -49,16 +49,22 @@
 .Fn pam_get_item "const pam_handle_t *pamh" "int item_type" "const void **item"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_get_item
 function stores a pointer to the item specified by
 the
 .Fa item_type
-argument in the location specified by the
+argument in the location pointed to by the
 .Fa item
 argument.
 The item is retrieved from the PAM context specified by the
 .Fa pamh
 argument.
+If
+.Fn pam_get_item
+fails, the
+.Fa item
+argument is untouched.
+.Pp
 The following item types are recognized:
 .Bl -tag -width 18n
 .It Dv PAM_SERVICE
@@ -90,6 +96,8 @@ authentication token.
 .It Dv PAM_OLDAUTHTOK_PROMPT
 The prompt to use when asking the applicant for an
 expired authentication token prior to changing it.
+.It Dv PAM_HOST
+The name of the host the application runs on.
 .El
 .Pp
 See
@@ -99,7 +107,7 @@ for a description of
 .Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_get_item
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_SYMBOL_ERR
@@ -119,8 +127,9 @@ System error.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_get_item
+function and this manual page were
+developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under

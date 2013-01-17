@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-
+#include <sys/_kstack_cache.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -183,7 +183,6 @@ int
 vslock(void *addr, size_t len)
 {
 	vm_offset_t end, last, start;
-	unsigned long nsize;
 	vm_size_t npages;
 	int error;
 
@@ -195,18 +194,6 @@ vslock(void *addr, size_t len)
 	npages = atop(end - start);
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
-	PROC_LOCK(curproc);
-	nsize = ptoa(npages +
-	    pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map)));
-	if (nsize > lim_cur(curproc, RLIMIT_MEMLOCK)) {
-		PROC_UNLOCK(curproc);
-		return (ENOMEM);
-	}
-	if (racct_set(curproc, RACCT_MEMLOCK, nsize)) {
-		PROC_UNLOCK(curproc);
-		return (ENOMEM);
-	}
-	PROC_UNLOCK(curproc);
 #if 0
 	/*
 	 * XXX - not yet
@@ -222,14 +209,6 @@ vslock(void *addr, size_t len)
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
-#ifdef RACCT
-	if (error != KERN_SUCCESS) {
-		PROC_LOCK(curproc);
-		racct_set(curproc, RACCT_MEMLOCK, 
-		    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
-		PROC_UNLOCK(curproc);
-	}
-#endif
 	/*
 	 * Return EFAULT on error to match copy{in,out}() behaviour
 	 * rather than returning ENOMEM like mlock() would.
@@ -245,13 +224,6 @@ vsunlock(void *addr, size_t len)
 	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
 	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
-
-#ifdef RACCT
-	PROC_LOCK(curproc);
-	racct_set(curproc, RACCT_MEMLOCK,
-	    ptoa(pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map))));
-	PROC_UNLOCK(curproc);
-#endif
 }
 
 /*
@@ -331,15 +303,12 @@ vm_sync_icache(vm_map_t map, vm_offset_t va, vm_offset_t sz)
 	pmap_sync_icache(map->pmap, va, sz);
 }
 
-struct kstack_cache_entry {
-	vm_object_t ksobj;
-	struct kstack_cache_entry *next_ks_entry;
-};
-
-static struct kstack_cache_entry *kstack_cache;
+struct kstack_cache_entry *kstack_cache;
 static int kstack_cache_size = 128;
 static int kstacks;
 static struct mtx kstack_cache_mtx;
+MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
+
 SYSCTL_INT(_vm, OID_AUTO, kstack_cache_size, CTLFLAG_RW, &kstack_cache_size, 0,
     "");
 SYSCTL_INT(_vm, OID_AUTO, kstacks, CTLFLAG_RD, &kstacks, 0,
@@ -519,7 +488,6 @@ kstack_cache_init(void *nulll)
 	    EVENTHANDLER_PRI_ANY);
 }
 
-MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
 SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
 
 #ifndef NO_SWAPPING

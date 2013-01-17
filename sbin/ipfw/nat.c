@@ -318,6 +318,7 @@ estimate_redir_addr(int *ac, char ***av)
 	char *sep = **av;
 	u_int c = 0;
 
+	(void)ac;	/* UNUSED */
 	while ((sep = strchr(sep, ',')) != NULL) {
 		c++;
 		sep++;
@@ -345,11 +346,12 @@ setup_redir_addr(char *buf, int *ac, char ***av)
 	space = sizeof(struct cfg_redir);
 
 	/* Extract local address. */
-	if ((sep = strtok(**av, ",")) != NULL) {
+	if (strchr(**av, ',') != NULL) {
 		struct cfg_spool *spool;
 
 		/* Setup LSNAT server pool. */
 		r->laddr.s_addr = INADDR_NONE;
+		sep = strtok(**av, ",");
 		while (sep != NULL) {
 			spool = (struct cfg_spool *)buf;
 			space += sizeof(struct cfg_spool);
@@ -378,6 +380,7 @@ estimate_redir_port(int *ac, char ***av)
 	char *sep = **av;
 	u_int c = 0;
 
+	(void)ac;	/* UNUSED */
 	while ((sep = strchr(sep, ',')) != NULL) {
 		c++;
 		sep++;
@@ -418,7 +421,7 @@ setup_redir_port(char *buf, int *ac, char ***av)
 	/*
 	 * Extract local address.
 	 */
-	if ((sep = strchr(**av, ',')) != NULL) {
+	if (strchr(**av, ',') != NULL) {
 		r->laddr.s_addr = INADDR_NONE;
 		r->lport = ~0;
 		numLocalPorts = 1;
@@ -451,7 +454,7 @@ setup_redir_port(char *buf, int *ac, char ***av)
 	/*
 	 * Extract public port and optionally address.
 	 */
-	if ((sep = strchr(**av, ':')) != NULL) {
+	if (strchr(**av, ':') != NULL) {
 		if (StrToAddrAndPortRange(**av, &r->paddr, protoName,
 		    &portRange) != 0)
 			errx(EX_DATAERR, "redirect_port: "
@@ -479,7 +482,7 @@ setup_redir_port(char *buf, int *ac, char ***av)
 	 * option for this redirect entry, else stop here processing arg[cv].
 	 */
 	if (*ac != 0 && isdigit(***av)) {
-		if ((sep = strchr(**av, ':')) != NULL) {
+		if (strchr(**av, ':') != NULL) {
 			if (StrToAddrAndPortRange(**av, &r->raddr, protoName,
 			    &portRange) != 0)
 				errx(EX_DATAERR, "redirect_port: "

@@ -38,9 +38,16 @@ static int extract_files(int nfiles, const char **files);
 int
 main(void)
 {
-	char *diststring = strdup(getenv("DISTRIBUTIONS"));
+	char *diststring;
 	const char **dists;
 	int i, retval, ndists = 0;
+
+	if (getenv("DISTRIBUTIONS") == NULL) {
+		fprintf(stderr, "DISTRIBUTIONS variable is not set\n");
+		return (1);
+	}
+
+	diststring = strdup(getenv("DISTRIBUTIONS"));
 	for (i = 0; diststring[i] != 0; i++)
 		if (isspace(diststring[i]) && !isspace(diststring[i+1]))
 			ndists++;
@@ -49,6 +56,7 @@ main(void)
 	dists = calloc(ndists, sizeof(const char *));
 	if (dists == NULL) {
 		fprintf(stderr, "Out of memory!\n");
+		free(diststring);
 		return (1);
 	}
 

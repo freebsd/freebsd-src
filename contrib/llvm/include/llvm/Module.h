@@ -30,8 +30,7 @@ class GVMaterializer;
 class LLVMContext;
 class StructType;
 template<typename T> struct DenseMapInfo;
-template<typename KeyT, typename ValueT, 
-         typename KeyInfoT, typename ValueInfoT> class DenseMap;
+template<typename KeyT, typename ValueT, typename KeyInfoT> class DenseMap;
 
 template<> struct ilist_traits<Function>
   : public SymbolTableListTraits<Function, Module> {
@@ -154,6 +153,39 @@ public:
   /// An enumeration for describing the size of a pointer on the target machine.
   enum PointerSize { AnyPointerSize, Pointer32, Pointer64 };
 
+  /// An enumeration for the supported behaviors of module flags. The following
+  /// module flags behavior values are supported:
+  ///
+  ///    Value        Behavior
+  ///    -----        --------
+  ///      1          Error
+  ///                   Emits an error if two values disagree.
+  ///
+  ///      2          Warning
+  ///                   Emits a warning if two values disagree.
+  ///
+  ///      3          Require
+  ///                   Emits an error when the specified value is not present
+  ///                   or doesn't have the specified value. It is an error for
+  ///                   two (or more) llvm.module.flags with the same ID to have
+  ///                   the Require behavior but different values. There may be
+  ///                   multiple Require flags per ID.
+  ///
+  ///      4          Override
+  ///                   Uses the specified value if the two values disagree. It
+  ///                   is an error for two (or more) llvm.module.flags with the
+  ///                   same ID to have the Override behavior but different
+  ///                   values.
+  enum ModFlagBehavior { Error = 1, Warning  = 2, Require = 3, Override = 4 };
+
+  struct ModuleFlagEntry {
+    ModFlagBehavior Behavior;
+    MDString *Key;
+    Value *Val;
+    ModuleFlagEntry(ModFlagBehavior B, MDString *K, Value *V)
+      : Behavior(B), Key(K), Val(V) {}
+  };
+
 /// @}
 /// @name Member Variables
 /// @{
@@ -266,13 +298,9 @@ public:
   void getMDKindNames(SmallVectorImpl<StringRef> &Result) const;
 
   
-  typedef DenseMap<StructType*, unsigned, DenseMapInfo<StructType*>,
-                   DenseMapInfo<unsigned> > NumeredTypesMapTy;
+  typedef DenseMap<StructType*, unsigned, DenseMapInfo<StructType*> >
+                   NumeredTypesMapTy;
 
-  /// findUsedStructTypes - Walk the entire module and find all of the
-  /// struct types that are in use, returning them in a vector.
-  void findUsedStructTypes(std::vector<StructType*> &StructTypes) const;
-  
   /// getTypeByName - Return the type with the specified name, or null if there
   /// is none by that name.
   StructType *getTypeByName(StringRef Name) const;
@@ -373,6 +401,30 @@ public:
   void eraseNamedMetadata(NamedMDNode *NMD);
 
 /// @}
+/// @name Module Flags Accessors
+/// @{
+
+  /// getModuleFlagsMetadata - Returns the module flags in the provided vector.
+  void getModuleFlagsMetadata(SmallVectorImpl<ModuleFlagEntry> &Flags) const;
+
+  /// getModuleFlagsMetadata - Returns the NamedMDNode in the module that
+  /// represents module-level flags. This method returns null if there are no
+  /// module-level flags.
+  NamedMDNode *getModuleFlagsMetadata() const;
+
+  /// getOrInsertModuleFlagsMetadata - Returns the NamedMDNode in the module
+  /// that represents module-level flags. If module-level flags aren't found,
+  /// it creates the named metadata that contains them.
+  NamedMDNode *getOrInsertModuleFlagsMetadata();
+
+  /// addModuleFlag - Add a module-level flag to the module-level flags
+  /// metadata. It will create the module-level flags named metadata if it
+  /// doesn't already exist.
+  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, Value *Val);
+  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, uint32_t Val);
+  void addModuleFlag(MDNode *Node);
+
+/// @}
 /// @name Materialization
 /// @{
 
@@ -440,6 +492,13 @@ public:
   AliasListType          &getAliasList()              { return AliasList; }
   static iplist<GlobalAlias> Module::*getSublistAccess(GlobalAlias*) {
     return &Module::AliasList;
+  }
+  /// Get the Module's list of named metadata (constant).
+  const NamedMDListType  &getNamedMDList() const      { return NamedMDList; }
+  /// Get the Module's list of named metadata.
+  NamedMDListType        &getNamedMDList()            { return NamedMDList; }
+  static ilist<NamedMDNode> Module::*getSublistAccess(NamedMDNode*) {
+    return &Module::NamedMDList;
   }
   /// Get the symbol table of global variable and function identifiers
   const ValueSymbolTable &getValueSymbolTable() const { return *ValSymTab; }

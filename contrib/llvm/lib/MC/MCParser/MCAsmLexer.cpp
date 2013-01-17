@@ -12,7 +12,8 @@
 
 using namespace llvm;
 
-MCAsmLexer::MCAsmLexer() : CurTok(AsmToken::Error, StringRef()), TokStart(0) {
+MCAsmLexer::MCAsmLexer() : CurTok(AsmToken::Error, StringRef()),
+                           TokStart(0), SkipSpace(true) {
 }
 
 MCAsmLexer::~MCAsmLexer() {
@@ -24,4 +25,8 @@ SMLoc MCAsmLexer::getLoc() const {
 
 SMLoc AsmToken::getLoc() const {
   return SMLoc::getFromPointer(Str.data());
+}
+
+SMLoc AsmToken::getEndLoc() const {
+  return SMLoc::getFromPointer(Str.data() + Str.size() - 1);
 }

@@ -1,4 +1,4 @@
-$ $tcsh: set23,v 1.4 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set23,v 1.5 2011/02/04 18:19:36 christos Exp $
 $ tc.os.c
 $set 23
 1 Falscher Cpu/Site-Name
@@ -8,27 +8,27 @@ $set 23
 5 %d: Site nicht gefunden\n
 6 setlocal: %s: %s\n
 7 Site nicht gefunden
-8 Sie sind in einem Universum gefangen, daß Sie nie gemacht haben
+8 Sie sind in einem Universum gefangen, daÃŸ Sie nie gemacht haben
 9 Getwarp fehlgeschlagen
-10 Ungültiger Warp
+10 UngÃ¼ltiger Warp
 11 Setwarp fehlgeschlagen
-12 Ungültiges Universum
+12 UngÃ¼ltiges Universum
 13 Unbekannter Fehler: %d
 14 sysname:  %s\n
 15 nodename: %s\n
 16 release:  %s\n
 17 version:  %s\n
 18 machine:  %s\n
-19 getwd: Kann ".." nicht öffnen (%s)
+19 getwd: Kann ".." nicht Ã¶ffnen (%s)
 20 getwd: Kann nicht in ".." wechseln (%s)
 21 getwd: Lesefehler in ".." (%s)
-22 getwd: Kann nicht zurück zu "." wechseln (%s)
+22 getwd: Kann nicht zurÃ¼ck zu "." wechseln (%s)
 23 getwd: Kann kein stat auf "/" machen (%s)
 24 getwd: Kann kein stat auf "." machen (%s)
 25 getwd: Kann kein stat auf Verzeichnis "%s" machen (%s)
-26 getwd: Kann Verzeichnis "%s" nicht öffnen (%s)
+26 getwd: Kann Verzeichnis "%s" nicht Ã¶ffnen (%s)
 27 getwd: Kann "." nicht in ".." finden (%s)
-28 Ungültiger Systemtyp
+28 UngÃ¼ltiger Systemtyp
 29 Systemtyp ist nicht gesetzt
 30 Too many arguments
 31 Invalid argument

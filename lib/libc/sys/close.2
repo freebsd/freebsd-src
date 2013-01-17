@@ -28,7 +28,7 @@
 .\"     @(#)close.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2006
+.Dd January 22, 2012
 .Dt CLOSE 2
 .Os
 .Sh NAME
@@ -118,6 +118,10 @@ The underlying object did not fit, cached data was lost.
 The underlying object was a stream socket that was shut down by the peer
 before all pending data was delivered.
 .El
+.Pp
+In case of any error except
+.Er EBADF ,
+the supplied file descriptor is deallocated and therefore is no longer valid.
 .Sh SEE ALSO
 .Xr accept 2 ,
 .Xr closefrom 2 ,

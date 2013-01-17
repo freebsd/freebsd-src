@@ -69,14 +69,12 @@ ENTRY(setjmp)
 	li	%r3,0			/* return (0) */
 	blr
 
-	.weak CNAME(longjmp)
-	.set CNAME(longjmp),CNAME(__longjmp)
+	WEAK_REFERENCE(CNAME(__longjmp), longjmp)
 ENTRY(__longjmp)
 	lmw	%r9,20(%r3)		/* restore regs */
 	mr	%r6,%r4			/* save val param */
 	mtlr	%r11			/* r11 -> link reg */
 	mtcr	%r12			/* r12 -> condition reg */
-	mr	%r2,%r9			/* r9  -> global ptr */
 	mr	%r1,%r10		/* r10 -> stackptr */
 	mr	%r4,%r3
 	li	%r3,3			/* SIG_SETMASK */

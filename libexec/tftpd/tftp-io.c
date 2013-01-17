@@ -53,7 +53,7 @@ struct sockaddr_storage me_sock;
 
 static int send_packet(int peer, uint16_t block, char *pkt, int size);
 
-struct errmsg {
+static struct errmsg {
 	int	e_code;
 	const char	*e_msg;
 } errmsgs[] = {
@@ -72,13 +72,13 @@ struct errmsg {
 #define DROPPACKET(s)							\
 	if (packetdroppercentage != 0 &&				\
 	    random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artifical packet drop in %s", s);	\
+		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
 		return;							\
 	}
 #define DROPPACKETn(s,n)						\
 	if (packetdroppercentage != 0 &&				\
 	    random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artifical packet drop in %s", s);	\
+		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
 		return (n);						\
 	}
 
@@ -87,14 +87,13 @@ errtomsg(int error)
 {
 	static char ebuf[40];
 	struct errmsg *pe;
-	char buf[MAXPKTSIZE];
 
 	if (error == 0)
 		return ("success");
 	for (pe = errmsgs; pe->e_code >= 0; pe++)
 		if (pe->e_code == error)
 			return (pe->e_msg);
-	snprintf(ebuf, sizeof(buf), "error %d", error);
+	snprintf(ebuf, sizeof(ebuf), "error %d", error);
 	return (ebuf);
 }
 
@@ -323,7 +322,6 @@ send_ack(int fp, uint16_t block)
 {
 	struct tftphdr *tp;
 	int size;
-	char *bp;
 	char buf[MAXPKTSIZE];
 
 	if (debug&DEBUG_PACKETS)
@@ -332,7 +330,6 @@ send_ack(int fp, uint16_t block)
 	DROPPACKETn("send_ack", 0);
 
 	tp = (struct tftphdr *)buf;
-	bp = buf + 2;
 	size = sizeof(buf) - 2;
 	tp->th_opcode = htons((u_short)ACK);
 	tp->th_block = htons((u_short)block);
@@ -377,7 +374,7 @@ send_data(int peer, uint16_t block, char *data, int size)
 /*
  * Receive a packet
  */
-jmp_buf	timeoutbuf;
+static jmp_buf timeoutbuf;
 
 static void
 timeout(int sig __unused)
@@ -465,7 +462,8 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	}
 
 	if (pkt->th_opcode == ERROR) {
-		tftp_log(LOG_ERR, "Got ERROR packet: %s", pkt->th_msg);
+		tftp_log(pkt->th_code == EUNDEF ? LOG_DEBUG : LOG_ERR,
+		    "Got ERROR packet: %s", pkt->th_msg);
 		return (RP_ERROR);
 	}
 

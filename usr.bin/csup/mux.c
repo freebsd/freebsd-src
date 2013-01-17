@@ -680,7 +680,7 @@ mux_init(struct mux *m)
 
 /*
  * Close all the channels, terminate the sender and receiver thread.
- * This is an important function because it is used everytime we need
+ * This is an important function because it is used every time we need
  * to wake up all the worker threads to abort the program.
  *
  * This function accepts an error message that will be printed if the

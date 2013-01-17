@@ -13,19 +13,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCAsmInfoCOFF.h"
-#include "llvm/ADT/SmallVector.h"
 using namespace llvm;
+
+void MCAsmInfoCOFF::anchor() { }
 
 MCAsmInfoCOFF::MCAsmInfoCOFF() {
   GlobalPrefix = "_";
+  // MingW 4.5 and later support .comm with log2 alignment, but .lcomm uses byte
+  // alignment.
   COMMDirectiveAlignmentIsInBytes = false;
-  LCOMMDirectiveType = LCOMM::ByteAlignment;
+  LCOMMDirectiveAlignmentType = LCOMM::ByteAlignment;
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
   PrivateGlobalPrefix = "L";  // Prefix for private global symbols
   WeakRefDirective = "\t.weak\t";
   LinkOnceDirective = "\t.linkonce discard\n";
-  
+
   // Doesn't support visibility:
   HiddenVisibilityAttr = HiddenDeclarationVisibilityAttr = MCSA_Invalid;
   ProtectedVisibilityAttr = MCSA_Invalid;
@@ -35,6 +38,16 @@ MCAsmInfoCOFF::MCAsmInfoCOFF() {
   SupportsDebugInformation = true;
   DwarfSectionOffsetDirective = "\t.secrel32\t";
   HasMicrosoftFastStdCallMangling = true;
+}
 
-  SupportsDataRegions = false;
+void MCAsmInfoMicrosoft::anchor() { }
+
+MCAsmInfoMicrosoft::MCAsmInfoMicrosoft() {
+  AllowQuotesInName = true;
+}
+
+void MCAsmInfoGNUCOFF::anchor() { }
+
+MCAsmInfoGNUCOFF::MCAsmInfoGNUCOFF() {
+
 }

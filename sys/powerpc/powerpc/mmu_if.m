@@ -387,7 +387,7 @@ METHOD boolean_t is_referenced {
  *
  * @retval int		count of referenced bits
  */
-METHOD boolean_t ts_referenced {
+METHOD int ts_referenced {
 	mmu_t		_mmu;
 	vm_page_t	_pg;
 };
@@ -761,7 +761,7 @@ METHOD void cpu_bootstrap {
  */
 METHOD void * mapdev {
 	mmu_t		_mmu;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 	vm_size_t	_size;
 };
 
@@ -818,7 +818,7 @@ METHOD void unmapdev {
  *
  * @retval pa		physical address corresponding to mapping
  */
-METHOD vm_offset_t kextract {
+METHOD vm_paddr_t kextract {
 	mmu_t		_mmu;
 	vm_offset_t	_va;
 };
@@ -833,7 +833,7 @@ METHOD vm_offset_t kextract {
 METHOD void kenter {
 	mmu_t		_mmu;
 	vm_offset_t	_va;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 };
 
 /**
@@ -860,7 +860,7 @@ METHOD void kenter_attr {
  */
 METHOD boolean_t dev_direct_mapped {
 	mmu_t		_mmu;
-	vm_offset_t	_pa;
+	vm_paddr_t	_pa;
 	vm_size_t	_size;
 };
 

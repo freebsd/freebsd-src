@@ -83,6 +83,7 @@ struct g_part_alias_list {
 	{ "fat32", G_PART_ALIAS_MS_FAT32 },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
+	{ "freebsd-nandfs", G_PART_ALIAS_FREEBSD_NANDFS },
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
@@ -103,14 +104,19 @@ struct g_part_alias_list {
 	{ "netbsd-lfs", G_PART_ALIAS_NETBSD_LFS },
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
+	{ "vmware-vmfs", G_PART_ALIAS_VMFS },
+	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
+	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
 };
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0, "GEOM_PART stuff");
+SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0,
+    "GEOM_PART stuff");
 static u_int check_integrity = 1;
 TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
-SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity, CTLFLAG_RW,
-    &check_integrity, 1, "Enable integrity checking");
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity,
+    CTLFLAG_RW | CTLFLAG_TUN, &check_integrity, 1,
+    "Enable integrity checking");
 
 /*
  * The GEOM partitioning class.
@@ -145,6 +151,7 @@ static struct g_class g_part_class = {
 };
 
 DECLARE_GEOM_CLASS(g_part_class, g_part);
+MODULE_VERSION(g_part, 0);
 
 /*
  * Support functions.
@@ -214,7 +221,7 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 				continue;
 			/*
 			 * Prefer a geometry with sectors > 1, but only if
-			 * it doesn't bump down the numbver of heads to 1.
+			 * it doesn't bump down the number of heads to 1.
 			 */
 			if (chs > bestchs || (chs == bestchs && heads > 1 &&
 			    table->gpt_sectors == 1)) {
@@ -416,7 +423,6 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	    pp->sectorsize;
 	entry->gpe_pp->mediasize -= entry->gpe_offset - offset;
 	entry->gpe_pp->sectorsize = pp->sectorsize;
-	entry->gpe_pp->flags = pp->flags & G_PF_CANDELETE;
 	entry->gpe_pp->stripesize = pp->stripesize;
 	entry->gpe_pp->stripeoffset = pp->stripeoffset + entry->gpe_offset;
 	if (pp->stripesize > 0)
@@ -450,6 +456,10 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 	if (gp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
+	}
+	if ((gp->flags & G_GEOM_WITHER) != 0) {
+		gctl_error(req, "%d %s", ENXIO, gname);
+		return (ENXIO);
 	}
 	*v = gp;
 	return (0);
@@ -1211,6 +1221,9 @@ g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 
 	if (table->gpt_corrupt) {
 		error = G_PART_RECOVER(table);
+		if (error == 0)
+			error = g_part_check_integrity(table,
+			    LIST_FIRST(&gp->consumer));
 		if (error) {
 			gctl_error(req, "%d recovering '%s' failed",
 			    error, gp->name);
@@ -1243,6 +1256,7 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 	struct sbuf *sb;
 	quad_t end;
 	int error;
+	off_t mediasize;
 
 	gp = gpp->gpp_geom;
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
@@ -1287,8 +1301,11 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 	pp = entry->gpe_pp;
 	if ((g_debugflags & 16) == 0 &&
 	    (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)) {
-		gctl_error(req, "%d", EBUSY);
-		return (EBUSY);
+		if (entry->gpe_end - entry->gpe_start + 1 > gpp->gpp_size) {
+			/* Deny shrinking of an opened partition. */
+			gctl_error(req, "%d", EBUSY);
+			return (EBUSY);
+		} 
 	}
 
 	error = G_PART_RESIZE(table, entry, gpp);
@@ -1301,8 +1318,9 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_modified = 1;
 
 	/* update mediasize of changed provider */
-	pp->mediasize = (entry->gpe_end - entry->gpe_start + 1) *
+	mediasize = (entry->gpe_end - entry->gpe_start + 1) *
 		pp->sectorsize;
+	g_resize_provider(pp, mediasize);
 
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
@@ -1862,7 +1880,10 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (error == 0)
 		error = g_access(cp, 1, 0, 0);
 	if (error != 0) {
-		g_part_wither(gp, error);
+		if (cp->provider)
+			g_detach(cp);
+		g_destroy_consumer(cp);
+		g_destroy_geom(gp);
 		return (NULL);
 	}
 
@@ -1922,7 +1943,9 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_lock();
 	root_mount_rel(rht);
 	g_access(cp, -1, 0, 0);
-	g_part_wither(gp, error);
+	g_detach(cp);
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
 	return (NULL);
 }
 
@@ -2036,6 +2059,7 @@ g_part_spoiled(struct g_consumer *cp)
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, cp->provider->name));
 	g_topology_assert();
 
+	cp->flags |= G_CF_ORPHAN;
 	g_part_wither(cp->geom, ENXIO);
 }
 
@@ -2049,6 +2073,7 @@ g_part_start(struct bio *bp)
 	struct g_part_table *table;
 	struct g_kerneldump *gkd;
 	struct g_provider *pp;
+	char buf[64];
 
 	pp = bp->bio_to;
 	gp = pp->geom;
@@ -2097,13 +2122,19 @@ g_part_start(struct bio *bp)
 		if (g_handleattr_str(bp, "PART::scheme",
 		    table->gpt_scheme->name))
 			return;
+		if (g_handleattr_str(bp, "PART::type",
+		    G_PART_TYPE(table, entry, buf, sizeof(buf))))
+			return;
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			/*
 			 * Check that the partition is suitable for kernel
 			 * dumps. Typically only swap partitions should be
-			 * used.
+			 * used. If the request comes from the nested scheme
+			 * we allow dumping there as well.
 			 */
-			if (!G_PART_DUMPTO(table, entry)) {
+			if ((bp->bio_from == NULL ||
+			    bp->bio_from->geom->class != &g_part_class) &&
+			    G_PART_DUMPTO(table, entry) == 0) {
 				g_io_deliver(bp, ENODEV);
 				printf("GEOM_PART: Partition '%s' not suitable"
 				    " for kernel dumps (wrong type?)\n",
@@ -2194,23 +2225,32 @@ g_part_unload_event(void *arg, int flag)
 int
 g_part_modevent(module_t mod, int type, struct g_part_scheme *scheme)
 {
+	struct g_part_scheme *iter;
 	uintptr_t arg;
 	int error;
 
+	error = 0;
 	switch (type) {
 	case MOD_LOAD:
-		TAILQ_INSERT_TAIL(&g_part_schemes, scheme, scheme_list);
-
-		error = g_retaste(&g_part_class);
-		if (error)
-			TAILQ_REMOVE(&g_part_schemes, scheme, scheme_list);
+		TAILQ_FOREACH(iter, &g_part_schemes, scheme_list) {
+			if (scheme == iter) {
+				printf("GEOM_PART: scheme %s is already "
+				    "registered!\n", scheme->name);
+				break;
+			}
+		}
+		if (iter == NULL) {
+			TAILQ_INSERT_TAIL(&g_part_schemes, scheme,
+			    scheme_list);
+			g_retaste(&g_part_class);
+		}
 		break;
 	case MOD_UNLOAD:
 		arg = (uintptr_t)scheme;
 		error = g_waitfor_event(g_part_unload_event, &arg, M_WAITOK,
 		    NULL);
-		if (!error)
-			error = (arg == (uintptr_t)scheme) ? EDOOFUS : arg;
+		if (error == 0)
+			error = arg;
 		break;
 	default:
 		error = EOPNOTSUPP;

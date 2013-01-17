@@ -94,7 +94,7 @@ enum Ziptype {NONE, BZIP, GZIP};
 static uid_t uid;
 static int starting_dir;
 static char tmp_file[MAXPATHLEN];
-struct stat test_st;
+static struct stat test_st;
 
 /*
  * A hashtable is an array of chains composed of this entry structure.

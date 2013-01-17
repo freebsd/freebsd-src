@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: ole2compounddocs,v 1.4 2009/09/19 16:28:11 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (http://en.wikipedia.org/wiki/Structured_Storage)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.

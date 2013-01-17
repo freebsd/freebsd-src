@@ -152,30 +152,30 @@ static int      nve_miibus_writereg(device_t, int, int, int);
 static void     nve_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 static void     nve_dmamap_tx_cb(void *, bus_dma_segment_t *, int, bus_size_t, int);
 
-static NV_SINT32 nve_osalloc(PNV_VOID, PMEMORY_BLOCK);
-static NV_SINT32 nve_osfree(PNV_VOID, PMEMORY_BLOCK);
-static NV_SINT32 nve_osallocex(PNV_VOID, PMEMORY_BLOCKEX);
-static NV_SINT32 nve_osfreeex(PNV_VOID, PMEMORY_BLOCKEX);
-static NV_SINT32 nve_osclear(PNV_VOID, PNV_VOID, NV_SINT32);
-static NV_SINT32 nve_osdelay(PNV_VOID, NV_UINT32);
-static NV_SINT32 nve_osallocrxbuf(PNV_VOID, PMEMORY_BLOCK, PNV_VOID *);
-static NV_SINT32 nve_osfreerxbuf(PNV_VOID, PMEMORY_BLOCK, PNV_VOID);
-static NV_SINT32 nve_ospackettx(PNV_VOID, PNV_VOID, NV_UINT32);
-static NV_SINT32 nve_ospacketrx(PNV_VOID, PNV_VOID, NV_UINT32, NV_UINT8 *, NV_UINT8);
-static NV_SINT32 nve_oslinkchg(PNV_VOID, NV_SINT32);
-static NV_SINT32 nve_osalloctimer(PNV_VOID, PNV_VOID *);
-static NV_SINT32 nve_osfreetimer(PNV_VOID, PNV_VOID);
-static NV_SINT32 nve_osinittimer(PNV_VOID, PNV_VOID, PTIMER_FUNC, PNV_VOID);
-static NV_SINT32 nve_ossettimer(PNV_VOID, PNV_VOID, NV_UINT32);
-static NV_SINT32 nve_oscanceltimer(PNV_VOID, PNV_VOID);
+static NV_API_CALL NV_SINT32 nve_osalloc(PNV_VOID, PMEMORY_BLOCK);
+static NV_API_CALL NV_SINT32 nve_osfree(PNV_VOID, PMEMORY_BLOCK);
+static NV_API_CALL NV_SINT32 nve_osallocex(PNV_VOID, PMEMORY_BLOCKEX);
+static NV_API_CALL NV_SINT32 nve_osfreeex(PNV_VOID, PMEMORY_BLOCKEX);
+static NV_API_CALL NV_SINT32 nve_osclear(PNV_VOID, PNV_VOID, NV_SINT32);
+static NV_API_CALL NV_SINT32 nve_osdelay(PNV_VOID, NV_UINT32);
+static NV_API_CALL NV_SINT32 nve_osallocrxbuf(PNV_VOID, PMEMORY_BLOCK, PNV_VOID *);
+static NV_API_CALL NV_SINT32 nve_osfreerxbuf(PNV_VOID, PMEMORY_BLOCK, PNV_VOID);
+static NV_API_CALL NV_SINT32 nve_ospackettx(PNV_VOID, PNV_VOID, NV_UINT32);
+static NV_API_CALL NV_SINT32 nve_ospacketrx(PNV_VOID, PNV_VOID, NV_UINT32, NV_UINT8 *, NV_UINT8);
+static NV_API_CALL NV_SINT32 nve_oslinkchg(PNV_VOID, NV_SINT32);
+static NV_API_CALL NV_SINT32 nve_osalloctimer(PNV_VOID, PNV_VOID *);
+static NV_API_CALL NV_SINT32 nve_osfreetimer(PNV_VOID, PNV_VOID);
+static NV_API_CALL NV_SINT32 nve_osinittimer(PNV_VOID, PNV_VOID, PTIMER_FUNC, PNV_VOID);
+static NV_API_CALL NV_SINT32 nve_ossettimer(PNV_VOID, PNV_VOID, NV_UINT32);
+static NV_API_CALL NV_SINT32 nve_oscanceltimer(PNV_VOID, PNV_VOID);
 
-static NV_SINT32 nve_ospreprocpkt(PNV_VOID, PNV_VOID, PNV_VOID *, NV_UINT8 *, NV_UINT8);
-static PNV_VOID  nve_ospreprocpktnopq(PNV_VOID, PNV_VOID);
-static NV_SINT32 nve_osindicatepkt(PNV_VOID, PNV_VOID *, NV_UINT32);
-static NV_SINT32 nve_oslockalloc(PNV_VOID, NV_SINT32, PNV_VOID *);
-static NV_SINT32 nve_oslockacquire(PNV_VOID, NV_SINT32, PNV_VOID);
-static NV_SINT32 nve_oslockrelease(PNV_VOID, NV_SINT32, PNV_VOID);
-static PNV_VOID  nve_osreturnbufvirt(PNV_VOID, PNV_VOID);
+static NV_API_CALL NV_SINT32 nve_ospreprocpkt(PNV_VOID, PNV_VOID, PNV_VOID *, NV_UINT8 *, NV_UINT8);
+static NV_API_CALL PNV_VOID  nve_ospreprocpktnopq(PNV_VOID, PNV_VOID);
+static NV_API_CALL NV_SINT32 nve_osindicatepkt(PNV_VOID, PNV_VOID *, NV_UINT32);
+static NV_API_CALL NV_SINT32 nve_oslockalloc(PNV_VOID, NV_SINT32, PNV_VOID *);
+static NV_API_CALL NV_SINT32 nve_oslockacquire(PNV_VOID, NV_SINT32, PNV_VOID);
+static NV_API_CALL NV_SINT32 nve_oslockrelease(PNV_VOID, NV_SINT32, PNV_VOID);
+static NV_API_CALL PNV_VOID  nve_osreturnbufvirt(PNV_VOID, PNV_VOID);
 
 static device_method_t nve_methods[] = {
 	/* Device interface */
@@ -184,15 +184,11 @@ static device_method_t nve_methods[] = {
 	DEVMETHOD(device_detach, nve_detach),
 	DEVMETHOD(device_shutdown, nve_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, nve_miibus_readreg),
 	DEVMETHOD(miibus_writereg, nve_miibus_writereg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t nve_driver = {
@@ -375,7 +371,8 @@ nve_attach(device_t dev)
 		goto fail;
 	}
 	/* Allocate DMA tags */
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
+		     4, 0, BUS_SPACE_MAXADDR_32BIT,
 		     BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * NV_MAX_FRAGS,
 				   NV_MAX_FRAGS, MCLBYTES, 0,
 				   busdma_lock_mutex, &Giant,
@@ -384,7 +381,8 @@ nve_attach(device_t dev)
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
 	}
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
+	    4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct nve_rx_desc) * RX_RING_SIZE, 1,
 	    sizeof(struct nve_rx_desc) * RX_RING_SIZE, 0,
@@ -394,7 +392,8 @@ nve_attach(device_t dev)
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
 	}
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
+	    4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct nve_tx_desc) * TX_RING_SIZE, 1,
 	    sizeof(struct nve_tx_desc) * TX_RING_SIZE, 0,
@@ -533,7 +532,6 @@ nve_attach(device_t dev)
 	ifp->if_ioctl = nve_ioctl;
 	ifp->if_start = nve_ifstart;
 	ifp->if_init = nve_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = IF_Mbps(100);
 	IFQ_SET_MAXLEN(&ifp->if_snd, TX_RING_SIZE - 1);
 	ifp->if_snd.ifq_drv_maxlen = TX_RING_SIZE - 1;
@@ -766,7 +764,7 @@ nve_init_rings(struct nve_softc *sc)
 		struct nve_rx_desc *desc = sc->rx_desc + i;
 		struct nve_map_buffer *buf = &desc->buf;
 
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			device_printf(sc->dev, "couldn't allocate mbuf\n");
 			nve_free_rings(sc);
@@ -920,7 +918,7 @@ nve_ifstart_locked(struct ifnet *ifp)
 		 * cluster
 		 */
 		if (error) {
-			m = m_defrag(m0, M_DONTWAIT);
+			m = m_defrag(m0, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(m0);
 				sc->tx_errors++;
@@ -1344,7 +1342,7 @@ nve_watchdog(struct nve_softc *sc)
 /* --- Start of NVOSAPI interface --- */
 
 /* Allocate DMA enabled general use memory for API */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osalloc(PNV_VOID ctx, PMEMORY_BLOCK mem)
 {
 	struct nve_softc *sc;
@@ -1372,7 +1370,7 @@ nve_osalloc(PNV_VOID ctx, PMEMORY_BLOCK mem)
 }
 
 /* Free allocated memory */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osfree(PNV_VOID ctx, PMEMORY_BLOCK mem)
 {
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_osfree - 0x%x - %d\n",
@@ -1383,7 +1381,7 @@ nve_osfree(PNV_VOID ctx, PMEMORY_BLOCK mem)
 }
 
 /* Copied directly from nvnet.c */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osallocex(PNV_VOID ctx, PMEMORY_BLOCKEX mem_block_ex)
 {
 	MEMORY_BLOCK mem_block;
@@ -1429,7 +1427,7 @@ nve_osallocex(PNV_VOID ctx, PMEMORY_BLOCKEX mem_block_ex)
 }
 
 /* Copied directly from nvnet.c */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osfreeex(PNV_VOID ctx, PMEMORY_BLOCKEX mem_block_ex)
 {
 	MEMORY_BLOCK mem_block;
@@ -1444,7 +1442,7 @@ nve_osfreeex(PNV_VOID ctx, PMEMORY_BLOCKEX mem_block_ex)
 }
 
 /* Clear memory region */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osclear(PNV_VOID ctx, PNV_VOID mem, NV_SINT32 length)
 {
 	DEBUGOUT(NVE_DEBUG_API, "nve: nve_osclear\n");
@@ -1453,7 +1451,7 @@ nve_osclear(PNV_VOID ctx, PNV_VOID mem, NV_SINT32 length)
 }
 
 /* Sleep for a tick */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osdelay(PNV_VOID ctx, NV_UINT32 usec)
 {
 	DELAY(usec);
@@ -1461,7 +1459,7 @@ nve_osdelay(PNV_VOID ctx, NV_UINT32 usec)
 }
 
 /* Allocate memory for rx buffer */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osallocrxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID *id)
 {
 	struct nve_softc *sc = ctx;
@@ -1482,7 +1480,7 @@ nve_osallocrxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID *id)
 	buf = &desc->buf;
 
 	if (buf->mbuf == NULL) {
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			device_printf(sc->dev, "failed to allocate memory\n");
 			goto fail;
@@ -1517,7 +1515,7 @@ fail:
 }
 
 /* Free the rx buffer */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osfreerxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID id)
 {
 	struct nve_softc *sc = ctx;
@@ -1541,7 +1539,7 @@ nve_osfreerxbuf(PNV_VOID ctx, PMEMORY_BLOCK mem, PNV_VOID id)
 }
 
 /* This gets called by the Nvidia API after our TX packet has been sent */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_ospackettx(PNV_VOID ctx, PNV_VOID id, NV_UINT32 success)
 {
 	struct nve_softc *sc = ctx;
@@ -1580,7 +1578,7 @@ fail:
 
 /* This gets called by the Nvidia API when a new packet has been received */
 /* XXX What is newbuf used for? XXX */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
     NV_UINT8 priority)
 {
@@ -1638,7 +1636,7 @@ nve_ospacketrx(PNV_VOID ctx, PNV_VOID data, NV_UINT32 success, NV_UINT8 *newbuf,
 }
 
 /* This gets called by NVIDIA API when the PHY link state changes */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_oslinkchg(PNV_VOID ctx, NV_SINT32 enabled)
 {
 
@@ -1648,7 +1646,7 @@ nve_oslinkchg(PNV_VOID ctx, NV_SINT32 enabled)
 }
 
 /* Setup a watchdog timer */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osalloctimer(PNV_VOID ctx, PNV_VOID *timer)
 {
 	struct nve_softc *sc = (struct nve_softc *)ctx;
@@ -1662,7 +1660,7 @@ nve_osalloctimer(PNV_VOID ctx, PNV_VOID *timer)
 }
 
 /* Free the timer */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osfreetimer(PNV_VOID ctx, PNV_VOID timer)
 {
 
@@ -1674,7 +1672,7 @@ nve_osfreetimer(PNV_VOID ctx, PNV_VOID timer)
 }
 
 /* Setup timer parameters */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osinittimer(PNV_VOID ctx, PNV_VOID timer, PTIMER_FUNC func, PNV_VOID parameters)
 {
 	struct nve_softc *sc = (struct nve_softc *)ctx;
@@ -1688,7 +1686,7 @@ nve_osinittimer(PNV_VOID ctx, PNV_VOID timer, PTIMER_FUNC func, PNV_VOID paramet
 }
 
 /* Set the timer to go off */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_ossettimer(PNV_VOID ctx, PNV_VOID timer, NV_UINT32 delay)
 {
 	struct nve_softc *sc = ctx;
@@ -1702,7 +1700,7 @@ nve_ossettimer(PNV_VOID ctx, PNV_VOID timer, NV_UINT32 delay)
 }
 
 /* Cancel the timer */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_oscanceltimer(PNV_VOID ctx, PNV_VOID timer)
 {
 
@@ -1713,7 +1711,7 @@ nve_oscanceltimer(PNV_VOID ctx, PNV_VOID timer)
 	return (1);
 }
 
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_ospreprocpkt(PNV_VOID ctx, PNV_VOID readdata, PNV_VOID *id,
     NV_UINT8 *newbuffer, NV_UINT8 priority)
 {
@@ -1724,7 +1722,7 @@ nve_ospreprocpkt(PNV_VOID ctx, PNV_VOID readdata, PNV_VOID *id,
 	return (1);
 }
 
-static PNV_VOID
+static NV_API_CALL PNV_VOID
 nve_ospreprocpktnopq(PNV_VOID ctx, PNV_VOID readdata)
 {
 
@@ -1734,7 +1732,7 @@ nve_ospreprocpktnopq(PNV_VOID ctx, PNV_VOID readdata)
 	return (NULL);
 }
 
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_osindicatepkt(PNV_VOID ctx, PNV_VOID *id, NV_UINT32 pktno)
 {
 
@@ -1745,7 +1743,7 @@ nve_osindicatepkt(PNV_VOID ctx, PNV_VOID *id, NV_UINT32 pktno)
 }
 
 /* Allocate mutex context (already done in nve_attach) */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_oslockalloc(PNV_VOID ctx, NV_SINT32 type, PNV_VOID *pLock)
 {
 	struct nve_softc *sc = (struct nve_softc *)ctx;
@@ -1758,7 +1756,7 @@ nve_oslockalloc(PNV_VOID ctx, NV_SINT32 type, PNV_VOID *pLock)
 }
 
 /* Obtain a spin lock */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_oslockacquire(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 {
 
@@ -1768,7 +1766,7 @@ nve_oslockacquire(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 }
 
 /* Release lock */
-static NV_SINT32
+static NV_API_CALL NV_SINT32
 nve_oslockrelease(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 {
 
@@ -1778,7 +1776,7 @@ nve_oslockrelease(PNV_VOID ctx, NV_SINT32 type, PNV_VOID lock)
 }
 
 /* I have no idea what this is for */
-static PNV_VOID
+static NV_API_CALL PNV_VOID
 nve_osreturnbufvirt(PNV_VOID ctx, PNV_VOID readdata)
 {
 

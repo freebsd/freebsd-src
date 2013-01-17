@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
+#include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 
 #include <net/bpf.h>
@@ -61,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_superg.h>
 #endif
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_sta.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -400,7 +403,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    arg == IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
 			break;
 		case IEEE80211_S_SLEEP:
-			ieee80211_sta_pwrsave(vap, 0);
+			vap->iv_sta_ps(vap, 0);
 			break;
 		default:
 			goto invalid;
@@ -436,7 +439,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		break;
 	case IEEE80211_S_SLEEP:
-		ieee80211_sta_pwrsave(vap, 1);
+		vap->iv_sta_ps(vap, 1);
 		break;
 	default:
 	invalid:
@@ -584,6 +587,30 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_wrongbss++;
 			goto out;
 		}
+
+		/*
+		 * Some devices may be in a promiscuous mode
+		 * where they receive frames for multiple station
+		 * addresses.
+		 *
+		 * If we receive a data frame that isn't
+		 * destined to our VAP MAC, drop it.
+		 *
+		 * XXX TODO: This is only enforced when not scanning;
+		 * XXX it assumes a software-driven scan will put the NIC
+		 * XXX into a "no data frames" mode before setting this
+		 * XXX flag. Otherwise it may be possible that we'll still
+		 * XXX process data frames whilst scanning.
+		 */
+		if ((! IEEE80211_IS_MULTICAST(wh->i_addr1))
+		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, IF_LLADDR(ifp)))) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
+			    bssid, NULL, "not to cur sta: lladdr=%6D, addr1=%6D",
+			    IF_LLADDR(ifp), ":", wh->i_addr1, ":");
+			vap->iv_stats.is_rx_wrongbss++;
+			goto out;
+		}
+
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = nf;
 		if (HAS_SEQ(type) && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
@@ -1060,7 +1087,7 @@ bad:
 		    IEEE80211_SCAN_FAIL_STATUS);
 }
 
-static int
+int
 ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 	const struct ieee80211_frame *wh)
 {
@@ -1259,6 +1286,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	uint8_t *frm, *efrm;
 	uint8_t *rates, *xrates, *wme, *htcap, *htinfo;
 	uint8_t rate;
+	int ht_state_change = 0;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	frm = (uint8_t *)&wh[1];
@@ -1279,8 +1307,11 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			return;
 		}
 		/* XXX probe response in sta mode when !scanning? */
-		if (ieee80211_parse_beacon(ni, m0, &scan) != 0)
+		if (ieee80211_parse_beacon(ni, m0, &scan) != 0) {
+			if (! (ic->ic_flags & IEEE80211_F_SCAN))
+				vap->iv_stats.is_beacon_bad++;
 			return;
+		}
 		/*
 		 * Count frame now that we know it's to be processed.
 		 */
@@ -1343,10 +1374,13 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #endif
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
 			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
-				ieee80211_ht_updateparams(ni,
-				    scan.htcap, scan.htinfo);
 				/* XXX state changes? */
+				if (ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo))
+					ht_state_change = 1;
 			}
+			if (scan.quiet)
+				ic->ic_set_quiet(ni, scan.quiet);
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
 				    (struct ieee80211_tim_ie *) scan.tim;
@@ -1363,7 +1397,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 					 * we are expecting data.
 					 */
 					ic->ic_lastdata = ticks;
-					ieee80211_sta_pwrsave(vap, 0);
+					vap->iv_sta_ps(vap, 0);
 				}
 #endif
 				ni->ni_dtim_count = tim->tim_count;
@@ -1410,6 +1444,13 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #endif
 				ieee80211_bg_scan(vap, 0);
 			}
+
+			/*
+			 * If we've had a channel width change (eg HT20<->HT40)
+			 * then schedule a delayed driver notification.
+			 */
+			if (ht_state_change)
+				ieee80211_update_chw(ic);
 			return;
 		}
 		/*

@@ -97,7 +97,7 @@ gzFile gz_open (path, mode, vp)
     gz_stream *s;
     char fmode[80]; /* copy of mode, without the compression level */
     char *m = fmode;
-    int resid;
+    ssize_t resid;
     int error;
     char buf[GZ_HEADER_LEN + 1];
 
@@ -219,7 +219,6 @@ int ZEXPORT gzwrite (file, buf, len)
     off_t curoff;
     size_t resid;
     int error;
-    int vfslocked;
 
     if (s == NULL || s->mode != 'w') return Z_STREAM_ERROR;
 
@@ -232,11 +231,9 @@ int ZEXPORT gzwrite (file, buf, len)
         if (s->stream.avail_out == 0) {
 
             s->stream.next_out = s->outbuf;
-            vfslocked = VFS_LOCK_GIANT(s->file->v_mount);
             error = vn_rdwr_inchunks(UIO_WRITE, s->file, s->outbuf, Z_BUFSIZE,
                         curoff, UIO_SYSSPACE, IO_UNIT,
                         curproc->p_ucred, NOCRED, &resid, curthread);
-            VFS_UNLOCK_GIANT(vfslocked);
             if (error) {
                 log(LOG_ERR, "gzwrite: vn_rdwr return %d\n", error);
                 curoff += Z_BUFSIZE - resid;
@@ -274,7 +271,6 @@ local int do_flush (file, flush)
     gz_stream *s = (gz_stream*)file;
     off_t curoff = s->outoff;
     size_t resid;
-    int vfslocked = 0;
     int error;
 
     if (s == NULL || s->mode != 'w') return Z_STREAM_ERROR;
@@ -289,11 +285,9 @@ local int do_flush (file, flush)
         len = Z_BUFSIZE - s->stream.avail_out;
 
         if (len != 0) {
-            vfslocked = VFS_LOCK_GIANT(s->file->v_mount);
             error = vn_rdwr_inchunks(UIO_WRITE, s->file, s->outbuf, len, curoff,
                         UIO_SYSSPACE, IO_UNIT, curproc->p_ucred,
                         NOCRED, &resid, curthread);
-            VFS_UNLOCK_GIANT(vfslocked);
 	    if (error) {
                 s->z_err = Z_ERRNO;
                 s->outoff = curoff + len - resid;
@@ -342,7 +336,7 @@ local void putU32 (s, x)
 {
     uint32_t xx;
     off_t curoff = s->outoff;
-    int resid;
+    ssize_t resid;
 
 #if BYTE_ORDER == BIG_ENDIAN
     xx = bswap32(x);

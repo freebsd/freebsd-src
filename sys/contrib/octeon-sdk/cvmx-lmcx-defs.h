@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_LMCX_TYPEDEFS_H__
-#define __CVMX_LMCX_TYPEDEFS_H__
+#ifndef __CVMX_LMCX_DEFS_H__
+#define __CVMX_LMCX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_BIST_CTL(unsigned long block_id)
@@ -82,67 +82,91 @@ static inline uint64_t CVMX_LMCX_BIST_RESULT(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_CHAR_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CHAR_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000220ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000220ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CHAR_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000220ull))
+#define CVMX_LMCX_CHAR_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000220ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CHAR_MASK0(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CHAR_MASK0(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000228ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000228ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CHAR_MASK0(block_id) (CVMX_ADD_IO_SEG(0x0001180088000228ull))
+#define CVMX_LMCX_CHAR_MASK0(block_id) (CVMX_ADD_IO_SEG(0x0001180088000228ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CHAR_MASK1(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CHAR_MASK1(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000230ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000230ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CHAR_MASK1(block_id) (CVMX_ADD_IO_SEG(0x0001180088000230ull))
+#define CVMX_LMCX_CHAR_MASK1(block_id) (CVMX_ADD_IO_SEG(0x0001180088000230ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CHAR_MASK2(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CHAR_MASK2(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000238ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000238ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CHAR_MASK2(block_id) (CVMX_ADD_IO_SEG(0x0001180088000238ull))
+#define CVMX_LMCX_CHAR_MASK2(block_id) (CVMX_ADD_IO_SEG(0x0001180088000238ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CHAR_MASK3(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CHAR_MASK3(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000240ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000240ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CHAR_MASK3(block_id) (CVMX_ADD_IO_SEG(0x0001180088000240ull))
+#define CVMX_LMCX_CHAR_MASK3(block_id) (CVMX_ADD_IO_SEG(0x0001180088000240ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CHAR_MASK4(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CHAR_MASK4(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000318ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000318ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CHAR_MASK4(block_id) (CVMX_ADD_IO_SEG(0x0001180088000318ull))
+#define CVMX_LMCX_CHAR_MASK4(block_id) (CVMX_ADD_IO_SEG(0x0001180088000318ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_COMP_CTL(unsigned long block_id)
@@ -165,34 +189,46 @@ static inline uint64_t CVMX_LMCX_COMP_CTL(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_COMP_CTL2(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_COMP_CTL2(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001B8ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001B8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_COMP_CTL2(block_id) (CVMX_ADD_IO_SEG(0x00011800880001B8ull))
+#define CVMX_LMCX_COMP_CTL2(block_id) (CVMX_ADD_IO_SEG(0x00011800880001B8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CONFIG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CONFIG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000188ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000188ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CONFIG(block_id) (CVMX_ADD_IO_SEG(0x0001180088000188ull))
+#define CVMX_LMCX_CONFIG(block_id) (CVMX_ADD_IO_SEG(0x0001180088000188ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CONTROL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_CONTROL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000190ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000190ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_CONTROL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000190ull))
+#define CVMX_LMCX_CONTROL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000190ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_CTL(unsigned long block_id)
@@ -230,12 +266,16 @@ static inline uint64_t CVMX_LMCX_CTL1(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_DCLK_CNT(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_DCLK_CNT(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001E0ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001E0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_DCLK_CNT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001E0ull))
+#define CVMX_LMCX_DCLK_CNT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001E0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_DCLK_CNT_HI(unsigned long block_id)
@@ -303,12 +343,16 @@ static inline uint64_t CVMX_LMCX_DDR2_CTL(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_DDR_PLL_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_DDR_PLL_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000258ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000258ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_DDR_PLL_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000258ull))
+#define CVMX_LMCX_DDR_PLL_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000258ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_DELAY_CFG(unsigned long block_id)
@@ -330,23 +374,31 @@ static inline uint64_t CVMX_LMCX_DELAY_CFG(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_DIMMX_PARAMS(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id == 0))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && (((offset <= 1)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && (((offset <= 1)) && ((block_id <= 3)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && (((offset <= 1)) && ((block_id == 0))))))
 		cvmx_warn("CVMX_LMCX_DIMMX_PARAMS(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000270ull) + (((offset) & 1) + ((block_id) & 0) * 0x0ull) * 8;
+	return CVMX_ADD_IO_SEG(0x0001180088000270ull) + (((offset) & 1) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_LMCX_DIMMX_PARAMS(offset, block_id) (CVMX_ADD_IO_SEG(0x0001180088000270ull) + (((offset) & 1) + ((block_id) & 0) * 0x0ull) * 8)
+#define CVMX_LMCX_DIMMX_PARAMS(offset, block_id) (CVMX_ADD_IO_SEG(0x0001180088000270ull) + (((offset) & 1) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_DIMM_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_DIMM_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000310ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000310ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_DIMM_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000310ull))
+#define CVMX_LMCX_DIMM_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000310ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_DLL_CTL(unsigned long block_id)
@@ -364,85 +416,127 @@ static inline uint64_t CVMX_LMCX_DLL_CTL(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_DLL_CTL2(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_DLL_CTL2(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001C8ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001C8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_DLL_CTL2(block_id) (CVMX_ADD_IO_SEG(0x00011800880001C8ull))
+#define CVMX_LMCX_DLL_CTL2(block_id) (CVMX_ADD_IO_SEG(0x00011800880001C8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_DLL_CTL3(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_DLL_CTL3(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000218ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000218ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_DLL_CTL3(block_id) (CVMX_ADD_IO_SEG(0x0001180088000218ull))
+#define CVMX_LMCX_DLL_CTL3(block_id) (CVMX_ADD_IO_SEG(0x0001180088000218ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_DUAL_MEMCFG(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN50XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_LMCX_DUAL_MEMCFG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000098ull) + ((block_id) & 1) * 0x60000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CNF71XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN50XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN58XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x0001180088000098ull) + ((block_id) & 0) * 0x60000000ull;
+			break;
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x0001180088000098ull) + ((block_id) & 1) * 0x60000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 3))
+				return CVMX_ADD_IO_SEG(0x0001180088000098ull) + ((block_id) & 3) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_LMCX_DUAL_MEMCFG (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x0001180088000098ull) + ((block_id) & 0) * 0x60000000ull;
 }
-#else
-#define CVMX_LMCX_DUAL_MEMCFG(block_id) (CVMX_ADD_IO_SEG(0x0001180088000098ull) + ((block_id) & 1) * 0x60000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_ECC_SYND(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN30XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN31XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN38XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN50XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_LMCX_ECC_SYND(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000038ull) + ((block_id) & 1) * 0x60000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN30XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN50XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN38XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN31XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN58XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CNF71XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x0001180088000038ull) + ((block_id) & 0) * 0x60000000ull;
+			break;
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x0001180088000038ull) + ((block_id) & 1) * 0x60000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 3))
+				return CVMX_ADD_IO_SEG(0x0001180088000038ull) + ((block_id) & 3) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_LMCX_ECC_SYND (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x0001180088000038ull) + ((block_id) & 0) * 0x60000000ull;
 }
-#else
-#define CVMX_LMCX_ECC_SYND(block_id) (CVMX_ADD_IO_SEG(0x0001180088000038ull) + ((block_id) & 1) * 0x60000000ull)
-#endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_FADR(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN30XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN31XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN38XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN50XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_LMCX_FADR(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000020ull) + ((block_id) & 1) * 0x60000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CN30XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN50XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN38XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN31XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN58XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CNF71XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x0001180088000020ull) + ((block_id) & 0) * 0x60000000ull;
+			break;
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x0001180088000020ull) + ((block_id) & 1) * 0x60000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 3))
+				return CVMX_ADD_IO_SEG(0x0001180088000020ull) + ((block_id) & 3) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_LMCX_FADR (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x0001180088000020ull) + ((block_id) & 0) * 0x60000000ull;
 }
-#else
-#define CVMX_LMCX_FADR(block_id) (CVMX_ADD_IO_SEG(0x0001180088000020ull) + ((block_id) & 1) * 0x60000000ull)
-#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_IFB_CNT(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_IFB_CNT(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001D0ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001D0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_IFB_CNT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001D0ull))
+#define CVMX_LMCX_IFB_CNT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001D0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_IFB_CNT_HI(unsigned long block_id)
@@ -482,23 +576,31 @@ static inline uint64_t CVMX_LMCX_IFB_CNT_LO(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_INT(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_INT(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001F0ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001F0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_INT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001F0ull))
+#define CVMX_LMCX_INT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001F0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_INT_EN(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_INT_EN(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001E8ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001E8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_INT_EN(block_id) (CVMX_ADD_IO_SEG(0x00011800880001E8ull))
+#define CVMX_LMCX_INT_EN(block_id) (CVMX_ADD_IO_SEG(0x00011800880001E8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_MEM_CFG0(unsigned long block_id)
@@ -538,48 +640,70 @@ static inline uint64_t CVMX_LMCX_MEM_CFG1(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_MODEREG_PARAMS0(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_MODEREG_PARAMS0(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001A8ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001A8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_MODEREG_PARAMS0(block_id) (CVMX_ADD_IO_SEG(0x00011800880001A8ull))
+#define CVMX_LMCX_MODEREG_PARAMS0(block_id) (CVMX_ADD_IO_SEG(0x00011800880001A8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_MODEREG_PARAMS1(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_MODEREG_PARAMS1(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000260ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000260ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_MODEREG_PARAMS1(block_id) (CVMX_ADD_IO_SEG(0x0001180088000260ull))
+#define CVMX_LMCX_MODEREG_PARAMS1(block_id) (CVMX_ADD_IO_SEG(0x0001180088000260ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
-#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_NXM(unsigned long block_id)
 {
-	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN58XX) && ((block_id == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
-		cvmx_warn("CVMX_LMCX_NXM(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880000C8ull) + ((block_id) & 1) * 0x60000000ull;
+	switch(cvmx_get_octeon_family()) {
+		case OCTEON_CNF71XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN61XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN66XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN52XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN58XX & OCTEON_FAMILY_MASK:
+		case OCTEON_CN63XX & OCTEON_FAMILY_MASK:
+			if ((block_id == 0))
+				return CVMX_ADD_IO_SEG(0x00011800880000C8ull) + ((block_id) & 0) * 0x60000000ull;
+			break;
+		case OCTEON_CN56XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 1))
+				return CVMX_ADD_IO_SEG(0x00011800880000C8ull) + ((block_id) & 1) * 0x60000000ull;
+			break;
+		case OCTEON_CN68XX & OCTEON_FAMILY_MASK:
+			if ((block_id <= 3))
+				return CVMX_ADD_IO_SEG(0x00011800880000C8ull) + ((block_id) & 3) * 0x1000000ull;
+			break;
+	}
+	cvmx_warn("CVMX_LMCX_NXM (block_id = %lu) not supported on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800880000C8ull) + ((block_id) & 0) * 0x60000000ull;
 }
-#else
-#define CVMX_LMCX_NXM(block_id) (CVMX_ADD_IO_SEG(0x00011800880000C8ull) + ((block_id) & 1) * 0x60000000ull)
-#endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_OPS_CNT(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_OPS_CNT(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001D8ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001D8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_OPS_CNT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001D8ull))
+#define CVMX_LMCX_OPS_CNT(block_id) (CVMX_ADD_IO_SEG(0x00011800880001D8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_OPS_CNT_HI(unsigned long block_id)
@@ -619,12 +743,16 @@ static inline uint64_t CVMX_LMCX_OPS_CNT_LO(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_PHY_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_PHY_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000210ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000210ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_PHY_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000210ull))
+#define CVMX_LMCX_PHY_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000210ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_PLL_BWCTL(unsigned long block_id)
@@ -707,45 +835,61 @@ static inline uint64_t CVMX_LMCX_READ_LEVEL_RANKX(unsigned long offset, unsigned
 static inline uint64_t CVMX_LMCX_RESET_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_RESET_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000180ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000180ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_RESET_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000180ull))
+#define CVMX_LMCX_RESET_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000180ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_RLEVEL_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_RLEVEL_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880002A0ull);
+	return CVMX_ADD_IO_SEG(0x00011800880002A0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_RLEVEL_CTL(block_id) (CVMX_ADD_IO_SEG(0x00011800880002A0ull))
+#define CVMX_LMCX_RLEVEL_CTL(block_id) (CVMX_ADD_IO_SEG(0x00011800880002A0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_RLEVEL_DBG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_RLEVEL_DBG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880002A8ull);
+	return CVMX_ADD_IO_SEG(0x00011800880002A8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_RLEVEL_DBG(block_id) (CVMX_ADD_IO_SEG(0x00011800880002A8ull))
+#define CVMX_LMCX_RLEVEL_DBG(block_id) (CVMX_ADD_IO_SEG(0x00011800880002A8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_RLEVEL_RANKX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 3)) && ((block_id == 0))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && (((offset <= 3)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 3)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 3)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && (((offset <= 3)) && ((block_id <= 3)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && (((offset <= 3)) && ((block_id == 0))))))
 		cvmx_warn("CVMX_LMCX_RLEVEL_RANKX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000280ull) + (((offset) & 3) + ((block_id) & 0) * 0x0ull) * 8;
+	return CVMX_ADD_IO_SEG(0x0001180088000280ull) + (((offset) & 3) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_LMCX_RLEVEL_RANKX(offset, block_id) (CVMX_ADD_IO_SEG(0x0001180088000280ull) + (((offset) & 3) + ((block_id) & 0) * 0x0ull) * 8)
+#define CVMX_LMCX_RLEVEL_RANKX(offset, block_id) (CVMX_ADD_IO_SEG(0x0001180088000280ull) + (((offset) & 3) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_RODT_COMP_CTL(unsigned long block_id)
@@ -782,122 +926,205 @@ static inline uint64_t CVMX_LMCX_RODT_CTL(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_RODT_MASK(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_RODT_MASK(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000268ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000268ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_RODT_MASK(block_id) (CVMX_ADD_IO_SEG(0x0001180088000268ull))
+#define CVMX_LMCX_RODT_MASK(block_id) (CVMX_ADD_IO_SEG(0x0001180088000268ull) + ((block_id) & 3) * 0x1000000ull)
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+static inline uint64_t CVMX_LMCX_SCRAMBLED_FADR(unsigned long block_id)
+{
+	if (!(
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
+		cvmx_warn("CVMX_LMCX_SCRAMBLED_FADR(%lu) is invalid on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x0001180088000330ull);
+}
+#else
+#define CVMX_LMCX_SCRAMBLED_FADR(block_id) (CVMX_ADD_IO_SEG(0x0001180088000330ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+static inline uint64_t CVMX_LMCX_SCRAMBLE_CFG0(unsigned long block_id)
+{
+	if (!(
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
+		cvmx_warn("CVMX_LMCX_SCRAMBLE_CFG0(%lu) is invalid on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x0001180088000320ull);
+}
+#else
+#define CVMX_LMCX_SCRAMBLE_CFG0(block_id) (CVMX_ADD_IO_SEG(0x0001180088000320ull))
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+static inline uint64_t CVMX_LMCX_SCRAMBLE_CFG1(unsigned long block_id)
+{
+	if (!(
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
+		cvmx_warn("CVMX_LMCX_SCRAMBLE_CFG1(%lu) is invalid on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x0001180088000328ull);
+}
+#else
+#define CVMX_LMCX_SCRAMBLE_CFG1(block_id) (CVMX_ADD_IO_SEG(0x0001180088000328ull))
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_SLOT_CTL0(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_SLOT_CTL0(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001F8ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001F8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_SLOT_CTL0(block_id) (CVMX_ADD_IO_SEG(0x00011800880001F8ull))
+#define CVMX_LMCX_SLOT_CTL0(block_id) (CVMX_ADD_IO_SEG(0x00011800880001F8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_SLOT_CTL1(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_SLOT_CTL1(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000200ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000200ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_SLOT_CTL1(block_id) (CVMX_ADD_IO_SEG(0x0001180088000200ull))
+#define CVMX_LMCX_SLOT_CTL1(block_id) (CVMX_ADD_IO_SEG(0x0001180088000200ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_SLOT_CTL2(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_SLOT_CTL2(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000208ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000208ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_SLOT_CTL2(block_id) (CVMX_ADD_IO_SEG(0x0001180088000208ull))
+#define CVMX_LMCX_SLOT_CTL2(block_id) (CVMX_ADD_IO_SEG(0x0001180088000208ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_TIMING_PARAMS0(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_TIMING_PARAMS0(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000198ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000198ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_TIMING_PARAMS0(block_id) (CVMX_ADD_IO_SEG(0x0001180088000198ull))
+#define CVMX_LMCX_TIMING_PARAMS0(block_id) (CVMX_ADD_IO_SEG(0x0001180088000198ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_TIMING_PARAMS1(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_TIMING_PARAMS1(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001A0ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001A0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_TIMING_PARAMS1(block_id) (CVMX_ADD_IO_SEG(0x00011800880001A0ull))
+#define CVMX_LMCX_TIMING_PARAMS1(block_id) (CVMX_ADD_IO_SEG(0x00011800880001A0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_TRO_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_TRO_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000248ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000248ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_TRO_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000248ull))
+#define CVMX_LMCX_TRO_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000248ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_TRO_STAT(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_TRO_STAT(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000250ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000250ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_TRO_STAT(block_id) (CVMX_ADD_IO_SEG(0x0001180088000250ull))
+#define CVMX_LMCX_TRO_STAT(block_id) (CVMX_ADD_IO_SEG(0x0001180088000250ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_WLEVEL_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_WLEVEL_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000300ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000300ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_WLEVEL_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000300ull))
+#define CVMX_LMCX_WLEVEL_CTL(block_id) (CVMX_ADD_IO_SEG(0x0001180088000300ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_WLEVEL_DBG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_WLEVEL_DBG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x0001180088000308ull);
+	return CVMX_ADD_IO_SEG(0x0001180088000308ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_WLEVEL_DBG(block_id) (CVMX_ADD_IO_SEG(0x0001180088000308ull))
+#define CVMX_LMCX_WLEVEL_DBG(block_id) (CVMX_ADD_IO_SEG(0x0001180088000308ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_WLEVEL_RANKX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 3)) && ((block_id == 0))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && (((offset <= 3)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 3)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 3)) && ((block_id == 0)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && (((offset <= 3)) && ((block_id <= 3)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && (((offset <= 3)) && ((block_id == 0))))))
 		cvmx_warn("CVMX_LMCX_WLEVEL_RANKX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880002B0ull) + (((offset) & 3) + ((block_id) & 0) * 0x0ull) * 8;
+	return CVMX_ADD_IO_SEG(0x00011800880002B0ull) + (((offset) & 3) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_LMCX_WLEVEL_RANKX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800880002B0ull) + (((offset) & 3) + ((block_id) & 0) * 0x0ull) * 8)
+#define CVMX_LMCX_WLEVEL_RANKX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800880002B0ull) + (((offset) & 3) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_LMCX_WODT_CTL0(unsigned long block_id)
@@ -934,12 +1161,16 @@ static inline uint64_t CVMX_LMCX_WODT_CTL1(unsigned long block_id)
 static inline uint64_t CVMX_LMCX_WODT_MASK(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 3))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id == 0)))))
 		cvmx_warn("CVMX_LMCX_WODT_MASK(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800880001B0ull);
+	return CVMX_ADD_IO_SEG(0x00011800880001B0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_LMCX_WODT_MASK(block_id) (CVMX_ADD_IO_SEG(0x00011800880001B0ull))
+#define CVMX_LMCX_WODT_MASK(block_id) (CVMX_ADD_IO_SEG(0x00011800880001B0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 
 /**
@@ -949,12 +1180,10 @@ static inline uint64_t CVMX_LMCX_WODT_MASK(unsigned long block_id)
  * This controls BiST only for the memories that operate on DCLK.  The normal, chip-wide BiST flow
  * controls BiST for the memories that operate on ECLK.
  */
-union cvmx_lmcx_bist_ctl
-{
+union cvmx_lmcx_bist_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_bist_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_bist_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t start                        : 1;  /**< A 0->1 transition causes BiST to run. */
 #else
@@ -977,12 +1206,10 @@ typedef union cvmx_lmcx_bist_ctl cvmx_lmcx_bist_ctl_t;
  * Access to the internal BiST results
  * Each bit is the BiST result of an individual memory (per bit, 0=pass and 1=fail).
  */
-union cvmx_lmcx_bist_result
-{
+union cvmx_lmcx_bist_result {
 	uint64_t u64;
-	struct cvmx_lmcx_bist_result_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_bist_result_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_11_63               : 53;
 	uint64_t csrd2e                       : 1;  /**< BiST result of CSRD2E memory (0=pass, !0=fail) */
 	uint64_t csre2d                       : 1;  /**< BiST result of CSRE2D memory (0=pass, !0=fail) */
@@ -1002,9 +1229,8 @@ union cvmx_lmcx_bist_result
 	uint64_t reserved_11_63               : 53;
 #endif
 	} s;
-	struct cvmx_lmcx_bist_result_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_bist_result_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t mwf                          : 1;  /**< BiST result of MWF memories (0=pass, !0=fail) */
 	uint64_t mwd                          : 3;  /**< BiST result of MWD memories (0=pass, !0=fail) */
@@ -1033,12 +1259,32 @@ typedef union cvmx_lmcx_bist_result cvmx_lmcx_bist_result_t;
  * LMC_CHAR_CTL = LMC Characterization Control
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_lmcx_char_ctl
-{
+union cvmx_lmcx_char_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_char_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_char_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_44_63               : 20;
+	uint64_t dr                           : 1;  /**< Pattern at Data Rate (not Clock Rate) */
+	uint64_t skew_on                      : 1;  /**< Skew adjacent bits */
+	uint64_t en                           : 1;  /**< Enable characterization */
+	uint64_t sel                          : 1;  /**< Pattern select
+                                                         0 = PRBS
+                                                         1 = Programmable pattern */
+	uint64_t prog                         : 8;  /**< Programmable pattern */
+	uint64_t prbs                         : 32; /**< PRBS Polynomial */
+#else
+	uint64_t prbs                         : 32;
+	uint64_t prog                         : 8;
+	uint64_t sel                          : 1;
+	uint64_t en                           : 1;
+	uint64_t skew_on                      : 1;
+	uint64_t dr                           : 1;
+	uint64_t reserved_44_63               : 20;
+#endif
+	} s;
+	struct cvmx_lmcx_char_ctl_s           cn61xx;
+	struct cvmx_lmcx_char_ctl_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_42_63               : 22;
 	uint64_t en                           : 1;  /**< Enable characterization */
 	uint64_t sel                          : 1;  /**< Pattern select
@@ -1053,9 +1299,12 @@ union cvmx_lmcx_char_ctl
 	uint64_t en                           : 1;
 	uint64_t reserved_42_63               : 22;
 #endif
-	} s;
-	struct cvmx_lmcx_char_ctl_s           cn63xx;
-	struct cvmx_lmcx_char_ctl_s           cn63xxp1;
+	} cn63xx;
+	struct cvmx_lmcx_char_ctl_cn63xx      cn63xxp1;
+	struct cvmx_lmcx_char_ctl_s           cn66xx;
+	struct cvmx_lmcx_char_ctl_s           cn68xx;
+	struct cvmx_lmcx_char_ctl_cn63xx      cn68xxp1;
+	struct cvmx_lmcx_char_ctl_s           cnf71xx;
 };
 typedef union cvmx_lmcx_char_ctl cvmx_lmcx_char_ctl_t;
 
@@ -1065,19 +1314,22 @@ typedef union cvmx_lmcx_char_ctl cvmx_lmcx_char_ctl_t;
  * LMC_CHAR_MASK0 = LMC Characterization Mask0
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_lmcx_char_mask0
-{
+union cvmx_lmcx_char_mask0 {
 	uint64_t u64;
-	struct cvmx_lmcx_char_mask0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_char_mask0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mask                         : 64; /**< Mask for DQ0[63:0] */
 #else
 	uint64_t mask                         : 64;
 #endif
 	} s;
+	struct cvmx_lmcx_char_mask0_s         cn61xx;
 	struct cvmx_lmcx_char_mask0_s         cn63xx;
 	struct cvmx_lmcx_char_mask0_s         cn63xxp1;
+	struct cvmx_lmcx_char_mask0_s         cn66xx;
+	struct cvmx_lmcx_char_mask0_s         cn68xx;
+	struct cvmx_lmcx_char_mask0_s         cn68xxp1;
+	struct cvmx_lmcx_char_mask0_s         cnf71xx;
 };
 typedef union cvmx_lmcx_char_mask0 cvmx_lmcx_char_mask0_t;
 
@@ -1087,12 +1339,10 @@ typedef union cvmx_lmcx_char_mask0 cvmx_lmcx_char_mask0_t;
  * LMC_CHAR_MASK1 = LMC Characterization Mask1
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_lmcx_char_mask1
-{
+union cvmx_lmcx_char_mask1 {
 	uint64_t u64;
-	struct cvmx_lmcx_char_mask1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_char_mask1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t mask                         : 8;  /**< Mask for DQ0[71:64] */
 #else
@@ -1100,8 +1350,13 @@ union cvmx_lmcx_char_mask1
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
+	struct cvmx_lmcx_char_mask1_s         cn61xx;
 	struct cvmx_lmcx_char_mask1_s         cn63xx;
 	struct cvmx_lmcx_char_mask1_s         cn63xxp1;
+	struct cvmx_lmcx_char_mask1_s         cn66xx;
+	struct cvmx_lmcx_char_mask1_s         cn68xx;
+	struct cvmx_lmcx_char_mask1_s         cn68xxp1;
+	struct cvmx_lmcx_char_mask1_s         cnf71xx;
 };
 typedef union cvmx_lmcx_char_mask1 cvmx_lmcx_char_mask1_t;
 
@@ -1111,19 +1366,22 @@ typedef union cvmx_lmcx_char_mask1 cvmx_lmcx_char_mask1_t;
  * LMC_CHAR_MASK2 = LMC Characterization Mask2
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_lmcx_char_mask2
-{
+union cvmx_lmcx_char_mask2 {
 	uint64_t u64;
-	struct cvmx_lmcx_char_mask2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_char_mask2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t mask                         : 64; /**< Mask for DQ1[63:0] */
 #else
 	uint64_t mask                         : 64;
 #endif
 	} s;
+	struct cvmx_lmcx_char_mask2_s         cn61xx;
 	struct cvmx_lmcx_char_mask2_s         cn63xx;
 	struct cvmx_lmcx_char_mask2_s         cn63xxp1;
+	struct cvmx_lmcx_char_mask2_s         cn66xx;
+	struct cvmx_lmcx_char_mask2_s         cn68xx;
+	struct cvmx_lmcx_char_mask2_s         cn68xxp1;
+	struct cvmx_lmcx_char_mask2_s         cnf71xx;
 };
 typedef union cvmx_lmcx_char_mask2 cvmx_lmcx_char_mask2_t;
 
@@ -1133,12 +1391,10 @@ typedef union cvmx_lmcx_char_mask2 cvmx_lmcx_char_mask2_t;
  * LMC_CHAR_MASK3 = LMC Characterization Mask3
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_lmcx_char_mask3
-{
+union cvmx_lmcx_char_mask3 {
 	uint64_t u64;
-	struct cvmx_lmcx_char_mask3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_char_mask3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t mask                         : 8;  /**< Mask for DQ1[71:64] */
 #else
@@ -1146,8 +1402,13 @@ union cvmx_lmcx_char_mask3
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
+	struct cvmx_lmcx_char_mask3_s         cn61xx;
 	struct cvmx_lmcx_char_mask3_s         cn63xx;
 	struct cvmx_lmcx_char_mask3_s         cn63xxp1;
+	struct cvmx_lmcx_char_mask3_s         cn66xx;
+	struct cvmx_lmcx_char_mask3_s         cn68xx;
+	struct cvmx_lmcx_char_mask3_s         cn68xxp1;
+	struct cvmx_lmcx_char_mask3_s         cnf71xx;
 };
 typedef union cvmx_lmcx_char_mask3 cvmx_lmcx_char_mask3_t;
 
@@ -1157,12 +1418,10 @@ typedef union cvmx_lmcx_char_mask3 cvmx_lmcx_char_mask3_t;
  * LMC_CHAR_MASK4 = LMC Characterization Mask4
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_lmcx_char_mask4
-{
+union cvmx_lmcx_char_mask4 {
 	uint64_t u64;
-	struct cvmx_lmcx_char_mask4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_char_mask4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_33_63               : 31;
 	uint64_t reset_n_mask                 : 1;  /**< Mask for RESET_L */
 	uint64_t a_mask                       : 16; /**< Mask for A[15:0] */
@@ -1190,8 +1449,13 @@ union cvmx_lmcx_char_mask4
 	uint64_t reserved_33_63               : 31;
 #endif
 	} s;
+	struct cvmx_lmcx_char_mask4_s         cn61xx;
 	struct cvmx_lmcx_char_mask4_s         cn63xx;
 	struct cvmx_lmcx_char_mask4_s         cn63xxp1;
+	struct cvmx_lmcx_char_mask4_s         cn66xx;
+	struct cvmx_lmcx_char_mask4_s         cn68xx;
+	struct cvmx_lmcx_char_mask4_s         cn68xxp1;
+	struct cvmx_lmcx_char_mask4_s         cnf71xx;
 };
 typedef union cvmx_lmcx_char_mask4 cvmx_lmcx_char_mask4_t;
 
@@ -1201,12 +1465,10 @@ typedef union cvmx_lmcx_char_mask4 cvmx_lmcx_char_mask4_t;
  * LMC_COMP_CTL = LMC Compensation control
  *
  */
-union cvmx_lmcx_comp_ctl
-{
+union cvmx_lmcx_comp_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_comp_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_comp_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t nctl_csr                     : 4;  /**< Compensation control bits */
 	uint64_t nctl_clk                     : 4;  /**< Compensation control bits */
@@ -1226,9 +1488,8 @@ union cvmx_lmcx_comp_ctl
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
-	struct cvmx_lmcx_comp_ctl_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_comp_ctl_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t nctl_csr                     : 4;  /**< Compensation control bits */
 	uint64_t nctl_clk                     : 4;  /**< Compensation control bits */
@@ -1253,9 +1514,8 @@ union cvmx_lmcx_comp_ctl
 	struct cvmx_lmcx_comp_ctl_cn30xx      cn31xx;
 	struct cvmx_lmcx_comp_ctl_cn30xx      cn38xx;
 	struct cvmx_lmcx_comp_ctl_cn30xx      cn38xxp2;
-	struct cvmx_lmcx_comp_ctl_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_comp_ctl_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t nctl_csr                     : 4;  /**< Compensation control bits */
 	uint64_t reserved_20_27               : 8;
@@ -1278,9 +1538,8 @@ union cvmx_lmcx_comp_ctl
 	struct cvmx_lmcx_comp_ctl_cn50xx      cn56xx;
 	struct cvmx_lmcx_comp_ctl_cn50xx      cn56xxp1;
 	struct cvmx_lmcx_comp_ctl_cn50xx      cn58xx;
-	struct cvmx_lmcx_comp_ctl_cn58xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_comp_ctl_cn58xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t nctl_csr                     : 4;  /**< Compensation control bits */
 	uint64_t reserved_20_27               : 8;
@@ -1307,12 +1566,10 @@ typedef union cvmx_lmcx_comp_ctl cvmx_lmcx_comp_ctl_t;
  * LMC_COMP_CTL2 = LMC Compensation control
  *
  */
-union cvmx_lmcx_comp_ctl2
-{
+union cvmx_lmcx_comp_ctl2 {
 	uint64_t u64;
-	struct cvmx_lmcx_comp_ctl2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_comp_ctl2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t ddr__ptune                   : 4;  /**< DDR PCTL from compensation circuit
                                                          The encoded value provides debug information for the
@@ -1336,7 +1593,7 @@ union cvmx_lmcx_comp_ctl2
                                                          0100 = 60 ohm
                                                          0101 = 120 ohm
                                                          0110-1111 = Reserved */
-	uint64_t cmd_ctl                      : 4;  /**< Drive strength control for CMD/A/RESET_L/CKE* drivers
+	uint64_t cmd_ctl                      : 4;  /**< Drive strength control for CMD/A/RESET_L drivers
                                                          0001 = 24 ohm
                                                          0010 = 26.67 ohm
                                                          0011 = 30 ohm
@@ -1345,7 +1602,7 @@ union cvmx_lmcx_comp_ctl2
                                                          0110 = 48 ohm
                                                          0111 = 60 ohm
                                                          0000,1000-1111 = Reserved */
-	uint64_t ck_ctl                       : 4;  /**< Drive strength control for CK/CS*_L/ODT drivers
+	uint64_t ck_ctl                       : 4;  /**< Drive strength control for CK/CS*_L/ODT/CKE* drivers
                                                          0001 = 24 ohm
                                                          0010 = 26.67 ohm
                                                          0011 = 30 ohm
@@ -1377,8 +1634,13 @@ union cvmx_lmcx_comp_ctl2
 	uint64_t reserved_34_63               : 30;
 #endif
 	} s;
+	struct cvmx_lmcx_comp_ctl2_s          cn61xx;
 	struct cvmx_lmcx_comp_ctl2_s          cn63xx;
 	struct cvmx_lmcx_comp_ctl2_s          cn63xxp1;
+	struct cvmx_lmcx_comp_ctl2_s          cn66xx;
+	struct cvmx_lmcx_comp_ctl2_s          cn68xx;
+	struct cvmx_lmcx_comp_ctl2_s          cn68xxp1;
+	struct cvmx_lmcx_comp_ctl2_s          cnf71xx;
 };
 typedef union cvmx_lmcx_comp_ctl2 cvmx_lmcx_comp_ctl2_t;
 
@@ -1390,7 +1652,7 @@ typedef union cvmx_lmcx_comp_ctl2 cvmx_lmcx_comp_ctl2_t;
  * This register controls certain parameters of  Memory Configuration
  *
  * Notes:
- * a. Priority order for hardware writes to LMC*_CONFIG/LMC*_FADR/LMC*_ECC_SYND: DED error >= NXM error > SEC error
+ * a. Priority order for hardware writes to LMC*_CONFIG/LMC*_FADR/LMC*_SCRAMBLED_FADR/LMC*_ECC_SYND: DED error >= NXM error > SEC error
  * b. The self refresh entry sequence(s) power the DLL up/down (depending on LMC*_MODEREG_PARAMS0[DLL])
  * when LMC*_CONFIG[SREF_WITH_DLL] is set
  * c. Prior to the self-refresh exit sequence, LMC*_MODEREG_PARAMS0 and LMC*_MODEREG_PARAMS1 should be re-programmed (if needed) to the
@@ -1421,12 +1683,271 @@ typedef union cvmx_lmcx_comp_ctl2 cvmx_lmcx_comp_ctl2_t;
  *       ]
  *    ]
  */
-union cvmx_lmcx_config
-{
+union cvmx_lmcx_config {
 	uint64_t u64;
-	struct cvmx_lmcx_config_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_config_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_61_63               : 3;
+	uint64_t mode32b                      : 1;  /**< 32b Datapath Mode                                          NS
+                                                         Set to 1 if we use only 32 DQ pins
+                                                         0 for 64b DQ mode. */
+	uint64_t scrz                         : 1;  /**< Hide LMC*_SCRAMBLE_CFG0 and LMC*_SCRAMBLE_CFG1 when set */
+	uint64_t early_unload_d1_r1           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 3
+                                                         reads
+                                                         The recommended EARLY_UNLOAD_D1_R1 value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK3[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 3 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK3[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D1_R1
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D1_R1 = (maxset<1:0>!=3)). */
+	uint64_t early_unload_d1_r0           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 2
+                                                         reads
+                                                         The recommended EARLY_UNLOAD_D1_RO value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK2[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 2 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK2[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D1_RO
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D1_RO = (maxset<1:0>!=3)). */
+	uint64_t early_unload_d0_r1           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 1
+                                                         reads
+                                                         The recommended EARLY_UNLOAD_D0_R1 value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK1[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 1 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK1[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D0_R1
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D0_R1 = (maxset<1:0>!=3)). */
+	uint64_t early_unload_d0_r0           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 0
+                                                         reads.
+                                                         The recommended EARLY_UNLOAD_D0_R0 value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK0[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 0 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK0[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D0_R0
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D0_R0 = (maxset<1:0>!=3)). */
+	uint64_t init_status                  : 4;  /**< Indicates status of initialization
+                                                         INIT_STATUS[n] = 1 implies rank n has been initialized
+                                                         SW must set necessary INIT_STATUS bits with the
+                                                         same LMC*_CONFIG write that initiates
+                                                         power-up/init and self-refresh exit sequences
+                                                         (if the required INIT_STATUS bits are not already
+                                                         set before LMC initiates the sequence).
+                                                         INIT_STATUS determines the chip-selects that assert
+                                                         during refresh, ZQCS, and precharge power-down and
+                                                         self-refresh entry/exit SEQUENCE's. */
+	uint64_t mirrmask                     : 4;  /**< Mask determining which ranks are address-mirrored.
+                                                         MIRRMASK<n> = 1 means Rank n addresses are mirrored
+                                                         for 0 <= n <= 3
+                                                         A mirrored read/write has these differences:
+                                                          - DDR_BA<1> is swapped with DDR_BA<0>
+                                                          - DDR_A<8> is swapped with DDR_A<7>
+                                                          - DDR_A<6> is swapped with DDR_A<5>
+                                                          - DDR_A<4> is swapped with DDR_A<3>
+                                                         When RANK_ENA=0, MIRRMASK<1> and MIRRMASK<3> MBZ */
+	uint64_t rankmask                     : 4;  /**< Mask to select rank to be leveled/initialized.
+                                                         To write-level/read-level/initialize rank i, set RANKMASK<i>
+                                                                         RANK_ENA=1               RANK_ENA=0
+                                                           RANKMASK<0> = DIMM0_CS0                DIMM0_CS0
+                                                           RANKMASK<1> = DIMM0_CS1                  MBZ
+                                                           RANKMASK<2> = DIMM1_CS0                DIMM1_CS0
+                                                           RANKMASK<3> = DIMM1_CS1                  MBZ
+                                                         For read/write leveling, each rank has to be leveled separately,
+                                                         so RANKMASK should only have one bit set.
+                                                         RANKMASK is not used during self-refresh entry/exit and
+                                                         precharge power-down entry/exit instruction sequences.
+                                                         When RANK_ENA=0, RANKMASK<1> and RANKMASK<3> MBZ */
+	uint64_t rank_ena                     : 1;  /**< RANK ena (for use with dual-rank DIMMs)
+                                                         For dual-rank DIMMs, the rank_ena bit will enable
+                                                         the drive of the CS*_L[1:0] and ODT_<1:0> pins differently based on the
+                                                         (pbank_lsb-1) address bit.
+                                                         Write 0 for SINGLE ranked DIMM's. */
+	uint64_t sref_with_dll                : 1;  /**< Self-refresh entry/exit write MR1 and MR2
+                                                         When set, self-refresh entry and exit instruction sequences
+                                                         write MR1 and MR2 (in all ranks). (The writes occur before
+                                                         self-refresh entry, and after self-refresh exit.)
+                                                         When clear, self-refresh entry and exit instruction sequences
+                                                         do not write any registers in the DDR3 parts. */
+	uint64_t early_dqx                    : 1;  /**< Send DQx signals one CK cycle earlier for the case when
+                                                         the shortest DQx lines have a larger delay than the CK line */
+	uint64_t sequence                     : 3;  /**< Selects the sequence that LMC runs after a 0->1
+                                                         transition on LMC*_CONFIG[INIT_START].
+                                                         SEQUENCE=0=power-up/init:
+                                                           - RANKMASK selects participating ranks (should be all ranks with attached DRAM)
+                                                           - INIT_STATUS must equal RANKMASK
+                                                           - DDR_DIMM*_CKE signals activated (if they weren't already active)
+                                                           - RDIMM register control words 0-15 will be written to RANKMASK-selected
+                                                               RDIMM's when LMC(0)_CONTROL[RDIMM_ENA]=1 and corresponding
+                                                               LMC*_DIMM_CTL[DIMM*_WMASK] bits are set. (Refer to LMC*_DIMM*_PARAMS and
+                                                               LMC*_DIMM_CTL descriptions below for more details.)
+                                                           - MR0, MR1, MR2, and MR3 will be written to selected ranks
+                                                         SEQUENCE=1=read-leveling:
+                                                           - RANKMASK selects the rank to be read-leveled
+                                                           - MR3 written to selected rank
+                                                         SEQUENCE=2=self-refresh entry:
+                                                           - INIT_STATUS selects participating ranks (should be all ranks with attached DRAM)
+                                                           - MR1 and MR2 will be written to selected ranks if SREF_WITH_DLL=1
+                                                           - DDR_DIMM*_CKE signals de-activated
+                                                         SEQUENCE=3=self-refresh exit:
+                                                           - INIT_STATUS must be set to indicate participating ranks (should be all ranks with attached DRAM)
+                                                           - DDR_DIMM*_CKE signals activated
+                                                           - MR0, MR1, MR2, and MR3 will be written to participating ranks if SREF_WITH_DLL=1
+                                                         SEQUENCE=4=precharge power-down entry:
+                                                           - INIT_STATUS selects participating ranks (should be all ranks with attached DRAM)
+                                                           - DDR_DIMM*_CKE signals de-activated
+                                                         SEQUENCE=5=precharge power-down exit:
+                                                           - INIT_STATUS selects participating ranks (should be all ranks with attached DRAM)
+                                                           - DDR_DIMM*_CKE signals activated
+                                                         SEQUENCE=6=write-leveling:
+                                                           - RANKMASK selects the rank to be write-leveled
+                                                           - INIT_STATUS must indicate all ranks with attached DRAM
+                                                           - MR1 and MR2 written to INIT_STATUS-selected ranks
+                                                         SEQUENCE=7=illegal
+                                                         Precharge power-down entry and exit SEQUENCE's may also
+                                                         be automatically generated by the HW when IDLEPOWER!=0.
+                                                         Self-refresh entry SEQUENCE's may also be automatically
+                                                         generated by hardware upon a chip warm or soft reset
+                                                         sequence when LMC*_RESET_CTL[DDR3PWARM,DDR3PSOFT] are set.
+                                                         LMC writes the LMC*_MODEREG_PARAMS0 and LMC*_MODEREG_PARAMS1 CSR field values
+                                                         to the Mode registers in the DRAM parts (i.e. MR0, MR1, MR2, and MR3) as part of some of these sequences.
+                                                         Refer to the LMC*_MODEREG_PARAMS0 and LMC*_MODEREG_PARAMS1 descriptions for more details.
+                                                         If there are two consecutive power-up/init's without
+                                                         a DRESET assertion between them, LMC asserts DDR_DIMM*_CKE as part of
+                                                         the first power-up/init, and continues to assert DDR_DIMM*_CKE
+                                                         through the remainder of the first and the second power-up/init.
+                                                         If DDR_DIMM*_CKE deactivation and reactivation is needed for
+                                                         a second power-up/init, a DRESET assertion is required
+                                                         between the first and the second. */
+	uint64_t ref_zqcs_int                 : 19; /**< Refresh & ZQCS interval represented in \#of 512 CK cycle
+                                                         increments. A Refresh sequence is triggered when bits
+                                                         [24:18] are equal to 0, and a ZQCS sequence is triggered
+                                                         when [36:18] are equal to 0.
+                                                         Program [24:18] to RND-DN(tREFI/clkPeriod/512)
+                                                         Program [36:25] to RND-DN(ZQCS_Interval/clkPeriod/(512*64)). Note
+                                                         that this value should always be greater than 32, to account for
+                                                         resistor calibration delays.
+                                                         000_00000000_00000000: RESERVED
+                                                         Max Refresh interval = 127 * 512           = 65024 CKs
+                                                         Max ZQCS interval    = (8*256*256-1) * 512 = 268434944 CKs ~ 335ms for a 800 MHz CK
+                                                         LMC*_CONFIG[INIT_STATUS] determines which ranks receive
+                                                         the REF / ZQCS. LMC does not send any refreshes / ZQCS's
+                                                         when LMC*_CONFIG[INIT_STATUS]=0. */
+	uint64_t reset                        : 1;  /**< Reset oneshot pulse for refresh counter,
+                                                         and LMC*_OPS_CNT, LMC*_IFB_CNT, and LMC*_DCLK_CNT
+                                                         CSR's. SW should write this to a one, then re-write
+                                                         it to a zero to cause the reset. */
+	uint64_t ecc_adr                      : 1;  /**< Include memory reference address in the ECC calculation
+                                                         0=disabled, 1=enabled */
+	uint64_t forcewrite                   : 4;  /**< Force the oldest outstanding write to complete after
+                                                         having waited for 2^FORCEWRITE CK cycles.  0=disabled. */
+	uint64_t idlepower                    : 3;  /**< Enter precharge power-down mode after the memory
+                                                         controller has been idle for 2^(2+IDLEPOWER) CK cycles.
+                                                         0=disabled.
+                                                         This field should only be programmed after initialization.
+                                                         LMC*_MODEREG_PARAMS0[PPD] determines whether the DRAM DLL
+                                                         is disabled during the precharge power-down. */
+	uint64_t pbank_lsb                    : 4;  /**< DIMM address bit select
+                                                         Reverting to the explanation for ROW_LSB,
+                                                         PBank_LSB would be Row_LSB bit + \#rowbits + \#rankbits
+                                                         In the 512MB DIMM Example, assuming no rank bits:
+                                                         pbank_lsb=mem_addr[15+13] for 64b mode
+                                                                  =mem_addr[14+13] for 32b mode
+                                                         Decoding for pbank_lsb
+                                                              - 0000:DIMM = mem_adr[28]    / rank = mem_adr[27] (if RANK_ENA)
+                                                              - 0001:DIMM = mem_adr[29]    / rank = mem_adr[28]      "
+                                                              - 0010:DIMM = mem_adr[30]    / rank = mem_adr[29]      "
+                                                              - 0011:DIMM = mem_adr[31]    / rank = mem_adr[30]      "
+                                                              - 0100:DIMM = mem_adr[32]    / rank = mem_adr[31]      "
+                                                              - 0101:DIMM = mem_adr[33]    / rank = mem_adr[32]      "
+                                                              - 0110:DIMM = mem_adr[34]    / rank = mem_adr[33]      "
+                                                              - 0111:DIMM = 0              / rank = mem_adr[34]      "
+                                                              - 1000-1111: RESERVED
+                                                         For example, for a DIMM made of Samsung's k4b1g0846c-f7 1Gb (16M x 8 bit x 8 bank)
+                                                         DDR3 parts, the column address width = 10, so with
+                                                         10b of col, 3b of bus, 3b of bank, row_lsb = 16. So, row = mem_adr[29:16]
+                                                         With rank_ena = 0, pbank_lsb = 2
+                                                         With rank_ena = 1, pbank_lsb = 3 */
+	uint64_t row_lsb                      : 3;  /**< Row Address bit select
+                                                         Encoding used to determine which memory address
+                                                         bit position represents the low order DDR ROW address.
+                                                         The processor's memory address[34:7] needs to be
+                                                         translated to DRAM addresses (bnk,row,col,rank and DIMM)
+                                                         and that is a function of the following:
+                                                         1. Datapath Width (64 or 32)
+                                                         2. \# Banks (8)
+                                                         3. \# Column Bits of the memory part - spec'd indirectly
+                                                         by this register.
+                                                         4. \# Row Bits of the memory part - spec'd indirectly
+                                                         5. \# Ranks in a DIMM - spec'd by RANK_ENA
+                                                         6. \# DIMM's in the system by the register below (PBANK_LSB).
+                                                         Col Address starts from mem_addr[2] for 32b (4Bytes)
+                                                         dq width or from mem_addr[3] for 64b (8Bytes) dq width
+                                                         \# col + \# bank = 12. Hence row_lsb is mem_adr[15] for
+                                                         64bmode or mem_adr[14] for 32b mode. Hence row_lsb
+                                                         parameter should be set to 001 (64b) or 000 (32b).
+                                                         Decoding for row_lsb
+                                                              - 000: row_lsb = mem_adr[14]
+                                                              - 001: row_lsb = mem_adr[15]
+                                                              - 010: row_lsb = mem_adr[16]
+                                                              - 011: row_lsb = mem_adr[17]
+                                                              - 100: row_lsb = mem_adr[18]
+                                                              - 101: row_lsb = mem_adr[19]
+                                                              - 110: row_lsb = mem_adr[20]
+                                                              - 111: RESERVED
+                                                         For example, for a DIMM made of Samsung's k4b1g0846c-f7 1Gb (16M x 8 bit x 8 bank)
+                                                         DDR3 parts, the column address width = 10, so with
+                                                         10b of col, 3b of bus, 3b of bank, row_lsb = 16. So, row = mem_adr[29:16] */
+	uint64_t ecc_ena                      : 1;  /**< ECC Enable: When set will enable the 8b ECC
+                                                         check/correct logic. Should be 1 when used with DIMMs
+                                                         with ECC. 0, otherwise.
+                                                         When this mode is turned on, DQ[71:64]
+                                                         on writes, will contain the ECC code generated for
+                                                         the 64 bits of data which will
+                                                         written in the memory and then later on reads, used
+                                                         to check for Single bit error (which will be auto-
+                                                         corrected) and Double Bit error (which will be
+                                                         reported). When not turned on, DQ[71:64]
+                                                         are driven to 0.  Please refer to SEC_ERR, DED_ERR,
+                                                         LMC*_FADR, LMC*_SCRAMBLED_FADR and LMC*_ECC_SYND registers
+                                                         for diagnostics information when there is an error. */
+	uint64_t init_start                   : 1;  /**< A 0->1 transition starts the DDR memory sequence that is
+                                                         selected by LMC*_CONFIG[SEQUENCE].  This register is a
+                                                         oneshot and clears itself each time it is set. */
+#else
+	uint64_t init_start                   : 1;
+	uint64_t ecc_ena                      : 1;
+	uint64_t row_lsb                      : 3;
+	uint64_t pbank_lsb                    : 4;
+	uint64_t idlepower                    : 3;
+	uint64_t forcewrite                   : 4;
+	uint64_t ecc_adr                      : 1;
+	uint64_t reset                        : 1;
+	uint64_t ref_zqcs_int                 : 19;
+	uint64_t sequence                     : 3;
+	uint64_t early_dqx                    : 1;
+	uint64_t sref_with_dll                : 1;
+	uint64_t rank_ena                     : 1;
+	uint64_t rankmask                     : 4;
+	uint64_t mirrmask                     : 4;
+	uint64_t init_status                  : 4;
+	uint64_t early_unload_d0_r0           : 1;
+	uint64_t early_unload_d0_r1           : 1;
+	uint64_t early_unload_d1_r0           : 1;
+	uint64_t early_unload_d1_r1           : 1;
+	uint64_t scrz                         : 1;
+	uint64_t mode32b                      : 1;
+	uint64_t reserved_61_63               : 3;
+#endif
+	} s;
+	struct cvmx_lmcx_config_s             cn61xx;
+	struct cvmx_lmcx_config_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_59_63               : 5;
 	uint64_t early_unload_d1_r1           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 3
                                                          reads
@@ -1670,11 +2191,9 @@ union cvmx_lmcx_config
 	uint64_t early_unload_d1_r1           : 1;
 	uint64_t reserved_59_63               : 5;
 #endif
-	} s;
-	struct cvmx_lmcx_config_s             cn63xx;
-	struct cvmx_lmcx_config_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	} cn63xx;
+	struct cvmx_lmcx_config_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_55_63               : 9;
 	uint64_t init_status                  : 4;  /**< Indicates status of initialization
                                                          INIT_STATUS[n] = 1 implies rank n has been initialized
@@ -1875,6 +2394,257 @@ union cvmx_lmcx_config
 	uint64_t reserved_55_63               : 9;
 #endif
 	} cn63xxp1;
+	struct cvmx_lmcx_config_cn66xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_60_63               : 4;
+	uint64_t scrz                         : 1;  /**< Hide LMC*_SCRAMBLE_CFG0 and LMC*_SCRAMBLE_CFG1 when set */
+	uint64_t early_unload_d1_r1           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 3
+                                                         reads
+                                                         The recommended EARLY_UNLOAD_D1_R1 value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK3[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 3 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK3[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D1_R1
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D1_R1 = (maxset<1:0>!=3)). */
+	uint64_t early_unload_d1_r0           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 2
+                                                         reads
+                                                         The recommended EARLY_UNLOAD_D1_RO value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK2[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 2 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK2[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D1_RO
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D1_RO = (maxset<1:0>!=3)). */
+	uint64_t early_unload_d0_r1           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 1
+                                                         reads
+                                                         The recommended EARLY_UNLOAD_D0_R1 value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK1[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 1 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK1[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D0_R1
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D0_R1 = (maxset<1:0>!=3)). */
+	uint64_t early_unload_d0_r0           : 1;  /**< When set, unload the PHY silo one cycle early for Rank 0
+                                                         reads.
+                                                         The recommended EARLY_UNLOAD_D0_R0 value can be calculated
+                                                         after the final LMC*_RLEVEL_RANK0[BYTE*] values are
+                                                         selected (as part of read-leveling initialization).
+                                                         Then, determine the largest read-leveling setting
+                                                         for rank 0 (i.e. calculate maxset=MAX(LMC*_RLEVEL_RANK0[BYTEi])
+                                                         across all i), then set EARLY_UNLOAD_D0_R0
+                                                         when the low two bits of this largest setting is not
+                                                         3 (i.e. EARLY_UNLOAD_D0_R0 = (maxset<1:0>!=3)). */
+	uint64_t init_status                  : 4;  /**< Indicates status of initialization
+                                                         INIT_STATUS[n] = 1 implies rank n has been initialized
+                                                         SW must set necessary INIT_STATUS bits with the
+                                                         same LMC*_CONFIG write that initiates
+                                                         power-up/init and self-refresh exit sequences
+                                                         (if the required INIT_STATUS bits are not already
+                                                         set before LMC initiates the sequence).
+                                                         INIT_STATUS determines the chip-selects that assert
+                                                         during refresh, ZQCS, and precharge power-down and
+                                                         self-refresh entry/exit SEQUENCE's. */
+	uint64_t mirrmask                     : 4;  /**< Mask determining which ranks are address-mirrored.
+                                                         MIRRMASK<n> = 1 means Rank n addresses are mirrored
+                                                         for 0 <= n <= 3
+                                                         A mirrored read/write has these differences:
+                                                          - DDR_BA<1> is swapped with DDR_BA<0>
+                                                          - DDR_A<8> is swapped with DDR_A<7>
+                                                          - DDR_A<6> is swapped with DDR_A<5>
+                                                          - DDR_A<4> is swapped with DDR_A<3>
+                                                         When RANK_ENA=0, MIRRMASK<1> and MIRRMASK<3> MBZ */
+	uint64_t rankmask                     : 4;  /**< Mask to select rank to be leveled/initialized.
+                                                         To write-level/read-level/initialize rank i, set RANKMASK<i>
+                                                                         RANK_ENA=1               RANK_ENA=0
+                                                           RANKMASK<0> = DIMM0_CS0                DIMM0_CS0
+                                                           RANKMASK<1> = DIMM0_CS1                  MBZ
+                                                           RANKMASK<2> = DIMM1_CS0                DIMM1_CS0
+                                                           RANKMASK<3> = DIMM1_CS1                  MBZ
+                                                         For read/write leveling, each rank has to be leveled separately,
+                                                         so RANKMASK should only have one bit set.
+                                                         RANKMASK is not used during self-refresh entry/exit and
+                                                         precharge power-down entry/exit instruction sequences.
+                                                         When RANK_ENA=0, RANKMASK<1> and RANKMASK<3> MBZ */
+	uint64_t rank_ena                     : 1;  /**< RANK ena (for use with dual-rank DIMMs)
+                                                         For dual-rank DIMMs, the rank_ena bit will enable
+                                                         the drive of the CS*_L[1:0] and ODT_<1:0> pins differently based on the
+                                                         (pbank_lsb-1) address bit.
+                                                         Write 0 for SINGLE ranked DIMM's. */
+	uint64_t sref_with_dll                : 1;  /**< Self-refresh entry/exit write MR1 and MR2
+                                                         When set, self-refresh entry and exit instruction sequences
+                                                         write MR1 and MR2 (in all ranks). (The writes occur before
+                                                         self-refresh entry, and after self-refresh exit.)
+                                                         When clear, self-refresh entry and exit instruction sequences
+                                                         do not write any registers in the DDR3 parts. */
+	uint64_t early_dqx                    : 1;  /**< Send DQx signals one CK cycle earlier for the case when
+                                                         the shortest DQx lines have a larger delay than the CK line */
+	uint64_t sequence                     : 3;  /**< Selects the sequence that LMC runs after a 0->1
+                                                         transition on LMC*_CONFIG[INIT_START].
+                                                         SEQUENCE=0=power-up/init:
+                                                           - RANKMASK selects participating ranks (should be all ranks with attached DRAM)
+                                                           - INIT_STATUS must equal RANKMASK
+                                                           - DDR_CKE* signals activated (if they weren't already active)
+                                                           - RDIMM register control words 0-15 will be written to RANKMASK-selected
+                                                               RDIMM's when LMC(0)_CONTROL[RDIMM_ENA]=1 and corresponding
+                                                               LMC*_DIMM_CTL[DIMM*_WMASK] bits are set. (Refer to LMC*_DIMM*_PARAMS and
+                                                               LMC*_DIMM_CTL descriptions below for more details.)
+                                                           - MR0, MR1, MR2, and MR3 will be written to selected ranks
+                                                         SEQUENCE=1=read-leveling:
+                                                           - RANKMASK selects the rank to be read-leveled
+                                                           - MR3 written to selected rank
+                                                         SEQUENCE=2=self-refresh entry:
+                                                           - INIT_STATUS selects participating ranks (should be all ranks with attached DRAM)
+                                                           - MR1 and MR2 will be written to selected ranks if SREF_WITH_DLL=1
+                                                           - DDR_CKE* signals de-activated
+                                                         SEQUENCE=3=self-refresh exit:
+                                                           - INIT_STATUS must be set to indicate participating ranks (should be all ranks with attached DRAM)
+                                                           - DDR_CKE* signals activated
+                                                           - MR0, MR1, MR2, and MR3 will be written to participating ranks if SREF_WITH_DLL=1
+                                                         SEQUENCE=4=precharge power-down entry:
+                                                           - INIT_STATUS selects participating ranks (should be all ranks with attached DRAM)
+                                                           - DDR_CKE* signals de-activated
+                                                         SEQUENCE=5=precharge power-down exit:
+                                                           - INIT_STATUS selects participating ranks (should be all ranks with attached DRAM)
+                                                           - DDR_CKE* signals activated
+                                                         SEQUENCE=6=write-leveling:
+                                                           - RANKMASK selects the rank to be write-leveled
+                                                           - INIT_STATUS must indicate all ranks with attached DRAM
+                                                           - MR1 and MR2 written to INIT_STATUS-selected ranks
+                                                         SEQUENCE=7=illegal
+                                                         Precharge power-down entry and exit SEQUENCE's may also
+                                                         be automatically generated by the HW when IDLEPOWER!=0.
+                                                         Self-refresh entry SEQUENCE's may also be automatically
+                                                         generated by hardware upon a chip warm or soft reset
+                                                         sequence when LMC*_RESET_CTL[DDR3PWARM,DDR3PSOFT] are set.
+                                                         LMC writes the LMC*_MODEREG_PARAMS0 and LMC*_MODEREG_PARAMS1 CSR field values
+                                                         to the Mode registers in the DRAM parts (i.e. MR0, MR1, MR2, and MR3) as part of some of these sequences.
+                                                         Refer to the LMC*_MODEREG_PARAMS0 and LMC*_MODEREG_PARAMS1 descriptions for more details.
+                                                         If there are two consecutive power-up/init's without
+                                                         a DRESET assertion between them, LMC asserts DDR_CKE* as part of
+                                                         the first power-up/init, and continues to assert DDR_CKE*
+                                                         through the remainder of the first and the second power-up/init.
+                                                         If DDR_CKE* deactivation and reactivation is needed for
+                                                         a second power-up/init, a DRESET assertion is required
+                                                         between the first and the second. */
+	uint64_t ref_zqcs_int                 : 19; /**< Refresh & ZQCS interval represented in \#of 512 CK cycle
+                                                         increments. A Refresh sequence is triggered when bits
+                                                         [24:18] are equal to 0, and a ZQCS sequence is triggered
+                                                         when [36:18] are equal to 0.
+                                                         Program [24:18] to RND-DN(tREFI/clkPeriod/512)
+                                                         Program [36:25] to RND-DN(ZQCS_Interval/clkPeriod/(512*64)). Note
+                                                         that this value should always be greater than 32, to account for
+                                                         resistor calibration delays.
+                                                         000_00000000_00000000: RESERVED
+                                                         Max Refresh interval = 127 * 512           = 65024 CKs
+                                                         Max ZQCS interval    = (8*256*256-1) * 512 = 268434944 CKs ~ 335ms for a 800 MHz CK
+                                                         LMC*_CONFIG[INIT_STATUS] determines which ranks receive
+                                                         the REF / ZQCS. LMC does not send any refreshes / ZQCS's
+                                                         when LMC*_CONFIG[INIT_STATUS]=0. */
+	uint64_t reset                        : 1;  /**< Reset oneshot pulse for refresh counter,
+                                                         and LMC*_OPS_CNT, LMC*_IFB_CNT, and LMC*_DCLK_CNT
+                                                         CSR's. SW should write this to a one, then re-write
+                                                         it to a zero to cause the reset. */
+	uint64_t ecc_adr                      : 1;  /**< Include memory reference address in the ECC calculation
+                                                         0=disabled, 1=enabled */
+	uint64_t forcewrite                   : 4;  /**< Force the oldest outstanding write to complete after
+                                                         having waited for 2^FORCEWRITE CK cycles.  0=disabled. */
+	uint64_t idlepower                    : 3;  /**< Enter precharge power-down mode after the memory
+                                                         controller has been idle for 2^(2+IDLEPOWER) CK cycles.
+                                                         0=disabled.
+                                                         This field should only be programmed after initialization.
+                                                         LMC*_MODEREG_PARAMS0[PPD] determines whether the DRAM DLL
+                                                         is disabled during the precharge power-down. */
+	uint64_t pbank_lsb                    : 4;  /**< DIMM address bit select
+                                                         Reverting to the explanation for ROW_LSB,
+                                                         PBank_LSB would be Row_LSB bit + \#rowbits + \#rankbits
+                                                         Decoding for pbank_lsb
+                                                              - 0000:DIMM = mem_adr[28]    / rank = mem_adr[27] (if RANK_ENA)
+                                                              - 0001:DIMM = mem_adr[29]    / rank = mem_adr[28]      "
+                                                              - 0010:DIMM = mem_adr[30]    / rank = mem_adr[29]      "
+                                                              - 0011:DIMM = mem_adr[31]    / rank = mem_adr[30]      "
+                                                              - 0100:DIMM = mem_adr[32]    / rank = mem_adr[31]      "
+                                                              - 0101:DIMM = mem_adr[33]    / rank = mem_adr[32]      "
+                                                              - 0110:DIMM = mem_adr[34]    / rank = mem_adr[33]      "
+                                                              - 0111:DIMM = 0              / rank = mem_adr[34]      "
+                                                              - 1000-1111: RESERVED
+                                                         For example, for a DIMM made of Samsung's k4b1g0846c-f7 1Gb (16M x 8 bit x 8 bank)
+                                                         DDR3 parts, the column address width = 10, so with
+                                                         10b of col, 3b of bus, 3b of bank, row_lsb = 16. So, row = mem_adr[29:16]
+                                                         With rank_ena = 0, pbank_lsb = 2
+                                                         With rank_ena = 1, pbank_lsb = 3 */
+	uint64_t row_lsb                      : 3;  /**< Row Address bit select
+                                                         Encoding used to determine which memory address
+                                                         bit position represents the low order DDR ROW address.
+                                                         The processor's memory address[34:7] needs to be
+                                                         translated to DRAM addresses (bnk,row,col,rank and DIMM)
+                                                         and that is a function of the following:
+                                                         1. Datapath Width (64)
+                                                         2. \# Banks (8)
+                                                         3. \# Column Bits of the memory part - spec'd indirectly
+                                                         by this register.
+                                                         4. \# Row Bits of the memory part - spec'd indirectly
+                                                         5. \# Ranks in a DIMM - spec'd by RANK_ENA
+                                                         6. \# DIMM's in the system by the register below (PBANK_LSB).
+                                                         Decoding for row_lsb
+                                                              - 000: row_lsb = mem_adr[14]
+                                                              - 001: row_lsb = mem_adr[15]
+                                                              - 010: row_lsb = mem_adr[16]
+                                                              - 011: row_lsb = mem_adr[17]
+                                                              - 100: row_lsb = mem_adr[18]
+                                                              - 101: row_lsb = mem_adr[19]
+                                                              - 110: row_lsb = mem_adr[20]
+                                                              - 111: RESERVED
+                                                         For example, for a DIMM made of Samsung's k4b1g0846c-f7 1Gb (16M x 8 bit x 8 bank)
+                                                         DDR3 parts, the column address width = 10, so with
+                                                         10b of col, 3b of bus, 3b of bank, row_lsb = 16. So, row = mem_adr[29:16] */
+	uint64_t ecc_ena                      : 1;  /**< ECC Enable: When set will enable the 8b ECC
+                                                         check/correct logic. Should be 1 when used with DIMMs
+                                                         with ECC. 0, otherwise.
+                                                         When this mode is turned on, DQ[71:64]
+                                                         on writes, will contain the ECC code generated for
+                                                         the 64 bits of data which will
+                                                         written in the memory and then later on reads, used
+                                                         to check for Single bit error (which will be auto-
+                                                         corrected) and Double Bit error (which will be
+                                                         reported). When not turned on, DQ[71:64]
+                                                         are driven to 0.  Please refer to SEC_ERR, DED_ERR,
+                                                         LMC*_FADR, LMC*_SCRAMBLED_FADR and LMC*_ECC_SYND registers
+                                                         for diagnostics information when there is an error. */
+	uint64_t init_start                   : 1;  /**< A 0->1 transition starts the DDR memory sequence that is
+                                                         selected by LMC*_CONFIG[SEQUENCE].  This register is a
+                                                         oneshot and clears itself each time it is set. */
+#else
+	uint64_t init_start                   : 1;
+	uint64_t ecc_ena                      : 1;
+	uint64_t row_lsb                      : 3;
+	uint64_t pbank_lsb                    : 4;
+	uint64_t idlepower                    : 3;
+	uint64_t forcewrite                   : 4;
+	uint64_t ecc_adr                      : 1;
+	uint64_t reset                        : 1;
+	uint64_t ref_zqcs_int                 : 19;
+	uint64_t sequence                     : 3;
+	uint64_t early_dqx                    : 1;
+	uint64_t sref_with_dll                : 1;
+	uint64_t rank_ena                     : 1;
+	uint64_t rankmask                     : 4;
+	uint64_t mirrmask                     : 4;
+	uint64_t init_status                  : 4;
+	uint64_t early_unload_d0_r0           : 1;
+	uint64_t early_unload_d0_r1           : 1;
+	uint64_t early_unload_d1_r0           : 1;
+	uint64_t early_unload_d1_r1           : 1;
+	uint64_t scrz                         : 1;
+	uint64_t reserved_60_63               : 4;
+#endif
+	} cn66xx;
+	struct cvmx_lmcx_config_cn63xx        cn68xx;
+	struct cvmx_lmcx_config_cn63xx        cn68xxp1;
+	struct cvmx_lmcx_config_s             cnf71xx;
 };
 typedef union cvmx_lmcx_config cvmx_lmcx_config_t;
 
@@ -1884,12 +2654,122 @@ typedef union cvmx_lmcx_config cvmx_lmcx_config_t;
  * LMC_CONTROL = LMC Control
  * This register is an assortment of various control fields needed by the memory controller
  */
-union cvmx_lmcx_control
-{
+union cvmx_lmcx_control {
 	uint64_t u64;
-	struct cvmx_lmcx_control_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t scramble_ena                 : 1;  /**< When set, will enable the scramble/descramble logic */
+	uint64_t thrcnt                       : 12; /**< Fine Count */
+	uint64_t persub                       : 8;  /**< Offset for DFA rate-matching */
+	uint64_t thrmax                       : 4;  /**< Fine Rate Matching Max Bucket Size
+                                                         0 = Reserved
+                                                         In conjunction with the Coarse Rate Matching Logic, the Fine Rate
+                                                         Matching Logic gives SW the ability to prioritize DFA Rds over
+                                                         L2C Writes. Higher PERSUB values result in a lower DFA Rd
+                                                         bandwidth. */
+	uint64_t crm_cnt                      : 5;  /**< Coarse Count */
+	uint64_t crm_thr                      : 5;  /**< Coarse Rate Matching Threshold */
+	uint64_t crm_max                      : 5;  /**< Coarse Rate Matching Max Bucket Size
+                                                         0 = Reserved
+                                                         The Coarse Rate Matching Logic is used to control the bandwidth
+                                                         allocated to DFA Rds. CRM_MAX is subdivided into two regions
+                                                         with DFA Rds being preferred over LMC Rd/Wrs when
+                                                         CRM_CNT < CRM_THR. CRM_CNT increments by 1 when a DFA Rd is
+                                                         slotted and by 2 when a LMC Rd/Wr is slotted, and rolls over
+                                                         when CRM_MAX is reached. */
+	uint64_t rodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
+                                                         RD cmd is delayed an additional CK cycle. */
+	uint64_t wodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
+                                                         WR cmd is delayed an additional CK cycle. */
+	uint64_t bprch                        : 2;  /**< Back Porch Enable: When set, the turn-on time for
+                                                         the default DDR_DQ/DQS drivers is delayed an additional BPRCH
+                                                         CK cycles.
+                                                         00 = 0 CKs
+                                                         01 = 1 CKs
+                                                         10 = 2 CKs
+                                                         11 = 3 CKs */
+	uint64_t ext_zqcs_dis                 : 1;  /**< Disable (external) auto-zqcs calibration
+                                                         When clear, LMC runs external ZQ calibration
+                                                         every LMC*_CONFIG[REF_ZQCS_INT] CK cycles. */
+	uint64_t int_zqcs_dis                 : 1;  /**< Disable (internal) auto-zqcs calibration
+                                                         When clear, LMC runs internal ZQ calibration
+                                                         every LMC*_CONFIG[REF_ZQCS_INT] CK cycles. */
+	uint64_t auto_dclkdis                 : 1;  /**< When 1, LMC will automatically shut off its internal
+                                                         clock to conserve power when there is no traffic. Note
+                                                         that this has no effect on the DDR3 PHY and pads clocks. */
+	uint64_t xor_bank                     : 1;  /**< If (XOR_BANK == 1), then
+                                                          bank[2:0]=address[9:7] ^ address[14:12]
+                                                         else
+                                                          bank[2:0]=address[9:7] */
+	uint64_t max_write_batch              : 4;  /**< Maximum number of consecutive writes to service before
+                                                         forcing reads to interrupt. */
+	uint64_t nxm_write_en                 : 1;  /**< NXM Write mode
+                                                         When clear, LMC discards writes to addresses that don't
+                                                         exist in the DRAM (as defined by LMC*_NXM configuration).
+                                                         When set, LMC completes writes to addresses that don't
+                                                         exist in the DRAM at an aliased address. */
+	uint64_t elev_prio_dis                : 1;  /**< Disable elevate priority logic.
+                                                         When set, writes are sent in
+                                                         regardless of priority information from L2C. */
+	uint64_t inorder_wr                   : 1;  /**< Send writes in order(regardless of priority) */
+	uint64_t inorder_rd                   : 1;  /**< Send reads in order (regardless of priority) */
+	uint64_t throttle_wr                  : 1;  /**< When set, use at most one IFB for writes */
+	uint64_t throttle_rd                  : 1;  /**< When set, use at most one IFB for reads */
+	uint64_t fprch2                       : 2;  /**< Front Porch Enable: When set, the turn-off
+                                                         time for the default DDR_DQ/DQS drivers is FPRCH2 CKs earlier.
+                                                         00 = 0 CKs
+                                                         01 = 1 CKs
+                                                         10 = 2 CKs
+                                                         11 = RESERVED */
+	uint64_t pocas                        : 1;  /**< Enable the Posted CAS feature of DDR3.
+                                                         This bit must be set whenever LMC*_MODEREG_PARAMS0[AL]!=0,
+                                                         and clear otherwise. */
+	uint64_t ddr2t                        : 1;  /**< Turn on the DDR 2T mode. 2 CK cycle window for CMD and
+                                                         address. This mode helps relieve setup time pressure
+                                                         on the Address and command bus which nominally have
+                                                         a very large fanout. Please refer to Micron's tech
+                                                         note tn_47_01 titled "DDR2-533 Memory Design Guide
+                                                         for Two Dimm Unbuffered Systems" for physical details. */
+	uint64_t bwcnt                        : 1;  /**< Bus utilization counter Clear.
+                                                         Clears the LMC*_OPS_CNT, LMC*_IFB_CNT, and
+                                                         LMC*_DCLK_CNT registers. SW should first write this
+                                                         field to a one, then write this field to a zero to
+                                                         clear the CSR's. */
+	uint64_t rdimm_ena                    : 1;  /**< Registered DIMM Enable - When set allows the use
+                                                         of JEDEC Registered DIMMs which require address and
+                                                         control bits to be registered in the controller. */
+#else
+	uint64_t rdimm_ena                    : 1;
+	uint64_t bwcnt                        : 1;
+	uint64_t ddr2t                        : 1;
+	uint64_t pocas                        : 1;
+	uint64_t fprch2                       : 2;
+	uint64_t throttle_rd                  : 1;
+	uint64_t throttle_wr                  : 1;
+	uint64_t inorder_rd                   : 1;
+	uint64_t inorder_wr                   : 1;
+	uint64_t elev_prio_dis                : 1;
+	uint64_t nxm_write_en                 : 1;
+	uint64_t max_write_batch              : 4;
+	uint64_t xor_bank                     : 1;
+	uint64_t auto_dclkdis                 : 1;
+	uint64_t int_zqcs_dis                 : 1;
+	uint64_t ext_zqcs_dis                 : 1;
+	uint64_t bprch                        : 2;
+	uint64_t wodt_bprch                   : 1;
+	uint64_t rodt_bprch                   : 1;
+	uint64_t crm_max                      : 5;
+	uint64_t crm_thr                      : 5;
+	uint64_t crm_cnt                      : 5;
+	uint64_t thrmax                       : 4;
+	uint64_t persub                       : 8;
+	uint64_t thrcnt                       : 12;
+	uint64_t scramble_ena                 : 1;
+#endif
+	} s;
+	struct cvmx_lmcx_control_s            cn61xx;
+	struct cvmx_lmcx_control_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t rodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
                                                          RD cmd is delayed an additional CK cycle. */
@@ -1974,9 +2854,210 @@ union cvmx_lmcx_control
 	uint64_t rodt_bprch                   : 1;
 	uint64_t reserved_24_63               : 40;
 #endif
-	} s;
-	struct cvmx_lmcx_control_s            cn63xx;
-	struct cvmx_lmcx_control_s            cn63xxp1;
+	} cn63xx;
+	struct cvmx_lmcx_control_cn63xx       cn63xxp1;
+	struct cvmx_lmcx_control_cn66xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t scramble_ena                 : 1;  /**< When set, will enable the scramble/descramble logic */
+	uint64_t reserved_24_62               : 39;
+	uint64_t rodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
+                                                         RD cmd is delayed an additional CK cycle. */
+	uint64_t wodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
+                                                         WR cmd is delayed an additional CK cycle. */
+	uint64_t bprch                        : 2;  /**< Back Porch Enable: When set, the turn-on time for
+                                                         the default DDR_DQ/DQS drivers is delayed an additional BPRCH
+                                                         CK cycles.
+                                                         00 = 0 CKs
+                                                         01 = 1 CKs
+                                                         10 = 2 CKs
+                                                         11 = 3 CKs */
+	uint64_t ext_zqcs_dis                 : 1;  /**< Disable (external) auto-zqcs calibration
+                                                         When clear, LMC runs external ZQ calibration
+                                                         every LMC*_CONFIG[REF_ZQCS_INT] CK cycles. */
+	uint64_t int_zqcs_dis                 : 1;  /**< Disable (internal) auto-zqcs calibration
+                                                         When clear, LMC runs internal ZQ calibration
+                                                         every LMC*_CONFIG[REF_ZQCS_INT] CK cycles. */
+	uint64_t auto_dclkdis                 : 1;  /**< When 1, LMC will automatically shut off its internal
+                                                         clock to conserve power when there is no traffic. Note
+                                                         that this has no effect on the DDR3 PHY and pads clocks. */
+	uint64_t xor_bank                     : 1;  /**< If (XOR_BANK == 1), then
+                                                          bank[2:0]=address[9:7] ^ address[14:12]
+                                                         else
+                                                          bank[2:0]=address[9:7] */
+	uint64_t max_write_batch              : 4;  /**< Maximum number of consecutive writes to service before
+                                                         forcing reads to interrupt. */
+	uint64_t nxm_write_en                 : 1;  /**< NXM Write mode
+                                                         When clear, LMC discards writes to addresses that don't
+                                                         exist in the DRAM (as defined by LMC*_NXM configuration).
+                                                         When set, LMC completes writes to addresses that don't
+                                                         exist in the DRAM at an aliased address. */
+	uint64_t elev_prio_dis                : 1;  /**< Disable elevate priority logic.
+                                                         When set, writes are sent in
+                                                         regardless of priority information from L2C. */
+	uint64_t inorder_wr                   : 1;  /**< Send writes in order(regardless of priority) */
+	uint64_t inorder_rd                   : 1;  /**< Send reads in order (regardless of priority) */
+	uint64_t throttle_wr                  : 1;  /**< When set, use at most one IFB for writes */
+	uint64_t throttle_rd                  : 1;  /**< When set, use at most one IFB for reads */
+	uint64_t fprch2                       : 2;  /**< Front Porch Enable: When set, the turn-off
+                                                         time for the default DDR_DQ/DQS drivers is FPRCH2 CKs earlier.
+                                                         00 = 0 CKs
+                                                         01 = 1 CKs
+                                                         10 = 2 CKs
+                                                         11 = RESERVED */
+	uint64_t pocas                        : 1;  /**< Enable the Posted CAS feature of DDR3.
+                                                         This bit must be set whenever LMC*_MODEREG_PARAMS0[AL]!=0,
+                                                         and clear otherwise. */
+	uint64_t ddr2t                        : 1;  /**< Turn on the DDR 2T mode. 2 CK cycle window for CMD and
+                                                         address. This mode helps relieve setup time pressure
+                                                         on the Address and command bus which nominally have
+                                                         a very large fanout. Please refer to Micron's tech
+                                                         note tn_47_01 titled "DDR2-533 Memory Design Guide
+                                                         for Two Dimm Unbuffered Systems" for physical details. */
+	uint64_t bwcnt                        : 1;  /**< Bus utilization counter Clear.
+                                                         Clears the LMC*_OPS_CNT, LMC*_IFB_CNT, and
+                                                         LMC*_DCLK_CNT registers. SW should first write this
+                                                         field to a one, then write this field to a zero to
+                                                         clear the CSR's. */
+	uint64_t rdimm_ena                    : 1;  /**< Registered DIMM Enable - When set allows the use
+                                                         of JEDEC Registered DIMMs which require address and
+                                                         control bits to be registered in the controller. */
+#else
+	uint64_t rdimm_ena                    : 1;
+	uint64_t bwcnt                        : 1;
+	uint64_t ddr2t                        : 1;
+	uint64_t pocas                        : 1;
+	uint64_t fprch2                       : 2;
+	uint64_t throttle_rd                  : 1;
+	uint64_t throttle_wr                  : 1;
+	uint64_t inorder_rd                   : 1;
+	uint64_t inorder_wr                   : 1;
+	uint64_t elev_prio_dis                : 1;
+	uint64_t nxm_write_en                 : 1;
+	uint64_t max_write_batch              : 4;
+	uint64_t xor_bank                     : 1;
+	uint64_t auto_dclkdis                 : 1;
+	uint64_t int_zqcs_dis                 : 1;
+	uint64_t ext_zqcs_dis                 : 1;
+	uint64_t bprch                        : 2;
+	uint64_t wodt_bprch                   : 1;
+	uint64_t rodt_bprch                   : 1;
+	uint64_t reserved_24_62               : 39;
+	uint64_t scramble_ena                 : 1;
+#endif
+	} cn66xx;
+	struct cvmx_lmcx_control_cn68xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_63_63               : 1;
+	uint64_t thrcnt                       : 12; /**< Fine Count */
+	uint64_t persub                       : 8;  /**< Offset for DFA rate-matching */
+	uint64_t thrmax                       : 4;  /**< Fine Rate Matching Max Bucket Size
+                                                         0 = Reserved
+                                                         In conjunction with the Coarse Rate Matching Logic, the Fine Rate
+                                                         Matching Logic gives SW the ability to prioritize DFA Rds over
+                                                         L2C Writes. Higher PERSUB values result in a lower DFA Rd
+                                                         bandwidth. */
+	uint64_t crm_cnt                      : 5;  /**< Coarse Count */
+	uint64_t crm_thr                      : 5;  /**< Coarse Rate Matching Threshold */
+	uint64_t crm_max                      : 5;  /**< Coarse Rate Matching Max Bucket Size
+                                                         0 = Reserved
+                                                         The Coarse Rate Matching Logic is used to control the bandwidth
+                                                         allocated to DFA Rds. CRM_MAX is subdivided into two regions
+                                                         with DFA Rds being preferred over LMC Rd/Wrs when
+                                                         CRM_CNT < CRM_THR. CRM_CNT increments by 1 when a DFA Rd is
+                                                         slotted and by 2 when a LMC Rd/Wr is slotted, and rolls over
+                                                         when CRM_MAX is reached. */
+	uint64_t rodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
+                                                         RD cmd is delayed an additional CK cycle. */
+	uint64_t wodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
+                                                         WR cmd is delayed an additional CK cycle. */
+	uint64_t bprch                        : 2;  /**< Back Porch Enable: When set, the turn-on time for
+                                                         the default DDR_DQ/DQS drivers is delayed an additional BPRCH
+                                                         CK cycles.
+                                                         00 = 0 CKs
+                                                         01 = 1 CKs
+                                                         10 = 2 CKs
+                                                         11 = 3 CKs */
+	uint64_t ext_zqcs_dis                 : 1;  /**< Disable (external) auto-zqcs calibration
+                                                         When clear, LMC runs external ZQ calibration
+                                                         every LMC*_CONFIG[REF_ZQCS_INT] CK cycles. */
+	uint64_t int_zqcs_dis                 : 1;  /**< Disable (internal) auto-zqcs calibration
+                                                         When clear, LMC runs internal ZQ calibration
+                                                         every LMC*_CONFIG[REF_ZQCS_INT] CK cycles. */
+	uint64_t auto_dclkdis                 : 1;  /**< When 1, LMC will automatically shut off its internal
+                                                         clock to conserve power when there is no traffic. Note
+                                                         that this has no effect on the DDR3 PHY and pads clocks. */
+	uint64_t xor_bank                     : 1;  /**< If (XOR_BANK == 1), then
+                                                          bank[2:0]=address[9:7] ^ address[14:12]
+                                                         else
+                                                          bank[2:0]=address[9:7] */
+	uint64_t max_write_batch              : 4;  /**< Maximum number of consecutive writes to service before
+                                                         forcing reads to interrupt. */
+	uint64_t nxm_write_en                 : 1;  /**< NXM Write mode
+                                                         When clear, LMC discards writes to addresses that don't
+                                                         exist in the DRAM (as defined by LMC*_NXM configuration).
+                                                         When set, LMC completes writes to addresses that don't
+                                                         exist in the DRAM at an aliased address. */
+	uint64_t elev_prio_dis                : 1;  /**< Disable elevate priority logic.
+                                                         When set, writes are sent in
+                                                         regardless of priority information from L2C. */
+	uint64_t inorder_wr                   : 1;  /**< Send writes in order(regardless of priority) */
+	uint64_t inorder_rd                   : 1;  /**< Send reads in order (regardless of priority) */
+	uint64_t throttle_wr                  : 1;  /**< When set, use at most one IFB for writes */
+	uint64_t throttle_rd                  : 1;  /**< When set, use at most one IFB for reads */
+	uint64_t fprch2                       : 2;  /**< Front Porch Enable: When set, the turn-off
+                                                         time for the default DDR_DQ/DQS drivers is FPRCH2 CKs earlier.
+                                                         00 = 0 CKs
+                                                         01 = 1 CKs
+                                                         10 = 2 CKs
+                                                         11 = RESERVED */
+	uint64_t pocas                        : 1;  /**< Enable the Posted CAS feature of DDR3.
+                                                         This bit must be set whenever LMC*_MODEREG_PARAMS0[AL]!=0,
+                                                         and clear otherwise. */
+	uint64_t ddr2t                        : 1;  /**< Turn on the DDR 2T mode. 2 CK cycle window for CMD and
+                                                         address. This mode helps relieve setup time pressure
+                                                         on the Address and command bus which nominally have
+                                                         a very large fanout. Please refer to Micron's tech
+                                                         note tn_47_01 titled "DDR2-533 Memory Design Guide
+                                                         for Two Dimm Unbuffered Systems" for physical details. */
+	uint64_t bwcnt                        : 1;  /**< Bus utilization counter Clear.
+                                                         Clears the LMC*_OPS_CNT, LMC*_IFB_CNT, and
+                                                         LMC*_DCLK_CNT registers. SW should first write this
+                                                         field to a one, then write this field to a zero to
+                                                         clear the CSR's. */
+	uint64_t rdimm_ena                    : 1;  /**< Registered DIMM Enable - When set allows the use
+                                                         of JEDEC Registered DIMMs which require address and
+                                                         control bits to be registered in the controller. */
+#else
+	uint64_t rdimm_ena                    : 1;
+	uint64_t bwcnt                        : 1;
+	uint64_t ddr2t                        : 1;
+	uint64_t pocas                        : 1;
+	uint64_t fprch2                       : 2;
+	uint64_t throttle_rd                  : 1;
+	uint64_t throttle_wr                  : 1;
+	uint64_t inorder_rd                   : 1;
+	uint64_t inorder_wr                   : 1;
+	uint64_t elev_prio_dis                : 1;
+	uint64_t nxm_write_en                 : 1;
+	uint64_t max_write_batch              : 4;
+	uint64_t xor_bank                     : 1;
+	uint64_t auto_dclkdis                 : 1;
+	uint64_t int_zqcs_dis                 : 1;
+	uint64_t ext_zqcs_dis                 : 1;
+	uint64_t bprch                        : 2;
+	uint64_t wodt_bprch                   : 1;
+	uint64_t rodt_bprch                   : 1;
+	uint64_t crm_max                      : 5;
+	uint64_t crm_thr                      : 5;
+	uint64_t crm_cnt                      : 5;
+	uint64_t thrmax                       : 4;
+	uint64_t persub                       : 8;
+	uint64_t thrcnt                       : 12;
+	uint64_t reserved_63_63               : 1;
+#endif
+	} cn68xx;
+	struct cvmx_lmcx_control_cn68xx       cn68xxp1;
+	struct cvmx_lmcx_control_cn66xx       cnf71xx;
 };
 typedef union cvmx_lmcx_control cvmx_lmcx_control_t;
 
@@ -1986,12 +3067,10 @@ typedef union cvmx_lmcx_control cvmx_lmcx_control_t;
  * LMC_CTL = LMC Control
  * This register is an assortment of various control fields needed by the memory controller
  */
-union cvmx_lmcx_ctl
-{
+union cvmx_lmcx_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ddr__nctl                    : 4;  /**< DDR nctl from compensation circuit
                                                          The encoded value on this will adjust the drive strength
@@ -2096,9 +3175,8 @@ union cvmx_lmcx_ctl
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
-	struct cvmx_lmcx_ctl_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ddr__nctl                    : 4;  /**< DDR nctl from compensation circuit
                                                          The encoded value on this will adjust the drive strength
@@ -2212,9 +3290,8 @@ union cvmx_lmcx_ctl
 #endif
 	} cn30xx;
 	struct cvmx_lmcx_ctl_cn30xx           cn31xx;
-	struct cvmx_lmcx_ctl_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ddr__nctl                    : 4;  /**< DDR nctl from compensation circuit
                                                          The encoded value on this will adjust the drive strength
@@ -2344,9 +3421,8 @@ union cvmx_lmcx_ctl
 #endif
 	} cn38xx;
 	struct cvmx_lmcx_ctl_cn38xx           cn38xxp2;
-	struct cvmx_lmcx_ctl_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ddr__nctl                    : 4;  /**< DDR nctl from compensation circuit
                                                          The encoded value on this will adjust the drive strength
@@ -2456,9 +3532,8 @@ union cvmx_lmcx_ctl
 	uint64_t reserved_32_63               : 32;
 #endif
 	} cn50xx;
-	struct cvmx_lmcx_ctl_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ddr__nctl                    : 4;  /**< DDR nctl from compensation circuit
                                                          The encoded value on this will adjust the drive strength
@@ -2571,9 +3646,8 @@ union cvmx_lmcx_ctl
 	struct cvmx_lmcx_ctl_cn52xx           cn52xxp1;
 	struct cvmx_lmcx_ctl_cn52xx           cn56xx;
 	struct cvmx_lmcx_ctl_cn52xx           cn56xxp1;
-	struct cvmx_lmcx_ctl_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ddr__nctl                    : 4;  /**< DDR nctl from compensation circuit
                                                          The encoded value on this will adjust the drive strength
@@ -2691,12 +3765,10 @@ typedef union cvmx_lmcx_ctl cvmx_lmcx_ctl_t;
  * LMC_CTL1 = LMC Control1
  * This register is an assortment of various control fields needed by the memory controller
  */
-union cvmx_lmcx_ctl1
-{
+union cvmx_lmcx_ctl1 {
 	uint64_t u64;
-	struct cvmx_lmcx_ctl1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_21_63               : 43;
 	uint64_t ecc_adr                      : 1;  /**< Include memory reference address in the ECC calculation
                                                          0=disabled, 1=enabled */
@@ -2737,9 +3809,8 @@ union cvmx_lmcx_ctl1
 	uint64_t reserved_21_63               : 43;
 #endif
 	} s;
-	struct cvmx_lmcx_ctl1_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl1_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t data_layout                  : 2;  /**< Logical data layout per DQ byte lane:
                                                          In 32b mode, this setting has no effect and the data
@@ -2756,9 +3827,8 @@ union cvmx_lmcx_ctl1
 	uint64_t reserved_2_63                : 62;
 #endif
 	} cn30xx;
-	struct cvmx_lmcx_ctl1_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl1_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t sil_mode                     : 1;  /**< Read Silo mode.  0=envelope, 1=self-timed. */
 	uint64_t dcc_enable                   : 1;  /**< Duty Cycle Corrector Enable.
@@ -2784,9 +3854,8 @@ union cvmx_lmcx_ctl1
 	uint64_t reserved_10_63               : 54;
 #endif
 	} cn50xx;
-	struct cvmx_lmcx_ctl1_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl1_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_21_63               : 43;
 	uint64_t ecc_adr                      : 1;  /**< Include memory reference address in the ECC calculation
                                                          0=disabled, 1=enabled */
@@ -2819,9 +3888,8 @@ union cvmx_lmcx_ctl1
 	struct cvmx_lmcx_ctl1_cn52xx          cn52xxp1;
 	struct cvmx_lmcx_ctl1_cn52xx          cn56xx;
 	struct cvmx_lmcx_ctl1_cn52xx          cn56xxp1;
-	struct cvmx_lmcx_ctl1_cn58xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ctl1_cn58xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t sil_mode                     : 1;  /**< Read Silo mode.  0=envelope, 1=self-timed. */
 	uint64_t dcc_enable                   : 1;  /**< Duty Cycle Corrector Enable.
@@ -2846,20 +3914,23 @@ typedef union cvmx_lmcx_ctl1 cvmx_lmcx_ctl1_t;
  * LMC_DCLK_CNT  = Performance Counters
  *
  */
-union cvmx_lmcx_dclk_cnt
-{
+union cvmx_lmcx_dclk_cnt {
 	uint64_t u64;
-	struct cvmx_lmcx_dclk_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dclk_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t dclkcnt                      : 64; /**< Performance Counter
                                                          64-bit counter that increments every CK cycle */
 #else
 	uint64_t dclkcnt                      : 64;
 #endif
 	} s;
+	struct cvmx_lmcx_dclk_cnt_s           cn61xx;
 	struct cvmx_lmcx_dclk_cnt_s           cn63xx;
 	struct cvmx_lmcx_dclk_cnt_s           cn63xxp1;
+	struct cvmx_lmcx_dclk_cnt_s           cn66xx;
+	struct cvmx_lmcx_dclk_cnt_s           cn68xx;
+	struct cvmx_lmcx_dclk_cnt_s           cn68xxp1;
+	struct cvmx_lmcx_dclk_cnt_s           cnf71xx;
 };
 typedef union cvmx_lmcx_dclk_cnt cvmx_lmcx_dclk_cnt_t;
 
@@ -2869,12 +3940,10 @@ typedef union cvmx_lmcx_dclk_cnt cvmx_lmcx_dclk_cnt_t;
  * LMC_DCLK_CNT_HI  = Performance Counters
  *
  */
-union cvmx_lmcx_dclk_cnt_hi
-{
+union cvmx_lmcx_dclk_cnt_hi {
 	uint64_t u64;
-	struct cvmx_lmcx_dclk_cnt_hi_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dclk_cnt_hi_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t dclkcnt_hi                   : 32; /**< Performance Counter that counts dclks
                                                          Upper 32-bits of a 64-bit counter. */
@@ -2903,12 +3972,10 @@ typedef union cvmx_lmcx_dclk_cnt_hi cvmx_lmcx_dclk_cnt_hi_t;
  * LMC_DCLK_CNT_LO  = Performance Counters
  *
  */
-union cvmx_lmcx_dclk_cnt_lo
-{
+union cvmx_lmcx_dclk_cnt_lo {
 	uint64_t u64;
-	struct cvmx_lmcx_dclk_cnt_lo_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dclk_cnt_lo_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t dclkcnt_lo                   : 32; /**< Performance Counter that counts dclks
                                                          Lower 32-bits of a 64-bit counter. */
@@ -2941,12 +4008,10 @@ typedef union cvmx_lmcx_dclk_cnt_lo cvmx_lmcx_dclk_cnt_lo_t;
  * This CSR is only relevant for LMC1. LMC0_DCLK_CTL is not used.
  *
  */
-union cvmx_lmcx_dclk_ctl
-{
+union cvmx_lmcx_dclk_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_dclk_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dclk_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t off90_ena                    : 1;  /**< 0=use global DCLK (i.e. the PLL) directly for LMC1
                                                          1=use the 90 degree DCLK DLL to offset LMC1 DCLK */
@@ -2978,12 +4043,10 @@ typedef union cvmx_lmcx_dclk_ctl cvmx_lmcx_dclk_ctl_t;
  * LMC_DDR2_CTL = LMC DDR2 & DLL Control Register
  *
  */
-union cvmx_lmcx_ddr2_ctl
-{
+union cvmx_lmcx_ddr2_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_ddr2_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ddr2_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t bank8                        : 1;  /**< For 8 bank DDR2 parts
                                                          1 - DDR2 parts have 8 internal banks (BA is 3 bits
@@ -3097,9 +4160,8 @@ union cvmx_lmcx_ddr2_ctl
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
-	struct cvmx_lmcx_ddr2_ctl_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ddr2_ctl_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t bank8                        : 1;  /**< For 8 bank DDR2 parts
                                                          1 - DDR2 parts have 8 internal banks (BA is 3 bits
@@ -3238,12 +4300,10 @@ typedef union cvmx_lmcx_ddr2_ctl cvmx_lmcx_ddr2_ctl_t;
  *     If test mode is going to be activated, wait an additional 8191 ref clocks (8191*16 rclk cycles) to allow PLL
  *     clock alignment
  */
-union cvmx_lmcx_ddr_pll_ctl
-{
+union cvmx_lmcx_ddr_pll_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_ddr_pll_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ddr_pll_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_27_63               : 37;
 	uint64_t jtg_test_mode                : 1;  /**< JTAG Test Mode
                                                          Clock alignment between DCLK & REFCLK as well as FCLK &
@@ -3302,8 +4362,13 @@ union cvmx_lmcx_ddr_pll_ctl
 	uint64_t reserved_27_63               : 37;
 #endif
 	} s;
+	struct cvmx_lmcx_ddr_pll_ctl_s        cn61xx;
 	struct cvmx_lmcx_ddr_pll_ctl_s        cn63xx;
 	struct cvmx_lmcx_ddr_pll_ctl_s        cn63xxp1;
+	struct cvmx_lmcx_ddr_pll_ctl_s        cn66xx;
+	struct cvmx_lmcx_ddr_pll_ctl_s        cn68xx;
+	struct cvmx_lmcx_ddr_pll_ctl_s        cn68xxp1;
+	struct cvmx_lmcx_ddr_pll_ctl_s        cnf71xx;
 };
 typedef union cvmx_lmcx_ddr_pll_ctl cvmx_lmcx_ddr_pll_ctl_t;
 
@@ -3334,12 +4399,10 @@ typedef union cvmx_lmcx_ddr_pll_ctl cvmx_lmcx_ddr_pll_ctl_t;
  * This scheme should eliminate the board need of adding routing delay to clock signals to make high
  * frequencies work.
  */
-union cvmx_lmcx_delay_cfg
-{
+union cvmx_lmcx_delay_cfg {
 	uint64_t u64;
-	struct cvmx_lmcx_delay_cfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_delay_cfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t dq                           : 5;  /**< Setting for DQ  delay line */
 	uint64_t cmd                          : 5;  /**< Setting for CMD delay line */
@@ -3352,9 +4415,8 @@ union cvmx_lmcx_delay_cfg
 #endif
 	} s;
 	struct cvmx_lmcx_delay_cfg_s          cn30xx;
-	struct cvmx_lmcx_delay_cfg_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_delay_cfg_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t dq                           : 4;  /**< Setting for DQ  delay line */
 	uint64_t reserved_9_9                 : 1;
@@ -3392,12 +4454,10 @@ typedef union cvmx_lmcx_delay_cfg cvmx_lmcx_delay_cfg_t;
  * these fields into the control words in the JEDEC standard SSTE32882 registering clock driver on an
  * RDIMM when corresponding LMC*_DIMM_CTL[DIMM*_WMASK] bits are set.
  */
-union cvmx_lmcx_dimmx_params
-{
+union cvmx_lmcx_dimmx_params {
 	uint64_t u64;
-	struct cvmx_lmcx_dimmx_params_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dimmx_params_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t rc15                         : 4;  /**< RC15, Reserved */
 	uint64_t rc14                         : 4;  /**< RC14, Reserved */
 	uint64_t rc13                         : 4;  /**< RC13, Reserved */
@@ -3433,8 +4493,13 @@ union cvmx_lmcx_dimmx_params
 	uint64_t rc15                         : 4;
 #endif
 	} s;
+	struct cvmx_lmcx_dimmx_params_s       cn61xx;
 	struct cvmx_lmcx_dimmx_params_s       cn63xx;
 	struct cvmx_lmcx_dimmx_params_s       cn63xxp1;
+	struct cvmx_lmcx_dimmx_params_s       cn66xx;
+	struct cvmx_lmcx_dimmx_params_s       cn68xx;
+	struct cvmx_lmcx_dimmx_params_s       cn68xxp1;
+	struct cvmx_lmcx_dimmx_params_s       cnf71xx;
 };
 typedef union cvmx_lmcx_dimmx_params cvmx_lmcx_dimmx_params_t;
 
@@ -3449,14 +4514,18 @@ typedef union cvmx_lmcx_dimmx_params cvmx_lmcx_dimmx_params_t;
  * controls LMC's writes to the control words in the JEDEC standard SSTE32882 registering clock driver
  * on an RDIMM.
  */
-union cvmx_lmcx_dimm_ctl
-{
+union cvmx_lmcx_dimm_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_dimm_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dimm_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_46_63               : 18;
-	uint64_t parity                       : 1;  /**< Parity */
+	uint64_t parity                       : 1;  /**< Parity
+                                                         The PAR_IN input of a registered DIMM should be
+                                                         tied off. LMC adjusts the value of the DDR_WE_L (DWE#)
+                                                         pin during DDR3 register part control word writes to
+                                                         ensure the parity is observed correctly by the receiving
+                                                         SSTE32882 register part.
+                                                         When PAR_IN is grounded, PARITY should be cleared to 0. */
 	uint64_t tcws                         : 13; /**< LMC waits for this time period before and after a RDIMM
                                                          Control Word Access during a power-up/init SEQUENCE.
                                                          TCWS is in multiples of 8 CK cycles.
@@ -3482,8 +4551,13 @@ union cvmx_lmcx_dimm_ctl
 	uint64_t reserved_46_63               : 18;
 #endif
 	} s;
+	struct cvmx_lmcx_dimm_ctl_s           cn61xx;
 	struct cvmx_lmcx_dimm_ctl_s           cn63xx;
 	struct cvmx_lmcx_dimm_ctl_s           cn63xxp1;
+	struct cvmx_lmcx_dimm_ctl_s           cn66xx;
+	struct cvmx_lmcx_dimm_ctl_s           cn68xx;
+	struct cvmx_lmcx_dimm_ctl_s           cn68xxp1;
+	struct cvmx_lmcx_dimm_ctl_s           cnf71xx;
 };
 typedef union cvmx_lmcx_dimm_ctl cvmx_lmcx_dimm_ctl_t;
 
@@ -3493,12 +4567,10 @@ typedef union cvmx_lmcx_dimm_ctl cvmx_lmcx_dimm_ctl_t;
  * LMC_DLL_CTL = LMC DLL control and DCLK reset
  *
  */
-union cvmx_lmcx_dll_ctl
-{
+union cvmx_lmcx_dll_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_dll_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dll_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t dreset                       : 1;  /**< Dclk domain reset.  The reset signal that is used by the
                                                          Dclk domain is (DRESET || ECLK_RESET). */
@@ -3552,12 +4624,43 @@ typedef union cvmx_lmcx_dll_ctl cvmx_lmcx_dll_ctl_t;
  * 8. Write 0 to LMC*_DLL_CTL2[DRESET].  LMC*_DLL_CTL2[DRESET] must not change after this point without restarting the LMC and/or
  *    DRESET initialization sequence.
  */
-union cvmx_lmcx_dll_ctl2
-{
+union cvmx_lmcx_dll_ctl2 {
 	uint64_t u64;
-	struct cvmx_lmcx_dll_ctl2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dll_ctl2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_16_63               : 48;
+	uint64_t intf_en                      : 1;  /**< Interface Enable */
+	uint64_t dll_bringup                  : 1;  /**< DLL Bringup */
+	uint64_t dreset                       : 1;  /**< Dclk domain reset.  The reset signal that is used by the
+                                                         Dclk domain is (DRESET || ECLK_RESET). */
+	uint64_t quad_dll_ena                 : 1;  /**< DLL Enable */
+	uint64_t byp_sel                      : 4;  /**< Bypass select
+                                                         0000 : no byte
+                                                         0001 : byte 0
+                                                         - ...
+                                                         1001 : byte 8
+                                                         1010 : all bytes
+                                                         1011-1111 : Reserved */
+	uint64_t byp_setting                  : 8;  /**< Bypass setting
+                                                         DDR3-1600: 00100010
+                                                         DDR3-1333: 00110010
+                                                         DDR3-1066: 01001011
+                                                         DDR3-800 : 01110101
+                                                         DDR3-667 : 10010110
+                                                         DDR3-600 : 10101100 */
+#else
+	uint64_t byp_setting                  : 8;
+	uint64_t byp_sel                      : 4;
+	uint64_t quad_dll_ena                 : 1;
+	uint64_t dreset                       : 1;
+	uint64_t dll_bringup                  : 1;
+	uint64_t intf_en                      : 1;
+	uint64_t reserved_16_63               : 48;
+#endif
+	} s;
+	struct cvmx_lmcx_dll_ctl2_s           cn61xx;
+	struct cvmx_lmcx_dll_ctl2_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t dll_bringup                  : 1;  /**< DLL Bringup */
 	uint64_t dreset                       : 1;  /**< Dclk domain reset.  The reset signal that is used by the
@@ -3585,9 +4688,12 @@ union cvmx_lmcx_dll_ctl2
 	uint64_t dll_bringup                  : 1;
 	uint64_t reserved_15_63               : 49;
 #endif
-	} s;
-	struct cvmx_lmcx_dll_ctl2_s           cn63xx;
-	struct cvmx_lmcx_dll_ctl2_s           cn63xxp1;
+	} cn63xx;
+	struct cvmx_lmcx_dll_ctl2_cn63xx      cn63xxp1;
+	struct cvmx_lmcx_dll_ctl2_cn63xx      cn66xx;
+	struct cvmx_lmcx_dll_ctl2_s           cn68xx;
+	struct cvmx_lmcx_dll_ctl2_s           cn68xxp1;
+	struct cvmx_lmcx_dll_ctl2_s           cnf71xx;
 };
 typedef union cvmx_lmcx_dll_ctl2 cvmx_lmcx_dll_ctl2_t;
 
@@ -3597,12 +4703,81 @@ typedef union cvmx_lmcx_dll_ctl2 cvmx_lmcx_dll_ctl2_t;
  * LMC_DLL_CTL3 = LMC DLL control and DCLK reset
  *
  */
-union cvmx_lmcx_dll_ctl3
-{
+union cvmx_lmcx_dll_ctl3 {
 	uint64_t u64;
-	struct cvmx_lmcx_dll_ctl3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dll_ctl3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_41_63               : 23;
+	uint64_t dclk90_fwd                   : 1;  /**< Forward setting
+                                                         0 : disable
+                                                         1 : forward (generates a 1 cycle pulse to forward setting)
+                                                         This register is oneshot and clears itself each time
+                                                         it is set */
+	uint64_t ddr_90_dly_byp               : 1;  /**< Bypass DDR90_DLY in Clock Tree */
+	uint64_t dclk90_recal_dis             : 1;  /**< Disable periodic recalibration of DDR90 Delay Line in */
+	uint64_t dclk90_byp_sel               : 1;  /**< Bypass Setting Select for DDR90 Delay Line */
+	uint64_t dclk90_byp_setting           : 8;  /**< Bypass Setting for DDR90 Delay Line */
+	uint64_t dll_fast                     : 1;  /**< DLL lock
+                                                         0 = DLL locked */
+	uint64_t dll90_setting                : 8;  /**< Encoded DLL settings. Works in conjuction with
+                                                         DLL90_BYTE_SEL */
+	uint64_t fine_tune_mode               : 1;  /**< DLL Fine Tune Mode
+                                                         0 = disabled
+                                                         1 = enable.
+                                                         When enabled, calibrate internal PHY DLL every
+                                                         LMC*_CONFIG[REF_ZQCS_INT] CK cycles. */
+	uint64_t dll_mode                     : 1;  /**< DLL Mode */
+	uint64_t dll90_byte_sel               : 4;  /**< Observe DLL settings for selected byte
+                                                         0001 : byte 0
+                                                         - ...
+                                                         1001 : byte 8
+                                                         0000,1010-1111 : Reserved */
+	uint64_t offset_ena                   : 1;  /**< Offset enable
+                                                         0 = disable
+                                                         1 = enable */
+	uint64_t load_offset                  : 1;  /**< Load offset
+                                                         0 : disable
+                                                         1 : load (generates a 1 cycle pulse to the PHY)
+                                                         This register is oneshot and clears itself each time
+                                                         it is set */
+	uint64_t mode_sel                     : 2;  /**< Mode select
+                                                         00 : reset
+                                                         01 : write
+                                                         10 : read
+                                                         11 : write & read */
+	uint64_t byte_sel                     : 4;  /**< Byte select
+                                                         0000 : no byte
+                                                         0001 : byte 0
+                                                         - ...
+                                                         1001 : byte 8
+                                                         1010 : all bytes
+                                                         1011-1111 : Reserved */
+	uint64_t offset                       : 6;  /**< Write/read offset setting
+                                                         [4:0] : offset
+                                                         [5]   : 0 = increment, 1 = decrement
+                                                         Not a 2's complement value */
+#else
+	uint64_t offset                       : 6;
+	uint64_t byte_sel                     : 4;
+	uint64_t mode_sel                     : 2;
+	uint64_t load_offset                  : 1;
+	uint64_t offset_ena                   : 1;
+	uint64_t dll90_byte_sel               : 4;
+	uint64_t dll_mode                     : 1;
+	uint64_t fine_tune_mode               : 1;
+	uint64_t dll90_setting                : 8;
+	uint64_t dll_fast                     : 1;
+	uint64_t dclk90_byp_setting           : 8;
+	uint64_t dclk90_byp_sel               : 1;
+	uint64_t dclk90_recal_dis             : 1;
+	uint64_t ddr_90_dly_byp               : 1;
+	uint64_t dclk90_fwd                   : 1;
+	uint64_t reserved_41_63               : 23;
+#endif
+	} s;
+	struct cvmx_lmcx_dll_ctl3_s           cn61xx;
+	struct cvmx_lmcx_dll_ctl3_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t dll_fast                     : 1;  /**< DLL lock
                                                          0 = DLL locked */
@@ -3656,9 +4831,12 @@ union cvmx_lmcx_dll_ctl3
 	uint64_t dll_fast                     : 1;
 	uint64_t reserved_29_63               : 35;
 #endif
-	} s;
-	struct cvmx_lmcx_dll_ctl3_s           cn63xx;
-	struct cvmx_lmcx_dll_ctl3_s           cn63xxp1;
+	} cn63xx;
+	struct cvmx_lmcx_dll_ctl3_cn63xx      cn63xxp1;
+	struct cvmx_lmcx_dll_ctl3_cn63xx      cn66xx;
+	struct cvmx_lmcx_dll_ctl3_s           cn68xx;
+	struct cvmx_lmcx_dll_ctl3_s           cn68xxp1;
+	struct cvmx_lmcx_dll_ctl3_s           cnf71xx;
 };
 typedef union cvmx_lmcx_dll_ctl3 cvmx_lmcx_dll_ctl3_t;
 
@@ -3689,12 +4867,10 @@ typedef union cvmx_lmcx_dll_ctl3 cvmx_lmcx_dll_ctl3_t;
  *  Programming restrictions for CS_MASK:
  *    when LMC*_CONFIG[RANK_ENA] == 0, CS_MASK[2n + 1] = CS_MASK[2n]
  */
-union cvmx_lmcx_dual_memcfg
-{
+union cvmx_lmcx_dual_memcfg {
 	uint64_t u64;
-	struct cvmx_lmcx_dual_memcfg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dual_memcfg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t bank8                        : 1;  /**< See LMC_DDR2_CTL[BANK8] */
 	uint64_t row_lsb                      : 3;  /**< See LMC*_CONFIG[ROW_LSB] */
@@ -3706,7 +4882,7 @@ union cvmx_lmcx_dual_memcfg
                                                          corresponding CS_MASK bit set, then the "config1"
                                                          parameters are used, otherwise the "config0" parameters
                                                          are used.  See additional notes below.
-                                                         [7:4] */
+                                                         [7:4] *UNUSED IN 6xxx* */
 #else
 	uint64_t cs_mask                      : 8;
 	uint64_t reserved_8_15                : 8;
@@ -3722,9 +4898,8 @@ union cvmx_lmcx_dual_memcfg
 	struct cvmx_lmcx_dual_memcfg_s        cn56xxp1;
 	struct cvmx_lmcx_dual_memcfg_s        cn58xx;
 	struct cvmx_lmcx_dual_memcfg_s        cn58xxp1;
-	struct cvmx_lmcx_dual_memcfg_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_dual_memcfg_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t row_lsb                      : 3;  /**< See LMC*_CONFIG[ROW_LSB] */
 	uint64_t reserved_8_15                : 8;
@@ -3735,15 +4910,20 @@ union cvmx_lmcx_dual_memcfg
                                                          corresponding CS_MASK bit set, then the "config1"
                                                          parameters are used, otherwise the "config0" parameters
                                                          are used.  See additional notes below.
-                                                         [7:4] */
+                                                         [7:4] *UNUSED IN 6xxx* */
 #else
 	uint64_t cs_mask                      : 8;
 	uint64_t reserved_8_15                : 8;
 	uint64_t row_lsb                      : 3;
 	uint64_t reserved_19_63               : 45;
 #endif
-	} cn63xx;
-	struct cvmx_lmcx_dual_memcfg_cn63xx   cn63xxp1;
+	} cn61xx;
+	struct cvmx_lmcx_dual_memcfg_cn61xx   cn63xx;
+	struct cvmx_lmcx_dual_memcfg_cn61xx   cn63xxp1;
+	struct cvmx_lmcx_dual_memcfg_cn61xx   cn66xx;
+	struct cvmx_lmcx_dual_memcfg_cn61xx   cn68xx;
+	struct cvmx_lmcx_dual_memcfg_cn61xx   cn68xxp1;
+	struct cvmx_lmcx_dual_memcfg_cn61xx   cnf71xx;
 };
 typedef union cvmx_lmcx_dual_memcfg cvmx_lmcx_dual_memcfg_t;
 
@@ -3753,24 +4933,30 @@ typedef union cvmx_lmcx_dual_memcfg cvmx_lmcx_dual_memcfg_t;
  * LMC_ECC_SYND = MRD ECC Syndromes
  *
  */
-union cvmx_lmcx_ecc_synd
-{
+union cvmx_lmcx_ecc_synd {
 	uint64_t u64;
-	struct cvmx_lmcx_ecc_synd_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ecc_synd_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t mrdsyn3                      : 8;  /**< MRD ECC Syndrome Quad3
                                                          MRDSYN3 corresponds to DQ[63:0]_c1_p1
+                                                         In 32b mode, ecc is calculated on 4 cycle worth of data
+                                                         MRDSYN3 corresponds to [DQ[31:0]_c3_p1, DQ[31:0]_c3_p0]
                                                            where _cC_pP denotes cycle C and phase P */
 	uint64_t mrdsyn2                      : 8;  /**< MRD ECC Syndrome Quad2
                                                          MRDSYN2 corresponds to DQ[63:0]_c1_p0
+                                                         In 32b mode, ecc is calculated on 4 cycle worth of data
+                                                         MRDSYN2 corresponds to [DQ[31:0]_c2_p1, DQ[31:0]_c2_p0]
                                                            where _cC_pP denotes cycle C and phase P */
 	uint64_t mrdsyn1                      : 8;  /**< MRD ECC Syndrome Quad1
                                                          MRDSYN1 corresponds to DQ[63:0]_c0_p1
+                                                         In 32b mode, ecc is calculated on 4 cycle worth of data
+                                                         MRDSYN1 corresponds to [DQ[31:0]_c1_p1, DQ[31:0]_c1_p0]
                                                            where _cC_pP denotes cycle C and phase P */
 	uint64_t mrdsyn0                      : 8;  /**< MRD ECC Syndrome Quad0
                                                          MRDSYN0 corresponds to DQ[63:0]_c0_p0
+                                                         In 32b mode, ecc is calculated on 4 cycle worth of data
+                                                         MRDSYN0 corresponds to [DQ[31:0]_c0_p1, DQ[31:0]_c0_p0]
                                                            where _cC_pP denotes cycle C and phase P */
 #else
 	uint64_t mrdsyn0                      : 8;
@@ -3791,8 +4977,13 @@ union cvmx_lmcx_ecc_synd
 	struct cvmx_lmcx_ecc_synd_s           cn56xxp1;
 	struct cvmx_lmcx_ecc_synd_s           cn58xx;
 	struct cvmx_lmcx_ecc_synd_s           cn58xxp1;
+	struct cvmx_lmcx_ecc_synd_s           cn61xx;
 	struct cvmx_lmcx_ecc_synd_s           cn63xx;
 	struct cvmx_lmcx_ecc_synd_s           cn63xxp1;
+	struct cvmx_lmcx_ecc_synd_s           cn66xx;
+	struct cvmx_lmcx_ecc_synd_s           cn68xx;
+	struct cvmx_lmcx_ecc_synd_s           cn68xxp1;
+	struct cvmx_lmcx_ecc_synd_s           cnf71xx;
 };
 typedef union cvmx_lmcx_ecc_synd cvmx_lmcx_ecc_synd_t;
 
@@ -3807,21 +4998,28 @@ typedef union cvmx_lmcx_ecc_synd cvmx_lmcx_ecc_synd_t;
  * next failing address.
  *
  * If FDIMM is 2 that means the error is in the higher bits DIMM.
+ *
+ * Notes:
+ * LMC*_FADR captures the failing pre-scrambled address location (split into dimm, bunk, bank, etc). If
+ * scrambling is off, then LMC*_FADR will also capture the failing physical location in the DRAM parts.
+ *
+ * LMC*_SCRAMBLED_FADR captures the actual failing address location in the physical DRAM parts, i.e.,
+ * a. if scrambling is on, LMC*_SCRAMBLE_FADR contains the failing physical location in the DRAM parts (split
+ *    into dimm, bunk, bank, etc)
+ * b. if scrambling is off, the pre-scramble and post-scramble addresses are the same, and so the contents of
+ *    LMC*_SCRAMBLED_FADR match the contents of LMC*_FADR
  */
-union cvmx_lmcx_fadr
-{
+union cvmx_lmcx_fadr {
 	uint64_t u64;
-	struct cvmx_lmcx_fadr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_fadr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_0_63                : 64;
 #else
 	uint64_t reserved_0_63                : 64;
 #endif
 	} s;
-	struct cvmx_lmcx_fadr_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_fadr_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t fdimm                        : 2;  /**< Failing DIMM# */
 	uint64_t fbunk                        : 1;  /**< Failing Rank */
@@ -3850,9 +5048,8 @@ union cvmx_lmcx_fadr
 	struct cvmx_lmcx_fadr_cn30xx          cn56xxp1;
 	struct cvmx_lmcx_fadr_cn30xx          cn58xx;
 	struct cvmx_lmcx_fadr_cn30xx          cn58xxp1;
-	struct cvmx_lmcx_fadr_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_fadr_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_36_63               : 28;
 	uint64_t fdimm                        : 2;  /**< Failing DIMM# */
 	uint64_t fbunk                        : 1;  /**< Failing Rank */
@@ -3871,8 +5068,13 @@ union cvmx_lmcx_fadr
 	uint64_t fdimm                        : 2;
 	uint64_t reserved_36_63               : 28;
 #endif
-	} cn63xx;
-	struct cvmx_lmcx_fadr_cn63xx          cn63xxp1;
+	} cn61xx;
+	struct cvmx_lmcx_fadr_cn61xx          cn63xx;
+	struct cvmx_lmcx_fadr_cn61xx          cn63xxp1;
+	struct cvmx_lmcx_fadr_cn61xx          cn66xx;
+	struct cvmx_lmcx_fadr_cn61xx          cn68xx;
+	struct cvmx_lmcx_fadr_cn61xx          cn68xxp1;
+	struct cvmx_lmcx_fadr_cn61xx          cnf71xx;
 };
 typedef union cvmx_lmcx_fadr cvmx_lmcx_fadr_t;
 
@@ -3882,12 +5084,10 @@ typedef union cvmx_lmcx_fadr cvmx_lmcx_fadr_t;
  * LMC_IFB_CNT  = Performance Counters
  *
  */
-union cvmx_lmcx_ifb_cnt
-{
+union cvmx_lmcx_ifb_cnt {
 	uint64_t u64;
-	struct cvmx_lmcx_ifb_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ifb_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t ifbcnt                       : 64; /**< Performance Counter
                                                          64-bit counter that increments every
                                                          CK cycle there is something in the in-flight buffer. */
@@ -3895,8 +5095,13 @@ union cvmx_lmcx_ifb_cnt
 	uint64_t ifbcnt                       : 64;
 #endif
 	} s;
+	struct cvmx_lmcx_ifb_cnt_s            cn61xx;
 	struct cvmx_lmcx_ifb_cnt_s            cn63xx;
 	struct cvmx_lmcx_ifb_cnt_s            cn63xxp1;
+	struct cvmx_lmcx_ifb_cnt_s            cn66xx;
+	struct cvmx_lmcx_ifb_cnt_s            cn68xx;
+	struct cvmx_lmcx_ifb_cnt_s            cn68xxp1;
+	struct cvmx_lmcx_ifb_cnt_s            cnf71xx;
 };
 typedef union cvmx_lmcx_ifb_cnt cvmx_lmcx_ifb_cnt_t;
 
@@ -3906,12 +5111,10 @@ typedef union cvmx_lmcx_ifb_cnt cvmx_lmcx_ifb_cnt_t;
  * LMC_IFB_CNT_HI  = Performance Counters
  *
  */
-union cvmx_lmcx_ifb_cnt_hi
-{
+union cvmx_lmcx_ifb_cnt_hi {
 	uint64_t u64;
-	struct cvmx_lmcx_ifb_cnt_hi_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ifb_cnt_hi_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ifbcnt_hi                    : 32; /**< Performance Counter to measure Bus Utilization
                                                          Upper 32-bits of 64-bit counter that increments every
@@ -3941,12 +5144,10 @@ typedef union cvmx_lmcx_ifb_cnt_hi cvmx_lmcx_ifb_cnt_hi_t;
  * LMC_IFB_CNT_LO  = Performance Counters
  *
  */
-union cvmx_lmcx_ifb_cnt_lo
-{
+union cvmx_lmcx_ifb_cnt_lo {
 	uint64_t u64;
-	struct cvmx_lmcx_ifb_cnt_lo_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ifb_cnt_lo_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ifbcnt_lo                    : 32; /**< Performance Counter
                                                          Low 32-bits of 64-bit counter that increments every
@@ -3976,27 +5177,35 @@ typedef union cvmx_lmcx_ifb_cnt_lo cvmx_lmcx_ifb_cnt_lo_t;
  * LMC_INT = LMC Interrupt Register
  *
  */
-union cvmx_lmcx_int
-{
+union cvmx_lmcx_int {
 	uint64_t u64;
-	struct cvmx_lmcx_int_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_int_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t ded_err                      : 4;  /**< Double Error detected (DED) of Rd Data
                                                          [0] corresponds to DQ[63:0]_c0_p0
                                                          [1] corresponds to DQ[63:0]_c0_p1
                                                          [2] corresponds to DQ[63:0]_c1_p0
                                                          [3] corresponds to DQ[63:0]_c1_p1
-                                                         where _cC_pP denotes cycle C and phase P
-                                                         Write of 1 will clear the corresponding error bit */
+                                                         In 32b mode, ecc is calculated on 4 cycle worth of data
+                                                         [0] corresponds to [DQ[31:0]_c0_p1, DQ[31:0]_c0_p0]
+                                                         [1] corresponds to [DQ[31:0]_c1_p1, DQ[31:0]_c1_p0]
+                                                         [2] corresponds to [DQ[31:0]_c2_p1, DQ[31:0]_c2_p0]
+                                                         [3] corresponds to [DQ[31:0]_c3_p1, DQ[31:0]_c3_p0]
+                                                          where _cC_pP denotes cycle C and phase P
+                                                          Write of 1 will clear the corresponding error bit */
 	uint64_t sec_err                      : 4;  /**< Single Error (corrected) of Rd Data
                                                          [0] corresponds to DQ[63:0]_c0_p0
                                                          [1] corresponds to DQ[63:0]_c0_p1
                                                          [2] corresponds to DQ[63:0]_c1_p0
                                                          [3] corresponds to DQ[63:0]_c1_p1
-                                                         where _cC_pP denotes cycle C and phase P
-                                                         Write of 1 will clear the corresponding error bit */
+                                                         In 32b mode, ecc is calculated on 4 cycle worth of data
+                                                         [0] corresponds to [DQ[31:0]_c0_p1, DQ[31:0]_c0_p0]
+                                                         [1] corresponds to [DQ[31:0]_c1_p1, DQ[31:0]_c1_p0]
+                                                         [2] corresponds to [DQ[31:0]_c2_p1, DQ[31:0]_c2_p0]
+                                                         [3] corresponds to [DQ[31:0]_c3_p1, DQ[31:0]_c3_p0]
+                                                          where _cC_pP denotes cycle C and phase P
+                                                          Write of 1 will clear the corresponding error bit */
 	uint64_t nxm_wr_err                   : 1;  /**< Write to non-existent memory
                                                          Write of 1 will clear the corresponding error bit */
 #else
@@ -4006,8 +5215,13 @@ union cvmx_lmcx_int
 	uint64_t reserved_9_63                : 55;
 #endif
 	} s;
+	struct cvmx_lmcx_int_s                cn61xx;
 	struct cvmx_lmcx_int_s                cn63xx;
 	struct cvmx_lmcx_int_s                cn63xxp1;
+	struct cvmx_lmcx_int_s                cn66xx;
+	struct cvmx_lmcx_int_s                cn68xx;
+	struct cvmx_lmcx_int_s                cn68xxp1;
+	struct cvmx_lmcx_int_s                cnf71xx;
 };
 typedef union cvmx_lmcx_int cvmx_lmcx_int_t;
 
@@ -4017,12 +5231,10 @@ typedef union cvmx_lmcx_int cvmx_lmcx_int_t;
  * LMC_INT_EN = LMC Interrupt Enable Register
  *
  */
-union cvmx_lmcx_int_en
-{
+union cvmx_lmcx_int_en {
 	uint64_t u64;
-	struct cvmx_lmcx_int_en_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_int_en_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t intr_ded_ena                 : 1;  /**< ECC Double Error Detect(DED) Interrupt Enable bit
                                                          When set, the memory controller raises a processor
@@ -4042,8 +5254,13 @@ union cvmx_lmcx_int_en
 	uint64_t reserved_3_63                : 61;
 #endif
 	} s;
+	struct cvmx_lmcx_int_en_s             cn61xx;
 	struct cvmx_lmcx_int_en_s             cn63xx;
 	struct cvmx_lmcx_int_en_s             cn63xxp1;
+	struct cvmx_lmcx_int_en_s             cn66xx;
+	struct cvmx_lmcx_int_en_s             cn68xx;
+	struct cvmx_lmcx_int_en_s             cn68xxp1;
+	struct cvmx_lmcx_int_en_s             cnf71xx;
 };
 typedef union cvmx_lmcx_int_en cvmx_lmcx_int_en_t;
 
@@ -4056,12 +5273,10 @@ typedef union cvmx_lmcx_int_en cvmx_lmcx_int_en_t;
  *
  * This register controls certain parameters of  Memory Configuration
  */
-union cvmx_lmcx_mem_cfg0
-{
+union cvmx_lmcx_mem_cfg0 {
 	uint64_t u64;
-	struct cvmx_lmcx_mem_cfg0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_mem_cfg0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t reset                        : 1;  /**< Reset oneshot pulse for refresh counter,
                                                          and LMC_OPS_CNT_*, LMC_IFB_CNT_*, and LMC_DCLK_CNT_*
@@ -4221,12 +5436,10 @@ typedef union cvmx_lmcx_mem_cfg0 cvmx_lmcx_mem_cfg0_t;
  * The details of each of these timing parameters can be found in the JEDEC spec or the vendor
  * spec of the memory parts.
  */
-union cvmx_lmcx_mem_cfg1
-{
+union cvmx_lmcx_mem_cfg1 {
 	uint64_t u64;
-	struct cvmx_lmcx_mem_cfg1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_mem_cfg1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t comp_bypass                  : 1;  /**< Compensation bypass. */
 	uint64_t trrd                         : 3;  /**< tRRD cycles: ACT-ACT timing parameter for different
@@ -4329,9 +5542,8 @@ union cvmx_lmcx_mem_cfg1
 	} s;
 	struct cvmx_lmcx_mem_cfg1_s           cn30xx;
 	struct cvmx_lmcx_mem_cfg1_s           cn31xx;
-	struct cvmx_lmcx_mem_cfg1_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_mem_cfg1_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_31_63               : 33;
 	uint64_t trrd                         : 3;  /**< tRRD cycles: ACT-ACT timing parameter for different
                                                          banks. (Represented in tCYC cycles == 1dclks)
@@ -4451,12 +5663,10 @@ typedef union cvmx_lmcx_mem_cfg1 cvmx_lmcx_mem_cfg1_t;
  * These parameters are written into the DDR3 MR0, MR1, MR2 and MR3 registers.
  *
  */
-union cvmx_lmcx_modereg_params0
-{
+union cvmx_lmcx_modereg_params0 {
 	uint64_t u64;
-	struct cvmx_lmcx_modereg_params0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_modereg_params0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_25_63               : 39;
 	uint64_t ppd                          : 1;  /**< DLL Control for precharge powerdown
                                                          0 = Slow exit (DLL off)
@@ -4470,14 +5680,14 @@ union cvmx_lmcx_modereg_params0
 	uint64_t wrp                          : 3;  /**< Write recovery for auto precharge
                                                          Should be programmed to be equal to or greater than
                                                          RNDUP[tWR(ns)/tCYC(ns)]
-                                                         000 = Reserved
+                                                         000 = 5
                                                          001 = 5
                                                          010 = 6
                                                          011 = 7
                                                          100 = 8
                                                          101 = 10
                                                          110 = 12
-                                                         111 = Reserved
+                                                         111 = 14
                                                          LMC writes this value to MR0[WR] in the selected DDR3 parts
                                                          during power-up/init and, if LMC*_CONFIG[SREF_WITH_DLL] is set,
                                                          self-refresh exit instruction sequences.
@@ -4514,7 +5724,12 @@ union cvmx_lmcx_modereg_params0
                                                          1010 = 9
                                                          1100 = 10
                                                          1110 = 11
-                                                         0000, ???1 = Reserved
+                                                         0001 = 12
+                                                         0011 = 13
+                                                         0101 = 14
+                                                         0111 = 15
+                                                         1001 = 16
+                                                         0000, 1011, 1101, 1111 = Reserved
                                                          LMC writes this value to MR0[CAS Latency / CL] in the selected DDR3 parts
                                                          during power-up/init and, if LMC*_CONFIG[SREF_WITH_DLL] is set,
                                                          self-refresh exit instruction sequences.
@@ -4604,7 +5819,10 @@ union cvmx_lmcx_modereg_params0
                                                          - 001: 6
                                                          - 010: 7
                                                          - 011: 8
-                                                         1xx: Reserved
+                                                         - 100: 9
+                                                         - 101: 10
+                                                         - 110: 11
+                                                         - 111: 12
                                                          LMC writes this value to MR2[CWL] in the selected DDR3 parts
                                                          during power-up/init, write-leveling, and, if LMC*_CONFIG[SREF_WITH_DLL] is set,
                                                          self-refresh entry and exit instruction sequences.
@@ -4631,8 +5849,13 @@ union cvmx_lmcx_modereg_params0
 	uint64_t reserved_25_63               : 39;
 #endif
 	} s;
+	struct cvmx_lmcx_modereg_params0_s    cn61xx;
 	struct cvmx_lmcx_modereg_params0_s    cn63xx;
 	struct cvmx_lmcx_modereg_params0_s    cn63xxp1;
+	struct cvmx_lmcx_modereg_params0_s    cn66xx;
+	struct cvmx_lmcx_modereg_params0_s    cn68xx;
+	struct cvmx_lmcx_modereg_params0_s    cn68xxp1;
+	struct cvmx_lmcx_modereg_params0_s    cnf71xx;
 };
 typedef union cvmx_lmcx_modereg_params0 cvmx_lmcx_modereg_params0_t;
 
@@ -4643,12 +5866,10 @@ typedef union cvmx_lmcx_modereg_params0 cvmx_lmcx_modereg_params0_t;
  * These parameters are written into the DDR3 MR0, MR1, MR2 and MR3 registers.
  *
  */
-union cvmx_lmcx_modereg_params1
-{
+union cvmx_lmcx_modereg_params1 {
 	uint64_t u64;
-	struct cvmx_lmcx_modereg_params1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_modereg_params1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t rtt_nom_11                   : 3;  /**< RTT_NOM Rank 3
                                                          LMC writes this value to MR1[Rtt_Nom] in the rank 3 (i.e. DIMM1_CS1) DDR3 parts
@@ -4834,8 +6055,13 @@ union cvmx_lmcx_modereg_params1
 	uint64_t reserved_48_63               : 16;
 #endif
 	} s;
+	struct cvmx_lmcx_modereg_params1_s    cn61xx;
 	struct cvmx_lmcx_modereg_params1_s    cn63xx;
 	struct cvmx_lmcx_modereg_params1_s    cn63xxp1;
+	struct cvmx_lmcx_modereg_params1_s    cn66xx;
+	struct cvmx_lmcx_modereg_params1_s    cn68xx;
+	struct cvmx_lmcx_modereg_params1_s    cn68xxp1;
+	struct cvmx_lmcx_modereg_params1_s    cnf71xx;
 };
 typedef union cvmx_lmcx_modereg_params1 cvmx_lmcx_modereg_params1_t;
 
@@ -4866,17 +6092,19 @@ typedef union cvmx_lmcx_modereg_params1 cvmx_lmcx_modereg_params1_t;
  * Note also that addresses greater the max defined space (pbank_msb) are also treated
  * as NXM accesses
  */
-union cvmx_lmcx_nxm
-{
+union cvmx_lmcx_nxm {
 	uint64_t u64;
-	struct cvmx_lmcx_nxm_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_nxm_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
-	uint64_t mem_msb_d3_r1                : 4;  /**< Max Row MSB for DIMM3, RANK1/DIMM3 in Single Ranked */
-	uint64_t mem_msb_d3_r0                : 4;  /**< Max Row MSB for DIMM3, RANK0 */
-	uint64_t mem_msb_d2_r1                : 4;  /**< Max Row MSB for DIMM2, RANK1/DIMM2 in Single Ranked */
-	uint64_t mem_msb_d2_r0                : 4;  /**< Max Row MSB for DIMM2, RANK0 */
+	uint64_t mem_msb_d3_r1                : 4;  /**< Max Row MSB for DIMM3, RANK1/DIMM3 in Single Ranked
+                                                         *UNUSED IN 6xxx* */
+	uint64_t mem_msb_d3_r0                : 4;  /**< Max Row MSB for DIMM3, RANK0
+                                                         *UNUSED IN 6xxx* */
+	uint64_t mem_msb_d2_r1                : 4;  /**< Max Row MSB for DIMM2, RANK1/DIMM2 in Single Ranked
+                                                         *UNUSED IN 6xxx* */
+	uint64_t mem_msb_d2_r0                : 4;  /**< Max Row MSB for DIMM2, RANK0
+                                                         *UNUSED IN 6xxx* */
 	uint64_t mem_msb_d1_r1                : 4;  /**< Max Row MSB for DIMM1, RANK1/DIMM1 in Single Ranked */
 	uint64_t mem_msb_d1_r0                : 4;  /**< Max Row MSB for DIMM1, RANK0 */
 	uint64_t mem_msb_d0_r1                : 4;  /**< Max Row MSB for DIMM0, RANK1/DIMM0 in Single Ranked */
@@ -4891,7 +6119,7 @@ union cvmx_lmcx_nxm
                                                          NXM read reference to use the lowest, legal chip select(s)
                                                          and return 0's. LMC normally discards NXM writes, but will
                                                          also alias them when LMC*_CONTROL[NXM_WRITE_EN]=1.
-                                                         CS_MASK<7:4> MBZ in 63xx */
+                                                         CS_MASK<7:4> MBZ in 6xxx */
 #else
 	uint64_t cs_mask                      : 8;
 	uint64_t mem_msb_d0_r0                : 4;
@@ -4905,9 +6133,8 @@ union cvmx_lmcx_nxm
 	uint64_t reserved_40_63               : 24;
 #endif
 	} s;
-	struct cvmx_lmcx_nxm_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_nxm_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t cs_mask                      : 8;  /**< Chip select mask.
                                                          This mask corresponds to the 8 chip selects for a memory
@@ -4925,8 +6152,13 @@ union cvmx_lmcx_nxm
 	} cn52xx;
 	struct cvmx_lmcx_nxm_cn52xx           cn56xx;
 	struct cvmx_lmcx_nxm_cn52xx           cn58xx;
+	struct cvmx_lmcx_nxm_s                cn61xx;
 	struct cvmx_lmcx_nxm_s                cn63xx;
 	struct cvmx_lmcx_nxm_s                cn63xxp1;
+	struct cvmx_lmcx_nxm_s                cn66xx;
+	struct cvmx_lmcx_nxm_s                cn68xx;
+	struct cvmx_lmcx_nxm_s                cn68xxp1;
+	struct cvmx_lmcx_nxm_s                cnf71xx;
 };
 typedef union cvmx_lmcx_nxm cvmx_lmcx_nxm_t;
 
@@ -4936,12 +6168,10 @@ typedef union cvmx_lmcx_nxm cvmx_lmcx_nxm_t;
  * LMC_OPS_CNT  = Performance Counters
  *
  */
-union cvmx_lmcx_ops_cnt
-{
+union cvmx_lmcx_ops_cnt {
 	uint64_t u64;
-	struct cvmx_lmcx_ops_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ops_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t opscnt                       : 64; /**< Performance Counter
                                                          64-bit counter that increments when the DDR3 data bus
                                                          is being used
@@ -4950,8 +6180,13 @@ union cvmx_lmcx_ops_cnt
 	uint64_t opscnt                       : 64;
 #endif
 	} s;
+	struct cvmx_lmcx_ops_cnt_s            cn61xx;
 	struct cvmx_lmcx_ops_cnt_s            cn63xx;
 	struct cvmx_lmcx_ops_cnt_s            cn63xxp1;
+	struct cvmx_lmcx_ops_cnt_s            cn66xx;
+	struct cvmx_lmcx_ops_cnt_s            cn68xx;
+	struct cvmx_lmcx_ops_cnt_s            cn68xxp1;
+	struct cvmx_lmcx_ops_cnt_s            cnf71xx;
 };
 typedef union cvmx_lmcx_ops_cnt cvmx_lmcx_ops_cnt_t;
 
@@ -4961,12 +6196,10 @@ typedef union cvmx_lmcx_ops_cnt cvmx_lmcx_ops_cnt_t;
  * LMC_OPS_CNT_HI  = Performance Counters
  *
  */
-union cvmx_lmcx_ops_cnt_hi
-{
+union cvmx_lmcx_ops_cnt_hi {
 	uint64_t u64;
-	struct cvmx_lmcx_ops_cnt_hi_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ops_cnt_hi_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t opscnt_hi                    : 32; /**< Performance Counter to measure Bus Utilization
                                                          Upper 32-bits of 64-bit counter
@@ -4996,12 +6229,10 @@ typedef union cvmx_lmcx_ops_cnt_hi cvmx_lmcx_ops_cnt_hi_t;
  * LMC_OPS_CNT_LO  = Performance Counters
  *
  */
-union cvmx_lmcx_ops_cnt_lo
-{
+union cvmx_lmcx_ops_cnt_lo {
 	uint64_t u64;
-	struct cvmx_lmcx_ops_cnt_lo_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_ops_cnt_lo_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t opscnt_lo                    : 32; /**< Performance Counter
                                                          Low 32-bits of 64-bit counter
@@ -5031,12 +6262,10 @@ typedef union cvmx_lmcx_ops_cnt_lo cvmx_lmcx_ops_cnt_lo_t;
  * LMC_PHY_CTL = LMC PHY Control
  *
  */
-union cvmx_lmcx_phy_ctl
-{
+union cvmx_lmcx_phy_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_phy_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_phy_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t rx_always_on                 : 1;  /**< Disable dynamic DDR3 IO Rx power gating */
 	uint64_t lv_mode                      : 1;  /**< Low Voltage Mode (1.35V) */
@@ -5068,10 +6297,10 @@ union cvmx_lmcx_phy_ctl
 	uint64_t reserved_15_63               : 49;
 #endif
 	} s;
+	struct cvmx_lmcx_phy_ctl_s            cn61xx;
 	struct cvmx_lmcx_phy_ctl_s            cn63xx;
-	struct cvmx_lmcx_phy_ctl_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_phy_ctl_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t lv_mode                      : 1;  /**< Low Voltage Mode (1.35V) */
 	uint64_t ck_tune1                     : 1;  /**< Clock Tune */
@@ -5101,6 +6330,10 @@ union cvmx_lmcx_phy_ctl
 	uint64_t reserved_14_63               : 50;
 #endif
 	} cn63xxp1;
+	struct cvmx_lmcx_phy_ctl_s            cn66xx;
+	struct cvmx_lmcx_phy_ctl_s            cn68xx;
+	struct cvmx_lmcx_phy_ctl_s            cn68xxp1;
+	struct cvmx_lmcx_phy_ctl_s            cnf71xx;
 };
 typedef union cvmx_lmcx_phy_ctl cvmx_lmcx_phy_ctl_t;
 
@@ -5110,12 +6343,10 @@ typedef union cvmx_lmcx_phy_ctl cvmx_lmcx_phy_ctl_t;
  * LMC_PLL_BWCTL  = DDR PLL Bandwidth Control Register
  *
  */
-union cvmx_lmcx_pll_bwctl
-{
+union cvmx_lmcx_pll_bwctl {
 	uint64_t u64;
-	struct cvmx_lmcx_pll_bwctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_pll_bwctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t bwupd                        : 1;  /**< Load this Bandwidth Register value into the PLL */
 	uint64_t bwctl                        : 4;  /**< Bandwidth Control Register for DDR PLL */
@@ -5154,12 +6385,10 @@ typedef union cvmx_lmcx_pll_bwctl cvmx_lmcx_pll_bwctl_t;
  *
  * must reside between 1.2 and 2.5 GHz. A faster PLL frequency is desirable if there is a choice.
  */
-union cvmx_lmcx_pll_ctl
-{
+union cvmx_lmcx_pll_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_pll_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_pll_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_30_63               : 34;
 	uint64_t bypass                       : 1;  /**< PLL Bypass */
 	uint64_t fasten_n                     : 1;  /**< Should be set, especially when CLKF > ~80 */
@@ -5196,9 +6425,8 @@ union cvmx_lmcx_pll_ctl
 	uint64_t reserved_30_63               : 34;
 #endif
 	} s;
-	struct cvmx_lmcx_pll_ctl_cn50xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_pll_ctl_cn50xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t fasten_n                     : 1;  /**< Should be set, especially when CLKF > ~80 */
 	uint64_t div_reset                    : 1;  /**< Analog pll divider reset
@@ -5236,9 +6464,8 @@ union cvmx_lmcx_pll_ctl
 	struct cvmx_lmcx_pll_ctl_s            cn52xx;
 	struct cvmx_lmcx_pll_ctl_s            cn52xxp1;
 	struct cvmx_lmcx_pll_ctl_cn50xx       cn56xx;
-	struct cvmx_lmcx_pll_ctl_cn56xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_pll_ctl_cn56xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t div_reset                    : 1;  /**< Analog pll divider reset
                                                          De-assert at least 500*(CLKR+1) reference clock
@@ -5282,12 +6509,10 @@ typedef union cvmx_lmcx_pll_ctl cvmx_lmcx_pll_ctl_t;
  * LMC_PLL_STATUS = LMC pll status
  *
  */
-union cvmx_lmcx_pll_status
-{
+union cvmx_lmcx_pll_status {
 	uint64_t u64;
-	struct cvmx_lmcx_pll_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_pll_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ddr__nctl                    : 5;  /**< DDR nctl from compensation circuit */
 	uint64_t ddr__pctl                    : 5;  /**< DDR pctl from compensation circuit */
@@ -5309,9 +6534,8 @@ union cvmx_lmcx_pll_status
 	struct cvmx_lmcx_pll_status_s         cn56xx;
 	struct cvmx_lmcx_pll_status_s         cn56xxp1;
 	struct cvmx_lmcx_pll_status_s         cn58xx;
-	struct cvmx_lmcx_pll_status_cn58xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_pll_status_cn58xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t rfslip                       : 1;  /**< Reference clock slip */
 	uint64_t fbslip                       : 1;  /**< Feedback clock slip */
@@ -5334,12 +6558,10 @@ typedef union cvmx_lmcx_pll_status cvmx_lmcx_pll_status_t;
  * the last 8 words is the inverse of the write value of the first 8 words.
  * See LMC*_READ_LEVEL_RANK*.
  */
-union cvmx_lmcx_read_level_ctl
-{
+union cvmx_lmcx_read_level_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_read_level_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_read_level_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_44_63               : 20;
 	uint64_t rankmask                     : 4;  /**< Selects ranks to be leveled
                                                          to read-level rank i, set RANKMASK<i> */
@@ -5378,12 +6600,10 @@ typedef union cvmx_lmcx_read_level_ctl cvmx_lmcx_read_level_ctl_t;
  * if you run read-leveling separately for each rank, probing LMC*_READ_LEVEL_DBG between each
  * read-leveling.
  */
-union cvmx_lmcx_read_level_dbg
-{
+union cvmx_lmcx_read_level_dbg {
 	uint64_t u64;
-	struct cvmx_lmcx_read_level_dbg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_read_level_dbg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t bitmask                      : 16; /**< Bitmask generated during deskew settings sweep
                                                          BITMASK[n]=0 means deskew setting n failed
@@ -5416,12 +6636,10 @@ typedef union cvmx_lmcx_read_level_dbg cvmx_lmcx_read_level_dbg_t;
  * SW initiates a HW read-leveling sequence by programming LMC*_READ_LEVEL_CTL and writing INIT_START=1 with SEQUENCE=1.
  * See LMC*_READ_LEVEL_CTL.
  */
-union cvmx_lmcx_read_level_rankx
-{
+union cvmx_lmcx_read_level_rankx {
 	uint64_t u64;
-	struct cvmx_lmcx_read_level_rankx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_read_level_rankx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_38_63               : 26;
 	uint64_t status                       : 2;  /**< Indicates status of the read-levelling and where
                                                          the BYTE* programmings in <35:0> came from:
@@ -5469,9 +6687,9 @@ typedef union cvmx_lmcx_read_level_rankx cvmx_lmcx_read_level_rankx_t;
  * DDR3RST - DDR3 DRAM parts have a new RESET#
  *   pin that wasn't present in DDR2 parts. The
  *   DDR3RST CSR field controls the assertion of
- *   the new 63xx pin that attaches to RESET#.
- *   When DDR3RST is set, 63xx asserts RESET#.
- *   When DDR3RST is clear, 63xx de-asserts
+ *   the new 6xxx pin that attaches to RESET#.
+ *   When DDR3RST is set, 6xxx asserts RESET#.
+ *   When DDR3RST is clear, 6xxx de-asserts
  *   RESET#.
  *
  *   DDR3RST is set on a cold reset. Warm and
@@ -5524,12 +6742,10 @@ typedef union cvmx_lmcx_read_level_rankx cvmx_lmcx_read_level_rankx_t;
  *
  *   Can also be written by software (to any value).
  */
-union cvmx_lmcx_reset_ctl
-{
+union cvmx_lmcx_reset_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_reset_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_reset_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t ddr3psv                      : 1;  /**< Memory Reset
                                                          1 = DDR contents preserved */
@@ -5548,20 +6764,23 @@ union cvmx_lmcx_reset_ctl
 	uint64_t reserved_4_63                : 60;
 #endif
 	} s;
+	struct cvmx_lmcx_reset_ctl_s          cn61xx;
 	struct cvmx_lmcx_reset_ctl_s          cn63xx;
 	struct cvmx_lmcx_reset_ctl_s          cn63xxp1;
+	struct cvmx_lmcx_reset_ctl_s          cn66xx;
+	struct cvmx_lmcx_reset_ctl_s          cn68xx;
+	struct cvmx_lmcx_reset_ctl_s          cn68xxp1;
+	struct cvmx_lmcx_reset_ctl_s          cnf71xx;
 };
 typedef union cvmx_lmcx_reset_ctl cvmx_lmcx_reset_ctl_t;
 
 /**
  * cvmx_lmc#_rlevel_ctl
  */
-union cvmx_lmcx_rlevel_ctl
-{
+union cvmx_lmcx_rlevel_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_rlevel_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_rlevel_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t delay_unload_3               : 1;  /**< When set, unload the PHY silo one cycle later
                                                          during read-leveling if LMC*_RLEVEL_RANKi[BYTE*<1:0>] = 3
@@ -5605,10 +6824,10 @@ union cvmx_lmcx_rlevel_ctl
 	uint64_t reserved_22_63               : 42;
 #endif
 	} s;
+	struct cvmx_lmcx_rlevel_ctl_s         cn61xx;
 	struct cvmx_lmcx_rlevel_ctl_s         cn63xx;
-	struct cvmx_lmcx_rlevel_ctl_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_rlevel_ctl_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t offset_en                    : 1;  /**< When set, LMC attempts to select the read-leveling
                                                          setting that is LMC*RLEVEL_CTL[OFFSET] settings earlier than the
@@ -5629,6 +6848,10 @@ union cvmx_lmcx_rlevel_ctl
 	uint64_t reserved_9_63                : 55;
 #endif
 	} cn63xxp1;
+	struct cvmx_lmcx_rlevel_ctl_s         cn66xx;
+	struct cvmx_lmcx_rlevel_ctl_s         cn68xx;
+	struct cvmx_lmcx_rlevel_ctl_s         cn68xxp1;
+	struct cvmx_lmcx_rlevel_ctl_s         cnf71xx;
 };
 typedef union cvmx_lmcx_rlevel_ctl cvmx_lmcx_rlevel_ctl_t;
 
@@ -5645,12 +6868,10 @@ typedef union cvmx_lmcx_rlevel_ctl cvmx_lmcx_rlevel_ctl_t;
  * if you run read-leveling separately for each rank, probing LMC*_RLEVEL_DBG between each
  * read-leveling.
  */
-union cvmx_lmcx_rlevel_dbg
-{
+union cvmx_lmcx_rlevel_dbg {
 	uint64_t u64;
-	struct cvmx_lmcx_rlevel_dbg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_rlevel_dbg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t bitmask                      : 64; /**< Bitmask generated during deskew settings sweep
                                                          BITMASK[n]=0 means deskew setting n failed
                                                          BITMASK[n]=1 means deskew setting n passed
@@ -5659,8 +6880,13 @@ union cvmx_lmcx_rlevel_dbg
 	uint64_t bitmask                      : 64;
 #endif
 	} s;
+	struct cvmx_lmcx_rlevel_dbg_s         cn61xx;
 	struct cvmx_lmcx_rlevel_dbg_s         cn63xx;
 	struct cvmx_lmcx_rlevel_dbg_s         cn63xxp1;
+	struct cvmx_lmcx_rlevel_dbg_s         cn66xx;
+	struct cvmx_lmcx_rlevel_dbg_s         cn68xx;
+	struct cvmx_lmcx_rlevel_dbg_s         cn68xxp1;
+	struct cvmx_lmcx_rlevel_dbg_s         cnf71xx;
 };
 typedef union cvmx_lmcx_rlevel_dbg cvmx_lmcx_rlevel_dbg_t;
 
@@ -5687,12 +6913,10 @@ typedef union cvmx_lmcx_rlevel_dbg cvmx_lmcx_rlevel_dbg_t;
  *     LMC*_RLEVEL_RANKi = LMC*_RLEVEL_RANKj,
  * where j is some rank with attached DRAM whose LMC*_RLEVEL_RANKj is already fully initialized.
  */
-union cvmx_lmcx_rlevel_rankx
-{
+union cvmx_lmcx_rlevel_rankx {
 	uint64_t u64;
-	struct cvmx_lmcx_rlevel_rankx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_rlevel_rankx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_56_63               : 8;
 	uint64_t status                       : 2;  /**< Indicates status of the read-levelling and where
                                                          the BYTE* programmings in <35:0> came from:
@@ -5730,8 +6954,13 @@ union cvmx_lmcx_rlevel_rankx
 	uint64_t reserved_56_63               : 8;
 #endif
 	} s;
+	struct cvmx_lmcx_rlevel_rankx_s       cn61xx;
 	struct cvmx_lmcx_rlevel_rankx_s       cn63xx;
 	struct cvmx_lmcx_rlevel_rankx_s       cn63xxp1;
+	struct cvmx_lmcx_rlevel_rankx_s       cn66xx;
+	struct cvmx_lmcx_rlevel_rankx_s       cn68xx;
+	struct cvmx_lmcx_rlevel_rankx_s       cn68xxp1;
+	struct cvmx_lmcx_rlevel_rankx_s       cnf71xx;
 };
 typedef union cvmx_lmcx_rlevel_rankx cvmx_lmcx_rlevel_rankx_t;
 
@@ -5741,12 +6970,10 @@ typedef union cvmx_lmcx_rlevel_rankx cvmx_lmcx_rlevel_rankx_t;
  * LMC_RODT_COMP_CTL = LMC Compensation control
  *
  */
-union cvmx_lmcx_rodt_comp_ctl
-{
+union cvmx_lmcx_rodt_comp_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_rodt_comp_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_rodt_comp_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t enable                       : 1;  /**< 0=not enabled, 1=enable */
 	uint64_t reserved_12_15               : 4;
@@ -5793,12 +7020,10 @@ typedef union cvmx_lmcx_rodt_comp_ctl cvmx_lmcx_rodt_comp_ctl_t;
  *  position 1: [DIMM2_RANK1_HI, DIMM0_RANK1_LO]
  *  position 0: [DIMM2_RANK0_HI, DIMM0_RANK0_LO]
  */
-union cvmx_lmcx_rodt_ctl
-{
+union cvmx_lmcx_rodt_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_rodt_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_rodt_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t rodt_hi3                     : 4;  /**< Read ODT mask for position 3, data[127:64] */
 	uint64_t rodt_hi2                     : 4;  /**< Read ODT mask for position 2, data[127:64] */
@@ -5877,44 +7102,42 @@ typedef union cvmx_lmcx_rodt_ctl cvmx_lmcx_rodt_ctl_t;
  * Note that it may be necessary to force LMC to space back-to-back cache block reads
  * to different ranks apart by at least 10+LMC*_CONTROL[RODT_BPRCH] CK's to prevent DDR3 ODTH8 violations.
  */
-union cvmx_lmcx_rodt_mask
-{
+union cvmx_lmcx_rodt_mask {
 	uint64_t u64;
-	struct cvmx_lmcx_rodt_mask_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_rodt_mask_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t rodt_d3_r1                   : 8;  /**< Read ODT mask DIMM3, RANK1/DIMM3 in SingleRanked
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t rodt_d3_r0                   : 8;  /**< Read ODT mask DIMM3, RANK0
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t rodt_d2_r1                   : 8;  /**< Read ODT mask DIMM2, RANK1/DIMM2 in SingleRanked
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t rodt_d2_r0                   : 8;  /**< Read ODT mask DIMM2, RANK0
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t rodt_d1_r1                   : 8;  /**< Read ODT mask DIMM1, RANK1/DIMM1 in SingleRanked
                                                          if (RANK_ENA) then
                                                              RODT_D1_R1[3] must be 0
                                                          else
                                                              RODT_D1_R1[3:0] is not used and MBZ
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 	uint64_t rodt_d1_r0                   : 8;  /**< Read ODT mask DIMM1, RANK0
                                                          if (RANK_ENA) then
                                                              RODT_D1_RO[2] must be 0
                                                          else
                                                              RODT_D1_RO[3:2,1] must be 0
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 	uint64_t rodt_d0_r1                   : 8;  /**< Read ODT mask DIMM0, RANK1/DIMM0 in SingleRanked
                                                          if (RANK_ENA) then
                                                              RODT_D0_R1[1] must be 0
                                                          else
                                                              RODT_D0_R1[3:0] is not used and MBZ
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 	uint64_t rodt_d0_r0                   : 8;  /**< Read ODT mask DIMM0, RANK0
                                                          if (RANK_ENA) then
                                                              RODT_D0_RO[0] must be 0
                                                          else
                                                              RODT_D0_RO[1:0,3] must be 0
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 #else
 	uint64_t rodt_d0_r0                   : 8;
 	uint64_t rodt_d0_r1                   : 8;
@@ -5926,10 +7149,112 @@ union cvmx_lmcx_rodt_mask
 	uint64_t rodt_d3_r1                   : 8;
 #endif
 	} s;
+	struct cvmx_lmcx_rodt_mask_s          cn61xx;
 	struct cvmx_lmcx_rodt_mask_s          cn63xx;
 	struct cvmx_lmcx_rodt_mask_s          cn63xxp1;
+	struct cvmx_lmcx_rodt_mask_s          cn66xx;
+	struct cvmx_lmcx_rodt_mask_s          cn68xx;
+	struct cvmx_lmcx_rodt_mask_s          cn68xxp1;
+	struct cvmx_lmcx_rodt_mask_s          cnf71xx;
 };
 typedef union cvmx_lmcx_rodt_mask cvmx_lmcx_rodt_mask_t;
+
+/**
+ * cvmx_lmc#_scramble_cfg0
+ *
+ * LMC_SCRAMBLE_CFG0 = LMC Scramble Config0
+ *
+ */
+union cvmx_lmcx_scramble_cfg0 {
+	uint64_t u64;
+	struct cvmx_lmcx_scramble_cfg0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t key                          : 64; /**< Scramble Key for Data */
+#else
+	uint64_t key                          : 64;
+#endif
+	} s;
+	struct cvmx_lmcx_scramble_cfg0_s      cn61xx;
+	struct cvmx_lmcx_scramble_cfg0_s      cn66xx;
+	struct cvmx_lmcx_scramble_cfg0_s      cnf71xx;
+};
+typedef union cvmx_lmcx_scramble_cfg0 cvmx_lmcx_scramble_cfg0_t;
+
+/**
+ * cvmx_lmc#_scramble_cfg1
+ *
+ * LMC_SCRAMBLE_CFG1 = LMC Scramble Config1
+ *
+ *
+ * Notes:
+ * Address scrambling usually maps addresses into the same rank. Exceptions are when LMC_NXM[CS_MASK] requires
+ * aliasing that uses the lowest, legal chip select(s).
+ */
+union cvmx_lmcx_scramble_cfg1 {
+	uint64_t u64;
+	struct cvmx_lmcx_scramble_cfg1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t key                          : 64; /**< Scramble Key for Addresses */
+#else
+	uint64_t key                          : 64;
+#endif
+	} s;
+	struct cvmx_lmcx_scramble_cfg1_s      cn61xx;
+	struct cvmx_lmcx_scramble_cfg1_s      cn66xx;
+	struct cvmx_lmcx_scramble_cfg1_s      cnf71xx;
+};
+typedef union cvmx_lmcx_scramble_cfg1 cvmx_lmcx_scramble_cfg1_t;
+
+/**
+ * cvmx_lmc#_scrambled_fadr
+ *
+ * LMC_SCRAMBLED_FADR = LMC Scrambled Failing Address Register (SEC/DED/NXM)
+ *
+ * This register only captures the first transaction with ecc/nxm errors. A DED/NXM error can
+ * over-write this register with its failing addresses if the first error was a SEC. If you write
+ * LMC*_CONFIG->SEC_ERR/DED_ERR/NXM_ERR then it will clear the error bits and capture the
+ * next failing address.
+ *
+ * If FDIMM is 2 that means the error is in the higher bits DIMM.
+ *
+ * Notes:
+ * LMC*_FADR captures the failing pre-scrambled address location (split into dimm, bunk, bank, etc). If
+ * scrambling is off, then LMC*_FADR will also capture the failing physical location in the DRAM parts.
+ *
+ * LMC*_SCRAMBLED_FADR captures the actual failing address location in the physical DRAM parts, i.e.,
+ * a. if scrambling is on, LMC*_SCRAMBLE_FADR contains the failing physical location in the DRAM parts (split
+ *    into dimm, bunk, bank, etc)
+ * b. if scrambling is off, the pre-scramble and post-scramble addresses are the same, and so the contents of
+ *    LMC*_SCRAMBLED_FADR match the contents of LMC*_FADR
+ */
+union cvmx_lmcx_scrambled_fadr {
+	uint64_t u64;
+	struct cvmx_lmcx_scrambled_fadr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_36_63               : 28;
+	uint64_t fdimm                        : 2;  /**< Failing DIMM# */
+	uint64_t fbunk                        : 1;  /**< Failing Rank */
+	uint64_t fbank                        : 3;  /**< Failing Bank[2:0] */
+	uint64_t frow                         : 16; /**< Failing Row Address[15:0] */
+	uint64_t fcol                         : 14; /**< Failing Column Address[13:0]
+                                                         Technically, represents the address of the 128b data
+                                                         that had an ecc error, i.e., fcol[0] is always 0. Can
+                                                         be used in conjuction with LMC*_CONFIG[DED_ERR] to
+                                                         isolate the 64b chunk of data in error */
+#else
+	uint64_t fcol                         : 14;
+	uint64_t frow                         : 16;
+	uint64_t fbank                        : 3;
+	uint64_t fbunk                        : 1;
+	uint64_t fdimm                        : 2;
+	uint64_t reserved_36_63               : 28;
+#endif
+	} s;
+	struct cvmx_lmcx_scrambled_fadr_s     cn61xx;
+	struct cvmx_lmcx_scrambled_fadr_s     cn66xx;
+	struct cvmx_lmcx_scrambled_fadr_s     cnf71xx;
+};
+typedef union cvmx_lmcx_scrambled_fadr cvmx_lmcx_scrambled_fadr_t;
 
 /**
  * cvmx_lmc#_slot_ctl0
@@ -5970,21 +7295,23 @@ typedef union cvmx_lmcx_rodt_mask cvmx_lmcx_rodt_mask_t;
  *
  * R2W_INIT has 1 CK cycle built in for OCTEON-internal ODT settling/channel turnaround time.
  */
-union cvmx_lmcx_slot_ctl0
-{
+union cvmx_lmcx_slot_ctl0 {
 	uint64_t u64;
-	struct cvmx_lmcx_slot_ctl0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_slot_ctl0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t w2w_init                     : 6;  /**< Write-to-write spacing control
-                                                         for back to back accesses to the same rank and DIMM */
+                                                         for back to back write followed by write cache block
+                                                         accesses to the same rank and DIMM */
 	uint64_t w2r_init                     : 6;  /**< Write-to-read spacing control
-                                                         for back to back accesses to the same rank and DIMM */
+                                                         for back to back write followed by read cache block
+                                                         accesses to the same rank and DIMM */
 	uint64_t r2w_init                     : 6;  /**< Read-to-write spacing control
-                                                         for back to back accesses to the same rank and DIMM */
+                                                         for back to back read followed by write cache block
+                                                         accesses to the same rank and DIMM */
 	uint64_t r2r_init                     : 6;  /**< Read-to-read spacing control
-                                                         for back to back accesses to the same rank and DIMM */
+                                                         for back to back read followed by read cache block
+                                                         accesses to the same rank and DIMM */
 #else
 	uint64_t r2r_init                     : 6;
 	uint64_t r2w_init                     : 6;
@@ -5993,8 +7320,13 @@ union cvmx_lmcx_slot_ctl0
 	uint64_t reserved_24_63               : 40;
 #endif
 	} s;
+	struct cvmx_lmcx_slot_ctl0_s          cn61xx;
 	struct cvmx_lmcx_slot_ctl0_s          cn63xx;
 	struct cvmx_lmcx_slot_ctl0_s          cn63xxp1;
+	struct cvmx_lmcx_slot_ctl0_s          cn66xx;
+	struct cvmx_lmcx_slot_ctl0_s          cn68xx;
+	struct cvmx_lmcx_slot_ctl0_s          cn68xxp1;
+	struct cvmx_lmcx_slot_ctl0_s          cnf71xx;
 };
 typedef union cvmx_lmcx_slot_ctl0 cvmx_lmcx_slot_ctl0_t;
 
@@ -6023,7 +7355,7 @@ typedef union cvmx_lmcx_slot_ctl0 cvmx_lmcx_slot_ctl0_t;
  *
  * The hardware-calculated minimums are:
  *
- * min R2R_XRANK_INIT = 2 - LMC*_CONFIG[DDR2T] + MaxRdSkew - MinRdSkew
+ * min R2R_XRANK_INIT = 2 - LMC*_CONFIG[DDR2T] + MaxRdSkew - MinRdSkew + LMC*_CONTROL[RODT_BPRCH]
  * min R2W_XRANK_INIT = 5 - LMC*_CONFIG[DDR2T] + (RL + MaxRdSkew) - (WL + MinWrSkew) + LMC*_CONTROL[BPRCH]
  * min W2R_XRANK_INIT = 3 - LMC*_CONFIG[DDR2T] + MaxWrSkew + LMC*_CONTROL[FPRCH2]
  * min W2W_XRANK_INIT = 4 - LMC*_CONFIG[DDR2T] + MaxWrSkew - MinWrSkew
@@ -6041,21 +7373,23 @@ typedef union cvmx_lmcx_slot_ctl0 cvmx_lmcx_slot_ctl0_t;
  *
  * W2R_XRANK_INIT has 1 extra CK cycle built in for channel turnaround time.
  */
-union cvmx_lmcx_slot_ctl1
-{
+union cvmx_lmcx_slot_ctl1 {
 	uint64_t u64;
-	struct cvmx_lmcx_slot_ctl1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_slot_ctl1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t w2w_xrank_init               : 6;  /**< Write-to-write spacing control
-                                                         for back to back accesses across ranks of the same DIMM */
+                                                         for back to back write followed by write cache block
+                                                         accesses across ranks of the same DIMM */
 	uint64_t w2r_xrank_init               : 6;  /**< Write-to-read spacing control
-                                                         for back to back accesses across ranks of the same DIMM */
+                                                         for back to back write followed by read cache block
+                                                         accesses across ranks of the same DIMM */
 	uint64_t r2w_xrank_init               : 6;  /**< Read-to-write spacing control
-                                                         for back to back accesses across ranks of the same DIMM */
+                                                         for back to back read followed by write cache block
+                                                         accesses across ranks of the same DIMM */
 	uint64_t r2r_xrank_init               : 6;  /**< Read-to-read spacing control
-                                                         for back to back accesses across ranks of the same DIMM */
+                                                         for back to back read followed by read cache block
+                                                         accesses across ranks of the same DIMM */
 #else
 	uint64_t r2r_xrank_init               : 6;
 	uint64_t r2w_xrank_init               : 6;
@@ -6064,8 +7398,13 @@ union cvmx_lmcx_slot_ctl1
 	uint64_t reserved_24_63               : 40;
 #endif
 	} s;
+	struct cvmx_lmcx_slot_ctl1_s          cn61xx;
 	struct cvmx_lmcx_slot_ctl1_s          cn63xx;
 	struct cvmx_lmcx_slot_ctl1_s          cn63xxp1;
+	struct cvmx_lmcx_slot_ctl1_s          cn66xx;
+	struct cvmx_lmcx_slot_ctl1_s          cn68xx;
+	struct cvmx_lmcx_slot_ctl1_s          cn68xxp1;
+	struct cvmx_lmcx_slot_ctl1_s          cnf71xx;
 };
 typedef union cvmx_lmcx_slot_ctl1 cvmx_lmcx_slot_ctl1_t;
 
@@ -6094,7 +7433,7 @@ typedef union cvmx_lmcx_slot_ctl1 cvmx_lmcx_slot_ctl1_t;
  *
  * The hardware-calculated minimums are:
  *
- * min R2R_XDIMM_INIT = 3 - LMC*_CONFIG[DDR2T] + MaxRdSkew - MinRdSkew
+ * min R2R_XDIMM_INIT = 3 - LMC*_CONFIG[DDR2T] + MaxRdSkew - MinRdSkew + LMC*_CONTROL[RODT_BPRCH]
  * min R2W_XDIMM_INIT = 6 - LMC*_CONFIG[DDR2T] + (RL + MaxRdSkew) - (WL + MinWrSkew) + LMC*_CONTROL[BPRCH]
  * min W2R_XDIMM_INIT = 3 - LMC*_CONFIG[DDR2T] + MaxWrSkew + LMC*_CONTROL[FPRCH2]
  * min W2W_XDIMM_INIT = 5 - LMC*_CONFIG[DDR2T] + MaxWrSkew - MinWrSkew
@@ -6112,21 +7451,23 @@ typedef union cvmx_lmcx_slot_ctl1 cvmx_lmcx_slot_ctl1_t;
  *
  * R2R_XDIMM_INIT, W2R_XRANK_INIT, W2W_XDIMM_INIT have 1 extra CK cycle built in for channel turnaround time.
  */
-union cvmx_lmcx_slot_ctl2
-{
+union cvmx_lmcx_slot_ctl2 {
 	uint64_t u64;
-	struct cvmx_lmcx_slot_ctl2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_slot_ctl2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t w2w_xdimm_init               : 6;  /**< Write-to-write spacing control
-                                                         for back to back accesses across DIMMs */
+                                                         for back to back write followed by write cache block
+                                                         accesses across DIMMs */
 	uint64_t w2r_xdimm_init               : 6;  /**< Write-to-read spacing control
-                                                         for back to back accesses across DIMMs */
+                                                         for back to back write followed by read cache block
+                                                         accesses across DIMMs */
 	uint64_t r2w_xdimm_init               : 6;  /**< Read-to-write spacing control
-                                                         for back to back accesses across DIMMs */
+                                                         for back to back read followed by write cache block
+                                                         accesses across DIMMs */
 	uint64_t r2r_xdimm_init               : 6;  /**< Read-to-read spacing control
-                                                         for back to back accesses across DIMMs */
+                                                         for back to back read followed by read cache block
+                                                         accesses across DIMMs */
 #else
 	uint64_t r2r_xdimm_init               : 6;
 	uint64_t r2w_xdimm_init               : 6;
@@ -6135,20 +7476,23 @@ union cvmx_lmcx_slot_ctl2
 	uint64_t reserved_24_63               : 40;
 #endif
 	} s;
+	struct cvmx_lmcx_slot_ctl2_s          cn61xx;
 	struct cvmx_lmcx_slot_ctl2_s          cn63xx;
 	struct cvmx_lmcx_slot_ctl2_s          cn63xxp1;
+	struct cvmx_lmcx_slot_ctl2_s          cn66xx;
+	struct cvmx_lmcx_slot_ctl2_s          cn68xx;
+	struct cvmx_lmcx_slot_ctl2_s          cn68xxp1;
+	struct cvmx_lmcx_slot_ctl2_s          cnf71xx;
 };
 typedef union cvmx_lmcx_slot_ctl2 cvmx_lmcx_slot_ctl2_t;
 
 /**
  * cvmx_lmc#_timing_params0
  */
-union cvmx_lmcx_timing_params0
-{
+union cvmx_lmcx_timing_params0 {
 	uint64_t u64;
-	struct cvmx_lmcx_timing_params0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_timing_params0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t trp_ext                      : 1;  /**< Indicates tRP constraints.
                                                          Set [TRP_EXT[0:0], TRP[3:0]] (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
@@ -6163,7 +7507,7 @@ union cvmx_lmcx_timing_params0
                                                          is the DDR clock frequency (not data rate).
                                                          TYP=max(5nCK, 10ns) */
 	uint64_t trp                          : 4;  /**< Indicates tRP constraints.
-                                                         Set TRP (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
+                                                         Set [TRP_EXT[0:0], TRP[3:0]] (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
                                                          + (RNDUP[tRTP(ns)/tCYC(ns)])-4)-1,
                                                          where tRP, tRTP are from the DDR3 spec, and tCYC(ns)
                                                          is the DDR clock frequency (not data rate).
@@ -6222,9 +7566,8 @@ union cvmx_lmcx_timing_params0
 	uint64_t reserved_47_63               : 17;
 #endif
 	} s;
-	struct cvmx_lmcx_timing_params0_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_timing_params0_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t trp_ext                      : 1;  /**< Indicates tRP constraints.
                                                          Set [TRP_EXT[0:0], TRP[3:0]] (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
@@ -6297,10 +7640,10 @@ union cvmx_lmcx_timing_params0
 	uint64_t trp_ext                      : 1;
 	uint64_t reserved_47_63               : 17;
 #endif
-	} cn63xx;
-	struct cvmx_lmcx_timing_params0_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	} cn61xx;
+	struct cvmx_lmcx_timing_params0_cn61xx cn63xx;
+	struct cvmx_lmcx_timing_params0_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_46_63               : 18;
 	uint64_t tcksre                       : 4;  /**< Indicates tCKSRE constraints.
                                                          Set TCKSRE (CSR field) = RNDUP[tCKSRE(ns)/tCYC(ns)]-1,
@@ -6366,18 +7709,20 @@ union cvmx_lmcx_timing_params0
 	uint64_t reserved_46_63               : 18;
 #endif
 	} cn63xxp1;
+	struct cvmx_lmcx_timing_params0_cn61xx cn66xx;
+	struct cvmx_lmcx_timing_params0_cn61xx cn68xx;
+	struct cvmx_lmcx_timing_params0_cn61xx cn68xxp1;
+	struct cvmx_lmcx_timing_params0_cn61xx cnf71xx;
 };
 typedef union cvmx_lmcx_timing_params0 cvmx_lmcx_timing_params0_t;
 
 /**
  * cvmx_lmc#_timing_params1
  */
-union cvmx_lmcx_timing_params1
-{
+union cvmx_lmcx_timing_params1 {
 	uint64_t u64;
-	struct cvmx_lmcx_timing_params1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_timing_params1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t tras_ext                     : 1;  /**< Indicates tRAS constraints.
                                                          Set [TRAS_EXT[0:0], TRAS[4:0]] (CSR field) = RNDUP[tRAS(ns)/tCYC(ns)]-1,
@@ -6456,20 +7801,20 @@ union cvmx_lmcx_timing_params1
                                                              - 0001: 2 (2 is the smallest value allowed)
                                                              - 0002: 2
                                                              - ...
-                                                             - 1001: 9
-                                                             - 1010-1111: RESERVED
+                                                             - 1110: 14
+                                                             - 1111: RESERVED
                                                          In 2T mode, make this register TRCD-1, not going
                                                          below 2. */
 	uint64_t tras                         : 5;  /**< Indicates tRAS constraints.
-                                                         Set TRAS (CSR field) = RNDUP[tRAS(ns)/tCYC(ns)]-1,
+                                                         Set [TRAS_EXT[0:0], TRAS[4:0]] (CSR field) = RNDUP[tRAS(ns)/tCYC(ns)]-1,
                                                          where tRAS is from the DDR3 spec, and tCYC(ns)
                                                          is the DDR clock frequency (not data rate).
                                                          TYP=35ns-9*tREFI
-                                                             - 00000: RESERVED
-                                                             - 00001: 2 tCYC
-                                                             - 00010: 3 tCYC
+                                                             - 000000: RESERVED
+                                                             - 000001: 2 tCYC
+                                                             - 000010: 3 tCYC
                                                              - ...
-                                                             - 11111: 32 tCYC */
+                                                             - 111111: 64 tCYC */
 	uint64_t tmprr                        : 4;  /**< Indicates tMPRR constraints.
                                                          Set TMPRR (CSR field) = RNDUP[tMPRR(ns)/tCYC(ns)]-1,
                                                          where tMPRR is from the DDR3 spec, and tCYC(ns)
@@ -6491,10 +7836,10 @@ union cvmx_lmcx_timing_params1
 	uint64_t reserved_47_63               : 17;
 #endif
 	} s;
+	struct cvmx_lmcx_timing_params1_s     cn61xx;
 	struct cvmx_lmcx_timing_params1_s     cn63xx;
-	struct cvmx_lmcx_timing_params1_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_timing_params1_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_46_63               : 18;
 	uint64_t txpdll                       : 5;  /**< Indicates tXPDLL constraints.
                                                          Set TXPDLL (CSR field) = RNDUP[tXPDLL(ns)/tCYC(ns)]-1,
@@ -6597,6 +7942,10 @@ union cvmx_lmcx_timing_params1
 	uint64_t reserved_46_63               : 18;
 #endif
 	} cn63xxp1;
+	struct cvmx_lmcx_timing_params1_s     cn66xx;
+	struct cvmx_lmcx_timing_params1_s     cn68xx;
+	struct cvmx_lmcx_timing_params1_s     cn68xxp1;
+	struct cvmx_lmcx_timing_params1_s     cnf71xx;
 };
 typedef union cvmx_lmcx_timing_params1 cvmx_lmcx_timing_params1_t;
 
@@ -6610,12 +7959,10 @@ typedef union cvmx_lmcx_timing_params1 cvmx_lmcx_timing_params1_t;
  * To bring up the temperature ring oscillator, write TRESET to 0, and follow by initializing RCLK_CNT to desired
  * value
  */
-union cvmx_lmcx_tro_ctl
-{
+union cvmx_lmcx_tro_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_tro_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_tro_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_33_63               : 31;
 	uint64_t rclk_cnt                     : 32; /**< rclk counter */
 	uint64_t treset                       : 1;  /**< Reset ring oscillator */
@@ -6625,8 +7972,13 @@ union cvmx_lmcx_tro_ctl
 	uint64_t reserved_33_63               : 31;
 #endif
 	} s;
+	struct cvmx_lmcx_tro_ctl_s            cn61xx;
 	struct cvmx_lmcx_tro_ctl_s            cn63xx;
 	struct cvmx_lmcx_tro_ctl_s            cn63xxp1;
+	struct cvmx_lmcx_tro_ctl_s            cn66xx;
+	struct cvmx_lmcx_tro_ctl_s            cn68xx;
+	struct cvmx_lmcx_tro_ctl_s            cn68xxp1;
+	struct cvmx_lmcx_tro_ctl_s            cnf71xx;
 };
 typedef union cvmx_lmcx_tro_ctl cvmx_lmcx_tro_ctl_t;
 
@@ -6636,12 +7988,10 @@ typedef union cvmx_lmcx_tro_ctl cvmx_lmcx_tro_ctl_t;
  * LMC_TRO_STAT = LMC Temperature Ring Osc Status
  * This register is an assortment of various control fields needed to control the temperature ring oscillator
  */
-union cvmx_lmcx_tro_stat
-{
+union cvmx_lmcx_tro_stat {
 	uint64_t u64;
-	struct cvmx_lmcx_tro_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_tro_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t ring_cnt                     : 32; /**< ring counter */
 #else
@@ -6649,20 +7999,23 @@ union cvmx_lmcx_tro_stat
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
+	struct cvmx_lmcx_tro_stat_s           cn61xx;
 	struct cvmx_lmcx_tro_stat_s           cn63xx;
 	struct cvmx_lmcx_tro_stat_s           cn63xxp1;
+	struct cvmx_lmcx_tro_stat_s           cn66xx;
+	struct cvmx_lmcx_tro_stat_s           cn68xx;
+	struct cvmx_lmcx_tro_stat_s           cn68xxp1;
+	struct cvmx_lmcx_tro_stat_s           cnf71xx;
 };
 typedef union cvmx_lmcx_tro_stat cvmx_lmcx_tro_stat_t;
 
 /**
  * cvmx_lmc#_wlevel_ctl
  */
-union cvmx_lmcx_wlevel_ctl
-{
+union cvmx_lmcx_wlevel_ctl {
 	uint64_t u64;
-	struct cvmx_lmcx_wlevel_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wlevel_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t rtt_nom                      : 3;  /**< RTT_NOM
                                                          LMC writes a decoded value to MR1[Rtt_Nom] of the rank during
@@ -6695,10 +8048,10 @@ union cvmx_lmcx_wlevel_ctl
 	uint64_t reserved_22_63               : 42;
 #endif
 	} s;
+	struct cvmx_lmcx_wlevel_ctl_s         cn61xx;
 	struct cvmx_lmcx_wlevel_ctl_s         cn63xx;
-	struct cvmx_lmcx_wlevel_ctl_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wlevel_ctl_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t sset                         : 1;  /**< Run write-leveling on the current setting only. */
 	uint64_t lanemask                     : 9;  /**< One-hot mask to select byte lane to be leveled by
@@ -6711,6 +8064,10 @@ union cvmx_lmcx_wlevel_ctl
 	uint64_t reserved_10_63               : 54;
 #endif
 	} cn63xxp1;
+	struct cvmx_lmcx_wlevel_ctl_s         cn66xx;
+	struct cvmx_lmcx_wlevel_ctl_s         cn68xx;
+	struct cvmx_lmcx_wlevel_ctl_s         cn68xxp1;
+	struct cvmx_lmcx_wlevel_ctl_s         cnf71xx;
 };
 typedef union cvmx_lmcx_wlevel_ctl cvmx_lmcx_wlevel_ctl_t;
 
@@ -6726,12 +8083,10 @@ typedef union cvmx_lmcx_wlevel_ctl cvmx_lmcx_wlevel_ctl_t;
  * if you run write-leveling separately for each rank, probing LMC*_WLEVEL_DBG between each
  * write-leveling.
  */
-union cvmx_lmcx_wlevel_dbg
-{
+union cvmx_lmcx_wlevel_dbg {
 	uint64_t u64;
-	struct cvmx_lmcx_wlevel_dbg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wlevel_dbg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t bitmask                      : 8;  /**< Bitmask generated during deskew settings sweep
                                                          if LMCX_WLEVEL_CTL[SSET]=0
@@ -6750,8 +8105,13 @@ union cvmx_lmcx_wlevel_dbg
 	uint64_t reserved_12_63               : 52;
 #endif
 	} s;
+	struct cvmx_lmcx_wlevel_dbg_s         cn61xx;
 	struct cvmx_lmcx_wlevel_dbg_s         cn63xx;
 	struct cvmx_lmcx_wlevel_dbg_s         cn63xxp1;
+	struct cvmx_lmcx_wlevel_dbg_s         cn66xx;
+	struct cvmx_lmcx_wlevel_dbg_s         cn68xx;
+	struct cvmx_lmcx_wlevel_dbg_s         cn68xxp1;
+	struct cvmx_lmcx_wlevel_dbg_s         cnf71xx;
 };
 typedef union cvmx_lmcx_wlevel_dbg cvmx_lmcx_wlevel_dbg_t;
 
@@ -6783,12 +8143,10 @@ typedef union cvmx_lmcx_wlevel_dbg cvmx_lmcx_wlevel_dbg_t;
  *     LMC*_WLEVEL_RANKi = LMC*_WLEVEL_RANKj,
  * where j is some rank with attached DRAM whose LMC*_WLEVEL_RANKj is already fully initialized.
  */
-union cvmx_lmcx_wlevel_rankx
-{
+union cvmx_lmcx_wlevel_rankx {
 	uint64_t u64;
-	struct cvmx_lmcx_wlevel_rankx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wlevel_rankx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t status                       : 2;  /**< Indicates status of the write-leveling and where
                                                          the BYTE* programmings in <44:0> came from:
@@ -6836,8 +8194,13 @@ union cvmx_lmcx_wlevel_rankx
 	uint64_t reserved_47_63               : 17;
 #endif
 	} s;
+	struct cvmx_lmcx_wlevel_rankx_s       cn61xx;
 	struct cvmx_lmcx_wlevel_rankx_s       cn63xx;
 	struct cvmx_lmcx_wlevel_rankx_s       cn63xxp1;
+	struct cvmx_lmcx_wlevel_rankx_s       cn66xx;
+	struct cvmx_lmcx_wlevel_rankx_s       cn68xx;
+	struct cvmx_lmcx_wlevel_rankx_s       cn68xxp1;
+	struct cvmx_lmcx_wlevel_rankx_s       cnf71xx;
 };
 typedef union cvmx_lmcx_wlevel_rankx cvmx_lmcx_wlevel_rankx_t;
 
@@ -6851,20 +8214,17 @@ typedef union cvmx_lmcx_wlevel_rankx cvmx_lmcx_wlevel_rankx_t;
  * Together, the LMC_WODT_CTL1 and LMC_WODT_CTL0 CSRs control the write ODT mask.  See LMC_WODT_CTL1.
  *
  */
-union cvmx_lmcx_wodt_ctl0
-{
+union cvmx_lmcx_wodt_ctl0 {
 	uint64_t u64;
-	struct cvmx_lmcx_wodt_ctl0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wodt_ctl0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_0_63                : 64;
 #else
 	uint64_t reserved_0_63                : 64;
 #endif
 	} s;
-	struct cvmx_lmcx_wodt_ctl0_cn30xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wodt_ctl0_cn30xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t wodt_d1_r1                   : 8;  /**< Write ODT mask DIMM1, RANK1 */
 	uint64_t wodt_d1_r0                   : 8;  /**< Write ODT mask DIMM1, RANK0 */
@@ -6879,9 +8239,8 @@ union cvmx_lmcx_wodt_ctl0
 #endif
 	} cn30xx;
 	struct cvmx_lmcx_wodt_ctl0_cn30xx     cn31xx;
-	struct cvmx_lmcx_wodt_ctl0_cn38xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wodt_ctl0_cn38xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t wodt_hi3                     : 4;  /**< Write ODT mask for position 3, data[127:64] */
 	uint64_t wodt_hi2                     : 4;  /**< Write ODT mask for position 2, data[127:64] */
@@ -6946,12 +8305,10 @@ typedef union cvmx_lmcx_wodt_ctl0 cvmx_lmcx_wodt_ctl0_t;
  * Mask[1] -> DIMM0, RANK1    DIMM0
  * Mask[0] -> DIMM0, RANK0
  */
-union cvmx_lmcx_wodt_ctl1
-{
+union cvmx_lmcx_wodt_ctl1 {
 	uint64_t u64;
-	struct cvmx_lmcx_wodt_ctl1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wodt_ctl1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t wodt_d3_r1                   : 8;  /**< Write ODT mask DIMM3, RANK1/DIMM3 in SingleRanked */
 	uint64_t wodt_d3_r0                   : 8;  /**< Write ODT mask DIMM3, RANK0 */
@@ -7016,32 +8373,30 @@ typedef union cvmx_lmcx_wodt_ctl1 cvmx_lmcx_wodt_ctl1_t;
  * Note that it may be necessary to force LMC to space back-to-back cache block writes
  * to different ranks apart by at least 10+LMC*_CONTROL[WODT_BPRCH] CK's to prevent DDR3 ODTH8 violations.
  */
-union cvmx_lmcx_wodt_mask
-{
+union cvmx_lmcx_wodt_mask {
 	uint64_t u64;
-	struct cvmx_lmcx_wodt_mask_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_lmcx_wodt_mask_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t wodt_d3_r1                   : 8;  /**< Write ODT mask DIMM3, RANK1/DIMM3 in SingleRanked
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t wodt_d3_r0                   : 8;  /**< Write ODT mask DIMM3, RANK0
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t wodt_d2_r1                   : 8;  /**< Write ODT mask DIMM2, RANK1/DIMM2 in SingleRanked
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t wodt_d2_r0                   : 8;  /**< Write ODT mask DIMM2, RANK0
-                                                         *UNUSED IN 63xx, and MBZ* */
+                                                         *UNUSED IN 6xxx, and MBZ* */
 	uint64_t wodt_d1_r1                   : 8;  /**< Write ODT mask DIMM1, RANK1/DIMM1 in SingleRanked
                                                          if (!RANK_ENA) then WODT_D1_R1[3:0] MBZ
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 	uint64_t wodt_d1_r0                   : 8;  /**< Write ODT mask DIMM1, RANK0
                                                          if (!RANK_ENA) then WODT_D1_R0[3,1] MBZ
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 	uint64_t wodt_d0_r1                   : 8;  /**< Write ODT mask DIMM0, RANK1/DIMM0 in SingleRanked
                                                          if (!RANK_ENA) then WODT_D0_R1[3:0] MBZ
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 	uint64_t wodt_d0_r0                   : 8;  /**< Write ODT mask DIMM0, RANK0
                                                          if (!RANK_ENA) then WODT_D0_R0[3,1] MBZ
-                                                         *Upper 4 bits UNUSED IN 63xx, and MBZ* */
+                                                         *Upper 4 bits UNUSED IN 6xxx, and MBZ* */
 #else
 	uint64_t wodt_d0_r0                   : 8;
 	uint64_t wodt_d0_r1                   : 8;
@@ -7053,8 +8408,13 @@ union cvmx_lmcx_wodt_mask
 	uint64_t wodt_d3_r1                   : 8;
 #endif
 	} s;
+	struct cvmx_lmcx_wodt_mask_s          cn61xx;
 	struct cvmx_lmcx_wodt_mask_s          cn63xx;
 	struct cvmx_lmcx_wodt_mask_s          cn63xxp1;
+	struct cvmx_lmcx_wodt_mask_s          cn66xx;
+	struct cvmx_lmcx_wodt_mask_s          cn68xx;
+	struct cvmx_lmcx_wodt_mask_s          cn68xxp1;
+	struct cvmx_lmcx_wodt_mask_s          cnf71xx;
 };
 typedef union cvmx_lmcx_wodt_mask cvmx_lmcx_wodt_mask_t;
 

@@ -16,10 +16,28 @@ heim_ntlm_build_ntlm1_master (
 	struct ntlm_buf */*master*/);
 
 int
+heim_ntlm_build_ntlm2_master (
+	void */*key*/,
+	size_t /*len*/,
+	struct ntlm_buf */*blob*/,
+	struct ntlm_buf */*session*/,
+	struct ntlm_buf */*master*/);
+
+int
+heim_ntlm_calculate_lm2 (
+	const void */*key*/,
+	size_t /*len*/,
+	const char */*username*/,
+	const char */*target*/,
+	const unsigned char serverchallenge[8],
+	unsigned char ntlmv2[16],
+	struct ntlm_buf */*answer*/);
+
+int
 heim_ntlm_calculate_ntlm1 (
 	void */*key*/,
 	size_t /*len*/,
-	unsigned char challange[8],
+	unsigned char challenge[8],
 	struct ntlm_buf */*answer*/);
 
 int
@@ -28,7 +46,7 @@ heim_ntlm_calculate_ntlm2 (
 	size_t /*len*/,
 	const char */*username*/,
 	const char */*target*/,
-	const unsigned char serverchallange[8],
+	const unsigned char serverchallenge[8],
 	const struct ntlm_buf */*infotarget*/,
 	unsigned char ntlmv2[16],
 	struct ntlm_buf */*answer*/);
@@ -40,6 +58,12 @@ heim_ntlm_calculate_ntlm2_sess (
 	const unsigned char ntlm_hash[16],
 	struct ntlm_buf */*lm*/,
 	struct ntlm_buf */*ntlm*/);
+
+int
+heim_ntlm_calculate_ntlm2_sess_hash (
+	const unsigned char clnt_nonce[8],
+	const unsigned char svr_chal[8],
+	unsigned char verifier[8]);
 
 int
 heim_ntlm_decode_targetinfo (
@@ -62,6 +86,14 @@ heim_ntlm_decode_type3 (
 	const struct ntlm_buf */*buf*/,
 	int /*ucs2*/,
 	struct ntlm_type3 */*type3*/);
+
+void
+heim_ntlm_derive_ntlm2_sess (
+	const unsigned char sessionkey[16],
+	const unsigned char */*clnt_nonce*/,
+	size_t /*clnt_nonce_length*/,
+	const unsigned char svr_chal[8],
+	unsigned char derivedkey[16]);
 
 int
 heim_ntlm_encode_targetinfo (
@@ -100,17 +132,48 @@ void
 heim_ntlm_free_type3 (struct ntlm_type3 */*data*/);
 
 int
+heim_ntlm_keyex_unwrap (
+	struct ntlm_buf */*baseKey*/,
+	struct ntlm_buf */*encryptedSession*/,
+	struct ntlm_buf */*session*/);
+
+int
+heim_ntlm_keyex_wrap (
+	struct ntlm_buf */*base_session*/,
+	struct ntlm_buf */*session*/,
+	struct ntlm_buf */*encryptedSession*/);
+
+int
 heim_ntlm_nt_key (
 	const char */*password*/,
 	struct ntlm_buf */*key*/);
 
-void
+int
 heim_ntlm_ntlmv2_key (
 	const void */*key*/,
 	size_t /*len*/,
 	const char */*username*/,
 	const char */*target*/,
 	unsigned char ntlmv2[16]);
+
+size_t
+heim_ntlm_unparse_flags (
+	uint32_t /*flags*/,
+	char */*s*/,
+	size_t /*len*/);
+
+int
+heim_ntlm_v1_base_session (
+	void */*key*/,
+	size_t /*len*/,
+	struct ntlm_buf */*session*/);
+
+int
+heim_ntlm_v2_base_session (
+	void */*key*/,
+	size_t /*len*/,
+	struct ntlm_buf */*ntlmResponse*/,
+	struct ntlm_buf */*session*/);
 
 int
 heim_ntlm_verify_ntlm2 (
@@ -119,7 +182,7 @@ heim_ntlm_verify_ntlm2 (
 	const char */*username*/,
 	const char */*target*/,
 	time_t /*now*/,
-	const unsigned char serverchallange[8],
+	const unsigned char serverchallenge[8],
 	const struct ntlm_buf */*answer*/,
 	struct ntlm_buf */*infotarget*/,
 	unsigned char ntlmv2[16]);

@@ -32,7 +32,7 @@
 #include <machine/pte.h>
 
 /* Memory attributes. */
-#define	VM_MEMATTR_UNCACHED	((vm_memattr_t)PTE_C_UNCACHED)
+#define	VM_MEMATTR_UNCACHEABLE	((vm_memattr_t)PTE_C_UNCACHED)
 #define	VM_MEMATTR_DEFAULT	((vm_memattr_t)PTE_C_CACHE)
 
 #endif /* !_MACHINE_VM_H_ */

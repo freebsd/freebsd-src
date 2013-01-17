@@ -18,6 +18,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntEqClasses.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 
 namespace llvm {
@@ -45,7 +46,7 @@ public:
   unsigned getNumBundles() const { return EC.getNumClasses(); }
 
   /// getBlocks - Return an array of blocks that are connected to Bundle.
-  ArrayRef<unsigned> getBlocks(unsigned Bundle) { return Blocks[Bundle]; }
+  ArrayRef<unsigned> getBlocks(unsigned Bundle) const { return Blocks[Bundle]; }
 
   /// getMachineFunction - Return the last machine function computed.
   const MachineFunction *getMachineFunction() const { return MF; }
@@ -61,7 +62,7 @@ private:
 /// Specialize WriteGraph, the standard implementation won't work.
 raw_ostream &WriteGraph(raw_ostream &O, const EdgeBundles &G,
                         bool ShortNames = false,
-                        const std::string &Title = "");
+                        const Twine &Title = "");
 
 } // end namespace llvm
 

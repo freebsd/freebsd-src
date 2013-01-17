@@ -1,4 +1,4 @@
-# Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -12,7 +12,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.8.14.2 2011-05-16 23:47:16 tbox Exp $
+# $Id$
 
 top_srcdir =	@top_srcdir@
 srcdir =	@top_srcdir@/lib/dns
@@ -44,7 +44,7 @@ LIBS =		@LIBS@
 # Alphabetically
 
 OPENSSLLINKOBJS = openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
-		opensslgost_link.@O@ opensslrsa_link.@O@
+		opensslecdsa_link.@O@ opensslgost_link.@O@ opensslrsa_link.@O@
 
 DSTOBJS =	@OPENSSLLINKOBJS@ \
 		dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
@@ -72,7 +72,7 @@ OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS} ${PORTDNSOBJS}
 # Alphabetically
 
 OPENSSLLINKSRCS = openssl_link.c openssldh_link.c openssldsa_link.c \
-		opensslgost_link.c opensslrsa_link.c
+		opensslecdsa_link.c opensslgost_link.c opensslrsa_link.c
 
 DSTSRCS =	@OPENSSLLINKSRCS@ \
 		dst_api.c dst_lib.c dst_parse.c \

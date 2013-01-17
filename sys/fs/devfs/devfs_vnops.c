@@ -261,7 +261,7 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 	} else if (vp->v_type == VDIR) {
 		if (dd == dmp->dm_rootdir) {
 			*dvp = vp;
-			vhold(*dvp);
+			vref(*dvp);
 			goto finished;
 		}
 		i -= dd->de_dirent->d_namlen;
@@ -289,6 +289,8 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 		mtx_unlock(&devfs_de_interlock);
 		vholdl(*dvp);
 		VI_UNLOCK(*dvp);
+		vref(*dvp);
+		vdrop(*dvp);
 	} else {
 		mtx_unlock(&devfs_de_interlock);
 		error = ENOENT;
@@ -600,10 +602,21 @@ devfs_close_f(struct file *fp, struct thread *td)
 	int error;
 	struct file *fpop;
 
-	fpop = td->td_fpop;
-	td->td_fpop = fp;
+	/*
+	 * NB: td may be NULL if this descriptor is closed due to
+	 * garbage collection from a closed UNIX domain socket.
+	 */
+	fpop = curthread->td_fpop;
+	curthread->td_fpop = fp;
 	error = vnops.fo_close(fp, td);
-	td->td_fpop = fpop;
+	curthread->td_fpop = fpop;
+
+	/*
+	 * The f_cdevpriv cannot be assigned non-NULL value while we
+	 * are destroying the file.
+	 */
+	if (fp->f_cdevpriv != NULL)
+		devfs_fpdrop(fp);
 	return (error);
 }
 
@@ -1036,6 +1049,7 @@ devfs_open(struct vop_open_args *ap)
 	int error, ref, vlocked;
 	struct cdevsw *dsw;
 	struct file *fpop;
+	struct mtx *mtxp;
 
 	if (vp->v_type == VBLK)
 		return (ENXIO);
@@ -1050,6 +1064,10 @@ devfs_open(struct vop_open_args *ap)
 	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
+	if (fp == NULL && dsw->d_fdopen != NULL) {
+		dev_relthread(dev, ref);
+		return (ENXIO);
+	}
 
 	vlocked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
@@ -1064,6 +1082,9 @@ devfs_open(struct vop_open_args *ap)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
+	/* cleanup any cdevpriv upon error */
+	if (error != 0)
+		devfs_clear_cdevpriv();
 	td->td_fpop = fpop;
 
 	vn_lock(vp, vlocked | LK_RETRY);
@@ -1079,6 +1100,16 @@ devfs_open(struct vop_open_args *ap)
 #endif
 	if (fp->f_ops == &badfileops)
 		finit(fp, fp->f_flag, DTYPE_VNODE, dev, &devfs_ops_f);
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+
+	/*
+	 * Hint to the dofilewrite() to not force the buffer draining
+	 * on the writer to the file.  Most likely, the write would
+	 * not need normal buffers.
+	 */
+	mtx_lock(mtxp);
+	fp->f_vnread_flags |= FDEVFS_VNODE;
+	mtx_unlock(mtxp);
 	return (error);
 }
 
@@ -1139,7 +1170,8 @@ static int
 devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int ioflag, error, ref, resid;
+	int ioflag, error, ref;
+	ssize_t resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
@@ -1152,18 +1184,14 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	if (ioflag & O_DIRECT)
 		ioflag |= IO_DIRECT;
 
-	if ((flags & FOF_OFFSET) == 0)
-		uio->uio_offset = fp->f_offset;
-
+	foffset_lock_uio(fp, uio, flags | FOF_NOLOCK);
 	error = dsw->d_read(dev, uio, ioflag);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
 
-	if ((flags & FOF_OFFSET) == 0)
-		fp->f_offset = uio->uio_offset;
-	fp->f_nextoff = uio->uio_offset;
+	foffset_unlock_uio(fp, uio, flags | FOF_NOLOCK | FOF_NEXTOFF);
 	return (error);
 }
 
@@ -1617,7 +1645,8 @@ static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int error, ioflag, ref, resid;
+	int error, ioflag, ref;
+	ssize_t resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
@@ -1629,8 +1658,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	ioflag = fp->f_flag & (O_NONBLOCK | O_DIRECT | O_FSYNC);
 	if (ioflag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	if ((flags & FOF_OFFSET) == 0)
-		uio->uio_offset = fp->f_offset;
+	foffset_lock_uio(fp, uio, flags | FOF_NOLOCK);
 
 	resid = uio->uio_resid;
 
@@ -1642,9 +1670,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
 
-	if ((flags & FOF_OFFSET) == 0)
-		fp->f_offset = uio->uio_offset;
-	fp->f_nextoff = uio->uio_offset;
+	foffset_unlock_uio(fp, uio, flags | FOF_NOLOCK | FOF_NEXTOFF);
 	return (error);
 }
 

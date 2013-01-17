@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.99.258.7 2011-06-08 23:02:42 each Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -416,12 +416,11 @@ rdataset_totext(dns_rdataset_t *rdataset,
 
 	rdataset->attributes |= DNS_RDATASETATTR_LOADORDER;
 	result = dns_rdataset_first(rdataset);
-	REQUIRE(result == ISC_R_SUCCESS);
 
 	current_ttl = ctx->current_ttl;
 	current_ttl_valid = ctx->current_ttl_valid;
 
-	do {
+	while (result == ISC_R_SUCCESS) {
 		column = 0;
 
 		/*
@@ -546,7 +545,7 @@ rdataset_totext(dns_rdataset_t *rdataset,
 
 		first = ISC_FALSE;
 		result = dns_rdataset_next(rdataset);
-	} while (result == ISC_R_SUCCESS);
+	}
 
 	if (result != ISC_R_NOMORE)
 		return (result);
@@ -928,6 +927,7 @@ dump_rdataset_raw(isc_mem_t *mctx, dns_name_t *name, dns_rdataset_t *rdataset,
 	REQUIRE(buffer->length > 0);
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 
+	rdataset->attributes |= DNS_RDATASETATTR_LOADORDER;
  restart:
 	totallen = 0;
 	result = dns_rdataset_first(rdataset);
@@ -1545,7 +1545,8 @@ dns_master_dumptostream2(isc_mem_t *mctx, dns_db_t *db,
 }
 
 static isc_result_t
-opentmp(isc_mem_t *mctx, const char *file, char **tempp, FILE **fp) {
+opentmp(isc_mem_t *mctx, dns_masterformat_t format, const char *file,
+	char **tempp, FILE **fp) {
 	FILE *f = NULL;
 	isc_result_t result;
 	char *tempname = NULL;
@@ -1560,7 +1561,10 @@ opentmp(isc_mem_t *mctx, const char *file, char **tempp, FILE **fp) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	result = isc_file_openunique(tempname, &f);
+	if (format == dns_masterformat_text)
+		result = isc_file_openunique(tempname, &f);
+	else
+		result = isc_file_bopenunique(tempname, &f);
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
 			      DNS_LOGMODULE_MASTERDUMP, ISC_LOG_ERROR,
@@ -1604,7 +1608,7 @@ dns_master_dumpinc2(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	if (file == NULL)
 		return (ISC_R_NOMEMORY);
 
-	result = opentmp(mctx, filename, &tempname, &f);
+	result = opentmp(mctx, format, filename, &tempname, &f);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
@@ -1658,7 +1662,7 @@ dns_master_dump2(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	char *tempname;
 	dns_dumpctx_t *dctx = NULL;
 
-	result = opentmp(mctx, filename, &tempname, &f);
+	result = opentmp(mctx, format, filename, &tempname, &f);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 

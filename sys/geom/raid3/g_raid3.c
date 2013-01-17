@@ -51,7 +51,8 @@ FEATURE(geom_raid3, "GEOM RAID-3 functionality");
 static MALLOC_DEFINE(M_RAID3, "raid3_data", "GEOM_RAID3 Data");
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, raid3, CTLFLAG_RW, 0, "GEOM_RAID3 stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, raid3, CTLFLAG_RW, 0,
+    "GEOM_RAID3 stuff");
 u_int g_raid3_debug = 0;
 TUNABLE_INT("kern.geom.raid3.debug", &g_raid3_debug);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RW, &g_raid3_debug, 0,
@@ -91,7 +92,7 @@ TUNABLE_INT("kern.geom.raid3.n4k", &g_raid3_n4k);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n4k, CTLFLAG_RD, &g_raid3_n4k, 0,
     "Maximum number of 4kB allocations");
 
-SYSCTL_NODE(_kern_geom_raid3, OID_AUTO, stat, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_raid3, OID_AUTO, stat, CTLFLAG_RW, 0,
     "GEOM_RAID3 statistics");
 static u_int g_raid3_parity_mismatch = 0;
 SYSCTL_UINT(_kern_geom_raid3_stat, OID_AUTO, parity_mismatch, CTLFLAG_RD,
@@ -103,7 +104,8 @@ SYSCTL_UINT(_kern_geom_raid3_stat, OID_AUTO, parity_mismatch, CTLFLAG_RD,
 	G_RAID3_DEBUG(4, "%s: Woken up %p.", __func__, (ident));	\
 } while (0)
 
-static eventhandler_tag g_raid3_pre_sync = NULL;
+static eventhandler_tag g_raid3_post_sync = NULL;
+static int g_raid3_shutdown = 0;
 
 static int g_raid3_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
@@ -875,7 +877,7 @@ g_raid3_idle(struct g_raid3_softc *sc, int acw)
 		return (0);
 	if (acw > 0 || (acw == -1 && sc->sc_provider->acw > 0)) {
 		timeout = g_raid3_idletime - (time_uptime - sc->sc_last_write);
-		if (timeout > 0)
+		if (!g_raid3_shutdown && timeout > 0)
 			return (timeout);
 	}
 	sc->sc_idle = 1;
@@ -3097,7 +3099,7 @@ g_raid3_access(struct g_provider *pp, int acr, int acw, int ace)
 			error = ENXIO;
 		goto end;
 	}
-	if (dcw == 0 && !sc->sc_idle)
+	if (dcw == 0)
 		g_raid3_idle(sc, dcw);
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_DESTROYING) != 0) {
 		if (acr > 0 || acw > 0 || ace > 0) {
@@ -3447,6 +3449,11 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 				    (sc->sc_mediasize / (sc->sc_ndisks - 1))));
 			}
 			sbuf_printf(sb, "</Synchronized>\n");
+			if (disk->d_sync.ds_offset > 0) {
+				sbuf_printf(sb, "%s<BytesSynced>%jd"
+				    "</BytesSynced>\n", indent,
+				    (intmax_t)disk->d_sync.ds_offset);
+			}
 		}
 		sbuf_printf(sb, "%s<SyncID>%u</SyncID>\n", indent,
 		    disk->d_sync.ds_syncid);
@@ -3538,7 +3545,7 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 static void
-g_raid3_shutdown_pre_sync(void *arg, int howto)
+g_raid3_shutdown_post_sync(void *arg, int howto)
 {
 	struct g_class *mp;
 	struct g_geom *gp, *gp2;
@@ -3548,6 +3555,7 @@ g_raid3_shutdown_pre_sync(void *arg, int howto)
 	mp = arg;
 	DROP_GIANT();
 	g_topology_lock();
+	g_raid3_shutdown = 1;
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
@@ -3556,6 +3564,7 @@ g_raid3_shutdown_pre_sync(void *arg, int howto)
 			continue;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
+		g_raid3_idle(sc, -1);
 		g_cancel_event(sc);
 		error = g_raid3_destroy(sc, G_RAID3_DESTROY_DELAYED);
 		if (error != 0)
@@ -3570,9 +3579,9 @@ static void
 g_raid3_init(struct g_class *mp)
 {
 
-	g_raid3_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-	    g_raid3_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
-	if (g_raid3_pre_sync == NULL)
+	g_raid3_post_sync = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    g_raid3_shutdown_post_sync, mp, SHUTDOWN_PRI_FIRST);
+	if (g_raid3_post_sync == NULL)
 		G_RAID3_DEBUG(0, "Warning! Cannot register shutdown event.");
 }
 
@@ -3580,8 +3589,8 @@ static void
 g_raid3_fini(struct g_class *mp)
 {
 
-	if (g_raid3_pre_sync != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_raid3_pre_sync);
+	if (g_raid3_post_sync != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_raid3_post_sync);
 }
 
 DECLARE_GEOM_CLASS(g_raid3_class, g_raid3);

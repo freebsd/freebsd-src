@@ -174,7 +174,6 @@ static device_method_t fsl_pcib_methods[] = {
 	DEVMETHOD(device_detach,	fsl_pcib_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	fsl_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	fsl_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	fsl_pcib_alloc_resource),
@@ -197,7 +196,7 @@ static device_method_t fsl_pcib_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,     ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,     ofw_bus_gen_get_type),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fsl_pcib_driver = {
@@ -817,8 +816,13 @@ fsl_pcib_set_range(struct fsl_pcib_softc *sc, int type, int wnd, u_long start,
 	}
 
 	*allocp = pci_start + alloc;
-	*vap = (uintptr_t)pmap_mapdev(start, size);
-	fsl_pcib_outbound(sc, wnd, type, start, size, pci_start);
+	if (size > 0) {
+		*vap = (uintptr_t)pmap_mapdev(start, size);
+		fsl_pcib_outbound(sc, wnd, type, start, size, pci_start);
+	} else {
+		*vap = 0;
+		fsl_pcib_outbound(sc, wnd, -1, 0, 0, 0);
+	}
 	return (0);
 }
 
@@ -844,10 +848,10 @@ fsl_pcib_err_init(device_t dev)
 		    0xffffffff);
 
 		dsr = fsl_pcib_cfgread(sc, 0, 0, 0,
-		    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_STA, 2);
+		    sc->sc_pcie_capreg + PCIER_DEVICE_STA, 2);
 		if (dsr)
 			fsl_pcib_cfgwrite(sc, 0, 0, 0,
-			    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_STA,
+			    sc->sc_pcie_capreg + PCIER_DEVICE_STA,
 			    0xffff, 2);
 
 		/* Enable all errors reporting */
@@ -857,11 +861,11 @@ fsl_pcib_err_init(device_t dev)
 
 		/* Enable error reporting: URR, FER, NFER */
 		dcr = fsl_pcib_cfgread(sc, 0, 0, 0,
-		    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_CTL, 4);
-		dcr |= PCIM_EXP_CTL_URR_ENABLE | PCIM_EXP_CTL_FER_ENABLE |
-		    PCIM_EXP_CTL_NFER_ENABLE;
+		    sc->sc_pcie_capreg + PCIER_DEVICE_CTL, 4);
+		dcr |= PCIEM_CTL_URR_ENABLE | PCIEM_CTL_FER_ENABLE |
+		    PCIEM_CTL_NFER_ENABLE;
 		fsl_pcib_cfgwrite(sc, 0, 0, 0,
-		    sc->sc_pcie_capreg + PCIR_EXPRESS_DEVICE_CTL, dcr, 4);
+		    sc->sc_pcie_capreg + PCIER_DEVICE_CTL, dcr, 4);
 	}
 }
 

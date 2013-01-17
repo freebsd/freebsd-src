@@ -1,4 +1,4 @@
-$ $tcsh: set30,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set30,v 1.3 2011/02/04 18:19:39 christos Exp $
 $ tw.parse.c
 $set 30 
 1 inizio_il_comando %d\n
@@ -10,7 +10,7 @@ $set 30
 7 Ci sono %d %selenco ugualmente? [n/s] 
 8 sembra = %d\n
 9 \nerrore interno della tcsh: Non mi ricordo cosa stavo facendo!\n
-10 non è una directory
+10 non Ã¨ una directory
 11 non trovato
 12 non leggibile
 13 sS

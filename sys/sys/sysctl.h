@@ -84,12 +84,14 @@ struct ctlname {
 #define CTLFLAG_SKIP	0x01000000	/* Skip this sysctl when listing */
 #define CTLMASK_SECURE	0x00F00000	/* Secure level */
 #define CTLFLAG_TUN	0x00080000	/* Tunable variable */
+#define	CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
+#define	CTLFLAG_RWTUN	(CTLFLAG_RW|CTLFLAG_TUN)
 #define CTLFLAG_MPSAFE	0x00040000	/* Handler is MP safe */
 #define CTLFLAG_VNET	0x00020000	/* Prisons with vnet can fiddle */
-#define CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
 #define	CTLFLAG_DYING	0x00010000	/* oid is being removed */
 #define CTLFLAG_CAPRD	0x00008000	/* Can be read in capability mode */
 #define CTLFLAG_CAPWR	0x00004000	/* Can be written in capability mode */
+#define CTLFLAG_STATS	0x00002000	/* Statistics, not a tuneable */
 #define CTLFLAG_CAPRW	(CTLFLAG_CAPRD|CTLFLAG_CAPWR)
 
 /*
@@ -128,7 +130,8 @@ struct ctlname {
 #define	REQ_WIRED	2
 
 /* definitions for sysctl_req 'flags' member */
-#if defined(__amd64__) || defined(__ia64__) || defined(__powerpc64__)
+#if defined(__amd64__) || defined(__ia64__) || defined(__powerpc64__) ||	\
+	(defined(__mips__) && defined(__mips_n64))
 #define	SCTL_MASK32	1	/* 32 bit emulation */
 #endif
 
@@ -559,6 +562,12 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	KERN_PROC_VMMAP		32	/* VM map entries for process */
 #define	KERN_PROC_FILEDESC	33	/* File descriptors for process */
 #define	KERN_PROC_GROUPS	34	/* process groups */
+#define	KERN_PROC_ENV		35	/* get environment */
+#define	KERN_PROC_AUXV		36	/* get ELF auxiliary vector */
+#define	KERN_PROC_RLIMIT	37	/* process resource limits */
+#define	KERN_PROC_PS_STRINGS	38	/* get ps_strings location */
+#define	KERN_PROC_UMASK		39	/* process umask */
+#define	KERN_PROC_OSREL		40	/* osreldate for process binary */
 
 /*
  * KERN_IPC identifiers

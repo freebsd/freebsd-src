@@ -95,6 +95,7 @@ void visdump(char *, int, int);
 void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
+void ktrcsw_old(struct ktr_csw_old *);
 void ktruser_malloc(unsigned char *);
 void ktruser_rtld(int, unsigned char *);
 void ktruser(int, unsigned char *);
@@ -102,6 +103,8 @@ void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
+void ktrfault(struct ktr_fault *);
+void ktrfaultend(struct ktr_faultend *);
 void usage(void);
 void ioctlname(unsigned long, int);
 
@@ -248,7 +251,8 @@ main(int argc, char *argv[])
 			}
 		}
 		if (trpoints & (1<<ktr_header.ktr_type))
-			if (pid == 0 || ktr_header.ktr_pid == pid)
+			if (pid == 0 || ktr_header.ktr_pid == pid ||
+			    ktr_header.ktr_tid == pid)
 				dumpheader(&ktr_header);
 		if ((ktrlen = ktr_header.ktr_len) < 0)
 			errx(1, "bogus length 0x%x", ktrlen);
@@ -263,7 +267,8 @@ main(int argc, char *argv[])
 		if (fetchprocinfo(&ktr_header, (u_int *)m) != 0)
 			continue;
 		sv_flags = abidump(&ktr_header);
-		if (pid && ktr_header.ktr_pid != pid)
+		if (pid && ktr_header.ktr_pid != pid &&
+		    ktr_header.ktr_tid != pid)
 			continue;
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
 			continue;
@@ -296,7 +301,10 @@ main(int argc, char *argv[])
 			ktrpsig((struct ktr_psig *)m);
 			break;
 		case KTR_CSW:
-			ktrcsw((struct ktr_csw *)m);
+			if (ktrlen == sizeof(struct ktr_csw_old))
+				ktrcsw_old((struct ktr_csw_old *)m);
+			else
+				ktrcsw((struct ktr_csw *)m);
 			break;
 		case KTR_USER:
 			ktruser(ktrlen, m);
@@ -306,6 +314,13 @@ main(int argc, char *argv[])
 			break;
 		case KTR_CAPFAIL:
 			ktrcapfail((struct ktr_cap_fail *)m);
+			break;
+		case KTR_FAULT:
+			ktrfault((struct ktr_fault *)m);
+			break;
+		case KTR_FAULTEND:
+			ktrfaultend((struct ktr_faultend *)m);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -447,6 +462,12 @@ dumpheader(struct ktr_header *kth)
 		return;
 	case KTR_CAPFAIL:
 		type = "CAP ";
+		break;
+	case KTR_FAULT:
+		type = "PFLT";
+		break;
+	case KTR_FAULTEND:
+		type = "PRET";
 		break;
 	default:
 		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
@@ -1014,6 +1035,15 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				}
 				capname(arg);
 				break;
+			case SYS_posix_fadvise:
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				(void)putchar(',');
+				fadvisebehavname((int)*ip);
+				ip++;
+				narg--;
+				break;
 			}
 		}
 		while (narg > 0) {
@@ -1212,19 +1242,30 @@ ktrpsig(struct ktr_psig *psig)
 		printf("SIG%s ", signames[psig->signo]);
 	else
 		printf("SIG %d ", psig->signo);
-	if (psig->action == SIG_DFL)
-		printf("SIG_DFL code=0x%x\n", psig->code);
-	else {
-		printf("caught handler=0x%lx mask=0x%x code=0x%x\n",
-		    (u_long)psig->action, psig->mask.__bits[0], psig->code);
+	if (psig->action == SIG_DFL) {
+		printf("SIG_DFL code=");
+		sigcodename(psig->signo, psig->code);
+		putchar('\n');
+	} else {
+		printf("caught handler=0x%lx mask=0x%x code=",
+		    (u_long)psig->action, psig->mask.__bits[0]);
+		sigcodename(psig->signo, psig->code);
+		putchar('\n');
 	}
+}
+
+void
+ktrcsw_old(struct ktr_csw_old *cs)
+{
+	printf("%s %s\n", cs->out ? "stop" : "resume",
+		cs->user ? "user" : "kernel");
 }
 
 void
 ktrcsw(struct ktr_csw *cs)
 {
-	printf("%s %s\n", cs->out ? "stop" : "resume",
-		cs->user ? "user" : "kernel");
+	printf("%s %s \"%s\"\n", cs->out ? "stop" : "resume",
+	    cs->user ? "user" : "kernel", cs->wmesg);
 }
 
 #define	UTRACE_DLOPEN_START		1
@@ -1379,8 +1420,6 @@ ktrsockaddr(struct sockaddr *sa)
  TODO: Support additional address families
 	#include <netnatm/natm.h>
 	struct sockaddr_natm	*natm;
-	#include <netsmb/netbios.h>
-	struct sockaddr_nb	*nb;
 */
 	char addr[64];
 
@@ -1622,6 +1661,24 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 		capname((intmax_t)ktr->cap_held);
 		break;
 	}
+	printf("\n");
+}
+
+void
+ktrfault(struct ktr_fault *ktr)
+{
+
+	printf("0x%jx ", ktr->vaddr);
+	vmprotname(ktr->type);
+	printf("\n");
+}
+
+void
+ktrfaultend(struct ktr_faultend *ktr)
+{
+
+	vmresultname(ktr->result);
+	printf("\n");
 }
 
 #if defined(__amd64__) || defined(__i386__)

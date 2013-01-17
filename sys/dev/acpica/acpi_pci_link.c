@@ -120,7 +120,7 @@ struct link_res_request {
 	int	link_index;
 };
 
-MALLOC_DEFINE(M_PCI_LINK, "pci_link", "ACPI PCI Link structures");
+static MALLOC_DEFINE(M_PCI_LINK, "pci_link", "ACPI PCI Link structures");
 
 static int pci_link_interrupt_weights[NUM_ACPI_INTERRUPTS];
 static int pci_link_bios_isa_irqs;

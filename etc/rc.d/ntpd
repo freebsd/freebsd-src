@@ -4,14 +4,14 @@
 #
 
 # PROVIDE: ntpd
-# REQUIRE: DAEMON ntpdate cleanvar devfs
+# REQUIRE: DAEMON ntpdate FILESYSTEMS devfs
 # BEFORE:  LOGIN
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
 name="ntpd"
-rcvar=`set_rcvar`
+rcvar="ntpd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 start_precmd="ntpd_precmd"

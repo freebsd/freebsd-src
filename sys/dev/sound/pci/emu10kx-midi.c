@@ -50,8 +50,8 @@
 #include <dev/sound/midi/mpu401.h>
 #include "mpufoi_if.h"
 
+#include <dev/sound/pci/emuxkireg.h>
 #include <dev/sound/pci/emu10kx.h>
-#include "emu10k1-alsa%diked.h"
 
 struct emu_midi_softc {
 	struct mtx	mtx;
@@ -176,25 +176,25 @@ emu_midi_attach(device_t dev)
 	if (scp->is_emu10k1) {
 		/* SB Live! - only one MIDI device here */
 		inte_val = 0;
-		/* inte_val |= INTE_MIDITXENABLE;*/
-		inte_val |= INTE_MIDIRXENABLE;
-		ipr_val = IPR_MIDITRANSBUFEMPTY;
-		ipr_val |= IPR_MIDIRECVBUFEMPTY;
+		/* inte_val |= EMU_INTE_MIDITXENABLE;*/
+		inte_val |= EMU_INTE_MIDIRXENABLE;
+		ipr_val = EMU_IPR_MIDITRANSBUFE;
+		ipr_val |= EMU_IPR_MIDIRECVBUFE;
 	} else {
-		if (scp->port == A_MUDATA1) {
+		if (scp->port == EMU_A_MUDATA1) {
 			/* EXTERNAL MIDI (AudigyDrive) */
 			inte_val = 0;
-			/* inte_val |= A_INTE_MIDITXENABLE1;*/
-			inte_val |= INTE_MIDIRXENABLE;
-			ipr_val = IPR_MIDITRANSBUFEMPTY;
-			ipr_val |= IPR_MIDIRECVBUFEMPTY;
+			/* inte_val |= A_EMU_INTE_MIDITXENABLE1;*/
+			inte_val |= EMU_INTE_MIDIRXENABLE;
+			ipr_val = EMU_IPR_MIDITRANSBUFE;
+			ipr_val |= EMU_IPR_MIDIRECVBUFE;
 		} else {
 			/* MIDI hw config port 2 */
 			inte_val = 0;
-			/* inte_val |= A_INTE_MIDITXENABLE2;*/
-			inte_val |= INTE_A_MIDIRXENABLE2;
-			ipr_val = IPR_A_MIDITRANSBUFEMPTY2;
-			ipr_val |= IPR_A_MIDIRECVBUFEMPTY2;
+			/* inte_val |= A_EMU_INTE_MIDITXENABLE2;*/
+			inte_val |= EMU_INTE_A_MIDIRXENABLE2;
+			ipr_val = EMU_IPR_A_MIDITRANSBUFE2;
+			ipr_val |= EMU_IPR_A_MIDIRECBUFE2;
 		}
 	}
 
@@ -214,7 +214,7 @@ emu_midi_attach(device_t dev)
 	if (scp->is_emu10k1)
 		emu_enable_ir(scp->card);
 	else {
-		if (scp->port == A_MUDATA1)
+		if (scp->port == EMU_A_MUDATA1)
 			emu_enable_ir(scp->card);
 	}
 

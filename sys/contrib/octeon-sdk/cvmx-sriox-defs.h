@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,514 +49,571 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_SRIOX_TYPEDEFS_H__
-#define __CVMX_SRIOX_TYPEDEFS_H__
+#ifndef __CVMX_SRIOX_DEFS_H__
+#define __CVMX_SRIOX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_ACC_CTRL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_ACC_CTRL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000148ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000148ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_ACC_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000148ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_ACC_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000148ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_ASMBLY_ID(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_ASMBLY_ID(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000200ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000200ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_ASMBLY_ID(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000200ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_ASMBLY_ID(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000200ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_ASMBLY_INFO(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_ASMBLY_INFO(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000208ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000208ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_ASMBLY_INFO(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000208ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_ASMBLY_INFO(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000208ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_BELL_RESP_CTRL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_BELL_RESP_CTRL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000310ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000310ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_BELL_RESP_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000310ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_BELL_RESP_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000310ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_BIST_STATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_BIST_STATUS(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000108ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000108ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_BIST_STATUS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000108ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_BIST_STATUS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000108ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_IMSG_CTRL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_IMSG_CTRL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000508ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000508ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_IMSG_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000508ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_IMSG_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000508ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_IMSG_INST_HDRX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_IMSG_INST_HDRX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000510ull) + (((offset) & 1) + ((block_id) & 1) * 0x200000ull) * 8;
+	return CVMX_ADD_IO_SEG(0x00011800C8000510ull) + (((offset) & 1) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_SRIOX_IMSG_INST_HDRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000510ull) + (((offset) & 1) + ((block_id) & 1) * 0x200000ull) * 8)
+#define CVMX_SRIOX_IMSG_INST_HDRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000510ull) + (((offset) & 1) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_IMSG_QOS_GRPX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 31)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 31)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 31)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_IMSG_QOS_GRPX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000600ull) + (((offset) & 31) + ((block_id) & 1) * 0x200000ull) * 8;
+	return CVMX_ADD_IO_SEG(0x00011800C8000600ull) + (((offset) & 31) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_SRIOX_IMSG_QOS_GRPX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000600ull) + (((offset) & 31) + ((block_id) & 1) * 0x200000ull) * 8)
+#define CVMX_SRIOX_IMSG_QOS_GRPX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000600ull) + (((offset) & 31) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_IMSG_STATUSX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 23)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 23)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 23)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_IMSG_STATUSX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000700ull) + (((offset) & 31) + ((block_id) & 1) * 0x200000ull) * 8;
+	return CVMX_ADD_IO_SEG(0x00011800C8000700ull) + (((offset) & 31) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_SRIOX_IMSG_STATUSX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000700ull) + (((offset) & 31) + ((block_id) & 1) * 0x200000ull) * 8)
+#define CVMX_SRIOX_IMSG_STATUSX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000700ull) + (((offset) & 31) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_IMSG_VPORT_THR(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_IMSG_VPORT_THR(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000500ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000500ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_IMSG_VPORT_THR(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000500ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_IMSG_VPORT_THR(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000500ull) + ((block_id) & 3) * 0x1000000ull)
+#endif
+#if CVMX_ENABLE_CSR_ADDRESS_CHECKING
+static inline uint64_t CVMX_SRIOX_IMSG_VPORT_THR2(unsigned long block_id)
+{
+	if (!(
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
+		cvmx_warn("CVMX_SRIOX_IMSG_VPORT_THR2(%lu) is invalid on this chip\n", block_id);
+	return CVMX_ADD_IO_SEG(0x00011800C8000528ull) + ((block_id) & 3) * 0x1000000ull;
+}
+#else
+#define CVMX_SRIOX_IMSG_VPORT_THR2(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000528ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT2_ENABLE(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT2_ENABLE(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80003E0ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C80003E0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT2_ENABLE(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003E0ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT2_ENABLE(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003E0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT2_REG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT2_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80003E8ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C80003E8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT2_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003E8ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT2_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003E8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT_ENABLE(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT_ENABLE(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000110ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000110ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT_ENABLE(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000110ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT_ENABLE(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000110ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT_INFO0(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT_INFO0(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000120ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000120ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT_INFO0(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000120ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT_INFO0(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000120ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT_INFO1(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT_INFO1(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000128ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000128ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT_INFO1(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000128ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT_INFO1(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000128ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT_INFO2(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT_INFO2(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000130ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000130ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT_INFO2(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000130ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT_INFO2(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000130ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT_INFO3(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT_INFO3(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000138ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000138ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT_INFO3(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000138ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT_INFO3(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000138ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_INT_REG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_INT_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000118ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000118ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_INT_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000118ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_INT_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000118ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_IP_FEATURE(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_IP_FEATURE(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80003F8ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C80003F8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_IP_FEATURE(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003F8ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_IP_FEATURE(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003F8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_MAC_BUFFERS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_MAC_BUFFERS(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000390ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000390ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_MAC_BUFFERS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000390ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_MAC_BUFFERS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000390ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_MAINT_OP(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_MAINT_OP(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000158ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000158ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_MAINT_OP(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000158ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_MAINT_OP(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000158ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_MAINT_RD_DATA(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_MAINT_RD_DATA(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000160ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000160ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_MAINT_RD_DATA(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000160ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_MAINT_RD_DATA(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000160ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_MCE_TX_CTL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_MCE_TX_CTL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000240ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000240ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_MCE_TX_CTL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000240ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_MCE_TX_CTL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000240ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_MEM_OP_CTRL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_MEM_OP_CTRL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000168ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000168ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_MEM_OP_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000168ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_MEM_OP_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000168ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_OMSG_CTRLX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_OMSG_CTRLX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000488ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64;
+	return CVMX_ADD_IO_SEG(0x00011800C8000488ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64;
 }
 #else
-#define CVMX_SRIOX_OMSG_CTRLX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000488ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64)
+#define CVMX_SRIOX_OMSG_CTRLX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000488ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_OMSG_DONE_COUNTSX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_OMSG_DONE_COUNTSX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80004B0ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64;
+	return CVMX_ADD_IO_SEG(0x00011800C80004B0ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64;
 }
 #else
-#define CVMX_SRIOX_OMSG_DONE_COUNTSX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C80004B0ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64)
+#define CVMX_SRIOX_OMSG_DONE_COUNTSX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C80004B0ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_OMSG_FMP_MRX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_OMSG_FMP_MRX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000498ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64;
+	return CVMX_ADD_IO_SEG(0x00011800C8000498ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64;
 }
 #else
-#define CVMX_SRIOX_OMSG_FMP_MRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000498ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64)
+#define CVMX_SRIOX_OMSG_FMP_MRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000498ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_OMSG_NMP_MRX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_OMSG_NMP_MRX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80004A0ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64;
+	return CVMX_ADD_IO_SEG(0x00011800C80004A0ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64;
 }
 #else
-#define CVMX_SRIOX_OMSG_NMP_MRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C80004A0ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64)
+#define CVMX_SRIOX_OMSG_NMP_MRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C80004A0ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_OMSG_PORTX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_OMSG_PORTX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000480ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64;
+	return CVMX_ADD_IO_SEG(0x00011800C8000480ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64;
 }
 #else
-#define CVMX_SRIOX_OMSG_PORTX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000480ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64)
+#define CVMX_SRIOX_OMSG_PORTX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000480ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_OMSG_SILO_THR(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_OMSG_SILO_THR(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80004F8ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C80004F8ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_OMSG_SILO_THR(block_id) (CVMX_ADD_IO_SEG(0x00011800C80004F8ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_OMSG_SILO_THR(block_id) (CVMX_ADD_IO_SEG(0x00011800C80004F8ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_OMSG_SP_MRX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 1)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 1)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_OMSG_SP_MRX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000490ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64;
+	return CVMX_ADD_IO_SEG(0x00011800C8000490ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64;
 }
 #else
-#define CVMX_SRIOX_OMSG_SP_MRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000490ull) + (((offset) & 1) + ((block_id) & 1) * 0x40000ull) * 64)
+#define CVMX_SRIOX_OMSG_SP_MRX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000490ull) + (((offset) & 1) + ((block_id) & 3) * 0x40000ull) * 64)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_PRIOX_IN_USE(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 3)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 3)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 3)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_PRIOX_IN_USE(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80003C0ull) + (((offset) & 3) + ((block_id) & 1) * 0x200000ull) * 8;
+	return CVMX_ADD_IO_SEG(0x00011800C80003C0ull) + (((offset) & 3) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_SRIOX_PRIOX_IN_USE(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C80003C0ull) + (((offset) & 3) + ((block_id) & 1) * 0x200000ull) * 8)
+#define CVMX_SRIOX_PRIOX_IN_USE(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C80003C0ull) + (((offset) & 3) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_RX_BELL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_RX_BELL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000308ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000308ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_RX_BELL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000308ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_RX_BELL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000308ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_RX_BELL_SEQ(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_RX_BELL_SEQ(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000300ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000300ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_RX_BELL_SEQ(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000300ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_RX_BELL_SEQ(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000300ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_RX_STATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_RX_STATUS(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000380ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000380ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_RX_STATUS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000380ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_RX_STATUS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000380ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_S2M_TYPEX(unsigned long offset, unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 15)) && ((block_id <= 1))))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && (((offset <= 15)) && ((block_id <= 1)))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && (((offset <= 15)) && ((block_id == 0) || (block_id == 2) || (block_id == 3))))))
 		cvmx_warn("CVMX_SRIOX_S2M_TYPEX(%lu,%lu) is invalid on this chip\n", offset, block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000180ull) + (((offset) & 15) + ((block_id) & 1) * 0x200000ull) * 8;
+	return CVMX_ADD_IO_SEG(0x00011800C8000180ull) + (((offset) & 15) + ((block_id) & 3) * 0x200000ull) * 8;
 }
 #else
-#define CVMX_SRIOX_S2M_TYPEX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000180ull) + (((offset) & 15) + ((block_id) & 1) * 0x200000ull) * 8)
+#define CVMX_SRIOX_S2M_TYPEX(offset, block_id) (CVMX_ADD_IO_SEG(0x00011800C8000180ull) + (((offset) & 15) + ((block_id) & 3) * 0x200000ull) * 8)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_SEQ(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_SEQ(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000278ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000278ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_SEQ(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000278ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_SEQ(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000278ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_STATUS_REG(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_STATUS_REG(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000100ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000100ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_STATUS_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000100ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_STATUS_REG(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000100ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_TAG_CTRL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_TAG_CTRL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000178ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000178ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_TAG_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000178ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_TAG_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000178ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_TLP_CREDITS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_TLP_CREDITS(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000150ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000150ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_TLP_CREDITS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000150ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_TLP_CREDITS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000150ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_TX_BELL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_TX_BELL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000280ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000280ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_TX_BELL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000280ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_TX_BELL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000280ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_TX_BELL_INFO(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_TX_BELL_INFO(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000288ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000288ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_TX_BELL_INFO(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000288ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_TX_BELL_INFO(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000288ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_TX_CTRL(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_TX_CTRL(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000170ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000170ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_TX_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000170ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_TX_CTRL(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000170ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_TX_EMPHASIS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_TX_EMPHASIS(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C80003F0ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C80003F0ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_TX_EMPHASIS(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003F0ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_TX_EMPHASIS(block_id) (CVMX_ADD_IO_SEG(0x00011800C80003F0ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_TX_STATUS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_TX_STATUS(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000388ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000388ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_TX_STATUS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000388ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_TX_STATUS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000388ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_SRIOX_WR_DONE_COUNTS(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id == 0) || ((block_id >= 2) && (block_id <= 3))))))
 		cvmx_warn("CVMX_SRIOX_WR_DONE_COUNTS(%lu) is invalid on this chip\n", block_id);
-	return CVMX_ADD_IO_SEG(0x00011800C8000340ull) + ((block_id) & 1) * 0x1000000ull;
+	return CVMX_ADD_IO_SEG(0x00011800C8000340ull) + ((block_id) & 3) * 0x1000000ull;
 }
 #else
-#define CVMX_SRIOX_WR_DONE_COUNTS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000340ull) + ((block_id) & 1) * 0x1000000ull)
+#define CVMX_SRIOX_WR_DONE_COUNTS(block_id) (CVMX_ADD_IO_SEG(0x00011800C8000340ull) + ((block_id) & 3) * 0x1000000ull)
 #endif
 
 /**
@@ -569,17 +626,45 @@ static inline uint64_t CVMX_SRIOX_WR_DONE_COUNTS(unsigned long block_id)
  * Notes:
  * This register controls write access to the BAR registers via SRIO Maintenance Operations.  At
  *  powerup the BAR registers can be accessed via RSL and Maintenance Operations.  If the DENY_BAR*
- *  bits are set then Maintenance Writes to the corresponding BAR registers are ignored.  This
- *  register does not effect read operations.
+ *  bits or DENY_ADR* bits are set then Maintenance Writes to the corresponding BAR fields are
+ *  ignored.  Setting both the DENY_BAR and DENY_ADR for a corresponding BAR is compatable with the
+ *  operation of the DENY_BAR bit found in 63xx Pass 2 and earlier.  This register does not effect
+ *  read operations.  Reset values for DENY_BAR[2:0] are typically clear but they are set if
+ *  the chip is operating in Authentik Mode.
  *
- * Clk_Rst:        SRIO(0..1)_ACC_CTRL     hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_ACC_CTRL   hclk    hrst_n
  */
-union cvmx_sriox_acc_ctrl
-{
+union cvmx_sriox_acc_ctrl {
 	uint64_t u64;
-	struct cvmx_sriox_acc_ctrl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_acc_ctrl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_7_63                : 57;
+	uint64_t deny_adr2                    : 1;  /**< Deny SRIO Write Access to SRIO Address Fields in
+                                                         SRIOMAINT(0,2..3)_BAR2* Registers */
+	uint64_t deny_adr1                    : 1;  /**< Deny SRIO Write Access to SRIO Address Fields in
+                                                         SRIOMAINT(0,2..3)_BAR1* Registers */
+	uint64_t deny_adr0                    : 1;  /**< Deny SRIO Write Access to SRIO Address Fields in
+                                                         SRIOMAINT(0,2..3)_BAR0* Registers */
+	uint64_t reserved_3_3                 : 1;
+	uint64_t deny_bar2                    : 1;  /**< Deny SRIO Write Access to non-SRIO Address Fields
+                                                         in the SRIOMAINT_BAR2 Registers */
+	uint64_t deny_bar1                    : 1;  /**< Deny SRIO Write Access to non-SRIO Address Fields
+                                                         in the SRIOMAINT_BAR1 Registers */
+	uint64_t deny_bar0                    : 1;  /**< Deny SRIO Write Access to non-SRIO Address Fields
+                                                         in the SRIOMAINT_BAR0 Registers */
+#else
+	uint64_t deny_bar0                    : 1;
+	uint64_t deny_bar1                    : 1;
+	uint64_t deny_bar2                    : 1;
+	uint64_t reserved_3_3                 : 1;
+	uint64_t deny_adr0                    : 1;
+	uint64_t deny_adr1                    : 1;
+	uint64_t deny_adr2                    : 1;
+	uint64_t reserved_7_63                : 57;
+#endif
+	} s;
+	struct cvmx_sriox_acc_ctrl_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t deny_bar2                    : 1;  /**< Deny SRIO Write Access to BAR2 Registers */
 	uint64_t deny_bar1                    : 1;  /**< Deny SRIO Write Access to BAR1 Registers */
@@ -590,9 +675,9 @@ union cvmx_sriox_acc_ctrl
 	uint64_t deny_bar2                    : 1;
 	uint64_t reserved_3_63                : 61;
 #endif
-	} s;
-	struct cvmx_sriox_acc_ctrl_s          cn63xx;
-	struct cvmx_sriox_acc_ctrl_s          cn63xxp1;
+	} cn63xx;
+	struct cvmx_sriox_acc_ctrl_cn63xx     cn63xxp1;
+	struct cvmx_sriox_acc_ctrl_s          cn66xx;
 };
 typedef union cvmx_sriox_acc_ctrl cvmx_sriox_acc_ctrl_t;
 
@@ -604,18 +689,16 @@ typedef union cvmx_sriox_acc_ctrl cvmx_sriox_acc_ctrl_t;
  * The Assembly ID register controls the Assembly ID and Vendor
  *
  * Notes:
- * This register specifies the Assembly ID and Vendor visible in SRIOMAINT(0..1)_ASMBLY_ID register.  The
+ * This register specifies the Assembly ID and Vendor visible in SRIOMAINT(0,2..3)_ASMBLY_ID register.  The
  *  Assembly Vendor ID is typically supplied by the RapidIO Trade Association.  This register is only
- *  reset during COLD boot and may only be modified while SRIO(0..1)_STATUS_REG.ACCESS is zero.
+ *  reset during COLD boot and may only be modified while SRIO(0,2..3)_STATUS_REG.ACCESS is zero.
  *
- * Clk_Rst:        SRIO(0..1)_ASMBLY_ID    sclk    srst_cold_n
+ * Clk_Rst:        SRIO(0,2..3)_ASMBLY_ID  sclk    srst_cold_n
  */
-union cvmx_sriox_asmbly_id
-{
+union cvmx_sriox_asmbly_id {
 	uint64_t u64;
-	struct cvmx_sriox_asmbly_id_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_asmbly_id_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t assy_id                      : 16; /**< Assembly Identifer */
 	uint64_t assy_ven                     : 16; /**< Assembly Vendor Identifer */
@@ -627,6 +710,7 @@ union cvmx_sriox_asmbly_id
 	} s;
 	struct cvmx_sriox_asmbly_id_s         cn63xx;
 	struct cvmx_sriox_asmbly_id_s         cn63xxp1;
+	struct cvmx_sriox_asmbly_id_s         cn66xx;
 };
 typedef union cvmx_sriox_asmbly_id cvmx_sriox_asmbly_id_t;
 
@@ -639,17 +723,15 @@ typedef union cvmx_sriox_asmbly_id cvmx_sriox_asmbly_id_t;
  *
  * Notes:
  * The Assembly Info register controls the Assembly Revision visible in the ASSY_REV field of the
- *  SRIOMAINT(0..1)_ASMBLY_INFO register.  This register is only reset during COLD boot and may only be
- *  modified while SRIO(0..1)_STATUS_REG.ACCESS is zero.
+ *  SRIOMAINT(0,2..3)_ASMBLY_INFO register.  This register is only reset during COLD boot and may only be
+ *  modified while SRIO(0,2..3)_STATUS_REG.ACCESS is zero.
  *
- * Clk_Rst:        SRIO(0..1)_ASMBLY_INFO  sclk    srst_cold_n
+ * Clk_Rst:        SRIO(0,2..3)_ASMBLY_INFO        sclk    srst_cold_n
  */
-union cvmx_sriox_asmbly_info
-{
+union cvmx_sriox_asmbly_info {
 	uint64_t u64;
-	struct cvmx_sriox_asmbly_info_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_asmbly_info_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t assy_rev                     : 16; /**< Assembly Revision */
 	uint64_t reserved_0_15                : 16;
@@ -661,6 +743,7 @@ union cvmx_sriox_asmbly_info
 	} s;
 	struct cvmx_sriox_asmbly_info_s       cn63xx;
 	struct cvmx_sriox_asmbly_info_s       cn63xxp1;
+	struct cvmx_sriox_asmbly_info_s       cn66xx;
 };
 typedef union cvmx_sriox_asmbly_info cvmx_sriox_asmbly_info_t;
 
@@ -674,14 +757,12 @@ typedef union cvmx_sriox_asmbly_info cvmx_sriox_asmbly_info_t;
  * Notes:
  * This register is used to override the response priority of the outgoing doorbell responses.
  *
- * Clk_Rst:        SRIO(0..1)_BELL_RESP_CTRL       hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_BELL_RESP_CTRL     hclk    hrst_n
  */
-union cvmx_sriox_bell_resp_ctrl
-{
+union cvmx_sriox_bell_resp_ctrl {
 	uint64_t u64;
-	struct cvmx_sriox_bell_resp_ctrl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_bell_resp_ctrl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t rp1_sid                      : 1;  /**< Sets response priority for incomimg doorbells
                                                          of priority 1 on the secondary ID (0=2, 1=3) */
@@ -701,6 +782,7 @@ union cvmx_sriox_bell_resp_ctrl
 	} s;
 	struct cvmx_sriox_bell_resp_ctrl_s    cn63xx;
 	struct cvmx_sriox_bell_resp_ctrl_s    cn63xxp1;
+	struct cvmx_sriox_bell_resp_ctrl_s    cn66xx;
 };
 typedef union cvmx_sriox_bell_resp_ctrl cvmx_sriox_bell_resp_ctrl_t;
 
@@ -714,15 +796,14 @@ typedef union cvmx_sriox_bell_resp_ctrl cvmx_sriox_bell_resp_ctrl_t;
  * Notes:
  * BIST Results.
  *
- * Clk_Rst:        SRIO(0..1)_BIST_STATUS  hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_BIST_STATUS        hclk    hrst_n
  */
-union cvmx_sriox_bist_status
-{
+union cvmx_sriox_bist_status {
 	uint64_t u64;
-	struct cvmx_sriox_bist_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
-	uint64_t reserved_44_63               : 20;
+	struct cvmx_sriox_bist_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_45_63               : 19;
+	uint64_t lram                         : 1;  /**< Incoming Doorbell Lookup RAM. */
 	uint64_t mram                         : 2;  /**< Incoming Message SLI FIFO. */
 	uint64_t cram                         : 2;  /**< Incoming Rd/Wr/Response Command FIFO. */
 	uint64_t bell                         : 2;  /**< Incoming Doorbell FIFO. */
@@ -732,8 +813,8 @@ union cvmx_sriox_bist_status
 	uint64_t rtn                          : 2;  /**< Outgoing Response Return FIFO. */
 	uint64_t obulk                        : 4;  /**< Outgoing Bulk Data RAMs (OFIFO) */
 	uint64_t optrs                        : 4;  /**< Outgoing Priority Pointer RAMs (OFIFO) */
-	uint64_t reserved_22_23               : 2;
-	uint64_t rxbuf2                       : 2;  /**< Additional Incoming SRIO MAC Buffers (Pass 2). */
+	uint64_t oarb2                        : 2;  /**< Additional Outgoing Priority RAMs. */
+	uint64_t rxbuf2                       : 2;  /**< Additional Incoming SRIO MAC Buffers. */
 	uint64_t oarb                         : 2;  /**< Outgoing Priority RAMs (OARB) */
 	uint64_t ispf                         : 1;  /**< Incoming Soft Packet FIFO */
 	uint64_t ospf                         : 1;  /**< Outgoing Soft Packet FIFO */
@@ -750,7 +831,52 @@ union cvmx_sriox_bist_status
 	uint64_t ispf                         : 1;
 	uint64_t oarb                         : 2;
 	uint64_t rxbuf2                       : 2;
-	uint64_t reserved_22_23               : 2;
+	uint64_t oarb2                        : 2;
+	uint64_t optrs                        : 4;
+	uint64_t obulk                        : 4;
+	uint64_t rtn                          : 2;
+	uint64_t ofree                        : 1;
+	uint64_t itag                         : 1;
+	uint64_t otag                         : 2;
+	uint64_t bell                         : 2;
+	uint64_t cram                         : 2;
+	uint64_t mram                         : 2;
+	uint64_t lram                         : 1;
+	uint64_t reserved_45_63               : 19;
+#endif
+	} s;
+	struct cvmx_sriox_bist_status_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_44_63               : 20;
+	uint64_t mram                         : 2;  /**< Incoming Message SLI FIFO. */
+	uint64_t cram                         : 2;  /**< Incoming Rd/Wr/Response Command FIFO. */
+	uint64_t bell                         : 2;  /**< Incoming Doorbell FIFO. */
+	uint64_t otag                         : 2;  /**< Outgoing Tag Data. */
+	uint64_t itag                         : 1;  /**< Incoming TAG Data. */
+	uint64_t ofree                        : 1;  /**< Outgoing Free Pointer RAM (OFIFO) */
+	uint64_t rtn                          : 2;  /**< Outgoing Response Return FIFO. */
+	uint64_t obulk                        : 4;  /**< Outgoing Bulk Data RAMs (OFIFO) */
+	uint64_t optrs                        : 4;  /**< Outgoing Priority Pointer RAMs (OFIFO) */
+	uint64_t oarb2                        : 2;  /**< Additional Outgoing Priority RAMs (Pass 2). */
+	uint64_t rxbuf2                       : 2;  /**< Additional Incoming SRIO MAC Buffers (Pass 2). */
+	uint64_t oarb                         : 2;  /**< Outgoing Priority RAMs (OARB) */
+	uint64_t ispf                         : 1;  /**< Incoming Soft Packet FIFO */
+	uint64_t ospf                         : 1;  /**< Outgoing Soft Packet FIFO */
+	uint64_t txbuf                        : 2;  /**< Outgoing SRIO MAC Buffer. */
+	uint64_t rxbuf                        : 2;  /**< Incoming SRIO MAC Buffer. */
+	uint64_t imsg                         : 5;  /**< Incoming Message RAMs.
+                                                         IMSG<0> (i.e. <7>) unused in Pass 2 */
+	uint64_t omsg                         : 7;  /**< Outgoing Message RAMs. */
+#else
+	uint64_t omsg                         : 7;
+	uint64_t imsg                         : 5;
+	uint64_t rxbuf                        : 2;
+	uint64_t txbuf                        : 2;
+	uint64_t ospf                         : 1;
+	uint64_t ispf                         : 1;
+	uint64_t oarb                         : 2;
+	uint64_t rxbuf2                       : 2;
+	uint64_t oarb2                        : 2;
 	uint64_t optrs                        : 4;
 	uint64_t obulk                        : 4;
 	uint64_t rtn                          : 2;
@@ -762,11 +888,9 @@ union cvmx_sriox_bist_status
 	uint64_t mram                         : 2;
 	uint64_t reserved_44_63               : 20;
 #endif
-	} s;
-	struct cvmx_sriox_bist_status_s       cn63xx;
-	struct cvmx_sriox_bist_status_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	} cn63xx;
+	struct cvmx_sriox_bist_status_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_44_63               : 20;
 	uint64_t mram                         : 2;  /**< Incoming Message SLI FIFO. */
 	uint64_t cram                         : 2;  /**< Incoming Rd/Wr/Response Command FIFO. */
@@ -806,6 +930,7 @@ union cvmx_sriox_bist_status
 	uint64_t reserved_44_63               : 20;
 #endif
 	} cn63xxp1;
+	struct cvmx_sriox_bist_status_s       cn66xx;
 };
 typedef union cvmx_sriox_bist_status cvmx_sriox_bist_status_t;
 
@@ -819,14 +944,12 @@ typedef union cvmx_sriox_bist_status cvmx_sriox_bist_status_t;
  * Notes:
  * RSP_THR should not typically be modified from reset value.
  *
- * Clk_Rst:        SRIO(0..1)_IMSG_CTRL    hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_IMSG_CTRL  hclk    hrst_n
  */
-union cvmx_sriox_imsg_ctrl
-{
+union cvmx_sriox_imsg_ctrl {
 	uint64_t u64;
-	struct cvmx_sriox_imsg_ctrl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_imsg_ctrl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t to_mode                      : 1;  /**< MP message timeout mode:
                                                          - 0: The timeout counter gets reset whenever the
@@ -836,9 +959,7 @@ union cvmx_sriox_imsg_ctrl
                                                              next sequential segment is received and
                                                              accepted */
 	uint64_t reserved_30_30               : 1;
-	uint64_t rsp_thr                      : 6;  /**< Sets max number of msg responses in queue before
-                                                         sending link-layer retries (field value is added
-                                                         to 16 to create threshold value) */
+	uint64_t rsp_thr                      : 6;  /**< Reserved */
 	uint64_t reserved_22_23               : 2;
 	uint64_t rp1_sid                      : 1;  /**< Sets msg response priority for incomimg messages
                                                          of priority 1 on the secondary ID (0=2, 1=3) */
@@ -877,6 +998,7 @@ union cvmx_sriox_imsg_ctrl
 	} s;
 	struct cvmx_sriox_imsg_ctrl_s         cn63xx;
 	struct cvmx_sriox_imsg_ctrl_s         cn63xxp1;
+	struct cvmx_sriox_imsg_ctrl_s         cn66xx;
 };
 typedef union cvmx_sriox_imsg_ctrl cvmx_sriox_imsg_ctrl_t;
 
@@ -893,14 +1015,12 @@ typedef union cvmx_sriox_imsg_ctrl cvmx_sriox_imsg_ctrl_t;
  *  as a PIP/IPD PKT_INST_HDR. This CSR matches the PIP/IPD PKT_INST_HDR format except for the QOS
  *  and GRP fields. SRIO*_IMSG_QOS_GRP*[QOS*,GRP*] supply the QOS and GRP fields.
  *
- * Clk_Rst:        SRIO(0..1)_IMSG_INST_HDR[0:1]   hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_IMSG_INST_HDR[0:1] hclk    hrst_n
  */
-union cvmx_sriox_imsg_inst_hdrx
-{
+union cvmx_sriox_imsg_inst_hdrx {
 	uint64_t u64;
-	struct cvmx_sriox_imsg_inst_hdrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_imsg_inst_hdrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t r                            : 1;  /**< Port/Controller X R */
 	uint64_t reserved_58_62               : 5;
 	uint64_t pm                           : 2;  /**< Port/Controller X PM */
@@ -934,6 +1054,7 @@ union cvmx_sriox_imsg_inst_hdrx
 	} s;
 	struct cvmx_sriox_imsg_inst_hdrx_s    cn63xx;
 	struct cvmx_sriox_imsg_inst_hdrx_s    cn63xxp1;
+	struct cvmx_sriox_imsg_inst_hdrx_s    cn66xx;
 };
 typedef union cvmx_sriox_imsg_inst_hdrx cvmx_sriox_imsg_inst_hdrx_t;
 
@@ -945,21 +1066,19 @@ typedef union cvmx_sriox_imsg_inst_hdrx cvmx_sriox_imsg_inst_hdrx_t;
  * The SRIO Incoming Message QOS/GRP Table Entry X
  *
  * Notes:
- * The QOS/GRP table contains 32 entries with 8 QOS/GRP pairs per entry - 256 pairs total.
- *       HW selects the table entry by the concatenation of SRIO_WORD0[PRIO,DIS,MBOX], thus entry 0 is
- *       used for messages with PRIO=0,DIS=0,MBOX=0, entry 1 is for PRIO=0,DIS=0,MBOX=1, etc.  HW
- *       selects the QOS/GRP pair from the table entry by the concatenation of SRIO_WORD0[ID,LETTER] as
- *       shown above. HW then inserts the QOS/GRP pair into SRIO_WORD1[QOS,GRP], which may commonly
- *       be used for the PIP/IPD PKT_INST_HDR[QOS,GRP] fields.
+ * The QOS/GRP table contains 32 entries with 8 QOS/GRP pairs per entry - 256 pairs total.  HW
+ *  selects the table entry by the concatenation of SRIO_WORD0[PRIO,DIS,MBOX], thus entry 0 is used
+ *  for messages with PRIO=0,DIS=0,MBOX=0, entry 1 is for PRIO=0,DIS=0,MBOX=1, etc.  HW selects the
+ *  QOS/GRP pair from the table entry by the concatenation of SRIO_WORD0[ID,LETTER] as shown above. HW
+ *  then inserts the QOS/GRP pair into SRIO_WORD1[QOS,GRP], which may commonly be used for the PIP/IPD
+ *  PKT_INST_HDR[QOS,GRP] fields.
  *
- * Clk_Rst:        SRIO(0..1)_IMSG_QOS_GRP[0:1]    hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_IMSG_QOS_GRP[0:1]  hclk    hrst_n
  */
-union cvmx_sriox_imsg_qos_grpx
-{
+union cvmx_sriox_imsg_qos_grpx {
 	uint64_t u64;
-	struct cvmx_sriox_imsg_qos_grpx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_imsg_qos_grpx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_63_63               : 1;
 	uint64_t qos7                         : 3;  /**< Entry X:7 QOS (ID=1, LETTER=3) */
 	uint64_t grp7                         : 4;  /**< Entry X:7 GRP (ID=1, LETTER=3) */
@@ -1013,6 +1132,7 @@ union cvmx_sriox_imsg_qos_grpx
 	} s;
 	struct cvmx_sriox_imsg_qos_grpx_s     cn63xx;
 	struct cvmx_sriox_imsg_qos_grpx_s     cn63xxp1;
+	struct cvmx_sriox_imsg_qos_grpx_s     cn66xx;
 };
 typedef union cvmx_sriox_imsg_qos_grpx cvmx_sriox_imsg_qos_grpx_t;
 
@@ -1024,15 +1144,13 @@ typedef union cvmx_sriox_imsg_qos_grpx cvmx_sriox_imsg_qos_grpx_t;
  * The SRIO Incoming Message Status Table Entry X
  *
  * Notes:
- * Clk_Rst:        SRIO(0..1)_IMSG_STATUS[0:1]     hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_IMSG_STATUS[0:1]   hclk    hrst_n
  *
  */
-union cvmx_sriox_imsg_statusx
-{
+union cvmx_sriox_imsg_statusx {
 	uint64_t u64;
-	struct cvmx_sriox_imsg_statusx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_imsg_statusx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t val1                         : 1;  /**< Entry X:1 Valid */
 	uint64_t err1                         : 1;  /**< Entry X:1 Error */
 	uint64_t toe1                         : 1;  /**< Entry X:1 Timeout Error */
@@ -1086,6 +1204,7 @@ union cvmx_sriox_imsg_statusx
 	} s;
 	struct cvmx_sriox_imsg_statusx_s      cn63xx;
 	struct cvmx_sriox_imsg_statusx_s      cn63xxp1;
+	struct cvmx_sriox_imsg_statusx_s      cn66xx;
 };
 typedef union cvmx_sriox_imsg_statusx cvmx_sriox_imsg_statusx_t;
 
@@ -1097,30 +1216,27 @@ typedef union cvmx_sriox_imsg_statusx cvmx_sriox_imsg_statusx_t;
  * The SRIO Incoming Message Virtual Port Threshold Register
  *
  * Notes:
- * SRIO0_IMSG_VPORT_THR.MAX_TOT must be >= SRIO0_IMSG_VPORT_THR.BUF_THR + SRIO1_IMSG_VPORT_THR.BUF_THR
- * This register can be accessed regardless of the value in SRIO(0..1)_STATUS_REG.ACCESS and is not
- * effected by MAC reset.
+ * SRIO0_IMSG_VPORT_THR.MAX_TOT must be >= SRIO0_IMSG_VPORT_THR.BUF_THR
+ * + SRIO2_IMSG_VPORT_THR.BUF_THR + SRIO3_IMSG_VPORT_THR.BUF_THR.  This register can be accessed
+ * regardless of the value in SRIO(0,2..3)_STATUS_REG.ACCESS and is not effected by MAC reset.  The maximum
+ * number of VPORTs allocated to a MAC is limited to 46 if QLM0 is configured to x2 or x4 mode and 44
+ * if configured in x1 mode.
  *
- * Clk_Rst:        SRIO(0..1)_IMSG_VPORT_THR       sclk    srst_n
+ * Clk_Rst:        SRIO(0,2..3)_IMSG_VPORT_THR     sclk    srst_n
  */
-union cvmx_sriox_imsg_vport_thr
-{
+union cvmx_sriox_imsg_vport_thr {
 	uint64_t u64;
-	struct cvmx_sriox_imsg_vport_thr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_imsg_vport_thr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_54_63               : 10;
-	uint64_t max_tot                      : 6;  /**< Sets max number of vports available to SRIO0+SRIO1
-                                                         This field is only used in SRIO0.
-                                                         SRIO1 never uses SRIO1_IMSG_VPORT_THR[MAX_TOT]. */
+	uint64_t max_tot                      : 6;  /**< Sets max number of vports available to the chip
+                                                         This field is only used in SRIO0. */
 	uint64_t reserved_46_47               : 2;
-	uint64_t max_s1                       : 6;  /**< Sets max number of vports available to SRIO1
-                                                         This field is only used in SRIO0.
-                                                         SRIO1 never uses SRIO1_IMSG_VPORT_THR[MAX_S1]. */
+	uint64_t max_s1                       : 6;  /**< Reserved
+                                                         This field is only used in SRIO0. */
 	uint64_t reserved_38_39               : 2;
 	uint64_t max_s0                       : 6;  /**< Sets max number of vports available to SRIO0
-                                                         This field is only used in SRIO0.
-                                                         SRIO1 never uses SRIO1_IMSG_VPORT_THR[MAX_S0]. */
+                                                         This field is only used in SRIO0. */
 	uint64_t sp_vport                     : 1;  /**< Single-segment vport pre-allocation.
                                                          When set, single-segment messages use pre-allocated
                                                          vport slots (that do not count toward thresholds).
@@ -1161,28 +1277,66 @@ union cvmx_sriox_imsg_vport_thr
 	} s;
 	struct cvmx_sriox_imsg_vport_thr_s    cn63xx;
 	struct cvmx_sriox_imsg_vport_thr_s    cn63xxp1;
+	struct cvmx_sriox_imsg_vport_thr_s    cn66xx;
 };
 typedef union cvmx_sriox_imsg_vport_thr cvmx_sriox_imsg_vport_thr_t;
 
 /**
+ * cvmx_srio#_imsg_vport_thr2
+ *
+ * SRIO_IMSG_VPORT_THR2 = SRIO Incoming Message Virtual Port Additional Threshold
+ *
+ * The SRIO Incoming Message Virtual Port Additional Threshold Register
+ *
+ * Notes:
+ * Additional vport thresholds for SRIO MACs 2 and 3.  This register is only used in SRIO0 and is only
+ * used when the QLM0 is configured as x1 lanes or x2 lanes.  In the x1 case the maximum number of
+ * VPORTs is limited to 44.  In the x2 case the maximum number of VPORTs is limited to 46.  These
+ * values are ignored in the x4 configuration.  This register can be accessed regardless of the value
+ * in SRIO(0,2..3)_STATUS_REG.ACCESS and is not effected by MAC reset.
+ *
+ * Clk_Rst:        SRIO(0,2..3)_IMSG_VPORT_THR     sclk    srst_n
+ */
+union cvmx_sriox_imsg_vport_thr2 {
+	uint64_t u64;
+	struct cvmx_sriox_imsg_vport_thr2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_46_63               : 18;
+	uint64_t max_s3                       : 6;  /**< Sets max number of vports available to SRIO3
+                                                         This field is only used in SRIO0. */
+	uint64_t reserved_38_39               : 2;
+	uint64_t max_s2                       : 6;  /**< Sets max number of vports available to SRIO2
+                                                         This field is only used in SRIO0. */
+	uint64_t reserved_0_31                : 32;
+#else
+	uint64_t reserved_0_31                : 32;
+	uint64_t max_s2                       : 6;
+	uint64_t reserved_38_39               : 2;
+	uint64_t max_s3                       : 6;
+	uint64_t reserved_46_63               : 18;
+#endif
+	} s;
+	struct cvmx_sriox_imsg_vport_thr2_s   cn66xx;
+};
+typedef union cvmx_sriox_imsg_vport_thr2 cvmx_sriox_imsg_vport_thr2_t;
+
+/**
  * cvmx_srio#_int2_enable
  *
- * SRIO_INT2_ENABLE = SRIO Interrupt 2 Enable (Pass 2)
+ * SRIO_INT2_ENABLE = SRIO Interrupt 2 Enable
  *
  * Allows SRIO to generate additional interrupts when corresponding enable bit is set.
  *
  * Notes:
- * This register enables interrupts in SRIO(0..1)_INT2_REG that can be asserted while the MAC is in reset.
- *  The register can be accessed/modified regardless of the value of SRIO(0..1)_STATUS_REG.ACCESS.
+ * This register enables interrupts in SRIO(0,2..3)_INT2_REG that can be asserted while the MAC is in reset.
+ *  The register can be accessed/modified regardless of the value of SRIO(0,2..3)_STATUS_REG.ACCESS.
  *
- * Clk_Rst:        SRIO(0..1)_INT2_ENABLE  sclk    srst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT2_ENABLE        sclk    srst_n
  */
-union cvmx_sriox_int2_enable
-{
+union cvmx_sriox_int2_enable {
 	uint64_t u64;
-	struct cvmx_sriox_int2_enable_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int2_enable_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t pko_rst                      : 1;  /**< PKO Reset Error Enable */
 #else
@@ -1191,34 +1345,33 @@ union cvmx_sriox_int2_enable
 #endif
 	} s;
 	struct cvmx_sriox_int2_enable_s       cn63xx;
+	struct cvmx_sriox_int2_enable_s       cn66xx;
 };
 typedef union cvmx_sriox_int2_enable cvmx_sriox_int2_enable_t;
 
 /**
  * cvmx_srio#_int2_reg
  *
- * SRIO_INT2_REG = SRIO Interrupt 2 Register (Pass 2)
+ * SRIO_INT2_REG = SRIO Interrupt 2 Register
  *
  * Displays and clears which enabled interrupts have occured
  *
  * Notes:
  * This register provides interrupt status. Unlike SRIO*_INT_REG, SRIO*_INT2_REG can be accessed
  *  whenever the SRIO is present, regardless of whether the corresponding SRIO is in reset or not.
- *  INT_SUM shows the status of the interrupts in SRIO(0..1)_INT_REG.  Any set bits written to this
+ *  INT_SUM shows the status of the interrupts in SRIO(0,2..3)_INT_REG.  Any set bits written to this
  *  register clear the corresponding interrupt.  The register can be accessed/modified regardless of
- *  the value of SRIO(0..1)_STATUS_REG.ACCESS and probably should be the first register read when an SRIO
+ *  the value of SRIO(0,2..3)_STATUS_REG.ACCESS and probably should be the first register read when an SRIO
  *  interrupt occurs.
  *
- * Clk_Rst:        SRIO(0..1)_INT2_REG     sclk    srst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT2_REG   sclk    srst_n
  */
-union cvmx_sriox_int2_reg
-{
+union cvmx_sriox_int2_reg {
 	uint64_t u64;
-	struct cvmx_sriox_int2_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int2_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
-	uint64_t int_sum                      : 1;  /**< Interrupt Set and Enabled in SRIO(0..1)_INT_REG */
+	uint64_t int_sum                      : 1;  /**< Interrupt Set and Enabled in SRIO(0,2..3)_INT_REG */
 	uint64_t reserved_1_30                : 30;
 	uint64_t pko_rst                      : 1;  /**< PKO Reset Error - Message Received from PKO while
                                                          MAC in reset. */
@@ -1230,6 +1383,7 @@ union cvmx_sriox_int2_reg
 #endif
 	} s;
 	struct cvmx_sriox_int2_reg_s          cn63xx;
+	struct cvmx_sriox_int2_reg_s          cn66xx;
 };
 typedef union cvmx_sriox_int2_reg cvmx_sriox_int2_reg_t;
 
@@ -1243,19 +1397,18 @@ typedef union cvmx_sriox_int2_reg cvmx_sriox_int2_reg_t;
  * Notes:
  * This register enables interrupts.
  *
- * Clk_Rst:        SRIO(0..1)_INT_ENABLE   hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT_ENABLE hclk    hrst_n
  */
-union cvmx_sriox_int_enable
-{
+union cvmx_sriox_int_enable {
 	uint64_t u64;
-	struct cvmx_sriox_int_enable_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
-	uint64_t reserved_26_63               : 38;
-	uint64_t ttl_tout                     : 1;  /**< Outgoing Packet Time to Live Timeout (Pass 2) */
-	uint64_t fail                         : 1;  /**< ERB Error Rate reached Fail Count (Pass 2) */
-	uint64_t degrade                      : 1;  /**< ERB Error Rate reached Degrade Count (Pass 2) */
-	uint64_t mac_buf                      : 1;  /**< SRIO MAC Buffer CRC Error (Pass 2) */
+	struct cvmx_sriox_int_enable_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_27_63               : 37;
+	uint64_t zero_pkt                     : 1;  /**< Received Incoming SRIO Zero byte packet */
+	uint64_t ttl_tout                     : 1;  /**< Outgoing Packet Time to Live Timeout */
+	uint64_t fail                         : 1;  /**< ERB Error Rate reached Fail Count */
+	uint64_t degrade                      : 1;  /**< ERB Error Rate reached Degrade Count */
+	uint64_t mac_buf                      : 1;  /**< SRIO MAC Buffer CRC Error */
 	uint64_t f_error                      : 1;  /**< SRIO Fatal Port Error (MAC reset required) */
 	uint64_t rtry_err                     : 1;  /**< Outbound Message Retry Threshold Exceeded */
 	uint64_t pko_err                      : 1;  /**< Outbound Message Received PKO Error */
@@ -1305,13 +1458,13 @@ union cvmx_sriox_int_enable
 	uint64_t degrade                      : 1;
 	uint64_t fail                         : 1;
 	uint64_t ttl_tout                     : 1;
-	uint64_t reserved_26_63               : 38;
+	uint64_t zero_pkt                     : 1;
+	uint64_t reserved_27_63               : 37;
 #endif
 	} s;
 	struct cvmx_sriox_int_enable_s        cn63xx;
-	struct cvmx_sriox_int_enable_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int_enable_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t f_error                      : 1;  /**< SRIO Fatal Port Error (MAC reset required) */
 	uint64_t rtry_err                     : 1;  /**< Outbound Message Retry Threshold Exceeded */
@@ -1361,6 +1514,7 @@ union cvmx_sriox_int_enable
 	uint64_t reserved_22_63               : 42;
 #endif
 	} cn63xxp1;
+	struct cvmx_sriox_int_enable_s        cn66xx;
 };
 typedef union cvmx_sriox_int_enable cvmx_sriox_int_enable_t;
 
@@ -1373,7 +1527,7 @@ typedef union cvmx_sriox_int_enable cvmx_sriox_int_enable_t;
  *
  * Notes:
  * This register contains the first header word of the illegal s2m transaction associated with the
- *  SLI_ERR interrupt.  The remaining information is located in SRIO(0..1)_INT_INFO1.   This register is
+ *  SLI_ERR interrupt.  The remaining information is located in SRIO(0,2..3)_INT_INFO1.   This register is
  *  only updated when the SLI_ERR is initially detected.  Once the interrupt is cleared then
  *  additional information can be captured.
  *  Common Errors Include:
@@ -1383,14 +1537,12 @@ typedef union cvmx_sriox_int_enable cvmx_sriox_int_enable_t;
  *   4.  Load/Store Ops with a Length 0
  *   5.  Unexpected Responses
  *
- * Clk_Rst:        SRIO(0..1)_INT_REG      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT_REG    hclk    hrst_n
  */
-union cvmx_sriox_int_info0
-{
+union cvmx_sriox_int_info0 {
 	uint64_t u64;
-	struct cvmx_sriox_int_info0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int_info0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t cmd                          : 4;  /**< Command
                                                          0 = Load, Outgoing Read Request
                                                          4 = Store, Outgoing Write Request
@@ -1423,6 +1575,7 @@ union cvmx_sriox_int_info0
 	} s;
 	struct cvmx_sriox_int_info0_s         cn63xx;
 	struct cvmx_sriox_int_info0_s         cn63xxp1;
+	struct cvmx_sriox_int_info0_s         cn66xx;
 };
 typedef union cvmx_sriox_int_info0 cvmx_sriox_int_info0_t;
 
@@ -1435,18 +1588,16 @@ typedef union cvmx_sriox_int_info0 cvmx_sriox_int_info0_t;
  *
  * Notes:
  * This register contains the second header word of the illegal s2m transaction associated with the
- *  SLI_ERR interrupt.  The remaining information is located in SRIO(0..1)_INT_INFO0.   This register is
+ *  SLI_ERR interrupt.  The remaining information is located in SRIO(0,2..3)_INT_INFO0.   This register is
  *  only updated when the SLI_ERR is initially detected.  Once the interrupt is cleared then
  *  additional information can be captured.
  *
- * Clk_Rst:        SRIO(0..1)_INT_REG      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT_REG    hclk    hrst_n
  */
-union cvmx_sriox_int_info1
-{
+union cvmx_sriox_int_info1 {
 	uint64_t u64;
-	struct cvmx_sriox_int_info1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int_info1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t info1                        : 64; /**< Address (Load/Store) or First 64-bit Word of
                                                          Response Data Associated with Interrupt */
 #else
@@ -1455,6 +1606,7 @@ union cvmx_sriox_int_info1
 	} s;
 	struct cvmx_sriox_int_info1_s         cn63xx;
 	struct cvmx_sriox_int_info1_s         cn63xxp1;
+	struct cvmx_sriox_int_info1_s         cn66xx;
 };
 typedef union cvmx_sriox_int_info1 cvmx_sriox_int_info1_t;
 
@@ -1470,14 +1622,12 @@ typedef union cvmx_sriox_int_info1 cvmx_sriox_int_info1_t;
  *  interrupt.  This register is only updated when the OMSG_ERR is initially detected.  Once the
  *  interrupt is cleared then additional information can be captured.
  *
- * Clk_Rst:        SRIO(0..1)_INT_REG      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT_REG    hclk    hrst_n
  */
-union cvmx_sriox_int_info2
-{
+union cvmx_sriox_int_info2 {
 	uint64_t u64;
-	struct cvmx_sriox_int_info2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int_info2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t prio                         : 2;  /**< PRIO field of outbound message descriptor
                                                          associated with the OMSG_ERR interrupt */
 	uint64_t tt                           : 1;  /**< TT field of outbound message descriptor
@@ -1516,6 +1666,7 @@ union cvmx_sriox_int_info2
 	} s;
 	struct cvmx_sriox_int_info2_s         cn63xx;
 	struct cvmx_sriox_int_info2_s         cn63xxp1;
+	struct cvmx_sriox_int_info2_s         cn66xx;
 };
 typedef union cvmx_sriox_int_info2 cvmx_sriox_int_info2_t;
 
@@ -1531,14 +1682,12 @@ typedef union cvmx_sriox_int_info2 cvmx_sriox_int_info2_t;
  *  is only updated when the RTRY_ERR is initially detected.  Once the interrupt is cleared then
  *  additional information can be captured.
  *
- * Clk_Rst:        SRIO(0..1)_INT_REG      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT_REG    hclk    hrst_n
  */
-union cvmx_sriox_int_info3
-{
+union cvmx_sriox_int_info3 {
 	uint64_t u64;
-	struct cvmx_sriox_int_info3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int_info3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t prio                         : 2;  /**< Priority of received retry response message */
 	uint64_t tt                           : 2;  /**< TT of received retry response message */
 	uint64_t type                         : 4;  /**< Type of received retry response message
@@ -1572,6 +1721,7 @@ union cvmx_sriox_int_info3
 	} s;
 	struct cvmx_sriox_int_info3_s         cn63xx;
 	struct cvmx_sriox_int_info3_s         cn63xxp1;
+	struct cvmx_sriox_int_info3_s         cn66xx;
 };
 typedef union cvmx_sriox_int_info3 cvmx_sriox_int_info3_t;
 
@@ -1595,58 +1745,59 @@ typedef union cvmx_sriox_int_info3 cvmx_sriox_int_info3_t;
  *  SSIZE field is set to a reserved value, the SSIZE field combined with the packet length would
  *  result in more than 16 message segments, or the packet only contains a descriptor (no data).
  *
- * Clk_Rst:        SRIO(0..1)_INT_REG      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_INT_REG    hclk    hrst_n
  */
-union cvmx_sriox_int_reg
-{
+union cvmx_sriox_int_reg {
 	uint64_t u64;
-	struct cvmx_sriox_int_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
-	uint64_t int2_sum                     : 1;  /**< Interrupt Set and Enabled in SRIO(0..1)_INT2_REG
-                                                         (Pass 2) */
-	uint64_t reserved_26_30               : 5;
-	uint64_t ttl_tout                     : 1;  /**< Outgoing Packet Time to Live Timeout (Pass 2)
-                                                         See SRIOMAINT(0..1)_DROP_PACKET */
-	uint64_t fail                         : 1;  /**< ERB Error Rate reached Fail Count (Pass 2)
-                                                         See SRIOMAINT(0..1)_ERB_ERR_RATE */
-	uint64_t degrad                       : 1;  /**< ERB Error Rate reached Degrade Count (Pass 2)
-                                                         See SRIOMAINT(0..1)_ERB_ERR_RATE */
-	uint64_t mac_buf                      : 1;  /**< SRIO MAC Buffer CRC Error (Pass 2)
-                                                         See SRIO(0..1)_MAC_BUFFERS */
+	uint64_t int2_sum                     : 1;  /**< Interrupt Set and Enabled in SRIO(0,2..3)_INT2_REG */
+	uint64_t reserved_27_30               : 4;
+	uint64_t zero_pkt                     : 1;  /**< Received Incoming SRIO Zero byte packet */
+	uint64_t ttl_tout                     : 1;  /**< Outgoing Packet Time to Live Timeout
+                                                         See SRIOMAINT(0,2..3)_DROP_PACKET */
+	uint64_t fail                         : 1;  /**< ERB Error Rate reached Fail Count
+                                                         See SRIOMAINT(0,2..3)_ERB_ERR_RATE */
+	uint64_t degrad                       : 1;  /**< ERB Error Rate reached Degrade Count
+                                                         See SRIOMAINT(0,2..3)_ERB_ERR_RATE */
+	uint64_t mac_buf                      : 1;  /**< SRIO MAC Buffer CRC Error
+                                                         See SRIO(0,2..3)_MAC_BUFFERS */
 	uint64_t f_error                      : 1;  /**< SRIO Fatal Port Error (MAC reset required) */
 	uint64_t rtry_err                     : 1;  /**< Outbound Message Retry Threshold Exceeded
-                                                         See SRIO(0..1)_INT_INFO3
+                                                         See SRIO(0,2..3)_INT_INFO3
                                                          When one or more of the segments in an outgoing
                                                          message have a RTRY_ERR, SRIO will not set
                                                          OMSG* after the message "transfer". */
 	uint64_t pko_err                      : 1;  /**< Outbound Message Received PKO Error */
 	uint64_t omsg_err                     : 1;  /**< Outbound Message Invalid Descriptor Error
-                                                         See SRIO(0..1)_INT_INFO2 */
-	uint64_t omsg1                        : 1;  /**< Controller 1 Outbound Message Complete */
-	uint64_t omsg0                        : 1;  /**< Controller 0 Outbound Message Complete */
+                                                         See SRIO(0,2..3)_INT_INFO2 */
+	uint64_t omsg1                        : 1;  /**< Controller 1 Outbound Message Complete
+                                                         See SRIO(0,2..3)_OMSG_DONE_COUNTS1 */
+	uint64_t omsg0                        : 1;  /**< Controller 0 Outbound Message Complete
+                                                         See SRIO(0,2..3)_OMSG_DONE_COUNTS0 */
 	uint64_t link_up                      : 1;  /**< Serial Link going from Inactive to Active */
 	uint64_t link_dwn                     : 1;  /**< Serial Link going from Active to Inactive */
 	uint64_t phy_erb                      : 1;  /**< Physical Layer Error detected in ERB
                                                          See SRIOMAINT*_ERB_ATTR_CAPT */
 	uint64_t log_erb                      : 1;  /**< Logical/Transport Layer Error detected in ERB
-                                                         See SRIOMAINT(0..1)_ERB_LT_ERR_DET */
+                                                         See SRIOMAINT(0,2..3)_ERB_LT_ERR_DET */
 	uint64_t soft_rx                      : 1;  /**< Incoming Packet received by Soft Packet FIFO */
 	uint64_t soft_tx                      : 1;  /**< Outgoing Packet sent by Soft Packet FIFO */
 	uint64_t mce_rx                       : 1;  /**< Incoming Multicast Event Symbol */
 	uint64_t mce_tx                       : 1;  /**< Outgoing Multicast Event Transmit Complete */
-	uint64_t wr_done                      : 1;  /**< Outgoing Last Nwrite_R DONE Response Received. */
+	uint64_t wr_done                      : 1;  /**< Outgoing Last Nwrite_R DONE Response Received.
+                                                         See SRIO(0,2..3)_WR_DONE_COUNTS */
 	uint64_t sli_err                      : 1;  /**< Unsupported S2M Transaction Received.
-                                                         See SRIO(0..1)_INT_INFO[1:0] */
+                                                         See SRIO(0,2..3)_INT_INFO[1:0] */
 	uint64_t deny_wr                      : 1;  /**< Incoming Maint_Wr Access to Denied Bar Registers. */
 	uint64_t bar_err                      : 1;  /**< Incoming Access Crossing/Missing BAR Address */
 	uint64_t maint_op                     : 1;  /**< Internal Maintenance Operation Complete.
-                                                         See SRIO(0..1)_MAINT_OP and SRIO(0..1)_MAINT_RD_DATA */
+                                                         See SRIO(0,2..3)_MAINT_OP and SRIO(0,2..3)_MAINT_RD_DATA */
 	uint64_t rxbell                       : 1;  /**< One or more Incoming Doorbells Received.
-                                                         Read SRIO(0..1)_RX_BELL to empty FIFO */
+                                                         Read SRIO(0,2..3)_RX_BELL to empty FIFO */
 	uint64_t bell_err                     : 1;  /**< Outgoing Doorbell Timeout, Retry or Error.
-                                                         See SRIO(0..1)_TX_BELL_INFO */
+                                                         See SRIO(0,2..3)_TX_BELL_INFO */
 	uint64_t txbell                       : 1;  /**< Outgoing Doorbell Complete.
                                                          TXBELL will not be asserted if a Timeout, Retry or
                                                          Error occurs. */
@@ -1677,15 +1828,15 @@ union cvmx_sriox_int_reg
 	uint64_t degrad                       : 1;
 	uint64_t fail                         : 1;
 	uint64_t ttl_tout                     : 1;
-	uint64_t reserved_26_30               : 5;
+	uint64_t zero_pkt                     : 1;
+	uint64_t reserved_27_30               : 4;
 	uint64_t int2_sum                     : 1;
 	uint64_t reserved_32_63               : 32;
 #endif
 	} s;
 	struct cvmx_sriox_int_reg_s           cn63xx;
-	struct cvmx_sriox_int_reg_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_int_reg_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t f_error                      : 1;  /**< SRIO Fatal Port Error (MAC reset required) */
 	uint64_t rtry_err                     : 1;  /**< Outbound Message Retry Threshold Exceeded
@@ -1748,6 +1899,7 @@ union cvmx_sriox_int_reg
 	uint64_t reserved_22_63               : 42;
 #endif
 	} cn63xxp1;
+	struct cvmx_sriox_int_reg_s           cn66xx;
 };
 typedef union cvmx_sriox_int_reg cvmx_sriox_int_reg_t;
 
@@ -1761,16 +1913,54 @@ typedef union cvmx_sriox_int_reg cvmx_sriox_int_reg_t;
  * Notes:
  * This register is used to override powerup values used by the SRIOMAINT Registers and QLM
  *  configuration.  The register is only reset during COLD boot.  It should only be modified only
- *  while SRIO(0..1)_STATUS_REG.ACCESS is zero.
+ *  while SRIO(0,2..3)_STATUS_REG.ACCESS is zero.
  *
- * Clk_Rst:        SRIO(0..1)_IP_FEATURE   sclk    srst_cold_n
+ * Clk_Rst:        SRIO(0,2..3)_IP_FEATURE sclk    srst_cold_n
  */
-union cvmx_sriox_ip_feature
-{
+union cvmx_sriox_ip_feature {
 	uint64_t u64;
-	struct cvmx_sriox_ip_feature_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_ip_feature_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t ops                          : 32; /**< Reset Value for the OPs fields in both the
+                                                         SRIOMAINT(0,2..3)_SRC_OPS and SRIOMAINT(0,2..3)_DST_OPS
+                                                         registers. */
+	uint64_t reserved_15_31               : 17;
+	uint64_t no_vmin                      : 1;  /**< Lane Sync Valid Minimum Count Disable. (Pass 3)
+                                                         0 = Wait for 2^12 valid codewords and at least
+                                                             127 comma characters before starting
+                                                             alignment.
+                                                         1 = Wait only for 127 comma characters before
+                                                             starting alignment. (SRIO V1.3 Compatable) */
+	uint64_t a66                          : 1;  /**< 66-bit Address Support.  Value for bit 2 of the
+                                                         EX_ADDR field in the SRIOMAINT(0,2..3)_PE_FEAT register. */
+	uint64_t a50                          : 1;  /**< 50-bit Address Support.  Value for bit 1 of the
+                                                         EX_ADDR field in the SRIOMAINT(0,2..3)_PE_FEAT register. */
+	uint64_t reserved_11_11               : 1;
+	uint64_t tx_flow                      : 1;  /**< Reset Value for the TX_FLOW field in the
+                                                         SRIOMAINT(0,2..3)_IR_BUFFER_CONFIG register. */
+	uint64_t pt_width                     : 2;  /**< Value for the PT_WIDTH field in the
+                                                         SRIOMAINT(0,2..3)_PORT_0_CTL register. */
+	uint64_t tx_pol                       : 4;  /**< TX Serdes Polarity Lanes 3-0
+                                                         0 = Normal Operation
+                                                         1 = Invert, Swap +/- Tx SERDES Pins */
+	uint64_t rx_pol                       : 4;  /**< RX Serdes Polarity Lanes 3-0
+                                                         0 = Normal Operation
+                                                         1 = Invert, Swap +/- Rx SERDES Pins */
+#else
+	uint64_t rx_pol                       : 4;
+	uint64_t tx_pol                       : 4;
+	uint64_t pt_width                     : 2;
+	uint64_t tx_flow                      : 1;
+	uint64_t reserved_11_11               : 1;
+	uint64_t a50                          : 1;
+	uint64_t a66                          : 1;
+	uint64_t no_vmin                      : 1;
+	uint64_t reserved_15_31               : 17;
+	uint64_t ops                          : 32;
+#endif
+	} s;
+	struct cvmx_sriox_ip_feature_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t ops                          : 32; /**< Reset Value for the OPs fields in both the
                                                          SRIOMAINT(0..1)_SRC_OPS and SRIOMAINT(0..1)_DST_OPS
                                                          registers. */
@@ -1781,9 +1971,13 @@ union cvmx_sriox_ip_feature
                                                          EX_ADDR field in the SRIOMAINT(0..1)_PE_FEAT register. */
 	uint64_t reserved_11_11               : 1;
 	uint64_t tx_flow                      : 1;  /**< Reset Value for the TX_FLOW field in the
-                                                         SRIOMAINT(0..1)_IR_BUFFER_CONFIG register. */
+                                                         SRIOMAINT(0..1)_IR_BUFFER_CONFIG register.
+                                                         Pass 2 will Reset to 1 when RTL ready.
+                                                         (TX flow control not supported in pass 1) */
 	uint64_t pt_width                     : 2;  /**< Value for the PT_WIDTH field in the
-                                                         SRIOMAINT(0..1)_PORT_0_CTL register. */
+                                                         SRIOMAINT(0..1)_PORT_0_CTL register.
+                                                         Reset to 0x2 rather than 0x3 in pass 1 (2 lane
+                                                         interface supported in pass 1). */
 	uint64_t tx_pol                       : 4;  /**< TX Serdes Polarity Lanes 3-0
                                                          0 = Normal Operation
                                                          1 = Invert, Swap +/- Tx SERDES Pins */
@@ -1801,16 +1995,16 @@ union cvmx_sriox_ip_feature
 	uint64_t reserved_14_31               : 18;
 	uint64_t ops                          : 32;
 #endif
-	} s;
-	struct cvmx_sriox_ip_feature_s        cn63xx;
-	struct cvmx_sriox_ip_feature_s        cn63xxp1;
+	} cn63xx;
+	struct cvmx_sriox_ip_feature_cn63xx   cn63xxp1;
+	struct cvmx_sriox_ip_feature_s        cn66xx;
 };
 typedef union cvmx_sriox_ip_feature cvmx_sriox_ip_feature_t;
 
 /**
  * cvmx_srio#_mac_buffers
  *
- * SRIO_MAC_BUFFERS = SRIO MAC Buffer Control (Pass 2)
+ * SRIO_MAC_BUFFERS = SRIO MAC Buffer Control
  *
  * Reports errors and controls buffer usage on the main MAC buffers
  *
@@ -1819,14 +2013,12 @@ typedef union cvmx_sriox_ip_feature cvmx_sriox_ip_feature_t;
  *  buffer in future operations.  It also displays the number of RX and TX buffers currently used by
  *  the MAC.
  *
- * Clk_Rst:        SRIO(0..1)_MAC_BUFFERS  hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_MAC_BUFFERS        hclk    hrst_n
  */
-union cvmx_sriox_mac_buffers
-{
+union cvmx_sriox_mac_buffers {
 	uint64_t u64;
-	struct cvmx_sriox_mac_buffers_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_mac_buffers_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_56_63               : 8;
 	uint64_t tx_enb                       : 8;  /**< TX Buffer Enable.  Each bit enables a specific TX
                                                          Buffer.  At least 2 of these bits must be set for
@@ -1839,7 +2031,7 @@ union cvmx_sriox_mac_buffers
 	uint64_t tx_stat                      : 8;  /**< Errors detected in main SRIO Transmit Buffers.
                                                          CRC error detected in buffer sets bit of buffer \#
                                                          until the corresponding TX_ENB is disabled.  Each
-                                                         bit set causes the SRIO(0..1)_INT_REG.MAC_BUF
+                                                         bit set causes the SRIO(0,2..3)_INT_REG.MAC_BUF
                                                          interrupt. */
 	uint64_t reserved_24_31               : 8;
 	uint64_t rx_enb                       : 8;  /**< RX Buffer Enable.  Each bit enables a specific RX
@@ -1853,7 +2045,7 @@ union cvmx_sriox_mac_buffers
 	uint64_t rx_stat                      : 8;  /**< Errors detected in main SRIO Receive Buffers.  CRC
                                                          error detected in buffer sets bit of buffer \#
                                                          until the corresponding RX_ENB is disabled.  Each
-                                                         bit set causes the SRIO(0..1)_INT_REG.MAC_BUF
+                                                         bit set causes the SRIO(0,2..3)_INT_REG.MAC_BUF
                                                          interrupt. */
 #else
 	uint64_t rx_stat                      : 8;
@@ -1869,6 +2061,7 @@ union cvmx_sriox_mac_buffers
 #endif
 	} s;
 	struct cvmx_sriox_mac_buffers_s       cn63xx;
+	struct cvmx_sriox_mac_buffers_s       cn66xx;
 };
 typedef union cvmx_sriox_mac_buffers cvmx_sriox_mac_buffers_t;
 
@@ -1888,14 +2081,12 @@ typedef union cvmx_sriox_mac_buffers cvmx_sriox_mac_buffers_t;
  *  clearing of the PENDING bit when an illegal address is selected. WR_DATA is used only during write
  *  operations.  Only 32-bit Maintenance Operations are supported.
  *
- * Clk_Rst:        SRIO(0..1)_MAINT_OP     hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_MAINT_OP   hclk    hrst_n
  */
-union cvmx_sriox_maint_op
-{
+union cvmx_sriox_maint_op {
 	uint64_t u64;
-	struct cvmx_sriox_maint_op_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_maint_op_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t wr_data                      : 32; /**< Write Data[31:0]. */
 	uint64_t reserved_27_31               : 5;
 	uint64_t fail                         : 1;  /**< Maintenance Operation Address Error */
@@ -1913,6 +2104,7 @@ union cvmx_sriox_maint_op
 	} s;
 	struct cvmx_sriox_maint_op_s          cn63xx;
 	struct cvmx_sriox_maint_op_s          cn63xxp1;
+	struct cvmx_sriox_maint_op_s          cn66xx;
 };
 typedef union cvmx_sriox_maint_op cvmx_sriox_maint_op_t;
 
@@ -1924,19 +2116,17 @@ typedef union cvmx_sriox_maint_op cvmx_sriox_maint_op_t;
  * Allows read access of maintenance registers.
  *
  * Notes:
- * This register allows read access of the local SRIOMAINT registers.  A write to the SRIO(0..1)_MAINT_OP
+ * This register allows read access of the local SRIOMAINT registers.  A write to the SRIO(0,2..3)_MAINT_OP
  *  register with the OP bit set to zero initiates a read request and clears the VALID bit.  The
  *  resulting read is returned here and the VALID bit is set.  Access to the register will not stall
  *  the RSL but the VALID bit should be read.
  *
- * Clk_Rst:        SRIO(0..1)_MAINT_RD_DATA        hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_MAINT_RD_DATA      hclk    hrst_n
  */
-union cvmx_sriox_maint_rd_data
-{
+union cvmx_sriox_maint_rd_data {
 	uint64_t u64;
-	struct cvmx_sriox_maint_rd_data_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_maint_rd_data_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_33_63               : 31;
 	uint64_t valid                        : 1;  /**< Read Data Valid. */
 	uint64_t rd_data                      : 32; /**< Read Data[31:0]. */
@@ -1948,6 +2138,7 @@ union cvmx_sriox_maint_rd_data
 	} s;
 	struct cvmx_sriox_maint_rd_data_s     cn63xx;
 	struct cvmx_sriox_maint_rd_data_s     cn63xxp1;
+	struct cvmx_sriox_maint_rd_data_s     cn66xx;
 };
 typedef union cvmx_sriox_maint_rd_data cvmx_sriox_maint_rd_data_t;
 
@@ -1964,14 +2155,12 @@ typedef union cvmx_sriox_maint_rd_data cvmx_sriox_maint_rd_data_t;
  *  of the transmit event.  The hardware will clear the bit when the event has been transmitted and
  *  set the MCS_TX Interrupt.
  *
- * Clk_Rst:        SRIO(0..1)_MCE_TX_CTL   hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_MCE_TX_CTL hclk    hrst_n
  */
-union cvmx_sriox_mce_tx_ctl
-{
+union cvmx_sriox_mce_tx_ctl {
 	uint64_t u64;
-	struct cvmx_sriox_mce_tx_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_mce_tx_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_1_63                : 63;
 	uint64_t mce                          : 1;  /**< Multicast Event Transmit. */
 #else
@@ -1981,6 +2170,7 @@ union cvmx_sriox_mce_tx_ctl
 	} s;
 	struct cvmx_sriox_mce_tx_ctl_s        cn63xx;
 	struct cvmx_sriox_mce_tx_ctl_s        cn63xxp1;
+	struct cvmx_sriox_mce_tx_ctl_s        cn66xx;
 };
 typedef union cvmx_sriox_mce_tx_ctl cvmx_sriox_mce_tx_ctl_t;
 
@@ -1996,14 +2186,12 @@ typedef union cvmx_sriox_mce_tx_ctl cvmx_sriox_mce_tx_ctl_t;
  *  the outgoing responses to memory operations.  The memory operations with responses include NREAD,
  *  NWRITE_R, ATOMIC_INC, ATOMIC_DEC, ATOMIC_SET and ATOMIC_CLR.
  *
- * Clk_Rst:        SRIO(0..1)_MEM_OP_CTRL  hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_MEM_OP_CTRL        hclk    hrst_n
  */
-union cvmx_sriox_mem_op_ctrl
-{
+union cvmx_sriox_mem_op_ctrl {
 	uint64_t u64;
-	struct cvmx_sriox_mem_op_ctrl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_mem_op_ctrl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t rr_ro                        : 1;  /**< Read Response Relaxed Ordering.  Controls ordering
                                                          rules for incoming memory operations
@@ -2035,6 +2223,7 @@ union cvmx_sriox_mem_op_ctrl
 	} s;
 	struct cvmx_sriox_mem_op_ctrl_s       cn63xx;
 	struct cvmx_sriox_mem_op_ctrl_s       cn63xxp1;
+	struct cvmx_sriox_mem_op_ctrl_s       cn66xx;
 };
 typedef union cvmx_sriox_mem_op_ctrl cvmx_sriox_mem_op_ctrl_t;
 
@@ -2053,18 +2242,17 @@ typedef union cvmx_sriox_mem_op_ctrl cvmx_sriox_mem_op_ctrl_t;
  * 4) When IDM_TT=0, it is possible for an ID match to match an 8-bit DID with a 16-bit DID - SRIO
  *        zero-extends all 8-bit DID's, and the DID comparisons are always 16-bits.
  *
- * Clk_Rst:        SRIO(0..1)_OMSG_CTRL[0:1]       hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_OMSG_CTRL[0:1]     hclk    hrst_n
  */
-union cvmx_sriox_omsg_ctrlx
-{
+union cvmx_sriox_omsg_ctrlx {
 	uint64_t u64;
-	struct cvmx_sriox_omsg_ctrlx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_ctrlx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t testmode                     : 1;  /**< Controller X test mode (keep as RSVD in HRM) */
 	uint64_t reserved_37_62               : 26;
 	uint64_t silo_max                     : 5;  /**< Sets max number outgoing segments for controller X
-                                                         (Pass 2) */
+                                                         Valid range is 0x01 .. 0x10  Note that lower
+                                                         values will reduce bandwidth. */
 	uint64_t rtry_thr                     : 16; /**< Controller X Retry threshold */
 	uint64_t rtry_en                      : 1;  /**< Controller X Retry threshold enable */
 	uint64_t reserved_11_14               : 4;
@@ -2090,9 +2278,8 @@ union cvmx_sriox_omsg_ctrlx
 #endif
 	} s;
 	struct cvmx_sriox_omsg_ctrlx_s        cn63xx;
-	struct cvmx_sriox_omsg_ctrlx_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_ctrlx_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t testmode                     : 1;  /**< Controller X test mode (keep as RSVD in HRM) */
 	uint64_t reserved_32_62               : 31;
 	uint64_t rtry_thr                     : 16; /**< Controller X Retry threshold */
@@ -2118,13 +2305,14 @@ union cvmx_sriox_omsg_ctrlx
 	uint64_t testmode                     : 1;
 #endif
 	} cn63xxp1;
+	struct cvmx_sriox_omsg_ctrlx_s        cn66xx;
 };
 typedef union cvmx_sriox_omsg_ctrlx cvmx_sriox_omsg_ctrlx_t;
 
 /**
  * cvmx_srio#_omsg_done_counts#
  *
- * SRIO_OMSG_DONE_COUNTSX = SRIO Outbound Message Complete Counts (Pass 2)
+ * SRIO_OMSG_DONE_COUNTSX = SRIO Outbound Message Complete Counts
  *
  * The SRIO Controller X Outbound Message Complete Counts Register
  *
@@ -2135,14 +2323,12 @@ typedef union cvmx_sriox_omsg_ctrlx cvmx_sriox_omsg_ctrlx_t;
  *  enabled.  The sum of the GOOD and BAD counts should equal the number of messages sent unless
  *  the MAC has been reset.
  *
- * Clk_Rst:        SRIO(0..1)_OMSG_DONE_COUNTS[0:1]        hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_OMSG_DONE_COUNTS[0:1]      hclk    hrst_n
  */
-union cvmx_sriox_omsg_done_countsx
-{
+union cvmx_sriox_omsg_done_countsx {
 	uint64_t u64;
-	struct cvmx_sriox_omsg_done_countsx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_done_countsx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t bad                          : 16; /**< Number of Outbound Messages requesting an INT that
                                                          did not increment GOOD. (One or more segment of the
@@ -2157,6 +2343,7 @@ union cvmx_sriox_omsg_done_countsx
 #endif
 	} s;
 	struct cvmx_sriox_omsg_done_countsx_s cn63xx;
+	struct cvmx_sriox_omsg_done_countsx_s cn66xx;
 };
 typedef union cvmx_sriox_omsg_done_countsx cvmx_sriox_omsg_done_countsx_t;
 
@@ -2185,14 +2372,12 @@ typedef union cvmx_sriox_omsg_done_countsx cvmx_sriox_omsg_done_countsx_t;
  * silo. When fields in this CSR are set, FMP candidate segments will match fewer silo entries and
  * can enter the silo more freely, probably providing better performance.
  *
- * Clk_Rst:        SRIO(0..1)_OMSG_FMP_MR[0:1]     hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_OMSG_FMP_MR[0:1]   hclk    hrst_n
  */
-union cvmx_sriox_omsg_fmp_mrx
-{
+union cvmx_sriox_omsg_fmp_mrx {
 	uint64_t u64;
-	struct cvmx_sriox_omsg_fmp_mrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_fmp_mrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t ctlr_sp                      : 1;  /**< Controller X FIRSTMP enable controller SP
                                                          When set, the FMP candidate message segment can
@@ -2305,6 +2490,7 @@ union cvmx_sriox_omsg_fmp_mrx
 	} s;
 	struct cvmx_sriox_omsg_fmp_mrx_s      cn63xx;
 	struct cvmx_sriox_omsg_fmp_mrx_s      cn63xxp1;
+	struct cvmx_sriox_omsg_fmp_mrx_s      cn66xx;
 };
 typedef union cvmx_sriox_omsg_fmp_mrx cvmx_sriox_omsg_fmp_mrx_t;
 
@@ -2333,14 +2519,12 @@ typedef union cvmx_sriox_omsg_fmp_mrx cvmx_sriox_omsg_fmp_mrx_t;
  * silo. When fields in this CSR are set, NMP candidate segments will match fewer silo entries and
  * can enter the silo more freely, probably providing better performance.
  *
- * Clk_Rst:        SRIO(0..1)_OMSG_NMP_MR[0:1]     hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_OMSG_NMP_MR[0:1]   hclk    hrst_n
  */
-union cvmx_sriox_omsg_nmp_mrx
-{
+union cvmx_sriox_omsg_nmp_mrx {
 	uint64_t u64;
-	struct cvmx_sriox_omsg_nmp_mrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_nmp_mrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t ctlr_sp                      : 1;  /**< Controller X NFIRSTMP enable controller SP
                                                          When set, the NMP candidate message segment can
@@ -2438,6 +2622,7 @@ union cvmx_sriox_omsg_nmp_mrx
 	} s;
 	struct cvmx_sriox_omsg_nmp_mrx_s      cn63xx;
 	struct cvmx_sriox_omsg_nmp_mrx_s      cn63xxp1;
+	struct cvmx_sriox_omsg_nmp_mrx_s      cn66xx;
 };
 typedef union cvmx_sriox_omsg_nmp_mrx cvmx_sriox_omsg_nmp_mrx_t;
 
@@ -2451,23 +2636,38 @@ typedef union cvmx_sriox_omsg_nmp_mrx cvmx_sriox_omsg_nmp_mrx_t;
  * Notes:
  * PORT maps the PKO port to SRIO interface \# / controller X as follows:
  *
- *    00 == PKO port 40
- *    01 == PKO port 41
- *    10 == PKO port 42
- *    11 == PKO port 43
+ *   000 == PKO port 40
+ *   001 == PKO port 41
+ *   010 == PKO port 42
+ *   011 == PKO port 43
+ *   100 == PKO port 44
+ *   101 == PKO port 45
+ *   110 == PKO port 46
+ *   111 == PKO port 47
  *
  *  No two PORT fields among the enabled controllers (ENABLE == 1) may be set to the same value.
  *  The register is only reset during COLD boot.  The register can be accessed/modified regardless of
- *  the value in SRIO(0..1)_STATUS_REG.ACCESS.
+ *  the value in SRIO(0,2..3)_STATUS_REG.ACCESS.
  *
- * Clk_Rst:        SRIO(0..1)_OMSG_PORT[0:1]       sclk    srst_n
+ * Clk_Rst:        SRIO(0,2..3)_OMSG_PORT[0:1]     sclk    srst_n
  */
-union cvmx_sriox_omsg_portx
-{
+union cvmx_sriox_omsg_portx {
 	uint64_t u64;
-	struct cvmx_sriox_omsg_portx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_portx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_32_63               : 32;
+	uint64_t enable                       : 1;  /**< Controller X enable */
+	uint64_t reserved_3_30                : 28;
+	uint64_t port                         : 3;  /**< Controller X PKO port */
+#else
+	uint64_t port                         : 3;
+	uint64_t reserved_3_30                : 28;
+	uint64_t enable                       : 1;
+	uint64_t reserved_32_63               : 32;
+#endif
+	} s;
+	struct cvmx_sriox_omsg_portx_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t enable                       : 1;  /**< Controller X enable */
 	uint64_t reserved_2_30                : 29;
@@ -2478,40 +2678,39 @@ union cvmx_sriox_omsg_portx
 	uint64_t enable                       : 1;
 	uint64_t reserved_32_63               : 32;
 #endif
-	} s;
-	struct cvmx_sriox_omsg_portx_s        cn63xx;
-	struct cvmx_sriox_omsg_portx_s        cn63xxp1;
+	} cn63xx;
+	struct cvmx_sriox_omsg_portx_cn63xx   cn63xxp1;
+	struct cvmx_sriox_omsg_portx_s        cn66xx;
 };
 typedef union cvmx_sriox_omsg_portx cvmx_sriox_omsg_portx_t;
 
 /**
  * cvmx_srio#_omsg_silo_thr
  *
- * SRIO_OMSG_SILO_THR = SRIO Outgoing Message SILO Thresholds (Pass 2)
+ * SRIO_OMSG_SILO_THR = SRIO Outgoing Message SILO Thresholds
  *
  * The SRIO Outgoing Message SILO Thresholds
  *
  * Notes:
- * Limits the number of Outgoing Message Segments in flight at a time.  This register is reserved in
- *  pass 1 and the threshold is set to 16.
+ * Limits the number of Outgoing Message Segments in flight at a time.
  *
- * Clk_Rst:        SRIO(0..1)_OMSG_SILO_THR        hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_OMSG_SILO_THR      hclk    hrst_n
  */
-union cvmx_sriox_omsg_silo_thr
-{
+union cvmx_sriox_omsg_silo_thr {
 	uint64_t u64;
-	struct cvmx_sriox_omsg_silo_thr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_silo_thr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t tot_silo                     : 5;  /**< Sets max number segments in flight for all
-                                                         controllers. */
+                                                         controllers.  Valid range is 0x01 .. 0x10 but
+                                                         lower values reduce bandwidth. */
 #else
 	uint64_t tot_silo                     : 5;
 	uint64_t reserved_5_63                : 59;
 #endif
 	} s;
 	struct cvmx_sriox_omsg_silo_thr_s     cn63xx;
+	struct cvmx_sriox_omsg_silo_thr_s     cn66xx;
 };
 typedef union cvmx_sriox_omsg_silo_thr cvmx_sriox_omsg_silo_thr_t;
 
@@ -2540,14 +2739,12 @@ typedef union cvmx_sriox_omsg_silo_thr cvmx_sriox_omsg_silo_thr_t;
  * silo. When fields in this CSR are set, SP candidate segments will match fewer silo entries and
  * can enter the silo more freely, probably providing better performance.
  *
- * Clk_Rst:        SRIO(0..1)_OMSG_SP_MR[0:1]      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_OMSG_SP_MR[0:1]    hclk    hrst_n
  */
-union cvmx_sriox_omsg_sp_mrx
-{
+union cvmx_sriox_omsg_sp_mrx {
 	uint64_t u64;
-	struct cvmx_sriox_omsg_sp_mrx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_omsg_sp_mrx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t xmbox_sp                     : 1;  /**< Controller X SP enable XMBOX SP
                                                          When set, the SP candidate message can only
@@ -2668,13 +2865,14 @@ union cvmx_sriox_omsg_sp_mrx
 	} s;
 	struct cvmx_sriox_omsg_sp_mrx_s       cn63xx;
 	struct cvmx_sriox_omsg_sp_mrx_s       cn63xxp1;
+	struct cvmx_sriox_omsg_sp_mrx_s       cn66xx;
 };
 typedef union cvmx_sriox_omsg_sp_mrx cvmx_sriox_omsg_sp_mrx_t;
 
 /**
  * cvmx_srio#_prio#_in_use
  *
- * SRIO_PRIO[0:3]_IN_USE = S2M PRIORITY FIFO IN USE COUNTS (Pass 2)
+ * SRIO_PRIO[0:3]_IN_USE = S2M PRIORITY FIFO IN USE COUNTS
  *
  * SRIO S2M Priority X FIFO Inuse counts
  *
@@ -2684,17 +2882,15 @@ typedef union cvmx_sriox_omsg_sp_mrx cvmx_sriox_omsg_sp_mrx_t;
  *  reallocated.  For example, if an S2M_TYPE is used N times in a DMA write operation and the DMA has
  *  completed.  The register corresponding to the RD/WR_PRIOR of the S2M_TYPE can be read to determine
  *  the START_CNT and then can be polled to see if the END_CNT equals the START_CNT or at least
- *  START_CNT+N.   These registers can be accessed regardless of the value of SRIO(0..1)_STATUS_REG.ACCESS
+ *  START_CNT+N.   These registers can be accessed regardless of the value of SRIO(0,2..3)_STATUS_REG.ACCESS
  *  but are reset by either the MAC or Core being reset.
  *
- * Clk_Rst:        SRIO(0..1)_PRIO[0:3]_IN_USE     sclk    srst_n, hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_PRIO[0:3]_IN_USE   sclk    srst_n, hrst_n
  */
-union cvmx_sriox_priox_in_use
-{
+union cvmx_sriox_priox_in_use {
 	uint64_t u64;
-	struct cvmx_sriox_priox_in_use_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_priox_in_use_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t end_cnt                      : 16; /**< Count of Packets with S2M_TYPES completed for this
                                                          Priority X FIFO */
@@ -2707,6 +2903,7 @@ union cvmx_sriox_priox_in_use
 #endif
 	} s;
 	struct cvmx_sriox_priox_in_use_s      cn63xx;
+	struct cvmx_sriox_priox_in_use_s      cn66xx;
 };
 typedef union cvmx_sriox_priox_in_use cvmx_sriox_priox_in_use_t;
 
@@ -2725,14 +2922,12 @@ typedef union cvmx_sriox_priox_in_use cvmx_sriox_priox_in_use_t;
  *  considered invalid.  When the FIFO is full an ERROR is automatically issued.  The RXBELL Interrupt
  *  can be used to detect posts to this FIFO.
  *
- * Clk_Rst:        SRIO(0..1)_RX_BELL      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_RX_BELL    hclk    hrst_n
  */
-union cvmx_sriox_rx_bell
-{
+union cvmx_sriox_rx_bell {
 	uint64_t u64;
-	struct cvmx_sriox_rx_bell_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_rx_bell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t data                         : 16; /**< Information field from received doorbell */
 	uint64_t src_id                       : 16; /**< Doorbell Source Device ID[15:0] */
@@ -2757,6 +2952,7 @@ union cvmx_sriox_rx_bell
 	} s;
 	struct cvmx_sriox_rx_bell_s           cn63xx;
 	struct cvmx_sriox_rx_bell_s           cn63xxp1;
+	struct cvmx_sriox_rx_bell_s           cn66xx;
 };
 typedef union cvmx_sriox_rx_bell cvmx_sriox_rx_bell_t;
 
@@ -2770,17 +2966,15 @@ typedef union cvmx_sriox_rx_bell cvmx_sriox_rx_bell_t;
  * Notes:
  * This register contains the value of the sequence counter when the doorbell was received and a
  *  shadow copy of the Bell FIFO Count that can be read without emptying the FIFO.  This register must
- *  be read prior to SRIO(0..1)_RX_BELL to guarantee that the information corresponds to the correct
+ *  be read prior to SRIO(0,2..3)_RX_BELL to guarantee that the information corresponds to the correct
  *  doorbell.
  *
- * Clk_Rst:        SRIO(0..1)_RX_BELL_SEQ  hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_RX_BELL_SEQ        hclk    hrst_n
  */
-union cvmx_sriox_rx_bell_seq
-{
+union cvmx_sriox_rx_bell_seq {
 	uint64_t u64;
-	struct cvmx_sriox_rx_bell_seq_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_rx_bell_seq_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t count                        : 8;  /**< RX Bell FIFO Count
                                                          Note:  Count must be > 0 for entry to be valid. */
@@ -2793,6 +2987,7 @@ union cvmx_sriox_rx_bell_seq
 	} s;
 	struct cvmx_sriox_rx_bell_seq_s       cn63xx;
 	struct cvmx_sriox_rx_bell_seq_s       cn63xxp1;
+	struct cvmx_sriox_rx_bell_seq_s       cn66xx;
 };
 typedef union cvmx_sriox_rx_bell_seq cvmx_sriox_rx_bell_seq_t;
 
@@ -2805,18 +3000,16 @@ typedef union cvmx_sriox_rx_bell_seq cvmx_sriox_rx_bell_seq_t;
  *
  * Notes:
  * Debug Register specifying the number of credits/responses currently in use for Inbound Traffic.
- *  The maximum value for COMP, N_POST and POST is set in SRIO(0..1)_TLP_CREDITS.  When all inbound traffic
+ *  The maximum value for COMP, N_POST and POST is set in SRIO(0,2..3)_TLP_CREDITS.  When all inbound traffic
  *  has stopped the values should eventually return to the maximum values.  The RTN_PR[3:1] entry
  *  counts should eventually return to the reset values.
  *
- * Clk_Rst:        SRIO(0..1)_RX_STATUS    hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_RX_STATUS  hclk    hrst_n
  */
-union cvmx_sriox_rx_status
-{
+union cvmx_sriox_rx_status {
 	uint64_t u64;
-	struct cvmx_sriox_rx_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_rx_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t rtn_pr3                      : 8;  /**< Number of pending Priority 3 Response Entries. */
 	uint64_t rtn_pr2                      : 8;  /**< Number of pending Priority 2 Response Entries. */
 	uint64_t rtn_pr1                      : 8;  /**< Number of pending Priority 1 Response Entries. */
@@ -2840,6 +3033,7 @@ union cvmx_sriox_rx_status
 	} s;
 	struct cvmx_sriox_rx_status_s         cn63xx;
 	struct cvmx_sriox_rx_status_s         cn63xxp1;
+	struct cvmx_sriox_rx_status_s         cn66xx;
 };
 typedef union cvmx_sriox_rx_status cvmx_sriox_rx_status_t;
 
@@ -2861,14 +3055,12 @@ typedef union cvmx_sriox_rx_status cvmx_sriox_rx_status_t;
  *    TYPEIDX[2] = MACADD[50]
  *    TYPEIDX[3] = MACADD[59]
  *
- * Clk_Rst:        SRIO(0..1)_S2M_TYPE[0:15]       hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_S2M_TYPE[0:15]     hclk    hrst_n
  */
-union cvmx_sriox_s2m_typex
-{
+union cvmx_sriox_s2m_typex {
 	uint64_t u64;
-	struct cvmx_sriox_s2m_typex_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_s2m_typex_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_19_63               : 45;
 	uint64_t wr_op                        : 3;  /**< sRIO operation for SLI/DPI writes
 
@@ -3244,6 +3436,7 @@ union cvmx_sriox_s2m_typex
 	} s;
 	struct cvmx_sriox_s2m_typex_s         cn63xx;
 	struct cvmx_sriox_s2m_typex_s         cn63xxp1;
+	struct cvmx_sriox_s2m_typex_s         cn66xx;
 };
 typedef union cvmx_sriox_s2m_typex cvmx_sriox_s2m_typex_t;
 
@@ -3258,14 +3451,12 @@ typedef union cvmx_sriox_s2m_typex cvmx_sriox_s2m_typex_t;
  * This register contains the current value of the sequence counter.  This counter increments every
  *  time a doorbell or the first segment of a message is accepted.
  *
- * Clk_Rst:        SRIO(0..1)_SEQ  hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_SEQ        hclk    hrst_n
  */
-union cvmx_sriox_seq
-{
+union cvmx_sriox_seq {
 	uint64_t u64;
-	struct cvmx_sriox_seq_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_seq_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t seq                          : 32; /**< 32-bit Sequence \# */
 #else
@@ -3275,13 +3466,17 @@ union cvmx_sriox_seq
 	} s;
 	struct cvmx_sriox_seq_s               cn63xx;
 	struct cvmx_sriox_seq_s               cn63xxp1;
+	struct cvmx_sriox_seq_s               cn66xx;
 };
 typedef union cvmx_sriox_seq cvmx_sriox_seq_t;
 
 /**
  * cvmx_srio#_status_reg
  *
- * SRIO_STATUS_REG = SRIO Status Register
+ * 13e20 reserved
+ *
+ *
+ *                  SRIO_STATUS_REG = SRIO Status Register
  *
  * General status of the SRIO.
  *
@@ -3291,14 +3486,12 @@ typedef union cvmx_sriox_seq cvmx_sriox_seq_t;
  *  be accessed while the ACCESS bit is zero (see individual registers for details), the majority of
  *  SRIO registers and all the SRIOMAINT registers can be used only when the ACCESS bit is asserted.
  *
- * Clk_Rst:        SRIO(0..1)_STATUS_REG   sclk    srst_n
+ * Clk_Rst:        SRIO(0,2..3)_STATUS_REG sclk    srst_n
  */
-union cvmx_sriox_status_reg
-{
+union cvmx_sriox_status_reg {
 	uint64_t u64;
-	struct cvmx_sriox_status_reg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_status_reg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t access                       : 1;  /**< SRIO and SRIOMAINT Register Access.
                                                          0 - Register Access Disabled.
@@ -3314,6 +3507,7 @@ union cvmx_sriox_status_reg
 	} s;
 	struct cvmx_sriox_status_reg_s        cn63xx;
 	struct cvmx_sriox_status_reg_s        cn63xxp1;
+	struct cvmx_sriox_status_reg_s        cn66xx;
 };
 typedef union cvmx_sriox_status_reg cvmx_sriox_status_reg_t;
 
@@ -3328,14 +3522,12 @@ typedef union cvmx_sriox_status_reg cvmx_sriox_status_reg_t;
  * This register is used to show the state of the internal transaction tags and provides a manual
  *  reset of the outgoing tags.
  *
- * Clk_Rst:        SRIO(0..1)_TAG_CTRL     hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_TAG_CTRL   hclk    hrst_n
  */
-union cvmx_sriox_tag_ctrl
-{
+union cvmx_sriox_tag_ctrl {
 	uint64_t u64;
-	struct cvmx_sriox_tag_ctrl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_tag_ctrl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_17_63               : 47;
 	uint64_t o_clr                        : 1;  /**< Manual OTAG Clear.  This bit manually resets the
                                                          number of OTAGs back to 16 and loses track of any
@@ -3366,6 +3558,7 @@ union cvmx_sriox_tag_ctrl
 	} s;
 	struct cvmx_sriox_tag_ctrl_s          cn63xx;
 	struct cvmx_sriox_tag_ctrl_s          cn63xxp1;
+	struct cvmx_sriox_tag_ctrl_s          cn66xx;
 };
 typedef union cvmx_sriox_tag_ctrl cvmx_sriox_tag_ctrl_t;
 
@@ -3378,15 +3571,25 @@ typedef union cvmx_sriox_tag_ctrl cvmx_sriox_tag_ctrl_t;
  *
  * Notes:
  * Specifies the number of maximum credits the SRIO can use for incoming Commands and Messages.
+ *  Reset values for COMP, N_POST and POST credits are based on the number of lanes allocated by the
+ *  QLM Configuration to the SRIO MAC and whether QLM1 is used by PCIe.  If SRIO MACs are unused then
+ *  credits may be allocated to other MACs under some circumstances.  The following table shows the
+ *  reset values for COMP/N_POST/POST:
+ *                     QLM0_CFG    QLM1_CFG    SRIO0       SRIO2      SRIO3
+ *                    ======================================================
+ *                        PEM        Any       0/0/0       0/0/0      0/0/0
+ *                      SRIO x4      Any     128/16/128    0/0/0      0/0/0
+ *                      SRIO x2      PEM      64/8/64     64/8/64     0/0/0
+ *                      SRIO x2    non-PEM   128/16/128  128/16/128   0/0/0
+ *                      SRIO x1      PEM      42/5/42     42/5/42    42/5/42
+ *                      SRIO x1    non-PEM    64/8/64     64/8/64    64/8/64
  *
- * Clk_Rst:        SRIO(0..1)_TLP_CREDITS  hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_TLP_CREDITS        hclk    hrst_n
  */
-union cvmx_sriox_tlp_credits
-{
+union cvmx_sriox_tlp_credits {
 	uint64_t u64;
-	struct cvmx_sriox_tlp_credits_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_tlp_credits_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_28_63               : 36;
 	uint64_t mbox                         : 4;  /**< Credits for Mailbox Data used in M2S.
                                                          Legal values are 0x2 to 0x8. */
@@ -3408,6 +3611,7 @@ union cvmx_sriox_tlp_credits
 	} s;
 	struct cvmx_sriox_tlp_credits_s       cn63xx;
 	struct cvmx_sriox_tlp_credits_s       cn63xxp1;
+	struct cvmx_sriox_tlp_credits_s       cn66xx;
 };
 typedef union cvmx_sriox_tlp_credits cvmx_sriox_tlp_credits_t;
 
@@ -3425,14 +3629,12 @@ typedef union cvmx_sriox_tlp_credits cvmx_sriox_tlp_credits_t;
  *  Doorbell operation has been acknowledged.  A write to this register while the PENDING bit is set
  *  should be avoided as it will stall the RSL until the first Doorbell has completed.
  *
- * Clk_Rst:        SRIO(0..1)_TX_BELL      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_TX_BELL    hclk    hrst_n
  */
-union cvmx_sriox_tx_bell
-{
+union cvmx_sriox_tx_bell {
 	uint64_t u64;
-	struct cvmx_sriox_tx_bell_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_tx_bell_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t data                         : 16; /**< Information field for next doorbell operation */
 	uint64_t dest_id                      : 16; /**< Doorbell Destination Device ID[15:0] */
@@ -3458,6 +3660,7 @@ union cvmx_sriox_tx_bell
 	} s;
 	struct cvmx_sriox_tx_bell_s           cn63xx;
 	struct cvmx_sriox_tx_bell_s           cn63xxp1;
+	struct cvmx_sriox_tx_bell_s           cn66xx;
 };
 typedef union cvmx_sriox_tx_bell cvmx_sriox_tx_bell_t;
 
@@ -3469,19 +3672,17 @@ typedef union cvmx_sriox_tx_bell cvmx_sriox_tx_bell_t;
  * The SRIO Outgoing (TX) Doorbell Interrupt Information
  *
  * Notes:
- * This register is only updated if the BELL_ERR bit is clear in SRIO(0..1)_INT_REG.  This register
+ * This register is only updated if the BELL_ERR bit is clear in SRIO(0,2..3)_INT_REG.  This register
  *  displays SRIO Information, Device ID, Transaction Type and Priority of the Doorbell Transaction
  *  that generated the BELL_ERR Interrupt.  The register includes either a RETRY, ERROR or TIMEOUT
  *  Status.
  *
- * Clk_Rst:        SRIO(0..1)_TX_BELL_INFO hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_TX_BELL_INFO       hclk    hrst_n
  */
-union cvmx_sriox_tx_bell_info
-{
+union cvmx_sriox_tx_bell_info {
 	uint64_t u64;
-	struct cvmx_sriox_tx_bell_info_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_tx_bell_info_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t data                         : 16; /**< Information field from last doorbell operation */
 	uint64_t dest_id                      : 16; /**< Doorbell Destination Device ID[15:0] */
@@ -3509,6 +3710,7 @@ union cvmx_sriox_tx_bell_info
 	} s;
 	struct cvmx_sriox_tx_bell_info_s      cn63xx;
 	struct cvmx_sriox_tx_bell_info_s      cn63xxp1;
+	struct cvmx_sriox_tx_bell_info_s      cn66xx;
 };
 typedef union cvmx_sriox_tx_bell_info cvmx_sriox_tx_bell_info_t;
 
@@ -3520,21 +3722,17 @@ typedef union cvmx_sriox_tx_bell_info cvmx_sriox_tx_bell_info_t;
  * The SRIO Transmit Control
  *
  * Notes:
- * This register is used to control SRIO Outgoing Packet Allocation.  TX_TH[2:0] set the thresholds
- *  to allow each priority traffic to be queued for transmission.  8 TX Buffer are available.  A
- *  threshold greater than 8 stops all traffic on that priority and should be avoided.  TAG_TH[2:0]
- *  set the thresholds to allow priority traffic requiring responses to be queued based on the number
- *  of outgoing tags (TIDs) available.  16 Tags are available.  If a priority is blocked for lack of
- *  tags then all lower priority packets are also blocked irregardless of whether they require tags.
+ * This register is used to control SRIO Outgoing Packet Allocation.  TAG_TH[2:0] set the thresholds
+ *  to allow priority traffic requiring responses to be queued based on the number of outgoing tags
+ *  (TIDs) available.  16 Tags are available.  If a priority is blocked for lack of tags then all
+ *  lower priority packets are also blocked irregardless of whether they require tags.
  *
- * Clk_Rst:        SRIO(0..1)_TX_CTRL      hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_TX_CTRL    hclk    hrst_n
  */
-union cvmx_sriox_tx_ctrl
-{
+union cvmx_sriox_tx_ctrl {
 	uint64_t u64;
-	struct cvmx_sriox_tx_ctrl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_tx_ctrl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_53_63               : 11;
 	uint64_t tag_th2                      : 5;  /**< Sets threshold for minimum number of OTAGs
                                                          required before a packet of priority 2 requiring a
@@ -3555,23 +3753,11 @@ union cvmx_sriox_tx_ctrl
                                                          Generally, TAG_TH0 must be > TAG_TH1 to leave OTAGs
                                                          for outgoing priority 1 or 2 (or 3) requests. */
 	uint64_t reserved_20_31               : 12;
-	uint64_t tx_th2                       : 4;  /**< Sets threshold for minimum number of TX buffers
-                                                         before a Priority 2 Packet will be queued for
-                                                         transmission. (Max 8)
-                                                         Generally, TX_TH2 must be > 0 to leave space for
-                                                         outgoing priority 3 packets. */
+	uint64_t tx_th2                       : 4;  /**< Reserved. (See SRIOMAINT(0,2..3)_IR_BUFFER_CONFIG2) */
 	uint64_t reserved_12_15               : 4;
-	uint64_t tx_th1                       : 4;  /**< Sets threshold for minimum number of TX buffers
-                                                         before a Priority 1 Packet will be queued for
-                                                         transmission. (Max 8)
-                                                         Generally, TX_TH1 must be > TX_TH2 to leave space
-                                                         for outgoing priority 2 or 3 packets. */
+	uint64_t tx_th1                       : 4;  /**< Reserved. (See SRIOMAINT(0,2..3)_IR_BUFFER_CONFIG2) */
 	uint64_t reserved_4_7                 : 4;
-	uint64_t tx_th0                       : 4;  /**< Sets threshold for minimum number of TX buffers
-                                                         before a Priority 0 Packet will be queued for
-                                                         transmission. (Max 8)
-                                                         Generally, TX_TH0 must be > TX_TH1 to leave space
-                                                         for outgoing priority 1 or 2 or 3 packets. */
+	uint64_t tx_th0                       : 4;  /**< Reserved. (See SRIOMAINT(0,2..3)_IR_BUFFER_CONFIG2) */
 #else
 	uint64_t tx_th0                       : 4;
 	uint64_t reserved_4_7                 : 4;
@@ -3589,28 +3775,28 @@ union cvmx_sriox_tx_ctrl
 	} s;
 	struct cvmx_sriox_tx_ctrl_s           cn63xx;
 	struct cvmx_sriox_tx_ctrl_s           cn63xxp1;
+	struct cvmx_sriox_tx_ctrl_s           cn66xx;
 };
 typedef union cvmx_sriox_tx_ctrl cvmx_sriox_tx_ctrl_t;
 
 /**
  * cvmx_srio#_tx_emphasis
  *
- * SRIO_TX_EMPHASIS = SRIO TX Lane Emphasis (Pass 2)
+ * SRIO_TX_EMPHASIS = SRIO TX Lane Emphasis
  *
  * Controls TX Emphasis used by the SRIO SERDES
  *
  * Notes:
  * This controls the emphasis value used by the SRIO SERDES.  This register is only reset during COLD
- *  boot and may be modified regardless of the value in SRIO(0..1)_STATUS_REG.ACCESS.
+ *  boot and may be modified regardless of the value in SRIO(0,2..3)_STATUS_REG.ACCESS.  This register is not
+ *  connected to the QLM and thus has no effect.  It should not be included in the documentation.
  *
- * Clk_Rst:        SRIO(0..1)_TX_EMPHASIS  sclk    srst_cold_n
+ * Clk_Rst:        SRIO(0,2..3)_TX_EMPHASIS        sclk    srst_cold_n
  */
-union cvmx_sriox_tx_emphasis
-{
+union cvmx_sriox_tx_emphasis {
 	uint64_t u64;
-	struct cvmx_sriox_tx_emphasis_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_tx_emphasis_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t emph                         : 4;  /**< Emphasis Value used for all lanes.  Default value
                                                          is 0x0 for 1.25G b/s and 0xA for all other rates. */
@@ -3620,6 +3806,7 @@ union cvmx_sriox_tx_emphasis
 #endif
 	} s;
 	struct cvmx_sriox_tx_emphasis_s       cn63xx;
+	struct cvmx_sriox_tx_emphasis_s       cn66xx;
 };
 typedef union cvmx_sriox_tx_emphasis cvmx_sriox_tx_emphasis_t;
 
@@ -3634,14 +3821,12 @@ typedef union cvmx_sriox_tx_emphasis cvmx_sriox_tx_emphasis_t;
  * Debug Register specifying the number of credits/ops currently in use for Outbound Traffic.
  *  When all outbound traffic has stopped the values should eventually return to the reset values.
  *
- * Clk_Rst:        SRIO(0..1)_TX_STATUS    hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_TX_STATUS  hclk    hrst_n
  */
-union cvmx_sriox_tx_status
-{
+union cvmx_sriox_tx_status {
 	uint64_t u64;
-	struct cvmx_sriox_tx_status_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_tx_status_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t s2m_pr3                      : 8;  /**< Number of pending S2M Priority 3 Entries. */
 	uint64_t s2m_pr2                      : 8;  /**< Number of pending S2M Priority 2 Entries. */
@@ -3657,32 +3842,31 @@ union cvmx_sriox_tx_status
 	} s;
 	struct cvmx_sriox_tx_status_s         cn63xx;
 	struct cvmx_sriox_tx_status_s         cn63xxp1;
+	struct cvmx_sriox_tx_status_s         cn66xx;
 };
 typedef union cvmx_sriox_tx_status cvmx_sriox_tx_status_t;
 
 /**
  * cvmx_srio#_wr_done_counts
  *
- * SRIO_WR_DONE_COUNTS = SRIO Outgoing Write Done Counts (Pass 2)
+ * SRIO_WR_DONE_COUNTS = SRIO Outgoing Write Done Counts
  *
  * The SRIO Outbound Write Done Counts
  *
  * Notes:
  * This register shows the number of successful and unsuccessful NwriteRs issued through this MAC.
  *  These count only considers the last NwriteR generated by each Store Instruction.  If any NwriteR
- *  in the series receives an ERROR Status then it is reported in SRIOMAINT(0..1)_ERB_LT_ERR_DET.IO_ERR.
+ *  in the series receives an ERROR Status then it is reported in SRIOMAINT(0,2..3)_ERB_LT_ERR_DET.IO_ERR.
  *  If any NwriteR does not receive a response within the timeout period then it is reported in
- *  SRIOMAINT(0..1)_ERB_LT_ERR_DET.PKT_TOUT.  Only errors on the last NwriteR's are counted as BAD.  This
+ *  SRIOMAINT(0,2..3)_ERB_LT_ERR_DET.PKT_TOUT.  Only errors on the last NwriteR's are counted as BAD.  This
  *  register is typically not written while Outbound SRIO Memory traffic is enabled.
  *
- * Clk_Rst:        SRIO(0..1)_WR_DONE_COUNTS       hclk    hrst_n
+ * Clk_Rst:        SRIO(0,2..3)_WR_DONE_COUNTS     hclk    hrst_n
  */
-union cvmx_sriox_wr_done_counts
-{
+union cvmx_sriox_wr_done_counts {
 	uint64_t u64;
-	struct cvmx_sriox_wr_done_counts_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_sriox_wr_done_counts_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_32_63               : 32;
 	uint64_t bad                          : 16; /**< Count of the final outbound NwriteR in the series
                                                          associated with a Store Operation that have timed
@@ -3697,6 +3881,7 @@ union cvmx_sriox_wr_done_counts
 #endif
 	} s;
 	struct cvmx_sriox_wr_done_counts_s    cn63xx;
+	struct cvmx_sriox_wr_done_counts_s    cn66xx;
 };
 typedef union cvmx_sriox_wr_done_counts cvmx_sriox_wr_done_counts_t;
 

@@ -1,4 +1,4 @@
-//===- X86JITInfo.h - X86 implementation of the JIT interface  --*- C++ -*-===//
+//===-- X86JITInfo.h - X86 implementation of the JIT interface --*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -65,7 +65,7 @@ namespace llvm {
     /// referenced global symbols.
     virtual void relocate(void *Function, MachineRelocation *MR,
                           unsigned NumRelocs, unsigned char* GOTBase);
-    
+
     /// allocateThreadLocalMemory - Each target has its own way of
     /// handling thread local variables. This method returns a value only
     /// meaningful to the target.

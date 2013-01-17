@@ -12,9 +12,6 @@
  *===----------------------------------------------------------------------===
  */
 
-#include "abi.h"
-#include <float.h>
-
 /* Returns: convert a to a float, rounding toward even.*/
 
 /* Assumption: float is a IEEE 32 bit floating point type 
@@ -25,7 +22,7 @@
 
 #include "int_lib.h"
 
-ARM_EABI_FNALIAS(l2f, floatdisf);
+ARM_EABI_FNALIAS(l2f, floatdisf)
 
 COMPILER_RT_ABI float
 __floatdisf(di_int a)

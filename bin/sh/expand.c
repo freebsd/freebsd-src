@@ -113,6 +113,7 @@ static void expmeta(char *, char *);
 static void addfname(char *);
 static struct strlist *expsort(struct strlist *);
 static struct strlist *msort(struct strlist *, int);
+static int patmatch(const char *, const char *, int);
 static char *cvtnum(int, char *);
 static int collate_range_cmp(wchar_t, wchar_t);
 
@@ -1186,6 +1187,7 @@ expmeta(char *enddir, char *name)
 	int atend;
 	int matchdot;
 	int esc;
+	int namlen;
 
 	metaflag = 0;
 	start = name;
@@ -1284,17 +1286,22 @@ expmeta(char *enddir, char *name)
 		if (dp->d_name[0] == '.' && ! matchdot)
 			continue;
 		if (patmatch(start, dp->d_name, 0)) {
-			if (enddir + dp->d_namlen + 1 > expdir_end)
+			namlen = dp->d_namlen;
+			if (enddir + namlen + 1 > expdir_end)
 				continue;
-			memcpy(enddir, dp->d_name, dp->d_namlen + 1);
+			memcpy(enddir, dp->d_name, namlen + 1);
 			if (atend)
 				addfname(expdir);
 			else {
-				if (enddir + dp->d_namlen + 2 > expdir_end)
+				if (dp->d_type != DT_UNKNOWN &&
+				    dp->d_type != DT_DIR &&
+				    dp->d_type != DT_LNK)
 					continue;
-				enddir[dp->d_namlen] = '/';
-				enddir[dp->d_namlen + 1] = '\0';
-				expmeta(enddir + dp->d_namlen + 1, endname);
+				if (enddir + namlen + 2 > expdir_end)
+					continue;
+				enddir[namlen] = '/';
+				enddir[namlen + 1] = '\0';
+				expmeta(enddir + namlen + 1, endname);
 			}
 		}
 	}
@@ -1435,61 +1442,67 @@ match_charclass(const char *p, wchar_t chr, const char **end)
  * Returns true if the pattern matches the string.
  */
 
-int
+static int
 patmatch(const char *pattern, const char *string, int squoted)
 {
 	const char *p, *q, *end;
+	const char *bt_p, *bt_q;
 	char c;
 	wchar_t wc, wc2;
 
 	p = pattern;
 	q = string;
+	bt_p = NULL;
+	bt_q = NULL;
 	for (;;) {
 		switch (c = *p++) {
 		case '\0':
-			goto breakloop;
+			if (*q != '\0')
+				goto backtrack;
+			return 1;
 		case CTLESC:
 			if (squoted && *q == CTLESC)
 				q++;
 			if (*q++ != *p++)
-				return 0;
+				goto backtrack;
 			break;
 		case CTLQUOTEMARK:
 			continue;
 		case '?':
 			if (squoted && *q == CTLESC)
 				q++;
-			if (localeisutf8)
-				wc = get_wc(&q);
-			else
-				wc = (unsigned char)*q++;
-			if (wc == '\0')
+			if (*q == '\0')
 				return 0;
+			if (localeisutf8) {
+				wc = get_wc(&q);
+				/*
+				 * A '?' does not match invalid UTF-8 but a
+				 * '*' does, so backtrack.
+				 */
+				if (wc == 0)
+					goto backtrack;
+			} else
+				wc = (unsigned char)*q++;
 			break;
 		case '*':
 			c = *p;
 			while (c == CTLQUOTEMARK || c == '*')
 				c = *++p;
-			if (c != CTLESC &&  c != CTLQUOTEMARK &&
-			    c != '?' && c != '*' && c != '[') {
-				while (*q != c) {
-					if (squoted && *q == CTLESC &&
-					    q[1] == c)
-						break;
-					if (*q == '\0')
-						return 0;
-					if (squoted && *q == CTLESC)
-						q++;
-					q++;
-				}
-			}
-			do {
-				if (patmatch(p, q, squoted))
-					return 1;
-				if (squoted && *q == CTLESC)
-					q++;
-			} while (*q++ != '\0');
-			return 0;
+			/*
+			 * If the pattern ends here, we know the string
+			 * matches without needing to look at the rest of it.
+			 */
+			if (c == '\0')
+				return 1;
+			/*
+			 * First try the shortest match for the '*' that
+			 * could work. We can forget any earlier '*' since
+			 * there is no way having it match more characters
+			 * can help us, given that we are already here.
+			 */
+			bt_p = p;
+			bt_q = q;
+			break;
 		case '[': {
 			const char *endp;
 			int invert, found;
@@ -1501,7 +1514,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 			for (;;) {
 				while (*endp == CTLQUOTEMARK)
 					endp++;
-				if (*endp == '\0')
+				if (*endp == 0)
 					goto dft;		/* no matching ] */
 				if (*endp == CTLESC)
 					endp++;
@@ -1516,12 +1529,14 @@ patmatch(const char *pattern, const char *string, int squoted)
 			found = 0;
 			if (squoted && *q == CTLESC)
 				q++;
-			if (localeisutf8)
-				chr = get_wc(&q);
-			else
-				chr = (unsigned char)*q++;
-			if (chr == '\0')
+			if (*q == '\0')
 				return 0;
+			if (localeisutf8) {
+				chr = get_wc(&q);
+				if (chr == 0)
+					goto backtrack;
+			} else
+				chr = (unsigned char)*q++;
 			c = *p++;
 			do {
 				if (c == CTLQUOTEMARK)
@@ -1562,21 +1577,34 @@ patmatch(const char *pattern, const char *string, int squoted)
 				}
 			} while ((c = *p++) != ']');
 			if (found == invert)
-				return 0;
+				goto backtrack;
 			break;
 		}
 dft:	        default:
 			if (squoted && *q == CTLESC)
 				q++;
-			if (*q++ != c)
+			if (*q == '\0')
 				return 0;
+			if (*q++ == c)
+				break;
+backtrack:
+			/*
+			 * If we have a mismatch (other than hitting the end
+			 * of the string), go back to the last '*' seen and
+			 * have it match one additional character.
+			 */
+			if (bt_p == NULL)
+				return 0;
+			if (squoted && *bt_q == CTLESC)
+				bt_q++;
+			if (*bt_q == '\0')
+				return 0;
+			bt_q++;
+			p = bt_p;
+			q = bt_q;
 			break;
 		}
 	}
-breakloop:
-	if (*q != '\0')
-		return 0;
-	return 1;
 }
 
 

@@ -51,12 +51,10 @@ __FBSDID("$FreeBSD$");
 #define	APM_UNKNOWN	0xff
 
 static int apm_active;
-static struct clonedevs *apm_clones;
 
-MALLOC_DEFINE(M_APMDEV, "apmdev", "APM device emulation");
+static MALLOC_DEFINE(M_APMDEV, "apmdev", "APM device emulation");
 
 static d_open_t		apmopen;
-static d_close_t	apmclose;
 static d_write_t	apmwrite;
 static d_ioctl_t	apmioctl;
 static d_poll_t		apmpoll;
@@ -71,9 +69,7 @@ static struct filterops	apm_readfiltops = {
 
 static struct cdevsw apm_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE | D_NEEDMINOR,
 	.d_open =	apmopen,
-	.d_close =	apmclose,
 	.d_write =	apmwrite,
 	.d_ioctl =	apmioctl,
 	.d_poll =	apmpoll,
@@ -202,39 +198,6 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 	return (0);
 }
 
-/* Create single-use devices for /dev/apm and /dev/apmctl. */
-static void
-apm_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
-{
-	int ctl_dev, unit;
-
-	if (*dev != NULL)
-		return;
-	if (strcmp(name, "apmctl") == 0)
-		ctl_dev = TRUE;
-	else if (strcmp(name, "apm") == 0)
-		ctl_dev = FALSE;
-	else
-		return;
-
-	/* Always create a new device and unit number. */
-	unit = -1;
-	if (clone_create(&apm_clones, &apm_cdevsw, &unit, dev, 0)) {
-		if (ctl_dev) {
-			*dev = make_dev(&apm_cdevsw, unit,
-			    UID_ROOT, GID_OPERATOR, 0660, "apmctl%d", unit);
-		} else {
-			*dev = make_dev(&apm_cdevsw, unit,
-			    UID_ROOT, GID_OPERATOR, 0664, "apm%d", unit);
-		}
-		if (*dev != NULL) {
-			dev_ref(*dev);
-			(*dev)->si_flags |= SI_CHEAPCLONE;
-		}
-	}
-}
-
 /* Create a struct for tracking per-device suspend notification. */
 static struct apm_clone_data *
 apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
@@ -263,30 +226,13 @@ apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
 	return (clone);
 }
 
-static int
-apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
-{
-	struct	acpi_softc *acpi_sc;
-	struct 	apm_clone_data *clone;
-
-	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
-	clone = apm_create_clone(dev, acpi_sc);
-	dev->si_drv1 = clone;
-
-	/* If the device is opened for write, record that. */
-	if ((flag & FWRITE) != 0)
-		clone->flags |= ACPI_EVF_WRITE;
-
-	return (0);
-}
-
-static int
-apmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
+static void
+apmdtor(void *data)
 {
 	struct	apm_clone_data *clone;
 	struct	acpi_softc *acpi_sc;
 
-	clone = dev->si_drv1;
+	clone = data;
 	acpi_sc = clone->acpi_sc;
 
 	/* We are about to lose a reference so check if suspend should occur */
@@ -301,7 +247,22 @@ apmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	knlist_destroy(&clone->sel_read.si_note);
 	ACPI_UNLOCK(acpi);
 	free(clone, M_APMDEV);
-	destroy_dev_sched(dev);
+}
+
+static int
+apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
+{
+	struct	acpi_softc *acpi_sc;
+	struct 	apm_clone_data *clone;
+
+	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
+	clone = apm_create_clone(dev, acpi_sc);
+	devfs_set_cdevpriv(clone, apmdtor);
+
+	/* If the device is opened for write, record that. */
+	if ((flag & FWRITE) != 0)
+		clone->flags |= ACPI_EVF_WRITE;
+
 	return (0);
 }
 
@@ -316,7 +277,7 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	apm_info_old_t aiop;
 
 	error = 0;
-	clone = dev->si_drv1;
+	devfs_get_cdevpriv((void **)&clone);
 	acpi_sc = clone->acpi_sc;
 
 	switch (cmd) {
@@ -430,8 +391,8 @@ apmpoll(struct cdev *dev, int events, struct thread *td)
 	int revents;
 
 	revents = 0;
+	devfs_get_cdevpriv((void **)&clone);
 	ACPI_LOCK(acpi);
-	clone = dev->si_drv1;
 	if (clone->acpi_sc->acpi_next_sstate)
 		revents |= events & (POLLIN | POLLRDNORM);
 	else
@@ -445,8 +406,8 @@ apmkqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct	apm_clone_data *clone;
 
+	devfs_get_cdevpriv((void **)&clone);
 	ACPI_LOCK(acpi);
-	clone = dev->si_drv1;
 	kn->kn_hook = clone;
 	kn->kn_fop = &apm_readfiltops;
 	knlist_add(&clone->sel_read.si_note, kn, 0);
@@ -485,6 +446,7 @@ acpi_apm_init(struct acpi_softc *sc)
 	/* Create a clone for /dev/acpi also. */
 	STAILQ_INIT(&sc->apm_cdevs);
 	sc->acpi_clone = apm_create_clone(sc->acpi_dev_t, sc);
-	clone_setup(&apm_clones);
-	EVENTHANDLER_REGISTER(dev_clone, apm_clone, 0, 1000);
+
+	make_dev(&apm_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0660, "apmctl");
+	make_dev(&apm_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0664, "apm");
 }

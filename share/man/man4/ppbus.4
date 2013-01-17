@@ -61,7 +61,6 @@ that allows parallel port access from outside the kernel without conflicting
 with kernel-in drivers.
 .El
 .Ss Developing new drivers
-.Pp
 The ppbus system has been designed to support the development of standard
 and non-standard software:
 .Pp
@@ -74,7 +73,6 @@ It uses standard and non-standard parallel port accesses.
 .It Sy lpbb Ta "Philips official parallel port I2C bit-banging interface"
 .El
 .Ss Porting existing drivers
-.Pp
 Another approach to the ppbus system is to port existing drivers.
 Various drivers have already been ported:
 .Pp
@@ -274,7 +272,6 @@ propose an arch-independent interface to access the hardware layer.
 Finally, the
 .Em device
 layer gathers the parallel peripheral device drivers.
-.Pp
 .Ss Parallel modes management
 We have to differentiate operating modes at various ppbus system layers.
 Actually, ppbus and adapter operating modes on one hands and for each

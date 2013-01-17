@@ -76,7 +76,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef WITH_SSL
+#include <openssl/md5.h>
+#define MD5Init(c) MD5_Init(c)
+#define MD5Update(c, data, len) MD5_Update(c, data, len)
+#define MD5Final(md, c) MD5_Final(md, c)
+#else
 #include <md5.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -86,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #include "httperr.h"
 
 /* Maximum number of redirects to follow */
-#define MAX_REDIRECT 5
+#define MAX_REDIRECT 20
 
 /* Symbolic names for reply codes we care about */
 #define HTTP_OK			200
@@ -95,7 +103,9 @@ __FBSDID("$FreeBSD$");
 #define HTTP_MOVED_TEMP		302
 #define HTTP_SEE_OTHER		303
 #define HTTP_NOT_MODIFIED	304
+#define HTTP_USE_PROXY		305
 #define HTTP_TEMP_REDIRECT	307
+#define HTTP_PERM_REDIRECT	308
 #define HTTP_NEED_AUTH		401
 #define HTTP_NEED_PROXY_AUTH	407
 #define HTTP_BAD_RANGE		416
@@ -104,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
 			    || (xyz) == HTTP_MOVED_TEMP \
 			    || (xyz) == HTTP_TEMP_REDIRECT \
+			    || (xyz) == HTTP_USE_PROXY \
 			    || (xyz) == HTTP_SEE_OTHER)
 
 #define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
@@ -196,6 +207,8 @@ http_growbuf(struct httpio *io, size_t len)
 static int
 http_fillbuf(struct httpio *io, size_t len)
 {
+	ssize_t nbytes;
+
 	if (io->error)
 		return (-1);
 	if (io->eof)
@@ -204,10 +217,11 @@ http_fillbuf(struct httpio *io, size_t len)
 	if (io->chunked == 0) {
 		if (http_growbuf(io, len) == -1)
 			return (-1);
-		if ((io->buflen = fetch_read(io->conn, io->buf, len)) == -1) {
-			io->error = 1;
+		if ((nbytes = fetch_read(io->conn, io->buf, len)) == -1) {
+			io->error = errno;
 			return (-1);
 		}
+		io->buflen = nbytes;
 		io->bufpos = 0;
 		return (io->buflen);
 	}
@@ -227,10 +241,11 @@ http_fillbuf(struct httpio *io, size_t len)
 		len = io->chunksize;
 	if (http_growbuf(io, len) == -1)
 		return (-1);
-	if ((io->buflen = fetch_read(io->conn, io->buf, len)) == -1) {
-		io->error = 1;
+	if ((nbytes = fetch_read(io->conn, io->buf, len)) == -1) {
+		io->error = errno;
 		return (-1);
 	}
+	io->buflen = nbytes;
 	io->chunksize -= io->buflen;
 
 	if (io->chunksize == 0) {
@@ -272,8 +287,11 @@ http_readfn(void *v, char *buf, int len)
 		io->bufpos += l;
 	}
 
-	if (!pos && io->error)
+	if (!pos && io->error) {
+		if (io->error == EINTR)
+			io->error = 0;
 		return (-1);
+	}
 	return (pos);
 }
 
@@ -1509,8 +1527,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	/* try the provided URL first */
 	url = URL;
 
-	/* if the A flag is set, we only get one try */
-	n = noredirect ? 1 : MAX_REDIRECT;
+	n = MAX_REDIRECT;
 	i = 0;
 
 	e = HTTP_PROTOCOL_ERROR;
@@ -1682,6 +1699,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		case HTTP_MOVED_PERM:
 		case HTTP_MOVED_TEMP:
 		case HTTP_SEE_OTHER:
+		case HTTP_USE_PROXY:
 			/*
 			 * Not so fine, but we still have to read the
 			 * headers to get the new location.
@@ -1734,11 +1752,11 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* get headers. http_next_header expects one line readahead */
 		if (fetch_getln(conn) == -1) {
-		    fetch_syserr();
-		    goto ouch;
+			fetch_syserr();
+			goto ouch;
 		}
 		do {
-		    switch ((h = http_next_header(conn, &headerbuf, &p))) {
+			switch ((h = http_next_header(conn, &headerbuf, &p))) {
 			case hdr_syserror:
 				fetch_syserr();
 				goto ouch;
@@ -1757,6 +1775,17 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			case hdr_location:
 				if (!HTTP_REDIRECT(conn->err))
 					break;
+				/*
+				 * if the A flag is set, we don't follow
+				 * temporary redirects.
+				 */
+				if (noredirect &&
+				    conn->err != HTTP_MOVED_PERM &&
+				    conn->err != HTTP_PERM_REDIRECT &&
+				    conn->err != HTTP_USE_PROXY) {
+					n = 1;
+					break;
+				}
 				if (new)
 					free(new);
 				if (verbose)
@@ -1772,7 +1801,9 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 					DEBUG(fprintf(stderr, "failed to parse new URL\n"));
 					goto ouch;
 				}
-				if (!*new->user && !*new->pwd) {
+
+				/* Only copy credentials if the host matches */
+				if (!strcmp(new->host, url->host) && !*new->user && !*new->pwd) {
 					strcpy(new->user, url->user);
 					strcpy(new->pwd, url->pwd);
 				}

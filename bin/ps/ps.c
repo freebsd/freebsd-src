@@ -109,6 +109,7 @@ static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
 static int	 needuser;	/* -o "user" */
 static int	 optfatal;	/* Fatal error parsing some list-option. */
+static int	 pid_max;	/* kern.max_pid */
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
@@ -130,7 +131,6 @@ struct listinfo {
 	} l;
 };
 
-static int	 check_procfs(void);
 static int	 addelem_gid(struct listinfo *, const char *);
 static int	 addelem_pid(struct listinfo *, const char *);
 static int	 addelem_tty(struct listinfo *, const char *);
@@ -149,6 +149,7 @@ static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
 static void	 scanvars(void);
 static void	 sizevars(void);
+static void	 pidmax_init(void);
 static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
@@ -200,6 +201,8 @@ main(int argc, char *argv[])
 	 */
 	if (argc > 1)
 		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
+
+	pidmax_init();
 
 	all = descendancy = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
@@ -410,14 +413,6 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	/*
-	 * If the user specified ps -e then they want a copy of the process
-	 * environment kvm_getenvv(3) attempts to open /proc/<pid>/mem.
-	 * Check to make sure that procfs is mounted on /proc, otherwise
-	 * print a warning informing the user that output will be incomplete.
-	 */
-	if (needenv == 1 && check_procfs() == 0)
-		warnx("Process environment requires procfs(5)");
 	/*
 	 * If there arguments after processing all the options, attempt
 	 * to treat them as a list of process ids.
@@ -634,7 +629,7 @@ main(int argc, char *argv[])
 
 			ks = STAILQ_FIRST(&kinfo[i].ki_ks);
 			STAILQ_REMOVE_HEAD(&kinfo[i].ki_ks, ks_next);
-			/* Truncate rightmost column if neccessary.  */
+			/* Truncate rightmost column if necessary.  */
 			if (STAILQ_NEXT(vent, next_ve) == NULL &&
 			   termwidth != UNLIMITED && ks->ks_str != NULL) {
 				left = termwidth - linelen;
@@ -731,7 +726,6 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	return (1);
 }
 
-#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h. */
 static int
 addelem_pid(struct listinfo *inf, const char *elem)
 {
@@ -749,7 +743,7 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	if (*endp != '\0' || tempid < 0 || elem == endp) {
 		warnx("Invalid %s: %s", inf->lname, elem);
 		errno = ERANGE;
-	} else if (errno != 0 || tempid > BSD_PID_MAX) {
+	} else if (errno != 0 || tempid > pid_max) {
 		warnx("%s too large: %s", inf->lname, elem);
 		errno = ERANGE;
 	}
@@ -762,7 +756,6 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	inf->l.pids[(inf->count)++] = tempid;
 	return (1);
 }
-#undef	BSD_PID_MAX
 
 /*-
  * The user can specify a device via one of three formats:
@@ -898,8 +891,8 @@ add_list(struct listinfo *inf, const char *argp)
 	int toolong;
 	char elemcopy[PATH_MAX];
 
-	if (*argp == 0)
-		inf->addelem(inf, elemcopy);
+	if (*argp == '\0')
+		inf->addelem(inf, argp);
 	while (*argp != '\0') {
 		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
 			argp++;
@@ -1360,16 +1353,16 @@ kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 	return (newopts);
 }
 
-static int
-check_procfs(void)
+static void
+pidmax_init(void)
 {
-	struct statfs mnt;
+	size_t intsize;
 
-	if (statfs("/proc", &mnt) < 0)
-		return (0);
-	if (strcmp(mnt.f_fstypename, "procfs") != 0)
-		return (0);
-	return (1);
+	intsize = sizeof(pid_max);
+	if (sysctlbyname("kern.pid_max", &pid_max, &intsize, NULL, 0) < 0) {
+		warn("unable to read kern.pid_max");
+		pid_max = 99999;
+	}
 }
 
 static void

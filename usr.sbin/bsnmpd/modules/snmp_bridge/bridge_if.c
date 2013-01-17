@@ -378,7 +378,7 @@ bridge_get_time_since_tc(struct bridge_if *bif, uint32_t *ticks)
  * Return:
  * 1, if successful
  * 0, if the interface was deleted
- * -1, error occured while fetching the info from the kernel.
+ * -1, error occurred while fetching the info from the kernel.
  */
 static int
 bridge_update_bif(struct bridge_if *bif)

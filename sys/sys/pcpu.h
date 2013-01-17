@@ -38,7 +38,11 @@
 #endif
 
 #include <sys/_cpuset.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_sx.h>
 #include <sys/queue.h>
+#include <sys/_rmlock.h>
 #include <sys/vmmeter.h>
 #include <sys/resource.h>
 #include <machine/pcpu.h>
@@ -137,15 +141,6 @@ extern uintptr_t dpcpu_off[];
 
 #endif /* _KERNEL */
 
-/* 
- * XXXUPS remove as soon as we have per cpu variable
- * linker sets and can define rm_queue in _rm_lock.h
- */
-struct rm_queue {
-	struct rm_queue* volatile rmq_next;
-	struct rm_queue* volatile rmq_prev;
-};
-
 /*
  * This structure maps out the global data that needs to be kept on a
  * per-cpu basis.  The members are accessed via the PCPU_GET/SET/PTR
@@ -169,15 +164,7 @@ struct pcpu {
 	void		*pc_netisr;		/* netisr SWI cookie */
 	int		pc_dnweight;		/* vm_page_dontneed() */
 	int		pc_domain;		/* Memory domain. */
-
-	/*
-	 * Stuff for read mostly lock
-	 *
-	 * XXXUPS remove as soon as we have per cpu variable
-	 * linker sets.
-	 */
-	struct rm_queue	pc_rm_queue;
-
+	struct rm_queue	pc_rm_queue;		/* rmlock list of trackers */
 	uintptr_t	pc_dynamic;		/* Dynamic per-cpu data area */
 
 	/*

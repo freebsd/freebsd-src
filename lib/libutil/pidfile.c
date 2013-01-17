@@ -41,10 +41,17 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 
+struct pidfh {
+	int	pf_fd;
+	char	pf_path[MAXPATHLEN + 1];
+	dev_t	pf_dev;
+	ino_t	pf_ino;
+};
+
 static int _pidfile_remove(struct pidfh *pfh, int freeit);
 
 static int
-pidfile_verify(struct pidfh *pfh)
+pidfile_verify(const struct pidfh *pfh)
 {
 	struct stat sb;
 
@@ -117,7 +124,7 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	 * pidfile_write() can be called multiple times.
 	 */
 	fd = flopen(pfh->pf_path,
-	    O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK, mode);
+	    O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NONBLOCK, mode);
 	if (fd == -1) {
 		if (errno == EWOULDBLOCK && pidptr != NULL) {
 			count = 20;
@@ -137,6 +144,7 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 		free(pfh);
 		return (NULL);
 	}
+
 	/*
 	 * Remember file information, so in pidfile_write() we are sure we write
 	 * to the proper descriptor.
@@ -251,4 +259,15 @@ pidfile_remove(struct pidfh *pfh)
 {
 
 	return (_pidfile_remove(pfh, 1));
+}
+
+int
+pidfile_fileno(const struct pidfh *pfh)
+{
+
+	if (pfh == NULL || pfh->pf_fd == -1) {
+		errno = EDOOFUS;
+		return (-1);
+	}
+	return (pfh->pf_fd);
 }

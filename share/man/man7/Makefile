@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 #MISSING: eqnchar.7 ms.7 term.7
 MAN=	adding_user.7 \
 	ascii.7 \
@@ -10,7 +12,6 @@ MAN=	adding_user.7 \
 	c99.7 \
 	development.7 \
 	environ.7 \
-	eventtimers.7 \
 	ffs.7 \
 	firewall.7 \
 	hier.7 \
@@ -34,5 +35,18 @@ MLINKS+= c99.7 c.7
 MLINKS+= c99.7 c78.7
 MLINKS+= c99.7 c89.7
 MLINKS+= c99.7 c90.7
+
+.if ${MK_ATF} != "no"
+ATF=            ${.CURDIR}/../../../contrib/atf
+.PATH:          ${ATF}/doc
+MAN+=		atf.7
+
+CLEANFILES+=	atf.7 atf.7.tmp
+atf.7: atf.7.in
+	sed -e 's,__DOCDIR__,${DOCDIR}/atf,g' \
+	    -e 's,__TESTSDIR__,${TESTSBASE},g' \
+	    < ${.ALLSRC} > ${.TARGET}.tmp
+	mv ${.TARGET}.tmp ${.TARGET}
+.endif
 
 .include <bsd.prog.mk>

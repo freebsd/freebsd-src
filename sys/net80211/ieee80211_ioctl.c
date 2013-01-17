@@ -972,6 +972,21 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_PUREG:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_PUREG) != 0;
 		break;
+	case IEEE80211_IOC_QUIET:
+		ireq->i_val = vap->iv_quiet;
+		break;
+	case IEEE80211_IOC_QUIET_COUNT:
+		ireq->i_val = vap->iv_quiet_count;
+		break;
+	case IEEE80211_IOC_QUIET_PERIOD:
+		ireq->i_val = vap->iv_quiet_period;
+		break;
+	case IEEE80211_IOC_QUIET_DUR:
+		ireq->i_val = vap->iv_quiet_duration;
+		break;
+	case IEEE80211_IOC_QUIET_OFFSET:
+		ireq->i_val = vap->iv_quiet_offset;
+		break;
 	case IEEE80211_IOC_BGSCAN:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_BGSCAN) != 0;
 		break;
@@ -1381,6 +1396,17 @@ setmlme_common(struct ieee80211vap *vap, int op,
 			IEEE80211_SEND_MGMT(ni,
 			    IEEE80211_FC0_SUBTYPE_DEAUTH, reason);
 			ieee80211_free_node(ni);
+			break;
+		case IEEE80211_M_MBSS:
+			IEEE80211_NODE_LOCK(nt);
+			ni = ieee80211_find_node_locked(nt, mac);
+			if (ni != NULL) {
+				ieee80211_node_leave(ni);
+				ieee80211_free_node(ni);
+			} else {
+				error = ENOENT;
+			}
+			IEEE80211_NODE_UNLOCK(nt);
 			break;
 		default:
 			error = EINVAL;
@@ -2722,7 +2748,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	case IEEE80211_IOC_PROTMODE:
 		if (ireq->i_val > IEEE80211_PROT_RTSCTS)
 			return EINVAL;
-		ic->ic_protmode = ireq->i_val;
+		ic->ic_protmode = (enum ieee80211_protmode)ireq->i_val;
 		/* NB: if not operating in 11g this can wait */
 		if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&
 		    IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan))
@@ -2741,7 +2767,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (!(IEEE80211_ROAMING_DEVICE <= ireq->i_val &&
 		    ireq->i_val <= IEEE80211_ROAMING_MANUAL))
 			return EINVAL;
-		vap->iv_roaming = ireq->i_val;
+		vap->iv_roaming = (enum ieee80211_roamingmode)ireq->i_val;
 		/* XXXX reset? */
 		break;
 	case IEEE80211_IOC_PRIVACY:
@@ -2938,6 +2964,24 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		/* NB: reset only if we're operating on an 11g channel */
 		if (isvap11g(vap))
 			error = ENETRESET;
+		break;
+	case IEEE80211_IOC_QUIET:
+		vap->iv_quiet= ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_COUNT:
+		vap->iv_quiet_count=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_PERIOD:
+		vap->iv_quiet_period=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_OFFSET:
+		vap->iv_quiet_offset=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_DUR:
+		if(ireq->i_val < vap->iv_bss->ni_intval)
+			vap->iv_quiet_duration = ireq->i_val;
+		else
+			error = EINVAL;
 		break;
 	case IEEE80211_IOC_BGSCAN:
 		if (ireq->i_val) {

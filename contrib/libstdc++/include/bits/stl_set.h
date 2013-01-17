@@ -138,7 +138,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       // allocation/deallocation
       ///  Default constructor creates no elements.
       set()
-      : _M_t(_Compare(), allocator_type()) {}
+      : _M_t() { }
 
       /**
        *  @brief  Default constructor creates no elements.
@@ -162,7 +162,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        */
       template<class _InputIterator>
         set(_InputIterator __first, _InputIterator __last)
-        : _M_t(_Compare(), allocator_type())
+        : _M_t()
         { _M_t._M_insert_unique(__first, __last); }
 
       /**
@@ -190,7 +190,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  The newly-created %set uses a copy of the allocation object used
        *  by @a x.
        */
-      set(const set<_Key,_Compare,_Alloc>& __x)
+      set(const set& __x)
       : _M_t(__x._M_t) { }
 
       /**
@@ -200,8 +200,8 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  All the elements of @a x are copied, but unlike the copy constructor,
        *  the allocator object is not copied.
        */
-      set<_Key,_Compare,_Alloc>&
-      operator=(const set<_Key, _Compare, _Alloc>& __x)
+      set&
+      operator=(const set& __x)
       {
 	_M_t = __x._M_t;
 	return *this;
@@ -283,7 +283,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  std::swap(s1,s2) will feed to this function.
        */
       void
-      swap(set<_Key,_Compare,_Alloc>& __x)
+      swap(set& __x)
       { _M_t.swap(__x._M_t); }
 
       // insert/erase

@@ -1,17 +1,17 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -30,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_header.h,v 1.14 2005/03/06 16:04:17 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_header_h__
-#define __sctp_header_h__
+#ifndef _NETINET_SCTP_HEADER_H_
+#define _NETINET_SCTP_HEADER_H_
 
 #include <sys/time.h>
 #include <netinet/sctp.h>
@@ -81,8 +79,7 @@ struct sctp_host_name_param {
 /* supported address type */
 struct sctp_supported_addr_param {
 	struct sctp_paramhdr ph;/* type=SCTP_SUPPORTED_ADDRTYPE */
-	uint16_t addr_type[SCTP_ARRAY_MIN_LEN];	/* array of supported address
-						 * types */
+	uint16_t addr_type[2];	/* array of supported address types */
 }                         SCTP_PACKED;
 
 /* ECN parameter */
@@ -500,27 +497,18 @@ struct sctp_stream_reset_add_strm {
 	uint16_t reserved;
 }                          SCTP_PACKED;
 
-#define SCTP_STREAM_RESET_NOTHING   0x00000000	/* Nothing for me to do */
-#define SCTP_STREAM_RESET_PERFORMED 0x00000001	/* Did it */
-#define SCTP_STREAM_RESET_DENIED    0x00000002	/* refused to do it */
-#define SCTP_STREAM_RESET_ERROR_STR 0x00000003	/* bad Stream no */
-#define SCTP_STREAM_RESET_TRY_LATER 0x00000004	/* collision, try again */
-#define SCTP_STREAM_RESET_BAD_SEQNO 0x00000005	/* bad str-reset seq no */
+#define SCTP_STREAM_RESET_RESULT_NOTHING_TO_DO   0x00000000	/* XXX: unused */
+#define SCTP_STREAM_RESET_RESULT_PERFORMED       0x00000001
+#define SCTP_STREAM_RESET_RESULT_DENIED          0x00000002
+#define SCTP_STREAM_RESET_RESULT_ERR__WRONG_SSN  0x00000003	/* XXX: unused */
+#define SCTP_STREAM_RESET_RESULT_ERR_IN_PROGRESS 0x00000004
+#define SCTP_STREAM_RESET_RESULT_ERR_BAD_SEQNO   0x00000005
+#define SCTP_STREAM_RESET_RESULT_IN_PROGRESS     0x00000006	/* XXX: unused */
 
 /*
  * convience structures, note that if you are making a request for specific
  * streams then the request will need to be an overlay structure.
  */
-
-struct sctp_stream_reset_out_req {
-	struct sctp_chunkhdr ch;
-	struct sctp_stream_reset_out_request sr_req;
-}                         SCTP_PACKED;
-
-struct sctp_stream_reset_in_req {
-	struct sctp_chunkhdr ch;
-	struct sctp_stream_reset_in_request sr_req;
-}                        SCTP_PACKED;
 
 struct sctp_stream_reset_tsn_req {
 	struct sctp_chunkhdr ch;

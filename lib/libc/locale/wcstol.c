@@ -2,6 +2,11 @@
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -35,18 +40,21 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <wchar.h>
 #include <wctype.h>
+#include "xlocale_private.h"
 
 /*
  * Convert a string to a long integer.
  */
 long
-wcstol(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr, int base)
+wcstol_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr, int
+		base, locale_t locale)
 {
 	const wchar_t *s;
 	unsigned long acc;
 	wchar_t c;
 	unsigned long cutoff;
 	int neg, any, cutlim;
+	FIX_LOCALE(locale);
 
 	/*
 	 * See strtol for comments as to the logic used.
@@ -54,7 +62,7 @@ wcstol(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr, int base)
 	s = nptr;
 	do {
 		c = *s++;
-	} while (iswspace(c));
+	} while (iswspace_l(c, locale));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -81,8 +89,8 @@ wcstol(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr, int base)
 	cutoff /= base;
 	for ( ; ; c = *s++) {
 #ifdef notyet
-		if (iswdigit(c))
-			c = digittoint(c);
+		if (iswdigit_l(c, locale))
+			c = digittoint_l(c, locale);
 		else
 #endif
 		if (c >= L'0' && c <= L'9')
@@ -114,4 +122,9 @@ noconv:
 	if (endptr != NULL)
 		*endptr = (wchar_t *)(any ? s - 1 : nptr);
 	return (acc);
+}
+long
+wcstol(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr, int base)
+{
+	return wcstol_l(nptr, endptr, base, __get_locale());
 }

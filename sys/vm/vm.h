@@ -83,7 +83,7 @@ typedef u_char vm_prot_t;	/* protection codes */
 #define	VM_PROT_DEFAULT		VM_PROT_ALL
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
-		OBJT_DEAD, OBJT_SG };
+		OBJT_DEAD, OBJT_SG, OBJT_MGTDEVICE };
 typedef u_char objtype_t;
 
 union vm_map_object;
@@ -140,6 +140,8 @@ struct kva_md_info {
 
 extern struct kva_md_info	kmi;
 extern void vm_ksubmap_init(struct kva_md_info *);
+
+extern int old_mlock;
 
 struct ucred;
 int swap_reserve(vm_ooffset_t incr);

@@ -12,7 +12,7 @@
 . /etc/network.subr
 
 name="ip6addrctl"
-rcvar=`set_rcvar`
+rcvar="ip6addrctl_enable"
 start_cmd="ip6addrctl_start"
 stop_cmd="ip6addrctl_stop"
 extra_commands="status prefer_ipv6 prefer_ipv4"
@@ -82,6 +82,9 @@ ip6addrctl_start()
 	[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
 		# Backward compatibility when ipv6_prefer=NO
 		ip6addrctl_prefer_ipv4
+	;;
+	[Nn][Oo][Nn][Ee])
+		ip6addrctl flush >/dev/null 2>&1
 	;;
 	*)
 		warn "\$ip6addrctl_policy is invalid: ${ip6addrctl_policy}. " \

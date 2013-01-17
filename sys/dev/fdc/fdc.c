@@ -267,7 +267,7 @@ static driver_filter_t fdc_intr_fast;
 static void fdc_reset(struct fdc_data *);
 static int fd_probe_disk(struct fd_data *, int *);
 
-SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
+static SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
 
 static int fifo_threshold = 8;
 SYSCTL_INT(_debug_fdc, OID_AUTO, fifo, CTLFLAG_RW, &fifo_threshold, 0,
@@ -314,14 +314,14 @@ fdsettype(struct fd_data *fd, struct fd_type *ft)
 /*
  * Bus space handling (access to low-level IO).
  */
-__inline static void
+static inline void
 fdregwr(struct fdc_data *fdc, int reg, uint8_t v)
 {
 
 	bus_space_write_1(fdc->iot, fdc->ioh[reg], fdc->ioff[reg], v);
 }
 
-__inline static uint8_t
+static inline uint8_t
 fdregrd(struct fdc_data *fdc, int reg)
 {
 
@@ -865,7 +865,7 @@ fdc_worker(struct fdc_data *fdc)
 		g_orphan_provider(fd->fd_provider, ENXIO);
 		fd->fd_provider->flags |= G_PF_WITHER;
 		fd->fd_provider =
-		    g_new_providerf(fd->fd_geom, fd->fd_geom->name);
+		    g_new_providerf(fd->fd_geom, "%s", fd->fd_geom->name);
 		g_error_provider(fd->fd_provider, 0);
 		g_topology_unlock();
 		return (fdc_biodone(fdc, ENXIO));
@@ -2011,7 +2011,7 @@ fd_attach2(void *arg, int flag)
 
 	fd->fd_geom = g_new_geomf(&g_fd_class,
 	    "fd%d", device_get_unit(fd->dev));
-	fd->fd_provider = g_new_providerf(fd->fd_geom, fd->fd_geom->name);
+	fd->fd_provider = g_new_providerf(fd->fd_geom, "%s", fd->fd_geom->name);
 	fd->fd_geom->softc = fd;
 	g_error_provider(fd->fd_provider, 0);
 }

@@ -31,9 +31,32 @@
 #ifndef	__IF_ATH_TX_HT_H__
 #define	__IF_ATH_TX_HT_H__
 
+enum {
+	MCS_HT20,
+	MCS_HT20_SGI,
+	MCS_HT40,
+	MCS_HT40_SGI,
+};
+
+typedef enum {
+	ATH_AGGR_DONE,
+	ATH_AGGR_BAW_CLOSED,
+	ATH_AGGR_LIMITED,
+	ATH_AGGR_SHORTPKT,
+	ATH_AGGR_8K_LIMITED,
+	ATH_AGGR_ERROR,
+	ATH_AGGR_NONAGGR,
+} ATH_AGGR_STATUS;
+
+extern int	ath_max_4ms_framelen[4][32];
+
+extern void ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf);
+
 extern void	ath_buf_set_rate(struct ath_softc *sc,
-		struct ieee80211_node *ni, struct ath_buf *bf,
-		int pktlen, int flags, uint8_t ctsrate, int is_pspoll,
-		uint8_t *rix, uint8_t *try);
+		struct ieee80211_node *ni, struct ath_buf *bf);
+
+extern ATH_AGGR_STATUS
+	    ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
+	    struct ath_tid *tid, ath_bufhead *bf_q);
 
 #endif

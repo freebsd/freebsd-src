@@ -62,6 +62,8 @@ static HAL_BOOL ar5416SetPowerPerRateTable(struct ath_hal *ah,
 	uint16_t powerLimit);
 static void ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan);
 static void ar5416MarkPhyInactive(struct ath_hal *ah);
+static void ar5416SetIFSTiming(struct ath_hal *ah,
+   const struct ieee80211_channel *chan);
 
 /*
  * Places the device in and out of reset and then places sane
@@ -118,6 +120,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	}
 	HALASSERT(AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER14_1);
 
+	/* Blank the channel survey statistics */
+	OS_MEMZERO(&ahp->ah_chansurvey, sizeof(ahp->ah_chansurvey));
+
 	/* XXX Turn on fast channel change for 5416 */
 	/*
 	 * Preserve the bmiss rssi threshold and count threshold
@@ -146,7 +151,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
 	if (AR_SREV_HOWL(ah) ||
-	    (AR_SREV_MERLIN(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)))
+	    (AR_SREV_MERLIN(ah) &&
+	     ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) ||
+	    (ah->ah_config.ah_force_full_reset))
 		tsf = ar5416GetTsf64(ah);
 
 	/* Mark PHY as inactive; marked active in ar5416InitBB() */
@@ -305,10 +312,25 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		ah->ah_resetTxQueue(ah, i);
 
 	ar5416InitIMR(ah, opmode);
-	ar5212SetCoverageClass(ah, AH_PRIVATE(ah)->ah_coverageClass, 1);
+	ar5416SetCoverageClass(ah, AH_PRIVATE(ah)->ah_coverageClass, 1);
 	ar5416InitQoS(ah);
 	/* This may override the AR_DIAG_SW register */
 	ar5416InitUserSettings(ah);
+
+	/* XXX this won't work for AR9287! */
+	if (IEEE80211_IS_CHAN_HALF(chan) || IEEE80211_IS_CHAN_QUARTER(chan)) {
+		ar5416SetIFSTiming(ah, chan);
+#if 0
+			/*
+			 * AR5413?
+			 * Force window_length for 1/2 and 1/4 rate channels,
+			 * the ini file sets this to zero otherwise.
+			 */
+			OS_REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL,
+			    AR_PHY_FRAME_CTL_WINLEN, 3);
+		}
+#endif
+	}
 
 	if (AR_SREV_KIWI_13_OR_LATER(ah)) {
 		/*
@@ -687,7 +709,8 @@ ar5416InitUserSettings(struct ath_hal *ah)
 
 	/* Restore user-specified settings */
 	if (ahp->ah_miscMode != 0)
-		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE)
+		    | ahp->ah_miscMode);
 	if (ahp->ah_sifstime != (u_int) -1)
 		ar5212SetSifsTime(ah, ahp->ah_sifstime);
 	if (ahp->ah_slottime != (u_int) -1)
@@ -722,6 +745,7 @@ ar5416SetRfMode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		rfMode |= IEEE80211_IS_CHAN_5GHZ(chan) ?
 			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
 	}
+
 	OS_REG_WRITE(ah, AR_PHY_MODE, rfMode);
 }
 
@@ -733,10 +757,13 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 	/*
-	 * Warm reset is optimistic.
+	 * Warm reset is optimistic for open-loop TX power control.
 	 */
 	if (AR_SREV_MERLIN(ah) &&
 	    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) {
+		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
+			return AH_FALSE;
+	} else if (ah->ah_config.ah_force_full_reset) {
 		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
 			return AH_FALSE;
 	} else {
@@ -1169,7 +1196,8 @@ ar5416SetTransmitPower(struct ath_hal *ah,
 HAL_RFGAIN
 ar5416GetRfgain(struct ath_hal *ah)
 {
-	return HAL_RFGAIN_INACTIVE;
+
+	return (HAL_RFGAIN_INACTIVE);
 }
 
 /*
@@ -1178,13 +1206,14 @@ ar5416GetRfgain(struct ath_hal *ah)
 HAL_BOOL
 ar5416Disable(struct ath_hal *ah)
 {
-	if (!ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
+
+	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 		return AH_FALSE;
 	if (! ar5416SetResetReg(ah, HAL_RESET_COLD))
 		return AH_FALSE;
 
 	AH5416(ah)->ah_initPLL(ah, AH_NULL);
-	return AH_TRUE;
+	return (AH_TRUE);
 }
 
 /*
@@ -1196,11 +1225,12 @@ ar5416Disable(struct ath_hal *ah)
 HAL_BOOL
 ar5416PhyDisable(struct ath_hal *ah)
 {
+
 	if (! ar5416SetResetReg(ah, HAL_RESET_WARM))
 		return AH_FALSE;
 
 	AH5416(ah)->ah_initPLL(ah, AH_NULL);
-	return AH_TRUE;
+	return (AH_TRUE);
 }
 
 /*
@@ -1209,6 +1239,12 @@ ar5416PhyDisable(struct ath_hal *ah)
 HAL_BOOL
 ar5416SetResetReg(struct ath_hal *ah, uint32_t type)
 {
+	/*
+	 * Set force wake
+	 */
+	OS_REG_WRITE(ah, AR_RTC_FORCE_WAKE,
+	    AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
+
 	switch (type) {
 	case HAL_RESET_POWER_ON:
 		return ar5416SetResetPowerOn(ah);
@@ -1239,10 +1275,15 @@ ar5416SetResetPowerOn(struct ath_hal *ah)
             AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);    
 
     /*
-     * RTC reset and clear
+     * PowerOn reset can be used in open loop power control or failure recovery.
+     * If we do RTC reset while DMA is still running, hardware may corrupt memory.
+     * Therefore, we need to reset AHB first to stop DMA.
      */
     if (! AR_SREV_HOWL(ah))
     	OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
+    /*
+     * RTC reset and clear
+     */
     OS_REG_WRITE(ah, AR_RTC_RESET, 0);
     OS_DELAY(20);
 
@@ -1293,6 +1334,11 @@ ar5416SetReset(struct ath_hal *ah, int type)
 #endif	/* AH_SUPPORT_AR9130 */
         /*
          * Reset AHB
+         *
+         * (In case the last interrupt source was a bus timeout.)
+         * XXX TODO: this is not the way to do it! It should be recorded
+         * XXX by the interrupt handler and passed _into_ the
+         * XXX reset path routine so this occurs.
          */
         tmpReg = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
         if (tmpReg & (AR_INTR_SYNC_LOCAL_TIMEOUT|AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
@@ -1348,16 +1394,15 @@ ar5416SetReset(struct ath_hal *ah, int type)
 	if (type == HAL_RESET_COLD) {
 		if (isBigEndian()) {
 			/*
-			 * Set CFG, little-endian for register
-			 * and descriptor accesses.
+			 * Set CFG, little-endian for descriptor accesses.
 			 */
-			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD | AR_CFG_SWRG;
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD;
 #ifndef AH_NEED_DESC_SWAP
 			mask |= AR_CFG_SWTD;
 #endif
 			HALDEBUG(ah, HAL_DEBUG_RESET,
 			    "%s Applying descriptor swap\n", __func__);
-			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			OS_REG_WRITE(ah, AR_CFG, mask);
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
@@ -1474,6 +1519,7 @@ ar5416SetDefGainValues(struct ath_hal *ah,
     const struct ar5416eeprom *eep,
     uint8_t txRxAttenLocal, int regChainOffset, int i)
 {
+
 	if (IS_EEP_MINOR_V3(ah)) {
 		txRxAttenLocal = pModal->txRxAttenCh[i];
 
@@ -1670,7 +1716,7 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    eep->baseEepHeader.desiredScaleCCK);
         }
 
-    return AH_TRUE;
+    return (AH_TRUE);
 }
 
 /*
@@ -1704,7 +1750,8 @@ ar5416SetRatesArrayFromTargetPower(struct ath_hal *ah,
 
 	/* Set rates Array from collected data */
 	ratesArray[rate6mb] = ratesArray[rate9mb] = ratesArray[rate12mb] =
-	    ratesArray[rate18mb] = ratesArray[rate24mb] = targetPowerOfdm->tPow2x[0];
+	ratesArray[rate18mb] = ratesArray[rate24mb] =
+	    targetPowerOfdm->tPow2x[0];
 	ratesArray[rate36mb] = targetPowerOfdm->tPow2x[1];
 	ratesArray[rate48mb] = targetPowerOfdm->tPow2x[2];
 	ratesArray[rate54mb] = targetPowerOfdm->tPow2x[3];
@@ -2608,7 +2655,7 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (!AR_SREV_9271(ah))
 			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
 
-		if (AR_SREV_KIWI_11_OR_LATER(ah))
+		if (AR_SREV_KIWI_10_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
 		OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
@@ -2708,3 +2755,125 @@ ar5416MarkPhyInactive(struct ath_hal *ah)
 {
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
 }
+
+#define	AR5416_IFS_SLOT_FULL_RATE_40	0x168	/* 9 us half, 40 MHz core clock (9*40) */
+#define	AR5416_IFS_SLOT_HALF_RATE_40	0x104	/* 13 us half, 20 MHz core clock (13*20) */
+#define	AR5416_IFS_SLOT_QUARTER_RATE_40	0xD2	/* 21 us quarter, 10 MHz core clock (21*10) */
+
+#define	AR5416_IFS_EIFS_FULL_RATE_40	0xE60	/* (74 + (2 * 9)) * 40MHz core clock */
+#define	AR5416_IFS_EIFS_HALF_RATE_40	0xDAC	/* (149 + (2 * 13)) * 20MHz core clock */
+#define	AR5416_IFS_EIFS_QUARTER_RATE_40	0xD48	/* (298 + (2 * 21)) * 10MHz core clock */
+
+#define	AR5416_IFS_SLOT_FULL_RATE_44	0x18c	/* 9 us half, 44 MHz core clock (9*44) */
+#define	AR5416_IFS_SLOT_HALF_RATE_44	0x11e	/* 13 us half, 22 MHz core clock (13*22) */
+#define	AR5416_IFS_SLOT_QUARTER_RATE_44	0xe7	/* 21 us quarter, 11 MHz core clock (21*11) */
+
+#define	AR5416_IFS_EIFS_FULL_RATE_44	0xfd0	/* (74 + (2 * 9)) * 44MHz core clock */
+#define	AR5416_IFS_EIFS_HALF_RATE_44	0xf0a	/* (149 + (2 * 13)) * 22MHz core clock */
+#define	AR5416_IFS_EIFS_QUARTER_RATE_44	0xe9c	/* (298 + (2 * 21)) * 11MHz core clock */
+
+#define	AR5416_INIT_USEC_40		40
+#define	AR5416_HALF_RATE_USEC_40	19 /* ((40 / 2) - 1 ) */
+#define	AR5416_QUARTER_RATE_USEC_40	9  /* ((40 / 4) - 1 ) */
+
+#define	AR5416_INIT_USEC_44		44
+#define	AR5416_HALF_RATE_USEC_44	21 /* ((44 / 2) - 1 ) */
+#define	AR5416_QUARTER_RATE_USEC_44	10  /* ((44 / 4) - 1 ) */
+
+
+/* XXX What should these be for 40/44MHz clocks (and half/quarter) ? */
+#define	AR5416_RX_NON_FULL_RATE_LATENCY		63
+#define	AR5416_TX_HALF_RATE_LATENCY		108
+#define	AR5416_TX_QUARTER_RATE_LATENCY		216
+
+/*
+ * Adjust various register settings based on half/quarter rate clock setting.
+ * This includes:
+ *
+ * + USEC, TX/RX latency,
+ * + IFS params: slot, eifs, misc etc.
+ *
+ * TODO:
+ *
+ * + Verify which other registers need to be tweaked;
+ * + Verify the behaviour of this for 5GHz fast and non-fast clock mode;
+ * + This just plain won't work for long distance links - the coverage class
+ *   code isn't aware of the slot/ifs/ACK/RTS timeout values that need to
+ *   change;
+ * + Verify whether the 32KHz USEC value needs to be kept for the 802.11n
+ *   series chips?
+ * + Calculate/derive values for 2GHz, 5GHz, 5GHz fast clock
+ */
+static void
+ar5416SetIFSTiming(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	uint32_t txLat, rxLat, usec, slot, refClock, eifs, init_usec;
+	int clk_44 = 0;
+
+	HALASSERT(IEEE80211_IS_CHAN_HALF(chan) ||
+	    IEEE80211_IS_CHAN_QUARTER(chan));
+
+	/* 2GHz and 5GHz fast clock - 44MHz; else 40MHz */
+	if (IEEE80211_IS_CHAN_2GHZ(chan))
+		clk_44 = 1;
+	else if (IEEE80211_IS_CHAN_5GHZ(chan) &&
+	    IS_5GHZ_FAST_CLOCK_EN(ah, chan))
+		clk_44 = 1;
+
+	/* XXX does this need save/restoring for the 11n chips? */
+	refClock = OS_REG_READ(ah, AR_USEC) & AR_USEC_USEC32;
+
+	/*
+	 * XXX This really should calculate things, not use
+	 * hard coded values! Ew.
+	 */
+	if (IEEE80211_IS_CHAN_HALF(chan)) {
+		if (clk_44) {
+			slot = AR5416_IFS_SLOT_HALF_RATE_44;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_HALF_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_HALF_RATE_USEC_44;
+			eifs = AR5416_IFS_EIFS_HALF_RATE_44;
+			init_usec = AR5416_INIT_USEC_44 >> 1;
+		} else {
+			slot = AR5416_IFS_SLOT_HALF_RATE_40;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_HALF_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_HALF_RATE_USEC_40;
+			eifs = AR5416_IFS_EIFS_HALF_RATE_40;
+			init_usec = AR5416_INIT_USEC_40 >> 1;
+		}
+	} else { /* quarter rate */
+		if (clk_44) {
+			slot = AR5416_IFS_SLOT_QUARTER_RATE_44;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_QUARTER_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_QUARTER_RATE_USEC_44;
+			eifs = AR5416_IFS_EIFS_QUARTER_RATE_44;
+			init_usec = AR5416_INIT_USEC_44 >> 2;
+		} else {
+			slot = AR5416_IFS_SLOT_QUARTER_RATE_40;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_QUARTER_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_QUARTER_RATE_USEC_40;
+			eifs = AR5416_IFS_EIFS_QUARTER_RATE_40;
+			init_usec = AR5416_INIT_USEC_40 >> 2;
+		}
+	}
+
+	/* XXX verify these! */
+	OS_REG_WRITE(ah, AR_USEC, (usec | refClock | txLat | rxLat));
+	OS_REG_WRITE(ah, AR_D_GBL_IFS_SLOT, slot);
+	OS_REG_WRITE(ah, AR_D_GBL_IFS_EIFS, eifs);
+	OS_REG_RMW_FIELD(ah, AR_D_GBL_IFS_MISC,
+	    AR_D_GBL_IFS_MISC_USEC_DURATION, init_usec);
+}
+

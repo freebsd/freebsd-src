@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2011
+.Dd February 10, 2012
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -193,6 +193,11 @@ Use the block specified immediately after the flag as
 the super block for the file system.
 An alternate super block is usually located at block 32 for UFS1,
 and block 160 for UFS2.
+.Pp
+See the
+.Fl N
+flag of
+.Xr newfs 8 .
 .It Fl C
 Check if file system was dismounted cleanly.
 If so, skip file system checks (like "preen").

@@ -63,7 +63,11 @@ _pthread_resume_all_np(void)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread *thread;
+	int old_nocancel;
 
+	old_nocancel = curthread->no_cancel;
+	curthread->no_cancel = 1;
+	_thr_suspend_all_lock(curthread);
 	/* Take the thread list lock: */
 	THREAD_LIST_RDLOCK(curthread);
 
@@ -77,6 +81,9 @@ _pthread_resume_all_np(void)
 
 	/* Release the thread list lock: */
 	THREAD_LIST_UNLOCK(curthread);
+	_thr_suspend_all_unlock(curthread);
+	curthread->no_cancel = old_nocancel;
+	_thr_testcancel(curthread);
 }
 
 static void

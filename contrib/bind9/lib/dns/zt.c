@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zt.c,v 1.47.814.3 2011-03-19 23:47:24 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 

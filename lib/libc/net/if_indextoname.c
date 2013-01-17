@@ -70,7 +70,7 @@ if_indextoname(unsigned int ifindex, char *ifname)
 	for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
 		if (ifa->ifa_addr &&
 		    ifa->ifa_addr->sa_family == AF_LINK &&
-		    ifindex == ((struct sockaddr_dl*)ifa->ifa_addr)->sdl_index)
+		    ifindex == LLINDEX((struct sockaddr_dl*)ifa->ifa_addr))
 			break;
 	}
 

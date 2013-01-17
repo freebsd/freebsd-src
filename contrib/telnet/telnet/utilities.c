@@ -782,7 +782,7 @@ printsub(char direction, unsigned char *pointer, int length)
 				    fprintf(NetTrace, "\" VAR " + noquote);
 			    } else
 #endif /* OLD_ENVIRON */
-				fprintf(NetTrace, "\" VALUE " + noquote);
+				fprintf(NetTrace, "%s", "\" VALUE " + noquote);
 			    noquote = 2;
 			    break;
 
@@ -798,17 +798,17 @@ printsub(char direction, unsigned char *pointer, int length)
 				    fprintf(NetTrace, "\" VALUE " + noquote);
 			    } else
 #endif /* OLD_ENVIRON */
-				fprintf(NetTrace, "\" VAR " + noquote);
+				fprintf(NetTrace, "%s", "\" VAR " + noquote);
 			    noquote = 2;
 			    break;
 
 			case ENV_ESC:
-			    fprintf(NetTrace, "\" ESC " + noquote);
+			    fprintf(NetTrace, "%s", "\" ESC " + noquote);
 			    noquote = 2;
 			    break;
 
 			case ENV_USERVAR:
-			    fprintf(NetTrace, "\" USERVAR " + noquote);
+			    fprintf(NetTrace, "%s", "\" USERVAR " + noquote);
 			    noquote = 2;
 			    break;
 

@@ -36,33 +36,29 @@ template<typename ValueSubClass, typename ItemParentClass>
 /// These are used to efficiently contain a byte sequence for metadata.
 /// MDString is always unnamed.
 class MDString : public Value {
-  MDString(const MDString &);            // DO NOT IMPLEMENT
+  virtual void anchor();
+  MDString(const MDString &) LLVM_DELETED_FUNCTION;
 
-  StringRef Str;
-  explicit MDString(LLVMContext &C, StringRef S);
-
+  explicit MDString(LLVMContext &C);
 public:
   static MDString *get(LLVMContext &Context, StringRef Str);
   static MDString *get(LLVMContext &Context, const char *Str) {
     return get(Context, Str ? StringRef(Str) : StringRef());
   }
 
-  StringRef getString() const { return Str; }
+  StringRef getString() const { return getName(); }
 
-  unsigned getLength() const { return (unsigned)Str.size(); }
+  unsigned getLength() const { return (unsigned)getName().size(); }
 
   typedef StringRef::iterator iterator;
   
   /// begin() - Pointer to the first byte of the string.
-  ///
-  iterator begin() const { return Str.begin(); }
+  iterator begin() const { return getName().begin(); }
 
   /// end() - Pointer to one byte past the end of the string.
-  ///
-  iterator end() const { return Str.end(); }
+  iterator end() const { return getName().end(); }
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const MDString *) { return true; }
   static bool classof(const Value *V) {
     return V->getValueID() == MDStringVal;
   }
@@ -74,10 +70,14 @@ class MDNodeOperand;
 //===----------------------------------------------------------------------===//
 /// MDNode - a tuple of other values.
 class MDNode : public Value, public FoldingSetNode {
-  MDNode(const MDNode &);                // DO NOT IMPLEMENT
-  void operator=(const MDNode &);        // DO NOT IMPLEMENT
+  MDNode(const MDNode &) LLVM_DELETED_FUNCTION;
+  void operator=(const MDNode &) LLVM_DELETED_FUNCTION;
   friend class MDNodeOperand;
   friend class LLVMContextImpl;
+  friend struct FoldingSetTrait<MDNode>;
+
+  /// Hash - If the MDNode is uniqued cache the hash to speed up lookup.
+  unsigned Hash;
 
   /// NumOperands - This many 'MDNodeOperand' items are co-allocated onto the
   /// end of this MDNode.
@@ -134,6 +134,9 @@ public:
   /// deleteTemporary - Deallocate a node created by getTemporary. The
   /// node must not have any users.
   static void deleteTemporary(MDNode *N);
+
+  /// replaceOperandWith - Replace a specific operand.
+  void replaceOperandWith(unsigned i, Value *NewVal);
   
   /// getOperand - Return specified operand.
   Value *getOperand(unsigned i) const;
@@ -157,10 +160,14 @@ public:
   void Profile(FoldingSetNodeID &ID) const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const MDNode *) { return true; }
   static bool classof(const Value *V) {
     return V->getValueID() == MDNodeVal;
   }
+
+  /// Methods for metadata merging.
+  static MDNode *getMostGenericTBAA(MDNode *A, MDNode *B);
+  static MDNode *getMostGenericFPMath(MDNode *A, MDNode *B);
+  static MDNode *getMostGenericRange(MDNode *A, MDNode *B);
 private:
   // destroy - Delete this node.  Only when there are no uses.
   void destroy();
@@ -186,7 +193,7 @@ class NamedMDNode : public ilist_node<NamedMDNode> {
   friend struct ilist_traits<NamedMDNode>;
   friend class LLVMContextImpl;
   friend class Module;
-  NamedMDNode(const NamedMDNode &);      // DO NOT IMPLEMENT
+  NamedMDNode(const NamedMDNode &) LLVM_DELETED_FUNCTION;
 
   std::string Name;
   Module *Parent;
@@ -225,6 +232,9 @@ public:
 
   /// print - Implement operator<< on NamedMDNode.
   void print(raw_ostream &ROS, AssemblyAnnotationWriter *AAW = 0) const;
+
+  /// dump() - Allow printing of NamedMDNodes from the debugger.
+  void dump() const;
 };
 
 } // end llvm namespace

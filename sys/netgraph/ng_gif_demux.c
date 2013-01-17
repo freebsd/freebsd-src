@@ -89,7 +89,7 @@
 #include <netgraph/ng_gif_demux.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux",
+static MALLOC_DEFINE(M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux",
     "netgraph gif demux node");
 #else
 #define M_NETGRAPH_GIF_DEMUX M_NETGRAPH
@@ -341,7 +341,7 @@ ng_gif_demux_rcvdata(hook_p hook, item_p item)
 		 * Add address family header and set the output hook.
 		 */
 		iffam = get_iffam_from_hook(priv, hook);
-		M_PREPEND(m, sizeof (iffam->family), M_DONTWAIT);
+		M_PREPEND(m, sizeof (iffam->family), M_NOWAIT);
 		if (m == NULL) {
 			NG_FREE_M(m);
 			NG_FREE_ITEM(item);

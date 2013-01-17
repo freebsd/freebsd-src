@@ -35,6 +35,7 @@
 #endif
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libutil.h>
 #ifdef DEBUG
 #include <stdint.h>
@@ -151,13 +152,13 @@ mfi_config_lookup_volume(struct mfi_config_data *config, uint8_t target_id)
 }
 
 static int
-clear_config(int ac, char **av)
+clear_config(int ac __unused, char **av __unused)
 {
 	struct mfi_ld_list list;
 	int ch, error, fd;
 	u_int i;
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -211,9 +212,8 @@ clear_config(int ac, char **av)
 }
 MFI_COMMAND(top, clear, clear_config);
 
-#define	MFI_ARRAY_SIZE		288
-#define	MAX_DRIVES_PER_ARRAY						\
-	((MFI_ARRAY_SIZE - sizeof(struct mfi_array)) / 8)
+#define MAX_DRIVES_PER_ARRAY MFI_MAX_ROW_SIZE
+#define MFI_ARRAY_SIZE sizeof(struct mfi_array)
 
 #define	RT_RAID0	0
 #define	RT_RAID1	1
@@ -305,7 +305,7 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 
 	/* Validate the number of drives for this array. */
 	if (count >= MAX_DRIVES_PER_ARRAY) {
-		warnx("Too many drives for a single array: max is %zu",
+		warnx("Too many drives for a single array: max is %d",
 		    MAX_DRIVES_PER_ARRAY);
 		return (EINVAL);
 	}
@@ -348,6 +348,7 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 		error = mfi_lookup_drive(fd, cp, &device_id);
 		if (error) {
 			free(info->drives);
+			info->drives = NULL;
 			return (error);
 		}
 
@@ -355,12 +356,14 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 			error = errno;
 			warn("Failed to fetch drive info for drive %s", cp);
 			free(info->drives);
+			info->drives = NULL;
 			return (error);
 		}
 
 		if (pinfo->fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
 			warnx("Drive %u is not available", device_id);
 			free(info->drives);
+			info->drives = NULL;
 			return (EINVAL);
 		}
 	}
@@ -408,7 +411,7 @@ find_next_volume(struct config_id_state *state)
 
 /* Populate an array with drives. */
 static void
-build_array(int fd, char *arrayp, struct array_info *array_info,
+build_array(int fd __unused, char *arrayp, struct array_info *array_info,
     struct config_id_state *state, int verbose)
 {
 	struct mfi_array *ar = (struct mfi_array *)arrayp;
@@ -573,7 +576,7 @@ create_volume(int ac, char **av)
 	narrays = 0;
 	error = 0;
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -817,9 +820,11 @@ error:
 	free(config);
 	free(state.volumes);
 	free(state.arrays);
-	for (i = 0; i < narrays; i++)
-		free(arrays[i].drives);
-	free(arrays);
+	if (arrays != NULL) {
+		for (i = 0; i < narrays; i++)
+			free(arrays[i].drives);
+		free(arrays);
+	}
 	close(fd);
 
 	return (error);
@@ -853,7 +858,7 @@ delete_volume(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -921,7 +926,7 @@ add_spare(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1046,7 +1051,7 @@ remove_spare(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1192,7 +1197,7 @@ debug_config(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");
@@ -1229,7 +1234,7 @@ dump(int ac, char **av)
 		return (EINVAL);
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

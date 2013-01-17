@@ -2,7 +2,7 @@
  * Copyright (c) 2007 Seccuris Inc.
  * All rights reserved.
  *
- * This sofware was developed by Robert N. M. Watson under contract to
+ * This software was developed by Robert N. M. Watson under contract to
  * Seccuris Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpfdesc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>

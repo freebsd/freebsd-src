@@ -61,9 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ioctl.h>
 
 typedef enum {
-	SG_FLAG_OPEN		= 0x01,
-	SG_FLAG_LOCKED		= 0x02,
-	SG_FLAG_INVALID		= 0x04
+	SG_FLAG_LOCKED		= 0x01,
+	SG_FLAG_INVALID		= 0x02
 } sg_flags;
 
 typedef enum {
@@ -100,6 +99,7 @@ struct sg_rdwr {
 struct sg_softc {
 	sg_state		state;
 	sg_flags		flags;
+	int			open_count;
 	struct devstat		*device_stats;
 	TAILQ_HEAD(, sg_rdwr)	rdwr_done;
 	struct cdev		*dev;
@@ -141,7 +141,7 @@ PERIPHDRIVER_DECLARE(sg, sgdriver);
 
 static struct cdevsw sg_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT | D_TRACKCLOSE,
 	.d_open =	sgopen,
 	.d_close =	sgclose,
 	.d_ioctl =	sgioctl,
@@ -170,6 +170,49 @@ sginit(void)
 }
 
 static void
+sgdevgonecb(void *arg)
+{
+	struct cam_sim    *sim;
+	struct cam_periph *periph;
+	struct sg_softc *softc;
+	int i;
+
+	periph = (struct cam_periph *)arg;
+	sim = periph->sim;
+	softc = (struct sg_softc *)periph->softc;
+
+	KASSERT(softc->open_count >= 0, ("Negative open count %d",
+		softc->open_count));
+
+	mtx_lock(sim->mtx);
+
+	/*
+	 * When we get this callback, we will get no more close calls from
+	 * devfs.  So if we have any dangling opens, we need to release the
+	 * reference held for that particular context.
+	 */
+	for (i = 0; i < softc->open_count; i++)
+		cam_periph_release_locked(periph);
+
+	softc->open_count = 0;
+
+	/*
+	 * Release the reference held for the device node, it is gone now.
+	 */
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the final call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 */
+	mtx_unlock(sim->mtx);
+}
+
+
+static void
 sgoninvalidate(struct cam_periph *periph)
 {
 	struct sg_softc *softc;
@@ -182,6 +225,12 @@ sgoninvalidate(struct cam_periph *periph)
 	xpt_register_async(0, sgasync, periph, periph->path);
 
 	softc->flags |= SG_FLAG_INVALID;
+
+	/*
+	 * Tell devfs this device has gone away, and ask for a callback
+	 * when it has cleaned up its state.
+	 */
+	destroy_dev_sched_cb(softc->dev, sgdevgonecb, periph);
 
 	/*
 	 * XXX Return all queued I/O with ENXIO.
@@ -202,10 +251,9 @@ sgcleanup(struct cam_periph *periph)
 	softc = (struct sg_softc *)periph->softc;
 	if (bootverbose)
 		xpt_print(periph->path, "removing device entry\n");
+
 	devstat_remove_entry(softc->device_stats);
-	cam_periph_unlock(periph);
-	destroy_dev(softc->dev);
-	cam_periph_lock(periph);
+
 	free(softc, M_DEVBUF);
 }
 
@@ -262,11 +310,6 @@ sgregister(struct cam_periph *periph, void *arg)
 	int no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("sgregister: periph was NULL!!\n");
-		return (CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("sgregister: no getdev CCB, can't register device\n");
 		return (CAM_REQ_CMP_ERR);
@@ -304,6 +347,18 @@ sgregister(struct cam_periph *periph, void *arg)
 			XPORT_DEVSTAT_TYPE(cpi.transport) |
 			DEVSTAT_TYPE_PASS,
 			DEVSTAT_PRIORITY_PASS);
+
+	/*
+	 * Acquire a reference to the periph before we create the devfs
+	 * instance for it.  We'll release this reference once the devfs
+	 * instance has been freed.
+	 */
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+		xpt_print(periph->path, "%s: lost periph during "
+			  "registration!\n", __func__);
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 
 	/* Register the device */
 	softc->dev = make_dev(&sg_cdevsw, periph->unit_number,
@@ -399,29 +454,30 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (periph == NULL)
 		return (ENXIO);
 
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+		return (ENXIO);
+
 	/*
 	 * Don't allow access when we're running at a high securelevel.
 	 */
 	error = securelevel_gt(td->td_ucred, 1);
-	if (error)
+	if (error) {
+		cam_periph_release(periph);
 		return (error);
+	}
 
 	cam_periph_lock(periph);
 
 	softc = (struct sg_softc *)periph->softc;
 	if (softc->flags & SG_FLAG_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
 		return (ENXIO);
 	}
 
-	if ((softc->flags & SG_FLAG_OPEN) == 0) {
-		softc->flags |= SG_FLAG_OPEN;
-		cam_periph_unlock(periph);
-	} else {
-		/* Device closes aren't symmetrical, fix up the refcount. */
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-	}
+	softc->open_count++;
+
+	cam_periph_unlock(periph);
 
 	return (error);
 }
@@ -429,20 +485,36 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
+	struct cam_sim    *sim;
 	struct cam_periph *periph;
-	struct sg_softc *softc;
+	struct sg_softc   *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
-	cam_periph_lock(periph);
+	sim = periph->sim;
+	softc = periph->softc;
 
-	softc = (struct sg_softc *)periph->softc;
-	softc->flags &= ~SG_FLAG_OPEN;
+	mtx_lock(sim->mtx);
 
-	cam_periph_unlock(periph);
-	cam_periph_release(periph);
+	softc->open_count--;
+
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 *
+	 * cam_periph_release() avoids this problem using the same method,
+	 * but we're manually acquiring and dropping the lock here to
+	 * protect the open count and avoid another lock acquisition and
+	 * release.
+	 */
+	mtx_unlock(sim->mtx);
 
 	return (0);
 }

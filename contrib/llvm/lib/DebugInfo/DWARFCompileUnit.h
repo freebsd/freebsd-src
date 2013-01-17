@@ -12,6 +12,7 @@
 
 #include "DWARFDebugAbbrev.h"
 #include "DWARFDebugInfoEntry.h"
+#include "DWARFDebugRangeList.h"
 #include <vector>
 
 namespace llvm {
@@ -43,8 +44,13 @@ public:
                    const DWARFAbbreviationDeclarationSet *abbrevs);
 
   /// extractDIEsIfNeeded - Parses a compile unit and indexes its DIEs if it
-  /// hasn't already been done.
+  /// hasn't already been done. Returns the number of DIEs parsed at this call.
   size_t extractDIEsIfNeeded(bool cu_die_only);
+  /// extractRangeList - extracts the range list referenced by this compile
+  /// unit from .debug_ranges section. Returns true on success.
+  /// Requires that compile unit is already extracted.
+  bool extractRangeList(uint32_t RangeListOffset,
+                        DWARFDebugRangeList &RangeList) const;
   void clear();
   void dump(raw_ostream &OS);
   uint32_t getOffset() const { return Offset; }
@@ -78,6 +84,8 @@ public:
     return &DieArray[0];
   }
 
+  const char *getCompilationDir();
+
   /// setDIERelations - We read in all of the DIE entries into our flat list
   /// of DIE entries and now we need to go back through all of them and set the
   /// parent, sibling and child pointers for quick DIE navigation.
@@ -104,6 +112,11 @@ public:
 
   void buildAddressRangeTable(DWARFDebugAranges *debug_aranges,
                               bool clear_dies_if_already_not_parsed);
+
+  /// getInlinedChainForAddress - fetches inlined chain for a given address.
+  /// Returns empty chain if there is no subprogram containing address.
+  DWARFDebugInfoEntryMinimal::InlinedChain getInlinedChainForAddress(
+      uint64_t Address);
 };
 
 }

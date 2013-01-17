@@ -142,12 +142,6 @@ deget(pmp, dirclust, diroffset, depp)
 		KASSERT((*depp)->de_diroffset == diroffset, ("wrong diroffset"));
 		return (0);
 	}
-
-	/*
-	 * Do the malloc before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if malloc should block.
-	 */
 	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK | M_ZERO);
 
 	/*
@@ -263,8 +257,10 @@ deget(pmp, dirclust, diroffset, depp)
 		 * instead of what is written in directory entry.
 		 */
 		if (diroffset == 0 && ldep->de_StartCluster != dirclust) {
+#ifdef MSDOSFS_DEBUG
 			printf("deget(): \".\" entry at clust %lu != %lu\n",
 			    dirclust, ldep->de_StartCluster);
+#endif
 			ldep->de_StartCluster = dirclust;
 		}
 
@@ -274,8 +270,11 @@ deget(pmp, dirclust, diroffset, depp)
 			if (error == E2BIG) {
 				ldep->de_FileSize = de_cn2off(pmp, size);
 				error = 0;
-			} else
+			} else {
+#ifdef MSDOSFS_DEBUG
 				printf("deget(): pcbmap returned %d\n", error);
+#endif
+			}
 		}
 	} else
 		nvp->v_type = VREG;
@@ -321,12 +320,11 @@ deupdat(dep, waitfor)
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(dep, length, flags, cred, td)
+detrunc(dep, length, flags, cred)
 	struct denode *dep;
 	u_long length;
 	int flags;
 	struct ucred *cred;
-	struct thread *td;
 {
 	int error;
 	int allerror;
@@ -351,8 +349,10 @@ detrunc(dep, length, flags, cred, td)
 	 * directory's life.
 	 */
 	if ((DETOV(dep)->v_vflag & VV_ROOT) && !FAT32(pmp)) {
+#ifdef MSDOSFS_DEBUG
 		printf("detrunc(): can't truncate root directory, clust %ld, offset %ld\n",
 		    dep->de_dirclust, dep->de_diroffset);
+#endif
 		return (EINVAL);
 	}
 
@@ -419,12 +419,12 @@ detrunc(dep, length, flags, cred, td)
 	dep->de_FileSize = length;
 	if (!isadir)
 		dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	allerror = vtruncbuf(DETOV(dep), cred, td, length, pmp->pm_bpcluster);
+	allerror = vtruncbuf(DETOV(dep), cred, length, pmp->pm_bpcluster);
 #ifdef MSDOSFS_DEBUG
 	if (allerror)
 		printf("detrunc(): vtruncbuf error %d\n", allerror);
 #endif
-	error = deupdat(dep, !(DETOV(dep)->v_mount->mnt_flag & MNT_ASYNC));
+	error = deupdat(dep, !DOINGASYNC((DETOV(dep))));
 	if (error != 0 && allerror == 0)
 		allerror = error;
 #ifdef MSDOSFS_DEBUG
@@ -497,13 +497,13 @@ deextend(dep, length, cred)
 		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
 		if (error) {
 			/* truncate the added clusters away again */
-			(void) detrunc(dep, dep->de_FileSize, 0, cred, NULL);
+			(void) detrunc(dep, dep->de_FileSize, 0, cred);
 			return (error);
 		}
 	}
 	dep->de_FileSize = length;
 	dep->de_flag |= DE_UPDATE | DE_MODIFIED;
-	return (deupdat(dep, !(DETOV(dep)->v_mount->mnt_flag & MNT_ASYNC)));
+	return (deupdat(dep, !DOINGASYNC(DETOV(dep))));
 }
 
 /*
@@ -577,7 +577,6 @@ msdosfs_inactive(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
-	struct thread *td = ap->a_td;
 	int error = 0;
 
 #ifdef MSDOSFS_DEBUG
@@ -600,7 +599,7 @@ msdosfs_inactive(ap)
 	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
 #endif
 	if (dep->de_refcnt <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-		error = detrunc(dep, (u_long) 0, 0, NOCRED, td);
+		error = detrunc(dep, (u_long) 0, 0, NOCRED);
 		dep->de_flag |= DE_UPDATE;
 		dep->de_Name[0] = SLOT_DELETED;
 	}
@@ -616,6 +615,6 @@ out:
 	       vrefcnt(vp), dep->de_Name[0]);
 #endif
 	if (dep->de_Name[0] == SLOT_DELETED || dep->de_Name[0] == SLOT_EMPTY)
-		vrecycle(vp, td);
+		vrecycle(vp);
 	return (error);
 }

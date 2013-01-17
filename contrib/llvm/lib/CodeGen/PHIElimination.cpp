@@ -92,10 +92,14 @@ STATISTIC(NumCriticalEdgesSplit, "Number of critical edges split");
 STATISTIC(NumReused, "Number of reused lowered phis");
 
 char PHIElimination::ID = 0;
-INITIALIZE_PASS(PHIElimination, "phi-node-elimination",
-                "Eliminate PHI nodes for register allocation", false, false)
-
 char& llvm::PHIEliminationID = PHIElimination::ID;
+
+INITIALIZE_PASS_BEGIN(PHIElimination, "phi-node-elimination",
+                      "Eliminate PHI nodes for register allocation",
+                      false, false)
+INITIALIZE_PASS_DEPENDENCY(LiveVariables)
+INITIALIZE_PASS_END(PHIElimination, "phi-node-elimination",
+                    "Eliminate PHI nodes for register allocation", false, false)
 
 void PHIElimination::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<LiveVariables>();
@@ -167,23 +171,30 @@ bool PHIElimination::EliminatePHINodes(MachineFunction &MF,
   return true;
 }
 
+/// isImplicitlyDefined - Return true if all defs of VirtReg are implicit-defs.
+/// This includes registers with no defs.
+static bool isImplicitlyDefined(unsigned VirtReg,
+                                const MachineRegisterInfo *MRI) {
+  for (MachineRegisterInfo::def_iterator DI = MRI->def_begin(VirtReg),
+       DE = MRI->def_end(); DI != DE; ++DI)
+    if (!DI->isImplicitDef())
+      return false;
+  return true;
+}
+
 /// isSourceDefinedByImplicitDef - Return true if all sources of the phi node
 /// are implicit_def's.
 static bool isSourceDefinedByImplicitDef(const MachineInstr *MPhi,
                                          const MachineRegisterInfo *MRI) {
-  for (unsigned i = 1; i != MPhi->getNumOperands(); i += 2) {
-    unsigned SrcReg = MPhi->getOperand(i).getReg();
-    const MachineInstr *DefMI = MRI->getVRegDef(SrcReg);
-    if (!DefMI || !DefMI->isImplicitDef())
+  for (unsigned i = 1; i != MPhi->getNumOperands(); i += 2)
+    if (!isImplicitlyDefined(MPhi->getOperand(i).getReg(), MRI))
       return false;
-  }
   return true;
 }
 
 
-
 /// LowerAtomicPHINode - Lower the PHI node at the top of the specified block,
-/// under the assuption that it needs to be lowered in a way that supports
+/// under the assumption that it needs to be lowered in a way that supports
 /// atomic execution of PHIs.  This lowering method is always correct all of the
 /// time.
 ///
@@ -241,7 +252,6 @@ void PHIElimination::LowerAtomicPHINode(
       LiveVariables::VarInfo &VI = LV->getVarInfo(IncomingReg);
 
       // Increment use count of the newly created virtual register.
-      VI.NumUses++;
       LV->setPHIJoin(IncomingReg);
 
       // When we are reusing the incoming register, it may already have been
@@ -284,21 +294,14 @@ void PHIElimination::LowerAtomicPHINode(
   for (int i = NumSrcs - 1; i >= 0; --i) {
     unsigned SrcReg = MPhi->getOperand(i*2+1).getReg();
     unsigned SrcSubReg = MPhi->getOperand(i*2+1).getSubReg();
-
+    bool SrcUndef = MPhi->getOperand(i*2+1).isUndef() ||
+      isImplicitlyDefined(SrcReg, MRI);
     assert(TargetRegisterInfo::isVirtualRegister(SrcReg) &&
            "Machine PHI Operands must all be virtual registers!");
 
     // Get the MachineBasicBlock equivalent of the BasicBlock that is the source
     // path the PHI.
     MachineBasicBlock &opBlock = *MPhi->getOperand(i*2+2).getMBB();
-
-    // If source is defined by an implicit def, there is no need to insert a
-    // copy.
-    MachineInstr *DefMI = MRI->getVRegDef(SrcReg);
-    if (DefMI->isImplicitDef()) {
-      ImpDefs.insert(DefMI);
-      continue;
-    }
 
     // Check to make sure we haven't already emitted the copy for this block.
     // This can happen because PHI nodes may have multiple entries for the same
@@ -312,12 +315,27 @@ void PHIElimination::LowerAtomicPHINode(
       findPHICopyInsertPoint(&opBlock, &MBB, SrcReg);
 
     // Insert the copy.
-    if (!reusedIncoming && IncomingReg)
-      BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
-              TII->get(TargetOpcode::COPY), IncomingReg).addReg(SrcReg, 0, SrcSubReg);
+    if (!reusedIncoming && IncomingReg) {
+      if (SrcUndef) {
+        // The source register is undefined, so there is no need for a real
+        // COPY, but we still need to ensure joint dominance by defs.
+        // Insert an IMPLICIT_DEF instruction.
+        BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
+                TII->get(TargetOpcode::IMPLICIT_DEF), IncomingReg);
+
+        // Clean up the old implicit-def, if there even was one.
+        if (MachineInstr *DefMI = MRI->getVRegDef(SrcReg))
+          if (DefMI->isImplicitDef())
+            ImpDefs.insert(DefMI);
+      } else {
+        BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
+                TII->get(TargetOpcode::COPY), IncomingReg)
+          .addReg(SrcReg, 0, SrcSubReg);
+      }
+    }
 
     // Now update live variable information if we have it.  Otherwise we're done
-    if (!LV) continue;
+    if (SrcUndef || !LV) continue;
 
     // We want to be able to insert a kill of the register if this PHI (aka, the
     // copy we just inserted) is the last use of the source value.  Live
@@ -337,39 +355,35 @@ void PHIElimination::LowerAtomicPHINode(
     // add a kill marker in this block saying that it kills the incoming value!
     if (!ValueIsUsed && !LV->isLiveOut(SrcReg, opBlock)) {
       // In our final twist, we have to decide which instruction kills the
-      // register.  In most cases this is the copy, however, the first
-      // terminator instruction at the end of the block may also use the value.
-      // In this case, we should mark *it* as being the killing block, not the
-      // copy.
-      MachineBasicBlock::iterator KillInst;
-      MachineBasicBlock::iterator Term = opBlock.getFirstTerminator();
-      if (Term != opBlock.end() && Term->readsRegister(SrcReg)) {
-        KillInst = Term;
+      // register.  In most cases this is the copy, however, terminator
+      // instructions at the end of the block may also use the value. In this
+      // case, we should mark the last such terminator as being the killing
+      // block, not the copy.
+      MachineBasicBlock::iterator KillInst = opBlock.end();
+      MachineBasicBlock::iterator FirstTerm = opBlock.getFirstTerminator();
+      for (MachineBasicBlock::iterator Term = FirstTerm;
+          Term != opBlock.end(); ++Term) {
+        if (Term->readsRegister(SrcReg))
+          KillInst = Term;
+      }
 
-        // Check that no other terminators use values.
-#ifndef NDEBUG
-        for (MachineBasicBlock::iterator TI = llvm::next(Term);
-             TI != opBlock.end(); ++TI) {
-          if (TI->isDebugValue())
-            continue;
-          assert(!TI->readsRegister(SrcReg) &&
-                 "Terminator instructions cannot use virtual registers unless"
-                 "they are the first terminator in a block!");
+      if (KillInst == opBlock.end()) {
+        // No terminator uses the register.
+
+        if (reusedIncoming || !IncomingReg) {
+          // We may have to rewind a bit if we didn't insert a copy this time.
+          KillInst = FirstTerm;
+          while (KillInst != opBlock.begin()) {
+            --KillInst;
+            if (KillInst->isDebugValue())
+              continue;
+            if (KillInst->readsRegister(SrcReg))
+              break;
+          }
+        } else {
+          // We just inserted this copy.
+          KillInst = prior(InsertPos);
         }
-#endif
-      } else if (reusedIncoming || !IncomingReg) {
-        // We may have to rewind a bit if we didn't insert a copy this time.
-        KillInst = Term;
-        while (KillInst != opBlock.begin()) {
-          --KillInst;
-          if (KillInst->isDebugValue())
-            continue;
-          if (KillInst->readsRegister(SrcReg))
-            break;
-        }
-      } else {
-        // We just inserted this copy.
-        KillInst = prior(InsertPos);
       }
       assert(KillInst->readsRegister(SrcReg) && "Cannot find kill instruction");
 
@@ -409,28 +423,71 @@ bool PHIElimination::SplitPHIEdges(MachineFunction &MF,
   if (MBB.empty() || !MBB.front().isPHI() || MBB.isLandingPad())
     return false;   // Quick exit for basic blocks without PHIs.
 
+  const MachineLoop *CurLoop = MLI ? MLI->getLoopFor(&MBB) : 0;
+  bool IsLoopHeader = CurLoop && &MBB == CurLoop->getHeader();
+
   bool Changed = false;
-  for (MachineBasicBlock::const_iterator BBI = MBB.begin(), BBE = MBB.end();
+  for (MachineBasicBlock::iterator BBI = MBB.begin(), BBE = MBB.end();
        BBI != BBE && BBI->isPHI(); ++BBI) {
     for (unsigned i = 1, e = BBI->getNumOperands(); i != e; i += 2) {
       unsigned Reg = BBI->getOperand(i).getReg();
       MachineBasicBlock *PreMBB = BBI->getOperand(i+1).getMBB();
-      // We break edges when registers are live out from the predecessor block
-      // (not considering PHI nodes). If the register is live in to this block
-      // anyway, we would gain nothing from splitting.
+      // Is there a critical edge from PreMBB to MBB?
+      if (PreMBB->succ_size() == 1)
+        continue;
+
       // Avoid splitting backedges of loops. It would introduce small
       // out-of-line blocks into the loop which is very bad for code placement.
-      if (PreMBB != &MBB &&
-          !LV.isLiveIn(Reg, MBB) && LV.isLiveOut(Reg, *PreMBB)) {
-        if (!MLI ||
-            !(MLI->getLoopFor(PreMBB) == MLI->getLoopFor(&MBB) &&
-              MLI->isLoopHeader(&MBB))) {
-          if (PreMBB->SplitCriticalEdge(&MBB, this)) {
-            Changed = true;
-            ++NumCriticalEdgesSplit;
-          }
-        }
+      if (PreMBB == &MBB)
+        continue;
+      const MachineLoop *PreLoop = MLI ? MLI->getLoopFor(PreMBB) : 0;
+      if (IsLoopHeader && PreLoop == CurLoop)
+        continue;
+
+      // LV doesn't consider a phi use live-out, so isLiveOut only returns true
+      // when the source register is live-out for some other reason than a phi
+      // use. That means the copy we will insert in PreMBB won't be a kill, and
+      // there is a risk it may not be coalesced away.
+      //
+      // If the copy would be a kill, there is no need to split the edge.
+      if (!LV.isLiveOut(Reg, *PreMBB))
+        continue;
+
+      DEBUG(dbgs() << PrintReg(Reg) << " live-out before critical edge BB#"
+                   << PreMBB->getNumber() << " -> BB#" << MBB.getNumber()
+                   << ": " << *BBI);
+
+      // If Reg is not live-in to MBB, it means it must be live-in to some
+      // other PreMBB successor, and we can avoid the interference by splitting
+      // the edge.
+      //
+      // If Reg *is* live-in to MBB, the interference is inevitable and a copy
+      // is likely to be left after coalescing. If we are looking at a loop
+      // exiting edge, split it so we won't insert code in the loop, otherwise
+      // don't bother.
+      bool ShouldSplit = !LV.isLiveIn(Reg, MBB);
+
+      // Check for a loop exiting edge.
+      if (!ShouldSplit && CurLoop != PreLoop) {
+        DEBUG({
+          dbgs() << "Split wouldn't help, maybe avoid loop copies?\n";
+          if (PreLoop) dbgs() << "PreLoop: " << *PreLoop;
+          if (CurLoop) dbgs() << "CurLoop: " << *CurLoop;
+        });
+        // This edge could be entering a loop, exiting a loop, or it could be
+        // both: Jumping directly form one loop to the header of a sibling
+        // loop.
+        // Split unless this edge is entering CurLoop from an outer loop.
+        ShouldSplit = PreLoop && !PreLoop->contains(CurLoop);
       }
+      if (!ShouldSplit)
+        continue;
+      if (!PreMBB->SplitCriticalEdge(&MBB, this)) {
+        DEBUG(dbgs() << "Failed to split ciritcal edge.\n");
+        continue;
+      }
+      Changed = true;
+      ++NumCriticalEdgesSplit;
     }
   }
   return Changed;

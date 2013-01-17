@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1996, Javier Martín Rueda (jmrueda@diatel.upm.es)
+ * Copyright (c) 1996, Javier MartÃ­n Rueda (jmrueda@diatel.upm.es)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -232,7 +232,6 @@ ex_attach(device_t dev)
 	 */
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = ex_start;
 	ifp->if_ioctl = ex_ioctl;
@@ -734,7 +733,7 @@ ex_rx_intr(struct ex_softc *sc)
 		QQQ = pkt_len = CSR_READ_2(sc, IO_PORT_REG);
 
 		if (rx_status & RCV_OK_bit) {
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			ipkt = m;
 			if (ipkt == NULL) {
 				ifp->if_iqdrops++;
@@ -745,7 +744,7 @@ ex_rx_intr(struct ex_softc *sc)
 
 				while (pkt_len > 0) {
 					if (pkt_len >= MINCLSIZE) {
-						MCLGET(m, M_DONTWAIT);
+						MCLGET(m, M_NOWAIT);
 						if (m->m_flags & M_EXT) {
 							m->m_len = MCLBYTES;
 						} else {
@@ -770,7 +769,7 @@ ex_rx_intr(struct ex_softc *sc)
 					pkt_len -= m->m_len;
 
 					if (pkt_len > 0) {
-						MGET(m->m_next, M_DONTWAIT, MT_DATA);
+						MGET(m->m_next, M_NOWAIT, MT_DATA);
 						if (m->m_next == NULL) {
 							m_freem(ipkt);
 							ifp->if_iqdrops++;

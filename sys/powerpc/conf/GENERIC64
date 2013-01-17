@@ -21,14 +21,14 @@
 cpu		AIM
 ident		GENERIC
 
-machine		powerpc	powerpc64
+machine 	powerpc	powerpc64
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
-options		PS3			#Sony Playstation 3
-options		MAMBO			#IBM Mambo Full System Simulator
+options 	PS3			#Sony Playstation 3
+options 	MAMBO			#IBM Mambo Full System Simulator
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -40,6 +40,7 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
+options 	QUOTA			#Enable disk quotas for UFS
 options 	MD_ROOT			#MD is a potential root device
 options 	NFSCL			#New Network Filesystem Client
 options 	NFSD			#New Network Filesystem Server
@@ -49,6 +50,7 @@ options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	GEOM_PART_APM		#Apple Partition Maps.
 options 	GEOM_PART_GPT		#GUID Partition Tables.
 options 	GEOM_LABEL		#Provides labelization
 options 	COMPAT_FREEBSD32	#Compatible with FreeBSD/powerpc binaries
@@ -67,8 +69,11 @@ options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
-# Debugging for use in -current
-options 	KDB			#Enable the kernel debugger
+# Debugging support.  Always need this:
+options 	KDB			# Enable kernel debugger support.
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use this instead:
 options 	DDB			#Support DDB
 #options 	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
@@ -102,6 +107,7 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
 # ATA/SCSI peripherals
@@ -121,6 +127,7 @@ makeoptions	SC_DFLT_FONT=cp437
 # Serial (COM) ports
 device		scc
 device		uart
+device		uart_z8530
 
 # Ethernet hardware
 device		glc		# Sony Playstation 3 Ethernet
@@ -138,7 +145,6 @@ device		random		# Entropy device
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
-device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		ofwd		# Open Firmware disks
 device		gif		# IPv6 and IPv4 tunneling
@@ -170,6 +176,10 @@ device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
+# Wireless NIC cards
+options		IEEE80211_SUPPORT_MESH
+options		AH_SUPPORT_AR5416
+
 # FireWire support
 device		firewire	# FireWire bus code
 device		sbp		# SCSI over FireWire (Requires scbus and da)
@@ -179,11 +189,14 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
 device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
+device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
+device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
 
 # ADB support
 device		adb

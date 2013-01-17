@@ -88,6 +88,13 @@ struct pmclog_ev_pmcallocate {
 	pmc_id_t	pl_pmcid;
 };
 
+struct pmclog_ev_pmcallocatedyn {
+	uint32_t	pl_event;
+	char 		pl_evname[PMC_NAME_MAX];
+	uint32_t	pl_flags;
+	pmc_id_t	pl_pmcid;
+};
+
 struct pmclog_ev_pmcattach {
 	pmc_id_t	pl_pmcid;
 	pid_t		pl_pid;
@@ -146,6 +153,7 @@ struct pmclog_ev {
 		struct pmclog_ev_map_out	pl_mo;
 		struct pmclog_ev_pcsample	pl_s;
 		struct pmclog_ev_pmcallocate	pl_a;
+		struct pmclog_ev_pmcallocatedyn	pl_ad;
 		struct pmclog_ev_pmcattach	pl_t;
 		struct pmclog_ev_pmcdetach	pl_d;
 		struct pmclog_ev_proccsw	pl_c;

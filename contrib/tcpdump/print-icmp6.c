@@ -197,50 +197,20 @@ print_lladdr(const u_int8_t *p, size_t l)
 static int icmp6_cksum(const struct ip6_hdr *ip6, const struct icmp6_hdr *icp,
 	u_int len)
 {
-	size_t i;
-	register const u_int16_t *sp;
-	u_int32_t sum;
-	union {
-		struct {
-			struct in6_addr ph_src;
-			struct in6_addr ph_dst;
-			u_int32_t	ph_len;
-			u_int8_t	ph_zero[3];
-			u_int8_t	ph_nxt;
-		} ph;
-		u_int16_t pa[20];
-	} phu;
-
-	/* pseudo-header */
-	memset(&phu, 0, sizeof(phu));
-	phu.ph.ph_src = ip6->ip6_src;
-	phu.ph.ph_dst = ip6->ip6_dst;
-	phu.ph.ph_len = htonl(len);
-	phu.ph.ph_nxt = IPPROTO_ICMPV6;
-
-	sum = 0;
-	for (i = 0; i < sizeof(phu.pa) / sizeof(phu.pa[0]); i++)
-		sum += phu.pa[i];
-
-	sp = (const u_int16_t *)icp;
-
-	for (i = 0; i < (len & ~1); i += 2)
-		sum += *sp++;
-
-	if (len & 1)
-		sum += htons((*(const u_int8_t *)sp) << 8);
-
-	while (sum > 0xffff)
-		sum = (sum & 0xffff) + (sum >> 16);
-	sum = ~sum & 0xffff;
-
-	return (sum);
+	return (nextproto6_cksum(ip6, (const u_int8_t *)(void *)icp, len,
+	    IPPROTO_ICMPV6));
 }
 
 enum ND_RPL_CODE {
-        ND_RPL_DAG_IS=0x01,
-        ND_RPL_DAG_IO=0x02,
-        ND_RPL_DAO   =0x04
+        ND_RPL_DIS   =0x00,
+        ND_RPL_DIO   =0x01,
+        ND_RPL_DAO   =0x02,
+        ND_RPL_DAO_ACK=0x03,
+        ND_RPL_SDIS  =0x80,
+        ND_RPL_SDIO  =0x81,
+        ND_RPL_SDAO  =0x82,
+        ND_RPL_SDAO_ACK=0x83,
+        ND_RPL_SCC   =0x8A,
 };
 
 enum ND_RPL_DIO_FLAGS {
@@ -266,17 +236,25 @@ rpl_print(netdissect_options *ndo,
           const u_char *bp, u_int length _U_)
 {
         struct nd_rpl_dio *dio = (struct nd_rpl_dio *)bp;
+        int secured = hdr->icmp6_code & 0x80;
+        int basecode= hdr->icmp6_code & 0x7f;
 
         ND_TCHECK(dio->rpl_dagid);
 
-        switch(hdr->icmp6_code) {
-        case ND_RPL_DAG_IS:
-                ND_PRINT((ndo, ", DAG Information Solicitation"));
+        if(secured) {
+                ND_PRINT((ndo, ", (SEC)"));
+        } else {
+                ND_PRINT((ndo, ", (CLR)"));
+        }
+                
+        switch(basecode) {
+        case ND_RPL_DIS:
+                ND_PRINT((ndo, "DODAG Information Solicitation"));
                 if(ndo->ndo_vflag) {
                 }
                 break;
-        case ND_RPL_DAG_IO:
-                ND_PRINT((ndo, ", DAG Information Object"));
+        case ND_RPL_DIO:
+                ND_PRINT((ndo, "DODAG Information Object"));
                 if(ndo->ndo_vflag) {
                         char dagid[65];
                         char *d = dagid;
@@ -299,12 +277,17 @@ rpl_print(netdissect_options *ndo,
                 }
                 break;
         case ND_RPL_DAO:
-                ND_PRINT((ndo, ", Destination Advertisement Object"));
+                ND_PRINT((ndo, "Destination Advertisement Object"));
+                if(ndo->ndo_vflag) {
+                }
+                break;
+        case ND_RPL_DAO_ACK:
+                ND_PRINT((ndo, "Destination Advertisement Object Ack"));
                 if(ndo->ndo_vflag) {
                 }
                 break;
         default:
-                ND_PRINT((ndo, ", RPL message, unknown code %u",hdr->icmp6_code));
+                ND_PRINT((ndo, "RPL message, unknown code %u",hdr->icmp6_code));
                 break;
         }
 	return;
@@ -336,12 +319,15 @@ icmp6_print(netdissect_options *ndo,
 	TCHECK(dp->icmp6_cksum);
 
 	if (vflag && !fragmented) {
-		int sum = dp->icmp6_cksum;
+		u_int16_t sum, udp_sum;
 
 		if (TTEST2(bp[0], length)) {
+			udp_sum = EXTRACT_16BITS(&dp->icmp6_cksum);
 			sum = icmp6_cksum(ip, dp, length);
 			if (sum != 0)
-				(void)printf("[bad icmp6 cksum %x!] ", sum);
+				(void)printf("[bad icmp6 cksum 0x%04x -> 0x%04x!] ",
+				    udp_sum,
+				    in_cksum_shouldbe(udp_sum, sum));
 			else
 				(void)printf("[icmp6 sum ok] ");
 		}
@@ -350,14 +336,13 @@ icmp6_print(netdissect_options *ndo,
         printf("ICMP6, %s", tok2str(icmp6_type_values,"unknown icmp6 type (%u)",dp->icmp6_type));
 
         /* display cosmetics: print the packet length for printer that use the vflag now */
-        if (vflag && (dp->icmp6_type ==
-                      ND_ROUTER_SOLICIT ||
-                      ND_ROUTER_ADVERT ||
-                      ND_NEIGHBOR_ADVERT ||
-                      ND_NEIGHBOR_SOLICIT ||
-                      ND_REDIRECT ||
-                      ICMP6_HADISCOV_REPLY ||
-                      ICMP6_MOBILEPREFIX_ADVERT ))
+        if (vflag && (dp->icmp6_type == ND_ROUTER_SOLICIT ||
+                      dp->icmp6_type == ND_ROUTER_ADVERT ||
+                      dp->icmp6_type == ND_NEIGHBOR_ADVERT ||
+                      dp->icmp6_type == ND_NEIGHBOR_SOLICIT ||
+                      dp->icmp6_type == ND_REDIRECT ||
+                      dp->icmp6_type == ICMP6_HADISCOV_REPLY ||
+                      dp->icmp6_type == ICMP6_MOBILEPREFIX_ADVERT ))
             printf(", length %u", length);
                       
 	switch (dp->icmp6_type) {
@@ -767,7 +752,7 @@ icmp6_opt_print(const u_char *bp, int resid)
 		case ND_OPT_ADVINTERVAL:
 			opa = (struct nd_opt_advinterval *)op;
 			TCHECK(opa->nd_opt_adv_interval);
-			printf(" %us", EXTRACT_32BITS(&opa->nd_opt_adv_interval));
+			printf(" %ums", EXTRACT_32BITS(&opa->nd_opt_adv_interval));
 			break;
 		case ND_OPT_HOMEAGENT_INFO:
 			oph = (struct nd_opt_homeagent_info *)op;

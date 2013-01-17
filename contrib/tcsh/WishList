@@ -52,17 +52,6 @@ ey )
    - bhooglan
      _________________________________________________________________
 
-   I'm a long-time faithful user of tcsh, and one thing has always bugged
-   me -- the need to type "rehash" at a prompt when adding a new command.
-   My  suggestions  is  to  change  tcsh  so before printing "Command not
-   found.",  it  first  searches  its  entire  path and rebuilds its hash
-   table.  Only  after doing this, and if the command is still not in the
-   path,  then  print  "Command  not  found.".  I  realize there are some
-   extreme  cases  in  which  this  is suboptimal, but in most cases with
-   normal  users  this  would  be  a big win, and simplify the manual and
-   perhaps even the code.
-     _________________________________________________________________
-
    Wish "tcsh -l" would accept other flags. At least "-c".
 
    Currently I can't get ssh to have the right environment unless it is a

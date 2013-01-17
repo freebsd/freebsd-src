@@ -32,7 +32,6 @@ CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 CFLAGS+=	-ffreestanding -I.
-CFLAGS+=	-DLOADER_GPT_SUPPORT -DLOADER_MBR_SUPPORT
 
 LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
 
@@ -46,6 +45,7 @@ CLEANFILES=	vers.c
 .if ${MK_FORTH} != "no"
 BOOT_FORTH=	yes
 CFLAGS+=        -DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
+CFLAGS+=	-DBF_DICTSIZE=15000
 LIBFICL=	${.OBJDIR}/../ficl/libficl.a
 LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
 .endif

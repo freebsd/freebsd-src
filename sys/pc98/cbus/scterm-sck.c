@@ -133,7 +133,7 @@ static void		scterm_scan_esc(scr_stat *scp, term_stat *tcp,
 static int		mask2attr(term_stat *tcp);
 
 #ifdef KANJI
-__inline static u_char
+static inline u_char
 iskanji1(u_char mode, u_char c)
 {
 	if (c > 0x80) {
@@ -186,7 +186,7 @@ iskanji1(u_char mode, u_char c)
 	return KTYPE_ASCII;
 }
 
-__inline static u_char
+static inline u_char
 iskanji2(u_char mode, u_char c)
 {
 	switch (mode) {

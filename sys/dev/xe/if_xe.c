@@ -201,7 +201,7 @@ static void	xe_reg_dump(struct xe_softc *scp);
 #ifdef XE_DEBUG
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, xe, CTLFLAG_RD, 0, "if_xe parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, xe, CTLFLAG_RD, 0, "if_xe parameters");
 
 int xe_debug = 0;
 SYSCTL_INT(_hw_xe, OID_AUTO, debug, CTLFLAG_RW, &xe_debug, 0,
@@ -757,14 +757,14 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 			 * read 16-bit words).  XXX - Surely there's a
 			 * better way to do this alignment?
 			 */
-			MGETHDR(mbp, M_DONTWAIT, MT_DATA);
+			MGETHDR(mbp, M_NOWAIT, MT_DATA);
 			if (mbp == NULL) {
 				ifp->if_iqdrops++;
 				continue;
 			}
 
 			if (len + 3 > MHLEN) {
-				MCLGET(mbp, M_DONTWAIT);
+				MCLGET(mbp, M_NOWAIT);
 				if ((mbp->m_flags & M_EXT) == 0) {
 					m_freem(mbp);
 					ifp->if_iqdrops++;

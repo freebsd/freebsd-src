@@ -35,7 +35,7 @@ struct malloc_type;
 struct vm_map;
 
 #ifdef DEBUG_MEMGUARD
-unsigned long	memguard_fudge(unsigned long, unsigned long);
+unsigned long	memguard_fudge(unsigned long, const struct vm_map *);
 void	memguard_init(struct vm_map *);
 void 	*memguard_alloc(unsigned long, int);
 void	*memguard_realloc(void *, unsigned long, struct malloc_type *, int);

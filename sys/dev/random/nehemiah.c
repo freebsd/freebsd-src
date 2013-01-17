@@ -28,6 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cpu.h"
+
+#ifdef PADLOCK_RNG
+
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/lock.h>
@@ -84,7 +88,7 @@ static uint8_t out[RANDOM_BLOCK_SIZE+7]	__aligned(16);
 
 static union VIA_ACE_CW acw		__aligned(16);
 
-static struct fpu_kern_ctx fpu_ctx_save;
+static struct fpu_kern_ctx *fpu_ctx_save;
 
 static struct mtx random_nehemiah_mtx;
 
@@ -135,11 +139,14 @@ random_nehemiah_init(void)
 	acw.field.round_count = 12;
 
 	mtx_init(&random_nehemiah_mtx, "random nehemiah", NULL, MTX_DEF);
+	fpu_ctx_save = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
 }
 
 void
 random_nehemiah_deinit(void)
 {
+
+	fpu_kern_free_ctx(fpu_ctx_save);
 	mtx_destroy(&random_nehemiah_mtx);
 }
 
@@ -151,7 +158,7 @@ random_nehemiah_read(void *buf, int c)
 	uint8_t *p;
 
 	mtx_lock(&random_nehemiah_mtx);
-	error = fpu_kern_enter(curthread, &fpu_ctx_save, FPU_KERN_NORMAL);
+	error = fpu_kern_enter(curthread, fpu_ctx_save, FPU_KERN_NORMAL);
 	if (error != 0) {
 		mtx_unlock(&random_nehemiah_mtx);
 		return (0);
@@ -196,7 +203,9 @@ random_nehemiah_read(void *buf, int c)
 	c = MIN(RANDOM_BLOCK_SIZE, c);
 	memcpy(buf, out, (size_t)c);
 
-	fpu_kern_leave(curthread, &fpu_ctx_save);
+	fpu_kern_leave(curthread, fpu_ctx_save);
 	mtx_unlock(&random_nehemiah_mtx);
 	return (c);
 }
+
+#endif

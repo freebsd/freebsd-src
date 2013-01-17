@@ -32,8 +32,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/mutex.h>
 #include <sys/msgbuf.h>
+#include <sys/sysctl.h>
 
 /*
  * Maximum number conversion buffer length: uintmax_t in base 2, plus <>
@@ -45,6 +47,15 @@
 #define SEQMOD(size) ((size) * 16)
 
 static u_int msgbuf_cksum(struct msgbuf *mbp);
+
+/*
+ * Timestamps in msgbuf are useful when trying to diagnose when core dumps
+ * or other actions occured.
+ */
+static int msgbuf_show_timestamp = 0;
+SYSCTL_INT(_kern, OID_AUTO, msgbuf_show_timestamp, CTLFLAG_RW | CTLFLAG_TUN,
+    &msgbuf_show_timestamp, 0, "Show timestamp in msgbuf");
+TUNABLE_INT("kern.msgbuf_show_timestamp", &msgbuf_show_timestamp);
 
 /*
  * Initialize a message buffer of the specified size at the specified
@@ -60,7 +71,7 @@ msgbuf_init(struct msgbuf *mbp, void *ptr, int size)
 	msgbuf_clear(mbp);
 	mbp->msg_magic = MSG_MAGIC;
 	mbp->msg_lastpri = -1;
-	mbp->msg_needsnl = 0;
+	mbp->msg_flags = 0;
 	bzero(&mbp->msg_lock, sizeof(mbp->msg_lock));
 	mtx_init(&mbp->msg_lock, "msgbuf", NULL, MTX_SPIN);
 }
@@ -95,7 +106,7 @@ msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size)
 
 	mbp->msg_lastpri = -1;
 	/* Assume that the old message buffer didn't end in a newline. */
-	mbp->msg_needsnl = 1;
+	mbp->msg_flags |= MSGBUF_NEEDNL;
 	bzero(&mbp->msg_lock, sizeof(mbp->msg_lock));
 	mtx_init(&mbp->msg_lock, "msgbuf", NULL, MTX_SPIN);
 }
@@ -133,19 +144,17 @@ msgbuf_getcount(struct msgbuf *mbp)
  *
  * The caller should hold the message buffer spinlock.
  */
-static inline void
-msgbuf_do_addchar(struct msgbuf *mbp, u_int *seq, int c)
+
+static void
+msgbuf_do_addchar(struct msgbuf * const mbp, u_int * const seq, const int c)
 {
 	u_int pos;
 
 	/* Make sure we properly wrap the sequence number. */
 	pos = MSGBUF_SEQ_TO_POS(mbp, *seq);
-
-	mbp->msg_cksum += (u_int)c -
+	mbp->msg_cksum += (u_int)(u_char)c -
 	    (u_int)(u_char)mbp->msg_ptr[pos];
-
 	mbp->msg_ptr[pos] = c;
-
 	*seq = MSGBUF_SEQNORM(mbp, *seq + 1);
 }
 
@@ -176,7 +185,8 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
 	u_int seq;
 	size_t len, prefix_len;
 	char prefix[MAXPRIBUF];
-	int nl, i;
+	char buf[32];
+	int nl, i, j, needtime;
 
 	len = strlen(str);
 	prefix_len = 0;
@@ -207,23 +217,34 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
 	 * did not end with a newline.  If that is the case, we need to
 	 * insert a newline before this string.
 	 */
-	if (mbp->msg_lastpri != pri && mbp->msg_needsnl != 0) {
+	if (mbp->msg_lastpri != pri && (mbp->msg_flags & MSGBUF_NEEDNL) != 0) {
 
 		msgbuf_do_addchar(mbp, &seq, '\n');
-		mbp->msg_needsnl = 0;
+		mbp->msg_flags &= ~MSGBUF_NEEDNL;
 	}
 
+	needtime = 1;
 	for (i = 0; i < len; i++) {
 		/*
 		 * If we just had a newline, and the priority is not -1
 		 * (and therefore prefix_len != 0), then we need a priority
 		 * prefix for this line.
 		 */
-		if (mbp->msg_needsnl == 0 && prefix_len != 0) {
+		if ((mbp->msg_flags & MSGBUF_NEEDNL) == 0 && prefix_len != 0) {
 			int j;
 
 			for (j = 0; j < prefix_len; j++)
 				msgbuf_do_addchar(mbp, &seq, prefix[j]);
+		}
+
+		if (msgbuf_show_timestamp && needtime == 1 &&
+		    (mbp->msg_flags & MSGBUF_NEEDNL) == 0) {
+
+			snprintf(buf, sizeof(buf), "[%jd] ",
+			    (intmax_t)time_uptime);
+			for (j = 0; buf[j] != '\0'; j++)
+				msgbuf_do_addchar(mbp, &seq, buf[j]);
+			needtime = 0;
 		}
 
 		/*
@@ -242,9 +263,9 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
 		 * we need to insert a new prefix or insert a newline later.
 		 */
 		if (str[i] == '\n')
-			mbp->msg_needsnl = 0;
+			mbp->msg_flags &= ~MSGBUF_NEEDNL;
 		else
-			mbp->msg_needsnl = 1;
+			mbp->msg_flags |= MSGBUF_NEEDNL;
 
 		msgbuf_do_addchar(mbp, &seq, str[i]);
 	}

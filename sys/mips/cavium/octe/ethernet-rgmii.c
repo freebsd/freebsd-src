@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include "octebusvar.h"
 
-extern int octeon_is_simulation(void);
 extern struct ifnet *cvm_oct_device[];
 
 static struct mtx global_register_lock;
@@ -215,7 +214,9 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 	int error;
 	int rid;
 
-	cvm_oct_common_init(ifp);
+	if (cvm_oct_common_init(ifp) != 0)
+	    return ENXIO;
+
 	priv->open = cvm_oct_common_open;
 	priv->stop = cvm_oct_common_stop;
 	priv->stop(ifp);
@@ -230,8 +231,8 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 
 		rid = 0;
 		sc->sc_rgmii_irq = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ,
-						      &rid, CVMX_IRQ_RML,
-						      CVMX_IRQ_RML, 1,
+						      &rid, OCTEON_IRQ_RML,
+						      OCTEON_IRQ_RML, 1,
 						      RF_ACTIVE);
 		if (sc->sc_rgmii_irq == NULL) {
 			device_printf(sc->sc_dev, "could not allocate RGMII irq");
@@ -254,7 +255,7 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII) && (priv->port == 0)) ||
 	    (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
 
-		if (!octeon_is_simulation()) {
+		if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) {
 
 			cvmx_gmxx_rxx_int_en_t gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);
@@ -283,7 +284,7 @@ void cvm_oct_rgmii_uninit(struct ifnet *ifp)
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII) && (priv->port == 0)) ||
 	    (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
 
-		if (!octeon_is_simulation()) {
+		if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) {
 
 			cvmx_gmxx_rxx_int_en_t gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);

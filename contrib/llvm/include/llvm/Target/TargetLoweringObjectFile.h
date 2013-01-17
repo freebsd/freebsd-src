@@ -15,18 +15,17 @@
 #ifndef LLVM_TARGET_TARGETLOWERINGOBJECTFILE_H
 #define LLVM_TARGET_TARGETLOWERINGOBJECTFILE_H
 
-#include "llvm/ADT/StringRef.h"
+#include "llvm/Module.h"
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/SectionKind.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace llvm {
   class MachineModuleInfo;
   class Mangler;
-  class MCAsmInfo;
   class MCContext;
   class MCExpr;
   class MCSection;
-  class MCSectionMachO;
   class MCSymbol;
   class MCStreamer;
   class GlobalValue;
@@ -34,10 +33,11 @@ namespace llvm {
   
 class TargetLoweringObjectFile : public MCObjectFileInfo {
   MCContext *Ctx;
-  
-  TargetLoweringObjectFile(const TargetLoweringObjectFile&); // DO NOT IMPLEMENT
-  void operator=(const TargetLoweringObjectFile&);           // DO NOT IMPLEMENT
-  
+
+  TargetLoweringObjectFile(
+    const TargetLoweringObjectFile&) LLVM_DELETED_FUNCTION;
+  void operator=(const TargetLoweringObjectFile&) LLVM_DELETED_FUNCTION;
+
 public:
   MCContext &getContext() const { return *Ctx; }
 
@@ -53,7 +53,13 @@ public:
   virtual void emitPersonalityValue(MCStreamer &Streamer,
                                     const TargetMachine &TM,
                                     const MCSymbol *Sym) const;
-  
+
+  /// emitModuleFlags - Emit the module flags that the platform cares about.
+  virtual void emitModuleFlags(MCStreamer &,
+                               ArrayRef<Module::ModuleFlagEntry>,
+                               Mangler *, const TargetMachine &) const {
+  }
+
   /// shouldEmitUsedDirectiveFor - This hook allows targets to selectively
   /// decide not to emit the UsedDirective for some symbols in llvm.used.
   /// FIXME: REMOVE this (rdar://7071300)
@@ -86,9 +92,7 @@ public:
                                     const TargetMachine &TM) const {
     return SectionForGlobal(GV, getKindForGlobal(GV, TM), Mang, TM);
   }
-  
-  
-  
+
   /// getExplicitSectionGlobal - Targets should implement this method to assign
   /// a section to globals with an explicit section specfied.  The
   /// implementation of this method can assume that GV->hasSection() is true.
@@ -121,7 +125,18 @@ public:
   const MCExpr *
   getExprForDwarfReference(const MCSymbol *Sym, unsigned Encoding,
                            MCStreamer &Streamer) const;
-  
+
+  virtual const MCSection *
+  getStaticCtorSection(unsigned Priority = 65535) const {
+    (void)Priority;
+    return StaticCtorSection;
+  }
+  virtual const MCSection *
+  getStaticDtorSection(unsigned Priority = 65535) const {
+    (void)Priority;
+    return StaticDtorSection;
+  }
+
 protected:
   virtual const MCSection *
   SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,

@@ -38,7 +38,9 @@
  * $FreeBSD$
  */
 
+extern int eopterr;
 extern int eoptind;
+extern int eoptopt;
 extern char *eoptarg;
 
 void	 addnum(char *, int, int);

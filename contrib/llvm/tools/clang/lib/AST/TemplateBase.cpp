@@ -22,6 +22,7 @@
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/SmallString.h"
 #include <algorithm>
 #include <cctype>
 
@@ -35,18 +36,17 @@ using namespace clang;
 static void printIntegral(const TemplateArgument &TemplArg,
                           raw_ostream &Out) {
   const ::clang::Type *T = TemplArg.getIntegralType().getTypePtr();
-  const llvm::APSInt *Val = TemplArg.getAsIntegral();
+  const llvm::APSInt &Val = TemplArg.getAsIntegral();
 
   if (T->isBooleanType()) {
-    Out << (Val->getBoolValue() ? "true" : "false");
+    Out << (Val.getBoolValue() ? "true" : "false");
   } else if (T->isCharType()) {
-    const unsigned char Ch = Val->getZExtValue();
-    const std::string Str(1, Ch);
+    const char Ch = Val.getZExtValue();
     Out << ((Ch == '\'') ? "'\\" : "'");
-    Out.write_escaped(Str, /*UseHexEscapes=*/ true);
+    Out.write_escaped(StringRef(&Ch, 1), /*UseHexEscapes=*/ true);
     Out << "'";
   } else {
-    Out << Val->toString(10);
+    Out << Val;
   }
 }
 
@@ -54,11 +54,30 @@ static void printIntegral(const TemplateArgument &TemplArg,
 // TemplateArgument Implementation
 //===----------------------------------------------------------------------===//
 
+TemplateArgument::TemplateArgument(ASTContext &Ctx, const llvm::APSInt &Value,
+                                   QualType Type)
+  : Kind(Integral) {
+  // Copy the APSInt value into our decomposed form.
+  Integer.BitWidth = Value.getBitWidth();
+  Integer.IsUnsigned = Value.isUnsigned();
+  // If the value is large, we have to get additional memory from the ASTContext
+  unsigned NumWords = Value.getNumWords();
+  if (NumWords > 1) {
+    void *Mem = Ctx.Allocate(NumWords * sizeof(uint64_t));
+    std::memcpy(Mem, Value.getRawData(), NumWords * sizeof(uint64_t));
+    Integer.pVal = static_cast<uint64_t *>(Mem);
+  } else {
+    Integer.VAL = Value.getZExtValue();
+  }
+
+  Integer.Type = Type.getAsOpaquePtr();
+}
+
 TemplateArgument TemplateArgument::CreatePackCopy(ASTContext &Context,
                                                   const TemplateArgument *Args,
                                                   unsigned NumArgs) {
   if (NumArgs == 0)
-    return TemplateArgument(0, 0);
+    return getEmptyPack();
   
   TemplateArgument *Storage = new (Context) TemplateArgument [NumArgs];
   std::copy(Args, Args + NumArgs, Storage);
@@ -84,6 +103,9 @@ bool TemplateArgument::isDependent() const {
       return DC->isDependentContext();
     return getAsDecl()->getDeclContext()->isDependentContext();
 
+  case NullPtr:
+    return false;
+
   case Integral:
     // Never dependent
     return false;
@@ -100,7 +122,7 @@ bool TemplateArgument::isDependent() const {
     return false;
   }
 
-  return false;
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 bool TemplateArgument::isInstantiationDependent() const {
@@ -121,7 +143,10 @@ bool TemplateArgument::isInstantiationDependent() const {
     if (DeclContext *DC = dyn_cast<DeclContext>(getAsDecl()))
       return DC->isDependentContext();
     return getAsDecl()->getDeclContext()->isDependentContext();
-    
+
+  case NullPtr:
+    return false;
+      
   case Integral:
     // Never dependent
     return false;
@@ -137,8 +162,8 @@ bool TemplateArgument::isInstantiationDependent() const {
     
     return false;
   }
-  
-  return false;
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 bool TemplateArgument::isPackExpansion() const {
@@ -148,6 +173,7 @@ bool TemplateArgument::isPackExpansion() const {
   case Integral:
   case Pack:    
   case Template:
+  case NullPtr:
     return false;
       
   case TemplateExpansion:
@@ -159,8 +185,8 @@ bool TemplateArgument::isPackExpansion() const {
   case Expression:
     return isa<PackExpansionExpr>(getAsExpr());
   }
-  
-  return false;
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 bool TemplateArgument::containsUnexpandedParameterPack() const {
@@ -169,6 +195,7 @@ bool TemplateArgument::containsUnexpandedParameterPack() const {
   case Declaration:
   case Integral:
   case TemplateExpansion:
+  case NullPtr:
     break;
 
   case Type:
@@ -239,7 +266,7 @@ void TemplateArgument::Profile(llvm::FoldingSetNodeID &ID,
   }
       
   case Integral:
-    getAsIntegral()->Profile(ID);
+    getAsIntegral().Profile(ID);
     getIntegralType().Profile(ID);
     break;
 
@@ -260,15 +287,19 @@ bool TemplateArgument::structurallyEquals(const TemplateArgument &Other) const {
   switch (getKind()) {
   case Null:
   case Type:
-  case Declaration:
   case Expression:      
   case Template:
   case TemplateExpansion:
+  case NullPtr:
     return TypeOrValue == Other.TypeOrValue;
+
+  case Declaration:
+    return getAsDecl() == Other.getAsDecl() && 
+           isDeclForReferenceParam() && Other.isDeclForReferenceParam();
 
   case Integral:
     return getIntegralType() == Other.getIntegralType() &&
-           *getAsIntegral() == *Other.getAsIntegral();
+           getAsIntegral() == Other.getAsIntegral();
 
   case Pack:
     if (Args.NumArgs != Other.Args.NumArgs) return false;
@@ -278,8 +309,7 @@ bool TemplateArgument::structurallyEquals(const TemplateArgument &Other) const {
     return true;
   }
 
-  // Suppress warnings.
-  return false;
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 TemplateArgument TemplateArgument::getPackExpansionPattern() const {
@@ -294,16 +324,17 @@ TemplateArgument TemplateArgument::getPackExpansionPattern() const {
     
   case TemplateExpansion:
     return TemplateArgument(getAsTemplateOrTemplatePattern());
-    
+
   case Declaration:
   case Integral:
   case Pack:
   case Null:
   case Template:
+  case NullPtr:
     return TemplateArgument();
   }
-  
-  return TemplateArgument();
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 void TemplateArgument::print(const PrintingPolicy &Policy, 
@@ -323,20 +354,20 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
   }
     
   case Declaration: {
-    bool Unnamed = true;
-    if (NamedDecl *ND = dyn_cast_or_null<NamedDecl>(getAsDecl())) {
-      if (ND->getDeclName()) {
-        Unnamed = false;
-        Out << ND->getNameAsString();
-      }
-    }
-    
-    if (Unnamed) {
+    NamedDecl *ND = cast<NamedDecl>(getAsDecl());
+    if (ND->getDeclName()) {
+      // FIXME: distinguish between pointer and reference args?
+      Out << *ND;
+    } else {
       Out << "<anonymous>";
     }
     break;
   }
-    
+
+  case NullPtr:
+    Out << "nullptr";
+    break;
+
   case Template:
     getAsTemplate().print(Out, Policy);
     break;
@@ -388,6 +419,9 @@ SourceRange TemplateArgumentLoc::getSourceRange() const {
   case TemplateArgument::Declaration:
     return getSourceDeclExpression()->getSourceRange();
 
+  case TemplateArgument::NullPtr:
+    return getSourceNullPtrExpression()->getSourceRange();
+
   case TemplateArgument::Type:
     if (TypeSourceInfo *TSI = getTypeSourceInfo())
       return TSI->getTypeLoc().getSourceRange();
@@ -407,13 +441,14 @@ SourceRange TemplateArgumentLoc::getSourceRange() const {
     return SourceRange(getTemplateNameLoc(), getTemplateEllipsisLoc());
 
   case TemplateArgument::Integral:
+    return getSourceIntegralExpression()->getSourceRange();
+
   case TemplateArgument::Pack:
   case TemplateArgument::Null:
     return SourceRange();
   }
 
-  // Silence bonus gcc warning.
-  return SourceRange();
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 TemplateArgumentLoc 
@@ -468,14 +503,15 @@ TemplateArgumentLoc::getPackExpansionPattern(SourceLocation &Ellipsis,
                                getTemplateNameLoc());
     
   case TemplateArgument::Declaration:
+  case TemplateArgument::NullPtr:
   case TemplateArgument::Template:
   case TemplateArgument::Integral:
   case TemplateArgument::Pack:
   case TemplateArgument::Null:
     return TemplateArgumentLoc();
   }
-  
-  return TemplateArgumentLoc();
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
@@ -491,9 +527,12 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
       
   case TemplateArgument::Declaration:
     return DB << Arg.getAsDecl();
+
+  case TemplateArgument::NullPtr:
+    return DB << "nullptr";
       
   case TemplateArgument::Integral:
-    return DB << Arg.getAsIntegral()->toString(10);
+    return DB << Arg.getAsIntegral().toString(10);
       
   case TemplateArgument::Template:
     return DB << Arg.getAsTemplate();
@@ -505,7 +544,7 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
     // This shouldn't actually ever happen, so it's okay that we're
     // regurgitating an expression here.
     // FIXME: We're guessing at LangOptions!
-    llvm::SmallString<32> Str;
+    SmallString<32> Str;
     llvm::raw_svector_ostream OS(Str);
     LangOptions LangOpts;
     LangOpts.CPlusPlus = true;
@@ -516,7 +555,7 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
       
   case TemplateArgument::Pack: {
     // FIXME: We're guessing at LangOptions!
-    llvm::SmallString<32> Str;
+    SmallString<32> Str;
     llvm::raw_svector_ostream OS(Str);
     LangOptions LangOpts;
     LangOpts.CPlusPlus = true;
@@ -525,15 +564,14 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
     return DB << OS.str();
   }
   }
-  
-  return DB;
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
 const ASTTemplateArgumentListInfo *
 ASTTemplateArgumentListInfo::Create(ASTContext &C,
                                     const TemplateArgumentListInfo &List) {
-  std::size_t size = sizeof(CXXDependentScopeMemberExpr) +
-                     ASTTemplateArgumentListInfo::sizeFor(List);
+  std::size_t size = ASTTemplateArgumentListInfo::sizeFor(List.size());
   void *Mem = C.Allocate(size, llvm::alignOf<ASTTemplateArgumentListInfo>());
   ASTTemplateArgumentListInfo *TAI = new (Mem) ASTTemplateArgumentListInfo();
   TAI->initializeFrom(List);
@@ -586,7 +624,39 @@ std::size_t ASTTemplateArgumentListInfo::sizeFor(unsigned NumTemplateArgs) {
          sizeof(TemplateArgumentLoc) * NumTemplateArgs;
 }
 
-std::size_t ASTTemplateArgumentListInfo::sizeFor(
-                                      const TemplateArgumentListInfo &Info) {
-  return sizeFor(Info.size());
+void
+ASTTemplateKWAndArgsInfo::initializeFrom(SourceLocation TemplateKWLoc,
+                                         const TemplateArgumentListInfo &Info) {
+  Base::initializeFrom(Info);
+  setTemplateKeywordLoc(TemplateKWLoc);
+}
+
+void
+ASTTemplateKWAndArgsInfo
+::initializeFrom(SourceLocation TemplateKWLoc,
+                 const TemplateArgumentListInfo &Info,
+                 bool &Dependent,
+                 bool &InstantiationDependent,
+                 bool &ContainsUnexpandedParameterPack) {
+  Base::initializeFrom(Info, Dependent, InstantiationDependent,
+                       ContainsUnexpandedParameterPack);
+  setTemplateKeywordLoc(TemplateKWLoc);
+}
+
+void
+ASTTemplateKWAndArgsInfo::initializeFrom(SourceLocation TemplateKWLoc) {
+  // No explicit template arguments, but template keyword loc is valid.
+  assert(TemplateKWLoc.isValid());
+  LAngleLoc = SourceLocation();
+  RAngleLoc = SourceLocation();
+  NumTemplateArgs = 0;
+  setTemplateKeywordLoc(TemplateKWLoc);
+}
+
+std::size_t
+ASTTemplateKWAndArgsInfo::sizeFor(unsigned NumTemplateArgs) {
+  // Add space for the template keyword location.
+  // FIXME: There's room for this in the padding before the template args in
+  //        64-bit builds.
+  return Base::sizeFor(NumTemplateArgs) + sizeof(SourceLocation);
 }

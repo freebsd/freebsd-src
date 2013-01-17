@@ -1,0 +1,219 @@
+.\" $FreeBSD$
+.TH "OPT" "1" "2012-08-16" "3.2" "LLVM"
+.SH NAME
+opt \- LLVM optimizer
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.\" Man page generated from reStructuredText.
+.
+.SH SYNOPSIS
+.sp
+\fBopt\fP [\fIoptions\fP] [\fIfilename\fP]
+.SH DESCRIPTION
+.sp
+The \fBopt\fP command is the modular LLVM optimizer and analyzer.  It takes LLVM
+source files as input, runs the specified optimizations or analyses on it, and then
+outputs the optimized file or the analysis results.  The function of
+\fBopt\fP depends on whether the \fB\-analyze\fP option is given.
+.sp
+When \fB\-analyze\fP is specified, \fBopt\fP performs various analyses of the input
+source.  It will usually print the results on standard output, but in a few
+cases, it will print output to standard error or generate a file with the
+analysis output, which is usually done when the output is meant for another
+program.
+.sp
+While \fB\-analyze\fP is \fInot\fP given, \fBopt\fP attempts to produce an optimized
+output file.  The optimizations available via \fBopt\fP depend upon what
+libraries were linked into it as well as any additional libraries that have
+been loaded with the \fB\-load\fP option.  Use the \fB\-help\fP option to determine
+what optimizations you can use.
+.sp
+If \fIfilename\fP is omitted from the command line or is \fI\-\fP, \fBopt\fP reads its
+input from standard input. Inputs can be in either the LLVM assembly language
+format (.ll) or the LLVM bitcode format (.bc).
+.sp
+If an output filename is not specified with the \fB\-o\fP option, \fBopt\fP
+writes its output to the standard output.
+.SH OPTIONS
+.sp
+\fB\-f\fP
+.INDENT 0.0
+.INDENT 3.5
+Enable binary output on terminals.  Normally, \fBopt\fP will refuse to
+write raw bitcode output if the output stream is a terminal. With this option,
+\fBopt\fP will write raw bitcode regardless of the output device.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-help\fP
+.INDENT 0.0
+.INDENT 3.5
+Print a summary of command line options.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-o\fP \fIfilename\fP
+.INDENT 0.0
+.INDENT 3.5
+Specify the output filename.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-S\fP
+.INDENT 0.0
+.INDENT 3.5
+Write output in LLVM intermediate language (instead of bitcode).
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-{passname}\fP
+.INDENT 0.0
+.INDENT 3.5
+\fBopt\fP provides the ability to run any of LLVM\(aqs optimization or analysis passes
+in any order. The \fB\-help\fP option lists all the passes available. The order in
+which the options occur on the command line are the order in which they are
+executed (within pass constraints).
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-std\-compile\-opts\fP
+.INDENT 0.0
+.INDENT 3.5
+This is short hand for a standard list of \fIcompile time optimization\fP passes.
+This is typically used to optimize the output from the llvm\-gcc front end. It
+might be useful for other front end compilers as well. To discover the full set
+of options available, use the following command:
+.sp
+.nf
+.ft C
+llvm\-as < /dev/null | opt \-std\-compile\-opts \-disable\-output \-debug\-pass=Arguments
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-disable\-inlining\fP
+.INDENT 0.0
+.INDENT 3.5
+This option is only meaningful when \fB\-std\-compile\-opts\fP is given. It simply
+removes the inlining pass from the standard list.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-disable\-opt\fP
+.INDENT 0.0
+.INDENT 3.5
+This option is only meaningful when \fB\-std\-compile\-opts\fP is given. It disables
+most, but not all, of the \fB\-std\-compile\-opts\fP. The ones that remain are
+\fB\-verify\fP, \fB\-lower\-setjmp\fP, and \fB\-funcresolve\fP.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-strip\-debug\fP
+.INDENT 0.0
+.INDENT 3.5
+This option causes opt to strip debug information from the module before
+applying other optimizations. It is essentially the same as \fB\-strip\fP but it
+ensures that stripping of debug information is done first.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-verify\-each\fP
+.INDENT 0.0
+.INDENT 3.5
+This option causes opt to add a verify pass after every pass otherwise specified
+on the command line (including \fB\-verify\fP).  This is useful for cases where it
+is suspected that a pass is creating an invalid module but it is not clear which
+pass is doing it. The combination of \fB\-std\-compile\-opts\fP and \fB\-verify\-each\fP
+can quickly track down this kind of problem.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-profile\-info\-file\fP \fIfilename\fP
+.INDENT 0.0
+.INDENT 3.5
+Specify the name of the file loaded by the \-profile\-loader option.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-stats\fP
+.INDENT 0.0
+.INDENT 3.5
+Print statistics.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-time\-passes\fP
+.INDENT 0.0
+.INDENT 3.5
+Record the amount of time needed for each pass and print it to standard
+error.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-debug\fP
+.INDENT 0.0
+.INDENT 3.5
+If this is a debug build, this option will enable debug printouts
+from passes which use the \fIDEBUG()\fP macro.  See the \fBLLVM Programmer\(aqs
+Manual\fP, section \fI#DEBUG\fP for more information.
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-load\fP=\fIplugin\fP
+.INDENT 0.0
+.INDENT 3.5
+Load the dynamic object \fIplugin\fP.  This object should register new optimization
+or analysis passes. Once loaded, the object will add new command line options to
+enable various optimizations or analyses.  To see the new complete list of
+optimizations, use the \fB\-help\fP and \fB\-load\fP options together. For example:
+.sp
+.nf
+.ft C
+opt \-load=plugin.so \-help
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fB\-p\fP
+.INDENT 0.0
+.INDENT 3.5
+Print module after each transformation.
+.UNINDENT
+.UNINDENT
+.SH EXIT STATUS
+.sp
+If \fBopt\fP succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non\-zero value.
+.SH AUTHOR
+Maintained by The LLVM Team (http://llvm.org/).
+.SH COPYRIGHT
+2012, LLVM Project
+.\" Generated by docutils manpage writer.
+.

@@ -52,6 +52,7 @@ struct u_businfo {
 typedef enum device_state {
 	DS_NOTPRESENT = 10,		/**< @brief not probed or probe failed */
 	DS_ALIVE = 20,			/**< @brief probe succeeded */
+	DS_ATTACHING = 25,		/**< @brief currently attaching */
 	DS_ATTACHED = 30,		/**< @brief attach method called */
 	DS_BUSY = 40			/**< @brief device is open */
 } device_state_t;
@@ -424,6 +425,7 @@ device_t	device_add_child_ordered(device_t dev, u_int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
+int	device_delete_children(device_t dev);
 int	device_attach(device_t dev);
 int	device_detach(device_t dev);
 void	device_disable(device_t dev);
@@ -462,6 +464,8 @@ int	device_set_devclass(device_t dev, const char *classname);
 int	device_set_driver(device_t dev, driver_t *driver);
 void	device_set_flags(device_t dev, u_int32_t flags);
 void	device_set_softc(device_t dev, void *softc);
+void	device_free_softc(void *softc);
+void	device_claim_softc(device_t dev);
 int	device_set_unit(device_t dev, int unit);	/* XXX DONT USE XXX */
 int	device_shutdown(device_t dev);
 void	device_unbusy(device_t dev);
@@ -534,7 +538,7 @@ void	bus_data_generation_update(void);
  * is for drivers that wish to have a generic form and a specialized form,
  * like is done with the pci bus and the acpi pci bus.  BUS_PROBE_HOOVER is
  * for those busses that implement a generic device place-holder for devices on
- * the bus that have no more specific river for them (aka ugen).
+ * the bus that have no more specific driver for them (aka ugen).
  * BUS_PROBE_NOWILDCARD or lower means that the device isn't really bidding
  * for a device node, but accepts only devices that its parent has told it
  * use this driver.
@@ -570,9 +574,10 @@ extern int bus_current_pass;
 void	bus_set_pass(int pass);
 
 /**
- * Shorthand for constructing method tables.
+ * Shorthands for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
+#define	DEVMETHOD_END	KOBJMETHOD_END
 
 /*
  * Some common device interfaces.

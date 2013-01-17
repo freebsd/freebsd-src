@@ -50,25 +50,27 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <wchar.h>
 
-int	bflag;
-int	cflag;
-wchar_t	dchar;
-char	dcharmb[MB_LEN_MAX + 1];
-int	dflag;
-int	fflag;
-int	nflag;
-int	sflag;
+static int	bflag;
+static int	cflag;
+static wchar_t	dchar;
+static char	dcharmb[MB_LEN_MAX + 1];
+static int	dflag;
+static int	fflag;
+static int	nflag;
+static int	sflag;
+static int	wflag;
 
-size_t	autostart, autostop, maxval;
-char *	positions;
+static size_t	autostart, autostop, maxval;
+static char *	positions;
 
-int	b_cut(FILE *, const char *);
-int	b_n_cut(FILE *, const char *);
-int	c_cut(FILE *, const char *);
-int	f_cut(FILE *, const char *);
-void	get_list(char *);
-void	needpos(size_t);
-static 	void usage(void);
+static int	b_cut(FILE *, const char *);
+static int	b_n_cut(FILE *, const char *);
+static int	c_cut(FILE *, const char *);
+static int	f_cut(FILE *, const char *);
+static void	get_list(char *);
+static int	is_delim(wchar_t);
+static void	needpos(size_t);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -84,7 +86,7 @@ main(int argc, char *argv[])
 	dchar = '\t';			/* default delimiter is \t */
 	strcpy(dcharmb, "\t");
 
-	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != -1)
+	while ((ch = getopt(argc, argv, "b:c:d:f:snw")) != -1)
 		switch(ch) {
 		case 'b':
 			get_list(optarg);
@@ -111,6 +113,9 @@ main(int argc, char *argv[])
 		case 'n':
 			nflag = 1;
 			break;
+		case 'w':
+			wflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -119,9 +124,9 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (fflag) {
-		if (bflag || cflag || nflag)
+		if (bflag || cflag || nflag || (wflag && dflag))
 			usage();
-	} else if (!(bflag || cflag) || dflag || sflag)
+	} else if (!(bflag || cflag) || dflag || sflag || wflag)
 		usage();
 	else if (!bflag && nflag)
 		usage();
@@ -153,7 +158,7 @@ main(int argc, char *argv[])
 	exit(rval);
 }
 
-void
+static void
 get_list(char *list)
 {
 	size_t setautostart, start, stop;
@@ -164,7 +169,7 @@ get_list(char *list)
 	 * set a byte in the positions array to indicate if a field or
 	 * column is to be selected; use +1, it's 1-based, not 0-based.
 	 * Numbers and number ranges may be overlapping, repeated, and in
-	 * any order. We handle "-3-5" although there's no real reason too.
+	 * any order. We handle "-3-5" although there's no real reason to.
 	 */
 	for (; (p = strsep(&list, ", \t")) != NULL;) {
 		setautostart = start = stop = 0;
@@ -187,9 +192,9 @@ get_list(char *list)
 			}
 		}
 		if (*p)
-			errx(1, "[-cf] list: illegal list value");
+			errx(1, "[-bcf] list: illegal list value");
 		if (!stop || !start)
-			errx(1, "[-cf] list: values may not include zero");
+			errx(1, "[-bcf] list: values may not include zero");
 		if (maxval < stop) {
 			maxval = stop;
 			needpos(maxval + 1);
@@ -208,7 +213,7 @@ get_list(char *list)
 		memset(positions + 1, '1', autostart);
 }
 
-void
+static void
 needpos(size_t n)
 {
 	static size_t npos;
@@ -227,7 +232,7 @@ needpos(size_t n)
 	}
 }
 
-int
+static int
 b_cut(FILE *fp, const char *fname __unused)
 {
 	int ch, col;
@@ -261,7 +266,7 @@ b_cut(FILE *fp, const char *fname __unused)
  * Although this function also handles the case where -n is not specified,
  * b_cut() ought to be much faster.
  */
-int
+static int
 b_n_cut(FILE *fp, const char *fname)
 {
 	size_t col, i, lbuflen;
@@ -323,7 +328,7 @@ b_n_cut(FILE *fp, const char *fname)
 	return (warned);
 }
 
-int
+static int
 c_cut(FILE *fp, const char *fname)
 {
 	wint_t ch;
@@ -358,19 +363,31 @@ out:
 	return (0);
 }
 
-int
+static int
+is_delim(wchar_t ch)
+{
+	if (wflag) {
+		if (ch == ' ' || ch == '\t')
+			return 1;
+	} else {
+		if (ch == dchar)
+			return 1;
+	}
+	return 0;
+}
+
+static int
 f_cut(FILE *fp, const char *fname)
 {
 	wchar_t ch;
 	int field, i, isdelim;
 	char *pos, *p;
-	wchar_t sep;
 	int output;
 	char *lbuf, *mlbuf;
 	size_t clen, lbuflen, reallen;
 
 	mlbuf = NULL;
-	for (sep = dchar; (lbuf = fgetln(fp, &lbuflen)) != NULL;) {
+	while ((lbuf = fgetln(fp, &lbuflen)) != NULL) {
 		reallen = lbuflen;
 		/* Assert EOL has a newline. */
 		if (*(lbuf + lbuflen - 1) != '\n') {
@@ -394,7 +411,7 @@ f_cut(FILE *fp, const char *fname)
 			if (clen == 0)
 				clen = 1;
 			/* this should work if newline is delimiter */
-			if (ch == sep)
+			if (is_delim(ch))
 				isdelim = 1;
 			if (ch == '\n') {
 				if (!isdelim && !sflag)
@@ -421,8 +438,13 @@ f_cut(FILE *fp, const char *fname)
 				if (clen == 0)
 					clen = 1;
 				p += clen;
-				if (ch == '\n' || ch == sep)
+				if (ch == '\n' || is_delim(ch)) {
+					/* compress whitespace */
+					if (wflag && ch != '\n')
+						while (is_delim(*p))
+							p++;
 					break;
+				}
 				if (*pos)
 					for (i = 0; i < (int)clen; i++)
 						putchar(p[i - clen]);
@@ -452,6 +474,6 @@ usage(void)
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 		"usage: cut -b list [-n] [file ...]",
 		"       cut -c list [file ...]",
-		"       cut -f list [-s] [-d delim] [file ...]");
+		"       cut -f list [-s] [-w | -d delim] [file ...]");
 	exit(1);
 }

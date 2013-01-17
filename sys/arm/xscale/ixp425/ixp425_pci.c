@@ -45,9 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 
+#include <dev/pci/pcivar.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -129,10 +132,10 @@ ixppcib_attach(device_t dev)
 
 	/* NB: PCI dma window is 64M so anything above must be bounced */
 	if (bus_dma_tag_create(NULL, 1, 0, IXP425_AHB_OFFSET + 64 * 1024 * 1024,
-	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
+	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0,
 	    NULL, NULL, &sc->sc_dmat))
 		panic("couldn't create the PCI dma tag !");
-	/* 
+	/*
 	 * The PCI bus can only address 64MB. However, due to the way our
 	 * implementation of busdma works, busdma can't tell if a device
 	 * is a PCI device or not. So defaults to the PCI dma tag, which
@@ -152,7 +155,7 @@ ixppcib_attach(device_t dev)
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "IXP4XX PCI I/O Ports";
 	if (rman_init(&sc->sc_io_rman) != 0 ||
-		rman_manage_region(&sc->sc_io_rman, 0, 
+		rman_manage_region(&sc->sc_io_rman, 0,
 	    	    IXP425_PCI_IO_SIZE) != 0) {
 		panic("ixppcib_probe: failed to set up I/O rman");
 	}
@@ -256,7 +259,7 @@ ixppcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static int
 ixppcib_setup_intr(device_t dev, device_t child, struct resource *ires,
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
 
@@ -315,11 +318,11 @@ ixppcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 ixppcib_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r) 
+    struct resource *r)
 {
 
 	struct ixppcib_softc *sc = device_get_softc(bus);
-  
+
 	switch (type) {
 	case SYS_RES_IOPORT:
 		rman_set_bustag(r, &sc->sc_pci_iot);
@@ -337,7 +340,7 @@ ixppcib_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 ixppcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r) 
+    struct resource *r)
 {
 
 	device_printf(bus, "%s called deactivate_resource (unexpected)\n",
@@ -445,7 +448,6 @@ static device_method_t ixppcib_methods[] = {
 	DEVMETHOD(device_attach,		ixppcib_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		ixppcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,		ixppcib_write_ivar),
 	DEVMETHOD(bus_setup_intr,		ixppcib_setup_intr),
@@ -462,7 +464,7 @@ static device_method_t ixppcib_methods[] = {
 	DEVMETHOD(pcib_write_config,		ixppcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,		ixppcib_route_interrupt),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t ixppcib_driver = {

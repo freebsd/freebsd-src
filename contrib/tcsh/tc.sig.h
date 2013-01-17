@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.sig.h,v 3.33 2007/07/05 14:13:06 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.sig.h,v 3.34 2010/11/29 15:28:58 christos Exp $ */
 /*
  * tc.sig.h: Signal handling
  *
@@ -159,7 +159,7 @@ extern int phup_disabled;
 extern int pintr_disabled;
 
 extern void sigset_interrupting(int, void (*) (int));
-extern void handle_pending_signals(void);
+extern int handle_pending_signals(void);
 
 extern void queue_alrmcatch(int);
 extern void queue_pchild(int);

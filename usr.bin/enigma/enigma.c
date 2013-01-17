@@ -25,25 +25,31 @@ __FBSDID("$FreeBSD$");
 #define ECHO 010
 #define ROTORSZ 256
 #define MASK 0377
-char	t1[ROTORSZ];
-char	t2[ROTORSZ];
-char	t3[ROTORSZ];
-char	deck[ROTORSZ];
-char	buf[13];
+static char	t1[ROTORSZ];
+static char	t2[ROTORSZ];
+static char	t3[ROTORSZ];
+static char	deck[ROTORSZ];
+static char	buf[13];
 
-void	shuffle(char *);
-void	setup(char *);
+static void	shuffle(char *);
+static void	setup(char *);
 
-void
+static void
 setup(char *pw)
 {
 	int ic, i, k, temp;
 	char salt[3];
 	unsigned rnd;
 	int32_t seed;
+	char *cryptpw;
 
 	strlcpy(salt, pw, sizeof(salt));
-	memcpy(buf, crypt(pw, salt), sizeof(buf));
+	cryptpw = crypt(pw, salt);
+	if (cryptpw == NULL) {
+		fprintf(stderr, "crypt(3) failure\n");
+		exit(1);
+	}
+	memcpy(buf, cryptpw, sizeof(buf));
 	seed = 123;
 	for (i=0; i<13; i++)
 		seed = seed*buf[i] + i;
@@ -128,7 +134,7 @@ main(int argc, char *argv[])
 	return 0;
 }
 
-void
+static void
 shuffle(char deckary[])
 {
 	int i, ic, k, temp;

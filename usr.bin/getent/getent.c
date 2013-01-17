@@ -277,7 +277,7 @@ hostsprint(const struct hostent *he)
 static int
 hosts(int argc, char *argv[])
 {
-	struct hostent	*he;
+	struct hostent	*he4, *he6;
 	char		addr[IN6ADDRSZ];
 	int		i, rv;
 
@@ -285,21 +285,31 @@ hosts(int argc, char *argv[])
 	assert(argv != NULL);
 
 	sethostent(1);
+	he4 = he6 = NULL;
 	rv = RV_OK;
 	if (argc == 2) {
-		while ((he = gethostent()) != NULL)
-			hostsprint(he);
+		while ((he4 = gethostent()) != NULL)
+			hostsprint(he4);
 	} else {
 		for (i = 2; i < argc; i++) {
-			if (inet_pton(AF_INET6, argv[i], (void *)addr) > 0)
-				he = gethostbyaddr(addr, IN6ADDRSZ, AF_INET6);
-			else if (inet_pton(AF_INET, argv[i], (void *)addr) > 0)
-				he = gethostbyaddr(addr, INADDRSZ, AF_INET);
-			else
-				he = gethostbyname(argv[i]);
-			if (he != NULL)
-				hostsprint(he);
-			else {
+			if (inet_pton(AF_INET6, argv[i], (void *)addr) > 0) {
+				he6 = gethostbyaddr(addr, IN6ADDRSZ, AF_INET6);
+				if (he6 != NULL)
+					hostsprint(he6);
+			} else if (inet_pton(AF_INET, argv[i],
+			    (void *)addr) > 0) {
+				he4 = gethostbyaddr(addr, INADDRSZ, AF_INET);
+				if (he4 != NULL)
+					hostsprint(he4);
+	       		} else {
+				he6 = gethostbyname2(argv[i], AF_INET6);
+				if (he6 != NULL)
+					hostsprint(he6);
+				he4 = gethostbyname(argv[i]);
+				if (he4 != NULL)
+					hostsprint(he4);
+			}
+			if ( he4 == NULL && he6 == NULL ) {
 				rv = RV_NOTFOUND;
 				break;
 			}
@@ -600,13 +610,24 @@ utmpxprint(const struct utmpx *ut)
 		printf("\" pid=\"%d\" user=\"%s\" line=\"%s\" host=\"%s\"\n",
 		    ut->ut_pid, ut->ut_user, ut->ut_line, ut->ut_host);
 		break;
+	case INIT_PROCESS:
+		printf("init process: id=\"");
+		UTMPXPRINTID;
+		printf("\" pid=\"%d\"\n", ut->ut_pid);
+		break;
+	case LOGIN_PROCESS:
+		printf("login process: id=\"");
+		UTMPXPRINTID;
+		printf("\" pid=\"%d\" user=\"%s\" line=\"%s\" host=\"%s\"\n",
+		    ut->ut_pid, ut->ut_user, ut->ut_line, ut->ut_host);
+		break;
 	case DEAD_PROCESS:
 		printf("dead process: id=\"");
 		UTMPXPRINTID;
 		printf("\" pid=\"%d\"\n", ut->ut_pid);
 		break;
 	default:
-		printf("unknown record type\n");
+		printf("unknown record type %hu\n", ut->ut_type);
 		break;
 	}
 }

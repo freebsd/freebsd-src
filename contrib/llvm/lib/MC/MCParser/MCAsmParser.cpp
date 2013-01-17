@@ -33,8 +33,8 @@ const AsmToken &MCAsmParser::getTok() {
   return getLexer().getTok();
 }
 
-bool MCAsmParser::TokError(const Twine &Msg) {
-  Error(getLexer().getLoc(), Msg);
+bool MCAsmParser::TokError(const Twine &Msg, ArrayRef<SMRange> Ranges) {
+  Error(getLexer().getLoc(), Msg, Ranges);
   return true;
 }
 
@@ -44,5 +44,7 @@ bool MCAsmParser::ParseExpression(const MCExpr *&Res) {
 }
 
 void MCParsedAsmOperand::dump() const {
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   dbgs() << "  " << *this;
+#endif
 }

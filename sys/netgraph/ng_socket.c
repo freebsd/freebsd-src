@@ -51,6 +51,7 @@
 
 #include <sys/param.h>
 #include <sys/domain.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
@@ -64,9 +65,6 @@
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#ifdef NOTYET
-#include <sys/vnode.h>
-#endif
 
 #include <net/vnet.h>
 
@@ -76,8 +74,8 @@
 #include <netgraph/ng_socket.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info ");
-MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info ");
+static MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info");
+static MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info");
 #else
 #define M_NETGRAPH_PATH M_NETGRAPH
 #define M_NETGRAPH_SOCK M_NETGRAPH
@@ -115,6 +113,7 @@ static ng_rcvmsg_t	ngs_rcvmsg;
 static ng_shutdown_t	ngs_shutdown;
 static ng_newhook_t	ngs_newhook;
 static ng_connect_t	ngs_connect;
+static ng_findhook_t	ngs_findhook;
 static ng_rcvdata_t	ngs_rcvdata;
 static ng_disconnect_t	ngs_disconnect;
 
@@ -124,9 +123,6 @@ static int	ng_attach_cntl(struct socket *so);
 static int	ng_attach_common(struct socket *so, int type);
 static void	ng_detach_common(struct ngpcb *pcbp, int type);
 static void	ng_socket_free_priv(struct ngsock *priv);
-#ifdef NOTYET
-static int	ng_internalize(struct mbuf *m, struct thread *p);
-#endif
 static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
 static int	ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
 
@@ -143,6 +139,7 @@ static struct ng_type typestruct = {
 	.shutdown =	ngs_shutdown,
 	.newhook =	ngs_newhook,
 	.connect =	ngs_connect,
+	.findhook =	ngs_findhook,
 	.rcvdata =	ngs_rcvdata,
 	.disconnect =	ngs_disconnect,
 };
@@ -167,6 +164,27 @@ static struct mtx	ngsocketlist_mtx;
 #ifndef TRAP_ERROR
 #define TRAP_ERROR
 #endif
+
+struct hookpriv {
+	LIST_ENTRY(hookpriv)	next;
+	hook_p			hook;
+};
+LIST_HEAD(ngshash, hookpriv);
+
+/* Per-node private data */
+struct ngsock {
+	struct ng_node	*node;		/* the associated netgraph node */
+	struct ngpcb	*datasock;	/* optional data socket */
+	struct ngpcb	*ctlsock;	/* optional control socket */
+	struct ngshash	*hash;		/* hash for hook names */
+	u_long		hmask;		/* hash mask */
+	int	flags;
+	int	refs;
+	struct mtx	mtx;		/* mtx to wait on */
+	int		error;		/* place to store error */
+};
+
+#define	NGS_FLAG_NOLINGER	1	/* close with last hook */
 
 /***************************************************************
 	Control sockets
@@ -209,19 +227,10 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	int len, error = 0;
 	struct ng_apply_info apply;
 
-#ifdef	NOTYET
-	if (control && (error = ng_internalize(control, td))) {
-		if (pcbp->sockdata == NULL) {
-			error = ENOTCONN;
-			goto release;
-		}
-	}
-#else	/* NOTYET */
 	if (control) {
 		error = EINVAL;
 		goto release;
 	}
-#endif	/* NOTYET */
 
 	/* Require destination as there may be >= 1 hooks on this node. */
 	if (addr == NULL) {
@@ -481,33 +490,30 @@ ng_getsockaddr(struct socket *so, struct sockaddr **addr)
 	int sg_len;
 	int error = 0;
 
-	/* Why isn't sg_data a `char[1]' ? :-( */
-	sg_len = sizeof(struct sockaddr_ng) - sizeof(sg->sg_data) + 1;
-
 	pcbp = sotongpcb(so);
 	if ((pcbp == NULL) || (pcbp->sockdata == NULL))
 		/* XXXGL: can this still happen? */
 		return (EINVAL);
 
+	sg_len = sizeof(struct sockaddr_ng) + NG_NODESIZ -
+	    sizeof(sg->sg_data);
+	sg = malloc(sg_len, M_SONAME, M_WAITOK | M_ZERO);
+
 	mtx_lock(&pcbp->sockdata->mtx);
 	if (pcbp->sockdata->node != NULL) {
 		node_p node = pcbp->sockdata->node;
-		int namelen = 0;	/* silence compiler! */
 
 		if (NG_NODE_HAS_NAME(node))
-			sg_len += namelen = strlen(NG_NODE_NAME(node));
-
-		sg = malloc(sg_len, M_SONAME, M_WAITOK | M_ZERO);
-
-		if (NG_NODE_HAS_NAME(node))
-			bcopy(NG_NODE_NAME(node), sg->sg_data, namelen);
+			bcopy(NG_NODE_NAME(node), sg->sg_data,
+			    strlen(NG_NODE_NAME(node)));
+		mtx_unlock(&pcbp->sockdata->mtx);
 
 		sg->sg_len = sg_len;
 		sg->sg_family = AF_NETGRAPH;
 		*addr = (struct sockaddr *)sg;
-		mtx_unlock(&pcbp->sockdata->mtx);
 	} else {
 		mtx_unlock(&pcbp->sockdata->mtx);
+		free(sg, M_SONAME);
 		error = EINVAL;
 	}
 
@@ -539,8 +545,14 @@ ng_attach_cntl(struct socket *so)
 		return (error);
 	}
 
-	/* Allocate node private info */
+	/*
+	 * Allocate node private info and hash. We start
+	 * with 16 hash entries, however we may grow later
+	 * in ngs_newhook(). We can't predict how much hooks
+	 * does this node plan to have.
+	 */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
+	priv->hash = hashinit(16, M_NETGRAPH_SOCK, &priv->hmask);
 
 	/* Initialize mutex. */
 	mtx_init(&priv->mtx, "ng_socket", NULL, MTX_DEF);
@@ -550,9 +562,7 @@ ng_attach_cntl(struct socket *so)
 	pcbp->sockdata = priv;
 	priv->refs++;
 	priv->node = node;
-
-	/* Store a hint for netstat(1). */
-	priv->node_id = priv->node->nd_ID;
+	pcbp->node_id = node->nd_ID;	/* hint for netstat(1) */
 
 	/* Link the node and the private data. */
 	NG_NODE_SET_PRIVATE(priv->node, priv);
@@ -623,6 +633,7 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 			panic("%s", __func__);
 		}
 		pcbp->sockdata = NULL;
+		pcbp->node_id = 0;
 
 		ng_socket_free_priv(priv);
 	}
@@ -646,6 +657,7 @@ ng_socket_free_priv(struct ngsock *priv)
 
 	if (priv->refs == 0) {
 		mtx_destroy(&priv->mtx);
+		hashdestroy(priv->hash, M_NETGRAPH_SOCK, priv->hmask);
 		free(priv, M_NETGRAPH_SOCK);
 		return;
 	}
@@ -660,69 +672,6 @@ ng_socket_free_priv(struct ngsock *priv)
 	} else
 		mtx_unlock(&priv->mtx);
 }
-
-#ifdef NOTYET
-/*
- * File descriptors can be passed into an AF_NETGRAPH socket.
- * Note, that file descriptors cannot be passed OUT.
- * Only character device descriptors are accepted.
- * Character devices are useful to connect a graph to a device,
- * which after all is the purpose of this whole system.
- */
-static int
-ng_internalize(struct mbuf *control, struct thread *td)
-{
-	const struct cmsghdr *cm = mtod(control, const struct cmsghdr *);
-	struct file *fp;
-	struct vnode *vn;
-	int oldfds;
-	int fd;
-
-	if (cm->cmsg_type != SCM_RIGHTS || cm->cmsg_level != SOL_SOCKET ||
-	    cm->cmsg_len != control->m_len) {
-		TRAP_ERROR;
-		return (EINVAL);
-	}
-
-	/* Check there is only one FD. XXX what would more than one signify? */
-	oldfds = ((caddr_t)cm + cm->cmsg_len - (caddr_t)data) / sizeof (int);
-	if (oldfds != 1) {
-		TRAP_ERROR;
-		return (EINVAL);
-	}
-
-	/* Check that the FD given is legit. and change it to a pointer to a
-	 * struct file. */
-	fd = CMSG_DATA(cm);
-	if ((error = fget(td, fd, 0, &fp)) != 0)
-		return (error);
-
-	/* Depending on what kind of resource it is, act differently. For
-	 * devices, we treat it as a file. For an AF_NETGRAPH socket,
-	 * shortcut straight to the node. */
-	switch (fp->f_type) {
-	case DTYPE_VNODE:
-		vn = fp->f_data;
-		if (vn && (vn->v_type == VCHR)) {
-			/* for a VCHR, actually reference the FILE */
-			fhold(fp);
-			/* XXX then what :) */
-			/* how to pass on to other modules? */
-		} else {
-			fdrop(fp, td);
-			TRAP_ERROR;
-			return (EINVAL);
-		}
-		break;
-	default:
-		fdrop(fp, td);
-		TRAP_ERROR;
-		return (EINVAL);
-	}
-	fdrop(fp, td);
-	return (0);
-}
-#endif	/* NOTYET */
 
 /*
  * Connect the data socket to a named control socket node.
@@ -776,6 +725,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	mtx_lock(&priv->mtx);
 	priv->datasock = pcbp;
 	pcbp->sockdata = priv;
+	pcbp->node_id = priv->node->nd_ID;	/* hint for netstat(1) */
 	priv->refs++;
 	mtx_unlock(&priv->mtx);
 	NG_FREE_ITEM(item);	/* drop the reference to the node */
@@ -817,6 +767,35 @@ ngs_constructor(node_p nodep)
 	return (EINVAL);
 }
 
+static void
+ngs_rehash(node_p node)
+{
+	struct ngsock *priv = NG_NODE_PRIVATE(node);
+	struct ngshash *new;
+	struct hookpriv *hp;
+	hook_p hook;
+	uint32_t h;
+	u_long hmask;
+
+	new = hashinit_flags((priv->hmask + 1) * 2, M_NETGRAPH_SOCK, &hmask,
+	    HASH_NOWAIT);
+	if (new == NULL)
+		return;
+
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+		hp = NG_HOOK_PRIVATE(hook);
+#ifdef INVARIANTS
+		LIST_REMOVE(hp, next);
+#endif
+		h = hash32_str(NG_HOOK_NAME(hook), HASHINIT) & hmask;
+		LIST_INSERT_HEAD(&new[h], hp, next);
+	}
+
+	hashdestroy(priv->hash, M_NETGRAPH_SOCK, priv->hmask);
+	priv->hash = new;
+	priv->hmask = hmask;
+}
+
 /*
  * We allow any hook to be connected to the node.
  * There is no per-hook private information though.
@@ -824,7 +803,20 @@ ngs_constructor(node_p nodep)
 static int
 ngs_newhook(node_p node, hook_p hook, const char *name)
 {
-	NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
+	struct ngsock *const priv = NG_NODE_PRIVATE(node);
+	struct hookpriv *hp;
+	uint32_t h;
+
+	hp = malloc(sizeof(*hp), M_NETGRAPH_SOCK, M_NOWAIT);
+	if (hp == NULL)
+		return (ENOMEM);
+	if (node->nd_numhooks * 2 > priv->hmask)
+		ngs_rehash(node);
+	hp->hook = hook;
+	h = hash32_str(name, HASHINIT) & priv->hmask;
+	LIST_INSERT_HEAD(&priv->hash[h], hp, next);
+	NG_HOOK_SET_PRIVATE(hook, hp);
+
 	return (0);
 }
 
@@ -844,6 +836,38 @@ ngs_connect(hook_p hook)
 			priv->datasock->ng_socket->so_state &= ~SS_ISCONNECTED;
 	}
 	return (0);
+}
+
+/* Look up hook by name */
+static hook_p
+ngs_findhook(node_p node, const char *name)
+{
+	struct ngsock *priv = NG_NODE_PRIVATE(node);
+	struct hookpriv *hp;
+	uint32_t h;
+
+	/*
+	 * Microoptimisation for an ng_socket with
+	 * a single hook, which is a common case.
+	 */
+	if (node->nd_numhooks == 1) {
+		hook_p hook;
+
+		hook = LIST_FIRST(&node->nd_hooks);
+
+		if (strcmp(NG_HOOK_NAME(hook), name) == 0)
+			return (hook);
+		else
+			return (NULL);
+	}
+
+	h = hash32_str(name, HASHINIT) & priv->hmask;
+
+	LIST_FOREACH(hp, &priv->hash[h], next)
+		if (strcmp(NG_HOOK_NAME(hp->hook), name) == 0)
+			return (hp->hook);
+
+	return (NULL);
 }
 
 /*
@@ -1013,6 +1037,10 @@ ngs_disconnect(hook_p hook)
 {
 	node_p node = NG_HOOK_NODE(hook);
 	struct ngsock *const priv = NG_NODE_PRIVATE(node);
+	struct hookpriv *hp = NG_HOOK_PRIVATE(hook);
+
+	LIST_REMOVE(hp, next);
+	free(hp, M_NETGRAPH_SOCK);
 
 	if ((priv->datasock) && (priv->datasock->ng_socket)) {
 		if (NG_NODE_NUMHOOKS(node) == 1)
@@ -1172,8 +1200,8 @@ ngs_mod_event(module_t mod, int event, void *data)
 VNET_DOMAIN_SET(ng);
 
 SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, 0, AF_NETGRAPH, "");
-SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
+static SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
 SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, 0, NG_DATA, "");
-SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
+static SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
 SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, 0, NG_CONTROL, "");
 

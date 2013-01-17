@@ -34,7 +34,6 @@
 /*
  * CPU identification, from PRID register.
  */
-typedef int mips_prid_t;
 
 #define MIPS_PRID_REV(x)	(((x) >>  0) & 0x00ff)
 #define MIPS_PRID_IMPL(x)	(((x) >>  8) & 0x00ff)
@@ -62,9 +61,4 @@ typedef int mips_prid_t;
 #define	MIPS_PRID_CID_CAVIUM		0x0d	/* Cavium */
 #define	MIPS_PRID_COPTS(x)	(((x) >> 24) & 0x00ff)	/* Company Options */
 
-#ifdef _KERNEL
-#ifdef __HAVE_MIPS_MACHDEP_CACHE_CONFIG
-void mips_machdep_cache_config(void);
-#endif
-#endif	/* _KERNEL */
 #endif	/* _MIPS_LOCORE_H */

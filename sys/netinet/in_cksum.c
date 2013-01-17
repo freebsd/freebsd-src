@@ -88,7 +88,7 @@ in_cksum(struct mbuf *m, int len)
 		/*
 		 * Force to even boundary.
 		 */
-		if ((1 & (int) w) && (mlen > 0)) {
+		if ((1 & (uintptr_t) w) && (mlen > 0)) {
 			REDUCE;
 			sum <<= 8;
 			s_util.c[0] = *(u_char *)w;

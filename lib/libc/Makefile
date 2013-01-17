@@ -26,7 +26,9 @@ SHLIB_MAJOR= 7
 WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${LIBC_ARCH}
+.if ${MK_NLS} != "no"
 CFLAGS+=-DNLS
+.endif
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=
 PRECIOUSLIB=
@@ -41,7 +43,11 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 #
 DPADD+=	${LIBGCC}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lgcc -lssp_nonshared
+LDADD+= -lgcc
+
+.if ${MK_SSP} != "no"
+LDADD+= -lssp_nonshared
+.endif
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
@@ -79,6 +85,7 @@ NOASM=
 .include "${.CURDIR}/resolv/Makefile.inc"
 .include "${.CURDIR}/stdio/Makefile.inc"
 .include "${.CURDIR}/stdlib/Makefile.inc"
+.include "${.CURDIR}/stdlib/jemalloc/Makefile.inc"
 .include "${.CURDIR}/stdtime/Makefile.inc"
 .include "${.CURDIR}/string/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
@@ -127,8 +134,8 @@ SRCS+=	${_src}
 KQSRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c iordi3.c \
 	lshldi3.c lshrdi3.c moddi3.c muldi3.c negdi2.c notdi2.c qdivrem.c \
 	subdi3.c ucmpdi2.c udivdi3.c umoddi3.c xordi3.c
-KSRCS=	bcmp.c ffs.c ffsl.c fls.c flsl.c index.c mcount.c rindex.c \
-	strcat.c strcmp.c strcpy.c strlen.c strncpy.c
+KSRCS=	bcmp.c ffs.c ffsl.c fls.c flsl.c mcount.c strcat.c strchr.c \
+	strcmp.c strcpy.c strlen.c strncpy.c strrchr.c
 
 libkern: libkern.gen libkern.${LIBC_ARCH}
 

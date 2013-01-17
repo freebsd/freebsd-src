@@ -252,7 +252,7 @@ Finally, establish connection:
 GNU gdb 5.2.1 (FreeBSD)
 .Em "(political statements omitted)"
 Ready to go.  Enter 'tr' to connect to the remote target
-with /dev/cuad0, 'tr /dev/cuad1' to connect to a different port
+with /dev/cuau0, 'tr /dev/cuau1' to connect to a different port
 or 'trf portno' to connect to the remote target with the firewire
 interface.  portno defaults to 5556.
 
@@ -370,10 +370,10 @@ instead.
 Debug a remote system via the specified serial or firewire interface.
 .It Ic tr0
 Debug a remote system via serial interface
-.Pa /dev/cuad0 .
+.Pa /dev/cuau0 .
 .It Ic tr1
 Debug a remote system via serial interface
-.Pa /dev/cuad1 .
+.Pa /dev/cuau1 .
 .It Ic trf
 Debug a remote system via firewire interface at default port 5556.
 .El
@@ -508,7 +508,7 @@ pointed to by the local variable
 .It Ic checkmem
 Check unallocated memory for modifications.
 This assumes that the kernel has been compiled with
-.Cd "options DIAGNOSTIC"
+.Cd "options DIAGNOSTIC" .
 This causes the contents of free memory to be set to
 .Li 0xdeadc0de .
 .It Ic dmesg
@@ -595,7 +595,7 @@ run the link at more than 9600 bps.
 Firewire connections do not have this problem.
 .Pp
 The debugging macros
-.Dq "just growed" .
+.Dq "just grown" .
 In general, the person who wrote them did so while looking for a specific
 problem, so they may not be general enough, and they may behave badly when used
 in ways for which they were not intended, even if those ways make sense.

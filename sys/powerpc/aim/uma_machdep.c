@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -51,21 +52,15 @@ SYSCTL_INT(_hw, OID_AUTO, uma_mdpages, CTLFLAG_RD, &hw_uma_mdpages, 0,
 void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	static vm_pindex_t color;
 	void *va;
 	vm_page_t m;
 	int pflags;
 	
 	*flags = UMA_SLAB_PRIV;
-	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-	if (wait & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
+	pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 
 	for (;;) {
-		m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);

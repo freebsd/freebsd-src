@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -51,7 +51,7 @@
  * chip errata. For the most part, code doesn't need to call
  * these functions directly.
  *
- * <hr>$Revision: 52004 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <asm/octeon/cvmx.h>
@@ -106,7 +106,6 @@ int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
     cvmx_gmxx_prtx_cfg_t gmx_cfg;
     int retry_cnt;
     int retry_loop_cnt;
-    int mtu;
     int i;
     cvmx_helper_link_info_t link_info;
 
@@ -195,7 +194,6 @@ int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
         cvmx_write_csr(CVMX_ASXX_TX_PRT_EN(INTERFACE(FIX_IPD_OUTPORT)), 1 << INDEX(FIX_IPD_OUTPORT));
         cvmx_write_csr(CVMX_ASXX_RX_PRT_EN(INTERFACE(FIX_IPD_OUTPORT)), 1 << INDEX(FIX_IPD_OUTPORT));
 
-        mtu = cvmx_read_csr(CVMX_GMXX_RXX_JABBER(INDEX(FIX_IPD_OUTPORT), INTERFACE(FIX_IPD_OUTPORT)));
         cvmx_write_csr(CVMX_GMXX_RXX_JABBER(INDEX(FIX_IPD_OUTPORT), INTERFACE(FIX_IPD_OUTPORT)), 65392-14-4);
         cvmx_write_csr(CVMX_GMXX_RXX_FRM_MAX(INDEX(FIX_IPD_OUTPORT), INTERFACE(FIX_IPD_OUTPORT)), 65392-14-4);
 
@@ -304,6 +302,12 @@ int cvmx_helper_fix_ipd_packet_chain(cvmx_wqe_t *work)
 void __cvmx_helper_errata_qlm_disable_2nd_order_cdr(int qlm)
 {
     int lane;
+    /* Apply the workaround only once. */
+    cvmx_ciu_qlm_jtgd_t qlm_jtgd;
+    qlm_jtgd.u64 = cvmx_read_csr(CVMX_CIU_QLM_JTGD);
+    if (qlm_jtgd.s.select != 0)
+        return;
+
     cvmx_helper_qlm_jtag_init();
     /* We need to load all four lanes of the QLM, a total of 1072 bits */
     for (lane=0; lane<4; lane++)

@@ -18,6 +18,8 @@
 #include "llvm/MC/MCStreamer.h"
 using namespace llvm;
 
+void MCAsmInfoDarwin::anchor() { }
+
 MCAsmInfoDarwin::MCAsmInfoDarwin() {
   // Common settings for all Darwin targets.
   // Syntax:
@@ -30,6 +32,7 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
 
   AlignmentIsInBytes = false;
   COMMDirectiveAlignmentIsInBytes = false;
+  LCOMMDirectiveAlignmentType = LCOMM::Log2Alignment;
   InlineAsmStart = " InlineAsm Start";
   InlineAsmEnd = " InlineAsm End";
 
@@ -39,15 +42,7 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   ZeroDirective = "\t.space\t";  // ".space N" emits N zeros.
   HasMachoZeroFillDirective = true;  // Uses .zerofill
   HasMachoTBSSDirective = true; // Uses .tbss
-  StructorOutputOrder = Structors::PriorityOrder;
   HasStaticCtorDtorReferenceInStaticMode = true;
-
-  CodeBegin = "L$start$code$";
-  DataBegin = "L$start$data$";
-  JT8Begin  = "L$start$jt8$";
-  JT16Begin = "L$start$jt16$";
-  JT32Begin = "L$start$jt32$";
-  SupportsDataRegions = true;
 
   // FIXME: Darwin 10 and newer don't need this.
   LinkerRequiresNonEmptyDwarfLines = true;
@@ -57,13 +52,13 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
 
   HiddenVisibilityAttr = MCSA_PrivateExtern;
   HiddenDeclarationVisibilityAttr = MCSA_Invalid;
+
   // Doesn't support protected visibility.
-  ProtectedVisibilityAttr = MCSA_Global;
-  
+  ProtectedVisibilityAttr = MCSA_Invalid;
+
   HasDotTypeDotSizeDirective = false;
   HasNoDeadStrip = true;
   HasSymbolResolver = true;
 
-  DwarfRequiresRelocationForSectionOffset = false;
-  DwarfUsesLabelOffsetForRanges = false;
+  DwarfUsesRelocationsAcrossSections = false;
 }

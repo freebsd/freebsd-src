@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: projects/virtio/lib/libz/Makefile 224196 2011-07-18 19:23:50Z delphij $
 #
 
 LIB=		z
@@ -35,22 +35,18 @@ SRCS+=		uncompr.c
 SRCS+=		zopen.c
 SRCS+=		zutil.c
 
-.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
-.PATH:		${.CURDIR}/contrib/asm686
-SRCS+=		match.S
-CFLAGS+=	-DASMV -DNO_UNDERLINE
-ACFLAGS+=	-Wa,--noexecstack
-.endif
+#.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
+#.PATH:		${.CURDIR}/contrib/asm686
+#SRCS+=		match.S
+#CFLAGS+=	-DASMV -DNO_UNDERLINE
+#ACFLAGS+=	-Wa,--noexecstack
+#.endif
 
 #.if ${MACHINE_ARCH} == "amd64"
 #.PATH:		${.CURDIR}/contrib/gcc_gvmat64
 #SRCS+=		gvmat64.S
 #CFLAGS+=	-DASMV -DNO_UNDERLINE
 #ACFLAGS+=	-Wa,--noexecstack
-#.if ${CC:T:Mclang} == "clang"
-## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
-#ACFLAGS+=	${.IMPSRC:T:Mgvmat64.S:C/^.+$/-no-integrated-as/}
-#.endif
 #.endif
 
 VERSION_DEF=	${.CURDIR}/Versions.def
@@ -71,3 +67,7 @@ test: example minigzip
 		echo hello world | ./minigzip | ./minigzip -d )
 
 .include <bsd.lib.mk>
+
+## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
+#ACFLAGS.gvmat64.S=	${CLANG_NO_IAS}
+#ACFLAGS+=		${ACFLAGS.${.IMPSRC:T}}

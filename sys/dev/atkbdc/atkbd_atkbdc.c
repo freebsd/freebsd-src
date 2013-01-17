@@ -104,9 +104,7 @@ atkbdprobe(device_t dev)
 	bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 
 	/* probe the device */
-	return atkbd_probe_unit(device_get_unit(dev),
-				device_get_unit(device_get_parent(dev)),
-				irq, flags);
+	return atkbd_probe_unit(dev, irq, flags);
 }
 
 static int
@@ -124,9 +122,7 @@ atkbdattach(device_t dev)
 	rid = KBDC_RID_KBD;
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, rid);
 	flags = device_get_flags(dev);
-	error = atkbd_attach_unit(device_get_unit(dev), &kbd,
-				  device_get_unit(device_get_parent(dev)),
-				  irq, flags);
+	error = atkbd_attach_unit(dev, &kbd, irq, flags);
 	if (error)
 		return error;
 

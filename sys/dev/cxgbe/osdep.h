@@ -70,9 +70,11 @@ typedef uint64_t __be64;
 #error "Must set BYTE_ORDER"
 #endif
 
+#ifndef __bool_true_false_are_defined
 typedef boolean_t bool;
 #define false FALSE
 #define true TRUE
+#endif
 
 #define mdelay(x) DELAY((x) * 1000)
 #define udelay(x) DELAY(x)
@@ -81,7 +83,7 @@ typedef boolean_t bool;
 #define simple_strtoul strtoul
 #define DIV_ROUND_UP(x, y) howmany(x, y)
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define ARRAY_SIZE(x) nitems(x)
 #define container_of(p, s, f) ((s *)(((uint8_t *)(p)) - offsetof(s, f)))
 
 #define swab16(x) bswap16(x) 
@@ -109,19 +111,21 @@ typedef boolean_t bool;
 #define AUTONEG_DISABLE	0
 #define AUTONEG_ENABLE	1
 
+#define PCI_DEVICE_ID	PCIR_DEVICE
 #define PCI_CAP_ID_VPD  PCIY_VPD
 #define PCI_VPD_ADDR    PCIR_VPD_ADDR
 #define PCI_VPD_ADDR_F  0x8000
 #define PCI_VPD_DATA    PCIR_VPD_DATA
 
 #define PCI_CAP_ID_EXP		PCIY_EXPRESS
-#define PCI_EXP_DEVCTL		PCIR_EXPRESS_DEVICE_CTL
-#define PCI_EXP_DEVCTL_PAYLOAD	PCIM_EXP_CTL_MAX_PAYLOAD
-#define PCI_EXP_DEVCTL_READRQ	PCIM_EXP_CTL_MAX_READ_REQUEST
-#define PCI_EXP_LNKCTL		PCIR_EXPRESS_LINK_CTL
-#define PCI_EXP_LNKSTA		PCIR_EXPRESS_LINK_STA
-#define PCI_EXP_LNKSTA_CLS	PCIM_LINK_STA_SPEED
-#define PCI_EXP_LNKSTA_NLW	PCIM_LINK_STA_WIDTH
+#define PCI_EXP_DEVCTL		PCIER_DEVICE_CTL
+#define PCI_EXP_DEVCTL_PAYLOAD	PCIEM_CTL_MAX_PAYLOAD
+#define PCI_EXP_DEVCTL_READRQ	PCIEM_CTL_MAX_READ_REQUEST
+#define PCI_EXP_LNKCTL		PCIER_LINK_CTL
+#define PCI_EXP_LNKSTA		PCIER_LINK_STA
+#define PCI_EXP_LNKSTA_CLS	PCIEM_LINK_STA_SPEED
+#define PCI_EXP_LNKSTA_NLW	PCIEM_LINK_STA_WIDTH
+#define PCI_EXP_DEVCTL2		PCIER_DEVICE_CTL2
 
 static inline int
 ilog2(long x)

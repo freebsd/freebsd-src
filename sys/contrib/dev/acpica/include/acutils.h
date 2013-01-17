@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
 
 
 extern const UINT8                      AcpiGbl_ResourceAmlSizes[];
+extern const UINT8                      AcpiGbl_ResourceAmlSerialBusSizes[];
 
 /* Strings used by the disassembler and debugger resource dump routines */
 
@@ -69,6 +70,22 @@ extern const char                       *AcpiGbl_SizDecode[];
 extern const char                       *AcpiGbl_TrsDecode[];
 extern const char                       *AcpiGbl_TtpDecode[];
 extern const char                       *AcpiGbl_TypDecode[];
+extern const char                       *AcpiGbl_PpcDecode[];
+extern const char                       *AcpiGbl_IorDecode[];
+extern const char                       *AcpiGbl_DtsDecode[];
+extern const char                       *AcpiGbl_CtDecode[];
+extern const char                       *AcpiGbl_SbtDecode[];
+extern const char                       *AcpiGbl_AmDecode[];
+extern const char                       *AcpiGbl_SmDecode[];
+extern const char                       *AcpiGbl_WmDecode[];
+extern const char                       *AcpiGbl_CphDecode[];
+extern const char                       *AcpiGbl_CpoDecode[];
+extern const char                       *AcpiGbl_DpDecode[];
+extern const char                       *AcpiGbl_EdDecode[];
+extern const char                       *AcpiGbl_BpbDecode[];
+extern const char                       *AcpiGbl_SbDecode[];
+extern const char                       *AcpiGbl_FcDecode[];
+extern const char                       *AcpiGbl_PtDecode[];
 #endif
 
 /* Types for Resource descriptor entries */
@@ -112,7 +129,6 @@ typedef struct acpi_pkg_info
 #define DB_WORD_DISPLAY     2
 #define DB_DWORD_DISPLAY    4
 #define DB_QWORD_DISPLAY    8
-
 
 /*
  * utglobal - Global data structures and procedures
@@ -409,17 +425,18 @@ AcpiUtPtrExit (
     UINT8                   *Ptr);
 
 void
+AcpiUtDebugDumpBuffer (
+    UINT8                   *Buffer,
+    UINT32                  Count,
+    UINT32                  Display,
+    UINT32                  ComponentId);
+
+void
 AcpiUtDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
     UINT32                  Display,
-    UINT32                  componentId);
-
-void
-AcpiUtDumpBuffer2 (
-    UINT8                   *Buffer,
-    UINT32                  Count,
-    UINT32                  Display);
+    UINT32                  Offset);
 
 void
 AcpiUtReportError (
@@ -495,17 +512,22 @@ AcpiUtExecutePowerMethods (
 ACPI_STATUS
 AcpiUtExecute_HID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId);
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 ACPI_STATUS
 AcpiUtExecute_UID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId);
+    ACPI_PNP_DEVICE_ID      **ReturnId);
+
+ACPI_STATUS
+AcpiUtExecute_SUB (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 ACPI_STATUS
 AcpiUtExecute_CID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID_LIST     **ReturnCidList);
+    ACPI_PNP_DEVICE_ID_LIST **ReturnCidList);
 
 
 /*
@@ -687,6 +709,10 @@ AcpiUtShortDivide (
 /*
  * utmisc
  */
+void
+UtConvertBackslashes (
+    char                    *Pathname);
+
 const char *
 AcpiUtValidateException (
     ACPI_STATUS             Status);
@@ -721,6 +747,11 @@ AcpiUtStrupr (
 void
 AcpiUtStrlwr (
     char                    *SrcString);
+
+int
+AcpiUtStricmp (
+    char                    *String1,
+    char                    *String2);
 
 void
 AcpiUtPrintString (
@@ -772,6 +803,7 @@ AcpiUtDisplayInitPathname (
  */
 ACPI_STATUS
 AcpiUtWalkAmlResources (
+    ACPI_WALK_STATE         *WalkState,
     UINT8                   *Aml,
     ACPI_SIZE               AmlLength,
     ACPI_WALK_AML_CALLBACK  UserFunction,
@@ -779,6 +811,7 @@ AcpiUtWalkAmlResources (
 
 ACPI_STATUS
 AcpiUtValidateResource (
+    ACPI_WALK_STATE         *WalkState,
     void                    *Aml,
     UINT8                   *ReturnIndex);
 
@@ -897,6 +930,31 @@ AcpiUtCreateList (
 
 #endif /* ACPI_DBG_TRACK_ALLOCATIONS */
 
+/*
+ * utaddress - address range check
+ */
+ACPI_STATUS
+AcpiUtAddAddressRange (
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT32                  Length,
+    ACPI_NAMESPACE_NODE     *RegionNode);
+
+void
+AcpiUtRemoveAddressRange (
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_NAMESPACE_NODE     *RegionNode);
+
+UINT32
+AcpiUtCheckAddressRange (
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    UINT32                  Length,
+    BOOLEAN                 Warn);
+
+void
+AcpiUtDeleteAddressLists (
+    void);
 
 /*
  * utxferror - various error/warning output functions

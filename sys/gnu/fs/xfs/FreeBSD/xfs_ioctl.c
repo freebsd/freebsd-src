@@ -1249,7 +1249,6 @@ xfs_ioc_xattr(
 				 XFS_AT_NEXTENTS | XFS_AT_PROJID;
 		XVOP_GETATTR(vp, vattr, 0, NULL, error);
 		if (unlikely(error)) {
-			error = error;
 			break;
 		}
 
@@ -1287,7 +1286,6 @@ xfs_ioc_xattr(
 		if (likely(!error))
 			__vn_revalidate(vp, vattr);	/* update flags */
 #endif
-		error = error;
 		break;
 	}
 
@@ -1296,7 +1294,6 @@ xfs_ioc_xattr(
 				 XFS_AT_ANEXTENTS | XFS_AT_PROJID;
 		XVOP_GETATTR(vp, vattr, 0, NULL, error);
 		if (unlikely(error)) {
-			error = error;
 			break;
 		}
 
@@ -1347,7 +1344,6 @@ xfs_ioc_xattr(
 		if (likely(!error))
 			__vn_revalidate(vp, vattr);	/* update flags */
 #endif
-		error = error;
 		break;
 	}
 

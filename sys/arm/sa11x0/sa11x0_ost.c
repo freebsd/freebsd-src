@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 
-#include <arm/sa11x0/sa11x0_reg.h> 
+#include <arm/sa11x0/sa11x0_reg.h>
 #include <arm/sa11x0/sa11x0_var.h>
 #include <arm/sa11x0/sa11x0_ostreg.h>
 
@@ -127,7 +127,7 @@ saost_attach(device_t dev)
 
 	saost_sc = sc;
 
-	if(bus_space_map(sa->sc_iot, sc->sc_baseaddr, 8, 0, 
+	if(bus_space_map(sa->sc_iot, sc->sc_baseaddr, 8, 0,
 			&sc->sc_ioh))
 		panic("%s: Cannot map registers", device_get_name(dev));
 
@@ -251,7 +251,7 @@ cpu_initclocks()
 	stathz = STATHZ;
 	profhz = stathz;
 #if 0
-	mtx_init(&clock_lock, "SA1110 Clock locké", NULL, MTX_SPIN);
+	mtx_init(&clock_lock, "SA1110 Clock locked", NULL, MTX_SPIN);
 #endif
 	saost_sc->sc_statclock_step = TIMER_FREQUENCY / stathz;
 	struct resource *irq1, *irq2;

@@ -795,7 +795,7 @@ alpes		463/udp
 kpasswd5	464/tcp	   # Kerberos (v5)
 kpasswd5	464/udp	   # Kerberos (v5)
 #PROBLEMS!==============================================================
-# IANA has offically assigned these two ports as ``kpasswd''
+# IANA has officially assigned these two ports as ``kpasswd''
 #kpasswd	464/tcp	   # Kerberos (v5)
 #kpasswd	464/udp	   # Kerberos (v5)
 #PROBLEMS!==============================================================
@@ -1275,8 +1275,8 @@ hcp-wismar      686/tcp    #Hardware Control Protocol Wismar
 hcp-wismar      686/udp    #Hardware Control Protocol Wismar
 asipregistry	687/tcp
 asipregistry	687/udp
-realm-rusd      688/tcp    #ApplianceWare managment protocol
-realm-rusd      688/udp    #ApplianceWare managment protocol
+realm-rusd      688/tcp    #ApplianceWare management protocol
+realm-rusd      688/udp    #ApplianceWare management protocol
 nmap            689/tcp
 nmap            689/udp
 vatp            690/tcp    #Velazquez Application Transfer Protocol
@@ -2219,6 +2219,8 @@ iscsi-target	3260/tcp   # iSCSI port
 iscsi-target	3260/udp   # iSCSI port
 ccmail		3264/tcp   #cc:mail/lotus
 ccmail		3264/udp   #cc:mail/lotus
+mysql		3306/tcp   #MySQL
+mysql		3306/udp   #MySQL
 dec-notes	3333/tcp   #DEC Notes
 dec-notes	3333/udp   #DEC Notes
 rdp		3389/tcp   #Microsoft Remote Desktop Protocol
@@ -2392,7 +2394,7 @@ xdsxdm		6558/tcp
 xdsxdm		6558/udp
 sane-port	6566/tcp   #Scanner Access Now Easy (SANE) Control Port
 sane-port	6566/udp   #Scanner Access Now Easy (SANE) Control Port
-ircd		6667/tcp   #Internet Relay Chat (unoffical)
+ircd		6667/tcp   #Internet Relay Chat (unofficial)
 frc-hp		6704/sctp  #ForCES HP (High Priority) channel
 frc-mp		6705/sctp  #ForCES MP (Medium Priority) channel
 frc-lp		6706/sctp  #ForCES LP (Low priority) channel

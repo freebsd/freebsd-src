@@ -44,6 +44,7 @@ struct stat status;
 pid_t new_pid;
 
 buggy = 0;
+total = 0;
 
 error = pipe(desc);
 
@@ -52,7 +53,7 @@ if (error)
 
 buffer[0] = 'A';
 
-for (i = 0; i < 65535; i++) {
+for (i = 1; i < 65535; i++) {
 	buffer[i] = buffer[i - 1] + 1;
 	if (buffer[i] > 'Z')
 		buffer[i] = 'A';

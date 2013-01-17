@@ -20,6 +20,7 @@ MAN+=	pmc_read.3
 MAN+=	pmc_set.3
 MAN+=	pmc_start.3
 MAN+=	pmclog.3
+MAN+=	pmc.soft.3
 
 # PMC-dependent manual pages
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -27,6 +28,7 @@ MAN+=	pmc.atom.3
 MAN+=	pmc.core.3
 MAN+=	pmc.core2.3
 MAN+=	pmc.iaf.3
+MAN+=	pmc.ivybridge.3
 MAN+=	pmc.ucf.3
 MAN+=	pmc.k7.3
 MAN+=	pmc.k8.3
@@ -35,11 +37,17 @@ MAN+=	pmc.p5.3
 MAN+=	pmc.p6.3
 MAN+=	pmc.corei7.3
 MAN+=	pmc.corei7uc.3
+MAN+=	pmc.sandybridge.3
+MAN+=	pmc.sandybridgeuc.3	
+MAN+=	pmc.sandybridgexeon.3	
 MAN+=	pmc.westmere.3
 MAN+=	pmc.westmereuc.3
 MAN+=	pmc.tsc.3
-.elif ${MACHINE_CPUARCH} == "arm" && ${CPUTYPE} == "xscale"
+.elif ${MACHINE_CPUARCH} == "arm"
 MAN+=	pmc.xscale.3
+.elif ${MACHINE_CPUARCH} == "mips"
+MAN+=	pmc.mips24k.3
+MAN+=	pmc.octeon.3
 .endif
 
 MLINKS+= \

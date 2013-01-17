@@ -80,7 +80,12 @@ struct pcb {
 #define PCB_NOALIGNFLT	0x00000002
 	caddr_t	pcb_onfault;			/* On fault handler */
 	struct	pcb_arm32 un_32;
+#ifdef ARM_VFP_SUPPORT
+	struct vfp_state pcb_vfpstate;          /* VP/NEON state */
+	u_int pcb_vfpcpu;                       /* VP/NEON last cpu */
+#else
 	struct	fpe_sp_state pcb_fpstate;	/* Floating Point state */
+#endif
 };
 
 /*
@@ -94,7 +99,7 @@ void	makectx(struct trapframe *tf, struct pcb *pcb);
 
 #ifdef _KERNEL
 
-void    savectx(struct pcb *);
+void    savectx(struct pcb *) __returns_twice;
 #endif	/* _KERNEL */
 
 #endif	/* !_MACHINE_PCB_H_ */

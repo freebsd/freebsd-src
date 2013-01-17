@@ -73,4 +73,5 @@ FBSDprivate_1.0 {
 	_gss_copy_oid;
 	_gss_copy_buffer;
 	_gss_free_oid;
+	_gss_mg_collect_error;
 };

@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -42,10 +47,11 @@ __FBSDID("$FreeBSD$");
  * Non-MT-safe version.
  */
 wint_t
-__fputwc(wchar_t wc, FILE *fp)
+__fputwc(wchar_t wc, FILE *fp, locale_t locale)
 {
 	char buf[MB_LEN_MAX];
 	size_t i, len;
+	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
 	if (MB_CUR_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
 		/*
@@ -56,7 +62,7 @@ __fputwc(wchar_t wc, FILE *fp)
 		*buf = (unsigned char)wc;
 		len = 1;
 	} else {
-		if ((len = __wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
+		if ((len = l->__wcrtomb(buf, wc, &fp->_mbstate)) == (size_t)-1) {
 			fp->_flags |= __SERR;
 			return (WEOF);
 		}
@@ -73,14 +79,20 @@ __fputwc(wchar_t wc, FILE *fp)
  * MT-safe version.
  */
 wint_t
-fputwc(wchar_t wc, FILE *fp)
+fputwc_l(wchar_t wc, FILE *fp, locale_t locale)
 {
 	wint_t r;
+	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
-	r = __fputwc(wc, fp);
+	r = __fputwc(wc, fp, locale);
 	FUNLOCKFILE(fp);
 
 	return (r);
+}
+wint_t
+fputwc(wchar_t wc, FILE *fp)
+{
+	return fputwc_l(wc, fp, __get_locale());
 }

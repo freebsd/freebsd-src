@@ -7,9 +7,9 @@
 SRCS+=  __getosreldate.c __xuname.c \
 	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
 	_thread_init.c \
-	alarm.c arc4random.c assert.c aux.c basename.c check_utility_compat.c \
-	clock.c closedir.c confstr.c \
-	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
+	alarm.c arc4random.c assert.c auxv.c basename.c check_utility_compat.c \
+	clock.c clock_getcpuclockid.c closedir.c confstr.c \
+	crypt.c ctermid.c daemon.c devname.c dirfd.c dirname.c disklabel.c \
 	dlfcn.c drand48.c elf_utils.c erand48.c err.c errlst.c errno.c \
 	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
 	fpclassify.c frexp.c fstab.c ftok.c fts.c fts-compat.c ftw.c \
@@ -20,10 +20,11 @@ SRCS+=  __getosreldate.c __xuname.c \
 	getpeereid.c getprogname.c getpwent.c getttyent.c \
 	getusershell.c getutxent.c getvfsbyname.c glob.c \
 	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
+	libc_dlopen.c \
 	lockf.c lrand48.c mrand48.c nftw.c nice.c \
 	nlist.c nrand48.c opendir.c \
 	pause.c pmadvise.c popen.c posix_spawn.c \
-	psignal.c pututxline.c pw_scan.c pwcache.c \
+	psignal.c pututxline.c pw_scan.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
@@ -31,9 +32,16 @@ SRCS+=  __getosreldate.c __xuname.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c tls.c \
-	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c \
-	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
-	wordexp.c
+	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis-compat.c \
+	usleep.c utime.c utxdb.c valloc.c wait.c wait3.c waitpid.c \
+	waitid.c wordexp.c
+
+.PATH: ${.CURDIR}/../../contrib/libc-pwcache
+SRCS+=	pwcache.c pwcache.h
+
+.PATH: ${.CURDIR}/../../contrib/libc-vis
+CFLAGS+=	-I${.CURDIR}/../../contrib/libc-vis
+SRCS+=	unvis.c vis.c
 
 MISRCS+=modf.c
 
@@ -51,9 +59,9 @@ SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 .sinclude "${.CURDIR}/${LIBC_ARCH}/gen/Makefile.inc"
 
 MAN+=	alarm.3 arc4random.3 \
-	basename.3 check_utility_compat.3 clock.3 \
+	basename.3 check_utility_compat.3 clock.3 clock_getcpuclockid.3 \
 	confstr.3 ctermid.3 daemon.3 devname.3 directory.3 dirname.3 \
-	dladdr.3 dlinfo.3 dllockinit.3 dlopen.3 \
+	dl_iterate_phdr.3 dladdr.3 dlinfo.3 dllockinit.3 dlopen.3 \
 	err.3 exec.3 \
 	feature_present.3 fmtcheck.3 fmtmsg.3 fnmatch.3 fpclassify.3 frexp.3 \
 	ftok.3 fts.3 ftw.3 \
@@ -94,8 +102,8 @@ MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 fdopendir.3 \
 	directory.3 readdir.3 directory.3 readdir_r.3 directory.3 rewinddir.3 \
 	directory.3 seekdir.3 directory.3 telldir.3
-MLINKS+=dlopen.3 dlclose.3 dlopen.3 dlerror.3 dlopen.3 dlfunc.3 \
-	dlopen.3 dlsym.3
+MLINKS+=dlopen.3 fdlopen.3 dlopen.3 dlclose.3 dlopen.3 dlerror.3 \
+	dlopen.3 dlfunc.3 dlopen.3 dlsym.3
 MLINKS+=err.3 err_set_exit.3 err.3 err_set_file.3 err.3 errc.3 err.3 errx.3 \
 	err.3 verr.3 err.3 verrc.3 err.3 verrx.3 err.3 vwarn.3 err.3 vwarnc.3 \
 	err.3 vwarnx.3 err.3 warnc.3 err.3 warn.3 err.3 warnx.3

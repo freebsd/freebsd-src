@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.29 2011/05/23 03:30:07 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.30 2011/09/25 05:44:47 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -238,8 +238,9 @@ match_principals_file(char *file, struct passwd *pw, struct KeyCert *cert)
 		}
 		for (i = 0; i < cert->nprincipals; i++) {
 			if (strcmp(cp, cert->principals[i]) == 0) {
-				debug3("matched principal from file \"%.100s\"",
-			    	    cert->principals[i]);
+				debug3("matched principal \"%.100s\" "
+				    "from file \"%s\" on line %lu",
+			    	    cert->principals[i], file, linenum);
 				if (auth_parse_options(pw, line_opts,
 				    file, linenum) != 1)
 					continue;

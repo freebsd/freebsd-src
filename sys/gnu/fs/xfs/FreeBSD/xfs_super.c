@@ -251,7 +251,7 @@ xfs_blkdev_issue_flush(
 int
 init_xfs_fs( void )
 {
-	static char		message[] =
+	static const char	message[] =
 		XFS_VERSION_STRING " with " XFS_BUILD_OPTIONS " enabled\n";
 
 	printf(message);

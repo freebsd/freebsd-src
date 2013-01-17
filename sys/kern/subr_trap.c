@@ -44,7 +44,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_capsicum.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
 #include "opt_sched.h"
@@ -86,6 +86,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #endif
 
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -96,6 +100,9 @@ void
 userret(struct thread *td, struct trapframe *frame)
 {
 	struct proc *p = td->td_proc;
+#ifdef	RACCT
+	int sig;
+#endif
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             td->td_name);
@@ -132,8 +139,31 @@ userret(struct thread *td, struct trapframe *frame)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
+#ifdef XEN
+	PT_UPDATES_FLUSH();
+#endif
+
+	/*
+	 * Check for misbehavior.
+	 *
+	 * In case there is a callchain tracing ongoing because of
+	 * hwpmc(4), skip the scheduler pinning check.
+	 * hwpmc(4) subsystem, infact, will collect callchain informations
+	 * at ast() checkpoint, which is past userret().
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "userret: returning");
+	KASSERT(td->td_critnest == 0,
+	    ("userret: Returning in a critical section"));
 	KASSERT(td->td_locks == 0,
-	    ("userret: Returning with %d locks held.", td->td_locks));
+	    ("userret: Returning with %d locks held", td->td_locks));
+	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
+	    ("userret: Returning with pagefaults disabled"));
+	KASSERT((td->td_pflags & TDP_NOSLEEPING) == 0,
+	    ("userret: Returning with sleep disabled"));
+	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,
+	    ("userret: Returning with with pinned thread"));
+	KASSERT(td->td_vp_reserv == 0,
+	    ("userret: Returning while holding vnode reservation"));
 #ifdef VIMAGE
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,
@@ -141,8 +171,15 @@ userret(struct thread *td, struct trapframe *frame)
 	    __func__, td, p->p_pid, td->td_name, curvnet,
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
 #endif
-#ifdef XEN
-	PT_UPDATES_FLUSH();
+#ifdef	RACCT
+	PROC_LOCK(p);
+	while (p->p_throttled == 1) {
+		sig = msleep(p->p_racct, &p->p_mtx, PCATCH | PBDRY, "racct",
+		    hz);
+		if ((sig == EINTR) || (sig == ERESTART))
+			break;
+	}
+	PROC_UNLOCK(p);
 #endif
 }
 
@@ -192,6 +229,11 @@ ast(struct trapframe *framep)
 		td->td_profil_ticks = 0;
 		td->td_pflags &= ~TDP_OWEUPC;
 	}
+#ifdef HWPMC_HOOKS
+	/* Handle Software PMC callchain capture. */
+	if (PMC_IS_PENDING_CALLCHAIN(td))
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_USER_CALLCHAIN_SOFT, (void *) framep);
+#endif
 	if (flags & TDF_ALRMPEND) {
 		PROC_LOCK(p);
 		kern_psignal(p, SIGVTALRM);
@@ -209,7 +251,7 @@ ast(struct trapframe *framep)
 	if (flags & TDF_NEEDRESCHED) {
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(1, 1);
+			ktrcsw(1, 1, __func__);
 #endif
 		thread_lock(td);
 		sched_prio(td, td->td_user_pri);
@@ -217,7 +259,7 @@ ast(struct trapframe *framep)
 		thread_unlock(td);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(0, 1);
+			ktrcsw(0, 1, __func__);
 #endif
 	}
 
@@ -251,7 +293,6 @@ ast(struct trapframe *framep)
 	}
 
 	userret(td, framep);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 const char *

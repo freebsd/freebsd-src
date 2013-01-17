@@ -46,11 +46,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 
 #include "iommu_if.h"
@@ -62,7 +65,7 @@ struct bounce_zone;
 struct bus_dma_tag {
 	bus_dma_tag_t	  parent;
 	bus_size_t	  alignment;
-	bus_size_t	  boundary;
+	bus_addr_t	  boundary;
 	bus_addr_t	  lowaddr;
 	bus_addr_t	  highaddr;
 	bus_dma_filter_t *filter;
@@ -113,7 +116,7 @@ static int total_bpages;
 static int busdma_zonecount;
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
 
-SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
 	   "Total bounce pages");
 
@@ -129,6 +132,7 @@ struct bus_dmamap {
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
 	STAILQ_ENTRY(bus_dmamap) links;
+	int		       contigalloc;
 };
 
 static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
@@ -218,7 +222,7 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
  */
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t boundary, bus_addr_t lowaddr,
 		   bus_addr_t highaddr, bus_dma_filter_t *filter,
 		   void *filterarg, bus_size_t maxsize, int nsegments,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
@@ -488,6 +492,7 @@ int
 bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 bus_dmamap_t *mapp)
 {
+	vm_memattr_t attr;
 	int mflags;
 
 	if (flags & BUS_DMA_NOWAIT)
@@ -499,6 +504,12 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	if (flags & BUS_DMA_ZERO)
 		mflags |= M_ZERO;
+#ifdef NOTYET
+	if (flags & BUS_DMA_NOCACHE)
+		attr = VM_MEMATTR_UNCACHEABLE;
+	else
+#endif
+		attr = VM_MEMATTR_DEFAULT;
 
 	/* 
 	 * XXX:
@@ -510,7 +521,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	 */
 	if ((dmat->maxsize <= PAGE_SIZE) &&
 	   (dmat->alignment < dmat->maxsize) &&
-	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem)) {
+	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
+	    attr == VM_MEMATTR_DEFAULT) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
 	} else {
 		/*
@@ -519,9 +531,10 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 *     multi-seg allocations yet though.
 		 * XXX Certain AGP hardware does.
 		 */
-		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
-		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
-		    dmat->boundary);
+		*vaddr = (void *)kmem_alloc_contig(kernel_map, dmat->maxsize,
+		    mflags, 0ul, dmat->lowaddr, dmat->alignment ?
+		    dmat->alignment : 1ul, dmat->boundary, attr);
+		(*mapp)->contigalloc = 1;
 	}
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -530,11 +543,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	} else if (vtophys(*vaddr) & (dmat->alignment - 1)) {
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
 	}
-#ifdef NOTYET
-	if (flags & BUS_DMA_NOCACHE)
-		pmap_change_attr((vm_offset_t)*vaddr, dmat->maxsize,
-		    VM_MEMATTR_UNCACHEABLE);
-#endif
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, 0);
 	return (0);
@@ -547,18 +555,12 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
-	bus_dmamap_destroy(dmat, map);
 
-#ifdef NOTYET
-	pmap_change_attr((vm_offset_t)vaddr, dmat->maxsize, VM_MEMATTR_DEFAULT);
-#endif
-	if ((dmat->maxsize <= PAGE_SIZE) &&
-	   (dmat->alignment < dmat->maxsize) &&
-	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem))
+	if (!map->contigalloc)
 		free(vaddr, M_DEVBUF);
-	else {
-		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
-	}
+	else
+		kmem_free(kernel_map, (vm_offset_t)vaddr, dmat->maxsize);
+	bus_dmamap_destroy(dmat, map);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
 
@@ -979,6 +981,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
+
+	powerpc_sync();
 }
 
 static void

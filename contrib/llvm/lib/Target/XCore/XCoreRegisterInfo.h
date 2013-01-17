@@ -1,4 +1,4 @@
-//===- XCoreRegisterInfo.h - XCore Register Information Impl ----*- C++ -*-===//
+//===-- XCoreRegisterInfo.h - XCore Register Information Impl ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -44,11 +44,13 @@ public:
 
   /// Code Generation virtual methods...
 
-  const unsigned *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
+  const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
   
   bool requiresRegisterScavenging(const MachineFunction &MF) const;
+
+  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
 
   bool useFPForScavengingIndex(const MachineFunction &MF) const;
 
@@ -62,15 +64,6 @@ public:
   // Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const;
 
-  //! Return the array of argument passing registers
-  /*!
-    \note The size of this array is returned by getArgRegsSize().
-    */
-  static const unsigned *getArgRegs(const MachineFunction *MF = 0);
-
-  //! Return the size of the argument passing register array
-  static unsigned getNumArgRegs(const MachineFunction *MF = 0);
-  
   //! Return whether to emit frame moves
   static bool needsFrameMoves(const MachineFunction &MF);
 };

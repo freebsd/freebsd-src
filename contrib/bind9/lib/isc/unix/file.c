@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: file.c,v 1.57.10.1 2011-03-04 14:10:13 smann Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -93,6 +93,20 @@ file_stats(const char *file, struct stat *stats) {
 
 	if (stat(file, stats) != 0)
 		result = isc__errno2result(errno);
+
+	return (result);
+}
+
+isc_result_t
+isc_file_mode(const char *file, mode_t *modep) {
+	isc_result_t result;
+	struct stat stats;
+
+	REQUIRE(modep != NULL);
+
+	result = file_stats(file, &stats);
+	if (result == ISC_R_SUCCESS)
+		*modep = (stats.st_mode & 07777);
 
 	return (result);
 }
@@ -310,6 +324,23 @@ isc_file_openuniquemode(char *templet, int mode, FILE **fp) {
 		*fp = f;
 
 	return (result);
+}
+
+isc_result_t
+isc_file_bopenunique(char *templet, FILE **fp) {
+	int mode = S_IWUSR|S_IRUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+	return (isc_file_openuniquemode(templet, mode, fp));
+}
+
+isc_result_t
+isc_file_bopenuniqueprivate(char *templet, FILE **fp) {
+	int mode = S_IWUSR|S_IRUSR;
+	return (isc_file_openuniquemode(templet, mode, fp));
+}
+
+isc_result_t
+isc_file_bopenuniquemode(char *templet, int mode, FILE **fp) {
+	return (isc_file_openuniquemode(templet, mode, fp));
 }
 
 isc_result_t

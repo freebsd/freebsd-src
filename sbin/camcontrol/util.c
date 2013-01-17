@@ -154,3 +154,31 @@ arg_put(void *hook __unused, int letter, void *arg, int count, char *name)
 	if (verbose)
 		putchar('\n');
 }
+
+/*
+ * Get confirmation from user
+ * Return values:
+ *    1: confirmed
+ *    0: unconfirmed
+ */
+int
+get_confirmation(void)
+{
+	char str[1024];
+	int response = -1;
+
+	do {
+		fprintf(stdout, "Are you SURE you want to do this? (yes/no) ");
+		if (fgets(str, sizeof(str), stdin) != NULL) {
+			if (strncasecmp(str, "yes", 3) == 0)
+				response = 1;
+			else if (strncasecmp(str, "no", 2) == 0)
+				response = 0;
+			else
+				fprintf(stdout,
+				    "Please answer \"yes\" or \"no\"\n");
+		} else
+			response = 0;
+	} while (response == -1);
+	return (response);
+}

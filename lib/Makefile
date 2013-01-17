@@ -8,7 +8,7 @@
 #
 # csu must be built before all shared libaries for ELF.
 # libc must be built before all other shared libraries.
-# libbsm must be built before ibauditd.
+# libbsm must be built before libauditd.
 # libcom_err must be built before libpam.
 # libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
@@ -33,7 +33,6 @@ SUBDIR_ORDERED=	${_csu} \
 	libc \
 	libbsm \
 	libauditd \
-	libcom_err \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
@@ -48,7 +47,13 @@ SUBDIR_ORDERED=	${_csu} \
 	libsbuf \
 	libtacplus \
 	libutil \
-	${_libypclnt}
+	${_libypclnt} \
+	${_libcxxrt} \
+	${_libcplusplus}
+
+.if ${MK_KERBEROS_SUPPORT} != "no"
+SUBDIR_ORDERED+=	libcom_err
+.endif
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
@@ -64,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
-	libdisk \
 	libdwarf \
 	libedit \
 	${_libefi} \
@@ -80,10 +84,12 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkiconv \
 	liblzma \
 	libmagic \
+	libmandoc \
 	libmemstat \
 	${_libmilter} \
 	${_libmp} \
-	${_libncp} \
+	${_libnandfs} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \
@@ -95,10 +101,11 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
-	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
+	libstdbuf \
+	libstdthreads \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
@@ -111,6 +118,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libwrap \
 	liby \
 	libz \
+	${_atf} \
 	${_bind} \
 	${_clang}
 
@@ -125,6 +133,10 @@ _csu=csu
 .endif
 
 # NB: keep these sorted by MK_* knobs
+
+.if ${MK_ATF} != "no"
+_atf=		atf
+.endif
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
@@ -168,6 +180,10 @@ _libipx=	libipx
 _libthr=	libthr
 .endif
 
+.if ${MK_NAND} != "no"
+_libnandfs=	libnandfs
+.endif
+
 .if ${MK_NETGRAPH} != "no"
 _libnetgraph=	libnetgraph
 .endif
@@ -177,10 +193,6 @@ _libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
-_libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
@@ -188,19 +200,25 @@ _librtld_db=	librtld_db
 
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
-_libsmb=	libsmb
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
-_libsmb=	libsmb
-.endif
-
-.if ${MACHINE_CPUARCH} == "sparc64"
-_libsmb=	libsmb
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
 .endif
 
 .if ${MK_PMC} != "no"

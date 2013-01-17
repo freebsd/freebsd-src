@@ -228,7 +228,7 @@ usage(void)
 	    "\n"
 	    "  Note: if -L labelenv is specified and labelenv is not set in\n"
 	    "  the environment, a default value is used.\n",
-	    progname, progname, strlen(progname), " ",
+	    progname, progname, (int)strlen(progname), " ",
 	    progname, progname);
 }
 
@@ -620,7 +620,7 @@ copy_ctf_data(char *srcfile, char *destfile, int keep_stabs)
 		terminate("No CTF data found in source file %s\n", srcfile);
 
 	tmpname = mktmpname(destfile, ".ctf");
-	write_ctf(srctd, destfile, tmpname, CTF_COMPRESS | keep_stabs);
+	write_ctf(srctd, destfile, tmpname, CTF_COMPRESS | CTF_SWAP_BYTES | keep_stabs);
 	if (rename(tmpname, destfile) != 0) {
 		terminate("Couldn't rename temp file %s to %s", tmpname,
 		    destfile);
@@ -1015,7 +1015,7 @@ main(int argc, char **argv)
 
 	tmpname = mktmpname(outfile, ".ctf");
 	write_ctf(savetd, outfile, tmpname,
-	    CTF_COMPRESS | write_fuzzy_match | dynsym | keep_stabs);
+	    CTF_COMPRESS | CTF_SWAP_BYTES | write_fuzzy_match | dynsym | keep_stabs);
 	if (rename(tmpname, outfile) != 0)
 		terminate("Couldn't rename output temp file %s", tmpname);
 	free(tmpname);

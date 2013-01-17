@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_sched.h"
 
@@ -51,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
@@ -105,6 +107,20 @@ SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 
 static void	loadav(void *arg);
 
+SDT_PROVIDER_DECLARE(sched);
+SDT_PROBE_DEFINE(sched, , , preempt, preempt);
+
+/*
+ * These probes reference Solaris features that are not implemented in FreeBSD.
+ * Create the probes anyway for compatibility with existing D scripts; they'll
+ * just never fire.
+ */
+SDT_PROBE_DEFINE(sched, , , cpucaps_sleep, cpucaps-sleep);
+SDT_PROBE_DEFINE(sched, , , cpucaps_wakeup, cpucaps-wakeup);
+SDT_PROBE_DEFINE(sched, , , schedctl_nopreempt, schedctl-nopreempt);
+SDT_PROBE_DEFINE(sched, , , schedctl_preempt, schedctl-preempt);
+SDT_PROBE_DEFINE(sched, , , schedctl_yield, schedctl-yield);
+
 void
 sleepinit(void)
 {
@@ -117,10 +133,10 @@ sleepinit(void)
  * General sleep call.  Suspends the current thread until a wakeup is
  * performed on the specified identifier.  The thread will then be made
  * runnable with the specified priority.  Sleeps at most timo/hz seconds
- * (0 means no timeout).  If pri includes PCATCH flag, signals are checked
- * before and after sleeping, else signals are not checked.  Returns 0 if
+ * (0 means no timeout).  If pri includes the PCATCH flag, let signals
+ * interrupt the sleep, otherwise ignore them while sleeping.  Returns 0 if
  * awakened, EWOULDBLOCK if the timeout expires.  If PCATCH is set and a
- * signal needs to be delivered, ERESTART is returned if the current system
+ * signal becomes pending, ERESTART is returned if the current system
  * call should be restarted if possible, and EINTR is returned if the system
  * call should be interrupted by the signal (return EINTR).
  *
@@ -142,7 +158,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	p = td->td_proc;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, wmesg);
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
@@ -158,7 +174,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	else
 		class = NULL;
 
-	if (cold) {
+	if (cold || SCHEDULER_STOPPED()) {
 		/*
 		 * During autoconfiguration, just return;
 		 * don't run any other threads or panic below,
@@ -236,7 +252,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, wmesg);
 #endif
 	PICKUP_GIANT();
 	if (lock != NULL && lock != &Giant.lock_object && !(priority & PDROP)) {
@@ -260,7 +276,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
 
-	if (cold) {
+	if (cold || SCHEDULER_STOPPED()) {
 		/*
 		 * During autoconfiguration, just return;
 		 * don't run any other threads or panic below,
@@ -298,7 +314,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW)) {
 		sleepq_release(ident);
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, wmesg);
 		sleepq_lock(ident);
 	}
 #endif
@@ -316,7 +332,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, wmesg);
 #endif
 	PICKUP_GIANT();
 	mtx_lock_spin(mtx);
@@ -325,16 +341,34 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 }
 
 /*
- * pause() is like tsleep() except that the intention is to not be
- * explicitly woken up by another thread.  Instead, the current thread
- * simply wishes to sleep until the timeout expires.  It is
- * implemented using a dummy wait channel.
+ * pause() delays the calling thread by the given number of system ticks.
+ * During cold bootup, pause() uses the DELAY() function instead of
+ * the tsleep() function to do the waiting. The "timo" argument must be
+ * greater than or equal to zero. A "timo" value of zero is equivalent
+ * to a "timo" value of one.
  */
 int
 pause(const char *wmesg, int timo)
 {
+	KASSERT(timo >= 0, ("pause: timo must be >= 0"));
 
-	KASSERT(timo != 0, ("pause: timeout required"));
+	/* silently convert invalid timeouts */
+	if (timo < 1)
+		timo = 1;
+
+	if (cold) {
+		/*
+		 * We delay one HZ at a time to avoid overflowing the
+		 * system specific DELAY() function(s):
+		 */
+		while (timo >= hz) {
+			DELAY(1000000);
+			timo -= hz;
+		}
+		if (timo > 0)
+			DELAY(timo * tick);
+		return (0);
+	}
 	return (tsleep(&pause_wchan, 0, wmesg, timo));
 }
 
@@ -411,6 +445,8 @@ mi_switch(int flags, struct thread *newtd)
 	 */
 	if (kdb_active)
 		kdb_switch();
+	if (SCHEDULER_STOPPED())
+		return;
 	if (flags & SW_VOL) {
 		td->td_ru.ru_nvcsw++;
 		td->td_swvoltick = ticks;
@@ -442,6 +478,7 @@ mi_switch(int flags, struct thread *newtd)
 		    "prio:%d", td->td_priority, "wmesg:\"%s\"", td->td_wmesg,
 		    "lockname:\"%s\"", td->td_lockname);
 #endif
+	SDT_PROBE0(sched, , , preempt);
 #ifdef XEN
 	PT_UPDATES_FLUSH();
 #endif

@@ -57,8 +57,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define HPET_VENDID_AMD		0x4353
+#define HPET_VENDID_AMD2	0x1022
 #define HPET_VENDID_INTEL	0x8086
 #define HPET_VENDID_NVIDIA	0x10de
+#define HPET_VENDID_SW		0x1166
 
 ACPI_SERIAL_DECL(hpet, "ACPI HPET support");
 
@@ -342,7 +344,7 @@ hpet_identify(driver_t *driver, device_t parent)
 		if (found)
 			continue;
 		/* If not - create it from table info. */
-		child = BUS_ADD_CHILD(parent, ACPI_DEV_BASE_ORDER, "hpet", 0);
+		child = BUS_ADD_CHILD(parent, 2, "hpet", 0);
 		if (child == NULL) {
 			printf("%s: can't add child\n", __func__);
 			continue;
@@ -504,13 +506,20 @@ hpet_attach(device_t dev)
 	 * properly, that makes it very unreliable - it freezes after any
 	 * interrupt loss. Avoid legacy IRQs for AMD.
 	 */
-	if (vendor == HPET_VENDID_AMD)
+	if (vendor == HPET_VENDID_AMD || vendor == HPET_VENDID_AMD2)
 		sc->allowed_irqs = 0x00000000;
 	/*
 	 * NVidia MCP5x chipsets have number of unexplained interrupt
 	 * problems. For some reason, using HPET interrupts breaks HDA sound.
 	 */
 	if (vendor == HPET_VENDID_NVIDIA && rev <= 0x01)
+		sc->allowed_irqs = 0x00000000;
+	/*
+	 * ServerWorks HT1000 reported to have problems with IRQs >= 16.
+	 * Lower IRQs are working, but allowed mask is not set correctly.
+	 * Legacy_route mode works fine.
+	 */
+	if (vendor == HPET_VENDID_SW && rev <= 0x01)
 		sc->allowed_irqs = 0x00000000;
 	/*
 	 * Neither QEMU nor VirtualBox report supported IRQs correctly.

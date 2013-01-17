@@ -14,15 +14,15 @@ rcvar="background_fsck"
 start_cmd="bgfsck_start"
 stop_cmd=":"
 
-bgfsck_start ()
+bgfsck_start()
 {
 	if [ -z "${rc_force}" ]; then
-		background_fsck_delay=${background_fsck_delay:=0}
+		background_fsck_delay=${background_fsck_delay:-0}
 	else
 		background_fsck_delay=0
 	fi
 	if [ ${background_fsck_delay} -lt 0 ]; then
-		echo "Background file system checks delayed indefinitly"
+		echo "Background file system checks delayed indefinitely"
 		return 0
 	fi
 

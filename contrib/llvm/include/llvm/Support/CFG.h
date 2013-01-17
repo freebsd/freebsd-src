@@ -71,6 +71,12 @@ public:
   unsigned getOperandNo() const {
     return It.getOperandNo();
   }
+
+  /// getUse - Return the operand Use in the predecessor's terminator
+  /// of the successor.
+  Use &getUse() const {
+    return It.getUse();
+  }
 };
 
 typedef PredIterator<BasicBlock, Value::use_iterator> pred_iterator;
@@ -314,6 +320,7 @@ template <> struct GraphTraits<Function*> : public GraphTraits<BasicBlock*> {
   typedef Function::iterator nodes_iterator;
   static nodes_iterator nodes_begin(Function *F) { return F->begin(); }
   static nodes_iterator nodes_end  (Function *F) { return F->end(); }
+  static unsigned       size       (Function *F) { return F->size(); }
 };
 template <> struct GraphTraits<const Function*> :
   public GraphTraits<const BasicBlock*> {
@@ -323,6 +330,7 @@ template <> struct GraphTraits<const Function*> :
   typedef Function::const_iterator nodes_iterator;
   static nodes_iterator nodes_begin(const Function *F) { return F->begin(); }
   static nodes_iterator nodes_end  (const Function *F) { return F->end(); }
+  static unsigned       size       (const Function *F) { return F->size(); }
 };
 
 

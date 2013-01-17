@@ -22,8 +22,9 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
+cddl/contrib/opensolaris/common/atomic/sparc64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/des/des_enc.c		optional	crypto | ipsec
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc
@@ -60,6 +61,7 @@ dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_sparc64.c	optional	uart
 dev/uart/uart_kbd_sun.c		optional	uart sc
 kern/kern_clocksource.c		standard
+kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
@@ -90,6 +92,7 @@ sparc64/sparc64/ata_machdep.c	optional	ada | atadisk | da
 sparc64/sparc64/autoconf.c	standard
 sparc64/sparc64/bus_machdep.c	standard
 sparc64/sparc64/cache.c		standard
+sparc64/sparc64/cam_machdep.c	optional	scbus
 sparc64/sparc64/cheetah.c	standard
 sparc64/sparc64/clock.c		standard
 sparc64/sparc64/counter.c	standard

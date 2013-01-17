@@ -28,7 +28,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Host.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 #include <cmath>
 #include <cstring>
@@ -41,14 +42,12 @@ ExecutionEngine *(*ExecutionEngine::JITCtor)(
   Module *M,
   std::string *ErrorStr,
   JITMemoryManager *JMM,
-  CodeGenOpt::Level OptLevel,
   bool GVsWithCode,
   TargetMachine *TM) = 0;
 ExecutionEngine *(*ExecutionEngine::MCJITCtor)(
   Module *M,
   std::string *ErrorStr,
   JITMemoryManager *JMM,
-  CodeGenOpt::Level OptLevel,
   bool GVsWithCode,
   TargetMachine *TM) = 0;
 ExecutionEngine *(*ExecutionEngine::InterpCtor)(Module *M,
@@ -92,11 +91,11 @@ class GVMemoryBlock : public CallbackVH {
 public:
   /// \brief Returns the address the GlobalVariable should be written into.  The
   /// GVMemoryBlock object prefixes that.
-  static char *Create(const GlobalVariable *GV, const TargetData& TD) {
+  static char *Create(const GlobalVariable *GV, const DataLayout& TD) {
     Type *ElTy = GV->getType()->getElementType();
     size_t GVSize = (size_t)TD.getTypeAllocSize(ElTy);
     void *RawMemory = ::operator new(
-      TargetData::RoundUpAlignment(sizeof(GVMemoryBlock),
+      DataLayout::RoundUpAlignment(sizeof(GVMemoryBlock),
                                    TD.getPreferredAlignment(GV))
       + GVSize);
     new(RawMemory) GVMemoryBlock(GV);
@@ -114,7 +113,7 @@ public:
 }  // anonymous namespace
 
 char *ExecutionEngine::getMemoryForGV(const GlobalVariable *GV) {
-  return GVMemoryBlock::Create(GV, *getTargetData());
+  return GVMemoryBlock::Create(GV, *getDataLayout());
 }
 
 bool ExecutionEngine::removeModule(Module *M) {
@@ -268,7 +267,7 @@ public:
 void *ArgvArray::reset(LLVMContext &C, ExecutionEngine *EE,
                        const std::vector<std::string> &InputArgv) {
   clear();  // Free the old contents.
-  unsigned PtrSize = EE->getTargetData()->getPointerSize();
+  unsigned PtrSize = EE->getDataLayout()->getPointerSize();
   Array = new char[(InputArgv.size()+1)*PtrSize];
 
   DEBUG(dbgs() << "JIT: ARGV = " << (void*)Array << "\n");
@@ -308,13 +307,12 @@ void ExecutionEngine::runStaticConstructorsDestructors(Module *module,
 
   // Should be an array of '{ i32, void ()* }' structs.  The first value is
   // the init priority, which we ignore.
-  if (isa<ConstantAggregateZero>(GV->getInitializer()))
+  ConstantArray *InitList = dyn_cast<ConstantArray>(GV->getInitializer());
+  if (InitList == 0)
     return;
-  ConstantArray *InitList = cast<ConstantArray>(GV->getInitializer());
   for (unsigned i = 0, e = InitList->getNumOperands(); i != e; ++i) {
-    if (isa<ConstantAggregateZero>(InitList->getOperand(i)))
-      continue;
-    ConstantStruct *CS = cast<ConstantStruct>(InitList->getOperand(i));
+    ConstantStruct *CS = dyn_cast<ConstantStruct>(InitList->getOperand(i));
+    if (CS == 0) continue;
 
     Constant *FP = CS->getOperand(1);
     if (FP->isNullValue())
@@ -344,7 +342,7 @@ void ExecutionEngine::runStaticConstructorsDestructors(bool isDtors) {
 #ifndef NDEBUG
 /// isTargetNullPtr - Return whether the target pointer stored at Loc is null.
 static bool isTargetNullPtr(ExecutionEngine *EE, void *Loc) {
-  unsigned PtrSize = EE->getTargetData()->getPointerSize();
+  unsigned PtrSize = EE->getDataLayout()->getPointerSize();
   for (unsigned i = 0; i < PtrSize; ++i)
     if (*(i + (uint8_t*)Loc))
       return false;
@@ -404,14 +402,15 @@ ExecutionEngine *ExecutionEngine::create(Module *M,
                                          std::string *ErrorStr,
                                          CodeGenOpt::Level OptLevel,
                                          bool GVsWithCode) {
-  return EngineBuilder(M)
+  EngineBuilder EB =  EngineBuilder(M)
       .setEngineKind(ForceInterpreter
                      ? EngineKind::Interpreter
                      : EngineKind::JIT)
       .setErrorStr(ErrorStr)
       .setOptLevel(OptLevel)
-      .setAllocateGVsWithCode(GVsWithCode)
-      .create();
+      .setAllocateGVsWithCode(GVsWithCode);
+
+  return EB.create();
 }
 
 /// createJIT - This is the factory method for creating a JIT for the current
@@ -420,7 +419,7 @@ ExecutionEngine *ExecutionEngine::create(Module *M,
 ExecutionEngine *ExecutionEngine::createJIT(Module *M,
                                             std::string *ErrorStr,
                                             JITMemoryManager *JMM,
-                                            CodeGenOpt::Level OptLevel,
+                                            CodeGenOpt::Level OL,
                                             bool GVsWithCode,
                                             Reloc::Model RM,
                                             CodeModel::Model CMM) {
@@ -432,18 +431,25 @@ ExecutionEngine *ExecutionEngine::createJIT(Module *M,
 
   // Use the defaults for extra parameters.  Users can use EngineBuilder to
   // set them.
-  StringRef MArch = "";
-  StringRef MCPU = "";
-  SmallVector<std::string, 1> MAttrs;
+  EngineBuilder EB(M);
+  EB.setEngineKind(EngineKind::JIT);
+  EB.setErrorStr(ErrorStr);
+  EB.setRelocationModel(RM);
+  EB.setCodeModel(CMM);
+  EB.setAllocateGVsWithCode(GVsWithCode);
+  EB.setOptLevel(OL);
+  EB.setJITMemoryManager(JMM);
 
-  TargetMachine *TM =
-    EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs, RM, CMM, ErrorStr);
+  // TODO: permit custom TargetOptions here
+  TargetMachine *TM = EB.selectTarget();
   if (!TM || (ErrorStr && ErrorStr->length() > 0)) return 0;
 
-  return ExecutionEngine::JITCtor(M, ErrorStr, JMM, OptLevel, GVsWithCode, TM);
+  return ExecutionEngine::JITCtor(M, ErrorStr, JMM, GVsWithCode, TM);
 }
 
-ExecutionEngine *EngineBuilder::create() {
+ExecutionEngine *EngineBuilder::create(TargetMachine *TM) {
+  OwningPtr<TargetMachine> TheTM(TM); // Take ownership.
+
   // Make sure we can resolve symbols in the program as well. The zero arg
   // to the function tells DynamicLibrary to load the program, not a library.
   if (sys::DynamicLibrary::LoadLibraryPermanently(0, ErrorStr))
@@ -464,21 +470,24 @@ ExecutionEngine *EngineBuilder::create() {
 
   // Unless the interpreter was explicitly selected or the JIT is not linked,
   // try making a JIT.
-  if (WhichEngine & EngineKind::JIT) {
-    if (TargetMachine *TM = EngineBuilder::selectTarget(M, MArch, MCPU, MAttrs,
-                                                        RelocModel, CMModel,
-                                                        ErrorStr)) {
-      if (UseMCJIT && ExecutionEngine::MCJITCtor) {
-        ExecutionEngine *EE =
-          ExecutionEngine::MCJITCtor(M, ErrorStr, JMM, OptLevel,
-                                     AllocateGVsWithCode, TM);
-        if (EE) return EE;
-      } else if (ExecutionEngine::JITCtor) {
-        ExecutionEngine *EE =
-          ExecutionEngine::JITCtor(M, ErrorStr, JMM, OptLevel,
-                                   AllocateGVsWithCode, TM);
-        if (EE) return EE;
-      }
+  if ((WhichEngine & EngineKind::JIT) && TheTM) {
+    Triple TT(M->getTargetTriple());
+    if (!TM->getTarget().hasJIT()) {
+      errs() << "WARNING: This target JIT is not designed for the host"
+             << " you are running.  If bad things happen, please choose"
+             << " a different -march switch.\n";
+    }
+
+    if (UseMCJIT && ExecutionEngine::MCJITCtor) {
+      ExecutionEngine *EE =
+        ExecutionEngine::MCJITCtor(M, ErrorStr, JMM,
+                                   AllocateGVsWithCode, TheTM.take());
+      if (EE) return EE;
+    } else if (ExecutionEngine::JITCtor) {
+      ExecutionEngine *EE =
+        ExecutionEngine::JITCtor(M, ErrorStr, JMM,
+                                 AllocateGVsWithCode, TheTM.take());
+      if (EE) return EE;
     }
   }
 
@@ -492,7 +501,8 @@ ExecutionEngine *EngineBuilder::create() {
     return 0;
   }
 
-  if ((WhichEngine & EngineKind::JIT) && ExecutionEngine::JITCtor == 0) {
+  if ((WhichEngine & EngineKind::JIT) && ExecutionEngine::JITCtor == 0 &&
+      ExecutionEngine::MCJITCtor == 0) {
     if (ErrorStr)
       *ErrorStr = "JIT has not been linked in.";
   }
@@ -634,15 +644,17 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
     }
     case Instruction::PtrToInt: {
       GenericValue GV = getConstantValue(Op0);
-      uint32_t PtrWidth = TD->getPointerSizeInBits();
+      uint32_t PtrWidth = TD->getTypeSizeInBits(Op0->getType());
+      assert(PtrWidth <= 64 && "Bad pointer width");
       GV.IntVal = APInt(PtrWidth, uintptr_t(GV.PointerVal));
+      uint32_t IntWidth = TD->getTypeSizeInBits(CE->getType());
+      GV.IntVal = GV.IntVal.zextOrTrunc(IntWidth);
       return GV;
     }
     case Instruction::IntToPtr: {
       GenericValue GV = getConstantValue(Op0);
-      uint32_t PtrWidth = TD->getPointerSizeInBits();
-      if (PtrWidth != GV.IntVal.getBitWidth())
-        GV.IntVal = GV.IntVal.zextOrTrunc(PtrWidth);
+      uint32_t PtrWidth = TD->getTypeSizeInBits(CE->getType());
+      GV.IntVal = GV.IntVal.zextOrTrunc(PtrWidth);
       assert(GV.IntVal.getBitWidth() <= 64 && "Bad pointer width");
       GV.PointerVal = PointerTy(uintptr_t(GV.IntVal.getZExtValue()));
       return GV;
@@ -823,7 +835,7 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
 static void StoreIntToMemory(const APInt &IntVal, uint8_t *Dst,
                              unsigned StoreBytes) {
   assert((IntVal.getBitWidth()+7)/8 >= StoreBytes && "Integer too small!");
-  uint8_t *Src = (uint8_t *)IntVal.getRawData();
+  const uint8_t *Src = (const uint8_t *)IntVal.getRawData();
 
   if (sys::isLittleEndianHost()) {
     // Little-endian host - the source is ordered from LSB to MSB.  Order the
@@ -846,7 +858,7 @@ static void StoreIntToMemory(const APInt &IntVal, uint8_t *Dst,
 
 void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
                                          GenericValue *Ptr, Type *Ty) {
-  const unsigned StoreBytes = getTargetData()->getTypeStoreSize(Ty);
+  const unsigned StoreBytes = getDataLayout()->getTypeStoreSize(Ty);
 
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID:
@@ -872,7 +884,7 @@ void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
     dbgs() << "Cannot store value of type " << *Ty << "!\n";
   }
 
-  if (sys::isLittleEndianHost() != getTargetData()->isLittleEndian())
+  if (sys::isLittleEndianHost() != getDataLayout()->isLittleEndian())
     // Host and target are different endian - reverse the stored bytes.
     std::reverse((uint8_t*)Ptr, StoreBytes + (uint8_t*)Ptr);
 }
@@ -908,7 +920,7 @@ static void LoadIntFromMemory(APInt &IntVal, uint8_t *Src, unsigned LoadBytes) {
 void ExecutionEngine::LoadValueFromMemory(GenericValue &Result,
                                           GenericValue *Ptr,
                                           Type *Ty) {
-  const unsigned LoadBytes = getTargetData()->getTypeStoreSize(Ty);
+  const unsigned LoadBytes = getDataLayout()->getTypeStoreSize(Ty);
 
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID:
@@ -944,30 +956,47 @@ void ExecutionEngine::LoadValueFromMemory(GenericValue &Result,
 void ExecutionEngine::InitializeMemory(const Constant *Init, void *Addr) {
   DEBUG(dbgs() << "JIT: Initializing " << Addr << " ");
   DEBUG(Init->dump());
-  if (isa<UndefValue>(Init)) {
+  if (isa<UndefValue>(Init))
     return;
-  } else if (const ConstantVector *CP = dyn_cast<ConstantVector>(Init)) {
+  
+  if (const ConstantVector *CP = dyn_cast<ConstantVector>(Init)) {
     unsigned ElementSize =
-      getTargetData()->getTypeAllocSize(CP->getType()->getElementType());
+      getDataLayout()->getTypeAllocSize(CP->getType()->getElementType());
     for (unsigned i = 0, e = CP->getNumOperands(); i != e; ++i)
       InitializeMemory(CP->getOperand(i), (char*)Addr+i*ElementSize);
     return;
-  } else if (isa<ConstantAggregateZero>(Init)) {
-    memset(Addr, 0, (size_t)getTargetData()->getTypeAllocSize(Init->getType()));
+  }
+  
+  if (isa<ConstantAggregateZero>(Init)) {
+    memset(Addr, 0, (size_t)getDataLayout()->getTypeAllocSize(Init->getType()));
     return;
-  } else if (const ConstantArray *CPA = dyn_cast<ConstantArray>(Init)) {
+  }
+  
+  if (const ConstantArray *CPA = dyn_cast<ConstantArray>(Init)) {
     unsigned ElementSize =
-      getTargetData()->getTypeAllocSize(CPA->getType()->getElementType());
+      getDataLayout()->getTypeAllocSize(CPA->getType()->getElementType());
     for (unsigned i = 0, e = CPA->getNumOperands(); i != e; ++i)
       InitializeMemory(CPA->getOperand(i), (char*)Addr+i*ElementSize);
     return;
-  } else if (const ConstantStruct *CPS = dyn_cast<ConstantStruct>(Init)) {
+  }
+  
+  if (const ConstantStruct *CPS = dyn_cast<ConstantStruct>(Init)) {
     const StructLayout *SL =
-      getTargetData()->getStructLayout(cast<StructType>(CPS->getType()));
+      getDataLayout()->getStructLayout(cast<StructType>(CPS->getType()));
     for (unsigned i = 0, e = CPS->getNumOperands(); i != e; ++i)
       InitializeMemory(CPS->getOperand(i), (char*)Addr+SL->getElementOffset(i));
     return;
-  } else if (Init->getType()->isFirstClassType()) {
+  }
+
+  if (const ConstantDataSequential *CDS =
+               dyn_cast<ConstantDataSequential>(Init)) {
+    // CDS is already laid out in host memory order.
+    StringRef Data = CDS->getRawDataValues();
+    memcpy(Addr, Data.data(), Data.size());
+    return;
+  }
+
+  if (Init->getType()->isFirstClassType()) {
     GenericValue Val = getConstantValue(Init);
     StoreValueToMemory(Val, (GenericValue*)Addr, Init->getType());
     return;
@@ -1100,7 +1129,7 @@ void ExecutionEngine::EmitGlobalVariable(const GlobalVariable *GV) {
     InitializeMemory(GV->getInitializer(), GA);
 
   Type *ElTy = GV->getType()->getElementType();
-  size_t GVSize = (size_t)getTargetData()->getTypeAllocSize(ElTy);
+  size_t GVSize = (size_t)getDataLayout()->getTypeAllocSize(ElTy);
   NumInitBytes += (unsigned)GVSize;
   ++NumGlobals;
 }
@@ -1123,6 +1152,6 @@ void ExecutionEngineState::AddressMapConfig::onDelete(ExecutionEngineState *EES,
 void ExecutionEngineState::AddressMapConfig::onRAUW(ExecutionEngineState *,
                                                     const GlobalValue *,
                                                     const GlobalValue *) {
-  assert(false && "The ExecutionEngine doesn't know how to handle a"
-         " RAUW on a value it has a global mapping for.");
+  llvm_unreachable("The ExecutionEngine doesn't know how to handle a"
+                   " RAUW on a value it has a global mapping for.");
 }

@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,19 @@ $FreeBSD$
 #ifndef _CHELSIO_L2T_H
 #define _CHELSIO_L2T_H
 
-#include <ulp/toecore/cxgb_toedev.h>
 #include <sys/lock.h>
-
-#if __FreeBSD_version > 700000
 #include <sys/rwlock.h>
-#else
-#define rwlock mtx
-#define rw_wlock(x) mtx_lock((x))
-#define rw_wunlock(x) mtx_unlock((x))
-#define rw_rlock(x) mtx_lock((x))
-#define rw_runlock(x) mtx_unlock((x))
-#define rw_init(x, str) mtx_init((x), (str), NULL, MTX_DEF)
-#define rw_destroy(x) mtx_destroy((x))
-#endif
 
 enum {
-	L2T_STATE_VALID,      /* entry is up to date */
-	L2T_STATE_STALE,      /* entry may be used but needs revalidation */
-	L2T_STATE_RESOLVING,  /* entry needs address resolution */
-	L2T_STATE_UNUSED      /* entry not in use */
+	L2T_SIZE = 2048
+};
+
+enum {
+	L2T_STATE_VALID,	/* entry is up to date */
+	L2T_STATE_STALE,	/* entry may be used but needs revalidation */
+	L2T_STATE_RESOLVING,	/* entry needs address resolution */
+	L2T_STATE_FAILED,	/* failed to resolve */
+	L2T_STATE_UNUSED	/* entry not in use */
 };
 
 /*
@@ -64,18 +57,17 @@ enum {
 struct l2t_entry {
 	uint16_t state;               /* entry state */
 	uint16_t idx;                 /* entry index */
-	uint32_t addr;                /* dest IP address */
-	int ifindex;                  /* neighbor's net_device's ifindex */
+	uint32_t addr;                /* nexthop IP address */
+	struct ifnet *ifp;            /* outgoing interface */
 	uint16_t smt_idx;             /* SMT index */
 	uint16_t vlan;                /* VLAN TCI (id: bits 0-11, prio: 13-15 */
-	struct llentry *neigh;        /* associated neighbour */
 	struct l2t_entry *first;      /* start of hash chain */
 	struct l2t_entry *next;       /* next l2t_entry on chain */
 	struct mbuf *arpq_head;       /* queue of packets awaiting resolution */
 	struct mbuf *arpq_tail;
 	struct mtx lock;
 	volatile uint32_t refcnt;     /* entry reference count */
-	uint8_t dmac[6];              /* neighbour's MAC address */
+	uint8_t dmac[ETHER_ADDR_LEN]; /* nexthop's MAC address */
 };
 
 struct l2t_data {
@@ -86,76 +78,37 @@ struct l2t_data {
 	struct l2t_entry l2tab[0];
 };
 
-typedef void (*arp_failure_handler_func)(struct t3cdev *dev,
-					 struct mbuf *m);
+void t3_l2e_free(struct l2t_data *, struct l2t_entry *e);
+void t3_l2_update(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
+    uint8_t *lladdr, uint16_t vtag);
+struct l2t_entry *t3_l2t_get(struct port_info *, struct ifnet *,
+    struct sockaddr *);
+int t3_l2t_send_slow(struct adapter *, struct mbuf *, struct l2t_entry *);
+struct l2t_data *t3_init_l2t(unsigned int);
+void t3_free_l2t(struct l2t_data *);
+void t3_init_l2t_cpl_handlers(struct adapter *);
 
-typedef void (*opaque_arp_failure_handler_func)(void *dev,
-					 struct mbuf *m);
-
-/*
- * Callback stored in an skb to handle address resolution failure.
- */
-struct l2t_mbuf_cb {
-	arp_failure_handler_func arp_failure_handler;
-};
-
-/*
- * XXX 
- */
-#define L2T_MBUF_CB(skb) ((struct l2t_mbuf_cb *)(skb)->cb)
-
-
-static __inline void set_arp_failure_handler(struct mbuf *m,
-					   arp_failure_handler_func hnd)
+static inline int
+l2t_send(struct adapter *sc, struct mbuf *m, struct l2t_entry *e)
 {
-	m->m_pkthdr.header = (opaque_arp_failure_handler_func)hnd;
-
+	if (__predict_true(e->state == L2T_STATE_VALID))
+		return t3_offload_tx(sc, m);
+	else
+		return t3_l2t_send_slow(sc, m, e);
 }
 
-/*
- * Getting to the L2 data from an offload device.
- */
-#define L2DATA(dev) ((dev)->l2opt)
-
-void t3_l2e_free(struct l2t_data *d, struct l2t_entry *e);
-void t3_l2t_update(struct t3cdev *dev, struct rtentry *rt, uint8_t *enaddr, struct sockaddr *sa);
-struct l2t_entry *t3_l2t_get(struct t3cdev *dev, struct rtentry *neigh,
-    struct ifnet *ifp, struct sockaddr *sa);
-int t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m,
-		     struct l2t_entry *e);
-void t3_l2t_send_event(struct t3cdev *dev, struct l2t_entry *e);
-struct l2t_data *t3_init_l2t(unsigned int l2t_capacity);
-void t3_free_l2t(struct l2t_data *d);
-
-#ifdef CONFIG_PROC_FS
-int t3_l2t_proc_setup(struct proc_dir_entry *dir, struct l2t_data *d);
-void t3_l2t_proc_free(struct proc_dir_entry *dir);
-#else
-#define l2t_proc_setup(dir, d) 0
-#define l2t_proc_free(dir)
-#endif
-
-int cxgb_ofld_send(struct t3cdev *dev, struct mbuf *m);
-
-static inline int l2t_send(struct t3cdev *dev, struct mbuf *m,
-			   struct l2t_entry *e)
+static inline void
+l2t_release(struct l2t_data *d, struct l2t_entry *e)
 {
-	if (__predict_true(e->state == L2T_STATE_VALID)) {
-		return cxgb_ofld_send(dev, (struct mbuf *)m);
-	}
-	return t3_l2t_send_slow(dev, (struct mbuf *)m, e);
-}
-
-static inline void l2t_release(struct l2t_data *d, struct l2t_entry *e)
-{
-	if (atomic_fetchadd_int(&e->refcnt, -1) == 1)
-		t3_l2e_free(d, e);
-}
-
-static inline void l2t_hold(struct l2t_data *d, struct l2t_entry *e)
-{
-	if (atomic_fetchadd_int(&e->refcnt, 1) == 1)  /* 0 -> 1 transition */
+	if (atomic_fetchadd_int(&e->refcnt, -1) == 1) /* 1 -> 0 transition */
 		atomic_add_int(&d->nfree, 1);
+}
+
+static inline void
+l2t_hold(struct l2t_data *d, struct l2t_entry *e)
+{
+	if (atomic_fetchadd_int(&e->refcnt, 1) == 0)  /* 0 -> 1 transition */
+		atomic_add_int(&d->nfree, -1);
 }
 
 #endif

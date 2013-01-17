@@ -1,4 +1,4 @@
-//===- MSP430RegisterInfo.td - MSP430 Register defs ----------*- tblgen -*-===//
+//===-- MSP430RegisterInfo.td - MSP430 Register defs -------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -78,8 +78,4 @@ def GR16 : RegisterClass<"MSP430", [i16], 16,
    // Frame pointer, sometimes allocable
    FPW,
    // Volatile, but not allocable
-   PCW, SPW, SRW, CGW)>
-{
-  let SubRegClasses = [(GR8 subreg_8bit)];
-}
-
+   PCW, SPW, SRW, CGW)>;

@@ -239,7 +239,7 @@ static int      midi_unload(void);
  * Misc declr.
  */
 SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD, 0, "Midi driver");
-SYSCTL_NODE(_hw_midi, OID_AUTO, stat, CTLFLAG_RD, 0, "Status device");
+static SYSCTL_NODE(_hw_midi, OID_AUTO, stat, CTLFLAG_RD, 0, "Status device");
 
 int             midi_debug;
 /* XXX: should this be moved into debug.midi? */

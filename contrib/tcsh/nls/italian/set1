@@ -1,8 +1,8 @@
-$ $tcsh: set1,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set1,v 1.3 2011/02/04 18:19:38 christos Exp $
 $ Error messages
 $set 1 
 1 Errore di Sintassi
-2 %s non Ë permesso
+2 %s non √® permesso
 3 Parola troppo lunga
 4 $< linea troppo lunga
 5 Nessun file per $0
@@ -17,7 +17,7 @@ $set 1
 14 Comando non trovato
 15 Troppi pochi argomenti
 16 Troppi argomenti
-17 » troppo pericoloso creare un alias in questo caso
+17 √à troppo pericoloso creare un alias in questo caso
 18 `if' vuoto
 19 `then' sbagliato
 20 Parola non tra parentesi
@@ -27,11 +27,11 @@ $set 1
 24 Argomento troppo lungo
 25 Fattore di scala sbagliato o sconosciuto
 26 Variabile non definita
-27 Pila delle directory non cosÏ profonda
+27 Pila delle directory non cos√¨ profonda
 28 Numero di segnale non corretto
 29 Segnale sconosciuto; utilizza kill -l per elencare i segnali
 30 Il nome della variabile deve iniziare con una lettera
-31 Il nome della variabile Ë troppo lungo
+31 Il nome della variabile √® troppo lungo
 32 Il nome della variabile deve contenere caratteri alfanumerici
 33 Non ho il controllo dei lavori in questa shell
 34 Errore di sintassi nell'espressione
@@ -111,17 +111,17 @@ $set 1
 108 Variabile $watch non definita
 109 Nessun evento programmato
 110 Utilizzo: sched -<elemento#>.\nUtilizzo: sched [+]hh:mm <comando>
-111 Non ci sono cosÏ tanti eventi programmati
+111 Non ci sono cos√¨ tanti eventi programmati
 112 Nessun comando da eseguire
 113 Istante non corretto per l'evento
 114 Istante relativo non consistente con am/pm
 115 Al di fuori dello spazio stringa del termcap
 116 Utilizzo: settc %s [yes|no]
-117 Capacit‡ `%s' sconosciuta
+117 Capacit√† `%s' sconosciuta
 118 Parametro del termcap `%%%c' sconosciuto
 119 Troppi argomenti per `%s' (%d)
 120 `%s' richiede %d argomenti
-121 Utilizzo: echotc [-v|-s] [<capacit‡> [<argomenti>]]
+121 Utilizzo: echotc [-v|-s] [<capacit√†> [<argomenti>]]
 122 %s: %s. Architettura non corretta
 123 !# Ciclo chiuso nello storico
 124 Richiesta di file formulata incorrettamente
@@ -135,6 +135,6 @@ $set 1
 132 \n%s incompleto: "%s"
 133 Manca l'operando dell'opzione -m
 134 Utilizzo: unlimit [-fh] [limiti]
-135 $%S Ë a sola lettura
+135 $%S √® a sola lettura
 136 Non esiste il lavoro
 137 Variabile `%c%c colorls' sconosciuta

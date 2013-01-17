@@ -1074,13 +1074,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	    SND_CLONE_GC_ENABLE | SND_CLONE_GC_UNREF |
 	    SND_CLONE_GC_LASTREF | SND_CLONE_GC_EXPIRED);
 
-	if (bootverbose != 0 || snd_verbose > 3) {
-		device_printf(dev,
-		    "clone manager: deadline=%dms flags=0x%08x\n",
-		    snd_clone_getdeadline(d->clones),
-		    snd_clone_getflags(d->clones));
-	}
-
 	CHN_INIT(d, channels.pcm);
 	CHN_INIT(d, channels.pcm.busy);
 	CHN_INIT(d, channels.pcm.opened);
@@ -1415,7 +1408,6 @@ sound_modevent(module_t mod, int type, void *data)
 			pcmsg_unrhdr = new_unrhdr(1, INT_MAX, NULL);
 			break;
 		case MOD_UNLOAD:
-		case MOD_SHUTDOWN:
 			ret = sndstat_acquire(curthread);
 			if (ret != 0)
 				break;
@@ -1423,6 +1415,8 @@ sound_modevent(module_t mod, int type, void *data)
 				delete_unrhdr(pcmsg_unrhdr);
 				pcmsg_unrhdr = NULL;
 			}
+			break;
+		case MOD_SHUTDOWN:
 			break;
 		default:
 			ret = ENOTSUP;

@@ -4,14 +4,14 @@
 #
 
 # PROVIDE: ipmon
-# REQUIRE: FILESYSTEMS hostname sysctl cleanvar ipfilter
+# REQUIRE: FILESYSTEMS hostname sysctl FILESYSTEMS ipfilter
 # BEFORE:  SERVERS
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
 name="ipmon"
-rcvar=`set_rcvar`
+rcvar="ipmon_enable"
 command="/sbin/${name}"
 start_precmd="ipmon_precmd"
 

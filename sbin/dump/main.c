@@ -290,7 +290,7 @@ main(int argc, char *argv[])
 		tape = strchr(host, ':');
 		*tape++ = '\0';
 #ifdef RDUMP
-		if (index(tape, '\n')) {
+		if (strchr(tape, '\n')) {
 		    (void)fprintf(stderr, "invalid characters in tape\n");
 		    exit(X_STARTUP);
 		}

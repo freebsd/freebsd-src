@@ -9,7 +9,9 @@ SRCS=		rtld_start.S \
 		malloc.c xmalloc.c debug.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
+TOPSRCDIR=	${.CURDIR}/../..
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
+CFLAGS+=	-I${TOPSRCDIR}/lib/csu/common
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 RTLD_ARCH=	${MACHINE_ARCH}
 .else
@@ -38,10 +40,10 @@ CFLAGS+=	-fpic
 CFLAGS+=	-DPIC $(DEBUG)
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
-LDADD=		-lc_pic -lssp_nonshared
+LDADD=		-lc_pic
 
 .if ${MK_SYMVER} == "yes"
-LIBCDIR=	${.CURDIR}/../../lib/libc
+LIBCDIR=	${TOPSRCDIR}/lib/libc
 VERSION_DEF=	${LIBCDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 VERSION_MAP=	Version.map
@@ -60,7 +62,7 @@ SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 # Fixup the existing binary that's there so we can symlink over it.
 beforeinstall:
 .if exists(${DESTDIR}/usr/libexec/${PROG})
-	-chflags noschg ${DESTDIR}/usr/libexec/${PROG}
+	-chflags -h noschg ${DESTDIR}/usr/libexec/${PROG}
 .endif
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}

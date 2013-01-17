@@ -15,14 +15,19 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "regalloc"
-#include "RegisterClassInfo.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Target/TargetMachine.h"
-
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+
+static cl::opt<unsigned>
+StressRA("stress-regalloc", cl::Hidden, cl::init(0), cl::value_desc("N"),
+         cl::desc("Limit all regclasses to N registers"));
 
 RegisterClassInfo::RegisterClassInfo() : Tag(0), MF(0), TRI(0), CalleeSaved(0)
 {}
@@ -39,25 +44,25 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   }
 
   // Does this MF have different CSRs?
-  const unsigned *CSR = TRI->getCalleeSavedRegs(MF);
+  const uint16_t *CSR = TRI->getCalleeSavedRegs(MF);
   if (Update || CSR != CalleeSaved) {
     // Build a CSRNum map. Every CSR alias gets an entry pointing to the last
     // overlapping CSR.
     CSRNum.clear();
     CSRNum.resize(TRI->getNumRegs(), 0);
     for (unsigned N = 0; unsigned Reg = CSR[N]; ++N)
-      for (const unsigned *AS = TRI->getOverlaps(Reg);
-           unsigned Alias = *AS; ++AS)
-        CSRNum[Alias] = N + 1; // 0 means no CSR, 1 means CalleeSaved[0], ...
+      for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
+        CSRNum[*AI] = N + 1; // 0 means no CSR, 1 means CalleeSaved[0], ...
     Update = true;
   }
   CalleeSaved = CSR;
 
   // Different reserved registers?
-  BitVector RR = TRI->getReservedRegs(*MF);
-  if (RR != Reserved)
+  const BitVector &RR = MF->getRegInfo().getReservedRegs();
+  if (Reserved.size() != RR.size() || RR != Reserved) {
     Update = true;
-  Reserved = RR;
+    Reserved = RR;
+  }
 
   // Invalidate cached information from previous function.
   if (Update)
@@ -81,7 +86,7 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
 
   // FIXME: Once targets reserve registers instead of removing them from the
   // allocation order, we can simply use begin/end here.
-  ArrayRef<unsigned> RawOrder = RC->getRawAllocationOrder(*MF);
+  ArrayRef<uint16_t> RawOrder = RC->getRawAllocationOrder(*MF);
   for (unsigned i = 0; i != RawOrder.size(); ++i) {
     unsigned PhysReg = RawOrder[i];
     // Remove reserved registers from the allocation order.
@@ -98,6 +103,10 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
 
   // CSR aliases go after the volatile registers, preserve the target's order.
   std::copy(CSRAlias.begin(), CSRAlias.end(), &RCI.Order[N]);
+
+  // Register allocator stress test.  Clip register class to N registers.
+  if (StressRA && RCI.NumRegs > StressRA)
+    RCI.NumRegs = StressRA;
 
   // Check if RC is a proper sub-class.
   if (const TargetRegisterClass *Super = TRI->getLargestLegalSuperClass(RC))

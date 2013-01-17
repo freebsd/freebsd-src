@@ -100,7 +100,7 @@ ixpiic_callback(device_t dev, int index, caddr_t data)
 	return (0);
 }
 
-static int 
+static int
 ixpiic_getscl(device_t dev)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
@@ -114,7 +114,7 @@ ixpiic_getscl(device_t dev)
 	return (reg & GPIO_I2C_SCL_BIT);
 }
 
-static int 
+static int
 ixpiic_getsda(device_t dev)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
@@ -128,7 +128,7 @@ ixpiic_getsda(device_t dev)
 	return (reg & GPIO_I2C_SDA_BIT);
 }
 
-static void 
+static void
 ixpiic_setsda(device_t dev, int val)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
@@ -143,7 +143,7 @@ ixpiic_setsda(device_t dev, int val)
 	DELAY(I2C_DELAY);
 }
 
-static void 
+static void
 ixpiic_setscl(device_t dev, int val)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
