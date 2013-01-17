@@ -767,12 +767,18 @@ tryagain:
 	if (stat == RPC_SUCCESS) {
 		error = 0;
 	} else if (stat == RPC_TIMEDOUT) {
+		NFSINCRGLOBAL(newnfsstats.rpctimeouts);
 		error = ETIMEDOUT;
 	} else if (stat == RPC_VERSMISMATCH) {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EOPNOTSUPP;
 	} else if (stat == RPC_PROGVERSMISMATCH) {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EPROTONOSUPPORT;
+	} else if (stat == RPC_INTR) {
+		error = EINTR;
 	} else {
+		NFSINCRGLOBAL(newnfsstats.rpcinvalid);
 		error = EACCES;
 	}
 	if (error) {

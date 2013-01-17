@@ -118,7 +118,7 @@ f_variable_set_defaults()
 #
 # Dump a list of registered/advertised variables and their respective values to
 # $VARIABLE_DUMPFILE. Returns success unless the file couldn't be written. If
-# an error occurs, it is displayed using f_show_msg() (from common.subr).
+# an error occurs, it is displayed using f_dialog_msgbox() (from dialog.subr).
 #
 f_dump_variables()
 {
@@ -131,7 +131,7 @@ f_dump_variables()
 			printf "%s='%s'\n" "$var" "$value"
 		  done > "$VARIABLE_DUMPFILE" ) 2>&1
 	); then
-		f_show_msg "%s" "$err"
+		f_dialog_msgbox "$err"
 		return $FAILURE
 	fi
 }

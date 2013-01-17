@@ -78,6 +78,7 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--help-button                      \
+		--help-label \"\$msg_help\"        \
 		${USE_XDIALOG:+--help \"\"}        \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \

@@ -97,7 +97,7 @@
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/armv6 ELF)");
 #else
 #undef  SUBTARGET_CPU_DEFAULT
-#define SUBTARGET_CPU_DEFAULT	TARGET_CPU_strongarm
+#define SUBTARGET_CPU_DEFAULT	TARGET_CPU_arm9
 #undef  TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
 #endif

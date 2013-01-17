@@ -41,6 +41,7 @@
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
+.Op Fl N Ar dbdir
 .Op Fl o Ar owner
 .Ar file1 file2
 .Nm
@@ -49,6 +50,7 @@
 .Op Fl f Ar flags
 .Op Fl g Ar group
 .Op Fl m Ar mode
+.Op Fl N Ar dbdir
 .Op Fl o Ar owner
 .Ar file1 ... fileN directory
 .Nm
@@ -56,6 +58,7 @@
 .Op Fl v
 .Op Fl g Ar group
 .Op Fl m Ar mode
+.Op Fl N Ar dbdir
 .Op Fl o Ar owner
 .Ar directory ...
 .Sh DESCRIPTION
@@ -124,6 +127,18 @@ The default mode is set to rwxr-xr-x (0755).
 The specified mode may be either an octal or symbolic value; see
 .Xr chmod 1
 for a description of possible mode values.
+.It Fl N
+Use the user database text file
+.Pa master.passwd
+and group database text file
+.Pa group
+from
+.Ar dbdir ,
+rather than using the results from the system's
+.Xr getpwnam 3
+and
+.Xr getgrnam 3
+(and related) library calls.
 .It Fl o
 Specify an owner.
 A numeric UID is allowed.
@@ -231,6 +246,8 @@ The default was changed to copy in
 .Xr mv 1 ,
 .Xr strip 1 ,
 .Xr mmap 2 ,
+.Xr getgrnam 3 ,
+.Xr getpwnam 3 ,
 .Xr chown 8
 .Sh HISTORY
 The

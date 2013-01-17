@@ -279,6 +279,8 @@ struct ath_buf {
 		int32_t bfs_keyix;		/* crypto key index */
 		int32_t bfs_txantenna;	/* TX antenna config */
 
+		uint16_t bfs_nextpktlen;	/* length of next frag pkt */
+
 		/* Make this an 8 bit value? */
 		enum ieee80211_protmode bfs_protmode;
 
@@ -494,6 +496,13 @@ struct ath_softc {
 	struct ath_tx_methods	sc_tx;
 	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
 
+	/*
+	 * This is (currently) protected by the TX queue lock;
+	 * it should migrate to a separate lock later
+	 * so as to minimise contention.
+	 */
+	ath_bufhead		sc_txbuf_list;
+
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
 	int			sc_tx_statuslen;
@@ -514,6 +523,7 @@ struct ath_softc {
 	struct mtx		sc_tx_mtx;	/* TX access mutex */
 	char			sc_tx_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
+	struct taskqueue	*sc_tx_tq;	/* private TX task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
 	struct ath_tx99		*sc_tx99;	/* tx99 adjunct state */
@@ -660,6 +670,7 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+	struct task		sc_txpkttask;	/* tx frame processing */
 
 	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
 	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */

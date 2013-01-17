@@ -99,7 +99,6 @@ struct vnode {
 	 * Fields which define the identity of the vnode.  These fields are
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
-	enum	vtype v_type;			/* u vnode type */
 	const char *v_tag;			/* u type of underlying data */
 	struct	vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
@@ -122,10 +121,10 @@ struct vnode {
 	} v_un;
 
 	/*
-	 * vfs_hash:  (mount + inode) -> vnode hash.
+	 * vfs_hash: (mount + inode) -> vnode hash.  The hash value
+	 * itself is grouped with other int fields, to avoid padding.
 	 */
 	LIST_ENTRY(vnode)	v_hashlist;
-	u_int			v_hash;
 
 	/*
 	 * VFS_namecache stuff
@@ -135,24 +134,11 @@ struct vnode {
 	struct namecache *v_cache_dd;		/* c Cache entry for .. vnode */
 
 	/*
-	 * clustering stuff
-	 */
-	daddr_t	v_cstart;			/* v start block of cluster */
-	daddr_t	v_lasta;			/* v last allocation  */
-	daddr_t	v_lastw;			/* v last write  */
-	int	v_clen;				/* v length of cur. cluster */
-
-	/*
 	 * Locking
 	 */
 	struct	lock v_lock;			/* u (if fs don't have one) */
 	struct	mtx v_interlock;		/* lock for "i" things */
 	struct	lock *v_vnlock;			/* u pointer to vnode lock */
-	int	v_holdcnt;			/* i prevents recycling. */
-	int	v_usecount;			/* i ref count of users */
-	u_int	v_iflag;			/* i vnode flags (see below) */
-	u_int	v_vflag;			/* v vnode flags */
-	int	v_writecount;			/* v ref count of writers */
 
 	/*
 	 * The machinery of being a vnode
@@ -167,6 +153,22 @@ struct vnode {
 	struct label *v_label;			/* MAC label for vnode */
 	struct lockf *v_lockf;		/* Byte-level advisory lock list */
 	struct rangelock v_rl;			/* Byte-range lock */
+
+	/*
+	 * clustering stuff
+	 */
+	daddr_t	v_cstart;			/* v start block of cluster */
+	daddr_t	v_lasta;			/* v last allocation  */
+	daddr_t	v_lastw;			/* v last write  */
+	int	v_clen;				/* v length of cur. cluster */
+
+	int	v_holdcnt;			/* i prevents recycling. */
+	int	v_usecount;			/* i ref count of users */
+	u_int	v_iflag;			/* i vnode flags (see below) */
+	u_int	v_vflag;			/* v vnode flags */
+	int	v_writecount;			/* v ref count of writers */
+	u_int	v_hash;
+	enum	vtype v_type;			/* u vnode type */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
@@ -703,8 +705,7 @@ int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
-void	vfs_write_resume(struct mount *mp);
-void	vfs_write_resume_flags(struct mount *mp, int flags);
+void	vfs_write_resume(struct mount *mp, int flags);
 int	vfs_write_suspend(struct mount *mp);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
@@ -813,6 +814,7 @@ int	fifo_printinfo(struct vnode *);
 typedef int vfs_hash_cmp_t(struct vnode *vp, void *arg);
 
 int vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg);
+u_int vfs_hash_index(struct vnode *vp);
 int vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg);
 void vfs_hash_rehash(struct vnode *vp, u_int hash);
 void vfs_hash_remove(struct vnode *vp);

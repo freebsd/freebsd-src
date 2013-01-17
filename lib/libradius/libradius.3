@@ -38,7 +38,7 @@
 .Ft int
 .Fn rad_add_server "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries"
 .Ft int
-.Fn rad_add_server_ex "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries" "int dead_time" "struct in_addr bindto"
+.Fn rad_add_server_ex "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries" "int dead_time" "struct in_addr *bindto"
 .Ft "struct rad_handle *"
 .Fn rad_auth_open "void"
 .Ft void

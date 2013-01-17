@@ -79,6 +79,7 @@
  */
 
 #include "assym.s"
+#include "opt_sched.h"
 
 #include <machine/asm.h>
 #include <machine/asmacros.h>
@@ -428,6 +429,7 @@ ENTRY(cpu_switch)
 
 	/* Release the old thread */
 	str	r6, [r4, #TD_LOCK]
+#if defined(SCHED_ULE) && defined(SMP)
 	ldr	r6, .Lblocked_lock
 	GET_CURTHREAD_PTR(r3)
 
@@ -435,6 +437,7 @@ ENTRY(cpu_switch)
 	ldr	r4, [r3, #TD_LOCK]
 	cmp	r4, r6
 	beq	1b
+#endif
 	
 	/* XXXSCW: Safe to re-enable FIQs here */
 

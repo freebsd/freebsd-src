@@ -799,7 +799,7 @@ usb_quirk_ioctl(unsigned long cmd, caddr_t data,
 		}
 		if (x == USB_SUB_QUIRKS_MAX) {
 			/* all quirk entries are unused - release */
-			memset(pqe, 0, sizeof(pqe));
+			memset(pqe, 0, sizeof(*pqe));
 		}
 		mtx_unlock(&usb_quirk_mtx);
 		return (0);		/* success */

@@ -50,8 +50,6 @@ static char group_file[PATH_MAX];
 static char tempname[PATH_MAX];
 static int initialized;
 
-static const char group_line_format[] = "%s:%s:%ju:";
-
 /*
  * Initialize statics
  */
@@ -318,7 +316,7 @@ gr_mkdb(void)
 }
 
 /*
- * Clean up. Preserver errno for the caller's convenience.
+ * Clean up. Preserves errno for the caller's convenience.
  */
 void
 gr_fini(void)
@@ -346,7 +344,6 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 {
 	int gr1_ndx;
 	int gr2_ndx;
-	bool found;
 
 	/* Check that the non-member information is the same. */
 	if (gr1->gr_name == NULL || gr2->gr_name == NULL) {
@@ -367,17 +364,15 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 		if (gr1->gr_mem != gr2->gr_mem)
 			return (false);
 	} else {
-		for (found = false, gr1_ndx = 0; gr1->gr_mem[gr1_ndx] != NULL;
-		    gr1_ndx++) {
-			for (gr2_ndx = 0; gr2->gr_mem[gr2_ndx] != NULL;
-			    gr2_ndx++)
+		for (gr1_ndx = 0; gr1->gr_mem[gr1_ndx] != NULL; gr1_ndx++) {
+			for (gr2_ndx = 0;; gr2_ndx++) {
+				if (gr2->gr_mem[gr2_ndx] == NULL)
+					return (false);
 				if (strcmp(gr1->gr_mem[gr1_ndx],
 				    gr2->gr_mem[gr2_ndx]) == 0) {
-					found = true;
 					break;
 				}
-			if (!found)
-				return (false);
+			}
 		}
 
 		/* Check that group2 does not have more members than group1. */
@@ -394,7 +389,10 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 char *
 gr_make(const struct group *gr)
 {
+	const char *group_line_format = "%s:%s:%ju:";
+	const char *sep;
 	char *line;
+	char *p;
 	size_t line_size;
 	int ndx;
 
@@ -409,16 +407,18 @@ gr_make(const struct group *gr)
 	}
 
 	/* Create the group line and fill it. */
-	if ((line = malloc(line_size)) == NULL)
+	if ((line = p = malloc(line_size)) == NULL)
 		return (NULL);
-	snprintf(line, line_size, group_line_format, gr->gr_name, gr->gr_passwd,
+	p += sprintf(p, group_line_format, gr->gr_name, gr->gr_passwd,
 	    (uintmax_t)gr->gr_gid);
-	if (gr->gr_mem != NULL)
+	if (gr->gr_mem != NULL) {
+		sep = "";
 		for (ndx = 0; gr->gr_mem[ndx] != NULL; ndx++) {
-			strcat(line, gr->gr_mem[ndx]);
-			if (gr->gr_mem[ndx + 1] != NULL)
-				strcat(line, ",");
+			p = stpcpy(p, sep);
+			p = stpcpy(p, gr->gr_mem[ndx]);
+			sep = ",";
 		}
+	}
 
 	return (line);
 }
