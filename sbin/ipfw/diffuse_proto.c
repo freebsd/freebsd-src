@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
  * Print field data in val based on info element id and length.
  * XXX: IPv6 support missing.
  */
-void
+static void
 print_field(int idx, int id, int len, char *val)
 {
 	char *c;
