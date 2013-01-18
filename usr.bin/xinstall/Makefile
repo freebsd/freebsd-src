@@ -10,7 +10,7 @@ MAN=		install.1
 CFLAGS+=	-I${.CURDIR}/../../contrib/mtree
 CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
 
-DPADD+=		${LIBUTIL}
-LDADD+=		-lutil
+DPADD+=		${LIBUTIL} ${LIBMD}
+LDADD+=		-lutil -lmd
 
 .include <bsd.prog.mk>
