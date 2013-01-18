@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -94,6 +96,7 @@ struct i2c_softc {
 	bus_space_tag_t		bst;
 };
 
+static phandle_t i2c_get_node(device_t, device_t);
 static int i2c_probe(device_t);
 static int i2c_attach(device_t);
 
@@ -108,6 +111,9 @@ static device_method_t i2c_methods[] = {
 	DEVMETHOD(device_probe,			i2c_probe),
 	DEVMETHOD(device_attach,		i2c_attach),
 
+	/* OFW methods */
+	DEVMETHOD(ofw_bus_get_node,		i2c_get_node),
+
 	DEVMETHOD(iicbus_callback,		iicbus_null_callback),
 	DEVMETHOD(iicbus_repeated_start,	i2c_repeated_start),
 	DEVMETHOD(iicbus_start,			i2c_start),
@@ -121,7 +127,7 @@ static device_method_t i2c_methods[] = {
 };
 
 static driver_t i2c_driver = {
-	"i2c",
+	"iichb",
 	i2c_methods,
 	sizeof(struct i2c_softc),
 };
@@ -129,6 +135,15 @@ static devclass_t  i2c_devclass;
 
 DRIVER_MODULE(i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
 DRIVER_MODULE(iicbus, i2c, iicbus_driver, iicbus_devclass, 0, 0);
+
+static phandle_t
+i2c_get_node(device_t bus, device_t dev)
+{
+	/*
+	 * Share controller node with iicbus device
+	 */
+	return ofw_bus_get_node(bus);
+}
 
 static __inline void
 i2c_write_reg(struct i2c_softc *sc, bus_size_t off, uint8_t val)
