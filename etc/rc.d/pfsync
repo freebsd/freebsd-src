@@ -18,13 +18,6 @@ required_modules="pf"
 
 pfsync_prestart()
 {
-	# XXX Currently pfsync cannot be a module as it must register
-	# a network protocol in a static kernel table.
-	if ! kldstat -q -m pfsync; then
-		warn "pfsync(4) must be statically compiled in the kernel."
-		return 1
-	fi
-
 	case "$pfsync_syncdev" in
 	'')
 		warn "pfsync_syncdev is not set."
