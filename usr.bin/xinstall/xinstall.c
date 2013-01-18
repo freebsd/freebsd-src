@@ -98,6 +98,15 @@ typedef union {
 	SHA512_CTX	SHA512;
 }	DIGEST_CTX;
 
+static enum {
+	DIGEST_NONE = 0,
+	DIGEST_MD5,
+	DIGEST_RIPEMD160,
+	DIGEST_SHA1,
+	DIGEST_SHA256,
+	DIGEST_SHA512,
+} digesttype = DIGEST_NONE;
+
 static gid_t gid;
 static uid_t uid;
 static int dobackup, docompare, dodir, dolink, dopreserve, dostrip, dounpriv,
@@ -108,15 +117,6 @@ static FILE *metafp;
 static const char *group, *owner;
 static const char *suffix = BACKUP_SUFFIX;
 static char *destdir, *digest, *fflags, *metafile, *tags;
-
-enum {
-	DIGEST_NONE = 0,
-	DIGEST_MD5,
-	DIGEST_RIPEMD160,
-	DIGEST_SHA1,
-	DIGEST_SHA256,
-	DIGEST_SHA512,
-} digesttype = DIGEST_NONE;
 
 static int	compare(int, const char *, size_t, int, const char *, size_t,
 		    char **);
@@ -186,7 +186,7 @@ main(int argc, char *argv[])
 			digest = optarg;
 			break;
 		case 'l':
-			for (p = optarg; *p; p++)
+			for (p = optarg; *p != '\0'; p++)
 				switch (*p) {
 				case 's':
 					dolink &= ~(LN_HARD|LN_MIXED);
@@ -274,8 +274,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if (digest != NULL) {
-		if (0) {
-		} else if (strcmp(digest, "none") == 0) {
+		if (strcmp(digest, "none") == 0) {
 			digesttype = DIGEST_NONE;
 		} else if (strcmp(digest, "md5") == 0) {
 		       digesttype = DIGEST_MD5;
@@ -415,7 +414,6 @@ digest_init(DIGEST_CTX *c)
 	case DIGEST_SHA512:
 		SHA512_Init(&(c->SHA512));
 		break;
-
 	}
 }
 
@@ -526,7 +524,8 @@ do_link(const char *from_name, const char *to_name,
 				     ~NOCHANGEBITS);
 			unlink(to_name);
 			ret = rename(tmpl, to_name);
-			/* If rename has posix semantics, then the temporary
+			/*
+			 * If rename has posix semantics, then the temporary
 			 * file may still exist when from_name and to_name point
 			 * to the same file, so unlink it unconditionally.
 			 */
@@ -539,8 +538,7 @@ do_link(const char *from_name, const char *to_name,
 
 /*
  * do_symlink --
- *	make a symbolic link, obeying dorename if set
- *	exit on failure
+ *	Make a symbolic link, obeying dorename if set. Exit on failure.
  */
 static void
 do_symlink(const char *from_name, const char *to_name,
@@ -567,7 +565,7 @@ do_symlink(const char *from_name, const char *to_name,
 		unlink(to_name);
 
 		if (rename(tmpl, to_name) == -1) {
-			/* remove temporary link before exiting */
+			/* Remove temporary link before exiting. */
 			(void)unlink(tmpl);
 			err(EX_OSERR, "%s: rename", to_name);
 		}
@@ -588,7 +586,7 @@ makelink(const char *from_name, const char *to_name,
 	char	src[MAXPATHLEN], dst[MAXPATHLEN], lnk[MAXPATHLEN];
 	struct stat	to_sb;
 
-	/* Try hard links first */
+	/* Try hard links first. */
 	if (dolink & (LN_HARD|LN_MIXED)) {
 		if (do_link(from_name, to_name, target_sb) == -1) {
 			if ((dolink & LN_HARD) || errno != EXDEV)
@@ -597,18 +595,19 @@ makelink(const char *from_name, const char *to_name,
 			if (stat(to_name, &to_sb))
 				err(EX_OSERR, "%s: stat", to_name);
 			if (S_ISREG(to_sb.st_mode)) {
-					/* XXX: hard links to anything
-					 * other than plain files are not
-					 * metalogged
-					 */
+				/*
+				 * XXX: hard links to anything other than
+				 * plain files are not metalogged
+				 */
 				int omode;
 				const char *oowner, *ogroup;
 				char *offlags;
 				char *dres;
 
-					/* XXX: use underlying perms,
-					 * unless overridden on command line.
-					 */
+				/*
+				 * XXX: use underlying perms, unless
+				 * overridden on command line.
+				 */
 				omode = mode;
 				if (!haveopt_m)
 					mode = (to_sb.st_mode & 0777);
@@ -634,13 +633,13 @@ makelink(const char *from_name, const char *to_name,
 		}
 	}
 
-	/* Symbolic links */
+	/* Symbolic links. */
 	if (dolink & LN_ABSOLUTE) {
-		/* Convert source path to absolute */
+		/* Convert source path to absolute. */
 		if (realpath(from_name, src) == NULL)
 			err(EX_OSERR, "%s: realpath", from_name);
 		do_symlink(src, to_name, target_sb);
-			/* XXX: src may point outside of destdir */
+		/* XXX: src may point outside of destdir */
 		metadata_log(to_name, "link", NULL, src, NULL, 0);
 		return;
 	}
@@ -648,7 +647,7 @@ makelink(const char *from_name, const char *to_name,
 	if (dolink & LN_RELATIVE) {
 		char *cp, *d, *s;
 
-		/* Resolve pathnames */
+		/* Resolve pathnames. */
 		if (realpath(from_name, src) == NULL)
 			err(EX_OSERR, "%s: realpath", from_name);
 
@@ -659,7 +658,7 @@ makelink(const char *from_name, const char *to_name,
 		cp = dirname(to_name);
 		if (realpath(cp, dst) == NULL)
 			err(EX_OSERR, "%s: realpath", cp);
-		/* .. and add the last component */
+		/* .. and add the last component. */
 		if (strcmp(dst, "/") != 0) {
 			if (strlcat(dst, "/", sizeof(dst)) > sizeof(dst))
 				errx(1, "resolved pathname too long");
@@ -668,13 +667,13 @@ makelink(const char *from_name, const char *to_name,
 		if (strlcat(dst, cp, sizeof(dst)) > sizeof(dst))
 			errx(1, "resolved pathname too long");
 
-		/* trim common path components */
+		/* Trim common path components. */
 		for (s = src, d = dst; *s == *d; s++, d++)
 			continue;
 		while (*s != '/')
 			s--, d--;
 
-		/* count the number of directories we need to backtrack */
+		/* Count the number of directories we need to backtrack. */
 		for (++d, lnk[0] = '\0'; *d; d++)
 			if (*d == '/')
 				(void)strlcat(lnk, "../", sizeof(lnk));
@@ -682,17 +681,17 @@ makelink(const char *from_name, const char *to_name,
 		(void)strlcat(lnk, ++s, sizeof(lnk));
 
 		do_symlink(lnk, to_name, target_sb);
-		/* XXX: lnk may point outside of destdir */
+		/* XXX: Link may point outside of destdir. */
 		metadata_log(to_name, "link", NULL, lnk, NULL, 0);
 		return;
 	}
 
 	/*
-	 * If absolute or relative was not specified, 
-	 * try the names the user provided
+	 * If absolute or relative was not specified, try the names the
+	 * user provided.
 	 */
 	do_symlink(from_name, to_name, target_sb);
-	/* XXX: from_name may point outside of destdir */
+	/* XXX: from_name may point outside of destdir. */
 	metadata_log(to_name, "link", NULL, from_name, NULL, 0);
 }
 
@@ -856,9 +855,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		}
 	}
 
-	if (dostrip && (!docompare || !target)) {
+	if (dostrip && (!docompare || !target))
 		digestresult = digest_file(tempfile);
-	}
 
 	/*
 	 * Move the new file into place if doing a safe copy
@@ -1198,7 +1196,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 			err(EX_OSERR, "%s", from_name);
 		}
 	}
-	return digest_end(&ctx, NULL);
+	return (digest_end(&ctx, NULL));
 }
 
 /*
@@ -1282,20 +1280,22 @@ static void
 metadata_log(const char *path, const char *type, struct timeval *tv,
 	const char *slink, const char *digestresult, off_t size)
 {
-	static const char	extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
-	const char	*p;
-	char		*buf;
-	size_t		destlen;
-	struct flock	metalog_lock;
+	static const char extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
+	const char *p;
+	char *buf;
+	size_t destlen;
+	struct flock metalog_lock;
 
 	if (!metafp)	
 		return;
-	buf = (char *)malloc(4 * strlen(path) + 1);	/* buf for strsvis(3) */
+	/* Buffer for strsvis(3). */
+	buf = (char *)malloc(4 * strlen(path) + 1);
 	if (buf == NULL) {
 		warnx("%s", strerror(ENOMEM));
 		return;
 	}
-							/* lock log file */
+
+	/* Lock log file. */
 	metalog_lock.l_start = 0;
 	metalog_lock.l_len = 0;
 	metalog_lock.l_whence = SEEK_SET;
@@ -1306,18 +1306,19 @@ metadata_log(const char *path, const char *type, struct timeval *tv,
 		return;
 	}
 
-	p = path;					/* remove destdir */
+	/* Remove destdir. */
+	p = path;
 	if (destdir) {
 		destlen = strlen(destdir);
 		if (strncmp(p, destdir, destlen) == 0 &&
 		    (p[destlen] == '/' || p[destlen] == '\0'))
 			p += destlen;
 	}
-	while (*p && *p == '/')				/* remove leading /s */
+	while (*p && *p == '/')
 		p++;
-	strsvis(buf, p, VIS_CSTYLE, extra);		/* encode name */
+	strsvis(buf, p, VIS_OCTAL, extra);
 	p = buf;
-							/* print details */
+	/* Print details. */
 	fprintf(metafp, ".%s%s type=%s", *p ? "/" : "", p, type);
 	if (owner)
 		fprintf(metafp, " uname=%s", owner);
@@ -1340,12 +1341,13 @@ metadata_log(const char *path, const char *type, struct timeval *tv,
 	if (tags)
 		fprintf(metafp, " tags=%s", tags);
 	fputc('\n', metafp);
-	fflush(metafp);					/* flush output */
-							/* unlock log file */
+	/* Flush line. */
+	fflush(metafp);
+
+	/* Unlock log file. */
 	metalog_lock.l_type = F_UNLCK;
-	if (fcntl(fileno(metafp), F_SETLKW, &metalog_lock) == -1) {
+	if (fcntl(fileno(metafp), F_SETLKW, &metalog_lock) == -1)
 		warn("can't unlock %s", metafile);
-	}
 	free(buf);
 }
 

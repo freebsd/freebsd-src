@@ -28,7 +28,7 @@
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2006
+.Dd January 18, 2013
 .Dt INSTALL 1
 .Os
 .Sh NAME
@@ -68,6 +68,7 @@
 .Op Fl Uv
 .Op Fl D Ar destdir
 .Op Fl g Ar group
+.Op Fl h Ar hash
 .Op Fl M Ar metalog
 .Op Fl m Ar mode
 .Op Fl N Ar dbdir
@@ -149,6 +150,9 @@ When copying, calculate the digest of the files with
 .Ar hash
 to store in the
 .Fl M Ar metalog .
+When
+.Fl d
+is given no hash is emitted.
 Supported digests:
 .Bl -tag -width rmd160 -offset indent
 .It Sy none
@@ -347,6 +351,16 @@ The
 utility appeared in
 .Bx 4.2 .
 .Sh BUGS
+The meaning of the
+.Fl M
+option has changed as of
+.Fx 10
+and it now takes an argument.
+Command lines that used the old
+.Fl M
+will get an error or in rare cases will append logs to the first of
+multiple source files rather than installing it.
+.Pp
 Temporary files may be left in the target directory if
 .Nm
 exits abnormally.
