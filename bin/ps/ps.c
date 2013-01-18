@@ -141,7 +141,7 @@ static void	 format_output(KINFO *);
 static void	*expand_list(struct listinfo *);
 static const char *
 		 fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
-		    KINFO *, char *, int);
+		    KINFO *, char *, char *, int);
 static void	 free_list(struct listinfo *);
 static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
 static char	*kludge_oldps_options(const char *, char *, const char *);
@@ -1163,11 +1163,12 @@ sizevars(void)
 
 static const char *
 fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
-    char *comm, int maxlen)
+    char *comm, char *thread, int maxlen)
 {
 	const char *s;
 
-	s = fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm, maxlen);
+	s = fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm,
+	    ki->ki_p->ki_numthreads > 1 ? thread : NULL, maxlen);
 	return (s);
 }
 
@@ -1195,7 +1196,7 @@ saveuser(KINFO *ki)
 			ki->ki_args = strdup("<defunct>");
 		else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL))
 			ki->ki_args = strdup(fmt(kvm_getargv, ki,
-			    ki->ki_p->ki_comm, MAXCOMLEN));
+			    ki->ki_p->ki_comm, ki->ki_p->ki_tdname, MAXCOMLEN));
 		else
 			asprintf(&ki->ki_args, "(%s)", ki->ki_p->ki_comm);
 		if (ki->ki_args == NULL)
@@ -1206,7 +1207,7 @@ saveuser(KINFO *ki)
 	if (needenv) {
 		if (UREADOK(ki))
 			ki->ki_env = strdup(fmt(kvm_getenvv, ki,
-			    (char *)NULL, 0));
+			    (char *)NULL, (char *)NULL, 0));
 		else
 			ki->ki_env = strdup("()");
 		if (ki->ki_env == NULL)
