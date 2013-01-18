@@ -22,13 +22,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/counter.h>
+#include <sys/kernel.h>
+#include <sys/smp.h>
 #include <vm/uma.h>
  
 static uma_zone_t uint64_pcpu_zone;
@@ -36,8 +38,9 @@ static uma_zone_t uint64_pcpu_zone;
 void
 counter_u64_zero(counter_u64_t c)
 {
+	int i;
 
-	for (int i = 0; i < mp_ncpus; i++)
+	for (i = 0; i < mp_ncpus; i++)
 		*(uint64_t *)((char *)c + sizeof(struct pcpu) * i) = 0;
 }
 
@@ -45,9 +48,10 @@ uint64_t
 counter_u64_fetch(counter_u64_t c)
 {
 	uint64_t r;
+	int i;
 
 	r = 0;
-	for (int i = 0; i < mp_ncpus; i++)
+	for (i = 0; i < mp_ncpus; i++)
 		r += *(uint64_t *)((char *)c + sizeof(struct pcpu) * i);
 
 	return (r);
@@ -59,7 +63,7 @@ counter_u64_alloc(int flags)
 	counter_u64_t r;
 
 	r = uma_zalloc(uint64_pcpu_zone, flags);
-	if (r)
+	if (r != NULL)
 		counter_u64_zero(r);
 
 	return (r);
