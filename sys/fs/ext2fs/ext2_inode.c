@@ -180,7 +180,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (ext2_update(ovp, 1));
+		return (ext2_update(ovp, !DOINGASYNC(ovp)));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -238,7 +238,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = ext2_update(ovp, 1);
+	allerror = ext2_update(ovp, !DOINGASYNC(ovp));
 
 	/*
 	 * Having written the new inode to disk, save its new configuration
@@ -420,9 +420,13 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof(int32_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
-	error = bwrite(bp);
-	if (error)
-		allerror = error;
+	if (DOINGASYNC(vp)) {
+		bdwrite(bp);
+	} else {
+		error = bwrite(bp);
+		if (error)
+			allerror = error;
+	}
 	bap = copy;
 
 	/*

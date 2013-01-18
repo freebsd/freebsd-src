@@ -1,6 +1,11 @@
 /*-
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
+ * Copyright (c) 2012 Robert N. M. Watson
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_platform.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -39,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpu.h>
 #include <sys/cons.h>
 #include <sys/exec.h>
+#include <sys/linker.h>
 #include <sys/ucontext.h>
 #include <sys/proc.h>
 #include <sys/kdb.h>
@@ -48,6 +55,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/user.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -59,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
 
@@ -124,6 +137,10 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	char **argv = (char **)a1;
 	char **envp = (char **)a2;
 	unsigned int memsize = a3;
+#ifdef FDT
+	vm_offset_t dtbp;
+	void *kmdp;
+#endif
 	int i;
 
 	/* clear the BSS and SBSS segments */
@@ -133,6 +150,33 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	mips_postboot_fixup();
 
 	mips_pcpu0_init();
+
+#ifdef FDT
+	/*
+	 * Find the dtb passed in by the boot loader (currently fictional).
+	 */
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp != NULL)
+		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	else
+		dtbp = (vm_offset_t)NULL;
+
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == (vm_offset_t)NULL)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
+#else
+#error	"Non-static FDT not yet supported on BERI"
+#endif
+
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		while (1);
+	if (OF_init(&fdt_static_dtb) != 0)
+		while (1);
+#endif
 
 	/*
 	 * XXXRW: We have no way to compare wallclock time to cycle rate on

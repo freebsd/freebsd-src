@@ -644,7 +644,7 @@ parse_args(int argc, char **argv)
 			break;
 		case 'n':
 			noaction++;
-			break;
+			/* FALLTHROUGH */
 		case 'r':
 			needroot = 0;
 			break;
@@ -1582,7 +1582,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 				    oldlogs[i].fname);
 			else if (unlinkat(dir_fd, oldlogs[i].fname, 0) != 0) {
 				snprintf(errbuf, sizeof(errbuf),
-				    "Could not delet old logfile '%s'",
+				    "Could not delete old logfile '%s'",
 				    oldlogs[i].fname);
 				perror(errbuf);
 			}
@@ -1814,12 +1814,21 @@ do_rotate(const struct conf_entry *ent)
 				printf("\tcp %s %s\n", ent->log, file1);
 			else
 				printf("\tln %s %s\n", ent->log, file1);
+			printf("\ttouch %s\t\t"
+			    "# Update mtime for 'when'-interval processing\n",
+			    file1);
 		} else {
 			if (!(flags & CE_BINARY)) {
 				/* Report the trimming to the old log */
 				log_trim(ent->log, ent);
 			}
 			savelog(ent->log, file1);
+			/*
+			 * Interval-based rotations are done using the mtime of
+			 * the most recently archived log, so make sure it gets
+			 * updated during a rotation.
+			 */
+			utimes(file1, NULL);
 		}
 		change_attrs(file1, ent);
 	}

@@ -1,0 +1,139 @@
+if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
+#
+# Copyright (c) 2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." script.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+############################################################ GLOBALS
+
+RESWORDS=
+
+############################################################ FUNCTIONS
+
+# f_resword_new $resword $function
+#
+# Create a new `reserved' word for scripting purposes. Reswords call pre-
+# defined functions but differ from those functions in the following ways:
+#
+# 	+ Reswords do not take arguments but instead get all their data from
+# 	  the environment variable namespace.
+# 	+ Unless noError is set (must be non-NULL), if calling the resword
+# 	  results in failure, the application will terminate prematurely.
+# 	+ noError is unset after each/every resword is called.
+#
+# Reswords should not be used in bsdconfig itself (hence the name `reserved
+# word') but instead only in scripts loaded through f_script_load()).
+#
+f_resword_new()
+{
+	local resword="$1" func="$2"
+	[ "$resword" ] || return $FAILURE
+	f_dprintf "script.subr: New resWord %s -> %s" "$resword" "$func"
+	eval $resword\(\){ f_dispatch $func $resword\; }
+	RESWORDS="$RESWORDS${RESWORDS:+ }$resword"
+}
+
+# f_dispatch $func [$resword]
+#
+# Wrapper function used by `reserved words' (reswords) to call other functions.
+# If $noError is set and non-NULL, a failure result from $func is ignored,
+# otherwise the application is prematurely terminated using f_die().
+#
+# NOTE: $noError is unset after every call.
+#
+f_dispatch()
+{
+	local func="$1" resword="${2:-$1}"
+	f_dprintf "f_dispatch: calling resword \`%s'" "$resword"
+	eval $func
+	local retval=$? _ignore_this_error
+	f_getvar $VAR_NO_ERROR _ignore_this_error
+	[ $retval -eq $SUCCESS ] ||
+		[ "$_ignore_this_error" ] || f_die $retval \
+		"$msg_command_failed_rest_of_script_aborted" "$resword"
+	unset $VAR_NO_ERROR
+}
+
+# f_script_load [$file]
+#
+# Load a script (usually filled with reswords). If $file is missing or NULL,
+# use one of the following instead (in order):
+#
+# 	$configFile
+# 	install.cfg
+# 	/stand/install.fg
+# 	/tmp/install.cfg
+#
+# Unknown/unregistered reswords will generate sh(1) syntax errors but not cause
+# premature termination.
+#
+# Returns success if a script was loaded and itself returned success.
+#
+f_script_load()
+{
+	local script="$1" config_file
+
+	f_dprintf "f_script_load: script=[%s]" "$script"
+	if [ ! "$script" ]; then
+		f_getvar $VAR_CONFIG_FILE config_file
+		for script in \
+			$config_file \
+			install.cfg \
+			/stand/install.cfg \
+			/tmp/install.cfg \
+		; do
+			[ -e "$script" ] && break
+		done
+	elif [ "$script" = "-" ]; then
+		f_dprintf "f_script_load: Loading script from stdin"
+		eval "$( cat )"
+	else
+		f_dprintf "f_script_load: Loading script \`%s'" "$script"
+		if [ ! -e "$script" ]; then
+			f_show_msg "$msg_unable_to_open" "$script"
+			return $FAILURE
+		fi
+		. "$script"
+	fi
+}
+
+############################################################ MAIN
+
+#
+# Reserved words meant for scripting
+#
+f_resword_new dumpVariables		f_dump_variables
+f_resword_new loadConfig		f_script_load
+
+f_dprintf "%s: Successfully loaded." script.subr
+
+fi # ! $_SCRIPT_SUBR

@@ -45,9 +45,11 @@ ar5416_decode_txstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes txs is smaller than PAYLOAD_LEN! */
 	memcpy(&txs, &a->payload, sizeof(struct ar5416_desc));
 
-	printf("[%u] [%llu] TXSTATUS\n",
+	printf("[%u] [%llu] TXSTATUS: TxDone=%d, TS=0x%08x\n",
 	    (unsigned int) be32toh(a->hdr.tstamp),
-	    (unsigned long long) be64toh(a->hdr.threadid));
+	    (unsigned long long) be64toh(a->hdr.threadid),
+	    MF(txs.u.tx.status[9], AR_TxDone),
+	    txs.u.tx.status[2]);
 
 	/* ds_txstatus0 */
 	printf("    RX RSSI 0 [%d %d %d]\n",
@@ -250,9 +252,11 @@ ar5416_decode_rxstatus(struct if_ath_alq_payload *a)
 	/* XXX assumes rxs is smaller than PAYLOAD_LEN! */
 	memcpy(&rxs, &a->payload, sizeof(struct ar5416_desc));
 
-	printf("[%u] [%llu] RXSTATUS\n",
+	printf("[%u] [%llu] RXSTATUS: RxDone=%d, TS=0x%08x\n",
 	    (unsigned int) be32toh(a->hdr.tstamp),
-	    (unsigned long long) be64toh(a->hdr.threadid));
+	    (unsigned long long) be64toh(a->hdr.threadid),
+	    MF(rxs.ds_rxstatus8, AR_RxDone),
+	    rxs.ds_rxstatus2);
 
 	printf("  link=0x%08x, data=0x%08x, ctl0=0x%08x, ctl2=0x%08x\n",
 	    rxs.ds_link,

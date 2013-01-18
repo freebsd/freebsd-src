@@ -26,6 +26,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130118:
+	The install(1) option -M has changed meaning and now takes an
+	argument that is a file or path to append logs to.  In the
+	unlikely event that -M was the last option on the command line
+	and the command line contained at least two files and a target
+	directory the first file will have logs appended to it.  The -M
+	option served little practical purpose in the last decade so it's
+	used expected to be extremely rare.
+
 20121223:
 	After switching to Clang as the default compiler some users of ZFS
 	on i386 systems started to experience stack overflow kernel panics.

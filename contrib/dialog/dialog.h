@@ -1,9 +1,9 @@
 /*
- *  $Id: dialog.h,v 1.245 2012/07/01 18:44:03 tom Exp $
+ *  $Id: dialog.h,v 1.231 2011/06/29 09:51:00 tom Exp $
  *
  *  dialog.h -- common declarations for all dialog modules
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -59,9 +59,11 @@
 #include <ncurses.h>
 #else
 #include <curses.h>
-#if defined(HAVE_UNCTRL_H)
-#include <unctrl.h> /* most curses.h headers include this, some do not */
 #endif
+
+/* most curses.h headers include this, some do not */
+#if defined(HAVE_UNCTRL_H)
+#include <unctrl.h>
 #endif
 
 /* Solaris xpg4 renames these */
@@ -93,10 +95,6 @@
 #else
 #undef _
 #define _(s) s
-#endif
-
-#ifndef GCC_PRINTFLIKE
-#define GCC_PRINTFLIKE(fmt,var) /*nothing*/
 #endif
 
 #ifndef GCC_NORETURN
@@ -235,11 +233,6 @@
 #define getparyx(win,y,x)	(y = (win)?(win)->_pary:ERR, x = (win)?(win)->_parx:ERR)
 #endif
 
-#if !defined(HAVE_WGETPARENT) && defined(HAVE_WINDOW__PARENT)
-#undef  wgetparent
-#define wgetparent(win)		((win) ? (win)->_parent : 0)
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -279,12 +272,6 @@ extern int dlg_getmaxy(WINDOW * /*win*/);
 #define getpary(win) dlg_getpary(win)
 extern int dlg_getparx(WINDOW * /*win*/);
 extern int dlg_getpary(WINDOW * /*win*/);
-#endif
-
-#if !(defined(HAVE_WGETPARENT) && defined(HAVE_WINDOW__PARENT))
-#undef wgetparent
-#define wgetparent(win) dlg_wgetparent(win)
-extern WINDOW * dlg_wgetparent(WINDOW * /*win*/);
 #endif
 
 /*
@@ -370,10 +357,6 @@ extern WINDOW * dlg_wgetparent(WINDOW * /*win*/);
 #define form_text_attr                DIALOG_ATR(31)
 #define form_item_readonly_attr       DIALOG_ATR(32)
 #define gauge_attr                    DIALOG_ATR(33)
-#define border2_attr                  DIALOG_ATR(34)
-#define inputbox_border2_attr         DIALOG_ATR(35)
-#define searchbox_border2_attr        DIALOG_ATR(36)
-#define menubox_border2_attr          DIALOG_ATR(37)
 
 #define DLGK_max (KEY_MAX + 256)
 
@@ -413,7 +396,6 @@ typedef struct {
     DIALOG_CALLBACK *getc_callbacks;
     DIALOG_CALLBACK *getc_redirect;
     DIALOG_WINDOWS *all_windows;
-    DIALOG_WINDOWS *all_subwindows;
     FILE *output;		/* option "--output-fd fd" */
     FILE *pipe_input;		/* used for gauge widget */
     FILE *screen_output;	/* newterm(), etc. */
@@ -503,8 +485,6 @@ typedef struct {
     char *help_file;		/* option "--hfile" */
     bool in_helpfile;		/* flag to prevent recursion in --hfile */
     bool no_nl_expand;		/* option "--no-nl-expand" */
-    /* 1.1-20120701 */
-    int default_button;		/* option "--default-button" (exit code) */
 } DIALOG_VARS;
 
 #define USE_ITEM_HELP(s)        (dialog_vars.item_help && (s) != 0)
@@ -643,7 +623,7 @@ extern void dlg_align_columns(char ** /* target */, int  /* per_row */, int /* n
 extern void dlg_free_columns(char ** /* target */, int  /* per_row */, int /* num_rows */);
 
 /* editbox.c */
-extern int dlg_editbox(const char * /*title*/, char *** /*list*/, int * /*rows*/, int /*height*/, int /*width*/);
+extern int dlg_editbox(const char */*title*/, char ***/*list*/, int */*rows*/, int /*height*/, int /*width*/);
 
 /* formbox.c */
 extern int dlg_default_formitem(DIALOG_FORMITEM * /*items*/);
@@ -665,10 +645,6 @@ extern int dlg_edit_offset(char * /*string*/, int /*offset*/, int /*x_last*/);
 extern int dlg_find_index(const int * /*list*/, int  /*limit*/, int /*to_find*/);
 extern int dlg_limit_columns(const char * /*string*/, int /*limit*/, int /*offset*/);
 extern void dlg_show_string(WINDOW * /*win*/, const char * /*string*/, int /*offset*/, chtype /*attr*/, int /*y_base*/, int /*x_base*/, int /*x_last*/, bool /*hidden*/, bool /*force*/);
-
-/* menubox.c */
-extern int dlg_dummy_menutext(DIALOG_LISTITEM * /*items*/, int /*current*/, char * /*newtext*/);
-extern int dlg_renamed_menutext(DIALOG_LISTITEM * /*items*/, int /*current*/, char * /*newtext*/);
 
 /* rc.c */
 #ifdef HAVE_RC_FILE
@@ -697,17 +673,15 @@ extern char * dlg_strempty(void);
 extern chtype dlg_asciibox(chtype /*ch*/);
 extern chtype dlg_boxchar(chtype /*ch*/);
 extern chtype dlg_get_attrs(WINDOW * /*win*/);
-extern const char * dlg_print_line(WINDOW * /*win*/, chtype * /*attr*/, const char * /*prompt*/, int /*lm*/, int /*rm*/, int * /*x*/);
+extern const char * dlg_print_line(WINDOW */*win*/, chtype */*attr*/, const char */*prompt*/, int /*lm*/, int /*rm*/, int */*x*/);
 extern int dlg_box_x_ordinate(int /*width*/);
 extern int dlg_box_y_ordinate(int /*height*/);
 extern int dlg_calc_list_width(int /*item_no*/, DIALOG_LISTITEM * /*items*/);
 extern int dlg_calc_listw(int /*item_no*/, char ** /*items*/, int /*group*/);
-extern int dlg_check_scrolled(int /* key */, int /* last */, int /* page */, bool * /* show */, int * /* offset */);
-extern int dlg_count_real_columns(const char * /*text*/);
+extern int dlg_check_scrolled(int /* key */, int /* last */, int /* page */, bool */* show */, int */* offset */);
 extern int dlg_default_item(char ** /*items*/, int /*llen*/);
 extern int dlg_default_listitem(DIALOG_LISTITEM * /*items*/);
 extern int dlg_defaultno_button(void);
-extern int dlg_default_button(void);
 extern int dlg_max_input(int /*max_len*/);
 extern int dlg_print_scrolled(WINDOW * /* win */, const char * /* prompt */, int /* offset */, int /* height */, int /* width */, int /* pauseopt */);
 extern void dlg_add_quoted(char * /*string*/);
@@ -725,9 +699,7 @@ extern void dlg_ctl_size(int /*height*/, int /*width*/);
 extern void dlg_del_window(WINDOW * /*win*/);
 extern void dlg_does_output(void);
 extern void dlg_draw_bottom_box(WINDOW * /*win*/);
-extern void dlg_draw_bottom_box2(WINDOW * /*win*/, chtype /*on_left*/, chtype /*on_right*/, chtype /*on_inside*/);
 extern void dlg_draw_box(WINDOW * /*win*/, int /*y*/, int /*x*/, int /*height*/, int /*width*/, chtype /*boxchar*/, chtype /*borderchar*/);
-extern void dlg_draw_box2(WINDOW * /*win*/, int /*y*/, int /*x*/, int /*height*/, int /*width*/, chtype /*boxchar*/, chtype /*borderchar*/, chtype /*borderchar2*/);
 extern void dlg_draw_title(WINDOW *win, const char *title);
 extern void dlg_exit(int /*code*/) GCC_NORETURN;
 extern void dlg_item_help(const char * /*txt*/);
@@ -743,7 +715,11 @@ extern void dlg_trim_string(char * /*src*/);
 extern void end_dialog(void);
 extern void init_dialog(FILE * /*input*/, FILE * /*output*/);
 
-extern void dlg_exiterr(const char *, ...) GCC_NORETURN GCC_PRINTFLIKE(1,2);
+extern void dlg_exiterr(const char *, ...) GCC_NORETURN
+#if defined(__GNUC__) && !defined(printf)
+__attribute__((format(printf,1,2)))
+#endif
+;
 
 #ifdef HAVE_COLOR
 extern chtype dlg_color_pair(int /*foreground*/, int /*background*/);
@@ -760,7 +736,11 @@ extern int dlg_strcmp(const char * /*a*/, const char * /*b*/);
 
 #ifdef HAVE_DLG_TRACE
 #define DLG_TRACE(params) dlg_trace_msg params
-extern void dlg_trace_msg(const char *fmt, ...) GCC_PRINTFLIKE(1,2);
+extern void dlg_trace_msg(const char *fmt, ...)
+#ifdef GCC_PRINTF
+    __attribute__((format(printf,1,2)))
+#endif
+;
 extern void dlg_trace_win(WINDOW * /*win*/);
 extern void dlg_trace_chr(int /*ch*/, int /*fkey*/);
 extern void dlg_trace(const char * /*fname*/);

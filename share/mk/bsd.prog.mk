@@ -46,6 +46,7 @@ PROG=	${PROG_CXX}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if target(beforelinking)
+beforelinking: ${OBJS}
 ${PROG}: beforelinking
 .endif
 ${PROG}: ${OBJS}
@@ -75,6 +76,7 @@ SRCS=	${PROG}.c
 OBJS=	${PROG}.o
 
 .if target(beforelinking)
+beforelinking: ${OBJS}
 ${PROG}: beforelinking
 .endif
 ${PROG}: ${OBJS}
@@ -93,8 +95,7 @@ ${PROG}: ${OBJS}
 .if	${MK_MAN} != "no" && !defined(MAN) && \
 	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
-	!defined(MAN7) && !defined(MAN8) && !defined(MAN9) && \
-	!defined(MAN1aout)
+	!defined(MAN7) && !defined(MAN8) && !defined(MAN9)
 MAN=	${PROG}.1
 MAN1=	${MAN}
 .endif

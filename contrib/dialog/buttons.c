@@ -1,9 +1,9 @@
 /*
- *  $Id: buttons.c,v 1.90 2012/07/01 20:42:05 tom Exp $
+ *  $Id: buttons.c,v 1.86 2011/06/28 10:46:46 tom Exp $
  *
  *  buttons.c -- draw buttons, e.g., OK/Cancel
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -104,11 +104,11 @@ print_button(WINDOW *win, char *label, int y, int x, int selected)
 			 : button_label_inactive_attr);
 
     (void) wmove(win, y, x);
-    (void) wattrset(win, selected
-		    ? button_active_attr
-		    : button_inactive_attr);
+    wattrset(win, selected
+	     ? button_active_attr
+	     : button_inactive_attr);
     (void) waddstr(win, "<");
-    (void) wattrset(win, label_attr);
+    wattrset(win, label_attr);
     for (i = 0; i < limit; ++i) {
 	int first = indx[i];
 	int last = indx[i + 1];
@@ -120,14 +120,14 @@ print_button(WINDOW *win, char *label, int y, int x, int selected)
 		const char *temp = (label + first);
 		int cmp = string_to_char(&temp);
 		if (dlg_isupper(cmp)) {
-		    (void) wattrset(win, key_attr);
+		    wattrset(win, key_attr);
 		    state = 1;
 		}
 		break;
 	    }
 #endif
 	    if (dlg_isupper(UCH(label[first]))) {
-		(void) wattrset(win, key_attr);
+		wattrset(win, key_attr);
 		state = 1;
 	    }
 	    break;
@@ -138,9 +138,9 @@ print_button(WINDOW *win, char *label, int y, int x, int selected)
 	}
 	waddnstr(win, label + first, last - first);
     }
-    (void) wattrset(win, selected
-		    ? button_active_attr
-		    : button_inactive_attr);
+    wattrset(win, selected
+	     ? button_active_attr
+	     : button_inactive_attr);
     (void) waddstr(win, ">");
     (void) wmove(win, y, x + ((int) strspn(label, " ")) + 1);
 }
@@ -310,7 +310,7 @@ dlg_draw_buttons(WINDOW *win,
     (void) wmove(win, final_y, final_x);
     wrefresh(win);
     free(buffer);
-    (void) wattrset(win, save);
+    wattrset(win, save);
 }
 
 /*
@@ -488,12 +488,10 @@ dlg_exit_buttoncode(int button)
 const char **
 dlg_ok_label(void)
 {
-    static const char *labels[4];
+    static const char *labels[3];
     int n = 0;
 
     labels[n++] = my_ok_label();
-    if (dialog_vars.extra_button)
-	labels[n++] = my_extra_label();
     if (dialog_vars.help_button)
 	labels[n++] = my_help_label();
     labels[n] = 0;
@@ -539,7 +537,6 @@ dlg_ok_buttoncode(int button)
     } else if (dialog_vars.help_button && (button == n)) {
 	result = DLG_EXIT_HELP;
     }
-    dlg_trace_msg("# dlg_ok_buttoncode(%d) = %d\n", button, result);
     return result;
 }
 
@@ -578,7 +575,7 @@ dlg_prev_ok_buttonindex(int current, int extra)
 /*
  * Find the button-index for the "OK" or "Cancel" button, according to
  * whether --defaultno is given.  If --nocancel was given, we always return
- * the index for the first button (usually "OK" unless --nook was used).
+ * the index for "OK".
  */
 int
 dlg_defaultno_button(void)
@@ -589,30 +586,6 @@ dlg_defaultno_button(void)
 	while (dlg_ok_buttoncode(result) != DLG_EXIT_CANCEL)
 	    ++result;
     }
-    dlg_trace_msg("# dlg_defaultno_button() = %d\n", result);
-    return result;
-}
-
-/*
- * Find the button-index for a button named with --default-button. If the
- * option was not specified, or if the selected button does not exist, return
- * the index of the first button (usually "OK" unless --nook was used).
- */
-int
-dlg_default_button(void)
-{
-    int i, n;
-    int result = 0;
-
-    if (dialog_vars.default_button >= 0) {
-	for (i = 0; (n = dlg_ok_buttoncode(i)) >= 0; i++) {
-	    if (n == dialog_vars.default_button) {
-		result = i;
-		break;
-	    }
-	}
-    }
-    dlg_trace_msg("# dlg_default_button() = %d\n", result);
     return result;
 }
 

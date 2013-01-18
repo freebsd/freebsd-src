@@ -123,7 +123,7 @@ main(int argc, char *argv[])
 	atd.ad_out_data = (caddr_t) eep;
 	atd.ad_out_size = sizeof(eep);
 	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+		err(1, "ioctl: %s", atd.ad_name);
 
 	/* Dump file? Then just write to it */
 	if (dumpname != NULL) {
