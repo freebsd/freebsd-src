@@ -13,29 +13,29 @@
 //===----------------------------------------------------------------------===//
 #include "asan_allocator.h"
 #include "asan_interceptors.h"
-#include "asan_interface.h"
 #include "asan_internal.h"
-#include "asan_lock.h"
 #include "asan_mapping.h"
+#include "asan_report.h"
 #include "asan_stack.h"
 #include "asan_stats.h"
 #include "asan_thread.h"
 #include "asan_thread_registry.h"
+#include "sanitizer/asan_interface.h"
 #include "sanitizer_common/sanitizer_atomic.h"
 #include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_libc.h"
+#include "sanitizer_common/sanitizer_symbolizer.h"
 
-namespace __sanitizer {
-using namespace __asan;
+namespace __asan {
 
-void Die() {
+static void AsanDie() {
   static atomic_uint32_t num_calls;
   if (atomic_fetch_add(&num_calls, 1, memory_order_relaxed) != 0) {
     // Don't die twice - run a busy loop.
     while (1) { }
   }
   if (flags()->sleep_before_dying) {
-    Report("Sleeping for %zd second(s)\n", flags()->sleep_before_dying);
+    Report("Sleeping for %d second(s)\n", flags()->sleep_before_dying);
     SleepForSeconds(flags()->sleep_before_dying);
   }
   if (flags()->unmap_shadow_on_exit)
@@ -47,24 +47,26 @@ void Die() {
   Exit(flags()->exitcode);
 }
 
-void CheckFailed(const char *file, int line, const char *cond, u64 v1, u64 v2) {
-  AsanReport("AddressSanitizer CHECK failed: %s:%d \"%s\" (0x%zx, 0x%zx)\n",
+static void AsanCheckFailed(const char *file, int line, const char *cond,
+                            u64 v1, u64 v2) {
+  Report("AddressSanitizer CHECK failed: %s:%d \"%s\" (0x%zx, 0x%zx)\n",
              file, line, cond, (uptr)v1, (uptr)v2);
+  // FIXME: check for infinite recursion without a thread-local counter here.
   PRINT_CURRENT_STACK();
-  ShowStatsAndAbort();
+  Die();
 }
 
-}  // namespace __sanitizer
-
-namespace __asan {
-
 // -------------------------- Flags ------------------------- {{{1
-static const int kMallocContextSize = 30;
+static const int kDeafultMallocContextSize = 30;
 
 static Flags asan_flags;
 
 Flags *flags() {
   return &asan_flags;
+}
+
+static const char *MaybeCallAsanDefaultOptions() {
+  return (&__asan_default_options) ? __asan_default_options() : "";
 }
 
 static void ParseFlagsFromString(Flags *f, const char *str) {
@@ -77,8 +79,9 @@ static void ParseFlagsFromString(Flags *f, const char *str) {
 
   ParseFlag(str, &f->debug, "debug");
   ParseFlag(str, &f->report_globals, "report_globals");
+  ParseFlag(str, &f->check_initialization_order, "initialization_order");
   ParseFlag(str, &f->malloc_context_size, "malloc_context_size");
-  CHECK(f->malloc_context_size <= kMallocContextSize);
+  CHECK((uptr)f->malloc_context_size <= kStackTraceMax);
 
   ParseFlag(str, &f->replace_str, "replace_str");
   ParseFlag(str, &f->replace_intrin, "replace_intrin");
@@ -96,22 +99,28 @@ static void ParseFlagsFromString(Flags *f, const char *str) {
   ParseFlag(str, &f->abort_on_error, "abort_on_error");
   ParseFlag(str, &f->atexit, "atexit");
   ParseFlag(str, &f->disable_core, "disable_core");
+  ParseFlag(str, &f->strip_path_prefix, "strip_path_prefix");
+  ParseFlag(str, &f->allow_reexec, "allow_reexec");
+  ParseFlag(str, &f->print_full_thread_history, "print_full_thread_history");
+  ParseFlag(str, &f->log_path, "log_path");
+  ParseFlag(str, &f->fast_unwind_on_fatal, "fast_unwind_on_fatal");
+  ParseFlag(str, &f->fast_unwind_on_malloc, "fast_unwind_on_malloc");
+  ParseFlag(str, &f->poison_heap, "poison_heap");
+  ParseFlag(str, &f->alloc_dealloc_mismatch, "alloc_dealloc_mismatch");
+  ParseFlag(str, &f->use_stack_depot, "use_stack_depot");
 }
-
-extern "C" {
-const char* WEAK __asan_default_options() { return ""; }
-}  // extern "C"
 
 void InitializeFlags(Flags *f, const char *env) {
   internal_memset(f, 0, sizeof(*f));
 
-  f->quarantine_size = (ASAN_LOW_MEMORY) ? 1UL << 24 : 1UL << 28;
+  f->quarantine_size = (ASAN_LOW_MEMORY) ? 1UL << 26 : 1UL << 28;
   f->symbolize = false;
   f->verbosity = 0;
-  f->redzone = (ASAN_LOW_MEMORY) ? 64 : 128;
+  f->redzone = ASAN_ALLOCATOR_VERSION == 2 ? 16 : (ASAN_LOW_MEMORY) ? 64 : 128;
   f->debug = false;
   f->report_globals = 1;
-  f->malloc_context_size = kMallocContextSize;
+  f->check_initialization_order = true;
+  f->malloc_context_size = kDeafultMallocContextSize;
   f->replace_str = true;
   f->replace_intrin = true;
   f->replace_cfallocator = true;
@@ -127,13 +136,24 @@ void InitializeFlags(Flags *f, const char *env) {
   f->unmap_shadow_on_exit = false;
   f->abort_on_error = false;
   f->atexit = false;
-  f->disable_core = (__WORDSIZE == 64);
+  f->disable_core = (SANITIZER_WORDSIZE == 64);
+  f->strip_path_prefix = "";
+  f->allow_reexec = true;
+  f->print_full_thread_history = true;
+  f->log_path = 0;
+  f->fast_unwind_on_fatal = false;
+  f->fast_unwind_on_malloc = true;
+  f->poison_heap = true;
+  // Turn off alloc/dealloc mismatch checker on Mac for now.
+  // TODO(glider): Fix known issues and enable this back.
+  f->alloc_dealloc_mismatch = (ASAN_MAC == 0);
+  f->use_stack_depot = true;  // Only affects allocator2.
 
   // Override from user-specified string.
-  ParseFlagsFromString(f, __asan_default_options());
+  ParseFlagsFromString(f, MaybeCallAsanDefaultOptions());
   if (flags()->verbosity) {
     Report("Using the defaults from __asan_default_options: %s\n",
-           __asan_default_options());
+           MaybeCallAsanDefaultOptions());
   }
 
   // Override from command line.
@@ -144,10 +164,6 @@ void InitializeFlags(Flags *f, const char *env) {
 int asan_inited;
 bool asan_init_is_running;
 void (*death_callback)(void);
-static void (*error_report_callback)(const char*);
-char *error_message_buffer = 0;
-uptr error_message_buffer_pos = 0;
-uptr error_message_buffer_size = 0;
 
 // -------------------------- Misc ---------------- {{{1
 void ShowStatsAndAbort() {
@@ -155,146 +171,23 @@ void ShowStatsAndAbort() {
   Die();
 }
 
-static void PrintBytes(const char *before, uptr *a) {
-  u8 *bytes = (u8*)a;
-  uptr byte_num = (__WORDSIZE) / 8;
-  AsanPrintf("%s%p:", before, (void*)a);
-  for (uptr i = 0; i < byte_num; i++) {
-    AsanPrintf(" %x%x", bytes[i] >> 4, bytes[i] & 15);
-  }
-  AsanPrintf("\n");
-}
-
-void AppendToErrorMessageBuffer(const char *buffer) {
-  if (error_message_buffer) {
-    uptr length = internal_strlen(buffer);
-    CHECK_GE(error_message_buffer_size, error_message_buffer_pos);
-    uptr remaining = error_message_buffer_size - error_message_buffer_pos;
-    internal_strncpy(error_message_buffer + error_message_buffer_pos,
-                     buffer, remaining);
-    error_message_buffer[error_message_buffer_size - 1] = '\0';
-    // FIXME: reallocate the buffer instead of truncating the message.
-    error_message_buffer_pos += remaining > length ? length : remaining;
-  }
-}
-
 // ---------------------- mmap -------------------- {{{1
 // Reserve memory range [beg, end].
 static void ReserveShadowMemoryRange(uptr beg, uptr end) {
-  CHECK((beg % kPageSize) == 0);
-  CHECK(((end + 1) % kPageSize) == 0);
+  CHECK((beg % GetPageSizeCached()) == 0);
+  CHECK(((end + 1) % GetPageSizeCached()) == 0);
   uptr size = end - beg + 1;
   void *res = MmapFixedNoReserve(beg, size);
-  CHECK(res == (void*)beg && "ReserveShadowMemoryRange failed");
+  if (res != (void*)beg) {
+    Report("ReserveShadowMemoryRange failed while trying to map 0x%zx bytes. "
+           "Perhaps you're using ulimit -v\n", size);
+    Abort();
+  }
 }
 
-// ---------------------- LowLevelAllocator ------------- {{{1
-void *LowLevelAllocator::Allocate(uptr size) {
-  CHECK((size & (size - 1)) == 0 && "size must be a power of two");
-  if (allocated_end_ - allocated_current_ < (sptr)size) {
-    uptr size_to_allocate = Max(size, kPageSize);
-    allocated_current_ =
-        (char*)MmapOrDie(size_to_allocate, __FUNCTION__);
-    allocated_end_ = allocated_current_ + size_to_allocate;
-    PoisonShadow((uptr)allocated_current_, size_to_allocate,
-                 kAsanInternalHeapMagic);
-  }
-  CHECK(allocated_end_ - allocated_current_ >= (sptr)size);
-  void *res = allocated_current_;
-  allocated_current_ += size;
-  return res;
-}
-
-// ---------------------- DescribeAddress -------------------- {{{1
-static bool DescribeStackAddress(uptr addr, uptr access_size) {
-  AsanThread *t = asanThreadRegistry().FindThreadByStackAddress(addr);
-  if (!t) return false;
-  const sptr kBufSize = 4095;
-  char buf[kBufSize];
-  uptr offset = 0;
-  const char *frame_descr = t->GetFrameNameByAddr(addr, &offset);
-  // This string is created by the compiler and has the following form:
-  // "FunctioName n alloc_1 alloc_2 ... alloc_n"
-  // where alloc_i looks like "offset size len ObjectName ".
-  CHECK(frame_descr);
-  // Report the function name and the offset.
-  const char *name_end = internal_strchr(frame_descr, ' ');
-  CHECK(name_end);
-  buf[0] = 0;
-  internal_strncat(buf, frame_descr,
-                   Min(kBufSize,
-                       static_cast<sptr>(name_end - frame_descr)));
-  AsanPrintf("Address %p is located at offset %zu "
-             "in frame <%s> of T%d's stack:\n",
-             (void*)addr, offset, buf, t->tid());
-  // Report the number of stack objects.
-  char *p;
-  uptr n_objects = internal_simple_strtoll(name_end, &p, 10);
-  CHECK(n_objects > 0);
-  AsanPrintf("  This frame has %zu object(s):\n", n_objects);
-  // Report all objects in this frame.
-  for (uptr i = 0; i < n_objects; i++) {
-    uptr beg, size;
-    sptr len;
-    beg  = internal_simple_strtoll(p, &p, 10);
-    size = internal_simple_strtoll(p, &p, 10);
-    len  = internal_simple_strtoll(p, &p, 10);
-    if (beg <= 0 || size <= 0 || len < 0 || *p != ' ') {
-      AsanPrintf("AddressSanitizer can't parse the stack frame "
-                 "descriptor: |%s|\n", frame_descr);
-      break;
-    }
-    p++;
-    buf[0] = 0;
-    internal_strncat(buf, p, Min(kBufSize, len));
-    p += len;
-    AsanPrintf("    [%zu, %zu) '%s'\n", beg, beg + size, buf);
-  }
-  AsanPrintf("HINT: this may be a false positive if your program uses "
-             "some custom stack unwind mechanism\n"
-             "      (longjmp and C++ exceptions *are* supported)\n");
-  t->summary()->Announce();
-  return true;
-}
-
-static bool DescribeAddrIfShadow(uptr addr) {
-  if (AddrIsInMem(addr))
-    return false;
-  static const char kAddrInShadowReport[] =
-      "Address %p is located in the %s.\n";
-  if (AddrIsInShadowGap(addr)) {
-    AsanPrintf(kAddrInShadowReport, addr, "shadow gap area");
-    return true;
-  }
-  if (AddrIsInHighShadow(addr)) {
-    AsanPrintf(kAddrInShadowReport, addr, "high shadow area");
-    return true;
-  }
-  if (AddrIsInLowShadow(addr)) {
-    AsanPrintf(kAddrInShadowReport, addr, "low shadow area");
-    return true;
-  }
-
-  CHECK(0);  // Unreachable.
-  return false;
-}
-
-static NOINLINE void DescribeAddress(uptr addr, uptr access_size) {
-  // Check if this is shadow or shadow gap.
-  if (DescribeAddrIfShadow(addr))
-    return;
-
-  CHECK(AddrIsInMem(addr));
-
-  // Check if this is a global.
-  if (DescribeAddrIfGlobal(addr))
-    return;
-
-  if (DescribeStackAddress(addr, access_size))
-    return;
-
-  // finally, check if this is a heap.
-  DescribeHeapAddress(addr, access_size);
+// --------------- LowLevelAllocateCallbac ---------- {{{1
+static void OnLowLevelAllocate(uptr ptr, uptr size) {
+  PoisonShadow(ptr, size, kAsanInternalHeapMagic);
 }
 
 // -------------------------- Run-time entry ------------------- {{{1
@@ -325,29 +218,48 @@ ASAN_REPORT_ERROR(store, true, 16)
 // time.
 static NOINLINE void force_interface_symbols() {
   volatile int fake_condition = 0;  // prevent dead condition elimination.
-  if (fake_condition) {
-    __asan_report_load1(0);
-    __asan_report_load2(0);
-    __asan_report_load4(0);
-    __asan_report_load8(0);
-    __asan_report_load16(0);
-    __asan_report_store1(0);
-    __asan_report_store2(0);
-    __asan_report_store4(0);
-    __asan_report_store8(0);
-    __asan_report_store16(0);
-    __asan_register_global(0, 0, 0);
-    __asan_register_globals(0, 0);
-    __asan_unregister_globals(0, 0);
-    __asan_set_death_callback(0);
-    __asan_set_error_report_callback(0);
-    __asan_handle_no_return();
+  // __asan_report_* functions are noreturn, so we need a switch to prevent
+  // the compiler from removing any of them.
+  switch (fake_condition) {
+    case 1: __asan_report_load1(0); break;
+    case 2: __asan_report_load2(0); break;
+    case 3: __asan_report_load4(0); break;
+    case 4: __asan_report_load8(0); break;
+    case 5: __asan_report_load16(0); break;
+    case 6: __asan_report_store1(0); break;
+    case 7: __asan_report_store2(0); break;
+    case 8: __asan_report_store4(0); break;
+    case 9: __asan_report_store8(0); break;
+    case 10: __asan_report_store16(0); break;
+    case 12: __asan_register_globals(0, 0); break;
+    case 13: __asan_unregister_globals(0, 0); break;
+    case 14: __asan_set_death_callback(0); break;
+    case 15: __asan_set_error_report_callback(0); break;
+    case 16: __asan_handle_no_return(); break;
+    case 17: __asan_address_is_poisoned(0); break;
+    case 18: __asan_get_allocated_size(0); break;
+    case 19: __asan_get_current_allocated_bytes(); break;
+    case 20: __asan_get_estimated_allocated_size(0); break;
+    case 21: __asan_get_free_bytes(); break;
+    case 22: __asan_get_heap_size(); break;
+    case 23: __asan_get_ownership(0); break;
+    case 24: __asan_get_unmapped_bytes(); break;
+    case 25: __asan_poison_memory_region(0, 0); break;
+    case 26: __asan_unpoison_memory_region(0, 0); break;
+    case 27: __asan_set_error_exit_code(0); break;
+    case 28: __asan_stack_free(0, 0, 0); break;
+    case 29: __asan_stack_malloc(0, 0); break;
+    case 30: __asan_before_dynamic_init(0, 0); break;
+    case 31: __asan_after_dynamic_init(); break;
+    case 32: __asan_poison_stack_memory(0, 0); break;
+    case 33: __asan_unpoison_stack_memory(0, 0); break;
+    case 34: __asan_region_is_poisoned(0, 0); break;
+    case 35: __asan_describe_address(0); break;
   }
 }
 
-// -------------------------- Init ------------------- {{{1
 static void asan_atexit() {
-  AsanPrintf("AddressSanitizer exit stats:\n");
+  Printf("AddressSanitizer exit stats:\n");
   __asan_print_accumulated_stats();
 }
 
@@ -356,7 +268,14 @@ static void asan_atexit() {
 // ---------------------- Interface ---------------- {{{1
 using namespace __asan;  // NOLINT
 
-int __asan_set_error_exit_code(int exit_code) {
+#if !SANITIZER_SUPPORTS_WEAK_HOOKS
+extern "C" {
+SANITIZER_WEAK_ATTRIBUTE SANITIZER_INTERFACE_ATTRIBUTE
+const char* __asan_default_options() { return ""; }
+}  // extern "C"
+#endif
+
+int NOINLINE __asan_set_error_exit_code(int exit_code) {
   int old = flags()->exitcode;
   flags()->exitcode = exit_code;
   return old;
@@ -366,8 +285,9 @@ void NOINLINE __asan_handle_no_return() {
   int local_stack;
   AsanThread *curr_thread = asanThreadRegistry().GetCurrent();
   CHECK(curr_thread);
+  uptr PageSize = GetPageSizeCached();
   uptr top = curr_thread->stack_top();
-  uptr bottom = ((uptr)&local_stack - kPageSize) & ~(kPageSize-1);
+  uptr bottom = ((uptr)&local_stack - PageSize) & ~(PageSize-1);
   PoisonShadow(bottom, top - bottom, 0);
 }
 
@@ -375,133 +295,34 @@ void NOINLINE __asan_set_death_callback(void (*callback)(void)) {
   death_callback = callback;
 }
 
-void NOINLINE __asan_set_error_report_callback(void (*callback)(const char*)) {
-  error_report_callback = callback;
-  if (callback) {
-    error_message_buffer_size = 1 << 16;
-    error_message_buffer =
-        (char*)MmapOrDie(error_message_buffer_size, __FUNCTION__);
-    error_message_buffer_pos = 0;
-  }
-}
-
-void __asan_report_error(uptr pc, uptr bp, uptr sp,
-                         uptr addr, bool is_write, uptr access_size) {
-  static atomic_uint32_t num_calls;
-  if (atomic_fetch_add(&num_calls, 1, memory_order_relaxed) != 0) {
-    // Do not print more than one report, otherwise they will mix up.
-    // We can not return here because the function is marked as never-return.
-    AsanPrintf("AddressSanitizer: while reporting a bug found another one."
-               "Ignoring.\n");
-    SleepForSeconds(5);
-    Die();
-  }
-
-  AsanPrintf("===================================================="
-             "=============\n");
-  const char *bug_descr = "unknown-crash";
-  if (AddrIsInMem(addr)) {
-    u8 *shadow_addr = (u8*)MemToShadow(addr);
-    // If we are accessing 16 bytes, look at the second shadow byte.
-    if (*shadow_addr == 0 && access_size > SHADOW_GRANULARITY)
-      shadow_addr++;
-    // If we are in the partial right redzone, look at the next shadow byte.
-    if (*shadow_addr > 0 && *shadow_addr < 128)
-      shadow_addr++;
-    switch (*shadow_addr) {
-      case kAsanHeapLeftRedzoneMagic:
-      case kAsanHeapRightRedzoneMagic:
-        bug_descr = "heap-buffer-overflow";
-        break;
-      case kAsanHeapFreeMagic:
-        bug_descr = "heap-use-after-free";
-        break;
-      case kAsanStackLeftRedzoneMagic:
-        bug_descr = "stack-buffer-underflow";
-        break;
-      case kAsanStackMidRedzoneMagic:
-      case kAsanStackRightRedzoneMagic:
-      case kAsanStackPartialRedzoneMagic:
-        bug_descr = "stack-buffer-overflow";
-        break;
-      case kAsanStackAfterReturnMagic:
-        bug_descr = "stack-use-after-return";
-        break;
-      case kAsanUserPoisonedMemoryMagic:
-        bug_descr = "use-after-poison";
-        break;
-      case kAsanGlobalRedzoneMagic:
-        bug_descr = "global-buffer-overflow";
-        break;
-    }
-  }
-
-  AsanThread *curr_thread = asanThreadRegistry().GetCurrent();
-  u32 curr_tid = asanThreadRegistry().GetCurrentTidOrInvalid();
-
-  if (curr_thread) {
-    // We started reporting an error message. Stop using the fake stack
-    // in case we will call an instrumented function from a symbolizer.
-    curr_thread->fake_stack().StopUsingFakeStack();
-  }
-
-  AsanReport("ERROR: AddressSanitizer %s on address "
-             "%p at pc 0x%zx bp 0x%zx sp 0x%zx\n",
-             bug_descr, (void*)addr, pc, bp, sp);
-
-  AsanPrintf("%s of size %zu at %p thread T%d\n",
-             access_size ? (is_write ? "WRITE" : "READ") : "ACCESS",
-             access_size, (void*)addr, curr_tid);
-
-  if (flags()->debug) {
-    PrintBytes("PC: ", (uptr*)pc);
-  }
-
-  GET_STACK_TRACE_WITH_PC_AND_BP(kStackTraceMax, pc, bp);
-  stack.PrintStack();
-
-  DescribeAddress(addr, access_size);
-
-  if (AddrIsInMem(addr)) {
-    uptr shadow_addr = MemToShadow(addr);
-    AsanReport("ABORTING\n");
-    __asan_print_accumulated_stats();
-    AsanPrintf("Shadow byte and word:\n");
-    AsanPrintf("  %p: %x\n", (void*)shadow_addr, *(unsigned char*)shadow_addr);
-    uptr aligned_shadow = shadow_addr & ~(kWordSize - 1);
-    PrintBytes("  ", (uptr*)(aligned_shadow));
-    AsanPrintf("More shadow bytes:\n");
-    PrintBytes("  ", (uptr*)(aligned_shadow-4*kWordSize));
-    PrintBytes("  ", (uptr*)(aligned_shadow-3*kWordSize));
-    PrintBytes("  ", (uptr*)(aligned_shadow-2*kWordSize));
-    PrintBytes("  ", (uptr*)(aligned_shadow-1*kWordSize));
-    PrintBytes("=>", (uptr*)(aligned_shadow+0*kWordSize));
-    PrintBytes("  ", (uptr*)(aligned_shadow+1*kWordSize));
-    PrintBytes("  ", (uptr*)(aligned_shadow+2*kWordSize));
-    PrintBytes("  ", (uptr*)(aligned_shadow+3*kWordSize));
-    PrintBytes("  ", (uptr*)(aligned_shadow+4*kWordSize));
-  }
-  if (error_report_callback) {
-    error_report_callback(error_message_buffer);
-  }
-  Die();
-}
-
-
 void __asan_init() {
   if (asan_inited) return;
+  CHECK(!asan_init_is_running && "ASan init calls itself!");
   asan_init_is_running = true;
 
   // Make sure we are not statically linked.
   AsanDoesNotSupportStaticLinkage();
 
-  // Initialize flags.
+  // Install tool-specific callbacks in sanitizer_common.
+  SetDieCallback(AsanDie);
+  SetCheckFailedCallback(AsanCheckFailed);
+  SetPrintfAndReportCallback(AppendToErrorMessageBuffer);
+
+  // Initialize flags. This must be done early, because most of the
+  // initialization steps look at flags().
   const char *options = GetEnv("ASAN_OPTIONS");
   InitializeFlags(flags(), options);
+  __sanitizer_set_report_path(flags()->log_path);
 
   if (flags()->verbosity && options) {
     Report("Parsed ASAN_OPTIONS: %s\n", options);
   }
+
+  // Re-exec ourselves if we need to set additional env or command line args.
+  MaybeReexec();
+
+  // Setup internal allocator callback.
+  SetLowLevelAllocateCallback(OnLowLevelAllocate);
 
   if (flags()->atexit) {
     Atexit(asan_atexit);
@@ -543,12 +364,13 @@ void __asan_init() {
   }
 
   uptr shadow_start = kLowShadowBeg;
-  if (kLowShadowBeg > 0) shadow_start -= kMmapGranularity;
+  if (kLowShadowBeg > 0) shadow_start -= GetMmapGranularity();
   uptr shadow_end = kHighShadowEnd;
   if (MemoryRangeIsAvailable(shadow_start, shadow_end)) {
     if (kLowShadowBeg != kLowShadowEnd) {
       // mmap the low shadow plus at least one page.
-      ReserveShadowMemoryRange(kLowShadowBeg - kMmapGranularity, kLowShadowEnd);
+      ReserveShadowMemoryRange(kLowShadowBeg - GetMmapGranularity(),
+                               kLowShadowEnd);
     }
     // mmap the high shadow.
     ReserveShadowMemoryRange(kHighShadowBeg, kHighShadowEnd);
@@ -563,6 +385,13 @@ void __asan_init() {
   }
 
   InstallSignalHandlers();
+  // Start symbolizer process if necessary.
+  if (flags()->symbolize) {
+    const char *external_symbolizer = GetEnv("ASAN_SYMBOLIZER_PATH");
+    if (external_symbolizer) {
+      InitializeExternalSymbolizer(external_symbolizer);
+    }
+  }
 
   // On Linux AsanThread::ThreadStart() calls malloc() that's why asan_inited
   // should be set to 1 prior to initializing the threads.

@@ -17,13 +17,14 @@
 
 namespace __tsan {
 
-// Descriptor of user's memory block.
-struct MBlock {
-  uptr size;
-};
+const uptr kDefaultAlignment = 16;
+
+void InitializeAllocator();
+void AlloctorThreadFinish(ThreadState *thr);
 
 // For user allocations.
-void *user_alloc(ThreadState *thr, uptr pc, uptr sz);
+void *user_alloc(ThreadState *thr, uptr pc, uptr sz,
+                 uptr align = kDefaultAlignment);
 // Does not accept NULL.
 void user_free(ThreadState *thr, uptr pc, void *p);
 void *user_realloc(ThreadState *thr, uptr pc, void *p, uptr sz);
@@ -31,6 +32,10 @@ void *user_alloc_aligned(ThreadState *thr, uptr pc, uptr sz, uptr align);
 // Given the pointer p into a valid allocated block,
 // returns the descriptor of the block.
 MBlock *user_mblock(ThreadState *thr, void *p);
+
+// Invoking malloc/free hooks that may be installed by the user.
+void invoke_malloc_hook(void *ptr, uptr size);
+void invoke_free_hook(void *ptr);
 
 enum MBlockType {
   MBlockScopedBuf,
@@ -54,9 +59,10 @@ enum MBlockType {
   MBlockSuppression,
   MBlockExpectRace,
   MBlockSignal,
+  MBlockFD,
 
   // This must be the last.
-  MBlockTypeCount,
+  MBlockTypeCount
 };
 
 // For internal data structures.
@@ -69,46 +75,6 @@ void DestroyAndFree(T *&p) {
   internal_free(p);
   p = 0;
 }
-
-template<typename T>
-class InternalScopedBuf {
- public:
-  explicit InternalScopedBuf(uptr cnt) {
-    cnt_ = cnt;
-    ptr_ = (T*)internal_alloc(MBlockScopedBuf, cnt * sizeof(T));
-  }
-
-  ~InternalScopedBuf() {
-    internal_free(ptr_);
-  }
-
-  operator T *() {
-    return ptr_;
-  }
-
-  T &operator[](uptr i) {
-    return ptr_[i];
-  }
-
-  T *Ptr() {
-    return ptr_;
-  }
-
-  uptr Count() {
-    return cnt_;
-  }
-
-  uptr Size() {
-    return cnt_ * sizeof(T);
-  }
-
- private:
-  T *ptr_;
-  uptr cnt_;
-
-  InternalScopedBuf(const InternalScopedBuf&);
-  void operator = (const InternalScopedBuf&);
-};
 
 }  // namespace __tsan
 #endif  // TSAN_MMAN_H

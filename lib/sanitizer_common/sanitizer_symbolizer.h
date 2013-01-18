@@ -44,6 +44,22 @@ struct AddressInfo {
   }
   // Deletes all strings and sets all fields to zero.
   void Clear();
+
+  void FillAddressAndModuleInfo(uptr addr, const char *mod_name,
+                                uptr mod_offset) {
+    address = addr;
+    module = internal_strdup(mod_name);
+    module_offset = mod_offset;
+  }
+};
+
+struct DataInfo {
+  uptr address;
+  char *module;
+  uptr module_offset;
+  char *name;
+  uptr start;
+  uptr size;
 };
 
 // Fills at most "max_frames" elements of "frames" with descriptions
@@ -51,49 +67,45 @@ struct AddressInfo {
 // of descriptions actually filled.
 // This function should NOT be called from two threads simultaneously.
 uptr SymbolizeCode(uptr address, AddressInfo *frames, uptr max_frames);
+bool SymbolizeData(uptr address, DataInfo *info);
 
-// Debug info routines
-struct DWARFSection {
-  const char *data;
-  uptr size;
-  DWARFSection() {
-    data = 0;
-    size = 0;
-  }
-};
-// Returns true on success.
-bool FindDWARFSection(uptr object_file_addr, const char *section_name,
-                      DWARFSection *section);
-bool IsFullNameOfDWARFSection(const char *full_name, const char *short_name);
+// Attempts to demangle the provided C++ mangled name.
+const char *Demangle(const char *Name);
 
-class ModuleDIContext {
+// Starts external symbolizer program in a subprocess. Sanitizer communicates
+// with external symbolizer via pipes.
+bool InitializeExternalSymbolizer(const char *path_to_symbolizer);
+
+class LoadedModule {
  public:
-  ModuleDIContext(const char *module_name, uptr base_address);
+  LoadedModule(const char *module_name, uptr base_address);
   void addAddressRange(uptr beg, uptr end);
   bool containsAddress(uptr address) const;
-  void getAddressInfo(AddressInfo *info);
 
   const char *full_name() const { return full_name_; }
+  uptr base_address() const { return base_address_; }
 
  private:
-  void CreateDIContext();
-
   struct AddressRange {
     uptr beg;
     uptr end;
   };
   char *full_name_;
-  char *short_name_;
   uptr base_address_;
-  static const uptr kMaxNumberOfAddressRanges = 8;
+  static const uptr kMaxNumberOfAddressRanges = 6;
   AddressRange ranges_[kMaxNumberOfAddressRanges];
   uptr n_ranges_;
-  uptr mapped_addr_;
-  uptr mapped_size_;
 };
 
-// OS-dependent function that gets the linked list of all loaded modules.
-uptr GetListOfModules(ModuleDIContext *modules, uptr max_modules);
+// Creates external symbolizer connected via pipe, user should write
+// to output_fd and read from input_fd.
+bool StartSymbolizerSubprocess(const char *path_to_symbolizer,
+                               int *input_fd, int *output_fd);
+
+// OS-dependent function that fills array with descriptions of at most
+// "max_modules" currently loaded modules. Returns the number of
+// initialized modules.
+uptr GetListOfModules(LoadedModule *modules, uptr max_modules);
 
 }  // namespace __sanitizer
 

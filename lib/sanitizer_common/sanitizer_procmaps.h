@@ -15,12 +15,32 @@
 #define SANITIZER_PROCMAPS_H
 
 #include "sanitizer_internal_defs.h"
+#include "sanitizer_mutex.h"
 
 namespace __sanitizer {
 
-class ProcessMaps {
+#ifdef _WIN32
+class MemoryMappingLayout {
  public:
-  ProcessMaps();
+  MemoryMappingLayout() {}
+  bool GetObjectNameAndOffset(uptr addr, uptr *offset,
+                              char filename[], uptr filename_size) {
+    UNIMPLEMENTED();
+  }
+};
+
+#else  // _WIN32
+#if defined(__linux__)
+struct ProcSelfMapsBuff {
+  char *data;
+  uptr mmaped_size;
+  uptr len;
+};
+#endif  // defined(__linux__)
+
+class MemoryMappingLayout {
+ public:
+  MemoryMappingLayout();
   bool Next(uptr *start, uptr *end, uptr *offset,
             char filename[], uptr filename_size);
   void Reset();
@@ -28,9 +48,14 @@ class ProcessMaps {
   // address 'addr'. Returns true on success.
   bool GetObjectNameAndOffset(uptr addr, uptr *offset,
                               char filename[], uptr filename_size);
-  ~ProcessMaps();
+  // In some cases, e.g. when running under a sandbox on Linux, ASan is unable
+  // to obtain the memory mappings. It should fall back to pre-cached data
+  // instead of aborting.
+  static void CacheMemoryMappings();
+  ~MemoryMappingLayout();
 
  private:
+  void LoadFromCache();
   // Default implementation of GetObjectNameAndOffset.
   // Quite slow, because it iterates through the whole process map for each
   // lookup.
@@ -61,21 +86,26 @@ class ProcessMaps {
     return false;
   }
 
-#if defined __linux__
-  char *proc_self_maps_buff_;
-  uptr proc_self_maps_buff_mmaped_size_;
-  uptr proc_self_maps_buff_len_;
+# if defined __linux__
+  ProcSelfMapsBuff proc_self_maps_;
   char *current_;
-#elif defined __APPLE__
+
+  // Static mappings cache.
+  static ProcSelfMapsBuff cached_proc_self_maps_;
+  static StaticSpinMutex cache_lock_;  // protects cached_proc_self_maps_.
+# elif defined __APPLE__
   template<u32 kLCSegment, typename SegmentCommand>
   bool NextSegmentLoad(uptr *start, uptr *end, uptr *offset,
                        char filename[], uptr filename_size);
   int current_image_;
   u32 current_magic_;
+  u32 current_filetype_;
   int current_load_cmd_count_;
   char *current_load_cmd_addr_;
-#endif
+# endif
 };
+
+#endif  // _WIN32
 
 }  // namespace __sanitizer
 

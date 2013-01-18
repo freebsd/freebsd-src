@@ -17,10 +17,12 @@
 #include "sanitizer_libc.h"
 #include "sanitizer_procmaps.h"
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -30,6 +32,13 @@
 namespace __sanitizer {
 
 // ------------- sanitizer_common.h
+uptr GetPageSize() {
+  return sysconf(_SC_PAGESIZE);
+}
+
+uptr GetMmapGranularity() {
+  return GetPageSize();
+}
 
 int GetPid() {
   return getpid();
@@ -40,13 +49,22 @@ uptr GetThreadSelf() {
 }
 
 void *MmapOrDie(uptr size, const char *mem_type) {
-  size = RoundUpTo(size, kPageSize);
+  size = RoundUpTo(size, GetPageSizeCached());
   void *res = internal_mmap(0, size,
                             PROT_READ | PROT_WRITE,
                             MAP_PRIVATE | MAP_ANON, -1, 0);
   if (res == (void*)-1) {
-    Report("ERROR: Failed to allocate 0x%zx (%zd) bytes of %s\n",
-           size, size, mem_type);
+    static int recursion_count;
+    if (recursion_count) {
+      // The Report() and CHECK calls below may call mmap recursively and fail.
+      // If we went into recursion, just die.
+      RawWrite("AddressSanitizer is unable to mmap\n");
+      Die();
+    }
+    recursion_count++;
+    Report("ERROR: Failed to allocate 0x%zx (%zd) bytes of %s: %s\n",
+           size, size, mem_type, strerror(errno));
+    DumpProcessMap();
     CHECK("unable to mmap" && 0);
   }
   return res;
@@ -63,10 +81,31 @@ void UnmapOrDie(void *addr, uptr size) {
 }
 
 void *MmapFixedNoReserve(uptr fixed_addr, uptr size) {
-  return internal_mmap((void*)fixed_addr, size,
-                      PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANON | MAP_FIXED | MAP_NORESERVE,
-                      -1, 0);
+  uptr PageSize = GetPageSizeCached();
+  void *p = internal_mmap((void*)(fixed_addr & ~(PageSize - 1)),
+      RoundUpTo(size, PageSize),
+      PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANON | MAP_FIXED | MAP_NORESERVE,
+      -1, 0);
+  if (p == (void*)-1)
+    Report("ERROR: Failed to allocate 0x%zx (%zd) bytes at address %p (%d)\n",
+           size, size, fixed_addr, errno);
+  return p;
+}
+
+void *MmapFixedOrDie(uptr fixed_addr, uptr size) {
+  uptr PageSize = GetPageSizeCached();
+  void *p = internal_mmap((void*)(fixed_addr & ~(PageSize - 1)),
+      RoundUpTo(size, PageSize),
+      PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANON | MAP_FIXED,
+      -1, 0);
+  if (p == (void*)-1) {
+    Report("ERROR: Failed to allocate 0x%zx (%zd) bytes at address %p (%d)\n",
+           size, size, fixed_addr, errno);
+    CHECK("unable to mmap" && 0);
+  }
+  return p;
 }
 
 void *Mprotect(uptr fixed_addr, uptr size) {
@@ -76,13 +115,17 @@ void *Mprotect(uptr fixed_addr, uptr size) {
                        -1, 0);
 }
 
+void FlushUnneededShadowMemory(uptr addr, uptr size) {
+  madvise((void*)addr, size, MADV_DONTNEED);
+}
+
 void *MapFileToMemory(const char *file_name, uptr *buff_size) {
   fd_t fd = internal_open(file_name, false);
   CHECK_NE(fd, kInvalidFd);
   uptr fsize = internal_filesize(fd);
   CHECK_NE(fsize, (uptr)-1);
   CHECK_GT(fsize, 0);
-  *buff_size = RoundUpTo(fsize, kPageSize);
+  *buff_size = RoundUpTo(fsize, GetPageSizeCached());
   void *map = internal_mmap(0, *buff_size, PROT_READ, MAP_PRIVATE, fd, 0);
   return (map == MAP_FAILED) ? 0 : map;
 }
@@ -100,7 +143,7 @@ static inline bool IntervalsAreSeparate(uptr start1, uptr end1,
 // several worker threads on Mac, which aren't expected to map big chunks of
 // memory).
 bool MemoryRangeIsAvailable(uptr range_start, uptr range_end) {
-  ProcessMaps procmaps;
+  MemoryMappingLayout procmaps;
   uptr start, end;
   while (procmaps.Next(&start, &end,
                        /*offset*/0, /*filename*/0, /*filename_size*/0)) {
@@ -111,7 +154,7 @@ bool MemoryRangeIsAvailable(uptr range_start, uptr range_end) {
 }
 
 void DumpProcessMap() {
-  ProcessMaps proc_maps;
+  MemoryMappingLayout proc_maps;
   uptr start, end;
   const sptr kBufSize = 4095;
   char *filename = (char*)MmapOrDie(kBufSize, __FUNCTION__);
@@ -133,6 +176,23 @@ void DisableCoreDumper() {
   nocore.rlim_cur = 0;
   nocore.rlim_max = 0;
   setrlimit(RLIMIT_CORE, &nocore);
+}
+
+bool StackSizeIsUnlimited() {
+  struct rlimit rlim;
+  CHECK_EQ(0, getrlimit(RLIMIT_STACK, &rlim));
+  return (rlim.rlim_cur == (uptr)-1);
+}
+
+void SetStackSizeLimitInBytes(uptr limit) {
+  struct rlimit rlim;
+  rlim.rlim_cur = limit;
+  rlim.rlim_max = limit;
+  if (setrlimit(RLIMIT_STACK, &rlim)) {
+    Report("setrlimit() failed %d\n", errno);
+    Die();
+  }
+  CHECK(!StackSizeIsUnlimited());
 }
 
 void SleepForSeconds(int seconds) {
@@ -157,6 +217,10 @@ int Atexit(void (*function)(void)) {
 #else
   return 0;
 #endif
+}
+
+int internal_isatty(fd_t fd) {
+  return isatty(fd);
 }
 
 }  // namespace __sanitizer

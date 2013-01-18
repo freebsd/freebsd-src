@@ -16,18 +16,90 @@
 
 namespace __sanitizer {
 
+uptr GetPageSizeCached() {
+  static uptr PageSize;
+  if (!PageSize)
+    PageSize = GetPageSize();
+  return PageSize;
+}
+
+static bool log_to_file = false;  // Set to true by __sanitizer_set_report_path
+
+// By default, dump to stderr. If |log_to_file| is true and |report_fd_pid|
+// isn't equal to the current PID, try to obtain file descriptor by opening
+// file "report_path_prefix.<PID>".
+static fd_t report_fd = kStderrFd;
+static char report_path_prefix[4096];  // Set via __sanitizer_set_report_path.
+// PID of process that opened |report_fd|. If a fork() occurs, the PID of the
+// child thread will be different from |report_fd_pid|.
+static int report_fd_pid = 0;
+
+static void (*DieCallback)(void);
+void SetDieCallback(void (*callback)(void)) {
+  DieCallback = callback;
+}
+
+void NORETURN Die() {
+  if (DieCallback) {
+    DieCallback();
+  }
+  Exit(1);
+}
+
+static CheckFailedCallbackType CheckFailedCallback;
+void SetCheckFailedCallback(CheckFailedCallbackType callback) {
+  CheckFailedCallback = callback;
+}
+
+void NORETURN CheckFailed(const char *file, int line, const char *cond,
+                          u64 v1, u64 v2) {
+  if (CheckFailedCallback) {
+    CheckFailedCallback(file, line, cond, v1, v2);
+  }
+  Report("Sanitizer CHECK failed: %s:%d %s (%lld, %lld)\n", file, line, cond,
+                                                            v1, v2);
+  Die();
+}
+
+static void MaybeOpenReportFile() {
+  if (!log_to_file || (report_fd_pid == GetPid())) return;
+  char report_path_full[4096];
+  internal_snprintf(report_path_full, sizeof(report_path_full),
+                    "%s.%d", report_path_prefix, GetPid());
+  fd_t fd = internal_open(report_path_full, true);
+  if (fd == kInvalidFd) {
+    report_fd = kStderrFd;
+    log_to_file = false;
+    Report("ERROR: Can't open file: %s\n", report_path_full);
+    Die();
+  }
+  if (report_fd != kInvalidFd) {
+    // We're in the child. Close the parent's log.
+    internal_close(report_fd);
+  }
+  report_fd = fd;
+  report_fd_pid = GetPid();
+}
+
+bool PrintsToTty() {
+  MaybeOpenReportFile();
+  return internal_isatty(report_fd);
+}
+
 void RawWrite(const char *buffer) {
   static const char *kRawWriteError = "RawWrite can't output requested buffer!";
   uptr length = (uptr)internal_strlen(buffer);
-  if (length != internal_write(2, buffer, length)) {
-    internal_write(2, kRawWriteError, internal_strlen(kRawWriteError));
+  MaybeOpenReportFile();
+  if (length != internal_write(report_fd, buffer, length)) {
+    internal_write(report_fd, kRawWriteError, internal_strlen(kRawWriteError));
     Die();
   }
 }
 
 uptr ReadFileToBuffer(const char *file_name, char **buff,
                       uptr *buff_size, uptr max_len) {
-  const uptr kMinFileLen = kPageSize;
+  uptr PageSize = GetPageSizeCached();
+  uptr kMinFileLen = PageSize;
   uptr read_len = 0;
   *buff = 0;
   *buff_size = 0;
@@ -41,8 +113,8 @@ uptr ReadFileToBuffer(const char *file_name, char **buff,
     // Read up to one page at a time.
     read_len = 0;
     bool reached_eof = false;
-    while (read_len + kPageSize <= size) {
-      uptr just_read = internal_read(fd, *buff + read_len, kPageSize);
+    while (read_len + PageSize <= size) {
+      uptr just_read = internal_read(fd, *buff + read_len, PageSize);
       if (just_read == 0) {
         reached_eof = true;
         break;
@@ -97,4 +169,57 @@ void SortArray(uptr *array, uptr size) {
   }
 }
 
+// We want to map a chunk of address space aligned to 'alignment'.
+// We do it by maping a bit more and then unmaping redundant pieces.
+// We probably can do it with fewer syscalls in some OS-dependent way.
+void *MmapAlignedOrDie(uptr size, uptr alignment, const char *mem_type) {
+// uptr PageSize = GetPageSizeCached();
+  CHECK(IsPowerOfTwo(size));
+  CHECK(IsPowerOfTwo(alignment));
+  uptr map_size = size + alignment;
+  uptr map_res = (uptr)MmapOrDie(map_size, mem_type);
+  uptr map_end = map_res + map_size;
+  uptr res = map_res;
+  if (res & (alignment - 1))  // Not aligned.
+    res = (map_res + alignment) & ~(alignment - 1);
+  uptr end = res + size;
+  if (res != map_res)
+    UnmapOrDie((void*)map_res, res - map_res);
+  if (end != map_end)
+    UnmapOrDie((void*)end, map_end - end);
+  return (void*)res;
+}
+
 }  // namespace __sanitizer
+
+using namespace __sanitizer;  // NOLINT
+
+extern "C" {
+void __sanitizer_set_report_path(const char *path) {
+  if (!path) return;
+  uptr len = internal_strlen(path);
+  if (len > sizeof(report_path_prefix) - 100) {
+    Report("ERROR: Path is too long: %c%c%c%c%c%c%c%c...\n",
+           path[0], path[1], path[2], path[3],
+           path[4], path[5], path[6], path[7]);
+    Die();
+  }
+  internal_strncpy(report_path_prefix, path, sizeof(report_path_prefix));
+  report_path_prefix[len] = '\0';
+  report_fd = kInvalidFd;
+  log_to_file = true;
+}
+
+void __sanitizer_set_report_fd(int fd) {
+  if (report_fd != kStdoutFd &&
+      report_fd != kStderrFd &&
+      report_fd != kInvalidFd)
+    internal_close(report_fd);
+  report_fd = fd;
+}
+
+void NOINLINE __sanitizer_sandbox_on_notify(void *reserved) {
+  (void)reserved;
+  PrepareForSandboxing();
+}
+}  // extern "C"

@@ -24,7 +24,7 @@ enum ReportType {
   ReportTypeThreadLeak,
   ReportTypeMutexDestroyLocked,
   ReportTypeSignalUnsafe,
-  ReportTypeErrnoInSignal,
+  ReportTypeErrnoInSignal
 };
 
 struct ReportStack {
@@ -38,27 +38,38 @@ struct ReportStack {
   int col;
 };
 
+struct ReportMopMutex {
+  u64 id;
+  bool write;
+};
+
 struct ReportMop {
   int tid;
   uptr addr;
   int size;
   bool write;
-  int nmutex;
-  int *mutex;
+  Vector<ReportMopMutex> mset;
   ReportStack *stack;
+
+  ReportMop();
 };
 
 enum ReportLocationType {
   ReportLocationGlobal,
   ReportLocationHeap,
   ReportLocationStack,
+  ReportLocationTLS,
+  ReportLocationFD
 };
 
 struct ReportLocation {
   ReportLocationType type;
   uptr addr;
   uptr size;
+  char *module;
+  uptr offset;
   int tid;
+  int fd;
   char *name;
   char *file;
   int line;
@@ -67,13 +78,16 @@ struct ReportLocation {
 
 struct ReportThread {
   int id;
+  uptr pid;
   bool running;
   char *name;
+  int parent_tid;
   ReportStack *stack;
 };
 
 struct ReportMutex {
-  int id;
+  u64 id;
+  bool destroyed;
   ReportStack *stack;
 };
 
@@ -85,6 +99,7 @@ class ReportDesc {
   Vector<ReportLocation*> locs;
   Vector<ReportMutex*> mutexes;
   Vector<ReportThread*> threads;
+  ReportStack *sleep;
 
   ReportDesc();
   ~ReportDesc();
@@ -96,6 +111,7 @@ class ReportDesc {
 
 // Format and output the report to the console/log. No additional logic.
 void PrintReport(const ReportDesc *rep);
+void PrintStack(const ReportStack *stack);
 
 }  // namespace __tsan
 

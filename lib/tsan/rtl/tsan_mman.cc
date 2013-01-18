@@ -11,34 +11,63 @@
 //
 //===----------------------------------------------------------------------===//
 #include "sanitizer_common/sanitizer_common.h"
+#include "sanitizer_common/sanitizer_placement_new.h"
 #include "tsan_mman.h"
 #include "tsan_rtl.h"
 #include "tsan_report.h"
 #include "tsan_flags.h"
 
+// May be overriden by front-end.
+extern "C" void WEAK __tsan_malloc_hook(void *ptr, uptr size) {
+  (void)ptr;
+  (void)size;
+}
+
+extern "C" void WEAK __tsan_free_hook(void *ptr) {
+  (void)ptr;
+}
+
 namespace __tsan {
+
+static char allocator_placeholder[sizeof(Allocator)] ALIGNED(64);
+Allocator *allocator() {
+  return reinterpret_cast<Allocator*>(&allocator_placeholder);
+}
+
+void InitializeAllocator() {
+  allocator()->Init();
+}
+
+void AlloctorThreadFinish(ThreadState *thr) {
+  allocator()->SwallowCache(&thr->alloc_cache);
+}
 
 static void SignalUnsafeCall(ThreadState *thr, uptr pc) {
   if (!thr->in_signal_handler || !flags()->report_signal_unsafe)
     return;
+  Context *ctx = CTX();
   StackTrace stack;
   stack.ObtainCurrent(thr, pc);
+  Lock l(&ctx->thread_mtx);
   ScopedReport rep(ReportTypeSignalUnsafe);
-  rep.AddStack(&stack);
-  OutputReport(rep, rep.GetReport()->stacks[0]);
+  if (!IsFiredSuppression(ctx, rep, stack)) {
+    rep.AddStack(&stack);
+    OutputReport(ctx, rep, rep.GetReport()->stacks[0]);
+  }
 }
 
-void *user_alloc(ThreadState *thr, uptr pc, uptr sz) {
+void *user_alloc(ThreadState *thr, uptr pc, uptr sz, uptr align) {
   CHECK_GT(thr->in_rtl, 0);
-  if (sz + sizeof(MBlock) < sz)
+  void *p = allocator()->Allocate(&thr->alloc_cache, sz, align);
+  if (p == 0)
     return 0;
-  MBlock *b = (MBlock*)InternalAlloc(sz + sizeof(MBlock));
-  if (b == 0)
-    return 0;
+  MBlock *b = new(allocator()->GetMetaData(p)) MBlock;
   b->size = sz;
-  void *p = b + 1;
+  b->head = 0;
+  b->alloc_tid = thr->unique_id;
+  b->alloc_stack_id = CurrentStackId(thr, pc);
   if (CTX() && CTX()->initialized) {
-    MemoryResetRange(thr, pc, (uptr)p, sz);
+    MemoryRangeImitateWrite(thr, pc, (uptr)p, sz);
   }
   DPrintf("#%d: alloc(%zu) = %p\n", thr->tid, sz, p);
   SignalUnsafeCall(thr, pc);
@@ -49,12 +78,24 @@ void user_free(ThreadState *thr, uptr pc, void *p) {
   CHECK_GT(thr->in_rtl, 0);
   CHECK_NE(p, (void*)0);
   DPrintf("#%d: free(%p)\n", thr->tid, p);
-  MBlock *b = user_mblock(thr, p);
-  p = b + 1;
+  MBlock *b = (MBlock*)allocator()->GetMetaData(p);
+  if (b->head)   {
+    Lock l(&b->mtx);
+    for (SyncVar *s = b->head; s;) {
+      SyncVar *res = s;
+      s = s->next;
+      StatInc(thr, StatSyncDestroyed);
+      res->mtx.Lock();
+      res->mtx.Unlock();
+      DestroyAndFree(res);
+    }
+    b->head = 0;
+  }
   if (CTX() && CTX()->initialized && thr->in_rtl == 1) {
     MemoryRangeFreed(thr, pc, (uptr)p, b->size);
   }
-  InternalFree(b);
+  b->~MBlock();
+  allocator()->Deallocate(&thr->alloc_cache, p);
   SignalUnsafeCall(thr, pc);
 }
 
@@ -78,26 +119,28 @@ void *user_realloc(ThreadState *thr, uptr pc, void *p, uptr sz) {
   return p2;
 }
 
-void *user_alloc_aligned(ThreadState *thr, uptr pc, uptr sz, uptr align) {
-  CHECK_GT(thr->in_rtl, 0);
-  void *p = user_alloc(thr, pc, sz + align);
-  void *pa = RoundUp(p, align);
-  DCHECK_LE((uptr)pa + sz, (uptr)p + sz + align);
-  return pa;
+MBlock *user_mblock(ThreadState *thr, void *p) {
+  CHECK_NE(p, (void*)0);
+  Allocator *a = allocator();
+  void *b = a->GetBlockBegin(p);
+  CHECK_NE(b, 0);
+  return (MBlock*)a->GetMetaData(b);
 }
 
-MBlock *user_mblock(ThreadState *thr, void *p) {
-  CHECK_GT(thr->in_rtl, 0);
-  CHECK_NE(p, (void*)0);
-  MBlock *b = (MBlock*)InternalAllocBlock(p);
-  // FIXME: Output a warning, it's a user error.
-  if (p < (char*)(b + 1) || p > (char*)(b + 1) + b->size) {
-    TsanPrintf("user_mblock p=%p b=%p size=%zu beg=%p end=%p\n",
-        p, b, b->size, (char*)(b + 1), (char*)(b + 1) + b->size);
-    CHECK_GE(p, (char*)(b + 1));
-    CHECK_LE(p, (char*)(b + 1) + b->size);
-  }
-  return b;
+void invoke_malloc_hook(void *ptr, uptr size) {
+  Context *ctx = CTX();
+  ThreadState *thr = cur_thread();
+  if (ctx == 0 || !ctx->initialized || thr->in_rtl)
+    return;
+  __tsan_malloc_hook(ptr, size);
+}
+
+void invoke_free_hook(void *ptr) {
+  Context *ctx = CTX();
+  ThreadState *thr = cur_thread();
+  if (ctx == 0 || !ctx->initialized || thr->in_rtl)
+    return;
+  __tsan_free_hook(ptr);
 }
 
 void *internal_alloc(MBlockType typ, uptr sz) {

@@ -25,22 +25,28 @@ namespace __tsan {
 // then Report mutex can be locked while under Threads mutex.
 // The leaf mutexes can be locked under any other mutexes.
 // Recursive locking is not supported.
+#if TSAN_DEBUG && !TSAN_GO
 const MutexType MutexTypeLeaf = (MutexType)-1;
 static MutexType CanLockTab[MutexTypeCount][MutexTypeCount] = {
-  /*0 MutexTypeInvalid*/     {},
-  /*1 MutexTypeTrace*/       {MutexTypeLeaf},
-  /*2 MutexTypeThreads*/     {MutexTypeReport},
-  /*3 MutexTypeReport*/      {},
-  /*4 MutexTypeSyncVar*/     {},
-  /*5 MutexTypeSyncTab*/     {MutexTypeSyncVar},
-  /*6 MutexTypeSlab*/        {MutexTypeLeaf},
-  /*7 MutexTypeAnnotations*/ {},
-  /*8 MutexTypeAtExit*/      {MutexTypeSyncTab},
+  /*0  MutexTypeInvalid*/     {},
+  /*1  MutexTypeTrace*/       {MutexTypeLeaf},
+  /*2  MutexTypeThreads*/     {MutexTypeReport},
+  /*3  MutexTypeReport*/      {MutexTypeSyncTab, MutexTypeMBlock,
+                               MutexTypeJavaMBlock},
+  /*4  MutexTypeSyncVar*/     {},
+  /*5  MutexTypeSyncTab*/     {MutexTypeSyncVar},
+  /*6  MutexTypeSlab*/        {MutexTypeLeaf},
+  /*7  MutexTypeAnnotations*/ {},
+  /*8  MutexTypeAtExit*/      {MutexTypeSyncTab},
+  /*9  MutexTypeMBlock*/      {MutexTypeSyncVar},
+  /*10 MutexTypeJavaMBlock*/  {MutexTypeSyncVar},
 };
 
 static bool CanLockAdj[MutexTypeCount][MutexTypeCount];
+#endif
 
 void InitializeMutex() {
+#if TSAN_DEBUG && !TSAN_GO
   // Build the "can lock" adjacency matrix.
   // If [i][j]==true, then one can lock mutex j while under mutex i.
   const int N = MutexTypeCount;
@@ -48,7 +54,7 @@ void InitializeMutex() {
   bool leaf[N] = {};
   for (int i = 1; i < N; i++) {
     for (int j = 0; j < N; j++) {
-      int z = CanLockTab[i][j];
+      MutexType z = CanLockTab[i][j];
       if (z == MutexTypeInvalid)
         continue;
       if (z == MutexTypeLeaf) {
@@ -56,8 +62,8 @@ void InitializeMutex() {
         leaf[i] = true;
         continue;
       }
-      CHECK(!CanLockAdj[i][z]);
-      CanLockAdj[i][z] = true;
+      CHECK(!CanLockAdj[i][(int)z]);
+      CanLockAdj[i][(int)z] = true;
       cnt[i]++;
     }
   }
@@ -92,36 +98,40 @@ void InitializeMutex() {
     }
   }
 #if 0
-  TsanPrintf("Can lock graph:\n");
+  Printf("Can lock graph:\n");
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
-      TsanPrintf("%d ", CanLockAdj[i][j]);
+      Printf("%d ", CanLockAdj[i][j]);
     }
-    TsanPrintf("\n");
+    Printf("\n");
   }
-  TsanPrintf("Can lock graph closure:\n");
+  Printf("Can lock graph closure:\n");
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
-      TsanPrintf("%d ", CanLockAdj2[i][j]);
+      Printf("%d ", CanLockAdj2[i][j]);
     }
-    TsanPrintf("\n");
+    Printf("\n");
   }
 #endif
   // Verify that the graph is acyclic.
   for (int i = 0; i < N; i++) {
     if (CanLockAdj2[i][i]) {
-      TsanPrintf("Mutex %d participates in a cycle\n", i);
+      Printf("Mutex %d participates in a cycle\n", i);
       Die();
     }
   }
+#endif
 }
 
 DeadlockDetector::DeadlockDetector() {
   // Rely on zero initialization because some mutexes can be locked before ctor.
 }
 
+#if TSAN_DEBUG && !TSAN_GO
 void DeadlockDetector::Lock(MutexType t) {
-  // TsanPrintf("LOCK %d @%zu\n", t, seq_ + 1);
+  // Printf("LOCK %d @%zu\n", t, seq_ + 1);
+  CHECK_GT(t, MutexTypeInvalid);
+  CHECK_LT(t, MutexTypeCount);
   u64 max_seq = 0;
   u64 max_idx = MutexTypeInvalid;
   for (int i = 0; i != MutexTypeCount; i++) {
@@ -136,20 +146,21 @@ void DeadlockDetector::Lock(MutexType t) {
   locked_[t] = ++seq_;
   if (max_idx == MutexTypeInvalid)
     return;
-  // TsanPrintf("  last %d @%zu\n", max_idx, max_seq);
+  // Printf("  last %d @%zu\n", max_idx, max_seq);
   if (!CanLockAdj[max_idx][t]) {
-    TsanPrintf("ThreadSanitizer: internal deadlock detected\n");
-    TsanPrintf("ThreadSanitizer: can't lock %d while under %zu\n",
+    Printf("ThreadSanitizer: internal deadlock detected\n");
+    Printf("ThreadSanitizer: can't lock %d while under %zu\n",
                t, (uptr)max_idx);
-    Die();
+    CHECK(0);
   }
 }
 
 void DeadlockDetector::Unlock(MutexType t) {
-  // TsanPrintf("UNLO %d @%zu #%zu\n", t, seq_, locked_[t]);
+  // Printf("UNLO %d @%zu #%zu\n", t, seq_, locked_[t]);
   CHECK(locked_[t]);
   locked_[t] = 0;
 }
+#endif
 
 const uptr kUnlocked = 0;
 const uptr kWriteLock = 1;
@@ -254,6 +265,10 @@ void Mutex::ReadUnlock() {
 #if TSAN_DEBUG && !TSAN_GO
   cur_thread()->deadlock_detector.Unlock(type_);
 #endif
+}
+
+void Mutex::CheckLocked() {
+  CHECK_NE(atomic_load(&state_, memory_order_relaxed), 0);
 }
 
 }  // namespace __tsan

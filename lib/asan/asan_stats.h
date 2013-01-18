@@ -37,6 +37,8 @@ struct AsanStats {
   uptr realloced;
   uptr mmaps;
   uptr mmaped;
+  uptr munmaps;
+  uptr munmaped;
   uptr mmaped_by_size[kNumberOfSizeClasses];
   uptr malloced_by_size[kNumberOfSizeClasses];
   uptr freed_by_size[kNumberOfSizeClasses];
@@ -52,6 +54,14 @@ struct AsanStats {
 
   // Prints formatted stats to stderr.
   void Print();
+};
+
+// A cross-platform equivalent of malloc_statistics_t on Mac OS.
+struct AsanMallocStats {
+  uptr blocks_in_use;
+  uptr size_in_use;
+  uptr max_size_in_use;
+  uptr size_allocated;
 };
 
 }  // namespace __asan

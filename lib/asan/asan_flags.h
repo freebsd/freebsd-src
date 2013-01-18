@@ -15,18 +15,13 @@
 #ifndef ASAN_FLAGS_H
 #define ASAN_FLAGS_H
 
-#include "sanitizer_common/sanitizer_interface_defs.h"
+#include "sanitizer/common_interface_defs.h"
 
 // ASan flag values can be defined in three ways:
 // 1) initialized with default values at startup.
 // 2) overriden from string returned by user-specified function
 //    __asan_default_options().
 // 3) overriden from env variable ASAN_OPTIONS.
-
-extern "C" {
-// Can be overriden by user.
-const char *__asan_default_options() SANITIZER_WEAK_ATTRIBUTE;
-}  // extern "C"
 
 namespace __asan {
 
@@ -48,7 +43,9 @@ struct Flags {
   // on globals, 1 - detect buffer overflow, 2 - print data about registered
   // globals).
   int  report_globals;
-  // Max number of stack frames kept for each allocation.
+  // If set, attempts to catch initialization order issues.
+  bool check_initialization_order;
+  // Max number of stack frames kept for each allocation/deallocation.
   int  malloc_context_size;
   // If set, uses custom wrappers and replacements for libc string functions
   // to find more errors.
@@ -87,6 +84,28 @@ struct Flags {
   // By default, disable core dumper on 64-bit - it makes little sense
   // to dump 16T+ core.
   bool disable_core;
+  // Allow the tool to re-exec the program. This may interfere badly with the
+  // debugger.
+  bool allow_reexec;
+  // Strips this prefix from file paths in error reports.
+  const char *strip_path_prefix;
+  // If set, prints not only thread creation stacks for threads in error report,
+  // but also thread creation stacks for threads that created those threads,
+  // etc. up to main thread.
+  bool print_full_thread_history;
+  // ASan will write logs to "log_path.pid" instead of stderr.
+  const char *log_path;
+  // Use fast (frame-pointer-based) unwinder on fatal errors (if available).
+  bool fast_unwind_on_fatal;
+  // Use fast (frame-pointer-based) unwinder on malloc/free (if available).
+  bool fast_unwind_on_malloc;
+  // Poison (or not) the heap memory on [de]allocation. Zero value is useful
+  // for benchmarking the allocator or instrumentator.
+  bool poison_heap;
+  // Report errors on malloc/delete, new/free, new/delete[], etc.
+  bool alloc_dealloc_mismatch;
+  // Use stack depot instead of storing stacks in the redzones.
+  bool use_stack_depot;
 };
 
 Flags *flags();

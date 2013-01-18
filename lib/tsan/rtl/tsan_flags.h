@@ -31,8 +31,15 @@ struct Flags {
   // Supress a race report if we've already output another race report
   // on the same address.
   bool suppress_equal_addresses;
+  // Suppress weird race reports that can be seen if JVM is embed
+  // into the process.
+  bool suppress_java;
+  // Turns off bug reporting entirely (useful for benchmarking).
+  bool report_bugs;
   // Report thread leaks at exit?
   bool report_thread_leaks;
+  // Report destruction of a locked mutex?
+  bool report_destroy_locked;
   // Report violations of async signal-safety
   // (e.g. malloc() call from a signal handler).
   bool report_signal_unsafe;
@@ -45,8 +52,10 @@ struct Flags {
   const char *suppressions;
   // Override exit status if something was reported.
   int exitcode;
-  // Log fileno (1 - stdout, 2 - stderr).
-  int log_fileno;
+  // Write logs to "log_path.pid".
+  // The special values are "stdout" and "stderr".
+  // The default is "stderr".
+  const char *log_path;
   // Sleep in main thread before exiting for that many ms
   // (useful to catch "at exit" races).
   int atexit_sleep_ms;
@@ -60,8 +69,19 @@ struct Flags {
   bool stop_on_start;
   // Controls whether RunningOnValgrind() returns true or false.
   bool running_on_valgrind;
-  // If set, uses in-process symbolizer from common sanitizer runtime.
-  bool use_internal_symbolizer;
+  // Path to external symbolizer.
+  const char *external_symbolizer_path;
+  // Per-thread history size, controls how many previous memory accesses
+  // are remembered per thread.  Possible values are [0..7].
+  // history_size=0 amounts to 32K memory accesses.  Each next value doubles
+  // the amount of memory accesses, up to history_size=7 that amounts to
+  // 4M memory accesses.  The default value is 2 (128K memory accesses).
+  int history_size;
+  // Controls level of synchronization implied by IO operations.
+  // 0 - no synchronization
+  // 1 - reasonable level of synchronization (write->read)
+  // 2 - global synchronization of all IO operations
+  int io_sync;
 };
 
 Flags *flags();

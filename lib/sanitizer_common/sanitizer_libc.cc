@@ -44,6 +44,23 @@ void *internal_memcpy(void *dest, const void *src, uptr n) {
   return dest;
 }
 
+void *internal_memmove(void *dest, const void *src, uptr n) {
+  char *d = (char*)dest;
+  char *s = (char*)src;
+  sptr i, signed_n = (sptr)n;
+  CHECK_GE(signed_n, 0);
+  if (d < s) {
+    for (i = 0; i < signed_n; ++i)
+      d[i] = s[i];
+  } else {
+    if (d > s && signed_n > 0)
+      for (i = signed_n - 1; i >= 0 ; --i) {
+        d[i] = s[i];
+      }
+  }
+  return dest;
+}
+
 void *internal_memset(void* s, int c, uptr n) {
   // The next line prevents Clang from making a call to memset() instead of the
   // loop below.
@@ -54,6 +71,15 @@ void *internal_memset(void* s, int c, uptr n) {
     *t = c;
   }
   return s;
+}
+
+uptr internal_strcspn(const char *s, const char *reject) {
+  uptr i;
+  for (i = 0; s[i]; i++) {
+    if (internal_strchr(reject, s[i]) != 0)
+      return i;
+  }
+  return i;
 }
 
 char* internal_strdup(const char *s) {
@@ -177,6 +203,25 @@ s64 internal_simple_strtoll(const char *nptr, char **endptr, int base) {
   } else {
     return (res > INT64_MAX) ? INT64_MIN : ((s64)res * -1);
   }
+}
+
+bool mem_is_zero(const char *beg, uptr size) {
+  CHECK_LE(size, 1UL << FIRST_32_SECOND_64(30, 40));  // Sanity check.
+  const char *end = beg + size;
+  uptr *aligned_beg = (uptr *)RoundUpTo((uptr)beg, sizeof(uptr));
+  uptr *aligned_end = (uptr *)RoundDownTo((uptr)end, sizeof(uptr));
+  uptr all = 0;
+  // Prologue.
+  for (const char *mem = beg; mem < (char*)aligned_beg && mem < end; mem++)
+    all |= *mem;
+  // Aligned loop.
+  for (; aligned_beg < aligned_end; aligned_beg++)
+    all |= *aligned_beg;
+  // Epilogue.
+  if ((char*)aligned_end >= beg)
+    for (const char *mem = (char*)aligned_end; mem < end; mem++)
+      all |= *mem;
+  return all == 0;
 }
 
 }  // namespace __sanitizer

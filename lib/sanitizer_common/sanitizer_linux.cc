@@ -16,13 +16,12 @@
 #include "sanitizer_common.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
+#include "sanitizer_mutex.h"
 #include "sanitizer_placement_new.h"
 #include "sanitizer_procmaps.h"
-#include "sanitizer_symbolizer.h"
+#include "sanitizer_stacktrace.h"
 
-#include <elf.h>
 #include <fcntl.h>
-#include <link.h>
 #include <pthread.h>
 #include <sched.h>
 #include <sys/mman.h>
@@ -32,13 +31,26 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <unwind.h>
+#include <errno.h>
+#include <sys/prctl.h>
+#include <linux/futex.h>
+
+// Are we using 32-bit or 64-bit syscalls?
+// x32 (which defines __x86_64__) has SANITIZER_WORDSIZE == 32
+// but it still needs to use 64-bit syscalls.
+#if defined(__x86_64__) || SANITIZER_WORDSIZE == 64
+# define SANITIZER_LINUX_USES_64BIT_SYSCALLS 1
+#else
+# define SANITIZER_LINUX_USES_64BIT_SYSCALLS 0
+#endif
 
 namespace __sanitizer {
 
 // --------------- sanitizer_libc.h
 void *internal_mmap(void *addr, uptr length, int prot, int flags,
                     int fd, u64 offset) {
-#if __WORDSIZE == 64
+#if SANITIZER_LINUX_USES_64BIT_SYSCALLS
   return (void *)syscall(__NR_mmap, addr, length, prot, flags, fd, offset);
 #else
   return (void *)syscall(__NR_mmap2, addr, length, prot, flags, fd, offset);
@@ -59,15 +71,19 @@ fd_t internal_open(const char *filename, bool write) {
 }
 
 uptr internal_read(fd_t fd, void *buf, uptr count) {
-  return (uptr)syscall(__NR_read, fd, buf, count);
+  sptr res;
+  HANDLE_EINTR(res, (sptr)syscall(__NR_read, fd, buf, count));
+  return res;
 }
 
 uptr internal_write(fd_t fd, const void *buf, uptr count) {
-  return (uptr)syscall(__NR_write, fd, buf, count);
+  sptr res;
+  HANDLE_EINTR(res, (sptr)syscall(__NR_write, fd, buf, count));
+  return res;
 }
 
 uptr internal_filesize(fd_t fd) {
-#if __WORDSIZE == 64
+#if SANITIZER_LINUX_USES_64BIT_SYSCALLS
   struct stat st;
   if (syscall(__NR_fstat, fd, &st))
     return -1;
@@ -83,11 +99,33 @@ int internal_dup2(int oldfd, int newfd) {
   return syscall(__NR_dup2, oldfd, newfd);
 }
 
+uptr internal_readlink(const char *path, char *buf, uptr bufsize) {
+  return (uptr)syscall(__NR_readlink, path, buf, bufsize);
+}
+
 int internal_sched_yield() {
   return syscall(__NR_sched_yield);
 }
 
 // ----------------- sanitizer_common.h
+bool FileExists(const char *filename) {
+#if SANITIZER_LINUX_USES_64BIT_SYSCALLS
+  struct stat st;
+  if (syscall(__NR_stat, filename, &st))
+    return false;
+#else
+  struct stat64 st;
+  if (syscall(__NR_stat64, filename, &st))
+    return false;
+#endif
+  // Sanity check: filename is a regular file.
+  return S_ISREG(st.st_mode);
+}
+
+uptr GetTid() {
+  return syscall(__NR_gettid);
+}
+
 void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
                                 uptr *stack_bottom) {
   static const uptr kMaxThreadStackSize = 256 * (1 << 20);  // 256M
@@ -99,7 +137,7 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
     CHECK_EQ(getrlimit(RLIMIT_STACK, &rl), 0);
 
     // Find the mapping that contains a stack variable.
-    ProcessMaps proc_maps;
+    MemoryMappingLayout proc_maps;
     uptr start, end, offset;
     uptr prev_end = 0;
     while (proc_maps.Next(&start, &end, &offset, 0, 0)) {
@@ -163,102 +201,96 @@ const char *GetEnv(const char *name) {
   return 0;  // Not found.
 }
 
-// ------------------ sanitizer_symbolizer.h
-typedef ElfW(Ehdr) Elf_Ehdr;
-typedef ElfW(Shdr) Elf_Shdr;
-typedef ElfW(Phdr) Elf_Phdr;
-
-bool FindDWARFSection(uptr object_file_addr, const char *section_name,
-                      DWARFSection *section) {
-  Elf_Ehdr *exe = (Elf_Ehdr*)object_file_addr;
-  Elf_Shdr *sections = (Elf_Shdr*)(object_file_addr + exe->e_shoff);
-  uptr section_names = object_file_addr +
-                       sections[exe->e_shstrndx].sh_offset;
-  for (int i = 0; i < exe->e_shnum; i++) {
-    Elf_Shdr *current_section = &sections[i];
-    const char *current_name = (const char*)section_names +
-                               current_section->sh_name;
-    if (IsFullNameOfDWARFSection(current_name, section_name)) {
-      section->data = (const char*)object_file_addr +
-                      current_section->sh_offset;
-      section->size = current_section->sh_size;
-      return true;
+static void ReadNullSepFileToArray(const char *path, char ***arr,
+                                   int arr_size) {
+  char *buff;
+  uptr buff_size = 0;
+  *arr = (char **)MmapOrDie(arr_size * sizeof(char *), "NullSepFileArray");
+  ReadFileToBuffer(path, &buff, &buff_size, 1024 * 1024);
+  (*arr)[0] = buff;
+  int count, i;
+  for (count = 1, i = 1; ; i++) {
+    if (buff[i] == 0) {
+      if (buff[i+1] == 0) break;
+      (*arr)[count] = &buff[i+1];
+      CHECK_LE(count, arr_size - 1);  // FIXME: make this more flexible.
+      count++;
     }
   }
-  return false;
+  (*arr)[count] = 0;
 }
 
-#ifdef ANDROID
-uptr GetListOfModules(ModuleDIContext *modules, uptr max_modules) {
-  UNIMPLEMENTED();
-}
-#else  // ANDROID
-struct DlIteratePhdrData {
-  ModuleDIContext *modules;
-  uptr current_n;
-  uptr max_n;
-};
-
-static const uptr kMaxPathLength = 512;
-
-static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
-  DlIteratePhdrData *data = (DlIteratePhdrData*)arg;
-  if (data->current_n == data->max_n)
-    return 0;
-  char *module_name = 0;
-  if (data->current_n == 0) {
-    // First module is the binary itself.
-    module_name = (char*)InternalAlloc(kMaxPathLength);
-    uptr module_name_len = readlink("/proc/self/exe",
-                                    module_name, kMaxPathLength);
-    CHECK_NE(module_name_len, (uptr)-1);
-    CHECK_LT(module_name_len, kMaxPathLength);
-    module_name[module_name_len] = '\0';
-  } else if (info->dlpi_name) {
-    module_name = internal_strdup(info->dlpi_name);
-  }
-  if (module_name == 0 || module_name[0] == '\0')
-    return 0;
-  void *mem = &data->modules[data->current_n];
-  ModuleDIContext *cur_module = new(mem) ModuleDIContext(module_name,
-                                                         info->dlpi_addr);
-  data->current_n++;
-  for (int i = 0; i < info->dlpi_phnum; i++) {
-    const Elf_Phdr *phdr = &info->dlpi_phdr[i];
-    if (phdr->p_type == PT_LOAD) {
-      uptr cur_beg = info->dlpi_addr + phdr->p_vaddr;
-      uptr cur_end = cur_beg + phdr->p_memsz;
-      cur_module->addAddressRange(cur_beg, cur_end);
-    }
-  }
-  InternalFree(module_name);
-  return 0;
+void ReExec() {
+  static const int kMaxArgv = 100, kMaxEnvp = 1000;
+  char **argv, **envp;
+  ReadNullSepFileToArray("/proc/self/cmdline", &argv, kMaxArgv);
+  ReadNullSepFileToArray("/proc/self/environ", &envp, kMaxEnvp);
+  execve(argv[0], argv, envp);
 }
 
-uptr GetListOfModules(ModuleDIContext *modules, uptr max_modules) {
-  CHECK(modules);
-  DlIteratePhdrData data = {modules, 0, max_modules};
-  dl_iterate_phdr(dl_iterate_phdr_cb, &data);
-  return data.current_n;
+void PrepareForSandboxing() {
+  // Some kinds of sandboxes may forbid filesystem access, so we won't be able
+  // to read the file mappings from /proc/self/maps. Luckily, neither the
+  // process will be able to load additional libraries, so it's fine to use the
+  // cached mappings.
+  MemoryMappingLayout::CacheMemoryMappings();
 }
-#endif  // ANDROID
 
 // ----------------- sanitizer_procmaps.h
-ProcessMaps::ProcessMaps() {
-  proc_self_maps_buff_len_ =
-      ReadFileToBuffer("/proc/self/maps", &proc_self_maps_buff_,
-                       &proc_self_maps_buff_mmaped_size_, 1 << 26);
-  CHECK_GT(proc_self_maps_buff_len_, 0);
-  // internal_write(2, proc_self_maps_buff_, proc_self_maps_buff_len_);
+// Linker initialized.
+ProcSelfMapsBuff MemoryMappingLayout::cached_proc_self_maps_;
+StaticSpinMutex MemoryMappingLayout::cache_lock_;  // Linker initialized.
+
+MemoryMappingLayout::MemoryMappingLayout() {
+  proc_self_maps_.len =
+      ReadFileToBuffer("/proc/self/maps", &proc_self_maps_.data,
+                       &proc_self_maps_.mmaped_size, 1 << 26);
+  if (proc_self_maps_.mmaped_size == 0) {
+    LoadFromCache();
+    CHECK_GT(proc_self_maps_.len, 0);
+  }
+  // internal_write(2, proc_self_maps_.data, proc_self_maps_.len);
   Reset();
+  // FIXME: in the future we may want to cache the mappings on demand only.
+  CacheMemoryMappings();
 }
 
-ProcessMaps::~ProcessMaps() {
-  UnmapOrDie(proc_self_maps_buff_, proc_self_maps_buff_mmaped_size_);
+MemoryMappingLayout::~MemoryMappingLayout() {
+  // Only unmap the buffer if it is different from the cached one. Otherwise
+  // it will be unmapped when the cache is refreshed.
+  if (proc_self_maps_.data != cached_proc_self_maps_.data) {
+    UnmapOrDie(proc_self_maps_.data, proc_self_maps_.mmaped_size);
+  }
 }
 
-void ProcessMaps::Reset() {
-  current_ = proc_self_maps_buff_;
+void MemoryMappingLayout::Reset() {
+  current_ = proc_self_maps_.data;
+}
+
+// static
+void MemoryMappingLayout::CacheMemoryMappings() {
+  SpinMutexLock l(&cache_lock_);
+  // Don't invalidate the cache if the mappings are unavailable.
+  ProcSelfMapsBuff old_proc_self_maps;
+  old_proc_self_maps = cached_proc_self_maps_;
+  cached_proc_self_maps_.len =
+      ReadFileToBuffer("/proc/self/maps", &cached_proc_self_maps_.data,
+                       &cached_proc_self_maps_.mmaped_size, 1 << 26);
+  if (cached_proc_self_maps_.mmaped_size == 0) {
+    cached_proc_self_maps_ = old_proc_self_maps;
+  } else {
+    if (old_proc_self_maps.mmaped_size) {
+      UnmapOrDie(old_proc_self_maps.data,
+                 old_proc_self_maps.mmaped_size);
+    }
+  }
+}
+
+void MemoryMappingLayout::LoadFromCache() {
+  SpinMutexLock l(&cache_lock_);
+  if (cached_proc_self_maps_.data) {
+    proc_self_maps_ = cached_proc_self_maps_;
+  }
 }
 
 // Parse a hex value in str and update str.
@@ -290,9 +322,9 @@ static bool IsDecimal(char c) {
   return c >= '0' && c <= '9';
 }
 
-bool ProcessMaps::Next(uptr *start, uptr *end, uptr *offset,
-                       char filename[], uptr filename_size) {
-  char *last = proc_self_maps_buff_ + proc_self_maps_buff_len_;
+bool MemoryMappingLayout::Next(uptr *start, uptr *end, uptr *offset,
+                               char filename[], uptr filename_size) {
+  char *last = proc_self_maps_.data + proc_self_maps_.len;
   if (current_ >= last) return false;
   uptr dummy;
   if (!start) start = &dummy;
@@ -336,11 +368,114 @@ bool ProcessMaps::Next(uptr *start, uptr *end, uptr *offset,
   return true;
 }
 
-// Gets the object name and the offset by walking ProcessMaps.
-bool ProcessMaps::GetObjectNameAndOffset(uptr addr, uptr *offset,
-                                         char filename[],
-                                         uptr filename_size) {
+// Gets the object name and the offset by walking MemoryMappingLayout.
+bool MemoryMappingLayout::GetObjectNameAndOffset(uptr addr, uptr *offset,
+                                                 char filename[],
+                                                 uptr filename_size) {
   return IterateForObjectNameAndOffset(addr, offset, filename, filename_size);
+}
+
+bool SanitizerSetThreadName(const char *name) {
+#ifdef PR_SET_NAME
+  return 0 == prctl(PR_SET_NAME, (unsigned long)name, 0, 0, 0);  // NOLINT
+#else
+  return false;
+#endif
+}
+
+bool SanitizerGetThreadName(char *name, int max_len) {
+#ifdef PR_GET_NAME
+  char buff[17];
+  if (prctl(PR_GET_NAME, (unsigned long)buff, 0, 0, 0))  // NOLINT
+    return false;
+  internal_strncpy(name, buff, max_len);
+  name[max_len] = 0;
+  return true;
+#else
+  return false;
+#endif
+}
+
+#ifndef SANITIZER_GO
+//------------------------- SlowUnwindStack -----------------------------------
+#ifdef __arm__
+#define UNWIND_STOP _URC_END_OF_STACK
+#define UNWIND_CONTINUE _URC_NO_REASON
+#else
+#define UNWIND_STOP _URC_NORMAL_STOP
+#define UNWIND_CONTINUE _URC_NO_REASON
+#endif
+
+uptr Unwind_GetIP(struct _Unwind_Context *ctx) {
+#ifdef __arm__
+  uptr val;
+  _Unwind_VRS_Result res = _Unwind_VRS_Get(ctx, _UVRSC_CORE,
+      15 /* r15 = PC */, _UVRSD_UINT32, &val);
+  CHECK(res == _UVRSR_OK && "_Unwind_VRS_Get failed");
+  // Clear the Thumb bit.
+  return val & ~(uptr)1;
+#else
+  return _Unwind_GetIP(ctx);
+#endif
+}
+
+_Unwind_Reason_Code Unwind_Trace(struct _Unwind_Context *ctx, void *param) {
+  StackTrace *b = (StackTrace*)param;
+  CHECK(b->size < b->max_size);
+  uptr pc = Unwind_GetIP(ctx);
+  b->trace[b->size++] = pc;
+  if (b->size == b->max_size) return UNWIND_STOP;
+  return UNWIND_CONTINUE;
+}
+
+static bool MatchPc(uptr cur_pc, uptr trace_pc) {
+  return cur_pc - trace_pc <= 64 || trace_pc - cur_pc <= 64;
+}
+
+void StackTrace::SlowUnwindStack(uptr pc, uptr max_depth) {
+  this->size = 0;
+  this->max_size = max_depth;
+  if (max_depth > 1) {
+    _Unwind_Backtrace(Unwind_Trace, this);
+    // We need to pop a few frames so that pc is on top.
+    // trace[0] belongs to the current function so we always pop it.
+    int to_pop = 1;
+    /**/ if (size > 1 && MatchPc(pc, trace[1])) to_pop = 1;
+    else if (size > 2 && MatchPc(pc, trace[2])) to_pop = 2;
+    else if (size > 3 && MatchPc(pc, trace[3])) to_pop = 3;
+    else if (size > 4 && MatchPc(pc, trace[4])) to_pop = 4;
+    else if (size > 5 && MatchPc(pc, trace[5])) to_pop = 5;
+    this->PopStackFrames(to_pop);
+  }
+  this->trace[0] = pc;
+}
+
+#endif  // #ifndef SANITIZER_GO
+
+enum MutexState {
+  MtxUnlocked = 0,
+  MtxLocked = 1,
+  MtxSleeping = 2
+};
+
+BlockingMutex::BlockingMutex(LinkerInitialized) {
+  CHECK_EQ(owner_, 0);
+}
+
+void BlockingMutex::Lock() {
+  atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
+  if (atomic_exchange(m, MtxLocked, memory_order_acquire) == MtxUnlocked)
+    return;
+  while (atomic_exchange(m, MtxSleeping, memory_order_acquire) != MtxUnlocked)
+    syscall(__NR_futex, m, FUTEX_WAIT, MtxSleeping, 0, 0, 0);
+}
+
+void BlockingMutex::Unlock() {
+  atomic_uint32_t *m = reinterpret_cast<atomic_uint32_t *>(&opaque_storage_);
+  u32 v = atomic_exchange(m, MtxUnlocked, memory_order_relaxed);
+  CHECK_NE(v, MtxUnlocked);
+  if (v == MtxSleeping)
+    syscall(__NR_futex, m, FUTEX_WAKE, 1, 0, 0, 0);
 }
 
 }  // namespace __sanitizer

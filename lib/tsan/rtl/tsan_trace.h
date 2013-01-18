@@ -16,12 +16,14 @@
 #include "tsan_defs.h"
 #include "tsan_mutex.h"
 #include "tsan_sync.h"
+#include "tsan_mutexset.h"
 
 namespace __tsan {
 
-const int kTraceParts = 8;
-const int kTraceSize = 128*1024;
-const int kTracePartSize = kTraceSize / kTraceParts;
+const int kTracePartSizeBits = 14;
+const int kTracePartSize = 1 << kTracePartSizeBits;
+const int kTraceParts = 4 * 1024 * 1024 / kTracePartSize;
+const int kTraceSize = kTracePartSize * kTraceParts;
 
 // Must fit into 3 bits.
 enum EventType {
@@ -31,7 +33,7 @@ enum EventType {
   EventTypeLock,
   EventTypeUnlock,
   EventTypeRLock,
-  EventTypeRUnlock,
+  EventTypeRUnlock
 };
 
 // Represents a thread event (from most significant bit):
@@ -42,13 +44,14 @@ typedef u64 Event;
 struct TraceHeader {
   StackTrace stack0;  // Start stack for the trace.
   u64        epoch0;  // Start epoch for the trace.
+  MutexSet   mset0;
 #ifndef TSAN_GO
-  uptr       stack0buf[kShadowStackSize];
+  uptr       stack0buf[kTraceStackSize];
 #endif
 
   TraceHeader()
 #ifndef TSAN_GO
-      : stack0(stack0buf, kShadowStackSize)
+      : stack0(stack0buf, kTraceStackSize)
 #else
       : stack0()
 #endif
@@ -57,7 +60,6 @@ struct TraceHeader {
 };
 
 struct Trace {
-  Event events[kTraceSize];
   TraceHeader headers[kTraceParts];
   Mutex mtx;
 
