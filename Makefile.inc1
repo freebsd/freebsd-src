@@ -810,8 +810,7 @@ redistribute:
 
 distrib-dirs distribution:
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    ${IMAKE_INSTALL} ${IMAKE_MTREE} DISTBASE=${DISTBASE} \
-	    METALOG=${METALOG} ${.TARGET}
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -1117,7 +1116,7 @@ _lex=		usr.bin/lex
 _yacc=		usr.bin/yacc
 .endif
 
-.if ${BOOTSTRAPPING} < 1000026
+.if defined(DB_FROM_SRC) && ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
 .endif
