@@ -119,6 +119,10 @@ struct netmap_adapter;
  * RX rings: the next empty buffer (hwcur + hwavail + hwofs) coincides with
  * 	the next empty buffer as known by the hardware (next_to_check or so).
  * TX rings: hwcur + hwofs coincides with next_to_send
+ *
+ * For received packets, slot->flags is set to nkr_slot_flags
+ * so we can provide a proper initial value (e.g. set NS_FORWARD
+ * when operating in 'transparent' mode).
  */
 struct netmap_kring {
 	struct netmap_ring *ring;
@@ -128,6 +132,7 @@ struct netmap_kring {
 #define NKR_PENDINTR	0x1	// Pending interrupt.
 	u_int nkr_num_slots;
 
+	uint16_t	nkr_slot_flags;	/* initial value for flags */
 	int	nkr_hwofs;	/* offset between NIC and netmap ring */
 	struct netmap_adapter *na;
 	NM_SELINFO_T si;	/* poll/select wait queue */

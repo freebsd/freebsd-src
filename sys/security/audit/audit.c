@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
 #include <sys/ipc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
@@ -211,6 +212,7 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	struct kaudit_record *ar;
 	struct thread *td;
 	struct ucred *cred;
+	struct prison *pr;
 
 	KASSERT(sizeof(*ar) == size, ("audit_record_ctor: wrong size"));
 
@@ -233,6 +235,17 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
 	ar->k_ar.ar_subj_amask = cred->cr_audit.ai_mask;
 	ar->k_ar.ar_subj_term_addr = cred->cr_audit.ai_termid;
+	/*
+	 * If this process is jailed, make sure we capture the name of the
+	 * jail so we can use it to generate a zonename token when we covert
+	 * this record to BSM.
+	 */
+	if (jailed(cred)) {
+		pr = cred->cr_prison;
+		(void) strlcpy(ar->k_ar.ar_jailname, pr->pr_name,
+		    sizeof(ar->k_ar.ar_jailname));
+	} else
+		ar->k_ar.ar_jailname[0] = '\0';
 	return (0);
 }
 

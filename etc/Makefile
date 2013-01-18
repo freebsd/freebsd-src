@@ -293,9 +293,9 @@ distribution:
 
 MTREE_CMD?=	mtree
 
-MTREES=		mtree/BSD.root.dist		/ \
-		mtree/BSD.var.dist		/var \
-		mtree/BSD.usr.dist		/usr \
+MTREES=		mtree/BSD.root.dist		/		\
+		mtree/BSD.var.dist		/var		\
+		mtree/BSD.usr.dist		/usr		\
 		mtree/BSD.include.dist		/usr/include
 .if ${MK_BIND_LIBS} != "no"
 MTREES+=	mtree/BIND.include.dist		/usr/include
@@ -343,14 +343,14 @@ distrib-dirs:
 	cd ${DESTDIR}/usr/share/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}/usr/share/man/en.ISO8859-1; \
+		    ${DESTDIR}/usr/share/man/en.ISO8859-1/; \
 		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}/usr/share/man/en.UTF-8; \
+		    ${DESTDIR}/usr/share/man/en.UTF-8/; \
 	done
 	cd ${DESTDIR}/usr/share/openssl/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1; \
+		    ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1/; \
 	done
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
 	while [ $$# -gt 0 ] ; do \

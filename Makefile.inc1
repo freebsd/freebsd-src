@@ -352,15 +352,7 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 
 .if defined(NO_ROOT)
 METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
-.if !defined(DISTDIR) 
-INSTALL_DDIR=	/${DESTDIR}
-.elif defined(DESTDIR) && ${DESTDIR:M${DISTDIR}$$}
-# Avoid adding ${DISTDIR} again when called recursively
-INSTALL_DDIR=	${DESTDIR}
-.else
 INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
-.endif
-# XXX: Removing DISTBASE for recursive calls during distributeworld
 INSTALLFLAGS=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g:S:${DISTBASE}$$::}
 MTREEFLAGS=	-W
 .endif
@@ -379,7 +371,7 @@ IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 .if defined(NO_ROOT)
 IMAKE+=		-DNO_ROOT METALOG=${METALOG}
 .endif
-.if defined(DB_FROM_SRC)
+.if defined(DB_FROM_SRC) || defined(NO_ROOT)
 IMAKE_INSTALL=	INSTALL="install -N ${.CURDIR}/etc ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="nmtree -N ${.CURDIR}/etc ${MTREEFLAGS}"
 .endif
@@ -676,7 +668,7 @@ installcheck_UGID:
 _install-info=	install-info
 .endif
 .if ${MK_ZONEINFO} != "no"
-_zoneinfo=	zic tzsetup xargs
+_zoneinfo=	zic tzsetup
 .endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
@@ -747,15 +739,19 @@ distributeworld installworld: installcheck
 .endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
-	${_+_}cd ${.CURDIR}; ${IMAKE} DISTBASE=/base \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/base distrib-dirs
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
+	    DISTBASE=${DISTBASE} DESTDIR=${DESTDIR}/${DISTDIR}/base \
+	    LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
+.endfor
 .if defined(NO_ROOT)
+.for dist in base ${EXTRA_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
 	@# a line containing only the filename will sort immediatly before
@@ -764,8 +760,8 @@ distributeworld installworld: installcheck
 	find ./${dist} | sort -u ${METALOG} - | \
 	awk 'BEGIN { print "#mtree 2.0" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.meta
-.endif
 .endfor
+.endif
 .endif
 
 packageworld:
@@ -813,7 +809,6 @@ redistribute:
 .endif
 
 distrib-dirs distribution:
-	echo ====== ${DESTDIR}
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} DISTBASE=${DISTBASE} \
 	    METALOG=${METALOG} ${.TARGET}
@@ -1122,7 +1117,7 @@ _lex=		usr.bin/lex
 _yacc=		usr.bin/yacc
 .endif
 
-.if defined(DB_FROM_SRC) && ${BOOTSTRAPPING} < 1000026
+.if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
 .endif
@@ -1179,7 +1174,6 @@ bootstrap-tools:
     ${_ar} \
     ${_dtc} \
     ${_awk} \
-    lib/libnetbsd \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \

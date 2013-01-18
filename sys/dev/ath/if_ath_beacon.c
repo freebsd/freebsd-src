@@ -705,6 +705,16 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 
 	if (vap == NULL)
 		vap = TAILQ_FIRST(&ic->ic_vaps);	/* XXX */
+	/*
+	 * Just ensure that we aren't being called when the last
+	 * VAP is destroyed.
+	 */
+	if (vap == NULL) {
+		device_printf(sc->sc_dev, "%s: called with no VAPs\n",
+		    __func__);
+		return;
+	}
+
 	ni = ieee80211_ref_node(vap->iv_bss);
 
 	/* extract tstamp from last beacon and convert to TU */

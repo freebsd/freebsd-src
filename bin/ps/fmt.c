@@ -105,7 +105,7 @@ cmdpart(char *arg0)
 }
 
 const char *
-fmt_argv(char **argv, char *cmd, size_t maxlen)
+fmt_argv(char **argv, char *cmd, char *thread, size_t maxlen)
 {
 	size_t len;
 	char *ap, *cp;
@@ -122,9 +122,14 @@ fmt_argv(char **argv, char *cmd, size_t maxlen)
 	cp = malloc(len);
 	if (cp == NULL)
 		errx(1, "malloc failed");
-	if (ap == NULL)
-		sprintf(cp, "[%.*s]", (int)maxlen, cmd);
-	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
+	if (ap == NULL) {
+		if (showthreads && thread != NULL) {
+			asprintf(&ap, "%s/%s", cmd, thread);
+			sprintf(cp, "[%.*s]", (int)maxlen, ap);
+			free(ap);
+		} else
+			sprintf(cp, "[%.*s]", (int)maxlen, cmd);
+	} else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
 		sprintf(cp, "%s (%.*s)", ap, (int)maxlen, cmd);
 	else
 		strcpy(cp, ap);
