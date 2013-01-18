@@ -213,6 +213,12 @@
 				};
 
 				/* 70014000 0x4000 SSI2 irq30 */
+				SSI2: ssi@70014000 {
+					compatible = "fsl,imx51-ssi";
+					reg = <0x70014000 0x4000>;
+					interrupt-parent = <&tzic>; interrupts = <30>;
+					status = "disabled";
+				};
 
 				/* 70020000 0x4000 ESDHC 3 */
 				esdhc@70020000 {
@@ -466,7 +472,20 @@
 
 			/* 83FCC000 0x4000 SSI1 */
 			/* 29 SSI1 SSI-1 Interrupt Request */
+			SSI1: ssi@83fcc000 {
+				compatible = "fsl,imx51-ssi";
+				reg = <0x83fcc000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <29>;
+				status = "disabled";
+			};
+
 			/* 83FD0000 0x4000 AUDMUX */
+			audmux@83fd4000 {
+				compatible = "fsl,imx51-audmux";
+				reg = <0x83fd4000 0x4000>;
+				status = "disabled";
+			};
+
 			/* 83FD8000 0x4000 EMI1 */
 			/* 8 EMI (NFC) */
 			/* 15 EMI */
@@ -489,8 +508,16 @@
 			/* 83FE4000 0x4000 SIM */
 			/* 67 SIM intr composed of oef, xte, sdi1, and sdi0 */
 			/* 68 SIM intr composed of tc, etc, tfe, and rdrf */
+
 			/* 83FE8000 0x4000 SSI3 */
 			/* 96 SSI3 SSI-3 Interrupt Request */
+			SSI3: ssi@83fe8000 {
+				compatible = "fsl,imx51-ssi";
+				reg = <0x83fe8000 0x4000>;
+				interrupt-parent = <&tzic>; interrupts = <96>;
+				status = "disabled";
+			};
+
 			/* 83FEC000 0x4000 FEC */
 			ethernet@83fec000 {
 				compatible = "fsl,imx51-fec";
