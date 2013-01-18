@@ -33,9 +33,10 @@
 #define __SYS_COUNTER_H__
 
 #include <sys/param.h>
-#include <machine/counter.h>
 
 typedef uint64_t *counter_u64_t;
+
+#include <machine/counter.h>
 
 counter_u64_t	counter_u64_alloc(int);
 void		counter_u64_free(counter_u64_t);
