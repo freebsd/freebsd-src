@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.277 2009/11/06 00:57:06 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.279 2012/11/16 20:25:03 ca Exp $")
 
 #if MILTER
 # include <sm/sendmail.h>
@@ -42,7 +42,7 @@ static char	*milter_write __P((struct milter *, int, char *, ssize_t,
 			time_t, ENVELOPE *, const char *));
 static char	*milter_send_command __P((struct milter *, int, void *,
 			ssize_t, ENVELOPE *, char *, const char *));
-static char	*milter_command __P((int, void *, ssize_t, char **,
+static char	*milter_command __P((int, void *, ssize_t, int,
 			ENVELOPE *, char *, const char *, bool));
 static char	*milter_body __P((struct milter *, ENVELOPE *, char *));
 static int	milter_reopen_df __P((ENVELOPE *));
@@ -79,13 +79,13 @@ static int	milter_set_macros __P((char *, char **, char *, int));
 # define SMFS_READY		'R'	/* ready for action */
 # define SMFS_SKIP		'S'	/* skip body */
 
-static char *MilterConnectMacros[MAXFILTERMACROS + 1];
-static char *MilterHeloMacros[MAXFILTERMACROS + 1];
-static char *MilterEnvFromMacros[MAXFILTERMACROS + 1];
-static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
-static char *MilterDataMacros[MAXFILTERMACROS + 1];
-static char *MilterEOMMacros[MAXFILTERMACROS + 1];
-static char *MilterEOHMacros[MAXFILTERMACROS + 1];
+/*
+**  MilterMacros contains the milter macros for each milter and each stage.
+**  indices are (in order): stages, milter-index, macro
+**  milter-index == 0: "global" macros (not for a specific milter).
+*/
+
+static char *MilterMacros[SMFIM_LAST + 1][MAXFILTERS + 1][MAXFILTERMACROS + 1];
 static size_t MilterMaxDataSize = MILTER_MAX_DATA_SIZE;
 
 # define MILTER_CHECK_DONE_MSG() \
@@ -98,6 +98,16 @@ static size_t MilterMaxDataSize = MILTER_MAX_DATA_SIZE;
 		milter_abort(e); \
 	}
 
+/* set state in case of an error */
+# define MILTER_SET_STATE	\
+	if (bitnset(SMF_TEMPFAIL, m->mf_flags)) \
+		*state = SMFIR_TEMPFAIL; \
+	else if (bitnset(SMF_TEMPDROP, m->mf_flags)) \
+		*state = SMFIR_SHUTDOWN; \
+	else if (bitnset(SMF_REJECT, m->mf_flags)) \
+		*state = SMFIR_REJECT
+
+/* flow through code maybe using continue; don't wrap in do {} while */
 # define MILTER_CHECK_ERROR(initial, action) \
 	if (!initial && tTd(71, 100)) \
 	{ \
@@ -119,12 +129,7 @@ static size_t MilterMaxDataSize = MILTER_MAX_DATA_SIZE;
 				  e->e_quarmsg); \
 		} \
 	} \
-	else if (bitnset(SMF_TEMPFAIL, m->mf_flags)) \
-		*state = SMFIR_TEMPFAIL; \
-	else if (bitnset(SMF_TEMPDROP, m->mf_flags)) \
-		*state = SMFIR_SHUTDOWN; \
-	else if (bitnset(SMF_REJECT, m->mf_flags)) \
-		*state = SMFIR_REJECT; \
+	else MILTER_SET_STATE;	\
 	else \
 		action;
 
@@ -1221,6 +1226,7 @@ milter_setup(line)
 	char *p;
 	struct milter *m;
 	STAB *s;
+	static int idx = 0;
 
 	/* collect the filter name */
 	for (p = line;
@@ -1323,7 +1329,10 @@ milter_setup(line)
 	if (s->s_milter != NULL)
 		syserr("X%s: duplicate filter definition", m->mf_name);
 	else
+	{
 		s->s_milter = m;
+		m->mf_idx = ++idx;
+	}
 }
 
 /*
@@ -1555,20 +1564,13 @@ static struct milteropt
 	unsigned char	mo_code;	/* code for option */
 } MilterOptTab[] =
 {
-# define MO_MACROS_CONNECT		SMFIM_CONNECT
-	{ "macros.connect",		MO_MACROS_CONNECT		},
-# define MO_MACROS_HELO			SMFIM_HELO
-	{ "macros.helo",		MO_MACROS_HELO			},
-# define MO_MACROS_ENVFROM		SMFIM_ENVFROM
-	{ "macros.envfrom",		MO_MACROS_ENVFROM		},
-# define MO_MACROS_ENVRCPT		SMFIM_ENVRCPT
-	{ "macros.envrcpt",		MO_MACROS_ENVRCPT		},
-# define MO_MACROS_DATA			SMFIM_DATA
-	{ "macros.data",		MO_MACROS_DATA			},
-# define MO_MACROS_EOM			SMFIM_EOM
-	{ "macros.eom",			MO_MACROS_EOM			},
-# define MO_MACROS_EOH			SMFIM_EOH
-	{ "macros.eoh",			MO_MACROS_EOH			},
+	{ "macros.connect",		SMFIM_CONNECT			},
+	{ "macros.helo",		SMFIM_HELO			},
+	{ "macros.envfrom",		SMFIM_ENVFROM			},
+	{ "macros.envrcpt",		SMFIM_ENVRCPT			},
+	{ "macros.data",		SMFIM_DATA			},
+	{ "macros.eom",			SMFIM_EOM			},
+	{ "macros.eoh",			SMFIM_EOH			},
 
 # define MO_LOGLEVEL			0x07
 	{ "loglevel",			MO_LOGLEVEL			},
@@ -1655,39 +1657,14 @@ milter_set_option(name, val, sticky)
 		break;
 # endif /* _FFR_MAXDATASIZE || _FFR_MDS_NEGOTIATE */
 
-	  case MO_MACROS_CONNECT:
-		if (macros == NULL)
-			macros = MilterConnectMacros;
-		/* FALLTHROUGH */
-
-	  case MO_MACROS_HELO:
-		if (macros == NULL)
-			macros = MilterHeloMacros;
-		/* FALLTHROUGH */
-
-	  case MO_MACROS_ENVFROM:
-		if (macros == NULL)
-			macros = MilterEnvFromMacros;
-		/* FALLTHROUGH */
-
-	  case MO_MACROS_ENVRCPT:
-		if (macros == NULL)
-			macros = MilterEnvRcptMacros;
-		/* FALLTHROUGH */
-
-	  case MO_MACROS_EOH:
-		if (macros == NULL)
-			macros = MilterEOHMacros;
-		/* FALLTHROUGH */
-
-	  case MO_MACROS_EOM:
-		if (macros == NULL)
-			macros = MilterEOMMacros;
-		/* FALLTHROUGH */
-
-	  case MO_MACROS_DATA:
-		if (macros == NULL)
-			macros = MilterDataMacros;
+	  case SMFIM_CONNECT:
+	  case SMFIM_HELO:
+	  case SMFIM_ENVFROM:
+	  case SMFIM_ENVRCPT:
+	  case SMFIM_EOH:
+	  case SMFIM_EOM:
+	  case SMFIM_DATA:
+		macros = MilterMacros[mo->mo_code][0];
 
 		r = milter_set_macros(name, macros, val, nummac);
 		if (r >= 0)
@@ -2188,7 +2165,7 @@ milter_send_command(m, cmd, data, sz, e, state, where)
 			sm_syslog(LOG_ERR, e->e_id,
 				  "milter_send_command(%s): action=%s returned bogus response %c",
 				  m->mf_name, action, rcmd);
-		milter_error(m, e);
+		milter_error(m, e); /* NO ERROR CHECK? */
 		break;
 	}
 
@@ -2218,11 +2195,11 @@ milter_send_command(m, cmd, data, sz, e, state, where)
 */
 
 static char *
-milter_command(cmd, data, sz, macros, e, state, where, cmd_error)
+milter_command(cmd, data, sz, stage, e, state, where, cmd_error)
 	int cmd;
 	void *data;
 	ssize_t sz;
-	char **macros;
+	int stage;
 	ENVELOPE *e;
 	char *state;
 	const char *where;
@@ -2254,14 +2231,27 @@ milter_command(cmd, data, sz, macros, e, state, where, cmd_error)
 		    (m->mf_state != SMFS_OPEN && m->mf_state != SMFS_INMSG))
 			continue;
 
-		/* send macros (regardless of whether we send command) */
-		if (macros != NULL && macros[0] != NULL)
+		if (stage >= SMFIM_FIRST && stage <= SMFIM_LAST)
 		{
-			milter_send_macros(m, macros, command, e);
-			if (m->mf_state == SMFS_ERROR)
+			int idx;
+			char **macros;
+
+			if ((m->mf_lflags & MI_LFLAGS_SYM(stage)) != 0)
+				idx = m->mf_idx;
+			else
+				idx = 0;
+			SM_ASSERT(idx >= 0 && idx <= MAXFILTERS);
+			macros = MilterMacros[stage][idx];
+
+			/* send macros (regardless of whether we send cmd) */
+			if (macros != NULL && macros[0] != NULL)
 			{
-				MILTER_CHECK_ERROR(false, continue);
-				break;
+				milter_send_macros(m, macros, command, e);
+				if (m->mf_state == SMFS_ERROR)
+				{
+					MILTER_CHECK_ERROR(false, continue);
+					break;
+				}
 			}
 		}
 
@@ -2329,40 +2319,17 @@ milter_getsymlist(m, buf, rlen, offset)
 
 		switch (i)
 		{
-		  case MO_MACROS_CONNECT:
-			if (macros == NULL)
-				macros = MilterConnectMacros;
-			/* FALLTHROUGH */
+		  case SMFIM_CONNECT:
+		  case SMFIM_HELO:
+		  case SMFIM_ENVFROM:
+		  case SMFIM_ENVRCPT:
+		  case SMFIM_EOH:
+		  case SMFIM_EOM:
+		  case SMFIM_DATA:
+			SM_ASSERT(m->mf_idx > 0 && m->mf_idx < MAXFILTERS);
+			macros = MilterMacros[i][m->mf_idx];
 
-		  case MO_MACROS_HELO:
-			if (macros == NULL)
-				macros = MilterHeloMacros;
-			/* FALLTHROUGH */
-
-		  case MO_MACROS_ENVFROM:
-			if (macros == NULL)
-				macros = MilterEnvFromMacros;
-			/* FALLTHROUGH */
-
-		  case MO_MACROS_ENVRCPT:
-			if (macros == NULL)
-				macros = MilterEnvRcptMacros;
-			/* FALLTHROUGH */
-
-		  case MO_MACROS_EOM:
-			if (macros == NULL)
-				macros = MilterEOMMacros;
-			/* FALLTHROUGH */
-
-		  case MO_MACROS_EOH:
-			if (macros == NULL)
-				macros = MilterEOHMacros;
-			/* FALLTHROUGH */
-
-		  case MO_MACROS_DATA:
-			if (macros == NULL)
-				macros = MilterDataMacros;
-
+			m->mf_lflags |= MI_LFLAGS_SYM(i);
 			len = strlen(buf + offset);
 			if (len > 0)
 			{
@@ -2370,6 +2337,9 @@ milter_getsymlist(m, buf, rlen, offset)
 						buf + offset, nummac);
 				if (r >= 0)
 					nummac = r;
+				if (tTd(64, 5))
+					sm_dprintf("milter_getsymlist(%s, %s)=%d\n",
+						m->mf_name, buf + offset, r);
 			}
 			break;
 
@@ -3989,7 +3959,7 @@ milter_connect(hostname, addr, e, state)
 		(void) memcpy(bp, sockinfo, strlen(sockinfo) + 1);
 	}
 
-	response = milter_command(SMFIC_CONNECT, buf, s, MilterConnectMacros,
+	response = milter_command(SMFIC_CONNECT, buf, s, SMFIM_CONNECT,
 				e, state, "connect", false);
 	sm_free(buf); /* XXX */
 
@@ -4078,7 +4048,7 @@ milter_helo(helo, e, state)
 	}
 
 	response = milter_command(SMFIC_HELO, helo, strlen(helo) + 1,
-				  MilterHeloMacros, e, state, "helo", false);
+				  SMFIM_EOH, e, state, "helo", false);
 	milter_per_connection_check(e);
 	return response;
 }
@@ -4166,7 +4136,7 @@ milter_envfrom(args, e, state)
 		sm_syslog(LOG_INFO, e->e_id, "Milter: sender: %s", buf);
 
 	/* send it over */
-	response = milter_command(SMFIC_MAIL, buf, s, MilterEnvFromMacros,
+	response = milter_command(SMFIC_MAIL, buf, s, SMFIM_ENVFROM,
 				e, state, "mail", false);
 	sm_free(buf); /* XXX */
 
@@ -4247,7 +4217,7 @@ milter_envrcpt(args, e, state, rcpt_error)
 		sm_syslog(LOG_INFO, e->e_id, "Milter: rcpts: %s", buf);
 
 	/* send it over */
-	response = milter_command(SMFIC_RCPT, buf, s, MilterEnvRcptMacros,
+	response = milter_command(SMFIC_RCPT, buf, s, SMFIM_ENVRCPT,
 				e, state, "rcpt", rcpt_error);
 	sm_free(buf); /* XXX */
 	return response;
@@ -4273,8 +4243,8 @@ milter_data_cmd(e, state)
 		sm_dprintf("milter_data_cmd\n");
 
 	/* send it over */
-	return milter_command(SMFIC_DATA, NULL, 0, MilterDataMacros, e, state,
-				"data", false);
+	return milter_command(SMFIC_DATA, NULL, 0, SMFIM_DATA,
+				e, state, "data", false);
 }
 
 /*
@@ -4293,7 +4263,12 @@ milter_data_cmd(e, state)
 **		  modify the envelope or message.
 */
 
+/* flow through code using continue; don't wrap in do {} while */
 # define MILTER_CHECK_RESULTS() \
+	if (m->mf_state == SMFS_ERROR && *state == SMFIR_CONTINUE) \
+	{ \
+			MILTER_SET_STATE;	\
+	} \
 	if (*state == SMFIR_ACCEPT || \
 	    m->mf_state == SMFS_DONE || \
 	    m->mf_state == SMFS_ERROR) \
@@ -4339,6 +4314,8 @@ milter_data(e, state)
 
 	for (i = 0; InputFilters[i] != NULL; i++)
 	{
+		int idx;
+		char **macros;
 		struct milter *m = InputFilters[i];
 
 		if (*state != SMFIR_CONTINUE &&
@@ -4383,10 +4360,16 @@ milter_data(e, state)
 			if (tTd(64, 10))
 				sm_dprintf("milter_data: eoh\n");
 
-			if (MilterEOHMacros[0] != NULL)
+			if ((m->mf_lflags & MI_LFLAGS_SYM(SMFIM_EOH)) != 0)
+				idx = m->mf_idx;
+			else
+				idx = 0;
+			SM_ASSERT(idx >= 0 && idx <= MAXFILTERS);
+			macros = MilterMacros[SMFIM_EOH][idx];
+
+			if (macros != NULL)
 			{
-				milter_send_macros(m, MilterEOHMacros,
-					   SMFIC_EOH, e);
+				milter_send_macros(m, macros, SMFIC_EOH, e);
 				MILTER_CHECK_RESULTS();
 			}
 
@@ -4405,10 +4388,15 @@ milter_data(e, state)
 			MILTER_CHECK_RESULTS();
 		}
 
-		if (MilterEOMMacros[0] != NULL)
+		if ((m->mf_lflags & MI_LFLAGS_SYM(SMFIM_EOH)) != 0)
+			idx = m->mf_idx;
+		else
+			idx = 0;
+		SM_ASSERT(idx >= 0 && idx <= MAXFILTERS);
+		macros = MilterMacros[SMFIM_EOM][idx];
+		if (macros != NULL)
 		{
-			milter_send_macros(m, MilterEOMMacros,
-					   SMFIC_BODYEOB, e);
+			milter_send_macros(m, macros, SMFIC_BODYEOB, e);
 			MILTER_CHECK_RESULTS();
 		}
 
@@ -4734,7 +4722,7 @@ milter_unknown(smtpcmd, e, state)
 		sm_dprintf("milter_unknown(%s)\n", smtpcmd);
 
 	return milter_command(SMFIC_UNKNOWN, smtpcmd, strlen(smtpcmd) + 1,
-				NULL, e, state, "unknown", false);
+				SMFIM_NOMACROS, e, state, "unknown", false);
 }
 
 /*

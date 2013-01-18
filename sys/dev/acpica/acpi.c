@@ -613,7 +613,9 @@ acpi_attach(device_t dev)
     /* Probe all supported sleep states. */
     acpi_sleep_states[ACPI_STATE_S0] = TRUE;
     for (state = ACPI_STATE_S1; state < ACPI_S_STATE_COUNT; state++)
-	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB)))
+	if (ACPI_SUCCESS(AcpiEvaluateObject(ACPI_ROOT_OBJECT,
+	    __DECONST(char *, AcpiGbl_SleepStateNames[state]), NULL, NULL)) &&
+	    ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB)))
 	    acpi_sleep_states[state] = TRUE;
 
     /*

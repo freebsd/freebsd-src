@@ -63,7 +63,7 @@ if [ $? -ne 0 ]; then
 	fi
 fi
 
-LABEL=$1; shift
+LABEL=`echo $1 | tr '[:lower:]' '[:upper:]'`; shift
 NAME=$1; shift
 
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab

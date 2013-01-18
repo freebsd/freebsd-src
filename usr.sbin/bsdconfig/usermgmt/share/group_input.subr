@@ -31,6 +31,7 @@ if [ ! "$_USERMGMT_GROUP_INPUT_SUBR" ]; then _USERMGMT_GROUP_INPUT_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." usermgmt/group_input.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
 
@@ -111,39 +112,16 @@ f_dialog_menu_group_list()
 #
 f_dialog_input_group_name()
 {
-	local msg="$( printf "$msg_group" )"
-	local hline="$hline_alnum_tab_enter"
-
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local size retval _name="$1" _input="$1"
+	local _name="$1" _input="$1"
 	while :; do
-		size=$( f_dialog_inputbox_size \
-		        	"$DIALOG_TITLE"     \
-		        	"$DIALOG_BACKTITLE" \
-		        	"$msg"              \
-		        	"$_input"           \
-		        	"$hline"            )
-
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$msg\" $size         \
-			\"\$_input\"                       \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_input=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		_input=$( f_dialog_input "$msg_group" "$_input" \
+		                         "$hline_alnum_tab_enter"
+		        ) || return
 
 		# Check for no-change
 		[ "$_input" = "$_name" ] && return $SUCCESS
@@ -156,13 +134,13 @@ f_dialog_input_group_name()
 
 		# Check for NULL entry
 		if [ ! "$_input" ]; then
-			f_show_msg "$msg_group_is_empty"
+			f_dialog_msgbox "$msg_group_is_empty"
 			continue
 		fi
 
 		# Check for invalid entry
 		if ! echo "$_input" | grep -q "^[[:alpha:]]"; then
-			f_show_msg "$msg_group_must_start_with_letter"
+			f_dialog_msgbox "$msg_group_must_start_with_letter"
 			continue
 		fi
 
@@ -177,7 +155,7 @@ f_dialog_input_group_name()
 	done
 	save_flag=1
 
-	f_dprintf "group_name: [$cur_group_name]->[$group_name]"
+	f_dprintf "group_name: [%s]->[%s]" "$cur_group_name" "$group_name"
 
 	return $SUCCESS
 }
@@ -251,7 +229,7 @@ f_dialog_input_group_password()
 
 		# Check for password mismatch
 		if [ "$_password1" != "$_password2" ]; then
-			f_show_msg "$msg_group_passwords_do_not_match"
+			f_dialog_msgbox "$msg_group_passwords_do_not_match"
 			continue
 		fi
 
@@ -270,7 +248,8 @@ f_dialog_input_group_password()
 	done
 	save_flag=1
 
-	f_dprintf "group_password: [$cur_group_password]->[$group_password]"
+	f_dprintf "group_password: [%s]->[%s]" \
+	          "$cur_group_password" "$group_password"
 
 	return $SUCCESS
 }
@@ -283,40 +262,17 @@ f_dialog_input_group_password()
 #
 f_dialog_input_group_gid()
 {
-	local msg size retval _input="$1"
-	local hline="$hline_num_tab_enter"
-
-	msg=$( printf "$msg_group_id_leave_empty_for_default" )
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$msg\" $size         \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
+	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	_input=$( f_dialog_input "$msg_group_id_leave_empty_for_default" \
+	                         "$_input" "$hline_num_tab_enter"
+	        ) || return
 
 	group_gid="$_input"
 	save_flag=1
 
-	f_dprintf "group_gid: [$cur_group_gid]->[$group_gid]"
+	f_dprintf "group_gid: [%s]->[%s]" "$cur_group_gid" "$group_gid"
 
 	return $SUCCESS
 }
@@ -365,7 +321,7 @@ f_dialog_input_group_members()
 		retval=$?
 		setvar DIALOG_MENU_$$ "$dialog_menu"
 		menu_choice=$( f_dialog_menutag )
-		f_dprintf "retval=$retval menu_choice=[$menu_choice]"
+		f_dprintf "retval=%u menu_choice=[%s]" $retval "$menu_choice"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
@@ -416,36 +372,13 @@ f_dialog_input_group_members()
 			_input="$_group_members"
 			;;
 		2) # Enter Group Members manually
-			hline="$hline_num_tab_enter"
-			msg=$(
-			  printf "$msg_group_members ($msg_separated_by_commas)"
-			)
-			size=$( f_dialog_inputbox_size \
-	        		"$DIALOG_TITLE"     \
-	        		"$DIALOG_BACKTITLE" \
-	        		"$msg"              \
-	        		"$_input"           \
-	        		"$hline"            )
-
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
-				--title \"\$DIALOG_TITLE\"         \
-				--backtitle \"\$DIALOG_BACKTITLE\" \
-				--hline \"\$hline\"                \
-				--ok-label \"\$msg_ok\"            \
-				--cancel-label \"\$msg_cancel\"    \
-				--inputbox \"\$msg\" $size         \
-				\"\$_input\"                       \
-				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			)
-
-			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			_group_members=$( f_dialog_inputstr )
+			msg="$msg_group_members ($msg_separated_by_commas)"
 
 			# Return to previous menu if user has either
 			#     pressed ESC or chosen Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			_group_members=$( f_dialog_input "$msg" "$_input" \
+			                                 "$hline_num_tab_enter"
+			                ) || continue
 
 			_input="$_group_members"
 			;;
@@ -454,9 +387,14 @@ f_dialog_input_group_members()
 
 	group_members="$_input"
 	save_flag=1
-	f_dprintf "group_members: [$cur_group_members]->[$group_members]"
+	f_dprintf "group_members: [%s]->[%s]" \
+	          "$cur_group_members" "$group_members"
 
 	return $SUCCESS
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." usermgmt/group_input.subr
 
 fi # ! $_USERMGMT_GROUP_INPUT_SUBR

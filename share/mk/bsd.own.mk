@@ -216,80 +216,6 @@ WITHOUT_${var}=
 .endfor
 
 #
-# Compat NO_* options (same as above, except their use is deprecated).
-#
-.if !defined(BURN_BRIDGES)
-.for var in \
-    ACPI \
-    ATM \
-    AUDIT \
-    AUTHPF \
-    BIND \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
-    BLUETOOTH \
-    BOOT \
-    CALENDAR \
-    CPP \
-    CRYPT \
-    CVS \
-    CXX \
-    DICT \
-    DYNAMICROOT \
-    EXAMPLES \
-    FORTH \
-    FP_LIBC \
-    GAMES \
-    GCOV \
-    GDB \
-    GNU \
-    GPIB \
-    GROFF \
-    HTML \
-    INET6 \
-    INFO \
-    IPFILTER \
-    IPX \
-    KDUMP \
-    KERBEROS \
-    LIB32 \
-    LIBPTHREAD \
-    LIBTHR \
-    LOCALES \
-    LPR \
-    MAILWRAPPER \
-    NETCAT \
-    NIS \
-    NLS \
-    NLS_CATALOGS \
-    NS_CACHING \
-    OPENSSH \
-    OPENSSL \
-    PAM \
-    PF \
-    RCMDS \
-    RCS \
-    RESCUE \
-    SENDMAIL \
-    SETUID_LOGIN \
-    SHAREDOCS \
-    SYSCONS \
-    TCSH \
-    TOOLCHAIN \
-    USB \
-    WPA_SUPPLICANT_EAPOL
-.if defined(NO_${var})
-#.warning NO_${var} is deprecated in favour of WITHOUT_${var}=
-WITHOUT_${var}=
-.endif
-.endfor
-.endif # !defined(BURN_BRIDGES)
-
-#
 # Older-style variables that enabled behaviour when set.
 #
 .if defined(YES_HESIOD)
@@ -322,9 +248,6 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BSD_CPIO \
     BSNMP \
-    SOURCELESS \
-    SOURCELESS_HOST \
-    SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
@@ -401,10 +324,13 @@ __DEFAULT_YES_OPTIONS = \
     SENDMAIL \
     SETUID_LOGIN \
     SHAREDOCS \
+    SOURCELESS \
+    SOURCELESS_HOST \
+    SOURCELESS_UCODE \
     SSP \
-    SYSINSTALL \
     SYMVER \
     SYSCONS \
+    SYSINSTALL \
     TCSH \
     TELNET \
     TEXTPROC \
@@ -417,22 +343,25 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
-    BMAKE \
-    BSD_GREP \
+    ARM_EABI \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    BMAKE \
     BSDCONFIG \
+    BSD_GREP \
     CLANG_EXTRAS \
     CTF \
     HESIOD \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
+    NMTREE \
     NAND \
     OFED \
+    OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN
 
 #

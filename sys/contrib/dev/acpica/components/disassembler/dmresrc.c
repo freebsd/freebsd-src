@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -415,7 +415,8 @@ AcpiDmIsResourceTemplate (
 
     /* Walk the byte list, abort on any invalid descriptor type or length */
 
-    Status = AcpiUtWalkAmlResources (WalkState, Aml, Length, NULL, &EndAml);
+    Status = AcpiUtWalkAmlResources (WalkState, Aml, Length,
+        NULL, (void **) &EndAml);
     if (ACPI_FAILURE (Status))
     {
         return (AE_TYPE);

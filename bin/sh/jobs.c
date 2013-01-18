@@ -298,6 +298,7 @@ showjob(struct job *jp, int mode)
 {
 	char s[64];
 	char statestr[64];
+	const char *sigstr;
 	struct procstat *ps;
 	struct job *j;
 	int col, curr, i, jobno, prev, procno;
@@ -324,8 +325,9 @@ showjob(struct job *jp, int mode)
 			i = WSTOPSIG(ps->status);
 		else
 			i = -1;
-		if (i > 0 && i < sys_nsig && sys_siglist[i])
-			strcpy(statestr, sys_siglist[i]);
+		sigstr = strsignal(i);
+		if (sigstr != NULL)
+			strcpy(statestr, sigstr);
 		else
 			strcpy(statestr, "Suspended");
 #endif
@@ -337,10 +339,11 @@ showjob(struct job *jp, int mode)
 			    WEXITSTATUS(ps->status));
 	} else {
 		i = WTERMSIG(ps->status);
-		if (i > 0 && i < sys_nsig && sys_siglist[i])
-			strcpy(statestr, sys_siglist[i]);
+		sigstr = strsignal(i);
+		if (sigstr != NULL)
+			strcpy(statestr, sigstr);
 		else
-			fmtstr(statestr, 64, "Signal %d", i);
+			strcpy(statestr, "Unknown signal");
 		if (WCOREDUMP(ps->status))
 			strcat(statestr, " (core dumped)");
 	}
@@ -1019,6 +1022,7 @@ dowait(int mode, struct job *job)
 	struct procstat *sp;
 	struct job *jp;
 	struct job *thisjob;
+	const char *sigstr;
 	int done;
 	int stopped;
 	int sig;
@@ -1129,10 +1133,11 @@ dowait(int mode, struct job *job)
 				coredump = WCOREDUMP(sp->status);
 			}
 		if (sig > 0 && sig != SIGINT && sig != SIGPIPE) {
-			if (sig < sys_nsig && sys_siglist[sig])
-				out2str(sys_siglist[sig]);
+			sigstr = strsignal(sig);
+			if (sigstr != NULL)
+				out2str(sigstr);
 			else
-				outfmt(out2, "Signal %d", sig);
+				out2str("Unknown signal");
 			if (coredump)
 				out2str(" (core dumped)");
 			out2c('\n');

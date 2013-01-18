@@ -32,6 +32,7 @@
 #include <pthread.h>
 #include "typeinfo.h"
 #include "dwarf_eh.h"
+#include "atomic.h"
 #include "cxxabi.h"
 
 #pragma weak pthread_key_create
@@ -154,6 +155,17 @@ struct __cxa_thread_info
 	 * The exception currently running in a cleanup.
 	 */
 	_Unwind_Exception *currentCleanup;
+	/**
+	 * Our state with respect to foreign exceptions.  Usually none, set to
+	 * caught if we have just caught an exception and rethrown if we are
+	 * rethrowing it.
+	 */
+	enum 
+	{
+		none,
+		caught,
+		rethrown
+	} foreign_exception_state;
 	/**
 	 * The public part of this structure, accessible from outside of this
 	 * module.
@@ -308,7 +320,16 @@ static void thread_cleanup(void* thread_info)
 	__cxa_thread_info *info = (__cxa_thread_info*)thread_info;
 	if (info->globals.caughtExceptions)
 	{
-		free_exception_list(info->globals.caughtExceptions);
+		// If this is a foreign exception, ask it to clean itself up.
+		if (info->foreign_exception_state != __cxa_thread_info::none)
+		{
+			_Unwind_Exception *e = (_Unwind_Exception*)info->globals.caughtExceptions;
+			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
+		}
+		else
+		{
+			free_exception_list(info->globals.caughtExceptions);
+		}
 	}
 	free(thread_info);
 }
@@ -780,7 +801,8 @@ extern "C" void __cxa_decrement_exception_refcount(void* thrown_exception)
  */
 extern "C" void __cxa_rethrow()
 {
-	__cxa_eh_globals *globals = __cxa_get_globals();
+	__cxa_thread_info *ti = thread_info_fast();
+	__cxa_eh_globals *globals = &ti->globals;
 	// Note: We don't remove this from the caught list here, because
 	// __cxa_end_catch will be called when we unwind out of the try block.  We
 	// could probably make this faster by providing an alternative rethrow
@@ -793,6 +815,15 @@ extern "C" void __cxa_rethrow()
 		fprintf(stderr,
 		        "Attempting to rethrow an exception that doesn't exist!\n");
 		std::terminate();
+	}
+
+	if (ti->foreign_exception_state != __cxa_thread_info::none)
+	{
+		ti->foreign_exception_state = __cxa_thread_info::rethrown;
+		_Unwind_Exception *e = (_Unwind_Exception*)ex;
+		_Unwind_Reason_Code err = _Unwind_Resume_or_Rethrow(e);
+		report_failure(err, ex);
+		return;
 	}
 
 	assert(ex->handlerCount > 0 && "Rethrowing uncaught exception!");
@@ -848,9 +879,9 @@ static bool check_type_signature(__cxa_exception *ex,
                                  void *&adjustedPtr)
 {
 	void *exception_ptr = (void*)(ex+1);
-	const std::type_info *ex_type = ex->exceptionType;
+	const std::type_info *ex_type = ex ? ex->exceptionType : 0;
 
-	bool is_ptr = ex_type->__is_pointer_p();
+	bool is_ptr = ex ? ex_type->__is_pointer_p() : false;
 	if (is_ptr)
 	{
 		exception_ptr = *(void**)exception_ptr;
@@ -911,8 +942,8 @@ static handler_type check_action_record(_Unwind_Context *context,
 		action_record = displacement ? 
 			action_record_offset_base + displacement : 0;
 		// We only check handler types for C++ exceptions - foreign exceptions
-		// are only allowed for cleanup.
-		if (filter > 0 && 0 != ex)
+		// are only allowed for cleanups and catchalls.
+		if (filter > 0)
 		{
 			std::type_info *handler_type = get_type_info_entry(context, lsda, filter);
 			if (check_type_signature(ex, handler_type, adjustedPtr))
@@ -1133,8 +1164,10 @@ extern "C" void *__cxa_begin_catch(void *e) throw()
 extern "C" void *__cxa_begin_catch(void *e)
 #endif
 {
-	// Decrement the uncaught exceptions count
-	__cxa_eh_globals *globals = __cxa_get_globals();
+	// We can't call the fast version here, because if the first exception that
+	// we see is a foreign exception then we won't have called it yet.
+	__cxa_thread_info *ti = thread_info();
+	__cxa_eh_globals *globals = &ti->globals;
 	globals->uncaughtExceptions--;
 	_Unwind_Exception *exceptionObject = (_Unwind_Exception*)e;
 
@@ -1177,8 +1210,21 @@ extern "C" void *__cxa_begin_catch(void *e)
 		{
 			ex->handlerCount++;
 		}
+		ti->foreign_exception_state = __cxa_thread_info::none;
 		
 		return ex->adjustedPtr;
+	}
+	else
+	{
+		// If this is a foreign exception, then we need to be able to
+		// store it.  We can't chain foreign exceptions, so we give up
+		// if there are already some outstanding ones.
+		if (globals->caughtExceptions != 0)
+		{
+			std::terminate();
+		}
+		globals->caughtExceptions = (__cxa_exception*)exceptionObject;
+		ti->foreign_exception_state = __cxa_thread_info::caught;
 	}
 	// exceptionObject is the pointer to the _Unwind_Exception within the
 	// __cxa_exception.  The throw object is after this
@@ -1195,10 +1241,23 @@ extern "C" void __cxa_end_catch()
 {
 	// We can call the fast version here because the slow version is called in
 	// __cxa_throw(), which must have been called before we end a catch block
-	__cxa_eh_globals *globals = __cxa_get_globals_fast();
+	__cxa_thread_info *ti = thread_info_fast();
+	__cxa_eh_globals *globals = &ti->globals;
 	__cxa_exception *ex = globals->caughtExceptions;
 
 	assert(0 != ex && "Ending catch when no exception is on the stack!");
+	
+	if (ti->foreign_exception_state != __cxa_thread_info::none)
+	{
+		globals->caughtExceptions = 0;
+		if (ti->foreign_exception_state != __cxa_thread_info::rethrown)
+		{
+			_Unwind_Exception *e = (_Unwind_Exception*)ti->globals.caughtExceptions;
+			e->exception_cleanup(_URC_FOREIGN_EXCEPTION_CAUGHT, e);
+		}
+		ti->foreign_exception_state = __cxa_thread_info::none;
+		return;
+	}
 
 	bool deleteException = true;
 
@@ -1328,7 +1387,7 @@ namespace std
 	{
 		if (thread_local_handlers) { return pathscale::set_unexpected(f); }
 
-		return __sync_lock_test_and_set(&unexpectedHandler, f);
+		return ATOMIC_SWAP(&terminateHandler, f);
 	}
 	/**
 	 * Sets the function that is called to terminate the program.
@@ -1336,7 +1395,8 @@ namespace std
 	terminate_handler set_terminate(terminate_handler f) throw()
 	{
 		if (thread_local_handlers) { return pathscale::set_terminate(f); }
-		return __sync_lock_test_and_set(&terminateHandler, f);
+
+		return ATOMIC_SWAP(&terminateHandler, f);
 	}
 	/**
 	 * Terminates the program, calling a custom terminate implementation if
@@ -1390,7 +1450,7 @@ namespace std
 		{
 			return info->unexpectedHandler;
 		}
-		return unexpectedHandler;
+		return ATOMIC_LOAD(&unexpectedHandler);
 	}
 	/**
 	 * Returns the current terminate handler.
@@ -1402,7 +1462,7 @@ namespace std
 		{
 			return info->terminateHandler;
 		}
-		return terminateHandler;
+		return ATOMIC_LOAD(&terminateHandler);
 	}
 }
 #ifdef __arm__

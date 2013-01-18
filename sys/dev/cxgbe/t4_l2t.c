@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 
 #include "common/common.h"
-#include "common/jhash.h"
 #include "common/t4_msg.h"
 #include "t4_l2t.h"
 
@@ -78,7 +77,7 @@ t4_alloc_l2e(struct l2t_data *d)
 		return (NULL);
 
 	/* there's definitely a free entry */
-	for (e = d->rover, end = &d->l2tab[L2T_SIZE]; e != end; ++e)
+	for (e = d->rover, end = &d->l2tab[d->l2t_size]; e != end; ++e)
 		if (atomic_load_acq_int(&e->refcnt) == 0)
 			goto found;
 
@@ -115,6 +114,7 @@ t4_write_l2e(struct adapter *sc, struct l2t_entry *e, int sync)
 {
 	struct wrqe *wr;
 	struct cpl_l2t_write_req *req;
+	int idx = e->idx + sc->vres.l2t.start;
 
 	mtx_assert(&e->lock, MA_OWNED);
 
@@ -124,10 +124,10 @@ t4_write_l2e(struct adapter *sc, struct l2t_entry *e, int sync)
 	req = wrtod(wr);
 
 	INIT_TP_WR(req, 0);
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, e->idx |
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, idx |
 	    V_SYNC_WR(sync) | V_TID_QID(sc->sge.fwq.abs_id)));
 	req->params = htons(V_L2T_W_PORT(e->lport) | V_L2T_W_NOREPLY(!sync));
-	req->l2t_idx = htons(e->idx);
+	req->l2t_idx = htons(idx);
 	req->vlan = htons(e->vlan);
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 
@@ -149,7 +149,7 @@ t4_l2t_alloc_switching(struct l2t_data *d)
 {
 	struct l2t_entry *e;
 
-	rw_rlock(&d->lock);
+	rw_wlock(&d->lock);
 	e = t4_alloc_l2e(d);
 	if (e) {
 		mtx_lock(&e->lock);          /* avoid race with t4_l2t_free */
@@ -157,7 +157,7 @@ t4_l2t_alloc_switching(struct l2t_data *d)
 		atomic_store_rel_int(&e->refcnt, 1);
 		mtx_unlock(&e->lock);
 	}
-	rw_runlock(&d->lock);
+	rw_wunlock(&d->lock);
 	return e;
 }
 
@@ -183,18 +183,24 @@ t4_l2t_set_switching(struct adapter *sc, struct l2t_entry *e, uint16_t vlan,
 int
 t4_init_l2t(struct adapter *sc, int flags)
 {
-	int i;
+	int i, l2t_size;
 	struct l2t_data *d;
 
-	d = malloc(sizeof(*d), M_CXGBE, M_ZERO | flags);
+	l2t_size = sc->vres.l2t.size;
+	if (l2t_size < 2)	/* At least 1 bucket for IP and 1 for IPv6 */
+		return (EINVAL);
+
+	d = malloc(sizeof(*d) + l2t_size * sizeof (struct l2t_entry), M_CXGBE,
+	    M_ZERO | flags);
 	if (!d)
 		return (ENOMEM);
 
+	d->l2t_size = l2t_size;
 	d->rover = d->l2tab;
-	atomic_store_rel_int(&d->nfree, L2T_SIZE);
+	atomic_store_rel_int(&d->nfree, l2t_size);
 	rw_init(&d->lock, "L2T");
 
-	for (i = 0; i < L2T_SIZE; i++) {
+	for (i = 0; i < l2t_size; i++) {
 		struct l2t_entry *e = &d->l2tab[i];
 
 		e->idx = i;
@@ -215,7 +221,7 @@ t4_free_l2t(struct l2t_data *d)
 {
 	int i;
 
-	for (i = 0; i < L2T_SIZE; i++)
+	for (i = 0; i < d->l2t_size; i++)
 		mtx_destroy(&d->l2tab[i].lock);
 	rw_destroy(&d->lock);
 	free(d, M_CXGBE);
@@ -229,11 +235,11 @@ do_l2t_write_rpl(struct sge_iq *iq, const struct rss_header *rss,
 {
 	const struct cpl_l2t_write_rpl *rpl = (const void *)(rss + 1);
 	unsigned int tid = GET_TID(rpl);
-	unsigned int idx = tid & (L2T_SIZE - 1);
+	unsigned int idx = tid % L2T_SIZE;
 
 	if (__predict_false(rpl->status != CPL_ERR_NONE)) {
 		log(LOG_ERR,
-		    "Unexpected L2T_WRITE_RPL status %u for entry %u\n",
+		    "Unexpected L2T_WRITE_RPL (%u) for entry at hw_idx %u\n",
 		    rpl->status, idx);
 		return (EINVAL);
 	}
@@ -269,7 +275,7 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 	struct l2t_entry *e;
 	struct sbuf *sb;
 	int rc, i, header = 0;
-	char ip[60];
+	char ip[INET6_ADDRSTRLEN];
 
 	if (l2t == NULL)
 		return (ENXIO);
@@ -283,7 +289,7 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	e = &l2t->l2tab[0];
-	for (i = 0; i < L2T_SIZE; i++, e++) {
+	for (i = 0; i < l2t->l2t_size; i++, e++) {
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_UNUSED)
 			goto skip;
@@ -295,11 +301,15 @@ sysctl_l2t(SYSCTL_HANDLER_ARGS)
 		}
 		if (e->state == L2T_STATE_SWITCHING)
 			ip[0] = 0;
-		else
-			snprintf(ip, sizeof(ip), "%s",
-			    inet_ntoa(*(struct in_addr *)&e->addr));
+		else {
+			inet_ntop(e->ipv6 ? AF_INET6 : AF_INET, &e->addr[0],
+			    &ip[0], sizeof(ip));
+		}
 
-		/* XXX: e->ifp may not be around */
+		/*
+		 * XXX: e->ifp may not be around.
+		 * XXX: IPv6 addresses may not align properly in the output.
+		 */
 		sbuf_printf(sb, "\n%4u %-15s %02x:%02x:%02x:%02x:%02x:%02x %4d"
 			   " %u %2u   %c   %5u %s",
 			   e->idx, ip, e->dmac[0], e->dmac[1], e->dmac[2],

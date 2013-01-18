@@ -279,6 +279,8 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 #define VSHOULDFREE(vp) (!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
 #define VSHOULDBUSY(vp) (((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
 
+/* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
+static int vnsz2log;
 
 /*
  * Initialize the vnode management data structures.
@@ -293,6 +295,7 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 static void
 vntblinit(void *dummy __unused)
 {
+	u_int i;
 	int physvnodes, virtvnodes;
 
 	/*
@@ -332,6 +335,9 @@ vntblinit(void *dummy __unused)
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
 	cv_init(&sync_wakeup, "syncer");
+	for (i = 1; i <= sizeof(struct vnode); i <<= 1)
+		vnsz2log++;
+	vnsz2log--;
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
@@ -741,7 +747,7 @@ next_iter:
 			continue;
 		MNT_IUNLOCK(mp);
 yield:
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 relock_mnt:
 		MNT_ILOCK(mp);
 	}
@@ -853,7 +859,7 @@ vnlru_proc(void)
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		} else
-			kern_yield(PRI_UNCHANGED);
+			kern_yield(PRI_USER);
 	}
 }
 
@@ -1066,6 +1072,14 @@ alloc:
 			vp->v_vflag |= VV_NOKNOTE;
 	}
 	rangelock_init(&vp->v_rl);
+
+	/*
+	 * For the filesystems which do not use vfs_hash_insert(),
+	 * still initialize v_hash to have vfs_hash_index() useful.
+	 * E.g., nullfs uses vfs_hash_index() on the lower vnode for
+	 * its own hashing.
+	 */
+	vp->v_hash = (uintptr_t)vp >> vnsz2log;
 
 	*vpp = vp;
 	return (0);
@@ -4635,7 +4649,7 @@ __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
 	struct vnode *vp;
 
 	if (should_yield())
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 	MNT_ILOCK(mp);
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);
@@ -4724,12 +4738,6 @@ mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *mp)
 	*mvp = NULL;
 }
 
-#ifdef SMP
-#define	ALWAYS_YIELD	(mp_ncpus == 1)
-#else
-#define	ALWAYS_YIELD	1
-#endif
-
 static struct vnode *
 mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 {
@@ -4746,7 +4754,7 @@ restart:
 			continue;
 		}
 		if (!VI_TRYLOCK(vp)) {
-			if (ALWAYS_YIELD || should_yield()) {
+			if (mp_ncpus == 1 || should_yield()) {
 				TAILQ_INSERT_BEFORE(vp, *mvp, v_actfreelist);
 				mtx_unlock(&vnode_free_list_mtx);
 				kern_yield(PRI_USER);
@@ -4777,14 +4785,13 @@ restart:
 	KASSERT((vp->v_iflag & VI_ACTIVE) != 0, ("Non-active vp %p", vp));
 	return (vp);
 }
-#undef ALWAYS_YIELD
 
 struct vnode *
 __mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 {
 
 	if (should_yield())
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 	mtx_lock(&vnode_free_list_mtx);
 	return (mnt_vnode_next_active(mvp, mp));
 }

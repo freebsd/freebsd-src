@@ -210,6 +210,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_dodfs)
 		rfilt |= HAL_RX_FILTER_PHYRADAR;
 
+	/*
+	 * Enable spectral PHY errors if requested by the
+	 * spectral module.
+	 */
+	if (sc->sc_dospectral)
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -423,7 +430,21 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
 #ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
-	if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
+	if (rs->rs_status & HAL_RXERR_PHY) {
+		struct ieee80211com *ic = ifp->if_l2com;
+
+		/*
+		 * PHY error - make sure the channel flags
+		 * reflect the actual channel configuration,
+		 * not the received frame.
+		 */
+		if (IEEE80211_IS_CHAN_HT40U(ic->ic_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
+		else if (IEEE80211_IS_CHAN_HT40D(ic->ic_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
+		else if (IEEE80211_IS_CHAN_HT20(ic->ic_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
+	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
 		struct ieee80211com *ic = ifp->if_l2com;
 
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
@@ -435,6 +456,7 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 		if ((rs->rs_flags & HAL_RX_GI) == 0)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
+
 #endif
 	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
@@ -823,6 +845,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
+	int kickpcu = 0;
 
 	/* XXX we must not hold the ATH_LOCK here */
 	ATH_UNLOCK_ASSERT(sc);
@@ -830,6 +853,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
+	kickpcu = sc->sc_kickpcu;
 	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
@@ -844,7 +868,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		 * latency can jump by quite a bit, causing throughput
 		 * degredation.
 		 */
-		if (npkts >= ATH_RX_MAX)
+		if (!kickpcu && npkts >= ATH_RX_MAX)
 			break;
 
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
@@ -939,6 +963,9 @@ rx_proc_next:
 		    __func__, npkts);
 
 		/* XXX rxslink? */
+#if 0
+		ath_startrecv(sc);
+#else
 		/*
 		 * XXX can we hold the PCU lock here?
 		 * Are there any net80211 buffer calls involved?
@@ -948,6 +975,7 @@ rx_proc_next:
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+#endif
 
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;

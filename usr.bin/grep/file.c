@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <lzma.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 #include <zlib.h>
+
+#ifndef WITHOUT_LZMA
+#include <lzma.h>
+#endif
 
 #ifndef WITHOUT_BZIP2
 #include <bzlib.h>
@@ -60,7 +63,9 @@ __FBSDID("$FreeBSD$");
 #define	LNBUFBUMP	80
 
 static gzFile gzbufdesc;
+#ifndef WITHOUT_LZMA
 static lzma_stream lstrm = LZMA_STREAM_INIT;
+#endif
 #ifndef WITHOUT_BZIP2
 static BZFILE* bzbufdesc;
 #endif
@@ -116,6 +121,7 @@ grep_refill(struct file *f)
 			nr = -1;
 		}
 #endif
+#ifndef WITHOUT_LZMA
 	} else if ((filebehave == FILE_XZ) || (filebehave == FILE_LZMA)) {
 		lzma_action action = LZMA_RUN;
 		uint8_t in_buf[MAXBUFSIZ];
@@ -146,6 +152,7 @@ grep_refill(struct file *f)
 			return (-1);
 		bufrem = MAXBUFSIZ - lstrm.avail_out;
 		return (0);
+#endif	/* WIHTOUT_LZMA */
 	} else
 		nr = read(f->fd, buffer, MAXBUFSIZ);
 

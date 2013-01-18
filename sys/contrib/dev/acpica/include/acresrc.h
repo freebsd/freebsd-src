@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -265,7 +265,7 @@ AcpiRsConvertAmlToResources (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context);
+    void                    **Context);
 
 ACPI_STATUS
 AcpiRsConvertResourcesToAml (
@@ -405,18 +405,21 @@ extern ACPI_RSDUMP_INFO         *AcpiGbl_DumpResourceDispatch[];
 extern ACPI_RSDUMP_INFO         *AcpiGbl_DumpSerialBusDispatch[];
 
 /*
- * rsdump
+ * rsdumpinfo
  */
 extern ACPI_RSDUMP_INFO         AcpiRsDumpIrq[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpPrt[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpDma[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpStartDpf[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpEndDpf[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpIo[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpIoFlags[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpFixedIo[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpVendor[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpEndTag[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpMemory24[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpMemory32[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpMemoryFlags[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpFixedMemory32[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpAddress16[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpAddress32[];
@@ -430,6 +433,7 @@ extern ACPI_RSDUMP_INFO         AcpiRsDumpCommonSerialBus[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpI2cSerialBus[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpSpiSerialBus[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpUartSerialBus[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpGeneralFlags[];
 #endif
 
 #endif  /* __ACRESRC_H__ */

@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2012
+.Dd January 14, 2013
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2219,10 +2219,6 @@ The shell maintains a hash table which remembers the locations of commands.
 With no arguments whatsoever, the
 .Ic hash
 command prints out the contents of this table.
-Entries which have not been looked at since the last
-.Ic cd
-command are marked with an asterisk;
-it is possible for these entries to be invalid.
 .Pp
 With arguments, the
 .Ic hash

@@ -31,6 +31,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/usermgmt/group_input.subr
@@ -62,10 +63,10 @@ save_changes()
 		err=$( pw groupdel "$group_name" 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_group_deleted"
+		f_dialog_msgbox "$msg_group_deleted"
 		;;
 	Add)
 		local cmd="pw groupadd -n '$group_name'"
@@ -77,14 +78,14 @@ save_changes()
 		elif [ "$group_password" ]; then
 			cmd="echo \"\$group_password\" | $cmd -h 0"
 		fi
-		f_dprintf "cmd=$cmd"
+		f_dprintf "cmd=%s" "$cmd"
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_group_added"
+		f_dialog_msgbox "$msg_group_added"
 		;;
 	Edit/View)
 		local cmd="pw groupmod -n '$group_name'"
@@ -96,14 +97,14 @@ save_changes()
 		elif [ "$group_password" ]; then
 			cmd="echo \"\$group_password\" | $cmd -h 0"
 		fi
-		f_dprintf "cmd=$cmd"
+		f_dprintf "cmd=%s" "$cmd"
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_group_updated"
+		f_dialog_msgbox "$msg_group_updated"
 		;;
 	esac
 
@@ -136,19 +137,18 @@ dialog_title_update()
 while [ $# -gt 0 ]; do
 	key="${1%%=*}"
 	value="${1#*=}"
-	f_dprintf "key=[$key] value=[$value]"
+	f_dprintf "key=[%s] value=[%s]" "$key" "$value"
 	case "$key" in
 	mode) mode="$value";;
 	group) group="$value";;
 	esac
 	shift
 done
-f_dprintf "mode=[$mode] group=[$group]"
+f_dprintf "mode=[%s] group=[%s]" "$mode" "$group"
 
 #
 # Initialize
 #
-f_dialog_init
 dialog_title_update "$mode"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
@@ -242,7 +242,7 @@ while :; do
 	retval=$?
 	setvar DIALOG_MENU_$$ "$dialog_menu"
 	mtag=$( f_dialog_menutag )
-	f_dprintf "retval=$retval mtag=[$mtag]"
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
 	[ $retval -eq $SUCCESS ] || f_die
@@ -261,7 +261,7 @@ while :; do
 	   	f_dialog_menu_group_list
 	   	retval=$?
 	   	mtag=$( f_dialog_menutag )
-	   	f_dprintf "retval=$retval mtag=[$mtag]"
+	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No
 	   	[ $retval -eq $SUCCESS ] || continue

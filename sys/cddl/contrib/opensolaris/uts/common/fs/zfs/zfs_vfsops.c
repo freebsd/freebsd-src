@@ -2025,6 +2025,8 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		err = zfs_vnode_lock(*vpp, flags);
 	if (err != 0)
 		*vpp = NULL;
+	else
+		(*vpp)->v_hash = ino;
 	return (err);
 }
 
