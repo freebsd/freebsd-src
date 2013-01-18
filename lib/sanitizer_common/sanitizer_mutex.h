@@ -20,16 +20,20 @@
 
 namespace __sanitizer {
 
-class SpinMutex {
+class StaticSpinMutex {
  public:
-  SpinMutex() {
+  void Init() {
     atomic_store(&state_, 0, memory_order_relaxed);
   }
 
   void Lock() {
-    if (atomic_exchange(&state_, 1, memory_order_acquire) == 0)
+    if (TryLock())
       return;
     LockSlow();
+  }
+
+  bool TryLock() {
+    return atomic_exchange(&state_, 1, memory_order_acquire) == 0;
   }
 
   void Unlock() {
@@ -50,9 +54,27 @@ class SpinMutex {
         return;
     }
   }
+};
 
+class SpinMutex : public StaticSpinMutex {
+ public:
+  SpinMutex() {
+    Init();
+  }
+
+ private:
   SpinMutex(const SpinMutex&);
   void operator=(const SpinMutex&);
+};
+
+class BlockingMutex {
+ public:
+  explicit BlockingMutex(LinkerInitialized);
+  void Lock();
+  void Unlock();
+ private:
+  uptr opaque_storage_[10];
+  uptr owner_;  // for debugging
 };
 
 template<typename MutexType>
@@ -93,7 +115,8 @@ class GenericScopedReadLock {
   void operator=(const GenericScopedReadLock&);
 };
 
-typedef GenericScopedLock<SpinMutex> SpinMutexLock;
+typedef GenericScopedLock<StaticSpinMutex> SpinMutexLock;
+typedef GenericScopedLock<BlockingMutex> BlockingMutexLock;
 
 }  // namespace __sanitizer
 

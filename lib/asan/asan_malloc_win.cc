@@ -17,8 +17,9 @@
 #include "asan_interceptors.h"
 #include "asan_internal.h"
 #include "asan_stack.h"
-
 #include "interception/interception.h"
+
+#include <stddef.h>
 
 // ---------------------- Replacement functions ---------------- {{{1
 using namespace __asan;  // NOLINT
@@ -30,8 +31,8 @@ using namespace __asan;  // NOLINT
 
 extern "C" {
 void free(void *ptr) {
-  GET_STACK_TRACE_HERE_FOR_FREE(ptr);
-  return asan_free(ptr, &stack);
+  GET_STACK_TRACE_FREE;
+  return asan_free(ptr, &stack, FROM_MALLOC);
 }
 
 void _free_dbg(void* ptr, int) {
@@ -43,7 +44,7 @@ void cfree(void *ptr) {
 }
 
 void *malloc(size_t size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_malloc(size, &stack);
 }
 
@@ -52,7 +53,7 @@ void* _malloc_dbg(size_t size, int , const char*, int) {
 }
 
 void *calloc(size_t nmemb, size_t size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_calloc(nmemb, size, &stack);
 }
 
@@ -65,7 +66,7 @@ void *_calloc_impl(size_t nmemb, size_t size, int *errno_tmp) {
 }
 
 void *realloc(void *ptr, size_t size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_realloc(ptr, size, &stack);
 }
 
@@ -84,7 +85,7 @@ void* _recalloc(void* p, size_t n, size_t elem_size) {
 }
 
 size_t _msize(void *ptr) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_malloc_usable_size(ptr, &stack);
 }
 

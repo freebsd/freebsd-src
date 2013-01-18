@@ -17,16 +17,12 @@
 #include "asan_flags.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_internal_defs.h"
+#include "sanitizer_common/sanitizer_stacktrace.h"
 #include "sanitizer_common/sanitizer_libc.h"
 
 #if !defined(__linux__) && !defined(__APPLE__) && !defined(_WIN32)
 # error "This operating system is not supported by AddressSanitizer"
 #endif
-
-#if defined(_WIN32)
-extern "C" void* _ReturnAddress(void);
-# pragma intrinsic(_ReturnAddress)
-#endif  // defined(_WIN32)
 
 #define ASAN_DEFAULT_FAILURE_EXITCODE 1
 
@@ -48,6 +44,13 @@ extern "C" void* _ReturnAddress(void);
 # define ASAN_WINDOWS 0
 #endif
 
+#if defined(__ANDROID__) || defined(ANDROID)
+# define ASAN_ANDROID 1
+#else
+# define ASAN_ANDROID 0
+#endif
+
+
 #define ASAN_POSIX (ASAN_LINUX || ASAN_MAC)
 
 #if __has_feature(address_sanitizer)
@@ -59,7 +62,11 @@ extern "C" void* _ReturnAddress(void);
 
 // If set, asan will install its own SEGV signal handler.
 #ifndef ASAN_NEEDS_SEGV
-# define ASAN_NEEDS_SEGV 1
+# if ASAN_ANDROID == 1
+#  define ASAN_NEEDS_SEGV 0
+# else
+#  define ASAN_NEEDS_SEGV 1
+# endif
 #endif
 
 // If set, asan will intercept C++ exception api call(s).
@@ -76,7 +83,11 @@ extern "C" void* _ReturnAddress(void);
 // If set, values like allocator chunk size, as well as defaults for some flags
 // will be changed towards less memory overhead.
 #ifndef ASAN_LOW_MEMORY
-# define ASAN_LOW_MEMORY 0
+#if SANITIZER_WORDSIZE == 32
+#  define ASAN_LOW_MEMORY 1
+#else
+#  define ASAN_LOW_MEMORY 0
+# endif
 #endif
 
 // All internal functions in asan reside inside the __asan namespace
@@ -86,13 +97,10 @@ extern "C" void* _ReturnAddress(void);
 namespace __asan {
 
 class AsanThread;
-struct AsanStackTrace;
+using __sanitizer::StackTrace;
 
 // asan_rtl.cc
 void NORETURN ShowStatsAndAbort();
-
-// asan_globals.cc
-bool DescribeAddrIfGlobal(uptr addr);
 
 void ReplaceOperatorsNewAndDelete();
 // asan_malloc_linux.cc / asan_malloc_mac.cc
@@ -103,10 +111,12 @@ void *AsanDoesNotSupportStaticLinkage();
 
 void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp);
 
+void MaybeReexec();
 bool AsanInterceptsSignal(int signum);
 void SetAlternateSignalStack();
 void UnsetAlternateSignalStack();
 void InstallSignalHandlers();
+void ReadContextStack(void *context, uptr *stack, uptr *ssize);
 void AsanPlatformThreadInit();
 
 // Wrapper for TLS/TSD.
@@ -115,9 +125,6 @@ void *AsanTSDGet();
 void AsanTSDSet(void *tsd);
 
 void AppendToErrorMessageBuffer(const char *buffer);
-// asan_printf.cc
-void AsanPrintf(const char *format, ...);
-void AsanReport(const char *format, ...);
 
 // asan_poisoning.cc
 // Poisons the shadow memory for "size" bytes starting from "addr".
@@ -138,32 +145,19 @@ bool PlatformHasDifferentMemcpyAndMemmove();
 # define PLATFORM_HAS_DIFFERENT_MEMCPY_AND_MEMMOVE true
 #endif  // __APPLE__
 
+// Add convenient macro for interface functions that may be represented as
+// weak hooks.
+#define ASAN_MALLOC_HOOK(ptr, size) \
+  if (&__asan_malloc_hook) __asan_malloc_hook(ptr, size)
+#define ASAN_FREE_HOOK(ptr) \
+  if (&__asan_free_hook) __asan_free_hook(ptr)
+#define ASAN_ON_ERROR() \
+  if (&__asan_on_error) __asan_on_error()
+
 extern int asan_inited;
 // Used to avoid infinite recursion in __asan_init().
 extern bool asan_init_is_running;
 extern void (*death_callback)(void);
-
-enum LinkerInitialized { LINKER_INITIALIZED = 0 };
-
-#define ASAN_ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
-
-#if !defined(_WIN32) || defined(__clang__)
-# define GET_CALLER_PC() (uptr)__builtin_return_address(0)
-# define GET_CURRENT_FRAME() (uptr)__builtin_frame_address(0)
-#else
-# define GET_CALLER_PC() (uptr)_ReturnAddress()
-// CaptureStackBackTrace doesn't need to know BP on Windows.
-// FIXME: This macro is still used when printing error reports though it's not
-// clear if the BP value is needed in the ASan reports on Windows.
-# define GET_CURRENT_FRAME() (uptr)0xDEADBEEF
-#endif
-
-#ifdef _WIN32
-# ifndef ASAN_USE_EXTERNAL_SYMBOLIZER
-#  define ASAN_USE_EXTERNAL_SYMBOLIZER __asan_WinSymbolize
-bool __asan_WinSymbolize(const void *addr, char *out_buffer, int buffer_size);
-# endif
-#endif  // _WIN32
 
 // These magic values are written to shadow for better error reporting.
 const int kAsanHeapLeftRedzoneMagic = 0xfa;
@@ -174,25 +168,14 @@ const int kAsanStackMidRedzoneMagic = 0xf2;
 const int kAsanStackRightRedzoneMagic = 0xf3;
 const int kAsanStackPartialRedzoneMagic = 0xf4;
 const int kAsanStackAfterReturnMagic = 0xf5;
+const int kAsanInitializationOrderMagic = 0xf6;
 const int kAsanUserPoisonedMemoryMagic = 0xf7;
+const int kAsanStackUseAfterScopeMagic = 0xf8;
 const int kAsanGlobalRedzoneMagic = 0xf9;
 const int kAsanInternalHeapMagic = 0xfe;
 
 static const uptr kCurrentStackFrameMagic = 0x41B58AB3;
 static const uptr kRetiredStackFrameMagic = 0x45E0360E;
-
-// -------------------------- LowLevelAllocator ----- {{{1
-// A simple low-level memory allocator for internal use.
-class LowLevelAllocator {
- public:
-  explicit LowLevelAllocator(LinkerInitialized) {}
-  // 'size' must be a power of two.
-  // Requires an external lock.
-  void *Allocate(uptr size);
- private:
-  char *allocated_end_;
-  char *allocated_current_;
-};
 
 }  // namespace __asan
 

@@ -18,7 +18,6 @@
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
 #include "sanitizer_procmaps.h"
-#include "sanitizer_symbolizer.h"
 
 #include <crt_externs.h>  // for _NSGetEnviron
 #include <fcntl.h>
@@ -31,6 +30,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <libkern/OSAtomic.h>
 
 namespace __sanitizer {
 
@@ -62,7 +62,7 @@ uptr internal_write(fd_t fd, const void *buf, uptr count) {
 }
 
 uptr internal_filesize(fd_t fd) {
-  struct stat st = {};
+  struct stat st;
   if (fstat(fd, &st))
     return -1;
   return (uptr)st.st_size;
@@ -72,11 +72,27 @@ int internal_dup2(int oldfd, int newfd) {
   return dup2(oldfd, newfd);
 }
 
+uptr internal_readlink(const char *path, char *buf, uptr bufsize) {
+  return readlink(path, buf, bufsize);
+}
+
 int internal_sched_yield() {
   return sched_yield();
 }
 
 // ----------------- sanitizer_common.h
+bool FileExists(const char *filename) {
+  struct stat st;
+  if (stat(filename, &st))
+    return false;
+  // Sanity check: filename is a regular file.
+  return S_ISREG(st.st_mode);
+}
+
+uptr GetTid() {
+  return reinterpret_cast<uptr>(pthread_self());
+}
+
 void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
                                 uptr *stack_bottom) {
   CHECK(stack_top);
@@ -107,25 +123,21 @@ const char *GetEnv(const char *name) {
   return 0;
 }
 
-// ------------------ sanitizer_symbolizer.h
-bool FindDWARFSection(uptr object_file_addr, const char *section_name,
-                      DWARFSection *section) {
+void ReExec() {
   UNIMPLEMENTED();
-  return false;
 }
 
-uptr GetListOfModules(ModuleDIContext *modules, uptr max_modules) {
-  UNIMPLEMENTED();
-  return 0;
-};
+void PrepareForSandboxing() {
+  // Nothing here for now.
+}
 
 // ----------------- sanitizer_procmaps.h
 
-ProcessMaps::ProcessMaps() {
+MemoryMappingLayout::MemoryMappingLayout() {
   Reset();
 }
 
-ProcessMaps::~ProcessMaps() {
+MemoryMappingLayout::~MemoryMappingLayout() {
 }
 
 // More information about Mach-O headers can be found in mach-o/loader.h
@@ -142,15 +154,26 @@ ProcessMaps::~ProcessMaps() {
 // Because these fields are taken from the images as is, one needs to add
 // _dyld_get_image_vmaddr_slide() to get the actual addresses at runtime.
 
-void ProcessMaps::Reset() {
+void MemoryMappingLayout::Reset() {
   // Count down from the top.
   // TODO(glider): as per man 3 dyld, iterating over the headers with
   // _dyld_image_count is thread-unsafe. We need to register callbacks for
-  // adding and removing images which will invalidate the ProcessMaps state.
+  // adding and removing images which will invalidate the MemoryMappingLayout
+  // state.
   current_image_ = _dyld_image_count();
   current_load_cmd_count_ = -1;
   current_load_cmd_addr_ = 0;
   current_magic_ = 0;
+  current_filetype_ = 0;
+}
+
+// static
+void MemoryMappingLayout::CacheMemoryMappings() {
+  // No-op on Mac for now.
+}
+
+void MemoryMappingLayout::LoadFromCache() {
+  // No-op on Mac for now.
 }
 
 // Next and NextSegmentLoad were inspired by base/sysinfo.cc in
@@ -161,7 +184,7 @@ void ProcessMaps::Reset() {
 // segment.
 // Note that the segment addresses are not necessarily sorted.
 template<u32 kLCSegment, typename SegmentCommand>
-bool ProcessMaps::NextSegmentLoad(
+bool MemoryMappingLayout::NextSegmentLoad(
     uptr *start, uptr *end, uptr *offset,
     char filename[], uptr filename_size) {
   const char* lc = current_load_cmd_addr_;
@@ -171,7 +194,13 @@ bool ProcessMaps::NextSegmentLoad(
     const SegmentCommand* sc = (const SegmentCommand *)lc;
     if (start) *start = sc->vmaddr + dlloff;
     if (end) *end = sc->vmaddr + sc->vmsize + dlloff;
-    if (offset) *offset = sc->fileoff;
+    if (offset) {
+      if (current_filetype_ == /*MH_EXECUTE*/ 0x2) {
+        *offset = sc->vmaddr;
+      } else {
+        *offset = sc->fileoff;
+      }
+    }
     if (filename) {
       internal_strncpy(filename, _dyld_get_image_name(current_image_),
                        filename_size);
@@ -181,8 +210,8 @@ bool ProcessMaps::NextSegmentLoad(
   return false;
 }
 
-bool ProcessMaps::Next(uptr *start, uptr *end, uptr *offset,
-                       char filename[], uptr filename_size) {
+bool MemoryMappingLayout::Next(uptr *start, uptr *end, uptr *offset,
+                               char filename[], uptr filename_size) {
   for (; current_image_ >= 0; current_image_--) {
     const mach_header* hdr = _dyld_get_image_header(current_image_);
     if (!hdr) continue;
@@ -190,6 +219,7 @@ bool ProcessMaps::Next(uptr *start, uptr *end, uptr *offset,
       // Set up for this image;
       current_load_cmd_count_ = hdr->ncmds;
       current_magic_ = hdr->magic;
+      current_filetype_ = hdr->filetype;
       switch (current_magic_) {
 #ifdef MH_MAGIC_64
         case MH_MAGIC_64: {
@@ -232,10 +262,29 @@ bool ProcessMaps::Next(uptr *start, uptr *end, uptr *offset,
   return false;
 }
 
-bool ProcessMaps::GetObjectNameAndOffset(uptr addr, uptr *offset,
-                                         char filename[],
-                                         uptr filename_size) {
+bool MemoryMappingLayout::GetObjectNameAndOffset(uptr addr, uptr *offset,
+                                                 char filename[],
+                                                 uptr filename_size) {
   return IterateForObjectNameAndOffset(addr, offset, filename, filename_size);
+}
+
+BlockingMutex::BlockingMutex(LinkerInitialized) {
+  // We assume that OS_SPINLOCK_INIT is zero
+}
+
+void BlockingMutex::Lock() {
+  CHECK(sizeof(OSSpinLock) <= sizeof(opaque_storage_));
+  CHECK(OS_SPINLOCK_INIT == 0);
+  CHECK(owner_ != (uptr)pthread_self());
+  OSSpinLockLock((OSSpinLock*)&opaque_storage_);
+  CHECK(!owner_);
+  owner_ = (uptr)pthread_self();
+}
+
+void BlockingMutex::Unlock() {
+  CHECK(owner_ == (uptr)pthread_self());
+  owner_ = 0;
+  OSSpinLockUnlock((OSSpinLock*)&opaque_storage_);
 }
 
 }  // namespace __sanitizer

@@ -27,6 +27,7 @@
 #define TSAN_RTL_H
 
 #include "sanitizer_common/sanitizer_common.h"
+#include "sanitizer_common/sanitizer_allocator.h"
 #include "tsan_clock.h"
 #include "tsan_defs.h"
 #include "tsan_flags.h"
@@ -34,31 +35,90 @@
 #include "tsan_trace.h"
 #include "tsan_vector.h"
 #include "tsan_report.h"
+#include "tsan_platform.h"
+#include "tsan_mutexset.h"
+
+#if SANITIZER_WORDSIZE != 64
+# error "ThreadSanitizer is supported only on 64-bit platforms"
+#endif
 
 namespace __tsan {
 
-void TsanPrintf(const char *format, ...);
+// Descriptor of user's memory block.
+struct MBlock {
+  Mutex mtx;
+  uptr size;
+  u32 alloc_tid;
+  u32 alloc_stack_id;
+  SyncVar *head;
+
+  MBlock()
+    : mtx(MutexTypeMBlock, StatMtxMBlock) {
+  }
+};
+
+#ifndef TSAN_GO
+#if defined(TSAN_COMPAT_SHADOW) && TSAN_COMPAT_SHADOW
+const uptr kAllocatorSpace = 0x7d0000000000ULL;
+#else
+const uptr kAllocatorSpace = 0x7d0000000000ULL;
+#endif
+const uptr kAllocatorSize  =  0x10000000000ULL;  // 1T.
+
+struct TsanMapUnmapCallback {
+  void OnMap(uptr p, uptr size) const { }
+  void OnUnmap(uptr p, uptr size) const {
+    // We are about to unmap a chunk of user memory.
+    // Mark the corresponding shadow memory as not needed.
+    uptr shadow_beg = MemToShadow(p);
+    uptr shadow_end = MemToShadow(p + size);
+    CHECK(IsAligned(shadow_end|shadow_beg, GetPageSizeCached()));
+    FlushUnneededShadowMemory(shadow_beg, shadow_end - shadow_beg);
+  }
+};
+
+typedef SizeClassAllocator64<kAllocatorSpace, kAllocatorSize, sizeof(MBlock),
+    DefaultSizeClassMap> PrimaryAllocator;
+typedef SizeClassAllocatorLocalCache<PrimaryAllocator> AllocatorCache;
+typedef LargeMmapAllocator<TsanMapUnmapCallback> SecondaryAllocator;
+typedef CombinedAllocator<PrimaryAllocator, AllocatorCache,
+    SecondaryAllocator> Allocator;
+Allocator *allocator();
+#endif
+
+void TsanCheckFailed(const char *file, int line, const char *cond,
+                     u64 v1, u64 v2);
 
 // FastState (from most significant bit):
-//   unused          : 1
+//   ignore          : 1
 //   tid             : kTidBits
 //   epoch           : kClkBits
 //   unused          : -
-//   ignore_bit      : 1
+//   history_size    : 3
 class FastState {
  public:
   FastState(u64 tid, u64 epoch) {
     x_ = tid << kTidShift;
     x_ |= epoch << kClkShift;
-    DCHECK(tid == this->tid());
-    DCHECK(epoch == this->epoch());
+    DCHECK_EQ(tid, this->tid());
+    DCHECK_EQ(epoch, this->epoch());
+    DCHECK_EQ(GetIgnoreBit(), false);
   }
 
   explicit FastState(u64 x)
       : x_(x) {
   }
 
+  u64 raw() const {
+    return x_;
+  }
+
   u64 tid() const {
+    u64 res = (x_ & ~kIgnoreBit) >> kTidShift;
+    return res;
+  }
+
+  u64 TidWithIgnore() const {
     u64 res = x_ >> kTidShift;
     return res;
   }
@@ -77,13 +137,34 @@ class FastState {
 
   void SetIgnoreBit() { x_ |= kIgnoreBit; }
   void ClearIgnoreBit() { x_ &= ~kIgnoreBit; }
-  bool GetIgnoreBit() const { return x_ & kIgnoreBit; }
+  bool GetIgnoreBit() const { return (s64)x_ < 0; }
+
+  void SetHistorySize(int hs) {
+    CHECK_GE(hs, 0);
+    CHECK_LE(hs, 7);
+    x_ = (x_ & ~7) | hs;
+  }
+
+  int GetHistorySize() const {
+    return (int)(x_ & 7);
+  }
+
+  void ClearHistorySize() {
+    x_ &= ~7;
+  }
+
+  u64 GetTracePos() const {
+    const int hs = GetHistorySize();
+    // When hs == 0, the trace consists of 2 parts.
+    const u64 mask = (1ull << (kTracePartSizeBits + hs + 1)) - 1;
+    return epoch() & mask;
+  }
 
  private:
   friend class Shadow;
   static const int kTidShift = 64 - kTidBits - 1;
   static const int kClkShift = kTidShift - kClkBits;
-  static const u64 kIgnoreBit = 1ull;
+  static const u64 kIgnoreBit = 1ull << 63;
   static const u64 kFreedBit = 1ull << 63;
   u64 x_;
 };
@@ -97,9 +178,14 @@ class FastState {
 //   addr0           : 3
 class Shadow : public FastState {
  public:
-  explicit Shadow(u64 x) : FastState(x) { }
+  explicit Shadow(u64 x)
+      : FastState(x) {
+  }
 
-  explicit Shadow(const FastState &s) : FastState(s.x_) { }
+  explicit Shadow(const FastState &s)
+      : FastState(s.x_) {
+    ClearHistorySize();
+  }
 
   void SetAddr0AndSizeLog(u64 addr0, unsigned kAccessSizeLog) {
     DCHECK_EQ(x_ & 31, 0);
@@ -118,11 +204,10 @@ class Shadow : public FastState {
   }
 
   bool IsZero() const { return x_ == 0; }
-  u64 raw() const { return x_; }
 
   static inline bool TidsAreEqual(const Shadow s1, const Shadow s2) {
     u64 shifted_xor = (s1.x_ ^ s2.x_) >> kTidShift;
-    DCHECK_EQ(shifted_xor == 0, s1.tid() == s2.tid());
+    DCHECK_EQ(shifted_xor == 0, s1.TidWithIgnore() == s2.TidWithIgnore());
     return shifted_xor == 0;
   }
 
@@ -199,10 +284,6 @@ class Shadow : public FastState {
   }
 };
 
-// Freed memory.
-// As if 8-byte write by thread 0xff..f at epoch 0xff..f, races with everything.
-const u64 kShadowFreed = 0xfffffffffffffff8ull;
-
 struct SignalContext;
 
 // This struct is stored in TLS.
@@ -236,9 +317,14 @@ struct ThreadState {
   uptr *shadow_stack;
   uptr *shadow_stack_end;
 #endif
+  MutexSet mset;
   ThreadClock clock;
+#ifndef TSAN_GO
+  AllocatorCache alloc_cache;
+#endif
   u64 stat[StatCnt];
   const int tid;
+  const int unique_id;
   int in_rtl;
   bool is_alive;
   const uptr stk_addr;
@@ -251,11 +337,16 @@ struct ThreadState {
   bool in_signal_handler;
   SignalContext *signal_ctx;
 
+#ifndef TSAN_GO
+  u32 last_sleep_stack_id;
+  ThreadClock last_sleep_clock;
+#endif
+
   // Set in regions of runtime that must be signal-safe and fork-safe.
   // If set, malloc must not be called.
   int nomalloc;
 
-  explicit ThreadState(Context *ctx, int tid, u64 epoch,
+  explicit ThreadState(Context *ctx, int tid, int unique_id, u64 epoch,
                        uptr stk_addr, uptr stk_size,
                        uptr tls_addr, uptr tls_size);
 };
@@ -274,7 +365,7 @@ enum ThreadStatus {
   ThreadStatusCreated,   // Created but not yet running.
   ThreadStatusRunning,   // The thread is currently running.
   ThreadStatusFinished,  // Joinable thread is finished but not yet joined.
-  ThreadStatusDead,      // Joined, but some info (trace) is still alive.
+  ThreadStatusDead       // Joined, but some info (trace) is still alive.
 };
 
 // An info about a thread that is hold for some time after its termination.
@@ -285,6 +376,7 @@ struct ThreadDeadInfo {
 struct ThreadContext {
   const int tid;
   int unique_id;  // Non-rolling thread id.
+  uptr os_id;  // pid
   uptr user_id;  // Some opaque user thread id (e.g. pthread_t).
   ThreadState *thr;
   ThreadStatus status;
@@ -297,8 +389,10 @@ struct ThreadContext {
   u64 epoch0;
   u64 epoch1;
   StackTrace creation_stack;
+  int creation_tid;
   ThreadDeadInfo *dead_info;
   ThreadContext *dead_next;  // In dead thread list.
+  char *name;  // As annotated by user.
 
   explicit ThreadContext(int tid);
 };
@@ -317,6 +411,11 @@ struct RacyStacks {
 struct RacyAddress {
   uptr addr_min;
   uptr addr_max;
+};
+
+struct FiredSuppression {
+  ReportType type;
+  uptr pc;
 };
 
 struct Context {
@@ -342,6 +441,7 @@ struct Context {
 
   Vector<RacyStacks> racy_stacks;
   Vector<RacyAddress> racy_addresses;
+  Vector<FiredSuppression> fired_suppressions;
 
   Flags flags;
 
@@ -366,10 +466,12 @@ class ScopedReport {
   ~ScopedReport();
 
   void AddStack(const StackTrace *stack);
-  void AddMemoryAccess(uptr addr, Shadow s, const StackTrace *stack);
+  void AddMemoryAccess(uptr addr, Shadow s, const StackTrace *stack,
+                       const MutexSet *mset);
   void AddThread(const ThreadContext *tctx);
   void AddMutex(const SyncVar *s);
   void AddLocation(uptr addr, uptr size);
+  void AddSleep(u32 stack_id);
 
   const ReportDesc *GetReport() const;
 
@@ -377,9 +479,13 @@ class ScopedReport {
   Context *ctx_;
   ReportDesc *rep_;
 
+  void AddMutex(u64 id);
+
   ScopedReport(const ScopedReport&);
   void operator = (const ScopedReport&);
 };
+
+void RestoreStack(int tid, const u64 epoch, StackTrace *stk, MutexSet *mset);
 
 void StatAggregate(u64 *dst, u64 *src);
 void StatOutput(u64 *stat);
@@ -388,34 +494,47 @@ void ALWAYS_INLINE INLINE StatInc(ThreadState *thr, StatType typ, u64 n = 1) {
     thr->stat[typ] += n;
 }
 
+void MapShadow(uptr addr, uptr size);
+void MapThreadTrace(uptr addr, uptr size);
 void InitializeShadowMemory();
 void InitializeInterceptors();
 void InitializeDynamicAnnotations();
 
 void ReportRace(ThreadState *thr);
-bool OutputReport(const ScopedReport &srep,
+bool OutputReport(Context *ctx,
+                  const ScopedReport &srep,
                   const ReportStack *suppress_stack = 0);
+bool IsFiredSuppression(Context *ctx,
+                        const ScopedReport &srep,
+                        const StackTrace &trace);
 bool IsExpectedReport(uptr addr, uptr size);
 
 #if defined(TSAN_DEBUG_OUTPUT) && TSAN_DEBUG_OUTPUT >= 1
-# define DPrintf TsanPrintf
+# define DPrintf Printf
 #else
 # define DPrintf(...)
 #endif
 
 #if defined(TSAN_DEBUG_OUTPUT) && TSAN_DEBUG_OUTPUT >= 2
-# define DPrintf2 TsanPrintf
+# define DPrintf2 Printf
 #else
 # define DPrintf2(...)
 #endif
 
+u32 CurrentStackId(ThreadState *thr, uptr pc);
+void PrintCurrentStack(ThreadState *thr, uptr pc);
+
 void Initialize(ThreadState *thr);
 int Finalize(ThreadState *thr);
+
+SyncVar* GetJavaSync(ThreadState *thr, uptr pc, uptr addr,
+                     bool write_lock, bool create);
+SyncVar* GetAndRemoveJavaSync(ThreadState *thr, uptr pc, uptr addr);
 
 void MemoryAccess(ThreadState *thr, uptr pc, uptr addr,
     int kAccessSizeLog, bool kAccessIsWrite);
 void MemoryAccessImpl(ThreadState *thr, uptr addr,
-    int kAccessSizeLog, bool kAccessIsWrite, FastState fast_state,
+    int kAccessSizeLog, bool kAccessIsWrite,
     u64 *shadow_mem, Shadow cur);
 void MemoryRead1Byte(ThreadState *thr, uptr pc, uptr addr);
 void MemoryWrite1Byte(ThreadState *thr, uptr pc, uptr addr);
@@ -425,21 +544,25 @@ void MemoryAccessRange(ThreadState *thr, uptr pc, uptr addr,
                        uptr size, bool is_write);
 void MemoryResetRange(ThreadState *thr, uptr pc, uptr addr, uptr size);
 void MemoryRangeFreed(ThreadState *thr, uptr pc, uptr addr, uptr size);
+void MemoryRangeImitateWrite(ThreadState *thr, uptr pc, uptr addr, uptr size);
 void IgnoreCtl(ThreadState *thr, bool write, bool begin);
 
 void FuncEntry(ThreadState *thr, uptr pc);
 void FuncExit(ThreadState *thr);
 
 int ThreadCreate(ThreadState *thr, uptr pc, uptr uid, bool detached);
-void ThreadStart(ThreadState *thr, int tid);
+void ThreadStart(ThreadState *thr, int tid, uptr os_id);
 void ThreadFinish(ThreadState *thr);
 int ThreadTid(ThreadState *thr, uptr pc, uptr uid);
 void ThreadJoin(ThreadState *thr, uptr pc, int tid);
 void ThreadDetach(ThreadState *thr, uptr pc, int tid);
 void ThreadFinalize(ThreadState *thr);
-void ThreadFinalizerGoroutine(ThreadState *thr);
+void ThreadSetName(ThreadState *thr, const char *name);
+int ThreadCount(ThreadState *thr);
+void ProcessPendingSignals(ThreadState *thr);
 
-void MutexCreate(ThreadState *thr, uptr pc, uptr addr, bool rw, bool recursive);
+void MutexCreate(ThreadState *thr, uptr pc, uptr addr,
+                 bool rw, bool recursive, bool linker_init);
 void MutexDestroy(ThreadState *thr, uptr pc, uptr addr);
 void MutexLock(ThreadState *thr, uptr pc, uptr addr);
 void MutexUnlock(ThreadState *thr, uptr pc, uptr addr);
@@ -448,8 +571,10 @@ void MutexReadUnlock(ThreadState *thr, uptr pc, uptr addr);
 void MutexReadOrWriteUnlock(ThreadState *thr, uptr pc, uptr addr);
 
 void Acquire(ThreadState *thr, uptr pc, uptr addr);
+void AcquireGlobal(ThreadState *thr, uptr pc);
 void Release(ThreadState *thr, uptr pc, uptr addr);
 void ReleaseStore(ThreadState *thr, uptr pc, uptr addr);
+void AfterSleep(ThreadState *thr, uptr pc);
 
 // The hacky call uses custom calling convention and an assembly thunk.
 // It is considerably faster that a normal call for the caller
@@ -461,27 +586,39 @@ void ReleaseStore(ThreadState *thr, uptr pc, uptr addr);
 // The caller may not create the stack frame for itself at all,
 // so we create a reserve stack frame for it (1024b must be enough).
 #define HACKY_CALL(f) \
-  __asm__ __volatile__("sub $0x400, %%rsp;" \
+  __asm__ __volatile__("sub $1024, %%rsp;" \
+                       "/*.cfi_adjust_cfa_offset 1024;*/" \
+                       ".hidden " #f "_thunk;" \
                        "call " #f "_thunk;" \
-                       "add $0x400, %%rsp;" ::: "memory");
+                       "add $1024, %%rsp;" \
+                       "/*.cfi_adjust_cfa_offset -1024;*/" \
+                       ::: "memory", "cc");
 #else
 #define HACKY_CALL(f) f()
 #endif
 
 void TraceSwitch(ThreadState *thr);
+uptr TraceTopPC(ThreadState *thr);
+uptr TraceSize();
+uptr TraceParts();
 
 extern "C" void __tsan_trace_switch();
-void ALWAYS_INLINE INLINE TraceAddEvent(ThreadState *thr, u64 epoch,
-                                        EventType typ, uptr addr) {
+void ALWAYS_INLINE INLINE TraceAddEvent(ThreadState *thr, FastState fs,
+                                        EventType typ, u64 addr) {
+  DCHECK_GE((int)typ, 0);
+  DCHECK_LE((int)typ, 7);
+  DCHECK_EQ(GetLsb(addr, 61), addr);
   StatInc(thr, StatEvents);
-  if (UNLIKELY((epoch % kTracePartSize) == 0)) {
+  u64 pos = fs.GetTracePos();
+  if (UNLIKELY((pos % kTracePartSize) == 0)) {
 #ifndef TSAN_GO
     HACKY_CALL(__tsan_trace_switch);
 #else
     TraceSwitch(thr);
 #endif
   }
-  Event *evp = &thr->trace.events[epoch % kTraceSize];
+  Event *trace = (Event*)GetThreadTrace(fs.tid());
+  Event *evp = &trace[pos];
   Event ev = (u64)addr | ((u64)typ << 61);
   *evp = ev;
 }

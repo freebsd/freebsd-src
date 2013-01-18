@@ -12,15 +12,32 @@
 // sanitizer_libc.h.
 //===----------------------------------------------------------------------===//
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#include <stdlib.h>
+#include <io.h>
 #include <windows.h>
 
 #include "sanitizer_common.h"
 #include "sanitizer_libc.h"
-#include "sanitizer_symbolizer.h"
+#include "sanitizer_placement_new.h"
+#include "sanitizer_mutex.h"
 
 namespace __sanitizer {
 
 // --------------------- sanitizer_common.h
+uptr GetPageSize() {
+  return 1U << 14;  // FIXME: is this configurable?
+}
+
+uptr GetMmapGranularity() {
+  return 1U << 16;  // FIXME: is this configurable?
+}
+
+bool FileExists(const char *filename) {
+  UNIMPLEMENTED();
+}
+
 int GetPid() {
   return GetProcessId(GetCurrentProcess());
 }
@@ -42,7 +59,6 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
   *stack_bottom = (uptr)mbi.AllocationBase;
 }
 
-
 void *MmapOrDie(uptr size, const char *mem_type) {
   void *rv = VirtualAlloc(0, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   if (rv == 0) {
@@ -62,8 +78,18 @@ void UnmapOrDie(void *addr, uptr size) {
 }
 
 void *MmapFixedNoReserve(uptr fixed_addr, uptr size) {
-  return VirtualAlloc((LPVOID)fixed_addr, size,
-                      MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+  // FIXME: is this really "NoReserve"? On Win32 this does not matter much,
+  // but on Win64 it does.
+  void *p = VirtualAlloc((LPVOID)fixed_addr, size,
+      MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+  if (p == 0)
+    Report("ERROR: Failed to allocate 0x%zx (%zd) bytes at %p (%d)\n",
+           size, size, fixed_addr, GetLastError());
+  return p;
+}
+
+void *MmapFixedOrDie(uptr fixed_addr, uptr size) {
+  return MmapFixedNoReserve(fixed_addr, size);
 }
 
 void *Mprotect(uptr fixed_addr, uptr size) {
@@ -98,7 +124,6 @@ const char *GetEnv(const char *name) {
 
 const char *GetPwd() {
   UNIMPLEMENTED();
-  return 0;
 }
 
 void DumpProcessMap() {
@@ -106,6 +131,22 @@ void DumpProcessMap() {
 }
 
 void DisableCoreDumper() {
+  UNIMPLEMENTED();
+}
+
+void ReExec() {
+  UNIMPLEMENTED();
+}
+
+void PrepareForSandboxing() {
+  // Nothing here for now.
+}
+
+bool StackSizeIsUnlimited() {
+  UNIMPLEMENTED();
+}
+
+void SetStackSizeLimitInBytes(uptr limit) {
   UNIMPLEMENTED();
 }
 
@@ -126,50 +167,40 @@ void Abort() {
   _exit(-1);  // abort is not NORETURN on Windows.
 }
 
+#ifndef SANITIZER_GO
 int Atexit(void (*function)(void)) {
   return atexit(function);
 }
-
-// ------------------ sanitizer_symbolizer.h
-bool FindDWARFSection(uptr object_file_addr, const char *section_name,
-                      DWARFSection *section) {
-  UNIMPLEMENTED();
-  return false;
-}
-
-uptr GetListOfModules(ModuleDIContext *modules, uptr max_modules) {
-  UNIMPLEMENTED();
-};
+#endif
 
 // ------------------ sanitizer_libc.h
 void *internal_mmap(void *addr, uptr length, int prot, int flags,
                     int fd, u64 offset) {
   UNIMPLEMENTED();
-  return 0;
 }
 
 int internal_munmap(void *addr, uptr length) {
   UNIMPLEMENTED();
-  return 0;
 }
 
 int internal_close(fd_t fd) {
   UNIMPLEMENTED();
-  return 0;
+}
+
+int internal_isatty(fd_t fd) {
+  return _isatty(fd);
 }
 
 fd_t internal_open(const char *filename, bool write) {
   UNIMPLEMENTED();
-  return 0;
 }
 
 uptr internal_read(fd_t fd, void *buf, uptr count) {
   UNIMPLEMENTED();
-  return 0;
 }
 
 uptr internal_write(fd_t fd, const void *buf, uptr count) {
-  if (fd != 2)
+  if (fd != kStderrFd)
     UNIMPLEMENTED();
   HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
   if (err == 0)
@@ -182,17 +213,55 @@ uptr internal_write(fd_t fd, const void *buf, uptr count) {
 
 uptr internal_filesize(fd_t fd) {
   UNIMPLEMENTED();
-  return 0;
 }
 
 int internal_dup2(int oldfd, int newfd) {
   UNIMPLEMENTED();
-  return 0;
+}
+
+uptr internal_readlink(const char *path, char *buf, uptr bufsize) {
+  UNIMPLEMENTED();
 }
 
 int internal_sched_yield() {
-  UNIMPLEMENTED();
+  Sleep(0);
   return 0;
+}
+
+// ---------------------- BlockingMutex ---------------- {{{1
+enum LockState {
+  LOCK_UNINITIALIZED = 0,
+  LOCK_READY = -1,
+};
+
+BlockingMutex::BlockingMutex(LinkerInitialized li) {
+  // FIXME: see comments in BlockingMutex::Lock() for the details.
+  CHECK(li == LINKER_INITIALIZED || owner_ == LOCK_UNINITIALIZED);
+
+  CHECK(sizeof(CRITICAL_SECTION) <= sizeof(opaque_storage_));
+  InitializeCriticalSection((LPCRITICAL_SECTION)opaque_storage_);
+  owner_ = LOCK_READY;
+}
+
+void BlockingMutex::Lock() {
+  if (owner_ == LOCK_UNINITIALIZED) {
+    // FIXME: hm, global BlockingMutex objects are not initialized?!?
+    // This might be a side effect of the clang+cl+link Frankenbuild...
+    new(this) BlockingMutex((LinkerInitialized)(LINKER_INITIALIZED + 1));
+
+    // FIXME: If it turns out the linker doesn't invoke our
+    // constructors, we should probably manually Lock/Unlock all the global
+    // locks while we're starting in one thread to avoid double-init races.
+  }
+  EnterCriticalSection((LPCRITICAL_SECTION)opaque_storage_);
+  CHECK(owner_ == LOCK_READY);
+  owner_ = GetThreadSelf();
+}
+
+void BlockingMutex::Unlock() {
+  CHECK(owner_ == GetThreadSelf());
+  owner_ = LOCK_READY;
+  LeaveCriticalSection((LPCRITICAL_SECTION)opaque_storage_);
 }
 
 }  // namespace __sanitizer

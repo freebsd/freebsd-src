@@ -21,8 +21,7 @@ struct ListItem {
 
 typedef IntrusiveList<ListItem> List;
 
-// Check that IntrusiveList can be made thread-local.
-static THREADLOCAL List static_list;
+static List static_list;
 
 static void SetList(List *l, ListItem *x = 0,
                     ListItem *y = 0, ListItem *z = 0) {
@@ -152,6 +151,23 @@ TEST(SanitizerCommon, IntrusiveList) {
   l1.append_front(&l2);
   CheckList(&l1, x, y);
   CHECK(l2.empty());
+}
+
+TEST(SanitizerCommon, IntrusiveListAppendEmpty) {
+  ListItem i;
+  List l;
+  l.clear();
+  l.push_back(&i);
+  List l2;
+  l2.clear();
+  l.append_back(&l2);
+  CHECK_EQ(l.back(), &i);
+  CHECK_EQ(l.front(), &i);
+  CHECK_EQ(l.size(), 1);
+  l.append_front(&l2);
+  CHECK_EQ(l.back(), &i);
+  CHECK_EQ(l.front(), &i);
+  CHECK_EQ(l.size(), 1);
 }
 
 }  // namespace __sanitizer

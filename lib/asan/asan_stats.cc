@@ -12,11 +12,11 @@
 // Code related to statistics collected by AddressSanitizer.
 //===----------------------------------------------------------------------===//
 #include "asan_interceptors.h"
-#include "asan_interface.h"
 #include "asan_internal.h"
-#include "asan_lock.h"
 #include "asan_stats.h"
 #include "asan_thread_registry.h"
+#include "sanitizer/asan_interface.h"
+#include "sanitizer_common/sanitizer_stackdepot.h"
 
 namespace __asan {
 
@@ -27,39 +27,45 @@ AsanStats::AsanStats() {
 
 static void PrintMallocStatsArray(const char *prefix,
                                   uptr (&array)[kNumberOfSizeClasses]) {
-  AsanPrintf("%s", prefix);
+  Printf("%s", prefix);
   for (uptr i = 0; i < kNumberOfSizeClasses; i++) {
     if (!array[i]) continue;
-    AsanPrintf("%zu:%zu; ", i, array[i]);
+    Printf("%zu:%zu; ", i, array[i]);
   }
-  AsanPrintf("\n");
+  Printf("\n");
 }
 
 void AsanStats::Print() {
-  AsanPrintf("Stats: %zuM malloced (%zuM for red zones) by %zu calls\n",
+  Printf("Stats: %zuM malloced (%zuM for red zones) by %zu calls\n",
              malloced>>20, malloced_redzones>>20, mallocs);
-  AsanPrintf("Stats: %zuM realloced by %zu calls\n", realloced>>20, reallocs);
-  AsanPrintf("Stats: %zuM freed by %zu calls\n", freed>>20, frees);
-  AsanPrintf("Stats: %zuM really freed by %zu calls\n",
+  Printf("Stats: %zuM realloced by %zu calls\n", realloced>>20, reallocs);
+  Printf("Stats: %zuM freed by %zu calls\n", freed>>20, frees);
+  Printf("Stats: %zuM really freed by %zu calls\n",
              really_freed>>20, real_frees);
-  AsanPrintf("Stats: %zuM (%zu full pages) mmaped in %zu calls\n",
-             mmaped>>20, mmaped / kPageSize, mmaps);
+  Printf("Stats: %zuM (%zuM-%zuM) mmaped; %zu maps, %zu unmaps\n",
+             (mmaped-munmaped)>>20, mmaped>>20, munmaped>>20,
+             mmaps, munmaps);
 
   PrintMallocStatsArray("  mmaps   by size class: ", mmaped_by_size);
   PrintMallocStatsArray("  mallocs by size class: ", malloced_by_size);
   PrintMallocStatsArray("  frees   by size class: ", freed_by_size);
   PrintMallocStatsArray("  rfrees  by size class: ", really_freed_by_size);
-  AsanPrintf("Stats: malloc large: %zu small slow: %zu\n",
+  Printf("Stats: malloc large: %zu small slow: %zu\n",
              malloc_large, malloc_small_slow);
 }
 
-static AsanLock print_lock(LINKER_INITIALIZED);
+static BlockingMutex print_lock(LINKER_INITIALIZED);
 
 static void PrintAccumulatedStats() {
-  AsanStats stats = asanThreadRegistry().GetAccumulatedStats();
+  AsanStats stats;
+  asanThreadRegistry().GetAccumulatedStats(&stats);
   // Use lock to keep reports from mixing up.
-  ScopedLock lock(&print_lock);
+  BlockingMutexLock lock(&print_lock);
   stats.Print();
+  StackDepotStats *stack_depot_stats = StackDepotGetStats();
+  Printf("Stats: StackDepot: %zd ids; %zdM mapped\n",
+         stack_depot_stats->n_uniq_ids, stack_depot_stats->mapped >> 20);
+  PrintInternalAllocatorStats();
 }
 
 }  // namespace __asan

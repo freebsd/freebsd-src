@@ -1,33 +1,22 @@
-# Compute the Clang version from the LLVM version.
-# FIXME: We should be able to reuse CLANG_VERSION variable calculated
-#        in Clang cmake files, instead of copying the rules here.
-string(REGEX MATCH "[0-9]+\\.[0-9]+(\\.[0-9]+)?" CLANG_VERSION
-       ${PACKAGE_VERSION})
-
-# Call add_clang_runtime_static_library(<target_library>) to make
-# sure that static <target_library> is built in the directory
-# where Clang driver expects to find it.
-if (APPLE)
-  set(CLANG_RUNTIME_LIB_DIR
-      ${LLVM_BINARY_DIR}/lib/clang/${CLANG_VERSION}/lib/darwin)
-elseif (UNIX)
-  # Assume Linux.
-  set(CLANG_RUNTIME_LIB_DIR
-      ${LLVM_BINARY_DIR}/lib/clang/${CLANG_VERSION}/lib/linux)
-endif()
-function(add_clang_runtime_static_library target_name)
-  set_target_properties(${target_name} PROPERTIES
-                        ARCHIVE_OUTPUT_DIRECTORY ${CLANG_RUNTIME_LIB_DIR})
-endfunction()
-
 # First, add the subdirectories which contain feature-based runtime libraries
 # and several convenience helper libraries.
-add_subdirectory(asan)
-add_subdirectory(interception)
-add_subdirectory(sanitizer_common)
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin|Linux")
+  # AddressSanitizer is supported on Linux and Mac OS X.
+  # Windows support is work in progress.
+  add_subdirectory(asan)
+  add_subdirectory(interception)
+  add_subdirectory(sanitizer_common)
+  if(NOT ANDROID)
+    add_subdirectory(ubsan)
+  endif()
+endif()
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux" AND NOT ANDROID)
+  # ThreadSanitizer and MemorySanitizer are supported on Linux only.
+  add_subdirectory(tsan)
+  add_subdirectory(msan)
+endif()
 
 # FIXME: Add support for the profile library.
-
 
 # The top-level lib directory contains a large amount of C code which provides
 # generic implementations of the core runtime library along with optimized
@@ -163,7 +152,7 @@ set(GENERIC_SOURCES
   umodti3.c
   )
 
-if(CAN_TARGET_X86_64)
+if(CAN_TARGET_x86_64)
   add_library(clang_rt.x86_64 STATIC
     x86_64/floatdidf.c
     x86_64/floatdisf.c
@@ -173,9 +162,10 @@ if(CAN_TARGET_X86_64)
     x86_64/floatundixf.S
     ${GENERIC_SOURCES}
     )
-  set_target_properties(clang_rt.x86_64 PROPERTIES COMPILE_FLAGS "-std=c99 ${TARGET_X86_64_CFLAGS}")
+  set_target_properties(clang_rt.x86_64 PROPERTIES COMPILE_FLAGS "-std=c99 ${TARGET_x86_64_CFLAGS}")
+  add_clang_compiler_rt_libraries(clang_rt.x86_64)
 endif()
-if(CAN_TARGET_I386)
+if(CAN_TARGET_i386)
   add_library(clang_rt.i386 STATIC
     i386/ashldi3.S
     i386/ashrdi3.S
@@ -193,5 +183,6 @@ if(CAN_TARGET_I386)
     i386/umoddi3.S
     ${GENERIC_SOURCES}
     )
-  set_target_properties(clang_rt.i386 PROPERTIES COMPILE_FLAGS "-std=c99 ${TARGET_I386_CFLAGS}")
+  set_target_properties(clang_rt.i386 PROPERTIES COMPILE_FLAGS "-std=c99 ${TARGET_i386_CFLAGS}")
+  add_clang_compiler_rt_libraries(clang_rt.i386)
 endif()

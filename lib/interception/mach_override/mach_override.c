@@ -29,6 +29,7 @@
 
 #if defined(__ppc__) || defined(__POWERPC__)
 
+static
 long kIslandTemplate[] = {
 	0x9001FFFC,	//	stw		r0,-4(SP)
 	0x3C00DEAD,	//	lis		r0,0xDEAD
@@ -48,7 +49,8 @@ long kIslandTemplate[] = {
 
 #define kOriginalInstructionsSize 16
 
-char kIslandTemplate[] = {
+static
+unsigned char kIslandTemplate[] = {
 	// kOriginalInstructionsSize nop instructions so that we 
 	// should have enough space to host original instructions 
 	0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 
@@ -65,7 +67,8 @@ char kIslandTemplate[] = {
 
 #define kJumpAddress    kOriginalInstructionsSize + 6
 
-char kIslandTemplate[] = {
+static
+unsigned char kIslandTemplate[] = {
 	// kOriginalInstructionsSize nop instructions so that we 
 	// should have enough space to host original instructions 
 	0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 
@@ -104,38 +107,41 @@ typedef	struct	{
 #pragma mark	-
 #pragma mark	(Funky Protos)
 
-	mach_error_t
+
+	static mach_error_t
 allocateBranchIsland(
 		BranchIsland	**island,
 		int				allocateHigh,
-		void *originalFunctionAddress) __attribute__((visibility("hidden")));
+		void *originalFunctionAddress);
 
-	mach_error_t
+	static mach_error_t
 freeBranchIsland(
-		BranchIsland	*island ) __attribute__((visibility("hidden")));
+		BranchIsland	*island );
 
-	mach_error_t
+	static mach_error_t
 defaultIslandMalloc(
-	  void **ptr, size_t unused_size, void *hint) __attribute__((visibility("hidden")));
+	  void **ptr, size_t unused_size, void *hint);
 
-	mach_error_t
+	static mach_error_t
 defaultIslandFree(
-   	void *ptr) __attribute__((visibility("hidden")));
+   	void *ptr);
 
 #if defined(__ppc__) || defined(__POWERPC__)
-	mach_error_t
+	static mach_error_t
 setBranchIslandTarget(
 		BranchIsland	*island,
 		const void		*branchTo,
-		long			instruction ) __attribute__((visibility("hidden")));
+		long			instruction );
 #endif 
 
 #if defined(__i386__) || defined(__x86_64__)
-mach_error_t
+static mach_error_t
 setBranchIslandTarget_i386(
 						   BranchIsland	*island,
 						   const void		*branchTo,
-						   char*			instructions ) __attribute__((visibility("hidden")));
+						   char*			instructions );
+// Can't be made static because there's no C implementation for atomic_mov64
+// on i386.
 void 
 atomic_mov64(
 		uint64_t *targetAddress,
@@ -148,7 +154,7 @@ eatKnownInstructions(
 	int				*howManyEaten, 
 	char			*originalInstructions,
 	int				*originalInstructionCount, 
-	uint8_t			*originalInstructionSizes ) __attribute__((visibility("hidden")));
+	uint8_t			*originalInstructionSizes );
 
 	static void
 fixupInstructions(
@@ -156,7 +162,7 @@ fixupInstructions(
     void		*escapeIsland,
     void		*instructionsToFix,
 	int			instructionCount,
-	uint8_t		*instructionSizes ) __attribute__((visibility("hidden")));
+	uint8_t		*instructionSizes );
 
 #ifdef DEBUG_DISASM
 	static void
@@ -174,7 +180,7 @@ dump16Bytes(
 #pragma mark	(Interface)
 
 #if defined(__i386__) || defined(__x86_64__)
-mach_error_t makeIslandExecutable(void *address) {
+static mach_error_t makeIslandExecutable(void *address) {
 	mach_error_t err = err_none;
     vm_size_t pageSize;
     host_page_size( mach_host_self(), &pageSize );
@@ -189,12 +195,12 @@ mach_error_t makeIslandExecutable(void *address) {
 }
 #endif
 
-		mach_error_t
+		static mach_error_t
 defaultIslandMalloc(
 	void **ptr, size_t unused_size, void *hint) {
   return allocateBranchIsland( (BranchIsland**)ptr, kAllocateHigh, hint );
 }
-		mach_error_t
+		static mach_error_t
 defaultIslandFree(
 	void *ptr) {
 	return freeBranchIsland(ptr);
@@ -460,7 +466,7 @@ __asan_mach_override_ptr_custom(
 
 	***************************************************************************/
 
-	mach_error_t
+	static mach_error_t
 allocateBranchIsland(
 		BranchIsland	**island,
 		int				allocateHigh,
@@ -530,7 +536,7 @@ allocateBranchIsland(
 
 	***************************************************************************/
 
-	mach_error_t
+	static mach_error_t
 freeBranchIsland(
 		BranchIsland	*island )
 {
@@ -568,7 +574,7 @@ freeBranchIsland(
 
 	***************************************************************************/
 #if defined(__ppc__) || defined(__POWERPC__)
-	mach_error_t
+	static mach_error_t
 setBranchIslandTarget(
 		BranchIsland	*island,
 		const void		*branchTo,
@@ -598,7 +604,7 @@ setBranchIslandTarget(
 #endif 
 
 #if defined(__i386__)
-	mach_error_t
+	static mach_error_t
 setBranchIslandTarget_i386(
 	BranchIsland	*island,
 	const void		*branchTo,
@@ -622,7 +628,7 @@ setBranchIslandTarget_i386(
 }
 
 #elif defined(__x86_64__)
-mach_error_t
+static mach_error_t
 setBranchIslandTarget_i386(
         BranchIsland	*island,
         const void		*branchTo,
@@ -675,7 +681,8 @@ static AsmInstructionMatch possibleInstructions[] = {
 	{ 0x4, {0xFF, 0xFF, 0xFF, 0x00}, {0x66, 0x0F, 0xEF, 0x00} },             	// pxor xmm2/128, xmm1
 	{ 0x2, {0xFF, 0xFF}, {0xDB, 0xE3} }, 						// fninit
 	{ 0x5, {0xFF, 0x00, 0x00, 0x00, 0x00}, {0xE8, 0x00, 0x00, 0x00, 0x00} },	// call $imm
-	{ 0x0 }
+	{ 0x4, {0xFF, 0xFF, 0xFF, 0x00}, {0x0F, 0xBE, 0x55, 0x00} },                    // movsbl $imm(%ebp), %edx
+	{ 0x0, {0x00}, {0x00} }
 };
 #elif defined(__x86_64__)
 // TODO(glider): disassembling the "0x48, 0x89" sequences is trickier than it's done below.
@@ -694,6 +701,7 @@ static AsmInstructionMatch possibleInstructions[] = {
 	{ 0x3, {0xFB, 0xFF, 0x00}, {0x48, 0x89, 0x00} },	                            // mov %reg, %reg
 	{ 0x3, {0xFB, 0xFF, 0x00}, {0x49, 0x89, 0x00} },	                            // mov %reg, %reg (REX.WB)
 	{ 0x2, {0xFF, 0x00}, {0x41, 0x00} },						// push %rXX
+	{ 0x2, {0xFF, 0x00}, {0x84, 0x00} },						// test %rX8,%rX8
 	{ 0x2, {0xFF, 0x00}, {0x85, 0x00} },						// test %rX,%rX
 	{ 0x2, {0xFF, 0x00}, {0x77, 0x00} },						// ja $i8
 	{ 0x2, {0xFF, 0x00}, {0x74, 0x00} },						// je $i8
@@ -715,11 +723,15 @@ static AsmInstructionMatch possibleInstructions[] = {
                {0xFF, 0x25, 0x00, 0x00, 0x00, 0x00} },                            // jmpq *(%rip)
         { 0x4, {0xFF, 0xFF, 0xFF, 0x00}, {0x66, 0x0F, 0xEF, 0x00} },              // pxor xmm2/128, xmm1
         { 0x2, {0xFF, 0x00}, {0x89, 0x00} },                               // mov r/m32,r32 or r/m16,r16
-        { 0x3, {0xFF, 0xFF, 0xFF}, {0x49, 0x89, 0xF8} },                   // mov %rdi,%r8        
+        { 0x3, {0xFF, 0xFF, 0xFF}, {0x49, 0x89, 0xF8} },                   // mov %rdi,%r8
+        { 0x4, {0xFF, 0xFF, 0xFF, 0xFF}, {0x40, 0x0F, 0xBE, 0xCE} },       // movsbl %sil,%ecx
+        { 0x7, {0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00},
+               {0x48, 0x8D, 0x05, 0x00, 0x00, 0x00, 0x00} },  // lea $imm(%rip),%rax
+        { 0x3, {0xFF, 0xFF, 0xFF}, {0x0F, 0xBE, 0xCE} },  // movsbl, %dh, %ecx
         { 0x3, {0xFF, 0xFF, 0x00}, {0xFF, 0x77, 0x00} },  // pushq $imm(%rdi)
         { 0x2, {0xFF, 0xFF}, {0xDB, 0xE3} }, // fninit
         { 0x3, {0xFF, 0xFF, 0xFF}, {0x48, 0x85, 0xD2} },  // test %rdx,%rdx
-	{ 0x0 }
+	{ 0x0, {0x00}, {0x00} }
 };
 #endif
 
@@ -866,7 +878,7 @@ fixupInstructions(
 			// This is critical, otherwise a near jump will likely fall outside the original function.
 			uint32_t offset = (uintptr_t)initialOriginalFunction - (uintptr_t)escapeIsland;
 			uint32_t jumpOffset = *(uint8_t*)((uintptr_t)instructionsToFix + 1);
-			*(uint8_t*)(instructionsToFix + 1) = *(uint8_t*)instructionsToFix + 0x10;
+			*((uint8_t*)instructionsToFix + 1) = *(uint8_t*)instructionsToFix + 0x10;
 			*(uint8_t*)instructionsToFix = 0x0F;
 			uint32_t *jumpOffsetPtr = (uint32_t*)((uintptr_t)instructionsToFix + 2 );
 			*jumpOffsetPtr = offset + jumpOffset;

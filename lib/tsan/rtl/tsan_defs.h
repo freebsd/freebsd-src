@@ -24,31 +24,45 @@
 
 namespace __tsan {
 
+#ifdef TSAN_GO
+const bool kGoMode = true;
+const bool kCppMode = false;
+const char *const kTsanOptionsEnv = "GORACE";
+#else
+const bool kGoMode = false;
+const bool kCppMode = true;
+const char *const kTsanOptionsEnv = "TSAN_OPTIONS";
+#endif
+
 const int kTidBits = 13;
 const unsigned kMaxTid = 1 << kTidBits;
 const unsigned kMaxTidInClock = kMaxTid * 2;  // This includes msb 'freed' bit.
 const int kClkBits = 43;
 #ifndef TSAN_GO
-const int kShadowStackSize = 1024;
+const int kShadowStackSize = 4 * 1024;
+const int kTraceStackSize = 256;
 #endif
 
 #ifdef TSAN_SHADOW_COUNT
 # if TSAN_SHADOW_COUNT == 2 \
   || TSAN_SHADOW_COUNT == 4 || TSAN_SHADOW_COUNT == 8
-const unsigned kShadowCnt = TSAN_SHADOW_COUNT;
+const uptr kShadowCnt = TSAN_SHADOW_COUNT;
 # else
 #   error "TSAN_SHADOW_COUNT must be one of 2,4,8"
 # endif
 #else
 // Count of shadow values in a shadow cell.
-const unsigned kShadowCnt = 8;
+const uptr kShadowCnt = 4;
 #endif
 
 // That many user bytes are mapped onto a single shadow cell.
-const unsigned kShadowCell = 8;
+const uptr kShadowCell = 8;
 
 // Size of a single shadow value (u64).
-const unsigned kShadowSize = 8;
+const uptr kShadowSize = 8;
+
+// Shadow memory is kShadowMultiplier times larger than user memory.
+const uptr kShadowMultiplier = kShadowSize * kShadowCnt / kShadowCell;
 
 #if defined(TSAN_COLLECT_STATS) && TSAN_COLLECT_STATS
 const bool kCollectStats = true;
@@ -114,9 +128,21 @@ T max(T a, T b) {
 }
 
 template<typename T>
-T RoundUp(T p, int align) {
+T RoundUp(T p, u64 align) {
   DCHECK_EQ(align & (align - 1), 0);
   return (T)(((u64)p + align - 1) & ~(align - 1));
+}
+
+template<typename T>
+T RoundDown(T p, u64 align) {
+  DCHECK_EQ(align & (align - 1), 0);
+  return (T)((u64)p & ~(align - 1));
+}
+
+// Zeroizes high part, returns 'bits' lsb bits.
+template<typename T>
+T GetLsb(T v, int bits) {
+  return (T)((u64)v & ((1ull << bits) - 1));
 }
 
 struct MD5Hash {
@@ -133,6 +159,7 @@ struct ReportStack;
 class ReportDesc;
 class RegionAlloc;
 class StackTrace;
+struct MBlock;
 
 }  // namespace __tsan
 

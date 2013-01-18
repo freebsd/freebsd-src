@@ -19,8 +19,16 @@
 #include "asan_interceptors.h"
 #include "asan_internal.h"
 #include "asan_stack.h"
+#include "asan_thread_registry.h"
+#include "sanitizer/asan_interface.h"
 
-#ifdef ANDROID
+#if ASAN_ANDROID
+DECLARE_REAL_AND_INTERCEPTOR(void*, malloc, uptr size)
+DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
+DECLARE_REAL_AND_INTERCEPTOR(void*, calloc, uptr nmemb, uptr size)
+DECLARE_REAL_AND_INTERCEPTOR(void*, realloc, void *ptr, uptr size)
+DECLARE_REAL_AND_INTERCEPTOR(void*, memalign, uptr boundary, uptr size)
+
 struct MallocDebug {
   void* (*malloc)(uptr bytes);
   void  (*free)(void* mem);
@@ -30,7 +38,7 @@ struct MallocDebug {
 };
 
 const MallocDebug asan_malloc_dispatch ALIGNED(32) = {
-  malloc, free, calloc, realloc, memalign
+  WRAP(malloc), WRAP(free), WRAP(calloc), WRAP(realloc), WRAP(memalign)
 };
 
 extern "C" const MallocDebug* __libc_malloc_dispatch;
@@ -53,17 +61,17 @@ void ReplaceSystemMalloc() {
 using namespace __asan;  // NOLINT
 
 INTERCEPTOR(void, free, void *ptr) {
-  GET_STACK_TRACE_HERE_FOR_FREE(ptr);
-  asan_free(ptr, &stack);
+  GET_STACK_TRACE_FREE;
+  asan_free(ptr, &stack, FROM_MALLOC);
 }
 
 INTERCEPTOR(void, cfree, void *ptr) {
-  GET_STACK_TRACE_HERE_FOR_FREE(ptr);
-  asan_free(ptr, &stack);
+  GET_STACK_TRACE_FREE;
+  asan_free(ptr, &stack, FROM_MALLOC);
 }
 
 INTERCEPTOR(void*, malloc, uptr size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_malloc(size, &stack);
 }
 
@@ -79,25 +87,25 @@ INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
     CHECK(allocated < kCallocPoolSize);
     return mem;
   }
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_calloc(nmemb, size, &stack);
 }
 
 INTERCEPTOR(void*, realloc, void *ptr, uptr size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_realloc(ptr, size, &stack);
 }
 
 INTERCEPTOR(void*, memalign, uptr boundary, uptr size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
-  return asan_memalign(boundary, size, &stack);
+  GET_STACK_TRACE_MALLOC;
+  return asan_memalign(boundary, size, &stack, FROM_MALLOC);
 }
 
 INTERCEPTOR(void*, __libc_memalign, uptr align, uptr s)
   ALIAS("memalign");
 
 INTERCEPTOR(uptr, malloc_usable_size, void *ptr) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_malloc_usable_size(ptr, &stack);
 }
 
@@ -120,19 +128,23 @@ INTERCEPTOR(int, mallopt, int cmd, int value) {
 }
 
 INTERCEPTOR(int, posix_memalign, void **memptr, uptr alignment, uptr size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   // Printf("posix_memalign: %zx %zu\n", alignment, size);
   return asan_posix_memalign(memptr, alignment, size, &stack);
 }
 
 INTERCEPTOR(void*, valloc, uptr size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_valloc(size, &stack);
 }
 
 INTERCEPTOR(void*, pvalloc, uptr size) {
-  GET_STACK_TRACE_HERE_FOR_MALLOC;
+  GET_STACK_TRACE_MALLOC;
   return asan_pvalloc(size, &stack);
+}
+
+INTERCEPTOR(void, malloc_stats, void) {
+  __asan_print_accumulated_stats();
 }
 
 #endif  // __linux__

@@ -15,16 +15,16 @@
 
 // FIXME: We should probably use more low-level allocator that would
 // mmap some pages and split them into chunks to fulfill requests.
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 extern "C" void *__libc_malloc(__sanitizer::uptr size);
 extern "C" void __libc_free(void *ptr);
 # define LIBC_MALLOC __libc_malloc
 # define LIBC_FREE __libc_free
-#else  // __linux__
+#else  // __linux__ && !ANDROID
 # include <stdlib.h>
 # define LIBC_MALLOC malloc
 # define LIBC_FREE free
-#endif  // __linux__
+#endif  // __linux__ && !ANDROID
 
 namespace __sanitizer {
 
@@ -49,11 +49,30 @@ void InternalFree(void *addr) {
   LIBC_FREE(addr);
 }
 
-void *InternalAllocBlock(void *p) {
-  CHECK_NE(p, (void*)0);
-  u64 *pp = (u64*)((uptr)p & ~0x7);
-  for (; pp[0] != kBlockMagic; pp--) {}
-  return pp + 1;
+// LowLevelAllocator
+static LowLevelAllocateCallback low_level_alloc_callback;
+
+void *LowLevelAllocator::Allocate(uptr size) {
+  // Align allocation size.
+  size = RoundUpTo(size, 8);
+  if (allocated_end_ - allocated_current_ < (sptr)size) {
+    uptr size_to_allocate = Max(size, GetPageSizeCached());
+    allocated_current_ =
+        (char*)MmapOrDie(size_to_allocate, __FUNCTION__);
+    allocated_end_ = allocated_current_ + size_to_allocate;
+    if (low_level_alloc_callback) {
+      low_level_alloc_callback((uptr)allocated_current_,
+                               size_to_allocate);
+    }
+  }
+  CHECK(allocated_end_ - allocated_current_ >= (sptr)size);
+  void *res = allocated_current_;
+  allocated_current_ += size;
+  return res;
+}
+
+void SetLowLevelAllocateCallback(LowLevelAllocateCallback callback) {
+  low_level_alloc_callback = callback;
 }
 
 }  // namespace __sanitizer
