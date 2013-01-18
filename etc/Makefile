@@ -156,6 +156,9 @@ ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 # Special top level files for FreeBSD
 FREEBSD=COPYRIGHT
 
+# Sanitize DESTDIR
+DESTDIR:=	${DESTDIR:C://*:/:g}
+
 afterinstall:
 .if ${MK_MAN} != "no"
 	${_+_}cd ${.CURDIR}/../share/man; ${MAKE} makedb
@@ -339,7 +342,7 @@ distrib-dirs:
 		${MTREE_CMD} -C -f $$m | sed s#^\.#.$$d# >> ${METALOG} ; \
 	done; true
 .endif
-	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR:S#//#/#}/sys
+	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
 	cd ${DESTDIR}/usr/share/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
