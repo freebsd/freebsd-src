@@ -72,9 +72,6 @@ __FBSDID("$FreeBSD$");
 
 #define	IMX51_IPU_HSP_CLOCK	665000000
 #define	IPU3FB_FONT_HEIGHT	16
-#define	IPU3FB_WIDTH		1024
-#define	IPU3FB_HEIGHT		600
-#define	IPU3FB_BPP		2
 
 struct ipu3sc_softc {
 	device_t		dev;
@@ -102,6 +99,7 @@ struct video_adapter_softc {
 	intptr_t	fb_paddr;
 	unsigned int	fb_size;
 
+	int		bpp;
 	int		depth;
 	unsigned int	height;
 	unsigned int	width;
@@ -117,6 +115,7 @@ struct video_adapter_softc {
 static struct ipu3sc_softc *ipu3sc_softc;
 static struct video_adapter_softc va_softc;
 
+/* FIXME: not only 2 bytes color supported */
 static uint16_t colors[16] = {
 	0x0000,	/* black */
 	0x001f,	/* blue */
@@ -140,6 +139,17 @@ static uint16_t colors[16] = {
 	bus_space_read_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg))
 #define	IPUV3_WRITE(ipuv3, module, reg, val)				\
 	bus_space_write_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg), (val))
+
+#define	CPMEM_CHANNEL_OFFSET(_c)	((_c) * 0x40)
+#define	CPMEM_WORD_OFFSET(_w)		((_w) * 0x20)
+#define	CPMEM_DP_OFFSET(_d)		((_d) * 0x10000)
+#define	IMX_IPU_DP0		0
+#define	IMX_IPU_DP1		1
+#define	CPMEM_CHANNEL(_dp, _ch, _w)					\
+	    (CPMEM_DP_OFFSET(_dp) + CPMEM_CHANNEL_OFFSET(_ch) +		\
+		CPMEM_WORD_OFFSET(_w))
+#define	CPMEM_OFFSET(_dp, _ch, _w, _o)					\
+	    (CPMEM_CHANNEL((_dp), (_ch), (_w)) + (_o))
 
 #define	IPUV3_DEBUG 100
 
@@ -184,23 +194,38 @@ ipu3_fb_init(void *arg)
 {
 	struct ipu3sc_softc *sc = arg;
 	struct video_adapter_softc *va_sc = &va_softc;
-	int size;
+	uint64_t w0sh96;
+	uint32_t w1sh96;
 
-	size = IPU3FB_WIDTH * IPU3FB_HEIGHT * IPU3FB_BPP;
+	/* FW W0[137:125] - 96 = [41:29] */
+	/* FH W0[149:138] - 96 = [53:42] */
+	w0sh96 = IPUV3_READ(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 0, 16));
+	w0sh96 <<= 32;
+	w0sh96 |= IPUV3_READ(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 0, 12));
 
-	ipu3_fb_malloc(sc, size);
+	va_sc->width = ((w0sh96 >> 29) & 0x1fff) + 1;
+	va_sc->height = ((w0sh96 >> 42) & 0x0fff) + 1;
 
-	/* 0x000105e0 is (IPU_CPMEM_BASE + DP1 + config_ch_9 + word_2 ) */
-	bus_space_write_4(sc->iot, sc->cpmem_ioh, 0x0105e0,
+	/* SLY W1[115:102] - 96 = [19:6] */
+	w1sh96 = IPUV3_READ(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 12));
+	va_sc->stride = ((w1sh96 >> 6) & 0x3fff) + 1;
+
+	printf("%dx%d [%d]\n", va_sc->width, va_sc->height, va_sc->stride);
+	va_sc->fb_size = va_sc->height * va_sc->stride;
+
+	ipu3_fb_malloc(sc, va_sc->fb_size);
+
+	/* DP1 + config_ch_23 + word_2 */
+	IPUV3_WRITE(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 0),
 	    ((sc->pbase >> 3) | ((sc->pbase >> 3) << 29)) & 0xffffffff);
-	bus_space_write_4(sc->iot, sc->cpmem_ioh, 0x0105e4,
+
+	IPUV3_WRITE(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 4),
 	    ((sc->pbase >> 3) >> 3) & 0xffffffff);
 
 	va_sc->fb_addr = (intptr_t)sc->vbase;
 	va_sc->fb_paddr = (intptr_t)sc->pbase;
-	va_sc->fb_size = size;
-	va_sc->stride = IPU3FB_WIDTH * IPU3FB_BPP;
-	va_sc->depth = IPU3FB_BPP * 8;
+	va_sc->bpp = va_sc->stride / va_sc->width;
+	va_sc->depth = va_sc->bpp * 8;
 }
 
 static int
@@ -322,7 +347,7 @@ ipu3_fb_attach(device_t dev)
 	 * We have to wait until interrupts are enabled. 
 	 * Mailbox relies on it to get data from VideoCore
 	 */
-        ipu3_fb_init(sc);
+	ipu3_fb_init(sc);
 
 	return (0);
 
@@ -457,8 +482,10 @@ ipu3fb_configure(int flags)
 	if (sc->initialized)
 		return 0;
 
-	sc->height = IPU3FB_HEIGHT;
-	sc->width = IPU3FB_WIDTH;
+	sc->width = 640;
+	sc->height = 480;
+	sc->bpp = 2;
+	sc->stride = sc->width * sc->bpp;
 
 	ipu3fb_init(0, &sc->va, 0);
 
@@ -744,13 +771,14 @@ static int
 ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 {
 	struct video_adapter_softc *sc;
-	int col, row;
+	int col, row, bpp;
 	int b, i, j, k;
 	uint8_t *addr;
 	u_char *p;
 	uint16_t fg, bg, color;
 
 	sc = (struct video_adapter_softc *)adp;
+	bpp = sc->bpp;
 
 	if (sc->fb_addr == 0)
 		return (0);
@@ -759,7 +787,7 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	p = sc->font + c * IPU3FB_FONT_HEIGHT;
 	addr = (uint8_t *)sc->fb_addr
 	    + (row + sc->ymargin) * (sc->stride)
-	    + IPU3FB_BPP * (col + sc->xmargin);
+	    + bpp * (col + sc->xmargin);
 
 	bg = colors[(a >> 4) & 0x0f];
 	fg = colors[a & 0x0f];
@@ -770,8 +798,9 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 				color = bg;
 			else
 				color = fg;
-			for (b = 0; b < IPU3FB_BPP; b ++)
-				addr[IPU3FB_BPP * j + b] =
+			/* FIXME: BPP maybe different */
+			for (b = 0; b < bpp; b ++)
+				addr[bpp * j + b] =
 				    (color >> (b << 3)) & 0xff;
 		}
 
