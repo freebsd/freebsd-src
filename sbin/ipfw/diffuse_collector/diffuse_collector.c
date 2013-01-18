@@ -889,7 +889,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 					c->cname[DI_MAX_NAME_STR_LEN - 1] =
 					    '\0';
 					offs += strlen(c->cname) + 1;
-					c->class = be16toh(be16dec(rb + offs));
+					c->class = be16dec(rb + offs);
 					offs += sizeof(uint16_t);
 					SLIST_INSERT_HEAD(&n->flow_classes, c,
 					    next);
@@ -912,11 +912,11 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 				break;
 
 			case DIP_IE_SRC_PORT:
-				n->id.src_port = be16toh(be16dec(rb + offs));
+				n->id.src_port = be16dec(rb + offs);
 				break;
 
 			case DIP_IE_DST_PORT:
-				n->id.dst_port = be16toh(be16dec(rb + offs));
+				n->id.dst_port = be16dec(rb + offs);
 				break;
 
 			case DIP_IE_PROTO:
@@ -928,7 +928,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 				break;
 
 			case DIP_IE_TIMEOUT:
-				n->expire = be16toh(be16dec(rb + offs));
+				n->expire = be16dec(rb + offs);
 				break;
 
 			case DIP_IE_EXPORT_NAME:
@@ -944,7 +944,7 @@ parse_rule(struct class_node *cnode, struct di_template *t, char *rb,
 				break;
 
 			case DIP_IE_ACTION_FLAGS:
-				n->rtype = be16toh(be16dec(rb + offs));
+				n->rtype = be16dec(rb + offs);
 				break;
 
 			case DIP_IE_ACTION_PARAMS:
@@ -1081,7 +1081,7 @@ parse_msg(struct class_node *cnode, char *buf, fd_set *rset, int *max_fd)
 				    (int)sizeof(struct dip_set_header) -
 				    (int)sizeof(struct dip_templ_header)) {
 					r->fields[r->fcnt].id =
-					    be16toh(be16dec(buf + offs));
+					    be16dec(buf + offs);
 					offs += sizeof(uint16_t);
 					info = diffuse_proto_get_info(
 					    r->fields[r->fcnt].id);
@@ -1089,7 +1089,7 @@ parse_msg(struct class_node *cnode, char *buf, fd_set *rset, int *max_fd)
 					r->fields[r->fcnt].len = info.len;
 					if (r->fields[r->fcnt].len == 0) {
 						r->fields[r->fcnt].len =
-						    be16toh(be16dec(buf + offs));
+						    be16dec(buf + offs);
 						offs += sizeof(uint16_t);
 					}
 					r->fcnt++;
