@@ -328,7 +328,6 @@ distrib-dirs:
 		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
 	done; true
 .if defined(NO_ROOT)
-	${ECHO} DISTBASE=${DISTBASE}
 	@set ${MTREES}; \
 	while test $$# -ge 2; do \
 		m=${.CURDIR}/$$1; \
