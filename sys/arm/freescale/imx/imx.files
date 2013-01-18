@@ -18,7 +18,7 @@ arm/freescale/imx/bus_space.c		standard
 # TrustZone Interrupt Controller
 arm/freescale/imx/tzic.c		standard
 
-# IOMUX
+# IOMUX - external pins multiplexor
 arm/freescale/imx/imx51_iomux.c		optional iomux
 
 # GPIO
@@ -44,6 +44,7 @@ arm/freescale/imx/imx_wdog.c		optional imxwdt
 
 # i2c
 arm/freescale/imx/i2c.c			optional fsliic
+dev/ofw/ofw_iicbus.c			optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
