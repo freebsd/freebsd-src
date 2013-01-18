@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,18 +29,31 @@
  * $FreeBSD$
  */
 
-#ifndef __SYS_COUNTER_H__
-#define __SYS_COUNTER_H__
+#ifndef __MACHINE_COUNTER_H__
+#define __MACHINE_COUNTER_H__
 
-#include <sys/param.h>
-#include <machine/counter.h>
+#include <sys/pcpu.h>
 
-typedef uint64_t *counter_u64_t;
+extern struct pcpu __pcpu[1];
 
-counter_u64_t	counter_u64_alloc(int);
-void		counter_u64_free(counter_u64_t);
+static __inline void
+counter_u64_inc(counter_u64_t c, uint64_t inc)
+{
 
-void		counter_u64_zero(counter_u64_t);
-uint64_t	counter_u64_fetch(counter_u64_t);
+	__asm __volatile("addq\t%1,%%gs:(%0)"
+	    :
+	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (inc)
+	    : "memory", "cc");
+}
 
-#endif	/* ! __SYS_COUNTER_H__ */
+static __inline void
+counter_u64_dec(counter_u64_t c, uint64_t dec)
+{
+
+	__asm __volatile("subq\t%1,%%gs:(%0)"
+	    :
+	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (dec)
+	    : "memory", "cc");
+}
+
+#endif	/* ! __MACHINE_COUNTER_H__ */
