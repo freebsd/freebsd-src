@@ -96,6 +96,7 @@ static int	nflag;		/* true if -n flag: don't convert addrs */
 static int	dflag;		/* true if -d flag: output debug info */
 static int	sortidle;	/* sort by idle time */
 int		use_ampm;	/* use AM/PM time */
+int		showthreads = 0;/* will threads be shown? */
 static int	use_comma;      /* use comma as floats separator */
 static char   **sel_users;	/* login array of particular users selected */
 
