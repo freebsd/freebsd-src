@@ -54,6 +54,13 @@ vfs_hashinit(void *dummy __unused)
 /* Must be SI_ORDER_SECOND so desiredvnodes is available */
 SYSINIT(vfs_hash, SI_SUB_VFS, SI_ORDER_SECOND, vfs_hashinit, NULL);
 
+u_int
+vfs_hash_index(struct vnode *vp)
+{
+
+	return (vp->v_hash + vp->v_mount->mnt_hashseed);
+}
+
 static struct vfs_hash_head *
 vfs_hash_bucket(const struct mount *mp, u_int hash)
 {
