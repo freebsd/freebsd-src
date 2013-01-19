@@ -181,6 +181,13 @@ SRCS+=	${file}.c
 . endif
 .endfor
 
+.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+SRCS+= aeabi_idivmod.S \
+	aeabi_ldivmod.S \
+	aeabi_uidivmod.S \
+	aeabi_uldivmod.S
+.endif
+
 .if ${MACHINE_CPUARCH} != "mips"
 . if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=libcompiler_rt.a ${LIBDIR}/libgcc.a
