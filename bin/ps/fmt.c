@@ -123,7 +123,7 @@ fmt_argv(char **argv, char *cmd, char *thread, size_t maxlen)
 	if (cp == NULL)
 		errx(1, "malloc failed");
 	if (ap == NULL) {
-		if (showthreads && thread != NULL) {
+		if (thread != NULL) {
 			asprintf(&ap, "%s/%s", cmd, thread);
 			sprintf(cp, "[%.*s]", (int)maxlen, ap);
 			free(ap);
