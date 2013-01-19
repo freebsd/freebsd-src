@@ -2602,9 +2602,13 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 			}
 		} else {
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
-			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
-			    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
-			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+			if (key >= 0) {
+				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR
+				    | CAM_AUTOSNS_VALID | CAM_DEV_QFRZN;
+				ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+			} else
+				ccb->ccb_h.status = CAM_AUTOSENSE_FAIL
+				    | CAM_DEV_QFRZN;
 		}
 		xpt_done(ccb);
 		break;
