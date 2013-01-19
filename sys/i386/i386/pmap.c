@@ -136,6 +136,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
+#ifdef DEV_APIC
+#include <sys/bus.h>
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
+#endif
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
