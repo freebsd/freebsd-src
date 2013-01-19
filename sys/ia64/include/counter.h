@@ -37,7 +37,7 @@ counter_u64_inc(counter_u64_t c, uint64_t inc)
 
 	critical_enter();
 	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) += inc;
-	critical_leave();
+	critical_exit();
 }
 
 static __inline void
@@ -45,8 +45,8 @@ counter_u64_dec(counter_u64_t c, uint64_t dec)
 {
 
 	critical_enter();
-	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) -= inc;
-	critical_leave();
+	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) -= dec;
+	critical_exit();
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */
