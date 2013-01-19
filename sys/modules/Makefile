@@ -48,6 +48,7 @@ SUBDIR=	\
 	${_bxe} \
 	${_bios} \
 	${_bktr} \
+	${_blackhole} \
 	${_bm} \
 	bridgestp \
 	bwi \
@@ -335,6 +336,7 @@ SUBDIR=	\
 	vge \
 	${_viawd} \
 	vkbd \
+	${_vmm} \
 	${_vpo} \
 	vr \
 	vte \
@@ -624,6 +626,7 @@ _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _bktr=		bktr
+_blackhole=	blackhole
 _bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
@@ -720,6 +723,7 @@ _twa=		twa
 _vesa=		vesa
 _viawd=		viawd
 _virtio=	virtio
+_vmm=		vmm
 _vxge=  	vxge
 _x86bios=	x86bios
 _wbwd=		wbwd
