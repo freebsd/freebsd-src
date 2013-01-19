@@ -1168,7 +1168,7 @@ fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
 	const char *s;
 
 	s = fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm,
-	    ki->ki_p->ki_numthreads > 1 ? thread : NULL, maxlen);
+	    showthreads && ki->ki_p->ki_numthreads > 1 ? thread : NULL, maxlen);
 	return (s);
 }
 
