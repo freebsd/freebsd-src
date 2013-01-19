@@ -30,6 +30,7 @@
 #define __SYS_COUNTER_H__
 
 #include <sys/param.h>
+#include <sys/systm.h>
 
 typedef uint64_t *counter_u64_t;
 
