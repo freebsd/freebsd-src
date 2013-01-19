@@ -125,7 +125,7 @@
 				0x4804C000 0x1000
 				0x481AC000 0x1000
 				0x481AE000 0x1000 >;
-			interrupts = < 17 19 21 23 >;
+			interrupts = < 96 97 98 99 32 33 62 63 >;
 			interrupt-parent = <&AINTC>;
 		};
 
