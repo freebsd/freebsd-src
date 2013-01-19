@@ -148,7 +148,6 @@ SRCF+=	adddf3 \
 	truncdfsf2
 .endif
 
-# TODO: Fix this logic for !mips, !arm oabi
 .if ${MACHINE_CPUARCH} != "mips" && \
     (${MACHINE_CPUARCH} != "arm" || ${MK_ARM_EABI} != "no")
 SRCF+=	divsi3 \
@@ -187,7 +186,7 @@ SRCS+=	${file}.c
 .endfor
 
 .if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
-SRCS+= aeabi_idivmod.S \
+SRCS+=	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
 	aeabi_uidivmod.S \
 	aeabi_uldivmod.S

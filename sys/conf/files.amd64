@@ -464,6 +464,11 @@ libkern/memset.c		standard
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
 #
+# bvm console
+#
+dev/bvm/bvm_console.c		optional	bvmconsole
+dev/bvm/bvm_dbg.c		optional	bvmdebug
+#
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
 x86/acpica/OsdEnvironment.c	optional	acpi

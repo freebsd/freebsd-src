@@ -43,7 +43,7 @@
 #define SYSTRAP(x)							\
 			mov ip, r7;					\
 			ldr r7, =SYS_ ## x;				\
-			swi 0 | SYS_ ## x;				\
+			swi 0;						\
 			mov r7, ip
 #else
 #define SYSTRAP(x)	swi 0 | SYS_ ## x
