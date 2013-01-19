@@ -704,7 +704,6 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
-	rm -f ${METALOG}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
