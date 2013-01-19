@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -341,7 +341,7 @@ AslDoOneFile (
         /* TBD: Handle additional output files for disassembler */
 
         Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
-        LsDisplayNamespace ();
+        NsDisplayNamespace ();
 #endif
 
         /* Shutdown compiler and ACPICA subsystem */

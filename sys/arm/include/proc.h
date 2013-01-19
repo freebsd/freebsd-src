@@ -73,7 +73,9 @@ struct syscall_args {
 	register_t args[MAXARGS];
 	int narg;
 	u_int nap;
+#ifndef __ARM_EABI__
 	u_int32_t insn;
+#endif
 };
 
 #endif /* !_MACHINE_PROC_H_ */

@@ -28,7 +28,7 @@
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2006
+.Dd January 18, 2013
 .Dt INSTALL 1
 .Os
 .Sh NAME
@@ -36,34 +36,50 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm
-.Op Fl bCcMpSsv
+.Op Fl bCcMpSsUv
 .Op Fl B Ar suffix
+.Op Fl D Ar destdir
 .Op Fl f Ar flags
 .Op Fl g Ar group
+.Op Fl h Ar hash
+.Op Fl l Ar linkflags
+.Op Fl M Ar metalog
 .Op Fl m Ar mode
 .Op Fl N Ar dbdir
 .Op Fl o Ar owner
+.Op Fl T Ar tags
 .Ar file1 file2
 .Nm
-.Op Fl bCcMpSsv
+.Op Fl bCcMpSsUv
 .Op Fl B Ar suffix
+.Op Fl D Ar destdir
 .Op Fl f Ar flags
 .Op Fl g Ar group
+.Op Fl h Ar hash
+.Op Fl l Ar linkflags
+.Op Fl M Ar metalog
 .Op Fl m Ar mode
 .Op Fl N Ar dbdir
 .Op Fl o Ar owner
+.Op Fl T Ar tags
 .Ar file1 ... fileN directory
 .Nm
 .Fl d
-.Op Fl v
+.Op Fl Uv
+.Op Fl D Ar destdir
 .Op Fl g Ar group
+.Op Fl h Ar hash
+.Op Fl M Ar metalog
 .Op Fl m Ar mode
 .Op Fl N Ar dbdir
 .Op Fl o Ar owner
+.Op Fl T Ar tags
 .Ar directory ...
 .Sh DESCRIPTION
 The file(s) are copied
-to the target file or directory.
+(or linked if the
+.Fl l
+option is specified) to the target file or directory.
 If the destination is a directory, then the
 .Ar file
 is copied into
@@ -108,6 +124,17 @@ This is actually the default.
 The
 .Fl c
 option is only included for backwards compatibility.
+.It Fl D Ar destdir
+Specify the
+.Ev DESTDIR
+(top of the file hierarchy) that the items are installed in to.
+If
+.Fl M Ar metalog
+is in use, a leading string of
+.Dq Ar destdir
+will be removed from the file names logged to the
+.Ar metalog .
+This option does not affect where the actual files are installed.
 .It Fl d
 Create directories.
 Missing parent directories are created as required.
@@ -118,9 +145,67 @@ for a list of possible flags and their meanings.
 .It Fl g
 Specify a group.
 A numeric GID is allowed.
+.It Fl h Ar hash 
+When copying, calculate the digest of the files with
+.Ar hash
+to store in the
+.Fl M Ar metalog .
+When
+.Fl d
+is given no hash is emitted.
+Supported digests:
+.Bl -tag -width rmd160 -offset indent
+.It Sy none
+No hash.
+This is the default.
+.It Sy md5
+The MD5 cryptographic message digest.
+.It Sy rmd160
+The RMD-160 cryptographic message digest.
+.It Sy sha1
+The SHA-1 cryptographic message digest.
+.It Sy sha256
+The 256-bits
+.Tn SHA-2
+cryptographic message digest of the file.
+.It Sy sha512
+The 512-bits
+.Tn SHA-2
+cryptographic message digest of the file.
+.El
+.It Fl l Ar linkflags
+Instead of copying the file make a link to the source.
+The type of the link is determined by the
+.Ar linkflags
+argument.
+Valid
+.Ar linkflags
+are:
+.Ar a
+(absolute),
+.Ar r
+(relative),
+.Ar h
+(hard),
+.Ar s
+(symbolic),
+.Ar m
+(mixed).
+Absolute and relative have effect only for symbolic links.
+Mixed links
+are hard links for files on the same filesystem, symbolic otherwise.
 .It Fl M
 Disable all use of
 .Xr mmap 2 .
+.It Fl M Ar metalog
+Write the metadata associated with each item installed to
+.Ar metalog  
+in an
+.Xr mtree 8
+.Dq full path
+specification line.
+The metadata includes: the file name and file type, and depending upon
+other options, the owner, group, file flags, modification time, and tags.
 .It Fl m
 Specify an alternate mode.
 The default mode is set to rwxr-xr-x (0755).
@@ -171,6 +256,17 @@ number of systems and binary types.
 See below for how
 .Nm
 can be instructed to use another program to strip binaries.
+.It Fl T Ar tags
+Specify the
+.Xr mtree 8
+tags to write out for the file when using
+.Fl M Ar metalog .
+.It Fl U
+Indicate that install is running unprivileged, and that it should not
+try to change the owner, the group, or the file flags of the destination.
+The information that would have been updated can be stored in a log
+file with
+.Fl M Ar metalog .
 .It Fl v
 Cause
 .Nm
@@ -255,6 +351,16 @@ The
 utility appeared in
 .Bx 4.2 .
 .Sh BUGS
+The meaning of the
+.Fl M
+option has changed as of
+.Fx 10
+and it now takes an argument.
+Command lines that used the old
+.Fl M
+will get an error or in rare cases will append logs to the first of
+multiple source files rather than installing it.
+.Pp
 Temporary files may be left in the target directory if
 .Nm
 exits abnormally.

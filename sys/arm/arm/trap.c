@@ -909,6 +909,7 @@ syscall(struct thread *td, trapframe_t *frame)
 	struct syscall_args sa;
 	int error;
 
+#ifndef __ARM_EABI__
 	sa.insn = *(uint32_t *)(frame->tf_pc - INSN_SIZE);
 #ifndef __ARM_EABI__
 	/* TODO: Also add the above line when we don't need it in the EABI case */

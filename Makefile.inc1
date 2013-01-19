@@ -336,6 +336,7 @@ LIB32WMAKEFLAGS+=	\
 		CXX="${CXX} ${LIB32FLAGS}" \
 		DESTDIR=${LIB32TMP} \
 		-DCOMPAT_32BIT \
+		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
 		-DNO_CTF \
 		-DNO_LINT
@@ -703,7 +704,6 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
-	rm -f ${METALOG}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
@@ -716,7 +716,7 @@ distributeworld installworld: installcheck
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
 	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/base
+	    LOCAL_MTREE=${LOCAL_MTREE} DESTDIR=${DESTDIR}/${DISTDIR}/base
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
@@ -766,7 +766,7 @@ redistribute:
 
 distrib-dirs distribution:
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    ${IMAKE_INSTALL} ${.TARGET}
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -1247,11 +1247,7 @@ cross-tools:
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier:
-	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
-.for _mtree in ${LOCAL_MTREE}
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/${_mtree} \
-	    -p ${DESTDIR}/
-.endfor
+	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.

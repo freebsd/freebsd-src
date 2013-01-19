@@ -175,7 +175,6 @@ db_find_index(uint32_t addr)
 	min = 0;
 	max = (&exidx_end - &exidx_start) / 2;
 
-	/* XXX: This is likely broken for small addresses */
 	while (min != max) {
 		mid = min + (max - min + 1) / 2;
 

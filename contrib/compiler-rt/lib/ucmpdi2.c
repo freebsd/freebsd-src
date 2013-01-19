@@ -38,7 +38,10 @@ __ucmpdi2(du_int a, du_int b)
 }
 
 #ifdef __ARM_EABI__
-/* Returns (-1, 0, 1) for (<, ==, >) */
+/* Returns: if (a <  b) returns -1
+*           if (a == b) returns  0
+*           if (a >  b) returns  1
+*/
 COMPILER_RT_ABI si_int
 __aeabi_ulcmp(di_int a, di_int b)
 {
