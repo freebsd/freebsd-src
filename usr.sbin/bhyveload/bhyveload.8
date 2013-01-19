@@ -1,0 +1,130 @@
+.\"
+.\" Copyright (c) 2012 NetApp Inc
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 7, 2012
+.Dt BHYVELOAD 8
+.Os
+.Sh NAME
+.Nm bhyveload
+.Nd load a
+.Fx
+guest inside a bhyve virtual machine
+.Sh SYNOPSIS
+.Nm
+.Op Fl m Ar lowmem
+.Op Fl M Ar highmem
+.Op Fl d Ar disk-path
+.Op Fl h Ar host-path
+.Ar vmname
+.Sh DESCRIPTION
+.Nm
+is used to load a
+.Fx
+guest inside a
+.Xr bhyve 4
+virtual machine.
+.Pp
+.Nm
+is based on
+.Xr loader 8
+and will present an interface identical to
+.Fx
+loader on the user's terminal.
+.Pp
+The virtual machine is identified as
+.Ar vmname
+and will be created if it does not already exist.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl m Ar lowmem
+.Ar lowmem
+is the amount of memory allocated below 4GB in the guest's physical address
+space.
+.Pp
+The default value of
+.Ar lowmem
+is 256MB.
+.It Fl M Ar highmem
+.Ar highmem
+is the amount of memory allocated above 4GB in the guest's physical address
+space.
+.Pp
+The default value of
+.Ar highmem
+is 0MB.
+.It Fl d Ar disk-path
+The
+.Ar disk-path
+is the pathname of the guest's boot disk image.
+.It Fl h Ar host-path
+The
+.Ar host-path
+is the directory at the top of the guest's boot filesystem.
+
+.Sh EXAMPLES
+To create a virtual machine named
+.Ar freebsd-vm 
+that boots off the ISO image
+.Pa /freebsd/release.iso 
+and has 1GB memory allocated to it:
+
+.Dl "bhyveload -m 256 -M 768 -d /freebsd/release.iso freebsd-vm
+
+In the example above the 1GB allocation is split in two segments:
+.Bl -dash -compact
+.It
+256MB below the 4GB boundary (0MB - 256MB)
+.It
+768MB above the 4GB boundary (4096MB - 4864MB)
+.El
+
+.Sh SEE ALSO
+.Xr bhyve 4 ,
+.Xr bhyve 8 ,
+.Xr loader 8 ,
+.Xr vmm 4
+
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 10.0 ,
+and was developed at NetApp Inc.
+
+.Sh AUTHORS
+.Nm
+was developed by
+.An -nosplit
+.An "Neel Natu" Aq neel@FreeBSD.org
+at NetApp Inc with a lot of help from
+.An Doug Rabson Aq dfr@FreeBSD.org
+
+.Sh BUGS
+.Nm
+can load only
+.Fx
+as a guest.
