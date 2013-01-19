@@ -77,7 +77,7 @@ counter_u64_free(counter_u64_t c)
 }
 
 static void
-counter_startup()
+counter_startup(void)
 {
 
 	uint64_pcpu_zone = uma_zcreate("uint64 pcpu", sizeof(uint64_t),

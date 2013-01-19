@@ -214,7 +214,7 @@ static void	ip_freef(struct ipqhead *, struct ipq *);
 VNET_DEFINE(struct ipstat_p, ipstatp);
 
 static void
-ipstat_zero()
+ipstat_zero(void)
 {
 	counter_u64_zero(V_ipstatp.ips_total);
 	counter_u64_zero(V_ipstatp.ips_badsum);
