@@ -55,10 +55,10 @@ vfs_hashinit(void *dummy __unused)
 SYSINIT(vfs_hash, SI_SUB_VFS, SI_ORDER_SECOND, vfs_hashinit, NULL);
 
 static struct vfs_hash_head *
-vfs_hash_index(const struct mount *mp, u_int hash)
+vfs_hash_bucket(const struct mount *mp, u_int hash)
 {
 
-	return(&vfs_hash_tbl[(hash + mp->mnt_hashseed) & vfs_hash_mask]);
+	return (&vfs_hash_tbl[(hash + mp->mnt_hashseed) & vfs_hash_mask]);
 }
 
 int
@@ -69,7 +69,7 @@ vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td, s
 
 	while (1) {
 		mtx_lock(&vfs_hash_mtx);
-		LIST_FOREACH(vp, vfs_hash_index(mp, hash), v_hashlist) {
+		LIST_FOREACH(vp, vfs_hash_bucket(mp, hash), v_hashlist) {
 			if (vp->v_hash != hash)
 				continue;
 			if (vp->v_mount != mp)
@@ -113,7 +113,7 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 	while (1) {
 		mtx_lock(&vfs_hash_mtx);
 		LIST_FOREACH(vp2,
-		    vfs_hash_index(vp->v_mount, hash), v_hashlist) {
+		    vfs_hash_bucket(vp->v_mount, hash), v_hashlist) {
 			if (vp2->v_hash != hash)
 				continue;
 			if (vp2->v_mount != vp->v_mount)
@@ -138,7 +138,7 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 			
 	}
 	vp->v_hash = hash;
-	LIST_INSERT_HEAD(vfs_hash_index(vp->v_mount, hash), vp, v_hashlist);
+	LIST_INSERT_HEAD(vfs_hash_bucket(vp->v_mount, hash), vp, v_hashlist);
 	mtx_unlock(&vfs_hash_mtx);
 	return (0);
 }
@@ -149,7 +149,7 @@ vfs_hash_rehash(struct vnode *vp, u_int hash)
 
 	mtx_lock(&vfs_hash_mtx);
 	LIST_REMOVE(vp, v_hashlist);
-	LIST_INSERT_HEAD(vfs_hash_index(vp->v_mount, hash), vp, v_hashlist);
+	LIST_INSERT_HEAD(vfs_hash_bucket(vp->v_mount, hash), vp, v_hashlist);
 	vp->v_hash = hash;
 	mtx_unlock(&vfs_hash_mtx);
 }
