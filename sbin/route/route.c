@@ -1413,6 +1413,7 @@ print_rtmsg(struct rt_msghdr *rtm, size_t msglen)
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 
 	default:
