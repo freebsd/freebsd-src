@@ -96,13 +96,16 @@ main(int argc, const char **argv)
 		prompt = "Please review the disk setup. When complete, press "
 		    "the Finish button.";
 		part_wizard();
+	} else if (strcmp(basename(argv[0]), "scriptedpart") == 0) {
+		scripted_editor(argc, argv);
+		prompt = NULL;
 	} else {
 		prompt = "Create partitions for FreeBSD. No changes will be "
 		    "made until you select Finish.";
 	}
 
 	/* Show the part editor either immediately, or to confirm wizard */
-	while (1) {
+	while (prompt != NULL) {
 		dlg_clear();
 		dlg_put_backtitle();
 
@@ -189,6 +192,15 @@ main(int argc, const char **argv)
 		free(items);
 	}
 	
+	if (prompt == NULL) {
+		error = geom_gettree(&mesh);
+		if (validate_setup()) {
+			error = apply_changes(&mesh);
+		} else {
+			gpart_revert_all(&mesh);
+			error = -1;
+		}
+	}
 
 	geom_deletetree(&mesh);
 	free(items);
