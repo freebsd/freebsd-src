@@ -5675,27 +5675,11 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	VM_OBJECT_LOCK(object);
 
 	for (i = reqstart; i < reqstart + reqsize; i++) {
-		m[i]->valid = VM_PAGE_BITS_ALL;
+		if (!error)
+			m[i]->valid = VM_PAGE_BITS_ALL;
 		KASSERT(m[i]->dirty == 0, ("zfs_getpages: page %p is dirty", m[i]));
-		if (i != reqpage) {
-			if (!error) {
-				if (m[i]->oflags & VPO_WANTED) {
-					vm_page_lock(m[i]);
-					vm_page_activate(m[i]);
-					vm_page_unlock(m[i]);
-				} else {
-					vm_page_lock(m[i]);
-					vm_page_deactivate(m[i]);
-					vm_page_unlock(m[i]);
-				}
-				vm_page_wakeup(m[i]);
-			} else {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		}
-
+		if (i != reqpage)
+			vm_page_readahead_finish(m[i]);
 	}
 
 	VM_OBJECT_UNLOCK(object);
