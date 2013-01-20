@@ -109,6 +109,11 @@ part_config(char *disk, const char *scheme, char *config)
 	error = geom_gettree(&mesh);
 
 	/* Create partitions */
+	if (config == NULL) {
+		wizard_makeparts(&mesh, disk, 0);
+		goto finished;
+	}
+
 	while ((partition = strsep(&config, ",")) != NULL) {
 		while ((ap = strsep(&partition, " \t\n")) != NULL) {
 			if (*ap == '\0')
@@ -131,6 +136,7 @@ part_config(char *disk, const char *scheme, char *config)
 		size = type = mount = NULL;
 	}
 
+finished:
 	geom_deletetree(&mesh);
 	free(disk);
 
