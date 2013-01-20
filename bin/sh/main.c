@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 #endif
 	rootpid = getpid();
 	rootshell = 1;
-	init();
+	initvar();
 	setstackmark(&smark);
 	setstackmark(&smark2);
 	procargs(argc, argv);
