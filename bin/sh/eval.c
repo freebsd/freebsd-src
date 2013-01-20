@@ -193,7 +193,9 @@ evaltree(union node *n, int flags)
 {
 	int do_etest;
 	union node *next;
+	struct stackmark smark;
 
+	setstackmark(&smark);
 	do_etest = 0;
 	if (n == NULL) {
 		TRACE(("evaltree(NULL) called\n"));
@@ -292,8 +294,10 @@ evaltree(union node *n, int flags)
 			break;
 		}
 		n = next;
+		popstackmark(&smark);
 	} while (n != NULL);
 out:
+	popstackmark(&smark);
 	if (pendingsigs)
 		dotrap();
 	if (eflag && exitstatus != 0 && do_etest)
@@ -347,10 +351,8 @@ evalfor(union node *n, int flags)
 	struct arglist arglist;
 	union node *argp;
 	struct strlist *sp;
-	struct stackmark smark;
 	int status;
 
-	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	for (argp = n->nfor.args ; argp ; argp = argp->narg.next) {
 		oexitstatus = exitstatus;
@@ -375,7 +377,6 @@ evalfor(union node *n, int flags)
 		}
 	}
 	loopnest--;
-	popstackmark(&smark);
 	exitstatus = status;
 }
 
@@ -392,16 +393,13 @@ evalcase(union node *n)
 	union node *cp;
 	union node *patp;
 	struct arglist arglist;
-	struct stackmark smark;
 
-	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	oexitstatus = exitstatus;
 	expandarg(n->ncase.expr, &arglist, EXP_TILDE);
 	for (cp = n->ncase.cases ; cp ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
 			if (casematch(patp, arglist.list->text)) {
-				popstackmark(&smark);
 				while (cp->nclist.next &&
 				    cp->type == NCLISTFALLTHRU &&
 				    cp->nclist.body == NULL)
@@ -415,7 +413,6 @@ evalcase(union node *n)
 			}
 		}
 	}
-	popstackmark(&smark);
 	exitstatus = 0;
 	return (NULL);
 }
@@ -610,7 +607,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 {
 	int pip[2];
 	struct job *jp;
-	struct stackmark smark;		/* unnecessary */
+	struct stackmark smark;
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
@@ -751,7 +748,6 @@ safe_builtin(int idx, int argc, char **argv)
 static void
 evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 {
-	struct stackmark smark;
 	union node *argp;
 	struct arglist arglist;
 	struct arglist varlist;
@@ -778,7 +774,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
-	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	varlist.lastp = &varlist.list;
 	varflag = 1;
@@ -1149,7 +1144,6 @@ out:
 		setvar("_", lastarg, 0);
 	if (do_clearcmdentry)
 		clearcmdentry();
-	popstackmark(&smark);
 }
 
 
