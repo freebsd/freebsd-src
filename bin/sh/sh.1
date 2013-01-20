@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2013
+.Dd January 20, 2013
 .Dt SH 1
 .Os
 .Sh NAME
@@ -138,10 +138,10 @@ variable to some file by placing the following line in the file
 .Pa .profile
 in the home directory,
 substituting for
-.Pa .shinit
+.Pa .shrc
 the filename desired:
 .Pp
-.Dl "ENV=$HOME/.shinit; export ENV"
+.Dl "ENV=$HOME/.shrc; export ENV"
 .Pp
 The first non-option argument specified on the command line
 will be treated as the
