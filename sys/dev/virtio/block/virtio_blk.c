@@ -178,7 +178,7 @@ TUNABLE_INT("hw.vtblk.no_ident", &vtblk_no_ident);
 #define VTBLK_MTX(_sc)		&(_sc)->vtblk_mtx
 #define VTBLK_LOCK_INIT(_sc, _name) \
 				mtx_init(VTBLK_MTX((_sc)), (_name), \
-				    "VTBLK Lock", MTX_DEF)
+				    "VirtIO Block Lock", MTX_DEF)
 #define VTBLK_LOCK(_sc)		mtx_lock(VTBLK_MTX((_sc)))
 #define VTBLK_UNLOCK(_sc)	mtx_unlock(VTBLK_MTX((_sc)))
 #define VTBLK_LOCK_DESTROY(_sc)	mtx_destroy(VTBLK_MTX((_sc)))
