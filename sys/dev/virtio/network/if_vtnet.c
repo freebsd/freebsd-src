@@ -124,7 +124,7 @@ static int	vtnet_rx_csum(struct vtnet_softc *, struct mbuf *,
 static int	vtnet_rxeof_merged(struct vtnet_softc *, struct mbuf *, int);
 static int	vtnet_rxeof(struct vtnet_softc *, int, int *);
 static void	vtnet_rx_intr_task(void *, int);
-static int	vtnet_rx_vq_intr(void *);
+static void	vtnet_rx_vq_intr(void *);
 
 static void	vtnet_txeof(struct vtnet_softc *);
 static struct mbuf * vtnet_tx_offload(struct vtnet_softc *, struct mbuf *,
@@ -136,7 +136,7 @@ static void	vtnet_start_locked(struct ifnet *);
 static void	vtnet_start(struct ifnet *);
 static void	vtnet_tick(void *);
 static void	vtnet_tx_intr_task(void *, int);
-static int	vtnet_tx_vq_intr(void *);
+static void	vtnet_tx_vq_intr(void *);
 
 static void	vtnet_stop(struct vtnet_softc *);
 static int	vtnet_reinit(struct vtnet_softc *);
@@ -1744,7 +1744,7 @@ vtnet_rx_intr_task(void *arg, int pending)
 	}
 }
 
-static int
+static void
 vtnet_rx_vq_intr(void *xsc)
 {
 	struct vtnet_softc *sc;
@@ -1753,8 +1753,6 @@ vtnet_rx_vq_intr(void *xsc)
 
 	vtnet_disable_rx_intr(sc);
 	taskqueue_enqueue_fast(sc->vtnet_tq, &sc->vtnet_rx_intr_task);
-
-	return (1);
 }
 
 static void
@@ -2116,7 +2114,7 @@ vtnet_tx_intr_task(void *arg, int pending)
 	VTNET_UNLOCK(sc);
 }
 
-static int
+static void
 vtnet_tx_vq_intr(void *xsc)
 {
 	struct vtnet_softc *sc;
@@ -2125,8 +2123,6 @@ vtnet_tx_vq_intr(void *xsc)
 
 	vtnet_disable_tx_intr(sc);
 	taskqueue_enqueue_fast(sc->vtnet_tq, &sc->vtnet_tx_intr_task);
-
-	return (1);
 }
 
 static void

@@ -39,7 +39,7 @@ struct sglist;
 #define VIRTIO_RING_F_EVENT_IDX		(1 << 29)
 
 /* Device callback for a virtqueue interrupt. */
-typedef int virtqueue_intr_t(void *);
+typedef void virtqueue_intr_t(void *);
 
 #define VIRTQUEUE_MAX_NAME_SZ	32
 

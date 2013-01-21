@@ -176,9 +176,9 @@ static void	vtscsi_control_vq_task(void *, int);
 static void	vtscsi_event_vq_task(void *, int);
 static void	vtscsi_request_vq_task(void *, int);
 
-static int	vtscsi_control_vq_intr(void *);
-static int	vtscsi_event_vq_intr(void *);
-static int	vtscsi_request_vq_intr(void *);
+static void	vtscsi_control_vq_intr(void *);
+static void	vtscsi_event_vq_intr(void *);
+static void	vtscsi_request_vq_intr(void *);
 static void 	vtscsi_disable_vqs_intr(struct vtscsi_softc *);
 static void 	vtscsi_enable_vqs_intr(struct vtscsi_softc *);
 
@@ -2222,7 +2222,7 @@ vtscsi_request_vq_task(void *arg, int pending)
 	VTSCSI_UNLOCK(sc);
 }
 
-static int
+static void
 vtscsi_control_vq_intr(void *xsc)
 {
 	struct vtscsi_softc *sc;
@@ -2232,11 +2232,9 @@ vtscsi_control_vq_intr(void *xsc)
 	virtqueue_disable_intr(sc->vtscsi_control_vq);
 	taskqueue_enqueue_fast(sc->vtscsi_tq,
 	    &sc->vtscsi_control_intr_task);
-
-	return (1);
 }
 
-static int
+static void
 vtscsi_event_vq_intr(void *xsc)
 {
 	struct vtscsi_softc *sc;
@@ -2246,11 +2244,9 @@ vtscsi_event_vq_intr(void *xsc)
 	virtqueue_disable_intr(sc->vtscsi_event_vq);
 	taskqueue_enqueue_fast(sc->vtscsi_tq,
 	    &sc->vtscsi_event_intr_task);
-
-	return (1);
 }
 
-static int
+static void
 vtscsi_request_vq_intr(void *xsc)
 {
 	struct vtscsi_softc *sc;
@@ -2260,8 +2256,6 @@ vtscsi_request_vq_intr(void *xsc)
 	virtqueue_disable_intr(sc->vtscsi_request_vq);
 	taskqueue_enqueue_fast(sc->vtscsi_tq,
 	    &sc->vtscsi_request_intr_task);
-
-	return (1);
 }
 
 static void

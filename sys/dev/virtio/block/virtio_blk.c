@@ -136,7 +136,7 @@ static struct vtblk_request * vtblk_bio_request(struct vtblk_softc *);
 static int	vtblk_execute_request(struct vtblk_softc *,
 		    struct vtblk_request *);
 
-static int	vtblk_vq_intr(void *);
+static void	vtblk_vq_intr(void *);
 static void	vtblk_intr_task(void *, int);
 
 static void	vtblk_stop(struct vtblk_softc *);
@@ -808,7 +808,7 @@ vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	return (virtqueue_enqueue(sc->vtblk_vq, req, sg, readable, writable));
 }
 
-static int
+static void
 vtblk_vq_intr(void *xsc)
 {
 	struct vtblk_softc *sc;
@@ -817,8 +817,6 @@ vtblk_vq_intr(void *xsc)
 
 	virtqueue_disable_intr(sc->vtblk_vq);
 	taskqueue_enqueue_fast(sc->vtblk_tq, &sc->vtblk_intr_task);
-
-	return (1);
 }
 
 static void
