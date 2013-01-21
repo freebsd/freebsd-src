@@ -331,7 +331,8 @@ vtballoon_inflate(struct vtballoon_softc *sc, int npages)
 		sc->vtballoon_page_frames[i] =
 		    VM_PAGE_TO_PHYS(m) >> VIRTIO_BALLOON_PFN_SHIFT;
 
-		KASSERT(m->queue == PQ_NONE, ("allocated page on queue"));
+		KASSERT(m->queue == PQ_NONE,
+		    ("%s: allocated page %p on queue", __func__, m));
 		TAILQ_INSERT_TAIL(&sc->vtballoon_pages, m, pageq);
 	}
 
@@ -358,7 +359,7 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 
 	for (i = 0; i < npages; i++) {
 		m = TAILQ_FIRST(&sc->vtballoon_pages);
-		KASSERT(m != NULL, ("no more pages to deflate"));
+		KASSERT(m != NULL, ("%s: no more pages to deflate", __func__));
 
 		sc->vtballoon_page_frames[i] =
 		    VM_PAGE_TO_PHYS(m) >> VIRTIO_BALLOON_PFN_SHIFT;
@@ -380,7 +381,9 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 	KASSERT((TAILQ_EMPTY(&sc->vtballoon_pages) &&
 	    sc->vtballoon_current_npages == 0) ||
 	    (!TAILQ_EMPTY(&sc->vtballoon_pages) &&
-	    sc->vtballoon_current_npages != 0), ("balloon empty?"));
+	    sc->vtballoon_current_npages != 0),
+	    ("%s: bogus page count %d", __func__,
+	    sc->vtballoon_current_npages));
 }
 
 static void
