@@ -323,7 +323,6 @@ vtballoon_inflate(struct vtballoon_softc *sc, int npages)
 
 	if (npages > VTBALLOON_PAGES_PER_REQUEST)
 		npages = VTBALLOON_PAGES_PER_REQUEST;
-	KASSERT(npages > 0, ("balloon doesn't need inflating?"));
 
 	for (i = 0; i < npages; i++) {
 		if ((m = vtballoon_alloc_page(sc)) == NULL)
@@ -356,7 +355,6 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 
 	if (npages > VTBALLOON_PAGES_PER_REQUEST)
 		npages = VTBALLOON_PAGES_PER_REQUEST;
-	KASSERT(npages > 0, ("balloon doesn't need deflating?"));
 
 	for (i = 0; i < npages; i++) {
 		m = TAILQ_FIRST(&sc->vtballoon_pages);
