@@ -319,14 +319,15 @@ vtballoon_inflate(struct vtballoon_softc *sc, int npages)
 	int i;
 
 	vq = sc->vtballoon_inflate_vq;
-	m = NULL;
 
 	if (npages > VTBALLOON_PAGES_PER_REQUEST)
 		npages = VTBALLOON_PAGES_PER_REQUEST;
 
 	for (i = 0; i < npages; i++) {
-		if ((m = vtballoon_alloc_page(sc)) == NULL)
+		if ((m = vtballoon_alloc_page(sc)) == NULL) {
+			sc->vtballoon_timeout = VTBALLOON_LOWMEM_TIMEOUT;
 			break;
+		}
 
 		sc->vtballoon_page_frames[i] =
 		    VM_PAGE_TO_PHYS(m) >> VIRTIO_BALLOON_PFN_SHIFT;
@@ -338,9 +339,6 @@ vtballoon_inflate(struct vtballoon_softc *sc, int npages)
 
 	if (i > 0)
 		vtballoon_send_page_frames(sc, vq, i);
-
-	if (m == NULL)
-		sc->vtballoon_timeout = VTBALLOON_LOWMEM_TIMEOUT;
 }
 
 static void
