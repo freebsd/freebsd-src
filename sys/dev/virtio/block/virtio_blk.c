@@ -541,8 +541,8 @@ vtblk_strategy(struct bio *bp)
 		max_nsegs = sc->vtblk_max_nsegs - VTBLK_MIN_SEGMENTS;
 
 		KASSERT(nsegs <= max_nsegs,
-		    ("bio %p spanned too many segments: %d, max: %d",
-		    bp, nsegs, max_nsegs));
+		    ("%s: bio %p spanned too many segments: %d, max: %d",
+		    __func__, bp, nsegs, max_nsegs));
 	}
 #endif
 
@@ -1136,7 +1136,7 @@ vtblk_free_requests(struct vtblk_softc *sc)
 	struct vtblk_request *req;
 
 	KASSERT(TAILQ_EMPTY(&sc->vtblk_req_ready),
-	    ("ready requests left on queue"));
+	    ("%s: ready requests left on queue", __func__));
 
 	while ((req = vtblk_dequeue_request(sc)) != NULL) {
 		sc->vtblk_request_count--;
