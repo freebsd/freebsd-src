@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/taskqueue.h>
 
 #include <geom/geom_disk.h>
 
@@ -82,9 +81,6 @@ struct vtblk_softc {
 				 vtblk_req_free;
 	TAILQ_HEAD(, vtblk_request)
 				vtblk_req_ready;
-
-	struct taskqueue	*vtblk_tq;
-	struct task		 vtblk_intr_task;
 
 	int			 vtblk_max_nsegs;
 	int			 vtblk_request_count;
@@ -137,7 +133,6 @@ static int	vtblk_execute_request(struct vtblk_softc *,
 		    struct vtblk_request *);
 
 static void	vtblk_vq_intr(void *);
-static void	vtblk_intr_task(void *, int);
 
 static void	vtblk_stop(struct vtblk_softc *);
 
@@ -330,23 +325,11 @@ vtblk_attach(device_t dev)
 
 	vtblk_alloc_disk(sc, &blkcfg);
 
-	TASK_INIT(&sc->vtblk_intr_task, 0, vtblk_intr_task, sc);
-	sc->vtblk_tq = taskqueue_create_fast("vtblk_taskq", M_NOWAIT,
-	    taskqueue_thread_enqueue, &sc->vtblk_tq);
-	if (sc->vtblk_tq == NULL) {
-		error = ENOMEM;
-		device_printf(dev, "cannot allocate taskqueue\n");
-		goto fail;
-	}
-
 	error = virtio_setup_intr(dev, INTR_TYPE_BIO | INTR_ENTROPY);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupt\n");
 		goto fail;
 	}
-
-	taskqueue_start_threads(&sc->vtblk_tq, 1, PI_DISK, "%s taskq",
-	    device_get_nameunit(dev));
 
 	vtblk_create_disk(sc);
 
@@ -371,12 +354,6 @@ vtblk_detach(device_t dev)
 	if (device_is_attached(dev))
 		vtblk_stop(sc);
 	VTBLK_UNLOCK(sc);
-
-	if (sc->vtblk_tq != NULL) {
-		taskqueue_drain(sc->vtblk_tq, &sc->vtblk_intr_task);
-		taskqueue_free(sc->vtblk_tq);
-		sc->vtblk_tq = NULL;
-	}
 
 	vtblk_drain(sc);
 
@@ -812,22 +789,12 @@ static void
 vtblk_vq_intr(void *xsc)
 {
 	struct vtblk_softc *sc;
-
-	sc = xsc;
-
-	virtqueue_disable_intr(sc->vtblk_vq);
-	taskqueue_enqueue_fast(sc->vtblk_tq, &sc->vtblk_intr_task);
-}
-
-static void
-vtblk_intr_task(void *arg, int pending)
-{
-	struct vtblk_softc *sc;
 	struct virtqueue *vq;
 
-	sc = arg;
+	sc = xsc;
 	vq = sc->vtblk_vq;
 
+again:
 	VTBLK_LOCK(sc);
 	if (sc->vtblk_flags & VTBLK_FLAG_DETACH) {
 		VTBLK_UNLOCK(sc);
@@ -844,9 +811,7 @@ vtblk_intr_task(void *arg, int pending)
 	if (virtqueue_enable_intr(vq) != 0) {
 		virtqueue_disable_intr(vq);
 		VTBLK_UNLOCK(sc);
-		taskqueue_enqueue_fast(sc->vtblk_tq,
-		    &sc->vtblk_intr_task);
-		return;
+		goto again;
 	}
 
 	VTBLK_UNLOCK(sc);
