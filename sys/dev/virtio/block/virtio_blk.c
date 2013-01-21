@@ -739,8 +739,7 @@ vtblk_bio_request(struct vtblk_softc *sc)
 		req->vbr_hdr.sector = bp->bio_offset / 512;
 		break;
 	default:
-		panic("%s: bio with unhandled cmd: %d", __FUNCTION__,
-		    bp->bio_cmd);
+		panic("%s: bio with unhandled cmd: %d", __func__, bp->bio_cmd);
 	}
 
 	if (bp->bio_flags & BIO_ORDERED)
@@ -763,14 +762,13 @@ vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	VTBLK_LOCK_ASSERT(sc);
 
 	sglist_reset(sg);
-
 	sglist_append(sg, &req->vbr_hdr, sizeof(struct virtio_blk_outhdr));
 
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
 		error = sglist_append(sg, bp->bio_data, bp->bio_bcount);
 		if (error || sg->sg_nseg == sg->sg_maxseg)
 			panic("%s: data buffer too big bio:%p error:%d",
-			    __FUNCTION__, bp, error);
+			    __func__, bp, error);
 
 		/* BIO_READ means the host writes into our buffer. */
 		if (bp->bio_cmd == BIO_READ)
@@ -960,7 +958,7 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	error = vtblk_request_error(req);
 	if (error && bootverbose) {
 		device_printf(sc->vtblk_dev,
-		    "%s: IO error: %d\n", __FUNCTION__, error);
+		    "%s: IO error: %d\n", __func__, error);
 	}
 
 	return (error);
@@ -1092,7 +1090,7 @@ vtblk_free_requests(struct vtblk_softc *sc)
 	}
 
 	KASSERT(sc->vtblk_request_count == 0,
-	    ("leaked requests: %d", sc->vtblk_request_count));
+	    ("%s: leaked %d requests", __func__, sc->vtblk_request_count));
 }
 
 static struct vtblk_request *
