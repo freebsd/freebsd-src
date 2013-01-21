@@ -617,7 +617,7 @@ vtblk_resize_disk(struct vtblk_softc *sc, uint64_t new_capacity)
 
 	dp->d_mediasize = new_capacity;
 	if (bootverbose) {
-		device_printf(dev, "resized %juMB (%ju %u byte sectors)\n",
+		device_printf(dev, "resized to %juMB (%ju %u byte sectors)\n",
 		    (uintmax_t) dp->d_mediasize >> 20,
 		    (uintmax_t) dp->d_mediasize / dp->d_sectorsize,
 		    dp->d_sectorsize);
