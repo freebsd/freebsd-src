@@ -595,6 +595,10 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_name = VTBLK_DISK_NAME;
 	dp->d_unit = device_get_unit(dev);
 	dp->d_drv1 = sc;
+	dp->d_hba_vendor = virtio_get_vendor(dev);
+	dp->d_hba_device = virtio_get_device(dev);
+	dp->d_hba_subvendor = virtio_get_subvendor(dev);
+	dp->d_hba_subdevice = virtio_get_subdevice(dev);
 
 	if ((sc->vtblk_flags & VTBLK_FLAG_READONLY) == 0)
 		dp->d_dump = vtblk_dump;
