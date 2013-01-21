@@ -161,7 +161,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "ti,cpsw";
-			reg = <0x4A100000 0x3000>;
+			reg = <0x4A100000 0x4000>;
 			interrupts = <40 41 42 43>;
 			interrupt-parent = <&AINTC>;
 			phy-handle = <&phy0>;
