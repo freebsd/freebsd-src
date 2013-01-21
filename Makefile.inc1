@@ -1072,7 +1072,7 @@ _lex=		usr.bin/lex
 _yacc=		usr.bin/yacc
 .endif
 
-.if defined(DB_FROM_SRC) && ${BOOTSTRAPPING} < 1000026
+.if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
 .endif
