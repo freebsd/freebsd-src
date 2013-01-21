@@ -249,11 +249,15 @@ static moduledata_t vmm_kmod = {
 };
 
 /*
- * Execute the module load handler after the pci passthru driver has had
- * a chance to claim devices. We need this information at the time we do
- * iommu initialization.
+ * vmm initialization has the following dependencies:
+ *
+ * - iommu initialization must happen after the pci passthru driver has had
+ *   a chance to attach to any passthru devices (after SI_SUB_CONFIGURE).
+ *
+ * - VT-x initialization requires smp_rendezvous() and therefore must happen
+ *   after SMP is fully functional (after SI_SUB_SMP).
  */
-DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_CONFIGURE + 1, SI_ORDER_ANY);
+DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_SMP + 1, SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
 
 SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
