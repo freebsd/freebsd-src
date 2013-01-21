@@ -119,7 +119,6 @@ struct pci_devinst {
 		int	table_bar;
 		int	pba_bar;
 		size_t	table_offset;
-		size_t	table_size;
 		int	table_count;
 		size_t	pba_offset;
 		struct msix_table_entry table[MAX_MSIX_TABLE_SIZE];
