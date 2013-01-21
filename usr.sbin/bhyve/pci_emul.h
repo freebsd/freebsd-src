@@ -95,8 +95,7 @@ struct msix_table_entry {
  * In case the structure is modified to hold extra information, use a define
  * for the size that should be emulated.
  */
-#define MSIX_TABLE_ENTRY_SIZE 16
-#define MAX_MSIX_TABLE_SIZE 2048
+#define	MSIX_TABLE_ENTRY_SIZE	16
 
 struct pci_devinst {
 	struct pci_devemu *pi_d;
@@ -121,7 +120,7 @@ struct pci_devinst {
 		size_t	table_offset;
 		int	table_count;
 		size_t	pba_offset;
-		struct msix_table_entry table[MAX_MSIX_TABLE_SIZE];
+		struct msix_table_entry *table;	/* allocated at runtime */
 	} pi_msix;
 
 	void      *pi_arg;		/* devemu-private data */
@@ -143,8 +142,8 @@ struct msixcap {
 	uint8_t		capid;
 	uint8_t		nextptr;
 	uint16_t	msgctrl;
-	uint32_t	table_offset;
-	uint32_t	pba_offset;
+	uint32_t	table_info;	/* bar index and offset within it */
+	uint32_t	pba_info;	/* bar index and offset within it */
 } __packed;
 
 void	init_pci(struct vmctx *ctx);

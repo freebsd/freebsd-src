@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 
 #include <dev/io/iodev.h>
+#include <dev/pci/pcireg.h>
+
 #include <machine/iodev.h>
 
 #include <stdio.h>
@@ -59,9 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #define	LEGACY_SUPPORT	1
 
-#define MSIX_TABLE_BIR_MASK 7
-#define MSIX_TABLE_OFFSET_MASK (~MSIX_TABLE_BIR_MASK);
-#define MSIX_TABLE_COUNT(x) (((x) & 0x7FF) + 1)
+#define MSIX_TABLE_COUNT(ctrl) (((ctrl) & PCIM_MSIXCTRL_TABLE_SIZE) + 1)
 #define MSIX_CAPLEN 12
 
 static int pcifd = -1;
@@ -161,7 +161,7 @@ passthru_add_msicap(struct pci_devinst *pi, int msgnum, int nextptr)
 static int
 cfginitmsi(struct passthru_softc *sc)
 {
-	int ptr, capptr, cap, sts, caplen;
+	int i, ptr, capptr, cap, sts, caplen, table_size;
 	uint32_t u32;
 	struct pcisel sel;
 	struct pci_devinst *pi;
@@ -220,14 +220,25 @@ cfginitmsi(struct passthru_softc *sc)
 
 	if (sc->psc_msix.capoff != 0) {
 		pi->pi_msix.pba_bar =
-		    msixcap.pba_offset & MSIX_TABLE_BIR_MASK;
+		    msixcap.pba_info & PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.pba_offset =
-		    msixcap.pba_offset & MSIX_TABLE_OFFSET_MASK;
+		    msixcap.pba_info & ~PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.table_bar =
-		    msixcap.table_offset & MSIX_TABLE_BIR_MASK;
+		    msixcap.table_info & PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.table_offset =
-		    msixcap.table_offset & MSIX_TABLE_OFFSET_MASK;
+		    msixcap.table_info & ~PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.table_count = MSIX_TABLE_COUNT(msixcap.msgctrl);
+
+		/* Allocate the emulated MSI-X table array */
+		table_size = pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
+		pi->pi_msix.table = malloc(table_size);
+		bzero(pi->pi_msix.table, table_size);
+
+		/* Mask all table entries */
+		for (i = 0; i < pi->pi_msix.table_count; i++) {
+			pi->pi_msix.table[i].vector_control |=
+						PCIM_MSIX_VCTRL_MASK;
+		}
 	}
 
 #ifdef LEGACY_SUPPORT
@@ -268,9 +279,13 @@ msix_table_read(struct passthru_softc *sc, uint64_t offset, int size)
 	int index;
 
 	pi = sc->psc_pi;
-	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
+
 	index = offset / MSIX_TABLE_ENTRY_SIZE;
+	if (index >= pi->pi_msix.table_count)
+		return (-1);
+
 	entry = &pi->pi_msix.table[index];
+	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
 
 	switch(size) {
 	case 1:
@@ -308,9 +323,12 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 	int error, index;
 
 	pi = sc->psc_pi;
-	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
 	index = offset / MSIX_TABLE_ENTRY_SIZE;
+	if (index >= pi->pi_msix.table_count)
+		return;
+
 	entry = &pi->pi_msix.table[index];
+	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
 
 	/* Only 4 byte naturally-aligned writes are supported */
 	assert(size == 4);
