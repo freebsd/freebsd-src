@@ -1397,12 +1397,13 @@ static void
 ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
     struct ath_buf *bf)
 {
+	struct ath_node *an = ATH_NODE(bf->bf_node);
 
 	ATH_TX_LOCK_ASSERT(sc);
 
-	if (tid->clrdmask == 1) {
+	if (an->clrdmask == 1) {
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
-		tid->clrdmask = 0;
+		an->clrdmask = 0;
 	}
 }
 
@@ -2888,6 +2889,29 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 }
 
 /*
+ * Only set the clrdmask bit if none of the nodes are currently
+ * filtered.
+ *
+ * XXX TODO: go through all the callers and check to see
+ * which are being called in the context of looping over all
+ * TIDs (eg, if all tids are being paused, resumed, etc.)
+ * That'll avoid O(n^2) complexity here.
+ */
+static void
+ath_tx_set_clrdmask(struct ath_softc *sc, struct ath_node *an)
+{
+	int i;
+
+	ATH_TX_LOCK_ASSERT(sc);
+
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		if (an->an_tid[i].isfiltered == 1)
+			break;
+	}
+	an->clrdmask = 1;
+}
+
+/*
  * Configure the per-TID node state.
  *
  * This likely belongs in if_ath_node.c but I can't think of anywhere
@@ -2918,12 +2942,12 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		atid->sched = 0;
 		atid->hwq_depth = 0;
 		atid->cleanup_inprogress = 0;
-		atid->clrdmask = 1;	/* Always start by setting this bit */
 		if (i == IEEE80211_NONQOS_TID)
 			atid->ac = ATH_NONQOS_TID_AC;
 		else
 			atid->ac = TID_TO_WME_AC(i);
 	}
+	an->clrdmask = 1;	/* Always start by setting this bit */
 }
 
 /*
@@ -2949,7 +2973,6 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
-
 	ATH_TX_LOCK_ASSERT(sc);
 
 	tid->paused--;
@@ -2964,7 +2987,7 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	 * Override the clrdmask configuration for the next frame
 	 * from this TID, just to get the ball rolling.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	if (tid->axq_depth == 0)
 		return;
@@ -3047,7 +3070,8 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: hwq=0, transition back\n",
 	    __func__);
 	tid->isfiltered = 0;
-	tid->clrdmask = 1;
+	/* XXX ath_tx_tid_resume() also calls ath_tx_set_clrdmask()! */
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/* XXX this is really quite inefficient */
 	while ((bf = ATH_TID_FILT_LAST(tid, ath_bufhead_s)) != NULL) {
@@ -3303,7 +3327,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 * Override the clrdmask configuration for the next frame,
 	 * just to get the ball rolling.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/*
 	 * Calculate new BAW left edge, now that all frames have either
@@ -3484,7 +3508,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 	 *
 	 * This won't hurt things if the TID is about to be freed.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/*
 	 * Now that it's completed, grab the TID lock and update
