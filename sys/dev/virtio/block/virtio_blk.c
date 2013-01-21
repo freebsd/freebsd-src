@@ -110,6 +110,7 @@ static int	vtblk_detach(device_t);
 static int	vtblk_suspend(device_t);
 static int	vtblk_resume(device_t);
 static int	vtblk_shutdown(device_t);
+static int	vtblk_config_change(device_t);
 
 static int	vtblk_open(struct disk *);
 static int	vtblk_close(struct disk *);
@@ -122,6 +123,7 @@ static void	vtblk_negotiate_features(struct vtblk_softc *);
 static int	vtblk_maximum_segments(struct vtblk_softc *,
 		    struct virtio_blk_config *);
 static int	vtblk_alloc_virtqueue(struct vtblk_softc *);
+static void	vtblk_resize_disk(struct vtblk_softc *, uint64_t);
 static void	vtblk_alloc_disk(struct vtblk_softc *,
 		    struct virtio_blk_config *);
 static void	vtblk_create_disk(struct vtblk_softc *);
@@ -203,6 +205,9 @@ static device_method_t vtblk_methods[] = {
 	DEVMETHOD(device_suspend,	vtblk_suspend),
 	DEVMETHOD(device_resume,	vtblk_resume),
 	DEVMETHOD(device_shutdown,	vtblk_shutdown),
+
+	/* VirtIO methods. */
+	DEVMETHOD(virtio_config_change,	vtblk_config_change),
 
 	DEVMETHOD_END
 };
@@ -415,6 +420,27 @@ vtblk_shutdown(device_t dev)
 }
 
 static int
+vtblk_config_change(device_t dev)
+{
+	struct vtblk_softc *sc;
+	struct virtio_blk_config blkcfg;
+	uint64_t capacity;
+
+	sc = device_get_softc(dev);
+
+	virtio_read_device_config(dev, 0, &blkcfg,
+	    sizeof(struct virtio_blk_config));
+
+	/* Capacity is always in 512-byte units. */
+	capacity = blkcfg.capacity * 512;
+
+	if (sc->vtblk_disk->d_mediasize != capacity)
+		vtblk_resize_disk(sc, capacity);
+
+	return (0);
+}
+
+static int
 vtblk_open(struct disk *dp)
 {
 	struct vtblk_softc *sc;
@@ -577,6 +603,31 @@ vtblk_alloc_virtqueue(struct vtblk_softc *sc)
 	    "%s request", device_get_nameunit(dev));
 
 	return (virtio_alloc_virtqueues(dev, 0, 1, &vq_info));
+}
+
+static void
+vtblk_resize_disk(struct vtblk_softc *sc, uint64_t new_capacity)
+{
+	device_t dev;
+	struct disk *dp;
+	int error;
+
+	dev = sc->vtblk_dev;
+	dp = sc->vtblk_disk;
+
+	dp->d_mediasize = new_capacity;
+	if (bootverbose) {
+		device_printf(dev, "resized %juMB (%ju %u byte sectors)\n",
+		    (uintmax_t) dp->d_mediasize >> 20,
+		    (uintmax_t) dp->d_mediasize / dp->d_sectorsize,
+		    dp->d_sectorsize);
+	}
+
+	error = disk_resize(dp, M_NOWAIT);
+	if (error) {
+		device_printf(dev,
+		    "disk_resize(9) failed, error: %d\n", error);
+	}
 }
 
 static void
