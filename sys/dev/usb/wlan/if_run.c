@@ -2019,7 +2019,8 @@ run_key_set_cb(void *arg)
 		wcid = 0;	/* NB: update WCID0 for group keys */
 		base = RT2860_SKEY(RUN_VAP(vap)->rvp_id, k->wk_keyix);
 	} else {
-		wcid = RUN_AID2WCID(associd);
+		wcid = (vap->iv_opmode == IEEE80211_M_STA) ?
+		    1 : RUN_AID2WCID(associd);
 		base = RT2860_PKEY(wcid);
 	}
 
@@ -2374,8 +2375,11 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 	struct run_softc *sc = ic->ic_ifp->if_softc;
 	uint8_t rate;
 	uint8_t ridx;
-	uint8_t wcid = RUN_AID2WCID(ni->ni_associd);
+	uint8_t wcid;
 	int i, j;
+
+	wcid = (vap->iv_opmode == IEEE80211_M_STA) ?
+	    1 : RUN_AID2WCID(ni->ni_associd);
 
 	if (wcid > RT2870_WCID_MAX) {
 		device_printf(sc->sc_dev, "wcid=%d out of range\n", wcid);
@@ -3044,8 +3048,12 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	txd->flags = qflags;
 	txwi = (struct rt2860_txwi *)(txd + 1);
 	txwi->xflags = xflags;
-	txwi->wcid = IEEE80211_IS_MULTICAST(wh->i_addr1) ?
-	    0 : RUN_AID2WCID(ni->ni_associd);
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		txwi->wcid = 0;
+	} else {
+		txwi->wcid = (vap->iv_opmode == IEEE80211_M_STA) ?
+		    1 : RUN_AID2WCID(ni->ni_associd);
+	}
 	/* clear leftover garbage bits */
 	txwi->flags = 0;
 	txwi->txop = 0;
