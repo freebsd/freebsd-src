@@ -79,11 +79,6 @@ struct vtnet_softc {
 	int			 vtnet_watchdog_timer;
 	uint64_t		 vtnet_features;
 
-	struct taskqueue	*vtnet_tq;
-	struct task		 vtnet_rx_intr_task;
-	struct task		 vtnet_tx_intr_task;
-	struct task		 vtnet_cfgchg_task;
-
 	struct vtnet_statistics	 vtnet_stats;
 
 	struct callout		 vtnet_tick_ch;
