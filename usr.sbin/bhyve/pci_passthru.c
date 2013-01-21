@@ -362,11 +362,10 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 	 * XXX for now, assume that the table is not in the middle
 	 */
 	table_size = pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
-	pi->pi_msix.table_size = table_size;
 	idx = pi->pi_msix.table_bar;
 
 	/* Round up to page size */
-	table_size = (table_size + 0x1000) & ~0xFFF;
+	table_size = roundup2(table_size, 4096);
 	if (pi->pi_msix.table_offset == 0) {		
 		/* Map everything after the MSI-X table */
 		start = pi->pi_bar[idx].addr + table_size;
