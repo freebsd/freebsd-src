@@ -50,10 +50,8 @@ rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
 split -a 2 -p '^#!.*' "$SCRIPT" /tmp/bsdinstall-installscript-
-cd /tmp
-echo BORK
 
-. bsdinstall-installscript-aa
+. /tmp/bsdinstall-installscript-aa
 : ${DISTRIBUTIONS="kernel.txz base.txz"}; export DISTRIBUTIONS
 export BSDINSTALL_DISTDIR
 
