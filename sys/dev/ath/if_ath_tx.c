@@ -2906,7 +2906,7 @@ ath_tx_set_clrdmask(struct ath_softc *sc, struct ath_node *an)
 
 	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
 		if (an->an_tid[i].isfiltered == 1)
-			break;
+			return;
 	}
 	an->clrdmask = 1;
 }
