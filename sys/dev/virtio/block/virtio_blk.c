@@ -940,7 +940,6 @@ static int
 vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 {
 	struct virtqueue *vq;
-	struct vtblk_request *r;
 	int error;
 
 	vq = sc->vtblk_vq;
@@ -953,9 +952,7 @@ vtblk_poll_request(struct vtblk_softc *sc, struct vtblk_request *req)
 		return (error);
 
 	virtqueue_notify(vq);
-
-	r = virtqueue_poll(vq, NULL);
-	KASSERT(r == req, ("unexpected request response: %p/%p", r, req));
+	virtqueue_poll(vq, NULL);
 
 	error = vtblk_request_error(req);
 	if (error && bootverbose) {
