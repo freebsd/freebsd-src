@@ -884,8 +884,10 @@ vtblk_prepare_dump(struct vtblk_softc *sc)
 	 */
 	vtblk_drain_vq(sc, 1);
 
-	if (virtio_reinit(dev, sc->vtblk_features) != 0)
-		panic("cannot reinit VirtIO block device during dump");
+	if (virtio_reinit(dev, sc->vtblk_features) != 0) {
+		panic("%s: cannot reinit VirtIO block device during dump",
+		    device_get_nameunit(dev));
+	}
 
 	virtqueue_disable_intr(vq);
 	virtio_reinit_complete(dev);
