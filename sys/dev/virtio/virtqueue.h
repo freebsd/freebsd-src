@@ -70,7 +70,8 @@ void	*virtqueue_drain(struct virtqueue *vq, int *last);
 void	 virtqueue_free(struct virtqueue *vq);
 int	 virtqueue_reinit(struct virtqueue *vq, uint16_t size);
 
-int	 virtqueue_intr(struct virtqueue *vq);
+int	 virtqueue_intr_filter(struct virtqueue *vq);
+void	 virtqueue_intr(struct virtqueue *vq);
 int	 virtqueue_enable_intr(struct virtqueue *vq);
 int	 virtqueue_postpone_intr(struct virtqueue *vq);
 void	 virtqueue_disable_intr(struct virtqueue *vq);
