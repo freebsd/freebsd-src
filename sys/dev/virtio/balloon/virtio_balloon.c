@@ -127,9 +127,9 @@ CTASSERT(VTBALLOON_PAGES_PER_REQUEST * sizeof(uint32_t) <= PAGE_SIZE);
 
 #define VTBALLOON_MTX(_sc)		&(_sc)->vtballoon_mtx
 #define VTBALLOON_LOCK_INIT(_sc, _name)	mtx_init(VTBALLOON_MTX((_sc)), _name, \
-					    "VirtIO Balloon Lock", MTX_SPIN)
-#define VTBALLOON_LOCK(_sc)		mtx_lock_spin(VTBALLOON_MTX((_sc)))
-#define VTBALLOON_UNLOCK(_sc)		mtx_unlock_spin(VTBALLOON_MTX((_sc)))
+					    "VirtIO Balloon Lock", MTX_DEF)
+#define VTBALLOON_LOCK(_sc)		mtx_lock(VTBALLOON_MTX((_sc)))
+#define VTBALLOON_UNLOCK(_sc)		mtx_unlock(VTBALLOON_MTX((_sc)))
 #define VTBALLOON_LOCK_DESTROY(_sc)	mtx_destroy(VTBALLOON_MTX((_sc)))
 
 static device_method_t vtballoon_methods[] = {
@@ -234,8 +234,7 @@ vtballoon_detach(device_t dev)
 		VTBALLOON_LOCK(sc);
 		sc->vtballoon_flags |= VTBALLOON_FLAG_DETACH;
 		wakeup_one(sc);
-		msleep_spin(sc->vtballoon_kproc, VTBALLOON_MTX(sc),
-		    "vtbdth", 0);
+		msleep(sc->vtballoon_kproc, VTBALLOON_MTX(sc), 0, "vtbdth", 0);
 		VTBALLOON_UNLOCK(sc);
 
 		sc->vtballoon_kproc = NULL;
@@ -411,7 +410,7 @@ vtballoon_send_page_frames(struct vtballoon_softc *sc, struct virtqueue *vq,
 	 */
 	VTBALLOON_LOCK(sc);
 	while ((c = virtqueue_dequeue(vq, NULL)) == NULL)
-		msleep_spin(sc, VTBALLOON_MTX(sc), "vtbspf", 0);
+		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbspf", 0);
 	VTBALLOON_UNLOCK(sc);
 
 	KASSERT(c == vq, ("unexpected balloon operation response"));
@@ -510,7 +509,7 @@ vtballoon_sleep(struct vtballoon_softc *sc)
 		if (current < desired && timeout == 0)
 			break;
 
-		msleep_spin(sc, VTBALLOON_MTX(sc), "vtbslp", timeout);
+		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbslp", timeout);
 	}
 	VTBALLOON_UNLOCK(sc);
 
