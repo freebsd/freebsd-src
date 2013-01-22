@@ -90,7 +90,8 @@ _start(int argc, char **argv, char **env,
 {
 	const char *s;
 
-	environ = env;
+	if (environ == NULL)
+		environ = env;
 
 	if (argc > 0 && argv[0] != NULL) {
 		__progname = argv[0];
