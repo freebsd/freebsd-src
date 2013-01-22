@@ -250,7 +250,10 @@ specification, but is in fact a label.
 The /include/ directive is not part of the standard, however it is implemented
 with the semantics compatible with the elinux.org tool.  It must appear in the
 top level of a file, and imports a new root definition.  If a file, plus all of
-its inclusions, contains multiple roots then they 
+its inclusions, contains multiple roots then they are merged.  All nodes that
+are present in the second but not the first are imported.  Any that appear in
+both are recursively merged, with properties from the second replacing those
+from the first and properties child nodes being recursively merged.
 .Sh HISTORY
 A dtc tool first appeared in
 .Fx 9.0 .
