@@ -608,115 +608,121 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	printf ("%s:\n", name);
 
-#define	p(f, m) if (tcpstat.f || sflag <= 1) \
-    printf(m, tcpstat.f, plural(tcpstat.f))
-#define	p1a(f, m) if (tcpstat.f || sflag <= 1) \
-    printf(m, tcpstat.f)
-#define	p2(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1) \
-    printf(m, tcpstat.f1, plural(tcpstat.f1), tcpstat.f2, plural(tcpstat.f2))
-#define	p2a(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1) \
-    printf(m, tcpstat.f1, plural(tcpstat.f1), tcpstat.f2)
-#define	p3(f, m) if (tcpstat.f || sflag <= 1) \
-    printf(m, tcpstat.f, pluralies(tcpstat.f))
+#define	p(f, m) if (tcpstat.f || sflag <= 1)				\
+	printf(m, (uintmax_t )tcpstat.f, plural(tcpstat.f))
 
-	p(tcps_sndtotal, "\t%lu packet%s sent\n");
-	p2(tcps_sndpack,tcps_sndbyte, "\t\t%lu data packet%s (%lu byte%s)\n");
+#define	p1a(f, m) if (tcpstat.f || sflag <= 1)				\
+	printf(m, (uintmax_t )tcpstat.f)
+
+#define	p2(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1)	\
+	printf(m, (uintmax_t )tcpstat.f1, plural(tcpstat.f1),		\
+	    (uintmax_t )tcpstat.f2, plural(tcpstat.f2))
+
+#define	p2a(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1)	\
+	printf(m, (uintmax_t )tcpstat.f1, plural(tcpstat.f1),		\
+	    (uintmax_t )tcpstat.f2)
+
+#define	p3(f, m) if (tcpstat.f || sflag <= 1)				\
+	printf(m, (uintmax_t )tcpstat.f, pluralies(tcpstat.f))
+
+	p(tcps_sndtotal, "\t%ju packet%s sent\n");
+	p2(tcps_sndpack,tcps_sndbyte, "\t\t%ju data packet%s (%ju byte%s)\n");
 	p2(tcps_sndrexmitpack, tcps_sndrexmitbyte,
-	    "\t\t%lu data packet%s (%lu byte%s) retransmitted\n");
+	    "\t\t%ju data packet%s (%ju byte%s) retransmitted\n");
 	p(tcps_sndrexmitbad,
-	    "\t\t%lu data packet%s unnecessarily retransmitted\n");
-	p(tcps_mturesent, "\t\t%lu resend%s initiated by MTU discovery\n");
+	    "\t\t%ju data packet%s unnecessarily retransmitted\n");
+	p(tcps_mturesent, "\t\t%ju resend%s initiated by MTU discovery\n");
 	p2a(tcps_sndacks, tcps_delack,
-	    "\t\t%lu ack-only packet%s (%lu delayed)\n");
-	p(tcps_sndurg, "\t\t%lu URG only packet%s\n");
-	p(tcps_sndprobe, "\t\t%lu window probe packet%s\n");
-	p(tcps_sndwinup, "\t\t%lu window update packet%s\n");
-	p(tcps_sndctrl, "\t\t%lu control packet%s\n");
-	p(tcps_rcvtotal, "\t%lu packet%s received\n");
+	    "\t\t%ju ack-only packet%s (%ju delayed)\n");
+	p(tcps_sndurg, "\t\t%ju URG only packet%s\n");
+	p(tcps_sndprobe, "\t\t%ju window probe packet%s\n");
+	p(tcps_sndwinup, "\t\t%ju window update packet%s\n");
+	p(tcps_sndctrl, "\t\t%ju control packet%s\n");
+	p(tcps_rcvtotal, "\t%ju packet%s received\n");
 	p2(tcps_rcvackpack, tcps_rcvackbyte,
-	    "\t\t%lu ack%s (for %lu byte%s)\n");
-	p(tcps_rcvdupack, "\t\t%lu duplicate ack%s\n");
-	p(tcps_rcvacktoomuch, "\t\t%lu ack%s for unsent data\n");
+	    "\t\t%ju ack%s (for %ju byte%s)\n");
+	p(tcps_rcvdupack, "\t\t%ju duplicate ack%s\n");
+	p(tcps_rcvacktoomuch, "\t\t%ju ack%s for unsent data\n");
 	p2(tcps_rcvpack, tcps_rcvbyte,
-	    "\t\t%lu packet%s (%lu byte%s) received in-sequence\n");
+	    "\t\t%ju packet%s (%ju byte%s) received in-sequence\n");
 	p2(tcps_rcvduppack, tcps_rcvdupbyte,
-	    "\t\t%lu completely duplicate packet%s (%lu byte%s)\n");
-	p(tcps_pawsdrop, "\t\t%lu old duplicate packet%s\n");
+	    "\t\t%ju completely duplicate packet%s (%ju byte%s)\n");
+	p(tcps_pawsdrop, "\t\t%ju old duplicate packet%s\n");
 	p2(tcps_rcvpartduppack, tcps_rcvpartdupbyte,
-	    "\t\t%lu packet%s with some dup. data (%lu byte%s duped)\n");
+	    "\t\t%ju packet%s with some dup. data (%ju byte%s duped)\n");
 	p2(tcps_rcvoopack, tcps_rcvoobyte,
-	    "\t\t%lu out-of-order packet%s (%lu byte%s)\n");
+	    "\t\t%ju out-of-order packet%s (%ju byte%s)\n");
 	p2(tcps_rcvpackafterwin, tcps_rcvbyteafterwin,
-	    "\t\t%lu packet%s (%lu byte%s) of data after window\n");
-	p(tcps_rcvwinprobe, "\t\t%lu window probe%s\n");
-	p(tcps_rcvwinupd, "\t\t%lu window update packet%s\n");
-	p(tcps_rcvafterclose, "\t\t%lu packet%s received after close\n");
-	p(tcps_rcvbadsum, "\t\t%lu discarded for bad checksum%s\n");
-	p(tcps_rcvbadoff, "\t\t%lu discarded for bad header offset field%s\n");
-	p1a(tcps_rcvshort, "\t\t%lu discarded because packet too short\n");
-	p1a(tcps_rcvmemdrop, "\t\t%lu discarded due to memory problems\n");
-	p(tcps_connattempt, "\t%lu connection request%s\n");
-	p(tcps_accepts, "\t%lu connection accept%s\n");
-	p(tcps_badsyn, "\t%lu bad connection attempt%s\n");
-	p(tcps_listendrop, "\t%lu listen queue overflow%s\n");
-	p(tcps_badrst, "\t%lu ignored RSTs in the window%s\n");
-	p(tcps_connects, "\t%lu connection%s established (including accepts)\n");
+	    "\t\t%ju packet%s (%ju byte%s) of data after window\n");
+	p(tcps_rcvwinprobe, "\t\t%ju window probe%s\n");
+	p(tcps_rcvwinupd, "\t\t%ju window update packet%s\n");
+	p(tcps_rcvafterclose, "\t\t%ju packet%s received after close\n");
+	p(tcps_rcvbadsum, "\t\t%ju discarded for bad checksum%s\n");
+	p(tcps_rcvbadoff, "\t\t%ju discarded for bad header offset field%s\n");
+	p1a(tcps_rcvshort, "\t\t%ju discarded because packet too short\n");
+	p1a(tcps_rcvmemdrop, "\t\t%ju discarded due to memory problems\n");
+	p(tcps_connattempt, "\t%ju connection request%s\n");
+	p(tcps_accepts, "\t%ju connection accept%s\n");
+	p(tcps_badsyn, "\t%ju bad connection attempt%s\n");
+	p(tcps_listendrop, "\t%ju listen queue overflow%s\n");
+	p(tcps_badrst, "\t%ju ignored RSTs in the window%s\n");
+	p(tcps_connects, "\t%ju connection%s established (including accepts)\n");
 	p2(tcps_closed, tcps_drops,
-	    "\t%lu connection%s closed (including %lu drop%s)\n");
-	p(tcps_cachedrtt, "\t\t%lu connection%s updated cached RTT on close\n");
+	    "\t%ju connection%s closed (including %ju drop%s)\n");
+	p(tcps_cachedrtt, "\t\t%ju connection%s updated cached RTT on close\n");
 	p(tcps_cachedrttvar,
-	    "\t\t%lu connection%s updated cached RTT variance on close\n");
+	    "\t\t%ju connection%s updated cached RTT variance on close\n");
 	p(tcps_cachedssthresh,
-	    "\t\t%lu connection%s updated cached ssthresh on close\n");
-	p(tcps_conndrops, "\t%lu embryonic connection%s dropped\n");
+	    "\t\t%ju connection%s updated cached ssthresh on close\n");
+	p(tcps_conndrops, "\t%ju embryonic connection%s dropped\n");
 	p2(tcps_rttupdated, tcps_segstimed,
-	    "\t%lu segment%s updated rtt (of %lu attempt%s)\n");
-	p(tcps_rexmttimeo, "\t%lu retransmit timeout%s\n");
-	p(tcps_timeoutdrop, "\t\t%lu connection%s dropped by rexmit timeout\n");
-	p(tcps_persisttimeo, "\t%lu persist timeout%s\n");
-	p(tcps_persistdrop, "\t\t%lu connection%s dropped by persist timeout\n");
+	    "\t%ju segment%s updated rtt (of %ju attempt%s)\n");
+	p(tcps_rexmttimeo, "\t%ju retransmit timeout%s\n");
+	p(tcps_timeoutdrop, "\t\t%ju connection%s dropped by rexmit timeout\n");
+	p(tcps_persisttimeo, "\t%ju persist timeout%s\n");
+	p(tcps_persistdrop, "\t\t%ju connection%s dropped by persist timeout\n");
 	p(tcps_finwait2_drops,
-	    "\t%lu Connection%s (fin_wait_2) dropped because of timeout\n");
-	p(tcps_keeptimeo, "\t%lu keepalive timeout%s\n");
-	p(tcps_keepprobe, "\t\t%lu keepalive probe%s sent\n");
-	p(tcps_keepdrops, "\t\t%lu connection%s dropped by keepalive\n");
-	p(tcps_predack, "\t%lu correct ACK header prediction%s\n");
-	p(tcps_preddat, "\t%lu correct data packet header prediction%s\n");
+	    "\t%ju Connection%s (fin_wait_2) dropped because of timeout\n");
+	p(tcps_keeptimeo, "\t%ju keepalive timeout%s\n");
+	p(tcps_keepprobe, "\t\t%ju keepalive probe%s sent\n");
+	p(tcps_keepdrops, "\t\t%ju connection%s dropped by keepalive\n");
+	p(tcps_predack, "\t%ju correct ACK header prediction%s\n");
+	p(tcps_preddat, "\t%ju correct data packet header prediction%s\n");
 
-	p3(tcps_sc_added, "\t%lu syncache entr%s added\n");
-	p1a(tcps_sc_retransmitted, "\t\t%lu retransmitted\n");
-	p1a(tcps_sc_dupsyn, "\t\t%lu dupsyn\n");
-	p1a(tcps_sc_dropped, "\t\t%lu dropped\n");
-	p1a(tcps_sc_completed, "\t\t%lu completed\n");
-	p1a(tcps_sc_bucketoverflow, "\t\t%lu bucket overflow\n");
-	p1a(tcps_sc_cacheoverflow, "\t\t%lu cache overflow\n");
-	p1a(tcps_sc_reset, "\t\t%lu reset\n");
-	p1a(tcps_sc_stale, "\t\t%lu stale\n");
-	p1a(tcps_sc_aborted, "\t\t%lu aborted\n");
-	p1a(tcps_sc_badack, "\t\t%lu badack\n");
-	p1a(tcps_sc_unreach, "\t\t%lu unreach\n");
-	p(tcps_sc_zonefail, "\t\t%lu zone failure%s\n");
-	p(tcps_sc_sendcookie, "\t%lu cookie%s sent\n");
-	p(tcps_sc_recvcookie, "\t%lu cookie%s received\n");
+	p3(tcps_sc_added, "\t%ju syncache entr%s added\n");
+	p1a(tcps_sc_retransmitted, "\t\t%ju retransmitted\n");
+	p1a(tcps_sc_dupsyn, "\t\t%ju dupsyn\n");
+	p1a(tcps_sc_dropped, "\t\t%ju dropped\n");
+	p1a(tcps_sc_completed, "\t\t%ju completed\n");
+	p1a(tcps_sc_bucketoverflow, "\t\t%ju bucket overflow\n");
+	p1a(tcps_sc_cacheoverflow, "\t\t%ju cache overflow\n");
+	p1a(tcps_sc_reset, "\t\t%ju reset\n");
+	p1a(tcps_sc_stale, "\t\t%ju stale\n");
+	p1a(tcps_sc_aborted, "\t\t%ju aborted\n");
+	p1a(tcps_sc_badack, "\t\t%ju badack\n");
+	p1a(tcps_sc_unreach, "\t\t%ju unreach\n");
+	p(tcps_sc_zonefail, "\t\t%ju zone failure%s\n");
+	p(tcps_sc_sendcookie, "\t%ju cookie%s sent\n");
+	p(tcps_sc_recvcookie, "\t%ju cookie%s received\n");
 
-	p(tcps_hc_added, "\t%lu hostcache entrie%s added\n");
-	p1a(tcps_hc_bucketoverflow, "\t\t%lu bucket overflow\n");
+	p3(tcps_hc_added, "\t%ju hostcache entr%s added\n");
+	p1a(tcps_hc_bucketoverflow, "\t\t%ju bucket overflow\n");
 
-	p(tcps_sack_recovery_episode, "\t%lu SACK recovery episode%s\n");
+	p(tcps_sack_recovery_episode, "\t%ju SACK recovery episode%s\n");
 	p(tcps_sack_rexmits,
-	    "\t%lu segment rexmit%s in SACK recovery episodes\n");
+	    "\t%ju segment rexmit%s in SACK recovery episodes\n");
 	p(tcps_sack_rexmit_bytes,
-	    "\t%lu byte rexmit%s in SACK recovery episodes\n");
+	    "\t%ju byte rexmit%s in SACK recovery episodes\n");
 	p(tcps_sack_rcv_blocks,
-	    "\t%lu SACK option%s (SACK blocks) received\n");
-	p(tcps_sack_send_blocks, "\t%lu SACK option%s (SACK blocks) sent\n");
-	p1a(tcps_sack_sboverflow, "\t%lu SACK scoreboard overflow\n");
+	    "\t%ju SACK option%s (SACK blocks) received\n");
+	p(tcps_sack_send_blocks, "\t%ju SACK option%s (SACK blocks) sent\n");
+	p1a(tcps_sack_sboverflow, "\t%ju SACK scoreboard overflow\n");
 
-	p(tcps_ecn_ce, "\t%lu packet%s with ECN CE bit set\n");
-	p(tcps_ecn_ect0, "\t%lu packet%s with ECN ECT(0) bit set\n");
-	p(tcps_ecn_ect1, "\t%lu packet%s with ECN ECT(1) bit set\n");
-	p(tcps_ecn_shs, "\t%lu successful ECN handshake%s\n");
-	p(tcps_ecn_rcwnd, "\t%lu time%s ECN reduced the congestion window\n");
+	p(tcps_ecn_ce, "\t%ju packet%s with ECN CE bit set\n");
+	p(tcps_ecn_ect0, "\t%ju packet%s with ECN ECT(0) bit set\n");
+	p(tcps_ecn_ect1, "\t%ju packet%s with ECN ECT(1) bit set\n");
+	p(tcps_ecn_shs, "\t%ju successful ECN handshake%s\n");
+	p(tcps_ecn_rcwnd, "\t%ju time%s ECN reduced the congestion window\n");
 #undef p
 #undef p1a
 #undef p2
