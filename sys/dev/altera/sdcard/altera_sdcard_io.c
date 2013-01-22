@@ -93,13 +93,6 @@ altera_sdcard_process_csd0(struct altera_sdcard_softc *sc)
 	read_bl_len = sc->as_csd.csd_data[ALTERA_SDCARD_CSD_READ_BL_LEN_BYTE];
 	read_bl_len &= ALTERA_SDCARD_CSD_READ_BL_LEN_MASK;
 
-	byte0 = sc->as_csd.csd_data[ALTERA_SDCARD_CSD_C_SIZE_MULT_BYTE0];
-	byte0 &= ALTERA_SDCARD_CSD_C_SIZE_MULT_MASK0;
-	byte1 = sc->as_csd.csd_data[ALTERA_SDCARD_CSD_C_SIZE_MULT_BYTE1];
-	byte1 &= ALTERA_SDCARD_CSD_C_SIZE_MULT_MASK1;
-	c_size_mult = (byte0 >> ALTERA_SDCARD_CSD_C_SIZE_MULT_RSHIFT0) |
-	    (byte0 << ALTERA_SDCARD_CSD_C_SIZE_MULT_LSHIFT1);
-
 	byte0 = sc->as_csd.csd_data[ALTERA_SDCARD_CSD_C_SIZE_BYTE0];
 	byte0 &= ALTERA_SDCARD_CSD_C_SIZE_MASK0;
 	byte1 = sc->as_csd.csd_data[ALTERA_SDCARD_CSD_C_SIZE_BYTE1];
