@@ -4,6 +4,8 @@
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
+#	-DDB_FROM_SRC use the user/group databases in src/etc instead of
+#	    the system database when installing.
 #	-DNO_SHARE do not go into share subdir
 #	-DKERNFAST define NO_KERNEL{CONFIG,CLEAN,DEPEND,OBJ}
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
@@ -11,9 +13,8 @@
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
+#	-DNO_ROOT install without using root privilege
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
-#	-DDB_FROM_SRC use the user/group databases in src/etc instead of
-#	    the system database when installing.
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
@@ -21,6 +22,8 @@
 #	    to be created before files are installed
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
+#	METALOG="path to metadata log" to write permission and ownership
+#	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
@@ -358,8 +361,19 @@ IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
 IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 .endif
 .if defined(DB_FROM_SRC)
-IMAKE_INSTALL=	INSTALL="install -N ${.CURDIR}/etc"
-IMAKE_MTREE=	MTREE_CMD="nmtree -N ${.CURDIR}/etc"
+INSTALLFLAGS+=	-N ${.CURDIR}/etc
+MTREEFLAGS+=	-N ${.CURDIR}/etc
+.endif
+.if defined(NO_ROOT)
+METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
+IMAKE+=		-DNO_ROOT METALOG=${METALOG}
+INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
+INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g}
+MTREEFLAGS+=	-W
+.endif
+.if defined(DB_FROM_SRC) || defined(NO_ROOT)
+IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
+IMAKE_MTREE=	MTREE_CMD="nmtree ${MTREEFLAGS}"
 .endif
 
 # kernel stage
@@ -658,7 +672,7 @@ _zoneinfo=	zic tzsetup
 .endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
-	date echo egrep find grep ${_install-info} \
+	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	test true uname wc ${_zoneinfo}
 
@@ -680,6 +694,8 @@ EXTRA_DISTRIBUTIONS+=	games
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
+
+MTREE_MAGIC?=	mtree 2.0
 
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
@@ -703,6 +719,9 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+.if defined(NO_ROOT)
+	echo "#${MTREE_MAGIC}" > ${METALOG}
+.endif
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
@@ -712,10 +731,20 @@ distributeworld installworld: installcheck
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.if defined(NO_ROOT)
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
+	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
+	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
+	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
+.endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
-	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
-	    LOCAL_MTREE=${LOCAL_MTREE} DESTDIR=${DESTDIR}/${DISTDIR}/base
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
+	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
+	    LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
@@ -723,12 +752,30 @@ distributeworld installworld: installcheck
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
 .endfor
+.if defined(NO_ROOT)
+.for dist in base ${EXTRA_DISTRIBUTIONS}
+	@# For each file that exists in this dist, print the corresponding
+	@# line from the METALOG.  This relies on the fact that
+	@# a line containing only the filename will sort immediatly before
+	@# the relevant mtree line.
+	cd ${DESTDIR}/${DISTDIR}; \
+	find ./${dist} | sort -u ${METALOG} - | \
+	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	${DESTDIR}/${DISTDIR}/${dist}.meta
+.endfor
+.endif
 .endif
 
 packageworld:
 .for dist in base ${EXTRA_DISTRIBUTIONS}
+.if defined(NO_ROOT)
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
+	    @${DESTDIR}/${DISTDIR}/${dist}.meta
+.else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz .
+.endif
 .endfor
 
 #
@@ -765,7 +812,7 @@ redistribute:
 
 distrib-dirs distribution:
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
-	    ${IMAKE_INSTALL} ${IMAKE_MTREE} ${.TARGET}
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -1260,7 +1307,12 @@ cross-tools:
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier:
+.if defined(NO_ROOT)
+	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} \
+	    -DNO_ROOT METALOG=${METALOG} distrib-dirs
+.else
 	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
+.endif
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
