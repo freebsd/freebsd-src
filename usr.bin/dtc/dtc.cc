@@ -164,7 +164,7 @@ main(int argc, char **argv)
 			debug_mode = true;
 			break;
 		case 'V':
-			if (string(optarg) == string("17"))
+			if (string(optarg) != string("17"))
 			{
 				fprintf(stderr, "Unknown output format version: %s\n", optarg);
 				return EXIT_FAILURE;
