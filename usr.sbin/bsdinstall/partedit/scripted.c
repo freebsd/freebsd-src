@@ -45,12 +45,6 @@ provider_for_name(struct gmesh *mesh, const char *name)
 	struct ggeom *gp;
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
-		if (strcmp(classp->lg_name, "DISK") != 0 &&
-		    strcmp(classp->lg_name, "PART") != 0 &&
-		    strcmp(classp->lg_name, "RAID") != 0 &&
-		    strcmp(classp->lg_name, "MD") != 0)
-			continue;
-
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 			if (LIST_EMPTY(&gp->lg_provider))
 				continue;
@@ -81,6 +75,11 @@ part_config(char *disk, const char *scheme, char *config)
 		scheme = default_scheme();
 
 	error = geom_gettree(&mesh);
+	if (provider_for_name(&mesh, disk) == NULL) {
+		fprintf(stderr, "GEOM provider %s not found\n", disk);
+		geom_deletetree(&mesh);
+		return (-1);
+	}
 
 	/* Remove any existing partitioning and create new scheme */
 	LIST_FOREACH(classp, &mesh.lg_class, lg_class)
@@ -183,7 +182,7 @@ int parse_disk_config(char *input)
 	} while (input != NULL && *input != 0);
 
 	if (disk != NULL)
-		part_config(disk, scheme, partconfig);
+		return (part_config(disk, scheme, partconfig));
 
 	return (0);
 }
@@ -192,7 +191,7 @@ int
 scripted_editor(int argc, const char **argv)
 {
 	char *token;
-	int i, len = 0;
+	int i, error = 0, len = 0;
 
 	for (i = 1; i < argc; i++)
 		len += strlen(argv[i]) + 1;
@@ -203,8 +202,11 @@ scripted_editor(int argc, const char **argv)
 		strcat(input, argv[i]);
 	}
 
-	while ((token = strsep(&input, ";")) != NULL)
-		parse_disk_config(token);
+	while ((token = strsep(&input, ";")) != NULL) {
+		error = parse_disk_config(token);
+		if (error != 0)
+			return (error);
+	}
 
 	return (0);
 }
