@@ -336,8 +336,21 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
-	no_target = stat(to_name = argv[argc - 1], &to_sb);
+	to_name = argv[argc - 1];
+	no_target = stat(to_name, &to_sb);
 	if (!no_target && S_ISDIR(to_sb.st_mode)) {
+		if (dolink & LN_SYMBOLIC) {
+			if (lstat(to_name, &to_sb) != 0)
+				err(EX_OSERR, "%s vanished", to_name);
+			if (S_ISLNK(to_sb.st_mode)) {
+				if (argc != 2) {
+					errno = ENOTDIR;
+					err(EX_USAGE, "%s", to_name);
+				}
+				install(*argv, to_name, fset, iflags);
+				exit(EX_OK);
+			}
+		}
 		for (; *argv != to_name; ++argv)
 			install(*argv, to_name, fset, iflags | DIRECTORY);
 		exit(EX_OK);
