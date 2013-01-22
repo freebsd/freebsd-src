@@ -364,6 +364,7 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
+    GPL_DTC \
     HESIOD \
     ICONV \
     IDEA \
