@@ -120,7 +120,9 @@ but non-interactively according to the disk setup specified in
 .Ar parameters .
 Each disk setup is specified by a three-part argument:
 .Pp
-.Ar disk [scheme] [{partitions}]
+.Ar disk
+.Op Ar scheme
+.Op Ar {partitions}
 .Pp
 Multiple disk setups are separated by semicolons. The
 .Ar disk
@@ -141,7 +143,9 @@ argument is also optional and specifies how to partition
 It consists of a comma-separated list of partitions to create enclosed in
 curly braces. Each partition declaration takes the form
 .Pp
-.Ar size type [mount point]
+.Ar size
+.Ar type
+.Op Ar mount point
 .Pp
 .Ar size
 specifies the partition size to create in bytes (K, M, and G suffixes
@@ -209,13 +213,27 @@ process. Many are used internally during installation and have reasonable
 default values for most installation scenarios. Others are set by various
 interactive user prompts, and can be usefully overridden when making scripted
 or customized installers.
-.Bl -tag -width ".Ev BSDINSTALL_DISTDIR"
+.Bl -tag -width ".Ev BSDINSTALL_DISTSITE"
 .It Ev DISTRIBUTIONS
 The set of distributions to install (e.g. "base kernel ports"). Default: none
 .It Ev BSDINSTALL_DISTDIR
 The directory in which the distribution files can be found (or to which they
 should be downloaded). Default:
 .Pa /usr/freebsd-dist
+.It Ev BSDINSTALL_DISTSITE
+URL from which the distribution files should be downloaded if they are not
+already present in the directory defined by
+.Ev BSDINSTALL_DISTDIR .
+This should be a full path to the files, including architecture and release
+names. Most targets (e.g.
+.Cm auto
+and
+.Cm jail )
+that prompt for a
+.Fx
+mirror will skip that step if this variable is already defined in the
+environment. Example:
+.Pa ftp://ftp.freebsd.org/pub/FreeBSD/releases/powerpc/powerpc64/9.1-RELEASE
 .It Ev BSDINSTALL_CHROOT
 The directory into which the distribution files should be unpacked and the
 directory at which the root file system of the new system should be mounted.
@@ -286,8 +304,9 @@ which is passed to the
 .Cm scriptedpart
 target to control disk setup.
 .Ss SETUP SCRIPT
-Following the preamble is a shell script, beginning with a #! declaration.
-This script will be run at the end of the installation process inside a
+Following the preamble is an optional shell script, beginning with a #!
+declaration. This script will be run at the end of the installation process
+inside a
 .Xr chroot 8
 environment in the newly installed system and can be used to set up
 configuration files, install packages, etc. Note that newly configured
