@@ -48,7 +48,7 @@ struct udphdr {
 /* 
  * User-settable options (used with setsockopt).
  */
-#define	UDP_ENCAP			0x01
+#define	UDP_ENCAP			1
 
 
 /*
