@@ -214,74 +214,17 @@ static void	ip_freef(struct ipqhead *, struct ipq *);
 VNET_DEFINE(struct ipstat_p, ipstatp);
 
 static void
-ipstat_zero(void)
-{
-	counter_u64_zero(V_ipstatp.ips_total);
-	counter_u64_zero(V_ipstatp.ips_badsum);
-	counter_u64_zero(V_ipstatp.ips_tooshort);
-	counter_u64_zero(V_ipstatp.ips_toosmall);
-	counter_u64_zero(V_ipstatp.ips_badhlen);
-	counter_u64_zero(V_ipstatp.ips_badlen);
-	counter_u64_zero(V_ipstatp.ips_fragments);
-	counter_u64_zero(V_ipstatp.ips_fragdropped);
-	counter_u64_zero(V_ipstatp.ips_fragtimeout);
-	counter_u64_zero(V_ipstatp.ips_forward);
-	counter_u64_zero(V_ipstatp.ips_fastforward);
-	counter_u64_zero(V_ipstatp.ips_cantforward);
-	counter_u64_zero(V_ipstatp.ips_redirectsent);
-	counter_u64_zero(V_ipstatp.ips_noproto);
-	counter_u64_zero(V_ipstatp.ips_delivered);
-	counter_u64_zero(V_ipstatp.ips_localout);
-	counter_u64_zero(V_ipstatp.ips_odropped);
-	counter_u64_zero(V_ipstatp.ips_reassembled);
-	counter_u64_zero(V_ipstatp.ips_fragmented);
-	counter_u64_zero(V_ipstatp.ips_ofragments);
-	counter_u64_zero(V_ipstatp.ips_cantfrag);
-	counter_u64_zero(V_ipstatp.ips_badoptions);
-	counter_u64_zero(V_ipstatp.ips_noroute);
-	counter_u64_zero(V_ipstatp.ips_badvers);
-	counter_u64_zero(V_ipstatp.ips_rawout);
-	counter_u64_zero(V_ipstatp.ips_toolong);
-	counter_u64_zero(V_ipstatp.ips_notmember);
-	counter_u64_zero(V_ipstatp.ips_nogif);
-	counter_u64_zero(V_ipstatp.ips_badaddr);
-}
-
-static void
 vnet_ipstatp_init(const void *unused)
 {
+	counter_u64_t *c;
+	int i;
 
-	V_ipstatp.ips_total = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_badsum = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_tooshort = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_toosmall = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_badhlen = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_badlen = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_fragments = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_fragdropped = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_fragtimeout = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_forward = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_fastforward = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_cantforward = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_redirectsent = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_noproto = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_delivered = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_localout = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_odropped = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_reassembled = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_fragmented = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_ofragments = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_cantfrag = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_badoptions = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_noroute = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_badvers = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_rawout = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_toolong = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_notmember = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_nogif = counter_u64_alloc(M_WAITOK);
-	V_ipstatp.ips_badaddr = counter_u64_alloc(M_WAITOK);
-
-	ipstat_zero();
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++) {
+		*c = counter_u64_alloc(M_WAITOK);
+		counter_u64_zero(*c);
+	}
 }
 VNET_SYSINIT(vnet_ipstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
             vnet_ipstatp_init, NULL);
@@ -290,36 +233,13 @@ VNET_SYSINIT(vnet_ipstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
 static void
 vnet_ipstatp_uninit(const void *unused)
 {
+	counter_u64_t *c;
+	int i;
 
-	counter_u64_free(V_ipstatp.ips_total);
-	counter_u64_free(V_ipstatp.ips_badsum);
-	counter_u64_free(V_ipstatp.ips_tooshort);
-	counter_u64_free(V_ipstatp.ips_toosmall);
-	counter_u64_free(V_ipstatp.ips_badhlen);
-	counter_u64_free(V_ipstatp.ips_badlen);
-	counter_u64_free(V_ipstatp.ips_fragments);
-	counter_u64_free(V_ipstatp.ips_fragdropped);
-	counter_u64_free(V_ipstatp.ips_fragtimeout);
-	counter_u64_free(V_ipstatp.ips_forward);
-	counter_u64_free(V_ipstatp.ips_fastforward);
-	counter_u64_free(V_ipstatp.ips_cantforward);
-	counter_u64_free(V_ipstatp.ips_redirectsent);
-	counter_u64_free(V_ipstatp.ips_noproto);
-	counter_u64_free(V_ipstatp.ips_delivered);
-	counter_u64_free(V_ipstatp.ips_localout);
-	counter_u64_free(V_ipstatp.ips_odropped);
-	counter_u64_free(V_ipstatp.ips_reassembled);
-	counter_u64_free(V_ipstatp.ips_fragmented);
-	counter_u64_free(V_ipstatp.ips_ofragments);
-	counter_u64_free(V_ipstatp.ips_cantfrag);
-	counter_u64_free(V_ipstatp.ips_badoptions);
-	counter_u64_free(V_ipstatp.ips_noroute);
-	counter_u64_free(V_ipstatp.ips_badvers);
-	counter_u64_free(V_ipstatp.ips_rawout);
-	counter_u64_free(V_ipstatp.ips_toolong);
-	counter_u64_free(V_ipstatp.ips_notmember);
-	counter_u64_free(V_ipstatp.ips_nogif);
-	counter_u64_free(V_ipstatp.ips_badaddr);
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++)
+		counter_u64_free(*c);
 }
 VNET_SYSUNINIT(vnet_ipstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
             vnet_ipstatp_uninit, NULL);
@@ -329,54 +249,33 @@ static int
 ipstat_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct ipstat ipstat;
+	counter_u64_t *c;
+	uint64_t *v;
+	int i;
 
-	ipstat.ips_total = counter_u64_fetch(V_ipstatp.ips_total);
-	ipstat.ips_badsum = counter_u64_fetch(V_ipstatp.ips_badsum);
-	ipstat.ips_tooshort = counter_u64_fetch(V_ipstatp.ips_tooshort);
-	ipstat.ips_toosmall = counter_u64_fetch(V_ipstatp.ips_toosmall);
-	ipstat.ips_badhlen = counter_u64_fetch(V_ipstatp.ips_badhlen);
-	ipstat.ips_badlen = counter_u64_fetch(V_ipstatp.ips_badlen);
-	ipstat.ips_fragments = counter_u64_fetch(V_ipstatp.ips_fragments);
-	ipstat.ips_fragdropped = counter_u64_fetch(V_ipstatp.ips_fragdropped);
-	ipstat.ips_fragtimeout = counter_u64_fetch(V_ipstatp.ips_fragtimeout);
-	ipstat.ips_forward = counter_u64_fetch(V_ipstatp.ips_forward);
-	ipstat.ips_fastforward = counter_u64_fetch(V_ipstatp.ips_fastforward);
-	ipstat.ips_cantforward = counter_u64_fetch(V_ipstatp.ips_cantforward);
-	ipstat.ips_redirectsent = counter_u64_fetch(V_ipstatp.ips_redirectsent);
-	ipstat.ips_noproto = counter_u64_fetch(V_ipstatp.ips_noproto);
-	ipstat.ips_delivered = counter_u64_fetch(V_ipstatp.ips_delivered);
-	ipstat.ips_localout = counter_u64_fetch(V_ipstatp.ips_localout);
-	ipstat.ips_odropped = counter_u64_fetch(V_ipstatp.ips_odropped);
-	ipstat.ips_reassembled = counter_u64_fetch(V_ipstatp.ips_reassembled);
-	ipstat.ips_fragmented = counter_u64_fetch(V_ipstatp.ips_fragmented);
-	ipstat.ips_ofragments = counter_u64_fetch(V_ipstatp.ips_ofragments);
-	ipstat.ips_cantfrag = counter_u64_fetch(V_ipstatp.ips_cantfrag);
-	ipstat.ips_badoptions = counter_u64_fetch(V_ipstatp.ips_badoptions);
-	ipstat.ips_noroute = counter_u64_fetch(V_ipstatp.ips_noroute);
-	ipstat.ips_badvers = counter_u64_fetch(V_ipstatp.ips_badvers);
-	ipstat.ips_rawout = counter_u64_fetch(V_ipstatp.ips_rawout);
-	ipstat.ips_toolong = counter_u64_fetch(V_ipstatp.ips_toolong);
-	ipstat.ips_notmember = counter_u64_fetch(V_ipstatp.ips_notmember);
-	ipstat.ips_nogif = counter_u64_fetch(V_ipstatp.ips_nogif);
-	ipstat.ips_badaddr = counter_u64_fetch(V_ipstatp.ips_badaddr);
-
-	/*
-	 * Old interface allowed to rewrite 'struct ipstat', and netstat(1)
-	 * used it to zero the structure. To keep compatibility with old
-	 * netstat(1) we will zero out statistics on every write attempt,
-	 * however we no longer support writing arbitrary fake values to
-	 * the statistics.
-	 */
-	if (req->newptr)
-		ipstat_zero();
+	for (i = 0, c = (counter_u64_t *)&V_ipstatp, v = (uint64_t *)&ipstat;
+	    i < sizeof(V_ipstatp) / sizeof(counter_u64_t);
+	    i++, c++, v++) {
+		*v = counter_u64_fetch(*c);
+		/*
+		 * Old interface allowed to rewrite 'struct ipstat', and
+		 * netstat(1) used it to zero the structure. To keep
+		 * compatibility with old netstat(1) we will zero out
+		 * statistics on every write attempt, however we no longer
+		 * support writing arbitrary fake values to the statistics.
+		 */
+		if (req->newptr)
+			counter_u64_zero(*c);
+	}
 
 	return (SYSCTL_OUT(req, &ipstat, sizeof(ipstat)));
 }
-
 SYSCTL_VNET_PROC(_net_inet_ip, IPCTL_STATS, stats, CTLTYPE_OPAQUE | CTLFLAG_RW,
     NULL, 0, ipstat_sysctl, "I",
     "IP statistics (struct ipstat, netinet/ip_var.h)");
+
 /*
+ * XXXGL!
  * Kernel module interface for updating ipstat.  The argument is an index
  * into ipstat treated as an array of u_long.  While this encodes the general
  * layout of ipstat into the caller, it doesn't encode its location, so that
