@@ -52,9 +52,10 @@ can be invoked separately by an installation script.
 .Sh TARGETS
 Most of the following targets are only useful for scripting the installer.
 For interactive use, most users will be interested only in the
-.Cm auto
+.Cm auto ,
+.Cm jail ,
 and
-.Cm jail
+.Cm script
 targets.
 .Bl -tag -width ".Cm jail Ar destination"
 .It Cm auto
@@ -68,6 +69,12 @@ Behavior is generally similar to
 .Cm auto ,
 except that disk partitioning and network setup are skipped and a kernel is
 not installed into the new system.
+.It Cm script Ar script
+Runs the installation script at
+.Pa script .
+See
+.Sx SCRIPTING
+for more information on this target.
 .It Cm keymap
 If the current controlling TTY is a
 .Xr syscons 4
@@ -104,11 +111,60 @@ partition schemes. Partitions disks, runs
 .Xr newfs 8 ,
 and writes the new system's
 .Pa fstab .
+.It Cm scriptedpart Ar parameters
+Sets up disks like
+.Cm autopart
+and
+.Cm partedit ,
+but non-interactively according to the disk setup specified in
+.Ar parameters .
+Each disk setup is specified by a three-part argument:
+.Pp
+.Ar disk [scheme] [{partitions}]
+.Pp
+Multiple disk setups are separated by semicolons. The
+.Ar disk
+argument specifies the disk on which to operate (which will be erased),
+while the
+.Ar scheme
+argument specifies the
+.Xr gpart 8
+partition scheme to apply to the disk. If
+.Ar scheme
+is unspecified,
+.Cm scriptedpart
+will apply the default bootable scheme on your platform.
+The
+.Ar partitions
+argument is also optional and specifies how to partition
+.Ar disk .
+It consists of a comma-separated list of partitions to create enclosed in
+curly braces. Each partition declaration takes the form
+.Pp
+.Ar size type [mount point]
+.Pp
+.Ar size
+specifies the partition size to create in bytes (K, M, and G suffixes
+can be appended to specify kilobytes, megabytes, and gigabytes respectively),
+while the
+.Em auto
+keyword causes the partition to take all the remaining space on the disk. The
+.Ar type
+option chooses the
+.Xr gpart 8
+filesystem type (e.g. freebsd-ufs or freebsd-swap).
+The optional
+.Ar mount point
+argument sets where the created partition is to be mounted in the installed
+system. As an example, a typical invocation looks like:
+.Pp
+bsdinstall scriptedpart ada0 { 20G freebsd-ufs /, 4G freebsd-swap, 20G freebsd-ufs /var, auto freebsd-ufs /usr }
 .It Cm mount
 Mounts the file systems previously configured by
-.Cm autopart
+.Cm autopart ,
+.Cm partedit ,
 or
-.Cm partedit
+.Cm scriptedpart
 under
 .Ev BSDINSTALL_CHROOT .
 .It Cm distfetch
@@ -177,6 +233,64 @@ target is executed. If this directory does not already exist, it will be
 created. Default:
 .Pa /tmp/bsdinstall_etc
 .El
+.Sh SCRIPTING
+.Nm
+scripts consist of two parts: a
+.Em preamble
+and a
+.Em setup script .
+The preamble sets up the options for the installation (how to partition the
+disk[s], which distributions to install, etc.) and the second part is
+a shell script run in a chroot in the newly installed system before
+.Nm
+exits. The two parts are separated by the usual script header (#!), which
+also sets the interpreter for the setup script.
+.Pp
+A typical bsdinstall script looks like this:
+.Bd -literal -offset indent
+PARTITIONS=ada0
+DISTRIBUTIONS="kernel.txz base.txz"
+
+#!/bin/sh
+echo "ifconfig_em0=DHCP" >> /etc/rc.conf
+echo "sshd_enable=YES" >> /etc/rc.conf
+pkg install puppet
+.Ed
+.Pp
+On
+.Fx
+release media, such a script placed at
+.Pa /etc/installerconfig
+will be run at boot time and the system will be rebooted automatically after
+the installation has completed. This can be used for unattended network
+installation of new systems; see
+.Xr diskless 8
+for details.
+.Ss PREAMBLE
+The preamble consists of installer settings. These control global installation
+parameters (see
+.Sx ENVIRONMENT VARIABLES )
+as well as disk partitioning. The preamble is interpreted as a
+.Xr sh 1
+script run at the very beginning of the install. If more complicated behavior
+than setting these variables is desired, arbitrary commands can be run here
+to extend the installer. In addition to the variables in
+.Sx ENVIRONMENT VARIABLES ,
+in particular
+.Ev DISTRIBUTIONS ,
+the preamble can contain a variable
+.Ev PARTITIONS
+which is passed to the
+.Cm scriptedpart
+target to control disk setup.
+.Ss SETUP SCRIPT
+Following the preamble is a shell script, beginning with a #! declaration.
+This script will be run at the end of the installation process inside a
+.Xr chroot 8
+environment in the newly installed system and can be used to set up
+configuration files, install packages, etc. Note that newly configured
+system services (e.g. networking) have not been started in the installed
+system at this time and only installation host services are available.
 .Sh HISTORY
 This version of
 .Nm
