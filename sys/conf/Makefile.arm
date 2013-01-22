@@ -41,6 +41,8 @@ STRIP_FLAGS = -S
 
 .if empty(DDB_ENABLED)
 CFLAGS += -mno-apcs-frame
+.elif defined(WITH_ARM_EABI)
+CFLAGS += -funwind-tables
 .endif
 
 SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${LDFLAGS} \

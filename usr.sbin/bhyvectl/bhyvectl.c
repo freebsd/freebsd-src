@@ -64,11 +64,11 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	"Usage: %s --vm=<name>\n"
+	"Usage: %s --vm=<vmname>\n"
 	"       [--cpu=<vcpu_number>]\n"
 	"       [--create]\n"
 	"       [--destroy]\n"
-	"	[--get-all]\n"
+	"       [--get-all]\n"
 	"       [--get-stats]\n"
 	"       [--set-desc-ds]\n"
 	"       [--get-desc-ds]\n"
