@@ -1112,7 +1112,10 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
 
-.if ${MK_FDT} != "no"
+# Default to building the BSDL DTC, but build the GPL one if users explicitly
+# request it.
+_dtc= /usr.bin/dtc
+.if ${MK_GPL_DTC} != "no"
 _dtc= gnu/usr.bin/dtc
 .endif
 
