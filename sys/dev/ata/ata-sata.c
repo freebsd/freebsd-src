@@ -53,7 +53,8 @@ ata_sata_phy_check_events(device_t dev, int port)
     struct ata_channel *ch = device_get_softc(dev);
     u_int32_t error, status;
 
-    ata_sata_scr_read(ch, port, ATA_SERROR, &error);
+    if (ata_sata_scr_read(ch, port, ATA_SERROR, &error))
+	return;
 
     /* Check that SError value is sane. */
     if (error == 0xffffffff)
@@ -66,8 +67,9 @@ ata_sata_phy_check_events(device_t dev, int port)
     /* if we have a connection event deal with it */
     if ((error & ATA_SE_PHY_CHANGED) && (ch->pm_level == 0)) {
 	if (bootverbose) {
-	    ata_sata_scr_read(ch, port, ATA_SSTATUS, &status);
-	    if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
+	    if (ata_sata_scr_read(ch, port, ATA_SSTATUS, &status)) {
+		    device_printf(dev, "PHYRDY change\n");
+	    } else if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
 		((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
 		((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
 		    device_printf(dev, "CONNECT requested\n");
