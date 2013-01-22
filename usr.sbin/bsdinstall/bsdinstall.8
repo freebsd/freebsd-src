@@ -240,8 +240,10 @@ scripts consist of two parts: a
 and a
 .Em setup script .
 The preamble sets up the options for the installation (how to partition the
-disk[s], which distributions to install, etc.) and the second part is
-a shell script run in a chroot in the newly installed system before
+disk[s], which distributions to install, etc.) and the optional second part is
+a shell script run under
+.Xr chroot 8
+in the newly installed system before
 .Nm
 exits. The two parts are separated by the usual script header (#!), which
 also sets the interpreter for the setup script.
