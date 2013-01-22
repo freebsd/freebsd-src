@@ -858,43 +858,43 @@ ip_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("%s:\n", name);
 
 #define	p(f, m) if (ipstat.f || sflag <= 1) \
-    printf(m, ipstat.f, plural(ipstat.f))
+    printf(m, (uintmax_t )ipstat.f, plural(ipstat.f))
 #define	p1a(f, m) if (ipstat.f || sflag <= 1) \
-    printf(m, ipstat.f)
+    printf(m, (uintmax_t )ipstat.f)
 
-	p(ips_total, "\t%lu total packet%s received\n");
-	p(ips_badsum, "\t%lu bad header checksum%s\n");
-	p1a(ips_toosmall, "\t%lu with size smaller than minimum\n");
-	p1a(ips_tooshort, "\t%lu with data size < data length\n");
-	p1a(ips_toolong, "\t%lu with ip length > max ip packet size\n");
-	p1a(ips_badhlen, "\t%lu with header length < data size\n");
-	p1a(ips_badlen, "\t%lu with data length < header length\n");
-	p1a(ips_badoptions, "\t%lu with bad options\n");
-	p1a(ips_badvers, "\t%lu with incorrect version number\n");
-	p(ips_fragments, "\t%lu fragment%s received\n");
-	p(ips_fragdropped, "\t%lu fragment%s dropped (dup or out of space)\n");
-	p(ips_fragtimeout, "\t%lu fragment%s dropped after timeout\n");
-	p(ips_reassembled, "\t%lu packet%s reassembled ok\n");
-	p(ips_delivered, "\t%lu packet%s for this host\n");
-	p(ips_noproto, "\t%lu packet%s for unknown/unsupported protocol\n");
-	p(ips_forward, "\t%lu packet%s forwarded");
-	p(ips_fastforward, " (%lu packet%s fast forwarded)");
+	p(ips_total, "\t%ju total packet%s received\n");
+	p(ips_badsum, "\t%ju bad header checksum%s\n");
+	p1a(ips_toosmall, "\t%ju with size smaller than minimum\n");
+	p1a(ips_tooshort, "\t%ju with data size < data length\n");
+	p1a(ips_toolong, "\t%ju with ip length > max ip packet size\n");
+	p1a(ips_badhlen, "\t%ju with header length < data size\n");
+	p1a(ips_badlen, "\t%ju with data length < header length\n");
+	p1a(ips_badoptions, "\t%ju with bad options\n");
+	p1a(ips_badvers, "\t%ju with incorrect version number\n");
+	p(ips_fragments, "\t%ju fragment%s received\n");
+	p(ips_fragdropped, "\t%ju fragment%s dropped (dup or out of space)\n");
+	p(ips_fragtimeout, "\t%ju fragment%s dropped after timeout\n");
+	p(ips_reassembled, "\t%ju packet%s reassembled ok\n");
+	p(ips_delivered, "\t%ju packet%s for this host\n");
+	p(ips_noproto, "\t%ju packet%s for unknown/unsupported protocol\n");
+	p(ips_forward, "\t%ju packet%s forwarded");
+	p(ips_fastforward, " (%ju packet%s fast forwarded)");
 	if (ipstat.ips_forward || sflag <= 1)
 		putchar('\n');
-	p(ips_cantforward, "\t%lu packet%s not forwardable\n");
+	p(ips_cantforward, "\t%ju packet%s not forwardable\n");
 	p(ips_notmember,
-	    "\t%lu packet%s received for unknown multicast group\n");
-	p(ips_redirectsent, "\t%lu redirect%s sent\n");
-	p(ips_localout, "\t%lu packet%s sent from this host\n");
-	p(ips_rawout, "\t%lu packet%s sent with fabricated ip header\n");
+	    "\t%ju packet%s received for unknown multicast group\n");
+	p(ips_redirectsent, "\t%ju redirect%s sent\n");
+	p(ips_localout, "\t%ju packet%s sent from this host\n");
+	p(ips_rawout, "\t%ju packet%s sent with fabricated ip header\n");
 	p(ips_odropped,
-	    "\t%lu output packet%s dropped due to no bufs, etc.\n");
-	p(ips_noroute, "\t%lu output packet%s discarded due to no route\n");
-	p(ips_fragmented, "\t%lu output datagram%s fragmented\n");
-	p(ips_ofragments, "\t%lu fragment%s created\n");
-	p(ips_cantfrag, "\t%lu datagram%s that can't be fragmented\n");
-	p(ips_nogif, "\t%lu tunneling packet%s that can't find gif\n");
-	p(ips_badaddr, "\t%lu datagram%s with bad address in header\n");
+	    "\t%ju output packet%s dropped due to no bufs, etc.\n");
+	p(ips_noroute, "\t%ju output packet%s discarded due to no route\n");
+	p(ips_fragmented, "\t%ju output datagram%s fragmented\n");
+	p(ips_ofragments, "\t%ju fragment%s created\n");
+	p(ips_cantfrag, "\t%ju datagram%s that can't be fragmented\n");
+	p(ips_nogif, "\t%ju tunneling packet%s that can't find gif\n");
+	p(ips_badaddr, "\t%ju datagram%s with bad address in header\n");
 #undef p
 #undef p1a
 }
