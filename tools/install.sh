@@ -34,9 +34,9 @@ linkmode=""
 while [ $# -gt 0 ]; do
     case $1 in
     -d) dirmode="YES"; shift;;
-    -[bCcMpSsv]) shift;;
-    -[Bfgmo]) shift; shift;;
-    -[Bfgmo]*) shift;;
+    -[bCcpSsv]) shift;;
+    -[BDfghMmNoTU]) shift; shift;;
+    -[BDfghMmNoTU]*) shift;;
     -l)
 	shift
 	case $1 in
@@ -63,7 +63,7 @@ fi
 # the remaining arguments are assumed to be files/dirs only.
 if [ -n "${linkmode}" ]; then
 	if [ "${linkmode}" == "symbolic" ]; then
-		ln -fs "$@"
+		ln -fsh "$@"
 	else
 		ln -f "$@"
 	fi

@@ -1394,6 +1394,21 @@ int __cvmx_helper_board_hardware_enable(int interface)
             }
         }
     }
+#if defined(OCTEON_VENDOR_UBIQUITI)
+    else if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_UBIQUITI_E100)
+    {
+	/* Configure ASX cloks for all ports on interface 0.  */
+	if (interface == 0)
+	{
+	    int port;
+
+	    for (port = 0; port < 3; port++) {
+                cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 16);
+                cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, interface), 0);
+	    }
+	}
+    }
+#endif
     return 0;
 }
 

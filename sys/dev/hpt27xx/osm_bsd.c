@@ -167,7 +167,8 @@ static int hpt_alloc_mem(PVBUS_EXT vbus_ext)
 
 		HPT_ASSERT((f->size & (f->alignment-1))==0);
 
-		for (order=0, size=PAGE_SIZE; size<f->size; order++, size<<=1) ;
+		for (order=0, size=PAGE_SIZE; size<f->size; order++, size<<=1)
+			;
 
 		KdPrint(("%s: %d*%d=%d bytes, order %d",
 			f->tag, f->count, f->size, f->count*f->size, order));
@@ -1036,6 +1037,7 @@ static void hpt_final_init(void *dummy)
 	}
 
 	if (!i) {
+		if (bootverbose)
 			os_printk("no controller detected.");
 		return;
 	}
@@ -1177,7 +1179,7 @@ static void hpt_final_init(void *dummy)
 	}	
 
 	make_dev(&hpt_cdevsw, DRIVER_MINOR, UID_ROOT, GID_OPERATOR,
-	    S_IRUSR | S_IWUSR, driver_name);
+	    S_IRUSR | S_IWUSR, "%s", driver_name);
 }
 
 #if defined(KLD_MODULE) && (__FreeBSD_version >= 503000)
@@ -1224,6 +1226,7 @@ static void override_kernel_driver(void)
 
 static void hpt_init(void *dummy)
 {
+	if (bootverbose)
 		os_printk("%s %s", driver_name_long, driver_ver);
 
 	override_kernel_driver();

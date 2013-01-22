@@ -162,6 +162,7 @@ LIBULOG?=	${DESTDIR}${LIBDIR}/libulog.a
 LIBUTIL?=	${DESTDIR}${LIBDIR}/libutil.a
 LIBUUTIL?=	${DESTDIR}${LIBDIR}/libuutil.a
 LIBVGL?=	${DESTDIR}${LIBDIR}/libvgl.a
+LIBVMMAPI?=	${DESTDIR}${LIBDIR}/libvmmapi.a
 LIBWIND?=	${DESTDIR}${LIBDIR}/libwind.a
 LIBWRAP?=	${DESTDIR}${LIBDIR}/libwrap.a
 LIBXPG4?=	${DESTDIR}${LIBDIR}/libxpg4.a

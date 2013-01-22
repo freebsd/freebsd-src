@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2012
+.Dd January 21, 2013
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -417,7 +417,9 @@ and
 facilities, and has a lower precedence.
 The filter will record
 all attempts to deliver a signal to a process, even if the signal has
-been marked as SIG_IGN.
+been marked as SIG_IGN, except for the
+.Dv SIGCHLD
+signal, which, if ignored, won't be recorded by the filter.
 Event notification happens after normal
 signal delivery processing.
 .Va data
