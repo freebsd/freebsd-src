@@ -48,11 +48,12 @@ struct vmspace;
 	unsigned int pc_vfpmvfr0;					\
 	unsigned int pc_vfpmvfr1;					\
 	struct thread *pc_vfpcthread;					\
-	struct pmap *pc_curpmap;
+	struct pmap *pc_curpmap;					\
+	char __pad[133]
 #else
-#define PCPU_MD_FIELDS
+#define PCPU_MD_FIELDS							\
+	char __pad[157]
 #endif
-
 
 #ifdef _KERNEL
 
