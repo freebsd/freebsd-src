@@ -36,7 +36,7 @@
 .Nd install binaries
 .Sh SYNOPSIS
 .Nm
-.Op Fl bCcMpSsUv
+.Op Fl bCcpSsUv
 .Op Fl B Ar suffix
 .Op Fl D Ar destdir
 .Op Fl f Ar flags
@@ -50,7 +50,7 @@
 .Op Fl T Ar tags
 .Ar file1 file2
 .Nm
-.Op Fl bCcMpSsUv
+.Op Fl bCcpSsUv
 .Op Fl B Ar suffix
 .Op Fl D Ar destdir
 .Op Fl f Ar flags
@@ -194,9 +194,6 @@ are:
 Absolute and relative have effect only for symbolic links.
 Mixed links
 are hard links for files on the same filesystem, symbolic otherwise.
-.It Fl M
-Disable all use of
-.Xr mmap 2 .
 .It Fl M Ar metalog
 Write the metadata associated with each item installed to
 .Ar metalog
