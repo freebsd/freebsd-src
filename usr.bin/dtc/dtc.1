@@ -83,7 +83,7 @@ checker.  The full list of checkers is given in
 Force the tool to attempt to generate the output, even if the input had errors.
 .It Fl h
 Display the help text and exit.
-.It Fl H Ar phandle_format 
+.It Fl H Ar phandle_format
 Specifies the type of phandle nodes to generate in the output.  Valid values
 are:
 .Pp
@@ -121,7 +121,7 @@ if the output format is not explicitly stated.
 Device tree source.  The ASCII representation of the FDT.
 .El
 .It Fl o Ar output_file
-The file to which to write the output.  
+The file to which to write the output.
 .It Fl R Ar entries
 The number of empty reservation table entries to pad the table with.  This is
 useful if you are generating a device tree blob for bootloader or similar that
@@ -129,11 +129,11 @@ needs to reserve some memory before passing control to the operating system.
 .It Fl S Ar bytes
 The minimum size in bytes of the blob.  The blob will be padded after the
 strings table to ensure that it is the correct size.  This is useful for
-environments where the device tree blob must be modified in place.  
+environments where the device tree blob must be modified in place.
 .It Fl p Ar bytes
 The number of bytes of padding to add to the blob.  The blob will be padded
 after the strings table to ensure that it is the correct size.  This is useful
-for environments where the device tree blob must be modified in place.  
+for environments where the device tree blob must be modified in place.
 .It Fl W Ar [no-]checker_name
 Enable or disable a specified checker.  This is an alias for
 .Fl E .
@@ -183,16 +183,16 @@ will disable the phandle type check.  The supported checks are:
 .Pp
 .Bl -tag -width "no-type-phandle" -compact -offset indent
 .It type-compatible
-Checks the type of the 
+Checks the type of the
 .Va compatible
 property.
 .It type-model
-Checks the type of the 
+Checks the type of the
 .Va model
 property.
 .It type-compatible
-Checks the type of the 
-.Va compatible 
+Checks the type of the
+.Va compatible
 property.
 .El
 .Sh EXAMPLES
@@ -200,7 +200,7 @@ The command:
 .Pp
 .Dl "dtc -o blob.S -O asm device.dts"
 .Pp
-will generate a 
+will generate a
 .Pa blob.S
 file from the device tree source
 .Pa device.dts
@@ -220,7 +220,7 @@ provided by elinux.org.  Currently, it implements the subset of features
 required to build FreeBSD and others that have been requested by FreeBSD
 developers.
 .Pp
-The 
+The
 .Ar fs
 input format is not supported.  This builds a tree from a Linux
 .Pa  /proc/device-tree ,
@@ -258,7 +258,7 @@ from the first and properties child nodes being recursively merged.
 .Sh HISTORY
 A dtc tool first appeared in
 .Fx 9.0 .
-This version of the tool first appeared in 
+This version of the tool first appeared in
 .Fx 10.0 .
 .Sh AUTHORS
 .An David T. Chisnall
