@@ -138,7 +138,7 @@ void	altera_sdcard_io_start(struct altera_sdcard_softc *sc,
  * data.  Software ease of use was not a design consideration.
  */
 #define	ALTERA_SDCARD_CSD_C_SIZE_BYTE0		7
-#define	ALTERA_SDCARD_CSD_C_SIZE_MASK0		0xc	/* top 2 bits */
+#define	ALTERA_SDCARD_CSD_C_SIZE_MASK0		0xc0	/* top 2 bits */
 #define	ALTERA_SDCARD_CSD_C_SIZE_RSHIFT0	6
 
 #define	ALTERA_SDCARD_CSD_C_SIZE_BYTE1		8
