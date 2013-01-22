@@ -106,7 +106,8 @@ __start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
 {
 	const char *s;
 
-	environ = env;
+	if (environ == NULL)
+		environ = env;
 
 	if (argc > 0 && argv[0] != NULL) {
 		__progname = argv[0];

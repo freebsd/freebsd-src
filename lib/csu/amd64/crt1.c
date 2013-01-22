@@ -71,7 +71,8 @@ _start(char **ap, void (*cleanup)(void))
 	argc = *(long *)(void *)ap;
 	argv = ap + 1;
 	env = ap + 2 + argc;
-	environ = env;
+	if (environ == NULL)
+		environ = env;
 	if (argc > 0 && argv[0] != NULL) {
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)

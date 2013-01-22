@@ -70,7 +70,8 @@ _start1(fptr cleanup, int argc, char *argv[])
 	const char *s;
 
 	env = argv + argc + 1;
-	environ = env;
+	if (environ == NULL)
+		environ = env;
 	if (argc > 0 && argv[0] != NULL) {
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)
