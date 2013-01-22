@@ -70,13 +70,13 @@ struct file;
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#if !defined(linux)
+# include <netinet/ip_var.h>
+#endif
 #if !defined(_KERNEL) && !defined(__osf__) && !defined(__sgi)
 # define	KERNEL
 # define	_KERNEL
 # define	NOT_KERNEL
-#endif
-#if !defined(linux)
-# include <netinet/ip_var.h>
 #endif
 #ifdef	NOT_KERNEL
 # undef	_KERNEL
