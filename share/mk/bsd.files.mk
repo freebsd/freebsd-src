@@ -26,6 +26,7 @@ ${group}DIR?=	${BINDIR}
 STAGE_SETS+=	${group}
 .endif
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
+STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
 
 _${group}FILES=
 .for file in ${${group}}
