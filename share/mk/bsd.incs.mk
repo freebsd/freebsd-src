@@ -26,6 +26,7 @@ ${group}MODE?=	${NOBINMODE}
 ${group}DIR?=	${INCLUDEDIR}
 STAGE_SETS+=	${group}
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
+STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
 
 _${group}INCS=
 .for header in ${${group}}
