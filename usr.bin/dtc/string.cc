@@ -31,6 +31,8 @@
  */
 
 #include "string.hh"
+#include <ctype.h>
+#include <stdio.h>
 
 namespace
 {

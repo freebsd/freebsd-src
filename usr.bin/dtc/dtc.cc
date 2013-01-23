@@ -31,10 +31,14 @@
  */
 
 #include <sys/resource.h>
-#include <time.h>
-#include <stdio.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+
 
 #include "fdt.hh"
 #include "checking.hh"
