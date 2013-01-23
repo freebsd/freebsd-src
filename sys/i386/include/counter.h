@@ -30,23 +30,46 @@
 #define __MACHINE_COUNTER_H__
 
 #include <sys/pcpu.h>
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
+
+static inline void
+counter_64_inc_8b(uint64_t *p, uint64_t inc)
+{
+
+	__asm __volatile(
+	"movl	%%fs:(%%esi),%%eax\n\t"
+	"movl	%%fs:4(%%esi),%%edx\n"
+"1:\n\t"
+	"movl	%%eax,%%ebx\n\t"
+	"movl	%%edx,%%ecx\n\t"
+	"addl	(%%edi),%%ebx\n\t"
+	"adcl	4(%%edi),%%ecx\n\t"
+	"cmpxchg8b %%fs:(%%esi)\n\t"
+	"jnz	1b"
+	:
+	: "S" (p), "D" (&inc)
+	: "memory", "cc", "eax", "edx", "ebx", "ecx");
+}
 
 static __inline void
 counter_u64_inc(counter_u64_t c, uint64_t inc)
 {
 
-	critical_enter();
-	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) += inc;
-	critical_exit();
+	if ((cpu_feature & CPUID_CX8) == 0) {
+		critical_enter();
+		*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) += inc;
+		critical_exit();
+	} else {
+		counter_64_inc_8b(c, inc);
+	}
 }
 
 static __inline void
 counter_u64_dec(counter_u64_t c, uint64_t dec)
 {
 
-	critical_enter();
-	*(uint64_t *)((char *)c + sizeof(struct pcpu) * curcpu) -= dec;
-	critical_exit();
+	counter_u64_inc(c, -(int64_t)dec);
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */
