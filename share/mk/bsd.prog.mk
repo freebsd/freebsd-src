@@ -241,12 +241,24 @@ stage_files stage_as:
 .else
 # normally only libs and includes are staged
 .if ${MK_STAGING_PROG:Uno} != "no"
-STAGE_SETS+= prog
 STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
+STAGE_SYMLINKS_DIR.prog= ${STAGE_OBJTOP}
+
+.if defined(PROGNAME)
+STAGE_AS_SETS+= prog
+STAGE_AS_${PROG}= ${PROGNAME}
+stage_as.prog: ${PROG}
+.if !empty(PROG)
+all: stage_as
+.endif
+.else
+STAGE_SETS+= prog
+stage_files.prog: ${PROG}
 .if !empty(PROG)
 all: stage_files
-stage_files.prog: ${PROG}
 .endif
+.endif
+
 .if !empty(SYMLINKS)
 all:   stage_symlinks
 STAGE_SYMLINKS.prog= ${SYMLINKS}
