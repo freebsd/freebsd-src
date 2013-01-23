@@ -39,8 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 
+#include <sys/syscallsubr.h> /* kern_clock_gettime() */
+
 static struct cdev *wd_dev;
-static volatile u_int wd_last_u;
+static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
+
+static int wd_lastpat_valid = 0;
+static time_t wd_lastpat = 0;	/* when the watchdog was last patted */
 
 static int
 kern_do_pat(u_int utim)
@@ -51,11 +56,20 @@ kern_do_pat(u_int utim)
 		return (EINVAL);
 
 	if ((utim & WD_LASTVAL) != 0) {
+		/*
+		 * if WD_LASTVAL is set, fill in the bits for timeout
+		 * from the saved value in wd_last_u.
+		 */
 		MPASS((wd_last_u & ~WD_INTERVAL) == 0);
 		utim &= ~WD_LASTVAL;
 		utim |= wd_last_u;
-	} else
+	} else {
+		/*
+		 * Otherwise save the new interval.
+		 * This can be zero (to disable the watchdog)
+		 */
 		wd_last_u = (utim & WD_INTERVAL);
+	}
 	if ((utim & WD_INTERVAL) == WD_TO_NEVER) {
 		utim = 0;
 
@@ -66,17 +80,28 @@ kern_do_pat(u_int utim)
 		error = EOPNOTSUPP;
 	}
 	EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+	/*
+	 * If we were able to arm/strobe the watchdog, then
+	 * update the last time it was strobed for WDIOC_GETTIMELEFT
+	 */
+	if (!error) {
+		struct timespec ts;
+
+		error = kern_clock_gettime(curthread /* XXX */,
+		    CLOCK_MONOTONIC_FAST, &ts);
+		if (!error) {
+			wd_lastpat = ts.tv_sec;
+			wd_lastpat_valid = 1;
+		}
+	}
 	return (error);
 }
 
 static int
-wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
-    int flags __unused, struct thread *td)
+wd_ioctl_patpat(caddr_t data)
 {
 	u_int u;
 
-	if (cmd != WDIOCPATPAT)
-		return (ENOIOCTL);
 	u = *(u_int *)data;
 	if (u & ~(WD_ACTIVE | WD_PASSIVE | WD_LASTVAL | WD_INTERVAL))
 		return (EINVAL);
@@ -91,6 +116,57 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 
 	return (kern_do_pat(u));
 }
+
+static int
+wd_get_time_left(struct thread *td, time_t *remainp)
+{
+	struct timespec ts;
+	int error;
+
+	error = kern_clock_gettime(td, CLOCK_MONOTONIC_FAST, &ts);
+	if (error)
+		return (error);
+	if (!wd_lastpat_valid)
+		return (ENOENT);
+	*remainp = ts.tv_sec - wd_lastpat;
+	return (0);
+}
+
+static int
+wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
+    int flags __unused, struct thread *td)
+{
+	u_int u;
+	time_t timeleft;
+	int error;
+
+	error = 0;
+
+	switch (cmd) {
+	case WDIOC_GETTIMELEFT:
+		error = wd_get_time_left(td, &timeleft);
+		if (error)
+			break;
+		*(int *)data = (int)timeleft;
+		break;
+	case WDIOC_SETTIMEOUT:
+		u = *(u_int *)data;
+		error = wdog_kern_pat(u);
+		break;
+	case WDIOC_GETTIMEOUT:
+		u = wdog_kern_last_timeout();
+		*(u_int *)data = u;
+		break;
+	case WDIOCPATPAT:
+		error = wd_ioctl_patpat(data);
+		break;
+	default:
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
+}
+		
 
 u_int
 wdog_kern_last_timeout(void)

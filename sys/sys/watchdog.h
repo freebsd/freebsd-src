@@ -33,6 +33,9 @@
 #define	_PATH_WATCHDOG	"fido"
 
 #define WDIOCPATPAT	_IOW('W', 42, u_int)
+#define WDIOC_SETTIMEOUT    _IOW('W', 43, int)
+#define WDIOC_GETTIMEOUT    _IOR('W', 44, int)
+#define WDIOC_GETTIMELEFT   _IOR('W', 45, int)
 
 #define WD_ACTIVE	0x8000000
 	/* 
