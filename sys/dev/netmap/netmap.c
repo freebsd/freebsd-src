@@ -275,6 +275,51 @@ nm_find_bridge(const char *name)
 }
 #endif /* NM_BRIDGE */
 
+
+/*
+ * Fetch configuration from the device, to cope with dynamic
+ * reconfigurations after loading the module.
+ */
+static int
+netmap_update_config(struct netmap_adapter *na)
+{
+	struct ifnet *ifp = na->ifp;
+	u_int txr, txd, rxr, rxd;
+
+	txr = txd = rxr = rxd = 0;
+	if (na->nm_config) {
+		na->nm_config(ifp, &txr, &txd, &rxr, &rxd);
+	} else {
+		/* take whatever we had at init time */
+		txr = na->num_tx_rings;
+		txd = na->num_tx_desc;
+		rxr = na->num_rx_rings;
+		rxd = na->num_rx_desc;
+	}	
+
+	if (na->num_tx_rings == txr && na->num_tx_desc == txd &&
+	    na->num_rx_rings == rxr && na->num_rx_desc == rxd)
+		return 0; /* nothing changed */
+	if (netmap_verbose || na->refcount > 0) {
+		D("stored config %s: txring %d x %d, rxring %d x %d",
+			ifp->if_xname,
+			na->num_tx_rings, na->num_tx_desc,
+			na->num_rx_rings, na->num_rx_desc);
+		D("new config %s: txring %d x %d, rxring %d x %d",
+			ifp->if_xname, txr, txd, rxr, rxd);
+	}
+	if (na->refcount == 0) {
+		D("configuration changed (but fine)");
+		na->num_tx_rings = txr;
+		na->num_tx_desc = txd;
+		na->num_rx_rings = rxr;
+		na->num_rx_desc = rxd;
+		return 0;
+	}
+	D("configuration changed while active, this is bad...");
+	return 1;
+}
+
 /*------------- memory allocator -----------------*/
 #ifdef NETMAP_MEM2
 #include "netmap_mem2.c"
@@ -351,7 +396,8 @@ netmap_dtor_locked(void *data)
 	if (na->refcount <= 0) {	/* last instance */
 		u_int i, j, lim;
 
-		D("deleting last netmap instance for %s", ifp->if_xname);
+		if (netmap_verbose)
+			D("deleting last instance for %s", ifp->if_xname);
 		/*
 		 * there is a race here with *_netmap_task() and
 		 * netmap_poll(), which don't run under NETMAP_REG_LOCK.
@@ -482,7 +528,8 @@ static int
 netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
-	D("first mmap for %p", handle);
+	if (netmap_verbose)
+		D("first mmap for %p", handle);
 	return saved_cdev_pager_ops.cdev_pg_ctor(handle,
 			size, prot, foff, cred, color);
 }
@@ -491,7 +538,7 @@ static void
 netmap_dev_pager_dtor(void *handle)
 {
 	saved_cdev_pager_ops.cdev_pg_dtor(handle);
-	D("ready to release memory for %p", handle);
+	ND("ready to release memory for %p", handle);
 }
 
 
@@ -507,7 +554,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 {
 	vm_object_t obj;
 
-	D("cdev %p foff %jd size %jd objp %p prot %d", cdev,
+	ND("cdev %p foff %jd size %jd objp %p prot %d", cdev,
 	    (intmax_t )*foff, (intmax_t )objsize, objp, prot);
 	obj = vm_pager_allocate(OBJT_DEVICE, cdev, objsize, prot, *foff,
             curthread->td_ucred);
@@ -515,7 +562,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 	if (obj == NULL)
 		return EINVAL;
 	if (saved_cdev_pager_ops.cdev_pg_fault == NULL) {
-		D("initialize cdev_pager_ops");
+		ND("initialize cdev_pager_ops");
 		saved_cdev_pager_ops = *(obj->un_pager.devp.ops);
 		netmap_cdev_pager_ops.cdev_pg_fault =
 			saved_cdev_pager_ops.cdev_pg_fault;
@@ -572,7 +619,9 @@ netmap_mmap(__unused struct cdev *dev,
 static int
 netmap_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	D("dev %p fflag 0x%x devtype %d td %p", dev, fflag, devtype, td);
+	if (netmap_verbose)
+		D("dev %p fflag 0x%x devtype %d td %p",
+			dev, fflag, devtype, td);
 	return 0;
 }
 
@@ -877,6 +926,7 @@ netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
 	priv->np_txpoll = (ringid & NETMAP_NO_TX_POLL) ? 0 : 1;
 	if (need_lock)
 		na->nm_lock(ifp, NETMAP_CORE_UNLOCK, 0);
+    if (netmap_verbose) {
 	if (ringid & NETMAP_SW_RING)
 		D("ringid %s set to SW RING", ifp->if_xname);
 	else if (ringid & NETMAP_HW_RING)
@@ -884,6 +934,7 @@ netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
 			priv->np_qfirst);
 	else
 		D("ringid %s set to all %d HW RINGS", ifp->if_xname, lim);
+    }
 	return 0;
 }
 
@@ -965,6 +1016,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		if (error)
 			break;
 		na = NA(ifp); /* retrieve netmap_adapter */
+		netmap_update_config(na);
 		nmr->nr_rx_rings = na->num_rx_rings;
 		nmr->nr_tx_rings = na->num_tx_rings;
 		nmr->nr_rx_slots = na->num_rx_desc;
@@ -1014,6 +1066,8 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			break;
 		}
 
+		/* ring configuration may have changed, fetch from the card */
+		netmap_update_config(na);
 		priv->np_ifp = ifp;	/* store the reference */
 		error = netmap_set_ringid(priv, nmr->nr_ringid);
 		if (error)
@@ -1444,46 +1498,28 @@ netmap_lock_wrapper(struct ifnet *dev, int what, u_int queueid)
  * setups.
  */
 int
-netmap_attach(struct netmap_adapter *na, int num_queues)
+netmap_attach(struct netmap_adapter *arg, int num_queues)
 {
-	int n, size;
-	void *buf;
-	struct ifnet *ifp = na->ifp;
+	struct netmap_adapter *na = NULL;
+	struct ifnet *ifp = arg ? arg->ifp : NULL;
 
-	if (ifp == NULL) {
-		D("ifp not set, giving up");
-		return EINVAL;
-	}
-	/* clear other fields ? */
-	na->refcount = 0;
+	if (arg == NULL || ifp == NULL)
+		goto fail;
+	na = malloc(sizeof(*na), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (na == NULL)
+		goto fail;
+	WNA(ifp) = na;
+	*na = *arg; /* copy everything, trust the driver to not pass junk */
+	NETMAP_SET_CAPABLE(ifp);
 	if (na->num_tx_rings == 0)
 		na->num_tx_rings = num_queues;
 	na->num_rx_rings = num_queues;
-	/* on each direction we have N+1 resources
-	 * 0..n-1	are the hardware rings
-	 * n		is the ring attached to the stack.
-	 */
-	n = na->num_rx_rings + na->num_tx_rings + 2;
-	size = sizeof(*na) + n * sizeof(struct netmap_kring);
-
-	buf = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (buf) {
-		WNA(ifp) = buf;
-		na->tx_rings = (void *)((char *)buf + sizeof(*na));
-		na->rx_rings = na->tx_rings + na->num_tx_rings + 1;
-		bcopy(na, buf, sizeof(*na));
-		NETMAP_SET_CAPABLE(ifp);
-
-		na = buf;
-		/* Core lock initialized here.  Others are initialized after
-		 * netmap_if_new.
-		 */
-		mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK,
-		    MTX_DEF);
-		if (na->nm_lock == NULL) {
-			ND("using default locks for %s", ifp->if_xname);
-			na->nm_lock = netmap_lock_wrapper;
-		}
+	na->refcount = na->na_single = na->na_multi = 0;
+	/* Core lock initialized here, others after netmap_if_new. */
+	mtx_init(&na->core_lock, "netmap core lock", MTX_NETWORK_LOCK, MTX_DEF);
+	if (na->nm_lock == NULL) {
+		ND("using default locks for %s", ifp->if_xname);
+		na->nm_lock = netmap_lock_wrapper;
 	}
 #ifdef linux
 	if (ifp->netdev_ops) {
@@ -1493,9 +1529,12 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 	}
 	na->nm_ndo.ndo_start_xmit = linux_netmap_start;
 #endif
-	D("%s for %s", buf ? "ok" : "failed", ifp->if_xname);
+	D("success for %s", ifp->if_xname);
+	return 0;
 
-	return (buf ? 0 : ENOMEM);
+fail:
+	D("fail, arg %p ifp %p na %p", arg, ifp, na);
+	return (na ? EINVAL : ENOMEM);
 }
 
 
@@ -1513,6 +1552,10 @@ netmap_detach(struct ifnet *ifp)
 
 	mtx_destroy(&na->core_lock);
 
+	if (na->tx_rings) { /* XXX should not happen */
+		D("freeing leftover tx_rings");
+		free(na->tx_rings, M_DEVBUF);
+	}
 	bzero(na, sizeof(*na));
 	WNA(ifp) = NULL;
 	free(na, M_DEVBUF);
