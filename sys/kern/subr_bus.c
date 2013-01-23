@@ -3318,7 +3318,7 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 /**
  * @brief Fully release a reserved resource
  *
- * Fully releases a resouce reserved via resource_list_reserve().
+ * Fully releases a resource reserved via resource_list_reserve().
  *
  * @param rl		the resource list which was allocated from
  * @param bus		the parent device of @p child
