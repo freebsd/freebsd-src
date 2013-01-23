@@ -50,8 +50,8 @@ void warnpkgng(void)
 	if (pkgngdir == NULL)
 		pkgngdir = "/var/db/pkg";
 
-	rc = snprintf(pkgngpath, sizeof(pkgngpath) "%s/local.sqlite", pkgngdir);
-	if (rc >= sizeof(pkgngpath)) {
+	rc = snprintf(pkgngpath, sizeof(pkgngpath), "%s/local.sqlite", pkgngdir);
+	if ((size_t)rc >= sizeof(pkgngpath)) {
 		warnx("path too long: %s/local.sqlite", pkgngdir);
 		return;
 	}
