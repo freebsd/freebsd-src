@@ -33,9 +33,13 @@
 #include "fdt.hh"
 
 #include <algorithm>
-#include <inttypes.h>
+#include <ctype.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <libgen.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "dtb.hh"
 
 namespace dtc

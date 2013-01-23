@@ -31,6 +31,7 @@
  */
 
 #include "checking.hh"
+#include <stdio.h>
 
 namespace dtc
 {

@@ -31,7 +31,11 @@
  */
 
 #include "dtb.hh"
+#include <sys/types.h>
 #include <inttypes.h>
+#include <stdio.h>
+#include <unistd.h>
+
 
 namespace dtc
 {
