@@ -1410,7 +1410,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		if (totsize & UMA_ALIGN_PTR)
 			totsize = (totsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
-		keg->uk_pgoff = (UMA_SLAB_SIZE * keg->uk_ppera) - totsize;
+		keg->uk_pgoff = (PAGE_SIZE * keg->uk_ppera) - totsize;
 
 		if (keg->uk_flags & UMA_ZONE_REFCNT)
 			totsize = keg->uk_pgoff + sizeof(struct uma_slab_refcnt)
@@ -1426,7 +1426,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		 * mathematically possible for all cases, so we make
 		 * sure here anyway.
 		 */
-		if (totsize > UMA_SLAB_SIZE * keg->uk_ppera) {
+		if (totsize > PAGE_SIZE * keg->uk_ppera) {
 			printf("zone %s ipers %d rsize %d size %d\n",
 			    zone->uz_name, keg->uk_ipers, keg->uk_rsize,
 			    keg->uk_size);
