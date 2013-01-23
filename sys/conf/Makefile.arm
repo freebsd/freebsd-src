@@ -39,6 +39,8 @@ SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 STRIP_FLAGS = -S
 .endif
 
+CFLAGS += -mno-thumb-interwork
+
 .if empty(DDB_ENABLED)
 CFLAGS += -mno-apcs-frame
 .elif defined(WITH_ARM_EABI)
