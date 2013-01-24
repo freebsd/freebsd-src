@@ -522,31 +522,14 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	}
 
 	len = uio->uio_resid;
-
-	if (len - hlen > ifp->if_mtu)
+	if (len < hlen || len - hlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
-	if ((unsigned)len > MJUM16BYTES)
+	m = m_get2(M_WAITOK, MT_DATA, M_PKTHDR, len);
+	if (m == NULL)
 		return (EIO);
-
-	if (len <= MHLEN)
-		MGETHDR(m, M_WAITOK, MT_DATA);
-	else if (len <= MCLBYTES)
-		m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
-	else
-		m = m_getjcl(M_WAITOK, MT_DATA, M_PKTHDR,
-#if (MJUMPAGESIZE > MCLBYTES)
-		    len <= MJUMPAGESIZE ? MJUMPAGESIZE :
-#endif
-		    (len <= MJUM9BYTES ? MJUM9BYTES : MJUM16BYTES));
 	m->m_pkthdr.len = m->m_len = len;
-	m->m_pkthdr.rcvif = NULL;
 	*mp = m;
-
-	if (m->m_len < hlen) {
-		error = EPERM;
-		goto bad;
-	}
 
 	error = uiomove(mtod(m, u_char *), len, uio);
 	if (error)
