@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2009
+.Dd January 21, 2013
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -182,7 +182,11 @@ options.
 .Pq Vt bool
 Set this to use
 .Xr cvs 1
-to update your ports with
+to update your
+.Pa src , ports
+and
+.Pa doc
+trees with
 .Dq Li "make update" .
 .It Va CXXFLAGS
 .Pq Vt str
@@ -197,14 +201,6 @@ value, use
 .Dq Li +=
 instead of
 .Dq Li = .
-.It Va DOCSUPFILE
-.Pq Vt str
-The documentation
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/doc\-supfile .
 .It Va INSTALL
 .Pq Vt str
 the default install command.
@@ -266,8 +262,8 @@ The ports
 .Ar supfile
 to use when doing a
 .Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/ports\-supfile .
+For example,
+.Pa /usr/share/examples/cvsup/ports-supfile .
 .It Va SUP
 .Pq Vt str
 The location of the
@@ -282,24 +278,20 @@ The first
 .Ar supfile
 to use when doing a
 .Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/standard\-supfile .
+For example,
+.Pa /usr/share/examples/cvsup/standard-supfile .
 .It Va SUPFILE1
 .Pq Vt str
 The second
 .Ar supfile
 to use when doing a
 .Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/secure\-supfile .
 .It Va SUPFILE2
 .Pq Vt str
 The third
 .Ar supfile
 to use when doing a
 .Dq Li "make update" .
-This defaults to
-.Pa /usr/share/examples/cvsup/secure\-supfile .
 .It Va SUPFLAGS
 .Pq Vt str
 The flag for the
@@ -316,16 +308,25 @@ The hostname of the sup server to use when doing
 .Pq Vt bool
 Set this to use
 .Xr cvsup 1
-to update your ports with
+to update your
+.Pa src ,
+and
+.Pa ports
+trees with
 .Dq Li "make update" .
-.It Va WWWSUPFILE
-.Pq Vt str
-The www
-.Ar supfile
-to use when doing a
-.Dq Li "make update"
-This defaults to
-.Pa /usr/share/examples/cvsup/www\-supfile .
+This option is deprecated.
+Please use
+.Va SVN_UPDATE
+or
+.Xr freebsd-update 8 .
+.It Va SVN_UPDATE
+.Pq Vt bool
+Set this to use
+.Xr svn 1
+to update your
+.Pa src
+tree with
+.Dq Li "make update" .
 .El
 .Ss "BUILDING THE KERNEL"
 The following list provides a name and short description for variables
@@ -731,6 +732,7 @@ filter, or both.
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
 .It Pa /etc/make.conf
 .It Pa /usr/doc/Makefile
+.It Pa /usr/ports/Makefile
 .It Pa /usr/share/examples/etc/make.conf
 .It Pa /usr/share/mk/sys.mk
 .It Pa /usr/src/Makefile
