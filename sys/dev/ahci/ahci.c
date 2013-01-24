@@ -114,8 +114,9 @@ static struct {
 #define AHCI_Q_NOAA	512
 #define AHCI_Q_NOCOUNT	1024
 #define AHCI_Q_ALTSIG	2048
+#define AHCI_Q_NOMSI	4096
 } ahci_ids[] = {
-	{0x43801002, 0x00, "ATI IXP600",	0},
+	{0x43801002, 0x00, "ATI IXP600",	AHCI_Q_NOMSI},
 	{0x43901002, 0x00, "ATI IXP700",	0},
 	{0x43911002, 0x00, "ATI IXP700",	0},
 	{0x43921002, 0x00, "ATI IXP700",	0},
@@ -634,6 +635,8 @@ ahci_setup_interrupt(device_t dev)
 	int i, msi = 1;
 
 	/* Process hints. */
+	if (ctlr->quirks & AHCI_Q_NOMSI)
+		msi = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "msi", &msi);
 	if (msi < 0)
