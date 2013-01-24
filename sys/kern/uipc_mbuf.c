@@ -85,6 +85,79 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 #endif
 
 /*
+ * m_get2() allocates minimum mbuf that would fit "size" argument.
+ */
+struct mbuf *
+m_get2(int how, short type, int flags, int size)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+	uma_zone_t zone;
+
+	args.flags = flags;
+	args.type = type;
+
+	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
+		return (uma_zalloc_arg(zone_mbuf, &args, how));
+	if (size <= MCLBYTES)
+		return (uma_zalloc_arg(zone_pack, &args, how));
+	if (size > MJUM16BYTES)
+		return (NULL);
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return (NULL);
+
+#if MJUMPAGESIZE != MCLBYTES
+	if (size <= MJUMPAGESIZE)
+		zone = zone_jumbop;
+	else
+#endif
+	if (size <= MJUM9BYTES)
+		zone = zone_jumbo9;
+	else
+		zone = zone_jumbo16;
+
+	n = uma_zalloc_arg(zone, m, how);
+	if (n == NULL) {
+		uma_zfree(zone_mbuf, m);
+		return (NULL);
+	}
+
+	return (m);
+}
+
+/*
+ * m_getjcl() returns an mbuf with a cluster of the specified size attached.
+ * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
+ */
+struct mbuf *
+m_getjcl(int how, short type, int flags, int size)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+	uma_zone_t zone;
+
+	if (size == MCLBYTES)
+		return m_getcl(how, type, flags);
+
+	args.flags = flags;
+	args.type = type;
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return (NULL);
+
+	zone = m_getzone(size);
+	n = uma_zalloc_arg(zone, m, how);
+	if (n == NULL) {
+		uma_zfree(zone_mbuf, m);
+		return (NULL);
+	}
+	return (m);
+}
+
+/*
  * Allocate a given length worth of mbufs and/or clusters (whatever fits
  * best) and return a pointer to the top of the allocated chain.  If an
  * existing mbuf chain is provided, then we will append the new chain
