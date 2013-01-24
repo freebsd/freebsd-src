@@ -1364,13 +1364,13 @@ nlm_xlpge_mii_statchg(device_t dev)
 	if (mii->mii_media_status & IFM_ACTIVE) {
 		if (IFM_SUBTYPE(mii->mii_media_active) ==  IFM_10_T) {
 			sc->speed = NLM_SGMII_SPEED_10;
-			speed =  "10-Mbps";
+			speed =  "10Mbps";
 		} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 			sc->speed = NLM_SGMII_SPEED_100;
-			speed = "100-Mbps";
+			speed = "100Mbps";
 		} else { /* default to 1G */
 			sc->speed = NLM_SGMII_SPEED_1000;
-			speed =  "1-Gbps";
+			speed =  "1Gbps";
 		}
 
 		if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
@@ -1381,7 +1381,7 @@ nlm_xlpge_mii_statchg(device_t dev)
 			duplexity = "half";
 		}
 
-		printf("Setup [complex=%d, port=%d] with speed=%s duplex=%s\n",
+		printf("Port [%d, %d] setup with speed=%s duplex=%s\n",
 		    sc->block, sc->port, speed, duplexity);
 
 		nlm_nae_setup_mac(sc->base_addr, sc->block, sc->port, 0, 1, 1,
