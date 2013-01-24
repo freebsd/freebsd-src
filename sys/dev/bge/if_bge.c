@@ -5427,7 +5427,7 @@ bge_init_locked(struct bge_softc *sc)
 	 * this number of frames, it will drop subsequent incoming
 	 * frames until the MBUF High Watermark is reached.
 	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM57765)
+	if (BGE_IS_57765_PLUS(sc))
 		CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 1);
 	else
 		CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);
