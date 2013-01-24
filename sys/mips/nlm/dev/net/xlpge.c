@@ -444,6 +444,8 @@ nlm_xlpnae_init(int node, struct nlm_xlpnae_softc *sc)
 	val = nlm_set_device_frequency(node, DFS_DEVICE_NAE, sc->freq);
 	printf("Setup NAE frequency to %dMHz\n", val);
 
+	nlm_mdio_reset_all(nae_base);
+
 	printf("Initialze SGMII PCS for blocks 0x%x\n", sc->sgmiimask);
 	nlm_sgmii_pcs_init(nae_base, sc->sgmiimask);
 
@@ -797,8 +799,9 @@ nlm_xlpge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				nlm_xlpge_init(sc);
-		    	nlm_xlpge_mac_set_rx_mode(sc);
-			nlm_xlpge_port_enable(sc);
+			else
+				nlm_xlpge_port_enable(sc);
+			nlm_xlpge_mac_set_rx_mode(sc);
 			sc->link = NLM_LINK_UP;
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1288,6 +1291,7 @@ nlm_xlpge_attach(device_t dev)
 	nlm_xlpge_ifinit(sc);
 	ifp_ports[port].xlpge_sc = sc;
 	nlm_xlpge_mii_init(dev, sc);
+
 	nlm_xlpge_setup_stats_sysctl(dev, sc);
 
 	return (0);
@@ -1385,7 +1389,7 @@ nlm_xlpge_mii_statchg(device_t dev)
 		    sc->block, sc->port, speed, duplexity);
 
 		nlm_nae_setup_mac(sc->base_addr, sc->block, sc->port, 0, 1, 1,
-			sc->speed, sc->duplexity);
+		    sc->speed, sc->duplexity);
 	}
 }
 
