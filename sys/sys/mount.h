@@ -762,8 +762,9 @@ extern	struct nfs_public nfs_pub;
 
 /*
  * Declarations for these vfs default operations are located in
- * kern/vfs_default.c, they should be used instead of making "dummy"
- * functions or casting entries in the VFS op table to "enopnotsupp()".
+ * kern/vfs_default.c.  They will be automatically used to replace
+ * null entries in VFS ops tables when registering a new filesystem
+ * type in the global table.
  */
 vfs_root_t		vfs_stdroot;
 vfs_quotactl_t		vfs_stdquotactl;
