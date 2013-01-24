@@ -339,7 +339,7 @@ _libinstall:
 
 .include <bsd.links.mk>
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 realinstall: _maninstall
 .ORDER: beforeinstall _maninstall
 .endif
