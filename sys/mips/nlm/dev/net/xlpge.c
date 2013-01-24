@@ -869,6 +869,7 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 		vm_offset_t buf = (vm_offset_t) m->m_data;
 		int	len = m->m_len;
 		int	frag_sz;
+		uint64_t desc;
 
 		/*printf("m_data = %p len %d\n", m->m_data, len); */
 		while (len) {
@@ -883,8 +884,9 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 			frag_sz = PAGE_SIZE - (buf & PAGE_MASK);
 			if (len < frag_sz)
 				frag_sz = len;
-			p2p->frag[pos] = nae_tx_desc(P2D_NEOP, 0, 127,
+			desc = nae_tx_desc(P2D_NEOP, 0, 127,
 			    frag_sz, paddr);
+			p2p->frag[pos] = htobe64(desc);
 			pos++;
 			len -= frag_sz;
 			buf += frag_sz;
@@ -894,7 +896,7 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 	KASSERT(pos != 0, ("Zero-length mbuf chain?\n"));
 
 	/* Make the last one P2D EOP */
-	p2p->frag[pos-1] |= (uint64_t)P2D_EOP << 62;
+	p2p->frag[pos-1] |= htobe64((uint64_t)P2D_EOP << 62);
 
 	/* stash useful pointers in the desc */
 	p2p->frag[XLP_NTXFRAGS-3] = 0xf00bad;
@@ -1131,7 +1133,8 @@ get_buf(void)
 	if ((m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	m_adj(m_new, NAE_CACHELINE_SIZE - ((uintptr_t)m_new->m_data & 0x1f));
+	KASSERT(((uintptr_t)m_new->m_data & (NAE_CACHELINE_SIZE - 1)) == 0,
+	    ("m_new->m_data is not cacheline aligned"));
 	md = (uint64_t *)m_new->m_data;
 	md[0] = (intptr_t)m_new;        /* Back Ptr */
 	md[1] = 0xf00bad;
@@ -1140,10 +1143,9 @@ get_buf(void)
 #ifdef INVARIANTS
 	temp1 = vtophys((vm_offset_t) m_new->m_data);
 	temp2 = vtophys((vm_offset_t) m_new->m_data + 1536);
-	KASSERT(temp1 + 1536) != temp2,
+	KASSERT((temp1 + 1536) != temp2,
 	    ("Alloced buffer is not contiguous"));
 #endif
-
 	return ((void *)m_new->m_data);
 }
 
@@ -1552,7 +1554,7 @@ nlm_xlpge_msgring_handler(int vc, int size, int code, int src_id,
 		ifp->if_opackets++;
 
 	} else if (size > 1) { /* Recieve packet */
-		phys_addr = msg->msg[1] & 0xffffffffe0ULL;
+		phys_addr = msg->msg[1] & 0xffffffffc0ULL;
 		length = (msg->msg[1] >> 40) & 0x3fff;
 		length -= MAC_CRC_LEN;
 
