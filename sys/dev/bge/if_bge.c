@@ -3899,9 +3899,9 @@ bge_detach(device_t dev)
 	if (sc->bge_tq)
 		taskqueue_drain(sc->bge_tq, &sc->bge_intr_task);
 
-	if (sc->bge_flags & BGE_FLAG_TBI) {
+	if (sc->bge_flags & BGE_FLAG_TBI)
 		ifmedia_removeall(&sc->bge_ifmedia);
-	} else {
+	else if (sc->bge_miibus != NULL) {
 		bus_generic_detach(dev);
 		device_delete_child(dev, sc->bge_miibus);
 	}
