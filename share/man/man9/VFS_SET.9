@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2012
+.Dd January 25, 2012
 .Dt VFS_SET 9
 .Os
 .Sh NAME
@@ -84,7 +84,9 @@ sysctl is set to
 .Sh PSEUDOCODE
 .Bd -literal
 /*
- * fill in the ones we use, and use the vfs_std for the rest.
+ * Fill in the ones we redefine.  The unused fields will be
+ * automatically initialized by pointers to vfs_std* functions
+ * during file system registration.
  */
 static struct vfsops myfs_vfsops = {
         .vfs_mount =    myfs_mount,
