@@ -844,6 +844,13 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Running ${SUP}"
 	@echo "--------------------------------------------------------------"
+	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
+	@echo "!! Update methods with ${SUP} are deprecated."
+	@echo "!! Please see http://www.freebsd.org/handbook/svn.html"
+	@echo "!! and convert your update method to SVN_UPDATE or"
+	@echo "!! freebsd-update(8)."
+	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
+	@sleep 5
 .if defined(SUPFILE)
 	@${SUP} ${SUPFLAGS} ${SUPFILE}
 .endif
@@ -866,6 +873,13 @@ update:
 		echo "--------------------------------------------------------------" ; \
 		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
 		echo "--------------------------------------------------------------" ; \
+		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
+		echo "!! Update methods with ${SUP} are deprecated." ; \
+		echo "!! Please see http://www.freebsd.org/handbook/svn.html" ; \
+		echo "!! and convert your update method to SVN_UPDATE or" ; \
+		echo "!! freebsd-update(8)." ; \
+		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
+		sleep 5 ; \
 		echo ${CVS} -R -q update ${CVSFLAGS} ; \
 		${CVS} -R -q update ${CVSFLAGS} ; \
 	fi
