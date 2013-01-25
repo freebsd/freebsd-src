@@ -141,7 +141,7 @@ static int
 a10_timer_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "a10,timers"))
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-timer"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Allwinner A10 timer");

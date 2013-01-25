@@ -97,7 +97,7 @@ static struct a10_aintc_softc *a10_aintc_sc = NULL;
 static int
 a10_aintc_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "a10,aintc"))
+	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-ic"))
 		return (ENXIO);
 	device_set_desc(dev, "A10 AINTC Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
