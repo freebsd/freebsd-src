@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+NO_MAN=
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 .include "../Makefile.fe"
 
@@ -7,12 +10,9 @@
 
 PROG=	g++
 SRCS+=	g++spec.c
-NO_MAN=
 
 DPADD=	${LIBCPP} ${LIBIBERTY}
 LDADD=	${LIBCPP} ${LIBIBERTY}
-
-.include <bsd.own.mk>
 
 .if ${MK_CLANG_IS_CC} == "no"
 LINKS=	${BINDIR}/g++ ${BINDIR}/c++
