@@ -696,6 +696,10 @@ vmx_vminit(struct vm *vm)
 	 * vm-exit and vm-entry respectively. The host FSBASE and GSBASE are
 	 * always restored from the vmcs host state area on vm-exit.
 	 *
+	 * The SYSENTER_CS/ESP/EIP MSRs are identical to FS/GSBASE in
+	 * how they are saved/restored so can be directly accessed by the
+	 * guest.
+	 *
 	 * Guest KGSBASE is saved and restored in the guest MSR save area.
 	 * Host KGSBASE is restored before returning to userland from the pcb.
 	 * There will be a window of time when we are executing in the host
@@ -708,6 +712,9 @@ vmx_vminit(struct vm *vm)
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
+	    guest_msr_rw(vmx, MSR_SYSENTER_CS_MSR) ||
+	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
+	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_KGSBASE) ||
 	    guest_msr_rw(vmx, MSR_EFER))
 		panic("vmx_vminit: error setting guest msr access");
