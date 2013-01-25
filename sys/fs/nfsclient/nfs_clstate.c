@@ -2447,7 +2447,7 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	u_int32_t clidrev;
 	int error, cbpathdown, islept, igotlock, ret, clearok;
 	uint32_t recover_done_time = 0;
-	struct timespec mytime;
+	time_t mytime;
 	static time_t prevsec = 0;
 	struct nfscllockownerfh *lfhp, *nlfhp;
 	struct nfscllockownerfhhead lfh;
@@ -2720,9 +2720,9 @@ tryagain2:
 		 * Call nfscl_cleanupkext() once per second to check for
 		 * open/lock owners where the process has exited.
 		 */
-		NFSGETNANOTIME(&mytime);
-		if (prevsec != mytime.tv_sec) {
-			prevsec = mytime.tv_sec;
+		mytime = NFSD_MONOSEC;
+		if (prevsec != mytime) {
+			prevsec = mytime;
 			nfscl_cleanupkext(clp, &lfh);
 		}
 
@@ -4611,7 +4611,7 @@ nfscl_delegmodtime(vnode_t vp)
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
 	if (dp != NULL && (dp->nfsdl_flags & NFSCLDL_WRITE)) {
-		NFSGETNANOTIME(&dp->nfsdl_modtime);
+		nanotime(&dp->nfsdl_modtime);
 		dp->nfsdl_flags |= NFSCLDL_MODTIMESET;
 	}
 	NFSUNLOCKCLSTATE();
