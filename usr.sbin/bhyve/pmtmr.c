@@ -66,17 +66,14 @@ pmtmr_val(void)
 
 	if (!inited) {
 		size_t len;
-		uint32_t tmpf;
 
 		inited = 1;
 		pthread_mutex_init(&pmtmr_mtx, NULL);
-		len = sizeof(tmpf);
-		sysctlbyname("machdep.tsc_freq", &tmpf, &len,
+		len = sizeof(pmtmr_tscf);
+		sysctlbyname("machdep.tsc_freq", &pmtmr_tscf, &len,
 		    NULL, 0);
-		pmtmr_tscf = tmpf;
 		pmtmr_tsc_old = rdtsc();
 		pmtmr_old = pmtmr_tsc_old / pmtmr_tscf * PMTMR_FREQ;
-		return (pmtmr_old);
 	}
 
 	pthread_mutex_lock(&pmtmr_mtx);
