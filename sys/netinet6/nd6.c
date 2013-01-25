@@ -2166,7 +2166,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 
 	*lle = NULL;
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
-	if (m->m_flags & M_MCAST) {
+	if (m != NULL && m->m_flags & M_MCAST) {
 		int i;
 
 		switch (ifp->if_type) {
