@@ -1493,6 +1493,15 @@ syncache_respond(struct syncache *sc)
 		th->th_sum = in6_cksum_pseudo(ip6, tlen + optlen - hlen,
 		    IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(NULL, NULL);
+#ifdef TCP_OFFLOAD
+		if (ADDED_BY_TOE(sc)) {
+			struct toedev *tod = sc->sc_tod;
+
+			error = tod->tod_syncache_respond(tod, sc->sc_todctx, m);
+
+			return (error);
+		}
+#endif
 		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	}
 #endif
