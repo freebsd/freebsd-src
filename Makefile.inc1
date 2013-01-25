@@ -1044,7 +1044,7 @@ update:
 		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
 		echo "--------------------------------------------------------------" ; \
 		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
-		echo "!! Update methods with ${SUP} are deprecated." ; \
+		echo "!! Update methods with CVS are deprecated." ; \
 		echo "!! Please see http://www.freebsd.org/handbook/svn.html" ; \
 		echo "!! and convert your update method to SVN_UPDATE or" ; \
 		echo "!! freebsd-update(8)." ; \
