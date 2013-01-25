@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/nd6.h>
 #define TCPSTATES
 #include <netinet/tcp.h>
@@ -355,11 +356,14 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 {
 	struct inpcb *inp;
 
-	if (inc->inc_flags & INC_ISIPV6)
-		return (ENOSYS);	/* XXX: implement */
-
-	inp = in_pcblookup(&V_tcbinfo, inc->inc_faddr, inc->inc_fport,
-	    inc->inc_laddr, inc->inc_lport, INPLOOKUP_WLOCKPCB, ifp);
+	if (inc->inc_flags & INC_ISIPV6) {
+		inp = in6_pcblookup(&V_tcbinfo, &inc->inc6_faddr,
+		    inc->inc_fport, &inc->inc6_laddr, inc->inc_lport,
+		    INPLOOKUP_WLOCKPCB, ifp);
+	} else {
+		inp = in_pcblookup(&V_tcbinfo, inc->inc_faddr, inc->inc_fport,
+		    inc->inc_laddr, inc->inc_lport, INPLOOKUP_WLOCKPCB, ifp);
+	}
 	if (inp != NULL) {
 		INP_WLOCK_ASSERT(inp);
 
