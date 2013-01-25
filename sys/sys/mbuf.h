@@ -52,11 +52,14 @@
  * stored.  Additionally, it is possible to allocate a separate buffer
  * externally and attach it to the mbuf in a way similar to that of mbuf
  * clusters.
+ *
+ * MLEN is data length in a normal mbuf.
+ * MHLEN is data length in an mbuf with pktheader.
+ * MINCLSIZE is a smallest amount of data that should be put into cluster.
  */
-#define	MLEN		(MSIZE - sizeof(struct m_hdr))	/* normal data len */
-#define	MHLEN		(MLEN - sizeof(struct pkthdr))	/* data len w/pkthdr */
-#define	MINCLSIZE	(MHLEN + 1)	/* smallest amount to put in cluster */
-#define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
+#define	MLEN		((int)(MSIZE - sizeof(struct m_hdr)))
+#define	MHLEN		((int)(MLEN - sizeof(struct pkthdr)))
+#define	MINCLSIZE	(MHLEN + 1)
 
 #ifdef _KERNEL
 /*-
