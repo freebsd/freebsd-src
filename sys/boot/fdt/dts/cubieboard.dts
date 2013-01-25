@@ -29,8 +29,8 @@
 /dts-v1/;
 
 / {
-	model = "cubieboard";
-	compatible = "cubieboard", "allwinner,a10";
+	model = "Cubietech Cubieboard";
+	compatible = "cubietech,a10-cubieboard", "allwinner,sun4i-a10";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -54,7 +54,7 @@
 		bus-frequency = <0>;
 
 		AINTC: interrupt-controller@01c20400 {
-			compatible = "a10,aintc";
+			compatible = "allwinner,sun4i-ic";
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
@@ -62,7 +62,7 @@
 		};
 
 		timer@01c20c00 {
-			compatible = "a10,timers";
+			compatible = "allwinner,sun4i-timer";
 			reg = <0x01c20c00 0x90>;
 			interrupts = < 22 >;
 			interrupt-parent = <&AINTC>;
@@ -70,14 +70,14 @@
 		};
 
 		usb1: usb@01c1c000 {
-			compatible = "a10,usb-ehci", "usb-ehci";
+			compatible = "allwinner,usb-ehci", "usb-ehci";
 			reg = <0x01c1c000 0x1000>;
 			interrupts = < 40 >;
 			interrupt-parent = <&AINTC>;
 		};
 
 		sata@01c18000 {
-			compatible = "a10,ahci";
+			compatible = "allwinner,ahci";
 			reg = <0x01c18000 0x1000>;
 			interrupts = <56>;
 			interrupt-parent = <&AINTC>;

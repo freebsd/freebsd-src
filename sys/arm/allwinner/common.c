@@ -47,7 +47,7 @@ static int
 fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
 {
-	if (!fdt_is_compatible(node, "a10,aintc"))
+	if (!fdt_is_compatible(node, "allwinner,sun4i-ic"))
 		return (ENXIO);
 
 	*interrupt = fdt32_to_cpu(intr[0]);
