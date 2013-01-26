@@ -436,6 +436,16 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET,
 		"%s taskq", ifp->if_xname);
 
+	/*
+	 * This taskqueue doesn't get any higher priority
+	 * than the ath(4) taskqueue (PI_NET) so TX won't
+	 * pre-empt RX and other task priorities.
+	 *
+	 * This may not be optimal - the previous behaviour
+	 * was to direct-dispatch frames via the sending
+	 * task context, rather than (always) software
+	 * queuing.
+	 */
 	sc->sc_tx_tq = taskqueue_create("ath_tx_taskq", M_NOWAIT,
 		taskqueue_thread_enqueue, &sc->sc_tx_tq);
 	taskqueue_start_threads(&sc->sc_tx_tq, 1, PI_NET,
@@ -2135,6 +2145,7 @@ ath_txrx_start(struct ath_softc *sc)
 {
 
 	taskqueue_unblock(sc->sc_tq);
+	taskqueue_unblock(sc->sc_tx_tq);
 }
 
 /*
@@ -2235,6 +2246,7 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	/* Try to (stop any further TX/RX from occuring */
 	taskqueue_block(sc->sc_tq);
+	taskqueue_block(sc->sc_tx_tq);
 
 	ATH_PCU_LOCK(sc);
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
@@ -3033,6 +3045,7 @@ ath_key_update_begin(struct ieee80211vap *vap)
 
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s:\n", __func__);
 	taskqueue_block(sc->sc_tq);
+	taskqueue_block(sc->sc_tx_tq);
 	IF_LOCK(&ifp->if_snd);		/* NB: doesn't block mgmt frames */
 }
 
@@ -3045,6 +3058,7 @@ ath_key_update_end(struct ieee80211vap *vap)
 	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s:\n", __func__);
 	IF_UNLOCK(&ifp->if_snd);
 	taskqueue_unblock(sc->sc_tq);
+	taskqueue_unblock(sc->sc_tx_tq);
 }
 
 static void
@@ -4218,9 +4232,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 
 	/* Kick the TXQ scheduler */
 	if (dosched) {
-		ATH_TX_LOCK(sc);
-		ath_txq_sched(sc, txq);
-		ATH_TX_UNLOCK(sc);
+		taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txqtask);
 	}
 
 	ATH_KTR(sc, ATH_KTR_TXCOMP, 1,
@@ -4718,6 +4730,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 	/* (Try to) stop TX/RX from occuring */
 	taskqueue_block(sc->sc_tq);
+	taskqueue_block(sc->sc_tx_tq);
 
 	ATH_PCU_LOCK(sc);
 	ath_hal_intrset(ah, 0);		/* Stop new RX/TX completion */
@@ -5107,6 +5120,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		sc->sc_imask &= ~(HAL_INT_SWBA | HAL_INT_BMISS);
 		sc->sc_beacons = 0;
 		taskqueue_unblock(sc->sc_tq);
+		taskqueue_unblock(sc->sc_tx_tq);
 	}
 
 	ni = ieee80211_ref_node(vap->iv_bss);
@@ -5272,6 +5286,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    "%s: calibration disabled\n", __func__);
 		}
 		taskqueue_unblock(sc->sc_tq);
+		taskqueue_unblock(sc->sc_tx_tq);
 	} else if (nstate == IEEE80211_S_INIT) {
 		/*
 		 * If there are no vaps left in RUN state then
@@ -5285,6 +5300,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/* disable interrupts  */
 			ath_hal_intrset(ah, sc->sc_imask &~ HAL_INT_GLOBAL);
 			taskqueue_block(sc->sc_tq);
+			taskqueue_block(sc->sc_tx_tq);
 			sc->sc_beacons = 0;
 		}
 #ifdef IEEE80211_SUPPORT_TDMA
