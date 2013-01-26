@@ -341,9 +341,9 @@ done:
 	 * Put back the real size.
 	 */
 	oip->i_size = length;
-	if (oip->i_blocks > blocksreleased)
+	if (oip->i_blocks >= blocksreleased)
 		oip->i_blocks -= blocksreleased;
-	else			/* sanity */
+	else				/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
 	vnode_pager_setsize(ovp, length);
