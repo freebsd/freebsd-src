@@ -125,7 +125,7 @@ ath_tx_kick(struct ath_softc *sc)
 {
 
 	/* XXX eventually try sc_tx_tq? */
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txpkttask);
+	taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txpkttask);
 }
 
 #endif
