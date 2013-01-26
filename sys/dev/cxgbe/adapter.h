@@ -577,7 +577,8 @@ struct adapter {
 	int flags;
 
 	char fw_version[32];
-	unsigned int cfcsum;
+	char cfg_file[32];
+	u_int cfcsum;
 	struct adapter_params params;
 	struct t4_virt_res vres;
 

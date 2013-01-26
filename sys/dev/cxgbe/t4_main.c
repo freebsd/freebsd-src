@@ -1604,21 +1604,28 @@ prep_firmware(struct adapter *sc)
 
 	/* Partition adapter resources as specified in the config file. */
 	if (sc->flags & MASTER_PF) {
-		if (strncmp(t4_cfg_file, "default", sizeof(t4_cfg_file))) {
+		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s",
+		    pci_get_device(sc->dev) == 0x440a ? "uwire" : t4_cfg_file);
+		if (strncmp(sc->cfg_file, "default", sizeof(sc->cfg_file))) {
 			char s[32];
 
-			snprintf(s, sizeof(s), "t4fw_cfg_%s", t4_cfg_file);
+			snprintf(s, sizeof(s), "t4fw_cfg_%s", sc->cfg_file);
 			cfg = firmware_get(s);
 			if (cfg == NULL) {
 				device_printf(sc->dev,
 				    "unable to locate %s module, "
 				    "will use default config file.\n", s);
+				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
+				    "%s", "default");
 			}
 		}
 
 		rc = partition_resources(sc, cfg ? cfg : default_cfg);
 		if (rc != 0)
 			goto done;	/* error message displayed already */
+	} else {
+		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s", "notme");
+		sc->cfcsum = (u_int)-1;
 	}
 
 	sc->flags |= FW_OK;
@@ -3109,7 +3116,7 @@ t4_sysctls(struct adapter *sc)
 	    CTLFLAG_RD, &sc->fw_version, 0, "firmware version");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "cf",
-	    CTLFLAG_RD, &t4_cfg_file, 0, "configuration file");
+	    CTLFLAG_RD, &sc->cfg_file, 0, "configuration file");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cfcsum", CTLFLAG_RD,
 	    &sc->cfcsum, 0, "config file checksum");
