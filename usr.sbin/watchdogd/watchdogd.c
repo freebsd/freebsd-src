@@ -196,7 +196,7 @@ watchdog_loop(void)
 			if (watchdog_onoff(0) == 0) {
 				end_program = 2;
 			} else {
-				warnx("Could not stop the watchdog, not exitting");
+				warnx("Could not stop the watchdog, not exiting");
 				end_program = 0;
 			}
 		}
