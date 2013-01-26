@@ -457,9 +457,7 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_priority = md->md_priority;
 	disk->d_flags = md->md_dflags;
 	error = g_getattr("GEOM::candelete", disk->d_consumer, &i);
-	if (error != 0)
-		goto fail;
-	if (i)
+	if (error == 0 && i != 0)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_CANDELETE;
 	if (md->md_provider[0] != '\0')
 		disk->d_flags |= G_MIRROR_DISK_FLAG_HARDCODED;
