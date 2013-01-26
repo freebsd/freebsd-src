@@ -762,6 +762,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		 */
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
+		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited) {
 			ln->ln_state = ND6_LLINFO_REACHABLE;
 			ln->ln_byhint = 0;
@@ -837,6 +838,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			if (lladdr != NULL) {
 				bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 				ln->la_flags |= LLE_VALID;
+				EVENTHANDLER_INVOKE(lle_event, ln,
+				    LLENTRY_RESOLVED);
 			}
 
 			/*
