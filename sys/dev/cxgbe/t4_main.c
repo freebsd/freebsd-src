@@ -875,7 +875,7 @@ cxgbe_attach(device_t dev)
 	ifp->if_capabilities = T4_CAP;
 #ifdef TCP_OFFLOAD
 	if (is_offload(pi->adapter))
-		ifp->if_capabilities |= IFCAP_TOE4;
+		ifp->if_capabilities |= IFCAP_TOE;
 #endif
 	ifp->if_capenable = T4_CAP_ENABLE;
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
