@@ -547,6 +547,15 @@ set_tcpddp_ulp_mode(struct toepcb *toep)
 	toep->ddp_score = DDP_LOW_SCORE;
 }
 
+int
+negative_advice(int status)
+{
+
+	return (status == CPL_ERR_RTX_NEG_ADVICE ||
+	    status == CPL_ERR_PERSIST_NEG_ADVICE ||
+	    status == CPL_ERR_KEEPALV_NEG_ADVICE);
+}
+
 static int
 alloc_tid_tabs(struct tid_info *t)
 {

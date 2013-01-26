@@ -835,8 +835,7 @@ do_abort_req_synqe(struct sge_iq *iq, const struct rss_header *rss,
 	CTR6(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x), lctx %p, status %d",
 	    __func__, tid, synqe, synqe->flags, synqe->lctx, cpl->status);
 
-	if (cpl->status == CPL_ERR_RTX_NEG_ADVICE ||
-	    cpl->status == CPL_ERR_PERSIST_NEG_ADVICE)
+	if (negative_advice(cpl->status))
 		return (0);	/* Ignore negative advice */
 
 	INP_WLOCK(inp);
