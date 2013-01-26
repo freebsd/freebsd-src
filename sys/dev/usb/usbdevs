@@ -581,6 +581,7 @@ vendor CCYU		0x1065	CCYU Technology
 vendor CURITEL		0x106c	Curitel Communications Inc
 vendor SILABS2		0x10a6	SILABS2
 vendor USI		0x10ab	USI
+vendor LIEBERT2		0x10af	Liebert
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor SILABS		0x10c4	Silicon Labs
@@ -2426,6 +2427,7 @@ product LEXMARK S2450		0x0009	Optra S 2450
 
 /* Liebert products */
 product LIEBERT POWERSURE_PXT	0xffff	PowerSure Personal XT
+product LIEBERT2 PSI1000	0x0004	UPS PSI 1000 FW:08
 
 /* Link Instruments Inc. products */
 product	LINKINSTRUMENTS MSO19	0xf190	Link Instruments MSO-19
