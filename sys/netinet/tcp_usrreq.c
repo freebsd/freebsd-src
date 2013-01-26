@@ -537,6 +537,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			goto out;
 #ifdef TCP_OFFLOAD
 		if (registered_toedevs > 0 &&
+		    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 		    (error = tcp_offload_connect(so, nam)) == 0)
 			goto out;
 #endif
@@ -553,6 +554,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto out;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
+	    (so->so_options & SO_NO_OFFLOAD) == 0 &&
 	    (error = tcp_offload_connect(so, nam)) == 0)
 		goto out;
 #endif
