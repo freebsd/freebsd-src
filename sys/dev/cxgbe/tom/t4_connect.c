@@ -196,7 +196,7 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	CTR3(KTR_CXGBE, "%s: atid %u, status %u ", __func__, atid, status);
 
 	/* Ignore negative advice */
-	if (status == CPL_ERR_RTX_NEG_ADVICE)
+	if (negative_advice(status))
 		return (0);
 
 	free_atid(sc, atid);
