@@ -68,13 +68,13 @@ void (*arm_post_filter)(void *) = NULL;
  * consumers of this data.
  */
 void
-arm_intrnames_init()
+arm_intrnames_init(void)
 {
 	int i;
 
-	memset(intrnames, ' ', NIRQ * INTRNAME_LEN);
 	for (i = 0; i < NIRQ; ++i)
-		intrnames[i * INTRNAME_LEN - 1] = 0;
+		snprintf(&intrnames[i * INTRNAME_LEN], INTRNAME_LEN, "%-*s",
+		    INTRNAME_LEN - 1, "");
 }
 
 void
@@ -83,7 +83,6 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 {
 	struct intr_event *event;
 	int error;
-	char namebuf[INTRNAME_LEN];
 
 	if (irq < 0 || irq >= NIRQ)
 		return;
@@ -95,9 +94,8 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		if (error)
 			return;
 		intr_events[irq] = event;
-		snprintf(namebuf, sizeof(namebuf), "irq%d: %s", irq, name);
-		sprintf(intrnames + INTRNAME_LEN * irq, "%-*s", 
-		    INTRNAME_LEN - 1, namebuf);
+		snprintf(&intrnames[irq * INTRNAME_LEN], INTRNAME_LEN, "%-*s",
+		    INTRNAME_LEN - 1, name);
 	}
 	intr_event_add_handler(event, name, filt, hand, arg,
 	    intr_priority(flags), flags, cookiep);
