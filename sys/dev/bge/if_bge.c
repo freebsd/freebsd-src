@@ -2694,7 +2694,7 @@ bge_probe(device_t dev)
 				snprintf(model, sizeof(model), "%s %s",
 				    v != NULL ? v->v_name : "Unknown",
 				    br != NULL ? br->br_name :
-				    "NetXtreme Ethernet Controller");
+				    "NetXtreme/NetLink Ethernet Controller");
 			}
 			snprintf(buf, sizeof(buf), "%s, %sASIC rev. %#08x",
 			    model, br != NULL ? "" : "unknown ", id);
