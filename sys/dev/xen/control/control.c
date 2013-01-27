@@ -125,7 +125,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #endif
 
-
 #include <geom/geom.h>
 
 #include <machine/_inttypes.h>
@@ -145,8 +144,6 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/xenbus/xenbusvar.h>
 
-#define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*(x)))
-
 /*--------------------------- Forward Declarations --------------------------*/
 /** Function signature for shutdown event handlers. */
 typedef	void (xctrl_shutdown_handler_t)(void);
@@ -165,7 +162,7 @@ struct xctrl_shutdown_reason {
 };
 
 /** Lookup table for shutdown event name to handler. */
-static struct xctrl_shutdown_reason xctrl_shutdown_reasons[] = {
+static const struct xctrl_shutdown_reason xctrl_shutdown_reasons[] = {
 	{ "poweroff", xctrl_poweroff },
 	{ "reboot",   xctrl_reboot   },
 	{ "suspend",  xctrl_suspend  },
@@ -205,6 +202,7 @@ xctrl_suspend()
 
 #ifdef SMP
 	cpumask_t map;
+
 	/*
 	 * Bind us to CPU 0 and stop any other VCPUs.
 	 */
@@ -225,7 +223,7 @@ xctrl_suspend()
 	mtx_lock(&Giant);
 	if (DEVICE_SUSPEND(root_bus) != 0) {
 		mtx_unlock(&Giant);
-		printf("xen_suspend: device_suspend failed\n");
+		printf("%s: device_suspend failed\n", __func__);
 #ifdef SMP
 		if (map)
 			restart_cpus(map);
@@ -337,9 +335,9 @@ xctrl_suspend()
 	 * drivers need this.
 	 */
 	mtx_lock(&Giant);
-	if (DEVICE_SUSPEND(root_bus)) {
+	if (DEVICE_SUSPEND(root_bus) != 0) {
 		mtx_unlock(&Giant);
-		printf("xen_suspend: device_suspend failed\n");
+		printf("%s: device_suspend failed\n", __func__);
 		return;
 	}
 	mtx_unlock(&Giant);
@@ -390,8 +388,8 @@ xctrl_halt()
 static void
 xctrl_on_watch_event(struct xs_watch *watch, const char **vec, unsigned int len)
 {
-	struct xctrl_shutdown_reason *reason;
-	struct xctrl_shutdown_reason *last_reason;
+	const struct xctrl_shutdown_reason *reason;
+	const struct xctrl_shutdown_reason *last_reason;
 	char *result;
 	int   error;
 	int   result_len;
@@ -402,7 +400,7 @@ xctrl_on_watch_event(struct xs_watch *watch, const char **vec, unsigned int len)
 		return;
 
 	reason = xctrl_shutdown_reasons;
-	last_reason = reason + NUM_ELEMENTS(xctrl_shutdown_reasons);
+	last_reason = reason + nitems(xctrl_shutdown_reasons);
 	while (reason < last_reason) {
 
 		if (!strcmp(result, reason->name)) {
@@ -505,10 +503,10 @@ static device_method_t xctrl_methods[] = {
 	DEVMETHOD(device_attach,        xctrl_attach), 
 	DEVMETHOD(device_detach,        xctrl_detach), 
  
-	{ 0, 0 } 
+	DEVMETHOD_END
 }; 
 
 DEFINE_CLASS_0(xctrl, xctrl_driver, xctrl_methods, sizeof(struct xctrl_softc));
 devclass_t xctrl_devclass; 
  
-DRIVER_MODULE(xctrl, xenstore, xctrl_driver, xctrl_devclass, 0, 0);
+DRIVER_MODULE(xctrl, xenstore, xctrl_driver, xctrl_devclass, NULL, NULL);
