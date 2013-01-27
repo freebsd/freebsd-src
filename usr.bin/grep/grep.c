@@ -477,7 +477,13 @@ main(int argc, char *argv[])
 			grepbehave = GREP_EXTENDED;
 			break;
 		case 'e':
-			add_pattern(optarg, strlen(optarg));
+			{
+				char *token;
+				char *string = optarg;
+
+				while ((token = strsep(&string, "\n")) != NULL)
+					add_pattern(token, strlen(token));
+			}
 			needpattern = 0;
 			break;
 		case 'F':
@@ -666,7 +672,11 @@ main(int argc, char *argv[])
 
 	/* Process patterns from command line */
 	if (aargc != 0 && needpattern) {
-		add_pattern(*aargv, strlen(*aargv));
+		char *token;
+		char *string = *aargv;
+
+		while ((token = strsep(&string, "\n")) != NULL)
+			add_pattern(token, strlen(token));
 		--aargc;
 		++aargv;
 	}
