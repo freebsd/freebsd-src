@@ -41,6 +41,7 @@
 
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
@@ -195,6 +196,7 @@ ipi_rd(u_int cpu, void *func, u_long *val)
 		return (NULL);
 	sched_pin();
 	ira = &ipi_rd_args;
+	mtx_lock_spin(&smp_ipi_mtx);
 	ira->ira_mask = 1 << cpu;
 	ira->ira_val = val;
 	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
@@ -282,18 +284,6 @@ ipi_wait(void *cookie)
 	}
 }
 
-static __inline void
-ipi_wait_unlocked(void *cookie)
-{
-	volatile cpumask_t *mask;
-
-	if ((mask = cookie) != NULL) {
-		while (*mask != 0)
-			;
-		sched_unpin();
-	}
-}
-
 #endif /* _MACHINE_PMAP_H_ && _SYS_MUTEX_H_ */
 
 #endif /* !LOCORE */
@@ -347,12 +337,6 @@ ipi_tlb_range_demap(struct pmap *pm __unused, vm_offset_t start __unused,
 
 static __inline void
 ipi_wait(void *cookie __unused)
-{
-
-}
-
-static __inline void
-ipi_wait_unlocked(void *cookie __unused)
 {
 
 }
