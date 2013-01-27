@@ -68,6 +68,11 @@ bsdinstall distextract
 # Finalize install
 bsdinstall config
 
+# Make sure networking is functional, if we can arrange that
+if [ ! -f $BSDINSTALL_CHROOT/etc/resolv.conf -a -f /etc/resolv.conf ]; then
+	cp /etc/resolv.conf $BSDINSTALL_CHROOT/etc/resolv.conf
+fi
+
 # Run post-install script
 if [ -f /tmp/bsdinstall-installscript-ab ]; then
 	cp /tmp/bsdinstall-installscript-ab $BSDINSTALL_CHROOT/tmp/installscript
