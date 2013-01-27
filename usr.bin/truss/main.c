@@ -234,15 +234,12 @@ main(int ac, char **av)
 		usage();
 
 	if (fname != NULL) { /* Use output file */
-		if ((trussinfo->outfile = fopen(fname, "w")) == NULL)
-			err(1, "cannot open %s", fname);
 		/*
-		 * Set FD_CLOEXEC, so that the output file is not shared with
-		 * the traced process.
+		 * Set close-on-exec ('e'), so that the output file is not
+		 * shared with the traced process.
 		 */
-		if (fcntl(fileno(trussinfo->outfile), F_SETFD, FD_CLOEXEC) ==
-		    -1)
-			warn("fcntl()");
+		if ((trussinfo->outfile = fopen(fname, "we")) == NULL)
+			err(1, "cannot open %s", fname);
 	}
 
 	/*
