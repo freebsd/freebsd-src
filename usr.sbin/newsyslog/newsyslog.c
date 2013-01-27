@@ -1900,10 +1900,15 @@ do_sigwork(struct sigwork_entry *swork)
 	}
 
 	if (noaction) {
-		printf("\tkill -%d %d \t\t# %s\n", swork->sw_signum,
-		    (int)swork->sw_pid, swork->sw_fname);
-		if (secs > 0)
-			printf("\tsleep %d\n", secs);
+		if (swork->run_cmd)
+			printf("\tsh -c '%s %d'\n", swork->sw_fname,
+			    swork->sw_signum);
+		else {
+			printf("\tkill -%d %d \t\t# %s\n", swork->sw_signum,
+			    (int)swork->sw_pid, swork->sw_fname);
+			if (secs > 0)
+				printf("\tsleep %d\n", secs);
+		}
 		return;
 	}
 
