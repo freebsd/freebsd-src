@@ -444,10 +444,26 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 			KASSERT(*pdtep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
 		} else {
 
+			/* 
+			 * Corner case where the va ptes are mapped to
+			 * itself (within a page boundary) at L1
+			 */
+			if (atop((uintptr_t) pti->pt) == atop(va)) {
+				/* Note: We assume that pti->pxxt are obtained via PTOV() macros */
+
+				/* 
+				 * There's nothing to do at this point
+				 * since the pte may have been zapped
+				 * and the mapping may be invalid
+				 * now - in which case we can't
+				 * attempt to (even read) access
+				 * it. Simply return.
+				 */
+				return;
+			}
+
 			/* We can free the PT only after the PDT entry is zapped */
 			if (memrchr(pti->pt, 0, PAGE_SIZE) == ((char *)pti->pt + PAGE_SIZE - 1)) {
-			  (void) pdtep_ma;
-
 				/* Zap the backing PDT entry */
 				pdtep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdtep));
 				xen_queue_pt_update(pdtep_ma, 0);
@@ -476,6 +492,24 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 			KASSERT(*pdptep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
 		}
 
+		/* 
+		 * Corner case where the va pdtes are mapped to
+		 * itself (within a page boundary) at L2
+		 */
+		if (atop((uintptr_t) pti->pdt) == atop(va)) {
+			/* Note: We assume that pti->pxxt are obtained via PTOV() macros */
+
+			/* 
+			 * There's nothing to do at this point
+			 * since the pdte may have been zapped
+			 * and the mapping may be invalid
+			 * now - in which case we can't
+			 * attempt to (even read) access
+			 * it. Simply return.
+			 */
+			return;
+		}
+
 		/* We can free the PDT only after the PDPT entry is zapped */
 		if (memrchr(pti->pdt, 0, PAGE_SIZE) == ((char *)pti->pdt + PAGE_SIZE - 1)) {
 			pdptep_ma = xpmap_ptom(pti->ptmb.vtop((uintptr_t)pdptep));
@@ -499,6 +533,24 @@ mmu_map_release_va(struct pmap *pm, void *addr, uintptr_t va)
 
 		if (pti->pdpt == NULL) {
 			KASSERT(*pml4tep == 0, ("%s(%d): mmu state machine out of sync!\n", __func__, __LINE__));
+		}
+
+		/*
+		 * Corner case where the va pdptes are mapped to
+		 * itself (within a page boundary) at L3
+		 */
+		if (atop((uintptr_t) pti->pdpt) == atop(va)) {
+			/* Note: We assume that pti->pxxt are obtained via PTOV() macros */
+
+			/* 
+			 * There's nothing to do at this point
+			 * since the pdpte may have been zapped
+			 * and the mapping may be invalid
+			 * now - in which case we can't
+			 * attempt to (even read) access
+			 * it. Simply return.
+			 */
+			return;
 		}
 
 		if (memrchr(pti->pdpt, 0, PAGE_SIZE) == ((char *)pti->pdpt + PAGE_SIZE - 1)) {
