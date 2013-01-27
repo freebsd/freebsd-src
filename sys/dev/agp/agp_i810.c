@@ -2228,7 +2228,7 @@ agp_i830_chipset_flush(device_t dev)
 	bus_write_4(sc->sc_res[0], AGP_I830_HIC, hic | (1 << 31));
 	for (i = 0; i < 20000 /* 1 sec */; i++) {
 		hic = bus_read_4(sc->sc_res[0], AGP_I830_HIC);
-		if ((hic & (1 << 31)) != 0)
+		if ((hic & (1 << 31)) == 0)
 			break;
 		DELAY(50);
 	}
