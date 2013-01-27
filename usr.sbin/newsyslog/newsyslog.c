@@ -1866,7 +1866,7 @@ do_sigwork(struct sigwork_entry *swork)
 	int kres, secs;
 	char *tmp;
 
-	if (!(swork->sw_pidok) || swork->sw_pid == 0)
+	if (swork->run_cmd == 0 && (!(swork->sw_pidok) || swork->sw_pid == 0))
 		return;			/* no work to do... */
 
 	/*
@@ -2078,6 +2078,8 @@ save_sigwork(const struct conf_entry *ent)
 	stmp->run_cmd = 0;
 	/* If this is a command to run we just set the flag and run command */
 	if (ent->flags & CE_PID2CMD) {
+		stmp->sw_pid = -1;
+		stmp->sw_pidok = 0;
 		stmp->run_cmd = 1;
 	} else {
 		set_swpid(stmp, ent);
