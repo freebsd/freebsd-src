@@ -440,7 +440,6 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	rem = segs->ds_addr & (USB_PAGE_SIZE - 1);
 	pc->page_offset_buf = rem;
 	pc->page_offset_end += rem;
-	nseg--;
 #ifdef USB_DEBUG
 	if (rem != (USB_P2U(pc->buffer) & (USB_PAGE_SIZE - 1))) {
 		/*
@@ -451,7 +450,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 		goto done;
 	}
 #endif
-	while (nseg > 0) {
+	while (1) {
 		off += USB_PAGE_SIZE;
 		if (off >= (segs->ds_len + rem)) {
 			/* page crossing */
@@ -459,6 +458,8 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 			segs++;
 			off = 0;
 			rem = 0;
+			if (nseg == 0)
+				break;
 		}
 		pg++;
 		pg->physaddr = (segs->ds_addr + off) & ~(USB_PAGE_SIZE - 1);
