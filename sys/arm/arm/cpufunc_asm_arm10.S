@@ -87,7 +87,7 @@ ENTRY_NP(arm10_icache_sync_range)
 	mcr	p15, 0, r0, c7, c10, 1	/* Clean D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm10_sync_next
+	bhi	.Larm10_sync_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 
@@ -108,12 +108,10 @@ ENTRY_NP(arm10_icache_sync_all)
 	orr	ip, s_max, i_max
 .Lnext_index:
 	mcr	p15, 0, ip, c7, c10, 2	/* Clean D cache SE with Set/Index */
-	sub	ip, ip, i_inc
-	tst	ip, i_max		/* Index 0 is last one */
-	bne	.Lnext_index		/* Next index */
-	mcr	p15, 0, ip, c7, c10, 2	/* Clean D cache SE with Set/Index */
+	subs	ip, ip, i_inc
+	bhs	.Lnext_index		/* Next index */
 	subs	s_max, s_max, s_inc
-	bpl	.Lnext_set		/* Next set */
+	bhs	.Lnext_set		/* Next set */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 
@@ -133,7 +131,7 @@ ENTRY(arm10_dcache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 1	/* Clean D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm10_wb_next
+	bhi	.Larm10_wb_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 	
@@ -150,7 +148,7 @@ ENTRY(arm10_dcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c14, 1	/* Purge D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm10_wbinv_next
+	bhi	.Larm10_wbinv_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 	
@@ -171,7 +169,7 @@ ENTRY(arm10_dcache_inv_range)
 	mcr	p15, 0, r0, c7, c6, 1	/* Invalidate D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm10_inv_next
+	bhi	.Larm10_inv_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 
@@ -189,7 +187,7 @@ ENTRY(arm10_idcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c14, 1	/* Purge D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm10_id_wbinv_next
+	bhi	.Larm10_id_wbinv_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 
@@ -211,12 +209,10 @@ ENTRY(arm10_dcache_wbinv_all)
 	orr	ip, s_max, i_max
 .Lnext_index_inv:
 	mcr	p15, 0, ip, c7, c14, 2	/* Purge D cache SE with Set/Index */
-	sub	ip, ip, i_inc
-	tst	ip, i_max		/* Index 0 is last one */
-	bne	.Lnext_index_inv		/* Next index */
-	mcr	p15, 0, ip, c7, c14, 2	/* Purge D cache SE with Set/Index */
+	subs	ip, ip, i_inc
+	bhs	.Lnext_index_inv		/* Next index */
 	subs	s_max, s_max, s_inc
-	bpl	.Lnext_set_inv		/* Next set */
+	bhs	.Lnext_set_inv		/* Next set */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
 
