@@ -72,9 +72,10 @@ arm_intrnames_init(void)
 {
 	int i;
 
-	for (i = 0; i < NIRQ; ++i)
+	for (i = 0; i < NIRQ; ++i) {
 		snprintf(&intrnames[i * INTRNAME_LEN], INTRNAME_LEN, "%-*s",
 		    INTRNAME_LEN - 1, "");
+	}
 }
 
 void
@@ -94,8 +95,8 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		if (error)
 			return;
 		intr_events[irq] = event;
-		snprintf(&intrnames[irq * INTRNAME_LEN], INTRNAME_LEN, "%-*s",
-		    INTRNAME_LEN - 1, name);
+		snprintf(&intrnames[irq * INTRNAME_LEN], INTRNAME_LEN, 
+		    "irq%d: %-*s", irq, INTRNAME_LEN - 1, name);
 	}
 	intr_event_add_handler(event, name, filt, hand, arg,
 	    intr_priority(flags), flags, cookiep);
