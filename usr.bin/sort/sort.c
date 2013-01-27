@@ -434,8 +434,7 @@ parse_memory_buffer_value(const char *value)
 				    100;
 				break;
 			default:
-				fprintf(stderr, "%s: %s\n", strerror(EINVAL),
-				   optarg);
+				warnc(EINVAL, "%s", optarg);
 				membuf = available_free_memory;
 			}
 		}
@@ -658,7 +657,7 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 		errno = 0;
 		ks->f2 = (size_t) strtoul(f, NULL, 10);
 		if (errno != 0)
-			errx(2, "%s: -k", strerror(errno));
+			err(2, "-k");
 		if (ks->f2 == 0) {
 			warn("%s",getstr(5));
 			goto end;
@@ -667,7 +666,7 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 		errno = 0;
 		ks->f1 = (size_t) strtoul(f, NULL, 10);
 		if (errno != 0)
-			errx(2, "%s: -k", strerror(errno));
+			err(2, "-k");
 		if (ks->f1 == 0) {
 			warn("%s",getstr(5));
 			goto end;
@@ -685,12 +684,12 @@ parse_pos(const char *s, struct key_specs *ks, bool *mef_flags, bool second)
 			errno = 0;
 			ks->c2 = (size_t) strtoul(c, NULL, 10);
 			if (errno != 0)
-				errx(2, "%s: -k", strerror(errno));
+				err(2, "-k");
 		} else {
 			errno = 0;
 			ks->c1 = (size_t) strtoul(c, NULL, 10);
 			if (errno != 0)
-				errx(2, "%s: -k", strerror(errno));
+				err(2, "-k");
 			if (ks->c1 == 0) {
 				warn("%s",getstr(6));
 				goto end;
@@ -1041,8 +1040,7 @@ main(int argc, char **argv)
 
 				if (parse_k(optarg, &(keys[keys_num - 1]))
 				    < 0) {
-					errx(2, "%s: -k %s\n",
-					    strerror(EINVAL), optarg);
+					errc(2, EINVAL, "-k %s", optarg);
 				}
 
 				break;
@@ -1067,8 +1065,7 @@ main(int argc, char **argv)
 			case 't':
 				while (strlen(optarg) > 1) {
 					if (optarg[0] != '\\') {
-						errx(2, "%s: %s\n",
-						    strerror(EINVAL), optarg);
+						errc(2, EINVAL, "%s", optarg);
 					}
 					optarg += 1;
 					if (*optarg == '0') {
@@ -1155,8 +1152,7 @@ main(int argc, char **argv)
 				errno = 0;
 				long mof = strtol(optarg, NULL, 10);
 				if (errno != 0)
-					errx(2, "--batch-size: %s",
-					    strerror(errno));
+					err(2, "--batch-size");
 				if (mof >= 2)
 					max_open_files = (size_t) mof + 1;
 			}
