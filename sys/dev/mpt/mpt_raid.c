@@ -726,9 +726,7 @@ mpt_raid_thread(void *arg)
 				ccb->ccb_h.func_code = XPT_SCAN_BUS;
 				ccb->ccb_h.cbfcnp = mpt_cam_rescan_callback;
 				ccb->crcn.flags = CAM_FLAG_NONE;
-				MPTLOCK_2_CAMLOCK(mpt);
 				xpt_action(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
 			}
 		}
 	}
