@@ -986,21 +986,6 @@ main(int argc, char **argv)
 	set_tmpdir();
 	set_sort_opts();
 
-#if 0
-	{
-		static int counter = 0;
-		char fn[128];
-		sprintf(fn, "/var/tmp/debug.sort.%d", counter++);
-		FILE* f = fopen(fn, "w");
-		fprintf(f, ">>sort>>");
-		for (int i = 0; i < argc; i++) {
-			fprintf(f, "<%s>", argv[i]);
-		}
-		fprintf(f, "<<sort<<\n");
-		fclose(f);
-	}
-#endif
-
 	fix_obsolete_keys(&argc, argv);
 
 	while (((c = getopt_long(argc, argv, OPTIONS, long_options, NULL))
