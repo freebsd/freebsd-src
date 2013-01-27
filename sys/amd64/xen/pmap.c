@@ -196,6 +196,7 @@ static vm_paddr_t (*ptmb_vtop)(uintptr_t) = NULL;
 
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
 extern char *console_page; /* The shared ring for console i/o */
+extern struct xenstore_domain_interface *xen_store; /* xenstore page */
 
 /* return kernel virtual address of  'n' claimed physical pages at boot. */
 static uintptr_t
@@ -666,13 +667,22 @@ pmap_init(void)
 	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
 
 	/* Get a va for console and map the console mfn into it */
-	vm_paddr_t console_ma = xen_start_info->console.domU.mfn << PAGE_SHIFT;
+	vm_paddr_t ma = xen_start_info->console.domU.mfn << PAGE_SHIFT;
 
 	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
 	KASSERT(va != 0, ("Could not allocate KVA for console page!\n"));
 
-	pmap_kenter_ma(va, console_ma);
+	pmap_kenter_ma(va, ma);
 	console_page = (void *)va;
+
+	/* Get a va for the xenstore shared page */
+	ma = xen_start_info->store_mfn << PAGE_SHIFT;
+
+	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	KASSERT(va != 0, ("Could not allocate KVA for xenstore page!\n"));
+
+	pmap_kenter_ma(va, ma);
+	xen_store = (void *)va;
 }
 
 void
@@ -738,10 +748,6 @@ vtopte_hold(uintptr_t va, void *addr)
 
 	mmu_map_t tptr = *(mmu_map_t *)addr;
 
-	const uint64_t SIGNMASK = (1UL << 48) - 1;
-
-	va &= SIGNMASK; /* Remove sign extension */
-
 	pd_entry_t *pte; /* PTE address to return */
 
 	struct mmu_map_mbackend mb = {
@@ -769,9 +775,6 @@ void
 vtopte_release(uintptr_t va, void *addr)
 {
 	mmu_map_t tptr = *(mmu_map_t *)addr;
-	const uint64_t SIGNMASK = (1UL << 48) - 1;
-
-	va &= SIGNMASK; /* Remove sign extension */
 
 	mmu_map_release_va(kernel_pmap, tptr, va);
 	mmu_map_t_fini(tptr);
@@ -1060,12 +1063,13 @@ pmap_kremove(vm_offset_t va)
 
 	pte = vtopte_hold(va, &tptr);
 	if (pte == NULL) { /* Mapping doesn't exist */
-		return;
+		goto unmappte;
 	}
 
 	PT_CLEAR_VA(pte, TRUE);
 	PT_UPDATES_FLUSH();
 
+unmappte:
 	vtopte_release(va, &tptr);
 }
 
@@ -1147,6 +1151,8 @@ pmap_zero_page(vm_page_t m)
 	pmap_kenter(va, VM_PAGE_TO_PHYS(m));
 
 	pagezero((void *)va);
+
+	pmap_kremove(va);
 }
 
 void
@@ -1330,10 +1336,11 @@ xen_vm_ptov(vm_paddr_t pa)
 		return PTOV(pa);
 	}
 
+#if 0
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		("%s: page %p is not managed", __func__, m));
-
-	return pmap_pv_vm_page_to_v(kernel_pmap, m);
+#endif
+	return pmap_pv_vm_page_to_v(kernel_pmap, m) | (pa & ~PG_FRAME);
 }
 
 static vm_paddr_t
@@ -1386,7 +1393,7 @@ xen_vm_vtop(uintptr_t va)
 
 	VM_OBJECT_UNLOCK(object);
 
-	return VM_PAGE_TO_PHYS(m);
+	return VM_PAGE_TO_PHYS(m) | (va & PAGE_MASK);
 }
 
 static uintptr_t
@@ -1394,7 +1401,7 @@ xen_pagezone_alloc(void)
 {
 	uintptr_t ret;
 
-	ret = (uintptr_t)uma_zalloc(xen_pagezone, M_NOWAIT | M_ZERO);
+	ret = (uintptr_t)uma_zalloc(xen_pagezone, M_NOWAIT);
 	if (ret == 0)
 		panic("%s: failed allocation\n", __func__);
 	return (ret);
@@ -1419,6 +1426,9 @@ xen_pagezone_init(void *mem, int size, int flags)
 
 	va = (uintptr_t)mem;
 
+	/* Zero the zone chunk */
+	memset(mem, 0, size);
+
 	/* Xen requires the page table hierarchy to be R/O. */
 	pmap_xen_setpages_ro(va, atop(size));
 	return (0);
@@ -1433,6 +1443,10 @@ xen_pagezone_fini(void *mem, int size)
 
 	/* Xen requires the page table hierarchy to be R/O. */
 	pmap_xen_setpages_rw(va, atop(size));
+
+	/* Zero the zone chunk before returning it */
+	memset(mem, 0, size);
+
 	return;
 }
 
