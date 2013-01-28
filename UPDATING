@@ -35,6 +35,13 @@ Items affecting the ports and packages system can be found in
         Please refer to the "ZFS notes" section of this file for information
         on upgrading boot ZFS pools.
 
+20121114:
+	The commit introducing bsd.compiler.mk breaks the traditional
+	building of kernels before this point. Add -m ${SRC}/share/mk
+	(for the right value of SRC) to your command lines to work
+	around; update your useland to a point after this; or use the
+	buildkernel/installkernel top-level targets.
+
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
 	functionality now turned on by default.
@@ -46,6 +53,12 @@ Items affecting the ports and packages system can be found in
 	needed.  The GENERIC kernels on i386 and amd64 do include the
 	option, so the change only affects the custom kernel
 	configurations.
+
+20120829:
+	The amd64 kernel now uses xsetbv, xrstor instructions. To compile with
+	the traditional method, you must update your system with an installworld
+	before the kernel will build. The documented make buildkernel/installkernel
+	interfaces (coupled with fresh make kernel-toolchain) continue to work.
 
 20120727:
 	The sparc64 ZFS loader has been changed to no longer try to auto-
