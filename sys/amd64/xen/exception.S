@@ -131,10 +131,10 @@
 	subq 	$TF_ERR, %rsp
 
 #define TRAP_FRAME_EXIT_NOERR \
-	addq	$TF_RIP + 8, %rsp
+	addq	$TF_RIP, %rsp
 
 #define TRAP_FRAME_EXIT_ERR \
-	addq 	$TF_ERR + 8, %rsp
+	addq 	$TF_ERR, %rsp
 
 #define TRAP_PROLOGUE(a) \
 	movl	$(a), TF_TRAPNO(%rsp) 	; \
@@ -434,9 +434,9 @@ IDTVEC(ac)			/* Alignment-Check */
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
-	TRAP_FRAME_EXIT_ERR   	;
 	RESTORE_GENERAL_REGS	;
 	RESTORE_SEGMENT_REGS	;
+	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
 IDTVEC(mc)			/* Machine-Check */
