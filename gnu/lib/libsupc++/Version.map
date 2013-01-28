@@ -142,7 +142,36 @@ GLIBCXX_3.4 {
     _ZdaPvRKSt9nothrow_t;
     _ZdlPv;
     _ZdlPvRKSt9nothrow_t;
+    extern "C++" {
+      std::set_new_handler*;
+      std::set_terminate*;
+      std::set_unexpected*;
+
+      std::bad_alloc;
+      std::bad_cast;
+      std::exception*;
+
+      "typeinfo for std::bad_alloc";
+      "typeinfo for std::bad_cast";
+      "typeinfo for std::exception";
+
+      "typeinfo name for std::bad_alloc";
+      "typeinfo name for std::bad_cast";
+      "typeinfo name for std::exception";
+
+      "vtable for std::bad_alloc";
+      "vtable for std::bad_cast";
+      "vtable for std::exception";
+    };
 };
+
+GLIBCXX_3.4.9 {
+    extern "C++" {
+        "std::bad_alloc::what() const";
+        "std::bad_cast::what() const";
+        "std::bad_typeid::what() const";
+    };
+} GLIBCXX_3.4;
 
 CXXABI_1.3.1 {
 
