@@ -214,8 +214,12 @@ cas_attach(struct cas_softc *sc)
 		error = ENXIO;
 		goto fail_ifnet;
 	}
-	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
+	error = taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->sc_dev));
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not start threads\n");
+		goto fail_taskq;
+	}
 
 	/* Make sure the chip is stopped. */
 	cas_reset(sc);
@@ -339,10 +343,13 @@ cas_attach(struct cas_softc *sc)
 			    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 			/* Enable/unfreeze the GMII pins of Saturn. */
 			if (sc->sc_variant == CAS_SATURN) {
-				CAS_WRITE_4(sc, CAS_SATURN_PCFG, 0);
+				CAS_WRITE_4(sc, CAS_SATURN_PCFG,
+				    CAS_READ_4(sc, CAS_SATURN_PCFG) &
+				    ~CAS_SATURN_PCFG_FSI);
 				CAS_BARRIER(sc, CAS_SATURN_PCFG, 4,
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
+				DELAY(10000);
 			}
 			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
@@ -359,10 +366,12 @@ cas_attach(struct cas_softc *sc)
 			/* Freeze the GMII pins of Saturn for saving power. */
 			if (sc->sc_variant == CAS_SATURN) {
 				CAS_WRITE_4(sc, CAS_SATURN_PCFG,
+				    CAS_READ_4(sc, CAS_SATURN_PCFG) |
 				    CAS_SATURN_PCFG_FSI);
 				CAS_BARRIER(sc, CAS_SATURN_PCFG, 4,
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
+				DELAY(10000);
 			}
 			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
@@ -2865,7 +2874,7 @@ cas_pci_attach(device_t dev)
 		goto fail;
 	}
 	i = 0;
-	if (lma > 1 && pci_get_slot(dev) < sizeof(enaddr) / sizeof(*enaddr))
+	if (lma > 1 && pci_get_slot(dev) < nitems(enaddr))
 		i = pci_get_slot(dev);
 	memcpy(sc->sc_enaddr, enaddr[i], ETHER_ADDR_LEN);
 
@@ -2874,7 +2883,7 @@ cas_pci_attach(device_t dev)
 		goto fail;
 	}
 	i = 0;
-	if (phy > 1 && pci_get_slot(dev) < sizeof(pcs) / sizeof(*pcs))
+	if (phy > 1 && pci_get_slot(dev) < nitems(pcs))
 		i = pci_get_slot(dev);
 	if (pcs[i] != 0)
 		sc->sc_flags |= CAS_SERDES;
