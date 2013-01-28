@@ -181,6 +181,7 @@ ACPI_STATUS
 AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
     void *Context)
 {
+    ACPI_STATUS status;
     int pri;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -211,7 +212,8 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
 
-    return_ACPI_STATUS(acpi_task_enqueue(pri, Function, Context));
+    status = acpi_task_enqueue(pri, Function, Context);
+    return_ACPI_STATUS(status);
 }
 
 void

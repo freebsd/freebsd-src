@@ -130,6 +130,7 @@ int
 acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 {
     ACPI_STATUS status;
+    int error;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -168,7 +169,8 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
      */
     prt_walk_table(prt, prt_attach_devices, dev);
 
-    return_VALUE(bus_generic_attach(dev));
+    error = bus_generic_attach(dev);
+    return_VALUE(error);
 }
 
 static void
