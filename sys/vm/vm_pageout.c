@@ -151,18 +151,19 @@ static struct mtx vm_daemon_mtx;
 MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 #endif
 static int vm_max_launder = 32;
-static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
-static int vm_pageout_full_stats_interval = 0;
-static int vm_pageout_algorithm=0;
-static int defer_swap_pageouts=0;
-static int disable_swap_pageouts=0;
+static int vm_pageout_stats_max;
+static int vm_pageout_stats_interval;
+static int vm_pageout_full_stats_interval;
+static int vm_pageout_algorithm;
+static int defer_swap_pageouts;
+static int disable_swap_pageouts;
 
 #if defined(NO_SWAPPING)
-static int vm_swap_enabled=0;
-static int vm_swap_idle_enabled=0;
+static int vm_swap_enabled = 0;
+static int vm_swap_idle_enabled = 0;
 #else
-static int vm_swap_enabled=1;
-static int vm_swap_idle_enabled=0;
+static int vm_swap_enabled = 1;
+static int vm_swap_idle_enabled = 0;
 #endif
 
 SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,
@@ -1512,12 +1513,12 @@ vm_pageout_oom(int shortage)
  * helps the situation where paging just starts to occur.
  */
 static void
-vm_pageout_page_stats()
+vm_pageout_page_stats(void)
 {
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	vm_page_t m,next;
-	int pcount,tpcount;		/* Number of pages to check */
+	vm_page_t m, next;
+	int pcount, tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
 	int page_shortage;
 
@@ -1624,7 +1625,7 @@ vm_pageout_page_stats()
  *	vm_pageout is the high level pageout daemon.
  */
 static void
-vm_pageout()
+vm_pageout(void)
 {
 	int error, pass;
 
@@ -1757,7 +1758,7 @@ vm_pageout()
  * the free page queue lock is held until the msleep() is performed.
  */
 void
-pagedaemon_wakeup()
+pagedaemon_wakeup(void)
 {
 
 	if (!vm_pages_needed && curthread->td_proc != pageproc) {
@@ -1782,7 +1783,7 @@ vm_req_vmdaemon(int req)
 }
 
 static void
-vm_daemon()
+vm_daemon(void)
 {
 	struct rlimit rsslim;
 	struct proc *p;
