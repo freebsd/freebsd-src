@@ -40,7 +40,7 @@ Items affecting the ports and packages system can be found in
 	building of kernels before this point. Add -m ${SRC}/share/mk
 	(for the right value of SRC) to your command lines to work
 	around; update your useland to a point after this; or use the
-	buildkernel/installkernel top-level targets.
+	buildkernel/installkernel top-level targets. See also 20120829.
 
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
