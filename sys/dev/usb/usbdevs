@@ -1487,6 +1487,7 @@ product DIGIANSWER ZIGBEE802154	0x000a	ZigBee/802.15.4 MAC
 /* D-Link products */
 /*product DLINK DSBS25		0x0100	DSB-S25 serial*/
 product DLINK DUBE100		0x1a00	10/100 Ethernet
+product DLINK DUBE100C1		0x1a02	DUB-E100 rev C1
 product DLINK DSB650TX4		0x200c	10/100 Ethernet
 product DLINK DWL120E		0x3200	DWL-120 rev E
 product DLINK DWL122		0x3700	DWL-122
