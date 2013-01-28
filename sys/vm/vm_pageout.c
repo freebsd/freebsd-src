@@ -152,7 +152,9 @@ MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 #endif
 static int vm_max_launder = 32;
 static int vm_pageout_stats_max;
+static int vm_pageout_stats;
 static int vm_pageout_stats_interval;
+static int vm_pageout_full_stats;
 static int vm_pageout_full_stats_interval;
 static int vm_pageout_algorithm;
 static int defer_swap_pageouts;
@@ -175,11 +177,17 @@ SYSCTL_INT(_vm, OID_AUTO, max_launder,
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_max,
 	CTLFLAG_RW, &vm_pageout_stats_max, 0, "Max pageout stats scan length");
 
-SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats_interval,
-	CTLFLAG_RW, &vm_pageout_full_stats_interval, 0, "Interval for full stats scan");
+SYSCTL_INT(_vm, OID_AUTO, pageout_stats,
+	CTLFLAG_RD, &vm_pageout_stats, 0, "Number of partial stats scans");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_interval,
 	CTLFLAG_RW, &vm_pageout_stats_interval, 0, "Interval for partial stats scan");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats,
+	CTLFLAG_RD, &vm_pageout_full_stats, 0, "Number of full stats scans");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats_interval,
+	CTLFLAG_RW, &vm_pageout_full_stats_interval, 0, "Interval for full stats scan");
 
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
@@ -1532,11 +1540,13 @@ vm_pageout_page_stats(void)
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
 	if (fullintervalcount < vm_pageout_full_stats_interval) {
+		vm_pageout_stats++;
 		tpcount = (int64_t)vm_pageout_stats_max * cnt.v_active_count /
 		    cnt.v_page_count;
 		if (pcount > tpcount)
 			pcount = tpcount;
 	} else {
+		vm_pageout_full_stats++;
 		fullintervalcount = 0;
 	}
 
