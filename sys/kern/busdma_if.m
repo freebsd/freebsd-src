@@ -47,7 +47,8 @@ CODE {
 	}
 
 	static int
-	default_iommu_unmap(device_t bus, device_t dev, busdma_md_t md)
+	default_iommu_unmap(device_t bus, device_t dev, busdma_md_t md,
+	    u_int idx)
 	{
 		return (0);
 	}
@@ -78,6 +79,7 @@ METHOD int iommu_unmap {
 	device_t	bus;
 	device_t	dev;
 	busdma_md_t	md;
+	u_int		idx;
 } DEFAULT default_iommu_unmap;
 
 METHOD int iommu_sync {

@@ -30,8 +30,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/busdma.h>
 #include <sys/pcpu.h>
@@ -75,6 +77,8 @@ struct sgisn_pcib_softc {
 	struct rman	sc_iomem;
 	uint32_t	*sc_flush_intr[PCI_SLOTMAX + 1];
 	uint64_t	*sc_flush_addr[PCI_SLOTMAX + 1];
+	uint64_t	sc_ate[PIC_REG_ATE_SIZE / 64];
+	struct mtx	sc_ate_mtx;
 };
 
 static int sgisn_pcib_attach(device_t);
@@ -109,6 +113,7 @@ static void sgisn_pcib_cfgwrite(device_t, u_int, u_int, u_int, u_int, uint32_t,
 static int sgisn_pcib_iommu_xlate(device_t, device_t, busdma_mtag_t);
 static int sgisn_pcib_iommu_map(device_t, device_t, busdma_md_t, u_int,
     bus_addr_t *);
+static int sgisn_pcib_iommu_unmap(device_t, device_t, busdma_md_t, u_int);
 static int sgisn_pcib_iommu_sync(device_t, device_t, busdma_md_t, u_int,
     bus_addr_t, bus_size_t);
 
@@ -144,6 +149,7 @@ static device_method_t sgisn_pcib_methods[] = {
 	/* busdma interface */
 	DEVMETHOD(busdma_iommu_xlate,	sgisn_pcib_iommu_xlate),
 	DEVMETHOD(busdma_iommu_map,	sgisn_pcib_iommu_map),
+	DEVMETHOD(busdma_iommu_unmap,	sgisn_pcib_iommu_unmap),
 	DEVMETHOD(busdma_iommu_sync,	sgisn_pcib_iommu_sync),
 
 	{ 0, 0 }
@@ -475,6 +481,8 @@ sgisn_pcib_attach(device_t dev)
 #endif
 	bus_space_write_8(sc->sc_tag, sc->sc_hndl, PIC_REG_WGT_CTRL, ctrl);
 
+	mtx_init(&sc->sc_ate_mtx, device_get_nameunit(dev), NULL, MTX_SPIN);
+
 	fwflushsz = (PCI_SLOTMAX + 1) * sizeof(struct sgisn_fwflush);
 	fwflush = contigmalloc(fwflushsz, M_TEMP, M_ZERO, 0UL, ~0UL, 16, 0);
 	BUS_READ_IVAR(parent, dev, SHUB_IVAR_NASID, &ivar);
@@ -574,8 +582,9 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 	struct sgisn_pcib_softc *sc = device_get_softc(bus);
 	busdma_tag_t tag;
 	bus_addr_t maxaddr = 0x80000000UL;
-	bus_addr_t ba;
-	u_int flags;
+	bus_addr_t ba, size;
+	uint64_t bits;
+	u_int ate, bitshft, count, entry, flags;
 
 	ba = *ba_p;
 
@@ -595,39 +604,133 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 
 	/*
 	 * 32-bit mapped DMA.
-	 *
-	 * XXX HACK START XXX
 	 */
-	{
-		bus_addr_t size;
-		size_t count;
-		u_int entry;
+	size = busdma_md_get_size(md, idx);
+	count = ((ba & SGISN_PCIB_PAGE_MASK) + size +
+	    SGISN_PCIB_PAGE_MASK) >> SGISN_PCIB_PAGE_SHIFT;
 
-		size = busdma_md_get_size(md, idx);
-		count = ((ba & SGISN_PCIB_PAGE_MASK) + size +
-		    SGISN_PCIB_PAGE_MASK) >> SGISN_PCIB_PAGE_SHIFT;
-
-		entry = 0;
-
-		*ba_p = (1UL << 30) | (ba & SGISN_PCIB_PAGE_MASK) |
-		    (SGISN_PCIB_PAGE_SIZE * entry);
-
-		ba &= ~SGISN_PCIB_PAGE_MASK;
-		ba |= 1 << 0; /* valid */
-		ba |= 1 << ((flags & BUSDMA_ALLOC_CONSISTENT) ? 4 : 3);
-		ba |= (u_long)sc->sc_fwbus->fw_hub_xid << 8;
-
-		while (count > 0) {
-			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
-			    PIC_REG_ATE(entry), ba);
-			ba += SGISN_PCIB_PAGE_SIZE;
-			entry++;
-			count--;
-		}
+	/* Our bitmap allocation routine doesn't handle straddling longs. */
+	if (count > 64) {
+		device_printf(sc->sc_dev, "IOMMU: more than 64 entries needed "
+		    "for DMA\n");
+		return (E2BIG);
 	}
+
+	mtx_lock_spin(&sc->sc_ate_mtx);
+
+	ate = 0;
+	entry = ~0;
+	while (ate < (PIC_REG_ATE_SIZE / 64) && entry == ~0) {
+		bits = sc->sc_ate[ate];
+		/* Move to the next long if this one is full. */
+		if (bits == ~0UL) {
+			ate++;
+			continue;
+		}
+		/* If this long is empty, take it (catches count == 64). */
+		if (bits == 0UL) {
+			bitshft = 0;
+			entry = ate * 64;
+			break;
+		}
+		/* Avoid undefined behaviour below for 1 << count. */
+		if (count == 64) {
+			ate++;
+			continue;
+		}
+		bitshft = 0;
+		do {
+			if ((bits & ((1UL << count) - 1UL)) == 0) {
+				entry = ate * 64 + bitshft;
+				break;
+			}
+			while ((bits & 1UL) == 0) {
+				bits >>= 1;
+				bitshft++;
+			}
+			while (bitshft <= (64 - count) && (bits & 1UL) != 0) {
+				bits >>= 1;
+				bitshft++;
+			}
+		} while (bitshft <= (64 - count));
+		if (entry == ~0)
+			ate++;
+	}
+	if (entry != ~0) {
+		KASSERT(ate < (PIC_REG_ATE_SIZE / 64), ("foo: ate"));
+		KASSERT(bitshft <= (64 - count), ("foo: bitshft"));
+		KASSERT(entry == (ate * 64 + bitshft), ("foo: math"));
+		bits = (count < 64) ? ((1UL << count) - 1UL) << bitshft : ~0UL;
+		KASSERT((sc->sc_ate[ate] & bits) == 0UL, ("foo: bits"));
+		sc->sc_ate[ate] |= bits;
+	}
+
+	mtx_unlock_spin(&sc->sc_ate_mtx);
+
+	if (entry == ~0) {
+		device_printf(sc->sc_dev, "IOMMU: cannot find %u free entries "
+		    "for DMA\n", count);
+		return (ENOSPC);
+	}
+
+	*ba_p = (1UL << 30) | (ba & SGISN_PCIB_PAGE_MASK) |
+	    (SGISN_PCIB_PAGE_SIZE * entry);
+
+	ba &= ~SGISN_PCIB_PAGE_MASK;
+	ba |= 1 << 0; /* valid */
+	ba |= 1 << ((flags & BUSDMA_ALLOC_CONSISTENT) ? 4 : 3);
+	ba |= (u_long)sc->sc_fwbus->fw_hub_xid << 8;
+	while (count > 0) {
+		bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+		    PIC_REG_ATE(entry), ba);
+		ba += SGISN_PCIB_PAGE_SIZE;
+		entry++;
+		count--;
+	}
+	return (0);
+}
+
+static int
+sgisn_pcib_iommu_unmap(device_t bus, device_t dev, busdma_md_t md, u_int idx)
+{
+	struct sgisn_pcib_softc *sc = device_get_softc(bus);
+	bus_addr_t ba, size;
+	uint64_t bits;
+	u_int ate, bitshft, count, entry;
+
+	ba = busdma_md_get_busaddr(md, idx);
+	if ((ba >> 30) != 1)
+		return (0);
+
 	/*
-	 * XXX HACK END XXX
+	 * 32-bit mapped DMA
 	 */
+	size = busdma_md_get_size(md, idx);
+	count = ((ba & SGISN_PCIB_PAGE_MASK) + size +
+	    SGISN_PCIB_PAGE_MASK) >> SGISN_PCIB_PAGE_SHIFT;
+	ba &= (1 << 29) - 1;
+	entry = (ba >> SGISN_PCIB_PAGE_SHIFT);
+
+	KASSERT(count <= 64, ("foo: count"));
+	KASSERT((entry + count) <= PIC_REG_ATE_SIZE, ("foo"));
+	bitshft = entry & 64;
+	KASSERT(bitshft <= (64 - count), ("foo: bitshft"));
+	bits = (count < 64) ? ((1UL << count) - 1UL) << bitshft : ~0UL;
+	ate = entry / 64;
+
+	while (count > 0) {
+		bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+		    PIC_REG_ATE(entry), 0);
+		entry++;
+		count--;
+	}
+
+	mtx_lock_spin(&sc->sc_ate_mtx);
+
+	sc->sc_ate[ate] &= ~bits;
+
+	mtx_unlock_spin(&sc->sc_ate_mtx);
+
 	return (0);
 }
 

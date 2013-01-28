@@ -430,11 +430,17 @@ _busdma_iommu_map(device_t dev, struct busdma_md *md)
 static int
 _busdma_iommu_unmap(device_t dev, struct busdma_md *md)
 {
+	struct busdma_md_seg *seg;
 	device_t bus;
 	int error;
 
 	bus = device_get_parent(dev);
-	error = BUSDMA_IOMMU_UNMAP(bus, dev, md);
+	error = 0;
+	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
+		error = BUSDMA_IOMMU_UNMAP(bus, dev, md, seg->mds_idx);
+		if (error)
+			break;
+	}
 	if (error)
 		printf("%s: error=%d\n", __func__, error);
 
