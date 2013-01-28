@@ -61,6 +61,7 @@ struct vmmeter {
 	 * Virtual memory activity.
 	 */
 	u_int v_vm_faults;	/* (p) address memory faults */
+	u_int v_io_faults;	/* (p) page faults requiring I/O */
 	u_int v_cow_faults;	/* (p) copy-on-writes faults */
 	u_int v_cow_optim;	/* (p) optimized copy-on-writes faults */
 	u_int v_zfod;		/* (p) pages zero filled on demand */
