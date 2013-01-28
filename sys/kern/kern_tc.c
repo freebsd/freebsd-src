@@ -103,8 +103,8 @@ static struct timecounter *timecounters = &dummy_timecounter;
 
 int tc_min_ticktock_freq = 1;
 
-time_t time_second = 1;
-time_t time_uptime = 1;
+volatile time_t time_second = 1;
+volatile time_t time_uptime = 1;
 
 struct bintime boottimebin;
 struct timeval boottime;
