@@ -186,7 +186,7 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (Function == NULL)
-	return_ACPI_STATUS (AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     switch (Type) {
     case OSL_GPE_HANDLER:
@@ -208,10 +208,10 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
 	pri = 0;
 	break;
     default:
-	return_ACPI_STATUS (AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
 
-    return_ACPI_STATUS (acpi_task_enqueue(pri, Function, Context));
+    return_ACPI_STATUS(acpi_task_enqueue(pri, Function, Context));
 }
 
 void
