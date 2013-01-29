@@ -1702,7 +1702,7 @@ uma_startup(void *bootmem, int boot_pages)
 
 #ifdef UMA_DEBUG
 	printf("Calculated uma_max_ipers (for OFFPAGE) is %d\n", uma_max_ipers);
-	printf("Calculated uma_max_ipers_slab (for OFFPAGE) is %d\n",
+	printf("Calculated uma_max_ipers_ref (for OFFPAGE) is %d\n",
 	    uma_max_ipers_ref);
 #endif
 
