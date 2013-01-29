@@ -39,8 +39,9 @@
 #define VIRTIO_BLK_F_RO		0x0020	/* Disk is read-only */
 #define VIRTIO_BLK_F_BLK_SIZE	0x0040	/* Block size of disk is available*/
 #define VIRTIO_BLK_F_SCSI	0x0080	/* Supports scsi command passthru */
-#define VIRTIO_BLK_F_FLUSH	0x0200	/* Cache flush command support */
+#define VIRTIO_BLK_F_WCE	0x0200	/* Writeback mode enabled after reset */
 #define VIRTIO_BLK_F_TOPOLOGY	0x0400	/* Topology information is available */
+#define VIRTIO_BLK_F_CONFIG_WCE 0x0800	/* Writeback mode available in config */
 
 #define VIRTIO_BLK_ID_BYTES	20	/* ID string length */
 
@@ -68,6 +69,9 @@ struct virtio_blk_config {
 		uint16_t min_io_size;
 		uint16_t opt_io_size;
 	} topology;
+
+	/* Writeback mode (if VIRTIO_BLK_F_CONFIG_WCE) */
+	uint8_t writeback;
 
 } __packed;
 
