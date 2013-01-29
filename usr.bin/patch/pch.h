@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*-
- * 
  * Copyright 1986, Larry Wall
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +24,7 @@
  * behaviour
  *
  * $OpenBSD: pch.h,v 1.9 2003/10/31 20:20:45 millert Exp $
- * $DragonFly: src/usr.bin/patch/pch.h,v 1.1 2004/09/24 18:44:28 joerg Exp $
+ * $FreeBSD$
  */
 
 #define OLD_FILE	0

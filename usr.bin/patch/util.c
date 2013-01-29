@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*-
- * 
  * Copyright 1986, Larry Wall
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -25,8 +23,8 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: util.c,v 1.32 2006/03/11 19:41:30 otto Exp $
- * $DragonFly: src/usr.bin/patch/util.c,v 1.9 2007/09/29 23:11:10 swildner Exp $
+ * $OpenBSD: util.c,v 1.35 2010/07/24 01:10:12 ray Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -212,9 +210,9 @@ say(const char *fmt, ...)
 	va_list	ap;
 
 	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
+	vfprintf(stdout, fmt, ap);
 	va_end(ap);
-	fflush(stderr);
+	fflush(stdout);
 }
 
 /*
