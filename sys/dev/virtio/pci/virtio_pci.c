@@ -51,6 +51,12 @@ __FBSDID("$FreeBSD$");
 #include "virtio_bus_if.h"
 #include "virtio_if.h"
 
+struct vtpci_interrupt {
+	struct resource		*vti_irq;
+	int			 vti_rid;
+	void			*vti_handler;
+};
+
 struct vtpci_softc {
 	device_t			 vtpci_dev;
 	struct resource			*vtpci_res;
@@ -70,39 +76,25 @@ struct vtpci_softc {
 	struct virtio_feature_desc	*vtpci_child_feat_desc;
 
 	/*
-	 * Ideally, each virtqueue that the driver provides a callback for
-	 * will receive its own MSIX vector. If there are not sufficient
-	 * vectors available, we will then attempt to have all the VQs
-	 * share one vector. Note that when using MSIX, the configuration
-	 * changed notifications must be on their own vector.
+	 * Ideally, each virtqueue that the driver provides a callback for will
+	 * receive its own MSIX vector. If there are not sufficient vectors
+	 * available, then attempt to have all the VQs share one vector. For
+	 * MSIX, the configuration changed notifications must be on their own
+	 * vector.
 	 *
-	 * If MSIX is not available, we will attempt to have the whole
-	 * device share one MSI vector, and then, finally, one legacy
-	 * interrupt.
+	 * If MSIX is not available, we will attempt to have the whole device
+	 * share one MSI vector, and then, finally, one legacy interrupt.
 	 */
-	int				 vtpci_nvqs;
-	struct vtpci_virtqueue {
-		struct virtqueue *vq;
-		/* Device did not provide a callback for this virtqueue. */
-		int		  no_intr;
-		/* Index into vtpci_intr_res[] below. Unused, then -1. */
-		int		  ires_idx;
-	} vtpci_vqx[VIRTIO_MAX_VIRTQUEUES];
+	struct vtpci_interrupt		 vtpci_device_interrupt;
+	struct vtpci_interrupt		*vtpci_msix_vq_interrupts;
 
-	/*
-	 * When using MSIX interrupts, the first element of vtpci_intr_res[]
-	 * is always the configuration changed notifications. The remaining
-	 * element(s) are used for the virtqueues.
-	 *
-	 * With MSI and legacy interrupts, only the first element of
-	 * vtpci_intr_res[] is used.
-	 */
-	int				 vtpci_nintr_res;
-	struct vtpci_intr_resource {
-		struct resource	*irq;
-		int		 rid;
-		void		*intrhand;
-	} vtpci_intr_res[1 + VIRTIO_MAX_VIRTQUEUES];
+	int				 vtpci_nvqs;
+	int				 vtpci_nmsix_resources;
+
+	struct vtpci_virtqueue {
+		struct virtqueue *vqx_vq;
+		int		  vqx_no_intr;
+	} vtpci_vqx[VIRTIO_MAX_VIRTQUEUES];
 };
 
 static int	vtpci_probe(device_t);
@@ -140,22 +132,29 @@ static int 	vtpci_alloc_intr_msix_pervq(struct vtpci_softc *);
 static int 	vtpci_alloc_intr_msix_shared(struct vtpci_softc *);
 static int 	vtpci_alloc_intr_msi(struct vtpci_softc *);
 static int 	vtpci_alloc_intr_legacy(struct vtpci_softc *);
+static int	vtpci_alloc_interrupt(struct vtpci_softc *, int, int,
+		    struct vtpci_interrupt *);
 static int	vtpci_alloc_intr_resources(struct vtpci_softc *);
 
 static int 	vtpci_setup_legacy_interrupt(struct vtpci_softc *,
+		    enum intr_type);
+static int	vtpci_setup_pervq_msix_interrupts(struct vtpci_softc *,
 		    enum intr_type);
 static int 	vtpci_setup_msix_interrupts(struct vtpci_softc *,
 		    enum intr_type);
 static int 	vtpci_setup_interrupts(struct vtpci_softc *, enum intr_type);
 
-static int	vtpci_register_msix_vector(struct vtpci_softc *, int, int);
+static int	vtpci_register_msix_vector(struct vtpci_softc *, int,
+		    struct vtpci_interrupt *);
 static int 	vtpci_set_host_msix_vectors(struct vtpci_softc *);
 static int 	vtpci_reinit_virtqueue(struct vtpci_softc *, int);
 
+static void	vtpci_free_interrupt(struct vtpci_softc *,
+		    struct vtpci_interrupt *);
 static void	vtpci_free_interrupts(struct vtpci_softc *);
 static void	vtpci_free_virtqueues(struct vtpci_softc *);
-static void 	vtpci_cleanup_setup_intr_attempt(struct vtpci_softc *);
 static void	vtpci_release_child_resources(struct vtpci_softc *);
+static void 	vtpci_cleanup_setup_intr_attempt(struct vtpci_softc *);
 static void	vtpci_reset(struct vtpci_softc *);
 
 static void	vtpci_select_virtqueue(struct vtpci_softc *, int);
@@ -480,7 +479,6 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	uint16_t size;
 
 	sc = device_get_softc(dev);
-	error = 0;
 
 	if (sc->vtpci_nvqs != 0)
 		return (EALREADY);
@@ -508,8 +506,8 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		vtpci_write_config_4(sc, VIRTIO_PCI_QUEUE_PFN,
 		    virtqueue_paddr(vq) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT);
 
-		vqx->vq = *info->vqai_vq = vq;
-		vqx->no_intr = info->vqai_intr == NULL;
+		vqx->vqx_vq = *info->vqai_vq = vq;
+		vqx->vqx_no_intr = info->vqai_intr == NULL;
 
 		sc->vtpci_nvqs++;
 	}
@@ -774,7 +772,7 @@ vtpci_alloc_msix(struct vtpci_softc *sc, int nvectors)
 
 	cnt = required;
 	if (pci_alloc_msix(dev, &cnt) == 0 && cnt >= required) {
-		sc->vtpci_nintr_res = required;
+		sc->vtpci_nmsix_resources = required;
 		return (0);
 	}
 
@@ -797,10 +795,8 @@ vtpci_alloc_msi(struct vtpci_softc *sc)
 		return (1);
 
 	cnt = required;
-	if (pci_alloc_msi(dev, &cnt) == 0 && cnt >= required) {
-		sc->vtpci_nintr_res = required;
+	if (pci_alloc_msi(dev, &cnt) == 0 && cnt >= required)
 		return (0);
-	}
 
 	pci_release_msi(dev);
 
@@ -817,7 +813,7 @@ vtpci_alloc_intr_msix_pervq(struct vtpci_softc *sc)
 		return (ENOTSUP);
 
 	for (nvectors = 0, i = 0; i < sc->vtpci_nvqs; i++) {
-		if (sc->vtpci_vqx[i].no_intr == 0)
+		if (sc->vtpci_vqx[i].vqx_no_intr == 0)
 			nvectors++;
 	}
 
@@ -871,7 +867,22 @@ vtpci_alloc_intr_legacy(struct vtpci_softc *sc)
 {
 
 	sc->vtpci_flags |= VTPCI_FLAG_LEGACY;
-	sc->vtpci_nintr_res = 1;
+
+	return (0);
+}
+
+static int
+vtpci_alloc_interrupt(struct vtpci_softc *sc, int rid, int flags,
+    struct vtpci_interrupt *intr)
+{
+	struct resource *irq;
+
+	irq = bus_alloc_resource_any(sc->vtpci_dev, SYS_RES_IRQ, &rid, flags);
+	if (irq == NULL)
+		return (ENXIO);
+
+	intr->vti_irq = irq;
+	intr->vti_rid = rid;
 
 	return (0);
 }
@@ -880,45 +891,40 @@ static int
 vtpci_alloc_intr_resources(struct vtpci_softc *sc)
 {
 	device_t dev;
-	struct resource *irq;
-	struct vtpci_virtqueue *vqx;
-	int i, rid, flags, res_idx;
+	struct vtpci_interrupt *intr;
+	int i, rid, flags, nvq_intrs, error;
 
 	dev = sc->vtpci_dev;
+	rid = 0;
+	flags = RF_ACTIVE;
 
-	if (sc->vtpci_flags & VTPCI_FLAG_LEGACY) {
-		rid = 0;
-		flags = RF_ACTIVE | RF_SHAREABLE;
-	} else {
+	if (sc->vtpci_flags & VTPCI_FLAG_LEGACY)
+		flags |= RF_SHAREABLE;
+	else
 		rid = 1;
-		flags = RF_ACTIVE;
-	}
-
-	for (i = 0; i < sc->vtpci_nintr_res; i++) {
-		irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, flags);
-		if (irq == NULL)
-			return (ENXIO);
-
-		sc->vtpci_intr_res[i].irq = irq;
-		sc->vtpci_intr_res[i].rid = rid++;
-	}
 
 	/*
-	 * Map the virtqueue into the correct index in vq_intr_res[]. The
-	 * first index is reserved for configuration changed notifications.
+	 * For legacy and MSI interrupts, this single resource handles all
+	 * interrupts. For MSIX, this resource is used for the configuration
+	 * changed interrupt.
 	 */
-	for (i = 0, res_idx = 1; i < sc->vtpci_nvqs; i++) {
-		vqx = &sc->vtpci_vqx[i];
+	intr = &sc->vtpci_device_interrupt;
+	error = vtpci_alloc_interrupt(sc, rid, flags, intr);
+	if (error || sc->vtpci_flags & (VTPCI_FLAG_LEGACY | VTPCI_FLAG_MSI))
+		return (error);
 
-		if (sc->vtpci_flags & VTPCI_FLAG_MSIX) {
-			if (vqx->no_intr != 0)
-				vqx->ires_idx = -1;
-			else if (sc->vtpci_flags & VTPCI_FLAG_SHARED_MSIX)
-				vqx->ires_idx = res_idx;
-			else
-				vqx->ires_idx = res_idx++;
-		} else
-			vqx->ires_idx = -1;
+	/* Subtract one for the configuration changed interrupt. */
+	nvq_intrs = sc->vtpci_nmsix_resources - 1;
+
+	intr = sc->vtpci_msix_vq_interrupts = malloc(nvq_intrs *
+	    sizeof(struct vtpci_interrupt), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (sc->vtpci_msix_vq_interrupts == NULL)
+		return (ENOMEM);
+
+	for (i = 0, rid++; i < nvq_intrs; i++, rid++, intr++) {
+		error = vtpci_alloc_interrupt(sc, rid, flags, intr);
+		if (error)
+			return (error);
 	}
 
 	return (0);
@@ -927,63 +933,67 @@ vtpci_alloc_intr_resources(struct vtpci_softc *sc)
 static int
 vtpci_setup_legacy_interrupt(struct vtpci_softc *sc, enum intr_type type)
 {
-	device_t dev;
-	struct vtpci_intr_resource *ires;
+	struct vtpci_interrupt *intr;
 	int error;
 
-	dev = sc->vtpci_dev;
-
-	ires = &sc->vtpci_intr_res[0];
-	error = bus_setup_intr(dev, ires->irq, type, NULL, vtpci_legacy_intr,
-	    sc, &ires->intrhand);
+	intr = &sc->vtpci_device_interrupt;
+	error = bus_setup_intr(sc->vtpci_dev, intr->vti_irq, type, NULL,
+	    vtpci_legacy_intr, sc, &intr->vti_handler);
 
 	return (error);
+}
+
+static int
+vtpci_setup_pervq_msix_interrupts(struct vtpci_softc *sc, enum intr_type type)
+{
+	struct vtpci_virtqueue *vqx;
+	struct vtpci_interrupt *intr;
+	int i, error;
+
+	intr = sc->vtpci_msix_vq_interrupts;
+
+	for (i = 0; i < sc->vtpci_nvqs; i++) {
+		vqx = &sc->vtpci_vqx[i];
+
+		if (vqx->vqx_no_intr)
+			continue;
+
+		error = bus_setup_intr(sc->vtpci_dev, intr->vti_irq, type,
+		    vtpci_vq_intr_filter, vtpci_vq_intr, vqx->vqx_vq,
+		    &intr->vti_handler);
+		if (error)
+			return (error);
+
+		intr++;
+	}
+
+	return (0);
 }
 
 static int
 vtpci_setup_msix_interrupts(struct vtpci_softc *sc, enum intr_type type)
 {
 	device_t dev;
-	struct vtpci_intr_resource *ires;
-	struct vtpci_virtqueue *vqx;
-	int i, error;
+	struct vtpci_interrupt *intr;
+	int error;
 
 	dev = sc->vtpci_dev;
+	intr = &sc->vtpci_device_interrupt;
 
-	/*
-	 * The first MSIX vector is used for configuration changed interrupts.
-	 */
-	ires = &sc->vtpci_intr_res[0];
-	error = bus_setup_intr(dev, ires->irq, type, NULL, vtpci_config_intr,
-	    sc, &ires->intrhand);
+	error = bus_setup_intr(dev, intr->vti_irq, type, NULL,
+	    vtpci_config_intr, sc, &intr->vti_handler);
 	if (error)
 		return (error);
 
 	if (sc->vtpci_flags & VTPCI_FLAG_SHARED_MSIX) {
-		ires = &sc->vtpci_intr_res[1];
-
-		error = bus_setup_intr(dev, ires->irq, type,
+		intr = sc->vtpci_msix_vq_interrupts;
+		error = bus_setup_intr(dev, intr->vti_irq, type,
 		    vtpci_vq_shared_intr_filter, vtpci_vq_shared_intr, sc,
-		    &ires->intrhand);
-	} else {
-		for (i = 0; i < sc->vtpci_nvqs; i++) {
-			vqx = &sc->vtpci_vqx[i];
-			if (vqx->ires_idx < 1)
-				continue;
+		    &intr->vti_handler);
+	} else
+		error = vtpci_setup_pervq_msix_interrupts(sc, type);
 
-			ires = &sc->vtpci_intr_res[vqx->ires_idx];
-			error = bus_setup_intr(dev, ires->irq, type,
-			    vtpci_vq_intr_filter, vtpci_vq_intr, vqx->vq,
-			    &ires->intrhand);
-			if (error)
-				break;
-		}
-	}
-
-	if (error == 0)
-		error = vtpci_set_host_msix_vectors(sc);
-
-	return (error);
+	return (error ? error : vtpci_set_host_msix_vectors(sc));
 }
 
 static int
@@ -993,7 +1003,7 @@ vtpci_setup_interrupts(struct vtpci_softc *sc, enum intr_type type)
 
 	type |= INTR_MPSAFE;
 	KASSERT(sc->vtpci_flags & VTPCI_FLAG_ITYPE_MASK,
-	    ("no interrupt type selected: %#x", sc->vtpci_flags));
+	    ("%s: no interrupt type selected %#x", __func__, sc->vtpci_flags));
 
 	error = vtpci_alloc_intr_resources(sc);
 	if (error)
@@ -1010,34 +1020,24 @@ vtpci_setup_interrupts(struct vtpci_softc *sc, enum intr_type type)
 }
 
 static int
-vtpci_register_msix_vector(struct vtpci_softc *sc, int offset, int res_idx)
+vtpci_register_msix_vector(struct vtpci_softc *sc, int offset,
+    struct vtpci_interrupt *intr)
 {
 	device_t dev;
-	uint16_t vector, rdvector;
+	uint16_t vector;
 
 	dev = sc->vtpci_dev;
 
-	if (res_idx != -1) {
+	if (intr != NULL) {
 		/* Map from guest rid to host vector. */
-		vector = sc->vtpci_intr_res[res_idx].rid - 1;
+		vector = intr->vti_rid - 1;
 	} else
 		vector = VIRTIO_MSI_NO_VECTOR;
-
-	/*
-	 * Assert the first resource is always used for the configuration
-	 * changed interrupts.
-	 */
-	if (res_idx == 0) {
-		KASSERT(vector == 0 && offset == VIRTIO_MSI_CONFIG_VECTOR,
-		    ("bad first res use vector:%d offset:%d", vector, offset));
-	} else
-		KASSERT(offset == VIRTIO_MSI_QUEUE_VECTOR, ("bad offset"));
 
 	vtpci_write_config_2(sc, offset, vector);
 
 	/* Read vector to determine if the host had sufficient resources. */
-	rdvector = vtpci_read_config_2(sc, offset);
-	if (rdvector != vector) {
+	if (vtpci_read_config_2(sc, offset) != vector) {
 		device_printf(dev,
 		    "insufficient host resources for MSIX interrupts\n");
 		return (ENODEV);
@@ -1049,24 +1049,40 @@ vtpci_register_msix_vector(struct vtpci_softc *sc, int offset, int res_idx)
 static int
 vtpci_set_host_msix_vectors(struct vtpci_softc *sc)
 {
-	struct vtpci_virtqueue *vqx;
-	int idx, error;
+	struct vtpci_interrupt *intr, *tintr;
+	int idx, offset, error;
 
-	error = vtpci_register_msix_vector(sc, VIRTIO_MSI_CONFIG_VECTOR, 0);
+	intr = &sc->vtpci_device_interrupt;
+	offset = VIRTIO_MSI_CONFIG_VECTOR;
+
+	error = vtpci_register_msix_vector(sc, offset, intr);
 	if (error)
 		return (error);
 
-	for (idx = 0; idx < sc->vtpci_nvqs; idx++) {
-		vqx = &sc->vtpci_vqx[idx];
+	intr = sc->vtpci_msix_vq_interrupts;
+	offset = VIRTIO_MSI_QUEUE_VECTOR;
 
+	for (idx = 0; idx < sc->vtpci_nvqs; idx++) {
 		vtpci_select_virtqueue(sc, idx);
-		error = vtpci_register_msix_vector(sc, VIRTIO_MSI_QUEUE_VECTOR,
-		    vqx->ires_idx);
+
+		if (sc->vtpci_vqx[idx].vqx_no_intr)
+			tintr = NULL;
+		else
+			tintr = intr;
+
+		error = vtpci_register_msix_vector(sc, offset, tintr);
 		if (error)
-			return (error);
+			break;
+
+		/*
+		 * For shared MSIX, all the virtqueues share the first
+		 * interrupt.
+		 */
+		if ((sc->vtpci_flags & VTPCI_FLAG_SHARED_MSIX) == 0)
+			intr++;
 	}
 
-	return (0);
+	return (error);
 }
 
 static int
@@ -1078,9 +1094,9 @@ vtpci_reinit_virtqueue(struct vtpci_softc *sc, int idx)
 	uint16_t size;
 
 	vqx = &sc->vtpci_vqx[idx];
-	vq = vqx->vq;
+	vq = vqx->vqx_vq;
 
-	KASSERT(vq != NULL, ("vq %d not allocated", idx));
+	KASSERT(vq != NULL, ("%s: vq %d not allocated", __func__, idx));
 
 	vtpci_select_virtqueue(sc, idx);
 	size = vtpci_read_config_2(sc, VIRTIO_PCI_QUEUE_NUM);
@@ -1096,35 +1112,50 @@ vtpci_reinit_virtqueue(struct vtpci_softc *sc, int idx)
 }
 
 static void
-vtpci_free_interrupts(struct vtpci_softc *sc)
+vtpci_free_interrupt(struct vtpci_softc *sc, struct vtpci_interrupt *intr)
 {
 	device_t dev;
-	struct vtpci_intr_resource *ires;
-	int i;
 
 	dev = sc->vtpci_dev;
 
-	for (i = 0; i < sc->vtpci_nintr_res; i++) {
-		ires = &sc->vtpci_intr_res[i];
+	if (intr->vti_handler != NULL) {
+		bus_teardown_intr(dev, intr->vti_irq, intr->vti_handler);
+		intr->vti_handler = NULL;
+	}
 
-		if (ires->intrhand != NULL) {
-			bus_teardown_intr(dev, ires->irq, ires->intrhand);
-			ires->intrhand = NULL;
+	if (intr->vti_irq != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, intr->vti_rid,
+		    intr->vti_irq);
+		intr->vti_irq = NULL;
+		intr->vti_rid = -1;
+	}
+}
+
+static void
+vtpci_free_interrupts(struct vtpci_softc *sc)
+{
+	struct vtpci_interrupt *intr;
+	int i, nvq_intrs;
+
+	vtpci_free_interrupt(sc, &sc->vtpci_device_interrupt);
+
+	if (sc->vtpci_nmsix_resources != 0) {
+		nvq_intrs = sc->vtpci_nmsix_resources - 1;
+		sc->vtpci_nmsix_resources = 0;
+
+		intr = sc->vtpci_msix_vq_interrupts;
+		if (intr != NULL) {
+			for (i = 0; i < nvq_intrs; i++, intr++)
+				vtpci_free_interrupt(sc, intr);
+
+			free(sc->vtpci_msix_vq_interrupts, M_DEVBUF);
+			sc->vtpci_msix_vq_interrupts = NULL;
 		}
-
-		if (ires->irq != NULL) {
-			bus_release_resource(dev, SYS_RES_IRQ, ires->rid,
-			    ires->irq);
-			ires->irq = NULL;
-		}
-
-		ires->rid = -1;
 	}
 
 	if (sc->vtpci_flags & (VTPCI_FLAG_MSI | VTPCI_FLAG_MSIX))
-		pci_release_msi(dev);
+		pci_release_msi(sc->vtpci_dev);
 
-	sc->vtpci_nintr_res = 0;
 	sc->vtpci_flags &= ~VTPCI_FLAG_ITYPE_MASK;
 }
 
@@ -1137,11 +1168,19 @@ vtpci_free_virtqueues(struct vtpci_softc *sc)
 	for (i = 0; i < sc->vtpci_nvqs; i++) {
 		vqx = &sc->vtpci_vqx[i];
 
-		virtqueue_free(vqx->vq);
-		vqx->vq = NULL;
+		virtqueue_free(vqx->vqx_vq);
+		vqx->vqx_vq = NULL;
 	}
 
 	sc->vtpci_nvqs = 0;
+}
+
+static void
+vtpci_release_child_resources(struct vtpci_softc *sc)
+{
+
+	vtpci_free_interrupts(sc);
+	vtpci_free_virtqueues(sc);
 }
 
 static void
@@ -1161,14 +1200,6 @@ vtpci_cleanup_setup_intr_attempt(struct vtpci_softc *sc)
 	}
 
 	vtpci_free_interrupts(sc);
-}
-
-static void
-vtpci_release_child_resources(struct vtpci_softc *sc)
-{
-
-	vtpci_free_interrupts(sc);
-	vtpci_free_virtqueues(sc);
 }
 
 static void
@@ -1208,7 +1239,7 @@ vtpci_legacy_intr(void *xsc)
 
 	if (isr & VIRTIO_PCI_ISR_INTR) {
 		for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-			virtqueue_intr(vqx->vq);
+			virtqueue_intr(vqx->vqx_vq);
 	}
 }
 
@@ -1224,7 +1255,7 @@ vtpci_vq_shared_intr_filter(void *xsc)
 	vqx = &sc->vtpci_vqx[0];
 
 	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-		rc |= virtqueue_intr_filter(vqx->vq);
+		rc |= virtqueue_intr_filter(vqx->vqx_vq);
 
 	return (rc ? FILTER_SCHEDULE_THREAD : FILTER_STRAY);
 }
@@ -1240,7 +1271,7 @@ vtpci_vq_shared_intr(void *xsc)
 	vqx = &sc->vtpci_vqx[0];
 
 	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-		virtqueue_intr(vqx->vq);
+		virtqueue_intr(vqx->vqx_vq);
 }
 
 static int
