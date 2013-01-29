@@ -169,7 +169,7 @@ ext2_reallocblks(ap)
 	struct inode *ip;
 	struct vnode *vp;
 	struct buf *sbp, *ebp;
-	int32_t *bap, *sbap, *ebap = 0;
+	uint32_t *bap, *sbap, *ebap = 0;
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
