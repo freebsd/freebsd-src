@@ -61,6 +61,13 @@
 			reg =   < 0x01c20400 0x400 >;
 		};
 
+		ccm@01c20000 {
+			compatible = "allwinner,sun4i-ccm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x01c20000 0x400 >;
+		};
+
 		timer@01c20c00 {
 			compatible = "allwinner,sun4i-timer";
 			reg = <0x01c20c00 0x90>;

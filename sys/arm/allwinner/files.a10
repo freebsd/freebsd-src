@@ -9,6 +9,8 @@ arm/arm/cpufunc_asm_arm11.S		standard
 arm/arm/cpufunc_asm_armv7.S		standard
 arm/arm/irq_dispatch.S			standard
 
+arm/allwinner/a10_clk.c			standard
+arm/allwinner/a10_ehci.c		optional	ehci
 arm/allwinner/timer.c			standard
 arm/allwinner/aintc.c			standard
 arm/allwinner/bus_space.c		standard
