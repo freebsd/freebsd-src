@@ -1133,21 +1133,7 @@ keg_small_init(uma_keg_t keg)
 	u_int wastedspace;
 	u_int shsize;
 
-	KASSERT(keg != NULL, ("Keg is null in keg_small_init"));
-	rsize = keg->uk_size;
-
-	if (rsize < UMA_SMALLEST_UNIT)
-		rsize = UMA_SMALLEST_UNIT;
-	if (rsize & keg->uk_align)
-		rsize = (rsize & ~keg->uk_align) + (keg->uk_align + 1);
-
-	keg->uk_rsize = rsize;
-
 	if (keg->uk_flags & UMA_ZONE_PCPU) {
-
-		KASSERT(keg->uk_rsize < sizeof(struct pcpu),
-		    ("%s: size %u too large", __func__, keg->uk_rsize));
-
 		keg->uk_slabsize = sizeof(struct pcpu);
 		keg->uk_ppera = mp_ncpus/(PAGE_SIZE/sizeof(struct pcpu));
 		/* Account for remainder. */
@@ -1157,6 +1143,19 @@ keg_small_init(uma_keg_t keg)
 		keg->uk_slabsize = UMA_SLAB_SIZE;
 		keg->uk_ppera = 1;
 	}
+
+	rsize = keg->uk_size;
+
+	if (rsize & keg->uk_align)
+		rsize = (rsize & ~keg->uk_align) + (keg->uk_align + 1);
+	if (rsize < keg->uk_slabsize / 256)
+		rsize = keg->uk_slabsize / 256;
+
+	keg->uk_rsize = rsize;
+
+	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0 ||
+	    keg->uk_rsize < sizeof(struct pcpu),
+	    ("%s: size %u too large", __func__, keg->uk_rsize));
 
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
 		shsize = 0;
@@ -1169,7 +1168,9 @@ keg_small_init(uma_keg_t keg)
 	}
 
 	keg->uk_ipers = (keg->uk_slabsize - shsize) / rsize;
-	KASSERT(keg->uk_ipers != 0, ("keg_small_init: ipers is 0"));
+	KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= 255,
+	    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
+
 	memused = keg->uk_ipers * rsize + shsize;
 	wastedspace = keg->uk_slabsize - memused;
 
@@ -1184,18 +1185,18 @@ keg_small_init(uma_keg_t keg)
 	    (keg->uk_flags & UMA_ZFLAG_CACHEONLY))
 		return;
 
-	if ((wastedspace >= UMA_MAX_WASTE) &&
+	if ((wastedspace >= keg->uk_slabsize / UMA_MAX_WASTE) &&
 	    (keg->uk_ipers < (keg->uk_slabsize / keg->uk_rsize))) {
 		keg->uk_ipers = keg->uk_slabsize / keg->uk_rsize;
-		KASSERT(keg->uk_ipers <= 255,
-		    ("keg_small_init: keg->uk_ipers too high!"));
+		KASSERT(keg->uk_ipers > 0 && keg->uk_ipers <= 255,
+		    ("%s: keg->uk_ipers %u", __func__, keg->uk_ipers));
 #ifdef UMA_DEBUG
 		printf("UMA decided we need offpage slab headers for "
 		    "keg: %s, calculated wastedspace = %d, "
 		    "maximum wasted space allowed = %d, "
 		    "calculated ipers = %d, "
 		    "new wasted space = %d\n", keg->uk_name, wastedspace,
-		    UMA_MAX_WASTE, keg->uk_ipers,
+		    keg->uk_slabsize / UMA_MAX_WASTE, keg->uk_ipers,
 		    keg->uk_slabsize - keg->uk_ipers * keg->uk_rsize);
 #endif
 		keg->uk_flags |= UMA_ZONE_OFFPAGE;
@@ -1701,7 +1702,8 @@ uma_startup(void *bootmem, int boot_pages)
 	 * that we need to go to offpage slab headers.  Or, if we do,
 	 * then we trap that condition below and panic in the INVARIANTS case.
 	 */
-	wsize = UMA_SLAB_SIZE - sizeof(struct uma_slab) - UMA_MAX_WASTE;
+	wsize = UMA_SLAB_SIZE - sizeof(struct uma_slab) -
+	    (UMA_SLAB_SIZE / UMA_MAX_WASTE);
 	totsize = wsize;
 	objsize = UMA_SMALLEST_UNIT;
 	while (totsize >= wsize) {
@@ -1714,7 +1716,8 @@ uma_startup(void *bootmem, int boot_pages)
 		objsize--;
 	uma_max_ipers = MAX(UMA_SLAB_SIZE / objsize, 64);
 
-	wsize = UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt) - UMA_MAX_WASTE;
+	wsize = UMA_SLAB_SIZE - sizeof(struct uma_slab_refcnt) -
+	    (UMA_SLAB_SIZE / UMA_MAX_WASTE);
 	totsize = wsize;
 	objsize = UMA_SMALLEST_UNIT;
 	while (totsize >= wsize) {

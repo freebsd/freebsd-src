@@ -120,8 +120,8 @@
 
 #define UMA_BOOT_PAGES		64	/* Pages allocated for startup */
 
-/* Max waste before going to off page slab management */
-#define UMA_MAX_WASTE	(UMA_SLAB_SIZE / 10)
+/* Max waste percentage before going to off page slab management */
+#define UMA_MAX_WASTE	10
 
 /*
  * I doubt there will be many cases where this is exceeded. This is the initial
