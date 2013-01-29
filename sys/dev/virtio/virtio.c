@@ -87,9 +87,30 @@ virtio_device_name(uint16_t devid)
 	return (NULL);
 }
 
+static const char *
+virtio_feature_name(uint64_t val, struct virtio_feature_desc *desc)
+{
+	int i, j;
+	struct virtio_feature_desc *descs[2] = { desc,
+	    virtio_common_feature_desc };
+
+	for (i = 0; i < 2; i++) {
+		if (descs[i] == NULL)
+			continue;
+
+		for (j = 0; descs[i][j].vfd_val != 0; j++) {
+			if (val != descs[i][j].vfd_val)
+				continue;
+			return (descs[i][j].vfd_str);
+		}
+	}
+
+	return (NULL);
+}
+
 void
 virtio_describe(device_t dev, const char *msg,
-    uint64_t features, struct virtio_feature_desc *feature_desc)
+    uint64_t features, struct virtio_feature_desc *desc)
 {
 	struct sbuf sb;
 	uint64_t val;
@@ -98,8 +119,7 @@ virtio_describe(device_t dev, const char *msg,
 	int n;
 
 	if ((buf = malloc(512, M_TEMP, M_NOWAIT)) == NULL) {
-		device_printf(dev, "%s features: 0x%"PRIx64"\n", msg,
-		    features);
+		device_printf(dev, "%s features: 0x%"PRIx64"\n", msg, features);
 		return;
 	}
 
@@ -119,13 +139,7 @@ virtio_describe(device_t dev, const char *msg,
 		else
 			sbuf_cat(&sb, ",");
 
-		name = NULL;
-		if (feature_desc != NULL)
-			name = virtio_feature_name(val, feature_desc);
-		if (name == NULL)
-			name = virtio_feature_name(val,
-			    virtio_common_feature_desc);
-
+		name = virtio_feature_name(val, desc);
 		if (name == NULL)
 			sbuf_printf(&sb, "0x%"PRIx64, val);
 		else
@@ -145,18 +159,6 @@ virtio_describe(device_t dev, const char *msg,
 
 	sbuf_delete(&sb);
 	free(buf, M_TEMP);
-}
-
-static const char *
-virtio_feature_name(uint64_t val, struct virtio_feature_desc *feature_desc)
-{
-	int i;
-
-	for (i = 0; feature_desc[i].vfd_val != 0; i++)
-		if (val == feature_desc[i].vfd_val)
-			return (feature_desc[i].vfd_str);
-
-	return (NULL);
 }
 
 /*
