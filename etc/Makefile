@@ -180,6 +180,10 @@ CAP_MKDB_ENDIAN?=
 PWD_MKDB_ENDIAN?=
 .endif
 
+.if defined(NO_ROOT)
+METALOG.add?=	cat -l >> ${METALOG}
+.endif
+
 distribution:
 .if !defined(DESTDIR)
 	@echo "set DESTDIR before running \"make ${.TARGET}\""
@@ -201,6 +205,14 @@ distribution:
 .endif
 	pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
 	    ${DESTDIR}/etc/master.passwd
+.if defined(NO_ROOT)
+	( \
+		echo "./etc/login.conf.db type=file mode=0644 uname=root gname=wheel"; \
+		echo "./etc/passwd type=file mode=0644 uname=root gname=wheel"; \
+		echo "./etc/pwd.db type=file mode=0644 uname=root gname=wheel"; \
+		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
+	) | ${METALOG.add}
+.endif
 .if ${MK_ATF} != "no"
 	${_+_}cd ${.CURDIR}/atf; ${MAKE} install
 .endif
@@ -336,9 +348,9 @@ distrib-dirs:
 		test "$$d" == "/" && d=""; \
 		d=${DISTBASE}$$d; \
 		shift; \
-		${ECHO} "${MTREE_CMD} -C -f $$m | sed s#^\.#.$$d# >>" \
-		    "${METALOG}" ; \
-		${MTREE_CMD} -C -f $$m | sed s#^\.#.$$d# >> ${METALOG} ; \
+		${ECHO} "${MTREE_CMD} -C -f $$m | sed s#^\.#.$$d# |" \
+		    "${METALOG.add}" ; \
+		${MTREE_CMD} -C -f $$m | sed s#^\.#.$$d# | ${METALOG.add} ; \
 	done; true
 .endif
 	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
