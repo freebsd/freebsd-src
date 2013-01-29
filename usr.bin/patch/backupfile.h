@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*-
- * backupfile.h -- declarations for making Emacs style backup file names
  * Copyright (C) 1990 Free Software Foundation, Inc.
  * 
  * This program is free software; you can redistribute it and/or modify it
@@ -9,9 +7,11 @@
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.
- * 
+ *
+ * backupfile.h -- declarations for making Emacs style backup file names
+ *
  * $OpenBSD: backupfile.h,v 1.6 2003/07/28 18:35:36 otto Exp $
- * $DragonFly: src/usr.bin/patch/backupfile.h,v 1.3 2007/09/29 23:11:10 swildner Exp $
+ * $FreeBSD$
  */
 
 /* When to make backup files. */

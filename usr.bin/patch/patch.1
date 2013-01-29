@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\"-
 .\" Copyright 1986, Larry Wall
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -19,9 +19,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$OpenBSD: patch.1,v 1.22 2008/06/06 20:44:00 jmc Exp $
-.\"	$DragonFly: src/usr.bin/patch/patch.1,v 1.10 2008/08/18 19:15:55 joerg Exp $
-.Dd August 18, 2008
+.\" $OpenBSD: patch.1,v 1.26 2010/09/03 11:09:29 jmc Exp $
+.\" $FreeBSD$
+.Dd January 29, 2013
 .Dt PATCH 1
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@ If
 is omitted, or is a hyphen, the patch will be read from the standard input.
 .Pp
 .Nm
-will attempt to determine the type of the diff listing, unless over-ruled by a
+will attempt to determine the type of the diff listing, unless overruled by a
 .Fl c ,
 .Fl e ,
 .Fl n ,
@@ -349,7 +349,7 @@ used in place of
 .Qq .orig .
 .It Fl Fl posix
 Enables strict
-.St -p1003.1-2004
+.St -p1003.1-2008
 conformance, specifically:
 .Bl -enum
 .It
@@ -463,7 +463,7 @@ match used:
 If
 .Nm
 is operating in strict
-.St -p1003.1-2004
+.St -p1003.1-2008
 mode, the first of the
 .Dq old ,
 .Dq new
@@ -605,6 +605,22 @@ used to read input when
 .Nm
 prompts the user
 .El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+Successful completion.
+.It 1
+One or more lines were written to a reject file.
+.It \*(Gt1
+An error occurred.
+.El
+.Pp
+When applying a set of patches in a loop it behooves you to check this
+exit status so you don't apply a later patch to a partially patched file.
 .Sh DIAGNOSTICS
 Too many to list here, but generally indicative that
 .Nm
@@ -616,29 +632,13 @@ indicates that there is unprocessed text in the patch file and that
 .Nm
 is attempting to intuit whether there is a patch in that text and, if so,
 what kind of patch it is.
-.Pp
-The
-.Nm
-utility exits with one of the following values:
-.Pp
-.Bl -tag -width Ds -compact -offset indent
-.It \&0
-Successful completion.
-.It \&1
-One or more lines were written to a reject file.
-.It \*[Gt]\&1
-An error occurred.
-.El
-.Pp
-When applying a set of patches in a loop it behooves you to check this
-exit status so you don't apply a later patch to a partially patched file.
 .Sh SEE ALSO
 .Xr diff 1
 .Sh STANDARDS
 The
 .Nm
 utility is compliant with the
-.St -p1003.1-2004
+.St -p1003.1-2008
 specification
 (except as detailed above for the
 .Fl -posix
@@ -648,7 +648,7 @@ though the presence of
 itself is optional.
 .Pp
 The flags
-.Op Fl CEfstuvBFVxz
+.Op Fl BCEFfstVvxz
 and
 .Op Fl -posix
 are extensions to that specification.

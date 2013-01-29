@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*-
  * Copyright (c) 1983, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -27,8 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$OpenBSD: mkpath.c,v 1.2 2005/06/20 07:14:06 otto Exp $
- *	$DragonFly: src/usr.bin/patch/mkpath.c,v 1.1 2007/09/29 23:11:10 swildner Exp $
+ * $OpenBSD: mkpath.c,v 1.2 2005/06/20 07:14:06 otto Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
