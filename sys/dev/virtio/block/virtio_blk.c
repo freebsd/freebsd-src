@@ -685,6 +685,13 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 		dp->d_fwheads = blkcfg->geometry.heads;
 	}
 
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_TOPOLOGY)) {
+		dp->d_stripesize = dp->d_sectorsize *
+		    (1 << blkcfg->topology.physical_block_exp);
+		dp->d_stripeoffset = dp->d_sectorsize *
+		    blkcfg->topology.alignment_offset;
+	}
+
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_FLUSH))
 		dp->d_flags |= DISKFLAG_CANFLUSHCACHE;
 }
