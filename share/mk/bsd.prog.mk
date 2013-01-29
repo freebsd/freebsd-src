@@ -177,6 +177,10 @@ SCRIPTSOWN?=	${BINOWN}
 SCRIPTSGRP?=	${BINGRP}
 SCRIPTSMODE?=	${BINMODE}
 
+STAGE_AS_SETS+= scripts
+stage_as.scripts: ${SCRIPTS}
+FLAGS.stage_as.scripts= -m ${SCRIPTSMODE}
+STAGE_FILES_DIR.scripts= ${STAGE_OBJTOP}
 .for script in ${SCRIPTS}
 .if defined(SCRIPTSNAME)
 SCRIPTSNAME_${script:T}?=	${SCRIPTSNAME}
@@ -187,6 +191,7 @@ SCRIPTSDIR_${script:T}?=	${SCRIPTSDIR}
 SCRIPTSOWN_${script:T}?=	${SCRIPTSOWN}
 SCRIPTSGRP_${script:T}?=	${SCRIPTSGRP}
 SCRIPTSMODE_${script:T}?=	${SCRIPTSMODE}
+STAGE_AS_${script:T}=		${SCRIPTSDIR_${script:T}}/${SCRIPTSNAME_${script:T}}
 _scriptsinstall: _SCRIPTSINS_${script:T}
 _SCRIPTSINS_${script:T}: ${script}
 	${INSTALL} -o ${SCRIPTSOWN_${.ALLSRC:T}} \
@@ -242,26 +247,30 @@ stage_files stage_as:
 # normally only libs and includes are staged
 .if ${MK_STAGING_PROG:Uno} != "no"
 STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
-STAGE_SYMLINKS_DIR.prog= ${STAGE_OBJTOP}
 
 .if defined(PROGNAME)
 STAGE_AS_SETS+= prog
 STAGE_AS_${PROG}= ${PROGNAME}
 stage_as.prog: ${PROG}
-.if !empty(PROG)
-all: stage_as
-.endif
 .else
 STAGE_SETS+= prog
 stage_files.prog: ${PROG}
-.if !empty(PROG)
-all: stage_files
-.endif
 .endif
 
+.if !empty(LINKS)
+all: stage_links
+STAGE_LINKS.prog= ${LINKS}
+.endif
 .if !empty(SYMLINKS)
-all:   stage_symlinks
+all: stage_symlinks
 STAGE_SYMLINKS.prog= ${SYMLINKS}
+.endif
+
+.if !empty(STAGE_AS_SETS)
+all: stage_as
+.endif
+.if !empty(STAGE_SETS)
+all: stage_files
 .endif
 
 .endif
