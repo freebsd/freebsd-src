@@ -1747,7 +1747,6 @@ vtnet_tx_offload(struct vtnet_softc *sc, struct mbuf *m,
 	uint8_t ip_proto, gso_type;
 
 	ifp = sc->vtnet_ifp;
-	M_ASSERTPKTHDR(m);
 
 	ip_offset = sizeof(struct ether_header);
 	if (m->m_len < ip_offset) {
@@ -1902,6 +1901,7 @@ vtnet_encap(struct vtnet_softc *sc, struct mbuf **m_head)
 	int error;
 
 	m = *m_head;
+	M_ASSERTPKTHDR(m);
 
 	txhdr = uma_zalloc(vtnet_tx_header_zone, M_NOWAIT | M_ZERO);
 	if (txhdr == NULL) {
