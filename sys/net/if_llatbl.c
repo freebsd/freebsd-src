@@ -273,10 +273,9 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	u_int laflags = 0, flags = 0;
 	int error = 0;
 
-	if (dl == NULL || dl->sdl_family != AF_LINK) {
-		log(LOG_INFO, "%s: invalid dl\n", __func__);
-		return EINVAL;
-	}
+	KASSERT(dl != NULL && dl->sdl_family == AF_LINK,
+	    ("%s: invalid dl\n", __func__));
+
 	ifp = ifnet_byindex(dl->sdl_index);
 	if (ifp == NULL) {
 		log(LOG_INFO, "%s: invalid ifp (sdl_index %d)\n",
