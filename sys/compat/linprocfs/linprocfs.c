@@ -101,13 +101,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #endif
 
-#ifdef COMPAT_LINUX32				/* XXX */
-#include <machine/../linux32/linux.h>
-#else
-#include <machine/../linux/linux.h>
-#endif
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
