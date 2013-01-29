@@ -57,6 +57,11 @@ struct vtpci_interrupt {
 	void			*vti_handler;
 };
 
+struct vtpci_virtqueue {
+	struct virtqueue	*vtv_vq;
+	int			 vtv_no_intr;
+};
+
 struct vtpci_softc {
 	device_t			 vtpci_dev;
 	struct resource			*vtpci_res;
@@ -75,6 +80,9 @@ struct vtpci_softc {
 	device_t			 vtpci_child_dev;
 	struct virtio_feature_desc	*vtpci_child_feat_desc;
 
+	int				 vtpci_nvqs;
+	struct vtpci_virtqueue		*vtpci_vqs;
+
 	/*
 	 * Ideally, each virtqueue that the driver provides a callback for will
 	 * receive its own MSIX vector. If there are not sufficient vectors
@@ -87,14 +95,7 @@ struct vtpci_softc {
 	 */
 	struct vtpci_interrupt		 vtpci_device_interrupt;
 	struct vtpci_interrupt		*vtpci_msix_vq_interrupts;
-
-	int				 vtpci_nvqs;
 	int				 vtpci_nmsix_resources;
-
-	struct vtpci_virtqueue {
-		struct virtqueue *vqx_vq;
-		int		  vqx_no_intr;
-	} vtpci_vqx[VIRTIO_MAX_VIRTQUEUES];
 };
 
 static int	vtpci_probe(device_t);
@@ -482,14 +483,19 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 
 	if (sc->vtpci_nvqs != 0)
 		return (EALREADY);
-	if (nvqs <= 0 || nvqs > VIRTIO_MAX_VIRTQUEUES)
+	if (nvqs <= 0)
 		return (EINVAL);
 
 	if (flags & VIRTIO_ALLOC_VQS_DISABLE_MSIX)
 		sc->vtpci_flags |= VTPCI_FLAG_NO_MSIX;
 
+	sc->vtpci_vqs = malloc(nvqs * sizeof(struct vtpci_virtqueue),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (sc->vtpci_vqs == NULL)
+		return (ENOMEM);
+
 	for (idx = 0; idx < nvqs; idx++) {
-		vqx = &sc->vtpci_vqx[idx];
+		vqx = &sc->vtpci_vqs[idx];
 		info = &vq_info[idx];
 
 		vtpci_select_virtqueue(sc, idx);
@@ -506,8 +512,8 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		vtpci_write_config_4(sc, VIRTIO_PCI_QUEUE_PFN,
 		    virtqueue_paddr(vq) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT);
 
-		vqx->vqx_vq = *info->vqai_vq = vq;
-		vqx->vqx_no_intr = info->vqai_intr == NULL;
+		vqx->vtv_vq = *info->vqai_vq = vq;
+		vqx->vtv_no_intr = info->vqai_intr == NULL;
 
 		sc->vtpci_nvqs++;
 	}
@@ -813,7 +819,7 @@ vtpci_alloc_intr_msix_pervq(struct vtpci_softc *sc)
 		return (ENOTSUP);
 
 	for (nvectors = 0, i = 0; i < sc->vtpci_nvqs; i++) {
-		if (sc->vtpci_vqx[i].vqx_no_intr == 0)
+		if (sc->vtpci_vqs[i].vtv_no_intr == 0)
 			nvectors++;
 	}
 
@@ -953,13 +959,13 @@ vtpci_setup_pervq_msix_interrupts(struct vtpci_softc *sc, enum intr_type type)
 	intr = sc->vtpci_msix_vq_interrupts;
 
 	for (i = 0; i < sc->vtpci_nvqs; i++) {
-		vqx = &sc->vtpci_vqx[i];
+		vqx = &sc->vtpci_vqs[i];
 
-		if (vqx->vqx_no_intr)
+		if (vqx->vtv_no_intr)
 			continue;
 
 		error = bus_setup_intr(sc->vtpci_dev, intr->vti_irq, type,
-		    vtpci_vq_intr_filter, vtpci_vq_intr, vqx->vqx_vq,
+		    vtpci_vq_intr_filter, vtpci_vq_intr, vqx->vtv_vq,
 		    &intr->vti_handler);
 		if (error)
 			return (error);
@@ -1065,7 +1071,7 @@ vtpci_set_host_msix_vectors(struct vtpci_softc *sc)
 	for (idx = 0; idx < sc->vtpci_nvqs; idx++) {
 		vtpci_select_virtqueue(sc, idx);
 
-		if (sc->vtpci_vqx[idx].vqx_no_intr)
+		if (sc->vtpci_vqs[idx].vtv_no_intr)
 			tintr = NULL;
 		else
 			tintr = intr;
@@ -1093,8 +1099,8 @@ vtpci_reinit_virtqueue(struct vtpci_softc *sc, int idx)
 	int error;
 	uint16_t size;
 
-	vqx = &sc->vtpci_vqx[idx];
-	vq = vqx->vqx_vq;
+	vqx = &sc->vtpci_vqs[idx];
+	vq = vqx->vtv_vq;
 
 	KASSERT(vq != NULL, ("%s: vq %d not allocated", __func__, idx));
 
@@ -1166,12 +1172,14 @@ vtpci_free_virtqueues(struct vtpci_softc *sc)
 	int i;
 
 	for (i = 0; i < sc->vtpci_nvqs; i++) {
-		vqx = &sc->vtpci_vqx[i];
+		vqx = &sc->vtpci_vqs[i];
 
-		virtqueue_free(vqx->vqx_vq);
-		vqx->vqx_vq = NULL;
+		virtqueue_free(vqx->vtv_vq);
+		vqx->vtv_vq = NULL;
 	}
 
+	free(sc->vtpci_vqs, M_DEVBUF);
+	sc->vtpci_vqs = NULL;
 	sc->vtpci_nvqs = 0;
 }
 
@@ -1229,7 +1237,7 @@ vtpci_legacy_intr(void *xsc)
 	uint8_t isr;
 
 	sc = xsc;
-	vqx = &sc->vtpci_vqx[0];
+	vqx = &sc->vtpci_vqs[0];
 
 	/* Reading the ISR also clears it. */
 	isr = vtpci_read_config_1(sc, VIRTIO_PCI_ISR);
@@ -1239,7 +1247,7 @@ vtpci_legacy_intr(void *xsc)
 
 	if (isr & VIRTIO_PCI_ISR_INTR) {
 		for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-			virtqueue_intr(vqx->vqx_vq);
+			virtqueue_intr(vqx->vtv_vq);
 	}
 }
 
@@ -1252,10 +1260,10 @@ vtpci_vq_shared_intr_filter(void *xsc)
 
 	rc = 0;
 	sc = xsc;
-	vqx = &sc->vtpci_vqx[0];
+	vqx = &sc->vtpci_vqs[0];
 
 	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-		rc |= virtqueue_intr_filter(vqx->vqx_vq);
+		rc |= virtqueue_intr_filter(vqx->vtv_vq);
 
 	return (rc ? FILTER_SCHEDULE_THREAD : FILTER_STRAY);
 }
@@ -1268,10 +1276,10 @@ vtpci_vq_shared_intr(void *xsc)
 	int i;
 
 	sc = xsc;
-	vqx = &sc->vtpci_vqx[0];
+	vqx = &sc->vtpci_vqs[0];
 
 	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-		virtqueue_intr(vqx->vqx_vq);
+		virtqueue_intr(vqx->vtv_vq);
 }
 
 static int
