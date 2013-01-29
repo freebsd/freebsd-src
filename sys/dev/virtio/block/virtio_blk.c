@@ -138,6 +138,8 @@ static void	vtblk_vq_intr(void *);
 
 static void	vtblk_stop(struct vtblk_softc *);
 
+static void	vtblk_read_config(struct vtblk_softc *,
+		    struct virtio_blk_config *);
 static void	vtblk_get_ident(struct vtblk_softc *);
 static void	vtblk_prepare_dump(struct vtblk_softc *);
 static int	vtblk_write_dump(struct vtblk_softc *, void *, off_t, size_t);
@@ -283,8 +285,7 @@ vtblk_attach(device_t dev)
 		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
 
 	/* Get local copy of config. */
-	virtio_read_device_config(dev, 0, &blkcfg,
-	    sizeof(struct virtio_blk_config));
+	vtblk_read_config(sc, &blkcfg);
 
 	/*
 	 * With the current sglist(9) implementation, it is not easy
@@ -428,8 +429,7 @@ vtblk_config_change(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	virtio_read_device_config(dev, 0, &blkcfg,
-	    sizeof(struct virtio_blk_config));
+	vtblk_read_config(sc, &blkcfg);
 
 	/* Capacity is always in 512-byte units. */
 	capacity = blkcfg.capacity * 512;
@@ -877,6 +877,36 @@ vtblk_stop(struct vtblk_softc *sc)
 	virtqueue_disable_intr(sc->vtblk_vq);
 	virtio_stop(sc->vtblk_dev);
 }
+
+#define VTBLK_GET_CONFIG(_dev, _feature, _field, _cfg)			\
+	if (virtio_with_feature(_dev, _feature)) {			\
+		virtio_read_device_config(_dev,				\
+		    offsetof(struct virtio_blk_config, _field), 	\
+		    &(_cfg)->_field, sizeof((_cfg)->_field));		\
+	}
+
+static void
+vtblk_read_config(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
+{
+	device_t dev;
+
+	dev = sc->vtblk_dev;
+
+	bzero(blkcfg, sizeof(struct virtio_blk_config));
+
+	/* The capacity is always available. */
+	virtio_read_device_config(dev, offsetof(struct virtio_blk_config,
+	    capacity), &blkcfg->capacity, 8);
+
+	/* Read the configuration if the feature was negotiated. */
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_SIZE_MAX, size_max, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_SEG_MAX, seg_max, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_GEOMETRY, geometry, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_BLK_SIZE, blk_size, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_TOPOLOGY, topology, blkcfg);
+}
+
+#undef VTBLK_GET_CONFIG
 
 static void
 vtblk_get_ident(struct vtblk_softc *sc)
