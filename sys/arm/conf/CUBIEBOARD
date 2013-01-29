@@ -78,7 +78,7 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #device		mmcsd			# mmc/sd flash cards
 
 # Boot device is 2nd slice on MMC/SD card
-#options	ROOTDEVNAME=\"ufs:/dev/da0s2\"
+options		ROOTDEVNAME=\"ufs:/dev/da0s2\"
 
 # ATA controllers
 #device		ahci		# AHCI-compatible SATA controllers
@@ -106,15 +106,15 @@ device		da			# Direct Access (disks)
 device		pass
 
 # USB support
-#device		usb
-#options 	USB_DEBUG
+device		usb
+options 	USB_DEBUG
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
 #device		uhci
 #device		ohci
-#device		ehci
+device		ehci
 
-#device		umass
+device		umass
 
 # Ethernet
 device		loop
