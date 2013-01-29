@@ -673,8 +673,8 @@ _zoneinfo=	zic tzsetup
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
-	ln lockf make mkdir mtree mv nmtree pwd_mkdb rm sed sh sysctl \
-	test true uname wc ${_zoneinfo}
+	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
+	rm sed sh sysctl test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
@@ -964,7 +964,7 @@ reinstallkernel reinstallkernel.debug: installcheck
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
-	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 
 distributekernel distributekernel.debug:
 .if empty(INSTALLKERNEL)
@@ -1132,6 +1132,8 @@ _yacc=		usr.bin/yacc
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
+.else
+_nmtree_itools=	nmtree
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
