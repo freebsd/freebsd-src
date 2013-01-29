@@ -126,35 +126,35 @@ static void	vtpci_describe_features(struct vtpci_softc *, const char *,
 		    uint64_t);
 static void	vtpci_probe_and_attach_child(struct vtpci_softc *);
 
-static int 	vtpci_alloc_msix(struct vtpci_softc *, int);
-static int 	vtpci_alloc_msi(struct vtpci_softc *);
-static int 	vtpci_alloc_intr_msix_pervq(struct vtpci_softc *);
-static int 	vtpci_alloc_intr_msix_shared(struct vtpci_softc *);
-static int 	vtpci_alloc_intr_msi(struct vtpci_softc *);
-static int 	vtpci_alloc_intr_legacy(struct vtpci_softc *);
+static int	vtpci_alloc_msix(struct vtpci_softc *, int);
+static int	vtpci_alloc_msi(struct vtpci_softc *);
+static int	vtpci_alloc_intr_msix_pervq(struct vtpci_softc *);
+static int	vtpci_alloc_intr_msix_shared(struct vtpci_softc *);
+static int	vtpci_alloc_intr_msi(struct vtpci_softc *);
+static int	vtpci_alloc_intr_legacy(struct vtpci_softc *);
 static int	vtpci_alloc_interrupt(struct vtpci_softc *, int, int,
 		    struct vtpci_interrupt *);
 static int	vtpci_alloc_intr_resources(struct vtpci_softc *);
 
-static int 	vtpci_setup_legacy_interrupt(struct vtpci_softc *,
+static int	vtpci_setup_legacy_interrupt(struct vtpci_softc *,
 		    enum intr_type);
 static int	vtpci_setup_pervq_msix_interrupts(struct vtpci_softc *,
 		    enum intr_type);
-static int 	vtpci_setup_msix_interrupts(struct vtpci_softc *,
+static int	vtpci_setup_msix_interrupts(struct vtpci_softc *,
 		    enum intr_type);
-static int 	vtpci_setup_interrupts(struct vtpci_softc *, enum intr_type);
+static int	vtpci_setup_interrupts(struct vtpci_softc *, enum intr_type);
 
 static int	vtpci_register_msix_vector(struct vtpci_softc *, int,
 		    struct vtpci_interrupt *);
-static int 	vtpci_set_host_msix_vectors(struct vtpci_softc *);
-static int 	vtpci_reinit_virtqueue(struct vtpci_softc *, int);
+static int	vtpci_set_host_msix_vectors(struct vtpci_softc *);
+static int	vtpci_reinit_virtqueue(struct vtpci_softc *, int);
 
 static void	vtpci_free_interrupt(struct vtpci_softc *,
 		    struct vtpci_interrupt *);
 static void	vtpci_free_interrupts(struct vtpci_softc *);
 static void	vtpci_free_virtqueues(struct vtpci_softc *);
 static void	vtpci_release_child_resources(struct vtpci_softc *);
-static void 	vtpci_cleanup_setup_intr_attempt(struct vtpci_softc *);
+static void	vtpci_cleanup_setup_intr_attempt(struct vtpci_softc *);
 static void	vtpci_reset(struct vtpci_softc *);
 
 static void	vtpci_select_virtqueue(struct vtpci_softc *, int);
