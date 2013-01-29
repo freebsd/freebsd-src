@@ -939,9 +939,10 @@ vnode_locked:
 	 * Unlock everything, and return
 	 */
 	unlock_and_deallocate(&fs);
-	if (hardfault)
+	if (hardfault) {
+		PCPU_INC(cnt.v_io_faults);
 		curthread->td_ru.ru_majflt++;
-	else
+	} else 
 		curthread->td_ru.ru_minflt++;
 
 	return (KERN_SUCCESS);

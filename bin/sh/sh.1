@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2012
+.Dd January 22, 2013
 .Dt SH 1
 .Os
 .Sh NAME
@@ -138,10 +138,10 @@ variable to some file by placing the following line in the file
 .Pa .profile
 in the home directory,
 substituting for
-.Pa .shinit
+.Pa .shrc
 the filename desired:
 .Pp
-.Dl "ENV=$HOME/.shinit; export ENV"
+.Dl "ENV=$HOME/.shrc; export ENV"
 .Pp
 The first non-option argument specified on the command line
 will be treated as the
@@ -2219,10 +2219,6 @@ The shell maintains a hash table which remembers the locations of commands.
 With no arguments whatsoever, the
 .Ic hash
 command prints out the contents of this table.
-Entries which have not been looked at since the last
-.Ic cd
-command are marked with an asterisk;
-it is possible for these entries to be invalid.
 .Pp
 With arguments, the
 .Ic hash
@@ -2678,6 +2674,17 @@ Additionally, all environment variables are turned into shell variables
 at startup,
 which may affect the shell as described under
 .Sx Special Variables .
+.Sh FILES
+.Bl -tag -width "/etc/suid_profileXX" -compact
+.It Pa ~/.profile
+User's login profile.
+.It Pa /etc/profile
+System login profile.
+.It Pa /etc/shells
+Shell database.
+.It Pa /etc/suid_profile
+Privileged shell profile.
+.El
 .Sh EXIT STATUS
 Errors that are detected by the shell, such as a syntax error, will
 cause the shell to exit with a non-zero exit status.
@@ -2703,7 +2710,8 @@ will return the argument.
 .Xr getrlimit 2 ,
 .Xr umask 2 ,
 .Xr wctype 3 ,
-.Xr editrc 5
+.Xr editrc 5 ,
+.Xr shells 5
 .Sh HISTORY
 A
 .Nm

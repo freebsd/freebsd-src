@@ -194,7 +194,7 @@ while :; do
 		esac
 
 		err=$( f_sysrc_set "$rcvar" "$value" 2>&1 ) ||
-			f_show_msg "$err"
+			f_dialog_msgbox "$err"
 	esac
 done
 

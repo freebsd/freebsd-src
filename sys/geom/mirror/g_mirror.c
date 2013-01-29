@@ -81,7 +81,8 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
 	G_MIRROR_DEBUG(4, "%s: Woken up %p.", __func__, (ident));	\
 } while (0)
 
-static eventhandler_tag g_mirror_pre_sync = NULL;
+static eventhandler_tag g_mirror_post_sync = NULL;
+static int g_mirror_shutdown = 0;
 
 static int g_mirror_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
@@ -456,9 +457,7 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk->d_priority = md->md_priority;
 	disk->d_flags = md->md_dflags;
 	error = g_getattr("GEOM::candelete", disk->d_consumer, &i);
-	if (error != 0)
-		goto fail;
-	if (i)
+	if (error == 0 && i != 0)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_CANDELETE;
 	if (md->md_provider[0] != '\0')
 		disk->d_flags |= G_MIRROR_DISK_FLAG_HARDCODED;
@@ -815,7 +814,7 @@ g_mirror_idle(struct g_mirror_softc *sc, int acw)
 		return (0);
 	if (acw > 0 || (acw == -1 && sc->sc_provider->acw > 0)) {
 		timeout = g_mirror_idletime - (time_uptime - sc->sc_last_write);
-		if (timeout > 0)
+		if (!g_mirror_shutdown && timeout > 0)
 			return (timeout);
 	}
 	sc->sc_idle = 1;
@@ -2821,7 +2820,7 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 			error = ENXIO;
 		goto end;
 	}
-	if (dcw == 0 && !sc->sc_idle)
+	if (dcw == 0)
 		g_mirror_idle(sc, dcw);
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROYING) != 0) {
 		if (acr > 0 || acw > 0 || ace > 0) {
@@ -3232,7 +3231,7 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 static void
-g_mirror_shutdown_pre_sync(void *arg, int howto)
+g_mirror_shutdown_post_sync(void *arg, int howto)
 {
 	struct g_class *mp;
 	struct g_geom *gp, *gp2;
@@ -3242,6 +3241,7 @@ g_mirror_shutdown_pre_sync(void *arg, int howto)
 	mp = arg;
 	DROP_GIANT();
 	g_topology_lock();
+	g_mirror_shutdown = 1;
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
@@ -3250,6 +3250,7 @@ g_mirror_shutdown_pre_sync(void *arg, int howto)
 			continue;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
+		g_mirror_idle(sc, -1);
 		g_cancel_event(sc);
 		error = g_mirror_destroy(sc, G_MIRROR_DESTROY_DELAYED);
 		if (error != 0)
@@ -3264,9 +3265,9 @@ static void
 g_mirror_init(struct g_class *mp)
 {
 
-	g_mirror_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-	    g_mirror_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
-	if (g_mirror_pre_sync == NULL)
+	g_mirror_post_sync = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    g_mirror_shutdown_post_sync, mp, SHUTDOWN_PRI_FIRST);
+	if (g_mirror_post_sync == NULL)
 		G_MIRROR_DEBUG(0, "Warning! Cannot register shutdown event.");
 }
 
@@ -3274,8 +3275,8 @@ static void
 g_mirror_fini(struct g_class *mp)
 {
 
-	if (g_mirror_pre_sync != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_mirror_pre_sync);
+	if (g_mirror_post_sync != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_mirror_post_sync);
 }
 
 DECLARE_GEOM_CLASS(g_mirror_class, g_mirror);

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2007
+.Dd January 28, 2013
 .Dt VFS_SET 9
 .Os
 .Sh NAME
@@ -84,26 +84,18 @@ sysctl is set to
 .Sh PSEUDOCODE
 .Bd -literal
 /*
- * fill in the ones we use, and use the vfs_std for the rest.
+ * Fill in the fields for which we have special methods.
+ * The others are initially null.  This tells vfs to change them to
+ * pointers to vfs_std* functions during file system registration.
  */
 static struct vfsops myfs_vfsops = {
-        myfs_mount,
-        vfs_stdstart,
-        myfs_unmount,
-        myfs_root,
-        vfs_stdquotactl,
-        myfs_statfs,
-        vfs_stdsync,
-        vfs_stdvget,
-        vfs_stdfhtovp,
-        vfs_stdcheckexp,
-        vfs_stdvptofh,
-        vfs_stdinit,
-        vfs_stduninit,
-        vfs_stdextattrctl,
+        .vfs_mount =    myfs_mount,
+        .vfs_root =     myfs_root,
+        .vfs_statfs =   myfs_statfs,
+        .vfs_unmount =  myfs_unmount,
 };
 
-VFS_SET(myfs_vfsops, skelfs, 0);
+VFS_SET(myfs_vfsops, myfs, 0);
 .Ed
 .Sh SEE ALSO
 .Xr jail 2 ,

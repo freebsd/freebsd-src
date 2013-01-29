@@ -1,8 +1,7 @@
-/*	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $ */
-
-/*
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002 - 2008 Henning Brauer
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +32,10 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
+ *	$OpenBSD: pf.c,v 1.634 2009/02/27 12:37:45 henning Exp $
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"

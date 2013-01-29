@@ -701,6 +701,13 @@ union l_semun {
 #define	LINUX_IP_ADD_MEMBERSHIP		35
 #define	LINUX_IP_DROP_MEMBERSHIP	36
 
+#define	LINUX_TCP_NODELAY	1
+#define	LINUX_TCP_MAXSEG	2
+#define	LINUX_TCP_KEEPIDLE	4
+#define	LINUX_TCP_KEEPINTVL	5
+#define	LINUX_TCP_KEEPCNT	6
+#define	LINUX_TCP_MD5SIG	14
+
 struct l_sockaddr {
 	l_ushort	sa_family;
 	char		sa_data[14];

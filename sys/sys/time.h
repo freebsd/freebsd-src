@@ -320,8 +320,8 @@ struct clockinfo {
 void	inittodr(time_t base);
 void	resettodr(void);
 
-extern time_t	time_second;
-extern time_t	time_uptime;
+extern volatile time_t	time_second;
+extern volatile time_t	time_uptime;
 extern struct bintime boottimebin;
 extern struct bintime tc_tick_bt;
 extern struct timeval boottime;

@@ -227,8 +227,8 @@ lapic_init(vm_paddr_t addr)
 	/* Map the local APIC and setup the spurious interrupt handler. */
 	KASSERT(trunc_page(addr) == addr,
 	    ("local APIC not aligned on a page boundary"));
-	lapic = pmap_mapdev(addr, sizeof(lapic_t));
 	lapic_paddr = addr;
+	lapic = pmap_mapdev(addr, sizeof(lapic_t));
 	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_APIC, SEL_KPL,
 	    GSEL_APIC);
 

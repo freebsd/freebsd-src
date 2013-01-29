@@ -9,6 +9,7 @@
 # - devel/git
 # - devel/gmake
 # - textproc/docbook-xsl
+# - textproc/libxslt
 #
 # The normal workflow for importing a new release is:
 #

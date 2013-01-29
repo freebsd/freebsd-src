@@ -103,7 +103,7 @@ dt_names.c:
 beforedepend:	dt_errtags.c dt_names.c
 
 beforeinstall:
-.if exists(${DESTDIR}/usr/lib/dtrace)
+.if !defined(LIBRARIES_ONLY) && exists(${DESTDIR}/usr/lib/dtrace)
 .for file in ${DSRCS}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${.CURDIR}/${file} ${DESTDIR}/usr/lib/dtrace
 .endfor

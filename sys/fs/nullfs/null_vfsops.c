@@ -86,9 +86,9 @@ nullfs_mount(struct mount *mp)
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_NULLFS))
 		return (EPERM);
-
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
+
 	/*
 	 * Update is a no-op
 	 */
@@ -149,7 +149,7 @@ nullfs_mount(struct mount *mp)
 	}
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
-	    M_NULLFSMNT, M_WAITOK);
+	    M_NULLFSMNT, M_WAITOK | M_ZERO);
 
 	/*
 	 * Save reference to underlying FS
@@ -187,16 +187,27 @@ nullfs_mount(struct mount *mp)
 		mp->mnt_flag |= MNT_LOCAL;
 		MNT_IUNLOCK(mp);
 	}
+
+	xmp->nullm_flags |= NULLM_CACHE;
+	if (vfs_getopt(mp->mnt_optnew, "nocache", NULL, NULL) == 0)
+		xmp->nullm_flags &= ~NULLM_CACHE;
+
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
-	    (MNTK_SHARED_WRITES | MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED);
+	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
+		mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
+		    (MNTK_SHARED_WRITES | MNTK_LOOKUP_SHARED |
+		    MNTK_EXTENDED_SHARED);
+	}
 	mp->mnt_kern_flag |= MNTK_LOOKUP_EXCL_DOTDOT;
 	MNT_IUNLOCK(mp);
 	mp->mnt_data = xmp;
 	vfs_getnewfsid(mp);
-	MNT_ILOCK(xmp->nullm_vfs);
-	TAILQ_INSERT_TAIL(&xmp->nullm_vfs->mnt_uppers, mp, mnt_upper_link);
-	MNT_IUNLOCK(xmp->nullm_vfs);
+	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
+		MNT_ILOCK(xmp->nullm_vfs);
+		TAILQ_INSERT_TAIL(&xmp->nullm_vfs->mnt_uppers, mp,
+		    mnt_upper_link);
+		MNT_IUNLOCK(xmp->nullm_vfs);
+	}
 
 	vfs_mountedfrom(mp, target);
 
@@ -234,13 +245,15 @@ nullfs_unmount(mp, mntflags)
 	 */
 	mntdata = mp->mnt_data;
 	ump = mntdata->nullm_vfs;
-	MNT_ILOCK(ump);
-	while ((ump->mnt_kern_flag & MNTK_VGONE_UPPER) != 0) {
-		ump->mnt_kern_flag |= MNTK_VGONE_WAITER;
-		msleep(&ump->mnt_uppers, &ump->mnt_mtx, 0, "vgnupw", 0);
+	if ((mntdata->nullm_flags & NULLM_CACHE) != 0) {
+		MNT_ILOCK(ump);
+		while ((ump->mnt_kern_flag & MNTK_VGONE_UPPER) != 0) {
+			ump->mnt_kern_flag |= MNTK_VGONE_WAITER;
+			msleep(&ump->mnt_uppers, &ump->mnt_mtx, 0, "vgnupw", 0);
+		}
+		TAILQ_REMOVE(&ump->mnt_uppers, mp, mnt_upper_link);
+		MNT_IUNLOCK(ump);
 	}
-	TAILQ_REMOVE(&ump->mnt_uppers, mp, mnt_upper_link);
-	MNT_IUNLOCK(ump);
 	mp->mnt_data = NULL;
 	free(mntdata, M_NULLFSMNT);
 	return (0);

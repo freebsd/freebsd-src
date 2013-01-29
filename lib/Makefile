@@ -69,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
-	libdisk \
 	libdwarf \
 	libedit \
 	${_libefi} \
@@ -116,6 +115,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
+	${_libvmmapi} \
 	libwrap \
 	liby \
 	libz \
@@ -197,6 +197,10 @@ _libypclnt=	libypclnt
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+_libvmmapi=	libvmmapi
 .endif
 
 .if ${MACHINE_CPUARCH} == "ia64"

@@ -132,7 +132,6 @@ struct ath_tid {
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
 	int			isfiltered;	/* is this node currently filtered */
-	int			clrdmask;	/* has clrdmask been set */
 
 	/*
 	 * Is the TID being cleaned up after a transition
@@ -182,6 +181,7 @@ struct ath_node {
 	struct mtx	an_mtx;		/* protecting the ath_node state */
 	uint32_t	an_swq_depth;	/* how many SWQ packets for this
 					   node */
+	int			clrdmask;	/* has clrdmask been set */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -278,6 +278,8 @@ struct ath_buf {
 		/* 16 bit? */
 		int32_t bfs_keyix;		/* crypto key index */
 		int32_t bfs_txantenna;	/* TX antenna config */
+
+		uint16_t bfs_nextpktlen;	/* length of next frag pkt */
 
 		/* Make this an 8 bit value? */
 		enum ieee80211_protmode bfs_protmode;
@@ -494,6 +496,13 @@ struct ath_softc {
 	struct ath_tx_methods	sc_tx;
 	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
 
+	/*
+	 * This is (currently) protected by the TX queue lock;
+	 * it should migrate to a separate lock later
+	 * so as to minimise contention.
+	 */
+	ath_bufhead		sc_txbuf_list;
+
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
 	int			sc_tx_statuslen;
@@ -514,6 +523,7 @@ struct ath_softc {
 	struct mtx		sc_tx_mtx;	/* TX access mutex */
 	char			sc_tx_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
+	struct taskqueue	*sc_tx_tq;	/* private TX task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
 	struct ath_tx99		*sc_tx99;	/* tx99 adjunct state */
@@ -660,6 +670,7 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+	struct task		sc_txpkttask;	/* tx frame processing */
 
 	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
 	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
@@ -749,6 +760,10 @@ struct ath_softc {
 	void			*sc_dfs;	/* Used by an optional DFS module */
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
+
+	/* Spectral related state */
+	void			*sc_spectral;
+	int			sc_dospectral;
 
 	/* ALQ */
 #ifdef	ATH_DEBUG_ALQ
@@ -1298,5 +1313,16 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
+
+#define	ath_hal_spectral_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_SPECTRAL_SCAN, 0, NULL) == HAL_OK)
+#define	ath_hal_spectral_get_config(_ah, _p) \
+	((*(_ah)->ah_spectralGetConfig)((_ah), (_p)))
+#define	ath_hal_spectral_configure(_ah, _p) \
+	((*(_ah)->ah_spectralConfigure)((_ah), (_p)))
+#define	ath_hal_spectral_start(_ah) \
+	((*(_ah)->ah_spectralStart)((_ah)))
+#define	ath_hal_spectral_stop(_ah) \
+	((*(_ah)->ah_spectralStop)((_ah)))
 
 #endif /* _DEV_ATH_ATHVAR_H */

@@ -160,7 +160,7 @@ tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS)
 	int qsize;
 
 	qsize = uma_zone_get_cur(V_tcp_reass_zone);
-	return (sysctl_handle_int(oidp, &qsize, sizeof(qsize), req));
+	return (sysctl_handle_int(oidp, &qsize, 0, req));
 }
 
 int

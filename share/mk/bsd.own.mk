@@ -181,6 +181,15 @@ NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
 
+#
+# install(1) parameters.
+#
+HRDLINK?=	-l h
+SYMLINK?=	-l s
+
+INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+
 # Common variables
 .if !defined(DEBUG_FLAGS)
 STRIP?=		-s
@@ -214,80 +223,6 @@ COMPRESS_EXT?=	.gz
 WITHOUT_${var}=
 .endif
 .endfor
-
-#
-# Compat NO_* options (same as above, except their use is deprecated).
-#
-.if !defined(BURN_BRIDGES)
-.for var in \
-    ACPI \
-    ATM \
-    AUDIT \
-    AUTHPF \
-    BIND \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
-    BLUETOOTH \
-    BOOT \
-    CALENDAR \
-    CPP \
-    CRYPT \
-    CVS \
-    CXX \
-    DICT \
-    DYNAMICROOT \
-    EXAMPLES \
-    FORTH \
-    FP_LIBC \
-    GAMES \
-    GCOV \
-    GDB \
-    GNU \
-    GPIB \
-    GROFF \
-    HTML \
-    INET6 \
-    INFO \
-    IPFILTER \
-    IPX \
-    KDUMP \
-    KERBEROS \
-    LIB32 \
-    LIBPTHREAD \
-    LIBTHR \
-    LOCALES \
-    LPR \
-    MAILWRAPPER \
-    NETCAT \
-    NIS \
-    NLS \
-    NLS_CATALOGS \
-    NS_CACHING \
-    OPENSSH \
-    OPENSSL \
-    PAM \
-    PF \
-    RCMDS \
-    RCS \
-    RESCUE \
-    SENDMAIL \
-    SETUID_LOGIN \
-    SHAREDOCS \
-    SYSCONS \
-    TCSH \
-    TOOLCHAIN \
-    USB \
-    WPA_SUPPLICANT_EAPOL
-.if defined(NO_${var})
-#.warning NO_${var} is deprecated in favour of WITHOUT_${var}=
-WITHOUT_${var}=
-.endif
-.endfor
-.endif # !defined(BURN_BRIDGES)
 
 #
 # Older-style variables that enabled behaviour when set.
@@ -383,6 +318,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSH \
     OPENSSL \
     PAM \
+    PC_SYSINSTALL \
     PF \
     PKGBOOTSTRAP \
     PKGTOOLS \
@@ -417,6 +353,7 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    ARM_EABI \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
@@ -427,12 +364,15 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
+    GPL_DTC \
     HESIOD \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
+    NMTREE \
     NAND \
     OFED \
+    OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN
 
 #
