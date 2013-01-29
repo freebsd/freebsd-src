@@ -94,11 +94,15 @@ WITH_AUTO_OBJ= yes
 .include <auto.obj.mk>
 .endif
 
+# the logic in bsd.own.mk forces this dance
 .ifndef WITHOUT_META_MODE
 WITH_META_MODE= yes
 
 .ifndef WITHOUT_STAGING
 WITH_STAGING= yes
+.ifndef WITHOUT_STAGING_PROG
+WITH_STAGING_PROG= yes
+.endif
 .endif
 
 PYTHON ?= /usr/local/bin/python
@@ -134,6 +138,8 @@ STAGE_HOST_OBJTOP= ${STAGE_ROOT}/${HOST_TARGET}
 STAGE_LIBDIR= ${STAGE_OBJTOP}${LIBDIR:U/lib}
 # this is not the same as INCLUDEDIR
 STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
+# the target is usually an absolute path
+STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 
 .ifndef WITH_SYSROOT
 .if ${MACHINE} != "host"
