@@ -1864,7 +1864,7 @@ vtnet_enqueue_txbuf(struct vtnet_softc *sc, struct mbuf **m_head,
 	sglist_init(&sg, VTNET_MAX_TX_SEGS, segs);
 	error = sglist_append(&sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
 	KASSERT(error == 0 && sg.sg_nseg == 1,
-	    ("cannot add header to sglist"));
+	    ("%s: cannot add header to sglist error %d", __func__, error));
 
 again:
 	error = sglist_append_mbuf(&sg, m);
