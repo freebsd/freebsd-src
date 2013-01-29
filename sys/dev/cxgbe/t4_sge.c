@@ -2362,6 +2362,8 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "txpkts_pkts", CTLFLAG_RD,
 	    &txq->txpkts_pkts, "# of frames tx'd using txpkts work requests");
 
+	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "br_drops", CTLFLAG_RD,
+	    &txq->br->br_drops, "# of drops in the buf_ring for this queue");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_dmamap", CTLFLAG_RD,
 	    &txq->no_dmamap, 0, "# of times txq ran out of DMA maps");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_desc", CTLFLAG_RD,
