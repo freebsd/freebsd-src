@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 
 #include <dev/uart/uart.h>
@@ -845,6 +847,11 @@ ns8250_bus_setsig(struct uart_softc *sc, int sig)
 	return (0);
 }
 
+static int broken_txfifo = 0;
+SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RW | CTLFLAG_TUN,
+	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
+TUNABLE_INT("hw.broken_txfifo", &broken_txfifo);
+
 static int
 ns8250_bus_transmit(struct uart_softc *sc)
 {
@@ -862,7 +869,12 @@ ns8250_bus_transmit(struct uart_softc *sc)
 		uart_setreg(bas, REG_DATA, sc->sc_txbuf[i]);
 		uart_barrier(bas);
 	}
-	sc->sc_txbusy = 1;
+	if (broken_txfifo)
+		ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
+	else
+		sc->sc_txbusy = 1;
 	uart_unlock(sc->sc_hwmtx);
+	if (broken_txfifo)
+		uart_sched_softih(sc, SER_INT_TXIDLE);
 	return (0);
 }

@@ -3792,9 +3792,8 @@ spa_generate_rootconf(const char *name)
 	/*
 	 * Multi-vdev root pool configuration discovery is not supported yet.
 	 */
-	nchildren = 0;
-	VERIFY(nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN,
-	    &nchildren) == 0);
+	nchildren = 1;
+	nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN, &nchildren);
 	holes = NULL;
 	nvlist_lookup_uint64_array(best_cfg, ZPOOL_CONFIG_HOLE_ARRAY,
 	    &holes, &nholes);

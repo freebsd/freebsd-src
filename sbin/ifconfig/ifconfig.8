@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2012
+.Dd January 10, 2013
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -716,6 +716,13 @@ Set a flag to enable Neighbor Unreachability Detection.
 .It Cm -nud
 Clear a flag
 .Cm nud .
+.It Cm no_prefer_iface
+Set a flag to not prefer address on the interface as candidates of the
+source address for outgoing packets, even when the interface is
+outgoing interface.
+.It Cm -no_prefer_iface
+Clear a flag
+.Cm no_prefer_iface .
 .El
 .Pp
 The following parameters are specific to cloning

@@ -31,7 +31,7 @@
 /* Define the various function IDs used by the OMAP4 */
 #define L2CACHE_WRITE_DEBUG_REG		0x100
 #define L2CACHE_CLEAN_INV_RANG		0x101
-#define L2CACHE_ENABLE_L2		0x102
+#define L2CACHE_WRITE_CTRL_REG		0x102
 #define READ_AUX_CORE_REGS		0x103
 #define MODIFY_AUX_CORE_0		0x104
 #define WRITE_AUX_CORE_1		0x105

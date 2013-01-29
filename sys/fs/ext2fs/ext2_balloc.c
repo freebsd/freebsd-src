@@ -69,7 +69,7 @@ ext2_balloc(ip, lbn, size, cred, bpp, flags)
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];
-	int32_t newb, *bap, pref;
+	uint32_t newb, *bap, pref;
 	int osize, nsize, num, i, error;
 
 	*bpp = NULL;

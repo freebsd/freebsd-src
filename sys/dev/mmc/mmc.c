@@ -353,7 +353,8 @@ mmc_highest_voltage(uint32_t ocr)
 {
 	int i;
 
-	for (i = 30; i >= 0; i--)
+	for (i = MMC_OCR_MAX_VOLTAGE_SHIFT;
+	    i >= MMC_OCR_MIN_VOLTAGE_SHIFT; i--)
 		if (ocr & (1 << i))
 			return (i);
 	return (-1);

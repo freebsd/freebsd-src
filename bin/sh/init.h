@@ -33,5 +33,4 @@
  * $FreeBSD$
  */
 
-void init(void);
 void reset(void);

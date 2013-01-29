@@ -63,10 +63,10 @@ save_changes()
 		err=$( pw groupdel "$group_name" 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_group_deleted"
+		f_dialog_msgbox "$msg_group_deleted"
 		;;
 	Add)
 		local cmd="pw groupadd -n '$group_name'"
@@ -82,10 +82,10 @@ save_changes()
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_group_added"
+		f_dialog_msgbox "$msg_group_added"
 		;;
 	Edit/View)
 		local cmd="pw groupmod -n '$group_name'"
@@ -101,10 +101,10 @@ save_changes()
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_group_updated"
+		f_dialog_msgbox "$msg_group_updated"
 		;;
 	esac
 

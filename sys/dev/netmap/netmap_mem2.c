@@ -388,7 +388,7 @@ netmap_obj_free_va(struct netmap_obj_pool *p, void *vaddr)
 		netmap_obj_free(p, j);
 		return;
 	}
-	ND("address %p is not contained inside any cluster (%s)",
+	D("address %p is not contained inside any cluster (%s)",
 	    vaddr, p->name);
 }
 
@@ -559,8 +559,9 @@ netmap_config_obj_allocator(struct netmap_obj_pool *p, u_int objtotal, u_int obj
 	i =  (clustsize & (PAGE_SIZE - 1));
 	if (i)
 		clustsize += PAGE_SIZE - i;
-	D("objsize %d clustsize %d objects %d",
-		objsize, clustsize, clustentries);
+	if (netmap_verbose)
+		D("objsize %d clustsize %d objects %d",
+			objsize, clustsize, clustentries);
 
 	/*
 	 * The number of clusters is n = ceil(objtotal/clustentries)
@@ -649,9 +650,10 @@ netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 		}
 	}
 	p->bitmap[0] = ~3; /* objs 0 and 1 is always busy */
-	D("Pre-allocated %d clusters (%d/%dKB) for '%s'",
-	    p->_numclusters, p->_clustsize >> 10,
-	    p->_memtotal >> 10, p->name);
+	if (netmap_verbose)
+		D("Pre-allocated %d clusters (%d/%dKB) for '%s'",
+		    p->_numclusters, p->_clustsize >> 10,
+		    p->_memtotal >> 10, p->name);
 
 	return 0;
 
@@ -721,7 +723,7 @@ netmap_memory_finalize(void)
 
 	nm_mem.refcount++;
 	if (nm_mem.refcount > 1) {
-		D("busy (refcount %d)", nm_mem.refcount);
+		ND("busy (refcount %d)", nm_mem.refcount);
 		goto out;
 	}
 
@@ -796,6 +798,8 @@ static void
 netmap_free_rings(struct netmap_adapter *na)
 {
 	int i;
+	if (!na->tx_rings)
+		return;
 	for (i = 0; i < na->num_tx_rings + 1; i++) {
 		netmap_ring_free(na->tx_rings[i].ring);
 		na->tx_rings[i].ring = NULL;
@@ -804,22 +808,32 @@ netmap_free_rings(struct netmap_adapter *na)
 		netmap_ring_free(na->rx_rings[i].ring);
 		na->rx_rings[i].ring = NULL;
 	}
+	free(na->tx_rings, M_DEVBUF);
+	na->tx_rings = na->rx_rings = NULL;
 }
 
 
 
 /* call with NMA_LOCK held */
+/*
+ * Allocate the per-fd structure netmap_if.
+ * If this is the first instance, also allocate the krings, rings etc.
+ */
 static void *
 netmap_if_new(const char *ifname, struct netmap_adapter *na)
 {
 	struct netmap_if *nifp;
 	struct netmap_ring *ring;
 	ssize_t base; /* handy for relative offsets between rings and nifp */
-	u_int i, len, ndesc;
-	u_int ntx = na->num_tx_rings + 1; /* shorthand, include stack ring */
-	u_int nrx = na->num_rx_rings + 1; /* shorthand, include stack ring */
+	u_int i, len, ndesc, ntx, nrx;
 	struct netmap_kring *kring;
 
+	if (netmap_update_config(na)) {
+		/* configuration mismatch, report and fail */
+		return NULL;
+	}
+	ntx = na->num_tx_rings + 1; /* shorthand, include stack ring */
+	nrx = na->num_rx_rings + 1; /* shorthand, include stack ring */
 	/*
 	 * the descriptor is followed inline by an array of offsets
 	 * to the tx and rx rings in the shared memory region.
@@ -839,6 +853,14 @@ netmap_if_new(const char *ifname, struct netmap_adapter *na)
 	if (na->refcount > 1) { /* already setup, we are done */
 		goto final;
 	}
+
+	len = (ntx + nrx) * sizeof(struct netmap_kring);
+	na->tx_rings = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (na->tx_rings == NULL) {
+		D("Cannot allocate krings for %s", ifname);
+		goto cleanup;
+	}
+	na->rx_rings = na->tx_rings + ntx;
 
 	/*
 	 * First instance, allocate netmap rings and buffers for this card
@@ -947,5 +969,6 @@ static void
 netmap_memory_deref(void)
 {
 	nm_mem.refcount--;
-	D("refcount = %d", nm_mem.refcount);
+	if (netmap_verbose)
+		D("refcount = %d", nm_mem.refcount);
 }

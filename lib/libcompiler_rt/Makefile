@@ -136,18 +136,22 @@ SRCF+=	adddf3 \
 	addsf3 \
 	divdf3 \
 	divsf3 \
-	divsi3 \
 	extendsfdf2 \
 	fixdfsi \
 	fixsfsi \
 	floatsidf \
 	floatsisf \
-	modsi3 \
 	muldf3 \
 	mulsf3 \
 	subdf3 \
 	subsf3 \
-	truncdfsf2 \
+	truncdfsf2
+.endif
+
+.if ${MACHINE_CPUARCH} != "mips" && \
+    (${MACHINE_CPUARCH} != "arm" || ${MK_ARM_EABI} != "no")
+SRCF+=	divsi3 \
+	modsi3 \
 	udivsi3 \
 	umodsi3
 .endif
@@ -180,6 +184,13 @@ SRCS+=	${file}.S
 SRCS+=	${file}.c
 . endif
 .endfor
+
+.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+SRCS+=	aeabi_idivmod.S \
+	aeabi_ldivmod.S \
+	aeabi_uidivmod.S \
+	aeabi_uldivmod.S
+.endif
 
 .if ${MACHINE_CPUARCH} != "mips"
 . if ${MK_INSTALLLIB} != "no"

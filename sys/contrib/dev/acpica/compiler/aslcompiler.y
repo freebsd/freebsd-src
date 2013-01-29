@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -661,6 +661,7 @@ void *                      AslLocalAllocate (unsigned int Size);
 /* Types */
 
 %type <n> SuperName
+%type <n> ObjectTypeName
 %type <n> ArgTerm
 %type <n> LocalTerm
 %type <n> DebugTerm
@@ -1991,7 +1992,7 @@ NotTerm
 
 ObjectTypeTerm
     : PARSEOP_OBJECTTYPE '('        {$<n>$ = TrCreateLeafNode (PARSEOP_OBJECTTYPE);}
-        SuperName
+        ObjectTypeName
         ')'                         {$$ = TrLinkChildren ($<n>3,1,$4);}
     | PARSEOP_OBJECTTYPE '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
@@ -2439,6 +2440,18 @@ SuperName
     | LocalTerm                     {}
     | DebugTerm                     {}
     | Type6Opcode                   {}
+
+/* For ObjectType: SuperName except for UserTerm (method invocation) */
+
+ObjectTypeName
+    : NameString                    {}
+    | ArgTerm                       {}
+    | LocalTerm                     {}
+    | DebugTerm                     {}
+    | RefOfTerm                     {}
+    | DerefOfTerm                   {}
+    | IndexTerm                     {}
+
 /*    | UserTerm                      {} */  /* Caused reduce/reduce with Type6Opcode->UserTerm */
     ;
 

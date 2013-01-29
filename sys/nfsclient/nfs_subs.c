@@ -1110,7 +1110,7 @@ nfsm_v3attrbuild_xx(struct vattr *va, int full, struct mbuf **mb,
 		*tl = nfs_false;
 	}
 	if (va->va_atime.tv_sec != VNOVAL) {
-		if (va->va_atime.tv_sec != time_second) {
+		if ((va->va_vaflags & VA_UTIMES_NULL) == 0) {
 			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
 			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 			txdr_nfsv3time(&va->va_atime, tl);
@@ -1123,7 +1123,7 @@ nfsm_v3attrbuild_xx(struct vattr *va, int full, struct mbuf **mb,
 		*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 	}
 	if (va->va_mtime.tv_sec != VNOVAL) {
-		if (va->va_mtime.tv_sec != time_second) {
+		if ((va->va_vaflags & VA_UTIMES_NULL) == 0) {
 			tl = nfsm_build_xx(3 * NFSX_UNSIGNED, mb, bpos);
 			*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 			txdr_nfsv3time(&va->va_mtime, tl);

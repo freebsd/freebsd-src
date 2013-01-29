@@ -100,8 +100,8 @@ set_tls(void *tls)
 #define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
 #define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
+#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
+#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
 
 void pcpu0_init(void);
 #endif	/* _KERNEL */
