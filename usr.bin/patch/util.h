@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*-
- * 
  * Copyright 1986, Larry Wall
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -26,8 +24,7 @@
  * behaviour
  *
  * $OpenBSD: util.h,v 1.15 2005/06/20 07:14:06 otto Exp $
- * $DragonFly: src/usr.bin/patch/util.h,v 1.2 2007/09/29 23:11:10 swildner Exp $
-
+ * $FreeBSD$
  */
 
 char		*fetchname(const char *, bool *, int);

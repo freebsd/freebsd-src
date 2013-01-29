@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*-
- * 
  * Copyright 1986, Larry Wall
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -25,8 +23,8 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: patch.c,v 1.45 2007/04/18 21:52:24 sobrado Exp $
- * $DragonFly: src/usr.bin/patch/patch.c,v 1.10 2008/08/10 23:39:56 joerg Exp $
+ * $OpenBSD: patch.c,v 1.50 2012/05/15 19:32:02 millert Exp $
+ * $FreeBSD$
  *
  */
 
@@ -114,9 +112,6 @@ static bool	reverse_flag_specified = false;
 /* buffer holding the name of the rejected patch file. */
 static char	rejname[NAME_MAX + 1];
 
-/* buffer for stderr */
-static char	serrbuf[BUFSIZ];
-
 /* how many input lines have been irretractibly output */
 static LINENUM	last_frozen_line = 0;
 
@@ -150,11 +145,13 @@ int
 main(int argc, char *argv[])
 {
 	int	error = 0, hunk, failed, i, fd;
+	bool	patch_seen;
 	LINENUM	where = 0, newwhere, fuzz, mymaxfuzz;
 	const	char *tmpdir;
 	char	*v;
 
-	setbuf(stderr, serrbuf);
+	setlinebuf(stdout);
+	setlinebuf(stderr);
 	for (i = 0; i < MAXFILEC; i++)
 		filearg[i] = NULL;
 
@@ -214,9 +211,12 @@ main(int argc, char *argv[])
 	/* make sure we clean up /tmp in case of disaster */
 	set_signals(0);
 
+	patch_seen = false;
 	for (open_patch_file(filearg[1]); there_is_another_patch();
 	    reinitialize_almost_everything()) {
 		/* for each patch in patch file */
+		
+		patch_seen = true;
 
 		warn_on_invalid_line = true;
 
@@ -400,18 +400,21 @@ main(int argc, char *argv[])
 				    sizeof(rejname)) >= sizeof(rejname))
 					fatal("filename %s is too long\n", outname);
 			}
-			if (skip_rest_of_patch) {
-				say("%d out of %d hunks ignored--saving rejects to %s\n",
-				    failed, hunk, rejname);
-			} else {
-				say("%d out of %d hunks failed--saving rejects to %s\n",
-				    failed, hunk, rejname);
-			}
+			if (!check_only)
+				say("%d out of %d hunks %s--saving rejects to %s\n",
+				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed", rejname);
+			else
+				say("%d out of %d hunks %s\n",
+				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed");
 			if (!check_only && move_file(TMPREJNAME, rejname) < 0)
 				trejkeep = true;
 		}
 		set_signals(1);
 	}
+	
+	if (!patch_seen)
+		error = 2;
+
 	my_exit(error);
 	/* NOTREACHED */
 }

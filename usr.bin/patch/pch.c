@@ -1,6 +1,5 @@
-/* $FreeBSD$ */
+
 /*-
- * 
  * Copyright 1986, Larry Wall
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -25,8 +24,8 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: pch.c,v 1.37 2007/09/02 15:19:33 deraadt Exp $
- * $DragonFly: src/usr.bin/patch/pch.c,v 1.6 2008/08/10 23:35:40 joerg Exp $
+ * $OpenBSD: pch.c,v 1.39 2012/04/11 08:07:13 ajacoutot Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*-
- * 
  * Copyright 1986, Larry Wall
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +23,8 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: inp.c,v 1.34 2006/03/11 19:41:30 otto Exp $
+ * $OpenBSD: inp.c,v 1.36 2012/04/10 14:46:34 ajacoutot Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
