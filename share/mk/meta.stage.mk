@@ -64,6 +64,7 @@ STAGE_DIRDEP_SCRIPT = StageDirdep() { \
 # this all relies on RELDIR being set to a subdir of SRCTOP
 # we use ln(1) if we can, else cp(1)
 STAGE_FILE_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageFiles() { \
+  case "$$1" in -m) mode=$$2; shift 2;; *) mode=;; esac; \
   dest=$$1; shift; \
   mkdir -p $$dest; \
   [ -s .dirdep ] || echo '${_dirdep}' > .dirdep; \
@@ -73,15 +74,16 @@ STAGE_FILE_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageFiles() { \
 	rm -f $$t; \
 	{ ln $$f $$t 2> /dev/null || \
 	cp -p $$f $$t; }; \
+	$${mode:+chmod $$mode $$t}; \
   done; :; }
 
 STAGE_LINKS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageLinks() { \
-  case "$$1" in --) shift;; -*) lnf=$$1; shift;; esac; \
+  case "$$1" in --) shift;; -*) ldest= lnf=$$1; shift;; /*) ldest=$$1/;; esac; \
   dest=$$1; shift; \
   mkdir -p $$dest; \
   [ -s .dirdep ] || echo '${_dirdep}' > .dirdep; \
   while test $$\# -ge 2; do \
-	l=$$1; shift; \
+	l=$$ldest$$1; shift; \
 	t=$$dest/$$1; \
 	case "$$1" in */*) mkdir -p ${_stage_target_dirname};; esac; \
 	shift; \
@@ -91,6 +93,7 @@ STAGE_LINKS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageLinks() { \
   done; :; }
 
 STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
+  case "$$1" in -m) mode=$$2; shift 2;; *) mode=;; esac; \
   dest=$$1; shift; \
   mkdir -p $$dest; \
   [ -s .dirdep ] || echo '${_dirdep}' > .dirdep; \
@@ -103,6 +106,7 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
 	rm -f $$t; \
 	{ ln $$s $$t 2> /dev/null || \
 	cp -p $$s $$t; }; \
+	$${mode:+chmod $$mode $$t}; \
   done; :; }
 
 # this is simple, a list of the "staged" files depends on this,
@@ -138,8 +142,10 @@ stage_libs:	.dirdep
 .if !empty(STAGE_DIR)
 STAGE_SETS += _default
 STAGE_DIR._default = ${STAGE_DIR}
-STAGE_SYMLINKS_DIR._default = ${STAGE_SYMLINKS_DIR:U${STAGE_DIR}}
+STAGE_LINKS_DIR._default = ${STAGE_LINKS_DIR:U${STAGE_OBJTOP}}
+STAGE_SYMLINKS_DIR._default = ${STAGE_SYMLINKS_DIR:U${STAGE_OBJTOP}}
 STAGE_FILES._default = ${STAGE_FILES}
+STAGE_LINKS._default = ${STAGE_LINKS}
 STAGE_SYMLINKS._default = ${STAGE_SYMLINKS}
 STAGE_FILES ?= ${.ALLSRC:N.dirdep:Nstage_*}
 STAGE_SYMLINKS ?= ${.ALLSRC:T:N.dirdep:Nstage_*}
@@ -153,6 +159,8 @@ CLEANFILES += ${STAGE_SETS:@s@stage*$s@}
 .for s in ${STAGE_SETS:O:u}
 STAGE_FILES.$s ?= ${.ALLSRC:N.dirdep}
 STAGE_SYMLINKS.$s ?= ${.ALLSRC:N.dirdep}
+STAGE_LINKS_DIR.$s ?= ${STAGE_OBJTOP}
+STAGE_SYMLINKS_DIR.$s ?= ${STAGE_OBJTOP}
 
 .if $s != "_default"
 stage_files:	stage_files.$s
@@ -160,7 +168,16 @@ stage_files.$s:	.dirdep
 .else
 stage_files:	.dirdep
 .endif
-	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s}
+	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s}
+	@touch $@
+
+.if $s != "_default"
+stage_links:	stage_links.$s
+stage_links.$s:	.dirdep
+.else
+stage_links:	.dirdep
+.endif
+	@${STAGE_LINKS_SCRIPT}; StageLinks ${STAGE_LINKS_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_LINKS.$s}
 	@touch $@
 
 .if $s != "_default"
@@ -187,7 +204,7 @@ STAGE_AS.$s ?= ${.ALLSRC:N.dirdep}
 
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
-	@${STAGE_AS_SCRIPT}; StageAs ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:T}:U${f:T}}@}
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:T}:U${f:T}}@}
 	@touch $@
 
 .endfor
