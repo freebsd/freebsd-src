@@ -566,13 +566,12 @@ struct usb_string_descriptor {
 typedef struct usb_string_descriptor usb_string_descriptor_t;
 
 #define	USB_MAKE_STRING_DESC(m,name)	\
-struct name {				\
+static const struct {			\
   uByte bLength;			\
   uByte bDescriptorType;		\
   uByte bData[sizeof((uint8_t []){m})];	\
-} __packed;				\
-static const struct name name = {	\
-  .bLength = sizeof(struct name),	\
+} __packed name = {			\
+  .bLength = sizeof(name),		\
   .bDescriptorType = UDESC_STRING,	\
   .bData = { m },			\
 }
