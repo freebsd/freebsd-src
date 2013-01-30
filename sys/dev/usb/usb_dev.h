@@ -27,11 +27,13 @@
 #ifndef _USB_DEV_H_
 #define	_USB_DEV_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/file.h>
 #include <sys/selinfo.h>
 #include <sys/poll.h>
 #include <sys/signalvar.h>
 #include <sys/proc.h>
+#endif
 
 struct usb_fifo;
 struct usb_mbuf;

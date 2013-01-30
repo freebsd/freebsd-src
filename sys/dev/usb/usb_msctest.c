@@ -32,6 +32,9 @@
  * mass storage quirks for not supported SCSI commands!
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -66,6 +69,7 @@
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
 #include <dev/usb/quirk/usb_quirk.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
 	ST_COMMAND,

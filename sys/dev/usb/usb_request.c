@@ -26,6 +26,9 @@
  * SUCH DAMAGE.
  */ 
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -66,6 +69,7 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <sys/ctype.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 static int usb_no_cs_fail;
 

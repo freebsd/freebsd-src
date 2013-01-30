@@ -36,6 +36,9 @@
  * Linux USB gadget stack.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -62,6 +65,7 @@
 
 #define	USB_DEBUG_VAR ustorage_fs_debug
 #include <dev/usb/usb_debug.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #ifdef USB_DEBUG
 static int ustorage_fs_debug = 0;

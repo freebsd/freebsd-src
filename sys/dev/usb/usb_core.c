@@ -30,6 +30,9 @@
  * http://www.usb.org/developers/devclass_docs/
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -51,6 +54,7 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 MALLOC_DEFINE(M_USB, "USB", "USB");
 MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");

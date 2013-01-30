@@ -25,6 +25,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -61,6 +64,7 @@
 #include <dev/usb/usb_hub.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_debug.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 struct usb_linux_softc {
 	LIST_ENTRY(usb_linux_softc) sc_attached_list;
