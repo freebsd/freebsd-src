@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+SRCS+=	__vdso_gettc.c
+
 MDASM+=	Ovfork.S brk.S cerror.S exect.S fork.S getcontext.S pipe.S ptrace.S \
 	sbrk.S setlogin.S sigreturn.S swapcontext.S
 
