@@ -2212,13 +2212,10 @@ static const struct usb_hub_descriptor_min musbotg_hubd = {
 };
 
 #define	STRING_VENDOR \
-  'M', 0, 'e', 0, 'n', 0, 't', 0, 'o', 0, 'r', 0, ' ', 0, \
-  'G', 0, 'r', 0, 'a', 0, 'p', 0, 'h', 0, 'i', 0, 'c', 0, 's', 0
+  "M\0e\0n\0t\0o\0r\0 \0G\0r\0a\0p\0h\0i\0c\0s"
 
 #define	STRING_PRODUCT \
-  'O', 0, 'T', 0, 'G', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "O\0T\0G\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
 USB_MAKE_STRING_DESC(STRING_VENDOR, musbotg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, musbotg_product);
