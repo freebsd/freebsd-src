@@ -890,8 +890,8 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 			 */
 			if (td->remainder > 0) {
 				if (td->alt_next == NULL) {
-					DPRINTF("short TD has no "
-					    "alternate next\n");
+					DPRINTF(
+					    "short TD has no alternate next\n");
 					xhci_generic_done(xfer);
 					break;
 				}
