@@ -137,7 +137,7 @@ config cfg;
 
 event_proc::event_proc() : _prio(-1)
 {
-	// nothing
+	_epsvec.reserve(4);
 }
 
 event_proc::~event_proc()
@@ -241,25 +241,18 @@ my_system(const char *command)
 bool
 action::do_action(config &c)
 {
-	string s = c.expand_string(_cmd);
+	string s = c.expand_string(_cmd.c_str());
 	if (Dflag)
 		fprintf(stderr, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
 
-match::match(config &c, const char *var, const char *re)
-	: _var(var), _re("^")
+match::match(config &c, const char *var, const char *re) :
+	_inv(re[0] == '!'),
+	_var(var),
+	_re(c.expand_string(_inv ? re + 1 : re, "^", "$"))
 {
-	if (!c.expand_string(string(re)).empty() &&
-	    c.expand_string(string(re)).at(0) == '!') {
-		_re.append(c.expand_string(string(re)).substr(1));
-		_inv = 1;
-	} else {
-		_re.append(c.expand_string(string(re)));
-		_inv = 0;
-	}
-	_re.append("$");
 	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB | REG_ICASE);
 }
 
@@ -624,24 +617,37 @@ config::expand_one(const char *&src, string &dst)
 	do {
 		buffer.append(src++, 1);
 	} while (is_id_char(*src));
-	buffer.append("", 1);
 	dst.append(get_variable(buffer.c_str()));
 }
 
 const string
-config::expand_string(const string &s)
+config::expand_string(const char *src, const char *prepend, const char *append)
 {
-	const char *src;
+	const char *var_at;
 	string dst;
 
-	src = s.c_str();
-	while (*src) {
-		if (*src == '$')
-			expand_one(src, dst);
-		else
-			dst.append(src++, 1);
+	/*
+	 * 128 bytes is enough for 2427 of 2438 expansions that happen
+	 * while parsing config files, as tested on 2013-01-30.
+	 */
+	dst.reserve(128);
+
+	if (prepend != NULL)
+		dst = prepend;
+
+	for (;;) {
+		var_at = strchr(src, '$');
+		if (var_at == NULL) {
+			dst.append(src);
+			break;
+		}
+		dst.append(src, var_at - src);
+		src = var_at;
+		expand_one(src, dst);
 	}
-	dst.append("", 1);
+
+	if (append != NULL)
+		dst.append(append);
 
 	return (dst);
 }
