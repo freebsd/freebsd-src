@@ -60,6 +60,8 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
+
 #include <dev/usb/template/usb_template.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
@@ -74,9 +76,6 @@ enum {
 	STRING_MTP_SERIAL_INDEX,
 	STRING_MTP_MAX,
 };
-
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
 
 #define	STRING_MTP_DATA	\
   'U', 0, 'S', 0, 'B', 0, ' ', 0, \
@@ -109,7 +108,6 @@ enum {
 
 /* make the real string descriptors */
 
-USB_MAKE_STRING_DESC(STRING_LANG, string_lang);
 USB_MAKE_STRING_DESC(STRING_MTP_DATA, string_mtp_data);
 USB_MAKE_STRING_DESC(STRING_MTP_CONFIG, string_mtp_config);
 USB_MAKE_STRING_DESC(STRING_MTP_VENDOR, string_mtp_vendor);
@@ -246,7 +244,7 @@ static const void *
 mtp_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
 	static const void *ptr[STRING_MTP_MAX] = {
-		[STRING_LANG_INDEX] = &string_lang,
+		[STRING_LANG_INDEX] = &usb_string_lang_en,
 		[STRING_MTP_DATA_INDEX] = &string_mtp_data,
 		[STRING_MTP_CONFIG_INDEX] = &string_mtp_config,
 		[STRING_MTP_VENDOR_INDEX] = &string_mtp_vendor,
@@ -268,7 +266,7 @@ mtp_get_string_desc(uint16_t lang_id, uint8_t string_index)
 		return (dummy_desc);
 	}
 	if (string_index == 0) {
-		return (&string_lang);
+		return (&usb_string_lang_en);
 	}
 	if (lang_id != 0x0409) {
 		return (NULL);

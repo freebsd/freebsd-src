@@ -1808,9 +1808,6 @@ static const struct usb_hub_descriptor_min uss820dci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
   'A', 0, 'G', 0, 'E', 0, 'R', 0, 'E', 0
 
@@ -1819,7 +1816,6 @@ static const struct usb_hub_descriptor_min uss820dci_hubd = {
   'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
   'U', 0, 'B', 0,
 
-USB_MAKE_STRING_DESC(STRING_LANG, uss820dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, uss820dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, uss820dci_product);
 
@@ -2021,8 +2017,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(uss820dci_langtab);
-			ptr = (const void *)&uss820dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
