@@ -348,9 +348,10 @@ distrib-dirs:
 		test "$$d" == "/" && d=""; \
 		d=${DISTBASE}$$d; \
 		shift; \
-		${ECHO} "${MTREE_CMD} -C -f $$m | sed s#^\.#.$$d# |" \
-		    "${METALOG.add}" ; \
-		${MTREE_CMD} -C -f $$m | sed s#^\.#.$$d# | ${METALOG.add} ; \
+		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
+		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
+		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \
+		    ${METALOG.add} ; \
 	done; true
 .endif
 	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
