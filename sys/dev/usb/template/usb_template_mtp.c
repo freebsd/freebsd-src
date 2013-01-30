@@ -78,33 +78,19 @@ enum {
 };
 
 #define	STRING_MTP_DATA	\
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'M', 0, 'T', 0, 'P', 0, \
-  ' ', 0, 'I', 0, 'n', 0, 't', 0, \
-  'e', 0, 'r', 0, 'f', 0, 'a', 0, \
-  'c', 0, 'e', 0,
+  "U\0S\0B\0 \0M\0T\0P\0 \0I\0n\0t\0e\0r\0f\0a\0c\0e"
 
 #define	STRING_MTP_CONFIG \
-  'D', 0, 'e', 0, 'f', 0, 'a', 0, \
-  'u', 0, 'l', 0, 't', 0, ' ', 0, \
-  'c', 0, 'o', 0, 'n', 0, 'f', 0, \
-  'i', 0, 'g', 0,
+  "D\0e\0f\0a\0u\0l\0t\0 \0c\0o\0n\0f\0i\0g"
 
 #define	STRING_MTP_VENDOR \
-  'F', 0, 'r', 0, 'e', 0, 'e', 0, \
-  'B', 0, 'S', 0, 'D', 0, ' ', 0, \
-  'f', 0, 'o', 0, 'u', 0, 'n', 0, \
-  'd', 0, 'a', 0, 't', 0, 'i', 0, \
-  'o', 0, 'n', 0,
+  "F\0r\0e\0e\0B\0S\0D\0 \0f\0o\0u\0n\0d\0a\0t\0i\0o\0n"
 
 #define	STRING_MTP_PRODUCT \
-  'U', 0, 'S', 0, 'B', 0, ' ', 0, \
-  'M', 0, 'T', 0, 'P', 0,
+  "U\0S\0B\0 \0M\0T\0P"
 
 #define	STRING_MTP_SERIAL \
-  'J', 0, 'u', 0, 'n', 0, 'e', 0, \
-  ' ', 0, '2', 0, '0', 0, '0', 0, \
-  '8', 0,
+  "J\0u\0n\0e\0 \0002\0000\0000\08"
 
 /* make the real string descriptors */
 

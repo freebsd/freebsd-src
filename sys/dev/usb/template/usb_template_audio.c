@@ -68,21 +68,16 @@ enum {
 };
 
 #define	STRING_AUDIO_PRODUCT \
-  'A', 0, 'u', 0, 'd', 0, 'i', 0, 'o', 0, ' ', 0, \
-  'T', 0, 'e', 0, 's', 0, 't', 0, ' ', 0, \
-  'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0,
+  "A\0u\0d\0i\0o\0 \0T\0e\0s\0t\0 \0D\0e\0v\0i\0c\0e"
 
 #define	STRING_AUDIO_MIXER \
-  'M', 0, 'i', 0, 'x', 0, 'e', 0, 'r', 0, ' ', 0, \
-  'i', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0,
+  "M\0i\0x\0e\0r\0 \0i\0n\0t\0e\0r\0f\0a\0c\0e"
 
 #define	STRING_AUDIO_RECORD \
-  'R', 0, 'e', 0, 'c', 0, 'o', 0, 'r', 0, 'd', 0, ' ', 0, \
-  'i', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0,
+  "R\0e\0c\0o\0r\0d\0 \0i\0n\0t\0e\0r\0f\0a\0c\0e"
 
 #define	STRING_AUDIO_PLAYBACK \
-  'P', 0, 'l', 0, 'a', 0, 'y', 0, 'b', 0, 'a', 0, 'c', 0, 'k', 0, ' ', 0, \
-  'i', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0,
+  "P\0l\0a\0y\0b\0a\0c\0k\0 \0i\0n\0t\0e\0r\0f\0a\0c\0e"
 
 
 /* make the real string descriptors */

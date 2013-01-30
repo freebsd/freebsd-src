@@ -1741,12 +1741,10 @@ static const struct usb_hub_descriptor_min at91dci_hubd = {
 };
 
 #define	STRING_VENDOR \
-  'A', 0, 'T', 0, 'M', 0, 'E', 0, 'L', 0
+  "A\0T\0M\0E\0L"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
 USB_MAKE_STRING_DESC(STRING_VENDOR, at91dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, at91dci_product);

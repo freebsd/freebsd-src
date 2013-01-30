@@ -3492,12 +3492,10 @@ static const struct usb_hub_descriptor_min dwc_otg_hubd = {
 };
 
 #define	STRING_VENDOR \
-  'D', 0, 'W', 0, 'C', 0, 'O', 0, 'T', 0, 'G', 0
+  "D\0W\0C\0O\0T\0G"
 
 #define	STRING_PRODUCT \
-  'O', 0, 'T', 0, 'G', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "O\0T\0G\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
 USB_MAKE_STRING_DESC(STRING_VENDOR, dwc_otg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, dwc_otg_product);
