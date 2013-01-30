@@ -167,6 +167,94 @@ pci_parse_slot(char *opt, int legacy)
 }
 
 static int
+pci_valid_pba_offset(struct pci_devinst *pi, uint64_t offset)
+{
+
+	if (offset < pi->pi_msix.pba_offset)
+		return (0);
+
+	if (offset >= pi->pi_msix.pba_offset + pi->pi_msix.pba_size) {
+		return (0);
+	}
+
+	return (1);
+}
+
+int
+pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
+		     uint64_t value)
+{
+	int msix_entry_offset;
+	int tab_index;
+	char *dest;
+
+	/* support only 4 or 8 byte writes */
+	if (size != 4 && size != 8)
+		return (-1);
+
+	/*
+	 * Return if table index is beyond what device supports
+	 */
+	tab_index = offset / MSIX_TABLE_ENTRY_SIZE;
+	if (tab_index >= pi->pi_msix.table_count)
+		return (-1);
+
+	msix_entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
+
+	/* support only aligned writes */
+	if ((msix_entry_offset % size) != 0)
+		return (-1);
+
+	dest = (char *)(pi->pi_msix.table + tab_index);
+	dest += msix_entry_offset;
+
+	if (size == 4)
+		*((uint32_t *)dest) = value;
+	else
+		*((uint64_t *)dest) = value;
+
+	return (0);
+}
+
+uint64_t
+pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
+{
+	char *dest;
+	int msix_entry_offset;
+	int tab_index;
+	uint64_t retval = ~0;
+
+	/* support only 4 or 8 byte reads */
+	if (size != 4 && size != 8)
+		return (retval);
+
+	msix_entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
+
+	/* support only aligned reads */
+	if ((msix_entry_offset % size) != 0) {
+		return (retval);
+	}
+
+	tab_index = offset / MSIX_TABLE_ENTRY_SIZE;
+
+	if (tab_index < pi->pi_msix.table_count) {
+		/* valid MSI-X Table access */
+		dest = (char *)(pi->pi_msix.table + tab_index);
+		dest += msix_entry_offset;
+
+		if (size == 4)
+			retval = *((uint32_t *)dest);
+		else
+			retval = *((uint64_t *)dest);
+	} else if (pci_valid_pba_offset(pi, offset)) {
+		/* return 0 for PBA access */
+		retval = 0;
+	}
+
+	return (retval);
+}
+
+static int
 pci_emul_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		    uint32_t *eax, void *arg)
 {
@@ -178,8 +266,7 @@ pci_emul_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	for (i = 0; i <= PCI_BARMAX; i++) {
 		if (pdi->pi_bar[i].type == PCIBAR_IO &&
 		    port >= pdi->pi_bar[i].addr &&
-		    port + bytes <=
-		        pdi->pi_bar[i].addr + pdi->pi_bar[i].size) {
+		    port + bytes <= pdi->pi_bar[i].addr + pdi->pi_bar[i].size) {
 			offset = port - pdi->pi_bar[i].addr;
 			if (in)
 				*eax = (*pe->pe_barread)(ctx, vcpu, pdi, i,
@@ -484,13 +571,95 @@ pci_emul_add_msicap(struct pci_devinst *pi, int msgnum)
 	return (pci_emul_add_capability(pi, (u_char *)&msicap, sizeof(msicap)));
 }
 
+static void
+pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
+		     uint32_t msix_tab_size, int nextptr)
+{
+	CTASSERT(sizeof(struct msixcap) == 12);
+
+	assert(msix_tab_size % 4096 == 0);
+
+	bzero(msixcap, sizeof(struct msixcap));
+	msixcap->capid = PCIY_MSIX;
+	msixcap->nextptr = nextptr;
+
+	/*
+	 * Message Control Register, all fields set to
+	 * zero except for the Table Size.
+	 * Note: Table size N is encoded as N-1
+	 */
+	msixcap->msgctrl = msgnum - 1;
+
+	/*
+	 * MSI-X BAR setup:
+	 * - MSI-X table start at offset 0
+	 * - PBA table starts at a 4K aligned offset after the MSI-X table
+	 */
+	msixcap->table_info = barnum & PCIM_MSIX_BIR_MASK;
+	msixcap->pba_info = msix_tab_size | (barnum & PCIM_MSIX_BIR_MASK);
+}
+
+static void
+pci_msix_table_init(struct pci_devinst *pi, int table_entries)
+{
+	int i, table_size;
+
+	assert(table_entries > 0);
+	assert(table_entries <= MAX_MSIX_TABLE_ENTRIES);
+
+	table_size = table_entries * MSIX_TABLE_ENTRY_SIZE;
+	pi->pi_msix.table = malloc(table_size);
+	bzero(pi->pi_msix.table, table_size);
+
+	/* set mask bit of vector control register */
+	for (i = 0; i < table_entries; i++)
+		pi->pi_msix.table[i].vector_control |= PCIM_MSIX_VCTRL_MASK;
+}
+
+int
+pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum)
+{
+	uint16_t pba_index;
+	uint32_t tab_size;
+	struct msixcap msixcap;
+
+	assert(msgnum >= 1 && msgnum <= MAX_MSIX_TABLE_ENTRIES);
+	assert(barnum >= 0 && barnum <= PCIR_MAX_BAR_0);
+	
+	tab_size = msgnum * MSIX_TABLE_ENTRY_SIZE;
+
+	/* Align table size to nearest 4K */
+	tab_size = roundup2(tab_size, 4096);
+
+	pi->pi_msix.table_bar = barnum;
+	pi->pi_msix.pba_bar   = barnum;
+	pi->pi_msix.table_offset = 0;
+	pi->pi_msix.table_count = msgnum;
+	pi->pi_msix.pba_offset = tab_size;
+
+	/* calculate the MMIO size required for MSI-X PBA */
+	pba_index = (msgnum - 1) / (PBA_TABLE_ENTRY_SIZE * 8);
+	pi->pi_msix.pba_size = (pba_index + 1) * PBA_TABLE_ENTRY_SIZE;
+
+	pci_msix_table_init(pi, msgnum);
+
+	pci_populate_msixcap(&msixcap, msgnum, barnum, tab_size, 0);
+
+	/* allocate memory for MSI-X Table and PBA */
+	pci_emul_alloc_bar(pi, barnum, PCIBAR_MEM32,
+				tab_size + pi->pi_msix.pba_size);
+
+	return (pci_emul_add_capability(pi, (u_char *)&msixcap,
+					sizeof(msixcap)));
+}
+
 void
 msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		 int bytes, uint32_t val)
 {
 	uint16_t msgctrl, rwmask;
 	int off, table_bar;
-        
+	
 	off = offset - capoff;
 	table_bar = pi->pi_msix.table_bar;
 	/* Message Control Register */
@@ -502,6 +671,7 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		val = msgctrl;
 
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
+		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
 	} 
 	
 	CFGWRITE(pi, offset, val, bytes);
@@ -589,6 +759,9 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 	case PCIY_MSI:
 		msicap_cfgwrite(pi, capoff, offset, bytes, val);
 		break;
+	case PCIY_MSIX:
+		msixcap_cfgwrite(pi, capoff, offset, bytes, val);
+		break;
 	default:
 		break;
 	}
@@ -666,6 +839,35 @@ pci_msi_msgnum(struct pci_devinst *pi)
 		return (pi->pi_msi.msgnum);
 	else
 		return (0);
+}
+
+int
+pci_msix_enabled(struct pci_devinst *pi)
+{
+
+	return (pi->pi_msix.enabled && !pi->pi_msi.enabled);
+}
+
+void
+pci_generate_msix(struct pci_devinst *pi, int index)
+{
+	struct msix_table_entry *mte;
+
+	if (!pci_msix_enabled(pi))
+		return;
+
+	if (pi->pi_msix.function_mask)
+		return;
+
+	if (index >= pi->pi_msix.table_count)
+		return;
+
+	mte = &pi->pi_msix.table[index];
+	if ((mte->vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
+		/* XXX Set PBA bit if interrupt is disabled */
+		vm_lapic_irq(pi->pi_vmctx,
+			     (mte->addr >> 12) & 0xff, mte->msg_data & 0xff);
+	}
 }
 
 void
