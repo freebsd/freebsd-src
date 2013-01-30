@@ -40,22 +40,28 @@
 #define	_USB_STANDARD_H_
 
 #if defined(_KERNEL)
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include "opt_usb.h"
+#endif
 
 /* Declare parent SYSCTL USB node. */
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_hw_usb);
 #endif
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/malloc.h>
+#endif
 
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
 MALLOC_DECLARE(M_USBHC);
 #endif /* _KERNEL */
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <dev/usb/usb_endian.h>
 #include <dev/usb/usb_freebsd.h>
+#endif
 
 #define	USB_STACK_VERSION 2000		/* 2.0 */
 

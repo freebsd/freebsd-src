@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -47,6 +50,7 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_dev.h>
 #include <dev/usb/usb_mbuf.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /*------------------------------------------------------------------------*
  *      usb_alloc_mbufs - allocate mbufs to an usbd interface queue
