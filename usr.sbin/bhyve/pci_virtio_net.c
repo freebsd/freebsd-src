@@ -59,17 +59,17 @@ __FBSDID("$FreeBSD$");
 /*
  * PCI config-space register offsets
  */
-#define VTNET_R_CFG0	       20
-#define VTNET_R_CFG1	       21
-#define VTNET_R_CFG2	       22
-#define VTNET_R_CFG3	       23
-#define VTNET_R_CFG4	       24
-#define VTNET_R_CFG5	       25
-#define VTNET_R_CFG6	       26
-#define VTNET_R_CFG7	       27
-#define VTNET_R_MAX	       27
+#define VTNET_R_CFG0	24
+#define VTNET_R_CFG1	25
+#define VTNET_R_CFG2	26
+#define VTNET_R_CFG3	27
+#define VTNET_R_CFG4	28
+#define VTNET_R_CFG5	29
+#define VTNET_R_CFG6	30
+#define VTNET_R_CFG7	31
+#define VTNET_R_MAX	31
 
-#define VTNET_REGSZ		VTNET_R_MAX+1
+#define VTNET_REGSZ	VTNET_R_MAX+1
 
 /*
  * Host capabilities
@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #define VTNET_CTLQ	2
 
 #define VTNET_MAXQ	3
+
+static int use_msix = 1;
 
 struct vring_hqueue {
 	/* Internal state */
@@ -144,7 +146,22 @@ struct pci_vtnet_softc {
 
 	uint64_t	vsc_pfn[VTNET_MAXQ];
 	struct	vring_hqueue vsc_hq[VTNET_MAXQ];
+	uint16_t	vsc_msix_table_idx[VTNET_MAXQ];
 };
+
+/*
+ * Return the size of IO BAR that maps virtio header and device specific
+ * region. The size would vary depending on whether MSI-X is enabled or
+ * not.
+ */
+static uint64_t
+pci_vtnet_iosize(struct pci_devinst *pi)
+{
+	if (pci_msix_enabled(pi))
+		return (VTNET_REGSZ);
+	else
+		return (VTNET_REGSZ - (VTCFG_R_CFG1 - VTCFG_R_MSIX));
+}
 
 /*
  * Return the number of available descriptors in the vring taking care
@@ -344,8 +361,13 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 	hq->hq_cur_aidx = aidx;
 
 	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-		sc->vsc_isr |= 1;
-		pci_generate_msi(sc->vsc_pi, 0);
+		if (use_msix) {
+			pci_generate_msix(sc->vsc_pi,
+					  sc->vsc_msix_table_idx[VTNET_RXQ]);
+		} else {
+			sc->vsc_isr |= 1;
+			pci_generate_msi(sc->vsc_pi, 0);
+		}
 	}
 }
 
@@ -438,8 +460,13 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vring_hqueue *hq)
 	 * Generate an interrupt if able
 	 */
 	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-		sc->vsc_isr |= 1;
-		pci_generate_msi(sc->vsc_pi, 0);
+		if (use_msix) {
+			pci_generate_msix(sc->vsc_pi,
+					  sc->vsc_msix_table_idx[VTNET_TXQ]);
+		} else {
+			sc->vsc_isr |= 1;
+			pci_generate_msi(sc->vsc_pi, 0);
+		}
 	}	
 }
 
@@ -512,6 +539,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	unsigned char digest[16];
 	char nstr[80];
 	struct pci_vtnet_softc *sc;
+	const char *env_msi;
 
 	/*
 	 * Access to guest memory is required. Fail if
@@ -527,6 +555,14 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->vsc_pi = pi;
 
 	pthread_mutex_init(&sc->vsc_mtx, NULL);
+ 
+	/*
+	 * Use MSI if set by user
+	 */
+	if ((env_msi = getenv("BHYVE_USE_MSI")) != NULL) {
+		if (strcasecmp(env_msi, "yes") == 0)
+			use_msix = 0;
+	}
 
 	/*
 	 * Attempt to open the tap device
@@ -594,7 +630,24 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
-	pci_emul_add_msicap(pi, 1);
+	
+	if (use_msix) {
+		/* MSI-X support */
+		int i;
+
+		for (i = 0; i < VTNET_MAXQ; i++)
+			sc->vsc_msix_table_idx[i] = VIRTIO_MSI_NO_VECTOR;
+
+		/*
+		 * BAR 1 used to map MSI-X table and PBA
+		 */
+		if (pci_emul_add_msixcap(pi, VTNET_MAXQ, 1))
+			return (1);
+	} else {
+		/* MSI support */
+		pci_emul_add_msicap(pi, 1);
+	}
+	
 	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTNET_REGSZ);
 
 	return (0);
@@ -609,6 +662,21 @@ static void (*pci_vtnet_qnotify[VTNET_MAXQ])(struct pci_vtnet_softc *) = {
 	pci_vtnet_ping_ctlq
 };
 
+static uint64_t
+vtnet_adjust_offset(struct pci_devinst *pi, uint64_t offset)
+{
+	/*
+	 * Device specific offsets used by guest would change based on
+	 * whether MSI-X capability is enabled or not
+	 */
+	if (!pci_msix_enabled(pi)) {
+		if (offset >= VTCFG_R_MSIX)
+			return (offset + (VTCFG_R_CFG1 - VTCFG_R_MSIX));
+	}
+
+	return (offset);
+}
+
 static void
 pci_vtnet_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		int baridx, uint64_t offset, int size, uint64_t value)
@@ -616,15 +684,25 @@ pci_vtnet_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	struct pci_vtnet_softc *sc = pi->pi_arg;
 	void *ptr;
 
+	if (use_msix) {
+		if (baridx == pi->pi_msix.table_bar ||
+		    baridx == pi->pi_msix.pba_bar) {
+			pci_emul_msix_twrite(pi, offset, size, value);
+			return;
+		}
+	}
+
 	assert(baridx == 0);
 
-	if (offset + size > VTNET_REGSZ) {
+	if (offset + size > pci_vtnet_iosize(pi)) {
 		DPRINTF(("vtnet_write: 2big, offset %ld size %d\n",
 			 offset, size));
 		return;
 	}
 
 	pthread_mutex_lock(&sc->vsc_mtx);
+
+	offset = vtnet_adjust_offset(pi, offset);
 
 	switch (offset) {
 	case VTCFG_R_GUESTCAP:
@@ -648,6 +726,15 @@ pci_vtnet_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	case VTCFG_R_STATUS:
 		assert(size == 1);
 		pci_vtnet_update_status(sc, value);
+		break;
+	case VTCFG_R_CFGVEC:
+		assert(size == 2);
+		sc->vsc_msix_table_idx[VTNET_CTLQ] = value;
+		break;
+	case VTCFG_R_QVEC:
+		assert(size == 2);
+		assert(sc->vsc_curq != VTNET_CTLQ);
+		sc->vsc_msix_table_idx[sc->vsc_curq] = value;
 		break;
 	case VTNET_R_CFG0:
 	case VTNET_R_CFG1:
@@ -693,15 +780,24 @@ pci_vtnet_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	void *ptr;
 	uint64_t value;
 
+	if (use_msix) {
+		if (baridx == pi->pi_msix.table_bar ||
+		    baridx == pi->pi_msix.pba_bar) {
+			return (pci_emul_msix_tread(pi, offset, size));
+		}
+	}
+
 	assert(baridx == 0);
 
-	if (offset + size > VTNET_REGSZ) {
+	if (offset + size > pci_vtnet_iosize(pi)) {
 		DPRINTF(("vtnet_read: 2big, offset %ld size %d\n",
 			 offset, size));
 		return (0);
 	}
 
 	pthread_mutex_lock(&sc->vsc_mtx);
+
+	offset = vtnet_adjust_offset(pi, offset);
 
 	switch (offset) {
 	case VTCFG_R_HOSTCAP:
@@ -737,21 +833,30 @@ pci_vtnet_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		value = sc->vsc_isr;
 		sc->vsc_isr = 0;     /* a read clears this flag */
 		break;
+	case VTCFG_R_CFGVEC:
+		assert(size == 2);
+		value = sc->vsc_msix_table_idx[VTNET_CTLQ];
+		break;
+	case VTCFG_R_QVEC:
+		assert(size == 2);
+		assert(sc->vsc_curq != VTNET_CTLQ);
+		value = sc->vsc_msix_table_idx[sc->vsc_curq];
+		break;
 	case VTNET_R_CFG0:
 	case VTNET_R_CFG1:
 	case VTNET_R_CFG2:
 	case VTNET_R_CFG3:
 	case VTNET_R_CFG4:
 	case VTNET_R_CFG5:
-                assert((size + offset) <= (VTNET_R_CFG5 + 1));
-                ptr = &sc->vsc_macaddr[offset - VTNET_R_CFG0];
-                if (size == 1) {
-                        value = *(uint8_t *) ptr;
-                } else if (size == 2) {
-                        value = *(uint16_t *) ptr;
-                } else {
-                        value = *(uint32_t *) ptr;
-                }
+		assert((size + offset) <= (VTNET_R_CFG5 + 1));
+		ptr = &sc->vsc_macaddr[offset - VTNET_R_CFG0];
+		if (size == 1) {
+			value = *(uint8_t *) ptr;
+		} else if (size == 2) {
+			value = *(uint16_t *) ptr;
+		} else {
+			value = *(uint32_t *) ptr;
+		}
 		break;
 	case VTNET_R_CFG6:
 		assert(size != 4);
