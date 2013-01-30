@@ -56,6 +56,11 @@
 #include <dev/usb/usbdi.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
+const struct usb_string_lang usb_string_lang_en = {
+	sizeof(usb_string_lang_en), UDESC_STRING,
+	{ 0x09, 0x04 } /* American English */
+};
+
 MALLOC_DEFINE(M_USB, "USB", "USB");
 MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
 MALLOC_DEFINE(M_USBHC, "USBHC", "USB host controller");

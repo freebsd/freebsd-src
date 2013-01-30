@@ -53,6 +53,7 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_cdc.h>
 
 #include <dev/usb/template/usb_template.h>
@@ -69,9 +70,6 @@ enum {
 	STRING_ETH_SERIAL_INDEX,
 	STRING_ETH_MAX,
 };
-
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
 
 #define	STRING_MAC \
   '2', 0, 'A', 0, '2', 0, '3', 0, \
@@ -124,7 +122,6 @@ enum {
 
 /* make the real string descriptors */
 
-USB_MAKE_STRING_DESC(STRING_LANG, string_lang);
 USB_MAKE_STRING_DESC(STRING_MAC, string_mac);
 USB_MAKE_STRING_DESC(STRING_ETH_CONTROL, string_eth_control);
 USB_MAKE_STRING_DESC(STRING_ETH_DATA, string_eth_data);
@@ -288,7 +285,7 @@ static const void *
 eth_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
 	static const void *ptr[STRING_ETH_MAX] = {
-		[STRING_LANG_INDEX] = &string_lang,
+		[STRING_LANG_INDEX] = &usb_string_lang_en,
 		[STRING_MAC_INDEX] = &string_mac,
 		[STRING_ETH_CONTROL_INDEX] = &string_eth_control,
 		[STRING_ETH_DATA_INDEX] = &string_eth_data,
@@ -299,7 +296,7 @@ eth_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	};
 
 	if (string_index == 0) {
-		return (&string_lang);
+		return (&usb_string_lang_en);
 	}
 	if (lang_id != 0x0409) {
 		return (NULL);

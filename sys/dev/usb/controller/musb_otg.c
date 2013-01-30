@@ -2211,9 +2211,6 @@ static const struct usb_hub_descriptor_min musbotg_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
   'M', 0, 'e', 0, 'n', 0, 't', 0, 'o', 0, 'r', 0, ' ', 0, \
   'G', 0, 'r', 0, 'a', 0, 'p', 0, 'h', 0, 'i', 0, 'c', 0, 's', 0
@@ -2223,7 +2220,6 @@ static const struct usb_hub_descriptor_min musbotg_hubd = {
   'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
   'U', 0, 'B', 0,
 
-USB_MAKE_STRING_DESC(STRING_LANG, musbotg_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, musbotg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, musbotg_product);
 
@@ -2425,8 +2421,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(musbotg_langtab);
-			ptr = (const void *)&musbotg_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */

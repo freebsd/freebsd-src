@@ -52,6 +52,7 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_cdc.h>
 
 #include <dev/usb/template/usb_template.h>
@@ -65,9 +66,6 @@ enum {
 	INDEX_AUDIO_PRODUCT,
 	INDEX_AUDIO_MAX,
 };
-
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
 
 #define	STRING_AUDIO_PRODUCT \
   'A', 0, 'u', 0, 'd', 0, 'i', 0, 'o', 0, ' ', 0, \
@@ -89,7 +87,6 @@ enum {
 
 /* make the real string descriptors */
 
-USB_MAKE_STRING_DESC(STRING_LANG, string_lang);
 USB_MAKE_STRING_DESC(STRING_AUDIO_MIXER, string_audio_mixer);
 USB_MAKE_STRING_DESC(STRING_AUDIO_RECORD, string_audio_record);
 USB_MAKE_STRING_DESC(STRING_AUDIO_PLAYBACK, string_audio_playback);
@@ -387,7 +384,7 @@ static const void *
 audio_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
 	static const void *ptr[INDEX_AUDIO_MAX] = {
-		[INDEX_AUDIO_LANG] = &string_lang,
+		[INDEX_AUDIO_LANG] = &usb_string_lang_en,
 		[INDEX_AUDIO_MIXER] = &string_audio_mixer,
 		[INDEX_AUDIO_RECORD] = &string_audio_record,
 		[INDEX_AUDIO_PLAYBACK] = &string_audio_playback,
@@ -395,7 +392,7 @@ audio_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	};
 
 	if (string_index == 0) {
-		return (&string_lang);
+		return (&usb_string_lang_en);
 	}
 	if (lang_id != 0x0409) {
 		return (NULL);

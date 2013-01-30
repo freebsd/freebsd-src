@@ -1565,9 +1565,6 @@ static const struct usb_hub_descriptor_min atmegadci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
   'A', 0, 'T', 0, 'M', 0, 'E', 0, 'G', 0, 'A', 0
 
@@ -1576,7 +1573,6 @@ static const struct usb_hub_descriptor_min atmegadci_hubd = {
   'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
   'U', 0, 'B', 0,
 
-USB_MAKE_STRING_DESC(STRING_LANG, atmegadci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, atmegadci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, atmegadci_product);
 
@@ -1779,8 +1775,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(atmegadci_langtab);
-			ptr = (const void *)&atmegadci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */

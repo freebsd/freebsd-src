@@ -3491,9 +3491,6 @@ static const struct usb_hub_descriptor_min dwc_otg_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
   'D', 0, 'W', 0, 'C', 0, 'O', 0, 'T', 0, 'G', 0
 
@@ -3502,7 +3499,6 @@ static const struct usb_hub_descriptor_min dwc_otg_hubd = {
   'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
   'U', 0, 'B', 0,
 
-USB_MAKE_STRING_DESC(STRING_LANG, dwc_otg_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, dwc_otg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, dwc_otg_product);
 
@@ -3704,8 +3700,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(dwc_otg_langtab);
-			ptr = (const void *)&dwc_otg_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
