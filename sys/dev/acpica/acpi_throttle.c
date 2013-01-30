@@ -114,7 +114,7 @@ static device_method_t acpi_throttle_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	acpi_thr_get),
 	DEVMETHOD(cpufreq_drv_type,	acpi_thr_type),
 	DEVMETHOD(cpufreq_drv_settings,	acpi_thr_settings),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t acpi_throttle_driver = {

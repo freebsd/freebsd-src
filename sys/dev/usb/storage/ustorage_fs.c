@@ -256,7 +256,7 @@ static device_method_t ustorage_fs_methods[] = {
 	DEVMETHOD(device_suspend, ustorage_fs_suspend),
 	DEVMETHOD(device_resume, ustorage_fs_resume),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ustorage_fs_driver = {

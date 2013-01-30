@@ -122,7 +122,8 @@ static device_method_t acpi_perf_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	acpi_px_get),
 	DEVMETHOD(cpufreq_drv_type,	acpi_px_type),
 	DEVMETHOD(cpufreq_drv_settings,	acpi_px_settings),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t acpi_perf_driver = {

@@ -169,7 +169,8 @@ static device_method_t ixv_methods[] = {
 	DEVMETHOD(device_attach, ixv_attach),
 	DEVMETHOD(device_detach, ixv_detach),
 	DEVMETHOD(device_shutdown, ixv_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ixv_driver = {

@@ -114,7 +114,8 @@ static device_method_t usb_methods[] = {
 	DEVMETHOD(device_suspend, usb_suspend),
 	DEVMETHOD(device_resume, usb_resume),
 	DEVMETHOD(device_shutdown, usb_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t usb_driver = {

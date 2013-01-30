@@ -1418,7 +1418,7 @@ static device_method_t mn_methods[] = {
         DEVMETHOD(device_resume,        bus_generic_resume),
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
 
-        {0, 0}
+	DEVMETHOD_END
 };
  
 static driver_t mn_driver = {
