@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2001 M. Warner Losh
  * All rights reserved.
@@ -28,7 +29,8 @@
  * its contributors.
  */
 
-/*  $FreeBSD$ */
+#ifndef _UFM_IOCTL_H_
+#define	_UFM_IOCTL_H_
 
 #include <sys/ioccom.h>
 
@@ -37,3 +39,5 @@
 #define	FM_START	_IOWR('U', 202, int)
 #define	FM_STOP		_IOWR('U', 203, int)
 #define	FM_GET_STAT	_IOWR('U', 204, int)
+
+#endif			/* _UFM_IOCTL_H_ */
