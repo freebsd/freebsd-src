@@ -96,6 +96,8 @@ struct msix_table_entry {
  * for the size that should be emulated.
  */
 #define	MSIX_TABLE_ENTRY_SIZE	16
+#define MAX_MSIX_TABLE_ENTRIES	2048
+#define PBA_TABLE_ENTRY_SIZE	8
 
 struct pci_devinst {
 	struct pci_devemu *pi_d;
@@ -120,6 +122,8 @@ struct pci_devinst {
 		size_t	table_offset;
 		int	table_count;
 		size_t	pba_offset;
+		size_t	pba_size;
+		int	function_mask; 	
 		struct msix_table_entry *table;	/* allocated at runtime */
 	} pi_msix;
 
@@ -168,6 +172,10 @@ int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
 void	pci_parse_slot(char *opt, int legacy);
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
+int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
+int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
+			     uint64_t value);
+uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
 
 static __inline void 
 pci_set_cfgdata8(struct pci_devinst *pi, int offset, uint8_t val)
