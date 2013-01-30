@@ -577,6 +577,13 @@ static const struct name name = {	\
   .bData = { m },			\
 }
 
+struct usb_string_lang {
+	uByte bLength;
+	uByte bDescriptorType;
+	uByte bData[2];
+} __packed;
+typedef struct usb_string_lang usb_string_lang_t;
+
 struct usb_hub_descriptor {
 	uByte	bDescLength;
 	uByte	bDescriptorType;

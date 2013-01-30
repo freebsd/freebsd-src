@@ -1505,9 +1505,6 @@ static const struct usb_hub_descriptor_min avr32dci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
   'A', 0, 'V', 0, 'R', 0, '3', 0, '2', 0
 
@@ -1516,7 +1513,6 @@ static const struct usb_hub_descriptor_min avr32dci_hubd = {
   'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
   'U', 0, 'B', 0,
 
-USB_MAKE_STRING_DESC(STRING_LANG, avr32dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, avr32dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, avr32dci_product);
 
@@ -1719,8 +1715,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(avr32dci_langtab);
-			ptr = (const void *)&avr32dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
