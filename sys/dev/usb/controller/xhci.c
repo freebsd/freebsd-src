@@ -886,6 +886,12 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 			 * a short packet also makes the transfer done
 			 */
 			if (td->remainder > 0) {
+				if (td->alt_next == NULL) {
+					DPRINTF("short TD has no "
+					    "alternate next\n");
+					xhci_generic_done(xfer);
+					break;
+				}
 				DPRINTF("TD has short pkt\n");
 				if (xfer->flags_int.short_frames_ok ||
 				    xfer->flags_int.isochronous_xfr ||
