@@ -26,6 +26,9 @@
 
 #define	USB_DEBUG_VAR usb_proc_debug
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -55,6 +58,7 @@
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/sched.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if (__FreeBSD_version < 700000)
 #define	thread_lock(td) mtx_lock_spin(&sched_lock)

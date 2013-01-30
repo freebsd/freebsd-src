@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
@@ -30,6 +28,9 @@ __FBSDID("$FreeBSD$");
  * This file contains the USB template for an USB Keyboard Device.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_cdc.h>
 
 #include <dev/usb/template/usb_template.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
 	INDEX_LANG,

@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2013 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,24 +25,24 @@
  */
 
 /*
- * Including this file is mandatory for all USB related c-files in the kernel.
+ * Including this file is mandatory for all USB related c-files in the loader.
  */
 
-#ifndef _USB_FREEBSD_H_
-#define	_USB_FREEBSD_H_
+#ifndef _USB_FREEBSD_LOADER_H_
+#define	_USB_FREEBSD_LOADER_H_
 
 /* Default USB configuration */
-#define	USB_HAVE_UGEN 1
-#define	USB_HAVE_DEVCTL 1
+#define	USB_HAVE_UGEN 0
+#define	USB_HAVE_DEVCTL 0
 #define	USB_HAVE_BUSDMA 1
-#define	USB_HAVE_COMPAT_LINUX 1
-#define	USB_HAVE_USER_IO 1
-#define	USB_HAVE_MBUF 1
+#define	USB_HAVE_COMPAT_LINUX 0
+#define	USB_HAVE_USER_IO 0
+#define	USB_HAVE_MBUF 0
 #define	USB_HAVE_TT_SUPPORT 1
 #define	USB_HAVE_POWERD 1
-#define	USB_HAVE_MSCTEST 1
-#define	USB_HAVE_PF 1
-#define	USB_HAVE_ROOT_MOUNT_HOLD 1
+#define	USB_HAVE_MSCTEST 0
+#define	USB_HAVE_PF 0
+#define	USB_HAVE_ROOT_MOUNT_HOLD 0
 
 #define	USB_TD_GET_PROC(td) (td)->td_proc
 #define	USB_PROC_GET_GID(td) (td)->p_pgid
@@ -80,4 +80,4 @@ typedef uint32_t usb_ticks_t;		/* system defined */
 typedef uint16_t usb_power_mask_t;	/* see "USB_HW_POWER_XXX" */
 typedef uint16_t usb_stream_t;		/* stream ID */
 
-#endif	/* _USB_FREEBSD_H_ */
+#endif					/* _USB_FREEBSD_LOADER_H_ */

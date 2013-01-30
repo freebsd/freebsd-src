@@ -36,6 +36,9 @@
  * NOTE: The current implementation only supports Device Side Mode!
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -71,6 +74,8 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/musb_otg.h>
 
 #define	MUSBOTG_INTR_ENDPT 1
