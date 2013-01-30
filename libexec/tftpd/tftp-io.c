@@ -142,7 +142,7 @@ send_error(int peer, int error)
 	char buf[MAXPKTSIZE];
 
 	if (debug&DEBUG_PACKETS)
-		tftp_log(LOG_DEBUG, "Sending ERROR %d: %s", error);
+		tftp_log(LOG_DEBUG, "Sending ERROR %d", error);
 
 	DROPPACKET("send_error");
 
