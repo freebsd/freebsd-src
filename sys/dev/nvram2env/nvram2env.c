@@ -303,7 +303,8 @@ static device_method_t nvram2env_methods[] = {
 	DEVMETHOD(device_identify, 	nvram2env_identify),
 	DEVMETHOD(device_probe,		nvram2env_probe),
 	DEVMETHOD(device_attach,	nvram2env_attach),
-	{0, 0},
+
+	DEVMETHOD_END
 };
 
 static driver_t nvram2env_driver = {

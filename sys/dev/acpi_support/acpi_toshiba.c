@@ -172,7 +172,7 @@ static device_method_t acpi_toshiba_methods[] = {
 	DEVMETHOD(device_attach,	acpi_toshiba_attach),
 	DEVMETHOD(device_detach,	acpi_toshiba_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t acpi_toshiba_driver = {
@@ -190,7 +190,7 @@ static device_method_t acpi_toshiba_video_methods[] = {
 	DEVMETHOD(device_probe,		acpi_toshiba_video_probe),
 	DEVMETHOD(device_attach,	acpi_toshiba_video_attach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t acpi_toshiba_video_driver = {

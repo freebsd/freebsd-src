@@ -94,7 +94,7 @@ static device_method_t acpi_pci_methods[] = {
 	/* PCI interface */
 	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t pci_devclass;

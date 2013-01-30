@@ -410,7 +410,8 @@ static device_method_t xc_methods[] = {
 	DEVMETHOD(device_identify, xc_identify),
 	DEVMETHOD(device_probe, xc_probe),
 	DEVMETHOD(device_attach, xc_attach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t xc_driver = {

@@ -145,7 +145,7 @@ static	device_method_t ce_methods[] = {
 	DEVMETHOD(device_attach,	ce_attach),
 	DEVMETHOD(device_detach,	ce_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 typedef struct _ce_dma_mem_t {

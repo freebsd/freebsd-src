@@ -219,7 +219,8 @@ static device_method_t digi_pci_methods[] = {
 	DEVMETHOD(device_attach, digi_pci_attach),
 	DEVMETHOD(device_detach, digi_detach),
 	DEVMETHOD(device_shutdown, digi_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t digi_pci_drv = {
