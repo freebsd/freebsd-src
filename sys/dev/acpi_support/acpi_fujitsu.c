@@ -154,7 +154,8 @@ static device_method_t acpi_fujitsu_methods[] = {
 	DEVMETHOD(device_detach,	acpi_fujitsu_detach),
 	DEVMETHOD(device_suspend,	acpi_fujitsu_suspend),
 	DEVMETHOD(device_resume,	acpi_fujitsu_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t acpi_fujitsu_driver = {

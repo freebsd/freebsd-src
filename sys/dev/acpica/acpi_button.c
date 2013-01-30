@@ -79,8 +79,7 @@ static device_method_t acpi_button_methods[] = {
     DEVMETHOD(device_suspend,	acpi_button_suspend),
     DEVMETHOD(device_shutdown,	acpi_button_suspend),
     DEVMETHOD(device_resume,	acpi_button_resume),
-
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_button_driver = {

@@ -69,7 +69,7 @@ static device_method_t cfi_ixp4xx_methods[] = {
 	DEVMETHOD(device_attach,	cfi_attach),
 	DEVMETHOD(device_detach,	cfi_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t cfi_ixp4xx_driver = {

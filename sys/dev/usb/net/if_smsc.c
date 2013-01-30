@@ -1810,7 +1810,7 @@ static device_method_t smsc_methods[] = {
 	DEVMETHOD(miibus_writereg, smsc_miibus_writereg),
 	DEVMETHOD(miibus_statchg, smsc_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t smsc_driver = {

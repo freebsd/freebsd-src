@@ -217,7 +217,7 @@ static device_method_t acpi_methods[] = {
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_driver = {
