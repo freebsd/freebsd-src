@@ -343,6 +343,7 @@ char	*tempnam(const char *, const char *);
 #endif
 
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+FILE	*fmemopen(void * __restrict, size_t, const char * __restrict);
 ssize_t	 getdelim(char ** __restrict, size_t * __restrict, int,
 	    FILE * __restrict);
 int	 renameat(int, const char *, int, const char *);
