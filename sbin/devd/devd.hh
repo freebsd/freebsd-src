@@ -90,9 +90,9 @@ public:
 	virtual bool do_match(config &);
 	virtual bool do_action(config &) { return true; }
 private:
+	bool _inv;
 	std::string _var;
 	std::string _re;
-	bool _inv;
 	regex_t _regex;
 };
 
@@ -162,7 +162,8 @@ public:
 	void pop_var_table();
 	void set_variable(const char *var, const char *val);
 	const std::string &get_variable(const std::string &var);
-	const std::string expand_string(const std::string &var);
+	const std::string expand_string(const char * var, 
+	    const char * prepend = NULL, const char * append = NULL);
 	char *set_vars(char *);
 	void find_and_execute(char);
 protected:
