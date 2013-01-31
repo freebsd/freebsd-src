@@ -431,18 +431,16 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 #ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
 	if (rs->rs_status & HAL_RXERR_PHY) {
-		struct ieee80211com *ic = ifp->if_l2com;
-
 		/*
 		 * PHY error - make sure the channel flags
 		 * reflect the actual channel configuration,
 		 * not the received frame.
 		 */
-		if (IEEE80211_IS_CHAN_HT40U(ic->ic_curchan))
+		if (IEEE80211_IS_CHAN_HT40U(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
-		else if (IEEE80211_IS_CHAN_HT40D(ic->ic_curchan))
+		else if (IEEE80211_IS_CHAN_HT40D(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
-		else if (IEEE80211_IS_CHAN_HT20(ic->ic_curchan))
+		else if (IEEE80211_IS_CHAN_HT20(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
 	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
 		struct ieee80211com *ic = ifp->if_l2com;
