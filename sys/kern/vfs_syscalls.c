@@ -1108,7 +1108,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 		if (error == ERESTART)
 			error = EINTR;
-		goto bad_unlocked;
+		goto bad;
 	}
 	td->td_dupfd = 0;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1150,12 +1150,11 @@ success:
 			 */
 			if ((error = kern_capwrap(td, fp, nd.ni_baserights,
 			    &indx)) != 0)
-				goto bad_unlocked;
+				goto bad;
 		} else
 #endif
 			if ((error = finstall(td, fp, &indx, flags)) != 0)
-				goto bad_unlocked;
-
+				goto bad;
 	}
 
 	/*
@@ -1166,7 +1165,6 @@ success:
 	td->td_retval[0] = indx;
 	return (0);
 bad:
-bad_unlocked:
 	KASSERT(indx == -1, ("indx=%d, should be -1", indx));
 	fdrop(fp, td);
 	return (error);
