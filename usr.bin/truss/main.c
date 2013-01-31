@@ -235,7 +235,7 @@ main(int ac, char **av)
 
 	if (fname != NULL) { /* Use output file */
 		if ((trussinfo->outfile = fopen(fname, "w")) == NULL)
-			errx(1, "cannot open %s", fname);
+			err(1, "cannot open %s", fname);
 		/*
 		 * Set FD_CLOEXEC, so that the output file is not shared with
 		 * the traced process.
