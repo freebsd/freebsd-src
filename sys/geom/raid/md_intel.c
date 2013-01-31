@@ -1150,7 +1150,7 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
 		mmap = intel_get_map(mvol, 0);
-		vol = g_raid_create_volume(sc, mvol->name, -1);
+		vol = g_raid_create_volume(sc, mvol->name, mvol->tid - 1);
 		pv = malloc(sizeof(*pv), M_MD_INTEL, M_WAITOK | M_ZERO);
 		pv->pv_volume_pos = i;
 		pv->pv_cng = (mvol->state & INTEL_ST_CLONE_N_GO) != 0;
@@ -2352,6 +2352,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		mvol->total_sectors = vol->v_mediasize / sectorsize;
 		mvol->state = (INTEL_ST_READ_COALESCING |
 		    INTEL_ST_WRITE_COALESCING);
+		mvol->tid = vol->v_global_id + 1;
 		if (pv->pv_cng) {
 			mvol->state |= INTEL_ST_CLONE_N_GO;
 			if (pv->pv_cng_man_sync)
