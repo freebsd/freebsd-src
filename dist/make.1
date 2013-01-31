@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.209 2012/10/08 15:09:48 christos Exp $
+.\"	$NetBSD: make.1,v 1.210 2013/01/27 18:52:01 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd October 8, 2012
+.Dd January 23, 2013
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -468,6 +468,50 @@ except that the effect can be limited to a single line of a script.
 A
 .Ql Ic \-
 causes any non-zero exit status of the command line to be ignored.
+.Pp
+When
+.Nm
+is run in jobs mode with
+.Fl j Ar max_jobs ,
+the entire script for the target is fed to a
+single instance of the shell.
+.Pp
+In compatibility (non-jobs) mode, each command is run in a separate process.
+If the command contains any shell meta characters
+.Pq Ql #=|^(){};&<>*?[]:$`\e\en
+it will be passed to the shell, otherwise
+.Nm
+will attempt direct execution.
+.Pp
+Since
+.Nm
+will
+.Xr chdir 2
+to
+.Ql Va .OBJDIR
+before executing any targets, each child process
+starts with that as its current working directory.
+.Pp
+Makefiles should be written so that the mode of
+.Nm
+operation does not change their behavior.
+For example, any command which needs to use
+.Dq cd
+or
+.Dq chdir ,
+without side-effect should be put in parenthesis:
+.Bd -literal -offset indent
+
+avoid-chdir-side-effects:
+	@echo Building $@ in `pwd`
+	@(cd ${.CURDIR} && ${.MAKE} $@)
+	@echo Back in `pwd`
+
+ensure-one-shell-regardless-of-mode:
+	@echo Building $@ in `pwd`; \\
+	(cd ${.CURDIR} && ${.MAKE} $@); \\
+	echo Back in `pwd`
+.Ed
 .Sh VARIABLE ASSIGNMENTS
 Variables in make are much like variables in the shell, and, by tradition,
 consist of all upper-case letters.
@@ -2027,28 +2071,6 @@ The way that .for loop variables are substituted changed after
 so that they still appear to be variable expansions.
 In particular this stops them being treated as syntax, and removes some
 obscure problems using them in .if statements.
-.Pp
-Unlike other
-.Nm
-programs, this implementation by default executes all commands for a given
-target using a single shell invocation.
-This is done for both efficiency and to simplify error handling in remote
-command invocations.
-Typically this is transparent to the user, unless the target commands change
-the current working directory using
-.Dq cd
-or
-.Dq chdir .
-To be compatible with Makefiles that do this, one can use
-.Fl B
-to disable this behavior.
-.Pp
-In compatibility mode, each command is run in a separate process.
-If the command contains any shell meta characters
-.Pq Ql #=|^(){};&<>*?[]:$`\e\en
-it will be passed to the shell, otherwise
-.Nm
-will attempt direct execution.
 .Sh SEE ALSO
 .Xr mkdep 1
 .Sh HISTORY

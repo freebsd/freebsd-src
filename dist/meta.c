@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.25 2012/06/27 17:22:58 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.26 2013/01/19 04:23:37 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -843,7 +843,7 @@ meta_oodate(GNode *gn, Boolean oodate)
     static size_t cwdlen = 0;
     static size_t tmplen = 0;
     FILE *fp;
-    Boolean ignoreOODATE = FALSE;
+    Boolean needOODATE = FALSE;
     Lst missingFiles;
     
     if (oodate)
@@ -1197,15 +1197,15 @@ meta_oodate(GNode *gn, Boolean oodate)
 		} else {
 		    char *cmd = (char *)Lst_Datum(ln);
 
-		    if (!ignoreOODATE) {
+		    if (!needOODATE) {
 			if (strstr(cmd, "$?"))
-			    ignoreOODATE = TRUE;
+			    needOODATE = TRUE;
 			else if ((cp = strstr(cmd, ".OODATE"))) {
 			    /* check for $[{(].OODATE[)}] */
 			    if (cp > cmd + 2 && cp[-2] == '$')
-				ignoreOODATE = TRUE;
+				needOODATE = TRUE;
 			}
-			if (ignoreOODATE && DEBUG(META))
+			if (needOODATE && DEBUG(META))
 			    fprintf(debug_file, "%s: %d: cannot compare commands using .OODATE\n", fname, lineno);
 		    }
 		    cmd = Var_Subst(NULL, cmd, gn, TRUE);
@@ -1235,7 +1235,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 			if (buf[x - 1] == '\n')
 			    buf[x - 1] = '\0';
 		    }
-		    if (!ignoreOODATE &&
+		    if (!needOODATE &&
 			!(gn->type & OP_NOMETA_CMP) &&
 			strcmp(p, cmd) != 0) {
 			if (DEBUG(META))
@@ -1279,14 +1279,16 @@ meta_oodate(GNode *gn, Boolean oodate)
 	    oodate = TRUE;
 	}
     }
-    if (oodate && ignoreOODATE) {
+    if (oodate && needOODATE) {
 	/*
-	 * Target uses .OODATE, so we need to re-compute it.
-	 * We need to clean up what Make_DoAllVar() did.
+	 * Target uses .OODATE which is empty; or we wouldn't be here.
+	 * We have decided it is oodate, so .OODATE needs to be set.
+	 * All we can sanely do is set it to .ALLSRC.
 	 */
-	Var_Delete(ALLSRC, gn);
 	Var_Delete(OODATE, gn);
-	gn->flags &= ~DONE_ALLSRC;
+	Var_Set(OODATE, Var_Value(ALLSRC, gn, &cp), gn, 0);
+	if (cp)
+	    free(cp);
     }
     return oodate;
 }
