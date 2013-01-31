@@ -28,7 +28,7 @@
 .\"     @(#)arp.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2008
+.Dd January 31, 2013
 .Dt ARP 8
 .Os
 .Sh NAME
@@ -54,12 +54,12 @@
 .Fl s Ar hostname ether_addr
 .Op Cm temp
 .Op Cm blackhole No \&| Cm reject
-.Op Cm pub Op Cm only
+.Op Cm pub
 .Nm
 .Fl S Ar hostname ether_addr
 .Op Cm temp
 .Op Cm blackhole No \&| Cm reject
-.Op Cm pub Op Cm only
+.Op Cm pub
 .Nm
 .Fl f Ar filename
 .Sh DESCRIPTION
@@ -140,16 +140,6 @@ can be given as
 in which case the interfaces on this host will be examined,
 and if one of them is found to occupy the same subnet, its
 Ethernet address will be used.
-If the
-.Cm only
-keyword is also specified, this will create a
-.Dq "published (proxy only)"
-entry.
-This type of entry is created automatically if
-.Nm
-detects that a routing table entry for
-.Ar hostname
-already exists.
 .Pp
 If the
 .Cm reject
@@ -181,7 +171,7 @@ in the file should be of the form
 .Ar hostname ether_addr
 .Op Cm temp
 .Op Cm blackhole No \&| Cm reject
-.Op Cm pub Op Cm only
+.Op Cm pub
 .Ed
 .Pp
 with argument meanings as given above.
