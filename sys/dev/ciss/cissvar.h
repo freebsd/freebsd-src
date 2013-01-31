@@ -45,6 +45,9 @@ typedef STAILQ_HEAD(, ciss_request)	cr_qhead_t;
 
 /*
  * Maximum number of logical drives we support.
+ * If the controller does not indicate a maximum
+ * value.  This is a compatibiliy value to support
+ * older ciss controllers (e.g. model 6i)
  */
 #define CISS_MAX_LOGICAL	15
 
