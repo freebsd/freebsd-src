@@ -1298,6 +1298,10 @@ until:
 		cmdputs(n->narg.text);
 		cmdputs("() ...");
 		break;
+	case NNOT:
+		cmdputs("! ");
+		cmdtxt(n->nnot.com);
+		break;
 	case NCMD:
 		for (np = n->ncmd.args ; np ; np = np->narg.next) {
 			cmdtxt(np);
