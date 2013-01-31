@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <err.h>
 #include <pthread.h>
 #include <signal.h>
@@ -39,10 +41,11 @@ __FBSDID("$FreeBSD$");
 
 #define NUM_THREADS 100
 
-void *
-vfork_test(void *threadid)
+static void *
+vfork_test(void *threadid __unused)
 {
-	pid_t pid;
+	pid_t pid, wpid;
+	int status;
 
 	for (;;) {
 		pid = vfork();
@@ -50,8 +53,18 @@ vfork_test(void *threadid)
 			_exit(0);
 		else if (pid == -1)
 			err(1, "Failed to vfork");
+		else {
+			wpid = waitpid(pid, &status, 0);
+			if (wpid == -1)
+				err(1, "waitpid");
+		}
 	}
 	return (NULL);
+}
+
+static void
+sighandler(int signo __unused)
+{
 }
 
 /*
@@ -63,19 +76,24 @@ main(void)
 {
 	pthread_t threads[NUM_THREADS];
 	struct sigaction reapchildren;
+	sigset_t sigchld_mask;
 	int rc, t;
 
 	memset(&reapchildren, 0, sizeof(reapchildren));
-	reapchildren.sa_handler = SIG_IGN;
-
-	/* Automatically reap zombies. */
+	reapchildren.sa_handler = sighandler;
 	if (sigaction(SIGCHLD, &reapchildren, NULL) == -1)
 		err(1, "Could not sigaction(SIGCHLD)");
 
+	sigemptyset(&sigchld_mask);
+	sigaddset(&sigchld_mask, SIGCHLD);
+	if (sigprocmask(SIG_BLOCK, &sigchld_mask, NULL) == -1)
+		err(1, "sigprocmask");
+
 	for (t = 0; t < NUM_THREADS; t++) {
-		rc = pthread_create(&threads[t], NULL, vfork_test, (void *)t);
+		rc = pthread_create(&threads[t], NULL, vfork_test, &t);
 		if (rc)
 			errc(1, rc, "pthread_create");
 	}
+	pause();
 	return (0);
 }

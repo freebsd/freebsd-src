@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
@@ -38,9 +39,9 @@
  * way we avoid too much diveration among USB drivers.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -76,6 +77,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
 
@@ -886,6 +889,12 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 			 * a short packet also makes the transfer done
 			 */
 			if (td->remainder > 0) {
+				if (td->alt_next == NULL) {
+					DPRINTF(
+					    "short TD has no alternate next\n");
+					xhci_generic_done(xfer);
+					break;
+				}
 				DPRINTF("TD has short pkt\n");
 				if (xfer->flags_int.short_frames_ok ||
 				    xfer->flags_int.isochronous_xfr ||

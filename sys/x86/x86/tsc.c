@@ -65,6 +65,12 @@ static int	smp_tsc;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RDTUN, &smp_tsc, 0,
     "Indicates whether the TSC is safe to use in SMP mode");
 TUNABLE_INT("kern.timecounter.smp_tsc", &smp_tsc);
+
+static int	smp_tsc_shift = 1;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc_shift, CTLFLAG_RDTUN,
+    &smp_tsc_shift, 0,
+    "Shift to pre-apply for the maximum TSC frequency in SMP mode");
+TUNABLE_INT("kern.timecounter.smp_tsc_shift", &smp_tsc_shift);
 #endif
 
 static int	tsc_disabled;
@@ -506,7 +512,7 @@ init_TSC_tc(void)
 			tsc_timecounter.tc_quality = -100;
 		} else {
 			tsc_timecounter.tc_quality = test_smp_tsc();
-			max_freq >>= 8;
+			max_freq >>= smp_tsc_shift;
 		}
 	} else
 #endif

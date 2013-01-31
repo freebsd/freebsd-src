@@ -65,6 +65,10 @@ enum {
 #define	VIE_OP_F_IMM8		(1 << 1)	/* 8-bit immediate operand */
 
 static const struct vie_op one_byte_opcodes[256] = {
+	[0x88] = {
+		.op_byte = 0x88,
+		.op_type = VIE_OP_TYPE_MOV,
+	},
 	[0x89] = {
 		.op_byte = 0x89,
 		.op_type = VIE_OP_TYPE_MOV,
@@ -161,6 +165,46 @@ vie_read_register(void *vm, int vcpuid, enum vm_reg_name reg, uint64_t *rval)
 }
 
 static int
+vie_read_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t *rval)
+{
+	uint64_t val;
+	int error, rshift;
+	enum vm_reg_name reg;
+
+	rshift = 0;
+	reg = gpr_map[vie->reg];
+
+	/*
+	 * 64-bit mode imposes limitations on accessing legacy byte registers.
+	 *
+	 * The legacy high-byte registers cannot be addressed if the REX
+	 * prefix is present. In this case the values 4, 5, 6 and 7 of the
+	 * 'ModRM:reg' field address %spl, %bpl, %sil and %dil respectively.
+	 *
+	 * If the REX prefix is not present then the values 4, 5, 6 and 7
+	 * of the 'ModRM:reg' field address the legacy high-byte registers,
+	 * %ah, %ch, %dh and %bh respectively.
+	 */
+	if (!vie->rex_present) {
+		if (vie->reg & 0x4) {
+			/*
+			 * Obtain the value of %ah by reading %rax and shifting
+			 * right by 8 bits (same for %bh, %ch and %dh).
+			 */
+			rshift = 8;
+			reg = gpr_map[vie->reg & 0x3];
+		}
+	}
+
+	if (!vie_valid_register(reg))
+		return (EINVAL);
+
+	error = vm_get_register(vm, vcpuid, reg, &val);
+	*rval = val >> rshift;
+	return (error);
+}
+
+static int
 vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 		    uint64_t val, int size)
 {
@@ -209,12 +253,24 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 {
 	int error, size;
 	enum vm_reg_name reg;
+	uint8_t byte;
 	uint64_t val;
 
 	size = 4;
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
+	case 0x88:
+		/*
+		 * MOV byte from reg (ModRM:reg) to mem (ModRM:r/m)
+		 * 88/r:	mov r/m8, r8
+		 * REX + 88/r:	mov r/m8, r8 (%ah, %ch, %dh, %bh not available)
+		 */
+		size = 1;
+		error = vie_read_bytereg(vm, vcpuid, vie, &byte);
+		if (error == 0)
+			error = memwrite(vm, vcpuid, gpa, byte, size, arg);
+		break;
 	case 0x89:
 		/*
 		 * MOV from reg (ModRM:reg) to mem (ModRM:r/m)
@@ -497,6 +553,8 @@ decode_rex(struct vie *vie)
 		return (-1);
 
 	if (x >= 0x40 && x <= 0x4F) {
+		vie->rex_present = 1;
+
 		vie->rex_w = x & 0x8 ? 1 : 0;
 		vie->rex_r = x & 0x4 ? 1 : 0;
 		vie->rex_x = x & 0x2 ? 1 : 0;

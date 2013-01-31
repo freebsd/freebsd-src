@@ -5533,6 +5533,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 				txq->txpkt_wrs = 0;
 				txq->txpkts_wrs = 0;
 				txq->txpkts_pkts = 0;
+				txq->br->br_drops = 0;
 				txq->no_dmamap = 0;
 				txq->no_desc = 0;
 			}

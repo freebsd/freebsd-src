@@ -262,7 +262,7 @@ static device_method_t lem_methods[] = {
 	DEVMETHOD(device_shutdown, lem_shutdown),
 	DEVMETHOD(device_suspend, lem_suspend),
 	DEVMETHOD(device_resume, lem_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t lem_driver = {

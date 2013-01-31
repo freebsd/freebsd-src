@@ -118,7 +118,7 @@ static device_method_t acpi_panasonic_methods[] = {
 	DEVMETHOD(device_detach,	acpi_panasonic_detach),
 	DEVMETHOD(device_shutdown,	acpi_panasonic_shutdown),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t acpi_panasonic_driver = {

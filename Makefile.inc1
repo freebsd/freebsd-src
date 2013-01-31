@@ -185,7 +185,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 # /usr/games added for fortune which depend on strfile
-BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games
+BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
@@ -412,7 +412,7 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
-    lib usr legacy/usr
+    lib usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -673,8 +673,8 @@ _zoneinfo=	zic tzsetup
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
-	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
-	test true uname wc ${_zoneinfo}
+	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
+	rm sed sh sysctl test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
@@ -964,7 +964,7 @@ reinstallkernel reinstallkernel.debug: installcheck
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
-	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 
 distributekernel distributekernel.debug:
 .if empty(INSTALLKERNEL)
@@ -1132,6 +1132,12 @@ _yacc=		usr.bin/yacc
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
+.else
+_nmtree_itools=	nmtree
+.endif
+
+.if ${BOOTSTRAPPING} < 1000027
+_cat=		bin/cat
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
@@ -1189,6 +1195,7 @@ bootstrap-tools:
     ${_ar} \
     ${_dtc} \
     ${_awk} \
+    ${_cat} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \

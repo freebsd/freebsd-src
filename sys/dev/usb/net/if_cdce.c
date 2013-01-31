@@ -237,7 +237,7 @@ static device_method_t cdce_methods[] = {
 	DEVMETHOD(device_suspend, cdce_suspend),
 	DEVMETHOD(device_resume, cdce_resume),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t cdce_driver = {

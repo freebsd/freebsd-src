@@ -1007,9 +1007,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	struct sync_list *sl;
 	vm_offset_t vaddr = (vm_offset_t)buf;
 	int error = 0;
-	pd_entry_t *pde;
-	pt_entry_t pte;
-	pt_entry_t *ptep;
 
 	if (segs == NULL)
 		segs = dmat->segments;
@@ -1028,34 +1025,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	while (buflen > 0) {
 		/*
 		 * Get the physical address for this segment.
-		 *
-		 * XXX Don't support checking for coherent mappings
-		 * XXX in user address space.
 		 */
 		if (__predict_true(pmap == kernel_pmap)) {
-			if (pmap_get_pde_pte(pmap, vaddr, &pde, &ptep) == FALSE)
-				return (EFAULT);
-
-			if (__predict_false(pmap_pde_section(pde))) {
-				if (*pde & L1_S_SUPERSEC)
-					curaddr = (*pde & L1_SUP_FRAME) |
-					    (vaddr & L1_SUP_OFFSET);
-				else
-					curaddr = (*pde & L1_S_FRAME) |
-					    (vaddr & L1_S_OFFSET);
-			} else {
-				pte = *ptep;
-				KASSERT((pte & L2_TYPE_MASK) != L2_TYPE_INV,
-				    ("INV type"));
-				if (__predict_false((pte & L2_TYPE_MASK)
-						    == L2_TYPE_L)) {
-					curaddr = (pte & L2_L_FRAME) |
-					    (vaddr & L2_L_OFFSET);
-				} else {
-					curaddr = (pte & L2_S_FRAME) |
-					    (vaddr & L2_S_OFFSET);
-				}
-			}
+			curaddr = pmap_kextract(vaddr);
 		} else {
 			curaddr = pmap_extract(pmap, vaddr);
 			map->flags &= ~DMAMAP_COHERENT;

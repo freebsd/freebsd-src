@@ -93,7 +93,8 @@ static device_method_t ct_isa_methods [] = {
 	DEVMETHOD(device_probe,		ct_probe),
 	DEVMETHOD(device_attach,	ct_attach),
 	DEVMETHOD(device_detach,	ct_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 typedef struct _ct_dma_mem_t {

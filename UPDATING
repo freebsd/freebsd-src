@@ -31,7 +31,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	as bsdpatch, being the GNU version the default patch.
 	To inverse the logic and use the BSD-licensed one as default,
 	while having the GNU version installed as gnupatch, rebuild
-	ans install world with the WITH_BSD_PATCH knob set.
+	and install world with the WITH_BSD_PATCH knob set.
 
 20130118:
 	The install(1) option -M has changed meaning and now takes an

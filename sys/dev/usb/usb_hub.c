@@ -30,6 +30,9 @@
  * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -69,6 +72,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #define	UHUB_INTR_INTERVAL 250		/* ms */
 #define	UHUB_N_TRANSFER 1

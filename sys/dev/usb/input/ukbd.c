@@ -2120,7 +2120,8 @@ static device_method_t ukbd_methods[] = {
 	DEVMETHOD(device_attach, ukbd_attach),
 	DEVMETHOD(device_detach, ukbd_detach),
 	DEVMETHOD(device_resume, ukbd_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ukbd_driver = {
