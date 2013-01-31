@@ -171,8 +171,13 @@ struct intel_raid_conf {
 
 	uint8_t		total_disks;
 	uint8_t		total_volumes;
-	uint8_t		dummy_2[2];
-	uint32_t	filler_0[39];
+	uint8_t		error_log_pos;
+	uint8_t		dummy_2[1];
+	uint32_t	cache_size;
+	uint32_t	orig_family_num;
+	uint32_t	pwr_cycle_count;
+	uint32_t	bbm_log_size;
+	uint32_t	filler_0[35];
 	struct intel_raid_disk	disk[1];	/* total_disks entries. */
 	/* Here goes total_volumes of struct intel_raid_vol. */
 } __packed;
@@ -366,9 +371,12 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 	printf("config_size         0x%08x\n", meta->config_size);
 	printf("config_id           0x%08x\n", meta->config_id);
 	printf("generation          0x%08x\n", meta->generation);
+	printf("error_log_size      %d\n", meta->error_log_size);
 	printf("attributes          0x%08x\n", meta->attributes);
 	printf("total_disks         %u\n", meta->total_disks);
 	printf("total_volumes       %u\n", meta->total_volumes);
+	printf("orig_family_num     0x%08x\n", meta->orig_family_num);
+	printf("bbm_log_size        %u\n", meta->bbm_log_size);
 	printf("DISK#   serial disk_sectors disk_sectors_hi disk_id flags\n");
 	for (i = 0; i < meta->total_disks; i++ ) {
 		printf("    %d   <%.16s> %u %u 0x%08x 0x%08x\n", i,
@@ -451,7 +459,7 @@ intel_meta_read(struct g_consumer *cp)
 	struct g_provider *pp;
 	struct intel_raid_conf *meta;
 	struct intel_raid_vol *mvol;
-	struct intel_raid_map *mmap;
+	struct intel_raid_map *mmap, *mmap1;
 	char *buf;
 	int error, i, j, k, left, size;
 	uint32_t checksum, *ptr;
@@ -544,6 +552,8 @@ badsize:
 		}
 	}
 
+	g_raid_md_intel_print(meta);
+
 	/* Validate disk indexes. */
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
@@ -566,15 +576,38 @@ badsize:
 	/* Validate migration types. */
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
+		/* Deny unknown migration types. */
 		if (mvol->migr_state &&
 		    mvol->migr_type != INTEL_MT_INIT &&
 		    mvol->migr_type != INTEL_MT_REBUILD &&
 		    mvol->migr_type != INTEL_MT_VERIFY &&
+		    mvol->migr_type != INTEL_MT_GEN_MIGR &&
 		    mvol->migr_type != INTEL_MT_REPAIR) {
 			G_RAID_DEBUG(1, "Intel metadata has unsupported"
 			    " migration type %d", mvol->migr_type);
 			free(meta, M_MD_INTEL);
 			return (NULL);
+		}
+		/* Deny general migrations except SINGLE->RAID1. */
+		if (mvol->migr_state &&
+		    mvol->migr_type == INTEL_MT_GEN_MIGR) {
+			mmap = intel_get_map(mvol, 0);
+			mmap1 = intel_get_map(mvol, 1);
+			if (mmap1->total_disks != 1 ||
+			    mmap->type != INTEL_T_RAID1 ||
+			    mmap->total_disks != 2 ||
+			    mmap->offset != mmap1->offset ||
+			    mmap->disk_sectors != mmap1->disk_sectors ||
+			    mmap->total_domains != mmap->total_disks ||
+			    mmap->offset_hi != mmap1->offset_hi ||
+			    mmap->disk_sectors_hi != mmap1->disk_sectors_hi ||
+			    (mmap->disk_idx[0] != mmap1->disk_idx[0] &&
+			     mmap->disk_idx[0] != mmap1->disk_idx[1])) {
+				G_RAID_DEBUG(1, "Intel metadata has unsupported"
+				    " variant of general migration");
+				free(meta, M_MD_INTEL);
+				return (NULL);
+			}
 		}
 	}
 
@@ -952,6 +985,16 @@ nofit:
 				/* Dirty volume (unclean shutdown). */
 				g_raid_change_subdisk_state(sd,
 				    G_RAID_SUBDISK_S_STALE);
+			} else {
+				/* Up to date disk. */
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_ACTIVE);
+			}
+		} else if (mvol->migr_type == INTEL_MT_GEN_MIGR) {
+			if ((mmap1->disk_idx[0] & INTEL_DI_IDX) != disk_pos) {
+				/* Freshly inserted disk. */
+				g_raid_change_subdisk_state(sd,
+				    G_RAID_SUBDISK_S_NEW);
 			} else {
 				/* Up to date disk. */
 				g_raid_change_subdisk_state(sd,
@@ -1337,8 +1380,6 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 		goto fail1;
 	}
 
-	/* Metadata valid. Print it. */
-	g_raid_md_intel_print(meta);
 	G_RAID_DEBUG(1, "Intel disk position %d", disk_pos);
 	spare = meta->disk[disk_pos].flags & INTEL_F_SPARE;
 
@@ -2370,7 +2411,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 					mmap1->disk_idx[sdi] |= INTEL_DI_RBLD;
 			}
 			if ((sd->sd_state == G_RAID_SUBDISK_S_NONE ||
-			     sd->sd_state == G_RAID_SUBDISK_S_FAILED) &&
+			     sd->sd_state == G_RAID_SUBDISK_S_FAILED ||
+			     sd->sd_state == G_RAID_SUBDISK_S_REBUILD) &&
 			    mmap0->failed_disk_num == 0xff) {
 				mmap0->failed_disk_num = sdi;
 				if (mvol->migr_state)
