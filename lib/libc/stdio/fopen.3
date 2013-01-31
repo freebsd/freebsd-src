@@ -118,7 +118,9 @@ after either the
 or the first letter.
 This is strictly for compatibility with
 .St -isoC
-and has no effect; the ``b'' is ignored.
+and has effect only for
+.Fn fmemopen
+; otherwise the ``b'' is ignored.
 .Pp
 Any created files will have mode
 .Do Dv S_IRUSR
@@ -216,7 +218,7 @@ and
 arguments with a stream.
 The
 .Fa buf
-argument shall be either a null pointer or point to a buffer that
+argument is either a null pointer or point to a buffer that
 is at least
 .Fa size
 bytes long.
@@ -224,10 +226,15 @@ If a null pointer is specified as the
 .Fa buf
 argument,
 .Fn fmemopen
-shall allocate
+allocates
 .Fa size
-bytes of memory. This buffer shall be automatically freed when the
-stream is closed.
+bytes of memory. This buffer is automatically freed when the
+stream is closed. Buffers can be opened in text-mode (default) or binary-mode
+(if ``b'' is present in the second or third position of the
+.Fa mode
+argument). Buffers opened in text-mode make sure that writes are terminated with
+a NULL byte, if the last write hasn't filled up the whole buffer. Buffers
+opened in binary-mode never append a NULL byte.
 .Sh RETURN VALUES
 Upon successful completion
 .Fn fopen ,
@@ -327,3 +334,5 @@ The
 function
 conforms to 
 .St -p1003.1-2008 .
+The ``b'' mode does not conform to any standard
+but is also supported by glibc.
