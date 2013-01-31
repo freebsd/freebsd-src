@@ -98,8 +98,9 @@ struct intel_raid_vol {
 	uint8_t		cng_master_disk;
 	uint16_t	cache_policy;
 	uint8_t		cng_state;
-#define INTEL_SNGST_NEEDS_UPDATE	1
-#define INTEL_SNGST_MASTER_MISSING	2
+#define INTEL_CNGST_UPDATED		0
+#define INTEL_CNGST_NEEDS_UPDATE	1
+#define INTEL_CNGST_MASTER_MISSING	2
 	uint8_t		cng_sub_state;
 	uint32_t	filler_0[10];
 
@@ -179,7 +180,7 @@ struct intel_raid_conf {
 	uint8_t		error_log_pos;
 	uint8_t		dummy_2[1];
 	uint32_t	cache_size;
-	uint32_t	orig_family_num;
+	uint32_t	orig_config_id;
 	uint32_t	pwr_cycle_count;
 	uint32_t	bbm_log_size;
 	uint32_t	filler_0[35];
@@ -215,6 +216,7 @@ struct g_raid_md_intel_pervolume {
 struct g_raid_md_intel_object {
 	struct g_raid_md_object	 mdio_base;
 	uint32_t		 mdio_config_id;
+	uint32_t		 mdio_orig_config_id;
 	uint32_t		 mdio_generation;
 	struct intel_raid_conf	*mdio_meta;
 	struct callout		 mdio_start_co;	/* STARTING state timer. */
@@ -385,14 +387,17 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 	printf("attributes          0x%08x\n", meta->attributes);
 	printf("total_disks         %u\n", meta->total_disks);
 	printf("total_volumes       %u\n", meta->total_volumes);
-	printf("orig_family_num     0x%08x\n", meta->orig_family_num);
+	printf("error_log_pos       %u\n", meta->error_log_pos);
+	printf("cache_size          %u\n", meta->cache_size);
+	printf("orig_config_id      0x%08x\n", meta->orig_config_id);
+	printf("pwr_cycle_count     %u\n", meta->pwr_cycle_count);
 	printf("bbm_log_size        %u\n", meta->bbm_log_size);
-	printf("DISK#   serial disk_sectors disk_sectors_hi disk_id flags\n");
+	printf("DISK#   serial disk_sectors disk_sectors_hi disk_id flags owner\n");
 	for (i = 0; i < meta->total_disks; i++ ) {
-		printf("    %d   <%.16s> %u %u 0x%08x 0x%08x\n", i,
+		printf("    %d   <%.16s> %u %u 0x%08x 0x%08x %08x\n", i,
 		    meta->disk[i].serial, meta->disk[i].sectors,
-		    meta->disk[i].sectors_hi,
-		    meta->disk[i].id, meta->disk[i].flags);
+		    meta->disk[i].sectors_hi, meta->disk[i].id,
+		    meta->disk[i].flags, meta->disk[i].owner_cfg_num);
 	}
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
@@ -414,6 +419,9 @@ g_raid_md_intel_print(struct intel_raid_conf *meta)
 		printf(" migr_state         %u\n", mvol->migr_state);
 		printf(" migr_type          %u\n", mvol->migr_type);
 		printf(" dirty              %u\n", mvol->dirty);
+		printf(" fs_state           %u\n", mvol->fs_state);
+		printf(" verify_errors      %u\n", mvol->verify_errors);
+		printf(" bad_blocks         %u\n", mvol->bad_blocks);
 
 		for (j = 0; j < (mvol->migr_state ? 2 : 1); j++) {
 			printf("  *** Map %d ***\n", j);
@@ -710,7 +718,7 @@ intel_meta_write_spare(struct g_consumer *cp, struct intel_raid_disk *d)
 	memcpy(&meta->version[0], INTEL_VERSION_1000,
 	    sizeof(INTEL_VERSION_1000) - 1);
 	meta->config_size = INTEL_MAX_MD_SIZE(1);
-	meta->config_id = arc4random();
+	meta->config_id = meta->orig_config_id = arc4random();
 	meta->generation = 1;
 	meta->total_disks = 1;
 	meta->disk[0] = *d;
@@ -1311,7 +1319,7 @@ g_raid_md_create_intel(struct g_raid_md_object *md, struct g_class *mp,
 	char name[16];
 
 	mdi = (struct g_raid_md_intel_object *)md;
-	mdi->mdio_config_id = arc4random();
+	mdi->mdio_config_id = mdi->mdio_orig_config_id = arc4random();
 	mdi->mdio_generation = 0;
 	snprintf(name, sizeof(name), "Intel-%08x", mdi->mdio_config_id);
 	sc = g_raid_create_node(mp, name, md);
@@ -1456,6 +1464,7 @@ search:
 	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
 		mdi->mdio_config_id = meta->config_id;
+		mdi->mdio_orig_config_id = meta->orig_config_id;
 		snprintf(name, sizeof(name), "Intel-%08x", meta->config_id);
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
@@ -2285,6 +2294,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC) - 1);
 	meta->config_size = INTEL_MAX_MD_SIZE(numdisks);
 	meta->config_id = mdi->mdio_config_id;
+	meta->orig_config_id = mdi->mdio_orig_config_id;
 	meta->generation = mdi->mdio_generation;
 	meta->attributes = INTEL_ATTR_CHECKSUM;
 	meta->total_disks = numdisks;
@@ -2360,9 +2370,11 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			mvol->cng_master_disk = pv->pv_cng_master_disk;
 			if (vol->v_subdisks[pv->pv_cng_master_disk].sd_state ==
 			    G_RAID_SUBDISK_S_NONE)
-				mvol->cng_state = INTEL_SNGST_MASTER_MISSING;
+				mvol->cng_state = INTEL_CNGST_MASTER_MISSING;
 			else if (vol->v_state != G_RAID_VOLUME_S_OPTIMAL)
-				mvol->cng_state = INTEL_SNGST_NEEDS_UPDATE;
+				mvol->cng_state = INTEL_CNGST_NEEDS_UPDATE;
+			else
+				mvol->cng_state = INTEL_CNGST_UPDATED;
 		}
 
 		/* Check for any recovery in progress. */
