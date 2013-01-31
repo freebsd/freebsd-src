@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: var.c,v 1.172 2012/11/15 16:42:26 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.172 2012/11/15 16:42:26 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.171 2012/06/12 19:21:51 joerg Exp $");
+__RCSID("$NetBSD: var.c,v 1.172 2012/11/15 16:42:26 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -2567,7 +2567,8 @@ ApplyModifiers(char *nstr, const char *tstr,
 	}
     apply_mods:
 	if (DEBUG(VAR)) {
-	    fprintf(debug_file, "Applying :%c to \"%s\"\n", *tstr, nstr);
+	    fprintf(debug_file, "Applying[%s] :%c to \"%s\"\n", v->name,
+		*tstr, nstr);
 	}
 	newStr = var_Error;
 	switch ((modifier = *tstr)) {
@@ -3167,8 +3168,8 @@ ApplyModifiers(char *nstr, const char *tstr,
 		    free(cp2);
 		}
 		if (DEBUG(VAR))
-		    fprintf(debug_file, "Pattern for [%s] is [%s]\n", nstr,
-			pattern);
+		    fprintf(debug_file, "Pattern[%s] for [%s] is [%s]\n",
+			v->name, nstr, pattern);
 		if (*tstr == 'M') {
 		    newStr = VarModify(ctxt, &parsestate, nstr, VarMatch,
 				       pattern);
@@ -3523,7 +3524,8 @@ ApplyModifiers(char *nstr, const char *tstr,
 	    }
 	}
 	if (DEBUG(VAR)) {
-	    fprintf(debug_file, "Result of :%c is \"%s\"\n", modifier, newStr);
+	    fprintf(debug_file, "Result[%s] of :%c is \"%s\"\n",
+		v->name, modifier, newStr);
 	}
 
 	if (newStr != nstr) {
