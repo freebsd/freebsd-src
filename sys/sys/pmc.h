@@ -89,6 +89,7 @@
 	__PMC_CPU(INTEL_SANDYBRIDGE, 0x8D,   "Intel Sandy Bridge")	\
 	__PMC_CPU(INTEL_IVYBRIDGE, 0x8E,   "Intel Ivy Bridge")	\
 	__PMC_CPU(INTEL_SANDYBRIDGE_XEON, 0x8F,   "Intel Sandy Bridge Xeon")	\
+	__PMC_CPU(INTEL_IVYBRIDGE_XEON, 0x90,   "Intel Ivy Bridge Xeon")	\
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
