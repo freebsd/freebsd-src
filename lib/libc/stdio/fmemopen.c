@@ -26,17 +26,21 @@ SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "local.h"
 
-struct __fmemopen_cookie
+struct fmemopen_cookie
 {
-	char *buf;	/* pointer to the memory region */
-	char  own;	/* did we allocate the buffer ourselves? */
-	long  len;	/* buffer length in bytes */
-	long  off;	/* current offset into the buffer */
+	char	*buf;	/* pointer to the memory region */
+	char	 own;	/* did we allocate the buffer ourselves? */
+	char     bin;   /* is this a binary buffer? */
+	size_t	 size;	/* buffer length in bytes */
+	size_t	 len;	/* data length in bytes */
+	size_t	 off;	/* current offset into the buffer */
 };
 
 static int	fmemopen_read  (void *cookie, char *buf, int nbytes);
@@ -47,33 +51,95 @@ static int	fmemopen_close (void *cookie);
 FILE *
 fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 {
-	/* allocate cookie */
-	struct __fmemopen_cookie *ck = malloc (sizeof (struct __fmemopen_cookie));
-	if (ck == NULL) {
-		errno = ENOMEM;
+	struct fmemopen_cookie *ck;
+	FILE *f;
+	int flags, rc;
+
+	/* 
+	 * Retrieve the flags as used by open(2) from the mode argument, and
+	 * validate them.
+	 * */
+	rc = __sflags (mode, &flags);
+	if (rc == 0) {
+		errno = EINVAL;
 		return (NULL);
 	}
 
-	ck->off = 0;
-	ck->len = size;
+	/* 
+	 * There's no point in requiring an automatically allocated buffer
+	 * in write-only mode.
+	 */
+	if (!(flags & O_RDWR) && buf == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+	
+	/* Allocate a cookie. */
+	ck = malloc (sizeof (struct fmemopen_cookie));
+	if (ck == NULL) {
+		return (NULL);
+	}
 
-	/* do we have to allocate the buffer ourselves? */
+	ck->off  = 0;
+	ck->size = size;
+
+	/* Check whether we have to allocate the buffer ourselves. */
 	ck->own = ((ck->buf = buf) == NULL);
 	if (ck->own) {
 		ck->buf = malloc (size);
 		if (ck->buf == NULL) {
 			free (ck);
-			errno = ENOMEM;
 			return (NULL);
 		}
+	}
+
+	/*
+	 * POSIX distinguishes between w+ and r+, in that w+ is supposed to
+	 * truncate the buffer.
+	 */
+	if (ck->own || mode[0] == 'w') {
 		ck->buf[0] = '\0';
 	}
 
-	if (mode[0] == 'a')
-		ck->off = strnlen(ck->buf, ck->len);
+	/* Check for binary mode. */
+	ck->bin = strchr(mode, 'b') != NULL;
 
-	/* actuall wrapper */
-	FILE *f = funopen ((void *)ck, fmemopen_read, fmemopen_write,
+	/*
+	 * The size of the current buffer contents is set depending on the
+	 * mode:
+	 *
+	 * for append (text-mode), the position of the first NULL byte, or the
+	 * size of the buffer if none is found
+	 *
+	 * for append (binary-mode), the size of the buffer
+	 *
+	 * for read, the size of the buffer
+	 *
+	 * for write, 0
+	 */
+	switch (mode[0]) {
+	case 'a':
+		if (ck->bin) {
+			/* 
+			 * This isn't useful, since the buffer isn't
+			 * allowed to grow.
+			 */
+			ck->off = ck->len = size;
+		} else
+			ck->off = ck->len = strnlen(ck->buf, ck->size);
+		break;
+	case 'r':
+		ck->len = size;
+		break;
+	case 'w':
+		ck->len = 0;
+		break;
+	}
+
+	/* Actuall wrapper. */
+	f = funopen ((void *)ck,
+	    flags & O_WRONLY ? NULL : fmemopen_read, 
+	    flags & O_RDONLY ? NULL : fmemopen_write,
 	    fmemopen_seek, fmemopen_close);
 
 	if (f == NULL) {
@@ -83,8 +149,10 @@ fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 		return (NULL);
 	}
 
-	/* turn off buffering, so a write past the end of the buffer
-	 * correctly returns a short object count */
+	/*
+	 * Turn off buffering, so a write past the end of the buffer
+	 * correctly returns a short object count.
+	 */
 	setvbuf (f, (char *) NULL, _IONBF, 0);
 
 	return (f);
@@ -93,7 +161,7 @@ fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 static int
 fmemopen_read (void *cookie, char *buf, int nbytes)
 {
-	struct __fmemopen_cookie *ck = cookie;
+	struct fmemopen_cookie *ck = cookie;
 
 	if (nbytes > ck->len - ck->off)
 		nbytes = ck->len - ck->off;
@@ -111,10 +179,10 @@ fmemopen_read (void *cookie, char *buf, int nbytes)
 static int
 fmemopen_write (void *cookie, const char *buf, int nbytes)
 {
-	struct __fmemopen_cookie *ck = cookie;
+	struct fmemopen_cookie *ck = cookie;
 
-	if (nbytes > ck->len - ck->off)
-		nbytes = ck->len - ck->off;
+	if (nbytes > ck->size - ck->off)
+		nbytes = ck->size - ck->off;
 
 	if (nbytes == 0)
 		return (0);
@@ -123,7 +191,16 @@ fmemopen_write (void *cookie, const char *buf, int nbytes)
 
 	ck->off += nbytes;
 
-	if (ck->off < ck->len && ck->buf[ck->off - 1] != '\0')
+	if (ck->off > ck->len)
+		ck->len = ck->off;
+
+	/*
+	 * We append a NULL byte if all these conditions are met:
+	 * - the buffer is not binary
+	 * - the buffer is not full
+	 * - the data just written doesn't already end with a NULL byte
+	 */
+	if (!ck->bin && ck->off < ck->size && ck->buf[ck->off - 1] != '\0')
 		ck->buf[ck->off] = '\0';
 
 	return (nbytes);
@@ -132,12 +209,12 @@ fmemopen_write (void *cookie, const char *buf, int nbytes)
 static fpos_t
 fmemopen_seek (void *cookie, fpos_t offset, int whence)
 {
-	struct __fmemopen_cookie *ck = cookie;
+	struct fmemopen_cookie *ck = cookie;
 
 
 	switch (whence) {
 	case SEEK_SET:
-		if (offset > ck->len) {
+		if (offset > ck->size) {
 			errno = EINVAL;
 			return (-1);
 		}
@@ -145,7 +222,7 @@ fmemopen_seek (void *cookie, fpos_t offset, int whence)
 		break;
 
 	case SEEK_CUR:
-		if (ck->off + offset > ck->len) {
+		if (ck->off + offset > ck->size) {
 			errno = EINVAL;
 			return (-1);
 		}
@@ -171,7 +248,7 @@ fmemopen_seek (void *cookie, fpos_t offset, int whence)
 static int
 fmemopen_close (void *cookie)
 {
-	struct __fmemopen_cookie *ck = cookie;
+	struct fmemopen_cookie *ck = cookie;
 
 	if (ck->own)
 		free (ck->buf);
