@@ -165,6 +165,11 @@ struct intel_raid_conf {
 #define INTEL_ATTR_RAID1E	0x00000008
 #define INTEL_ATTR_RAID5	0x00000010
 #define INTEL_ATTR_RAIDCNG	0x00000020
+#define INTEL_ATTR_EXT_STRIP	0x00000040
+#define INTEL_ATTR_NVM_CACHE	0x02000000
+#define INTEL_ATTR_2TB_DISK	0x04000000
+#define INTEL_ATTR_BBM		0x08000000
+#define INTEL_ATTR_NVM_CACHE2	0x10000000
 #define INTEL_ATTR_2TB		0x20000000
 #define INTEL_ATTR_PM		0x40000000
 #define INTEL_ATTR_CHECKSUM	0x80000000
@@ -181,6 +186,11 @@ struct intel_raid_conf {
 	struct intel_raid_disk	disk[1];	/* total_disks entries. */
 	/* Here goes total_volumes of struct intel_raid_vol. */
 } __packed;
+
+#define INTEL_ATTR_SUPPORTED	( INTEL_ATTR_RAID0 | INTEL_ATTR_RAID1 |	\
+    INTEL_ATTR_RAID10 | INTEL_ATTR_RAID1E | INTEL_ATTR_RAID5 |		\
+    INTEL_ATTR_RAIDCNG | INTEL_ATTR_EXT_STRIP | INTEL_ATTR_2TB_DISK |	\
+    INTEL_ATTR_2TB | INTEL_ATTR_PM | INTEL_ATTR_CHECKSUM )
 
 #define INTEL_MAX_MD_SIZE(ndisks)				\
     (sizeof(struct intel_raid_conf) +				\
@@ -553,6 +563,21 @@ badsize:
 	}
 
 	g_raid_md_intel_print(meta);
+
+	if (strncmp(meta->version, INTEL_VERSION_1300, 6) > 0) {
+		G_RAID_DEBUG(1, "Intel unsupported version: '%.6s'",
+		    meta->version);
+		free(meta, M_MD_INTEL);
+		return (NULL);
+	}
+
+	if (strncmp(meta->version, INTEL_VERSION_1300, 6) >= 0 &&
+	    (meta->attributes & ~INTEL_ATTR_SUPPORTED) != 0) {
+		G_RAID_DEBUG(1, "Intel unsupported attributes: 0x%08x",
+		    meta->attributes & ~INTEL_ATTR_SUPPORTED);
+		free(meta, M_MD_INTEL);
+		return (NULL);
+	}
 
 	/* Validate disk indexes. */
 	for (i = 0; i < meta->total_volumes; i++) {
@@ -2268,6 +2293,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		if (pd->pd_disk_pos < 0)
 			continue;
 		meta->disk[pd->pd_disk_pos] = pd->pd_disk_meta;
+		if (pd->pd_disk_meta.sectors_hi != 0)
+			meta->attributes |= INTEL_ATTR_2TB_DISK;
 	}
 
 	/* Fill volumes and maps. */
@@ -2297,12 +2324,16 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			meta->attributes |= INTEL_ATTR_RAID1;
 		else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID5)
 			meta->attributes |= INTEL_ATTR_RAID5;
-		else
+		else if ((vol->v_disks_count & 1) == 0)
 			meta->attributes |= INTEL_ATTR_RAID10;
+		else
+			meta->attributes |= INTEL_ATTR_RAID1E;
+		if (pv->pv_cng)
+			meta->attributes |= INTEL_ATTR_RAIDCNG;
+		if (vol->v_strip_size > 131072)
+			meta->attributes |= INTEL_ATTR_EXT_STRIP;
 
-		if (meta->attributes & INTEL_ATTR_2TB)
-			cv = INTEL_VERSION_1300;
-		else if (pv->pv_cng)
+		if (pv->pv_cng)
 			cv = INTEL_VERSION_1206;
 		else if (vol->v_disks_count > 4)
 			cv = INTEL_VERSION_1204;
@@ -2310,8 +2341,6 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			cv = INTEL_VERSION_1202;
 		else if (vol->v_disks_count > 2)
 			cv = INTEL_VERSION_1201;
-		else if (vi > 0)
-			cv = INTEL_VERSION_1200;
 		else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
 			cv = INTEL_VERSION_1100;
 		else
@@ -2321,6 +2350,8 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 
 		strlcpy(&mvol->name[0], vol->v_name, sizeof(mvol->name));
 		mvol->total_sectors = vol->v_mediasize / sectorsize;
+		mvol->state = (INTEL_ST_READ_COALESCING |
+		    INTEL_ST_WRITE_COALESCING);
 		if (pv->pv_cng) {
 			mvol->state |= INTEL_ST_CLONE_N_GO;
 			if (pv->pv_cng_man_sync)
@@ -2437,7 +2468,10 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		vi++;
 	}
 	meta->total_volumes = vi;
-	if (strcmp(version, INTEL_VERSION_1300) != 0)
+	if (vi > 1 || meta->attributes &
+	     (INTEL_ATTR_EXT_STRIP | INTEL_ATTR_2TB_DISK | INTEL_ATTR_2TB))
+		version = INTEL_VERSION_1300;
+	if (strcmp(version, INTEL_VERSION_1300) < 0)
 		meta->attributes &= INTEL_ATTR_CHECKSUM;
 	memcpy(&meta->version[0], version, sizeof(INTEL_VERSION_1000) - 1);
 
