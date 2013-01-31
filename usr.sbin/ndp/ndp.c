@@ -436,9 +436,6 @@ set(argc, argv)
 				goto overwrite;
 			}
 		}
-		/*
-		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
-		 */
 		fprintf(stderr, "set: cannot configure a new entry\n");
 		return 1;
 	}
@@ -523,9 +520,6 @@ delete(host)
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
 			goto delete;
 		}
-		/*
-		 * IPv4 arp command retries with sin_other = SIN_PROXY here.
-		 */
 		fprintf(stderr, "delete: cannot delete non-NDP entry\n");
 		return 1;
 	}
