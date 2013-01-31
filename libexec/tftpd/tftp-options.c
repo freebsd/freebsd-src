@@ -99,16 +99,17 @@ option_tsize(int peer __unused, struct tftphdr *tp __unused, int mode,
 int
 option_timeout(int peer)
 {
+	int to;
 
 	if (options[OPT_TIMEOUT].o_request == NULL)
 		return (0);
 
-	int to = atoi(options[OPT_TIMEOUT].o_request);
+	to = atoi(options[OPT_TIMEOUT].o_request);
 	if (to < TIMEOUT_MIN || to > TIMEOUT_MAX) {
 		tftp_log(acting_as_client ? LOG_ERR : LOG_WARNING,
 		    "Received bad value for timeout. "
-		    "Should be between %d and %d, received %s",
-		    TIMEOUT_MIN, TIMEOUT_MAX);
+		    "Should be between %d and %d, received %d",
+		    TIMEOUT_MIN, TIMEOUT_MAX, to);
 		send_error(peer, EBADOP);
 		if (acting_as_client)
 			return (1);
@@ -195,14 +196,14 @@ option_blksize(int peer)
 			tftp_log(LOG_ERR,
 			    "Invalid blocksize (%d bytes), "
 			    "net.inet.udp.maxdgram sysctl limits it to "
-			    "%d bytes.\n", size, maxdgram);
+			    "%ld bytes.\n", size, maxdgram);
 			send_error(peer, EBADOP);
 			return (1);
 		} else {
 			tftp_log(LOG_WARNING,
 			    "Invalid blocksize (%d bytes), "
 			    "net.inet.udp.maxdgram sysctl limits it to "
-			    "%d bytes.\n", size, maxdgram);
+			    "%ld bytes.\n", size, maxdgram);
 			size = maxdgram;
 			/* No reason to return */
 		}
@@ -257,7 +258,7 @@ option_blksize2(int peer __unused)
 		}
 		tftp_log(LOG_INFO,
 		    "Invalid blocksize2 (%d bytes), net.inet.udp.maxdgram "
-		    "sysctl limits it to %d bytes.\n", size, maxdgram);
+		    "sysctl limits it to %ld bytes.\n", size, maxdgram);
 		size = sizes[i];
 		/* No need to return */
 	}

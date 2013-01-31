@@ -106,13 +106,13 @@ send_packet(int peer, uint16_t block, char *pkt, int size)
 	for (i = 0; i < 12 ; i++) {
 		DROPPACKETn("send_packet", 0);
 
-		if (sendto(peer, pkt, size, 0,
-			(struct sockaddr *)&peer_sock, peer_sock.ss_len)
-			== size) {
+		if (sendto(peer, pkt, size, 0, (struct sockaddr *)&peer_sock,
+		    peer_sock.ss_len) == size) {
 			if (i)
 				tftp_log(LOG_ERR,
 				    "%s block %d, attempt %d successful",
-				    block, i);
+		    		    packettype(ntohs(((struct tftphdr *)
+				    (pkt))->th_opcode)), block, i);
 			return (0);
 		}
 		tftp_log(LOG_ERR,
