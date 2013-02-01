@@ -172,7 +172,7 @@ physcopyin(void *src, vm_paddr_t dst, size_t len)
 	uio.uio_rw = UIO_WRITE;
 	for (i = 0; i < PHYS_PAGE_COUNT(len); i++, dst += PAGE_SIZE)
 		m[i] = PHYS_TO_VM_PAGE(dst);
-	return uiomove_fromphys(m, dst & PAGE_MASK, len, &uio);
+	return (uiomove_fromphys(m, dst & PAGE_MASK, len, &uio));
 }
 
 int
@@ -193,7 +193,7 @@ physcopyout(vm_paddr_t src, void *dst, size_t len)
 	uio.uio_rw = UIO_READ;
 	for (i = 0; i < PHYS_PAGE_COUNT(len); i++, src += PAGE_SIZE)
 		m[i] = PHYS_TO_VM_PAGE(src);
-	return uiomove_fromphys(m, src & PAGE_MASK, len, &uio);
+	return (uiomove_fromphys(m, src & PAGE_MASK, len, &uio));
 }
 
 #undef PHYS_PAGE_COUNT
