@@ -1,32 +1,33 @@
 /*-
-Copyright (C) 2013 Pietro Cerutti <gahr@FreeBSD.org>
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-1. Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
-*/
+ * Copyright (C) 2013 Pietro Cerutti <gahr@FreeBSD.org>
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,36 +37,36 @@ __FBSDID("$FreeBSD$");
 struct fmemopen_cookie
 {
 	char	*buf;	/* pointer to the memory region */
-	char	 own;	/* did we allocate the buffer ourselves? */
+	bool	 own;	/* did we allocate the buffer ourselves? */
 	char     bin;   /* is this a binary buffer? */
 	size_t	 size;	/* buffer length in bytes */
 	size_t	 len;	/* data length in bytes */
 	size_t	 off;	/* current offset into the buffer */
 };
 
-static int	fmemopen_read  (void *cookie, char *buf, int nbytes);
-static int	fmemopen_write (void *cookie, const char *buf, int nbytes);
-static fpos_t	fmemopen_seek  (void *cookie, fpos_t offset, int whence);
-static int	fmemopen_close (void *cookie);
+static int	fmemopen_read(void *cookie, char *buf, int nbytes);
+static int	fmemopen_write(void *cookie, const char *buf, int nbytes);
+static fpos_t	fmemopen_seek(void *cookie, fpos_t offset, int whence);
+static int	fmemopen_close(void *cookie);
 
 FILE *
-fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
+fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 {
 	struct fmemopen_cookie *ck;
 	FILE *f;
 	int flags, rc;
 
-	/* 
+	/*
 	 * Retrieve the flags as used by open(2) from the mode argument, and
 	 * validate them.
-	 * */
-	rc = __sflags (mode, &flags);
+	 */
+	rc = __sflags(mode, &flags);
 	if (rc == 0) {
 		errno = EINVAL;
 		return (NULL);
 	}
 
-	/* 
+	/*
 	 * There's no point in requiring an automatically allocated buffer
 	 * in write-only mode.
 	 */
@@ -74,8 +75,7 @@ fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 		return (NULL);
 	}
 	
-	/* Allocate a cookie. */
-	ck = malloc (sizeof (struct fmemopen_cookie));
+	ck = malloc(sizeof(struct fmemopen_cookie));
 	if (ck == NULL) {
 		return (NULL);
 	}
@@ -86,9 +86,9 @@ fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 	/* Check whether we have to allocate the buffer ourselves. */
 	ck->own = ((ck->buf = buf) == NULL);
 	if (ck->own) {
-		ck->buf = malloc (size);
+		ck->buf = malloc(size);
 		if (ck->buf == NULL) {
-			free (ck);
+			free(ck);
 			return (NULL);
 		}
 	}
@@ -107,22 +107,22 @@ fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 	/*
 	 * The size of the current buffer contents is set depending on the
 	 * mode:
-	 *
+	 * 
 	 * for append (text-mode), the position of the first NULL byte, or the
 	 * size of the buffer if none is found
 	 *
 	 * for append (binary-mode), the size of the buffer
-	 *
+	 * 
 	 * for read, the size of the buffer
-	 *
+	 * 
 	 * for write, 0
 	 */
 	switch (mode[0]) {
 	case 'a':
 		if (ck->bin) {
-			/* 
-			 * This isn't useful, since the buffer isn't
-			 * allowed to grow.
+			/*
+			 * This isn't useful, since the buffer isn't allowed
+			 * to grow.
 			 */
 			ck->off = ck->len = size;
 		} else
@@ -136,16 +136,15 @@ fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 		break;
 	}
 
-	/* Actuall wrapper. */
-	f = funopen ((void *)ck,
+	f = funopen(ck,
 	    flags & O_WRONLY ? NULL : fmemopen_read, 
 	    flags & O_RDONLY ? NULL : fmemopen_write,
 	    fmemopen_seek, fmemopen_close);
 
 	if (f == NULL) {
 		if (ck->own)
-			free (ck->buf);
-		free (ck);
+			free(ck->buf);
+		free(ck);
 		return (NULL);
 	}
 
@@ -153,13 +152,13 @@ fmemopen (void * __restrict buf, size_t size, const char * __restrict mode)
 	 * Turn off buffering, so a write past the end of the buffer
 	 * correctly returns a short object count.
 	 */
-	setvbuf (f, (char *) NULL, _IONBF, 0);
+	setvbuf(f, NULL, _IONBF, 0);
 
 	return (f);
 }
 
 static int
-fmemopen_read (void *cookie, char *buf, int nbytes)
+fmemopen_read(void *cookie, char *buf, int nbytes)
 {
 	struct fmemopen_cookie *ck = cookie;
 
@@ -169,7 +168,7 @@ fmemopen_read (void *cookie, char *buf, int nbytes)
 	if (nbytes == 0)
 		return (0);
 
-	memcpy (buf, ck->buf + ck->off, nbytes);
+	memcpy(buf, ck->buf + ck->off, nbytes);
 
 	ck->off += nbytes;
 
@@ -177,7 +176,7 @@ fmemopen_read (void *cookie, char *buf, int nbytes)
 }
 
 static int
-fmemopen_write (void *cookie, const char *buf, int nbytes)
+fmemopen_write(void *cookie, const char *buf, int nbytes)
 {
 	struct fmemopen_cookie *ck = cookie;
 
@@ -187,7 +186,7 @@ fmemopen_write (void *cookie, const char *buf, int nbytes)
 	if (nbytes == 0)
 		return (0);
 
-	memcpy (ck->buf + ck->off, buf, nbytes);
+	memcpy(ck->buf + ck->off, buf, nbytes);
 
 	ck->off += nbytes;
 
@@ -207,7 +206,7 @@ fmemopen_write (void *cookie, const char *buf, int nbytes)
 }
 
 static fpos_t
-fmemopen_seek (void *cookie, fpos_t offset, int whence)
+fmemopen_seek(void *cookie, fpos_t offset, int whence)
 {
 	struct fmemopen_cookie *ck = cookie;
 
@@ -246,14 +245,14 @@ fmemopen_seek (void *cookie, fpos_t offset, int whence)
 }
 
 static int
-fmemopen_close (void *cookie)
+fmemopen_close(void *cookie)
 {
 	struct fmemopen_cookie *ck = cookie;
 
 	if (ck->own)
-		free (ck->buf);
+		free(ck->buf);
 
-	free (ck);
+	free(ck);
 
 	return (0);
 }
