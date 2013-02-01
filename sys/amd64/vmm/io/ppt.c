@@ -89,7 +89,7 @@ static struct pptdev {
 		void **cookie;
 		struct pptintr_arg *arg;
 	} msix;
-} pptdevs[32];
+} pptdevs[64];
 
 static int num_pptdevs;
 
