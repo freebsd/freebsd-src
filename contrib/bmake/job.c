@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.163 2012/07/03 21:03:40 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.165 2013/01/26 15:52:59 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.163 2012/07/03 21:03:40 sjg Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.165 2013/01/26 15:52:59 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.163 2012/07/03 21:03:40 sjg Exp $");
+__RCSID("$NetBSD: job.c,v 1.165 2013/01/26 15:52:59 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -490,7 +490,8 @@ JobCondPassSig(int signo)
 static void
 JobChildSig(int signo MAKE_ATTR_UNUSED)
 {
-    write(childExitJob.outPipe, CHILD_EXIT, 1);
+    while (write(childExitJob.outPipe, CHILD_EXIT, 1) == -1 && errno == EAGAIN)
+	continue;
 }
 
 
@@ -517,7 +518,9 @@ JobContinueSig(int signo MAKE_ATTR_UNUSED)
      * Defer sending to SIGCONT to our stopped children until we return
      * from the signal handler.
      */
-    write(childExitJob.outPipe, DO_JOB_RESUME, 1);
+    while (write(childExitJob.outPipe, DO_JOB_RESUME, 1) == -1 &&
+	errno == EAGAIN)
+	continue;
 }
 
 /*-
@@ -688,7 +691,6 @@ JobPrintCommand(void *cmdp, void *jobp)
     char	  *escCmd = NULL;    /* Command with quotes/backticks escaped */
     char     	  *cmd = (char *)cmdp;
     Job           *job = (Job *)jobp;
-    char	  *cp, *tmp;
     int           i, j;
 
     noSpecials = NoExecute(job->node);
@@ -860,11 +862,6 @@ JobPrintCommand(void *cmdp, void *jobp)
 	    job->flags |= JOB_TRACED;
     }
     
-    if ((cp = Check_Cwd_Cmd(cmd)) != NULL) {
-	    DBPRINTF("test -d %s && ", cp);
-	    DBPRINTF("cd %s\n", cp);
-    }
-
     DBPRINTF(cmdTemplate, cmd);
     free(cmdStart);
     if (escCmd)
@@ -883,10 +880,6 @@ JobPrintCommand(void *cmdp, void *jobp)
     }
     if (shutUp && commandShell->hasEchoCtl) {
 	DBPRINTF("%s\n", commandShell->echoOn);
-    }
-    if (cp != NULL) {
-	    DBPRINTF("test -d %s && ", cp);
-	    DBPRINTF("cd %s\n", Var_Value(".OBJDIR", VAR_GLOBAL, &tmp));
     }
     return 0;
 }
@@ -1185,7 +1178,8 @@ Job_Touch(GNode *gn, Boolean silent)
 		 */
 		if (read(streamID, &c, 1) == 1) {
 		    (void)lseek(streamID, (off_t)0, SEEK_SET);
-		    (void)write(streamID, &c, 1);
+		    while (write(streamID, &c, 1) == -1 && errno == EAGAIN)
+			continue;
 		}
 
 		(void)close(streamID);
@@ -2074,7 +2068,8 @@ Job_CatchOutput(void)
     if (nready < 0 || readyfd(&childExitJob)) {
 	char token = 0;
 	nready -= 1;
-	(void)read(childExitJob.inPipe, &token, 1);
+	while (read(childExitJob.inPipe, &token, 1) == -1 && errno == EAGAIN)
+		continue;
 	if (token == DO_JOB_RESUME[0])
 	    /* Complete relay requested from our SIGCONT handler */
 	    JobRestartJobs();
@@ -2805,7 +2800,8 @@ JobTokenAdd(void)
     if (DEBUG(JOB))
 	fprintf(debug_file, "(%d) aborting %d, deposit token %c\n",
 	    getpid(), aborting, JOB_TOKENS[aborting]);
-    write(tokenWaitJob.outPipe, &tok, 1);
+    while (write(tokenWaitJob.outPipe, &tok, 1) == -1 && errno == EAGAIN)
+	continue;
 }
 
 /*-
@@ -2918,13 +2914,15 @@ Job_TokenWithdraw(void)
 	while (read(tokenWaitJob.inPipe, &tok1, 1) == 1)
 	    continue;
 	/* And put the stopper back */
-	write(tokenWaitJob.outPipe, &tok, 1);
+	while (write(tokenWaitJob.outPipe, &tok, 1) == -1 && errno == EAGAIN)
+	    continue;
 	Fatal("A failure has been detected in another branch of the parallel make");
     }
 
     if (count == 1 && jobTokensRunning == 0)
 	/* We didn't want the token really */
-	write(tokenWaitJob.outPipe, &tok, 1);
+	while (write(tokenWaitJob.outPipe, &tok, 1) == -1 && errno == EAGAIN)
+	    continue;
 
     jobTokensRunning++;
     if (DEBUG(JOB))
