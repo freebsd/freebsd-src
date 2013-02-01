@@ -685,8 +685,8 @@ pci_vtnet_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	void *ptr;
 
 	if (use_msix) {
-		if (baridx == pi->pi_msix.table_bar ||
-		    baridx == pi->pi_msix.pba_bar) {
+		if (baridx == pci_msix_table_bar(pi) ||
+		    baridx == pci_msix_pba_bar(pi)) {
 			pci_emul_msix_twrite(pi, offset, size, value);
 			return;
 		}
@@ -781,8 +781,8 @@ pci_vtnet_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	uint64_t value;
 
 	if (use_msix) {
-		if (baridx == pi->pi_msix.table_bar ||
-		    baridx == pi->pi_msix.pba_bar) {
+		if (baridx == pci_msix_table_bar(pi) ||
+		    baridx == pci_msix_pba_bar(pi)) {
 			return (pci_emul_msix_tread(pi, offset, size));
 		}
 	}

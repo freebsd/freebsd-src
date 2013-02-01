@@ -254,6 +254,26 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 	return (retval);
 }
 
+int
+pci_msix_table_bar(struct pci_devinst *pi)
+{
+
+	if (pi->pi_msix.table != NULL)
+		return (pi->pi_msix.table_bar);
+	else
+		return (-1);
+}
+
+int
+pci_msix_pba_bar(struct pci_devinst *pi)
+{
+
+	if (pi->pi_msix.table != NULL)
+		return (pi->pi_msix.pba_bar);
+	else
+		return (-1);
+}
+
 static int
 pci_emul_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		    uint32_t *eax, void *arg)
