@@ -241,12 +241,21 @@ struct usb_config {
  * have your driver module automatically loaded in host, device or
  * both modes respectivly:
  */
+#if USB_HAVE_ID_SECTION
 #define	STRUCT_USB_HOST_ID \
     struct usb_device_id __section("usb_host_id")
 #define	STRUCT_USB_DEVICE_ID \
     struct usb_device_id __section("usb_device_id")
 #define	STRUCT_USB_DUAL_ID \
     struct usb_device_id __section("usb_dual_id")
+#else
+#define	STRUCT_USB_HOST_ID \
+    struct usb_device_id
+#define	STRUCT_USB_DEVICE_ID \
+    struct usb_device_id
+#define	STRUCT_USB_DUAL_ID \
+    struct usb_device_id
+#endif			/* USB_HAVE_ID_SECTION */
 
 /*
  * The following structure is used when looking up an USB driver for
