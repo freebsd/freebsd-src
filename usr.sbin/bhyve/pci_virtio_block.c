@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #define VTBLK_CFGSZ	28
 
-#define VTBLK_R_CFG		VTCFG_R_CFG0
+#define VTBLK_R_CFG		VTCFG_R_CFG1 
 #define VTBLK_R_CFG_END		VTBLK_R_CFG + VTBLK_CFGSZ -1
 #define VTBLK_R_MAX		VTBLK_R_CFG_END
 
@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #define VTBLK_S_HOSTCAPS      \
   ( 0x00000004 |	/* host maximum request segments */ \
     0x10000000 )	/* supports indirect descriptors */
+
+static int use_msix = 1;
 
 struct vring_hqueue {
 	/* Internal state */
@@ -135,7 +137,24 @@ struct pci_vtblk_softc {
 	uint64_t	vbsc_pfn;
 	struct vring_hqueue vbsc_q;
 	struct vtblk_config vbsc_cfg;	
+	uint16_t	msix_table_idx_req;
+	uint16_t	msix_table_idx_cfg;
 };
+
+/* 
+ * Return the size of IO BAR that maps virtio header and device specific
+ * region. The size would vary depending on whether MSI-X is enabled or 
+ * not
+ */ 
+static uint64_t
+pci_vtblk_iosize(struct pci_devinst *pi)
+{
+
+	if (pci_msix_enabled(pi)) 
+		return (VTBLK_REGSZ);
+	else
+		return (VTBLK_REGSZ - (VTCFG_R_CFG1 - VTCFG_R_MSIX));
+}
 
 /*
  * Return the number of available descriptors in the vring taking care
@@ -290,10 +309,13 @@ pci_vtblk_qnotify(struct pci_vtblk_softc *sc)
 	/*
 	 * Generate an interrupt if able
 	 */
-	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0 &&
-		sc->vbsc_isr == 0) {
-		sc->vbsc_isr = 1;
-		pci_generate_msi(sc->vbsc_pi, 0);
+	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) { 
+		if (use_msix) {
+			pci_generate_msix(sc->vbsc_pi, sc->msix_table_idx_req);	
+		} else if (sc->vbsc_isr == 0) {
+			sc->vbsc_isr = 1;
+			pci_generate_msi(sc->vbsc_pi, 0);
+		}
 	}
 	
 }
@@ -335,6 +357,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	off_t size;	
 	int fd;
 	int sectsz;
+	const char *env_msi;
 
 	if (opts == NULL) {
 		printf("virtio-block: backing device required\n");
@@ -401,10 +424,42 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
-	pci_emul_add_msicap(pi, 1);
+
+	if ((env_msi = getenv("BHYVE_USE_MSI"))) {
+		if (strcasecmp(env_msi, "yes") == 0)
+			use_msix = 0;
+	} 
+
+	if (use_msix) {
+		/* MSI-X Support */
+		sc->msix_table_idx_req = VIRTIO_MSI_NO_VECTOR;	
+		sc->msix_table_idx_cfg = VIRTIO_MSI_NO_VECTOR;	
+		
+		if (pci_emul_add_msixcap(pi, 2, 1))
+			return (1);
+	} else {
+		/* MSI Support */	
+		pci_emul_add_msicap(pi, 1);
+	}	
+	
 	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTBLK_REGSZ);
 
 	return (0);
+}
+
+static uint64_t
+vtblk_adjust_offset(struct pci_devinst *pi, uint64_t offset)
+{
+	/*
+	 * Device specific offsets used by guest would change 
+	 * based on whether MSI-X capability is enabled or not
+	 */ 
+	if (!pci_msix_enabled(pi)) {
+		if (offset >= VTCFG_R_MSIX) 
+			return (offset + (VTCFG_R_CFG1 - VTCFG_R_MSIX));
+	}
+
+	return (offset);
 }
 
 static void
@@ -413,14 +468,24 @@ pci_vtblk_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 {
 	struct pci_vtblk_softc *sc = pi->pi_arg;
 
+	if (use_msix) {
+		if (baridx == pci_msix_table_bar(pi) ||
+		    baridx == pci_msix_pba_bar(pi)) {
+			pci_emul_msix_twrite(pi, offset, size, value);
+			return;
+		}
+	}
+	
 	assert(baridx == 0);
 
-	if (offset + size > VTBLK_REGSZ) {
+	if (offset + size > pci_vtblk_iosize(pi)) {
 		DPRINTF(("vtblk_write: 2big, offset %ld size %d\n",
 			 offset, size));
 		return;
 	}
 
+	offset = vtblk_adjust_offset(pi, offset);
+	
 	switch (offset) {
 	case VTCFG_R_GUESTCAP:
 		assert(size == 4);
@@ -443,6 +508,14 @@ pci_vtblk_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		assert(size == 1);
 		pci_vtblk_update_status(sc, value);
 		break;
+	case VTCFG_R_CFGVEC:
+		assert(size == 2);
+		sc->msix_table_idx_cfg = value;	
+		break;	
+	case VTCFG_R_QVEC:
+		assert(size == 2);
+		sc->msix_table_idx_req = value;
+		break;	
 	case VTCFG_R_HOSTCAP:
 	case VTCFG_R_QNUM:
 	case VTCFG_R_ISR:
@@ -464,13 +537,22 @@ pci_vtblk_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	void *ptr;
 	uint32_t value;
 
+	if (use_msix) {
+		if (baridx == pci_msix_table_bar(pi) ||
+		    baridx == pci_msix_pba_bar(pi)) {
+			return (pci_emul_msix_tread(pi, offset, size));
+		}
+	}
+
 	assert(baridx == 0);
 
-	if (offset + size > VTBLK_REGSZ) {
+	if (offset + size > pci_vtblk_iosize(pi)) {
 		DPRINTF(("vtblk_read: 2big, offset %ld size %d\n",
 			 offset, size));
 		return (0);
 	}
+
+	offset = vtblk_adjust_offset(pi, offset);
 
 	switch (offset) {
 	case VTCFG_R_HOSTCAP:
@@ -505,6 +587,14 @@ pci_vtblk_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 		value = sc->vbsc_isr;
 		sc->vbsc_isr = 0;     /* a read clears this flag */
 		break;
+	case VTCFG_R_CFGVEC:
+		assert(size == 2);
+		value = sc->msix_table_idx_cfg;
+		break;
+	case VTCFG_R_QVEC:
+		assert(size == 2);
+		value = sc->msix_table_idx_req;
+		break;	
 	case VTBLK_R_CFG ... VTBLK_R_CFG_END:
 		assert(size + offset <= (VTBLK_R_CFG_END + 1));
 		ptr = (uint8_t *)&sc->vbsc_cfg + offset - VTBLK_R_CFG;
