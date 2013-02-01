@@ -110,7 +110,8 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	for (m = m0; m != NULL && error == 0; m = m->m_next) {
 		if (m->m_len > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map, m->m_data,
-			    m->m_len, kernel_pmap, flags, segs, nsegs);
+			    m->m_len, kernel_pmap, flags | BUS_DMA_LOAD_MBUF,
+			    segs, nsegs);
 		}
 	}
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",

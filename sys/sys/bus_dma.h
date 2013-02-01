@@ -109,6 +109,8 @@
  */
 #define	BUS_DMA_KEEP_PG_OFFSET	0x400
 
+#define	BUS_DMA_LOAD_MBUF	0x800
+
 /* Forwards needed by prototypes below. */
 union ccb;
 struct bio;
