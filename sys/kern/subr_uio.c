@@ -190,7 +190,7 @@ physcopyout(vm_paddr_t src, void *dst, size_t len)
 	uio.uio_offset = 0;
 	uio.uio_resid = len;
 	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_WRITE;
+	uio.uio_rw = UIO_READ;
 	for (i = 0; i < PHYS_PAGE_COUNT(len); i++, src += PAGE_SIZE)
 		m[i] = PHYS_TO_VM_PAGE(src);
 	return uiomove_fromphys(m, src & PAGE_MASK, len, &uio);
