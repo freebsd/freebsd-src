@@ -143,6 +143,15 @@ typedef	__uid_t		uid_t;
 #endif
 
 /*
+ * Space reserved for new socket options added by third-party vendors.
+ * This range applies to all socket option levels.  New socket options
+ * in FreeBSD should always use an option value less than SO_VENDOR.
+ */
+#if __BSD_VISIBLE
+#define	SO_VENDOR	0x80000000
+#endif
+
+/*
  * Structure used for manipulating linger option.
  */
 struct linger {
