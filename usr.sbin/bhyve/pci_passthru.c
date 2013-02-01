@@ -361,6 +361,8 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 	size_t len;
 	struct pci_devinst *pi = sc->psc_pi;
 
+	assert(pci_msix_table_bar(pi) >= 0 && pci_msix_pba_bar(pi) >= 0);
+
 	/* 
 	 * If the MSI-X table BAR maps memory intended for
 	 * other uses, it is at least assured that the table 
@@ -370,7 +372,9 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 	if (pi->pi_msix.pba_bar == pi->pi_msix.table_bar && 
 	    ((pi->pi_msix.pba_offset - pi->pi_msix.table_offset) < 4096)) {
 		/* Need to also emulate the PBA, not supported yet */
-		printf("Unsupported MSI-X table and PBA in same page\n");
+		printf("Unsupported MSI-X configuration: %d/%d/%d\n",
+		       sc->psc_sel.pc_bus, sc->psc_sel.pc_dev,
+		       sc->psc_sel.pc_func);
 		return (-1);
 	}
 
@@ -447,7 +451,7 @@ cfginitbar(struct vmctx *ctx, struct passthru_softc *sc)
 			return (-1);
 
 		/* The MSI-X table needs special handling */
-		if (i == pi->pi_msix.table_bar) {
+		if (i == pci_msix_table_bar(pi)) {
 			error = init_msix_table(ctx, sc, base);
 			if (error) 
 				return (-1);
@@ -688,7 +692,7 @@ passthru_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.table_bar == baridx) {
+	if (baridx == pci_msix_table_bar(pi)) {
 		msix_table_write(ctx, vcpu, sc, offset, size, value);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
@@ -712,7 +716,7 @@ passthru_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.table_bar == baridx) {
+	if (baridx == pci_msix_table_bar(pi)) {
 		val = msix_table_read(sc, offset, size);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
