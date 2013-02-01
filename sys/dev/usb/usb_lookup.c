@@ -178,7 +178,7 @@ usbd_lookup_id_by_uaa(const struct usb_device_id *id, usb_size_t sizeof_id,
 #define	MFL_SIZE "0"
 #endif
 
-#ifdef KLD_MODULE
+#if defined(KLD_MODULE) && (USB_HAVE_ID_SECTION != 0)
 static const char __section("bus_autoconf_format") __used usb_id_format[] = {
 
 	/* Declare that three different sections use the same format */
