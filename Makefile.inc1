@@ -5,10 +5,11 @@
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
 #	-DNO_SHARE do not go into share subdir
-#	-DKERNFAST define NO_KERNELCONFIG, NO_KERNELCLEAN and NO_KERNELDEPEND
+#	-DKERNFAST define NO_KERNEL{CONFIG,CLEAN,DEPEND,OBJ}
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
+#	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
@@ -694,6 +695,7 @@ distrib-dirs distribution:
 NO_KERNELCLEAN=	t
 NO_KERNELCONFIG=	t
 NO_KERNELDEPEND=	t
+NO_KERNELOBJ=		t
 # Shortcut for KERNCONF=Blah -DKERNFAST is now KERNFAST=Blah
 .if !defined(KERNCONF) && ${KERNFAST} != "1"
 KERNCONF=${KERNFAST}
@@ -763,11 +765,13 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} ${CLEANDIR}
 .endif
+.if !defined(NO_KERNELOBJ)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} obj
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
