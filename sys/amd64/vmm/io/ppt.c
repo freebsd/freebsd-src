@@ -56,8 +56,17 @@ __FBSDID("$FreeBSD$");
 /* XXX locking */
 
 #define	MAX_PPTDEVS	(sizeof(pptdevs) / sizeof(pptdevs[0]))
-#define	MAX_MMIOSEGS	(PCIR_MAX_BAR_0 + 1)
 #define	MAX_MSIMSGS	32
+
+/*
+ * If the MSI-X table is located in the middle of a BAR then that MMIO
+ * region gets split into two segments - one segment above the MSI-X table
+ * and the other segment below the MSI-X table - with a hole in place of
+ * the MSI-X table so accesses to it can be trapped and emulated.
+ *
+ * So, allocate a MMIO segment for each BAR register + 1 additional segment.
+ */
+#define	MAX_MMIOSEGS	((PCIR_MAX_BAR_0 + 1) + 1)
 
 MALLOC_DEFINE(M_PPTMSIX, "pptmsix", "Passthru MSI-X resources");
 
