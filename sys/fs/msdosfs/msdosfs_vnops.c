@@ -973,7 +973,7 @@ msdosfs_rename(ap)
 	u_char to_count;
 	int doingdirectory = 0, newparent = 0;
 	int error;
-	u_long cn;
+	u_long cn, pcl;
 	daddr_t bn;
 	struct denode *fddep;	/* from file's parent directory	 */
 	struct msdosfsmount *pmp;
@@ -1246,9 +1246,12 @@ abortit:
 			goto bad;
 		}
 		dotdotp = (struct direntry *)bp->b_data + 1;
-		putushort(dotdotp->deStartCluster, dp->de_StartCluster);
+		pcl = dp->de_StartCluster;
+		if (FAT32(pmp) && pcl == pmp->pm_rootdirblk)
+			pcl = MSDOSFSROOT;
+		putushort(dotdotp->deStartCluster, pcl);
 		if (FAT32(pmp))
-			putushort(dotdotp->deHighClust, dp->de_StartCluster >> 16);
+			putushort(dotdotp->deHighClust, pcl >> 16);
 		if (DOINGASYNC(fvp))
 			bdwrite(bp);
 		else if ((error = bwrite(bp)) != 0) {
@@ -1369,8 +1372,13 @@ msdosfs_mkdir(ap)
 	putushort(denp[0].deMDate, ndirent.de_MDate);
 	putushort(denp[0].deMTime, ndirent.de_MTime);
 	pcl = pdep->de_StartCluster;
+	/*
+	 * Although the root directory has a non-magic starting cluster
+	 * number for FAT32, chkdsk and fsck_msdosfs still require
+	 * references to it in dotdot entries to be magic.
+	 */
 	if (FAT32(pmp) && pcl == pmp->pm_rootdirblk)
-		pcl = 0;
+		pcl = MSDOSFSROOT;
 	putushort(denp[1].deStartCluster, pcl);
 	putushort(denp[1].deCDate, ndirent.de_CDate);
 	putushort(denp[1].deCTime, ndirent.de_CTime);
@@ -1380,7 +1388,7 @@ msdosfs_mkdir(ap)
 	putushort(denp[1].deMTime, ndirent.de_MTime);
 	if (FAT32(pmp)) {
 		putushort(denp[0].deHighClust, newcluster >> 16);
-		putushort(denp[1].deHighClust, pdep->de_StartCluster >> 16);
+		putushort(denp[1].deHighClust, pcl >> 16);
 	}
 
 	if (DOINGASYNC(ap->a_dvp))
