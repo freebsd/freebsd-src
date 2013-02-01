@@ -317,14 +317,16 @@ getnextevent(struct bintime *event)
 	nonidle = !state->idle;
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
 #ifdef SMP
-		CPU_FOREACH(cpu) {
-			if (curcpu == cpu)
-				continue;
-			state = DPCPU_ID_PTR(cpu, timerstate);
-			nonidle += !state->idle;
-			if (bintime_cmp(event, &state->nextevent, >)) {
-				*event = state->nextevent;
-				c = cpu;
+		if (smp_started) {
+			CPU_FOREACH(cpu) {
+				if (curcpu == cpu)
+					continue;
+				state = DPCPU_ID_PTR(cpu, timerstate);
+				nonidle += !state->idle;
+				if (bintime_cmp(event, &state->nextevent, >)) {
+					*event = state->nextevent;
+					c = cpu;
+				}
 			}
 		}
 #endif
