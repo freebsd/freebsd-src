@@ -166,6 +166,9 @@ struct tcphdr {
 #define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */
 #define	TCP_KEEPCNT	1024	/* L,N number of keepalives before close */
 
+/* Start of reserved space for third-party user-settable options. */
+#define	TCP_VENDOR	SO_VENDOR
+
 #define	TCP_CA_NAME_MAX	16	/* max congestion control name length */
 
 #define	TCPI_OPT_TIMESTAMPS	0x01
