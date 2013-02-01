@@ -57,6 +57,9 @@ struct sockaddr_un {
 #define	LOCAL_CREDS		2	/* pass credentials to receiver */
 #define	LOCAL_CONNWAIT		4	/* connects block until accepted */
 
+/* Start of reserved space for third-party socket options. */
+#define	LOCAL_VENDOR		SO_VENDOR
+
 #ifndef _KERNEL
 
 /* actual length of an initialized sockaddr_un */
