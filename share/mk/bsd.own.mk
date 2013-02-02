@@ -391,9 +391,9 @@ __T=${MACHINE_ARCH}
 .endif
 # Clang is only for x86 and powerpc right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
-__DEFAULT_YES_OPTIONS+=CLANG
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
 .else
-__DEFAULT_NO_OPTIONS+=CLANG
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
 # Clang the default system compiler only on x86.
 .if ${__T} == "amd64" || ${__T} == "i386"
@@ -524,6 +524,7 @@ MK_GDB:=	no
 
 .if ${MK_CLANG} == "no"
 MK_CLANG_EXTRAS:= no
+MK_CLANG_FULL:= no
 MK_CLANG_IS_CC:= no
 .endif
 
