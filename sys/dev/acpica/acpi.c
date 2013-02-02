@@ -278,7 +278,7 @@ TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
-#if defined(__amd64__) || defined(__i386__)
+#ifdef __amd64__
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
 TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
@@ -2848,7 +2848,7 @@ backout:
 static void
 acpi_resync_clock(struct acpi_softc *sc)
 {
-#if defined(__amd64__) || defined(__i386__)
+#ifdef __amd64__
     if (!acpi_reset_clock)
 	return;
 
