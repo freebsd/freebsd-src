@@ -311,7 +311,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		oip->i_size = length;
 		newspace = blksize(fs, oip, lastblock);
 		if (newspace == 0)
-			panic("itrunc: newspace");
+			panic("ext2_truncate: newspace");
 		if (oldspace - newspace > 0) {
 			/*
 			 * Block number of space to be free'd is
