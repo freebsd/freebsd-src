@@ -99,7 +99,7 @@ SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
 SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
     version, 0, "Kernel version");
 
-SYSCTL_STRING(_kern, KERN_VERSION, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
+SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
     compiler_version, 0, "Version of compiler used to compile kernel");
 
 SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
