@@ -385,6 +385,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSH \
     OPENSSL \
     PAM \
+    PC_SYSINSTALL \
     PF \
     PKGTOOLS \
     PMC \
