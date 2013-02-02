@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmipscodegen
 
 SRCDIR=	lib/Target/Mips

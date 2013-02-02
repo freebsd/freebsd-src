@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmx86codegen
 
 SRCDIR=	lib/Target/X86
