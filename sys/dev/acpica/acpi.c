@@ -278,7 +278,7 @@ TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__i386__)
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
 TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
@@ -2744,6 +2744,19 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (state != ACPI_STATE_S1) {
 	sleep_result = acpi_sleep_machdep(sc, state);
 	acpi_wakeup_machdep(sc, state, sleep_result, 0);
+
+	/*
+	 * XXX According to ACPI specification SCI_EN bit should be restored
+	 * by ACPI platform (BIOS, firmware) to its pre-sleep state.
+	 * Unfortunately some BIOSes fail to do that and that leads to
+	 * unexpected and serious consequences during wake up like a system
+	 * getting stuck in SMI handlers.
+	 * This hack is picked up from Linux, which claims that it follows
+	 * Windows behavior.
+	 */
+	if (sleep_result == 1 && state != ACPI_STATE_S4)
+	    AcpiWriteBitRegister(ACPI_BITREG_SCI_ENABLE, ACPI_ENABLE_EVENT);
+
 	AcpiLeaveSleepStatePrep(state);
 	intr_restore(intr);
 
@@ -2810,7 +2823,7 @@ backout:
 static void
 acpi_resync_clock(struct acpi_softc *sc)
 {
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__i386__)
     if (!acpi_reset_clock)
 	return;
 
