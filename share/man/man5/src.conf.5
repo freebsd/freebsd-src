@@ -502,6 +502,10 @@ Set to not build GPIB bus support.
 Set to not build
 .Xr gpioctl 8
 as part of the base system.
+.It Va WITH_GPL_DTC
+.\" from FreeBSD: head/tools/build/options/WITH_GPL_DTC 246262 2013-02-02 22:42:46Z dim
+Set to build the GPL'd version of the device tree compiler from elinux.org,
+instead of the BSD licensed one.
 .It Va WITHOUT_GROFF
 .\" from FreeBSD: head/tools/build/options/WITHOUT_GROFF 218941 2011-02-22 08:13:49Z uqs
 Set to not build
@@ -666,6 +670,9 @@ and
 On amd64, set to not build 32-bit library set and a
 .Nm ld-elf32.so.1
 runtime linker.
+.It Va WITHOUT_LIBCPLUSPLUS
+.\" from FreeBSD: head/tools/build/options/WITHOUT_LIBCPLUSPLUS 246262 2013-02-02 22:42:46Z dim
+Set to avoid building libcxxrt and libc++.
 .It Va WITHOUT_LIBPTHREAD
 .\" from FreeBSD: head/tools/build/options/WITHOUT_LIBPTHREAD 188848 2009-02-20 11:09:55Z mtm
 Set to not build the
