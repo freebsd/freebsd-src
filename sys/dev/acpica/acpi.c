@@ -2659,6 +2659,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 {
     register_t intr;
     ACPI_STATUS status;
+    ACPI_EVENT_STATUS power_button_status;
     enum acpi_sleep_state slp_state;
     int sleep_result;
 
@@ -2758,6 +2759,30 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	    AcpiWriteBitRegister(ACPI_BITREG_SCI_ENABLE, ACPI_ENABLE_EVENT);
 
 	AcpiLeaveSleepStatePrep(state);
+
+	if (sleep_result == 1 && state == ACPI_STATE_S3) {
+	    /*
+	     * Prevent mis-interpretation of the wakeup by power button
+	     * as a request for power off.
+	     * Ideally we should post an appropriate wakeup event,
+	     * perhaps using acpi_event_power_button_wake or alike.
+	     *
+	     * Clearing of power button status after wakeup is mandated
+	     * by ACPI specification in section "Fixed Power Button".
+	     *
+	     * XXX As of ACPICA 20121114 AcpiGetEventStatus provides
+	     * status as 0/1 corressponding to inactive/active despite
+	     * its type being ACPI_EVENT_STATUS.  In other words,
+	     * we should not test for ACPI_EVENT_FLAG_SET for time being.
+	     */
+	    if (ACPI_SUCCESS(AcpiGetEventStatus(ACPI_EVENT_POWER_BUTTON,
+		&power_button_status)) && power_button_status != 0) {
+		AcpiClearEvent(ACPI_EVENT_POWER_BUTTON);
+		device_printf(sc->acpi_dev,
+		    "cleared fixed power button status\n");
+	    }
+	}
+
 	intr_restore(intr);
 
 	/* call acpi_wakeup_machdep() again with interrupt enabled */
