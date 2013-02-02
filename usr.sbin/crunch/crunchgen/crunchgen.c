@@ -113,12 +113,13 @@ int is_nonempty_file(const char *pathname);
 int subtract_strlst(strlst_t **lista, strlst_t **listb);
 int in_list(strlst_t **listp, char *str);
 
-
-extern char *crunched_skel[];
+/* helper routines for main() */
 
 void usage(void);
 void parse_conf_file(void);
 void gen_outputs(void);
+
+extern char *crunched_skel[];
 
 
 int
