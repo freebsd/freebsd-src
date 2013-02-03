@@ -129,11 +129,8 @@ f_dialog_input_defaultrouter()
 	#
 	if [ "$( f_route_get_default )" != "$defaultrouter" ]; then
 		f_dialog_clear
-		f_dialog_yesno "$(
-			printf "$msg_activate_default_router" \
-			       "$( f_route_get_default )" "$defaultrouter"
-		)"
-
+		f_yesno "$msg_activate_default_router" \
+		        "$( f_route_get_default )" "$defaultrouter"
 		if [ $? -eq $SUCCESS ]; then
 			local err
 

@@ -432,14 +432,14 @@ f_dialog_input_rcvar()
 
 		# Check for invalid entry (1of2)
 		if ! echo "$_input" | grep -q "^[[:alpha:]_]"; then
-			f_show_msg "$msg_rcvar_must_start_with"
+			f_dialog_msgbox "$msg_rcvar_must_start_with"
 			continue
 		fi
 
 		# Check for invalid entry (2of2)
 		if ! echo "$_input" | grep -q "^[[:alpha:]_][[:alnum:]_]*$"
 		then
-			f_show_msg "$msg_rcvar_contains_invalid_chars"
+			f_dialog_msgbox "$msg_rcvar_contains_invalid_chars"
 			continue
 		fi
 

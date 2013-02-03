@@ -100,7 +100,7 @@ f_dispatch()
 #
 f_script_load()
 {
-	local script="$1" config_file
+	local script="$1" config_file retval=$SUCCESS
 
 	f_dprintf "f_script_load: script=[%s]" "$script"
 	if [ ! "$script" ]; then
@@ -113,9 +113,18 @@ f_script_load()
 		; do
 			[ -e "$script" ] && break
 		done
-	elif [ "$script" = "-" ]; then
+	fi
+
+	local old_interactive=
+	f_getvar $VAR_NONINTERACTIVE old_interactive # save a copy
+
+	# Hint to others that we're running from a script, should they care
+	setvar $VAR_NONINTERACTIVE yes
+
+	if [ "$script" = "-" ]; then
 		f_dprintf "f_script_load: Loading script from stdin"
 		eval "$( cat )"
+		retval=$?
 	else
 		f_dprintf "f_script_load: Loading script \`%s'" "$script"
 		if [ ! -e "$script" ]; then
@@ -123,7 +132,13 @@ f_script_load()
 			return $FAILURE
 		fi
 		. "$script"
+		retval=$?
 	fi
+
+	[ "$old_interactive" ] &&
+		setvar $VAR_NONINTERACTIVE "$old_interactive"
+
+	return $retval
 }
 
 ############################################################ MAIN

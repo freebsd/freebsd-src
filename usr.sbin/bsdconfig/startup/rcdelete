@@ -210,9 +210,7 @@ dialog_menu_delete()
 	[ $# -ge 1 ] || return $FAILURE
 
 	if [ $# -eq 1 ]; then
-		msg=$( printf "$msg_are_you_sure_you_want_to_delete" \
-		              "$delete_vars" )
-		f_dialog_noyes "$msg"
+		f_noyes "$msg_are_you_sure_you_want_to_delete" "$delete_vars"
 		return $?
 	fi
 
@@ -320,7 +318,7 @@ while :; do
 			for var in $delete_vars; do
 				err=$( f_sysrc_delete $var 2>&1 )
 				if [ $? -ne $SUCCESS ]; then
-					f_show_msg "%s\n" "$err"
+					f_dialog_msgbox "$err\n"
 					break
 				fi
 			done

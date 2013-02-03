@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -133,6 +134,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -1149,6 +1152,15 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		; /* If "Self Snoop" is supported, do nothing. */
 	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
+
+		/*
+		 * XXX: Some CPUs fault, hang, or trash the local APIC
+		 * registers if we use CLFLUSH on the local APIC
+		 * range.  The local APIC is always uncached, so we
+		 * don't need to flush for that range anyway.
+		 */
+		if (pmap_kextract(sva) == lapic_paddr)
+			return;
 
 		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence

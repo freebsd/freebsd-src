@@ -20,6 +20,13 @@ LIBNETBSD=	${LIBNETBSDDIR}/libnetbsd.a
 DPADD+=		${LIBNETBSD}
 LDADD+=		${LIBNETBSD}
 
+.if ${MK_NMTREE} != "no"
+LINKS=		${BINDIR}/nmtree ${BINDIR}/mtree
+MLINKS=		nmtree.8 mtree.8
+.endif
+
+CLEANFILES+=	nmtree.8
+
 nmtree.8: mtree.8
 	cp ${.ALLSRC} ${.TARGET}
 

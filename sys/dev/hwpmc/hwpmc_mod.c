@@ -3022,7 +3022,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		}
 
 		nevent = 0;
-		for (ev = PMC_EV_SOFT_FIRST; ev <= PMC_EV_SOFT_LAST; ev++) {
+		for (ev = PMC_EV_SOFT_FIRST; (int)ev <= PMC_EV_SOFT_LAST; ev++) {
 			ps = pmc_soft_ev_acquire(ev);
 			if (ps == NULL)
 				continue;

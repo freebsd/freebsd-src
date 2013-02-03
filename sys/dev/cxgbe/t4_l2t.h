@@ -60,7 +60,7 @@ enum {
 struct l2t_entry {
 	uint16_t state;			/* entry state */
 	uint16_t idx;			/* entry index */
-	uint32_t addr;			/* next hop IP address */
+	uint32_t addr[4];		/* next hop IP or IPv6 address */
 	struct ifnet *ifp;		/* outgoing interface */
 	uint16_t smt_idx;		/* SMT index */
 	uint16_t vlan;			/* VLAN TCI (id: 0-11, prio: 13-15) */
@@ -70,15 +70,17 @@ struct l2t_entry {
 	struct mtx lock;
 	volatile int refcnt;		/* entry reference count */
 	uint16_t hash;			/* hash bucket the entry is on */
+	uint8_t ipv6;			/* entry is for an IPv6 address */
 	uint8_t lport;			/* associated offload logical port */
 	uint8_t dmac[ETHER_ADDR_LEN];	/* next hop's MAC address */
 };
 
 struct l2t_data {
 	struct rwlock lock;
+	u_int l2t_size;
 	volatile int nfree;	/* number of free entries */
 	struct l2t_entry *rover;/* starting point for next allocation */
-	struct l2t_entry l2tab[L2T_SIZE];
+	struct l2t_entry l2tab[];
 };
 
 

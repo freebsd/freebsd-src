@@ -78,8 +78,7 @@ f_dialog_rcedit()
 
 	f_dprintf "%s: [%s]->[%s]" "$var" "$cur_val" "$_input"
 
-	err=$( f_sysrc_set "$var" "$_input" 2>&1 ) ||
-		f_show_msg "$err"
+	err=$( f_sysrc_set "$var" "$_input" 2>&1 ) || f_dialog_msgbox "$err"
 }
 
 ############################################################ MAIN

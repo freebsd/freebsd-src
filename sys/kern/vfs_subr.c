@@ -279,6 +279,8 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 #define VSHOULDFREE(vp) (!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
 #define VSHOULDBUSY(vp) (((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
 
+/* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
+static int vnsz2log;
 
 /*
  * Initialize the vnode management data structures.
@@ -293,6 +295,7 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
 static void
 vntblinit(void *dummy __unused)
 {
+	u_int i;
 	int physvnodes, virtvnodes;
 
 	/*
@@ -332,6 +335,9 @@ vntblinit(void *dummy __unused)
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
 	cv_init(&sync_wakeup, "syncer");
+	for (i = 1; i <= sizeof(struct vnode); i <<= 1)
+		vnsz2log++;
+	vnsz2log--;
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
@@ -1066,6 +1072,14 @@ alloc:
 			vp->v_vflag |= VV_NOKNOTE;
 	}
 	rangelock_init(&vp->v_rl);
+
+	/*
+	 * For the filesystems which do not use vfs_hash_insert(),
+	 * still initialize v_hash to have vfs_hash_index() useful.
+	 * E.g., nullfs uses vfs_hash_index() on the lower vnode for
+	 * its own hashing.
+	 */
+	vp->v_hash = (uintptr_t)vp >> vnsz2log;
 
 	*vpp = vp;
 	return (0);

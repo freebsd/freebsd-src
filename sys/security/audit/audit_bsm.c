@@ -462,7 +462,7 @@ audit_sys_auditon(struct audit_record *ar, struct au_record *rec)
 int
 kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 {
-	struct au_token *tok, *subj_tok;
+	struct au_token *tok, *subj_tok, *jail_tok;
 	struct au_record *rec;
 	au_tid_t tid;
 	struct audit_record *ar;
@@ -475,8 +475,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	rec = kau_open();
 
 	/*
-	 * Create the subject token.
+	 * Create the subject token.  If this credential was jailed be sure to
+	 * generate a zonename token.
 	 */
+	if (ar->ar_jailname[0] != '\0')
+		jail_tok = au_to_zonename(ar->ar_jailname);
+	else
+		jail_tok = NULL;
 	switch (ar->ar_subj_term_addr.at_type) {
 	case AU_IPv4:
 		tid.port = ar->ar_subj_term_addr.at_port;
@@ -1623,11 +1628,15 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		/*
 		 * Write the subject token so it is properly freed here.
 		 */
+		if (jail_tok != NULL)
+			kau_write(rec, jail_tok);
 		kau_write(rec, subj_tok);
 		kau_free(rec);
 		return (BSM_NOAUDIT);
 	}
 
+	if (jail_tok != NULL)
+		kau_write(rec, jail_tok);
 	kau_write(rec, subj_tok);
 	tok = au_to_return32(au_errno_to_bsm(ar->ar_errno), ar->ar_retval);
 	kau_write(rec, tok);  /* Every record gets a return token */

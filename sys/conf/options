@@ -669,6 +669,7 @@ KTR_ALQ			opt_ktr.h
 KTR_MASK		opt_ktr.h
 KTR_CPUMASK		opt_ktr.h
 KTR_COMPILE		opt_global.h
+KTR_BOOT_ENTRIES	opt_global.h
 KTR_ENTRIES		opt_global.h
 KTR_VERBOSE		opt_ktr.h
 WITNESS			opt_global.h
@@ -775,6 +776,8 @@ ATH_ENABLE_11N		opt_ath.h
 ATH_ENABLE_DFS		opt_ath.h
 ATH_EEPROM_FIRMWARE	opt_ath.h
 ATH_ENABLE_RADIOTAP_VENDOR_EXT	opt_ath.h
+ATH_DEBUG_ALQ		opt_ath.h
+ATH_KTR_INTR_DEBUG	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -794,7 +797,7 @@ AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
 AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
-
+AH_INTERRUPT_DEBUGGING	opt_ah.h
 # AR5416 and later interrupt mitigation
 # XXX do not use this for AR9130
 AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -414,6 +414,94 @@ DtCompileCpep (
 
     Status = DtCompileTwoSubtables (List,
                  AcpiDmTableInfoCpep, AcpiDmTableInfoCpep0);
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileCsrt
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile CSRT.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileCsrt (
+    void                    **List)
+{
+    ACPI_STATUS             Status = AE_OK;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    UINT32                  DescriptorCount;
+    UINT32                  GroupLength;
+
+
+    /* Sub-tables (Resource Groups) */
+
+    while (*PFieldList)
+    {
+        /* Resource group subtable */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoCsrt0,
+                    &Subtable, TRUE);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Compute the number of resource descriptors */
+
+        GroupLength =
+            (ACPI_CAST_PTR (ACPI_CSRT_GROUP,
+                Subtable->Buffer))->Length -
+            (ACPI_CAST_PTR (ACPI_CSRT_GROUP,
+                Subtable->Buffer))->SharedInfoLength -
+            sizeof (ACPI_CSRT_GROUP);
+
+        DescriptorCount = (GroupLength  /
+            sizeof (ACPI_CSRT_DESCRIPTOR));
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPushSubtable (Subtable);
+
+        /* Shared info subtable (One per resource group) */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoCsrt1,
+                    &Subtable, TRUE);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+
+        /* Sub-Subtables (Resource Descriptors) */
+
+        while (*PFieldList && DescriptorCount)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoCsrt2,
+                        &Subtable, TRUE);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            ParentTable = DtPeekSubtable ();
+            DtInsertSubtable (ParentTable, Subtable);
+            DescriptorCount--;
+        }
+
+        DtPopSubtable ();
+    }
+
     return (Status);
 }
 

@@ -184,7 +184,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
-	@ln -fs ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
 	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
@@ -309,9 +309,9 @@ _libinstall:
 	    ${_INSTALLFLAGS} lib${LIB}.ld ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .else
 .if ${SHLIBDIR} == ${LIBDIR}
-	ln -fs ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .else
-	ln -fs ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
+	${INSTALL_SYMLINK} ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
 .if exists(${DESTDIR}${LIBDIR}/${SHLIB_NAME})
 	-chflags noschg ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
@@ -331,12 +331,15 @@ _libinstall:
 .endif
 .endif # !defined(INTERNALLIB)
 
+.if !defined(LIBRARIES_ONLY)
 .include <bsd.nls.mk>
 .include <bsd.files.mk>
 .include <bsd.incs.mk>
+.endif
+
 .include <bsd.links.mk>
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 realinstall: _maninstall
 .ORDER: beforeinstall _maninstall
 .endif
@@ -348,7 +351,7 @@ lint: ${SRCS:M*.c}
 	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.if ${MK_MAN} != "no"
+.if ${MK_MAN} != "no" && !defined(LIBRARIES_ONLY)
 .include <bsd.man.mk>
 .endif
 

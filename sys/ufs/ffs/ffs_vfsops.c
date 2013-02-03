@@ -292,7 +292,7 @@ ffs_mount(struct mount *mp)
 				error = ffs_flushfiles(mp, flags, td);
 			}
 			if (error) {
-				vfs_write_resume(mp);
+				vfs_write_resume(mp, 0);
 				return (error);
 			}
 			if (fs->fs_pendingblocks != 0 ||
@@ -309,7 +309,7 @@ ffs_mount(struct mount *mp)
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				fs->fs_ronly = 0;
 				fs->fs_clean = 0;
-				vfs_write_resume(mp);
+				vfs_write_resume(mp, 0);
 				return (error);
 			}
 			if (MOUNTEDSOFTDEP(mp))
@@ -330,7 +330,7 @@ ffs_mount(struct mount *mp)
 			 * Allow the writers to note that filesystem
 			 * is ro now.
 			 */
-			vfs_write_resume(mp);
+			vfs_write_resume(mp, 0);
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
 		    (error = ffs_reload(mp, td, 0)) != 0)
@@ -1294,10 +1294,8 @@ ffs_unmount(mp, mntflags)
 			goto fail;
 		}
 	}
-	if (susp) {
-		vfs_write_resume(mp);
-		vn_start_write(NULL, &mp, V_WAIT);
-	}
+	if (susp)
+		vfs_write_resume(mp, VR_START_WRITE);
 	DROP_GIANT();
 	g_topology_lock();
 	if (ump->um_fsckpid > 0) {
@@ -1329,10 +1327,8 @@ ffs_unmount(mp, mntflags)
 	return (error);
 
 fail:
-	if (susp) {
-		vfs_write_resume(mp);
-		vn_start_write(NULL, &mp, V_WAIT);
-	}
+	if (susp)
+		vfs_write_resume(mp, VR_START_WRITE);
 #ifdef UFS_EXTATTR
 	if (e_restart) {
 		ufs_extattr_uepm_init(&ump->um_extattr);

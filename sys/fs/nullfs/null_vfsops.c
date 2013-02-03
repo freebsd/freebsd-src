@@ -67,15 +67,6 @@ static vfs_vget_t	nullfs_vget;
 static vfs_extattrctl_t	nullfs_extattrctl;
 static vfs_reclaim_lowervp_t nullfs_reclaim_lowervp;
 
-/* Mount options that we support. */
-static const char *nullfs_opts[] = {
-	"cache",
-	"export",
-	"from",
-	"target",
-	NULL
-};
-
 /*
  * Mount null layer
  */
@@ -97,8 +88,6 @@ nullfs_mount(struct mount *mp)
 		return (EPERM);
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
-	if (vfs_filteropt(mp->mnt_optnew, nullfs_opts))
-		return (EINVAL);
 
 	/*
 	 * Update is a no-op

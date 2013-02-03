@@ -15,6 +15,10 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
+.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+CFLAGS+=	-DTARGET_ARM_EABI
+.endif
+
 .if ${TARGET_CPUARCH} == "mips"
 LIB=		gcc
 .endif
@@ -55,10 +59,13 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
+.if ${TARGET_CPUARCH} != "arm" || ${MK_ARM_EABI} == "no"
+# These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
 LIB2FUNCS+= _floatdi${mode} _floatundi${mode}
 .endfor
+.endif
 
 LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
@@ -115,15 +122,14 @@ CFLAGS+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+.if ${MK_ARM_EABI} != "no"
+LIB1ASMFUNCS+=	_addsubdf3 _addsubsf3 _cmpdf2 _cmpsf2 _fixdfsi _fixsfsi \
+		_fixunsdfsi _fixunsdfsi _muldivdf3 _muldivsf3 _udivsi3
 
-# Not now
-#LIB1ASMFUNCS =  _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
-#LIB1ASMFUNCS+=	_call_via_rX _interwork_call_via_rX \
-#	_lshrdi3 _ashrdi3 _ashldi3 \
-#	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
-#	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
-#	_fixsfsi _fixunssfsi _floatdidf _floatdisf
+LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
+.else
+LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+.endif
 .endif
 
 .if ${TARGET_CPUARCH} == mips
@@ -329,6 +335,9 @@ CLEANFILES += cs-*.h option*
 SHLIB_MKMAP      = ${GCCDIR}/mkmap-symver.awk
 SHLIB_MKMAP_OPTS =
 SHLIB_MAPFILES   = ${GCCDIR}/libgcc-std.ver
+.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
+.endif
 VERSION_MAP      = libgcc.map
 
 libgcc.map: ${SHLIB_MKMAP} ${SHLIB_MAPFILES} ${SOBJS} ${OBJS:R:S/$/.So/}

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -349,7 +349,6 @@ ACPI_EXTERN UINT32                      AcpiGbl_DeepestNesting;
  *
  ****************************************************************************/
 
-
 ACPI_EXTERN ACPI_THREAD_STATE          *AcpiGbl_CurrentWalkList;
 
 /* Control method single step flag */
@@ -413,13 +412,15 @@ ACPI_EXTERN UINT32                      AcpiGbl_TraceDbgLayer;
 
 /*****************************************************************************
  *
- * Debugger globals
+ * Debugger and Disassembler globals
  *
  ****************************************************************************/
 
 ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
 #ifdef ACPI_DISASSEMBLER
+
+ACPI_EXTERN BOOLEAN     ACPI_INIT_GLOBAL (AcpiGbl_IgnoreNoopOperator, FALSE);
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;

@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130116: removed long unused directories for .1aout section manpages
+OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
+OLD_FILES+=usr/share/man/en.UTF-8/man1aout
+OLD_DIRS+=usr/share/man/man1aout
+OLD_DIRS+=usr/share/man/cat1aout
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat1aout
+OLD_DIRS+=usr/share/man/en.UTF-8/cat1aout
 # 20121230: libdisk removed
 OLD_FILES+=usr/share/man/man3/libdisk.3.gz usr/include/libdisk.h
 OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a
@@ -1201,12 +1208,6 @@ OLD_FILES+=usr/include/sys/linedisc.h
 OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
 # 20080725: sgtty.h removed
 OLD_FILES+=usr/include/sgtty.h
-# 20080719: sade(8) removed on all but amd64, i386 and sparc64
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386" && \
-    ${TARGET_ARCH} != "sparc64"
-OLD_FILES+=usr/sbin/sade
-OLD_FILES+=usr/share/man/man8/sade.8.gz
-.endif
 # 20080706: bsdlabel(8) removed on powerpc
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=sbin/bsdlabel

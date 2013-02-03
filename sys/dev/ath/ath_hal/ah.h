@@ -941,6 +941,8 @@ typedef struct {
 	int8_t		ss_nf_cal[AH_MAX_CHAINS*2];     /* nf calibrated values for ctl+ext from eeprom */
 	int8_t		ss_nf_pwr[AH_MAX_CHAINS*2];     /* nf pwr values for ctl+ext from eeprom */
 	int32_t		ss_nf_temp_data;	/* temperature data taken during nf scan */
+	int		ss_enabled;
+	int		ss_active;
 } HAL_SPECTRAL_PARAM;
 #define	HAL_SPECTRAL_PARAM_NOVAL	0xFFFF
 #define	HAL_SPECTRAL_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */

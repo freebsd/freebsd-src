@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,13 +70,13 @@
 #define ACPI_SIG_PCCT           "PCCT"      /* Platform Communications Channel Table */
 #define ACPI_SIG_PMTT           "PMTT"      /* Platform Memory Topology Table */
 #define ACPI_SIG_RASF           "RASF"      /* RAS Feature table */
+#define ACPI_SIG_TPM2           "TPM2"      /* Trusted Platform Module 2.0 H/W interface table */
 
 #define ACPI_SIG_S3PT           "S3PT"      /* S3 Performance (sub)Table */
 #define ACPI_SIG_PCCS           "PCC"       /* PCC Shared Memory Region */
 
 /* Reserved table signatures */
 
-#define ACPI_SIG_CSRT           "CSRT"      /* Core System Resources Table */
 #define ACPI_SIG_MATR           "MATR"      /* Memory Address Translation Table */
 #define ACPI_SIG_MSDM           "MSDM"      /* Microsoft Data Management Table */
 #define ACPI_SIG_WPBT           "WPBT"      /* Windows Platform Binary Table */
@@ -646,6 +646,41 @@ enum AcpiRasfStatus
 #define ACPI_RASF_SCI_DOORBELL          (1<<1)
 #define ACPI_RASF_ERROR                 (1<<2)
 #define ACPI_RASF_STATUS                (0x1F<<3)
+
+
+/*******************************************************************************
+ *
+ * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
+ *        Version 3
+ *
+ * Conforms to "TPM 2.0 Hardware Interface Table (TPM2)" 29 November 2011
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_tpm2
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT32                  Flags;
+    UINT64                  ControlAddress;
+    UINT32                  StartMethod;
+
+} ACPI_TABLE_TPM2;
+
+/* Control area structure (not part of table, pointed to by ControlAddress) */
+
+typedef struct acpi_tpm2_control
+{
+    UINT32                  Reserved;
+    UINT32                  Error;
+    UINT32                  Cancel;
+    UINT32                  Start;
+    UINT64                  InterruptControl;
+    UINT32                  CommandSize;
+    UINT64                  CommandAddress;
+    UINT32                  ResponseSize;
+    UINT64                  ResponseAddress;
+
+} ACPI_TPM2_CONTROL;
 
 
 /* Reset to default packing */

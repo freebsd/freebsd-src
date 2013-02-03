@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -474,7 +474,7 @@ ACPI_EXPORT_SYMBOL (AcpiResourceToAddress64)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Walk a resource template for the specified evice to find a
+ * DESCRIPTION: Walk a resource template for the specified device to find a
  *              vendor-defined resource that matches the supplied UUID and
  *              UUID subtype. Returns a ACPI_RESOURCE of type Vendor.
  *
@@ -586,63 +586,45 @@ AcpiRsMatchVendorResource (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiWalkResources
+ * FUNCTION:    AcpiWalkResourceBuffer
  *
- * PARAMETERS:  DeviceHandle    - Handle to the device object for the
- *                                device we are querying
- *              Name            - Method name of the resources we want.
- *                                (METHOD_NAME__CRS, METHOD_NAME__PRS, or
- *                                METHOD_NAME__AEI)
+ * PARAMETERS:  Buffer          - Formatted buffer returned by one of the
+ *                                various Get*Resource functions
  *              UserFunction    - Called for each resource
  *              Context         - Passed to UserFunction
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Retrieves the current or possible resource list for the
- *              specified device. The UserFunction is called once for
- *              each resource in the list.
+ * DESCRIPTION: Walks the input resource template. The UserFunction is called
+ *              once for each resource in the list.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiWalkResources (
-    ACPI_HANDLE                 DeviceHandle,
-    char                        *Name,
+AcpiWalkResourceBuffer (
+    ACPI_BUFFER                 *Buffer,
     ACPI_WALK_RESOURCE_CALLBACK UserFunction,
     void                        *Context)
 {
-    ACPI_STATUS                 Status;
-    ACPI_BUFFER                 Buffer;
+    ACPI_STATUS                 Status = AE_OK;
     ACPI_RESOURCE               *Resource;
     ACPI_RESOURCE               *ResourceEnd;
 
 
-    ACPI_FUNCTION_TRACE (AcpiWalkResources);
+    ACPI_FUNCTION_TRACE (AcpiWalkResourceBuffer);
 
 
     /* Parameter validation */
 
-    if (!DeviceHandle || !UserFunction || !Name ||
-        (!ACPI_COMPARE_NAME (Name, METHOD_NAME__CRS) &&
-         !ACPI_COMPARE_NAME (Name, METHOD_NAME__PRS) &&
-         !ACPI_COMPARE_NAME (Name, METHOD_NAME__AEI)))
+    if (!Buffer || !Buffer->Pointer || !UserFunction)
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Get the _CRS/_PRS/_AEI resource list */
+    /* Buffer contains the resource list and length */
 
-    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiRsGetMethodData (DeviceHandle, Name, &Buffer);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Buffer now contains the resource list */
-
-    Resource = ACPI_CAST_PTR (ACPI_RESOURCE, Buffer.Pointer);
-    ResourceEnd = ACPI_ADD_PTR (ACPI_RESOURCE, Buffer.Pointer, Buffer.Length);
+    Resource = ACPI_CAST_PTR (ACPI_RESOURCE, Buffer->Pointer);
+    ResourceEnd = ACPI_ADD_PTR (ACPI_RESOURCE, Buffer->Pointer, Buffer->Length);
 
     /* Walk the resource list until the EndTag is found (or buffer end) */
 
@@ -682,6 +664,68 @@ AcpiWalkResources (
         Resource = ACPI_NEXT_RESOURCE (Resource);
     }
 
+    return_ACPI_STATUS (Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiWalkResourceBuffer)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiWalkResources
+ *
+ * PARAMETERS:  DeviceHandle    - Handle to the device object for the
+ *                                device we are querying
+ *              Name            - Method name of the resources we want.
+ *                                (METHOD_NAME__CRS, METHOD_NAME__PRS, or
+ *                                METHOD_NAME__AEI)
+ *              UserFunction    - Called for each resource
+ *              Context         - Passed to UserFunction
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Retrieves the current or possible resource list for the
+ *              specified device. The UserFunction is called once for
+ *              each resource in the list.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiWalkResources (
+    ACPI_HANDLE                 DeviceHandle,
+    char                        *Name,
+    ACPI_WALK_RESOURCE_CALLBACK UserFunction,
+    void                        *Context)
+{
+    ACPI_STATUS                 Status;
+    ACPI_BUFFER                 Buffer;
+
+
+    ACPI_FUNCTION_TRACE (AcpiWalkResources);
+
+
+    /* Parameter validation */
+
+    if (!DeviceHandle || !UserFunction || !Name ||
+        (!ACPI_COMPARE_NAME (Name, METHOD_NAME__CRS) &&
+         !ACPI_COMPARE_NAME (Name, METHOD_NAME__PRS) &&
+         !ACPI_COMPARE_NAME (Name, METHOD_NAME__AEI)))
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    /* Get the _CRS/_PRS/_AEI resource list */
+
+    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+    Status = AcpiRsGetMethodData (DeviceHandle, Name, &Buffer);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Walk the resource list and cleanup */
+
+    Status = AcpiWalkResourceBuffer (&Buffer, UserFunction, Context);
     ACPI_FREE (Buffer.Pointer);
     return_ACPI_STATUS (Status);
 }

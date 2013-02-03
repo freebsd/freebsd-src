@@ -93,7 +93,6 @@ int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
-quad_t	maxmbufmem;			/* max mbuf memory */
 pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
@@ -161,6 +160,7 @@ static const char *const vm_bnames[] = {
 	"Bochs",			/* Bochs */
 	"Xen",				/* Xen */
 	"BHYVE",			/* bhyve */
+	"Seabios",			/* KVM */
 	NULL
 };
 
@@ -169,6 +169,7 @@ static const char *const vm_pnames[] = {
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
 	"Parallels Virtual Platform",	/* Parallels VM */
+	"KVM",				/* KVM */
 	NULL
 };
 
@@ -272,7 +273,6 @@ init_param1(void)
 void
 init_param2(long physpages)
 {
-	quad_t realmem;
 
 	/* Base parameters */
 	maxusers = MAXUSERS;
@@ -324,21 +324,12 @@ init_param2(long physpages)
 
 	/*
 	 * XXX: Does the callout wheel have to be so big?
+	 *
+	 * Clip callout to result of previous function of maxusers maximum
+	 * 384.  This is still huge, but acceptable.
 	 */
-	ncallout = 16 + maxproc + maxfiles;
+	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
-
-	/*
-	 * The default limit for all mbuf related memory is 1/2 of all
-	 * available kernel memory (physical or kmem).
-	 * At most it can be 3/4 of available kernel memory.
-	 */
-	realmem = qmin((quad_t)physpages * PAGE_SIZE,
-	    VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS);
-	maxmbufmem = realmem / 2;
-	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
-	if (maxmbufmem > (realmem / 4) * 3)
-		maxmbufmem = (realmem / 4) * 3;
 
 	/*
 	 * The default for maxpipekva is min(1/64 of the kernel address space,

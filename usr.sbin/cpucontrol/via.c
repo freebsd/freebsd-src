@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <fcntl.h>
 #include <err.h>
+#include <errno.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -203,7 +204,9 @@ via_update(const char *dev, const char *path)
 	args.size = data_size;
 	error = ioctl(devfd, CPUCTL_UPDATE, &args);
 	if (error < 0) {
+               error = errno;
 		fprintf(stderr, "failed.\n");
+               errno = error;
 		WARN(0, "ioctl()");
 		goto fail;
 	}

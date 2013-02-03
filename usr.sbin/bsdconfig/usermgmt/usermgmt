@@ -88,6 +88,7 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--help-button                      \
+		--help-label \"\$msg_help\"        \
 		${USE_XDIALOG:+--help \"\"}        \
 		--menu \"\" $size $menu_list       \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD

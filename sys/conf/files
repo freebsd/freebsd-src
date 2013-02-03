@@ -283,6 +283,7 @@ contrib/altq/altq/altq_rio.c		optional altq
 contrib/altq/altq/altq_rmclass.c	optional altq
 contrib/altq/altq/altq_subr.c		optional altq
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
+contrib/dev/acpica/components/debugger/dbconvert.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbexec.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbfileio.c	optional acpi acpi_debug
@@ -324,6 +325,7 @@ contrib/dev/acpica/components/events/evgpe.c		optional acpi
 contrib/dev/acpica/components/events/evgpeblk.c		optional acpi
 contrib/dev/acpica/components/events/evgpeinit.c	optional acpi
 contrib/dev/acpica/components/events/evgpeutil.c	optional acpi
+contrib/dev/acpica/components/events/evhandler.c	optional acpi
 contrib/dev/acpica/components/events/evmisc.c		optional acpi
 contrib/dev/acpica/components/events/evregion.c		optional acpi
 contrib/dev/acpica/components/events/evrgnini.c		optional acpi
@@ -376,6 +378,7 @@ contrib/dev/acpica/components/namespace/nsnames.c	optional acpi
 contrib/dev/acpica/components/namespace/nsobject.c	optional acpi
 contrib/dev/acpica/components/namespace/nsparse.c	optional acpi
 contrib/dev/acpica/components/namespace/nspredef.c	optional acpi
+contrib/dev/acpica/components/namespace/nsprepkg.c	optional acpi
 contrib/dev/acpica/components/namespace/nsrepair.c	optional acpi
 contrib/dev/acpica/components/namespace/nsrepair2.c	optional acpi
 contrib/dev/acpica/components/namespace/nssearch.c	optional acpi
@@ -386,7 +389,9 @@ contrib/dev/acpica/components/namespace/nsxfname.c	optional acpi
 contrib/dev/acpica/components/namespace/nsxfobj.c	optional acpi
 contrib/dev/acpica/components/parser/psargs.c		optional acpi
 contrib/dev/acpica/components/parser/psloop.c		optional acpi
+contrib/dev/acpica/components/parser/psobject.c		optional acpi
 contrib/dev/acpica/components/parser/psopcode.c		optional acpi
+contrib/dev/acpica/components/parser/psopinfo.c		optional acpi
 contrib/dev/acpica/components/parser/psparse.c		optional acpi
 contrib/dev/acpica/components/parser/psscope.c		optional acpi
 contrib/dev/acpica/components/parser/pstree.c		optional acpi
@@ -397,6 +402,7 @@ contrib/dev/acpica/components/resources/rsaddr.c	optional acpi
 contrib/dev/acpica/components/resources/rscalc.c	optional acpi
 contrib/dev/acpica/components/resources/rscreate.c	optional acpi
 contrib/dev/acpica/components/resources/rsdump.c	optional acpi
+contrib/dev/acpica/components/resources/rsdumpinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsio.c		optional acpi
 contrib/dev/acpica/components/resources/rsirq.c		optional acpi
@@ -431,8 +437,10 @@ contrib/dev/acpica/components/utilities/utmisc.c	optional acpi
 contrib/dev/acpica/components/utilities/utmutex.c	optional acpi
 contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
+contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
+contrib/dev/acpica/components/utilities/utstring.c	optional acpi
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
 contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
@@ -638,9 +646,12 @@ dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/altera/avgen/altera_avgen.c		optional altera_avgen
+dev/altera/avgen/altera_avgen_fdt.c	optional altera_avgen fdt
+dev/altera/avgen/altera_avgen_nexus.c	optional altera_avgen
 dev/altera/sdcard/altera_sdcard.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
+dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
@@ -1415,6 +1426,7 @@ dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/isf/isf.c			optional isf
+dev/isf/isf_fdt.c		optional isf fdt
 dev/isf/isf_nexus.c		optional isf
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
@@ -2276,15 +2288,6 @@ dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
-#
-# virtio support
-#
-dev/virtio/pci/virtio_pci.c    optional vtnet
-dev/virtio/virtio.c            optional vtnet
-dev/virtio/virtqueue.c         optional vtnet
-dev/virtio/network/if_vtnet.c  optional vtnet
-dev/virtio/virtio_bus_if.m     optional vtnet
-dev/virtio/virtio_if.m         optional vtnet
 
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci

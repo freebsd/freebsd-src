@@ -1494,7 +1494,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	/* XXX stack use */
 	struct {
 		struct rt_msghdr	rtm;
-		struct sockaddr_inarp	sin;
+		struct sockaddr_in	sin;
 		struct sockaddr_dl	sdl;
 	} arpc;
 	int error, i;
@@ -1515,7 +1515,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
-			 *  struct sockaddr_inarp; (IPv4)
+			 *  struct sockaddr_in; (IPv4)
 			 *  struct sockaddr_dl;
 			 */
 			bzero(&arpc, sizeof(arpc));
@@ -1529,12 +1529,8 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			arpc.sin.sin_addr.s_addr = SIN(lle)->sin_addr.s_addr;
 
 			/* publish */
-			if (lle->la_flags & LLE_PUB) {
+			if (lle->la_flags & LLE_PUB)
 				arpc.rtm.rtm_flags |= RTF_ANNOUNCE;
-				/* proxy only */
-				if (lle->la_flags & LLE_PROXY)
-					arpc.sin.sin_other = SIN_PROXY;
-			}
 
 			sdl = &arpc.sdl;
 			sdl->sdl_family = AF_LINK;

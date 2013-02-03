@@ -1476,7 +1476,7 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 	struct vattr va;
 
 	VATTR_NULL(&va);
-	getnanotime(&va.va_mtime);
+	vfs_timestamp(&va.va_mtime);
 	(void) VOP_SETATTR(vp, &va, cred);
 	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
 }
@@ -2248,7 +2248,6 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 {
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
-	struct timeval curtime;
 	int error = 0, toclient = 0;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
@@ -2307,9 +2306,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			toclient = 1;
 			break;
 		case NFSV3SATTRTIME_TOSERVER:
-			NFSGETTIME(&curtime);
-			nvap->na_atime.tv_sec = curtime.tv_sec;
-			nvap->na_atime.tv_nsec = curtime.tv_usec * 1000;
+			vfs_timestamp(&nvap->na_atime);
 			nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
 		};
@@ -2321,9 +2318,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			nvap->na_vaflags &= ~VA_UTIMES_NULL;
 			break;
 		case NFSV3SATTRTIME_TOSERVER:
-			NFSGETTIME(&curtime);
-			nvap->na_mtime.tv_sec = curtime.tv_sec;
-			nvap->na_mtime.tv_nsec = curtime.tv_usec * 1000;
+			vfs_timestamp(&nvap->na_mtime);
 			if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
@@ -2353,7 +2348,6 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 	u_char *cp, namestr[NFSV4_SMALLSTR + 1];
 	uid_t uid;
 	gid_t gid;
-	struct timeval curtime;
 
 	error = nfsrv_getattrbits(nd, attrbitp, NULL, &retnotsup);
 	if (error)
@@ -2488,9 +2482,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			    toclient = 1;
 			    attrsum += NFSX_V4TIME;
 			} else {
-			    NFSGETTIME(&curtime);
-			    nvap->na_atime.tv_sec = curtime.tv_sec;
-			    nvap->na_atime.tv_nsec = curtime.tv_usec * 1000;
+			    vfs_timestamp(&nvap->na_atime);
 			    nvap->na_vaflags |= VA_UTIMES_NULL;
 			}
 			break;
@@ -2515,9 +2507,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			    nvap->na_vaflags &= ~VA_UTIMES_NULL;
 			    attrsum += NFSX_V4TIME;
 			} else {
-			    NFSGETTIME(&curtime);
-			    nvap->na_mtime.tv_sec = curtime.tv_sec;
-			    nvap->na_mtime.tv_nsec = curtime.tv_usec * 1000;
+			    vfs_timestamp(&nvap->na_mtime);
 			    if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			}

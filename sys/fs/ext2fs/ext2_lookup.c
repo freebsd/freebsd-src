@@ -812,7 +812,7 @@ ext2_direnter(ip, dvp, cnp)
 
 #ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & SAVENAME) == 0)
-		panic("direnter: missing name");
+		panic("ext2_direnter: missing name");
 #endif
 	dp = VTOI(dvp);
 	newdir.e2d_ino = ip->i_number;

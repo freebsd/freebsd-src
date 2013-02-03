@@ -27,6 +27,9 @@
  * usb_dev.c - An abstraction layer for creating devices under /dev/...
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -75,6 +78,7 @@
 #include <sys/syscallsubr.h>
 
 #include <machine/stdarg.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_UGEN
 

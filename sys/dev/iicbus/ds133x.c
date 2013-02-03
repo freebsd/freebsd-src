@@ -347,7 +347,7 @@ static device_method_t ds133x_methods[] = {
 	DEVMETHOD(clock_gettime,	ds133x_gettime),
 	DEVMETHOD(clock_settime,	ds133x_settime),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t ds133x_driver = {

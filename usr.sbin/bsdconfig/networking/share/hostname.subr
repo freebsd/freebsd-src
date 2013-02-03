@@ -201,10 +201,8 @@ f_dialog_input_hostname()
 			f_show_msg "$msg_activate_hostname_x11warning" \
 			           "$( hostname )" "$hostname"
 		else
-			f_dialog_yesno "$(
-				printf "$msg_activate_hostname" \
-				       "$( hostname )" "$hostname" \
-			)" \
+			f_yesno "$msg_activate_hostname" \
+			        "$( hostname )" "$hostname" \
 			&& hostname "$hostname"
 		fi
 	fi

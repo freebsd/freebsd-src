@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -237,6 +237,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Device[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Addr[];
@@ -340,6 +341,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpa[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUefi[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWaet[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdat[];

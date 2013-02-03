@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20121114
+#define ACPI_CA_VERSION                 0x20130117
 
 #include <contrib/dev/acpica/include/acconfig.h>
 #include <contrib/dev/acpica/include/actypes.h>
@@ -616,6 +616,12 @@ ACPI_STATUS
 AcpiGetEventResources (
     ACPI_HANDLE             DeviceHandle,
     ACPI_BUFFER             *RetBuffer);
+
+ACPI_STATUS
+AcpiWalkResourceBuffer (
+    ACPI_BUFFER                 *Buffer,
+    ACPI_WALK_RESOURCE_CALLBACK UserFunction,
+    void                        *Context);
 
 ACPI_STATUS
 AcpiWalkResources (

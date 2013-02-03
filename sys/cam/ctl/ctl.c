@@ -2257,10 +2257,30 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				 */
 				mtx_unlock(&softc->ctl_lock);
 
-				if (cmd == CTL_ENABLE_PORT)
+				if (cmd == CTL_ENABLE_PORT) {
+					struct ctl_lun *lun;
+
+					STAILQ_FOREACH(lun, &softc->lun_list,
+						       links) {
+						fe->lun_enable(fe->targ_lun_arg,
+						    lun->target,
+						    lun->lun);
+					}
+
 					ctl_frontend_online(fe);
-				else if (cmd == CTL_DISABLE_PORT)
+				} else if (cmd == CTL_DISABLE_PORT) {
+					struct ctl_lun *lun;
+
 					ctl_frontend_offline(fe);
+
+					STAILQ_FOREACH(lun, &softc->lun_list,
+						       links) {
+						fe->lun_disable(
+						    fe->targ_lun_arg,
+						    lun->target,
+						    lun->lun);
+					}
+				}
 
 				mtx_lock(&softc->ctl_lock);
 

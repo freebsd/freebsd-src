@@ -127,7 +127,7 @@ ext2_mount(struct mount *mp)
 
 	vfs_getopt(opts, "fspath", (void **)&path, NULL);
 	/* Double-check the length of path.. */
-	if (strlen(path) >= MAXMNTLEN - 1)
+	if (strlen(path) >= MAXMNTLEN)
 		return (ENAMETOOLONG);
 
 	fspec = NULL;
@@ -318,12 +318,12 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	int i;
 	int logic_sb_block = 1;	/* XXX for now */
 	struct buf *bp;
+	uint32_t e2fs_descpb;
 
 	fs->e2fs_bsize = EXT2_MIN_BLOCK_SIZE << es->e2fs_log_bsize;
 	fs->e2fs_bshift = EXT2_MIN_BLOCK_LOG_SIZE + es->e2fs_log_bsize;
 	fs->e2fs_fsbtodb = es->e2fs_log_bsize + 1;
 	fs->e2fs_qbmask = fs->e2fs_bsize - 1;
-	fs->e2fs_blocksize_bits = es->e2fs_log_bsize + 10;
 	fs->e2fs_fsize = EXT2_MIN_FRAG_SIZE << es->e2fs_log_fsize;
 	if (fs->e2fs_fsize)
 		fs->e2fs_fpb = fs->e2fs_bsize / fs->e2fs_fsize;
@@ -331,10 +331,8 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	fs->e2fs_fpg = es->e2fs_fpg;
 	fs->e2fs_ipg = es->e2fs_ipg;
 	if (es->e2fs_rev == E2FS_REV0) {
-		fs->e2fs_first_inode = EXT2_FIRSTINO;
 		fs->e2fs_isize = E2FS_REV0_INODE_SIZE ;
 	} else {
-		fs->e2fs_first_inode = es->e2fs_first_ino;
 		fs->e2fs_isize = es->e2fs_inode_size;
 
 		/*
@@ -357,12 +355,11 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg /fs->e2fs_ipb;
-	fs->e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
 	/* s_resuid / s_resgid ? */
 	fs->e2fs_gcount = (es->e2fs_bcount - es->e2fs_first_dblock +
 	    EXT2_BLOCKS_PER_GROUP(fs) - 1) / EXT2_BLOCKS_PER_GROUP(fs);
-	db_count = (fs->e2fs_gcount + EXT2_DESC_PER_BLOCK(fs) - 1) /
-	    EXT2_DESC_PER_BLOCK(fs);
+	e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
+	db_count = (fs->e2fs_gcount + e2fs_descpb - 1) / e2fs_descpb;
 	fs->e2fs_gdbcount = db_count;
 	fs->e2fs_gd = malloc(db_count * fs->e2fs_bsize,
 	    M_EXT2MNT, M_WAITOK);
@@ -766,7 +763,7 @@ ext2_statfs(struct mount *mp, struct statfs *sbp)
 	ump = VFSTOEXT2(mp);
 	fs = ump->um_e2fs;
 	if (fs->e2fs->e2fs_magic != E2FS_MAGIC)
-		panic("ext2fs_statfs");
+		panic("ext2_statfs");
 
 	/*
 	 * Compute the overhead (FS structures)

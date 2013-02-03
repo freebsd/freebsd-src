@@ -28,6 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
 
+#ifdef	IEEE80211_SUPPORT_SUPERG
+
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/mbuf.h>   
@@ -921,3 +923,5 @@ superg_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return 0;
 }
 IEEE80211_IOCTL_SET(superg, superg_ioctl_set80211);
+
+#endif	/* IEEE80211_SUPPORT_SUPERG */

@@ -309,7 +309,7 @@ static device_method_t em_methods[] = {
 	DEVMETHOD(device_shutdown, em_shutdown),
 	DEVMETHOD(device_suspend, em_suspend),
 	DEVMETHOD(device_resume, em_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t em_driver = {

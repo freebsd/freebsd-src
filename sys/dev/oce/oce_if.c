@@ -108,7 +108,8 @@ static device_method_t oce_dispatch[] = {
 	DEVMETHOD(device_attach, oce_attach),
 	DEVMETHOD(device_detach, oce_detach),
 	DEVMETHOD(device_shutdown, oce_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t oce_driver = {

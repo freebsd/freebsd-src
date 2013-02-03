@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangbasic
 
 SRCDIR=	tools/clang/lib/Basic
