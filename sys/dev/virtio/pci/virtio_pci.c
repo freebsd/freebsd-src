@@ -896,11 +896,9 @@ vtpci_alloc_interrupt(struct vtpci_softc *sc, int rid, int flags,
 static int
 vtpci_alloc_intr_resources(struct vtpci_softc *sc)
 {
-	device_t dev;
 	struct vtpci_interrupt *intr;
 	int i, rid, flags, nvq_intrs, error;
 
-	dev = sc->vtpci_dev;
 	rid = 0;
 	flags = RF_ACTIVE;
 
