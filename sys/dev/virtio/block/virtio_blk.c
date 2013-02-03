@@ -657,7 +657,7 @@ vtblk_write_cache_enabled(struct vtblk_softc *sc,
 	TUNABLE_INT_FETCH(buf, &wc);
 
 	if (wc != -1) {
-		/* Set either writeback or writethrough mode. */
+		/* Set either writeback (1) or writethrough (0) mode. */
 		blkcfg->writeback = !!wc;
 		virtio_write_dev_config_1(dev,
 		    offsetof(struct virtio_blk_config, writeback),
