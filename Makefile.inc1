@@ -27,6 +27,8 @@
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
+#	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
+#	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
 
 #
 # The intended user-driven targets are:
@@ -245,7 +247,7 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 		COMPILER_TYPE=${COMPILER_TYPE}
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
@@ -255,7 +257,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
@@ -288,7 +290,7 @@ WMAKE_COMPILER_TYPE=	gcc
 WMAKE_COMPILER_TYPE=	clang
 .endif
 WMAKEENV+=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
-WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
+WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
@@ -378,7 +380,7 @@ IMAKE_MTREE=	MTREE_CMD="nmtree ${MTREEFLAGS}"
 
 # kernel stage
 KMAKEENV=	${WMAKEENV}
-KMAKE=		${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME}
+KMAKE=		${KMAKEENV} ${MAKE} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 
 #
 # buildworld
