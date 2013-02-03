@@ -248,14 +248,16 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	unsigned char data;
 	const char *weirdreason = NULL;
 	void *buf;
+	Elf_Half shnum;
 
 	rv = 0;
 	if (xreadatoff(fd, &ehdr, 0, sizeof ehdr, fn) != sizeof ehdr)
 		goto bad;
 
 	data = ehdr.e_ident[EI_DATA];
+	shnum = xe16toh(ehdr.e_shnum);
 
-	shdrsize = xe16toh(ehdr.e_shnum) * xe16toh(ehdr.e_shentsize);
+	shdrsize = shnum * xe16toh(ehdr.e_shentsize);
 	if ((shdrp = xmalloc(shdrsize, fn, "section header table")) == NULL)
 		goto bad;
 	if (xreadatoff(fd, shdrp, xewtoh(ehdr.e_shoff), shdrsize, fn) !=
@@ -264,7 +266,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 
 	symtabshdr = strtabshdr = shstrtabshdr = NULL;
 	weird = 0;
-	for (i = 0; i < xe16toh(ehdr.e_shnum); i++) {
+	for (i = 0; i < shnum; i++) {
 		switch (xe32toh(shdrp[i].sh_type)) {
 		case SHT_SYMTAB:
 			if (symtabshdr != NULL) {
@@ -300,7 +302,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	/*
 	 * sort section layout table by offset
 	 */
-	layoutp = xmalloc(sizeof(struct shlayout) * (xe16toh(ehdr.e_shnum) + 1),
+	layoutp = xmalloc((shnum + 1) * sizeof(struct shlayout),
 	    fn, "layout table");
 	if (layoutp == NULL)
 		goto bad;
@@ -309,12 +311,12 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	shdrshdr.sh_offset = ehdr.e_shoff;
 	shdrshdr.sh_size = htoxew(shdrsize);
 	shdrshdr.sh_addralign = htoxew(ELFSIZE / 8);
-	layoutp[xe16toh(ehdr.e_shnum)].shdr = &shdrshdr;
+	layoutp[shnum].shdr = &shdrshdr;
 
 	/* insert and sort normal section headers */
-	for (i = xe16toh(ehdr.e_shnum) - 1; i >= 0; i--) {
+	for (i = shnum; i-- != 0;) {
 		l = i + 1;
-		r = xe16toh(ehdr.e_shnum);
+		r = shnum;
 		while (l <= r) {
 			m = ( l + r) / 2;
 			if (xewtoh(shdrp[i].sh_offset) >
@@ -332,6 +334,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 		layoutp[r].shdr = &shdrp[i];
 		layoutp[r].bufp = NULL;
 	}
+	++shnum;
 
 	/*
 	 * load up everything we need
@@ -347,7 +350,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 
 	/* we need symtab, strtab, and everything behind strtab */
 	strtabidx = INT_MAX;
-	for (i = 0; i < xe16toh(ehdr.e_shnum) + 1; i++) {
+	for (i = 0; i < shnum; i++) {
 		if (layoutp[i].shdr == &shdrshdr) {
 			/* not load section header again */
 			layoutp[i].bufp = shdrp;
@@ -430,7 +433,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	/*
 	 * update section header table in ascending order of offset
 	 */
-	for (i = strtabidx + 1; i < xe16toh(ehdr.e_shnum) + 1; i++) {
+	for (i = strtabidx + 1; i < shnum; i++) {
 		Elf_Off off, align;
 		off = xewtoh(layoutp[i - 1].shdr->sh_offset) +
 		    xewtoh(layoutp[i - 1].shdr->sh_size);
@@ -442,7 +445,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	/*
 	 * write data to the file in descending order of offset
 	 */
-	for (i = xe16toh(ehdr.e_shnum); i >= 0; i--) {
+	for (i = shnum; i-- != 0;) {
 		if (layoutp[i].shdr == strtabshdr) {
 			/* new string table */
 			buf = nstrtabp;
@@ -477,7 +480,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 
 out:
 	if (layoutp != NULL) {
-		for (i = 0; i < xe16toh(ehdr.e_shnum) + 1; i++) {
+		for (i = 0; i < shnum; i++) {
 			if (layoutp[i].bufp != NULL)
 				free(layoutp[i].bufp);
 		}
