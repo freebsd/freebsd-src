@@ -50,9 +50,6 @@ METHOD int alloc_virtqueues {
 	int		nvqs;
 	struct vq_alloc_info *info;
 };
-HEADER {
-#define VIRTIO_ALLOC_VQS_DISABLE_MSIX 0x1
-};
 
 METHOD int setup_intr {
 	device_t	dev;

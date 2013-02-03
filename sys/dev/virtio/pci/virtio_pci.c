@@ -486,9 +486,6 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	if (nvqs <= 0)
 		return (EINVAL);
 
-	if (flags & VIRTIO_ALLOC_VQS_DISABLE_MSIX)
-		sc->vtpci_flags |= VTPCI_FLAG_NO_MSIX;
-
 	sc->vtpci_vqs = malloc(nvqs * sizeof(struct vtpci_virtqueue),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vtpci_vqs == NULL)
