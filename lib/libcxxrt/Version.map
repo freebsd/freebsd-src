@@ -208,7 +208,6 @@ CXXABI_1.3 {
         "typeinfo name for __cxxabiv1::__vmi_class_type_info";
 
         "std::type_info::type_info(std::type_info const&)";
-        "std::type_info::type_info(std::type_info const&)";
         "std::type_info::operator=(std::type_info const&)";
 
 
@@ -238,18 +237,16 @@ CXXRT_1.0 {
         "std::type_info::operator!=(std::type_info const&) const";
         "std::bad_cast::bad_cast(std::bad_cast const&)";
         "std::bad_cast::bad_cast()";
-        "std::bad_cast::bad_cast(std::bad_cast const&)";
-        "std::bad_cast::bad_cast()";
         "std::bad_cast::operator=(std::bad_cast const&)";
-        "std::exception::exception(std::exception const&)";
-        "std::exception::exception()";
+        "std::bad_typeid::bad_typeid(std::bad_typeid const&)";
+        "std::bad_typeid::bad_typeid()";
+        "std::bad_typeid::operator=(std::bad_typeid const&)";
         "std::exception::exception(std::exception const&)";
         "std::exception::exception()";
         "std::exception::operator=(std::exception const&)";
-
-
-
-
+        "std::bad_alloc::bad_alloc(std::bad_alloc const&)";
+        "std::bad_alloc::bad_alloc()";
+        "std::bad_alloc::operator=(std::bad_alloc const&)";
 
     };
     __cxa_allocate_dependent_exception;
@@ -281,15 +278,16 @@ GLIBCXX_3.4 {
 
         "std::type_info::~type_info()";
         "std::bad_cast::~bad_cast()";
+        "std::bad_typeid::~bad_typeid()";
         "std::exception::~exception()";
+        "std::bad_alloc::~bad_alloc()";
+
+        "std::exception::what() const";
 
         std::set_new_handler*;
         std::set_terminate*;
         std::set_unexpected*;
-        std::exception*;
-        std::bad_alloc;
-        std::bad_typeid;
-        std::type_info*;
+        std::type_info::__*;
 
         "vtable for std::bad_alloc";
         "vtable for std::bad_cast";
@@ -299,10 +297,10 @@ GLIBCXX_3.4 {
 
         "typeinfo for std::bad_alloc";
         "typeinfo for std::bad_typeid";
-        "typeinfo for std::exception";
         "typeinfo for std::bad_cast";
         "typeinfo for std::exception";
         "typeinfo for std::type_info";
+        "typeinfo name for std::bad_alloc";
         "typeinfo name for std::bad_typeid";
         "typeinfo name for std::bad_cast";
         "typeinfo name for std::exception";
