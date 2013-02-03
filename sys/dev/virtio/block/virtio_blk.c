@@ -725,8 +725,9 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_TOPOLOGY)) {
 		dp->d_stripesize = dp->d_sectorsize *
 		    (1 << blkcfg->topology.physical_block_exp);
-		dp->d_stripeoffset = dp->d_sectorsize *
-		    blkcfg->topology.alignment_offset;
+		dp->d_stripeoffset = (dp->d_stripesize -
+		    blkcfg->topology.alignment_offset * dp->d_sectorsize) %
+		    dp->d_stripesize;
 	}
 
 	if (vtblk_write_cache_enabled(sc, blkcfg) != 0)
