@@ -138,6 +138,7 @@ NXHERE nhere			# fd<<!
 	next	  nodeptr		# next redirection in list
 	fd	  int			# file descriptor being redirected
 	doc	  nodeptr		# input to command (NARG node)
+	expdoc    temp	char *expdoc	# actual document (for NXHERE)
 
 NNOT nnot			# ! command  (actually pipeline)
 	type	int

@@ -92,6 +92,7 @@ static void evalfor(union node *, int);
 static union node *evalcase(union node *);
 static void evalsubshell(union node *, int);
 static void evalredir(union node *, int);
+static void exphere(union node *, struct arglist *);
 static void expredir(union node *);
 static void evalpipe(union node *);
 static int is_valid_fast_cmdsubst(union node *n);
@@ -488,6 +489,37 @@ evalredir(union node *n, int flags)
 }
 
 
+static void
+exphere(union node *redir, struct arglist *fn)
+{
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
+	struct localvar *savelocalvars;
+	int need_longjmp = 0;
+
+	redir->nhere.expdoc = nullstr;
+	savelocalvars = localvars;
+	localvars = NULL;
+	forcelocal++;
+	savehandler = handler;
+	if (setjmp(jmploc.loc))
+		need_longjmp = exception != EXERROR && exception != EXEXEC;
+	else {
+		handler = &jmploc;
+		expandarg(redir->nhere.doc, fn, 0);
+		redir->nhere.expdoc = fn->list->text;
+		INTOFF;
+	}
+	handler = savehandler;
+	forcelocal--;
+	poplocalvars();
+	localvars = savelocalvars;
+	if (need_longjmp)
+		longjmp(handler->loc, 1);
+	INTON;
+}
+
+
 /*
  * Compute the names of the files in a redirection list.
  */
@@ -515,6 +547,9 @@ expredir(union node *n)
 				expandarg(redir->ndup.vname, &fn, EXP_TILDE | EXP_REDIR);
 				fixredir(redir, fn.list->text, 1);
 			}
+			break;
+		case NXHERE:
+			exphere(redir, &fn);
 			break;
 		}
 	}
