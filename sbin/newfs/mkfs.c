@@ -263,6 +263,7 @@ restart:
 	}
 	sblock.fs_fsbtodb = ilog2(sblock.fs_fsize / sectorsize);
 	sblock.fs_size = fssize = dbtofsb(&sblock, fssize);
+	sblock.fs_providersize = dbtofsb(&sblock, mediasize / sectorsize);
 
 	/*
 	 * Before the filesystem is finally initialized, mark it
