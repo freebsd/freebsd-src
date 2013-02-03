@@ -518,6 +518,9 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		sc->vtpci_nvqs++;
 	}
 
+	if (error)
+		vtpci_free_virtqueues(sc);
+
 	return (error);
 }
 
@@ -1169,10 +1172,13 @@ static void
 vtpci_free_virtqueues(struct vtpci_softc *sc)
 {
 	struct vtpci_virtqueue *vqx;
-	int i;
+	int idx;
 
-	for (i = 0; i < sc->vtpci_nvqs; i++) {
-		vqx = &sc->vtpci_vqs[i];
+	for (idx = 0; idx < sc->vtpci_nvqs; idx++) {
+		vqx = &sc->vtpci_vqs[idx];
+
+		vtpci_select_virtqueue(sc, idx);
+		vtpci_write_config_4(sc, VIRTIO_PCI_QUEUE_PFN, 0);
 
 		virtqueue_free(vqx->vtv_vq);
 		vqx->vtv_vq = NULL;
