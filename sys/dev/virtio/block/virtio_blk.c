@@ -940,7 +940,7 @@ vtblk_read_config(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 
 	/* The capacity is always available. */
 	virtio_read_device_config(dev, offsetof(struct virtio_blk_config,
-	    capacity), &blkcfg->capacity, 8);
+	    capacity), &blkcfg->capacity, sizeof(blkcfg->capacity));
 
 	/* Read the configuration if the feature was negotiated. */
 	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_SIZE_MAX, size_max, blkcfg);
