@@ -186,15 +186,16 @@ struct {
  */
 static uma_zone_t mt_zone;
 
-static vm_offset_t vm_min_kernel_address = VM_MIN_KERNEL_ADDRESS;
-SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
-    &vm_min_kernel_address, 0, "Min kernel address");
+SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD, NULL,
+    VM_MIN_KERNEL_ADDRESS, "Min kernel address");
 
-#ifndef __sparc64__
-static vm_offset_t vm_max_kernel_address = VM_MAX_KERNEL_ADDRESS;
-#endif
 SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
-    &vm_max_kernel_address, 0, "Max kernel address");
+#ifndef __sparc64__
+    NULL, VM_MAX_KERNEL_ADDRESS,
+#else
+    &vm_max_kernel_address, 0,
+#endif
+    "Max kernel address");
 
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
@@ -591,7 +592,6 @@ free(void *addr, struct malloc_type *mtp)
 	if (slab == NULL)
 		panic("free: address %p(%p) has not been allocated.\n",
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
-
 
 	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
 #ifdef INVARIANTS
