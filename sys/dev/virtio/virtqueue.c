@@ -417,8 +417,6 @@ int
 virtqueue_intr_filter(struct virtqueue *vq)
 {
 
-	if (__predict_false(vq->vq_intrhand == NULL))
-		return (0);
 	if (vq->vq_used_cons_idx == vq->vq_ring.used->idx)
 		return (0);
 
@@ -431,8 +429,7 @@ void
 virtqueue_intr(struct virtqueue *vq)
 {
 
-	if (__predict_true(vq->vq_intrhand != NULL))
-		vq->vq_intrhand(vq->vq_intrhand_arg);
+	vq->vq_intrhand(vq->vq_intrhand_arg);
 }
 
 int

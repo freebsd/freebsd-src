@@ -1252,8 +1252,10 @@ vtpci_legacy_intr(void *xsc)
 		vtpci_config_intr(sc);
 
 	if (isr & VIRTIO_PCI_ISR_INTR) {
-		for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-			virtqueue_intr(vqx->vtv_vq);
+		for (i = 0; i < sc->vtpci_nvqs; i++, vqx++) {
+			if (vqx->vtv_no_intr == 0)
+				virtqueue_intr(vqx->vtv_vq);
+		}
 	}
 }
 
@@ -1268,8 +1270,10 @@ vtpci_vq_shared_intr_filter(void *xsc)
 	sc = xsc;
 	vqx = &sc->vtpci_vqs[0];
 
-	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-		rc |= virtqueue_intr_filter(vqx->vtv_vq);
+	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++) {
+		if (vqx->vtv_no_intr == 0)
+			rc |= virtqueue_intr_filter(vqx->vtv_vq);
+	}
 
 	return (rc ? FILTER_SCHEDULE_THREAD : FILTER_STRAY);
 }
@@ -1284,8 +1288,10 @@ vtpci_vq_shared_intr(void *xsc)
 	sc = xsc;
 	vqx = &sc->vtpci_vqs[0];
 
-	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++)
-		virtqueue_intr(vqx->vtv_vq);
+	for (i = 0; i < sc->vtpci_nvqs; i++, vqx++) {
+		if (vqx->vtv_no_intr == 0)
+			virtqueue_intr(vqx->vtv_vq);
+	}
 }
 
 static int
