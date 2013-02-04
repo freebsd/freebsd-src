@@ -198,7 +198,7 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
     sysctl_debug_ktr_mask, "IU",
     "Bitmask of KTR event classes for which logging is enabled");
 
-#if KTR_ENTRIES != KTR_BOOT_ENTRIES
+#if KTR_ENTRIES > KTR_BOOT_ENTRIES
 /*
  * A simplified version of sysctl_debug_ktr_entries.
  * No need to care about SMP, scheduling, etc.
