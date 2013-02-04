@@ -947,7 +947,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 		vap->iv_stats.is_mesh_fwd_disabled++;
 		return;
 	}
-	mcopy = m_dup(m, M_DONTWAIT);
+	mcopy = m_dup(m, M_NOWAIT);
 	if (mcopy == NULL) {
 		IEEE80211_NOTE_FRAME(vap, IEEE80211_MSG_MESH, wh,
 		    "%s", "frame not fwd'd, cannot dup");
@@ -1178,7 +1178,7 @@ mesh_recv_indiv_data_to_fwrd(struct ieee80211vap *vap, struct mbuf *m,
 
 /*
  * Verifies transmitter, updates lifetime, precursor list and process data
- * locally, if data is is proxy with AE = 10 it could mean data should go
+ * locally, if data is proxy with AE = 10 it could mean data should go
  * on another mesh path or data should be forwarded to the DS.
  *
  * > 0 means we have forwarded data and no need to process locally

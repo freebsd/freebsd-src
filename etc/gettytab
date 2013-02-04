@@ -96,7 +96,7 @@ local.9600|CLOCAL tty @ 9600 Bd:\
 	:o0#0x00000007:o1#0x00000002:o2#0x00000007:\
 	:i0#0x00000704:i1#0x00000000:i2#0x00000704:\
 	:l0#0x000005cf:l1#0x00000000:l2#0x000005cf:\
-	:sp#9600:
+	:sp#9600:np:
 
 #
 # Dial in rotary tables, speed selection via 'break'

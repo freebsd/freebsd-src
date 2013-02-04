@@ -33,13 +33,15 @@
 //  H -> SEL
 //  a -> __builtin_va_list
 //  A -> "reference" to __builtin_va_list
-//  V -> Vector, following num elements and a base type.
+//  V -> Vector, followed by the number of elements and the base type.
+//  E -> ext_vector, followed by the number of elements and the base type.
 //  X -> _Complex, followed by the base type.
 //  Y -> ptrdiff_t
 //  P -> FILE
 //  J -> jmp_buf
 //  SJ -> sigjmp_buf
 //  K -> ucontext_t
+//  p -> pid_t
 //  . -> "...".  This may only occur at the end of the function list.
 //
 // Types may be prefixed with the following modifiers:
@@ -375,9 +377,9 @@ BUILTIN(__builtin_ctz  , "iUi"  , "nc")
 BUILTIN(__builtin_ctzl , "iULi" , "nc")
 BUILTIN(__builtin_ctzll, "iULLi", "nc")
 // TODO: int ctzimax(uintmax_t)
-BUILTIN(__builtin_ffs  , "iUi"  , "nc")
-BUILTIN(__builtin_ffsl , "iULi" , "nc")
-BUILTIN(__builtin_ffsll, "iULLi", "nc")
+BUILTIN(__builtin_ffs  , "ii"  , "nc")
+BUILTIN(__builtin_ffsl , "iLi" , "nc")
+BUILTIN(__builtin_ffsll, "iLLi", "nc")
 BUILTIN(__builtin_parity  , "iUi"  , "nc")
 BUILTIN(__builtin_parityl , "iULi" , "nc")
 BUILTIN(__builtin_parityll, "iULLi", "nc")
@@ -387,6 +389,7 @@ BUILTIN(__builtin_popcountll, "iULLi", "nc")
 
 // FIXME: These type signatures are not correct for targets with int != 32-bits
 // or with ULL != 64-bits.
+BUILTIN(__builtin_bswap16, "UsUs", "nc")
 BUILTIN(__builtin_bswap32, "UiUi", "nc")
 BUILTIN(__builtin_bswap64, "ULLiULLi", "nc")
 
@@ -475,7 +478,9 @@ BUILTIN(__builtin___vprintf_chk, "iicC*a", "FP:1:")
 
 BUILTIN(__builtin_expect, "LiLiLi"   , "nc")
 BUILTIN(__builtin_prefetch, "vvC*.", "nc")
+BUILTIN(__builtin_readcyclecounter, "ULLi", "n")
 BUILTIN(__builtin_trap, "v", "nr")
+BUILTIN(__builtin_debugtrap, "v", "n")
 BUILTIN(__builtin_unreachable, "v", "nr")
 BUILTIN(__builtin_shufflevector, "v."   , "nc")
 BUILTIN(__builtin_alloca, "v*z"   , "n")
@@ -725,11 +730,15 @@ LIBBUILTIN(strndup, "c*cC*z",     "f",     "string.h", ALL_LANGUAGES)
 LIBBUILTIN(index, "c*cC*i",       "f",     "strings.h", ALL_LANGUAGES)
 LIBBUILTIN(rindex, "c*cC*i",      "f",     "strings.h", ALL_LANGUAGES)
 LIBBUILTIN(bzero, "vv*z",         "f",     "strings.h", ALL_LANGUAGES)
+// In some systems str[n]casejmp is a macro that expands to _str[n]icmp.
+// We undefine then here to avoid wrong name.
+#undef strcasecmp
+#undef strncasecmp
 LIBBUILTIN(strcasecmp, "icC*cC*", "f",     "strings.h", ALL_LANGUAGES)
 LIBBUILTIN(strncasecmp, "icC*cC*z", "f",   "strings.h", ALL_LANGUAGES)
 // POSIX unistd.h
 LIBBUILTIN(_exit, "vi",           "fr",    "unistd.h", ALL_LANGUAGES)
-LIBBUILTIN(vfork, "i",            "fj",    "unistd.h", ALL_LANGUAGES)
+LIBBUILTIN(vfork, "p",            "fj",    "unistd.h", ALL_LANGUAGES)
 // POSIX setjmp.h
 
 // In some systems setjmp is a macro that expands to _setjmp. We undefine
@@ -804,25 +813,101 @@ LIBBUILTIN(NSLog, "vG.", "fp:0:", "Foundation/NSObjCRuntime.h", OBJC_LANG)
 LIBBUILTIN(NSLogv, "vGa", "fP:0:", "Foundation/NSObjCRuntime.h", OBJC_LANG)
 
 // Builtin math library functions
-LIBBUILTIN(pow, "ddd", "fe", "math.h", ALL_LANGUAGES)
-LIBBUILTIN(powl, "LdLdLd", "fe", "math.h", ALL_LANGUAGES)
-LIBBUILTIN(powf, "fff", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(acos, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(acosl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(acosf, "ff", "fe", "math.h", ALL_LANGUAGES)
 
-LIBBUILTIN(sqrt, "dd", "fe", "math.h", ALL_LANGUAGES)
-LIBBUILTIN(sqrtl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
-LIBBUILTIN(sqrtf, "ff", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(asin, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(asinl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(asinf, "ff", "fe", "math.h", ALL_LANGUAGES)
 
-LIBBUILTIN(sin, "dd", "fe", "math.h", ALL_LANGUAGES)
-LIBBUILTIN(sinl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
-LIBBUILTIN(sinf, "ff", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(atan, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(atanl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(atanf, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(atan2, "ddd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(atan2l, "LdLdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(atan2f, "fff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(ceil, "dd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(ceill, "LdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(ceilf, "ff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(copysign, "ddd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(copysignl, "LdLdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(copysignf, "fff", "fc", "math.h", ALL_LANGUAGES)
 
 LIBBUILTIN(cos, "dd", "fe", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(cosl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(cosf, "ff", "fe", "math.h", ALL_LANGUAGES)
 
+LIBBUILTIN(exp, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(expl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(expf, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(exp2, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(exp2l, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(exp2f, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(fabs, "dd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fabsl, "LdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fabsf, "ff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(floor, "dd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(floorl, "LdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(floorf, "ff", "fc", "math.h", ALL_LANGUAGES)
+
 LIBBUILTIN(fma, "dddd", "fc", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(fmal, "LdLdLdLd", "fc", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(fmaf, "ffff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(fmax, "ddd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fmaxl, "LdLdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fmaxf, "fff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(fmin, "ddd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fminl, "LdLdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(fminf, "fff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(log, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(logl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(logf, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(log2, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(log2l, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(log2f, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(nearbyint, "dd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(nearbyintl, "LdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(nearbyintf, "ff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(pow, "ddd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(powl, "LdLdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(powf, "fff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(rint, "dd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(rintl, "LdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(rintf, "ff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(round, "dd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(roundl, "LdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(roundf, "ff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(sin, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(sinl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(sinf, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(sqrt, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(sqrtl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(sqrtf, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(tan, "dd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(tanl, "LdLd", "fe", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(tanf, "ff", "fe", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(trunc, "dd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(truncl, "LdLd", "fc", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(truncf, "ff", "fc", "math.h", ALL_LANGUAGES)
 
 // Blocks runtime Builtin math library functions
 LIBBUILTIN(_Block_object_assign, "vv*vC*iC", "f", "Blocks.h", ALL_LANGUAGES)
@@ -830,7 +915,7 @@ LIBBUILTIN(_Block_object_dispose, "vvC*iC", "f", "Blocks.h", ALL_LANGUAGES)
 // FIXME: Also declare NSConcreteGlobalBlock and NSConcreteStackBlock.
 
 // Annotation function
-BUILTIN(__builtin_annotation, "UiUicC*", "nc")
+BUILTIN(__builtin_annotation, "v.", "tn")
 
 #undef BUILTIN
 #undef LIBBUILTIN

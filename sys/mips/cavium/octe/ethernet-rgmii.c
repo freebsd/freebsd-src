@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include "octebusvar.h"
 
-extern int octeon_is_simulation(void);
 extern struct ifnet *cvm_oct_device[];
 
 static struct mtx global_register_lock;
@@ -256,7 +255,7 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII) && (priv->port == 0)) ||
 	    (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
 
-		if (!octeon_is_simulation()) {
+		if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) {
 
 			cvmx_gmxx_rxx_int_en_t gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);
@@ -285,7 +284,7 @@ void cvm_oct_rgmii_uninit(struct ifnet *ifp)
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII) && (priv->port == 0)) ||
 	    (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
 
-		if (!octeon_is_simulation()) {
+		if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) {
 
 			cvmx_gmxx_rxx_int_en_t gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);

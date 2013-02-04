@@ -1,9 +1,14 @@
 README for libarchive bundle.
 
 Questions?  Issues?
-   * http://libarchive.googlecode.com/ is the home for ongoing
-     libarchive development, including issue tracker, additional
-     documentation, and links to the libarchive mailing lists.
+   * http://libarchive.github.com/ is the home for ongoing
+     libarchive development, including documentation, and
+     links to the libarchive mailing lists.
+   * To report an issue, use the issue tracker at
+     http://code.google.com/p/libarchive/issues/list
+   * To submit an enhancement to libarchive, please submit
+     a pull request via GitHub.
+     https://github.com/libarchive/libarchive/pulls
 
 This distribution bundle includes the following components:
    * libarchive: a library for reading and writing streaming archives
@@ -66,6 +71,7 @@ Currently, the library automatically detects and reads the following fomats:
   * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
+  * 7-Zip archives
   * Microsoft CAB format
   * LHA and LZH archives
   * RAR archives
@@ -92,6 +98,7 @@ The library can create archives in any of the following formats:
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * ISO9660 format
+  * 7-Zip archives
   * XAR archives
 
 When creating archives, the result can be filtered with any of the following:

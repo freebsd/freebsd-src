@@ -137,7 +137,7 @@ exclude_options (void)
 }
 
 static char const shortopts[] =
-"0123456789abBcC:dD:eEfF:hHiI:lL:nNpPqrsS:tTuU:vwW:x:X:y";
+"0123456789abBcC:dD:eEfF:hHiI:lL:nNopPqrsS:tTuU:vwW:x:X:y";
 
 /* Values for long options that do not have single-letter equivalents.  */
 enum
@@ -265,13 +265,14 @@ main (int argc, char **argv)
   initialize_main (&argc, &argv);
   program_name = argv[0];
   setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
   c_stack_action (0);
   function_regexp_list.buf = &function_regexp;
   ignore_regexp_list.buf = &ignore_regexp;
-  re_set_syntax (RE_SYNTAX_GREP | RE_NO_POSIX_BACKTRACKING);
+  re_set_syntax (RE_SYNTAX_GREP);
   excluded = new_exclude ();
+
+  prepend_default_options (getenv ("DIFF_OPTIONS"), &argc, &argv);
 
   /* Decode the options.  */
 
@@ -426,6 +427,11 @@ main (int argc, char **argv)
 
 	case 'N':
 	  new_file = true;
+	  break;
+
+	case 'o':
+	  /* Output in the old tradition style.  */
+	  specify_style (OUTPUT_NORMAL);
 	  break;
 
 	case 'p':
@@ -983,8 +989,6 @@ specify_style (enum output_style style)
 {
   if (output_style != style)
     {
-      if (output_style != OUTPUT_UNSPECIFIED)
-	try_help ("conflicting output style options", 0);
       output_style = style;
     }
 }

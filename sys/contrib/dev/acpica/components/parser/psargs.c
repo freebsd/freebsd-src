@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,7 +118,7 @@ AcpiPsGetNextPackageLength (
     /* Byte 0 is a special case, either bits [0:3] or [0:5] are used */
 
     PackageLength |= (Aml[0] & ByteZeroMask);
-    return_UINT32 (PackageLength);
+    return_VALUE (PackageLength);
 }
 
 
@@ -131,7 +131,7 @@ AcpiPsGetNextPackageLength (
  * RETURN:      Pointer to end-of-package +1
  *
  * DESCRIPTION: Get next package length and return a pointer past the end of
- *              the package.  Consumes the package length field
+ *              the package. Consumes the package length field
  *
  ******************************************************************************/
 
@@ -163,8 +163,8 @@ AcpiPsGetNextPackageEnd (
  * RETURN:      Pointer to the start of the name string (pointer points into
  *              the AML.
  *
- * DESCRIPTION: Get next raw namestring within the AML stream.  Handles all name
- *              prefix characters.  Set parser state to point past the string.
+ * DESCRIPTION: Get next raw namestring within the AML stream. Handles all name
+ *              prefix characters. Set parser state to point past the string.
  *              (Name is consumed from the AML.)
  *
  ******************************************************************************/
@@ -182,7 +182,8 @@ AcpiPsGetNextNamestring (
 
     /* Point past any namestring prefix characters (backslash or carat) */
 
-    while (AcpiPsIsPrefixChar (*End))
+    while (ACPI_IS_ROOT_PREFIX (*End) ||
+           ACPI_IS_PARENT_PREFIX (*End))
     {
         End++;
     }
@@ -244,7 +245,7 @@ AcpiPsGetNextNamestring (
  *
  * DESCRIPTION: Get next name (if method call, return # of required args).
  *              Names are looked up in the internal namespace to determine
- *              if the name represents a control method.  If a method
+ *              if the name represents a control method. If a method
  *              is found, the number of arguments to the method is returned.
  *              This information is critical for parsing to continue correctly.
  *
@@ -868,7 +869,8 @@ AcpiPsGetNextArg (
         Subop = AcpiPsPeekOpcode (ParserState);
         if (Subop == 0                  ||
             AcpiPsIsLeadingChar (Subop) ||
-            AcpiPsIsPrefixChar (Subop))
+            ACPI_IS_ROOT_PREFIX (Subop) ||
+            ACPI_IS_PARENT_PREFIX (Subop))
         {
             /* NullName or NameString */
 

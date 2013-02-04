@@ -238,7 +238,6 @@ _kvm_initvtop(kvm_t *kd)
 			return (-1);
 		}
 		kd->vmst->PTD = PTD;
-		return (0);
 		kd->vmst->pae = 0;
 	}
 	return (0);

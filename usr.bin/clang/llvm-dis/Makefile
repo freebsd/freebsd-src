@@ -10,6 +10,7 @@ TGHDRS=	Intrinsics
 LIBDEPS=llvmanalysis \
 	llvmtarget \
 	llvmmc \
+	llvmobject \
 	llvmbitreader \
 	llvmcore \
 	llvmsupport

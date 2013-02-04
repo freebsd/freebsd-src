@@ -1,10 +1,13 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmpowerpccodegen
 
 SRCDIR=	lib/Target/PowerPC
 SRCS=	PPCAsmPrinter.cpp \
 	PPCBranchSelector.cpp \
+	PPCCTRLoops.cpp \
 	PPCCodeEmitter.cpp \
 	PPCFrameLowering.cpp \
 	PPCHazardRecognizers.cpp \

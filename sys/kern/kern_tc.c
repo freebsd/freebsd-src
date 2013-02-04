@@ -103,8 +103,8 @@ static struct timecounter *timecounters = &dummy_timecounter;
 
 int tc_min_ticktock_freq = 1;
 
-time_t time_second = 1;
-time_t time_uptime = 1;
+volatile time_t time_second = 1;
+volatile time_t time_uptime = 1;
 
 struct bintime boottimebin;
 struct timeval boottime;
@@ -121,6 +121,8 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
 
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
+
+void dtrace_getnanotime(struct timespec *tsp);
 
 static int
 sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
@@ -958,6 +960,24 @@ getmicrotime(struct timeval *tvp)
 }
 
 #endif /* FFCLOCK */
+
+/*
+ * This is a clone of getnanotime and used for walltimestamps.
+ * The dtrace_ prefix prevents fbt from creating probes for
+ * it so walltimestamp can be safely used in all fbt probes.
+ */
+void
+dtrace_getnanotime(struct timespec *tsp)
+{
+	struct timehands *th;
+	u_int gen;
+
+	do {
+		th = timehands;
+		gen = th->th_generation;
+		*tsp = th->th_nanotime;
+	} while (gen == 0 || gen != th->th_generation);
+}
 
 /*
  * System clock currently providing time to the system. Modifiable via sysctl

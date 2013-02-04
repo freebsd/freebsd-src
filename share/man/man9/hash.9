@@ -26,7 +26,7 @@
 .\"     $OpenBSD: hash.9,v 1.5 2003/04/17 05:08:39 jmc Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 3, 2007
+.Dd September 4, 2012
 .Dt HASH 9
 .Os
 .Sh NAME
@@ -36,7 +36,9 @@
 .Nm hash32_str ,
 .Nm hash32_strn ,
 .Nm hash32_stre ,
-.Nm hash32_strne
+.Nm hash32_strne ,
+.Nm jenkins_hash32 ,
+.Nm jenkins_hash
 .Nd general kernel hashing functions
 .Sh SYNOPSIS
 .In sys/hash.h
@@ -50,6 +52,10 @@
 .Fn hash32_stre "const void *buf" "int end" "const char **ep" "uint32_t hash"
 .Ft uint32_t
 .Fn hash32_strne "const void *buf" "size_t len" "int end" "const char **ep" "uint32_t hash"
+.Ft uint32_t
+.Fn jenkins_hash "const void *buf" "size_t len" "uint32_t hash"
+.Ft uint32_t
+.Fn jenkins_hash32 "const uint32_t *buf" "size_t count" "uint32_t hash"
 .Sh DESCRIPTION
 The
 .Fn hash32
@@ -107,6 +113,23 @@ is not
 .Dv NULL ,
 it is set to the point in the buffer at which the hash function
 terminated hashing.
+.Pp
+The
+.Fn jenkins_hash
+function has same semantics as the
+.Fn hash32_buf ,
+but provides more advanced hashing algorithm with better distribution.
+.Pp
+The
+.Fn jenkins_hash32
+uses same hashing algorithm as the
+.Fn jenkins_hash
+function, but works only on
+.Ft uint32_t
+sized arrays, thus is simplier and faster.
+It accepts an array of
+.Ft uint32_t
+values in its first argument and size of this array in the second argument.
 .Sh RETURN VALUES
 The
 .Fn hash32
@@ -150,12 +173,24 @@ be revisited.
 .Sh HISTORY
 The
 .Nm
-functions were first committed to
+functions first appeared in
 .Nx 1.6 .
+The current implementation of
+.Nm hash32
+functions was first committed to
+.Ox 3.2 ,
+and later imported to
+.Fx 6.1 .
 The
-.Ox
-versions were written and massaged for
-.Ox 2.3
-by Tobias Weingartner,
-and finally committed for
-.Ox 3.2 .
+.Nm jenkins_hash
+functions were added in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm hash32
+functions were written by
+.An Tobias Weingartner .
+The
+.Nm jenkins_hash
+functions was written by
+Bob Jenkins .

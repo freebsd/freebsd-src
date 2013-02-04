@@ -124,6 +124,10 @@
 			 LineNumber = ln; \
 			}
 
+#define	FIRST_SECOND	0
+#define	LAST_SECOND	59
+#define	SECOND_COUNT	(LAST_SECOND - FIRST_SECOND + 1)
+
 #define	FIRST_MINUTE	0
 #define	LAST_MINUTE	59
 #define	MINUTE_COUNT	(LAST_MINUTE - FIRST_MINUTE + 1)
@@ -165,6 +169,7 @@ typedef	struct _entry {
 #endif
 	char		**envp;
 	char		*cmd;
+	bitstr_t	bit_decl(second, SECOND_COUNT);
 	bitstr_t	bit_decl(minute, MINUTE_COUNT);
 	bitstr_t	bit_decl(hour,   HOUR_COUNT);
 	bitstr_t	bit_decl(dom,    DOM_COUNT);
@@ -176,6 +181,7 @@ typedef	struct _entry {
 #define	WHEN_REBOOT	0x04
 #define	RUN_AT	0x08
 #define	NOT_UNTIL	0x10
+#define	SEC_RES		0x20
 	time_t	lastrun;
 } entry;
 

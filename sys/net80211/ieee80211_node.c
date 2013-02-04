@@ -771,6 +771,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		/* XXX msg */
 		return 0;
 	}
+
 	/*
 	 * Expand scan state into node's format.
 	 * XXX may not need all this stuff
@@ -821,6 +822,29 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		IEEE80211_F_DOSORT);
 	if (ieee80211_iserp_rateset(&ni->ni_rates))
 		ni->ni_flags |= IEEE80211_NODE_ERP;
+
+	/*
+	 * Setup HT state for this node if it's available, otherwise
+	 * non-STA modes won't pick this state up.
+	 *
+	 * For IBSS and related modes that don't go through an
+	 * association request/response, the only appropriate place
+	 * to setup the HT state is here.
+	 */
+	if (ni->ni_ies.htinfo_ie != NULL &&
+	    ni->ni_ies.htcap_ie != NULL &&
+	    vap->iv_flags_ht & IEEE80211_FHT_HT) {
+		ieee80211_ht_node_init(ni);
+		ieee80211_ht_updateparams(ni,
+		    ni->ni_ies.htcap_ie,
+		    ni->ni_ies.htinfo_ie);
+		ieee80211_setup_htrates(ni, ni->ni_ies.htcap_ie,
+		    IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
+		ieee80211_setup_basic_htrates(ni, ni->ni_ies.htinfo_ie);
+	}
+	/* XXX else check for ath FF? */
+	/* XXX QoS? Difficult given that WME config is specific to a master */
+
 	ieee80211_node_setuptxparms(ni);
 	ieee80211_ratectl_node_init(ni);
 
@@ -937,6 +961,9 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 			break;
 		case IEEE80211_ELEMID_HTCAP:
 			ies->htcap_ie = ie;
+			break;
+		case IEEE80211_ELEMID_HTINFO:
+			ies->htinfo_ie = ie;
 			break;
 #ifdef IEEE80211_SUPPORT_MESH
 		case IEEE80211_ELEMID_MESHID:
@@ -1404,7 +1431,7 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 {
 	struct ieee80211_node *ni;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE | IEEE80211_MSG_ASSOC,
 	    "%s: mac<%s>\n", __func__, ether_sprintf(macaddr));
 	ni = ieee80211_dup_bss(vap, macaddr);
 	if (ni != NULL) {
@@ -1444,6 +1471,8 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh,
 	const struct ieee80211_scanparams *sp)
 {
+	int do_ht_setup = 0;
+
 	ni->ni_esslen = sp->ssid[1];
 	memcpy(ni->ni_essid, sp->ssid + 2, sp->ssid[1]);
 	IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
@@ -1469,12 +1498,41 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
 #endif
+		if (ni->ni_ies.htcap_ie != NULL)
+			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
+		if (ni->ni_ies.htinfo_ie != NULL)
+			ieee80211_parse_htinfo(ni, ni->ni_ies.htinfo_ie);
+
+		if ((ni->ni_ies.htcap_ie != NULL) &&
+		    (ni->ni_ies.htinfo_ie != NULL) &&
+		    (ni->ni_vap->iv_flags_ht & IEEE80211_FHT_HT)) {
+			do_ht_setup = 1;
+		}
 	}
 
 	/* NB: must be after ni_chan is setup */
 	ieee80211_setup_rates(ni, sp->rates, sp->xrates,
 		IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
 		IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
+
+	/*
+	 * If the neighbor is HT compatible, flip that on.
+	 */
+	if (do_ht_setup) {
+		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_ASSOC,
+		    "%s: doing HT setup\n", __func__);
+		ieee80211_ht_node_init(ni);
+		ieee80211_ht_updateparams(ni,
+		    ni->ni_ies.htcap_ie,
+		    ni->ni_ies.htinfo_ie);
+		ieee80211_setup_htrates(ni,
+		    ni->ni_ies.htcap_ie,
+		    IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
+		ieee80211_setup_basic_htrates(ni,
+		    ni->ni_ies.htinfo_ie);
+		ieee80211_node_setuptxparms(ni);
+		ieee80211_ratectl_node_init(ni);
+	}
 }
 
 /*
@@ -1490,7 +1548,7 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 {
 	struct ieee80211_node *ni;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
 	    "%s: mac<%s>\n", __func__, ether_sprintf(wh->i_addr2));
 	ni = ieee80211_dup_bss(vap, wh->i_addr2);/* XXX alloc_node? */
 	if (ni != NULL) {
@@ -2156,30 +2214,131 @@ ieee80211_node_timeout(void *arg)
 		ieee80211_node_timeout, ic);
 }
 
+/*
+ * Iterate over the node table and return an array of ref'ed nodes.
+ *
+ * This is separated out from calling the actual node function so that
+ * no LORs will occur.
+ *
+ * If there are too many nodes (ie, the number of nodes doesn't fit
+ * within 'max_aid' entries) then the node references will be freed
+ * and an error will be returned.
+ *
+ * The responsibility of allocating and freeing "ni_arr" is up to
+ * the caller.
+ */
+int
+ieee80211_iterate_nt(struct ieee80211_node_table *nt,
+    struct ieee80211_node **ni_arr, uint16_t max_aid)
+{
+	u_int gen;
+	int i, j, ret;
+	struct ieee80211_node *ni;
+
+	IEEE80211_NODE_ITERATE_LOCK(nt);
+	IEEE80211_NODE_LOCK(nt);
+
+	gen = ++nt->nt_scangen;
+	i = ret = 0;
+
+	/*
+	 * We simply assume here that since the node
+	 * scan generation doesn't change (as
+	 * we are holding both the node table and
+	 * node table iteration locks), we can simply
+	 * assign it to the node here.
+	 */
+	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
+		if (i >= max_aid) {
+			ret = E2BIG;
+			if_printf(nt->nt_ic->ic_ifp,
+			    "Node array overflow: max=%u", max_aid);
+			break;
+		}
+		ni_arr[i] = ieee80211_ref_node(ni);
+		ni_arr[i]->ni_scangen = gen;
+		i++;
+	}
+
+	/*
+	 * It's safe to unlock here.
+	 *
+	 * If we're successful, the list is returned.
+	 * If we're unsuccessful, the list is ignored
+	 * and we remove our references.
+	 *
+	 * This avoids any potential LOR with
+	 * ieee80211_free_node().
+	 */
+	IEEE80211_NODE_UNLOCK(nt);
+	IEEE80211_NODE_ITERATE_UNLOCK(nt);
+
+	/*
+	 * If ret is non-zero, we hit some kind of error.
+	 * Rather than walking some nodes, we'll walk none
+	 * of them.
+	 */
+	if (ret) {
+		for (j = 0; j < i; j++) {
+			/* ieee80211_free_node() locks by itself */
+			ieee80211_free_node(ni_arr[j]);
+		}
+	}
+
+	return (ret);
+}
+
+/*
+ * Just a wrapper, so we don't have to change every ieee80211_iterate_nodes()
+ * reference in the source.
+ *
+ * Note that this fetches 'max_aid' from the first VAP, rather than finding
+ * the largest max_aid from all VAPs.
+ */
 void
 ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 	ieee80211_iter_func *f, void *arg)
 {
-	struct ieee80211_node *ni;
-	u_int gen;
+	struct ieee80211_node **ni_arr;
+	size_t size;
+	int i;
+	uint16_t max_aid;
+	struct ieee80211vap *vap;
 
-	IEEE80211_NODE_ITERATE_LOCK(nt);
-	gen = ++nt->nt_scangen;
-restart:
-	IEEE80211_NODE_LOCK(nt);
-	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
-		if (ni->ni_scangen != gen) {
-			ni->ni_scangen = gen;
-			(void) ieee80211_ref_node(ni);
-			IEEE80211_NODE_UNLOCK(nt);
-			(*f)(arg, ni);
-			ieee80211_free_node(ni);
-			goto restart;
-		}
+	/* Overdoing it default */
+	max_aid = IEEE80211_AID_MAX;
+
+	/* Handle the case of there being no vaps just yet */
+	vap = TAILQ_FIRST(&nt->nt_ic->ic_vaps);
+	if (vap != NULL)
+		max_aid = vap->iv_max_aid;
+
+	size = max_aid * sizeof(struct ieee80211_node *);
+	ni_arr = (struct ieee80211_node **) malloc(size, M_80211_NODE,
+	    M_NOWAIT | M_ZERO);
+	if (ni_arr == NULL)
+		return;
+
+	/*
+	 * If this fails, the node table won't have any
+	 * valid entries - ieee80211_iterate_nt() frees
+	 * the references to them.  So don't try walking
+	 * the table; just skip to the end and free the
+	 * temporary memory.
+	 */
+	if (ieee80211_iterate_nt(nt, ni_arr, max_aid) != 0)
+		goto done;
+
+	for (i = 0; i < max_aid; i++) {
+		if (ni_arr[i] == NULL)	/* end of the list */
+			break;
+		(*f)(arg, ni_arr[i]);
+		/* ieee80211_free_node() locks by itself */
+		ieee80211_free_node(ni_arr[i]);
 	}
-	IEEE80211_NODE_UNLOCK(nt);
 
-	IEEE80211_NODE_ITERATE_UNLOCK(nt);
+done:
+	free(ni_arr, M_80211_NODE);
 }
 
 void

@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 ENTRY(__sys_setlogin)
 	mov	$SYS_setlogin,%rax
 	KERNCALL
-	jb	1f
+	jb	HIDENAME(cerror)
 #ifdef PIC
 	movq	PIC_GOT(CNAME(_logname_valid)),%rdx
 	movl	$0,(%rdx)
@@ -55,13 +55,6 @@ ENTRY(__sys_setlogin)
 	movl	$0,CNAME(_logname_valid)(%rip)
 #endif
 	ret				/* setlogin(name) */
-1:
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
-	jmp	HIDENAME(cerror)
-#endif
 END(__sys_setlogin)
 
 	.section .note.GNU-stack,"",%progbits

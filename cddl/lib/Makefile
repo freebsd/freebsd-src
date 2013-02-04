@@ -19,7 +19,8 @@ _libzpool=	libzpool
 .endif
 .endif
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" ||  ${MACHINE_CPUARCH} == "mips"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc"
 _drti=		drti
 _libdtrace=	libdtrace
 .endif

@@ -69,6 +69,7 @@ oui RDC				0x00d02d	RDC Semiconductor
 oui REALTEK			0x00e04c	RealTek Semicondctor
 oui SEEQ			0x00a07d	Seeq Technology
 oui SIS				0x00e006	Silicon Integrated Systems
+oui SMC				0x00800f	SMC
 oui TI				0x080028	Texas Instruments
 oui TSC				0x00c039	TDK Semiconductor
 oui VITESSE			0x0001c1	Vitesse Semiconductor
@@ -179,7 +180,7 @@ model BROADCOM2 BCM5722		0x002d BCM5722 1000BASE-T media interface
 model BROADCOM2 BCM5784		0x003a BCM5784 10/100/1000baseT PHY
 model BROADCOM2 BCM5709C	0x003c BCM5709 10/100/1000baseT PHY
 model BROADCOM2 BCM5761		0x003d BCM5761 10/100/1000baseT PHY
-model BROADCOM2 BCM5709S	0x003f BCM5709S 1000/2500baseSX PHY
+model BROADCOM2 BCM5709S	0x003f BCM5709S/5720S 1000/2500baseSX PHY
 model BROADCOM3 BCM57780	0x0019 BCM57780 1000BASE-T media interface
 model BROADCOM3 BCM5717C	0x0020 BCM5717C 1000BASE-T media interface
 model BROADCOM3 BCM5719C	0x0022 BCM5719C 1000BASE-T media interface
@@ -325,3 +326,6 @@ model xxVITESSE VSC8641		0x0003 Vitesse VSC8641 10/100/1000TX PHY
 
 /* XaQti Corp. PHYs */
 model xxXAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
+
+/* SMC */
+model SMC LAN8710A		0x000F SMC LAN8710A 10/100 interface

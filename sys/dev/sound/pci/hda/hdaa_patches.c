@@ -139,7 +139,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 
 	config = orig = w->wclass.pin.config;
 	id = hdaa_codec_id(w->devinfo);
-	subid = hdaa_subvendor_id(w->devinfo);
+	subid = hdaa_card_id(w->devinfo);
 
 	/* XXX: Old patches require complete review.
 	 * Now they may create more problem then solve due to
@@ -271,7 +271,17 @@ hdac_pin_patch(struct hdaa_widget *w)
 	}
 
 	/* New patches */
-	if (id == HDA_CODEC_AD1986A &&
+	if (id == HDA_CODEC_AD1984A &&
+	    subid == LENOVO_X300_SUBVENDOR) {
+		switch (nid) {
+		case 17: /* Headphones with redirection */
+			patch = "as=1 seq=15";
+			break;
+		case 20: /* Two mics together */
+			patch = "as=2 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_AD1986A &&
 	    (subid == ASUS_M2NPVMX_SUBVENDOR ||
 	    subid == ASUS_A8NVMCSM_SUBVENDOR ||
 	    subid == ASUS_P5PL2_SUBVENDOR)) {
@@ -372,6 +382,13 @@ hdaa_widget_patch(struct hdaa_widget *w)
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_SHIFT;
 		w->waspin = 1;
 	}
+	/*
+	 * Clear "digital" flag from digital mic input, as its signal then goes
+	 * to "analog" mixer and this separation just limits functionaity.
+	 */
+	if (hdaa_codec_id(devinfo) == HDA_CODEC_AD1984A &&
+	    w->nid == 23)
+		w->param.widget_cap &= ~HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL_MASK;
 	HDA_BOOTVERBOSE(
 		if (w->param.widget_cap != orig) {
 			device_printf(w->devinfo->dev,
@@ -392,7 +409,7 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 	int i;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
 
 	/*
 	 * Quirks
@@ -541,6 +558,21 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		break;
+	case HDA_CODEC_ALC269:
+		/*
+		 * ASUS EeePC 1001px has strange variant of ALC269 CODEC,
+		 * that mutes speaker if unused mixer at NID 15 is muted.
+		 * Probably CODEC incorrectly reports internal connections.
+		 * Hide that muter from the driver.  There are several CODECs
+		 * sharing this ID and I have not enough information about
+		 * them to implement more universal solution.
+		 */
+		if (subid == 0x84371043) {
+			w = hdaa_widget_get(devinfo, 15);
+			if (w != NULL)
+				w->param.inamp_cap = 0;
+		}
+		break;
 	case HDA_CODEC_CX20582:
 	case HDA_CODEC_CX20583:
 	case HDA_CODEC_CX20584:
@@ -594,7 +626,7 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 	uint32_t id, subid, val;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
 
 	switch (id) {
 	case HDA_CODEC_VT1708S_0:
@@ -608,6 +640,8 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		/* Enable Mic Boost Volume controls. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf98, 0x01));
+		/* Fall though */
+	case HDA_CODEC_VT1818S:
 		/* Don't bypass mixer. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf88, 0xc0));

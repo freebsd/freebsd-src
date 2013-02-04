@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -240,6 +240,20 @@ AcpiDsLoad1BeginOp (
             Node->Type = ACPI_TYPE_ANY;
             WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
             break;
+
+        case ACPI_TYPE_METHOD:
+
+            /*
+             * Allow scope change to root during execution of module-level
+             * code. Root is typed METHOD during this time.
+             */
+            if ((Node == AcpiGbl_RootNode) &&
+                (WalkState->ParseFlags & ACPI_PARSE_MODULE_LEVEL))
+            {
+                break;
+            }
+
+            /*lint -fallthrough */
 
         default:
 

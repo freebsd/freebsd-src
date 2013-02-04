@@ -329,7 +329,7 @@ compute_stats(struct ctl_lun_io_stats *cur_stats,
 #define	PRINT_BINTIME(prefix, bt) \
 	printf("%s %jd s %ju frac\n", prefix, (intmax_t)(bt).sec, \
 	       (uintmax_t)(bt).frac)
-const char *iotypes[] = {"NO IO", "READ", "WRITE"};
+static const char *iotypes[] = {"NO IO", "READ", "WRITE"};
 
 static void
 ctlstat_dump(struct ctlstat_context *ctx) {

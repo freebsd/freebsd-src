@@ -133,7 +133,7 @@ cd9660_mount(struct mount *mp)
 	int error;
 	accmode_t accmode;
 	struct nameidata ndp;
-	struct iso_mnt *imp = 0;
+	struct iso_mnt *imp = NULL;
 
 	td = curthread;
 
@@ -214,7 +214,7 @@ iso_mountfs(devvp, mp)
 	int iso_bsize;
 	int iso_blknum;
 	int joliet_level;
-	struct iso_volume_descriptor *vdp = 0;
+	struct iso_volume_descriptor *vdp = NULL;
 	struct iso_primary_descriptor *pri = NULL;
 	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
 	struct iso_supplementary_descriptor *sup = NULL;
@@ -376,8 +376,7 @@ iso_mountfs(devvp, mp)
 	mp->mnt_maxsymlinklen = 0;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
-	    MNTK_EXTENDED_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 	isomp->im_mountp = mp;
 	isomp->im_dev = dev;

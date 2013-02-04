@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2010
+.Dd December 25, 2012
 .Dt MLOCKALL 2
 .Os
 .Sh NAME
@@ -68,11 +68,22 @@ Since physical memory is a potentially scarce resource, processes are
 limited in how much they can lock down.
 A single process can lock the minimum of a system-wide
 .Dq wired pages
-limit and the per-process
+limit
+.Va vm.max_wired
+and the per-process
 .Dv RLIMIT_MEMLOCK
 resource limit.
 .Pp
-These calls are only available to the super-user.
+If
+.Va security.bsd.unprivileged_mlock
+is set to 0 these calls are only available to the super-user.
+If
+.Va vm.old_mlock
+is set to 1 the per-process
+.Dv RLIMIT_MEMLOCK
+resource limit will not be applied for
+.Fn mlockall
+calls.
 .Pp
 The
 .Fn munlockall

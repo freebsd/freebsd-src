@@ -9,6 +9,10 @@ SRCS=	cc1_main.cpp \
 	cc1as_main.cpp \
 	driver.cpp
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
+NO_SHARED?= yes
+.endif
+
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 	${BINDIR}/clang ${BINDIR}/clang-cpp
 MLINKS=	clang.1 clang++.1 \
@@ -16,20 +20,34 @@ MLINKS=	clang.1 clang++.1 \
 .if ${MK_CLANG_IS_CC} != "no"
 LINKS+=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/c++ \
+	${BINDIR}/clang ${BINDIR}/CC \
 	${BINDIR}/clang ${BINDIR}/cpp
 MLINKS+= clang.1 cc.1 \
 	clang.1 c++.1 \
+	clang.1 CC.1 \
 	clang.1 cpp.1
 .endif
 
 TGHDRS=	CC1AsOptions \
-	CC1Options \
 	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
 	DiagnosticLexKinds \
 	DiagnosticSemaKinds \
 	Options
+
+.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+_clangstaticanalyzer= \
+	clangstaticanalyzerfrontend \
+	clangstaticanalyzercheckers \
+	clangstaticanalyzercore
+_clangarcmigrate= \
+	clangarcmigrate
+_clangrewriter= \
+	clangrewritefrontend \
+	clangrewritecore
+.endif # !EARLY_BUILD && MK_CLANG_FULL
+
 LIBDEPS=clangfrontendtool \
 	clangfrontend \
 	clangdriver \
@@ -37,12 +55,10 @@ LIBDEPS=clangfrontendtool \
 	clangcodegen \
 	clangparse \
 	clangsema \
-	clangstaticanalyzerfrontend \
-	clangstaticanalyzercheckers \
-	clangstaticanalyzercore \
+	${_clangstaticanalyzer} \
 	clanganalysis \
-	clangarcmigrate \
-	clangrewrite \
+	${_clangarcmigrate} \
+	${_clangrewriter} \
 	clangedit \
 	clangast \
 	clanglex \
@@ -55,23 +71,23 @@ LIBDEPS=clangfrontendtool \
 	llvmbitwriter \
 	llvmbitreader \
 	llvmasmparser \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsinstprinter \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
+	llvmmipsasmparser \
+	llvmmipscodegen \
+	llvmmipsdesc \
+	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
 	llvmx86asmparser \
-	llvmx86disassembler \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
@@ -82,6 +98,7 @@ LIBDEPS=clangfrontendtool \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
+	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

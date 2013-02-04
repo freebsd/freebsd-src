@@ -36,6 +36,9 @@
  * NOTE: The current implementation only supports Device Side Mode!
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -71,6 +74,8 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/musb_otg.h>
 
 #define	MUSBOTG_INTR_ENDPT 1
@@ -1472,7 +1477,13 @@ musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+musbotg_xfer_stall(struct usb_xfer *xfer)
+{
+	musbotg_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+musbotg_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct musbotg_softc *sc;
@@ -1482,10 +1493,6 @@ musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(4, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		musbotg_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = MUSBOTG_BUS2SC(udev->bus);
 
@@ -2204,19 +2211,12 @@ static const struct usb_hub_descriptor_min musbotg_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'M', 0, 'e', 0, 'n', 0, 't', 0, 'o', 0, 'r', 0, ' ', 0, \
-  'G', 0, 'r', 0, 'a', 0, 'p', 0, 'h', 0, 'i', 0, 'c', 0, 's', 0
+  "M\0e\0n\0t\0o\0r\0 \0G\0r\0a\0p\0h\0i\0c\0s"
 
 #define	STRING_PRODUCT \
-  'O', 0, 'T', 0, 'G', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "O\0T\0G\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, musbotg_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, musbotg_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, musbotg_product);
 
@@ -2418,8 +2418,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(musbotg_langtab);
-			ptr = (const void *)&musbotg_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -2746,10 +2746,6 @@ musbotg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if ((udev->speed != USB_SPEED_FULL) &&
 		    (udev->speed != USB_SPEED_HIGH)) {
 			/* not supported */
@@ -2801,6 +2797,7 @@ struct usb_bus_methods musbotg_bus_methods =
 	.xfer_setup = &musbotg_xfer_setup,
 	.xfer_unsetup = &musbotg_xfer_unsetup,
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,
+	.xfer_stall = &musbotg_xfer_stall,
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
 	.roothub_exec = &musbotg_roothub_exec,

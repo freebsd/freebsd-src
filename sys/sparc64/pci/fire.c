@@ -249,7 +249,7 @@ struct fire_desc {
 	const char	*fd_name;
 };
 
-static const struct fire_desc const fire_compats[] = {
+static const struct fire_desc fire_compats[] = {
 	{ "pciex108e,80f0",	FIRE_MODE_FIRE,		"Fire" },
 #if 0
 	{ "pciex108e,80f8",	FIRE_MODE_OBERON,	"Oberon" },
@@ -1502,8 +1502,6 @@ fire_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	}
 	return (ENOENT);
 }
-
-#define	VIS_BLOCKSIZE	64
 
 static void
 fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,

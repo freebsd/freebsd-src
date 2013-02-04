@@ -60,7 +60,7 @@ ARMTargetMachine::ARMTargetMachine(const Target &T, StringRef TT,
                                    CodeGenOpt::Level OL)
   : ARMBaseTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     InstrInfo(Subtarget),
-    DataLayout(Subtarget.isAPCS_ABI() ?
+    DL(Subtarget.isAPCS_ABI() ?
                std::string("e-p:32:32-f64:32:64-i64:32:64-"
                            "v128:32:128-v64:32:64-n32-S32") :
                Subtarget.isAAPCS_ABI() ?
@@ -68,10 +68,10 @@ ARMTargetMachine::ARMTargetMachine(const Target &T, StringRef TT,
                            "v128:64:128-v64:64:64-n32-S64") :
                std::string("e-p:32:32-f64:64:64-i64:64:64-"
                            "v128:64:128-v64:64:64-n32-S32")),
-    ELFWriterInfo(*this),
     TLInfo(*this),
     TSInfo(*this),
-    FrameLowering(Subtarget) {
+    FrameLowering(Subtarget),
+    STTI(&TLInfo), VTTI(&TLInfo) {
   if (!Subtarget.hasARMOps())
     report_fatal_error("CPU: '" + Subtarget.getCPUString() + "' does not "
                        "support ARM mode execution!");
@@ -88,7 +88,7 @@ ThumbTargetMachine::ThumbTargetMachine(const Target &T, StringRef TT,
     InstrInfo(Subtarget.hasThumb2()
               ? ((ARMBaseInstrInfo*)new Thumb2InstrInfo(Subtarget))
               : ((ARMBaseInstrInfo*)new Thumb1InstrInfo(Subtarget))),
-    DataLayout(Subtarget.isAPCS_ABI() ?
+    DL(Subtarget.isAPCS_ABI() ?
                std::string("e-p:32:32-f64:32:64-i64:32:64-"
                            "i16:16:32-i8:8:32-i1:8:32-"
                            "v128:32:128-v64:32:64-a:0:32-n32-S32") :
@@ -99,12 +99,12 @@ ThumbTargetMachine::ThumbTargetMachine(const Target &T, StringRef TT,
                std::string("e-p:32:32-f64:64:64-i64:64:64-"
                            "i16:16:32-i8:8:32-i1:8:32-"
                            "v128:64:128-v64:64:64-a:0:32-n32-S32")),
-    ELFWriterInfo(*this),
     TLInfo(*this),
     TSInfo(*this),
     FrameLowering(Subtarget.hasThumb2()
               ? new ARMFrameLowering(Subtarget)
-              : (ARMFrameLowering*)new Thumb1FrameLowering(Subtarget)) {
+              : (ARMFrameLowering*)new Thumb1FrameLowering(Subtarget)),
+    STTI(&TLInfo), VTTI(&TLInfo) {
 }
 
 namespace {
@@ -136,22 +136,27 @@ TargetPassConfig *ARMBaseTargetMachine::createPassConfig(PassManagerBase &PM) {
 
 bool ARMPassConfig::addPreISel() {
   if (TM->getOptLevel() != CodeGenOpt::None && EnableGlobalMerge)
-    PM->add(createGlobalMergePass(TM->getTargetLowering()));
+    addPass(createGlobalMergePass(TM->getTargetLowering()));
 
   return false;
 }
 
 bool ARMPassConfig::addInstSelector() {
-  PM->add(createARMISelDag(getARMTargetMachine(), getOptLevel()));
+  addPass(createARMISelDag(getARMTargetMachine(), getOptLevel()));
+
+  const ARMSubtarget *Subtarget = &getARMSubtarget();
+  if (Subtarget->isTargetELF() && !Subtarget->isThumb1Only() &&
+      TM->Options.EnableFastISel)
+    addPass(createARMGlobalBaseRegPass());
   return false;
 }
 
 bool ARMPassConfig::addPreRegAlloc() {
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
   if (getOptLevel() != CodeGenOpt::None && !getARMSubtarget().isThumb1Only())
-    PM->add(createARMLoadStoreOptimizationPass(true));
-  if (getOptLevel() != CodeGenOpt::None && getARMSubtarget().isCortexA9())
-    PM->add(createMLxExpansionPass());
+    addPass(createARMLoadStoreOptimizationPass(true));
+  if (getOptLevel() != CodeGenOpt::None && getARMSubtarget().isLikeA9())
+    addPass(createMLxExpansionPass());
   return true;
 }
 
@@ -159,23 +164,23 @@ bool ARMPassConfig::addPreSched2() {
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
   if (getOptLevel() != CodeGenOpt::None) {
     if (!getARMSubtarget().isThumb1Only()) {
-      PM->add(createARMLoadStoreOptimizationPass());
+      addPass(createARMLoadStoreOptimizationPass());
       printAndVerify("After ARM load / store optimizer");
     }
     if (getARMSubtarget().hasNEON())
-      PM->add(createExecutionDependencyFixPass(&ARM::DPRRegClass));
+      addPass(createExecutionDependencyFixPass(&ARM::DPRRegClass));
   }
 
   // Expand some pseudo instructions into multiple instructions to allow
   // proper scheduling.
-  PM->add(createARMExpandPseudoPass());
+  addPass(createARMExpandPseudoPass());
 
   if (getOptLevel() != CodeGenOpt::None) {
     if (!getARMSubtarget().isThumb1Only())
-      addPass(IfConverterID);
+      addPass(&IfConverterID);
   }
   if (getARMSubtarget().isThumb2())
-    PM->add(createThumb2ITBlockPass());
+    addPass(createThumb2ITBlockPass());
 
   return true;
 }
@@ -183,13 +188,13 @@ bool ARMPassConfig::addPreSched2() {
 bool ARMPassConfig::addPreEmitPass() {
   if (getARMSubtarget().isThumb2()) {
     if (!getARMSubtarget().prefers32BitThumb())
-      PM->add(createThumb2SizeReductionPass());
+      addPass(createThumb2SizeReductionPass());
 
     // Constant island pass work on unbundled instructions.
-    addPass(UnpackMachineBundlesID);
+    addPass(&UnpackMachineBundlesID);
   }
 
-  PM->add(createARMConstantIslandPass());
+  addPass(createARMConstantIslandPass());
 
   return true;
 }

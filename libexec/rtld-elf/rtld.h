@@ -222,6 +222,7 @@ typedef struct Struct_Obj_Entry {
     const Elf_Hashelt *chain_zero_gnu;	/* GNU hash table value array (Zeroed) */
 
     char *rpath;		/* Search path specified in object */
+    char *runpath;		/* Search path with different priority */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
     Needed_Entry *needed_filtees;
     Needed_Entry *needed_aux_filtees;
@@ -258,6 +259,7 @@ typedef struct Struct_Obj_Entry {
     bool z_nodelete : 1;	/* Do not unload the object and dependencies */
     bool z_noopen : 1;		/* Do not load on dlopen */
     bool z_loadfltr : 1;	/* Immediately load filtees */
+    bool z_nodeflib : 1;	/* Don't search default library path */
     bool ref_nodel : 1;		/* Refcount increased to prevent dlclose */
     bool init_scanned: 1;	/* Object is already on init list. */
     bool on_fini_list: 1;	/* Object is already on fini list. */
@@ -319,6 +321,14 @@ typedef struct Struct_DoneList {
 struct Struct_RtldLockState {
 	int lockstate;
 	sigjmp_buf env;
+};
+
+struct fill_search_info_args {
+	int request;
+	unsigned int flags;
+	struct dl_serinfo *serinfo;
+	struct dl_serpath *serpath;
+	char *strspace;
 };
 
 /*

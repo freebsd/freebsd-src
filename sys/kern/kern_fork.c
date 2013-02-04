@@ -150,11 +150,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 	int error, flags;
 	struct proc *p2;
 
-#ifdef XEN
-	flags = RFFDG | RFPROC; /* validate that this is still an issue */
-#else
 	flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
-#endif		
 	error = fork1(td, flags, 0, &p2, NULL, 0);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
@@ -209,8 +205,8 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 	pid = randompid;
 	error = sysctl_handle_int(oidp, &pid, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (pid < 0 || pid > PID_MAX - 100)	/* out of range */
-			pid = PID_MAX - 100;
+		if (pid < 0 || pid > pid_max - 100)	/* out of range */
+			pid = pid_max - 100;
 		else if (pid < 2)			/* NOP */
 			pid = 0;
 		else if (pid < 100)			/* Make it reasonable */
@@ -259,8 +255,8 @@ retry:
 	 * restart somewhat above 0, as the low-numbered procs
 	 * tend to include daemons that don't exit.
 	 */
-	if (trypid >= PID_MAX) {
-		trypid = trypid % PID_MAX;
+	if (trypid >= pid_max) {
+		trypid = trypid % pid_max;
 		if (trypid < 100)
 			trypid += 100;
 		pidchecked = 0;
@@ -591,7 +587,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	LIST_INIT(&p2->p_children);
 	LIST_INIT(&p2->p_orphans);
 
-	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&p2->p_itcallout, &p2->p_mtx, 0);
 
 	/*
 	 * If PF_FORK is set, the child process inherits the
@@ -1055,5 +1051,4 @@ fork_return(struct thread *td, struct trapframe *frame)
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(SYS_fork, 0, 0);
 #endif
-	mtx_assert(&Giant, MA_NOTOWNED);
 }

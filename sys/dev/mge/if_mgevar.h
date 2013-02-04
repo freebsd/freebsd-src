@@ -103,6 +103,8 @@ struct mge_softc {
 	uint32_t	mge_tx_tok_cnt;
 	uint16_t	mge_mtu;
 	int		mge_ver;
+	int		mge_intr_cnt;
+	uint8_t		mge_hw_csum;
 
 	struct mge_softc *phy_sc;
 };

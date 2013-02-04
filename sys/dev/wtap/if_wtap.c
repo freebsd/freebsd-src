@@ -100,7 +100,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (err);
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	m_copyback(m, 0, buf_len, buf);
 
 	CURVNET_SET(TD_TO_VNET(curthread));
@@ -230,8 +230,10 @@ wtap_beacon_intrp(void *arg)
 	struct ieee80211vap *vap = arg;
 	struct mbuf *m;
 
-	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
-	    ("not running, state %d", vap->iv_state));
+	if (vap->iv_state < IEEE80211_S_RUN) {
+	    DWTAP_PRINTF("Skip beacon, not running, state %d", vap->iv_state);
+	    return ;
+	}
 	DWTAP_PRINTF("[%d] beacon intrp\n", avp->id);	//burst mode
 	/*
 	 * Update dynamic beacon contents.  If this returns
@@ -239,7 +241,7 @@ wtap_beacon_intrp(void *arg)
 	 * the beacon frame changed size (probably because
 	 * of the TIM bitmap).
 	 */
-	m = m_dup(avp->beacon, M_DONTWAIT);
+	m = m_dup(avp->beacon, M_NOWAIT);
 	if (ieee80211_beacon_update(avp->bf_node, &avp->av_boff, m, 0)) {
 		printf("%s, need to remap the memory because the beacon frame"
 		    " changed size.\n",__func__);
@@ -266,7 +268,7 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	DWTAP_PRINTF("%s\n", __func__);
 
-	ni = vap->iv_bss;
+	ni = ieee80211_ref_node(vap->iv_bss);
 	/*
 	 * Invoke the parent method to do net80211 work.
 	 */
@@ -276,7 +278,8 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	if (nstate == IEEE80211_S_RUN) {
 		/* NB: collect bss node again, it may have changed */
-		ni = vap->iv_bss;
+		ieee80211_free_node(ni);
+		ni = ieee80211_ref_node(vap->iv_bss);
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_MBSS:
 			error = wtap_beacon_alloc(sc, ni);
@@ -289,10 +292,14 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		default:
 			goto bad;
 		}
+	} else if (nstate == IEEE80211_S_INIT) {
+		callout_stop(&avp->av_swba);
 	}
+	ieee80211_free_node(ni);
 	return 0;
 bad:
 	printf("%s: bad\n", __func__);
+	ieee80211_free_node(ni);
 	return error;
 }
 
@@ -315,17 +322,23 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	 struct ieee80211vap *vap;
 	 struct wtap_vap *avp;
 	 int error;
+	struct ieee80211_node *ni;
 
 	 DWTAP_PRINTF("%s\n", __func__);
 
-	avp = (struct wtap_vap *) malloc(sizeof(struct wtap_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
+	avp = malloc(sizeof(struct wtap_vap), M_80211_VAP, M_NOWAIT | M_ZERO);
+	if (avp == NULL)
+		return (NULL);
 	avp->id = sc->id;
 	avp->av_md = sc->sc_md;
 	avp->av_bcinterval = msecs_to_ticks(BEACON_INTRERVAL + 100*sc->id);
 	vap = (struct ieee80211vap *) avp;
 	error = ieee80211_vap_setup(ic, vap, name, unit, IEEE80211_M_MBSS,
 	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+	if (error) {
+		free(avp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override various methods */
 	avp->av_recv_mgmt = vap->iv_recv_mgmt;
@@ -340,10 +353,12 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	/* complete setup */
 	ieee80211_vap_attach(vap, wtap_media_change, ieee80211_media_status);
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    (const char *)ic->ic_ifp->if_xname);
+	    "%s", (const char *)ic->ic_ifp->if_xname);
 
 	/* TODO this is a hack to force it to choose the rate we want */
-	vap->iv_bss->ni_txrate = 130;
+	ni = ieee80211_ref_node(vap->iv_bss);
+	ni->ni_txrate = 130;
+	ieee80211_free_node(ni);
 	return vap;
 }
 
@@ -793,11 +808,7 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_regdomain.location = 1; /* Indoors */
 	ic->ic_regdomain.isocc[0] = 'S';
 	ic->ic_regdomain.isocc[1] = 'E';
-	/*
-	 * Indicate we need the 802.11 header padded to a
-	 * 32-bit boundary for 4-address and QoS frames.
-	 */
-	ic->ic_flags |= IEEE80211_F_DATAPAD;
+
 	ic->ic_nchans = 1;
 	ic->ic_channels[0].ic_flags = IEEE80211_CHAN_B;
 	ic->ic_channels[0].ic_freq = 2412;

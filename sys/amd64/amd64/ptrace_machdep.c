@@ -50,6 +50,7 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 
 	switch (req) {
 	case PT_GETXSTATE:
+		fpugetregs(td);
 		savefpu = (char *)(get_pcb_user_save_td(td) + 1);
 		error = copyout(savefpu, addr,
 		    cpu_max_ext_state_size - sizeof(struct savefpu));
@@ -62,8 +63,10 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 		}
 		savefpu = malloc(data, M_TEMP, M_WAITOK);
 		error = copyin(addr, savefpu, data);
-		if (error == 0)
+		if (error == 0) {
+			fpugetregs(td);
 			error = fpusetxstate(td, savefpu, data);
+		}
 		free(savefpu, M_TEMP);
 		break;
 
@@ -89,11 +92,13 @@ cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 
 	switch (req) {
 	case PT_I386_GETXMMREGS:
+		fpugetregs(td);
 		error = copyout(get_pcb_user_save_td(td), addr,
 		    sizeof(*fpstate));
 		break;
 
 	case PT_I386_SETXMMREGS:
+		fpugetregs(td);
 		fpstate = get_pcb_user_save_td(td);
 		error = copyin(addr, fpstate, sizeof(*fpstate));
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;

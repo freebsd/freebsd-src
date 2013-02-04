@@ -62,7 +62,7 @@
 char	 **search_dirs;
 int	n_search_dirs;
 
-const char	*standard_search_dirs[] = {
+static const char *standard_search_dirs[] = {
 	STANDARD_SEARCH_DIRS
 };
 

@@ -868,8 +868,6 @@ smb_share_getinfo(struct smb_share *ssp, struct smb_share_info *sip)
 static int
 smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 {
-	struct thread *td = req->td;
-	struct smb_cred scred;
 	struct smb_connobj *scp1, *scp2;
 	struct smb_vc *vcp;
 	struct smb_share *ssp;
@@ -877,7 +875,6 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 	struct smb_share_info ssi;
 	int error, itype;
 
-	smb_makescred(&scred, td, td->td_ucred);
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error)
 		return (error);

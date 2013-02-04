@@ -60,7 +60,8 @@ void MCExpr::print(raw_ostream &OS) const {
         SRE.getKind() == MCSymbolRefExpr::VK_ARM_GOTOFF ||
         SRE.getKind() == MCSymbolRefExpr::VK_ARM_TPOFF ||
         SRE.getKind() == MCSymbolRefExpr::VK_ARM_GOTTPOFF ||
-        SRE.getKind() == MCSymbolRefExpr::VK_ARM_TARGET1)
+        SRE.getKind() == MCSymbolRefExpr::VK_ARM_TARGET1 ||
+        SRE.getKind() == MCSymbolRefExpr::VK_ARM_TARGET2)
       OS << MCSymbolRefExpr::getVariantKindName(SRE.getKind());
     else if (SRE.getKind() != MCSymbolRefExpr::VK_None &&
              SRE.getKind() != MCSymbolRefExpr::VK_PPC_DARWIN_HA16 &&
@@ -136,10 +137,12 @@ void MCExpr::print(raw_ostream &OS) const {
   llvm_unreachable("Invalid expression kind!");
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MCExpr::dump() const {
   print(dbgs());
   dbgs() << '\n';
 }
+#endif
 
 /* *** */
 
@@ -197,11 +200,15 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_ARM_GOTTPOFF: return "(gottpoff)";
   case VK_ARM_TLSGD: return "(tlsgd)";
   case VK_ARM_TARGET1: return "(target1)";
-  case VK_PPC_TOC: return "toc";
+  case VK_ARM_TARGET2: return "(target2)";
+  case VK_PPC_TOC: return "tocbase";
+  case VK_PPC_TOC_ENTRY: return "toc";
   case VK_PPC_DARWIN_HA16: return "ha16";
   case VK_PPC_DARWIN_LO16: return "lo16";
   case VK_PPC_GAS_HA16: return "ha";
   case VK_PPC_GAS_LO16: return "l";
+  case VK_PPC_TPREL16_HA: return "tprel@ha";
+  case VK_PPC_TPREL16_LO: return "tprel@l";
   case VK_Mips_GPREL: return "GPREL";
   case VK_Mips_GOT_CALL: return "GOT_CALL";
   case VK_Mips_GOT16: return "GOT16";
@@ -220,6 +227,12 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_Mips_GOT_DISP: return "GOT_DISP";
   case VK_Mips_GOT_PAGE: return "GOT_PAGE";
   case VK_Mips_GOT_OFST: return "GOT_OFST";
+  case VK_Mips_HIGHER:   return "HIGHER";
+  case VK_Mips_HIGHEST:  return "HIGHEST";
+  case VK_Mips_GOT_HI16: return "GOT_HI16";
+  case VK_Mips_GOT_LO16: return "GOT_LO16";
+  case VK_Mips_CALL_HI16: return "CALL_HI16";
+  case VK_Mips_CALL_LO16: return "CALL_LO16";
   }
   llvm_unreachable("Invalid variant kind");
 }
@@ -260,7 +273,7 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
 
 /* *** */
 
-void MCTargetExpr::Anchor() {}
+void MCTargetExpr::anchor() {}
 
 /* *** */
 

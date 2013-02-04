@@ -61,8 +61,10 @@ show_index(const char *title, const char *fname)
 
     strlcpy(line, "???\n", sizeof(line));
 
-    if (!Quiet)
+    if (!Quiet) {
         printf("%s%s", InfoPrefix, title);
+        fflush(stdout);
+    }
     fp = fopen(fname, "r");
     if (fp == (FILE *) NULL) {
         warnx("show_file: can't open '%s' for reading", fname);
@@ -88,8 +90,10 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
     Boolean ign = FALSE;
     char *prefix = NULL;
 
-    if (!Quiet)
+    if (!Quiet) {
 	printf("%s%s", InfoPrefix, title);
+	fflush(stdout);
+    }
     p = plist->head;
     while (p) {
 	if (p->type != type && showall != TRUE) {
@@ -272,8 +276,10 @@ show_size(const char *title, Package *plist)
     char *prefix = NULL;
 
     descr = getbsize(&headerlen, &blksize);
-    if (!Quiet)
+    if (!Quiet) {
 	printf("%s%s", InfoPrefix, title);
+        fflush(stdout);
+    }
     for (p = plist->head; p != NULL; p = p->next) {
 	switch (p->type) {
 	case PLIST_FILE:
@@ -316,16 +322,19 @@ show_size(const char *title, Package *plist)
 }
 
 /* Show files that don't match the recorded checksum */
-void
+int
 show_cksum(const char *title, Package *plist)
 {
     PackingList p;
     const char *dir = ".";
     char *prefix = NULL;
     char tmp[FILENAME_MAX];
+    int errcode = 0;
 
-    if (!Quiet)
+    if (!Quiet) {
 	printf("%s%s", InfoPrefix, title);
+	fflush(stdout);
+    }
 
     for (p = plist->head; p != NULL; p = p->next)
 	if (p->type == PLIST_CWD) {
@@ -337,9 +346,10 @@ show_cksum(const char *title, Package *plist)
 		dir = p->name;
 	} else if (p->type == PLIST_FILE) {
 	    snprintf(tmp, FILENAME_MAX, "%s/%s", elide_root(dir), p->name);
-	    if (!fexists(tmp))
+	    if (!fexists(tmp)) {
 		warnx("%s doesn't exist", tmp);
-	    else if (p->next && p->next->type == PLIST_COMMENT &&
+		errcode = 1;
+	    } else if (p->next && p->next->type == PLIST_COMMENT &&
 	             (strncmp(p->next->name, "MD5:", 4) == 0)) {
 		char *cp = NULL, buf[33];
 
@@ -366,6 +376,7 @@ show_cksum(const char *title, Package *plist)
 		}
 	    }
 	}
+    return (errcode);
 }
 
 /* Show an "origin" path (usually category/portname) */
@@ -373,8 +384,10 @@ void
 show_origin(const char *title, Package *plist)
 {
 
-    if (!Quiet)
+    if (!Quiet) {
 	printf("%s%s", InfoPrefix, title);
+	fflush(stdout);
+    }
     printf("%s\n", plist->origin != NULL ? plist->origin : "");
 }
 
@@ -383,7 +396,9 @@ void
 show_fmtrev(const char *title, Package *plist)
 {
 
-    if (!Quiet)
+    if (!Quiet) {
 	printf("%s%s", InfoPrefix, title);
+	fflush(stdout);
+    }
     printf("%d.%d\n", plist->fmtver_maj, plist->fmtver_mnr);
 }

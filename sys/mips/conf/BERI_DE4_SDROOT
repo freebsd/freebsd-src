@@ -1,0 +1,24 @@
+#
+# BERI_DE4 -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible RISC
+# Implementation) FPGA soft core, as configured in its Terasic DE-4 reference
+# configuration.
+#
+# $FreeBSD$
+#
+
+include "BERI_TEMPLATE"
+
+ident		BERI_DE4_SDROOT
+
+hints		"BERI_DE4.hints"	#Default places to look for devices.
+
+options 	ROOTDEVNAME=\"ufs:altera_sdcard0\"
+
+device		altera_avgen
+device		altera_jtag_uart
+device		altera_sdcard
+device		terasic_de4led
+device		terasic_mtl
+
+device		isf
+device		sc

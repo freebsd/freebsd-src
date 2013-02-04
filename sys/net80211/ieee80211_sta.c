@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_superg.h>
 #endif
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_sta.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -402,7 +403,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    arg == IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
 			break;
 		case IEEE80211_S_SLEEP:
-			ieee80211_sta_pwrsave(vap, 0);
+			vap->iv_sta_ps(vap, 0);
 			break;
 		default:
 			goto invalid;
@@ -438,7 +439,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		break;
 	case IEEE80211_S_SLEEP:
-		ieee80211_sta_pwrsave(vap, 1);
+		vap->iv_sta_ps(vap, 1);
 		break;
 	default:
 	invalid:
@@ -1086,7 +1087,7 @@ bad:
 		    IEEE80211_SCAN_FAIL_STATUS);
 }
 
-static int
+int
 ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 	const struct ieee80211_frame *wh)
 {
@@ -1396,7 +1397,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 					 * we are expecting data.
 					 */
 					ic->ic_lastdata = ticks;
-					ieee80211_sta_pwrsave(vap, 0);
+					vap->iv_sta_ps(vap, 0);
 				}
 #endif
 				ni->ni_dtim_count = tim->tim_count;

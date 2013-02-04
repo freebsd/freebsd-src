@@ -176,9 +176,14 @@ static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
 TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
-static int prot_fault_translation = 0;
+static int prot_fault_translation;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
-	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
+    &prot_fault_translation, 0,
+    "Select signal to deliver on protection fault");
+static int uprintf_signal;
+SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
+    &uprintf_signal, 0,
+    "Print debugging information on trap signal to ctty");
 
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
@@ -328,7 +333,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
-			ucode = fputrap();
+			ucode = fputrap_x87();
 			if (ucode == -1)
 				goto userout;
 			i = SIGFPE;
@@ -442,7 +447,9 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-			ucode = 0; /* XXX */
+			ucode = fputrap_sse();
+			if (ucode == -1)
+				goto userout;
 			i = SIGFPE;
 			break;
 		}
@@ -518,9 +525,8 @@ trap(struct trapframe *frame)
 				frame->tf_rip = (long)fsbase_load_fault;
 				goto out;
 			}
-			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
-				frame->tf_rip =
-				    (long)PCPU_GET(curpcb)->pcb_onfault;
+			if (curpcb->pcb_onfault != NULL) {
+				frame->tf_rip = (long)curpcb->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -609,11 +615,25 @@ trap(struct trapframe *frame)
 	ksi.ksi_code = ucode;
 	ksi.ksi_trapno = type;
 	ksi.ksi_addr = (void *)addr;
+	if (uprintf_signal) {
+		uprintf("pid %d comm %s: signal %d err %lx code %d type %d "
+		    "addr 0x%lx rip 0x%lx "
+		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
+		    p->p_pid, p->p_comm, i, frame->tf_err, ucode, type, addr,
+		    frame->tf_rip,
+		    fubyte((void *)(frame->tf_rip + 0)),
+		    fubyte((void *)(frame->tf_rip + 1)),
+		    fubyte((void *)(frame->tf_rip + 2)),
+		    fubyte((void *)(frame->tf_rip + 3)),
+		    fubyte((void *)(frame->tf_rip + 4)),
+		    fubyte((void *)(frame->tf_rip + 5)),
+		    fubyte((void *)(frame->tf_rip + 6)),
+		    fubyte((void *)(frame->tf_rip + 7)));
+	}
 	trapsignal(td, &ksi);
 
 user:
 	userret(td, frame);
-	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("Return from trap with kernel FPU ctx leaked"));
 userout:
@@ -706,7 +726,7 @@ trap_pfault(frame, usermode)
 		 * it normally, and panic immediately.
 		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+		    curpcb->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}
@@ -762,8 +782,8 @@ trap_pfault(frame, usermode)
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
-		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
-			frame->tf_rip = (long)PCPU_GET(curpcb)->pcb_onfault;
+		    curpcb->pcb_onfault != NULL) {
+			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);

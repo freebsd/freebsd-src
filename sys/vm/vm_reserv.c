@@ -445,7 +445,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		m += VM_LEVEL_0_NPAGES;
 		first += VM_LEVEL_0_NPAGES;
 		allocpages -= VM_LEVEL_0_NPAGES;
-	} while (allocpages > VM_LEVEL_0_NPAGES);
+	} while (allocpages > 0);
 	return (m_ret);
 
 	/*

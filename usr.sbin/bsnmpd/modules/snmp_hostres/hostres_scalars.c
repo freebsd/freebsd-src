@@ -238,7 +238,7 @@ OS_getSystemProcesses(uint32_t *proc_count)
 	if (hr_kd == NULL)
 		return (SNMP_ERR_GENERR);
 
-	if (kvm_getprocs(hr_kd, KERN_PROC_ALL, 0, &pc) == NULL) {
+	if (kvm_getprocs(hr_kd, KERN_PROC_PROC, 0, &pc) == NULL) {
 		syslog(LOG_ERR, "kvm_getprocs failed: %m");
 		return (SNMP_ERR_GENERR);
 	}

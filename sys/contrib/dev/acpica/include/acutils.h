@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,7 +101,7 @@ ACPI_STATUS (*ACPI_WALK_AML_CALLBACK) (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context);
+    void                    **Context);
 
 typedef
 ACPI_STATUS (*ACPI_PKG_CALLBACK) (
@@ -425,17 +425,18 @@ AcpiUtPtrExit (
     UINT8                   *Ptr);
 
 void
-AcpiUtDumpBuffer (
+AcpiUtDebugDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
     UINT32                  Display,
     UINT32                  ComponentId);
 
 void
-AcpiUtDumpBuffer2 (
+AcpiUtDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Count,
-    UINT32                  Display);
+    UINT32                  Display,
+    UINT32                  Offset);
 
 void
 AcpiUtReportError (
@@ -511,17 +512,22 @@ AcpiUtExecutePowerMethods (
 ACPI_STATUS
 AcpiUtExecute_HID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId);
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 ACPI_STATUS
 AcpiUtExecute_UID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID          **ReturnId);
+    ACPI_PNP_DEVICE_ID      **ReturnId);
+
+ACPI_STATUS
+AcpiUtExecute_SUB (
+    ACPI_NAMESPACE_NODE     *DeviceNode,
+    ACPI_PNP_DEVICE_ID      **ReturnId);
 
 ACPI_STATUS
 AcpiUtExecute_CID (
     ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_DEVICE_ID_LIST     **ReturnCidList);
+    ACPI_PNP_DEVICE_ID_LIST **ReturnCidList);
 
 
 /*
@@ -703,10 +709,6 @@ AcpiUtShortDivide (
 /*
  * utmisc
  */
-void
-UtConvertBackslashes (
-    char                    *Pathname);
-
 const char *
 AcpiUtValidateException (
     ACPI_STATUS             Status);
@@ -720,56 +722,12 @@ AcpiUtIsAmlTable (
     ACPI_TABLE_HEADER       *Table);
 
 ACPI_STATUS
-AcpiUtAllocateOwnerId (
-    ACPI_OWNER_ID           *OwnerId);
-
-void
-AcpiUtReleaseOwnerId (
-    ACPI_OWNER_ID           *OwnerId);
-
-ACPI_STATUS
 AcpiUtWalkPackageTree (
     ACPI_OPERAND_OBJECT     *SourceObject,
     void                    *TargetObject,
     ACPI_PKG_CALLBACK       WalkCallback,
     void                    *Context);
 
-void
-AcpiUtStrupr (
-    char                    *SrcString);
-
-void
-AcpiUtStrlwr (
-    char                    *SrcString);
-
-int
-AcpiUtStricmp (
-    char                    *String1,
-    char                    *String2);
-
-void
-AcpiUtPrintString (
-    char                    *String,
-    UINT8                   MaxLength);
-
-BOOLEAN
-AcpiUtValidAcpiName (
-    UINT32                  Name);
-
-void
-AcpiUtRepairName (
-    char                    *Name);
-
-BOOLEAN
-AcpiUtValidAcpiChar (
-    char                    Character,
-    UINT32                  Position);
-
-ACPI_STATUS
-AcpiUtStrtoul64 (
-    char                    *String,
-    UINT32                  Base,
-    UINT64                  *RetInteger);
 
 /* Values for Base above (16=Hex, 10=Decimal) */
 
@@ -793,17 +751,31 @@ AcpiUtDisplayInitPathname (
 
 
 /*
+ * utownerid - Support for Table/Method Owner IDs
+ */
+ACPI_STATUS
+AcpiUtAllocateOwnerId (
+    ACPI_OWNER_ID           *OwnerId);
+
+void
+AcpiUtReleaseOwnerId (
+    ACPI_OWNER_ID           *OwnerId);
+
+
+/*
  * utresrc
  */
 ACPI_STATUS
 AcpiUtWalkAmlResources (
+    ACPI_WALK_STATE         *WalkState,
     UINT8                   *Aml,
     ACPI_SIZE               AmlLength,
     ACPI_WALK_AML_CALLBACK  UserFunction,
-    void                    *Context);
+    void                    **Context);
 
 ACPI_STATUS
 AcpiUtValidateResource (
+    ACPI_WALK_STATE         *WalkState,
     void                    *Aml,
     UINT8                   *ReturnIndex);
 
@@ -827,6 +799,51 @@ ACPI_STATUS
 AcpiUtGetResourceEndTag (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     UINT8                   **EndTag);
+
+
+/*
+ * utstring - String and character utilities
+ */
+void
+AcpiUtStrupr (
+    char                    *SrcString);
+
+void
+AcpiUtStrlwr (
+    char                    *SrcString);
+
+int
+AcpiUtStricmp (
+    char                    *String1,
+    char                    *String2);
+
+ACPI_STATUS
+AcpiUtStrtoul64 (
+    char                    *String,
+    UINT32                  Base,
+    UINT64                  *RetInteger);
+
+void
+AcpiUtPrintString (
+    char                    *String,
+    UINT8                   MaxLength);
+
+void
+UtConvertBackslashes (
+    char                    *Pathname);
+
+BOOLEAN
+AcpiUtValidAcpiName (
+    UINT32                  Name);
+
+BOOLEAN
+AcpiUtValidAcpiChar (
+    char                    Character,
+    UINT32                  Position);
+
+void
+AcpiUtRepairName (
+    char                    *Name);
 
 
 /*

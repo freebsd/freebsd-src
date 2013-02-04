@@ -42,6 +42,12 @@ fd1440|floppy|floppy3|3in|3.5in High Density Floppy:\
 	:pa#2880:oa#0:ba#4096:fa#512:\
 	:pc#2880:oc#0:bc#4096:fc#512:
 
+fd2880|2.88MB 3.5in Extra High Density Floppy:\
+	:ty=floppy:se#512:nt#2:rm#300:ns#36:nc#80:\
+	:pa#5760:oa#0:ba#4096:fa#512:\
+	:pb#5760:ob#0:bb#4096:fa#512:\
+	:pc#5760:oc#0:bb#4096:fa#512:
+
 #
 # Stressed floppy-formats.  No guarantees given.
 #

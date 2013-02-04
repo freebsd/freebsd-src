@@ -58,56 +58,56 @@ static uint8_t
 ou_bs_r_1(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + offset));
+	return (cvmx_read64_uint64(handle + offset));
 }
 
 static uint16_t
 ou_bs_r_2(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + offset));
+	return (cvmx_read64_uint64(handle + offset));
 }
 
 static uint32_t
 ou_bs_r_4(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + offset));
+	return (cvmx_read64_uint64(handle + offset));
 }
 
 static uint64_t
 ou_bs_r_8(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
-	return (oct_read64(handle + offset));
+	return (cvmx_read64_uint64(handle + offset));
 }
 
 static void
 ou_bs_w_1(void *t, bus_space_handle_t bsh, bus_size_t offset, uint8_t value)
 {
 
-	oct_write64(bsh + offset, value);
+	cvmx_write64_uint64(bsh + offset, value);
 }
 
 static void
 ou_bs_w_2(void *t, bus_space_handle_t bsh, bus_size_t offset, uint16_t value)
 {
 
-	oct_write64(bsh + offset, value);
+	cvmx_write64_uint64(bsh + offset, value);
 }
 
 static void
 ou_bs_w_4(void *t, bus_space_handle_t bsh, bus_size_t offset, uint32_t value)
 {
 
-	oct_write64(bsh + offset, value);
+	cvmx_write64_uint64(bsh + offset, value);
 }
 
 static void
 ou_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset, uint64_t value)
 {
 
-	oct_write64(bsh + offset, value);
+	cvmx_write64_uint64(bsh + offset, value);
 }
 
 struct bus_space octeon_uart_tag = {

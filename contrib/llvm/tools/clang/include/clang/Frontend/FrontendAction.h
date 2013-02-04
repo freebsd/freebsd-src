@@ -109,7 +109,7 @@ public:
   /// @{
 
   bool isCurrentFileAST() const {
-    assert(!CurrentInput.File.empty() && "No current file!");
+    assert(!CurrentInput.isEmpty() && "No current file!");
     return CurrentASTUnit != 0;
   }
 
@@ -117,14 +117,14 @@ public:
     return CurrentInput;
   }
   
-  const std::string &getCurrentFile() const {
-    assert(!CurrentInput.File.empty() && "No current file!");
-    return CurrentInput.File;
+  const StringRef getCurrentFile() const {
+    assert(!CurrentInput.isEmpty() && "No current file!");
+    return CurrentInput.getFile();
   }
 
   InputKind getCurrentFileKind() const {
-    assert(!CurrentInput.File.empty() && "No current file!");
-    return CurrentInput.Kind;
+    assert(!CurrentInput.isEmpty() && "No current file!");
+    return CurrentInput.getKind();
   }
 
   ASTUnit &getCurrentASTUnit() const {
@@ -167,8 +167,8 @@ public:
   /// @name Public Action Interface
   /// @{
 
-  /// BeginSourceFile - Prepare the action for processing the input file \arg
-  /// Filename; this is run after the options and frontend have been
+  /// BeginSourceFile - Prepare the action for processing the input file
+  /// \p Input; this is run after the options and frontend have been
   /// initialized, but prior to executing any per-file processing.
   ///
   /// \param CI - The compiler instance this action is being run from. The
@@ -188,7 +188,7 @@ public:
   bool BeginSourceFile(CompilerInstance &CI, const FrontendInputFile &Input);
 
   /// Execute - Set the source managers main input file, and run the action.
-  void Execute();
+  bool Execute();
 
   /// EndSourceFile - Perform any per-file post processing, deallocate per-file
   /// objects, and run statistics and output file cleanup code.

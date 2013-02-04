@@ -85,7 +85,7 @@ struct keyblk {
         int     ktyp;           /* keyword type */
 };
 
-struct keyblk keywrds[] = {	/* m4 keywords to be installed */
+static struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 	{ "include",      INCLTYPE },
 	{ "sinclude",     SINCTYPE },
 	{ "define",       DEFITYPE },

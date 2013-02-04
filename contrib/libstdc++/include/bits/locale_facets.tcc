@@ -316,7 +316,7 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
       int __sep_pos = 0;
       while (!__testeof)
 	{
-	  if (__lc->_M_use_grouping && __c == __lc->_M_thousands_sep
+	  if ((__lc->_M_use_grouping && __c == __lc->_M_thousands_sep)
 	      || __c == __lc->_M_decimal_point)
 	    break;
 	  else if (__c == __lit[__num_base::_S_izero])
@@ -558,7 +558,7 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
 	int __sep_pos = 0;
 	while (!__testeof)
 	  {
-	    if (__lc->_M_use_grouping && __c == __lc->_M_thousands_sep
+	    if ((__lc->_M_use_grouping && __c == __lc->_M_thousands_sep)
 		|| __c == __lc->_M_decimal_point)
 	      break;
 	    else if (__c == __lit[__num_base::_S_izero] 
@@ -748,16 +748,20 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
 	      const char_type __c = *__beg;
 
 	      if (__testf)
-		if (__n < __lc->_M_falsename_size)
-		  __testf = __c == __lc->_M_falsename[__n];
-		else
-		  break;
+		{
+		  if (__n < __lc->_M_falsename_size)
+		    __testf = __c == __lc->_M_falsename[__n];
+		  else
+		    break;
+		}
 
 	      if (__testt)
-		if (__n < __lc->_M_truename_size)
-		  __testt = __c == __lc->_M_truename[__n];
-		else
-		  break;
+		{
+		  if (__n < __lc->_M_truename_size)
+		    __testt = __c == __lc->_M_truename[__n];
+		  else
+		    break;
+		}
 
 	      if (!__testf && !__testt)
 		break;
@@ -1387,9 +1391,9 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
 					 == money_base::space)))
 		    || (__i == 2 && ((static_cast<part>(__p.field[3])
 				      == money_base::value)
-				     || __mandatory_sign
+				     || (__mandatory_sign
 				     && (static_cast<part>(__p.field[3])
-					 == money_base::sign))))
+					 == money_base::sign)))))
 		  {
 		    const size_type __len = __lc->_M_curr_symbol_size;
 		    size_type __j = 0;

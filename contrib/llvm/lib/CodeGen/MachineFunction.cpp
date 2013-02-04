@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/Function.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -26,9 +27,8 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetFrameLowering.h"
@@ -59,13 +59,13 @@ MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
     RegInfo = 0;
   MFInfo = 0;
   FrameInfo = new (Allocator) MachineFrameInfo(*TM.getFrameLowering());
-  if (Fn->hasFnAttr(Attribute::StackAlignment))
-    FrameInfo->setMaxAlignment(Attribute::getStackAlignmentFromAttrs(
-        Fn->getAttributes().getFnAttributes()));
-  ConstantPool = new (Allocator) MachineConstantPool(TM.getTargetData());
+  if (Fn->getFnAttributes().hasAttribute(Attributes::StackAlignment))
+    FrameInfo->ensureMaxAlignment(Fn->getAttributes().
+                                  getFnAttributes().getStackAlignment());
+  ConstantPool = new (Allocator) MachineConstantPool(TM.getDataLayout());
   Alignment = TM.getTargetLowering()->getMinFunctionAlignment();
   // FIXME: Shouldn't use pref alignment if explicit alignment is set on Fn.
-  if (!Fn->hasFnAttr(Attribute::OptimizeForSize))
+  if (!Fn->getFnAttributes().hasAttribute(Attributes::OptimizeForSize))
     Alignment = std::max(Alignment,
                          TM.getTargetLowering()->getPrefFunctionAlignment());
   FunctionNumber = FunctionNum;
@@ -84,9 +84,13 @@ MachineFunction::~MachineFunction() {
     MFInfo->~MachineFunctionInfo();
     Allocator.Deallocate(MFInfo);
   }
-  FrameInfo->~MachineFrameInfo();         Allocator.Deallocate(FrameInfo);
-  ConstantPool->~MachineConstantPool();   Allocator.Deallocate(ConstantPool);
-  
+
+  FrameInfo->~MachineFrameInfo();
+  Allocator.Deallocate(FrameInfo);
+
+  ConstantPool->~MachineConstantPool();
+  Allocator.Deallocate(ConstantPool);
+
   if (JumpTableInfo) {
     JumpTableInfo->~MachineJumpTableInfo();
     Allocator.Deallocate(JumpTableInfo);
@@ -98,7 +102,7 @@ MachineFunction::~MachineFunction() {
 MachineJumpTableInfo *MachineFunction::
 getOrCreateJumpTableInfo(unsigned EntryKind) {
   if (JumpTableInfo) return JumpTableInfo;
-  
+
   JumpTableInfo = new (Allocator)
     MachineJumpTableInfo((MachineJumpTableInfo::JTEntryKind)EntryKind);
   return JumpTableInfo;
@@ -116,12 +120,12 @@ void MachineFunction::RenumberBlocks(MachineBasicBlock *MBB) {
     MBBI = begin();
   else
     MBBI = MBB;
-  
+
   // Figure out the block number this should have.
   unsigned BlockNo = 0;
   if (MBBI != begin())
     BlockNo = prior(MBBI)->getNumber()+1;
-  
+
   for (; MBBI != E; ++MBBI, ++BlockNo) {
     if (MBBI->getNumber() != (int)BlockNo) {
       // Remove use of the old number.
@@ -130,7 +134,7 @@ void MachineFunction::RenumberBlocks(MachineBasicBlock *MBB) {
                "MBB number mismatch!");
         MBBNumbering[MBBI->getNumber()] = 0;
       }
-      
+
       // If BlockNo is already taken, set that block's number to -1.
       if (MBBNumbering[BlockNo])
         MBBNumbering[BlockNo]->setNumber(-1);
@@ -138,7 +142,7 @@ void MachineFunction::RenumberBlocks(MachineBasicBlock *MBB) {
       MBBNumbering[BlockNo] = MBBI;
       MBBI->setNumber(BlockNo);
     }
-  }    
+  }
 
   // Okay, all the blocks are renumbered.  If we have compactified the block
   // numbering, shrink MBBNumbering now.
@@ -280,12 +284,19 @@ MachineFunction::extractStoreMemRefs(MachineInstr::mmo_iterator Begin,
   return std::make_pair(Result, Result + Num);
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MachineFunction::dump() const {
   print(dbgs());
 }
+#endif
+
+StringRef MachineFunction::getName() const {
+  assert(getFunction() && "No function!");
+  return getFunction()->getName();
+}
 
 void MachineFunction::print(raw_ostream &OS, SlotIndexes *Indexes) const {
-  OS << "# Machine code for function " << Fn->getName() << ": ";
+  OS << "# Machine code for function " << getName() << ": ";
   if (RegInfo) {
     OS << (RegInfo->isSSA() ? "SSA" : "Post SSA");
     if (!RegInfo->tracksLiveness())
@@ -295,16 +306,16 @@ void MachineFunction::print(raw_ostream &OS, SlotIndexes *Indexes) const {
 
   // Print Frame Information
   FrameInfo->print(*this, OS);
-  
+
   // Print JumpTable Information
   if (JumpTableInfo)
     JumpTableInfo->print(OS);
 
   // Print Constant Pool
   ConstantPool->print(OS);
-  
+
   const TargetRegisterInfo *TRI = getTarget().getRegisterInfo();
-  
+
   if (RegInfo && !RegInfo->livein_empty()) {
     OS << "Function Live Ins: ";
     for (MachineRegisterInfo::livein_iterator
@@ -324,13 +335,13 @@ void MachineFunction::print(raw_ostream &OS, SlotIndexes *Indexes) const {
       OS << ' ' << PrintReg(*I, TRI);
     OS << '\n';
   }
-  
+
   for (const_iterator BB = begin(), E = end(); BB != E; ++BB) {
     OS << '\n';
     BB->print(OS, Indexes);
   }
 
-  OS << "\n# End machine code for function " << Fn->getName() << ".\n\n";
+  OS << "\n# End machine code for function " << getName() << ".\n\n";
 }
 
 namespace llvm {
@@ -340,7 +351,7 @@ namespace llvm {
   DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
 
     static std::string getGraphName(const MachineFunction *F) {
-      return "CFG for '" + F->getFunction()->getName().str() + "' function";
+      return "CFG for '" + F->getName().str() + "' function";
     }
 
     std::string getNodeLabel(const MachineBasicBlock *Node,
@@ -373,7 +384,7 @@ namespace llvm {
 void MachineFunction::viewCFG() const
 {
 #ifndef NDEBUG
-  ViewGraph(this, "mf" + getFunction()->getName());
+  ViewGraph(this, "mf" + getName());
 #else
   errs() << "MachineFunction::viewCFG is only available in debug builds on "
          << "systems with Graphviz or gv!\n";
@@ -383,7 +394,7 @@ void MachineFunction::viewCFG() const
 void MachineFunction::viewCFGOnly() const
 {
 #ifndef NDEBUG
-  ViewGraph(this, "mf" + getFunction()->getName(), true);
+  ViewGraph(this, "mf" + getName(), true);
 #else
   errs() << "MachineFunction::viewCFGOnly is only available in debug builds on "
          << "systems with Graphviz or gv!\n";
@@ -411,10 +422,9 @@ unsigned MachineFunction::addLiveIn(unsigned PReg,
 MCSymbol *MachineFunction::getJTISymbol(unsigned JTI, MCContext &Ctx, 
                                         bool isLinkerPrivate) const {
   assert(JumpTableInfo && "No jump tables");
-  
   assert(JTI < JumpTableInfo->getJumpTables().size() && "Invalid JTI!");
   const MCAsmInfo &MAI = *getTarget().getMCAsmInfo();
-  
+
   const char *Prefix = isLinkerPrivate ? MAI.getLinkerPrivateGlobalPrefix() :
                                          MAI.getPrivateGlobalPrefix();
   SmallString<60> Name;
@@ -450,7 +460,9 @@ int MachineFrameInfo::CreateFixedObject(uint64_t Size, int64_t SPOffset,
   unsigned StackAlign = TFI.getStackAlignment();
   unsigned Align = MinAlign(SPOffset, StackAlign);
   Objects.insert(Objects.begin(), StackObject(Size, Align, SPOffset, Immutable,
-                                              /*isSS*/false, false));
+                                              /*isSS*/   false,
+                                              /*NeedSP*/ false,
+                                              /*Alloca*/ 0));
   return -++NumFixedObjects;
 }
 
@@ -522,16 +534,18 @@ void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MachineFrameInfo::dump(const MachineFunction &MF) const {
   print(MF, dbgs());
 }
+#endif
 
 //===----------------------------------------------------------------------===//
 //  MachineJumpTableInfo implementation
 //===----------------------------------------------------------------------===//
 
 /// getEntrySize - Return the size of each entry in the jump table.
-unsigned MachineJumpTableInfo::getEntrySize(const TargetData &TD) const {
+unsigned MachineJumpTableInfo::getEntrySize(const DataLayout &TD) const {
   // The size of a jump table entry is 4 bytes unless the entry is just the
   // address of a block, in which case it is the pointer size.
   switch (getEntryKind()) {
@@ -550,7 +564,7 @@ unsigned MachineJumpTableInfo::getEntrySize(const TargetData &TD) const {
 }
 
 /// getEntryAlignment - Return the alignment of each entry in the jump table.
-unsigned MachineJumpTableInfo::getEntryAlignment(const TargetData &TD) const {
+unsigned MachineJumpTableInfo::getEntryAlignment(const DataLayout &TD) const {
   // The alignment of a jump table entry is the alignment of int32 unless the
   // entry is just the address of a block, in which case it is the pointer
   // alignment.
@@ -619,7 +633,9 @@ void MachineJumpTableInfo::print(raw_ostream &OS) const {
   OS << '\n';
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MachineJumpTableInfo::dump() const { print(dbgs()); }
+#endif
 
 
 //===----------------------------------------------------------------------===//
@@ -654,7 +670,7 @@ MachineConstantPool::~MachineConstantPool() {
 /// CanShareConstantPoolEntry - Test whether the given two constants
 /// can be allocated the same constant pool entry.
 static bool CanShareConstantPoolEntry(const Constant *A, const Constant *B,
-                                      const TargetData *TD) {
+                                      const DataLayout *TD) {
   // Handle the trivial case quickly.
   if (A == B) return true;
 
@@ -678,7 +694,7 @@ static bool CanShareConstantPoolEntry(const Constant *A, const Constant *B,
   // Try constant folding a bitcast of both instructions to an integer.  If we
   // get two identical ConstantInt's, then we are good to share them.  We use
   // the constant folding APIs to do this so that we get the benefit of
-  // TargetData.
+  // DataLayout.
   if (isa<PointerType>(A->getType()))
     A = ConstantFoldInstOperands(Instruction::PtrToInt, IntTy,
                                  const_cast<Constant*>(A), TD);
@@ -691,7 +707,7 @@ static bool CanShareConstantPoolEntry(const Constant *A, const Constant *B,
   else if (B->getType() != IntTy)
     B = ConstantFoldInstOperands(Instruction::BitCast, IntTy,
                                  const_cast<Constant*>(B), TD);
-  
+
   return A == B;
 }
 
@@ -714,7 +730,7 @@ unsigned MachineConstantPool::getConstantPoolIndex(const Constant *C,
         Constants[i].Alignment = Alignment;
       return i;
     }
-  
+
   Constants.push_back(MachineConstantPoolEntry(C, Alignment));
   return Constants.size()-1;
 }
@@ -723,7 +739,7 @@ unsigned MachineConstantPool::getConstantPoolIndex(MachineConstantPoolValue *V,
                                                    unsigned Alignment) {
   assert(Alignment && "Alignment must be specified!");
   if (Alignment > PoolAlignment) PoolAlignment = Alignment;
-  
+
   // Check to see if we already have this constant.
   //
   // FIXME, this could be made much more efficient for large constant pools.
@@ -746,10 +762,12 @@ void MachineConstantPool::print(raw_ostream &OS) const {
     if (Constants[i].isMachineConstantPoolEntry())
       Constants[i].Val.MachineCPVal->print(OS);
     else
-      OS << *(Value*)Constants[i].Val.ConstVal;
+      OS << *(const Value*)Constants[i].Val.ConstVal;
     OS << ", align=" << Constants[i].getAlignment();
     OS << "\n";
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MachineConstantPool::dump() const { print(dbgs()); }
+#endif

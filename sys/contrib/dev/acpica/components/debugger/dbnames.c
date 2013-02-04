@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,7 +102,7 @@ AcpiDbBusWalk (
  * Arguments for the Objects command
  * These object types map directly to the ACPI_TYPES
  */
-static ARGUMENT_INFO        AcpiDbObjectTypes [] =
+static ACPI_DB_ARGUMENT_INFO    AcpiDbObjectTypes [] =
 {
     {"ANY"},
     {"INTEGERS"},
@@ -159,7 +159,7 @@ AcpiDbSetScope (
 
     AcpiDbPrepNamestring (Name);
 
-    if (Name[0] == '\\')
+    if (ACPI_IS_ROOT_PREFIX (Name[0]))
     {
         /* Validate new scope from the root */
 
@@ -208,7 +208,7 @@ ErrorExit:
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump entire namespace or a subtree.  Each node is displayed
+ * DESCRIPTION: Dump entire namespace or a subtree. Each node is displayed
  *              with type and other information.
  *
  ******************************************************************************/
@@ -305,7 +305,7 @@ AcpiDbDumpNamespaceByOwner (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Find a particular name/names within the namespace.  Wildcards
+ * DESCRIPTION: Find a particular name/names within the namespace. Wildcards
  *              are supported -- '?' matches any character.
  *
  ******************************************************************************/

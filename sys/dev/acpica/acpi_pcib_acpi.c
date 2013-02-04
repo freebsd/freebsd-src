@@ -502,7 +502,7 @@ acpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 	if (error)
 		return (error);
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc(pcib);
 	if (sc->ap_addr == -1)
 		return (0);
 	/* XXX: Assumes all bridges are on bus 0. */

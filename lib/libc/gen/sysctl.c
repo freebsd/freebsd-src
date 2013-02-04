@@ -50,8 +50,11 @@ int
 sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
     const void *newp, size_t newlen)
 {
-	if (name[0] != CTL_USER)
-		return (__sysctl(name, namelen, oldp, oldlenp, newp, newlen));
+	int retval;
+
+	retval = __sysctl(name, namelen, oldp, oldlenp, newp, newlen);
+	if (retval != -1 || errno != ENOENT || name[0] != CTL_USER)
+		return (retval);
 
 	if (newp != NULL) {
 		errno = EPERM;

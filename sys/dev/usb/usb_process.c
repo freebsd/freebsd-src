@@ -26,6 +26,9 @@
 
 #define	USB_DEBUG_VAR usb_proc_debug
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -55,6 +58,7 @@
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/sched.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if (__FreeBSD_version < 700000)
 #define	thread_lock(td) mtx_lock_spin(&sched_lock)
@@ -86,9 +90,8 @@ static int usb_pcount;
 static int usb_proc_debug;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, proc, CTLFLAG_RW, 0, "USB process");
-SYSCTL_INT(_hw_usb_proc, OID_AUTO, debug, CTLFLAG_RW, &usb_proc_debug, 0,
+SYSCTL_INT(_hw_usb_proc, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &usb_proc_debug, 0,
     "Debug level");
-
 TUNABLE_INT("hw.usb.proc.debug", &usb_proc_debug);
 #endif
 

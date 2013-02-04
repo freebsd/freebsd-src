@@ -60,7 +60,8 @@ enum AccessKind {
 enum LockErrorKind {
   LEK_LockedSomeLoopIterations,
   LEK_LockedSomePredecessors,
-  LEK_LockedAtEndOfFunction
+  LEK_LockedAtEndOfFunction,
+  LEK_NotLockedAtEndOfFunction
 };
 
 /// Handler class for thread safety warnings.
@@ -123,15 +124,16 @@ public:
 
   /// Warn when a protected operation occurs while the specific mutex protecting
   /// the operation is not locked.
-  /// \param LockName -- A StringRef name for the lock expression, to be printed
-  /// in the error message.
   /// \param D -- The decl for the protected variable or function
   /// \param POK -- The kind of protected operation (e.g. variable access)
-  /// \param AK -- The kind of access (i.e. read or write) that occurred
+  /// \param LockName -- A StringRef name for the lock expression, to be printed
+  /// in the error message.
+  /// \param LK -- The kind of access (i.e. read or write) that occurred
   /// \param Loc -- The location of the protected operation.
   virtual void handleMutexNotHeld(const NamedDecl *D,
                                   ProtectedOperationKind POK, Name LockName,
-                                  LockKind LK, SourceLocation Loc) {}
+                                  LockKind LK, SourceLocation Loc,
+                                  Name *PossibleMatch=0) {}
 
   /// Warn when a function is called while an excluded mutex is locked. For
   /// example, the mutex may be locked inside the function.

@@ -15,13 +15,13 @@
 #define DEBUG_TYPE "function-lowering-info"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -29,7 +29,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetOptions.h"
@@ -80,9 +80,9 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
     if (const AllocaInst *AI = dyn_cast<AllocaInst>(I))
       if (const ConstantInt *CUI = dyn_cast<ConstantInt>(AI->getArraySize())) {
         Type *Ty = AI->getAllocatedType();
-        uint64_t TySize = TLI.getTargetData()->getTypeAllocSize(Ty);
+        uint64_t TySize = TLI.getDataLayout()->getTypeAllocSize(Ty);
         unsigned Align =
-          std::max((unsigned)TLI.getTargetData()->getPrefTypeAlignment(Ty),
+          std::max((unsigned)TLI.getDataLayout()->getPrefTypeAlignment(Ty),
                    AI->getAlignment());
 
         TySize *= CUI->getZExtValue();   // Get total allocated size.
@@ -97,7 +97,7 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
             cast<ArrayType>(Ty)->getElementType()->isIntegerTy(8)));
         StaticAllocaMap[AI] =
           MF->getFrameInfo()->CreateStackObject(TySize, Align, false,
-                                                MayNeedSP);
+                                                MayNeedSP, AI);
       }
 
   for (; BB != EB; ++BB)

@@ -419,7 +419,11 @@ extern int spa_get_stats(const char *pool, nvlist_t **config, char *altroot,
     size_t buflen);
 extern int spa_create(const char *pool, nvlist_t *config, nvlist_t *props,
     const char *history_str, nvlist_t *zplprops);
+#if defined(sun)
 extern int spa_import_rootpool(char *devpath, char *devid);
+#else
+extern int spa_import_rootpool(const char *name);
+#endif
 extern int spa_import(const char *pool, nvlist_t *config, nvlist_t *props,
     uint64_t flags);
 extern nvlist_t *spa_tryimport(nvlist_t *tryconfig);
@@ -484,14 +488,6 @@ extern int spa_scan_stop(spa_t *spa);
 /* spa syncing */
 extern void spa_sync(spa_t *spa, uint64_t txg); /* only for DMU use */
 extern void spa_sync_allpools(void);
-
-/*
- * DEFERRED_FREE must be large enough that regular blocks are not
- * deferred.  XXX so can't we change it back to 1?
- */
-#define	SYNC_PASS_DEFERRED_FREE	2	/* defer frees after this pass */
-#define	SYNC_PASS_DONT_COMPRESS	4	/* don't compress after this pass */
-#define	SYNC_PASS_REWRITE	1	/* rewrite new bps after this pass */
 
 /* spa namespace global mutex */
 extern kmutex_t spa_namespace_lock;

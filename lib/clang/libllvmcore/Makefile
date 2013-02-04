@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmcore
 
 SRCDIR=	lib/VMCore
@@ -10,9 +12,13 @@ SRCS=	AsmWriter.cpp \
 	ConstantFold.cpp \
 	Constants.cpp \
 	Core.cpp \
+	DIBuilder.cpp \
+	DataLayout.cpp \
+	DebugInfo.cpp \
 	DebugLoc.cpp \
 	Dominators.cpp \
 	Function.cpp \
+	GCOV.cpp \
 	GVMaterializer.cpp \
 	Globals.cpp \
 	IRBuilder.cpp \
@@ -30,6 +36,8 @@ SRCS=	AsmWriter.cpp \
 	PassRegistry.cpp \
 	PrintModulePass.cpp \
 	Type.cpp \
+	TypeFinder.cpp \
+	TargetTransformInfo.cpp \
 	Use.cpp \
 	User.cpp \
 	Value.cpp \

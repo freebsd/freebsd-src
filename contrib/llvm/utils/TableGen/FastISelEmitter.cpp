@@ -17,28 +17,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "FastISelEmitter.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Record.h"
+#include "CodeGenDAGPatterns.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/TableGenBackend.h"
 using namespace llvm;
 
-namespace {
 
 /// InstructionMemo - This class holds additional information about an
 /// instruction needed to emit code for it.
 ///
+namespace {
 struct InstructionMemo {
   std::string Name;
   const CodeGenRegisterClass *RC;
   std::string SubRegNo;
   std::vector<std::string>* PhysRegs;
 };
-  
+} // End anonymous namespace
+
 /// ImmPredicateSet - This uniques predicates (represented as a string) and
 /// gives them unique (small) integer ID's that start at 0.
+namespace {
 class ImmPredicateSet {
   DenseMap<TreePattern *, unsigned> ImmIDs;
   std::vector<TreePredicateFn> PredsByName;
@@ -63,10 +66,12 @@ public:
   iterator end() const { return PredsByName.end(); }
   
 };
+} // End anonymous namespace
 
 /// OperandsSignature - This class holds a description of a list of operand
 /// types. It has utility methods for emitting text based on the operands.
 ///
+namespace {
 struct OperandsSignature {
   class OpKind {
     enum { OK_Reg, OK_FP, OK_Imm, OK_Invalid = -1 };
@@ -240,7 +245,7 @@ struct OperandsSignature {
       if (Op->getType(0) != VT)
         return false;
 
-      DefInit *OpDI = dynamic_cast<DefInit*>(Op->getLeafValue());
+      DefInit *OpDI = dyn_cast<DefInit>(Op->getLeafValue());
       if (!OpDI)
         return false;
       Record *OpLeafRec = OpDI->getDef();
@@ -352,7 +357,9 @@ struct OperandsSignature {
       Operands[i].printManglingSuffix(OS, ImmPredicates, StripImmCodes);
   }
 };
+} // End anonymous namespace
 
+namespace {
 class FastISelMap {
   typedef std::map<std::string, InstructionMemo> PredMap;
   typedef std::map<MVT::SimpleValueType, PredMap> RetPredMap;
@@ -375,8 +382,7 @@ public:
   void printImmediatePredicates(raw_ostream &OS);
   void printFunctionDefinitions(raw_ostream &OS);
 };
-
-}
+} // End anonymous namespace
 
 static std::string getOpcodeName(Record *Op, CodeGenDAGPatterns &CGP) {
   return CGP.getSDNodeInfo(Op).getEnumName();
@@ -400,13 +406,12 @@ static std::string PhyRegForNode(TreePatternNode *Op,
   if (!Op->isLeaf())
     return PhysReg;
 
-  DefInit *OpDI = dynamic_cast<DefInit*>(Op->getLeafValue());
-  Record *OpLeafRec = OpDI->getDef();
+  Record *OpLeafRec = cast<DefInit>(Op->getLeafValue())->getDef();
   if (!OpLeafRec->isSubClassOf("Register"))
     return PhysReg;
 
-  PhysReg += static_cast<StringInit*>(OpLeafRec->getValue( \
-             "Namespace")->getValue())->getValue();
+  PhysReg += cast<StringInit>(OpLeafRec->getValue("Namespace")->getValue())
+               ->getValue();
   PhysReg += "::";
   PhysReg += Target.getRegBank().getReg(OpLeafRec)->getName();
   return PhysReg;
@@ -467,7 +472,7 @@ void FastISelMap::collectPatterns(CodeGenDAGPatterns &CGP) {
       // a bit too complicated for now.
       if (!Dst->getChild(1)->isLeaf()) continue;
 
-      DefInit *SR = dynamic_cast<DefInit*>(Dst->getChild(1)->getLeafValue());
+      DefInit *SR = dyn_cast<DefInit>(Dst->getChild(1)->getLeafValue());
       if (SR)
         SubRegNo = getQualifiedName(SR->getDef());
       else
@@ -544,7 +549,7 @@ void FastISelMap::collectPatterns(CodeGenDAGPatterns &CGP) {
     };
     
     if (SimplePatterns[Operands][OpcodeName][VT][RetVT].count(PredicateCheck))
-      throw TGError(Pattern.getSrcRecord()->getLoc(),
+      PrintFatalError(Pattern.getSrcRecord()->getLoc(),
                     "Duplicate record in FastISel table!");
 
     SimplePatterns[Operands][OpcodeName][VT][RetVT][PredicateCheck] = Memo;
@@ -639,7 +644,7 @@ void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
                 Operands.PrintManglingSuffix(OS, *Memo.PhysRegs,
                                              ImmediatePredicates, true);
                 OS << "(" << InstNS << Memo.Name << ", ";
-                OS << InstNS << Memo.RC->getName() << "RegisterClass";
+                OS << "&" << InstNS << Memo.RC->getName() << "RegClass";
                 if (!Operands.empty())
                   OS << ", ";
                 Operands.PrintArguments(OS, *Memo.PhysRegs);
@@ -731,7 +736,7 @@ void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
               Operands.PrintManglingSuffix(OS, *Memo.PhysRegs,
                                            ImmediatePredicates, true);
               OS << "(" << InstNS << Memo.Name << ", ";
-              OS << InstNS << Memo.RC->getName() << "RegisterClass";
+              OS << "&" << InstNS << Memo.RC->getName() << "RegClass";
               if (!Operands.empty())
                 OS << ", ";
               Operands.PrintArguments(OS, *Memo.PhysRegs);
@@ -850,15 +855,17 @@ void FastISelMap::printFunctionDefinitions(raw_ostream &OS) {
   // TODO: SignaturesWithConstantForms should be empty here.
 }
 
-void FastISelEmitter::run(raw_ostream &OS) {
+namespace llvm {
+
+void EmitFastISel(RecordKeeper &RK, raw_ostream &OS) {
+  CodeGenDAGPatterns CGP(RK);
   const CodeGenTarget &Target = CGP.getTargetInfo();
+  emitSourceFileHeader("\"Fast\" Instruction Selector for the " +
+                       Target.getName() + " target", OS);
 
   // Determine the target's namespace name.
   std::string InstNS = Target.getInstNamespace() + "::";
   assert(InstNS.size() > 2 && "Can't determine target-specific namespace!");
-
-  EmitSourceFileHeader("\"Fast\" Instruction Selector for the " +
-                       Target.getName() + " target", OS);
 
   FastISelMap F(InstNS);
   F.collectPatterns(CGP);
@@ -866,7 +873,4 @@ void FastISelEmitter::run(raw_ostream &OS) {
   F.printFunctionDefinitions(OS);
 }
 
-FastISelEmitter::FastISelEmitter(RecordKeeper &R)
-  : Records(R), CGP(R) {
-}
-
+} // End llvm namespace

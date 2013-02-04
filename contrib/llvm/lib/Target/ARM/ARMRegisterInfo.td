@@ -12,16 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 // Registers are identified with 4-bit ID numbers.
-class ARMReg<bits<4> num, string n, list<Register> subregs = []> : Register<n> {
-  field bits<4> Num;
+class ARMReg<bits<16> Enc, string n, list<Register> subregs = []> : Register<n> {
+  let HWEncoding = Enc;
   let Namespace = "ARM";
   let SubRegs = subregs;
   // All bits of ARM registers with sub-registers are covered by sub-registers.
   let CoveredBySubRegs = 1;
 }
 
-class ARMFReg<bits<6> num, string n> : Register<n> {
-  field bits<6> Num;
+class ARMFReg<bits<16> Enc, string n> : Register<n> {
+  let HWEncoding = Enc;
   let Namespace = "ARM";
 }
 
@@ -49,6 +49,9 @@ def ssub_0  : SubRegIndex;
 def ssub_1  : SubRegIndex;
 def ssub_2  : SubRegIndex<[dsub_1, ssub_0]>;
 def ssub_3  : SubRegIndex<[dsub_1, ssub_1]>;
+
+def gsub_0  : SubRegIndex;
+def gsub_1  : SubRegIndex;
 // Let TableGen synthesize the remaining 12 ssub_* indices.
 // We don't need to name them.
 }
@@ -247,11 +250,16 @@ def CCR : RegisterClass<"ARM", [i32], 32, (add CPSR)> {
 }
 
 // Scalar single precision floating point register class..
-def SPR : RegisterClass<"ARM", [f32], 32, (sequence "S%u", 0, 31)>;
+// FIXME: Allocation order changed to s0, s2, s4, ... as a quick hack to
+// avoid partial-write dependencies on D registers (S registers are
+// renamed as portions of D registers).
+def SPR : RegisterClass<"ARM", [f32], 32, (add (decimate
+                                                (sequence "S%u", 0, 31), 2),
+                                               (sequence "S%u", 0, 31))>;
 
 // Subset of SPR which can be used as a source of NEON scalars for 16-bit
 // operations
-def SPR_8 : RegisterClass<"ARM", [f32], 32, (trunc SPR, 16)>;
+def SPR_8 : RegisterClass<"ARM", [f32], 32, (sequence "S%u", 0, 15)>;
 
 // Scalar double precision floating point / generic 64-bit vector register
 // class.
@@ -267,21 +275,16 @@ def DPR : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
 // Subset of DPR that are accessible with VFP2 (and so that also have
 // 32-bit SPR subregs).
 def DPR_VFP2 : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
-                             (trunc DPR, 16)> {
-  let SubRegClasses = [(SPR ssub_0, ssub_1)];
-}
+                             (trunc DPR, 16)>;
 
 // Subset of DPR which can be used as a source of NEON scalars for 16-bit
 // operations
 def DPR_8 : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
-                          (trunc DPR, 8)> {
-  let SubRegClasses = [(SPR_8 ssub_0, ssub_1)];
-}
+                          (trunc DPR, 8)>;
 
 // Generic 128-bit vector register class.
 def QPR : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64], 128,
                         (sequence "Q%u", 0, 15)> {
-  let SubRegClasses = [(DPR dsub_0, dsub_1)];
   // Allocate non-VFP2 aliases Q8-Q15 first.
   let AltOrders = [(rotl QPR, 8)];
   let AltOrderSelect = [{ return 1; }];
@@ -289,17 +292,11 @@ def QPR : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64], 128,
 
 // Subset of QPR that have 32-bit SPR subregs.
 def QPR_VFP2 : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
-                             128, (trunc QPR, 8)> {
-  let SubRegClasses = [(SPR      ssub_0, ssub_1, ssub_2, ssub_3),
-                       (DPR_VFP2 dsub_0, dsub_1)];
-}
+                             128, (trunc QPR, 8)>;
 
 // Subset of QPR that have DPR_8 and SPR_8 subregs.
 def QPR_8 : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
-                           128, (trunc QPR, 4)> {
-  let SubRegClasses = [(SPR_8 ssub_0, ssub_1, ssub_2, ssub_3),
-                       (DPR_8 dsub_0, dsub_1)];
-}
+                           128, (trunc QPR, 4)>;
 
 // Pseudo-registers representing odd-even pairs of D registers. The even-odd
 // pairs are already represented by the Q registers.
@@ -317,6 +314,17 @@ def DPair : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
   // Prefer even-odd pairs as they are easier to copy.
   let AltOrders = [(add (rotl QPR, 8), (rotl DPair, 16))];
   let AltOrderSelect = [{ return 1; }];
+}
+
+// Pseudo-registers representing even-odd pairs of GPRs from R1 to R13/SP.
+// These are needed by instructions (e.g. ldrexd/strexd) requiring even-odd GPRs.
+def Tuples2R : RegisterTuples<[gsub_0, gsub_1],
+                              [(add R0, R2, R4, R6, R8, R10, R12),
+                               (add R1, R3, R5, R7, R9, R11, SP)]>;
+
+// Register class representing a pair of even-odd GPRs.
+def GPRPair : RegisterClass<"ARM", [untyped], 64, (add Tuples2R)> {
+  let Size = 64; // 2 x 32 bits, we have no predefined type of that size.
 }
 
 // Pseudo-registers representing 3 consecutive D registers.
@@ -338,8 +346,6 @@ def Tuples2Q : RegisterTuples<[qsub_0, qsub_1], [(shl QPR, 0), (shl QPR, 1)]>;
 // Pseudo 256-bit vector register class to model pairs of Q registers
 // (4 consecutive D registers).
 def QQPR : RegisterClass<"ARM", [v4i64], 256, (add Tuples2Q)> {
-  let SubRegClasses = [(DPR dsub_0, dsub_1, dsub_2, dsub_3),
-                       (QPR qsub_0, qsub_1)];
   // Allocate non-VFP2 aliases first.
   let AltOrders = [(rotl QQPR, 8)];
   let AltOrderSelect = [{ return 1; }];
@@ -363,9 +369,6 @@ def Tuples2QQ : RegisterTuples<[qqsub_0, qqsub_1],
 // Pseudo 512-bit vector register class to model 4 consecutive Q registers
 // (8 consecutive D registers).
 def QQQQPR : RegisterClass<"ARM", [v8i64], 256, (add Tuples2QQ)> {
-  let SubRegClasses = [(DPR dsub_0, dsub_1, dsub_2, dsub_3,
-                            dsub_4, dsub_5, dsub_6, dsub_7),
-                       (QPR qsub_0, qsub_1, qsub_2, qsub_3)];
   // Allocate non-VFP2 aliases first.
   let AltOrders = [(rotl QQQQPR, 8)];
   let AltOrderSelect = [{ return 1; }];

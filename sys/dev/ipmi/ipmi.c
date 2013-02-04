@@ -653,11 +653,12 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 		if (timeout == 0)
 			timeout = 1;
 		e = ipmi_set_watchdog(sc, timeout);
-		if (e == 0)
+		if (e == 0) {
 			*error = 0;
-		else
+			sc->ipmi_watchdog_active = 1;
+		} else
 			(void)ipmi_set_watchdog(sc, 0);
-	} else {
+	} else if (atomic_readandclear_int(&sc->ipmi_watchdog_active) != 0) {
 		e = ipmi_set_watchdog(sc, 0);
 		if (e != 0 && cmd == 0)
 			*error = EOPNOTSUPP;

@@ -11,9 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
@@ -34,8 +34,8 @@ clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
   if (!Diags.getPtr()) {
     // No diagnostics engine was provided, so create our own diagnostics object
     // with the default options.
-    DiagnosticOptions DiagOpts;
-    Diags = CompilerInstance::createDiagnostics(DiagOpts, ArgList.size(),
+    Diags = CompilerInstance::createDiagnostics(new DiagnosticOptions,
+                                                ArgList.size(),
                                                 ArgList.begin());
   }
 
@@ -43,8 +43,7 @@ clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
   Args.push_back("<clang>"); // FIXME: Remove dummy argument.
   Args.insert(Args.end(), ArgList.begin(), ArgList.end());
 
-  // FIXME: Find a cleaner way to force the driver into restricted modes. We
-  // also want to force it to use clang.
+  // FIXME: Find a cleaner way to force the driver into restricted modes.
   Args.push_back("-fsyntax-only");
 
   // FIXME: We shouldn't have to pass in the path info.

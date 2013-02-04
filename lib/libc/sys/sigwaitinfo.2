@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2011
+.Dd September 27, 2012
 .Dt SIGTIMEDWAIT 2
 .Os
 .Sh NAME
@@ -172,9 +172,6 @@ system calls fail if:
 .Bl -tag -width Er
 .It Bq Er EINTR
 The wait was interrupted by an unblocked, caught signal.
-.It Bq Er EFAULT
-Any arguments point outside the allocated address space or there is a
-memory protection fault.
 .Pp
 .El
 The

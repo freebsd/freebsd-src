@@ -6,7 +6,6 @@ __FBSDID("$FreeBSD$");
  * Thomas Hood.
  */
 
-	.align
 smapi32_entry:					/* far pointer to SMAPI entry */
 	.globl	smapi32_offset
 smapi32_offset:		.long	0x00000000	/* set by caller */

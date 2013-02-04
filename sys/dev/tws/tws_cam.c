@@ -529,10 +529,10 @@ tws_scsi_err_complete(struct tws_request *req, struct tws_command_header *hdr)
 
         if ( ccb->ccb_h.target_lun ) {
             TWS_TRACE_DEBUG(sc, "invalid lun error",0,0);
-            ccb->ccb_h.status |= CAM_LUN_INVALID;
+            ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
         } else {
             TWS_TRACE_DEBUG(sc, "invalid target error",0,0);
-            ccb->ccb_h.status |= CAM_TID_INVALID;
+            ccb->ccb_h.status |= CAM_SEL_TIMEOUT;
         }
 
     } else {
@@ -970,6 +970,7 @@ tws_map_request(struct tws_softc *sc, struct tws_request *req)
         if (error == EINPROGRESS) {
             TWS_TRACE(sc, "in progress", 0, error);
             tws_freeze_simq(sc, req);
+            error = 0;  // EINPROGRESS is not a fatal error.
         } 
     } else { /* no data involved */
         error = tws_submit_command(sc, req);
@@ -988,6 +989,10 @@ tws_dmamap_data_load_cbfn(void *arg, bus_dma_segment_t *segs,
     void *sgl_ptr;
     struct tws_cmd_generic *gcmd;
 
+
+    if ( error ) {
+        TWS_TRACE(sc, "SOMETHING BAD HAPPENED! error = %d\n", error, 0);
+    }
 
     if ( error == EFBIG ) {
         TWS_TRACE(sc, "not enough data segs", 0, nseg);
@@ -1010,12 +1015,12 @@ tws_dmamap_data_load_cbfn(void *arg, bus_dma_segment_t *segs,
             gcmd = &req->cmd_pkt->cmd.pkt_g.generic;
             sgl_ptr = (u_int32_t *)(gcmd) + gcmd->size;
             gcmd->size += sgls * 
-                          ((req->sc->is64bit && !tws_use_32bit_sgls) ? 4 :2 );
+                          ((req->sc->is64bit && !tws_use_32bit_sgls) ? 4 : 2 );
             tws_fill_sg_list(req->sc, (void *)segs, sgl_ptr, sgls);
 
         } else {
             tws_fill_sg_list(req->sc, (void *)segs, 
-                      (void *)req->cmd_pkt->cmd.pkt_a.sg_list, sgls);
+                      (void *)&(req->cmd_pkt->cmd.pkt_a.sg_list), sgls);
             req->cmd_pkt->cmd.pkt_a.lun_h4__sgl_entries |= sgls ;
         }
     }
@@ -1318,10 +1323,7 @@ tws_reinit(void *arg)
 
     tws_turn_on_interrupts(sc);
 
-    if ( sc->chan ) {
-        sc->chan = 0;
-        wakeup_one((void *)&sc->chan);
-    }
+    wakeup_one(sc->chan);
 }
 
 

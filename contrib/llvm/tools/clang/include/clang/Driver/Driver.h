@@ -146,25 +146,11 @@ private:
   /// jobs.
   unsigned CheckInputsExist : 1;
 
-  /// Use the clang compiler where possible.
-  unsigned CCCUseClang : 1;
-
-  /// Use clang for handling C++ and Objective-C++ inputs.
-  unsigned CCCUseClangCXX : 1;
-
-  /// Use clang as a preprocessor (clang's preprocessor will still be
-  /// used where an integrated CPP would).
-  unsigned CCCUseClangCPP : 1;
-
 public:
   /// Use lazy precompiled headers for PCH support.
   unsigned CCCUsePCH : 1;
 
 private:
-  /// Only use clang for the given architectures (only used when
-  /// non-empty).
-  std::set<llvm::Triple::ArchType> CCCClangArchs;
-
   /// Certain options suppress the 'no input files' warning.
   bool SuppressMissingInputWarning : 1;
 
@@ -174,7 +160,7 @@ private:
   /// \brief Cache of all the ToolChains in use by the driver.
   ///
   /// This maps from the string representation of a triple to a ToolChain
-  /// created targetting that triple. The driver owns all the ToolChain objects
+  /// created targeting that triple. The driver owns all the ToolChain objects
   /// stored in it, and will clean them up when torn down.
   mutable llvm::StringMap<ToolChain *> ToolChains;
 
@@ -281,7 +267,7 @@ public:
   /// BuildJobs - Bind actions to concrete tools and translate
   /// arguments to form the list of jobs to run.
   ///
-  /// \arg C - The compilation that is being built.
+  /// \param C - The compilation that is being built.
   void BuildJobs(Compilation &C) const;
 
   /// ExecuteCompilation - Execute the compilation according to the command line
@@ -317,26 +303,21 @@ public:
   /// PrintVersion - Print the driver version.
   void PrintVersion(const Compilation &C, raw_ostream &OS) const;
 
-  /// GetFilePath - Lookup \arg Name in the list of file search paths.
+  /// GetFilePath - Lookup \p Name in the list of file search paths.
   ///
-  /// \arg TC - The tool chain for additional information on
+  /// \param TC - The tool chain for additional information on
   /// directories to search.
   //
   // FIXME: This should be in CompilationInfo.
   std::string GetFilePath(const char *Name, const ToolChain &TC) const;
 
-  /// GetProgramPath - Lookup \arg Name in the list of program search
-  /// paths.
+  /// GetProgramPath - Lookup \p Name in the list of program search paths.
   ///
-  /// \arg TC - The provided tool chain for additional information on
+  /// \param TC - The provided tool chain for additional information on
   /// directories to search.
-  ///
-  /// \arg WantFile - False when searching for an executable file, otherwise
-  /// true.  Defaults to false.
   //
   // FIXME: This should be in CompilationInfo.
-  std::string GetProgramPath(const char *Name, const ToolChain &TC,
-                              bool WantFile = false) const;
+  std::string GetProgramPath(const char *Name, const ToolChain &TC) const;
 
   /// HandleImmediateArgs - Handle any arguments which should be
   /// treated before building actions or binding tools.
@@ -346,14 +327,14 @@ public:
   bool HandleImmediateArgs(const Compilation &C);
 
   /// ConstructAction - Construct the appropriate action to do for
-  /// \arg Phase on the \arg Input, taking in to account arguments
+  /// \p Phase on the \p Input, taking in to account arguments
   /// like -fsyntax-only or --analyze.
   Action *ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
                                Action *Input) const;
 
 
   /// BuildJobsForAction - Construct the jobs to perform for the
-  /// action \arg A.
+  /// action \p A.
   void BuildJobsForAction(Compilation &C,
                           const Action *A,
                           const ToolChain *TC,
@@ -363,7 +344,7 @@ public:
                           InputInfo &Result) const;
 
   /// GetNamedOutputPath - Return the name to use for the output of
-  /// the action \arg JA. The result is appended to the compilation's
+  /// the action \p JA. The result is appended to the compilation's
   /// list of temporary or result files, as appropriate.
   ///
   /// \param C - The compilation.

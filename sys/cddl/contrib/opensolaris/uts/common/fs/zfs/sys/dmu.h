@@ -314,6 +314,7 @@ typedef void dmu_buf_evict_func_t(struct dmu_buf *db, void *user_ptr);
 #define	DMU_POOL_SCAN			"scan"
 #define	DMU_POOL_FREE_BPOBJ		"free_bpobj"
 #define	DMU_POOL_BPTREE_OBJ		"bptree_obj"
+#define	DMU_POOL_EMPTY_BPOBJ		"empty_bpobj"
 
 /*
  * Allocate an object from this objset.  The range of object numbers
@@ -502,6 +503,11 @@ void dmu_evict_user(objset_t *os, dmu_buf_evict_func_t *func);
  * Returns the user_ptr set with dmu_buf_set_user(), or NULL if not set.
  */
 void *dmu_buf_get_user(dmu_buf_t *db);
+
+/*
+ * Returns the blkptr associated with this dbuf, or NULL if not set.
+ */
+struct blkptr *dmu_buf_get_blkptr(dmu_buf_t *db);
 
 /*
  * Indicate that you are going to modify the buffer's data (db_data).

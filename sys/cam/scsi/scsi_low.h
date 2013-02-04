@@ -48,24 +48,9 @@
  * Scsi low OSDEP 
  * (All os depend structures should be here!)
  ================================================*/
-/******** interface ******************************/
-#ifdef	__NetBSD__
-#define	SCSI_LOW_INTERFACE_XS
-#endif	/* __NetBSD__ */
-
-#ifdef	__FreeBSD__
-#define	SCSI_LOW_INTERFACE_CAM
-#define	CAM
-#endif	/* __FreeBSD__ */
-
 /******** includes *******************************/
-#ifdef	__NetBSD__
-#include <i386/Cbus/dev/scsi_dvcfg.h>
-#include <dev/isa/ccbque.h>
-#endif	/* __NetBSD__ */
 
-#ifdef	__FreeBSD__
-#include <sys/device_port.h>
+#include <sys/bus.h>
 #include <sys/kdb.h>
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -75,47 +60,16 @@
 
 #include <cam/scsi/scsi_dvcfg.h>
 #include <i386/isa/ccbque.h>
-#endif	/* __FreeBSD__ */
 
 /******** functions macro ************************/
-#ifdef	__NetBSD__
-#define	SCSI_LOW_DEBUGGER(dev)	Debugger()
-#define	SCSI_LOW_DELAY(mu)	delay((mu))
-#define	SCSI_LOW_SPLSCSI	splbio
-#define	SCSI_LOW_BZERO(pt, size)	memset((pt), 0, (size))
-#endif	/* __NetBSD__ */
 
-#ifdef	__FreeBSD__
 #undef	MSG_IDENTIFY
-#define	SCSI_LOW_DEBUGGER(dev)	kdb_enter(KDB_WHY_CAM, dev)
-#define	SCSI_LOW_DELAY(mu)	DELAY((mu))
-#define	SCSI_LOW_SPLSCSI	splcam
-#define	SCSI_LOW_BZERO(pt, size)	bzero((pt), (size))
-#endif	/* __FreeBSD__ */
 
 /******** os depend interface structures **********/
-#ifdef	__NetBSD__
-typedef	struct scsipi_sense_data scsi_low_osdep_sense_data_t;
-
-struct scsi_low_osdep_interface {
-	struct device si_dev;
-
-	struct scsipi_link *si_splp;
-};
-
-struct scsi_low_osdep_targ_interface {
-};
-
-struct scsi_low_osdep_lun_interface {
-	u_int sloi_quirks;
-};
-#endif	/* __NetBSD__ */
-
-#ifdef	__FreeBSD__
 typedef	struct scsi_sense_data scsi_low_osdep_sense_data_t;
 
 struct scsi_low_osdep_interface {
-	DEVPORT_DEVICE si_dev;
+	device_t si_dev;
 
 	struct cam_sim *sim;
 	struct cam_path *path;
@@ -128,13 +82,6 @@ struct scsi_low_osdep_interface {
 	struct callout_handle recover_ch;
 #endif
 };
-
-struct scsi_low_osdep_targ_interface {
-};
-
-struct scsi_low_osdep_lun_interface {
-};
-#endif	/* __FreeBSD__ */
 
 /******** os depend interface functions *************/
 struct slccb;
@@ -299,8 +246,6 @@ TAILQ_HEAD(targ_info_tab, targ_info);
 LIST_HEAD(lun_info_tab, lun_info);
 
 struct lun_info {
-	struct scsi_low_osdep_lun_interface li_sloi;
-
 	int li_lun;
 	struct targ_info *li_ti;		/* my target */
 
@@ -387,8 +332,6 @@ struct scsi_low_msg_log {
 };
 
 struct targ_info {
-	struct scsi_low_osdep_targ_interface ti_slti;
-
 	TAILQ_ENTRY(targ_info) ti_chain;	/* targ_info link */
 
 	struct scsi_low_softc *ti_sc;		/* our softc */
@@ -547,7 +490,6 @@ struct scsi_low_softc {
 	struct scsi_low_osdep_interface sl_si;
 #define	sl_dev	sl_si.si_dev
 	struct scsi_low_osdep_funcs *sl_osdep_fp;
-	u_char sl_xname[16];
 				
 	/* our chain */
 	LIST_ENTRY(scsi_low_softc) sl_chain;
@@ -652,10 +594,6 @@ struct scsi_low_softc {
 
 	/* targinfo size */
 	int sl_targsize;
-
-#if	defined(i386) || defined(__i386__)
-	u_int sl_irq;		/* XXX */
-#endif	/* i386 */
 };
 
 /*************************************************

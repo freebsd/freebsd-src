@@ -44,6 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "libzfs_impl.h"
+#include "zfeature_common.h"
 
 /*
  * Message ID table.  This must be kept in sync with the ZPOOL_STATUS_* defines
@@ -147,6 +148,16 @@ find_vdev_problem(nvlist_t *vdev, int (*func)(uint64_t, uint64_t, uint64_t))
 		    vs->vs_write_errors +
 		    vs->vs_checksum_errors))
 			return (B_TRUE);
+	}
+
+	/*
+	 * Check any L2 cache devs
+	 */
+	if (nvlist_lookup_nvlist_array(vdev, ZPOOL_CONFIG_L2CACHE, &child,
+	    &children) == 0) {
+		for (c = 0; c < children; c++)
+			if (find_vdev_problem(child[c], func))
+				return (B_TRUE);
 	}
 
 	return (B_FALSE);
@@ -318,6 +329,30 @@ check_status(nvlist_t *config, boolean_t isimport)
 	 */
 	if (SPA_VERSION_IS_SUPPORTED(version) && version != SPA_VERSION)
 		return (ZPOOL_STATUS_VERSION_OLDER);
+
+	/*
+	 * Usable pool with disabled features
+	 */
+	if (version >= SPA_VERSION_FEATURES) {
+		int i;
+		nvlist_t *feat;
+
+		if (isimport) {
+			feat = fnvlist_lookup_nvlist(config,
+			    ZPOOL_CONFIG_LOAD_INFO);
+			feat = fnvlist_lookup_nvlist(feat,
+			    ZPOOL_CONFIG_ENABLED_FEAT);
+		} else {
+			feat = fnvlist_lookup_nvlist(config,
+			    ZPOOL_CONFIG_FEATURE_STATS);
+		}
+
+		for (i = 0; i < SPA_FEATURES; i++) {
+			zfeature_info_t *fi = &spa_feature_table[i];
+			if (!nvlist_exists(feat, fi->fi_guid))
+				return (ZPOOL_STATUS_FEAT_DISABLED);
+		}
+	}
 
 	return (ZPOOL_STATUS_OK);
 }

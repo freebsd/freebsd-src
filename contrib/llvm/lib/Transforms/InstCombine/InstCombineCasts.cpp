@@ -13,7 +13,7 @@
 
 #include "InstCombine.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Support/PatternMatch.h"
 using namespace llvm;
@@ -34,7 +34,7 @@ static Value *DecomposeSimpleLinearExpr(Value *Val, unsigned &Scale,
   if (BinaryOperator *I = dyn_cast<BinaryOperator>(Val)) {
     // Cannot look past anything that might overflow.
     OverflowingBinaryOperator *OBI = dyn_cast<OverflowingBinaryOperator>(Val);
-    if (OBI && !OBI->hasNoUnsignedWrap()) {
+    if (OBI && !OBI->hasNoUnsignedWrap() && !OBI->hasNoSignedWrap()) {
       Scale = 1;
       Offset = 0;
       return Val;
@@ -78,7 +78,7 @@ static Value *DecomposeSimpleLinearExpr(Value *Val, unsigned &Scale,
 /// try to eliminate the cast by moving the type information into the alloc.
 Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
                                                    AllocaInst &AI) {
-  // This requires TargetData to get the alloca alignment and size information.
+  // This requires DataLayout to get the alloca alignment and size information.
   if (!TD) return 0;
 
   PointerType *PTy = cast<PointerType>(CI.getType());
@@ -229,7 +229,7 @@ isEliminableCastPair(
   const CastInst *CI, ///< The first cast instruction
   unsigned opcode,       ///< The opcode of the second cast instruction
   Type *DstTy,     ///< The target type for the second cast instruction
-  TargetData *TD         ///< The target data for pointer size
+  DataLayout *TD         ///< The target data for pointer size
 ) {
 
   Type *SrcTy = CI->getOperand(0)->getType();   // A from above
@@ -238,17 +238,20 @@ isEliminableCastPair(
   // Get the opcodes of the two Cast instructions
   Instruction::CastOps firstOp = Instruction::CastOps(CI->getOpcode());
   Instruction::CastOps secondOp = Instruction::CastOps(opcode);
-
+  Type *SrcIntPtrTy = TD && SrcTy->isPtrOrPtrVectorTy() ?
+    TD->getIntPtrType(SrcTy) : 0;
+  Type *MidIntPtrTy = TD && MidTy->isPtrOrPtrVectorTy() ?
+    TD->getIntPtrType(MidTy) : 0;
+  Type *DstIntPtrTy = TD && DstTy->isPtrOrPtrVectorTy() ?
+    TD->getIntPtrType(DstTy) : 0;
   unsigned Res = CastInst::isEliminableCastPair(firstOp, secondOp, SrcTy, MidTy,
-                                                DstTy,
-                                  TD ? TD->getIntPtrType(CI->getContext()) : 0);
-  
+                                                DstTy, SrcIntPtrTy, MidIntPtrTy,
+                                                DstIntPtrTy);
+
   // We don't want to form an inttoptr or ptrtoint that converts to an integer
   // type that differs from the pointer size.
-  if ((Res == Instruction::IntToPtr &&
-          (!TD || SrcTy != TD->getIntPtrType(CI->getContext()))) ||
-      (Res == Instruction::PtrToInt &&
-          (!TD || DstTy != TD->getIntPtrType(CI->getContext()))))
+  if ((Res == Instruction::IntToPtr && SrcTy != DstIntPtrTy) ||
+      (Res == Instruction::PtrToInt && DstTy != SrcIntPtrTy))
     Res = 0;
   
   return Instruction::CastOps(Res);
@@ -648,10 +651,8 @@ static bool CanEvaluateZExtd(Value *V, Type *Ty, unsigned &BitsToClear) {
   if (!I) return false;
   
   // If the input is a truncate from the destination type, we can trivially
-  // eliminate it, even if it has multiple uses.
-  // FIXME: This is currently disabled until codegen can handle this without
-  // pessimizing code, PR5997.
-  if (0 && isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
+  // eliminate it.
+  if (isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
     return true;
   
   // We can't extend or shrink something that has multiple uses: doing so would
@@ -992,11 +993,8 @@ static bool CanEvaluateSExtd(Value *V, Type *Ty) {
   Instruction *I = dyn_cast<Instruction>(V);
   if (!I) return false;
   
-  // If this is a truncate from the dest type, we can trivially eliminate it,
-  // even if it has multiple uses.
-  // FIXME: This is currently disabled until codegen can handle this without
-  // pessimizing code, PR5997.
-  if (0 && isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
+  // If this is a truncate from the dest type, we can trivially eliminate it.
+  if (isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
     return true;
   
   // We can't extend or shrink something that has multiple uses: doing so would
@@ -1341,10 +1339,9 @@ Instruction *InstCombiner::commonPointerCastTransforms(CastInst &CI) {
     // non-type-safe code.
     if (TD && GEP->hasOneUse() && isa<BitCastInst>(GEP->getOperand(0)) &&
         GEP->hasAllConstantIndices()) {
-      // We are guaranteed to get a constant from EmitGEPOffset.
-      ConstantInt *OffsetV = cast<ConstantInt>(EmitGEPOffset(GEP));
-      int64_t Offset = OffsetV->getSExtValue();
-      
+      SmallVector<Value*, 8> Ops(GEP->idx_begin(), GEP->idx_end());
+      int64_t Offset = TD->getIndexedOffset(GEP->getPointerOperandType(), Ops);
+
       // Get the base pointer input of the bitcast, and the type it points to.
       Value *OrigBase = cast<BitCastInst>(GEP->getOperand(0))->getOperand(0);
       Type *GEPIdxTy =

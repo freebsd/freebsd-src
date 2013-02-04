@@ -438,6 +438,8 @@ int	ieee80211_node_delucastkey(struct ieee80211_node *);
 void	ieee80211_node_timeout(void *arg);
 
 typedef void ieee80211_iter_func(void *, struct ieee80211_node *);
+int	ieee80211_iterate_nt(struct ieee80211_node_table *,
+		struct ieee80211_node **, uint16_t);
 void	ieee80211_iterate_nodes(struct ieee80211_node_table *,
 		ieee80211_iter_func *, void *);
 

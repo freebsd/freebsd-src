@@ -57,16 +57,40 @@ class MachineRegisterInfo {
   /// physical registers.
   MachineOperand **PhysRegUseDefLists;
 
-  /// UsedPhysRegs - This is a bit vector that is computed and set by the
+  /// getRegUseDefListHead - Return the head pointer for the register use/def
+  /// list for the specified virtual or physical register.
+  MachineOperand *&getRegUseDefListHead(unsigned RegNo) {
+    if (TargetRegisterInfo::isVirtualRegister(RegNo))
+      return VRegInfo[RegNo].second;
+    return PhysRegUseDefLists[RegNo];
+  }
+
+  MachineOperand *getRegUseDefListHead(unsigned RegNo) const {
+    if (TargetRegisterInfo::isVirtualRegister(RegNo))
+      return VRegInfo[RegNo].second;
+    return PhysRegUseDefLists[RegNo];
+  }
+
+  /// Get the next element in the use-def chain.
+  static MachineOperand *getNextOperandForReg(const MachineOperand *MO) {
+    assert(MO && MO->isReg() && "This is not a register operand!");
+    return MO->Contents.Reg.Next;
+  }
+
+  /// UsedRegUnits - This is a bit vector that is computed and set by the
   /// register allocator, and must be kept up to date by passes that run after
   /// register allocation (though most don't modify this).  This is used
   /// so that the code generator knows which callee save registers to save and
   /// for other target specific uses.
-  /// This vector only has bits set for registers explicitly used, not their
-  /// aliases.
-  BitVector UsedPhysRegs;
+  /// This vector has bits set for register units that are modified in the
+  /// current function. It doesn't include registers clobbered by function
+  /// calls with register mask operands.
+  BitVector UsedRegUnits;
 
-  /// UsedPhysRegMask - Additional used physregs, but including aliases.
+  /// UsedPhysRegMask - Additional used physregs including aliases.
+  /// This bit vector represents all the registers clobbered by function calls.
+  /// It can model things that UsedRegUnits can't, such as function calls that
+  /// clobber ymm7 but preserve the low half in xmm7.
   BitVector UsedPhysRegMask;
 
   /// ReservedRegs - This is a bit vector of reserved registers.  The target
@@ -74,9 +98,6 @@ class MachineRegisterInfo {
   /// vector is the frozen set of reserved registers when register allocation
   /// started.
   BitVector ReservedRegs;
-
-  /// AllocatableRegs - From TRI->getAllocatableSet.
-  mutable BitVector AllocatableRegs;
 
   /// LiveIns/LiveOuts - Keep track of the physical registers that are
   /// livein/liveout of the function.  Live in values are typically arguments in
@@ -86,8 +107,8 @@ class MachineRegisterInfo {
   std::vector<std::pair<unsigned, unsigned> > LiveIns;
   std::vector<unsigned> LiveOuts;
 
-  MachineRegisterInfo(const MachineRegisterInfo&); // DO NOT IMPLEMENT
-  void operator=(const MachineRegisterInfo&);      // DO NOT IMPLEMENT
+  MachineRegisterInfo(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
+  void operator=(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
 public:
   explicit MachineRegisterInfo(const TargetRegisterInfo &TRI);
   ~MachineRegisterInfo();
@@ -129,11 +150,20 @@ public:
   // Register Info
   //===--------------------------------------------------------------------===//
 
+  // Strictly for use by MachineInstr.cpp.
+  void addRegOperandToUseList(MachineOperand *MO);
+
+  // Strictly for use by MachineInstr.cpp.
+  void removeRegOperandFromUseList(MachineOperand *MO);
+
   /// reg_begin/reg_end - Provide iteration support to walk over all definitions
   /// and uses of a register within the MachineFunction that corresponds to this
   /// MachineRegisterInfo object.
   template<bool Uses, bool Defs, bool SkipDebug>
   class defusechain_iterator;
+
+  // Make it a friend so it can access getNextOperandForReg().
+  template<bool, bool, bool> friend class defusechain_iterator;
 
   /// reg_iterator/reg_begin/reg_end - Walk all defs and uses of the specified
   /// register.
@@ -172,6 +202,15 @@ public:
   /// specified register (it may be live-in).
   bool def_empty(unsigned RegNo) const { return def_begin(RegNo) == def_end(); }
 
+  /// hasOneDef - Return true if there is exactly one instruction defining the
+  /// specified register.
+  bool hasOneDef(unsigned RegNo) const {
+    def_iterator DI = def_begin(RegNo);
+    if (DI == def_end())
+      return false;
+    return ++DI == def_end();
+  }
+
   /// use_iterator/use_begin/use_end - Walk all uses of the specified register.
   typedef defusechain_iterator<true,false,false> use_iterator;
   use_iterator use_begin(unsigned RegNo) const {
@@ -185,7 +224,12 @@ public:
 
   /// hasOneUse - Return true if there is exactly one instruction using the
   /// specified register.
-  bool hasOneUse(unsigned RegNo) const;
+  bool hasOneUse(unsigned RegNo) const {
+    use_iterator UI = use_begin(RegNo);
+    if (UI == use_end())
+      return false;
+    return ++UI == use_end();
+  }
 
   /// use_nodbg_iterator/use_nodbg_begin/use_nodbg_end - Walk all uses of the
   /// specified register, skipping those marked as Debug.
@@ -218,24 +262,15 @@ public:
   /// constraints.
   void replaceRegWith(unsigned FromReg, unsigned ToReg);
 
-  /// getRegUseDefListHead - Return the head pointer for the register use/def
-  /// list for the specified virtual or physical register.
-  MachineOperand *&getRegUseDefListHead(unsigned RegNo) {
-    if (TargetRegisterInfo::isVirtualRegister(RegNo))
-      return VRegInfo[RegNo].second;
-    return PhysRegUseDefLists[RegNo];
-  }
-
-  MachineOperand *getRegUseDefListHead(unsigned RegNo) const {
-    if (TargetRegisterInfo::isVirtualRegister(RegNo))
-      return VRegInfo[RegNo].second;
-    return PhysRegUseDefLists[RegNo];
-  }
-
   /// getVRegDef - Return the machine instr that defines the specified virtual
   /// register or null if none is found.  This assumes that the code is in SSA
   /// form, so there should only be one definition.
   MachineInstr *getVRegDef(unsigned Reg) const;
+
+  /// getUniqueVRegDef - Return the unique machine instr that defines the
+  /// specified virtual register or null if none is found.  If there are
+  /// multiple definitions or no definition, return null.
+  MachineInstr *getUniqueVRegDef(unsigned Reg) const;
 
   /// clearKillFlags - Iterate over all the uses of the given register and
   /// clear the kill flag from the MachineOperand. This function is used by
@@ -326,29 +361,27 @@ public:
   //===--------------------------------------------------------------------===//
 
   /// isPhysRegUsed - Return true if the specified register is used in this
-  /// function.  This only works after register allocation.
+  /// function. Also check for clobbered aliases and registers clobbered by
+  /// function calls with register mask operands.
+  ///
+  /// This only works after register allocation. It is primarily used by
+  /// PrologEpilogInserter to determine which callee-saved registers need
+  /// spilling.
   bool isPhysRegUsed(unsigned Reg) const {
-    return UsedPhysRegs.test(Reg) || UsedPhysRegMask.test(Reg);
-  }
-
-  /// isPhysRegOrOverlapUsed - Return true if Reg or any overlapping register
-  /// is used in this function.
-  bool isPhysRegOrOverlapUsed(unsigned Reg) const {
     if (UsedPhysRegMask.test(Reg))
       return true;
-    for (const uint16_t *AI = TRI->getOverlaps(Reg); *AI; ++AI)
-      if (UsedPhysRegs.test(*AI))
+    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+      if (UsedRegUnits.test(*Units))
         return true;
     return false;
   }
 
   /// setPhysRegUsed - Mark the specified register used in this function.
   /// This should only be called during and after register allocation.
-  void setPhysRegUsed(unsigned Reg) { UsedPhysRegs.set(Reg); }
-
-  /// addPhysRegsUsed - Mark the specified registers used in this function.
-  /// This should only be called during and after register allocation.
-  void addPhysRegsUsed(const BitVector &Regs) { UsedPhysRegs |= Regs; }
+  void setPhysRegUsed(unsigned Reg) {
+    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+      UsedRegUnits.set(*Units);
+  }
 
   /// addPhysRegsUsedFromRegMask - Mark any registers not in RegMask as used.
   /// This corresponds to the bit mask attached to register mask operands.
@@ -359,8 +392,9 @@ public:
   /// setPhysRegUnused - Mark the specified register unused in this function.
   /// This should only be called during and after register allocation.
   void setPhysRegUnused(unsigned Reg) {
-    UsedPhysRegs.reset(Reg);
     UsedPhysRegMask.reset(Reg);
+    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+      UsedRegUnits.reset(*Units);
   }
 
 
@@ -393,6 +427,34 @@ public:
     return !reservedRegsFrozen() || ReservedRegs.test(PhysReg);
   }
 
+  /// getReservedRegs - Returns a reference to the frozen set of reserved
+  /// registers. This method should always be preferred to calling
+  /// TRI::getReservedRegs() when possible.
+  const BitVector &getReservedRegs() const {
+    assert(reservedRegsFrozen() &&
+           "Reserved registers haven't been frozen yet. "
+           "Use TRI::getReservedRegs().");
+    return ReservedRegs;
+  }
+
+  /// isReserved - Returns true when PhysReg is a reserved register.
+  ///
+  /// Reserved registers may belong to an allocatable register class, but the
+  /// target has explicitly requested that they are not used.
+  ///
+  bool isReserved(unsigned PhysReg) const {
+    return getReservedRegs().test(PhysReg);
+  }
+
+  /// isAllocatable - Returns true when PhysReg belongs to an allocatable
+  /// register class and it hasn't been reserved.
+  ///
+  /// Allocatable registers may show up in the allocation order of some virtual
+  /// register, so a register allocator needs to track its liveness and
+  /// availability.
+  bool isAllocatable(unsigned PhysReg) const {
+    return TRI->isInAllocatableClass(PhysReg) && !isReserved(PhysReg);
+  }
 
   //===--------------------------------------------------------------------===//
   // LiveIn/LiveOut Management
@@ -434,10 +496,6 @@ public:
                         const TargetRegisterInfo &TRI,
                         const TargetInstrInfo &TII);
 
-private:
-  void HandleVRegListReallocation();
-
-public:
   /// defusechain_iterator - This class provides iterator support for machine
   /// operands in the function that use or define a specific register.  If
   /// ReturnUses is true it returns uses of registers, if ReturnDefs is true it
@@ -481,13 +539,22 @@ public:
     // Iterator traversal: forward iteration only
     defusechain_iterator &operator++() {          // Preincrement
       assert(Op && "Cannot increment end iterator!");
-      Op = Op->getNextOperandForReg();
+      Op = getNextOperandForReg(Op);
 
-      // If this is an operand we don't care about, skip it.
-      while (Op && ((!ReturnUses && Op->isUse()) ||
-                    (!ReturnDefs && Op->isDef()) ||
-                    (SkipDebug && Op->isDebug())))
-        Op = Op->getNextOperandForReg();
+      // All defs come before the uses, so stop def_iterator early.
+      if (!ReturnUses) {
+        if (Op) {
+          if (Op->isUse())
+            Op = 0;
+          else
+            assert(!Op->isDebug() && "Can't have debug defs");
+        }
+      } else {
+        // If this is an operand we don't care about, skip it.
+        while (Op && ((!ReturnDefs && Op->isDef()) ||
+                      (SkipDebug && Op->isDebug())))
+          Op = getNextOperandForReg(Op);
+      }
 
       return *this;
     }

@@ -307,7 +307,6 @@ dead_strategy(struct bio *bp)
 
 static struct cdevsw dead_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT, /* XXX: does dead_strategy need this ? */
 	.d_open =	dead_open,
 	.d_close =	dead_close,
 	.d_read =	dead_read,
@@ -699,6 +698,13 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 		;
 
 	for (to = dev->si_name; *from != '\0'; from++, to++) {
+		/*
+		 * Spaces and double quotation marks cause
+		 * problems for the devctl(4) protocol.
+		 * Reject names containing those characters.
+		 */
+		if (isspace(*from) || *from == '"')
+			return (EINVAL);
 		/* Treat multiple sequential slashes as single. */
 		while (from[0] == '/' && from[1] == '/')
 			from++;
@@ -1432,10 +1438,7 @@ DB_SHOW_COMMAND(cdev, db_show_cdev)
 	SI_FLAG(SI_NAMED);
 	SI_FLAG(SI_CHEAPCLONE);
 	SI_FLAG(SI_CHILD);
-	SI_FLAG(SI_DEVOPEN);
-	SI_FLAG(SI_CONSOPEN);
 	SI_FLAG(SI_DUMPDEV);
-	SI_FLAG(SI_CANDELETE);
 	SI_FLAG(SI_CLONELIST);
 	db_printf("si_flags %s\n", buf);
 

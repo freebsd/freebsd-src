@@ -49,12 +49,17 @@ __FBSDID("$FreeBSD$");
 
 	.text
 	.align	0
-#ifdef MULTIPROCESSOR
-.Lcpu_info:
-	.word	_C_LABEL(cpu_info)
+
+#ifdef _ARM_ARCH_6
+#define GET_PCB(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4; \
+	add	tmp, tmp, #(PC_CURPCB)
 #else
 .Lpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
+
+#define GET_PCB(tmp) \
+	ldr	tmp, .Lpcb
 #endif
 
 /*
@@ -108,18 +113,8 @@ ENTRY(copyinstr)
 	moveq	r0, #ENAMETOOLONG
 	beq	2f
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r3, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r4, .Lcpu_info
-	ldr	r4, [r4, r0, lsl #2]
-	ldr	r4, [r4, #CI_CURPCB]
-	ldmfd	sp!, {r0-r3, r14}
-#else
-	ldr	r4, .Lpcb
+	GET_PCB(r4)
 	ldr	r4, [r4]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r4, #0x00000000
@@ -165,18 +160,8 @@ ENTRY(copyoutstr)
 	moveq	r0, #ENAMETOOLONG
 	beq	2f
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r3, r14}
-	bl	_C_LABEL(cpu_number)
-	ldr	r4, .Lcpu_info
-	ldr	r4, [r4, r0, lsl #2]
-	ldr	r4, [r4, #CI_CURPCB]
-	ldmfd	sp!, {r0-r3, r14}
-#else
-	ldr	r4, .Lpcb
+	GET_PCB(r4)
 	ldr	r4, [r4]
-#endif
 
 #ifdef DIAGNOSTIC
 	teq	r4, #0x00000000

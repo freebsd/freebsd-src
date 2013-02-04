@@ -55,7 +55,7 @@ CRUNCH_SRCDIRS+= bin
 # setuid binaries - they use these libraries. PAM needs to be
 # built dynamically or it tries to build _all_ of the modules
 # statically - and that ends very badly.
-CRUNCH_SHLIBS+=	-lc -lutil
+CRUNCH_SHLIBS+=	-lc -lutil -lcrypt
 CRUNCH_LIBS+= -lkvm -lmemstat -lnetgraph
 CRUNCH_LIBS+= -lcrypt -ledit -ll -ltermcap
 
@@ -98,7 +98,7 @@ CRUNCH_LIBS+= -lm
 .include "Makefile.base"
 .include "Makefile.net"
 .include "Makefile.hostapd"
-.include "Makefile.textproc"
+#.include "Makefile.textproc"
 .include "Makefile.login"
 .include "Makefile.kld"
 # telnet/telnetd are too broken to include as a crunchgen'ed binary,

@@ -138,6 +138,14 @@ static const struct ng_parse_type ng_netflow_setmtu_type = {
 	&ng_netflow_setmtu_type_fields
 };
 
+/* Parse type for struct ng_netflow_v9info */
+static const struct ng_parse_struct_field ng_netflow_v9info_type_fields[]
+	= NG_NETFLOW_V9INFO_TYPE;
+static const struct ng_parse_type ng_netflow_v9info_type = {
+	&ng_parse_struct_type,
+	&ng_netflow_v9info_type_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_netflow_cmds[] = {
        {
@@ -195,6 +203,13 @@ static const struct ng_cmdlist ng_netflow_cmds[] = {
 	"setmtu",
 	&ng_netflow_setmtu_type,
 	NULL
+       },
+       {
+	 NGM_NETFLOW_COOKIE,
+	 NGM_NETFLOW_V9INFO,
+	 "v9info",
+	 NULL,
+	 &ng_netflow_v9info_type
        },
        { 0 }
 };
@@ -526,6 +541,17 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 
 			break;
 		}
+		case NGM_NETFLOW_V9INFO:
+		{
+			struct ng_netflow_v9info *i;
+
+			NG_MKRESPONSE(resp, msg, sizeof(struct ng_netflow_v9info),
+			    M_NOWAIT);
+			i = (struct ng_netflow_v9info *)resp->data;
+			ng_netflow_copyv9info(priv, i);
+
+			break;
+		}
 		default:
 			ERROUT(EINVAL);		/* unknown command */
 			break;
@@ -832,7 +858,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 				goto loopend;
 #endif
 			/*
-			 * Any unknow header (new extension or IPv6/IPv4
+			 * Any unknown header (new extension or IPv6/IPv4
 			 * header for tunnels) ends loop.
 			 */
 			default:

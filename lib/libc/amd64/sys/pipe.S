@@ -45,18 +45,11 @@ __FBSDID("$FreeBSD$");
 ENTRY(__sys_pipe)
 	mov	$SYS_pipe,%rax
 	KERNCALL
-	jb	1f
+	jb	HIDENAME(cerror)
 	movl	%eax,(%rdi)	/* %rdi is preserved by syscall */
 	movl	%edx,4(%rdi)
 	movq	$0,%rax
 	ret
-1:
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
-	jmp	HIDENAME(cerror)
-#endif
 END(__sys_pipe)
 
 	.section .note.GNU-stack,"",%progbits

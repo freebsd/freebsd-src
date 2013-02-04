@@ -247,8 +247,7 @@ fetchifstat(void)
 		old_outb = ifp->if_mib.ifmd_data.ifi_obytes;
 		ifp->tv_lastchanged = ifp->if_mib.ifmd_data.ifi_lastchange;
 
-		if (gettimeofday(&new_tv, (struct timezone *)0) != 0)
-			IFSTAT_ERR(2, "error getting time of day");
+		(void)gettimeofday(&new_tv, NULL);
 		(void)getifmibdata(ifp->if_row, &ifp->if_mib);
 
 		new_inb = ifp->if_mib.ifmd_data.ifi_ibytes;

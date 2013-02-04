@@ -150,12 +150,11 @@ main(argc, argv)
 	extern char **environ;
 	struct group *gr;
 	struct stat st;
-	struct timeval tp;
 	struct utmpx utmp;
 	int rootok, retries, backoff;
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
 	int changepass;
-	time_t warntime;
+	time_t now, warntime;
 	uid_t uid, euid;
 	gid_t egid;
 	char *p, *ttyn;
@@ -430,8 +429,7 @@ main(argc, argv)
 	if (!quietlog)
 		quietlog = access(_PATH_HUSHLOGIN, F_OK) == 0;
 
-	if (pwd->pw_change || pwd->pw_expire)
-		(void)gettimeofday(&tp, (struct timezone *)NULL);
+	now = time(NULL);
 
 #define	DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
@@ -439,10 +437,10 @@ main(argc, argv)
 	    DEFAULT_WARN);
 
 	if (pwd->pw_expire) {
-		if (tp.tv_sec >= pwd->pw_expire) {
+		if (now >= pwd->pw_expire) {
 			refused("Sorry -- your account has expired", "EXPIRED",
 			    1);
-		} else if (pwd->pw_expire - tp.tv_sec < warntime && !quietlog)
+		} else if (pwd->pw_expire - now < warntime && !quietlog)
 			(void)printf("Warning: your account expires on %s",
 			    ctime(&pwd->pw_expire));
 	}
@@ -452,12 +450,12 @@ main(argc, argv)
 
 	changepass = 0;
 	if (pwd->pw_change) {
-		if (tp.tv_sec >= pwd->pw_change) {
+		if (now >= pwd->pw_change) {
 			(void)printf("Sorry -- your password has expired.\n");
 			changepass = 1;
 			syslog(LOG_INFO, "%s Password expired - forcing change",
 			    pwd->pw_name);
-		} else if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
+		} else if (pwd->pw_change - now < warntime && !quietlog)
 			(void)printf("Warning: your password expires on %s",
 			    ctime(&pwd->pw_change));
 	}

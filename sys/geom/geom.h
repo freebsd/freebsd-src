@@ -110,6 +110,8 @@ struct g_class {
 	g_ioctl_t		*ioctl;
 	g_provgone_t		*providergone;
 	g_resize_t		*resize;
+	void			*spare1;
+	void			*spare2;
 	/*
 	 * The remaining elements are private
 	 */
@@ -141,6 +143,8 @@ struct g_geom {
 	g_ioctl_t		*ioctl;
 	g_provgone_t		*providergone;
 	g_resize_t		*resize;
+	void			*spare0;
+	void			*spare1;
 	void			*softc;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1
@@ -170,7 +174,9 @@ struct g_consumer {
 	struct g_provider	*provider;
 	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
 	int			acr, acw, ace;
-	int			spoiled;
+	int			flags;
+#define G_CF_SPOILED		0x1
+#define G_CF_ORPHAN		0x4
 	struct devstat		*stat;
 	u_int			nstart, nend;
 
@@ -197,7 +203,6 @@ struct g_provider {
 	struct devstat		*stat;
 	u_int			nstart, nend;
 	u_int			flags;
-#define G_PF_CANDELETE		0x1
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
 
@@ -243,6 +248,8 @@ int g_post_event(g_event_t *func, void *arg, int flag, ...);
 int g_waitfor_event(g_event_t *func, void *arg, int flag, ...);
 void g_cancel_event(void *ref);
 int g_attr_changed(struct g_provider *pp, const char *attr, int flag);
+int g_media_changed(struct g_provider *pp, int flag);
+int g_media_gone(struct g_provider *pp, int flag);
 void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidlelock(void);
 
@@ -264,8 +271,10 @@ int g_handleattr_int(struct bio *bp, const char *attribute, int val);
 int g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val);
 int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
-struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...);
-struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...);
+struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...)
+    __printflike(2, 3);
+struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+    __printflike(2, 3);
 void g_resize_provider(struct g_provider *pp, off_t size);
 int g_retaste(struct g_class *mp);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);

@@ -13,6 +13,7 @@
 
 #define DEBUG_TYPE "asm-printer"
 #include "MipsInstPrinter.h"
+#include "MipsInstrInfo.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -68,8 +69,25 @@ void MipsInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 
 void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
                                 StringRef Annot) {
+  switch (MI->getOpcode()) {
+  default:
+    break;
+  case Mips::RDHWR:
+  case Mips::RDHWR64:
+    O << "\t.set\tpush\n";
+    O << "\t.set\tmips32r2\n";
+  }
+
   printInstruction(MI, O);
   printAnnotation(O, Annot);
+
+  switch (MI->getOpcode()) {
+  default:
+    break;
+  case Mips::RDHWR:
+  case Mips::RDHWR64:
+    O << "\n\t.set\tpop";
+  }
 }
 
 static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
@@ -108,6 +126,12 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
   case MCSymbolRefExpr::VK_Mips_GOT_DISP:  OS << "%got_disp("; break;
   case MCSymbolRefExpr::VK_Mips_GOT_PAGE:  OS << "%got_page("; break;
   case MCSymbolRefExpr::VK_Mips_GOT_OFST:  OS << "%got_ofst("; break;
+  case MCSymbolRefExpr::VK_Mips_HIGHER:    OS << "%higher("; break;
+  case MCSymbolRefExpr::VK_Mips_HIGHEST:   OS << "%highest("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_HI16:  OS << "%got_hi("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_LO16:  OS << "%got_lo("; break;
+  case MCSymbolRefExpr::VK_Mips_CALL_HI16: OS << "%call_hi("; break;
+  case MCSymbolRefExpr::VK_Mips_CALL_LO16: OS << "%call_lo("; break;
   }
 
   OS << SRE->getSymbol();

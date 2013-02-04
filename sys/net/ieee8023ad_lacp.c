@@ -348,7 +348,7 @@ lacp_xmit_lacpdu(struct lacp_port *lp)
 
 	LACP_LOCK_ASSERT(lp->lp_lsc);
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		return (ENOMEM);
 	}
@@ -402,7 +402,7 @@ lacp_xmit_marker(struct lacp_port *lp)
 
 	LACP_LOCK_ASSERT(lp->lp_lsc);
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		return (ENOMEM);
 	}

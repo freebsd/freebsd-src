@@ -96,7 +96,7 @@ struct _setT {
 	LIST_ENTRY(_setT) entries;
 };
 
-LIST_HEAD(sethead, _setT) sethead;
+static LIST_HEAD(sethead, _setT) sethead;
 static struct _setT *curSet;
 
 static char *curline = NULL;

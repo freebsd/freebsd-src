@@ -178,11 +178,13 @@ struct umodem_softc {
 static device_probe_t umodem_probe;
 static device_attach_t umodem_attach;
 static device_detach_t umodem_detach;
+static void umodem_free_softc(struct umodem_softc *);
 
 static usb_callback_t umodem_intr_callback;
 static usb_callback_t umodem_write_callback;
 static usb_callback_t umodem_read_callback;
 
+static void	umodem_free(struct ucom_softc *);
 static void	umodem_start_read(struct ucom_softc *);
 static void	umodem_stop_read(struct ucom_softc *);
 static void	umodem_start_write(struct ucom_softc *);
@@ -250,13 +252,14 @@ static const struct ucom_callback umodem_callback = {
 	.ucom_start_write = &umodem_start_write,
 	.ucom_stop_write = &umodem_stop_write,
 	.ucom_poll = &umodem_poll,
+	.ucom_free = &umodem_free,
 };
 
 static device_method_t umodem_methods[] = {
 	DEVMETHOD(device_probe, umodem_probe),
 	DEVMETHOD(device_attach, umodem_attach),
 	DEVMETHOD(device_detach, umodem_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t umodem_devclass;
@@ -302,6 +305,7 @@ umodem_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "umodem", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_ctrl_iface_no = uaa->info.bIfaceNum;
 	sc->sc_iface_index[1] = uaa->info.bIfaceIndex;
@@ -875,9 +879,29 @@ umodem_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UMODEM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	umodem_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(umodem);
+
+static void
+umodem_free_softc(struct umodem_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+umodem_free(struct ucom_softc *ucom)
+{
+	umodem_free_softc(ucom->sc_parent);
 }
 
 static void

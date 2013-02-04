@@ -29,6 +29,51 @@
 #include "ah_eeprom_v14.h"	/* for owl_get_ntxchains() */
 
 /*
+ * These are default parameters for the AR5416 and
+ * later 802.11n NICs.  They simply enable some
+ * radar pulse event generation.
+ *
+ * These are very likely not valid for the AR5212 era
+ * NICs.
+ *
+ * Since these define signal sizing and threshold
+ * parameters, they may need changing based on the
+ * specific antenna and receive amplifier
+ * configuration.
+ */
+#define	AR5416_DFS_FIRPWR	-33
+#define	AR5416_DFS_RRSSI	20
+#define	AR5416_DFS_HEIGHT	10
+#define	AR5416_DFS_PRSSI	15
+#define	AR5416_DFS_INBAND	15
+#define	AR5416_DFS_RELPWR	8
+#define	AR5416_DFS_RELSTEP	12
+#define	AR5416_DFS_MAXLEN	255
+
+HAL_BOOL
+ar5416GetDfsDefaultThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+
+	/*
+	 * These are general examples of the parameter values
+	 * to use when configuring radar pulse detection for
+	 * the AR5416, AR91xx, AR92xx NICs.  They are only
+	 * for testing and do require tuning depending upon the
+	 * hardware and deployment specifics.
+	 */
+	pe->pe_firpwr = AR5416_DFS_FIRPWR;
+	pe->pe_rrssi = AR5416_DFS_RRSSI;
+	pe->pe_height = AR5416_DFS_HEIGHT;
+	pe->pe_prssi = AR5416_DFS_PRSSI;
+	pe->pe_inband = AR5416_DFS_INBAND;
+	pe->pe_relpwr = AR5416_DFS_RELPWR;
+	pe->pe_relstep = AR5416_DFS_RELSTEP;
+	pe->pe_maxlen = AR5416_DFS_MAXLEN;
+
+	return (AH_TRUE);
+}
+
+/*
  * Get the radar parameter values and return them in the pe
  * structure
  */

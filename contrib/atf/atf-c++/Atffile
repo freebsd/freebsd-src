@@ -1,0 +1,14 @@
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: detail
+
+tp: atf_c++_test
+tp: build_test
+tp: check_test
+tp: config_test
+tp: macros_test
+tp: pkg_config_test
+tp: tests_test
+tp: utils_test

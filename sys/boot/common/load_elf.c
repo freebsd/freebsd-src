@@ -588,7 +588,7 @@ fake_modname(const char *name)
     return fp;
 }
 
-#if defined(__i386__) && __ELF_WORD_SIZE == 64
+#if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
 struct mod_metadata64 {
 	int		md_version;	/* structure version MDTV_* */  
 	int		md_type;	/* type of entry MDT_* */
@@ -601,7 +601,7 @@ int
 __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 {
     struct mod_metadata md;
-#if defined(__i386__) && __ELF_WORD_SIZE == 64
+#if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
     struct mod_metadata64 md64;
 #endif
     struct mod_depend *mdepend;
@@ -626,7 +626,7 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 	    v += ef->off;
 	else if (error != 0)
 	    return (error);
-#if defined(__i386__) && __ELF_WORD_SIZE == 64
+#if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
 	COPYOUT(v, &md64, sizeof(md64));
 	error = __elfN(reloc_ptr)(fp, ef, v, &md64, sizeof(md64));
 	if (error == EOPNOTSUPP) {

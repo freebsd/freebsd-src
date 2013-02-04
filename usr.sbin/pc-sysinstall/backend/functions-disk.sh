@@ -224,6 +224,15 @@ get_disk_mediasize()
   export VAL="${mediasize}"
 };
 
+# Function which returns a target disks mediasize in megabytes
+get_disk_mediasize_mb()
+{
+  mediasize=`diskinfo -v ${1} | grep "# mediasize in bytes" | tr -s ' ' | cut -f 2`
+  mediasize=`expr $mediasize / 1024`
+  mediasize=`expr $mediasize / 1024`
+  export VAL="${mediasize}"
+};
+
 # Function to delete all gparts before starting an install
 delete_all_gpart()
 {

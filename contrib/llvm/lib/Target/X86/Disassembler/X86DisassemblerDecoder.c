@@ -138,6 +138,10 @@ static InstrUID decode(OpcodeType type,
     if (modFromModRM(modRM) == 0x3)
       return modRMTable[dec->instructionIDs+((modRM & 0x38) >> 3)+8];
     return modRMTable[dec->instructionIDs+((modRM & 0x38) >> 3)];
+  case MODRM_SPLITMISC:
+    if (modFromModRM(modRM) == 0x3)
+      return modRMTable[dec->instructionIDs+(modRM & 0x3f)+8];
+    return modRMTable[dec->instructionIDs+((modRM & 0x38) >> 3)];
   case MODRM_FULL:
     return modRMTable[dec->instructionIDs+modRM];
   }
@@ -200,7 +204,7 @@ static void unconsumeByte(struct InternalInstruction* insn) {
                              insn->readerCursor + offset);        \
       if (ret)                                                    \
         return ret;                                               \
-      combined = combined | ((type)byte << ((type)offset * 8));   \
+      combined = combined | ((uint64_t)byte << (offset * 8));     \
     }                                                             \
     *ptr = combined;                                              \
     insn->readerCursor += sizeof(type);                           \
@@ -690,7 +694,7 @@ static int getIDWithAttrMask(uint16_t* instructionID,
  * @param orig  - The instruction that is not 16-bit
  * @param equiv - The instruction that is 16-bit
  */
-static BOOL is16BitEquvalent(const char* orig, const char* equiv) {
+static BOOL is16BitEquivalent(const char* orig, const char* equiv) {
   off_t i;
   
   for (i = 0;; i++) {
@@ -719,7 +723,7 @@ static BOOL is16BitEquvalent(const char* orig, const char* equiv) {
  * @return      - 0 if the ModR/M could be read when needed or was not needed;
  *                nonzero otherwise.
  */
-static int getID(struct InternalInstruction* insn, void *miiArg) {
+static int getID(struct InternalInstruction* insn, const void *miiArg) {
   uint8_t attrMask;
   uint16_t instructionID;
   
@@ -856,7 +860,7 @@ static int getID(struct InternalInstruction* insn, void *miiArg) {
     specWithOpSizeName =
       x86DisassemblerGetInstrName(instructionIDWithOpsize, miiArg);
 
-    if (is16BitEquvalent(specName, specWithOpSizeName)) {
+    if (is16BitEquivalent(specName, specWithOpSizeName)) {
       insn->instructionID = instructionIDWithOpsize;
       insn->spec = specifierForUID(instructionIDWithOpsize);
     } else {
@@ -1495,14 +1499,14 @@ static int readOperands(struct InternalInstruction* insn) {
   needVVVV = hasVVVV && (insn->vvvv != 0);
   
   for (index = 0; index < X86_MAX_OPERANDS; ++index) {
-    switch (insn->spec->operands[index].encoding) {
+    switch (x86OperandSets[insn->spec->operands][index].encoding) {
     case ENCODING_NONE:
       break;
     case ENCODING_REG:
     case ENCODING_RM:
       if (readModRM(insn))
         return -1;
-      if (fixupReg(insn, &insn->spec->operands[index]))
+      if (fixupReg(insn, &x86OperandSets[insn->spec->operands][index]))
         return -1;
       break;
     case ENCODING_CB:
@@ -1524,14 +1528,14 @@ static int readOperands(struct InternalInstruction* insn) {
       }
       if (readImmediate(insn, 1))
         return -1;
-      if (insn->spec->operands[index].type == TYPE_IMM3 &&
+      if (x86OperandSets[insn->spec->operands][index].type == TYPE_IMM3 &&
           insn->immediates[insn->numImmediatesConsumed - 1] > 7)
         return -1;
-      if (insn->spec->operands[index].type == TYPE_IMM5 &&
+      if (x86OperandSets[insn->spec->operands][index].type == TYPE_IMM5 &&
           insn->immediates[insn->numImmediatesConsumed - 1] > 31)
         return -1;
-      if (insn->spec->operands[index].type == TYPE_XMM128 ||
-          insn->spec->operands[index].type == TYPE_XMM256)
+      if (x86OperandSets[insn->spec->operands][index].type == TYPE_XMM128 ||
+          x86OperandSets[insn->spec->operands][index].type == TYPE_XMM256)
         sawRegImm = 1;
       break;
     case ENCODING_IW:
@@ -1582,7 +1586,7 @@ static int readOperands(struct InternalInstruction* insn) {
       needVVVV = 0; /* Mark that we have found a VVVV operand. */
       if (!hasVVVV)
         return -1;
-      if (fixupReg(insn, &insn->spec->operands[index]))
+      if (fixupReg(insn, &x86OperandSets[insn->spec->operands][index]))
         return -1;
       break;
     case ENCODING_DUP:
@@ -1621,10 +1625,10 @@ static int readOperands(struct InternalInstruction* insn) {
  */
 int decodeInstruction(struct InternalInstruction* insn,
                       byteReader_t reader,
-                      void* readerArg,
+                      const void* readerArg,
                       dlog_t logger,
                       void* loggerArg,
-                      void* miiArg,
+                      const void* miiArg,
                       uint64_t startLoc,
                       DisassemblerMode mode) {
   memset(insn, 0, sizeof(struct InternalInstruction));
@@ -1644,6 +1648,8 @@ int decodeInstruction(struct InternalInstruction* insn,
       insn->instructionID == 0 ||
       readOperands(insn))
     return -1;
+
+  insn->operands = &x86OperandSets[insn->spec->operands][0];
   
   insn->length = insn->readerCursor - insn->startLocation;
   

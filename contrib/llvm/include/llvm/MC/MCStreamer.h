@@ -47,8 +47,8 @@ namespace llvm {
   class MCStreamer {
     MCContext &Context;
 
-    MCStreamer(const MCStreamer&); // DO NOT IMPLEMENT
-    MCStreamer &operator=(const MCStreamer&); // DO NOT IMPLEMENT
+    MCStreamer(const MCStreamer&) LLVM_DELETED_FUNCTION;
+    MCStreamer &operator=(const MCStreamer&) LLVM_DELETED_FUNCTION;
 
     bool EmitEHFrame;
     bool EmitDebugFrame;
@@ -69,22 +69,7 @@ namespace llvm {
     SmallVector<std::pair<const MCSection *,
                 const MCSection *>, 4> SectionStack;
 
-    unsigned UniqueCodeBeginSuffix;
-    unsigned UniqueDataBeginSuffix;
-
   protected:
-    /// Indicator of whether the previous data-or-code indicator was for
-    /// code or not.  Used to determine when we need to emit a new indicator.
-    enum DataType {
-      Data,
-      Code,
-      JumpTable8,
-      JumpTable16,
-      JumpTable32
-    };
-    DataType RegionIndicator;
-
-
     MCStreamer(MCContext &Ctx);
 
     const MCExpr *BuildSymbolDiff(MCContext &Context, const MCSymbol *A,
@@ -241,46 +226,14 @@ namespace llvm {
     /// used in an assignment.
     virtual void EmitLabel(MCSymbol *Symbol);
 
-    /// EmitDataRegion - Emit a label that marks the beginning of a data
-    /// region.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitDataRegion();
-
-    /// EmitJumpTable8Region - Emit a label that marks the beginning of a
-    /// jump table composed of 8-bit offsets.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitJumpTable8Region();
-
-    /// EmitJumpTable16Region - Emit a label that marks the beginning of a
-    /// jump table composed of 16-bit offsets.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitJumpTable16Region();
-
-    /// EmitJumpTable32Region - Emit a label that marks the beginning of a
-    /// jump table composed of 32-bit offsets.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitJumpTable32Region();
-
-    /// EmitCodeRegion - Emit a label that marks the beginning of a code
-    /// region.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $a.1:
-    virtual void EmitCodeRegion();
-
-    /// ForceCodeRegion - Forcibly sets the current region mode to code.  Used
-    /// at function entry points.
-    void ForceCodeRegion() { RegionIndicator = Code; }
-
-
     virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
                                      MCSymbol *EHSymbol);
 
-    /// EmitAssemblerFlag - Note in the output the specified @p Flag
+    /// EmitAssemblerFlag - Note in the output the specified @p Flag.
     virtual void EmitAssemblerFlag(MCAssemblerFlag Flag) = 0;
+
+    /// EmitDataRegion - Note in the output the specified region @p Kind.
+    virtual void EmitDataRegion(MCDataRegionType Kind) {}
 
     /// EmitThumbFunc - Note in the output that the specified @p Func is
     /// a Thumb mode function (ARM target only).
@@ -373,7 +326,7 @@ namespace llvm {
     /// @param ByteAlignment - The alignment of the zerofill symbol if
     /// non-zero. This must be a power of 2 on some targets.
     virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
-                              unsigned Size = 0,unsigned ByteAlignment = 0) = 0;
+                              uint64_t Size = 0,unsigned ByteAlignment = 0) = 0;
 
     /// EmitTBSSSymbol - Emit a thread local bss (.tbss) symbol.
     ///
@@ -389,7 +342,7 @@ namespace llvm {
     /// @name Generating Data
     /// @{
 
-    /// EmitBytes - Emit the bytes in \arg Data into the output.
+    /// EmitBytes - Emit the bytes in \p Data into the output.
     ///
     /// This is used to implement assembler directives such as .byte, .ascii,
     /// etc.
@@ -601,6 +554,11 @@ namespace llvm {
     virtual void EmitRegSave(const SmallVectorImpl<unsigned> &RegList,
                              bool isVector);
 
+    /// PPC-related methods.
+    /// FIXME: Eventually replace it with some "target MC streamer" and move
+    /// these methods there.
+    virtual void EmitTCEntry(const MCSymbol &S);
+
     /// FinishImpl - Streamer specific finalization.
     virtual void FinishImpl() = 0;
     /// Finish - Finish emission of machine code.
@@ -620,17 +578,14 @@ namespace llvm {
   /// InstPrint.
   ///
   /// \param CE - If given, a code emitter to use to show the instruction
-  /// encoding inline with the assembly. This method takes ownership of \arg CE.
+  /// encoding inline with the assembly. This method takes ownership of \p CE.
   ///
   /// \param TAB - If given, a target asm backend to use to show the fixup
   /// information in conjunction with encoding information. This method takes
-  /// ownership of \arg TAB.
+  /// ownership of \p TAB.
   ///
   /// \param ShowInst - Whether to show the MCInst representation inline with
   /// the assembly.
-  ///
-  /// \param DecodeLSDA - If true, emit comments that translates the LSDA into a
-  /// human readable format. Only usable with CFI.
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
                                 bool isVerboseAsm,
                                 bool useLoc,
@@ -644,7 +599,7 @@ namespace llvm {
   /// createMachOStreamer - Create a machine code streamer which will generate
   /// Mach-O format object files.
   ///
-  /// Takes ownership of \arg TAB and \arg CE.
+  /// Takes ownership of \p TAB and \p CE.
   MCStreamer *createMachOStreamer(MCContext &Ctx, MCAsmBackend &TAB,
                                   raw_ostream &OS, MCCodeEmitter *CE,
                                   bool RelaxAll = false);
@@ -652,7 +607,7 @@ namespace llvm {
   /// createWinCOFFStreamer - Create a machine code streamer which will
   /// generate Microsoft COFF format object files.
   ///
-  /// Takes ownership of \arg TAB and \arg CE.
+  /// Takes ownership of \p TAB and \p CE.
   MCStreamer *createWinCOFFStreamer(MCContext &Ctx,
                                     MCAsmBackend &TAB,
                                     MCCodeEmitter &CE, raw_ostream &OS,
@@ -667,7 +622,7 @@ namespace llvm {
   /// createPureStreamer - Create a machine code streamer which will generate
   /// "pure" MC object files, for use with MC-JIT and testing tools.
   ///
-  /// Takes ownership of \arg TAB and \arg CE.
+  /// Takes ownership of \p TAB and \p CE.
   MCStreamer *createPureStreamer(MCContext &Ctx, MCAsmBackend &TAB,
                                  raw_ostream &OS, MCCodeEmitter *CE);
 

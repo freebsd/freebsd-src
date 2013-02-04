@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -144,7 +145,7 @@ main(int argc, char *argv[])
 	printer = NULL;
 	euid = geteuid();
 	uid = getuid();
-	seteuid(uid);
+	PRIV_END
 	if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
 		signal(SIGHUP, cleanup);
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
@@ -325,10 +326,10 @@ main(int argc, char *argv[])
 	 */
 	mktemps(pp);
 	tfd = nfile(tfname);
-	seteuid(euid);
+	PRIV_START
 	(void) fchown(tfd, pp->daemon_user, -1);
 	/* owned by daemon for protection */
-	seteuid(uid);
+	PRIV_END
 	card('H', local_host);
 	card('P', lpr_username);
 	card('C', class);
@@ -386,8 +387,8 @@ main(int argc, char *argv[])
 			continue;	/* file unreasonable */
 
 		if (sflag && (cp = linked(arg)) != NULL) {
-			(void) snprintf(buf, sizeof(buf), "%u %u", statb.st_dev,
-				statb.st_ino);
+			(void)snprintf(buf, sizeof(buf), "%u %ju",
+			    statb.st_dev, (uintmax_t)statb.st_ino);
 			card('S', buf);
 			if (format == 'p')
 				card('T', title ? title : arg);
@@ -414,7 +415,7 @@ main(int argc, char *argv[])
 			 * can be very significant when running services like
 			 * samba, pcnfs, CAP, et al.
 			 */
-			seteuid(euid);
+			PRIV_START
 			didlink = 0;
 			/*
 			 * There are several things to check to avoid any
@@ -452,11 +453,11 @@ main(int argc, char *argv[])
 			 * safe.  Otherwise, abandon the move and fall back
 			 * to the (usual) copy method.
 			 */
-			seteuid(uid);
+			PRIV_END
 			ret = access(dfname, R_OK);
 			if (ret == 0)
 				ret = unlink(arg);
-			seteuid(euid);
+			PRIV_START
 			if (ret != 0)
 				goto nohardlink;
 			/*
@@ -466,7 +467,7 @@ main(int argc, char *argv[])
 			 */
 			chown(dfname, pp->daemon_user, getegid());
 			chmod(dfname, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-			seteuid(uid);
+			PRIV_END
 			if (format == 'p')
 				card('T', title ? title : arg);
 			for (i = 0; i < ncopies; i++)
@@ -478,7 +479,7 @@ main(int argc, char *argv[])
 		nohardlink:
 			if (didlink)
 				unlink(dfname);
-			seteuid(uid);           /* restore old uid */
+			PRIV_END           /* restore old uid */
 		} /* end: if (f) */
 
 		if ((i = open(arg, O_RDONLY)) < 0) {
@@ -497,7 +498,7 @@ main(int argc, char *argv[])
 		/*
 		 * Touch the control file to fix position in the queue.
 		 */
-		seteuid(euid);
+		PRIV_START
 		if ((tfd = open(tfname, O_RDWR)) >= 0) {
 			char touch_c;
 
@@ -517,7 +518,7 @@ main(int argc, char *argv[])
 			cleanup(0);
 		}
 		unlink(tfname);
-		seteuid(uid);
+		PRIV_END
 		if (qflag)		/* just q things up */
 			exit(0);
 		if (!startdaemon(pp))
@@ -603,9 +604,9 @@ linked(const char *file)
 		strncat(buf, file, sizeof(buf) - strlen(buf) - 1);
 		file = buf;
 	}
-	seteuid(euid);
+	PRIV_START
 	ret = symlink(file, dfname);
-	seteuid(uid);
+	PRIV_END
 	return(ret ? NULL : file);
 }
 
@@ -637,7 +638,7 @@ nfile(char *n)
 	register int f;
 	int oldumask = umask(0);		/* should block signals */
 
-	seteuid(euid);
+	PRIV_START
 	f = open(n, O_WRONLY | O_EXCL | O_CREAT, FILMOD);
 	(void) umask(oldumask);
 	if (f < 0) {
@@ -648,7 +649,7 @@ nfile(char *n)
 		printf("%s: cannot chown %s\n", progname, n);
 		cleanup(0);	/* cleanup does exit */
 	}
-	seteuid(uid);
+	PRIV_END
 	if (++n[inchar] > 'z') {
 		if (++n[inchar-2] == 't') {
 			printf("too many files - break up the job\n");
@@ -673,7 +674,7 @@ cleanup(int signo __unused)
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
 	i = inchar;
-	seteuid(euid);
+	PRIV_START
 	if (tfname)
 		do
 			unlink(tfname);
@@ -845,7 +846,7 @@ mktemps(const struct printer *pp)
 	char buf[BUFSIZ];
 
 	(void) snprintf(buf, sizeof(buf), "%s/.seq", pp->spool_dir);
-	seteuid(euid);
+	PRIV_START
 	if ((fd = open(buf, O_RDWR|O_CREAT, 0664)) < 0) {
 		printf("%s: cannot create %s\n", progname, buf);
 		exit(1);
@@ -854,7 +855,7 @@ mktemps(const struct printer *pp)
 		printf("%s: cannot lock %s\n", progname, buf);
 		exit(1);
 	}
-	seteuid(uid);
+	PRIV_END
 	n = 0;
 	if ((len = read(fd, buf, sizeof(buf))) > 0) {
 		for (cp = buf; len--; ) {

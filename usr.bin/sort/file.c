@@ -229,7 +229,7 @@ read_file0_line(struct file0_reader *f0r)
 char *
 new_tmp_file_name(void)
 {
-	static unsigned int tfcounter = 0;
+	static size_t tfcounter = 0;
 	static const char *fn = ".bsdsort.";
 	char *ret;
 	size_t sz;
@@ -237,7 +237,7 @@ new_tmp_file_name(void)
 	sz = strlen(tmpdir) + 1 + strlen(fn) + 32 + 1;
 	ret = sort_malloc(sz);
 
-	sprintf(ret, "%s/%s%d.%u", tmpdir, fn, (int) getpid(), tfcounter++);
+	sprintf(ret, "%s/%s%d.%lu", tmpdir, fn, (int) getpid(), (unsigned long)(tfcounter++));
 	tmp_file_atexit(ret);
 	return (ret);
 }
@@ -300,7 +300,7 @@ file_list_clean(struct file_list *fl)
 
 	if (fl) {
 		if (fl->fns) {
-			int i;
+			size_t i;
 
 			for (i = 0; i < fl->count; i++) {
 				if (fl->fns[i]) {
@@ -345,7 +345,7 @@ sort_list_add(struct sort_list *l, struct bwstring *str)
 		size_t indx = l->count;
 
 		if ((l->list == NULL) || (indx >= l->size)) {
-			int newsize = (l->size + 1) + 1024;
+			size_t newsize = (l->size + 1) + 1024;
 
 			l->list = sort_realloc(l->list,
 			    sizeof(struct sort_list_item*) * newsize);
@@ -439,7 +439,8 @@ check(const char *fn)
 	struct bwstring *s1, *s2, *s1disorder, *s2disorder;
 	struct file_reader *fr;
 	struct keys_array *ka1, *ka2;
-	int res, pos, posdisorder;
+	int res;
+	size_t pos, posdisorder;
 
 	s1 = s2 = s1disorder = s2disorder = NULL;
 	ka1 = ka2 = NULL;
@@ -979,7 +980,7 @@ file_header_close(struct file_header **fh)
  * Swap two array elements
  */
 static void
-file_header_swap(struct file_header **fh, int i1, int i2)
+file_header_swap(struct file_header **fh, size_t i1, size_t i2)
 {
 	struct file_header *tmp;
 
@@ -995,11 +996,11 @@ file_header_swap(struct file_header **fh, int i1, int i2)
  * "Raises" last element to its right place
  */
 static void
-file_header_heap_swim(struct file_header **fh, int indx)
+file_header_heap_swim(struct file_header **fh, size_t indx)
 {
 
 	if (indx > 0) {
-		int parent_index;
+		size_t parent_index;
 
 		parent_index = (indx - 1) >> 1;
 
@@ -1015,16 +1016,16 @@ file_header_heap_swim(struct file_header **fh, int indx)
  * Sink the top element to its correct position
  */
 static void
-file_header_heap_sink(struct file_header **fh, int indx, int size)
+file_header_heap_sink(struct file_header **fh, size_t indx, size_t size)
 {
-	int left_child_index;
-	int right_child_index;
+	size_t left_child_index;
+	size_t right_child_index;
 
 	left_child_index = indx + indx + 1;
 	right_child_index = left_child_index + 1;
 
 	if (left_child_index < size) {
-		int min_child_index;
+		size_t min_child_index;
 
 		min_child_index = left_child_index;
 
@@ -1045,7 +1046,7 @@ file_header_heap_sink(struct file_header **fh, int indx, int size)
  * Adds element to the "left" end
  */
 static void
-file_header_list_rearrange_from_header(struct file_header **fh, int size)
+file_header_list_rearrange_from_header(struct file_header **fh, size_t size)
 {
 
 	file_header_heap_sink(fh, 0, size);
@@ -1055,7 +1056,7 @@ file_header_list_rearrange_from_header(struct file_header **fh, int size)
  * Adds element to the "right" end
  */
 static void
-file_header_list_push(struct file_header *f, struct file_header **fh, int size)
+file_header_list_push(struct file_header *f, struct file_header **fh, size_t size)
 {
 
 	fh[size++] = f;
@@ -1118,10 +1119,10 @@ file_header_read_next(struct file_header *fh)
  * Merge array of "files headers"
  */
 static void
-file_headers_merge(int fnum, struct file_header **fh, FILE *f_out)
+file_headers_merge(size_t fnum, struct file_header **fh, FILE *f_out)
 {
 	struct last_printed lp;
-	int i;
+	size_t i;
 
 	memset(&lp, 0, sizeof(lp));
 
@@ -1149,13 +1150,13 @@ file_headers_merge(int fnum, struct file_header **fh, FILE *f_out)
  * stdout.
  */
 static void
-merge_files_array(int argc, char **argv, const char *fn_out)
+merge_files_array(size_t argc, char **argv, const char *fn_out)
 {
 
 	if (argv && fn_out) {
 		struct file_header **fh;
 		FILE *f_out;
-		int i;
+		size_t i;
 
 		f_out = openfile(fn_out, "w");
 
@@ -1189,12 +1190,12 @@ shrink_file_list(struct file_list *fl)
 		return (0);
 	else {
 		struct file_list new_fl;
-		int indx = 0;
+		size_t indx = 0;
 
 		file_list_init(&new_fl, true);
 		while (indx < fl->count) {
 			char *fnew;
-			int num;
+			size_t num;
 
 			num = fl->count - indx;
 			fnew = new_tmp_file_name();
@@ -1203,7 +1204,7 @@ shrink_file_list(struct file_list *fl)
 				num = max_open_files - 1;
 			merge_files_array(num, fl->fns + indx, fnew);
 			if (fl->tmp) {
-				int i;
+				size_t i;
 
 				for (i = 0; i < num; i++)
 					unlink(fl->fns[indx + i]);
@@ -1379,7 +1380,7 @@ sub_list_cmp(struct sort_list *l1, struct sort_list *l2)
  * Swap two array elements
  */
 static void
-sub_list_swap(struct sort_list **sl, int i1, int i2)
+sub_list_swap(struct sort_list **sl, size_t i1, size_t i2)
 {
 	struct sort_list *tmp;
 
@@ -1395,11 +1396,11 @@ sub_list_swap(struct sort_list **sl, int i1, int i2)
  * "Raises" last element to its right place
  */
 static void
-sub_list_swim(struct sort_list **sl, int indx)
+sub_list_swim(struct sort_list **sl, size_t indx)
 {
 
 	if (indx > 0) {
-		int parent_index;
+		size_t parent_index;
 
 		parent_index = (indx - 1) >> 1;
 
@@ -1415,16 +1416,16 @@ sub_list_swim(struct sort_list **sl, int indx)
  * Sink the top element to its correct position
  */
 static void
-sub_list_sink(struct sort_list **sl, int indx, int size)
+sub_list_sink(struct sort_list **sl, size_t indx, size_t size)
 {
-	int left_child_index;
-	int right_child_index;
+	size_t left_child_index;
+	size_t right_child_index;
 
 	left_child_index = indx + indx + 1;
 	right_child_index = left_child_index + 1;
 
 	if (left_child_index < size) {
-		int min_child_index;
+		size_t min_child_index;
 
 		min_child_index = left_child_index;
 
@@ -1445,7 +1446,7 @@ sub_list_sink(struct sort_list **sl, int indx, int size)
  * Adds element to the "right" end
  */
 static void
-sub_list_push(struct sort_list *s, struct sort_list **sl, int size)
+sub_list_push(struct sort_list *s, struct sort_list **sl, size_t size)
 {
 
 	sl[size++] = s;

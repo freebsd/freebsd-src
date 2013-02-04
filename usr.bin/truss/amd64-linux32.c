@@ -59,8 +59,6 @@ static const char rcsid[] =
 #include "syscall.h"
 #include "extern.h"
 
-static int cpid = -1;
-
 #include "linux32_syscalls.h"
 
 static int nsyscalls =
@@ -75,26 +73,34 @@ static int nsyscalls =
  * 'struct syscall' describes the system call; it may be NULL, however,
  * if we don't know about this particular system call yet.
  */
-static struct linux_syscall {
+struct linux_syscall {
 	struct syscall *sc;
 	const char *name;
 	int number;
 	unsigned long args[5];
 	int nargs;	/* number of arguments -- *not* number of words! */
 	char **s_args;	/* the printable arguments */
-} fsc;
+};
+
+static struct linux_syscall *
+alloc_fsc(void)
+{
+
+	return (malloc(sizeof(struct linux_syscall)));
+}
 
 /* Clear up and free parts of the fsc structure. */
-static __inline void
-clear_fsc(void) {
-  if (fsc.s_args) {
-    int i;
-    for (i = 0; i < fsc.nargs; i++)
-      if (fsc.s_args[i])
-	free(fsc.s_args[i]);
-    free(fsc.s_args);
-  }
-  memset(&fsc, 0, sizeof(fsc));
+static void
+free_fsc(struct linux_syscall *fsc)
+{
+	int i;
+
+	if (fsc->s_args) {
+		for (i = 0; i < fsc->nargs; i++)
+			free(fsc->s_args[i]);
+		free(fsc->s_args);
+	}
+	free(fsc);
 }
 
 /*
@@ -105,211 +111,219 @@ clear_fsc(void) {
  */
 
 void
-amd64_linux32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
-  struct reg regs;
-  int syscall_num;
-  int i;
-  struct syscall *sc;
+amd64_linux32_syscall_entry(struct trussinfo *trussinfo, int nargs)
+{
+	struct reg regs;
+	struct linux_syscall *fsc;
+	struct syscall *sc;
+	lwpid_t tid;
+	int i, syscall_num;
 
-  cpid = trussinfo->curthread->tid;
+	tid = trussinfo->curthread->tid;
 
-  clear_fsc();
-  
-  if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0)
-  {
-    fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
-    return;
-  } 
-  syscall_num = regs.r_rax;
+	if (ptrace(PT_GETREGS, tid, (caddr_t)&regs, 0) < 0) {
+		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+		return;
+	}
 
-  fsc.number = syscall_num;
-  fsc.name =
-    (syscall_num < 0 || syscall_num >= nsyscalls) ? NULL : linux32_syscallnames[syscall_num];
-  if (!fsc.name) {
-    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
-  }
+	syscall_num = regs.r_rax;
 
-  if (fsc.name && (trussinfo->flags & FOLLOWFORKS)
-   && ((!strcmp(fsc.name, "linux_fork")
-    || !strcmp(fsc.name, "linux_vfork"))))
-  {
-    trussinfo->curthread->in_fork = 1;
-  }
+	fsc = alloc_fsc();
+	if (fsc == NULL)
+		return;
+	fsc->number = syscall_num;
+	fsc->name = (syscall_num < 0 || syscall_num >= nsyscalls) ?
+	    NULL : linux32_syscallnames[syscall_num];
+	if (!fsc->name) {
+		fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n",
+		    syscall_num);
+	}
 
-  if (nargs == 0)
-    return;
+	if (fsc->name && (trussinfo->flags & FOLLOWFORKS) &&
+	    (strcmp(fsc->name, "linux_fork") == 0 ||
+	    strcmp(fsc->name, "linux_vfork") == 0))
+		trussinfo->curthread->in_fork = 1;
 
-  /*
-   * Linux passes syscall arguments in registers, not
-   * on the stack.  Fortunately, we've got access to the
-   * register set.  Note that we don't bother checking the
-   * number of arguments.  And what does linux do for syscalls
-   * that have more than five arguments?
-   */
+	if (nargs == 0)
+		return;
 
-  fsc.args[0] = regs.r_rbx;
-  fsc.args[1] = regs.r_rcx;
-  fsc.args[2] = regs.r_rdx;
-  fsc.args[3] = regs.r_rsi;
-  fsc.args[4] = regs.r_rdi;
+	/*
+	 * Linux passes syscall arguments in registers, not
+	 * on the stack.  Fortunately, we've got access to the
+	 * register set.  Note that we don't bother checking the
+	 * number of arguments.	And what does linux do for syscalls
+	 * that have more than five arguments?
+	 */
 
-  sc = get_syscall(fsc.name);
-  if (sc) {
-    fsc.nargs = sc->nargs;
-  } else {
+	fsc->args[0] = regs.r_rbx;
+	fsc->args[1] = regs.r_rcx;
+	fsc->args[2] = regs.r_rdx;
+	fsc->args[3] = regs.r_rsi;
+	fsc->args[4] = regs.r_rdi;
+
+	sc = get_syscall(fsc->name);
+	if (sc)
+		fsc->nargs = sc->nargs;
+	else {
 #if DEBUG
-    fprintf(trussinfo->outfile, "unknown syscall %s -- setting args to %d\n",
-	   fsc.name, nargs);
+		fprintf(trussinfo->outfile, "unknown syscall %s -- setting "
+		    "args to %d\n", fsc->name, nargs);
 #endif
-    fsc.nargs = nargs;
-  }
+		fsc->nargs = nargs;
+	}
 
-  fsc.s_args = calloc(1, (1+fsc.nargs) * sizeof(char*));
-  fsc.sc = sc;
+	fsc->s_args = calloc(1, (1 + fsc->nargs) * sizeof(char *));
+	fsc->sc = sc;
 
-  /*
-   * At this point, we set up the system call arguments.
-   * We ignore any OUT ones, however -- those are arguments that
-   * are set by the system call, and so are probably meaningless
-   * now.  This doesn't currently support arguments that are
-   * passed in *and* out, however.
-   */
+	/*
+	 * At this point, we set up the system call arguments.
+	 * We ignore any OUT ones, however -- those are arguments that
+	 * are set by the system call, and so are probably meaningless
+	 * now.	This doesn't currently support arguments that are
+	 * passed in *and* out, however.
+	 */
 
-  if (fsc.name) {
+	if (fsc->name) {
+#if DEBUG
+		fprintf(stderr, "syscall %s(", fsc->name);
+#endif
+		for (i = 0; i < fsc->nargs; i++) {
+#if DEBUG
+			fprintf(stderr, "0x%x%s", sc ?
+			    fsc->args[sc->args[i].offset] : fsc->args[i],
+			    i < (fsc->nargs - 1) ? "," : "");
+#endif
+			if (sc && !(sc->args[i].type & OUT)) {
+				fsc->s_args[i] = print_arg(&sc->args[i],
+				    fsc->args, 0, trussinfo);
+			}
+		}
+#if DEBUG
+		fprintf(stderr, ")\n");
+#endif
+	}
 
 #if DEBUG
-    fprintf(stderr, "syscall %s(", fsc.name);
-#endif
-    for (i = 0; i < fsc.nargs; i++) {
-#if DEBUG
-      fprintf(stderr, "0x%x%s",
-	      sc
-	      ? fsc.args[sc->args[i].offset]
-	      : fsc.args[i],
-	      i < (fsc.nargs - 1) ? "," : "");
-#endif
-      if (sc && !(sc->args[i].type & OUT)) {
-	fsc.s_args[i] = print_arg(&sc->args[i], fsc.args, 0, trussinfo);
-      }
-    }
-#if DEBUG
-    fprintf(stderr, ")\n");
-#endif
-  }
-
-#if DEBUG
-  fprintf(trussinfo->outfile, "\n");
+	fprintf(trussinfo->outfile, "\n");
 #endif
 
-  if (fsc.name != NULL &&
-      (!strcmp(fsc.name, "linux_execve") || !strcmp(fsc.name, "exit"))) {
-
-    /* XXX
-     * This could be done in a more general
-     * manner but it still wouldn't be very pretty.
-     */
-    if (!strcmp(fsc.name, "linux_execve")) {
-        if ((trussinfo->flags & EXECVEARGS) == 0)
-          if (fsc.s_args[1]) {
-            free(fsc.s_args[1]);
-            fsc.s_args[1] = NULL;
-          }
-        if ((trussinfo->flags & EXECVEENVS) == 0)
-          if (fsc.s_args[2]) {
-            free(fsc.s_args[2]);
-            fsc.s_args[2] = NULL;
-          }
-    }
-  }
-
-  return;
+	if (fsc->name != NULL && (strcmp(fsc->name, "linux_execve") == 0 ||
+	    strcmp(fsc->name, "exit") == 0)) {
+		/*
+		 * XXX
+		 * This could be done in a more general
+		 * manner but it still wouldn't be very pretty.
+		 */
+		if (strcmp(fsc->name, "linux_execve") == 0) {
+			if ((trussinfo->flags & EXECVEARGS) == 0) {
+				if (fsc->s_args[1]) {
+					free(fsc->s_args[1]);
+					fsc->s_args[1] = NULL;
+				}
+			}
+			if ((trussinfo->flags & EXECVEENVS) == 0) {
+				if (fsc->s_args[2]) {
+					free(fsc->s_args[2]);
+					fsc->s_args[2] = NULL;
+				}
+			}
+		}
+	}
+	trussinfo->curthread->fsc = fsc;
 }
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
 static const int bsd_to_linux_errno[] = {
-  	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
- 	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
- 	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
- 	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
- 	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
+	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
+	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
+	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
+	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
+	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
 	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
 	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-  	-6, 
+	-6,
 };
 
 long
-amd64_linux32_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
+amd64_linux32_syscall_exit(struct trussinfo *trussinfo,
+    int syscall_num __unused)
 {
-  struct reg regs;
-  long retval;
-  int i;
-  int errorp;
-  struct syscall *sc;
+	struct reg regs;
+	struct linux_syscall *fsc;
+	struct syscall *sc;
+	lwpid_t tid;
+	long retval;
+	int errorp, i;
 
-  if (fsc.name == NULL)
-	return (-1);
+	if (trussinfo->curthread->fsc == NULL)
+		return (-1);
 
-  cpid = trussinfo->curthread->tid;
-  if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0)
-  {
-    fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
-    return (-1);
-  }
+	tid = trussinfo->curthread->tid;
 
-  retval = regs.r_rax;
-  errorp = !!(regs.r_rflags & PSL_C);
+	if (ptrace(PT_GETREGS, tid, (caddr_t)&regs, 0) < 0) {
+		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+		return (-1);
+	}
 
-  /*
-   * This code, while simpler than the initial versions I used, could
-   * stand some significant cleaning.
-   */
+	retval = regs.r_rax;
+	errorp = !!(regs.r_rflags & PSL_C);
 
-  sc = fsc.sc;
-  if (!sc) {
-    for (i = 0; i < fsc.nargs; i++)
-      asprintf(&fsc.s_args[i], "0x%lx", fsc.args[i]);
-  } else {
-    /*
-     * Here, we only look for arguments that have OUT masked in --
-     * otherwise, they were handled in the syscall_entry function.
-     */
-    for (i = 0; i < sc->nargs; i++) {
-      char *temp;
-      if (sc->args[i].type & OUT) {
 	/*
-	 * If an error occurred, than don't bothe getting the data;
-	 * it may not be valid.
+	 * This code, while simpler than the initial versions I used, could
+	 * stand some significant cleaning.
 	 */
-	if (errorp)
-	  asprintf(&temp, "0x%lx", fsc.args[sc->args[i].offset]);
-	else
-	  temp = print_arg(&sc->args[i], fsc.args, retval, trussinfo);
-	fsc.s_args[i] = temp;
-      }
-    }
-  }
 
-  /*
-   * It would probably be a good idea to merge the error handling,
-   * but that complicates things considerably.
-   */
-  if (errorp) {
-    for (i = 0; (size_t)i < sizeof(bsd_to_linux_errno) / sizeof(int); i++)
-      if (retval == bsd_to_linux_errno[i])
-      break;
-  }
+	fsc = trussinfo->curthread->fsc;
+	sc = fsc->sc;
+	if (!sc) {
+		for (i = 0; i < fsc->nargs; i++)
+			asprintf(&fsc->s_args[i], "0x%lx", fsc->args[i]);
+	} else {
+		/*
+		 * Here, we only look for arguments that have OUT masked in --
+		 * otherwise, they were handled in the syscall_entry function.
+		 */
+		for (i = 0; i < sc->nargs; i++) {
+			char *temp;
+			if (sc->args[i].type & OUT) {
+				/*
+				 * If an error occurred, then don't bother
+				 * getting the data; it may not be valid.
+				 */
+				if (errorp) {
+					asprintf(&temp, "0x%lx",
+					    fsc->args[sc->args[i].offset]);
+				} else {
+					temp = print_arg(&sc->args[i],
+					    fsc->args, retval, trussinfo);
+				}
+				fsc->s_args[i] = temp;
+			}
+		}
+	}
 
-  if (fsc.name != NULL &&
-      (!strcmp(fsc.name, "linux_execve") || !strcmp(fsc.name, "exit"))) {
-	trussinfo->curthread->in_syscall = 1;
-  }
+	/*
+	 * It would probably be a good idea to merge the error handling,
+	 * but that complicates things considerably.
+	 */
+	if (errorp) {
+		for (i = 0;
+		    (size_t)i < sizeof(bsd_to_linux_errno) / sizeof(int); i++) {
+			if (retval == bsd_to_linux_errno[i])
+				break;
+		}
+	}
 
-  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
-                    errorp ? i : retval, fsc.sc);
-  clear_fsc();
+	if (fsc->name != NULL && (strcmp(fsc->name, "linux_execve") == 0 ||
+	    strcmp(fsc->name, "exit") == 0))
+		trussinfo->curthread->in_syscall = 1;
 
-  return (retval);
+	print_syscall_ret(trussinfo, fsc->name, fsc->nargs, fsc->s_args, errorp,
+	    errorp ? i : retval, fsc->sc);
+	free_fsc(fsc);
+
+	return (retval);
 }

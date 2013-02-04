@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004, 2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2004, 2006, 2008, 2012 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.80 2009/11/06 00:57:08 ca Exp $
+ *	$Id: mfapi.h,v 8.82 2012/11/16 20:25:04 ca Exp $
  */
 
 /*
@@ -96,6 +96,8 @@ typedef int	sfsistat;
 #  ifndef bool
 #   ifndef __bool_true_false_are_defined
 typedef int	bool;
+#    define false	0
+#    define true	1
 #    define __bool_true_false_are_defined	1
 #   endif /* ! __bool_true_false_are_defined */
 #  endif /* bool */
@@ -204,6 +206,7 @@ LIBMILTER_API int smfi_version __P((unsigned int *, unsigned int *, unsigned int
 **	(hence the list is not sorted by the SMT protocol steps).
 */
 
+#define SMFIM_NOMACROS	(-1)	/* Do NOT use, internal only */
 #define SMFIM_FIRST	0	/* Do NOT use, internal marker only */
 #define SMFIM_CONNECT	0	/* connect */
 #define SMFIM_HELO	1	/* HELO/EHLO */

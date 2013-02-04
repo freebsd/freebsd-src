@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
+#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -759,6 +760,15 @@ reset:
 		goto reset;
 	}
 
+	if (__predict_false(!(synqe->flags & TP_SYNQE_EXPANDED))) {
+		struct inpcb *new_inp = sotoinpcb(so);
+
+		INP_WLOCK(new_inp);
+		tcp_timer_activate(intotcpcb(new_inp), TT_KEEP, 0);
+		t3_offload_socket(tod, synqe, so);
+		INP_WUNLOCK(new_inp);
+	}
+
 	/* Remove the synq entry and release its reference on the lctx */
 	TAILQ_REMOVE(&lctx->synq, synqe, link);
 	inp = release_lctx(td, lctx);
@@ -1136,5 +1146,6 @@ t3_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	offload_socket(so, toep);
 	make_established(so, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
 	update_tid(td, toep, synqe->tid);
+	synqe->flags |= TP_SYNQE_EXPANDED;
 }
 #endif

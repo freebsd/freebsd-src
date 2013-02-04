@@ -22,7 +22,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/Dwarf.h"
@@ -152,7 +152,7 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
   // a mergable string section, or general .data if it contains relocations.
   if (GVar->isConstant()) {
     // If the initializer for the global contains something that requires a
-    // relocation, then we may have to drop this into a wriable data section
+    // relocation, then we may have to drop this into a writable data section
     // even though it is marked const.
     switch (C->getRelocationInfo()) {
     case Constant::NoRelocation:
@@ -184,7 +184,7 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
       // Otherwise, just drop it into a mergable constant section.  If we have
       // a section for this size, use it, otherwise use the arbitrary sized
       // mergable section.
-      switch (TM.getTargetData()->getTypeAllocSize(C->getType())) {
+      switch (TM.getDataLayout()->getTypeAllocSize(C->getType())) {
       case 4:  return SectionKind::getMergeableConst4();
       case 8:  return SectionKind::getMergeableConst8();
       case 16: return SectionKind::getMergeableConst16();

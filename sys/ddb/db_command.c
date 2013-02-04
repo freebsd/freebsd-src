@@ -535,6 +535,11 @@ db_dump(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 {
 	int error;
 
+	if (textdump_pending) {
+		db_printf("textdump_pending set.\n"
+		    "run \"textdump unset\" first or \"textdump dump\" for a textdump.\n");
+		return;
+	}
 	error = doadump(FALSE);
 	if (error) {
 		db_printf("Cannot dump: ");

@@ -78,7 +78,7 @@ fi
 #	http://www.pearsonhighered.com/educator/academic/product/0,3110,020163466X,00.html
 #
 
-setup_loopback () {
+setup_loopback() {
 	############
 	# Only in rare cases do you want to change these rules
 	#
@@ -91,7 +91,7 @@ setup_loopback () {
 	fi
 }
 
-setup_ipv6_mandatory () {
+setup_ipv6_mandatory() {
 	[ $ipv6_available -eq 0 ] || return 0
 
 	############

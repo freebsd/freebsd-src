@@ -47,7 +47,7 @@ futx_open(const char *file)
 	struct stat sb;
 	int fd;
 
-	fd = _open(file, O_CREAT|O_RDWR|O_EXLOCK, 0644);
+	fd = _open(file, O_CREAT|O_RDWR|O_EXLOCK|O_CLOEXEC, 0644);
 	if (fd < 0)
 		return (NULL);
 
@@ -235,7 +235,7 @@ utx_lastlogin_upgrade(void)
 	struct stat sb;
 	int fd;
 
-	fd = _open(_PATH_UTX_LASTLOGIN, O_RDWR, 0644);
+	fd = _open(_PATH_UTX_LASTLOGIN, O_RDWR|O_CLOEXEC, 0644);
 	if (fd < 0)
 		return;
 
@@ -269,7 +269,7 @@ utx_log_add(const struct futx *fu)
 	vec[1].iov_len = l;
 	l = htobe16(l);
 
-	fd = _open(_PATH_UTX_LOG, O_CREAT|O_WRONLY|O_APPEND, 0644);
+	fd = _open(_PATH_UTX_LOG, O_CREAT|O_WRONLY|O_APPEND|O_CLOEXEC, 0644);
 	if (fd < 0)
 		return (-1);
 	if (_writev(fd, vec, 2) == -1)

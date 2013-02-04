@@ -19,7 +19,6 @@
 
 namespace clang {
 
-class ASTContext;
 class TemplateArgumentList;
 
 namespace sema {
@@ -28,9 +27,6 @@ namespace sema {
 /// deduction, whose success or failure was described by a
 /// TemplateDeductionResult value.
 class TemplateDeductionInfo {
-  /// \brief The context in which the template arguments are stored.
-  ASTContext &Context;
-
   /// \brief The deduced template argument list.
   ///
   TemplateArgumentList *Deduced;
@@ -39,21 +35,19 @@ class TemplateDeductionInfo {
   /// deduction is occurring.
   SourceLocation Loc;
 
+  /// \brief Have we suppressed an error during deduction?
+  bool HasSFINAEDiagnostic;
+
   /// \brief Warnings (and follow-on notes) that were suppressed due to
   /// SFINAE while performing template argument deduction.
   SmallVector<PartialDiagnosticAt, 4> SuppressedDiagnostics;
 
-  // do not implement these
-  TemplateDeductionInfo(const TemplateDeductionInfo&);
-  TemplateDeductionInfo &operator=(const TemplateDeductionInfo&);
+  TemplateDeductionInfo(const TemplateDeductionInfo &) LLVM_DELETED_FUNCTION;
+  void operator=(const TemplateDeductionInfo &) LLVM_DELETED_FUNCTION;
 
 public:
-  TemplateDeductionInfo(ASTContext &Context, SourceLocation Loc)
-    : Context(Context), Deduced(0), Loc(Loc) { }
-
-  ~TemplateDeductionInfo() {
-    // FIXME: if (Deduced) Deduced->Destroy(Context);
-  }
+  TemplateDeductionInfo(SourceLocation Loc)
+    : Deduced(0), Loc(Loc), HasSFINAEDiagnostic(false) { }
 
   /// \brief Returns the location at which template argument is
   /// occurring.
@@ -68,17 +62,46 @@ public:
     return Result;
   }
 
+  /// \brief Take ownership of the SFINAE diagnostic.
+  void takeSFINAEDiagnostic(PartialDiagnosticAt &PD) {
+    assert(HasSFINAEDiagnostic);
+    PD.first = SuppressedDiagnostics.front().first;
+    PD.second.swap(SuppressedDiagnostics.front().second);
+    SuppressedDiagnostics.clear();
+    HasSFINAEDiagnostic = false;
+  }
+
   /// \brief Provide a new template argument list that contains the
   /// results of template argument deduction.
   void reset(TemplateArgumentList *NewDeduced) {
-    // FIXME: if (Deduced) Deduced->Destroy(Context);
     Deduced = NewDeduced;
+  }
+
+  /// \brief Is a SFINAE diagnostic available?
+  bool hasSFINAEDiagnostic() const {
+    return HasSFINAEDiagnostic;
+  }
+
+  /// \brief Set the diagnostic which caused the SFINAE failure.
+  void addSFINAEDiagnostic(SourceLocation Loc, PartialDiagnostic PD) {
+    // Only collect the first diagnostic.
+    if (HasSFINAEDiagnostic)
+      return;
+    SuppressedDiagnostics.clear();
+    SuppressedDiagnostics.push_back(
+        std::make_pair(Loc, PartialDiagnostic::NullDiagnostic()));
+    SuppressedDiagnostics.back().second.swap(PD);
+    HasSFINAEDiagnostic = true;
   }
 
   /// \brief Add a new diagnostic to the set of diagnostics
   void addSuppressedDiagnostic(SourceLocation Loc,
-                               const PartialDiagnostic &PD) {
-    SuppressedDiagnostics.push_back(std::make_pair(Loc, PD));
+                               PartialDiagnostic PD) {
+    if (HasSFINAEDiagnostic)
+      return;
+    SuppressedDiagnostics.push_back(
+        std::make_pair(Loc, PartialDiagnostic::NullDiagnostic()));
+    SuppressedDiagnostics.back().second.swap(PD);
   }
 
   /// \brief Iterator over the set of suppressed diagnostics.

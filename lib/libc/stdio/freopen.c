@@ -118,6 +118,8 @@ freopen(file, mode, fp)
 			(void) ftruncate(fp->_file, (off_t)0);
 		if (!(oflags & O_APPEND))
 			(void) _sseek(fp, (fpos_t)0, SEEK_SET);
+		if (oflags & O_CLOEXEC)
+			(void) _fcntl(fp->_file, F_SETFD, FD_CLOEXEC);
 		f = fp->_file;
 		isopen = 0;
 		wantfd = -1;
@@ -194,7 +196,8 @@ finish:
 	 * assume stderr is always fd STDERR_FILENO, even if being freopen'd.
 	 */
 	if (wantfd >= 0) {
-		if (_dup2(f, wantfd) >= 0) {
+		if ((oflags & O_CLOEXEC ? _fcntl(f, F_DUP2FD_CLOEXEC, wantfd) :
+		    _dup2(f, wantfd)) >= 0) {
 			(void)_close(f);
 			f = wantfd;
 		} else

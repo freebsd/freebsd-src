@@ -234,18 +234,17 @@ __END_DECLS
  * System style authentication
  * AUTH *authunix_create(machname, uid, gid, len, aup_gids)
  *	char *machname;
- *	int uid;
- *	int gid;
+ *	u_int uid;
+ *	u_int gid;
  *	int len;
- *	int *aup_gids;
+ *	u_int *aup_gids;
  */
 __BEGIN_DECLS
 #ifdef _KERNEL
 struct ucred;
 extern AUTH *authunix_create(struct ucred *);
 #else
-extern AUTH *authunix_create(char *, int, int, int,
-    int *);
+extern AUTH *authunix_create(char *, u_int, u_int, int, u_int *);
 extern AUTH *authunix_create_default(void);	/* takes no parameters */
 #endif
 extern AUTH *authnone_create(void);		/* takes no parameters */

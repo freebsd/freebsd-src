@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangparse
 
 SRCDIR=	tools/clang/lib/Parse
@@ -21,6 +23,7 @@ TGHDRS=	AttrLateParsed \
 	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticParseKinds \

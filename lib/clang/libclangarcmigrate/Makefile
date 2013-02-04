@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangarcmigrate
 
 SRCDIR=	tools/clang/lib/ARCMigrate
@@ -26,6 +28,7 @@ SRCS=	ARCMT.cpp \
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticGroups \

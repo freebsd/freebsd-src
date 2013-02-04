@@ -74,7 +74,7 @@ static void std_status(struct gctl_req *req, unsigned flags);
 static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
-struct g_command std_commands[] = {
+static struct g_command std_commands[] = {
 	{ "help", 0, std_help, G_NULL_OPTS, NULL },
 	{ "list", 0, std_list,
 	    {

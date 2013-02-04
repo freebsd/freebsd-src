@@ -146,6 +146,10 @@ int cvmx_helper_get_number_of_interfaces(void)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
 	    return 1;
 #endif
+#if defined(OCTEON_VENDOR_RADISYS)
+	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
+	    return 2;
+#endif
 	default:
 	    break;
     }

@@ -45,6 +45,7 @@
 
 int line_number = 1;
 %}
+%option	noinput
 %option	nounput
 
 %x	COMMENT

@@ -119,7 +119,7 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_xauth
 
-device		ath		# Atheros NIC's
+device		ath		# Atheros NICs
 device		ath_pci		# Atheros pci/cardbus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI

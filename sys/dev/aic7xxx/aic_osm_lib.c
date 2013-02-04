@@ -54,9 +54,6 @@ aic_set_recoveryscb(struct aic_softc *aic, struct scb *scb)
 		 * them after we've successfully fixed this problem.
 		 */
 		LIST_FOREACH(list_scb, &aic->pending_scbs, pending_links) {
-			union ccb *ccb;
-
-			ccb = list_scb->io_ctx;
 			callout_stop(&scb->io_timer);
 		}
 	}

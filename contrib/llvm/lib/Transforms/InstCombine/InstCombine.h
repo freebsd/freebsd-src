@@ -11,17 +11,18 @@
 #define INSTCOMBINE_INSTCOMBINE_H
 
 #include "InstCombineWorklist.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/TargetFolder.h"
+#include "llvm/Transforms/Utils/SimplifyLibCalls.h"
 
 namespace llvm {
   class CallSite;
-  class TargetData;
+  class DataLayout;
   class TargetLibraryInfo;
   class DbgDeclareInst;
   class MemIntrinsic;
@@ -71,9 +72,10 @@ public:
 class LLVM_LIBRARY_VISIBILITY InstCombiner
                              : public FunctionPass,
                                public InstVisitor<InstCombiner, Instruction*> {
-  TargetData *TD;
+  DataLayout *TD;
   TargetLibraryInfo *TLI;
   bool MadeIRChange;
+  LibCallSimplifier *Simplifier;
 public:
   /// Worklist - All of the instructions that need to be simplified.
   InstCombineWorklist Worklist;
@@ -95,7 +97,7 @@ public:
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
-  TargetData *getTargetData() const { return TD; }
+  DataLayout *getDataLayout() const { return TD; }
 
   TargetLibraryInfo *getTargetLibraryInfo() const { return TLI; }
 
@@ -187,7 +189,7 @@ public:
   Instruction *visitPHINode(PHINode &PN);
   Instruction *visitGetElementPtrInst(GetElementPtrInst &GEP);
   Instruction *visitAllocaInst(AllocaInst &AI);
-  Instruction *visitMalloc(Instruction &FI);
+  Instruction *visitAllocSite(Instruction &FI);
   Instruction *visitFree(CallInst &FI);
   Instruction *visitLoadInst(LoadInst &LI);
   Instruction *visitStoreInst(StoreInst &SI);
@@ -218,7 +220,7 @@ private:
                           Type *Ty);
 
   Instruction *visitCallSite(CallSite CS);
-  Instruction *tryOptimizeCall(CallInst *CI, const TargetData *TD);
+  Instruction *tryOptimizeCall(CallInst *CI, const DataLayout *TD);
   bool transformConstExprCastCall(CallSite CS);
   Instruction *transformCallThroughTrampoline(CallSite CS,
                                               IntrinsicInst *Tramp);
@@ -365,6 +367,10 @@ private:
 
 
   Value *EvaluateInDifferentType(Value *V, Type *Ty, bool isSigned);
+
+  /// Descale - Return a value X such that Val = X * Scale, or null if none.  If
+  /// the multiplication is known not to overflow then NoSignedWrap is set.
+  Value *Descale(Value *Val, APInt Scale, bool &NoSignedWrap);
 };
 
       

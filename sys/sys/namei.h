@@ -144,14 +144,11 @@ struct nameidata {
 #define	ISOPEN		0x00200000 /* caller is opening; return a real vnode. */
 #define	NOCROSSMOUNT	0x00400000 /* do not cross mount points */
 #define	NOMACCHECK	0x00800000 /* do not perform MAC checks */
-#define	MPSAFE		0x01000000 /* namei() must acquire Giant if needed. */
-#define	GIANTHELD	0x02000000 /* namei() is holding giant. */
 #define	AUDITVNODE1	0x04000000 /* audit the looked up vnode information */
 #define	AUDITVNODE2 	0x08000000 /* audit the looked up vnode information */
 #define	TRAILINGSLASH	0x10000000 /* path ended in a slash */
-#define	PARAMASK	0x1ffffe00 /* mask of parameter descriptors */
-
-#define	NDHASGIANT(NDP)	(((NDP)->ni_cnd.cn_flags & GIANTHELD) != 0)
+#define	NOCAPCHECK	0x20000000 /* do not perform capability checks */
+#define	PARAMASK	0x3ffffe00 /* mask of parameter descriptors */
 
 /*
  * Initialization of a nameidata structure.

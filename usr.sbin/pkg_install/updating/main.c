@@ -87,6 +87,7 @@ main(int argc, char *argv[])
 	DIR *dir;
 	FILE *fd;
 
+	warnpkgng();
 	while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1) {
 		switch (ch) {
 			case 'd':

@@ -105,13 +105,12 @@ __FBSDID("$FreeBSD$");
 
 /* Globals */
 
-int	pmcstat_interrupt = 0;
-int	pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
-int	pmcstat_displaywidth  = DEFAULT_DISPLAY_WIDTH;
-int	pmcstat_sockpair[NSOCKPAIRFD];
-int	pmcstat_kq;
-kvm_t	*pmcstat_kvm;
-struct kinfo_proc *pmcstat_plist;
+int		pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
+int		pmcstat_displaywidth  = DEFAULT_DISPLAY_WIDTH;
+static int	pmcstat_sockpair[NSOCKPAIRFD];
+static int	pmcstat_kq;
+static kvm_t	*pmcstat_kvm;
+static struct kinfo_proc *pmcstat_plist;
 struct pmcstat_args args;
 
 static void
@@ -509,6 +508,7 @@ pmcstat_show_usage(void)
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
+	    "\t -m file\t print sampled PCs to \"file\"\n"
 	    "\t -n rate\t set sampling rate\n"
 	    "\t -o file\t send print output to \"file\"\n"
 	    "\t -p spec\t allocate a process-private counting PMC\n"

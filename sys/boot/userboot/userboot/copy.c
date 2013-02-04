@@ -50,7 +50,6 @@ userboot_copyout(vm_offset_t va, void *dst, size_t len)
 ssize_t
 userboot_readin(int fd, vm_offset_t va, size_t len)
 {
-	void *pa;
 	ssize_t res, s;
 	size_t sz;
 	char buf[4096];

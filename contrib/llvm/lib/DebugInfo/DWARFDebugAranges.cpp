@@ -62,7 +62,6 @@ bool DWARFDebugAranges::extract(DataExtractor debug_aranges_data) {
     uint32_t offset = 0;
 
     typedef std::vector<DWARFDebugArangeSet> SetCollection;
-    typedef SetCollection::const_iterator SetCollectionIter;
     SetCollection sets;
 
     DWARFDebugArangeSet set;
@@ -93,6 +92,7 @@ bool DWARFDebugAranges::generate(DWARFContext *ctx) {
         cu->buildAddressRangeTable(this, true);
     }
   }
+  sort(true, /* overlap size */ 0);
   return !isEmpty();
 }
 
@@ -221,4 +221,3 @@ bool DWARFDebugAranges::getMaxRange(uint64_t &LoPC, uint64_t &HiPC) const {
   HiPC = Aranges.back().HiPC();
   return true;
 }
-

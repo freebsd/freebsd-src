@@ -27,6 +27,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/LEB128.h"
 
 using namespace llvm;
 
@@ -198,8 +199,7 @@ MCAssembler::MCAssembler(MCContext &Context_, MCAsmBackend &Backend_,
                          MCCodeEmitter &Emitter_, MCObjectWriter &Writer_,
                          raw_ostream &OS_)
   : Context(Context_), Backend(Backend_), Emitter(Emitter_), Writer(Writer_),
-    OS(OS_), RelaxAll(false), NoExecStack(false), SubsectionsViaSymbols(false)
-{
+    OS(OS_), RelaxAll(false), NoExecStack(false), SubsectionsViaSymbols(false) {
 }
 
 MCAssembler::~MCAssembler() {
@@ -324,6 +324,12 @@ uint64_t MCAssembler::computeFragmentSize(const MCAsmLayout &Layout,
     const MCAlignFragment &AF = cast<MCAlignFragment>(F);
     unsigned Offset = Layout.getFragmentOffset(&AF);
     unsigned Size = OffsetToAlignment(Offset, AF.getAlignment());
+    // If we are padding with nops, force the padding to be larger than the
+    // minimum nop size.
+    if (Size > 0 && AF.hasEmitNops()) {
+      while (Size % getBackend().getMinimumNopSize())
+        Size += AF.getAlignment();
+    }
     if (Size > AF.getMaxBytesToEmit())
       return 0;
     return Size;
@@ -374,7 +380,7 @@ void MCAsmLayout::LayoutFragment(MCFragment *F) {
   LastValidFragment[F->getParent()] = F;
 }
 
-/// WriteFragmentData - Write the \arg F data to the output file.
+/// WriteFragmentData - Write the \p F data to the output file.
 static void WriteFragmentData(const MCAssembler &Asm, const MCAsmLayout &Layout,
                               const MCFragment &F) {
   MCObjectWriter *OW = &Asm.getWriter();
@@ -403,7 +409,7 @@ static void WriteFragmentData(const MCAssembler &Asm, const MCAsmLayout &Layout,
 
     // See if we are aligning with nops, and if so do that first to try to fill
     // the Count bytes.  Then if that did not fill any bytes or there are any
-    // bytes left to fill use the the Value and ValueSize to fill the rest.
+    // bytes left to fill use the Value and ValueSize to fill the rest.
     // If we are aligning with nops, ask that target to emit the right data.
     if (AF.hasEmitNops()) {
       if (!Asm.getBackend().writeNopData(Count, OW))
@@ -526,7 +532,7 @@ void MCAssembler::writeSectionData(const MCSectionData *SD,
   }
 
   uint64_t Start = getWriter().getStream().tell();
-  (void) Start;
+  (void)Start;
 
   for (MCSectionData::const_iterator it = SD->begin(),
          ie = SD->end(); it != ie; ++it)
@@ -713,9 +719,9 @@ bool MCAssembler::relaxLEB(MCAsmLayout &Layout, MCLEBFragment &LF) {
   Data.clear();
   raw_svector_ostream OSE(Data);
   if (LF.isSigned())
-    MCObjectWriter::EncodeSLEB128(Value, OSE);
+    encodeSLEB128(Value, OSE);
   else
-    MCObjectWriter::EncodeULEB128(Value, OSE);
+    encodeULEB128(Value, OSE);
   OSE.flush();
   return OldSize != LF.getContents().size();
 }
@@ -823,6 +829,7 @@ raw_ostream &operator<<(raw_ostream &OS, const MCFixup &AF) {
 
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MCFragment::dump() {
   raw_ostream &OS = llvm::errs();
 
@@ -963,6 +970,7 @@ void MCAssembler::dump() {
   }
   OS << "]>\n";
 }
+#endif
 
 // anchors for MC*Fragment vtables
 void MCDataFragment::anchor() { }

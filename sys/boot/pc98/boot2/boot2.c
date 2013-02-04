@@ -126,13 +126,13 @@ static struct dsk {
     unsigned unit;
     unsigned head;
     unsigned sec;
-    unsigned slice;
-    unsigned part;
+    uint8_t slice;
+    uint8_t part;
     unsigned start;
 } dsk;
 static char cmd[512], cmddup[512], knamebuf[1024];
-static const char *kname = NULL;
-static uint32_t opts = 0;
+static const char *kname;
+static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -554,8 +554,10 @@ parse()
 	    }
 	    ioctrl = OPT_CHECK(RBX_DUAL) ? (IO_SERIAL|IO_KEYBOARD) :
 		     OPT_CHECK(RBX_SERIAL) ? IO_SERIAL : IO_KEYBOARD;
-	    if (ioctrl & IO_SERIAL)
-	        sio_init(115200 / comspeed);
+	    if (ioctrl & IO_SERIAL) {
+	        if (sio_init(115200 / comspeed) != 0)
+		    ioctrl &= ~IO_SERIAL;
+	    }
 	} else {
 	    for (q = arg--; *q && *q != '('; q++);
 	    if (*q) {
@@ -615,7 +617,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     struct pc98_partition *dp;
     struct disklabel *d;
     char *sec;
-    unsigned sl, i;
+    unsigned i;
+    uint8_t sl;
     u_char *p;
 
     if (!dsk_meta) {

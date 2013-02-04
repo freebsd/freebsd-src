@@ -335,8 +335,7 @@ ar71xx_gpio_attach(device_t dev)
 	KASSERT((device_get_unit(dev) == 0),
 	    ("ar71xx_gpio: Only one gpio module supported"));
 
-	mtx_init(&sc->gpio_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
+	mtx_init(&sc->gpio_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	/* Map control/status registers. */
 	sc->gpio_mem_rid = 0;

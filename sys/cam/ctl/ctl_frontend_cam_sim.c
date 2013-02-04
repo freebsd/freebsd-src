@@ -175,8 +175,8 @@ cfcs_init(void)
 	if (retval != 0) {
 		printf("%s: ctl_frontend_register() failed with error %d!\n",
 		       __func__, retval);
-		retval = 1;
-		goto bailout;
+		mtx_destroy(&softc->lock);
+		return (1);
 	}
 
 	/*
@@ -207,7 +207,7 @@ cfcs_init(void)
 		softc->wwpn = fe->wwpn;
 	}
 
-
+	mtx_lock(&softc->lock);
 	softc->devq = cam_simq_alloc(fe->num_requested_ctl_io);
 	if (softc->devq == NULL) {
 		printf("%s: error allocating devq\n", __func__);
@@ -224,9 +224,7 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	mtx_lock(&softc->lock);
 	if (xpt_bus_register(softc->sim, NULL, 0) != CAM_SUCCESS) {
-		mtx_unlock(&softc->lock);
 		printf("%s: error registering SIM\n", __func__);
 		retval = ENOMEM;
 		goto bailout;
@@ -236,21 +234,20 @@ cfcs_init(void)
 			    cam_sim_path(softc->sim),
 			    CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		mtx_unlock(&softc->lock);
 		printf("%s: error creating path\n", __func__);
 		xpt_bus_deregister(cam_sim_path(softc->sim));
 		retval = 1;
 		goto bailout;
 	}
 
-	mtx_unlock(&softc->lock);
-
-	xpt_setup_ccb(&csa.ccb_h, softc->path, /*priority*/ 5);
+	xpt_setup_ccb(&csa.ccb_h, softc->path, CAM_PRIORITY_NONE);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
 	csa.callback = cfcs_async;
         csa.callback_arg = softc->sim;
         xpt_action((union ccb *)&csa);
+
+	mtx_unlock(&softc->lock);
 
 	return (retval);
 
@@ -259,6 +256,8 @@ bailout:
 		cam_sim_free(softc->sim, /*free_devq*/ TRUE);
 	else if (softc->devq)
 		cam_simq_free(softc->devq);
+	mtx_unlock(&softc->lock);
+	mtx_destroy(&softc->lock);
 
 	return (retval);
 }
@@ -276,7 +275,7 @@ cfcs_shutdown(void)
 }
 
 static void
-cfcs_online(void *arg)
+cfcs_onoffline(void *arg, int online)
 {
 	struct cfcs_softc *softc;
 	union ccb *ccb;
@@ -284,13 +283,12 @@ cfcs_online(void *arg)
 	softc = (struct cfcs_softc *)arg;
 
 	mtx_lock(&softc->lock);
-	softc->online = 1;
-	mtx_unlock(&softc->lock);
+	softc->online = online;
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		printf("%s: unable to allocate CCB for rescan\n", __func__);
-		return;
+		goto bailout;
 	}
 
 	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
@@ -298,37 +296,24 @@ cfcs_online(void *arg)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: can't allocate path for rescan\n", __func__);
 		xpt_free_ccb(ccb);
-		return;
+		goto bailout;
 	}
 	xpt_rescan(ccb);
+
+bailout:
+	mtx_unlock(&softc->lock);
+}
+
+static void
+cfcs_online(void *arg)
+{
+	cfcs_onoffline(arg, /*online*/ 1);
 }
 
 static void
 cfcs_offline(void *arg)
 {
-	struct cfcs_softc *softc;
-	union ccb *ccb;
-
-	softc = (struct cfcs_softc *)arg;
-
-	mtx_lock(&softc->lock);
-	softc->online = 0;
-	mtx_unlock(&softc->lock);
-
-	ccb = xpt_alloc_ccb_nowait();
-	if (ccb == NULL) {
-		printf("%s: unable to allocate CCB for rescan\n", __func__);
-		return;
-	}
-
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
-			    cam_sim_path(softc->sim), CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		printf("%s: can't allocate path for rescan\n", __func__);
-		xpt_free_ccb(ccb);
-		return;
-	}
-	xpt_rescan(ccb);
+	cfcs_onoffline(arg, /*online*/ 0);
 }
 
 static int

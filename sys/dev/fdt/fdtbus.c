@@ -257,6 +257,8 @@ newbus_device_destroy(device_t dev)
 	struct fdtbus_devinfo *di;
 
 	di = device_get_ivars(dev);
+	if (di == NULL)
+		return;
 
 	free(di->di_name, M_OFWPROP);
 	free(di->di_type, M_OFWPROP);
@@ -289,7 +291,7 @@ newbus_device_create(device_t dev_par, phandle_t node, char *name, char *type,
 
 	resource_list_init(&di->di_res);
 
-	if (fdt_reg_to_rl(node, &di->di_res, fdt_immr_va)) {
+	if (fdt_reg_to_rl(node, &di->di_res)) {
 		device_printf(child, "could not process 'reg' property\n");
 		newbus_device_destroy(child);
 		child = NULL;

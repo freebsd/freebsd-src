@@ -23,6 +23,7 @@ SUBDIR=	adduser \
 	digictl \
 	diskinfo \
 	dumpcis \
+	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
@@ -34,17 +35,16 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
+	isfctl \
 	kldxref \
 	mailwrapper \
 	makefs \
-	manctl \
 	memcontrol \
 	mergemaster \
 	mfiutil \
 	mixer \
 	mlxcontrol \
 	mountd \
-	mount_portalfs \
 	mptutil \
 	mtest \
 	mtree \
@@ -54,8 +54,9 @@ SUBDIR=	adduser \
 	nfsdumpstate \
 	nfsrevoke \
 	nfsuserd \
+	nmtree \
 	nologin \
-	pc-sysinstall \
+	${_pc_sysinstall} \
 	pciconf \
 	periodic \
 	powerd \
@@ -109,6 +110,9 @@ SUBDIR+=	amd
 .if ${MK_AUDIT} != "no"
 SUBDIR+=	audit
 SUBDIR+=	auditd
+.if ${MK_OPENSSL} != "no"
+SUBDIR+=	auditdistd
+.endif
 SUBDIR+=	auditreduce
 SUBDIR+=	praudit
 .endif
@@ -141,6 +145,11 @@ SUBDIR+=	rndc-confgen
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
+.endif
+
+.if ${MK_BSDCONFIG} != "no"
+SUBDIR+=	bsdconfig
+SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"
@@ -253,6 +262,10 @@ SUBDIR+=	ntp
 
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=	keyserv
+.endif
+
+.if ${MK_PC_SYSINSTALL} != "no"
+_pc_sysinstall=	pc-sysinstall
 .endif
 
 .if ${MK_PF} != "no"

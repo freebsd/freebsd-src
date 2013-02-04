@@ -139,7 +139,7 @@ feature_check:
 	    cvmx_dprintf("unknown error %d.\n", val);
 	    break;
 	}
-#if !defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(__U_BOOT__) && !defined(CVMX_BUILD_FOR_TOOLCHAIN)
+#if !defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(__U_BOOT__) && !defined(CVMX_BUILD_FOR_TOOLCHAIN) && !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 	exit (1);
 #endif
     }

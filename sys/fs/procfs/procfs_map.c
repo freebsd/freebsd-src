@@ -84,7 +84,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	struct vnode *vp;
 	char *fullpath, *freepath;
 	struct ucred *cred;
-	int error, vfslocked;
+	int error;
 	unsigned int last_timestamp;
 #ifdef COMPAT_FREEBSD32
 	int wrap32 = 0;
@@ -189,9 +189,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			VM_OBJECT_UNLOCK(obj);
 			if (vp != NULL) {
 				vn_fullpath(td, vp, &fullpath, &freepath);
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vrele(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			type = "none";

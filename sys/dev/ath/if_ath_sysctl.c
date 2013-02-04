@@ -99,6 +99,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 static int
 ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
 {
@@ -357,10 +361,11 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d\n",
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, axq_fifo_depth=%d\n",
 			    i,
 			    sc->sc_txq[i].axq_depth,
-			    sc->sc_txq[i].axq_aggr_depth);
+			    sc->sc_txq[i].axq_aggr_depth,
+			    sc->sc_txq[i].axq_fifo_depth);
 		}
 	}
 
@@ -500,6 +505,84 @@ ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+static int
+ath_sysctl_hangcheck(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int val = 0;
+	int error;
+	uint32_t mask = 0xffffffff;
+	uint32_t *sp;
+	uint32_t rsize;
+	struct ath_hal *ah = sc->sc_ah;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	if (val == 0)
+		return 0;
+
+	/* Do a hang check */
+	if (!ath_hal_getdiagstate(ah, HAL_DIAG_CHECK_HANGS,
+	    &mask, sizeof(mask),
+	    (void *) &sp, &rsize))
+		return (0);
+	device_printf(sc->sc_dev, "%s: sp=0x%08x\n", __func__, *sp);
+
+	val = 0;
+	return 0;
+}
+
+#ifdef ATH_DEBUG_ALQ
+static int
+ath_sysctl_alq_log(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int error, enable;
+
+	enable = (sc->sc_alq.sc_alq_isactive);
+
+	error = sysctl_handle_int(oidp, &enable, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	else if (enable)
+		error = if_ath_alq_start(&sc->sc_alq);
+	else
+		error = if_ath_alq_stop(&sc->sc_alq);
+	return (error);
+}
+
+/*
+ * Attach the ALQ debugging if required.
+ */
+static void
+ath_sysctl_alq_attach(struct ath_softc *sc)
+{
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "alq", CTLFLAG_RD,
+	    NULL, "Atheros ALQ logging parameters");
+	child = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_STRING(ctx, child, OID_AUTO, "filename",
+	    CTLFLAG_RW, sc->sc_alq.sc_alq_filename, 0, "ALQ filename");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"enable", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_alq_log, "I", "");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debugmask", CTLFLAG_RW, &sc->sc_alq.sc_alq_debug, 0,
+		"ALQ debug mask");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"numlost", CTLFLAG_RW, &sc->sc_alq.sc_alq_numlost, 0,
+		"number lost");
+}
+#endif /* ATH_DEBUG_ALQ */
+
 void
 ath_sysctlattach(struct ath_softc *sc)
 {
@@ -518,6 +601,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"debug", CTLFLAG_RW, &sc->sc_debug,
 		"control debugging printfs");
 #endif
+#ifdef	ATH_DEBUG_ALQ
+	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"ktrdebug", CTLFLAG_RW, &sc->sc_ktrdebug,
+		"control debugging KTR");
+#endif /* ATH_DEBUG_ALQ */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_slottime, "I", "802.11 slot time (us)");
@@ -600,6 +688,10 @@ ath_sysctlattach(struct ath_softc *sc)
 		"forcebstuck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_forcebstuck, "I", "");
 
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hangcheck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_hangcheck, "I", "");
+
 	if (ath_hal_hasintmit(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -650,6 +742,10 @@ ath_sysctlattach(struct ath_softc *sc)
 			"setcca", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_setcca, "I", "enable CCA control");
 	}
+#endif
+
+#ifdef	ATH_DEBUG_ALQ
+	ath_sysctl_alq_attach(sc);
 #endif
 }
 
@@ -934,6 +1030,10 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_mcastq_overflow",
 	    CTLFLAG_RD, &sc->sc_stats.ast_tx_mcastq_overflow, 0,
 	    "Number of multicast frames exceeding maximum mcast queue depth");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_keymiss", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_keymiss, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swfiltered", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swfiltered, 0, "");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

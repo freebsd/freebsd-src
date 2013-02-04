@@ -5,7 +5,8 @@
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
-SUBDIR=	${_colldef} \
+SUBDIR=	${_atf} \
+	${_colldef} \
 	${_dict} \
 	${_doc} \
 	dtrace \
@@ -26,9 +27,15 @@ SUBDIR=	${_colldef} \
 	tabset \
 	termcap \
 	${_timedef} \
+	xml \
+	xsl \
 	${_zoneinfo}
 
 # NB: keep these sorted by MK_* knobs
+
+.if ${MK_ATF} != "no"
+_atf=		atf
+.endif
 
 .if ${MK_BSNMP} != "no"
 _snmp=		snmp

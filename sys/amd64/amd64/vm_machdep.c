@@ -90,6 +90,10 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
+CTASSERT((struct thread **)OFFSETOF_CURTHREAD ==
+    &((struct pcpu *)NULL)->pc_curthread);
+CTASSERT((struct pcb **)OFFSETOF_CURPCB == &((struct pcpu *)NULL)->pc_curpcb);
+
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
 {
@@ -571,7 +575,8 @@ cpu_reset_proxy()
 
 	cpu_reset_proxy_active = 1;
 	while (cpu_reset_proxy_active == 1)
-		;	/* Wait for other cpu to see that we've started */
+		ia32_pause(); /* Wait for other cpu to see that we've started */
+
 	CPU_SETOF(cpu_reset_proxyid, &tcrp);
 	stop_cpus(tcrp);
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
@@ -607,14 +612,17 @@ cpu_reset()
 			wmb();
 
 			cnt = 0;
-			while (cpu_reset_proxy_active == 0 && cnt < 10000000)
+			while (cpu_reset_proxy_active == 0 && cnt < 10000000) {
+				ia32_pause();
 				cnt++;	/* Wait for BSP to announce restart */
+			}
 			if (cpu_reset_proxy_active == 0)
 				printf("cpu_reset: Failed to restart BSP\n");
 			enable_intr();
 			cpu_reset_proxy_active = 2;
 
-			while (1);
+			while (1)
+				ia32_pause();
 			/* NOTREACHED */
 		}
 

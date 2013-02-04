@@ -24,6 +24,7 @@ ident		GENERIC
 machine 	powerpc powerpc
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1
 
 # Platform support
 options 	POWERMAC		#NewWorld Apple PowerMacs
@@ -40,6 +41,7 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
+options 	QUOTA			#Enable disk quotas for UFS
 options 	MD_ROOT			#MD is a potential root device
 options 	NFSCL			#New Network Filesystem Client
 options 	NFSD			#New Network Filesystem Server
@@ -68,6 +70,8 @@ options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
 options 	MAC			# TrustedBSD MAC Framework
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # Debugging support.  Always need this:
@@ -180,16 +184,11 @@ device		kue		# Kawasaki LSI USB Ethernet
 options		IEEE80211_SUPPORT_MESH
 options		AH_SUPPORT_AR5416
 
-# FireWire support
-device		firewire	# FireWire bus code
-# sbp(4) works for some systems but causes boot failure on others
-device		sbp		# SCSI over FireWire (Requires scbus and da)
-device		fwe		# Ethernet over FireWire (non-standard!)
-
 # Misc
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
@@ -197,6 +196,7 @@ device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
 device		windtunnel	# Apple G4 MDD fan controller
 device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
+device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
 
 # ADB support
 device		adb

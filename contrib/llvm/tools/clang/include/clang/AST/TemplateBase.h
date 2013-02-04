@@ -28,11 +28,11 @@ namespace llvm {
 
 namespace clang {
 
-class Decl;
 class DiagnosticBuilder;
 class Expr;
 struct PrintingPolicy;
 class TypeSourceInfo;
+class ValueDecl;
 
 /// \brief Represents a template argument within a class template
 /// specialization.
@@ -43,12 +43,14 @@ public:
     /// \brief Represents an empty template argument, e.g., one that has not
     /// been deduced.
     Null = 0,
-    /// The template argument is a type. Its value is stored in the
-    /// TypeOrValue field.
+    /// The template argument is a type.
     Type,
-    /// The template argument is a declaration that was provided for a pointer
-    /// or reference non-type template parameter.
+    /// The template argument is a declaration that was provided for a pointer,
+    /// reference, or pointer to member non-type template parameter.
     Declaration,
+    /// The template argument is a null pointer or null pointer to member that
+    /// was provided for a non-type template parameter.
+    NullPtr,
     /// The template argument is an integral value stored in an llvm::APSInt
     /// that was provided for an integral non-type template parameter. 
     Integral,
@@ -73,7 +75,19 @@ private:
   union {
     uintptr_t TypeOrValue;
     struct {
-      char Value[sizeof(llvm::APSInt)];
+      ValueDecl *D;
+      bool ForRefParam;
+    } DeclArg;
+    struct {
+      // We store a decomposed APSInt with the data allocated by ASTContext if
+      // BitWidth > 64. The memory may be shared between multiple
+      // TemplateArgument instances.
+      union {
+        uint64_t VAL;          ///< Used to store the <= 64 bits integer value.
+        const uint64_t *pVal;  ///< Used to store the >64 bits integer value.
+      };
+      unsigned BitWidth : 31;
+      unsigned IsUnsigned : 1;
       void *Type;
     } Integer;
     struct {
@@ -93,22 +107,29 @@ public:
   TemplateArgument() : Kind(Null), TypeOrValue(0) { }
 
   /// \brief Construct a template type argument.
-  TemplateArgument(QualType T) : Kind(Type) {
+  TemplateArgument(QualType T, bool isNullPtr = false)
+    : Kind(isNullPtr ? NullPtr : Type) {
     TypeOrValue = reinterpret_cast<uintptr_t>(T.getAsOpaquePtr());
   }
 
   /// \brief Construct a template argument that refers to a
   /// declaration, which is either an external declaration or a
   /// template declaration.
-  TemplateArgument(Decl *D) : Kind(Declaration) {
-    TypeOrValue = reinterpret_cast<uintptr_t>(D);
+  TemplateArgument(ValueDecl *D, bool ForRefParam) : Kind(Declaration) {
+    assert(D && "Expected decl");
+    DeclArg.D = D;
+    DeclArg.ForRefParam = ForRefParam;
   }
 
-  /// \brief Construct an integral constant template argument.
-  TemplateArgument(const llvm::APSInt &Value, QualType Type) : Kind(Integral) {
-    // FIXME: Large integral values will get leaked. Do something
-    // similar to what we did with IntegerLiteral.
-    new (Integer.Value) llvm::APSInt(Value);
+  /// \brief Construct an integral constant template argument. The memory to
+  /// store the value is allocated with Ctx.
+  TemplateArgument(ASTContext &Ctx, const llvm::APSInt &Value, QualType Type);
+
+  /// \brief Construct an integral constant template argument with the same
+  /// value as Other but a different type.
+  TemplateArgument(const TemplateArgument &Other, QualType Type)
+    : Kind(Integral) {
+    Integer = Other.Integer;
     Integer.Type = Type.getAsOpaquePtr();
   }
 
@@ -165,60 +186,8 @@ public:
     this->Args.NumArgs = NumArgs;
   }
 
-  /// \brief Copy constructor for a template argument.
-  TemplateArgument(const TemplateArgument &Other) : Kind(Other.Kind) {
-    // FIXME: Large integral values will get leaked. Do something
-    // similar to what we did with IntegerLiteral.
-    if (Kind == Integral) {
-      new (Integer.Value) llvm::APSInt(*Other.getAsIntegral());
-      Integer.Type = Other.Integer.Type;
-    } else if (Kind == Pack) {
-      Args.NumArgs = Other.Args.NumArgs;
-      Args.Args = Other.Args.Args;
-    } else if (Kind == Template || Kind == TemplateExpansion) {
-      TemplateArg.Name = Other.TemplateArg.Name;
-      TemplateArg.NumExpansions = Other.TemplateArg.NumExpansions;
-    } else
-      TypeOrValue = Other.TypeOrValue;
-  }
-
-  TemplateArgument& operator=(const TemplateArgument& Other) {
-    using llvm::APSInt;
-
-    if (Kind == Other.Kind && Kind == Integral) {
-      // Copy integral values.
-      *this->getAsIntegral() = *Other.getAsIntegral();
-      Integer.Type = Other.Integer.Type;
-      return *this;
-    } 
-
-    // Destroy the current integral value, if that's what we're holding.
-    if (Kind == Integral)
-      getAsIntegral()->~APSInt();
-
-    Kind = Other.Kind;
-
-    if (Other.Kind == Integral) {
-      new (Integer.Value) llvm::APSInt(*Other.getAsIntegral());
-      Integer.Type = Other.Integer.Type;
-    } else if (Other.Kind == Pack) {
-      Args.NumArgs = Other.Args.NumArgs;
-      Args.Args = Other.Args.Args;
-    } else if (Kind == Template || Kind == TemplateExpansion) {
-      TemplateArg.Name = Other.TemplateArg.Name;
-      TemplateArg.NumExpansions = Other.TemplateArg.NumExpansions;
-    } else {
-      TypeOrValue = Other.TypeOrValue;
-    }
-
-    return *this;
-  }
-
-  ~TemplateArgument() {
-    using llvm::APSInt;
-
-    if (Kind == Integral)
-      getAsIntegral()->~APSInt();
+  static TemplateArgument getEmptyPack() {
+    return TemplateArgument((TemplateArgument*)0, 0);
   }
 
   /// \brief Create a new template argument pack by copying the given set of
@@ -249,34 +218,43 @@ public:
   /// \brief Determine whether this template argument is a pack expansion.
   bool isPackExpansion() const;
   
-  /// \brief Retrieve the template argument as a type.
+  /// \brief Retrieve the type for a type template argument.
   QualType getAsType() const {
-    if (Kind != Type)
-      return QualType();
-
+    assert(Kind == Type && "Unexpected kind");
     return QualType::getFromOpaquePtr(reinterpret_cast<void*>(TypeOrValue));
   }
 
-  /// \brief Retrieve the template argument as a declaration.
-  Decl *getAsDecl() const {
-    if (Kind != Declaration)
-      return 0;
-    return reinterpret_cast<Decl *>(TypeOrValue);
+  /// \brief Retrieve the declaration for a declaration non-type
+  /// template argument.
+  ValueDecl *getAsDecl() const {
+    assert(Kind == Declaration && "Unexpected kind");
+    return DeclArg.D;
   }
 
-  /// \brief Retrieve the template argument as a template name.
+  /// \brief Retrieve whether a declaration is binding to a
+  /// reference parameter in a declaration non-type template argument.
+  bool isDeclForReferenceParam() const {
+    assert(Kind == Declaration && "Unexpected kind");
+    return DeclArg.ForRefParam;
+  }
+
+  /// \brief Retrieve the type for null non-type template argument.
+  QualType getNullPtrType() const {
+    assert(Kind == NullPtr && "Unexpected kind");
+    return QualType::getFromOpaquePtr(reinterpret_cast<void*>(TypeOrValue));
+  }
+
+  /// \brief Retrieve the template name for a template name argument.
   TemplateName getAsTemplate() const {
-    if (Kind != Template)
-      return TemplateName();
-    
+    assert(Kind == Template && "Unexpected kind");
     return TemplateName::getFromVoidPointer(TemplateArg.Name);
   }
 
   /// \brief Retrieve the template argument as a template name; if the argument
   /// is a pack expansion, return the pattern as a template name.
   TemplateName getAsTemplateOrTemplatePattern() const {
-    if (Kind != Template && Kind != TemplateExpansion)
-      return TemplateName();
+    assert((Kind == Template || Kind == TemplateExpansion) &&
+           "Unexpected kind");
     
     return TemplateName::getFromVoidPointer(TemplateArg.Name);
   }
@@ -286,35 +264,32 @@ public:
   llvm::Optional<unsigned> getNumTemplateExpansions() const;
   
   /// \brief Retrieve the template argument as an integral value.
-  llvm::APSInt *getAsIntegral() {
-    if (Kind != Integral)
-      return 0;
-    return reinterpret_cast<llvm::APSInt*>(&Integer.Value[0]);
-  }
+  // FIXME: Provide a way to read the integral data without copying the value.
+  llvm::APSInt getAsIntegral() const {
+    assert(Kind == Integral && "Unexpected kind");
+    using namespace llvm;
+    if (Integer.BitWidth <= 64)
+      return APSInt(APInt(Integer.BitWidth, Integer.VAL), Integer.IsUnsigned);
 
-  const llvm::APSInt *getAsIntegral() const {
-    return const_cast<TemplateArgument*>(this)->getAsIntegral();
+    unsigned NumWords = APInt::getNumWords(Integer.BitWidth);
+    return APSInt(APInt(Integer.BitWidth, makeArrayRef(Integer.pVal, NumWords)),
+                  Integer.IsUnsigned);
   }
 
   /// \brief Retrieve the type of the integral value.
   QualType getIntegralType() const {
-    if (Kind != Integral)
-      return QualType();
-
+    assert(Kind == Integral && "Unexpected kind");
     return QualType::getFromOpaquePtr(Integer.Type);
   }
 
   void setIntegralType(QualType T) {
-    assert(Kind == Integral &&
-           "Cannot set the integral type of a non-integral template argument");
+    assert(Kind == Integral && "Unexpected kind");
     Integer.Type = T.getAsOpaquePtr();
   }
 
   /// \brief Retrieve the template argument as an expression.
   Expr *getAsExpr() const {
-    if (Kind != Expression)
-      return 0;
-
+    assert(Kind == Expression && "Unexpected kind");
     return reinterpret_cast<Expr *>(TypeOrValue);
   }
 
@@ -342,14 +317,12 @@ public:
     return Args.NumArgs;
   }
 
-  /// Determines whether two template arguments are superficially the
+  /// \brief Determines whether two template arguments are superficially the
   /// same.
   bool structurallyEquals(const TemplateArgument &Other) const;
 
-  /// \brief When the template argument is a pack expansion, returns 
+  /// \brief When the template argument is a pack expansion, returns
   /// the pattern of the pack expansion.
-  ///
-  /// \param Ellipsis Will be set to the location of the ellipsis.
   TemplateArgument getPackExpansionPattern() const;
 
   /// \brief Print this template argument to the given output stream.
@@ -481,7 +454,17 @@ public:
     assert(Argument.getKind() == TemplateArgument::Declaration);
     return LocInfo.getAsExpr();
   }
-  
+
+  Expr *getSourceNullPtrExpression() const {
+    assert(Argument.getKind() == TemplateArgument::NullPtr);
+    return LocInfo.getAsExpr();
+  }
+
+  Expr *getSourceIntegralExpression() const {
+    assert(Argument.getKind() == TemplateArgument::Integral);
+    return LocInfo.getAsExpr();
+  }
+
   NestedNameSpecifierLoc getTemplateQualifierLoc() const {
     assert(Argument.getKind() == TemplateArgument::Template ||
            Argument.getKind() == TemplateArgument::TemplateExpansion);
@@ -555,17 +538,23 @@ public:
 /// This is safe to be used inside an AST node, in contrast with
 /// TemplateArgumentListInfo.
 struct ASTTemplateArgumentListInfo {
-  /// \brief The source location of the left angle bracket ('<');
+  /// \brief The source location of the left angle bracket ('<').
   SourceLocation LAngleLoc;
   
-  /// \brief The source location of the right angle bracket ('>');
+  /// \brief The source location of the right angle bracket ('>').
   SourceLocation RAngleLoc;
   
-  /// \brief The number of template arguments in TemplateArgs.
-  /// The actual template arguments (if any) are stored after the
-  /// ExplicitTemplateArgumentList structure.
-  unsigned NumTemplateArgs;
-  
+  union {
+    /// \brief The number of template arguments in TemplateArgs.
+    /// The actual template arguments (if any) are stored after the
+    /// ExplicitTemplateArgumentList structure.
+    unsigned NumTemplateArgs;
+
+    /// Force ASTTemplateArgumentListInfo to the right alignment
+    /// for the following array of TemplateArgumentLocs.
+    void *Aligner;
+  };
+
   /// \brief Retrieve the template arguments
   TemplateArgumentLoc *getTemplateArgs() {
     return reinterpret_cast<TemplateArgumentLoc *> (this + 1);

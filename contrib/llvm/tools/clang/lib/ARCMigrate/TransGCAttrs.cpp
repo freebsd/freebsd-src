@@ -9,12 +9,13 @@
 
 #include "Transforms.h"
 #include "Internals.h"
-#include "clang/Lex/Lexer.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/Support/SaveAndRestore.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/TinyPtrVector.h"
+#include "llvm/Support/SaveAndRestore.h"
 
 using namespace clang;
 using namespace arcmt;
@@ -136,7 +137,7 @@ public:
     if (CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
       for (CXXRecordDecl::method_iterator
              MI = RD->method_begin(), ME = RD->method_end(); MI != ME; ++MI) {
-        if ((*MI)->isOutOfLine())
+        if (MI->isOutOfLine())
           return true;
       }
       return false;
@@ -166,7 +167,7 @@ public:
 
     for (Decl::redecl_iterator
            I = D->redecls_begin(), E = D->redecls_end(); I != E; ++I)
-      if (!isInMainFile((*I)->getLocation()))
+      if (!isInMainFile(I->getLocation()))
         return false;
     
     return true;

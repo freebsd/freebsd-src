@@ -1,4 +1,4 @@
-/* $Id: port-linux.c,v 1.16 2011/08/29 06:09:57 djm Exp $ */
+/* $Id: port-linux.c,v 1.17 2012/03/08 23:25:18 djm Exp $ */
 
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
@@ -60,7 +60,7 @@ ssh_selinux_enabled(void)
 static security_context_t
 ssh_selinux_getctxbyname(char *pwname)
 {
-	security_context_t sc;
+	security_context_t sc = NULL;
 	char *sename = NULL, *lvl = NULL;
 	int r;
 
@@ -86,6 +86,7 @@ ssh_selinux_getctxbyname(char *pwname)
 		case 0:
 			error("%s: Failed to get default SELinux security "
 			    "context for %s", __func__, pwname);
+			sc = NULL;
 			break;
 		default:
 			fatal("%s: Failed to get default SELinux security "
@@ -101,7 +102,7 @@ ssh_selinux_getctxbyname(char *pwname)
 		xfree(lvl);
 #endif
 
-	return (sc);
+	return sc;
 }
 
 /* Set the execution context to the default for the specified user */

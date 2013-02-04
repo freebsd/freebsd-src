@@ -166,6 +166,10 @@ static const char rcsid[] _U_ =
 #include "pcap-can-linux.h"
 #endif
 
+#if PCAP_SUPPORT_CANUSB
+#include "pcap-canusb-linux.h"
+#endif
+
 #ifdef PCAP_SUPPORT_NETFILTER
 #include "pcap-netfilter-linux.h"
 #endif
@@ -418,8 +422,15 @@ pcap_create(const char *device, char *ebuf)
 	}
 #endif
 
+#if PCAP_SUPPORT_CANUSB
+  if (strstr(device, "canusb")) {
+    return canusb_create(device, ebuf);
+  }
+#endif
+
 #ifdef PCAP_SUPPORT_CAN
-	if (strstr(device, "can") || strstr(device, "vcan")) {
+	if ((strncmp(device, "can", 3) == 0 && isdigit(device[3])) ||
+	    (strncmp(device, "vcan", 4) == 0 && isdigit(device[4]))) {
 		return can_create(device, ebuf);
 	}
 #endif
@@ -2297,6 +2308,11 @@ pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 	 */
 	if (netfilter_platform_finddevs(alldevsp, errbuf) < 0)
 		return (-1);
+#endif
+
+#if PCAP_SUPPORT_CANUSB
+  if (canusb_platform_finddevs(alldevsp, errbuf) < 0)
+    return (-1);
 #endif
 
 	return (0);
@@ -5403,13 +5419,19 @@ fix_offset(struct bpf_insn *p)
 		 * header.
 		 */
 		p->k -= SLL_HDR_LEN;
+	} else if (p->k == 0) {
+		/*
+		 * It's the packet type field; map it to the special magic
+		 * kernel offset for that field.
+		 */
+		p->k = SKF_AD_OFF + SKF_AD_PKTTYPE;
 	} else if (p->k == 14) {
 		/*
 		 * It's the protocol field; map it to the special magic
 		 * kernel offset for that field.
 		 */
 		p->k = SKF_AD_OFF + SKF_AD_PROTOCOL;
-	} else {
+	} else if ((bpf_int32)(p->k) > 0) {
 		/*
 		 * It's within the header, but it's not one of those
 		 * fields; we can't do that in the kernel, so punt

@@ -158,16 +158,9 @@ private:
 /// ProgramState traits to store the currently allocated (and not yet freed)
 /// symbols. This is a map from the allocated content symbol to the
 /// corresponding AllocationState.
-typedef llvm::ImmutableMap<SymbolRef,
-                       MacOSKeychainAPIChecker::AllocationState> AllocatedSetTy;
-
-namespace { struct AllocatedData {}; }
-namespace clang { namespace ento {
-template<> struct ProgramStateTrait<AllocatedData>
-    :  public ProgramStatePartialTrait<AllocatedSetTy > {
-  static void *GDMIndex() { static int index = 0; return &index; }
-};
-}}
+REGISTER_MAP_WITH_PROGRAMSTATE(AllocatedData,
+                               SymbolRef,
+                               MacOSKeychainAPIChecker::AllocationState)
 
 static bool isEnclosingFunctionParam(const Expr *E) {
   E = E->IgnoreParenCasts();
@@ -282,7 +275,7 @@ void MacOSKeychainAPIChecker::
   Report->addVisitor(new SecKeychainBugVisitor(AP.first));
   Report->addRange(ArgExpr->getSourceRange());
   markInteresting(Report, AP);
-  C.EmitReport(Report);
+  C.emitReport(Report);
 }
 
 void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
@@ -290,7 +283,11 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
   unsigned idx = InvalidIdx;
   ProgramStateRef State = C.getState();
 
-  StringRef funName = C.getCalleeName(CE);
+  const FunctionDecl *FD = C.getCalleeDecl(CE);
+  if (!FD || FD->getKind() != Decl::Function)
+    return;
+  
+  StringRef funName = C.getCalleeName(FD);
   if (funName.empty())
     return;
 
@@ -319,7 +316,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
           Report->addVisitor(new SecKeychainBugVisitor(V));
           Report->addRange(ArgExpr->getSourceRange());
           Report->markInteresting(AS->Region);
-          C.EmitReport(Report);
+          C.emitReport(Report);
         }
       }
     return;
@@ -372,7 +369,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
     Report->addRange(ArgExpr->getSourceRange());
     if (AS)
       Report->markInteresting(AS->Region);
-    C.EmitReport(Report);
+    C.emitReport(Report);
     return;
   }
 
@@ -436,7 +433,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
     Report->addVisitor(new SecKeychainBugVisitor(ArgSM));
     Report->addRange(ArgExpr->getSourceRange());
     Report->markInteresting(AS->Region);
-    C.EmitReport(Report);
+    C.emitReport(Report);
     return;
   }
 
@@ -446,7 +443,11 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
 void MacOSKeychainAPIChecker::checkPostStmt(const CallExpr *CE,
                                             CheckerContext &C) const {
   ProgramStateRef State = C.getState();
-  StringRef funName = C.getCalleeName(CE);
+  const FunctionDecl *FD = C.getCalleeDecl(CE);
+  if (!FD || FD->getKind() != Decl::Function)
+    return;
+
+  StringRef funName = C.getCalleeName(FD);
 
   // If a value has been allocated, add it to the set for tracking.
   unsigned idx = getTrackedFunctionIndex(funName, true);
@@ -528,9 +529,11 @@ MacOSKeychainAPIChecker::getAllocationSite(const ExplodedNode *N,
   }
 
   ProgramPoint P = AllocNode->getLocation();
-  if (!isa<StmtPoint>(P))
-    return 0;
-  return cast<clang::PostStmt>(P).getStmt();
+  if (CallExitEnd *Exit = dyn_cast<CallExitEnd>(&P))
+    return Exit->getCalleeContext()->getCallSite();
+  if (clang::PostStmt *PS = dyn_cast<clang::PostStmt>(&P))
+    return PS->getStmt();
+  return 0;
 }
 
 BugReport *MacOSKeychainAPIChecker::
@@ -561,13 +564,13 @@ BugReport *MacOSKeychainAPIChecker::
 void MacOSKeychainAPIChecker::checkDeadSymbols(SymbolReaper &SR,
                                                CheckerContext &C) const {
   ProgramStateRef State = C.getState();
-  AllocatedSetTy ASet = State->get<AllocatedData>();
+  AllocatedDataTy ASet = State->get<AllocatedData>();
   if (ASet.isEmpty())
     return;
 
   bool Changed = false;
   AllocationPairVec Errors;
-  for (AllocatedSetTy::iterator I = ASet.begin(), E = ASet.end(); I != E; ++I) {
+  for (AllocatedDataTy::iterator I = ASet.begin(), E = ASet.end(); I != E; ++I) {
     if (SR.isLive(I->first))
       continue;
 
@@ -575,7 +578,9 @@ void MacOSKeychainAPIChecker::checkDeadSymbols(SymbolReaper &SR,
     State = State->remove<AllocatedData>(I->first);
     // If the allocated symbol is null or if the allocation call might have
     // returned an error, do not report.
-    if (State->getSymVal(I->first) ||
+    ConstraintManager &CMgr = State->getConstraintManager();
+    ConditionTruthVal AllocFailed = CMgr.isNull(State, I.getKey());
+    if (AllocFailed.isConstrainedTrue() ||
         definitelyReturnedError(I->second.Region, State, C.getSValBuilder()))
       continue;
     Errors.push_back(std::make_pair(I->first, &I->second));
@@ -592,7 +597,7 @@ void MacOSKeychainAPIChecker::checkDeadSymbols(SymbolReaper &SR,
   // Generate the error reports.
   for (AllocationPairVec::iterator I = Errors.begin(), E = Errors.end();
                                                        I != E; ++I) {
-    C.EmitReport(generateAllocatedDataNotReleasedReport(*I, N, C));
+    C.emitReport(generateAllocatedDataNotReleasedReport(*I, N, C));
   }
 
   // Generate the new, cleaned up state.
@@ -607,7 +612,7 @@ void MacOSKeychainAPIChecker::checkEndPath(CheckerContext &C) const {
   if (C.getLocationContext()->getParent() != 0)
     return;
 
-  AllocatedSetTy AS = state->get<AllocatedData>();
+  AllocatedDataTy AS = state->get<AllocatedData>();
   if (AS.isEmpty())
     return;
 
@@ -615,12 +620,14 @@ void MacOSKeychainAPIChecker::checkEndPath(CheckerContext &C) const {
   // found here, so report it.
   bool Changed = false;
   AllocationPairVec Errors;
-  for (AllocatedSetTy::iterator I = AS.begin(), E = AS.end(); I != E; ++I ) {
+  for (AllocatedDataTy::iterator I = AS.begin(), E = AS.end(); I != E; ++I ) {
     Changed = true;
     state = state->remove<AllocatedData>(I->first);
     // If the allocated symbol is null or if error code was returned at
     // allocation, do not report.
-    if (state->getSymVal(I.getKey()) ||
+    ConstraintManager &CMgr = state->getConstraintManager();
+    ConditionTruthVal AllocFailed = CMgr.isNull(state, I.getKey());
+    if (AllocFailed.isConstrainedTrue() ||
         definitelyReturnedError(I->second.Region, state,
                                 C.getSValBuilder())) {
       continue;
@@ -640,7 +647,7 @@ void MacOSKeychainAPIChecker::checkEndPath(CheckerContext &C) const {
   // Generate the error reports.
   for (AllocationPairVec::iterator I = Errors.begin(), E = Errors.end();
                                                        I != E; ++I) {
-    C.EmitReport(generateAllocatedDataNotReleasedReport(*I, N, C));
+    C.emitReport(generateAllocatedDataNotReleasedReport(*I, N, C));
   }
 
   C.addTransition(state, N);

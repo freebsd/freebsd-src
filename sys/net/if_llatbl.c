@@ -106,10 +106,13 @@ llentry_free(struct llentry *lle)
 	size_t pkts_dropped;
 	struct mbuf *next;
 
-	pkts_dropped = 0;
+	IF_AFDATA_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
 	LLE_WLOCK_ASSERT(lle);
-	LIST_REMOVE(lle, lle_next);
 
+	LIST_REMOVE(lle, lle_next);
+	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
+
+	pkts_dropped = 0;
 	while ((lle->la_numheld > 0) && (lle->la_hold != NULL)) {
 		next = lle->la_hold->m_nextpkt;
 		m_freem(lle->la_hold);
@@ -118,53 +121,43 @@ llentry_free(struct llentry *lle)
 		pkts_dropped++;
 	}
 
-	KASSERT(lle->la_numheld == 0, 
-		("%s: la_numheld %d > 0, pkts_droped %zd", __func__, 
+	KASSERT(lle->la_numheld == 0,
+		("%s: la_numheld %d > 0, pkts_droped %zd", __func__,
 		 lle->la_numheld, pkts_dropped));
 
-	lle->la_flags &= ~LLE_VALID;
 	LLE_FREE_LOCKED(lle);
 
 	return (pkts_dropped);
 }
 
 /*
- * Update an llentry for address dst (equivalent to rtalloc for new-arp)
- * Caller must pass in a valid struct llentry * (or NULL)
+ * (al)locate an llentry for address dst (equivalent to rtalloc for new-arp).
  *
- * if found the llentry * is returned referenced and unlocked
+ * If found the llentry * is returned referenced and unlocked.
  */
-int
-llentry_update(struct llentry **llep, struct lltable *lt,
-    struct sockaddr_storage *dst, struct ifnet *ifp)
+struct llentry *
+llentry_alloc(struct ifnet *ifp, struct lltable *lt,
+    struct sockaddr_storage *dst)
 {
 	struct llentry *la;
 
-	IF_AFDATA_RLOCK(ifp);	
-	la = lla_lookup(lt, LLE_EXCLUSIVE,
-	    (struct sockaddr *)dst);
+	IF_AFDATA_RLOCK(ifp);
+	la = lla_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);
 	IF_AFDATA_RUNLOCK(ifp);
-	if ((la == NULL) && 
+	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		IF_AFDATA_WLOCK(ifp);
-		la = lla_lookup(lt,
-		    (LLE_CREATE | LLE_EXCLUSIVE),
+		la = lla_lookup(lt, (LLE_CREATE | LLE_EXCLUSIVE),
 		    (struct sockaddr *)dst);
-		IF_AFDATA_WUNLOCK(ifp);	
+		IF_AFDATA_WUNLOCK(ifp);
 	}
-	if (la != NULL && (*llep != la)) {
-		if (*llep != NULL)
-			LLE_FREE(*llep);
+
+	if (la != NULL) {
 		LLE_ADDREF(la);
 		LLE_WUNLOCK(la);
-		*llep = la;
-	} else if (la != NULL)
-		LLE_WUNLOCK(la);
+	}
 
-	if (la == NULL)
-		return (ENOENT);
-
-	return (0);
+	return (la);
 }
 
 /*
@@ -182,17 +175,16 @@ lltable_free(struct lltable *llt)
 	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
 	LLTABLE_WUNLOCK();
 
-	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+	IF_AFDATA_WLOCK(llt->llt_ifp);
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
-			int canceled;
-
-			canceled = callout_drain(&lle->la_timer);
 			LLE_WLOCK(lle);
-			if (canceled)
+			if (callout_stop(&lle->la_timer))
 				LLE_REMREF(lle);
 			llentry_free(lle);
 		}
 	}
+	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	free(llt, M_LLTABLE);
 }
@@ -227,7 +219,7 @@ lltable_drain(int af)
 
 void
 lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
-	    u_int flags)
+    u_int flags)
 {
 	struct lltable *llt;
 
@@ -281,10 +273,9 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	u_int laflags = 0, flags = 0;
 	int error = 0;
 
-	if (dl == NULL || dl->sdl_family != AF_LINK) {
-		log(LOG_INFO, "%s: invalid dl\n", __func__);
-		return EINVAL;
-	}
+	KASSERT(dl != NULL && dl->sdl_family == AF_LINK,
+	    ("%s: invalid dl\n", __func__));
+
 	ifp = ifnet_byindex(dl->sdl_index);
 	if (ifp == NULL) {
 		log(LOG_INFO, "%s: invalid ifp (sdl_index %d)\n",
@@ -294,28 +285,8 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	switch (rtm->rtm_type) {
 	case RTM_ADD:
-		if (rtm->rtm_flags & RTF_ANNOUNCE) {
+		if (rtm->rtm_flags & RTF_ANNOUNCE)
 			flags |= LLE_PUB;
-#ifdef INET
-			if (dst->sa_family == AF_INET && 
-			    ((struct sockaddr_inarp *)dst)->sin_other != 0) {
-				struct rtentry *rt;
-				((struct sockaddr_inarp *)dst)->sin_other = 0;
-				rt = rtalloc1(dst, 0, 0);
-				if (rt == NULL || !(rt->rt_flags & RTF_HOST)) {
-					log(LOG_INFO, "%s: RTM_ADD publish "
-					    "(proxy only) is invalid\n",
-					    __func__);
-					if (rt)
-						RTFREE_LOCKED(rt);
-					return EINVAL;
-				}
-				RTFREE_LOCKED(rt);
-
-				flags |= LLE_PROXY;
-			}
-#endif
-		}
 		flags |= LLE_CREATE;
 		break;
 
@@ -342,7 +313,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	if (flags & LLE_CREATE)
 		flags |= LLE_EXCLUSIVE;
-	
+
 	IF_AFDATA_LOCK(ifp);
 	lle = lla_lookup(llt, flags, dst);
 	IF_AFDATA_UNLOCK(ifp);
@@ -354,7 +325,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			 * LLE_DELETED flag, and reset the expiration timer
 			 */
 			bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
-			lle->la_flags |= (flags & (LLE_PUB | LLE_PROXY));
+			lle->la_flags |= (flags & LLE_PUB);
 			lle->la_flags |= LLE_VALID;
 			lle->la_flags &= ~LLE_DELETED;
 #ifdef INET6
@@ -376,15 +347,12 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			laflags = lle->la_flags;
 			LLE_WUNLOCK(lle);
 #ifdef INET
-			/*  gratuitous ARP */
-			if ((laflags & LLE_PUB) && dst->sa_family == AF_INET) {
-				arprequest(ifp, 
+			/* gratuitous ARP */
+			if ((laflags & LLE_PUB) && dst->sa_family == AF_INET)
+				arprequest(ifp,
 				    &((struct sockaddr_in *)dst)->sin_addr,
 				    &((struct sockaddr_in *)dst)->sin_addr,
-				    ((laflags & LLE_PROXY) ?
-					(u_char *)IF_LLADDR(ifp) :
-					(u_char *)LLADDR(dl)));
-			}
+				    (u_char *)LLADDR(dl));
 #endif
 		} else {
 			if (flags & LLE_EXCLUSIVE)
@@ -451,7 +419,7 @@ llatbl_lle_show(struct llentry_sa *la)
 
 		sin = (struct sockaddr_in *)&la->l3_addr;
 		inet_ntoa_r(sin->sin_addr, l3s);
-		db_printf(" l3_addr=%s\n", l3s);	
+		db_printf(" l3_addr=%s\n", l3s);
 		break;
 	}
 #endif
@@ -463,7 +431,7 @@ llatbl_lle_show(struct llentry_sa *la)
 
 		sin6 = (struct sockaddr_in6 *)&la->l3_addr;
 		ip6_sprintf(l3s, &sin6->sin6_addr);
-		db_printf(" l3_addr=%s\n", l3s);	
+		db_printf(" l3_addr=%s\n", l3s);
 		break;
 	}
 #endif

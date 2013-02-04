@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2008
+.Dd November 2, 2012
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -430,10 +430,10 @@ The default is 32.
 The number of log buffers used by
 .Nm
 for logging.
-The default is 16.
+The default is 64.
 .It Va kern.hwpmc.nsamples Pq integer, read-only
 The number of entries in the per-CPU ring buffer used during sampling.
-The default is 16.
+The default is 512.
 .It Va security.bsd.unprivileged_syspmcs Pq boolean, read-write
 If set to non-zero, allow unprivileged processes to allocate system-wide
 PMCs.

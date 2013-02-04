@@ -45,6 +45,7 @@ struct i386_devdesc
 	    void	*data;
 	    int		slice;
 	    int		partition;
+	    off_t	offset;
 	} biosdisk;
 	struct
 	{

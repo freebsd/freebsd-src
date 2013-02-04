@@ -47,9 +47,9 @@ options 	DDB			#Enable the kernel debugger
 #options 	DIAGNOSTIC
 
 
-#options		COMPAT_FREEBSD5
-#options		COMPAT_FREEBSD6
-#options		COMPAT_FREEBSD7
+#options 	COMPAT_FREEBSD5
+#options 	COMPAT_FREEBSD6
+#options 	COMPAT_FREEBSD7
 
 
 options 	SCHED_ULE		#ULE scheduler
@@ -121,4 +121,4 @@ device		geom_label
 device		geom_journal
 device 		geom_part_bsd
 
-options		ROOTDEVNAME=\"ufs:da0s1a\"
+options 	ROOTDEVNAME=\"ufs:da0s1a\"

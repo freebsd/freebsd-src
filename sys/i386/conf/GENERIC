@@ -37,6 +37,7 @@ options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
 options 	MD_ROOT			# MD is a potential root device
 options 	NFSCL			# New Network Filesystem Client
 options 	NFSD			# New Network Filesystem Server
@@ -121,6 +122,7 @@ device		hptiop		# Highpoint RocketRaid 3xxx series
 device		isp		# Qlogic family
 #device		ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		trm		# Tekram DC395U/UW/F DC315U adapters
@@ -154,6 +156,7 @@ device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		hptmv		# Highpoint RocketRAID 182x
 device		hptrr		# Highpoint RocketRAID 17xx, 22xx, 23xx, 25xx
+device		hpt27xx		# Highpoint RocketRAID 27xx
 device		iir		# Intel Integrated RAID
 device		ips		# IBM (Adaptec) ServeRAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
@@ -205,7 +208,6 @@ device		uart		# Generic UART driver
 device		ppc
 device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
-device		plip		# TCP/IP over parallel
 device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 
@@ -282,7 +284,7 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
 device		an		# Aironet 4500/4800 802.11 wireless NICs.
-device		ath		# Atheros NIC's
+device		ath		# Atheros NICs
 device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
@@ -304,6 +306,8 @@ device		wpi		# Intel 3945ABG wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
+options 	PADLOCK_RNG	# VIA Padlock RNG
+options 	RDRAND_RNG	# Intel Bull Mountain RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
@@ -327,15 +331,6 @@ device		usb		# USB Bus (required)
 device		ukbd		# Keyboard
 device		umass		# Disks/Mass storage - Requires scbus and da
 
-# FireWire support
-device		firewire	# FireWire bus code
-# sbp(4) works for some systems but causes boot failure on others
-#device		sbp		# SCSI over FireWire (Requires scbus and da)
-device		fwe		# Ethernet over FireWire (non-standard!)
-device		fwip		# IP over FireWire (RFC 2734,3146)
-device		dcons		# Dumb console driver
-device		dcons_crom	# Configuration ROM for dcons
-
 # Sound support
 device		sound		# Generic sound driver (required)
 device		snd_cmi		# CMedia CMI8338/CMI8738
@@ -350,3 +345,11 @@ device		snd_via8233	# VIA VT8233x Audio
 device		mmc		# MMC/SD bus
 device		mmcsd		# MMC/SD memory card
 device		sdhci		# Generic PCI SD Host Controller
+
+# VirtIO support
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI device
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device

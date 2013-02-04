@@ -1069,7 +1069,7 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 	char *bp, *tmpbuf;
 	struct filedesc *fdp;
 	struct vnode *cdir, *rdir;
-	int error, vfslocked;
+	int error;
 
 	if (disablecwd)
 		return (ENODEV);
@@ -1087,12 +1087,8 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 	VREF(rdir);
 	FILEDESC_SUNLOCK(fdp);
 	error = vn_fullpath1(td, cdir, rdir, tmpbuf, &bp, buflen);
-	vfslocked = VFS_LOCK_GIANT(rdir->v_mount);
 	vrele(rdir);
-	VFS_UNLOCK_GIANT(vfslocked);
-	vfslocked = VFS_LOCK_GIANT(cdir->v_mount);
 	vrele(cdir);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (!error) {
 		if (bufseg == UIO_SYSSPACE)
@@ -1139,7 +1135,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	char *buf;
 	struct filedesc *fdp;
 	struct vnode *rdir;
-	int error, vfslocked;
+	int error;
 
 	if (disablefullpath)
 		return (ENODEV);
@@ -1153,9 +1149,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	VREF(rdir);
 	FILEDESC_SUNLOCK(fdp);
 	error = vn_fullpath1(td, vn, rdir, buf, retbuf, MAXPATHLEN);
-	vfslocked = VFS_LOCK_GIANT(rdir->v_mount);
 	vrele(rdir);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (!error)
 		*freebuf = buf;
@@ -1208,7 +1202,7 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
 {
 	struct vnode *dvp;
 	struct namecache *ncp;
-	int error, vfslocked;
+	int error;
 
 	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
 		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
@@ -1217,9 +1211,7 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
 	if (ncp != NULL) {
 		if (*buflen < ncp->nc_nlen) {
 			CACHE_RUNLOCK();
-			vfslocked = VFS_LOCK_GIANT((*vp)->v_mount);
 			vrele(*vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			numfullpathfail4++;
 			error = ENOMEM;
 			SDT_PROBE(vfs, namecache, fullpath, return, error,
@@ -1234,20 +1226,16 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
 		*vp = ncp->nc_dvp;
 		vref(*vp);
 		CACHE_RUNLOCK();
-		vfslocked = VFS_LOCK_GIANT(dvp->v_mount);
 		vrele(dvp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		CACHE_RLOCK();
 		return (0);
 	}
 	SDT_PROBE(vfs, namecache, fullpath, miss, vp, 0, 0, 0, 0);
 
 	CACHE_RUNLOCK();
-	vfslocked = VFS_LOCK_GIANT((*vp)->v_mount);
 	vn_lock(*vp, LK_SHARED | LK_RETRY);
 	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
 	vput(*vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
 		numfullpathfail2++;
 		SDT_PROBE(vfs, namecache, fullpath, return,  error, vp,
@@ -1260,9 +1248,7 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
 	if (dvp->v_iflag & VI_DOOMED) {
 		/* forced unmount */
 		CACHE_RUNLOCK();
-		vfslocked = VFS_LOCK_GIANT(dvp->v_mount);
 		vrele(dvp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		error = ENOENT;
 		SDT_PROBE(vfs, namecache, fullpath, return, error, vp,
 		    NULL, 0, 0);
@@ -1282,7 +1268,7 @@ static int
 vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen)
 {
-	int error, slash_prefixed, vfslocked;
+	int error, slash_prefixed;
 #ifdef KDTRACE_HOOKS
 	struct vnode *startvp = vp;
 #endif
@@ -1303,9 +1289,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			return (error);
 		if (buflen == 0) {
 			CACHE_RUNLOCK();
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			return (ENOMEM);
 		}
 		buf[--buflen] = '/';
@@ -1315,9 +1299,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		if (vp->v_vflag & VV_ROOT) {
 			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				CACHE_RUNLOCK();
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vrele(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 				error = ENOENT;
 				SDT_PROBE(vfs, namecache, fullpath, return,
 				    error, vp, NULL, 0, 0);
@@ -1326,18 +1308,14 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			vp1 = vp->v_mount->mnt_vnodecovered;
 			vref(vp1);
 			CACHE_RUNLOCK();
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			vp = vp1;
 			CACHE_RLOCK();
 			continue;
 		}
 		if (vp->v_type != VDIR) {
 			CACHE_RUNLOCK();
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			numfullpathfail1++;
 			error = ENOTDIR;
 			SDT_PROBE(vfs, namecache, fullpath, return,
@@ -1349,9 +1327,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			break;
 		if (buflen == 0) {
 			CACHE_RUNLOCK();
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			error = ENOMEM;
 			SDT_PROBE(vfs, namecache, fullpath, return, error,
 			    startvp, NULL, 0, 0);
@@ -1365,9 +1341,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	if (!slash_prefixed) {
 		if (buflen == 0) {
 			CACHE_RUNLOCK();
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			numfullpathfail4++;
 			SDT_PROBE(vfs, namecache, fullpath, return, ENOMEM,
 			    startvp, NULL, 0, 0);
@@ -1377,9 +1351,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	}
 	numfullpathfound++;
 	CACHE_RUNLOCK();
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	SDT_PROBE(vfs, namecache, fullpath, return, 0, startvp, buf + buflen,
 	    0, 0);
@@ -1441,9 +1413,8 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 	struct nameidata nd;
 	struct vnode *vp1;
 	char *rpath, *fbuf;
-	int error, vfslocked;
+	int error;
 
-	VFS_ASSERT_GIANT(vp->v_mount);
 	ASSERT_VOP_ELOCKED(vp, __func__);
 
 	/* Return ENODEV if sysctl debug.disablefullpath==1 */
@@ -1470,14 +1441,13 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 	 * As a side effect, the vnode is relocked.
 	 * If vnode was renamed, return ENOENT.
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_SYSSPACE, path, td);
 	error = namei(&nd);
 	if (error != 0) {
 		vrele(vp);
 		goto out;
 	}
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp1 = nd.ni_vp;
 	vrele(vp);
@@ -1487,7 +1457,6 @@ vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
 		vput(vp1);
 		error = ENOENT;
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 
 out:
 	free(fbuf, M_TEMP);

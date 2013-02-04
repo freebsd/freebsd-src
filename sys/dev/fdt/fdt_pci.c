@@ -341,14 +341,14 @@ fdt_pci_devmap(phandle_t node, struct pmap_devmap *devmap, vm_offset_t io_va,
 	if ((error = fdt_pci_ranges_decode(node, &io_space, &mem_space)) != 0)
 		return (error);
 
-	devmap->pd_va = io_va;
+	devmap->pd_va = (io_va ? io_va : io_space.base_parent);
 	devmap->pd_pa = io_space.base_parent;
 	devmap->pd_size = io_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
 	devmap->pd_cache = PTE_NOCACHE;
 	devmap++;
 
-	devmap->pd_va = mem_va;
+	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
 	devmap->pd_pa = mem_space.base_parent;
 	devmap->pd_size = mem_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;

@@ -10,12 +10,14 @@
 // This class wraps target description classes used by the various code
 // generation TableGen backends.  This makes it easier to access the data and
 // provides a single place that needs to check it for validity.  All of these
-// classes throw exceptions on error conditions.
+// classes abort on error conditions.
 //
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenTarget.h"
 #include "CodeGenIntrinsics.h"
+#include "CodeGenSchedule.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
@@ -67,22 +69,30 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::x86mmx:   return "MVT::x86mmx";
   case MVT::Glue:     return "MVT::Glue";
   case MVT::isVoid:   return "MVT::isVoid";
+  case MVT::v2i1:     return "MVT::v2i1";
+  case MVT::v4i1:     return "MVT::v4i1";
+  case MVT::v8i1:     return "MVT::v8i1";
+  case MVT::v16i1:    return "MVT::v16i1";
   case MVT::v2i8:     return "MVT::v2i8";
   case MVT::v4i8:     return "MVT::v4i8";
   case MVT::v8i8:     return "MVT::v8i8";
   case MVT::v16i8:    return "MVT::v16i8";
   case MVT::v32i8:    return "MVT::v32i8";
+  case MVT::v1i16:    return "MVT::v1i16";
   case MVT::v2i16:    return "MVT::v2i16";
   case MVT::v4i16:    return "MVT::v4i16";
   case MVT::v8i16:    return "MVT::v8i16";
   case MVT::v16i16:   return "MVT::v16i16";
+  case MVT::v1i32:    return "MVT::v1i32";
   case MVT::v2i32:    return "MVT::v2i32";
   case MVT::v4i32:    return "MVT::v4i32";
   case MVT::v8i32:    return "MVT::v8i32";
+  case MVT::v16i32:   return "MVT::v16i32";
   case MVT::v1i64:    return "MVT::v1i64";
   case MVT::v2i64:    return "MVT::v2i64";
   case MVT::v4i64:    return "MVT::v4i64";
   case MVT::v8i64:    return "MVT::v8i64";
+  case MVT::v16i64:   return "MVT::v16i64";
   case MVT::v2f16:    return "MVT::v2f16";
   case MVT::v2f32:    return "MVT::v2f32";
   case MVT::v4f32:    return "MVT::v4f32";
@@ -112,15 +122,19 @@ std::string llvm::getQualifiedName(const Record *R) {
 /// getTarget - Return the current instance of the Target class.
 ///
 CodeGenTarget::CodeGenTarget(RecordKeeper &records)
-  : Records(records), RegBank(0) {
+  : Records(records), RegBank(0), SchedModels(0) {
   std::vector<Record*> Targets = Records.getAllDerivedDefinitions("Target");
   if (Targets.size() == 0)
-    throw std::string("ERROR: No 'Target' subclasses defined!");
+    PrintFatalError("ERROR: No 'Target' subclasses defined!");
   if (Targets.size() != 1)
-    throw std::string("ERROR: Multiple subclasses of Target defined!");
+    PrintFatalError("ERROR: Multiple subclasses of Target defined!");
   TargetRec = Targets[0];
 }
 
+CodeGenTarget::~CodeGenTarget() {
+  delete RegBank;
+  delete SchedModels;
+}
 
 const std::string &CodeGenTarget::getName() const {
   return TargetRec->getName();
@@ -147,7 +161,7 @@ Record *CodeGenTarget::getInstructionSet() const {
 Record *CodeGenTarget::getAsmParser() const {
   std::vector<Record*> LI = TargetRec->getValueAsListOfDefs("AssemblyParsers");
   if (AsmParserNum >= LI.size())
-    throw "Target does not have an AsmParser #" + utostr(AsmParserNum) + "!";
+    PrintFatalError("Target does not have an AsmParser #" + utostr(AsmParserNum) + "!");
   return LI[AsmParserNum];
 }
 
@@ -155,18 +169,18 @@ Record *CodeGenTarget::getAsmParser() const {
 /// this target.
 ///
 Record *CodeGenTarget::getAsmParserVariant(unsigned i) const {
-  std::vector<Record*> LI = 
+  std::vector<Record*> LI =
     TargetRec->getValueAsListOfDefs("AssemblyParserVariants");
   if (i >= LI.size())
-    throw "Target does not have an AsmParserVariant #" + utostr(i) + "!";
+    PrintFatalError("Target does not have an AsmParserVariant #" + utostr(i) + "!");
   return LI[i];
 }
 
-/// getAsmParserVariantCount - Return the AssmblyParserVariant definition 
+/// getAsmParserVariantCount - Return the AssmblyParserVariant definition
 /// available for this target.
 ///
 unsigned CodeGenTarget::getAsmParserVariantCount() const {
-  std::vector<Record*> LI = 
+  std::vector<Record*> LI =
     TargetRec->getValueAsListOfDefs("AssemblyParserVariants");
   return LI.size();
 }
@@ -176,7 +190,7 @@ unsigned CodeGenTarget::getAsmParserVariantCount() const {
 Record *CodeGenTarget::getAsmWriter() const {
   std::vector<Record*> LI = TargetRec->getValueAsListOfDefs("AssemblyWriters");
   if (AsmWriterNum >= LI.size())
-    throw "Target does not have an AsmWriter #" + utostr(AsmWriterNum) + "!";
+    PrintFatalError("Target does not have an AsmWriter #" + utostr(AsmWriterNum) + "!");
   return LI[AsmWriterNum];
 }
 
@@ -194,12 +208,11 @@ void CodeGenTarget::ReadRegAltNameIndices() const {
 /// getRegisterByName - If there is a register with the specific AsmName,
 /// return it.
 const CodeGenRegister *CodeGenTarget::getRegisterByName(StringRef Name) const {
-  const std::vector<CodeGenRegister*> &Regs = getRegBank().getRegisters();
-  for (unsigned i = 0, e = Regs.size(); i != e; ++i)
-    if (Regs[i]->TheDef->getValueAsString("AsmName") == Name)
-      return Regs[i];
-
-  return 0;
+  const StringMap<CodeGenRegister*> &Regs = getRegBank().getRegistersByName();
+  StringMap<CodeGenRegister*>::const_iterator I = Regs.find(Name);
+  if (I == Regs.end())
+    return 0;
+  return I->second;
 }
 
 std::vector<MVT::SimpleValueType> CodeGenTarget::
@@ -235,11 +248,16 @@ void CodeGenTarget::ReadLegalValueTypes() const {
                         LegalValueTypes.end());
 }
 
+CodeGenSchedModels &CodeGenTarget::getSchedModels() const {
+  if (!SchedModels)
+    SchedModels = new CodeGenSchedModels(Records, *this);
+  return *SchedModels;
+}
 
 void CodeGenTarget::ReadInstructions() const {
   std::vector<Record*> Insts = Records.getAllDerivedDefinitions("Instruction");
   if (Insts.size() <= 2)
-    throw std::string("No 'Instruction' subclasses defined!");
+    PrintFatalError("No 'Instruction' subclasses defined!");
 
   // Parse the instructions defined in the .td file.
   for (unsigned i = 0, e = Insts.size(); i != e; ++i)
@@ -255,7 +273,7 @@ GetInstByName(const char *Name,
   DenseMap<const Record*, CodeGenInstruction*>::const_iterator
     I = Insts.find(Rec);
   if (Rec == 0 || I == Insts.end())
-    throw std::string("Could not find '") + Name + "' instruction!";
+    PrintFatalError(std::string("Could not find '") + Name + "' instruction!");
   return I->second;
 }
 
@@ -290,6 +308,8 @@ void CodeGenTarget::ComputeInstrsByEnum() const {
     "REG_SEQUENCE",
     "COPY",
     "BUNDLE",
+    "LIFETIME_START",
+    "LIFETIME_END",
     0
   };
   const DenseMap<const Record*, CodeGenInstruction*> &Insts = getInstructions();
@@ -322,6 +342,15 @@ void CodeGenTarget::ComputeInstrsByEnum() const {
 ///
 bool CodeGenTarget::isLittleEndianEncoding() const {
   return getInstructionSet()->getValueAsBit("isLittleEndianEncoding");
+}
+
+/// guessInstructionProperties - Return true if it's OK to guess instruction
+/// properties instead of raising an error.
+///
+/// This is configurable as a temporary migration aid. It will eventually be
+/// permanently false.
+bool CodeGenTarget::guessInstructionProperties() const {
+  return getInstructionSet()->getValueAsBit("guessInstructionProperties");
 }
 
 //===----------------------------------------------------------------------===//
@@ -387,10 +416,11 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
   isOverloaded = false;
   isCommutative = false;
   canThrow = false;
+  isNoReturn = false;
 
   if (DefName.size() <= 4 ||
       std::string(DefName.begin(), DefName.begin() + 4) != "int_")
-    throw "Intrinsic '" + DefName + "' does not start with 'int_'!";
+    PrintFatalError("Intrinsic '" + DefName + "' does not start with 'int_'!");
 
   EnumName = std::string(DefName.begin()+4, DefName.end());
 
@@ -410,7 +440,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
     // Verify it starts with "llvm.".
     if (Name.size() <= 5 ||
         std::string(Name.begin(), Name.begin() + 5) != "llvm.")
-      throw "Intrinsic '" + DefName + "'s name does not start with 'llvm.'!";
+      PrintFatalError("Intrinsic '" + DefName + "'s name does not start with 'llvm.'!");
   }
 
   // If TargetPrefix is specified, make sure that Name starts with
@@ -419,8 +449,8 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
     if (Name.size() < 6+TargetPrefix.size() ||
         std::string(Name.begin() + 5, Name.begin() + 6 + TargetPrefix.size())
         != (TargetPrefix + "."))
-      throw "Intrinsic '" + DefName + "' does not start with 'llvm." +
-        TargetPrefix + ".'!";
+      PrintFatalError("Intrinsic '" + DefName + "' does not start with 'llvm." +
+        TargetPrefix + ".'!");
   }
 
   // Parse the list of return types.
@@ -452,7 +482,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
 
     // Reject invalid types.
     if (VT == MVT::isVoid)
-      throw "Intrinsic '" + DefName + " has void in result type list!";
+      PrintFatalError("Intrinsic '" + DefName + " has void in result type list!");
 
     IS.RetVTs.push_back(VT);
     IS.RetTypeDefs.push_back(TyEl);
@@ -486,7 +516,7 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
 
     // Reject invalid types.
     if (VT == MVT::isVoid && i != e-1 /*void at end means varargs*/)
-      throw "Intrinsic '" + DefName + " has void in result type list!";
+      PrintFatalError("Intrinsic '" + DefName + " has void in result type list!");
 
     IS.ParamVTs.push_back(VT);
     IS.ParamTypeDefs.push_back(TyEl);
@@ -511,6 +541,8 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       isCommutative = true;
     else if (Property->getName() == "Throws")
       canThrow = true;
+    else if (Property->getName() == "IntrNoReturn")
+      isNoReturn = true;
     else if (Property->isSubClassOf("NoCapture")) {
       unsigned ArgNo = Property->getValueAsInt("ArgNo");
       ArgumentAttributes.push_back(std::make_pair(ArgNo, NoCapture));

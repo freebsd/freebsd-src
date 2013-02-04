@@ -1,0 +1,27 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/artheader.xml,v 1.3 2003/01/09 12:17:18 ue Exp $
+  basiert auf: 1.4
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; Installationsanleitung</title>
+
+  <corpauthor>
+  The &os; Project
+  </corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+  </copyright>
+
+  <copyright>
+    <year>2002</year>
+    <year>2003</year>
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD German Documentation Project</holder>
+  </copyright>
+</articleinfo>

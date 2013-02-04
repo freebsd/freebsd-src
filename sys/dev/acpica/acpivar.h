@@ -215,11 +215,6 @@ extern int	acpi_quirks;
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 
 /*
- * Sleep flags.  See actypes.h for available flags.
- */
-extern int	acpi_sleep_flags;
-
-/*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
@@ -481,7 +476,7 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /* Default maximum number of tasks to enqueue. */
 #ifndef ACPI_MAX_TASKS
-#define	ACPI_MAX_TASKS		32
+#define	ACPI_MAX_TASKS		MAX(32, MAXCPU * 2)
 #endif
 
 /* Default number of task queue threads to start. */

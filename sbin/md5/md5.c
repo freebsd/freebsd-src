@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <ripemd.h>
 #include <sha.h>
 #include <sha256.h>
+#include <sha512.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +55,7 @@ typedef char *(DIGEST_End)(void *, char *);
 extern const char *MD5TestOutput[MDTESTCOUNT];
 extern const char *SHA1_TestOutput[MDTESTCOUNT];
 extern const char *SHA256_TestOutput[MDTESTCOUNT];
+extern const char *SHA512_TestOutput[MDTESTCOUNT];
 extern const char *RIPEMD160_TestOutput[MDTESTCOUNT];
 
 typedef struct Algorithm_t {
@@ -78,12 +80,14 @@ typedef union {
 	MD5_CTX md5;
 	SHA1_CTX sha1;
 	SHA256_CTX sha256;
+	SHA512_CTX sha512;
 	RIPEMD160_CTX ripemd160;
 } DIGEST_CTX;
 
 /* max(MD5_DIGEST_LENGTH, SHA_DIGEST_LENGTH,
-	SHA256_DIGEST_LENGTH, RIPEMD160_DIGEST_LENGTH)*2+1 */
-#define HEX_DIGEST_LENGTH 65
+	SHA256_DIGEST_LENGTH, SHA512_DIGEST_LENGTH,
+	RIPEMD160_DIGEST_LENGTH)*2+1 */
+#define HEX_DIGEST_LENGTH 129
 
 /* algorithm function table */
 
@@ -97,6 +101,9 @@ struct Algorithm_t Algorithm[] = {
 	{ "sha256", "SHA256", &SHA256_TestOutput, (DIGEST_Init*)&SHA256_Init,
 		(DIGEST_Update*)&SHA256_Update, (DIGEST_End*)&SHA256_End,
 		&SHA256_Data, &SHA256_File },
+	{ "sha512", "SHA512", &SHA512_TestOutput, (DIGEST_Init*)&SHA512_Init,
+		(DIGEST_Update*)&SHA512_Update, (DIGEST_End*)&SHA512_End,
+		&SHA512_Data, &SHA512_File },
 	{ "rmd160", "RMD160", &RIPEMD160_TestOutput,
 		(DIGEST_Init*)&RIPEMD160_Init, (DIGEST_Update*)&RIPEMD160_Update,
 		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data, &RIPEMD160_File }
@@ -318,6 +325,17 @@ const char *SHA256_TestOutput[MDTESTCOUNT] = {
 	"db4bfcbd4da0cd85a60c3c37d3fbd8805c77f15fc6b1fdfe614ee0a7c8fdb4c0",
 	"f371bc4a311f2b009eef952dd83ca80e2b60026c8e935592d0f9c308453c813e",
 	"e6eae09f10ad4122a0e2a4075761d185a272ebd9f5aa489e998ff2f09cbfdd9f"
+};
+
+const char *SHA512_TestOutput[MDTESTCOUNT] = {
+	"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e",
+	"1f40fc92da241694750979ee6cf582f2d5d7d28e18335de05abc54d0560e0f5302860c652bf08d560252aa5e74210546f369fbbbce8c12cfc7957b2652fe9a75",
+	"ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
+	"107dbf389d9e9f71a3a95f6c055b9251bc5268c2be16d6c13492ea45b0199f3309e16455ab1e96118e8a905d5597b72038ddb372a89826046de66687bb420e7c",
+	"4dbff86cc2ca1bae1e16468a05cb9881c97f1753bce3619034898faa1aabe429955a1bf8ec483d7421fe3c1646613a59ed5441fb0f321389f77f48a879c7b1f1",
+	"1e07be23c26a86ea37ea810c8ec7809352515a970e9253c26f536cfc7a9996c45c8370583e0a78fa4a90041d71a4ceab7423f19c71b9d5a3e01249f0bebd5894",
+	"72ec1ef1124a45b047e8b7c75a932195135bb61de24ec0d1914042246e0aec3a2354e093d76f3048b456764346900cb130d2a4fd5dd16abb5e30bcb850dee843",
+	"e8a835195e039708b13d9131e025f4441dbdc521ce625f245a436dcd762f54bf5cb298d96235e6c6a304e087ec8189b9512cbdf6427737ea82793460c367b9c3"
 };
 
 const char *RIPEMD160_TestOutput[MDTESTCOUNT] = {

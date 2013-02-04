@@ -74,6 +74,6 @@ options 	ATA_CAM
 
 # Flattened Device Tree
 options 	FDT
-options		FDT_DTB_STATIC
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=ts7800.dts
 

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2009
+.Dd June 28, 2012
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -86,14 +86,39 @@ dynamic linker.
 After the dynamic linker has finished loading,
 relocating, and initializing the program and its required shared
 objects, it transfers control to the entry point of the program.
+The following search order is used to locate required shared objects:
 .Pp
-To locate the required shared objects in the file system,
-.Nm
-may use a
-.Dq hints
-file prepared by the
+.Bl -enum -offset indent -compact
+.It
+.Dv DT_RPATH
+of the referencing object unless that object also contains a
+.Dv DT_RUNPATH
+tag
+.It
+.Dv DT_RPATH
+of the program unless the referencing object contains a
+.Dv DT_RUNPATH
+tag
+.It
+Path indicated by
+.Ev LD_LIBRARY_PATH
+environment variable
+.It
+.Dv DT_RUNPATH
+of the referencing object
+.It
+Hints file produced by the
 .Xr ldconfig 8
-utility.
+utility
+.It
+The
+.Pa /lib
+and
+.Pa /usr/lib
+directories, unless the referencing object was linked using the
+.Dq Fl z Ar nodefaultlib
+option
+.El
 .Pp
 The
 .Nm
@@ -143,6 +168,20 @@ This variable is unset for set-user-ID and set-group-ID programs.
 A colon separated list of directories, overriding the default search path
 for shared libraries.
 This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_LIBRARY_PATH_RPATH
+If the variable is specified and has a value starting with
+any of \'y\', \'Y\' or \'1\' symbols, the path specified by
+.Ev LD_LIBRARY_PATH
+variable is allowed to override the path from
+.Dv DT_RPATH
+for binaries which does not contain
+.Dv DT_RUNPATH
+tag.
+For such binaries, when the variable
+.Ev LD_LIBRARY_PATH_RPATH
+is set,
+.Dq Fl z Ar nodefaultlib
+link-time option is ignored as well.
 .It Ev LD_PRELOAD
 A list of shared libraries, separated by colons and/or white space,
 to be linked in before any

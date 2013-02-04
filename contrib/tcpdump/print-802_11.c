@@ -485,7 +485,7 @@ static const char *auth_alg_text[]={"Open System","Shared Key","EAP"};
 #define NUM_AUTH_ALGS	(sizeof auth_alg_text / sizeof auth_alg_text[0])
 
 static const char *status_text[] = {
-	"Succesful",						/*  0 */
+	"Successful",						/*  0 */
 	"Unspecified failure",					/*  1 */
 	"Reserved",						/*  2 */
 	"Reserved",						/*  3 */

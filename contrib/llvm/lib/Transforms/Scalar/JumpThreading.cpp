@@ -23,7 +23,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
@@ -75,7 +75,7 @@ namespace {
   /// revectored to the false side of the second if.
   ///
   class JumpThreading : public FunctionPass {
-    TargetData *TD;
+    DataLayout *TD;
     TargetLibraryInfo *TLI;
     LazyValueInfo *LVI;
 #ifdef NDEBUG
@@ -147,7 +147,7 @@ FunctionPass *llvm::createJumpThreadingPass() { return new JumpThreading(); }
 ///
 bool JumpThreading::runOnFunction(Function &F) {
   DEBUG(dbgs() << "Jump threading on function '" << F.getName() << "'\n");
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   TLI = &getAnalysis<TargetLibraryInfo>();
   LVI = &getAnalysis<LazyValueInfo>();
 
@@ -670,6 +670,8 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
   } else if (SwitchInst *SI = dyn_cast<SwitchInst>(Terminator)) {
     Condition = SI->getCondition();
   } else if (IndirectBrInst *IB = dyn_cast<IndirectBrInst>(Terminator)) {
+    // Can't thread indirect branch with no successors.
+    if (IB->getNumSuccessors() == 0) return false;
     Condition = IB->getAddress()->stripPointerCasts();
     Preference = WantBlockAddress;
   } else {
@@ -859,7 +861,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
 
   // If all of the loads and stores that feed the value have the same TBAA tag,
   // then we can propagate it onto any newly inserted loads.
-  MDNode *TBAATag = LI->getMetadata(LLVMContext::MD_tbaa); 
+  MDNode *TBAATag = LI->getMetadata(LLVMContext::MD_tbaa);
 
   SmallPtrSet<BasicBlock*, 8> PredsScanned;
   typedef SmallVector<std::pair<BasicBlock*, Value*>, 8> AvailablePredsTy;
@@ -885,7 +887,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
       OneUnavailablePred = PredBB;
       continue;
     }
-    
+
     // If tbaa tags disagree or are not present, forget about them.
     if (TBAATag != ThisTBAATag) TBAATag = 0;
 
@@ -949,7 +951,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
     NewVal->setDebugLoc(LI->getDebugLoc());
     if (TBAATag)
       NewVal->setMetadata(LLVMContext::MD_tbaa, TBAATag);
-    
+
     AvailablePreds.push_back(std::make_pair(UnavailablePred, NewVal));
   }
 
@@ -1453,7 +1455,7 @@ bool JumpThreading::ThreadEdge(BasicBlock *BB,
   // At this point, the IR is fully up to date and consistent.  Do a quick scan
   // over the new instructions and zap any that are constants or dead.  This
   // frequently happens because of phi translation.
-  SimplifyInstructionsInBlock(NewBB, TD);
+  SimplifyInstructionsInBlock(NewBB, TD, TLI);
 
   // Threaded an edge!
   ++NumThreads;

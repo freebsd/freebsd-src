@@ -14,6 +14,7 @@
 #ifndef LLVM_ADT_BITVECTOR_H
 #define LLVM_ADT_BITVECTOR_H
 
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <algorithm>
@@ -97,6 +98,13 @@ public:
     std::memcpy(Bits, RHS.Bits, Capacity * sizeof(BitWord));
   }
 
+#if LLVM_USE_RVALUE_REFERENCES
+  BitVector(BitVector &&RHS)
+    : Bits(RHS.Bits), Size(RHS.Size), Capacity(RHS.Capacity) {
+    RHS.Bits = 0;
+  }
+#endif
+
   ~BitVector() {
     std::free(Bits);
   }
@@ -164,7 +172,7 @@ public:
     unsigned BitPos = Prev % BITWORD_SIZE;
     BitWord Copy = Bits[WordPos];
     // Mask off previous bits.
-    Copy &= ~0L << BitPos;
+    Copy &= ~0UL << BitPos;
 
     if (Copy != 0) {
       if (sizeof(BitWord) == 4)
@@ -229,6 +237,34 @@ public:
     return *this;
   }
 
+  /// set - Efficiently set a range of bits in [I, E)
+  BitVector &set(unsigned I, unsigned E) {
+    assert(I <= E && "Attempted to set backwards range!");
+    assert(E <= size() && "Attempted to set out-of-bounds range!");
+
+    if (I == E) return *this;
+
+    if (I / BITWORD_SIZE == E / BITWORD_SIZE) {
+      BitWord EMask = 1UL << (E % BITWORD_SIZE);
+      BitWord IMask = 1UL << (I % BITWORD_SIZE);
+      BitWord Mask = EMask - IMask;
+      Bits[I / BITWORD_SIZE] |= Mask;
+      return *this;
+    }
+
+    BitWord PrefixMask = ~0UL << (I % BITWORD_SIZE);
+    Bits[I / BITWORD_SIZE] |= PrefixMask;
+    I = RoundUpToAlignment(I, BITWORD_SIZE);
+
+    for (; I + BITWORD_SIZE <= E; I += BITWORD_SIZE)
+      Bits[I / BITWORD_SIZE] = ~0UL;
+
+    BitWord PostfixMask = (1UL << (E % BITWORD_SIZE)) - 1;
+    Bits[I / BITWORD_SIZE] |= PostfixMask;
+
+    return *this;
+  }
+
   BitVector &reset() {
     init_words(Bits, Capacity, false);
     return *this;
@@ -236,6 +272,34 @@ public:
 
   BitVector &reset(unsigned Idx) {
     Bits[Idx / BITWORD_SIZE] &= ~(1L << (Idx % BITWORD_SIZE));
+    return *this;
+  }
+
+  /// reset - Efficiently reset a range of bits in [I, E)
+  BitVector &reset(unsigned I, unsigned E) {
+    assert(I <= E && "Attempted to reset backwards range!");
+    assert(E <= size() && "Attempted to reset out-of-bounds range!");
+
+    if (I == E) return *this;
+
+    if (I / BITWORD_SIZE == E / BITWORD_SIZE) {
+      BitWord EMask = 1UL << (E % BITWORD_SIZE);
+      BitWord IMask = 1UL << (I % BITWORD_SIZE);
+      BitWord Mask = EMask - IMask;
+      Bits[I / BITWORD_SIZE] &= ~Mask;
+      return *this;
+    }
+
+    BitWord PrefixMask = ~0UL << (I % BITWORD_SIZE);
+    Bits[I / BITWORD_SIZE] &= ~PrefixMask;
+    I = RoundUpToAlignment(I, BITWORD_SIZE);
+
+    for (; I + BITWORD_SIZE <= E; I += BITWORD_SIZE)
+      Bits[I / BITWORD_SIZE] = 0UL;
+
+    BitWord PostfixMask = (1UL << (E % BITWORD_SIZE)) - 1;
+    Bits[I / BITWORD_SIZE] &= ~PostfixMask;
+
     return *this;
   }
 
@@ -249,11 +313,6 @@ public:
   BitVector &flip(unsigned Idx) {
     Bits[Idx / BITWORD_SIZE] ^= 1L << (Idx % BITWORD_SIZE);
     return *this;
-  }
-
-  // No argument flip.
-  BitVector operator~() const {
-    return BitVector(*this).flip();
   }
 
   // Indexing.
@@ -270,6 +329,16 @@ public:
 
   bool test(unsigned Idx) const {
     return (*this)[Idx];
+  }
+
+  /// Test if any common bits are set.
+  bool anyCommon(const BitVector &RHS) const {
+    unsigned ThisWords = NumBitWords(size());
+    unsigned RHSWords  = NumBitWords(RHS.size());
+    for (unsigned i = 0, e = std::min(ThisWords, RHSWords); i != e; ++i)
+      if (Bits[i] & RHS.Bits[i])
+        return true;
+    return false;
   }
 
   // Comparison operators.
@@ -298,7 +367,7 @@ public:
     return !(*this == RHS);
   }
 
-  // Intersection, union, disjoint union.
+  /// Intersection, union, disjoint union.
   BitVector &operator&=(const BitVector &RHS) {
     unsigned ThisWords = NumBitWords(size());
     unsigned RHSWords  = NumBitWords(RHS.size());
@@ -315,7 +384,7 @@ public:
     return *this;
   }
 
-  // reset - Reset bits that are set in RHS. Same as *this &= ~RHS.
+  /// reset - Reset bits that are set in RHS. Same as *this &= ~RHS.
   BitVector &reset(const BitVector &RHS) {
     unsigned ThisWords = NumBitWords(size());
     unsigned RHSWords  = NumBitWords(RHS.size());
@@ -323,6 +392,23 @@ public:
     for (i = 0; i != std::min(ThisWords, RHSWords); ++i)
       Bits[i] &= ~RHS.Bits[i];
     return *this;
+  }
+
+  /// test - Check if (This - RHS) is zero.
+  /// This is the same as reset(RHS) and any().
+  bool test(const BitVector &RHS) const {
+    unsigned ThisWords = NumBitWords(size());
+    unsigned RHSWords  = NumBitWords(RHS.size());
+    unsigned i;
+    for (i = 0; i != std::min(ThisWords, RHSWords); ++i)
+      if ((Bits[i] & ~RHS.Bits[i]) != 0)
+        return true;
+
+    for (; i != ThisWords ; ++i)
+      if (Bits[i] != 0)
+        return true;
+
+    return false;
   }
 
   BitVector &operator|=(const BitVector &RHS) {
@@ -365,6 +451,21 @@ public:
 
     return *this;
   }
+
+#if LLVM_USE_RVALUE_REFERENCES
+  const BitVector &operator=(BitVector &&RHS) {
+    if (this == &RHS) return *this;
+
+    std::free(Bits);
+    Bits = RHS.Bits;
+    Size = RHS.Size;
+    Capacity = RHS.Capacity;
+
+    RHS.Bits = 0;
+
+    return *this;
+  }
+#endif
 
   void swap(BitVector &RHS) {
     std::swap(Bits, RHS.Bits);
@@ -423,8 +524,11 @@ private:
     //  Then set any stray high bits of the last used word.
     unsigned ExtraBits = Size % BITWORD_SIZE;
     if (ExtraBits) {
-      Bits[UsedWords-1] &= ~(~0L << ExtraBits);
-      Bits[UsedWords-1] |= (0 - (BitWord)t) << ExtraBits;
+      BitWord ExtraBitMask = ~0UL << ExtraBits;
+      if (t)
+        Bits[UsedWords-1] |= ExtraBitMask;
+      else
+        Bits[UsedWords-1] &= ~ExtraBitMask;
     }
   }
 
@@ -471,24 +575,6 @@ private:
       clear_unused_bits();
   }
 };
-
-inline BitVector operator&(const BitVector &LHS, const BitVector &RHS) {
-  BitVector Result(LHS);
-  Result &= RHS;
-  return Result;
-}
-
-inline BitVector operator|(const BitVector &LHS, const BitVector &RHS) {
-  BitVector Result(LHS);
-  Result |= RHS;
-  return Result;
-}
-
-inline BitVector operator^(const BitVector &LHS, const BitVector &RHS) {
-  BitVector Result(LHS);
-  Result ^= RHS;
-  return Result;
-}
 
 } // End llvm namespace
 

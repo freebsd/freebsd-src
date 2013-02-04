@@ -220,7 +220,6 @@ s3c24x0_setup_intr(device_t dev, device_t child,
 			/* Enable the external interrupt pin */
 			s3c24x0_enable_ext_intr(irq - S3C24X0_EXTIRQ_MIN);
 		}
-		arm_unmask_irq(irq);
 	}
 	return (0);
 }

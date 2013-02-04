@@ -134,29 +134,31 @@
 #define SND_CHN_MATRIX_3_0	3
 #define SND_CHN_MATRIX_3	SND_CHN_MATRIX_3_0
 
-/* 4 @ 4.0 Quadraphonic */
-#define SND_CHN_MATRIX_4_0	4
+/* 4 @ 3.1 (lfe), 4.0 (Quadraphonic, DEFAULT) */
+#define SND_CHN_MATRIX_3_1	4
+#define SND_CHN_MATRIX_4_0	5
 #define SND_CHN_MATRIX_4	SND_CHN_MATRIX_4_0
 
 /* 5 @ 4.1 (lfe), 5.0 (center, DEFAULT) */
-#define SND_CHN_MATRIX_4_1	5
-#define SND_CHN_MATRIX_5_0	6
+#define SND_CHN_MATRIX_4_1	6
+#define SND_CHN_MATRIX_5_0	7
 #define SND_CHN_MATRIX_5	SND_CHN_MATRIX_5_0
 
 /* 6 @ 5.1 (lfe, DEFAULT), 6.0 (rear center) */
-#define SND_CHN_MATRIX_5_1	7
-#define SND_CHN_MATRIX_6_0	8
+#define SND_CHN_MATRIX_5_1	8
+#define SND_CHN_MATRIX_6_0	9
 #define SND_CHN_MATRIX_6	SND_CHN_MATRIX_5_1
 
-/* 7 @ 6.1 (lfe) */
-#define SND_CHN_MATRIX_6_1	9
+/* 7 @ 6.1 (lfe, DEFAULT), 7.0 */
+#define SND_CHN_MATRIX_6_1	10
+#define SND_CHN_MATRIX_7_0	11
 #define SND_CHN_MATRIX_7	SND_CHN_MATRIX_6_1
 
 /* 8 @ 7.1 (lfe) */
-#define SND_CHN_MATRIX_7_1	10
+#define SND_CHN_MATRIX_7_1	12
 #define SND_CHN_MATRIX_8	SND_CHN_MATRIX_7_1
 
-#define SND_CHN_MATRIX_MAX	11
+#define SND_CHN_MATRIX_MAX	13
 
 #define SND_CHN_MATRIX_BEGIN	SND_CHN_MATRIX_1_0
 #define SND_CHN_MATRIX_END	SND_CHN_MATRIX_7_1

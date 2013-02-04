@@ -22,9 +22,11 @@ namespace clang {
 namespace ento {
 
 class SimpleConstraintManager : public ConstraintManager {
-  SubEngine &SU;
+  SubEngine *SU;
+  BasicValueFactory &BVF;
 public:
-  SimpleConstraintManager(SubEngine &subengine) : SU(subengine) {}
+  SimpleConstraintManager(SubEngine *subengine, BasicValueFactory &BV)
+    : SU(subengine), BVF(BV) {}
   virtual ~SimpleConstraintManager();
 
   //===------------------------------------------------------------------===//
@@ -78,6 +80,8 @@ protected:
   //===------------------------------------------------------------------===//
   // Internal implementation.
   //===------------------------------------------------------------------===//
+
+  BasicValueFactory &getBasicVals() const { return BVF; }
 
   bool canReasonAbout(SVal X) const;
 

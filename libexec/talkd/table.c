@@ -64,8 +64,7 @@ static const char rcsid[] =
 
 #define NIL ((TABLE_ENTRY *)0)
 
-extern	int debug;
-struct	timeval tp;
+static struct timeval tp;
 
 typedef struct table_entry TABLE_ENTRY;
 
@@ -78,7 +77,7 @@ struct table_entry {
 
 static void delete(TABLE_ENTRY *);
 
-TABLE_ENTRY *table = NIL;
+static TABLE_ENTRY *table = NIL;
 
 /*
  * Look in the table for an invitation that matches the current

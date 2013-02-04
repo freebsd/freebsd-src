@@ -33,6 +33,9 @@ ar9130InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	uint32_t pll;
 
+	/*
+	 * XXX TODO: support half/quarter rates
+	 */
 	if (chan && IEEE80211_IS_CHAN_5GHZ(chan))
 		pll = 0x1450;
 	else

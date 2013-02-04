@@ -1,0 +1,21 @@
+# $FreeBSD$
+arm/arm/bus_space_generic.c		standard
+arm/arm/irq_dispatch.S			standard
+arm/arm/cpufunc_asm_arm9.S		standard
+arm/arm/cpufunc_asm_armv5.S		standard
+arm/lpc/lpc_machdep.c			standard
+arm/lpc/lpc_space.c			standard
+arm/lpc/lpc_pwr.c			standard
+arm/lpc/lpc_intc.c			standard
+arm/lpc/lpc_timer.c			standard
+arm/lpc/lpc_rtc.c			standard
+arm/lpc/if_lpe.c			optional	lpe
+arm/lpc/lpc_ohci.c			optional	ohci
+arm/lpc/lpc_mmc.c			optional	lpcmmc
+arm/lpc/lpc_fb.c			optional	lpcfb
+arm/lpc/lpc_gpio.c			optional	lpcgpio
+arm/lpc/lpc_spi.c			optional	lpcspi
+arm/lpc/lpc_dmac.c			optional	dmac
+arm/lpc/ssd1289.c			optional	ssd1289
+dev/uart/uart_dev_lpc.c			optional	uart
+kern/kern_clocksource.c			standard

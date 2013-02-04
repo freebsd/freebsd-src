@@ -149,6 +149,15 @@ int _fdt_check_node_offset(const void *fdt, int offset)
 	return offset;
 }
 
+int _fdt_check_prop_offset(const void *fdt, int offset)
+{
+	if ((offset < 0) || (offset % FDT_TAGSIZE)
+	    || (fdt_next_tag(fdt, offset, &offset) != FDT_PROP))
+		return -FDT_ERR_BADOFFSET;
+
+	return offset;
+}
+
 int fdt_next_node(const void *fdt, int offset, int *depth)
 {
 	int nextoffset = 0;

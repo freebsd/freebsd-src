@@ -141,12 +141,13 @@ private:
       for (BasicBlock::iterator II = BB->begin(), IE = BB->end();
            II != IE; ++II) {
         CallSite CS(cast<Value>(II));
-        if (CS && !isa<IntrinsicInst>(II)) {
+        if (CS) {
           const Function *Callee = CS.getCalledFunction();
-          if (Callee)
-            Node->addCalledFunction(CS, getOrInsertFunction(Callee));
-          else
+          if (!Callee)
+            // Indirect calls of intrinsics are not allowed so no need to check.
             Node->addCalledFunction(CS, CallsExternalNode);
+          else if (!Callee->isIntrinsic())
+            Node->addCalledFunction(CS, getOrInsertFunction(Callee));
         }
       }
   }
@@ -198,9 +199,11 @@ void CallGraph::print(raw_ostream &OS, Module*) const {
   for (CallGraph::const_iterator I = begin(), E = end(); I != E; ++I)
     I->second->print(OS);
 }
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void CallGraph::dump() const {
   print(dbgs(), 0);
 }
+#endif
 
 //===----------------------------------------------------------------------===//
 // Implementations of public modification methods
@@ -267,7 +270,9 @@ void CallGraphNode::print(raw_ostream &OS) const {
   OS << '\n';
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void CallGraphNode::dump() const { print(dbgs()); }
+#endif
 
 /// removeCallEdgeFor - This method removes the edge in the node for the
 /// specified call site.  Note that this method takes linear time, so it

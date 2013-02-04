@@ -2008,6 +2008,7 @@ ng_queue_rw(node_p node, item_p  item, int rw)
 		NGI_SET_WRITER(item);
 	else
 		NGI_SET_READER(item);
+	item->depth = 1;
 
 	NG_QUEUE_LOCK(ngq);
 	/* Set OP_PENDING flag and enqueue the item. */
@@ -2286,7 +2287,6 @@ ng_snd_item(item_p item, int flags)
 	}
 
 	if (queue) {
-		item->depth = 1;
 		/* Put it on the queue for that node*/
 		ng_queue_rw(node, item, rw);
 		return ((flags & NG_PROGRESS) ? EINPROGRESS : 0);

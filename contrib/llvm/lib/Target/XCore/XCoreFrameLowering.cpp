@@ -23,7 +23,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -78,8 +78,7 @@ static void storeToStack(MachineBasicBlock &MBB,
 //===----------------------------------------------------------------------===//
 
 XCoreFrameLowering::XCoreFrameLowering(const XCoreSubtarget &sti)
-  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 4, 0),
-    STI(sti) {
+  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 4, 0) {
   // Do nothing
 }
 
@@ -99,12 +98,13 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   bool FP = hasFP(MF);
-  bool Nested = MF.getFunction()->
-                getAttributes().hasAttrSomewhere(Attribute::Nest);
+  const AttrListPtr &PAL = MF.getFunction()->getAttributes();
 
-  if (Nested) {
-    loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
-  }
+  for (unsigned I = 0, E = PAL.getNumAttrs(); I != E; ++I)
+    if (PAL.getAttributesAtIndex(I).hasAttribute(Attributes::Nest)) {
+      loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
+      break;
+    }
 
   // Work out frame sizes.
   int FrameSize = MFI->getStackSize();
@@ -341,7 +341,7 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const TargetRegisterInfo *RegInfo = MF.getTarget().getRegisterInfo();
   bool LRUsed = MF.getRegInfo().isPhysRegUsed(XCore::LR);
-  const TargetRegisterClass *RC = XCore::GRRegsRegisterClass;
+  const TargetRegisterClass *RC = &XCore::GRRegsRegClass;
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
   if (LRUsed) {
     MF.getRegInfo().setPhysRegUnused(XCore::LR);
@@ -371,9 +371,4 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                                RC->getAlignment(),
                                                false));
   }
-}
-
-void XCoreFrameLowering::
-processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
-
 }

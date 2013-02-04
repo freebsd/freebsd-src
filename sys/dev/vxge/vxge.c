@@ -709,7 +709,9 @@ vxge_mq_send_locked(ifnet_t ifp, vxge_vpath_t *vpath, mbuf_t m_head)
 			VXGE_DRV_STATS(vpath, tx_again);
 			break;
 		}
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
@@ -1190,7 +1192,7 @@ vxge_rx_rxd_1b_set(vxge_vpath_t *vpath, vxge_hal_rxd_h rxdh, void *dtr_priv)
 
 	vxge_dev_t *vdev = vpath->vdev;
 
-	mbuf_pkt = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, vdev->rx_mbuf_sz);
+	mbuf_pkt = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, vdev->rx_mbuf_sz);
 	if (!mbuf_pkt) {
 		err = ENOBUFS;
 		VXGE_DRV_STATS(vpath, rx_no_buf);
@@ -3009,7 +3011,7 @@ retry:
 	    dma_buffers, num_segs, BUS_DMA_NOWAIT);
 	if (err == EFBIG) {
 		/* try to defrag, too many segments */
-		mbuf_pkt = m_defrag(*m_headp, M_DONTWAIT);
+		mbuf_pkt = m_defrag(*m_headp, M_NOWAIT);
 		if (mbuf_pkt == NULL) {
 			err = ENOBUFS;
 			goto _exit0;
@@ -4186,7 +4188,8 @@ static device_method_t vxge_methods[] = {
 	DEVMETHOD(device_attach, vxge_attach),
 	DEVMETHOD(device_detach, vxge_detach),
 	DEVMETHOD(device_shutdown, vxge_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t vxge_driver = {

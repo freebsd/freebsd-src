@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangedit
 
 SRCDIR=	tools/clang/lib/Edit
@@ -9,6 +11,7 @@ SRCS=	Commit.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	StmtNodes \
 	DiagnosticCommonKinds

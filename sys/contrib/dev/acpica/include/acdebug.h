@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,25 +47,33 @@
 
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000      /* 16K buffer for return objects */
 
-typedef struct CommandInfo
+typedef struct acpi_db_command_info
 {
     char                    *Name;          /* Command Name */
     UINT8                   MinArgs;        /* Minimum arguments required */
 
-} COMMAND_INFO;
+} ACPI_DB_COMMAND_INFO;
 
-typedef struct ArgumentInfo
+typedef struct acpi_db_command_help
+{
+    UINT8                   LineCount;      /* Number of help lines */
+    char                    *Invocation;    /* Command Invocation */
+    char                    *Description;   /* Command Description */
+
+} ACPI_DB_COMMAND_HELP;
+
+typedef struct acpi_db_argument_info
 {
     char                    *Name;          /* Argument Name */
 
-} ARGUMENT_INFO;
+} ACPI_DB_ARGUMENT_INFO;
 
-typedef struct acpi_execute_walk
+typedef struct acpi_db_execute_walk
 {
     UINT32                  Count;
     UINT32                  MaxCount;
 
-} ACPI_EXECUTE_WALK;
+} ACPI_DB_EXECUTE_WALK;
 
 
 #define PARAM_LIST(pl)                  pl
@@ -150,6 +158,34 @@ void
 AcpiDbGenerateGpe (
     char                    *GpeArg,
     char                    *BlockArg))
+
+
+/*
+ * dbconvert - miscellaneous conversion routines
+ */
+ACPI_STATUS
+AcpiDbHexCharToValue (
+    int                     HexChar,
+    UINT8                   *ReturnValue);
+
+ACPI_STATUS
+AcpiDbConvertToPackage (
+    char                    *String,
+    ACPI_OBJECT             *Object);
+
+ACPI_STATUS
+AcpiDbConvertToObject (
+    ACPI_OBJECT_TYPE        Type,
+    char                    *String,
+    ACPI_OBJECT             *Object);
+
+UINT8 *
+AcpiDbEncodePldBuffer (
+    ACPI_PLD_INFO           *PldInfo);
+
+void
+AcpiDbDumpPldBuffer (
+    ACPI_OBJECT             *ObjDesc);
 
 
 /*
@@ -291,6 +327,11 @@ AcpiDbCreateExecutionThreads (
     char                    *NumLoopsArg,
     char                    *MethodNameArg);
 
+void
+AcpiDbDeleteObjects (
+    UINT32                  Count,
+    ACPI_OBJECT             *Objects);
+
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 UINT32
 AcpiDbGetCacheInfo (
@@ -304,7 +345,7 @@ AcpiDbGetCacheInfo (
 ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     char                    *UserArgument,
-    ARGUMENT_INFO           *Arguments);
+    ACPI_DB_ARGUMENT_INFO   *Arguments);
 
 void
 AcpiDbCloseDebugFile (

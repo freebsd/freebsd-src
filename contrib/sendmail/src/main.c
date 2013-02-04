@@ -26,7 +26,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.976 2011/03/15 23:14:36 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.981 2012/06/14 23:54:02 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -2561,6 +2561,10 @@ main(argc, argv, envp)
 		authinfo = getauthinfo(sm_io_getinfo(InChannel, SM_IO_WHAT_FD,
 						     NULL), &forged);
 		macdefine(&BlankEnvelope.e_macro, A_TEMP, '_', authinfo);
+		if (tTd(75, 9))
+			sm_syslog(LOG_INFO, NOQID,
+				"main: where=after_getauthinfo, RealHostAddr=%s",
+				anynet_ntoa(&RealHostAddr));
 
 		/* at this point we are in a child: reset state */
 		sm_rpool_free(MainEnvelope.e_rpool);
@@ -2827,7 +2831,7 @@ main(argc, argv, envp)
 
 		/* set message size */
 		(void) sm_snprintf(buf, sizeof(buf), "%ld",
-				   MainEnvelope.e_msgsize);
+				   PRT_NONNEGL(MainEnvelope.e_msgsize));
 		macdefine(&MainEnvelope.e_macro, A_TEMP,
 			  macid("{msg_size}"), buf);
 

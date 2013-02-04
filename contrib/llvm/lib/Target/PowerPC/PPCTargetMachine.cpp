@@ -17,9 +17,14 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
+
+static cl::
+opt<bool> DisableCTRLoops("disable-ppc-ctrloops", cl::Hidden,
+                        cl::desc("Disable CTR loops for PPC"));
 
 extern "C" void LLVMInitializePowerPCTarget() {
   // Register the targets
@@ -35,10 +40,11 @@ PPCTargetMachine::PPCTargetMachine(const Target &T, StringRef TT,
                                    bool is64Bit)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS, is64Bit),
-    DataLayout(Subtarget.getTargetDataString()), InstrInfo(*this),
+    DL(Subtarget.getDataLayoutString()), InstrInfo(*this),
     FrameLowering(Subtarget), JITInfo(*this, is64Bit),
     TLInfo(*this), TSInfo(*this),
-    InstrItins(Subtarget.getInstrItineraryData()) {
+    InstrItins(Subtarget.getInstrItineraryData()),
+    STTI(&TLInfo), VTTI(&TLInfo) {
 
   // The binutils for the BG/P are too old for CFI.
   if (Subtarget.isBGP())
@@ -81,41 +87,37 @@ public:
     return getTM<PPCTargetMachine>();
   }
 
+  virtual bool addPreRegAlloc();
   virtual bool addInstSelector();
   virtual bool addPreEmitPass();
 };
 } // namespace
 
 TargetPassConfig *PPCTargetMachine::createPassConfig(PassManagerBase &PM) {
-  TargetPassConfig *PassConfig = new PPCPassConfig(this, PM);
+  return new PPCPassConfig(this, PM);
+}
 
-  // Override this for PowerPC.  Tail merging happily breaks up instruction issue
-  // groups, which typically degrades performance.
-  PassConfig->setEnableTailMerge(false);
+bool PPCPassConfig::addPreRegAlloc() {
+  if (!DisableCTRLoops && getOptLevel() != CodeGenOpt::None)
+    addPass(createPPCCTRLoops());
 
-  return PassConfig;
+  return false;
 }
 
 bool PPCPassConfig::addInstSelector() {
   // Install an instruction selector.
-  PM->add(createPPCISelDag(getPPCTargetMachine()));
+  addPass(createPPCISelDag(getPPCTargetMachine()));
   return false;
 }
 
 bool PPCPassConfig::addPreEmitPass() {
   // Must run branch selection immediately preceding the asm printer.
-  PM->add(createPPCBranchSelectionPass());
+  addPass(createPPCBranchSelectionPass());
   return false;
 }
 
 bool PPCTargetMachine::addCodeEmitter(PassManagerBase &PM,
                                       JITCodeEmitter &JCE) {
-  // FIXME: This should be moved to TargetJITInfo!!
-  if (Subtarget.isPPC64())
-    // Temporary workaround for the inability of PPC64 JIT to handle jump
-    // tables.
-    Options.DisableJumpTables = true;
-
   // Inform the subtarget that we are in JIT mode.  FIXME: does this break macho
   // writing?
   Subtarget.SetJITMode();

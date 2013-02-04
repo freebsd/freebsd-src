@@ -99,6 +99,9 @@ SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
 SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
     version, 0, "Kernel version");
 
+SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
+    compiler_version, 0, "Version of compiler used to compile kernel");
+
 SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
     CTLFLAG_CAPRD, ostype, 0, "Operating system type");
 
@@ -377,15 +380,8 @@ SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
 /* Actual kernel configuration options. */
 extern char kernconfstring[];
 
-static int
-sysctl_kern_config(SYSCTL_HANDLER_ARGS)
-{
-	return (sysctl_handle_string(oidp, kernconfstring,
-	    strlen(kernconfstring), req));
-}
-
-SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW, 
-    0, 0, sysctl_kern_config, "", "Kernel configuration file");
+SYSCTL_STRING(_kern, OID_AUTO, conftxt, CTLFLAG_RD, kernconfstring, 0,
+    "Kernel configuration file");
 #endif
 
 static int
@@ -498,6 +494,34 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, vnode, CTLFLAG_RD,
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, proc, CTLFLAG_RD,
     0, sizeof(struct proc), "sizeof(struct proc)");
+
+static int
+sysctl_kern_pid_max(SYSCTL_HANDLER_ARGS)
+{
+	int error, pm;
+
+	pm = pid_max;
+	error = sysctl_handle_int(oidp, &pm, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	sx_xlock(&proctree_lock);
+	sx_xlock(&allproc_lock);
+
+	/*
+	 * Only permit the values less then PID_MAX.
+	 * As a safety measure, do not allow to limit the pid_max too much.
+	 */
+	if (pm < 300 || pm > PID_MAX)
+		error = EINVAL;
+	else
+		pid_max = pm;
+	sx_xunlock(&allproc_lock);
+	sx_xunlock(&proctree_lock);
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, pid_max, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_kern_pid_max, "I",
+    "Maximum allowed pid");
 
 #include <sys/bio.h>
 #include <sys/buf.h>

@@ -142,9 +142,9 @@ static int
 swap_file_open(struct chip_swap *swap, const char *swap_file)
 {
 	struct nameidata nd;
-	int vfslocked, flags, error;
+	int flags, error;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, swap_file,
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, swap_file,
 	    curthread);
 
 	flags = FWRITE | FREAD | O_NOFOLLOW | O_CREAT | O_TRUNC;
@@ -157,12 +157,10 @@ swap_file_open(struct chip_swap *swap, const char *swap_file)
 	}
 
 	swap->swap_cred = crhold(curthread->td_ucred);
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/* We just unlock so we hold a reference */
 	VOP_UNLOCK(nd.ni_vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	swap->swap_vp = nd.ni_vp;
 
@@ -192,7 +190,6 @@ swap_file_write(struct chip_swap *swap, struct block_state *blk_state)
 	struct vnode *vp;
 	struct uio auio;
 	struct iovec aiov;
-	int vfslocked;
 
 	if (swap == NULL || blk_state == NULL)
 		return (-1);
@@ -222,13 +219,11 @@ swap_file_write(struct chip_swap *swap, struct block_state *blk_state)
 	auio.uio_resid = swap->blk_size;
 	auio.uio_td = td;
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_WRITE(vp, &auio, IO_UNIT, swap->swap_cred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	return (0);
 }
@@ -241,7 +236,6 @@ swap_file_read(struct chip_swap *swap, struct block_state *blk_state)
 	struct vnode *vp;
 	struct uio auio;
 	struct iovec aiov;
-	int vfslocked;
 
 	if (swap == NULL || blk_state == NULL)
 		return (-1);
@@ -267,11 +261,9 @@ swap_file_read(struct chip_swap *swap, struct block_state *blk_state)
 	auio.uio_resid = swap->blk_size;
 	auio.uio_td = td;
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_READ(vp, &auio, 0, swap->swap_cred);
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	return (0);
 }

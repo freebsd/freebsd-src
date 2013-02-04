@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,6 @@
  * FUNCTION:    AcpiHwLegacySleep
  *
  * PARAMETERS:  SleepState          - Which sleep state to enter
- *              Flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -66,8 +65,7 @@
 
 ACPI_STATUS
 AcpiHwLegacySleep (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_BIT_REGISTER_INFO  *SleepTypeRegInfo;
     ACPI_BIT_REGISTER_INFO  *SleepEnableRegInfo;
@@ -115,13 +113,6 @@ AcpiHwLegacySleep (
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
-    }
-
-    /* Optionally execute _GTS (Going To Sleep) */
-
-    if (Flags & ACPI_EXECUTE_GTS)
-    {
-        AcpiHwExecuteSleepMethod (METHOD_PATHNAME__GTS, SleepState);
     }
 
     /* Get current value of PM1A control */
@@ -189,7 +180,7 @@ AcpiHwLegacySleep (
          * to still read the right value. Ideally, this block would go
          * away entirely.
          */
-        AcpiOsStall (10000000);
+        AcpiOsStall (10 * ACPI_USEC_PER_SEC);
 
         Status = AcpiHwRegisterWrite (ACPI_REGISTER_PM1_CONTROL,
                     SleepEnableRegInfo->AccessBitMask);
@@ -233,7 +224,6 @@ AcpiHwLegacySleep (
  * FUNCTION:    AcpiHwLegacyWakePrep
  *
  * PARAMETERS:  SleepState          - Which sleep state we just exited
- *              Flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -245,8 +235,7 @@ AcpiHwLegacySleep (
 
 ACPI_STATUS
 AcpiHwLegacyWakePrep (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_STATUS             Status;
     ACPI_BIT_REGISTER_INFO  *SleepTypeRegInfo;
@@ -296,12 +285,6 @@ AcpiHwLegacyWakePrep (
         }
     }
 
-    /* Optionally execute _BFS (Back From Sleep) */
-
-    if (Flags & ACPI_EXECUTE_BFS)
-    {
-        AcpiHwExecuteSleepMethod (METHOD_PATHNAME__BFS, SleepState);
-    }
     return_ACPI_STATUS (Status);
 }
 
@@ -311,7 +294,6 @@ AcpiHwLegacyWakePrep (
  * FUNCTION:    AcpiHwLegacyWake
  *
  * PARAMETERS:  SleepState          - Which sleep state we just exited
- *              Flags               - Reserved, set to zero
  *
  * RETURN:      Status
  *
@@ -322,8 +304,7 @@ AcpiHwLegacyWakePrep (
 
 ACPI_STATUS
 AcpiHwLegacyWake (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_STATUS             Status;
 

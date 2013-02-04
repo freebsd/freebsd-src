@@ -296,7 +296,7 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 static __inline void					\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
-	__asm __volatile("" : : : "memory");		\
+	__compiler_membar();				\
 	*p = v;						\
 }							\
 struct __hack
@@ -310,7 +310,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	u_##TYPE tmp;					\
 							\
 	tmp = *p;					\
-	__asm __volatile("" : : : "memory");		\
+	__compiler_membar();				\
 	return (tmp);					\
 }							\
 struct __hack

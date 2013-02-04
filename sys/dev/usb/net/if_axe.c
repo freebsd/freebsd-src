@@ -159,6 +159,7 @@ static const STRUCT_USB_HOST_ID axe_devs[] = {
 	AXE_DEV(COREGA, FETHER_USB2_TX, 0),
 	AXE_DEV(DLINK, DUBE100, 0),
 	AXE_DEV(DLINK, DUBE100B1, AXE_FLAG_772),
+	AXE_DEV(DLINK, DUBE100C1, AXE_FLAG_772B),
 	AXE_DEV(GOODWAY, GWUSB2E, 0),
 	AXE_DEV(IODATA, ETGUS2, AXE_FLAG_178),
 	AXE_DEV(JVC, MP_PRX1, 0),
@@ -1114,7 +1115,7 @@ axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
 		return (EINVAL);
 	}
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		ifp->if_iqdrops++;
 		return (ENOMEM);

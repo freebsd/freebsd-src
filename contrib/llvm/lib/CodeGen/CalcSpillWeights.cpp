@@ -9,7 +9,6 @@
 
 #define DEBUG_TYPE "calcspillweights"
 
-#include "llvm/Function.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
@@ -39,18 +38,19 @@ void CalculateSpillWeights::getAnalysisUsage(AnalysisUsage &au) const {
   MachineFunctionPass::getAnalysisUsage(au);
 }
 
-bool CalculateSpillWeights::runOnMachineFunction(MachineFunction &fn) {
+bool CalculateSpillWeights::runOnMachineFunction(MachineFunction &MF) {
 
   DEBUG(dbgs() << "********** Compute Spill Weights **********\n"
-               << "********** Function: "
-               << fn.getFunction()->getName() << '\n');
+               << "********** Function: " << MF.getName() << '\n');
 
-  LiveIntervals &lis = getAnalysis<LiveIntervals>();
-  VirtRegAuxInfo vrai(fn, lis, getAnalysis<MachineLoopInfo>());
-  for (LiveIntervals::iterator I = lis.begin(), E = lis.end(); I != E; ++I) {
-    LiveInterval &li = *I->second;
-    if (TargetRegisterInfo::isVirtualRegister(li.reg))
-      vrai.CalculateWeightAndHint(li);
+  LiveIntervals &LIS = getAnalysis<LiveIntervals>();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
+  VirtRegAuxInfo VRAI(MF, LIS, getAnalysis<MachineLoopInfo>());
+  for (unsigned i = 0, e = MRI.getNumVirtRegs(); i != e; ++i) {
+    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+    if (MRI.reg_nodbg_empty(Reg))
+      continue;
+    VRAI.CalculateWeightAndHint(LIS.getInterval(Reg));
   }
   return false;
 }
@@ -84,6 +84,27 @@ static unsigned copyHint(const MachineInstr *mi, unsigned reg,
 
   // reg:sub should match the physreg hreg.
   return tri.getMatchingSuperReg(hreg, sub, rc);
+}
+
+// Check if all values in LI are rematerializable
+static bool isRematerializable(const LiveInterval &LI,
+                               const LiveIntervals &LIS,
+                               const TargetInstrInfo &TII) {
+  for (LiveInterval::const_vni_iterator I = LI.vni_begin(), E = LI.vni_end();
+       I != E; ++I) {
+    const VNInfo *VNI = *I;
+    if (VNI->isUnused())
+      continue;
+    if (VNI->isPHIDef())
+      return false;
+
+    MachineInstr *MI = LIS.getInstructionFromIndex(VNI->def);
+    assert(MI && "Dead valno in interval");
+
+    if (!TII.isTriviallyReMaterializable(MI, LIS.getAliasAnalysis()))
+      return false;
+  }
+  return true;
 }
 
 void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
@@ -143,7 +164,7 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
       continue;
     float hweight = Hint[hint] += weight;
     if (TargetRegisterInfo::isPhysicalRegister(hint)) {
-      if (hweight > bestPhys && LIS.isAllocatable(hint))
+      if (hweight > bestPhys && mri.isAllocatable(hint))
         bestPhys = hweight, hintPhys = hint;
     } else {
       if (hweight > bestVirt)
@@ -171,17 +192,11 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
   }
 
   // If all of the definitions of the interval are re-materializable,
-  // it is a preferred candidate for spilling. If none of the defs are
-  // loads, then it's potentially very cheap to re-materialize.
+  // it is a preferred candidate for spilling.
   // FIXME: this gets much more complicated once we support non-trivial
   // re-materialization.
-  bool isLoad = false;
-  if (LIS.isReMaterializable(li, 0, isLoad)) {
-    if (isLoad)
-      totalWeight *= 0.9F;
-    else
-      totalWeight *= 0.5F;
-  }
+  if (isRematerializable(li, LIS, *MF.getTarget().getInstrInfo()))
+    totalWeight *= 0.5F;
 
   li.weight = normalizeSpillWeight(totalWeight, li.getSize());
 }

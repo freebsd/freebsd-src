@@ -223,13 +223,14 @@ pass2(void)
 		 *    inp->i_parent is directory to which ".." should point.
 		 */
 		getpathname(pathbuf, inp->i_parent, inp->i_number);
-		printf("BAD INODE NUMBER FOR '..' in DIR I=%d (%s)\n",
-		    inp->i_number, pathbuf);
+		printf("BAD INODE NUMBER FOR '..' in DIR I=%ju (%s)\n",
+		    (uintmax_t)inp->i_number, pathbuf);
 		getpathname(pathbuf, inp->i_dotdot, inp->i_dotdot);
-		printf("CURRENTLY POINTS TO I=%d (%s), ", inp->i_dotdot,
-		    pathbuf);
+		printf("CURRENTLY POINTS TO I=%ju (%s), ",
+		    (uintmax_t)inp->i_dotdot, pathbuf);
 		getpathname(pathbuf, inp->i_parent, inp->i_parent);
-		printf("SHOULD POINT TO I=%d (%s)", inp->i_parent, pathbuf);
+		printf("SHOULD POINT TO I=%ju (%s)",
+		    (uintmax_t)inp->i_parent, pathbuf);
 		if (cursnapshot != 0) {
 			/*
 			 * We need to:
@@ -443,8 +444,8 @@ again:
 			} else {
 				getpathname(dirname, idesc->id_number,
 				    dirp->d_ino);
-				pwarn("ZERO LENGTH DIRECTORY %s I=%d",
-					dirname, dirp->d_ino);
+				pwarn("ZERO LENGTH DIRECTORY %s I=%ju",
+				    dirname, (uintmax_t)dirp->d_ino);
 				/*
 				 * We need to:
 				 *    setcwd(idesc->id_parent);
@@ -507,8 +508,9 @@ again:
 			break;
 
 		default:
-			errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-			    inoinfo(dirp->d_ino)->ino_state, dirp->d_ino);
+			errx(EEXIT, "BAD STATE %d FOR INODE I=%ju",
+			    inoinfo(dirp->d_ino)->ino_state,
+			    (uintmax_t)dirp->d_ino);
 		}
 	}
 	if (n == 0)

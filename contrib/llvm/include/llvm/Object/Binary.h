@@ -26,8 +26,8 @@ namespace object {
 
 class Binary {
 private:
-  Binary(); // = delete
-  Binary(const Binary &other); // = delete
+  Binary() LLVM_DELETED_FUNCTION;
+  Binary(const Binary &other) LLVM_DELETED_FUNCTION;
 
   unsigned int TypeID;
 
@@ -64,7 +64,6 @@ public:
 
   // Cast methods.
   unsigned int getType() const { return TypeID; }
-  static inline bool classof(const Binary *v) { return true; }
 
   // Convenience methods
   bool isObject() const {
@@ -90,7 +89,7 @@ public:
 
 /// @brief Create a Binary from Source, autodetecting the file type.
 ///
-/// @param Source The data to create the Binary from. Ownership is transfered
+/// @param Source The data to create the Binary from. Ownership is transferred
 ///        to Result if successful. If an error is returned, Source is destroyed
 ///        by createBinary before returning.
 /// @param Result A pointer to the resulting Binary if no error occured.

@@ -17,9 +17,9 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <cctype>
 #include <cstdio>
 
 using namespace clang;
@@ -32,6 +32,7 @@ IdentifierInfo::IdentifierInfo() {
   TokenID = tok::identifier;
   ObjCOrBuiltinID = 0;
   HasMacro = false;
+  HadMacro = false;
   IsExtension = false;
   IsCXX11CompatKeyword = false;
   IsPoisoned = false;
@@ -103,7 +104,9 @@ namespace {
     KEYOPENCL = 0x200,
     KEYC11 = 0x400,
     KEYARC = 0x800,
-    KEYALL = 0x0fff
+    KEYNOMS = 0x01000,
+    WCHARSUPPORT = 0x02000,
+    KEYALL = (0xffff & ~KEYNOMS) // Because KEYNOMS is used to exclude.
   };
 }
 
@@ -127,6 +130,7 @@ static void AddKeyword(StringRef Keyword,
   else if (LangOpts.MicrosoftExt && (Flags & KEYMS)) AddResult = 1;
   else if (LangOpts.Borland && (Flags & KEYBORLAND)) AddResult = 1;
   else if (LangOpts.Bool && (Flags & BOOLSUPPORT)) AddResult = 2;
+  else if (LangOpts.WChar && (Flags & WCHARSUPPORT)) AddResult = 2;
   else if (LangOpts.AltiVec && (Flags & KEYALTIVEC)) AddResult = 2;
   else if (LangOpts.OpenCL && (Flags & KEYOPENCL)) AddResult = 2;
   else if (!LangOpts.CPlusPlus && (Flags & KEYNOCXX)) AddResult = 2;
@@ -136,6 +140,9 @@ static void AddKeyword(StringRef Keyword,
   else if (LangOpts.ObjC2 && (Flags & KEYARC)) AddResult = 2;
   else if (LangOpts.CPlusPlus && (Flags & KEYCXX0X)) AddResult = 3;
 
+  // Don't add this keyword under MicrosoftMode.
+  if (LangOpts.MicrosoftMode && (Flags & KEYNOMS))
+     return;
   // Don't add this keyword if disabled in this language.
   if (AddResult == 0) return;
 
@@ -154,8 +161,8 @@ static void AddCXXOperatorKeyword(StringRef Keyword,
   Info.setIsCPlusPlusOperatorKeyword();
 }
 
-/// AddObjCKeyword - Register an Objective-C @keyword like "class" "selector" or
-/// "property".
+/// AddObjCKeyword - Register an Objective-C \@keyword like "class" "selector"
+/// or "property".
 static void AddObjCKeyword(StringRef Name,
                            tok::ObjCKeywordKind ObjCID,
                            IdentifierTable &Table) {
@@ -335,22 +342,22 @@ public:
 
 unsigned Selector::getNumArgs() const {
   unsigned IIF = getIdentifierInfoFlag();
-  if (IIF == ZeroArg)
+  if (IIF <= ZeroArg)
     return 0;
   if (IIF == OneArg)
     return 1;
-  // We point to a MultiKeywordSelector (pointer doesn't contain any flags).
-  MultiKeywordSelector *SI = reinterpret_cast<MultiKeywordSelector *>(InfoPtr);
+  // We point to a MultiKeywordSelector.
+  MultiKeywordSelector *SI = getMultiKeywordSelector();
   return SI->getNumArgs();
 }
 
 IdentifierInfo *Selector::getIdentifierInfoForSlot(unsigned argIndex) const {
-  if (getIdentifierInfoFlag()) {
+  if (getIdentifierInfoFlag() < MultiArg) {
     assert(argIndex == 0 && "illegal keyword index");
     return getAsIdentifierInfo();
   }
-  // We point to a MultiKeywordSelector (pointer doesn't contain any flags).
-  MultiKeywordSelector *SI = reinterpret_cast<MultiKeywordSelector *>(InfoPtr);
+  // We point to a MultiKeywordSelector.
+  MultiKeywordSelector *SI = getMultiKeywordSelector();
   return SI->getIdentifierInfoForSlot(argIndex);
 }
 
@@ -375,7 +382,7 @@ std::string Selector::getAsString() const {
   if (InfoPtr == 0)
     return "<null selector>";
 
-  if (InfoPtr & ArgFlags) {
+  if (getIdentifierInfoFlag() < MultiArg) {
     IdentifierInfo *II = getAsIdentifierInfo();
 
     // If the number of arguments is 0 then II is guaranteed to not be null.
@@ -388,8 +395,8 @@ std::string Selector::getAsString() const {
     return II->getName().str() + ":";
   }
 
-  // We have a multiple keyword selector (no embedded flags).
-  return reinterpret_cast<MultiKeywordSelector *>(InfoPtr)->getName();
+  // We have a multiple keyword selector.
+  return getMultiKeywordSelector()->getName();
 }
 
 /// Interpreting the given string using the normal CamelCase

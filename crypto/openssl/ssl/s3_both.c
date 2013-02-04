@@ -160,8 +160,6 @@ int ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 		p= &(d[4]);
 
 		i=s->method->ssl3_enc->final_finish_mac(s,
-			&(s->s3->finish_dgst1),
-			&(s->s3->finish_dgst2),
 			sender,slen,s->s3->tmp.finish_md);
 		s->s3->tmp.finish_md_len = i;
 		memcpy(p, s->s3->tmp.finish_md, i);
@@ -204,15 +202,38 @@ int ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
 	}
 
+#ifndef OPENSSL_NO_NEXTPROTONEG
+/* ssl3_take_mac calculates the Finished MAC for the handshakes messages seen to far. */
+static void ssl3_take_mac(SSL *s) {
+	const char *sender;
+	int slen;
+
+	if (s->state & SSL_ST_CONNECT)
+		{
+		sender=s->method->ssl3_enc->server_finished_label;
+		slen=s->method->ssl3_enc->server_finished_label_len;
+		}
+	else
+		{
+		sender=s->method->ssl3_enc->client_finished_label;
+		slen=s->method->ssl3_enc->client_finished_label_len;
+		}
+
+	s->s3->tmp.peer_finish_md_len = s->method->ssl3_enc->final_finish_mac(s,
+		sender,slen,s->s3->tmp.peer_finish_md);
+}
+#endif
+
 int ssl3_get_finished(SSL *s, int a, int b)
 	{
 	int al,i,ok;
 	long n;
 	unsigned char *p;
 
-	/* the mac has already been generated when we received the
-	 * change cipher spec message and is in s->s3->tmp.peer_finish_md
-	 */ 
+#ifdef OPENSSL_NO_NEXTPROTONEG
+	/* the mac has already been generated when we received the change
+	 * cipher spec message and is in s->s3->tmp.peer_finish_md. */
+#endif
 
 	n=s->method->ssl_get_message(s,
 		a,
@@ -300,21 +321,21 @@ int ssl3_send_change_cipher_spec(SSL *s, int a, int b)
 
 static int ssl3_add_cert_to_buf(BUF_MEM *buf, unsigned long *l, X509 *x)
 	{
-		int n;
-		unsigned char *p;
+	int n;
+	unsigned char *p;
 
-		n=i2d_X509(x,NULL);
-		if (!BUF_MEM_grow_clean(buf,(int)(n+(*l)+3)))
-			{
-				SSLerr(SSL_F_SSL3_ADD_CERT_TO_BUF,ERR_R_BUF_LIB);
-				return(-1);
-			}
-		p=(unsigned char *)&(buf->data[*l]);
-		l2n3(n,p);
-		i2d_X509(x,&p);
-		*l+=n+3;
+	n=i2d_X509(x,NULL);
+	if (!BUF_MEM_grow_clean(buf,(int)(n+(*l)+3)))
+		{
+		SSLerr(SSL_F_SSL3_ADD_CERT_TO_BUF,ERR_R_BUF_LIB);
+		return(-1);
+		}
+	p=(unsigned char *)&(buf->data[*l]);
+	l2n3(n,p);
+	i2d_X509(x,&p);
+	*l+=n+3;
 
-		return(0);
+	return(0);
 	}
 
 unsigned long ssl3_output_cert_chain(SSL *s, X509 *x)
@@ -516,6 +537,13 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 		s->init_num += i;
 		n -= i;
 		}
+#ifndef OPENSSL_NO_NEXTPROTONEG
+	/* If receiving Finished, record MAC of prior handshake messages for
+	 * Finished verification. */
+	if (*s->init_buf->data == SSL3_MT_FINISHED)
+		ssl3_take_mac(s);
+#endif
+	/* Feed this message into MAC computation. */
 	ssl3_finish_mac(s, (unsigned char *)s->init_buf->data, s->init_num + 4);
 	if (s->msg_callback)
 		s->msg_callback(0, s->version, SSL3_RT_HANDSHAKE, s->init_buf->data, (size_t)s->init_num + 4, s, s->msg_callback_arg);
@@ -552,9 +580,16 @@ int ssl_cert_type(X509 *x, EVP_PKEY *pkey)
 	else if (i == EVP_PKEY_EC)
 		{
 		ret = SSL_PKEY_ECC;
-		}
+		}	
 #endif
-
+	else if (i == NID_id_GostR3410_94 || i == NID_id_GostR3410_94_cc) 
+		{
+		ret = SSL_PKEY_GOST94;
+		}
+	else if (i == NID_id_GostR3410_2001 || i == NID_id_GostR3410_2001_cc) 
+		{
+		ret = SSL_PKEY_GOST01;
+		}
 err:
 	if(!pkey) EVP_PKEY_free(pk);
 	return(ret);
@@ -620,42 +655,189 @@ int ssl_verify_alarm_type(long type)
 	return(al);
 	}
 
-int ssl3_setup_buffers(SSL *s)
+#ifndef OPENSSL_NO_BUF_FREELISTS
+/* On some platforms, malloc() performance is bad enough that you can't just
+ * free() and malloc() buffers all the time, so we need to use freelists from
+ * unused buffers.  Currently, each freelist holds memory chunks of only a
+ * given size (list->chunklen); other sized chunks are freed and malloced.
+ * This doesn't help much if you're using many different SSL option settings
+ * with a given context.  (The options affecting buffer size are
+ * max_send_fragment, read buffer vs write buffer,
+ * SSL_OP_MICROSOFT_BIG_WRITE_BUFFER, SSL_OP_NO_COMPRESSION, and
+ * SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS.)  Using a separate freelist for every
+ * possible size is not an option, since max_send_fragment can take on many
+ * different values.
+ *
+ * If you are on a platform with a slow malloc(), and you're using SSL
+ * connections with many different settings for these options, and you need to
+ * use the SSL_MOD_RELEASE_BUFFERS feature, you have a few options:
+ *    - Link against a faster malloc implementation.
+ *    - Use a separate SSL_CTX for each option set.
+ *    - Improve this code.
+ */
+static void *
+freelist_extract(SSL_CTX *ctx, int for_read, int sz)
+	{
+	SSL3_BUF_FREELIST *list;
+	SSL3_BUF_FREELIST_ENTRY *ent = NULL;
+	void *result = NULL;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_SSL_CTX);
+	list = for_read ? ctx->rbuf_freelist : ctx->wbuf_freelist;
+	if (list != NULL && sz == (int)list->chunklen)
+		ent = list->head;
+	if (ent != NULL)
+		{
+		list->head = ent->next;
+		result = ent;
+		if (--list->len == 0)
+			list->chunklen = 0;
+		}
+	CRYPTO_w_unlock(CRYPTO_LOCK_SSL_CTX);
+	if (!result)
+		result = OPENSSL_malloc(sz);
+	return result;
+}
+
+static void
+freelist_insert(SSL_CTX *ctx, int for_read, size_t sz, void *mem)
+	{
+	SSL3_BUF_FREELIST *list;
+	SSL3_BUF_FREELIST_ENTRY *ent;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_SSL_CTX);
+	list = for_read ? ctx->rbuf_freelist : ctx->wbuf_freelist;
+	if (list != NULL &&
+	    (sz == list->chunklen || list->chunklen == 0) &&
+	    list->len < ctx->freelist_max_len &&
+	    sz >= sizeof(*ent))
+		{
+		list->chunklen = sz;
+		ent = mem;
+		ent->next = list->head;
+		list->head = ent;
+		++list->len;
+		mem = NULL;
+		}
+
+	CRYPTO_w_unlock(CRYPTO_LOCK_SSL_CTX);
+	if (mem)
+		OPENSSL_free(mem);
+	}
+#else
+#define freelist_extract(c,fr,sz) OPENSSL_malloc(sz)
+#define freelist_insert(c,fr,sz,m) OPENSSL_free(m)
+#endif
+
+int ssl3_setup_read_buffer(SSL *s)
 	{
 	unsigned char *p;
-	unsigned int extra,headerlen;
-	size_t len;
-
+	size_t len,align=0,headerlen;
+	
 	if (SSL_version(s) == DTLS1_VERSION || SSL_version(s) == DTLS1_BAD_VER)
 		headerlen = DTLS1_RT_HEADER_LENGTH;
 	else
 		headerlen = SSL3_RT_HEADER_LENGTH;
 
+#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD!=0
+	align = (-SSL3_RT_HEADER_LENGTH)&(SSL3_ALIGN_PAYLOAD-1);
+#endif
+
 	if (s->s3->rbuf.buf == NULL)
 		{
+		len = SSL3_RT_MAX_PLAIN_LENGTH
+			+ SSL3_RT_MAX_ENCRYPTED_OVERHEAD
+			+ headerlen + align;
 		if (s->options & SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER)
-			extra=SSL3_RT_MAX_EXTRA;
-		else
-			extra=0;
-		len = SSL3_RT_MAX_PACKET_SIZE + extra;
-		if ((p=OPENSSL_malloc(len)) == NULL)
+			{
+			s->s3->init_extra = 1;
+			len += SSL3_RT_MAX_EXTRA;
+			}
+#ifndef OPENSSL_NO_COMP
+		if (!(s->options & SSL_OP_NO_COMPRESSION))
+			len += SSL3_RT_MAX_COMPRESSED_OVERHEAD;
+#endif
+		if ((p=freelist_extract(s->ctx, 1, len)) == NULL)
 			goto err;
 		s->s3->rbuf.buf = p;
 		s->s3->rbuf.len = len;
 		}
 
+	s->packet= &(s->s3->rbuf.buf[0]);
+	return 1;
+
+err:
+	SSLerr(SSL_F_SSL3_SETUP_READ_BUFFER,ERR_R_MALLOC_FAILURE);
+	return 0;
+	}
+
+int ssl3_setup_write_buffer(SSL *s)
+	{
+	unsigned char *p;
+	size_t len,align=0,headerlen;
+
+	if (SSL_version(s) == DTLS1_VERSION || SSL_version(s) == DTLS1_BAD_VER)
+		headerlen = DTLS1_RT_HEADER_LENGTH + 1;
+	else
+		headerlen = SSL3_RT_HEADER_LENGTH;
+
+#if defined(SSL3_ALIGN_PAYLOAD) && SSL3_ALIGN_PAYLOAD!=0
+	align = (-SSL3_RT_HEADER_LENGTH)&(SSL3_ALIGN_PAYLOAD-1);
+#endif
+
 	if (s->s3->wbuf.buf == NULL)
 		{
-		len = SSL3_RT_MAX_PACKET_SIZE;
-		len += headerlen + 256; /* extra space for empty fragment */
-		if ((p=OPENSSL_malloc(len)) == NULL)
+		len = s->max_send_fragment
+			+ SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD
+			+ headerlen + align;
+#ifndef OPENSSL_NO_COMP
+		if (!(s->options & SSL_OP_NO_COMPRESSION))
+			len += SSL3_RT_MAX_COMPRESSED_OVERHEAD;
+#endif
+		if (!(s->options & SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS))
+			len += headerlen + align
+				+ SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD;
+
+		if ((p=freelist_extract(s->ctx, 0, len)) == NULL)
 			goto err;
 		s->s3->wbuf.buf = p;
 		s->s3->wbuf.len = len;
 		}
-	s->packet= &(s->s3->rbuf.buf[0]);
-	return(1);
+
+	return 1;
+
 err:
-	SSLerr(SSL_F_SSL3_SETUP_BUFFERS,ERR_R_MALLOC_FAILURE);
-	return(0);
+	SSLerr(SSL_F_SSL3_SETUP_WRITE_BUFFER,ERR_R_MALLOC_FAILURE);
+	return 0;
 	}
+
+
+int ssl3_setup_buffers(SSL *s)
+	{
+	if (!ssl3_setup_read_buffer(s))
+		return 0;
+	if (!ssl3_setup_write_buffer(s))
+		return 0;
+	return 1;
+	}
+
+int ssl3_release_write_buffer(SSL *s)
+	{
+	if (s->s3->wbuf.buf != NULL)
+		{
+		freelist_insert(s->ctx, 0, s->s3->wbuf.len, s->s3->wbuf.buf);
+		s->s3->wbuf.buf = NULL;
+		}
+	return 1;
+	}
+
+int ssl3_release_read_buffer(SSL *s)
+	{
+	if (s->s3->rbuf.buf != NULL)
+		{
+		freelist_insert(s->ctx, 1, s->s3->rbuf.len, s->s3->rbuf.buf);
+		s->s3->rbuf.buf = NULL;
+		}
+	return 1;
+	}
+

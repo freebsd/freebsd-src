@@ -1025,12 +1025,21 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 	struct ieee80211_tx_ampdu *tap;
 	int tid;
 
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+	    ni,
+	    "%s: called",
+	    __func__);
+
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		/*
 		 * Clean AMPDU state on re-associate.  This handles the case
 		 * where a station leaves w/o notifying us and then returns
 		 * before node is reaped for inactivity.
 		 */
+		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+		    ni,
+		    "%s: calling cleanup",
+		    __func__);
 		ieee80211_ht_node_cleanup(ni);
 	}
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
@@ -1051,6 +1060,11 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	int i;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+	    ni,
+	    "%s: called",
+	    __func__);
 
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT node"));
 
@@ -1684,6 +1698,11 @@ ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
 	struct ieee80211_node *ni = tap->txa_ni;
 	struct ieee80211com *ic = ni->ni_ic;
 
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
+
 	KASSERT(tap->txa_flags & IEEE80211_AGGR_SETUP,
 	    ("txa_flags 0x%x tid %d ac %d", tap->txa_flags, tap->txa_tid,
 	    TID_TO_WME_AC(tap->txa_tid)));
@@ -2203,6 +2222,9 @@ bar_timeout(void *arg)
 	} else {
 		ni->ni_vap->iv_stats.is_ampdu_bar_tx_retry++;
 		if (ieee80211_send_bar(ni, tap, tap->txa_seqpending) != 0) {
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+			    ni, "%s: failed to TX, starting timer\n",
+			    __func__);
 			/*
 			 * If ieee80211_send_bar() fails here, the
 			 * timer may have stopped and/or the pending
@@ -2221,12 +2243,20 @@ bar_timeout(void *arg)
 static void
 bar_start_timer(struct ieee80211_tx_ampdu *tap)
 {
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
 	callout_reset(&tap->txa_timer, ieee80211_bar_timeout, bar_timeout, tap);
 }
 
 static void
 bar_stop_timer(struct ieee80211_tx_ampdu *tap)
 {
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
 	callout_stop(&tap->txa_timer);
 }
 
@@ -2258,6 +2288,10 @@ ieee80211_bar_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap, int status)
 {
 
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
 	if (status == 0) {		/* got ACK */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 		    ni, "BAR moves BA win <%u:%u> (%u frames) txseq %u tid %u",
@@ -2291,6 +2325,12 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	uint16_t barctl, barseqctl;
 	uint8_t *frm;
 	int tid, ret;
+
+
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: called",
+	    __func__);
 
 	if ((tap->txa_flags & IEEE80211_AGGR_RUNNING) == 0) {
 		/* no ADDBA response, should not happen */
@@ -2354,6 +2394,9 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	 */
 	ret = ic->ic_raw_xmit(ni, m, NULL);
 	if (ret != 0) {
+		IEEE80211_NOTE(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_11N,
+		    ni, "send BAR: failed: (ret = %d)\n",
+		    ret);
 		/* xmit failed, clear state flag */
 		tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
 		vap->iv_stats.is_ampdu_bar_tx_fail++;
@@ -2364,6 +2407,10 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 		bar_start_timer(tap);
 	return 0;
 bad:
+	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
+	    tap->txa_ni,
+	    "%s: bad! ret=%d",
+	    __func__, ret);
 	vap->iv_stats.is_ampdu_bar_tx_fail++;
 	ieee80211_free_node(ni);
 	return ret;

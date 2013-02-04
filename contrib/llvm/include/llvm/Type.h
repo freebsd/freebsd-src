@@ -153,7 +153,7 @@ public:
   /// isPPC_FP128Ty - Return true if this is powerpc long double.
   bool isPPC_FP128Ty() const { return getTypeID() == PPC_FP128TyID; }
 
-  /// isFloatingPointTy - Return true if this is one of the five floating point
+  /// isFloatingPointTy - Return true if this is one of the six floating point
   /// types
   bool isFloatingPointTy() const {
     return getTypeID() == HalfTyID || getTypeID() == FloatTyID ||
@@ -167,7 +167,7 @@ public:
 
   /// isFPOrFPVectorTy - Return true if this is a FP type or a vector of FP.
   ///
-  bool isFPOrFPVectorTy() const;
+  bool isFPOrFPVectorTy() const { return getScalarType()->isFloatingPointTy(); }
  
   /// isLabelTy - Return true if this is 'label'.
   bool isLabelTy() const { return getTypeID() == LabelTyID; }
@@ -185,7 +185,7 @@ public:
   /// isIntOrIntVectorTy - Return true if this is an integer type or a vector of
   /// integer types.
   ///
-  bool isIntOrIntVectorTy() const;
+  bool isIntOrIntVectorTy() const { return getScalarType()->isIntegerTy(); }
   
   /// isFunctionTy - True if this is an instance of FunctionType.
   ///
@@ -203,6 +203,11 @@ public:
   ///
   bool isPointerTy() const { return getTypeID() == PointerTyID; }
 
+  /// isPtrOrPtrVectorTy - Return true if this is a pointer type or a vector of
+  /// pointer types.
+  ///
+  bool isPtrOrPtrVectorTy() const { return getScalarType()->isPointerTy(); }
+ 
   /// isVectorTy - True if this is an instance of VectorType.
   ///
   bool isVectorTy() const { return getTypeID() == VectorTyID; }
@@ -252,7 +257,7 @@ public:
 
   /// isSized - Return true if it makes sense to take the size of this type.  To
   /// get the actual size for a particular target, it is reasonable to use the
-  /// TargetData subsystem to do this.
+  /// DataLayout subsystem to do this.
   ///
   bool isSized() const {
     // If it's a primitive, it is always sized.
@@ -276,7 +281,7 @@ public:
   ///
   /// Note that this may not reflect the size of memory allocated for an
   /// instance of the type or the number of bytes that are written when an
-  /// instance of the type is stored to memory. The TargetData class provides
+  /// instance of the type is stored to memory. The DataLayout class provides
   /// additional query functions to provide this information.
   ///
   unsigned getPrimitiveSizeInBits() const;
@@ -293,6 +298,7 @@ public:
 
   /// getScalarType - If this is a vector type, return the element type,
   /// otherwise return 'this'.
+  const Type *getScalarType() const;
   Type *getScalarType();
 
   //===--------------------------------------------------------------------===//
@@ -340,8 +346,10 @@ public:
   unsigned getVectorNumElements() const;
   Type *getVectorElementType() const { return getSequentialElementType(); }
 
-  unsigned getPointerAddressSpace() const;
   Type *getPointerElementType() const { return getSequentialElementType(); }
+
+  /// \brief Get the address space of this pointer or pointer vector type.
+  unsigned getPointerAddressSpace() const;
   
   //===--------------------------------------------------------------------===//
   // Static members exported by the Type class itself.  Useful for getting
@@ -388,9 +396,6 @@ public:
   static PointerType *getInt16PtrTy(LLVMContext &C, unsigned AS = 0);
   static PointerType *getInt32PtrTy(LLVMContext &C, unsigned AS = 0);
   static PointerType *getInt64PtrTy(LLVMContext &C, unsigned AS = 0);
-
-  /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const Type *) { return true; }
 
   /// getPointerTo - Return a pointer to the current type.  This is equivalent
   /// to PointerType::get(Foo, AddrSpace).

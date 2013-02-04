@@ -184,6 +184,7 @@
 #define DW_FORM_ref8			0x14
 #define DW_FORM_ref_udata		0x15
 #define DW_FORM_indirect		0x16
+#define DW_FORM_flag_present		0x19
 
 #define DW_OP_addr			0x03
 #define DW_OP_deref			0x06

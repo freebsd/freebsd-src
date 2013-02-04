@@ -502,7 +502,8 @@ make_type_with_address_space (struct type *type, int space_flag)
    We allocate new memory if needed.  */
 
 struct type *
-make_cv_type (int cnst, int voltl, struct type *type, struct type **typeptr)
+make_cvr_type (int cnst, int voltl, int restrct, struct type *type,
+               struct type **typeptr)
 {
   struct type *ntype;	/* New type */
   struct type *tmp_type = type;	/* tmp type */
@@ -516,6 +517,9 @@ make_cv_type (int cnst, int voltl, struct type *type, struct type **typeptr)
 
   if (voltl)
     new_flags |= TYPE_FLAG_VOLATILE;
+
+  if (restrct)
+    new_flags |= TYPE_FLAG_RESTRICT;
 
   if (typeptr && *typeptr != NULL)
     {
@@ -1371,7 +1375,7 @@ struct type *
 check_typedef (struct type *type)
 {
   struct type *orig_type = type;
-  int is_const, is_volatile;
+  int is_const, is_volatile, is_restrict;
 
   while (TYPE_CODE (type) == TYPE_CODE_TYPEDEF)
     {
@@ -1407,6 +1411,7 @@ check_typedef (struct type *type)
 
   is_const = TYPE_CONST (type);
   is_volatile = TYPE_VOLATILE (type);
+  is_restrict = TYPE_RESTRICT (type);
 
   /* If this is a struct/class/union with no fields, then check whether a
      full definition exists somewhere else.  This is for systems where a
@@ -1424,7 +1429,7 @@ check_typedef (struct type *type)
 	}
       newtype = lookup_transparent_type (name);
       if (newtype)
-	make_cv_type (is_const, is_volatile, newtype, &type);
+	make_cvr_type (is_const, is_volatile, is_restrict, newtype, &type);
     }
   /* Otherwise, rely on the stub flag being set for opaque/stubbed types */
   else if (TYPE_STUB (type) && !currently_reading_symtab)
@@ -1442,7 +1447,8 @@ check_typedef (struct type *type)
 	}
       sym = lookup_symbol (name, 0, STRUCT_DOMAIN, 0, (struct symtab **) NULL);
       if (sym)
-	make_cv_type (is_const, is_volatile, SYMBOL_TYPE (sym), &type);
+	make_cvr_type (is_const, is_volatile, is_restrict, SYMBOL_TYPE (sym),
+                       &type);
     }
 
   if (TYPE_TARGET_STUB (type))

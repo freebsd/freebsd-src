@@ -80,13 +80,58 @@
 #define	WSTOPPED	WUNTRACED   /* SUS compatibility */
 #define	WCONTINUED	4	/* Report a job control continued process. */
 #define	WNOWAIT		8	/* Poll only. Don't delete the proc entry. */
+#define	WEXITED		16	/* Wait for exited processes. */
+#define	WTRAPPED	32	/* Wait for a process to hit a trap or
+				   a breakpoint. */
 
 #if __BSD_VISIBLE
 #define	WLINUXCLONE 0x80000000	/* Wait for kthread spawned from linux_clone. */
 #endif
 
+#ifndef _IDTYPE_T_DECLARED
+typedef enum
+#if __BSD_VISIBLE
+	idtype		/* pollutes XPG4.2 namespace */
+#endif
+		{
+	/*
+	 * These names were mostly lifted from Solaris source code and
+	 * still use Solaris style naming to avoid breaking any
+	 * OpenSolaris code which has been ported to FreeBSD.  There
+	 * is no clear FreeBSD counterpart for all of the names, but
+	 * some have a clear correspondence to FreeBSD entities.
+	 *
+	 * The numerical values are kept synchronized with the Solaris
+	 * values.
+	 */
+	P_PID,			/* A process identifier. */
+	P_PPID,			/* A parent process identifier.	*/
+	P_PGID,			/* A process group identifier. */
+	P_SID,			/* A session identifier. */
+	P_CID,			/* A scheduling class identifier. */
+	P_UID,			/* A user identifier. */
+	P_GID,			/* A group identifier. */
+	P_ALL,			/* All processes. */
+	P_LWPID,		/* An LWP identifier. */
+	P_TASKID,		/* A task identifier. */
+	P_PROJID,		/* A project identifier. */
+	P_POOLID,		/* A pool identifier. */
+	P_JAILID,		/* A zone identifier. */
+	P_CTID,			/* A (process) contract identifier. */
+	P_CPUID,		/* CPU identifier. */
+	P_PSETID		/* Processor set identifier. */
+} idtype_t;			/* The type of id_t we are using. */
+
+#if __BSD_VISIBLE
+#define	P_ZONEID	P_JAILID
+#endif
+#define	_IDTYPE_T_DECLARED
+#endif
+
 /*
  * Tokens for special values of the "pid" parameter to wait4.
+ * Extended struct __wrusage to collect rusage for both the target
+ * process and its children within one wait6() call.
  */
 #if __BSD_VISIBLE
 #define	WAIT_ANY	(-1)	/* any process */
@@ -97,12 +142,19 @@
 #include <sys/types.h>
 
 __BEGIN_DECLS
+struct __siginfo;
 pid_t	wait(int *);
 pid_t	waitpid(pid_t, int *, int);
+#if __POSIX_VISIBLE >= 200112
+int	waitid(idtype_t, id_t, struct __siginfo *, int);
+#endif
 #if __BSD_VISIBLE
 struct rusage;
+struct __wrusage;
 pid_t	wait3(int *, int, struct rusage *);
 pid_t	wait4(pid_t, int *, int, struct rusage *);
+pid_t	wait6(idtype_t, id_t, int *, int, struct __wrusage *,
+	    struct __siginfo *);
 #endif
 __END_DECLS
 #endif /* !_KERNEL */

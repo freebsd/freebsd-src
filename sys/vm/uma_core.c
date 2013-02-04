@@ -158,7 +158,7 @@ static struct callout uma_callout;
  * a special allocation function just for zones.
  */
 struct uma_zctor_args {
-	char *name;
+	const char *name;
 	size_t size;
 	uma_ctor ctor;
 	uma_dtor dtor;
@@ -265,6 +265,11 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_count, CTLFLAG_RD|CTLTYPE_INT,
 SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
     0, 0, sysctl_vm_zone_stats, "s,struct uma_type_header", "Zone Stats");
 
+static int zone_warnings = 1;
+TUNABLE_INT("vm.zone_warnings", &zone_warnings);
+SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RW, &zone_warnings, 0,
+    "Warn when UMA zones becomes full");
+
 /*
  * This routine checks to see whether or not it's safe to enable buckets.
  */
@@ -361,6 +366,18 @@ bucket_zone_drain(void)
 
 	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++)
 		zone_drain(ubz->ubz_zone);
+}
+
+static void
+zone_log_warning(uma_zone_t zone)
+{
+	static const struct timeval warninterval = { 300, 0 };
+
+	if (!zone_warnings || zone->uz_warning == NULL)
+		return;
+
+	if (ratecheck(&zone->uz_ratecheck, &warninterval))
+		printf("[zone: %s] %s\n", zone->uz_name, zone->uz_warning);
 }
 
 static inline uma_keg_t
@@ -1127,7 +1144,9 @@ keg_small_init(uma_keg_t keg)
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = 1;
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
+	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
+		shsize = 0;
+	} else if (keg->uk_flags & UMA_ZONE_REFCNT) {
 		rsize += UMA_FRITMREF_SZ;	/* linkage & refcnt */
 		shsize = sizeof(struct uma_slab_refcnt);
 	} else {
@@ -1238,7 +1257,7 @@ keg_cachespread_init(uma_keg_t keg)
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
 	KASSERT(keg->uk_ipers <= uma_max_ipers,
-	    ("keg_small_init: keg->uk_ipers too high(%d) increase max_ipers",
+	    ("%s: keg->uk_ipers too high(%d) increase max_ipers", __func__,
 	    keg->uk_ipers));
 }
 
@@ -1389,7 +1408,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		hash_alloc(&keg->uk_hash);
 
 #ifdef UMA_DEBUG
-	printf("UMA: %s(%p) size %d(%d) flags %d ipers %d ppera %d out %d free %d\n",
+	printf("UMA: %s(%p) size %d(%d) flags %#x ipers %d ppera %d out %d free %d\n",
 	    zone->uz_name, zone, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
 	    (keg->uk_ipers * keg->uk_pages) - keg->uk_free, keg->uk_free);
@@ -1430,6 +1449,8 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_sleeps = 0;
 	zone->uz_fills = zone->uz_count = 0;
 	zone->uz_flags = 0;
+	zone->uz_warning = NULL;
+	timevalclear(&zone->uz_ratecheck);
 	keg = arg->keg;
 
 	if (arg->flags & UMA_ZONE_SECONDARY) {
@@ -1681,7 +1702,7 @@ uma_startup(void *bootmem, int boot_pages)
 
 #ifdef UMA_DEBUG
 	printf("Calculated uma_max_ipers (for OFFPAGE) is %d\n", uma_max_ipers);
-	printf("Calculated uma_max_ipers_slab (for OFFPAGE) is %d\n",
+	printf("Calculated uma_max_ipers_ref (for OFFPAGE) is %d\n",
 	    uma_max_ipers_ref);
 #endif
 
@@ -1826,7 +1847,7 @@ uma_set_align(int align)
 
 /* See uma.h */
 uma_zone_t
-uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
+uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 		uma_init uminit, uma_fini fini, int align, u_int32_t flags)
 
 {
@@ -2189,8 +2210,10 @@ keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int flags)
 			 * If this is not a multi-zone, set the FULL bit.
 			 * Otherwise slab_multi() takes care of it.
 			 */
-			if ((zone->uz_flags & UMA_ZFLAG_MULTI) == 0)
+			if ((zone->uz_flags & UMA_ZFLAG_MULTI) == 0) {
 				zone->uz_flags |= UMA_ZFLAG_FULL;
+				zone_log_warning(zone);
+			}
 			if (flags & M_NOWAIT)
 				break;
 			zone->uz_sleeps++;
@@ -2337,6 +2360,7 @@ zone_fetch_slab_multi(uma_zone_t zone, uma_keg_t last, int rflags)
 		if (full && !empty) {
 			zone->uz_flags |= UMA_ZFLAG_FULL;
 			zone->uz_sleeps++;
+			zone_log_warning(zone);
 			msleep(zone, zone->uz_lock, PVM, "zonelimit", hz/100);
 			zone->uz_flags &= ~UMA_ZFLAG_FULL;
 			continue;
@@ -2879,6 +2903,16 @@ uma_zone_get_max(uma_zone_t zone)
 }
 
 /* See uma.h */
+void
+uma_zone_set_warning(uma_zone_t zone, const char *warning)
+{
+
+	ZONE_LOCK(zone);
+	zone->uz_warning = warning;
+	ZONE_UNLOCK(zone);
+}
+
+/* See uma.h */
 int
 uma_zone_get_cur(uma_zone_t zone)
 {
@@ -3152,7 +3186,7 @@ uma_print_keg(uma_keg_t keg)
 {
 	uma_slab_t slab;
 
-	printf("keg: %s(%p) size %d(%d) flags %d ipers %d ppera %d "
+	printf("keg: %s(%p) size %d(%d) flags %#x ipers %d ppera %d "
 	    "out %d free %d limit %d\n",
 	    keg->uk_name, keg, keg->uk_size, keg->uk_rsize, keg->uk_flags,
 	    keg->uk_ipers, keg->uk_ppera,
@@ -3176,7 +3210,7 @@ uma_print_zone(uma_zone_t zone)
 	uma_klink_t kl;
 	int i;
 
-	printf("zone: %s(%p) size %d flags %d\n",
+	printf("zone: %s(%p) size %d flags %#x\n",
 	    zone->uz_name, zone, zone->uz_size, zone->uz_flags);
 	LIST_FOREACH(kl, &zone->uz_kegs, kl_link)
 		uma_print_keg(kl->kl_keg);

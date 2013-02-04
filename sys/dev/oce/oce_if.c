@@ -108,7 +108,8 @@ static device_method_t oce_dispatch[] = {
 	DEVMETHOD(device_attach, oce_attach),
 	DEVMETHOD(device_detach, oce_detach),
 	DEVMETHOD(device_shutdown, oce_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t oce_driver = {
@@ -248,7 +249,7 @@ oce_attach(device_t dev)
 
 	rc = oce_hw_start(sc);
 	if (rc)
-		goto lro_free;;
+		goto lro_free;
 
 	sc->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 				oce_add_vlan, sc, EVENTHANDLER_PRI_FIRST);
@@ -902,7 +903,7 @@ retry:
 
 	} else if (rc == EFBIG)	{
 		if (retry_cnt == 0) {
-			m_temp = m_defrag(m, M_DONTWAIT);
+			m_temp = m_defrag(m, M_NOWAIT);
 			if (m_temp == NULL)
 				goto free_ret;
 			m = m_temp;
@@ -995,7 +996,7 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp)
 	m = *mpp;
 
 	if (M_WRITABLE(m) == 0) {
-		m = m_dup(*mpp, M_DONTWAIT);
+		m = m_dup(*mpp, M_NOWAIT);
 		if (!m)
 			return NULL;
 		m_freem(*mpp);
@@ -1183,7 +1184,9 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 			}  
 			break;
 		}
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		next = drbr_dequeue(ifp, br);
 	}
@@ -1479,7 +1482,7 @@ oce_alloc_rx_bufs(struct oce_rq *rq, int count)
 			break;	/* no more room */
 
 		pd = &rq->pckts[rq->packets_in];
-		pd->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		pd->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (pd->mbuf == NULL)
 			break;
 
@@ -1650,7 +1653,7 @@ oce_attach_ifp(POCE_SOFTC sc)
 #endif
 	
 	sc->ifp->if_capenable = sc->ifp->if_capabilities;
-	sc->ifp->if_baudrate = IF_Gbps(10UL);
+	if_initbaudrate(sc->ifp, IF_Gbps(10));
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);
 	

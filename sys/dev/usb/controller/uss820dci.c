@@ -32,6 +32,9 @@
  * NOTE: The datasheet does not document everything.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -67,6 +70,8 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/uss820dci.h>
 
 #define	USS820_DCI_BUS2SC(bus) \
@@ -1210,7 +1215,13 @@ uss820dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+uss820dci_xfer_stall(struct usb_xfer *xfer)
+{
+	uss820dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+uss820dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct uss820dci_softc *sc;
@@ -1223,10 +1234,6 @@ uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		uss820dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = USS820_DCI_BUS2SC(udev->bus);
 	ep_no = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -1801,18 +1808,12 @@ static const struct usb_hub_descriptor_min uss820dci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'A', 0, 'G', 0, 'E', 0, 'R', 0, 'E', 0
+  "A\0G\0E\0R\0E"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, uss820dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, uss820dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, uss820dci_product);
 
@@ -2014,8 +2015,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(uss820dci_langtab);
-			ptr = (const void *)&uss820dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -2331,10 +2332,6 @@ uss820dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if (udev->speed != USB_SPEED_FULL) {
 			/* not supported */
 			return;
@@ -2385,6 +2382,7 @@ struct usb_bus_methods uss820dci_bus_methods =
 	.xfer_setup = &uss820dci_xfer_setup,
 	.xfer_unsetup = &uss820dci_xfer_unsetup,
 	.get_hw_ep_profile = &uss820dci_get_hw_ep_profile,
+	.xfer_stall = &uss820dci_xfer_stall,
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,
 	.roothub_exec = &uss820dci_roothub_exec,

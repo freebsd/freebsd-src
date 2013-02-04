@@ -414,14 +414,14 @@ int IsInf(double d);
 
 /// MinAlign - A and B are either alignments or offsets.  Return the minimum
 /// alignment that may be assumed after adding the two together.
-static inline uint64_t MinAlign(uint64_t A, uint64_t B) {
+inline uint64_t MinAlign(uint64_t A, uint64_t B) {
   // The largest power of 2 that divides both A and B.
   return (A | B) & -(A | B);
 }
 
 /// NextPowerOf2 - Returns the next power of two (in 64-bits)
 /// that is strictly greater than A.  Returns zero on overflow.
-static inline uint64_t NextPowerOf2(uint64_t A) {
+inline uint64_t NextPowerOf2(uint64_t A) {
   A |= (A >> 1);
   A |= (A >> 2);
   A |= (A >> 4);
@@ -431,21 +431,22 @@ static inline uint64_t NextPowerOf2(uint64_t A) {
   return A + 1;
 }
 
-/// RoundUpToAlignment - Returns the next integer (mod 2**64) that is
-/// greater than or equal to \arg Value and is a multiple of \arg
-/// Align. Align must be non-zero.
+/// Returns the next integer (mod 2**64) that is greater than or equal to
+/// \p Value and is a multiple of \p Align. \p Align must be non-zero.
 ///
 /// Examples:
-/// RoundUpToAlignment(5, 8) = 8
-/// RoundUpToAlignment(17, 8) = 24
-/// RoundUpToAlignment(~0LL, 8) = 0
+/// \code
+///   RoundUpToAlignment(5, 8) = 8
+///   RoundUpToAlignment(17, 8) = 24
+///   RoundUpToAlignment(~0LL, 8) = 0
+/// \endcode
 inline uint64_t RoundUpToAlignment(uint64_t Value, uint64_t Align) {
   return ((Value + Align - 1) / Align) * Align;
 }
 
-/// OffsetToAlignment - Return the offset to the next integer (mod 2**64) that
-/// is greater than or equal to \arg Value and is a multiple of \arg
-/// Align. Align must be non-zero.
+/// Returns the offset to the next integer (mod 2**64) that is greater than
+/// or equal to \p Value and is a multiple of \p Align. \p Align must be
+/// non-zero.
 inline uint64_t OffsetToAlignment(uint64_t Value, uint64_t Align) {
   return RoundUpToAlignment(Value, Align) - Value;
 }
@@ -463,10 +464,22 @@ template <unsigned B> inline int32_t SignExtend32(uint32_t x) {
   return int32_t(x << (32 - B)) >> (32 - B);
 }
 
+/// \brief Sign extend number in the bottom B bits of X to a 32-bit int.
+/// Requires 0 < B <= 32.
+inline int32_t SignExtend32(uint32_t X, unsigned B) {
+  return int32_t(X << (32 - B)) >> (32 - B);
+}
+
 /// SignExtend64 - Sign extend B-bit number x to 64-bit int.
 /// Usage int64_t r = SignExtend64<5>(x);
 template <unsigned B> inline int64_t SignExtend64(uint64_t x) {
   return int64_t(x << (64 - B)) >> (64 - B);
+}
+
+/// \brief Sign extend number in the bottom B bits of X to a 64-bit int.
+/// Requires 0 < B <= 64.
+inline int64_t SignExtend64(uint64_t X, unsigned B) {
+  return int64_t(X << (64 - B)) >> (64 - B);
 }
 
 } // End llvm namespace

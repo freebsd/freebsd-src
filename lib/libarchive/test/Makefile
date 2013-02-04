@@ -19,13 +19,19 @@ CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 .PATH:  ${LIBARCHIVEDIR}/libarchive/test
 TESTS= \
-	test_acl_freebsd.c			\
+	test_acl_freebsd_nfs4.c			\
+	test_acl_freebsd_posix1e.c		\
 	test_acl_nfs4.c				\
 	test_acl_pax.c				\
 	test_acl_posix1e.c			\
 	test_archive_api_feature.c		\
 	test_archive_clear_error.c		\
 	test_archive_crypto.c			\
+	test_archive_getdate.c			\
+	test_archive_match_time.c		\
+	test_archive_match_owner.c		\
+	test_archive_match_path.c		\
+	test_archive_pathmatch.c		\
 	test_archive_read_close_twice.c		\
 	test_archive_read_close_twice_open_fd.c	\
 	test_archive_read_close_twice_open_filename.c	\

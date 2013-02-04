@@ -12,7 +12,7 @@
 // A cast of non-objc pointer to an objc one is checked. If the non-objc pointer
 // is from a file-level variable, __bridge cast is used to convert it.
 // For the result of a function call that we know is +1/+0,
-// __bridge/__bridge_transfer is used.
+// __bridge/CFBridgingRelease is used.
 //
 //  NSString *str = (NSString *)kUTTypePlainText;
 //  str = b ? kUTTypeRTF : kUTTypePlainText;
@@ -21,8 +21,8 @@
 // ---->
 //  NSString *str = (__bridge NSString *)kUTTypePlainText;
 //  str = (__bridge NSString *)(b ? kUTTypeRTF : kUTTypePlainText);
-// NSString *_uuidString = (__bridge_transfer NSString *)
-//                               CFUUIDCreateString(kCFAllocatorDefault, _uuid);
+// NSString *_uuidString = (NSString *)
+//            CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault, _uuid));
 //
 // For a C pointer to ObjC, for casting 'self', __bridge is used.
 //
@@ -35,9 +35,11 @@
 #include "Transforms.h"
 #include "Internals.h"
 #include "clang/Analysis/DomainSpecific/CocoaConventions.h"
-#include "clang/Sema/SemaDiagnostic.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Lex/Lexer.h"
+#include "clang/Sema/SemaDiagnostic.h"
 #include "llvm/ADT/SmallString.h"
 
 using namespace clang;
@@ -50,13 +52,15 @@ class UnbridgedCastRewriter : public RecursiveASTVisitor<UnbridgedCastRewriter>{
   MigrationPass &Pass;
   IdentifierInfo *SelfII;
   OwningPtr<ParentMap> StmtMap;
+  Decl *ParentD;
 
 public:
-  UnbridgedCastRewriter(MigrationPass &pass) : Pass(pass) {
+  UnbridgedCastRewriter(MigrationPass &pass) : Pass(pass), ParentD(0) {
     SelfII = &Pass.Ctx.Idents.get("self");
   }
 
-  void transformBody(Stmt *body) {
+  void transformBody(Stmt *body, Decl *ParentD) {
+    this->ParentD = ParentD;
     StmtMap.reset(new ParentMap(body));
     TraverseStmt(body);
   }
@@ -155,6 +159,21 @@ private:
         }
       }
     }
+
+    // If returning an ivar or a member of an ivar from a +0 method, use
+    // a __bridge cast.
+    Expr *base = inner->IgnoreParenImpCasts();
+    while (isa<MemberExpr>(base))
+      base = cast<MemberExpr>(base)->getBase()->IgnoreParenImpCasts();
+    if (isa<ObjCIvarRefExpr>(base) &&
+        isa<ReturnStmt>(StmtMap->getParentIgnoreParenCasts(E))) {
+      if (ObjCMethodDecl *method = dyn_cast_or_null<ObjCMethodDecl>(ParentD)) {
+        if (!method->hasAttr<NSReturnsRetainedAttr>()) {
+          castToObjCObject(E, /*retained=*/false);
+          return;
+        }
+      }
+    }
   }
 
   void castToObjCObject(CastExpr *E, bool retained) {
@@ -191,22 +210,48 @@ private:
     TA.clearDiagnostic(diag::err_arc_mismatched_cast,
                        diag::err_arc_cast_requires_bridge,
                        E->getLocStart());
-    if (CStyleCastExpr *CCE = dyn_cast<CStyleCastExpr>(E)) {
-      TA.insertAfterToken(CCE->getLParenLoc(), bridge);
-    } else {
-      SourceLocation insertLoc = E->getSubExpr()->getLocStart();
-      SmallString<128> newCast;
-      newCast += '(';
-      newCast += bridge;
-      newCast += E->getType().getAsString(Pass.Ctx.getPrintingPolicy());
-      newCast += ')';
-
-      if (isa<ParenExpr>(E->getSubExpr())) {
-        TA.insert(insertLoc, newCast.str());
+    if (Kind == OBC_Bridge || !Pass.CFBridgingFunctionsDefined()) {
+      if (CStyleCastExpr *CCE = dyn_cast<CStyleCastExpr>(E)) {
+        TA.insertAfterToken(CCE->getLParenLoc(), bridge);
       } else {
+        SourceLocation insertLoc = E->getSubExpr()->getLocStart();
+        SmallString<128> newCast;
         newCast += '(';
-        TA.insert(insertLoc, newCast.str());
-        TA.insertAfterToken(E->getLocEnd(), ")");
+        newCast += bridge;
+        newCast += E->getType().getAsString(Pass.Ctx.getPrintingPolicy());
+        newCast += ')';
+
+        if (isa<ParenExpr>(E->getSubExpr())) {
+          TA.insert(insertLoc, newCast.str());
+        } else {
+          newCast += '(';
+          TA.insert(insertLoc, newCast.str());
+          TA.insertAfterToken(E->getLocEnd(), ")");
+        }
+      }
+    } else {
+      assert(Kind == OBC_BridgeTransfer || Kind == OBC_BridgeRetained);
+      SmallString<32> BridgeCall;
+
+      Expr *WrapE = E->getSubExpr();
+      SourceLocation InsertLoc = WrapE->getLocStart();
+
+      SourceManager &SM = Pass.Ctx.getSourceManager();
+      char PrevChar = *SM.getCharacterData(InsertLoc.getLocWithOffset(-1));
+      if (Lexer::isIdentifierBodyChar(PrevChar, Pass.Ctx.getLangOpts()))
+        BridgeCall += ' ';
+
+      if (Kind == OBC_BridgeTransfer)
+        BridgeCall += "CFBridgingRelease";
+      else
+        BridgeCall += "CFBridgingRetain";
+
+      if (isa<ParenExpr>(WrapE)) {
+        TA.insert(InsertLoc, BridgeCall);
+      } else {
+        BridgeCall += '(';
+        TA.insert(InsertLoc, BridgeCall);
+        TA.insertAfterToken(WrapE->getLocEnd(), ")");
       }
     }
   }

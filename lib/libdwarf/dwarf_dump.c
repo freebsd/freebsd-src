@@ -240,6 +240,8 @@ get_form_desc(uint32_t form)
 		return "DW_FORM_data8";
 	case DW_FORM_flag:
 		return "DW_FORM_flag";
+	case DW_FORM_flag_present:
+		return "DW_FORM_flag_present";
 	case DW_FORM_indirect:
 		return "DW_FORM_indirect";
 	case DW_FORM_ref1:
@@ -648,6 +650,7 @@ dwarf_dump_av(Dwarf_Die die, Dwarf_AttrValue av)
 	case DW_FORM_data4:
 	case DW_FORM_data8:
 	case DW_FORM_flag:
+	case DW_FORM_flag_present:
 		printf("%llu", (unsigned long long) av->u[0].u64);
 		break;
 	case DW_FORM_ref1:

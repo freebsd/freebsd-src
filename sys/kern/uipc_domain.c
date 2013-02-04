@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <vm/uma.h>
-
 /*
  * System initialization
  *
@@ -239,27 +237,10 @@ domain_add(void *data)
 	mtx_unlock(&dom_mtx);
 }
 
-static void
-socket_zone_change(void *tag)
-{
-
-	uma_zone_set_max(socket_zone, maxsockets);
-}
-
 /* ARGSUSED*/
 static void
 domaininit(void *dummy)
 {
-
-	/*
-	 * Before we do any setup, make sure to initialize the
-	 * zone allocator we get struct sockets from.
-	 */
-	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(socket_zone, maxsockets);
-	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
-		EVENTHANDLER_PRI_FIRST);
 
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
@@ -287,21 +268,31 @@ domainfinalize(void *dummy)
 	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
 }
 
+struct domain *
+pffinddomain(int family)
+{
+	struct domain *dp;
+
+	for (dp = domains; dp != NULL; dp = dp->dom_next)
+		if (dp->dom_family == family)
+			return (dp);
+	return (NULL);
+}
+
 struct protosw *
 pffindtype(int family, int type)
 {
 	struct domain *dp;
 	struct protosw *pr;
 
-	for (dp = domains; dp; dp = dp->dom_next)
-		if (dp->dom_family == family)
-			goto found;
-	return (0);
-found:
+	dp = pffinddomain(family);
+	if (dp == NULL)
+		return (NULL);
+
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 		if (pr->pr_type && pr->pr_type == type)
 			return (pr);
-	return (0);
+	return (NULL);
 }
 
 struct protosw *
@@ -309,21 +300,22 @@ pffindproto(int family, int protocol, int type)
 {
 	struct domain *dp;
 	struct protosw *pr;
-	struct protosw *maybe = 0;
+	struct protosw *maybe;
 
+	maybe = NULL;
 	if (family == 0)
-		return (0);
-	for (dp = domains; dp; dp = dp->dom_next)
-		if (dp->dom_family == family)
-			goto found;
-	return (0);
-found:
+		return (NULL);
+
+	dp = pffinddomain(family);
+	if (dp == NULL)
+		return (NULL);
+
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		if ((pr->pr_protocol == protocol) && (pr->pr_type == type))
 			return (pr);
 
 		if (type == SOCK_RAW && pr->pr_type == SOCK_RAW &&
-		    pr->pr_protocol == 0 && maybe == (struct protosw *)0)
+		    pr->pr_protocol == 0 && maybe == NULL)
 			maybe = pr;
 	}
 	return (maybe);
@@ -351,12 +343,10 @@ pf_proto_register(int family, struct protosw *npr)
 		return (ENXIO);
 
 	/* Try to find the specified domain based on the family. */
-	for (dp = domains; dp; dp = dp->dom_next)
-		if (dp->dom_family == family)
-			goto found;
-	return (EPFNOSUPPORT);
+	dp = pffinddomain(family);
+	if (dp == NULL)
+		return (EPFNOSUPPORT);
 
-found:
 	/* Initialize backpointer to struct domain. */
 	npr->pr_domain = dp;
 	fpr = NULL;
@@ -422,12 +412,10 @@ pf_proto_unregister(int family, int protocol, int type)
 		return (EPROTOTYPE);
 
 	/* Try to find the specified domain based on the family type. */
-	for (dp = domains; dp; dp = dp->dom_next)
-		if (dp->dom_family == family)
-			goto found;
-	return (EPFNOSUPPORT);
+	dp = pffinddomain(family);
+	if (dp == NULL)
+		return (EPFNOSUPPORT);
 
-found:
 	dpr = NULL;
 
 	/* Lock out everyone else while we are manipulating the protosw. */

@@ -126,6 +126,10 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 	breakc[n] = '\0';
 
 	do {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		/*
 		 * Quite a tricky case: unlike the old TTY
 		 * implementation, this implementation copies data back
@@ -149,10 +153,10 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 
 		/* No more data. */
 		if (clen == 0) {
-			if (ioflag & IO_NDELAY)
-				return (EWOULDBLOCK);
-			else if (tp->t_flags & TF_ZOMBIE)
+			if (tp->t_flags & TF_ZOMBIE)
 				return (0);
+			else if (ioflag & IO_NDELAY)
+				return (EWOULDBLOCK);
 
 			error = tty_wait(tp, &tp->t_inwait);
 			if (error)
@@ -192,6 +196,10 @@ ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 	 */
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -200,10 +208,10 @@ ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 			return (0);
 
 		/* We have to wait for more. */
-		if (ioflag & IO_NDELAY)
-			return (EWOULDBLOCK);
-		else if (tp->t_flags & TF_ZOMBIE)
+		if (tp->t_flags & TF_ZOMBIE)
 			return (0);
+		else if (ioflag & IO_NDELAY)
+			return (EWOULDBLOCK);
 
 		error = tty_wait(tp, &tp->t_inwait);
 		if (error)
@@ -229,6 +237,10 @@ ttydisc_read_raw_read_timer(struct tty *tp, struct uio *uio, int ioflag,
 	timevaladd(&end, &now);
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -248,10 +260,10 @@ ttydisc_read_raw_read_timer(struct tty *tp, struct uio *uio, int ioflag,
 		 * We have to wait for more. If the timer expires, we
 		 * should return a 0-byte read.
 		 */
-		if (ioflag & IO_NDELAY)
-			return (EWOULDBLOCK);
-		else if (tp->t_flags & TF_ZOMBIE)
+		if (tp->t_flags & TF_ZOMBIE)
 			return (0);
+		else if (ioflag & IO_NDELAY)
+			return (EWOULDBLOCK);
 
 		error = tty_timedwait(tp, &tp->t_inwait, hz);
 		if (error)
@@ -278,6 +290,10 @@ ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 	 */
 
 	for (;;) {
+		error = tty_wait_background(tp, curthread, SIGTTIN);
+		if (error)
+			return (error);
+
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
 		if (error)
@@ -293,10 +309,10 @@ ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 			break;
 
 		/* We have to wait for more. */
-		if (ioflag & IO_NDELAY)
-			return (EWOULDBLOCK);
-		else if (tp->t_flags & TF_ZOMBIE)
+		if (tp->t_flags & TF_ZOMBIE)
 			return (0);
+		else if (ioflag & IO_NDELAY)
+			return (EWOULDBLOCK);
 
 		error = tty_wait(tp, &tp->t_inwait);
 		if (error)

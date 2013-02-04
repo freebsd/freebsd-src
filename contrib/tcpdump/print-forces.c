@@ -113,24 +113,24 @@ sdatailv_print(register const u_char * pptr, register u_int len,
 		printf("Error: BAD SPARSEDATA-TLV!\n");
 		return -1;
 	}
-	rlen = len - ILV_HDRL;
+	rlen = len;
 	indent += 1;
 	while (rlen != 0) {
+		char *ib = indent_pr(indent, 1);
+		register const u_char *tdp = (u_char *) ILV_DATA(ilv);
 		TCHECK(*ilv);
 		invilv = ilv_valid(ilv, rlen);
 		if (invilv) {
-			printf("Error: BAD ILV!\n");
-			return -1;
-		}
-		if (vflag >= 3) {
-			register const u_char *tdp = (u_char *) ILV_DATA(ilv);
-			char *ib = indent_pr(indent, 1);
-			printf("\n%s SPARSEDATA: type %x length %d\n", &ib[1],
-			       EXTRACT_32BITS(&ilv->type),
-			       EXTRACT_32BITS(&ilv->length));
 			printf("%s[", &ib[1]);
 			hex_print_with_offset(ib, tdp, rlen, 0);
 			printf("\n%s]\n", &ib[1]);
+			return -1;
+		}
+		if (vflag >= 3) {
+			int ilvl = EXTRACT_32BITS(&ilv->length);
+			printf("\n%s ILV: type %x length %d\n", &ib[1],
+			       EXTRACT_32BITS(&ilv->type), ilvl);
+			hex_print_with_offset("\t\t[", tdp, ilvl-ILV_HDRL, 0);
 		}
 
 		ilv = GO_NXT_ILV(ilv, rlen);
@@ -216,7 +216,6 @@ pdatacnt_print(register const u_char * pptr, register u_int len,
 	       u_int16_t IDcnt, u_int16_t op_msk, int indent)
 {
 	u_int i;
-	int rc;
 	u_int32_t id;
 	char *ib = indent_pr(indent, 0);
 
@@ -282,9 +281,10 @@ pdatacnt_print(register const u_char * pptr, register u_int len,
 
 			chk_op_type(type, op_msk, ops->op_msk);
 
-			rc = ops->print((const u_char *)pdtlv,
+			if (ops->print((const u_char *)pdtlv,
 					tll + pad + TLV_HDRL, op_msk,
-					indent + 2);
+					indent + 2) == -1)
+				return -1;
 			len -= (TLV_HDRL + pad + tll);
 		} else {
 			printf("Invalid path data content type 0x%x len %d\n",
@@ -404,7 +404,6 @@ recpdoptlv_print(register const u_char * pptr, register u_int len,
 {
 	const struct forces_tlv *pdtlv = (struct forces_tlv *)pptr;
 	int tll;
-	int rc = 0;
 	int invtlv;
 	u_int16_t type;
 	register const u_char *dp;
@@ -434,7 +433,8 @@ recpdoptlv_print(register const u_char * pptr, register u_int len,
 			     EXTRACT_16BITS(&pdtlv->length),
 			     EXTRACT_16BITS(&pdtlv->length) - TLV_HDRL);
 
-		rc = pdata_print(dp, tll, op_msk, indent + 1);
+		if (pdata_print(dp, tll, op_msk, indent + 1) == -1)
+			return -1;
 		pdtlv = GO_NXT_TLV(pdtlv, len);
 	}
 
@@ -1016,7 +1016,7 @@ void forces_print(register const u_char * pptr, register u_int len)
 	if (vflag >= 1) {
 		printf("\n\tForCES Version %d len %uB flags 0x%08x ",
 		       ForCES_V(fhdr), mlen, flg_raw);
-		printf("\n\tSrcID 0x%x(%s) DstID 0x%x(%s) Correlator 0x%" PRIu64,
+		printf("\n\tSrcID 0x%x(%s) DstID 0x%x(%s) Correlator 0x%" PRIx64,
 		       ForCES_SID(fhdr), ForCES_node(ForCES_SID(fhdr)),
 		       ForCES_DID(fhdr), ForCES_node(ForCES_DID(fhdr)),
 		       EXTRACT_64BITS(fhdr->fm_cor));

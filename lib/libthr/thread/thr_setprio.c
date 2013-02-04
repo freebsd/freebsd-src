@@ -45,38 +45,22 @@ _pthread_setprio(pthread_t pthread, int prio)
 	int	ret;
 
 	param.sched_priority = prio;
-	if (pthread == curthread) {
+	if (pthread == curthread)
 		THR_LOCK(curthread);
-		if (curthread->attr.sched_policy == SCHED_OTHER ||
-		    curthread->attr.prio == prio) {
-			curthread->attr.prio = prio;
-			ret = 0;
-		} else {
-			ret = _thr_setscheduler(curthread->tid,
-			    curthread->attr.sched_policy, &param);
-			if (ret == -1)
-				ret = errno;
-			else 
-				curthread->attr.prio = prio;
-		}
-		THR_UNLOCK(curthread);
-	} else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
-		== 0) {
-		THR_THREAD_LOCK(curthread, pthread);
-		if (pthread->attr.sched_policy == SCHED_OTHER ||
-		    pthread->attr.prio == prio) {
+	else if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)))
+		return (ret);
+	if (pthread->attr.sched_policy == SCHED_OTHER ||
+	    pthread->attr.prio == prio) {
+		pthread->attr.prio = prio;
+		ret = 0;
+	} else {
+		ret = _thr_setscheduler(pthread->tid,
+			pthread->attr.sched_policy, &param);
+		if (ret == -1)
+			ret = errno;
+		else
 			pthread->attr.prio = prio;
-			ret = 0;
-		} else {
-			ret = _thr_setscheduler(pthread->tid,
-				curthread->attr.sched_policy, &param);
-			if (ret == -1)
-				ret = errno;
-			else
-				pthread->attr.prio = prio;
-		}
-		THR_THREAD_UNLOCK(curthread, pthread);
-		_thr_ref_delete(curthread, pthread);
 	}
+	THR_THREAD_UNLOCK(curthread, pthread);
 	return (ret);
 }

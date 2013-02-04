@@ -177,6 +177,12 @@ g_clone_bio(struct bio *bp)
 	if (bp2 != NULL) {
 		bp2->bio_parent = bp;
 		bp2->bio_cmd = bp->bio_cmd;
+		/*
+		 *  BIO_ORDERED flag may be used by disk drivers to enforce
+		 *  ordering restrictions, so this flag needs to be cloned.
+		 *  Other bio flags are not suitable for cloning.
+		 */
+		bp2->bio_flags = bp->bio_flags & BIO_ORDERED;
 		bp2->bio_length = bp->bio_length;
 		bp2->bio_offset = bp->bio_offset;
 		bp2->bio_data = bp->bio_data;
@@ -305,6 +311,8 @@ g_io_check(struct bio *bp)
 	/* if provider is marked for error, don't disturb. */
 	if (pp->error)
 		return (pp->error);
+	if (cp->flags & G_CF_ORPHAN)
+		return (ENXIO);
 
 	switch(bp->bio_cmd) {
 	case BIO_READ:
@@ -559,6 +567,9 @@ g_io_deliver(struct bio *bp, int error)
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
 	bp->bio_children = 0;
 	bp->bio_inbed = 0;
+	bp->bio_driver1 = NULL;
+	bp->bio_driver2 = NULL;
+	bp->bio_pflags = 0;
 	g_io_request(bp, cp);
 	pace++;
 	return;

@@ -45,11 +45,8 @@ ENTRY(syscall)
 	KERNCALL
 	push	%ecx	/* need to push a word to keep stack frame intact
 			   upon return; the word must be the return address. */
-	jb	1f
+	jb	HIDENAME(cerror)
 	ret
-1:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
 END(syscall)
 
 	.section .note.GNU-stack,"",%progbits

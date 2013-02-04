@@ -121,28 +121,66 @@
  * external API and should not be called directly.  Wrapper macros should
  * be used instead.
  */
-
-#define	rw_init(rw, name)	rw_init_flags((rw), (name), 0)
-void	rw_init_flags(struct rwlock *rw, const char *name, int opts);
-void	rw_destroy(struct rwlock *rw);
+void	_rw_init_flags(volatile uintptr_t *c, const char *name, int opts);
+void	_rw_destroy(volatile uintptr_t *c);
 void	rw_sysinit(void *arg);
 void	rw_sysinit_flags(void *arg);
-int	rw_wowned(const struct rwlock *rw);
-void	_rw_wlock(struct rwlock *rw, const char *file, int line);
-int	_rw_try_wlock(struct rwlock *rw, const char *file, int line);
-void	_rw_wunlock(struct rwlock *rw, const char *file, int line);
-void	_rw_rlock(struct rwlock *rw, const char *file, int line);
-int	_rw_try_rlock(struct rwlock *rw, const char *file, int line);
-void	_rw_runlock(struct rwlock *rw, const char *file, int line);
-void	_rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file,
+int	_rw_wowned(const volatile uintptr_t *c);
+void	_rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line);
+int	__rw_try_wlock(volatile uintptr_t *c, const char *file, int line);
+void	_rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line);
+void	__rw_rlock(volatile uintptr_t *c, const char *file, int line);
+int	__rw_try_rlock(volatile uintptr_t *c, const char *file, int line);
+void	_rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line);
+void	__rw_wlock_hard(volatile uintptr_t *c, uintptr_t tid, const char *file,
 	    int line);
-void	_rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file,
-	    int line);
-int	_rw_try_upgrade(struct rwlock *rw, const char *file, int line);
-void	_rw_downgrade(struct rwlock *rw, const char *file, int line);
+void	__rw_wunlock_hard(volatile uintptr_t *c, uintptr_t tid,
+	    const char *file, int line);
+int	__rw_try_upgrade(volatile uintptr_t *c, const char *file, int line);
+void	__rw_downgrade(volatile uintptr_t *c, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	_rw_assert(const struct rwlock *rw, int what, const char *file, int line);
+void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
+	    int line);
 #endif
+
+/*
+ * Top-level macros to provide lock cookie once the actual rwlock is passed.
+ * They will also prevent passing a malformed object to the rwlock KPI by
+ * failing compilation as the rw_lock reserved member will not be found.
+ */
+#define	rw_init(rw, n)							\
+	_rw_init_flags(&(rw)->rw_lock, n, 0)
+#define	rw_init_flags(rw, n, o)						\
+	_rw_init_flags(&(rw)->rw_lock, n, o)
+#define	rw_destroy(rw)							\
+	_rw_destroy(&(rw)->rw_lock)
+#define	rw_wowned(rw)							\
+	_rw_wowned(&(rw)->rw_lock)
+#define	_rw_wlock(rw, f, l)						\
+	_rw_wlock_cookie(&(rw)->rw_lock, f, l)
+#define	_rw_try_wlock(rw, f, l)						\
+	__rw_try_wlock(&(rw)->rw_lock, f, l)
+#define	_rw_wunlock(rw, f, l)						\
+	_rw_wunlock_cookie(&(rw)->rw_lock, f, l)
+#define	_rw_rlock(rw, f, l)						\
+	__rw_rlock(&(rw)->rw_lock, f, l)
+#define	_rw_try_rlock(rw, f, l)						\
+	__rw_try_rlock(&(rw)->rw_lock, f, l)
+#define	_rw_runlock(rw, f, l)						\
+	_rw_runlock_cookie(&(rw)->rw_lock, f, l)
+#define	_rw_wlock_hard(rw, t, f, l)					\
+	__rw_wlock_hard(&(rw)->rw_lock, t, f, l)
+#define	_rw_wunlock_hard(rw, t, f, l)					\
+	__rw_wunlock_hard(&(rw)->rw_lock, t, f, l)
+#define	_rw_try_upgrade(rw, f, l)					\
+	__rw_try_upgrade(&(rw)->rw_lock, f, l)
+#define	_rw_downgrade(rw, f, l)						\
+	__rw_downgrade(&(rw)->rw_lock, f, l)
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+#define	_rw_assert(rw, w, f, l)						\
+	__rw_assert(&(rw)->rw_lock, w, f, l)
+#endif
+
 
 /*
  * Public interface for lock operations.
@@ -178,12 +216,12 @@ void	_rw_assert(const struct rwlock *rw, int what, const char *file, int line);
 #define	rw_initialized(rw)	lock_initalized(&(rw)->lock_object)
 
 struct rw_args {
-	struct rwlock	*ra_rw;
+	void		*ra_rw;
 	const char 	*ra_desc;
 };
 
 struct rw_args_flags {
-	struct rwlock	*ra_rw;
+	void		*ra_rw;
 	const char 	*ra_desc;
 	int		ra_flags;
 };
@@ -196,7 +234,7 @@ struct rw_args_flags {
 	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_sysinit, &name##_args);					\
 	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    rw_destroy, (rw))
+	    _rw_destroy, __DEVOLATILE(void *, &(rw)->rw_lock))
 
 
 #define	RW_SYSINIT_FLAGS(name, rw, desc, flags)				\
@@ -208,7 +246,7 @@ struct rw_args_flags {
 	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_sysinit_flags, &name##_args);				\
 	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    rw_destroy, (rw))
+	    _rw_destroy, __DEVOLATILE(void *, &(rw)->rw_lock))
 
 /*
  * Options passed to rw_init_flags().

@@ -29,6 +29,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -57,16 +58,16 @@
 #define ccb_ahb_ptr spriv_ptr1
 
 #define ahb_inb(ahb, port)				\
-	bus_space_read_1((ahb)->tag, (ahb)->bsh, port)
+	bus_read_1((ahb)->res, port)
 
 #define ahb_inl(ahb, port)				\
-	bus_space_read_4((ahb)->tag, (ahb)->bsh, port)
+	bus_read_4((ahb)->res, port)
 
 #define ahb_outb(ahb, port, value)			\
-	bus_space_write_1((ahb)->tag, (ahb)->bsh, port, value)
+	bus_write_1((ahb)->res, port, value)
 
 #define ahb_outl(ahb, port, value)			\
-	bus_space_write_4((ahb)->tag, (ahb)->bsh, port, value)
+	bus_write_4((ahb)->res, port, value)
 
 static const char		*ahbmatch(eisa_id_t type);
 static struct ahb_softc		*ahballoc(device_t dev, struct resource *res);
@@ -82,12 +83,13 @@ static void			 ahbcalcresid(struct ahb_softc *ahb,
 static __inline void		 ahbdone(struct ahb_softc *ahb, u_int32_t mbox,
 					 u_int intstat);
 static void			 ahbintr(void *arg);
+static void			 ahbintr_locked(struct ahb_softc *ahb);
 static bus_dmamap_callback_t	 ahbexecuteecb;
 static void			 ahbaction(struct cam_sim *sim, union ccb *ccb);
 static void			 ahbpoll(struct cam_sim *sim);
 
 /* Our timeout handler */
-static timeout_t ahbtimeout;
+static void			 ahbtimeout(void *arg);
 
 static __inline struct ecb*	ahbecbget(struct ahb_softc *ahb);
 static __inline void	 	ahbecbfree(struct ahb_softc* ahb,
@@ -107,12 +109,11 @@ static __inline struct ecb*
 ahbecbget(struct ahb_softc *ahb)
 {
 	struct	ecb* ecb;
-	int	s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&ahb->lock, MA_OWNED);
 	if ((ecb = SLIST_FIRST(&ahb->free_ecbs)) != NULL)
 		SLIST_REMOVE_HEAD(&ahb->free_ecbs, links);
-	splx(s);
 
 	return (ecb);
 }
@@ -120,12 +121,11 @@ ahbecbget(struct ahb_softc *ahb)
 static __inline void
 ahbecbfree(struct ahb_softc* ahb, struct ecb* ecb)
 {
-	int s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&ahb->lock, MA_OWNED);
 	ecb->state = ECB_FREE;
 	SLIST_INSERT_HEAD(&ahb->free_ecbs, ecb, links);
-	splx(s);
 }
 
 static __inline u_int32_t
@@ -175,7 +175,8 @@ ahbqueuembox(struct ahb_softc *ahb, u_int32_t mboxval, u_int attn_code)
 		DELAY(20);
 	}
 	if (loopmax == 0)
-		panic("ahb%ld: adapter not taking commands\n", ahb->unit);
+		panic("%s: adapter not taking commands\n",
+		    device_get_nameunit(ahb->dev));
 
 	ahb_outl(ahb, MBOXOUT0, mboxval);
 	ahb_outb(ahb, ATTN, attn_code);
@@ -259,28 +260,27 @@ ahbattach(device_t dev)
 	 */
 	struct	    ahb_softc *ahb;
 	struct	    ecb* next_ecb;
-	struct	    resource *io = 0;
-	struct	    resource *irq = 0;
+	struct	    resource *io;
+	struct	    resource *irq;
 	int	    rid;
 	void	    *ih;
 
+	irq = NULL;
 	rid = 0;
 	io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-	if (!io) {
+	if (io == NULL) {
 		device_printf(dev, "No I/O space?!\n");
 		return ENOMEM;
 	}
 
-	if ((ahb = ahballoc(dev, io)) == NULL) {
-		goto error_exit2;
-	}
+	ahb = ahballoc(dev, io);
 
 	if (ahbreset(ahb) != 0)
 		goto error_exit;
 
 	rid = 0;
 	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-	if (!irq) {
+	if (irq == NULL) {
 		device_printf(dev, "Can't allocate interrupt\n");
 		goto error_exit;
 	}
@@ -303,7 +303,7 @@ ahbattach(device_t dev)
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
 				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockarg	*/ &ahb->lock,
 				&ahb->buffer_dmat) != 0)
 		goto error_exit;
 
@@ -323,8 +323,8 @@ ahbattach(device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&ahb->ecb_dmat) != 0)
 		goto error_exit;
 
@@ -356,6 +356,7 @@ ahbattach(device_t dev)
 		if (bus_dmamap_create(ahb->buffer_dmat, /*flags*/0,
 				      &next_ecb->dmamap))
 			break;
+		callout_init_mtx(&next_ecb->timer, &ahb->lock, 0);
 		ecb_paddr = ahbecbvtop(ahb, next_ecb);
 		next_ecb->hecb.status_ptr = ahbstatuspaddr(ecb_paddr);
 		next_ecb->hecb.sense_ptr = ahbsensepaddr(ecb_paddr);
@@ -363,9 +364,6 @@ ahbattach(device_t dev)
 		ahbecbfree(ahb, next_ecb);
 		next_ecb++;
 	}
-
-	if (ahb->num_ecbs == 0)
-		goto error_exit;
 
 	ahb->init_level++;
 
@@ -377,8 +375,8 @@ ahbattach(device_t dev)
 		goto error_exit;
 
 	/* Enable our interrupt */
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY, NULL, ahbintr, 
-	    ahb, &ih) != 0)
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE,
+	    NULL, ahbintr,  ahb, &ih) != 0)
 		goto error_exit;
 
 	return (0);
@@ -386,15 +384,13 @@ ahbattach(device_t dev)
 error_exit:
 	/*
 	 * The board's IRQ line will not be left enabled
-	 * if we can't intialize correctly, so its safe
+	 * if we can't initialize correctly, so its safe
 	 * to release the irq.
 	 */
 	ahbfree(ahb);
-error_exit2:
-	if (io)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
-	if (irq)
+	if (irq != NULL)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+	bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
 	return (-1);
 }
 
@@ -403,22 +399,14 @@ ahballoc(device_t dev, struct resource *res)
 {
 	struct	ahb_softc *ahb;
 
-	/*
-	 * Allocate a storage area for us
-	 */
-	ahb = malloc(sizeof(struct ahb_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!ahb) {
-		device_printf(dev, "cannot malloc!\n");
-		return (NULL);
-	}
+	ahb = device_get_softc(dev);
 	SLIST_INIT(&ahb->free_ecbs);
 	LIST_INIT(&ahb->pending_ccbs);
-	ahb->unit = device_get_unit(dev);
-	ahb->tag = rman_get_bustag(res);
-	ahb->bsh = rman_get_bushandle(res);
+	ahb->res = res;
 	ahb->disc_permitted = ~0;
 	ahb->tags_permitted = ~0;
 	ahb->dev = dev;
+	mtx_init(&ahb->lock, "ahb", NULL, MTX_DEF);
 
 	return (ahb);
 }
@@ -441,7 +429,7 @@ ahbfree(struct ahb_softc *ahb)
 	case 0:
 		break;
 	}
-	free(ahb, M_DEVBUF);
+	mtx_destroy(&ahb->lock);
 }
 
 /*
@@ -503,7 +491,9 @@ ahbxptattach(struct ahb_softc *ahb)
 	struct ecb *ecb;
 	u_int  i;
 
-	/* Remeber who are we on the scsi bus */
+	mtx_lock(&ahb->lock);
+
+	/* Remember who are we on the scsi bus */
 	ahb->scsi_id = ahb_inb(ahb, SCSIDEF) & HSCSIID;
 
 	/* Use extended translation?? */
@@ -524,14 +514,15 @@ ahbxptattach(struct ahb_softc *ahb)
 
 	/* Poll for interrupt completion */
 	for (i = 1000; ecb->state != ECB_FREE && i != 0; i--) {
-		ahbintr(ahb);
+		ahbintr_locked(ahb);
 		DELAY(1000);
 	}
 
 	ahb->num_ecbs = MIN(ahb->num_ecbs,
 			    ahb->ha_inq_data->scsi_data.spc2_flags);
-	printf("ahb%ld: %.8s %s SCSI Adapter, FW Rev. %.4s, ID=%d, %d ECBs\n",
-	       ahb->unit, ahb->ha_inq_data->scsi_data.product,
+	device_printf(ahb->dev,
+	       "%.8s %s SCSI Adapter, FW Rev. %.4s, ID=%d, %d ECBs\n",
+	       ahb->ha_inq_data->scsi_data.product,
 	       (ahb->ha_inq_data->scsi_data.flags & 0x4) ? "Differential"
 							 : "Single Ended",
 	       ahb->ha_inq_data->scsi_data.revision,
@@ -546,21 +537,25 @@ ahbxptattach(struct ahb_softc *ahb)
 	 * Create the device queue for our SIM.
 	 */
 	devq = cam_simq_alloc(ahb->num_ecbs);
-	if (devq == NULL)
+	if (devq == NULL) {
+		mtx_unlock(&ahb->lock);
 		return (ENOMEM);
+	}
 
 	/*
 	 * Construct our SIM entry
 	 */
-	ahb->sim = cam_sim_alloc(ahbaction, ahbpoll, "ahb", ahb, ahb->unit,
-				 &Giant, 2, ahb->num_ecbs, devq);
+	ahb->sim = cam_sim_alloc(ahbaction, ahbpoll, "ahb", ahb,
+	    device_get_unit(ahb->dev), &ahb->lock, 2, ahb->num_ecbs, devq);
 	if (ahb->sim == NULL) {
 		cam_simq_free(devq);
+		mtx_unlock(&ahb->lock);
 		return (ENOMEM);
 	}
 
 	if (xpt_bus_register(ahb->sim, ahb->dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(ahb->sim, /*free_devq*/TRUE);
+		mtx_unlock(&ahb->lock);
 		return (ENXIO);
 	}
 	
@@ -569,6 +564,7 @@ ahbxptattach(struct ahb_softc *ahb)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(ahb->sim));
 		cam_sim_free(ahb->sim, /*free_devq*/TRUE);
+		mtx_unlock(&ahb->lock);
 		return (ENXIO);
 	}
 		
@@ -576,6 +572,7 @@ ahbxptattach(struct ahb_softc *ahb)
 	 * Allow the board to generate interrupts.
 	 */
 	ahb_outb(ahb, INTDEF, ahb_inb(ahb, INTDEF) | INTEN);
+	mtx_unlock(&ahb->lock);
 
 	return (0);
 }
@@ -587,8 +584,8 @@ ahbhandleimmed(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 	u_int target_id;
 
 	if (ahb->immed_cmd == 0) {
-		printf("ahb%ld: Immediate Command complete with no "
-		       " pending command\n", ahb->unit);
+		device_printf(ahb->dev, "Immediate Command complete with no "
+		       " pending command\n");
 		return;
 	}
 
@@ -604,8 +601,7 @@ ahbhandleimmed(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 		ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 		if (ccb->ccb_h.target_id == target_id
 		 || target_id == ahb->scsi_id) {
-			untimeout(ahbtimeout, pending_ecb,
-				  ccb->ccb_h.timeout_ch);
+			callout_stop(&pending_ecb->timer);
 			LIST_REMOVE(&ccb->ccb_h, sim_links.le);
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 				bus_dmamap_unload(ahb->buffer_dmat,
@@ -621,20 +617,20 @@ ahbhandleimmed(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 			xpt_done(ccb);
 		} else if (ahb->immed_ecb != NULL) {
 			/* Re-instate timeout */
-			ccb->ccb_h.timeout_ch =
-			    timeout(ahbtimeout, (caddr_t)pending_ecb,
-				    (ccb->ccb_h.timeout * hz) / 1000);
+			callout_reset(&pending_ecb->timer, 
+			    (ccb->ccb_h.timeout * hz) / 1000,
+			    ahbtimeout, pending_ecb);
 		}
 	}
 
 	if (ahb->immed_ecb != NULL) {
 		ahb->immed_ecb = NULL;
-		printf("ahb%ld: No longer in timeout\n", ahb->unit);
+		device_printf(ahb->dev, "No longer in timeout\n");
 	} else if (target_id == ahb->scsi_id)
-		printf("ahb%ld: SCSI Bus Reset Delivered\n", ahb->unit);
+		device_printf(ahb->dev, "SCSI Bus Reset Delivered\n");
 	else
-		printf("ahb%ld:  Bus Device Reset Delibered to target %d\n",
-		       ahb->unit, target_id);
+		device_printf(ahb->dev,
+		    "Bus Device Reset Delivered to target %d\n", target_id);
 
 	ahb->immed_cmd = 0;
 }
@@ -764,16 +760,17 @@ ahbprocesserror(struct ahb_softc *ahb, struct ecb *ecb, union ccb *ccb)
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
 		break;
 	case HS_INVALID_ECB_PARAM:
-		printf("ahb%ld: opcode 0x%02x, flag_word1 0x%02x, flag_word2 0x%02x\n",
-			ahb->unit, hecb->opcode, hecb->flag_word1, hecb->flag_word2);	
+		device_printf(ahb->dev,
+		    "opcode 0x%02x, flag_word1 0x%02x, flag_word2 0x%02x\n",
+		    hecb->opcode, hecb->flag_word1, hecb->flag_word2);	
 		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
 		break;
 	case HS_DUP_TCB_RECEIVED:
 	case HS_INVALID_OPCODE:
 	case HS_INVALID_CMD_LINK:
 	case HS_PROGRAM_CKSUM_ERROR:
-		panic("ahb%ld: Can't happen host status %x occurred",
-		      ahb->unit, status->ha_status);
+		panic("%s: Can't happen host status %x occurred",
+		    device_get_nameunit(ahb->dev), status->ha_status);
 		break;
 	}
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
@@ -796,7 +793,7 @@ ahbdone(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 	ccb = ecb->ccb;
 
 	if (ccb != NULL) {
-		untimeout(ahbtimeout, ecb, ccb->ccb_h.timeout_ch);
+		callout_stop(&ecb->timer);
 		LIST_REMOVE(&ccb->ccb_h, sim_links.le);
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
@@ -821,8 +818,8 @@ ahbdone(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 	} else {
 		/* Non CCB Command */
 		if ((intstat & INTSTAT_MASK) != INTSTAT_ECB_OK) {
-			printf("ahb%ld: Command 0%x Failed %x:%x:%x\n",
-			       ahb->unit, ecb->hecb.opcode,
+			device_printf(ahb->dev, "Command 0%x Failed %x:%x:%x\n",
+			       ecb->hecb.opcode,
 			       *((u_int16_t*)&ecb->status),
 			       ecb->status.ha_status, ecb->status.resid_count);
 		}
@@ -837,10 +834,18 @@ static void
 ahbintr(void *arg)
 {
 	struct	  ahb_softc *ahb;
+
+	ahb = arg;
+	mtx_lock(&ahb->lock);
+	ahbintr_locked(ahb);
+	mtx_unlock(&ahb->lock);
+}
+
+static void
+ahbintr_locked(struct ahb_softc *ahb)
+{
 	u_int	  intstat;
 	u_int32_t mbox;
-
-	ahb = (struct ahb_softc *)arg;
 
 	while (ahb_inb(ahb, HOSTSTAT) & HOSTSTAT_INTPEND) {
 		/*
@@ -900,16 +905,17 @@ ahbexecuteecb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	union	  ccb *ccb;
 	struct	  ahb_softc *ahb;
 	u_int32_t ecb_paddr;
-	int	  s;
 
 	ecb = (struct ecb *)arg;
 	ccb = ecb->ccb;
 	ahb = (struct ahb_softc *)ccb->ccb_h.ccb_ahb_ptr;
+	mtx_assert(&ahb->lock, MA_OWNED);
 
 	if (error != 0) {
 		if (error != EFBIG)
-			printf("ahb%ld: Unexepected error 0x%x returned from "
-			       "bus_dmamap_load\n", ahb->unit, error);
+			device_printf(ahb->dev,
+			    "Unexepected error 0x%x returned from "
+			    "bus_dmamap_load\n", error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			ccb->ccb_h.status = CAM_REQ_TOO_BIG|CAM_DEV_QFRZN;
@@ -961,8 +967,6 @@ ahbexecuteecb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		ecb->hecb.data_len = 0;
 	}
 
-	s = splcam();
-
 	/*
 	 * Last time we need to check if this CCB needs to
 	 * be aborted.
@@ -972,7 +976,6 @@ ahbexecuteecb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			bus_dmamap_unload(ahb->buffer_dmat, ecb->dmamap);
 		ahbecbfree(ahb, ecb);
 		xpt_done(ccb);
-		splx(s);
 		return;
 	}
 		
@@ -983,9 +986,8 @@ ahbexecuteecb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	/* Tell the adapter about this command */
 	ahbqueuembox(ahb, ecb_paddr, ATTN_STARTECB|ccb->ccb_h.target_id);
 
-	ccb->ccb_h.timeout_ch = timeout(ahbtimeout, (caddr_t)ecb,
-					(ccb->ccb_h.timeout * hz) / 1000);
-	splx(s);
+	callout_reset(&ecb->timer, (ccb->ccb_h.timeout * hz) / 1000, ahbtimeout,
+	    ecb);
 }
 
 static void
@@ -996,6 +998,7 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ahbaction\n"));
 	
 	ahb = (struct ahb_softc *)cam_sim_softc(sim);
+	mtx_assert(&ahb->lock, MA_OWNED);
 	
 	switch (ccb->ccb_h.func_code) {
 	/* Common cases first */
@@ -1064,10 +1067,8 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 				 * to a single buffer.
 				 */
 				if ((ccb->ccb_h.flags & CAM_DATA_PHYS)==0) {
-					int s;
 					int error;
 
-					s = splsoftvm();
 					error = bus_dmamap_load(
 					    ahb->buffer_dmat,
 					    ecb->dmamap,
@@ -1086,7 +1087,6 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 						ccb->ccb_h.status |=
 						    CAM_RELEASE_SIMQ;
 					}
-					splx(s);
 				} else {
 					struct bus_dma_segment seg; 
 
@@ -1176,17 +1176,14 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 	{
 		int i;
-		int s;
 
-		s = splcam();
 		ahb->immed_cmd = IMMED_RESET;
 		ahbqueuembox(ahb, IMMED_RESET, ATTN_IMMED|ccb->ccb_h.target_id);
 		/* Poll for interrupt completion */
 		for (i = 1000; ahb->immed_cmd != 0 && i != 0; i--) {
 			DELAY(1000);
-			ahbintr(cam_sim_softc(sim));
+			ahbintr_locked(cam_sim_softc(sim));
 		}
-		splx(s);
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
@@ -1263,21 +1260,18 @@ ahbtimeout(void *arg)
 	struct ecb	 *ecb;
 	union  ccb	 *ccb;
 	struct ahb_softc *ahb;
-	int		  s;
 
 	ecb = (struct ecb *)arg;
 	ccb = ecb->ccb;
 	ahb = (struct ahb_softc *)ccb->ccb_h.ccb_ahb_ptr;
+	mtx_assert(&ahb->lock, MA_OWNED);
 	xpt_print_path(ccb->ccb_h.path);
 	printf("ECB %p - timed out\n", (void *)ecb);
-
-	s = splcam();
 
 	if ((ecb->state & ECB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("ECB %p - timed out ECB already completed\n",
 		       (void *)ecb);
-		splx(s);
 		return;
 	}
 	/*
@@ -1298,13 +1292,11 @@ ahbtimeout(void *arg)
 			ecb->state |= ECB_RELEASE_SIMQ;
 		}
 
-		ccb_h = LIST_FIRST(&ahb->pending_ccbs);
-		while (ccb_h != NULL) {
+		LIST_FOREACH(ccb_h, &ahb->pending_ccbs, sim_links.le) {
 			struct ecb *pending_ecb;
 
 			pending_ecb = (struct ecb *)ccb_h->ccb_ecb_ptr;
-			untimeout(ahbtimeout, pending_ecb, ccb_h->timeout_ch);
-			ccb_h = LIST_NEXT(ccb_h, sim_links.le);
+			callout_stop(&pending_ecb->timer);
 		}
 
 		/* Store for our interrupt handler */
@@ -1324,8 +1316,7 @@ ahbtimeout(void *arg)
 		xpt_print_path(ccb->ccb_h.path);
 		printf("Queuing BDR\n");
 		ecb->state |= ECB_DEVICE_RESET;
-		ccb->ccb_h.timeout_ch =
-		    timeout(ahbtimeout, (caddr_t)ecb, 2 * hz);
+		callout_reset(&ecb->timer, 2 * hz, ahbtimeout, ecb);
 
 		ahb->immed_cmd = IMMED_RESET;
 		ahbqueuembox(ahb, IMMED_RESET, ATTN_IMMED|ccb->ccb_h.target_id);
@@ -1337,8 +1328,7 @@ ahbtimeout(void *arg)
 		xpt_print_path(ccb->ccb_h.path);
 		printf("Attempting SCSI Bus reset\n");
 		ecb->state |= ECB_SCSIBUS_RESET;
-		ccb->ccb_h.timeout_ch =
-		    timeout(ahbtimeout, (caddr_t)ecb, 2 * hz);
+		callout_reset(&ecb->timer, 2 * hz, ahbtimeout, ecb);
 		ahb->immed_cmd = IMMED_RESET;
 		ahbqueuembox(ahb, IMMED_RESET, ATTN_IMMED|ahb->scsi_id);
 	} else {
@@ -1348,8 +1338,6 @@ ahbtimeout(void *arg)
 		/* Simulate the reset complete interrupt */
 		ahbhandleimmed(ahb, 0, ahb->scsi_id|INTSTAT_IMMED_OK);
 	}
-
-	splx(s);
 }
 
 static device_method_t ahb_eisa_methods[] = {
@@ -1363,7 +1351,7 @@ static device_method_t ahb_eisa_methods[] = {
 static driver_t ahb_eisa_driver = {
 	"ahb",
 	ahb_eisa_methods,
-	1,			/* unused */
+	sizeof(struct ahb_softc),
 };
 
 static devclass_t ahb_devclass;

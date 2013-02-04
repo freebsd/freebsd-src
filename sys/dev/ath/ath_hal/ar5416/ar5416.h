@@ -107,6 +107,9 @@ struct ath_hal_5416 {
 	void		(*ah_initPLL) (struct ath_hal *ah,
 			    const struct ieee80211_channel *chan);
 
+	/* bluetooth coexistence operations */
+	void		(*ah_btCoexSetDiversity)(struct ath_hal *ah);
+
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
 	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
@@ -200,6 +203,7 @@ extern	void ar5416SetBTCoexInfo(struct ath_hal *ah,
 		HAL_BT_COEX_INFO *btinfo);
 extern	void ar5416BTCoexConfig(struct ath_hal *ah,
 		HAL_BT_COEX_CONFIG *btconf);
+extern	void ar5416BTCoexAntennaDiversity(struct ath_hal *ah);
 extern	void ar5416BTCoexSetQcuThresh(struct ath_hal *ah, int qnum);
 extern	void ar5416BTCoexSetWeights(struct ath_hal *ah, uint32_t stompType);
 extern	void ar5416BTCoexSetupBmissThresh(struct ath_hal *ah,
@@ -253,11 +257,23 @@ extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan, HAL_BOOL enable);
 
 extern	void ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
+extern	HAL_BOOL ar5416GetDfsDefaultThresh(struct ath_hal *ah,
+	    HAL_PHYERR_PARAM *pe);
 extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
 	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
 	    HAL_DFS_EVENT *event);
 extern	HAL_BOOL ar5416IsFastClockEnabled(struct ath_hal *ah);
+
+/* ar9280_spectral.c */
+extern	void ar5416ConfigureSpectralScan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss);
+extern	void ar5416GetSpectralParams(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss);
+extern	HAL_BOOL ar5416IsSpectralActive(struct ath_hal *ah);
+extern	HAL_BOOL ar5416IsSpectralEnabled(struct ath_hal *ah);
+extern	void ar5416StartSpectralScan(struct ath_hal *ah);
+extern	void ar5416StopSpectralScan(struct ath_hal *ah);
+extern	uint32_t ar5416GetSpectralConfig(struct ath_hal *ah);
+extern	void ar5416RestoreSpectralConfig(struct ath_hal *ah, uint32_t restoreval);
 
 extern	HAL_BOOL ar5416SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);
@@ -360,7 +376,8 @@ extern	HAL_BOOL ar5416SetupXTxDesc(struct ath_hal *, struct ath_desc *,
 		u_int txRate2, u_int txRetries2,
 		u_int txRate3, u_int txRetries3);
 extern	HAL_BOOL ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
-		u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+		u_int descId, u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
@@ -372,8 +389,9 @@ extern	int ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
 	        const HAL_TXQ_INFO *qInfo);
 
 extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
 		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
-		HAL_CIPHER cipher, uint8_t delims, u_int segLen,
+		HAL_CIPHER cipher, uint8_t delims,
 		HAL_BOOL firstSeg, HAL_BOOL lastSeg, HAL_BOOL lastAggr);
 extern	HAL_BOOL ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int aggrLen, u_int flags, u_int txPower, u_int txRate0, u_int txTries0,

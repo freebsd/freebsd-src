@@ -11,8 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "stackcoloring"
-#include "llvm/Function.h"
+#define DEBUG_TYPE "stackslotcoloring"
 #include "llvm/Module.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
@@ -46,7 +45,6 @@ STATISTIC(NumDead,       "Number of trivially dead stack accesses eliminated");
 
 namespace {
   class StackSlotColoring : public MachineFunctionPass {
-    bool ColorWithRegs;
     LiveStacks* LS;
     MachineFrameInfo *MFI;
     const TargetInstrInfo  *TII;
@@ -82,7 +80,7 @@ namespace {
   public:
     static char ID; // Pass identification
     StackSlotColoring() :
-      MachineFunctionPass(ID), ColorWithRegs(false), NextColor(-1) {
+      MachineFunctionPass(ID), NextColor(-1) {
         initializeStackSlotColoringPass(*PassRegistry::getPassRegistry());
       }
 
@@ -392,8 +390,7 @@ bool StackSlotColoring::RemoveDeadStores(MachineBasicBlock* MBB) {
 bool StackSlotColoring::runOnMachineFunction(MachineFunction &MF) {
   DEBUG({
       dbgs() << "********** Stack Slot Coloring **********\n"
-             << "********** Function: "
-             << MF.getFunction()->getName() << '\n';
+             << "********** Function: " << MF.getName() << '\n';
     });
 
   MFI = MF.getFrameInfo();

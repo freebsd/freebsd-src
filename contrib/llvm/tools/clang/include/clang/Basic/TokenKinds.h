@@ -6,9 +6,10 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-//  This file defines the TokenKind enum and support functions.
-//
+///
+/// \file
+/// \brief Defines the clang::TokenKind enum and support functions.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_TOKENKINDS_H
@@ -18,24 +19,23 @@ namespace clang {
 
 namespace tok {
 
-/// TokenKind - This provides a simple uniform namespace for tokens from all C
-/// languages.
+/// \brief Provides a simple uniform namespace for tokens from all C languages.
 enum TokenKind {
 #define TOK(X) X,
 #include "clang/Basic/TokenKinds.def"
   NUM_TOKENS
 };
 
-/// PPKeywordKind - This provides a namespace for preprocessor keywords which
-/// start with a '#' at the beginning of the line.
+/// \brief Provides a namespace for preprocessor keywords which start with a
+/// '#' at the beginning of the line.
 enum PPKeywordKind {
 #define PPKEYWORD(X) pp_##X,
 #include "clang/Basic/TokenKinds.def"
   NUM_PP_KEYWORDS
 };
 
-/// ObjCKeywordKind - This provides a namespace for Objective-C keywords which
-/// start with an '@'.
+/// \brief Provides a namespace for Objective-C keywords which start with
+/// an '@'.
 enum ObjCKeywordKind {
 #define OBJC1_AT_KEYWORD(X) objc_##X,
 #define OBJC2_AT_KEYWORD(X) objc_##X,
@@ -43,8 +43,7 @@ enum ObjCKeywordKind {
   NUM_OBJC_KEYWORDS
 };
 
-/// OnOffSwitch - This defines the possible values of an on-off-switch
-/// (C99 6.10.6p2).
+/// \brief Defines the possible values of an on-off-switch (C99 6.10.6p2).
 enum OnOffSwitch {
   OOS_ON, OOS_OFF, OOS_DEFAULT
 };
@@ -63,6 +62,31 @@ const char *getTokenName(enum TokenKind Kind);
 /// digraph). For the actual spelling of a given Token, use
 /// Preprocessor::getSpelling().
 const char *getTokenSimpleSpelling(enum TokenKind Kind);
+
+/// \brief Return true if this is a raw identifier or an identifier kind.
+inline bool isAnyIdentifier(TokenKind K) {
+  return (K == tok::identifier) || (K == tok::raw_identifier);
+}
+
+/// \brief Return true if this is a "literal" kind, like a numeric
+/// constant, string, etc.
+inline bool isLiteral(TokenKind K) {
+  return (K == tok::numeric_constant) || (K == tok::char_constant) ||
+         (K == tok::wide_char_constant) || (K == tok::utf16_char_constant) ||
+         (K == tok::utf32_char_constant) || (K == tok::string_literal) ||
+         (K == tok::wide_string_literal) || (K == tok::utf8_string_literal) ||
+         (K == tok::utf16_string_literal) || (K == tok::utf32_string_literal) ||
+         (K == tok::angle_string_literal);
+}
+
+/// \brief Return true if this is any of tok::annot_* kinds.
+inline bool isAnnotation(TokenKind K) {
+#define ANNOTATION(NAME) \
+  if (K == tok::annot_##NAME) \
+    return true;
+#include "clang/Basic/TokenKinds.def"
+  return false;
+}
 
 }  // end namespace tok
 }  // end namespace clang

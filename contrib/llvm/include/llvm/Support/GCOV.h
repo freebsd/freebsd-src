@@ -27,13 +27,15 @@ class GCOVBlock;
 class GCOVLines;
 class FileInfo;
 
-enum GCOVFormat {
-  InvalidGCOV,
-  GCNO_402,
-  GCNO_404,
-  GCDA_402,
-  GCDA_404
-};
+namespace GCOV {
+  enum GCOVFormat {
+    InvalidGCOV,
+    GCNO_402,
+    GCNO_404,
+    GCDA_402,
+    GCDA_404
+  };
+} // end GCOV namespace
 
 /// GCOVBuffer - A wrapper around MemoryBuffer to provide GCOV specific
 /// read operations.
@@ -42,20 +44,20 @@ public:
   GCOVBuffer(MemoryBuffer *B) : Buffer(B), Cursor(0) {}
   
   /// readGCOVFormat - Read GCOV signature at the beginning of buffer.
-  enum GCOVFormat readGCOVFormat() {
+  GCOV::GCOVFormat readGCOVFormat() {
     StringRef Magic = Buffer->getBuffer().slice(0, 12);
     Cursor = 12;
     if (Magic == "oncg*404MVLL")
-      return GCNO_404;
+      return GCOV::GCNO_404;
     else if (Magic == "oncg*204MVLL")
-      return GCNO_402;
+      return GCOV::GCNO_402;
     else if (Magic == "adcg*404MVLL")
-      return GCDA_404;
+      return GCOV::GCDA_404;
     else if (Magic == "adcg*204MVLL")
-      return GCDA_402;
+      return GCOV::GCDA_402;
     
     Cursor = 0;
-    return InvalidGCOV;
+    return GCOV::InvalidGCOV;
   }
 
   /// readFunctionTag - If cursor points to a function tag then increment the
@@ -63,8 +65,8 @@ public:
   bool readFunctionTag() {
     StringRef Tag = Buffer->getBuffer().slice(Cursor, Cursor+4);
     if (Tag.empty() || 
-	Tag[0] != '\0' || Tag[1] != '\0' ||
-	Tag[2] != '\0' || Tag[3] != '\1') {
+        Tag[0] != '\0' || Tag[1] != '\0' ||
+        Tag[2] != '\0' || Tag[3] != '\1') {
       return false;
     }
     Cursor += 4;
@@ -76,8 +78,8 @@ public:
   bool readBlockTag() {
     StringRef Tag = Buffer->getBuffer().slice(Cursor, Cursor+4);
     if (Tag.empty() || 
-	Tag[0] != '\0' || Tag[1] != '\0' ||
-	Tag[2] != '\x41' || Tag[3] != '\x01') {
+        Tag[0] != '\0' || Tag[1] != '\0' ||
+        Tag[2] != '\x41' || Tag[3] != '\x01') {
       return false;
     }
     Cursor += 4;
@@ -89,8 +91,8 @@ public:
   bool readEdgeTag() {
     StringRef Tag = Buffer->getBuffer().slice(Cursor, Cursor+4);
     if (Tag.empty() || 
-	Tag[0] != '\0' || Tag[1] != '\0' ||
-	Tag[2] != '\x43' || Tag[3] != '\x01') {
+        Tag[0] != '\0' || Tag[1] != '\0' ||
+        Tag[2] != '\x43' || Tag[3] != '\x01') {
       return false;
     }
     Cursor += 4;
@@ -102,8 +104,8 @@ public:
   bool readLineTag() {
     StringRef Tag = Buffer->getBuffer().slice(Cursor, Cursor+4);
     if (Tag.empty() || 
-	Tag[0] != '\0' || Tag[1] != '\0' ||
-	Tag[2] != '\x45' || Tag[3] != '\x01') {
+        Tag[0] != '\0' || Tag[1] != '\0' ||
+        Tag[2] != '\x45' || Tag[3] != '\x01') {
       return false;
     }
     Cursor += 4;
@@ -115,8 +117,8 @@ public:
   bool readArcTag() {
     StringRef Tag = Buffer->getBuffer().slice(Cursor, Cursor+4);
     if (Tag.empty() || 
-	Tag[0] != '\0' || Tag[1] != '\0' ||
-	Tag[2] != '\xa1' || Tag[3] != '\1') {
+        Tag[0] != '\0' || Tag[1] != '\0' ||
+        Tag[2] != '\xa1' || Tag[3] != '\1') {
       return false;
     }
     Cursor += 4;
@@ -128,7 +130,7 @@ public:
     StringRef Str = Buffer->getBuffer().slice(Cursor, Cursor+4);
     assert (Str.empty() == false && "Unexpected memory buffer end!");
     Cursor += 4;
-    Result = *(uint32_t *)(Str.data());
+    Result = *(const uint32_t *)(Str.data());
     return Result;
   }
 
@@ -170,7 +172,7 @@ class GCOVFunction {
 public:
   GCOVFunction() : Ident(0), LineNumber(0) {}
   ~GCOVFunction();
-  bool read(GCOVBuffer &Buffer, GCOVFormat Format);
+  bool read(GCOVBuffer &Buffer, GCOV::GCOVFormat Format);
   void dump();
   void collectLineCounts(FileInfo &FI);
 private:

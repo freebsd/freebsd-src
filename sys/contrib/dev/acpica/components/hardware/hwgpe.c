@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,7 +64,6 @@ AcpiHwEnableWakeupGpeBlock (
  * FUNCTION:    AcpiHwGetGpeRegisterBit
  *
  * PARAMETERS:  GpeEventInfo        - Info block for the GPE
- *              GpeRegisterInfo     - Info block for the GPE register
  *
  * RETURN:      Register mask with a one in the GPE bit position
  *
@@ -76,12 +74,11 @@ AcpiHwEnableWakeupGpeBlock (
 
 UINT32
 AcpiHwGetGpeRegisterBit (
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo,
-    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo)
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
 {
 
     return ((UINT32) 1 <<
-        (GpeEventInfo->GpeNumber - GpeRegisterInfo->BaseGpeNumber));
+        (GpeEventInfo->GpeNumber - GpeEventInfo->RegisterInfo->BaseGpeNumber));
 }
 
 
@@ -130,7 +127,7 @@ AcpiHwLowSetGpe (
 
     /* Set or clear just the bit that corresponds to this GPE */
 
-    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo, GpeRegisterInfo);
+    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
     switch (Action)
     {
     case ACPI_GPE_CONDITIONAL_ENABLE:
@@ -153,7 +150,7 @@ AcpiHwLowSetGpe (
         break;
 
     default:
-        ACPI_ERROR ((AE_INFO, "Invalid GPE Action, %u\n", Action));
+        ACPI_ERROR ((AE_INFO, "Invalid GPE Action, %u", Action));
         return (AE_BAD_PARAMETER);
     }
 
@@ -199,7 +196,7 @@ AcpiHwClearGpe (
      * Write a one to the appropriate bit in the status register to
      * clear this GPE.
      */
-    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo, GpeRegisterInfo);
+    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
 
     Status = AcpiHwWrite (RegisterBit,
                     &GpeRegisterInfo->StatusAddress);
@@ -247,7 +244,7 @@ AcpiHwGetGpeStatus (
 
     /* Get the register bitmask for this GPE */
 
-    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo, GpeRegisterInfo);
+    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
 
     /* GPE currently enabled? (enabled for runtime?) */
 

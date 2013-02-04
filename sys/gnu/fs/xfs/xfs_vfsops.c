@@ -1954,7 +1954,7 @@ xfs_showargs(
 
 	for (xfs_infop = xfs_info; xfs_infop->flag; xfs_infop++) {
 		if (mp->m_flags & xfs_infop->flag)
-			sbuf_printf(m, xfs_infop->str);
+			sbuf_printf(m, "%s", xfs_infop->str);
 	}
 
 	if (mp->m_flags & XFS_MOUNT_IHASHSIZE)

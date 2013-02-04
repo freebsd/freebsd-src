@@ -835,10 +835,8 @@ static int
 aio_fsync_vnode(struct thread *td, struct vnode *vp)
 {
 	struct mount *mp;
-	int vfslocked;
 	int error;
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -852,7 +850,6 @@ aio_fsync_vnode(struct thread *td, struct vnode *vp)
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 drop:
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 

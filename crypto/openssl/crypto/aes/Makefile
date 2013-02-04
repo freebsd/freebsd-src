@@ -11,7 +11,7 @@ CFLAG=-g
 MAKEFILE=	Makefile
 AR=		ar r
 
-AES_ASM_OBJ=aes_core.o aes_cbc.o
+AES_ENC=aes_core.o aes_cbc.o
 
 CFLAGS= $(INCLUDES) $(CFLAG)
 ASFLAGS= $(INCLUDES) $(ASFLAG)
@@ -26,7 +26,7 @@ LIB=$(TOP)/libcrypto.a
 LIBSRC=aes_core.c aes_misc.c aes_ecb.c aes_cbc.c aes_cfb.c aes_ofb.c \
        aes_ctr.c aes_ige.c aes_wrap.c
 LIBOBJ=aes_misc.o aes_ecb.o aes_cfb.o aes_ofb.o aes_ctr.o aes_ige.o aes_wrap.o \
-       $(AES_ASM_OBJ)
+       $(AES_ENC)
 
 SRC= $(LIBSRC)
 
@@ -41,24 +41,46 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
-
-$(LIBOBJ): $(LIBSRC)
 
 aes-ia64.s: asm/aes-ia64.S
 	$(CC) $(CFLAGS) -E asm/aes-ia64.S > $@
 
-ax86-elf.s: asm/aes-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) aes-586.pl elf $(CFLAGS) $(PROCESSOR) > ../$@)
-ax86-cof.s: asm/aes-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) aes-586.pl coff $(CFLAGS) $(PROCESSOR) > ../$@)
-ax86-out.s: asm/aes-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) aes-586.pl a.out $(CFLAGS) $(PROCESSOR) > ../$@)
+aes-586.s:	asm/aes-586.pl ../perlasm/x86asm.pl
+	$(PERL) asm/aes-586.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
+vpaes-x86.s:	asm/vpaes-x86.pl ../perlasm/x86asm.pl
+	$(PERL) asm/vpaes-x86.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
+aesni-x86.s:	asm/aesni-x86.pl ../perlasm/x86asm.pl
+	$(PERL) asm/aesni-x86.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
 
 aes-x86_64.s: asm/aes-x86_64.pl
-	$(PERL) asm/aes-x86_64.pl $@
+	$(PERL) asm/aes-x86_64.pl $(PERLASM_SCHEME) > $@
+vpaes-x86_64.s:	asm/vpaes-x86_64.pl
+	$(PERL) asm/vpaes-x86_64.pl $(PERLASM_SCHEME) > $@
+bsaes-x86_64.s:	asm/bsaes-x86_64.pl
+	$(PERL) asm/bsaes-x86_64.pl $(PERLASM_SCHEME) > $@
+aesni-x86_64.s: asm/aesni-x86_64.pl
+	$(PERL) asm/aesni-x86_64.pl $(PERLASM_SCHEME) > $@
+aesni-sha1-x86_64.s:	asm/aesni-sha1-x86_64.pl
+	$(PERL) asm/aesni-sha1-x86_64.pl $(PERLASM_SCHEME) > $@
+
+aes-sparcv9.s: asm/aes-sparcv9.pl
+	$(PERL) asm/aes-sparcv9.pl $(CFLAGS) > $@
+
+aes-ppc.s:	asm/aes-ppc.pl
+	$(PERL) asm/aes-ppc.pl $(PERLASM_SCHEME) $@
+
+aes-parisc.s:	asm/aes-parisc.pl
+	$(PERL) asm/aes-parisc.pl $(PERLASM_SCHEME) $@
+
+aes-mips.S:	asm/aes-mips.pl
+	$(PERL) asm/aes-mips.pl $(PERLASM_SCHEME) $@
+
+# GNU make "catch all"
+aes-%.S:	asm/aes-%.pl;	$(PERL) $< $(PERLASM_SCHEME) > $@
+aes-armv4.o:	aes-armv4.S
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -97,16 +119,14 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-aes_cbc.o: ../../include/openssl/aes.h ../../include/openssl/e_os2.h
-aes_cbc.o: ../../include/openssl/opensslconf.h aes_cbc.c aes_locl.h
-aes_cfb.o: ../../e_os.h ../../include/openssl/aes.h
-aes_cfb.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-aes_cfb.o: aes_cfb.c aes_locl.h
+aes_cbc.o: ../../include/openssl/aes.h ../../include/openssl/modes.h
+aes_cbc.o: ../../include/openssl/opensslconf.h aes_cbc.c
+aes_cfb.o: ../../include/openssl/aes.h ../../include/openssl/modes.h
+aes_cfb.o: ../../include/openssl/opensslconf.h aes_cfb.c
 aes_core.o: ../../include/openssl/aes.h ../../include/openssl/e_os2.h
-aes_core.o: ../../include/openssl/fips.h ../../include/openssl/opensslconf.h
-aes_core.o: aes_core.c aes_locl.h
-aes_ctr.o: ../../include/openssl/aes.h ../../include/openssl/e_os2.h
-aes_ctr.o: ../../include/openssl/opensslconf.h aes_ctr.c aes_locl.h
+aes_core.o: ../../include/openssl/opensslconf.h aes_core.c aes_locl.h
+aes_ctr.o: ../../include/openssl/aes.h ../../include/openssl/modes.h
+aes_ctr.o: ../../include/openssl/opensslconf.h aes_ctr.c
 aes_ecb.o: ../../include/openssl/aes.h ../../include/openssl/e_os2.h
 aes_ecb.o: ../../include/openssl/opensslconf.h aes_ecb.c aes_locl.h
 aes_ige.o: ../../e_os.h ../../include/openssl/aes.h ../../include/openssl/bio.h
@@ -116,11 +136,13 @@ aes_ige.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h
 aes_ige.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 aes_ige.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
 aes_ige.o: ../../include/openssl/symhacks.h ../cryptlib.h aes_ige.c aes_locl.h
-aes_misc.o: ../../include/openssl/aes.h ../../include/openssl/e_os2.h
-aes_misc.o: ../../include/openssl/opensslconf.h
-aes_misc.o: ../../include/openssl/opensslv.h aes_locl.h aes_misc.c
-aes_ofb.o: ../../include/openssl/aes.h ../../include/openssl/e_os2.h
-aes_ofb.o: ../../include/openssl/opensslconf.h aes_locl.h aes_ofb.c
+aes_misc.o: ../../include/openssl/aes.h ../../include/openssl/crypto.h
+aes_misc.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
+aes_misc.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+aes_misc.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+aes_misc.o: ../../include/openssl/symhacks.h aes_locl.h aes_misc.c
+aes_ofb.o: ../../include/openssl/aes.h ../../include/openssl/modes.h
+aes_ofb.o: ../../include/openssl/opensslconf.h aes_ofb.c
 aes_wrap.o: ../../e_os.h ../../include/openssl/aes.h
 aes_wrap.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
 aes_wrap.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h

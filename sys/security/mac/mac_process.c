@@ -254,7 +254,7 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
     struct vm_map *map)
 {
 	vm_map_entry_t vme;
-	int vfslocked, result;
+	int result;
 	vm_prot_t revokeperms;
 	vm_object_t backing_object, object;
 	vm_ooffset_t offset;
@@ -300,7 +300,6 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 		if (object->type != OBJT_VNODE)
 			continue;
 		vp = (struct vnode *)object->handle;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		result = vme->max_protection;
 		mac_vnode_check_mmap_downgrade(cred, vp, &result);
@@ -310,10 +309,8 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 		 * but a policy needs to get removed.
 		 */
 		revokeperms = vme->max_protection & ~result;
-		if (!revokeperms) {
-			VFS_UNLOCK_GIANT(vfslocked);
+		if (!revokeperms)
 			continue;
-		}
 		printf("pid %ld: revoking %s perms from %#lx:%ld "
 		    "(max %s/cur %s)\n", (long)td->td_proc->p_pid,
 		    prot2str(revokeperms), (u_long)vme->start,
@@ -369,7 +366,6 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 			    vme->protection & ~revokeperms);
 			vm_map_simplify_entry(map, vme);
 		}
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	vm_map_unlock(map);
 }

@@ -33,6 +33,9 @@
 #ifndef _UFS_FFS_FS_H_
 #define _UFS_FFS_FS_H_
 
+#include <sys/mount.h>
+#include <ufs/ufs/dinode.h>
+
 /*
  * Each disk drive contains some number of filesystems.
  * A filesystem consists of a number of cylinder groups.
@@ -329,7 +332,8 @@ struct fs {
 	int32_t	 fs_old_cpc;		/* cyl per cycle in postbl */
 	int32_t	 fs_maxbsize;		/* maximum blocking factor permitted */
 	int64_t	 fs_unrefs;		/* number of unreferenced inodes */
-	int64_t	 fs_sparecon64[16];	/* old rotation block list head */
+	int64_t  fs_providersize;	/* size of underlying GEOM provider */
+	int64_t	 fs_sparecon64[15];	/* old rotation block list head */
 	int64_t	 fs_sblockloc;		/* byte offset of standard superblock */
 	struct	csum_total fs_cstotal;	/* (u) cylinder summary information */
 	ufs_time_t fs_time;		/* last time written */
@@ -761,5 +765,11 @@ CTASSERT(sizeof(union jrec) == JREC_SIZE);
 
 extern int inside[], around[];
 extern u_char *fragtbl[];
+
+/*
+ * IOCTLs used for filesystem write suspension.
+ */
+#define	UFSSUSPEND	_IOW('U', 1, fsid_t)
+#define	UFSRESUME	_IO('U', 2)
 
 #endif

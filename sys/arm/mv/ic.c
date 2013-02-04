@@ -105,7 +105,9 @@ mv_ic_attach(device_t dev)
 	sc->ic_high_regs = 0;
 	sc->ic_error_regs = 0;
 
-	if (dev_id == MV_DEV_88F6281 || dev_id == MV_DEV_MV78100 ||
+	if (dev_id == MV_DEV_88F6281 ||
+	    dev_id == MV_DEV_88F6282 ||
+	    dev_id == MV_DEV_MV78100 ||
 	    dev_id == MV_DEV_MV78100_Z0)
 		sc->ic_high_regs = 1;
 

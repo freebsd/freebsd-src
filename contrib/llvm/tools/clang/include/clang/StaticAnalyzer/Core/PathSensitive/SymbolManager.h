@@ -65,11 +65,8 @@ public:
 
   virtual void dumpToStream(raw_ostream &os) const {}
 
-  virtual QualType getType(ASTContext&) const = 0;
+  virtual QualType getType() const = 0;
   virtual void Profile(llvm::FoldingSetNodeID& profile) = 0;
-
-  // Implement isa<T> support.
-  static inline bool classof(const SymExpr*) { return true; }
 
   /// \brief Iterator over symbols that the current symbol depends on.
   ///
@@ -94,6 +91,8 @@ public:
     return symbol_iterator(this);
   }
   static symbol_iterator symbol_end() { return symbol_iterator(); }
+
+  unsigned computeComplexity() const;
 };
 
 typedef const SymExpr* SymbolRef;
@@ -142,7 +141,7 @@ public:
 
   virtual void dumpToStream(raw_ostream &os) const;
 
-  QualType getType(ASTContext&) const;
+  QualType getType() const;
 
   // Implement isa<T> support.
   static inline bool classof(const SymExpr *SE) {
@@ -171,7 +170,7 @@ public:
   unsigned getCount() const { return Count; }
   const void *getTag() const { return SymbolTag; }
 
-  QualType getType(ASTContext&) const;
+  QualType getType() const;
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -209,7 +208,7 @@ public:
   SymbolRef getParentSymbol() const { return parentSymbol; }
   const TypedValueRegion *getRegion() const { return R; }
 
-  QualType getType(ASTContext&) const;
+  QualType getType() const;
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -242,7 +241,7 @@ public:
 
   const SubRegion *getRegion() const { return R; }
 
-  QualType getType(ASTContext&) const;
+  QualType getType() const;
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -281,7 +280,7 @@ public:
   unsigned getCount() const { return Count; }
   const void *getTag() const { return Tag; }
 
-  QualType getType(ASTContext&) const;
+  QualType getType() const;
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -318,7 +317,7 @@ public:
   SymbolCast(const SymExpr *In, QualType From, QualType To) :
     SymExpr(CastSymbolKind), Operand(In), FromTy(From), ToTy(To) { }
 
-  QualType getType(ASTContext &C) const { return ToTy; }
+  QualType getType() const { return ToTy; }
 
   const SymExpr *getOperand() const { return Operand; }
 
@@ -356,7 +355,7 @@ public:
 
   // FIXME: We probably need to make this out-of-line to avoid redundant
   // generation of virtual functions.
-  QualType getType(ASTContext &C) const { return T; }
+  QualType getType() const { return T; }
 
   BinaryOperator::Opcode getOpcode() const { return Op; }
 
@@ -397,7 +396,7 @@ public:
              const SymExpr *rhs, QualType t)
     : SymExpr(IntSymKind), LHS(lhs), Op(op), RHS(rhs), T(t) {}
 
-  QualType getType(ASTContext &C) const { return T; }
+  QualType getType() const { return T; }
 
   BinaryOperator::Opcode getOpcode() const { return Op; }
 
@@ -444,7 +443,7 @@ public:
 
   // FIXME: We probably need to make this out-of-line to avoid redundant
   // generation of virtual functions.
-  QualType getType(ASTContext &C) const { return T; }
+  QualType getType() const { return T; }
 
   virtual void dumpToStream(raw_ostream &os) const;
 
@@ -493,18 +492,17 @@ public:
   /// \brief Make a unique symbol for MemRegion R according to its kind.
   const SymbolRegionValue* getRegionValueSymbol(const TypedValueRegion* R);
 
-  const SymbolConjured* getConjuredSymbol(const Stmt *E,
-					  const LocationContext *LCtx,
-					  QualType T,
-                                          unsigned VisitCount,
-                                          const void *SymbolTag = 0);
+  const SymbolConjured* conjureSymbol(const Stmt *E,
+                                      const LocationContext *LCtx,
+                                      QualType T,
+                                      unsigned VisitCount,
+                                      const void *SymbolTag = 0);
 
-  const SymbolConjured* getConjuredSymbol(const Expr *E,
-					  const LocationContext *LCtx,
-					  unsigned VisitCount,
-                                          const void *SymbolTag = 0) {
-    return getConjuredSymbol(E, LCtx, E->getType(),
-			     VisitCount, SymbolTag);
+  const SymbolConjured* conjureSymbol(const Expr *E,
+                                      const LocationContext *LCtx,
+                                      unsigned VisitCount,
+                                      const void *SymbolTag = 0) {
+    return conjureSymbol(E, LCtx, E->getType(), VisitCount, SymbolTag);
   }
 
   const SymbolDerived *getDerivedSymbol(SymbolRef parentSymbol,
@@ -539,7 +537,7 @@ public:
                                   const SymExpr *rhs, QualType t);
 
   QualType getType(const SymExpr *SE) const {
-    return SE->getType(Ctx);
+    return SE->getType();
   }
 
   /// \brief Add artificial symbol dependency.
@@ -553,6 +551,7 @@ public:
   BasicValueFactory &getBasicVals() { return BV; }
 };
 
+/// \brief A class responsible for cleaning up unused symbols.
 class SymbolReaper {
   enum SymbolStatus {
     NotProcessed,
@@ -569,21 +568,28 @@ class SymbolReaper {
 
   RegionSetTy RegionRoots;
   
-  const LocationContext *LCtx;
+  const StackFrameContext *LCtx;
   const Stmt *Loc;
   SymbolManager& SymMgr;
   StoreRef reapedStore;
   llvm::DenseMap<const MemRegion *, unsigned> includedRegionCache;
 
 public:
-  SymbolReaper(const LocationContext *ctx, const Stmt *s, SymbolManager& symmgr,
+  /// \brief Construct a reaper object, which removes everything which is not
+  /// live before we execute statement s in the given location context.
+  ///
+  /// If the statement is NULL, everything is this and parent contexts is
+  /// considered live.
+  /// If the stack frame context is NULL, everything on stack is considered
+  /// dead.
+  SymbolReaper(const StackFrameContext *Ctx, const Stmt *s, SymbolManager& symmgr,
                StoreManager &storeMgr)
-   : LCtx(ctx), Loc(s), SymMgr(symmgr), reapedStore(0, storeMgr) {}
+   : LCtx(Ctx), Loc(s), SymMgr(symmgr),
+     reapedStore(0, storeMgr) {}
 
   ~SymbolReaper() {}
 
   const LocationContext *getLocationContext() const { return LCtx; }
-  const Stmt *getCurrentStatement() const { return Loc; }
 
   bool isLive(SymbolRef sym);
   bool isLiveRegion(const MemRegion *region);

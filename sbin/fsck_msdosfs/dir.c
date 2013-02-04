@@ -28,7 +28,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: dir.c,v 1.14 1998/08/25 19:18:15 ross Exp $");
+__RCSID("$NetBSD: dir.c,v 1.20 2006/06/05 16:51:18 christos Exp $");
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
@@ -218,25 +218,26 @@ resetDosDirSection(struct bootblock *boot, struct fatEntry *fat)
 	int b1, b2;
 	cl_t cl;
 	int ret = FSOK;
+	size_t len;
 
 	b1 = boot->bpbRootDirEnts * 32;
 	b2 = boot->bpbSecPerClust * boot->bpbBytesPerSec;
 
-	if ((buffer = malloc( b1 > b2 ? b1 : b2)) == NULL) {
-		perror("No space for directory buffer");
+	if ((buffer = malloc(len = b1 > b2 ? b1 : b2)) == NULL) {
+		perr("No space for directory buffer (%zu)", len);
 		return FSFATAL;
 	}
 
-	if ((delbuf = malloc(b2)) == NULL) {
+	if ((delbuf = malloc(len = b2)) == NULL) {
 		free(buffer);
-		perror("No space for directory delbuf");
+		perr("No space for directory delbuf (%zu)", len);
 		return FSFATAL;
 	}
 
 	if ((rootDir = newDosDirEntry()) == NULL) {
 		free(buffer);
 		free(delbuf);
-		perror("No space for directory entry");
+		perr("No space for directory entry");
 		return FSFATAL;
 	}
 
@@ -328,7 +329,7 @@ delete(int f, struct bootblock *boot, struct fatEntry *fat, cl_t startcl,
 		off *= boot->bpbBytesPerSec;
 		if (lseek(f, off, SEEK_SET) != off
 		    || read(f, delbuf, clsz) != clsz) {
-			perror("Unable to read directory");
+			perr("Unable to read directory");
 			return FSFATAL;
 		}
 		while (s < e) {
@@ -337,7 +338,7 @@ delete(int f, struct bootblock *boot, struct fatEntry *fat, cl_t startcl,
 		}
 		if (lseek(f, off, SEEK_SET) != off
 		    || write(f, delbuf, clsz) != clsz) {
-			perror("Unable to write directory");
+			perr("Unable to write directory");
 			return FSFATAL;
 		}
 		if (startcl == endcl)
@@ -475,7 +476,7 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 		off *= boot->bpbBytesPerSec;
 		if (lseek(f, off, SEEK_SET) != off
 		    || read(f, buffer, last) != last) {
-			perror("Unable to read directory");
+			perr("Unable to read directory");
 			return FSFATAL;
 		}
 		last /= 32;
@@ -821,7 +822,7 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 
 				/* create directory tree node */
 				if (!(d = newDosDirEntry())) {
-					perror("No space for directory");
+					perr("No space for directory");
 					return FSFATAL;
 				}
 				memcpy(d, &dirent, sizeof(struct dosDirEntry));
@@ -830,7 +831,7 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 
 				/* Enter this directory into the todo list */
 				if (!(n = newDirTodo())) {
-					perror("No space for todo list");
+					perr("No space for todo list");
 					return FSFATAL;
 				}
 				n->next = pendingDirectories;
@@ -851,7 +852,7 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 			last *= 32;
 			if (lseek(f, off, SEEK_SET) != off
 			    || write(f, buffer, last) != last) {
-				perror("Unable to write directory");
+				perr("Unable to write directory");
 				return FSFATAL;
 			}
 			mod &= ~THISMOD;
@@ -870,7 +871,7 @@ readDosDirSection(int f, struct bootblock *boot, struct fatEntry *fat,
 		last *= 32;
 		if (lseek(f, off, SEEK_SET) != off
 		    || write(f, buffer, last) != last) {
-			perror("Unable to write directory");
+			perr("Unable to write directory");
 			return FSFATAL;
 		}
 		mod &= ~THISMOD;
@@ -941,7 +942,7 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 	if (!lfbuf) {
 		lfbuf = malloc(boot->ClusterSize);
 		if (!lfbuf) {
-			perror("No space for buffer");
+			perr("No space for buffer");
 			return FSFATAL;
 		}
 		p = NULL;
@@ -965,7 +966,7 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 		    + boot->ClusterOffset * boot->bpbBytesPerSec;
 		if (lseek(dosfs, lfoff, SEEK_SET) != lfoff
 		    || (size_t)read(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
-			perror("could not read LOST.DIR");
+			perr("could not read LOST.DIR");
 			return FSFATAL;
 		}
 		p = lfbuf;
@@ -995,7 +996,7 @@ reconnect(int dosfs, struct bootblock *boot, struct fatEntry *fat, cl_t head)
 	fat[head].flags |= FAT_USED;
 	if (lseek(dosfs, lfoff, SEEK_SET) != lfoff
 	    || (size_t)write(dosfs, lfbuf, boot->ClusterSize) != boot->ClusterSize) {
-		perror("could not write LOST.DIR");
+		perr("could not write LOST.DIR");
 		return FSFATAL;
 	}
 	return FSDIRMOD;

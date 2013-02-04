@@ -103,7 +103,7 @@ device		bpf		# Berkeley packet filter
 
 # Ethernet
 device		mii		# Minimal MII support
-device		ate		# Atmel AT91 Ethernet friver
+device		ate		# Atmel AT91 Ethernet driver
 
 # I2C
 device		at91_twi	# Atmel AT91 Two-wire Interface
@@ -150,7 +150,7 @@ options 	ALT_BREAK_TO_DEBUGGER
 
 # USB support
 #options 	USB_DEBUG	# enable debug msgs
-device		ohci		# OHCI PCI->USB interface
+device		ohci		# OHCI USB interface
 device		usb		# USB Bus (required)
 #device		umass		# Disks/Mass storage - Requires scbus and da
 

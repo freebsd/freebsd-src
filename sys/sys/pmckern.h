@@ -201,8 +201,7 @@ do {						\
 
 /* Check if a process is using HWPMCs.*/
 #define PMC_PROC_IS_USING_PMCS(p)				\
-	(__predict_false(atomic_load_acq_int(&(p)->p_flag) &	\
-	    P_HWPMC))
+	(__predict_false(p->p_flag & P_HWPMC))
 
 /* Check if a thread have pending user capture. */
 #define PMC_IS_PENDING_CALLCHAIN(p)				\

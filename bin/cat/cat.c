@@ -58,13 +58,13 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stddef.h>
 
-static int bflag, eflag, nflag, sflag, tflag, vflag;
+static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
 static int rval;
 static const char *filename;
 
@@ -77,31 +77,39 @@ static void raw_cat(int);
 static int udom_open(const char *path, int flags);
 #endif
 
-/* Memory strategy threshold, in pages: if physmem is larger then this, use a 
- * large buffer */
-#define PHYSPAGES_THRESHOLD (32*1024)
+/*
+ * Memory strategy threshold, in pages: if physmem is larger than this,
+ * use a large buffer.
+ */
+#define	PHYSPAGES_THRESHOLD (32 * 1024)
 
-/* Maximum buffer size in bytes - do not allow it to grow larger than this */
-#define BUFSIZE_MAX (2*1024*1024)
+/* Maximum buffer size in bytes - do not allow it to grow larger than this. */
+#define	BUFSIZE_MAX (2 * 1024 * 1024)
 
-/* Small (default) buffer size in bytes. It's inefficient for this to be
- * smaller than MAXPHYS */
-#define BUFSIZE_SMALL (MAXPHYS)
+/*
+ * Small (default) buffer size in bytes. It's inefficient for this to be
+ * smaller than MAXPHYS.
+ */
+#define	BUFSIZE_SMALL (MAXPHYS)
 
 int
 main(int argc, char *argv[])
 {
 	int ch;
+	struct flock stdout_lock;
 
 	setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "benstuv")) != -1)
+	while ((ch = getopt(argc, argv, "belnstuv")) != -1)
 		switch (ch) {
 		case 'b':
 			bflag = nflag = 1;	/* -b implies -n */
 			break;
 		case 'e':
 			eflag = vflag = 1;	/* -e implies -v */
+			break;
+		case 'l':
+			lflag = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -123,6 +131,15 @@ main(int argc, char *argv[])
 		}
 	argv += optind;
 
+	if (lflag) {
+		stdout_lock.l_len = 0;
+		stdout_lock.l_start = 0;
+		stdout_lock.l_type = F_WRLCK;
+		stdout_lock.l_whence = SEEK_SET;
+		if (fcntl(STDOUT_FILENO, F_SETLKW, &stdout_lock) == -1)
+			err(EXIT_FAILURE, "stdout");
+	}
+
 	if (bflag || eflag || nflag || sflag || tflag || vflag)
 		scanfiles(argv, 1);
 	else
@@ -136,7 +153,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: cat [-benstuv] [file ...]\n");
+	fprintf(stderr, "usage: cat [-belnstuv] [file ...]\n");
 	exit(1);
 	/* NOTREACHED */
 }
@@ -144,13 +161,12 @@ usage(void)
 static void
 scanfiles(char *argv[], int cooked)
 {
-	int i = 0;
+	int fd, i;
 	char *path;
 	FILE *fp;
 
+	i = 0;
 	while ((path = argv[i]) != NULL || i == 0) {
-		int fd;
-
 		if (path == NULL || strcmp(path, "-") == 0) {
 			filename = "stdin";
 			fd = STDIN_FILENO;
@@ -257,16 +273,16 @@ raw_cat(int rfd)
 	wfd = fileno(stdout);
 	if (buf == NULL) {
 		if (fstat(wfd, &sbuf))
-			err(1, "%s", filename);
+			err(1, "stdout");
 		if (S_ISREG(sbuf.st_mode)) {
 			/* If there's plenty of RAM, use a large copy buffer */
 			if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
-				bsize = MIN(BUFSIZE_MAX, MAXPHYS*8);
+				bsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
 			else
 				bsize = BUFSIZE_SMALL;
 		} else
-			bsize = MAX(sbuf.st_blksize, 
-					(blksize_t)sysconf(_SC_PAGESIZE));
+			bsize = MAX(sbuf.st_blksize,
+			    (blksize_t)sysconf(_SC_PAGESIZE));
 		if ((buf = malloc(bsize)) == NULL)
 			err(1, "malloc() failure of IO buffer");
 	}
@@ -327,7 +343,7 @@ udom_open(const char *path, int flags)
 			break;
 		}
 	}
-	return(fd);
+	return (fd);
 }
 
 #endif

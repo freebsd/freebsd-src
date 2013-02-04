@@ -151,7 +151,8 @@ void ASTDeclWriter::VisitDecl(Decl *D) {
   Record.push_back(D->isInvalidDecl());
   Record.push_back(D->hasAttrs());
   if (D->hasAttrs())
-    Writer.WriteAttributes(D->getAttrs(), Record);
+    Writer.WriteAttributes(ArrayRef<const Attr*>(D->getAttrs().begin(),
+                                                 D->getAttrs().size()), Record);
   Record.push_back(D->isImplicit());
   Record.push_back(D->isUsed(false));
   Record.push_back(D->isReferenced());
@@ -415,8 +416,9 @@ void ASTDeclWriter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   }
   Record.push_back(D->isInstanceMethod());
   Record.push_back(D->isVariadic());
-  Record.push_back(D->isSynthesized());
+  Record.push_back(D->isPropertyAccessor());
   Record.push_back(D->isDefined());
+  Record.push_back(D->IsOverriding);
 
   Record.push_back(D->IsRedeclaration);
   Record.push_back(D->HasRedeclaration);
@@ -559,7 +561,6 @@ void ASTDeclWriter::VisitObjCCategoryDecl(ObjCCategoryDecl *D) {
          PL = D->protocol_loc_begin(), PLEnd = D->protocol_loc_end();
        PL != PLEnd; ++PL)
     Writer.AddSourceLocation(*PL, Record);
-  Record.push_back(D->hasSynthBitfield());
   Code = serialization::DECL_OBJC_CATEGORY;
 }
 
@@ -605,9 +606,10 @@ void ASTDeclWriter::VisitObjCImplementationDecl(ObjCImplementationDecl *D) {
   Writer.AddDeclRef(D->getSuperClass(), Record);
   Writer.AddSourceLocation(D->getIvarLBraceLoc(), Record);
   Writer.AddSourceLocation(D->getIvarRBraceLoc(), Record);
+  Record.push_back(D->hasNonZeroConstructors());
+  Record.push_back(D->hasDestructors());
   Writer.AddCXXCtorInitializers(D->IvarInitializers, D->NumIvarInitializers,
                                 Record);
-  Record.push_back(D->hasSynthBitfield());
   Code = serialization::DECL_OBJC_IMPLEMENTATION;
 }
 
@@ -625,11 +627,13 @@ void ASTDeclWriter::VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D) {
 void ASTDeclWriter::VisitFieldDecl(FieldDecl *D) {
   VisitDeclaratorDecl(D);
   Record.push_back(D->isMutable());
-  Record.push_back(D->getBitWidth()? 1 : D->hasInClassInitializer() ? 2 : 0);
-  if (D->getBitWidth())
-    Writer.AddStmt(D->getBitWidth());
-  else if (D->hasInClassInitializer())
-    Writer.AddStmt(D->getInClassInitializer());
+  if (D->InitializerOrBitWidth.getInt() != ICIS_NoInit ||
+      D->InitializerOrBitWidth.getPointer()) {
+    Record.push_back(D->InitializerOrBitWidth.getInt() + 1);
+    Writer.AddStmt(D->InitializerOrBitWidth.getPointer());
+  } else {
+    Record.push_back(0);
+  }
   if (!D->getDeclName())
     Writer.AddDeclRef(Context.getInstantiatedFromUnnamedFieldDecl(D), Record);
 
@@ -673,6 +677,8 @@ void ASTDeclWriter::VisitVarDecl(VarDecl *D) {
   Record.push_back(D->isNRVOVariable());
   Record.push_back(D->isCXXForRangeDecl());
   Record.push_back(D->isARCPseudoStrong());
+  Record.push_back(D->isConstexpr());
+
   if (D->getInit()) {
     Record.push_back(!D->isInitKnownICE() ? 1 : (D->isInitICE() ? 3 : 2));
     Writer.AddStmt(D->getInit());
@@ -703,6 +709,7 @@ void ASTDeclWriter::VisitVarDecl(VarDecl *D) {
       D->getInitStyle() == VarDecl::CInit &&
       D->getInit() == 0 &&
       !isa<ParmVarDecl>(D) &&
+      !D->isConstexpr() &&
       !SpecInfo)
     AbbrevToUse = Writer.getDeclVarAbbrev();
 
@@ -943,11 +950,16 @@ void ASTDeclWriter::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
 void ASTDeclWriter::VisitCXXMethodDecl(CXXMethodDecl *D) {
   VisitFunctionDecl(D);
-  Record.push_back(D->size_overridden_methods());
-  for (CXXMethodDecl::method_iterator
-         I = D->begin_overridden_methods(), E = D->end_overridden_methods();
-         I != E; ++I)
-    Writer.AddDeclRef(*I, Record);
+  if (D->isCanonicalDecl()) {
+    Record.push_back(D->size_overridden_methods());
+    for (CXXMethodDecl::method_iterator
+           I = D->begin_overridden_methods(), E = D->end_overridden_methods();
+           I != E; ++I)
+      Writer.AddDeclRef(*I, Record);
+  } else {
+    // We only need to record overridden methods once for the canonical decl.
+    Record.push_back(0);
+  }
   Code = serialization::DECL_CXX_METHOD;
 }
 
@@ -979,6 +991,7 @@ void ASTDeclWriter::VisitCXXConversionDecl(CXXConversionDecl *D) {
 
 void ASTDeclWriter::VisitImportDecl(ImportDecl *D) {
   VisitDecl(D);
+  Record.push_back(Writer.getSubmoduleID(D->getImportedModule()));
   ArrayRef<SourceLocation> IdentifierLocs = D->getIdentifierLocs();
   Record.push_back(!IdentifierLocs.empty());
   if (IdentifierLocs.empty()) {
@@ -1054,7 +1067,7 @@ void ASTDeclWriter::VisitClassTemplateDecl(ClassTemplateDecl *D) {
   VisitRedeclarableTemplateDecl(D);
 
   if (D->isFirstDeclaration()) {
-    typedef llvm::FoldingSet<ClassTemplateSpecializationDecl> CTSDSetTy;
+    typedef llvm::FoldingSetVector<ClassTemplateSpecializationDecl> CTSDSetTy;
     CTSDSetTy &CTSDSet = D->getSpecializations();
     Record.push_back(CTSDSet.size());
     for (CTSDSetTy::iterator I=CTSDSet.begin(), E = CTSDSet.end(); I!=E; ++I) {
@@ -1062,7 +1075,8 @@ void ASTDeclWriter::VisitClassTemplateDecl(ClassTemplateDecl *D) {
       Writer.AddDeclRef(&*I, Record);
     }
 
-    typedef llvm::FoldingSet<ClassTemplatePartialSpecializationDecl> CTPSDSetTy;
+    typedef llvm::FoldingSetVector<ClassTemplatePartialSpecializationDecl>
+      CTPSDSetTy;
     CTPSDSetTy &CTPSDSet = D->getPartialSpecializations();
     Record.push_back(CTPSDSet.size());
     for (CTPSDSetTy::iterator I=CTPSDSet.begin(), E=CTPSDSet.end(); I!=E; ++I) {
@@ -1070,7 +1084,7 @@ void ASTDeclWriter::VisitClassTemplateDecl(ClassTemplateDecl *D) {
       Writer.AddDeclRef(&*I, Record); 
     }
 
-    // InjectedClassNameType is computed, no need to write it.
+    Writer.AddTypeRef(D->getCommonPtr()->InjectedClassNameType, Record);
   }
   Code = serialization::DECL_CLASS_TEMPLATE;
 }
@@ -1100,6 +1114,7 @@ void ASTDeclWriter::VisitClassTemplateSpecializationDecl(
   Writer.AddTemplateArgumentList(&D->getTemplateArgs(), Record);
   Writer.AddSourceLocation(D->getPointOfInstantiation(), Record);
   Record.push_back(D->getSpecializationKind());
+  Record.push_back(D->isCanonicalDecl());
 
   if (D->isCanonicalDecl()) {
     // When reading, we'll add it to the folding set of the following template. 
@@ -1146,7 +1161,7 @@ void ASTDeclWriter::VisitFunctionTemplateDecl(FunctionTemplateDecl *D) {
 
     // Write the function specialization declarations.
     Record.push_back(D->getSpecializations().size());
-    for (llvm::FoldingSet<FunctionTemplateSpecializationInfo>::iterator
+    for (llvm::FoldingSetVector<FunctionTemplateSpecializationInfo>::iterator
            I = D->getSpecializations().begin(),
            E = D->getSpecializations().end()   ; I != E; ++I) {
       assert(I->Function->isCanonicalDecl() &&
@@ -1169,7 +1184,8 @@ void ASTDeclWriter::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
 
 void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   // For an expanded parameter pack, record the number of expansion types here
-  // so that it's easier for 
+  // so that it's easier for deserialization to allocate the right amount of
+  // memory.
   if (D->isExpandedParameterPack())
     Record.push_back(D->getNumExpansionTypes());
   
@@ -1198,15 +1214,30 @@ void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
 }
 
 void ASTDeclWriter::VisitTemplateTemplateParmDecl(TemplateTemplateParmDecl *D) {
+  // For an expanded parameter pack, record the number of expansion types here
+  // so that it's easier for deserialization to allocate the right amount of
+  // memory.
+  if (D->isExpandedParameterPack())
+    Record.push_back(D->getNumExpansionTemplateParameters());
+
   VisitTemplateDecl(D);
   // TemplateParmPosition.
   Record.push_back(D->getDepth());
   Record.push_back(D->getPosition());
-  // Rest of TemplateTemplateParmDecl.
-  Writer.AddTemplateArgumentLoc(D->getDefaultArgument(), Record);
-  Record.push_back(D->defaultArgumentWasInherited());
-  Record.push_back(D->isParameterPack());
-  Code = serialization::DECL_TEMPLATE_TEMPLATE_PARM;
+
+  if (D->isExpandedParameterPack()) {
+    for (unsigned I = 0, N = D->getNumExpansionTemplateParameters();
+         I != N; ++I)
+      Writer.AddTemplateParameterList(D->getExpansionTemplateParameters(I),
+                                      Record);
+    Code = serialization::DECL_EXPANDED_TEMPLATE_TEMPLATE_PARM_PACK;
+  } else {
+    // Rest of TemplateTemplateParmDecl.
+    Writer.AddTemplateArgumentLoc(D->getDefaultArgument(), Record);
+    Record.push_back(D->defaultArgumentWasInherited());
+    Record.push_back(D->isParameterPack());
+    Code = serialization::DECL_TEMPLATE_TEMPLATE_PARM;
+  }
 }
 
 void ASTDeclWriter::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl *D) {
@@ -1217,6 +1248,7 @@ void ASTDeclWriter::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl *D) {
 void ASTDeclWriter::VisitStaticAssertDecl(StaticAssertDecl *D) {
   VisitDecl(D);
   Writer.AddStmt(D->getAssertExpr());
+  Record.push_back(D->isFailed());
   Writer.AddStmt(D->getMessage());
   Writer.AddSourceLocation(D->getRParenLoc(), Record);
   Code = serialization::DECL_STATIC_ASSERT;
@@ -1458,6 +1490,7 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // isNRVOVariable
   Abv->Add(BitCodeAbbrevOp(0));                       // isCXXForRangeDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // isARCPseudoStrong
+  Abv->Add(BitCodeAbbrevOp(0));                       // isConstexpr
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInit
   Abv->Add(BitCodeAbbrevOp(0));                   // HasMemberSpecializationInfo
   // ParmVarDecl
@@ -1536,6 +1569,7 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isNRVOVariable
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isCXXForRangeDecl
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isARCPseudoStrong
+  Abv->Add(BitCodeAbbrevOp(0));                         // isConstexpr
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // HasInit
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // HasMemberSpecInfo
   // Type Source Info
@@ -1599,7 +1633,7 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   //Character Literal
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // getValue
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Location
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //IsWide
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 2)); // getKind
   CharacterLiteralAbbrev = Stream.EmitAbbrev(Abv);
 
   Abv = new BitCodeAbbrev();

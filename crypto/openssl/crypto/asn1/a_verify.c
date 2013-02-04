@@ -60,6 +60,7 @@
 #include <time.h>
 
 #include "cryptlib.h"
+#include "asn1_locl.h"
 
 #ifndef NO_SYS_TYPES_H
 # include <sys/types.h>
@@ -100,13 +101,13 @@ int ASN1_verify(i2d_of_void *i2d, X509_ALGOR *a, ASN1_BIT_STRING *signature,
 	p=buf_in;
 
 	i2d(data,&p);
-	if (!EVP_VerifyInit_ex(&ctx,type, NULL))
+	if (!EVP_VerifyInit_ex(&ctx,type, NULL)
+		|| !EVP_VerifyUpdate(&ctx,(unsigned char *)buf_in,inl))
 		{
 		ASN1err(ASN1_F_ASN1_VERIFY,ERR_R_EVP_LIB);
 		ret=0;
 		goto err;
 		}
-	EVP_VerifyUpdate(&ctx,(unsigned char *)buf_in,inl);
 
 	OPENSSL_cleanse(buf_in,(unsigned int)inl);
 	OPENSSL_free(buf_in);
@@ -130,28 +131,64 @@ err:
 #endif
 
 
-int ASN1_item_verify(const ASN1_ITEM *it, X509_ALGOR *a, ASN1_BIT_STRING *signature,
-	     void *asn, EVP_PKEY *pkey)
+int ASN1_item_verify(const ASN1_ITEM *it, X509_ALGOR *a,
+		ASN1_BIT_STRING *signature, void *asn, EVP_PKEY *pkey)
 	{
 	EVP_MD_CTX ctx;
-	const EVP_MD *type;
 	unsigned char *buf_in=NULL;
-	int ret= -1,i,inl;
+	int ret= -1,inl;
+
+	int mdnid, pknid;
 
 	EVP_MD_CTX_init(&ctx);
-	i=OBJ_obj2nid(a->algorithm);
-	type=EVP_get_digestbyname(OBJ_nid2sn(i));
-	if (type == NULL)
+
+	/* Convert signature OID into digest and public key OIDs */
+	if (!OBJ_find_sigid_algs(OBJ_obj2nid(a->algorithm), &mdnid, &pknid))
 		{
-		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM);
+		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_UNKNOWN_SIGNATURE_ALGORITHM);
 		goto err;
 		}
-
-	if (!EVP_VerifyInit_ex(&ctx,type, NULL))
+	if (mdnid == NID_undef)
 		{
-		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ERR_R_EVP_LIB);
-		ret=0;
-		goto err;
+		if (!pkey->ameth || !pkey->ameth->item_verify)
+			{
+			ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_UNKNOWN_SIGNATURE_ALGORITHM);
+			goto err;
+			}
+		ret = pkey->ameth->item_verify(&ctx, it, asn, a,
+							signature, pkey);
+		/* Return value of 2 means carry on, anything else means we
+		 * exit straight away: either a fatal error of the underlying
+		 * verification routine handles all verification.
+		 */
+		if (ret != 2)
+			goto err;
+		ret = -1;
+		}
+	else
+		{
+		const EVP_MD *type;
+		type=EVP_get_digestbynid(mdnid);
+		if (type == NULL)
+			{
+			ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM);
+			goto err;
+			}
+
+		/* Check public key OID matches public key type */
+		if (EVP_PKEY_type(pknid) != pkey->ameth->pkey_id)
+			{
+			ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_WRONG_PUBLIC_KEY_TYPE);
+			goto err;
+			}
+
+		if (!EVP_DigestVerifyInit(&ctx, NULL, type, NULL, pkey))
+			{
+			ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ERR_R_EVP_LIB);
+			ret=0;
+			goto err;
+			}
+
 		}
 
 	inl = ASN1_item_i2d(asn, &buf_in, it);
@@ -162,13 +199,18 @@ int ASN1_item_verify(const ASN1_ITEM *it, X509_ALGOR *a, ASN1_BIT_STRING *signat
 		goto err;
 		}
 
-	EVP_VerifyUpdate(&ctx,(unsigned char *)buf_in,inl);
+	if (!EVP_DigestVerifyUpdate(&ctx,buf_in,inl))
+		{
+		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ERR_R_EVP_LIB);
+		ret=0;
+		goto err;
+		}
 
 	OPENSSL_cleanse(buf_in,(unsigned int)inl);
 	OPENSSL_free(buf_in);
 
-	if (EVP_VerifyFinal(&ctx,(unsigned char *)signature->data,
-			(unsigned int)signature->length,pkey) <= 0)
+	if (EVP_DigestVerifyFinal(&ctx,signature->data,
+			(size_t)signature->length) <= 0)
 		{
 		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ERR_R_EVP_LIB);
 		ret=0;

@@ -127,7 +127,9 @@ ntfs_read(ap)
 	int resid, off, toread;
 	int error;
 
-	dprintf(("ntfs_read: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
+	dprintf(("ntfs_read: ino: %ju, off: %jd resid: %d, segflg: %d\n",
+	    (uintmax_t)ip->i_number, (intmax_t)uio->uio_offset,
+	    uio->uio_resid, uio->uio_segflg));
 
 	dprintf(("ntfs_read: filesize: %d",(u_int32_t)fp->f_size));
 
@@ -179,7 +181,8 @@ ntfs_getattr(ap)
 	register struct ntnode *ip = FTONT(fp);
 	register struct vattr *vap = ap->a_vap;
 
-	dprintf(("ntfs_getattr: %d, flags: %d\n",ip->i_number,ip->i_flag));
+	dprintf(("ntfs_getattr: %ju, flags: %d\n",
+	    (uintmax_t)ip->i_number, ip->i_flag));
 
 	vap->va_fsid = dev2udev(ip->i_dev);
 	vap->va_fileid = ip->i_number;
@@ -214,8 +217,8 @@ ntfs_inactive(ap)
 	register struct ntnode *ip = VTONT(ap->a_vp);
 #endif
 
-	dprintf(("ntfs_inactive: vnode: %p, ntnode: %d\n", ap->a_vp,
-	    ip->i_number));
+	dprintf(("ntfs_inactive: vnode: %p, ntnode: %ju\n", ap->a_vp,
+	    (uintmax_t)ip->i_number));
 
 	/* XXX since we don't support any filesystem changes
 	 * right now, nothing more needs to be done
@@ -237,7 +240,8 @@ ntfs_reclaim(ap)
 	register struct ntnode *ip = FTONT(fp);
 	int error;
 
-	dprintf(("ntfs_reclaim: vnode: %p, ntnode: %d\n", vp, ip->i_number));
+	dprintf(("ntfs_reclaim: vnode: %p, ntnode: %ju\n",
+	    vp, (uintmax_t)ip->i_number));
 
 	/*
 	 * Destroy the vm object and flush associated pages.
@@ -600,8 +604,8 @@ ntfs_lookup(ap)
 			return (error);
 		}
 
-		dprintf(("ntfs_lookup: found ino: %d\n", 
-			VTONT(*ap->a_vpp)->i_number));
+		dprintf(("ntfs_lookup: found ino: %ju\n",
+		    (uintmax_t)VTONT(*ap->a_vpp)->i_number));
 	}
 
 	if (cnp->cn_flags & MAKEENTRY)

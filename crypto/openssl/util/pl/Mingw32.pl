@@ -19,7 +19,7 @@ $cc='gcc';
 if ($debug)
 	{ $cflags="-DL_ENDIAN -DDSO_WIN32 -g2 -ggdb"; }
 else
-	{ $cflags="-DL_ENDIAN -DDSO_WIN32 -fomit-frame-pointer -O3 -march=i486 -Wall"; }
+	{ $cflags="-DL_ENDIAN -DDSO_WIN32 -fomit-frame-pointer -O3 -mcpu=i486 -Wall"; }
 
 if ($gaswin and !$no_asm)
 	{
@@ -43,8 +43,6 @@ if ($gaswin and !$no_asm)
         $rmd160_asm_src='crypto/ripemd/asm/rm-win32.s';
         $sha1_asm_obj='$(OBJ_D)\s1-win32.o';
         $sha1_asm_src='crypto/sha/asm/s1-win32.s';
-	$cpuid_asm_obj='$(OBJ_D)\cpu-win32.o';
-	$cpuid_asm_src='crypto/cpu-win32.s';
 	$cflags.=" -DBN_ASM -DMD5_ASM -DSHA1_ASM -DOPENSSL_BN_ASM_PART_WORDS";
 	}
 
@@ -57,7 +55,7 @@ $link='${CC}';
 $lflags='${CFLAGS}';
 $efile='-o ';
 $exep='';
-$ex_libs="-lwsock32 -lgdi32";
+$ex_libs="-lws2_32 -lgdi32";
 
 # static library stuff
 $mklib='ar r';

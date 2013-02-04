@@ -1,0 +1,13 @@
+syntax("kyuafile", 1)
+
+test_suite("atf")
+
+atf_test_program{name="application_test"}
+atf_test_program{name="env_test"}
+atf_test_program{name="exceptions_test"}
+atf_test_program{name="expand_test"}
+atf_test_program{name="fs_test"}
+atf_test_program{name="parser_test"}
+atf_test_program{name="sanity_test"}
+atf_test_program{name="text_test"}
+atf_test_program{name="ui_test"}

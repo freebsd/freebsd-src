@@ -246,7 +246,7 @@ This next example shows how to expand environment variables safely.
 
 Suppose you want a variable called B<tmpfile> to refer to a
 temporary filename. The directory it is placed in can determined by
-the the B<TEMP> or B<TMP> environment variables but they may not be
+the B<TEMP> or B<TMP> environment variables but they may not be
 set to any value at all. If you just include the environment variable
 names and the variable doesn't exist then this will cause an error when
 an attempt is made to load the configuration file. By making use of the

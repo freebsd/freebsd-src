@@ -87,32 +87,24 @@ public:
   bool is(tok::TokenKind K) const { return Kind == (unsigned) K; }
   bool isNot(tok::TokenKind K) const { return Kind != (unsigned) K; }
 
-  /// isAnyIdentifier - Return true if this is a raw identifier (when lexing
+  /// \brief Return true if this is a raw identifier (when lexing
   /// in raw mode) or a non-keyword identifier (when lexing in non-raw mode).
   bool isAnyIdentifier() const {
-    return is(tok::identifier) || is(tok::raw_identifier);
+    return tok::isAnyIdentifier(getKind());
   }
 
-  /// isLiteral - Return true if this is a "literal", like a numeric
+  /// \brief Return true if this is a "literal", like a numeric
   /// constant, string, etc.
   bool isLiteral() const {
-    return is(tok::numeric_constant) || is(tok::char_constant) ||
-           is(tok::wide_char_constant) || is(tok::utf16_char_constant) ||
-           is(tok::utf32_char_constant) || is(tok::string_literal) ||
-           is(tok::wide_string_literal) || is(tok::utf8_string_literal) ||
-           is(tok::utf16_string_literal) || is(tok::utf32_string_literal) ||
-           is(tok::angle_string_literal);
+    return tok::isLiteral(getKind());
   }
 
+  /// \brief Return true if this is any of tok::annot_* kind tokens.
   bool isAnnotation() const {
-#define ANNOTATION(NAME) \
-    if (is(tok::annot_##NAME)) \
-      return true;
-#include "clang/Basic/TokenKinds.def"
-    return false;
+    return tok::isAnnotation(getKind());
   }
 
-  /// getLocation - Return a source location identifier for the specified
+  /// \brief Return a source location identifier for the specified
   /// offset in the current file.
   SourceLocation getLocation() const { return Loc; }
   unsigned getLength() const {
@@ -139,8 +131,8 @@ public:
     return isAnnotation() ? getAnnotationEndLoc() : getLocation();
   }
 
-  /// getAnnotationRange - SourceRange of the group of tokens that this
-  /// annotation token represents.
+  /// \brief SourceRange of the group of tokens that this annotation token
+  /// represents.
   SourceRange getAnnotationRange() const {
     return SourceRange(getLocation(), getAnnotationEndLoc());
   }
@@ -153,8 +145,7 @@ public:
     return tok::getTokenName( (tok::TokenKind) Kind);
   }
 
-  /// startToken - Reset all flags to cleared.
-  ///
+  /// \brief Reset all flags to cleared.
   void startToken() {
     Kind = tok::unknown;
     Flags = 0;
@@ -208,24 +199,25 @@ public:
     PtrData = val;
   }
 
-  /// setFlag - Set the specified flag.
+  /// \brief Set the specified flag.
   void setFlag(TokenFlags Flag) {
     Flags |= Flag;
   }
 
-  /// clearFlag - Unset the specified flag.
+  /// \brief Unset the specified flag.
   void clearFlag(TokenFlags Flag) {
     Flags &= ~Flag;
   }
 
-  /// getFlags - Return the internal represtation of the flags.
-  ///  Only intended for low-level operations such as writing tokens to
-  //   disk.
+  /// \brief Return the internal represtation of the flags.
+  ///
+  /// This is only intended for low-level operations such as writing tokens to
+  /// disk.
   unsigned getFlags() const {
     return Flags;
   }
 
-  /// setFlagValue - Set a flag to either true or false.
+  /// \brief Set a flag to either true or false.
   void setFlagValue(TokenFlags Flag, bool Val) {
     if (Val)
       setFlag(Flag);
@@ -237,25 +229,23 @@ public:
   ///
   bool isAtStartOfLine() const { return (Flags & StartOfLine) ? true : false; }
 
-  /// hasLeadingSpace - Return true if this token has whitespace before it.
+  /// \brief Return true if this token has whitespace before it.
   ///
   bool hasLeadingSpace() const { return (Flags & LeadingSpace) ? true : false; }
 
-  /// isExpandDisabled - Return true if this identifier token should never
+  /// \brief Return true if this identifier token should never
   /// be expanded in the future, due to C99 6.10.3.4p2.
   bool isExpandDisabled() const {
     return (Flags & DisableExpand) ? true : false;
   }
 
-  /// isObjCAtKeyword - Return true if we have an ObjC keyword identifier.
+  /// \brief Return true if we have an ObjC keyword identifier.
   bool isObjCAtKeyword(tok::ObjCKeywordKind objcKey) const;
 
-  /// getObjCKeywordID - Return the ObjC keyword kind.
+  /// \brief Return the ObjC keyword kind.
   tok::ObjCKeywordKind getObjCKeywordID() const;
 
-  /// needsCleaning - Return true if this token has trigraphs or escaped
-  /// newlines in it.
-  ///
+  /// \brief Return true if this token has trigraphs or escaped newlines in it.
   bool needsCleaning() const { return (Flags & NeedsCleaning) ? true : false; }
 
   /// \brief Return true if this token has an empty macro before it.
@@ -269,23 +259,22 @@ public:
   bool hasUDSuffix() const { return (Flags & HasUDSuffix) ? true : false; }
 };
 
-/// PPConditionalInfo - Information about the conditional stack (#if directives)
+/// \brief Information about the conditional stack (\#if directives)
 /// currently active.
 struct PPConditionalInfo {
-  /// IfLoc - Location where the conditional started.
-  ///
+  /// \brief Location where the conditional started.
   SourceLocation IfLoc;
 
-  /// WasSkipping - True if this was contained in a skipping directive, e.g.
-  /// in a "#if 0" block.
+  /// \brief True if this was contained in a skipping directive, e.g.,
+  /// in a "\#if 0" block.
   bool WasSkipping;
 
-  /// FoundNonSkip - True if we have emitted tokens already, and now we're in
-  /// an #else block or something.  Only useful in Skipping blocks.
+  /// \brief True if we have emitted tokens already, and now we're in
+  /// an \#else block or something.  Only useful in Skipping blocks.
   bool FoundNonSkip;
 
-  /// FoundElse - True if we've seen a #else in this block.  If so,
-  /// #elif/#else directives are not allowed.
+  /// \brief True if we've seen a \#else in this block.  If so,
+  /// \#elif/\#else directives are not allowed.
   bool FoundElse;
 };
 

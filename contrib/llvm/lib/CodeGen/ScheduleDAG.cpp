@@ -64,10 +64,27 @@ const MCInstrDesc *ScheduleDAG::getNodeDesc(const SDNode *Node) const {
 /// specified node.
 bool SUnit::addPred(const SDep &D) {
   // If this node already has this depenence, don't add a redundant one.
-  for (SmallVector<SDep, 4>::const_iterator I = Preds.begin(), E = Preds.end();
-       I != E; ++I)
-    if (*I == D)
+  for (SmallVector<SDep, 4>::iterator I = Preds.begin(), E = Preds.end();
+       I != E; ++I) {
+    if (I->overlaps(D)) {
+      // Extend the latency if needed. Equivalent to removePred(I) + addPred(D).
+      if (I->getLatency() < D.getLatency()) {
+        SUnit *PredSU = I->getSUnit();
+        // Find the corresponding successor in N.
+        SDep ForwardD = *I;
+        ForwardD.setSUnit(this);
+        for (SmallVector<SDep, 4>::iterator II = PredSU->Succs.begin(),
+               EE = PredSU->Succs.end(); II != EE; ++II) {
+          if (*II == ForwardD) {
+            II->setLatency(D.getLatency());
+            break;
+          }
+        }
+        I->setLatency(D.getLatency());
+      }
       return false;
+    }
+  }
   // Now add a corresponding succ to N.
   SDep P = D;
   P.setSUnit(this);
@@ -262,6 +279,7 @@ void SUnit::ComputeHeight() {
   } while (!WorkList.empty());
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// SUnit - Scheduling unit. It's an wrapper around either a single SDNode or
 /// a group of nodes flagged together.
 void SUnit::dump(const ScheduleDAG *G) const {
@@ -319,6 +337,7 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
   }
   dbgs() << "\n";
 }
+#endif
 
 #ifndef NDEBUG
 /// VerifyScheduledDAG - Verify that all SUnits were scheduled and that

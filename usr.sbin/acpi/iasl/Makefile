@@ -10,25 +10,26 @@ SRCS+=	ahpredef.c dmextern.c dmrestag.c dmtable.c dmtbdump.c	\
 # compiler
 SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
-	aslerror.c aslfiles.c aslfold.c asllength.c		\
-	asllisting.c aslload.c asllookup.c aslmain.c aslmap.c	\
-	aslopcodes.c asloperands.c aslopt.c aslpredef.c		\
-	aslresource.c aslrestype1.c aslrestype1i.c		\
-	aslrestype2.c aslrestype2d.c aslrestype2e.c		\
-	aslrestype2q.c aslrestype2s.c aslrestype2w.c		\
-	aslstartup.c aslstubs.c	asltransform.c asltree.c	\
-	aslutils.c asluuid.c aslwalks.c dtcompile.c dtexpress.c	\
-	dtfield.c dtio.c dtparser.y.h dtparserlex.c		\
-	dtparserparse.c dtsubtable.c dttable.c dttemplate.c	\
-	dtutils.c prexpress.c prmacros.c prparser.y.h		\
-	prparserlex.c prparserparse.c prscan.c prutils.c
+	aslerror.c aslfileio.c aslfiles.c aslfold.c aslhex.c	\
+	asllength.c asllisting.c aslload.c asllookup.c		\
+	aslmain.c aslmap.c aslmethod.c aslnamesp.c aslopcodes.c	\
+	asloperands.c aslopt.c aslpredef.c aslresource.c	\
+	aslrestype1.c aslrestype1i.c aslrestype2.c		\
+	aslrestype2d.c aslrestype2e.c aslrestype2q.c		\
+	aslrestype2s.c aslrestype2w.c aslstartup.c aslstubs.c	\
+	asltransform.c asltree.c aslutils.c asluuid.c		\
+	aslwalks.c aslxref.c dtcompile.c dtexpress.c dtfield.c	\
+	dtio.c dtparser.y.h dtparserlex.c dtparserparse.c	\
+	dtsubtable.c dttable.c dttemplate.c dtutils.c		\
+	prexpress.c prmacros.c prparser.y.h prparserlex.c	\
+	prparserparse.c prscan.c prutils.c
 
 # components/debugger
 SRCS+=	dbfileio.c
 
 # components/disassembler
-SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmresrc.c dmresrcl.c	\
-	dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmresrc.c	\
+	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\
@@ -42,8 +43,8 @@ SRCS+=	exconvrt.c excreate.c exdump.c exmisc.c exmutex.c	\
 	exstoren.c exstorob.c exsystem.c exutils.c
 
 # components/parser
-SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
-	pstree.c psutils.c pswalk.c
+SRCS+=	psargs.c psloop.c psobject.c psopcode.c psopinfo.c	\
+	psparse.c psscope.c pstree.c psutils.c pswalk.c
 
 # components/namespace
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nsnames.c nsobject.c	\
@@ -56,7 +57,8 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
 	utdecode.c utdelete.c utexcep.c utglobal.c utinit.c	\
 	utlock.c utmath.c utmisc.c utmutex.c utobject.c		\
-	utresrc.c utstate.c utxface.c utxferror.c
+	utownerid.c utresrc.c utstate.c utstring.c utxface.c	\
+	utxferror.c
 
 # os_specific/service_layers
 SRCS+=	osunixxf.c

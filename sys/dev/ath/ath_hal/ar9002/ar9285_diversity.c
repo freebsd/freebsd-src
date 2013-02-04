@@ -63,49 +63,49 @@ ath_lnaconf_alt_good_scan(struct ar9285_ant_comb *antcomb,
 {
 	antcomb->quick_scan_cnt = 0;
 
-	if (ant_conf.main_lna_conf == ATH_ANT_DIV_COMB_LNA2)
+	if (ant_conf.main_lna_conf == HAL_ANT_DIV_COMB_LNA2)
 		antcomb->rssi_lna2 = main_rssi_avg;
-	else if (ant_conf.main_lna_conf == ATH_ANT_DIV_COMB_LNA1)
+	else if (ant_conf.main_lna_conf == HAL_ANT_DIV_COMB_LNA1)
 		antcomb->rssi_lna1 = main_rssi_avg;
 
 	switch ((ant_conf.main_lna_conf << 4) | ant_conf.alt_lna_conf) {
 	case (0x10): /* LNA2 A-B */
-		antcomb->main_conf = ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+		antcomb->main_conf = HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 		antcomb->first_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
-		antcomb->second_quick_scan_conf = ATH_ANT_DIV_COMB_LNA1;
+			HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+		antcomb->second_quick_scan_conf = HAL_ANT_DIV_COMB_LNA1;
 		break;
 	case (0x20): /* LNA1 A-B */
-		antcomb->main_conf = ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+		antcomb->main_conf = HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 		antcomb->first_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
-		antcomb->second_quick_scan_conf = ATH_ANT_DIV_COMB_LNA2;
+			HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+		antcomb->second_quick_scan_conf = HAL_ANT_DIV_COMB_LNA2;
 		break;
 	case (0x21): /* LNA1 LNA2 */
-		antcomb->main_conf = ATH_ANT_DIV_COMB_LNA2;
+		antcomb->main_conf = HAL_ANT_DIV_COMB_LNA2;
 		antcomb->first_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+			HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 		antcomb->second_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+			HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 		break;
 	case (0x12): /* LNA2 LNA1 */
-		antcomb->main_conf = ATH_ANT_DIV_COMB_LNA1;
+		antcomb->main_conf = HAL_ANT_DIV_COMB_LNA1;
 		antcomb->first_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+			HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 		antcomb->second_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+			HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 		break;
 	case (0x13): /* LNA2 A+B */
-		antcomb->main_conf = ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+		antcomb->main_conf = HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 		antcomb->first_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
-		antcomb->second_quick_scan_conf = ATH_ANT_DIV_COMB_LNA1;
+			HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+		antcomb->second_quick_scan_conf = HAL_ANT_DIV_COMB_LNA1;
 		break;
 	case (0x23): /* LNA1 A+B */
-		antcomb->main_conf = ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+		antcomb->main_conf = HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 		antcomb->first_quick_scan_conf =
-			ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
-		antcomb->second_quick_scan_conf = ATH_ANT_DIV_COMB_LNA2;
+			HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+		antcomb->second_quick_scan_conf = HAL_ANT_DIV_COMB_LNA2;
 		break;
 	default:
 		break;
@@ -131,7 +131,7 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 		antcomb->rssi_first = main_rssi_avg;
 		antcomb->rssi_second = alt_rssi_avg;
 
-		if (antcomb->main_conf == ATH_ANT_DIV_COMB_LNA1) {
+		if (antcomb->main_conf == HAL_ANT_DIV_COMB_LNA1) {
 			/* main is LNA1 */
 			if (ath_is_alt_ant_ratio_better(alt_ratio,
 						ATH_ANT_DIV_COMB_LNA1_DELTA_HI,
@@ -141,7 +141,7 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 				antcomb->first_ratio = AH_TRUE;
 			else
 				antcomb->first_ratio = AH_FALSE;
-		} else if (antcomb->main_conf == ATH_ANT_DIV_COMB_LNA2) {
+		} else if (antcomb->main_conf == HAL_ANT_DIV_COMB_LNA2) {
 			if (ath_is_alt_ant_ratio_better(alt_ratio,
 						ATH_ANT_DIV_COMB_LNA1_DELTA_MID,
 						ATH_ANT_DIV_COMB_LNA1_DELTA_LOW,
@@ -168,26 +168,26 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 		antcomb->rssi_first = main_rssi_avg;
 		antcomb->rssi_third = alt_rssi_avg;
 
-		if (antcomb->second_quick_scan_conf == ATH_ANT_DIV_COMB_LNA1)
+		if (antcomb->second_quick_scan_conf == HAL_ANT_DIV_COMB_LNA1)
 			antcomb->rssi_lna1 = alt_rssi_avg;
 		else if (antcomb->second_quick_scan_conf ==
-			 ATH_ANT_DIV_COMB_LNA2)
+			 HAL_ANT_DIV_COMB_LNA2)
 			antcomb->rssi_lna2 = alt_rssi_avg;
 		else if (antcomb->second_quick_scan_conf ==
-			 ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2) {
-			if (antcomb->main_conf == ATH_ANT_DIV_COMB_LNA2)
+			 HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2) {
+			if (antcomb->main_conf == HAL_ANT_DIV_COMB_LNA2)
 				antcomb->rssi_lna2 = main_rssi_avg;
-			else if (antcomb->main_conf == ATH_ANT_DIV_COMB_LNA1)
+			else if (antcomb->main_conf == HAL_ANT_DIV_COMB_LNA1)
 				antcomb->rssi_lna1 = main_rssi_avg;
 		}
 
 		if (antcomb->rssi_lna2 > antcomb->rssi_lna1 +
 		    ATH_ANT_DIV_COMB_LNA1_LNA2_SWITCH_DELTA)
-			div_ant_conf->main_lna_conf = ATH_ANT_DIV_COMB_LNA2;
+			div_ant_conf->main_lna_conf = HAL_ANT_DIV_COMB_LNA2;
 		else
-			div_ant_conf->main_lna_conf = ATH_ANT_DIV_COMB_LNA1;
+			div_ant_conf->main_lna_conf = HAL_ANT_DIV_COMB_LNA1;
 
-		if (antcomb->main_conf == ATH_ANT_DIV_COMB_LNA1) {
+		if (antcomb->main_conf == HAL_ANT_DIV_COMB_LNA1) {
 			if (ath_is_alt_ant_ratio_better(alt_ratio,
 						ATH_ANT_DIV_COMB_LNA1_DELTA_HI,
 						ATH_ANT_DIV_COMB_LNA1_DELTA_LOW,
@@ -196,7 +196,7 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 				antcomb->second_ratio = AH_TRUE;
 			else
 				antcomb->second_ratio = AH_FALSE;
-		} else if (antcomb->main_conf == ATH_ANT_DIV_COMB_LNA2) {
+		} else if (antcomb->main_conf == HAL_ANT_DIV_COMB_LNA2) {
 			if (ath_is_alt_ant_ratio_better(alt_ratio,
 						ATH_ANT_DIV_COMB_LNA1_DELTA_MID,
 						ATH_ANT_DIV_COMB_LNA1_DELTA_LOW,
@@ -221,33 +221,33 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 			if (antcomb->rssi_second > antcomb->rssi_third) {
 				/* first alt*/
 				if ((antcomb->first_quick_scan_conf ==
-				    ATH_ANT_DIV_COMB_LNA1) ||
+				    HAL_ANT_DIV_COMB_LNA1) ||
 				    (antcomb->first_quick_scan_conf ==
-				    ATH_ANT_DIV_COMB_LNA2))
+				    HAL_ANT_DIV_COMB_LNA2))
 					/* Set alt LNA1 or LNA2*/
 					if (div_ant_conf->main_lna_conf ==
-					    ATH_ANT_DIV_COMB_LNA2)
+					    HAL_ANT_DIV_COMB_LNA2)
 						div_ant_conf->alt_lna_conf =
-							ATH_ANT_DIV_COMB_LNA1;
+							HAL_ANT_DIV_COMB_LNA1;
 					else
 						div_ant_conf->alt_lna_conf =
-							ATH_ANT_DIV_COMB_LNA2;
+							HAL_ANT_DIV_COMB_LNA2;
 				else
 					/* Set alt to A+B or A-B */
 					div_ant_conf->alt_lna_conf =
 						antcomb->first_quick_scan_conf;
 			} else if ((antcomb->second_quick_scan_conf ==
-				   ATH_ANT_DIV_COMB_LNA1) ||
+				   HAL_ANT_DIV_COMB_LNA1) ||
 				   (antcomb->second_quick_scan_conf ==
-				   ATH_ANT_DIV_COMB_LNA2)) {
+				   HAL_ANT_DIV_COMB_LNA2)) {
 				/* Set alt LNA1 or LNA2 */
 				if (div_ant_conf->main_lna_conf ==
-				    ATH_ANT_DIV_COMB_LNA2)
+				    HAL_ANT_DIV_COMB_LNA2)
 					div_ant_conf->alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 				else
 					div_ant_conf->alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 			} else {
 				/* Set alt to A+B or A-B */
 				div_ant_conf->alt_lna_conf =
@@ -256,17 +256,17 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 		} else if (antcomb->first_ratio) {
 			/* first alt */
 			if ((antcomb->first_quick_scan_conf ==
-			    ATH_ANT_DIV_COMB_LNA1) ||
+			    HAL_ANT_DIV_COMB_LNA1) ||
 			    (antcomb->first_quick_scan_conf ==
-			    ATH_ANT_DIV_COMB_LNA2))
+			    HAL_ANT_DIV_COMB_LNA2))
 					/* Set alt LNA1 or LNA2 */
 				if (div_ant_conf->main_lna_conf ==
-				    ATH_ANT_DIV_COMB_LNA2)
+				    HAL_ANT_DIV_COMB_LNA2)
 					div_ant_conf->alt_lna_conf =
-							ATH_ANT_DIV_COMB_LNA1;
+							HAL_ANT_DIV_COMB_LNA1;
 				else
 					div_ant_conf->alt_lna_conf =
-							ATH_ANT_DIV_COMB_LNA2;
+							HAL_ANT_DIV_COMB_LNA2;
 			else
 				/* Set alt to A+B or A-B */
 				div_ant_conf->alt_lna_conf =
@@ -274,33 +274,33 @@ ath_select_ant_div_from_quick_scan(struct ar9285_ant_comb *antcomb,
 		} else if (antcomb->second_ratio) {
 				/* second alt */
 			if ((antcomb->second_quick_scan_conf ==
-			    ATH_ANT_DIV_COMB_LNA1) ||
+			    HAL_ANT_DIV_COMB_LNA1) ||
 			    (antcomb->second_quick_scan_conf ==
-			    ATH_ANT_DIV_COMB_LNA2))
+			    HAL_ANT_DIV_COMB_LNA2))
 				/* Set alt LNA1 or LNA2 */
 				if (div_ant_conf->main_lna_conf ==
-				    ATH_ANT_DIV_COMB_LNA2)
+				    HAL_ANT_DIV_COMB_LNA2)
 					div_ant_conf->alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 				else
 					div_ant_conf->alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 			else
 				/* Set alt to A+B or A-B */
 				div_ant_conf->alt_lna_conf =
 						antcomb->second_quick_scan_conf;
 		} else {
 			/* main is largest */
-			if ((antcomb->main_conf == ATH_ANT_DIV_COMB_LNA1) ||
-			    (antcomb->main_conf == ATH_ANT_DIV_COMB_LNA2))
+			if ((antcomb->main_conf == HAL_ANT_DIV_COMB_LNA1) ||
+			    (antcomb->main_conf == HAL_ANT_DIV_COMB_LNA2))
 				/* Set alt LNA1 or LNA2 */
 				if (div_ant_conf->main_lna_conf ==
-				    ATH_ANT_DIV_COMB_LNA2)
+				    HAL_ANT_DIV_COMB_LNA2)
 					div_ant_conf->alt_lna_conf =
-							ATH_ANT_DIV_COMB_LNA1;
+							HAL_ANT_DIV_COMB_LNA1;
 				else
 					div_ant_conf->alt_lna_conf =
-							ATH_ANT_DIV_COMB_LNA2;
+							HAL_ANT_DIV_COMB_LNA2;
 			else
 				/* Set alt to A+B or A-B */
 				div_ant_conf->alt_lna_conf = antcomb->main_conf;
@@ -454,29 +454,29 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 
 	if (!antcomb->scan) {
 		if (alt_ratio > ATH_ANT_DIV_COMB_ALT_ANT_RATIO) {
-			if (curr_alt_set == ATH_ANT_DIV_COMB_LNA2) {
+			if (curr_alt_set == HAL_ANT_DIV_COMB_LNA2) {
 				/* Switch main and alt LNA */
 				div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 				div_ant_conf.alt_lna_conf  =
-						ATH_ANT_DIV_COMB_LNA1;
-			} else if (curr_alt_set == ATH_ANT_DIV_COMB_LNA1) {
+						HAL_ANT_DIV_COMB_LNA1;
+			} else if (curr_alt_set == HAL_ANT_DIV_COMB_LNA1) {
 				div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 				div_ant_conf.alt_lna_conf  =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 			}
 
 			goto div_comb_done;
-		} else if ((curr_alt_set != ATH_ANT_DIV_COMB_LNA1) &&
-			   (curr_alt_set != ATH_ANT_DIV_COMB_LNA2)) {
+		} else if ((curr_alt_set != HAL_ANT_DIV_COMB_LNA1) &&
+			   (curr_alt_set != HAL_ANT_DIV_COMB_LNA2)) {
 			/* Set alt to another LNA */
-			if (curr_main_set == ATH_ANT_DIV_COMB_LNA2)
+			if (curr_main_set == HAL_ANT_DIV_COMB_LNA2)
 				div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
-			else if (curr_main_set == ATH_ANT_DIV_COMB_LNA1)
+						HAL_ANT_DIV_COMB_LNA1;
+			else if (curr_main_set == HAL_ANT_DIV_COMB_LNA1)
 				div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 
 			goto div_comb_done;
 		}
@@ -488,33 +488,33 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 
 	if (!antcomb->scan_not_start) {
 		switch (curr_alt_set) {
-		case ATH_ANT_DIV_COMB_LNA2:
+		case HAL_ANT_DIV_COMB_LNA2:
 			antcomb->rssi_lna2 = alt_rssi_avg;
 			antcomb->rssi_lna1 = main_rssi_avg;
 			antcomb->scan = AH_TRUE;
 			/* set to A+B */
 			div_ant_conf.main_lna_conf =
-				ATH_ANT_DIV_COMB_LNA1;
+				HAL_ANT_DIV_COMB_LNA1;
 			div_ant_conf.alt_lna_conf  =
-				ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+				HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 			break;
-		case ATH_ANT_DIV_COMB_LNA1:
+		case HAL_ANT_DIV_COMB_LNA1:
 			antcomb->rssi_lna1 = alt_rssi_avg;
 			antcomb->rssi_lna2 = main_rssi_avg;
 			antcomb->scan = AH_TRUE;
 			/* set to A+B */
-			div_ant_conf.main_lna_conf = ATH_ANT_DIV_COMB_LNA2;
+			div_ant_conf.main_lna_conf = HAL_ANT_DIV_COMB_LNA2;
 			div_ant_conf.alt_lna_conf  =
-				ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+				HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 			break;
-		case ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2:
+		case HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2:
 			antcomb->rssi_add = alt_rssi_avg;
 			antcomb->scan = AH_TRUE;
 			/* set to A-B */
 			div_ant_conf.alt_lna_conf =
-				ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+				HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 			break;
-		case ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2:
+		case HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2:
 			antcomb->rssi_sub = alt_rssi_avg;
 			antcomb->scan = AH_FALSE;
 			if (antcomb->rssi_lna2 >
@@ -525,22 +525,22 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 				    (antcomb->rssi_add > antcomb->rssi_sub)) {
 					/* set to A+B */
 					div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 					div_ant_conf.alt_lna_conf  =
-						ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+						HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 				} else if (antcomb->rssi_sub >
 					   antcomb->rssi_lna1) {
 					/* set to A-B */
 					div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 					div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+						HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 				} else {
 					/* set to LNA1 */
 					div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 					div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 				}
 			} else {
 				/* use LNA1 as main LNA */
@@ -548,22 +548,22 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 				    (antcomb->rssi_add > antcomb->rssi_sub)) {
 					/* set to A+B */
 					div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 					div_ant_conf.alt_lna_conf  =
-						ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2;
+						HAL_ANT_DIV_COMB_LNA1_PLUS_LNA2;
 				} else if (antcomb->rssi_sub >
 					   antcomb->rssi_lna1) {
 					/* set to A-B */
 					div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 					div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2;
+						HAL_ANT_DIV_COMB_LNA1_MINUS_LNA2;
 				} else {
 					/* set to LNA2 */
 					div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 					div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 				}
 			}
 			break;
@@ -574,16 +574,16 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 		if (!antcomb->alt_good) {
 			antcomb->scan_not_start = AH_FALSE;
 			/* Set alt to another LNA */
-			if (curr_main_set == ATH_ANT_DIV_COMB_LNA2) {
+			if (curr_main_set == HAL_ANT_DIV_COMB_LNA2) {
 				div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 				div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
-			} else if (curr_main_set == ATH_ANT_DIV_COMB_LNA1) {
+						HAL_ANT_DIV_COMB_LNA1;
+			} else if (curr_main_set == HAL_ANT_DIV_COMB_LNA1) {
 				div_ant_conf.main_lna_conf =
-						ATH_ANT_DIV_COMB_LNA1;
+						HAL_ANT_DIV_COMB_LNA1;
 				div_ant_conf.alt_lna_conf =
-						ATH_ANT_DIV_COMB_LNA2;
+						HAL_ANT_DIV_COMB_LNA2;
 			}
 			goto div_comb_done;
 		}
@@ -697,8 +697,8 @@ ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 		/* Diversity disabled, RX = LNA1 */
 		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: HAL_ANT_FIXED_A\n",
 		    __func__);
-		regVal |= SM(ATH_ANT_DIV_COMB_LNA2, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
-		regVal |= SM(ATH_ANT_DIV_COMB_LNA1, AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+		regVal |= SM(HAL_ANT_DIV_COMB_LNA2, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+		regVal |= SM(HAL_ANT_DIV_COMB_LNA1, AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
 		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_0, AR_PHY_9285_ANT_DIV_ALT_GAINTB);
 		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_1, AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
 	    }
@@ -706,8 +706,8 @@ ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 		/* Diversity disabled, RX = LNA2 */
 		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: HAL_ANT_FIXED_B\n",
 		    __func__);
-		regVal |= SM(ATH_ANT_DIV_COMB_LNA1, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
-		regVal |= SM(ATH_ANT_DIV_COMB_LNA2, AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+		regVal |= SM(HAL_ANT_DIV_COMB_LNA1, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+		regVal |= SM(HAL_ANT_DIV_COMB_LNA2, AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
 		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_1, AR_PHY_9285_ANT_DIV_ALT_GAINTB);
 		regVal |= SM(AR_PHY_9285_ANT_DIV_GAINTB_0, AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
 	    }
@@ -740,8 +740,8 @@ ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 		    __func__);
 		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
 		regVal &= (~(AR_PHY_9285_ANT_DIV_MAIN_LNACONF | AR_PHY_9285_ANT_DIV_ALT_LNACONF));
-		regVal |= (ATH_ANT_DIV_COMB_LNA1 << AR_PHY_9285_ANT_DIV_MAIN_LNACONF_S);
-		regVal |= (ATH_ANT_DIV_COMB_LNA2 << AR_PHY_9285_ANT_DIV_ALT_LNACONF_S);
+		regVal |= (HAL_ANT_DIV_COMB_LNA1 << AR_PHY_9285_ANT_DIV_MAIN_LNACONF_S);
+		regVal |= (HAL_ANT_DIV_COMB_LNA2 << AR_PHY_9285_ANT_DIV_ALT_LNACONF_S);
 		regVal &= (~(AR_PHY_9285_FAST_DIV_BIAS));
 		regVal |= (0 << AR_PHY_9285_FAST_DIV_BIAS_S);
 		OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);

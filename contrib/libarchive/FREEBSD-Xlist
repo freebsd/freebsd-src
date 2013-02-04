@@ -1,4 +1,6 @@
-$FreeBSD$
+.git
+.gitattributes
+.gitignore
 CMakeLists.txt
 CTestConfig.cmake
 INSTALL

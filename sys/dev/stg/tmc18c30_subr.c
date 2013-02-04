@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h> 
 
 #include <cam/scsi/scsi_low.h>
-#include <cam/scsi/scsi_low_pisa.h>
 
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>

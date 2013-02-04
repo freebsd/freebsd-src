@@ -88,6 +88,17 @@ struct mmcsd_softc {
 	int suspend;
 };
 
+static const char *errmsg[] =
+{
+	"None",
+	"Timeout",
+	"Bad CRC",
+	"Fifo",
+	"Failed",
+	"Invalid",
+	"NO MEMORY"
+};
+
 /* bus entry points */
 static int mmcsd_attach(device_t dev);
 static int mmcsd_detach(device_t dev);
@@ -169,13 +180,10 @@ mmcsd_attach(device_t dev)
 	/*
 	 * Report the clock speed of the underlying hardware, which might be
 	 * different than what the card reports due to hardware limitations.
-	 * Report how many blocks the hardware transfers at once, but clip the
-	 * number to MAXPHYS since the system won't initiate larger transfers.
+	 * Report how many blocks the hardware transfers at once.
 	 */
 	speed = mmcbr_get_clock(device_get_parent(dev));
 	maxblocks = mmc_get_max_data(dev);
-	if (maxblocks > MAXPHYS)
-		maxblocks = MAXPHYS;
 	device_printf(dev, "%ju%cB <%s>%s at %s %d.%01dMHz/%dbit/%d-block\n",
 	    mb, unit, mmc_get_card_id_string(dev),
 	    mmc_get_read_only(dev) ? " (read-only)" : "",
@@ -286,6 +294,14 @@ mmcsd_strategy(struct bio *bp)
 	}
 }
 
+static const char *
+mmcsd_errmsg(int e)
+{
+	if (e < 0 || e > MMC_ERR_MAX)
+		return "Bad error code";
+	return errmsg[e];
+}
+
 static daddr_t
 mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 {
@@ -337,12 +353,13 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 			stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 			req.stop = &stop;
 		}
-//		printf("Len %d  %lld-%lld flags %#x sz %d\n",
-//		    (int)data.len, (long long)block, (long long)end, data.flags, sz);
 		MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
 		    &req);
-		if (req.cmd->error != MMC_ERR_NONE)
+		if (req.cmd->error != MMC_ERR_NONE) {
+			device_printf(dev, "Error indicated: %d %s\n",
+			    req.cmd->error, mmcsd_errmsg(req.cmd->error));
 			break;
+		}
 		block += numblocks;
 	}
 	return (block);

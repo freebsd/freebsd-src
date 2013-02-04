@@ -152,12 +152,12 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 
 
 static uint32_t
-sctp_is_desired_interface_type(struct ifaddr *ifa)
+sctp_is_desired_interface_type(struct ifnet *ifn)
 {
 	int result;
 
 	/* check the interface type to see if it's one we care about */
-	switch (ifa->ifa_ifp->if_type) {
+	switch (ifn->if_type) {
 	case IFT_ETHER:
 	case IFT_ISO88023:
 	case IFT_ISO88024:
@@ -216,6 +216,10 @@ sctp_init_ifns_for_vrf(int vrfid)
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
+		if (sctp_is_desired_interface_type(ifn) == 0) {
+			/* non desired type */
+			continue;
+		}
 		IF_ADDR_RLOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
 			if (ifa->ifa_addr == NULL) {
@@ -238,10 +242,6 @@ sctp_init_ifns_for_vrf(int vrfid)
 				break;
 #endif
 			default:
-				continue;
-			}
-			if (sctp_is_desired_interface_type(ifa) == 0) {
-				/* non desired type */
 				continue;
 			}
 			switch (ifa->ifa_addr->sa_family) {
@@ -317,6 +317,10 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 	if (ifa->ifa_addr == NULL) {
 		return;
 	}
+	if (sctp_is_desired_interface_type(ifa->ifa_ifp) == 0) {
+		/* non desired type */
+		return;
+	}
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -338,22 +342,16 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		/* non inet/inet6 skip */
 		return;
 	}
-
-	if (sctp_is_desired_interface_type(ifa) == 0) {
-		/* non desired type */
-		return;
-	}
 	if (cmd == RTM_ADD) {
 		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
-		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type,
-		    ifa->ifa_ifp->if_xname,
+		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type, ifa->ifa_ifp->if_xname,
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
 	} else {
 
 		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr,
 		    ifa->ifa_ifp->if_index,
-		    ifa->ifa_ifp->if_xname
-		    );
+		    ifa->ifa_ifp->if_xname);
+
 		/*
 		 * We don't bump refcount here so when it completes the
 		 * final delete will happen.

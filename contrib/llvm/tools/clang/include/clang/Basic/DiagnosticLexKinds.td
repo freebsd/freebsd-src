@@ -41,9 +41,9 @@ def trigraph_ends_block_comment : Warning<"trigraph ends block comment">,
 def trigraph_converted : Warning<"trigraph converted to '%0' character">,
     InGroup<Trigraphs>;
 
-def ext_multi_line_bcpl_comment : Extension<"multi-line // comment">,
+def ext_multi_line_line_comment : Extension<"multi-line // comment">,
     InGroup<Comment>;
-def ext_bcpl_comment : Extension<
+def ext_line_comment : Extension<
   "// comments are not allowed in this language">,
   InGroup<Comment>;
 def ext_no_newline_eof : Extension<"no newline at end of file">, 
@@ -55,7 +55,7 @@ def warn_cxx98_compat_no_newline_eof : Warning<
 
 def ext_dollar_in_identifier : Extension<"'$' in identifier">,
   InGroup<DiagGroup<"dollar-in-identifier-extension">>;
-def ext_charize_microsoft : Extension<"@# is a microsoft extension">,
+def ext_charize_microsoft : Extension<"charizing operator #@ is a Microsoft extension">,
   InGroup<Microsoft>;
 
 def ext_token_used : Extension<"extension used">,
@@ -64,9 +64,12 @@ def ext_token_used : Extension<"extension used">,
 def warn_cxx11_keyword : Warning<"'%0' is a keyword in C++11">,
   InGroup<CXX11Compat>, DefaultIgnore;
 
-def warn_unterminated_string : ExtWarn<"missing terminating '\"' character">;
-def warn_unterminated_char : ExtWarn<"missing terminating ' character">;
-def err_empty_character : Error<"empty character constant">;
+def ext_unterminated_string : ExtWarn<"missing terminating '\"' character">,
+  InGroup<InvalidPPToken>;
+def ext_unterminated_char : ExtWarn<"missing terminating ' character">,
+  InGroup<InvalidPPToken>;
+def ext_empty_character : ExtWarn<"empty character constant">,
+  InGroup<InvalidPPToken>;
 def err_unterminated_block_comment : Error<"unterminated /* comment">;
 def err_invalid_character_to_charify : Error<
   "invalid argument to convert to character">;
@@ -124,15 +127,16 @@ def warn_char_constant_too_large : Warning<
 def err_multichar_utf_character_literal : Error<
   "Unicode character literals may not contain multiple characters">;
 def err_exponent_has_no_digits : Error<"exponent has no digits">;
-def ext_imaginary_constant : Extension<"imaginary constants are an extension">;
+def ext_imaginary_constant : Extension<
+  "imaginary constants are a GNU extension">, InGroup<GNU>;
 def err_hexconstant_requires_exponent : Error<
   "hexadecimal floating constants require an exponent">;
 def err_hexconstant_requires_digits : Error<
   "hexadecimal floating constants require a significand">;
 def ext_hexconstant_invalid : Extension<
-  "hexadecimal floating constants are a C99 feature">;
+  "hexadecimal floating constants are a C99 feature">, InGroup<C99>;
 def ext_binary_literal : Extension<
-  "binary integer literals are an extension">;
+  "binary integer literals are a GNU extension">, InGroup<GNU>;
 def err_pascal_string_too_long : Error<"Pascal string is too long">;
 def warn_octal_escape_too_large : ExtWarn<"octal escape sequence out of range">;
 def warn_hex_escape_too_large : ExtWarn<"hex escape sequence out of range">;
@@ -177,6 +181,7 @@ def err_bad_character_encoding : Error<
 def warn_bad_character_encoding : ExtWarn<
   "illegal character encoding in character literal">,
   InGroup<DiagGroup<"invalid-source-encoding">>;
+def err_lexing_string : Error<"failure when lexing a string">;
 
 
 //===----------------------------------------------------------------------===//
@@ -224,6 +229,12 @@ def pp_macro_not_used : Warning<"macro is not used">, DefaultIgnore,
 def warn_pp_undef_identifier : Warning<
   "%0 is not defined, evaluates to 0">,
   InGroup<DiagGroup<"undef">>, DefaultIgnore;
+def warn_pp_ambiguous_macro : Warning<
+  "ambiguous expansion of macro %0">, InGroup<AmbiguousMacro>;
+def note_pp_ambiguous_macro_chosen : Note<
+  "expanding this definition of %0">;
+def note_pp_ambiguous_macro_other : Note<
+  "other definition of %0">;
 
 def pp_invalid_string_literal : Warning<
   "invalid string literal, ignoring final '\\'">;
@@ -251,7 +262,7 @@ def ext_pp_comma_expr : Extension<"comma operator in operand of #if">;
 def ext_pp_bad_vaargs_use : Extension<
   "__VA_ARGS__ can only appear in the expansion of a C99 variadic macro">;
 def ext_pp_macro_redef : ExtWarn<"%0 macro redefined">;
-def ext_variadic_macro : Extension<"variadic macros were introduced in C99">,
+def ext_variadic_macro : Extension<"variadic macros are a C99 feature">,
   InGroup<VariadicMacros>;
 def warn_cxx98_compat_variadic_macro : Warning<
   "variadic macros are incompatible with C++98">,
@@ -264,15 +275,19 @@ def ext_embedded_directive : Extension<
   "embedding a directive within macro arguments has undefined behavior">,
   InGroup<DiagGroup<"embedded-directive">>;
 def ext_missing_varargs_arg : Extension<
-  "varargs argument missing, but tolerated as an extension">;
+  "must specify at least one argument for '...' parameter of variadic macro">,
+  InGroup<GNU>;
 def ext_empty_fnmacro_arg : Extension<
-  "empty macro arguments were standardized in C99">;
+  "empty macro arguments are a C99 feature">, InGroup<C99>;
 def warn_cxx98_compat_empty_fnmacro_arg : Warning<
-  "empty macro argument list is incompatible with C++98">,
+  "empty macro arguments are incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
+def note_macro_here : Note<"macro %0 defined here">;
 
 def err_pp_invalid_directive : Error<"invalid preprocessing directive">;
 def err_pp_file_not_found : Error<"'%0' file not found">, DefaultFatal;
+def err_pp_file_not_found_not_fatal : Error<
+  "'%0' file not found with <angled> include; use \"quotes\" instead">;
 def err_pp_error_opening_file : Error<
   "error opening file '%0': %1">, DefaultFatal;
 def err_pp_empty_filename : Error<"empty filename">;
@@ -324,8 +339,7 @@ def err_feature_check_malformed : Error<
   "builtin feature check macro requires a parenthesized identifier">;
 
 def err_warning_check_malformed : Error<
-  "builtin warning check macro requires a parenthesized string">,
-  InGroup<MalformedWarningCheck>;
+  "builtin warning check macro requires a parenthesized string">;
 def warn_has_warning_invalid_option :
    ExtWarn<"__has_warning expected option name (e.g. \"-Wundef\")">,
    InGroup<MalformedWarningCheck>;
@@ -394,7 +408,7 @@ def err_paste_at_start : Error<
   "'##' cannot appear at start of macro expansion">;
 def err_paste_at_end : Error<"'##' cannot appear at end of macro expansion">;
 def ext_paste_comma : Extension<
-  "Use of comma pasting extension is non-portable">;
+  "token pasting of ',' and __VA_ARGS__ is a GNU extension">, InGroup<GNU>;
 def err_unterm_macro_invoc : Error<
   "unterminated function-like macro invocation">;
 def err_too_many_args_in_macro_invoc : Error<
@@ -412,6 +426,9 @@ def err_pp_illegal_floating_literal : Error<
   "floating point literal in preprocessor expression">;
 def err_pp_line_requires_integer : Error<
   "#line directive requires a positive integer argument">;
+def ext_pp_line_zero : Extension<
+  "#line directive with zero argument is a GNU extension">, 
+  InGroup<GNU>;
 def err_pp_line_invalid_filename : Error<
   "invalid filename for #line directive">;
 def warn_pp_line_decimal : Warning<
@@ -474,15 +491,21 @@ def err_mmap_missing_module_unqualified : Error<
 def err_mmap_missing_module_qualified : Error<
   "no module named '%0' in '%1'">;
 def err_mmap_top_level_inferred_submodule : Error<
-  "only submodules may be inferred with wildcard syntax">;
+  "only submodules and framework modules may be inferred with wildcard syntax">;
 def err_mmap_inferred_no_umbrella : Error<
   "inferred submodules require a module with an umbrella">;
+def err_mmap_inferred_framework_submodule : Error<
+  "inferred submodule cannot be a framework submodule">;
+def err_mmap_explicit_inferred_framework : Error<
+  "inferred framework modules cannot be 'explicit'">;
+def err_mmap_missing_exclude_name : Error<
+  "expected excluded module name">;
 def err_mmap_inferred_redef : Error<
   "redefinition of inferred submodule">;
 def err_mmap_expected_lbrace_wildcard : Error<
   "expected '{' to start inferred submodule">;
-def err_mmap_expected_wildcard_member : Error<
-  "expected module export wildcard">;
+def err_mmap_expected_inferred_member : Error<
+  "expected %select{module exclusion with 'exclude'|'export *'}0">;
 def err_mmap_expected_export_wildcard : Error<
   "only '*' can be exported from an inferred submodule">;
 def err_mmap_explicit_top_level : Error<
@@ -499,5 +522,7 @@ def warn_auto_module_import : Warning<
   "import of module '%1'">, InGroup<AutoImport>, DefaultIgnore;
 def warn_uncovered_module_header : Warning<
   "umbrella header does not include header '%0'">, InGroup<IncompleteUmbrella>;
-
+def err_expected_id_building_module : Error<
+  "expected a module name in '__building_module' expression">;
+  
 }

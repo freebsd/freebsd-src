@@ -42,36 +42,6 @@
 
 #define	FLASH_BUF_SIZE	(64 * 1024)
 
-int fw_name_width, fw_version_width, fw_date_width, fw_time_width;
-
-static void
-scan_firmware(struct mfi_info_component *comp)
-{
-	int len;
-
-	len = strlen(comp->name);
-	if (fw_name_width < len)
-		fw_name_width = len;
-	len = strlen(comp->version);
-	if (fw_version_width < len)
-		fw_version_width = len;
-	len = strlen(comp->build_date);
-	if (fw_date_width < len)
-		fw_date_width = len;
-	len = strlen(comp->build_time);
-	if (fw_time_width < len)
-		fw_time_width = len;
-}
-
-static void
-display_firmware(struct mfi_info_component *comp)
-{
-
-	printf("%-*s  %-*s  %-*s  %-*s\n", fw_name_width, comp->name,
-	    fw_version_width, comp->version, fw_date_width, comp->build_date,
-	    fw_time_width, comp->build_time);
-}
-
 static int
 display_pending_firmware(int fd)
 {
@@ -96,9 +66,9 @@ display_pending_firmware(int fd)
 		info.pending_image_component_count = 8;
 	for (i = 0; i < info.pending_image_component_count; i++)
 		scan_firmware(&info.pending_image_component[i]);
-	display_firmware(&header);
+	display_firmware(&header, "");
 	for (i = 0; i < info.pending_image_component_count; i++)
-		display_firmware(&info.pending_image_component[i]);
+		display_firmware(&info.pending_image_component[i], "");
 
 	return (0);
 }

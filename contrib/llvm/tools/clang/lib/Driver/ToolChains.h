@@ -99,7 +99,7 @@ protected:
     StringRef getParentLibPath() const { return GCCParentLibPath; }
 
     /// \brief Get the detected GCC version string.
-    StringRef getVersion() const { return Version.Text; }
+    const GCCVersion &getVersion() const { return Version; }
 
   private:
     static void CollectLibDirsAndTriples(
@@ -111,6 +111,7 @@ protected:
       SmallVectorImpl<StringRef> &MultiarchTripleAliases);
 
     void ScanLibDirForGCCTriple(llvm::Triple::ArchType TargetArch,
+                                const ArgList &Args,
                                 const std::string &LibDir,
                                 StringRef CandidateTriple,
                                 bool NeedsMultiarchSuffix = false);
@@ -128,8 +129,8 @@ public:
                            const ActionList &Inputs) const;
 
   virtual bool IsUnwindTablesDefault() const;
-  virtual const char *GetDefaultRelocationModel() const;
-  virtual const char *GetForcedPicModel() const;
+  virtual bool isPICDefault() const;
+  virtual bool isPICDefaultForced() const;
 
 protected:
   /// \name ToolChain Implementation Helper Functions
@@ -155,9 +156,8 @@ public:
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const;
 
-  virtual bool IsUnwindTablesDefault() const;
-  virtual const char *GetDefaultRelocationModel() const;
-  virtual const char *GetForcedPicModel() const;
+  virtual bool isPICDefault() const;
+  virtual bool isPICDefaultForced() const;
 };
 
   /// Darwin - The base Darwin tool chain.
@@ -176,22 +176,6 @@ private:
   // the argument translation business.
   mutable bool TargetInitialized;
 
-  // FIXME: Remove this once there is a proper way to detect an ARC runtime
-  // for the simulator.
- public:
-  mutable enum {
-    ARCSimulator_None,
-    ARCSimulator_HasARCRuntime,
-    ARCSimulator_NoARCRuntime
-  } ARCRuntimeForSimulator;
-
-  mutable enum {
-    LibCXXSimulator_None,
-    LibCXXSimulator_NotAvailable,
-    LibCXXSimulator_Available
-  } LibCXXForSimulator;
-
-private:
   /// Whether we are targeting iPhoneOS target.
   mutable bool TargetIsIPhoneOS;
 
@@ -201,12 +185,14 @@ private:
   /// The OS version we are targeting.
   mutable VersionTuple TargetVersion;
 
+private:
   /// The default macosx-version-min of this tool chain; empty until
   /// initialized.
   std::string MacosxVersionMin;
 
-  bool hasARCRuntime() const;
-  bool hasSubscriptingRuntime() const;
+  /// The default ios-version-min of this tool chain; empty until
+  /// initialized.
+  std::string iOSVersionMin;
 
 private:
   void AddDeploymentTarget(DerivedArgList &Args) const;
@@ -252,9 +238,7 @@ public:
   }
 
   bool isTargetMacOS() const {
-    return !isTargetIOSSimulator() &&
-           !isTargetIPhoneOS() &&
-           ARCRuntimeForSimulator == ARCSimulator_None;
+    return !isTargetIOSSimulator() && !isTargetIPhoneOS();
   }
 
   bool isTargetInitialized() const { return TargetInitialized; }
@@ -279,14 +263,6 @@ public:
     return TargetVersion < VersionTuple(V0, V1, V2);
   }
 
-  /// AddLinkSearchPathArgs - Add the linker search paths to \arg CmdArgs.
-  ///
-  /// \param Args - The input argument list.
-  /// \param CmdArgs [out] - The command argument list to append the paths
-  /// (prefixed by -L) to.
-  virtual void AddLinkSearchPathArgs(const ArgList &Args,
-                                     ArgStringList &CmdArgs) const = 0;
-
   /// AddLinkARCArgs - Add the linker arguments to link the ARC runtime library.
   virtual void AddLinkARCArgs(const ArgList &Args,
                               ArgStringList &CmdArgs) const = 0;
@@ -304,7 +280,7 @@ public:
 
   virtual bool HasNativeLLVMSupport() const;
 
-  virtual void configureObjCRuntime(ObjCRuntime &runtime) const;
+  virtual ObjCRuntime getDefaultObjCRuntime(bool isNonFragile) const;
   virtual bool hasBlocksRuntime() const;
 
   virtual DerivedArgList *TranslateArgs(const DerivedArgList &Args,
@@ -333,21 +309,24 @@ public:
     return ToolChain::IsStrictAliasingDefault();
 #endif
   }
-  
+
+  virtual bool IsMathErrnoDefault() const {
+    return false;
+  }
+
   virtual bool IsObjCDefaultSynthPropertiesDefault() const {
     return true;
   }
 
+  virtual bool IsEncodeExtendedBlockSignatureDefault() const {
+    return true;
+  }
+  
   virtual bool IsObjCNonFragileABIDefault() const {
     // Non-fragile ABI is default for everything but i386.
     return getTriple().getArch() != llvm::Triple::x86;
   }
-  virtual bool IsObjCLegacyDispatchDefault() const {
-    // This is only used with the non-fragile ABI.
 
-    // Legacy dispatch is used everywhere except on x86_64.
-    return getTriple().getArch() != llvm::Triple::x86_64;
-  }
   virtual bool UseObjCMixedDispatch() const {
     // This is only used with the non-fragile ABI and non-legacy dispatch.
 
@@ -365,14 +344,14 @@ public:
   virtual RuntimeLibType GetDefaultRuntimeLibType() const {
     return ToolChain::RLT_CompilerRT;
   }
-  virtual const char *GetDefaultRelocationModel() const;
-  virtual const char *GetForcedPicModel() const;
+  virtual bool isPICDefault() const;
+  virtual bool isPICDefaultForced() const;
 
   virtual bool SupportsProfiling() const;
 
   virtual bool SupportsObjCGC() const;
 
-  virtual bool SupportsObjCARC() const;
+  virtual void CheckObjCARC() const;
 
   virtual bool UseDwarfDebugFlags() const;
 
@@ -383,17 +362,11 @@ public:
 
 /// DarwinClang - The Darwin toolchain used by Clang.
 class LLVM_LIBRARY_VISIBILITY DarwinClang : public Darwin {
-private:
-  void AddGCCLibexecPath(unsigned darwinVersion);
-
 public:
   DarwinClang(const Driver &D, const llvm::Triple& Triple);
 
   /// @name Darwin ToolChain Implementation
   /// {
-
-  virtual void AddLinkSearchPathArgs(const ArgList &Args,
-                                    ArgStringList &CmdArgs) const;
 
   virtual void AddLinkRuntimeLibArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const;
@@ -420,7 +393,7 @@ public:
   std::string ComputeEffectiveClangTriple(const ArgList &Args,
                                           types::ID InputType) const;
 
-  virtual const char *GetDefaultRelocationModel() const { return "pic"; }
+  virtual bool isPICDefault() const { return false; };
 };
 
 class LLVM_LIBRARY_VISIBILITY Generic_ELF : public Generic_GCC {
@@ -459,51 +432,51 @@ class LLVM_LIBRARY_VISIBILITY OpenBSD : public Generic_ELF {
 public:
   OpenBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
 
+  virtual bool IsMathErrnoDefault() const { return false; }
   virtual bool IsObjCNonFragileABIDefault() const { return true; }
-  virtual bool IsObjCLegacyDispatchDefault() const {
-    llvm::Triple::ArchType Arch = getTriple().getArch();
-    if (Arch == llvm::Triple::arm ||
-        Arch == llvm::Triple::x86 ||
-        Arch == llvm::Triple::x86_64)
-     return false;
-    return true;
-  }
 
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const;
+};
+
+class LLVM_LIBRARY_VISIBILITY Bitrig : public Generic_ELF {
+public:
+  Bitrig(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
+
+  virtual bool IsMathErrnoDefault() const { return false; }
+  virtual bool IsObjCNonFragileABIDefault() const { return true; }
+  virtual bool IsObjCLegacyDispatchDefault() const { return false; }
+
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
+
+  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args) const;
+  virtual void AddCXXStdlibLibArgs(const ArgList &Args,
+                                   ArgStringList &CmdArgs) const;
+  virtual unsigned GetDefaultStackProtectorLevel(bool KernelOrKext) const {
+     return 1;
+  }
 };
 
 class LLVM_LIBRARY_VISIBILITY FreeBSD : public Generic_ELF {
 public:
   FreeBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
 
+  virtual bool IsMathErrnoDefault() const { return false; }
   virtual bool IsObjCNonFragileABIDefault() const { return true; }
-  virtual bool IsObjCLegacyDispatchDefault() const {
-    llvm::Triple::ArchType Arch = getTriple().getArch();
-    if (Arch == llvm::Triple::arm ||
-        Arch == llvm::Triple::x86 ||
-        Arch == llvm::Triple::x86_64)
-     return false;
-    return true;
-  }
 
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const;
+  virtual bool UseSjLjExceptions() const;
 };
 
 class LLVM_LIBRARY_VISIBILITY NetBSD : public Generic_ELF {
 public:
   NetBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
 
+  virtual bool IsMathErrnoDefault() const { return false; }
   virtual bool IsObjCNonFragileABIDefault() const { return true; }
-  virtual bool IsObjCLegacyDispatchDefault() const {
-    llvm::Triple::ArchType Arch = getTriple().getArch();
-    if (Arch == llvm::Triple::arm ||
-        Arch == llvm::Triple::x86 ||
-        Arch == llvm::Triple::x86_64)
-     return false;
-    return true;
-  }
 
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const;
@@ -521,6 +494,8 @@ class LLVM_LIBRARY_VISIBILITY DragonFly : public Generic_ELF {
 public:
   DragonFly(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
 
+  virtual bool IsMathErrnoDefault() const { return false; }
+
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const;
 };
@@ -536,6 +511,7 @@ public:
 
   virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                          ArgStringList &CC1Args) const;
+  virtual void addClangTargetOptions(ArgStringList &CC1Args) const;
   virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
                                             ArgStringList &CC1Args) const;
 
@@ -559,9 +535,8 @@ public:
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const;
   bool IsMathErrnoDefault() const;
-  bool IsUnwindTablesDefault() const;
-  const char* GetDefaultRelocationModel() const;
-  const char* GetForcedPicModel() const;
+  bool isPICDefault() const;
+  bool isPICDefaultForced() const;
 
 private:
   mutable llvm::DenseMap<unsigned, Tool*> Tools;
@@ -577,10 +552,14 @@ public:
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const;
 
+  virtual bool IsObjCDefaultSynthPropertiesDefault() const {
+    return true;
+  }
+
   virtual bool IsIntegratedAssemblerDefault() const;
   virtual bool IsUnwindTablesDefault() const;
-  virtual const char *GetDefaultRelocationModel() const;
-  virtual const char *GetForcedPicModel() const;
+  virtual bool isPICDefault() const;
+  virtual bool isPICDefaultForced() const;
 
   virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                          ArgStringList &CC1Args) const;

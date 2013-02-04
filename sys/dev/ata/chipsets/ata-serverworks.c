@@ -75,7 +75,7 @@ static int
 ata_serverworks_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_ROSB4,     0x00, SWKS_33,  0, ATA_WDMA2, "ROSB4" },
      { ATA_CSB5,      0x92, SWKS_100, 0, ATA_UDMA5, "CSB5" },
      { ATA_CSB5,      0x00, SWKS_66,  0, ATA_UDMA4, "CSB5" },

@@ -76,13 +76,12 @@ void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
     BugReport *report = new BugReport(*BT, OS.str(), N);
     if (Ex) {
       report->addRange(Ex->getSourceRange());
-      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex,
-                                                                      report));
+      bugreporter::trackNullOrUndefValue(N, Ex, *report);
     }
     else
-      report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, B,
-                                                                      report));
-    C.EmitReport(report);
+      bugreporter::trackNullOrUndefValue(N, B, *report);
+    
+    C.emitReport(report);
   }
 }
 

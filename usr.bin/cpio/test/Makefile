@@ -6,7 +6,7 @@ LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
 CPIO_SRCS= cmdline.c
 
 .PATH:	${LIBARCHIVEDIR}/libarchive_fe
-CPIO_SRCS+= err.c pathmatch.c
+CPIO_SRCS+= err.c
 
 .PATH:	${LIBARCHIVEDIR}/cpio/test
 TESTS=	\
@@ -35,8 +35,7 @@ TESTS=	\
 	test_option_z.c				\
 	test_owner_parse.c			\
 	test_passthrough_dotdot.c		\
-	test_passthrough_reverse.c		\
-	test_pathmatch.c
+	test_passthrough_reverse.c
 
 # Build the test program
 SRCS= list.h					\
@@ -50,8 +49,8 @@ NO_MAN=yes
 
 PROG=bsdcpio_test
 DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../config_freebsd.h\"
-CFLAGS+=	-I${.CURDIR}/..
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../../../lib/libarchive/config_freebsd.h\"
+CFLAGS+=	-I${.CURDIR}/../../../lib/libarchive -I${.OBJDIR}
 LDADD= -larchive -lz -lbz2 -llzma
 #CFLAGS+= -static -g -O2 -Wall
 CFLAGS+= -g -O2 -Wall
@@ -74,6 +73,6 @@ clean:
 	rm -f ${CLEANFILES}
 	rm -f *~
 	-chmod -R +w /tmp/bsdcpio_test.*
-	rm -rf /tmp/bsdcpio_test
+	rm -rf /tmp/bsdcpio_test.*
 
 .include <bsd.prog.mk>

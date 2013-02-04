@@ -197,12 +197,6 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		FREE((caddr_t)nfhp, M_NFSFH);
 		return (0);
 	}
-
-	/*
-	 * Allocate before getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if zalloc should block.
-	 */
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
@@ -732,7 +726,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
 	nfsattrbit_t attrbits;
-	struct timeval curtime;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
 	case ND_NFSV2:
@@ -761,7 +754,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 		break;
 	case ND_NFSV3:
-		getmicrotime(&curtime);
 		if (vap->va_mode != (mode_t)VNOVAL) {
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = newnfs_true;
@@ -795,7 +787,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = newnfs_false;
 		}
 		if (vap->va_atime.tv_sec != VNOVAL) {
-			if (vap->va_atime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_atime, tl);
@@ -808,7 +800,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 		}
 		if (vap->va_mtime.tv_sec != VNOVAL) {
-			if (vap->va_mtime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_mtime, tl);
@@ -859,7 +851,7 @@ nfscl_request(struct nfsrv_descript *nd, struct vnode *vp, NFSPROC_T *p,
 	else
 		vers = NFS_VER2;
 	ret = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, vp, p, cred,
-		NFS_PROG, vers, NULL, 1, NULL);
+		NFS_PROG, vers, NULL, 1, NULL, NULL);
 	return (ret);
 }
 
@@ -1118,10 +1110,15 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 		    "No name and/or group mapping for uid,gid:(%d,%d)\n",
 		    uid, gid);
 		return (EPERM);
+	case NFSERR_BADNAME:
+	case NFSERR_BADCHAR:
+		printf("nfsv4 char/name not handled by server\n");
+		return (ENOENT);
 	case NFSERR_STALECLIENTID:
 	case NFSERR_STALESTATEID:
 	case NFSERR_EXPIRED:
 	case NFSERR_BADSTATEID:
+	case NFSERR_BADSESSION:
 		printf("nfsv4 recover err returned %d\n", error);
 		return (EIO);
 	case NFSERR_BADHANDLE:
@@ -1137,8 +1134,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 	case NFSERR_LEASEMOVED:
 	case NFSERR_RECLAIMBAD:
 	case NFSERR_BADXDR:
-	case NFSERR_BADCHAR:
-	case NFSERR_BADNAME:
 	case NFSERR_OPILLEGAL:
 		printf("nfsv4 client/server protocol prob err=%d\n",
 		    error);
@@ -1147,31 +1142,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 		tprintf(p, LOG_INFO, "nfsv4 err=%d\n", error);
 		return (EIO);
 	};
-}
-
-/*
- * Locate a process by number; return only "live" processes -- i.e., neither
- * zombies nor newly born but incompletely initialized processes.  By not
- * returning processes in the PRS_NEW state, we allow callers to avoid
- * testing for that condition to avoid dereferencing p_ucred, et al.
- * Identical to pfind() in kern_proc.c, except it assume the list is
- * already locked.
- */
-static struct proc *
-pfind_locked(pid_t pid)
-{
-	struct proc *p;
-
-	LIST_FOREACH(p, PIDHASH(pid), p_hash)
-		if (p->p_pid == pid) {
-			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW) {
-				PROC_UNLOCK(p);
-				p = NULL;
-			}
-			break;
-		}
-	return (p);
 }
 
 /*
@@ -1232,6 +1202,9 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
 	int error;
+	struct nameidata nd;
+	struct nfscl_dumpmntopts dumpmntopts;
+	char *buf;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1264,6 +1237,28 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		if (error)
 			return (error);
 		error = nfscbd_nfsd(td, &nfscbdarg2);
+	} else if (uap->flag & NFSSVC_DUMPMNTOPTS) {
+		error = copyin(uap->argp, &dumpmntopts, sizeof(dumpmntopts));
+		if (error == 0 && (dumpmntopts.ndmnt_blen < 256 ||
+		    dumpmntopts.ndmnt_blen > 1024))
+			error = EINVAL;
+		if (error == 0)
+			error = nfsrv_lookupfilename(&nd,
+			    dumpmntopts.ndmnt_fname, td);
+		if (error == 0 && strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name,
+		    "nfs") != 0) {
+			vput(nd.ni_vp);
+			error = EINVAL;
+		}
+		if (error == 0) {
+			buf = malloc(dumpmntopts.ndmnt_blen, M_TEMP, M_WAITOK);
+			nfscl_retopts(VFSTONFS(nd.ni_vp->v_mount), buf,
+			    dumpmntopts.ndmnt_blen);
+			vput(nd.ni_vp);
+			error = copyout(buf, dumpmntopts.ndmnt_buf,
+			    dumpmntopts.ndmnt_blen);
+			free(buf, M_TEMP);
+		}
 	} else {
 		error = EINVAL;
 	}

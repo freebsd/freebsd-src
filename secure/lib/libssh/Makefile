@@ -23,8 +23,6 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 SRCS+=	bsd-misc.c fmt_scaled.c getrrsetbyname.c glob.c \
 	openssl-compat.c port-tun.c strtonum.c timingsafe_bcmp.c \
 	vis.c xcrypt.c xmmap.c
-# FreeBSD additions
-SRCS+=	version.c
 
 .if defined(COMPAT_GETADDRINFO)
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
@@ -38,6 +36,10 @@ LDADD=	-lz
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
 DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
 LDADD+=	-lgssapi -lkrb5 -lhx509 -lasn1 -lcom_err -lmd -lroken
+.endif
+
+.if ${MK_OPENSSH_NONE_CIPHER} != "no"
+CFLAGS+= -DNONE_CIPHER_ENABLED
 .endif
 
 NO_LINT=

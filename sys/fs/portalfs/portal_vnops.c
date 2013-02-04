@@ -110,7 +110,7 @@ portal_lookup(ap)
 	char *pname = cnp->cn_nameptr;
 	struct portalnode *pt;
 	int error;
-	struct vnode *fvp = 0;
+	struct vnode *fvp = NULL;
 	char *path;
 	int size;
 
@@ -217,14 +217,14 @@ portal_open(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct socket *so = 0;
+	struct socket *so = NULL;
 	struct portalnode *pt;
 	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
 	struct uio auio;
 	struct iovec aiov[2];
 	int res;
-	struct mbuf *cm = 0;
+	struct mbuf *cm = NULL;
 	struct cmsghdr *cmsg;
 	int newfds;
 	int *ip;
@@ -356,7 +356,7 @@ portal_open(ap)
 
 	len = auio.uio_resid = sizeof(int);
 	do {
-		struct mbuf *m = 0;
+		struct mbuf *m = NULL;
 		int flags = MSG_WAITALL;
 		error = soreceive(so, (struct sockaddr **) 0, &auio,
 					&m, &cm, &flags);

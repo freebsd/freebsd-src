@@ -43,13 +43,11 @@ CXXRecordDecl::DefinitionData::DefinitionData(CXXRecordDecl *D)
     Abstract(false), IsStandardLayout(true), HasNoNonEmptyBases(true),
     HasPrivateFields(false), HasProtectedFields(false), HasPublicFields(false),
     HasMutableFields(false), HasOnlyCMembers(true),
+    HasInClassInitializer(false),
     HasTrivialDefaultConstructor(true),
     HasConstexprNonCopyMoveConstructor(false),
     DefaultedDefaultConstructorIsConstexpr(true),
-    DefaultedCopyConstructorIsConstexpr(true),
-    DefaultedMoveConstructorIsConstexpr(true),
-    HasConstexprDefaultConstructor(false), HasConstexprCopyConstructor(false),
-    HasConstexprMoveConstructor(false), HasTrivialCopyConstructor(true),
+    HasConstexprDefaultConstructor(false), HasTrivialCopyConstructor(true),
     HasTrivialMoveConstructor(true), HasTrivialCopyAssignment(true),
     HasTrivialMoveAssignment(true), HasTrivialDestructor(true),
     HasIrrelevantDestructor(true),
@@ -60,6 +58,14 @@ CXXRecordDecl::DefinitionData::DefinitionData(CXXRecordDecl *D)
     DeclaredDestructor(false), FailedImplicitMoveConstructor(false),
     FailedImplicitMoveAssignment(false), IsLambda(false), NumBases(0),
     NumVBases(0), Bases(), VBases(), Definition(D), FirstFriend(0) {
+}
+
+CXXBaseSpecifier *CXXRecordDecl::DefinitionData::getBasesSlowCase() const {
+  return Bases.get(Definition->getASTContext().getExternalSource());
+}
+
+CXXBaseSpecifier *CXXRecordDecl::DefinitionData::getVBasesSlowCase() const {
+  return VBases.get(Definition->getASTContext().getExternalSource());
 }
 
 CXXRecordDecl::CXXRecordDecl(Kind K, TagKind TK, DeclContext *DC,
@@ -84,11 +90,12 @@ CXXRecordDecl *CXXRecordDecl::Create(const ASTContext &C, TagKind TK,
 }
 
 CXXRecordDecl *CXXRecordDecl::CreateLambda(const ASTContext &C, DeclContext *DC,
-                                           SourceLocation Loc, bool Dependent) {
+                                           TypeSourceInfo *Info, SourceLocation Loc,
+                                           bool Dependent) {
   CXXRecordDecl* R = new (C) CXXRecordDecl(CXXRecord, TTK_Class, DC, Loc, Loc,
                                            0, 0);
   R->IsBeingDefined = true;
-  R->DefinitionData = new (C) struct LambdaDefinitionData(R, Dependent);
+  R->DefinitionData = new (C) struct LambdaDefinitionData(R, Info, Dependent);
   C.getTypeDeclType(R, /*PrevDecl=*/0);
   return R;
 }
@@ -219,8 +226,6 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       //   In the definition of a constexpr constructor [...]
       //    -- the class shall not have any virtual base classes
       data().DefaultedDefaultConstructorIsConstexpr = false;
-      data().DefaultedCopyConstructorIsConstexpr = false;
-      data().DefaultedMoveConstructorIsConstexpr = false;
     } else {
       // C++ [class.ctor]p5:
       //   A default constructor is trivial [...] if:
@@ -235,10 +240,13 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       //    -- the constructor selected to copy/move each direct base class
       //       subobject is trivial, and
       // FIXME: C++0x: We need to only consider the selected constructor
-      // instead of all of them.
+      // instead of all of them. For now, we treat a move constructor as being
+      // non-trivial if it calls anything other than a trivial move constructor.
       if (!BaseClassDecl->hasTrivialCopyConstructor())
         data().HasTrivialCopyConstructor = false;
-      if (!BaseClassDecl->hasTrivialMoveConstructor())
+      if (!BaseClassDecl->hasTrivialMoveConstructor() ||
+          !(BaseClassDecl->hasDeclaredMoveConstructor() ||
+            BaseClassDecl->needsImplicitMoveConstructor()))
         data().HasTrivialMoveConstructor = false;
 
       // C++0x [class.copy]p27:
@@ -250,7 +258,9 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       // of all of them.
       if (!BaseClassDecl->hasTrivialCopyAssignment())
         data().HasTrivialCopyAssignment = false;
-      if (!BaseClassDecl->hasTrivialMoveAssignment())
+      if (!BaseClassDecl->hasTrivialMoveAssignment() ||
+          !(BaseClassDecl->hasDeclaredMoveAssignment() ||
+            BaseClassDecl->needsImplicitMoveAssignment()))
         data().HasTrivialMoveAssignment = false;
 
       // C++11 [class.ctor]p6:
@@ -259,25 +269,6 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       //   default constructor is constexpr.
       if (!BaseClassDecl->hasConstexprDefaultConstructor())
         data().DefaultedDefaultConstructorIsConstexpr = false;
-
-      // C++11 [class.copy]p13:
-      //   If the implicitly-defined constructor would satisfy the requirements
-      //   of a constexpr constructor, the implicitly-defined constructor is
-      //   constexpr.
-      // C++11 [dcl.constexpr]p4:
-      //    -- every constructor involved in initializing [...] base class
-      //       sub-objects shall be a constexpr constructor
-      if (!BaseClassDecl->hasConstexprCopyConstructor())
-        data().DefaultedCopyConstructorIsConstexpr = false;
-      if (BaseClassDecl->hasDeclaredMoveConstructor() ||
-          BaseClassDecl->needsImplicitMoveConstructor())
-        // FIXME: If the implicit move constructor generated for the base class
-        // would be ill-formed, the implicit move constructor generated for the
-        // derived class calls the base class' copy constructor.
-        data().DefaultedMoveConstructorIsConstexpr &=
-          BaseClassDecl->hasConstexprMoveConstructor();
-      else if (!BaseClassDecl->hasConstexprCopyConstructor())
-        data().DefaultedMoveConstructorIsConstexpr = false;
     }
     
     // C++ [class.ctor]p3:
@@ -359,8 +350,8 @@ GetBestOverloadCandidateSimple(
     if (Cands[Best].second.compatiblyIncludes(Cands[I].second))
       Best = I;
   
-  for (unsigned I = 1; I != N; ++I)
-    if (Cands[Best].second.compatiblyIncludes(Cands[I].second))
+  for (unsigned I = 0; I != N; ++I)
+    if (I != Best && Cands[Best].second.compatiblyIncludes(Cands[I].second))
       return 0;
   
   return Cands[Best].first;
@@ -469,11 +460,20 @@ void CXXRecordDecl::markedVirtualFunctionPure() {
   data().Abstract = true;
 }
 
+void CXXRecordDecl::markedConstructorConstexpr(CXXConstructorDecl *CD) {
+  if (!CD->isCopyOrMoveConstructor())
+    data().HasConstexprNonCopyMoveConstructor = true;
+
+  if (CD->isDefaultConstructor())
+    data().HasConstexprDefaultConstructor = true;
+}
+
 void CXXRecordDecl::addedMember(Decl *D) {
   if (!D->isImplicit() &&
       !isa<FieldDecl>(D) &&
       !isa<IndirectFieldDecl>(D) &&
-      (!isa<TagDecl>(D) || cast<TagDecl>(D)->getTagKind() == TTK_Class))
+      (!isa<TagDecl>(D) || cast<TagDecl>(D)->getTagKind() == TTK_Class ||
+        cast<TagDecl>(D)->getTagKind() == TTK_Interface))
     data().HasOnlyCMembers = false;
 
   // Ignore friends and invalid declarations.
@@ -545,12 +545,8 @@ void CXXRecordDecl::addedMember(Decl *D) {
         }
       } else if (Constructor->isCopyConstructor()) {
         data().DeclaredCopyConstructor = true;
-        if (Constructor->isConstexpr())
-          data().HasConstexprCopyConstructor = true;
       } else if (Constructor->isMoveConstructor()) {
         data().DeclaredMoveConstructor = true;
-        if (Constructor->isConstexpr())
-          data().HasConstexprMoveConstructor = true;
       } else
         goto NotASpecialMember;
       return;
@@ -607,9 +603,6 @@ NotASpecialMember:;
         //   user-provided [...]
         if (UserProvided)
           data().HasTrivialCopyConstructor = false;
-
-        if (Constructor->isConstexpr())
-          data().HasConstexprCopyConstructor = true;
       } else if (Constructor->isMoveConstructor()) {
         data().UserDeclaredMoveConstructor = true;
         data().DeclaredMoveConstructor = true;
@@ -619,9 +612,6 @@ NotASpecialMember:;
         //   user-provided [...]
         if (UserProvided)
           data().HasTrivialMoveConstructor = false;
-
-        if (Constructor->isConstexpr())
-          data().HasConstexprMoveConstructor = true;
       }
     }
     if (Constructor->isConstexpr() && !Constructor->isCopyOrMoveConstructor()) {
@@ -663,19 +653,9 @@ NotASpecialMember:;
     // C++11 [class.dtor]p5: 
     //   A destructor is trivial if it is not user-provided and if
     //    -- the destructor is not virtual.
-    if (DD->isUserProvided() || DD->isVirtual()) {
+    if (DD->isUserProvided() || DD->isVirtual())
       data().HasTrivialDestructor = false;
-      // C++11 [dcl.constexpr]p1:
-      //   The constexpr specifier shall be applied only to [...] the
-      //   declaration of a static data member of a literal type.
-      // C++11 [basic.types]p10:
-      //   A type is a literal type if it is [...] a class type that [...] has
-      //   a trivial destructor.
-      data().DefaultedDefaultConstructorIsConstexpr = false;
-      data().DefaultedCopyConstructorIsConstexpr = false;
-      data().DefaultedMoveConstructorIsConstexpr = false;
-    }
-    
+
     return;
   }
   
@@ -792,7 +772,7 @@ NotASpecialMember:;
     // that does not explicitly have no lifetime makes the class a non-POD.
     // However, we delay setting PlainOldData to false in this case so that
     // Sema has a chance to diagnostic causes where the same class will be
-    // non-POD with Automatic Reference Counting but a POD without Instant Objects.
+    // non-POD with Automatic Reference Counting but a POD without ARC.
     // In this case, the class will become a non-POD class when we complete
     // the definition.
     ASTContext &Context = getASTContext();
@@ -818,17 +798,19 @@ NotASpecialMember:;
       data().HasNonLiteralTypeFieldsOrBases = true;
 
     if (Field->hasInClassInitializer()) {
-      // C++0x [class]p5:
+      data().HasInClassInitializer = true;
+
+      // C++11 [class]p5:
       //   A default constructor is trivial if [...] no non-static data member
       //   of its class has a brace-or-equal-initializer.
       data().HasTrivialDefaultConstructor = false;
 
-      // C++0x [dcl.init.aggr]p1:
+      // C++11 [dcl.init.aggr]p1:
       //   An aggregate is a [...] class with [...] no
       //   brace-or-equal-initializers for non-static data members.
       data().Aggregate = false;
 
-      // C++0x [class]p10:
+      // C++11 [class]p10:
       //   A POD struct is [...] a trivial class.
       data().PlainOldData = false;
     }
@@ -853,7 +835,9 @@ NotASpecialMember:;
         // FIXME: C++0x: We don't correctly model 'selected' constructors.
         if (!FieldRec->hasTrivialCopyConstructor())
           data().HasTrivialCopyConstructor = false;
-        if (!FieldRec->hasTrivialMoveConstructor())
+        if (!FieldRec->hasTrivialMoveConstructor() ||
+            !(FieldRec->hasDeclaredMoveConstructor() ||
+              FieldRec->needsImplicitMoveConstructor()))
           data().HasTrivialMoveConstructor = false;
 
         // C++0x [class.copy]p27:
@@ -865,7 +849,9 @@ NotASpecialMember:;
         // FIXME: C++0x: We don't correctly model 'selected' operators.
         if (!FieldRec->hasTrivialCopyAssignment())
           data().HasTrivialCopyAssignment = false;
-        if (!FieldRec->hasTrivialMoveAssignment())
+        if (!FieldRec->hasTrivialMoveAssignment() ||
+            !(FieldRec->hasDeclaredMoveAssignment() ||
+              FieldRec->needsImplicitMoveAssignment()))
           data().HasTrivialMoveAssignment = false;
 
         if (!FieldRec->hasTrivialDestructor())
@@ -920,31 +906,15 @@ NotASpecialMember:;
         //    -- every constructor involved in initializing non-static data
         //       members [...] shall be a constexpr constructor
         if (!Field->hasInClassInitializer() &&
-            !FieldRec->hasConstexprDefaultConstructor())
+            !FieldRec->hasConstexprDefaultConstructor() && !isUnion())
           // The standard requires any in-class initializer to be a constant
           // expression. We consider this to be a defect.
           data().DefaultedDefaultConstructorIsConstexpr = false;
-
-        if (!FieldRec->hasConstexprCopyConstructor())
-          data().DefaultedCopyConstructorIsConstexpr = false;
-
-        if (FieldRec->hasDeclaredMoveConstructor() ||
-            FieldRec->needsImplicitMoveConstructor())
-          // FIXME: If the implicit move constructor generated for the member's
-          // class would be ill-formed, the implicit move constructor generated
-          // for this class calls the member's copy constructor.
-          data().DefaultedMoveConstructorIsConstexpr &=
-            FieldRec->hasConstexprMoveConstructor();
-        else if (!FieldRec->hasConstexprCopyConstructor())
-          data().DefaultedMoveConstructorIsConstexpr = false;
       }
     } else {
       // Base element type of field is a non-class type.
-      if (!T->isLiteralType()) {
-        data().DefaultedDefaultConstructorIsConstexpr = false;
-        data().DefaultedCopyConstructorIsConstexpr = false;
-        data().DefaultedMoveConstructorIsConstexpr = false;
-      } else if (!Field->hasInClassInitializer())
+      if (!T->isLiteralType() ||
+          (!Field->hasInClassInitializer() && !isUnion()))
         data().DefaultedDefaultConstructorIsConstexpr = false;
     }
 
@@ -977,7 +947,8 @@ NotASpecialMember:;
 }
 
 bool CXXRecordDecl::isCLike() const {
-  if (getTagKind() == TTK_Class || !TemplateOrInstantiation.isNull())
+  if (getTagKind() == TTK_Class || getTagKind() == TTK_Interface ||
+      !TemplateOrInstantiation.isNull())
     return false;
   if (!hasDefinition())
     return true;
@@ -1018,7 +989,7 @@ static CanQualType GetConversionType(ASTContext &Context, NamedDecl *Conv) {
 
 /// Collect the visible conversions of a base class.
 ///
-/// \param Base a base class of the class we're considering
+/// \param Record a base class of the class we're considering
 /// \param InVirtual whether this base class is a virtual base (or a base
 ///   of a virtual base)
 /// \param Access the access along the inheritance path to this base
@@ -1050,8 +1021,10 @@ static void CollectVisibleConversions(ASTContext &Context,
     HiddenTypes = &HiddenTypesBuffer;
 
     for (UnresolvedSetIterator I = Cs.begin(), E = Cs.end(); I != E; ++I) {
-      bool Hidden =
-        !HiddenTypesBuffer.insert(GetConversionType(Context, I.getDecl()));
+      CanQualType ConvType(GetConversionType(Context, I.getDecl()));
+      bool Hidden = ParentHiddenTypes.count(ConvType);
+      if (!Hidden)
+        HiddenTypesBuffer.insert(ConvType);
 
       // If this conversion is hidden and we're in a virtual base,
       // remember that it's hidden along some inheritance path.
@@ -1247,13 +1220,16 @@ void CXXRecordDecl::completeDefinition(CXXFinalOverriderMap *FinalOverriders) {
     // Objective-C Automatic Reference Counting:
     //   If a class has a non-static data member of Objective-C pointer
     //   type (or array thereof), it is a non-POD type and its
-    //   default constructor (if any), copy constructor, copy assignment
-    //   operator, and destructor are non-trivial.
+    //   default constructor (if any), copy constructor, move constructor,
+    //   copy assignment operator, move assignment operator, and destructor are
+    //   non-trivial.
     struct DefinitionData &Data = data();
     Data.PlainOldData = false;
     Data.HasTrivialDefaultConstructor = false;
     Data.HasTrivialCopyConstructor = false;
+    Data.HasTrivialMoveConstructor = false;
     Data.HasTrivialCopyAssignment = false;
+    Data.HasTrivialMoveAssignment = false;
     Data.HasTrivialDestructor = false;
     Data.HasIrrelevantDestructor = false;
   }
@@ -1315,6 +1291,62 @@ bool CXXRecordDecl::mayBeAbstract() const {
 }
 
 void CXXMethodDecl::anchor() { }
+
+static bool recursivelyOverrides(const CXXMethodDecl *DerivedMD,
+                                 const CXXMethodDecl *BaseMD) {
+  for (CXXMethodDecl::method_iterator I = DerivedMD->begin_overridden_methods(),
+         E = DerivedMD->end_overridden_methods(); I != E; ++I) {
+    const CXXMethodDecl *MD = *I;
+    if (MD->getCanonicalDecl() == BaseMD->getCanonicalDecl())
+      return true;
+    if (recursivelyOverrides(MD, BaseMD))
+      return true;
+  }
+  return false;
+}
+
+CXXMethodDecl *
+CXXMethodDecl::getCorrespondingMethodInClass(const CXXRecordDecl *RD,
+                                             bool MayBeBase) {
+  if (this->getParent()->getCanonicalDecl() == RD->getCanonicalDecl())
+    return this;
+
+  // Lookup doesn't work for destructors, so handle them separately.
+  if (isa<CXXDestructorDecl>(this)) {
+    CXXMethodDecl *MD = RD->getDestructor();
+    if (MD) {
+      if (recursivelyOverrides(MD, this))
+        return MD;
+      if (MayBeBase && recursivelyOverrides(this, MD))
+        return MD;
+    }
+    return NULL;
+  }
+
+  lookup_const_result Candidates = RD->lookup(getDeclName());
+  for (NamedDecl * const * I = Candidates.first; I != Candidates.second; ++I) {
+    CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(*I);
+    if (!MD)
+      continue;
+    if (recursivelyOverrides(MD, this))
+      return MD;
+    if (MayBeBase && recursivelyOverrides(this, MD))
+      return MD;
+  }
+
+  for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
+         E = RD->bases_end(); I != E; ++I) {
+    const RecordType *RT = I->getType()->getAs<RecordType>();
+    if (!RT)
+      continue;
+    const CXXRecordDecl *Base = cast<CXXRecordDecl>(RT->getDecl());
+    CXXMethodDecl *T = this->getCorrespondingMethodInClass(Base);
+    if (T)
+      return T;
+  }
+
+  return NULL;
+}
 
 CXXMethodDecl *
 CXXMethodDecl::Create(ASTContext &C, CXXRecordDecl *RD,
@@ -1690,7 +1722,9 @@ bool CXXConstructorDecl::isConvertingConstructor(bool AllowExplicit) const {
   return (getNumParams() == 0 &&
           getType()->getAs<FunctionProtoType>()->isVariadic()) ||
          (getNumParams() == 1) ||
-         (getNumParams() > 1 && getParamDecl(1)->hasDefaultArg());
+         (getNumParams() > 1 &&
+          (getParamDecl(1)->hasDefaultArg() ||
+           getParamDecl(1)->isParameterPack()));
 }
 
 bool CXXConstructorDecl::isSpecializationCopyingObject() const {
@@ -1993,15 +2027,17 @@ StaticAssertDecl *StaticAssertDecl::Create(ASTContext &C, DeclContext *DC,
                                            SourceLocation StaticAssertLoc,
                                            Expr *AssertExpr,
                                            StringLiteral *Message,
-                                           SourceLocation RParenLoc) {
+                                           SourceLocation RParenLoc,
+                                           bool Failed) {
   return new (C) StaticAssertDecl(DC, StaticAssertLoc, AssertExpr, Message,
-                                  RParenLoc);
+                                  RParenLoc, Failed);
 }
 
 StaticAssertDecl *StaticAssertDecl::CreateDeserialized(ASTContext &C, 
                                                        unsigned ID) {
   void *Mem = AllocateDeserializedDecl(C, ID, sizeof(StaticAssertDecl));
-  return new (Mem) StaticAssertDecl(0, SourceLocation(), 0, 0,SourceLocation());
+  return new (Mem) StaticAssertDecl(0, SourceLocation(), 0, 0,
+                                    SourceLocation(), false);
 }
 
 static const char *getAccessName(AccessSpecifier AS) {

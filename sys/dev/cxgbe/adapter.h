@@ -135,6 +135,7 @@ enum {
 #else
 	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
+	OFLD_BUF_SIZE = MJUM16BYTES,	/* size of fl buffer for TOE rxq */
 
 	CTRL_EQ_QSIZE = 128,
 
@@ -143,11 +144,27 @@ enum {
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
 
+#ifdef T4_PKT_TIMESTAMP
+#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
+#else
+#define RX_COPY_THRESHOLD MINCLSIZE
+#endif
+
 enum {
 	/* adapter intr_type */
 	INTR_INTX	= (1 << 0),
 	INTR_MSI 	= (1 << 1),
 	INTR_MSIX	= (1 << 2)
+};
+
+enum {
+	/* flags understood by begin_synchronized_op */
+	HOLD_LOCK	= (1 << 0),
+	SLEEP_OK	= (1 << 1),
+	INTR_OK		= (1 << 2),
+
+	/* flags understood by end_synchronized_op */
+	LOCK_HELD	= HOLD_LOCK,
 };
 
 enum {
@@ -167,11 +184,11 @@ enum {
 	PORT_SYSCTL_CTX	= (1 << 2),
 };
 
-#define IS_DOOMED(pi)	(pi->flags & DOOMED)
-#define SET_DOOMED(pi)	do {pi->flags |= DOOMED;} while (0)
-#define IS_BUSY(sc)	(sc->flags & CXGBE_BUSY)
-#define SET_BUSY(sc)	do {sc->flags |= CXGBE_BUSY;} while (0)
-#define CLR_BUSY(sc)	do {sc->flags &= ~CXGBE_BUSY;} while (0)
+#define IS_DOOMED(pi)	((pi)->flags & DOOMED)
+#define SET_DOOMED(pi)	do {(pi)->flags |= DOOMED;} while (0)
+#define IS_BUSY(sc)	((sc)->flags & CXGBE_BUSY)
+#define SET_BUSY(sc)	do {(sc)->flags |= CXGBE_BUSY;} while (0)
+#define CLR_BUSY(sc)	do {(sc)->flags &= ~CXGBE_BUSY;} while (0)
 
 struct port_info {
 	device_t dev;
@@ -275,7 +292,6 @@ struct sge_iq {
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
 	bus_addr_t ba;		/* bus address of descriptor ring */
-	char lockname[16];
 	uint32_t flags;
 	uint16_t abs_id;	/* absolute SGE id for the iq */
 	int8_t   intr_pktc_idx;	/* packet count threshold index */
@@ -429,7 +445,7 @@ static inline struct sge_rxq *
 iq_to_rxq(struct sge_iq *iq)
 {
 
-	return (member2struct(sge_rxq, iq, iq));
+	return (__containerof(iq, struct sge_rxq, iq));
 }
 
 
@@ -444,7 +460,7 @@ static inline struct sge_ofld_rxq *
 iq_to_ofld_rxq(struct sge_iq *iq)
 {
 
-	return (member2struct(sge_ofld_rxq, iq, iq));
+	return (__containerof(iq, struct sge_ofld_rxq, iq));
 }
 #endif
 
@@ -510,6 +526,7 @@ struct rss_header;
 typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 typedef int (*an_handler_t)(struct sge_iq *, const struct rsp_ctrl *);
+typedef int (*fw_msg_handler_t)(struct adapter *, const __be64 *);
 
 struct adapter {
 	SLIST_ENTRY(adapter) link;
@@ -560,7 +577,8 @@ struct adapter {
 	int flags;
 
 	char fw_version[32];
-	unsigned int cfcsum;
+	char cfg_file[32];
+	u_int cfcsum;
 	struct adapter_params params;
 	struct t4_virt_res vres;
 
@@ -582,13 +600,25 @@ struct adapter {
 	struct callout sfl_callout;
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	cpl_handler_t cpl_handler[256];
+	fw_msg_handler_t fw_msg_handler[4];	/* NUM_FW6_TYPES */
+	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
+
+#ifdef INVARIANTS
+	const char *last_op;
+	const void *last_op_thr;
+#endif
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
 #define ADAPTER_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
+
+/* XXX: not bulletproof, but much better than nothing */
+#define ASSERT_SYNCHRONIZED_OP(sc)	\
+    KASSERT(IS_BUSY(sc) && \
+	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \
+	("%s: operation not synchronized.", __func__))
 
 #define PORT_LOCK(pi)			mtx_lock(&(pi)->pi_lock)
 #define PORT_UNLOCK(pi)			mtx_unlock(&(pi)->pi_lock)
@@ -618,18 +648,18 @@ struct adapter {
 #define TXQ_LOCK_ASSERT_OWNED(txq)	EQ_LOCK_ASSERT_OWNED(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
 
-#define for_each_txq(pi, iter, txq) \
-	txq = &pi->adapter->sge.txq[pi->first_txq]; \
-	for (iter = 0; iter < pi->ntxq; ++iter, ++txq)
-#define for_each_rxq(pi, iter, rxq) \
-	rxq = &pi->adapter->sge.rxq[pi->first_rxq]; \
-	for (iter = 0; iter < pi->nrxq; ++iter, ++rxq)
-#define for_each_ofld_txq(pi, iter, ofld_txq) \
-	ofld_txq = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq]; \
-	for (iter = 0; iter < pi->nofldtxq; ++iter, ++ofld_txq)
-#define for_each_ofld_rxq(pi, iter, ofld_rxq) \
-	ofld_rxq = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq]; \
-	for (iter = 0; iter < pi->nofldrxq; ++iter, ++ofld_rxq)
+#define for_each_txq(pi, iter, q) \
+	for (q = &pi->adapter->sge.txq[pi->first_txq], iter = 0; \
+	    iter < pi->ntxq; ++iter, ++q)
+#define for_each_rxq(pi, iter, q) \
+	for (q = &pi->adapter->sge.rxq[pi->first_rxq], iter = 0; \
+	    iter < pi->nrxq; ++iter, ++q)
+#define for_each_ofld_txq(pi, iter, q) \
+	for (q = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq], iter = 0; \
+	    iter < pi->nofldtxq; ++iter, ++q)
+#define for_each_ofld_rxq(pi, iter, q) \
+	for (q = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq], iter = 0; \
+	    iter < pi->nofldrxq; ++iter, ++q)
 
 /* One for errors, one for firmware events */
 #define T4_EXTRA_INTR 2
@@ -741,6 +771,10 @@ void t4_os_link_changed(struct adapter *, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
+int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
+int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int begin_synchronized_op(struct adapter *, struct port_info *, int, char *);
+void end_synchronized_op(struct adapter *, int);
 
 /* t4_sge.c */
 void t4_sge_modload(void);

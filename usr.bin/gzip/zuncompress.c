@@ -77,10 +77,9 @@ static char_type magic_header[] =
 static char_type rmask[9] =
 	{0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff};
 
-/* XXX zuncompress global */
-off_t total_compressed_bytes;
-size_t compressed_prelen;
-char *compressed_pre;
+static off_t total_compressed_bytes;
+static size_t compressed_prelen;
+static char *compressed_pre;
 
 struct s_zstate {
 	FILE *zs_fp;			/* File stream for I/O */

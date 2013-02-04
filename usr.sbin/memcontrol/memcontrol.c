@@ -233,7 +233,7 @@ setfunc(int memfd, int argc, char *argv[])
     while(argc--) {
 	for (i = 0; attrnames[i].name != NULL; i++) {
 	    if (!strcmp(attrnames[i].name, argv[0])) {
-		if (!attrnames[i].kind & MDF_SETTABLE)
+		if (!(attrnames[i].kind & MDF_SETTABLE))
 		    help("flags");
 		mrd.mr_flags |= attrnames[i].val;
 		break;

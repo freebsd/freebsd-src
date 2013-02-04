@@ -50,7 +50,7 @@ namespace Intrinsic {
   /// Intrinsic::getType(ID) - Return the function type for an intrinsic.
   ///
   FunctionType *getType(LLVMContext &Context, ID id,
-                              ArrayRef<Type*> Tys = ArrayRef<Type*>());
+                        ArrayRef<Type*> Tys = ArrayRef<Type*>());
 
   /// Intrinsic::isOverloaded(ID) - Returns true if the intrinsic can be
   /// overloaded.
@@ -58,7 +58,7 @@ namespace Intrinsic {
 
   /// Intrinsic::getAttributes(ID) - Return the attributes for an intrinsic.
   ///
-  AttrListPtr getAttributes(ID id);
+  AttrListPtr getAttributes(LLVMContext &C, ID id);
 
   /// Intrinsic::getDeclaration(M, ID) - Create or insert an LLVM Function
   /// declaration for an intrinsic, and return it.
@@ -73,6 +73,53 @@ namespace Intrinsic {
                            
   /// Map a GCC builtin name to an intrinsic ID.
   ID getIntrinsicForGCCBuiltin(const char *Prefix, const char *BuiltinName);
+  
+  /// IITDescriptor - This is a type descriptor which explains the type
+  /// requirements of an intrinsic.  This is returned by
+  /// getIntrinsicInfoTableEntries.
+  struct IITDescriptor {
+    enum IITDescriptorKind {
+      Void, MMX, Metadata, Float, Double,
+      Integer, Vector, Pointer, Struct,
+      Argument, ExtendVecArgument, TruncVecArgument
+    } Kind;
+    
+    union {
+      unsigned Integer_Width;
+      unsigned Float_Width;
+      unsigned Vector_Width;
+      unsigned Pointer_AddressSpace;
+      unsigned Struct_NumElements;
+      unsigned Argument_Info;
+    };
+    
+    enum ArgKind {
+      AK_AnyInteger,
+      AK_AnyFloat,
+      AK_AnyVector,
+      AK_AnyPointer
+    };
+    unsigned getArgumentNumber() const {
+      assert(Kind == Argument || Kind == ExtendVecArgument || 
+             Kind == TruncVecArgument);
+      return Argument_Info >> 2;
+    }
+    ArgKind getArgumentKind() const {
+      assert(Kind == Argument || Kind == ExtendVecArgument || 
+             Kind == TruncVecArgument);
+      return (ArgKind)(Argument_Info&3);
+    }
+    
+    static IITDescriptor get(IITDescriptorKind K, unsigned Field) {
+      IITDescriptor Result = { K, { Field } };
+      return Result;
+    }
+  };
+  
+  /// getIntrinsicInfoTableEntries - Return the IIT table descriptor for the
+  /// specified intrinsic into an array of IITDescriptors.
+  /// 
+  void getIntrinsicInfoTableEntries(ID id, SmallVectorImpl<IITDescriptor> &T);
   
 } // End Intrinsic namespace
 

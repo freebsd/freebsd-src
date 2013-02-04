@@ -100,7 +100,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.4";
+char igb_driver_version[] = "version - 2.3.5";
 
 
 /*********************************************************************
@@ -181,8 +181,7 @@ static int	igb_suspend(device_t);
 static int	igb_resume(device_t);
 #if __FreeBSD_version >= 800000
 static int	igb_mq_start(struct ifnet *, struct mbuf *);
-static int	igb_mq_start_locked(struct ifnet *,
-		    struct tx_ring *, struct mbuf *);
+static int	igb_mq_start_locked(struct ifnet *, struct tx_ring *);
 static void	igb_qflush(struct ifnet *);
 static void	igb_deferred_mq_start(void *, int);
 #else
@@ -295,7 +294,7 @@ static device_method_t igb_methods[] = {
 	DEVMETHOD(device_shutdown, igb_shutdown),
 	DEVMETHOD(device_suspend, igb_suspend),
 	DEVMETHOD(device_resume, igb_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t igb_driver = {
@@ -845,7 +844,7 @@ igb_resume(device_t dev)
 			/* Process the stack queue only if not depleted */
 			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 			    !drbr_empty(ifp, txr->br))
-				igb_mq_start_locked(ifp, txr, NULL);
+				igb_mq_start_locked(ifp, txr);
 #else
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				igb_start_locked(txr, ifp);
@@ -961,7 +960,14 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	que = &adapter->queues[i];
 	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 	    IGB_TX_TRYLOCK(txr)) {
-		err = igb_mq_start_locked(ifp, txr, m);
+		/*
+		** Try to queue first to avoid
+		** out-of-order delivery, but 
+		** settle for it if that fails
+		*/
+		if (m)
+			drbr_enqueue(ifp, txr->br, m);
+		err = igb_mq_start_locked(ifp, txr);
 		IGB_TX_UNLOCK(txr);
 	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
@@ -972,7 +978,7 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 }
 
 static int
-igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
+igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 {
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
@@ -981,36 +987,26 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	IGB_TX_LOCK_ASSERT(txr);
 
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    (txr->queue_status == IGB_QUEUE_DEPLETED) ||
-	    adapter->link_active == 0) {
-		if (m != NULL)
-			err = drbr_enqueue(ifp, txr->br, m);
+	    (txr->queue_status & IGB_QUEUE_DEPLETED) ||
+	    adapter->link_active == 0)
 		return (err);
-	}
 
 	enq = 0;
-	if (m == NULL) {
-		next = drbr_dequeue(ifp, txr->br);
-	} else if (drbr_needs_enqueue(ifp, txr->br)) {
-		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
-			return (err);
-		next = drbr_dequeue(ifp, txr->br);
-	} else
-		next = m;
 
 	/* Process the queue */
-	while (next != NULL) {
+	while ((next = drbr_dequeue(ifp, txr->br)) != NULL) {
 		if ((err = igb_xmit(txr, &next)) != 0) {
 			if (next != NULL)
 				err = drbr_enqueue(ifp, txr->br, next);
 			break;
 		}
 		enq++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
-		next = drbr_dequeue(ifp, txr->br);
 	}
 	if (enq > 0) {
 		/* Set the watchdog */
@@ -1036,7 +1032,7 @@ igb_deferred_mq_start(void *arg, int pending)
 
 	IGB_TX_LOCK(txr);
 	if (!drbr_empty(ifp, txr->br))
-		igb_mq_start_locked(ifp, txr, NULL);
+		igb_mq_start_locked(ifp, txr);
 	IGB_TX_UNLOCK(txr);
 }
 
@@ -1388,7 +1384,7 @@ igb_handle_que(void *context, int pending)
 		/* Process the stack queue only if not depleted */
 		if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 		    !drbr_empty(ifp, txr->br))
-			igb_mq_start_locked(ifp, txr, NULL);
+			igb_mq_start_locked(ifp, txr);
 #else
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			igb_start_locked(txr, ifp);
@@ -1439,7 +1435,7 @@ igb_handle_link_locked(struct adapter *adapter)
 			/* Process the stack queue only if not depleted */
 			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 			    !drbr_empty(ifp, txr->br))
-				igb_mq_start_locked(ifp, txr, NULL);
+				igb_mq_start_locked(ifp, txr);
 #else
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				igb_start_locked(txr, ifp);
@@ -1494,12 +1490,6 @@ igb_irq_fast(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-/*********************************************************************
- *
- *  Legacy polling routine : if using this code you MUST be sure that
- *  multiqueue is not defined, ie, set igb_num_queues to 1.
- *
- *********************************************************************/
 #if __FreeBSD_version >= 800000
 #define POLL_RETURN_COUNT(a) (a)
 static int
@@ -1510,8 +1500,8 @@ static void
 igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter		*adapter = ifp->if_softc;
-	struct igb_queue	*que = adapter->queues;
-	struct tx_ring		*txr = adapter->tx_rings;
+	struct igb_queue	*que;
+	struct tx_ring		*txr;
 	u32			reg_icr, rx_done = 0;
 	u32			loop = IGB_MAX_LOOP;
 	bool			more;
@@ -1533,20 +1523,26 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	IGB_CORE_UNLOCK(adapter);
 
-	igb_rxeof(que, count, &rx_done);
+	for (int i = 0; i < adapter->num_queues; i++) {
+		que = &adapter->queues[i];
+		txr = que->txr;
 
-	IGB_TX_LOCK(txr);
-	do {
-		more = igb_txeof(txr);
-	} while (loop-- && more);
+		igb_rxeof(que, count, &rx_done);
+
+		IGB_TX_LOCK(txr);
+		do {
+			more = igb_txeof(txr);
+		} while (loop-- && more);
 #if __FreeBSD_version >= 800000
-	if (!drbr_empty(ifp, txr->br))
-		igb_mq_start_locked(ifp, txr, NULL);
+		if (!drbr_empty(ifp, txr->br))
+			igb_mq_start_locked(ifp, txr);
 #else
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		igb_start_locked(txr, ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			igb_start_locked(txr, ifp);
 #endif
-	IGB_TX_UNLOCK(txr);
+		IGB_TX_UNLOCK(txr);
+	}
+
 	return POLL_RETURN_COUNT(rx_done);
 }
 #endif /* DEVICE_POLLING */
@@ -1576,7 +1572,7 @@ igb_msix_que(void *arg)
 	/* Process the stack queue only if not depleted */
 	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 	    !drbr_empty(ifp, txr->br))
-		igb_mq_start_locked(ifp, txr, NULL);
+		igb_mq_start_locked(ifp, txr);
 #else
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		igb_start_locked(txr, ifp);
@@ -1834,7 +1830,7 @@ retry:
 		if (do_tso || (m_head->m_next != NULL && 
 		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
 			if (M_WRITABLE(*m_headp) == 0) {
-				m_head = m_dup(*m_headp, M_DONTWAIT);
+				m_head = m_dup(*m_headp, M_NOWAIT);
 				m_freem(*m_headp);
 				if (m_head == NULL) {
 					*m_headp = NULL;
@@ -1939,7 +1935,7 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -2522,7 +2518,6 @@ igb_allocate_msix(struct adapter *adapter)
 				"Bound queue %d to cpu %d\n",
 				i,igb_last_bind_cpu);
 			igb_last_bind_cpu = CPU_NEXT(igb_last_bind_cpu);
-			igb_last_bind_cpu = igb_last_bind_cpu % mp_ncpus;
 		}
 #if __FreeBSD_version >= 800000
 		TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start,
@@ -3988,7 +3983,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 		if (rxr->hdr_split == FALSE)
 			goto no_split;
 		if (rxbuf->m_head == NULL) {
-			mh = m_gethdr(M_DONTWAIT, MT_DATA);
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
 		} else
@@ -4014,7 +4009,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 		    htole64(hseg[0].ds_addr);
 no_split:
 		if (rxbuf->m_pack == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;
@@ -4230,7 +4225,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			goto skip_head;
 
 		/* First the header */
-		rxbuf->m_head = m_gethdr(M_DONTWAIT, MT_DATA);
+		rxbuf->m_head = m_gethdr(M_NOWAIT, MT_DATA);
 		if (rxbuf->m_head == NULL) {
 			error = ENOBUFS;
                         goto fail;
@@ -4252,7 +4247,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 
 skip_head:
 		/* Now the payload cluster */
-		rxbuf->m_pack = m_getjcl(M_DONTWAIT, MT_DATA,
+		rxbuf->m_pack = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_pack == NULL) {
 			error = ENOBUFS;
@@ -4335,8 +4330,8 @@ fail:
 	 * the rings that completed, the failing case will have
 	 * cleaned up for itself. 'i' is the endpoint.
 	 */
-	for (int j = 0; j > i; ++j) {
-		rxr = &adapter->rx_rings[i];
+	for (int j = 0; j < i; ++j) {
+		rxr = &adapter->rx_rings[j];
 		IGB_RX_LOCK(rxr);
 		igb_free_receive_ring(rxr);
 		IGB_RX_UNLOCK(rxr);
@@ -4752,7 +4747,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		/* Make sure all segments of a bad packet are discarded */
 		if (((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0) ||
 		    (rxr->discard)) {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
 				rxr->discard = TRUE;
@@ -4894,7 +4889,7 @@ next_desc:
 	}
 
 	if (done != NULL)
-		*done = rxdone;
+		*done += rxdone;
 
 	IGB_RX_UNLOCK(rxr);
 	return ((staterr & E1000_RXD_STAT_DD) ? TRUE : FALSE);

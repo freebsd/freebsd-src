@@ -38,15 +38,97 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130116: removed long unused directories for .1aout section manpages
+OLD_FILES+=usr/share/man/en.ISO8859-1/man1aout
+OLD_FILES+=usr/share/man/en.UTF-8/man1aout
+OLD_DIRS+=usr/share/man/man1aout
+OLD_DIRS+=usr/share/man/cat1aout
+OLD_DIRS+=usr/share/man/en.ISO8859-1/cat1aout
+OLD_DIRS+=usr/share/man/en.UTF-8/cat1aout
+# 20121230: libdisk removed
+OLD_FILES+=usr/share/man/man3/libdisk.3.gz usr/include/libdisk.h
+OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a
+# 20121230: remove wrongly created directories for auditdistd
+OLD_DIRS+=var/dist
+OLD_DIRS+=var/remote
+# 20121114: zpool-features manual page moved from section 5 to 7
+OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
+# 20121022: remove harp, hfa and idt man page
+OLD_FILES+=share/man/man4/harp.4
+OLD_FILES+=share/man/man4/hfa.4
+OLD_FILES+=share/man/man4/idt.4
+# 20121022: VFS_LOCK_GIANT elimination
+OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
+OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz
+# 20121004: remove incomplete unwind.h
+OLD_FILES+=usr/include/clang/3.2/unwind.h
+# 20120910: NetBSD compat shims removed
+OLD_FILES+=usr/include/cam/scsi/scsi_low_pisa.h
+OLD_FILES+=usr/include/sys/device_port.h
+# 20120909: doc and www supfiles removed
+OLD_FILES+=usr/share/examples/cvsup/doc-supfile
+OLD_FILES+=usr/share/examples/cvsup/www-supfile
+# 20120908: pf cleanup
+OLD_FILES+=usr/include/net/if_pflow.h
+# 20120816: new clang import which bumps version from 3.1 to 3.2
+OLD_FILES+=usr/bin/llvm-ld
+OLD_FILES+=usr/bin/llvm-stub
+OLD_FILES+=usr/include/clang/3.1/altivec.h
+OLD_FILES+=usr/include/clang/3.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.1/module.map
+OLD_FILES+=usr/include/clang/3.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/unwind.h
+OLD_FILES+=usr/include/clang/3.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.1/xmmintrin.h
+OLD_DIRS+=usr/include/clang/3.1
+OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
+# 20120712: OpenSSL 1.0.1c import
+OLD_LIBS+=lib/libcrypto.so.6
+OLD_LIBS+=usr/lib/libssl.so.6
+OLD_LIBS+=usr/lib32/libcrypto.so.6
+OLD_LIBS+=usr/lib32/libssl.so.6
+OLD_FILES+=usr/include/openssl/aes_locl.h
+OLD_FILES+=usr/include/openssl/bio_lcl.h
+OLD_FILES+=usr/include/openssl/e_os.h
+OLD_FILES+=usr/include/openssl/fips.h
+OLD_FILES+=usr/include/openssl/fips_rand.h
+OLD_FILES+=usr/include/openssl/md2.h
+OLD_FILES+=usr/include/openssl/pq_compat.h
+OLD_FILES+=usr/include/openssl/store.h
+OLD_FILES+=usr/include/openssl/tmdiff.h
+OLD_FILES+=usr/include/openssl/ui_locl.h
+OLD_FILES+=usr/share/openssl/man/man3/CRYPTO_set_id_callback.3.gz
 # 20120621: remove old man page
 OLD_FILES+=usr/share/man/man8/vnconfig.8.gz
+# 20120619: TOE support updated
+OLD_FILES+=usr/include/netinet/toedev.h
 # 20120613: auth.conf removed
 OLD_FILES+=etc/auth.conf
 OLD_FILES+=usr/share/examples/etc/auth.conf
 OLD_FILES+=usr/share/man/man3/auth.3.gz
+OLD_FILES+=usr/share/man/man3/auth_getval.3.gz
 OLD_FILES+=usr/share/man/man5/auth.conf.5.gz
 # 20120530: kde pam lives now in ports
 OLD_FILES+=etc/pam.d/kde
+# 20120521: byacc import
+OLD_FILES+=usr/bin/yyfix
+OLD_FILES+=usr/share/man/man1/yyfix.1.gz
 # 20120505: new clang import installed a redundant internal header
 OLD_FILES+=usr/include/clang/3.1/stdalign.h
 # 20120428: MD2 removed from libmd
@@ -1126,12 +1208,6 @@ OLD_FILES+=usr/include/sys/linedisc.h
 OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
 # 20080725: sgtty.h removed
 OLD_FILES+=usr/include/sgtty.h
-# 20080719: sade(8) removed on all but amd64, i386 and sparc64
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386" && \
-    ${TARGET_ARCH} != "sparc64"
-OLD_FILES+=usr/sbin/sade
-OLD_FILES+=usr/share/man/man8/sade.8.gz
-.endif
 # 20080706: bsdlabel(8) removed on powerpc
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=sbin/bsdlabel
@@ -1342,6 +1418,11 @@ OLD_FILES+=usr/share/man/man2/kse_thr_interrupt.2.gz
 OLD_FILES+=usr/share/man/man2/kse_wakeup.2.gz
 OLD_FILES+=usr/lib32/libkse.so
 OLD_LIBS+=usr/lib32/libkse.so.3
+# 20080225: bsdar/bsdranlib rename to ar/ranlib
+OLD_FILES+=usr/bin/bsdar
+OLD_FILES+=usr/bin/bsdranlib
+OLD_FILES+=usr/share/man/man1/bsdar.1.gz
+OLD_FILES+=usr/share/man/man1/bsdranlib.1.gz
 # 20080220: geom_lvm rename to geom_linux_lvm
 OLD_FILES+=usr/share/man/man4/geom_lvm.4.gz
 # 20080126: oldcard.4 removal

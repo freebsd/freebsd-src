@@ -93,12 +93,7 @@ ENTRY(rfork_thread)
 2:
 	popq	%r12
 	popq	%rbx
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)), %rdx
-	jmp	*%rdx
-#else
 	jmp	HIDENAME(cerror)
-#endif
 END(rfork_thread)
 
 	.section .note.GNU-stack,"",%progbits

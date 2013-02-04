@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -40,10 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp_var.h>
+#include <netinet6/scope6_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
@@ -54,6 +59,12 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
+
+static struct protosw ddp_protosw;
+static struct pr_usrreqs ddp_usrreqs;
+
+static struct protosw ddp6_protosw;
+static struct pr_usrreqs ddp6_usrreqs;
 
 /* Module ops */
 static int t4_tom_mod_load(void);
@@ -74,6 +85,11 @@ static void queue_tid_release(struct adapter *, int);
 static void release_offload_resources(struct toepcb *);
 static int alloc_tid_tabs(struct tid_info *);
 static void free_tid_tabs(struct tid_info *);
+static int add_lip(struct adapter *, struct in6_addr *);
+static int delete_lip(struct adapter *, struct in6_addr *);
+static struct clip_entry *search_lip(struct tom_data *, struct in6_addr *);
+static void init_clip_table(struct adapter *, struct tom_data *);
+static void destroy_clip_table(struct adapter *, struct tom_data *);
 static void free_tom_data(struct adapter *, struct tom_data *);
 
 struct toepcb *
@@ -138,9 +154,9 @@ void
 free_toepcb(struct toepcb *toep)
 {
 
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED) == 0,
+	KASSERT(!(toep->flags & TPF_ATTACHED),
 	    ("%s: attached to an inpcb", __func__));
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING) == 0,
+	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: CPL pending", __func__));
 
 	free(toep, M_CXGBE);
@@ -167,6 +183,12 @@ offload_socket(struct socket *so, struct toepcb *toep)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	sb->sb_flags |= SB_NOCOALESCE;
+	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+		if (inp->inp_vflag & INP_IPV6)
+			so->so_proto = &ddp6_protosw;
+		else
+			so->so_proto = &ddp_protosw;
+	}
 	SOCKBUF_UNLOCK(sb);
 
 	/* Update TCP PCB */
@@ -176,7 +198,7 @@ offload_socket(struct socket *so, struct toepcb *toep)
 
 	/* Install an extra hold on inp */
 	toep->inp = inp;
-	toepcb_set_flag(toep, TPF_ATTACHED);
+	toep->flags |= TPF_ATTACHED;
 	in_pcbref(inp);
 
 	/* Add the TOE PCB to the active list */
@@ -211,7 +233,7 @@ undo_offload_socket(struct socket *so)
 	tp->t_flags &= ~TF_TOE;
 
 	toep->inp = NULL;
-	toepcb_clr_flag(toep, TPF_ATTACHED);
+	toep->flags &= ~TPF_ATTACHED;
 	if (in_pcbrele_wlocked(inp))
 		panic("%s: inp freed.", __func__);
 
@@ -227,13 +249,16 @@ release_offload_resources(struct toepcb *toep)
 	struct adapter *sc = td_adapter(td);
 	int tid = toep->tid;
 
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING) == 0,
+	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: %p has CPL pending.", __func__, toep));
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED) == 0,
+	KASSERT(!(toep->flags & TPF_ATTACHED),
 	    ("%s: %p is still attached.", __func__, toep));
 
-	CTR4(KTR_CXGBE, "%s: toep %p (tid %d, l2te %p)",
-	    __func__, toep, tid, toep->l2te);
+	CTR5(KTR_CXGBE, "%s: toep %p (tid %d, l2te %p, ce %p)",
+	    __func__, toep, tid, toep->l2te, toep->ce);
+
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		release_ddp_resources(toep);
 
 	if (toep->l2te)
 		t4_l2t_release(toep->l2te);
@@ -242,6 +267,9 @@ release_offload_resources(struct toepcb *toep)
 		remove_tid(sc, tid);
 		release_tid(sc, tid, toep->ctrlq);
 	}
+
+	if (toep->ce)
+		release_lip(td, toep->ce);
 
 	mtx_lock(&td->toep_list_lock);
 	TAILQ_REMOVE(&td->toep_list, toep, link);
@@ -269,7 +297,7 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED),
+	KASSERT(toep->flags & TPF_ATTACHED,
 	    ("%s: not attached", __func__));
 
 #ifdef KTR
@@ -287,9 +315,9 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 
 	tp->t_toe = NULL;
 	tp->t_flags &= ~TF_TOE;
-	toepcb_clr_flag(toep, TPF_ATTACHED);
+	toep->flags &= ~TPF_ATTACHED;
 
-	if (toepcb_flag(toep, TPF_CPL_PENDING) == 0)
+	if (!(toep->flags & TPF_CPL_PENDING))
 		release_offload_resources(toep);
 }
 
@@ -304,16 +332,16 @@ final_cpl_received(struct toepcb *toep)
 
 	KASSERT(inp != NULL, ("%s: inp is NULL", __func__));
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING),
+	KASSERT(toep->flags & TPF_CPL_PENDING,
 	    ("%s: CPL not pending already?", __func__));
 
 	CTR6(KTR_CXGBE, "%s: tid %d, toep %p (0x%x), inp %p (0x%x)",
 	    __func__, toep->tid, toep, toep->flags, inp, inp->inp_flags);
 
 	toep->inp = NULL;
-	toepcb_clr_flag(toep, TPF_CPL_PENDING);
+	toep->flags &= ~TPF_CPL_PENDING;
 
-	if (toepcb_flag(toep, TPF_ATTACHED) == 0)
+	if (!(toep->flags & TPF_ATTACHED))
 		release_offload_resources(toep);
 
 	if (!in_pcbrele_wlocked(inp))
@@ -386,7 +414,7 @@ int
 find_best_mtu_idx(struct adapter *sc, struct in_conninfo *inc, int pmss)
 {
 	unsigned short *mtus = &sc->params.mtus[0];
-	int i = 0, mss;
+	int i, mss, n;
 
 	KASSERT(inc != NULL || pmss > 0,
 	    ("%s: at least one of inc/pmss must be specified", __func__));
@@ -395,8 +423,13 @@ find_best_mtu_idx(struct adapter *sc, struct in_conninfo *inc, int pmss)
 	if (pmss > 0 && mss > pmss)
 		mss = pmss;
 
-	while (i < NMTUS - 1 && mtus[i + 1] <= mss + 40)
-		++i;
+	if (inc->inc_flags & INC_ISIPV6)
+		n = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+	else
+		n = sizeof(struct ip) + sizeof(struct tcphdr);
+
+	for (i = 0; i < NMTUS - 1 && mtus[i + 1] <= mss + n; i++)
+		continue;
 
 	return (i);
 }
@@ -505,6 +538,24 @@ select_ntuple(struct port_info *pi, struct l2t_entry *e, uint32_t filter_mode)
 	return (htobe32(ntuple));
 }
 
+void
+set_tcpddp_ulp_mode(struct toepcb *toep)
+{
+
+	toep->ulp_mode = ULP_MODE_TCPDDP;
+	toep->ddp_flags = DDP_OK;
+	toep->ddp_score = DDP_LOW_SCORE;
+}
+
+int
+negative_advice(int status)
+{
+
+	return (status == CPL_ERR_RTX_NEG_ADVICE ||
+	    status == CPL_ERR_PERSIST_NEG_ADVICE ||
+	    status == CPL_ERR_KEEPALV_NEG_ADVICE);
+}
+
 static int
 alloc_tid_tabs(struct tid_info *t)
 {
@@ -528,12 +579,10 @@ alloc_tid_tabs(struct tid_info *t)
 	t->atid_tab[t->natids - 1].next = NULL;
 
 	mtx_init(&t->stid_lock, "stid lock", NULL, MTX_DEF);
-	t->stid_tab = (union serv_entry *)&t->atid_tab[t->natids];
-	t->sfree = t->stid_tab;
+	t->stid_tab = (struct listen_ctx **)&t->atid_tab[t->natids];
 	t->stids_in_use = 0;
-	for (i = 1; i < t->nstids; i++)
-		t->stid_tab[i - 1].next = &t->stid_tab[i];
-	t->stid_tab[t->nstids - 1].next = NULL;
+	TAILQ_INIT(&t->stids);
+	t->nstids_free_head = t->nstids;
 
 	atomic_store_rel_int(&t->tids_in_use, 0);
 
@@ -559,15 +608,166 @@ free_tid_tabs(struct tid_info *t)
 		mtx_destroy(&t->stid_lock);
 }
 
+static int
+add_lip(struct adapter *sc, struct in6_addr *lip)
+{
+        struct fw_clip_cmd c;
+
+	ASSERT_SYNCHRONIZED_OP(sc);
+	/* mtx_assert(&td->clip_table_lock, MA_OWNED); */
+
+        memset(&c, 0, sizeof(c));
+	c.op_to_write = htonl(V_FW_CMD_OP(FW_CLIP_CMD) | F_FW_CMD_REQUEST |
+	    F_FW_CMD_WRITE);
+        c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_ALLOC | FW_LEN16(c));
+        c.ip_hi = *(uint64_t *)&lip->s6_addr[0];
+        c.ip_lo = *(uint64_t *)&lip->s6_addr[8];
+
+	return (t4_wr_mbox_ns(sc, sc->mbox, &c, sizeof(c), &c));
+}
+
+static int
+delete_lip(struct adapter *sc, struct in6_addr *lip)
+{
+	struct fw_clip_cmd c;
+
+	ASSERT_SYNCHRONIZED_OP(sc);
+	/* mtx_assert(&td->clip_table_lock, MA_OWNED); */
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_write = htonl(V_FW_CMD_OP(FW_CLIP_CMD) | F_FW_CMD_REQUEST |
+	    F_FW_CMD_READ);
+        c.alloc_to_len16 = htonl(F_FW_CLIP_CMD_FREE | FW_LEN16(c));
+        c.ip_hi = *(uint64_t *)&lip->s6_addr[0];
+        c.ip_lo = *(uint64_t *)&lip->s6_addr[8];
+
+	return (t4_wr_mbox_ns(sc, sc->mbox, &c, sizeof(c), &c));
+}
+
+static struct clip_entry *
+search_lip(struct tom_data *td, struct in6_addr *lip)
+{
+	struct clip_entry *ce;
+
+	mtx_assert(&td->clip_table_lock, MA_OWNED);
+
+	TAILQ_FOREACH(ce, &td->clip_table, link) {
+		if (IN6_ARE_ADDR_EQUAL(&ce->lip, lip))
+			return (ce);
+	}
+
+	return (NULL);
+}
+
+struct clip_entry *
+hold_lip(struct tom_data *td, struct in6_addr *lip)
+{
+	struct clip_entry *ce;
+
+	mtx_lock(&td->clip_table_lock);
+	ce = search_lip(td, lip);
+	if (ce != NULL)
+		ce->refcount++;
+	mtx_unlock(&td->clip_table_lock);
+
+	return (ce);
+}
+
+void
+release_lip(struct tom_data *td, struct clip_entry *ce)
+{
+
+	mtx_lock(&td->clip_table_lock);
+	KASSERT(search_lip(td, &ce->lip) == ce,
+	    ("%s: CLIP entry %p p not in CLIP table.", __func__, ce));
+	KASSERT(ce->refcount > 0,
+	    ("%s: CLIP entry %p has refcount 0", __func__, ce));
+	--ce->refcount;
+	mtx_unlock(&td->clip_table_lock);
+}
+
+static void
+init_clip_table(struct adapter *sc, struct tom_data *td)
+{
+	struct in6_ifaddr *ia;
+	struct in6_addr *lip, tlip;
+	struct clip_entry *ce;
+
+	ASSERT_SYNCHRONIZED_OP(sc);
+
+	mtx_init(&td->clip_table_lock, "CLIP table lock", NULL, MTX_DEF);
+	TAILQ_INIT(&td->clip_table);
+
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		lip = &ia->ia_addr.sin6_addr;
+
+		KASSERT(!IN6_IS_ADDR_MULTICAST(lip),
+		    ("%s: mcast address in in6_ifaddr list", __func__));
+
+		if (IN6_IS_ADDR_LOOPBACK(lip))
+			continue;
+		if (IN6_IS_SCOPE_EMBED(lip)) {
+			/* Remove the embedded scope */
+			tlip = *lip;
+			lip = &tlip;
+			in6_clearscope(lip);
+		}
+		/*
+		 * XXX: how to weed out the link local address for the loopback
+		 * interface?  It's fe80::1 usually (always?).
+		 */
+
+		mtx_lock(&td->clip_table_lock);
+		if (search_lip(td, lip) == NULL) {
+			ce = malloc(sizeof(*ce), M_CXGBE, M_NOWAIT);
+			memcpy(&ce->lip, lip, sizeof(ce->lip));
+			ce->refcount = 0;
+			if (add_lip(sc, lip) == 0)
+				TAILQ_INSERT_TAIL(&td->clip_table, ce, link);
+			else
+				free(ce, M_CXGBE);
+		}
+		mtx_unlock(&td->clip_table_lock);
+	}
+	IN6_IFADDR_RUNLOCK();
+}
+
+static void
+destroy_clip_table(struct adapter *sc, struct tom_data *td)
+{
+	struct clip_entry *ce, *ce_temp;
+
+	if (mtx_initialized(&td->clip_table_lock)) {
+		mtx_lock(&td->clip_table_lock);
+		TAILQ_FOREACH_SAFE(ce, &td->clip_table, link, ce_temp) {
+			KASSERT(ce->refcount == 0,
+			    ("%s: CLIP entry %p still in use (%d)", __func__,
+			    ce, ce->refcount));
+			TAILQ_REMOVE(&td->clip_table, ce, link);
+			delete_lip(sc, &ce->lip);
+			free(ce, M_CXGBE);
+		}
+		mtx_unlock(&td->clip_table_lock);
+		mtx_destroy(&td->clip_table_lock);
+	}
+}
+
 static void
 free_tom_data(struct adapter *sc, struct tom_data *td)
 {
+
+	ASSERT_SYNCHRONIZED_OP(sc);
+
 	KASSERT(TAILQ_EMPTY(&td->toep_list),
 	    ("%s: TOE PCB list is not empty.", __func__));
 	KASSERT(td->lctx_count == 0,
 	    ("%s: lctx hash table is not empty.", __func__));
 
 	t4_uninit_l2t_cpl_handlers(sc);
+	t4_uninit_cpl_io_handlers(sc);
+	t4_uninit_ddp(sc, td);
+	destroy_clip_table(sc, td);
 
 	if (td->listen_mask != 0)
 		hashdestroy(td->listen_hash, M_CXGBE, td->listen_mask);
@@ -592,7 +792,7 @@ t4_tom_activate(struct adapter *sc)
 	struct toedev *tod;
 	int i, rc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for sc->flags */
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	/* per-adapter softc for TOM */
 	td = malloc(sizeof(*td), M_CXGBE, M_ZERO | M_NOWAIT);
@@ -612,6 +812,12 @@ t4_tom_activate(struct adapter *sc)
 	rc = alloc_tid_tabs(&sc->tids);
 	if (rc != 0)
 		goto done;
+
+	/* DDP page pods and CPL handlers */
+	t4_init_ddp(sc, td);
+
+	/* CLIP table for IPv6 offload */
+	init_clip_table(sc, td);
 
 	/* CPL handlers */
 	t4_init_connect_cpl_handlers(sc);
@@ -656,7 +862,7 @@ t4_tom_deactivate(struct adapter *sc)
 	int rc = 0;
 	struct tom_data *td = sc->tom_softc;
 
-	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for sc->flags */
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	if (td == NULL)
 		return (0);	/* XXX. KASSERT? */
@@ -688,6 +894,23 @@ static int
 t4_tom_mod_load(void)
 {
 	int rc;
+	struct protosw *tcp_protosw, *tcp6_protosw;
+
+	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
+	if (tcp_protosw == NULL)
+		return (ENOPROTOOPT);
+	bcopy(tcp_protosw, &ddp_protosw, sizeof(ddp_protosw));
+	bcopy(tcp_protosw->pr_usrreqs, &ddp_usrreqs, sizeof(ddp_usrreqs));
+	ddp_usrreqs.pru_soreceive = t4_soreceive_ddp;
+	ddp_protosw.pr_usrreqs = &ddp_usrreqs;
+
+	tcp6_protosw = pffindproto(PF_INET6, IPPROTO_TCP, SOCK_STREAM);
+	if (tcp6_protosw == NULL)
+		return (ENOPROTOOPT);
+	bcopy(tcp6_protosw, &ddp6_protosw, sizeof(ddp6_protosw));
+	bcopy(tcp6_protosw->pr_usrreqs, &ddp6_usrreqs, sizeof(ddp6_usrreqs));
+	ddp6_usrreqs.pru_soreceive = t4_soreceive_ddp;
+	ddp6_protosw.pr_usrreqs = &ddp6_usrreqs;
 
 	rc = t4_register_uld(&tom_uld_info);
 	if (rc != 0)
@@ -699,11 +922,14 @@ t4_tom_mod_load(void)
 static void
 tom_uninit(struct adapter *sc, void *arg __unused)
 {
+	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4tomun"))
+		return;
+
 	/* Try to free resources (works only if no port has IFCAP_TOE) */
-	ADAPTER_LOCK(sc);
 	if (sc->flags & TOM_INIT_DONE)
 		t4_deactivate_uld(sc, ULD_TOM);
-	ADAPTER_UNLOCK(sc);
+
+	end_synchronized_op(sc, LOCK_HELD);
 }
 
 static int

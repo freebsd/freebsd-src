@@ -27,17 +27,18 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_dinode.h>
+#include <fs/ext2fs/ext2_extern.h>
 
 #define XTIME_TO_NSEC(x)	((x & EXT3_NSEC_MASK) >> 2)
-#define NSEC_TO_XTIME(t)	((t << 2) & EXT3_NSEC_MASK)
+#define NSEC_TO_XTIME(t)	(le32toh(t << 2) & EXT3_NSEC_MASK)
 
 void
 ext2_print_inode( in )
@@ -45,7 +46,7 @@ ext2_print_inode( in )
 {
 	int i;
 
-	printf( "Inode: %5d", in->i_number);
+	printf( "Inode: %5ju", (uintmax_t)in->i_number);
 	printf( /* "Inode: %5d" */
 		" Type: %10s Mode: 0x%o Flags: 0x%x  Version: %d\n",
 		"n/a", in->i_mode, in->i_flags, in->i_gen);

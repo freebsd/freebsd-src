@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_s_mem 3"
-.TH BIO_s_mem 3 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH BIO_s_mem 3 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -201,7 +201,7 @@ Writes to memory BIOs will always succeed if memory is available: that is
 their size can grow indefinitely.
 .PP
 Every read from a read write memory \s-1BIO\s0 will remove the data just read with
-an internal copy operation, if a \s-1BIO\s0 contains a lots of data and it is
+an internal copy operation, if a \s-1BIO\s0 contains a lot of data and it is
 read in small chunks the operation can be very slow. The use of a read only
 memory \s-1BIO\s0 avoids this problem. If the \s-1BIO\s0 must be read write then adding
 a buffering \s-1BIO\s0 to the chain will speed up the process.

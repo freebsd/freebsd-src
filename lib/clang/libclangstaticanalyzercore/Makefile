@@ -1,19 +1,24 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangstaticanalyzercore
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Core
-SRCS=	AnalysisManager.cpp \
-	BasicConstraintManager.cpp \
+SRCS=	APSIntType.cpp \
+	AnalysisManager.cpp \
+	AnalyzerOptions.cpp \
 	BasicValueFactory.cpp \
 	BlockCounter.cpp \
 	BugReporter.cpp \
 	BugReporterVisitors.cpp \
+	CallEvent.cpp \
 	Checker.cpp \
 	CheckerContext.cpp \
 	CheckerHelpers.cpp \
 	CheckerManager.cpp \
 	CheckerRegistry.cpp \
+	ConstraintManager.cpp \
 	CoreEngine.cpp \
 	Environment.cpp \
 	ExplodedGraph.cpp \
@@ -25,7 +30,6 @@ SRCS=	AnalysisManager.cpp \
 	FunctionSummary.cpp \
 	HTMLDiagnostics.cpp \
 	MemRegion.cpp \
-	ObjCMessage.cpp \
 	PathDiagnostic.cpp \
 	PlistDiagnostics.cpp \
 	ProgramState.cpp \
@@ -42,6 +46,7 @@ SRCS=	AnalysisManager.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	StmtNodes

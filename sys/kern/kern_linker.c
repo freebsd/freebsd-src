@@ -1705,7 +1705,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 	struct nameidata nd;
 	struct thread *td = curthread;	/* XXX */
 	char *result, **cpp, *sep;
-	int error, len, extlen, reclen, flags, vfslocked;
+	int error, len, extlen, reclen, flags;
 	enum vtype type;
 
 	extlen = 0;
@@ -1726,18 +1726,16 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 		 * Attempt to open the file, and return the path if
 		 * we succeed and it's a regular file.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, result, td);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, td);
 		flags = FREAD;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error == 0) {
-			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			type = nd.ni_vp->v_type;
 			if (vap)
 				VOP_GETATTR(nd.ni_vp, vap, td->td_ucred);
 			VOP_UNLOCK(nd.ni_vp, 0);
 			vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			if (type == VREG)
 				return (result);
 		}
@@ -1766,7 +1764,6 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	u_char *cp, *recptr, *bufend, *result, *best, *pathbuf, *sep;
 	int error, ival, bestver, *intp, found, flags, clen, blen;
 	ssize_t reclen;
-	int vfslocked = 0;
 
 	result = NULL;
 	bestver = found = 0;
@@ -1778,12 +1775,11 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	snprintf(pathbuf, reclen, "%.*s%s%s", pathlen, path, sep,
 	    linker_hintfile);
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, pathbuf, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, pathbuf, td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		goto bad;
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG)
 		goto bad;
@@ -1807,7 +1803,6 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 		goto bad;
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, cred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	nd.ni_vp = NULL;
 	if (reclen != 0) {
 		printf("can't read %zd\n", reclen);
@@ -1876,7 +1871,6 @@ bad:
 	if (nd.ni_vp != NULL) {
 		VOP_UNLOCK(nd.ni_vp, 0);
 		vn_close(nd.ni_vp, FREAD, cred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	/*
 	 * If nothing found or hints is absent - fallback to the old

@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.60 2012/02/07 12:11:43 lum Exp $
+.\"     $OpenBSD: nc.1,v 1.61 2012/07/07 15:33:02 haesbaert Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 4, 2011
+.Dd February 7, 2012
 .Dt NC 1
 .Os
 .Sh NAME
@@ -137,6 +137,10 @@ is completed.
 It is an error to use this option without the
 .Fl l
 option.
+When used together with the
+.Fl u
+option, the server socket is not connected and it can receive UDP datagrams from
+multiple hosts.
 .It Fl l
 Used to specify that
 .Nm

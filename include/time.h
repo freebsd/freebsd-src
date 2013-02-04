@@ -88,6 +88,13 @@ typedef	__timer_t	timer_t;
 #include <sys/timespec.h>
 #endif /* __POSIX_VISIBLE >= 199309 */
 
+#if __POSIX_VISIBLE >= 200112
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+#endif
+
 /* These macros are also in sys/time.h. */
 #if !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112
 #define CLOCK_REALTIME	0
@@ -105,6 +112,7 @@ typedef	__timer_t	timer_t;
 #define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
 #define CLOCK_SECOND	13		/* FreeBSD-specific. */
 #define CLOCK_THREAD_CPUTIME_ID	14
+#define	CLOCK_PROCESS_CPUTIME_ID	15
 #endif /* !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112 */
 
 #if !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 200112
@@ -164,6 +172,10 @@ int clock_settime(clockid_t, const struct timespec *);
 /* XXX missing: clock_nanosleep() */
 int nanosleep(const struct timespec *, struct timespec *);
 #endif /* __POSIX_VISIBLE >= 199309 */
+
+#if __POSIX_VISIBLE >= 200112
+int clock_getcpuclockid(pid_t, clockid_t *);
+#endif
 
 #if __POSIX_VISIBLE >= 199506
 char *asctime_r(const struct tm *, char *);

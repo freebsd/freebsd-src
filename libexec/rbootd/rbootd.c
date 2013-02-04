@@ -310,16 +310,15 @@ void
 DoTimeout(void)
 {
 	RMPCONN *rtmp;
-	struct timeval now;
-
-	(void) gettimeofday(&now, (struct timezone *)0);
+	time_t now;
 
 	/*
 	 *  For each active connection, if RMP_TIMEOUT seconds have passed
 	 *  since the last packet was sent, delete the connection.
 	 */
+	now = time(NULL);
 	for (rtmp = RmpConns; rtmp != NULL; rtmp = rtmp->next)
-		if ((rtmp->tstamp.tv_sec + RMP_TIMEOUT) < now.tv_sec) {
+		if ((rtmp->tstamp.tv_sec + RMP_TIMEOUT) < now) {
 			syslog(LOG_WARNING, "%s: connection timed out (%u)",
 			       EnetStr(rtmp), rtmp->rmp.r_type);
 			RemoveConn(rtmp);

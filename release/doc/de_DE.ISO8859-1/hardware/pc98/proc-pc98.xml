@@ -1,0 +1,36 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/pc98/proc-pc98.xml,v 1.3 2003/01/13 20:30:49 ue Exp $
+  basiert auf: 1.4
+-->
+
+<sect1 id="support-sys">
+  <title>Unterst&uuml;tzte Systeme</title>
+
+  <para>NEC PC-9801/9821 Systeme mit fast allen i386-kompatiblen
+    Prozessoren, dazu geh&ouml;ren unter anderem 80386, 80486,
+    Pentium, Pentium Pro und Pentium II inklusive aller Varianten.
+    Die i386-kompatiblen Prozessoren von AMD, Cyrix, IBM und IDT
+    werden ebenfalls unterst&uuml;tzt.</para>
+
+  <para>NEC FC-9801/9821 und NEC SV-98 (beide sind mit der
+    PC-9801/9821 Familie kompatibel) sollten auch unterst&uuml;tzt
+    werden.</para>
+
+  <para>Die EPSON PC-386/486/586 Familien sind kompatibel zur NEC
+    PC-9801 Familie und sollten auch unterst&uuml;tzt werden.</para>
+
+  <para>Der hochaufl&ouml;sende Modus wird nicht unterst&uuml;tzt.
+    Die Familien NEC PC-98XA/XL/RL/XL^2 und NEC PC-H98 werden nur im
+    normalen (PC-9801 kompatiblen) Modus unterst&uuml;tzt.</para>
+
+  <para>Es gibt zwar einige Mehrprozessorsysteme (wie Rs20/B20), die
+    SMP-F&auml;higkeiten in &os; werden allerdings noch nicht
+    unterst&uuml;tzt.</para>
+
+  <para>Der Standard-Bus des PC-9801/9821 (der sogenannte C-Bus), der
+    Erweiterungsbus des PC9801NOTE (110 Pin) und der PCI-Bus werden
+    unterst&uuml;tzt.  Der New Extended Standard Architecture (NESA)
+    Bus (wird in den Familien PC-H98, SV-H98 und FC-H98 genutzt) wird
+    noch nicht unterst&uuml;tzt.</para>
+</sect1>

@@ -121,7 +121,7 @@ gdbinit:
 .endif
 .endif
 
-${FULLKERNEL}: ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -133,7 +133,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 .if defined(MFS_IMAGE)
-	@sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
+	sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
 .endif
 
 .if !exists(${.OBJDIR}/.depend)
@@ -154,7 +154,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
 	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.symbols \
-	    linterrs makelinks tags vers.c \
+	    linterrs tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
@@ -236,14 +236,6 @@ ${_ILINKS}:
 # .depend needs include links so we remove them only together.
 kernel-cleandepend:
 	rm -f .depend ${_ILINKS}
-
-links:
-	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
-	    sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	${MAKE} -V CFILES | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
-	    sort -u | comm -23 - dontlink | \
-	    sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
-	sh makelinks; rm -f dontlink
 
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }

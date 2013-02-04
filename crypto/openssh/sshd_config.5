@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.135 2011/08/02 01:22:11 djm Exp $
+.\" $OpenBSD: sshd_config.5,v 1.144 2012/06/29 13:57:25 naddy Exp $
 .\" $FreeBSD$
-.Dd August 2, 2011
+.Dd June 29 2012
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -199,7 +199,9 @@ After expansion,
 is taken to be an absolute path or one relative to the user's home
 directory.
 .Pp
-The default is not to use a principals file \(en in this case, the username
+The default is
+.Dq none ,
+i.e. not to use a principals file \(en in this case, the username
 of the user must appear in a certificate's principals list for it to be
 accepted.
 Note that
@@ -520,7 +522,7 @@ Accepted values are
 .Dq af11 ,
 .Dq af12 ,
 .Dq af13 ,
-.Dq af14 ,
+.Dq af21 ,
 .Dq af22 ,
 .Dq af23 ,
 .Dq af31 ,
@@ -656,9 +658,8 @@ Multiple algorithms must be comma-separated.
 The default is:
 .Bd -literal -offset indent
 hmac-md5,hmac-sha1,umac-64@openssh.com,
-hmac-ripemd160,hmac-sha1-96,hmac-md5-96,
-hmac-sha2-256,hmac-sha256-96,hmac-sha2-512,
-hmac-sha2-512-96
+hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
+hmac-sha1-96,hmac-md5-96
 .Ed
 .It Cm Match
 Introduces a conditional block.
@@ -676,6 +677,8 @@ The available criteria are
 .Cm User ,
 .Cm Group ,
 .Cm Host ,
+.Cm LocalAddress ,
+.Cm LocalPort ,
 and
 .Cm Address .
 The match patterns may consist of single entries or comma-separated
@@ -704,12 +707,17 @@ Only a subset of keywords may be used on the lines following a
 .Cm Match
 keyword.
 Available keywords are
+.Cm AcceptEnv ,
 .Cm AllowAgentForwarding ,
+.Cm AllowGroups ,
 .Cm AllowTcpForwarding ,
+.Cm AllowUsers ,
 .Cm AuthorizedKeysFile ,
 .Cm AuthorizedPrincipalsFile ,
 .Cm Banner ,
 .Cm ChrootDirectory ,
+.Cm DenyGroups ,
+.Cm DenyUsers ,
 .Cm ForceCommand ,
 .Cm GatewayPorts ,
 .Cm GSSAPIAuthentication ,
@@ -801,6 +809,9 @@ Multiple forwards may be specified by separating them with whitespace.
 An argument of
 .Dq any
 can be used to remove all restrictions and permit any forwarding requests.
+An argument of
+.Dq none
+can be used to prohibit all forwarding requests.
 By default all port forwarding requests are permitted.
 .It Cm PermitRootLogin
 Specifies whether root can log in using
@@ -1084,7 +1095,7 @@ the privilege of the authenticated user.
 The goal of privilege separation is to prevent privilege
 escalation by containing any corruption within the unprivileged processes.
 The default is
-.Dq yes .
+.Dq sandbox .
 If
 .Cm UsePrivilegeSeparation
 is set to
@@ -1092,10 +1103,10 @@ is set to
 then the pre-authentication unprivileged process is subject to additional
 restrictions.
 .It Cm VersionAddendum
-Specifies a string to append to the regular version string to identify
-OS- or site-specific modifications.
+Optionally specifies additional text to append to the SSH protocol banner
+sent by the server upon connection.
 The default is
-.Dq FreeBSD-20111001 .
+.Dq FreeBSD-20120901 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

@@ -76,10 +76,6 @@ namespace llvm {
 ///   using llvm::hash_value;
 ///   llvm::hash_code code = hash_value(x);
 /// \endcode
-///
-/// Also note that there are two numerical values which are reserved, and the
-/// implementation ensures will never be produced for real hash_codes. These
-/// can be used as sentinels within hashing data structures.
 class hash_code {
   size_t value;
 
@@ -413,7 +409,6 @@ bool store_and_advance(char *&buffer_ptr, char *buffer_end, const T& value,
 /// combining them, this (as an optimization) directly combines the integers.
 template <typename InputIteratorT>
 hash_code hash_combine_range_impl(InputIteratorT first, InputIteratorT last) {
-  typedef typename std::iterator_traits<InputIteratorT>::value_type ValueT;
   const size_t seed = get_execution_seed();
   char buffer[64], *buffer_ptr = buffer;
   char *const buffer_end = buffer_ptr + array_lengthof(buffer);
@@ -715,7 +710,7 @@ hash_code hash_combine(const T1 &arg1) {
 #endif
 
 
-// Implementation details for implementatinos of hash_value overloads provided
+// Implementation details for implementations of hash_value overloads provided
 // here.
 namespace hashing {
 namespace detail {

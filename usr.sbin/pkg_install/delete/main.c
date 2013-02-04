@@ -67,6 +67,7 @@ main(int argc, char **argv)
     const char *tmp;
     struct stat stat_s;
 
+    warnpkgng();
     pkgs = start = argv;
     while ((ch = getopt_long(argc, argv, opts, longopts, NULL)) != -1)
 	switch(ch) {

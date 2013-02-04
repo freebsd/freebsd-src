@@ -99,17 +99,8 @@ MachineInstr *TargetInstrInfoImpl::commuteInstruction(MachineInstr *MI,
 
   if (NewMI) {
     // Create a new instruction.
-    bool Reg0IsDead = HasDef ? MI->getOperand(0).isDead() : false;
     MachineFunction &MF = *MI->getParent()->getParent();
-    if (HasDef)
-      return BuildMI(MF, MI->getDebugLoc(), MI->getDesc())
-        .addReg(Reg0, RegState::Define | getDeadRegState(Reg0IsDead), SubReg0)
-        .addReg(Reg2, getKillRegState(Reg2IsKill), SubReg2)
-        .addReg(Reg1, getKillRegState(Reg1IsKill), SubReg1);
-    else
-      return BuildMI(MF, MI->getDebugLoc(), MI->getDesc())
-        .addReg(Reg2, getKillRegState(Reg2IsKill), SubReg2)
-        .addReg(Reg1, getKillRegState(Reg1IsKill), SubReg1);
+    MI = MF.CloneMachineInstr(MI);
   }
 
   if (HasDef) {
@@ -501,6 +492,14 @@ CreateTargetHazardRecognizer(const TargetMachine *TM,
   return new ScheduleHazardRecognizer();
 }
 
+// Default implementation of CreateTargetMIHazardRecognizer.
+ScheduleHazardRecognizer *TargetInstrInfoImpl::
+CreateTargetMIHazardRecognizer(const InstrItineraryData *II,
+                               const ScheduleDAG *DAG) const {
+  return (ScheduleHazardRecognizer *)
+    new ScoreboardHazardRecognizer(II, DAG, "misched");
+}
+
 // Default implementation of CreateTargetPostRAHazardRecognizer.
 ScheduleHazardRecognizer *TargetInstrInfoImpl::
 CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
@@ -508,6 +507,10 @@ CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
   return (ScheduleHazardRecognizer *)
     new ScoreboardHazardRecognizer(II, DAG, "post-RA-sched");
 }
+
+//===----------------------------------------------------------------------===//
+//  SelectionDAG latency interface.
+//===----------------------------------------------------------------------===//
 
 int
 TargetInstrInfoImpl::getOperandLatency(const InstrItineraryData *ItinData,
@@ -537,3 +540,142 @@ int TargetInstrInfoImpl::getInstrLatency(const InstrItineraryData *ItinData,
   return ItinData->getStageLatency(get(N->getMachineOpcode()).getSchedClass());
 }
 
+//===----------------------------------------------------------------------===//
+//  MachineInstr latency interface.
+//===----------------------------------------------------------------------===//
+
+unsigned
+TargetInstrInfoImpl::getNumMicroOps(const InstrItineraryData *ItinData,
+                                    const MachineInstr *MI) const {
+  if (!ItinData || ItinData->isEmpty())
+    return 1;
+
+  unsigned Class = MI->getDesc().getSchedClass();
+  int UOps = ItinData->Itineraries[Class].NumMicroOps;
+  if (UOps >= 0)
+    return UOps;
+
+  // The # of u-ops is dynamically determined. The specific target should
+  // override this function to return the right number.
+  return 1;
+}
+
+/// Return the default expected latency for a def based on it's opcode.
+unsigned TargetInstrInfo::defaultDefLatency(const MCSchedModel *SchedModel,
+                                            const MachineInstr *DefMI) const {
+  if (DefMI->isTransient())
+    return 0;
+  if (DefMI->mayLoad())
+    return SchedModel->LoadLatency;
+  if (isHighLatencyDef(DefMI->getOpcode()))
+    return SchedModel->HighLatency;
+  return 1;
+}
+
+unsigned TargetInstrInfoImpl::
+getInstrLatency(const InstrItineraryData *ItinData,
+                const MachineInstr *MI,
+                unsigned *PredCost) const {
+  // Default to one cycle for no itinerary. However, an "empty" itinerary may
+  // still have a MinLatency property, which getStageLatency checks.
+  if (!ItinData)
+    return MI->mayLoad() ? 2 : 1;
+
+  return ItinData->getStageLatency(MI->getDesc().getSchedClass());
+}
+
+bool TargetInstrInfoImpl::hasLowDefLatency(const InstrItineraryData *ItinData,
+                                           const MachineInstr *DefMI,
+                                           unsigned DefIdx) const {
+  if (!ItinData || ItinData->isEmpty())
+    return false;
+
+  unsigned DefClass = DefMI->getDesc().getSchedClass();
+  int DefCycle = ItinData->getOperandCycle(DefClass, DefIdx);
+  return (DefCycle != -1 && DefCycle <= 1);
+}
+
+/// Both DefMI and UseMI must be valid.  By default, call directly to the
+/// itinerary. This may be overriden by the target.
+int TargetInstrInfoImpl::
+getOperandLatency(const InstrItineraryData *ItinData,
+                  const MachineInstr *DefMI, unsigned DefIdx,
+                  const MachineInstr *UseMI, unsigned UseIdx) const {
+  unsigned DefClass = DefMI->getDesc().getSchedClass();
+  unsigned UseClass = UseMI->getDesc().getSchedClass();
+  return ItinData->getOperandLatency(DefClass, DefIdx, UseClass, UseIdx);
+}
+
+/// If we can determine the operand latency from the def only, without itinerary
+/// lookup, do so. Otherwise return -1.
+int TargetInstrInfo::computeDefOperandLatency(
+  const InstrItineraryData *ItinData,
+  const MachineInstr *DefMI, bool FindMin) const {
+
+  // Let the target hook getInstrLatency handle missing itineraries.
+  if (!ItinData)
+    return getInstrLatency(ItinData, DefMI);
+
+  // Return a latency based on the itinerary properties and defining instruction
+  // if possible. Some common subtargets don't require per-operand latency,
+  // especially for minimum latencies.
+  if (FindMin) {
+    // If MinLatency is valid, call getInstrLatency. This uses Stage latency if
+    // it exists before defaulting to MinLatency.
+    if (ItinData->SchedModel->MinLatency >= 0)
+      return getInstrLatency(ItinData, DefMI);
+
+    // If MinLatency is invalid, OperandLatency is interpreted as MinLatency.
+    // For empty itineraries, short-cirtuit the check and default to one cycle.
+    if (ItinData->isEmpty())
+      return 1;
+  }
+  else if(ItinData->isEmpty())
+    return defaultDefLatency(ItinData->SchedModel, DefMI);
+
+  // ...operand lookup required
+  return -1;
+}
+
+/// computeOperandLatency - Compute and return the latency of the given data
+/// dependent def and use when the operand indices are already known. UseMI may
+/// be NULL for an unknown use.
+///
+/// FindMin may be set to get the minimum vs. expected latency. Minimum
+/// latency is used for scheduling groups, while expected latency is for
+/// instruction cost and critical path.
+///
+/// Depending on the subtarget's itinerary properties, this may or may not need
+/// to call getOperandLatency(). For most subtargets, we don't need DefIdx or
+/// UseIdx to compute min latency.
+unsigned TargetInstrInfo::
+computeOperandLatency(const InstrItineraryData *ItinData,
+                      const MachineInstr *DefMI, unsigned DefIdx,
+                      const MachineInstr *UseMI, unsigned UseIdx,
+                      bool FindMin) const {
+
+  int DefLatency = computeDefOperandLatency(ItinData, DefMI, FindMin);
+  if (DefLatency >= 0)
+    return DefLatency;
+
+  assert(ItinData && !ItinData->isEmpty() && "computeDefOperandLatency fail");
+
+  int OperLatency = 0;
+  if (UseMI)
+    OperLatency = getOperandLatency(ItinData, DefMI, DefIdx, UseMI, UseIdx);
+  else {
+    unsigned DefClass = DefMI->getDesc().getSchedClass();
+    OperLatency = ItinData->getOperandCycle(DefClass, DefIdx);
+  }
+  if (OperLatency >= 0)
+    return OperLatency;
+
+  // No operand latency was found.
+  unsigned InstrLatency = getInstrLatency(ItinData, DefMI);
+
+  // Expected latency is the max of the stage latency and itinerary props.
+  if (!FindMin)
+    InstrLatency = std::max(InstrLatency,
+                            defaultDefLatency(ItinData->SchedModel, DefMI));
+  return InstrLatency;
+}

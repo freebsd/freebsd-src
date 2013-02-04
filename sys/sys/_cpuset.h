@@ -49,4 +49,10 @@ typedef	struct _cpuset {
 	long	__bits[howmany(CPU_SETSIZE, _NCPUBITS)];
 } cpuset_t;
 
+#define	CPUSET_FSET							\
+	[ 0 ... (_NCPUWORDS - 1) ] = (-1L)
+
+#define	CPUSET_T_INITIALIZER(x)						\
+	{ .__bits = { x } }
+
 #endif /* !_SYS__CPUSET_H_ */

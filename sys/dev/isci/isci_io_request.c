@@ -670,8 +670,7 @@ isci_io_request_construct(void *arg, bus_dma_segment_t *seg, int nseg,
 	io_request->sge = seg;
 	ccb = io_request->ccb;
 
-	/* XXX More cleanup is needed here */
-	if ((nseg == 0) || (error != 0)) {
+	if (error != 0) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		return;
@@ -757,18 +756,21 @@ isci_io_request_execute_scsi_io(union ccb *ccb,
 		panic("Unexpected CAM_DATA_PHYS flag!  flags = 0x%x\n",
 		    ccb->ccb_h.flags);
 
-	error = bus_dmamap_load(io_request->parent.dma_tag,
-	    io_request->parent.dma_map, csio->data_ptr, csio->dxfer_len,
-	    isci_io_request_construct, io_request, 0x0);
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		error = bus_dmamap_load(io_request->parent.dma_tag,
+		    io_request->parent.dma_map, csio->data_ptr, csio->dxfer_len,
+		    isci_io_request_construct, io_request, 0x0);
 
-	/* A resource shortage from BUSDMA will be automatically
-	 * continued at a later point, pushing the CCB processing
-	 * forward, which will in turn unfreeze the simq.
-	 */
-	if (error == EINPROGRESS) {
-		xpt_freeze_simq(controller->sim, 1);
-		ccb->ccb_h.flags |= CAM_RELEASE_SIMQ;
-	}
+		/* A resource shortage from BUSDMA will be automatically
+		 * continued at a later point, pushing the CCB processing
+		 * forward, which will in turn unfreeze the simq.
+		 */
+		if (error == EINPROGRESS) {
+			xpt_freeze_simq(controller->sim, 1);
+			ccb->ccb_h.flags |= CAM_RELEASE_SIMQ;
+		}
+	} else
+		isci_io_request_construct(io_request, NULL, 0, 0);
 }
 
 void

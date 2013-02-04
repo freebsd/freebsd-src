@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2012
+.Dd August 16, 2012
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -80,8 +80,12 @@ A scheduling algorithm will select states between
 and this setting
 as system load dictates.
 To enable ACPI CPU idling control,
-.Va machdep.cpu_idle_hlt
-must be set to 1.
+.Va machdep.idle
+should be set to
+.Li acpi
+if it is listed in
+.Va machdep.idle_available
+.
 .It Va hw.acpi.cpu.cx_supported
 List of supported CPU idle states and their transition latency
 in microseconds.
@@ -218,14 +222,6 @@ Override any automatic quirks completely.
 .It Va debug.acpi.resume_beep
 Beep the PC speaker on resume.
 This can help diagnose suspend/resume problems.
-Default is 0 (disabled).
-.It Va debug.acpi.sleep_flags
-Execute optional ACPI methods for suspend/resume.
-If the bit 0 is set (1), it will try to execute _GTS (Going To Sleep) method
-when entering suspend state.
-If the bit 1 is set (2), it will try to execute _BFS (Back From Sleep) method
-when leaving suspend state.
-If both the bits are set (3), both the methods will be tried.
 Default is 0 (disabled).
 .It Va hint.acpi.0.disabled
 Set this to 1 to disable all of ACPI.

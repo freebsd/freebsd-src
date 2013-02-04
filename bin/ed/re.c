@@ -31,9 +31,6 @@ __FBSDID("$FreeBSD$");
 
 #include "ed.h"
 
-
-extern int patlock;
-
 const char *errmsg = "";
 
 /* get_compiled_pattern: return pointer to compiled pattern from command

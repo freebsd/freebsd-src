@@ -79,7 +79,7 @@ struct cmds {
 	int				args;
 	void 			(*f)(struct cfg *, char *argv[]);
 };
-struct cmds cmds[];
+static struct cmds cmds[];
 
 
 static void usage(void);
@@ -501,7 +501,7 @@ main(int argc, char *argv[])
 	return (0);
 }
 
-struct cmds cmds[] = {
+static struct cmds cmds[] = {
 	{ MODE_PORT, "vlangroup", 1, set_port_vlangroup },
 	{ MODE_PORT, "media", 1, set_port_media },
 	{ MODE_PORT, "mediaopt", 1, set_port_mediaopt },

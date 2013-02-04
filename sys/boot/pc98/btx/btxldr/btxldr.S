@@ -15,12 +15,12 @@
  * $FreeBSD$
  */
 
+#include <bootargs.h>
+
 /*
  * Prototype BTX loader program, written in a couple of hours.  The
  * real thing should probably be more flexible, and in C.
  */
-
-#include <bootargs.h>
 
 /*
  * Memory locations.

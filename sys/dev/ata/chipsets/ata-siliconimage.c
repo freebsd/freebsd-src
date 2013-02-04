@@ -87,7 +87,7 @@ static int
 ata_sii_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_SII3114,   0x00, SII_MEMIO, SII_4CH,    ATA_SA150, "3114" },
      { ATA_SII3512,   0x02, SII_MEMIO, 0,          ATA_SA150, "3512" },
      { ATA_SII3112,   0x02, SII_MEMIO, 0,          ATA_SA150, "3112" },
@@ -658,8 +658,10 @@ ata_siiprb_end_transaction(struct ata_request *request)
 	}
     }
 
-    /* on control commands read back registers to the request struct */
-    if (request->flags & ATA_R_CONTROL) {
+    /* Read back registers to the request struct. */
+    if ((request->flags & ATA_R_ATAPI) == 0 &&
+	((request->status & ATA_S_ERROR) ||
+	 (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT)))) {
 	request->u.ata.count = prb->fis[12] | ((u_int16_t)prb->fis[13] << 8);
 	request->u.ata.lba = prb->fis[4] | ((u_int64_t)prb->fis[5] << 8) |
 			     ((u_int64_t)prb->fis[6] << 16);

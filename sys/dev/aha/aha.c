@@ -61,6 +61,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
@@ -147,6 +149,7 @@ static void		ahaallocccbs(struct aha_softc *aha);
 static bus_dmamap_callback_t ahaexecuteccb;
 static void		ahadone(struct aha_softc *aha, struct aha_ccb *accb,
 			       aha_mbi_comp_code_t comp_code);
+static void		aha_intr_locked(struct aha_softc *aha);
 
 /* Host adapter command functions */
 static int	ahareset(struct aha_softc* aha, int hard_reset);
@@ -168,22 +171,19 @@ static void	ahaaction(struct cam_sim *sim, union ccb *ccb);
 static void	ahapoll(struct cam_sim *sim);
 
 /* Our timeout handler */
-static timeout_t ahatimeout;
+static void	ahatimeout(void *arg);
 
 /* Exported functions */
 void
-aha_alloc(struct aha_softc *aha, int unit, bus_space_tag_t tag,
-  bus_space_handle_t bsh)
+aha_alloc(struct aha_softc *aha)
 {
 
 	SLIST_INIT(&aha->free_aha_ccbs);
 	LIST_INIT(&aha->pending_ccbs);
 	SLIST_INIT(&aha->sg_maps);
-	aha->unit = unit;
-	aha->tag = tag;
-	aha->bsh = bsh;
 	aha->ccb_sg_opcode = INITIATOR_SG_CCB_WRESID;
 	aha->ccb_ccb_opcode = INITIATOR_CCB_WRESID;
+	mtx_init(&aha->lock, "aha", NULL, MTX_DEF);
 }
 
 void
@@ -225,6 +225,7 @@ aha_free(struct aha_softc *aha)
 	case 0:
 		break;
 	}
+	mtx_destroy(&aha->lock);
 }
 
 /*
@@ -464,7 +465,7 @@ aha_init(struct aha_softc* aha)
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
 				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockarg	*/ &aha->lock,
 				&aha->buffer_dmat) != 0) {
 		goto error_exit;
 	}
@@ -484,8 +485,8 @@ aha_init(struct aha_softc* aha)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&aha->mailbox_dmat) != 0) {
 		goto error_exit;
         }
@@ -523,8 +524,8 @@ aha_init(struct aha_softc* aha)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&aha->ccb_dmat) != 0) {
 		goto error_exit;
         }
@@ -556,8 +557,8 @@ aha_init(struct aha_softc* aha)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&aha->sg_dmat) != 0)
 		goto error_exit;
 
@@ -605,22 +606,27 @@ aha_attach(struct aha_softc *aha)
 	/*
 	 * Construct our SIM entry
 	 */
-	aha->sim = cam_sim_alloc(ahaaction, ahapoll, "aha", aha, aha->unit,
-	     &Giant, 2, tagged_dev_openings, devq);
+	aha->sim = cam_sim_alloc(ahaaction, ahapoll, "aha", aha,
+	    device_get_unit(aha->dev), &aha->lock, 2, tagged_dev_openings,
+	    devq);
 	if (aha->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);
 	}
+	mtx_lock(&aha->lock);
 	if (xpt_bus_register(aha->sim, aha->dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(aha->sim, /*free_devq*/TRUE);
+		mtx_unlock(&aha->lock);
 		return (ENXIO);
 	}
 	if (xpt_create_path(&aha->path, /*periph*/NULL, cam_sim_path(aha->sim),
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(aha->sim));
 		cam_sim_free(aha->sim, /*free_devq*/TRUE);
+		mtx_unlock(&aha->lock);
 		return (ENXIO);
 	}
+	mtx_unlock(&aha->lock);
 
 	return (0);
 }
@@ -664,6 +670,7 @@ ahaallocccbs(struct aha_softc *aha)
 		next_ccb->sg_list = segs;
 		next_ccb->sg_list_phys = physaddr;
 		next_ccb->flags = ACCB_FREE;
+		callout_init_mtx(&next_ccb->timer, &aha->lock, 0);
 		error = bus_dmamap_create(aha->buffer_dmat, /*flags*/0,
 		    &next_ccb->dmamap);
 		if (error != 0)
@@ -685,9 +692,9 @@ ahaallocccbs(struct aha_softc *aha)
 static __inline void
 ahafreeccb(struct aha_softc *aha, struct aha_ccb *accb)
 {
-	int s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&aha->lock, MA_OWNED);
 	if ((accb->flags & ACCB_ACTIVE) != 0)
 		LIST_REMOVE(&accb->ccb->ccb_h, sim_links.le);
 	if (aha->resource_shortage != 0
@@ -698,16 +705,15 @@ ahafreeccb(struct aha_softc *aha, struct aha_ccb *accb)
 	accb->flags = ACCB_FREE;
 	SLIST_INSERT_HEAD(&aha->free_aha_ccbs, accb, links);
 	aha->active_ccbs--;
-	splx(s);
 }
 
 static struct aha_ccb*
 ahagetccb(struct aha_softc *aha)
 {
 	struct	aha_ccb* accb;
-	int	s;
 
-	s = splcam();
+	if (!dumping)
+		mtx_assert(&aha->lock, MA_OWNED);
 	if ((accb = SLIST_FIRST(&aha->free_aha_ccbs)) != NULL) {
 		SLIST_REMOVE_HEAD(&aha->free_aha_ccbs, links);
 		aha->active_ccbs++;
@@ -721,7 +727,6 @@ ahagetccb(struct aha_softc *aha)
 			aha->active_ccbs++;
 		}
 	}
-	splx(s);
 
 	return (accb);
 }
@@ -730,11 +735,11 @@ static void
 ahaaction(struct cam_sim *sim, union ccb *ccb)
 {
 	struct	aha_softc *aha;
-	int s;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ahaaction\n"));
 
 	aha = (struct aha_softc *)cam_sim_softc(sim);
+	mtx_assert(&aha->lock, MA_OWNED);
 
 	switch (ccb->ccb_h.func_code) {
 	/* Common cases first */
@@ -747,9 +752,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		 * Get an accb to use.
 		 */
 		if ((accb = ahagetccb(aha)) == NULL) {
-			s = splcam();
 			aha->resource_shortage = TRUE;
-			splx(s);
 			xpt_freeze_simq(aha->sim, /*count*/1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
@@ -818,7 +821,6 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 					if ((ccbh->flags & CAM_DATA_PHYS)==0) {
 						int error;
 
-						s = splsoftvm();
 						error = bus_dmamap_load(
 						    aha->buffer_dmat,
 						    accb->dmamap,
@@ -840,7 +842,6 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 							csio->ccb_h.status |=
 							    CAM_RELEASE_SIMQ;
 						}
-						splx(s);
 					} else {
 						struct bus_dma_segment seg;
 
@@ -1017,7 +1018,6 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct	 aha_ccb *accb;
 	union	 ccb *ccb;
 	struct	 aha_softc *aha;
-	int	 s;
 	uint32_t paddr;
 
 	accb = (struct aha_ccb *)arg;
@@ -1077,8 +1077,6 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		ahautoa24(0, accb->hccb.data_addr);
 	}
 
-	s = splcam();
-
 	/*
 	 * Last time we need to check if this CCB needs to
 	 * be aborted.
@@ -1088,7 +1086,6 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			bus_dmamap_unload(aha->buffer_dmat, accb->dmamap);
 		ahafreeccb(aha, accb);
 		xpt_done(ccb);
-		splx(s);
 		return;
 	}
 
@@ -1096,8 +1093,8 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&aha->pending_ccbs, &ccb->ccb_h, sim_links.le);
 
-	ccb->ccb_h.timeout_ch = timeout(ahatimeout, (caddr_t)accb,
-	    (ccb->ccb_h.timeout * hz) / 1000);
+	callout_reset(&accb->timer, (ccb->ccb_h.timeout * hz) / 1000,
+	    ahatimeout, accb);
 
 	/* Tell the adapter about this command */
 	if (aha->cur_outbox->action_code != AMBO_FREE) {
@@ -1111,7 +1108,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		device_printf(aha->dev,
 		    "Encountered busy mailbox with %d out of %d "
 		    "commands active!!!", aha->active_ccbs, aha->max_ccbs);
-		untimeout(ahatimeout, accb, ccb->ccb_h.timeout_ch);
+		callout_stop(&accb->timer);
 		if (nseg != 0)
 			bus_dmamap_unload(aha->buffer_dmat, accb->dmamap);
 		ahafreeccb(aha, accb);
@@ -1127,17 +1124,25 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	aha_outb(aha, COMMAND_REG, AOP_START_MBOX);
 
 	ahanextoutbox(aha);
-	splx(s);
 }
 
 void
 aha_intr(void *arg)
 {
 	struct	aha_softc *aha;
+
+	aha = arg;
+	mtx_lock(&aha->lock);
+	aha_intr_locked(aha);
+	mtx_unlock(&aha->lock);
+}
+
+void
+aha_intr_locked(struct aha_softc *aha)
+{
 	u_int	intstat;
 	uint32_t paddr;
 
-	aha = (struct aha_softc *)arg;
 	while (((intstat = aha_inb(aha, INTSTAT_REG)) & INTR_PENDING) != 0) {
 		if ((intstat & CMD_COMPLETE) != 0) {
 			aha->latched_status = aha_inb(aha, STATUS_REG);
@@ -1220,9 +1225,9 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 				ahadone(aha, pending_accb, AMBI_ERROR);
 			} else {
-				ccb_h->timeout_ch = timeout(ahatimeout,
-				    (caddr_t)pending_accb,
-				    (ccb_h->timeout * hz) / 1000);
+				callout_reset(&pending_accb->timer,
+				    (ccb_h->timeout * hz) / 1000,
+				    ahatimeout, pending_accb);
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 			}
 		}
@@ -1230,7 +1235,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 		return;
 	}
 
-	untimeout(ahatimeout, accb, ccb->ccb_h.timeout_ch);
+	callout_stop(&accb->timer);
 
 	switch (comp_code) {
 	case AMBI_FREE:
@@ -1446,7 +1451,6 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 	u_int	saved_status;
 	u_int	intstat;
 	u_int	reply_buf_size;
-	int	s;
 	int	cmd_complete;
 	int	error;
 
@@ -1465,15 +1469,11 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 	 * and wait for all completions to occur if necessary.
 	 */
 	timeout = 10000;
-	s = splcam();
 	while (LIST_FIRST(&aha->pending_ccbs) != NULL && --timeout) {
 		/* Fire the interrupt handler in case interrupts are blocked */
 		aha_intr(aha);
-		splx(s);
 		DELAY(10);
-		s = splcam();
 	}
-	splx(s);
 
 	if (timeout == 0) {
 		device_printf(aha->dev, 
@@ -1516,10 +1516,8 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 	timeout = 10000;
 	while (param_len && --timeout) {
 		DELAY(100);
-		s = splcam();
 		status = aha_inb(aha, STATUS_REG);
 		intstat = aha_inb(aha, INTSTAT_REG);
-		splx(s);
 
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
 		 == (INTR_PENDING|CMD_COMPLETE)) {
@@ -1553,10 +1551,8 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 	 */
 	while (cmd_complete == 0 && --cmd_timeout) {
 
-		s = splcam();
 		status = aha_inb(aha, STATUS_REG);
 		intstat = aha_inb(aha, INTSTAT_REG);
-		splx(s);
 
 		if (aha->command_cmp != 0) {
 			cmd_complete = 1;
@@ -1601,9 +1597,7 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 	 * Clear any pending interrupts.  Block interrupts so our
 	 * interrupt handler is not re-entered.
 	 */
-	s = splcam();
 	aha_intr(aha);
-	splx(s);
 
 	if (error != 0)
 		return (error);
@@ -1764,7 +1758,7 @@ ahamapsgs(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 ahapoll(struct cam_sim *sim)
 {
-	aha_intr(cam_sim_softc(sim));
+	aha_intr_locked(cam_sim_softc(sim));
 }
 
 static void
@@ -1773,23 +1767,20 @@ ahatimeout(void *arg)
 	struct aha_ccb	*accb;
 	union  ccb	*ccb;
 	struct aha_softc *aha;
-	int		 s;
 	uint32_t	paddr;
 	struct ccb_hdr *ccb_h;
 
 	accb = (struct aha_ccb *)arg;
 	ccb = accb->ccb;
 	aha = (struct aha_softc *)ccb->ccb_h.ccb_aha_ptr;
+	mtx_assert(&aha->lock, MA_OWNED);
 	xpt_print_path(ccb->ccb_h.path);
 	printf("CCB %p - timed out\n", (void *)accb);
-
-	s = splcam();
 
 	if ((accb->flags & ACCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("CCB %p - timed out CCB already completed\n",
 		    (void *)accb);
-		splx(s);
 		return;
 	}
 
@@ -1814,7 +1805,7 @@ ahatimeout(void *arg)
 			struct aha_ccb *pending_accb;
 
 			pending_accb = (struct aha_ccb *)ccb_h->ccb_accb_ptr;
-			untimeout(ahatimeout, pending_accb, ccb_h->timeout_ch);
+			callout_stop(&pending_accb->timer);
 			ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 		}
 	}
@@ -1843,7 +1834,7 @@ ahatimeout(void *arg)
 		 * later which will attempt a bus reset.
 		 */
 		accb->flags |= ACCB_DEVICE_RESET;
-		ccb->ccb_h.timeout_ch = timeout(ahatimeout, (caddr_t)accb, 2 * hz);
+		callout_reset(&accb->timer, 2 * hz, ahatimeout, accb);
 		aha->recovery_accb->hccb.opcode = INITIATOR_BUS_DEV_RESET;
 
 		/* No Data Transfer */
@@ -1860,17 +1851,18 @@ ahatimeout(void *arg)
 		aha_outb(aha, COMMAND_REG, AOP_START_MBOX);
 		ahanextoutbox(aha);
 	}
-
-	splx(s);
 }
 
 int
 aha_detach(struct aha_softc *aha)
 {
+	mtx_lock(&aha->lock);
 	xpt_async(AC_LOST_DEVICE, aha->path, NULL);
 	xpt_free_path(aha->path);
 	xpt_bus_deregister(cam_sim_path(aha->sim));
 	cam_sim_free(aha->sim, /*free_devq*/TRUE);
+	mtx_unlock(&aha->lock);
+	/* XXX: Drain all timers? */
 	return (0);
 }
 MODULE_DEPEND(aha, cam, 1, 1, 1);

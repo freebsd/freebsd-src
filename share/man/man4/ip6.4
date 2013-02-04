@@ -570,7 +570,8 @@ struct iovec iov[2];
 u_char buf[BUFSIZ];
 struct cmsghdr *cm;
 struct msghdr m;
-int found, optval;
+int optval;
+bool found;
 u_char data[2048];
 
 /* Create socket. */
@@ -597,8 +598,8 @@ if (setsockopt(s, IPPROTO_IPV6, IPV6_HOPLIMIT, &optval,
     sizeof(optval)) == -1)
 	err(1, "setsockopt");
 
-found = 0;
-while (!found) {
+found = false;
+do {
 	if (recvmsg(s, &m, 0) == -1)
 		err(1, "recvmsg");
 	for (cm = CMSG_FIRSTHDR(&m); cm != NULL;
@@ -606,13 +607,13 @@ while (!found) {
 		if (cm->cmsg_level == IPPROTO_IPV6 &&
 		    cm->cmsg_type == IPV6_HOPLIMIT &&
 		    cm->cmsg_len == CMSG_LEN(sizeof(int))) {
-			found = 1;
+			found = true;
 			(void)printf("hop limit: %d\en",
 			    *(int *)CMSG_DATA(cm));
 			break;
 		}
 	}
-}
+} while (!found);
 .Ed
 .Sh DIAGNOSTICS
 A socket operation may fail with one of the following errors returned:

@@ -142,7 +142,7 @@ struct pmcstat_image_hash_list pmcstat_image_hash[PMCSTAT_NHASH];
 struct pmcstat_process_hash_list pmcstat_process_hash[PMCSTAT_NHASH];
 
 struct pmcstat_stats pmcstat_stats; /* statistics */
-int ps_samples_period; /* samples count between top refresh. */
+static int ps_samples_period; /* samples count between top refresh. */
 
 struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
 
@@ -151,7 +151,7 @@ struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
 #include "pmcpl_annotate.h"
 #include "pmcpl_calltree.h"
 
-struct pmc_plugins  {
+static struct pmc_plugins  {
 	const char 	*pl_name;	/* name */
 
 	/* configure */
@@ -218,7 +218,7 @@ struct pmc_plugins  {
 	}
 };
 
-int pmcstat_mergepmc;
+static int pmcstat_mergepmc;
 
 int pmcstat_pmcinfilter = 0; /* PMC filter for top mode. */
 float pmcstat_threshold = 0.5; /* Cost filter for top mode. */
@@ -275,7 +275,7 @@ int pmcstat_npmcs;
 /*
  * PMC Top mode pause state.
  */
-int pmcstat_pause;
+static int pmcstat_pause;
 
 static void
 pmcstat_stats_reset(int reset_global)

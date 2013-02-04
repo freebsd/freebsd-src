@@ -23,15 +23,205 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NeonEmitter.h"
-#include "llvm/TableGen/Error.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <string>
-
 using namespace llvm;
+
+enum OpKind {
+  OpNone,
+  OpUnavailable,
+  OpAdd,
+  OpAddl,
+  OpAddw,
+  OpSub,
+  OpSubl,
+  OpSubw,
+  OpMul,
+  OpMla,
+  OpMlal,
+  OpMls,
+  OpMlsl,
+  OpMulN,
+  OpMlaN,
+  OpMlsN,
+  OpMlalN,
+  OpMlslN,
+  OpMulLane,
+  OpMullLane,
+  OpMlaLane,
+  OpMlsLane,
+  OpMlalLane,
+  OpMlslLane,
+  OpQDMullLane,
+  OpQDMlalLane,
+  OpQDMlslLane,
+  OpQDMulhLane,
+  OpQRDMulhLane,
+  OpEq,
+  OpGe,
+  OpLe,
+  OpGt,
+  OpLt,
+  OpNeg,
+  OpNot,
+  OpAnd,
+  OpOr,
+  OpXor,
+  OpAndNot,
+  OpOrNot,
+  OpCast,
+  OpConcat,
+  OpDup,
+  OpDupLane,
+  OpHi,
+  OpLo,
+  OpSelect,
+  OpRev16,
+  OpRev32,
+  OpRev64,
+  OpReinterpret,
+  OpAbdl,
+  OpAba,
+  OpAbal
+};
+
+enum ClassKind {
+  ClassNone,
+  ClassI,           // generic integer instruction, e.g., "i8" suffix
+  ClassS,           // signed/unsigned/poly, e.g., "s8", "u8" or "p8" suffix
+  ClassW,           // width-specific instruction, e.g., "8" suffix
+  ClassB            // bitcast arguments with enum argument to specify type
+};
+
+/// NeonTypeFlags - Flags to identify the types for overloaded Neon
+/// builtins.  These must be kept in sync with the flags in
+/// include/clang/Basic/TargetBuiltins.h.
+namespace {
+class NeonTypeFlags {
+  enum {
+    EltTypeMask = 0xf,
+    UnsignedFlag = 0x10,
+    QuadFlag = 0x20
+  };
+  uint32_t Flags;
+
+public:
+  enum EltType {
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Poly8,
+    Poly16,
+    Float16,
+    Float32
+  };
+
+  NeonTypeFlags(unsigned F) : Flags(F) {}
+  NeonTypeFlags(EltType ET, bool IsUnsigned, bool IsQuad) : Flags(ET) {
+    if (IsUnsigned)
+      Flags |= UnsignedFlag;
+    if (IsQuad)
+      Flags |= QuadFlag;
+  }
+
+  uint32_t getFlags() const { return Flags; }
+};
+} // end anonymous namespace
+
+namespace {
+class NeonEmitter {
+  RecordKeeper &Records;
+  StringMap<OpKind> OpMap;
+  DenseMap<Record*, ClassKind> ClassMap;
+
+public:
+  NeonEmitter(RecordKeeper &R) : Records(R) {
+    OpMap["OP_NONE"]  = OpNone;
+    OpMap["OP_UNAVAILABLE"] = OpUnavailable;
+    OpMap["OP_ADD"]   = OpAdd;
+    OpMap["OP_ADDL"]  = OpAddl;
+    OpMap["OP_ADDW"]  = OpAddw;
+    OpMap["OP_SUB"]   = OpSub;
+    OpMap["OP_SUBL"]  = OpSubl;
+    OpMap["OP_SUBW"]  = OpSubw;
+    OpMap["OP_MUL"]   = OpMul;
+    OpMap["OP_MLA"]   = OpMla;
+    OpMap["OP_MLAL"]  = OpMlal;
+    OpMap["OP_MLS"]   = OpMls;
+    OpMap["OP_MLSL"]  = OpMlsl;
+    OpMap["OP_MUL_N"] = OpMulN;
+    OpMap["OP_MLA_N"] = OpMlaN;
+    OpMap["OP_MLS_N"] = OpMlsN;
+    OpMap["OP_MLAL_N"] = OpMlalN;
+    OpMap["OP_MLSL_N"] = OpMlslN;
+    OpMap["OP_MUL_LN"]= OpMulLane;
+    OpMap["OP_MULL_LN"] = OpMullLane;
+    OpMap["OP_MLA_LN"]= OpMlaLane;
+    OpMap["OP_MLS_LN"]= OpMlsLane;
+    OpMap["OP_MLAL_LN"] = OpMlalLane;
+    OpMap["OP_MLSL_LN"] = OpMlslLane;
+    OpMap["OP_QDMULL_LN"] = OpQDMullLane;
+    OpMap["OP_QDMLAL_LN"] = OpQDMlalLane;
+    OpMap["OP_QDMLSL_LN"] = OpQDMlslLane;
+    OpMap["OP_QDMULH_LN"] = OpQDMulhLane;
+    OpMap["OP_QRDMULH_LN"] = OpQRDMulhLane;
+    OpMap["OP_EQ"]    = OpEq;
+    OpMap["OP_GE"]    = OpGe;
+    OpMap["OP_LE"]    = OpLe;
+    OpMap["OP_GT"]    = OpGt;
+    OpMap["OP_LT"]    = OpLt;
+    OpMap["OP_NEG"]   = OpNeg;
+    OpMap["OP_NOT"]   = OpNot;
+    OpMap["OP_AND"]   = OpAnd;
+    OpMap["OP_OR"]    = OpOr;
+    OpMap["OP_XOR"]   = OpXor;
+    OpMap["OP_ANDN"]  = OpAndNot;
+    OpMap["OP_ORN"]   = OpOrNot;
+    OpMap["OP_CAST"]  = OpCast;
+    OpMap["OP_CONC"]  = OpConcat;
+    OpMap["OP_HI"]    = OpHi;
+    OpMap["OP_LO"]    = OpLo;
+    OpMap["OP_DUP"]   = OpDup;
+    OpMap["OP_DUP_LN"] = OpDupLane;
+    OpMap["OP_SEL"]   = OpSelect;
+    OpMap["OP_REV16"] = OpRev16;
+    OpMap["OP_REV32"] = OpRev32;
+    OpMap["OP_REV64"] = OpRev64;
+    OpMap["OP_REINT"] = OpReinterpret;
+    OpMap["OP_ABDL"]  = OpAbdl;
+    OpMap["OP_ABA"]   = OpAba;
+    OpMap["OP_ABAL"]  = OpAbal;
+
+    Record *SI = R.getClass("SInst");
+    Record *II = R.getClass("IInst");
+    Record *WI = R.getClass("WInst");
+    ClassMap[SI] = ClassS;
+    ClassMap[II] = ClassI;
+    ClassMap[WI] = ClassW;
+  }
+
+  // run - Emit arm_neon.h.inc
+  void run(raw_ostream &o);
+
+  // runHeader - Emit all the __builtin prototypes used in arm_neon.h
+  void runHeader(raw_ostream &o);
+
+  // runTests - Emit tests for all the Neon intrinsics.
+  void runTests(raw_ostream &o);
+
+private:
+  void emitIntrinsic(raw_ostream &OS, Record *R);
+};
+} // end anonymous namespace
 
 /// ParseTypes - break down a string such as "fQf" into a vector of StringRefs,
 /// which each StringRef representing a single type declared in the string.
@@ -55,7 +245,7 @@ static void ParseTypes(Record *r, std::string &s,
       case 'f':
         break;
       default:
-        throw TGError(r->getLoc(),
+        PrintFatalError(r->getLoc(),
                       "Unexpected letter: " + std::string(data + len, 1));
     }
     TV.push_back(StringRef(data, len + 1));
@@ -76,7 +266,8 @@ static char Widen(const char t) {
       return 'l';
     case 'h':
       return 'f';
-    default: throw "unhandled type in widen!";
+    default:
+      PrintFatalError("unhandled type in widen!");
   }
 }
 
@@ -92,7 +283,8 @@ static char Narrow(const char t) {
       return 'i';
     case 'f':
       return 'h';
-    default: throw "unhandled type in narrow!";
+    default:
+      PrintFatalError("unhandled type in narrow!");
   }
 }
 
@@ -263,7 +455,7 @@ static std::string TypeString(const char mod, StringRef typestr) {
       s += quad ? "x4" : "x2";
       break;
     default:
-      throw "unhandled type!";
+      PrintFatalError("unhandled type!");
   }
 
   if (mod == '2')
@@ -445,7 +637,7 @@ static std::string MangleName(const std::string &name, StringRef typestr,
     }
     break;
   default:
-    throw "unhandled type!";
+    PrintFatalError("unhandled type!");
   }
   if (ck == ClassB)
     s += "_v";
@@ -583,7 +775,7 @@ static unsigned GetNumElements(StringRef typestr, bool &quad) {
   case 'h': nElts = 4; break;
   case 'f': nElts = 2; break;
   default:
-    throw "unhandled type!";
+    PrintFatalError("unhandled type!");
   }
   if (quad) nElts <<= 1;
   return nElts;
@@ -814,7 +1006,7 @@ static std::string GenOpString(OpKind op, const std::string &proto,
     break;
   }
   default:
-    throw "unknown OpKind!";
+    PrintFatalError("unknown OpKind!");
   }
   return s;
 }
@@ -859,7 +1051,7 @@ static unsigned GetNeonEnum(const std::string &proto, StringRef typestr) {
       ET = NeonTypeFlags::Float32;
       break;
     default:
-      throw "unhandled type!";
+      PrintFatalError("unhandled type!");
   }
   NeonTypeFlags Flags(ET, usgn, quad && proto[1] != 'g');
   return Flags.getFlags();
@@ -1012,7 +1204,7 @@ static std::string GenIntrinsic(const std::string &name,
                                 StringRef outTypeStr, StringRef inTypeStr,
                                 OpKind kind, ClassKind classKind) {
   assert(!proto.empty() && "");
-  bool define = UseMacro(proto);
+  bool define = UseMacro(proto) && kind != OpUnavailable;
   std::string s;
 
   // static always inline + return type
@@ -1040,9 +1232,11 @@ static std::string GenIntrinsic(const std::string &name,
   if (define) {
     s += " __extension__ ({ \\\n  ";
     s += GenMacroLocals(proto, inTypeStr);
-  } else {
-    s += " { \\\n  ";
-  }
+  } else if (kind == OpUnavailable) {
+    s += " __attribute__((unavailable));\n";
+    return s;
+  } else
+    s += " {\n  ";
 
   if (kind != OpNone)
     s += GenOpString(kind, proto, outTypeStr);
@@ -1189,7 +1383,7 @@ void NeonEmitter::emitIntrinsic(raw_ostream &OS, Record *R) {
   if (R->getSuperClasses().size() >= 2)
     classKind = ClassMap[R->getSuperClasses()[1]];
   if (classKind == ClassNone && kind == OpNone)
-    throw TGError(R->getLoc(), "Builtin has no class kind");
+    PrintFatalError(R->getLoc(), "Builtin has no class kind");
 
   for (unsigned ti = 0, te = TypeVec.size(); ti != te; ++ti) {
     if (kind == OpReinterpret) {
@@ -1231,14 +1425,14 @@ static unsigned RangeFromType(const char mod, StringRef typestr) {
     case 'l':
       return (1 << (int)quad) - 1;
     default:
-      throw "unhandled type!";
+      PrintFatalError("unhandled type!");
   }
 }
 
 /// runHeader - Emit a file with sections defining:
 /// 1. the NEON section of BuiltinsARM.def.
 /// 2. the SemaChecking code for the type overload checking.
-/// 3. the SemaChecking code for validation of intrinsic immedate arguments.
+/// 3. the SemaChecking code for validation of intrinsic immediate arguments.
 void NeonEmitter::runHeader(raw_ostream &OS) {
   std::vector<Record*> RV = Records.getAllDerivedDefinitions("Inst");
 
@@ -1264,7 +1458,7 @@ void NeonEmitter::runHeader(raw_ostream &OS) {
     ParseTypes(R, Types, TypeVec);
 
     if (R->getSuperClasses().size() < 2)
-      throw TGError(R->getLoc(), "Builtin has no class kind");
+      PrintFatalError(R->getLoc(), "Builtin has no class kind");
 
     std::string name = R->getValueAsString("Name");
     ClassKind ck = ClassMap[R->getSuperClasses()[1]];
@@ -1309,10 +1503,10 @@ void NeonEmitter::runHeader(raw_ostream &OS) {
     ParseTypes(R, Types, TypeVec);
 
     if (R->getSuperClasses().size() < 2)
-      throw TGError(R->getLoc(), "Builtin has no class kind");
+      PrintFatalError(R->getLoc(), "Builtin has no class kind");
 
     int si = -1, qi = -1;
-    unsigned mask = 0, qmask = 0;
+    uint64_t mask = 0, qmask = 0;
     for (unsigned ti = 0, te = TypeVec.size(); ti != te; ++ti) {
       // Generate the switch case(s) for this builtin for the type validation.
       bool quad = false, poly = false, usgn = false;
@@ -1320,10 +1514,10 @@ void NeonEmitter::runHeader(raw_ostream &OS) {
 
       if (quad) {
         qi = ti;
-        qmask |= 1 << GetNeonEnum(Proto, TypeVec[ti]);
+        qmask |= 1ULL << GetNeonEnum(Proto, TypeVec[ti]);
       } else {
         si = ti;
-        mask |= 1 << GetNeonEnum(Proto, TypeVec[ti]);
+        mask |= 1ULL << GetNeonEnum(Proto, TypeVec[ti]);
       }
     }
 
@@ -1360,7 +1554,7 @@ void NeonEmitter::runHeader(raw_ostream &OS) {
     if (mask) {
       OS << "case ARM::BI__builtin_neon_"
          << MangleName(name, TypeVec[si], ClassB)
-         << ": mask = " << "0x" << utohexstr(mask);
+         << ": mask = " << "0x" << utohexstr(mask) << "ULL";
       if (PtrArgNum >= 0)
         OS << "; PtrArgNum = " << PtrArgNum;
       if (HasConstPtr)
@@ -1370,7 +1564,7 @@ void NeonEmitter::runHeader(raw_ostream &OS) {
     if (qmask) {
       OS << "case ARM::BI__builtin_neon_"
          << MangleName(name, TypeVec[qi], ClassB)
-         << ": mask = " << "0x" << utohexstr(qmask);
+         << ": mask = " << "0x" << utohexstr(qmask) << "ULL";
       if (PtrArgNum >= 0)
         OS << "; PtrArgNum = " << PtrArgNum;
       if (HasConstPtr)
@@ -1408,7 +1602,7 @@ void NeonEmitter::runHeader(raw_ostream &OS) {
     ParseTypes(R, Types, TypeVec);
 
     if (R->getSuperClasses().size() < 2)
-      throw TGError(R->getLoc(), "Builtin has no class kind");
+      PrintFatalError(R->getLoc(), "Builtin has no class kind");
 
     ClassKind ck = ClassMap[R->getSuperClasses()[1]];
 
@@ -1505,7 +1699,7 @@ static std::string GenTest(const std::string &name,
     s.push_back(arg);
     comma = ", ";
   }
-  s += ") { \\\n  ";
+  s += ") {\n  ";
 
   if (proto[0] != 'v')
     s += "return ";
@@ -1551,6 +1745,8 @@ void NeonEmitter::runTests(raw_ostream &OS) {
     ParseTypes(R, Types, TypeVec);
 
     OpKind kind = OpMap[R->getValueAsDef("Operand")->getName()];
+    if (kind == OpUnavailable)
+      continue;
     for (unsigned ti = 0, te = TypeVec.size(); ti != te; ++ti) {
       if (kind == OpReinterpret) {
         bool outQuad = false;
@@ -1572,3 +1768,14 @@ void NeonEmitter::runTests(raw_ostream &OS) {
   }
 }
 
+namespace clang {
+void EmitNeon(RecordKeeper &Records, raw_ostream &OS) {
+  NeonEmitter(Records).run(OS);
+}
+void EmitNeonSema(RecordKeeper &Records, raw_ostream &OS) {
+  NeonEmitter(Records).runHeader(OS);
+}
+void EmitNeonTest(RecordKeeper &Records, raw_ostream &OS) {
+  NeonEmitter(Records).runTests(OS);
+}
+} // End namespace clang

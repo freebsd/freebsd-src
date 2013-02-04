@@ -25,7 +25,7 @@
 .\" $Id: ng_ubt.4,v 1.3 2003/05/21 19:37:35 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2004
+.Dd December 26, 2012
 .Dt NG_UBT 4
 .Os
 .Sh NAME
@@ -73,11 +73,13 @@ Mitsumi Bluetooth USB adapter
 MSI MS-6967
 .It
 TDK Bluetooth USB adapter
+.It
+Broadcom Bluetooth USB adapter
 .El
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width indent
-.It Dv hook
+.Bl -tag -width ".Va hook"
+.It Va hook
 single HCI frame contained in a single
 .Vt mbuf
 structure.
@@ -85,22 +87,22 @@ structure.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width indent
-.It Dv NGM_UBT_NODE_GET_DEBUG
+.It Dv NGM_UBT_NODE_GET_DEBUG Pq Ic get_debug
 Returns an integer containing the current debug level for the node.
-.It Dv NGM_UBT_NODE_SET_DEBUG
+.It Dv NGM_UBT_NODE_SET_DEBUG Pq Ic set_debug
 This command takes an integer argument and sets the current debug level
 for the node.
-.It Dv NGM_UBT_NODE_GET_QLEN
+.It Dv NGM_UBT_NODE_GET_QLEN Pq Ic get_qlen
 This command takes a parameter that specifies the queue number and returns
 the current maximal length of the queue for the node.
-.It Dv NGM_UBT_NODE_SET_QLEN
+.It Dv NGM_UBT_NODE_SET_QLEN Pq Ic set_qlen
 This command takes two parameters that specify the queue number and the maximum
 length of the queue and sets the maximal length of the queue for the node.
-.It Dv NGM_UBT_NODE_GET_STAT
+.It Dv NGM_UBT_NODE_GET_STAT Pq Ic get_stat
 Returns various statistic information for the node, such as: number of
 bytes (frames) sent, number of bytes (frames) received and number of
 input (output) errors.
-.It Dv NGM_UBT_NODE_RESET_STAT
+.It Dv NGM_UBT_NODE_RESET_STAT Pq Ic reset_stat
 Reset all statistic counters to zero.
 .El
 .Sh SHUTDOWN

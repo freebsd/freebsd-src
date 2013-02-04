@@ -325,6 +325,7 @@ print_version(void *data __unused)
 	while (len > 0 && version[len - 1] == '\n')
 		len--;
 	printf("%.*s %s\n", len, version, machine);
+	printf("%s\n", compiler_version);
 }
 
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
@@ -476,6 +477,7 @@ proc0_init(void *dummy __unused)
 	knlist_init_mtx(&p->p_klist, &p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
+	/* pid_max cannot be greater than PID_MAX */
 	td->td_tid = PID_MAX + 1;
 	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	td->td_state = TDS_RUNNING;
@@ -497,7 +499,7 @@ proc0_init(void *dummy __unused)
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
 	strncpy(td->td_name, "swapper", sizeof (td->td_name));
 
-	callout_init(&p->p_itcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmipsinstprinter
 
 SRCDIR=	lib/Target/Mips/InstPrinter
@@ -8,6 +10,7 @@ SRCS=	MipsInstPrinter.cpp
 
 TGHDRS=	MipsGenAsmWriter \
 	MipsGenInstrInfo \
-	MipsGenRegisterInfo
+	MipsGenRegisterInfo \
+	MipsGenSubtargetInfo
 
 .include "../clang.lib.mk"

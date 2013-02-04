@@ -62,6 +62,8 @@ static HAL_BOOL ar5416SetPowerPerRateTable(struct ath_hal *ah,
 	uint16_t powerLimit);
 static void ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan);
 static void ar5416MarkPhyInactive(struct ath_hal *ah);
+static void ar5416SetIFSTiming(struct ath_hal *ah,
+   const struct ieee80211_channel *chan);
 
 /*
  * Places the device in and out of reset and then places sane
@@ -310,10 +312,25 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		ah->ah_resetTxQueue(ah, i);
 
 	ar5416InitIMR(ah, opmode);
-	ar5212SetCoverageClass(ah, AH_PRIVATE(ah)->ah_coverageClass, 1);
+	ar5416SetCoverageClass(ah, AH_PRIVATE(ah)->ah_coverageClass, 1);
 	ar5416InitQoS(ah);
 	/* This may override the AR_DIAG_SW register */
 	ar5416InitUserSettings(ah);
+
+	/* XXX this won't work for AR9287! */
+	if (IEEE80211_IS_CHAN_HALF(chan) || IEEE80211_IS_CHAN_QUARTER(chan)) {
+		ar5416SetIFSTiming(ah, chan);
+#if 0
+			/*
+			 * AR5413?
+			 * Force window_length for 1/2 and 1/4 rate channels,
+			 * the ini file sets this to zero otherwise.
+			 */
+			OS_REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL,
+			    AR_PHY_FRAME_CTL_WINLEN, 3);
+		}
+#endif
+	}
 
 	if (AR_SREV_KIWI_13_OR_LATER(ah)) {
 		/*
@@ -728,19 +745,6 @@ ar5416SetRfMode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		rfMode |= IEEE80211_IS_CHAN_5GHZ(chan) ?
 			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
 	}
-
-	/*
-	 * Set half/quarter mode flags if required.
-	 *
-	 * This doesn't change the IFS timings at all; that needs to
-	 * be done as part of the MAC setup.  Similarly, the PLL
-	 * configuration also needs some changes for the half/quarter
-	 * rate clock.
-	 */
-	if (IEEE80211_IS_CHAN_HALF(chan))
-		rfMode |= AR_PHY_MODE_HALF;
-	else if (IEEE80211_IS_CHAN_QUARTER(chan))
-		rfMode |= AR_PHY_MODE_QUARTER;
 
 	OS_REG_WRITE(ah, AR_PHY_MODE, rfMode);
 }
@@ -2751,3 +2755,125 @@ ar5416MarkPhyInactive(struct ath_hal *ah)
 {
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
 }
+
+#define	AR5416_IFS_SLOT_FULL_RATE_40	0x168	/* 9 us half, 40 MHz core clock (9*40) */
+#define	AR5416_IFS_SLOT_HALF_RATE_40	0x104	/* 13 us half, 20 MHz core clock (13*20) */
+#define	AR5416_IFS_SLOT_QUARTER_RATE_40	0xD2	/* 21 us quarter, 10 MHz core clock (21*10) */
+
+#define	AR5416_IFS_EIFS_FULL_RATE_40	0xE60	/* (74 + (2 * 9)) * 40MHz core clock */
+#define	AR5416_IFS_EIFS_HALF_RATE_40	0xDAC	/* (149 + (2 * 13)) * 20MHz core clock */
+#define	AR5416_IFS_EIFS_QUARTER_RATE_40	0xD48	/* (298 + (2 * 21)) * 10MHz core clock */
+
+#define	AR5416_IFS_SLOT_FULL_RATE_44	0x18c	/* 9 us half, 44 MHz core clock (9*44) */
+#define	AR5416_IFS_SLOT_HALF_RATE_44	0x11e	/* 13 us half, 22 MHz core clock (13*22) */
+#define	AR5416_IFS_SLOT_QUARTER_RATE_44	0xe7	/* 21 us quarter, 11 MHz core clock (21*11) */
+
+#define	AR5416_IFS_EIFS_FULL_RATE_44	0xfd0	/* (74 + (2 * 9)) * 44MHz core clock */
+#define	AR5416_IFS_EIFS_HALF_RATE_44	0xf0a	/* (149 + (2 * 13)) * 22MHz core clock */
+#define	AR5416_IFS_EIFS_QUARTER_RATE_44	0xe9c	/* (298 + (2 * 21)) * 11MHz core clock */
+
+#define	AR5416_INIT_USEC_40		40
+#define	AR5416_HALF_RATE_USEC_40	19 /* ((40 / 2) - 1 ) */
+#define	AR5416_QUARTER_RATE_USEC_40	9  /* ((40 / 4) - 1 ) */
+
+#define	AR5416_INIT_USEC_44		44
+#define	AR5416_HALF_RATE_USEC_44	21 /* ((44 / 2) - 1 ) */
+#define	AR5416_QUARTER_RATE_USEC_44	10  /* ((44 / 4) - 1 ) */
+
+
+/* XXX What should these be for 40/44MHz clocks (and half/quarter) ? */
+#define	AR5416_RX_NON_FULL_RATE_LATENCY		63
+#define	AR5416_TX_HALF_RATE_LATENCY		108
+#define	AR5416_TX_QUARTER_RATE_LATENCY		216
+
+/*
+ * Adjust various register settings based on half/quarter rate clock setting.
+ * This includes:
+ *
+ * + USEC, TX/RX latency,
+ * + IFS params: slot, eifs, misc etc.
+ *
+ * TODO:
+ *
+ * + Verify which other registers need to be tweaked;
+ * + Verify the behaviour of this for 5GHz fast and non-fast clock mode;
+ * + This just plain won't work for long distance links - the coverage class
+ *   code isn't aware of the slot/ifs/ACK/RTS timeout values that need to
+ *   change;
+ * + Verify whether the 32KHz USEC value needs to be kept for the 802.11n
+ *   series chips?
+ * + Calculate/derive values for 2GHz, 5GHz, 5GHz fast clock
+ */
+static void
+ar5416SetIFSTiming(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	uint32_t txLat, rxLat, usec, slot, refClock, eifs, init_usec;
+	int clk_44 = 0;
+
+	HALASSERT(IEEE80211_IS_CHAN_HALF(chan) ||
+	    IEEE80211_IS_CHAN_QUARTER(chan));
+
+	/* 2GHz and 5GHz fast clock - 44MHz; else 40MHz */
+	if (IEEE80211_IS_CHAN_2GHZ(chan))
+		clk_44 = 1;
+	else if (IEEE80211_IS_CHAN_5GHZ(chan) &&
+	    IS_5GHZ_FAST_CLOCK_EN(ah, chan))
+		clk_44 = 1;
+
+	/* XXX does this need save/restoring for the 11n chips? */
+	refClock = OS_REG_READ(ah, AR_USEC) & AR_USEC_USEC32;
+
+	/*
+	 * XXX This really should calculate things, not use
+	 * hard coded values! Ew.
+	 */
+	if (IEEE80211_IS_CHAN_HALF(chan)) {
+		if (clk_44) {
+			slot = AR5416_IFS_SLOT_HALF_RATE_44;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_HALF_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_HALF_RATE_USEC_44;
+			eifs = AR5416_IFS_EIFS_HALF_RATE_44;
+			init_usec = AR5416_INIT_USEC_44 >> 1;
+		} else {
+			slot = AR5416_IFS_SLOT_HALF_RATE_40;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_HALF_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_HALF_RATE_USEC_40;
+			eifs = AR5416_IFS_EIFS_HALF_RATE_40;
+			init_usec = AR5416_INIT_USEC_40 >> 1;
+		}
+	} else { /* quarter rate */
+		if (clk_44) {
+			slot = AR5416_IFS_SLOT_QUARTER_RATE_44;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_QUARTER_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_QUARTER_RATE_USEC_44;
+			eifs = AR5416_IFS_EIFS_QUARTER_RATE_44;
+			init_usec = AR5416_INIT_USEC_44 >> 2;
+		} else {
+			slot = AR5416_IFS_SLOT_QUARTER_RATE_40;
+			rxLat = AR5416_RX_NON_FULL_RATE_LATENCY <<
+			    AR5416_USEC_RX_LAT_S;
+			txLat = AR5416_TX_QUARTER_RATE_LATENCY <<
+			    AR5416_USEC_TX_LAT_S;
+			usec = AR5416_QUARTER_RATE_USEC_40;
+			eifs = AR5416_IFS_EIFS_QUARTER_RATE_40;
+			init_usec = AR5416_INIT_USEC_40 >> 2;
+		}
+	}
+
+	/* XXX verify these! */
+	OS_REG_WRITE(ah, AR_USEC, (usec | refClock | txLat | rxLat));
+	OS_REG_WRITE(ah, AR_D_GBL_IFS_SLOT, slot);
+	OS_REG_WRITE(ah, AR_D_GBL_IFS_EIFS, eifs);
+	OS_REG_RMW_FIELD(ah, AR_D_GBL_IFS_MISC,
+	    AR_D_GBL_IFS_MISC_USEC_DURATION, init_usec);
+}
+

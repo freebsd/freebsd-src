@@ -22,5 +22,6 @@ ah_osdep.h:
 	echo 'typedef void *HAL_SOFTC;' >ah_osdep.h
 	echo 'typedef int HAL_BUS_TAG;' >>ah_osdep.h
 	echo 'typedef void *HAL_BUS_HANDLE;' >>ah_osdep.h
+	echo 'typedef uint32_t HAL_DMA_ADDR;' >>ah_osdep.h
 
 .include <bsd.prog.mk>

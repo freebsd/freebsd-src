@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2004
+.Dd October 30, 2012
 .Dt DISK 9
 .Os
 .Sh NAME
@@ -43,6 +43,8 @@
 .Fn disk_gone "struct disk *disk"
 .Ft void
 .Fn disk_destroy "struct disk *disk"
+.Ft int
+.Fn disk_resize "struct disk *disk" "int flags"
 .Sh DESCRIPTION
 The disk storage API permits kernel device drivers providing access to
 disk-like storage devices to advertise the device to other kernel
@@ -67,6 +69,13 @@ function,
 fill in the fields and call
 .Fn disk_create
 when the device is ready to service requests.
+.Fn disk_resize
+can be called by the driver after modifying
+.Va d_mediasize
+to notify GEOM about the disk capacity change.
+The
+.Fa flags
+field should be set to either M_WAITOK, or M_NOWAIT.
 .Fn disk_gone
 orphans all of the providers associated with the drive, setting an error
 condition of ENXIO in each one.

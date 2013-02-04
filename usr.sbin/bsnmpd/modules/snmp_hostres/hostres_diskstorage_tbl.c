@@ -287,6 +287,9 @@ disk_OS_get_ATA_disks(void)
 
 	/* Walk over the device table looking for ata disks */
 	STAILQ_FOREACH(map, &device_map, link) {
+		/* Skip deleted entries. */
+		if (map->entry_p == NULL)
+			continue;
 		for (found = lookup; found->media != DSM_UNKNOWN; found++) {
 			if (strncmp(map->name_key, found->dev_name,
 			    strlen(found->dev_name)) != 0)
@@ -345,6 +348,9 @@ disk_OS_get_MD_disks(void)
 
 	/* Look for md devices */
 	STAILQ_FOREACH(map, &device_map, link) {
+		/* Skip deleted entries. */
+		if (map->entry_p == NULL)
+			continue;
 		if (sscanf(map->name_key, "md%d", &unit) != 1)
 			continue;
 

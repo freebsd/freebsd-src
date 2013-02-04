@@ -1,4 +1,4 @@
-/*	$NetBSD: fsutil.c,v 1.7 1998/07/30 17:41:03 thorpej Exp $	*/
+/*	$NetBSD: fsutil.c,v 1.15 2006/06/05 16:52:05 christos Exp $	*/
 
 /*
  * Copyright (c) 1990, 1993
@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: fsutil.c,v 1.7 1998/07/30 17:41:03 thorpej Exp $");
+__RCSID("$NetBSD: fsutil.c,v 1.15 2006/06/05 16:52:05 christos Exp $");
 #endif /* not lint */
 __FBSDID("$FreeBSD$");
 
@@ -110,9 +110,13 @@ pwarn(const char *fmt, ...)
 }
 
 void
-perror(const char *s)
+perr(const char *fmt, ...)
 {
-	pfatal("%s (%s)", s, strerror(errno));
+	va_list ap;
+
+	va_start(ap, fmt);
+	vmsg(1, fmt, ap);
+	va_end(ap);
 }
 
 void
@@ -132,18 +136,15 @@ devcheck(const char *origname)
 	struct stat stslash, stchar;
 
 	if (stat("/", &stslash) < 0) {
-		perror("/");
-		printf("Can't stat root\n");
+		perr("Can't stat `/'");
 		return (origname);
 	}
 	if (stat(origname, &stchar) < 0) {
-		perror(origname);
-		printf("Can't stat %s\n", origname);
+		perr("Can't stat %s\n", origname);
 		return (origname);
 	}
 	if (!S_ISCHR(stchar.st_mode)) {
-		perror(origname);
-		printf("%s is not a char device\n", origname);
+		perr("%s is not a char device\n", origname);
 	}
 	return (origname);
 }
@@ -156,7 +157,7 @@ getmntpt(const char *name)
 {
 	struct stat devstat, mntdevstat;
 	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
-	char *devname;
+	char *dev_name;
 	struct statfs *mntbuf, *statfsp;
 	int i, mntsize, isdev;
 
@@ -169,10 +170,10 @@ getmntpt(const char *name)
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
 	for (i = 0; i < mntsize; i++) {
 		statfsp = &mntbuf[i];
-		devname = statfsp->f_mntfromname;
-		if (*devname != '/') {
+		dev_name = statfsp->f_mntfromname;
+		if (*dev_name != '/') {
 			strcpy(device, _PATH_DEV);
-			strcat(device, devname);
+			strcat(device, dev_name);
 			strcpy(statfsp->f_mntfromname, device);
 		}
 		if (isdev == 0) {
@@ -180,7 +181,7 @@ getmntpt(const char *name)
 				continue;
 			return (statfsp);
 		}
-		if (stat(devname, &mntdevstat) == 0 &&
+		if (stat(dev_name, &mntdevstat) == 0 &&
 		    mntdevstat.st_rdev == devstat.st_rdev)
 			return (statfsp);
 	}

@@ -24,7 +24,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 int32_t end_result;
-const char *copy_toeval;
+static const char *copy_toeval;
 int yyerror(const char *msg);
 
 extern void yy_scan_string(const char *);

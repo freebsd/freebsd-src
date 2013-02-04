@@ -95,8 +95,8 @@ struct g_gate_hdr {
 
 void	g_gate_vlog(int priority, const char *message, va_list ap);
 void	g_gate_log(int priority, const char *message, ...);
-void	g_gate_xvlog(const char *message, va_list ap);
-void	g_gate_xlog(const char *message, ...);
+void	g_gate_xvlog(const char *message, va_list ap) __dead2;
+void	g_gate_xlog(const char *message, ...) __dead2;
 off_t	g_gate_mediasize(int fd);
 unsigned g_gate_sectorsize(int fd);
 void	g_gate_open_device(void);

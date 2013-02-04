@@ -1,8 +1,5 @@
+/* $FreeBSD$ */
 /*	$NetBSD: hid.c,v 1.17 2001/11/13 06:24:53 lukem Exp $	*/
-
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -33,6 +30,9 @@ __FBSDID("$FreeBSD$");
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_request.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 static void hid_clear_local(struct hid_item *);
 static uint8_t hid_get_byte(struct hid_data *s, const uint16_t wSize);
@@ -844,4 +845,80 @@ usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 		return (err);
 	}
 	return (USB_ERR_NORMAL_COMPLETION);
+}
+
+/*------------------------------------------------------------------------*
+ *	hid_is_mouse
+ *
+ * This function will decide if a USB descriptor belongs to a USB mouse.
+ *
+ * Return values:
+ * Zero: Not a USB mouse.
+ * Else: Is a USB mouse.
+ *------------------------------------------------------------------------*/
+int
+hid_is_mouse(const void *d_ptr, uint16_t d_len)
+{
+	struct hid_data *hd;
+	struct hid_item hi;
+	int mdepth;
+	int found;
+
+	hd = hid_start_parse(d_ptr, d_len, 1 << hid_input);
+	if (hd == NULL)
+		return (0);
+
+	mdepth = 0;
+	found = 0;
+
+	while (hid_get_item(hd, &hi)) {
+		switch (hi.kind) {
+		case hid_collection:
+			if (mdepth != 0)
+				mdepth++;
+			else if (hi.collection == 1 &&
+			     hi.usage ==
+			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))
+				mdepth++;
+			break;
+		case hid_endcollection:
+			if (mdepth != 0)
+				mdepth--;
+			break;
+		case hid_input:
+			if (mdepth == 0)
+				break;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				found++;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y) &&
+			    (hi.flags & (HIO_CONST|HIO_RELATIVE)) == HIO_RELATIVE)
+				found++;
+			break;
+		default:
+			break;
+		}
+	}
+	hid_end_parse(hd);
+	return (found);
+}
+
+/*------------------------------------------------------------------------*
+ *	hid_is_keyboard
+ *
+ * This function will decide if a USB descriptor belongs to a USB keyboard.
+ *
+ * Return values:
+ * Zero: Not a USB keyboard.
+ * Else: Is a USB keyboard.
+ *------------------------------------------------------------------------*/
+int
+hid_is_keyboard(const void *d_ptr, uint16_t d_len)
+{
+	if (hid_is_collection(d_ptr, d_len,
+	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD)))
+		return (1);
+	return (0);
 }

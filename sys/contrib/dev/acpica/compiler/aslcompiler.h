@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcompiler.h - common include file for iASL
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,10 +86,6 @@
 /*
  * Main ASL parser - generated from flex/bison, lex/yacc, etc.
  */
-int
-AslCompilerparse(
-    void);
-
 ACPI_PARSE_OBJECT *
 AslDoError (
     void);
@@ -193,19 +188,23 @@ AnOperandTypecheckWalkEnd (
     void                    *Context);
 
 ACPI_STATUS
-AnMethodAnalysisWalkBegin (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    void                    *Context);
-
-ACPI_STATUS
-AnMethodAnalysisWalkEnd (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  Level,
-    void                    *Context);
-
-ACPI_STATUS
 AnMethodTypingWalkEnd (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
+
+
+/*
+ * aslmethod - Control method analysis walk
+ */
+ACPI_STATUS
+MtMethodAnalysisWalkBegin (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
+
+ACPI_STATUS
+MtMethodAnalysisWalkEnd (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context);
@@ -347,6 +346,12 @@ LsDoListings (
     void);
 
 void
+LsDumpAsciiInComment (
+    UINT32                  FileId,
+    UINT32                  Count,
+    UINT8                   *Buffer);
+
+void
 LsWriteNodeToAsmListing (
     ACPI_PARSE_OBJECT       *Op);
 
@@ -356,12 +361,17 @@ LsWriteNode (
     UINT32                  FileId);
 
 void
-LsDoHexOutput (
-    void);
-
-void
 LsDumpParseTree (
     void);
+
+
+/*
+ * aslhex - generate all "hex" output files (C, ASM, ASL)
+ */
+void
+HxDoHexOutput (
+    void);
+
 
 /*
  * aslfold - constant folding
@@ -594,6 +604,11 @@ TrSetNodeFlags (
     UINT32                  Flags);
 
 ACPI_PARSE_OBJECT *
+TrSetNodeAmlLength (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Length);
+
+ACPI_PARSE_OBJECT *
 TrLinkPeerNodes (
     UINT32                  NumPeers,
     ...);
@@ -656,6 +671,10 @@ FlPrintFile (
     ...);
 
 void
+FlDeleteFile (
+    UINT32                  FileId);
+
+void
 FlSetLineNumber (
     UINT32                  LineNumber);
 
@@ -685,23 +704,31 @@ LdLoadNamespace (
 
 
 /*
- * asllookup - namespace cross reference
+ * asllookup - namespace lookup functions
  */
-ACPI_STATUS
-LkCrossReferenceNamespace (
-    void);
-
 void
 LkFindUnreferencedObjects (
     void);
 
+
+/*
+ * aslnamesp - namespace output file generation
+ */
 ACPI_STATUS
-LsDisplayNamespace (
+NsDisplayNamespace (
     void);
 
 void
-LsSetupNsList (
+NsSetupNamespaceListing (
     void                    *Handle);
+
+
+/*
+ * aslxref - namespace cross reference
+ */
+ACPI_STATUS
+XfCrossReferenceNamespace (
+    void);
 
 
 /*
@@ -773,6 +800,10 @@ UtSetParseOpName (
 char *
 UtGetStringBuffer (
     UINT32                  Length);
+
+void
+UtExpandLineBuffers (
+    void);
 
 ACPI_STATUS
 UtInternalizeName (
@@ -1115,4 +1146,3 @@ DtCreateTemplates (
     char                    *Signature);
 
 #endif /*  __ASLCOMPILER_H */
-

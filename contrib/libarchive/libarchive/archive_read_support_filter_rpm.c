@@ -188,7 +188,7 @@ rpm_filter_read(struct archive_read_filter *self, const void **buff)
 			if (rpm->total_in + avail_in < RPM_LEAD_SIZE)
 				used += avail_in;
 			else {
-				n = RPM_LEAD_SIZE - rpm->total_in;
+				n = (size_t)(RPM_LEAD_SIZE - rpm->total_in);
 				used += n;
 				b += n;
 				rpm->state = ST_HEADER;

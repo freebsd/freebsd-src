@@ -78,6 +78,13 @@ uint64_t CGObjCRuntime::ComputeIvarBaseOffset(CodeGen::CodeGenModule &CGM,
     CGM.getContext().getCharWidth();
 }
 
+unsigned CGObjCRuntime::ComputeBitfieldBitOffset(
+    CodeGen::CodeGenModule &CGM,
+    const ObjCInterfaceDecl *ID,
+    const ObjCIvarDecl *Ivar) {
+  return LookupFieldBitOffset(CGM, ID, ID->getImplementation(), Ivar);
+}
+
 LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
                                                const ObjCInterfaceDecl *OID,
                                                llvm::Value *BaseValue,
@@ -120,6 +127,8 @@ LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
   uint64_t ContainingTypeAlign = CGF.CGM.getContext().getTargetInfo().getCharAlign();
   uint64_t ContainingTypeSize = TypeSizeInBits - (FieldBitOffset - BitOffset);
   uint64_t BitFieldSize = Ivar->getBitWidthValue(CGF.getContext());
+  CharUnits ContainingTypeAlignCharUnits = 
+    CGF.CGM.getContext().toCharUnitsFromBits(ContainingTypeAlign);
 
   // Allocate a new CGBitFieldInfo object to describe this access.
   //
@@ -132,7 +141,8 @@ LValue CGObjCRuntime::EmitValueForIvarAtOffset(CodeGen::CodeGenFunction &CGF,
                              ContainingTypeSize, ContainingTypeAlign));
 
   return LValue::MakeBitfield(V, *Info,
-                              IvarTy.withCVRQualifiers(CVRQualifiers));
+                              IvarTy.withCVRQualifiers(CVRQualifiers),
+                              ContainingTypeAlignCharUnits);
 }
 
 namespace {
@@ -334,7 +344,7 @@ void CGObjCRuntime::EmitAtSynchronizedStmt(CodeGenFunction &CGF,
 ///
 /// \param method - may be null
 /// \param resultType - the result type to use if there's no method
-/// \param argInfo - the actual arguments, including implicit ones
+/// \param callArgs - the actual arguments, including implicit ones
 CGObjCRuntime::MessageSendInfo
 CGObjCRuntime::getMessageSendInfo(const ObjCMethodDecl *method,
                                   QualType resultType,
@@ -355,17 +365,17 @@ CGObjCRuntime::getMessageSendInfo(const ObjCMethodDecl *method,
     // Otherwise, there is.
     FunctionType::ExtInfo einfo = signature.getExtInfo();
     const CGFunctionInfo &argsInfo =
-      CGM.getTypes().arrangeFunctionCall(resultType, callArgs, einfo,
-                                         signature.getRequiredArgs());
+      CGM.getTypes().arrangeFreeFunctionCall(resultType, callArgs, einfo,
+                                             signature.getRequiredArgs());
 
     return MessageSendInfo(argsInfo, signatureType);
   }
 
   // There's no method;  just use a default CC.
   const CGFunctionInfo &argsInfo =
-    CGM.getTypes().arrangeFunctionCall(resultType, callArgs, 
-                                       FunctionType::ExtInfo(),
-                                       RequiredArgs::All);
+    CGM.getTypes().arrangeFreeFunctionCall(resultType, callArgs, 
+                                           FunctionType::ExtInfo(),
+                                           RequiredArgs::All);
 
   // Derive the signature to call from that.
   llvm::PointerType *signatureType =

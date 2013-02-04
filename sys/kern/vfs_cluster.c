@@ -315,7 +315,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	int i, inc, j, toff;
 
 	KASSERT(size == vp->v_mount->mnt_stat.f_iosize,
-	    ("cluster_rbuild: size %ld != filesize %jd\n",
+	    ("cluster_rbuild: size %ld != f_iosize %jd\n",
 	    size, (intmax_t)vp->v_mount->mnt_stat.f_iosize));
 
 	/*

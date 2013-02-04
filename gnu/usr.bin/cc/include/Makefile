@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 
 INCSDIR=${INCLUDEDIR}/gcc/${GCCVER}
@@ -21,6 +23,4 @@ mm_malloc.h: pmm_malloc.h
 	@cp ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	mm_malloc.h
 
-.include <bsd.init.mk>
-.include <bsd.incs.mk>
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>

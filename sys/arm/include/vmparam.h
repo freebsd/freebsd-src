@@ -116,7 +116,9 @@
 #endif
 #define VM_MAXUSER_ADDRESS	KERNBASE - ARM_KERN_DIRECTMAP
 #else /* ARM_USE_SMALL_ALLOC */
+#ifndef VM_MAXUSER_ADDRESS
 #define VM_MAXUSER_ADDRESS      KERNBASE
+#endif /* VM_MAXUSER_ADDRESS */
 #endif /* ARM_USE_SMALL_ALLOC */
 #define VM_MAX_ADDRESS          VM_MAXUSER_ADDRESS
 
@@ -132,12 +134,15 @@
 #endif
 
 #define VM_MAX_KERNEL_ADDRESS	0xffffffff
+
 /*
  * Virtual size (bytes) for various kernel submaps.
  */
-
 #ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE            (12*1024*1024)
+#define VM_KMEM_SIZE		(12*1024*1024)
+#endif
+#ifndef VM_KMEM_SIZE_SCALE
+#define VM_KMEM_SIZE_SCALE	(2)
 #endif
 
 #define MAXTSIZ 	(16*1024*1024)

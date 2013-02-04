@@ -435,7 +435,7 @@ macb_new_rxbuf(struct macb_softc *sc, int index)
 	bus_dma_segment_t seg[1];
 	int error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES - ETHER_ALIGN;
@@ -878,7 +878,7 @@ macb_encap(struct macb_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->dmatag_ring_tx, txd->dmamap,
 	    *m_head, segs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, MAX_FRAGMENT);
+		m = m_collapse(*m_head, M_NOWAIT, MAX_FRAGMENT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -973,7 +973,7 @@ macbstart_locked(struct ifnet *ifp)
 #if 0
 		if (m0->m_next != NULL) {
 			/* Fragmented mbuf chain, collapse it. */
-			m_new = m_defrag(m0, M_DONTWAIT);
+			m_new = m_defrag(m0, M_NOWAIT);
 			if (m_new != NULL) {
 				/* Original frame freed. */
 				m0 = m_new;

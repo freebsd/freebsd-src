@@ -39,7 +39,8 @@ public:
   const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
-  const TargetRegisterClass* getPointerRegClass(unsigned Kind = 0) const;
+  const TargetRegisterClass*
+  getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
@@ -47,8 +48,6 @@ public:
 
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, RegScavenger *RS = NULL) const;
-
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
 
   // Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const;

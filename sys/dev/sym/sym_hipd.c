@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/atomic.h>
 
 #ifdef __sparc64__
 #include <dev/ofw/openfirm.h>
@@ -135,6 +136,8 @@ typedef	u_int32_t u32;
 #define MEMORY_BARRIER()	__asm__ volatile("mf.a; mf" : : : "memory")
 #elif	defined	__sparc64__
 #define MEMORY_BARRIER()	__asm__ volatile("membar #Sync" : : : "memory")
+#elif	defined	__arm__
+#define MEMORY_BARRIER()	dmb()
 #else
 #error	"Not supported platform"
 #endif
@@ -3424,7 +3427,6 @@ sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp, u_char *fakp)
 	/*
 	 *  Check against our hardware limits, or bugs :).
 	 */
-	if (fak < 0)	{fak = 0; ret = -1;}
 	if (fak > 2)	{fak = 2; ret = -1;}
 
 	/*
@@ -8537,8 +8539,8 @@ sym_pci_attach(device_t dev)
 	 */
 	if (bus_dma_tag_create(np->bus_dmat, 1, SYM_CONF_DMA_BOUNDARY,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG, SYM_CONF_DMA_BOUNDARY,
-	    BUS_DMA_ALLOCNOW, busdma_lock_mutex, &np->mtx, &np->data_dmat)) {
+	    BUS_SPACE_MAXSIZE_32BIT, SYM_CONF_MAX_SG, SYM_CONF_DMA_BOUNDARY,
+	    0, busdma_lock_mutex, &np->mtx, &np->data_dmat)) {
 		device_printf(dev, "failed to create DMA tag.\n");
 		goto attach_failed;
 	}

@@ -24,7 +24,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
@@ -44,9 +44,7 @@ EnableARMEHABIDescriptors("arm-enable-ehabi-descriptors", cl::Hidden,
 
 
 ARMException::ARMException(AsmPrinter *A)
-  : DwarfException(A),
-    shouldEmitTable(false), shouldEmitMoves(false), shouldEmitTableModule(false)
-    {}
+  : DwarfException(A) {}
 
 ARMException::~ARMException() {}
 

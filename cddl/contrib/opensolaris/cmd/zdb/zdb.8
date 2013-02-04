@@ -93,14 +93,14 @@ If specified multiple times, verify the checksums of all blocks.
 .It Fl C
 Display information about the configuration. If specified with no other
 options, instead display information about the cache file
-.Ns ( Pa /etc/zfs/zpool.cache Ns ).
+.Po Pa /etc/zfs/zpool.cache Pc .
 To specify the cache file to display, see
 .Fl U
 .Pp
 If specified multiple times, and a pool name is also specified display both
 the cached configuration and the on-disk configuration.
 If specified multiple times with
-.FL e
+.Fl e
 also display the configuration that would be used were the pool to be
 imported.
 .It Fl d
@@ -135,7 +135,7 @@ option is also specified, also display the uberblocks on this device.
 .It Fl L
 Disable leak tracing and the loading of space maps.
 By default,
-.Nm 
+.Nm
 verifies that all non-free blocks are referenced, which can be very expensive.
 .It Fl m
 Display the offset, spacemap, and free space of each metaslab.
@@ -253,7 +253,7 @@ MOS Configuration:
 .Li # Ic zdb -d rpool
 Dataset mos [META], ID 0, cr_txg 4, 26.9M, 1051 objects
 Dataset rpool/swap [ZVOL], ID 59, cr_txg 356, 486M, 2 objects
-...
+ ...
 .Ed
 .It Xo Sy Example 3 Display basic information about object 0 in
 .Sy 'rpool/export/home'
@@ -272,7 +272,7 @@ Dataset rpool/export/home [ZPL], ID 137, cr_txg 1546, 32K, 8 objects
 .Li # Ic zdb -S rpool
 Simulated DDT histogram:
 
-bucket             allocated                      referenced          
+bucket             allocated                      referenced
 ______  ______________________________  ______________________________
 refcnt  blocks   LSIZE   PSIZE   DSIZE  blocks   LSIZE   PSIZE   DSIZE
 ------  ------   -----   -----   -----  ------   -----   -----   -----

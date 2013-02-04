@@ -129,7 +129,7 @@ kmemphys:
 			addr = trunc_page(v);
 			eaddr = round_page(v + c);
 			for (; addr < eaddr; addr += PAGE_SIZE) {
-				if (pmap_extract(kernel_pmap, addr) == 0)
+				if (pmap_kextract(addr) == 0)
 					return (EFAULT);
 			}
 			if (!kernacc((caddr_t)v, c, (uio->uio_rw == UIO_READ)

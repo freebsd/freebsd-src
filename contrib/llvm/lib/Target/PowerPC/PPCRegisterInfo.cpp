@@ -71,7 +71,7 @@ PPCRegisterInfo::PPCRegisterInfo(const PPCSubtarget &ST,
   : PPCGenRegisterInfo(ST.isPPC64() ? PPC::LR8 : PPC::LR,
                        ST.isPPC64() ? 0 : 1,
                        ST.isPPC64() ? 0 : 1),
-    Subtarget(ST), TII(tii) {
+    Subtarget(ST), TII(tii), CRSpillFrameIdx(0) {
   ImmToIdxMap[PPC::LD]   = PPC::LDX;    ImmToIdxMap[PPC::STD]  = PPC::STDX;
   ImmToIdxMap[PPC::LBZ]  = PPC::LBZX;   ImmToIdxMap[PPC::STB]  = PPC::STBX;
   ImmToIdxMap[PPC::LHZ]  = PPC::LHZX;   ImmToIdxMap[PPC::LHA]  = PPC::LHAX;
@@ -89,10 +89,17 @@ PPCRegisterInfo::PPCRegisterInfo(const PPCSubtarget &ST,
   ImmToIdxMap[PPC::ADDI8] = PPC::ADD8; ImmToIdxMap[PPC::STD_32] = PPC::STDX_32;
 }
 
+bool
+PPCRegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
+  return requiresRegisterScavenging(MF);
+}
+
+
 /// getPointerRegClass - Return the register class to use to hold pointers.
 /// This is used for addressing modes.
 const TargetRegisterClass *
-PPCRegisterInfo::getPointerRegClass(unsigned Kind) const {
+PPCRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
+                                                                       const {
   if (Subtarget.isPPC64())
     return &PPC::G8RCRegClass;
   return &PPC::GPRCRegClass;
@@ -104,10 +111,15 @@ PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     return Subtarget.isPPC64() ? CSR_Darwin64_SaveList :
                                  CSR_Darwin32_SaveList;
 
+  // For 32-bit SVR4, also initialize the frame index associated with
+  // the CR spill slot.
+  if (!Subtarget.isPPC64())
+    CRSpillFrameIdx = 0;
+
   return Subtarget.isPPC64() ? CSR_SVR464_SaveList : CSR_SVR432_SaveList;
 }
 
-const unsigned*
+const uint32_t*
 PPCRegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
   if (Subtarget.isDarwinABI())
     return Subtarget.isPPC64() ? CSR_Darwin64_RegMask :
@@ -189,6 +201,20 @@ PPCRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
     return 32 - DefaultSafety;
   case PPC::CRRCRegClassID:
     return 8 - DefaultSafety;
+  }
+}
+
+bool
+PPCRegisterInfo::avoidWriteAfterWrite(const TargetRegisterClass *RC) const {
+  switch (RC->getID()) {
+  case PPC::G8RCRegClassID:
+  case PPC::GPRCRegClassID:
+  case PPC::F8RCRegClassID:
+  case PPC::F4RCRegClassID:
+  case PPC::VRRCRegClassID:
+    return true;
+  default:
+    return false;
   }
 }
 
@@ -321,14 +347,14 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II,
   // address of new allocated space.
   if (LP64) {
     if (requiresRegisterScavenging(MF)) // FIXME (64-bit): Use "true" part.
-      BuildMI(MBB, II, dl, TII.get(PPC::STDUX))
+      BuildMI(MBB, II, dl, TII.get(PPC::STDUX), PPC::X1)
         .addReg(Reg, RegState::Kill)
-        .addReg(PPC::X1, RegState::Define)
+        .addReg(PPC::X1)
         .addReg(MI.getOperand(1).getReg());
     else
-      BuildMI(MBB, II, dl, TII.get(PPC::STDUX))
+      BuildMI(MBB, II, dl, TII.get(PPC::STDUX), PPC::X1)
         .addReg(PPC::X0, RegState::Kill)
-        .addReg(PPC::X1, RegState::Define)
+        .addReg(PPC::X1)
         .addReg(MI.getOperand(1).getReg());
 
     if (!MI.getOperand(1).isKill())
@@ -342,9 +368,9 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II,
         .addImm(maxCallFrameSize)
         .addReg(MI.getOperand(1).getReg(), RegState::ImplicitKill);
   } else {
-    BuildMI(MBB, II, dl, TII.get(PPC::STWUX))
+    BuildMI(MBB, II, dl, TII.get(PPC::STWUX), PPC::R1)
       .addReg(Reg, RegState::Kill)
-      .addReg(PPC::R1, RegState::Define)
+      .addReg(PPC::R1)
       .addReg(MI.getOperand(1).getReg());
 
     if (!MI.getOperand(1).isKill())
@@ -456,6 +482,31 @@ void PPCRegisterInfo::lowerCRRestore(MachineBasicBlock::iterator II,
   MBB.erase(II);
 }
 
+bool
+PPCRegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
+				      unsigned Reg, int &FrameIdx) const {
+
+  // For the nonvolatile condition registers (CR2, CR3, CR4) in an SVR4
+  // ABI, return true to prevent allocating an additional frame slot.
+  // For 64-bit, the CR save area is at SP+8; the value of FrameIdx = 0
+  // is arbitrary and will be subsequently ignored.  For 32-bit, we must
+  // create exactly one stack slot and return its FrameIdx for all
+  // nonvolatiles.
+  if (Subtarget.isSVR4ABI() && PPC::CR2 <= Reg && Reg <= PPC::CR4) {
+    if (Subtarget.isPPC64()) {
+      FrameIdx = 0;
+    } else if (CRSpillFrameIdx) {
+      FrameIdx = CRSpillFrameIdx;
+    } else {
+      MachineFrameInfo *MFI = ((MachineFunction &)MF).getFrameInfo();
+      FrameIdx = MFI->CreateFixedObject((uint64_t)4, (int64_t)-4, true);
+      CRSpillFrameIdx = FrameIdx;
+    }
+    return true;
+  }
+  return false;
+}
+
 void
 PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                      int SPAdj, RegScavenger *RS) const {
@@ -545,7 +596,7 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // to Offset to get the correct offset.
   // Naked functions have stack size 0, although getStackSize may not reflect that
   // because we didn't call all the pieces that compute it for naked functions.
-  if (!MF.getFunction()->hasFnAttr(Attribute::Naked))
+  if (!MF.getFunction()->getFnAttributes().hasAttribute(Attributes::Naked))
     Offset += MFI->getStackSize();
 
   // If we can, encode the offset directly into the instruction.  If this is a

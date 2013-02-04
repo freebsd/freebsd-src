@@ -1237,10 +1237,8 @@ location that uses a different password file.
 .PP
 Other new filesystems that may be stacked include the loopback filesystem
 .Xr mount_lofs (8),
-the kernel filesystem
-.Xr mount_kernfs (8),
-and the portal filesystem
-.Xr mount_portal (8).
+and the kernel filesystem
+.Xr mount_kernfs (8).
 .PP
 The buffer cache in the kernel is now organized as a file block cache
 rather than a device block cache.

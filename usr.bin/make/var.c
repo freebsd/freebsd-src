@@ -1421,6 +1421,7 @@ modifier_M(VarParser *vp, const char value[], char endc)
 		vp->ptr++;
 	}
 	*ptr = '\0';
+	DEBUGF(VAR, ("Pattern :%s\n", patt));
 
 	if (modifier == 'M') {
 		newValue = VarModify(value, VarMatch, patt);
@@ -1765,7 +1766,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 				if ((vp->ptr[0] == 's') &&
 				    (vp->ptr[1] == 'h') &&
 				    (vp->ptr[2] == endc || vp->ptr[2] == ':')) {
-					const char	*error;
+					const char	*error = NULL;
 
 					if (vp->execute) {
 						newStr = Buf_Peel(

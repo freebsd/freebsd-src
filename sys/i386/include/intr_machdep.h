@@ -94,7 +94,7 @@ struct pic {
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
-	STAILQ_ENTRY(pic) pics;
+	TAILQ_ENTRY(pic) pics;
 };
 
 /* Flags for pic_disable_source() */
@@ -131,7 +131,9 @@ int	elcr_probe(void);
 enum intr_trigger elcr_read_trigger(u_int irq);
 void	elcr_resume(void);
 void	elcr_write_trigger(u_int irq, enum intr_trigger trigger);
+#ifdef SMP
 void	intr_add_cpu(u_int cpu);
+#endif
 int	intr_add_handler(const char *name, int vector, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);
 #ifdef SMP

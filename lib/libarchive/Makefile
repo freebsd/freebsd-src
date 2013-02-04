@@ -63,7 +63,10 @@ SRCS=	archive_acl.c					\
 	archive_entry_stat.c				\
 	archive_entry_strmode.c				\
 	archive_entry_xattr.c				\
+	archive_getdate.c				\
+	archive_match.c					\
 	archive_options.c				\
+	archive_pathmatch.c				\
 	archive_ppmd7.c					\
 	archive_rb.c					\
 	archive_read.c					\
@@ -106,6 +109,8 @@ SRCS=	archive_acl.c					\
 	archive_util.c					\
 	archive_virtual.c				\
 	archive_write.c					\
+	archive_write_add_filter.c			\
+	archive_write_disk_acl.c			\
 	archive_write_disk_set_standard_lookup.c	\
 	archive_write_disk_posix.c			\
 	archive_write_open_fd.c				\
@@ -226,9 +231,6 @@ MLINKS+=	archive_entry_perms.3 archive_entry_set_fflags.3
 MLINKS+=	archive_entry_perms.3 archive_entry_set_gid.3
 MLINKS+=	archive_entry_perms.3 archive_entry_set_gname.3
 MLINKS+=	archive_entry_perms.3 archive_entry_perm.3
-MLINKS+=	archive_entry_perms.3 archive_entry_set_fflags.3
-MLINKS+=	archive_entry_perms.3 archive_entry_set_gid.3
-MLINKS+=	archive_entry_perms.3 archive_entry_set_gname.3
 MLINKS+=	archive_entry_perms.3 archive_entry_set_perm.3
 MLINKS+=	archive_entry_perms.3 archive_entry_set_uid.3
 MLINKS+=	archive_entry_perms.3 archive_entry_set_uname.3
@@ -259,10 +261,6 @@ MLINKS+=	archive_entry_stat.3 archive_entry_set_filetype.3
 MLINKS+=	archive_entry_stat.3 archive_entry_set_ino.3
 MLINKS+=	archive_entry_stat.3 archive_entry_set_ino64.3
 MLINKS+=	archive_entry_stat.3 archive_entry_set_mode.3
-MLINKS+=	archive_entry_stat.3 archive_entry_set_rdev.3
-MLINKS+=	archive_entry_stat.3 archive_entry_set_rdevmajor.3
-MLINKS+=	archive_entry_stat.3 archive_entry_set_rdevminor.3
-MLINKS+=	archive_entry_stat.3 archive_entry_set_size.3
 MLINKS+=	archive_entry_stat.3 archive_entry_set_nlink.3
 MLINKS+=	archive_entry_stat.3 archive_entry_set_rdev.3
 MLINKS+=	archive_entry_stat.3 archive_entry_set_rdevmajor.3

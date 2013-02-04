@@ -146,4 +146,4 @@ board_init(void)
 	return (at91_ramsize());
 }
 
-ARM_BOARD(NONE, "Ethernut 5")
+ARM_BOARD(ETHERNUT5, "Ethernut 5")

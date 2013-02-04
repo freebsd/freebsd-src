@@ -18,7 +18,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetLowering.h"
 using namespace llvm;
@@ -49,18 +49,16 @@ void CCState::HandleByVal(unsigned ValNo, MVT ValVT,
     Size = MinSize;
   if (MinAlign > (int)Align)
     Align = MinAlign;
-  if (MF.getFrameInfo()->getMaxAlignment() < Align)
-    MF.getFrameInfo()->setMaxAlignment(Align);
-  TM.getTargetLowering()->HandleByVal(this, Size);
+  MF.getFrameInfo()->ensureMaxAlignment(Align);
+  TM.getTargetLowering()->HandleByVal(this, Size, Align);
   unsigned Offset = AllocateStack(Size, Align);
   addLoc(CCValAssign::getMem(ValNo, ValVT, Offset, LocVT, LocInfo));
 }
 
 /// MarkAllocated - Mark a register and all of its aliases as allocated.
 void CCState::MarkAllocated(unsigned Reg) {
-  for (const uint16_t *Alias = TRI.getOverlaps(Reg);
-       unsigned Reg = *Alias; ++Alias)
-    UsedRegs[Reg/32] |= 1 << (Reg&31);
+  for (MCRegAliasIterator AI(Reg, &TRI, true); AI.isValid(); ++AI)
+    UsedRegs[*AI/32] |= 1 << (*AI&31);
 }
 
 /// AnalyzeFormalArguments - Analyze an array of argument values,

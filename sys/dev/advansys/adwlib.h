@@ -421,6 +421,7 @@ struct acb {
 	acb_state	state;
 	union		ccb *ccb;
 	struct		adw_sg_block* sg_blocks;
+	struct		callout timer;
 	bus_addr_t	sg_busaddr;
 	struct		scsi_sense_data sense_data;
 	SLIST_ENTRY(acb) links;
@@ -601,8 +602,7 @@ struct adw_syncrate
 #define ADW_NUM_CARRIER_QUEUES 2
 struct adw_softc
 {
-	bus_space_tag_t		  tag;
-	bus_space_handle_t	  bsh;
+	struct resource		 *res;
 	adw_state		  state;
 	bus_dma_tag_t		  buffer_dmat;
 	struct acb	         *acbs;
@@ -626,6 +626,7 @@ struct adw_softc
 	adw_flag		  flags;
 	u_int			  memsize;
 	char			  channel;
+	struct mtx		  lock;
 	struct cam_path		 *path;
 	struct cam_sim		 *sim;
 	struct resource		 *regs;
@@ -641,8 +642,6 @@ struct adw_softc
 	u_int			  num_acbs;
 	u_int			  initiator_id;
 	u_int			  init_level;
-	u_int			  unit;
-	char*			  name;
 	cam_status		  last_reset;	/* Last reset type */
 	u_int16_t		  bios_ctrl;
 	u_int16_t		  user_wdtr;
@@ -659,23 +658,22 @@ extern const struct adw_syncrate adw_syncrates[];
 extern const int adw_num_syncrates;
 
 #define adw_inb(adw, port)				\
-	bus_space_read_1((adw)->tag, (adw)->bsh, port)
+	bus_read_1((adw)->res, port)
 #define adw_inw(adw, port)				\
-	bus_space_read_2((adw)->tag, (adw)->bsh, port)
+	bus_read_2((adw)->res, port)
 #define adw_inl(adw, port)				\
-	bus_space_read_4((adw)->tag, (adw)->bsh, port)
+	bus_read_4((adw)->res, port)
 
 #define adw_outb(adw, port, value)			\
-	bus_space_write_1((adw)->tag, (adw)->bsh, port, value)
+	bus_write_1((adw)->res, port, value)
 #define adw_outw(adw, port, value)			\
-	bus_space_write_2((adw)->tag, (adw)->bsh, port, value)
+	bus_write_2((adw)->res, port, value)
 #define adw_outl(adw, port, value)			\
-	bus_space_write_4((adw)->tag, (adw)->bsh, port, value)
+	bus_write_4((adw)->res, port, value)
 
 #define adw_set_multi_2(adw, port, value, count)	\
-	bus_space_set_multi_2((adw)->tag, (adw)->bsh, port, value, count)
+	bus_set_multi_2((adw)->res, port, value, count)
 
-static __inline const char*	adw_name(struct adw_softc *adw);
 static __inline u_int	adw_lram_read_8(struct adw_softc *adw, u_int addr);
 static __inline u_int	adw_lram_read_16(struct adw_softc *adw, u_int addr);
 static __inline u_int	adw_lram_read_32(struct adw_softc *adw, u_int addr);
@@ -704,12 +702,6 @@ static __inline struct adw_carrier *
 static __inline struct adw_carrier *
 				carrierbtov(struct adw_softc *adw,
 					    u_int32_t baddr);
-
-static __inline const char*
-adw_name(struct adw_softc *adw)
-{
-	return (adw->name);
-}
 
 static __inline u_int
 adw_lram_read_8(struct adw_softc *adw, u_int addr)

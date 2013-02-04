@@ -1,6 +1,6 @@
 /*
  * HighPoint RR3xxx/4xxx RAID Driver for FreeBSD
- * Copyright (C) 2007-2008 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2007-2012 HighPoint Technologies, Inc. All Rights Reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -115,6 +115,68 @@ struct hpt_iopmv_regs {
 	u_int32_t outbound_intmask;
 };
 
+#define CL_POINTER_TOGGLE        0x00004000
+#define CPU_TO_F0_DRBL_MSG_A_BIT 0x02000000
+
+#pragma pack(1)
+struct hpt_iopmu_mvfrey {
+	u_int32_t reserved[0x4000 / 4];
+
+	/* hpt_frey_com_reg */
+	u_int32_t inbound_base; /* 0x4000 : 0 */
+	u_int32_t inbound_base_high; /* 4 */
+	u_int32_t reserved2[(0x18 - 8)/ 4];
+	u_int32_t inbound_write_ptr; /* 0x18 */
+	u_int32_t inbound_read_ptr; /* 0x1c */
+	u_int32_t reserved3[(0x2c - 0x20) / 4];
+	u_int32_t inbound_conf_ctl; /* 0x2c */
+	u_int32_t reserved4[(0x50 - 0x30) / 4];
+	u_int32_t outbound_base; /* 0x50 */
+	u_int32_t outbound_base_high; /* 0x54 */
+	u_int32_t outbound_shadow_base; /* 0x58 */
+	u_int32_t outbound_shadow_base_high; /* 0x5c */
+	u_int32_t reserved5[(0x68 - 0x60) / 4];
+	u_int32_t outbound_write; /* 0x68 */
+	u_int32_t reserved6[(0x70 - 0x6c) / 4];
+	u_int32_t outbound_read; /* 0x70 */
+	u_int32_t reserved7[(0x88 - 0x74) / 4];
+	u_int32_t isr_cause; /* 0x88 */
+	u_int32_t isr_enable; /* 0x8c */
+
+	u_int32_t reserved8[(0x10200 - 0x4090) / 4];
+
+	/* hpt_frey_intr_ctl intr_ctl */
+	u_int32_t main_int_cuase; /* 0x10200: 0 */
+	u_int32_t main_irq_enable; /* 4 */
+	u_int32_t main_fiq_enable; /* 8 */
+	u_int32_t pcie_f0_int_enable; /* 0xc */
+	u_int32_t pcie_f1_int_enable; /* 0x10 */
+	u_int32_t pcie_f2_int_enable; /* 0x14 */
+	u_int32_t pcie_f3_int_enable; /* 0x18 */
+
+	u_int32_t reserved9[(0x10400 - 0x1021c) / 4];
+
+	/* hpt_frey_msg_drbl */
+	u_int32_t f0_to_cpu_msg_a; /* 0x10400: 0 */
+	u_int32_t reserved10[(0x20 - 4) / 4];
+	u_int32_t cpu_to_f0_msg_a; /* 0x20 */
+	u_int32_t reserved11[(0x80 - 0x24) / 4];
+	u_int32_t f0_doorbell; /* 0x80 */
+	u_int32_t f0_doorbell_enable; /* 0x84 */
+};
+
+struct mvfrey_inlist_entry {
+	u_int64_t addr;
+	u_int32_t intrfc_len;
+	u_int32_t reserved;
+};
+
+struct mvfrey_outlist_entry {
+	u_int32_t val;
+};
+
+#pragma pack()
+
 #define MVIOP_IOCTLCFG_SIZE	0x800
 #define MVIOP_MU_QUEUE_ADDR_HOST_MASK   (~(0x1full))
 #define MVIOP_MU_QUEUE_ADDR_HOST_BIT    4
@@ -136,6 +198,8 @@ struct hpt_iopmv_regs {
 
 #define MVIOP_REQUEST_NUMBER_START_BIT 16
 
+#define MVFREYIOPMU_QUEUE_REQUEST_RESULT_BIT   0x40000000
+
 enum hpt_iopmu_message {
 	/* host-to-iop messages */
 	IOPMU_INBOUND_MSG0_NOP = 0,
@@ -144,6 +208,7 @@ enum hpt_iopmu_message {
 	IOPMU_INBOUND_MSG0_SHUTDOWN,
 	IOPMU_INBOUND_MSG0_STOP_BACKGROUND_TASK,
 	IOPMU_INBOUND_MSG0_START_BACKGROUND_TASK,
+	IOPMU_INBOUND_MSG0_RESET_COMM,
 	IOPMU_INBOUND_MSG0_MAX = 0xff,
 	/* iop-to-host messages */
 	IOPMU_OUTBOUND_MSG0_REGISTER_DEVICE_0 = 0x100,
@@ -158,6 +223,8 @@ enum hpt_iopmu_message {
 #define IOP_REQUEST_FLAG_BIST_REQUEST 2
 #define IOP_REQUEST_FLAG_REMAPPED     4
 #define IOP_REQUEST_FLAG_OUTPUT_CONTEXT 8
+
+#define IOP_REQUEST_FLAG_ADDR_BITS 0x40 /* flags[31:16] is phy_addr[47:32] */
 
 enum hpt_iop_request_type {
 	IOP_REQUEST_TYPE_GET_CONFIG = 0,
@@ -179,6 +246,7 @@ enum hpt_iop_result_type {
 	IOP_RESULT_CHECK_CONDITION,
 };
 
+#pragma pack(1)
 struct hpt_iop_request_header {
 	u_int32_t size;
 	u_int32_t type;
@@ -287,6 +355,21 @@ struct hpt_iop_hba {
 			struct hpt_iopmv_regs *regs;
 			struct hpt_iopmu_mv *mu;
 		} mv;
+		struct {
+			struct hpt_iop_request_get_config *config;
+			struct hpt_iopmu_mvfrey *mu;
+
+			int internal_mem_size;
+			int list_count;
+			struct mvfrey_inlist_entry *inlist;
+			u_int64_t inlist_phy;
+			u_int32_t inlist_wptr;
+			struct mvfrey_outlist_entry *outlist;
+			u_int64_t outlist_phy;
+			u_int32_t *outlist_cptr; /* copy pointer shadow */
+			u_int64_t outlist_cptr_phy;
+			u_int32_t outlist_rptr;
+		} mvfrey;
 	} u;
 	
 	struct hpt_iop_hba    *next;
@@ -335,7 +418,8 @@ struct hpt_iop_hba {
 	struct resource	      *ctlcfg_res;
 	void		      *ctlcfg_handle;
 	u_int64_t             ctlcfgcmd_phy;
-	u_int32_t             config_done;
+	u_int32_t             config_done; /* can be negative value */
+	u_int32_t             initialized:1;
 
 	/* other resources */
 	struct cam_sim        *sim;
@@ -350,8 +434,17 @@ struct hpt_iop_hba {
 	u_int32_t             flag;
 	struct hpt_iop_srb* srb[HPT_SRB_MAX_QUEUE_SIZE];
 };
+#pragma pack()
+
+enum hptiop_family {
+	INTEL_BASED_IOP = 0,
+	MV_BASED_IOP,
+	MVFREY_BASED_IOP,
+	UNKNOWN_BASED_IOP = 0xf
+};
 
 struct hptiop_adapter_ops {
+	enum hptiop_family family;
 	int  (*iop_wait_ready)(struct hpt_iop_hba *hba, u_int32_t millisec);
 	int  (*internal_memalloc)(struct hpt_iop_hba *hba);
 	int  (*internal_memfree)(struct hpt_iop_hba *hba);
@@ -366,7 +459,8 @@ struct hptiop_adapter_ops {
 	int  (*iop_intr)(struct hpt_iop_hba *hba);
 	void (*post_msg)(struct hpt_iop_hba *hba, u_int32_t msg);
 	void (*post_req)(struct hpt_iop_hba *hba, struct hpt_iop_srb *srb, bus_dma_segment_t *segs, int nsegs);
-	int (*do_ioctl)(struct hpt_iop_hba *hba, struct hpt_iop_ioctl_param * pParams);	
+	int (*do_ioctl)(struct hpt_iop_hba *hba, struct hpt_iop_ioctl_param * pParams);
+	int (*reset_comm)(struct hpt_iop_hba *hba);
 };
 
 struct hpt_iop_srb {

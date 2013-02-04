@@ -65,6 +65,7 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip_carp.h>
 #ifdef INET6
+#include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
 
@@ -302,7 +303,7 @@ static int
 rts_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct rawcb *rp;
-	int s, error;
+	int error;
 
 	KASSERT(so->so_pcb == NULL, ("rts_attach: so_pcb != NULL"));
 
@@ -311,20 +312,11 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	if (rp == NULL)
 		return ENOBUFS;
 
-	/*
-	 * The splnet() is necessary to block protocols from sending
-	 * error notifications (like RTM_REDIRECT or RTM_LOSING) while
-	 * this PCB is extant but incompletely initialized.
-	 * Probably we should try to do more of this work beforehand and
-	 * eliminate the spl.
-	 */
-	s = splnet();
 	so->so_pcb = (caddr_t)rp;
 	so->so_fibnum = td->td_proc->p_fibnum;
 	error = raw_attach(so, proto);
 	rp = sotorawcb(so);
 	if (error) {
-		splx(s);
 		so->so_pcb = NULL;
 		free(rp, M_PCB);
 		return error;
@@ -345,7 +337,6 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	RTSOCK_UNLOCK();
 	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
-	splx(s);
 	return 0;
 }
 
@@ -573,6 +564,11 @@ route_output(struct mbuf *m, struct socket *so)
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
 	struct rt_addrinfo info;
+#ifdef INET6
+	struct sockaddr_storage ss;
+	struct sockaddr_in6 *sin6;
+	int i, rti_need_deembed = 0;
+#endif
 	int len, error = 0;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
@@ -603,6 +599,11 @@ route_output(struct mbuf *m, struct socket *so)
 	rtm->rtm_pid = curproc->p_pid;
 	bzero(&info, sizeof(info));
 	info.rti_addrs = rtm->rtm_addrs;
+	/*
+	 * rt_xaddrs() performs s6_addr[2] := sin6_scope_id for AF_INET6
+	 * link-local address because rtrequest requires addresses with
+	 * embedded scope id.
+	 */
 	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info)) {
 		info.rti_info[RTAX_DST] = NULL;
 		senderr(EINVAL);
@@ -669,11 +670,18 @@ route_output(struct mbuf *m, struct socket *so)
 		if (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
 		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
 			error = lla_rt_output(rtm, &info);
+#ifdef INET6
+			if (error == 0)
+				rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+#endif
 			break;
 		}
 		error = rtrequest1_fib(RTM_ADD, &info, &saved_nrt,
 		    so->so_fibnum);
 		if (error == 0 && saved_nrt) {
+#ifdef INET6
+			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+#endif
 			RT_LOCK(saved_nrt);
 			rt_setmetrics(rtm->rtm_inits,
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
@@ -690,6 +698,10 @@ route_output(struct mbuf *m, struct socket *so)
 		    (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) &&
 		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
 			error = lla_rt_output(rtm, &info);
+#ifdef INET6
+			if (error == 0)
+				rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+#endif
 			break;
 		}
 		error = rtrequest1_fib(RTM_DELETE, &info, &saved_nrt,
@@ -699,6 +711,10 @@ route_output(struct mbuf *m, struct socket *so)
 			rt = saved_nrt;
 			goto report;
 		}
+#ifdef INET6
+		/* rt_msg2() will not be used when RTM_DELETE fails. */
+		rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+#endif
 		break;
 
 	case RTM_GET:
@@ -942,6 +958,22 @@ flush:
 		rp = sotorawcb(so);
 	}
 	if (rtm) {
+#ifdef INET6
+		if (rti_need_deembed) {
+			/* sin6_scope_id is recovered before sending rtm. */
+			for (i = 0; i < RTAX_MAX; i++) {
+				sin6 = (struct sockaddr_in6 *)&ss;
+				if (info.rti_info[i] == NULL)
+					continue;
+				if (info.rti_info[i]->sa_family != AF_INET6)
+					continue;
+				bcopy(info.rti_info[i], sin6, sizeof(*sin6));
+				if (sa6_recoverscope(sin6) == 0)
+					bcopy(sin6, info.rti_info[i],
+						    sizeof(*sin6));
+			}
+		}
+#endif
 		m_copyback(m, 0, rtm->rtm_msglen, (caddr_t)rtm);
 		if (m->m_pkthdr.len < rtm->rtm_msglen) {
 			m_freem(m);
@@ -1035,6 +1067,11 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 			return (0); /* should be EINVAL but for compat */
 		}
 		/* accept it */
+#ifdef INET6
+		if (sa->sa_family == AF_INET6)
+			sa6_embedscope((struct sockaddr_in6 *)sa,
+			    V_ip6_use_defzone);
+#endif
 		rtinfo->rti_info[i] = sa;
 		cp += SA_SIZE(sa);
 	}
@@ -1051,6 +1088,10 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 	struct mbuf *m;
 	int i;
 	struct sockaddr *sa;
+#ifdef INET6
+	struct sockaddr_storage ss;
+	struct sockaddr_in6 *sin6;
+#endif
 	int len, dlen;
 
 	switch (type) {
@@ -1079,9 +1120,9 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 	}
 	if (len > MCLBYTES)
 		panic("rt_msg1");
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m && len > MHLEN) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			m = NULL;
@@ -1098,6 +1139,14 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
 		dlen = SA_SIZE(sa);
+#ifdef INET6
+		if (V_deembed_scopeid && sa->sa_family == AF_INET6) {
+			sin6 = (struct sockaddr_in6 *)&ss;
+			bcopy(sa, sin6, sizeof(*sin6));
+			if (sa6_recoverscope(sin6) == 0)
+				sa = (struct sockaddr *)sin6;
+		}
+#endif
 		m_copyback(m, len, dlen, (caddr_t)sa);
 		len += dlen;
 	}
@@ -1120,6 +1169,10 @@ rt_msg2(int type, struct rt_addrinfo *rtinfo, caddr_t cp, struct walkarg *w)
 	int i;
 	int len, dlen, second_time = 0;
 	caddr_t cp0;
+#ifdef INET6
+	struct sockaddr_storage ss;
+	struct sockaddr_in6 *sin6;
+#endif
 
 	rtinfo->rti_addrs = 0;
 again:
@@ -1172,6 +1225,14 @@ again:
 		rtinfo->rti_addrs |= (1 << i);
 		dlen = SA_SIZE(sa);
 		if (cp) {
+#ifdef INET6
+			if (V_deembed_scopeid && sa->sa_family == AF_INET6) {
+				sin6 = (struct sockaddr_in6 *)&ss;
+				bcopy(sa, sin6, sizeof(*sin6));
+				if (sa6_recoverscope(sin6) == 0)
+					sa = (struct sockaddr *)sin6;
+			}
+#endif
 			bcopy((caddr_t)sa, cp, (unsigned)dlen);
 			cp += dlen;
 		}
@@ -1731,7 +1792,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	int len, error = 0;
 
 	bzero((caddr_t)&info, sizeof(info));
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
@@ -1776,7 +1837,7 @@ sysctl_iflist(int af, struct walkarg *w)
 done:
 	if (ifp != NULL)
 		IF_ADDR_RUNLOCK(ifp);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (error);
 }
 
@@ -1790,7 +1851,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 	struct ifaddr *ifa;
 
 	bzero((caddr_t)&info, sizeof(info));
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
@@ -1825,7 +1886,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		IF_ADDR_RUNLOCK(ifp);
 	}
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (error);
 }
 

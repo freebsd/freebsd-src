@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -68,6 +69,14 @@ static int is_daemon = 0;
 static int fd = -1;
 static int nap = 1;
 static char *test_cmd = NULL;
+
+/*
+ * Ask malloc() to map minimum-sized chunks of virtual address space at a time,
+ * so that mlockall() won't needlessly wire megabytes of unused memory into the
+ * process.  This must be done using the malloc_conf string so that it gets set
+ * up before the first allocation, which happens before entry to main().
+ */
+const char * malloc_conf = "lg_chunk:0";
 
 /*
  * Periodically pat the watchdog, preventing it from firing.
@@ -118,6 +127,8 @@ main(int argc, char *argv[])
 		pidfile_write(pfh);
 		if (madvise(0, 0, MADV_PROTECT) != 0)
 			warn("madvise failed");
+		if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
+			warn("mlockall failed");
 
 		watchdog_loop();
 
@@ -185,7 +196,7 @@ watchdog_loop(void)
 			if (watchdog_onoff(0) == 0) {
 				end_program = 2;
 			} else {
-				warnx("Could not stop the watchdog, not exitting");
+				warnx("Could not stop the watchdog, not exiting");
 				end_program = 0;
 			}
 		}
@@ -278,7 +289,7 @@ parseargs(int argc, char *argv[])
 			if (a == 0)
 				timeout = WD_TO_NEVER;
 			else
-				timeout = 1.0 + log(a * 1e9) / log(2.0);
+				timeout = flsll(a * 1e9);
 			if (debugging)
 				printf("Timeout is 2^%d nanoseconds\n",
 				    timeout);

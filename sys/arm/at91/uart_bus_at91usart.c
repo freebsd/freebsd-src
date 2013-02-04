@@ -95,6 +95,12 @@ usart_at91_probe(device_t dev)
 	case 4:
 		device_set_desc(dev, "USART3");
 		break;
+	case 5:
+		device_set_desc(dev, "USART4");
+		break;
+	case 6:
+		device_set_desc(dev, "USART5");
+		break;
 	}
 	sc->sc_class = &at91_usart_class;
 	if (sc->sc_class->uc_rclk == 0)

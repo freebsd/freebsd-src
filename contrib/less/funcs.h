@@ -46,6 +46,7 @@
 	public void ch_setbufspace ();
 	public void ch_flush ();
 	public int seekable ();
+	public void ch_set_eof ();
 	public void ch_init ();
 	public void ch_close ();
 	public int ch_getflags ();

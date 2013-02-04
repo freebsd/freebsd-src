@@ -52,15 +52,6 @@
 
 #define	S_SIZE(s)	s, sizeof(s) - 1
 
-#define	IP_STR		"%d.%d.%d.%d"
-#define	IP_ARGS(ip)					\
-	(int)(ip >> 24) & 0xff, (int)(ip >> 16) & 0xff, \
-	(int)(ip >> 8) & 0xff, (int)ip & 0xff
-
-#define	MAC_STR		"%02x:%02x:%02x:%02x:%02x:%02x"
-#define	MAC_ARGS(mac)					\
-	mac[0], mac[1], mac[2], mac[3], mac[4], mac[5] 
-
 #define	PXENFSROOTPATH	"/pxeroot"
 
 typedef struct {

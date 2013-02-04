@@ -95,7 +95,9 @@ static const STRUCT_USB_HOST_ID usie_devs[] = {
 static device_probe_t usie_probe;
 static device_attach_t usie_attach;
 static device_detach_t usie_detach;
+static void usie_free_softc(struct usie_softc *);
 
+static void usie_free(struct ucom_softc *);
 static void usie_uc_update_line_state(struct ucom_softc *, uint8_t);
 static void usie_uc_cfg_get_status(struct ucom_softc *, uint8_t *, uint8_t *);
 static void usie_uc_cfg_set_dtr(struct ucom_softc *, uint8_t);
@@ -189,7 +191,7 @@ static device_method_t usie_methods[] = {
 	DEVMETHOD(device_probe, usie_probe),
 	DEVMETHOD(device_attach, usie_attach),
 	DEVMETHOD(device_detach, usie_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t usie_driver = {
@@ -216,6 +218,7 @@ static const struct ucom_callback usie_uc_callback = {
 	.ucom_stop_read = &usie_uc_stop_read,
 	.ucom_start_write = &usie_uc_start_write,
 	.ucom_stop_write = &usie_uc_stop_write,
+	.ucom_free = &usie_free,
 };
 
 static void
@@ -298,6 +301,7 @@ usie_attach(device_t self)
 	sc->sc_dev = self;
 
 	mtx_init(&sc->sc_mtx, "usie", MTX_NETWORK_LOCK, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	TASK_INIT(&sc->sc_if_status_task, 0, usie_if_status_cb, sc);
 	TASK_INIT(&sc->sc_if_sync_task, 0, usie_if_sync_cb, sc);
@@ -482,9 +486,29 @@ usie_detach(device_t self)
 	for (x = 0; x != USIE_UCOM_MAX; x++)
 		usbd_transfer_unsetup(sc->sc_uc_xfer[x], USIE_UC_N_XFER);
 
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(self);
+
+	usie_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(usie);
+
+static void
+usie_free_softc(struct usie_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+usie_free(struct ucom_softc *ucom)
+{
+	usie_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -772,7 +796,7 @@ usie_if_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 tr_setup:
 
 		if (sc->sc_rxm == NULL) {
-			sc->sc_rxm = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+			sc->sc_rxm = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 			    MJUMPAGESIZE /* could be bigger than MCLBYTES */ );
 		}
 		if (sc->sc_rxm == NULL) {
@@ -868,7 +892,7 @@ tr_setup:
 			break;
 		}
 		/* copy aggregated frames to another mbuf */
-		m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (__predict_false(m0 == NULL)) {
 			DPRINTF("could not allocate mbuf\n");
 			err++;
@@ -1364,7 +1388,7 @@ usie_cns_req(struct usie_softc *sc, uint32_t id, uint16_t obj)
 	uint8_t *tmp;
 	uint8_t cns_len;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
 		DPRINTF("could not allocate mbuf\n");
 		ifp->if_ierrors++;

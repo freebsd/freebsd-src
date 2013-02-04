@@ -140,6 +140,7 @@
 #define	  MPC603e		  0x0006
 #define	  MPC603ev		  0x0007
 #define	  MPC750		  0x0008
+#define	  MPC750CL		  0x7000	/* Nintendo Wii's Broadway */
 #define	  MPC604ev		  0x0009
 #define	  MPC7400		  0x000c
 #define	  MPC620		  0x0014

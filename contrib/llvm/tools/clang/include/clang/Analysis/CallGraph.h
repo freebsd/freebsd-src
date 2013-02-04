@@ -26,7 +26,7 @@
 namespace clang {
 class CallGraphNode;
 
-/// \class The AST-based call graph.
+/// \brief The AST-based call graph.
 ///
 /// The call graph extends itself with the given declarations by implementing
 /// the recursive AST visitor, which constructs the graph by visiting the given
@@ -102,7 +102,8 @@ public:
   void dump() const;
   void viewGraph() const;
 
-  /// Part of recursive declaration visitation.
+  /// Part of recursive declaration visitation. We recursively visit all the
+  /// Declarations to collect the root functions.
   bool VisitFunctionDecl(FunctionDecl *FD) {
     // We skip function template definitions, as their semantics is
     // only determined when they are instantiated.
@@ -120,6 +121,11 @@ public:
       addNodeForDecl(MD, true);
     return true;
   }
+
+  // We are only collecting the declarations, so do not step into the bodies.
+  bool TraverseStmt(Stmt *S) { return true; }
+
+  bool shouldWalkTypesOfTypeLocs() const { return false; }
 
 private:
   /// \brief Add the given declaration to the call graph.

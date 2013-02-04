@@ -105,7 +105,7 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     return(ENOENT);
 
 found:
-    if (path != NULL && *s != '\0')
+    if (path != NULL)
 	*path = s;
     idev = malloc(sizeof(struct ofw_devdesc));
     if (idev == NULL) {

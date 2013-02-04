@@ -297,7 +297,7 @@ sdp_process_tx_cq(struct sdp_sock *ssk)
 	} while (n == SDP_NUM_WC);
 
 	if (wc_processed) {
-		sdp_post_sends(ssk, M_DONTWAIT);
+		sdp_post_sends(ssk, M_NOWAIT);
 		sdp_prf1(sk, NULL, "Waking sendmsg. inflight=%d", 
 				(u32) tx_ring_posted(ssk));
 		sowwakeup(ssk->socket);

@@ -451,6 +451,12 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return ipd_port+1;
             else
                 return -1;
+        case CVMX_BOARD_TYPE_EBT5600:
+	    /* Board has 1 management port */
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                return 0;
+	    /* Board has 1 XAUI port connected to a switch.  */
+	    return -1;
         case CVMX_BOARD_TYPE_EBB5600:
             {
                 static unsigned char qlm_switch_addr = 0;
@@ -585,6 +591,17 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 	    default:
 		return -1;
 	    }
+#endif
+#if defined(OCTEON_VENDOR_UBIQUITI)
+	case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
+	    if (ipd_port > 2)
+		return -1;
+	    return (7 - ipd_port);
+#endif
+#if defined(OCTEON_VENDOR_RADISYS)
+	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
+	    /* No MII.  */
+	    return -1;
 #endif
     }
 
@@ -985,6 +1002,7 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
             }
             /* Fall through to the generic code below */
             break;
+        case CVMX_BOARD_TYPE_EBT5600:
         case CVMX_BOARD_TYPE_EBH5600:
         case CVMX_BOARD_TYPE_EBH5601:
         case CVMX_BOARD_TYPE_EBH5610:
@@ -1284,6 +1302,11 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
                 return 0;
 #endif
 	    break;
+        case CVMX_BOARD_TYPE_EBT5600:
+	    /* Disable loopback.  */
+	    if (interface == 3)
+		return 0;
+	    break;
         case CVMX_BOARD_TYPE_EBT5810:
             return 1;  /* Two ports on each SPI: 1 hooked to MAC, 1 loopback
                        ** Loopback disabled by default. */
@@ -1371,6 +1394,21 @@ int __cvmx_helper_board_hardware_enable(int interface)
             }
         }
     }
+#if defined(OCTEON_VENDOR_UBIQUITI)
+    else if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_UBIQUITI_E100)
+    {
+	/* Configure ASX cloks for all ports on interface 0.  */
+	if (interface == 0)
+	{
+	    int port;
+
+	    for (port = 0; port < 3; port++) {
+                cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 16);
+                cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, interface), 0);
+	    }
+	}
+    }
+#endif
     return 0;
 }
 
@@ -1445,6 +1483,9 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
 #if defined(OCTEON_VENDOR_LANNER)
     case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
     case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
+#endif
+#if defined(OCTEON_VENDOR_UBIQUITI)
+    case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
 #endif
 #if defined(OCTEON_BOARD_CAPK_0100ND)
 	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:

@@ -56,14 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
-#include <opt_enc.h>
-
 MALLOC_DEFINE(M_SCSIENC, "SCSI ENC", "SCSI ENC buffers");
 
 /* Enclosure type independent driver */
-
-#define	SEN_ID		"UNISYS           SUN_SEN"
-#define	SEN_ID_LEN	24
 
 static	d_open_t	enc_open;
 static	d_close_t	enc_close;
@@ -116,11 +111,40 @@ enc_init(void)
 static void
 enc_devgonecb(void *arg)
 {
+	struct cam_sim    *sim;
 	struct cam_periph *periph;
+	struct enc_softc  *enc;
+	int i;
 
 	periph = (struct cam_periph *)arg;
+	sim = periph->sim;
+	enc = (struct enc_softc *)periph->softc;
 
-	cam_periph_release(periph);
+	mtx_lock(sim->mtx);
+
+	/*
+	 * When we get this callback, we will get no more close calls from
+	 * devfs.  So if we have any dangling opens, we need to release the
+	 * reference held for that particular context.
+	 */
+	for (i = 0; i < enc->open_count; i++)
+		cam_periph_release_locked(periph);
+
+	enc->open_count = 0;
+
+	/*
+	 * Release the reference held for the device node, it is gone now.
+	 */
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the final call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 */
+	mtx_unlock(sim->mtx);
 }
 
 static void
@@ -267,6 +291,8 @@ enc_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 out:
 	if (error != 0)
 		cam_periph_release_locked(periph);
+	else
+		softc->open_count++;
 
 	cam_periph_unlock(periph);
 
@@ -276,13 +302,36 @@ out:
 static int
 enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
+	struct cam_sim    *sim;
 	struct cam_periph *periph;
+	struct enc_softc  *enc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
-	cam_periph_release(periph);
+	sim = periph->sim;
+	enc = periph->softc;
+
+	mtx_lock(sim->mtx);
+
+	enc->open_count--;
+
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 *
+	 * cam_periph_release() avoids this problem using the same method,
+	 * but we're manually acquiring and dropping the lock here to
+	 * protect the open count and avoid another lock acquisition and
+	 * release.
+	 */
+	mtx_unlock(sim->mtx);
 
 	return (0);
 }
@@ -564,7 +613,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 		cdbl = IOCDBLEN;
 	}
 
-	ccb = cam_periph_getccb(enc->periph, 1);
+	ccb = cam_periph_getccb(enc->periph, CAM_PRIORITY_NORMAL);
 	if (enc->enc_type == ENC_SEMB_SES || enc->enc_type == ENC_SEMB_SAFT) {
 		tdlen = min(dlen, 1020);
 		tdlen = (tdlen + 3) & ~3;
@@ -632,9 +681,8 @@ enc_log(struct enc_softc *enc, const char *fmt, ...)
 /*
  * Is this a device that supports enclosure services?
  *
- * It's a a pretty simple ruleset- if it is device type 0x0D (13), it's
- * an ENC device. If it happens to be an old UNISYS SEN device, we can
- * handle that too.
+ * It's a pretty simple ruleset- if it is device type
+ * 0x0D (13), it's an ENCLOSURE device.
  */
 
 #define	SAFTE_START	44
@@ -661,13 +709,9 @@ enc_type(struct ccb_getdev *cgd)
 	iqd = (unsigned char *)&cgd->inq_data;
 	buflen = min(sizeof(cgd->inq_data),
 	    SID_ADDITIONAL_LENGTH(&cgd->inq_data));
-	if (buflen < 8+SEN_ID_LEN)
-		return (ENC_NONE);
 
 	if ((iqd[0] & 0x1f) == T_ENCLOSURE) {
-		if (STRNCMP(&iqd[8], SEN_ID, SEN_ID_LEN) == 0) {
-			return (ENC_SEN);
-		} else if ((iqd[2] & 0x7) > 2) {
+		if ((iqd[2] & 0x7) > 2) {
 			return (ENC_SES);
 		} else {
 			return (ENC_SES_SCSI2);
@@ -889,11 +933,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	char *tname;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("enc_ctor: periph was NULL!!\n");
-		goto out;
-	}
-
 	if (cgd == NULL) {
 		printf("enc_ctor: no getdev CCB, can't register device\n");
 		goto out;
@@ -922,7 +961,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	case ENC_SEMB_SAFT:
 		err = safte_softc_init(enc);
 		break;
-	case ENC_SEN:
 	case ENC_NONE:
 	default:
 		ENC_FREE(enc);
@@ -962,6 +1000,11 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		}
 	}
 
+	/*
+	 * Acquire a reference to the periph before we create the devfs
+	 * instance for it.  We'll release this reference once the devfs
+	 * instance has been freed.
+	 */
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
@@ -998,9 +1041,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		break;
         case ENC_SES_PASSTHROUGH:
 		tname = "ENC Passthrough Device";
-		break;
-        case ENC_SEN:
-		tname = "UNISYS SEN Device (NOT HANDLED YET)";
 		break;
         case ENC_SAFT:
 		tname = "SAF-TE Compliant Device";

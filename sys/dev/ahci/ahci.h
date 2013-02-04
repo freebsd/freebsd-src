@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
- * Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2009-2012 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -395,7 +395,6 @@ struct ahci_channel {
 	struct ata_dma		dma;            /* DMA data */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
-	struct ahci_led		leds[3];
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		chcaps;		/* Channel capabilities */
@@ -435,6 +434,22 @@ struct ahci_channel {
 	struct ahci_device	curr[16];	/* Current settings */
 };
 
+struct ahci_enclosure {
+	device_t		dev;            /* Device handle */
+	struct resource		*r_memc;	/* Control register */
+	struct resource		*r_memt;	/* Transmit buffer */
+	struct resource		*r_memr;	/* Recieve buffer */
+	struct cam_sim		*sim;
+	struct cam_path		*path;
+	struct mtx		mtx;		/* state lock */
+	struct ahci_led		leds[AHCI_MAX_PORTS * 3];
+	uint32_t		capsem;		/* Controller capabilities */
+	uint8_t			status[AHCI_MAX_PORTS][4]; /* ArrayDev statuses */
+	int			quirks;
+	int			channels;
+	int			ichannels;
+};
+
 /* structure describing a AHCI controller */
 struct ahci_controller {
 	device_t		dev;
@@ -465,7 +480,6 @@ struct ahci_controller {
 		void			(*function)(void *);
 		void			*argument;
 	} interrupt[AHCI_MAX_PORTS];
-	struct mtx		em_mtx;		/* EM access lock */
 };
 
 enum ahci_err_type {

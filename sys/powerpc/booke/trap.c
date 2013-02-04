@@ -249,7 +249,6 @@ trap(struct trapframe *frame)
 	}
 
 	userret(td, frame);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 static void

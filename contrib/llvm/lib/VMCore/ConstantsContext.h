@@ -33,7 +33,7 @@ struct ConstantTraits;
 /// behind the scenes to implement unary constant exprs.
 class UnaryConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -50,7 +50,7 @@ public:
 /// behind the scenes to implement binary constant exprs.
 class BinaryConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -71,7 +71,7 @@ public:
 /// behind the scenes to implement select constant exprs.
 class SelectConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
   void *operator new(size_t s) {
@@ -92,7 +92,7 @@ public:
 /// extractelement constant exprs.
 class ExtractElementConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -113,7 +113,7 @@ public:
 /// insertelement constant exprs.
 class InsertElementConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
   void *operator new(size_t s) {
@@ -135,7 +135,7 @@ public:
 /// shufflevector constant exprs.
 class ShuffleVectorConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
   void *operator new(size_t s) {
@@ -160,7 +160,7 @@ public:
 /// extractvalue constant exprs.
 class ExtractValueConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -186,7 +186,7 @@ public:
 /// insertvalue constant exprs.
 class InsertValueConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -234,7 +234,7 @@ public:
 // needed in order to store the predicate value for these instructions.
 class CompareConstantExpr : public ConstantExpr {
   virtual void anchor();
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -352,18 +352,21 @@ struct ExprMapKeyType {
 struct InlineAsmKeyType {
   InlineAsmKeyType(StringRef AsmString,
                    StringRef Constraints, bool hasSideEffects,
-                   bool isAlignStack)
+                   bool isAlignStack, InlineAsm::AsmDialect asmDialect)
     : asm_string(AsmString), constraints(Constraints),
-      has_side_effects(hasSideEffects), is_align_stack(isAlignStack) {}
+      has_side_effects(hasSideEffects), is_align_stack(isAlignStack),
+      asm_dialect(asmDialect) {}
   std::string asm_string;
   std::string constraints;
   bool has_side_effects;
   bool is_align_stack;
+  InlineAsm::AsmDialect asm_dialect;
   bool operator==(const InlineAsmKeyType& that) const {
     return this->asm_string == that.asm_string &&
            this->constraints == that.constraints &&
            this->has_side_effects == that.has_side_effects &&
-           this->is_align_stack == that.is_align_stack;
+           this->is_align_stack == that.is_align_stack &&
+           this->asm_dialect == that.asm_dialect;
   }
   bool operator<(const InlineAsmKeyType& that) const {
     if (this->asm_string != that.asm_string)
@@ -374,6 +377,8 @@ struct InlineAsmKeyType {
       return this->has_side_effects < that.has_side_effects;
     if (this->is_align_stack != that.is_align_stack)
       return this->is_align_stack < that.is_align_stack;
+    if (this->asm_dialect != that.asm_dialect)
+      return this->asm_dialect < that.asm_dialect;
     return false;
   }
 
@@ -490,7 +495,8 @@ template<>
 struct ConstantCreator<InlineAsm, PointerType, InlineAsmKeyType> {
   static InlineAsm *create(PointerType *Ty, const InlineAsmKeyType &Key) {
     return new InlineAsm(Ty, Key.asm_string, Key.constraints,
-                         Key.has_side_effects, Key.is_align_stack);
+                         Key.has_side_effects, Key.is_align_stack,
+                         Key.asm_dialect);
   }
 };
 
@@ -499,7 +505,8 @@ struct ConstantKeyData<InlineAsm> {
   typedef InlineAsmKeyType ValType;
   static ValType getValType(InlineAsm *Asm) {
     return InlineAsmKeyType(Asm->getAsmString(), Asm->getConstraintString(),
-                            Asm->hasSideEffects(), Asm->isAlignStack());
+                            Asm->hasSideEffects(), Asm->isAlignStack(),
+                            Asm->getDialect());
   }
 };
 

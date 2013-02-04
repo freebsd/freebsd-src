@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "geom/raid/g_raid.h"
 #include "g_raid_tr_if.h"
 
-SYSCTL_DECL(_kern_geom_raid);
-static SYSCTL_NODE(_kern_geom_raid, OID_AUTO, raid1, CTLFLAG_RW, 0,
-    "RAID1 parameters");
+SYSCTL_DECL(_kern_geom_raid_raid1);
 
 #define RAID1_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
 static int g_raid1_rebuild_slab = RAID1_REBUILD_SLAB;
@@ -131,6 +129,7 @@ static struct g_raid_tr_class g_raid_tr_raid1_class = {
 	"RAID1",
 	g_raid_tr_raid1_methods,
 	sizeof(struct g_raid_tr_raid1_object),
+	.trc_enable = 1,
 	.trc_priority = 100
 };
 
@@ -648,10 +647,8 @@ g_raid_tr_iostart_raid1(struct g_raid_tr_object *tr, struct bio *bp)
 		g_raid_tr_iostart_raid1_read(tr, bp);
 		break;
 	case BIO_WRITE:
-		g_raid_tr_iostart_raid1_write(tr, bp);
-		break;
 	case BIO_DELETE:
-		g_raid_iodone(bp, EIO);
+		g_raid_tr_iostart_raid1_write(tr, bp);
 		break;
 	case BIO_FLUSH:
 		g_raid_tr_flush_common(tr, bp);
@@ -897,7 +894,7 @@ rebuild_round_done:
 	if (pbp->bio_cmd != BIO_READ) {
 		if (pbp->bio_inbed == 1 || pbp->bio_error != 0)
 			pbp->bio_error = bp->bio_error;
-		if (bp->bio_error != 0) {
+		if (pbp->bio_cmd == BIO_WRITE && bp->bio_error != 0) {
 			G_RAID_LOGREQ(0, bp, "Write failed: failing subdisk.");
 			g_raid_tr_raid1_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 		}
@@ -996,4 +993,4 @@ g_raid_tr_free_raid1(struct g_raid_tr_object *tr)
 	return (0);
 }
 
-G_RAID_TR_DECLARE(g_raid_tr_raid1);
+G_RAID_TR_DECLARE(raid1, "RAID1");

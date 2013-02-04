@@ -124,13 +124,15 @@
 .\" ========================================================================
 .\"
 .IX Title "threads 3"
-.TH threads 3 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH threads 3 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CRYPTO_set_locking_callback, CRYPTO_set_id_callback, CRYPTO_num_locks,
+CRYPTO_THREADID_set_callback, CRYPTO_THREADID_get_callback,
+CRYPTO_THREADID_current, CRYPTO_THREADID_cmp, CRYPTO_THREADID_cpy,
+CRYPTO_THREADID_hash, CRYPTO_set_locking_callback, CRYPTO_num_locks,
 CRYPTO_set_dynlock_create_callback, CRYPTO_set_dynlock_lock_callback,
 CRYPTO_set_dynlock_destroy_callback, CRYPTO_get_new_dynlockid,
 CRYPTO_destroy_dynlockid, CRYPTO_lock \- OpenSSL thread support
@@ -139,13 +141,25 @@ CRYPTO_destroy_dynlockid, CRYPTO_lock \- OpenSSL thread support
 .Vb 1
 \& #include <openssl/crypto.h>
 \&
-\& void CRYPTO_set_locking_callback(void (*locking_function)(int mode,
-\&        int n, const char *file, int line));
-\&
-\& void CRYPTO_set_id_callback(unsigned long (*id_function)(void));
+\& /* Don\*(Aqt use this structure directly. */
+\& typedef struct crypto_threadid_st
+\&         {
+\&         void *ptr;
+\&         unsigned long val;
+\&         } CRYPTO_THREADID;
+\& /* Only use CRYPTO_THREADID_set_[numeric|pointer]() within callbacks */
+\& void CRYPTO_THREADID_set_numeric(CRYPTO_THREADID *id, unsigned long val);
+\& void CRYPTO_THREADID_set_pointer(CRYPTO_THREADID *id, void *ptr);
+\& int CRYPTO_THREADID_set_callback(void (*threadid_func)(CRYPTO_THREADID *));
+\& void (*CRYPTO_THREADID_get_callback(void))(CRYPTO_THREADID *);
+\& void CRYPTO_THREADID_current(CRYPTO_THREADID *id);
+\& int CRYPTO_THREADID_cmp(const CRYPTO_THREADID *a,
+\&                         const CRYPTO_THREADID *b);
+\& void CRYPTO_THREADID_cpy(CRYPTO_THREADID *dest,
+\&                          const CRYPTO_THREADID *src);
+\& unsigned long CRYPTO_THREADID_hash(const CRYPTO_THREADID *id);
 \&
 \& int CRYPTO_num_locks(void);
-\&
 \&
 \& /* struct CRYPTO_dynlock_value needs to be defined by the user */
 \& struct CRYPTO_dynlock_value;
@@ -178,7 +192,8 @@ CRYPTO_destroy_dynlockid, CRYPTO_lock \- OpenSSL thread support
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 OpenSSL can safely be used in multi-threaded applications provided
-that at least two callback functions are set.
+that at least two callback functions are set, locking_function and
+threadid_func.
 .PP
 locking_function(int mode, int n, const char *file, int line) is
 needed to perform locking on shared data structures. 
@@ -193,10 +208,34 @@ different mutex locks. It sets the \fBn\fR\-th lock if \fBmode\fR &
 \&\fBfile\fR and \fBline\fR are the file number of the function setting the
 lock. They can be useful for debugging.
 .PP
-id_function(void) is a function that returns a thread \s-1ID\s0, for example
-\&\fIpthread_self()\fR if it returns an integer (see \s-1NOTES\s0 below).  It isn't
-needed on Windows nor on platforms where \fIgetpid()\fR returns a different
-\&\s-1ID\s0 for each thread (see \s-1NOTES\s0 below).
+threadid_func(\s-1CRYPTO_THREADID\s0 *id) is needed to record the currently-executing
+thread's identifier into \fBid\fR. The implementation of this callback should not
+fill in \fBid\fR directly, but should use \fICRYPTO_THREADID_set_numeric()\fR if thread
+IDs are numeric, or \fICRYPTO_THREADID_set_pointer()\fR if they are pointer-based.
+If the application does not register such a callback using
+\&\fICRYPTO_THREADID_set_callback()\fR, then a default implementation is used \- on
+Windows and BeOS this uses the system's default thread identifying APIs, and on
+all other platforms it uses the address of \fBerrno\fR. The latter is satisfactory
+for thread-safety if and only if the platform has a thread-local error number
+facility.
+.PP
+Once \fIthreadid_func()\fR is registered, or if the built-in default implementation is
+to be used;
+.IP "\(bu" 4
+\&\fICRYPTO_THREADID_current()\fR records the currently-executing thread \s-1ID\s0 into the
+given \fBid\fR object.
+.IP "\(bu" 4
+\&\fICRYPTO_THREADID_cmp()\fR compares two thread IDs (returning zero for equality, ie.
+the same semantics as \fImemcmp()\fR).
+.IP "\(bu" 4
+\&\fICRYPTO_THREADID_cpy()\fR duplicates a thread \s-1ID\s0 value,
+.IP "\(bu" 4
+\&\fICRYPTO_THREADID_hash()\fR returns a numeric value usable as a hash-table key. This
+is usually the exact numeric or pointer-based thread \s-1ID\s0 used internally, however
+this also handles the unusual case where pointers are larger than 'long'
+variables and the platform's thread IDs are pointer-based \- in this case, mixing
+is done to attempt to produce a unique numeric value even though it is not as
+wide as the platform's true thread IDs.
 .PP
 Additionally, OpenSSL supports dynamic locks, and sometimes, some parts
 of OpenSSL need it for better performance.  To enable this, the following
@@ -263,32 +302,20 @@ You can find out if OpenSSL was configured with thread support:
 .PP
 Also, dynamic locks are currently not used internally by OpenSSL, but
 may do so in the future.
-.PP
-Defining id_function(void) has it's own issues.  Generally speaking,
-\&\fIpthread_self()\fR should be used, even on platforms where \fIgetpid()\fR gives
-different answers in each thread, since that may depend on the machine
-the program is run on, not the machine where the program is being
-compiled.  For instance, Red Hat 8 Linux and earlier used
-LinuxThreads, whose \fIgetpid()\fR returns a different value for each
-thread.  Red Hat 9 Linux and later use \s-1NPTL\s0, which is
-Posix-conformant, and has a \fIgetpid()\fR that returns the same value for
-all threads in a process.  A program compiled on Red Hat 8 and run on
-Red Hat 9 will therefore see \fIgetpid()\fR returning the same value for
-all threads.
-.PP
-There is still the issue of platforms where \fIpthread_self()\fR returns
-something other than an integer.  This is a bit unusual, and this
-manual has no cookbook solution for that case.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 \&\fBcrypto/threads/mttest.c\fR shows examples of the callback functions on
 Solaris, Irix and Win32.
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fICRYPTO_set_locking_callback()\fR and \fICRYPTO_set_id_callback()\fR are
+\&\fICRYPTO_set_locking_callback()\fR is
 available in all versions of SSLeay and OpenSSL.
 \&\fICRYPTO_num_locks()\fR was added in OpenSSL 0.9.4.
 All functions dealing with dynamic locks were added in OpenSSL 0.9.5b\-dev.
+\&\fB\s-1CRYPTO_THREADID\s0\fR and associated functions were introduced in OpenSSL 1.0.0
+to replace (actually, deprecate) the previous \fICRYPTO_set_id_callback()\fR,
+\&\fICRYPTO_get_id_callback()\fR, and \fICRYPTO_thread_id()\fR functions which assumed
+thread IDs to always be represented by 'unsigned long'.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIcrypto\fR\|(3)

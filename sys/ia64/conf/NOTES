@@ -27,10 +27,6 @@ options 	LOG2_ID_PAGE_SIZE=27		# 128M
 # The page size being equal to 1<<LOG2_PAGE_SIZE.
 options 	LOG2_PAGE_SIZE=14		# 16K
 
-# option: SKI
-# Build support for running under the ski simulator.
-options 	SKI
-
 # option: UWX_TRACE_ENABLE
 # Build the unwinder with tracing support. This option is used to debug the
 # unwinder itself and the glue around it.

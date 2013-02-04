@@ -120,7 +120,7 @@ _thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 }
 
 static inline int
-_thr_umutex_unlock(struct umutex *mtx, uint32_t id)
+_thr_umutex_unlock2(struct umutex *mtx, uint32_t id, int *defer)
 {
 	uint32_t flags = mtx->m_flags;
 
@@ -132,13 +132,23 @@ _thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 				return (EPERM);
 		} while (__predict_false(!atomic_cmpset_rel_32(&mtx->m_owner,
 					 owner, UMUTEX_UNOWNED)));
-		if ((owner & UMUTEX_CONTESTED))
-			(void)_umtx_op_err(mtx, UMTX_OP_MUTEX_WAKE2, flags, 0, 0);
+		if ((owner & UMUTEX_CONTESTED)) {
+			if (defer == NULL)
+				(void)_umtx_op_err(mtx, UMTX_OP_MUTEX_WAKE2, flags, 0, 0);
+			else
+				*defer = 1;
+		}
 		return (0);
 	}
     	if (atomic_cmpset_rel_32(&mtx->m_owner, id, UMUTEX_UNOWNED))
 		return (0);
 	return (__thr_umutex_unlock(mtx, id));
+}
+
+static inline int
+_thr_umutex_unlock(struct umutex *mtx, uint32_t id)
+{
+	return _thr_umutex_unlock2(mtx, id, NULL);
 }
 
 static inline int

@@ -200,13 +200,13 @@ struct vm_map {
 
 #ifdef	_KERNEL
 static __inline vm_offset_t
-vm_map_max(vm_map_t map)
+vm_map_max(const struct vm_map *map)
 {
 	return (map->max_offset);
 }
 
 static __inline vm_offset_t
-vm_map_min(vm_map_t map)
+vm_map_min(const struct vm_map *map)
 {
 	return (map->min_offset);
 }
@@ -298,7 +298,6 @@ void vm_map_wait_busy(vm_map_t map);
 			_vm_map_lock_downgrade(map, LOCK_FILE, LOCK_LINE)
 
 long vmspace_resident_count(struct vmspace *vmspace);
-long vmspace_wired_count(struct vmspace *vmspace);
 #endif	/* _KERNEL */
 
 

@@ -25,7 +25,7 @@ class HeaderSearch;
 class Module;
   
 /// DirectoryLookup - This class represents one entry in the search list that
-/// specifies the search order for directories in #include directives.  It
+/// specifies the search order for directories in \#include directives.  It
 /// represents either a directory, a framework, or a headermap.
 ///
 class DirectoryLookup {
@@ -146,14 +146,14 @@ public:
   /// part of a known module, this will be set to the module that should
   /// be imported instead of preprocessing/parsing the file found.
   ///
-  /// \param InUserSpecifiedSystemHeader [out] If the file is found, set to true
-  /// if the file is located in a framework that has been user-specified to be
-  /// treated as a system framework.
+  /// \param [out] InUserSpecifiedSystemFramework If the file is found,
+  /// set to true if the file is located in a framework that has been
+  /// user-specified to be treated as a system framework.
   const FileEntry *LookupFile(StringRef Filename, HeaderSearch &HS,
                               SmallVectorImpl<char> *SearchPath,
                               SmallVectorImpl<char> *RelativePath,
                               Module **SuggestedModule,
-                              bool &InUserSpecifiedSystemHeader) const;
+                              bool &InUserSpecifiedSystemFramework) const;
 
 private:
   const FileEntry *DoFrameworkLookup(

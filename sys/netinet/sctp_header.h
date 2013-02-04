@@ -510,16 +510,6 @@ struct sctp_stream_reset_add_strm {
  * streams then the request will need to be an overlay structure.
  */
 
-struct sctp_stream_reset_out_req {
-	struct sctp_chunkhdr ch;
-	struct sctp_stream_reset_out_request sr_req;
-}                         SCTP_PACKED;
-
-struct sctp_stream_reset_in_req {
-	struct sctp_chunkhdr ch;
-	struct sctp_stream_reset_in_request sr_req;
-}                        SCTP_PACKED;
-
 struct sctp_stream_reset_tsn_req {
 	struct sctp_chunkhdr ch;
 	struct sctp_stream_reset_tsn_request sr_req;

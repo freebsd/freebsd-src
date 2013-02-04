@@ -113,7 +113,7 @@ static device_method_t ichss_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	ichss_get),
 	DEVMETHOD(cpufreq_drv_type,	ichss_type),
 	DEVMETHOD(cpufreq_drv_settings,	ichss_settings),
-	{0, 0}
+	DEVMETHOD_END
 };
 static driver_t ichss_driver = {
 	"ichss", ichss_methods, sizeof(struct ichss_softc)

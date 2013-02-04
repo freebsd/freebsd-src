@@ -105,11 +105,6 @@ __FBSDID("$FreeBSD$");
 #define	KERNEL_PT_VMDATA_NUM	7	/* start with 16MB of KVM */
 #define	NUM_KERNEL_PTS		(KERNEL_PT_VMDATA + KERNEL_PT_VMDATA_NUM)
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 #define	KERNEL_VM_BASE		(KERNBASE + 0x00100000)
 #define	KERNEL_VM_SIZE		0x05000000
 
@@ -122,9 +117,6 @@ struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 extern vm_offset_t sa1110_uart_vaddr;
 
 extern vm_offset_t sa1_cache_clean_addr;
-
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
 
 #ifndef MD_ROOT_SIZE
 #define MD_ROOT_SIZE 65535
@@ -197,7 +189,6 @@ cpu_reset()
 void *
 initarm(struct arm_boot_params *abp)
 {
-	struct pcpu *pc;
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr	md_addr;
 	struct pv_addr	md_bla;
@@ -215,9 +206,7 @@ initarm(struct arm_boot_params *abp)
 	cninit();
 	set_cpufuncs();
 	physmem = memsize / PAGE_SIZE;
-	pc = &__pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
 	init_param1();
@@ -358,12 +347,7 @@ initarm(struct arm_boot_params *abp)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....

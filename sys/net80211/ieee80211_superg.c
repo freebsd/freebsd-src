@@ -28,6 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
 
+#ifdef	IEEE80211_SUPPORT_SUPERG
+
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/mbuf.h>   
@@ -352,7 +354,7 @@ ff_encap1(struct ieee80211vap *vap, struct mbuf *m,
 	llc->llc_snap.ether_type = eh->ether_type;
 	payload = m->m_pkthdr.len;		/* NB: w/o Ethernet header */
 
-	M_PREPEND(m, sizeof(struct ether_header), M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct ether_header), M_NOWAIT);
 	if (m == NULL) {		/* XXX cannot happen */
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
 			"%s: no space for ether_header\n", __func__);
@@ -460,7 +462,7 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	 */
 	m->m_next = m2;			/* NB: last mbuf from above */
 	m1->m_pkthdr.len += m2->m_pkthdr.len;
-	M_PREPEND(m1, sizeof(uint32_t)+2, M_DONTWAIT);
+	M_PREPEND(m1, sizeof(uint32_t)+2, M_NOWAIT);
 	if (m1 == NULL) {		/* XXX cannot happen */
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
 		    "%s: no space for tunnel header\n", __func__);
@@ -469,7 +471,7 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	}
 	memset(mtod(m1, void *), 0, sizeof(uint32_t)+2);
 
-	M_PREPEND(m1, sizeof(struct llc), M_DONTWAIT);
+	M_PREPEND(m1, sizeof(struct llc), M_NOWAIT);
 	if (m1 == NULL) {		/* XXX cannot happen */
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
 		    "%s: no space for llc header\n", __func__);
@@ -547,17 +549,26 @@ ff_flush(struct mbuf *head, struct mbuf *last)
 
 /*
  * Age frames on the staging queue.
+ *
+ * This is called without the comlock held, but it does all its work
+ * behind the comlock.  Because of this, it's possible that the
+ * staging queue will be serviced between the function which called
+ * it and now; thus simply checking that the queue has work in it
+ * may fail.
+ *
+ * See PR kern/174283 for more details.
  */
 void
 ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
     int quanta)
 {
-	struct ieee80211_superg *sg = ic->ic_superg;
 	struct mbuf *m, *head;
 	struct ieee80211_node *ni;
 	struct ieee80211_tx_ampdu *tap;
 
+#if 0
 	KASSERT(sq->head != NULL, ("stageq empty"));
+#endif
 
 	IEEE80211_LOCK(ic);
 	head = sq->head;
@@ -572,7 +583,6 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 
 		sq->head = m->m_nextpkt;
 		sq->depth--;
-		sg->ff_stageqdepth--;
 	}
 	if (m == NULL)
 		sq->tail = NULL;
@@ -584,9 +594,12 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 }
 
 static void
-stageq_add(struct ieee80211_stageq *sq, struct mbuf *m)
+stageq_add(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *m)
 {
 	int age = ieee80211_ffagemax;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (sq->tail != NULL) {
 		sq->tail->m_nextpkt = m;
 		age -= M_AGE_GET(sq->head);
@@ -600,9 +613,11 @@ stageq_add(struct ieee80211_stageq *sq, struct mbuf *m)
 }
 
 static void
-stageq_remove(struct ieee80211_stageq *sq, struct mbuf *mstaged)
+stageq_remove(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *mstaged)
 {
 	struct mbuf *m, *mprev;
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	mprev = NULL;
 	for (m = sq->head; m != NULL; m = m->m_nextpkt) {
@@ -715,7 +730,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 
 		tap->txa_private = NULL;
 		if (mstaged != NULL)
-			stageq_remove(sq, mstaged);
+			stageq_remove(ic, sq, mstaged);
 		IEEE80211_UNLOCK(ic);
 
 		if (mstaged != NULL) {
@@ -735,7 +750,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 */
 	if (mstaged != NULL) {
 		tap->txa_private = NULL;
-		stageq_remove(sq, mstaged);
+		stageq_remove(ic, sq, mstaged);
 		IEEE80211_UNLOCK(ic);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
@@ -756,8 +771,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		    ("txa_private %p", tap->txa_private));
 		tap->txa_private = m;
 
-		stageq_add(sq, m);
-		sg->ff_stageqdepth++;
+		stageq_add(ic, sq, m);
 		IEEE80211_UNLOCK(ic);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
@@ -784,7 +798,7 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_superg *sg = ic->ic_superg;
 	struct ieee80211_tx_ampdu *tap;
-	struct mbuf *m, *head;
+	struct mbuf *m, *next_m, *head;
 	int tid;
 
 	IEEE80211_LOCK(ic);
@@ -796,16 +810,23 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 		m = tap->txa_private;
 		if (m != NULL) {
 			tap->txa_private = NULL;
-			stageq_remove(&sg->ff_stageq[ac], m);
+			stageq_remove(ic, &sg->ff_stageq[ac], m);
 			m->m_nextpkt = head;
 			head = m;
 		}
 	}
 	IEEE80211_UNLOCK(ic);
 
-	for (m = head; m != NULL; m = m->m_nextpkt) {
+	/*
+	 * Free mbufs, taking care to not dereference the mbuf after
+	 * we free it (hence grabbing m_nextpkt before we free it.)
+	 */
+	m = head;
+	while (m != NULL) {
+		next_m = m->m_nextpkt;
 		m_freem(m);
 		ieee80211_free_node(ni);
+		m = next_m;
 	}
 }
 
@@ -902,3 +923,5 @@ superg_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	return 0;
 }
 IEEE80211_IOCTL_SET(superg, superg_ioctl_set80211);
+
+#endif	/* IEEE80211_SUPPORT_SUPERG */

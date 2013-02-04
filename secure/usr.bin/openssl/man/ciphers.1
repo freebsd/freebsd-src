@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CIPHERS 1"
-.TH CIPHERS 1 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH CIPHERS 1 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -135,26 +135,30 @@ ciphers \- SSL cipher display and cipher list tool.
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBciphers\fR
 [\fB\-v\fR]
+[\fB\-V\fR]
 [\fB\-ssl2\fR]
 [\fB\-ssl3\fR]
 [\fB\-tls1\fR]
 [\fBcipherlist\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBcipherlist\fR command converts OpenSSL cipher lists into ordered
+The \fBciphers\fR command converts textual OpenSSL cipher lists into ordered
 \&\s-1SSL\s0 cipher preference lists. It can be used as a test tool to determine
 the appropriate cipherlist.
 .SH "COMMAND OPTIONS"
 .IX Header "COMMAND OPTIONS"
 .IP "\fB\-v\fR" 4
 .IX Item "-v"
-verbose option. List ciphers with a complete description of
+Verbose option. List ciphers with a complete description of
 protocol version (SSLv2 or SSLv3; the latter includes \s-1TLS\s0), key exchange,
 authentication, encryption and mac algorithms used along with any key size
 restrictions and whether the algorithm is classed as an \*(L"export\*(R" cipher.
 Note that without the \fB\-v\fR option, ciphers may seem to appear twice
 in a cipher list; this is when similar ciphers are available for
 \&\s-1SSL\s0 v2 and for \s-1SSL\s0 v3/TLS v1.
+.IP "\fB\-V\fR" 4
+.IX Item "-V"
+Like \fB\-V\fR, but include cipher suite codes in output (hex format).
 .IP "\fB\-ssl3\fR" 4
 .IX Item "-ssl3"
 only include \s-1SSL\s0 v3 ciphers.
@@ -215,8 +219,8 @@ the current cipher list in order of encryption algorithm key length.
 The following is a list of all permitted cipher strings and their meanings.
 .IP "\fB\s-1DEFAULT\s0\fR" 4
 .IX Item "DEFAULT"
-the default cipher list. This is determined at compile time and is normally
-\&\fB\s-1AES:ALL:\s0!aNULL:!eNULL:+RC4:@STRENGTH\fR. This must be the first cipher string
+the default cipher list. This is determined at compile time and, as of OpenSSL
+1.0.0, is normally \fB\s-1ALL:\s0!aNULL:!eNULL\fR. This must be the first cipher string
 specified.
 .IP "\fB\s-1COMPLEMENTOFDEFAULT\s0\fR" 4
 .IX Item "COMPLEMENTOFDEFAULT"
@@ -225,7 +229,8 @@ this is \fB\s-1ADH\s0\fR. Note that this rule does not cover \fBeNULL\fR, which 
 not included by \fB\s-1ALL\s0\fR (use \fB\s-1COMPLEMENTOFALL\s0\fR if necessary).
 .IP "\fB\s-1ALL\s0\fR" 4
 .IX Item "ALL"
-all ciphers suites except the \fBeNULL\fR ciphers which must be explicitly enabled.
+all cipher suites except the \fBeNULL\fR ciphers which must be explicitly enabled;
+as of OpenSSL, the \fB\s-1ALL\s0\fR cipher suites are reasonably ordered by default
 .IP "\fB\s-1COMPLEMENTOFALL\s0\fR" 4
 .IX Item "COMPLEMENTOFALL"
 the cipher suites not enabled by \fB\s-1ALL\s0\fR, currently being \fBeNULL\fR.
@@ -324,6 +329,26 @@ cipher suites using \s-1MD5\s0.
 .IP "\fB\s-1SHA1\s0\fR, \fB\s-1SHA\s0\fR" 4
 .IX Item "SHA1, SHA"
 cipher suites using \s-1SHA1\s0.
+.IP "\fBaGOST\fR" 4
+.IX Item "aGOST"
+cipher suites using \s-1GOST\s0 R 34.10 (either 2001 or 94) for authenticaction
+(needs an engine supporting \s-1GOST\s0 algorithms).
+.IP "\fBaGOST01\fR" 4
+.IX Item "aGOST01"
+cipher suites using \s-1GOST\s0 R 34.10\-2001 authentication.
+.IP "\fBaGOST94\fR" 4
+.IX Item "aGOST94"
+cipher suites using \s-1GOST\s0 R 34.10\-94 authentication (note that R 34.10\-94
+standard has been expired so use \s-1GOST\s0 R 34.10\-2001)
+.IP "\fBkGOST\fR" 4
+.IX Item "kGOST"
+cipher suites, using \s-1VKO\s0 34.10 key exchange, specified in the \s-1RFC\s0 4357.
+.IP "\fB\s-1GOST94\s0\fR" 4
+.IX Item "GOST94"
+cipher suites, using \s-1HMAC\s0 based on \s-1GOST\s0 R 34.11\-94.
+.IP "\fB\s-1GOST89MAC\s0\fR" 4
+.IX Item "GOST89MAC"
+cipher suites using \s-1GOST\s0 28147\-89 \s-1MAC\s0 \fBinstead of\fR \s-1HMAC\s0.
 .SH "CIPHER SUITE NAMES"
 .IX Header "CIPHER SUITE NAMES"
 The following lists give the \s-1SSL\s0 or \s-1TLS\s0 cipher suites names from the
@@ -451,6 +476,17 @@ e.g. \s-1DES\-CBC3\-SHA\s0. In these cases, \s-1RSA\s0 authentication is used.
 \&
 \& TLS_DH_anon_WITH_SEED_CBC_SHA          ADH\-SEED\-SHA
 .Ve
+.SS "\s-1GOST\s0 ciphersuites from draft-chudov-cryptopro-cptls, extending \s-1TLS\s0 v1.0"
+.IX Subsection "GOST ciphersuites from draft-chudov-cryptopro-cptls, extending TLS v1.0"
+Note: these ciphers require an engine which including \s-1GOST\s0 cryptographic
+algorithms, such as the \fBccgost\fR engine, included in the OpenSSL distribution.
+.PP
+.Vb 4
+\& TLS_GOSTR341094_WITH_28147_CNT_IMIT GOST94\-GOST89\-GOST89
+\& TLS_GOSTR341001_WITH_28147_CNT_IMIT GOST2001\-GOST89\-GOST89
+\& TLS_GOSTR341094_WITH_NULL_GOSTR3411 GOST94\-NULL\-GOST94
+\& TLS_GOSTR341001_WITH_NULL_GOSTR3411 GOST2001\-NULL\-GOST94
+.Ve
 .SS "Additional Export 1024 and other cipher suites"
 .IX Subsection "Additional Export 1024 and other cipher suites"
 Note: these ciphers can also be used in \s-1SSL\s0 v3.
@@ -518,5 +554,6 @@ encryption.
 \&\fIs_client\fR\|(1), \fIs_server\fR\|(1), \fIssl\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-The \fB\s-1COMPLENTOFALL\s0\fR and \fB\s-1COMPLEMENTOFDEFAULT\s0\fR selection options were
-added in version 0.9.7.
+The \fB\s-1COMPLENTOFALL\s0\fR and \fB\s-1COMPLEMENTOFDEFAULT\s0\fR selection options
+for cipherlist strings were added in OpenSSL 0.9.7.
+The \fB\-V\fR option for the \fBciphers\fR command was added in OpenSSL 1.0.0.

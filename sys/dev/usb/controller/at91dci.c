@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2007-2008 Hans Petter Selasky. All rights reserved.
  *
@@ -44,6 +42,9 @@ __FBSDID("$FreeBSD$");
  * endpoints, Function-address and more.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -79,6 +80,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/at91dci.h>
 
 #define	AT9100_DCI_BUS2SC(bus) \
@@ -740,7 +743,6 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 {
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
-	USB_BUS_LOCK(&sc->sc_bus);
 	if (is_on) {
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
@@ -760,7 +762,6 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 			at91dci_root_intr(sc);
 		}
 	}
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 void
@@ -1226,7 +1227,13 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+at91dci_xfer_stall(struct usb_xfer *xfer)
+{
+	at91dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+at91dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct at91dci_softc *sc;
@@ -1237,10 +1244,6 @@ at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		at91dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = AT9100_DCI_BUS2SC(udev->bus);
 	csr_reg = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -1737,18 +1740,12 @@ static const struct usb_hub_descriptor_min at91dci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'A', 0, 'T', 0, 'M', 0, 'E', 0, 'L', 0
+  "A\0T\0M\0E\0L"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, at91dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, at91dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, at91dci_product);
 
@@ -1950,8 +1947,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(at91dci_langtab);
-			ptr = (const void *)&at91dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -2277,10 +2274,6 @@ at91dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if (udev->speed != USB_SPEED_FULL) {
 			/* not supported */
 			return;
@@ -2332,6 +2325,7 @@ struct usb_bus_methods at91dci_bus_methods =
 	.xfer_unsetup = &at91dci_xfer_unsetup,
 	.get_hw_ep_profile = &at91dci_get_hw_ep_profile,
 	.set_stall = &at91dci_set_stall,
+	.xfer_stall = &at91dci_xfer_stall,
 	.clear_stall = &at91dci_clear_stall,
 	.roothub_exec = &at91dci_roothub_exec,
 	.xfer_poll = &at91dci_do_poll,

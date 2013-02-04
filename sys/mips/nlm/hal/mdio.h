@@ -100,6 +100,7 @@ int nlm_int_gmac_mdio_reset(uint64_t, int, int, int);
 int nlm_gmac_mdio_read(uint64_t, int, int, int, int, int);
 int nlm_gmac_mdio_write(uint64_t, int, int, int, int, int, uint16_t);
 int nlm_gmac_mdio_reset(uint64_t, int, int, int);
+void nlm_mdio_reset_all(uint64_t);
 
 #endif /* !(LOCORE) && !(__ASSEMBLY__) */
 #endif

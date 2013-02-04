@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -235,6 +235,14 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBert[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoBgrt[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCpep0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt1[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoCsrt2[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Device[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Addr[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Size[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Name[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbgp[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmarHdr[];
@@ -333,6 +341,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSrat2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTcpa[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoTpm2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoUefi[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWaet[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoWdat[];
@@ -393,6 +402,14 @@ AcpiDmDumpAsf (
 
 void
 AcpiDmDumpCpep (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpCsrt (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpDbg2 (
     ACPI_TABLE_HEADER       *Table);
 
 void
@@ -613,11 +630,22 @@ BOOLEAN
 AcpiDmIsStringBuffer (
     ACPI_PARSE_OBJECT       *Op);
 
+BOOLEAN
+AcpiDmIsPldBuffer (
+    ACPI_PARSE_OBJECT       *Op);
+
+
+/*
+ * dmdeferred
+ */
+ACPI_STATUS
+AcpiDmParseDeferredOps (
+    ACPI_PARSE_OBJECT       *Root);
+
 
 /*
  * dmextern
  */
-
 ACPI_STATUS
 AcpiDmAddToExternalFileList (
     char                    *PathList);
@@ -682,6 +710,7 @@ AcpiDmResourceTemplate (
 
 ACPI_STATUS
 AcpiDmIsResourceTemplate (
+    ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op);
 
 void

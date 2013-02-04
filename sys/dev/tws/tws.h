@@ -65,7 +65,7 @@ MALLOC_DECLARE(M_TWS);
 extern int tws_queue_depth;
 
 
-#define TWS_DRIVER_VERSION_STRING "10.80.00.003"
+#define TWS_DRIVER_VERSION_STRING "10.80.00.005"
 #define TWS_MAX_NUM_UNITS             65 
 #define TWS_MAX_NUM_LUNS              16
 #define TWS_MAX_IRQS                  2
@@ -247,7 +247,7 @@ struct tws_softc {
     struct mtx io_lock;                   /* IO  lock */
     struct tws_ioctl_lock ioctl_lock;     /* ioctl lock */ 
     u_int32_t seq_id;                     /* Sequence id */
-    int chan;                             /* wait channel */
+    void *chan;                           /* IOCTL req wait channel */
     struct tws_circular_q aen_q;          /* aen q */
     struct tws_circular_q trace_q;        /* trace q */
     struct tws_stats stats;               /* I/O stats */
@@ -260,6 +260,8 @@ struct tws_softc {
     void *dma_mem;                        /* pointer to dmable memory */
     u_int64_t dma_mem_phys;               /* phy addr */
     bus_dma_tag_t data_tag;               /* data DMA tag */
+    void *ioctl_data_mem;                 /* ioctl dmable memory */
+    bus_dmamap_t ioctl_data_map;          /* ioctl data map */
     struct tws_request *reqs;             /* pointer to requests */
     struct tws_sense *sense_bufs;         /* pointer to sense buffers */
     boolean obfl_q_overrun;               /* OBFL overrun flag  */

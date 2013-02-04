@@ -92,19 +92,11 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define	NUM_KERNEL_PTS	(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-/* Define various stack sizes in pages */
-#define	IRQ_STACK_SIZE	1
-#define	ABT_STACK_SIZE	1
-#define	UND_STACK_SIZE	1
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
-
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
 
 /* Physical and virtual addresses for some global pages */
 
@@ -191,8 +183,7 @@ initarm(struct arm_boot_params *abp)
 	boothowto = RB_VERBOSE;
 	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
       	init_param1();
@@ -307,12 +298,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
 
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....

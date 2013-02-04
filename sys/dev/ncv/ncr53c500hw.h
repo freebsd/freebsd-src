@@ -36,8 +36,6 @@
 #ifndef	__NCR53C500HW_H_
 #define	__NCR53C500HW_H_
 
-#include <compat/netbsd/dvcfg.h>
-
 #define	NCV_HOSTID	7
 #define	NCV_NTARGETS	8
 #define	NCV_NLUNS	8

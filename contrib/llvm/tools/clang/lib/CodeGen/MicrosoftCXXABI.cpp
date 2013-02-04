@@ -28,13 +28,19 @@ class MicrosoftCXXABI : public CGCXXABI {
 public:
   MicrosoftCXXABI(CodeGenModule &CGM) : CGCXXABI(CGM) {}
 
+  StringRef GetPureVirtualCallName() { return "_purecall"; }
+  // No known support for deleted functions in MSVC yet, so this choice is
+  // arbitrary.
+  StringRef GetDeletedVirtualCallName() { return "_purecall"; }
+
+  llvm::Value *adjustToCompleteObject(CodeGenFunction &CGF,
+                                      llvm::Value *ptr,
+                                      QualType type);
+
   void BuildConstructorSignature(const CXXConstructorDecl *Ctor,
                                  CXXCtorType Type,
                                  CanQualType &ResTy,
-                                 SmallVectorImpl<CanQualType> &ArgTys) {
-    // 'this' is already in place
-    // TODO: 'for base' flag
-  }  
+                                 SmallVectorImpl<CanQualType> &ArgTys);
 
   void BuildDestructorSignature(const CXXDestructorDecl *Ctor,
                                 CXXDtorType Type,
@@ -46,15 +52,16 @@ public:
 
   void BuildInstanceFunctionParams(CodeGenFunction &CGF,
                                    QualType &ResTy,
-                                   FunctionArgList &Params) {
-    BuildThisParam(CGF, Params);
-    // TODO: 'for base' flag
-  }
+                                   FunctionArgList &Params);
 
-  void EmitInstanceFunctionProlog(CodeGenFunction &CGF) {
-    EmitThisParam(CGF);
-    // TODO: 'for base' flag
-  }
+  void EmitInstanceFunctionProlog(CodeGenFunction &CGF);
+
+  void EmitGuardedInit(CodeGenFunction &CGF, const VarDecl &D,
+                       llvm::GlobalVariable *DeclPtr,
+                       bool PerformInit);
+
+  void EmitVTables(const CXXRecordDecl *Class);
+
 
   // ==== Notes on array cookies =========
   //
@@ -78,15 +85,129 @@ public:
   //     delete[] p;
   //   }
   // Whereas it prints "104" and "104" if you give A a destructor.
-  void ReadArrayCookie(CodeGenFunction &CGF, llvm::Value *Ptr,
-                       const CXXDeleteExpr *expr,
-                       QualType ElementType, llvm::Value *&NumElements,
-                       llvm::Value *&AllocPtr, CharUnits &CookieSize) {
-    CGF.CGM.ErrorUnsupported(expr, "don't know how to handle array cookies "
-                                   "in the Microsoft C++ ABI");
-  }
+
+  bool requiresArrayCookie(const CXXDeleteExpr *expr, QualType elementType);
+  bool requiresArrayCookie(const CXXNewExpr *expr);
+  CharUnits getArrayCookieSizeImpl(QualType type);
+  llvm::Value *InitializeArrayCookie(CodeGenFunction &CGF,
+                                     llvm::Value *NewPtr,
+                                     llvm::Value *NumElements,
+                                     const CXXNewExpr *expr,
+                                     QualType ElementType);
+  llvm::Value *readArrayCookieImpl(CodeGenFunction &CGF,
+                                   llvm::Value *allocPtr,
+                                   CharUnits cookieSize);
+  static bool needThisReturn(GlobalDecl GD);
 };
 
+}
+
+llvm::Value *MicrosoftCXXABI::adjustToCompleteObject(CodeGenFunction &CGF,
+                                                     llvm::Value *ptr,
+                                                     QualType type) {
+  // FIXME: implement
+  return ptr;
+}
+
+bool MicrosoftCXXABI::needThisReturn(GlobalDecl GD) {
+  const CXXMethodDecl* MD = cast<CXXMethodDecl>(GD.getDecl());
+  return isa<CXXConstructorDecl>(MD);
+}
+
+void MicrosoftCXXABI::BuildConstructorSignature(const CXXConstructorDecl *Ctor,
+                                 CXXCtorType Type,
+                                 CanQualType &ResTy,
+                                 SmallVectorImpl<CanQualType> &ArgTys) {
+  // 'this' is already in place
+  // TODO: 'for base' flag
+  // Ctor returns this ptr
+  ResTy = ArgTys[0];
+}
+
+void MicrosoftCXXABI::BuildInstanceFunctionParams(CodeGenFunction &CGF,
+                                                  QualType &ResTy,
+                                                  FunctionArgList &Params) {
+  BuildThisParam(CGF, Params);
+  if (needThisReturn(CGF.CurGD)) {
+    ResTy = Params[0]->getType();
+  }
+}
+
+void MicrosoftCXXABI::EmitInstanceFunctionProlog(CodeGenFunction &CGF) {
+  EmitThisParam(CGF);
+  if (needThisReturn(CGF.CurGD)) {
+    CGF.Builder.CreateStore(getThisValue(CGF), CGF.ReturnValue);
+  }
+}
+
+bool MicrosoftCXXABI::requiresArrayCookie(const CXXDeleteExpr *expr,
+                                   QualType elementType) {
+  // Microsoft seems to completely ignore the possibility of a
+  // two-argument usual deallocation function.
+  return elementType.isDestructedType();
+}
+
+bool MicrosoftCXXABI::requiresArrayCookie(const CXXNewExpr *expr) {
+  // Microsoft seems to completely ignore the possibility of a
+  // two-argument usual deallocation function.
+  return expr->getAllocatedType().isDestructedType();
+}
+
+CharUnits MicrosoftCXXABI::getArrayCookieSizeImpl(QualType type) {
+  // The array cookie is always a size_t; we then pad that out to the
+  // alignment of the element type.
+  ASTContext &Ctx = getContext();
+  return std::max(Ctx.getTypeSizeInChars(Ctx.getSizeType()),
+                  Ctx.getTypeAlignInChars(type));
+}
+
+llvm::Value *MicrosoftCXXABI::readArrayCookieImpl(CodeGenFunction &CGF,
+                                                  llvm::Value *allocPtr,
+                                                  CharUnits cookieSize) {
+  unsigned AS = allocPtr->getType()->getPointerAddressSpace();
+  llvm::Value *numElementsPtr =
+    CGF.Builder.CreateBitCast(allocPtr, CGF.SizeTy->getPointerTo(AS));
+  return CGF.Builder.CreateLoad(numElementsPtr);
+}
+
+llvm::Value* MicrosoftCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
+                                                    llvm::Value *newPtr,
+                                                    llvm::Value *numElements,
+                                                    const CXXNewExpr *expr,
+                                                    QualType elementType) {
+  assert(requiresArrayCookie(expr));
+
+  // The size of the cookie.
+  CharUnits cookieSize = getArrayCookieSizeImpl(elementType);
+
+  // Compute an offset to the cookie.
+  llvm::Value *cookiePtr = newPtr;
+
+  // Write the number of elements into the appropriate slot.
+  unsigned AS = newPtr->getType()->getPointerAddressSpace();
+  llvm::Value *numElementsPtr
+    = CGF.Builder.CreateBitCast(cookiePtr, CGF.SizeTy->getPointerTo(AS));
+  CGF.Builder.CreateStore(numElements, numElementsPtr);
+
+  // Finally, compute a pointer to the actual data buffer by skipping
+  // over the cookie completely.
+  return CGF.Builder.CreateConstInBoundsGEP1_64(newPtr,
+                                                cookieSize.getQuantity());
+}
+
+void MicrosoftCXXABI::EmitGuardedInit(CodeGenFunction &CGF, const VarDecl &D,
+                                      llvm::GlobalVariable *DeclPtr,
+                                      bool PerformInit) {
+  // FIXME: this code was only tested for global initialization.
+  // Not sure whether we want thread-safe static local variables as VS
+  // doesn't make them thread-safe.
+
+  // Emit the initializer and add a global destructor if appropriate.
+  CGF.EmitCXXGlobalVarDeclInit(D, DeclPtr, PerformInit);
+}
+
+void MicrosoftCXXABI::EmitVTables(const CXXRecordDecl *Class) {
+  // FIXME: implement
 }
 
 CGCXXABI *clang::CodeGen::CreateMicrosoftCXXABI(CodeGenModule &CGM) {

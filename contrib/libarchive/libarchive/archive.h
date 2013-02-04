@@ -56,23 +56,14 @@
 # else
 #  define	__LA_SSIZE_T	long
 # endif
-# if defined(__BORLANDC__)
-#  define	__LA_UID_T	uid_t
-#  define	__LA_GID_T	gid_t
-# else
-#  define	__LA_UID_T	short
-#  define	__LA_GID_T	short
-# endif
 #else
-# include <unistd.h>  /* ssize_t, uid_t, and gid_t */
+# include <unistd.h>  /* ssize_t */
 # if defined(_SCO_DS)
 #  define	__LA_INT64_T	long long
 # else
 #  define	__LA_INT64_T	int64_t
 # endif
 # define	__LA_SSIZE_T	ssize_t
-# define	__LA_UID_T	uid_t
-# define	__LA_GID_T	gid_t
 #endif
 
 /*
@@ -127,13 +118,13 @@ extern "C" {
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3000003
+#define	ARCHIVE_VERSION_NUMBER 3000004
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 3.0.3"
+#define	ARCHIVE_VERSION_STRING "libarchive 3.0.4"
 __LA_DECL const char *	archive_version_string(void);
 
 /* Declare our basic types. */
@@ -567,6 +558,8 @@ __LA_DECL int archive_write_set_compression_program(struct archive *,
 __LA_DECL int archive_write_set_compression_xz(struct archive *);
 #endif
 
+/* A convenience function to set the filter based on the code. */
+__LA_DECL int archive_write_add_filter(struct archive *, int filter_code);
 __LA_DECL int archive_write_add_filter_bzip2(struct archive *);
 __LA_DECL int archive_write_add_filter_compress(struct archive *);
 __LA_DECL int archive_write_add_filter_gzip(struct archive *);
@@ -758,11 +751,42 @@ __LA_DECL int	archive_read_disk_open_w(struct archive *, const wchar_t *);
  * traversal.
  */
 __LA_DECL int	archive_read_disk_descend(struct archive *);
+__LA_DECL int	archive_read_disk_can_descend(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_synthetic(struct archive *);
 __LA_DECL int	archive_read_disk_current_filesystem_is_remote(struct archive *);
 /* Request that the access time of the entry visited by travesal be restored. */
 __LA_DECL int  archive_read_disk_set_atime_restored(struct archive *);
+/*
+ * Set behavior. The "flags" argument selects optional behavior.
+ */
+/* Request that the access time of the entry visited by travesal be restored.
+ * This is the same as archive_read_disk_set_atime_restored. */
+#define	ARCHIVE_READDISK_RESTORE_ATIME		(0x0001)
+/* Default: Do not skip an entry which has nodump flags. */
+#define	ARCHIVE_READDISK_HONOR_NODUMP		(0x0002)
+/* Default: Skip a mac resource fork file whose prefix is "._" because of
+ * using copyfile. */
+#define	ARCHIVE_READDISK_MAC_COPYFILE		(0x0004)
+/* Default: Do not traverse mount points. */
+#define	ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS	(0x0008)
+
+__LA_DECL int  archive_read_disk_set_behavior(struct archive *,
+		    int flags);
+
+/*
+ * Set archive_match object that will be used in archive_read_disk to
+ * know whether an entry should be skipped. The callback function
+ * _excluded_func will be invoked when an entry is skipped by the result
+ * of archive_match.
+ */
+__LA_DECL int	archive_read_disk_set_matching(struct archive *,
+		    struct archive *_matching, void (*_excluded_func)
+		    (struct archive *, void *, struct archive_entry *),
+		    void *_client_data);
+__LA_DECL int	archive_read_disk_set_metadata_filter_callback(struct archive *,
+		    int (*_metadata_filter_func)(struct archive *, void *,
+		    	struct archive_entry *), void *_client_data);
 
 /*
  * Accessor functions to read/set various information in
@@ -802,14 +826,116 @@ __LA_DECL void		 archive_copy_error(struct archive *dest,
 			    struct archive *src);
 __LA_DECL int		 archive_file_count(struct archive *);
 
+/*
+ * ARCHIVE_MATCH API
+ */
+__LA_DECL struct archive *archive_match_new(void);
+__LA_DECL int	archive_match_free(struct archive *);
+
+/*
+ * Test if archive_entry is excluded.
+ * This is a convenience function. This is the same as calling all
+ * archive_match_path_excluded, archive_match_time_excluded
+ * and archive_match_owner_excluded.
+ */
+__LA_DECL int	archive_match_excluded(struct archive *,
+		    struct archive_entry *);
+
+/*
+ * Test if pathname is excluded. The conditions are set by following functions.
+ */
+__LA_DECL int	archive_match_path_excluded(struct archive *,
+		    struct archive_entry *);
+/* Add exclusion pathname pattern. */
+__LA_DECL int	archive_match_exclude_pattern(struct archive *, const char *);
+__LA_DECL int	archive_match_exclude_pattern_w(struct archive *,
+		    const wchar_t *);
+/* Add exclusion pathname pattern from file. */
+__LA_DECL int	archive_match_exclude_pattern_from_file(struct archive *,
+		    const char *, int _nullSeparator);
+__LA_DECL int	archive_match_exclude_pattern_from_file_w(struct archive *,
+		    const wchar_t *, int _nullSeparator);
+/* Add inclusion pathname pattern. */
+__LA_DECL int	archive_match_include_pattern(struct archive *, const char *);
+__LA_DECL int	archive_match_include_pattern_w(struct archive *,
+		    const wchar_t *);
+/* Add inclusion pathname pattern from file. */
+__LA_DECL int	archive_match_include_pattern_from_file(struct archive *,
+		    const char *, int _nullSeparator);
+__LA_DECL int	archive_match_include_pattern_from_file_w(struct archive *,
+		    const wchar_t *, int _nullSeparator);
+/*
+ * How to get statistic information for inclusion patterns.
+ */
+/* Return the amount number of unmatched inclusion patterns. */
+__LA_DECL int	archive_match_path_unmatched_inclusions(struct archive *);
+/* Return the pattern of unmatched inclusion with ARCHIVE_OK.
+ * Return ARCHIVE_EOF if there is no inclusion pattern. */
+__LA_DECL int	archive_match_path_unmatched_inclusions_next(
+		    struct archive *, const char **);
+__LA_DECL int	archive_match_path_unmatched_inclusions_next_w(
+		    struct archive *, const wchar_t **);
+
+/*
+ * Test if a file is excluded by its time stamp.
+ * The conditions are set by following functions.
+ */
+__LA_DECL int	archive_match_time_excluded(struct archive *,
+		    struct archive_entry *);
+
+/*
+ * Flags to tell a matching type of time stamps. These are used for
+ * following functinos.
+ */
+/* Time flag: mtime to be tested. */
+#define ARCHIVE_MATCH_MTIME	(0x0100)
+/* Time flag: ctime to be tested. */
+#define ARCHIVE_MATCH_CTIME	(0x0200)
+/* Comparison flag: Match the time if it is newer than. */
+#define ARCHIVE_MATCH_NEWER	(0x0001)
+/* Comparison flag: Match the time if it is older than. */
+#define ARCHIVE_MATCH_OLDER	(0x0002)
+/* Comparison flag: Match the time if it is equal to. */
+#define ARCHIVE_MATCH_EQUAL	(0x0010)
+/* Set inclusion time. */
+__LA_DECL int	archive_match_include_time(struct archive *, int _flag,
+		    time_t _sec, long _nsec);
+/* Set inclusion time by a date string. */
+__LA_DECL int	archive_match_include_date(struct archive *, int _flag,
+		    const char *_datestr);
+__LA_DECL int	archive_match_include_date_w(struct archive *, int _flag,
+		    const wchar_t *_datestr);
+/* Set inclusion time by a particluar file. */
+__LA_DECL int	archive_match_include_file_time(struct archive *,
+		    int _flag, const char *_pathname);
+__LA_DECL int	archive_match_include_file_time_w(struct archive *,
+		    int _flag, const wchar_t *_pathname);
+/* Add exclusion entry. */
+__LA_DECL int	archive_match_exclude_entry(struct archive *,
+		    int _flag, struct archive_entry *);
+
+/*
+ * Test if a file is excluded by its uid ,gid, uname or gname.
+ * The conditions are set by following functions.
+ */
+__LA_DECL int	archive_match_owner_excluded(struct archive *,
+		    struct archive_entry *);
+/* Add inclusion uid, gid, uname and gname. */
+__LA_DECL int	archive_match_include_uid(struct archive *, __LA_INT64_T);
+__LA_DECL int	archive_match_include_gid(struct archive *, __LA_INT64_T);
+__LA_DECL int	archive_match_include_uname(struct archive *, const char *);
+__LA_DECL int	archive_match_include_uname_w(struct archive *,
+		    const wchar_t *);
+__LA_DECL int	archive_match_include_gname(struct archive *, const char *);
+__LA_DECL int	archive_match_include_gname_w(struct archive *,
+		    const wchar_t *);
+
 #ifdef __cplusplus
 }
 #endif
 
 /* These are meaningless outside of this header. */
 #undef __LA_DECL
-#undef __LA_GID_T
-#undef __LA_UID_T
 
 /* These need to remain defined because they're used in the
  * callback type definitions.  XXX Fix this.  This is ugly. XXX */

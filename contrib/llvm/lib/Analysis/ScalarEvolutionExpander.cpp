@@ -18,7 +18,7 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -37,7 +37,7 @@ Value *SCEVExpander::ReuseOrCreateCast(Value *V, Type *Ty,
   // We use this precondition to produce a cast that will dominate all its
   // uses. In particular, this is crucial for the case where the builder's
   // insertion point *is* the point where we were asked to put the cast.
-  // Since we don't know the the builder's insertion point is actually
+  // Since we don't know the builder's insertion point is actually
   // where the uses will be added (only that it dominates it), we are
   // not allowed to move it.
   BasicBlock::iterator BIP = Builder.GetInsertPoint();
@@ -212,7 +212,7 @@ static bool FactorOutConstant(const SCEV *&S,
                               const SCEV *&Remainder,
                               const SCEV *Factor,
                               ScalarEvolution &SE,
-                              const TargetData *TD) {
+                              const DataLayout *TD) {
   // Everything is divisible by one.
   if (Factor->isOne())
     return true;
@@ -253,7 +253,7 @@ static bool FactorOutConstant(const SCEV *&S,
   // of the given factor.
   if (const SCEVMulExpr *M = dyn_cast<SCEVMulExpr>(S)) {
     if (TD) {
-      // With TargetData, the size is known. Check if there is a constant
+      // With DataLayout, the size is known. Check if there is a constant
       // operand which is a multiple of the given factor. If so, we can
       // factor it.
       const SCEVConstant *FC = cast<SCEVConstant>(Factor);
@@ -267,7 +267,7 @@ static bool FactorOutConstant(const SCEV *&S,
           return true;
         }
     } else {
-      // Without TargetData, check if Factor can be factored out of any of the
+      // Without DataLayout, check if Factor can be factored out of any of the
       // Mul's operands. If so, we can just remove it.
       for (unsigned i = 0, e = M->getNumOperands(); i != e; ++i) {
         const SCEV *SOp = M->getOperand(i);
@@ -458,7 +458,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
       // An empty struct has no fields.
       if (STy->getNumElements() == 0) break;
       if (SE.TD) {
-        // With TargetData, field offsets are known. See if a constant offset
+        // With DataLayout, field offsets are known. See if a constant offset
         // falls within any of the struct fields.
         if (Ops.empty()) break;
         if (const SCEVConstant *C = dyn_cast<SCEVConstant>(Ops[0]))
@@ -477,7 +477,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
             }
           }
       } else {
-        // Without TargetData, just check for an offsetof expression of the
+        // Without DataLayout, just check for an offsetof expression of the
         // appropriate struct type.
         for (unsigned i = 0, e = Ops.size(); i != e; ++i)
           if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(Ops[i])) {
@@ -955,7 +955,8 @@ bool SCEVExpander::hoistIVInc(Instruction *IncV, Instruction *InsertPos) {
 
   // InsertPos must itself dominate IncV so that IncV's new position satisfies
   // its existing users.
-  if (!SE.DT->dominates(InsertPos->getParent(), IncV->getParent()))
+  if (isa<PHINode>(InsertPos)
+      || !SE.DT->dominates(InsertPos->getParent(), IncV->getParent()))
     return false;
 
   // Check that the chain of IV operands leading back to Phi can be hoisted.
@@ -1617,6 +1618,17 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
          PEnd = Phis.end(); PIter != PEnd; ++PIter) {
     PHINode *Phi = *PIter;
 
+    // Fold constant phis. They may be congruent to other constant phis and
+    // would confuse the logic below that expects proper IVs.
+    if (Value *V = Phi->hasConstantValue()) {
+      Phi->replaceAllUsesWith(V);
+      DeadInsts.push_back(Phi);
+      ++NumElim;
+      DEBUG_WITH_TYPE(DebugType, dbgs()
+                      << "INDVARS: Eliminated constant iv: " << *Phi << '\n');
+      continue;
+    }
+
     if (!SE.isSCEVable(Phi->getType()))
       continue;
 
@@ -1698,4 +1710,45 @@ unsigned SCEVExpander::replaceCongruentIVs(Loop *L, const DominatorTree *DT,
     DeadInsts.push_back(Phi);
   }
   return NumElim;
+}
+
+namespace {
+// Search for a SCEV subexpression that is not safe to expand.  Any expression
+// that may expand to a !isSafeToSpeculativelyExecute value is unsafe, namely
+// UDiv expressions. We don't know if the UDiv is derived from an IR divide
+// instruction, but the important thing is that we prove the denominator is
+// nonzero before expansion.
+//
+// IVUsers already checks that IV-derived expressions are safe. So this check is
+// only needed when the expression includes some subexpression that is not IV
+// derived.
+//
+// Currently, we only allow division by a nonzero constant here. If this is
+// inadequate, we could easily allow division by SCEVUnknown by using
+// ValueTracking to check isKnownNonZero().
+struct SCEVFindUnsafe {
+  bool IsUnsafe;
+
+  SCEVFindUnsafe(): IsUnsafe(false) {}
+
+  bool follow(const SCEV *S) {
+    const SCEVUDivExpr *D = dyn_cast<SCEVUDivExpr>(S);
+    if (!D)
+      return true;
+    const SCEVConstant *SC = dyn_cast<SCEVConstant>(D->getRHS());
+    if (SC && !SC->getValue()->isZero())
+      return true;
+    IsUnsafe = true;
+    return false;
+  }
+  bool isDone() const { return IsUnsafe; }
+};
+}
+
+namespace llvm {
+bool isSafeToExpand(const SCEV *S) {
+  SCEVFindUnsafe Search;
+  visitAll(S, Search);
+  return !Search.IsUnsafe;
+}
 }

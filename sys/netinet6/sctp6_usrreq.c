@@ -34,11 +34,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <netinet/sctp_os.h>
+#ifdef INET6
 #include <sys/proc.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
-#if defined(INET6)
+#ifdef INET6
 #include <netinet6/sctp6_var.h>
 #endif
 #include <netinet/sctp_sysctl.h>
@@ -57,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
-#if defined(INET6)
+#ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif				/* INET6 */
 #endif				/* IPSEC */
@@ -65,7 +66,7 @@ __FBSDID("$FreeBSD$");
 extern struct protosw inetsw[];
 
 int
-sctp6_input(struct mbuf **i_pak, int *offp, int proto)
+sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 {
 	struct mbuf *m;
 	int iphlen;
@@ -83,7 +84,6 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 #endif
 	uint32_t mflowid;
 	uint8_t use_mflowid;
-	uint16_t port = 0;
 
 	iphlen = *offp;
 	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
@@ -193,6 +193,12 @@ out:
 	return (IPPROTO_DONE);
 }
 
+
+int
+sctp6_input(struct mbuf **i_pak, int *offp, int proto SCTP_UNUSED)
+{
+	return (sctp6_input_with_port(i_pak, offp, 0));
+}
 
 static void
 sctp6_notify_mbuf(struct sctp_inpcb *inp, struct icmp6_hdr *icmp6,
@@ -1240,3 +1246,5 @@ struct pr_usrreqs sctp6_usrreqs = {
 	.pru_sosend = sctp_sosend,
 	.pru_soreceive = sctp_soreceive
 };
+
+#endif

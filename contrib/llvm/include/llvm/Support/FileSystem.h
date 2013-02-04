@@ -28,6 +28,7 @@
 #define LLVM_SUPPORT_FILE_SYSTEM_H
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/DataTypes.h"
@@ -39,7 +40,7 @@
 #include <string>
 #include <vector>
 
-#if HAVE_SYS_STAT_H
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
 
@@ -94,13 +95,62 @@ struct space_info {
   uint64_t available;
 };
 
+
+enum perms {
+  no_perms     = 0,
+  owner_read   = 0400, 
+  owner_write  = 0200, 
+  owner_exe    = 0100, 
+  owner_all    = owner_read | owner_write | owner_exe,
+  group_read   =  040, 
+  group_write  =  020, 
+  group_exe    =  010, 
+  group_all    = group_read | group_write | group_exe,
+  others_read  =   04, 
+  others_write =   02, 
+  others_exe   =   01, 
+  others_all   = others_read | others_write | others_exe, 
+  all_all      = owner_all | group_all | others_all,
+  set_uid_on_exe  = 04000, 
+  set_gid_on_exe  = 02000, 
+  sticky_bit      = 01000,
+  perms_mask      = all_all | set_uid_on_exe | set_gid_on_exe | sticky_bit, 
+  perms_not_known = 0xFFFF,
+  add_perms       = 0x1000,
+  remove_perms    = 0x2000, 
+  symlink_perms   = 0x4000
+};
+
+// Helper functions so that you can use & and | to manipulate perms bits:
+inline perms operator|(perms l , perms r) {
+  return static_cast<perms>(
+             static_cast<unsigned short>(l) | static_cast<unsigned short>(r)); 
+}
+inline perms operator&(perms l , perms r) {
+  return static_cast<perms>(
+             static_cast<unsigned short>(l) & static_cast<unsigned short>(r)); 
+}
+inline perms &operator|=(perms &l, perms r) {
+  l = l | r; 
+  return l; 
+}
+inline perms &operator&=(perms &l, perms r) {
+  l = l & r; 
+  return l; 
+}
+inline perms operator~(perms x) {
+  return static_cast<perms>(~static_cast<unsigned short>(x));
+}
+
+
+ 
 /// file_status - Represents the result of a call to stat and friends. It has
 ///               a platform specific member to store the result.
 class file_status
 {
   #if defined(LLVM_ON_UNIX)
-  dev_t st_dev;
-  ino_t st_ino;
+  dev_t fs_st_dev;
+  ino_t fs_st_ino;
   #elif defined (LLVM_ON_WIN32)
   uint32_t LastWriteTimeHigh;
   uint32_t LastWriteTimeLow;
@@ -113,12 +163,19 @@ class file_status
   friend bool equivalent(file_status A, file_status B);
   friend error_code status(const Twine &path, file_status &result);
   file_type Type;
+  perms Perms;
 public:
-  explicit file_status(file_type v=file_type::status_error)
-    : Type(v) {}
+  explicit file_status(file_type v=file_type::status_error, 
+                      perms prms=perms_not_known)
+    : Type(v), Perms(prms) {}
 
+  // getters
   file_type type() const { return Type; }
+  perms permissions() const { return Perms; }
+  
+  // setters
   void type(file_type v) { Type = v; }
+  void permissions(perms p) { Perms = p; }
 };
 
 /// file_magic - An "enum class" enumeration of file types based on magic (the first
@@ -223,7 +280,7 @@ error_code create_symlink(const Twine &to, const Twine &from);
 /// @brief Get the current path.
 ///
 /// @param result Holds the current path on return.
-/// @results errc::success if the current path has been stored in result,
+/// @returns errc::success if the current path has been stored in result,
 ///          otherwise a platform specific error_code.
 error_code current_path(SmallVectorImpl<char> &result);
 
@@ -232,7 +289,7 @@ error_code current_path(SmallVectorImpl<char> &result);
 /// @param path Input path.
 /// @param existed Set to true if \a path existed, false if it did not.
 ///                undefined otherwise.
-/// @results errc::success if path has been removed and existed has been
+/// @returns errc::success if path has been removed and existed has been
 ///          successfully set, otherwise a platform specific error_code.
 error_code remove(const Twine &path, bool &existed);
 
@@ -241,7 +298,7 @@ error_code remove(const Twine &path, bool &existed);
 ///
 /// @param path Input path.
 /// @param num_removed Number of files removed.
-/// @results errc::success if path has been removed and num_removed has been
+/// @returns errc::success if path has been removed and num_removed has been
 ///          successfully set, otherwise a platform specific error_code.
 error_code remove_all(const Twine &path, uint32_t &num_removed);
 
@@ -266,7 +323,7 @@ error_code resize_file(const Twine &path, uint64_t size);
 /// @brief Does file exist?
 ///
 /// @param status A file_status previously returned from stat.
-/// @results True if the file represented by status exists, false if it does
+/// @returns True if the file represented by status exists, false if it does
 ///          not.
 bool exists(file_status status);
 
@@ -275,7 +332,7 @@ bool exists(file_status status);
 /// @param path Input path.
 /// @param result Set to true if the file represented by status exists, false if
 ///               it does not. Undefined otherwise.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code exists(const Twine &path, bool &result);
 
@@ -293,7 +350,7 @@ inline bool exists(const Twine &path) {
 ///
 /// assert(status_known(A) || status_known(B));
 ///
-/// @results True if A and B both represent the same file system entity, false
+/// @returns True if A and B both represent the same file system entity, false
 ///          otherwise.
 bool equivalent(file_status A, file_status B);
 
@@ -305,9 +362,16 @@ bool equivalent(file_status A, file_status B);
 /// @param B Input path B.
 /// @param result Set to true if stat(A) and stat(B) have the same device and
 ///               inode (or equivalent).
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code equivalent(const Twine &A, const Twine &B, bool &result);
+
+/// @brief Simpler version of equivalent for clients that don't need to
+///        differentiate between an error and false.
+inline bool equivalent(const Twine &A, const Twine &B) {
+  bool result;
+  return !equivalent(A, B, result) && result;
+}
 
 /// @brief Get file size.
 ///
@@ -320,7 +384,7 @@ error_code file_size(const Twine &path, uint64_t &result);
 /// @brief Does status represent a directory?
 ///
 /// @param status A file_status previously returned from status.
-/// @results status.type() == file_type::directory_file.
+/// @returns status.type() == file_type::directory_file.
 bool is_directory(file_status status);
 
 /// @brief Is path a directory?
@@ -328,14 +392,14 @@ bool is_directory(file_status status);
 /// @param path Input path.
 /// @param result Set to true if \a path is a directory, false if it is not.
 ///               Undefined otherwise.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code is_directory(const Twine &path, bool &result);
 
 /// @brief Does status represent a regular file?
 ///
 /// @param status A file_status previously returned from status.
-/// @results status_known(status) && status.type() == file_type::regular_file.
+/// @returns status_known(status) && status.type() == file_type::regular_file.
 bool is_regular_file(file_status status);
 
 /// @brief Is path a regular file?
@@ -343,7 +407,7 @@ bool is_regular_file(file_status status);
 /// @param path Input path.
 /// @param result Set to true if \a path is a regular file, false if it is not.
 ///               Undefined otherwise.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code is_regular_file(const Twine &path, bool &result);
 
@@ -351,7 +415,7 @@ error_code is_regular_file(const Twine &path, bool &result);
 ///        directory, regular file, or symlink?
 ///
 /// @param status A file_status previously returned from status.
-/// @results exists(s) && !is_regular_file(s) && !is_directory(s) &&
+/// @returns exists(s) && !is_regular_file(s) && !is_directory(s) &&
 ///          !is_symlink(s)
 bool is_other(file_status status);
 
@@ -361,14 +425,14 @@ bool is_other(file_status status);
 /// @param path Input path.
 /// @param result Set to true if \a path exists, but is not a directory, regular
 ///               file, or a symlink, false if it does not. Undefined otherwise.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code is_other(const Twine &path, bool &result);
 
 /// @brief Does status represent a symlink?
 ///
 /// @param status A file_status previously returned from stat.
-/// @param result status.type() == symlink_file.
+/// @returns status.type() == symlink_file.
 bool is_symlink(file_status status);
 
 /// @brief Is path a symlink?
@@ -376,7 +440,7 @@ bool is_symlink(file_status status);
 /// @param path Input path.
 /// @param result Set to true if \a path is a symlink, false if it is not.
 ///               Undefined otherwise.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code is_symlink(const Twine &path, bool &result);
 
@@ -384,21 +448,28 @@ error_code is_symlink(const Twine &path, bool &result);
 ///
 /// @param path Input path.
 /// @param result Set to the file status.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code status(const Twine &path, file_status &result);
 
-/// @brief Is status available?
+/// @brief Modifies permission bits on a file
 ///
 /// @param path Input path.
-/// @results True if status() != status_error.
+/// @returns errc::success if permissions have been changed, otherwise a
+///          platform specific error_code.
+error_code permissions(const Twine &path, perms prms);
+
+/// @brief Is status available?
+///
+/// @param s Input file status.
+/// @returns True if status() != status_error.
 bool status_known(file_status s);
 
 /// @brief Is status available?
 ///
 /// @param path Input path.
 /// @param result Set to true if status() != status_error.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code status_known(const Twine &path, bool &result);
 
@@ -415,11 +486,11 @@ error_code status_known(const Twine &path, bool &result);
 /// clang-%%-%%-%%-%%-%%.s => /tmp/clang-a0-b1-c2-d3-e4.s
 ///
 /// @param model Name to base unique path off of.
-/// @param result_fs Set to the opened file's file descriptor.
+/// @param result_fd Set to the opened file's file descriptor.
 /// @param result_path Set to the opened file's absolute path.
-/// @param makeAbsolute If true and @model is not an absolute path, a temp
+/// @param makeAbsolute If true and \a model is not an absolute path, a temp
 ///        directory will be prepended.
-/// @results errc::success if result_{fd,path} have been successfully set,
+/// @returns errc::success if result_{fd,path} have been successfully set,
 ///          otherwise a platform specific error_code.
 error_code unique_file(const Twine &model, int &result_fd,
                        SmallVectorImpl<char> &result_path,
@@ -432,7 +503,7 @@ error_code unique_file(const Twine &model, int &result_fd,
 ///
 /// @param path Input path.
 /// @param result Set to the canonicalized version of \a path.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code canonicalize(const Twine &path, SmallVectorImpl<char> &result);
 
@@ -440,7 +511,7 @@ error_code canonicalize(const Twine &path, SmallVectorImpl<char> &result);
 ///
 /// @param path Input path.
 /// @param magic Byte sequence to compare \a path's first len(magic) bytes to.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code has_magic(const Twine &path, const Twine &magic, bool &result);
 
@@ -451,7 +522,7 @@ error_code has_magic(const Twine &path, const Twine &magic, bool &result);
 /// @param result Set to the first \a len bytes in the file pointed to by
 ///               \a path. Or the entire file if file_size(path) < len, in which
 ///               case result.size() returns the size of the file.
-/// @results errc::success if result has been successfully set,
+/// @returns errc::success if result has been successfully set,
 ///          errc::value_too_large if len is larger then the file pointed to by
 ///          \a path, otherwise a platform specific error_code.
 error_code get_magic(const Twine &path, uint32_t len,
@@ -464,14 +535,14 @@ file_magic identify_magic(StringRef magic);
 ///
 /// @param path Input path.
 /// @param result Set to the type of file, or LLVMFileType::Unknown_FileType.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code identify_magic(const Twine &path, file_magic &result);
 
 /// @brief Get library paths the system linker uses.
 ///
 /// @param result Set to the list of system library paths.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code GetSystemLibraryPaths(SmallVectorImpl<std::string> &result);
 
@@ -479,7 +550,7 @@ error_code GetSystemLibraryPaths(SmallVectorImpl<std::string> &result);
 ///        + LLVM_LIB_SEARCH_PATH + LLVM_LIBDIR.
 ///
 /// @param result Set to the list of bitcode library paths.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code GetBitcodeLibraryPaths(SmallVectorImpl<std::string> &result);
 
@@ -492,7 +563,7 @@ error_code GetBitcodeLibraryPaths(SmallVectorImpl<std::string> &result);
 ///
 /// @param short_name Library name one would give to the system linker.
 /// @param result Set to the absolute path \a short_name represents.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code FindLibrary(const Twine &short_name, SmallVectorImpl<char> &result);
 
@@ -501,10 +572,113 @@ error_code FindLibrary(const Twine &short_name, SmallVectorImpl<char> &result);
 /// @param argv0 The program name as it was spelled on the command line.
 /// @param MainAddr Address of some symbol in the executable (not in a library).
 /// @param result Set to the absolute path of the current executable.
-/// @results errc::success if result has been successfully set, otherwise a
+/// @returns errc::success if result has been successfully set, otherwise a
 ///          platform specific error_code.
 error_code GetMainExecutable(const char *argv0, void *MainAddr,
                              SmallVectorImpl<char> &result);
+
+/// This class represents a memory mapped file. It is based on
+/// boost::iostreams::mapped_file.
+class mapped_file_region {
+  mapped_file_region() LLVM_DELETED_FUNCTION;
+  mapped_file_region(mapped_file_region&) LLVM_DELETED_FUNCTION;
+  mapped_file_region &operator =(mapped_file_region&) LLVM_DELETED_FUNCTION;
+
+public:
+  enum mapmode {
+    readonly, ///< May only access map via const_data as read only.
+    readwrite, ///< May access map via data and modify it. Written to path.
+    priv ///< May modify via data, but changes are lost on destruction.
+  };
+
+private:
+  /// Platform specific mapping state.
+  mapmode Mode;
+  uint64_t Size;
+  void *Mapping;
+#ifdef LLVM_ON_WIN32
+  int FileDescriptor;
+  void *FileHandle;
+  void *FileMappingHandle;
+#endif
+
+  error_code init(int FD, uint64_t Offset);
+
+public:
+  typedef char char_type;
+
+#if LLVM_USE_RVALUE_REFERENCES
+  mapped_file_region(mapped_file_region&&);
+  mapped_file_region &operator =(mapped_file_region&&);
+#endif
+
+  /// Construct a mapped_file_region at \a path starting at \a offset of length
+  /// \a length and with access \a mode.
+  ///
+  /// \param path Path to the file to map. If it does not exist it will be
+  ///             created.
+  /// \param mode How to map the memory.
+  /// \param length Number of bytes to map in starting at \a offset. If the file
+  ///               is shorter than this, it will be extended. If \a length is
+  ///               0, the entire file will be mapped.
+  /// \param offset Byte offset from the beginning of the file where the map
+  ///               should begin. Must be a multiple of
+  ///               mapped_file_region::alignment().
+  /// \param ec This is set to errc::success if the map was constructed
+  ///           sucessfully. Otherwise it is set to a platform dependent error.
+  mapped_file_region(const Twine &path,
+                     mapmode mode,
+                     uint64_t length,
+                     uint64_t offset,
+                     error_code &ec);
+
+  /// \param fd An open file descriptor to map. mapped_file_region takes
+  ///           ownership. It must have been opended in the correct mode.
+  mapped_file_region(int fd,
+                     mapmode mode,
+                     uint64_t length,
+                     uint64_t offset,
+                     error_code &ec);
+
+  ~mapped_file_region();
+
+  mapmode flags() const;
+  uint64_t size() const;
+  char *data() const;
+
+  /// Get a const view of the data. Modifying this memory has undefined
+  /// behaivor.
+  const char *const_data() const;
+
+  /// \returns The minimum alignment offset must be.
+  static int alignment();
+};
+
+/// @brief Memory maps the contents of a file
+///
+/// @param path Path to file to map.
+/// @param file_offset Byte offset in file where mapping should begin.
+/// @param size Byte length of range of the file to map.
+/// @param map_writable If true, the file will be mapped in r/w such
+///        that changes to the mapped buffer will be flushed back
+///        to the file.  If false, the file will be mapped read-only
+///        and the buffer will be read-only.
+/// @param result Set to the start address of the mapped buffer.
+/// @returns errc::success if result has been successfully set, otherwise a
+///          platform specific error_code.
+error_code map_file_pages(const Twine &path, off_t file_offset, size_t size,  
+                          bool map_writable, void *&result);
+
+
+/// @brief Memory unmaps the contents of a file
+///
+/// @param base Pointer to the start of the buffer.
+/// @param size Byte length of the range to unmmap.
+/// @returns errc::success if result has been successfully set, otherwise a
+///          platform specific error_code.
+error_code unmap_file_pages(void *base, size_t size);
+
+
 
 /// @}
 /// @name Iterators

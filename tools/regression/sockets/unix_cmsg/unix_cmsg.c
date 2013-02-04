@@ -449,7 +449,7 @@ create_socket(char *sock_path, size_t sock_path_len, struct sockaddr_un *addr)
 			goto failed;
 		}
 
-		memset(addr, 0, sizeof(addr));
+		memset(addr, 0, sizeof(*addr));
 		addr->sun_family = AF_LOCAL;
 		if (strlen(sock_path) >= sizeof(addr->sun_path)) {
 			logmsgx("create_socket: too long path name (>= %lu) for local domain socket",
@@ -1513,7 +1513,7 @@ t_timestamp_server(int fd1)
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 	msg.msg_control = control_un.control;
-	msg.msg_controllen = sizeof control_un.control;;
+	msg.msg_controllen = sizeof control_un.control;
 	msg.msg_flags = 0;
 
 	if (recvmsg_timeout(fd2, &msg, sizeof buf) < 0)

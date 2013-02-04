@@ -42,9 +42,9 @@ enum Argtype { None = 1, Hex, Octal, Int, Name, Ptr, Stat, Ioctl, Quad,
 	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
 	Pathconf };
 
-#define ARG_MASK	0xff
-#define OUT	0x100
-#define IN	/*0x20*/0
+#define	ARG_MASK	0xff
+#define	OUT	0x100
+#define	IN	/*0x20*/0
 
 struct syscall_args {
 	enum Argtype type;

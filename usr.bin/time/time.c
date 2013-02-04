@@ -112,19 +112,17 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (ofn) {
-	        if ((out = fopen(ofn, aflag ? "a" : "w")) == NULL)
+	        if ((out = fopen(ofn, aflag ? "ae" : "we")) == NULL)
 		        err(1, "%s", ofn);
 		setvbuf(out, (char *)NULL, _IONBF, (size_t)0);
 	}
 
-	gettimeofday(&before_tv, (struct timezone *)NULL);
+	(void)gettimeofday(&before_tv, NULL);
 	switch(pid = fork()) {
 	case -1:			/* error */
 		err(1, "time");
 		/* NOTREACHED */
 	case 0:				/* child */
-		if (ofn)
-			fclose(out);
 		execvp(*argv, argv);
 		err(errno == ENOENT ? 127 : 126, "%s", *argv);
 		/* NOTREACHED */
@@ -134,7 +132,7 @@ main(int argc, char **argv)
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGINFO, siginfo);
 	while (wait4(pid, &status, 0, &ru) != pid);
-	gettimeofday(&after, (struct timezone *)NULL);
+	(void)gettimeofday(&after, NULL);
 	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
 	exitonsig = WIFSIGNALED(status) ? WTERMSIG(status) : 0;
@@ -297,7 +295,7 @@ siginfo(int sig __unused)
 	struct timeval after;
 	struct rusage ru;
 
-	gettimeofday(&after, (struct timezone *)NULL);
+	(void)gettimeofday(&after, NULL);
 	getrusage(RUSAGE_CHILDREN, &ru);
 	showtime(stdout, &before_tv, &after, &ru);
 }

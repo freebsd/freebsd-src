@@ -1,0 +1,184 @@
+.\"
+.\" Automated Testing Framework (atf)
+.\"
+.\" Copyright (c) 2007 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd March 14, 2009
+.Dt ATF-CONFIG 1
+.Os
+.Sh NAME
+.Nm atf-config
+.Nd queries static configuration information of ATF
+.Sh SYNOPSIS
+.Nm
+.Op Fl t
+.Op Ar var1 Op Ar .. varN
+.Nm
+.Fl h
+.Sh DESCRIPTION
+.Nm
+is a utility that queries static configuration information of ATF.
+Static configuration refers to all those values for settings that
+were built into the ATF binaries at build time.
+.Pp
+In the first synopsis form,
+.Nm
+will print variable-value pairs for all built-in static variables if
+no variable names are provided as arguments.
+If any is provided, it will only print the variable-value pairs for
+those variables.
+The output of the utility does not use the
+.Sq =
+symbol to separate the variable name from its corresponding value in
+an attempt to avoid sourcing the output in shell scripts or Makefiles.
+If you need to do that, the
+.Fl t
+flag allows you to query the value of individual variables without any
+surrounding text.
+.Pp
+In the second synopsis form,
+.Nm
+will print information about all supported options and their purpose.
+.Pp
+The following options are available:
+.Bl -tag -width flag
+.It Fl h
+Shows a short summary of all available options and their purpose.
+.It Fl t
+Changes the output of the utility to show the variable values, one
+per line, without the variable names.
+.El
+.Ss Static configuration variables
+The following list describes all the variables that are part of ATF's
+static configuration:
+.Bl -tag -width atfXbuildXcppflagsXX
+.It Va atf_arch
+The architecture name detected by ATF.
+This is derived from
+.Va atf_machine
+because it is a subset of it.
+Given that this name might be misdetected, it is provided to the user
+as a configuration variable so that he can fix its value temporarily
+until a real fix is incorporated into mainstream sources.
+.It Va atf_build_cc
+The C compiler used by the ATF checks that provide build-time tests.
+.It Va atf_build_cflags
+The C compiler flags used by the ATF checks that provide build-time tests.
+.It Va atf_build_cpp
+The C/C++ preprocessor used by the ATF checks that provide build-time tests.
+.It Va atf_build_cppflags
+The C/C++ preprocessor flags used by the ATF checks that provide build-time
+tests.
+.It Va atf_build_cxx
+The C++ compiler used by the ATF checks that provide build-time tests.
+.It Va atf_build_cxxflags
+The C++ compiler flags used by the ATF checks that provide build-time tests.
+.It Va atf_confdir
+The path to the directory that contains the system-wide configuration
+files for ATF.
+.It Va atf_includedir
+The path to the directory that contains the ATF header files.
+.It Va atf_libdir
+The path to the directory that contains the ATF libraries.
+.It Va atf_libexecdir
+The path to the directory that contains the auxiliary utilities of ATF,
+used internally by the public tools.
+.It Va atf_machine
+The machine type name detected by ATF.
+This should not be tunable but is provided for symmetry with
+.Va atf_arch .
+.It Va atf_pkgdatadir
+The path to the directory that contains the files that form the ATF's
+shell-scripting library.
+.It Va atf_shell
+The path to the shell interpreter that will be used by ATF.
+.It Va atf_workdir
+The path to the temporary directory that the utilities and the test
+programs will use to store temporary files in.
+.El
+.Sh ENVIRONMENT
+Every variable that is part of the static configuration can be
+overridden at run-time by defining an environment variable.
+This environment variable has the exact same name as the one shown by
+.Nm
+except that the name is all composed of uppercase letters.
+.Pp
+In general, empty values in the environment will be ignored unless
+otherwise noted below.
+.Pp
+The recognized environment variables are:
+.Bl -tag -width ATFXBUILDXCPPFLAGSXX
+.It Ev ATF_ARCH
+Overrides the built-in value of
+.Va atf_arch .
+.It Ev ATF_BUILD_CC
+Overrides the built-in value of
+.Va atf_build_cc .
+.It Ev ATF_BUILD_CFLAGS
+Overrides the built-in value of
+.Va atf_build_cflags .
+Empty values are allowed.
+.It Ev ATF_BUILD_CPP
+Overrides the built-in value of
+.Va atf_build_cpp .
+.It Ev ATF_BUILD_CPPFLAGS
+Overrides the built-in value of
+.Va atf_build_cppflags .
+Empty values are allowed.
+.It Ev ATF_BUILD_CXX
+Overrides the built-in value of
+.Va atf_build_cxx .
+.It Ev ATF_BUILD_CXXFLAGS
+Overrides the built-in value of
+.Va atf_build_cxxflags .
+Empty values are allowed.
+.It Ev ATF_CONFDIR
+Overrides the built-in value of
+.Va atf_confdir .
+.It Ev ATF_INCLUDEDIR
+Overrides the built-in value of
+.Va atf_includedir .
+.It Ev ATF_LIBDIR
+Overrides the built-in value of
+.Va atf_libdir .
+.It Ev ATF_LIBEXECDIR
+Overrides the built-in value of
+.Va atf_libexecdir .
+.It Ev ATF_MACHINE
+Overrides the built-in value of
+.Va atf_machine .
+.It Ev ATF_PKGDATADIR
+Overrides the built-in value of
+.Va atf_pkgdatadir .
+.It Ev ATF_SHELL
+Overrides the built-in value of
+.Va atf_shell .
+.It Ev ATF_WORKDIR
+Overrides the built-in value of
+.Va atf_workdir .
+.El
+.Sh SEE ALSO
+.Xr atf 7

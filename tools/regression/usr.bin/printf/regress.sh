@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..11'
+echo '1..12'
 
 REGRESSION_TEST(`b', `printf "abc%b%b" "def\n" "\cghi"')
 REGRESSION_TEST(`d', `printf "%d,%5d,%.5d,%0*d,%.*d\n" 123 123 123 5 123 5 123')
@@ -15,5 +15,9 @@ REGRESSION_TEST(`m3', `printf "%%%s\n" abc def ghi jkl')
 REGRESSION_TEST(`m4', `printf "%d,%f,%c,%s\n"')
 REGRESSION_TEST(`m5', `printf -- "-d\n"')
 REGRESSION_TEST(`s', `printf "%.3s,%-5s\n" abcd abc')
+REGRESSION_TEST('zero', `printf "%u%u\n" 15')
+REGRESSION_TEST('zero', `printf "%d%d\n" 15')
+REGRESSION_TEST('zero', `printf "%d%u\n" 15')
+REGRESSION_TEST('zero', `printf "%u%d\n" 15')
 
 REGRESSION_END()

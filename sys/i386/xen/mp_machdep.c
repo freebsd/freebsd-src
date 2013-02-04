@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -804,6 +805,7 @@ smp_trap_init(trap_info_t *trap_ctxt)
         }
 }
 
+extern struct rwlock pvh_global_lock;
 extern int nkpt;
 static void
 cpu_initialize_context(unsigned int cpu)
@@ -862,7 +864,7 @@ cpu_initialize_context(unsigned int cpu)
 
 
 	xen_pgdpt_pin(VM_PAGE_TO_MACH(m[NPGPTD + 1]));
-	vm_page_lock_queues();
+	rw_wlock(&pvh_global_lock);
 	for (i = 0; i < 4; i++) {
 		int pdir = (PTDPTDI + i) / NPDEPG;
 		int curoffset = (PTDPTDI + i) % NPDEPG;
@@ -872,7 +874,7 @@ cpu_initialize_context(unsigned int cpu)
 		    ma[i]);
 	}
 	PT_UPDATES_FLUSH();
-	vm_page_unlock_queues();
+	rw_wunlock(&pvh_global_lock);
 	
 	memset(&ctxt, 0, sizeof(ctxt));
 	ctxt.flags = VGCF_IN_KERNEL;

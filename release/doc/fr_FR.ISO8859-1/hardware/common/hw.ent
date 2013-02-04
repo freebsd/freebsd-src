@@ -12,12 +12,12 @@
 
 <!-- Files to be included -->
 
-<!ENTITY artheader SYSTEM "../common/artheader.sgml">
-<!ENTITY sect.intro SYSTEM "../common/intro.sgml">
-<!ENTITY sect.proc.alpha SYSTEM "../alpha/proc-alpha.sgml">
-<!ENTITY sect.proc.i386 SYSTEM "../i386/proc-i386.sgml">
-<!ENTITY sect.proc.ia64 SYSTEM "../ia64/proc-ia64.sgml">
-<!ENTITY sect.proc.pc98 SYSTEM "../pc98/proc-pc98.sgml">
-<!ENTITY sect.proc.sparc64 SYSTEM "../sparc64/proc-sparc64.sgml">
-<!ENTITY sect.dev SYSTEM "../common/dev.sgml">
+<!ENTITY artheader SYSTEM "../common/artheader.xml">
+<!ENTITY sect.intro SYSTEM "../common/intro.xml">
+<!ENTITY sect.proc.alpha SYSTEM "../alpha/proc-alpha.xml">
+<!ENTITY sect.proc.i386 SYSTEM "../i386/proc-i386.xml">
+<!ENTITY sect.proc.ia64 SYSTEM "../ia64/proc-ia64.xml">
+<!ENTITY sect.proc.pc98 SYSTEM "../pc98/proc-pc98.xml">
+<!ENTITY sect.proc.sparc64 SYSTEM "../sparc64/proc-sparc64.xml">
+<!ENTITY sect.dev SYSTEM "../common/dev.xml">
 

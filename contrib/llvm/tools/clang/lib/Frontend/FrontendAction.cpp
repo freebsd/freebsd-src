@@ -23,10 +23,12 @@
 #include "clang/Parse/ParseAST.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
 #include "clang/Serialization/ASTReader.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/Timer.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
+#include "llvm/Support/Timer.h"
 using namespace clang;
 
 namespace {
@@ -83,31 +85,31 @@ public:
   }
 };
 
-  /// \brief Checks deserialized declarations and emits error if a name
-  /// matches one given in command-line using -error-on-deserialized-decl.
-  class DeserializedDeclsChecker : public DelegatingDeserializationListener {
-    ASTContext &Ctx;
-    std::set<std::string> NamesToCheck;
+/// \brief Checks deserialized declarations and emits error if a name
+/// matches one given in command-line using -error-on-deserialized-decl.
+class DeserializedDeclsChecker : public DelegatingDeserializationListener {
+  ASTContext &Ctx;
+  std::set<std::string> NamesToCheck;
 
-  public:
-    DeserializedDeclsChecker(ASTContext &Ctx,
-                             const std::set<std::string> &NamesToCheck, 
-                             ASTDeserializationListener *Previous)
-      : DelegatingDeserializationListener(Previous),
-        Ctx(Ctx), NamesToCheck(NamesToCheck) { }
+public:
+  DeserializedDeclsChecker(ASTContext &Ctx,
+                           const std::set<std::string> &NamesToCheck,
+                           ASTDeserializationListener *Previous)
+    : DelegatingDeserializationListener(Previous),
+      Ctx(Ctx), NamesToCheck(NamesToCheck) { }
 
-    virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
-      if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
-        if (NamesToCheck.find(ND->getNameAsString()) != NamesToCheck.end()) {
-          unsigned DiagID
-            = Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
-                                                   "%0 was deserialized");
-          Ctx.getDiagnostics().Report(Ctx.getFullLoc(D->getLocation()), DiagID)
-              << ND->getNameAsString();
-        }
+  virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
+    if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
+      if (NamesToCheck.find(ND->getNameAsString()) != NamesToCheck.end()) {
+        unsigned DiagID
+          = Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
+                                                 "%0 was deserialized");
+        Ctx.getDiagnostics().Report(Ctx.getFullLoc(D->getLocation()), DiagID)
+            << ND->getNameAsString();
+      }
 
-      DelegatingDeserializationListener::DeclRead(ID, D);
-    }
+    DelegatingDeserializationListener::DeclRead(ID, D);
+  }
 };
 
 } // end anonymous namespace
@@ -155,19 +157,22 @@ ASTConsumer* FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
   return new MultiplexConsumer(Consumers);
 }
 
+
 bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
                                      const FrontendInputFile &Input) {
   assert(!Instance && "Already processing a source file!");
-  assert(!Input.File.empty() && "Unexpected empty filename!");
+  assert(!Input.isEmpty() && "Unexpected empty filename!");
   setCurrentInput(Input);
   setCompilerInstance(&CI);
 
+  StringRef InputFile = Input.getFile();
+  bool HasBegunSourceFile = false;
   if (!BeginInvocation(CI))
     goto failure;
 
   // AST files follow a very different path, since they share objects via the
   // AST unit.
-  if (Input.Kind == IK_AST) {
+  if (Input.getKind() == IK_AST) {
     assert(!usesPreprocessorOnly() &&
            "Attempt to pass AST file to preprocessor only action!");
     assert(hasASTFileSupport() &&
@@ -175,7 +180,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(&CI.getDiagnostics());
     std::string Error;
-    ASTUnit *AST = ASTUnit::LoadFromASTFile(Input.File, Diags,
+    ASTUnit *AST = ASTUnit::LoadFromASTFile(InputFile, Diags,
                                             CI.getFileSystemOpts());
     if (!AST)
       goto failure;
@@ -190,11 +195,11 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.setASTContext(&AST->getASTContext());
 
     // Initialize the action.
-    if (!BeginSourceFileAction(CI, Input.File))
+    if (!BeginSourceFileAction(CI, InputFile))
       goto failure;
 
     /// Create the AST consumer.
-    CI.setASTConsumer(CreateWrappedASTConsumer(CI, Input.File));
+    CI.setASTConsumer(CreateWrappedASTConsumer(CI, InputFile));
     if (!CI.hasASTConsumer())
       goto failure;
 
@@ -208,18 +213,58 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.createSourceManager(CI.getFileManager());
 
   // IR files bypass the rest of initialization.
-  if (Input.Kind == IK_LLVM_IR) {
+  if (Input.getKind() == IK_LLVM_IR) {
     assert(hasIRSupport() &&
            "This action does not have IR file support!");
 
     // Inform the diagnostic client we are processing a source file.
     CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(), 0);
+    HasBegunSourceFile = true;
 
     // Initialize the action.
-    if (!BeginSourceFileAction(CI, Input.File))
+    if (!BeginSourceFileAction(CI, InputFile))
       goto failure;
 
     return true;
+  }
+
+  // If the implicit PCH include is actually a directory, rather than
+  // a single file, search for a suitable PCH file in that directory.
+  if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
+    FileManager &FileMgr = CI.getFileManager();
+    PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+    StringRef PCHInclude = PPOpts.ImplicitPCHInclude;
+    if (const DirectoryEntry *PCHDir = FileMgr.getDirectory(PCHInclude)) {
+      llvm::error_code EC;
+      SmallString<128> DirNative;
+      llvm::sys::path::native(PCHDir->getName(), DirNative);
+      bool Found = false;
+      for (llvm::sys::fs::directory_iterator Dir(DirNative.str(), EC), DirEnd;
+           Dir != DirEnd && !EC; Dir.increment(EC)) {
+        // Check whether this is an acceptable AST file.
+        if (ASTReader::isAcceptableASTFile(Dir->path(), FileMgr,
+                                           CI.getLangOpts(),
+                                           CI.getTargetOpts(),
+                                           CI.getPreprocessorOpts())) {
+          for (unsigned I = 0, N = PPOpts.Includes.size(); I != N; ++I) {
+            if (PPOpts.Includes[I] == PPOpts.ImplicitPCHInclude) {
+              PPOpts.Includes[I] = Dir->path();
+              PPOpts.ImplicitPCHInclude = Dir->path();
+              Found = true;
+              break;
+            }
+          }
+
+          assert(Found && "Implicit PCH include not in includes list?");
+          break;
+        }
+      }
+
+      if (!Found) {
+        CI.getDiagnostics().Report(diag::err_fe_no_pch_in_dir) << PCHInclude;
+        return true;
+      }
+    }
   }
 
   // Set up the preprocessor.
@@ -228,9 +273,10 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   // Inform the diagnostic client we are processing a source file.
   CI.getDiagnosticClient().BeginSourceFile(CI.getLangOpts(),
                                            &CI.getPreprocessor());
+  HasBegunSourceFile = true;
 
   // Initialize the action.
-  if (!BeginSourceFileAction(CI, Input.File))
+  if (!BeginSourceFileAction(CI, InputFile))
     goto failure;
 
   /// Create the AST context and consumer unless this is a preprocessor only
@@ -239,12 +285,14 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.createASTContext();
 
     OwningPtr<ASTConsumer> Consumer(
-                                   CreateWrappedASTConsumer(CI, Input.File));
+                                   CreateWrappedASTConsumer(CI, InputFile));
     if (!Consumer)
       goto failure;
 
     CI.getASTContext().setASTMutationListener(Consumer->GetASTMutationListener());
-
+    CI.getPreprocessor().setPPMutationListener(
+      Consumer->GetPPMutationListener());
+    
     if (!CI.getPreprocessorOpts().ChainedIncludes.empty()) {
       // Convert headers to PCH and chain them.
       OwningPtr<ExternalASTSource> source;
@@ -267,7 +315,6 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
       CI.createPCHExternalASTSource(
                                 CI.getPreprocessorOpts().ImplicitPCHInclude,
                                 CI.getPreprocessorOpts().DisablePCHValidation,
-                                CI.getPreprocessorOpts().DisableStatCache,
                             CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
                                 DeserialListener);
       if (!CI.getASTContext().getExternalSource())
@@ -309,23 +356,22 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
     CI.setFileManager(0);
   }
 
-  CI.getDiagnosticClient().EndSourceFile();
+  if (HasBegunSourceFile)
+    CI.getDiagnosticClient().EndSourceFile();
+  CI.clearOutputFiles(/*EraseFiles=*/true);
   setCurrentInput(FrontendInputFile());
   setCompilerInstance(0);
   return false;
 }
 
-void FrontendAction::Execute() {
+bool FrontendAction::Execute() {
   CompilerInstance &CI = getCompilerInstance();
 
   // Initialize the main file entry. This needs to be delayed until after PCH
   // has loaded.
   if (!isCurrentFileAST()) {
-    if (!CI.InitializeSourceManager(getCurrentFile(),
-                                    getCurrentInput().IsSystem
-                                      ? SrcMgr::C_System
-                                      : SrcMgr::C_User))
-      return;
+    if (!CI.InitializeSourceManager(getCurrentInput()))
+      return false;
   }
 
   if (CI.hasFrontendTimer()) {
@@ -333,6 +379,8 @@ void FrontendAction::Execute() {
     ExecuteAction();
   }
   else ExecuteAction();
+
+  return true;
 }
 
 void FrontendAction::EndSourceFile() {

@@ -63,9 +63,6 @@
  *	This is tricky, much better to use TDH for now.
  */
 SYSCTL_DECL(_dev_netmap);
-static int ix_write_len;
-SYSCTL_INT(_dev_netmap, OID_AUTO, ix_write_len,
-    CTLFLAG_RW, &ix_write_len, 0, "write rx len");
 static int ix_rx_miss, ix_rx_miss_bufs, ix_use_dd, ix_crcstrip;
 SYSCTL_INT(_dev_netmap, OID_AUTO, ix_crcstrip,
     CTLFLAG_RW, &ix_crcstrip, 0, "strip CRC on rx frames");
@@ -198,14 +195,17 @@ fail:
  * Reconcile kernel and user view of the transmit ring.
  * This routine might be called frequently so it must be efficient.
  *
- * Userspace has filled tx slots up to ring->cur (excluded).
- * The last unused slot previously known to the kernel was kring->nkr_hwcur,
- * and the last interrupt reported kring->nr_hwavail slots available.
+ * ring->cur holds the userspace view of the current ring index.  Userspace
+ * has filled the tx slots from the previous call's ring->cur up to but not
+ * including ring->cur for this call.  In this function the kernel updates
+ * kring->nr_hwcur to ring->cur, thus slots [kring->nr_hwcur, ring->cur) are
+ * now ready to transmit.  At the last interrupt kring->nr_hwavail slots were
+ * available.
  *
  * This function runs under lock (acquired from the caller or internally).
  * It must first update ring->avail to what the kernel knows,
- * subtract the newly used slots (ring->cur - kring->nkr_hwcur)
- * from both avail and nr_hwavail, and set ring->nkr_hwcur = ring->cur
+ * subtract the newly used slots (ring->cur - kring->nr_hwcur)
+ * from both avail and nr_hwavail, and set ring->nr_hwcur = ring->cur
  * issuing a dmamap_sync on all slots.
  *
  * Since ring comes from userspace, its content must be read only once,
@@ -233,7 +233,7 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * seems very expensive, so we interrupt once every half ring,
 	 * or when requested with NS_REPORT
 	 */
-	int report_frequency = kring->nkr_num_slots >> 1;
+	u_int report_frequency = kring->nkr_num_slots >> 1;
 
 	if (k > lim)
 		return netmap_ring_reinit(kring);
@@ -482,12 +482,9 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
-		/* XXX apparently the length field in advanced descriptors
-		 * does not include the CRC irrespective of the setting
-		 * of CRCSTRIP. The data sheets say differently.
-		 * Very strange.
-		 */
 		int crclen = ix_crcstrip ? 0 : 4;
+		uint16_t slot_flags = kring->nkr_slot_flags;
+
 		l = rxr->next_to_check;
 		j = netmap_idx_n2k(kring, l);
 
@@ -498,8 +495,7 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			if ((staterr & IXGBE_RXD_STAT_DD) == 0)
 				break;
 			ring->slot[j].len = le16toh(curr->wb.upper.length) - crclen;
-			if (ix_write_len)
-				D("rx[%d] len %d", j, ring->slot[j].len);
+			ring->slot[j].flags = slot_flags;
 			bus_dmamap_sync(rxr->ptag,
 			    rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
 			j = (j == lim) ? 0 : j + 1;

@@ -94,6 +94,11 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_usartreg.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91sam9g45reg.h>
+
+#ifndef MAXCPU
+#define MAXCPU 1
+#endif
 
 /* Page table for mapping proc0 zero page */
 #define KERNEL_PT_SYS		0
@@ -106,19 +111,11 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
-
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
 
 /* Physical and virtual addresses for some global pages */
 
@@ -201,6 +198,17 @@ const struct pmap_devmap at91_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
+	/*
+	 * The next should be good for the 9G45.
+	 */
+	{
+		/* Internal Memory 1MB  */
+		AT91SAM9G45_OHCI_BASE,
+		AT91SAM9G45_OHCI_PA_BASE,
+		0x00100000,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
 	{ 0, 0, 0, 0, 0, }
 };
 
@@ -213,7 +221,7 @@ extern int memsize[];
 long
 at91_ramsize(void)
 {
-	uint32_t cr, mr, *SDRAMC;
+	uint32_t cr, mdr, mr, *SDRAMC;
 	int banks, rows, cols, bw;
 #ifdef LINUX_BOOT_ABI
 	/*
@@ -231,6 +239,24 @@ at91_ramsize(void)
 		rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
 		cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
 		bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
+	} else if (at91_cpu_is(AT91_T_SAM9G45)) {
+		SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G45_DDRSDRC0_BASE);
+		cr = SDRAMC[AT91SAM9G45_DDRSDRC_CR / 4];
+		mdr = SDRAMC[AT91SAM9G45_DDRSDRC_MDR / 4];
+		banks = 0;
+		rows = ((cr & AT91SAM9G45_DDRSDRC_CR_NR_MASK) >> 2) + 11;
+		cols = (cr & AT91SAM9G45_DDRSDRC_CR_NC_MASK) + 8;
+		bw = (mdr & AT91SAM9G45_DDRSDRC_MDR_DBW_16) ? 1 : 2;
+
+		/* Fix the calculation for DDR memory */
+		mdr &= AT91SAM9G45_DDRSDRC_MDR_MASK;
+		if (mdr & AT91SAM9G45_DDRSDRC_MDR_LPDDR1 ||
+		    mdr & AT91SAM9G45_DDRSDRC_MDR_DDR2) {
+			/* The cols value is 1 higher for DDR */
+			cols += 1;
+			/* DDR has 4 internal banks. */
+			banks = 2;
+		}
 	} else {
 		/*
 		 * This should be good for the 9260, 9261, 9G20, 9G35 and 9X25
@@ -402,6 +428,7 @@ at91_try_id(uint32_t dbgu_base)
          * try to get the matching CPU support.
          */
         soc_info.soc_data = at91_match_soc(soc_info.type, soc_info.subtype);
+        soc_info.dbgu_base = AT91_BASE + dbgu_base;
 
 	return (1);
 }
@@ -431,7 +458,7 @@ initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr  dpcpu;
-	int loop, i;
+	int i;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t afterkern;
@@ -440,8 +467,7 @@ initarm(struct arm_boot_params *abp)
 
 	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
 	init_param1();
@@ -460,23 +486,23 @@ initarm(struct arm_boot_params *abp)
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
 		freemempos += PAGE_SIZE;
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
-	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		if (!(loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
-			valloc_pages(kernel_pt_table[loop],
+	for (i = 0; i < NUM_KERNEL_PTS; ++i) {
+		if (!(i % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
+			valloc_pages(kernel_pt_table[i],
 			    L2_TABLE_SIZE / PAGE_SIZE);
 		} else {
-			kernel_pt_table[loop].pv_va = freemempos -
-			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
+			kernel_pt_table[i].pv_va = freemempos -
+			    (i % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_pa =
-			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
+			kernel_pt_table[i].pv_pa =
+			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
 	}
 	/*
-	 * Allocate a page for the system page mapped to V0x00000000
-	 * This page will just contain the system vectors and can be
-	 * shared by all processes.
+	 * Allocate a page for the system page mapped to 0x00000000
+	 * or 0xffff0000. This page will just contain the system vectors
+	 * and can be shared by all processes.
 	 */
 	valloc_pages(systempage, 1);
 
@@ -485,10 +511,10 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE);
-	valloc_pages(abtstack, ABT_STACK_SIZE);
-	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
+	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
+	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
+	valloc_pages(kernelstack, KSTACK_PAGES * MAXCPU);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
@@ -536,17 +562,17 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, msgbufpv.pv_va, msgbufpv.pv_pa,
 	    msgbufsize, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		pmap_map_chunk(l1pagetable, kernel_pt_table[loop].pv_va,
-		    kernel_pt_table[loop].pv_pa, L2_TABLE_SIZE,
+	for (i = 0; i < NUM_KERNEL_PTS; ++i) {
+		pmap_map_chunk(l1pagetable, kernel_pt_table[i].pv_va,
+		    kernel_pt_table[i].pv_pa, L2_TABLE_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
 	pmap_devmap_bootstrap(l1pagetable, at91_devmap);
-	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
+	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
-	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
+	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
 
 	at91_soc_id();
 
@@ -570,12 +596,8 @@ initarm(struct arm_boot_params *abp)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....

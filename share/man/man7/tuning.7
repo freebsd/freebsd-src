@@ -23,50 +23,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2012
+.Dd December 8, 2012
 .Dt TUNING 7
 .Os
 .Sh NAME
 .Nm tuning
 .Nd performance tuning under FreeBSD
 .Sh SYSTEM SETUP - DISKLABEL, NEWFS, TUNEFS, SWAP
-When using
-.Xr bsdlabel 8
-or
-.Xr sysinstall 8
-to lay out your file systems on a hard disk it is important to remember
-that hard drives can transfer data much more quickly from outer tracks
-than they can from inner tracks.
-To take advantage of this you should
-try to pack your smaller file systems and swap closer to the outer tracks,
-follow with the larger file systems, and end with the largest file systems.
-It is also important to size system standard file systems such that you
-will not be forced to resize them later as you scale the machine up.
-I usually create, in order, a 128M root, 1G swap, 128M
-.Pa /var ,
-128M
-.Pa /var/tmp ,
-3G
-.Pa /usr ,
-and use any remaining space for
-.Pa /home .
-.Pp
-You should typically size your swap space to approximately 2x main memory
-for systems with less than 2GB of RAM, or approximately 1x main memory
+The swap partition should typically be approximately 2x the size of
+main memory
+for systems with less than 4GB of RAM, or approximately equal to
+the size of main memory
 if you have more.
-If you do not have a lot of RAM, though, you will generally want a lot
-more swap.
-It is not recommended that you configure any less than
-256M of swap on a system and you should keep in mind future memory
+Keep in mind future memory
 expansion when sizing the swap partition.
-The kernel's VM paging algorithms are tuned to perform best when there is
-at least 2x swap versus main memory.
 Configuring too little swap can lead
 to inefficiencies in the VM page scanning code as well as create issues
 later on if you add more memory to your machine.
-Finally, on larger systems
+On larger systems
 with multiple SCSI disks (or multiple IDE disks operating on different
-controllers), we strongly recommend that you configure swap on each drive.
+controllers), configure swap on each drive.
 The swap partitions on the drives should be approximately the same size.
 The kernel can handle arbitrary sizes but
 internal data structures scale to 4 times the largest swap partition.
@@ -79,100 +55,7 @@ little, swap space is the saving grace of
 and even if you do not normally use much swap, it can give you more time to
 recover from a runaway program before being forced to reboot.
 .Pp
-How you size your
-.Pa /var
-partition depends heavily on what you intend to use the machine for.
-This
-partition is primarily used to hold mailboxes, the print spool, and log
-files.
-Some people even make
-.Pa /var/log
-its own partition (but except for extreme cases it is not worth the waste
-of a partition ID).
-If your machine is intended to act as a mail
-or print server,
-or you are running a heavily visited web server, you should consider
-creating a much larger partition \(en perhaps a gig or more.
-It is very easy
-to underestimate log file storage requirements.
-.Pp
-Sizing
-.Pa /var/tmp
-depends on the kind of temporary file usage you think you will need.
-128M is
-the minimum we recommend.
-Also note that sysinstall will create a
-.Pa /tmp
-directory.
-Dedicating a partition for temporary file storage is important for
-two reasons: first, it reduces the possibility of file system corruption
-in a crash, and second it reduces the chance of a runaway process that
-fills up
-.Oo Pa /var Oc Ns Pa /tmp
-from blowing up more critical subsystems (mail,
-logging, etc).
-Filling up
-.Oo Pa /var Oc Ns Pa /tmp
-is a very common problem to have.
-.Pp
-In the old days there were differences between
-.Pa /tmp
-and
-.Pa /var/tmp ,
-but the introduction of
-.Pa /var
-(and
-.Pa /var/tmp )
-led to massive confusion
-by program writers so today programs haphazardly use one or the
-other and thus no real distinction can be made between the two.
-So it makes sense to have just one temporary directory and
-softlink to it from the other
-.Pa tmp
-directory locations.
-However you handle
-.Pa /tmp ,
-the one thing you do not want to do is leave it sitting
-on the root partition where it might cause root to fill up or possibly
-corrupt root in a crash/reboot situation.
-.Pp
-The
-.Pa /usr
-partition holds the bulk of the files required to support the system and
-a subdirectory within it called
-.Pa /usr/local
-holds the bulk of the files installed from the
-.Xr ports 7
-hierarchy.
-If you do not use ports all that much and do not intend to keep
-system source
-.Pq Pa /usr/src
-on the machine, you can get away with
-a 1 GB
-.Pa /usr
-partition.
-However, if you install a lot of ports
-(especially window managers and Linux-emulated binaries), we recommend
-at least a 2 GB
-.Pa /usr
-and if you also intend to keep system source
-on the machine, we recommend a 3 GB
-.Pa /usr .
-Do not underestimate the
-amount of space you will need in this partition, it can creep up and
-surprise you!
-.Pp
-The
-.Pa /home
-partition is typically used to hold user-specific data.
-I usually size it to the remainder of the disk.
-.Pp
-Why partition at all?
-Why not create one big
-.Pa /
-partition and be done with it?
-Then I do not have to worry about undersizing things!
-Well, there are several reasons this is not a good idea.
+It is not a good idea to make one large partition.
 First,
 each partition has different operational characteristics and separating them
 allows the file system to tune itself to those characteristics.
@@ -181,113 +64,23 @@ the root and
 .Pa /usr
 partitions are read-mostly, with very little writing, while
 a lot of reading and writing could occur in
-.Pa /var
-and
 .Pa /var/tmp .
 By properly
 partitioning your system fragmentation introduced in the smaller more
 heavily write-loaded partitions will not bleed over into the mostly-read
 partitions.
-Additionally, keeping the write-loaded partitions closer to
-the edge of the disk (i.e., before the really big partitions instead of after
-in the partition table) will increase I/O performance in the partitions
-where you need it the most.
-Now it is true that you might also need I/O
-performance in the larger partitions, but they are so large that shifting
-them more towards the edge of the disk will not lead to a significant
-performance improvement whereas moving
-.Pa /var
-to the edge can have a huge impact.
-Finally, there are safety concerns.
-Having a small neat root partition that
-is essentially read-only gives it a greater chance of surviving a bad crash
-intact.
 .Pp
 Properly partitioning your system also allows you to tune
 .Xr newfs 8 ,
 and
 .Xr tunefs 8
 parameters.
-Tuning
-.Xr newfs 8
-requires more experience but can lead to significant improvements in
-performance.
-There are three parameters that are relatively safe to tune:
-.Em blocksize , bytes/i-node ,
-and
-.Em cylinders/group .
-.Pp
-.Fx
-performs best when using 16K or 32K file system block sizes.
-The default file system block size is 32K,
-which provides best performance for most applications,
-with the exception of those that perform random access on large files
-(such as database server software).
-Such applications tend to perform better with a smaller block size,
-although modern disk characteristics are such that the performance
-gain from using a smaller block size may not be worth consideration.
-Using a block size larger than 32K
-can cause fragmentation of the buffer cache and
-lead to lower performance.
-.Pp
-The defaults may be unsuitable
-for a file system that requires a very large number of i-nodes
-or is intended to hold a large number of very small files.
-Such a file system should be created with an 4K, 8K, or 16K block size.
-This also requires you to specify a smaller
-fragment size.
-We recommend always using a fragment size that is 1/8
-the block size (less testing has been done on other fragment size factors).
-The
-.Xr newfs 8
-options for this would be
-.Dq Li "newfs -f 1024 -b 8192 ..." .
-.Pp
-If a large partition is intended to be used to hold fewer, larger files, such
-as database files, you can increase the
-.Em bytes/i-node
-ratio which reduces the number of i-nodes (maximum number of files and
-directories that can be created) for that partition.
-Decreasing the number
-of i-nodes in a file system can greatly reduce
-.Xr fsck 8
-recovery times after a crash.
-Do not use this option
-unless you are actually storing large files on the partition, because if you
-overcompensate you can wind up with a file system that has lots of free
-space remaining but cannot accommodate any more files.
-Using 65536, 131072, or 262144 bytes/i-node is recommended.
-You can go higher but
-it will have only incremental effects on
-.Xr fsck 8
-recovery times.
-For example,
-.Dq Li "newfs -i 65536 ..." .
-.Pp
+The only
 .Xr tunefs 8
-may be used to further tune a file system.
-This command can be run in
-single-user mode without having to reformat the file system.
-However, this is possibly the most abused program in the system.
-Many people attempt to
-increase available file system space by setting the min-free percentage to 0.
-This can lead to severe file system fragmentation and we do not recommend
-that you do this.
-Really the only
-.Xr tunefs 8
-option worthwhile here is turning on
+option worthwhile turning on is
 .Em softupdates
 with
 .Dq Li "tunefs -n enable /filesystem" .
-(Note: in
-.Fx 4.5
-and later, softupdates can be turned on using the
-.Fl U
-option to
-.Xr newfs 8 ,
-and
-.Xr sysinstall 8
-will typically enable softupdates automatically for non-root file systems).
 Softupdates drastically improves meta-data performance, mainly file
 creation and deletion.
 We recommend enabling softupdates on most file systems; however, there
@@ -301,7 +94,7 @@ than otherwise.
 Secondly, softupdates delays the freeing of file system
 blocks.
 If you have a file system (such as the root file system) which is
-close to full, doing a major update of it, e.g.\&
+close to full, doing a major update of it, e.g.,\&
 .Dq Li "make installworld" ,
 can run it out of space and cause the update to fail.
 For this reason, softupdates will not be enabled on the root file system
@@ -516,7 +309,7 @@ Note that setting too high a value
 (exceeding the buffer cache's write threshold) can lead to extremely
 bad clustering performance.
 Do not set this value arbitrarily high!
-Higher write queueing values may also add latency to reads occurring at
+Higher write queuing values may also add latency to reads occurring at
 the same time.
 .Pp
 The
@@ -645,7 +438,7 @@ With delayed acks turned off,
 the acknowledgement may be sent in its own packet, before the remote service
 has a chance to echo the data it just received.
 This same concept also
-applies to any interactive protocol (e.g.\& SMTP, WWW, POP3), and can cut the
+applies to any interactive protocol (e.g.,\& SMTP, WWW, POP3), and can cut the
 number of tiny packets flowing across the network in half.
 The
 .Fx
@@ -664,52 +457,6 @@ it would be more beneficial to increase the slow-start flightsize via
 the
 .Va net.inet.tcp.slowstart_flightsize
 sysctl rather than disable delayed acks.
-.Pp
-The
-.Va net.inet.tcp.inflight.enable
-sysctl turns on bandwidth delay product limiting for all TCP connections.
-The system will attempt to calculate the bandwidth delay product for each
-connection and limit the amount of data queued to the network to just the
-amount required to maintain optimum throughput.
-This feature is useful
-if you are serving data over modems, GigE, or high speed WAN links (or
-any other link with a high bandwidth*delay product), especially if you are
-also using window scaling or have configured a large send window.
-If you enable this option, you should also be sure to set
-.Va net.inet.tcp.inflight.debug
-to 0 (disable debugging), and for production use setting
-.Va net.inet.tcp.inflight.min
-to at least 6144 may be beneficial.
-Note however, that setting high
-minimums may effectively disable bandwidth limiting depending on the link.
-The limiting feature reduces the amount of data built up in intermediate
-router and switch packet queues as well as reduces the amount of data built
-up in the local host's interface queue.
-With fewer packets queued up,
-interactive connections, especially over slow modems, will also be able
-to operate with lower round trip times.
-However, note that this feature
-only affects data transmission (uploading / server-side).
-It does not
-affect data reception (downloading).
-.Pp
-Adjusting
-.Va net.inet.tcp.inflight.stab
-is not recommended.
-This parameter defaults to 20, representing 2 maximal packets added
-to the bandwidth delay product window calculation.
-The additional
-window is required to stabilize the algorithm and improve responsiveness
-to changing conditions, but it can also result in higher ping times
-over slow links (though still much lower than you would get without
-the inflight algorithm).
-In such cases you may
-wish to try reducing this parameter to 15, 10, or 5, and you may also
-have to reduce
-.Va net.inet.tcp.inflight.min
-(for example, to 3500) to get the desired effect.
-Reducing these parameters
-should be done as a last resort only.
 .Pp
 The
 .Va net.inet.ip.portrange.*
@@ -756,7 +503,7 @@ connections in a heavily loaded web server environment.
 For such environments,
 we recommend increasing this value to 1024 or higher.
 The service daemon
-may itself limit the listen queue size (e.g.\&
+may itself limit the listen queue size (e.g.,\&
 .Xr sendmail 8 ,
 apache) but will
 often have a directive in its configuration file to adjust the queue size up.
@@ -947,42 +694,12 @@ timebase, and even device operations.
 Additionally, higher-end CPUs support
 4MB MMU pages, which the kernel uses to map the kernel itself into memory,
 increasing its efficiency under heavy syscall loads.
-.Sh IDE WRITE CACHING
-.Fx 4.3
-flirted with turning off IDE write caching.
-This reduced write bandwidth
-to IDE disks but was considered necessary due to serious data consistency
-issues introduced by hard drive vendors.
-Basically the problem is that
-IDE drives lie about when a write completes.
-With IDE write caching turned
-on, IDE hard drives will not only write data to disk out of order, they
-will sometimes delay some of the blocks indefinitely under heavy disk
-load.
-A crash or power failure can result in serious file system
-corruption.
-So our default was changed to be safe.
-Unfortunately, the
-result was such a huge loss in performance that we caved in and changed the
-default back to on after the release.
-You should check the default on
-your system by observing the
-.Va hw.ata.wc
-sysctl variable.
-If IDE write caching is turned off, you can turn it back
-on by setting the
-.Va hw.ata.wc
-loader tunable to 1.
-More information on tuning the ATA driver system may be found in the
-.Xr ata 4
-manual page.
-If you need performance, go with SCSI.
 .Sh CPU, MEMORY, DISK, NETWORK
 The type of tuning you do depends heavily on where your system begins to
 bottleneck as load increases.
 If your system runs out of CPU (idle times
-are perpetually 0%) then you need to consider upgrading the CPU or moving to
-an SMP motherboard (multiple CPU's), or perhaps you need to revisit the
+are perpetually 0%) then you need to consider upgrading the CPU
+or perhaps you need to revisit the
 programs that are causing the load and try to optimize them.
 If your system
 is paging to swap a lot you need to consider adding more memory.
@@ -1001,21 +718,15 @@ IDE drives compare with SCSI in raw sequential bandwidth, the moment you
 start seeking around the disk SCSI drives usually win.
 .Pp
 Finally, you might run out of network suds.
-The first line of defense for
-improving network performance is to make sure you are using switches instead
-of hubs, especially these days where switches are almost as cheap.
-Hubs
-have severe problems under heavy loads due to collision back-off and one bad
-host can severely degrade the entire LAN.
-Second, optimize the network path
+Optimize the network path
 as much as possible.
 For example, in
 .Xr firewall 7
 we describe a firewall protecting internal hosts with a topology where
 the externally visible hosts are not routed through it.
-Use 100BaseT rather
-than 10BaseT, or use 1000BaseT rather than 100BaseT, depending on your needs.
-Most bottlenecks occur at the WAN link (e.g.\&
+Use 1000BaseT rather
+than 100BaseT, depending on your needs.
+Most bottlenecks occur at the WAN link (e.g.,\&
 modem, T1, DSL, whatever).
 If expanding the link is not an option it may be possible to use the
 .Xr dummynet 4
@@ -1041,6 +752,7 @@ over services you export from your box (web services, email).
 .Xr hier 7 ,
 .Xr ports 7 ,
 .Xr boot 8 ,
+.Xr bsdinstall 8 ,
 .Xr bsdlabel 8 ,
 .Xr ccdconfig 8 ,
 .Xr config 8 ,
@@ -1055,7 +767,6 @@ over services you export from your box (web services, email).
 .Xr newfs 8 ,
 .Xr route 8 ,
 .Xr sysctl 8 ,
-.Xr sysinstall 8 ,
 .Xr tunefs 8
 .Sh HISTORY
 The
@@ -1066,3 +777,5 @@ and first appeared
 in
 .Fx 4.3 ,
 May 2001.
+The manual page was greatly modified by
+.An Eitan Adler Aq eadler@FreeBSD.org

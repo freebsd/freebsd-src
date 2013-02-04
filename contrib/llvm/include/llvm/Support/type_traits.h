@@ -21,6 +21,11 @@
 #include <cstddef>
 #include <utility>
 
+#ifndef __has_feature
+#define LLVM_DEFINED_HAS_FEATURE
+#define __has_feature(x) 0
+#endif
+
 // This is actually the conforming implementation which works with abstract
 // classes.  However, enough compilers have trouble with it that most will use
 // the one in boost/type_traits/object_traits.hpp. This implementation actually
@@ -49,8 +54,9 @@ struct is_class
   // is_class<> metafunction due to Paul Mensonides (leavings@attbi.com). For
   // more details:
   // http://groups.google.com/groups?hl=en&selm=000001c1cc83%24e154d5e0%247772e50c%40c161550a&rnum=1
- public:
-    enum { value = sizeof(char) == sizeof(dont_use::is_class_helper<T>(0)) };
+public:
+  static const bool value =
+      sizeof(char) == sizeof(dont_use::is_class_helper<T>(0));
 };
   
   
@@ -58,9 +64,15 @@ struct is_class
 /// type can be copied around with memcpy instead of running ctors etc.
 template <typename T>
 struct isPodLike {
+#if __has_feature(is_trivially_copyable)
+  // If the compiler supports the is_trivially_copyable trait use it, as it
+  // matches the definition of isPodLike closely.
+  static const bool value = __is_trivially_copyable(T);
+#else
   // If we don't know anything else, we can (at least) assume that all non-class
   // types are PODs.
   static const bool value = !is_class<T>::value;
+#endif
 };
 
 // std::pair's are pod-like if their elements are.
@@ -151,12 +163,11 @@ template <typename T> class is_integral_or_enum {
   static UnderlyingT &nonce_instance;
 
 public:
-  enum {
+  static const bool
     value = (!is_class<UnderlyingT>::value && !is_pointer<UnderlyingT>::value &&
              !is_same<UnderlyingT, float>::value &&
              !is_same<UnderlyingT, double>::value &&
-             sizeof(char) != sizeof(check_int_convertible(nonce_instance)))
-  };
+             sizeof(char) != sizeof(check_int_convertible(nonce_instance)));
 };
 
 // enable_if_c - Enable/disable a template based on a metafunction
@@ -201,5 +212,9 @@ template <typename T, typename F>
 struct conditional<false, T, F> { typedef F type; };
 
 }
+
+#ifdef LLVM_DEFINED_HAS_FEATURE
+#undef __has_feature
+#endif
 
 #endif

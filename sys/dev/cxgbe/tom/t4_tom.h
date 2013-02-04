@@ -46,23 +46,57 @@
  */
 #define MAX_RCV_WND ((1U << 27) - 1)
 
+#define	DDP_RSVD_WIN (16 * 1024U)
+#define	SB_DDP_INDICATE	SB_IN_TOE	/* soreceive must respond to indicate */
+
+#define	M_DDP	M_PROTO1
+
+#define USE_DDP_RX_FLOW_CONTROL
+
 /* TOE PCB flags */
 enum {
-	TPF_ATTACHED,		/* a tcpcb refers to this toepcb */
-	TPF_FLOWC_WR_SENT,	/* firmware flow context WR sent */
-	TPF_TX_DATA_SENT,	/* some data sent */
-	TPF_TX_SUSPENDED,	/* tx suspended for lack of resources */
-	TPF_SEND_FIN,		/* send FIN after sending all pending data */
-	TPF_FIN_SENT,		/* FIN has been sent */
-	TPF_ABORT_SHUTDOWN,	/* connection abort is in progress */
-	TPF_CPL_PENDING,	/* haven't received the last CPL */
-	TPF_SYNQE,		/* synq_entry, not really a toepcb */
-	TPF_SYNQE_NEEDFREE,	/* synq_entry was allocated externally */
+	TPF_ATTACHED	   = (1 << 0),	/* a tcpcb refers to this toepcb */
+	TPF_FLOWC_WR_SENT  = (1 << 1),	/* firmware flow context WR sent */
+	TPF_TX_DATA_SENT   = (1 << 2),	/* some data sent */
+	TPF_TX_SUSPENDED   = (1 << 3),	/* tx suspended for lack of resources */
+	TPF_SEND_FIN	   = (1 << 4),	/* send FIN after all pending data */
+	TPF_FIN_SENT	   = (1 << 5),	/* FIN has been sent */
+	TPF_ABORT_SHUTDOWN = (1 << 6),	/* connection abort is in progress */
+	TPF_CPL_PENDING    = (1 << 7),	/* haven't received the last CPL */
+	TPF_SYNQE	   = (1 << 8),	/* synq_entry, not really a toepcb */
+	TPF_SYNQE_NEEDFREE = (1 << 9),	/* synq_entry was malloc'd separately */
+	TPF_SYNQE_TCPDDP   = (1 << 10),	/* ulp_mode TCPDDP in toepcb */
+	TPF_SYNQE_EXPANDED = (1 << 11),	/* toepcb ready, tid context updated */
+	TPF_SYNQE_HAS_L2TE = (1 << 12),	/* we've replied to PASS_ACCEPT_REQ */
+};
+
+enum {
+	DDP_OK		= (1 << 0),	/* OK to turn on DDP */
+	DDP_SC_REQ	= (1 << 1),	/* state change (on/off) requested */
+	DDP_ON		= (1 << 2),	/* DDP is turned on */
+	DDP_BUF0_ACTIVE	= (1 << 3),	/* buffer 0 in use (not invalidated) */
+	DDP_BUF1_ACTIVE	= (1 << 4),	/* buffer 1 in use (not invalidated) */
 };
 
 struct ofld_tx_sdesc {
 	uint32_t plen;		/* payload length */
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
+};
+
+struct ppod_region {
+	TAILQ_ENTRY(ppod_region) link;
+	int used;	/* # of pods used by this region */
+	int free;	/* # of contiguous pods free right after this region */
+};
+
+struct ddp_buffer {
+	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
+	int nppods;
+	int offset;
+	int len;
+	struct ppod_region ppod_region;
+	int npages;
+	vm_page_t *pages;
 };
 
 struct toepcb {
@@ -75,12 +109,18 @@ struct toepcb {
 	struct sge_ofld_rxq *ofld_rxq;
 	struct sge_wrq *ctrlq;
 	struct l2t_entry *l2te;	/* L2 table entry used by this connection */
+	struct clip_entry *ce;	/* CLIP table entry used by this tid */
 	int tid;		/* Connection identifier */
 	unsigned int tx_credits;/* tx WR credits (in 16 byte units) remaining */
-	unsigned int enqueued;	/* # of bytes added to so_rcv (not yet read) */
+	unsigned int sb_cc;	/* last noted value of so_rcv->sb_cc */
 	int rx_credits;		/* rx credits (in bytes) to be returned to hw */
 
 	unsigned int ulp_mode;	/* ULP mode */
+
+	unsigned int ddp_flags;
+	struct ddp_buffer *db[2];
+	time_t ddp_disabled;
+	uint8_t ddp_score;
 
 	/* Tx software descriptor */
 	uint8_t txsd_total;
@@ -97,26 +137,9 @@ struct flowc_tx_params {
 	unsigned int mss;
 };
 
-static inline int
-toepcb_flag(struct toepcb *toep, int flag)
-{
-
-	return isset(&toep->flags, flag);
-}
-
-static inline void
-toepcb_set_flag(struct toepcb *toep, int flag)
-{
-
-	setbit(&toep->flags, flag);
-}
-
-static inline void
-toepcb_clr_flag(struct toepcb *toep, int flag)
-{
-
-	clrbit(&toep->flags, flag);
-}
+#define	DDP_RETRY_WAIT	5	/* seconds to wait before re-enabling DDP */
+#define	DDP_LOW_SCORE	1
+#define	DDP_HIGH_SCORE	3
 
 /*
  * Compressed state for embryonic connections for a listener.  Barely fits in
@@ -136,27 +159,6 @@ struct synq_entry {
 	uint16_t rcv_bufsize;
 };
 
-static inline int
-synqe_flag(struct synq_entry *synqe, int flag)
-{
-
-	return isset(&synqe->flags, flag);
-}
-
-static inline void
-synqe_set_flag(struct synq_entry *synqe, int flag)
-{
-
-	setbit(&synqe->flags, flag);
-}
-
-static inline void
-synqe_clr_flag(struct synq_entry *synqe, int flag)
-{
-
-	clrbit(&synqe->flags, flag);
-}
-
 /* listen_ctx flags */
 #define LCTX_RPL_PENDING 1	/* waiting for a CPL_PASS_OPEN_RPL */
 
@@ -164,11 +166,20 @@ struct listen_ctx {
 	LIST_ENTRY(listen_ctx) link;	/* listen hash linkage */
 	volatile int refcount;
 	int stid;
+	struct stid_region stid_region;
 	int flags;
 	struct inpcb *inp;		/* listening socket's inp */
 	struct sge_wrq *ctrlq;
 	struct sge_ofld_rxq *ofld_rxq;
 	TAILQ_HEAD(, synq_entry) synq;
+};
+
+TAILQ_HEAD(ppod_head, ppod_region);
+
+struct clip_entry {
+	TAILQ_ENTRY(clip_entry) link;
+	struct in6_addr lip;	/* local IPv6 address */
+	u_int refcount;
 };
 
 struct tom_data {
@@ -178,17 +189,26 @@ struct tom_data {
 	struct mtx toep_list_lock;
 	TAILQ_HEAD(, toepcb) toep_list;
 
+	struct mtx lctx_hash_lock;
 	LIST_HEAD(, listen_ctx) *listen_hash;
 	u_long listen_mask;
 	int lctx_count;		/* # of lctx in the hash table */
-	struct mtx lctx_hash_lock;
+
+	struct mtx ppod_lock;
+	int nppods;
+	int nppods_free;	/* # of available ppods */
+	int nppods_free_head;	/* # of available ppods at the begining */
+	struct ppod_head ppods;
+
+	struct mtx clip_table_lock;
+	TAILQ_HEAD(, clip_entry) clip_table;
 };
 
 static inline struct tom_data *
 tod_td(struct toedev *tod)
 {
 
-	return (member2struct(tom_data, tod, tod));
+	return (__containerof(tod, struct tom_data, tod));
 }
 
 static inline struct adapter *
@@ -215,6 +235,10 @@ int select_rcv_wscale(void);
 uint64_t calc_opt0(struct socket *, struct port_info *, struct l2t_entry *,
     int, int, int, int);
 uint32_t select_ntuple(struct port_info *, struct l2t_entry *, uint32_t);
+void set_tcpddp_ulp_mode(struct toepcb *);
+int negative_advice(int);
+struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *);
+void release_lip(struct tom_data *, struct clip_entry *);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(struct adapter *);
@@ -236,6 +260,7 @@ void t4_offload_socket(struct toedev *, void *, struct socket *);
 
 /* t4_cpl_io.c */
 void t4_init_cpl_io_handlers(struct adapter *);
+void t4_uninit_cpl_io_handlers(struct adapter *);
 void send_abort_rpl(struct adapter *, struct sge_wrq *, int , int);
 void send_flowc_wr(struct toepcb *, struct flowc_tx_params *);
 void send_reset(struct adapter *, struct toepcb *, uint32_t);
@@ -244,5 +269,15 @@ void t4_rcvd(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
+void t4_set_tcb_field(struct adapter *, struct toepcb *, uint16_t, uint64_t,
+    uint64_t);
 
+/* t4_ddp.c */
+void t4_init_ddp(struct adapter *, struct tom_data *);
+void t4_uninit_ddp(struct adapter *, struct tom_data *);
+int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
+    struct mbuf **, struct mbuf **, int *);
+void enable_ddp(struct adapter *, struct toepcb *toep);
+void release_ddp_resources(struct toepcb *toep);
+void insert_ddp_data(struct toepcb *, uint32_t);
 #endif

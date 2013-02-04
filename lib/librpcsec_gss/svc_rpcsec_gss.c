@@ -140,8 +140,8 @@ TAILQ_HEAD(svc_rpc_gss_client_list, svc_rpc_gss_client);
 
 #define CLIENT_HASH_SIZE	256
 #define CLIENT_MAX		128
-struct svc_rpc_gss_client_list svc_rpc_gss_client_hash[CLIENT_HASH_SIZE];
-struct svc_rpc_gss_client_list svc_rpc_gss_clients;
+static struct svc_rpc_gss_client_list svc_rpc_gss_client_hash[CLIENT_HASH_SIZE];
+static struct svc_rpc_gss_client_list svc_rpc_gss_clients;
 static size_t svc_rpc_gss_client_count;
 static uint32_t svc_rpc_gss_next_clientid = 1;
 

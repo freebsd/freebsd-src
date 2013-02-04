@@ -242,7 +242,7 @@ static int i2r_IPAddressOrRanges(BIO *out,
 /*
  * i2r handler for an IPAddrBlocks extension.
  */
-static int i2r_IPAddrBlocks(X509V3_EXT_METHOD *method,
+static int i2r_IPAddrBlocks(const X509V3_EXT_METHOD *method,
 			    void *ext,
 			    BIO *out,
 			    int indent)
@@ -327,8 +327,7 @@ static int IPAddressOrRange_cmp(const IPAddressOrRange *a,
 				const int length)
 {
   unsigned char addr_a[ADDR_RAW_BUF_LEN], addr_b[ADDR_RAW_BUF_LEN];
-  int prefixlen_a = 0;
-  int prefixlen_b = 0;
+  int prefixlen_a = 0, prefixlen_b = 0;
   int r;
 
   switch (a->type) {
@@ -613,10 +612,10 @@ static IPAddressOrRanges *make_prefix_or_range(IPAddrBlocks *addr,
     return NULL;
   switch (afi) {
   case IANA_AFI_IPV4:
-    (void)sk_IPAddressOrRange_set_cmp_func(aors, v4IPAddressOrRange_cmp);
+    (void) sk_IPAddressOrRange_set_cmp_func(aors, v4IPAddressOrRange_cmp);
     break;
   case IANA_AFI_IPV6:
-    (void)sk_IPAddressOrRange_set_cmp_func(aors, v6IPAddressOrRange_cmp);
+    (void) sk_IPAddressOrRange_set_cmp_func(aors, v6IPAddressOrRange_cmp);
     break;
   }
   f->ipAddressChoice->type = IPAddressChoice_addressesOrRanges;
@@ -885,8 +884,8 @@ static int IPAddressOrRanges_canonize(IPAddressOrRanges *aors,
       IPAddressOrRange *merged;
       if (!make_addressRange(&merged, a_min, b_max, length))
 	return 0;
-      sk_IPAddressOrRange_set(aors, i, merged);
-      (void)sk_IPAddressOrRange_delete(aors, i + 1);
+      (void) sk_IPAddressOrRange_set(aors, i, merged);
+      (void) sk_IPAddressOrRange_delete(aors, i + 1);
       IPAddressOrRange_free(a);
       IPAddressOrRange_free(b);
       --i;
@@ -924,7 +923,7 @@ int v3_addr_canonize(IPAddrBlocks *addr)
 				    v3_addr_get_afi(f)))
       return 0;
   }
-  (void)sk_IPAddressFamily_set_cmp_func(addr, IPAddressFamily_cmp);
+  (void) sk_IPAddressFamily_set_cmp_func(addr, IPAddressFamily_cmp);
   sk_IPAddressFamily_sort(addr);
   OPENSSL_assert(v3_addr_is_canonical(addr));
   return 1;
@@ -933,7 +932,7 @@ int v3_addr_canonize(IPAddrBlocks *addr)
 /*
  * v2i handler for the IPAddrBlocks extension.
  */
-static void *v2i_IPAddrBlocks(struct v3_ext_method *method,
+static void *v2i_IPAddrBlocks(const struct v3_ext_method *method,
 			      struct v3_ext_ctx *ctx,
 			      STACK_OF(CONF_VALUE) *values)
 {
@@ -1176,7 +1175,7 @@ int v3_addr_subset(IPAddrBlocks *a, IPAddrBlocks *b)
     return 1;
   if (b == NULL || v3_addr_inherits(a) || v3_addr_inherits(b))
     return 0;
-  (void)sk_IPAddressFamily_set_cmp_func(b, IPAddressFamily_cmp);
+  (void) sk_IPAddressFamily_set_cmp_func(b, IPAddressFamily_cmp);
   for (i = 0; i < sk_IPAddressFamily_num(a); i++) {
     IPAddressFamily *fa = sk_IPAddressFamily_value(a, i);
     int j = sk_IPAddressFamily_find(b, fa);
@@ -1218,7 +1217,7 @@ static int v3_addr_validate_path_internal(X509_STORE_CTX *ctx,
 {
   IPAddrBlocks *child = NULL;
   int i, j, ret = 1;
-  X509 *x = NULL;
+  X509 *x;
 
   OPENSSL_assert(chain != NULL && sk_X509_num(chain) > 0);
   OPENSSL_assert(ctx != NULL || ext != NULL);
@@ -1231,6 +1230,7 @@ static int v3_addr_validate_path_internal(X509_STORE_CTX *ctx,
    */
   if (ext != NULL) {
     i = -1;
+    x = NULL;
   } else {
     i = 0;
     x = sk_X509_value(chain, i);
@@ -1240,7 +1240,7 @@ static int v3_addr_validate_path_internal(X509_STORE_CTX *ctx,
   }
   if (!v3_addr_is_canonical(ext))
     validation_err(X509_V_ERR_INVALID_EXTENSION);
-  (void)sk_IPAddressFamily_set_cmp_func(ext, IPAddressFamily_cmp);
+  (void) sk_IPAddressFamily_set_cmp_func(ext, IPAddressFamily_cmp);
   if ((child = sk_IPAddressFamily_dup(ext)) == NULL) {
     X509V3err(X509V3_F_V3_ADDR_VALIDATE_PATH_INTERNAL, ERR_R_MALLOC_FAILURE);
     ret = 0;
@@ -1266,7 +1266,7 @@ static int v3_addr_validate_path_internal(X509_STORE_CTX *ctx,
       }
       continue;
     }
-    (void)sk_IPAddressFamily_set_cmp_func(x->rfc3779_addr, IPAddressFamily_cmp);
+    (void) sk_IPAddressFamily_set_cmp_func(x->rfc3779_addr, IPAddressFamily_cmp);
     for (j = 0; j < sk_IPAddressFamily_num(child); j++) {
       IPAddressFamily *fc = sk_IPAddressFamily_value(child, j);
       int k = sk_IPAddressFamily_find(x->rfc3779_addr, fc);
@@ -1293,6 +1293,7 @@ static int v3_addr_validate_path_internal(X509_STORE_CTX *ctx,
   /*
    * Trust anchor can't inherit.
    */
+  OPENSSL_assert(x != NULL);
   if (x->rfc3779_addr != NULL) {
     for (j = 0; j < sk_IPAddressFamily_num(x->rfc3779_addr); j++) {
       IPAddressFamily *fp = sk_IPAddressFamily_value(x->rfc3779_addr, j);

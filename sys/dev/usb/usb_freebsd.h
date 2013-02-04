@@ -42,6 +42,8 @@
 #define	USB_HAVE_POWERD 1
 #define	USB_HAVE_MSCTEST 1
 #define	USB_HAVE_PF 1
+#define	USB_HAVE_ROOT_MOUNT_HOLD 1
+#define	USB_HAVE_ID_SECTION 1
 
 #define	USB_TD_GET_PROC(td) (td)->td_proc
 #define	USB_PROC_GET_GID(td) (td)->p_pgid
@@ -60,6 +62,7 @@
 #define	USB_MAX_DEVICES 128		/* units */
 #define	USB_IFACE_MAX 32		/* units */
 #define	USB_FIFO_MAX 128		/* units */
+#define	USB_MAX_EP_STREAMS 8		/* units */
 
 #define	USB_MAX_FS_ISOC_FRAMES_PER_XFER (120)	/* units */
 #define	USB_MAX_HS_ISOC_FRAMES_PER_XFER (8*120)	/* units */
@@ -76,5 +79,6 @@ typedef uint32_t usb_frcount_t;		/* units */
 typedef uint32_t usb_size_t;		/* bytes */
 typedef uint32_t usb_ticks_t;		/* system defined */
 typedef uint16_t usb_power_mask_t;	/* see "USB_HW_POWER_XXX" */
+typedef uint16_t usb_stream_t;		/* stream ID */
 
 #endif	/* _USB_FREEBSD_H_ */

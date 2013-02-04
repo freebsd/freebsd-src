@@ -16,8 +16,6 @@ device		geom_uzip	# compressed in-memory filesystem support
 options		GEOM_UZIP
 
 # For DOS
-options		GEOM_PART_BSD
-options		GEOM_PART_MBR
 options		MSDOSFS
 
 # Boot path - redboot MFS

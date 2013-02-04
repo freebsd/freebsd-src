@@ -15,9 +15,9 @@
 #define DEBUG_TYPE "loweratomic"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Function.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/IRBuilder.h"
 using namespace llvm;
 
 static bool LowerAtomicCmpXchgInst(AtomicCmpXchgInst *CXI) {
@@ -25,12 +25,12 @@ static bool LowerAtomicCmpXchgInst(AtomicCmpXchgInst *CXI) {
   Value *Ptr = CXI->getPointerOperand();
   Value *Cmp = CXI->getCompareOperand();
   Value *Val = CXI->getNewValOperand();
- 
+
   LoadInst *Orig = Builder.CreateLoad(Ptr);
   Value *Equal = Builder.CreateICmpEQ(Orig, Cmp);
   Value *Res = Builder.CreateSelect(Equal, Val, Orig);
   Builder.CreateStore(Res, Ptr);
- 
+
   CXI->replaceAllUsesWith(Orig);
   CXI->eraseFromParent();
   return true;

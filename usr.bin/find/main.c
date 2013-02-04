@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 time_t now;			/* time find was run */
 int dotfd;			/* starting directory */
 int ftsoptions;			/* options for the ftsopen(3) call */
+int ignore_readdir_race;	/* ignore readdir race */
 int isdeprecated;		/* using deprecated syntax */
 int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
@@ -150,7 +151,7 @@ main(int argc, char *argv[])
 		usage();
 	*p = NULL;
 
-	if ((dotfd = open(".", O_RDONLY, 0)) < 0)
+	if ((dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		err(1, ".");
 
 	exit(find_execute(find_formplan(argv), start));

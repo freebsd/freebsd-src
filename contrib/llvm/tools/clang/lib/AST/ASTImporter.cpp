@@ -119,7 +119,8 @@ namespace clang {
     bool ImportTemplateArguments(const TemplateArgument *FromArgs,
                                  unsigned NumFromArgs,
                                SmallVectorImpl<TemplateArgument> &ToArgs);
-    bool IsStructuralMatch(RecordDecl *FromRecord, RecordDecl *ToRecord);
+    bool IsStructuralMatch(RecordDecl *FromRecord, RecordDecl *ToRecord,
+                           bool Complain = true);
     bool IsStructuralMatch(EnumDecl *FromEnum, EnumDecl *ToRecord);
     bool IsStructuralMatch(ClassTemplateDecl *From, ClassTemplateDecl *To);
     Decl *VisitDecl(Decl *D);
@@ -201,12 +202,16 @@ namespace {
     /// \brief Whether we're being strict about the spelling of types when 
     /// unifying two types.
     bool StrictTypeSpelling;
-    
+
+    /// \brief Whether to complain about failures.
+    bool Complain;
+
     StructuralEquivalenceContext(ASTContext &C1, ASTContext &C2,
                llvm::DenseSet<std::pair<Decl *, Decl *> > &NonEquivalentDecls,
-                                 bool StrictTypeSpelling = false)
+                                 bool StrictTypeSpelling = false,
+                                 bool Complain = true)
       : C1(C1), C2(C2), NonEquivalentDecls(NonEquivalentDecls),
-        StrictTypeSpelling(StrictTypeSpelling) { }
+        StrictTypeSpelling(StrictTypeSpelling), Complain(Complain) { }
 
     /// \brief Determine whether the two declarations are structurally
     /// equivalent.
@@ -223,10 +228,12 @@ namespace {
     
   public:
     DiagnosticBuilder Diag1(SourceLocation Loc, unsigned DiagID) {
+      assert(Complain && "Not allowed to complain");
       return C1.getDiagnostics().Report(Loc, DiagID);
     }
 
     DiagnosticBuilder Diag2(SourceLocation Loc, unsigned DiagID) {
+      assert(Complain && "Not allowed to complain");
       return C2.getDiagnostics().Report(Loc, DiagID);
     }
   };
@@ -236,45 +243,6 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      QualType T1, QualType T2);
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      Decl *D1, Decl *D2);
-
-/// \brief Determine if two APInts have the same value, after zero-extending
-/// one of them (if needed!) to ensure that the bit-widths match.
-static bool IsSameValue(const llvm::APInt &I1, const llvm::APInt &I2) {
-  if (I1.getBitWidth() == I2.getBitWidth())
-    return I1 == I2;
-  
-  if (I1.getBitWidth() > I2.getBitWidth())
-    return I1 == I2.zext(I1.getBitWidth());
-  
-  return I1.zext(I2.getBitWidth()) == I2;
-}
-
-/// \brief Determine if two APSInts have the same value, zero- or sign-extending
-/// as needed.
-static bool IsSameValue(const llvm::APSInt &I1, const llvm::APSInt &I2) {
-  if (I1.getBitWidth() == I2.getBitWidth() && I1.isSigned() == I2.isSigned())
-    return I1 == I2;
-  
-  // Check for a bit-width mismatch.
-  if (I1.getBitWidth() > I2.getBitWidth())
-    return IsSameValue(I1, I2.extend(I1.getBitWidth()));
-  else if (I2.getBitWidth() > I1.getBitWidth())
-    return IsSameValue(I1.extend(I2.getBitWidth()), I2);
-  
-  // We have a signedness mismatch. Turn the signed value into an unsigned 
-  // value.
-  if (I1.isSigned()) {
-    if (I1.isNegative())
-      return false;
-    
-    return llvm::APSInt(I1, true) == I2;
-  }
- 
-  if (I2.isNegative())
-    return false;
-  
-  return I1 == llvm::APSInt(I2, true);
-}
 
 /// \brief Determine structural equivalence of two expressions.
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
@@ -316,19 +284,20 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
       
   case TemplateArgument::Type:
     return Context.IsStructurallyEquivalent(Arg1.getAsType(), Arg2.getAsType());
-      
+
   case TemplateArgument::Integral:
     if (!Context.IsStructurallyEquivalent(Arg1.getIntegralType(), 
                                           Arg2.getIntegralType()))
       return false;
     
-    return IsSameValue(*Arg1.getAsIntegral(), *Arg2.getAsIntegral());
+    return llvm::APSInt::isSameValue(Arg1.getAsIntegral(), Arg2.getAsIntegral());
       
   case TemplateArgument::Declaration:
-    if (!Arg1.getAsDecl() || !Arg2.getAsDecl())
-      return !Arg1.getAsDecl() && !Arg2.getAsDecl();
     return Context.IsStructurallyEquivalent(Arg1.getAsDecl(), Arg2.getAsDecl());
-      
+
+  case TemplateArgument::NullPtr:
+    return true; // FIXME: Is this correct?
+
   case TemplateArgument::Template:
     return IsStructurallyEquivalent(Context, 
                                     Arg1.getAsTemplate(), 
@@ -467,7 +436,7 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
   case Type::ConstantArray: {
     const ConstantArrayType *Array1 = cast<ConstantArrayType>(T1);
     const ConstantArrayType *Array2 = cast<ConstantArrayType>(T2);
-    if (!IsSameValue(Array1->getSize(), Array2->getSize()))
+    if (!llvm::APInt::isSameValue(Array1->getSize(), Array2->getSize()))
       return false;
     
     if (!IsArrayStructurallyEquivalent(Context, Array1, Array2))
@@ -850,33 +819,47 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      FieldDecl *Field1, FieldDecl *Field2) {
   RecordDecl *Owner2 = cast<RecordDecl>(Field2->getDeclContext());
-  
-  if (!IsStructurallyEquivalent(Context, 
+
+  // For anonymous structs/unions, match up the anonymous struct/union type
+  // declarations directly, so that we don't go off searching for anonymous
+  // types
+  if (Field1->isAnonymousStructOrUnion() &&
+      Field2->isAnonymousStructOrUnion()) {
+    RecordDecl *D1 = Field1->getType()->castAs<RecordType>()->getDecl();
+    RecordDecl *D2 = Field2->getType()->castAs<RecordType>()->getDecl();
+    return IsStructurallyEquivalent(Context, D1, D2);
+  }
+
+  if (!IsStructurallyEquivalent(Context,
                                 Field1->getType(), Field2->getType())) {
-    Context.Diag2(Owner2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-    << Context.C2.getTypeDeclType(Owner2);
-    Context.Diag2(Field2->getLocation(), diag::note_odr_field)
-    << Field2->getDeclName() << Field2->getType();
-    Context.Diag1(Field1->getLocation(), diag::note_odr_field)
-    << Field1->getDeclName() << Field1->getType();
+    if (Context.Complain) {
+      Context.Diag2(Owner2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+        << Context.C2.getTypeDeclType(Owner2);
+      Context.Diag2(Field2->getLocation(), diag::note_odr_field)
+        << Field2->getDeclName() << Field2->getType();
+      Context.Diag1(Field1->getLocation(), diag::note_odr_field)
+        << Field1->getDeclName() << Field1->getType();
+    }
     return false;
   }
   
   if (Field1->isBitField() != Field2->isBitField()) {
-    Context.Diag2(Owner2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-    << Context.C2.getTypeDeclType(Owner2);
-    if (Field1->isBitField()) {
-      Context.Diag1(Field1->getLocation(), diag::note_odr_bit_field)
-      << Field1->getDeclName() << Field1->getType()
-      << Field1->getBitWidthValue(Context.C1);
-      Context.Diag2(Field2->getLocation(), diag::note_odr_not_bit_field)
-      << Field2->getDeclName();
-    } else {
-      Context.Diag2(Field2->getLocation(), diag::note_odr_bit_field)
-      << Field2->getDeclName() << Field2->getType()
-      << Field2->getBitWidthValue(Context.C2);
-      Context.Diag1(Field1->getLocation(), diag::note_odr_not_bit_field)
-      << Field1->getDeclName();
+    if (Context.Complain) {
+      Context.Diag2(Owner2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+        << Context.C2.getTypeDeclType(Owner2);
+      if (Field1->isBitField()) {
+        Context.Diag1(Field1->getLocation(), diag::note_odr_bit_field)
+        << Field1->getDeclName() << Field1->getType()
+        << Field1->getBitWidthValue(Context.C1);
+        Context.Diag2(Field2->getLocation(), diag::note_odr_not_bit_field)
+        << Field2->getDeclName();
+      } else {
+        Context.Diag2(Field2->getLocation(), diag::note_odr_bit_field)
+        << Field2->getDeclName() << Field2->getType()
+        << Field2->getBitWidthValue(Context.C2);
+        Context.Diag1(Field1->getLocation(), diag::note_odr_not_bit_field)
+        << Field1->getDeclName();
+      }
     }
     return false;
   }
@@ -887,12 +870,14 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     unsigned Bits2 = Field2->getBitWidthValue(Context.C2);
     
     if (Bits1 != Bits2) {
-      Context.Diag2(Owner2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-      << Context.C2.getTypeDeclType(Owner2);
-      Context.Diag2(Field2->getLocation(), diag::note_odr_bit_field)
-      << Field2->getDeclName() << Field2->getType() << Bits2;
-      Context.Diag1(Field1->getLocation(), diag::note_odr_bit_field)
-      << Field1->getDeclName() << Field1->getType() << Bits1;
+      if (Context.Complain) {
+        Context.Diag2(Owner2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+          << Context.C2.getTypeDeclType(Owner2);
+        Context.Diag2(Field2->getLocation(), diag::note_odr_bit_field)
+          << Field2->getDeclName() << Field2->getType() << Bits2;
+        Context.Diag1(Field1->getLocation(), diag::note_odr_bit_field)
+          << Field1->getDeclName() << Field1->getType() << Bits1;
+      }
       return false;
     }
   }
@@ -900,17 +885,65 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
   return true;
 }
 
+/// \brief Find the index of the given anonymous struct/union within its
+/// context.
+///
+/// \returns Returns the index of this anonymous struct/union in its context,
+/// including the next assigned index (if none of them match). Returns an
+/// empty option if the context is not a record, i.e.. if the anonymous
+/// struct/union is at namespace or block scope.
+static llvm::Optional<unsigned>
+findAnonymousStructOrUnionIndex(RecordDecl *Anon) {
+  ASTContext &Context = Anon->getASTContext();
+  QualType AnonTy = Context.getRecordType(Anon);
+
+  RecordDecl *Owner = dyn_cast<RecordDecl>(Anon->getDeclContext());
+  if (!Owner)
+    return llvm::Optional<unsigned>();
+
+  unsigned Index = 0;
+  for (DeclContext::decl_iterator D = Owner->noload_decls_begin(),
+                               DEnd = Owner->noload_decls_end();
+       D != DEnd; ++D) {
+    FieldDecl *F = dyn_cast<FieldDecl>(*D);
+    if (!F || !F->isAnonymousStructOrUnion())
+      continue;
+
+    if (Context.hasSameType(F->getType(), AnonTy))
+      break;
+
+    ++Index;
+  }
+
+  return Index;
+}
+
 /// \brief Determine structural equivalence of two records.
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      RecordDecl *D1, RecordDecl *D2) {
   if (D1->isUnion() != D2->isUnion()) {
-    Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-      << Context.C2.getTypeDeclType(D2);
-    Context.Diag1(D1->getLocation(), diag::note_odr_tag_kind_here)
-      << D1->getDeclName() << (unsigned)D1->getTagKind();
+    if (Context.Complain) {
+      Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+        << Context.C2.getTypeDeclType(D2);
+      Context.Diag1(D1->getLocation(), diag::note_odr_tag_kind_here)
+        << D1->getDeclName() << (unsigned)D1->getTagKind();
+    }
     return false;
   }
-  
+
+  if (D1->isAnonymousStructOrUnion() && D2->isAnonymousStructOrUnion()) {
+    // If both anonymous structs/unions are in a record context, make sure
+    // they occur in the same location in the context records.
+    if (llvm::Optional<unsigned> Index1
+          = findAnonymousStructOrUnionIndex(D1)) {
+      if (llvm::Optional<unsigned> Index2
+            = findAnonymousStructOrUnionIndex(D2)) {
+        if (*Index1 != *Index2)
+          return false;
+      }
+    }
+  }
+
   // If both declarations are class template specializations, we know
   // the ODR applies, so check the template and template arguments.
   ClassTemplateSpecializationDecl *Spec1
@@ -948,12 +981,14 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
   if (CXXRecordDecl *D1CXX = dyn_cast<CXXRecordDecl>(D1)) {
     if (CXXRecordDecl *D2CXX = dyn_cast<CXXRecordDecl>(D2)) {
       if (D1CXX->getNumBases() != D2CXX->getNumBases()) {
-        Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-          << Context.C2.getTypeDeclType(D2);
-        Context.Diag2(D2->getLocation(), diag::note_odr_number_of_bases)
-          << D2CXX->getNumBases();
-        Context.Diag1(D1->getLocation(), diag::note_odr_number_of_bases)
-          << D1CXX->getNumBases();
+        if (Context.Complain) {
+          Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+            << Context.C2.getTypeDeclType(D2);
+          Context.Diag2(D2->getLocation(), diag::note_odr_number_of_bases)
+            << D2CXX->getNumBases();
+          Context.Diag1(D1->getLocation(), diag::note_odr_number_of_bases)
+            << D1CXX->getNumBases();
+        }
         return false;
       }
       
@@ -965,55 +1000,63 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
            ++Base1, ++Base2) {        
         if (!IsStructurallyEquivalent(Context, 
                                       Base1->getType(), Base2->getType())) {
-          Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-            << Context.C2.getTypeDeclType(D2);
-          Context.Diag2(Base2->getLocStart(), diag::note_odr_base)
-            << Base2->getType()
-            << Base2->getSourceRange();
-          Context.Diag1(Base1->getLocStart(), diag::note_odr_base)
-            << Base1->getType()
-            << Base1->getSourceRange();
+          if (Context.Complain) {
+            Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+              << Context.C2.getTypeDeclType(D2);
+            Context.Diag2(Base2->getLocStart(), diag::note_odr_base)
+              << Base2->getType()
+              << Base2->getSourceRange();
+            Context.Diag1(Base1->getLocStart(), diag::note_odr_base)
+              << Base1->getType()
+              << Base1->getSourceRange();
+          }
           return false;
         }
         
         // Check virtual vs. non-virtual inheritance mismatch.
         if (Base1->isVirtual() != Base2->isVirtual()) {
-          Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-            << Context.C2.getTypeDeclType(D2);
-          Context.Diag2(Base2->getLocStart(),
-                        diag::note_odr_virtual_base)
-            << Base2->isVirtual() << Base2->getSourceRange();
-          Context.Diag1(Base1->getLocStart(), diag::note_odr_base)
-            << Base1->isVirtual()
-            << Base1->getSourceRange();
+          if (Context.Complain) {
+            Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+              << Context.C2.getTypeDeclType(D2);
+            Context.Diag2(Base2->getLocStart(),
+                          diag::note_odr_virtual_base)
+              << Base2->isVirtual() << Base2->getSourceRange();
+            Context.Diag1(Base1->getLocStart(), diag::note_odr_base)
+              << Base1->isVirtual()
+              << Base1->getSourceRange();
+          }
           return false;
         }
       }
     } else if (D1CXX->getNumBases() > 0) {
-      Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-        << Context.C2.getTypeDeclType(D2);
-      const CXXBaseSpecifier *Base1 = D1CXX->bases_begin();
-      Context.Diag1(Base1->getLocStart(), diag::note_odr_base)
-        << Base1->getType()
-        << Base1->getSourceRange();
-      Context.Diag2(D2->getLocation(), diag::note_odr_missing_base);
+      if (Context.Complain) {
+        Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+          << Context.C2.getTypeDeclType(D2);
+        const CXXBaseSpecifier *Base1 = D1CXX->bases_begin();
+        Context.Diag1(Base1->getLocStart(), diag::note_odr_base)
+          << Base1->getType()
+          << Base1->getSourceRange();
+        Context.Diag2(D2->getLocation(), diag::note_odr_missing_base);
+      }
       return false;
     }
   }
   
   // Check the fields for consistency.
-  CXXRecordDecl::field_iterator Field2 = D2->field_begin(),
+  RecordDecl::field_iterator Field2 = D2->field_begin(),
                              Field2End = D2->field_end();
-  for (CXXRecordDecl::field_iterator Field1 = D1->field_begin(),
+  for (RecordDecl::field_iterator Field1 = D1->field_begin(),
                                   Field1End = D1->field_end();
        Field1 != Field1End;
        ++Field1, ++Field2) {
     if (Field2 == Field2End) {
-      Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-        << Context.C2.getTypeDeclType(D2);
-      Context.Diag1(Field1->getLocation(), diag::note_odr_field)
-        << Field1->getDeclName() << Field1->getType();
-      Context.Diag2(D2->getLocation(), diag::note_odr_missing_field);
+      if (Context.Complain) {
+        Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+          << Context.C2.getTypeDeclType(D2);
+        Context.Diag1(Field1->getLocation(), diag::note_odr_field)
+          << Field1->getDeclName() << Field1->getType();
+        Context.Diag2(D2->getLocation(), diag::note_odr_missing_field);
+      }
       return false;
     }
     
@@ -1022,11 +1065,13 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
   }
   
   if (Field2 != Field2End) {
-    Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-      << Context.C2.getTypeDeclType(D2);
-    Context.Diag2(Field2->getLocation(), diag::note_odr_field)
-      << Field2->getDeclName() << Field2->getType();
-    Context.Diag1(D1->getLocation(), diag::note_odr_missing_field);
+    if (Context.Complain) {
+      Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+        << Context.C2.getTypeDeclType(D2);
+      Context.Diag2(Field2->getLocation(), diag::note_odr_field)
+        << Field2->getDeclName() << Field2->getType();
+      Context.Diag1(D1->getLocation(), diag::note_odr_missing_field);
+    }
     return false;
   }
   
@@ -1042,38 +1087,44 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                   EC1End = D1->enumerator_end();
        EC1 != EC1End; ++EC1, ++EC2) {
     if (EC2 == EC2End) {
-      Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-        << Context.C2.getTypeDeclType(D2);
-      Context.Diag1(EC1->getLocation(), diag::note_odr_enumerator)
-        << EC1->getDeclName() 
-        << EC1->getInitVal().toString(10);
-      Context.Diag2(D2->getLocation(), diag::note_odr_missing_enumerator);
+      if (Context.Complain) {
+        Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+          << Context.C2.getTypeDeclType(D2);
+        Context.Diag1(EC1->getLocation(), diag::note_odr_enumerator)
+          << EC1->getDeclName() 
+          << EC1->getInitVal().toString(10);
+        Context.Diag2(D2->getLocation(), diag::note_odr_missing_enumerator);
+      }
       return false;
     }
     
     llvm::APSInt Val1 = EC1->getInitVal();
     llvm::APSInt Val2 = EC2->getInitVal();
-    if (!IsSameValue(Val1, Val2) || 
+    if (!llvm::APSInt::isSameValue(Val1, Val2) || 
         !IsStructurallyEquivalent(EC1->getIdentifier(), EC2->getIdentifier())) {
-      Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-        << Context.C2.getTypeDeclType(D2);
-      Context.Diag2(EC2->getLocation(), diag::note_odr_enumerator)
-        << EC2->getDeclName() 
-        << EC2->getInitVal().toString(10);
-      Context.Diag1(EC1->getLocation(), diag::note_odr_enumerator)
-        << EC1->getDeclName() 
-        << EC1->getInitVal().toString(10);
+      if (Context.Complain) {
+        Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+          << Context.C2.getTypeDeclType(D2);
+        Context.Diag2(EC2->getLocation(), diag::note_odr_enumerator)
+          << EC2->getDeclName() 
+          << EC2->getInitVal().toString(10);
+        Context.Diag1(EC1->getLocation(), diag::note_odr_enumerator)
+          << EC1->getDeclName() 
+          << EC1->getInitVal().toString(10);
+      }
       return false;
     }
   }
   
   if (EC2 != EC2End) {
-    Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
-      << Context.C2.getTypeDeclType(D2);
-    Context.Diag2(EC2->getLocation(), diag::note_odr_enumerator)
-      << EC2->getDeclName() 
-      << EC2->getInitVal().toString(10);
-    Context.Diag1(D1->getLocation(), diag::note_odr_missing_enumerator);
+    if (Context.Complain) {
+      Context.Diag2(D2->getLocation(), diag::warn_odr_tag_type_inconsistent)
+        << Context.C2.getTypeDeclType(D2);
+      Context.Diag2(EC2->getLocation(), diag::note_odr_enumerator)
+        << EC2->getDeclName() 
+        << EC2->getInitVal().toString(10);
+      Context.Diag1(D1->getLocation(), diag::note_odr_missing_enumerator);
+    }
     return false;
   }
   
@@ -1084,20 +1135,24 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      TemplateParameterList *Params1,
                                      TemplateParameterList *Params2) {
   if (Params1->size() != Params2->size()) {
-    Context.Diag2(Params2->getTemplateLoc(), 
-                  diag::err_odr_different_num_template_parameters)
-      << Params1->size() << Params2->size();
-    Context.Diag1(Params1->getTemplateLoc(), 
-                  diag::note_odr_template_parameter_list);
+    if (Context.Complain) {
+      Context.Diag2(Params2->getTemplateLoc(), 
+                    diag::err_odr_different_num_template_parameters)
+        << Params1->size() << Params2->size();
+      Context.Diag1(Params1->getTemplateLoc(), 
+                    diag::note_odr_template_parameter_list);
+    }
     return false;
   }
   
   for (unsigned I = 0, N = Params1->size(); I != N; ++I) {
     if (Params1->getParam(I)->getKind() != Params2->getParam(I)->getKind()) {
-      Context.Diag2(Params2->getParam(I)->getLocation(), 
-                    diag::err_odr_different_template_parameter_kind);
-      Context.Diag1(Params1->getParam(I)->getLocation(),
-                    diag::note_odr_template_parameter_here);
+      if (Context.Complain) {
+        Context.Diag2(Params2->getParam(I)->getLocation(), 
+                      diag::err_odr_different_template_parameter_kind);
+        Context.Diag1(Params1->getParam(I)->getLocation(),
+                      diag::note_odr_template_parameter_here);
+      }
       return false;
     }
     
@@ -1115,10 +1170,12 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      TemplateTypeParmDecl *D1,
                                      TemplateTypeParmDecl *D2) {
   if (D1->isParameterPack() != D2->isParameterPack()) {
-    Context.Diag2(D2->getLocation(), diag::err_odr_parameter_pack_non_pack)
-      << D2->isParameterPack();
-    Context.Diag1(D1->getLocation(), diag::note_odr_parameter_pack_non_pack)
-      << D1->isParameterPack();
+    if (Context.Complain) {
+      Context.Diag2(D2->getLocation(), diag::err_odr_parameter_pack_non_pack)
+        << D2->isParameterPack();
+      Context.Diag1(D1->getLocation(), diag::note_odr_parameter_pack_non_pack)
+        << D1->isParameterPack();
+    }
     return false;
   }
   
@@ -1128,24 +1185,25 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      NonTypeTemplateParmDecl *D1,
                                      NonTypeTemplateParmDecl *D2) {
-  // FIXME: Enable once we have variadic templates.
-#if 0
   if (D1->isParameterPack() != D2->isParameterPack()) {
-    Context.Diag2(D2->getLocation(), diag::err_odr_parameter_pack_non_pack)
-      << D2->isParameterPack();
-    Context.Diag1(D1->getLocation(), diag::note_odr_parameter_pack_non_pack)
-      << D1->isParameterPack();
+    if (Context.Complain) {
+      Context.Diag2(D2->getLocation(), diag::err_odr_parameter_pack_non_pack)
+        << D2->isParameterPack();
+      Context.Diag1(D1->getLocation(), diag::note_odr_parameter_pack_non_pack)
+        << D1->isParameterPack();
+    }
     return false;
   }
-#endif
   
   // Check types.
   if (!Context.IsStructurallyEquivalent(D1->getType(), D2->getType())) {
-    Context.Diag2(D2->getLocation(), 
-                  diag::err_odr_non_type_parameter_type_inconsistent)
-      << D2->getType() << D1->getType();
-    Context.Diag1(D1->getLocation(), diag::note_odr_value_here)
-      << D1->getType();
+    if (Context.Complain) {
+      Context.Diag2(D2->getLocation(),
+                    diag::err_odr_non_type_parameter_type_inconsistent)
+        << D2->getType() << D1->getType();
+      Context.Diag1(D1->getLocation(), diag::note_odr_value_here)
+        << D1->getType();
+    }
     return false;
   }
   
@@ -1155,17 +1213,16 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
 static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
                                      TemplateTemplateParmDecl *D1,
                                      TemplateTemplateParmDecl *D2) {
-  // FIXME: Enable once we have variadic templates.
-#if 0
   if (D1->isParameterPack() != D2->isParameterPack()) {
-    Context.Diag2(D2->getLocation(), diag::err_odr_parameter_pack_non_pack)
-    << D2->isParameterPack();
-    Context.Diag1(D1->getLocation(), diag::note_odr_parameter_pack_non_pack)
-    << D1->isParameterPack();
+    if (Context.Complain) {
+      Context.Diag2(D2->getLocation(), diag::err_odr_parameter_pack_non_pack)
+        << D2->isParameterPack();
+      Context.Diag1(D1->getLocation(), diag::note_odr_parameter_pack_non_pack)
+        << D1->isParameterPack();
+    }
     return false;
   }
-#endif
-  
+
   // Check template parameter lists.
   return IsStructurallyEquivalent(Context, D1->getTemplateParameters(),
                                   D2->getTemplateParameters());
@@ -1537,11 +1594,26 @@ QualType ASTNodeImporter::VisitFunctionProtoType(const FunctionProtoType *T) {
     ExceptionTypes.push_back(ExceptionType);
   }
 
-  FunctionProtoType::ExtProtoInfo EPI = T->getExtProtoInfo();
-  EPI.Exceptions = ExceptionTypes.data();
-       
+  FunctionProtoType::ExtProtoInfo FromEPI = T->getExtProtoInfo();
+  FunctionProtoType::ExtProtoInfo ToEPI;
+
+  ToEPI.ExtInfo = FromEPI.ExtInfo;
+  ToEPI.Variadic = FromEPI.Variadic;
+  ToEPI.HasTrailingReturn = FromEPI.HasTrailingReturn;
+  ToEPI.TypeQuals = FromEPI.TypeQuals;
+  ToEPI.RefQualifier = FromEPI.RefQualifier;
+  ToEPI.NumExceptions = ExceptionTypes.size();
+  ToEPI.Exceptions = ExceptionTypes.data();
+  ToEPI.ConsumedArguments = FromEPI.ConsumedArguments;
+  ToEPI.ExceptionSpecType = FromEPI.ExceptionSpecType;
+  ToEPI.NoexceptExpr = Importer.Import(FromEPI.NoexceptExpr);
+  ToEPI.ExceptionSpecDecl = cast_or_null<FunctionDecl>(
+                                Importer.Import(FromEPI.ExceptionSpecDecl));
+  ToEPI.ExceptionSpecTemplate = cast_or_null<FunctionDecl>(
+                                Importer.Import(FromEPI.ExceptionSpecTemplate));
+
   return Importer.getToContext().getFunctionType(ToResultType, ArgTypes.data(),
-                                                 ArgTypes.size(), EPI);
+                                                 ArgTypes.size(), ToEPI);
 }
 
 QualType ASTNodeImporter::VisitParenType(const ParenType *T) {
@@ -1852,19 +1924,14 @@ bool ASTNodeImporter::ImportDefinition(RecordDecl *From, RecordDecl *To,
     ToData.HasPublicFields = FromData.HasPublicFields;
     ToData.HasMutableFields = FromData.HasMutableFields;
     ToData.HasOnlyCMembers = FromData.HasOnlyCMembers;
+    ToData.HasInClassInitializer = FromData.HasInClassInitializer;
     ToData.HasTrivialDefaultConstructor = FromData.HasTrivialDefaultConstructor;
     ToData.HasConstexprNonCopyMoveConstructor
       = FromData.HasConstexprNonCopyMoveConstructor;
     ToData.DefaultedDefaultConstructorIsConstexpr
       = FromData.DefaultedDefaultConstructorIsConstexpr;
-    ToData.DefaultedCopyConstructorIsConstexpr
-      = FromData.DefaultedCopyConstructorIsConstexpr;
-    ToData.DefaultedMoveConstructorIsConstexpr
-      = FromData.DefaultedMoveConstructorIsConstexpr;
     ToData.HasConstexprDefaultConstructor
       = FromData.HasConstexprDefaultConstructor;
-    ToData.HasConstexprCopyConstructor = FromData.HasConstexprCopyConstructor;
-    ToData.HasConstexprMoveConstructor = FromData.HasConstexprMoveConstructor;
     ToData.HasTrivialCopyConstructor = FromData.HasTrivialCopyConstructor;
     ToData.HasTrivialMoveConstructor = FromData.HasTrivialMoveConstructor;
     ToData.HasTrivialCopyAssignment = FromData.HasTrivialCopyAssignment;
@@ -1991,14 +2058,23 @@ ASTNodeImporter::ImportTemplateArgument(const TemplateArgument &From) {
     QualType ToType = Importer.Import(From.getIntegralType());
     if (ToType.isNull())
       return TemplateArgument();
-    return TemplateArgument(*From.getAsIntegral(), ToType);
+    return TemplateArgument(From, ToType);
   }
 
-  case TemplateArgument::Declaration:
-    if (Decl *To = Importer.Import(From.getAsDecl()))
-      return TemplateArgument(To);
+  case TemplateArgument::Declaration: {
+    ValueDecl *FromD = From.getAsDecl();
+    if (ValueDecl *To = cast_or_null<ValueDecl>(Importer.Import(FromD)))
+      return TemplateArgument(To, From.isDeclForReferenceParam());
     return TemplateArgument();
-      
+  }
+
+  case TemplateArgument::NullPtr: {
+    QualType ToType = Importer.Import(From.getNullPtrType());
+    if (ToType.isNull())
+      return TemplateArgument();
+    return TemplateArgument(ToType, /*isNullPtr*/true);
+  }
+
   case TemplateArgument::Template: {
     TemplateName ToTemplate = Importer.Import(From.getAsTemplate());
     if (ToTemplate.isNull())
@@ -2052,10 +2128,11 @@ bool ASTNodeImporter::ImportTemplateArguments(const TemplateArgument *FromArgs,
 }
 
 bool ASTNodeImporter::IsStructuralMatch(RecordDecl *FromRecord, 
-                                        RecordDecl *ToRecord) {
+                                        RecordDecl *ToRecord, bool Complain) {
   StructuralEquivalenceContext Ctx(Importer.getFromContext(),
                                    Importer.getToContext(),
-                                   Importer.getNonEquivalentDecls());
+                                   Importer.getNonEquivalentDecls(),
+                                   false, Complain);
   return Ctx.IsStructurallyEquivalent(FromRecord, ToRecord);
 }
 
@@ -2335,7 +2412,7 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
 
   // We may already have a record of the same name; try to find and match it.
   RecordDecl *AdoptDecl = 0;
-  if (!DC->isFunctionOrMethod() && SearchName) {
+  if (!DC->isFunctionOrMethod()) {
     SmallVector<NamedDecl *, 4> ConflictingDecls;
     llvm::SmallVector<NamedDecl *, 2> FoundDecls;
     DC->localUncachedLookup(SearchName, FoundDecls);
@@ -2350,26 +2427,46 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
       }
       
       if (RecordDecl *FoundRecord = dyn_cast<RecordDecl>(Found)) {
+        if (D->isAnonymousStructOrUnion() && 
+            FoundRecord->isAnonymousStructOrUnion()) {
+          // If both anonymous structs/unions are in a record context, make sure
+          // they occur in the same location in the context records.
+          if (llvm::Optional<unsigned> Index1
+              = findAnonymousStructOrUnionIndex(D)) {
+            if (llvm::Optional<unsigned> Index2
+                = findAnonymousStructOrUnionIndex(FoundRecord)) {
+              if (*Index1 != *Index2)
+                continue;
+            }
+          }
+        }
+
         if (RecordDecl *FoundDef = FoundRecord->getDefinition()) {
-          if (!D->isCompleteDefinition() || IsStructuralMatch(D, FoundDef)) {
+          if ((SearchName && !D->isCompleteDefinition())
+              || (D->isCompleteDefinition() &&
+                  D->isAnonymousStructOrUnion()
+                    == FoundDef->isAnonymousStructOrUnion() &&
+                  IsStructuralMatch(D, FoundDef))) {
             // The record types structurally match, or the "from" translation
             // unit only had a forward declaration anyway; call it the same
             // function.
             // FIXME: For C++, we should also merge methods here.
             return Importer.Imported(D, FoundDef);
           }
-        } else {
+        } else if (!D->isCompleteDefinition()) {
           // We have a forward declaration of this type, so adopt that forward
           // declaration rather than building a new one.
           AdoptDecl = FoundRecord;
           continue;
-        }          
+        } else if (!SearchName) {
+          continue;
+        }
       }
       
       ConflictingDecls.push_back(FoundDecls[I]);
     }
     
-    if (!ConflictingDecls.empty()) {
+    if (!ConflictingDecls.empty() && SearchName) {
       Name = Importer.HandleNameConflict(Name, DC, IDNS,
                                          ConflictingDecls.data(), 
                                          ConflictingDecls.size());
@@ -2395,6 +2492,8 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
     D2->setQualifierInfo(Importer.Import(D->getQualifierLoc()));
     D2->setLexicalDeclContext(LexicalDC);
     LexicalDC->addDeclInternal(D2);
+    if (D->isAnonymousStructOrUnion())
+      D2->setAnonymousStructOrUnion(true);
   }
   
   Importer.Imported(D, D2);
@@ -2515,8 +2614,30 @@ Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
   // Import additional name location/type info.
   ImportDeclarationNameLoc(D->getNameInfo(), NameInfo);
 
+  QualType FromTy = D->getType();
+  bool usedDifferentExceptionSpec = false;
+
+  if (const FunctionProtoType *
+        FromFPT = D->getType()->getAs<FunctionProtoType>()) {
+    FunctionProtoType::ExtProtoInfo FromEPI = FromFPT->getExtProtoInfo();
+    // FunctionProtoType::ExtProtoInfo's ExceptionSpecDecl can point to the
+    // FunctionDecl that we are importing the FunctionProtoType for.
+    // To avoid an infinite recursion when importing, create the FunctionDecl
+    // with a simplified function type and update it afterwards.
+    if (FromEPI.ExceptionSpecDecl || FromEPI.ExceptionSpecTemplate ||
+        FromEPI.NoexceptExpr) {
+      FunctionProtoType::ExtProtoInfo DefaultEPI;
+      FromTy = Importer.getFromContext().getFunctionType(
+                            FromFPT->getResultType(),
+                            FromFPT->arg_type_begin(),
+                            FromFPT->arg_type_end() - FromFPT->arg_type_begin(),
+                            DefaultEPI);
+      usedDifferentExceptionSpec = true;
+    }
+  }
+
   // Import the type.
-  QualType T = Importer.Import(D->getType());
+  QualType T = Importer.Import(FromTy);
   if (T.isNull())
     return 0;
   
@@ -2596,6 +2717,14 @@ Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
   }
   ToFunction->setParams(Parameters);
 
+  if (usedDifferentExceptionSpec) {
+    // Update FunctionProtoType::ExtProtoInfo.
+    QualType T = Importer.Import(D->getType());
+    if (T.isNull())
+      return 0;
+    ToFunction->setType(T);
+  }
+
   // FIXME: Other bits to merge?
 
   // Add this function to the lexical context.
@@ -2620,6 +2749,25 @@ Decl *ASTNodeImporter::VisitCXXConversionDecl(CXXConversionDecl *D) {
   return VisitCXXMethodDecl(D);
 }
 
+static unsigned getFieldIndex(Decl *F) {
+  RecordDecl *Owner = dyn_cast<RecordDecl>(F->getDeclContext());
+  if (!Owner)
+    return 0;
+
+  unsigned Index = 1;
+  for (DeclContext::decl_iterator D = Owner->noload_decls_begin(),
+                               DEnd = Owner->noload_decls_end();
+       D != DEnd; ++D) {
+    if (*D == F)
+      return Index;
+
+    if (isa<FieldDecl>(*D) || isa<IndirectFieldDecl>(*D))
+      ++Index;
+  }
+
+  return Index;
+}
+
 Decl *ASTNodeImporter::VisitFieldDecl(FieldDecl *D) {
   // Import the major distinguishing characteristics of a variable.
   DeclContext *DC, *LexicalDC;
@@ -2633,6 +2781,10 @@ Decl *ASTNodeImporter::VisitFieldDecl(FieldDecl *D) {
   DC->localUncachedLookup(Name, FoundDecls);
   for (unsigned I = 0, N = FoundDecls.size(); I != N; ++I) {
     if (FieldDecl *FoundField = dyn_cast<FieldDecl>(FoundDecls[I])) {
+      // For anonymous fields, match up by index.
+      if (!Name && getFieldIndex(D) != getFieldIndex(FoundField))
+        continue;
+
       if (Importer.IsStructurallyEquivalent(D->getType(), 
                                             FoundField->getType())) {
         Importer.Imported(D, FoundField);
@@ -2661,11 +2813,12 @@ Decl *ASTNodeImporter::VisitFieldDecl(FieldDecl *D) {
                                          Importer.Import(D->getInnerLocStart()),
                                          Loc, Name.getAsIdentifierInfo(),
                                          T, TInfo, BitWidth, D->isMutable(),
-                                         D->hasInClassInitializer());
+                                         D->getInClassInitStyle());
   ToField->setAccess(D->getAccess());
   ToField->setLexicalDeclContext(LexicalDC);
   if (ToField->hasInClassInitializer())
     ToField->setInClassInitializer(D->getInClassInitializer());
+  ToField->setImplicit(D->isImplicit());
   Importer.Imported(D, ToField);
   LexicalDC->addDeclInternal(ToField);
   return ToField;
@@ -2685,12 +2838,21 @@ Decl *ASTNodeImporter::VisitIndirectFieldDecl(IndirectFieldDecl *D) {
   for (unsigned I = 0, N = FoundDecls.size(); I != N; ++I) {
     if (IndirectFieldDecl *FoundField 
                                 = dyn_cast<IndirectFieldDecl>(FoundDecls[I])) {
+      // For anonymous indirect fields, match up by index.
+      if (!Name && getFieldIndex(D) != getFieldIndex(FoundField))
+        continue;
+
       if (Importer.IsStructurallyEquivalent(D->getType(), 
-                                            FoundField->getType())) {
+                                            FoundField->getType(),
+                                            Name)) {
         Importer.Imported(D, FoundField);
         return FoundField;
       }
-      
+
+      // If there are more anonymous fields to check, continue.
+      if (!Name && I < N-1)
+        continue;
+
       Importer.ToDiag(Loc, diag::err_odr_field_type_inconsistent)
         << Name << D->getType() << FoundField->getType();
       Importer.ToDiag(FoundField->getLocation(), diag::note_odr_value_here)
@@ -3044,7 +3206,7 @@ Decl *ASTNodeImporter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
                              ResultTy, ResultTInfo, DC,
                              D->isInstanceMethod(),
                              D->isVariadic(),
-                             D->isSynthesized(),
+                             D->isPropertyAccessor(),
                              D->isImplicit(),
                              D->isDefined(),
                              D->getImplementationControl(),
@@ -4046,7 +4208,8 @@ Expr *ASTNodeImporter::VisitBinaryOperator(BinaryOperator *E) {
   return new (Importer.getToContext()) BinaryOperator(LHS, RHS, E->getOpcode(),
                                                       T, E->getValueKind(),
                                                       E->getObjectKind(),
-                                          Importer.Import(E->getOperatorLoc()));
+                                           Importer.Import(E->getOperatorLoc()),
+                                                      E->isFPContractable());
 }
 
 Expr *ASTNodeImporter::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
@@ -4075,7 +4238,8 @@ Expr *ASTNodeImporter::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
                                                T, E->getValueKind(),
                                                E->getObjectKind(),
                                                CompLHSType, CompResultType,
-                                          Importer.Import(E->getOperatorLoc()));
+                                           Importer.Import(E->getOperatorLoc()),
+                                               E->isFPContractable());
 }
 
 static bool ImportCastPath(CastExpr *E, CXXCastPath &Path) {
@@ -4498,7 +4662,8 @@ FileID ASTImporter::Import(FileID FromID) {
     llvm::MemoryBuffer *ToBuf
       = llvm::MemoryBuffer::getMemBufferCopy(FromBuf->getBuffer(),
                                              FromBuf->getBufferIdentifier());
-    ToID = ToSM.createFileIDForMemBuffer(ToBuf);
+    ToID = ToSM.createFileIDForMemBuffer(ToBuf,
+                                    FromSLoc.getFile().getFileCharacteristic());
   }
   
   
@@ -4665,12 +4830,14 @@ Decl *ASTImporter::Imported(Decl *From, Decl *To) {
   return To;
 }
 
-bool ASTImporter::IsStructurallyEquivalent(QualType From, QualType To) {
+bool ASTImporter::IsStructurallyEquivalent(QualType From, QualType To,
+                                           bool Complain) {
   llvm::DenseMap<const Type *, const Type *>::iterator Pos
    = ImportedTypes.find(From.getTypePtr());
   if (Pos != ImportedTypes.end() && ToContext.hasSameType(Import(From), To))
     return true;
       
-  StructuralEquivalenceContext Ctx(FromContext, ToContext, NonEquivalentDecls);
+  StructuralEquivalenceContext Ctx(FromContext, ToContext, NonEquivalentDecls,
+                                   false, Complain);
   return Ctx.IsStructurallyEquivalent(From, To);
 }

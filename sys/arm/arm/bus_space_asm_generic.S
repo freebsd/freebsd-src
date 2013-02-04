@@ -51,11 +51,9 @@ ENTRY(generic_bs_r_1)
 	ldrb	r0, [r1, r2]
 	RET
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_r_2)
 	ldrh	r0, [r1, r2]
 	RET
-#endif
 
 ENTRY(generic_bs_r_4)
 	ldr	r0, [r1, r2]
@@ -69,11 +67,9 @@ ENTRY(generic_bs_w_1)
 	strb	r3, [r1, r2]
 	RET
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_w_2)
 	strh	r3, [r1, r2]
 	RET
-#endif
 
 ENTRY(generic_bs_w_4)
 	str	r3, [r1, r2]
@@ -97,7 +93,6 @@ ENTRY(generic_bs_rm_1)
 
 	RET
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_rm_2)
 	add	r0, r1, r2
 	mov	r1, r3
@@ -111,7 +106,6 @@ ENTRY(generic_armv4_bs_rm_2)
 	bne	1b
 
 	RET
-#endif
 
 ENTRY(generic_bs_rm_4)
 	add	r0, r1, r2
@@ -145,7 +139,6 @@ ENTRY(generic_bs_wm_1)
 
 	RET
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_wm_2)
 	add	r0, r1, r2
 	mov	r1, r3
@@ -159,7 +152,6 @@ ENTRY(generic_armv4_bs_wm_2)
 	bne	1b
 
 	RET
-#endif
 
 ENTRY(generic_bs_wm_4)
 	add	r0, r1, r2
@@ -193,7 +185,6 @@ ENTRY(generic_bs_rr_1)
 
 	RET
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_rr_2)
 	add	r0, r1, r2
 	mov	r1, r3
@@ -207,7 +198,6 @@ ENTRY(generic_armv4_bs_rr_2)
 	bne	1b
 
 	RET
-#endif
 
 ENTRY(generic_bs_rr_4)
 	add	r0, r1, r2
@@ -241,7 +231,6 @@ ENTRY(generic_bs_wr_1)
 
 	RET
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_wr_2)
 	add	r0, r1, r2
 	mov	r1, r3
@@ -255,7 +244,6 @@ ENTRY(generic_armv4_bs_wr_2)
 	bne	1b
 
 	RET
-#endif
 
 ENTRY(generic_bs_wr_4)
 	add	r0, r1, r2
@@ -288,7 +276,6 @@ ENTRY(generic_bs_sr_1)
 
 	RET
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_sr_2)
 	add	r0, r1, r2
 	mov	r1, r3
@@ -301,7 +288,6 @@ ENTRY(generic_armv4_bs_sr_2)
 	bne	1b
 
 	RET
-#endif
 
 ENTRY(generic_bs_sr_4)
 	add	r0, r1, r2
@@ -320,7 +306,6 @@ ENTRY(generic_bs_sr_4)
  * copy region
  */
 
-#if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_c_2)
 	add	r0, r1, r2
 	ldr	r2, [sp, #0]
@@ -350,4 +335,3 @@ ENTRY(generic_armv4_bs_c_2)
 	bne	3b
 
 	RET
-#endif

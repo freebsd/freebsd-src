@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asldefine.h - Common defines for the iASL compiler
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -174,4 +173,3 @@
     RsCreateResourceField (Op, Name, ByteOffset, 0, 64);
 
 #endif /* ASLDEFINE.H */
-

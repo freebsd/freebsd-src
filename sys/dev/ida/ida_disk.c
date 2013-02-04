@@ -87,7 +87,6 @@ static void
 idad_strategy(struct bio *bp)
 {
 	struct idad_softc *drv;
-	int s;
 
 	drv = bp->bio_disk->d_drv1;
 	if (drv == NULL) {
@@ -104,9 +103,7 @@ idad_strategy(struct bio *bp)
 	}
 
 	bp->bio_driver1 = drv;
-	s = splbio();
 	ida_submit_buf(drv->controller, bp);
-	splx(s);
 	return;
 
 bad:
@@ -179,11 +176,12 @@ idad_attach(device_t dev)
 	drv->dev = dev;
 	drv->controller = (struct ida_softc *)device_get_softc(parent);
 	drv->unit = device_get_unit(dev);
-	drv->drive = drv->controller->num_drives;
-	drv->controller->num_drives++;
+	drv->drive = (intptr_t)device_get_ivars(dev);
 
+	mtx_lock(&drv->controller->lock);
 	error = ida_command(drv->controller, CMD_GET_LOG_DRV_INFO,
 	    &dinfo, sizeof(dinfo), drv->drive, 0, DMA_DATA_IN);
+	mtx_unlock(&drv->controller->lock);
 	if (error) {
 		device_printf(dev, "CMD_GET_LOG_DRV_INFO failed\n");
 		return (ENXIO);
@@ -213,7 +211,6 @@ idad_attach(device_t dev)
 	drv->disk->d_drv1 = drv;
 	drv->disk->d_maxsize = DFLTPHYS;		/* XXX guess? */
 	drv->disk->d_unit = drv->unit;
-	drv->disk->d_flags = DISKFLAG_NEEDSGIANT;
 	disk_create(drv->disk, DISK_VERSION);
 
 	return (0);

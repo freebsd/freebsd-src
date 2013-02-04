@@ -41,6 +41,7 @@
 #include "partedit.h"
 
 struct pmetadata_head part_metadata;
+static int sade_mode = 0;
 
 static int apply_changes(struct gmesh *mesh);
 static struct partedit_item *read_geom_mesh(struct gmesh *mesh, int *nitems);
@@ -75,12 +76,15 @@ main(int argc, const char **argv)
 	int i, op, nitems, nscroll;
 	int error;
 
+	if (strcmp(basename(argv[0]), "sade") == 0)
+		sade_mode = 1;
+
 	TAILQ_INIT(&part_metadata);
 
 	init_fstab_metadata();
 
 	init_dialog(stdin, stdout);
-	if (strcmp(basename(argv[0]), "sade") != 0)
+	if (!sade_mode)
 		dialog_vars.backtitle = __DECONST(char *, "FreeBSD Installer");
 	dialog_vars.item_help = TRUE;
 	nscroll = i = 0;
@@ -92,13 +96,20 @@ main(int argc, const char **argv)
 		prompt = "Please review the disk setup. When complete, press "
 		    "the Finish button.";
 		part_wizard();
+	} else if (strcmp(basename(argv[0]), "scriptedpart") == 0) {
+		error = scripted_editor(argc, argv);
+		prompt = NULL;
+		if (error != 0) {
+			end_dialog();
+			return (error);
+		}
 	} else {
 		prompt = "Create partitions for FreeBSD. No changes will be "
 		    "made until you select Finish.";
 	}
 
 	/* Show the part editor either immediately, or to confirm wizard */
-	while (1) {
+	while (prompt != NULL) {
 		dlg_clear();
 		dlg_put_backtitle();
 
@@ -185,6 +196,15 @@ main(int argc, const char **argv)
 		free(items);
 	}
 	
+	if (prompt == NULL) {
+		error = geom_gettree(&mesh);
+		if (validate_setup()) {
+			error = apply_changes(&mesh);
+		} else {
+			gpart_revert_all(&mesh);
+			error = -1;
+		}
+	}
 
 	geom_deletetree(&mesh);
 	free(items);
@@ -261,7 +281,7 @@ validate_setup(void)
 	 * Check for root partitions that we aren't formatting, which is 
 	 * usually a mistake
 	 */
-	if (root->newfs == NULL) {
+	if (root->newfs == NULL && !sade_mode) {
 		dialog_vars.defaultno = TRUE;
 		cancel = dialog_yesno("Warning", "The chosen root partition "
 		    "has a preexisting filesystem. If it contains an existing "

@@ -162,7 +162,7 @@
  */
 #define EFSCORRUPTED    990		/* Filesystem is corrupted */
 
-#define SYNCHRONIZE()	barrier()
+#define SYNCHRONIZE()	__compiler_membar()
 #define __return_address __builtin_return_address(0)
 
 /*

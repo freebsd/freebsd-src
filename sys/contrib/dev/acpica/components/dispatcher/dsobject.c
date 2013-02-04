@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -296,7 +296,7 @@ AcpiDsBuildInternalBufferObj (
 
     /*
      * Second arg is the buffer data (optional) ByteList can be either
-     * individual bytes or a string initializer.  In either case, a
+     * individual bytes or a string initializer. In either case, a
      * ByteList appears in the AML.
      */
     Arg = Op->Common.Value.Arg;         /* skip first arg */
@@ -541,7 +541,7 @@ AcpiDsBuildInternalPackageObj (
         }
 
         ACPI_INFO ((AE_INFO,
-            "Actual Package length (%u) is larger than NumElements field (%u), truncated\n",
+            "Actual Package length (%u) is larger than NumElements field (%u), truncated",
             i, ElementCount));
     }
     else if (i < ElementCount)
@@ -590,7 +590,7 @@ AcpiDsCreateNode (
 
     /*
      * Because of the execution pass through the non-control-method
-     * parts of the table, we can arrive here twice.  Only init
+     * parts of the table, we can arrive here twice. Only init
      * the named object node the first time through
      */
     if (AcpiNsGetAttachedObject (Node))
@@ -643,7 +643,7 @@ AcpiDsCreateNode (
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize a namespace object from a parser Op and its
- *              associated arguments.  The namespace object is a more compact
+ *              associated arguments. The namespace object is a more compact
  *              representation of the Op and its arguments.
  *
  ******************************************************************************/
@@ -734,7 +734,7 @@ AcpiDsInitObjectFromOp (
                 /* Truncate value if we are executing from a 32-bit ACPI table */
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-                AcpiExTruncateFor32bitTable (ObjDesc);
+                (void) AcpiExTruncateFor32bitTable (ObjDesc);
 #endif
                 break;
 
@@ -756,8 +756,17 @@ AcpiDsInitObjectFromOp (
         case AML_TYPE_LITERAL:
 
             ObjDesc->Integer.Value = Op->Common.Value.Integer;
+
 #ifndef ACPI_NO_METHOD_EXECUTION
-            AcpiExTruncateFor32bitTable (ObjDesc);
+            if (AcpiExTruncateFor32bitTable (ObjDesc))
+            {
+                /* Warn if we found a 64-bit constant in a 32-bit table */
+
+                ACPI_WARNING ((AE_INFO,
+                    "Truncated 64-bit constant found in 32-bit table: %8.8X%8.8X => %8.8X",
+                    ACPI_FORMAT_UINT64 (Op->Common.Value.Integer),
+                    (UINT32) ObjDesc->Integer.Value));
+            }
 #endif
             break;
 
@@ -863,5 +872,3 @@ AcpiDsInitObjectFromOp (
 
     return_ACPI_STATUS (Status);
 }
-
-

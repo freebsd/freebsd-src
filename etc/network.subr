@@ -504,7 +504,11 @@ ipv6_autoconfif()
 	# backward compatibility: $ipv6_enable
 	case $ipv6_enable in
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-		return 0
+		if checkyesno ipv6_gateway_enable; then
+			return 1
+		else
+			return 0
+		fi
 	;;
 	esac
 

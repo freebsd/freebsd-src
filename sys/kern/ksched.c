@@ -64,7 +64,7 @@ ksched_attach(struct ksched **p)
 	struct ksched *ksched= p31b_malloc(sizeof(*ksched));
 
 	ksched->rr_interval.tv_sec = 0;
-	ksched->rr_interval.tv_nsec = 1000000000L / sched_rr_interval();
+	ksched->rr_interval.tv_nsec = 1000000000L / hz * sched_rr_interval();
 
 	*p = ksched;
 	return 0;

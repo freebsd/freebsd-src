@@ -92,12 +92,12 @@ struct ggd_export {
 
 static const char *exports_file = GGATED_EXPORT_FILE;
 static int got_sighup = 0;
-in_addr_t bindaddr;
+static in_addr_t bindaddr;
 
 static TAILQ_HEAD(, ggd_request) inqueue = TAILQ_HEAD_INITIALIZER(inqueue);
 static TAILQ_HEAD(, ggd_request) outqueue = TAILQ_HEAD_INITIALIZER(outqueue);
-pthread_mutex_t inqueue_mtx, outqueue_mtx;
-pthread_cond_t inqueue_cond, outqueue_cond;
+static pthread_mutex_t inqueue_mtx, outqueue_mtx;
+static pthread_cond_t inqueue_cond, outqueue_cond;
 
 static SLIST_HEAD(, ggd_export) exports = SLIST_HEAD_INITIALIZER(exports);
 static LIST_HEAD(, ggd_connection) connections = LIST_HEAD_INITIALIZER(connections);

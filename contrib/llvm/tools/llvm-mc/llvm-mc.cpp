@@ -158,7 +158,8 @@ enum ActionType {
   AC_AsLex,
   AC_Assemble,
   AC_Disassemble,
-  AC_EDisassemble
+  AC_EDisassemble,
+  AC_MDisassemble
 };
 
 static cl::opt<ActionType>
@@ -172,6 +173,8 @@ Action(cl::desc("Action to perform:"),
                              "Disassemble strings of hex bytes"),
                   clEnumValN(AC_EDisassemble, "edis",
                              "Enhanced disassembly of strings of hex bytes"),
+                  clEnumValN(AC_MDisassemble, "mdis",
+                             "Marked up disassembly of strings of hex bytes"),
                   clEnumValEnd));
 
 static const Target *GetTarget(const char *ProgName) {
@@ -180,38 +183,16 @@ static const Target *GetTarget(const char *ProgName) {
     TripleName = sys::getDefaultTargetTriple();
   Triple TheTriple(Triple::normalize(TripleName));
 
-  const Target *TheTarget = 0;
-  if (!ArchName.empty()) {
-    for (TargetRegistry::iterator it = TargetRegistry::begin(),
-           ie = TargetRegistry::end(); it != ie; ++it) {
-      if (ArchName == it->getName()) {
-        TheTarget = &*it;
-        break;
-      }
-    }
-
-    if (!TheTarget) {
-      errs() << ProgName << ": error: invalid target '" << ArchName << "'.\n";
-      return 0;
-    }
-
-    // Adjust the triple to match (if known), otherwise stick with the
-    // module/host triple.
-    Triple::ArchType Type = Triple::getArchTypeForLLVMName(ArchName);
-    if (Type != Triple::UnknownArch)
-      TheTriple.setArch(Type);
-  } else {
-    // Get the target specific parser.
-    std::string Error;
-    TheTarget = TargetRegistry::lookupTarget(TheTriple.getTriple(), Error);
-    if (TheTarget == 0) {
-      errs() << ProgName << ": error: unable to get target for '"
-             << TheTriple.getTriple()
-             << "', see --version and --triple.\n";
-      return 0;
-    }
+  // Get the target specific parser.
+  std::string Error;
+  const Target *TheTarget = TargetRegistry::lookupTarget(ArchName, TheTriple,
+                                                         Error);
+  if (!TheTarget) {
+    errs() << ProgName << ": " << Error;
+    return 0;
   }
 
+  // Update the triple name and return the found target.
   TripleName = TheTriple.getTriple();
   return TheTarget;
 }
@@ -424,14 +405,15 @@ int main(int argc, char **argv) {
   OwningPtr<MCSubtargetInfo>
     STI(TheTarget->createMCSubtargetInfo(TripleName, MCPU, FeaturesStr));
 
+  MCInstPrinter *IP;
   if (FileType == OFT_AssemblyFile) {
-    MCInstPrinter *IP =
+    IP =
       TheTarget->createMCInstPrinter(OutputAsmVariant, *MAI, *MCII, *MRI, *STI);
     MCCodeEmitter *CE = 0;
     MCAsmBackend *MAB = 0;
     if (ShowEncoding) {
-      CE = TheTarget->createMCCodeEmitter(*MCII, *STI, Ctx);
-      MAB = TheTarget->createMCAsmBackend(TripleName);
+      CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
+      MAB = TheTarget->createMCAsmBackend(TripleName, MCPU);
     }
     Str.reset(TheTarget->createAsmStreamer(Ctx, FOS, /*asmverbose*/true,
                                            /*useLoc*/ true,
@@ -443,8 +425,8 @@ int main(int argc, char **argv) {
     Str.reset(createNullStreamer(Ctx));
   } else {
     assert(FileType == OFT_ObjectFile && "Invalid file type!");
-    MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *STI, Ctx);
-    MCAsmBackend *MAB = TheTarget->createMCAsmBackend(TripleName);
+    MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
+    MCAsmBackend *MAB = TheTarget->createMCAsmBackend(TripleName, MCPU);
     Str.reset(TheTarget->createMCObjectStreamer(TripleName, Ctx, *MAB,
                                                 FOS, CE, RelaxAll,
                                                 NoExecStack));
@@ -458,6 +440,9 @@ int main(int argc, char **argv) {
   case AC_Assemble:
     Res = AssembleInput(ProgName, TheTarget, SrcMgr, Ctx, *Str, *MAI, *STI);
     break;
+  case AC_MDisassemble:
+    IP->setUseMarkup(1);
+    // Fall through to do disassembly.
   case AC_Disassemble:
     Res = Disassembler::disassemble(*TheTarget, TripleName, *STI, *Str,
                                     *Buffer, SrcMgr, Out->os());

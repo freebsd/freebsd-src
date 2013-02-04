@@ -1,0 +1,135 @@
+.\"-
+.\" Copyright (c) 2012 SRI International
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 3, 2012
+.Dt ISF 4
+.Os
+.Sh NAME
+.Nm isf
+.Nd driver for Intel StrataFlash NOR flash devices
+.Sh SYNOPSIS
+.Cd "device isf"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.isf.0.at="nexus0"
+.Cd hint.isf.0.maddr=0x74000000
+.Cd hint.isf.0.msize=0x2000000
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides support for Intel StrataFlash NOR flash devices.
+Devices are presented as
+.Xr disk 9
+devices and read access is supported along with limited write support.
+Erasing blocks is supported the
+.Dv ISF_ERASE
+ioctl.
+.Pp
+The erase block size of
+.Nm
+devices is 128K.
+NOR flash blocks contains all 1's after an erase cycle.
+Writes to
+.Nm
+devices are allowed to succeed if and only if they all bits in the write
+block (512-bytes) remain the same or transition from 1 to 0.
+.Sh HARDWARE
+The current version of the
+.Nm
+driver is known to support the 64MB part found on the Altera DE4 board.
+It attempts to support other StrataFlash parts documented in the
+datasheet, but those are untested.
+.Sh IOCTLS
+The
+.Nm device
+supports the
+.Xr ioctl 2
+command codes:
+.Bl -tag -width ISF_ERASE
+.It Dv ISF_ERASE
+Erase one or more blocks.
+.Dv ISF_ERASE is defined as follows:
+.Bd -literal
+	struct isf_range {
+		off_t	ir_off;
+		size_t	ir_size;
+	};
+
+	#define ISF_ERASE       _IOW('I', 1, struct isf_range)
+.Ed
+.Pp
+The
+.Li ir_off
+member marks the beginning of the area to be erased and must fall on at 128K
+boundary.
+The
+.Li ir_size
+member indicates the size of the area to be erased and must a multiple
+of 128K.
+.El
+.Sh SEE ALSO
+.Xr isfctl 4 ,
+.Xr disk 9
+.Rs
+.%T Intel StrataFlash Embedded Memory (P30)
+.%D November 1, 2005
+.%I Intel Corporation
+.%U http://www.xilinx.com/products/boards/ml505/datasheets/30666604.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+.Sh BUGS
+While an erase is in progress, all read and write operations return
+.Er EBUSY .
+In principle, reads could be allowed outside the programming region the
+blocked currently being erased resides in and writes could be allowed by
+suspending the erase, but neither of these is currently implemented.
+.Pp
+Depending on the flash part ether the top or bottom 128K of the flash
+address space is divided into 4 32K erase blocks.
+The
+.Nm
+driver hides this from the user requiring that all erase requests be
+multiples of 128K in size and erasing the individual blocks as needed at
+the top or bottom.

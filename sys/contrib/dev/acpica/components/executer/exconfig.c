@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acdispat.h>
 #include <contrib/dev/acpica/include/acevents.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -185,14 +186,15 @@ AcpiExLoadTableOp (
         (Operand[1]->String.Length > ACPI_OEM_ID_SIZE) ||
         (Operand[2]->String.Length > ACPI_OEM_TABLE_ID_SIZE))
     {
-        return_ACPI_STATUS (AE_BAD_PARAMETER);
+        return_ACPI_STATUS (AE_AML_STRING_LIMIT);
     }
 
     /* Find the ACPI table in the RSDT/XSDT */
 
-    Status = AcpiTbFindTable (Operand[0]->String.Pointer,
-                              Operand[1]->String.Pointer,
-                              Operand[2]->String.Pointer, &TableIndex);
+    Status = AcpiTbFindTable (
+                Operand[0]->String.Pointer,
+                Operand[1]->String.Pointer,
+                Operand[2]->String.Pointer, &TableIndex);
     if (ACPI_FAILURE (Status))
     {
         if (Status != AE_NOT_FOUND)
@@ -222,7 +224,7 @@ AcpiExLoadTableOp (
     if (Operand[3]->String.Length > 0)
     {
         /*
-         * Find the node referenced by the RootPathString.  This is the
+         * Find the node referenced by the RootPathString. This is the
          * location within the namespace where the table will be loaded.
          */
         Status = AcpiNsGetNode (StartNode, Operand[3]->String.Pointer,
@@ -237,8 +239,8 @@ AcpiExLoadTableOp (
 
     if (Operand[4]->String.Length > 0)
     {
-        if ((Operand[4]->String.Pointer[0] != '\\') &&
-            (Operand[4]->String.Pointer[0] != '^'))
+        if ((Operand[4]->String.Pointer[0] != AML_ROOT_PREFIX) &&
+            (Operand[4]->String.Pointer[0] != AML_PARENT_PREFIX))
         {
             /*
              * Path is not absolute, so it will be relative to the node
@@ -299,7 +301,7 @@ AcpiExLoadTableOp (
     }
 
     *ReturnDesc = DdbHandle;
-    return_ACPI_STATUS  (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -685,4 +687,3 @@ AcpiExUnloadTable (
     DdbHandle->Common.Flags &= ~AOPOBJ_DATA_VALID;
     return_ACPI_STATUS (AE_OK);
 }
-

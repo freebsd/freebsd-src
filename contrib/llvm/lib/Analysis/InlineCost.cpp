@@ -24,7 +24,7 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Operator.h"
 #include "llvm/GlobalAlias.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
@@ -41,8 +41,8 @@ class CallAnalyzer : public InstVisitor<CallAnalyzer, bool> {
   typedef InstVisitor<CallAnalyzer, bool> Base;
   friend class InstVisitor<CallAnalyzer, bool>;
 
-  // TargetData if available, or null.
-  const TargetData *const TD;
+  // DataLayout if available, or null.
+  const DataLayout *const TD;
 
   // The called function.
   Function &F;
@@ -51,9 +51,12 @@ class CallAnalyzer : public InstVisitor<CallAnalyzer, bool> {
   int Cost;
   const bool AlwaysInline;
 
-  bool IsRecursive;
+  bool IsCallerRecursive;
+  bool IsRecursiveCall;
   bool ExposesReturnsTwice;
   bool HasDynamicAlloca;
+  /// Number of bytes allocated statically by the callee.
+  uint64_t AllocatedSize;
   unsigned NumInstructions, NumVectorInstructions;
   int FiftyPercentVectorBonus, TenPercentVectorBonus;
   int VectorBonus;
@@ -123,10 +126,11 @@ class CallAnalyzer : public InstVisitor<CallAnalyzer, bool> {
   bool visitCallSite(CallSite CS);
 
 public:
-  CallAnalyzer(const TargetData *TD, Function &Callee, int Threshold)
+  CallAnalyzer(const DataLayout *TD, Function &Callee, int Threshold)
     : TD(TD), F(Callee), Threshold(Threshold), Cost(0),
-      AlwaysInline(F.hasFnAttr(Attribute::AlwaysInline)),
-      IsRecursive(false), ExposesReturnsTwice(false), HasDynamicAlloca(false),
+      AlwaysInline(F.getFnAttributes().hasAttribute(Attributes::AlwaysInline)),
+      IsCallerRecursive(false), IsRecursiveCall(false),
+      ExposesReturnsTwice(false), HasDynamicAlloca(false), AllocatedSize(0),
       NumInstructions(0), NumVectorInstructions(0),
       FiftyPercentVectorBonus(0), TenPercentVectorBonus(0), VectorBonus(0),
       NumConstantArgs(0), NumConstantOffsetPtrArgs(0), NumAllocaArgs(0),
@@ -138,6 +142,7 @@ public:
 
   int getThreshold() { return Threshold; }
   int getCost() { return Cost; }
+  bool isAlwaysInline() { return AlwaysInline; }
 
   // Keep a bunch of stats about the cost savings found so we can print them
   // out when debugging.
@@ -178,7 +183,7 @@ bool CallAnalyzer::lookupSROAArgAndCost(
 
 /// \brief Disable SROA for the candidate marked by this cost iterator.
 ///
-/// This markes the candidate as no longer viable for SROA, and adds the cost
+/// This marks the candidate as no longer viable for SROA, and adds the cost
 /// savings associated with it back into the inline cost measurement.
 void CallAnalyzer::disableSROA(DenseMap<Value *, int>::iterator CostIt) {
   // If we're no longer able to perform SROA we need to undo its cost savings
@@ -268,6 +273,13 @@ bool CallAnalyzer::accumulateGEPOffset(GEPOperator &GEP, APInt &Offset) {
 bool CallAnalyzer::visitAlloca(AllocaInst &I) {
   // FIXME: Check whether inlining will turn a dynamic alloca into a static
   // alloca, and handle that case.
+
+  // Accumulate the allocated size.
+  if (I.isStaticAlloca()) {
+    Type *Ty = I.getAllocatedType();
+    AllocatedSize += (TD ? TD->getTypeAllocSize(Ty) :
+                      Ty->getPrimitiveSizeInBits());
+  }
 
   // We will happily inline static alloca instructions or dynamic alloca
   // instructions in always-inline situations.
@@ -398,10 +410,7 @@ bool CallAnalyzer::visitPtrToInt(PtrToIntInst &I) {
   if (lookupSROAArgAndCost(I.getOperand(0), SROAArg, CostIt))
     SROAArgValues[&I] = SROAArg;
 
-  // A ptrtoint cast is free so long as the result is large enough to store the
-  // pointer, and a legal integer type.
-  return TD && TD->isLegalInteger(IntegerSize) &&
-         IntegerSize >= TD->getPointerSizeInBits();
+  return isInstructionFree(&I, TD);
 }
 
 bool CallAnalyzer::visitIntToPtr(IntToPtrInst &I) {
@@ -428,10 +437,7 @@ bool CallAnalyzer::visitIntToPtr(IntToPtrInst &I) {
   if (lookupSROAArgAndCost(Op, SROAArg, CostIt))
     SROAArgValues[&I] = SROAArg;
 
-  // An inttoptr cast is free so long as the input is a legal integer type
-  // which doesn't contain values outside the range of a pointer.
-  return TD && TD->isLegalInteger(IntegerSize) &&
-         IntegerSize <= TD->getPointerSizeInBits();
+  return isInstructionFree(&I, TD);
 }
 
 bool CallAnalyzer::visitCastInst(CastInst &I) {
@@ -445,24 +451,7 @@ bool CallAnalyzer::visitCastInst(CastInst &I) {
   // Disable SROA in the face of arbitrary casts we don't whitelist elsewhere.
   disableSROA(I.getOperand(0));
 
-  // No-op casts don't have any cost.
-  if (I.isLosslessCast())
-    return true;
-
-  // trunc to a native type is free (assuming the target has compare and
-  // shift-right of the same width).
-  if (TD && isa<TruncInst>(I) &&
-      TD->isLegalInteger(TD->getTypeSizeInBits(I.getType())))
-    return true;
-
-  // Result of a cmp instruction is often extended (to be used by other
-  // cmp instructions, logical or return instructions). These are usually
-  // no-ops on most sane targets.
-  if (isa<CmpInst>(I.getOperand(0)))
-    return true;
-
-  // Assume the rest of the casts require work.
-  return false;
+  return isInstructionFree(&I, TD);
 }
 
 bool CallAnalyzer::visitUnaryInstruction(UnaryInstruction &I) {
@@ -625,7 +614,7 @@ bool CallAnalyzer::visitStore(StoreInst &I) {
 
 bool CallAnalyzer::visitCallSite(CallSite CS) {
   if (CS.isCall() && cast<CallInst>(CS.getInstruction())->canReturnTwice() &&
-      !F.hasFnAttr(Attribute::ReturnsTwice)) {
+      !F.getFnAttributes().hasAttribute(Attributes::ReturnsTwice)) {
     // This aborts the entire analysis.
     ExposesReturnsTwice = true;
     return false;
@@ -636,21 +625,11 @@ bool CallAnalyzer::visitCallSite(CallSite CS) {
     default:
       return Base::visitCallSite(CS);
 
-    case Intrinsic::dbg_declare:
-    case Intrinsic::dbg_value:
-    case Intrinsic::invariant_start:
-    case Intrinsic::invariant_end:
-    case Intrinsic::lifetime_start:
-    case Intrinsic::lifetime_end:
     case Intrinsic::memset:
     case Intrinsic::memcpy:
     case Intrinsic::memmove:
-    case Intrinsic::objectsize:
-    case Intrinsic::ptr_annotation:
-    case Intrinsic::var_annotation:
-      // SROA can usually chew through these intrinsics and they have no cost
-      // so don't pay the price of analyzing them in detail.
-      return true;
+      // SROA can usually chew through these intrinsics, but they aren't free.
+      return false;
     }
   }
 
@@ -658,11 +637,11 @@ bool CallAnalyzer::visitCallSite(CallSite CS) {
     if (F == CS.getInstruction()->getParent()->getParent()) {
       // This flag will fully abort the analysis, so don't bother with anything
       // else.
-      IsRecursive = true;
+      IsRecursiveCall = true;
       return false;
     }
 
-    if (!callIsSmall(F)) {
+    if (!callIsSmall(CS)) {
       // We account for the average 1 instruction per call argument setup
       // here.
       Cost += CS.arg_size() * InlineConstants::InstrCost;
@@ -706,6 +685,11 @@ bool CallAnalyzer::visitCallSite(CallSite CS) {
 }
 
 bool CallAnalyzer::visitInstruction(Instruction &I) {
+  // Some instructions are free. All of the free intrinsics can also be
+  // handled by SROA, etc.
+  if (isInstructionFree(&I, TD))
+    return true;
+
   // We found something we don't understand or can't handle. Mark any SROA-able
   // values in the operand list as no longer viable.
   for (User::op_iterator OI = I.op_begin(), OE = I.op_end(); OI != OE; ++OI)
@@ -740,7 +724,14 @@ bool CallAnalyzer::analyzeBlock(BasicBlock *BB) {
       Cost += InlineConstants::InstrCost;
 
     // If the visit this instruction detected an uninlinable pattern, abort.
-    if (IsRecursive || ExposesReturnsTwice || HasDynamicAlloca)
+    if (IsRecursiveCall || ExposesReturnsTwice || HasDynamicAlloca)
+      return false;
+
+    // If the caller is a recursive function then we don't want to inline
+    // functions which allocate a lot of stack space because it would increase
+    // the caller stack usage dramatically.
+    if (IsCallerRecursive &&
+        AllocatedSize > InlineConstants::TotalAllocaSizeRecursiveCaller)
       return false;
 
     if (NumVectorInstructions > NumInstructions/2)
@@ -825,9 +816,33 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
     FiftyPercentVectorBonus = Threshold;
     TenPercentVectorBonus = Threshold / 2;
 
-    // Subtract off one instruction per call argument as those will be free after
-    // inlining.
-    Cost -= CS.arg_size() * InlineConstants::InstrCost;
+    // Give out bonuses per argument, as the instructions setting them up will
+    // be gone after inlining.
+    for (unsigned I = 0, E = CS.arg_size(); I != E; ++I) {
+      if (TD && CS.isByValArgument(I)) {
+        // We approximate the number of loads and stores needed by dividing the
+        // size of the byval type by the target's pointer size.
+        PointerType *PTy = cast<PointerType>(CS.getArgument(I)->getType());
+        unsigned TypeSize = TD->getTypeSizeInBits(PTy->getElementType());
+        unsigned PointerSize = TD->getPointerSizeInBits();
+        // Ceiling division.
+        unsigned NumStores = (TypeSize + PointerSize - 1) / PointerSize;
+
+        // If it generates more than 8 stores it is likely to be expanded as an
+        // inline memcpy so we take that as an upper bound. Otherwise we assume
+        // one load and one store per word copied.
+        // FIXME: The maxStoresPerMemcpy setting from the target should be used
+        // here instead of a magic number of 8, but it's not available via
+        // DataLayout.
+        NumStores = std::min(NumStores, 8U);
+
+        Cost -= 2 * NumStores * InlineConstants::InstrCost;
+      } else {
+        // For non-byval arguments subtract off one instruction per call
+        // argument.
+        Cost -= InlineConstants::InstrCost;
+      }
+    }
 
     // If there is only one call of the function, and it has internal linkage,
     // the cost of inlining it drops dramatically.
@@ -835,12 +850,14 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
       Cost += InlineConstants::LastCallToStaticBonus;
 
     // If the instruction after the call, or if the normal destination of the
-    // invoke is an unreachable instruction, the function is noreturn.  As such,
-    // there is little point in inlining this unless there is literally zero cost.
-    if (InvokeInst *II = dyn_cast<InvokeInst>(CS.getInstruction())) {
+    // invoke is an unreachable instruction, the function is noreturn. As such,
+    // there is little point in inlining this unless there is literally zero
+    // cost.
+    Instruction *Instr = CS.getInstruction();
+    if (InvokeInst *II = dyn_cast<InvokeInst>(Instr)) {
       if (isa<UnreachableInst>(II->getNormalDest()->begin()))
         Threshold = 1;
-    } else if (isa<UnreachableInst>(++BasicBlock::iterator(CS.getInstruction())))
+    } else if (isa<UnreachableInst>(++BasicBlock::iterator(Instr)))
       Threshold = 1;
 
     // If this function uses the coldcc calling convention, prefer not to inline
@@ -855,6 +872,20 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
 
   if (F.empty())
     return true;
+
+  Function *Caller = CS.getInstruction()->getParent()->getParent();
+  // Check if the caller function is recursive itself.
+  for (Value::use_iterator U = Caller->use_begin(), E = Caller->use_end();
+       U != E; ++U) {
+    CallSite Site(cast<Value>(*U));
+    if (!Site)
+      continue;
+    Instruction *I = Site.getInstruction();
+    if (I->getParent()->getParent() == Caller) {
+      IsCallerRecursive = true;
+      break;
+    }
+  }
 
   // Track whether we've seen a return instruction. The first return
   // instruction is free, as at least one will usually disappear in inlining.
@@ -912,9 +943,9 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
 
     // We never want to inline functions that contain an indirectbr.  This is
     // incorrect because all the blockaddress's (in static global initializers
-    // for example) would be referring to the original function, and this indirect
-    // jump would jump from the inlined copy of the function into the original
-    // function which is extremely undefined behavior.
+    // for example) would be referring to the original function, and this
+    // indirect jump would jump from the inlined copy of the function into the 
+    // original function which is extremely undefined behavior.
     // FIXME: This logic isn't really right; we can safely inline functions
     // with indirectbr's as long as no other function or global references the
     // blockaddress of a block within the current function.  And as a QOI issue,
@@ -932,8 +963,16 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
     // Analyze the cost of this block. If we blow through the threshold, this
     // returns false, and we can bail on out.
     if (!analyzeBlock(BB)) {
-      if (IsRecursive || ExposesReturnsTwice || HasDynamicAlloca)
+      if (IsRecursiveCall || ExposesReturnsTwice || HasDynamicAlloca)
         return false;
+
+      // If the caller is a recursive function then we don't want to inline
+      // functions which allocate a lot of stack space because it would increase
+      // the caller stack usage dramatically.
+      if (IsCallerRecursive &&
+          AllocatedSize > InlineConstants::TotalAllocaSizeRecursiveCaller)
+        return false;
+
       break;
     }
 
@@ -959,7 +998,8 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
 
     // If we're unable to select a particular successor, just count all of
     // them.
-    for (unsigned TIdx = 0, TSize = TI->getNumSuccessors(); TIdx != TSize; ++TIdx)
+    for (unsigned TIdx = 0, TSize = TI->getNumSuccessors(); TIdx != TSize;
+         ++TIdx)
       BBWorklist.insert(TI->getSuccessor(TIdx));
 
     // If we had any successors at this point, than post-inlining is likely to
@@ -978,6 +1018,7 @@ bool CallAnalyzer::analyzeCall(CallSite CS) {
   return AlwaysInline || Cost < Threshold;
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// \brief Dump stats about this call's analysis.
 void CallAnalyzer::dump() {
 #define DEBUG_PRINT_STAT(x) llvm::dbgs() << "      " #x ": " << x << "\n"
@@ -991,6 +1032,7 @@ void CallAnalyzer::dump() {
   DEBUG_PRINT_STAT(SROACostSavingsLost);
 #undef DEBUG_PRINT_STAT
 }
+#endif
 
 InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS, int Threshold) {
   return getInlineCost(CS, CS.getCalledFunction(), Threshold);
@@ -1002,10 +1044,12 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS, Function *Callee,
   // something else.  Don't inline functions marked noinline or call sites
   // marked noinline.
   if (!Callee || Callee->mayBeOverridden() ||
-      Callee->hasFnAttr(Attribute::NoInline) || CS.isNoInline())
+      Callee->getFnAttributes().hasAttribute(Attributes::NoInline) ||
+      CS.isNoInline())
     return llvm::InlineCost::getNever();
 
-  DEBUG(llvm::dbgs() << "      Analyzing call of " << Callee->getName() << "...\n");
+  DEBUG(llvm::dbgs() << "      Analyzing call of " << Callee->getName()
+        << "...\n");
 
   CallAnalyzer CA(TD, *Callee, Threshold);
   bool ShouldInline = CA.analyzeCall(CS);
@@ -1015,7 +1059,8 @@ InlineCost InlineCostAnalyzer::getInlineCost(CallSite CS, Function *Callee,
   // Check if there was a reason to force inlining or no inlining.
   if (!ShouldInline && CA.getCost() < CA.getThreshold())
     return InlineCost::getNever();
-  if (ShouldInline && CA.getCost() >= CA.getThreshold())
+  if (ShouldInline && (CA.isAlwaysInline() ||
+                       CA.getCost() >= CA.getThreshold()))
     return InlineCost::getAlways();
 
   return llvm::InlineCost::get(CA.getCost(), CA.getThreshold());

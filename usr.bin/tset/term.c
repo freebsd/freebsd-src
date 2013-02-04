@@ -46,7 +46,7 @@ static const char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/9/93";
 #include <ttyent.h>
 #include "extern.h"
 
-char    tbuf[1024];      		/* Termcap entry. */
+static char tbuf[1024];		/* Termcap entry. */
 
 const char *askuser(const char *);
 char	*ttys(char *);

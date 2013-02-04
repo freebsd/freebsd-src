@@ -192,7 +192,7 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 
 	if (startvp != NULL)
 		vref(startvp);
-	NDINIT_ATVP(&nd, operation, MPSAFE, UIO_SYSSPACE, pnamep, startvp, td);
+	NDINIT_ATVP(&nd, operation, 0, UIO_SYSSPACE, pnamep, startvp, td);
 	filemode |= O_NOFOLLOW;
 	error = vn_open_cred(&nd, &filemode, createmode, 0, td->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -222,13 +222,12 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
     ssize_t *residp)
 {
 	struct thread *td = curthread;
-	int error, vfslocked;
+	int error;
 	ssize_t resid;
 
 	ASSERT(ioflag == 0);
 	ASSERT(ulimit == RLIM64_INFINITY);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (rw == UIO_WRITE) {
 		ioflag = IO_SYNC;
 	} else {
@@ -236,7 +235,6 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
 	}
 	error = vn_rdwr(rw, vp, base, len, offset, seg, ioflag, cr, NOCRED,
 	    &resid, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (residp != NULL)
 		*residp = (ssize_t)resid;
 	return (error);
@@ -248,11 +246,10 @@ static __inline int
 zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 {
 	struct mount *mp;
-	int error, vfslocked;
+	int error;
 
 	ASSERT(flag == FSYNC);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -260,7 +257,6 @@ zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 drop:
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 #define	VOP_FSYNC(vp, flag, cr, ct)	zfs_vop_fsync((vp), (flag), (cr))
@@ -268,14 +264,12 @@ drop:
 static __inline int
 zfs_vop_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr)
 {
-	int error, vfslocked;
+	int error;
 
 	ASSERT(count == 1);
 	ASSERT(offset == 0);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	error = vn_close(vp, flag, cr, curthread);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 #define	VOP_CLOSE(vp, oflags, count, offset, cr, ct)			\

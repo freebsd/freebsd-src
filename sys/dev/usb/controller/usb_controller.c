@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include "opt_ddb.h"
 
 #include <sys/stdint.h>
@@ -62,6 +65,7 @@
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pf.h>
 #include "usb_if.h"
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /* function prototypes  */
 
@@ -84,10 +88,12 @@ SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
     "Debug level");
 #endif
 
+#if USB_HAVE_ROOT_MOUNT_HOLD
 static int usb_no_boot_wait = 0;
 TUNABLE_INT("hw.usb.no_boot_wait", &usb_no_boot_wait);
-SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RDTUN, &usb_no_boot_wait, 0,
+SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RD|CTLFLAG_TUN, &usb_no_boot_wait, 0,
     "No USB device enumerate waiting at boot.");
+#endif
 
 static int usb_no_suspend_wait = 0;
 TUNABLE_INT("hw.usb.no_suspend_wait", &usb_no_suspend_wait);
@@ -108,7 +114,8 @@ static device_method_t usb_methods[] = {
 	DEVMETHOD(device_suspend, usb_suspend),
 	DEVMETHOD(device_resume, usb_resume),
 	DEVMETHOD(device_shutdown, usb_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t usb_driver = {
@@ -129,6 +136,9 @@ DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uss820, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, octusb, usb_driver, usb_devclass, 0, 0);
 
+/* Dual Mode Drivers */
+DRIVER_MODULE(usbus, dwcotg, usb_driver, usb_devclass, 0, 0);
+
 /*------------------------------------------------------------------------*
  *	usb_probe
  *
@@ -141,6 +151,7 @@ usb_probe(device_t dev)
 	return (0);
 }
 
+#if USB_HAVE_ROOT_MOUNT_HOLD
 static void
 usb_root_mount_rel(struct usb_bus *bus)
 {
@@ -150,6 +161,7 @@ usb_root_mount_rel(struct usb_bus *bus)
 		bus->bus_roothold = NULL;
 	}
 }
+#endif
 
 /*------------------------------------------------------------------------*
  *	usb_attach
@@ -166,11 +178,12 @@ usb_attach(device_t dev)
 		return (ENXIO);
 	}
 
+#if USB_HAVE_ROOT_MOUNT_HOLD
 	if (usb_no_boot_wait == 0) {
 		/* delay vfs_mountroot until the bus is explored */
 		bus->bus_roothold = root_mount_hold(device_get_nameunit(dev));
 	}
-
+#endif
 	usb_attach_sub(dev, bus);
 
 	return (0);			/* return success */
@@ -193,8 +206,10 @@ usb_detach(device_t dev)
 	/* Stop power watchdog */
 	usb_callout_drain(&bus->power_wdog);
 
+#if USB_HAVE_ROOT_MOUNT_HOLD
 	/* Let the USB explore process detach all devices. */
 	usb_root_mount_rel(bus);
+#endif
 
 	USB_BUS_LOCK(bus);
 
@@ -360,7 +375,9 @@ usb_bus_explore(struct usb_proc_msg *pm)
 		(udev->hub->explore) (udev);
 		USB_BUS_LOCK(bus);
 	}
+#if USB_HAVE_ROOT_MOUNT_HOLD
 	usb_root_mount_rel(bus);
+#endif
 }
 
 /*------------------------------------------------------------------------*
@@ -627,7 +644,9 @@ usb_bus_attach(struct usb_proc_msg *pm)
 
 	default:
 		device_printf(bus->bdev, "Unsupported USB revision\n");
+#if USB_HAVE_ROOT_MOUNT_HOLD
 		usb_root_mount_rel(bus);
+#endif
 		return;
 	}
 
@@ -669,7 +688,9 @@ usb_bus_attach(struct usb_proc_msg *pm)
 	if (err) {
 		device_printf(bus->bdev, "Root HUB problem, error=%s\n",
 		    usbd_errstr(err));
+#if USB_HAVE_ROOT_MOUNT_HOLD
 		usb_root_mount_rel(bus);
+#endif
 	}
 
 	/* set softc - we are ready */

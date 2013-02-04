@@ -69,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
-	libdisk \
 	libdwarf \
 	libedit \
 	${_libefi} \
@@ -85,11 +84,12 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkiconv \
 	liblzma \
 	libmagic \
+	libmandoc \
 	libmemstat \
 	${_libmilter} \
 	${_libmp} \
 	${_libnandfs} \
-	${_libncp} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \
@@ -101,7 +101,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
-	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
@@ -116,9 +115,11 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
+	${_libvmmapi} \
 	libwrap \
 	liby \
 	libz \
+	${_atf} \
 	${_bind} \
 	${_clang}
 
@@ -133,6 +134,10 @@ _csu=csu
 .endif
 
 # NB: keep these sorted by MK_* knobs
+
+.if ${MK_ATF} != "no"
+_atf=		atf
+.endif
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
@@ -189,18 +194,17 @@ _libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
-_libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64"
+_libvmmapi=	libvmmapi
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
-_libsmb=	libsmb
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
@@ -209,11 +213,8 @@ _librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
-_libsmb=	libsmb
-.endif
-
-.if ${MACHINE_CPUARCH} == "sparc64"
-_libsmb=	libsmb
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MK_OPENSSL} != "no"

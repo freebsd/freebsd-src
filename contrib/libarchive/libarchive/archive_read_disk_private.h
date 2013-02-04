@@ -34,6 +34,7 @@
 #define ARCHIVE_READ_DISK_PRIVATE_H_INCLUDED
 
 struct tree;
+struct archive_entry;
 
 struct archive_read_disk {
 	struct archive	archive;
@@ -55,10 +56,18 @@ struct archive_read_disk {
 
 	/* Directory traversals. */
 	struct tree *tree;
+	int	(*open_on_current_dir)(struct tree*, const char *, int);
+	int	(*tree_current_dir_fd)(struct tree*);
+	int	(*tree_enter_working_dir)(struct tree*);
 
 	/* Set 1 if users request to restore atime . */
 	int		 restore_time;
-	int		 entry_wd_fd;
+	/* Set 1 if users request to honor nodump flag . */
+	int		 honor_nodump;
+	/* Set 1 if users request to enable mac copyfile. */
+	int		 enable_copyfile;
+	/* Set 1 if users request to traverse mount points. */
+	int		 traverse_mount_points;
 
 	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);
@@ -66,6 +75,18 @@ struct archive_read_disk {
 	const char * (*lookup_uname)(void *private, int64_t uid);
 	void	(*cleanup_uname)(void *private);
 	void	 *lookup_uname_data;
+
+	int	(*metadata_filter_func)(struct archive *, void *,
+			struct archive_entry *);
+	void	*metadata_filter_data;
+
+	/* ARCHIVE_MATCH object. */
+	struct archive	*matching;
+	/* Callback function, this will be invoked when ARCHIVE_MATCH
+	 * archive_match_*_excluded_ae return true. */
+	void	(*excluded_cb_func)(struct archive *, void *,
+			 struct archive_entry *);
+	void	*excluded_cb_data;
 };
 
 #endif

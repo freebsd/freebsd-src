@@ -90,15 +90,6 @@ static int nfs_realign_count;
 SYSCTL_INT(_vfs_nfs_common, OID_AUTO, realign_count, CTLFLAG_RD,
     &nfs_realign_count, 0, "Number of mbuf realignments done");
 
-u_quad_t
-nfs_curusec(void)
-{
-	struct timeval tv;
-
-	getmicrotime(&tv);
-	return ((u_quad_t)tv.tv_sec * 1000000 + (u_quad_t)tv.tv_usec);
-}
-
 /*
  * copies mbuf chain to the uio scatter/gather list
  */
@@ -275,7 +266,7 @@ nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos)
 	void *ret;
 
 	if (s > M_TRAILINGSPACE(*mb)) {
-		MGET(mb2, M_WAIT, MT_DATA);
+		MGET(mb2, M_WAITOK, MT_DATA);
 		if (s > MLEN)
 			panic("build > MLEN");
 		(*mb)->m_next = mb2;
@@ -293,14 +284,14 @@ void *
 nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos)
 {
 
-	return (nfsm_dissect_xx_sub(s, md, dpos, M_WAIT));
+	return (nfsm_dissect_xx_sub(s, md, dpos, M_WAITOK));
 }
 
 void *
 nfsm_dissect_xx_nonblock(int s, struct mbuf **md, caddr_t *dpos)
 {
 
-	return (nfsm_dissect_xx_sub(s, md, dpos, M_DONTWAIT));
+	return (nfsm_dissect_xx_sub(s, md, dpos, M_NOWAIT));
 }
 
 static void *

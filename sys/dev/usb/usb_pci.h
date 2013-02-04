@@ -31,9 +31,11 @@
  * We don't want the following files included everywhere, that's why
  * they are in a separate file.
  */
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include <sys/rman.h>
+#endif
 
 #endif					/* _USB_PCI_H_ */

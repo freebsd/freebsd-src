@@ -16,6 +16,9 @@
 /* Define if your resolver libs need this for getrrsetbyname */
 #undef BIND_8_COMPAT
 
+/* The system has incomplete BSM API */
+#undef BROKEN_BSM_API
+
 /* Define if cmsg_type is not passed correctly */
 #undef BROKEN_CMSG_TYPE
 
@@ -500,6 +503,9 @@
 /* Define if HEADER.ad exists in arpa/nameser.h */
 #undef HAVE_HEADER_AD
 
+/* Define to 1 if you have the `HMAC_CTX_init' function. */
+#undef HAVE_HMAC_CTX_INIT
+
 /* Define if you have ut_host in utmp.h */
 #undef HAVE_HOST_IN_UTMP
 
@@ -551,6 +557,9 @@
 /* Define to 1 if you have the <lastlog.h> header file. */
 #undef HAVE_LASTLOG_H
 
+/* Define if you want ldns support */
+#undef HAVE_LDNS
+
 /* Define to 1 if you have the <libaudit.h> header file. */
 #undef HAVE_LIBAUDIT_H
 
@@ -593,10 +602,19 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
+/* Define to 1 if you have the <linux/audit.h> header file. */
+#undef HAVE_LINUX_AUDIT_H
+
+/* Define to 1 if you have the <linux/filter.h> header file. */
+#undef HAVE_LINUX_FILTER_H
+
 /* Define to 1 if you have the <linux/if_tun.h> header file. */
 #undef HAVE_LINUX_IF_TUN_H
 
-/* Define if your libraries define login() */
+/* Define to 1 if you have the <linux/seccomp.h> header file. */
+#undef HAVE_LINUX_SECCOMP_H
+
+/* Define to 1 if you have the `login' function. */
 #undef HAVE_LOGIN
 
 /* Define to 1 if you have the <login_cap.h> header file. */
@@ -804,6 +822,9 @@
 /* Define to 1 if you have the `setgroups' function. */
 #undef HAVE_SETGROUPS
 
+/* Define to 1 if you have the `setlinebuf' function. */
+#undef HAVE_SETLINEBUF
+
 /* Define to 1 if you have the `setlogin' function. */
 #undef HAVE_SETLOGIN
 
@@ -929,6 +950,9 @@
 
 /* Define to 1 if you have the `strmode' function. */
 #undef HAVE_STRMODE
+
+/* Define to 1 if you have the `strnlen' function. */
+#undef HAVE_STRNLEN
 
 /* Define to 1 if you have the `strnvis' function. */
 #undef HAVE_STRNVIS
@@ -1350,14 +1374,20 @@
 /* Sandbox using setrlimit(2) */
 #undef SANDBOX_RLIMIT
 
+/* Sandbox using seccomp filter */
+#undef SANDBOX_SECCOMP_FILTER
+
+/* setrlimit RLIMIT_FSIZE works */
+#undef SANDBOX_SKIP_RLIMIT_FSIZE
+
 /* Sandbox using systrace(4) */
 #undef SANDBOX_SYSTRACE
 
+/* Specify the system call convention in use */
+#undef SECCOMP_AUDIT_ARCH
+
 /* Define if your platform breaks doing a seteuid before a setuid */
 #undef SETEUID_BREAKS_SETUID
-
-/* The size of `char', as computed by sizeof. */
-#undef SIZEOF_CHAR
 
 /* The size of `int', as computed by sizeof. */
 #undef SIZEOF_INT

@@ -688,11 +688,11 @@ smc_task_rx(void *context, int pending)
 		/*
 		 * Grab an mbuf and attach a cluster.
 		 */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			break;
 		}
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_freem(m);
 			break;
@@ -807,6 +807,10 @@ smc_intr(void *context)
 	struct smc_softc	*sc;
 	
 	sc = (struct smc_softc *)context;
+	/*
+	 * Block interrupts in order to let smc_task_intr to kick in
+	 */
+	smc_write_1(sc, MSK, 0);
 	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
 	return (FILTER_HANDLED);
 }
@@ -825,13 +829,6 @@ smc_task_intr(void *context, int pending)
 	SMC_LOCK(sc);
 	
 	smc_select_bank(sc, 2);
-
-	/*
-	 * Get the current mask, and then block all interrupts while we're
-	 * working.
-	 */
-	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
-		smc_write_1(sc, MSK, 0);
 
 	/*
 	 * Find out what interrupts are flagged.

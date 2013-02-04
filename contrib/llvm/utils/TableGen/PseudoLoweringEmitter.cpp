@@ -9,15 +9,61 @@
 
 #define DEBUG_TYPE "pseudo-lowering"
 #include "CodeGenInstruction.h"
-#include "PseudoLoweringEmitter.h"
+#include "CodeGenTarget.h"
+#include "llvm/ADT/IndexedMap.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
-#include "llvm/ADT/IndexedMap.h"
-#include "llvm/ADT/StringMap.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <vector>
 using namespace llvm;
+
+namespace {
+class PseudoLoweringEmitter {
+  struct OpData {
+    enum MapKind { Operand, Imm, Reg };
+    MapKind Kind;
+    union {
+      unsigned Operand;   // Operand number mapped to.
+      uint64_t Imm;       // Integer immedate value.
+      Record *Reg;        // Physical register.
+    } Data;
+  };
+  struct PseudoExpansion {
+    CodeGenInstruction Source;  // The source pseudo instruction definition.
+    CodeGenInstruction Dest;    // The destination instruction to lower to.
+    IndexedMap<OpData> OperandMap;
+
+    PseudoExpansion(CodeGenInstruction &s, CodeGenInstruction &d,
+                    IndexedMap<OpData> &m) :
+      Source(s), Dest(d), OperandMap(m) {}
+  };
+
+  RecordKeeper &Records;
+
+  // It's overkill to have an instance of the full CodeGenTarget object,
+  // but it loads everything on demand, not in the constructor, so it's
+  // lightweight in performance, so it works out OK.
+  CodeGenTarget Target;
+
+  SmallVector<PseudoExpansion, 64> Expansions;
+
+  unsigned addDagOperandMapping(Record *Rec, DagInit *Dag,
+                                CodeGenInstruction &Insn,
+                                IndexedMap<OpData> &OperandMap,
+                                unsigned BaseIdx);
+  void evaluateExpansion(Record *Pseudo);
+  void emitLoweringEmitter(raw_ostream &o);
+public:
+  PseudoLoweringEmitter(RecordKeeper &R) : Records(R), Target(R) {}
+
+  /// run - Output the pseudo-lowerings.
+  void run(raw_ostream &o);
+};
+} // End anonymous namespace
 
 // FIXME: This pass currently can only expand a pseudo to a single instruction.
 //        The pseudo expansion really should take a list of dags, not just
@@ -28,7 +74,7 @@ addDagOperandMapping(Record *Rec, DagInit *Dag, CodeGenInstruction &Insn,
                      IndexedMap<OpData> &OperandMap, unsigned BaseIdx) {
   unsigned OpsAdded = 0;
   for (unsigned i = 0, e = Dag->getNumArgs(); i != e; ++i) {
-    if (DefInit *DI = dynamic_cast<DefInit*>(Dag->getArg(i))) {
+    if (DefInit *DI = dyn_cast<DefInit>(Dag->getArg(i))) {
       // Physical register reference. Explicit check for the special case
       // "zero_reg" definition.
       if (DI->getDef()->isSubClassOf("Register") ||
@@ -44,7 +90,7 @@ addDagOperandMapping(Record *Rec, DagInit *Dag, CodeGenInstruction &Insn,
       // FIXME: We probably shouldn't ever get a non-zero BaseIdx here.
       assert(BaseIdx == 0 && "Named subargument in pseudo expansion?!");
       if (DI->getDef() != Insn.Operands[BaseIdx + i].Rec)
-        throw TGError(Rec->getLoc(),
+        PrintFatalError(Rec->getLoc(),
                       "Pseudo operand type '" + DI->getDef()->getName() +
                       "' does not match expansion operand type '" +
                       Insn.Operands[BaseIdx + i].Rec->getName() + "'");
@@ -54,11 +100,11 @@ addDagOperandMapping(Record *Rec, DagInit *Dag, CodeGenInstruction &Insn,
       for (unsigned I = 0, E = Insn.Operands[i].MINumOperands; I != E; ++I)
         OperandMap[BaseIdx + i + I].Kind = OpData::Operand;
       OpsAdded += Insn.Operands[i].MINumOperands;
-    } else if (IntInit *II = dynamic_cast<IntInit*>(Dag->getArg(i))) {
+    } else if (IntInit *II = dyn_cast<IntInit>(Dag->getArg(i))) {
       OperandMap[BaseIdx + i].Kind = OpData::Imm;
       OperandMap[BaseIdx + i].Data.Imm = II->getValue();
       ++OpsAdded;
-    } else if (DagInit *SubDag = dynamic_cast<DagInit*>(Dag->getArg(i))) {
+    } else if (DagInit *SubDag = dyn_cast<DagInit>(Dag->getArg(i))) {
       // Just add the operands recursively. This is almost certainly
       // a constant value for a complex operand (> 1 MI operand).
       unsigned NewOps =
@@ -81,24 +127,24 @@ void PseudoLoweringEmitter::evaluateExpansion(Record *Rec) {
   assert(Dag && "Missing result instruction in pseudo expansion!");
   DEBUG(dbgs() << "  Result: " << *Dag << "\n");
 
-  DefInit *OpDef = dynamic_cast<DefInit*>(Dag->getOperator());
+  DefInit *OpDef = dyn_cast<DefInit>(Dag->getOperator());
   if (!OpDef)
-    throw TGError(Rec->getLoc(), Rec->getName() +
+    PrintFatalError(Rec->getLoc(), Rec->getName() +
                   " has unexpected operator type!");
   Record *Operator = OpDef->getDef();
   if (!Operator->isSubClassOf("Instruction"))
-    throw TGError(Rec->getLoc(), "Pseudo result '" + Operator->getName() +
-                                 "' is not an instruction!");
+    PrintFatalError(Rec->getLoc(), "Pseudo result '" + Operator->getName() +
+                    "' is not an instruction!");
 
   CodeGenInstruction Insn(Operator);
 
   if (Insn.isCodeGenOnly || Insn.isPseudo)
-    throw TGError(Rec->getLoc(), "Pseudo result '" + Operator->getName() +
-                                 "' cannot be another pseudo instruction!");
+    PrintFatalError(Rec->getLoc(), "Pseudo result '" + Operator->getName() +
+                    "' cannot be another pseudo instruction!");
 
   if (Insn.Operands.size() != Dag->getNumArgs())
-    throw TGError(Rec->getLoc(), "Pseudo result '" + Operator->getName() +
-                                 "' operand count mismatch");
+    PrintFatalError(Rec->getLoc(), "Pseudo result '" + Operator->getName() +
+                    "' operand count mismatch");
 
   unsigned NumMIOperands = 0;
   for (unsigned i = 0, e = Insn.Operands.size(); i != e; ++i)
@@ -110,7 +156,7 @@ void PseudoLoweringEmitter::evaluateExpansion(Record *Rec) {
 
   // If there are more operands that weren't in the DAG, they have to
   // be operands that have default values, or we have an error. Currently,
-  // PredicateOperand and OptionalDefOperand both have default values.
+  // Operands that are a sublass of OperandWithDefaultOp have default values.
 
 
   // Validate that each result pattern argument has a matching (by name)
@@ -133,9 +179,9 @@ void PseudoLoweringEmitter::evaluateExpansion(Record *Rec) {
     StringMap<unsigned>::iterator SourceOp =
       SourceOperands.find(Dag->getArgName(i));
     if (SourceOp == SourceOperands.end())
-      throw TGError(Rec->getLoc(),
-                    "Pseudo output operand '" + Dag->getArgName(i) +
-                    "' has no matching source operand.");
+      PrintFatalError(Rec->getLoc(),
+                      "Pseudo output operand '" + Dag->getArgName(i) +
+                      "' has no matching source operand.");
     // Map the source operand to the destination operand index for each
     // MachineInstr operand.
     for (unsigned I = 0, E = Insn.Operands[i].MINumOperands; I != E; ++I)
@@ -150,7 +196,7 @@ void PseudoLoweringEmitter::evaluateExpansion(Record *Rec) {
 
 void PseudoLoweringEmitter::emitLoweringEmitter(raw_ostream &o) {
   // Emit file header.
-  EmitSourceFileHeader("Pseudo-instruction MC lowering Source Fragment", o);
+  emitSourceFileHeader("Pseudo-instruction MC lowering Source Fragment", o);
 
   o << "bool " << Target.getName() + "AsmPrinter" << "::\n"
     << "emitPseudoExpansionLowering(MCStreamer &OutStreamer,\n"
@@ -221,7 +267,7 @@ void PseudoLoweringEmitter::emitLoweringEmitter(raw_ostream &o) {
 
 void PseudoLoweringEmitter::run(raw_ostream &o) {
   Record *ExpansionClass = Records.getClass("PseudoInstExpansion");
-  Record *InstructionClass = Records.getClass("PseudoInstExpansion");
+  Record *InstructionClass = Records.getClass("Instruction");
   assert(ExpansionClass && "PseudoInstExpansion class definition missing!");
   assert(InstructionClass && "Instruction class definition missing!");
 
@@ -242,3 +288,10 @@ void PseudoLoweringEmitter::run(raw_ostream &o) {
   emitLoweringEmitter(o);
 }
 
+namespace llvm {
+
+void EmitPseudoLowering(RecordKeeper &RK, raw_ostream &OS) {
+  PseudoLoweringEmitter(RK).run(OS);
+}
+
+} // End llvm namespace

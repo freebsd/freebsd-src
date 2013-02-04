@@ -59,7 +59,7 @@ struct DomainValue {
 
   // Pointer to the next DomainValue in a chain.  When two DomainValues are
   // merged, Victim.Next is set to point to Victor, so old DomainValue
-  // references can be updated by folowing the chain.
+  // references can be updated by following the chain.
   DomainValue *Next;
 
   // Twiddleable instructions using or defining these registers.
@@ -626,9 +626,12 @@ void ExeDepsFix::visitSoftInstr(MachineInstr *mi, unsigned mask) {
   }
   dv->Instrs.push_back(mi);
 
-  // Finally set all defs and non-collapsed uses to dv.
-  for (unsigned i = 0, e = mi->getDesc().getNumOperands(); i != e; ++i) {
-    MachineOperand &mo = mi->getOperand(i);
+  // Finally set all defs and non-collapsed uses to dv. We must iterate through
+  // all the operators, including imp-def ones.
+  for (MachineInstr::mop_iterator ii = mi->operands_begin(),
+                                  ee = mi->operands_end();
+                                  ii != ee; ++ii) {
+    MachineOperand &mo = *ii;
     if (!mo.isReg()) continue;
     int rx = regIndex(mo.getReg());
     if (rx < 0) continue;
@@ -654,7 +657,7 @@ bool ExeDepsFix::runOnMachineFunction(MachineFunction &mf) {
   bool anyregs = false;
   for (TargetRegisterClass::const_iterator I = RC->begin(), E = RC->end();
        I != E; ++I)
-    if (MF->getRegInfo().isPhysRegOrOverlapUsed(*I)) {
+    if (MF->getRegInfo().isPhysRegUsed(*I)) {
       anyregs = true;
       break;
     }
@@ -666,7 +669,8 @@ bool ExeDepsFix::runOnMachineFunction(MachineFunction &mf) {
     // or -1.
     AliasMap.resize(TRI->getNumRegs(), -1);
     for (unsigned i = 0, e = RC->getNumRegs(); i != e; ++i)
-      for (const uint16_t *AI = TRI->getOverlaps(RC->getRegister(i)); *AI; ++AI)
+      for (MCRegAliasIterator AI(RC->getRegister(i), TRI, true);
+           AI.isValid(); ++AI)
         AliasMap[*AI] = i;
   }
 

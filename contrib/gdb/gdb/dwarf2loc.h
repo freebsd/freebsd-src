@@ -38,7 +38,7 @@ struct dwarf2_locexpr_baton
   unsigned char *data;
 
   /* Length of the location expression.  */
-  unsigned short size;
+  unsigned long size;
 
   /* The objfile containing the symbol whose location we're computing.  */
   struct objfile *objfile;
@@ -54,7 +54,7 @@ struct dwarf2_loclist_baton
   unsigned char *data;
 
   /* Length of the location list.  */
-  unsigned short size;
+  unsigned long size;
 
   /* The objfile containing the symbol whose location we're computing.  */
   /* Used (only???) by thread local variables.  The objfile in which

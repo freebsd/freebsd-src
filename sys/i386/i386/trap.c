@@ -195,6 +195,10 @@ TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
 static int prot_fault_translation = 0;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
 	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
+static int uprintf_signal;
+SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
+    &uprintf_signal, 0,
+    "Print debugging information on trap signal to ctty");
 
 /*
  * Exception, fault, and trap interface to the FreeBSD kernel.
@@ -344,7 +348,7 @@ trap(struct trapframe *frame)
 
         if ((ISPL(frame->tf_cs) == SEL_UPL) ||
 	    ((frame->tf_eflags & PSL_VM) && 
-		!(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL))) {
+		!(curpcb->pcb_flags & PCB_VM86CALL))) {
 		/* user trap */
 
 		td->td_pticks = 0;
@@ -369,7 +373,7 @@ trap(struct trapframe *frame)
 
 		case T_ARITHTRAP:	/* arithmetic trap */
 #ifdef DEV_NPX
-			ucode = npxtrap();
+			ucode = npxtrap_x87();
 			if (ucode == -1)
 				goto userout;
 #else
@@ -532,7 +536,13 @@ trap(struct trapframe *frame)
 			break;
 
 		case T_XMMFLT:		/* SIMD floating-point exception */
-			ucode = 0; /* XXX */
+#if defined(DEV_NPX) && !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
+			ucode = npxtrap_sse();
+			if (ucode == -1)
+				goto userout;
+#else
+			ucode = 0;
+#endif
 			i = SIGFPE;
 			break;
 		}
@@ -587,7 +597,7 @@ trap(struct trapframe *frame)
 			/* FALL THROUGH */
 
 		case T_SEGNPFLT:	/* segment not present fault */
-			if (PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)
+			if (curpcb->pcb_flags & PCB_VM86CALL)
 				break;
 
 			/*
@@ -600,7 +610,7 @@ trap(struct trapframe *frame)
 			 * a signal.
 			 */
 			if (frame->tf_eip == (int)cpu_switch_load_gs) {
-				PCPU_GET(curpcb)->pcb_gs = 0;
+				curpcb->pcb_gs = 0;
 #if 0				
 				PROC_LOCK(p);
 				kern_psignal(p, SIGBUS);
@@ -638,9 +648,9 @@ trap(struct trapframe *frame)
 				frame->tf_eip = (int)doreti_popl_fs_fault;
 				goto out;
 			}
-			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
+			if (curpcb->pcb_onfault != NULL) {
 				frame->tf_eip =
-				    (int)PCPU_GET(curpcb)->pcb_onfault;
+				    (int)curpcb->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -690,7 +700,7 @@ trap(struct trapframe *frame)
 			 * debugging the kernel.
 			 */
 			if (user_dbreg_trap() && 
-			   !(PCPU_GET(curpcb)->pcb_flags & PCB_VM86CALL)) {
+			   !(curpcb->pcb_flags & PCB_VM86CALL)) {
 				/*
 				 * Reset breakpoint bits because the
 				 * processor doesn't
@@ -755,6 +765,21 @@ trap(struct trapframe *frame)
 	ksi.ksi_code = ucode;
 	ksi.ksi_addr = (void *)addr;
 	ksi.ksi_trapno = type;
+	if (uprintf_signal) {
+		uprintf("pid %d comm %s: signal %d err %x code %d type %d "
+		    "addr 0x%x eip 0x%08x "
+		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
+		    p->p_pid, p->p_comm, i, frame->tf_err, ucode, type, addr,
+		    frame->tf_eip,
+		    fubyte((void *)(frame->tf_eip + 0)),
+		    fubyte((void *)(frame->tf_eip + 1)),
+		    fubyte((void *)(frame->tf_eip + 2)),
+		    fubyte((void *)(frame->tf_eip + 3)),
+		    fubyte((void *)(frame->tf_eip + 4)),
+		    fubyte((void *)(frame->tf_eip + 5)),
+		    fubyte((void *)(frame->tf_eip + 6)),
+		    fubyte((void *)(frame->tf_eip + 7)));
+	}
 	trapsignal(td, &ksi);
 
 #ifdef DEBUG
@@ -769,7 +794,6 @@ trap(struct trapframe *frame)
 
 user:
 	userret(td, frame);
-	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("Return from trap with kernel FPU ctx leaked"));
 userout:
@@ -871,7 +895,7 @@ trap_pfault(frame, usermode, eva)
 		 * it normally, and panic immediately.
 		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
-		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+		    curpcb->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}
@@ -929,8 +953,8 @@ trap_pfault(frame, usermode, eva)
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
-		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
-			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
+		    curpcb->pcb_onfault != NULL) {
+			frame->tf_eip = (int)curpcb->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);

@@ -843,6 +843,10 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			return HAL_OK;
 		case 1:			/* current setting */
 			return ahp->ah_diversity ? HAL_OK : HAL_ENXIO;
+		case HAL_CAP_STRONG_DIV:
+			*result = OS_REG_READ(ah, AR_PHY_RESTART);
+			*result = MS(*result, AR_PHY_RESTART_DIV_GC);
+			return HAL_OK;
 		}
 		return HAL_EINVAL;
 	case HAL_CAP_DIAG:
@@ -950,16 +954,34 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 		return AH_TRUE;
 	case HAL_CAP_DIVERSITY:
-		if (ahp->ah_phyPowerOn) {
-			v = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-			if (setting)
-				v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-			else
-				v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-			OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
+		switch (capability) {
+		case 0:
+			return AH_FALSE;
+		case 1:	/* setting */
+			if (ahp->ah_phyPowerOn) {
+				if (capability == HAL_CAP_STRONG_DIV) {
+					v = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+					if (setting)
+						v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+					else
+						v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+					OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
+				}
+			}
+			ahp->ah_diversity = (setting != 0);
+			return AH_TRUE;
+
+		case HAL_CAP_STRONG_DIV:
+			if (! ahp->ah_phyPowerOn)
+				return AH_FALSE;
+			v = OS_REG_READ(ah, AR_PHY_RESTART);
+			v &= ~AR_PHY_RESTART_DIV_GC;
+			v |= SM(setting, AR_PHY_RESTART_DIV_GC);
+			OS_REG_WRITE(ah, AR_PHY_RESTART, v);
+			return AH_TRUE;
+		default:
+			return AH_FALSE;
 		}
-		ahp->ah_diversity = (setting != 0);
-		return AH_TRUE;
 	case HAL_CAP_DIAG:		/* hardware diagnostic support */
 		/*
 		 * NB: could split this up into virtual capabilities,
@@ -1160,7 +1182,120 @@ ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 		val &= ~AR_PHY_RADAR_0_INBAND;
 		val |= SM(pe->pe_inband, AR_PHY_RADAR_0_INBAND);
 	}
-	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
+	if (pe->pe_enabled)
+		val |= AR_PHY_RADAR_0_ENA;
+	else
+		val &= ~ AR_PHY_RADAR_0_ENA;
+
+	if (IS_5413(ah)) {
+
+		if (pe->pe_blockradar == 1)
+			OS_REG_SET_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_BLOCKOFDMWEAK);
+		else
+			OS_REG_CLR_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_BLOCKOFDMWEAK);
+
+		if (pe->pe_en_relstep_check == 1)
+			OS_REG_SET_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_ENRELSTEPCHK);
+		else
+			OS_REG_CLR_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_ENRELSTEPCHK);
+
+		if (pe->pe_usefir128 == 1)
+			OS_REG_SET_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_USEFIR128);
+		else
+			OS_REG_CLR_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_USEFIR128);
+
+		if (pe->pe_enmaxrssi == 1)
+			OS_REG_SET_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_ENMAXRSSI);
+		else
+			OS_REG_CLR_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_ENMAXRSSI);
+
+		if (pe->pe_enrelpwr == 1)
+			OS_REG_SET_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_ENRELPWRCHK);
+		else
+			OS_REG_CLR_BIT(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_ENRELPWRCHK);
+
+		if (pe->pe_relpwr != HAL_PHYERR_PARAM_NOVAL)
+			OS_REG_RMW_FIELD(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_RELPWR, pe->pe_relpwr);
+
+		if (pe->pe_relstep != HAL_PHYERR_PARAM_NOVAL)
+			OS_REG_RMW_FIELD(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_RELSTEP, pe->pe_relstep);
+
+		if (pe->pe_maxlen != HAL_PHYERR_PARAM_NOVAL)
+			OS_REG_RMW_FIELD(ah, AR_PHY_RADAR_2,
+			    AR_PHY_RADAR_2_MAXLEN, pe->pe_maxlen);
+	}
+
+	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val);
+}
+
+/*
+ * Parameters for the AR5212 PHY.
+ */
+#define	AR5212_DFS_FIRPWR	-35
+#define	AR5212_DFS_RRSSI	20
+#define	AR5212_DFS_HEIGHT	14
+#define	AR5212_DFS_PRSSI	6
+#define	AR5212_DFS_INBAND	4
+
+/*
+ * Default parameters for the AR5413 PHY.
+ */
+#define	AR5413_DFS_FIRPWR	-34
+#define	AR5413_DFS_RRSSI	20
+#define	AR5413_DFS_HEIGHT	10
+#define	AR5413_DFS_PRSSI	15
+#define	AR5413_DFS_INBAND	6
+#define	AR5413_DFS_RELPWR	8
+#define	AR5413_DFS_RELSTEP	31
+#define	AR5413_DFS_MAXLEN	255
+
+HAL_BOOL
+ar5212GetDfsDefaultThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+
+	if (IS_5413(ah)) {
+		pe->pe_firpwr = AR5413_DFS_FIRPWR;
+		pe->pe_rrssi = AR5413_DFS_RRSSI;
+		pe->pe_height = AR5413_DFS_HEIGHT;
+		pe->pe_prssi = AR5413_DFS_PRSSI;
+		pe->pe_inband = AR5413_DFS_INBAND;
+		pe->pe_relpwr = AR5413_DFS_RELPWR;
+		pe->pe_relstep = AR5413_DFS_RELSTEP;
+		pe->pe_maxlen = AR5413_DFS_MAXLEN;
+		pe->pe_usefir128 = 0;
+		pe->pe_blockradar = 1;
+		pe->pe_enmaxrssi = 1;
+		pe->pe_enrelpwr = 1;
+		pe->pe_en_relstep_check = 0;
+	} else {
+		pe->pe_firpwr = AR5212_DFS_FIRPWR;
+		pe->pe_rrssi = AR5212_DFS_RRSSI;
+		pe->pe_height = AR5212_DFS_HEIGHT;
+		pe->pe_prssi = AR5212_DFS_PRSSI;
+		pe->pe_inband = AR5212_DFS_INBAND;
+		pe->pe_relpwr = 0;
+		pe->pe_relstep = 0;
+		pe->pe_maxlen = 0;
+		pe->pe_usefir128 = 0;
+		pe->pe_blockradar = 0;
+		pe->pe_enmaxrssi = 0;
+		pe->pe_enrelpwr = 0;
+		pe->pe_en_relstep_check = 0;
+	}
+
+	return (AH_TRUE);
 }
 
 void
@@ -1177,11 +1312,31 @@ ar5212GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	pe->pe_height =  MS(val, AR_PHY_RADAR_0_HEIGHT);
 	pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
 	pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
+	pe->pe_enabled = !! (val & AR_PHY_RADAR_0_ENA);
 
 	pe->pe_relpwr = 0;
 	pe->pe_relstep = 0;
 	pe->pe_maxlen = 0;
+	pe->pe_usefir128 = 0;
+	pe->pe_blockradar = 0;
+	pe->pe_enmaxrssi = 0;
+	pe->pe_enrelpwr = 0;
+	pe->pe_en_relstep_check = 0;
 	pe->pe_extchannel = AH_FALSE;
+
+	if (IS_5413(ah)) {
+		val = OS_REG_READ(ah, AR_PHY_RADAR_2);
+		pe->pe_relpwr = !! MS(val, AR_PHY_RADAR_2_RELPWR);
+		pe->pe_relstep = !! MS(val, AR_PHY_RADAR_2_RELSTEP);
+		pe->pe_maxlen = !! MS(val, AR_PHY_RADAR_2_MAXLEN);
+
+		pe->pe_usefir128 = !! (val & AR_PHY_RADAR_2_USEFIR128);
+		pe->pe_blockradar = !! (val & AR_PHY_RADAR_2_BLOCKOFDMWEAK);
+		pe->pe_enmaxrssi = !! (val & AR_PHY_RADAR_2_ENMAXRSSI);
+		pe->pe_enrelpwr = !! (val & AR_PHY_RADAR_2_ENRELPWRCHK);
+		pe->pe_en_relstep_check =
+		    !! (val & AR_PHY_RADAR_2_ENRELSTEPCHK);
+	}
 }
 
 /*
@@ -1250,7 +1405,7 @@ ar5212Get11nExtBusy(struct ath_hal *ah)
 }
 
 /*
- * There's no channel survey support for the AR5211.
+ * There's no channel survey support for the AR5212.
  */
 HAL_BOOL
 ar5212GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)

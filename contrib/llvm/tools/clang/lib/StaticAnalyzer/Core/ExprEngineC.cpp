@@ -45,19 +45,39 @@ void ExprEngine::VisitBinaryOperator(const BinaryOperator* B,
       // EXPERIMENTAL: "Conjured" symbols.
       // FIXME: Handle structs.
       if (RightV.isUnknown()) {
-        unsigned Count = currentBuilderContext->getCurrentBlockCount();
-        RightV = svalBuilder.getConjuredSymbolVal(NULL, B->getRHS(), LCtx, Count);
+        unsigned Count = currBldrCtx->blockCount();
+        RightV = svalBuilder.conjureSymbolVal(0, B->getRHS(), LCtx, Count);
       }
       // Simulate the effects of a "store":  bind the value of the RHS
       // to the L-Value represented by the LHS.
-      SVal ExprVal = B->isLValue() ? LeftV : RightV;
+      SVal ExprVal = B->isGLValue() ? LeftV : RightV;
       evalStore(Tmp2, B, LHS, *it, state->BindExpr(B, LCtx, ExprVal),
                 LeftV, RightV);
       continue;
     }
       
     if (!B->isAssignmentOp()) {
-      StmtNodeBuilder Bldr(*it, Tmp2, *currentBuilderContext);
+      StmtNodeBuilder Bldr(*it, Tmp2, *currBldrCtx);
+
+      if (B->isAdditiveOp()) {
+        // If one of the operands is a location, conjure a symbol for the other
+        // one (offset) if it's unknown so that memory arithmetic always
+        // results in an ElementRegion.
+        // TODO: This can be removed after we enable history tracking with
+        // SymSymExpr.
+        unsigned Count = currBldrCtx->blockCount();
+        if (isa<Loc>(LeftV) &&
+            RHS->getType()->isIntegerType() && RightV.isUnknown()) {
+          RightV = svalBuilder.conjureSymbolVal(RHS, LCtx, RHS->getType(),
+                                                Count);
+        }
+        if (isa<Loc>(RightV) &&
+            LHS->getType()->isIntegerType() && LeftV.isUnknown()) {
+          LeftV = svalBuilder.conjureSymbolVal(LHS, LCtx, LHS->getType(),
+                                               Count);
+        }
+      }
+
       // Process non-assignments except commas or short-circuited
       // logical expressions (LAnd and LOr).
       SVal Result = evalBinOp(state, Op, LeftV, RightV, B->getType());      
@@ -125,15 +145,11 @@ void ExprEngine::VisitBinaryOperator(const BinaryOperator* B,
       SVal LHSVal;
       
       if (Result.isUnknown()) {
-        
-        unsigned Count = currentBuilderContext->getCurrentBlockCount();
-        
         // The symbolic value is actually for the type of the left-hand side
         // expression, not the computation type, as this is the value the
         // LValue on the LHS will bind to.
-        LHSVal = svalBuilder.getConjuredSymbolVal(NULL, B->getRHS(), LCtx,
-						  LTy, Count);
-        
+        LHSVal = svalBuilder.conjureSymbolVal(0, B->getRHS(), LCtx, LTy,
+                                              currBldrCtx->blockCount());
         // However, we need to convert the symbol to the computation type.
         Result = svalBuilder.evalCast(LHSVal, CTy, LTy);
       }
@@ -145,7 +161,7 @@ void ExprEngine::VisitBinaryOperator(const BinaryOperator* B,
       
       // In C++, assignment and compound assignment operators return an 
       // lvalue.
-      if (B->isLValue())
+      if (B->isGLValue())
         state = state->BindExpr(B, LCtx, location);
       else
         state = state->BindExpr(B, LCtx, Result);
@@ -162,16 +178,36 @@ void ExprEngine::VisitBlockExpr(const BlockExpr *BE, ExplodedNode *Pred,
                                 ExplodedNodeSet &Dst) {
   
   CanQualType T = getContext().getCanonicalType(BE->getType());
+
+  // Get the value of the block itself.
   SVal V = svalBuilder.getBlockPointer(BE->getBlockDecl(), T,
                                        Pred->getLocationContext());
   
+  ProgramStateRef State = Pred->getState();
+  
+  // If we created a new MemRegion for the block, we should explicitly bind
+  // the captured variables.
+  if (const BlockDataRegion *BDR =
+      dyn_cast_or_null<BlockDataRegion>(V.getAsRegion())) {
+    
+    BlockDataRegion::referenced_vars_iterator I = BDR->referenced_vars_begin(),
+                                              E = BDR->referenced_vars_end();
+    
+    for (; I != E; ++I) {
+      const MemRegion *capturedR = I.getCapturedRegion();
+      const MemRegion *originalR = I.getOriginalRegion();
+      if (capturedR != originalR) {
+        SVal originalV = State->getSVal(loc::MemRegionVal(originalR));
+        State = State->bindLoc(loc::MemRegionVal(capturedR), originalV);
+      }
+    }
+  }
+  
   ExplodedNodeSet Tmp;
-  StmtNodeBuilder Bldr(Pred, Tmp, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Tmp, *currBldrCtx);
   Bldr.generateNode(BE, Pred,
-                    Pred->getState()->BindExpr(BE, Pred->getLocationContext(),
-                                               V),
-                    false, 0,
-                    ProgramPoint::PostLValueKind);
+                    State->BindExpr(BE, Pred->getLocationContext(), V),
+                    0, ProgramPoint::PostLValueKind);
   
   // FIXME: Move all post/pre visits to ::Visit().
   getCheckerManager().runCheckersForPostStmt(Dst, Tmp, BE, *this);
@@ -201,12 +237,14 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
   if (const ExplicitCastExpr *ExCast=dyn_cast_or_null<ExplicitCastExpr>(CastE))
     T = ExCast->getTypeAsWritten();
   
-  StmtNodeBuilder Bldr(dstPreStmt, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(dstPreStmt, Dst, *currBldrCtx);
   for (ExplodedNodeSet::iterator I = dstPreStmt.begin(), E = dstPreStmt.end();
        I != E; ++I) {
     
     Pred = *I;
-    
+    ProgramStateRef state = Pred->getState();
+    const LocationContext *LCtx = Pred->getLocationContext();
+
     switch (CastE->getCastKind()) {
       case CK_LValueToRValue:
         llvm_unreachable("LValueToRValue casts handled earlier.");
@@ -226,7 +264,10 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
       case CK_NonAtomicToAtomic:
         // True no-ops.
       case CK_NoOp:
-      case CK_FunctionToPointerDecay: {
+      case CK_ConstructorConversion:
+      case CK_UserDefinedConversion:
+      case CK_FunctionToPointerDecay:
+      case CK_BuiltinFnToFnPtr: {
         // Copy the SVal of Ex to CastE.
         ProgramStateRef state = Pred->getState();
         const LocationContext *LCtx = Pred->getLocationContext();
@@ -235,10 +276,12 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
         Bldr.generateNode(CastE, Pred, state);
         continue;
       }
+      case CK_MemberPointerToBoolean:
+        // FIXME: For now, member pointers are represented by void *.
+        // FALLTHROUGH
       case CK_Dependent:
       case CK_ArrayToPointerDecay:
       case CK_BitCast:
-      case CK_LValueBitCast:
       case CK_IntegralCast:
       case CK_NullToPointer:
       case CK_IntegralToPointer:
@@ -264,8 +307,6 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
       case CK_AnyPointerToBlockPointerCast:  
       case CK_ObjCObjectLValueCast: {
         // Delegate to SValBuilder to process.
-        ProgramStateRef state = Pred->getState();
-        const LocationContext *LCtx = Pred->getLocationContext();
         SVal V = state->getSVal(Ex, LCtx);
         V = svalBuilder.evalCast(V, T, ExTy);
         state = state->BindExpr(CastE, LCtx, V);
@@ -275,23 +316,19 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
       case CK_DerivedToBase:
       case CK_UncheckedDerivedToBase: {
         // For DerivedToBase cast, delegate to the store manager.
-        ProgramStateRef state = Pred->getState();
-        const LocationContext *LCtx = Pred->getLocationContext();
         SVal val = state->getSVal(Ex, LCtx);
-        val = getStoreManager().evalDerivedToBase(val, T);
+        val = getStoreManager().evalDerivedToBase(val, CastE);
         state = state->BindExpr(CastE, LCtx, val);
         Bldr.generateNode(CastE, Pred, state);
         continue;
       }
       // Handle C++ dyn_cast.
       case CK_Dynamic: {
-        ProgramStateRef state = Pred->getState();
-        const LocationContext *LCtx = Pred->getLocationContext();
         SVal val = state->getSVal(Ex, LCtx);
 
         // Compute the type of the result.
         QualType resultType = CastE->getType();
-        if (CastE->isLValue())
+        if (CastE->isGLValue())
           resultType = getContext().getPointerType(resultType);
 
         bool Failed = false;
@@ -307,7 +344,7 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
           if (T->isReferenceType()) {
             // A bad_cast exception is thrown if input value is a reference.
             // Currently, we model this, by generating a sink.
-            Bldr.generateNode(CastE, Pred, state, true);
+            Bldr.generateSink(CastE, Pred, state);
             continue;
           } else {
             // If the cast fails on a pointer, bind to 0.
@@ -316,9 +353,9 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
         } else {
           // If we don't know if the cast succeeded, conjure a new symbol.
           if (val.isUnknown()) {
-            DefinedOrUnknownSVal NewSym = svalBuilder.getConjuredSymbolVal(NULL,
-                                 CastE, LCtx, resultType,
-                                 currentBuilderContext->getCurrentBlockCount());
+            DefinedOrUnknownSVal NewSym =
+              svalBuilder.conjureSymbolVal(0, CastE, LCtx, resultType,
+                                           currBldrCtx->blockCount());
             state = state->BindExpr(CastE, LCtx, NewSym);
           } else 
             // Else, bind to the derived region value.
@@ -327,26 +364,29 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
         Bldr.generateNode(CastE, Pred, state);
         continue;
       }
+      case CK_NullToMemberPointer: {
+        // FIXME: For now, member pointers are represented by void *.
+        SVal V = svalBuilder.makeIntValWithPtrWidth(0, true);
+        state = state->BindExpr(CastE, LCtx, V);
+        Bldr.generateNode(CastE, Pred, state);
+        continue;
+      }
       // Various C++ casts that are not handled yet.
       case CK_ToUnion:
       case CK_BaseToDerived:
-      case CK_NullToMemberPointer:
       case CK_BaseToDerivedMemberPointer:
       case CK_DerivedToBaseMemberPointer:
       case CK_ReinterpretMemberPointer:
-      case CK_UserDefinedConversion:
-      case CK_ConstructorConversion:
       case CK_VectorSplat:
-      case CK_MemberPointerToBoolean: {
+      case CK_LValueBitCast: {
         // Recover some path-sensitivty by conjuring a new value.
         QualType resultType = CastE->getType();
-        if (CastE->isLValue())
+        if (CastE->isGLValue())
           resultType = getContext().getPointerType(resultType);
-        const LocationContext *LCtx = Pred->getLocationContext();
-        SVal result = svalBuilder.getConjuredSymbolVal(NULL, CastE, LCtx,
-                    resultType, currentBuilderContext->getCurrentBlockCount());
-        ProgramStateRef state = Pred->getState()->BindExpr(CastE, LCtx,
-                                                               result);
+        SVal result = svalBuilder.conjureSymbolVal(0, CastE, LCtx,
+                                                   resultType,
+                                                   currBldrCtx->blockCount());
+        state = state->BindExpr(CastE, LCtx, result);
         Bldr.generateNode(CastE, Pred, state);
         continue;
       }
@@ -357,7 +397,7 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
 void ExprEngine::VisitCompoundLiteralExpr(const CompoundLiteralExpr *CL,
                                           ExplodedNode *Pred,
                                           ExplodedNodeSet &Dst) {
-  StmtNodeBuilder B(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder B(Pred, Dst, *currBldrCtx);
 
   const InitListExpr *ILE 
     = cast<InitListExpr>(CL->getInitializer()->IgnoreParens());
@@ -366,8 +406,16 @@ void ExprEngine::VisitCompoundLiteralExpr(const CompoundLiteralExpr *CL,
   SVal ILV = state->getSVal(ILE, Pred->getLocationContext());
   const LocationContext *LC = Pred->getLocationContext();
   state = state->bindCompoundLiteral(CL, LC, ILV);
-  
-  if (CL->isLValue())
+
+  // Compound literal expressions are a GNU extension in C++.
+  // Unlike in C, where CLs are lvalues, in C++ CLs are prvalues,
+  // and like temporary objects created by the functional notation T()
+  // CLs are destroyed at the end of the containing full-expression.
+  // HOWEVER, an rvalue of array type is not something the analyzer can
+  // reason about, since we expect all regions to be wrapped in Locs.
+  // So we treat array CLs as lvalues as well, knowing that they will decay
+  // to pointers as soon as they are used.
+  if (CL->isGLValue() || CL->getType()->isArrayType())
     B.generateNode(CL, Pred, state->BindExpr(CL, LC, state->getLValue(CL, LC)));
   else
     B.generateNode(CL, Pred, state->BindExpr(CL, LC, ILV));
@@ -393,7 +441,7 @@ void ExprEngine::VisitDeclStmt(const DeclStmt *DS, ExplodedNode *Pred,
   ExplodedNodeSet dstPreVisit;
   getCheckerManager().runCheckersForPreStmt(dstPreVisit, Pred, DS, *this);
   
-  StmtNodeBuilder B(dstPreVisit, Dst, *currentBuilderContext);
+  StmtNodeBuilder B(dstPreVisit, Dst, *currBldrCtx);
   const VarDecl *VD = dyn_cast<VarDecl>(D);
   for (ExplodedNodeSet::iterator I = dstPreVisit.begin(), E = dstPreVisit.end();
        I!=E; ++I) {
@@ -404,34 +452,42 @@ void ExprEngine::VisitDeclStmt(const DeclStmt *DS, ExplodedNode *Pred,
     const LocationContext *LC = N->getLocationContext();
     
     if (const Expr *InitEx = VD->getInit()) {
-      SVal InitVal = state->getSVal(InitEx, Pred->getLocationContext());
-      
-      // We bound the temp obj region to the CXXConstructExpr. Now recover
-      // the lazy compound value when the variable is not a reference.
-      if (AMgr.getLangOpts().CPlusPlus && VD->getType()->isRecordType() && 
-          !VD->getType()->isReferenceType() && isa<loc::MemRegionVal>(InitVal)){
-        InitVal = state->getSVal(cast<loc::MemRegionVal>(InitVal).getRegion());
-        assert(isa<nonloc::LazyCompoundVal>(InitVal));
-      }
-      
-      // Recover some path-sensitivity if a scalar value evaluated to
-      // UnknownVal.
-      if (InitVal.isUnknown()) {
-	QualType Ty = InitEx->getType();
-	if (InitEx->isLValue()) {
-	  Ty = getContext().getPointerType(Ty);
-	}
+      SVal InitVal = state->getSVal(InitEx, LC);
 
-        InitVal = svalBuilder.getConjuredSymbolVal(NULL, InitEx, LC, Ty,
-                                 currentBuilderContext->getCurrentBlockCount());
+      if (InitVal == state->getLValue(VD, LC) ||
+          (VD->getType()->isArrayType() &&
+           isa<CXXConstructExpr>(InitEx->IgnoreImplicit()))) {
+        // We constructed the object directly in the variable.
+        // No need to bind anything.
+        B.generateNode(DS, N, state);
+      } else {
+        // We bound the temp obj region to the CXXConstructExpr. Now recover
+        // the lazy compound value when the variable is not a reference.
+        if (AMgr.getLangOpts().CPlusPlus && VD->getType()->isRecordType() && 
+            !VD->getType()->isReferenceType() && isa<loc::MemRegionVal>(InitVal)){
+          InitVal = state->getSVal(cast<loc::MemRegionVal>(InitVal).getRegion());
+          assert(isa<nonloc::LazyCompoundVal>(InitVal));
+        }
+        
+        // Recover some path-sensitivity if a scalar value evaluated to
+        // UnknownVal.
+        if (InitVal.isUnknown()) {
+          QualType Ty = InitEx->getType();
+          if (InitEx->isGLValue()) {
+            Ty = getContext().getPointerType(Ty);
+          }
+
+          InitVal = svalBuilder.conjureSymbolVal(0, InitEx, LC, Ty,
+                                                 currBldrCtx->blockCount());
+        }
+        B.takeNodes(N);
+        ExplodedNodeSet Dst2;
+        evalBind(Dst2, DS, N, state->getLValue(VD, LC), InitVal, true);
+        B.addNodes(Dst2);
       }
-      B.takeNodes(N);
-      ExplodedNodeSet Dst2;
-      evalBind(Dst2, DS, N, state->getLValue(VD, LC), InitVal, true);
-      B.addNodes(Dst2);
     }
     else {
-      B.generateNode(DS, N,state->bindDeclWithNoInit(state->getRegion(VD, LC)));
+      B.generateNode(DS, N, state);
     }
   }
 }
@@ -441,63 +497,78 @@ void ExprEngine::VisitLogicalExpr(const BinaryOperator* B, ExplodedNode *Pred,
   assert(B->getOpcode() == BO_LAnd ||
          B->getOpcode() == BO_LOr);
 
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   ProgramStateRef state = Pred->getState();
-  const LocationContext *LCtx = Pred->getLocationContext();
-  SVal X = state->getSVal(B, LCtx);
-  assert(X.isUndef());
-  
-  const Expr *Ex = (const Expr*) cast<UndefinedVal>(X).getData();
-  assert(Ex);
-  
-  if (Ex == B->getRHS()) {
-    X = state->getSVal(Ex, LCtx);
-    
-    // Handle undefined values.
-    if (X.isUndef()) {
-      Bldr.generateNode(B, Pred, state->BindExpr(B, LCtx, X));
-      return;
-    }
-    
-    DefinedOrUnknownSVal XD = cast<DefinedOrUnknownSVal>(X);
-    
-    // We took the RHS.  Because the value of the '&&' or '||' expression must
-    // evaluate to 0 or 1, we must assume the value of the RHS evaluates to 0
-    // or 1.  Alternatively, we could take a lazy approach, and calculate this
-    // value later when necessary.  We don't have the machinery in place for
-    // this right now, and since most logical expressions are used for branches,
-    // the payoff is not likely to be large.  Instead, we do eager evaluation.
-    if (ProgramStateRef newState = state->assume(XD, true))
-      Bldr.generateNode(B, Pred,
-               newState->BindExpr(B, LCtx,
-                                  svalBuilder.makeIntVal(1U, B->getType())));
-    
-    if (ProgramStateRef newState = state->assume(XD, false))
-      Bldr.generateNode(B, Pred,
-               newState->BindExpr(B, LCtx,
-                                  svalBuilder.makeIntVal(0U, B->getType())));
+
+  ExplodedNode *N = Pred;
+  while (!isa<BlockEntrance>(N->getLocation())) {
+    ProgramPoint P = N->getLocation();
+    assert(isa<PreStmt>(P)|| isa<PreStmtPurgeDeadSymbols>(P));
+    (void) P;
+    assert(N->pred_size() == 1);
+    N = *N->pred_begin();
+  }
+  assert(N->pred_size() == 1);
+  N = *N->pred_begin();
+  BlockEdge BE = cast<BlockEdge>(N->getLocation());
+  SVal X;
+
+  // Determine the value of the expression by introspecting how we
+  // got this location in the CFG.  This requires looking at the previous
+  // block we were in and what kind of control-flow transfer was involved.
+  const CFGBlock *SrcBlock = BE.getSrc();
+  // The only terminator (if there is one) that makes sense is a logical op.
+  CFGTerminator T = SrcBlock->getTerminator();
+  if (const BinaryOperator *Term = cast_or_null<BinaryOperator>(T.getStmt())) {
+    (void) Term;
+    assert(Term->isLogicalOp());
+    assert(SrcBlock->succ_size() == 2);
+    // Did we take the true or false branch?
+    unsigned constant = (*SrcBlock->succ_begin() == BE.getDst()) ? 1 : 0;
+    X = svalBuilder.makeIntVal(constant, B->getType());
   }
   else {
-    // We took the LHS expression.  Depending on whether we are '&&' or
-    // '||' we know what the value of the expression is via properties of
-    // the short-circuiting.
-    X = svalBuilder.makeIntVal(B->getOpcode() == BO_LAnd ? 0U : 1U,
-                               B->getType());
-    Bldr.generateNode(B, Pred, state->BindExpr(B, LCtx, X));
+    // If there is no terminator, by construction the last statement
+    // in SrcBlock is the value of the enclosing expression.
+    // However, we still need to constrain that value to be 0 or 1.
+    assert(!SrcBlock->empty());
+    CFGStmt Elem = cast<CFGStmt>(*SrcBlock->rbegin());
+    const Expr *RHS = cast<Expr>(Elem.getStmt());
+    SVal RHSVal = N->getState()->getSVal(RHS, Pred->getLocationContext());
+
+    DefinedOrUnknownSVal DefinedRHS = cast<DefinedOrUnknownSVal>(RHSVal);
+    ProgramStateRef StTrue, StFalse;
+    llvm::tie(StTrue, StFalse) = N->getState()->assume(DefinedRHS);
+    if (StTrue) {
+      if (StFalse) {
+        // We can't constrain the value to 0 or 1; the best we can do is a cast.
+        X = getSValBuilder().evalCast(RHSVal, B->getType(), RHS->getType());
+      } else {
+        // The value is known to be true.
+        X = getSValBuilder().makeIntVal(1, B->getType());
+      }
+    } else {
+      // The value is known to be false.
+      assert(StFalse && "Infeasible path!");
+      X = getSValBuilder().makeIntVal(0, B->getType());
+    }
   }
+
+  Bldr.generateNode(B, Pred, state->BindExpr(B, Pred->getLocationContext(), X));
 }
 
 void ExprEngine::VisitInitListExpr(const InitListExpr *IE,
                                    ExplodedNode *Pred,
                                    ExplodedNodeSet &Dst) {
-  StmtNodeBuilder B(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder B(Pred, Dst, *currBldrCtx);
 
   ProgramStateRef state = Pred->getState();
   const LocationContext *LCtx = Pred->getLocationContext();
   QualType T = getContext().getCanonicalType(IE->getType());
   unsigned NumInitElements = IE->getNumInits();
   
-  if (T->isArrayType() || T->isRecordType() || T->isVectorType()) {
+  if (T->isArrayType() || T->isRecordType() || T->isVectorType() ||
+      T->isAnyComplexType()) {
     llvm::ImmutableList<SVal> vals = getBasicVals().getEmptySValList();
     
     // Handle base case where the initializer has no elements.
@@ -519,16 +590,17 @@ void ExprEngine::VisitInitListExpr(const InitListExpr *IE,
                                    svalBuilder.makeCompoundVal(T, vals)));
     return;
   }
-  
-  if (Loc::isLocType(T) || T->isIntegerType()) {
-    assert(IE->getNumInits() == 1);
-    const Expr *initEx = IE->getInit(0);
-    B.generateNode(IE, Pred, state->BindExpr(IE, LCtx,
-                                             state->getSVal(initEx, LCtx)));
-    return;
-  }
-  
-  llvm_unreachable("unprocessed InitListExpr type");
+
+  // Handle scalars: int{5} and int{}.
+  assert(NumInitElements <= 1);
+
+  SVal V;
+  if (NumInitElements == 0)
+    V = getSValBuilder().makeZeroVal(T);
+  else
+    V = state->getSVal(IE->getInit(0), LCtx);
+
+  B.generateNode(IE, Pred, state->BindExpr(IE, LCtx, V));
 }
 
 void ExprEngine::VisitGuardedExpr(const Expr *Ex,
@@ -536,24 +608,48 @@ void ExprEngine::VisitGuardedExpr(const Expr *Ex,
                                   const Expr *R,
                                   ExplodedNode *Pred,
                                   ExplodedNodeSet &Dst) {
-  StmtNodeBuilder B(Pred, Dst, *currentBuilderContext);
-  
+  StmtNodeBuilder B(Pred, Dst, *currBldrCtx);
   ProgramStateRef state = Pred->getState();
   const LocationContext *LCtx = Pred->getLocationContext();
-  SVal X = state->getSVal(Ex, LCtx);  
-  assert (X.isUndef());  
-  const Expr *SE = (Expr*) cast<UndefinedVal>(X).getData();
-  assert(SE);
-  X = state->getSVal(SE, LCtx);
-  
-  // Make sure that we invalidate the previous binding.
-  B.generateNode(Ex, Pred, state->BindExpr(Ex, LCtx, X, true));
+  const CFGBlock *SrcBlock = 0;
+
+  for (const ExplodedNode *N = Pred ; N ; N = *N->pred_begin()) {
+    ProgramPoint PP = N->getLocation();
+    if (isa<PreStmtPurgeDeadSymbols>(PP) || isa<BlockEntrance>(PP)) {
+      assert(N->pred_size() == 1);
+      continue;
+    }
+    SrcBlock = cast<BlockEdge>(&PP)->getSrc();
+    break;
+  }
+
+  // Find the last expression in the predecessor block.  That is the
+  // expression that is used for the value of the ternary expression.
+  bool hasValue = false;
+  SVal V;
+
+  for (CFGBlock::const_reverse_iterator I = SrcBlock->rbegin(),
+                                        E = SrcBlock->rend(); I != E; ++I) {
+    CFGElement CE = *I;
+    if (CFGStmt *CS = dyn_cast<CFGStmt>(&CE)) {
+      const Expr *ValEx = cast<Expr>(CS->getStmt());
+      hasValue = true;
+      V = state->getSVal(ValEx, LCtx);
+      break;
+    }
+  }
+
+  assert(hasValue);
+  (void) hasValue;
+
+  // Generate a new node with the binding from the appropriate path.
+  B.generateNode(Ex, Pred, state->BindExpr(Ex, LCtx, V, true));
 }
 
 void ExprEngine::
 VisitOffsetOfExpr(const OffsetOfExpr *OOE, 
                   ExplodedNode *Pred, ExplodedNodeSet &Dst) {
-  StmtNodeBuilder B(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder B(Pred, Dst, *currBldrCtx);
   APSInt IV;
   if (OOE->EvaluateAsInt(IV, getContext())) {
     assert(IV.getBitWidth() == getContext().getTypeSize(OOE->getType()));
@@ -572,7 +668,7 @@ void ExprEngine::
 VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *Ex,
                               ExplodedNode *Pred,
                               ExplodedNodeSet &Dst) {
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
 
   QualType T = Ex->getTypeOfArgument();
   
@@ -605,7 +701,7 @@ VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *Ex,
 void ExprEngine::VisitUnaryOperator(const UnaryOperator* U, 
                                     ExplodedNode *Pred,
                                     ExplodedNodeSet &Dst) {
-  StmtNodeBuilder Bldr(Pred, Dst, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Pred, Dst, *currBldrCtx);
   switch (U->getOpcode()) {
     default: {
       Bldr.takeNodes(Pred);
@@ -648,7 +744,7 @@ void ExprEngine::VisitUnaryOperator(const UnaryOperator* U,
     }
       
     case UO_Plus:
-      assert(!U->isLValue());
+      assert(!U->isGLValue());
       // FALL-THROUGH.
     case UO_Deref:
     case UO_AddrOf:
@@ -671,7 +767,7 @@ void ExprEngine::VisitUnaryOperator(const UnaryOperator* U,
     case UO_LNot:
     case UO_Minus:
     case UO_Not: {
-      assert (!U->isLValue());
+      assert (!U->isGLValue());
       const Expr *Ex = U->getSubExpr()->IgnoreParens();
       ProgramStateRef state = Pred->getState();
       const LocationContext *LCtx = Pred->getLocationContext();
@@ -738,7 +834,7 @@ void ExprEngine::VisitIncrementDecrementOperator(const UnaryOperator* U,
   evalLoad(Tmp, U, Ex, Pred, state, loc);
   
   ExplodedNodeSet Dst2;
-  StmtNodeBuilder Bldr(Tmp, Dst2, *currentBuilderContext);
+  StmtNodeBuilder Bldr(Tmp, Dst2, *currBldrCtx);
   for (ExplodedNodeSet::iterator I=Tmp.begin(), E=Tmp.end();I!=E;++I) {
     
     state = (*I)->getState();
@@ -762,16 +858,17 @@ void ExprEngine::VisitIncrementDecrementOperator(const UnaryOperator* U,
     
     if (U->getType()->isAnyPointerType())
       RHS = svalBuilder.makeArrayIndex(1);
-    else
+    else if (U->getType()->isIntegralOrEnumerationType())
       RHS = svalBuilder.makeIntVal(1, U->getType());
+    else
+      RHS = UnknownVal();
     
     SVal Result = evalBinOp(state, Op, V2, RHS, U->getType());
     
     // Conjure a new symbol if necessary to recover precision.
     if (Result.isUnknown()){
       DefinedOrUnknownSVal SymVal =
-	svalBuilder.getConjuredSymbolVal(NULL, Ex, LCtx,
-                               currentBuilderContext->getCurrentBlockCount());
+        svalBuilder.conjureSymbolVal(0, Ex, LCtx, currBldrCtx->blockCount());
       Result = SymVal;
       
       // If the value is a location, ++/-- should always preserve
@@ -796,7 +893,7 @@ void ExprEngine::VisitIncrementDecrementOperator(const UnaryOperator* U,
     
     // Since the lvalue-to-rvalue conversion is explicit in the AST,
     // we bind an l-value if the operator is prefix and an lvalue (in C++).
-    if (U->isLValue())
+    if (U->isGLValue())
       state = state->BindExpr(U, LCtx, loc);
     else
       state = state->BindExpr(U, LCtx, U->isPostfix() ? V2 : Result);

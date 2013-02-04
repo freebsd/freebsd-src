@@ -8,6 +8,6 @@ SRCS	+=device_if.h bus_if.h pci_if.h opt_drm.h
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS.r600_cp.c=	${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}
-CWARNFLAGS.radeon_cp.c=	${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}
+CWARNFLAGS.r600_cp.c=	-Wno-unused ${NO_WCONSTANT_CONVERSION}
+CWARNFLAGS.radeon_cp.c=	-Wno-unused ${NO_WCONSTANT_CONVERSION}
 CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}

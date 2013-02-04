@@ -85,7 +85,7 @@ static bool scan_ivar_release(Stmt *S, ObjCIvarDecl *ID,
                                             Expr::NPC_ValueDependentIsNull)) {
               // This is only a 'release' if the property kind is not
               // 'assign'.
-              return PD->getSetterKind() != ObjCPropertyDecl::Assign;;
+              return PD->getSetterKind() != ObjCPropertyDecl::Assign;
             }
 
   // Recurse to children.
@@ -215,10 +215,10 @@ static void checkObjCDealloc(const ObjCImplementationDecl *D,
        E = D->propimpl_end(); I!=E; ++I) {
 
     // We can only check the synthesized properties
-    if ((*I)->getPropertyImplementation() != ObjCPropertyImplDecl::Synthesize)
+    if (I->getPropertyImplementation() != ObjCPropertyImplDecl::Synthesize)
       continue;
 
-    ObjCIvarDecl *ID = (*I)->getPropertyIvarDecl();
+    ObjCIvarDecl *ID = I->getPropertyIvarDecl();
     if (!ID)
       continue;
 
@@ -226,7 +226,7 @@ static void checkObjCDealloc(const ObjCImplementationDecl *D,
     if (!T->isObjCObjectPointerType()) // Skip non-pointer ivars
       continue;
 
-    const ObjCPropertyDecl *PD = (*I)->getPropertyDecl();
+    const ObjCPropertyDecl *PD = I->getPropertyDecl();
     if (!PD)
       continue;
 
@@ -261,7 +261,7 @@ static void checkObjCDealloc(const ObjCImplementationDecl *D,
       }
 
       PathDiagnosticLocation SDLoc =
-        PathDiagnosticLocation::createBegin((*I), BR.getSourceManager());
+        PathDiagnosticLocation::createBegin(*I, BR.getSourceManager());
 
       BR.EmitBasicReport(MD, name, categories::CoreFoundationObjectiveC,
                          os.str(), SDLoc);

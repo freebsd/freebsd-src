@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// Instruction Itinerary classes used for X86 
+// Instruction Itinerary classes used for X86
 def IIC_DEFAULT     : InstrItinClass;
 def IIC_ALU_MEM     : InstrItinClass;
 def IIC_ALU_NONMEM  : InstrItinClass;
@@ -253,6 +253,42 @@ def IIC_SSE_CVT_SS2SI64_RR : InstrItinClass;
 def IIC_SSE_CVT_SD2SI_RM : InstrItinClass;
 def IIC_SSE_CVT_SD2SI_RR : InstrItinClass;
 
+// MMX
+def IIC_MMX_MOV_MM_RM : InstrItinClass;
+def IIC_MMX_MOV_REG_MM : InstrItinClass;
+def IIC_MMX_MOVQ_RM : InstrItinClass;
+def IIC_MMX_MOVQ_RR : InstrItinClass;
+
+def IIC_MMX_ALU_RM : InstrItinClass;
+def IIC_MMX_ALU_RR : InstrItinClass;
+def IIC_MMX_ALUQ_RM : InstrItinClass;
+def IIC_MMX_ALUQ_RR : InstrItinClass;
+def IIC_MMX_PHADDSUBW_RM : InstrItinClass;
+def IIC_MMX_PHADDSUBW_RR : InstrItinClass;
+def IIC_MMX_PHADDSUBD_RM : InstrItinClass;
+def IIC_MMX_PHADDSUBD_RR : InstrItinClass;
+def IIC_MMX_PMUL : InstrItinClass;
+def IIC_MMX_MISC_FUNC_MEM : InstrItinClass;
+def IIC_MMX_MISC_FUNC_REG : InstrItinClass;
+def IIC_MMX_PSADBW : InstrItinClass;
+def IIC_MMX_SHIFT_RI : InstrItinClass;
+def IIC_MMX_SHIFT_RM : InstrItinClass;
+def IIC_MMX_SHIFT_RR : InstrItinClass;
+def IIC_MMX_UNPCK_H_RM : InstrItinClass;
+def IIC_MMX_UNPCK_H_RR : InstrItinClass;
+def IIC_MMX_UNPCK_L : InstrItinClass;
+def IIC_MMX_PCK_RM : InstrItinClass;
+def IIC_MMX_PCK_RR : InstrItinClass;
+def IIC_MMX_PSHUF : InstrItinClass;
+def IIC_MMX_PEXTR : InstrItinClass;
+def IIC_MMX_PINSRW : InstrItinClass;
+def IIC_MMX_MASKMOV : InstrItinClass;
+
+def IIC_MMX_CVT_PD_RR : InstrItinClass;
+def IIC_MMX_CVT_PD_RM : InstrItinClass;
+def IIC_MMX_CVT_PS_RR : InstrItinClass;
+def IIC_MMX_CVT_PS_RM : InstrItinClass;
+
 def IIC_CMPX_LOCK : InstrItinClass;
 def IIC_CMPX_LOCK_8 : InstrItinClass;
 def IIC_CMPX_LOCK_8B : InstrItinClass;
@@ -261,13 +297,185 @@ def IIC_CMPX_LOCK_16B : InstrItinClass;
 def IIC_XADD_LOCK_MEM : InstrItinClass;
 def IIC_XADD_LOCK_MEM8 : InstrItinClass;
 
+def IIC_FILD : InstrItinClass;
+def IIC_FLD : InstrItinClass;
+def IIC_FLD80 : InstrItinClass;
+def IIC_FST : InstrItinClass;
+def IIC_FST80 : InstrItinClass;
+def IIC_FIST : InstrItinClass;
+def IIC_FLDZ : InstrItinClass;
+def IIC_FUCOM : InstrItinClass;
+def IIC_FUCOMI : InstrItinClass;
+def IIC_FCOMI : InstrItinClass;
+def IIC_FNSTSW : InstrItinClass;
+def IIC_FNSTCW : InstrItinClass;
+def IIC_FLDCW : InstrItinClass;
+def IIC_FNINIT : InstrItinClass;
+def IIC_FFREE : InstrItinClass;
+def IIC_FNCLEX : InstrItinClass;
+def IIC_WAIT : InstrItinClass;
+def IIC_FXAM : InstrItinClass;
+def IIC_FNOP : InstrItinClass;
+def IIC_FLDL : InstrItinClass;
+def IIC_F2XM1 : InstrItinClass;
+def IIC_FYL2X : InstrItinClass;
+def IIC_FPTAN : InstrItinClass;
+def IIC_FPATAN : InstrItinClass;
+def IIC_FXTRACT : InstrItinClass;
+def IIC_FPREM1 : InstrItinClass;
+def IIC_FPSTP : InstrItinClass;
+def IIC_FPREM : InstrItinClass;
+def IIC_FYL2XP1 : InstrItinClass;
+def IIC_FSINCOS : InstrItinClass;
+def IIC_FRNDINT : InstrItinClass;
+def IIC_FSCALE : InstrItinClass;
+def IIC_FCOMPP : InstrItinClass;
+def IIC_FXSAVE : InstrItinClass;
+def IIC_FXRSTOR : InstrItinClass;
+
+def IIC_FXCH : InstrItinClass;
+
+// System instructions
+def IIC_CPUID : InstrItinClass;
+def IIC_INT : InstrItinClass;
+def IIC_INT3 : InstrItinClass;
+def IIC_INVD : InstrItinClass;
+def IIC_INVLPG : InstrItinClass;
+def IIC_IRET : InstrItinClass;
+def IIC_HLT : InstrItinClass;
+def IIC_LXS : InstrItinClass;
+def IIC_LTR : InstrItinClass;
+def IIC_RDTSC : InstrItinClass;
+def IIC_RSM : InstrItinClass;
+def IIC_SIDT : InstrItinClass;
+def IIC_SGDT : InstrItinClass;
+def IIC_SLDT : InstrItinClass;
+def IIC_STR : InstrItinClass;
+def IIC_SWAPGS : InstrItinClass;
+def IIC_SYSCALL : InstrItinClass;
+def IIC_SYS_ENTER_EXIT : InstrItinClass;
+def IIC_IN_RR : InstrItinClass;
+def IIC_IN_RI : InstrItinClass;
+def IIC_OUT_RR : InstrItinClass;
+def IIC_OUT_IR : InstrItinClass;
+def IIC_INS : InstrItinClass;
+def IIC_MOV_REG_DR : InstrItinClass;
+def IIC_MOV_DR_REG : InstrItinClass;
+def IIC_MOV_REG_CR : InstrItinClass;
+def IIC_MOV_CR_REG : InstrItinClass;
+def IIC_MOV_REG_SR : InstrItinClass;
+def IIC_MOV_MEM_SR : InstrItinClass;
+def IIC_MOV_SR_REG : InstrItinClass;
+def IIC_MOV_SR_MEM : InstrItinClass;
+def IIC_LAR_RM : InstrItinClass;
+def IIC_LAR_RR : InstrItinClass;
+def IIC_LSL_RM : InstrItinClass;
+def IIC_LSL_RR : InstrItinClass;
+def IIC_LGDT : InstrItinClass;
+def IIC_LIDT : InstrItinClass;
+def IIC_LLDT_REG : InstrItinClass;
+def IIC_LLDT_MEM : InstrItinClass;
+def IIC_PUSH_CS : InstrItinClass;
+def IIC_PUSH_SR : InstrItinClass;
+def IIC_POP_SR : InstrItinClass;
+def IIC_POP_SR_SS : InstrItinClass;
+def IIC_VERR : InstrItinClass;
+def IIC_VERW_REG : InstrItinClass;
+def IIC_VERW_MEM : InstrItinClass;
+def IIC_WRMSR : InstrItinClass;
+def IIC_RDMSR : InstrItinClass;
+def IIC_RDPMC : InstrItinClass;
+def IIC_SMSW : InstrItinClass;
+def IIC_LMSW_REG : InstrItinClass;
+def IIC_LMSW_MEM : InstrItinClass;
+def IIC_ENTER : InstrItinClass;
+def IIC_LEAVE : InstrItinClass;
+def IIC_POP_MEM : InstrItinClass;
+def IIC_POP_REG16 : InstrItinClass;
+def IIC_POP_REG : InstrItinClass;
+def IIC_POP_F : InstrItinClass;
+def IIC_POP_FD : InstrItinClass;
+def IIC_POP_A : InstrItinClass;
+def IIC_PUSH_IMM : InstrItinClass;
+def IIC_PUSH_MEM : InstrItinClass;
+def IIC_PUSH_REG : InstrItinClass;
+def IIC_PUSH_F : InstrItinClass;
+def IIC_PUSH_A : InstrItinClass;
+def IIC_BSWAP : InstrItinClass;
+def IIC_BSF : InstrItinClass;
+def IIC_BSR : InstrItinClass;
+def IIC_MOVS : InstrItinClass;
+def IIC_STOS : InstrItinClass;
+def IIC_SCAS : InstrItinClass;
+def IIC_CMPS : InstrItinClass;
+def IIC_MOV : InstrItinClass;
+def IIC_MOV_MEM : InstrItinClass;
+def IIC_AHF : InstrItinClass;
+def IIC_BT_MI : InstrItinClass;
+def IIC_BT_MR : InstrItinClass;
+def IIC_BT_RI : InstrItinClass;
+def IIC_BT_RR : InstrItinClass;
+def IIC_BTX_MI : InstrItinClass;
+def IIC_BTX_MR : InstrItinClass;
+def IIC_BTX_RI : InstrItinClass;
+def IIC_BTX_RR : InstrItinClass;
+def IIC_XCHG_REG : InstrItinClass;
+def IIC_XCHG_MEM : InstrItinClass;
+def IIC_XADD_REG : InstrItinClass;
+def IIC_XADD_MEM : InstrItinClass;
+def IIC_CMPXCHG_MEM : InstrItinClass;
+def IIC_CMPXCHG_REG : InstrItinClass;
+def IIC_CMPXCHG_MEM8 : InstrItinClass;
+def IIC_CMPXCHG_REG8 : InstrItinClass;
+def IIC_CMPXCHG_8B : InstrItinClass;
+def IIC_CMPXCHG_16B : InstrItinClass;
+def IIC_LODS : InstrItinClass;
+def IIC_OUTS : InstrItinClass;
+def IIC_CLC : InstrItinClass;
+def IIC_CLD : InstrItinClass;
+def IIC_CLI : InstrItinClass;
+def IIC_CMC : InstrItinClass;
+def IIC_CLTS : InstrItinClass;
+def IIC_STC : InstrItinClass;
+def IIC_STI : InstrItinClass;
+def IIC_STD : InstrItinClass;
+def IIC_XLAT : InstrItinClass;
+def IIC_AAA : InstrItinClass;
+def IIC_AAD : InstrItinClass;
+def IIC_AAM : InstrItinClass;
+def IIC_AAS : InstrItinClass;
+def IIC_DAA : InstrItinClass;
+def IIC_DAS : InstrItinClass;
+def IIC_BOUND : InstrItinClass;
+def IIC_ARPL_REG : InstrItinClass;
+def IIC_ARPL_MEM : InstrItinClass;
+def IIC_MOVBE : InstrItinClass;
+
+def IIC_NOP : InstrItinClass;
 
 //===----------------------------------------------------------------------===//
 // Processor instruction itineraries.
 
-def GenericItineraries : ProcessorItineraries<[], [], []>;
+// IssueWidth is analagous to the number of decode units. Core and its
+// descendents, including Nehalem and SandyBridge have 4 decoders.
+// Resources beyond the decoder operate on micro-ops and are bufferred
+// so adjacent micro-ops don't directly compete.
+//
+// MinLatency=0 indicates that RAW dependencies can be decoded in the
+// same cycle.
+//
+// HighLatency=10 is optimistic. X86InstrInfo::isHighLatencyDef
+// indicates high latency opcodes. Alternatively, InstrItinData
+// entries may be included here to define specific operand
+// latencies. Since these latencies are not used for pipeline hazards,
+// they do not need to be exact.
+//
+// The GenericModel contains no instruciton itineraries.
+def GenericModel : SchedMachineModel {
+  let IssueWidth = 4;
+  let MinLatency = 0;
+  let LoadLatency = 4;
+  let HighLatency = 10;
+}
 
 include "X86ScheduleAtom.td"
-
-
-

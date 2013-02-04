@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2009 Hans Petter Selasky. All rights reserved.
  *
@@ -35,7 +33,9 @@ __FBSDID("$FreeBSD$");
  * NOTE: When the chip detects BUS-reset it will also reset the
  * endpoints, Function-address and more.
  */
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -71,6 +71,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/avr32dci.h>
 
 #define	AVR32_BUS2SC(bus) \
@@ -1080,7 +1082,13 @@ avr32dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-avr32dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+avr32dci_xfer_stall(struct usb_xfer *xfer)
+{
+	avr32dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+avr32dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *pipe, uint8_t *did_stall)
 {
 	struct avr32dci_softc *sc;
@@ -1090,10 +1098,6 @@ avr32dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		avr32dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	sc = AVR32_BUS2SC(udev->bus);
 	/* get endpoint number */
 	ep_no = (pipe->edesc->bEndpointAddress & UE_ADDR);
@@ -1501,18 +1505,12 @@ static const struct usb_hub_descriptor_min avr32dci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'A', 0, 'V', 0, 'R', 0, '3', 0, '2', 0
+  "A\0V\0R\0003\0002"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, avr32dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, avr32dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, avr32dci_product);
 
@@ -1715,8 +1713,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(avr32dci_langtab);
-			ptr = (const void *)&avr32dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */
@@ -2054,10 +2052,6 @@ avr32dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if ((udev->speed != USB_SPEED_FULL) &&
 		    (udev->speed != USB_SPEED_HIGH)) {
 			/* not supported */
@@ -2096,6 +2090,7 @@ struct usb_bus_methods avr32dci_bus_methods =
 	.xfer_setup = &avr32dci_xfer_setup,
 	.xfer_unsetup = &avr32dci_xfer_unsetup,
 	.get_hw_ep_profile = &avr32dci_get_hw_ep_profile,
+	.xfer_stall = &avr32dci_xfer_stall,
 	.set_stall = &avr32dci_set_stall,
 	.clear_stall = &avr32dci_clear_stall,
 	.roothub_exec = &avr32dci_roothub_exec,

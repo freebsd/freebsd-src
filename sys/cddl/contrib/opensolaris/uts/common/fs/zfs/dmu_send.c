@@ -59,7 +59,7 @@ dump_bytes(dmu_sendarg_t *dsp, void *buf, int len)
 	dsl_dataset_t *ds = dsp->dsa_os->os_dsl_dataset;
 	struct uio auio;
 	struct iovec aiov;
-	ASSERT3U(len % 8, ==, 0);
+	ASSERT0(len % 8);
 
 	fletcher_4_incremental_native(buf, len, &dsp->dsa_zc);
 	aiov.iov_base = buf;
@@ -1004,7 +1004,7 @@ restore_read(struct restorearg *ra, int len)
 	int done = 0;
 
 	/* some things will require 8-byte alignment, so everything must */
-	ASSERT3U(len % 8, ==, 0);
+	ASSERT0(len % 8);
 
 	while (done < len) {
 		ssize_t resid;
@@ -1649,13 +1649,6 @@ dmu_recv_existing_end(dmu_recv_cookie_t *drc)
 	dsl_dataset_t *ds = drc->drc_logical_ds;
 	int err, myerr;
 
-	/*
-	 * XXX hack; seems the ds is still dirty and dsl_pool_zil_clean()
-	 * expects it to have a ds_user_ptr (and zil), but clone_swap()
-	 * can close it.
-	 */
-	txg_wait_synced(ds->ds_dir->dd_pool, 0);
-
 	if (dsl_dataset_tryown(ds, FALSE, dmu_recv_tag)) {
 		err = dsl_dataset_clone_swap(drc->drc_real_ds, ds,
 		    drc->drc_force);
@@ -1686,7 +1679,7 @@ out:
 		(void) add_ds_to_guidmap(drc->drc_guid_to_ds_map, ds);
 	dsl_dataset_disown(ds, dmu_recv_tag);
 	myerr = dsl_dataset_destroy(drc->drc_real_ds, dmu_recv_tag, B_FALSE);
-	ASSERT3U(myerr, ==, 0);
+	ASSERT0(myerr);
 	return (err);
 }
 

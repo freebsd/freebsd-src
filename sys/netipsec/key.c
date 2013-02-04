@@ -1723,7 +1723,7 @@ key_gather_mbuf(m, mhp, ndeep, nitem, va_alist)
 
 			IPSEC_ASSERT(len <= MHLEN, ("header too big %u", len));
 
-			MGETHDR(n, M_DONTWAIT, MT_DATA);
+			MGETHDR(n, M_NOWAIT, MT_DATA);
 			if (!n)
 				goto fail;
 			n->m_len = len;
@@ -1742,7 +1742,7 @@ key_gather_mbuf(m, mhp, ndeep, nitem, va_alist)
 			    mtod(n, caddr_t));
 		} else {
 			n = m_copym(m, mhp->extoff[idx], mhp->extlen[idx],
-			    M_DONTWAIT);
+			    M_NOWAIT);
 		}
 		if (n == NULL)
 			goto fail;
@@ -2200,9 +2200,9 @@ key_spddelete2(so, m, mhp)
 	/* create new sadb_msg to reply. */
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 
-	MGETHDR(n, M_DONTWAIT, MT_DATA);
+	MGETHDR(n, M_NOWAIT, MT_DATA);
 	if (n && len > MHLEN) {
-		MCLGET(n, M_DONTWAIT);
+		MCLGET(n, M_NOWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_freem(n);
 			n = NULL;
@@ -2222,7 +2222,7 @@ key_spddelete2(so, m, mhp)
 		off, len));
 
 	n->m_next = m_copym(m, mhp->extoff[SADB_X_EXT_POLICY],
-	    mhp->extlen[SADB_X_EXT_POLICY], M_DONTWAIT);
+	    mhp->extlen[SADB_X_EXT_POLICY], M_NOWAIT);
 	if (!n->m_next) {
 		m_freem(n);
 		return key_senderror(so, m, ENOBUFS);
@@ -3562,9 +3562,9 @@ key_setsadbmsg(u_int8_t type, u_int16_t tlen, u_int8_t satype, u_int32_t seq,
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 	if (len > MCLBYTES)
 		return NULL;
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m && len > MHLEN) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_freem(m);
 			m = NULL;
@@ -3921,8 +3921,7 @@ key_ismyaddr(sa)
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
 		IN_IFADDR_RLOCK();
-		for (ia = V_in_ifaddrhead.tqh_first; ia;
-		     ia = ia->ia_link.tqe_next)
+		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
 		{
 			if (sin->sin_family == ia->ia_addr.sin_family &&
 			    sin->sin_len == ia->ia_addr.sin_len &&
@@ -4056,10 +4055,12 @@ key_cmpsaidx(
 		/*
 		 * If NAT-T is enabled, check ports for tunnel mode.
 		 * Do not check ports if they are set to zero in the SPD.
-		 * Also do not do it for transport mode, as there is no
-		 * port information available in the SP.
+		 * Also do not do it for native transport mode, as there
+		 * is no port information available in the SP.
 		 */
-		if (saidx1->mode == IPSEC_MODE_TUNNEL &&
+		if ((saidx1->mode == IPSEC_MODE_TUNNEL ||
+		     (saidx1->mode == IPSEC_MODE_TRANSPORT &&
+		      saidx1->proto == IPPROTO_ESP)) &&
 		    saidx1->src.sa.sa_family == AF_INET &&
 		    saidx1->dst.sa.sa_family == AF_INET &&
 		    ((const struct sockaddr_in *)(&saidx1->src))->sin_port &&
@@ -4822,9 +4823,9 @@ key_getspi(so, m, mhp)
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg)) +
 	    PFKEY_ALIGN8(sizeof(struct sadb_sa));
 
-	MGETHDR(n, M_DONTWAIT, MT_DATA);
+	MGETHDR(n, M_NOWAIT, MT_DATA);
 	if (len > MHLEN) {
-		MCLGET(n, M_DONTWAIT);
+		MCLGET(n, M_NOWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_freem(n);
 			n = NULL;
@@ -6032,7 +6033,7 @@ key_getcomb_esp()
 		else {
 			IPSEC_ASSERT(l <= MLEN,
 				("l=%u > MLEN=%lu", l, (u_long) MLEN));
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (m) {
 				M_ALIGN(m, l);
 				m->m_len = l;
@@ -6140,14 +6141,14 @@ key_getcomb_ah()
 		if (!m) {
 			IPSEC_ASSERT(l <= MLEN,
 				("l=%u > MLEN=%lu", l, (u_long) MLEN));
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (m) {
 				M_ALIGN(m, l);
 				m->m_len = l;
 				m->m_next = NULL;
 			}
 		} else
-			M_PREPEND(m, l, M_DONTWAIT);
+			M_PREPEND(m, l, M_NOWAIT);
 		if (!m)
 			return NULL;
 
@@ -6184,14 +6185,14 @@ key_getcomb_ipcomp()
 		if (!m) {
 			IPSEC_ASSERT(l <= MLEN,
 				("l=%u > MLEN=%lu", l, (u_long) MLEN));
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (m) {
 				M_ALIGN(m, l);
 				m->m_len = l;
 				m->m_next = NULL;
 			}
 		} else
-			M_PREPEND(m, l, M_DONTWAIT);
+			M_PREPEND(m, l, M_NOWAIT);
 		if (!m)
 			return NULL;
 
@@ -6235,7 +6236,7 @@ key_getprop(saidx)
 
 	if (!m)
 		return NULL;
-	M_PREPEND(m, l, M_DONTWAIT);
+	M_PREPEND(m, l, M_NOWAIT);
 	if (!m)
 		return NULL;
 
@@ -6793,9 +6794,9 @@ key_register(so, m, mhp)
 	if (len > MCLBYTES)
 		return key_senderror(so, m, ENOBUFS);
 
-	MGETHDR(n, M_DONTWAIT, MT_DATA);
+	MGETHDR(n, M_NOWAIT, MT_DATA);
 	if (len > MHLEN) {
-		MCLGET(n, M_DONTWAIT);
+		MCLGET(n, M_NOWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_freem(n);
 			n = NULL;
@@ -6911,15 +6912,11 @@ key_freereg(struct socket *so)
 static int
 key_expire(struct secasvar *sav)
 {
-	int s;
 	int satype;
 	struct mbuf *result = NULL, *m;
 	int len;
 	int error = -1;
 	struct sadb_lifetime *lt;
-
-	/* XXX: Why do we lock ? */
-	s = splnet();	/*called from softclock()*/
 
 	IPSEC_ASSERT (sav != NULL, ("null sav"));
 	IPSEC_ASSERT (sav->sah != NULL, ("null sa header"));
@@ -7022,13 +7019,11 @@ key_expire(struct secasvar *sav)
 	mtod(result, struct sadb_msg *)->sadb_msg_len =
 	    PFKEY_UNIT64(result->m_pkthdr.len);
 
-	splx(s);
 	return key_sendup_mbuf(NULL, result, KEY_SENDUP_REGISTERED);
 
  fail:
 	if (result)
 		m_freem(result);
-	splx(s);
 	return error;
 }
 
@@ -7369,9 +7364,9 @@ key_parse(m, so)
 	if (m->m_next) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n && m->m_pkthdr.len > MHLEN) {
-			MCLGET(n, M_DONTWAIT);
+			MCLGET(n, M_NOWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_free(n);
 				n = NULL;
@@ -7974,9 +7969,9 @@ key_alloc_mbuf(l)
 
 	len = l;
 	while (len > 0) {
-		MGET(n, M_DONTWAIT, MT_DATA);
+		MGET(n, M_NOWAIT, MT_DATA);
 		if (n && len > MLEN)
-			MCLGET(n, M_DONTWAIT);
+			MCLGET(n, M_NOWAIT);
 		if (!n) {
 			m_freem(m);
 			return NULL;

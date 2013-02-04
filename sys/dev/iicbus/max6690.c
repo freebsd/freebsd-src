@@ -251,7 +251,7 @@ max6690_start(void *xdev)
 	struct max6690_softc *sc;
 	struct sysctl_oid *oid, *sensroot_oid;
 	struct sysctl_ctx_list *ctx;
-	char sysctl_name[32];
+	char sysctl_desc[40], sysctl_name[32];
 	int i, j;
 
 	device_t dev = (device_t)xdev;
@@ -293,6 +293,8 @@ max6690_start(void *xdev)
 		}
 		sysctl_name[j] = 0;
 
+		sprintf(sysctl_desc,"%s %s", sc->sc_sensors[i].therm.name,
+			"(C)");
 		oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sensroot_oid),
 				      OID_AUTO,
 				      sysctl_name, CTLFLAG_RD, 0,
@@ -300,8 +302,7 @@ max6690_start(void *xdev)
 		/* I use i to pass the sensor id. */
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "temp",
 				CTLTYPE_INT | CTLFLAG_RD, dev, i % 2,
-				max6690_sensor_sysctl, "IK",
-				"Sensor Temp in °C");
+				max6690_sensor_sysctl, "IK", sysctl_desc);
 
 	}
 	/* Dump sensor location & ID. */

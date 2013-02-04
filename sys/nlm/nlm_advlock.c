@@ -98,6 +98,7 @@ nlm_client_init(void *dummy)
 	int i;
 
 	mtx_init(&nlm_svid_lock, "NLM svid lock", NULL, MTX_DEF);
+	/* pid_max cannot be greater than PID_MAX */
 	nlm_svid_allocator = new_unrhdr(PID_MAX + 2, INT_MAX, &nlm_svid_lock);
 	for (i = 0; i < NLM_SVID_HASH_SIZE; i++)
 		LIST_INIT(&nlm_file_svids[i]);

@@ -27,6 +27,9 @@
  * usb_dev.c - An abstraction layer for creating devices under /dev/...
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -75,6 +78,7 @@
 #include <sys/syscallsubr.h>
 
 #include <machine/stdarg.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_UGEN
 
@@ -82,9 +86,8 @@
 static int usb_fifo_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
-SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_fifo_debug, 0, "Debug Level");
-
 TUNABLE_INT("hw.usb.dev.debug", &usb_fifo_debug);
 #endif
 

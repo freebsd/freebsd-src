@@ -15,12 +15,46 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/TableGen/Record.h"
 #include "CodeGenTarget.h"
-#include "DFAPacketizerEmitter.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <list>
-
+#include <map>
+#include <string>
 using namespace llvm;
+
+//
+// class DFAPacketizerEmitter: class that generates and prints out the DFA
+// for resource tracking.
+//
+namespace {
+class DFAPacketizerEmitter {
+private:
+  std::string TargetName;
+  //
+  // allInsnClasses is the set of all possible resources consumed by an
+  // InstrStage.
+  //
+  DenseSet<unsigned> allInsnClasses;
+  RecordKeeper &Records;
+
+public:
+  DFAPacketizerEmitter(RecordKeeper &R);
+
+  //
+  // collectAllInsnClasses: Populate allInsnClasses which is a set of units
+  // used in each stage.
+  //
+  void collectAllInsnClasses(const std::string &Name,
+                             Record *ItinData,
+                             unsigned &NStages,
+                             raw_ostream &OS);
+
+  void run(raw_ostream &OS);
+};
+} // End anonymous namespace.
 
 //
 //
@@ -41,6 +75,8 @@ using namespace llvm;
 // Another way of thinking about this transition is we are mapping a NDFA with
 // two states [0x01] and [0x10] into a DFA with a single state [0x01, 0x10].
 //
+// A State instance also contains a collection of transitions from that state:
+// a map from inputs to new states.
 //
 namespace {
 class State {
@@ -49,9 +85,15 @@ class State {
   int stateNum;
   bool isInitial;
   std::set<unsigned> stateInfo;
+  typedef std::map<unsigned, State *> TransitionMap;
+  TransitionMap Transitions;
 
   State();
   State(const State &S);
+
+  bool operator<(const State &s) const {
+    return stateNum < s.stateNum;
+  }
 
   //
   // canAddInsnClass - Returns true if an instruction of type InsnClass is a
@@ -61,34 +103,23 @@ class State {
   // PossibleStates is the set of valid resource states that ensue from valid
   // transitions.
   //
-  bool canAddInsnClass(unsigned InsnClass, std::set<unsigned> &PossibleStates);
+  bool canAddInsnClass(unsigned InsnClass) const;
+  //
+  // AddInsnClass - Return all combinations of resource reservation
+  // which are possible from this state (PossibleStates).
+  //
+  void AddInsnClass(unsigned InsnClass, std::set<unsigned> &PossibleStates);
+  // 
+  // addTransition - Add a transition from this state given the input InsnClass
+  //
+  void addTransition(unsigned InsnClass, State *To);
+  //
+  // hasTransition - Returns true if there is a transition from this state
+  // given the input InsnClass
+  //
+  bool hasTransition(unsigned InsnClass);
 };
 } // End anonymous namespace.
-
-
-namespace {
-struct Transition {
- public:
-  static int currentTransitionNum;
-  int transitionNum;
-  State *from;
-  unsigned input;
-  State *to;
-
-  Transition(State *from_, unsigned input_, State *to_);
-};
-} // End anonymous namespace.
-
-
-//
-// Comparators to keep set of states sorted.
-//
-namespace {
-struct ltState {
-  bool operator()(const State *s1, const State *s2) const;
-};
-} // End anonymous namespace.
-
 
 //
 // class DFA: deterministic finite automaton for processor resource tracking.
@@ -97,35 +128,19 @@ namespace {
 class DFA {
 public:
   DFA();
+  ~DFA();
 
   // Set of states. Need to keep this sorted to emit the transition table.
-  std::set<State*, ltState> states;
+  typedef std::set<State *, less_ptr<State> > StateSet;
+  StateSet states;
 
-  // Map from a state to the list of transitions with that state as source.
-  std::map<State*, SmallVector<Transition*, 16>, ltState> stateTransitions;
   State *currentState;
-
-  // Highest valued Input seen.
-  unsigned LargestInput;
 
   //
   // Modify the DFA.
   //
   void initialize();
   void addState(State *);
-  void addTransition(Transition *);
-
-  //
-  // getTransition -  Return the state when a transition is made from
-  // State From with Input I. If a transition is not found, return NULL.
-  //
-  State *getTransition(State *, unsigned);
-
-  //
-  // isValidTransition: Predicate that checks if there is a valid transition
-  // from state From on input InsnClass.
-  //
-  bool isValidTransition(State *From, unsigned InsnClass);
 
   //
   // writeTable: Print out a table representing the DFA.
@@ -136,7 +151,7 @@ public:
 
 
 //
-// Constructors for State, Transition, and DFA
+// Constructors and destructors for State and DFA
 //
 State::State() :
   stateNum(currentStateNum++), isInitial(false) {}
@@ -146,35 +161,38 @@ State::State(const State &S) :
   stateNum(currentStateNum++), isInitial(S.isInitial),
   stateInfo(S.stateInfo) {}
 
+DFA::DFA(): currentState(NULL) {}
 
-Transition::Transition(State *from_, unsigned input_, State *to_) :
-  transitionNum(currentTransitionNum++), from(from_), input(input_),
-  to(to_) {}
-
-
-DFA::DFA() :
-  LargestInput(0) {}
-
-
-bool ltState::operator()(const State *s1, const State *s2) const {
-    return (s1->stateNum < s2->stateNum);
+DFA::~DFA() {
+  DeleteContainerPointers(states);
 }
 
+// 
+// addTransition - Add a transition from this state given the input InsnClass
+//
+void State::addTransition(unsigned InsnClass, State *To) {
+  assert(!Transitions.count(InsnClass) &&
+      "Cannot have multiple transitions for the same input");
+  Transitions[InsnClass] = To;
+}
 
 //
-// canAddInsnClass - Returns true if an instruction of type InsnClass is a
-// valid transition from this state i.e., can an instruction of type InsnClass
-// be added to the packet represented by this state.
+// hasTransition - Returns true if there is a transition from this state
+// given the input InsnClass
 //
-// PossibleStates is the set of valid resource states that ensue from valid
-// transitions.
+bool State::hasTransition(unsigned InsnClass) {
+  return Transitions.count(InsnClass) > 0;
+}
+
 //
-bool State::canAddInsnClass(unsigned InsnClass,
+// AddInsnClass - Return all combinations of resource reservation
+// which are possible from this state (PossibleStates).
+//
+void State::AddInsnClass(unsigned InsnClass,
                             std::set<unsigned> &PossibleStates) {
   //
   // Iterate over all resource states in currentState.
   //
-  bool AddedState = false;
 
   for (std::set<unsigned>::iterator SI = stateInfo.begin();
        SI != stateInfo.end(); ++SI) {
@@ -207,17 +225,31 @@ bool State::canAddInsnClass(unsigned InsnClass,
             (VisitedResourceStates.count(ResultingResourceState) == 0)) {
           VisitedResourceStates.insert(ResultingResourceState);
           PossibleStates.insert(ResultingResourceState);
-          AddedState = true;
         }
       }
     }
   }
 
-  return AddedState;
+}
+
+
+//
+// canAddInsnClass - Quickly verifies if an instruction of type InsnClass is a
+// valid transition from this state i.e., can an instruction of type InsnClass
+// be added to the packet represented by this state.
+//
+bool State::canAddInsnClass(unsigned InsnClass) const {
+  for (std::set<unsigned>::const_iterator SI = stateInfo.begin();
+       SI != stateInfo.end(); ++SI) {
+    if (~*SI & InsnClass)
+      return true;
+  }
+  return false;
 }
 
 
 void DFA::initialize() {
+  assert(currentState && "Missing current state");
   currentState->isInitial = true;
 }
 
@@ -228,45 +260,9 @@ void DFA::addState(State *S) {
 }
 
 
-void DFA::addTransition(Transition *T) {
-  // Update LargestInput.
-  if (T->input > LargestInput)
-    LargestInput = T->input;
-
-  // Add the new transition.
-  stateTransitions[T->from].push_back(T);
-}
-
-
-//
-// getTransition - Return the state when a transition is made from
-// State From with Input I. If a transition is not found, return NULL.
-//
-State *DFA::getTransition(State *From, unsigned I) {
-  // Do we have a transition from state From?
-  if (!stateTransitions.count(From))
-    return NULL;
-
-  // Do we have a transition from state From with Input I?
-  for (SmallVector<Transition*, 16>::iterator VI =
-         stateTransitions[From].begin();
-         VI != stateTransitions[From].end(); ++VI)
-    if ((*VI)->input == I)
-      return (*VI)->to;
-
-  return NULL;
-}
-
-
-bool DFA::isValidTransition(State *From, unsigned InsnClass) {
-  return (getTransition(From, InsnClass) != NULL);
-}
-
-
 int State::currentStateNum = 0;
-int Transition::currentTransitionNum = 0;
 
-DFAGen::DFAGen(RecordKeeper &R):
+DFAPacketizerEmitter::DFAPacketizerEmitter(RecordKeeper &R):
   TargetName(CodeGenTarget(R).getName()),
   allInsnClasses(), Records(R) {}
 
@@ -283,7 +279,7 @@ DFAGen::DFAGen(RecordKeeper &R):
 //
 //
 void DFA::writeTableAndAPI(raw_ostream &OS, const std::string &TargetName) {
-  std::set<State*, ltState>::iterator SI = states.begin();
+  DFA::StateSet::iterator SI = states.begin();
   // This table provides a map to the beginning of the transitions for State s
   // in DFAStateInputTable.
   std::vector<int> StateEntry(states.size());
@@ -295,17 +291,16 @@ void DFA::writeTableAndAPI(raw_ostream &OS, const std::string &TargetName) {
   // to construct the StateEntry table.
   int ValidTransitions = 0;
   for (unsigned i = 0; i < states.size(); ++i, ++SI) {
+    assert (((*SI)->stateNum == (int) i) && "Mismatch in state numbers");
     StateEntry[i] = ValidTransitions;
-    for (unsigned j = 0; j <= LargestInput; ++j) {
-      assert (((*SI)->stateNum == (int) i) && "Mismatch in state numbers");
-      if (!isValidTransition(*SI, j))
-        continue;
-
-      OS << "{" << j << ", "
-         << getTransition(*SI, j)->stateNum
+    for (State::TransitionMap::iterator
+        II = (*SI)->Transitions.begin(), IE = (*SI)->Transitions.end();
+        II != IE; ++II) {
+      OS << "{" << II->first << ", "
+         << II->second->stateNum
          << "},    ";
-      ++ValidTransitions;
     }
+    ValidTransitions += (*SI)->Transitions.size();
 
     // If there are no valid transitions from this stage, we need a sentinel
     // transition.
@@ -346,7 +341,7 @@ void DFA::writeTableAndAPI(raw_ostream &OS, const std::string &TargetName) {
 // collectAllInsnClasses - Populate allInsnClasses which is a set of units
 // used in each stage.
 //
-void DFAGen::collectAllInsnClasses(const std::string &Name,
+void DFAPacketizerEmitter::collectAllInsnClasses(const std::string &Name,
                                   Record *ItinData,
                                   unsigned &NStages,
                                   raw_ostream &OS) {
@@ -402,8 +397,7 @@ void DFAGen::collectAllInsnClasses(const std::string &Name,
 //
 // Run the worklist algorithm to generate the DFA.
 //
-void DFAGen::run(raw_ostream &OS) {
-  EmitSourceFileHeader("Target DFA Packetizer Tables", OS);
+void DFAPacketizerEmitter::run(raw_ostream &OS) {
 
   // Collect processor iteraries.
   std::vector<Record*> ProcItinList =
@@ -481,9 +475,11 @@ void DFAGen::run(raw_ostream &OS) {
       // If we haven't already created a transition for this input
       // and the state can accommodate this InsnClass, create a transition.
       //
-      if (!D.getTransition(current, InsnClass) &&
-          current->canAddInsnClass(InsnClass, NewStateResources)) {
+      if (!current->hasTransition(InsnClass) &&
+          current->canAddInsnClass(InsnClass)) {
         State *NewState = NULL;
+        current->AddInsnClass(InsnClass, NewStateResources);
+        assert(NewStateResources.size() && "New states must be generated");
 
         //
         // If we have seen this state before, then do not create a new state.
@@ -499,10 +495,8 @@ void DFAGen::run(raw_ostream &OS) {
           Visited[NewStateResources] = NewState;
           WorkList.push_back(NewState);
         }
-
-        Transition *NewTransition = new Transition(current, InsnClass,
-                                                   NewState);
-        D.addTransition(NewTransition);
+        
+        current->addTransition(InsnClass, NewState);
       }
     }
   }
@@ -510,3 +504,12 @@ void DFAGen::run(raw_ostream &OS) {
   // Print out the table.
   D.writeTableAndAPI(OS, TargetName);
 }
+
+namespace llvm {
+
+void EmitDFAPacketizer(RecordKeeper &RK, raw_ostream &OS) {
+  emitSourceFileHeader("Target DFA Packetizer Tables", OS);
+  DFAPacketizerEmitter(RK).run(OS);
+}
+
+} // End llvm namespace

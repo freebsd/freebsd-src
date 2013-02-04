@@ -71,6 +71,8 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_ether.h>
 
+MODULE_VERSION(ng_ether, 1);
+
 #define IFP2NG(ifp)  (IFP2AC((ifp))->ac_netgraph)
 
 /* Per-node private data */
@@ -114,6 +116,8 @@ static ng_newhook_t	ng_ether_newhook;
 static ng_rcvdata_t	ng_ether_rcvdata;
 static ng_disconnect_t	ng_ether_disconnect;
 static int		ng_ether_mod_event(module_t mod, int event, void *data);
+
+static eventhandler_tag	ng_ether_ifnet_arrival_cookie;
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_ether_cmdlist[] = {
@@ -212,14 +216,30 @@ static struct ng_type ng_ether_typestruct = {
 NETGRAPH_INIT(ether, &ng_ether_typestruct);
 
 /******************************************************************
+		    UTILITY FUNCTIONS
+******************************************************************/
+static void
+ng_ether_sanitize_ifname(const char *ifname, char *name)
+{
+	int i;
+
+	for (i = 0; i < IFNAMSIZ; i++) {
+		if (ifname[i] == '.' || ifname[i] == ':')
+			name[i] = '_';
+		else
+			name[i] = ifname[i];
+		if (name[i] == '\0')
+			break;
+	}
+}
+
+/******************************************************************
 		    ETHERNET FUNCTION HOOKS
 ******************************************************************/
 
 /*
  * Handle a packet that has come in on an interface. We get to
  * look at it here before any upper layer protocols do.
- *
- * NOTE: this function will get called at splimp()
  */
 static void
 ng_ether_input(struct ifnet *ifp, struct mbuf **mp)
@@ -237,8 +257,6 @@ ng_ether_input(struct ifnet *ifp, struct mbuf **mp)
 /*
  * Handle a packet that has come in on an interface, and which
  * does not match any of our known protocols (an ``orphan'').
- *
- * NOTE: this function will get called at splimp()
  */
 static void
 ng_ether_input_orphan(struct ifnet *ifp, struct mbuf *m)
@@ -284,6 +302,7 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 static void
 ng_ether_attach(struct ifnet *ifp)
 {
+	char name[IFNAMSIZ];
 	priv_p priv;
 	node_p node;
 
@@ -321,10 +340,9 @@ ng_ether_attach(struct ifnet *ifp)
 	priv->hwassist = ifp->if_hwassist;
 
 	/* Try to give the node the same name as the interface */
-	if (ng_name_node(node, ifp->if_xname) != 0) {
-		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __func__, ifp->if_xname);
-	}
+	ng_ether_sanitize_ifname(ifp->if_xname, name);
+	if (ng_name_node(node, name) != 0)
+		log(LOG_WARNING, "%s: can't name node %s\n", __func__, name);
 }
 
 /*
@@ -378,6 +396,32 @@ ng_ether_link_state(struct ifnet *ifp, int state)
 		if (msg != NULL)
 			NG_SEND_MSG_HOOK(dummy_error, node, msg, priv->orphan, 0);
 	}
+}
+
+/*
+ * Interface arrival notification handler.
+ * The notification is produced in two cases:
+ *  o a new interface arrives
+ *  o an existing interface got renamed
+ * Currently the first case is handled by ng_ether_attach via special
+ * hook ng_ether_attach_p.
+ */
+static void
+ng_ether_ifnet_arrival_event(void *arg __unused, struct ifnet *ifp)
+{
+	char name[IFNAMSIZ];
+	node_p node = IFP2NG(ifp);
+
+	/*
+	 * Just return if it's a new interface without an ng_ether companion.
+	 */
+	if (node == NULL)
+		return;
+
+	/* Try to give the node the same name as the new interface name */
+	ng_ether_sanitize_ifname(ifp->if_xname, name);
+	if (ng_name_node(node, name) != 0)
+		log(LOG_WARNING, "%s: can't re-name node %s\n", __func__, name);
 }
 
 /******************************************************************
@@ -757,9 +801,7 @@ static int
 ng_ether_mod_event(module_t mod, int event, void *data)
 {
 	int error = 0;
-	int s;
 
-	s = splnet();
 	switch (event) {
 	case MOD_LOAD:
 
@@ -775,6 +817,9 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		ng_ether_input_orphan_p = ng_ether_input_orphan;
 		ng_ether_link_state_p = ng_ether_link_state;
 
+		ng_ether_ifnet_arrival_cookie =
+		    EVENTHANDLER_REGISTER(ifnet_arrival_event,
+		    ng_ether_ifnet_arrival_event, NULL, EVENTHANDLER_PRI_ANY);
 		break;
 
 	case MOD_UNLOAD:
@@ -786,6 +831,9 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		 * case, we know there are no nodes left if the action
 		 * is MOD_UNLOAD, so there's no need to detach any nodes.
 		 */
+
+		EVENTHANDLER_DEREGISTER(ifnet_arrival_event,
+		    ng_ether_ifnet_arrival_cookie);
 
 		/* Unregister function hooks */
 		ng_ether_attach_p = NULL;
@@ -800,7 +848,6 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }
 

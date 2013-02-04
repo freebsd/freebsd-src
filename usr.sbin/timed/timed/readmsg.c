@@ -69,11 +69,7 @@ struct timeval from_when;
  */
 
 struct tsp *
-readmsg(type, machfrom, intvl, netfrom)
-	int type;
-	char *machfrom;
-	struct timeval *intvl;
-	struct netinfo *netfrom;
+readmsg(int type, char *machfrom, struct timeval *intvl, struct netinfo *netfrom)
 {
 	int length;
 	fd_set ready;
@@ -168,11 +164,11 @@ again:
 	 * right one, return it, otherwise insert it in the linked list.
 	 */
 
-	(void)gettimeofday(&rtout, 0);
+	(void)gettimeofday(&rtout, NULL);
 	timevaladd(&rtout, intvl);
 	FD_ZERO(&ready);
 	for (;;) {
-		(void)gettimeofday(&rtime, 0);
+		(void)gettimeofday(&rtime, NULL);
 		timevalsub(&rwait, &rtout, &rtime);
 		if (rwait.tv_sec < 0)
 			rwait.tv_sec = rwait.tv_usec = 0;
@@ -219,7 +215,7 @@ again:
 			      inet_ntoa(from.sin_addr));
 			continue;
 		}
-		(void)gettimeofday(&from_when, (struct timezone *)0);
+		(void)gettimeofday(&from_when, NULL);
 		bytehostorder(&msgin);
 
 		if (msgin.tsp_vers > TSPVERSION) {
@@ -342,7 +338,7 @@ again:
  * only the type ACK is to be sent by a slave
  */
 void
-slaveack()
+slaveack(void)
 {
 	switch(msgin.tsp_type) {
 
@@ -374,7 +370,7 @@ slaveack()
  * These packets should be acknowledged.
  */
 void
-ignoreack()
+ignoreack(void)
 {
 	switch(msgin.tsp_type) {
 
@@ -402,7 +398,7 @@ ignoreack()
  * to the messages received by a master
  */
 void
-masterack()
+masterack(void)
 {
 	struct tsp resp;
 
@@ -445,9 +441,7 @@ masterack()
  * Print a TSP message
  */
 void
-print(msg, addr)
-	struct tsp *msg;
-	struct sockaddr_in *addr;
+print(struct tsp *msg, struct sockaddr_in *addr)
 {
 	char tm[26];
 	time_t tsp_time_sec;

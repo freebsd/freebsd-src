@@ -53,7 +53,7 @@ struct acpi_user_mapping {
 	size_t          size;
 };
 
-LIST_HEAD(acpi_user_mapping_list, acpi_user_mapping) maplist;
+static LIST_HEAD(acpi_user_mapping_list, acpi_user_mapping) maplist;
 
 static void
 acpi_user_init(void)

@@ -77,7 +77,11 @@ void cvmx_warn(const char *format, ...)
     printk("WARNING:");
     vprintk(format, args);
 #else
+#ifdef CVMX_BUILD_FOR_FREEBSD_KERNEL
+    printf("WARNING: ");
+#else
     printf("WARNING:\n");
+#endif
     vprintf(format, args);
 #endif
     va_end(args);

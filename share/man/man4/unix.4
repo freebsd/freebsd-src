@@ -32,7 +32,7 @@
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2009
+.Dd November 16, 2012
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -123,20 +123,10 @@ of a
 or
 .Xr sendto 2
 must be writable.
-.Sh PROTOCOLS
+.Sh PASSING FILE DESCRIPTORS
 The
 .Ux Ns -domain
-protocol family is comprised of simple
-transport protocols that support the
-.Dv SOCK_STREAM ,
-.Dv SOCK_SEQPACKET ,
-and
-.Dv SOCK_DGRAM
-abstractions.
-.Dv SOCK_STREAM
-and
-.Dv SOCK_SEQPACKET
-sockets also support the communication of
+sockets support the communication of
 .Ux
 file descriptors through the use of the
 .Va msg_control
@@ -173,36 +163,7 @@ passed to a receiver.
 Descriptors that are awaiting delivery, or that are
 purposely not received, are automatically closed by the system
 when the destination socket is closed.
-.Pp
-The effective credentials (i.e., the user ID and group list) of a
-peer on a
-.Dv SOCK_STREAM
-socket may be obtained using the
-.Dv LOCAL_PEERCRED
-socket option.
-This may be used by a server to obtain and verify the credentials of
-its client, and vice versa by the client to verify the credentials
-of the server.
-These will arrive in the form of a filled in
-.Vt "struct xucred"
-(defined in
-.In sys/ucred.h ) .
-The credentials presented to the server (the
-.Xr listen 2
-caller) are those of the client when it called
-.Xr connect 2 ;
-the credentials presented to the client (the
-.Xr connect 2
-caller) are those of the server when it called
-.Xr listen 2 .
-This mechanism is reliable; there is no way for either party to influence
-the credentials presented to its peer except by calling the appropriate
-system call (e.g.,
-.Xr connect 2
-or
-.Xr listen 2 )
-under different effective credentials.
-.Pp
+.Sh SOCKET OPTIONS
 .Tn UNIX
 domain sockets support a number of socket options which can be set with
 .Xr setsockopt 2
@@ -256,6 +217,13 @@ cmsg_len = CMSG_LEN(SOCKCREDSIZE(ngroups))
 cmsg_level = SOL_SOCKET
 cmsg_type = SCM_CREDS
 .Ed
+.Pp
+On
+.Dv SOCK_STREAM
+and
+.Dv SOCK_SEQPACKET
+sockets credentials are passed only on the first read from a socket,
+then system clears the option on socket.
 .It Dv LOCAL_CONNWAIT
 Used with
 .Dv SOCK_STREAM
@@ -264,8 +232,62 @@ sockets, this option causes the
 function to block until
 .Xr accept 2
 has been called on the listening socket.
+.It Dv LOCAL_PEERCRED
+Requested via
+.Xr getsockopt 2
+on a
+.Dv SOCK_STREAM
+socket returns credentials of the remote side.
+These will arrive in the form of a filled in
+.Vt xucred
+structure, defined in
+.In sys/ucred.h
+as follows:
+.Bd -literal 
+struct xucred {
+  u_int	cr_version;		/* structure layout version */
+  uid_t	cr_uid;			/* effective user id */
+  short	cr_ngroups;		/* number of groups */
+  gid_t	cr_groups[XU_NGROUPS];	/* groups */
+};
+.Ed
+The
+.Vt cr_version
+fields should be checked against
+.Dv XUCRED_VERSION
+define.
+.Pp
+The credentials presented to the server (the
+.Xr listen 2
+caller) are those of the client when it called
+.Xr connect 2 ;
+the credentials presented to the client (the
+.Xr connect 2
+caller) are those of the server when it called
+.Xr listen 2 .
+This mechanism is reliable; there is no way for either party to influence
+the credentials presented to its peer except by calling the appropriate
+system call (e.g.,
+.Xr connect 2
+or
+.Xr listen 2 )
+under different effective credentials.
+.Pp
+To reliably obtain peer credentials on a
+.Dv SOCK_DGRAM
+socket refer to the
+.Dv LOCAL_CREDS
+socket option.
 .El
 .Sh SEE ALSO
+.Xr connect 2 ,
+.Xr dup 2 ,
+.Xr fcntl 2 ,
+.Xr getsockopt 2 ,
+.Xr listen 2 ,
+.Xr recvmsg 2 ,
+.Xr sendto 2 ,
+.Xr setsockopt 2 ,
 .Xr socket 2 ,
 .Xr intro 4
 .Rs

@@ -57,12 +57,14 @@ void	fpuexit(struct thread *td);
 int	fpuformat(void);
 int	fpugetregs(struct thread *td);
 void	fpuinit(void);
+void	fpurestore(void *addr);
 void	fpusave(void *addr);
 int	fpusetregs(struct thread *td, struct savefpu *addr,
 	    char *xfpustate, size_t xfpustate_size);
 int	fpusetxstate(struct thread *td, char *xfpustate,
 	    size_t xfpustate_size);
-int	fputrap(void);
+int	fputrap_sse(void);
+int	fputrap_x87(void);
 void	fpuuserinited(struct thread *td);
 struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
 void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
@@ -71,6 +73,10 @@ int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
 int	fpu_kern_thread(u_int flags);
 int	is_fpu_kern_thread(u_int flags);
+
+struct savefpu	*fpu_save_area_alloc(void);
+void	fpu_save_area_free(struct savefpu *fsa);
+void	fpu_save_area_reset(struct savefpu *fsa);
 
 /*
  * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().

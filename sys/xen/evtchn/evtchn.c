@@ -44,7 +44,15 @@ static inline unsigned long __ffs(unsigned long word)
         return word;
 }
 
+/*
+ * irq_mapping_update_lock: in order to allow an interrupt to occur in a critical
+ *	section, to set pcpu->ipending (etc...) properly, we
+ * 	must be able to get the icu lock, so it can't be
+ *	under witness.
+ */
 static struct mtx irq_mapping_update_lock;
+MTX_SYSINIT(irq_mapping_update_lock, &irq_mapping_update_lock, "xp", MTX_SPIN);
+
 static struct xenpic *xp;
 struct xenpic_intsrc {
 	struct intsrc     xp_intsrc;
@@ -1130,11 +1138,4 @@ evtchn_init(void *dummy __unused)
 }
 
 SYSINIT(evtchn_init, SI_SUB_INTR, SI_ORDER_MIDDLE, evtchn_init, NULL);
-    /*
-     * irq_mapping_update_lock: in order to allow an interrupt to occur in a critical
-     * 	        section, to set pcpu->ipending (etc...) properly, we
-     *	        must be able to get the icu lock, so it can't be
-     *	        under witness.
-     */
 
-MTX_SYSINIT(irq_mapping_update_lock, &irq_mapping_update_lock, "xp", MTX_SPIN);

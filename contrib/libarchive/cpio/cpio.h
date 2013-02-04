@@ -31,8 +31,6 @@
 #include "cpio_platform.h"
 #include <stdio.h>
 
-#include "matching.h"
-
 /*
  * The internal state for the "cpio" program.
  *
@@ -88,7 +86,7 @@ struct cpio {
 	struct name_cache *gname_cache;
 
 	/* Work data. */
-	struct lafe_matching  *matching;
+	struct archive   *matching;
 	char		 *buff;
 	size_t		  buff_size;
 };

@@ -48,15 +48,8 @@ ENTRY(ptrace)
 #endif
 	mov	$SYS_ptrace,%eax
 	KERNCALL
-	jb	err
+	jb	HIDENAME(cerror)
 	ret
-err:
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
-	jmp	HIDENAME(cerror)
-#endif
 END(ptrace)
 
 	.section .note.GNU-stack,"",%progbits

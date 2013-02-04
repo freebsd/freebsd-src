@@ -57,6 +57,7 @@ extern struct mount nfsv4root_mnt;
 extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern void (*nfsd_call_servertimer)(void);
 extern SVCPOOL	*nfsrvd_pool;
+extern struct nfsv4lock nfsd_suspend_lock;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct mtx nfs_cache_mutex;
@@ -252,7 +253,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		 * the inode, try to free it up once.  If
 		 * we fail, we can't allow writing.
 		 */
-		if ((vp->v_vflag & VV_TEXT) != 0 && error == 0)
+		if (VOP_IS_TEXT(vp) && error == 0)
 			error = ETXTBSY;
 	}
 	if (error != 0) {
@@ -564,7 +565,7 @@ nfsvno_readlink(struct vnode *vp, struct ucred *cred, struct thread *p,
 	i = 0;
 	while (len < NFS_MAXPATHLEN) {
 		NFSMGET(mp);
-		MCLGET(mp, M_WAIT);
+		MCLGET(mp, M_WAITOK);
 		mp->m_len = NFSMSIZ(mp);
 		if (len == 0) {
 			mp3 = mp2 = mp;
@@ -634,7 +635,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	i = 0;
 	while (left > 0) {
 		NFSMGET(m);
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_WAITOK);
 		m->m_len = 0;
 		siz = min(M_TRAILINGSPACE(m), left);
 		left -= siz;
@@ -1475,7 +1476,7 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 	struct vattr va;
 
 	VATTR_NULL(&va);
-	getnanotime(&va.va_mtime);
+	vfs_timestamp(&va.va_mtime);
 	(void) VOP_SETATTR(vp, &va, cred);
 	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
 }
@@ -2059,8 +2060,7 @@ again:
 						cn.cn_nameptr = dp->d_name;
 						cn.cn_namelen = nlen;
 						cn.cn_flags = ISLASTCN |
-						    NOFOLLOW | LOCKLEAF |
-						    MPSAFE;
+						    NOFOLLOW | LOCKLEAF;
 						if (nlen == 2 &&
 						    dp->d_name[0] == '.' &&
 						    dp->d_name[1] == '.')
@@ -2248,7 +2248,6 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 {
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
-	struct timeval curtime;
 	int error = 0, toclient = 0;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
@@ -2307,9 +2306,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			toclient = 1;
 			break;
 		case NFSV3SATTRTIME_TOSERVER:
-			NFSGETTIME(&curtime);
-			nvap->na_atime.tv_sec = curtime.tv_sec;
-			nvap->na_atime.tv_nsec = curtime.tv_usec * 1000;
+			vfs_timestamp(&nvap->na_atime);
 			nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
 		};
@@ -2321,9 +2318,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			nvap->na_vaflags &= ~VA_UTIMES_NULL;
 			break;
 		case NFSV3SATTRTIME_TOSERVER:
-			NFSGETTIME(&curtime);
-			nvap->na_mtime.tv_sec = curtime.tv_sec;
-			nvap->na_mtime.tv_nsec = curtime.tv_usec * 1000;
+			vfs_timestamp(&nvap->na_mtime);
 			if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
@@ -2353,7 +2348,6 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 	u_char *cp, namestr[NFSV4_SMALLSTR + 1];
 	uid_t uid;
 	gid_t gid;
-	struct timeval curtime;
 
 	error = nfsrv_getattrbits(nd, attrbitp, NULL, &retnotsup);
 	if (error)
@@ -2437,7 +2431,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 				goto nfsmout;
 			}
 			if (!nd->nd_repstat) {
-				nd->nd_repstat = nfsv4_strtouid(cp,j,&uid,p);
+				nd->nd_repstat = nfsv4_strtouid(nd, cp, j, &uid,
+				    p);
 				if (!nd->nd_repstat)
 					nvap->na_uid = uid;
 			}
@@ -2463,7 +2458,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 				goto nfsmout;
 			}
 			if (!nd->nd_repstat) {
-				nd->nd_repstat = nfsv4_strtogid(cp,j,&gid,p);
+				nd->nd_repstat = nfsv4_strtogid(nd, cp, j, &gid,
+				    p);
 				if (!nd->nd_repstat)
 					nvap->na_gid = gid;
 			}
@@ -2486,9 +2482,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			    toclient = 1;
 			    attrsum += NFSX_V4TIME;
 			} else {
-			    NFSGETTIME(&curtime);
-			    nvap->na_atime.tv_sec = curtime.tv_sec;
-			    nvap->na_atime.tv_nsec = curtime.tv_usec * 1000;
+			    vfs_timestamp(&nvap->na_atime);
 			    nvap->na_vaflags |= VA_UTIMES_NULL;
 			}
 			break;
@@ -2513,9 +2507,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			    nvap->na_vaflags &= ~VA_UTIMES_NULL;
 			    attrsum += NFSX_V4TIME;
 			} else {
-			    NFSGETTIME(&curtime);
-			    nvap->na_mtime.tv_sec = curtime.tv_sec;
-			    nvap->na_mtime.tv_nsec = curtime.tv_usec * 1000;
+			    vfs_timestamp(&nvap->na_mtime);
 			    if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			}
@@ -2644,10 +2636,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 
 	*credp = NULL;
 	exp->nes_numsecflavor = 0;
-	if (VFS_NEEDSGIANT(mp))
-		error = ESTALE;
-	else
-		error = VFS_FHTOVP(mp, &fhp->fh_fid, lktype, vpp);
+	error = VFS_FHTOVP(mp, &fhp->fh_fid, lktype, vpp);
 	if (error != 0)
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
@@ -2822,7 +2811,7 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 		/*
 		 * If fspec != NULL, this is the v4root path.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_USERSPACE,
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE,
 		    nfsexargp->fspec, p);
 		if ((error = namei(&nd)) != 0)
 			goto out;
@@ -3093,8 +3082,9 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct nfsd_dumplocks *dumplocks;
 	struct nameidata nd;
 	vnode_t vp;
-	int error = EINVAL;
+	int error = EINVAL, igotlock;
 	struct proc *procp;
+	static int suspend_nfsd = 0;
 
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
@@ -3173,6 +3163,26 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		nfsd_master_start = procp->p_stats->p_start;
 		nfsd_master_proc = procp;
 		PROC_UNLOCK(procp);
+	} else if ((uap->flag & NFSSVC_SUSPENDNFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd == 0) {
+			/* Lock out all nfsd threads */
+			do {
+				igotlock = nfsv4_lock(&nfsd_suspend_lock, 1,
+				    NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
+			} while (igotlock == 0 && suspend_nfsd == 0);
+			suspend_nfsd = 1;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
+	} else if ((uap->flag & NFSSVC_RESUMENFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd != 0) {
+			nfsv4_unlock(&nfsd_suspend_lock, 0);
+			suspend_nfsd = 0;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
 	}
 
 	NFSEXITCODE(error);

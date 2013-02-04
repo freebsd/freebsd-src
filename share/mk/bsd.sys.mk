@@ -8,6 +8,8 @@
 
 # for GCC:   http://gcc.gnu.org/onlinedocs/gcc-4.2.1/gcc/Warning-Options.html
 
+.include <bsd.compiler.mk>
+
 # the default is gnu99 for now
 CSTD?=		gnu99
 
@@ -28,8 +30,8 @@ CFLAGS+=	-std=${CSTD}
 .if defined(WARNS)
 .if ${WARNS} >= 1
 CWARNFLAGS+=	-Wsystem-headers
-.if !defined(NO_WERROR) && ((${MK_CLANG_IS_CC} == "no" && \
-    ${CC:T:Mclang} != "clang") || !defined(NO_WERROR.clang))
+.if !defined(NO_WERROR) && (${COMPILER_TYPE} != "clang" \
+    || !defined(NO_WERROR.clang))
 CWARNFLAGS+=	-Werror
 .endif # !NO_WERROR && (!CLANG || !NO_WERROR.clang)
 .endif # WARNS >= 1
@@ -43,8 +45,8 @@ CWARNFLAGS+=	-W -Wno-unused-parameter -Wstrict-prototypes\
 .if ${WARNS} >= 4
 CWARNFLAGS+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow\
 		-Wunused-parameter
-.if !defined(NO_WCAST_ALIGN) && ((${MK_CLANG_IS_CC} == "no" && \
-    ${CC:T:Mclang} != "clang") || !defined(NO_WCAST_ALIGN.clang))
+.if !defined(NO_WCAST_ALIGN) && (${COMPILER_TYPE} != "clang" \
+    || !defined(NO_WCAST_ALIGN.clang))
 CWARNFLAGS+=	-Wcast-align
 .endif # !NO_WCAST_ALIGN && (!CLANG || !NO_WCAST_ALIGN.clang)
 .endif # WARNS >= 4
@@ -61,8 +63,7 @@ CWARNFLAGS+=	-Wno-uninitialized
 CWARNFLAGS+=	-Wno-pointer-sign
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
-.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && \
-    !defined(EARLY_BUILD)
+.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
 .if ${WARNS} <= 6
 CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int
 .endif # WARNS <= 6
@@ -89,20 +90,18 @@ WFORMAT=	1
 .if ${WFORMAT} > 0
 #CWARNFLAGS+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CWARNFLAGS+=	-Wformat=2 -Wno-format-extra-args
-.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && \
-    !defined(EARLY_BUILD)
+.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
 .if ${WARNS} <= 3
 CWARNFLAGS+=	-Wno-format-nonliteral
 .endif # WARNS <= 3
 .endif # CLANG
-.if !defined(NO_WERROR) && ((${MK_CLANG_IS_CC} == "no" && \
-    ${CC:T:Mclang} != "clang") || !defined(NO_WERROR.clang))
+.if !defined(NO_WERROR) && (${COMPILER_TYPE} != "clang" \
+    || !defined(NO_WERROR.clang))
 CWARNFLAGS+=	-Werror
 .endif # !NO_WERROR && (!CLANG || !NO_WERROR.clang)
 .endif # WFORMAT > 0
 .endif # WFORMAT
-.if defined(NO_WFORMAT) || ((${MK_CLANG_IS_CC} != "no" || \
-    ${CC:T:Mclang} == "clang") && defined(NO_WFORMAT.clang))
+.if defined(NO_WFORMAT) || (${COMPILER_TYPE} == "clang" && defined(NO_WFORMAT.clang))
 CWARNFLAGS+=	-Wno-format
 .endif # NO_WFORMAT || (CLANG && NO_WFORMAT.clang)
 .endif # !NO_WARNS
@@ -111,8 +110,7 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
-.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && \
-    !defined(EARLY_BUILD)
+.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
 CLANG_NO_IAS=	 -no-integrated-as
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
@@ -128,3 +126,18 @@ CFLAGS+=	${SSP_CFLAGS}
 
 # Allow user-specified additional warning flags
 CFLAGS+=	${CWARNFLAGS}
+
+
+# Tell bmake not to mistake standard targets for things to be searched for
+# or expect to ever be up-to-date.
+PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
+		beforelinking build build-tools buildfiles buildincludes \
+		checkdpadd clean cleandepend cleandir cleanobj configure \
+		depend dependall distclean distribute exe extract fetch \
+		html includes install installfiles installincludes lint \
+		obj objlink objs objwarn patch realall realdepend \
+		realinstall regress subdir-all subdir-depend subdir-install \
+		tags whereobj
+
+.PHONY: ${PHONY_NOTMAIN}
+.NOTMAIN: ${PHONY_NOTMAIN}

@@ -46,6 +46,8 @@ public:
 
   /// atIssueLimit - Return true if no more instructions may be issued in this
   /// cycle.
+  ///
+  /// FIXME: remove this once MachineScheduler is the only client.
   virtual bool atIssueLimit() const { return false; }
 
   /// getHazardType - Return the hazard type of emitting this node.  There are
@@ -55,7 +57,7 @@ public:
   ///     other instruction is available, issue it first.
   ///  * NoopHazard: issuing this instruction would break the program.  If
   ///     some other instruction can be issued, do so, otherwise issue a noop.
-  virtual HazardType getHazardType(SUnit *m, int Stalls) {
+  virtual HazardType getHazardType(SUnit *m, int Stalls = 0) {
     return NoHazard;
   }
 

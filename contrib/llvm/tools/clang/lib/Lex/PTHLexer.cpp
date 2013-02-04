@@ -198,12 +198,11 @@ bool PTHLexer::SkipBlock() {
   assert(LastHashTokPtr && "No known '#' token.");
 
   const unsigned char* HashEntryI = 0;
-  uint32_t Offset;
   uint32_t TableIdx;
 
   do {
     // Read the token offset from the side-table.
-    Offset = ReadLE32(CurPPCondPtr);
+    uint32_t Offset = ReadLE32(CurPPCondPtr);
 
     // Read the target table index from the side-table.
     TableIdx = ReadLE32(CurPPCondPtr);
@@ -223,13 +222,11 @@ bool PTHLexer::SkipBlock() {
         PPCond + TableIdx*(sizeof(uint32_t)*2);
       assert(NextPPCondPtr >= CurPPCondPtr);
       // Read where we should jump to.
-      uint32_t TmpOffset = ReadLE32(NextPPCondPtr);
-      const unsigned char* HashEntryJ = TokBuf + TmpOffset;
+      const unsigned char* HashEntryJ = TokBuf + ReadLE32(NextPPCondPtr);
 
       if (HashEntryJ <= LastHashTokPtr) {
         // Jump directly to the next entry in the side table.
         HashEntryI = HashEntryJ;
-        Offset = TmpOffset;
         TableIdx = ReadLE32(NextPPCondPtr);
         CurPPCondPtr = NextPPCondPtr;
       }
@@ -448,18 +445,18 @@ PTHManager *PTHManager::Create(const std::string &file,
 
   // Get the buffer ranges and check if there are at least three 32-bit
   // words at the end of the file.
-  const unsigned char *BufBeg = (unsigned char*)File->getBufferStart();
-  const unsigned char *BufEnd = (unsigned char*)File->getBufferEnd();
+  const unsigned char *BufBeg = (const unsigned char*)File->getBufferStart();
+  const unsigned char *BufEnd = (const unsigned char*)File->getBufferEnd();
 
   // Check the prologue of the file.
-  if ((BufEnd - BufBeg) < (signed)(sizeof("cfe-pth") + 3 + 4) ||
-      memcmp(BufBeg, "cfe-pth", sizeof("cfe-pth") - 1) != 0) {
+  if ((BufEnd - BufBeg) < (signed)(sizeof("cfe-pth") + 4 + 4) ||
+      memcmp(BufBeg, "cfe-pth", sizeof("cfe-pth")) != 0) {
     Diags.Report(diag::err_invalid_pth_file) << file;
     return 0;
   }
 
   // Read the PTH version.
-  const unsigned char *p = BufBeg + (sizeof("cfe-pth") - 1);
+  const unsigned char *p = BufBeg + (sizeof("cfe-pth"));
   unsigned Version = ReadLE32(p);
 
   if (Version < PTHManager::Version) {

@@ -60,7 +60,8 @@ public:
   /// SubEngine is expected to populate dstNodes with new nodes representing
   /// updated analysis state, or generate no nodes at all if it doesn't.
   virtual void processCFGBlockEntrance(const BlockEdge &L,
-                                       NodeBuilderWithSinks &nodeBuilder) = 0;
+                                       NodeBuilderWithSinks &nodeBuilder,
+                                       ExplodedNode *Pred) = 0;
 
   /// Called by CoreEngine.  Used to generate successor
   ///  nodes by processing the 'effects' of a branch condition.
@@ -81,7 +82,8 @@ public:
 
   /// Called by CoreEngine.  Used to generate end-of-path
   /// nodes when the control reaches the end of a function.
-  virtual void processEndOfFunction(NodeBuilderContext& BC) = 0;
+  virtual void processEndOfFunction(NodeBuilderContext& BC,
+                                    ExplodedNode *Pred) = 0;
 
   // Generate the entry node of the callee.
   virtual void processCallEnter(CallEnter CE, ExplodedNode *Pred) = 0;
@@ -105,7 +107,7 @@ public:
                        const StoreManager::InvalidatedSymbols *invalidated,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
-                       const CallOrObjCMessage *Call) = 0;
+                       const CallEvent *Call) = 0;
 
 
   inline ProgramStateRef 

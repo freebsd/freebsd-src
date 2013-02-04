@@ -712,7 +712,7 @@ int fr_authflush()
 
 /* ------------------------------------------------------------------------ */
 /* Function:    fr_auth_waiting                                             */
-/* Returns:     int - 0 = no pakcets wiating, 1 = packets waiting.          */
+/* Returns:     int - 0 = no packets waiting, 1 = packets waiting.          */
 /* Parameters:  None                                                        */
 /*                                                                          */
 /* Simple truth check to see if there are any packets waiting in the auth   */

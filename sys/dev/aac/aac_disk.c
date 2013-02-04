@@ -334,8 +334,10 @@ aac_biodone(struct bio *bp)
 {
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	if (bp->bio_flags & BIO_ERROR)
+	if (bp->bio_flags & BIO_ERROR) {
+		bp->bio_resid = bp->bio_bcount;
 		disk_err(bp, "hard error", -1, 1);
+	}
 
 	biodone(bp);
 }

@@ -159,6 +159,8 @@ enum CPL_error {
 	CPL_ERR_KEEPALIVE_TIMEDOUT = 34,
 	CPL_ERR_RTX_NEG_ADVICE     = 35,
 	CPL_ERR_PERSIST_NEG_ADVICE = 36,
+	CPL_ERR_KEEPALV_NEG_ADVICE = 37,
+	CPL_ERR_WAIT_ARP_RPL       = 41,
 	CPL_ERR_ABORT_FAILED       = 42,
 	CPL_ERR_IWARP_FLM          = 50,
 };
@@ -792,6 +794,14 @@ struct cpl_set_tcb_field {
 	__be64 val;
 };
 
+struct cpl_set_tcb_field_core {
+	union opcode_tid ot;
+	__be16 reply_ctrl;
+	__be16 word_cookie;
+	__be64 mask;
+	__be64 val;
+};
+
 /* cpl_set_tcb_field.word_cookie fields */
 #define S_WORD    0
 #define M_WORD    0x1F
@@ -1372,6 +1382,11 @@ struct cpl_rx_urg_pkt {
 
 struct cpl_rx_data_ack {
 	WR_HDR;
+	union opcode_tid ot;
+	__be32 credit_dack;
+};
+
+struct cpl_rx_data_ack_core {
 	union opcode_tid ot;
 	__be32 credit_dack;
 };
@@ -2281,6 +2296,8 @@ enum {
 	FW6_TYPE_WR_RPL = 1,
 	FW6_TYPE_CQE = 2,
 	FW6_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+
+	NUM_FW6_TYPES
 };
 
 struct cpl_fw6_msg_ofld_connection_wr_rpl {

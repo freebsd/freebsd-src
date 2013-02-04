@@ -168,19 +168,6 @@ This flag allows the
 function to return the parent (directory) vnode in an unlocked state.
 The parent vnode must be released separately by using
 .Xr vrele 9 .
-.It Dv MPSAFE
-With this flag set,
-.Fn namei
-will conditionally acquire
-.Va Giant
-if it is required by a traversed file system.
-MPSAFE callers should pass the results of
-.Fn NDHASGIANT
-to
-.Xr VFS_UNLOCK_GIANT
-in order to conditionally release
-.Va Giant
-if necessary.
 .It Dv NOCACHE
 Avoid
 .Fn namei
@@ -354,7 +341,6 @@ An attempt is made to modify a file or directory on a read-only file system.
 .Xr uio 9 ,
 .Xr uma 9 ,
 .Xr VFS 9 ,
-.Xr VFS_UNLOCK_GIANT 9 ,
 .Xr vnode 9 ,
 .Xr vput 9 ,
 .Xr vref 9

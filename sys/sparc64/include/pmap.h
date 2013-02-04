@@ -103,7 +103,7 @@ void	pmap_set_kctx(void);
 
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
-extern	struct rwlock tte_list_global_lock;
+extern	struct rwlock_padalign tte_list_global_lock;
 extern	vm_paddr_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;

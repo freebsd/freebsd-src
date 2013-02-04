@@ -141,6 +141,7 @@ struct spa {
 	vdev_t		*spa_root_vdev;		/* top-level vdev container */
 	uint64_t	spa_config_guid;	/* config pool guid */
 	uint64_t	spa_load_guid;		/* spa_load initialized guid */
+	uint64_t	spa_last_synced_guid;	/* last synced guid */
 	list_t		spa_config_dirty_list;	/* vdevs with dirty config */
 	list_t		spa_state_dirty_list;	/* vdevs with dirty state */
 	spa_aux_vdev_t	spa_spares;		/* hot spares */
@@ -219,6 +220,9 @@ struct spa {
 	spa_proc_state_t spa_proc_state;	/* see definition */
 	struct proc	*spa_proc;		/* "zpool-poolname" process */
 	uint64_t	spa_did;		/* if procp != p0, did of t1 */
+	kthread_t	*spa_trim_thread;	/* thread sending TRIM I/Os */
+	kmutex_t	spa_trim_lock;		/* protects spa_trim_cv */
+	kcondvar_t	spa_trim_cv;		/* used to notify TRIM thread */
 	boolean_t	spa_autoreplace;	/* autoreplace set in open */
 	int		spa_vdev_locks;		/* locks grabbed */
 	uint64_t	spa_creation_version;	/* version at pool creation */

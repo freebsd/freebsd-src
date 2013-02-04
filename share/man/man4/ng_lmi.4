@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_lmi.8,v 1.4 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd November 13, 2012
 .Dt NG_LMI 4
 .Os
 .Sh NAME
@@ -82,16 +82,16 @@ This node also supports the
 control message.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobarbaz
-.It Dv annexA
+.Bl -tag -width ".Va auto1023"
+.It Va annexA
 ITU Annex A LMI hook.
-.It Dv annexD
+.It Va annexD
 ANSI Annex D LMI hook.
-.It Dv group4
+.It Va group4
 Group-of-four LMI hook.
-.It Dv auto0
+.It Va auto0
 Auto-detection hook for DLCI 0.
-.It Dv auto1023
+.It Va auto1023
 Auto-detection hook for DLCI 1023.
 .El
 .Sh CONTROL MESSAGES
@@ -108,8 +108,8 @@ struct nglmistat {
   u_char  hook[12];	/* Active hook */
   u_char  fixed;	/* If set to fixed LMI mode */
   u_char  autod;	/* If currently auto-detecting */
-  u_char  seen[NGM_LMI_STAT_ARYSIZE];	/* bitmap DLCIs seen */
-  u_char  up[NGM_LMI_STAT_ARYSIZE];	/* bitmap DLCIs up */
+  u_char  seen[NGM_LMI_STAT_ARYSIZE];	/* DLCIs ever seen */
+  u_char  up[NGM_LMI_STAT_ARYSIZE];	/* DLCIs currently up */
 };
 .Ed
 .It Dv NGM_TEXT_STATUS

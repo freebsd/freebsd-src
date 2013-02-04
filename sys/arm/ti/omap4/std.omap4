@@ -1,0 +1,25 @@
+# Omap4430 generic configuration
+#$FreeBSD$
+files		"../ti/omap4/files.omap4"
+include		"../ti/std.ti"
+makeoption	ARM_LITTLE_ENDIAN
+
+# Physical memory starts at 0x80000000.  We assume images are loaded at
+# 0x80200000, e.g. from u-boot with 'fatload mmc 0 0x80200000 kernel.bin'
+#
+#
+options		PHYSADDR=0x80000000
+options		KERNPHYSADDR=0x80200000
+makeoptions	KERNPHYSADDR=0x80200000
+options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
+makeoptions	KERNVIRTADDR=0xc0200000
+
+options		STARTUP_PAGETABLE_ADDR=0x80000000
+
+options		SOC_OMAP4
+
+options		ARM_L2_PIPT
+
+options		IPI_IRQ_START=0
+options		IPI_IRQ_END=15
+

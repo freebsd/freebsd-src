@@ -340,8 +340,8 @@ term_init(EditLine *el)
 	if (el->el_term.t_val == NULL)
 		return (-1);
 	(void) memset(el->el_term.t_val, 0, T_val * sizeof(int));
-	term_init_arrow(el);
 	(void) term_set(el, NULL);
+	term_init_arrow(el);
 	return (0);
 }
 

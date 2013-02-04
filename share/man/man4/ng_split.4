@@ -49,17 +49,17 @@ node type is used to split a bidirectional stream of packets into
 two separate unidirectional streams of packets.
 .Sh HOOKS
 This node type supports the following three hooks:
-.Bl -tag -width foobar
-.It Dv in
+.Bl -tag -width ".Va mixed"
+.It Va in
 Packets received on
 .Em in
 are forwarded to
 .Em mixed .
-.It Dv out
+.It Va out
 Packets received on
 .Em out
 will be discarded as illegal.
-.It Dv mixed
+.It Va mixed
 Packets received on
 .Em mixed
 are forwarded to

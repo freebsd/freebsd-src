@@ -125,6 +125,7 @@ static struct g_raid_md_class g_raid_md_ddf_class = {
 	"DDF",
 	g_raid_md_ddf_methods,
 	sizeof(struct g_raid_md_ddf_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -2086,7 +2087,7 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	struct g_raid_md_ddf_perdisk *pd;
 	struct g_raid_md_ddf_object *mdi;
 	struct g_geom *geom;
-	int error, result, len, be;
+	int error, result, be;
 	char name[16];
 
 	G_RAID_DEBUG(1, "Tasting DDF on %s", cp->provider->name);
@@ -2153,14 +2154,7 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_ddf_new_disk(disk);
 
@@ -2230,7 +2224,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char arg[16];
-	const char *verb, *volname, *levelname, *diskname;
+	const char *nodename, *verb, *volname, *levelname, *diskname;
 	char *tmp;
 	int *nargs, *force;
 	off_t size, sectorsize, strip, offs[DDF_MAX_DISKS_HARD], esize;
@@ -2347,15 +2341,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				ddf_meta_update(&mdi->mdio_meta, &pd->pd_meta);
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Reserve some space for metadata. */
 			size = MIN(size, GET64(&pd->pd_meta,
@@ -2501,8 +2487,12 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 	}
 	if (strcmp(verb, "delete") == 0) {
 
+		nodename = gctl_get_asciiparam(req, "arg0");
+		if (nodename != NULL && strcasecmp(sc->sc_name, nodename) != 0)
+			nodename = NULL;
+
 		/* Full node destruction. */
-		if (*nargs == 1) {
+		if (*nargs == 1 && nodename != NULL) {
 			/* Check if some volume is still open. */
 			force = gctl_get_paraml(req, "force", sizeof(*force));
 			if (force != NULL && *force == 0 &&
@@ -2520,11 +2510,12 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 		}
 
 		/* Destroy specified volume. If it was last - all node. */
-		if (*nargs != 2) {
+		if (*nargs > 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
 		}
-		volname = gctl_get_asciiparam(req, "arg1");
+		volname = gctl_get_asciiparam(req,
+		    nodename != NULL ? "arg1" : "arg0");
 		if (volname == NULL) {
 			gctl_error(req, "No volume name.");
 			return (-2);
@@ -2533,6 +2524,14 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 		/* Search for volume. */
 		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 			if (strcmp(vol->v_name, volname) == 0)
+				break;
+			pp = vol->v_provider;
+			if (pp == NULL)
+				continue;
+			if (strcmp(pp->name, volname) == 0)
+				break;
+			if (strncmp(pp->name, "raid/", 5) == 0 &&
+			    strcmp(pp->name + 5, volname) == 0)
 				break;
 		}
 		if (vol == NULL) {
@@ -2661,15 +2660,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
@@ -3065,4 +3056,4 @@ g_raid_md_free_ddf(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_ddf);
+G_RAID_MD_DECLARE(ddf, "DDF");

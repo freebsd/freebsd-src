@@ -274,6 +274,26 @@ restore_kernsrs:
 	mtsrr1	%r3;							\
 	mfsprg3	%r3			/* restore r3 */
 
+#ifdef KDTRACE_HOOKS
+	.data
+	.globl	dtrace_invop_jump_addr
+	.align	8
+	.type	dtrace_invop_jump_addr, @object
+        .size	dtrace_invop_jump_addr, 8
+dtrace_invop_jump_addr:
+	.word	0
+	.word	0
+	.globl	dtrace_invop_calltrap_addr
+	.align	8
+	.type	dtrace_invop_calltrap_addr, @object
+        .size	dtrace_invop_calltrap_addr, 8
+dtrace_invop_calltrap_addr:
+	.word	0
+	.word	0
+
+	.text
+#endif
+
 #ifdef SMP
 /*
  * Processor reset exception handler. These are typically

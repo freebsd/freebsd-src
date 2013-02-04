@@ -105,8 +105,6 @@ __FBSDID("$FreeBSD$");
 
 static void	ath_rate_ctl_reset(struct ath_softc *, struct ieee80211_node *);
 
-static const int packet_size_bins[NUM_PACKET_SIZE_BINS] = { 250, 1600 };
-
 static __inline int
 size_to_bin(int size) 
 {
@@ -126,12 +124,6 @@ size_to_bin(int size)
 #error "add support for more packet sizes"
 #endif
 	return NUM_PACKET_SIZE_BINS-1;
-}
-
-static __inline int
-bin_to_size(int index)
-{
-	return packet_size_bins[index];
 }
 
 void
@@ -172,7 +164,7 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
         int best_rate_rix, best_rate_tt, best_rate_pct;
-	uint32_t mask;
+	uint64_t mask;
 	int rix, tt, pct;
 
         best_rate_rix = 0;
@@ -259,7 +251,7 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	int current_rix, rix;
 	unsigned current_tt;
-	uint32_t mask;
+	uint64_t mask;
 	
 	current_rix = sn->current_rix[size_bin];
 	if (current_rix < 0) {
@@ -271,61 +263,68 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 	current_tt = sn->stats[size_bin][current_rix].average_tx_time;
 
 	rix = sn->last_sample_rix[size_bin]+1;	/* next sample rate */
-	mask = sn->ratemask &~ (1<<current_rix);/* don't sample current rate */
+	mask = sn->ratemask &~ ((uint64_t) 1<<current_rix);/* don't sample current rate */
 	while (mask != 0) {
-		if ((mask & (1<<rix)) == 0) {	/* not a supported rate */
+		if ((mask & ((uint64_t) 1<<rix)) == 0) {	/* not a supported rate */
 	nextrate:
 			if (++rix >= rt->rateCount)
 				rix = 0;
 			continue;
 		}
 
+		/*
+		 * The following code stops trying to sample
+		 * non-MCS rates when speaking to an MCS node.
+		 * However, at least for CCK rates in 2.4GHz mode,
+		 * the non-MCS rates MAY actually provide better
+		 * PER at the very far edge of reception.
+		 *
+		 * However! Until ath_rate_form_aggr() grows
+		 * some logic to not form aggregates if the
+		 * selected rate is non-MCS, this won't work.
+		 *
+		 * So don't disable this code until you've taught
+		 * ath_rate_form_aggr() to drop out if any of
+		 * the selected rates are non-MCS.
+		 */
+#if 1
 		/* if the node is HT and the rate isn't HT, don't bother sample */
 		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
 		    (rt->info[rix].phy != IEEE80211_T_HT)) {
-			mask &= ~(1<<rix);
+			mask &= ~((uint64_t) 1<<rix);
 			goto nextrate;
 		}
+#endif
 
 		/* this bit-rate is always worse than the current one */
 		if (sn->stats[size_bin][rix].perfect_tx_time > current_tt) {
-			mask &= ~(1<<rix);
+			mask &= ~((uint64_t) 1<<rix);
 			goto nextrate;
 		}
 
 		/* rarely sample bit-rates that fail a lot */
 		if (sn->stats[size_bin][rix].successive_failures > ssc->max_successive_failures &&
 		    ticks - sn->stats[size_bin][rix].last_tx < ssc->stale_failure_timeout) {
-			mask &= ~(1<<rix);
+			mask &= ~((uint64_t) 1<<rix);
 			goto nextrate;
 		}
 
 		/*
-		 * When doing aggregation, successive failures don't happen
-		 * as often, as sometimes some of the sub-frames get through.
-		 *
-		 * If the sample rix average tx time is greater than the
-		 * average tx time of the current rix, don't immediately use
-		 * the rate for sampling.
+		 * For HT, only sample a few rates on either side of the
+		 * current rix; there's quite likely a lot of them.
 		 */
 		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
-			if ((sn->stats[size_bin][rix].average_tx_time * 10 >
-			    sn->stats[size_bin][current_rix].average_tx_time * 9) &&
-			    (ticks - sn->stats[size_bin][rix].last_tx < ssc->stale_failure_timeout)) {
-				mask &= ~(1<<rix);
+			if (rix < (current_rix - 3) ||
+			    rix > (current_rix + 3)) {
+				mask &= ~((uint64_t) 1<<rix);
 				goto nextrate;
 			}
 		}
 
-		/*
-		 * XXX TODO
-		 * For HT, limit sample somehow?
-		 */
-
 		/* Don't sample more than 2 rates higher for rates > 11M for non-HT rates */
 		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
 			if (DOT11RATE(rix) > 2*11 && rix > current_rix + 2) {
-				mask &= ~(1<<rix);
+				mask &= ~((uint64_t) 1<<rix);
 				goto nextrate;
 			}
 		}
@@ -402,7 +401,7 @@ ath_rate_pick_seed_rate_legacy(struct ath_softc *sc, struct ath_node *an,
 
 	/* no packet has been sent successfully yet */
 	for (rix = rt->rateCount-1; rix > 0; rix--) {
-		if ((sn->ratemask & (1<<rix)) == 0)
+		if ((sn->ratemask & ((uint64_t) 1<<rix)) == 0)
 			continue;
 
 		/* Skip HT rates */
@@ -444,7 +443,7 @@ ath_rate_pick_seed_rate_ht(struct ath_softc *sc, struct ath_node *an,
 	/* no packet has been sent successfully yet */
 	for (rix = rt->rateCount-1; rix > 0; rix--) {
 		/* Skip rates we can't use */
-		if ((sn->ratemask & (1<<rix)) == 0)
+		if ((sn->ratemask & ((uint64_t) 1<<rix)) == 0)
 			continue;
 
 		/* Keep a copy of the last seen HT rate index */
@@ -510,8 +509,10 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		goto done;
 	}
 
-	/* XXX TODO: this doesn't know about 11gn vs 11g protection; teach it */
-	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
+	mrr = sc->sc_mrretry;
+	/* XXX check HT protmode too */
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT && !sc->sc_mrrprot))
+		mrr = 0;
 
 	best_rix = pick_best_rate(an, rt, size_bin, !mrr);
 	if (best_rix >= 0) {
@@ -666,7 +667,8 @@ ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const struct txschedule *sched = &sn->sched[rix0];
 
-	KASSERT(rix0 == sched->r0, ("rix0 (%x) != sched->r0 (%x)!\n", rix0, sched->r0));
+	KASSERT(rix0 == sched->r0, ("rix0 (%x) != sched->r0 (%x)!\n",
+	    rix0, sched->r0));
 
 	rc[0].flags = rc[1].flags = rc[2].flags = rc[3].flags = 0;
 
@@ -918,9 +920,15 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		    short_tries, long_tries);
 		return;
 	}
-	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
+	mrr = sc->sc_mrretry;
+	/* XXX check HT protmode too */
+	if (mrr && (ic->ic_flags & IEEE80211_F_USEPROT && !sc->sc_mrrprot))
+		mrr = 0;
+
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
+			device_printf(sc->sc_dev, "%s: ts_rate=%d ts_finaltsi=%d\n",
+			    __func__, ts->ts_rate, ts->ts_finaltsi);
 			badrate(ifp, 0, ts->ts_rate, long_tries, status);
 			return;
 		}
@@ -928,7 +936,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * Only one rate was used; optimize work.
 		 */
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "%s: size %d (%d bytes) %s rate/try %d %s/%d/%d nframes/nbad [%d/%d]",
+		     &an->an_node, "%s: size %d (%d bytes) %s rate/short/long %d %s/%d/%d nframes/nbad [%d/%d]",
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
@@ -960,11 +968,12 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
-"%s: size %d (%d bytes) finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d] nframes/nbad [%d/%d]", 
+"%s: size %d (%d bytes) finaltsidx %d short %d long %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d] nframes/nbad [%d/%d]", 
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     frame_size,
 		     finalTSIdx,
+		     short_tries,
 		     long_tries,
 		     status ? "FAIL" : "OK",
 		     dot11rate(rt, rc[0].rix),
@@ -1089,6 +1098,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 
 	KASSERT(sc->sc_curmode < IEEE80211_MODE_MAX+2,
 	    ("curmode %u", sc->sc_curmode));
+
 	sn->sched = mrr_schedules[sc->sc_curmode];
 	KASSERT(sn->sched != NULL,
 	    ("no mrr schedule for mode %u", sc->sc_curmode));
@@ -1115,7 +1125,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 				continue;
 			KASSERT(rix < SAMPLE_MAXRATES,
 			    ("mcs %u has rix %d", MCS(x), rix));
-			sn->ratemask |= 1<<rix;
+			sn->ratemask |= (uint64_t) 1<<rix;
 		}
 	}
 
@@ -1129,11 +1139,11 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			continue;
 		KASSERT(rix < SAMPLE_MAXRATES,
 		    ("rate %u has rix %d", RATE(x), rix));
-		sn->ratemask |= 1<<rix;
+		sn->ratemask |= (uint64_t) 1<<rix;
 	}
 #ifdef IEEE80211_DEBUG
 	if (ieee80211_msg(ni->ni_vap, IEEE80211_MSG_RATECTL)) {
-		uint32_t mask;
+		uint64_t mask;
 
 		ieee80211_note(ni->ni_vap, "[%6D] %s: size 1600 rate/tt",
 		    ni->ni_macaddr, ":", __func__);
@@ -1149,7 +1159,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 #endif
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		int size = bin_to_size(y);
-		uint32_t mask;
+		uint64_t mask;
 
 		sn->packets_sent[y] = 0;
 		sn->current_sample_rix[y] = -1;
@@ -1198,20 +1208,107 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 #undef DOT11RATE
 }
 
+/*
+ * Fetch the statistics for the given node.
+ *
+ * The ieee80211 node must be referenced and unlocked, however the ath_node
+ * must be locked.
+ *
+ * The main difference here is that we convert the rate indexes
+ * to 802.11 rates, or the userland output won't make much sense
+ * as it has no access to the rix table.
+ */
+int
+ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+    struct ath_rateioctl *rs)
+{
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct ath_rateioctl_tlv av;
+	struct ath_rateioctl_rt *tv;
+	int y;
+	int o = 0;
+
+	ATH_NODE_LOCK_ASSERT(an);
+
+	/*
+	 * Ensure there's enough space for the statistics.
+	 */
+	if (rs->len <
+	    sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct ath_rateioctl_rt) +
+	    sizeof(struct ath_rateioctl_tlv) +
+	    sizeof(struct sample_node)) {
+		device_printf(sc->sc_dev, "%s: len=%d, too short\n",
+		    __func__,
+		    rs->len);
+		return (EINVAL);
+	}
+
+	/*
+	 * Take a temporary copy of the sample node state so we can
+	 * modify it before we copy it.
+	 */
+	tv = malloc(sizeof(struct ath_rateioctl_rt), M_TEMP,
+	    M_NOWAIT | M_ZERO);
+	if (tv == NULL) {
+		return (ENOMEM);
+	}
+
+	/*
+	 * Populate the rate table mapping TLV.
+	 */
+	tv->nentries = rt->rateCount;
+	for (y = 0; y < rt->rateCount; y++) {
+		tv->ratecode[y] = rt->info[y].dot11Rate & IEEE80211_RATE_VAL;
+		if (rt->info[y].phy == IEEE80211_T_HT)
+			tv->ratecode[y] |= IEEE80211_RATE_MCS;
+	}
+
+	o = 0;
+	/*
+	 * First TLV - rate code mapping
+	 */
+	av.tlv_id = ATH_RATE_TLV_RATETABLE;
+	av.tlv_len = sizeof(struct ath_rateioctl_rt);
+	copyout(&av, rs->buf + o, sizeof(struct ath_rateioctl_tlv));
+	o += sizeof(struct ath_rateioctl_tlv);
+	copyout(tv, rs->buf + o, sizeof(struct ath_rateioctl_rt));
+	o += sizeof(struct ath_rateioctl_rt);
+
+	/*
+	 * Second TLV - sample node statistics
+	 */
+	av.tlv_id = ATH_RATE_TLV_SAMPLENODE;
+	av.tlv_len = sizeof(struct sample_node);
+	copyout(&av, rs->buf + o, sizeof(struct ath_rateioctl_tlv));
+	o += sizeof(struct ath_rateioctl_tlv);
+
+	/*
+	 * Copy the statistics over to the provided buffer.
+	 */
+	copyout(sn, rs->buf + o, sizeof(struct sample_node));
+	o += sizeof(struct sample_node);
+
+	free(tv, M_TEMP);
+
+	return (0);
+}
+
 static void
 sample_stats(void *arg, struct ieee80211_node *ni)
 {
 	struct ath_softc *sc = arg;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct sample_node *sn = ATH_NODE_SAMPLE(ATH_NODE(ni));
-	uint32_t mask;
+	uint64_t mask;
 	int rix, y;
 
-	printf("\n[%s] refcnt %d static_rix (%d %s) ratemask 0x%x\n",
+	printf("\n[%s] refcnt %d static_rix (%d %s) ratemask 0x%jx\n",
 	    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni),
 	    dot11rate(rt, sn->static_rix),
 	    dot11rate_label(rt, sn->static_rix),
-	    sn->ratemask);
+	    (uintmax_t)sn->ratemask);
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		printf("[%4u] cur rix %d (%d %s) since switch: packets %d ticks %u\n",
 		    bin_to_size(y), sn->current_rix[y],
@@ -1330,7 +1427,7 @@ ath_rate_attach(struct ath_softc *sc)
 	if (ssc == NULL)
 		return NULL;
 	ssc->arc.arc_space = sizeof(struct sample_node);
-	ssc->smoothing_rate = 95;		/* ewma percentage ([0..99]) */
+	ssc->smoothing_rate = 75;		/* ewma percentage ([0..99]) */
 	ssc->smoothing_minpackets = 100 / (100 - ssc->smoothing_rate);
 	ssc->sample_rate = 10;			/* %time to try diff tx rates */
 	ssc->max_successive_failures = 3;	/* threshold for rate sampling*/

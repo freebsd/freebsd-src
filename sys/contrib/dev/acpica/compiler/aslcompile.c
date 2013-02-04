@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcompile - top level compile module
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +49,15 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcompile")
+
+/*
+ * Main parser entry
+ * External is here in case the parser emits the same external in the
+ * generated header. (Newer versions of Bison)
+ */
+int
+AslCompilerparse(
+    void);
 
 /* Local prototypes */
 
@@ -275,7 +283,7 @@ FlConsumeAnsiComment (
     BOOLEAN                 ClosingComment = FALSE;
 
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         /* Scan until comment close is found */
 
@@ -318,7 +326,7 @@ FlConsumeNewComment (
     UINT8                   Byte;
 
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         Status->Offset++;
 
@@ -369,7 +377,7 @@ FlCheckForAscii (
 
     /* Read the entire file */
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         /* Ignore comment fields (allow non-ascii within) */
 
@@ -480,7 +488,7 @@ CmDoCompile (
         {
             UtEndEvent (Event);
             CmCleanupAndExit ();
-            return 0;
+            return (0);
         }
     }
     UtEndEvent (Event);
@@ -548,7 +556,7 @@ CmDoCompile (
     if (ACPI_FAILURE (Status))
     {
         AePrintErrorLog (ASL_FILE_STDERR);
-        return -1;
+        return (-1);
     }
 
     /* Interpret and generate all compile-time constants */
@@ -589,7 +597,7 @@ CmDoCompile (
             UtDisplaySummary (ASL_FILE_STDOUT);
         }
         UtEndEvent (FullCompile);
-        return 0;
+        return (0);
     }
 
     /*
@@ -609,7 +617,7 @@ CmDoCompile (
     /* Namespace cross-reference */
 
     AslGbl_NamespaceEvent = UtBeginEvent ("Cross reference parse tree and Namespace");
-    Status = LkCrossReferenceNamespace ();
+    Status = XfCrossReferenceNamespace ();
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
@@ -621,7 +629,7 @@ CmDoCompile (
     UtEndEvent (AslGbl_NamespaceEvent);
 
     /*
-     * Semantic analysis.  This can happen only after the
+     * Semantic analysis. This can happen only after the
      * namespace has been loaded and cross-referenced.
      *
      * part one - check control methods
@@ -631,8 +639,8 @@ CmDoCompile (
 
     DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Method analysis\n\n");
     TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
-        AnMethodAnalysisWalkBegin,
-        AnMethodAnalysisWalkEnd, &AnalysisWalkInfo);
+        MtMethodAnalysisWalkBegin,
+        MtMethodAnalysisWalkEnd, &AnalysisWalkInfo);
     UtEndEvent (Event);
 
     /* Semantic error checking part two - typing of method returns */
@@ -682,7 +690,7 @@ CmDoCompile (
 
     UtEndEvent (FullCompile);
     CmCleanupAndExit ();
-    return 0;
+    return (0);
 
 ErrorExit:
     UtEndEvent (FullCompile);
@@ -711,11 +719,11 @@ CmDoOutputFiles (
     /* Create listings and hex files */
 
     LsDoListings ();
-    LsDoHexOutput ();
+    HxDoHexOutput ();
 
     /* Dump the namespace to the .nsp file if requested */
 
-    (void) LsDisplayNamespace ();
+    (void) NsDisplayNamespace ();
 }
 
 
@@ -758,12 +766,12 @@ CmDumpAllEvents (
 
             Delta = (UINT32) (Event->EndTime - Event->StartTime);
 
-            USec = Delta / 10;
-            MSec = Delta / 10000;
+            USec = Delta / ACPI_100NSEC_PER_USEC;
+            MSec = Delta / ACPI_100NSEC_PER_MSEC;
 
             /* Round milliseconds up */
 
-            if ((USec - (MSec * 1000)) >= 500)
+            if ((USec - (MSec * ACPI_USEC_PER_MSEC)) >= 500)
             {
                 MSec++;
             }
@@ -800,6 +808,7 @@ CmCleanupAndExit (
     void)
 {
     UINT32                  i;
+    BOOLEAN                 DeleteAmlFile = FALSE;
 
 
     AePrintErrorLog (ASL_FILE_STDERR);
@@ -851,6 +860,16 @@ CmCleanupAndExit (
 
     UtDisplaySummary (ASL_FILE_STDOUT);
 
+    /*
+     * We will delete the AML file if there are errors and the
+     * force AML output option has not been used.
+     */
+    if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors) &&
+        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle)
+    {
+        DeleteAmlFile = TRUE;
+    }
+
     /* Close all open files */
 
     Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
@@ -862,29 +881,17 @@ CmCleanupAndExit (
 
     /* Delete AML file if there are errors */
 
-    if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors) &&
-        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle)
+    if (DeleteAmlFile)
     {
-        if (remove (Gbl_Files[ASL_FILE_AML_OUTPUT].Filename))
-        {
-            printf ("%s: ",
-                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
-            perror ("Could not delete AML file");
-        }
+        FlDeleteFile (ASL_FILE_AML_OUTPUT);
     }
 
     /* Delete the preprocessor output file (.i) unless -li flag is set */
 
     if (!Gbl_PreprocessorOutputFlag &&
-        Gbl_PreprocessFlag &&
-        Gbl_Files[ASL_FILE_PREPROCESSOR].Filename)
+        Gbl_PreprocessFlag)
     {
-        if (remove (Gbl_Files[ASL_FILE_PREPROCESSOR].Filename))
-        {
-            printf ("%s: ",
-                Gbl_Files[ASL_FILE_PREPROCESSOR].Filename);
-            perror ("Could not delete preprocessor .i file");
-        }
+        FlDeleteFile (ASL_FILE_PREPROCESSOR);
     }
 
     /*
@@ -901,15 +908,8 @@ CmCleanupAndExit (
      *
      * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
      */
-    if (!Gbl_SourceOutputFlag && Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename)
+    if (!Gbl_SourceOutputFlag)
     {
-        if (remove (Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename))
-        {
-            printf ("%s: ",
-                Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
-            perror ("Could not delete SRC file");
-        }
+        FlDeleteFile (ASL_FILE_SOURCE_OUTPUT);
     }
 }
-
-

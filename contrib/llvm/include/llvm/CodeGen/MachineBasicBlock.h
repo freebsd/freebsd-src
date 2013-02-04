@@ -143,10 +143,7 @@ public:
     IterTy MII;
 
   public:
-    bundle_iterator(IterTy mii) : MII(mii) {
-      assert(!MII->isInsideBundle() &&
-             "It's not legal to initialize bundle_iterator with a bundled MI");
-    }
+    bundle_iterator(IterTy mii) : MII(mii) {}
 
     bundle_iterator(Ty &mi) : MII(mi) {
       assert(!mi.isInsideBundle() &&
@@ -156,7 +153,10 @@ public:
       assert((!mi || !mi->isInsideBundle()) &&
              "It's not legal to initialize bundle_iterator with a bundled MI");
     }
-    bundle_iterator(const bundle_iterator &I) : MII(I.MII) {}
+    // Template allows conversion from const to nonconst.
+    template<class OtherTy, class OtherIterTy>
+    bundle_iterator(const bundle_iterator<OtherTy, OtherIterTy> &I)
+      : MII(I.getInstrIterator()) {}
     bundle_iterator() : MII(0) {}
 
     Ty &operator*() const { return *MII; }
@@ -173,29 +173,24 @@ public:
 
     // Increment and decrement operators...
     bundle_iterator &operator--() {      // predecrement - Back up
-      do {
-        --MII;
-      } while (MII->isInsideBundle());
+      do --MII;
+      while (MII->isInsideBundle());
       return *this;
     }
     bundle_iterator &operator++() {      // preincrement - Advance
-      do {
-        ++MII;
-      } while (MII->isInsideBundle());
+      IterTy E = MII->getParent()->instr_end();
+      do ++MII;
+      while (MII != E && MII->isInsideBundle());
       return *this;
     }
     bundle_iterator operator--(int) {    // postdecrement operators...
       bundle_iterator tmp = *this;
-      do {
-        --MII;
-      } while (MII->isInsideBundle());
+      --*this;
       return tmp;
     }
     bundle_iterator operator++(int) {    // postincrement operators...
       bundle_iterator tmp = *this;
-      do {
-        ++MII;
-      } while (MII->isInsideBundle());
+      ++*this;
       return tmp;
     }
 
@@ -235,42 +230,14 @@ public:
   reverse_instr_iterator       instr_rend  ()       { return Insts.rend();   }
   const_reverse_instr_iterator instr_rend  () const { return Insts.rend();   }
 
-  iterator                begin()       { return Insts.begin();  }
-  const_iterator          begin() const { return Insts.begin();  }
-  iterator                  end()       {
-    instr_iterator II = instr_end();
-    if (II != instr_begin()) {
-      while (II->isInsideBundle())
-        --II;
-    }
-    return II;
-  }
-  const_iterator            end() const {
-    const_instr_iterator II = instr_end();
-    if (II != instr_begin()) {
-      while (II->isInsideBundle())
-        --II;
-    }
-    return II;
-  }
-  reverse_iterator       rbegin()       {
-    reverse_instr_iterator II = instr_rbegin();
-    if (II != instr_rend()) {
-      while (II->isInsideBundle())
-        ++II;
-    }
-    return II;
-  }
-  const_reverse_iterator rbegin() const {
-    const_reverse_instr_iterator II = instr_rbegin();
-    if (II != instr_rend()) {
-      while (II->isInsideBundle())
-        ++II;
-    }
-    return II;
-  }
-  reverse_iterator       rend  ()       { return Insts.rend();   }
-  const_reverse_iterator rend  () const { return Insts.rend();   }
+  iterator                begin()       { return instr_begin();  }
+  const_iterator          begin() const { return instr_begin();  }
+  iterator                end  ()       { return instr_end();    }
+  const_iterator          end  () const { return instr_end();    }
+  reverse_iterator       rbegin()       { return instr_rbegin(); }
+  const_reverse_iterator rbegin() const { return instr_rbegin(); }
+  reverse_iterator       rend  ()       { return instr_rend();   }
+  const_reverse_iterator rend  () const { return instr_rend();   }
 
 
   // Machine-CFG iterators
@@ -384,6 +351,8 @@ public:
   /// parameter is stored in Weights list and it may be used by
   /// MachineBranchProbabilityInfo analysis to calculate branch probability.
   ///
+  /// Note that duplicate Machine CFG edges are not allowed.
+  ///
   void addSuccessor(MachineBasicBlock *succ, uint32_t weight = 0);
 
   /// removeSuccessor - Remove successor from the successors list of this
@@ -411,6 +380,10 @@ public:
   /// in transferSuccessors, and update PHI operands in the successor blocks
   /// which refer to fromMBB to refer to this.
   void transferSuccessorsAndUpdatePHIs(MachineBasicBlock *fromMBB);
+
+  /// isPredecessor - Return true if the specified MBB is a predecessor of this
+  /// block.
+  bool isPredecessor(const MachineBasicBlock *MBB) const;
 
   /// isSuccessor - Return true if the specified MBB is a successor of this
   /// block.
@@ -574,6 +547,28 @@ public:
     return findDebugLoc(MBBI.getInstrIterator());
   }
 
+  /// Possible outcome of a register liveness query to computeRegisterLiveness()
+  enum LivenessQueryResult {
+    LQR_Live,            ///< Register is known to be live.
+    LQR_OverlappingLive, ///< Register itself is not live, but some overlapping
+                         ///< register is.
+    LQR_Dead,            ///< Register is known to be dead.
+    LQR_Unknown          ///< Register liveness not decidable from local
+                         ///< neighborhood.
+  };
+
+  /// computeRegisterLiveness - Return whether (physical) register \c Reg
+  /// has been <def>ined and not <kill>ed as of just before \c MI.
+  /// 
+  /// Search is localised to a neighborhood of
+  /// \c Neighborhood instructions before (searching for defs or kills) and
+  /// Neighborhood instructions after (searching just for defs) MI.
+  ///
+  /// \c Reg must be a physical register.
+  LivenessQueryResult computeRegisterLiveness(const TargetRegisterInfo *TRI,
+                                              unsigned Reg, MachineInstr *MI,
+                                              unsigned Neighborhood=10);
+
   // Debugging methods.
   void dump() const;
   void print(raw_ostream &OS, SlotIndexes* = 0) const;
@@ -601,7 +596,7 @@ private:
   /// getSuccWeight - Return weight of the edge from this block to MBB. This
   /// method should NOT be called directly, but by using getEdgeWeight method
   /// from MachineBranchProbabilityInfo class.
-  uint32_t getSuccWeight(const MachineBasicBlock *succ) const;
+  uint32_t getSuccWeight(const_succ_iterator Succ) const;
 
 
   // Methods used to maintain doubly linked list of blocks...

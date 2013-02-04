@@ -120,29 +120,29 @@ strsignal(int num)
 			UPREFIX,
 #endif
 			sizeof(sig_ebuf));
+
+		signum = num;
+		if (num < 0)
+			signum = -signum;
+
+		t = tmp;
+		do {
+			*t++ = "0123456789"[signum % 10];
+		} while (signum /= 10);
+		if (num < 0)
+			*t++ = '-';
+
+		p = (ebuf + n);
+		*p++ = ':';
+		*p++ = ' ';
+
+		for (;;) {
+			*p++ = *--t;
+			if (t <= tmp)
+				break;
+		}
+		*p = '\0';
 	}
-
-	signum = num;
-	if (num < 0)
-		signum = -signum;
-
-	t = tmp;
-	do {
-		*t++ = "0123456789"[signum % 10];
-	} while (signum /= 10);
-	if (num < 0)
-		*t++ = '-';
-
-	p = (ebuf + n);
-	*p++ = ':';
-	*p++ = ' ';
-
-	for (;;) {
-		*p++ = *--t;
-		if (t <= tmp)
-			break;
-	}
-	*p = '\0';
 
 #if defined(NLS)
 	catclose(catd);

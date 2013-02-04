@@ -20,7 +20,7 @@
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
-	tp_pmrx = 40
+	tp_pmrx = 38
 	tp_pmtx = 60
 	tp_pmrx_pagesize = 64K
 	tp_pmtx_pagesize = 64K
@@ -56,7 +56,7 @@
 [function "4"]
 	wx_caps = all
 	r_caps = all
-	nvi = 54
+	nvi = 32
 	niqflint = 256
 	nethctrl = 128
 	neq = 256
@@ -67,14 +67,15 @@
 	# driver will mask off features it won't use
 	protocol = ofld
 
-	tp_l2t = 100
+	tp_l2t = 4096
+	tp_ddp = 2
 
 	# TCAM has 8K cells; each region must start at a multiple of 128 cell.
 	# Each entry in these categories takes 4 cells each.  nhash will use the
 	# TCAM iff there is room left (that is, the rest don't add up to 2048).
 	nroute = 32
-	nclip = 0	# needed only for IPv6 offload
-	nfilter = 1488
+	nclip = 32
+	nfilter = 1456
 	nserver = 512
 	nhash = 16384
 
@@ -136,7 +137,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xdb5813f9
+	checksum = 0xfdebb6ef
 #
 # $FreeBSD$
 #

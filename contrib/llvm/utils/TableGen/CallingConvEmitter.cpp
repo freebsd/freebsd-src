@@ -12,13 +12,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CallingConvEmitter.h"
 #include "CodeGenTarget.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/TableGenBackend.h"
+#include <cassert>
 using namespace llvm;
 
+namespace {
+class CallingConvEmitter {
+  RecordKeeper &Records;
+public:
+  explicit CallingConvEmitter(RecordKeeper &R) : Records(R) {}
+
+  void run(raw_ostream &o);
+
+private:
+  void EmitCallingConv(Record *CC, raw_ostream &O);
+  void EmitAction(Record *Action, unsigned Indent, raw_ostream &O);
+  unsigned Counter;
+};
+} // End anonymous namespace
+
 void CallingConvEmitter::run(raw_ostream &O) {
-  EmitSourceFileHeader("Calling Convention Implementation Fragment", O);
 
   std::vector<Record*> CCs = Records.getAllDerivedDefinitions("CallingConv");
   
@@ -78,7 +94,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
       O << Action->getValueAsString("Predicate");
     } else {
       Action->dump();
-      throw "Unknown CCPredicateAction!";
+      PrintFatalError("Unknown CCPredicateAction!");
     }
     
     O << ") {\n";
@@ -116,7 +132,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
       ListInit *ShadowRegList = Action->getValueAsListInit("ShadowRegList");
       if (ShadowRegList->getSize() >0 &&
           ShadowRegList->getSize() != RegList->getSize())
-        throw "Invalid length of list of shadowed registers";
+        PrintFatalError("Invalid length of list of shadowed registers");
 
       if (RegList->getSize() == 1) {
         O << IndentStr << "if (unsigned Reg = State.AllocateReg(";
@@ -162,12 +178,12 @@ void CallingConvEmitter::EmitAction(Record *Action,
       if (Size)
         O << Size << ", ";
       else
-        O << "\n" << IndentStr << "  State.getTarget().getTargetData()"
+        O << "\n" << IndentStr << "  State.getTarget().getDataLayout()"
           "->getTypeAllocSize(EVT(LocVT).getTypeForEVT(State.getContext())), ";
       if (Align)
         O << Align;
       else
-        O << "\n" << IndentStr << "  State.getTarget().getTargetData()"
+        O << "\n" << IndentStr << "  State.getTarget().getDataLayout()"
           "->getABITypeAlignment(EVT(LocVT).getTypeForEVT(State.getContext()))";
       if (Action->isSubClassOf("CCAssignToStackWithShadow"))
         O << ", " << getQualifiedName(Action->getValueAsDef("ShadowReg"));
@@ -206,7 +222,16 @@ void CallingConvEmitter::EmitAction(Record *Action,
       O << IndentStr << IndentStr << "return false;\n";
     } else {
       Action->dump();
-      throw "Unknown CCAction!";
+      PrintFatalError("Unknown CCAction!");
     }
   }
 }
+
+namespace llvm {
+
+void EmitCallingConv(RecordKeeper &RK, raw_ostream &OS) {
+  emitSourceFileHeader("Calling Convention Implementation Fragment", OS);
+  CallingConvEmitter(RK).run(OS);
+}
+
+} // End llvm namespace

@@ -131,7 +131,7 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
 			 * Packet contents are changed by ieee80211_decap
 			 * so do a deep copy of the packet.
 			 */
-			mcopy = m_dup(m, M_DONTWAIT);
+			mcopy = m_dup(m, M_NOWAIT);
 			if (mcopy == NULL) {
 				/* XXX stat+msg */
 				continue;

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@
  *
  ******************************************************************************/
 
-ACPI_RSCONVERT_INFO     AcpiRsConvertGpio[17] =
+ACPI_RSCONVERT_INFO     AcpiRsConvertGpio[18] =
 {
     {ACPI_RSC_INITGET,  ACPI_RESOURCE_TYPE_GPIO,
                         ACPI_RS_SIZE (ACPI_RESOURCE_GPIO),
@@ -80,9 +80,13 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertGpio[17] =
                         AML_OFFSET (Gpio.Flags),
                         0},
 
-    {ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET (Data.Gpio.Sharable),
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.Gpio.Sharable),
                         AML_OFFSET (Gpio.IntFlags),
                         3},
+
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.Gpio.WakeCapable),
+                        AML_OFFSET (Gpio.IntFlags),
+                        4},
 
     {ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET (Data.Gpio.IoRestriction),
                         AML_OFFSET (Gpio.IntFlags),

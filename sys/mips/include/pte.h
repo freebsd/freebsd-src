@@ -57,8 +57,8 @@ typedef	pt_entry_t *pd_entry_t;
 
 /*
  * PFN for EntryLo register.  Upper bits are 0, which is to say that
- * bit 29 is the last hardware bit;  Bits 30 and upwards (EntryLo is
- * 64 bit though it can be referred to in 32-bits providing 2 software
+ * bit 28 is the last hardware bit;  Bits 29 and upwards (EntryLo is
+ * 64 bit though it can be referred to in 32-bits providing 3 software
  * bits safely.  We use it as 64 bits to get many software bits, and
  * god knows what else.) are unacknowledged by hardware.  They may be
  * written as anything, but otherwise they have as much meaning as
@@ -68,11 +68,11 @@ typedef	pt_entry_t *pd_entry_t;
 #define	TLBLO_SWBITS_SHIFT	(34)
 #define	TLBLO_PFN_MASK		0x3FFFFFFC0ULL
 #else
-#define	TLBLO_SWBITS_SHIFT	(30)
-#define	TLBLO_PFN_MASK		(0x3FFFFFC0)
+#define	TLBLO_SWBITS_SHIFT	(29)
+#define	TLBLO_PFN_MASK		(0x1FFFFFC0)
 #endif
 #define	TLBLO_PFN_SHIFT		(6)
-#define	TLBLO_SWBITS_MASK	((pt_entry_t)0x3 << TLBLO_SWBITS_SHIFT)
+#define	TLBLO_SWBITS_MASK	((pt_entry_t)0x7 << TLBLO_SWBITS_SHIFT)
 #define	TLBLO_PA_TO_PFN(pa)	((((pa) >> TLB_PAGE_SHIFT) << TLBLO_PFN_SHIFT) & TLBLO_PFN_MASK)
 #define	TLBLO_PFN_TO_PA(pfn)	((vm_paddr_t)((pfn) >> TLBLO_PFN_SHIFT) << TLB_PAGE_SHIFT)
 #define	TLBLO_PTE_TO_PFN(pte)	((pte) & TLBLO_PFN_MASK)
@@ -132,9 +132,11 @@ typedef	pt_entry_t *pd_entry_t;
  * 	RO:	Read only.  Never set PTE_D on this page, and don't
  * 		listen to requests to write to it.
  * 	W:	Wired.  ???
+ *	MANAGED:Managed.  This PTE maps a managed page.
  */
 #define	PTE_RO			((pt_entry_t)0x01 << TLBLO_SWBITS_SHIFT)
 #define	PTE_W			((pt_entry_t)0x02 << TLBLO_SWBITS_SHIFT)
+#define	PTE_MANAGED		((pt_entry_t)0x04 << TLBLO_SWBITS_SHIFT)
 
 /*
  * PTE management functions for bits defined above.
@@ -160,7 +162,7 @@ typedef	pt_entry_t *pd_entry_t;
 #define	PTESIZE			4
 #define	PTE_L			lw
 #define	PTE_MTC0		mtc0
-#define	CLEAR_PTE_SWBITS(r)	sll r, 2; srl r, 2 /* remove 2 high bits */
+#define	CLEAR_PTE_SWBITS(r)	sll r, 3; srl r, 3 /* remove 3 high bits */
 #endif /* defined(__mips_n64) || defined(__mips_n32) */
 
 #if defined(__mips_n64)

@@ -63,6 +63,10 @@ enum {
 	HAL_DIAG_CHECK_HANGS	= 32,	/* check h/w hangs */
 	HAL_DIAG_SETREGS	= 33,	/* write registers */
 	HAL_DIAG_CHANSURVEY	= 34,	/* channel survey */
+	HAL_DIAG_PRINT_REG	= 35,
+	HAL_DIAG_PRINT_REG_ALL	= 36,
+	HAL_DIAG_CHANNELS	= 37,
+	HAL_DIAG_PRINT_REG_COUNTER	= 38,
 };
 
 #endif /* _ATH_AH_DIAGCODES_H_ */

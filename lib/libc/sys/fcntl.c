@@ -41,7 +41,7 @@ __fcntl_compat(int fd, int cmd, ...)
 {
 	va_list args;
 	long arg;
-	struct oflock ofl;
+	struct __oflock ofl;
 	struct flock *flp;
 	int res;
 

@@ -56,7 +56,7 @@ mkinstalldirs = $(SHELL) $(libiberty_topdir)/mkinstalldirs
 OUTPUT_OPTION = @OUTPUT_OPTION@
 
 AR = @AR@
-AR_FLAGS = rc
+ARFLAGS = @ARFLAGS@
 
 CC = @CC@
 CFLAGS = @CFLAGS@
@@ -81,7 +81,7 @@ EXTRA_OFILES =
 # Flags to pass to a recursive make.
 FLAGS_TO_PASS = \
 	"AR=$(AR)" \
-	"AR_FLAGS=$(AR_FLAGS)" \
+	"AR_FLAGS=$(ARFLAGS)" \
 	"CC=$(CC)" \
 	"CFLAGS=$(CFLAGS)" \
 	"DESTDIR=$(DESTDIR)" \
@@ -224,12 +224,12 @@ INSTALLED_HEADERS =                                                     \
 
 $(TARGETLIB): $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS)
 	-rm -f $(TARGETLIB) pic/$(TARGETLIB)
-	$(AR) $(AR_FLAGS) $(TARGETLIB) \
+	$(AR) $(ARFLAGS) $(TARGETLIB) \
 	  $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS)
 	$(RANLIB) $(TARGETLIB)
 	if [ x"$(PICFLAG)" != x ]; then \
 	  cd pic; \
-	  $(AR) $(AR_FLAGS) $(TARGETLIB) \
+	  $(AR) $(ARFLAGS) $(TARGETLIB) \
 	    $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS); \
 	  $(RANLIB) $(TARGETLIB); \
 	  cd ..; \
@@ -237,7 +237,7 @@ $(TARGETLIB): $(REQUIRED_OFILES) $(EXTRA_OFILES) $(LIBOBJS)
 
 $(TESTLIB): $(REQUIRED_OFILES) $(CONFIGURED_OFILES)
 	-rm -f $(TESTLIB)
-	$(AR) $(AR_FLAGS) $(TESTLIB) \
+	$(AR) $(ARFLAGS) $(TESTLIB) \
 	  $(REQUIRED_OFILES) $(CONFIGURED_OFILES)
 	$(RANLIB) $(TESTLIB)
 

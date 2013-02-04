@@ -536,7 +536,8 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 		ktruio = cloneuio(auio);
 #endif
 	cnt = auio->uio_resid;
-	if (fp->f_type == DTYPE_VNODE)
+	if (fp->f_type == DTYPE_VNODE &&
+	    (fp->f_vnread_flags & FDEVFS_VNODE) == 0)
 		bwillwrite();
 	if ((error = fo_write(fp, auio, td->td_ucred, flags, td))) {
 		if (auio->uio_resid != cnt && (error == ERESTART ||
@@ -1471,62 +1472,6 @@ sys_openbsd_poll(td, uap)
 	register struct openbsd_poll_args *uap;
 {
 	return (sys_poll(td, (struct poll_args *)uap));
-}
-
-/*
- * XXX This was created specifically to support netncp and netsmb.  This
- * allows the caller to specify a socket to wait for events on.  It returns
- * 0 if any events matched and an error otherwise.  There is no way to
- * determine which events fired.
- */
-int
-selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
-{
-	struct timeval atv, rtv, ttv;
-	int error, timo;
-
-	if (tvp != NULL) {
-		atv = *tvp;
-		if (itimerfix(&atv))
-			return (EINVAL);
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-	}
-
-	timo = 0;
-	seltdinit(td);
-	/*
-	 * Iterate until the timeout expires or the socket becomes ready.
-	 */
-	for (;;) {
-		selfdalloc(td, NULL);
-		error = sopoll(so, events, NULL, td);
-		/* error here is actually the ready events. */
-		if (error)
-			return (0);
-		if (atv.tv_sec || atv.tv_usec) {
-			getmicrouptime(&rtv);
-			if (timevalcmp(&rtv, &atv, >=)) {
-				seltdclear(td);
-				return (EWOULDBLOCK);
-			}
-			ttv = atv;
-			timevalsub(&ttv, &rtv);
-			timo = ttv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&ttv);
-		}
-		error = seltdwait(td, timo);
-		seltdclear(td);
-		if (error)
-			break;
-	}
-	/* XXX Duplicates ncp/smb behavior. */
-	if (error == ERESTART)
-		error = 0;
-	return (error);
 }
 
 /*

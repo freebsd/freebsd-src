@@ -40,14 +40,18 @@
 # sha256_block:-( This is presumably because 64-bit shifts/rotates
 # apparently are not atomic instructions, but implemented in microcode.
 
-$output=shift;
+$flavour = shift;
+$output  = shift;
+if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
+
+$win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open STDOUT,"| $^X $xlate $output";
+open STDOUT,"| $^X $xlate $flavour $output";
 
 if ($output =~ /512/) {
 	$func="sha512_block_data_order";
@@ -91,50 +95,44 @@ sub ROUND_00_15()
 { my ($i,$a,$b,$c,$d,$e,$f,$g,$h) = @_;
 
 $code.=<<___;
-	mov	$e,$a0
-	mov	$e,$a1
+	ror	\$`$Sigma1[2]-$Sigma1[1]`,$a0
 	mov	$f,$a2
-
-	ror	\$$Sigma1[0],$a0
-	ror	\$$Sigma1[1],$a1
-	xor	$g,$a2			# f^g
-
-	xor	$a1,$a0
-	ror	\$`$Sigma1[2]-$Sigma1[1]`,$a1
-	and	$e,$a2			# (f^g)&e
 	mov	$T1,`$SZ*($i&0xf)`(%rsp)
 
-	xor	$a1,$a0			# Sigma1(e)
-	xor	$g,$a2			# Ch(e,f,g)=((f^g)&e)^g
+	ror	\$`$Sigma0[2]-$Sigma0[1]`,$a1
+	xor	$e,$a0
+	xor	$g,$a2			# f^g
+
+	ror	\$`$Sigma1[1]-$Sigma1[0]`,$a0
 	add	$h,$T1			# T1+=h
+	xor	$a,$a1
 
-	mov	$a,$h
-	add	$a0,$T1			# T1+=Sigma1(e)
-
-	add	$a2,$T1			# T1+=Ch(e,f,g)
-	mov	$a,$a0
-	mov	$a,$a1
-
-	ror	\$$Sigma0[0],$h
-	ror	\$$Sigma0[1],$a0
-	mov	$a,$a2
 	add	($Tbl,$round,$SZ),$T1	# T1+=K[round]
+	and	$e,$a2			# (f^g)&e
+	mov	$b,$h
 
-	xor	$a0,$h
-	ror	\$`$Sigma0[2]-$Sigma0[1]`,$a0
-	or	$c,$a1			# a|c
+	ror	\$`$Sigma0[1]-$Sigma0[0]`,$a1
+	xor	$e,$a0
+	xor	$g,$a2			# Ch(e,f,g)=((f^g)&e)^g
 
-	xor	$a0,$h			# h=Sigma0(a)
-	and	$c,$a2			# a&c
+	xor	$c,$h			# b^c
+	xor	$a,$a1
+	add	$a2,$T1			# T1+=Ch(e,f,g)
+	mov	$b,$a2
+
+	ror	\$$Sigma1[0],$a0	# Sigma1(e)
+	and	$a,$h			# h=(b^c)&a
+	and	$c,$a2			# b&c
+
+	ror	\$$Sigma0[0],$a1	# Sigma0(a)
+	add	$a0,$T1			# T1+=Sigma1(e)
+	add	$a2,$h			# h+=b&c (completes +=Maj(a,b,c)
+
 	add	$T1,$d			# d+=T1
-
-	and	$b,$a1			# (a|c)&b
 	add	$T1,$h			# h+=T1
-
-	or	$a2,$a1			# Maj(a,b,c)=((a|c)&b)|(a&c)
 	lea	1($round),$round	# round++
+	add	$a1,$h			# h+=Sigma0(a)
 
-	add	$a1,$h			# h+=Maj(a,b,c)
 ___
 }
 
@@ -143,32 +141,30 @@ sub ROUND_16_XX()
 
 $code.=<<___;
 	mov	`$SZ*(($i+1)&0xf)`(%rsp),$a0
-	mov	`$SZ*(($i+14)&0xf)`(%rsp),$T1
+	mov	`$SZ*(($i+14)&0xf)`(%rsp),$a1
+	mov	$a0,$T1
+	mov	$a1,$a2
 
-	mov	$a0,$a2
-
+	ror	\$`$sigma0[1]-$sigma0[0]`,$T1
+	xor	$a0,$T1
 	shr	\$$sigma0[2],$a0
-	ror	\$$sigma0[0],$a2
 
-	xor	$a2,$a0
-	ror	\$`$sigma0[1]-$sigma0[0]`,$a2
+	ror	\$$sigma0[0],$T1
+	xor	$T1,$a0			# sigma0(X[(i+1)&0xf])
+	mov	`$SZ*(($i+9)&0xf)`(%rsp),$T1
 
-	xor	$a2,$a0			# sigma0(X[(i+1)&0xf])
-	mov	$T1,$a1
+	ror	\$`$sigma1[1]-$sigma1[0]`,$a2
+	xor	$a1,$a2
+	shr	\$$sigma1[2],$a1
 
-	shr	\$$sigma1[2],$T1
-	ror	\$$sigma1[0],$a1
-
-	xor	$a1,$T1
-	ror	\$`$sigma1[1]-$sigma1[0]`,$a1
-
-	xor	$a1,$T1			# sigma1(X[(i+14)&0xf])
-
+	ror	\$$sigma1[0],$a2
 	add	$a0,$T1
-
-	add	`$SZ*(($i+9)&0xf)`(%rsp),$T1
+	xor	$a2,$a1			# sigma1(X[(i+14)&0xf])
 
 	add	`$SZ*($i&0xf)`(%rsp),$T1
+	mov	$e,$a0
+	add	$a1,$T1
+	mov	$a,$a1
 ___
 	&ROUND_00_15(@_);
 }
@@ -186,7 +182,7 @@ $func:
 	push	%r13
 	push	%r14
 	push	%r15
-	mov	%rsp,%rbp		# copy %rsp
+	mov	%rsp,%r11		# copy %rsp
 	shl	\$4,%rdx		# num*16
 	sub	\$$framesz,%rsp
 	lea	($inp,%rdx,$SZ),%rdx	# inp+num*16*$SZ
@@ -194,10 +190,10 @@ $func:
 	mov	$ctx,$_ctx		# save ctx, 1st arg
 	mov	$inp,$_inp		# save inp, 2nd arh
 	mov	%rdx,$_end		# save end pointer, "3rd" arg
-	mov	%rbp,$_rsp		# save copy of %rsp
+	mov	%r11,$_rsp		# save copy of %rsp
+.Lprologue:
 
-	.picmeup $Tbl
-	lea	$TABLE-.($Tbl),$Tbl
+	lea	$TABLE(%rip),$Tbl
 
 	mov	$SZ*0($ctx),$A
 	mov	$SZ*1($ctx),$B
@@ -215,6 +211,8 @@ $func:
 ___
 	for($i=0;$i<16;$i++) {
 		$code.="	mov	$SZ*$i($inp),$T1\n";
+		$code.="	mov	@ROT[4],$a0\n";
+		$code.="	mov	@ROT[0],$a1\n";
 		$code.="	bswap	$T1\n";
 		&ROUND_00_15($i,@ROT);
 		unshift(@ROT,pop(@ROT));
@@ -257,14 +255,15 @@ $code.=<<___;
 	mov	$H,$SZ*7($ctx)
 	jb	.Lloop
 
-	mov	$_rsp,%rsp
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-
+	mov	$_rsp,%rsi
+	mov	(%rsi),%r15
+	mov	8(%rsi),%r14
+	mov	16(%rsi),%r13
+	mov	24(%rsi),%r12
+	mov	32(%rsi),%rbp
+	mov	40(%rsi),%rbx
+	lea	48(%rsi),%rsp
+.Lepilogue:
 	ret
 .size	$func,.-$func
 ___
@@ -336,6 +335,113 @@ $TABLE:
 	.quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
 	.quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 	.quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
+___
+}
+
+# EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
+#		CONTEXT *context,DISPATCHER_CONTEXT *disp)
+if ($win64) {
+$rec="%rcx";
+$frame="%rdx";
+$context="%r8";
+$disp="%r9";
+
+$code.=<<___;
+.extern	__imp_RtlVirtualUnwind
+.type	se_handler,\@abi-omnipotent
+.align	16
+se_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	120($context),%rax	# pull context->Rax
+	mov	248($context),%rbx	# pull context->Rip
+
+	lea	.Lprologue(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip<.Lprologue
+	jb	.Lin_prologue
+
+	mov	152($context),%rax	# pull context->Rsp
+
+	lea	.Lepilogue(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip>=.Lepilogue
+	jae	.Lin_prologue
+
+	mov	16*$SZ+3*8(%rax),%rax	# pull $_rsp
+	lea	48(%rax),%rax
+
+	mov	-8(%rax),%rbx
+	mov	-16(%rax),%rbp
+	mov	-24(%rax),%r12
+	mov	-32(%rax),%r13
+	mov	-40(%rax),%r14
+	mov	-48(%rax),%r15
+	mov	%rbx,144($context)	# restore context->Rbx
+	mov	%rbp,160($context)	# restore context->Rbp
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+	mov	%r14,232($context)	# restore context->R14
+	mov	%r15,240($context)	# restore context->R15
+
+.Lin_prologue:
+	mov	8(%rax),%rdi
+	mov	16(%rax),%rsi
+	mov	%rax,152($context)	# restore context->Rsp
+	mov	%rsi,168($context)	# restore context->Rsi
+	mov	%rdi,176($context)	# restore context->Rdi
+
+	mov	40($disp),%rdi		# disp->ContextRecord
+	mov	$context,%rsi		# context
+	mov	\$154,%ecx		# sizeof(CONTEXT)
+	.long	0xa548f3fc		# cld; rep movsq
+
+	mov	$disp,%rsi
+	xor	%rcx,%rcx		# arg1, UNW_FLAG_NHANDLER
+	mov	8(%rsi),%rdx		# arg2, disp->ImageBase
+	mov	0(%rsi),%r8		# arg3, disp->ControlPc
+	mov	16(%rsi),%r9		# arg4, disp->FunctionEntry
+	mov	40(%rsi),%r10		# disp->ContextRecord
+	lea	56(%rsi),%r11		# &disp->HandlerData
+	lea	24(%rsi),%r12		# &disp->EstablisherFrame
+	mov	%r10,32(%rsp)		# arg5
+	mov	%r11,40(%rsp)		# arg6
+	mov	%r12,48(%rsp)		# arg7
+	mov	%rcx,56(%rsp)		# arg8, (NULL)
+	call	*__imp_RtlVirtualUnwind(%rip)
+
+	mov	\$1,%eax		# ExceptionContinueSearch
+	add	\$64,%rsp
+	popfq
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	pop	%rdi
+	pop	%rsi
+	ret
+.size	se_handler,.-se_handler
+
+.section	.pdata
+.align	4
+	.rva	.LSEH_begin_$func
+	.rva	.LSEH_end_$func
+	.rva	.LSEH_info_$func
+
+.section	.xdata
+.align	8
+.LSEH_info_$func:
+	.byte	9,0,0,0
+	.rva	se_handler
 ___
 }
 

@@ -117,7 +117,7 @@ struct ses_enc_desc {
 static inline uint8_t *
 ses_enc_desc_last_byte(struct ses_enc_desc *encdesc)
 {
-	return (&encdesc->length + encdesc->length + 1);
+	return (&encdesc->length + encdesc->length);
 }
 
 static inline struct ses_enc_desc *

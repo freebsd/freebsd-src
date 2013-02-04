@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ipmon
-# REQUIRE: FILESYSTEMS hostname sysctl cleanvar ipfilter
+# REQUIRE: FILESYSTEMS hostname sysctl FILESYSTEMS ipfilter
 # BEFORE:  SERVERS
 # KEYWORD: nojail
 

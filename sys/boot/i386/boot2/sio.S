@@ -24,7 +24,7 @@
 		.globl sio_getc
 		.globl sio_ischar
 
-/* void sio_init(int div) */
+/* int sio_init(int div) */
 
 sio_init:	pushl %eax
 		movw $SIO_PRT+0x3,%dx		# Data format reg
@@ -40,15 +40,17 @@ sio_init:	pushl %eax
 		movb $0x3,%al			# Set RTS,
 		outb %al,(%dx)			#  DTR
 		incl %edx			# Line status reg
-		call sio_flush
-		ret
+		# Fallthrough
 
-/* void sio_flush(void) */
+/* int sio_flush(void) */
 
-sio_flush.0:	call sio_getc.1 		# Get character
-sio_flush:	call sio_ischar 		# Check for character
-		jnz sio_flush.0 		# Till none
-		ret				# To caller
+sio_flush:	xorl %ecx,%ecx			# Timeout
+		movb $0x80,%ch			#  counter
+sio_flush.1:	call sio_ischar 		# Check for character
+		jz sio_flush.2			# Till none
+		loop sio_flush.1		#  or counter is zero
+		movb $1, %al			# Exhausted all tries
+sio_flush.2:	ret				# To caller
 
 /* void sio_putc(int c) */
 

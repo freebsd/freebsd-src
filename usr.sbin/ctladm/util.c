@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <camlib.h>
 #include "ctladm.h"
 
-int verbose;
+static int verbose;
 
 /* iget: Integer argument callback
  */
