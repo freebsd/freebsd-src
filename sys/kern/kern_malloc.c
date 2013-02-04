@@ -186,17 +186,6 @@ struct {
  */
 static uma_zone_t mt_zone;
 
-SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD, NULL,
-    VM_MIN_KERNEL_ADDRESS, "Min kernel address");
-
-SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
-#ifndef __sparc64__
-    NULL, VM_MAX_KERNEL_ADDRESS,
-#else
-    &vm_max_kernel_address, 0,
-#endif
-    "Max kernel address");
-
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
