@@ -156,6 +156,7 @@ main(int argc, char * const argv[])
 	int error, state;
 	u_char *buf;
 	u_int sectorsize;
+	u_int stripesize;
 	time_t t1, t2;
 	struct stat sb;
 	u_int n, snapshot = 60;
@@ -200,6 +201,10 @@ main(int argc, char * const argv[])
 		error = ioctl(fdr, DIOCGSECTORSIZE, &sectorsize);
 		if (error < 0)
 			err(1, "DIOCGSECTORSIZE failed");
+
+		error = ioctl(fdr, DIOCGSTRIPESIZE, &stripesize);
+		if (error == 0 && stripesize > sectorsize)
+			sectorsize = stripesize;
 
 		minsize = sectorsize;
 		bigsize = (bigsize / sectorsize) * sectorsize;

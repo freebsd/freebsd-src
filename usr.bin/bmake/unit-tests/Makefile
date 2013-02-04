@@ -79,10 +79,12 @@ TOOL_TR?= tr
 TOOL_DIFF?= diff
 DIFF_FLAGS?= -u
 
+.if defined(.PARSEDIR)
 # ensure consistent results from sort(1)
 LC_ALL= C
 LANG= C
 .export LANG LC_ALL
+.endif
 
 # The driver.
 # We always pretend .MAKE was called 'make' 

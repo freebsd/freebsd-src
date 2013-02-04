@@ -410,11 +410,17 @@ static void
 ng_ether_ifnet_arrival_event(void *arg __unused, struct ifnet *ifp)
 {
 	char name[IFNAMSIZ];
-	node_p node = IFP2NG(ifp);
+	node_p node;
+
+	/* Only ethernet interfaces are of interest. */
+	if (ifp->if_type != IFT_ETHER
+	    && ifp->if_type != IFT_L2VLAN)
+		return;
 
 	/*
 	 * Just return if it's a new interface without an ng_ether companion.
 	 */
+	node = IFP2NG(ifp);
 	if (node == NULL)
 		return;
 

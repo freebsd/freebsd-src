@@ -198,7 +198,7 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
     sysctl_debug_ktr_mask, "IU",
     "Bitmask of KTR event classes for which logging is enabled");
 
-#if KTR_ENTRIES != KTR_BOOT_ENTRIES
+#if KTR_ENTRIES > KTR_BOOT_ENTRIES
 /*
  * A simplified version of sysctl_debug_ktr_entries.
  * No need to care about SMP, scheduling, etc.
@@ -213,6 +213,7 @@ ktr_entries_initializer(void *dummy __unused)
 	ktr_mask = 0;
 	ktr_buf = malloc(sizeof(*ktr_buf) * KTR_ENTRIES, M_KTR,
 	    M_WAITOK | M_ZERO);
+	memcpy(ktr_buf, ktr_buf_init, sizeof(ktr_buf_init));
 	ktr_entries = KTR_ENTRIES;
 	ktr_mask = mask;
 }
