@@ -96,8 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
-#define	VM_PINDEX_MAX	((vm_pindex_t)(-1))
-
 static int old_msync;
 SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
     "Use old (insecure) msync behavior");
@@ -770,9 +768,9 @@ vm_object_terminate(vm_object_t object)
 				vp = object->handle;
 
 			/* Point to the next available index. */
-			if (p->pindex == VM_PINDEX_MAX)
-				break;
 			start = p->pindex + 1;
+			if (start < p->pindex)
+				break;
 		}
 		vm_radix_reclaim_allnodes(&object->cache);
 		mtx_unlock(&vm_page_queue_free_mtx);
@@ -1800,9 +1798,9 @@ vm_object_collapse(vm_object_t object)
 						 * Point to the next available
 						 * index.
 						 */
-						if (tmpindex == VM_PINDEX_MAX)
-							break;
 						start = tmpindex + 1;
+						if (start < tmpindex)
+							break;
 					}
 					mtx_unlock(&vm_page_queue_free_mtx);
 				}
