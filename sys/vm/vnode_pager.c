@@ -404,12 +404,11 @@ vnode_pager_setsize(vp, nsize)
 		 * completely invalid page and mark it partially valid
 		 * it can screw up NFS reads, so we don't allow the case.
 		 */
-		if ((nsize & PAGE_MASK) && (m = vm_radix_lookup(&object->rtree,
-		    OFF_TO_IDX(nsize))) != NULL && m->valid != 0) {
+		if ((nsize & PAGE_MASK) &&
+		    (m = vm_page_lookup(object, OFF_TO_IDX(nsize))) != NULL &&
+		    m->valid != 0) {
 			int base = (int)nsize & PAGE_MASK;
 			int size = PAGE_SIZE - base;
-
-			MPASS(m->object == object);
 
 			/*
 			 * Clear out partial-page garbage in case

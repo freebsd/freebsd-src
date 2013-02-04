@@ -312,14 +312,13 @@ vm_page_startup(vm_offset_t vaddr)
 	/*
 	 * Initialize the page and queue locks.
 	 */
-	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
-	    MTX_DEF | MTX_RECURSE);
-
-	/* Setup page locks. */
+	mtx_init(&vm_page_queue_free_mtx, "vm page free queue", NULL, MTX_DEF |
+	    MTX_RECURSE);
 	for (i = 0; i < PA_LOCK_COUNT; i++)
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < PQ_COUNT; i++)
 		vm_pagequeue_init_lock(&vm_pagequeues[i]);
+
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
 	 * allocator.
@@ -811,6 +810,7 @@ void
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t neighbor;
+
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (m->object != NULL)
 		panic("vm_page_insert: page already inserted");

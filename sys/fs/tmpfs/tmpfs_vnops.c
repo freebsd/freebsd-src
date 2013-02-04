@@ -654,7 +654,7 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 		goto nocache;
 	}
 lookupvpg:
-	if (((vpg = vm_radix_lookup(&vobj->rtree, idx)) != NULL) &&
+	if (((vpg = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(vpg, offset, tlen)) {
 		if ((vpg->oflags & VPO_BUSY) != 0) {
 			/*

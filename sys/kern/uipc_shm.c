@@ -278,7 +278,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		if (base != 0) {
 			idx = OFF_TO_IDX(length);
 retry:
-			m = vm_radix_lookup(&object->rtree, idx);
+			m = vm_page_lookup(object, idx);
 			if (m != NULL) {
 				if ((m->oflags & VPO_BUSY) != 0 ||
 				    m->busy != 0) {

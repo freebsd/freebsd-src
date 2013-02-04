@@ -326,7 +326,7 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 	case OBJT_SG:
 	case OBJT_SWAP:
 	case OBJT_VNODE:
-		if (object->resident_page_count == 0)
+		if (!TAILQ_EMPTY(&object->memq))
 			return (KERN_FAILURE);
 		break;
 	case OBJT_DEAD:
@@ -730,7 +730,7 @@ vm_object_terminate(vm_object_t object)
 		 * wired, then the effect of this assignment is that
 		 * vm_page_free()'s call to vm_page_remove() will return
 		 * immediately without modifying the page or the object.
-		 */
+		 */ 
 		p->object = NULL;
 		if (p->wire_count == 0) {
 			vm_page_free(p);
@@ -1796,7 +1796,6 @@ vm_object_collapse(vm_object_t object)
 					mtx_unlock(&vm_page_queue_free_mtx);
 				}
 			}
-
 			/*
 			 * Object now shadows whatever backing_object did.
 			 * Note that the reference to 
@@ -1935,7 +1934,7 @@ again:
 
 	/*
 	 * Here, the variable "p" is either (1) the page with the least pindex
-	 * greater than or equal to the parameter "start" or (2) NULL.
+	 * greater than or equal to the parameter "start" or (2) NULL. 
 	 */
 	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
 		next = TAILQ_NEXT(p, listq);
@@ -2400,9 +2399,8 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 			db_printf(",");
 		count++;
 
-		db_printf("(off=0x%jx,page=0x%jx,obj=%p,flags=0x%X)",
-		    (uintmax_t)p->pindex, (uintmax_t)VM_PAGE_TO_PHYS(p),
-		    p->object, p->flags);
+		db_printf("(off=0x%jx,page=0x%jx)",
+		    (uintmax_t)p->pindex, (uintmax_t)VM_PAGE_TO_PHYS(p));
 	}
 	if (count != 0)
 		db_printf("\n");
