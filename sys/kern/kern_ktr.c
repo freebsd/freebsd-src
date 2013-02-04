@@ -213,6 +213,7 @@ ktr_entries_initializer(void *dummy __unused)
 	ktr_mask = 0;
 	ktr_buf = malloc(sizeof(*ktr_buf) * KTR_ENTRIES, M_KTR,
 	    M_WAITOK | M_ZERO);
+	memcpy(ktr_buf, ktr_buf_init, sizeof(ktr_buf_init));
 	ktr_entries = KTR_ENTRIES;
 	ktr_mask = mask;
 }
