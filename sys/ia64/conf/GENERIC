@@ -64,7 +64,6 @@ options 	KDB		# Kernel debugger related code
 options 	KDB_TRACE	# Print a stack trace for a panic
 
 # Various "busses"
-device		firewire	# FireWire bus code
 device		miibus		# MII bus support (Ethernet)
 device		pci		# PCI bus support
 device		scbus		# SCSI bus (required for ATA/SCSI)
