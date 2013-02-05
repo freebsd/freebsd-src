@@ -979,6 +979,7 @@ top_makefile_rules(FILE *outmk)
 {
 	prog_t *p;
 
+	fprintf(outmk, "LD?= ld\n");
 	if ( subtract_strlst(&libs, &libs_so) )
 		fprintf(outmk, "# NOTE: Some LIBS declarations below overridden by LIBS_SO\n");
 
@@ -1108,7 +1109,7 @@ prog_makefile_rules(FILE *outmk, prog_t *p)
 		fprintf(outmk, " $(%s_LIBS)", p->ident);
 
 	fprintf(outmk, "\n");
-	fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
+	fprintf(outmk, "\t$(LD) -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
 	    p->name, p->name, p->ident);
 	if (p->libs)
 		fprintf(outmk, " $(%s_LIBS)", p->ident);
