@@ -1094,9 +1094,10 @@ ext2_checkpath(source, target, cred)
 		error = EEXIST;
 		goto out;
 	}
-	error = 0;
-	if (target->i_number == EXT2_ROOTINO)
+	if (target->i_number == EXT2_ROOTINO) {
+		error = 0;
 		goto out;
+	}
 
 	for (;;) {
 		if (vp->v_type != VDIR) {
