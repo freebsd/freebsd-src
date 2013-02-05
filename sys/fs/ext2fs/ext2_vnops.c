@@ -730,7 +730,7 @@ ext2_link(ap)
 		goto out;
 	}
 	ip = VTOI(vp);
-	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
+	if ((nlink_t)ip->i_nlink >= EXT2_LINK_MAX) {
 		error = EMLINK;
 		goto out;
 	}
@@ -841,7 +841,7 @@ abortit:
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
- 	if (ip->i_nlink >= LINK_MAX) {
+	if (ip->i_nlink >= EXT2_LINK_MAX) {
  		VOP_UNLOCK(fvp, 0);
  		error = EMLINK;
  		goto abortit;
@@ -939,7 +939,7 @@ abortit:
 		 * parent we don't fool with the link count.
 		 */
 		if (doingdirectory && newparent) {
-			if ((nlink_t)dp->i_nlink >= LINK_MAX) {
+			if ((nlink_t)dp->i_nlink >= EXT2_LINK_MAX) {
 				error = EMLINK;
 				goto bad;
 			}
@@ -1160,7 +1160,7 @@ ext2_mkdir(ap)
 		panic("ext2_mkdir: no name");
 #endif
 	dp = VTOI(dvp);
-	if ((nlink_t)dp->i_nlink >= LINK_MAX) {
+	if ((nlink_t)dp->i_nlink >= EXT2_LINK_MAX) {
 		error = EMLINK;
 		goto out;
 	}
@@ -1524,7 +1524,7 @@ ext2_pathconf(ap)
 
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
+		*ap->a_retval = EXT2_LINK_MAX;
 		return (0);
 	case _PC_NAME_MAX:
 		*ap->a_retval = NAME_MAX;
