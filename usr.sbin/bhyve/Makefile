@@ -22,6 +22,4 @@ LDADD=	-lvmmapi -lmd -lpthread
 
 WARNS?=	2
 
-CFLAGS+= -I${.CURDIR}/../../sys
-
 .include <bsd.prog.mk>
