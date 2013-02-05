@@ -112,8 +112,8 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 # clang doesn't understand %D as a specifier to printf
 NO_WERROR.clang=
 
-DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND} ${LIBGCC}
-LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand -lgcc
+DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
