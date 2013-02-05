@@ -51,7 +51,9 @@ struct usb_bus_stat {
 struct usb_bus {
 	struct usb_bus_stat stats_err;
 	struct usb_bus_stat stats_ok;
+#if USB_HAVE_ROOT_MOUNT_HOLD
 	struct root_hold_token *bus_roothold;
+#endif
 	/*
 	 * There are two callback processes. One for Giant locked
 	 * callbacks. One for non-Giant locked callbacks. This should
