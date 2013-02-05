@@ -54,6 +54,13 @@ struct usb_bus {
 #if USB_HAVE_ROOT_MOUNT_HOLD
 	struct root_hold_token *bus_roothold;
 #endif
+
+#if USB_HAVE_PER_BUS_PROCESS
+#define	USB_BUS_GIANT_PROC(bus) (&(bus)->giant_callback_proc)
+#define	USB_BUS_NON_GIANT_PROC(bus) (&(bus)->non_giant_callback_proc)
+#define	USB_BUS_EXPLORE_PROC(bus) (&(bus)->explore_proc)
+#define	USB_BUS_CONTROL_XFER_PROC(bus) (&(bus)->control_xfer_proc)
+
 	/*
 	 * There are two callback processes. One for Giant locked
 	 * callbacks. One for non-Giant locked callbacks. This should
@@ -67,6 +74,7 @@ struct usb_bus {
 
 	/* Control request process */
 	struct usb_process control_xfer_proc;
+#endif
 
 	struct usb_bus_msg explore_msg[2];
 	struct usb_bus_msg detach_msg[2];

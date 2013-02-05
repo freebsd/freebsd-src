@@ -965,14 +965,14 @@ usbd_transfer_setup(struct usb_device *udev,
 			 * deadlock!
 			 */
 			if (setup_start == usb_control_ep_cfg)
-				info->done_p = 
-				    &udev->bus->control_xfer_proc;
+				info->done_p =
+				    USB_BUS_CONTROL_XFER_PROC(udev->bus);
 			else if (xfer_mtx == &Giant)
-				info->done_p = 
-				    &udev->bus->giant_callback_proc;
+				info->done_p =
+				    USB_BUS_GIANT_PROC(udev->bus);
 			else
-				info->done_p = 
-				    &udev->bus->non_giant_callback_proc;
+				info->done_p =
+				    USB_BUS_NON_GIANT_PROC(udev->bus);
 		}
 		/* reset sizes */
 
@@ -2614,7 +2614,7 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 			} else if (udev->ctrl_xfer[1]) {
 				info = udev->ctrl_xfer[1]->xroot;
 				usb_proc_msignal(
-				    &info->bus->non_giant_callback_proc,
+				    USB_BUS_NON_GIANT_PROC(info->bus),
 				    &udev->cs_msg[0], &udev->cs_msg[1]);
 			} else {
 				/* should not happen */
@@ -3216,10 +3216,10 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 		}
 
 		/* Make sure cv_signal() and cv_broadcast() is not called */
-		udev->bus->control_xfer_proc.up_msleep = 0;
-		udev->bus->explore_proc.up_msleep = 0;
-		udev->bus->giant_callback_proc.up_msleep = 0;
-		udev->bus->non_giant_callback_proc.up_msleep = 0;
+		USB_BUS_CONTROL_XFER_PROC(udev->bus)->up_msleep = 0;
+		USB_BUS_EXPLORE_PROC(udev->bus)->up_msleep = 0;
+		USB_BUS_GIANT_PROC(udev->bus)->up_msleep = 0;
+		USB_BUS_NON_GIANT_PROC(udev->bus)->up_msleep = 0;
 
 		/* poll USB hardware */
 		(udev->bus->methods->xfer_poll) (udev->bus);

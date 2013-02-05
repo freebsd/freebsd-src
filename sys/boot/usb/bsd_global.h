@@ -60,4 +60,6 @@
 #include <dev/usb/quirk/usb_quirk.h>
 #include <dev/usb/template/usb_template.h>
 
+extern struct usb_process usb_process[USB_PROC_MAX];
+
 #endif					/* _BSD_GLOBAL_H_ */
