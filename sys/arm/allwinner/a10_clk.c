@@ -62,10 +62,10 @@ struct a10_ccm_softc {
 
 static struct a10_ccm_softc *a10_ccm_sc = NULL;
 
-#define ccm_read_4(reg)			\
-	bus_space_read_4(a10_ccm_sc->bst, a10_ccm_sc->bsh, reg)
-#define ccm_write_4(reg, val)		\
-	bus_space_write_4(a10_ccm_sc->bst, a10_ccm_sc->bsh, reg, val)
+#define ccm_read_4(sc, reg)		\
+	bus_space_read_4((sc)->bst, (sc)->bsh, (reg))
+#define ccm_write_4(sc, reg, val)	\
+	bus_space_write_4((sc)->bst, (sc)->bsh, (reg), (val))
 
 static int
 a10_ccm_probe(device_t dev)
@@ -121,24 +121,24 @@ int
 a10_clk_usb_activate(void)
 {
 	struct a10_ccm_softc *sc = a10_ccm_sc;
-	uint32_t reg_value = 0;
+	uint32_t reg_value;
 
 	if (sc == NULL)
 		return ENXIO;
 
 	/* Gating AHB clock for USB */
-	reg_value = ccm_read_4(CCM_AHB_GATING0);
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value |= CCM_AHB_GATING_USB0; /* AHB clock gate usb0 */
 	reg_value |= CCM_AHB_GATING_EHCI1; /* AHB clock gate ehci1 */
-	ccm_write_4(CCM_AHB_GATING0, reg_value);
+	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
 
 	/* Enable clock for USB */
-	reg_value = ccm_read_4(CCM_USB_CLK);
+	reg_value = ccm_read_4(sc, CCM_USB_CLK);
 	reg_value |= CCM_USB_PHY; /* USBPHY */
 	reg_value |= CCM_USB0_RESET; /* disable reset for USB0 */
 	reg_value |= CCM_USB1_RESET; /* disable reset for USB1 */
 	reg_value |= CCM_USB2_RESET; /* disable reset for USB2 */
-	ccm_write_4(CCM_USB_CLK, reg_value);
+	ccm_write_4(sc, CCM_USB_CLK, reg_value);
 
 	return (0);
 }
@@ -147,24 +147,24 @@ int
 a10_clk_usb_deactivate(void)
 {
 	struct a10_ccm_softc *sc = a10_ccm_sc;
-	uint32_t reg_value = 0;
+	uint32_t reg_value;
 
 	if (sc == NULL)
 		return ENXIO;
 
 	/* Disable clock for USB */
-	reg_value = ccm_read_4(CCM_USB_CLK);
+	reg_value = ccm_read_4(sc, CCM_USB_CLK);
 	reg_value &= ~CCM_USB_PHY; /* USBPHY */
 	reg_value &= ~CCM_USB0_RESET; /* reset for USB0 */
 	reg_value &= ~CCM_USB1_RESET; /* reset for USB1 */
 	reg_value &= ~CCM_USB2_RESET; /* reset for USB2 */
-	ccm_write_4(CCM_USB_CLK, reg_value);
+	ccm_write_4(sc, CCM_USB_CLK, reg_value);
 
 	/* Disable gating AHB clock for USB */
-	reg_value = ccm_read_4(CCM_AHB_GATING0);
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value &= ~CCM_AHB_GATING_USB0; /* disable AHB clock gate usb0 */
 	reg_value &= ~CCM_AHB_GATING_EHCI1; /* disable AHB clock gate ehci1 */
-	ccm_write_4(CCM_AHB_GATING0, reg_value);
+	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
 
 	return (0);
 }
