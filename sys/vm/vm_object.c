@@ -1302,7 +1302,7 @@ vm_object_split(vm_map_entry_t entry)
 {
 	vm_page_t m, m_next;
 	vm_object_t orig_object, new_object, source;
-	vm_pindex_t idx, offidxstart, start;
+	vm_pindex_t idx, offidxstart;
 	vm_size_t size;
 
 	orig_object = entry->object.vm_object;
@@ -1413,18 +1413,9 @@ retry:
 		 * should still be OBJT_DEFAULT and orig_object should not
 		 * contain any cached pages within the specified range.
 		 */
-		if (!vm_object_cache_is_empty(orig_object)) {
-			start = offidxstart;
-			mtx_lock(&vm_page_queue_free_mtx);
-			while ((m = vm_radix_lookup_ge(&orig_object->cache,
-			    start)) != NULL) {
-				if (m->pindex >= (offidxstart + size))
-					break;
-				idx = m->pindex - offidxstart;
-				vm_page_cache_rename(m, new_object, idx);
-			}
-			mtx_unlock(&vm_page_queue_free_mtx);
-		}
+		if (!vm_object_cache_is_empty(orig_object))
+			vm_page_cache_transfer(orig_object, offidxstart,
+			    new_object);
 	}
 	VM_OBJECT_UNLOCK(orig_object);
 	TAILQ_FOREACH(m, &new_object->memq, listq)

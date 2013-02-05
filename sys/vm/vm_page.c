@@ -1064,23 +1064,45 @@ vm_page_cache_free(vm_page_t m)
 }
 
 /*
- *	Attempt to rename a cached page from one object to another.  If
- *	it fails the cached page is freed.
+ *	Transfer all of the cached pages with offset greater than or
+ *	equal to 'offidxstart' from the original object's cache to the
+ *	new object's cache.  However, any cached pages with offset
+ *	greater than or equal to the new object's size are kept in the
+ *	original object.  Initially, the new object's cache must be
+ *	empty.  Offset 'offidxstart' in the original object must
+ *	correspond to offset zero in the new object.
+ *
+ *	The new object must be locked.
  */
 void
-vm_page_cache_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t idx)
+vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
+    vm_object_t new_object)
 {
-	vm_object_t orig_object;
+	vm_page_t m;
 
-	orig_object = m->object;
-	VM_OBJECT_LOCK_ASSERT(orig_object, MA_OWNED);
+	/*
+	 * Insertion into an object's collection of cached pages
+	 * requires the object to be locked.  In contrast, removal does
+	 * not.
+	 */
 	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	vm_radix_remove(&orig_object->cache, m->pindex);
-	if (vm_radix_insert(&new_object->cache, idx, m) != 0)
-		panic("vm_page_cache_rename: failed vm_radix_insert");
-	m->object = new_object;
-	m->pindex = idx;
+	VM_OBJECT_LOCK_ASSERT(orig_object, MA_OWNED);
+	KASSERT(vm_object_cache_is_empty(new_object),
+	    ("vm_page_cache_transfer: object %p has cached pages",
+	    new_object));
+	mtx_lock(&vm_page_queue_free_mtx);
+	while ((m = vm_radix_lookup_ge(&orig_object->cache,
+	    offidxstart)) != NULL) {
+		if ((m->pindex - offidxstart) >= new_object->size)
+			break;
+		vm_radix_remove(&orig_object->cache, m->pindex);
+		if (vm_radix_insert(&new_object->cache,
+		    m->pindex - offidxstart, m) != 0)
+			panic("vm_page_cache_transfer: failed vm_radix_insert");
+		m->object = new_object;
+		m->pindex -= offidxstart;
+	}
+	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*
