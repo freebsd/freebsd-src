@@ -88,9 +88,8 @@ static u_char ext2_ft_to_dt[] = {
 	DT_SOCK,		/* EXT2_FT_SOCK */
 	DT_LNK,			/* EXT2_FT_SYMLINK */
 };
-#define	FTTODT(ft)						\
-    ((ft) > sizeof(ext2_ft_to_dt) / sizeof(ext2_ft_to_dt[0]) ?	\
-    DT_UNKNOWN : ext2_ft_to_dt[(ft)])
+#define	FTTODT(ft) \
+    ((ft) > nitems(ext2_ft_to_dt) ? DT_UNKNOWN : ext2_ft_to_dt[(ft)])
 
 static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* DT_UNKNOWN */
@@ -109,9 +108,8 @@ static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* unused */
 	EXT2_FT_UNKNOWN,	/* DT_WHT */
 };
-#define	DTTOFT(dt)						\
-    ((dt) > sizeof(dt_to_ext2_ft) / sizeof(dt_to_ext2_ft[0]) ?	\
-    EXT2_FT_UNKNOWN : dt_to_ext2_ft[(dt)])
+#define	DTTOFT(dt) \
+    ((dt) > nitems(dt_to_ext2_ft) ? EXT2_FT_UNKNOWN : dt_to_ext2_ft[(dt)])
 
 static int	ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 		    int entryoffsetinblock);
