@@ -89,7 +89,7 @@ static u_char ext2_ft_to_dt[] = {
 	DT_LNK,			/* EXT2_FT_SYMLINK */
 };
 #define	FTTODT(ft) \
-    ((ft) > nitems(ext2_ft_to_dt) ? DT_UNKNOWN : ext2_ft_to_dt[(ft)])
+    ((ft) < nitems(ext2_ft_to_dt) ? ext2_ft_to_dt[(ft)] : DT_UNKNOWN)
 
 static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* DT_UNKNOWN */
@@ -109,7 +109,7 @@ static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* DT_WHT */
 };
 #define	DTTOFT(dt) \
-    ((dt) > nitems(dt_to_ext2_ft) ? EXT2_FT_UNKNOWN : dt_to_ext2_ft[(dt)])
+    ((dt) < nitems(dt_to_ext2_ft) ? dt_to_ext2_ft[(dt)] : EXT2_FT_UNKNOWN)
 
 static int	ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 		    int entryoffsetinblock);
