@@ -1086,7 +1086,7 @@ ext2_checkpath(source, target, cred)
 	struct ucred *cred;
 {
 	struct vnode *vp;
-	int error, rootino, namlen;
+	int error, namlen;
 	struct dirtemplate dirbuf;
 
 	vp = ITOV(target);
@@ -1094,9 +1094,8 @@ ext2_checkpath(source, target, cred)
 		error = EEXIST;
 		goto out;
 	}
-	rootino = EXT2_ROOTINO;
 	error = 0;
-	if (target->i_number == rootino)
+	if (target->i_number == EXT2_ROOTINO)
 		goto out;
 
 	for (;;) {
@@ -1121,7 +1120,7 @@ ext2_checkpath(source, target, cred)
 			error = EINVAL;
 			break;
 		}
-		if (dirbuf.dotdot_ino == rootino)
+		if (dirbuf.dotdot_ino == EXT2_ROOTINO)
 			break;
 		vput(vp);
 		if ((error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino,
