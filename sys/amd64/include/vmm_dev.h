@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: vmm_dev.h 482 2011-05-09 21:22:43Z grehan $
+ * $FreeBSD$
  */
 
 #ifndef	_VMM_DEV_H_

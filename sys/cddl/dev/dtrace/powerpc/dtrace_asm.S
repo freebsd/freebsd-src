@@ -19,6 +19,8 @@
  *
  * CDDL HEADER END
  *
+ * Portions Copyright 2012,2013 Justin Hibbits <jhibbits@freebsd.org>
+ *
  * $FreeBSD$
  */
 /*
@@ -112,48 +114,6 @@ dtrace_fulword(void *addr)
 */
 ASENTRY_NOPROF(dtrace_fulword)
 END(dtrace_fulword)
-
-/*
-uint8_t
-dtrace_fuword8_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword8_nocheck)
-	lbz	%r3,0(%r3)
-	blr
-END(dtrace_fuword8_nocheck)
-
-/*
-uint16_t
-dtrace_fuword16_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword16_nocheck)
-	lhz	%r3,0(%r3)
-	blr
-END(dtrace_fuword16_nocheck)
-
-/*
-uint32_t
-dtrace_fuword32_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword32_nocheck)
-	lwz	%r3,0(%r3)
-	blr
-END(dtrace_fuword32_nocheck)
-
-/*
-uint64_t
-dtrace_fuword64_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword64_nocheck)
-#if defined(__powerpc64__)
-	ld	%r3,0(%r3)
-#else
-	lwz	%r5,0(%r3)
-	lwz	%r4,4(%r3)
-	mr	%r3,%r5
-#endif
-	blr
-END(dtrace_fuword64_nocheck)
 
 /*
 XXX: unoptimized

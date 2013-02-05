@@ -801,7 +801,7 @@ extern "C" void __cxa_decrement_exception_refcount(void* thrown_exception)
  */
 extern "C" void __cxa_rethrow()
 {
-	__cxa_thread_info *ti = thread_info_fast();
+	__cxa_thread_info *ti = thread_info();
 	__cxa_eh_globals *globals = &ti->globals;
 	// Note: We don't remove this from the caught list here, because
 	// __cxa_end_catch will be called when we unwind out of the try block.  We

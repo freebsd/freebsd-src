@@ -329,9 +329,9 @@
 
 /* Helper macro */
 
-#define ACPI_TRACE_ENTRY(Name, Function, Cast, Param) \
+#define ACPI_TRACE_ENTRY(Name, Function, Type, Param) \
     ACPI_FUNCTION_NAME (Name) \
-    Function (ACPI_DEBUG_PARAMETERS, Cast (Param))
+    Function (ACPI_DEBUG_PARAMETERS, (Type) (Param))
 
 /* The actual entry trace macros */
 
@@ -340,13 +340,13 @@
     AcpiUtTrace (ACPI_DEBUG_PARAMETERS)
 
 #define ACPI_FUNCTION_TRACE_PTR(Name, Pointer) \
-    ACPI_TRACE_ENTRY (Name, AcpiUtTracePtr, (void *), Pointer)
+    ACPI_TRACE_ENTRY (Name, AcpiUtTracePtr, void *, Pointer)
 
 #define ACPI_FUNCTION_TRACE_U32(Name, Value) \
-    ACPI_TRACE_ENTRY (Name, AcpiUtTraceU32, (UINT32), Value)
+    ACPI_TRACE_ENTRY (Name, AcpiUtTraceU32, UINT32, Value)
 
 #define ACPI_FUNCTION_TRACE_STR(Name, String) \
-    ACPI_TRACE_ENTRY (Name, AcpiUtTraceStr, (char *), String)
+    ACPI_TRACE_ENTRY (Name, AcpiUtTraceStr, char *, String)
 
 #define ACPI_FUNCTION_ENTRY() \
     AcpiUtTrackStackPtr()
@@ -361,15 +361,36 @@
  *
  * One of the FUNCTION_TRACE macros above must be used in conjunction
  * with these macros so that "_AcpiFunctionName" is defined.
+ *
+ * There are two versions of most of the return macros. The default version is
+ * safer, since it avoids side-effects by guaranteeing that the argument will
+ * not be evaluated twice.
+ *
+ * A less-safe version of the macros is provided for optional use if the
+ * compiler uses excessive CPU stack (for example, this may happen in the
+ * debug case if code optimzation is disabled.)
  */
 
 /* Exit trace helper macro */
 
-#define ACPI_TRACE_EXIT(Function, Cast, Param) \
+#ifndef ACPI_SIMPLE_RETURN_MACROS
+
+#define ACPI_TRACE_EXIT(Function, Type, Param) \
     ACPI_DO_WHILE0 ({ \
-        Function (ACPI_DEBUG_PARAMETERS, Cast (Param)); \
-        return ((Param)); \
+        register Type _Param = (Type) (Param); \
+        Function (ACPI_DEBUG_PARAMETERS, _Param); \
+        return (_Param); \
     })
+
+#else /* Use original less-safe macros */
+
+#define ACPI_TRACE_EXIT(Function, Type, Param) \
+    ACPI_DO_WHILE0 ({ \
+        Function (ACPI_DEBUG_PARAMETERS, (Type) (Param)); \
+        return (Param); \
+    })
+
+#endif /* ACPI_SIMPLE_RETURN_MACROS */
 
 /* The actual exit macros */
 
@@ -380,13 +401,13 @@
     })
 
 #define return_ACPI_STATUS(Status) \
-    ACPI_TRACE_EXIT (AcpiUtStatusExit, (ACPI_STATUS), Status)
+    ACPI_TRACE_EXIT (AcpiUtStatusExit, ACPI_STATUS, Status)
 
 #define return_PTR(Pointer) \
-    ACPI_TRACE_EXIT (AcpiUtPtrExit, (UINT8 *), Pointer)
+    ACPI_TRACE_EXIT (AcpiUtPtrExit, void *, Pointer)
 
 #define return_VALUE(Value) \
-    ACPI_TRACE_EXIT (AcpiUtValueExit, (UINT64), Value)
+    ACPI_TRACE_EXIT (AcpiUtValueExit, UINT64, Value)
 
 
 /* Conditional execution */

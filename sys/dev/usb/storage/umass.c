@@ -698,7 +698,8 @@ static device_method_t umass_methods[] = {
 	DEVMETHOD(device_probe, umass_probe),
 	DEVMETHOD(device_attach, umass_attach),
 	DEVMETHOD(device_detach, umass_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t umass_driver = {

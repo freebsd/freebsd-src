@@ -1683,10 +1683,8 @@ vfs_write_resume(struct mount *mp, int flags)
 static int
 vn_kqfilter(struct file *fp, struct knote *kn)
 {
-	int error;
 
-	error = VOP_KQFILTER(fp->f_vnode, kn);
-	return (error);
+	return (VOP_KQFILTER(fp->f_vnode, kn));
 }
 
 /*

@@ -1024,20 +1024,18 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
     struct rusage *rusage)
 {
 	struct __wrusage wru, *wrup;
-	struct proc *q;
 	idtype_t idtype;
 	id_t id;
 	int ret;
 
+	/*
+	 * Translate the special pid values into the (idtype, pid)
+	 * pair for kern_wait6.  The WAIT_MYPGRP case is handled by
+	 * kern_wait6() on its own.
+	 */
 	if (pid == WAIT_ANY) {
 		idtype = P_ALL;
 		id = 0;
-	} else if (pid == WAIT_MYPGRP) {
-		idtype = P_PGID;
-		q = td->td_proc;
-		PROC_LOCK(q);
-		id = (id_t)q->p_pgid;
-		PROC_UNLOCK(q);
 	} else if (pid < 0) {
 		idtype = P_PGID;
 		id = (id_t)-pid;
@@ -1045,10 +1043,12 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 		idtype = P_PID;
 		id = (id_t)pid;
 	}
+
 	if (rusage != NULL)
 		wrup = &wru;
 	else
 		wrup = NULL;
+
 	/*
 	 * For backward compatibility we implicitly add flags WEXITED
 	 * and WTRAPPED here.

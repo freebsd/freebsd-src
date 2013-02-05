@@ -1520,7 +1520,8 @@ static device_method_t emu_pcm_methods[] = {
 	DEVMETHOD(device_probe, emu_pcm_probe),
 	DEVMETHOD(device_attach, emu_pcm_attach),
 	DEVMETHOD(device_detach, emu_pcm_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t emu_pcm_driver = {

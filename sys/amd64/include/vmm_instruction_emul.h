@@ -49,7 +49,8 @@ struct vie {
 	uint8_t		rex_w:1,		/* REX prefix */
 			rex_r:1,
 			rex_x:1,
-			rex_b:1;
+			rex_b:1,
+			rex_present:1;
 
 	uint8_t		mod:2,			/* ModRM byte */
 			reg:4,

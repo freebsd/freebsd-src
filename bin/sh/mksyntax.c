@@ -165,7 +165,6 @@ main(int argc __unused, char **argv __unused)
 	}
 
 	fputs("#include <sys/cdefs.h>\n", hfile);
-	fputs("#include <ctype.h>\n", hfile);
 
 	/* Generate the #define statements in the header file */
 	fputs("/* Syntax classes */\n", hfile);

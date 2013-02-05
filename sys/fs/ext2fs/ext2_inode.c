@@ -119,7 +119,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	int32_t lastblock;
 	struct inode *oip;
 	int32_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
-	int32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
+	uint32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
 	struct bufobj *bo;
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -311,7 +311,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		oip->i_size = length;
 		newspace = blksize(fs, oip, lastblock);
 		if (newspace == 0)
-			panic("itrunc: newspace");
+			panic("ext2_truncate: newspace");
 		if (oldspace - newspace > 0) {
 			/*
 			 * Block number of space to be free'd is
@@ -341,8 +341,9 @@ done:
 	 * Put back the real size.
 	 */
 	oip->i_size = length;
-	oip->i_blocks -= blocksreleased;
-	if (oip->i_blocks < 0)			/* sanity */
+	if (oip->i_blocks >= blocksreleased)
+		oip->i_blocks -= blocksreleased;
+	else				/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
 	vnode_pager_setsize(ovp, length);

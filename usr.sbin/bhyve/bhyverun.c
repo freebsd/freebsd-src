@@ -131,7 +131,8 @@ usage(int code)
 
         fprintf(stderr,
                 "Usage: %s [-aehABHIP][-g <gdb port>][-z <hz>][-s <pci>]"
-		"[-S <pci>][-p pincpu][-n <pci>][-m lowmem][-M highmem] <vm>\n"
+		"[-S <pci>][-p pincpu][-n <pci>][-m lowmem][-M highmem]"
+		" <vmname>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port (default is %d and 0 means don't open)\n"

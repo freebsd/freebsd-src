@@ -78,6 +78,14 @@ static int carp_thresh_seconds = -1;
 static char *test_cmd = NULL;
 
 /*
+ * Ask malloc() to map minimum-sized chunks of virtual address space at a time,
+ * so that mlockall() won't needlessly wire megabytes of unused memory into the
+ * process.  This must be done using the malloc_conf string so that it gets set
+ * up before the first allocation, which happens before entry to main().
+ */
+const char * malloc_conf = "lg_chunk:0";
+
+/*
  * Periodically pat the watchdog, preventing it from firing.
  */
 int

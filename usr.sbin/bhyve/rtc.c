@@ -118,12 +118,16 @@ static int
 rtc_addr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		 uint32_t *eax, void *arg)
 {
-	assert(in == 0);
-
 	if (bytes != 1)
 		return (-1);
 
-	switch (*eax) {
+	if (in) {
+		/* straight read of this register will return 0xFF */
+		*eax = 0xff;
+		return (0);
+	}
+
+	switch (*eax & 0x7f) {
 	case RTC_SEC:
 	case RTC_MIN:
 	case RTC_HRS:
@@ -144,7 +148,7 @@ rtc_addr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		return (-1);
 	}
 
-	addr = *eax;
+	addr = *eax & 0x7f;
 	return (0);
 }
 
@@ -219,6 +223,9 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		case RTC_STATUSA:
 			*eax = status_a;
 			return (0);
+		case RTC_STATUSB:
+			*eax = status_b;
+			return (0);
 		case RTC_INTR:
 			*eax = 0;
 			return (0);
@@ -249,6 +256,9 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 			return (-1);
 		status_b = *eax;
 		break;
+	case RTC_STATUSD:
+		/* ignore write */
+		break;
 	case RTC_RSTCODE:
 		rstcode = *eax;
 		break;
@@ -270,5 +280,5 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	return (0);
 }
 
-INOUT_PORT(rtc, IO_RTC, IOPORT_F_OUT, rtc_addr_handler);
+INOUT_PORT(rtc, IO_RTC, IOPORT_F_INOUT, rtc_addr_handler);
 INOUT_PORT(rtc, IO_RTC + 1, IOPORT_F_INOUT, rtc_data_handler);

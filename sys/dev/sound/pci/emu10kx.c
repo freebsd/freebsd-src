@@ -3529,7 +3529,7 @@ static device_method_t emu_methods[] = {
 	DEVMETHOD(bus_read_ivar, emu_read_ivar),
 	DEVMETHOD(bus_write_ivar, emu_write_ivar),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 

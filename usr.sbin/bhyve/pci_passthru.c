@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 
 #include <dev/io/iodev.h>
+#include <dev/pci/pcireg.h>
+
 #include <machine/iodev.h>
 
 #include <stdio.h>
@@ -59,9 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #define	LEGACY_SUPPORT	1
 
-#define MSIX_TABLE_BIR_MASK 7
-#define MSIX_TABLE_OFFSET_MASK (~MSIX_TABLE_BIR_MASK);
-#define MSIX_TABLE_COUNT(x) (((x) & 0x7FF) + 1)
+#define MSIX_TABLE_COUNT(ctrl) (((ctrl) & PCIM_MSIXCTRL_TABLE_SIZE) + 1)
 #define MSIX_CAPLEN 12
 
 static int pcifd = -1;
@@ -161,7 +161,7 @@ passthru_add_msicap(struct pci_devinst *pi, int msgnum, int nextptr)
 static int
 cfginitmsi(struct passthru_softc *sc)
 {
-	int ptr, capptr, cap, sts, caplen;
+	int i, ptr, capptr, cap, sts, caplen, table_size;
 	uint32_t u32;
 	struct pcisel sel;
 	struct pci_devinst *pi;
@@ -220,14 +220,25 @@ cfginitmsi(struct passthru_softc *sc)
 
 	if (sc->psc_msix.capoff != 0) {
 		pi->pi_msix.pba_bar =
-		    msixcap.pba_offset & MSIX_TABLE_BIR_MASK;
+		    msixcap.pba_info & PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.pba_offset =
-		    msixcap.pba_offset & MSIX_TABLE_OFFSET_MASK;
+		    msixcap.pba_info & ~PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.table_bar =
-		    msixcap.table_offset & MSIX_TABLE_BIR_MASK;
+		    msixcap.table_info & PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.table_offset =
-		    msixcap.table_offset & MSIX_TABLE_OFFSET_MASK;
+		    msixcap.table_info & ~PCIM_MSIX_BIR_MASK;
 		pi->pi_msix.table_count = MSIX_TABLE_COUNT(msixcap.msgctrl);
+
+		/* Allocate the emulated MSI-X table array */
+		table_size = pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
+		pi->pi_msix.table = malloc(table_size);
+		bzero(pi->pi_msix.table, table_size);
+
+		/* Mask all table entries */
+		for (i = 0; i < pi->pi_msix.table_count; i++) {
+			pi->pi_msix.table[i].vector_control |=
+						PCIM_MSIX_VCTRL_MASK;
+		}
 	}
 
 #ifdef LEGACY_SUPPORT
@@ -268,9 +279,13 @@ msix_table_read(struct passthru_softc *sc, uint64_t offset, int size)
 	int index;
 
 	pi = sc->psc_pi;
-	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
+
 	index = offset / MSIX_TABLE_ENTRY_SIZE;
+	if (index >= pi->pi_msix.table_count)
+		return (-1);
+
 	entry = &pi->pi_msix.table[index];
+	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
 
 	switch(size) {
 	case 1:
@@ -308,9 +323,12 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 	int error, index;
 
 	pi = sc->psc_pi;
-	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
 	index = offset / MSIX_TABLE_ENTRY_SIZE;
+	if (index >= pi->pi_msix.table_count)
+		return;
+
 	entry = &pi->pi_msix.table[index];
+	entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
 
 	/* Only 4 byte naturally-aligned writes are supported */
 	assert(size == 4);
@@ -337,11 +355,17 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 static int
 init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 {
-	int idx;
-	size_t table_size;
+	int b, s, f;
+	int error, idx;
+	size_t len, remaining, table_size;
 	vm_paddr_t start;
-	size_t len;
 	struct pci_devinst *pi = sc->psc_pi;
+
+	assert(pci_msix_table_bar(pi) >= 0 && pci_msix_pba_bar(pi) >= 0);
+
+	b = sc->psc_sel.pc_bus;
+	s = sc->psc_sel.pc_dev;
+	f = sc->psc_sel.pc_func;
 
 	/* 
 	 * If the MSI-X table BAR maps memory intended for
@@ -352,33 +376,44 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 	if (pi->pi_msix.pba_bar == pi->pi_msix.table_bar && 
 	    ((pi->pi_msix.pba_offset - pi->pi_msix.table_offset) < 4096)) {
 		/* Need to also emulate the PBA, not supported yet */
-		printf("Unsupported MSI-X table and PBA in same page\n");
+		printf("Unsupported MSI-X configuration: %d/%d/%d\n", b, s, f);
 		return (-1);
 	}
 
-	/* 
-	 * May need to split the BAR into 3 regions:
-	 * Before the MSI-X table, the MSI-X table, and after it
-	 * XXX for now, assume that the table is not in the middle
-	 */
+	/* Compute the MSI-X table size */
 	table_size = pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
-	pi->pi_msix.table_size = table_size;
-	idx = pi->pi_msix.table_bar;
+	table_size = roundup2(table_size, 4096);
 
-	/* Round up to page size */
-	table_size = (table_size + 0x1000) & ~0xFFF;
-	if (pi->pi_msix.table_offset == 0) {		
-		/* Map everything after the MSI-X table */
-		start = pi->pi_bar[idx].addr + table_size;
-		len = pi->pi_bar[idx].size - table_size;
-	} else {
-                /* Map everything before the MSI-X table */
-		start = pi->pi_bar[idx].addr;
+	idx = pi->pi_msix.table_bar;
+	start = pi->pi_bar[idx].addr;
+	remaining = pi->pi_bar[idx].size;
+
+	/* Map everything before the MSI-X table */
+	if (pi->pi_msix.table_offset > 0) {
 		len = pi->pi_msix.table_offset;
+		error = vm_map_pptdev_mmio(ctx, b, s, f, start, len, base);
+		if (error)
+			return (error);
+
+		base += len;
+		start += len;
+		remaining -= len;
 	}
-	return (vm_map_pptdev_mmio(ctx, sc->psc_sel.pc_bus, 
-				   sc->psc_sel.pc_dev, sc->psc_sel.pc_func, 
-				   start, len, base + table_size));
+
+	/* Skip the MSI-X table */
+	base += table_size;
+	start += table_size;
+	remaining -= table_size;
+
+	/* Map everything beyond the end of the MSI-X table */
+	if (remaining > 0) {
+		len = remaining;
+		error = vm_map_pptdev_mmio(ctx, b, s, f, start, len, base);
+		if (error)
+			return (error);
+	}
+
+	return (0);
 }
 
 static int
@@ -430,7 +465,7 @@ cfginitbar(struct vmctx *ctx, struct passthru_softc *sc)
 			return (-1);
 
 		/* The MSI-X table needs special handling */
-		if (i == pi->pi_msix.table_bar) {
+		if (i == pci_msix_table_bar(pi)) {
 			error = init_msix_table(ctx, sc, base);
 			if (error) 
 				return (-1);
@@ -671,7 +706,7 @@ passthru_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.table_bar == baridx) {
+	if (baridx == pci_msix_table_bar(pi)) {
 		msix_table_write(ctx, vcpu, sc, offset, size, value);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
@@ -695,7 +730,7 @@ passthru_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.table_bar == baridx) {
+	if (baridx == pci_msix_table_bar(pi)) {
 		val = msix_table_read(sc, offset, size);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);

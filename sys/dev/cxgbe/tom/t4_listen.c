@@ -835,8 +835,7 @@ do_abort_req_synqe(struct sge_iq *iq, const struct rss_header *rss,
 	CTR6(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x), lctx %p, status %d",
 	    __func__, tid, synqe, synqe->flags, synqe->lctx, cpl->status);
 
-	if (cpl->status == CPL_ERR_RTX_NEG_ADVICE ||
-	    cpl->status == CPL_ERR_PERSIST_NEG_ADVICE)
+	if (negative_advice(cpl->status))
 		return (0);	/* Ignore negative advice */
 
 	INP_WLOCK(inp);
@@ -955,7 +954,7 @@ mbuf_to_synqe(struct mbuf *m)
 			return (NULL);
 		synqe->flags = TPF_SYNQE | TPF_SYNQE_NEEDFREE;
 	} else {
-		synqe = (void *)(m->m_data + m->m_len + tspace - sizeof(*synqe));
+		synqe = (void *)(m->m_data + m->m_len + tspace - len);
 		synqe->flags = TPF_SYNQE;
 	}
 
@@ -1336,7 +1335,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	synqe->lctx = lctx;
 	synqe->syn = m;
 	m = NULL;
-	refcount_init(&synqe->refcnt, 0);
+	refcount_init(&synqe->refcnt, 1);	/* 1 means extra hold */
 	synqe->l2e_idx = e->idx;
 	synqe->rcv_bufsize = rx_credits;
 	atomic_store_rel_ptr(&synqe->wr, (uintptr_t)wr);
@@ -1382,6 +1381,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		if (inp)
 			INP_WUNLOCK(inp);
 
+		release_synqe(synqe);	/* extra hold */
 		REJECT_PASS_ACCEPT();
 	}
 
@@ -1396,15 +1396,19 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * this tid because there was no L2T entry for the tid at that
 		 * time.  Abort it now.  The reply to the abort will clean up.
 		 */
-		CTR5(KTR_CXGBE, "%s: stid %u, tid %u, lctx %p, synqe %p, ABORT",
-		    __func__, stid, tid, lctx, synqe);
-		send_reset_synqe(tod, synqe);
+		CTR6(KTR_CXGBE,
+		    "%s: stid %u, tid %u, lctx %p, synqe %p (0x%x), ABORT",
+		    __func__, stid, tid, lctx, synqe, synqe->flags);
+		if (!(synqe->flags & TPF_SYNQE_EXPANDED))
+			send_reset_synqe(tod, synqe);
 		INP_WUNLOCK(inp);
 
+		release_synqe(synqe);	/* extra hold */
 		return (__LINE__);
 	}
 	INP_WUNLOCK(inp);
 
+	release_synqe(synqe);	/* extra hold */
 	return (0);
 reject:
 	CTR4(KTR_CXGBE, "%s: stid %u, tid %u, REJECT (%d)", __func__, stid, tid,

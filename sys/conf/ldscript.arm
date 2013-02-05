@@ -56,6 +56,18 @@ SECTIONS
   .init          : { *(.init)	} =0x9090
   .plt      : { *(.plt)	}
 
+  _extab_start = .;
+  PROVIDE(extab_start = .);
+  .ARM.extab : { *(.ARM.extab) }
+  _extab.end = .;
+  PROVIDE(extab_end = .);
+
+  _exidx_start = .;
+  PROVIDE(exidx_start = .);
+  .ARM.exidx : { *(.ARM.exidx) }
+  _exidx_end = .;
+  PROVIDE(exidx_end = .);
+
   /* Adjust the address for the data segment.  We want to adjust up to
      the same address within the page on the next page up.  */
   . = ALIGN(0x1000) + (. & (0x1000 - 1)) ; 

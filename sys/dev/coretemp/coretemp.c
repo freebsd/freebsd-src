@@ -85,7 +85,7 @@ static device_method_t coretemp_methods[] = {
 	DEVMETHOD(device_attach,	coretemp_attach),
 	DEVMETHOD(device_detach,	coretemp_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t coretemp_driver = {

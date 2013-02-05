@@ -294,7 +294,7 @@ static device_method_t igb_methods[] = {
 	DEVMETHOD(device_shutdown, igb_shutdown),
 	DEVMETHOD(device_suspend, igb_suspend),
 	DEVMETHOD(device_resume, igb_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t igb_driver = {

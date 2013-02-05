@@ -48,7 +48,6 @@ SUBDIR=	\
 	${_bxe} \
 	${_bios} \
 	${_bktr} \
-	${_blackhole} \
 	${_bm} \
 	bridgestp \
 	bwi \
@@ -626,7 +625,6 @@ _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _bktr=		bktr
-_blackhole=	blackhole
 _bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb

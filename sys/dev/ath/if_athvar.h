@@ -132,7 +132,6 @@ struct ath_tid {
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
 	int			isfiltered;	/* is this node currently filtered */
-	int			clrdmask;	/* has clrdmask been set */
 
 	/*
 	 * Is the TID being cleaned up after a transition
@@ -182,6 +181,7 @@ struct ath_node {
 	struct mtx	an_mtx;		/* protecting the ath_node state */
 	uint32_t	an_swq_depth;	/* how many SWQ packets for this
 					   node */
+	int			clrdmask;	/* has clrdmask been set */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))

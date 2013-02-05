@@ -268,8 +268,8 @@ syncache_init(void)
 	/* Create the syncache entry zone. */
 	V_tcp_syncache.zone = uma_zcreate("syncache", sizeof(struct syncache),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(V_tcp_syncache.zone, V_tcp_syncache.cache_limit);
-	V_tcp_syncache.cache_limit = uma_zone_get_max(V_tcp_syncache.zone);
+	V_tcp_syncache.cache_limit = uma_zone_set_max(V_tcp_syncache.zone,
+	    V_tcp_syncache.cache_limit);
 }
 
 #ifdef VIMAGE
@@ -1493,6 +1493,15 @@ syncache_respond(struct syncache *sc)
 		th->th_sum = in6_cksum_pseudo(ip6, tlen + optlen - hlen,
 		    IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(NULL, NULL);
+#ifdef TCP_OFFLOAD
+		if (ADDED_BY_TOE(sc)) {
+			struct toedev *tod = sc->sc_tod;
+
+			error = tod->tod_syncache_respond(tod, sc->sc_todctx, m);
+
+			return (error);
+		}
+#endif
 		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	}
 #endif

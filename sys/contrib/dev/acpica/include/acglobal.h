@@ -420,7 +420,7 @@ ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
 #ifdef ACPI_DISASSEMBLER
 
-BOOLEAN     ACPI_INIT_GLOBAL (AcpiGbl_IgnoreNoopOperator, FALSE);
+ACPI_EXTERN BOOLEAN     ACPI_INIT_GLOBAL (AcpiGbl_IgnoreNoopOperator, FALSE);
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
