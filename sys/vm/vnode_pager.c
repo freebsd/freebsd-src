@@ -373,7 +373,6 @@ vnode_pager_setsize(vp, nsize)
 	vm_ooffset_t nsize;
 {
 	vm_object_t object;
-	struct vnode *drop;
 	vm_page_t m;
 	vm_pindex_t nobjsize;
 
@@ -439,23 +438,9 @@ vnode_pager_setsize(vp, nsize)
 			 */
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
 		} else if ((nsize & PAGE_MASK) &&
-		    (m = vm_page_is_cached(object,
-		    OFF_TO_IDX(nsize))) != NULL) {
-			drop = NULL;
-			mtx_lock(&vm_page_queue_free_mtx);
-			if (m->object == object) {
-
-				/*
-				 * Eliminate any cached page as we would have
-				 * to do too much work to save it.
-				 */
-				vm_page_cache_free(m);
-				if (vm_object_cache_is_empty(object))
-					drop = vp;
-			}
-			mtx_unlock(&vm_page_queue_free_mtx);
-			if (drop)
-				vdrop(drop);
+		    vm_page_is_cached(object, OFF_TO_IDX(nsize))) {
+			vm_page_cache_free(object, OFF_TO_IDX(nsize),
+			    nobjsize);
 		}
 	}
 	object->un_pager.vnp.vnp_size = nsize;

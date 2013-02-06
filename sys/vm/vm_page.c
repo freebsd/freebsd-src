@@ -999,6 +999,47 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 }
 
 /*
+ *	Convert all of the given object's cached pages that have a
+ *	pindex within the given range into free pages.  If the value
+ *	zero is given for "end", then the range's upper bound is
+ *	infinity.  If the given object is backed by a vnode and it
+ *	transitions from having one or more cached pages to none, the
+ *	vnode's hold count is reduced.
+ */
+void
+vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_page_t m;
+	boolean_t empty;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+
+	mtx_lock(&vm_page_queue_free_mtx);
+	if (vm_object_cache_is_empty(object)) {
+		mtx_unlock(&vm_page_queue_free_mtx);
+		return;
+	}
+	while ((m = vm_radix_lookup_ge(&object->cache, start)) != NULL) {
+		if (end != 0 && m->pindex >= end)
+			break;
+		vm_radix_remove(&object->cache, m->pindex);
+		m->object = NULL;
+		m->valid = 0;
+
+		/* Clear PG_CACHED and set PG_FREE. */
+		m->flags ^= PG_CACHED | PG_FREE;
+		KASSERT((m->flags & (PG_CACHED | PG_FREE)) == PG_FREE,
+		    ("vm_page_cache_free: page %p has inconsistent flags", m));
+		cnt.v_cache_count--;
+		cnt.v_free_count++;
+	}
+	empty = vm_object_cache_is_empty(object);
+	mtx_unlock(&vm_page_queue_free_mtx);
+	if (object->type == OBJT_VNODE && empty)
+		vdrop(object->handle);
+}
+
+/*
  *	Returns the cached page that is associated with the given
  *	object and offset.  If, however, none exists, returns NULL.
  *
@@ -1031,36 +1072,6 @@ vm_page_cache_remove(vm_page_t m)
 	vm_radix_remove(&m->object->cache, m->pindex);
 	m->object = NULL;
 	cnt.v_cache_count--;
-}
-
-/*
- *	Move a given cached page from an object's cached pages to
- *	the free list.
- *
- *	The free page queue mtx and object lock must be locked.
- */
-void
-vm_page_cache_free(vm_page_t m)
-{
-	vm_object_t object;
-
-	object = m->object;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	KASSERT((m->flags & PG_CACHED) != 0,
-	    ("vm_page_cache_free: page %p is not cached", m));
-
-	/*
-	 * Replicate vm_page_cache_remove with a version that can collapse
-	 * internal nodes since the object lock is held.
-	 */
-	vm_radix_remove(&object->cache, m->pindex);
-	m->object = NULL;
-	m->valid = 0;
-	/* Clear PG_CACHED and set PG_FREE. */
-	m->flags ^= PG_CACHED | PG_FREE;
-	cnt.v_cache_count--;
-	cnt.v_free_count++;
 }
 
 /*

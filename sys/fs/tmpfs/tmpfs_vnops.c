@@ -670,13 +670,8 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
-		vpg = vm_page_is_cached(vobj, idx);
-		if (vpg != NULL) {
-			mtx_lock(&vm_page_queue_free_mtx);
-			if (vpg->object == vobj)
-				vm_page_cache_free(vpg);
-			mtx_unlock(&vm_page_queue_free_mtx);
-		}
+		if (vm_page_is_cached(vobj, idx))
+			vm_page_cache_free(vobj, idx, idx + 1);
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
 	}

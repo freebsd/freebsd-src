@@ -674,8 +674,6 @@ void
 vm_object_terminate(vm_object_t object)
 {
 	vm_page_t p, p_next;
-	vm_pindex_t start;
-	struct vnode *vp;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
@@ -739,38 +737,6 @@ vm_object_terminate(vm_object_t object)
 		vm_page_unlock(p);
 	}
 	vm_radix_reclaim_allnodes(&object->rtree);
-	vp = NULL;
-	if (!vm_object_cache_is_empty(object)) {
-		start = 0;
-		mtx_lock(&vm_page_queue_free_mtx);
-		while ((p = vm_radix_lookup_ge(&object->cache,
-		    start)) != NULL) {
-			MPASS(p->object == object);
-			p->object = NULL;
-			p->valid = 0;
-
-			/* Clear PG_CACHED and set PG_FREE. */
-			p->flags ^= PG_CACHED | PG_FREE;
-			cnt.v_cache_count--;
-			cnt.v_free_count++;
-
-			/*
-			 * At least one cached page was removed and
-			 * in the end all the cached pages will be
-			 * reclaimed.  If the object is a vnode,
-			 * drop a reference to it.
-			 */
-			if (object->type == OBJT_VNODE)
-				vp = object->handle;
-
-			/* Point to the next available index. */
-			start = p->pindex + 1;
-			if (start < p->pindex)
-				break;
-		}
-		vm_radix_reclaim_allnodes(&object->cache);
-		mtx_unlock(&vm_page_queue_free_mtx);
-	}
 	/*
 	 * If the object contained any pages, then reset it to an empty state.
 	 * None of the object's fields, including "resident_page_count", were
@@ -782,13 +748,13 @@ vm_object_terminate(vm_object_t object)
 		if (object->type == OBJT_VNODE)
 			vdrop(object->handle);
 	}
-	if (vp)
-		vdrop(vp);
 
 #if VM_NRESERVLEVEL > 0
 	if (__predict_false(!LIST_EMPTY(&object->rvq)))
 		vm_reserv_break_all(object);
 #endif
+	if (!vm_object_cache_is_empty(object))
+		vm_page_cache_free(object, 0, 0);
 
 	/*
 	 * Let the pager know object is dead.
@@ -1679,9 +1645,6 @@ vm_object_qcollapse(vm_object_t object)
 void
 vm_object_collapse(vm_object_t object)
 {
-	vm_page_t p;
-	vm_pindex_t start, tmpindex;
-
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	
 	while (TRUE) {
@@ -1762,30 +1725,11 @@ vm_object_collapse(vm_object_t object)
 				    object,
 				    OFF_TO_IDX(object->backing_object_offset), TRUE);
 
-				if (!vm_object_cache_is_empty(backing_object)) {
-
-					/*
-					 * Free any cached pages from
-					 * backing_object.
-					 */
-					start = 0;
-					mtx_lock(&vm_page_queue_free_mtx);
-					while ((p =
-				    vm_radix_lookup_ge(&backing_object->cache,
-					    start)) != NULL) {
-						tmpindex = p->pindex;
-						vm_page_cache_free(p);
-
-						/*
-						 * Point to the next available
-						 * index.
-						 */
-						start = tmpindex + 1;
-						if (start < tmpindex)
-							break;
-					}
-					mtx_unlock(&vm_page_queue_free_mtx);
-				}
+				/*
+				 * Free any cached pages from backing_object.
+				 */
+				if (!vm_object_cache_is_empty(object))
+					vm_page_cache_free(backing_object, 0, 0);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
@@ -1906,7 +1850,6 @@ void
 vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
     int options)
 {
-	struct vnode *vp;
 	vm_page_t p, next;
 	int wirings;
 
@@ -1914,11 +1857,8 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
 	    (options & (OBJPR_CLEANONLY | OBJPR_NOTMAPPED)) == OBJPR_NOTMAPPED,
 	    ("vm_object_page_remove: illegal options for object %p", object));
-	if (object->resident_page_count == 0) {
-		if (vm_object_cache_is_empty(object))
-			return;
+	if (object->resident_page_count == 0)
 		goto skipmemq;
-	}
 	vm_object_pip_add(object, 1);
 again:
 	p = vm_page_find_least(object, start);
@@ -1990,22 +1930,8 @@ again:
 	}
 	vm_object_pip_wakeup(object);
 skipmemq:
-	vp = NULL;
-	if (!vm_object_cache_is_empty(object)) {
-		mtx_lock(&vm_page_queue_free_mtx);
-		while ((p = vm_radix_lookup_ge(&object->cache,
-		    start)) != NULL) {
-			if (p->pindex >= end)
-				break;
-			vm_page_cache_free(p);
-			if (vm_object_cache_is_empty(object) &&
-			    object->type == OBJT_VNODE)
-				vp = object->handle;
-		}
-		mtx_unlock(&vm_page_queue_free_mtx);
-	}
-	if (vp)
-		vdrop(vp);
+	if (!vm_object_cache_is_empty(object))
+		vm_page_cache_free(object, start, end);
 }
 
 /*
