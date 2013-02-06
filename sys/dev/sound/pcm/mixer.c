@@ -1492,3 +1492,30 @@ mixer_get_lock(struct snd_mixer *m)
 	}
 	return (m->lock);
 }
+
+int
+mix_get_locked(struct snd_mixer *m, u_int dev, int *pleft, int *pright)
+{
+	int level;
+
+	level = mixer_get(m, dev);
+	if (level < 0) {
+		*pright = *pleft = -1;
+		return (-1);
+	}
+
+	*pleft = level & 0xFF;
+	*pright = (level >> 8) & 0xFF;
+
+	return (0);
+}
+
+int
+mix_set_locked(struct snd_mixer *m, u_int dev, int left, int right)
+{
+	int level;
+
+	level = (left & 0xFF) | ((right & 0xFF) << 8);
+
+	return (mixer_set(m, dev, level));
+}
