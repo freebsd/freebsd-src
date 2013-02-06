@@ -71,7 +71,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
-#include <vm/vm_radix.h>
+#include <vm/_vm_radix.h>
 
 /*
  *	Types defined:

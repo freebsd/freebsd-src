@@ -26,20 +26,15 @@
  *
  */
 
-#ifndef _VM_RADIX_H_
-#define _VM_RADIX_H_
+#ifndef __VM_RADIX_H_
+#define __VM_RADIX_H_
 
-#include <vm/_vm_radix.h>
+/*
+ * Radix tree root.  The height and pointer are set together to permit
+ * coherent lookups while the root is modified.
+ */
+struct vm_radix {
+	uintptr_t	rt_root;		/* root + height */
+};
 
-#ifdef _KERNEL
-
-void	vm_radix_init(void);
-int 	vm_radix_insert(struct vm_radix *, vm_pindex_t, void *);
-void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t);
-void	*vm_radix_lookup_ge(struct vm_radix *, vm_pindex_t);
-void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t);
-void	vm_radix_reclaim_allnodes(struct vm_radix *);
-void	vm_radix_remove(struct vm_radix *, vm_pindex_t);
-
-#endif /* _KERNEL */
-#endif /* !_VM_RADIX_H_ */
+#endif /* !__VM_RADIX_H_ */
