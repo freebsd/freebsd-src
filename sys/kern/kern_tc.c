@@ -122,8 +122,11 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
 
 struct bintime bt_timethreshold;
 struct bintime bt_tickthreshold;
+sbintime_t sbt_timethreshold;
+sbintime_t sbt_tickthreshold;
 struct bintime tc_tick_bt;
-int tc_timeexp;
+sbintime_t tc_tick_sbt;
+int tc_precexp;
 int tc_timepercentage = TC_DEFAULTPERC;
 TUNABLE_INT("kern.timecounter.alloweddeviation", &tc_timepercentage);
 static int sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS);
@@ -347,6 +350,16 @@ binuptime(struct bintime *bt)
 }
 
 void
+sbinuptime(sbintime_t *sbt)
+{
+	/* XXX: We need a real implementation, but tomorrow */
+	struct bintime bt;
+
+	binuptime(&bt);
+	*sbt = bintime2sbintime(bt);
+}
+
+void
 nanouptime(struct timespec *tsp)
 {
 	struct bintime bt;
@@ -401,6 +414,16 @@ getbinuptime(struct bintime *bt)
 		gen = th->th_generation;
 		*bt = th->th_offset;
 	} while (gen == 0 || gen != th->th_generation);
+}
+
+void
+getsbinuptime(sbintime_t *sbt)
+{
+	/* XXX: We need a real implementation, but tomorrow */ 
+	struct bintime bt;
+
+	getbinuptime(&bt);
+	*sbt = bintime2sbintime(bt);
 }
 
 void
@@ -896,6 +919,16 @@ binuptime(struct bintime *bt)
 }
 
 void
+sbinuptime(sbintime_t sbt)
+{
+	/* XXX: We need a real implementation, but tomorrow */ 
+	struct bintime bt;
+
+	binuptime(&bt);
+	*sbt = bintime2sbintime(bt);
+} 
+
+void
 nanouptime(struct timespec *tsp)
 {
 
@@ -935,6 +968,16 @@ getbinuptime(struct bintime *bt)
 {
 
 	getbinuptime_fromclock(bt, sysclock_active);
+}
+
+void
+getsbinuptime(sbintime_t *sbt)
+{
+	/* XXX: We need a real implementation, but tomorrow */ 
+	struct bintime bt;
+
+	getbinuptime(&bt);
+	*sbt = bintime2sbintime(bt);
 }
 
 void
@@ -1725,17 +1768,19 @@ tc_adjprecision(void)
 
 	if (tc_timepercentage > 0) {
 		t = (99 + tc_timepercentage) / tc_timepercentage;
-		tc_timeexp = fls(t + (t >> 1)) - 1;
+		tc_precexp = fls(t + (t >> 1)) - 1;
 		FREQ2BT(hz / tc_tick, &bt_timethreshold);
 		FREQ2BT(hz, &bt_tickthreshold);
-		bintime_shift(&bt_timethreshold, tc_timeexp);
-		bintime_shift(&bt_tickthreshold, tc_timeexp);
+		bintime_shift(&bt_timethreshold, tc_precexp);
+		bintime_shift(&bt_tickthreshold, tc_precexp);
 	} else {
-		tc_timeexp = 31;
+		tc_precexp = 31;
 		bt_timethreshold.sec = INT_MAX;
 		bt_timethreshold.frac = ~(uint64_t)0;
 		bt_tickthreshold = bt_timethreshold;
 	}
+	sbt_timethreshold = bintime2sbintime(bt_timethreshold);
+	sbt_tickthreshold = bintime2sbintime(bt_tickthreshold);
 }
 
 static int
@@ -1772,8 +1817,10 @@ inittimecounter(void *dummy)
 		tc_tick = 1;
 	tc_adjprecision();
 	FREQ2BT(hz, &tick_bt);
+	tick_sbt = bintime2sbintime(tick_bt);
 	tick_rate = hz / tc_tick;
 	FREQ2BT(tick_rate, &tc_tick_bt);
+	tc_tick_sbt = bintime2sbintime(tc_tick_bt);
 	p = (tc_tick * 1000000) / hz;
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
 

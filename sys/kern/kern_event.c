@@ -517,14 +517,11 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
-static struct bintime
-timer2bintime(intptr_t data)
+static __inline sbintime_t 
+timer2sbintime(intptr_t data)
 {
-	struct bintime bt;
 
-	bt.sec = data / 1000;
-	bt.frac = (data % 1000) * (((uint64_t)1 << 63) / 500);
-	return bt;
+	return (SBT_1MS * data); 
 }
 
 static void
@@ -546,8 +543,8 @@ filt_timerexpire(void *knx)
 	 */
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_bt_on(calloutp,
-		    timer2bintime(kn->kn_sdata), zero_bt /* 1ms? */,
+		callout_reset_sbt_on(calloutp,
+		    timer2sbintime(kn->kn_sdata), 0 /* 1ms? */,
 		    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 	}
 }
@@ -572,8 +569,8 @@ filt_timerattach(struct knote *kn)
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_bt_on(calloutp,
-	    timer2bintime(kn->kn_sdata), zero_bt /* 1ms? */,
+	callout_reset_sbt_on(calloutp,
+	    timer2sbintime(kn->kn_sdata), 0 /* 1ms? */,
 	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 
 	return (0);
@@ -1319,7 +1316,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
     const struct timespec *tsp, struct kevent *keva, struct thread *td)
 {
 	struct kevent *kevp;
-	struct bintime abt, rbt;
+	sbintime_t asbt, rsbt;
 	struct knote *kn, *marker;
 	int count, nkev, error, influx;
 	int haskqglobal, touch;
@@ -1339,19 +1336,15 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 			goto done_nl;
 		}
 		if (timespecisset(tsp)) {
-			timespec2bintime(tsp, &rbt);
-			if (TIMESEL(&abt, &rbt))
-				bintime_add(&abt, &tc_tick_bt);
-			bintime_add(&abt, &rbt);
-			bintime_shift(&rbt, -tc_timeexp);
-		} else {
-			abt.sec = -1;
-			abt.frac = 0;
-		}
-	} else {
-		abt.sec = 0;
-		abt.frac = 0;
-	}
+			rsbt = timespec2sbintime(*tsp);
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			asbt += rsbt;
+			rsbt >>= tc_precexp;
+		} else
+			asbt = -1;
+	} else
+		asbt = 0;
 	marker = knote_alloc(1);
 	if (marker == NULL) {
 		error = ENOMEM;
@@ -1363,12 +1356,12 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 retry:
 	kevp = keva;
 	if (kq->kq_count == 0) {
-		if (abt.sec < 0) {
+		if (asbt == -1) {
 			error = EWOULDBLOCK;
 		} else {
 			kq->kq_state |= KQ_SLEEP;
-			error = msleep_bt(kq, &kq->kq_lock, PSOCK | PCATCH,
-			    "kqread", abt, rbt, C_ABSOLUTE);
+			error = msleep_sbt(kq, &kq->kq_lock, PSOCK | PCATCH,
+			    "kqread", asbt, rsbt, C_ABSOLUTE);
 		}
 		if (error == 0)
 			goto retry;

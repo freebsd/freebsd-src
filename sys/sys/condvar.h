@@ -55,10 +55,10 @@ void	cv_destroy(struct cv *cvp);
 void	_cv_wait(struct cv *cvp, struct lock_object *lock);
 void	_cv_wait_unlock(struct cv *cvp, struct lock_object *lock);
 int	_cv_wait_sig(struct cv *cvp, struct lock_object *lock);
-int	_cv_timedwait_bt(struct cv *cvp, struct lock_object *lock,
-	    struct bintime bt, struct bintime pr, int flags);
-int	_cv_timedwait_sig_bt(struct cv *cvp, struct lock_object *lock,
-	    struct bintime bt, struct bintime pr, int flags);
+int	_cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock,
+	    sbintime_t sbt, sbintime_t pr, int flags);
+int	_cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
+	    sbintime_t sbt, sbintime_t pr, int flags);
 
 void	cv_signal(struct cv *cvp);
 void	cv_broadcastpri(struct cv *cvp, int pri);
@@ -70,15 +70,15 @@ void	cv_broadcastpri(struct cv *cvp, int pri);
 #define	cv_wait_sig(cvp, lock)						\
 	_cv_wait_sig((cvp), &(lock)->lock_object)
 #define	cv_timedwait(cvp, lock, timo)					\
-	_cv_timedwait_bt((cvp), &(lock)->lock_object,			\
-	    ticks2bintime(timo), zero_bt, C_HARDCLOCK)
-#define	cv_timedwait_bt(cvp, lock, bt, pr, flags)			\
-	_cv_timedwait_bt((cvp), &(lock)->lock_object, (bt), (pr), (flags))
+	_cv_timedwait_sbt((cvp), &(lock)->lock_object,			\
+	    (tick_sbt * (timo)), 0, C_HARDCLOCK)
+#define	cv_timedwait_sbt(cvp, lock, sbt, pr, flags)			\
+	_cv_timedwait_sbt((cvp), &(lock)->lock_object, (sbt), (pr), (flags))
 #define	cv_timedwait_sig(cvp, lock, timo)				\
-	_cv_timedwait_sig_bt((cvp), &(lock)->lock_object,		\
-	    ticks2bintime(timo), zero_bt, C_HARDCLOCK)
-#define	cv_timedwait_sig_bt(cvp, lock, bt, pr, flags)			\
-	_cv_timedwait_sig_bt((cvp), &(lock)->lock_object, (bt), (pr), (flags))
+	_cv_timedwait_sig_sbt((cvp), &(lock)->lock_object,		\
+	    (tick_sbt * (timo)), 0, C_HARDCLOCK)
+#define	cv_timedwait_sig_sbt(cvp, lock, sbt, pr, flags)			\
+	_cv_timedwait_sig_sbt((cvp), &(lock)->lock_object, (sbt), (pr), (flags))
 
 #define cv_broadcast(cvp)	cv_broadcastpri(cvp, 0)
 

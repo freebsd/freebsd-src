@@ -121,7 +121,7 @@ struct cc_exec {
 	void			(*ce_migration_func)(void *);
 	void			*ce_migration_arg;
 	int			ce_migration_cpu;
-	struct bintime		ce_migration_time;
+	sbintime_t		ce_migration_time;
 #endif
 	int			cc_cancel;
 	int			cc_waiting;
@@ -138,8 +138,8 @@ struct callout_cpu {
 	struct callout_tailq	*cc_callwheel;
 	struct callout_tailq	cc_expireq;
 	struct callout_list	cc_callfree;
-	struct bintime 		cc_firstevent;
-	struct bintime 		cc_lastscan;
+	sbintime_t		cc_firstevent;
+	sbintime_t		cc_lastscan;
 	void			*cc_cookie;
 };
 
@@ -217,7 +217,7 @@ cc_cme_cleanup(struct callout_cpu *cc, int direct)
 	cc->cc_exec_entity[direct].cc_waiting = 0;
 #ifdef SMP
 	cc->cc_exec_entity[direct].ce_migration_cpu = CPUBLOCK;
-	bintime_clear(&cc->cc_exec_entity[direct].ce_migration_time);
+	cc->cc_exec_entity[direct].ce_migration_time = 0;
 	cc->cc_exec_entity[direct].ce_migration_func = NULL;
 	cc->cc_exec_entity[direct].ce_migration_arg = NULL;
 #endif
@@ -368,30 +368,29 @@ SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL)
 #define	CC_HASH_SHIFT	10
 
 static inline int
-callout_hash(struct bintime *bt)
+callout_hash(sbintime_t sbt)
 {
-
-	return (int) ((bt->sec << CC_HASH_SHIFT) +
-	    (bt->frac >> (64 - CC_HASH_SHIFT)));
+	
+	return (int)(sbt >> (32 - CC_HASH_SHIFT));
 }
 
 static inline int
-get_bucket(struct bintime *bt)
+callout_get_bucket(sbintime_t sbt)
 {
 
-	return callout_hash(bt) & callwheelmask;
+	return callout_hash(sbt) & callwheelmask;
 }
 
 void
 callout_process(struct bintime *now)
 {
-	struct bintime first, last, max, tmp_max;
 	struct callout *tmp, *tmpn;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
 	uint64_t lookahead;
-	int depth_dir, firstb, mpcalls_dir, lastb, nowb, lockcalls_dir,
-	    need_softclock, exit_allowed, exit_wanted;
+	sbintime_t first, last, max, now_sbt, tmp_max;
+	int depth_dir, firstb, lastb, mpcalls_dir, nowb,
+	    lockcalls_dir, need_softclock, exit_allowed, exit_wanted;
 
 	need_softclock = 0;
 	depth_dir = 0;
@@ -401,22 +400,23 @@ callout_process(struct bintime *now)
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 
 	/* Compute the buckets of the last scan and present times. */
-	firstb = callout_hash(&cc->cc_lastscan);
-	cc->cc_lastscan = *now;
-	nowb = callout_hash(now);
+	firstb = callout_hash(cc->cc_lastscan);
+	now_sbt = bintime2sbintime(*now);
+	cc->cc_lastscan = now_sbt;
+	nowb = callout_hash(now_sbt);
 
 	/* Compute the last bucket and minimum time of the bucket after it. */
 	if (nowb == firstb)
-		lookahead = 1LLU << 60;		/* 1/16s */
+		lookahead = (SBT_1S / 16);
 	else if (nowb - firstb == 1)
-		lookahead = 1LLU << 61;		/* 1/8s */
+		lookahead = (SBT_1S / 8);
 	else
-		lookahead = 1LLU << 63;		/* 1/2s */
-	first = last = *now;
-	bintime_addx(&first, lookahead / 2);
-	bintime_addx(&last, lookahead);
-	last.frac &= (0xffffffffffffffffLLU << (64 - CC_HASH_SHIFT));
-	lastb = callout_hash(&last) - 1;
+		lookahead = (SBT_1S / 2);
+	first = last = now_sbt;
+	first += (lookahead / 2);
+	last += lookahead;
+	last &= (0xffffffffffffffffLLU << (32 - CC_HASH_SHIFT));
+	lastb = callout_hash(last) - 1;
 	max = last;
 
 	/*
@@ -438,7 +438,7 @@ callout_process(struct bintime *now)
 		tmp = TAILQ_FIRST(sc);
 		while (tmp != NULL) {
 			/* Run the callout if present time within allowed. */
-			if (bintime_cmp(&tmp->c_time, now, <=)) {
+			if (tmp->c_time <= now_sbt) {
 				/*
 				 * Consumer told us the callout may be run
 				 * directly from hardware interrupt context.
@@ -464,22 +464,22 @@ callout_process(struct bintime *now)
 				continue;
 			}
 			/* Skip events from distant future. */
-			if (bintime_cmp(&tmp->c_time, &max, >=))
+			if (tmp->c_time >= max)
 				goto next;
 			/*
 			 * Event minimal time is bigger than present maximal
 			 * time, so it cannot be aggregated.
 			 */
-			if (bintime_cmp(&tmp->c_time, &last, >)) {
+			if (tmp->c_time > last) {
 				exit_wanted = 1;
 				goto next;
 			}
 			/* Update first and last time, respecting this event. */
-			if (bintime_cmp(&tmp->c_time, &first, <))
+			if (tmp->c_time < first)
 				first = tmp->c_time;
 			tmp_max = tmp->c_time;
-			bintime_add(&tmp_max, &tmp->c_precision);
-			if (bintime_cmp(&tmp_max, &last, <))
+			tmp_max += tmp->c_precision;
+			if (tmp_max < last)
 				last = tmp_max;
 next:
 			tmp = TAILQ_NEXT(tmp, c_links.tqe);
@@ -500,7 +500,8 @@ next:
 	}
 	cc->cc_exec_next_dir = NULL;
 	if (callout_new_inserted != NULL)
-		(*callout_new_inserted)(curcpu, last, first);
+		(*callout_new_inserted)(curcpu, sbintime2bintime(last), 
+		    sbintime2bintime(first));
 	cc->cc_firstevent = last;
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
@@ -542,39 +543,38 @@ callout_lock(struct callout *c)
 
 static void
 callout_cc_add(struct callout *c, struct callout_cpu *cc,
-    struct bintime to_bintime, struct bintime precision, void (*func)(void *),
+    sbintime_t sbt, sbintime_t precision, void (*func)(void *),
     void *arg, int cpu, int flags)
 {
-	struct bintime last;
+	sbintime_t last;
 	int bucket;
 
 	CC_LOCK_ASSERT(cc);
-	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <))
-		to_bintime = cc->cc_lastscan;
+	if (sbt < cc->cc_lastscan)
+		sbt = cc->cc_lastscan;
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 	if (flags & C_DIRECT_EXEC)
 		c->c_flags |= CALLOUT_DIRECT;
 	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
-	c->c_time = to_bintime;
+	c->c_time = sbt;
 	c->c_precision = precision;
-	CTR4(KTR_CALLOUT, "precision set for %p: %d.%08x%08x",
-	    c, c->c_precision.sec, (u_int) (c->c_precision.frac >> 32),
-	    (u_int) (c->c_precision.frac & 0xffffffff));
-	bucket = get_bucket(&c->c_time);
+	bucket = callout_get_bucket(c->c_time);
+	CTR3(KTR_CALLOUT, "precision set for %p: %d.%08x",
+	    c, (int)(c->c_precision >> 32), 
+	    (u_int)(c->c_precision & 0xffffffff));
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
-	last = c->c_time;
-	bintime_add(&last, &c->c_precision);
-	if (callout_new_inserted != NULL &&
-	    (bintime_cmp(&last, &cc->cc_firstevent, <) ||
-	    !bintime_isset(&cc->cc_firstevent))) {
+	last = c->c_time + c->c_precision;
+	if (callout_new_inserted != NULL && ((last < cc->cc_firstevent) ||
+	    (cc->cc_firstevent == 0))) {
 		cc->cc_firstevent = last;
-		(*callout_new_inserted)(cpu, last, c->c_time);
+		(*callout_new_inserted)(cpu, sbintime2bintime(last), 
+		    sbintime2bintime(c->c_time));
 	}
 }
 
@@ -602,7 +602,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	void (*new_func)(void *);
 	void *new_arg;
 	int flags, new_cpu;
-	struct bintime new_time;
+	sbintime_t new_time;
 #endif
 #ifdef DIAGNOSTIC
 	struct bintime bt1, bt2;
@@ -896,27 +896,28 @@ DPCPU_DECLARE(struct bintime, hardclocktime);
  * callout_deactivate() - marks the callout as having been serviced
  */
 int
-callout_reset_bt_on(struct callout *c, struct bintime bt, struct bintime pr,
+callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
     void (*ftn)(void *), void *arg, int cpu, int flags)
 {
-	struct bintime to_bt, pr1;
+	sbintime_t to_sbt, pr;
+	struct bintime to_bt;
 	struct callout_cpu *cc;
 	int bucket, cancelled, direct;
 
 	cancelled = 0;
 	if (flags & C_ABSOLUTE) {
-		to_bt = bt;
+		to_sbt = sbt;
 	} else {
-		if ((flags & C_HARDCLOCK) && bintime_cmp(&bt, &tick_bt, <))
-			bt = tick_bt;
+		if ((flags & C_HARDCLOCK) && (sbt < tick_sbt))
+			sbt = tick_sbt;
 		if ((flags & C_HARDCLOCK) ||
 #ifdef NO_EVENTTIMERS
-		    bintime_cmp(&bt, &bt_timethreshold, >=)) {
-			getbinuptime(&to_bt);
+		    sbt >= sbt_timethreshold) {
+			getsbinuptime(&to_sbt);
 			/* Add safety belt for the case of hz > 1000. */
-			bintime_addx(&to_bt, tc_tick_bt.frac - tick_bt.frac);
+			to_sbt += (tc_tick_dur - tick_dur);
 #else
-		    bintime_cmp(&bt, &bt_tickthreshold, >=)) {
+		    sbt >= sbt_tickthreshold) {
 			/*
 			 * Obtain the time of the last hardclock() call on
 			 * this CPU directly from the kern_clocksource.c.
@@ -925,20 +926,18 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, struct bintime pr,
 			 */
 			spinlock_enter();
 			to_bt = DPCPU_GET(hardclocktime);
+			to_sbt = bintime2sbintime(to_bt);
 			spinlock_exit();
 #endif
 			if ((flags & C_HARDCLOCK) == 0)
-				bintime_addx(&to_bt, tick_bt.frac);
+				to_sbt += tick_sbt;
 		} else
-			binuptime(&to_bt);
-		bintime_add(&to_bt, &bt);
-		pr1 = bt;
-		if (C_PRELGET(flags) < 0)
-			bintime_shift(&pr1, -tc_timeexp);
-		else
-			bintime_shift(&pr1, -C_PRELGET(flags));
-		if (bintime_cmp(&pr1, &pr, >))
-			pr = pr1;
+			sbinuptime(&to_sbt);
+		to_sbt += sbt;
+		pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :
+		    sbt >> C_PRELGET(flags));
+		if (pr > precision)
+			precision = pr;
 	}
 	/*
 	 * Don't allow migration of pre-allocated callouts lest they
@@ -975,7 +974,7 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, struct bintime pr,
 			if (cc->cc_exec_next_dir == c)
 				cc->cc_exec_next_dir = TAILQ_NEXT(c,
 				    c_links.tqe);
-			bucket = get_bucket(&c->c_time);
+			bucket = callout_get_bucket(c->c_time);
 			TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 			    c_links.tqe);
 		} else
@@ -994,14 +993,14 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, struct bintime pr,
 		if (cc->cc_exec_entity[direct].cc_curr == c) {
 			cc->cc_exec_entity[direct].ce_migration_cpu = cpu;
 			cc->cc_exec_entity[direct].ce_migration_time
-			    = to_bt;
+			    = to_sbt;
 			cc->cc_exec_entity[direct].ce_migration_func = ftn;
 			cc->cc_exec_entity[direct].ce_migration_arg = arg;
 			c->c_flags |= CALLOUT_DFRMIGRATION;
 			CTR6(KTR_CALLOUT,
 		    "migration of %p func %p arg %p in %d.%08x to %u deferred",
-			    c, c->c_func, c->c_arg, (int)(to_bt.sec),
-			    (u_int)(to_bt.frac >> 32), cpu);
+			    c, c->c_func, c->c_arg, (int)(to_sbt >> 32),
+			    (u_int)(to_sbt & 0xffffffff), cpu);
 			CC_UNLOCK(cc);
 			return (cancelled);
 		}
@@ -1009,10 +1008,10 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, struct bintime pr,
 	}
 #endif
 
-	callout_cc_add(c, cc, to_bt, pr, ftn, arg, cpu, flags);
+	callout_cc_add(c, cc, to_sbt, pr, ftn, arg, cpu, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
-	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_bt.sec),
-	    (u_int)(to_bt.frac >> 32));
+	    cancelled ? "re" : "", c, c->c_func, c->c_arg,(int)(to_sbt >> 32),
+	    (u_int)(to_sbt & 0xffffffff));
 	CC_UNLOCK(cc);
 
 	return (cancelled);
@@ -1197,7 +1196,7 @@ again:
 	if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
 		if (cc->cc_exec_next_dir == c)
 			cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
-		bucket = get_bucket(&c->c_time);
+		bucket = callout_get_bucket(c->c_time);
 		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 		    c_links.tqe);
 	} else

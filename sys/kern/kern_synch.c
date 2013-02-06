@@ -146,7 +146,7 @@ sleepinit(void)
  */
 int
 _sleep(void *ident, struct lock_object *lock, int priority,
-    const char *wmesg, struct bintime bt, struct bintime pr, int flags)
+    const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
 	struct proc *p;
@@ -162,7 +162,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
-	KASSERT(bintime_isset(&bt) || mtx_owned(&Giant) || lock != NULL,
+	KASSERT(sbt != 0 || mtx_owned(&Giant) || lock != NULL,
 	    ("sleeping without a lock"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
@@ -232,17 +232,17 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	 * return from cursig().
 	 */
 	sleepq_add(ident, lock, wmesg, sleepq_flags, 0);
-	if (bintime_isset(&bt))
-		sleepq_set_timeout_bt(ident, bt, pr, flags);
+	if (sbt != 0)
+		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
 		sleepq_release(ident);
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		sleepq_lock(ident);
 	}
-	if (bintime_isset(&bt) && catch)
+	if (sbt != 0 && catch)
 		rval = sleepq_timedwait_sig(ident, pri);
-	else if (bintime_isset(&bt))
+	else if (sbt != 0)
 		rval = sleepq_timedwait(ident, pri);
 	else if (catch)
 		rval = sleepq_wait_sig(ident, pri);
@@ -263,8 +263,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 }
 
 int
-msleep_spin_bt(void *ident, struct mtx *mtx, const char *wmesg,
-    struct bintime bt, struct bintime pr, int flags)
+msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
+    sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
 	struct proc *p;
@@ -302,8 +302,8 @@ msleep_spin_bt(void *ident, struct mtx *mtx, const char *wmesg,
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
 	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
-	if (bintime_isset(&bt))
-		sleepq_set_timeout_bt(ident, bt, pr, flags);
+	if (sbt != 0)
+		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 
 	/*
 	 * Can't call ktrace with any spin locks held so it can lock the
@@ -325,7 +325,7 @@ msleep_spin_bt(void *ident, struct mtx *mtx, const char *wmesg,
 	    wmesg);
 	sleepq_lock(ident);
 #endif
-	if (bintime_isset(&bt))
+	if (sbt != 0)
 		rval = sleepq_timedwait(ident, 0);
 	else {
 		sleepq_wait(ident, 0);
@@ -349,28 +349,30 @@ msleep_spin_bt(void *ident, struct mtx *mtx, const char *wmesg,
  * to a "timo" value of one.
  */
 int
-pause_bt(const char *wmesg, struct bintime bt, struct bintime pr, int flags)
+pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
+	int sbt_sec;
 
-	KASSERT(bt.sec >= 0, ("pause: timo must be >= 0"));
+	sbt_sec = sbintime_getsec(sbt);	
+	KASSERT(sbt_sec >= 0, ("pause: timo must be >= 0"));
 
 	/* silently convert invalid timeouts */
-	if (!bintime_isset(&bt))
-		bt = tick_bt;
+	if (sbt == 0)
+		sbt = tick_sbt;
 
 	if (cold) {
 		/*
 		 * We delay one second at a time to avoid overflowing the
 		 * system specific DELAY() function(s):
 		 */
-		while (bt.sec > 0) {
+		while (sbt_sec > 0) {
 			DELAY(1000000);
-			bt.sec--;
+			sbt_sec--;
 		}
-		DELAY(bt.frac >> 44);
+		DELAY(sbt / SBT_1US);
 		return (0);
 	}
-	return (_sleep(&pause_wchan, NULL, 0, wmesg, bt, pr, flags));
+	return (_sleep(&pause_wchan, NULL, 0, wmesg, sbt, pr, flags));
 }
 
 /*
@@ -561,8 +563,8 @@ loadav(void *arg)
 	 * random variation to avoid synchronisation with processes that
 	 * run at regular intervals.
 	 */
-	callout_reset_bt(&loadav_callout,
-	    ticks2bintime(hz * 4 + (int)(random() % (hz * 2 + 1))), zero_bt,
+	callout_reset_sbt(&loadav_callout,
+	    tick_sbt * (hz * 4 + (int)(random() % (hz * 2 + 1))), 0,
 	    loadav, NULL, C_DIRECT_EXEC | C_HARDCLOCK);
 }
 

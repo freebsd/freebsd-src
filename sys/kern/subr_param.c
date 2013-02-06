@@ -84,7 +84,8 @@ static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 int	hz;				/* system clock's frequency */
 int	tick;				/* usec per tick (1000000 / hz) */
 struct bintime tick_bt;			/* bintime per tick (1s / hz) */
-struct bintime zero_bt = { 0, 0 };	/* bintime per tick (1s / hz) */
+struct bintime zero_bt = { 0, 0 };     /* bintime per tick (1s / hz) */
+sbintime_t tick_sbt;
 int	maxusers;			/* base tunable */
 int	maxproc;			/* maximum # of processes */
 int	maxprocperuid;			/* max # of procs per user */
@@ -224,6 +225,7 @@ init_param1(void)
 		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
 	tick = 1000000 / hz;
 	FREQ2BT(hz, &tick_bt);
+	tick_sbt = bintime2sbintime(tick_bt);
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;

@@ -77,14 +77,14 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-int	callout_reset_bt_on(struct callout *, struct bintime, struct bintime,
+int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
 	    void (*)(void *), void *, int, int);
-#define	callout_reset_bt(c, bt, pr, fn, arg, flags)			\
-    callout_reset_bt_on((c), (bt), (pr), (fn), (arg), (c)->c_cpu, flags)
-#define	callout_reset_bt_curcpu(c, bt, pr, fn, arg, flags)		\
-    callout_reset_bt_on((c), (bt), (pr), (fn), (arg), PCPU_GET(cpuid), flags)
+#define	callout_reset_sbt(c, sbt, pr, fn, arg, flags)			\
+    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), (c)->c_cpu, flags)
+#define	callout_reset_sbt_curcpu(c, sbt, pr, fn, arg, flags)		\
+    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), PCPU_GET(cpuid), flags)
 #define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
-    callout_reset_bt_on((c), ticks2bintime(to_ticks), zero_bt, (fn), (arg), \
+    callout_reset_sbt_on((c), (tick_sbt * (to_ticks)), 0, (fn), (arg), \
         (cpu), C_HARDCLOCK)
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)

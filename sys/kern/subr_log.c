@@ -117,9 +117,8 @@ logopen(struct cdev *dev, int flags, int mode, struct thread *td)
 		return (EBUSY);
 	}
 	log_open = 1;
-	callout_reset_bt(&logsoftc.sc_callout,
-	    ticks2bintime(hz / log_wakeups_per_second), zero_bt,
-	    logtimeout, NULL, C_PREL(1) | C_HARDCLOCK);
+	callout_reset_sbt(&logsoftc.sc_callout,
+	    (SBT_1S / log_wakeups_per_second), 0, logtimeout, NULL, C_PREL(1));
 	mtx_unlock(&msgbuf_lock);
 
 	fsetown(td->td_proc->p_pid, &logsoftc.sc_sigio);	/* signal process only */
@@ -247,9 +246,8 @@ done:
 		printf("syslog wakeup is less than one.  Adjusting to 1.\n");
 		log_wakeups_per_second = 1;
 	}
-	callout_reset_bt(&logsoftc.sc_callout,
-	    ticks2bintime(hz / log_wakeups_per_second), zero_bt,
-	    logtimeout, NULL, C_PREL(1) | C_HARDCLOCK);
+	callout_reset_sbt(&logsoftc.sc_callout,
+	    (SBT_1S / log_wakeups_per_second), 0, logtimeout, NULL, C_PREL(1));
 }
 
 /*ARGSUSED*/

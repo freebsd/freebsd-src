@@ -274,8 +274,8 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
  * cv_signal or cv_broadcast, EWOULDBLOCK if the timeout expires.
  */
 int
-_cv_timedwait_bt(struct cv *cvp, struct lock_object *lock, struct bintime bt,
-    struct bintime pr, int flags)
+_cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
+    sbintime_t pr, int flags)
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -311,7 +311,7 @@ _cv_timedwait_bt(struct cv *cvp, struct lock_object *lock, struct bintime bt,
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
-	sleepq_set_timeout_bt(cvp, bt, pr, flags);
+	sleepq_set_timeout_sbt(cvp, sbt, pr, flags);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
@@ -342,8 +342,8 @@ _cv_timedwait_bt(struct cv *cvp, struct lock_object *lock, struct bintime bt,
  * or ERESTART if a signal was caught.
  */
 int
-_cv_timedwait_sig_bt(struct cv *cvp, struct lock_object *lock,
-    struct bintime bt, struct bintime pr, int flags)
+_cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
+    sbintime_t sbt, sbintime_t pr, int flags)
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -380,7 +380,7 @@ _cv_timedwait_sig_bt(struct cv *cvp, struct lock_object *lock,
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
-	sleepq_set_timeout_bt(cvp, bt, pr, flags);
+	sleepq_set_timeout_sbt(cvp, sbt, pr, flags);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);

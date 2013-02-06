@@ -212,7 +212,7 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 } while (0)
 #define	rw_sleep(chan, rw, pri, wmesg, timo)				\
 	_sleep((chan), &(rw)->lock_object, (pri), (wmesg),		\
-	    ticks2bintime(timo), zero_bt, C_HARDCLOCK)
+	    (tick_sbt * (timo)), 0, C_HARDCLOCK)
 
 #define	rw_initialized(rw)	lock_initalized(&(rw)->lock_object)
 

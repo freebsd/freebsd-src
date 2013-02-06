@@ -124,23 +124,45 @@ bintime_shift(struct bintime *bt, int exp)
 	    ((a)->frac cmp (b)->frac) :					\
 	    ((a)->sec cmp (b)->sec))
 
-#ifdef _KERNEL
-extern struct bintime tick_bt;
-extern struct bintime zero_bt;
+typedef int64_t sbintime_t;
+#define	SBT_1S	((sbintime_t)1 << 32)
+#define	SBT_1M	(SBT_1S * 60)
+#define	SBT_1MS	(SBT_1S / 1000)
+#define	SBT_1US	(SBT_1S / 1000000)
+#define	SBT_1NS	(SBT_1S / 1000000000)
 
-static __inline struct bintime
-ticks2bintime(u_int ticks)
+static __inline int
+sbintime_getsec(sbintime_t sbt)
+{
+	
+	return (int)(sbt >> 32);
+}
+
+static __inline sbintime_t
+bintime2sbintime(const struct bintime bt)
+{
+
+	return ((bt.sec << 32) + (bt.frac >> 32));
+}
+
+static __inline struct bintime 
+sbintime2bintime(sbintime_t sbt)
 {
 	struct bintime bt;
-	uint64_t p1, p2;
 
-	p1 = (tick_bt.frac & 0xffffffff) * ticks;
-	p2 = (tick_bt.frac >> 32) * ticks + (p1 >> 32);
-	bt.sec = (p2 >> 32);
-	bt.frac = (p2 << 32) | (p1 & 0xffffffff);
+	bt.sec = sbt >> 32;
+	bt.frac = sbt << 32;
 	return (bt);
+
 }
-#endif
+
+#ifdef _KERNEL
+
+extern struct bintime tick_bt;
+extern struct bintime zero_bt;
+extern sbintime_t tick_sbt;
+
+#endif /* KERNEL */ 
 
 /*-
  * Background information:
@@ -189,6 +211,43 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	/* 18446744073709 = int(2^64 / 1000000) */
 	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
 }
+
+static __inline struct timespec
+sbintime2timespec(sbintime_t sbt)
+{
+	struct timespec ts;
+
+	ts.tv_sec = sbt >> 32;
+	ts.tv_nsec = ((uint64_t)1000000000 * (uint32_t)sbt) >> 32;
+	return (ts);
+}
+
+static __inline sbintime_t
+timespec2sbintime(struct timespec ts)
+{
+
+	return (((sbintime_t)ts.tv_sec << 32) +
+	    (ts.tv_nsec * (((sbintime_t)1 << 63) / 500000000) >> 32));
+}
+
+static __inline struct timeval
+sbintime2timeval(sbintime_t sbt)
+{
+	struct timeval tv;
+
+	tv.tv_sec = sbt >> 32;
+	tv.tv_usec = ((uint64_t)1000000 * (uint32_t)sbt) >> 32;
+	return (tv);
+}
+
+static __inline sbintime_t
+timeval2sbintime(struct timeval tv)
+{
+	
+	return (((sbintime_t)tv.tv_sec << 32) +
+	    (tv.tv_usec * (((sbintime_t)1 << 63) / 500000) >> 32));
+}
+
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
@@ -324,11 +383,15 @@ extern volatile time_t	time_second;
 extern volatile time_t	time_uptime;
 extern struct bintime boottimebin;
 extern struct bintime tc_tick_bt;
+extern sbintime_t tc_tick_sbt;
+extern struct bintime zero_bt;
 extern struct timeval boottime;
-extern int tc_timeexp;
+extern int tc_precexp;
 extern int tc_timepercentage;
 extern struct bintime bt_timethreshold;
 extern struct bintime bt_tickthreshold;
+extern sbintime_t sbt_timethreshold;
+extern sbintime_t sbt_tickthreshold;
 
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()
@@ -352,6 +415,7 @@ extern struct bintime bt_tickthreshold;
  */
 
 void	binuptime(struct bintime *bt);
+void	sbinuptime(sbintime_t *sbt);
 void	nanouptime(struct timespec *tsp);
 void	microuptime(struct timeval *tvp);
 
@@ -360,6 +424,7 @@ void	nanotime(struct timespec *tsp);
 void	microtime(struct timeval *tvp);
 
 void	getbinuptime(struct bintime *bt);
+void	getsbinuptime(sbintime_t *sbt);
 void	getnanouptime(struct timespec *tsp);
 void	getmicrouptime(struct timeval *tvp);
 
@@ -388,9 +453,9 @@ int	tvtohz(struct timeval *tv);
 	(bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
 }
 
-#define	TIMESEL(bt, bt2)						\
-	((bintime_cmp((bt2), (&bt_timethreshold), >=)) ?		\
-	    (getbinuptime(bt), 1) : (binuptime(bt), 0))
+#define	TIMESEL(sbt, sbt2)						\
+	(((sbt2) >= sbt_timethreshold) ?				\
+	    (getsbinuptime(sbt), 1) : (sbinuptime(sbt), 0))
 
 #else /* !_KERNEL */
 #include <time.h>

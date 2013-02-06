@@ -102,7 +102,7 @@ static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 static void	seltdinit(struct thread *);
-static int	seltdwait(struct thread *, struct bintime, struct bintime);
+static int	seltdwait(struct thread *, sbintime_t, sbintime_t);
 static void	seltdclear(struct thread *);
 
 /*
@@ -903,7 +903,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
-	struct bintime abt, precision, rbt;
+	sbintime_t asbt, precision, rsbt;
 	struct timeval rtv;
 	int error, lf, ndu;
 	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
@@ -1003,23 +1003,21 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			error = EINVAL;
 			goto done;
 		}
-		timeval2bintime(&rtv, &rbt);
-		precision = rbt;
-		bintime_shift(&precision, -tc_timeexp);
-		if (TIMESEL(&abt, &rbt))
-			bintime_add(&abt, &tc_tick_bt);
-		bintime_add(&abt, &rbt);
-	} else {
-		abt.sec = (time_t)-1;
-		abt.frac = 0;
-	}
+		rsbt = timeval2sbintime(rtv);
+		precision = rsbt;
+		precision >>= tc_precexp;
+		if (TIMESEL(&asbt, rsbt))
+			asbt += tc_tick_sbt;
+		asbt += rsbt; 
+	} else
+		asbt = -1;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = selscan(td, ibits, obits, nd);
 		if (error || td->td_retval[0] != 0)
 			break;
-		error = seltdwait(td, abt, precision);
+		error = seltdwait(td, asbt, precision);
 		if (error)
 			break;
 		error = selrescan(td, ibits, obits);
@@ -1251,7 +1249,7 @@ sys_poll(td, uap)
 {
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
-	struct bintime abt, precision, rbt;
+	sbintime_t asbt, precision, rsbt;
 	int error;
 	u_int nfds;
 	size_t ni;
@@ -1272,24 +1270,21 @@ sys_poll(td, uap)
 			error = EINVAL;
 			goto done;
 		}
-		rbt.sec = uap->timeout / 1000;
-		rbt.frac = (uap->timeout % 1000) * (((uint64_t)1 << 63) / 500);
-		precision = rbt;
-		bintime_shift(&precision, -tc_timeexp);
-		if (TIMESEL(&abt, &rbt))
-			bintime_add(&abt, &tc_tick_bt);
-		bintime_add(&abt, &rbt);
-	} else {
-		abt.sec = (time_t)-1;
-		abt.frac = 0;
-	}
+		rsbt = SBT_1MS * uap->timeout; 
+		precision = rsbt;
+		precision >>= tc_precexp;
+		if (TIMESEL(&asbt, rsbt))
+			asbt += tc_tick_sbt;
+		asbt += rsbt;
+	} else
+		asbt = -1;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = pollscan(td, bits, nfds);
 		if (error || td->td_retval[0] != 0)
 			break;
-		error = seltdwait(td, abt, precision);
+		error = seltdwait(td, asbt, precision);
 		if (error)
 			break;
 		error = pollrescan(td);
@@ -1631,7 +1626,7 @@ out:
 }
 
 static int
-seltdwait(struct thread *td, struct bintime bt, struct bintime precision)
+seltdwait(struct thread *td, sbintime_t sbt, sbintime_t precision)
 {
 	struct seltd *stp;
 	int error;
@@ -1650,11 +1645,11 @@ seltdwait(struct thread *td, struct bintime bt, struct bintime precision)
 		mtx_unlock(&stp->st_mtx);
 		return (0);
 	}
-	if (!bintime_isset(&bt))
+	if (sbt == 0)
 		error = EWOULDBLOCK;
-	else if (bt.sec != (time_t)-1)
-		error = cv_timedwait_sig_bt(&stp->st_wait, &stp->st_mtx,
-		    bt, precision, C_ABSOLUTE);
+	else if (sbt != -1)
+		error = cv_timedwait_sig_sbt(&stp->st_wait, &stp->st_mtx,
+		    sbt, precision, C_ABSOLUTE);
 	else
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
 	mtx_unlock(&stp->st_mtx);
