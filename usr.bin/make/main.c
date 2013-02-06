@@ -933,7 +933,11 @@ main(int argc, char **argv)
 		if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
 			err(2, "getrlimit");
 		}
+#ifdef __APPLE__
+		rl.rlim_cur = OPEN_MAX < rl.rlim_max ? OPEN_MAX : rl.rlim_max;
+#else
 		rl.rlim_cur = rl.rlim_max;
+#endif
 		if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
 			err(2, "setrlimit");
 		}
