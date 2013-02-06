@@ -32,7 +32,6 @@
 # mjacob@feral.com
 #
 
-CFLAGS+= -I/usr/include/cam/scsi -DSESINC="<scsi_ses.h>"
 BINDIR?= /usr/sbin
 
 CLEANFILES+= ${MAN}
