@@ -2156,7 +2156,7 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	vm_object_set_flag(object, OBJ_MIGHTBEDIRTY);
 }
 
-int
+boolean_t
 vm_object_cache_is_empty(vm_object_t object)
 {
 

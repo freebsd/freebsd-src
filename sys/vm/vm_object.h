@@ -235,9 +235,9 @@ void vm_object_pip_wait(vm_object_t object, char *waitid);
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
 void _vm_object_allocate (objtype_t, vm_pindex_t, vm_object_t);
+boolean_t vm_object_cache_is_empty (vm_object_t);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    boolean_t);
-int vm_object_cache_is_empty (vm_object_t);
 void vm_object_collapse (vm_object_t);
 void vm_object_deallocate (vm_object_t);
 void vm_object_destroy (vm_object_t);
