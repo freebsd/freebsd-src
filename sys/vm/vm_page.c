@@ -1004,7 +1004,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	zero is given for "end", then the range's upper bound is
  *	infinity.  If the given object is backed by a vnode and it
  *	transitions from having one or more cached pages to none, the
- *	vnode's hold count is reduced.
+ *	vnode's hold count is reduced. 
  */
 void
 vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
@@ -1025,7 +1025,6 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		vm_radix_remove(&object->cache, m->pindex);
 		m->object = NULL;
 		m->valid = 0;
-
 		/* Clear PG_CACHED and set PG_FREE. */
 		m->flags ^= PG_CACHED | PG_FREE;
 		KASSERT((m->flags & (PG_CACHED | PG_FREE)) == PG_FREE,
