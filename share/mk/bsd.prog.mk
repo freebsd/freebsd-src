@@ -123,7 +123,9 @@ _EXTRADEPEND:
 	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
 .endif
 .else
+.if !defined(NO_LIBC_A)
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
+.endif
 .if defined(PROG_CXX)
 .if !empty(CXXFLAGS:M-stdlib=libc++)
 	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
