@@ -334,7 +334,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 				return;
 			}
 			xpt_setup_ccb(&ccb->ccb_h, cpi->ccb_h.path,
-				      /*priority*/ 1);
+				      CAM_PRIORITY_NONE);
 
 			sim = xpt_path_sim(cpi->ccb_h.path);
 
@@ -571,7 +571,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	callout_init_mtx(&softc->dma_callout, sim->mtx, /*flags*/ 0);
 	periph->softc = softc;
 
-	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, /*priority*/ 1);
+	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	en_lun_ccb.ccb_h.func_code = XPT_EN_LUN;
 	en_lun_ccb.cel.grp6_len = 0;
 	en_lun_ccb.cel.grp7_len = 0;
@@ -668,7 +668,7 @@ ctlfeoninvalidate(struct cam_periph *periph)
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
-	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, /*priority*/ 1);
+	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	en_lun_ccb.ccb_h.func_code = XPT_EN_LUN;
 	en_lun_ccb.cel.grp6_len = 0;
 	en_lun_ccb.cel.grp7_len = 0;
@@ -1694,7 +1694,7 @@ ctlfe_onoffline(void *arg, int online)
 		return;
 	}
 	ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP, M_WAITOK | M_ZERO);
-	xpt_setup_ccb(&ccb->ccb_h, path, /*priority*/ 1);
+	xpt_setup_ccb(&ccb->ccb_h, path, CAM_PRIORITY_NONE);
 
 	sim = xpt_path_sim(path);
 
