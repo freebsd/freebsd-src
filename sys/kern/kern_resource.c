@@ -646,7 +646,7 @@ lim_cb(void *arg)
 	}
 	if ((p->p_flag & P_WEXIT) == 0)
 		callout_reset_sbt(&p->p_limco, SBT_1S, 0,
-		    lim_cb, p, C_PREL(1) | C_HARDCLOCK);
+		    lim_cb, p, C_PREL(1));
 }
 
 int
@@ -699,7 +699,7 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 		if (limp->rlim_cur != RLIM_INFINITY &&
 		    p->p_cpulimit == RLIM_INFINITY)
 			callout_reset_sbt(&p->p_limco, SBT_1S, 0,
-			    lim_cb, p, C_PREL(1) | C_HARDCLOCK);
+			    lim_cb, p, C_PREL(1));
 		p->p_cpulimit = limp->rlim_cur;
 		break;
 	case RLIMIT_DATA:
