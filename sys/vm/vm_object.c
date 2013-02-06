@@ -2157,13 +2157,6 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	vm_object_set_flag(object, OBJ_MIGHTBEDIRTY);
 }
 
-boolean_t
-vm_object_cache_is_empty(vm_object_t object)
-{
-
-	return (__predict_true(object->cache.rt_root == 0));
-}
-
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>
