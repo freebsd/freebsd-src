@@ -292,14 +292,14 @@ vm_radix_setroot(struct vm_radix *rtree, struct vm_radix_node *rnode,
 	rtree->rt_root = root;
 }
 
-static inline void *
+static inline vm_page_t
 vm_radix_match(void *child)
 {
 	uintptr_t c;
 
 	c = (uintptr_t)child;
 
-	return ((void *)(c & ~VM_RADIX_FLAGS));
+	return ((vm_page_t)(c & ~VM_RADIX_FLAGS));
 }
 
 static void
@@ -338,8 +338,8 @@ vm_radix_reclaim_allnodes_internal(struct vm_radix_node *rnode, int level)
  * Inserts the key-value pair in to the radix tree.  Returns errno.
  * Panics if the key already exists.
  */
-int
-vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
+void
+vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, vm_page_t page)
 {
 	struct vm_radix_node *rnode;
 	struct vm_radix_node *root;
@@ -347,8 +347,8 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	int slot;
 
 	CTR4(KTR_VM,
-	    "insert: tree %p, " KFRMT64(index) ", val %p", rtree,
-	    KSPLT64L(index), KSPLT64H(index), val);
+	    "insert: tree %p, " KFRMT64(index) ", page %p", rtree,
+	    KSPLT64L(index), KSPLT64H(index), page);
 	if (index == -1)
 		panic("vm_radix_insert: -1 is not a valid index.\n");
 	level = vm_radix_height(rtree, &root);
@@ -376,7 +376,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	    "insert: tree %p, root %p, " KFRMT64(index) ", level %d ENOMEM",
 				    rtree, root, KSPLT64L(index),
 				    KSPLT64H(index), level);
-				return (ENOMEM);
+				panic("vm_radix_insert: failed allocation");
 			}
 			/*
 			 * Store the new pointer with a memory barrier so
@@ -408,7 +408,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 			"insert: tree %p, rnode %p, child %p, count %u ENOMEM",
 		    		    rtree, rnode, rnode->rn_child[slot],
 				    rnode->rn_count);
-				return (ENOMEM);
+				panic("vm_radix_insert: failed allocation");
 			}
 			rnode->rn_count++;
 	    	}
@@ -427,22 +427,20 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	KASSERT(rnode->rn_child[slot] == NULL,
 	    ("vm_radix_insert: Duplicate value %p at index: %lu\n", 
 	    rnode->rn_child[slot], (u_long)index));
-	rnode->rn_child[slot] = val;
+	rnode->rn_child[slot] = page;
 	rnode->rn_count++;
 	CTR5(KTR_VM,
 	    "insert: tree %p, " KFRMT64(index) ", level %d, slot %d",
 	    rtree, KSPLT64L(index), KSPLT64H(index), level, slot);
 	CTR3(KTR_VM, "insert: slot %d, rnode %p, count %u", slot, rnode,
 	    rnode->rn_count);
-
-	return 0;
 }
 
 /*
  * Returns the value stored at the index.  If the index is not present
  * NULL is returned.
  */
-void *
+vm_page_t
 vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *rnode;
@@ -551,44 +549,45 @@ out:
 /*
  * Look up any entry at a position bigger than or equal to index.
  */
-void *
-vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t start)
+vm_page_t
+vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index)
 {
+	vm_page_t page;
 	struct vm_radix_node *rnode;
-	void *val;
 	int slot;
 
-	CTR3(KTR_VM, "lookupn: tree %p, " KFRMT64(start), rtree,
-	    KSPLT64L(start), KSPLT64H(start));
+	CTR3(KTR_VM, "lookupn: tree %p, " KFRMT64(index), rtree,
+	    KSPLT64L(index), KSPLT64H(index));
 	if (rtree->rt_root == 0)
 		return (NULL);
-	while ((rnode = vm_radix_leaf(rtree, &start)) != NULL) {
-		slot = vm_radix_slot(start, 0);
-		for (; slot < VM_RADIX_COUNT; slot++, start++) {
-			val = vm_radix_match(rnode->rn_child[slot]);
-			if (val == NULL) {
+	while ((rnode = vm_radix_leaf(rtree, &index)) != NULL) {
+		slot = vm_radix_slot(index, 0);
+		for (; slot < VM_RADIX_COUNT; slot++, index++) {
+			page = vm_radix_match(rnode->rn_child[slot]);
+			if (page == NULL) {
 
 				/*
-				 * The start address can wrap at the
+				 * The index address can wrap at the
 				 * VM_RADIX_MAXVAL value.
-				 * We need to make sure that start address
+				 * We need to make sure that index address
 				 * point to the next chunk (even if wrapping)
 				 * to stay consistent with default scanning
 				 * behaviour. Also, because of the nature
 				 * of the wrapping, the wrap up checks must
 				 * be done after all the necessary controls
-				 * on start are completed.
+				 * on index are completed.
 				 */
-				if ((VM_RADIX_MAXVAL - start) == 0)
+				if ((VM_RADIX_MAXVAL - index) == 0)
 					return (NULL);
 				continue;
 			}
 			CTR5(KTR_VM,
 	    "lookupn: tree %p " KFRMT64(index) " slot %d found child %p",
-			    rtree, KSPLT64L(start), KSPLT64H(start), slot, val);
-			return (val);
+			    rtree, KSPLT64L(index), KSPLT64H(index), slot,
+			    page);
+			return (page);
 		} 
-		MPASS((VM_RADIX_MAXVAL - start) != 0);
+		MPASS((VM_RADIX_MAXVAL - index) != 0);
 	}
 	return (NULL);
 }
@@ -596,14 +595,14 @@ vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t start)
 /*
  * Look up any entry at a position less than or equal to index.
  */
-void *
+vm_page_t
 vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
 {
 	struct vm_radix_node *rnode;
 	struct vm_radix_node *child;
 	vm_pindex_t max;
 	vm_pindex_t inc;
-	void *val;
+	vm_page_t page;
 	int slot;
 	int level;
 
@@ -661,9 +660,9 @@ restart:
 	}
 	if (rnode) {
 		for (; slot >= 0; slot--, index--) {
-			val = vm_radix_match(rnode->rn_child[slot]);
-			if (val)
-				return (val);
+			page = vm_radix_match(rnode->rn_child[slot]);
+			if (page)
+				return (page);
 		}
 	}
 	if (index != -1)

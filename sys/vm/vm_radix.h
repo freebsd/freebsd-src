@@ -33,13 +33,14 @@
 
 #ifdef _KERNEL
 
-void	vm_radix_init(void);
-int 	vm_radix_insert(struct vm_radix *, vm_pindex_t, void *);
-void	*vm_radix_lookup(struct vm_radix *, vm_pindex_t);
-void	*vm_radix_lookup_ge(struct vm_radix *, vm_pindex_t);
-void	*vm_radix_lookup_le(struct vm_radix *, vm_pindex_t);
-void	vm_radix_reclaim_allnodes(struct vm_radix *);
-void	vm_radix_remove(struct vm_radix *, vm_pindex_t);
+void		vm_radix_init(void);
+void		vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index,
+		    vm_page_t page);
+vm_page_t	vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);
+vm_page_t	vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index);
+vm_page_t	vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index);
+void		vm_radix_reclaim_allnodes(struct vm_radix *rtree);
+void		vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index);
 
 #endif /* _KERNEL */
 #endif /* !_VM_RADIX_H_ */
