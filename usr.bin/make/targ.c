@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 
+#include <sys/types.h>
+#include <inttypes.h>
+
 #include "dir.h"
 #include "globals.h"
 #include "GNode.h"

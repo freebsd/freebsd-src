@@ -41,6 +41,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <inttypes.h>
+
+
 /*
  * make.c
  *	The functions which perform the examination of targets and
