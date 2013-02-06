@@ -142,7 +142,7 @@ static __inline sbintime_t
 bintime2sbintime(const struct bintime bt)
 {
 
-	return ((bt.sec << 32) + (bt.frac >> 32));
+	return (((sbintime_t)bt.sec << 32) + (bt.frac >> 32));
 }
 
 static __inline struct bintime 
