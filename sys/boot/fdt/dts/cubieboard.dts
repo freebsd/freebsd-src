@@ -76,6 +76,15 @@
 			clock-frequency = < 24000000 >;
 		};
 
+		GPIO: gpio@01c20800 {
+			#gpio-cells = <3>;
+			compatible = "allwinner,sun4i-gpio";
+			gpio-controller;
+			reg =<  0x01c20800 0x400 >;
+			interrupts = < 28 >;
+			interrupt-parent = <&AINTC>;
+		};
+
 		usb1: usb@01c1c000 {
 			compatible = "allwinner,usb-ehci", "usb-ehci";
 			reg = <0x01c1c000 0x1000>;

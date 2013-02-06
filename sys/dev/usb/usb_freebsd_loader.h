@@ -44,6 +44,7 @@
 #define	USB_HAVE_PF 0
 #define	USB_HAVE_ROOT_MOUNT_HOLD 0
 #define	USB_HAVE_ID_SECTION 0
+#define	USB_HAVE_PER_BUS_PROCESS 0
 
 #define	USB_TD_GET_PROC(td) (td)->td_proc
 #define	USB_PROC_GET_GID(td) (td)->p_pgid

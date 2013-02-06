@@ -26,7 +26,8 @@
 
 #include <bsd_global.h>
 
-static struct usb_process usb_process[USB_PROC_MAX];
+struct usb_process usb_process[USB_PROC_MAX];
+
 static device_t usb_pci_root;
 
 /*------------------------------------------------------------------------*
@@ -977,41 +978,6 @@ repeat:
 	return (worked);
 }
 
-int
-usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
-    const char *pmesg, uint8_t prio)
-{
-#define	USB_PROC_OFFSET(a,b) \
-  ((int)(((long)&((struct usb_bus *)0)->a) - \
-	 ((long)&((struct usb_bus *)0)->b)))
-
-	/* figure out which process we are creating */
-	switch ((int)((long)up - (long)p_mtx)) {
-	case USB_PROC_OFFSET(giant_callback_proc, bus_mtx):
-		up->up_ptr = (void *)(usb_process + 2);
-		break;
-	case USB_PROC_OFFSET(non_giant_callback_proc, bus_mtx):
-		up->up_ptr = (void *)(usb_process + 2);
-		break;
-	case USB_PROC_OFFSET(explore_proc, bus_mtx):
-		up->up_ptr = (void *)(usb_process + 0);
-		break;
-	case USB_PROC_OFFSET(control_xfer_proc, bus_mtx):
-		up->up_ptr = (void *)(usb_process + 1);
-		break;
-	default:
-		up->up_ptr = (void *)(usb_process + 1);
-		break;
-	}
-	return (0);			/* success */
-}
-
-void
-usb_proc_free(struct usb_process *up)
-{
-	/* NOP */
-}
-
 void   *
 usb_proc_msignal(struct usb_process *up, void *_pm0, void *_pm1)
 {
@@ -1020,10 +986,6 @@ usb_proc_msignal(struct usb_process *up, void *_pm0, void *_pm1)
 	struct usb_proc_msg *pm2;
 	usb_size_t d;
 	uint8_t t;
-
-	/* find the correct parent */
-	while (up->up_ptr != NULL)
-		up = (struct usb_process *)up->up_ptr;
 
 	t = 0;
 
@@ -1103,10 +1065,6 @@ usb_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
 {
 	struct usb_proc_msg *pm0 = _pm0;
 	struct usb_proc_msg *pm1 = _pm1;
-
-	/* find the correct parent */
-	while (up->up_ptr != NULL)
-		up = (struct usb_process *)up->up_ptr;
 
 	/* Just remove the messages from the queue. */
 	if (pm0->pm_qentry.tqe_prev) {

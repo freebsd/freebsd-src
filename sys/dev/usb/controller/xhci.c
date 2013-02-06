@@ -547,19 +547,12 @@ xhci_init(struct xhci_softc *sc, device_t self)
         sc->sc_config_msg[1].hdr.pm_callback = &xhci_configure_msg;
         sc->sc_config_msg[1].bus = &sc->sc_bus;
 
-	if (usb_proc_create(&sc->sc_config_proc,
-	    &sc->sc_bus.bus_mtx, device_get_nameunit(self), USB_PRI_MED)) {
-                printf("WARNING: Creation of XHCI configure "
-                    "callback process failed.\n");
-        }
 	return (0);
 }
 
 void
 xhci_uninit(struct xhci_softc *sc)
 {
-	usb_proc_free(&sc->sc_config_proc);
-
 	usb_bus_mem_free_all(&sc->sc_bus, &xhci_iterate_hw_softc);
 
 	cv_destroy(&sc->sc_cmd_cv);
@@ -2684,7 +2677,7 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 		DPRINTFN(8, "Not running\n");
 
 		/* start configuration */
-		(void)usb_proc_msignal(&sc->sc_config_proc,
+		(void)usb_proc_msignal(USB_BUS_CONTROL_XFER_PROC(&sc->sc_bus),
 		    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 		return (0);
 	}
@@ -3652,7 +3645,7 @@ xhci_start_dma_delay(struct usb_xfer *xfer)
 	/* put transfer on interrupt queue (again) */
 	usbd_transfer_enqueue(&sc->sc_bus.intr_q, xfer);
 
-	(void)usb_proc_msignal(&sc->sc_config_proc,
+	(void)usb_proc_msignal(USB_BUS_CONTROL_XFER_PROC(&sc->sc_bus),
 	    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 }
 
