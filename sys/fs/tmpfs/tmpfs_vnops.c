@@ -511,14 +511,11 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if (vobj == NULL)
+	if ((vobj == NULL) ||
+	    (vobj->resident_page_count == 0 && vm_object_cache_is_empty(vobj)))
 		goto nocache;
 
 	VM_OBJECT_LOCK(vobj);
-	if (vobj->resident_page_count == 0 && vm_object_cache_is_empty(vobj)) {
-		VM_OBJECT_UNLOCK(vobj);
-		goto nocache;
-	}
 lookupvpg:
 	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(m, offset, tlen)) {
@@ -642,17 +639,14 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if (vobj == NULL) {
+	if ((vobj == NULL) ||
+	    (vobj->resident_page_count == 0 &&
+	    vm_object_cache_is_empty(vobj))) {
 		vpg = NULL;
 		goto nocache;
 	}
 
 	VM_OBJECT_LOCK(vobj);
-	if (vobj->resident_page_count == 0 && vm_object_cache_is_empty(vobj)) {
-		VM_OBJECT_UNLOCK(vobj);
-		vpg = NULL;
-		goto nocache;
-	}
 lookupvpg:
 	if (((vpg = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(vpg, offset, tlen)) {
