@@ -521,6 +521,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	struct	cam_periph *periph;
 	struct	pass_softc *softc;
 	int	error;
+	uint32_t priority;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
@@ -553,6 +554,11 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 			break;
 		}
 
+		/* Compatibility for RL/priority-unaware code. */
+		priority = inccb->ccb_h.pinfo.priority;
+		if (priority < CAM_RL_TO_PRIORITY(CAM_RL_NORMAL))
+		    priority += CAM_RL_TO_PRIORITY(CAM_RL_NORMAL);
+
 		/*
 		 * Non-immediate CCBs need a CCB from the per-device pool
 		 * of CCBs, which is scheduled by the transport layer.
@@ -561,15 +567,14 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		 */
 		if ((inccb->ccb_h.func_code & XPT_FC_QUEUED)
 		 && ((inccb->ccb_h.func_code & XPT_FC_USER_CCB) == 0)) {
-			ccb = cam_periph_getccb(periph,
-						inccb->ccb_h.pinfo.priority);
+			ccb = cam_periph_getccb(periph, priority);
 			ccb_malloced = 0;
 		} else {
 			ccb = xpt_alloc_ccb_nowait();
 
 			if (ccb != NULL)
 				xpt_setup_ccb(&ccb->ccb_h, periph->path,
-					      inccb->ccb_h.pinfo.priority);
+					      priority);
 			ccb_malloced = 1;
 		}
 
