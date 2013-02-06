@@ -159,6 +159,7 @@ static const char *const vm_bnames[] = {
 	"Plex86",			/* Plex86 */
 	"Bochs",			/* Bochs */
 	"Xen",				/* Xen */
+	"Seabios",			/* KVM */
 	NULL
 };
 
@@ -167,6 +168,7 @@ static const char *const vm_pnames[] = {
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
 	"Parallels Virtual Platform",	/* Parallels VM */
+	"KVM",				/* KVM */
 	NULL
 };
 
