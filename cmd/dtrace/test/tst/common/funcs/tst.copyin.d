@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 /*
  * ASSERTION:
@@ -51,4 +53,9 @@ BEGIN
 	envp = *(uint64_t *)copyin(curpsinfo->pr_envp, sizeof (uint64_t));
 	printf("envp[0] = \"%s\"", copyinstr(envp));
 	exit(0);
+}
+
+BEGIN
+{
+	exit(1)
 }

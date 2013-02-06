@@ -24,38 +24,45 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #pragma D option quiet
 
 #pragma D option switchrate=1ms
 #pragma D option aggrate=1ms
 
-tick-100ms
+tick-50ms
 {
 	i++;
 }
 
-tick-100ms
-/i > 1/
+tick-50ms
+/!(i & 1) && i > 1/
 {
 	setopt("quiet", "no");
 	setopt("quiet");
 	setopt("quiet");
 	setopt("quiet", "yes");
 	@["abc"] = count();
+}
+
+tick-50ms
+/(i & 1) && i > 1/
+{
 	printa("%@d\n", @);
 }
 
-tick-100ms
-/i == 5/
+tick-50ms
+/i == 10/
 {
 	setopt("switchrate", "5sec");
 	setopt("aggrate", "5sec");
 }
 
-tick-100ms
-/i == 31/
+tick-50ms
+/i == 61/
 {
 	exit(0);
 }

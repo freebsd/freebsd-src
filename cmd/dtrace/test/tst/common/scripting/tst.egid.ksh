@@ -25,7 +25,9 @@
 # Use is subject to license terms.
 #
 
-#ident	"%Z%%M%	%I%	%E% SMI"
+#
+# Copyright (c) 2012 by Delphix. All rights reserved.
+#
 
 ############################################################################
 # ASSERTION:
@@ -70,7 +72,7 @@ EOF
 #chmod 555 the .d file
 
 chmod 555 $dfilename >/dev/null 2>&1
-if [ &? -ne 0 ]; then
+if [ $? -ne 0 ]; then
 	print -u2 "chmod $dfilename failed"
 	exit 1
 fi

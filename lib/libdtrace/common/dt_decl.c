@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <strings.h>
@@ -250,11 +251,6 @@ dt_decl_spec(ushort_t kind, char *name)
 
 	ddp->dd_kind = kind;
 	ddp->dd_name = name;
-
-	if (name != NULL && strchr(name, '`') != NULL) {
-		xyerror(D_DECL_SCOPE, "D scoping operator may not be used "
-		    "in a type name\n");
-	}
 
 	return (dt_decl_check(ddp));
 }
