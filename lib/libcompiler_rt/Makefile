@@ -188,6 +188,10 @@ SRCS+=	${file}.c
 .if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
 SRCS+=	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
+	aeabi_memcmp.S \
+	aeabi_memcpy.S \
+	aeabi_memmove.S \
+	aeabi_memset.S \
 	aeabi_uidivmod.S \
 	aeabi_uldivmod.S
 .endif
