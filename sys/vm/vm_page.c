@@ -1117,12 +1117,12 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 }
 
 /*
- *	Returns a pointer to the cached page associated with the given object
- *	and offset, NULL otherwise.
+ *	Returns TRUE if a cached page is associated with the given object and
+ *	offset, and FALSE otherwise.
  *
  *	The object must be locked.
  */
-vm_page_t
+boolean_t
 vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
@@ -1135,10 +1135,12 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 	 * exist.
 	 */
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (vm_object_cache_is_empty(object))
+		return (FALSE);
 	mtx_lock(&vm_page_queue_free_mtx);
 	m = vm_page_cache_lookup(object, pindex);
 	mtx_unlock(&vm_page_queue_free_mtx);
-	return (m);
+	return (m != NULL);
 }
 
 /*
