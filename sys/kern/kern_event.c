@@ -534,13 +534,6 @@ filt_timerexpire(void *knx)
 	kn->kn_data++;
 	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
 
-	/*
-	 * timertoticks() uses tvtohz() which always adds 1 to allow
-	 * for the time until the next clock interrupt being strictly
-	 * less than 1 clock tick.  We don't want that here since we
-	 * want to appear to be in sync with the clock interrupt even
-	 * when we're delayed.
-	 */
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
 		callout_reset_sbt_on(calloutp,
