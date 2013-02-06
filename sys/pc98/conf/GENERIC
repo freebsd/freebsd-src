@@ -268,10 +268,6 @@ device		bpf		# Berkeley packet filter
 #device		ural		# Ralink Technology RT2500USB wireless NICs
 #device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
 
-# FireWire support
-#device		sbp		# SCSI over FireWire (Requires scbus and da)
-#device		fwe		# Ethernet over FireWire (non-standard!)
-
 # Sound support
 #device		sound		# Generic sound driver (required)
 #device		snd_mss		# Microsoft Sound System
