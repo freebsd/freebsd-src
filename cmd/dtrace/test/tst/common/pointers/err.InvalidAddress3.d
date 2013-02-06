@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 /*
  * ASSERTION: D pointers do not allow invalid pointer accesses.
@@ -39,9 +41,10 @@
 
 BEGIN
 {
-	y = (int *) (-33007);
+	y = (int *)-33007;
 	*y = 3;
 	trace(*y);
+	exit(0);
 }
 
 ERROR
