@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -89,6 +90,11 @@ int metaslab_prefetch_limit = SPA_DVAS_PER_BP;
  * Percentage bonus multiplier for metaslabs that are in the bonus area.
  */
 int metaslab_smo_bonus_pct = 150;
+
+/*
+ * Should we be willing to write data to degraded vdevs?
+ */
+boolean_t zfs_write_to_degraded = B_FALSE;
 
 /*
  * ==========================================================================
@@ -1377,10 +1383,13 @@ top:
 
 		/*
 		 * Avoid writing single-copy data to a failing vdev
+		 * unless the user instructs us that it is okay.
 		 */
 		if ((vd->vdev_stat.vs_write_errors > 0 ||
 		    vd->vdev_state < VDEV_STATE_HEALTHY) &&
-		    d == 0 && dshift == 3) {
+		    d == 0 && dshift == 3 &&
+		    !(zfs_write_to_degraded && vd->vdev_state ==
+		    VDEV_STATE_DEGRADED)) {
 			all_zero = B_FALSE;
 			goto next;
 		}
