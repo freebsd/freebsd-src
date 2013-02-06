@@ -915,7 +915,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		    sbt >= sbt_timethreshold) {
 			getsbinuptime(&to_sbt);
 			/* Add safety belt for the case of hz > 1000. */
-			to_sbt += (tc_tick_dur - tick_dur);
+			to_sbt += (tc_tick_sbt - tick_sbt);
 #else
 		    sbt >= sbt_tickthreshold) {
 			/*
