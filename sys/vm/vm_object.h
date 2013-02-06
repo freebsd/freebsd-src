@@ -237,8 +237,6 @@ static __inline boolean_t
 vm_object_cache_is_empty(vm_object_t object)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-
 	return (__predict_true(object->cache.rt_root == 0));
 }
 
