@@ -35,7 +35,12 @@ __FBSDID("$FreeBSD$");
 #include "firmware/t4fw_interface.h"
 
 #undef msleep
-#define msleep(x) pause("t4hw", (x) * hz / 1000)
+#define msleep(x) do { \
+	if (cold) \
+		DELAY((x) * 1000); \
+	else \
+		pause("t4hw", (x) * hz / 1000); \
+} while (0)
 
 /**
  *	t4_wait_op_done_val - wait until an operation is completed

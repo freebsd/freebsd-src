@@ -107,14 +107,12 @@ static const char *syntax[513];
 static int base;
 static int size;	/* number of values which a char variable can have */
 static int nbits;	/* number of bits in a character */
-static int digit_contig;/* true if digits are contiguous */
 
 static void filltable(const char *);
 static void init(void);
 static void add(const char *, const char *);
 static void print(const char *);
 static void output_type_macros(void);
-static void digit_convert(void);
 
 int
 main(int argc __unused, char **argv __unused)
@@ -125,7 +123,6 @@ main(int argc __unused, char **argv __unused)
 	int i;
 	char buf[80];
 	int pos;
-	static char digit[] = "0123456789";
 
 	/* Create output files */
 	if ((cfile = fopen("syntax.c", "w")) == NULL) {
@@ -158,11 +155,6 @@ main(int argc __unused, char **argv __unused)
 	base = 1;
 	if (sign)
 		base += 1 << (nbits - 1);
-	digit_contig = 1;
-	for (i = 0 ; i < 10 ; i++) {
-		if (digit[i] != '0' + i)
-			digit_contig = 0;
-	}
 
 	fputs("#include <sys/cdefs.h>\n", hfile);
 
@@ -248,8 +240,6 @@ main(int argc __unused, char **argv __unused)
 	add("_", "ISUNDER");
 	add("#?$!-*@", "ISSPECL");
 	print("is_type");
-	if (! digit_contig)
-		digit_convert();
 	exit(0);
 }
 
@@ -341,12 +331,13 @@ print(const char *name)
  */
 
 static const char *macro[] = {
-	"#define is_digit(c)\t((is_type+SYNBASE)[(int)c] & ISDIGIT)",
+	"#define is_digit(c)\t((unsigned int)((c) - '0') <= 9)",
 	"#define is_eof(c)\t((c) == PEOF)",
 	"#define is_alpha(c)\t((is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER))",
 	"#define is_name(c)\t((is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER|ISUNDER))",
 	"#define is_in_name(c)\t((is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER|ISUNDER|ISDIGIT))",
 	"#define is_special(c)\t((is_type+SYNBASE)[(int)c] & (ISSPECL|ISDIGIT))",
+	"#define digit_val(c)\t((c) - '0')",
 	NULL
 };
 
@@ -355,41 +346,6 @@ output_type_macros(void)
 {
 	const char **pp;
 
-	if (digit_contig)
-		macro[0] = "#define is_digit(c)\t((unsigned int)((c) - '0') <= 9)";
 	for (pp = macro ; *pp ; pp++)
 		fprintf(hfile, "%s\n", *pp);
-	if (digit_contig)
-		fputs("#define digit_val(c)\t((c) - '0')\n", hfile);
-	else
-		fputs("#define digit_val(c)\t(digit_value[c])\n", hfile);
-}
-
-
-
-/*
- * Output digit conversion table (if digits are not contiguous).
- */
-
-static void
-digit_convert(void)
-{
-	int maxdigit;
-	static char digit[] = "0123456789";
-	char *p;
-	int i;
-
-	maxdigit = 0;
-	for (p = digit ; *p ; p++)
-		if (*p > maxdigit)
-			maxdigit = *p;
-	fputs("extern const char digit_value[];\n", hfile);
-	fputs("\n\nconst char digit_value[] = {\n", cfile);
-	for (i = 0 ; i <= maxdigit ; i++) {
-		for (p = digit ; *p && *p != i ; p++);
-		if (*p == '\0')
-			p = digit;
-		fprintf(cfile, "      %d,\n", (int)(p - digit));
-	}
-	fputs("};\n", cfile);
 }

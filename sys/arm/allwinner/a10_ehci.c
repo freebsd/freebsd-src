@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/gpio.h>
 
 #include <machine/bus.h>
 #include <dev/ofw/ofw_bus.h> 
@@ -58,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
+#include "gpio_if.h"
+
 #include "a10_clk.h"
 
 #define EHCI_HC_DEVSTR			"Allwinner Integrated USB 2.0 controller"
@@ -70,8 +73,9 @@ __FBSDID("$FreeBSD$");
 
 #define SW_ULPI_BYPASS			(1 << 0)
 #define SW_AHB_INCRX_ALIGN		(1 << 8)
-#define	SW_AHB_INCR4			(1 << 9)
+#define SW_AHB_INCR4			(1 << 9)
 #define SW_AHB_INCR8			(1 << 10)
+#define GPIO_USB2_PWR			227
 
 #define A10_READ_4(sc, reg)		\
 	bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -101,6 +105,7 @@ a10_ehci_attach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	bus_space_handle_t bsh;
+	device_t sc_gpio_dev;
 	int err;
 	int rid;
 	uint32_t reg_value = 0;
@@ -153,6 +158,13 @@ a10_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Allwinner");
 
+        /* Get the GPIO device, we need this to give power to USB */
+	sc_gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
+	if (sc_gpio_dev == NULL) {
+		device_printf(self, "Error: failed to get the GPIO device\n");
+		goto error;
+	}
+
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
@@ -165,6 +177,10 @@ a10_ehci_attach(device_t self)
 
 	/* Enable clock for USB */
 	a10_clk_usb_activate();
+
+	/* Give power to USB */
+	GPIO_PIN_SETFLAGS(sc_gpio_dev, GPIO_USB2_PWR, GPIO_PIN_OUTPUT);
+	GPIO_PIN_SET(sc_gpio_dev, GPIO_USB2_PWR, GPIO_PIN_HIGH);
 
 	/* Enable passby */
 	reg_value = A10_READ_4(sc, SW_USB_PMU_IRQ_ENABLE);

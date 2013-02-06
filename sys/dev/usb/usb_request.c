@@ -800,8 +800,6 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	/* check for errors */
 	if (err)
 		goto done;
-#ifdef USB_DEBUG
-#endif
 	n = 0;
 	while (1) {
 		/* wait for the device to recover from reset */
