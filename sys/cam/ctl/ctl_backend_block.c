@@ -376,9 +376,6 @@ ctl_grow_beio(struct ctl_be_block_softc *softc, int count)
 		beio = (struct ctl_be_block_io *)malloc(sizeof(*beio),
 							   M_CTLBLK,
 							   M_WAITOK | M_ZERO);
-		if (beio == NULL)
-			break;
-
 		bzero(beio, sizeof(*beio));
 		beio->softc = softc;
 		mtx_lock(&softc->lock);
@@ -1092,15 +1089,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		 */
 		beio->sg_segs[i].len = min(MAXPHYS, len_left);
 		beio->sg_segs[i].addr = uma_zalloc(be_lun->lun_zone, M_WAITOK);
-		/*
-		 * uma_zalloc() can in theory return NULL even with M_WAITOK
-		 * if it can't pull more memory into the zone.
-		 */
-		if (beio->sg_segs[i].addr == NULL) {
-			ctl_set_busy(&io->scsiio);
-			ctl_complete_beio(beio);
-			return;
-		}
 
 		DPRINTF("segment %d addr %p len %zd\n", i,
 			beio->sg_segs[i].addr, beio->sg_segs[i].len);
@@ -1660,13 +1648,6 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	be_lun = malloc(sizeof(*be_lun), M_CTLBLK, M_ZERO | M_WAITOK);
 
-	if (be_lun == NULL) {
-		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error allocating %zd bytes", __func__,
-			 sizeof(*be_lun));
-		goto bailout_error;
-	}
-
 	be_lun->softc = softc;
 	STAILQ_INIT(&be_lun->input_queue);
 	STAILQ_INIT(&be_lun->config_write_queue);
@@ -1705,12 +1686,6 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 		be_lun->dev_path = malloc(file_arg->vallen, M_CTLBLK,
 					  M_WAITOK | M_ZERO);
-		if (be_lun->dev_path == NULL) {
-			snprintf(req->error_str, sizeof(req->error_str),
-				 "%s: error allocating %d bytes", __func__,
-				 file_arg->vallen);
-			goto bailout_error;
-		}
 
 		strlcpy(be_lun->dev_path, (char *)file_arg->value,
 			file_arg->vallen);
