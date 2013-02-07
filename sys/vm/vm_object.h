@@ -103,7 +103,6 @@ struct vm_object {
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
-	struct vm_radix cache;		/* (o + f) root of the cache page radix trie */
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
@@ -118,6 +117,7 @@ struct vm_object {
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	LIST_HEAD(, vm_reserv) rvq;	/* list of reservations */
+	struct vm_radix cache;		/* (o + f) root of the cache page radix trie */
 	void *handle;
 	union {
 		/*
