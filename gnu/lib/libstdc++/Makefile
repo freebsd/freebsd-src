@@ -626,9 +626,5 @@ CLEANFILES+=	${VERSION_MAP}
 
 .include <bsd.lib.mk>
 
-.if ${MK_STAGING} == "yes"
-CXXFLAGS+= -I${STAGE_OBJTOP}${CXXINCLUDEDIR}/backward
-.endif
-
 # Filter out libc++-specific flags, and -std= flags above c++98 or gnu++98.
 CXXFLAGS:=	${CXXFLAGS:N-stdlib=libc++:N-std=c++[01][13x]:N-std=gnu++[01][13x]}
