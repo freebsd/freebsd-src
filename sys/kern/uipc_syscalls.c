@@ -238,6 +238,7 @@ kern_bind(td, fd, sa)
 	int error;
 
 	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_SOCKADDR(td, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_BIND, &fp, NULL);
 	if (error)
 		return (error);
@@ -452,6 +453,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 			*namelen = 0;
 		goto done;
 	}
+	AUDIT_ARG_SOCKADDR(td, sa);
 	if (name) {
 		/* check sa_len before it is destroyed */
 		if (*namelen > sa->sa_len)
@@ -547,6 +549,7 @@ kern_connect(td, fd, sa)
 	int interrupted = 0;
 
 	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_SOCKADDR(td, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_CONNECT, &fp, NULL);
 	if (error)
 		return (error);
@@ -763,8 +766,10 @@ kern_sendit(td, s, mp, flags, control, segflg)
 
 	AUDIT_ARG_FD(s);
 	rights = CAP_WRITE;
-	if (mp->msg_name != NULL)
+	if (mp->msg_name != NULL) {
+		AUDIT_ARG_SOCKADDR(td, mp->msg_name);
 		rights |= CAP_CONNECT;
+	}
 	error = getsock_cap(td->td_proc->p_fd, s, rights, &fp, NULL);
 	if (error)
 		return (error);
@@ -1009,6 +1014,8 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	}
+	if (fromsa != NULL)
+		AUDIT_ARG_SOCKADDR(td, fromsa);
 #ifdef KTRACE
 	if (ktruio != NULL) {
 		ktruio->uio_resid = len - auio.uio_resid;
