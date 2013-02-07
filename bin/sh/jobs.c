@@ -1030,7 +1030,7 @@ dowait(int mode, struct job *job)
 	int wflags;
 	int restore_sigchld;
 
-	TRACE(("dowait(%d) called\n", block));
+	TRACE(("dowait(%d, %p) called\n", mode, job));
 	restore_sigchld = 0;
 	if ((mode & DOWAIT_SIG) != 0) {
 		sigfillset(&mask);
