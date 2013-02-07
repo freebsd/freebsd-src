@@ -171,7 +171,8 @@ MALLOC_DEFINE(M_80211_MESH_PERR, "80211perr", "802.11 MESH Path Error frame");
 /* The longer one of the lifetime should be stored as new lifetime */
 #define MESH_ROUTE_LIFETIME_MAX(a, b)	(a > b ? a : b)
 
-MALLOC_DEFINE(M_80211_MESH_RT, "80211mesh", "802.11s routing table");
+MALLOC_DEFINE(M_80211_MESH_RT, "80211mesh_rt", "802.11s routing table");
+MALLOC_DEFINE(M_80211_MESH_GT_RT, "80211mesh_gt", "802.11s known gates table");
 
 /*
  * Helper functions to manipulate the Mesh routing table.
@@ -670,6 +671,7 @@ mesh_vattach(struct ieee80211vap *vap)
 	ms->ms_seq = 0;
 	ms->ms_flags = (IEEE80211_MESHFLAGS_AP | IEEE80211_MESHFLAGS_FWD);
 	ms->ms_ttl = IEEE80211_MESH_DEFAULT_TTL;
+	TAILQ_INIT(&ms->ms_known_gates);
 	TAILQ_INIT(&ms->ms_routes);
 	mtx_init(&ms->ms_rt_lock, "MBSS", "802.11s routing table", MTX_DEF);
 	callout_init(&ms->ms_cleantimer, CALLOUT_MPSAFE);
@@ -2370,18 +2372,78 @@ mesh_recv_action_meshgate(struct ieee80211_node *ni,
 	const uint8_t *frm, const uint8_t *efrm)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_mesh_gate_route *gr, *next;
 	struct ieee80211_mesh_route *rt_gate;
+	struct ieee80211_meshgann_ie pgann;
+	int found = 0;
 	const struct ieee80211_meshgann_ie *ie =
 	    (const struct ieee80211_meshgann_ie *)
 	    (frm+2); /* action + code */
 
-	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie->gann_addr,
-	    "%s", "received GANN from meshgate");
+	if (IEEE80211_ADDR_EQ(vap->iv_myaddr, ie->gann_addr))
+		return 0;
 
-	rt_gate = ieee80211_mesh_rt_find(vap, ie->gann_addr);
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ni->ni_macaddr,
+	    "received GANN, meshgate: %6D (seq %u)", ie->gann_addr, ":",
+	    ie->gann_seq);
+
+	if (ms == NULL)
+		return (0);
+	MESH_RT_LOCK(ms);
+	TAILQ_FOREACH_SAFE(gr, &ms->ms_known_gates, gr_next, next) {
+		if (!IEEE80211_ADDR_EQ(gr->gr_addr, ie->gann_addr))
+			continue;
+		if (ie->gann_seq <= gr->gr_lastseq) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_MESH,
+			    ni->ni_macaddr, NULL,
+			    "GANN old seqno %u <= %u",
+			    ie->gann_seq, gr->gr_lastseq);
+			MESH_RT_UNLOCK(ms);
+			return (0);
+		}
+		/* corresponding mesh gate found & GANN accepted */
+		found = 1;
+		break;
+
+	}
+	if (found == 0) {
+		/* this GANN is from a new mesh Gate add it to known table. */
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie->gann_addr,
+		    "stored new GANN information, seq %u.", ie->gann_seq);
+		gr = malloc(ALIGN(sizeof(struct ieee80211_mesh_gate_route)),
+		    M_80211_MESH_GT_RT, M_NOWAIT | M_ZERO);
+		IEEE80211_ADDR_COPY(gr->gr_addr, ie->gann_addr);
+		TAILQ_INSERT_TAIL(&ms->ms_known_gates, gr, gr_next);
+	}
+	gr->gr_lastseq = ie->gann_seq;
+
+	/* check if we have a path to this gate */
+	rt_gate = mesh_rt_find_locked(ms, gr->gr_addr);
 	if (rt_gate != NULL &&
-	    rt_gate->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)
+	    rt_gate->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) {
+		gr->gr_route = rt_gate;
 		rt_gate->rt_flags |= IEEE80211_MESHRT_FLAGS_GATE;
+	}
+
+	MESH_RT_UNLOCK(ms);
+
+	/* popagate only if decremented ttl >= 1 && forwarding is enabled */
+	if ((ie->gann_ttl - 1) < 1 &&
+	    !(ms->ms_flags & IEEE80211_MESHFLAGS_FWD))
+		return 0;
+	pgann.gann_flags = ie->gann_flags; /* Reserved */
+	pgann.gann_hopcount = ie->gann_hopcount + 1;
+	pgann.gann_ttl = ie->gann_ttl - 1;
+	IEEE80211_ADDR_COPY(pgann.gann_addr, ie->gann_addr);
+	pgann.gann_seq = ie->gann_seq;
+	pgann.gann_interval = ie->gann_interval;
+
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie->gann_addr,
+	    "%s", "propagate GANN");
+
+	ieee80211_send_action(vap->iv_bss, IEEE80211_ACTION_CAT_MESH,
+	    IEEE80211_ACTION_MESH_GANN, &pgann);
 
 	return 0;
 }

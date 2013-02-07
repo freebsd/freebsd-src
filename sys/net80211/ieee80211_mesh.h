@@ -405,6 +405,7 @@ MALLOC_DECLARE(M_80211_MESH_PREP);
 MALLOC_DECLARE(M_80211_MESH_PERR);
 
 MALLOC_DECLARE(M_80211_MESH_RT);
+MALLOC_DECLARE(M_80211_MESH_GT_RT);
 /*
  * Basic forwarding information:
  * o Destination MAC
@@ -436,6 +437,16 @@ struct ieee80211_mesh_route {
 	void			*rt_priv;	/* private data */
 };
 #define	IEEE80211_MESH_ROUTE_PRIV(rt, cast)	((cast *)rt->rt_priv)
+
+/*
+ * Stored information about known mesh gates.
+ */
+struct ieee80211_mesh_gate_route {
+	TAILQ_ENTRY(ieee80211_mesh_gate_route)	gr_next;
+	uint8_t				gr_addr[IEEE80211_ADDR_LEN];
+	uint32_t			gr_lastseq;
+	struct ieee80211_mesh_route 	*gr_route;
+};
 
 #define	IEEE80211_MESH_PROTO_DSZ	12	/* description size */
 /*
@@ -508,6 +519,7 @@ struct ieee80211_mesh_state {
 	struct callout			ms_cleantimer;
 	struct callout			ms_gatetimer;
 	ieee80211_mesh_seq		ms_gateseq;
+	TAILQ_HEAD(, ieee80211_mesh_gate_route) ms_known_gates;
 	TAILQ_HEAD(, ieee80211_mesh_route)  ms_routes;
 	struct ieee80211_mesh_proto_metric *ms_pmetric;
 	struct ieee80211_mesh_proto_path   *ms_ppath;
