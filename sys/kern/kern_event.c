@@ -1322,6 +1322,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	if (maxevents == 0)
 		goto done_nl;
 
+	rsbt = 0;
 	if (tsp != NULL) {
 		if (tsp->tv_sec < 0 || tsp->tv_nsec < 0 ||
 		    tsp->tv_nsec > 1000000000) {

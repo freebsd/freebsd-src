@@ -996,6 +996,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nbufbytes != 0)
 		bzero(selbits, nbufbytes / 2);
 
+	precision = 0;
 	if (tvp != NULL) {
 		rtv = *tvp;
 		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 ||
@@ -1265,6 +1266,7 @@ sys_poll(td, uap)
 	error = copyin(uap->fds, bits, ni);
 	if (error)
 		goto done;
+	precision = 0;
 	if (uap->timeout != INFTIM) {
 		if (uap->timeout < 0) {
 			error = EINVAL;
