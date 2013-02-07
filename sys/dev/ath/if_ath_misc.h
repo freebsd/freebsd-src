@@ -120,12 +120,24 @@ extern	void ath_tx_update_tim(struct ath_softc *sc,
 extern void ath_start(struct ifnet *ifp);
 extern	void ath_start_task(void *arg, int npending);
 
+/*
+ * Kick the frame TX task.
+ */
 static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
-	/* XXX eventually try sc_tx_tq? */
 	taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txpkttask);
+}
+
+/*
+ * Kick the software TX queue task.
+ */
+static inline void
+ath_tx_swq_kick(struct ath_softc *sc)
+{
+
+	taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txqtask);
 }
 
 #endif
