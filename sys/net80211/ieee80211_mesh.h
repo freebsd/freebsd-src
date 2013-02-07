@@ -194,14 +194,20 @@ struct ieee80211_meshbeacont_ie {
 #endif
 
 /* Gate (GANN) Annoucement */
+/*
+ * NB: these macros used for the length in the IEs does not include 2 bytes
+ * for _ie and _len fields as is defined by the standard.
+ */
+#define	IEEE80211_MESHGANN_BASE_SZ 	(15)
 struct ieee80211_meshgann_ie {
-	uint8_t		pann_ie;		/* IEEE80211_ELEMID_MESHGANN */
-	uint8_t		pann_len;
-	uint8_t		pann_flags;
-	uint8_t		pann_hopcount;
-	uint8_t		pann_ttl;
-	uint8_t		pann_addr[IEEE80211_ADDR_LEN];
-	uint8_t		pann_seq;		/* PANN Sequence Number */
+	uint8_t		gann_ie;		/* IEEE80211_ELEMID_MESHGANN */
+	uint8_t		gann_len;
+	uint8_t		gann_flags;
+	uint8_t		gann_hopcount;
+	uint8_t		gann_ttl;
+	uint8_t		gann_addr[IEEE80211_ADDR_LEN];
+	uint32_t	gann_seq;		/* GANN Sequence Number */
+	uint16_t	gann_interval;		/* GANN Interval */
 } __packed;
 
 /* Root (MP) Annoucement */
@@ -423,6 +429,7 @@ struct ieee80211_mesh_route {
 #define	IEEE80211_MESHRT_FLAGS_DISCOVER	0x01	/* path discovery */
 #define	IEEE80211_MESHRT_FLAGS_VALID	0x02	/* path discovery complete */
 #define	IEEE80211_MESHRT_FLAGS_PROXY	0x04	/* proxy entry */
+#define	IEEE80211_MESHRT_FLAGS_GATE	0x08	/* mesh gate entry */
 	uint32_t		rt_lifetime;	/* route timeout */
 	uint32_t		rt_lastmseq;	/* last seq# seen dest */
 	uint32_t		rt_ext_seq;	/* proxy seq number */
