@@ -566,6 +566,9 @@ void		ieee80211_mesh_init_neighbor(struct ieee80211_node *,
 		   const struct ieee80211_scanparams *);
 void		ieee80211_mesh_update_beacon(struct ieee80211vap *,
 		    struct ieee80211_beacon_offsets *);
+struct ieee80211_mesh_gate_route *
+		ieee80211_mesh_mark_gate(struct ieee80211vap *,
+		    const uint8_t *, struct ieee80211_mesh_route *);
 
 /*
  * Return non-zero if proxy operation is enabled.

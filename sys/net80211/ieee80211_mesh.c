@@ -854,6 +854,43 @@ mesh_rt_cleanup_cb(void *arg)
 	    mesh_rt_cleanup_cb, vap);
 }
 
+/*
+ * Mark a mesh STA as gate and return a pointer to it.
+ * If this is first time, we create a new gate route.
+ * Always update the path route to this mesh gate.
+ */
+struct ieee80211_mesh_gate_route *
+ieee80211_mesh_mark_gate(struct ieee80211vap *vap, const uint8_t *addr,
+    struct ieee80211_mesh_route *rt)
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_mesh_gate_route *gr = NULL, *next;
+	int found = 0;
+
+	MESH_RT_LOCK(ms);
+	TAILQ_FOREACH_SAFE(gr, &ms->ms_known_gates, gr_next, next) {
+		if (IEEE80211_ADDR_EQ(gr->gr_addr, addr)) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		/* New mesh gate add it to known table. */
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, addr,
+		    "%s", "stored new gate information from pro-PREQ.");
+		gr = malloc(ALIGN(sizeof(struct ieee80211_mesh_gate_route)),
+		    M_80211_MESH_GT_RT, M_NOWAIT | M_ZERO);
+		IEEE80211_ADDR_COPY(gr->gr_addr, addr);
+		TAILQ_INSERT_TAIL(&ms->ms_known_gates, gr, gr_next);
+	}
+	gr->gr_route = rt;
+	/* TODO: link from path route to gate route */
+	MESH_RT_UNLOCK(ms);
+
+	return gr;
+}
+
 
 /*
  * Helper function to note the Mesh Peer Link FSM change.
