@@ -227,7 +227,7 @@ timespec2sbintime(struct timespec ts)
 {
 
 	return (((sbintime_t)ts.tv_sec << 32) +
-	    (ts.tv_nsec * (((sbintime_t)1 << 63) / 500000000) >> 32));
+	    (ts.tv_nsec * (((uint64_t)1 << 63) / 500000000) >> 32));
 }
 
 static __inline struct timeval
@@ -245,7 +245,7 @@ timeval2sbintime(struct timeval tv)
 {
 	
 	return (((sbintime_t)tv.tv_sec << 32) +
-	    (tv.tv_usec * (((sbintime_t)1 << 63) / 500000) >> 32));
+	    (tv.tv_usec * (((uint64_t)1 << 63) / 500000) >> 32));
 }
 
 #endif /* __BSD_VISIBLE */
