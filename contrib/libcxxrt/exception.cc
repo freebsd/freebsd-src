@@ -1387,7 +1387,7 @@ namespace std
 	{
 		if (thread_local_handlers) { return pathscale::set_unexpected(f); }
 
-		return ATOMIC_SWAP(&terminateHandler, f);
+		return ATOMIC_SWAP(&unexpectedHandler, f);
 	}
 	/**
 	 * Sets the function that is called to terminate the program.
