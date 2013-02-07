@@ -369,7 +369,7 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 			DELAY(1000000);
 			sbt_sec--;
 		}
-		DELAY(sbt / SBT_1US);
+		DELAY((sbt & 0xffffffff) / SBT_1US);
 		return (0);
 	}
 	return (_sleep(&pause_wchan, NULL, 0, wmesg, sbt, pr, flags));
