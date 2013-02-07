@@ -37,6 +37,10 @@ FBSD_1.3 {
 	__flt_rounds;
 };
 
+FBSD_1.3 {
+	__flt_rounds;
+};
+
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
 	__sys_getlogin;
