@@ -1008,7 +1008,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	}
 #endif
 
-	callout_cc_add(c, cc, to_sbt, pr, ftn, arg, cpu, flags);
+	callout_cc_add(c, cc, to_sbt, precision, ftn, arg, cpu, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg,(int)(to_sbt >> 32),
 	    (u_int)(to_sbt & 0xffffffff));
