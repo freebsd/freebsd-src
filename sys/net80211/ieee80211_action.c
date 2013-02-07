@@ -228,6 +228,7 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	ieee80211_recv_action_func *f = recv_inval;
+	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_action *ia =
 	    (const struct ieee80211_action *) frm;
 
@@ -245,6 +246,15 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 			f = meshpl_recv_action[ia->ia_action];
 		break;
 	case IEEE80211_ACTION_CAT_MESH:
+		if (ni == vap->iv_bss ||
+		    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_MESH,
+			    ni->ni_macaddr, NULL,
+			    "peer link not yet established (%d), cat %s act %u",
+			    ni->ni_mlstate, "mesh action", ia->ia_action);
+			vap->iv_stats.is_mesh_nolink++;
+			break;
+		}
 		if (ia->ia_action < N(meshaction_recv_action))
 			f = meshaction_recv_action[ia->ia_action];
 		break;

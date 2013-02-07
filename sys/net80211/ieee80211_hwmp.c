@@ -914,9 +914,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	ieee80211_hwmp_seq preqid;	/* last seen preqid for orig */
 	uint32_t metric = 0;
 
-	if (ni == vap->iv_bss ||
-	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
-		return;
 	/*
 	 * Ignore PREQs from us. Could happen because someone forward it
 	 * back to us.
@@ -1233,10 +1230,6 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	int is_encap;
 	struct ieee80211_node *ni_encap;
 
-	if (ni == vap->iv_bss ||
-	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
-		return;
-
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 	    "received PREP, orig %6D, targ %6D", prep->prep_origaddr, ":",
 	    prep->prep_targetaddr, ":");
@@ -1505,10 +1498,6 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_meshperr_ie *pperr = NULL;
 	int i, j = 0, forward = 0;
 
-	if (ni == vap->iv_bss ||
-	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
-		return;
-
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 	    "received PERR from %6D", wh->i_addr2, ":");
 
@@ -1712,9 +1701,7 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_meshrann_ie prann;
 	uint32_t metric = 0;
 
-	if (ni == vap->iv_bss ||
-	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED ||
-	    IEEE80211_ADDR_EQ(rann->rann_addr, vap->iv_myaddr))
+	if (IEEE80211_ADDR_EQ(rann->rann_addr, vap->iv_myaddr))
 		return;
 
 	rt = ieee80211_mesh_rt_find(vap, rann->rann_addr);
