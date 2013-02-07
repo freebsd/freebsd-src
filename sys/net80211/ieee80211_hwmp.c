@@ -1133,9 +1133,11 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 
 		/*
 		 * We have a valid route to this node.
+		 * NB: if target is proxy dont reply.
 		 */
 		if (rttarg != NULL &&
-		    (rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)) {
+		    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_VALID &&
+		    !(rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY)) {
 			/*
 			 * Check if we can send an intermediate Path Reply,
 			 * i.e., Target Only bit is not set and target is not
