@@ -533,15 +533,15 @@ mesh_gatemode_cb(void *arg)
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_meshgann_ie gann;
 
-	IEEE80211_NOTE(vap, IEEE80211_MSG_MESH, vap->iv_bss,
-	    "%s", "send broadcast GANN");
-
 	gann.gann_flags = 0; /* Reserved */
 	gann.gann_hopcount = 0;
 	gann.gann_ttl = ms->ms_ttl;
 	IEEE80211_ADDR_COPY(gann.gann_addr, vap->iv_myaddr);
 	gann.gann_seq = ms->ms_gateseq++;
 	gann.gann_interval = ieee80211_mesh_gateint;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_MESH, vap->iv_bss,
+	    "send broadcast GANN (seq %u)", gann.gann_seq);
 
 	ieee80211_send_action(vap->iv_bss, IEEE80211_ACTION_CAT_MESH,
 	    IEEE80211_ACTION_MESH_GANN, &gann);
@@ -2605,6 +2605,40 @@ mesh_recv_action_meshlmetric(struct ieee80211_node *ni,
 }
 
 /*
+ * Parse meshgate action ie's for GANN frames.
+ * Returns -1 if parsing fails, otherwise 0.
+ */
+static int
+mesh_parse_meshgate_action(struct ieee80211_node *ni,
+    const struct ieee80211_frame *wh,	/* XXX for VERIFY_LENGTH */
+    struct ieee80211_meshgann_ie *ie, const uint8_t *frm, const uint8_t *efrm)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	const struct ieee80211_meshgann_ie *gannie;
+
+	while (efrm - frm > 1) {
+		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return -1);
+		switch (*frm) {
+		case IEEE80211_ELEMID_MESHGANN:
+			gannie = (const struct ieee80211_meshgann_ie *) frm;
+			memset(ie, 0, sizeof(ie));
+			ie->gann_ie = gannie->gann_ie;
+			ie->gann_len = gannie->gann_len;
+			ie->gann_flags = gannie->gann_flags;
+			ie->gann_hopcount = gannie->gann_hopcount;
+			ie->gann_ttl = gannie->gann_ttl;
+			IEEE80211_ADDR_COPY(ie->gann_addr, gannie->gann_addr);
+			ie->gann_seq = LE_READ_4(&gannie->gann_seq);
+			ie->gann_interval = LE_READ_2(&gannie->gann_interval);
+			break;
+		}
+		frm += frm[1] + 2;
+	}
+
+	return 0;
+}
+
+/*
  * Mesh Gate Announcement handling.
  */
 static int
@@ -2617,29 +2651,36 @@ mesh_recv_action_meshgate(struct ieee80211_node *ni,
 	struct ieee80211_mesh_gate_route *gr, *next;
 	struct ieee80211_mesh_route *rt_gate;
 	struct ieee80211_meshgann_ie pgann;
+	struct ieee80211_meshgann_ie ie;
 	int found = 0;
-	const struct ieee80211_meshgann_ie *ie =
-	    (const struct ieee80211_meshgann_ie *)
-	    (frm+2); /* action + code */
 
-	if (IEEE80211_ADDR_EQ(vap->iv_myaddr, ie->gann_addr))
+	/* +2 for action + code */
+	if (mesh_parse_meshgate_action(ni, wh, &ie, frm+2, efrm) != 0) {
+		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_MESH,
+		    ni->ni_macaddr, NULL, "%s",
+		    "GANN parsing failed");
+		vap->iv_stats.is_rx_mgtdiscard++;
+		return (0);
+	}
+
+	if (IEEE80211_ADDR_EQ(vap->iv_myaddr, ie.gann_addr))
 		return 0;
 
 	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ni->ni_macaddr,
-	    "received GANN, meshgate: %6D (seq %u)", ie->gann_addr, ":",
-	    ie->gann_seq);
+	    "received GANN, meshgate: %6D (seq %u)", ie.gann_addr, ":",
+	    ie.gann_seq);
 
 	if (ms == NULL)
 		return (0);
 	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(gr, &ms->ms_known_gates, gr_next, next) {
-		if (!IEEE80211_ADDR_EQ(gr->gr_addr, ie->gann_addr))
+		if (!IEEE80211_ADDR_EQ(gr->gr_addr, ie.gann_addr))
 			continue;
-		if (ie->gann_seq <= gr->gr_lastseq) {
+		if (ie.gann_seq <= gr->gr_lastseq) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_MESH,
 			    ni->ni_macaddr, NULL,
 			    "GANN old seqno %u <= %u",
-			    ie->gann_seq, gr->gr_lastseq);
+			    ie.gann_seq, gr->gr_lastseq);
 			MESH_RT_UNLOCK(ms);
 			return (0);
 		}
@@ -2650,14 +2691,14 @@ mesh_recv_action_meshgate(struct ieee80211_node *ni,
 	}
 	if (found == 0) {
 		/* this GANN is from a new mesh Gate add it to known table. */
-		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie->gann_addr,
-		    "stored new GANN information, seq %u.", ie->gann_seq);
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie.gann_addr,
+		    "stored new GANN information, seq %u.", ie.gann_seq);
 		gr = malloc(ALIGN(sizeof(struct ieee80211_mesh_gate_route)),
 		    M_80211_MESH_GT_RT, M_NOWAIT | M_ZERO);
-		IEEE80211_ADDR_COPY(gr->gr_addr, ie->gann_addr);
+		IEEE80211_ADDR_COPY(gr->gr_addr, ie.gann_addr);
 		TAILQ_INSERT_TAIL(&ms->ms_known_gates, gr, gr_next);
 	}
-	gr->gr_lastseq = ie->gann_seq;
+	gr->gr_lastseq = ie.gann_seq;
 
 	/* check if we have a path to this gate */
 	rt_gate = mesh_rt_find_locked(ms, gr->gr_addr);
@@ -2670,17 +2711,16 @@ mesh_recv_action_meshgate(struct ieee80211_node *ni,
 	MESH_RT_UNLOCK(ms);
 
 	/* popagate only if decremented ttl >= 1 && forwarding is enabled */
-	if ((ie->gann_ttl - 1) < 1 &&
-	    !(ms->ms_flags & IEEE80211_MESHFLAGS_FWD))
+	if ((ie.gann_ttl - 1) < 1 && !(ms->ms_flags & IEEE80211_MESHFLAGS_FWD))
 		return 0;
-	pgann.gann_flags = ie->gann_flags; /* Reserved */
-	pgann.gann_hopcount = ie->gann_hopcount + 1;
-	pgann.gann_ttl = ie->gann_ttl - 1;
-	IEEE80211_ADDR_COPY(pgann.gann_addr, ie->gann_addr);
-	pgann.gann_seq = ie->gann_seq;
-	pgann.gann_interval = ie->gann_interval;
+		pgann.gann_flags = ie.gann_flags; /* Reserved */
+	pgann.gann_hopcount = ie.gann_hopcount + 1;
+	pgann.gann_ttl = ie.gann_ttl - 1;
+	IEEE80211_ADDR_COPY(pgann.gann_addr, ie.gann_addr);
+	pgann.gann_seq = ie.gann_seq;
+	pgann.gann_interval = ie.gann_interval;
 
-	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie->gann_addr,
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie.gann_addr,
 	    "%s", "propagate GANN");
 
 	ieee80211_send_action(vap->iv_bss, IEEE80211_ACTION_CAT_MESH,
