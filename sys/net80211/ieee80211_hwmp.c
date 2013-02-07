@@ -1092,6 +1092,16 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 		    "root mesh station @ %6D", preq->preq_origaddr, ":");
 
+		/* Check if root is a mesh gate, mark it */
+		if (preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_GATE) {
+			struct ieee80211_mesh_gate_route *gr;
+
+			rtorig->rt_flags |= IEEE80211_MESHRT_FLAGS_GATE;
+			gr = ieee80211_mesh_mark_gate(vap, preq->preq_origaddr,
+			    rtorig);
+			gr->gr_lastseq = 0; /* NOT GANN */
+		}
+
 		/*
 		 * Reply with a PREP if we don't have a path to the root
 		 * or if the root sent us a proactive PREQ.
@@ -1745,6 +1755,15 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		}
 	}
 	hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
+	/* Check if root is a mesh gate, mark it */
+	if (rann->rann_flags & IEEE80211_MESHRANN_FLAGS_GATE) {
+		struct ieee80211_mesh_gate_route *gr;
+
+		rt->rt_flags |= IEEE80211_MESHRT_FLAGS_GATE;
+		gr = ieee80211_mesh_mark_gate(vap, rann->rann_addr,
+			rt);
+		gr->gr_lastseq = 0; /* NOT GANN */
+	}
 	/* discovery timeout */
 	ieee80211_mesh_rt_update(rt,
 	    ticks_to_msecs(ieee80211_hwmp_roottimeout));
