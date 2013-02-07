@@ -911,7 +911,7 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
-	return vm_radix_lookup(&object->rtree, pindex);
+	return (vm_radix_lookup(&object->rtree, pindex));
 }
 
 /*
