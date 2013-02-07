@@ -502,9 +502,12 @@ struct ieee80211_mesh_state {
 #define IEEE80211_MESHFLAGS_AP		0x01	/* accept peers */
 #define IEEE80211_MESHFLAGS_GATE	0x02	/* mesh gate role */
 #define IEEE80211_MESHFLAGS_FWD		0x04	/* forward packets */
+#define IEEE80211_MESHFLAGS_ROOT	0x08	/* configured as root */
 	uint8_t				ms_flags;
 	struct mtx			ms_rt_lock;
 	struct callout			ms_cleantimer;
+	struct callout			ms_gatetimer;
+	ieee80211_mesh_seq		ms_gateseq;
 	TAILQ_HEAD(, ieee80211_mesh_route)  ms_routes;
 	struct ieee80211_mesh_proto_metric *ms_pmetric;
 	struct ieee80211_mesh_proto_path   *ms_ppath;
@@ -537,6 +540,8 @@ uint8_t *	ieee80211_add_meshconf(uint8_t *, struct ieee80211vap *);
 uint8_t *	ieee80211_add_meshpeer(uint8_t *, uint8_t, uint16_t, uint16_t,
 		    uint16_t);
 uint8_t *	ieee80211_add_meshlmetric(uint8_t *, uint8_t, uint32_t);
+uint8_t *	ieee80211_add_meshgate(uint8_t *,
+		    struct ieee80211_meshgann_ie *);
 
 void		ieee80211_mesh_node_init(struct ieee80211vap *,
 		    struct ieee80211_node *);
