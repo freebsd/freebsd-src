@@ -805,19 +805,23 @@ static void
 hwmp_rootmode_setup(struct ieee80211vap *vap)
 {
 	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 
 	switch (hs->hs_rootmode) {
 	case IEEE80211_HWMP_ROOTMODE_DISABLED:
 		callout_drain(&hs->hs_roottimer);
+		ms->ms_flags &= ~IEEE80211_MESHFLAGS_ROOT;
 		break;
 	case IEEE80211_HWMP_ROOTMODE_NORMAL:
 	case IEEE80211_HWMP_ROOTMODE_PROACTIVE:
 		callout_reset(&hs->hs_roottimer, ieee80211_hwmp_rootint,
 		    hwmp_rootmode_cb, vap);
+		ms->ms_flags |= IEEE80211_MESHFLAGS_ROOT;
 		break;
 	case IEEE80211_HWMP_ROOTMODE_RANN:
 		callout_reset(&hs->hs_roottimer, ieee80211_hwmp_rannint,
 		    hwmp_rootmode_rann_cb, vap);
+		ms->ms_flags |= IEEE80211_MESHFLAGS_ROOT;
 		break;
 	}
 }

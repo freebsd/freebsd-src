@@ -68,6 +68,8 @@ static int	mesh_select_proto_metric(struct ieee80211vap *, const char *);
 static void	mesh_vattach(struct ieee80211vap *);
 static int	mesh_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	mesh_rt_cleanup_cb(void *);
+static void	mesh_gatemode_setup(struct ieee80211vap *);
+static void	mesh_gatemode_cb(void *);
 static void	mesh_linkchange(struct ieee80211_node *,
 		    enum ieee80211_mesh_mlstate);
 static void	mesh_checkid(void *, struct ieee80211_node *);
@@ -99,6 +101,10 @@ uint32_t	mesh_airtime_calc(struct ieee80211_node *);
  */
 static SYSCTL_NODE(_net_wlan, OID_AUTO, mesh, CTLFLAG_RD, 0,
     "IEEE 802.11s parameters");
+static int	ieee80211_mesh_gateint = -1;
+SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, gateint, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_mesh_gateint, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "mesh gate interval (ms)");
 static int ieee80211_mesh_retrytimeout = -1;
 SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, retrytimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_mesh_retrytimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
@@ -133,11 +139,13 @@ static	ieee80211_recv_action_func mesh_recv_action_meshpeering_open;
 static	ieee80211_recv_action_func mesh_recv_action_meshpeering_confirm;
 static	ieee80211_recv_action_func mesh_recv_action_meshpeering_close;
 static	ieee80211_recv_action_func mesh_recv_action_meshlmetric;
+static	ieee80211_recv_action_func mesh_recv_action_meshgate;
 
 static	ieee80211_send_action_func mesh_send_action_meshpeering_open;
 static	ieee80211_send_action_func mesh_send_action_meshpeering_confirm;
 static	ieee80211_send_action_func mesh_send_action_meshpeering_close;
 static	ieee80211_send_action_func mesh_send_action_meshlmetric;
+static	ieee80211_send_action_func mesh_send_action_meshgate;
 
 static const struct ieee80211_mesh_proto_metric mesh_metric_airtime = {
 	.mpm_descr	= "AIRTIME",
@@ -498,6 +506,48 @@ mesh_select_proto_metric(struct ieee80211vap *vap, const char *name)
 #undef	N
 
 static void
+mesh_gatemode_setup(struct ieee80211vap *vap)
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+
+	/*
+	 * NB: When a mesh gate is running as a ROOT it shall
+	 * not send out periodic GANNs but instead mark the
+	 * mesh gate flag for the corresponding proactive PREQ
+	 * and RANN frames.
+	 */
+	if (ms->ms_flags & IEEE80211_MESHFLAGS_ROOT ||
+	    (ms->ms_flags & IEEE80211_MESHFLAGS_GATE) == 0) {
+		callout_drain(&ms->ms_gatetimer);
+		return ;
+	}
+	callout_reset(&ms->ms_gatetimer, ieee80211_mesh_gateint,
+	    mesh_gatemode_cb, vap);
+}
+
+static void
+mesh_gatemode_cb(void *arg)
+{
+	struct ieee80211vap *vap = (struct ieee80211vap *)arg;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_meshgann_ie gann;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_MESH, vap->iv_bss,
+	    "%s", "send broadcast GANN");
+
+	gann.gann_flags = 0; /* Reserved */
+	gann.gann_hopcount = 0;
+	gann.gann_ttl = ms->ms_ttl;
+	IEEE80211_ADDR_COPY(gann.gann_addr, vap->iv_myaddr);
+	gann.gann_seq = ms->ms_gateseq++;
+	gann.gann_interval = ieee80211_mesh_gateint;
+
+	ieee80211_send_action(vap->iv_bss, IEEE80211_ACTION_CAT_MESH,
+	    IEEE80211_ACTION_MESH_GANN, &gann);
+	mesh_gatemode_setup(vap);
+}
+
+static void
 ieee80211_mesh_init(void)
 {
 
@@ -507,6 +557,7 @@ ieee80211_mesh_init(void)
 	/*
 	 * Setup mesh parameters that depends on the clock frequency.
 	 */
+	ieee80211_mesh_gateint = msecs_to_ticks(10000);
 	ieee80211_mesh_retrytimeout = msecs_to_ticks(40);
 	ieee80211_mesh_holdingtimeout = msecs_to_ticks(40);
 	ieee80211_mesh_confirmtimeout = msecs_to_ticks(40);
@@ -526,6 +577,8 @@ ieee80211_mesh_init(void)
 	    mesh_recv_action_meshpeering_close);
 	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESH,
 	    IEEE80211_ACTION_MESH_LMETRIC, mesh_recv_action_meshlmetric);
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESH,
+	    IEEE80211_ACTION_MESH_GANN, mesh_recv_action_meshgate);
 
 	ieee80211_send_action_register(IEEE80211_ACTION_CAT_SELF_PROT,
 	    IEEE80211_ACTION_MESHPEERING_OPEN,
@@ -539,6 +592,9 @@ ieee80211_mesh_init(void)
 	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESH,
 	    IEEE80211_ACTION_MESH_LMETRIC,
 	    mesh_send_action_meshlmetric);
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESH,
+	    IEEE80211_ACTION_MESH_GANN,
+	    mesh_send_action_meshgate);
 
 	/*
 	 * Register Airtime Link Metric.
@@ -617,6 +673,8 @@ mesh_vattach(struct ieee80211vap *vap)
 	TAILQ_INIT(&ms->ms_routes);
 	mtx_init(&ms->ms_rt_lock, "MBSS", "802.11s routing table", MTX_DEF);
 	callout_init(&ms->ms_cleantimer, CALLOUT_MPSAFE);
+	callout_init(&ms->ms_gatetimer, CALLOUT_MPSAFE);
+	ms->ms_gateseq = 0;
 	mesh_select_proto_metric(vap, "AIRTIME");
 	KASSERT(ms->ms_pmetric, ("ms_pmetric == NULL"));
 	mesh_select_proto_path(vap, "HWMP");
@@ -645,8 +703,10 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (ostate != IEEE80211_S_SCAN)
 		ieee80211_cancel_scan(vap);	/* background scan */
 	ni = vap->iv_bss;			/* NB: no reference held */
-	if (nstate != IEEE80211_S_RUN && ostate == IEEE80211_S_RUN)
+	if (nstate != IEEE80211_S_RUN && ostate == IEEE80211_S_RUN) {
 		callout_drain(&ms->ms_cleantimer);
+		callout_drain(&ms->ms_gatetimer);
+	}
 	switch (nstate) {
 	case IEEE80211_S_INIT:
 		switch (ostate) {
@@ -771,6 +831,7 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_node_authorize(vap->iv_bss);
 		callout_reset(&ms->ms_cleantimer, ms->ms_ppath->mpp_inact,
                     mesh_rt_cleanup_cb, vap);
+		mesh_gatemode_setup(vap);
 		break;
 	default:
 		break;
@@ -2300,19 +2361,77 @@ mesh_recv_action_meshlmetric(struct ieee80211_node *ni,
 	return 0;
 }
 
+/*
+ * Mesh Gate Announcement handling.
+ */
 static int
-mesh_send_action(struct ieee80211_node *ni, struct mbuf *m)
+mesh_recv_action_meshgate(struct ieee80211_node *ni,
+	const struct ieee80211_frame *wh,
+	const uint8_t *frm, const uint8_t *efrm)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_mesh_route *rt_gate;
+	const struct ieee80211_meshgann_ie *ie =
+	    (const struct ieee80211_meshgann_ie *)
+	    (frm+2); /* action + code */
+
+	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, ie->gann_addr,
+	    "%s", "received GANN from meshgate");
+
+	rt_gate = ieee80211_mesh_rt_find(vap, ie->gann_addr);
+	if (rt_gate != NULL &&
+	    rt_gate->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)
+		rt_gate->rt_flags |= IEEE80211_MESHRT_FLAGS_GATE;
+
+	return 0;
+}
+
+static int
+mesh_send_action(struct ieee80211_node *ni,
+    const uint8_t sa[IEEE80211_ADDR_LEN],
+    const uint8_t da[IEEE80211_ADDR_LEN],
+    struct mbuf *m)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_bpf_params params;
+	struct ieee80211_frame *wh;
+
+	KASSERT(ni != NULL, ("null node"));
+
+	if (vap->iv_state == IEEE80211_S_CAC) {
+		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT, ni,
+		    "block %s frame in CAC state", "Mesh action");
+		vap->iv_stats.is_tx_badstate++;
+		ieee80211_free_node(ni);
+		m_freem(m);
+		return EIO;		/* XXX */
+	}
+
+	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
+	if (m == NULL) {
+		ieee80211_free_node(ni);
+		return ENOMEM;
+	}
+
+	wh = mtod(m, struct ieee80211_frame *);
+	ieee80211_send_setup(ni, m,
+	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_ACTION,
+	     IEEE80211_NONQOS_TID, sa, da, sa);
+	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	memset(&params, 0, sizeof(params));
 	params.ibp_pri = WME_AC_VO;
 	params.ibp_rate0 = ni->ni_txparms->mgmtrate;
-	/* XXX ucast/mcast */
-	params.ibp_try0 = ni->ni_txparms->maxretry;
+	if (IEEE80211_IS_MULTICAST(da))
+		params.ibp_try0 = 1;
+	else
+		params.ibp_try0 = ni->ni_txparms->maxretry;
 	params.ibp_power = ni->ni_txpower;
-	return ieee80211_mgmt_output(ni, m, IEEE80211_FC0_SUBTYPE_ACTION,
-	     &params);
+
+	IEEE80211_NODE_STAT(ni, tx_mgmt);
+
+	return ic->ic_raw_xmit(ni, m, &params);
 }
 
 #define	ADDSHORT(frm, v) do {			\
@@ -2380,7 +2499,7 @@ mesh_send_action_meshpeering_open(struct ieee80211_node *ni,
 		frm = ieee80211_add_meshpeer(frm, IEEE80211_ACTION_MESHPEERING_OPEN,
 		    args[0], 0, 0);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
-		return mesh_send_action(ni, m);
+		return mesh_send_action(ni, vap->iv_myaddr, ni->ni_macaddr, m);
 	} else {
 		vap->iv_stats.is_tx_nobuf++;
 		ieee80211_free_node(ni);
@@ -2448,7 +2567,7 @@ mesh_send_action_meshpeering_confirm(struct ieee80211_node *ni,
 		    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 		    args[0], args[1], 0);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
-		return mesh_send_action(ni, m);
+		return mesh_send_action(ni, vap->iv_myaddr, ni->ni_macaddr, m);
 	} else {
 		vap->iv_stats.is_tx_nobuf++;
 		ieee80211_free_node(ni);
@@ -2497,7 +2616,7 @@ mesh_send_action_meshpeering_close(struct ieee80211_node *ni,
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
 		    args[0], args[1], args[2]);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
-		return mesh_send_action(ni, m);
+		return mesh_send_action(ni, vap->iv_myaddr, ni->ni_macaddr, m);
 	} else {
 		vap->iv_stats.is_tx_nobuf++;
 		ieee80211_free_node(ni);
@@ -2545,7 +2664,46 @@ mesh_send_action_meshlmetric(struct ieee80211_node *ni,
 		frm = ieee80211_add_meshlmetric(frm,
 		    ie->lm_flags, ie->lm_metric);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
-		return mesh_send_action(ni, m);
+		return mesh_send_action(ni, vap->iv_myaddr, ni->ni_macaddr, m);
+	} else {
+		vap->iv_stats.is_tx_nobuf++;
+		ieee80211_free_node(ni);
+		return ENOMEM;
+	}
+}
+
+static int
+mesh_send_action_meshgate(struct ieee80211_node *ni,
+	int category, int action, void *arg0)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_meshgann_ie *ie = arg0;
+	struct mbuf *m;
+	uint8_t *frm;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
+	    ni, ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni)+1);
+	ieee80211_ref_node(ni);
+
+	m = ieee80211_getmgtframe(&frm,
+	    ic->ic_headroom + sizeof(struct ieee80211_frame),
+	    sizeof(uint16_t) +	/* action+category */
+	    IEEE80211_MESHGANN_BASE_SZ
+	);
+	if (m != NULL) {
+		/*
+		 * mesh link metric
+		 *   [1] category
+		 *   [1] action
+		 *   [tlv] mesh gate annoucement
+		 */
+		*frm++ = category;
+		*frm++ = action;
+		frm = ieee80211_add_meshgate(frm, ie);
+		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
+		return mesh_send_action(ni, vap->iv_myaddr, broadcastaddr, m);
 	} else {
 		vap->iv_stats.is_tx_nobuf++;
 		ieee80211_free_node(ni);
@@ -2909,6 +3067,24 @@ ieee80211_add_meshlmetric(uint8_t *frm, uint8_t flags, uint32_t metric)
 	ADDWORD(frm, metric);
 	return frm;
 }
+
+/*
+ * Add a Mesh Gate Announcement IE to a frame.
+ */
+uint8_t *
+ieee80211_add_meshgate(uint8_t *frm, struct ieee80211_meshgann_ie *ie)
+{
+	*frm++ = IEEE80211_ELEMID_MESHGANN; /* ie */
+	*frm++ = IEEE80211_MESHGANN_BASE_SZ; /* len */
+	*frm++ = ie->gann_flags;
+	*frm++ = ie->gann_hopcount;
+	*frm++ = ie->gann_ttl;
+	IEEE80211_ADDR_COPY(frm, ie->gann_addr);
+	frm += 6;
+	ADDWORD(frm, ie->gann_seq);
+	ADDSHORT(frm, ie->gann_interval);
+	return frm;
+}
 #undef ADDSHORT
 #undef ADDWORD
 
@@ -3113,6 +3289,7 @@ mesh_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			ms->ms_flags |= IEEE80211_MESHFLAGS_FWD;
 		else
 			ms->ms_flags &= ~IEEE80211_MESHFLAGS_FWD;
+		mesh_gatemode_setup(vap);
 		break;
 	case IEEE80211_IOC_MESH_GATE:
 		if (ireq->i_val)
