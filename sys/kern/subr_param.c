@@ -84,7 +84,6 @@ static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 int	hz;				/* system clock's frequency */
 int	tick;				/* usec per tick (1000000 / hz) */
 struct bintime tick_bt;			/* bintime per tick (1s / hz) */
-struct bintime zero_bt = { 0, 0 };     /* bintime per tick (1s / hz) */
 sbintime_t tick_sbt;
 int	maxusers;			/* base tunable */
 int	maxproc;			/* maximum # of processes */

@@ -159,7 +159,6 @@ sbintime2bintime(sbintime_t sbt)
 #ifdef _KERNEL
 
 extern struct bintime tick_bt;
-extern struct bintime zero_bt;
 extern sbintime_t tick_sbt;
 
 #endif /* KERNEL */ 
@@ -384,7 +383,6 @@ extern volatile time_t	time_uptime;
 extern struct bintime boottimebin;
 extern struct bintime tc_tick_bt;
 extern sbintime_t tc_tick_sbt;
-extern struct bintime zero_bt;
 extern struct timeval boottime;
 extern int tc_precexp;
 extern int tc_timepercentage;
