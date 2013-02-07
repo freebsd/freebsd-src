@@ -287,14 +287,17 @@ struct uaudio_hid {
 	struct usb_xfer *xfer[UAUDIO_HID_N_TRANSFER];
 	struct hid_location volume_up_loc;
 	struct hid_location volume_down_loc;
+	struct hid_location mute_loc;
 	uint32_t flags;
 #define	UAUDIO_HID_VALID		0x0001
 #define	UAUDIO_HID_HAS_ID		0x0002
 #define	UAUDIO_HID_HAS_VOLUME_UP	0x0004
 #define	UAUDIO_HID_HAS_VOLUME_DOWN	0x0008
+#define	UAUDIO_HID_HAS_MUTE		0x0010
 	uint8_t iface_index;
 	uint8_t volume_up_id;
 	uint8_t volume_down_id;
+	uint8_t mute_id;
 };
 
 struct uaudio_softc {
@@ -1011,6 +1014,8 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 	if (mixer_init(dev, mixer_class, sc))
 		goto detach;
 	sc->sc_mixer_init = 1;
+
+	mixer_hwvol_init(dev);
 
 	snprintf(status, sizeof(status), "at ? %s", PCM_KLDSTRING(snd_uaudio));
 
@@ -5520,9 +5525,6 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct uaudio_softc *sc = usbd_xfer_softc(xfer);
 	const uint8_t *buffer = usbd_xfer_get_frame_buffer(xfer, 0);
 	struct snd_mixer *m;
-	int v;
-	int v_l;
-	int v_r;
 	uint8_t id;
 	int actlen;
 
@@ -5543,6 +5545,16 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		m = sc->sc_mixer_dev;
 
+		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_MUTE) &&
+		    (sc->sc_hid.mute_id == id) &&
+		    hid_get_data(buffer, actlen,
+		    &sc->sc_hid.mute_loc)) {
+
+			DPRINTF("Mute toggle\n");
+
+			mixer_hwvol_mute_locked(m);
+		}
+
 		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_UP) &&
 		    (sc->sc_hid.volume_up_id == id) &&
 		    hid_get_data(buffer, actlen,
@@ -5550,13 +5562,7 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			DPRINTF("Volume Up\n");
 
-			v = mix_get_locked(m, SOUND_MIXER_PCM, &v_l, &v_r);
-			if (v == 0) {
-				v = ((v_l + v_r) / 2) + 5;
-				if (v > 100)
-					v = 100;
-				mix_set_locked(m, SOUND_MIXER_PCM, v, v);
-			}
+			mixer_hwvol_step_locked(m, 1, 1);
 		}
 
 		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_DOWN) &&
@@ -5566,13 +5572,7 @@ uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			DPRINTF("Volume Down\n");
 
-			v = mix_get_locked(m, SOUND_MIXER_PCM, &v_l, &v_r);
-			if (v == 0) {
-				v = ((v_l + v_r) / 2) - 5;
-				if (v < 0)
-					v = 0;
-				mix_set_locked(m, SOUND_MIXER_PCM, v, v);
-			}
+			mixer_hwvol_step_locked(m, -1, -1);
 		}
 
 	case USB_ST_SETUP:
@@ -5641,10 +5641,20 @@ uaudio_hid_probe(struct uaudio_softc *sc,
 		DPRINTFN(1, "Found Volume Down key\n");
 	}
 
+	if (hid_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_CONSUMER, 0xE2 /* Mute */),
+	    hid_input, 0, &sc->sc_hid.mute_loc, &flags,
+	    &sc->sc_hid.mute_id)) {
+		if (flags & HIO_VARIABLE)
+			sc->sc_hid.flags |= UAUDIO_HID_HAS_MUTE;
+		DPRINTFN(1, "Found Mute key\n");
+	}
+
 	free(d_ptr, M_TEMP);
 
 	if (!(sc->sc_hid.flags & (UAUDIO_HID_HAS_VOLUME_UP |
-	    UAUDIO_HID_HAS_VOLUME_DOWN))) {
+	    UAUDIO_HID_HAS_VOLUME_DOWN |
+	    UAUDIO_HID_HAS_MUTE))) {
 		DPRINTFN(1, "Did not find any volume related keys\n");
 		return (-1);
 	}
