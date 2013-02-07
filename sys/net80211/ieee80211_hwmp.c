@@ -896,6 +896,45 @@ hwmp_rootmode_rann_cb(void *arg)
 	hwmp_rootmode_setup(vap);
 }
 
+/*
+ * Update forwarding information to TA if metric improves.
+ */
+static void
+hwmp_update_transmitter(struct ieee80211vap *vap, struct ieee80211_node *ni,
+    const char *hwmp_frame)
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_mesh_route *rttran = NULL;	/* Transmitter */
+	int metric = 0;
+
+	rttran = ieee80211_mesh_rt_find(vap, ni->ni_macaddr);
+	if (rttran == NULL) {
+		rttran = ieee80211_mesh_rt_add(vap, ni->ni_macaddr);
+		if (rttran == NULL) {
+			IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
+			    "unable to add path to transmitter %6D of %s",
+			    ni->ni_macaddr, ":", hwmp_frame);
+			vap->iv_stats.is_mesh_rtaddfailed++;
+			return;
+		}
+	}
+	metric = ms->ms_pmetric->mpm_metric(ni);
+	if (!(rttran->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) ||
+	    rttran->rt_metric > metric)
+	{
+		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
+		    "%s path to transmiter %6D of %s, metric %d:%d",
+		    rttran->rt_flags & IEEE80211_MESHRT_FLAGS_VALID ?
+		    "prefer" : "update", ni->ni_macaddr, ":", hwmp_frame,
+		    rttran->rt_metric, metric);
+		IEEE80211_ADDR_COPY(rttran->rt_nexthop, ni->ni_macaddr);
+		rttran->rt_metric = metric;
+		rttran->rt_nhops  = 1;
+		ieee80211_mesh_rt_update(rttran, ms->ms_ppath->mpp_inact);
+		rttran->rt_flags = IEEE80211_MESHRT_FLAGS_VALID;
+	}
+}
+
 #define	PREQ_TFLAGS(n)	preq->preq_targets[n].target_flags
 #define	PREQ_TADDR(n)	preq->preq_targets[n].target_addr
 #define	PREQ_TSEQ(n)	preq->preq_targets[n].target_seq
@@ -1010,10 +1049,8 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		return;
 	}
 
-	/*
-	 * Forwarding information for transmitter mesh STA
-	 * [OPTIONAL: if metric improved]
-	 */
+	/* Update forwarding information to TA if metric improves. */
+	hwmp_update_transmitter(vap, ni, "PREQ");
 
 	/*
 	 * Check if the PREQ is addressed to us.
@@ -1268,7 +1305,6 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * rules defined in 13.10.8.4). If the conditions for creating or
 	 * updating the forwarding information have not been met in those
 	 * rules, no further steps are applied to the PREP.
-	 * [OPTIONAL]: update forwarding information to TA if metric improves.
 	 */
 	rt = ieee80211_mesh_rt_find(vap, prep->prep_targetaddr);
 	if (rt == NULL) {
@@ -1322,6 +1358,9 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		rt->rt_flags &= ~IEEE80211_MESHRT_FLAGS_DISCOVER;
 	}
 	rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID; /* mark valid */
+
+	/* Update forwarding information to TA if metric improves */
+	hwmp_update_transmitter(vap, ni, "PREP");
 
 	/*
 	 * If it's NOT for us, propagate the PREP
