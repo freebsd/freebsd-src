@@ -622,6 +622,45 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 }
 
 static __inline void
+drbr_putback(struct ifnet *ifp, struct buf_ring *br, struct mbuf *new)
+{
+	/*
+	 * The top of the list needs to be swapped 
+	 * for this one.
+	 */
+#ifdef ALTQ
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		/* 
+		 * Peek in altq case dequeued it
+		 * so put it back.
+		 */
+		IFQ_DRV_PREPEND(&ifp->if_snd, new);
+		return;
+	}
+#endif
+	buf_ring_putback_sc(br, new);
+}
+
+static __inline struct mbuf *
+drbr_peek(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	struct mbuf *m;
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		/* 
+		 * Pull it off like a dequeue
+		 * since drbr_advance() does nothing
+		 * for altq and drbr_putback() will
+		 * use the old prepend function.
+		 */
+		IFQ_DEQUEUE(&ifp->if_snd, m);
+		return (m);
+	}
+#endif
+	return(buf_ring_peek(br));
+}
+
+static __inline void
 drbr_flush(struct ifnet *ifp, struct buf_ring *br)
 {
 	struct mbuf *m;
@@ -648,13 +687,25 @@ drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
 #ifdef ALTQ
 	struct mbuf *m;
 
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {	
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		return (m);
 	}
 #endif
 	return (buf_ring_dequeue_sc(br));
 }
+
+static __inline void
+drbr_advance(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	/* Nothing to do here since peek dequeues in altq case */
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd))
+		return;
+#endif
+	return (buf_ring_advance_sc(br));
+}
+
 
 static __inline struct mbuf *
 drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
