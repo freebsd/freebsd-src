@@ -111,10 +111,20 @@ static int ieee80211_mesh_confirmtimeout = -1;
 SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, confirmtimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_mesh_confirmtimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "Confirm state timeout (msec)");
+static int ieee80211_mesh_backofftimeout = -1;
+SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, backofftimeout, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_mesh_backofftimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "Backoff timeout (msec). This is to throutles peering forever when "
+    "not receving answer or is rejected by a neighbor");
 static int ieee80211_mesh_maxretries = 2;
 SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxretries, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_mesh_maxretries, 0,
     "Maximum retries during peer link establishment");
+static int ieee80211_mesh_maxholding = 2;
+SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxholding, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_mesh_maxholding, 0,
+    "Maximum times we are allowed to transition to HOLDING state before "
+    "backinoff during peer link establishment");
 
 static const uint8_t broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -500,6 +510,7 @@ ieee80211_mesh_init(void)
 	ieee80211_mesh_retrytimeout = msecs_to_ticks(40);
 	ieee80211_mesh_holdingtimeout = msecs_to_ticks(40);
 	ieee80211_mesh_confirmtimeout = msecs_to_ticks(40);
+	ieee80211_mesh_backofftimeout = msecs_to_ticks(5000);
 
 	/*
 	 * Register action frame handlers.
@@ -1696,7 +1707,6 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		}
 		/*
 		 * Automatically peer with discovered nodes if possible.
-		 * XXX backoff on repeated failure
 		 */
 		if (ni != vap->iv_bss &&
 		    (ms->ms_flags & IEEE80211_MESHFLAGS_AP)) {
@@ -1704,6 +1714,10 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 			case IEEE80211_NODE_MESH_IDLE:
 			{
 				uint16_t args[1];
+
+				/* Wait for backoff callout to reset counter */
+				if (ni->ni_mlhcnt >= ieee80211_mesh_maxholding)
+					return;
 
 				ni->ni_mlpid = mesh_generateid(vap);
 				if (ni->ni_mlpid == 0)
@@ -2578,6 +2592,15 @@ mesh_peer_timeout_stop(struct ieee80211_node *ni)
 	callout_drain(&ni->ni_mltimer);
 }
 
+static void
+mesh_peer_backoff_cb(void *arg)
+{
+	struct ieee80211_node *ni = (struct ieee80211_node *)arg;
+
+	/* After backoff timeout, try to peer automatically again. */
+	ni->ni_mlhcnt = 0;
+}
+
 /*
  * Mesh Peer Link Management FSM timeout handling.
  */
@@ -2625,6 +2648,11 @@ mesh_peer_timeout_cb(void *arg)
 		mesh_peer_timeout_setup(ni);
 		break;
 	case IEEE80211_NODE_MESH_HOLDING:
+		ni->ni_mlhcnt++;
+		if (ni->ni_mlhcnt >= ieee80211_mesh_maxholding)
+			callout_reset(&ni->ni_mlhtimer,
+			    ieee80211_mesh_backofftimeout,
+			    mesh_peer_backoff_cb, ni);
 		mesh_linkchange(ni, IEEE80211_NODE_MESH_IDLE);
 		break;
 	}
@@ -2889,6 +2917,7 @@ ieee80211_mesh_node_init(struct ieee80211vap *vap, struct ieee80211_node *ni)
 {
 	ni->ni_flags |= IEEE80211_NODE_QOS;
 	callout_init(&ni->ni_mltimer, CALLOUT_MPSAFE);
+	callout_init(&ni->ni_mlhtimer, CALLOUT_MPSAFE);
 }
 
 /*
@@ -2901,6 +2930,7 @@ ieee80211_mesh_node_cleanup(struct ieee80211_node *ni)
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 
 	callout_drain(&ni->ni_mltimer);
+	callout_drain(&ni->ni_mlhtimer);
 	/* NB: short-circuit callbacks after mesh_vdetach */
 	if (vap->iv_mesh != NULL)
 		ms->ms_ppath->mpp_peerdown(ni);
