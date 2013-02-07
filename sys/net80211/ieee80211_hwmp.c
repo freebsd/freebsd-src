@@ -1570,7 +1570,7 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			    "PERR, unknown reason code %u\n", PERR_DFLAGS(i));
 			goto done; /* XXX: stats?? */
 		}
-		ieee80211_mesh_rt_flush_peer(vap, rt->rt_dest);
+		ieee80211_mesh_rt_flush_peer(vap, PERR_DADDR(i));
 		KASSERT(j < 32, ("PERR, error ndest >= 32 (%u)", j));
 	}
 	if (j == 0) {
