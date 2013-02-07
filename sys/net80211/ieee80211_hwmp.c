@@ -995,8 +995,11 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		rtorig->rt_metric = metric;
 		rtorig->rt_nhops  = preq->preq_hopcount + 1;
 		ieee80211_mesh_rt_update(rtorig, preq->preq_lifetime);
-		/* path to orig is valid now */
-		rtorig->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID;
+		/* Path to orig is valid now.
+		 * NB: we know it can't be Proxy, and if it is GATE
+		 * it will be marked below.
+		 */
+		rtorig->rt_flags = IEEE80211_MESHRT_FLAGS_VALID;
 	}else if ((hrtarg != NULL &&
 	    HWMP_SEQ_EQ(hrtarg->hr_seq, PREQ_TSEQ(0)) &&
 	    ((rtorig->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0)) ||
