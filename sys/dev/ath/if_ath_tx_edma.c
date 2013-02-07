@@ -655,7 +655,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 	 * the txq task for _one_ TXQ.  This should be fixed.
 	 */
 	if (dosched)
-		taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txqtask);
+		ath_tx_swq_kick(sc);
 }
 
 static void

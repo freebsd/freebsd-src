@@ -4230,9 +4230,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		ieee80211_ff_flush(ic, txq->axq_ac);
 #endif
 
-	/* Kick the TXQ scheduler */
+	/* Kick the software TXQ scheduler */
 	if (dosched) {
-		taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txqtask);
+		ath_tx_swq_kick(sc);
 	}
 
 	ATH_KTR(sc, ATH_KTR_TXCOMP, 1,
