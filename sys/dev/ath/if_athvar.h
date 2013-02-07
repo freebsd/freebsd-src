@@ -520,8 +520,10 @@ struct ath_softc {
 	char			sc_pcu_mtx_name[32];
 	struct mtx		sc_rx_mtx;	/* RX access mutex */
 	char			sc_rx_mtx_name[32];
-	struct mtx		sc_tx_mtx;	/* TX access mutex */
+	struct mtx		sc_tx_mtx;	/* TX handling/comp mutex */
 	char			sc_tx_mtx_name[32];
+	struct mtx		sc_tx_ic_mtx;	/* TX queue mutex */
+	char			sc_tx_ic_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct taskqueue	*sc_tx_tq;	/* private TX task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
@@ -795,10 +797,8 @@ struct ath_softc {
 #define	ATH_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
 /*
- * The TX lock is non-reentrant and serialises the TX send operations.
- * (ath_start(), ath_raw_xmit().)  It doesn't yet serialise the TX
- * completion operations; thus it can't be used (yet!) to protect
- * hardware / software TXQ operations.
+ * The TX lock is non-reentrant and serialises the TX frame send
+ * and completion operations.
  */
 #define	ATH_TX_LOCK_INIT(_sc) do {\
 	snprintf((_sc)->sc_tx_mtx_name,				\
@@ -814,6 +814,26 @@ struct ath_softc {
 #define	ATH_TX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
 		MA_OWNED)
 #define	ATH_TX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
+		MA_NOTOWNED)
+
+/*
+ * The IC TX lock is non-reentrant and serialises packet queuing from
+ * the upper layers.
+ */
+#define	ATH_TX_IC_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_tx_ic_mtx_name,				\
+	    sizeof((_sc)->sc_tx_ic_mtx_name),				\
+	    "%s IC TX lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_tx_ic_mtx, (_sc)->sc_tx_ic_mtx_name,	\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_TX_IC_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_LOCK(_sc)		mtx_lock(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
+		MA_OWNED)
+#define	ATH_TX_IC_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
 		MA_NOTOWNED)
 
 /*
