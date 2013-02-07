@@ -571,6 +571,9 @@ struct ieee80211_mesh_gate_route *
 		    const uint8_t *, struct ieee80211_mesh_route *);
 void		ieee80211_mesh_forward_to_gates(struct ieee80211vap *,
 		    struct ieee80211_mesh_route *);
+struct ieee80211_node *
+		ieee80211_mesh_find_txnode(struct ieee80211vap *,
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 
 /*
  * Return non-zero if proxy operation is enabled.

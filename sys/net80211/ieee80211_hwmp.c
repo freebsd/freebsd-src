@@ -68,8 +68,7 @@ static void	hwmp_vattach(struct ieee80211vap *);
 static void	hwmp_vdetach(struct ieee80211vap *);
 static int	hwmp_newstate(struct ieee80211vap *,
 		    enum ieee80211_state, int);
-static int	hwmp_send_action(struct ieee80211_node *,
-		    const uint8_t [IEEE80211_ADDR_LEN],
+static int	hwmp_send_action(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    uint8_t *, size_t);
 static uint8_t * hwmp_add_meshpreq(uint8_t *,
@@ -86,23 +85,20 @@ static void	hwmp_rootmode_rann_cb(void *);
 static void	hwmp_recv_preq(struct ieee80211vap *, struct ieee80211_node *,
 		    const struct ieee80211_frame *,
 		    const struct ieee80211_meshpreq_ie *);
-static int	hwmp_send_preq(struct ieee80211_node *,
-		    const uint8_t [IEEE80211_ADDR_LEN],
+static int	hwmp_send_preq(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    struct ieee80211_meshpreq_ie *,
 		    struct timeval *, struct timeval *);
 static void	hwmp_recv_prep(struct ieee80211vap *, struct ieee80211_node *,
 		    const struct ieee80211_frame *,
 		    const struct ieee80211_meshprep_ie *);
-static int	hwmp_send_prep(struct ieee80211_node *,
-		    const uint8_t [IEEE80211_ADDR_LEN],
+static int	hwmp_send_prep(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    struct ieee80211_meshprep_ie *);
 static void	hwmp_recv_perr(struct ieee80211vap *, struct ieee80211_node *,
 		    const struct ieee80211_frame *,
 		    const struct ieee80211_meshperr_ie *);
-static int	hwmp_send_perr(struct ieee80211_node *,
-		    const uint8_t [IEEE80211_ADDR_LEN],
+static int	hwmp_send_perr(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    struct ieee80211_meshperr_ie *);
 static void	hwmp_senderror(struct ieee80211vap *,
@@ -111,8 +107,7 @@ static void	hwmp_senderror(struct ieee80211vap *,
 static void	hwmp_recv_rann(struct ieee80211vap *, struct ieee80211_node *,
 		   const struct ieee80211_frame *,
 		   const struct ieee80211_meshrann_ie *);
-static int	hwmp_send_rann(struct ieee80211_node *,
-		    const uint8_t [IEEE80211_ADDR_LEN],
+static int	hwmp_send_rann(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN],
 		    struct ieee80211_meshrann_ie *);
 static struct ieee80211_node *
@@ -588,16 +583,29 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 }
 
 static int
-hwmp_send_action(struct ieee80211_node *ni,
-    const uint8_t sa[IEEE80211_ADDR_LEN],
+hwmp_send_action(struct ieee80211vap *vap,
     const uint8_t da[IEEE80211_ADDR_LEN],
     uint8_t *ie, size_t len)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_node *ni;
+	struct ieee80211com *ic;
 	struct ieee80211_bpf_params params;
 	struct mbuf *m;
 	uint8_t *frm;
+
+	if (IEEE80211_IS_MULTICAST(da)) {
+		ni = ieee80211_ref_node(vap->iv_bss);
+#ifdef IEEE80211_DEBUG_REFCNT
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+		"ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n",
+		__func__, __LINE__,
+		ni, ether_sprintf(ni->ni_macaddr),
+		ieee80211_node_refcnt(ni)+1);
+#endif
+		ieee80211_ref_node(ni);
+	}
+	else
+		ni = ieee80211_mesh_find_txnode(vap, da);
 
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT, ni,
@@ -607,19 +615,7 @@ hwmp_send_action(struct ieee80211_node *ni,
 	}
 
 	KASSERT(ni != NULL, ("null node"));
-	/*
-	 * Hold a reference on the node so it doesn't go away until after
-	 * the xmit is complete all the way in the driver.  On error we
-	 * will remove our reference.
-	 */
-#ifdef IEEE80211_DEBUG_REFCNT
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
-	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n",
-	    __func__, __LINE__,
-	    ni, ether_sprintf(ni->ni_macaddr),
-	    ieee80211_node_refcnt(ni)+1);
-#endif
-	ieee80211_ref_node(ni);
+	ic = ni->ni_ic;
 
 	m = ieee80211_getmgtframe(&frm,
 	    ic->ic_headroom + sizeof(struct ieee80211_frame),
@@ -660,7 +656,7 @@ hwmp_send_action(struct ieee80211_node *ni,
 	}
 	ieee80211_send_setup(ni, m,
 	    IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_ACTION,
-	    IEEE80211_NONQOS_TID, sa, da, sa);
+	    IEEE80211_NONQOS_TID, vap->iv_myaddr, da, vap->iv_myaddr);
 
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
@@ -862,8 +858,8 @@ hwmp_rootmode_cb(void *arg)
 	    IEEE80211_MESHPREQ_TFLAGS_USN;
 	PREQ_TSEQ(0) = 0;
 	vap->iv_stats.is_hwmp_rootreqs++;
-	hwmp_send_preq(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &preq,
-	    NULL, NULL);	/* NB: we enforce rate check ourself */
+	/* NB: we enforce rate check ourself */
+	hwmp_send_preq(vap, broadcastaddr, &preq, NULL, NULL);
 	hwmp_rootmode_setup(vap);
 }
 #undef	PREQ_TFLAGS
@@ -896,7 +892,7 @@ hwmp_rootmode_rann_cb(void *arg)
 	rann.rann_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 
 	vap->iv_stats.is_hwmp_rootrann++;
-	hwmp_send_rann(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &rann);
+	hwmp_send_rann(vap, broadcastaddr, &rann);
 	hwmp_rootmode_setup(vap);
 }
 
@@ -1060,7 +1056,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 		    "reply to %6D", preq->preq_origaddr, ":");
-		hwmp_send_prep(ni, vap->iv_myaddr, wh->i_addr2, &prep);
+		hwmp_send_prep(vap, wh->i_addr2, &prep);
 		return;
 	}
 	/* we may update our proxy information for the orig external */
@@ -1119,8 +1115,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			IEEE80211_ADDR_COPY(prep.prep_targetaddr,
 			    vap->iv_myaddr);
 			prep.prep_targetseq = ++hs->hs_seq;
-			hwmp_send_prep(vap->iv_bss, vap->iv_myaddr,
-			    rtorig->rt_nexthop, &prep);
+			hwmp_send_prep(vap, rtorig->rt_nexthop, &prep);
 		}
 	}
 
@@ -1161,8 +1156,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 				IEEE80211_ADDR_COPY(&prep.prep_origaddr,
 				    preq->preq_origaddr);
 				prep.prep_origseq = hrorig->hr_seq;
-				hwmp_send_prep(ni, vap->iv_myaddr,
-				    rtorig->rt_nexthop, &prep);
+				hwmp_send_prep(vap, rtorig->rt_nexthop, &prep);
 
 				/*
 				 * Set TO and unset RF bits because we have
@@ -1181,8 +1175,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		ppreq.preq_metric += ms->ms_pmetric->mpm_metric(ni);
 
 		/* don't do PREQ ratecheck when we propagate */
-		hwmp_send_preq(ni, vap->iv_myaddr, broadcastaddr,
-			&ppreq, NULL, NULL);
+		hwmp_send_preq(vap, broadcastaddr, &ppreq, NULL, NULL);
 	}
 }
 #undef	PREQ_TFLAGS
@@ -1190,8 +1183,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 #undef	PREQ_TSEQ
 
 static int
-hwmp_send_preq(struct ieee80211_node *ni,
-    const uint8_t sa[IEEE80211_ADDR_LEN],
+hwmp_send_preq(struct ieee80211vap *vap,
     const uint8_t da[IEEE80211_ADDR_LEN],
     struct ieee80211_meshpreq_ie *preq,
     struct timeval *last, struct timeval *minint)
@@ -1220,7 +1212,7 @@ hwmp_send_preq(struct ieee80211_node *ni,
 	preq->preq_len = (preq->preq_flags & IEEE80211_MESHPREQ_FLAGS_AE ?
 	    IEEE80211_MESHPREQ_BASE_SZ_AE : IEEE80211_MESHPREQ_BASE_SZ) +
 	    preq->preq_tcount * IEEE80211_MESHPREQ_TRGT_SZ;
-	return hwmp_send_action(ni, sa, da, (uint8_t *)preq, preq->preq_len+2);
+	return hwmp_send_action(vap, da, (uint8_t *)preq, preq->preq_len+2);
 }
 
 static void
@@ -1354,7 +1346,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		pprep.prep_hopcount += 1;
 		pprep.prep_ttl -= 1;
 		pprep.prep_metric += ms->ms_pmetric->mpm_metric(ni);
-		hwmp_send_prep(ni, vap->iv_myaddr, rtorig->rt_nexthop, &pprep);
+		hwmp_send_prep(vap, rtorig->rt_nexthop, &pprep);
 
 		/* precursor list for the Target Mesh STA Address is updated */
 	}
@@ -1436,8 +1428,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 }
 
 static int
-hwmp_send_prep(struct ieee80211_node *ni,
-    const uint8_t sa[IEEE80211_ADDR_LEN],
+hwmp_send_prep(struct ieee80211vap *vap,
     const uint8_t da[IEEE80211_ADDR_LEN],
     struct ieee80211_meshprep_ie *prep)
 {
@@ -1455,8 +1446,7 @@ hwmp_send_prep(struct ieee80211_node *ni,
 	prep->prep_ie = IEEE80211_ELEMID_MESHPREP;
 	prep->prep_len = prep->prep_flags & IEEE80211_MESHPREP_FLAGS_AE ?
 	    IEEE80211_MESHPREP_BASE_SZ_AE : IEEE80211_MESHPREP_BASE_SZ;
-	return hwmp_send_action(ni, sa, da, (uint8_t *)prep,
-	    prep->prep_len + 2);
+	return hwmp_send_action(vap, da, (uint8_t *)prep, prep->prep_len + 2);
 }
 
 #define	PERR_DFLAGS(n)	perr.perr_dests[n].dest_flags
@@ -1489,7 +1479,7 @@ hwmp_peerdown(struct ieee80211_node *ni)
 	PERR_DRCODE(0) = IEEE80211_REASON_MESH_PERR_DEST_UNREACH;
 	/* NB: flush everything passing through peer */
 	ieee80211_mesh_rt_flush_peer(vap, ni->ni_macaddr);
-	hwmp_send_perr(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &perr);
+	hwmp_send_perr(vap, broadcastaddr, &perr);
 }
 #undef	PERR_DFLAGS
 #undef	PERR_DADDR
@@ -1592,8 +1582,7 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		    "propagate PERR from %6D", wh->i_addr2, ":");
 		pperr->perr_ndests = j;
 		pperr->perr_ttl--;
-		hwmp_send_perr(vap->iv_bss, vap->iv_myaddr, broadcastaddr,
-		    pperr);
+		hwmp_send_perr(vap, broadcastaddr, pperr);
 	}
 done:
 	if (pperr != NULL)
@@ -1606,12 +1595,11 @@ done:
 #undef	PERR_DRCODE
 
 static int
-hwmp_send_perr(struct ieee80211_node *ni,
-    const uint8_t sa[IEEE80211_ADDR_LEN],
+hwmp_send_perr(struct ieee80211vap *vap,
     const uint8_t da[IEEE80211_ADDR_LEN],
     struct ieee80211_meshperr_ie *perr)
 {
-	struct ieee80211_hwmp_state *hs = ni->ni_vap->iv_hwmp;
+	struct ieee80211_hwmp_state *hs = vap->iv_hwmp;
 	int i;
 	uint8_t length = 0;
 
@@ -1642,7 +1630,7 @@ hwmp_send_perr(struct ieee80211_node *ni,
 		length += IEEE80211_MESHPERR_DEST_SZ;
 	}
 	perr->perr_len =length;
-	return hwmp_send_action(ni, sa, da, (uint8_t *)perr, perr->perr_len+2);
+	return hwmp_send_action(vap, da, (uint8_t *)perr, perr->perr_len+2);
 }
 
 /*
@@ -1695,7 +1683,7 @@ hwmp_senderror(struct ieee80211vap *vap,
 	default:
 		KASSERT(0, ("unknown reason code for HWMP PERR (%u)", rcode));
 	}
-	hwmp_send_perr(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &perr);
+	hwmp_send_perr(vap, broadcastaddr, &perr);
 }
 #undef	PERR_DFLAGS
 #undef	PEER_DADDR
@@ -1782,8 +1770,8 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	IEEE80211_ADDR_COPY(preq.preq_targets[0].target_addr, rann->rann_addr);
 	preq.preq_targets[0].target_seq = rann->rann_seq;
 	/* XXX: if rootconfint have not passed, we built this preq in vain */
-	hwmp_send_preq(vap->iv_bss, vap->iv_myaddr, wh->i_addr2, &preq,
-	    &hr->hr_lastrootconf, &ieee80211_hwmp_rootconfint);
+	hwmp_send_preq(vap, wh->i_addr2, &preq, &hr->hr_lastrootconf,
+	    &ieee80211_hwmp_rootconfint);
 
 	/* propagate a RANN */
 	if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID &&
@@ -1794,14 +1782,12 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		prann.rann_hopcount += 1;
 		prann.rann_ttl -= 1;
 		prann.rann_metric += ms->ms_pmetric->mpm_metric(ni);
-		hwmp_send_rann(vap->iv_bss, vap->iv_myaddr,
-		    broadcastaddr, &prann);
+		hwmp_send_rann(vap, broadcastaddr, &prann);
 	}
 }
 
 static int
-hwmp_send_rann(struct ieee80211_node *ni,
-    const uint8_t sa[IEEE80211_ADDR_LEN],
+hwmp_send_rann(struct ieee80211vap *vap,
     const uint8_t da[IEEE80211_ADDR_LEN],
     struct ieee80211_meshrann_ie *rann)
 {
@@ -1816,8 +1802,7 @@ hwmp_send_rann(struct ieee80211_node *ni,
 	 */
 	rann->rann_ie = IEEE80211_ELEMID_MESHRANN;
 	rann->rann_len = IEEE80211_MESHRANN_BASE_SZ;
-	return hwmp_send_action(ni, sa, da, (uint8_t *)rann,
-	    rann->rann_len + 2);
+	return hwmp_send_action(vap, da, (uint8_t *)rann, rann->rann_len + 2);
 }
 
 #define	PREQ_TFLAGS(n)	preq.preq_targets[n].target_flags
@@ -1872,9 +1857,8 @@ hwmp_rediscover_cb(void *arg)
 	PREQ_TFLAGS(0) |= IEEE80211_MESHPREQ_TFLAGS_USN;
 	PREQ_TSEQ(0) = 0; /* RESERVED when USN flag is set */
 	/* XXX check return value */
-	hwmp_send_preq(vap->iv_bss, vap->iv_myaddr,
-		broadcastaddr, &preq, &hr->hr_lastpreq,
-		&ieee80211_hwmp_preqminint);
+	hwmp_send_preq(vap, broadcastaddr, &preq, &hr->hr_lastpreq,
+	    &ieee80211_hwmp_preqminint);
 	callout_reset(&rt->rt_discovery,
 		ieee80211_hwmp_net_diameter_traversaltime * 2,
 		hwmp_rediscover_cb, rt);
@@ -1970,9 +1954,8 @@ hwmp_discover(struct ieee80211vap *vap,
 			PREQ_TFLAGS(0) |= IEEE80211_MESHPREQ_TFLAGS_USN;
 			PREQ_TSEQ(0) = 0; /* RESERVED when USN flag is set */
 			/* XXX check return value */
-			hwmp_send_preq(vap->iv_bss, vap->iv_myaddr,
-			    broadcastaddr, &preq, &hr->hr_lastpreq,
-			    &ieee80211_hwmp_preqminint);
+			hwmp_send_preq(vap, broadcastaddr, &preq,
+			    &hr->hr_lastpreq, &ieee80211_hwmp_preqminint);
 			callout_reset(&rt->rt_discovery,
 			    ieee80211_hwmp_net_diameter_traversaltime * 2,
 			    hwmp_rediscover_cb, rt);
