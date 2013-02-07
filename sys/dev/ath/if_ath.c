@@ -2687,7 +2687,7 @@ ath_txq_qadd(struct ifnet *ifp, struct mbuf *m0)
 	struct mbuf *m;
 
 	/* XXX recursive TX completion -> TX? */
-	ATH_TX_UNLOCK_ASSERT(sc);
+	ATH_TX_IC_UNLOCK_ASSERT(sc);
 
 	/*
 	 * We grab the node pointer, but we don't deref
@@ -2749,7 +2749,7 @@ ath_txq_qadd(struct ifnet *ifp, struct mbuf *m0)
 	 * into the driver.
 	 */
 
-	ATH_TX_LOCK(sc);
+	ATH_TX_IC_LOCK(sc);
 
 	/*
 	 * Throw the single frame onto the queue.
@@ -2797,7 +2797,7 @@ ath_txq_qadd(struct ifnet *ifp, struct mbuf *m0)
 
 		m = m->m_nextpkt;
 	}
-	ATH_TX_UNLOCK(sc);
+	ATH_TX_IC_UNLOCK(sc);
 
 	return (0);
 bad:
@@ -2825,13 +2825,13 @@ ath_txq_qflush(struct ifnet *ifp)
 	TAILQ_INIT(&txlist);
 
 	/* Grab lock */
-	ATH_TX_LOCK(sc);
+	ATH_TX_IC_LOCK(sc);
 
 	/* Copy everything out of sc_txbuf_list into txlist */
 	TAILQ_CONCAT(&txlist, &sc->sc_txbuf_list, bf_list);
 
 	/* Unlock */
-	ATH_TX_UNLOCK(sc);
+	ATH_TX_IC_UNLOCK(sc);
 
 	/* Now, walk the list, freeing things */
 	while ((bf = TAILQ_FIRST(&txlist)) != NULL) {
@@ -2879,16 +2879,9 @@ ath_txq_qrun(struct ifnet *ifp)
 	 */
 
 	/* Copy everything out of sc_txbuf_list into txlist */
-	ATH_TX_LOCK(sc);
+	ATH_TX_IC_LOCK(sc);
 	TAILQ_CONCAT(&txlist, &sc->sc_txbuf_list, bf_list);
-	ATH_TX_UNLOCK(sc);
-
-	/*
-	 * For now, the ath_tx_start() code sits behind the same lock;
-	 * worry about serialising this in a taskqueue later.
-	 */
-
-	ATH_TX_LOCK(sc);
+	ATH_TX_IC_UNLOCK(sc);
 
 	/*
 	 * Attempt to transmit each frame.
@@ -2899,6 +2892,7 @@ ath_txq_qrun(struct ifnet *ifp)
 	 * It would be nice to chain together TX fragments in this
 	 * way so they can be aborted together.
 	 */
+	ATH_TX_LOCK(sc);
 	TAILQ_FOREACH_SAFE(bf, &txlist, bf_list, bf_next) {
 		/*
 		 * Clear, because we're going to reuse this
