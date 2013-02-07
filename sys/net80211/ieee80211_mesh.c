@@ -1022,6 +1022,71 @@ mesh_find_txnode(struct ieee80211vap *vap,
 }
 
 /*
+ * Forward the queued frames to known valid mesh gates.
+ * Assume destination to be outside the MBSS (i.e. proxy entry),
+ * If no valid mesh gates are known silently discard queued frames.
+ * If there is no 802.2 path route will be timedout.
+ */
+void
+ieee80211_mesh_forward_to_gates(struct ieee80211vap *vap,
+    struct ieee80211_mesh_route *rt_dest)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ifnet *ifp = vap->iv_ifp;
+	struct ieee80211_mesh_route *rt_gate;
+	struct ieee80211_mesh_gate_route *gr = NULL, *gr_next;
+	struct mbuf *m, *next;
+	int gates_found = 0;
+
+	KASSERT( rt_dest->rt_flags == IEEE80211_MESHRT_FLAGS_DISCOVER,
+	    ("Route is not marked with IEEE80211_MESHRT_FLAGS_DISCOVER"));
+
+	/* XXX: send to more than one valid mash gate */
+	MESH_RT_LOCK(ms);
+	TAILQ_FOREACH_SAFE(gr, &ms->ms_known_gates, gr_next, gr_next) {
+		rt_gate = gr->gr_route;
+		if (rt_gate == NULL) {
+			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP,
+				rt_dest->rt_dest,
+				"mesh gate with no path %6D",
+				gr->gr_addr, ":");
+			continue;
+		}
+		gates_found = 1;
+		/* convert route to a proxy route */
+		rt_dest->rt_flags = IEEE80211_MESHRT_FLAGS_PROXY |
+			IEEE80211_MESHRT_FLAGS_VALID;
+		rt_dest->rt_ext_seq = 1; /* random value */
+		IEEE80211_ADDR_COPY(rt_dest->rt_mesh_gate, rt_gate->rt_dest);
+		IEEE80211_ADDR_COPY(rt_dest->rt_nexthop, rt_gate->rt_nexthop);
+		rt_dest->rt_metric = rt_gate->rt_metric;
+		rt_dest->rt_nhops = rt_gate->rt_nhops;
+		ieee80211_mesh_rt_update(rt_dest, ms->ms_ppath->mpp_inact);
+		MESH_RT_UNLOCK(ms);
+		m = ieee80211_ageq_remove(&ic->ic_stageq,
+		(struct ieee80211_node *)(uintptr_t)
+		ieee80211_mac_hash(ic, rt_dest->rt_dest));
+		for (; m != NULL; m = next) {
+			next = m->m_nextpkt;
+			m->m_nextpkt = NULL;
+			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, rt_dest->rt_dest,
+			"flush queued frame %p len %d", m, m->m_pkthdr.len);
+			ifp->if_transmit(ifp, m);
+		}
+		MESH_RT_LOCK(ms);
+	}
+
+	if (gates_found == 0) {
+		rt_dest->rt_flags = 0; /* Mark invalid */
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, rt_dest->rt_dest,
+		    "%s", "no mesh gate found, or no path setup for mesh gate yet");
+	}
+	MESH_RT_UNLOCK(ms);
+
+}
+
+/*
  * Forward the specified frame.
  * Decrement the TTL and set TA to our MAC address.
  */

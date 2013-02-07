@@ -1839,12 +1839,11 @@ hwmp_rediscover_cb(void *arg)
 	hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
 	if (hr->hr_preqretries >=
 		ieee80211_hwmp_maxpreq_retries) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-			rt->rt_dest, NULL, "%s",
-			"no valid path , max number of discovery, send GATE");
-		/* TODO: send to known gates */
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_ANY,
+			rt->rt_dest, "%s",
+			"max number of discovery, send queued frames to GATE");
+		ieee80211_mesh_forward_to_gates(vap, rt);
 		vap->iv_stats.is_mesh_fwd_nopath++;
-		rt->rt_flags = 0; /* Mark invalid */
 		return ; /* XXX: flush queue? */
 	}
 
@@ -1914,6 +1913,12 @@ hwmp_discover(struct ieee80211vap *vap,
 		}
 		hr = IEEE80211_MESH_ROUTE_PRIV(rt,
 		    struct ieee80211_hwmp_route);
+		if (rt->rt_flags & IEEE80211_MESHRT_FLAGS_DISCOVER) {
+			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, dest,
+			    "%s", "already discovering queue frame until path found");
+			sendpreq = 1;
+			goto done;
+		}
 		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0) {
 			if (hr->hr_lastdiscovery != 0 &&
 			    (ticks - hr->hr_lastdiscovery <
@@ -1921,7 +1926,7 @@ hwmp_discover(struct ieee80211vap *vap,
 				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 			            dest, NULL, "%s",
 				    "too frequent discovery requeust");
-				/* XXX: stats? */
+				sendpreq = 1;
 				goto done;
 			}
 			hr->hr_lastdiscovery = ticks;
