@@ -1528,7 +1528,7 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 */
 	for (i = 0; i < perr->perr_ndests; i++) {
 		rt = ieee80211_mesh_rt_find(vap, PERR_DADDR(i));
-		if (rt == NULL || rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)
+		if (rt == NULL)
 			continue;
 		if (!IEEE80211_ADDR_EQ(rt->rt_nexthop, wh->i_addr2))
 			continue;
