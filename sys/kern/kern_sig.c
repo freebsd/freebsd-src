@@ -2618,7 +2618,7 @@ issignal(struct thread *td, int stop_allowed)
 			sigqueue_delete(&p->p_sigqueue, sig);
 			continue;
 		}
-		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
+		if (p->p_flag & P_TRACED && (p->p_flag & P_PPTRACE) == 0) {
 			/*
 			 * If traced, always stop.
 			 * Remove old signal from queue before the stop.
