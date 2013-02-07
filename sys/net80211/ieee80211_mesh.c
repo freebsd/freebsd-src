@@ -77,9 +77,6 @@ static void	mesh_checkid(void *, struct ieee80211_node *);
 static uint32_t	mesh_generateid(struct ieee80211vap *);
 static int	mesh_checkpseq(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN], uint32_t);
-static struct ieee80211_node *
-		mesh_find_txnode(struct ieee80211vap *,
-		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	mesh_transmit_to_gate(struct ieee80211vap *, struct mbuf *,
 		    struct ieee80211_mesh_route *);
 static void	mesh_forward(struct ieee80211vap *, struct mbuf *,
@@ -1005,8 +1002,8 @@ mesh_checkpseq(struct ieee80211vap *vap,
 /*
  * Iterate the routing table and locate the next hop.
  */
-static struct ieee80211_node *
-mesh_find_txnode(struct ieee80211vap *vap,
+struct ieee80211_node *
+ieee80211_mesh_find_txnode(struct ieee80211vap *vap,
     const uint8_t dest[IEEE80211_ADDR_LEN])
 {
 	struct ieee80211_mesh_route *rt;
@@ -1046,7 +1043,7 @@ mesh_transmit_to_gate(struct ieee80211vap *vap, struct mbuf *m,
 	int error;
 
 	eh = mtod(m, struct ether_header *);
-	ni = mesh_find_txnode(vap, rt_gate->rt_dest);
+	ni = ieee80211_mesh_find_txnode(vap, rt_gate->rt_dest);
 	if (ni == NULL) {
 		ifp->if_oerrors++;
 		m_freem(m);
@@ -1293,7 +1290,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 		ni = ieee80211_ref_node(vap->iv_bss);
 		mcopy->m_flags |= M_MCAST;
 	} else {
-		ni = mesh_find_txnode(vap, whcopy->i_addr3);
+		ni = ieee80211_mesh_find_txnode(vap, whcopy->i_addr3);
 		if (ni == NULL) {
 			/*
 			 * [Optional] any of the following three actions:
