@@ -262,6 +262,10 @@ ieee80211_start(struct ifnet *ifp)
 					m_freem(m);
 					continue;
 				}
+				IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
+				    "forward frame from DS SA(%6D), DA(%6D)\n",
+				    eh->ether_dhost, ":",
+				    eh->ether_shost, ":");
 				ieee80211_mesh_proxy_check(vap, eh->ether_shost);
 			}
 			ni = ieee80211_mesh_discover(vap, eh->ether_dhost, m);

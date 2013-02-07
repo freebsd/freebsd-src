@@ -1246,6 +1246,9 @@ mesh_recv_indiv_data_to_me(struct ieee80211vap *vap, struct mbuf *m,
 		 * All other cases: forward of MSDUs from the MBSS to DS indiv.
 		 * addressed according to 13.11.3.2.
 		 */
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_OUTPUT, qwh->i_addr2,
+		    "forward frame to DS, SA(%6D) DA(%6D)",
+		    mc10->mc_addr6, ":", mc10->mc_addr5, ":");
 	}
 	return (0); /* process locally */
 }
