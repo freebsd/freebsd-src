@@ -1166,29 +1166,27 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 		return status;
 	}
 
-	if (m == NULL)
-		next = drbr_dequeue(ifp, br);		
-	else if (drbr_needs_enqueue(ifp, br)) {
+	 if (m != NULL) {
 		if ((status = drbr_enqueue(ifp, br, m)) != 0)
 			return status;
-		next = drbr_dequeue(ifp, br);
-	} else
-		next = m;
-
-	while (next != NULL) {
+	} 
+	while ((next = drbr_peek(ifp, br)) != NULL) {
 		if (oce_tx(sc, &next, queue_index)) {
-			if (next != NULL) {
+			if (next == NULL) {
+				drbr_advance(ifp, br);
+			} else {
+				drbr_putback(ifp, br, next);
 				wq->tx_stats.tx_stops ++;
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				status = drbr_enqueue(ifp, br, next);
 			}  
 			break;
 		}
+		drbr_advance(ifp, br);
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
 			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
-		next = drbr_dequeue(ifp, br);
 	}
 
 	return status;
