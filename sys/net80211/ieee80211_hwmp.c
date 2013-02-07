@@ -997,10 +997,10 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 * it will be marked below.
 		 */
 		rtorig->rt_flags = IEEE80211_MESHRT_FLAGS_VALID;
-	}else if ((hrtarg != NULL &&
-	    HWMP_SEQ_EQ(hrtarg->hr_seq, PREQ_TSEQ(0)) &&
-	    ((rtorig->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0)) ||
-	    preqid >= preq->preq_id) {
+	} else if ((hrtarg != NULL &&
+	    !HWMP_SEQ_EQ(hrtarg->hr_seq, PREQ_TSEQ(0))) ||
+	    (rtorig->rt_flags & IEEE80211_MESHRT_FLAGS_VALID &&
+	    preqid >= preq->preq_id)) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 		    "discard PREQ from %6D, old seqno %u <= %u,"
 		    " or old preqid %u < %u",
