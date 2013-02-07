@@ -30,11 +30,10 @@
 #define __VM_RADIX_H_
 
 /*
- * Radix tree root.  The height and pointer are set together to permit
- * coherent lookups while the root is modified.
+ * Radix tree root.
  */
 struct vm_radix {
-	uintptr_t	rt_root;		/* root + height */
+	uintptr_t	rt_root;
 };
 
 #endif /* !__VM_RADIX_H_ */
