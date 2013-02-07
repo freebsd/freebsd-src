@@ -1017,10 +1017,12 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 
 	/*
 	 * Check if the PREQ is addressed to us.
-	 * or a Proxy currently supplied by us.
+	 * or a Proxy currently gated by us.
 	 */
 	if (IEEE80211_ADDR_EQ(vap->iv_myaddr, PREQ_TADDR(0)) ||
-	    (rttarg != NULL &&
+	    (ms->ms_flags & IEEE80211_MESHFLAGS_GATE &&
+	    rttarg != NULL &&
+	    IEEE80211_ADDR_EQ(vap->iv_myaddr, rttarg->rt_mesh_gate) &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY &&
 	    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)) {
 		/*
@@ -1031,6 +1033,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 
 		prep.prep_flags = 0;
 		prep.prep_hopcount = 0;
+		prep.prep_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 		IEEE80211_ADDR_COPY(prep.prep_targetaddr, vap->iv_myaddr);
 		if (rttarg != NULL && /* if NULL it means we are the target */
 		    rttarg->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY) {
@@ -1042,6 +1045,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			/* update proxy seqno to HWMP seqno */
 			rttarg->rt_ext_seq = hs->hs_seq;
 			prep.prep_hopcount = rttarg->rt_nhops;
+			prep.prep_metric = rttarg->rt_metric;
 			IEEE80211_ADDR_COPY(prep.prep_targetaddr, rttarg->rt_mesh_gate);
 		}
 		/*
@@ -1050,7 +1054,6 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		prep.prep_ttl = ms->ms_ttl;
 		prep.prep_targetseq = hs->hs_seq;
 		prep.prep_lifetime = preq->preq_lifetime;
-		prep.prep_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 		IEEE80211_ADDR_COPY(prep.prep_origaddr, preq->preq_origaddr);
 		prep.prep_origseq = preq->preq_origseq;
 
