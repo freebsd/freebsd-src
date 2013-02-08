@@ -259,26 +259,26 @@ upgt_attach(device_t dev)
 	callout_init(&sc->sc_led_ch, 0);
 	callout_init(&sc->sc_watchdog_ch, 0);
 
-	/* Allocate TX and RX xfers.  */
-	error = upgt_alloc_tx(sc);
-	if (error)
-		goto fail1;
-	error = upgt_alloc_rx(sc);
-	if (error)
-		goto fail2;
-
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    upgt_config, UPGT_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
 		    "err=%s\n", usbd_errstr(error));
-		goto fail3;
+		goto fail1;
 	}
 
 	sc->sc_rx_dma_buf = usbd_xfer_get_frame_buffer(
 	    sc->sc_xfer[UPGT_BULK_RX], 0);
 	sc->sc_tx_dma_buf = usbd_xfer_get_frame_buffer(
 	    sc->sc_xfer[UPGT_BULK_TX], 0);
+
+	/* Setup TX and RX buffers */
+	error = upgt_alloc_tx(sc);
+	if (error)
+		goto fail2;
+	error = upgt_alloc_rx(sc);
+	if (error)
+		goto fail3;
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
@@ -382,9 +382,9 @@ upgt_attach(device_t dev)
 	return (0);
 
 fail5:	if_free(ifp);
-fail4:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
-fail3:	upgt_free_rx(sc);
-fail2:	upgt_free_tx(sc);
+fail4:	upgt_free_rx(sc);
+fail3:	upgt_free_tx(sc);
+fail2:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 fail1:	mtx_destroy(&sc->sc_mtx);
 
 	return (error);
