@@ -320,8 +320,8 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	struct buf *bp;
 	uint32_t e2fs_descpb;
 
-	fs->e2fs_bsize = EXT2_MIN_BLOCK_SIZE << es->e2fs_log_bsize;
 	fs->e2fs_bshift = EXT2_MIN_BLOCK_LOG_SIZE + es->e2fs_log_bsize;
+	fs->e2fs_bsize = 1U << fs->e2fs_bshift;
 	fs->e2fs_fsbtodb = es->e2fs_log_bsize + 1;
 	fs->e2fs_qbmask = fs->e2fs_bsize - 1;
 	fs->e2fs_fsize = EXT2_MIN_FRAG_SIZE << es->e2fs_log_fsize;
