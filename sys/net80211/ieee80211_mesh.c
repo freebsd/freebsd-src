@@ -60,6 +60,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_action.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 #include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_mesh.h>
 
@@ -110,6 +113,7 @@ SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, retrytimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_mesh_retrytimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "Retry timeout (msec)");
 static int ieee80211_mesh_holdingtimeout = -1;
+
 SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, holdingtimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_mesh_holdingtimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "Holding state timeout (msec)");
