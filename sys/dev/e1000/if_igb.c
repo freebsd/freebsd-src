@@ -350,6 +350,16 @@ TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
 SYSCTL_INT(_hw_igb, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &igb_max_interrupt_rate, 0, "Maximum interrupts per second");
 
+#if __FreeBSD_version >= 800000
+/*
+** Tuneable number of buffers in the buf-ring (drbr_xxx)
+*/
+static int igb_buf_ring_size = IGB_BR_SIZE;
+TUNABLE_INT("hw.igb.buf_ring_size", &igb_buf_ring_size);
+SYSCTL_INT(_hw_igb, OID_AUTO, buf_ring_size, CTLFLAG_RDTUN,
+    &igb_buf_ring_size, 0, "Size of the bufring");
+#endif
+
 /*
 ** Header split causes the packet header to
 ** be dma'd to a seperate mbuf from the payload.
@@ -965,12 +975,13 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 		** out-of-order delivery, but 
 		** settle for it if that fails
 		*/
-		if (m)
+		if (m != NULL)
 			drbr_enqueue(ifp, txr->br, m);
 		err = igb_mq_start_locked(ifp, txr);
 		IGB_TX_UNLOCK(txr);
 	} else {
-		err = drbr_enqueue(ifp, txr->br, m);
+		if (m != NULL)
+			err = drbr_enqueue(ifp, txr->br, m);
 		taskqueue_enqueue(que->tq, &txr->txq_task);
 	}
 
@@ -994,12 +1005,22 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	enq = 0;
 
 	/* Process the queue */
-	while ((next = drbr_dequeue(ifp, txr->br)) != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = igb_xmit(txr, &next)) != 0) {
-			if (next != NULL)
-				err = drbr_enqueue(ifp, txr->br, next);
+			if (next == NULL) {
+				/* It was freed, move forward */
+				drbr_advance(ifp, txr->br);
+			} else {
+				/* 
+				 * Still have one left, it may not be
+				 * the same since the transmit function
+				 * may have changed it.
+				 */
+				drbr_putback(ifp, txr->br, next);
+			}
 			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enq++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -3301,7 +3322,7 @@ igb_allocate_queues(struct adapter *adapter)
         	}
 #if __FreeBSD_version >= 800000
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(IGB_BR_SIZE, M_DEVBUF,
+		txr->br = buf_ring_alloc(igb_buf_ring_size, M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
 #endif
 	}
