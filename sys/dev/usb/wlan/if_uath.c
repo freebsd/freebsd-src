@@ -2436,11 +2436,8 @@ uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	UATH_ASSERT_LOCKED(sc);
 
-	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_TRANSFERRED:
-		cmd = STAILQ_FIRST(&sc->sc_cmd_active);
-		if (cmd == NULL)
-			goto setup;
+	cmd = STAILQ_FIRST(&sc->sc_cmd_active);
+	if (cmd != NULL && USB_GET_STATE(xfer) != USB_ST_SETUP) {
 		STAILQ_REMOVE_HEAD(&sc->sc_cmd_active, next);
 		UATH_STAT_DEC(sc, st_cmd_active);
 		STAILQ_INSERT_TAIL((cmd->flags & UATH_CMD_FLAG_READ) ?
@@ -2449,7 +2446,10 @@ uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 			UATH_STAT_INC(sc, st_cmd_waiting);
 		else
 			UATH_STAT_INC(sc, st_cmd_inactive);
-		/* FALLTHROUGH */
+	}
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 setup:
 		cmd = STAILQ_FIRST(&sc->sc_cmd_pending);
