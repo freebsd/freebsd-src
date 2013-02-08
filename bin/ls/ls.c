@@ -109,10 +109,11 @@ int termwidth = 80;		/* default terminal width */
        int f_humanval;		/* show human-readable file sizes */
        int f_inode;		/* print inode */
 static int f_kblocks;		/* print size in kilobytes */
+       int f_label;		/* show MAC label */
 static int f_listdir;		/* list actual directory, not contents */
 static int f_listdot;		/* list files beginning with . */
-static int f_noautodot;		/* do not automatically enable -A for root */
        int f_longform;		/* long listing format */
+static int f_noautodot;		/* do not automatically enable -A for root */
 static int f_nofollow;		/* don't follow symbolic link arguments */
        int f_nonprint;		/* show unprintables as ? */
 static int f_nosort;		/* don't sort output */
@@ -122,19 +123,21 @@ static int f_numericonly;	/* don't convert uid/gid to name */
        int f_octal_escape;	/* like f_octal but use C escapes if possible */
 static int f_recursive;		/* ls subdirectories also */
 static int f_reversesort;	/* reverse whatever sort is used */
-       int f_sectime;		/* print the real time for all files */
+       int f_samesort;		/* sort time and name in same direction */
+       int f_sectime;		/* print full time information */
 static int f_singlecol;		/* use single column output */
        int f_size;		/* list size in short listing */
+static int f_sizesort;
        int f_slash;		/* similar to f_type, but only for dirs */
        int f_sortacross;	/* sort across rows, not down columns */
        int f_statustime;	/* use time of last mode change */
 static int f_stream;		/* stream the output, separate with commas */
+       int f_thousands;		/* show file sizes with thousands separators */
+       char *f_timeformat;	/* user-specified time format */
 static int f_timesort;		/* sort by time vice name */
-       char *f_timeformat;      /* user-specified time format */
-static int f_sizesort;
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
-       int f_label;		/* show MAC label */
+
 #ifdef COLORLS
        int f_color;		/* add type in color for non-regular files */
 
@@ -180,8 +183,10 @@ main(int argc, char *argv[])
 	}
 
 	fts_options = FTS_PHYSICAL;
- 	while ((ch = getopt(argc, argv,
-	    "1ABCD:FGHILPRSTUWZabcdfghiklmnopqrstuwx")) != -1) {
+	if (getenv("LS_SAMESORT"))
+		f_samesort = 1;
+	while ((ch = getopt(argc, argv,
+	    "1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,")) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C, -x and -l options all override each other so
@@ -192,17 +197,9 @@ main(int argc, char *argv[])
 			f_longform = 0;
 			f_stream = 0;
 			break;
-		case 'B':
-			f_nonprint = 0;
-			f_octal = 1;
-			f_octal_escape = 0;
-			break;
 		case 'C':
 			f_sortacross = f_longform = f_singlecol = 0;
 			break;
-                case 'D':
-                        f_timeformat = optarg;
-                        break;
 		case 'l':
 			f_longform = 1;
 			f_singlecol = 0;
@@ -229,16 +226,46 @@ main(int argc, char *argv[])
 			f_accesstime = 0;
 			f_statustime = 0;
 			break;
+		case 'a':
+			fts_options |= FTS_SEEDOT;
+			/* FALLTHROUGH */
+		case 'A':
+			f_listdot = 1;
+			break;
+		/* The -t and -S options override each other. */
+		case 'S':
+			f_sizesort = 1;
+			f_timesort = 0;
+			break;
+		case 't':
+			f_timesort = 1;
+			f_sizesort = 0;
+			break;
+		/* Other flags.  Please keep alphabetic. */
+		case ',':
+			f_thousands = 1;
+			break;
+		case 'B':
+			f_nonprint = 0;
+			f_octal = 1;
+			f_octal_escape = 0;
+			break;
+		case 'D':
+			f_timeformat = optarg;
+			break;
 		case 'F':
 			f_type = 1;
 			f_slash = 0;
+			break;
+		case 'G':
+			setenv("CLICOLOR", "", 1);
 			break;
 		case 'H':
 			fts_options |= FTS_COMFOLLOW;
 			f_nofollow = 0;
 			break;
-		case 'G':
-			setenv("CLICOLOR", "", 1);
+		case 'I':
+			f_noautodot = 1;
 			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
@@ -254,14 +281,19 @@ main(int argc, char *argv[])
 		case 'R':
 			f_recursive = 1;
 			break;
-		case 'a':
-			fts_options |= FTS_SEEDOT;
-			/* FALLTHROUGH */
-		case 'A':
-			f_listdot = 1;
+		case 'T':
+			f_sectime = 1;
 			break;
-		case 'I':
-			f_noautodot = 1;
+		case 'W':
+			f_whiteout = 1;
+			break;
+		case 'Z':
+			f_label = 1;
+			break;
+		case 'b':
+			f_nonprint = 0;
+			f_octal = 0;
+			f_octal_escape = 1;
 			break;
 		/* The -d option turns off the -R option. */
 		case 'd':
@@ -309,33 +341,13 @@ main(int argc, char *argv[])
 		case 's':
 			f_size = 1;
 			break;
-		case 'T':
-			f_sectime = 1;
-			break;
-		/* The -t and -S options override each other. */
-		case 't':
-			f_timesort = 1;
-			f_sizesort = 0;
-			break;
-		case 'S':
-			f_sizesort = 1;
-			f_timesort = 0;
-			break;
-		case 'W':
-			f_whiteout = 1;
-			break;
-		case 'b':
-			f_nonprint = 0;
-			f_octal = 0;
-			f_octal_escape = 1;
-			break;
 		case 'w':
 			f_nonprint = 0;
 			f_octal = 0;
 			f_octal_escape = 0;
 			break;
-		case 'Z':
-			f_label = 1;
+		case 'y':
+			f_samesort = 1;
 			break;
 		default:
 		case '?':
@@ -849,6 +861,8 @@ label_out:
 			d.s_size = sizelen;
 		d.s_user = maxuser;
 	}
+	if (f_thousands)			/* make space for commas */
+		d.s_size += (d.s_size - 1) / 3;
 	printfcn(&d);
 	output = 1;
 

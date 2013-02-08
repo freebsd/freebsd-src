@@ -336,14 +336,15 @@
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
-#elif defined(SOC_MV_DISCOVERY)
+#elif defined(SOC_MV_FREY)
+#define SAMPLE_AT_RESET		0x100
+#endif
+#if defined(SOC_MV_DISCOVERY)
 #define SAMPLE_AT_RESET_LO	0x30
 #define SAMPLE_AT_RESET_HI	0x34
 #elif defined(SOC_MV_DOVE)
 #define SAMPLE_AT_RESET_LO	0x14
 #define SAMPLE_AT_RESET_HI	0x18
-#elif defined(SOC_MV_FREY)
-#define SAMPLE_AT_RESET		0x100
 #elif defined(SOC_MV_ARMADAXP)
 #define SAMPLE_AT_RESET_LO	0x30
 #define SAMPLE_AT_RESET_HI	0x34

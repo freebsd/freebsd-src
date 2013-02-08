@@ -116,7 +116,7 @@ soft_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return (EPERM);
 
 	ev = pm->pm_event;
-	if (ev < PMC_EV_SOFT_FIRST || ev > PMC_EV_SOFT_LAST)
+	if ((int)ev < PMC_EV_SOFT_FIRST || (int)ev > PMC_EV_SOFT_LAST)
 		return (EINVAL);
 
 	/* Check if event is registered. */

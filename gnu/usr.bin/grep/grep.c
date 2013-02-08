@@ -304,7 +304,7 @@ reset (int fd, char const *file, struct stats *stats)
   if (directories == SKIP_DIRECTORIES && S_ISDIR (stats->stat.st_mode))
     return 0;
 #ifndef DJGPP
-  if (devices == SKIP_DEVICES && (S_ISCHR(stats->stat.st_mode) || S_ISBLK(stats->stat.st_mode) || S_ISSOCK(stats->stat.st_mode)))
+  if (devices == SKIP_DEVICES && (S_ISCHR(stats->stat.st_mode) || S_ISBLK(stats->stat.st_mode) || S_ISSOCK(stats->stat.st_mode) || S_ISFIFO(stats->stat.st_mode)))
 #else
   if (devices == SKIP_DEVICES && (S_ISCHR(stats->stat.st_mode) || S_ISBLK(stats->stat.st_mode)))
 #endif
@@ -942,6 +942,7 @@ grepfile (char const *file, struct stats *stats)
   int desc;
   int count;
   int status;
+  int flags;
 
   if (! file)
     {
@@ -950,7 +951,7 @@ grepfile (char const *file, struct stats *stats)
     }
   else
     {
-      while ((desc = open (file, O_RDONLY)) < 0 && errno == EINTR)
+      while ((desc = open (file, O_RDONLY | O_NONBLOCK)) < 0 && errno == EINTR)
 	continue;
 
       if (desc < 0)
@@ -990,6 +991,9 @@ grepfile (char const *file, struct stats *stats)
 	  return 1;
 	}
 
+      flags = fcntl(desc, F_GETFL);
+      flags &= ~O_NONBLOCK;
+      fcntl(desc, F_SETFL, flags);
       filename = file;
     }
 

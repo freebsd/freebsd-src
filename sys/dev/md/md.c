@@ -137,7 +137,6 @@ static g_access_t g_md_access;
 static void g_md_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
 
-static int mdunits;
 static struct cdev *status_dev = 0;
 static struct sx md_sx;
 static struct unrhdr *md_uh;
@@ -677,6 +676,15 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				sched_unpin();
 				vm_page_wakeup(m);
 				break;
+			} else if (rv == VM_PAGER_FAIL) {
+				/*
+				 * Pager does not have the page.  Zero
+				 * the allocated page, and mark it as
+				 * valid. Do not set dirty, the page
+				 * can be recreated if thrown out.
+				 */
+				bzero((void *)sf_buf_kva(sf), PAGE_SIZE);
+				m->valid = VM_PAGE_BITS_ALL;
 			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
 			cpu_flush_dcache(p, len);
@@ -844,27 +852,6 @@ mdinit(struct md_s *sc)
 	sc->devstat = devstat_new_entry("md", sc->unit, sc->sectorsize,
 	    DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 }
-
-/*
- * XXX: we should check that the range they feed us is mapped.
- * XXX: we should implement read-only.
- */
-
-static int
-mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
-{
-
-	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
-		return (EINVAL);
-	if (mdio->md_base == 0)
-		return (EINVAL);
-	sc->flags = mdio->md_options & MD_FORCE;
-	/* Cast to pointer size, then to pointer to avoid warning */
-	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
-	sc->pl_len = (size_t)sc->mediasize;
-	return (0);
-}
-
 
 static int
 mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
@@ -1229,8 +1216,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 			error = mdcreate_malloc(sc, mdio);
 			break;
 		case MD_PRELOAD:
-			sc->start = mdstart_preload;
-			error = mdcreate_preload(sc, mdio);
+			/*
+			 * We disallow attaching preloaded memory disks via
+			 * ioctl. Preloaded memory disks are automatically
+			 * attached in g_md_init().
+			 */
+			error = EOPNOTSUPP;
 			break;
 		case MD_VNODE:
 			sc->start = mdstart_vnode;
@@ -1317,7 +1308,7 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 }
 
 static void
-md_preloaded(u_char *image, size_t length)
+md_preloaded(u_char *image, size_t length, const char *name)
 {
 	struct md_s *sc;
 	int error;
@@ -1335,6 +1326,10 @@ md_preloaded(u_char *image, size_t length)
 		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
 #endif
 	mdinit(sc);
+	if (name != NULL) {
+		printf("%s%d: Preloaded image <%s> %zd bytes at %p\n",
+		    MD_NAME, sc->unit, name, length, image);
+	}
 }
 
 static void
@@ -1355,7 +1350,7 @@ g_md_init(struct g_class *mp __unused)
 	md_uh = new_unrhdr(0, INT_MAX, NULL);
 #ifdef MD_ROOT_SIZE
 	sx_xlock(&md_sx);
-	md_preloaded(mfs_root.start, sizeof(mfs_root.start));
+	md_preloaded(mfs_root.start, sizeof(mfs_root.start), NULL);
 	sx_xunlock(&md_sx);
 #endif
 	/* XXX: are preload_* static or do they need Giant ? */
@@ -1371,10 +1366,8 @@ g_md_init(struct g_class *mp __unused)
 		ptr = preload_fetch_addr(mod);
 		len = preload_fetch_size(mod);
 		if (ptr != NULL && len != 0) {
-			printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
-			    MD_NAME, mdunits, name, len, ptr);
 			sx_xlock(&md_sx);
-			md_preloaded(ptr, len);
+			md_preloaded(ptr, len, name);
 			sx_xunlock(&md_sx);
 		}
 	}

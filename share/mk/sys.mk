@@ -39,7 +39,7 @@ AR		?=	ar
 .if defined(%POSIX)
 ARFLAGS		?=	-rv
 .else
-ARFLAGS		?=	rl
+ARFLAGS		?=	cru
 .endif
 RANLIB		?=	ranlib
 
@@ -129,16 +129,18 @@ MAKE		?=	make
 
 .if !defined(%POSIX)
 NM		?=	nm
-.endif
 
 OBJC		?=	cc
 OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
+
+OBJCOPY		?=	objcopy
 
 PC		?=	pc
 PFLAGS		?=
 
 RC		?=	f77
 RFLAGS		?=
+.endif
 
 SHELL		?=	sh
 
@@ -344,5 +346,4 @@ OBJFORMAT?=	elf
 
 .endif
 
-.include <bsd.compat.mk>
 .include <bsd.cpu.mk>

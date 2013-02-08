@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -363,6 +364,7 @@ typedef struct ses_softc {
 	uint32_t		ses_flags;
 #define	SES_FLAG_TIMEDCOMP	0x01
 #define	SES_FLAG_ADDLSTATUS	0x02
+#define	SES_FLAG_DESC		0x04
 
 	ses_control_reqlist_t	ses_requests;
 	ses_control_reqlist_t	ses_pending_requests;
@@ -1052,10 +1054,11 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 {
 	struct ccb_dev_advinfo cdai;
 	ses_setphyspath_callback_args_t args;
-	int ret;
+	int i, ret;
 	struct sbuf sb;
 	uint8_t *devid, *elmaddr;
 	ses_element_t *elmpriv;
+	const char *c;
 
 	ret = EIO;
 	devid = NULL;
@@ -1098,7 +1101,13 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	elmpriv = elm->elm_private;
 	if (elmpriv->descr != NULL && elmpriv->descr_len > 0) {
 		sbuf_cat(&sb, "/elmdesc@");
-		sbuf_bcat(&sb, elmpriv->descr, elmpriv->descr_len);
+		for (i = 0, c = elmpriv->descr; i < elmpriv->descr_len;
+		    i++, c++) {
+			if (!isprint(*c) || isspace(*c) || *c == '/')
+				sbuf_putc(&sb, '_');
+			else
+				sbuf_putc(&sb, *c);
+		}
 	}
 	sbuf_finish(&sb);
 
@@ -1271,10 +1280,10 @@ ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	err = 0;
 	for (i = 0; i < length; i++) {
-		if (page->params[i] == SesAddlElementStatus) {
+		if (page->params[i] == SesElementDescriptor)
+			ses->ses_flags |= SES_FLAG_DESC;
+		else if (page->params[i] == SesAddlElementStatus)
 			ses->ses_flags |= SES_FLAG_ADDLSTATUS;
-			break;
-		}
 	}
 
 out:
@@ -1486,7 +1495,8 @@ out:
 		ses_cache_free(enc, enc_cache);
 	else {
 		enc_update_request(enc, SES_UPDATE_GETSTATUS);
-		enc_update_request(enc, SES_UPDATE_GETELMDESCS);
+		if (ses->ses_flags & SES_FLAG_DESC)
+			enc_update_request(enc, SES_UPDATE_GETELMDESCS);
 		if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
 			enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
 		enc_update_request(enc, SES_PUBLISH_CACHE);
@@ -1799,8 +1809,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d Beyond End "
 			    "of Additional Element Status Descriptors\n",
 			    iter.global_element_index);
-			err = EIO;
-			goto out;
+			break;
 		}
 
 		/* Advance to the protocol data, skipping eip bytes if needed */
@@ -1829,7 +1838,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d: Unknown Additional Element "
 			    "Protocol 0x%x\n", iter.global_element_index,
 			    ses_elm_addlstatus_proto(elmpriv->addl.hdr));
-			goto out;
+			break;
 		}
 
 		offset += proto_info_len;

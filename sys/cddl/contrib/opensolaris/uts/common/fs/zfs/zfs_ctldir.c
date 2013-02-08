@@ -1002,6 +1002,7 @@ zfsctl_snapdir_lookup(ap)
 			 * The snapshot was unmounted behind our backs,
 			 * try to remount it.
 			 */
+			VERIFY(zfsctl_snapshot_zname(dvp, nm, MAXNAMELEN, snapname) == 0);
 			goto domount;
 		} else {
 			/*

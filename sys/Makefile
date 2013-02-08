@@ -38,7 +38,7 @@ HTAGSFLAGS+= -at `awk -F= '/^RELEASE *=/{release=$2}; END {print "FreeBSD", rele
 # You need the devel/cscope port for this.
 cscope: cscope.out
 cscope.out: ${.CURDIR}/cscope.files
-	cd ${.CURDIR}; cscope -k -buq -p4
+	cd ${.CURDIR}; cscope -k -buq -p4 -v
 
 ${.CURDIR}/cscope.files: .PHONY
 	cd ${.CURDIR}; \

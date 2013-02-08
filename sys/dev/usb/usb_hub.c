@@ -30,6 +30,9 @@
  * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -69,6 +72,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #define	UHUB_INTR_INTERVAL 250		/* ms */
 #define	UHUB_N_TRANSFER 1
@@ -1913,7 +1917,7 @@ usb_needs_explore(struct usb_bus *bus, uint8_t do_probe)
 	if (do_probe) {
 		bus->do_probe = 1;
 	}
-	if (usb_proc_msignal(&bus->explore_proc,
+	if (usb_proc_msignal(USB_BUS_EXPLORE_PROC(bus),
 	    &bus->explore_msg[0], &bus->explore_msg[1])) {
 		/* ignore */
 	}

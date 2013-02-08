@@ -40,8 +40,8 @@ namespace llvm {
   /// of the sections that it creates.
   ///
   class MCContext {
-    MCContext(const MCContext&); // DO NOT IMPLEMENT
-    MCContext &operator=(const MCContext&); // DO NOT IMPLEMENT
+    MCContext(const MCContext&) LLVM_DELETED_FUNCTION;
+    MCContext &operator=(const MCContext&) LLVM_DELETED_FUNCTION;
   public:
     typedef StringMap<MCSymbol*, BumpPtrAllocator&> SymbolTable;
   private:
@@ -183,6 +183,7 @@ namespace llvm {
 
     /// LookupSymbol - Get the symbol for \p Name, or null.
     MCSymbol *LookupSymbol(StringRef Name) const;
+    MCSymbol *LookupSymbol(const Twine &Name) const;
 
     /// getSymbols - Get a reference for the symbol table for clients that
     /// want to, for example, iterate over all symbols. 'const' because we

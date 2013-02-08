@@ -52,11 +52,14 @@
  * stored.  Additionally, it is possible to allocate a separate buffer
  * externally and attach it to the mbuf in a way similar to that of mbuf
  * clusters.
+ *
+ * MLEN is data length in a normal mbuf.
+ * MHLEN is data length in an mbuf with pktheader.
+ * MINCLSIZE is a smallest amount of data that should be put into cluster.
  */
-#define	MLEN		(MSIZE - sizeof(struct m_hdr))	/* normal data len */
-#define	MHLEN		(MLEN - sizeof(struct pkthdr))	/* data len w/pkthdr */
-#define	MINCLSIZE	(MHLEN + 1)	/* smallest amount to put in cluster */
-#define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
+#define	MLEN		((int)(MSIZE - sizeof(struct m_hdr)))
+#define	MHLEN		((int)(MLEN - sizeof(struct pkthdr)))
+#define	MINCLSIZE	(MHLEN + 1)
 
 #ifdef _KERNEL
 /*-
@@ -279,7 +282,6 @@ struct mbuf {
 #define	CSUM_IP			0x0001		/* will csum IP */
 #define	CSUM_TCP		0x0002		/* will csum TCP */
 #define	CSUM_UDP		0x0004		/* will csum UDP */
-#define	CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
 #define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
 #define	CSUM_TSO		0x0020		/* will do TSO */
 #define	CSUM_SCTP		0x0040		/* will csum SCTP */
@@ -347,18 +349,7 @@ struct mbstat {
 };
 
 /*
- * Flags specifying how an allocation should be made.
- *
- * The flag to use is as follows:
- * - M_DONTWAIT or M_NOWAIT from an interrupt handler to not block allocation.
- * - M_WAIT or M_WAITOK from wherever it is safe to block.
- *
- * M_DONTWAIT/M_NOWAIT means that we will not block the thread explicitly and
- * if we cannot allocate immediately we may return NULL, whereas
- * M_WAIT/M_WAITOK means that if we cannot allocate resources we
- * will block until they are available, and thus never return NULL.
- *
- * XXX Eventually just phase this out to use M_WAITOK/M_NOWAIT.
+ * Compatibility with historic mbuf allocator.
  */
 #define	MBTOM(how)	(how)
 #define	M_DONTWAIT	M_NOWAIT
@@ -396,7 +387,6 @@ struct mbstat {
  *
  * The rest of it is defined in kern/kern_mbuf.c
  */
-
 extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
 extern uma_zone_t	zone_pack;
@@ -405,23 +395,8 @@ extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
 
-static __inline struct mbuf	*m_getcl(int how, short type, int flags);
-static __inline struct mbuf	*m_get(int how, short type);
-static __inline struct mbuf	*m_get2(int how, short type, int flags,
-				    int size);
-static __inline struct mbuf	*m_gethdr(int how, short type);
-static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
-				    int size);
-static __inline struct mbuf	*m_getclr(int how, short type);	/* XXX */
-static __inline int		 m_init(struct mbuf *m, uma_zone_t zone,
-				    int size, int how, short type, int flags);
-static __inline struct mbuf	*m_free(struct mbuf *m);
-static __inline void		 m_clget(struct mbuf *m, int how);
-static __inline void		*m_cljget(struct mbuf *m, int how, int size);
-static __inline void		 m_chtype(struct mbuf *m, short new_type);
-void				 mb_free_ext(struct mbuf *);
-static __inline struct mbuf	*m_last(struct mbuf *m);
-int				 m_pkthdr_init(struct mbuf *m, int how);
+void		 mb_free_ext(struct mbuf *);
+int		 m_pkthdr_init(struct mbuf *, int);
 
 static __inline int
 m_gettype(int size)
@@ -514,7 +489,7 @@ m_get(int how, short type)
 
 	args.flags = 0;
 	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
 /*
@@ -541,7 +516,7 @@ m_gethdr(int how, short type)
 
 	args.flags = M_PKTHDR;
 	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
 static __inline struct mbuf *
@@ -551,85 +526,7 @@ m_getcl(int how, short type, int flags)
 
 	args.flags = flags;
 	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
-}
-
-/*
- * m_get2() allocates minimum mbuf that would fit "size" argument.
- *
- * XXX: This is rather large, should be real function maybe.
- */
-static __inline struct mbuf *
-m_get2(int how, short type, int flags, int size)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-	uma_zone_t zone;
-
-	args.flags = flags;
-	args.type = type;
-
-	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
-		return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
-	if (size <= MCLBYTES)
-		return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
-
-	if (size > MJUM16BYTES)
-		return (NULL);
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-#if MJUMPAGESIZE != MCLBYTES
-	if (size <= MJUMPAGESIZE)
-		zone = zone_jumbop;
-	else
-#endif
-	if (size <= MJUM9BYTES)
-		zone = zone_jumbo9;
-	else
-		zone = zone_jumbo16;
-
-	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-
-	return (m);
-}
-
-/*
- * m_getjcl() returns an mbuf with a cluster of the specified size attached.
- * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
- *
- * XXX: This is rather large, should be real function maybe.
- */
-static __inline struct mbuf *
-m_getjcl(int how, short type, int flags, int size)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-	uma_zone_t zone;
-
-	if (size == MCLBYTES)
-		return m_getcl(how, type, flags);
-
-	args.flags = flags;
-	args.type = type;
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-	zone = m_getzone(size);
-	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-	return (m);
+	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
 static __inline void
@@ -866,7 +763,7 @@ m_last(struct mbuf *m)
 #define	M_COPYALL	1000000000
 
 /* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
 
 extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
@@ -893,7 +790,7 @@ struct mbuf	*m_copymdata(struct mbuf *, struct mbuf *,
 		    int, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
-struct mbuf	*m_copyup(struct mbuf *n, int len, int dstoff);
+struct mbuf	*m_copyup(struct mbuf *, int, int);
 struct mbuf	*m_defrag(struct mbuf *, int);
 void		 m_demote(struct mbuf *, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
@@ -903,6 +800,8 @@ int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
+struct mbuf	*m_get2(int, short, int, int);
+struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
@@ -912,10 +811,10 @@ struct mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *, int);
 struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct mbuf	*m_pullup(struct mbuf *, int);
-int		m_sanity(struct mbuf *, int);
+int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
-struct mbuf	*m_unshare(struct mbuf *, int how);
+struct mbuf	*m_unshare(struct mbuf *, int);
 
 /*-
  * Network packets may have annotations attached by affixing a list of

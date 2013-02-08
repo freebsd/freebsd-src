@@ -1,6 +1,4 @@
-/*	$OpenBSD: if_pfsync.h,v 1.35 2008/06/29 08:42:15 mcbride Exp $	*/
-
-/*
+/*-
  * Copyright (c) 2001 Michael Shalayeff
  * All rights reserved.
  *
@@ -26,7 +24,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 2008 David Gwynne <dlg@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -41,6 +39,12 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+/*
+ *	$OpenBSD: if_pfsync.h,v 1.35 2008/06/29 08:42:15 mcbride Exp $
+ *	$FreeBSD$
+ */
+
 
 #ifndef _NET_IF_PFSYNC_H_
 #define	_NET_IF_PFSYNC_H_
@@ -62,20 +66,6 @@
 #define	PFSYNC_ACT_TDB		11	/* TDB replay counter update */
 #define	PFSYNC_ACT_EOF		12	/* end of frame */
 #define	PFSYNC_ACT_MAX		13
-
-#define	PFSYNC_ACTIONS		"CLR ST",		\
-				"INS ST",		\
-				"INS ST ACK",		\
-				"UPD ST",		\
-				"UPD ST COMP",		\
-				"UPD ST REQ",		\
-				"DEL ST",		\
-				"DEL ST COMP",		\
-				"INS FR",		\
-				"DEL FR",		\
-				"BULK UPD STAT",	\
-				"TDB UPD",		\
-				"EOF"
 
 #define	PFSYNC_HMAC_LEN	20
 

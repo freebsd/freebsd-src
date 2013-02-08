@@ -110,7 +110,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct lge_type const lge_devs[] = {
+static const struct lge_type lge_devs[] = {
 	{ LGE_VENDORID, LGE_DEVICEID, "Level 1 Gigabit Ethernet" },
 	{ 0, 0, NULL }
 };
@@ -691,7 +691,7 @@ lge_newbuf(sc, c, m)
 	caddr_t			*buf = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			device_printf(sc->lge_dev, "no memory for rx list "
 			    "-- packet dropped!\n");

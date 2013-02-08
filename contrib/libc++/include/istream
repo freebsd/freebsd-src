@@ -1189,7 +1189,11 @@ basic_istream<_CharT, _Traits>::peek()
 #endif  // _LIBCPP_NO_EXCEPTIONS
         sentry __sen(*this, true);
         if (__sen)
+        {
             __r = this->rdbuf()->sgetc();
+            if (traits_type::eq_int_type(__r, traits_type::eof()))
+                this->setstate(ios_base::eofbit);
+        }
 #ifndef _LIBCPP_NO_EXCEPTIONS
     }
     catch (...)
@@ -1239,6 +1243,7 @@ template<class _CharT, class _Traits>
 streamsize
 basic_istream<_CharT, _Traits>::readsome(char_type* __s, streamsize __n)
 {
+    __gc_ = 0;
     streamsize __c = this->rdbuf()->in_avail();
     switch (__c)
     {
@@ -1706,9 +1711,9 @@ operator>>(basic_istream<_CharT, _Traits>& __is, bitset<_Size>& __x)
     return __is;
 }
 
-extern template class basic_istream<char>;
-extern template class basic_istream<wchar_t>;
-extern template class basic_iostream<char>;
+_LIBCPP_EXTERN_TEMPLATE(class basic_istream<char>)
+_LIBCPP_EXTERN_TEMPLATE(class basic_istream<wchar_t>)
+_LIBCPP_EXTERN_TEMPLATE(class basic_iostream<char>)
 
 _LIBCPP_END_NAMESPACE_STD
 

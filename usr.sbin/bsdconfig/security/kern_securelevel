@@ -30,6 +30,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/sysrc.subr
@@ -39,7 +40,7 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 SECURELEVEL_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/securelevel.hlp
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ FUNCTIONS
@@ -77,6 +78,7 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--help-button                      \
+		--help-label \"\$msg_help\"        \
 		${USE_XDIALOG:+--help \"\"}        \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
@@ -105,7 +107,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_securelevels_menu_title"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init

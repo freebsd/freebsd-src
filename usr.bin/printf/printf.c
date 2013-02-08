@@ -473,7 +473,7 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	int rval;
 
 	if (!*gargv) {
-		*ip = 0;
+		*ip = *uip = 0;
 		return (0);
 	}
 	if (**gargv == '"' || **gargv == '\'') {

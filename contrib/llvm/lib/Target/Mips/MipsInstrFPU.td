@@ -90,20 +90,20 @@ def fpimm0neg : PatLeaf<(fpimm), [{
 let DecoderMethod = "DecodeFMem" in {
 class FPLoad<bits<6> op, string opstr, RegisterClass RC, Operand MemOpnd>:
   FMem<op, (outs RC:$ft), (ins MemOpnd:$addr),
-      !strconcat(opstr, "\t$ft, $addr"), [(set RC:$ft, (load_a addr:$addr))],
+      !strconcat(opstr, "\t$ft, $addr"), [(set RC:$ft, (load addr:$addr))],
       IILoad>;
 
 // FP store.
 class FPStore<bits<6> op, string opstr, RegisterClass RC, Operand MemOpnd>:
   FMem<op, (outs), (ins RC:$ft, MemOpnd:$addr),
-      !strconcat(opstr, "\t$ft, $addr"), [(store_a RC:$ft, addr:$addr)],
+      !strconcat(opstr, "\t$ft, $addr"), [(store RC:$ft, addr:$addr)],
       IIStore>;
 }
 // FP indexed load.
 class FPIdxLoad<bits<6> funct, string opstr, RegisterClass DRC,
                 RegisterClass PRC, SDPatternOperator FOp = null_frag>:
   FFMemIdx<funct, (outs DRC:$fd), (ins PRC:$base, PRC:$index),
-           !strconcat(opstr, "\t$fd, $index($base)"),
+           !strconcat(opstr, "\t$fd, ${index}(${base})"),
            [(set DRC:$fd, (FOp (add PRC:$base, PRC:$index)))]> {
   let fs = 0;
 }
@@ -112,7 +112,7 @@ class FPIdxLoad<bits<6> funct, string opstr, RegisterClass DRC,
 class FPIdxStore<bits<6> funct, string opstr, RegisterClass DRC,
                  RegisterClass PRC, SDPatternOperator FOp= null_frag>:
   FFMemIdx<funct, (outs), (ins DRC:$fs, PRC:$base, PRC:$index),
-           !strconcat(opstr, "\t$fs, $index($base)"),
+           !strconcat(opstr, "\t$fs, ${index}(${base})"),
            [(FOp DRC:$fs, (add PRC:$base, PRC:$index))]> {
   let fd = 0;
 }
@@ -182,20 +182,21 @@ defm CEIL_W  : FFR1_W_M<0xe, "ceil">;
 defm CEIL_L  : FFR1_L_M<0xa, "ceil">;
 defm FLOOR_W : FFR1_W_M<0xf, "floor">;
 defm FLOOR_L : FFR1_L_M<0xb, "floor">;
-defm CVT_W   : FFR1_W_M<0x24, "cvt">;
+defm CVT_W   : FFR1_W_M<0x24, "cvt">, NeverHasSideEffects;
 //defm CVT_L   : FFR1_L_M<0x25, "cvt">;
 
-def CVT_S_W : FFR1<0x20, 20, "cvt", "s.w", FGR32, FGR32>;
-def CVT_L_S : FFR1<0x25, 16, "cvt", "l.s", FGR64, FGR32>;
-def CVT_L_D64: FFR1<0x25, 17, "cvt", "l.d", FGR64, FGR64>;
+def CVT_S_W : FFR1<0x20, 20, "cvt", "s.w", FGR32, FGR32>, NeverHasSideEffects;
+def CVT_L_S : FFR1<0x25, 16, "cvt", "l.s", FGR64, FGR32>, NeverHasSideEffects;
+def CVT_L_D64: FFR1<0x25, 17, "cvt", "l.d", FGR64, FGR64>, NeverHasSideEffects;
 
-let Predicates = [NotFP64bit, HasStandardEncoding] in {
+let Predicates = [NotFP64bit, HasStandardEncoding], neverHasSideEffects = 1 in {
   def CVT_S_D32 : FFR1<0x20, 17, "cvt", "s.d", FGR32, AFGR64>;
   def CVT_D32_W : FFR1<0x21, 20, "cvt", "d.w", AFGR64, FGR32>;
   def CVT_D32_S : FFR1<0x21, 16, "cvt", "d.s", AFGR64, FGR32>;
 }
 
-let Predicates = [IsFP64bit, HasStandardEncoding], DecoderNamespace = "Mips64" in {
+let Predicates = [IsFP64bit, HasStandardEncoding], DecoderNamespace = "Mips64",
+    neverHasSideEffects = 1 in {
  def CVT_S_D64 : FFR1<0x20, 17, "cvt", "s.d", FGR32, FGR64>;
  def CVT_S_L   : FFR1<0x20, 21, "cvt", "s.l", FGR32, FGR64>;
  def CVT_D64_W : FFR1<0x21, 20, "cvt", "d.w", FGR64, FGR32>;
@@ -282,26 +283,26 @@ let Predicates = [NotN64, NotMips64, HasStandardEncoding] in {
 
 // Indexed loads and stores.
 let Predicates = [HasMips32r2Or64, HasStandardEncoding] in {
-  def LWXC1 : FPIdxLoad<0x0, "lwxc1", FGR32, CPURegs, load_a>;
-  def SWXC1 : FPIdxStore<0x8, "swxc1", FGR32, CPURegs, store_a>;
+  def LWXC1 : FPIdxLoad<0x0, "lwxc1", FGR32, CPURegs, load>;
+  def SWXC1 : FPIdxStore<0x8, "swxc1", FGR32, CPURegs, store>;
 }
 
 let Predicates = [HasMips32r2, NotMips64, HasStandardEncoding] in {
-  def LDXC1 : FPIdxLoad<0x1, "ldxc1", AFGR64, CPURegs, load_a>;
-  def SDXC1 : FPIdxStore<0x9, "sdxc1", AFGR64, CPURegs, store_a>;
+  def LDXC1 : FPIdxLoad<0x1, "ldxc1", AFGR64, CPURegs, load>;
+  def SDXC1 : FPIdxStore<0x9, "sdxc1", AFGR64, CPURegs, store>;
 }
 
 let Predicates = [HasMips64, NotN64, HasStandardEncoding], DecoderNamespace="Mips64" in {
-  def LDXC164 : FPIdxLoad<0x1, "ldxc1", FGR64, CPURegs, load_a>;
-  def SDXC164 : FPIdxStore<0x9, "sdxc1", FGR64, CPURegs, store_a>;
+  def LDXC164 : FPIdxLoad<0x1, "ldxc1", FGR64, CPURegs, load>;
+  def SDXC164 : FPIdxStore<0x9, "sdxc1", FGR64, CPURegs, store>;
 }
 
 // n64
 let Predicates = [IsN64, HasStandardEncoding], isCodeGenOnly=1 in {
-  def LWXC1_P8   : FPIdxLoad<0x0, "lwxc1", FGR32, CPU64Regs, load_a>;
-  def LDXC164_P8 : FPIdxLoad<0x1, "ldxc1", FGR64, CPU64Regs, load_a>;
-  def SWXC1_P8   : FPIdxStore<0x8, "swxc1", FGR32, CPU64Regs, store_a>;
-  def SDXC164_P8 : FPIdxStore<0x9, "sdxc1", FGR64, CPU64Regs, store_a>;
+  def LWXC1_P8   : FPIdxLoad<0x0, "lwxc1", FGR32, CPU64Regs, load>;
+  def LDXC164_P8 : FPIdxLoad<0x1, "ldxc1", FGR64, CPU64Regs, load>;
+  def SWXC1_P8   : FPIdxStore<0x8, "swxc1", FGR32, CPU64Regs, store>;
+  def SDXC164_P8 : FPIdxStore<0x9, "sdxc1", FGR64, CPU64Regs, store>;
 }
 
 // Load/store doubleword indexed unaligned.

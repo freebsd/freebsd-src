@@ -27,6 +27,15 @@ if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
 #
 # $FreeBSD$
 #
+############################################################ CONFIGURATION
+
+#
+# Default file descriptors to link to stdout/stderr for passthru allowing
+# redirection within a sub-shell to bypass directly to the terminal.
+#
+: ${TERMINAL_STDOUT_PASSTHRU:=3}}
+: ${TERMINAL_STDERR_PASSTHRU:=4}}
+
 ############################################################ GLOBALS
 
 #
@@ -46,15 +55,35 @@ ARGV="$@"
 SUCCESS=0
 FAILURE=1
 
+#
+# Operating environment details
+#
+export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
+export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
+export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
+
 ############################################################ FUNCTIONS
 
+# f_dprintf $fmt [ $opts ... ]
 #
-# This is an empty function by default, to use it, copy
-# /usr/share/examples/bsdconfig/bsdconfigrc to $HOME/.bsdconfigrc
+# Sensible debug function. Override in ~/.bsdconfigrc if desired.
+# See /usr/share/examples/bsdconfig/bsdconfigrc for example.
+#
+# If $debug is set and non-NULL, prints DEBUG info using printf(1) syntax:
+# 	+ To $debugFile, if set and non-NULL
+# 	+ To standard output if $debugFile is either NULL or unset
+# 	+ To both if $debugFile begins with a single plus-sign (`+')
 #
 f_dprintf()
 {
-	: this page intentionally left blank
+	[ "$debug" ] || return $SUCCESS
+	local fmt="$1"; shift
+	case "$debugFile" in ""|+*)
+	printf "DEBUG: $fmt${fmt:+\n}" "$@" >&${TERMINAL_STDOUT_PASSTHRU:-1}
+	esac
+	[ "${debugFile#+}" ] &&
+		printf "DEBUG: $fmt${fmt:+\n}" "$@" >> "${debugFile#+}"
+	return $SUCCESS
 }
 
 # f_err $fmt [ $opts ... ]
@@ -63,7 +92,7 @@ f_dprintf()
 #
 f_err()
 {
-	printf "$@" >&2
+	printf "$@" >&${TERMINAL_STDERR_PASSTHRU:-2}
 }
 
 # f_quietly $command [ $arguments ... ]
@@ -83,6 +112,30 @@ f_quietly()
 f_have()
 {
 	f_quietly type "$@"
+}
+
+# f_getvar $var_to_get [$var_to_set]
+#
+# Utility function designed to go along with the already-builtin setvar.
+# Allows clean variable name indirection without forking or sub-shells.
+#
+# Returns error status if the requested variable ($var_to_get) is not set.
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
+f_getvar()
+{
+	local var_to_get="$1" var_to_set="$2"
+	[ "$var_to_set" ] || local value
+	eval ${var_to_set:-value}=\"\${$var_to_get}\"
+	eval [ \"\${$var_to_get+set}\" ]
+	local retval=$?
+	eval f_dprintf '"f_getvar: var=[%s] value=[%s] r=%u"' \
+	               \"\$var_to_get\" \"\$${var_to_set:-value}\" \$retval
+	[ "$var_to_set" ] || { [ "$value" ] && echo "$value"; }
+	return $retval
 }
 
 # f_die [ $status [ $fmt [ $opts ... ]]]
@@ -119,6 +172,27 @@ f_interrupt()
 	f_die
 }
 
+# f_show_info $fmt [ $opts ... ]
+#
+# Display a message in a dialog infobox using printf(1) syntax.
+#
+f_show_info()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_infobox from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_info; then
+		f_dialog_info "$msg"
+	else
+		dialog --infobox "$msg" 0 0
+	fi
+}
+
 # f_show_msg $fmt [ $opts ... ]
 #
 # Display a message in a dialog box using printf(1) syntax.
@@ -137,6 +211,50 @@ f_show_msg()
 		f_dialog_msgbox "$msg"
 	else
 		dialog --msgbox "$msg" 0 0
+	fi
+}
+
+
+# f_yesno $fmt [ $opts ... ]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+#
+f_yesno()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_yesno from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_yesno; then
+		f_dialog_yesno "$msg"
+	else
+		dialog --yesno "$msg" 0 0
+	fi
+}
+
+# f_noyes $fmt [ $opts ... ]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+# NOTE: THis is just like the f_yesno function except "No" is default.
+#
+f_noyes()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_noyes from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_noyes; then
+		f_dialog_noyes "$msg"
+	else
+		dialog --defaultno --yesno "$msg" 0 0
 	fi
 }
 
@@ -181,6 +299,7 @@ f_show_help()
 f_include()
 {
 	local file="$1"
+	f_dprintf "f_include: file=[%s]" "$file"
 	. "$file" || exit $?
 }
 
@@ -202,7 +321,7 @@ f_include_lang()
 	local file="$1"
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_include_lang: file=[%s] lang=[%s]" "$file" "$lang"
 	if [ -f "$file.$lang" ]; then
 		. "$file.$lang" || exit $?
 	else
@@ -247,7 +366,7 @@ f_usage()
 	local file="$1"
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_usage: file=[%s] lang=[%s]" "$file" "$lang"
 
 	shift 1 # file
 
@@ -271,50 +390,188 @@ f_usage()
 	exit $FAILURE
 }
 
-# f_index_menu_selection $file $pgm
+# f_index_file $keyword
 #
-# Process $file looking for $menu_selection values that correspond to $pgm.
-# This function is for internationalization (i18n) mapping of the on-disk
-# scriptname ($pgm) into the localized language (given language-specific
-# $file). If $LANG or $LC_ALL (in orderder of preference, respectively) is set,
-# ".encoding" will automatically be appended as a suffix to the provided $file
-# pathname.
+# Process all INDEX files known to bsdconfig and return the path to first file
+# containing a menu_selection line with a keyword portion matching $keyword.
 #
-# If, within $file, multiple $menu_selection values map to $pgm, only the first
-# one will be returned. If no mapping can be made, the NULL string is returned.
+# If $LANG or $LC_ALL (in order of preference, respectively) is set,
+# "INDEX.encoding" files will be searched first.
 #
-# If $file does not exist, error status is returned along with the NULL string.
+# If no file is found, error status is returned along with the NULL string.
 #
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
 #
-f_index_menusel_awk='
+f_index_file_awk='
+# Variables that should be defined on the invocation line:
+# 	-v keyword="keyword"
+BEGIN { found = 0 }
+( $0 ~ "^menu_selection=\"" keyword "\\|" ) {
+	print FILENAME
+	found++
+	exit
+}
+END { exit ! found }
+'
+f_index_file()
+{
+	local keyword="$1"
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "f_index_file: keyword=[%s] lang=[%s]" "$keyword" "$lang"
+
+	if [ "$lang" ]; then
+		awk -v keyword="$keyword" "$f_index_file_awk" \
+			$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX.$lang &&
+			return
+		# No match, fall-thru to non-i18n sources
+	fi
+	awk -v keyword="$keyword" "$f_index_file_awk" \
+		$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX
+}
+
+# f_index_menusel_keyword $indexfile $pgm
+#
+# Process $indexfile and return only the keyword portion of the menu_selection
+# line with a command portion matching $pgm.
+#
+# This function is for internationalization (i18n) mapping of the on-disk
+# scriptname ($pgm) into the localized language (given language-specific
+# $indexfile). If $LANG or $LC_ALL (in orderder of preference, respectively) is
+# set, ".encoding" will automatically be appended as a suffix to the provided
+# $indexfile pathname.
+#
+# If, within $indexfile, multiple $menu_selection values map to $pgm, only the
+# first one will be returned. If no mapping can be made, the NULL string is
+# returned.
+#
+# If $indexfile does not exist, error status is returned with NULL.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_menusel_keyword_awk='
 # Variables that should be defined on the invocation line:
 # 	-v pgm="program_name"
 #
-( $0 ~ "^menu_selection=.*\\|" pgm "\"" ) {
-	sub(/\|.*/, "")
-	sub(/^menu_selection="/, "")
-	print
-	exit
+BEGIN {
+	prefix = "menu_selection=\""
+	plen = length(prefix)
+	found = 0
 }
-'
-f_index_menu_selection()
 {
-	local file="$1" pgm="$2"
+	if (!match($0, "^" prefix ".*\\|.*\"")) next
+
+	keyword = command = substr($0, plen + 1, RLENGTH - plen - 1)
+	sub(/^.*\|/, "", command)
+	sub(/\|.*$/, "", keyword)
+
+	if ( command == pgm )
+	{
+		print keyword
+		found++
+		exit
+	}
+}
+END { exit ! found }
+'
+f_index_menusel_keyword()
+{
+	local indexfile="$1" pgm="$2"
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_index_menusel_keyword: index=[%s] pgm=[%s] lang=[%s]" \
+	          "$indexfile" "$pgm" "$lang"
 
-	if [ -f "$file.$lang" ]; then
-		awk -v pgm="$pgm" "$f_index_menusel_awk" "$file.$lang" ||
-			exit $FAILURE
-	elif [ -f "$file" ]; then
-		awk -v pgm="$pgm" "$f_index_menusel_awk" "$file" ||
-			exit $FAILURE
+	if [ -f "$indexfile.$lang" ]; then
+		awk -v pgm="$pgm" \
+			"$f_index_menusel_keyword_awk" \
+			"$indexfile.$lang"
+	elif [ -f "$indexfile" ]; then
+		awk -v pgm="$pgm" \
+			"$f_index_menusel_keyword_awk" \
+			"$indexfile"
+	fi
+}
+
+# f_index_menusel_command $indexfile $keyword
+#
+# Process $indexfile and return only the command portion of the menu_selection
+# line with a keyword portion matching $keyword.
+#
+# This function is for mapping [possibly international] keywords into the
+# command to be executed. If $LANG or $LC_ALL (order of preference) is set,
+# ".encoding" will automatically be appended as a suffix to the provided
+# $indexfile pathname.
+#
+# If, within $indexfile, multiple $menu_selection values map to $keyword, only
+# the first one will be returned. If no mapping can be made, the NULL string is
+# returned.
+#
+# If $indexfile doesn't exist, error status is returned with NULL.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_menusel_command_awk='
+# Variables that should be defined on the invocation line:
+# 	-v key="keyword"
+#
+BEGIN {
+	prefix = "menu_selection=\""
+	plen = length(prefix)
+	found = 0
+}
+{
+	if (!match($0, "^" prefix ".*\\|.*\"")) next
+
+	keyword = command = substr($0, plen + 1, RLENGTH - plen - 1)
+	sub(/^.*\|/, "", command)
+	sub(/\|.*$/, "", keyword)
+
+	if ( keyword == key )
+	{
+		print command
+		found++
+		exit
+	}
+}
+END { exit ! found }
+'
+f_index_menusel_command()
+{
+	local indexfile="$1" keyword="$2" command
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "f_index_menusel_command: index=[%s] key=[%s] lang=[%s]" \
+	          "$indexfile" "$keyword" "$lang"
+
+	if [ -f "$indexfile.$lang" ]; then
+		command=$( awk -v key="$keyword" \
+				"$f_index_menusel_command_awk" \
+				"$indexfile.$lang" ) || return $FAILURE
+	elif [ -f "$indexfile" ]; then
+		command=$( awk -v key="$keyword" \
+				"$f_index_menusel_command_awk" \
+				"$indexfile" ) || return $FAILURE
 	else
 		return $FAILURE
 	fi
+
+	#
+	# If the command pathname is not fully qualified fix-up/force to be
+	# relative to the $indexfile directory.
+	#
+	case "$command" in
+	/*) : already fully qualified ;;
+	*)
+		local indexdir="${indexfile%/*}"
+		[ "$indexdir" != "$indexfile" ] || indexdir="."
+		command="$indexdir/$command"
+	esac
+
+	echo "$command"
 }
 
 ############################################################ MAIN
@@ -326,5 +583,43 @@ trap 'f_interrupt' SIGINT
 trap 'f_die' SIGTERM SIGPIPE SIGXCPU SIGXFSZ \
              SIGFPE SIGTRAP SIGABRT SIGSEGV
 trap '' SIGALRM SIGPROF SIGUSR1 SIGUSR2 SIGHUP SIGVTALRM
+
+#
+# Clone terminal stdout/stderr so we can redirect to it from within sub-shells
+#
+eval exec $TERMINAL_STDOUT_PASSTHRU\>\&1
+eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
+
+#
+# Make debugging persistant if set
+#
+[ "$debug" ] && export debug
+
+#
+# Truncate the debug file upon initialization (now). Note that we will trim a
+# leading plus (`+') from the value of debugFile to support persistant meaning
+# that f_dprintf() should print both to standard output and $debugFile (minus
+# the leading plus, of course).
+#
+_debug_file="${debugFile#+}"
+if [ "$_debug_file" ]; then
+	if ( umask 022 && :> "$_debug_file" ); then
+		f_dprintf "Successfully initialized debugFile \`%s'" \
+		          "$_debug_file"
+	else
+		unset debugFile
+		f_dprintf "Unable to initialize debugFile \`%s'" \
+		          "$_debug_file"
+	fi
+fi
+unset _debug_file
+
+#
+# Log our operating environment for debugging purposes
+#
+f_dprintf "UNAME_S=[%s] UNAME_P=[%s] UNAME_R=[%s]" \
+          "$UNAME_S" "$UNAME_P" "$UNAME_R"
+
+f_dprintf "%s: Successfully loaded." common.subr
 
 fi # ! $_COMMON_SUBR

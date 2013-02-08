@@ -35,9 +35,9 @@ ATH_RATE?=	sample		# tx rate control algorithm
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal
 
 KMOD=	if_ath
-SRCS=	if_ath.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
+SRCS=	if_ath.c if_ath_alq.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
 SRCS+=	if_ath_tx.c if_ath_tx_ht.c if_ath_led.c if_ath_rx.c if_ath_tdma.c
-SRCS+=	if_ath_beacon.c if_ath_rx_edma.c if_ath_tx_edma.c
+SRCS+=	if_ath_beacon.c if_ath_rx_edma.c if_ath_tx_edma.c if_ath_spectral.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
@@ -86,10 +86,10 @@ SRCS+=	ar5413.c
 # + 5416 (Owl)
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar5416
 SRCS+=	ah_eeprom_v14.c ah_eeprom_v4k.c \
-	ar5416_ani.c ar5416_attach.c ar5416_beacon.c ar5416_cal.c \
-	ar5416_cal_iq.c ar5416_cal_adcgain.c ar5416_cal_adcdc.c \
+	ar5416_ani.c ar5416_attach.c ar5416_beacon.c ar5416_btcoex.c \
+	ar5416_cal.c ar5416_cal_iq.c ar5416_cal_adcgain.c ar5416_cal_adcdc.c \
 	ar5416_eeprom.c ar5416_gpio.c ar5416_interrupts.c ar5416_keycache.c \
-	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_radar.c \
+	ar5416_misc.c ar5416_phy.c ar5416_power.c ar5416_radar.c ar5416_spectral.c \
 	ar5416_recv.c ar5416_reset.c ar5416_xmit.c
 
 # RF backend for 5416, 9130 and 9160
@@ -115,7 +115,7 @@ SRCS+=	ar9280.c ar9280_attach.c ar9280_olc.c
 
 # + AR9285 - Kite
 SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c ar9285_cal.c ar9285_phy.c
-SRCS+=	ar9285_diversity.c
+SRCS+=	ar9285_diversity.c ar9285_btcoex.c
 
 # + AR9287 - Kiwi
 .PATH:  ${.CURDIR}/../../dev/ath/ath_hal

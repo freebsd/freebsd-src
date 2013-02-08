@@ -49,6 +49,7 @@ extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* kern_reboot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
+extern char compiler_version[];	/* compiler version */
 extern char copyright[];	/* system copyright */
 extern int kstack_pages;	/* number of kernel stack pages */
 
@@ -72,15 +73,19 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
+#if defined(WITNESS) || defined(INVARIANTS)
+void	kassert_panic(const char *fmt, ...);
+#endif
+
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
-		panic msg;						\
+		kassert_panic msg;						\
 } while (0)
 #define	VNASSERT(exp, vp, msg) do {					\
 	if (__predict_false(!(exp))) {					\
 		vn_printf(vp, "VNASSERT failed\n");			\
-		panic msg;						\
+		kassert_panic msg;						\
 	}								\
 } while (0)
 #else

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.87 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: make.c,v 1.87 2012/06/12 19:21:51 joerg Exp $";
+static char rcsid[] = "$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: make.c,v 1.87 2012/06/12 19:21:51 joerg Exp $");
+__RCSID("$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1032,7 +1032,7 @@ MakeBuildChild(void *v_cn, void *toBeMade_next)
     if (cn->order_pred && Lst_ForEach(cn->order_pred, MakeCheckOrder, 0)) {
 	/* Can't build this (or anything else in this child list) yet */
 	cn->made = DEFERRED;
-	return 1;
+	return 0;			/* but keep looking */
     }
 
     if (DEBUG(MAKE))
@@ -1055,7 +1055,7 @@ MakeBuildChild(void *v_cn, void *toBeMade_next)
     return cn->type & OP_WAIT && cn->unmade > 0;
 }
 
-/* When a .ORDER RHS node completes we do this on each LHS */
+/* When a .ORDER LHS node completes we do this on each RHS */
 static int
 MakeBuildParent(void *v_pn, void *toBeMade_next)
 {

@@ -583,12 +583,12 @@ smbfs_rename(ap)
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
-		return EXDEV;
+		error = EXDEV;
 		goto out;
 	}
 
 	if (tvp && vrefcnt(tvp) > 1) {
-		return EBUSY;
+		error = EBUSY;
 		goto out;
 	}
 	flags = 0x10;			/* verify all writes */
@@ -1135,18 +1135,6 @@ smbfs_lookup(ap)
 		SMBFSERR("invalid '..'\n");
 		return EIO;
 	}
-#ifdef SMB_VNODE_DEBUG
-	{
-		char *cp, c;
-
-		cp = name + nmlen;
-		c = *cp;
-		*cp = 0;
-		SMBVDEBUG("%d '%s' in '%s' id=d\n", nameiop, name, 
-			VTOSMB(dvp)->n_name);
-		*cp = c;
-	}
-#endif
 	islastcn = flags & ISLASTCN;
 	if (islastcn && (mp->mnt_flag & MNT_RDONLY) && (nameiop != LOOKUP))
 		return EROFS;
@@ -1278,9 +1266,30 @@ smbfs_lookup(ap)
 		goto out;
 	}
 	if (flags & ISDOTDOT) {
+		mp = dvp->v_mount;
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error != 0) {
+			vfs_ref(mp);
+			VOP_UNLOCK(dvp, 0);
+			error = vfs_busy(mp, 0);
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+			vfs_rel(mp);
+			if (error)
+				return (ENOENT);
+			if ((dvp->v_iflag & VI_DOOMED) != 0) {
+				vfs_unbusy(mp);
+				return (ENOENT);	
+			}
+		}	
 		VOP_UNLOCK(dvp, 0);
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
+		vfs_unbusy(mp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		if ((dvp->v_iflag & VI_DOOMED) != 0) {
+			if (error == 0)
+				vput(vp);
+			error = ENOENT;
+		}
 		if (error)
 			goto out;
 		*vpp = vp;

@@ -52,10 +52,37 @@ class ModuleMap {
 
   /// \brief The top-level modules that are known.
   llvm::StringMap<Module *> Modules;
-  
+
+  /// \brief A header that is known to reside within a given module,
+  /// whether it was included or excluded.
+  class KnownHeader {
+    llvm::PointerIntPair<Module *, 1, bool> Storage;
+
+  public:
+    KnownHeader() : Storage(0, false) { }
+    KnownHeader(Module *M, bool Excluded) : Storage(M, Excluded) { }
+
+    /// \brief Retrieve the module the header is stored in.
+    Module *getModule() const { return Storage.getPointer(); }
+
+    /// \brief Whether this header is explicitly excluded from the module.
+    bool isExcluded() const { return Storage.getInt(); }
+
+    /// \brief Whether this header is available in the module.
+    bool isAvailable() const { 
+      return !isExcluded() && getModule()->isAvailable(); 
+    }
+
+    // \brief Whether this known header is valid (i.e., it has an
+    // associated module).
+    operator bool() const { return Storage.getPointer() != 0; }
+  };
+
+  typedef llvm::DenseMap<const FileEntry *, KnownHeader> HeadersMap;
+
   /// \brief Mapping from each header to the module that owns the contents of the
   /// that header.
-  llvm::DenseMap<const FileEntry *, Module *> Headers;
+  HeadersMap Headers;
   
   /// \brief Mapping from directories with umbrella headers to the module
   /// that is generated from the umbrella header.
@@ -64,7 +91,26 @@ class ModuleMap {
   /// in the module map over to the module that includes them via its umbrella
   /// header.
   llvm::DenseMap<const DirectoryEntry *, Module *> UmbrellaDirs;
-  
+
+  /// \brief A directory for which framework modules can be inferred.
+  struct InferredDirectory {
+    InferredDirectory() : InferModules(), InferSystemModules() { }
+
+    /// \brief Whether to infer modules from this directory.
+    unsigned InferModules : 1;
+
+    /// \brief Whether the modules we infer are [system] modules.
+    unsigned InferSystemModules : 1;
+
+    /// \brief The names of modules that cannot be inferred within this
+    /// directory.
+    llvm::SmallVector<std::string, 2> ExcludedModules;
+  };
+
+  /// \brief A mapping from directories to information about inferring
+  /// framework modules from within those directories.
+  llvm::DenseMap<const DirectoryEntry *, InferredDirectory> InferredDirectories;
+
   friend class ModuleMapParser;
   
   /// \brief Resolve the given export declaration into an actual export
@@ -170,7 +216,23 @@ public:
   std::pair<Module *, bool> findOrCreateModule(StringRef Name, Module *Parent, 
                                                bool IsFramework,
                                                bool IsExplicit);
-                       
+
+  /// \brief Determine whether we can infer a framework module a framework
+  /// with the given name in the given
+  ///
+  /// \param ParentDir The directory that is the parent of the framework
+  /// directory.
+  ///
+  /// \param Name The name of the module.
+  ///
+  /// \param IsSystem Will be set to 'true' if the inferred module must be a
+  /// system module.
+  ///
+  /// \returns true if we are allowed to infer a framework module, and false
+  /// otherwise.
+  bool canInferFrameworkModule(const DirectoryEntry *ParentDir,
+                               StringRef Name, bool &IsSystem);
+
   /// \brief Infer the contents of a framework module map from the given
   /// framework directory.
   Module *inferFrameworkModule(StringRef ModuleName, 
@@ -215,7 +277,9 @@ public:
   void setUmbrellaDir(Module *Mod, const DirectoryEntry *UmbrellaDir);
 
   /// \brief Adds this header to the given module.
-  void addHeader(Module *Mod, const FileEntry *Header);
+  /// \param Excluded Whether this header is explicitly excluded from the
+  /// module; otherwise, it's included in the module.
+  void addHeader(Module *Mod, const FileEntry *Header, bool Excluded);
 
   /// \brief Parse the given module map file, and record any modules we 
   /// encounter.

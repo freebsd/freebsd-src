@@ -91,8 +91,8 @@ sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 	if ((uap->flag & (NFSSVC_ADDSOCK | NFSSVC_OLDNFSD | NFSSVC_NFSD)) &&
 	    nfsd_call_nfsserver != NULL)
 		error = (*nfsd_call_nfsserver)(td, uap);
-	else if ((uap->flag & (NFSSVC_CBADDSOCK | NFSSVC_NFSCBD)) &&
-	    nfsd_call_nfscl != NULL)
+	else if ((uap->flag & (NFSSVC_CBADDSOCK | NFSSVC_NFSCBD |
+	    NFSSVC_DUMPMNTOPTS)) && nfsd_call_nfscl != NULL)
 		error = (*nfsd_call_nfscl)(td, uap);
 	else if ((uap->flag & (NFSSVC_IDNAME | NFSSVC_GETSTATS |
 	    NFSSVC_GSSDADDPORT | NFSSVC_GSSDADDFIRST | NFSSVC_GSSDDELETEALL |

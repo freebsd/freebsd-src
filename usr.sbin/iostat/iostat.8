@@ -56,7 +56,7 @@
 .\"
 .\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd November 24, 2010
+.Dd December 15, 2012
 .Dt IOSTAT 8
 .Os
 .Sh NAME
@@ -364,6 +364,32 @@ transactions queue length
 average duration of transactions, in milliseconds
 .It %b
 % of time the device had one or more outstanding transactions
+.El
+.Pp
+The extended
+.Nm
+device display, with the
+.Fl x
+and
+.Fl I
+flags specified, shows the following statistics:
+.Pp
+.Bl -tag -width indent -compact
+.It r/i
+read operations per time period
+.It w/i
+write operations per time period
+.It kr/i
+kilobytes read per time period
+.It kw/i
+kilobytes write per time period
+.It qlen
+transactions queue length
+.It tsvc_t/i
+total duration of transactions per time period, in seconds
+.It sb/i
+total time the device had one or more outstanding transactions per
+time period, in seconds
 .El
 .Pp
 The old-style

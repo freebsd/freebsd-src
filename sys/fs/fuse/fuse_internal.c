@@ -371,26 +371,6 @@ fuse_internal_readdir_processdata(struct uio *uio,
 
 /* remove */
 
-#ifdef XXXIP
-static int
-fuse_internal_remove_callback(struct vnode *vp, void *cargs)
-{
-	struct vattr *vap;
-	uint64_t target_nlink;
-
-	vap = VTOVA(vp);
-
-	target_nlink = *(uint64_t *)cargs;
-
-	/* somewhat lame "heuristics", but you got better ideas? */
-	if ((vap->va_nlink == target_nlink) && vnode_isreg(vp)) {
-		fuse_invalidate_attr(vp);
-	}
-	return 0;
-}
-
-#endif
-
 #define INVALIDATE_CACHED_VATTRS_UPON_UNLINK 1
 int
 fuse_internal_remove(struct vnode *dvp,
@@ -426,27 +406,6 @@ fuse_internal_remove(struct vnode *dvp,
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
-
-	fuse_invalidate_attr(dvp);
-	fuse_invalidate_attr(vp);
-
-#ifdef XXXIP
-	/*
-         * XXX: INVALIDATE_CACHED_VATTRS_UPON_UNLINK
-         *
-         * Consider the case where vap->va_nlink > 1 for the entity being
-         * removed. In our world, other in-memory vnodes that share a link
-         * count each with this one may not know right way that this one just
-         * got deleted. We should let them know, say, through a vnode_iterate()
-         * here and a callback that does fuse_invalidate_attr(vp) on each
-         * relevant vnode.
-         */
-	if (need_invalidate && !err) {
-		vnode_iterate(vnode_mount(vp), 0, fuse_internal_remove_callback,
-		    (void *)&target_nlink);
-	}
-#endif
-
 	return err;
 }
 
@@ -477,11 +436,6 @@ fuse_internal_rename(struct vnode *fdvp,
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
-
-	fuse_invalidate_attr(fdvp);
-	if (tdvp != fdvp) {
-		fuse_invalidate_attr(tdvp);
-	}
 	return err;
 }
 
@@ -556,7 +510,6 @@ fuse_internal_newentry(struct vnode *dvp,
 	    bufsize, &fdi);
 	err = fuse_internal_newentry_core(dvp, vpp, cnp, vtype, &fdi);
 	fdisp_destroy(&fdi);
-	fuse_invalidate_attr(dvp);
 
 	return err;
 }

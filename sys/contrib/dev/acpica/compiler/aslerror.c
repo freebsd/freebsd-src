@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -294,7 +294,7 @@ AePrintException (
                         else
                         {
                             RActual = fread (&SourceByte, 1, 1, SourceFile);
-                            if (!RActual)
+                            if (RActual != 1)
                             {
                                 fprintf (OutputFile,
                                     "[*** iASL: Read error on source code temp file %s ***]",
@@ -304,8 +304,20 @@ AePrintException (
                             {
                                 while (RActual && SourceByte && (SourceByte != '\n') && (Total < 256))
                                 {
-                                    fwrite (&SourceByte, 1, 1, OutputFile);
+                                    if (fwrite (&SourceByte, 1, 1, OutputFile) != 1)
+                                    {
+                                        printf ("[*** iASL: Write error on output file ***]\n");
+                                        return;
+                                    }
+
                                     RActual = fread (&SourceByte, 1, 1, SourceFile);
+                                    if (RActual != 1)
+                                    {
+                                        fprintf (OutputFile,
+                                            "[*** iASL: Read error on source code temp file %s ***]",
+                                            Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
+                                        return;
+                                    }
                                     Total++;
                                 }
 
@@ -648,7 +660,6 @@ AslCommonError (
 
         Gbl_SourceLine = 0;
         Gbl_NextError = Gbl_ErrorLog;
-        CmDoOutputFiles ();
         CmCleanupAndExit ();
         exit(1);
     }

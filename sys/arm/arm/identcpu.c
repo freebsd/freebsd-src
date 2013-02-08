@@ -307,6 +307,8 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_ARM1136JSR1,	CPU_CLASS_ARM11J,	"ARM1136J-S R1",
 	  generic_steppings },
+	{ CPU_ID_ARM1176JZS,	CPU_CLASS_ARM11J,	"ARM1176JZ-S",
+	  generic_steppings },
 
 	{ CPU_ID_MV88FR131,	CPU_CLASS_MARVELL,	"Feroceon 88FR131",
 	  generic_steppings },

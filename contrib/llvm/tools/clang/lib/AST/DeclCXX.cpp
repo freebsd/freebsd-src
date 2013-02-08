@@ -90,11 +90,12 @@ CXXRecordDecl *CXXRecordDecl::Create(const ASTContext &C, TagKind TK,
 }
 
 CXXRecordDecl *CXXRecordDecl::CreateLambda(const ASTContext &C, DeclContext *DC,
-                                           SourceLocation Loc, bool Dependent) {
+                                           TypeSourceInfo *Info, SourceLocation Loc,
+                                           bool Dependent) {
   CXXRecordDecl* R = new (C) CXXRecordDecl(CXXRecord, TTK_Class, DC, Loc, Loc,
                                            0, 0);
   R->IsBeingDefined = true;
-  R->DefinitionData = new (C) struct LambdaDefinitionData(R, Dependent);
+  R->DefinitionData = new (C) struct LambdaDefinitionData(R, Info, Dependent);
   C.getTypeDeclType(R, /*PrevDecl=*/0);
   return R;
 }
@@ -239,10 +240,13 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       //    -- the constructor selected to copy/move each direct base class
       //       subobject is trivial, and
       // FIXME: C++0x: We need to only consider the selected constructor
-      // instead of all of them.
+      // instead of all of them. For now, we treat a move constructor as being
+      // non-trivial if it calls anything other than a trivial move constructor.
       if (!BaseClassDecl->hasTrivialCopyConstructor())
         data().HasTrivialCopyConstructor = false;
-      if (!BaseClassDecl->hasTrivialMoveConstructor())
+      if (!BaseClassDecl->hasTrivialMoveConstructor() ||
+          !(BaseClassDecl->hasDeclaredMoveConstructor() ||
+            BaseClassDecl->needsImplicitMoveConstructor()))
         data().HasTrivialMoveConstructor = false;
 
       // C++0x [class.copy]p27:
@@ -254,7 +258,9 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
       // of all of them.
       if (!BaseClassDecl->hasTrivialCopyAssignment())
         data().HasTrivialCopyAssignment = false;
-      if (!BaseClassDecl->hasTrivialMoveAssignment())
+      if (!BaseClassDecl->hasTrivialMoveAssignment() ||
+          !(BaseClassDecl->hasDeclaredMoveAssignment() ||
+            BaseClassDecl->needsImplicitMoveAssignment()))
         data().HasTrivialMoveAssignment = false;
 
       // C++11 [class.ctor]p6:
@@ -466,7 +472,8 @@ void CXXRecordDecl::addedMember(Decl *D) {
   if (!D->isImplicit() &&
       !isa<FieldDecl>(D) &&
       !isa<IndirectFieldDecl>(D) &&
-      (!isa<TagDecl>(D) || cast<TagDecl>(D)->getTagKind() == TTK_Class))
+      (!isa<TagDecl>(D) || cast<TagDecl>(D)->getTagKind() == TTK_Class ||
+        cast<TagDecl>(D)->getTagKind() == TTK_Interface))
     data().HasOnlyCMembers = false;
 
   // Ignore friends and invalid declarations.
@@ -828,7 +835,9 @@ NotASpecialMember:;
         // FIXME: C++0x: We don't correctly model 'selected' constructors.
         if (!FieldRec->hasTrivialCopyConstructor())
           data().HasTrivialCopyConstructor = false;
-        if (!FieldRec->hasTrivialMoveConstructor())
+        if (!FieldRec->hasTrivialMoveConstructor() ||
+            !(FieldRec->hasDeclaredMoveConstructor() ||
+              FieldRec->needsImplicitMoveConstructor()))
           data().HasTrivialMoveConstructor = false;
 
         // C++0x [class.copy]p27:
@@ -840,7 +849,9 @@ NotASpecialMember:;
         // FIXME: C++0x: We don't correctly model 'selected' operators.
         if (!FieldRec->hasTrivialCopyAssignment())
           data().HasTrivialCopyAssignment = false;
-        if (!FieldRec->hasTrivialMoveAssignment())
+        if (!FieldRec->hasTrivialMoveAssignment() ||
+            !(FieldRec->hasDeclaredMoveAssignment() ||
+              FieldRec->needsImplicitMoveAssignment()))
           data().HasTrivialMoveAssignment = false;
 
         if (!FieldRec->hasTrivialDestructor())
@@ -936,7 +947,8 @@ NotASpecialMember:;
 }
 
 bool CXXRecordDecl::isCLike() const {
-  if (getTagKind() == TTK_Class || !TemplateOrInstantiation.isNull())
+  if (getTagKind() == TTK_Class || getTagKind() == TTK_Interface ||
+      !TemplateOrInstantiation.isNull())
     return false;
   if (!hasDefinition())
     return true;

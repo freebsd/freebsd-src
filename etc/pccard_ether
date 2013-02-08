@@ -123,4 +123,5 @@ else
 fi
 
 load_rc_config pccard_ether
+load_rc_config network
 run_rc_command $args

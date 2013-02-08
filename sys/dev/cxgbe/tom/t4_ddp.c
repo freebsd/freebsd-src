@@ -205,6 +205,42 @@ release_ddp_resources(struct toepcb *toep)
 	}
 }
 
+/* XXX: handle_ddp_data code duplication */
+void
+insert_ddp_data(struct toepcb *toep, uint32_t n)
+{
+	struct inpcb *inp = toep->inp;
+	struct tcpcb *tp = intotcpcb(inp);
+	struct sockbuf *sb = &inp->inp_socket->so_rcv;
+	struct mbuf *m;
+
+	INP_WLOCK_ASSERT(inp);
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	m = m_get(M_NOWAIT, MT_DATA);
+	if (m == NULL)
+		CXGBE_UNIMPLEMENTED("mbuf alloc failure");
+	m->m_len = n;
+	m->m_flags |= M_DDP;	/* Data is already where it should be */
+	m->m_data = "nothing to see here";
+
+	tp->rcv_nxt += n;
+#ifndef USE_DDP_RX_FLOW_CONTROL
+	KASSERT(tp->rcv_wnd >= n, ("%s: negative window size", __func__));
+	tp->rcv_wnd -= n;
+#endif
+
+	KASSERT(toep->sb_cc >= sb->sb_cc,
+	    ("%s: sb %p has more data (%d) than last time (%d).",
+	    __func__, sb, sb->sb_cc, toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+#ifdef USE_DDP_RX_FLOW_CONTROL
+	toep->rx_credits -= n;	/* adjust for F_RX_FC_DDP */
+#endif
+	sbappendstream_locked(sb, m);
+	toep->sb_cc = sb->sb_cc;
+}
+
 /* SET_TCB_FIELD sent as a ULP command looks like this */
 #define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
     sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
@@ -1171,7 +1207,7 @@ deliver:
 			KASSERT(sb->sb_mb != NULL,
 			    ("%s: len > 0 && sb->sb_mb empty", __func__));
 
-			m = m_copym(sb->sb_mb, 0, len, M_DONTWAIT);
+			m = m_copym(sb->sb_mb, 0, len, M_NOWAIT);
 			if (m == NULL)
 				len = 0;	/* Don't flush data from sockbuf. */
 			else

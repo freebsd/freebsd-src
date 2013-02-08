@@ -391,7 +391,7 @@ struct _LIBCPP_VISIBLE is_error_code_enum<future_errc> : public true_type {};
 
 #ifdef _LIBCPP_HAS_NO_STRONG_ENUMS
 template <>
-struct _LIBCPP_VISIBLE is_error_code_enum<future_errc::_> : public true_type { };
+struct _LIBCPP_VISIBLE is_error_code_enum<future_errc::__lx> : public true_type { };
 #endif
 
 //enum class launch
@@ -470,7 +470,11 @@ public:
         {return (__state_ & __constructed) || (__exception_ != nullptr);}
 
     _LIBCPP_INLINE_VISIBILITY
-    void __set_future_attached() {__state_ |= __future_attached;}
+    void __set_future_attached()
+    {
+        lock_guard<mutex> __lk(__mut_);
+        __state_ |= __future_attached;
+    }
     _LIBCPP_INLINE_VISIBILITY
     bool __has_future_attached() const {return __state_ & __future_attached;}
 
@@ -1753,7 +1757,7 @@ template<class _Rp, class ..._ArgTypes>
 class __packaged_task_function<_Rp(_ArgTypes...)>
 {
     typedef __packaged_task_base<_Rp(_ArgTypes...)> __base;
-    aligned_storage<3*sizeof(void*)>::type __buf_;
+    typename aligned_storage<3*sizeof(void*)>::type __buf_;
     __base* __f_;
 
 public:

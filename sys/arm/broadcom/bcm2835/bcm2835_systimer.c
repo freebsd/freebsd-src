@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_TIMER		3
 #define	DEFAULT_FREQUENCY	1000000
+#define	MIN_PERIOD		100LLU
 
 #define	SYSTIMER_CS	0x00
 #define	SYSTIMER_CLO	0x04
@@ -102,7 +103,7 @@ static struct bcm_systimer_softc *bcm_systimer_sc = NULL;
 static unsigned bcm_systimer_tc_get_timecount(struct timecounter *);
 
 static struct timecounter bcm_systimer_tc = {
-	.tc_name           = "BCM2835 Timecouter",
+	.tc_name           = "BCM2835 Timecounter",
 	.tc_get_timecount  = bcm_systimer_tc_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,
@@ -123,17 +124,24 @@ bcm_systimer_start(struct eventtimer *et, struct bintime *first,
 	struct systimer *st = et->et_priv;
 	uint32_t clo;
 	uint32_t count;
+	register_t s;
 
 	if (first != NULL) {
-		st->enabled = 1;
 
 		count = (st->et.et_frequency * (first->frac >> 32)) >> 32;
 		if (first->sec != 0)
 			count += st->et.et_frequency * first->sec;
 
+		s = intr_disable();
 		clo = bcm_systimer_tc_read_4(SYSTIMER_CLO);
 		clo += count;
+		/*
+		 * Clear pending interrupts
+		 */
+		bcm_systimer_tc_write_4(SYSTIMER_CS, (1 << st->index));
 		bcm_systimer_tc_write_4(SYSTIMER_C0 + st->index*4, clo);
+		st->enabled = 1;
+		intr_restore(s);
 
 		return (0);
 	} 
@@ -154,7 +162,13 @@ static int
 bcm_systimer_intr(void *arg)
 {
 	struct systimer *st = (struct systimer *)arg;
+	uint32_t cs;
 
+ 	cs = bcm_systimer_tc_read_4(SYSTIMER_CS);
+	if ((cs & (1 << st->index)) == 0)
+		return (FILTER_STRAY);
+
+	/* ACK interrupt */
 	bcm_systimer_tc_write_4(SYSTIMER_CS, (1 << st->index));
 	if (st->enabled) {
 		if (st->et.et_active) {
@@ -226,7 +240,7 @@ bcm_systimer_attach(device_t dev)
 	sc->st[DEFAULT_TIMER].et.et_frequency = sc->sysclk_freq;
 	sc->st[DEFAULT_TIMER].et.et_min_period.sec = 0;
 	sc->st[DEFAULT_TIMER].et.et_min_period.frac =
-	    ((0x00000002LLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency) << 32;
+	    ((MIN_PERIOD << 32) / sc->st[DEFAULT_TIMER].et.et_frequency) << 32;
 	sc->st[DEFAULT_TIMER].et.et_max_period.sec = 0xfffffff0U / sc->st[DEFAULT_TIMER].et.et_frequency;
 	sc->st[DEFAULT_TIMER].et.et_max_period.frac =
 	    ((0xfffffffeLLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency) << 32;

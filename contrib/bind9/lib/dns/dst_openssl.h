@@ -39,6 +39,9 @@ ISC_LANG_BEGINDECLS
 isc_result_t
 dst__openssl_toresult(isc_result_t fallback);
 
+isc_result_t
+dst__openssl_toresult2(const char *funcname, isc_result_t fallback);
+
 #ifdef USE_ENGINE
 ENGINE *
 dst__openssl_getengine(const char *engine);

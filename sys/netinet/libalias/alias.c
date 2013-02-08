@@ -1760,21 +1760,7 @@ m_megapullup(struct mbuf *m, int len) {
 	if (m->m_next == NULL && M_WRITABLE(m) && M_TRAILINGSPACE(m) >= RESERVE)
 		return (m);
 
-	if (len <= MCLBYTES - RESERVE) {
-		mcl = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	} else if (len < MJUM16BYTES) {
-		int size;
-		if (len <= MJUMPAGESIZE - RESERVE) {
-			size = MJUMPAGESIZE;
-		} else if (len <= MJUM9BYTES - RESERVE) {
-			size = MJUM9BYTES;
-		} else {
-			size = MJUM16BYTES;
-		};
-		mcl = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, size);
-	} else {
-		goto bad;
-	}
+	mcl = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR, len + RESERVE);
 	if (mcl == NULL)
 		goto bad;
  

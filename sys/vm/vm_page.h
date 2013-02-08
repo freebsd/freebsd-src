@@ -92,7 +92,7 @@
  *	In general, operations on this structure's mutable fields are
  *	synchronized using either one of or a combination of the lock on the
  *	object that the page belongs to (O), the pool lock for the page (P),
- *	or the lock for either the free or paging queues (Q).  If a field is
+ *	or the lock for either the free or paging queue (Q).  If a field is
  *	annotated below with two of these locks, then holding either lock is
  *	sufficient for read access, but both locks are required for write
  *	access.
@@ -111,8 +111,6 @@
  *	field is encapsulated in vm_page_clear_dirty_mask().
  */
 
-TAILQ_HEAD(pglist, vm_page);
-
 #if PAGE_SIZE == 4096
 #define VM_PAGE_BITS_ALL 0xffu
 typedef uint8_t vm_page_bits_t;
@@ -128,7 +126,7 @@ typedef uint64_t vm_page_bits_t;
 #endif
 
 struct vm_page {
-	TAILQ_ENTRY(vm_page) pageq;	/* queue info for FIFO queue or free list (Q) */
+	TAILQ_ENTRY(vm_page) pageq;	/* page queue or free list (Q)	*/
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
 	struct vm_page *left;		/* splay tree link (O)		*/
 	struct vm_page *right;		/* splay tree link (O)		*/
@@ -180,12 +178,22 @@ struct vm_page {
 #define	PQ_ACTIVE	1
 #define	PQ_COUNT	2
 
-struct vpgqueues {
-	struct pglist pl;
-	int	*cnt;
-};
+TAILQ_HEAD(pglist, vm_page);
 
-extern struct vpgqueues vm_page_queues[PQ_COUNT];
+struct vm_pagequeue {
+	struct mtx	pq_mutex;
+	struct pglist	pq_pl;
+	int *const	pq_cnt;
+	const char *const pq_name;
+} __aligned(CACHE_LINE_SIZE);
+
+extern struct vm_pagequeue vm_pagequeues[PQ_COUNT];
+
+#define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
+#define	vm_pagequeue_init_lock(pq)	mtx_init(&(pq)->pq_mutex,	\
+	    (pq)->pq_name, "vm pagequeue", MTX_DEF | MTX_DUPOK);
+#define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)
+#define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
 
 extern struct mtx_padalign vm_page_queue_free_mtx;
 extern struct mtx_padalign pa_lock[];
@@ -280,7 +288,7 @@ extern struct mtx_padalign pa_lock[];
 #include <machine/atomic.h>
 
 /*
- * Each pageable resident page falls into one of five lists:
+ * Each pageable resident page falls into one of four lists:
  *
  *	free
  *		Available for allocation now.
@@ -288,10 +296,6 @@ extern struct mtx_padalign pa_lock[];
  *	cache
  *		Almost available for allocation. Still associated with
  *		an object, but clean and immediately freeable.
- *
- *	hold
- *		Will become free after a pending I/O operation
- *		completes.
  *
  * The following lists are LRU sorted:
  *
@@ -316,14 +320,7 @@ extern long first_page;			/* first physical page number */
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 
-vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
-
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
-
-extern struct mtx_padalign vm_page_queue_mtx;
-
-#define vm_page_lock_queues()   mtx_lock(&vm_page_queue_mtx)
-#define vm_page_unlock_queues() mtx_unlock(&vm_page_queue_mtx)
 
 /* page allocation classes: */
 #define VM_ALLOC_NORMAL		0
@@ -344,6 +341,25 @@ extern struct mtx_padalign vm_page_queue_mtx;
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
+#ifdef M_NOWAIT
+static inline int
+malloc2vm_flags(int malloc_flags)
+{
+	int pflags;
+
+	KASSERT((malloc_flags & M_USE_RESERVE) == 0 ||
+	    (malloc_flags & M_NOWAIT) != 0,
+	    ("M_USE_RESERVE requires M_NOWAIT"));
+	pflags = (malloc_flags & M_USE_RESERVE) != 0 ? VM_ALLOC_INTERRUPT :
+	    VM_ALLOC_SYSTEM;
+	if ((malloc_flags & M_ZERO) != 0)
+		pflags |= VM_ALLOC_ZERO;
+	if ((malloc_flags & M_NODUMP) != 0)
+		pflags |= VM_ALLOC_NODUMP;
+	return (pflags);
+}
+#endif
+
 void vm_page_busy(vm_page_t m);
 void vm_page_flash(vm_page_t m);
 void vm_page_io_start(vm_page_t m);
@@ -353,8 +369,6 @@ void vm_page_unhold(vm_page_t mem);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
-
-void vm_pageq_remove(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
@@ -370,6 +384,8 @@ int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_dontneed(vm_page_t);
 void vm_page_deactivate (vm_page_t);
+void vm_page_dequeue(vm_page_t m);
+void vm_page_dequeue_locked(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
@@ -384,6 +400,8 @@ void vm_page_readahead_finish(vm_page_t m);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
+void vm_page_requeue(vm_page_t m);
+void vm_page_requeue_locked(vm_page_t m);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
@@ -509,6 +527,22 @@ vm_page_dirty(vm_page_t m)
 #else
 	m->dirty = VM_PAGE_BITS_ALL;
 #endif
+}
+
+/*
+ *	vm_page_remque:
+ *
+ *	If the given page is in a page queue, then remove it from that page
+ *	queue.
+ *
+ *	The page must be locked.
+ */
+static inline void
+vm_page_remque(vm_page_t m)
+{
+
+	if (m->queue != PQ_NONE)
+		vm_page_dequeue(m);
 }
 
 /*

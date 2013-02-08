@@ -30,6 +30,7 @@ hint.arge.1.fduplex=1
 #
 # AR7240 switch config
 #
+hint.arswitch.0.at="mdio0"
 hint.arswitch.0.is_7240=1	# We need to be explicitly told this
 hint.arswitch.0.numphys=4	# 4 active switch PHYs (PHY 0 -> 3)
 hint.arswitch.0.phy4cpu=1	# Yes, PHY 4 == dedicated PHY

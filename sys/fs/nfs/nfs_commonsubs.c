@@ -85,47 +85,66 @@ NFSSOCKMUTEX;
  * non-idempotent Ops.
  * Define it here, since it is used by both the client and server.
  */
-struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS] = {
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Access */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Close */
-	{ 0, 2, 0, 1, LK_EXCLUSIVE },		/* Commit */
-	{ 1, 2, 1, 1, LK_EXCLUSIVE },		/* Create */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* Delegpurge */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Delegreturn */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Getattr */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* GetFH */
-	{ 2, 1, 1, 1, LK_EXCLUSIVE },		/* Link */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Lock */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockT */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockU */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookup */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookupp */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* NVerify */
-	{ 1, 1, 0, 1, LK_EXCLUSIVE },		/* Open */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* OpenAttr */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* OpenConfirm */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* OpenDowngrade */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutFH */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutPubFH */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutRootFH */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Read */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Readdir */
-	{ 0, 1, 0, 0, LK_SHARED },		/* ReadLink */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Remove */
-	{ 2, 1, 1, 1, LK_EXCLUSIVE },		/* Rename */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* Renew */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* RestoreFH */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* SaveFH */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* SecInfo */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Setattr */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* SetClientID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* SetClientIDConfirm */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Verify */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Write */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* ReleaseLockOwner */
+struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Access */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Close */
+	{ 0, 2, 0, 1, LK_EXCLUSIVE, 1 },		/* Commit */
+	{ 1, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Create */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Delegpurge */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Delegreturn */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Getattr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* GetFH */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1 },		/* Link */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lock */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockT */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockU */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookup */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookupp */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* NVerify */
+	{ 1, 1, 0, 1, LK_EXCLUSIVE, 1 },		/* Open */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenAttr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenDowngrade */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutPubFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutRootFH */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Read */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Readdir */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* ReadLink */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Remove */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1 },		/* Rename */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Renew */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* RestoreFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* SaveFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* SecInfo */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Setattr */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* SetClientID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* SetClientIDConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Verify */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Write */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* ReleaseLockOwner */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Backchannel Ctrl */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Bind Conn to Sess */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Exchange ID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Create Session */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Destroy Session */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Free StateID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Dir Deleg */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device Info */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device List */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Commit */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Get */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Return */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Secinfo No name */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Sequence */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Set SSV */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Test StateID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Want Delegation */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Destroy ClientID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Reclaim Complete */
 };
 #endif	/* !APPLEKEXT */
 
@@ -147,9 +166,9 @@ static struct nfsuserlruhead nfsuserlruhead;
  * marked 0 in this array, the code will still work, just not quite as
  * efficiently.)
  */
-static int nfs_bigreply[NFS_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
+int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -199,6 +218,7 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 				}
 				mbufcp = NFSMTOD(mp, caddr_t);
 				len = mbuf_len(mp);
+				KASSERT(len > 0, ("len %d", len));
 			}
 			xfer = (left > len) ? len : left;
 #ifdef notdef
@@ -382,7 +402,7 @@ nfsm_strtom(struct nfsrv_descript *nd, const char *cp, int siz)
 	while (siz > 0) {
 		if (left == 0) {
 			if (siz > ncl_mbuf_mlen)
-				NFSMCLGET(m1, M_WAIT);
+				NFSMCLGET(m1, M_WAITOK);
 			else
 				NFSMGET(m1);
 			mbuf_setlen(m1, 0);
@@ -1857,7 +1877,7 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex,
 		if (isleptp)
 			*isleptp = 1;
 		(void) nfsmsleep(&lp->nfslock_lock, mutex,
-		    PZERO - 1, "nfsv4lck", NULL);
+		    PZERO - 1, "nfsv4gr", NULL);
 	}
 	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
 		return;
@@ -1979,7 +1999,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	struct statfs fs;
 	struct nfsfsinfo fsinf;
 	struct timespec temptime;
-	struct timeval curtime;
 	NFSACL_T *aclp, *naclp = NULL;
 #ifdef QUOTA
 	struct dqblk dqb;
@@ -2393,8 +2412,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_V4TIME;
 			break;
 		case NFSATTRBIT_TIMEACCESSSET:
-			NFSGETTIME(&curtime);
-			if (vap->va_atime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_V4SETTIME);
 				*tl++ = txdr_unsigned(NFSV4SATTRTIME_TOCLIENT);
 				txdr_nfsv4time(&vap->va_atime, tl);
@@ -2423,8 +2441,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_V4TIME;
 			break;
 		case NFSATTRBIT_TIMEMODIFYSET:
-			NFSGETTIME(&curtime);
-			if (vap->va_mtime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_V4SETTIME);
 				*tl++ = txdr_unsigned(NFSV4SATTRTIME_TOCLIENT);
 				txdr_nfsv4time(&vap->va_mtime, tl);
@@ -3016,7 +3033,7 @@ nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name, NFSPROC_T *p)
 		(void) nfsm_strtom(nd, name, len);
 	}
 	error = newnfs_request(nd, NULL, NULL, &nfsrv_nfsuserdsock, NULL, NULL,
-		cred, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS, NULL, 0, NULL);
+		cred, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS, NULL, 0, NULL, NULL);
 	NFSFREECRED(cred);
 	if (!error) {
 		mbuf_freem(nd->nd_mrep);
@@ -3455,7 +3472,7 @@ nfsrvd_rephead(struct nfsrv_descript *nd)
 	 */
 	if ((nd->nd_flag & ND_GSSINITREPLY) == 0 &&
 	    nfs_bigreply[nd->nd_procnum]) {
-		NFSMCLGET(mreq, M_WAIT);
+		NFSMCLGET(mreq, M_WAITOK);
 		nd->nd_mreq = mreq;
 		nd->nd_mb = mreq;
 	} else {
@@ -3508,5 +3525,242 @@ newnfs_sndunlock(int *flagp)
 		wakeup((caddr_t)flagp);
 	}
 	NFSUNLOCKSOCK();
+}
+
+APPLESTATIC int
+nfsv4_getipaddr(struct nfsrv_descript *nd, struct sockaddr_storage *sa,
+    int *isudp)
+{
+	struct sockaddr_in *sad;
+	struct sockaddr_in6 *sad6;
+	struct in_addr saddr;
+	uint32_t portnum, *tl;
+	int af = 0, i, j, k;
+	char addr[64], protocol[5], *cp;
+	int cantparse = 0, error = 0;
+	uint16_t portv;
+
+	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+	i = fxdr_unsigned(int, *tl);
+	if (i >= 3 && i <= 4) {
+		error = nfsrv_mtostr(nd, protocol, i);
+		if (error)
+			goto nfsmout;
+		if (strcmp(protocol, "tcp") == 0) {
+			af = AF_INET;
+			*isudp = 0;
+		} else if (strcmp(protocol, "udp") == 0) {
+			af = AF_INET;
+			*isudp = 1;
+		} else if (strcmp(protocol, "tcp6") == 0) {
+			af = AF_INET6;
+			*isudp = 0;
+		} else if (strcmp(protocol, "udp6") == 0) {
+			af = AF_INET6;
+			*isudp = 1;
+		} else
+			cantparse = 1;
+	} else {
+		cantparse = 1;
+		if (i > 0) {
+			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
+			if (error)
+				goto nfsmout;
+		}
+	}
+	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+	i = fxdr_unsigned(int, *tl);
+	if (i < 0) {
+		error = NFSERR_BADXDR;
+		goto nfsmout;
+	} else if (cantparse == 0 && i >= 11 && i < 64) {
+		/*
+		 * The shortest address is 11chars and the longest is < 64.
+		 */
+		error = nfsrv_mtostr(nd, addr, i);
+		if (error)
+			goto nfsmout;
+
+		/* Find the port# at the end and extract that. */
+		i = strlen(addr);
+		k = 0;
+		cp = &addr[i - 1];
+		/* Count back two '.'s from end to get port# field. */
+		for (j = 0; j < i; j++) {
+			if (*cp == '.') {
+				k++;
+				if (k == 2)
+					break;
+			}
+			cp--;
+		}
+		if (k == 2) {
+			/*
+			 * The NFSv4 port# is appended as .N.N, where N is
+			 * a decimal # in the range 0-255, just like an inet4
+			 * address. Cheat and use inet_aton(), which will
+			 * return a Class A address and then shift the high
+			 * order 8bits over to convert it to the port#.
+			 */
+			*cp++ = '\0';
+			if (inet_aton(cp, &saddr) == 1) {
+				portnum = ntohl(saddr.s_addr);
+				portv = (uint16_t)((portnum >> 16) |
+				    (portnum & 0xff));
+			} else
+				cantparse = 1;
+		} else
+			cantparse = 1;
+		if (cantparse == 0) {
+			if (af == AF_INET) {
+				sad = (struct sockaddr_in *)sa;
+				if (inet_pton(af, addr, &sad->sin_addr) == 1) {
+					sad->sin_len = sizeof(*sad);
+					sad->sin_family = AF_INET;
+					sad->sin_port = htons(portv);
+					return (0);
+				}
+			} else {
+				sad6 = (struct sockaddr_in6 *)sa;
+				if (inet_pton(af, addr, &sad6->sin6_addr)
+				    == 1) {
+					sad6->sin6_len = sizeof(*sad6);
+					sad6->sin6_family = AF_INET6;
+					sad6->sin6_port = htons(portv);
+					return (0);
+				}
+			}
+		}
+	} else {
+		if (i > 0) {
+			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
+			if (error)
+				goto nfsmout;
+		}
+	}
+	error = EPERM;
+nfsmout:
+	return (error);
+}
+
+/*
+ * Handle an NFSv4.1 Sequence request for the session.
+ */
+int
+nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
+    struct nfsslot *slots, struct mbuf **reply, uint16_t maxslot)
+{
+	int error;
+
+	error = 0;
+	*reply = NULL;
+	if (slotid > maxslot)
+		return (NFSERR_BADSLOT);
+	if (seqid == slots[slotid].nfssl_seq) {
+		/* A retry. */
+		if (slots[slotid].nfssl_inprog != 0)
+			error = NFSERR_DELAY;
+		else if (slots[slotid].nfssl_reply != NULL) {
+			*reply = slots[slotid].nfssl_reply;
+			slots[slotid].nfssl_reply = NULL;
+			slots[slotid].nfssl_inprog = 1;
+		} else
+			error = NFSERR_SEQMISORDERED;
+	} else if ((slots[slotid].nfssl_seq + 1) == seqid) {
+		m_freem(slots[slotid].nfssl_reply);
+		slots[slotid].nfssl_reply = NULL;
+		slots[slotid].nfssl_inprog = 1;
+		slots[slotid].nfssl_seq++;
+	} else
+		error = NFSERR_SEQMISORDERED;
+	return (error);
+}
+
+/*
+ * Cache this reply for the slot.
+ */
+void
+nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, struct mbuf *rep)
+{
+
+	slots[slotid].nfssl_reply = rep;
+	slots[slotid].nfssl_inprog = 0;
+}
+
+/*
+ * Generate the xdr for an NFSv4.1 Sequence Operation.
+ */
+APPLESTATIC void
+nfsv4_setsequence(struct nfsrv_descript *nd, struct nfsclsession *sep,
+    int dont_replycache)
+{
+	uint32_t *tl, slotseq = 0;
+	int i, maxslot, slotpos;
+	uint64_t bitval;
+	uint8_t sessionid[NFSX_V4SESSIONID];
+
+	/* Find an unused slot. */
+	slotpos = -1;
+	maxslot = -1;
+	mtx_lock(&sep->nfsess_mtx);
+	do {
+		bitval = 1;
+		for (i = 0; i < sep->nfsess_foreslots; i++) {
+			if ((bitval & sep->nfsess_slots) == 0) {
+				slotpos = i;
+				sep->nfsess_slots |= bitval;
+				sep->nfsess_slotseq[i]++;
+				slotseq = sep->nfsess_slotseq[i];
+				break;
+			}
+			bitval <<= 1;
+		}
+		if (slotpos == -1)
+			(void)mtx_sleep(&sep->nfsess_slots, &sep->nfsess_mtx,
+			    PZERO, "nfsclseq", 0);
+	} while (slotpos == -1);
+	/* Now, find the highest slot in use. (nfsc_slots is 64bits) */
+	bitval = 1;
+	for (i = 0; i < 64; i++) {
+		if ((bitval & sep->nfsess_slots) != 0)
+			maxslot = i;
+		bitval <<= 1;
+	}
+	bcopy(sep->nfsess_sessionid, sessionid, NFSX_V4SESSIONID);
+	mtx_unlock(&sep->nfsess_mtx);
+	KASSERT(maxslot >= 0, ("nfscl_setsequence neg maxslot"));
+
+	/* Build the Sequence arguments. */
+	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID + 4 * NFSX_UNSIGNED);
+	bcopy(sessionid, tl, NFSX_V4SESSIONID);
+	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
+	nd->nd_slotseq = tl;
+	*tl++ = txdr_unsigned(slotseq);
+	*tl++ = txdr_unsigned(slotpos);
+	*tl++ = txdr_unsigned(maxslot);
+	if (dont_replycache == 0)
+		*tl = newnfs_true;
+	else
+		*tl = newnfs_false;
+	nd->nd_flag |= ND_HASSEQUENCE;
+}
+
+/*
+ * Free a session slot.
+ */
+APPLESTATIC void
+nfsv4_freeslot(struct nfsclsession *sep, int slot)
+{
+	uint64_t bitval;
+
+	bitval = 1;
+	if (slot > 0)
+		bitval <<= slot;
+	mtx_lock(&sep->nfsess_mtx);
+	if ((bitval & sep->nfsess_slots) == 0)
+		printf("freeing free slot!!\n");
+	sep->nfsess_slots &= ~bitval;
+	wakeup(&sep->nfsess_slots);
+	mtx_unlock(&sep->nfsess_mtx);
 }
 

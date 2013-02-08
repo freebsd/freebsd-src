@@ -36,7 +36,6 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
-#include <sys/taskqueue.h>
 
 #include <vm/uma.h>
 
@@ -55,7 +54,8 @@ MALLOC_DECLARE(M_NVME);
 #define CHATHAM_CONTROL_BAR	0
 #endif
 
-#define IDT_PCI_ID		0x80d0111d
+#define IDT32_PCI_ID		0x80d0111d /* 32 channel board */
+#define IDT8_PCI_ID		0x80d2111d /* 8 channel board */
 
 #define NVME_MAX_PRP_LIST_ENTRIES	(32)
 
@@ -199,6 +199,14 @@ struct nvme_controller {
 	int			resource_id;
 	struct resource		*resource;
 
+	/*
+	 * The NVMe spec allows for the MSI-X table to be placed in BAR 4/5,
+	 *  separate from the control registers which are in BAR 0/1.  These
+	 *  members track the mapping of BAR 4/5 for that reason.
+	 */
+	int			bar4_resource_id;
+	struct resource		*bar4_resource;
+
 #ifdef CHATHAM2
 	bus_space_tag_t		chatham_bus_tag;
 	bus_space_handle_t	chatham_bus_handle;
@@ -221,8 +229,6 @@ struct nvme_controller {
 	int			rid;
 	struct resource		*res;
 	void			*tag;
-	struct task		task;
-	struct taskqueue	*taskqueue;
 
 	bus_dma_tag_t		hw_desc_tag;
 	bus_dmamap_t		hw_desc_map;

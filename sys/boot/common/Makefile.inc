@@ -64,6 +64,7 @@ MAN+=	../forth/delay.4th.8
 MAN+=	../forth/loader.conf.5
 MAN+=	../forth/loader.4th.8
 MAN+=	../forth/menu.4th.8
+MAN+=	../forth/menusets.4th.8
 MAN+=	../forth/version.4th.8
 .endif
 

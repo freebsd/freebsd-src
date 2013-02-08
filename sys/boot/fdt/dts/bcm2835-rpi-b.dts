@@ -471,6 +471,13 @@
 			reg-shift = <2>;
 		};
 
+		vchiq {
+			compatible = "broadcom,bcm2835-vchiq";
+			reg = <0xB800 0x50>;
+			interrupts = <2>;
+			interrupt-parent = <&intc>;
+		};
+
 		usb {
 			compatible = "broadcom,bcm2835-usb", "broadcom,bcm2708-usb", "synopsys,designware-hs-otg2";
 			reg = <0x980000 0x20000>;
@@ -478,24 +485,35 @@
 			interrupt-parent = <&intc>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			hub {
+				compatible = "usb,hub", "usb,device";
+				reg = <0x00000001>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ethernet {
+					compatible = "net,ethernet", "usb,device";
+					reg = <0x00000001>;
+					mac-address = [00 00 00 00 00 00];
+				};
+			};
 		};
 
-		display {
-			compatible = "broadcom,bcm2835-fb", "broadcom,bcm2708-fb";
-
-			broadcom,vc-mailbox = <&vc_mbox>;
-			broadcom,vc-channel = <1>;
-
-			broadcom,width = <0>;		/* Set by VideoCore */
-			broadcom,height = <0>;		/* Set by VideoCore */
-			broadcom,depth = <0>;		/* Set by VideoCore */
-		};
 	};
-
 
 	memory {
 		device_type = "memory";
 		reg = <0 0x08000000>; /* 128MB */
+	};
+
+	display {
+		compatible = "broadcom,bcm2835-fb", "broadcom,bcm2708-fb";
+
+		broadcom,vc-mailbox = <&vc_mbox>;
+		broadcom,vc-channel = <1>;
+
+		broadcom,width = <0>;		/* Set by VideoCore */
+		broadcom,height = <0>;		/* Set by VideoCore */
+		broadcom,depth = <0>;		/* Set by VideoCore */
 	};
 
 	leds {

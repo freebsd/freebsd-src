@@ -388,7 +388,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
-			vm_pageq_remove(fs.m);
+			vm_page_remque(fs.m);
 			vm_page_unlock(fs.m);
 
 			/*
@@ -939,9 +939,10 @@ vnode_locked:
 	 * Unlock everything, and return
 	 */
 	unlock_and_deallocate(&fs);
-	if (hardfault)
+	if (hardfault) {
+		PCPU_INC(cnt.v_io_faults);
 		curthread->td_ru.ru_majflt++;
-	else
+	} else 
 		curthread->td_ru.ru_minflt++;
 
 	return (KERN_SUCCESS);
@@ -968,8 +969,8 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 			VM_OBJECT_LOCK(object);
 		}
 	}
-	if (first_object->type != OBJT_DEVICE &&
-	    first_object->type != OBJT_PHYS && first_object->type != OBJT_SG) {
+	/* Neither fictitious nor unmanaged pages can be cached. */
+	if ((first_object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0) {
 		if (fs->first_pindex < distance)
 			pindex = 0;
 		else

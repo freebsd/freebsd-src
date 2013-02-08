@@ -76,13 +76,13 @@ public:
   }
 };
 
-inline bool operator ==(const DataRefImpl &a, const DataRefImpl &b) {
+inline bool operator==(const DataRefImpl &a, const DataRefImpl &b) {
   // Check bitwise identical. This is the only legal way to compare a union w/o
   // knowing which member is in use.
   return std::memcmp(&a, &b, sizeof(DataRefImpl)) == 0;
 }
 
-inline bool operator <(const DataRefImpl &a, const DataRefImpl &b) {
+inline bool operator<(const DataRefImpl &a, const DataRefImpl &b) {
   // Check bitwise identical. This is the only legal way to compare a union w/o
   // knowing which member is in use.
   return std::memcmp(&a, &b, sizeof(DataRefImpl)) < 0;
@@ -144,7 +144,7 @@ public:
   SectionRef(DataRefImpl SectionP, const ObjectFile *Owner);
 
   bool operator==(const SectionRef &Other) const;
-  bool operator <(const SectionRef &Other) const;
+  bool operator<(const SectionRef &Other) const;
 
   error_code getNext(SectionRef &Result) const;
 
@@ -163,6 +163,7 @@ public:
   error_code isRequiredForExecution(bool &Result) const;
   error_code isVirtual(bool &Result) const;
   error_code isZeroInit(bool &Result) const;
+  error_code isReadOnlyData(bool &Result) const;
 
   error_code containsSymbol(SymbolRef S, bool &Result) const;
 
@@ -207,11 +208,13 @@ public:
   SymbolRef(DataRefImpl SymbolP, const ObjectFile *Owner);
 
   bool operator==(const SymbolRef &Other) const;
-  bool operator <(const SymbolRef &Other) const;
+  bool operator<(const SymbolRef &Other) const;
 
   error_code getNext(SymbolRef &Result) const;
 
   error_code getName(StringRef &Result) const;
+  /// Returns the symbol virtual address (i.e. address at which it will be
+  /// mapped).
   error_code getAddress(uint64_t &Result) const;
   error_code getFileOffset(uint64_t &Result) const;
   error_code getSize(uint64_t &Result) const;
@@ -231,6 +234,9 @@ public:
   /// end_sections() if it is undefined or is an absolute symbol.
   error_code getSection(section_iterator &Result) const;
 
+  /// @brief Get value of the symbol in the symbol table.
+  error_code getValue(uint64_t &Val) const;
+
   DataRefImpl getRawDataRefImpl() const;
 };
 typedef content_iterator<SymbolRef> symbol_iterator;
@@ -248,7 +254,7 @@ public:
   LibraryRef(DataRefImpl LibraryP, const ObjectFile *Owner);
 
   bool operator==(const LibraryRef &Other) const;
-  bool operator <(const LibraryRef &Other) const;
+  bool operator<(const LibraryRef &Other) const;
 
   error_code getNext(LibraryRef &Result) const;
 
@@ -263,11 +269,11 @@ const uint64_t UnknownAddressOrSize = ~0ULL;
 
 /// ObjectFile - This class is the base class for all object file types.
 /// Concrete instances of this object are created by createObjectFile, which
-/// figure out which type to create.
+/// figures out which type to create.
 class ObjectFile : public Binary {
   virtual void anchor();
-  ObjectFile(); // = delete
-  ObjectFile(const ObjectFile &other); // = delete
+  ObjectFile() LLVM_DELETED_FUNCTION;
+  ObjectFile(const ObjectFile &other) LLVM_DELETED_FUNCTION;
 
 protected:
   ObjectFile(unsigned int Type, MemoryBuffer *source, error_code &ec);
@@ -287,8 +293,8 @@ protected:
   friend class SymbolRef;
   virtual error_code getSymbolNext(DataRefImpl Symb, SymbolRef &Res) const = 0;
   virtual error_code getSymbolName(DataRefImpl Symb, StringRef &Res) const = 0;
-  virtual error_code getSymbolAddress(DataRefImpl Symb, uint64_t &Res) const =0;
-  virtual error_code getSymbolFileOffset(DataRefImpl Symb, uint64_t &Res) const =0;
+  virtual error_code getSymbolAddress(DataRefImpl Symb, uint64_t &Res) const = 0;
+  virtual error_code getSymbolFileOffset(DataRefImpl Symb, uint64_t &Res)const=0;
   virtual error_code getSymbolSize(DataRefImpl Symb, uint64_t &Res) const = 0;
   virtual error_code getSymbolType(DataRefImpl Symb,
                                    SymbolRef::Type &Res) const = 0;
@@ -297,6 +303,7 @@ protected:
                                     uint32_t &Res) const = 0;
   virtual error_code getSymbolSection(DataRefImpl Symb,
                                       section_iterator &Res) const = 0;
+  virtual error_code getSymbolValue(DataRefImpl Symb, uint64_t &Val) const = 0;
 
   // Same as above for SectionRef.
   friend class SectionRef;
@@ -314,6 +321,7 @@ protected:
   // A section is 'virtual' if its contents aren't present in the object image.
   virtual error_code isSectionVirtual(DataRefImpl Sec, bool &Res) const = 0;
   virtual error_code isSectionZeroInit(DataRefImpl Sec, bool &Res) const = 0;
+  virtual error_code isSectionReadOnlyData(DataRefImpl Sec, bool &Res) const =0;
   virtual error_code sectionContainsSymbol(DataRefImpl Sec, DataRefImpl Symb,
                                            bool &Result) const = 0;
   virtual relocation_iterator getSectionRelBegin(DataRefImpl Sec) const = 0;
@@ -384,7 +392,6 @@ public:
   static inline bool classof(const Binary *v) {
     return v->isObject();
   }
-  static inline bool classof(const ObjectFile *v) { return true; }
 
 public:
   static ObjectFile *createCOFFObjectFile(MemoryBuffer *Object);
@@ -401,7 +408,7 @@ inline bool SymbolRef::operator==(const SymbolRef &Other) const {
   return SymbolPimpl == Other.SymbolPimpl;
 }
 
-inline bool SymbolRef::operator <(const SymbolRef &Other) const {
+inline bool SymbolRef::operator<(const SymbolRef &Other) const {
   return SymbolPimpl < Other.SymbolPimpl;
 }
 
@@ -441,6 +448,10 @@ inline error_code SymbolRef::getType(SymbolRef::Type &Result) const {
   return OwningObject->getSymbolType(SymbolPimpl, Result);
 }
 
+inline error_code SymbolRef::getValue(uint64_t &Val) const {
+  return OwningObject->getSymbolValue(SymbolPimpl, Val);
+}
+
 inline DataRefImpl SymbolRef::getRawDataRefImpl() const {
   return SymbolPimpl;
 }
@@ -456,7 +467,7 @@ inline bool SectionRef::operator==(const SectionRef &Other) const {
   return SectionPimpl == Other.SectionPimpl;
 }
 
-inline bool SectionRef::operator <(const SectionRef &Other) const {
+inline bool SectionRef::operator<(const SectionRef &Other) const {
   return SectionPimpl < Other.SectionPimpl;
 }
 
@@ -506,6 +517,10 @@ inline error_code SectionRef::isVirtual(bool &Result) const {
 
 inline error_code SectionRef::isZeroInit(bool &Result) const {
   return OwningObject->isSectionZeroInit(SectionPimpl, Result);
+}
+
+inline error_code SectionRef::isReadOnlyData(bool &Result) const {
+  return OwningObject->isSectionReadOnlyData(SectionPimpl, Result);
 }
 
 inline error_code SectionRef::containsSymbol(SymbolRef S, bool &Result) const {
@@ -586,7 +601,7 @@ inline bool LibraryRef::operator==(const LibraryRef &Other) const {
   return LibraryPimpl == Other.LibraryPimpl;
 }
 
-inline bool LibraryRef::operator <(const LibraryRef &Other) const {
+inline bool LibraryRef::operator<(const LibraryRef &Other) const {
   return LibraryPimpl < Other.LibraryPimpl;
 }
 

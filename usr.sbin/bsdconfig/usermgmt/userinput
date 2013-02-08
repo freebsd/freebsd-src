@@ -31,6 +31,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/usermgmt/user_input.subr
@@ -38,7 +39,7 @@ f_include $BSDCFG_SHARE/usermgmt/user_input.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ CONFIGURATION
@@ -80,22 +81,22 @@ save_changes()
 		err=$( pw userdel -u "$pw_uid" 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_login_deleted"
+		f_dialog_msgbox "$msg_login_deleted"
 
 		if [ "$pw_group_delete" = "$msg_yes" ] &&
 		   f_quietly pw groupshow -g "$pw_gid"
 		then
 			err=$( pw groupdel -g "$pw_gid" 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 
 		if [ "$pw_home_delete" = "$msg_yes" ]; then
 			f_dialog_info "$msg_deleting_home_directory"
 			err=$( rm -Rf "$pw_home_dir" 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 		;;
 	Add)
@@ -114,30 +115,30 @@ save_changes()
 		elif [ "$pw_password" ]; then
 			cmd="echo \"\$pw_password\" | $cmd -h 0"
 		fi
-		f_dprintf "cmd=$cmd"
+		f_dprintf "cmd=%s" "$cmd"
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_login_added"
+		f_dialog_msgbox "$msg_login_added"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" 2>&1 )
 			if [ $? -ne $SUCCESS ]; then
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 			elif [ -e "$pw_home_dir" ]; then
 				err=$( chown -R "$pw_uid:$pw_gid" \
 				                "$pw_home_dir" 2>&1 )
-				[ $? -eq $SUCCESS ] || f_show_msg \
-					"%s %s\n" "$msg_warning" "$err"
+				[ $? -eq $SUCCESS ] ||
+					f_dialog_msgbox "$msg_warning $err\n"
 			fi
 		fi
 
 		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
 			err=$( copy_dotfiles 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 
 		user="$pw_name"
@@ -160,30 +161,30 @@ save_changes()
 		elif [ "$pw_password" ]; then
 			cmd="echo \"\$pw_password\" | $cmd -h 0"
 		fi
-		f_dprintf "cmd=$cmd"
+		f_dprintf "cmd=%s" "$cmd"
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_login_updated"
+		f_dialog_msgbox "$msg_login_updated"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" )
 			if [ $? -ne $SUCCESS ]; then
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 			elif [ -e "$pw_home_dir" ]; then
 				err=$( chown -R "$pw_uid:$pw_gid" \
 				                "$pw_home_dir" 2>&1 )
-				[ $? -eq $SUCCESS ] || f_show_msg \
-					"%s %s\n" "$msg_warning" "$err"
+				[ $? -eq $SUCCESS ] ||
+					f_dialog_msgbox "$msg_warning $err\n"
 			fi
 		fi
 
 		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
 			err=$( copy_dotfiles 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 		;;
 	esac
@@ -217,19 +218,18 @@ dialog_title_update()
 while [ $# -gt 0 ]; do
 	key="${1%%=*}"
 	value="${1#*=}"
-	f_dprintf "key=[$key] value=[$value]"
+	f_dprintf "key=[%s] value=[%s]" "$key" "$value"
 	case "$key" in
 	mode) mode="$value";;
 	user) user="$value";;
 	esac
 	shift
 done
-f_dprintf "mode=[$mode] user=[$user]"
+f_dprintf "mode=[%s] user=[%s]" "$mode" "$user"
 
 #
 # Initialize
 #
-f_dialog_init
 dialog_title_update "$mode"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
@@ -391,7 +391,6 @@ while :; do
 	        	\"\$hline\"            \
 	        	$menu_items            )
 
-	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
@@ -406,7 +405,7 @@ while :; do
 	retval=$?
 	setvar DIALOG_MENU_$$ "$dialog_menu"
 	mtag=$( f_dialog_menutag )
-	f_dprintf "retval=$retval mtag=[$mtag]"
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
 	[ $retval -eq $SUCCESS ] || f_die
@@ -425,7 +424,7 @@ while :; do
 	   	f_dialog_menu_user_list
 	   	retval=$?
 	   	mtag=$( f_dialog_menutag )
-	   	f_dprintf "retval=$retval mtag=[$mtag]"
+	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No
 	   	[ $retval -eq $SUCCESS ] || continue

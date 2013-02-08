@@ -188,6 +188,11 @@ static const struct pmc_event_descr ivybridge_event_table[] =
 	__PMC_EV_ALIAS_IVYBRIDGE()
 };
 
+static const struct pmc_event_descr ivybridge_xeon_event_table[] = 
+{
+	__PMC_EV_ALIAS_IVYBRIDGE_XEON()
+};
+
 static const struct pmc_event_descr sandybridge_event_table[] = 
 {
 	__PMC_EV_ALIAS_SANDYBRIDGE()
@@ -233,6 +238,7 @@ PMC_MDEP_TABLE(core, IAP, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(corei7, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(ivybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(ivybridge_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(sandybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(sandybridge_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(westmere, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
@@ -272,6 +278,7 @@ PMC_CLASS_TABLE_DESC(core, IAP, core, iap);
 PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
 PMC_CLASS_TABLE_DESC(ivybridge, IAP, ivybridge, iap);
+PMC_CLASS_TABLE_DESC(ivybridge_xeon, IAP, ivybridge_xeon, iap);
 PMC_CLASS_TABLE_DESC(sandybridge, IAP, sandybridge, iap);
 PMC_CLASS_TABLE_DESC(sandybridge_xeon, IAP, sandybridge_xeon, iap);
 PMC_CLASS_TABLE_DESC(westmere, IAP, westmere, iap);
@@ -577,6 +584,8 @@ static struct pmc_event_alias core2_aliases_without_iaf[] = {
 #define corei7_aliases_without_iaf	core2_aliases_without_iaf
 #define ivybridge_aliases		core2_aliases
 #define ivybridge_aliases_without_iaf	core2_aliases_without_iaf
+#define ivybridge_xeon_aliases		core2_aliases
+#define ivybridge_xeon_aliases_without_iaf	core2_aliases_without_iaf
 #define sandybridge_aliases		core2_aliases
 #define sandybridge_aliases_without_iaf	core2_aliases_without_iaf
 #define sandybridge_xeon_aliases	core2_aliases
@@ -807,7 +816,8 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_SANDYBRIDGE_XEON ||
-			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE) {
+			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE ||
+			cpu_info.pm_cputype == PMC_CPU_INTEL_IVYBRIDGE_XEON ) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_sb_sbx_ib, p, &rsp);
 			} else
@@ -2264,7 +2274,7 @@ soft_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	(void)ctrspec;
 	(void)pmc_config;
 
-	if (pe < PMC_EV_SOFT_FIRST || pe > PMC_EV_SOFT_LAST)
+	if ((int)pe < PMC_EV_SOFT_FIRST || (int)pe > PMC_EV_SOFT_LAST)
 		return (-1);
 
 	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
@@ -2684,6 +2694,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = ivybridge_event_table;
 			count = PMC_EVENT_TABLE_SIZE(ivybridge);
 			break;
+		case PMC_CPU_INTEL_IVYBRIDGE_XEON:
+			ev = ivybridge_xeon_event_table;
+			count = PMC_EVENT_TABLE_SIZE(ivybridge_xeon);
+			break;
 		case PMC_CPU_INTEL_SANDYBRIDGE:
 			ev = sandybridge_event_table;
 			count = PMC_EVENT_TABLE_SIZE(sandybridge);
@@ -2983,6 +2997,9 @@ pmc_init(void)
 	case PMC_CPU_INTEL_IVYBRIDGE:
 		PMC_MDEP_INIT_INTEL_V2(ivybridge);
 		break;
+	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
+		PMC_MDEP_INIT_INTEL_V2(ivybridge_xeon);
+		break;
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 		pmc_class_table[n++] = &ucf_class_table_descr;
 		pmc_class_table[n++] = &sandybridgeuc_class_table_descr;
@@ -3125,6 +3142,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 			ev = ivybridge_event_table;
 			evfence = ivybridge_event_table + PMC_EVENT_TABLE_SIZE(ivybridge);
 			break;
+		case PMC_CPU_INTEL_IVYBRIDGE_XEON:
+			ev = ivybridge_xeon_event_table;
+			evfence = ivybridge_xeon_event_table + PMC_EVENT_TABLE_SIZE(ivybridge_xeon);
+			break;
 		case PMC_CPU_INTEL_SANDYBRIDGE:
 			ev = sandybridge_event_table;
 			evfence = sandybridge_event_table + PMC_EVENT_TABLE_SIZE(sandybridge);
@@ -3190,7 +3211,7 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;
 		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);
-	} else if (pe >= PMC_EV_SOFT_FIRST && pe <= PMC_EV_SOFT_LAST) {
+	} else if ((int)pe >= PMC_EV_SOFT_FIRST && (int)pe <= PMC_EV_SOFT_LAST) {
 		ev = soft_event_table;
 		evfence = soft_event_table + soft_event_info.pm_nevent;
 	}

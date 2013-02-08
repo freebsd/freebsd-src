@@ -58,6 +58,7 @@ avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2010/07/27"]
+bar [label="Barbara Guida\nbar@FreeBSD.org\n2012/11/25"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2012/07/31"]
 beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
 beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
@@ -76,6 +77,7 @@ culot [label="Frederic Culot\nculot@FreeBSD.org\n2010/10/16"]
 daichi [label="Daichi Goto\ndaichi@FreeBSD.org\n2002/10/17"]
 danfe [label="Alexey Dokuchaev\ndanfe@FreeBSD.org\n2004/08/20"]
 db [label="Diane Bruce\ndb@FreeBSD.org\n2007/01/18"]
+dbn [label="David Naylor\ndbn@FreeBSD.org\n2013/01/14"]
 decke [label="Bernhard Froehlich\ndecke@FreeBSD.org\n2010/03/21"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
@@ -94,6 +96,7 @@ flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 gahr [label="Pietro Cerutti\ngahr@FreeBSD.org\n2008/02/20"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
+gblach [label="Grzegorz Blach\ngblach@FreeBSD.org\n2012/11/03"]
 gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
@@ -138,6 +141,7 @@ maho [label="Maho Nakata\nmaho@FreeBSD.org\n2002/10/17"]
 makc [label="Max Brazhnikov\nmakc@FreeBSD.org\n2008/08/25"]
 mandree [label="Matthias Andree\nmandree@FreeBSD.org\n2009/11/18"]
 marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
+marius [label="Marius Strobl\nmarius@FreeBSD.org\n2012/12/29"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2004/02/21"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
@@ -230,11 +234,15 @@ asami -> obrien
 avilla -> jhale
 avilla -> rakuco
 
+bdrewery -> dbn
+
 bapt -> bdrewery
 bapt -> eadler
 bapt -> jlaffaye
+bapt -> marius
 
 beat -> decke
+beat -> marius
 beat -> sperber
 beat -> uqs
 
@@ -255,6 +263,7 @@ clsung -> tabthorpe
 crees -> gjb
 crees -> jgh
 crees -> madpilot
+crees -> gblach
 
 culot -> jase
 
@@ -268,6 +277,7 @@ delphij -> rafan
 demon -> mat
 
 eadler -> ak
+eadler -> dbn
 eadler -> bdrewery
 eadler -> gjb
 eadler -> tj
@@ -295,6 +305,7 @@ fjoe -> flo
 fjoe -> krion
 fjoe -> osa
 
+flo -> bar
 flo -> jase
 
 flz -> garga
@@ -435,6 +446,7 @@ philip -> koitsu
 
 rafan -> chinsan
 
+rene -> bar
 rene -> crees
 rene -> jgh
 rene -> olivierd
@@ -476,6 +488,7 @@ tabthorpe -> madpilot
 tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi
+tabthorpe -> gblach
 
 thierry -> jadawin
 

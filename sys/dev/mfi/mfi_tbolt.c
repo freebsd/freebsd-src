@@ -69,13 +69,10 @@ uint8_t
 mfi_build_mpt_pass_thru(struct mfi_softc *sc, struct mfi_command *mfi_cmd);
 union mfi_mpi2_request_descriptor *mfi_build_and_issue_cmd(struct mfi_softc
     *sc, struct mfi_command *mfi_cmd);
-int mfi_tbolt_is_ldio(struct mfi_command *mfi_cmd);
 void mfi_tbolt_build_ldio(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
     struct mfi_cmd_tbolt *cmd);
 static int mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command
     *mfi_cmd, pMpi25IeeeSgeChain64_t sgl_ptr, struct mfi_cmd_tbolt *cmd);
-static int mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command
-    *mfi_cmd, uint8_t *cdb);
 void
 map_tbolt_cmd_status(struct mfi_command *mfi_cmd, uint8_t status,
      uint8_t ext_status);
@@ -502,6 +499,7 @@ mfi_tbolt_alloc_cmd(struct mfi_softc *sc)
 		    + i * MEGASAS_MAX_SZ_CHAIN_FRAME);
 		cmd->sg_frame_phys_addr = sc->sg_frame_busaddr + i
 		    * MEGASAS_MAX_SZ_CHAIN_FRAME;
+		cmd->sync_cmd_idx = sc->mfi_max_fw_cmds;
 
 		TAILQ_INSERT_TAIL(&(sc->mfi_cmd_tbolt_tqh), cmd, next);
 	}
@@ -574,11 +572,11 @@ void
 map_tbolt_cmd_status(struct mfi_command *mfi_cmd, uint8_t status,
     uint8_t ext_status)
 {
-
 	switch (status) {
 		case MFI_STAT_OK:
-			mfi_cmd->cm_frame->header.cmd_status = 0;
-			mfi_cmd->cm_frame->dcmd.header.cmd_status = 0;
+			mfi_cmd->cm_frame->header.cmd_status = MFI_STAT_OK;
+			mfi_cmd->cm_frame->dcmd.header.cmd_status = MFI_STAT_OK;
+			mfi_cmd->cm_error = MFI_STAT_OK;
 			break;
 
 		case MFI_STAT_SCSI_IO_FAILED:
@@ -618,6 +616,7 @@ mfi_tbolt_return_cmd(struct mfi_softc *sc, struct mfi_cmd_tbolt *cmd)
 {
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
+	cmd->sync_cmd_idx = sc->mfi_max_fw_cmds;
 	TAILQ_INSERT_TAIL(&sc->mfi_cmd_tbolt_tqh, cmd, next);
 }
 
@@ -667,16 +666,26 @@ mfi_tbolt_complete_cmd(struct mfi_softc *sc)
 		extStatus = cmd_mfi->cm_frame->dcmd.header.scsi_status;
 		map_tbolt_cmd_status(cmd_mfi, status, extStatus);
 
-		/* remove command from busy queue if not polled */
-		TAILQ_FOREACH(cmd_mfi_check, &sc->mfi_busy, cm_link) {
-			if (cmd_mfi_check == cmd_mfi) {
-				mfi_remove_busy(cmd_mfi);
-				break;
+		if (cmd_mfi->cm_flags & MFI_CMD_SCSI &&
+		    (cmd_mfi->cm_flags & MFI_CMD_POLLED) != 0) {
+			/* polled LD/SYSPD IO command */
+			mfi_tbolt_return_cmd(sc, cmd_tbolt);
+			/* XXX mark okay for now DJA */
+			cmd_mfi->cm_frame->header.cmd_status = MFI_STAT_OK;
+		} else {
+
+			/* remove command from busy queue if not polled */
+			TAILQ_FOREACH(cmd_mfi_check, &sc->mfi_busy, cm_link) {
+				if (cmd_mfi_check == cmd_mfi) {
+					mfi_remove_busy(cmd_mfi);
+					break;
+				}
 			}
+
+			/* complete the command */
+			mfi_complete(sc, cmd_mfi);
+			mfi_tbolt_return_cmd(sc, cmd_tbolt);
 		}
-		cmd_mfi->cm_error = 0;
-		mfi_complete(sc, cmd_mfi);
-		mfi_tbolt_return_cmd(sc, cmd_tbolt);
 
 		sc->last_reply_idx++;
 		if (sc->last_reply_idx >= sc->mfi_max_fw_cmds) {
@@ -811,13 +820,13 @@ mfi_tbolt_build_ldio(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 	    MFI_FRAME_DIR_READ)
 		io_info.isRead = 1;
 
-		io_request->RaidContext.timeoutValue
-		     = MFI_FUSION_FP_DEFAULT_TIMEOUT;
-		io_request->Function = MPI2_FUNCTION_LD_IO_REQUEST;
-		io_request->DevHandle = device_id;
-		cmd->request_desc->header.RequestFlags
-		    = (MFI_REQ_DESCRIPT_FLAGS_LD_IO
-		    << MFI_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+	io_request->RaidContext.timeoutValue
+		= MFI_FUSION_FP_DEFAULT_TIMEOUT;
+	io_request->Function = MPI2_FUNCTION_LD_IO_REQUEST;
+	io_request->DevHandle = device_id;
+	cmd->request_desc->header.RequestFlags
+		= (MFI_REQ_DESCRIPT_FLAGS_LD_IO
+		   << MFI_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	if ((io_request->IoFlags == 6) && (io_info.numBlocks == 0))
 		io_request->RaidContext.RegLockLength = 0x100;
 	io_request->DataLength = mfi_cmd->cm_frame->io.header.data_len
@@ -825,40 +834,36 @@ mfi_tbolt_build_ldio(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 }
 
 int
-mfi_tbolt_is_ldio(struct mfi_command *mfi_cmd)
-{
-	if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_READ
-	    || mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
-		return 1;
-	else
-		return 0;
-}
-
-int
 mfi_tbolt_build_io(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
     struct mfi_cmd_tbolt *cmd)
 {
-	uint32_t device_id;
+	struct mfi_mpi2_request_raid_scsi_io *io_request;
 	uint32_t sge_count;
-	uint8_t cdb[32], cdb_len;
+	uint8_t cdb_len;
+	int readop;
+	u_int64_t lba;
 
-	memset(cdb, 0, 32);
-	struct mfi_mpi2_request_raid_scsi_io *io_request = cmd->io_request;
-
-	device_id = mfi_cmd->cm_frame->header.target_id;
-
-	/* Have to build CDB here for TB as BSD don't have a scsi layer */
-	if ((cdb_len = mfi_tbolt_build_cdb(sc, mfi_cmd, cdb)) == 1)
+	io_request = cmd->io_request;
+	if (!(mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_READ
+	      || mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE))
 		return 1;
 
-	/* Just the CDB length,rest of the Flags are zero */
-	io_request->IoFlags = cdb_len;
-	memcpy(io_request->CDB.CDB32, cdb, 32);
+	mfi_tbolt_build_ldio(sc, mfi_cmd, cmd);
 
-	if (mfi_tbolt_is_ldio(mfi_cmd))
-		mfi_tbolt_build_ldio(sc, mfi_cmd , cmd);
+	/* Convert to SCSI command CDB */
+	bzero(io_request->CDB.CDB32, sizeof(io_request->CDB.CDB32));
+	if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
+		readop = 0;
 	else
-		return 1;
+		readop = 1;
+
+	lba =  mfi_cmd->cm_frame->io.lba_hi;
+	lba = (lba << 32) + mfi_cmd->cm_frame->io.lba_lo;
+	cdb_len = mfi_build_cdb(readop, 0, lba,
+	    mfi_cmd->cm_frame->io.header.data_len, io_request->CDB.CDB32);
+
+	/* Just the CDB length, rest of the Flags are zero */
+	io_request->IoFlags = cdb_len;
 
 	/*
 	 * Construct SGL
@@ -883,84 +888,12 @@ mfi_tbolt_build_io(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 
 	io_request->SenseBufferLowAddress = mfi_cmd->cm_sense_busaddr;
 	io_request->SenseBufferLength = MFI_SENSE_LEN;
+	io_request->RaidContext.Status = MFI_STAT_INVALID_STATUS;
+	io_request->RaidContext.exStatus = MFI_STAT_INVALID_STATUS;
+
 	return 0;
 }
 
-static int
-mfi_tbolt_build_cdb(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
-    uint8_t *cdb)
-{
-	uint32_t lba_lo, lba_hi, num_lba;
-	uint8_t cdb_len;
-
-	if (mfi_cmd == NULL || cdb == NULL)
-		return 1;
-	num_lba = mfi_cmd->cm_frame->io.header.data_len;
-	lba_lo = mfi_cmd->cm_frame->io.lba_lo;
-	lba_hi = mfi_cmd->cm_frame->io.lba_hi;
-
-	if (lba_hi == 0 && (num_lba <= 0xFF) && (lba_lo <= 0x1FFFFF)) {
-		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
-			/* Read 6 or Write 6 */
-			cdb[0] = (uint8_t) (0x0A);
-		else
-			cdb[0] = (uint8_t) (0x08);
-
-		cdb[4] = (uint8_t) num_lba;
-		cdb[3] = (uint8_t) (lba_lo & 0xFF);
-		cdb[2] = (uint8_t) (lba_lo >> 8);
-		cdb[1] = (uint8_t) ((lba_lo >> 16) & 0x1F);
-		cdb_len = 6;
-	}
-	else if (lba_hi == 0 && (num_lba <= 0xFFFF) && (lba_lo <= 0xFFFFFFFF)) {
-		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
-			/* Read 10 or Write 10 */
-			cdb[0] = (uint8_t) (0x2A);
-		else
-			cdb[0] = (uint8_t) (0x28);
-		cdb[8] = (uint8_t) (num_lba & 0xFF);
-		cdb[7] = (uint8_t) (num_lba >> 8);
-		cdb[5] = (uint8_t) (lba_lo & 0xFF);
-		cdb[4] = (uint8_t) (lba_lo >> 8);
-		cdb[3] = (uint8_t) (lba_lo >> 16);
-		cdb[2] = (uint8_t) (lba_lo >> 24);
-		cdb_len = 10;
-	} else if ((num_lba > 0xFFFF) && (lba_hi == 0)) {
-		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
-			/* Read 12 or Write 12 */
-			cdb[0] = (uint8_t) (0xAA);
-		else
-			cdb[0] = (uint8_t) (0xA8);
-		cdb[9] = (uint8_t) (num_lba & 0xFF);
-		cdb[8] = (uint8_t) (num_lba >> 8);
-		cdb[7] = (uint8_t) (num_lba >> 16);
-		cdb[6] = (uint8_t) (num_lba >> 24);
-		cdb[5] = (uint8_t) (lba_lo & 0xFF);
-		cdb[4] = (uint8_t) (lba_lo >> 8);
-		cdb[3] = (uint8_t) (lba_lo >> 16);
-		cdb[2] = (uint8_t) (lba_lo >> 24);
-		cdb_len = 12;
-	} else {
-		if (mfi_cmd->cm_frame->header.cmd == MFI_CMD_LD_WRITE)
-			cdb[0] = (uint8_t) (0x8A);
-		else
-			cdb[0] = (uint8_t) (0x88);
-		cdb[13] = (uint8_t) (num_lba & 0xFF);
-		cdb[12] = (uint8_t) (num_lba >> 8);
-		cdb[11] = (uint8_t) (num_lba >> 16);
-		cdb[10] = (uint8_t) (num_lba >> 24);
-		cdb[9] = (uint8_t) (lba_lo & 0xFF);
-		cdb[8] = (uint8_t) (lba_lo >> 8);
-		cdb[7] = (uint8_t) (lba_lo >> 16);
-		cdb[6] = (uint8_t) (lba_lo >> 24);
-		cdb[5] = (uint8_t) (lba_hi & 0xFF);
-		cdb[4] = (uint8_t) (lba_hi >> 8);
-		cdb[3] = (uint8_t) (lba_hi >> 16);
-		cdb[2] = (uint8_t) (lba_hi >> 24);
-		cdb_len = 16;
-	}
-	return cdb_len;
-}
 
 static int
 mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
@@ -1100,8 +1033,7 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
 		cm->cm_timestamp = time_uptime;
 		mfi_enqueue_busy(cm);
-	}
-	else {	/* still get interrupts for it */
+	} else {	/* still get interrupts for it */
 		hdr->cmd_status = MFI_STAT_INVALID_STATUS;
 		hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 	}
@@ -1118,31 +1050,49 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 		}
 		else
 			device_printf(sc->mfi_dev, "DJA NA XXX SYSPDIO\n");
-	}
-	else if (hdr->cmd == MFI_CMD_LD_SCSI_IO ||
+	} else if (hdr->cmd == MFI_CMD_LD_SCSI_IO ||
 	    hdr->cmd == MFI_CMD_LD_READ || hdr->cmd == MFI_CMD_LD_WRITE) {
+		cm->cm_flags |= MFI_CMD_SCSI;
 		if ((req_desc = mfi_build_and_issue_cmd(sc, cm)) == NULL) {
 			device_printf(sc->mfi_dev, "LDIO Failed \n");
 			return 1;
 		}
-	} else
-		if ((req_desc = mfi_tbolt_build_mpt_cmd(sc, cm)) == NULL) {
+	} else if ((req_desc = mfi_tbolt_build_mpt_cmd(sc, cm)) == NULL) {
 			device_printf(sc->mfi_dev, "Mapping from MFI to MPT "
 			    "Failed\n");
 			return 1;
-		}
+	}
+
+	if (cm->cm_flags & MFI_CMD_SCSI) {
+		/*
+		 * LD IO needs to be posted since it doesn't get
+		 * acknowledged via a status update so have the
+		 * controller reply via mfi_tbolt_complete_cmd.
+		 */
+		hdr->flags &= ~MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
+	}
+
 	MFI_WRITE4(sc, MFI_ILQP, (req_desc->words & 0xFFFFFFFF));
 	MFI_WRITE4(sc, MFI_IHQP, (req_desc->words >>0x20));
 
 	if ((cm->cm_flags & MFI_CMD_POLLED) == 0)
 		return 0;
 
+	if (cm->cm_flags & MFI_CMD_SCSI) {
+		/* check reply queue */
+		mfi_tbolt_complete_cmd(sc);
+	}
+
 	/* This is a polled command, so busy-wait for it to complete. */
 	while (hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
 		DELAY(1000);
 		tm -= 1;
 		if (tm <= 0)
-		break;
+			break;
+		if (cm->cm_flags & MFI_CMD_SCSI) {
+			/* check reply queue */
+			mfi_tbolt_complete_cmd(sc);
+		}
 	}
 
 	if (hdr->cmd_status == MFI_STAT_INVALID_STATUS) {
@@ -1375,7 +1325,7 @@ mfi_tbolt_sync_map_info(struct mfi_softc *sc)
 		free(ld_sync, M_MFIBUF);
 		goto out;
 	}
-	
+
 	context = cmd->cm_frame->header.context;
 	bzero(cmd->cm_frame, sizeof(union mfi_frame));
 	cmd->cm_frame->header.context = context;

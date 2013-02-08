@@ -221,7 +221,11 @@ iicwrite(struct cdev *dev, struct uio * uio, int ioflag)
 	}
 
 	count = min(uio->uio_resid, BUFSIZE);
-	uiomove(sc->sc_buffer, count, uio);
+	error = uiomove(sc->sc_buffer, count, uio);
+	if (error) {
+		IIC_UNLOCK(sc);
+		return (error);
+	}
 
 	error = iicbus_block_write(device_get_parent(iicdev), sc->sc_addr,
 					sc->sc_buffer, count, &sent);

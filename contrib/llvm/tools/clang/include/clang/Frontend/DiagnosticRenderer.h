@@ -44,7 +44,7 @@ typedef llvm::PointerUnion<const Diagnostic *,
 class DiagnosticRenderer {
 protected:
   const LangOptions &LangOpts;
-  const DiagnosticOptions &DiagOpts;
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   
   /// \brief The location of the previous diagnostic if known.
   ///
@@ -66,7 +66,7 @@ protected:
   DiagnosticsEngine::Level LastLevel;
 
   DiagnosticRenderer(const LangOptions &LangOpts,
-                     const DiagnosticOptions &DiagOpts);
+                     DiagnosticOptions *DiagOpts);
   
   virtual ~DiagnosticRenderer();
   
@@ -124,7 +124,7 @@ public:
   /// \param Ranges The underlined ranges for this code snippet.
   /// \param FixItHints The FixIt hints active for this diagnostic.
   /// \param SM The SourceManager; will be null if the diagnostic came from the
-  ///        frontend, thus \param Loc will be invalid.
+  ///        frontend, thus \p Loc will be invalid.
   void emitDiagnostic(SourceLocation Loc, DiagnosticsEngine::Level Level,
                       StringRef Message, ArrayRef<CharSourceRange> Ranges,
                       ArrayRef<FixItHint> FixItHints,
@@ -139,7 +139,7 @@ public:
 class DiagnosticNoteRenderer : public DiagnosticRenderer {
 public:
   DiagnosticNoteRenderer(const LangOptions &LangOpts,
-                         const DiagnosticOptions &DiagOpts)
+                         DiagnosticOptions *DiagOpts)
     : DiagnosticRenderer(LangOpts, DiagOpts) {}
   
   virtual ~DiagnosticNoteRenderer();

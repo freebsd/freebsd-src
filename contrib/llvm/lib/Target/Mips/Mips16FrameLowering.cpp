@@ -20,7 +20,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/CommandLine.h"
 
@@ -41,6 +41,11 @@ void Mips16FrameLowering::emitPrologue(MachineFunction &MF) const {
   // Adjust stack.
   if (isInt<16>(-StackSize))
     BuildMI(MBB, MBBI, dl, TII.get(Mips::SaveRaF16)).addImm(StackSize);
+
+  if (hasFP(MF))
+    BuildMI(MBB, MBBI, dl, TII.get(Mips::MoveR3216), Mips::S0)
+      .addReg(Mips::SP);
+
 }
 
 void Mips16FrameLowering::emitEpilogue(MachineFunction &MF,
@@ -55,6 +60,10 @@ void Mips16FrameLowering::emitEpilogue(MachineFunction &MF,
   if (!StackSize)
     return;
 
+  if (hasFP(MF))
+    BuildMI(MBB, MBBI, dl, TII.get(Mips::Move32R16), Mips::SP)
+      .addReg(Mips::S0);
+
   // Adjust stack.
   if (isInt<16>(StackSize))
     // assumes stacksize multiple of 8
@@ -66,19 +75,58 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator MI,
                           const std::vector<CalleeSavedInfo> &CSI,
                           const TargetRegisterInfo *TRI) const {
-  // FIXME: implement.
+  MachineFunction *MF = MBB.getParent();
+  MachineBasicBlock *EntryBlock = MF->begin();
+
+  //
+  // Registers RA, S0,S1 are the callee saved registers and they
+  // will be saved with the "save" instruction
+  // during emitPrologue
+  //
+  for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
+    // Add the callee-saved register as live-in. Do not add if the register is
+    // RA and return address is taken, because it has already been added in
+    // method MipsTargetLowering::LowerRETURNADDR.
+    // It's killed at the spill, unless the register is RA and return address
+    // is taken.
+    unsigned Reg = CSI[i].getReg();
+    bool IsRAAndRetAddrIsTaken = (Reg == Mips::RA)
+      && MF->getFrameInfo()->isReturnAddressTaken();
+    if (!IsRAAndRetAddrIsTaken)
+      EntryBlock->addLiveIn(Reg);
+  }
+
+  return true;
+}
+
+bool Mips16FrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
+                                          MachineBasicBlock::iterator MI,
+                                       const std::vector<CalleeSavedInfo> &CSI,
+                                       const TargetRegisterInfo *TRI) const {
+  //
+  // Registers RA,S0,S1 are the callee saved registers and they will be restored
+  // with the restore instruction during emitEpilogue.
+  // We need to override this virtual function, otherwise llvm will try and
+  // restore the registers on it's on from the stack.
+  //
+
   return true;
 }
 
 bool
 Mips16FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
-  // FIXME: implement.
-  return true;
+  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  // Reserve call frame if the size of the maximum call frame fits into 15-bit
+  // immediate field and there are no variable sized objects on the stack.
+  return isInt<15>(MFI->getMaxCallFrameSize()) && !MFI->hasVarSizedObjects();
 }
 
 void Mips16FrameLowering::
 processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                      RegScavenger *RS) const {
+  MF.getRegInfo().setPhysRegUsed(Mips::RA);
+  MF.getRegInfo().setPhysRegUsed(Mips::S0);
+  MF.getRegInfo().setPhysRegUsed(Mips::S1);
 }
 
 const MipsFrameLowering *

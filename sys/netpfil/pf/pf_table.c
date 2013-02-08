@@ -1,6 +1,4 @@
-/*	$OpenBSD: pf_table.c,v 1.79 2008/10/08 06:24:50 mcbride Exp $	*/
-
-/*
+/*-
  * Copyright (c) 2002 Cedric Berger
  * All rights reserved.
  *
@@ -28,6 +26,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
+ *	$OpenBSD: pf_table.c,v 1.79 2008/10/08 06:24:50 mcbride Exp $
  */
 
 #include <sys/cdefs.h>

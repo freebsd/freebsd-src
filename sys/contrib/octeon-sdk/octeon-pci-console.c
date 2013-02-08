@@ -75,7 +75,7 @@
 
 /* The following code is only used in standalone CVMX applications. It does
     not apply for kernel or Linux programming */
-#if defined(OCTEON_TARGET) && !defined(__linux__)
+#if defined(OCTEON_TARGET) && !defined(__linux__) && !defined(CVMX_BUILD_FOR_LINUX_KERNEL)
 
 static int cvmx_pci_console_num = 0;
 static int per_core_pci_consoles = 0;
@@ -110,14 +110,14 @@ int  __cvmx_pci_console_write (int fd, char *buf, int nbytes)
 
 
 #if !defined(CONFIG_OCTEON_U_BOOT) || (defined(CONFIG_OCTEON_U_BOOT) && (defined(CFG_PCI_CONSOLE) || defined(CONFIG_SYS_PCI_CONSOLE)))
-int octeon_pci_console_buffer_free_bytes(uint32_t buffer_size, uint32_t wr_idx, uint32_t rd_idx)
+static int octeon_pci_console_buffer_free_bytes(uint32_t buffer_size, uint32_t wr_idx, uint32_t rd_idx)
 {
     if (rd_idx >= buffer_size || wr_idx >= buffer_size)
         return -1;
 
     return (((buffer_size -1) - (wr_idx - rd_idx))%buffer_size);
 }
-int octeon_pci_console_buffer_avail_bytes(uint32_t buffer_size, uint32_t wr_idx, uint32_t rd_idx)
+static int octeon_pci_console_buffer_avail_bytes(uint32_t buffer_size, uint32_t wr_idx, uint32_t rd_idx)
 {
     if (rd_idx >= buffer_size || wr_idx >= buffer_size)
         return -1;
@@ -287,7 +287,7 @@ int octeon_pci_console_host_read_avail(uint64_t console_desc_addr, unsigned int 
 
 /* This code is only available in a kernel or CVMX standalone. It can't be used
     from userspace */
-#if (!defined(CONFIG_OCTEON_U_BOOT) && (!defined(__linux__) || defined(__KERNEL__))) || (defined(CONFIG_OCTEON_U_BOOT) && (defined(CFG_PCI_CONSOLE) || defined(CONFIG_SYS_PCI_CONSOLE)))
+#if (!defined(CONFIG_OCTEON_U_BOOT) && (!defined(__linux__) || defined(__KERNEL__))) || (defined(CONFIG_OCTEON_U_BOOT) && (defined(CFG_PCI_CONSOLE) || defined(CONFIG_SYS_PCI_CONSOLE))) || defined(CVMX_BUILD_FOR_LINUX_KERNEL)
 
 static octeon_pci_console_t *octeon_pci_console_get_ptr(uint64_t console_desc_addr, unsigned int console_num)
 {

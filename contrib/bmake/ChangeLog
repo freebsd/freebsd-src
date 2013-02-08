@@ -1,3 +1,60 @@
+2013-01-27  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Merge with NetBSD make, pick up
+	  o make.1: more info on how shell commands are handled.
+	  o job.c,main.c: detect write errors to job pipes.
+
+2013-01-25  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130123
+	  Merge with NetBSD make, pick up
+	  o meta.c: if script uses .OODATE and meta_oodate() decides
+	    rebuild is needed, .OODATE will be empty - set it to .ALLSRC.
+	  o var.c: in debug output indicate which variabale modifiers
+	    apply to.
+	  o remove Check_Cwd logic the makefiles have been fixed.
+	
+2012-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* makefile.in: add a simple makefile for folk who insist on
+	  ./configure; make; make install
+	  it just runs boot-strap
+	* include mk/* to accommodate the above
+	* boot-strap:  re-work to accommodate the above
+	  mksrc defaults to $Mydir/mk
+	  allow op={configure,build,install,clean,all}
+	  add options to facilitate install
+	* Makefile.config.in: just the bits set by configure
+	* Makefile: bump version to 20121212
+	  abandon Makefile.in (NetBSD Makefile)
+	  leverage mk/* instead
+	* configure.in: ensure srcdir is absolute
+
+2012-11-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121111
+	  fix generation of bmake.cat1
+
+2012-11-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121109
+	  Merge with NetBSD make, pick up
+	  o make.c: MakeBuildChild: return 0 so search continues if a
+	    .ORDER dependency is detected.
+	  o unit-tests/order: test the above
+	
+2012-11-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121102
+	  Merge with NetBSD make, pick up
+	  o cond.c: allow cond_state[] to grow.
+	    In meta mode with a very large tree, we can hit the limit
+	    while processing dirdeps.
+	
+2012-10-25  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: we need to use ${srcdir} not ${.CURDIR}
+
 2012-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile.in (MAKE_VERSION): 20121010

@@ -386,7 +386,7 @@ get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **t
 		uint16_t mtu = priv->mtu;
 
 		/* Allocate entire packet at once, allowing easy m_append() calls */
-		m = m_getm(NULL, mtu, M_DONTWAIT, MT_DATA);
+		m = m_getm(NULL, mtu, M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return (NULL);
 

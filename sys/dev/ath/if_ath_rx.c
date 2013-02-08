@@ -115,6 +115,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -206,6 +210,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_dodfs)
 		rfilt |= HAL_RX_FILTER_PHYRADAR;
 
+	/*
+	 * Enable spectral PHY errors if requested by the
+	 * spectral module.
+	 */
+	if (sc->sc_dospectral)
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -228,7 +239,7 @@ ath_legacy_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 		 * multiple of the cache line size.  Not doing this
 		 * causes weird stuff to happen (for the 5210 at least).
 		 */
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF(sc, ATH_DEBUG_ANY,
 				"%s: no mbuf/cluster\n", __func__);
@@ -419,7 +430,19 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
 #ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
-	if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
+	if (rs->rs_status & HAL_RXERR_PHY) {
+		/*
+		 * PHY error - make sure the channel flags
+		 * reflect the actual channel configuration,
+		 * not the received frame.
+		 */
+		if (IEEE80211_IS_CHAN_HT40U(sc->sc_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
+		else if (IEEE80211_IS_CHAN_HT40D(sc->sc_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
+		else if (IEEE80211_IS_CHAN_HT20(sc->sc_curchan))
+			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
+	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
 		struct ieee80211com *ic = ifp->if_l2com;
 
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
@@ -431,6 +454,7 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 		if ((rs->rs_flags & HAL_RX_GI) == 0)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
+
 #endif
 	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
@@ -819,6 +843,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
+	int kickpcu = 0;
 
 	/* XXX we must not hold the ATH_LOCK here */
 	ATH_UNLOCK_ASSERT(sc);
@@ -826,6 +851,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
+	kickpcu = sc->sc_kickpcu;
 	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
@@ -840,7 +866,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		 * latency can jump by quite a bit, causing throughput
 		 * degredation.
 		 */
-		if (npkts >= ATH_RX_MAX)
+		if (!kickpcu && npkts >= ATH_RX_MAX)
 			break;
 
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
@@ -891,6 +917,13 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
 #endif
+
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS))
+		    if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS,
+		    sc->sc_rx_statuslen, (char *) ds);
+#endif	/* ATH_DEBUG_ALQ */
+
 		if (status == HAL_EINPROGRESS)
 			break;
 
@@ -928,6 +961,9 @@ rx_proc_next:
 		    __func__, npkts);
 
 		/* XXX rxslink? */
+#if 0
+		ath_startrecv(sc);
+#else
 		/*
 		 * XXX can we hold the PCU lock here?
 		 * Are there any net80211 buffer calls involved?
@@ -937,6 +973,7 @@ rx_proc_next:
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+#endif
 
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
@@ -1116,7 +1153,11 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
 	/* Sensible legacy defaults */
-	sc->sc_rx_statuslen = 0;
+	/*
+	 * XXX this should be changed to properly support the
+	 * exact RX descriptor size for each HAL.
+	 */
+	sc->sc_rx_statuslen = sizeof(struct ath_desc);
 
 	sc->sc_rx.recv_start = ath_legacy_startrecv;
 	sc->sc_rx.recv_stop = ath_legacy_stoprecv;

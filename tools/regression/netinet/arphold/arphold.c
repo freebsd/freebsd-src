@@ -63,7 +63,6 @@ main(int argc, char **argv)
 
 	int sock;
 	int maxhold;
-	int wait;
 	size_t size = sizeof(maxhold);
 	struct sockaddr_in dest;
 	char message[MSG_SIZE];

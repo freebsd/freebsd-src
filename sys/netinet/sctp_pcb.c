@@ -1226,7 +1226,8 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 		SCTP_TCB_UNLOCK(locked_tcb);
 	}
 	SCTP_INP_INFO_RLOCK();
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
 		/*-
 		 * Now either this guy is our listener or it's the
 		 * connector. If it is the one that issued the connect, then
@@ -2693,9 +2694,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	ip_inp = (struct inpcb *)so->so_pcb;
 #ifdef SCTP_DEBUG
 	if (addr) {
-		SCTPDBG(SCTP_DEBUG_PCB1, "Bind called port:%d\n",
+		SCTPDBG(SCTP_DEBUG_PCB1, "Bind called port: %d\n",
 		    ntohs(((struct sockaddr_in *)addr)->sin_port));
-		SCTPDBG(SCTP_DEBUG_PCB1, "Addr :");
+		SCTPDBG(SCTP_DEBUG_PCB1, "Addr: ");
 		SCTPDBG_ADDR(SCTP_DEBUG_PCB1, addr);
 	}
 #endif
@@ -3293,7 +3294,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				struct mbuf *op_err;
 
 				op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-				    0, M_DONTWAIT, 1, MT_DATA);
+				    0, M_NOWAIT, 1, MT_DATA);
 				if (op_err) {
 					/* Fill in the user initiated abort */
 					struct sctp_paramhdr *ph;
@@ -3379,7 +3380,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 
 			abort_anyway:
 					op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-					    0, M_DONTWAIT, 1, MT_DATA);
+					    0, M_NOWAIT, 1, MT_DATA);
 					if (op_err) {
 						/*
 						 * Fill in the user
@@ -3464,7 +3465,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			uint32_t *ippp;
 
 			op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-			    0, M_DONTWAIT, 1, MT_DATA);
+			    0, M_NOWAIT, 1, MT_DATA);
 			if (op_err) {
 				/* Fill in the user initiated abort */
 				struct sctp_paramhdr *ph;
@@ -4925,6 +4926,13 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* pending send queue SHOULD be empty */
 	TAILQ_FOREACH_SAFE(chk, &asoc->send_queue, sctp_next, nchk) {
+		if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
+			asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+#ifdef INVARIANTS
+		} else {
+			panic("No chunks on the queues for sid %u.", chk->rec.data.stream_number);
+#endif
+		}
 		TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
 		if (chk->data) {
 			if (so) {
@@ -4949,6 +4957,15 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* sent queue SHOULD be empty */
 	TAILQ_FOREACH_SAFE(chk, &asoc->sent_queue, sctp_next, nchk) {
+		if (chk->sent != SCTP_DATAGRAM_NR_ACKED) {
+			if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
+				asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+#ifdef INVARIANTS
+			} else {
+				panic("No chunks on the queues for sid %u.", chk->rec.data.stream_number);
+#endif
+			}
+		}
 		TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 		if (chk->data) {
 			if (so) {
@@ -4968,6 +4985,13 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		SCTP_DECR_CHK_COUNT();
 		/* sa_ignore FREED_MEMORY */
 	}
+#ifdef INVARIANTS
+	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+		if (stcb->asoc.strmout[i].chunks_on_queues > 0) {
+			panic("%u chunks left for stream %u.", stcb->asoc.strmout[i].chunks_on_queues, i);
+		}
+	}
+#endif
 	/* control queue MAY not be empty */
 	TAILQ_FOREACH_SAFE(chk, &asoc->control_send_queue, sctp_next, nchk) {
 		TAILQ_REMOVE(&asoc->control_send_queue, chk, sctp_next);

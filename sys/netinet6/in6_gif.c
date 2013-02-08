@@ -167,7 +167,7 @@ in6_gif_output(struct ifnet *ifp,
 			eiphdr.eip_resvh = 0;
 		}
 		/* prepend Ethernet-in-IP header */
-		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct etherip_header), M_NOWAIT);
 		if (m && m->m_len < sizeof(struct etherip_header))
 			m = m_pullup(m, sizeof(struct etherip_header));
 		if (m == NULL)
@@ -191,7 +191,7 @@ in6_gif_output(struct ifnet *ifp,
 	if (family == AF_LINK)
 		len += ETHERIP_ALIGN;
 #endif
-	M_PREPEND(m, len, M_DONTWAIT);
+	M_PREPEND(m, len, M_NOWAIT);
 	if (m != NULL && m->m_len < len)
 		m = m_pullup(m, len);
 	if (m == NULL) {

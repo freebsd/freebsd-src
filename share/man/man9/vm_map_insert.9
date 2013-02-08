@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2003
+.Dd January 11, 2013
 .Dt VM_MAP_INSERT 9
 .Os
 .Sh NAME
@@ -73,9 +73,6 @@ This function implicitly creates a new
 .Vt vm_map_entry
 by calling the internal function
 .Fn vm_map_entry_create .
-This function may use the
-.Va Giant
-lock to ensure that only a single thread is present in the function.
 .Sh RETURN VALUES
 The
 .Fn vm_map_insert

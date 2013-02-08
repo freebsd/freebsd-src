@@ -199,7 +199,7 @@ static device_method_t kue_methods[] = {
 	DEVMETHOD(device_attach, kue_attach),
 	DEVMETHOD(device_detach, kue_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t kue_driver = {

@@ -169,7 +169,8 @@ static device_method_t ixv_methods[] = {
 	DEVMETHOD(device_attach, ixv_attach),
 	DEVMETHOD(device_detach, ixv_detach),
 	DEVMETHOD(device_shutdown, ixv_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ixv_driver = {
@@ -619,22 +620,23 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ixv_txeof(txr);
 
 	enqueued = 0;
-	if (m == NULL) {
-		next = drbr_dequeue(ifp, txr->br);
-	} else if (drbr_needs_enqueue(ifp, txr->br)) {
-		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+	if (m != NULL) {
+		err = drbr_enqueue(ifp, txr->br, m);
+		if (err) {
 			return (err);
-		next = drbr_dequeue(ifp, txr->br);
-	} else
-		next = m;
-
+		}
+	}
 	/* Process the queue */
-	while (next != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = ixv_xmit(txr, &next)) != 0) {
-			if (next != NULL)
-				err = drbr_enqueue(ifp, txr->br, next);
+			if (next == NULL) {
+				drbr_advance(ifp, txr->br);
+			} else {
+				drbr_putback(ifp, txr->br, next);
+			}
 			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enqueued++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -647,7 +649,6 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		next = drbr_dequeue(ifp, txr->br);
 	}
 
 	if (enqueued > 0) {
@@ -1235,7 +1236,7 @@ ixv_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -2723,7 +2724,7 @@ ixv_refresh_mbufs(struct rx_ring *rxr, int limit)
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if ((rxbuf->m_head == NULL) && (rxr->hdr_split)) {
-			mh = m_gethdr(M_DONTWAIT, MT_DATA);
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
 			mh->m_pkthdr.len = mh->m_len = MHLEN;
@@ -2747,7 +2748,7 @@ ixv_refresh_mbufs(struct rx_ring *rxr, int limit)
 		}
 
 		if (rxbuf->m_pack == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;

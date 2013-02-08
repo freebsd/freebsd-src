@@ -131,7 +131,7 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m,
 			 * Packet contents are changed by ieee80211_decap
 			 * so do a deep copy of the packet.
 			 */
-			mcopy = m_dup(m, M_DONTWAIT);
+			mcopy = m_dup(m, M_NOWAIT);
 			if (mcopy == NULL) {
 				/* XXX stat+msg */
 				continue;
@@ -776,6 +776,10 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			/* verify something */
 			break;
 		case IEEE80211_ACTION_MESH_GANN:
+			IEEE80211_VERIFY_LENGTH(efrm - frm,
+			    sizeof(struct ieee80211_meshgann_ie),
+			    return EINVAL);
+			break;
 		case IEEE80211_ACTION_MESH_CC:
 		case IEEE80211_ACTION_MESH_MCCA_SREQ:
 		case IEEE80211_ACTION_MESH_MCCA_SREP:

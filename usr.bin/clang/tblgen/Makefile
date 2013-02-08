@@ -10,6 +10,7 @@ SRCS=	AsmMatcherEmitter.cpp \
 	CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp \
 	CodeGenInstruction.cpp \
+	CodeGenMapTable.cpp \
 	CodeGenRegisters.cpp \
 	CodeGenSchedule.cpp \
 	CodeGenTarget.cpp \

@@ -636,6 +636,7 @@ struct proc {
 #define	P_INMEM		0x10000000 /* Loaded into memory. */
 #define	P_SWAPPINGOUT	0x20000000 /* Process is being swapped out. */
 #define	P_SWAPPINGIN	0x40000000 /* Process is being swapped in. */
+#define	P_PPTRACE	0x80000000 /* PT_TRACEME by vforked child. */
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
@@ -835,6 +836,7 @@ extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct uma_zone *proc_zone;
 
 struct	proc *pfind(pid_t);		/* Find process by id. */
+struct	proc *pfind_locked(pid_t pid);
 struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 
@@ -885,8 +887,7 @@ int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
-void	proc_reap(struct thread *td, struct proc *p, int *status, int options,
-	    struct rusage *rusage);
+void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);

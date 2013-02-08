@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -152,8 +152,8 @@ AcpiRsConvertAmlToResource (
             /*
              * Mask and shift the flag bit
              */
-            ACPI_SET8 (Destination) = (UINT8)
-                ((ACPI_GET8 (Source) >> Info->Value) & 0x01);
+            ACPI_SET8 (Destination,
+                ((ACPI_GET8 (Source) >> Info->Value) & 0x01));
             break;
 
 
@@ -161,8 +161,8 @@ AcpiRsConvertAmlToResource (
             /*
              * Mask and shift the flag bits
              */
-            ACPI_SET8 (Destination) = (UINT8)
-                ((ACPI_GET8 (Source) >> Info->Value) & 0x03);
+            ACPI_SET8 (Destination,
+                ((ACPI_GET8 (Source) >> Info->Value) & 0x03));
             break;
 
 
@@ -170,15 +170,15 @@ AcpiRsConvertAmlToResource (
             /*
              * Mask and shift the flag bits
              */
-            ACPI_SET8 (Destination) = (UINT8)
-                ((ACPI_GET8 (Source) >> Info->Value) & 0x07);
+            ACPI_SET8 (Destination,
+                ((ACPI_GET8 (Source) >> Info->Value) & 0x07));
             break;
 
 
         case ACPI_RSC_COUNT:
 
             ItemCount = ACPI_GET8 (Source);
-            ACPI_SET8 (Destination) = (UINT8) ItemCount;
+            ACPI_SET8 (Destination, ItemCount);
 
             Resource->Length = Resource->Length +
                 (Info->Value * (ItemCount - 1));
@@ -188,7 +188,7 @@ AcpiRsConvertAmlToResource (
         case ACPI_RSC_COUNT16:
 
             ItemCount = AmlResourceLength;
-            ACPI_SET16 (Destination) = ItemCount;
+            ACPI_SET16 (Destination, ItemCount);
 
             Resource->Length = Resource->Length +
                 (Info->Value * (ItemCount - 1));
@@ -202,14 +202,14 @@ AcpiRsConvertAmlToResource (
 
             Resource->Length = Resource->Length + ItemCount;
             ItemCount = ItemCount / 2;
-            ACPI_SET16 (Destination) = ItemCount;
+            ACPI_SET16 (Destination, ItemCount);
             break;
 
 
         case ACPI_RSC_COUNT_GPIO_VEN:
 
             ItemCount = ACPI_GET8 (Source);
-            ACPI_SET8 (Destination) = (UINT8) ItemCount;
+            ACPI_SET8 (Destination, ItemCount);
 
             Resource->Length = Resource->Length +
                 (Info->Value * ItemCount);
@@ -240,7 +240,7 @@ AcpiRsConvertAmlToResource (
             }
 
             Resource->Length = Resource->Length + ItemCount;
-            ACPI_SET16 (Destination) = ItemCount;
+            ACPI_SET16 (Destination, ItemCount);
             break;
 
 
@@ -249,7 +249,7 @@ AcpiRsConvertAmlToResource (
             ItemCount = ACPI_GET16 (Source) - Info->Value;
 
             Resource->Length = Resource->Length + ItemCount;
-            ACPI_SET16 (Destination) = ItemCount;
+            ACPI_SET16 (Destination, ItemCount);
             break;
 
 
@@ -260,7 +260,7 @@ AcpiRsConvertAmlToResource (
                 ACPI_GET16 (Source) - Info->Value;
 
             Resource->Length = Resource->Length + ItemCount;
-            ACPI_SET16 (Destination) = ItemCount;
+            ACPI_SET16 (Destination, ItemCount);
             break;
 
 
@@ -406,7 +406,7 @@ AcpiRsConvertAmlToResource (
             }
 
             Target = ACPI_ADD_PTR (char, Resource, Info->Value);
-            ACPI_SET8 (Target) = (UINT8) ItemCount;
+            ACPI_SET8 (Target, ItemCount);
             break;
 
 
@@ -423,7 +423,7 @@ AcpiRsConvertAmlToResource (
             }
 
             Target = ACPI_ADD_PTR (char, Resource, Info->Value);
-            ACPI_SET8 (Target) = (UINT8) ItemCount;
+            ACPI_SET8 (Target, ItemCount);
             break;
 
 
@@ -547,7 +547,7 @@ AcpiRsConvertResourceToAml (
             /*
              * Clear the flag byte
              */
-            ACPI_SET8 (Destination) = 0;
+            ACPI_SET8 (Destination, 0);
             break;
 
 
@@ -555,8 +555,8 @@ AcpiRsConvertResourceToAml (
             /*
              * Mask and shift the flag bit
              */
-            ACPI_SET8 (Destination) |= (UINT8)
-                ((ACPI_GET8 (Source) & 0x01) << Info->Value);
+            ACPI_SET_BIT (*ACPI_CAST8 (Destination), (UINT8)
+                ((ACPI_GET8 (Source) & 0x01) << Info->Value));
             break;
 
 
@@ -564,8 +564,8 @@ AcpiRsConvertResourceToAml (
             /*
              * Mask and shift the flag bits
              */
-            ACPI_SET8 (Destination) |= (UINT8)
-                ((ACPI_GET8 (Source) & 0x03) << Info->Value);
+            ACPI_SET_BIT (*ACPI_CAST8 (Destination), (UINT8)
+                ((ACPI_GET8 (Source) & 0x03) << Info->Value));
             break;
 
 
@@ -573,15 +573,15 @@ AcpiRsConvertResourceToAml (
             /*
              * Mask and shift the flag bits
              */
-            ACPI_SET8 (Destination) |= (UINT8)
-                ((ACPI_GET8 (Source) & 0x07) << Info->Value);
+            ACPI_SET_BIT (*ACPI_CAST8 (Destination), (UINT8)
+                ((ACPI_GET8 (Source) & 0x07) << Info->Value));
             break;
 
 
         case ACPI_RSC_COUNT:
 
             ItemCount = ACPI_GET8 (Source);
-            ACPI_SET8 (Destination) = (UINT8) ItemCount;
+            ACPI_SET8 (Destination, ItemCount);
 
             AmlLength = (UINT16) (AmlLength + (Info->Value * (ItemCount - 1)));
             break;
@@ -598,11 +598,11 @@ AcpiRsConvertResourceToAml (
         case ACPI_RSC_COUNT_GPIO_PIN:
 
             ItemCount = ACPI_GET16 (Source);
-            ACPI_SET16 (Destination) = (UINT16) AmlLength;
+            ACPI_SET16 (Destination, AmlLength);
 
             AmlLength = (UINT16) (AmlLength + ItemCount * 2);
             Target = ACPI_ADD_PTR (void, Aml, Info->Value);
-            ACPI_SET16 (Target) = (UINT16) AmlLength;
+            ACPI_SET16 (Target, AmlLength);
             AcpiRsSetResourceLength (AmlLength, Aml);
             break;
 
@@ -610,7 +610,7 @@ AcpiRsConvertResourceToAml (
         case ACPI_RSC_COUNT_GPIO_VEN:
 
             ItemCount = ACPI_GET16 (Source);
-            ACPI_SET16 (Destination) = (UINT16) ItemCount;
+            ACPI_SET16 (Destination, ItemCount);
 
             AmlLength = (UINT16) (AmlLength + (Info->Value * ItemCount));
             AcpiRsSetResourceLength (AmlLength, Aml);
@@ -622,7 +622,7 @@ AcpiRsConvertResourceToAml (
             /* Set resource source string length */
 
             ItemCount = ACPI_GET16 (Source);
-            ACPI_SET16 (Destination) = (UINT16) AmlLength;
+            ACPI_SET16 (Destination, AmlLength);
 
             /* Compute offset for the Vendor Data */
 
@@ -633,7 +633,7 @@ AcpiRsConvertResourceToAml (
 
             if (Resource->Data.Gpio.VendorLength)
             {
-                ACPI_SET16 (Target) = (UINT16) AmlLength;
+                ACPI_SET16 (Target, AmlLength);
             }
 
             AcpiRsSetResourceLength (AmlLength, Aml);
@@ -643,7 +643,7 @@ AcpiRsConvertResourceToAml (
         case ACPI_RSC_COUNT_SERIAL_VEN:
 
             ItemCount = ACPI_GET16 (Source);
-            ACPI_SET16 (Destination) = ItemCount + Info->Value;
+            ACPI_SET16 (Destination, ItemCount + Info->Value);
             AmlLength = (UINT16) (AmlLength + ItemCount);
             AcpiRsSetResourceLength (AmlLength, Aml);
             break;
@@ -746,9 +746,9 @@ AcpiRsConvertResourceToAml (
             /*
              * 8-bit encoded bitmask (DMA macro)
              */
-            ACPI_SET8 (Destination) = (UINT8)
+            ACPI_SET8 (Destination,
                 AcpiRsEncodeBitmask (Source,
-                    *ACPI_ADD_PTR (UINT8, Resource, Info->Value));
+                    *ACPI_ADD_PTR (UINT8, Resource, Info->Value)));
             break;
 
 

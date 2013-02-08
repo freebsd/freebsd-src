@@ -725,7 +725,7 @@ retry:
 	nr_txbb = desc_size / TXBB_SIZE;
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
 		if (defrag) {
-			mb = m_defrag(*mbp, M_DONTWAIT);
+			mb = m_defrag(*mbp, M_NOWAIT);
 			if (mb == NULL) {
 				mb = *mbp;
 				goto tx_drop;
@@ -931,22 +931,21 @@ mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
 	}
 
 	enqueued = 0;
-	if (m == NULL) {
-		next = drbr_dequeue(dev, ring->br);
-	} else if (drbr_needs_enqueue(dev, ring->br)) {
+	if (m != NULL) {
 		if ((err = drbr_enqueue(dev, ring->br, m)) != 0)
 			return (err);
-		next = drbr_dequeue(dev, ring->br);
-	} else
-		next = m;
-
+	}
 	/* Process the queue */
-	while (next != NULL) {
+	while ((next = drbr_peek(ifp, ring->br)) != NULL) {
 		if ((err = mlx4_en_xmit(dev, tx_ind, &next)) != 0) {
-			if (next != NULL)
-				err = drbr_enqueue(dev, ring->br, next);
+			if (next == NULL) {
+				drbr_advance(ifp, ring->br);
+			} else {
+				drbr_putback(ifp, ring->br, next);
+			}
 			break;
 		}
+		drbr_advance(ifp, ring->br);
 		enqueued++;
 		dev->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -955,7 +954,6 @@ mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
 		ETHER_BPF_MTAP(dev, next);
 		if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
-		next = drbr_dequeue(dev, ring->br);
 	}
 
 	if (enqueued > 0)

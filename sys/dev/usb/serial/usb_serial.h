@@ -78,6 +78,7 @@
 #define	UCOM_MINVER	1
 #define	UCOM_PREFVER	UCOM_MODVER
 #define	UCOM_MAXVER	1
+#define	UCOM_JITTERBUF_SIZE	128	/* bytes */
 
 struct usb_device;
 struct ucom_softc;
@@ -169,6 +170,8 @@ struct ucom_softc {
 	struct mtx *sc_mtx;
 	void   *sc_parent;
 	int sc_subunit;
+	uint16_t sc_jitterbuf_in;
+	uint16_t sc_jitterbuf_out;
 	uint16_t sc_portno;
 	uint16_t sc_flag;
 #define	UCOM_FLAG_RTS_IFLOW	0x01	/* use RTS input flow control */
@@ -180,6 +183,7 @@ struct ucom_softc {
 #define	UCOM_FLAG_CONSOLE	0x80	/* set if device is a console */
 #define	UCOM_FLAG_WAIT_REFS   0x0100	/* set if we must wait for refs */
 #define	UCOM_FLAG_FREE_UNIT   0x0200	/* set if we must free the unit */
+#define	UCOM_FLAG_INWAKEUP    0x0400	/* set if we are in the tsw_inwakeup callback */
 	uint8_t	sc_lsr;
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;
@@ -191,6 +195,7 @@ struct ucom_softc {
 #define	UCOM_LS_RTS	0x02
 #define	UCOM_LS_BREAK	0x04
 #define	UCOM_LS_RING	0x08
+	uint8_t sc_jitterbuf[UCOM_JITTERBUF_SIZE];
 };
 
 #define	UCOM_MTX_ASSERT(sc, what) mtx_assert((sc)->sc_mtx, what)

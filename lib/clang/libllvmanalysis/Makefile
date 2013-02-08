@@ -18,7 +18,9 @@ SRCS=	AliasAnalysis.cpp \
 	CaptureTracking.cpp \
 	CodeMetrics.cpp \
 	ConstantFolding.cpp \
+	CostModel.cpp \
 	DbgInfoPrinter.cpp \
+	DependenceAnalysis.cpp \
 	DomPrinter.cpp \
 	DominanceFrontier.cpp \
 	IVUsers.cpp \
@@ -32,7 +34,6 @@ SRCS=	AliasAnalysis.cpp \
 	LibCallSemantics.cpp \
 	Lint.cpp \
 	Loads.cpp \
-	LoopDependenceAnalysis.cpp \
 	LoopInfo.cpp \
 	LoopPass.cpp \
 	MemDepPrinter.cpp \
@@ -50,6 +51,8 @@ SRCS=	AliasAnalysis.cpp \
 	ProfileInfoLoader.cpp \
 	ProfileInfoLoaderPass.cpp \
 	ProfileVerifierPass.cpp \
+	ProfileDataLoader.cpp \
+	ProfileDataLoaderPass.cpp \
 	RegionInfo.cpp \
 	RegionPass.cpp \
 	RegionPrinter.cpp \

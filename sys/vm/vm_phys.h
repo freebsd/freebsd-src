@@ -64,6 +64,7 @@ vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
 void vm_phys_free_contig(vm_page_t m, u_long npages);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
+vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 void vm_phys_set_pool(int pool, vm_page_t m, int order);
 boolean_t vm_phys_unfree_page(vm_page_t m);
 boolean_t vm_phys_zero_pages_idle(void);

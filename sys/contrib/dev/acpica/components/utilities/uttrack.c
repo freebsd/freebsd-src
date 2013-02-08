@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -490,12 +490,12 @@ AcpiUtRemoveAllocation (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE (UtRemoveAllocation);
+    ACPI_FUNCTION_NAME (UtRemoveAllocation);
 
 
     if (AcpiGbl_DisableMemTracking)
     {
-        return_ACPI_STATUS (AE_OK);
+        return (AE_OK);
     }
 
     MemList = AcpiGbl_GlobalList;
@@ -506,13 +506,13 @@ AcpiUtRemoveAllocation (
         ACPI_ERROR ((Module, Line,
             "Empty allocation list, nothing to free!"));
 
-        return_ACPI_STATUS (AE_OK);
+        return (AE_OK);
     }
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_MEMORY);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        return (Status);
     }
 
     /* Unlink */
@@ -531,15 +531,15 @@ AcpiUtRemoveAllocation (
         (Allocation->Next)->Previous = Allocation->Previous;
     }
 
+    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Freeing %p, size 0%X\n",
+        &Allocation->UserSpace, Allocation->Size));
+
     /* Mark the segment as deleted */
 
     ACPI_MEMSET (&Allocation->UserSpace, 0xEA, Allocation->Size);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Freeing size 0%X\n",
-        Allocation->Size));
-
     Status = AcpiUtReleaseMutex (ACPI_MTX_MEMORY);
-    return_ACPI_STATUS (Status);
+    return (Status);
 }
 
 

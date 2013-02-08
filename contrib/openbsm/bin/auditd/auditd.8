@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#17 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#19 $
 .\"
 .Dd December 11, 2008
 .Dt AUDITD 8
@@ -59,7 +59,7 @@ is configured to start on-demand using
 .Pp
 Optionally, the audit review group "audit" may be created.
 Non-privileged
-users that are members of this group may read the audit trail log files. 
+users that are members of this group may read the audit trail log files.
 .Sh NOTE
 To assure uninterrupted audit support, the
 .Nm
@@ -72,33 +72,33 @@ the
 .Pa audit_control
 file.
 .Pp
-If 
+If
 .Nm
 is started on-demand by
-.Xr launchd 8 
+.Xr launchd 8
 then auditing should only be started and stopped with
 .Xr audit 8 .
 .Pp
-On Mac OS X, 
+On Mac OS X,
 .Nm
-uses the 
+uses the
 .Xr asl 3
 API for writing system log messages.
-Therefore, only the audit administrator 
+Therefore, only the audit administrator
 and members of the audit review group will be able to read the
-system log entries. 
+system log entries.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/security" -compact
 .It Pa /var/audit
 Default directory for storing audit log files.
 .Pp
 .It Pa /etc/security
-The directory containing the auditing configuration files 
+The directory containing the auditing configuration files
 .Xr audit_class 5 ,
 .Xr audit_control 5 ,
 .Xr audit_event 5 ,
 and
-.Xr audit_warn 5 . 
+.Xr audit_warn 5 .
 .El
 .Sh COMPATIBILITY
 The historical
@@ -122,6 +122,7 @@ and are no longer available as arguments to
 .Xr audit_event 5 ,
 .Xr audit_warn 5 ,
 .Xr audit 8 ,
+.Xr auditdistd 8 ,
 .Xr launchd 8
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security

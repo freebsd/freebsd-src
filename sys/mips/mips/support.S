@@ -83,8 +83,7 @@
  */
 
 /*
- *	Contains code that is the first executed at boot time plus
- *	assembly language support routines.
+ *	Contains assembly language support routines.
  */
 
 #include "opt_ddb.h"
@@ -289,7 +288,6 @@ END(copyerr)
 #ifdef __mips_n64
 LEAF(fuword64)
 ALEAF(fuword)
-ALEAF(fuiword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -305,7 +303,6 @@ END(fuword64)
 LEAF(fuword32)
 #ifndef __mips_n64
 ALEAF(fuword)
-ALEAF(fuiword)
 #endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
@@ -319,7 +316,6 @@ ALEAF(fuiword)
 END(fuword32)
 
 LEAF(fusword)
-ALEAF(fuisword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -332,7 +328,6 @@ ALEAF(fuisword)
 END(fusword)
 
 LEAF(fubyte)
-ALEAF(fuibyte)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -441,30 +436,10 @@ XLEAF(casuword)
 END(casuword64)
 #endif
 
-#if 0
-	/* unused in FreeBSD */
-/*
- * Have to flush instruction cache afterwards.
- */
-LEAF(suiword)
-	PTR_LA	v0, fswberr
-	blt	a0, zero, fswberr	# make sure address is in user space
-	nop
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	PTR_S	v0, U_PCB_ONFAULT(v1)
-	sw	a1, 0(a0)		# store word
-	PTR_S	zero, U_PCB_ONFAULT(v1)
-	j	_C_LABEL(Mips_SyncICache)  # FlushICache sets v0 = 0. (Ugly)
-	li	a1, 4			# size of word
-END(suiword)
-#endif
-
 /*
  * Will have to flush the instruction cache if byte merging is done in hardware.
  */
 LEAF(susword)
-ALEAF(suisword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -478,7 +453,6 @@ ALEAF(suisword)
 END(susword)
 
 LEAF(subyte)
-ALEAF(suibyte)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -1139,39 +1113,6 @@ LEAF(longjmp)
 	jr	ra
 	li	v0, 1			# longjmp return
 END(longjmp)
-
-LEAF(fusufault)
-	GET_CPU_PCPU(t0)
-	lw	t0, PC_CURTHREAD(t0)
-	lw	t0, TD_PCB(t0)
-	li	v0, -1
-	j	ra
-END(fusufault)
-
-    /* Define a new md function 'casuptr'.  This atomically compares and sets
-       a pointer that is in user space.	 It will be used as the basic primitive
-       for a kernel supported user space lock implementation. */
-LEAF(casuptr)
-	PTR_LI	t0, VM_MAXUSER_ADDRESS /* verify address validity */
-	blt	a0, t0, fusufault		/* trap faults */
-	nop
-
-	GET_CPU_PCPU(t1)
-	lw	t1, PC_CURTHREAD(t1)
-	lw	t1, TD_PCB(t1)
-
-	PTR_LA	t2, fusufault
-	PTR_S	t2, U_PCB_ONFAULT(t1)
-1:
-	ll	v0, 0(a0)		/* try to load the old value */
-	beq	v0, a1, 2f		/* compare */
-	move	t0, a2			/* setup value to write */
-	sc	t0, 0(a0)		/* write if address still locked */
-	beq	t0, zero, 1b			/* if it failed, spin */
-2:
-	PTR_S	zero, U_PCB_ONFAULT(t1) /* clean up */
-	j	ra
-END(casuptr)
 
 LEAF(mips3_ld)
 	.set push

@@ -26,13 +26,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2012
+.Dd December 7, 2012
 .Dt DOMAIN 9
 .Os
 .Sh NAME
 .Nm domain_add ,
 .Nm pfctlinput ,
 .Nm pfctlinput2 ,
+.Nm pffinddomain ,
 .Nm pffindproto ,
 .Nm pffindtype ,
 .Nm DOMAIN_SET
@@ -48,6 +49,8 @@
 .Fn pfctlinput "int cmd" "struct sockaddr *sa"
 .Ft void
 .Fn pfctlinput2 "int cmd" "struct sockaddr *sa" "void *ctlparam"
+.Ft struct domain *
+.Fn pffinddomain "int family"
 .Ft struct protosw *
 .Fn pffindproto "int family" "int protocol" "int type"
 .Ft struct protosw *
@@ -67,6 +70,8 @@ struct domain {
 	char	*dom_name;
 	void	(*dom_init)		/* initialize domain data structures */
 		(void);
+	void	(*dom_destroy)		/* cleanup structures / state */
+		(void);
 	int	(*dom_externalize)	/* externalize access rights */
 		(struct mbuf *, struct mbuf **);
 	void	(*dom_dispose)		/* dispose of internalized rights */
@@ -75,8 +80,13 @@ struct domain {
 	struct	domain *dom_next;
 	int	(*dom_rtattach)		/* initialize routing table */
 		(void **, int);
+	int	(*dom_rtdetach)		/* clean up routing table */
+		(void **, int);
 	int	dom_rtoffset;		/* an arg to rtattach, in bits */
 	int	dom_maxrtkey;		/* for routing layer */
+	void	*(*dom_ifattach)(struct ifnet *);
+	void	(*dom_ifdetach)(struct ifnet *, void *);
+					/* af-dependent data on ifnet */
 };
 .Ed
 .Pp
@@ -96,6 +106,7 @@ struct protosw {
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
 	pr_init_t *pr_init;
+	pr_destroy_t *pr_destroy;
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
 	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
@@ -167,6 +178,12 @@ Once a domain is added it cannot be unloaded.
 This is because there is
 no reference counting system in place to determine if there are any
 active references from sockets within that domain.
+.Pp
+.Fn pffinddomain
+finds a domain by family.
+If the domain cannot be found,
+.Dv NULL
+is returned.
 .Pp
 .Fn pffindtype
 and

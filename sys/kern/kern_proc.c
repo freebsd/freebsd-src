@@ -137,6 +137,7 @@ static void proc_dtor(void *mem, int size, void *arg);
 static int proc_init(void *mem, int size, int flags);
 static void proc_fini(void *mem, int size);
 static void pargs_free(struct pargs *pa);
+static struct proc *zpfind_locked(pid_t pid);
 
 /*
  * Other process lists
@@ -284,20 +285,13 @@ inferior(p)
 	return (1);
 }
 
-/*
- * Locate a process by number; return only "live" processes -- i.e., neither
- * zombies nor newly born but incompletely initialized processes.  By not
- * returning processes in the PRS_NEW state, we allow callers to avoid
- * testing for that condition to avoid dereferencing p_ucred, et al.
- */
 struct proc *
-pfind(pid)
-	register pid_t pid;
+pfind_locked(pid_t pid)
 {
-	register struct proc *p;
+	struct proc *p;
 
-	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, PIDHASH(pid), p_hash)
+	sx_assert(&allproc_lock, SX_LOCKED);
+	LIST_FOREACH(p, PIDHASH(pid), p_hash) {
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW) {
@@ -306,17 +300,34 @@ pfind(pid)
 			}
 			break;
 		}
+	}
+	return (p);
+}
+
+/*
+ * Locate a process by number; return only "live" processes -- i.e., neither
+ * zombies nor newly born but incompletely initialized processes.  By not
+ * returning processes in the PRS_NEW state, we allow callers to avoid
+ * testing for that condition to avoid dereferencing p_ucred, et al.
+ */
+struct proc *
+pfind(pid_t pid)
+{
+	struct proc *p;
+
+	sx_slock(&allproc_lock);
+	p = pfind_locked(pid);
 	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
 static struct proc *
-pfind_tid(pid_t tid)
+pfind_tid_locked(pid_t tid)
 {
 	struct proc *p;
 	struct thread *td;
 
-	sx_slock(&allproc_lock);
+	sx_assert(&allproc_lock, SX_LOCKED);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
 		if (p->p_state == PRS_NEW) {
@@ -330,7 +341,6 @@ pfind_tid(pid_t tid)
 		PROC_UNLOCK(p);
 	}
 found:
-	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
@@ -364,12 +374,17 @@ pget(pid_t pid, int flags, struct proc **pp)
 	struct proc *p;
 	int error;
 
-	if (pid <= PID_MAX)
-		p = pfind(pid);
-	else if ((flags & PGET_NOTID) == 0)
-		p = pfind_tid(pid);
-	else
+	sx_slock(&allproc_lock);
+	if (pid <= PID_MAX) {
+		p = pfind_locked(pid);
+		if (p == NULL && (flags & PGET_NOTWEXIT) == 0)
+			p = zpfind_locked(pid);
+	} else if ((flags & PGET_NOTID) == 0) {
+		p = pfind_tid_locked(pid);
+	} else {
 		p = NULL;
+	}
+	sx_sunlock(&allproc_lock);
 	if (p == NULL)
 		return (ESRCH);
 	if ((flags & PGET_CANSEE) != 0) {
@@ -421,17 +436,13 @@ enterpgrp(p, pgid, pgrp, sess)
 	struct pgrp *pgrp;
 	struct session *sess;
 {
-	struct pgrp *pgrp2;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 
 	KASSERT(pgrp != NULL, ("enterpgrp: pgrp == NULL"));
 	KASSERT(p->p_pid == pgid,
 	    ("enterpgrp: new pgrp and pid != pgid"));
-
-	pgrp2 = pgfind(pgid);
-
-	KASSERT(pgrp2 == NULL,
+	KASSERT(pgfind(pgid) == NULL,
 	    ("enterpgrp: pgrp with pgid exists"));
 	KASSERT(!SESS_LEADER(p),
 	    ("enterpgrp: session leader attempted setpgrp"));
@@ -1048,6 +1059,21 @@ pstats_free(struct pstats *ps)
 	free(ps, M_SUBPROC);
 }
 
+static struct proc *
+zpfind_locked(pid_t pid)
+{
+	struct proc *p;
+
+	sx_assert(&allproc_lock, SX_LOCKED);
+	LIST_FOREACH(p, &zombproc, p_list) {
+		if (p->p_pid == pid) {
+			PROC_LOCK(p);
+			break;
+		}
+	}
+	return (p);
+}
+
 /*
  * Locate a zombie process by number
  */
@@ -1057,11 +1083,7 @@ zpfind(pid_t pid)
 	struct proc *p;
 
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &zombproc, p_list)
-		if (p->p_pid == pid) {
-			PROC_LOCK(p);
-			break;
-		}
+	p = zpfind_locked(pid);
 	sx_sunlock(&allproc_lock);
 	return (p);
 }

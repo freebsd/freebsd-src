@@ -193,6 +193,14 @@ int pmap_debug_level = 0;
 #define PMAP_INLINE __inline
 #endif  /* PMAP_DEBUG */
 
+#ifdef ARM_L2_PIPT
+#define pmap_l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range((pa), (size))
+#define pmap_l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range((pa), (size))
+#else
+#define pmap_l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range((va), (size))
+#define pmap_l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range((va), (size))
+#endif
+
 extern struct pv_addr systempage;
 
 /*
@@ -786,11 +794,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	pte = *ptep;
 
 	cpu_idcache_wbinv_range(va, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-	cpu_l2cache_wbinv_range(pte & L2_S_FRAME, PAGE_SIZE);
-#else
-	cpu_l2cache_wbinv_range(va, PAGE_SIZE);
-#endif
+	pmap_l2cache_wbinv_range(va, pte & L2_S_FRAME, PAGE_SIZE);
 	if ((pte & L2_S_CACHE_MASK) != pte_l2_s_cache_mode_pt) {
 		/*
 		 * Page tables must have the cache-mode set to
@@ -1131,6 +1135,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
 }
 
 /*
@@ -2120,6 +2125,7 @@ pmap_kremove(vm_offset_t va)
 		cpu_tlb_flushD_SE(va);
 		cpu_cpwait();
 		*pte = 0;
+		PTE_SYNC(pte);
 	}
 }
 
@@ -2361,8 +2367,10 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 	 * Only supported on kernel virtual addresses, including the direct
 	 * map but excluding the recursive map.
 	 */
-	if (base < DMAP_MIN_ADDRESS)
+	if (base < DMAP_MIN_ADDRESS) {
+		PMAP_UNLOCK(kernel_pmap);
 		return (EINVAL);
+	}
 #endif
 	for (tmpva = base; tmpva < base + size; ) {
 		next_bucket = L2_NEXT_BUCKET(tmpva);
@@ -2377,16 +2385,14 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 
 		ptep = &l2b->l2b_kva[l2pte_index(tmpva)];
 
-		if (*ptep == 0)
+		if (*ptep == 0) {
+			PMAP_UNLOCK(kernel_pmap);
 			return(EINVAL);
+		}
 
 		pte = *ptep &~ L2_S_CACHE_MASK;
 		cpu_idcache_wbinv_range(tmpva, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-		cpu_l2cache_wbinv_range(pte & L2_S_FRAME, PAGE_SIZE);
-#else
-		cpu_l2cache_wbinv_range(tmpva, PAGE_SIZE);
-#endif
+		pmap_l2cache_wbinv_range(tmpva, pte & L2_S_FRAME, PAGE_SIZE);
 		*ptep = pte;
 		cpu_tlb_flushID_SE(tmpva);
 
@@ -2658,7 +2664,8 @@ do_l2b_alloc:
 	if (!(prot & VM_PROT_EXECUTE) && m)
 		npte |= L2_XN;
 
-	npte |= pte_l2_s_cache_mode;
+	if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+		npte |= pte_l2_s_cache_mode;
 
 	if (m && m == opg) {
 		/*
@@ -2748,6 +2755,9 @@ do_l2b_alloc:
 		else if (PV_BEEN_REFD(oflags))
 			cpu_tlb_flushD_SE(va);
 	}
+
+	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
+		cpu_icache_sync_range(va, PAGE_SIZE);
 }
 
 /*
@@ -3191,6 +3201,16 @@ pmap_zero_page_gen(vm_page_t pg, int off, int size)
 	else
 		bzero_page(cdstp);
 
+	/*
+	 * Although aliasing is not possible if we use 
+	 * cdstp temporary mappings with memory that 
+	 * will be mapped later as non-cached or with write-through 
+	 * caches we might end up overwriting it when calling wbinv_all
+	 * So make sure caches are clean after copy operation
+	 */
+	cpu_idcache_wbinv_range(cdstp, size);
+	pmap_l2cache_wbinv_range(cdstp, phys, size);
+
 	mtx_unlock(&cmtx);
 }
 
@@ -3270,11 +3290,22 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	*cdst_pte = L2_S_PROTO | dst | pte_l2_s_cache_mode;
 	pmap_set_prot(cdst_pte, VM_PROT_READ | VM_PROT_WRITE, 0);
 	PTE_SYNC(cdst_pte);
+
 	cpu_tlb_flushD_SE(csrcp);
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
 
+	/*
+	 * Although aliasing is not possible if we use 
+	 * cdstp temporary mappings with memory that 
+	 * will be mapped later as non-cached or with write-through 
+	 * caches we might end up overwriting it when calling wbinv_all
+	 * So make sure caches are clean after copy operation
+	 */
 	bcopy_page(csrcp, cdstp);
+
+	cpu_idcache_wbinv_range(cdstp, PAGE_SIZE);
+	pmap_l2cache_wbinv_range(cdstp, dst, PAGE_SIZE);
 
 	mtx_unlock(&cmtx);
 }
@@ -3813,3 +3844,22 @@ pmap_dmap_iscurrent(pmap_t pmap)
 	return(pmap_is_current(pmap));
 }
 
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+	/* 
+	 * Remember the memattr in a field that gets used to set the appropriate
+	 * bits in the PTEs as mappings are established.
+	 */
+	m->md.pv_memattr = ma;
+
+	/*
+	 * It appears that this function can only be called before any mappings
+	 * for the page are established on ARM.  If this ever changes, this code
+	 * will need to walk the pv_list and make each of the existing mappings
+	 * uncacheable, being careful to sync caches and PTEs (and maybe
+	 * invalidate TLB?) for any current mapping it modifies.
+	 */
+	if (m->md.pv_kva != 0 || TAILQ_FIRST(&m->md.pv_list) != NULL)
+		panic("Can't change memattr on page with existing mappings");
+}

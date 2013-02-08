@@ -89,7 +89,6 @@ DRIVER_MODULE(mfisyspd, mfi, mfi_syspd_driver, mfi_syspd_devclass, 0, 0);
 static int
 mfi_syspd_probe(device_t dev)
 {
-
 	return (0);
 }
 
@@ -98,12 +97,12 @@ mfi_syspd_attach(device_t dev)
 {
 	struct mfi_system_pd *sc;
 	struct mfi_pd_info *pd_info;
+	struct mfi_system_pending *syspd_pend;
 	uint64_t sectors;
 	uint32_t secsize;
 
 	sc = device_get_softc(dev);
 	pd_info = device_get_ivars(dev);
-
 	sc->pd_dev = dev;
 	sc->pd_id = pd_info->ref.v.device_id;
 	sc->pd_unit = device_get_unit(dev);
@@ -115,9 +114,16 @@ mfi_syspd_attach(device_t dev)
 	secsize = MFI_SECTOR_LEN;
 	mtx_lock(&sc->pd_controller->mfi_io_lock);
 	TAILQ_INSERT_TAIL(&sc->pd_controller->mfi_syspd_tqh, sc, pd_link);
+	TAILQ_FOREACH(syspd_pend, &sc->pd_controller->mfi_syspd_pend_tqh,
+	    pd_link) {
+		TAILQ_REMOVE(&sc->pd_controller->mfi_syspd_pend_tqh,
+		    syspd_pend, pd_link);
+		free(syspd_pend, M_MFIBUF);
+		break;
+	}
 	mtx_unlock(&sc->pd_controller->mfi_io_lock);
-	device_printf(dev, "%juMB (%ju sectors) SYSPD volume\n",
-		      sectors / (1024 * 1024 / secsize), sectors);
+	device_printf(dev, "%juMB (%ju sectors) SYSPD volume (deviceid: %d)\n",
+		      sectors / (1024 * 1024 / secsize), sectors, sc->pd_id);
 	sc->pd_disk = disk_alloc();
 	sc->pd_disk->d_drv1 = sc;
 	sc->pd_disk->d_maxsize = sc->pd_controller->mfi_max_io * secsize;
@@ -139,6 +145,7 @@ mfi_syspd_attach(device_t dev)
 	disk_create(sc->pd_disk, DISK_VERSION);
 
 	device_printf(dev, " SYSPD volume attached\n");
+
 	return (0);
 }
 

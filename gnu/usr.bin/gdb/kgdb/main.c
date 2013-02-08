@@ -333,10 +333,23 @@ main(int argc, char *argv[])
 	args.argv = malloc(sizeof(char *));
 	args.argv[0] = argv[0];
 
-	while ((ch = getopt(argc, argv, "ac:d:fn:qr:vw")) != -1) {
+	while ((ch = getopt(argc, argv, "ab:c:d:fn:qr:vw")) != -1) {
 		switch (ch) {
 		case 'a':
 			annotation_level++;
+			break;
+		case 'b':
+			{
+				int i;
+				char *p;
+
+				i = strtol (optarg, &p, 0);
+				if (i == 0 && p == optarg)
+				warnx("warning: could not set baud rate to `%s'.\n",
+				    optarg);
+				else
+					baud_rate = i;
+			}
 			break;
 		case 'c':	/* use given core file. */
 			if (vmcore != NULL) {

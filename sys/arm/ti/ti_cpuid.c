@@ -129,27 +129,75 @@ omap4_get_revision(void)
 
 	switch (hawkeye) {
 	case 0xB852:
-		if (revision == 0)
+		switch (revision) {
+		case 0:
 			chip_revision = OMAP4430_REV_ES1_0;
-		else
-			chip_revision = OMAP4430_REV_ES2_0;
-		break;
-	case 0xB95C:
-		if (revision == 3)
+			break;
+		case 1:
 			chip_revision = OMAP4430_REV_ES2_1;
-		else if (revision == 4)
-			chip_revision = OMAP4430_REV_ES2_2;
-		else
-			chip_revision = OMAP4430_REV_ES2_3;
+			break;
+		default:
+			chip_revision = OMAP4430_REV_UNKNOWN;
+			break;
+		}
 		break;
+
+	case 0xB95C:
+		switch (revision) {
+		case 3:
+			chip_revision = OMAP4430_REV_ES2_1;
+			break;
+		case 4:
+			chip_revision = OMAP4430_REV_ES2_2;
+			break;
+		case 6:
+			chip_revision = OMAP4430_REV_ES2_3;
+			break;
+		default:
+			chip_revision = OMAP4430_REV_UNKNOWN;
+			break;
+		}
+		break;
+
+	case 0xB94E:
+		switch (revision) {
+		case 0:
+			chip_revision = OMAP4460_REV_ES1_0;
+			break;
+		case 2:
+			chip_revision = OMAP4460_REV_ES1_1;
+			break;
+		default:
+			chip_revision = OMAP4460_REV_UNKNOWN;
+			break;
+		}
+		break;
+
+	case 0xB975:
+		switch (revision) {
+		case 0:
+			chip_revision = OMAP4470_REV_ES1_0;
+			break;
+		default:
+			chip_revision = OMAP4470_REV_UNKNOWN;
+			break;
+		}
+		break;
+
 	default:
 		/* Default to the latest revision if we can't determine type */
-		chip_revision = OMAP4430_REV_ES2_3;
+		chip_revision = OMAP_UNKNOWN_DEV;
 		break;
 	}
-	printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
-		OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
-		OMAP_REV_MINOR(chip_revision));
+	if (chip_revision != OMAP_UNKNOWN_DEV) {
+		printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
+		    OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
+		    OMAP_REV_MINOR(chip_revision));
+	}
+	else {
+		printf("Texas Instruments unknown OMAP chip: %04x, rev %d\n",
+		    hawkeye, revision); 
+	}
 }
 
 /**

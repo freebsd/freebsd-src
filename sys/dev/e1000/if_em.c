@@ -309,7 +309,7 @@ static device_method_t em_methods[] = {
 	DEVMETHOD(device_shutdown, em_shutdown),
 	DEVMETHOD(device_suspend, em_suspend),
 	DEVMETHOD(device_resume, em_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t em_driver = {
@@ -905,22 +905,24 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	}
 
 	enq = 0;
-	if (m == NULL) {
-		next = drbr_dequeue(ifp, txr->br);
-	} else if (drbr_needs_enqueue(ifp, txr->br)) {
-		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+	if (m != NULL) {
+		err = drbr_enqueue(ifp, txr->br, m);
+		if (err) {
 			return (err);
-		next = drbr_dequeue(ifp, txr->br);
-	} else
-		next = m;
+		}
+	} 
 
 	/* Process the queue */
-	while (next != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = em_xmit(txr, &next)) != 0) {
-                        if (next != NULL)
-                                err = drbr_enqueue(ifp, txr->br, next);
-                        break;
+			if (next == NULL) {
+				drbr_advance(ifp, txr->br);
+			} else {
+				drbr_putback(ifp, txr->br, next);
+			}
+			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enq++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -928,7 +930,6 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
                         break;
-		next = drbr_dequeue(ifp, txr->br);
 	}
 
 	if (enq > 0) {
@@ -1831,7 +1832,7 @@ retry:
 		if (do_tso || (m_head->m_next != NULL && 
 		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
 			if (M_WRITABLE(*m_headp) == 0) {
-				m_head = m_dup(*m_headp, M_DONTWAIT);
+				m_head = m_dup(*m_headp, M_NOWAIT);
 				m_freem(*m_headp);
 				if (m_head == NULL) {
 					*m_headp = NULL;
@@ -1948,7 +1949,7 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_alloc_failed++;
 			m_freem(*m_headp);
@@ -3930,7 +3931,7 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->m_head == NULL) {
-			m = m_getjcl(M_DONTWAIT, MT_DATA,
+			m = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			/*
 			** If we have a temporary resource shortage
@@ -4100,7 +4101,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 			continue;
 		}
 #endif /* DEV_NETMAP */
-		rxbuf->m_head = m_getjcl(M_DONTWAIT, MT_DATA,
+		rxbuf->m_head = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_head == NULL) {
 			error = ENOBUFS;
@@ -4579,7 +4580,7 @@ em_fixup_rx(struct rx_ring *rxr)
 		bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
 		m->m_data += ETHER_HDR_LEN;
 	} else {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n != NULL) {
 			bcopy(m->m_data, n->m_data, ETHER_HDR_LEN);
 			m->m_data += ETHER_HDR_LEN;

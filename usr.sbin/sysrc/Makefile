@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 SCRIPTS= sysrc
 
 MAN= sysrc.8

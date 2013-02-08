@@ -19,7 +19,7 @@
 
 ident		RPI-B
 machine		arm	armv6
-cpu 		CPU_ARM11
+cpu 		CPU_ARM1176
 
 files		"../broadcom/bcm2835/files.bcm2835"
 makeoptions	MODULES_OVERRIDE=""
@@ -44,7 +44,8 @@ options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 device		snp
 
-#options 	NFSCL			#Network Filesystem Client
+options 	NFSCL			#Network Filesystem Client
+
 #options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
@@ -73,16 +74,19 @@ device		pl011
 
 device		pty
 
-# NOTE: serial console will be disabled if syscons enabled
-# Uncomment following lines for framebuffer/syscons support
-# device		sc
-# device		kbdmux
-# options         SC_DFLT_FONT    # compile font in
-# makeoptions     SC_DFLT_FONT=cp437
+# Comment following lines for boot console on serial port
+device		sc
+device		kbdmux
+options         SC_DFLT_FONT    # compile font in
+makeoptions     SC_DFLT_FONT=cp437
+device		ukbd
 
 device		sdhci
 device		mmc
 device		mmcsd
+
+device		gpio
+device		gpioled
 
 options 	KDB
 options 	DDB			#Enable the kernel debugger

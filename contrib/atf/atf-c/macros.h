@@ -30,6 +30,8 @@
 #if !defined(ATF_C_MACROS_H)
 #define ATF_C_MACROS_H
 
+#include <string.h>
+
 #include <atf-c/defs.h>
 #include <atf-c/error.h>
 #include <atf-c/tc.h>

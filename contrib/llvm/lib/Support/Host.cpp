@@ -234,6 +234,8 @@ std::string sys::getHostCPUName() {
       case 37: // Intel Core i7, laptop version.
       case 44: // Intel Core i7 processor and Intel Xeon processor. All
                // processors are manufactured using the 32 nm process.
+      case 46: // Nehalem EX
+      case 47: // Westmere EX
         return "corei7";
 
       // SandyBridge:
@@ -501,6 +503,7 @@ std::string sys::getHostCPUName() {
           .Case("0xb76", "arm1176jz-s")
           .Case("0xc08", "cortex-a8")
           .Case("0xc09", "cortex-a9")
+          .Case("0xc0f", "cortex-a15")
           .Case("0xc20", "cortex-m0")
           .Case("0xc23", "cortex-m3")
           .Case("0xc24", "cortex-m4")

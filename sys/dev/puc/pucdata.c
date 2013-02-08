@@ -630,6 +630,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_8S, 0x10, 0, -1,
 	},
 
+	{   0x13fe, 0x1600, 0x1602, 0x0002,
+	    "Advantech PCI-1602",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
 	{   0x1407, 0x0100, 0xffff, 0,
 	    "Lava Computers Dual Serial",
 	    DEFAULT_RCLK,

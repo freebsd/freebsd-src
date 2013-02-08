@@ -353,7 +353,8 @@ mmc_highest_voltage(uint32_t ocr)
 {
 	int i;
 
-	for (i = 30; i >= 0; i--)
+	for (i = MMC_OCR_MAX_VOLTAGE_SHIFT;
+	    i >= MMC_OCR_MIN_VOLTAGE_SHIFT; i--)
 		if (ocr & (1 << i))
 			return (i);
 	return (-1);
@@ -878,7 +879,7 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 	else
 		snprintf(oidstr, sizeof(oidstr), "0x%04x", ivar->cid.oid);
 	snprintf(ivar->card_id_string, sizeof(ivar->card_id_string),
-	    "%s%s %s %d.%d SN %d MFG %02d/%04d by %d %s",
+	    "%s%s %s %d.%d SN %u MFG %02d/%04d by %d %s",
 	    ivar->mode == mode_sd ? "SD" : "MMC", ivar->high_cap ? "HC" : "",
 	    ivar->cid.pnm, ivar->cid.prv >> 4, ivar->cid.prv & 0x0f,
 	    ivar->cid.psn, ivar->cid.mdt_month, ivar->cid.mdt_year,

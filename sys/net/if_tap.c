@@ -186,7 +186,7 @@ tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	/* Find any existing device, or allocate new unit number. */
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, 0);
 	if (i) {
-		dev = make_dev(&tap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+		dev = make_dev(&tap_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600,
 		    "%s%d", tapname, unit);
 	}
 
@@ -948,7 +948,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (EIO);
 	}
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, ETHER_ALIGN,
+	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, ETHER_ALIGN,
 	    M_PKTHDR)) == NULL) {
 		ifp->if_ierrors ++;
 		return (ENOBUFS);

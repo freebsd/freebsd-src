@@ -133,6 +133,12 @@ struct devstat_args {
 	{ DSM_MS_PER_TRANSACTION_FREE, DEVSTAT_ARG_LD },
 	{ DSM_BUSY_PCT, DEVSTAT_ARG_LD },
 	{ DSM_QUEUE_LENGTH, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_DURATION, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_READ, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_FREE, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_DURATION_OTHER, DEVSTAT_ARG_LD },
+	{ DSM_TOTAL_BUSY_TIME, DEVSTAT_ARG_LD },
 };
 
 static const char *namelist[] = {
@@ -1217,11 +1223,13 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 	u_int64_t totaltransfers, totaltransfersread, totaltransferswrite;
 	u_int64_t totaltransfersother, totalblocks, totalblocksread;
 	u_int64_t totalblockswrite, totaltransfersfree, totalblocksfree;
+	long double totalduration, totaldurationread, totaldurationwrite;
+	long double totaldurationfree, totaldurationother;
 	va_list ap;
 	devstat_metric metric;
 	u_int64_t *destu64;
 	long double *destld;
-	int retval, i;
+	int retval;
 
 	retval = 0;
 
@@ -1262,6 +1270,13 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		totalblockswrite /= 512;
 		totalblocksfree /= 512;
 	}
+
+	totaldurationread = DELTA_T(duration[DEVSTAT_READ]);
+	totaldurationwrite = DELTA_T(duration[DEVSTAT_WRITE]);
+	totaldurationfree = DELTA_T(duration[DEVSTAT_FREE]);
+	totaldurationother = DELTA_T(duration[DEVSTAT_NO_DATA]);
+	totalduration = totaldurationread + totaldurationwrite +
+	    totaldurationfree + totaldurationother;
 
 	va_start(ap, etime);
 
@@ -1484,9 +1499,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		 */
 		case DSM_MS_PER_TRANSACTION:
 			if (totaltransfers > 0) {
-				*destld = 0;
-				for (i = 0; i < DEVSTAT_N_TRANS_FLAGS; i++)
-					*destld += DELTA_T(duration[i]);
+				*destld = totalduration;
 				*destld /= totaltransfers;
 				*destld *= 1000;
 			} else
@@ -1499,7 +1512,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 		 */
 		case DSM_MS_PER_TRANSACTION_READ:
 			if (totaltransfersread > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_READ]);
+				*destld = totaldurationread;
 				*destld /= totaltransfersread;
 				*destld *= 1000;
 			} else
@@ -1507,7 +1520,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_MS_PER_TRANSACTION_WRITE:
 			if (totaltransferswrite > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_WRITE]);
+				*destld = totaldurationwrite;
 				*destld /= totaltransferswrite;
 				*destld *= 1000;
 			} else
@@ -1515,7 +1528,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_MS_PER_TRANSACTION_FREE:
 			if (totaltransfersfree > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_FREE]);
+				*destld = totaldurationfree;
 				*destld /= totaltransfersfree;
 				*destld *= 1000;
 			} else
@@ -1523,7 +1536,7 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_MS_PER_TRANSACTION_OTHER:
 			if (totaltransfersother > 0) {
-				*destld = DELTA_T(duration[DEVSTAT_NO_DATA]);
+				*destld = totaldurationother;
 				*destld /= totaltransfersother;
 				*destld *= 1000;
 			} else
@@ -1540,6 +1553,24 @@ devstat_compute_statistics(struct devstat *current, struct devstat *previous,
 			break;
 		case DSM_QUEUE_LENGTH:
 			*destu64 = current->start_count - current->end_count;
+			break;
+		case DSM_TOTAL_DURATION:
+			*destld = totalduration;
+			break;
+		case DSM_TOTAL_DURATION_READ:
+			*destld = totaldurationread;
+			break;
+		case DSM_TOTAL_DURATION_WRITE:
+			*destld = totaldurationwrite;
+			break;
+		case DSM_TOTAL_DURATION_FREE:
+			*destld = totaldurationfree;
+			break;
+		case DSM_TOTAL_DURATION_OTHER:
+			*destld = totaldurationother;
+			break;
+		case DSM_TOTAL_BUSY_TIME:
+			*destld = DELTA_T(busy_time);
 			break;
 /*
  * XXX: comment out the default block to see if any case's are missing.

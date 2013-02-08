@@ -150,6 +150,7 @@ SUBDIR=	\
 	${_ipfw} \
 	ipfw_nat \
 	${_ipmi} \
+	ip6_mroute_mod \
 	ip_mroute_mod \
 	${_ips} \
 	${_ipw} \
@@ -334,6 +335,7 @@ SUBDIR=	\
 	vge \
 	${_viawd} \
 	vkbd \
+	${_vmm} \
 	${_vpo} \
 	vr \
 	vte \
@@ -719,6 +721,7 @@ _twa=		twa
 _vesa=		vesa
 _viawd=		viawd
 _virtio=	virtio
+_vmm=		vmm
 _vxge=  	vxge
 _x86bios=	x86bios
 _wbwd=		wbwd
@@ -788,10 +791,15 @@ _exca=		exca
 _nvram=		powermac_nvram
 _pccard=	pccard
 _sound=		sound
+_cyclic=	cyclic
+_dtrace=	dtrace
+_opensolaris=	opensolaris
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_cyclic=	cyclic
+_dtrace=	dtrace
 _opensolaris=	opensolaris
 .endif
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)

@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2012
+.Dd January 10, 2013
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -142,7 +142,7 @@ The link-level
 address
 is specified as a series of colon-separated hex digits.
 This can be used to
-e.g.\& set a new MAC address on an ethernet interface, though the
+e.g.,\& set a new MAC address on an ethernet interface, though the
 mechanism used is not ethernet-specific.
 If the interface is already
 up when this option is used, it will be briefly brought down and
@@ -301,7 +301,7 @@ Specify interface FIB.
 A FIB
 .Ar fib_number
 is assigned to all frames or packets received on that interface.
-The FIB is not inherited, e.g. vlans or other sub-interfaces will use
+The FIB is not inherited, e.g., vlans or other sub-interfaces will use
 the default FIB (0) irrespective of the parent interface's FIB.
 The kernel needs to be tuned to support more than the default FIB
 using the
@@ -716,6 +716,13 @@ Set a flag to enable Neighbor Unreachability Detection.
 .It Cm -nud
 Clear a flag
 .Cm nud .
+.It Cm no_prefer_iface
+Set a flag to not prefer address on the interface as candidates of the
+source address for outgoing packets, even when the interface is
+outgoing interface.
+.It Cm -no_prefer_iface
+Clear a flag
+.Cm no_prefer_iface .
 .El
 .Pp
 The following parameters are specific to cloning
@@ -1003,7 +1010,7 @@ For example, if a device is capable of operating on channel 6
 with 802.11n and 802.11g then one can specify that g-only use
 should be used by specifying ``6:g''.
 Similarly the channel width can be specified by appending it
-with ``/''; e.g. ``6/40'' specifies a 40MHz wide channel,
+with ``/''; e.g., ``6/40'' specifies a 40MHz wide channel,
 These attributes can be combined as in: ``6:ht/40''.
 The full set of flags specified following a ``:'' are:
 .Cm a
@@ -1036,7 +1043,7 @@ and
 In addition,
 a 40MHz HT channel specification may include the location
 of the extension channel by appending ``+'' or ``-'' for above and below,
-respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation
+respectively; e.g., ``2437:ht/40+'' specifies 40MHz wide HT operation
 with the center channel at frequency 2437 and the extension channel above.
 .It Cm country Ar name
 Set the country code to use in calculating the regulatory constraints
@@ -1046,7 +1053,7 @@ will operation on the channels, and the maximum transmit power that
 can be used on a channel are defined by this setting.
 Country/Region codes are specified as a 2-character abbreviation
 defined by ISO 3166 or using a longer, but possibly ambiguous, spelling;
-e.g. "ES" and "Spain".
+e.g., "ES" and "Spain".
 The set of country codes are taken from /etc/regdomain.xml and can also
 be viewed with the ``list countries'' request.
 Note that not all devices support changing the country code from a default
@@ -1063,7 +1070,7 @@ DFS embodies several facilities including detection of overlapping
 radar signals, dynamic transmit power control, and channel selection
 according to a least-congested criteria.
 DFS support is mandatory for some 5GHz frequencies in certain
-locales (e.g. ETSI).
+locales (e.g., ETSI).
 By default DFS is enabled according to the regulatory definitions
 specified in /etc/regdomain.xml and the current country code, regdomain,
 and channel.
@@ -1115,7 +1122,7 @@ specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
 By default DTIM is 1 (i.e., DTIM occurs at each beacon).
 .It Cm quiet
-Enable the use of quiet IE.  Hostap will use this to silent other
+Enable the use of quiet IE.  Hostap will use this to silence other
 stations to reduce interference for radar detection when
 operating on 5GHz frequency and doth support is enabled.
 Use
@@ -1168,7 +1175,7 @@ Enable Dynamic WDS (DWDS) support.
 DWDS is a facility by which 4-address traffic can be carried between
 stations operating in infrastructure mode.
 A station first associates to an access point and authenticates using
-normal procedures (e.g. WPA).
+normal procedures (e.g., WPA).
 Then 4-address frames are passed to carry traffic for stations
 operating on either side of the wireless link.
 DWDS extends the normal WDS mechanism by leveraging existing security
@@ -1186,7 +1193,7 @@ When DWDS is enabled on a station, traffic with a destination address
 different from the peer station are encapsulated in a 4-address frame
 and transmitted to the peer.
 All 4-address traffic uses the security information of the stations
-(e.g. cryptographic keys).
+(e.g., cryptographic keys).
 A station is associated using 802.11n facilities may transport
 4-address traffic using these same mechanisms; this depends on available
 resources and capabilities of the device.
@@ -1236,7 +1243,7 @@ Stations negotiate use of these facilities, termed HT20 and HT40,
 when they associate.
 To disable all use of 802.11n use
 .Fl ht .
-To disable use of HT20 (e.g. to force only HT40 use) use
+To disable use of HT20 (e.g., to force only HT40 use) use
 .Fl ht20 .
 To disable use of HT40 use
 .Fl ht40 .
@@ -1250,7 +1257,7 @@ Auto Channel Selection is used to locate a channel to operate on,
 HT configuration controls whether legacy, HT20, or HT40 operation is setup
 on the selected channel.
 If a fixed channel is specified for a station then HT configuration can
-be given as part of the channel specification; e.g. 6:ht/20 to setup
+be given as part of the channel specification; e.g., 6:ht/20 to setup
 HT20 operation on channel 6.
 .It Cm htcompat
 Enable use of compatibility support for pre-802.11n devices (default).
@@ -1506,13 +1513,13 @@ The default setting is 6 but drivers may override this with a value
 they choose.
 .It Cm mcastrate Ar rate
 Set the rate for transmitting multicast/broadcast frames.
-Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
+Rates are specified as megabits/second in decimal; e.g.,\& 5.5 for 5.5 Mb/s.
 This rate should be valid for the current operating conditions;
 if an invalid rate is specified drivers are free to chose an
 appropriate rate.
 .It Cm mgtrate Ar rate
 Set the rate for transmitting management and/or control frames.
-Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
+Rates are specified as megabits/second in decimal; e.g.,\& 5.5 for 5.5 Mb/s.
 .It Cm outdoor
 Set the location to use in calculating regulatory constraints.
 The location is also advertised in beacon and probe response frames
@@ -1672,7 +1679,7 @@ request can be used to show recent scan results without
 initiating a new scan.
 .It Cm scanvalid Ar threshold
 Set the maximum time the scan cache contents are considered valid;
-i.e. will be used without first triggering a scan operation to
+i.e., will be used without first triggering a scan operation to
 refresh the data.
 The
 .Ar threshold
@@ -1734,7 +1741,7 @@ When operating with TDMA, setup a BSS with
 slots.
 The slot count may be at most 8.
 The current implementation is only tested with two stations
-(i.e. point to point applications).
+(i.e., point to point applications).
 This setting is only meaningful when a station is configured as slot 0;
 other stations adopt this setting from the BSS they join.
 By default
@@ -1758,7 +1765,7 @@ is set to 10 milliseconds.
 When operating with TDMA, setup a BSS such that beacons are transmitted every
 .Ar intval
 superframes to synchronize the TDMA slot timing.
-A superframe is defined as the number of slots times the slot length; e.g.
+A superframe is defined as the number of slots times the slot length; e.g.,
 a BSS with two slots of 10 milliseconds has a 20 millisecond superframe.
 The beacon interval may not be zero.
 A lower setting of
@@ -1784,7 +1791,7 @@ the driver will use the setting closest to the specified value.
 Not all adapters support changing the transmit power.
 .It Cm ucastrate Ar rate
 Set a fixed rate for transmitting unicast frames.
-Rates are specified as megabits/second in decimal; e.g.\& 5.5 for 5.5 Mb/s.
+Rates are specified as megabits/second in decimal; e.g.,\& 5.5 for 5.5 Mb/s.
 This rate should be valid for the current operating conditions;
 if an invalid rate is specified drivers are free to chose an
 appropriate rate.
@@ -2519,7 +2526,7 @@ protocol on an interface:
 Set the virtual host ID.
 This is a required setting to initiate
 .Xr carp 4 .
-If the virtual host ID doesn't exist yet, it is created and attached to the
+If the virtual host ID does not exist yet, it is created and attached to the
 interface, otherwise configuration of an existing vhid is adjusted.
 If the
 .Cm vhid
@@ -2628,9 +2635,6 @@ The
 flag disables this behavior.
 .Pp
 Only the super-user may modify the configuration of a network interface.
-.Sh NOTES
-The media selection system is relatively new and only some drivers support
-it (or have need for it).
 .Sh EXAMPLES
 Assign the IPv4 address
 .Li 192.0.2.10 ,
@@ -2714,7 +2718,9 @@ tried to alter an interface's configuration.
 .Xr pfsync 4 ,
 .Xr polling 4 ,
 .Xr vlan 4 ,
+.Xr devd.conf 5 ,
 .\" .Xr eon 5 ,
+.Xr devd 8 ,
 .Xr rc 8 ,
 .Xr routed 8 ,
 .Xr jail 8 ,

@@ -71,6 +71,14 @@ static int nap = 1;
 static char *test_cmd = NULL;
 
 /*
+ * Ask malloc() to map minimum-sized chunks of virtual address space at a time,
+ * so that mlockall() won't needlessly wire megabytes of unused memory into the
+ * process.  This must be done using the malloc_conf string so that it gets set
+ * up before the first allocation, which happens before entry to main().
+ */
+const char * malloc_conf = "lg_chunk:0";
+
+/*
  * Periodically pat the watchdog, preventing it from firing.
  */
 int
@@ -188,7 +196,7 @@ watchdog_loop(void)
 			if (watchdog_onoff(0) == 0) {
 				end_program = 2;
 			} else {
-				warnx("Could not stop the watchdog, not exitting");
+				warnx("Could not stop the watchdog, not exiting");
 				end_program = 0;
 			}
 		}

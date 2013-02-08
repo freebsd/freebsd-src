@@ -56,12 +56,10 @@ setpwdir(const char * dir)
 {
 	if (dir == NULL)
 		return -1;
-	else {
-		char * d = malloc(strlen(dir)+1);
-		if (d == NULL)
-			return -1;
-		pwpath = strcpy(d, dir);
-	}
+	else
+		pwpath = strdup(dir);
+	if (pwpath == NULL)
+		return -1;
 	return 0;
 }
 
@@ -148,7 +146,11 @@ pw_update(struct passwd * pwd, char const * user)
 			pw_fini();
 			err(1, "pw_copy()");
 		}
-		if (pw_mkdb(user) == -1) {
+		/*
+		 * in case of deletion of a user, the whole database
+		 * needs to be regenerated
+		 */
+		if (pw_mkdb(pw != NULL ? user : NULL) == -1) {
 			pw_fini();
 			err(1, "pw_mkdb()");
 		}

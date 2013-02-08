@@ -1712,7 +1712,7 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 
 		if (M_WRITABLE(*m_head) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1774,7 +1774,7 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->jme_cdata.jme_tx_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, JME_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, JME_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -3181,7 +3181,7 @@ jme_newbuf(struct jme_softc *sc, struct jme_rxdesc *rxd)
 	bus_dmamap_t map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	/*

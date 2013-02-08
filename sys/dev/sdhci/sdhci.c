@@ -96,6 +96,8 @@ static void sdhci_card_task(void *, int);
 #define SDHCI_ASSERT_LOCKED(_slot)	mtx_assert(&_slot->mtx, MA_OWNED);
 #define SDHCI_ASSERT_UNLOCKED(_slot)	mtx_assert(&_slot->mtx, MA_NOTOWNED);
 
+#define	SDHCI_DEFAULT_MAX_FREQ	50
+
 static void
 sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
@@ -516,12 +518,16 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	else
 		caps = RD4(slot, SDHCI_CAPABILITIES);
 	/* Calculate base clock frequency. */
-	slot->max_clk =
-		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
+	if (slot->version >= SDHCI_SPEC_300)
+		slot->max_clk = (caps & SDHCI_CLOCK_V3_BASE_MASK) 
+		    >> SDHCI_CLOCK_BASE_SHIFT;
+	else	
+		slot->max_clk = (caps & SDHCI_CLOCK_BASE_MASK) 
+		    >> SDHCI_CLOCK_BASE_SHIFT;
 	if (slot->max_clk == 0) {
-		slot->max_clk = 50;
+		slot->max_clk = SDHCI_DEFAULT_MAX_FREQ;
 		device_printf(dev, "Hardware doesn't specify base clock "
-		    "frequency.\n");
+		    "frequency, using %dMHz as default.\n", SDHCI_DEFAULT_MAX_FREQ);
 	}
 	slot->max_clk *= 1000000;
 	/* Calculate timeout clock frequency. */

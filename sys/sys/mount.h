@@ -199,8 +199,8 @@ struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
 
-#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp)				\
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp));			\
 		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
@@ -218,40 +218,12 @@ struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 
-#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) 				\
+	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); 		\
 		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
-	do {								\
-		MNT_ILOCK(mp);						\
-		__mnt_vnode_markerfree_active(&(mvp), (mp));		\
-		/* MNT_IUNLOCK(mp); -- done in above function */	\
-		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
-	} while (0)
-
-/*
- * Definitions for MNT_VNODE_FOREACH.
- *
- * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
- */
-struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
-struct vnode *__mnt_vnode_first(struct vnode **mvp, struct mount *mp);
-void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
-
-#define MNT_VNODE_FOREACH(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first(&(mvp), (mp)); \
-		(vp) != NULL; vp = __mnt_vnode_next(&(mvp), (mp)))
-
-#define MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp)			\
-	__mnt_vnode_markerfree(&(mvp), (mp))
-
-#define MNT_VNODE_FOREACH_ABORT(mp, mvp)				\
-	do {								\
-		MNT_ILOCK(mp);						\
-		MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);		\
-		MNT_IUNLOCK(mp);					\
-	} while (0)
+	__mnt_vnode_markerfree_active(&(mvp), (mp))
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
 #define	MNT_ITRYLOCK(mp) mtx_trylock(&(mp)->mnt_mtx)
@@ -385,7 +357,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
+#define	MNTK_UNUSED25	0x20000000	/*  --available-- */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
@@ -790,8 +762,9 @@ extern	struct nfs_public nfs_pub;
 
 /*
  * Declarations for these vfs default operations are located in
- * kern/vfs_default.c, they should be used instead of making "dummy"
- * functions or casting entries in the VFS op table to "enopnotsupp()".
+ * kern/vfs_default.c.  They will be automatically used to replace
+ * null entries in VFS ops tables when registering a new filesystem
+ * type in the global table.
  */
 vfs_root_t		vfs_stdroot;
 vfs_quotactl_t		vfs_stdquotactl;

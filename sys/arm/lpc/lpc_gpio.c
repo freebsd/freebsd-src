@@ -33,7 +33,7 @@
  * - Port3 with:
  *   - 26 input pins (GPI_00..GPI_09 + GPI_15..GPI_23 + GPI_25 + GPI_27..GPI_28)
  *   - 24 output pins (GPO_00..GPO_23)
- *   - 6 input/ouput pins (GPIO_00..GPIO_05)
+ *   - 6 input/output pins (GPIO_00..GPIO_05)
  *
  * Pins are mapped to logical pin number as follows:
  * [0..9] -> GPI_00..GPI_09 		(port 3)

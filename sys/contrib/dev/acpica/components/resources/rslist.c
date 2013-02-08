@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ AcpiRsConvertAmlToResources (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context)
+    void                    **Context)
 {
     ACPI_RESOURCE           **ResourcePtr = ACPI_CAST_INDIRECT_PTR (
                                 ACPI_RESOURCE, Context);
@@ -241,7 +241,7 @@ AcpiRsConvertResourcesToAml (
 
         /* Perform final sanity check on the new AML resource descriptor */
 
-        Status = AcpiUtValidateResource (
+        Status = AcpiUtValidateResource (NULL,
                     ACPI_CAST_PTR (AML_RESOURCE, Aml), NULL);
         if (ACPI_FAILURE (Status))
         {

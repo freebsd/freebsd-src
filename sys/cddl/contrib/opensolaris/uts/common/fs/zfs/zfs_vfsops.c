@@ -1132,9 +1132,9 @@ zfs_domount(vfs_t *vfsp, char *osname)
 
 	vfsp->vfs_data = zfsvfs;
 	vfsp->mnt_flag |= MNT_LOCAL;
-	vfsp->mnt_kern_flag |= MNTK_MPSAFE;
 	vfsp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
 	vfsp->mnt_kern_flag |= MNTK_SHARED_WRITES;
+	vfsp->mnt_kern_flag |= MNTK_EXTENDED_SHARED;
 
 	/*
 	 * The fsid is 64 bits, composed of an 8-bit fs type, which
@@ -1655,24 +1655,12 @@ zfs_mount(vfs_t *vfsp)
 	if ((vfsp->vfs_flag & MNT_ROOTFS) != 0 &&
 	    (vfsp->vfs_flag & MNT_UPDATE) == 0) {
 		char pname[MAXNAMELEN];
-		spa_t *spa;
-		int prefer_cache;
 
 		error = getpoolname(osname, pname);
+		if (error == 0)
+			error = spa_import_rootpool(pname);
 		if (error)
 			goto out;
-
-		prefer_cache = 1;
-		TUNABLE_INT_FETCH("vfs.zfs.rootpool.prefer_cached_config",
-		    &prefer_cache);
-		mutex_enter(&spa_namespace_lock);
-		spa = spa_lookup(pname);
-		mutex_exit(&spa_namespace_lock);
-		if (!prefer_cache || spa == NULL) {
-			error = spa_import_rootpool(pname);
-			if (error)
-				goto out;
-		}
 	}
 	DROP_GIANT();
 	error = zfs_domount(vfsp, osname);
@@ -1756,15 +1744,7 @@ zfs_vnode_lock(vnode_t *vp, int flags)
 
 	ASSERT(vp != NULL);
 
-	/*
-	 * Check if the file system wasn't forcibly unmounted in the meantime.
-	 */
 	error = vn_lock(vp, flags);
-	if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0) {
-		VOP_UNLOCK(vp, 0);
-		error = ENOENT;
-	}
-
 	return (error);
 }
 
@@ -1867,18 +1847,6 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		zfsvfs->z_unmounted = B_TRUE;
 		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-
-#ifdef __FreeBSD__
-		/*
-		 * Some znodes might not be fully reclaimed, wait for them.
-		 */
-		mutex_enter(&zfsvfs->z_znodes_lock);
-		while (list_head(&zfsvfs->z_all_znodes) != NULL) {
-			msleep(zfsvfs, &zfsvfs->z_znodes_lock, 0,
-			    "zteardown", 0);
-		}
-		mutex_exit(&zfsvfs->z_znodes_lock);
-#endif
 	}
 
 	/*
@@ -1990,10 +1958,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 			    zfsvfs->z_ctldir->v_count > 1)
 				return (EBUSY);
 		}
-	} else {
-		MNT_ILOCK(vfsp);
-		vfsp->mnt_kern_flag |= MNTK_UNMOUNTF;
-		MNT_IUNLOCK(vfsp);
 	}
 
 	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
@@ -2045,7 +2009,8 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	 * .zfs/snapshot/ directories, that's why we return EOPNOTSUPP.
 	 * This will make NFS to switch to LOOKUP instead of using VGET.
 	 */
-	if (ino == ZFSCTL_INO_ROOT || ino == ZFSCTL_INO_SNAPDIR)
+	if (ino == ZFSCTL_INO_ROOT || ino == ZFSCTL_INO_SNAPDIR ||
+	    (zfsvfs->z_shares_dir != 0 && ino == zfsvfs->z_shares_dir))
 		return (EOPNOTSUPP);
 
 	ZFS_ENTER(zfsvfs);
@@ -2061,6 +2026,8 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		err = zfs_vnode_lock(*vpp, flags);
 	if (err != 0)
 		*vpp = NULL;
+	else
+		(*vpp)->v_hash = ino;
 	return (err);
 }
 
@@ -2135,19 +2102,27 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 		return (EINVAL);
 	}
 
-	/* A zero fid_gen means we are in the .zfs control directories */
-	if (fid_gen == 0 &&
-	    (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) {
+	/*
+	 * A zero fid_gen means we are in .zfs or the .zfs/snapshot
+	 * directory tree. If the object == zfsvfs->z_shares_dir, then
+	 * we are in the .zfs/shares directory tree.
+	 */
+	if ((fid_gen == 0 &&
+	     (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) ||
+	    (zfsvfs->z_shares_dir != 0 && object == zfsvfs->z_shares_dir)) {
 		*vpp = zfsvfs->z_ctldir;
 		ASSERT(*vpp != NULL);
 		if (object == ZFSCTL_INO_SNAPDIR) {
 			VERIFY(zfsctl_root_lookup(*vpp, "snapshot", vpp, NULL,
 			    0, NULL, NULL, NULL, NULL, NULL) == 0);
+		} else if (object == zfsvfs->z_shares_dir) {
+			VERIFY(zfsctl_root_lookup(*vpp, "shares", vpp, NULL,
+			    0, NULL, NULL, NULL, NULL, NULL) == 0);
 		} else {
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
+		err = zfs_vnode_lock(*vpp, flags);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);

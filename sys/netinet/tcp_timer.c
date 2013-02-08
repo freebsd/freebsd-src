@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
@@ -117,6 +118,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, keepcnt, CTLFLAG_RW, &tcp_keepcnt, 0,
 
 	/* max idle probes */
 int	tcp_maxpersistidle;
+
+static int	tcp_rexmit_drop_options = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
+    &tcp_rexmit_drop_options, 0,
+    "Drop TCP options from 3rd and later retransmitted SYN");
 
 static int	per_cpu_timers = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, per_cpu_timers, CTLFLAG_RW,
@@ -594,7 +600,8 @@ tcp_timer_rexmt(void * xtp)
 	 * header compression code which trashes TCP segments containing
 	 * unknown-to-them TCP options.
 	 */
-	if ((tp->t_state == TCPS_SYN_SENT) && (tp->t_rxtshift == 3))
+	if (tcp_rexmit_drop_options && (tp->t_state == TCPS_SYN_SENT) &&
+	    (tp->t_rxtshift == 3))
 		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_SACK_PERMIT);
 	/*
 	 * If we backed off this far, our srtt estimate is probably bogus.

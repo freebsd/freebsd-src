@@ -101,6 +101,12 @@ struct ata_pci_controller {
 #define ATA_AMD768              0x74411022
 #define ATA_AMD8111             0x74691022
 #define ATA_AMD5536             0x209a1022
+#define ATA_AMD_HUDSON2_S1	0x78001022
+#define ATA_AMD_HUDSON2_S2	0x78011022
+#define ATA_AMD_HUDSON2_S3	0x78021022
+#define ATA_AMD_HUDSON2_S4	0x78031022
+#define ATA_AMD_HUDSON2_S5	0x78041022
+#define ATA_AMD_HUDSON2		0x780c1022
 
 #define ATA_ADAPTEC_ID          0x9005
 #define ATA_ADAPTEC_1420        0x02419005
@@ -253,6 +259,19 @@ struct ata_pci_controller {
 #define ATA_PPT_S4		0x1e098086
 #define ATA_PPT_R5		0x1e0e8086
 #define ATA_PPT_R6		0x1e0f8086
+
+#define ATA_LPT_S1		0x8c008086
+#define ATA_LPT_S2		0x8c018086
+#define ATA_LPT_AH1		0x8c028086
+#define ATA_LPT_AH2		0x8c038086
+#define ATA_LPT_R1		0x8c048086
+#define ATA_LPT_R2		0x8c058086
+#define ATA_LPT_R3		0x8c068086
+#define ATA_LPT_R4		0x8c078086
+#define ATA_LPT_S3		0x8c088086
+#define ATA_LPT_S4		0x8c098086
+#define ATA_LPT_R5		0x8c0e8086
+#define ATA_LPT_R6		0x8c0f8086
 
 #define ATA_I31244              0x32008086
 #define ATA_ISCH                0x811a8086

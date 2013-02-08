@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libutil.h>
 #include <paths.h>
+#include <poll.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -127,7 +128,7 @@ delete_and_clear(vector<T *> &v)
 {
 	typename vector<T *>::const_iterator i;
 
-	for (i = v.begin(); i != v.end(); i++)
+	for (i = v.begin(); i != v.end(); ++i)
 		delete *i;
 	v.clear();
 }
@@ -136,7 +137,7 @@ config cfg;
 
 event_proc::event_proc() : _prio(-1)
 {
-	// nothing
+	_epsvec.reserve(4);
 }
 
 event_proc::~event_proc()
@@ -151,22 +152,22 @@ event_proc::add(eps *eps)
 }
 
 bool
-event_proc::matches(config &c)
+event_proc::matches(config &c) const
 {
 	vector<eps *>::const_iterator i;
 
-	for (i = _epsvec.begin(); i != _epsvec.end(); i++)
+	for (i = _epsvec.begin(); i != _epsvec.end(); ++i)
 		if (!(*i)->do_match(c))
 			return (false);
 	return (true);
 }
 
 bool
-event_proc::run(config &c)
+event_proc::run(config &c) const
 {
 	vector<eps *>::const_iterator i;
 		
-	for (i = _epsvec.begin(); i != _epsvec.end(); i++)
+	for (i = _epsvec.begin(); i != _epsvec.end(); ++i)
 		if (!(*i)->do_action(c))
 			return (false);
 	return (true);
@@ -240,26 +241,18 @@ my_system(const char *command)
 bool
 action::do_action(config &c)
 {
-	string s = c.expand_string(_cmd);
+	string s = c.expand_string(_cmd.c_str());
 	if (Dflag)
 		fprintf(stderr, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
 
-match::match(config &c, const char *var, const char *re)
-	: _var(var)
+match::match(config &c, const char *var, const char *re) :
+	_inv(re[0] == '!'),
+	_var(var),
+	_re(c.expand_string(_inv ? re + 1 : re, "^", "$"))
 {
-	_re = "^";
-	if (!c.expand_string(string(re)).empty() &&
-	    c.expand_string(string(re)).at(0) == '!') {
-		_re.append(c.expand_string(string(re)).substr(1));
-		_inv = 1;
-	} else {
-		_re.append(c.expand_string(string(re)));
-		_inv = 0;
-	}
-	_re.append("$");
 	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB | REG_ICASE);
 }
 
@@ -301,7 +294,7 @@ media::media(config &, const char *var, const char *type)
 		{ -1,			"unknown" },
 		{ 0, NULL },
 	};
-	for (int i = 0; media_types[i].ifmt_string != NULL; i++)
+	for (int i = 0; media_types[i].ifmt_string != NULL; ++i)
 		if (strcasecmp(type, media_types[i].ifmt_string) == 0) {
 			_type = media_types[i].ifmt_word;
 			break;
@@ -436,7 +429,7 @@ config::parse_files_in_dir(const char *dirname)
 
 class epv_greater {
 public:
-	int operator()(event_proc *const&l1, event_proc *const&l2)
+	int operator()(event_proc *const&l1, event_proc *const&l2) const
 	{
 		return (l1->get_priority() > l2->get_priority());
 	}
@@ -445,7 +438,7 @@ public:
 void
 config::sort_vector(vector<event_proc *> &v)
 {
-	sort(v.begin(), v.end(), epv_greater());
+	stable_sort(v.begin(), v.end(), epv_greater());
 }
 
 void
@@ -454,7 +447,7 @@ config::parse(void)
 	vector<string>::const_iterator i;
 
 	parse_one_file(configfile);
-	for (i = _dir_list.begin(); i != _dir_list.end(); i++)
+	for (i = _dir_list.begin(); i != _dir_list.end(); ++i)
 		parse_files_in_dir((*i).c_str());
 	sort_vector(_attach_list);
 	sort_vector(_detach_list);
@@ -569,7 +562,7 @@ config::get_variable(const string &var)
 {
 	vector<var_list *>::reverse_iterator i;
 
-	for (i = _var_list_table.rbegin(); i != _var_list_table.rend(); i++) {
+	for (i = _var_list_table.rbegin(); i != _var_list_table.rend(); ++i) {
 		if ((*i)->is_set(var))
 			return ((*i)->get_variable(var));
 	}
@@ -577,7 +570,7 @@ config::get_variable(const string &var)
 }
 
 bool
-config::is_id_char(char ch)
+config::is_id_char(char ch) const
 {
 	return (ch != '\0' && (isalpha(ch) || isdigit(ch) || ch == '_' || 
 	    ch == '-'));
@@ -624,24 +617,37 @@ config::expand_one(const char *&src, string &dst)
 	do {
 		buffer.append(src++, 1);
 	} while (is_id_char(*src));
-	buffer.append("", 1);
 	dst.append(get_variable(buffer.c_str()));
 }
 
 const string
-config::expand_string(const string &s)
+config::expand_string(const char *src, const char *prepend, const char *append)
 {
-	const char *src;
+	const char *var_at;
 	string dst;
 
-	src = s.c_str();
-	while (*src) {
-		if (*src == '$')
-			expand_one(src, dst);
-		else
-			dst.append(src++, 1);
+	/*
+	 * 128 bytes is enough for 2427 of 2438 expansions that happen
+	 * while parsing config files, as tested on 2013-01-30.
+	 */
+	dst.reserve(128);
+
+	if (prepend != NULL)
+		dst = prepend;
+
+	for (;;) {
+		var_at = strchr(src, '$');
+		if (var_at == NULL) {
+			dst.append(src);
+			break;
+		}
+		dst.append(src, var_at - src);
+		src = var_at;
+		expand_one(src, dst);
 	}
-	dst.append("", 1);
+
+	if (append != NULL)
+		dst.append(append);
 
 	return (dst);
 }
@@ -726,7 +732,7 @@ config::find_and_execute(char type)
 	}
 	if (Dflag)
 		fprintf(stderr, "Processing %s event\n", s);
-	for (i = l->begin(); i != l->end(); i++) {
+	for (i = l->begin(); i != l->end(); ++i) {
 		if ((*i)->matches(*this)) {
 			(*i)->run(*this);
 			break;
@@ -815,23 +821,58 @@ create_socket(const char *name)
 	return (fd);
 }
 
+unsigned int max_clients = 10;	/* Default, can be overriden on cmdline. */
+unsigned int num_clients;
 list<int> clients;
 
 void
 notify_clients(const char *data, int len)
 {
-	list<int> bad;
-	list<int>::const_iterator i;
+	list<int>::iterator i;
 
-	for (i = clients.begin(); i != clients.end(); i++) {
-		if (write(*i, data, len) <= 0) {
-			bad.push_back(*i);
+	/*
+	 * Deliver the data to all clients.  Throw clients overboard at the
+	 * first sign of trouble.  This reaps clients who've died or closed
+	 * their sockets, and also clients who are alive but failing to keep up
+	 * (or who are maliciously not reading, to consume buffer space in
+	 * kernel memory or tie up the limited number of available connections).
+	 */
+	for (i = clients.begin(); i != clients.end(); ) {
+		if (write(*i, data, len) != len) {
+			--num_clients;
 			close(*i);
-		}
+			i = clients.erase(i);
+		} else
+			++i;
 	}
+}
 
-	for (i = bad.begin(); i != bad.end(); i++)
-		clients.erase(find(clients.begin(), clients.end(), *i));
+void
+check_clients(void)
+{
+	int s;
+	struct pollfd pfd;
+	list<int>::iterator i;
+
+	/*
+	 * Check all existing clients to see if any of them have disappeared.
+	 * Normally we reap clients when we get an error trying to send them an
+	 * event.  This check eliminates the problem of an ever-growing list of
+	 * zombie clients because we're never writing to them on a system
+	 * without frequent device-change activity.
+	 */
+	pfd.events = 0;
+	for (i = clients.begin(); i != clients.end(); ) {
+		pfd.fd = *i;
+		s = poll(&pfd, 1, 0);
+		if ((s < 0 && s != EINTR ) ||
+		    (s > 0 && (pfd.revents & POLLHUP))) {
+			--num_clients;
+			close(*i);
+			i = clients.erase(i);
+		} else
+			++i;
+	}
 }
 
 void
@@ -839,9 +880,18 @@ new_client(int fd)
 {
 	int s;
 
+	/*
+	 * First go reap any zombie clients, then accept the connection, and
+	 * shut down the read side to stop clients from consuming kernel memory
+	 * by sending large buffers full of data we'll never read.
+	 */
+	check_clients();
 	s = accept(fd, NULL, NULL);
-	if (s != -1)
+	if (s != -1) {
+		shutdown(s, SHUT_RD);
 		clients.push_back(s);
+		++num_clients;
+	}
 }
 
 static void
@@ -852,6 +902,7 @@ event_loop(void)
 	char buffer[DEVCTL_MAXBUF];
 	int once = 0;
 	int server_fd, max_fd;
+	int accepting;
 	timeval tv;
 	fd_set fds;
 
@@ -859,6 +910,7 @@ event_loop(void)
 	if (fd == -1)
 		err(1, "Can't open devctl device %s", PATH_DEVCTL);
 	server_fd = create_socket(PIPE);
+	accepting = 1;
 	max_fd = max(fd, server_fd) + 1;
 	while (1) {
 		if (romeo_must_die)
@@ -881,15 +933,38 @@ event_loop(void)
 				once++;
 			}
 		}
+		/*
+		 * When we've already got the max number of clients, stop
+		 * accepting new connections (don't put server_fd in the set),
+		 * shrink the accept() queue to reject connections quickly, and
+		 * poll the existing clients more often, so that we notice more
+		 * quickly when any of them disappear to free up client slots.
+		 */
 		FD_ZERO(&fds);
 		FD_SET(fd, &fds);
-		FD_SET(server_fd, &fds);
-		rv = select(max_fd, &fds, NULL, NULL, NULL);
+		if (num_clients < max_clients) {
+			if (!accepting) {
+				listen(server_fd, max_clients);
+				accepting = 1;
+			}
+			FD_SET(server_fd, &fds);
+			tv.tv_sec = 60;
+			tv.tv_usec = 0;
+		} else {
+			if (accepting) {
+				listen(server_fd, 0);
+				accepting = 0;
+			}
+			tv.tv_sec = 2;
+			tv.tv_usec = 0;
+		}
+		rv = select(max_fd, &fds, NULL, NULL, &tv);
 		if (rv == -1) {
 			if (errno == EINTR)
 				continue;
 			err(1, "select");
-		}
+		} else if (rv == 0)
+			check_clients();
 		if (FD_ISSET(fd, &fds)) {
 			rv = read(fd, buffer, sizeof(buffer) - 1);
 			if (rv > 0) {
@@ -1008,7 +1083,8 @@ gensighand(int)
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-Ddn] [-f file]\n", getprogname());
+	fprintf(stderr, "usage: %s [-Ddn] [-l connlimit] [-f file]\n",
+	    getprogname());
 	exit(1);
 }
 
@@ -1037,7 +1113,7 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "Ddf:n")) != -1) {
+	while ((ch = getopt(argc, argv, "Ddf:l:n")) != -1) {
 		switch (ch) {
 		case 'D':
 			Dflag++;
@@ -1047,6 +1123,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			configfile = optarg;
+			break;
+		case 'l':
+			max_clients = MAX(1, strtoul(optarg, NULL, 0));
 			break;
 		case 'n':
 			nflag++;

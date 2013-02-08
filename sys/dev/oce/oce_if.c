@@ -108,7 +108,8 @@ static device_method_t oce_dispatch[] = {
 	DEVMETHOD(device_attach, oce_attach),
 	DEVMETHOD(device_detach, oce_detach),
 	DEVMETHOD(device_shutdown, oce_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t oce_driver = {
@@ -902,7 +903,7 @@ retry:
 
 	} else if (rc == EFBIG)	{
 		if (retry_cnt == 0) {
-			m_temp = m_defrag(m, M_DONTWAIT);
+			m_temp = m_defrag(m, M_NOWAIT);
 			if (m_temp == NULL)
 				goto free_ret;
 			m = m_temp;
@@ -995,7 +996,7 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp)
 	m = *mpp;
 
 	if (M_WRITABLE(m) == 0) {
-		m = m_dup(*mpp, M_DONTWAIT);
+		m = m_dup(*mpp, M_NOWAIT);
 		if (!m)
 			return NULL;
 		m_freem(*mpp);
@@ -1165,29 +1166,27 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 		return status;
 	}
 
-	if (m == NULL)
-		next = drbr_dequeue(ifp, br);		
-	else if (drbr_needs_enqueue(ifp, br)) {
+	 if (m != NULL) {
 		if ((status = drbr_enqueue(ifp, br, m)) != 0)
 			return status;
-		next = drbr_dequeue(ifp, br);
-	} else
-		next = m;
-
-	while (next != NULL) {
+	} 
+	while ((next = drbr_peek(ifp, br)) != NULL) {
 		if (oce_tx(sc, &next, queue_index)) {
-			if (next != NULL) {
+			if (next == NULL) {
+				drbr_advance(ifp, br);
+			} else {
+				drbr_putback(ifp, br, next);
 				wq->tx_stats.tx_stops ++;
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				status = drbr_enqueue(ifp, br, next);
 			}  
 			break;
 		}
+		drbr_advance(ifp, br);
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
 			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
-		next = drbr_dequeue(ifp, br);
 	}
 
 	return status;
@@ -1481,7 +1480,7 @@ oce_alloc_rx_bufs(struct oce_rq *rq, int count)
 			break;	/* no more room */
 
 		pd = &rq->pckts[rq->packets_in];
-		pd->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		pd->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (pd->mbuf == NULL)
 			break;
 

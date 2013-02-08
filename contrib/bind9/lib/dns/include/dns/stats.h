@@ -64,6 +64,16 @@ enum {
 
 	dns_resstatscounter_max = 30,
 
+	/*
+	 * DNSSEC stats.
+	 */
+	dns_dnssecstats_asis = 0,
+	dns_dnssecstats_downcase = 1,
+	dns_dnssecstats_wildcard = 2,
+	dns_dnssecstats_fail = 3,
+
+	dns_dnssecstats_max = 4,
+
 	/*%
 	 * Zone statistics counters.
 	 */

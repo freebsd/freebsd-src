@@ -345,7 +345,7 @@ usage(boolean_t requested)
 		(void) fprintf(fp, "YES   disabled | enabled | active\n");
 
 		(void) fprintf(fp, gettext("\nThe feature@ properties must be "
-		    "appended with a feature name.\nSee zpool-features(5).\n"));
+		    "appended with a feature name.\nSee zpool-features(7).\n"));
 	}
 
 	/*
@@ -906,10 +906,11 @@ zpool_do_create(int argc, char **argv)
 	/*
 	 * Check the validity of the mountpoint and direct the user to use the
 	 * '-m' mountpoint option if it looks like its in use.
+	 * Ignore the checks if the '-f' option is given.
 	 */
-	if (mountpoint == NULL ||
+	if (!force && (mountpoint == NULL ||
 	    (strcmp(mountpoint, ZFS_MOUNTPOINT_LEGACY) != 0 &&
-	    strcmp(mountpoint, ZFS_MOUNTPOINT_NONE) != 0)) {
+	    strcmp(mountpoint, ZFS_MOUNTPOINT_NONE) != 0))) {
 		char buf[MAXPATHLEN];
 		DIR *dirp;
 
@@ -4170,7 +4171,7 @@ status_callback(zpool_handle_t *zhp, void *data)
 		(void) printf(gettext("action: Enable all features using "
 		    "'zpool upgrade'. Once this is done,\n\tthe pool may no "
 		    "longer be accessible by software that does not support\n\t"
-		    "the features. See zpool-features(5) for details.\n"));
+		    "the features. See zpool-features(7) for details.\n"));
 		break;
 
 	case ZPOOL_STATUS_UNSUP_FEAT_READ:
@@ -4630,7 +4631,7 @@ upgrade_list_disabled_cb(zpool_handle_t *zhp, void *arg)
 					    "pool may become incompatible with "
 					    "software\nthat does not support "
 					    "the feature. See "
-					    "zpool-features(5) for "
+					    "zpool-features(7) for "
 					    "details.\n\n"));
 					(void) printf(gettext("POOL  "
 					    "FEATURE\n"));

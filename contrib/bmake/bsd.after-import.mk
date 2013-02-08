@@ -1,4 +1,4 @@
-# $Id: bsd.after-import.mk,v 1.9 2012/09/20 00:30:15 sjg Exp $
+# $Id: bsd.after-import.mk,v 1.11 2012/12/29 19:32:25 sjg Exp $
 
 # This makefile is for use when integrating bmake into a BSD build
 # system.  Use this makefile after importing bmake.
@@ -48,36 +48,36 @@ DEFAULT_SYS_PATH= .../share/mk:/usr/share/mk
 BOOTSTRAP_ARGS = \
 	--with-default-sys-path='${DEFAULT_SYS_PATH}' \
 	--prefix /usr \
-	--share /usr/share \
-	--mksrc none
+	--share /usr/share
+
 
 # run boot-strap with minimal influence
 bootstrap:	${BMAKE_SRC}/boot-strap ${MAKEFILE}
-	HOME=/ ${BMAKE_SRC}/boot-strap ${BOOTSTRAP_ARGS} ${BOOTSTRAP_XTRAS}
+	HOME=/ ${BMAKE_SRC}/boot-strap -o ${HOST_OS} ${BOOTSTRAP_ARGS} ${BOOTSTRAP_XTRAS}
 	touch ${.TARGET}
 
 # Makefiles need a little more tweaking than say config.h
 MAKEFILE_SED = 	sed -e '/^MACHINE/d' \
 	-e '/^PROG/ { s,=,?=,;s,bmake,$${.CURDIR:T},; }' \
 	-e 's,^.-include,.sinclude,' \
+	-e '/^\..*include  *</ { s,<,<bsd.,;/autoconf/d; }' \
 	-e 's,${SRCTOP},$${SRCTOP},g'
 
 # These are the simple files we want to capture
-configured_files= config.h unit-tests/Makefile
+configured_files= config.h Makefile.config unit-tests/Makefile
 
 after-import: bootstrap ${MAKEFILE}
-.for f in ${configured_files:N*Makefile}
+.for f in ${configured_files:M*.[ch]}
 	@echo Capturing $f
 	@mkdir -p ${${.CURDIR}/$f:L:H}
-	@cmp -s ${.CURDIR}/$f ${HOST_OS}/$f || \
-	    cp ${HOST_OS}/$f ${.CURDIR}/$f
+	@(echo '/* $$${HOST_OS}$$ */'; cat ${HOST_OS}/$f) > ${.CURDIR}/$f
 .endfor
-.for f in ${configured_files:M*Makefile}
+.for f in ${configured_files:M*Makefile*}
 	@echo Capturing $f
 	@mkdir -p ${${.CURDIR}/$f:L:H}
 	@(echo '# This is a generated file, do NOT edit!'; \
 	echo '# See ${_this:S,${SRCTOP}/,,}'; \
-	echo '#'; echo '# $$${OS}$$'; echo; \
+	echo '#'; echo '# $$${HOST_OS}$$'; echo; \
 	echo 'SRCTOP?= $${.CURDIR:${${.CURDIR}/$f:L:H:S,${SRCTOP}/,,:C,[^/]+,H,g:S,/,:,g}}'; echo; \
 	${MAKEFILE_SED} ${HOST_OS}/$f ) > ${.CURDIR}/$f
 .endfor
@@ -87,18 +87,22 @@ _makefile:	bootstrap ${MAKEFILE}
 	@echo Generating ${.CURDIR}/Makefile
 	@(echo '# This is a generated file, do NOT edit!'; \
 	echo '# See ${_this:S,${SRCTOP}/,,}'; \
-	echo '#'; echo '# $$${OS}$$'; \
+	echo '#'; echo '# $$${HOST_OS}$$'; \
 	echo; echo '.sinclude "Makefile.inc"'; \
 	echo; echo 'SRCTOP?= $${.CURDIR:${.CURDIR:S,${SRCTOP}/,,:C,[^/]+,H,g:S,/,:,g}}'; \
 	echo; echo '# look here first for config.h'; \
 	echo 'CFLAGS+= -I$${.CURDIR}'; echo; \
-	${MAKEFILE_SED} ${HOST_OS}/Makefile; \
+	echo '# for after-import'; \
+	echo 'CLEANDIRS+= ${HOST_OS}'; \
+	echo 'CLEANFILES+= bootstrap'; echo; \
+	${MAKEFILE_SED} \
+	${1 2:L:@n@-e '/start-delete$n/,/end-delete$n/d'@} \
+	${BMAKE_SRC}/Makefile; \
 	echo; echo '# override some simple things'; \
 	echo 'BINDIR= /usr/bin'; \
 	echo 'MANDIR= ${MANDIR:U/usr/share/man}'; \
 	echo; echo '# make sure we get this'; \
 	echo 'CFLAGS+= $${COPTS.$${.IMPSRC:T}}'; \
-	echo 'CLEANFILES+= bootstrap'; \
 	echo; echo 'after-import: ${_this:S,${SRCTOP},\${SRCTOP},}'; \
 	echo '	cd $${.CURDIR} && $${.MAKE} -f ${_this:S,${SRCTOP},\${SRCTOP},}'; \
 	echo ) > ${.TARGET}

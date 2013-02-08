@@ -123,6 +123,7 @@ SUBDIR=	alias \
 	pagesize \
 	passwd \
 	paste \
+	patch \
 	pathchk \
 	perror \
 	pr \

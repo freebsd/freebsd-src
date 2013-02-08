@@ -41,8 +41,8 @@ public:
 private:
   ExprKind Kind;
 
-  MCExpr(const MCExpr&); // DO NOT IMPLEMENT
-  void operator=(const MCExpr&); // DO NOT IMPLEMENT
+  MCExpr(const MCExpr&) LLVM_DELETED_FUNCTION;
+  void operator=(const MCExpr&) LLVM_DELETED_FUNCTION;
 
   bool EvaluateAsAbsolute(int64_t &Res, const MCAssembler *Asm,
                           const MCAsmLayout *Layout,
@@ -78,11 +78,11 @@ public:
   /// values. If not given, then only non-symbolic expressions will be
   /// evaluated.
   /// @result - True on success.
+  bool EvaluateAsAbsolute(int64_t &Res, const MCAsmLayout &Layout,
+                          const SectionAddrMap &Addrs) const;
   bool EvaluateAsAbsolute(int64_t &Res) const;
   bool EvaluateAsAbsolute(int64_t &Res, const MCAssembler &Asm) const;
   bool EvaluateAsAbsolute(int64_t &Res, const MCAsmLayout &Layout) const;
-  bool EvaluateAsAbsolute(int64_t &Res, const MCAsmLayout &Layout,
-                          const SectionAddrMap &Addrs) const;
 
   /// EvaluateAsRelocatable - Try to evaluate the expression to a relocatable
   /// value, i.e. an expression of the fixed form (a - b + constant).
@@ -99,8 +99,6 @@ public:
   const MCSection *FindAssociatedSection() const;
 
   /// @}
-
-  static bool classof(const MCExpr *) { return true; }
 };
 
 inline raw_ostream &operator<<(raw_ostream &OS, const MCExpr &E) {
@@ -132,7 +130,6 @@ public:
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Constant;
   }
-  static bool classof(const MCConstantExpr *) { return true; }
 };
 
 /// MCSymbolRefExpr - Represent a reference to a symbol from inside an
@@ -170,8 +167,10 @@ public:
     VK_ARM_TPOFF,
     VK_ARM_GOTTPOFF,
     VK_ARM_TARGET1,
+    VK_ARM_TARGET2,
 
-    VK_PPC_TOC,
+    VK_PPC_TOC,          // TOC base
+    VK_PPC_TOC_ENTRY,    // TOC entry
     VK_PPC_DARWIN_HA16,  // ha16(symbol)
     VK_PPC_DARWIN_LO16,  // lo16(symbol)
     VK_PPC_GAS_HA16,     // symbol@ha
@@ -198,7 +197,11 @@ public:
     VK_Mips_GOT_PAGE,
     VK_Mips_GOT_OFST,
     VK_Mips_HIGHER,
-    VK_Mips_HIGHEST
+    VK_Mips_HIGHEST,
+    VK_Mips_GOT_HI16,
+    VK_Mips_GOT_LO16,
+    VK_Mips_CALL_HI16,
+    VK_Mips_CALL_LO16
   };
 
 private:
@@ -247,7 +250,6 @@ public:
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::SymbolRef;
   }
-  static bool classof(const MCSymbolRefExpr *) { return true; }
 };
 
 /// MCUnaryExpr - Unary assembler expressions.
@@ -301,7 +303,6 @@ public:
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Unary;
   }
-  static bool classof(const MCUnaryExpr *) { return true; }
 };
 
 /// MCBinaryExpr - Binary assembler expressions.
@@ -436,7 +437,6 @@ public:
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Binary;
   }
-  static bool classof(const MCBinaryExpr *) { return true; }
 };
 
 /// MCTargetExpr - This is an extension point for target-specific MCExpr
@@ -445,7 +445,7 @@ public:
 /// NOTE: All subclasses are required to have trivial destructors because
 /// MCExprs are bump pointer allocated and not destructed.
 class MCTargetExpr : public MCExpr {
-  virtual void Anchor();
+  virtual void anchor();
 protected:
   MCTargetExpr() : MCExpr(Target) {}
   virtual ~MCTargetExpr() {}
@@ -460,7 +460,6 @@ public:
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;
   }
-  static bool classof(const MCTargetExpr *) { return true; }
 };
 
 } // end namespace llvm

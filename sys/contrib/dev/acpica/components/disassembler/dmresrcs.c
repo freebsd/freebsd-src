@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,16 +76,16 @@ AcpiDmIrqDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("%s (",
-        AcpiGbl_IrqDecode [Length & 1]);
+        AcpiGbl_IrqDecode [ACPI_GET_1BIT_FLAG (Length)]);
 
     /* Decode flags byte if present */
 
     if (Length & 1)
     {
         AcpiOsPrintf ("%s, %s, %s, ",
-            AcpiGbl_HeDecode [Resource->Irq.Flags & 1],
-            AcpiGbl_LlDecode [(Resource->Irq.Flags >> 3) & 1],
-            AcpiGbl_ShrDecode [(Resource->Irq.Flags >> 4) & 1]);
+            AcpiGbl_HeDecode [ACPI_GET_1BIT_FLAG (Resource->Irq.Flags)],
+            AcpiGbl_LlDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->Irq.Flags, 3)],
+            AcpiGbl_ShrDecode [ACPI_EXTRACT_2BIT_FLAG (Resource->Irq.Flags, 4)]);
     }
 
     /* Insert a descriptor name */
@@ -121,9 +121,9 @@ AcpiDmDmaDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("DMA (%s, %s, %s, ",
-        AcpiGbl_TypDecode [(Resource->Dma.Flags >> 5) & 3],
-        AcpiGbl_BmDecode  [(Resource->Dma.Flags >> 2) & 1],
-        AcpiGbl_SizDecode [(Resource->Dma.Flags >> 0) & 3]);
+        AcpiGbl_TypDecode [ACPI_EXTRACT_2BIT_FLAG (Resource->Dma.Flags, 5)],
+        AcpiGbl_BmDecode  [ACPI_EXTRACT_1BIT_FLAG (Resource->Dma.Flags, 2)],
+        AcpiGbl_SizDecode [ACPI_GET_2BIT_FLAG (Resource->Dma.Flags)]);
 
     /* Insert a descriptor name */
 
@@ -201,7 +201,7 @@ AcpiDmIoDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("IO (%s,\n",
-        AcpiGbl_IoDecode [(Resource->Io.Flags & 1)]);
+        AcpiGbl_IoDecode [ACPI_GET_1BIT_FLAG (Resource->Io.Flags)]);
 
     AcpiDmIndent (Level + 1);
     AcpiDmDumpInteger16 (Resource->Io.Minimum, "Range Minimum");
@@ -287,8 +287,8 @@ AcpiDmStartDependentDescriptor (
     if (Length & 1)
     {
         AcpiOsPrintf ("StartDependentFn (0x%2.2X, 0x%2.2X)\n",
-            (UINT32) Resource->StartDpf.Flags & 3,
-            (UINT32) (Resource->StartDpf.Flags >> 2) & 3);
+            (UINT32) ACPI_GET_2BIT_FLAG (Resource->StartDpf.Flags),
+            (UINT32) ACPI_EXTRACT_2BIT_FLAG (Resource->StartDpf.Flags, 2));
     }
     else
     {

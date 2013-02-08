@@ -18,32 +18,52 @@
 
 using namespace llvm;
 
-
 namespace llvm {
+
+namespace {
+  // Helper for extensive error checking in debug builds.
+  error_code Check(error_code Err) {
+    if (Err) {
+      report_fatal_error(Err.message());
+    }
+    return Err;
+  }
+} // end anonymous namespace
+
 class RuntimeDyldELF : public RuntimeDyldImpl {
 protected:
-  ObjectImage *LoadedObject;
-
-  void resolveX86_64Relocation(uint8_t *LocalAddress,
-                               uint64_t FinalAddress,
+  void resolveX86_64Relocation(const SectionEntry &Section,
+                               uint64_t Offset,
                                uint64_t Value,
                                uint32_t Type,
                                int64_t Addend);
 
-  void resolveX86Relocation(uint8_t *LocalAddress,
-                            uint32_t FinalAddress,
+  void resolveX86Relocation(const SectionEntry &Section,
+                            uint64_t Offset,
                             uint32_t Value,
                             uint32_t Type,
                             int32_t Addend);
 
-  void resolveARMRelocation(uint8_t *LocalAddress,
-                            uint32_t FinalAddress,
+  void resolveARMRelocation(const SectionEntry &Section,
+                            uint64_t Offset,
                             uint32_t Value,
                             uint32_t Type,
                             int32_t Addend);
 
-  virtual void resolveRelocation(uint8_t *LocalAddress,
-                                 uint64_t FinalAddress,
+  void resolveMIPSRelocation(const SectionEntry &Section,
+                             uint64_t Offset,
+                             uint32_t Value,
+                             uint32_t Type,
+                             int32_t Addend);
+
+  void resolvePPC64Relocation(const SectionEntry &Section,
+                              uint64_t Offset,
+                              uint64_t Value,
+                              uint32_t Type,
+                              int64_t Addend);
+
+  virtual void resolveRelocation(const SectionEntry &Section,
+                                 uint64_t Offset,
                                  uint64_t Value,
                                  uint32_t Type,
                                  int64_t Addend);
@@ -54,16 +74,22 @@ protected:
                                     const SymbolTableMap &Symbols,
                                     StubMap &Stubs);
 
-  virtual ObjectImage *createObjectImage(const MemoryBuffer *InputBuffer);
-  virtual void handleObjectLoaded(ObjectImage *Obj);
+  unsigned getCommonSymbolAlignment(const SymbolRef &Sym);
+
+  virtual ObjectImage *createObjectImage(ObjectBuffer *InputBuffer);
+
+  uint64_t findPPC64TOC() const;
+  void findOPDEntrySection(ObjectImage &Obj,
+                           ObjSectionToIDMap &LocalSections,
+                           RelocationValueRef &Rel);
 
 public:
   RuntimeDyldELF(RTDyldMemoryManager *mm)
-      : RuntimeDyldImpl(mm), LoadedObject(0) {}
+      : RuntimeDyldImpl(mm) {}
 
   virtual ~RuntimeDyldELF();
 
-  bool isCompatibleFormat(const MemoryBuffer *InputBuffer) const;
+  bool isCompatibleFormat(const ObjectBuffer *Buffer) const;
 };
 
 } // end namespace llvm

@@ -336,7 +336,7 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 			if (ie->ie_cpu == NOCPU)
 				CPU_COPY(cpuset_root, &mask);
 			else
-				CPU_SET(cpu, &mask);
+				CPU_SET(ie->ie_cpu, &mask);
 			id = ie->ie_thread->it_thread->td_tid;
 			mtx_unlock(&ie->ie_lock);
 			(void)cpuset_setthread(id, &mask);

@@ -1000,3 +1000,8 @@
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
 				    int advice); }
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, int id, \
+				    int *status, int options, \
+				    struct wrusage32 *wrusage, \
+				    siginfo_t *info); }
+

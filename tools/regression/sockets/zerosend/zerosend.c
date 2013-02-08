@@ -56,7 +56,7 @@ try_0send(const char *test, int fd)
 	if (len < 0)
 		err(-1, "%s: try_0send", test);
 	if (len != 0)
-		errx(-1, "%s: try_0send: returned %d", test, len);
+		errx(-1, "%s: try_0send: returned %zd", test, len);
 }
 
 static void
@@ -70,7 +70,7 @@ try_0write(const char *test, int fd)
 	if (len < 0)
 		err(-1, "%s: try_0write", test);
 	if (len != 0)
-		errx(-1, "%s: try_0write: returned %d", test, len);
+		errx(-1, "%s: try_0write: returned %zd", test, len);
 }
 
 static void

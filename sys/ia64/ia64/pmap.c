@@ -214,16 +214,7 @@ static int pmap_ridmax;
 static uint64_t *pmap_ridmap;
 struct mtx pmap_ridmutex;
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 /*
  * Data for the pv entry allocation mechanism

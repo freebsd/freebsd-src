@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2011
+.Dd November 8, 2012
 .Dt LS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx1
+.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,
 .Op Fl D Ar format
 .Op Ar
 .Sh DESCRIPTION
@@ -130,6 +130,8 @@ This option is equivalent to defining
 .Ev CLICOLOR
 in the environment.
 (See below.)
+This functionality can be compiled out by removing the definition of
+.Ev COLORLS .
 .It Fl H
 Symbolic links on the command line are followed.
 This option is assumed if
@@ -249,12 +251,35 @@ subsection below, except (if the long format is not also requested)
 the directory totals are not output when the output is in a
 single column, even if multi-column output is requested.
 .It Fl t
-Sort by time modified (most recently modified
-first) before sorting the operands in lexicographical
-order.
+Sort by descending time modified (most recently modified first).  If two files
+have the same modification timestamp, sort their names in ascending
+lexicographical order.
+The
+.Fl r
+option reverses both of these sort orders.
+.Pp
+Note that these sort orders are contradictory: the time sequence is in
+descending order, the lexicographical sort is in ascending order.
+This behavior is mandated by
+.St -p1003.2 .
+This feature can cause problems listing files stored with sequential names on
+FAT file systems, such as from digital cameras, where it is possible to have
+more than one image with the same timestamp.
+In such a case, the photos cannot be listed in the sequence in which
+they were taken.
+To ensure the same sort order for time and for lexicographical sorting, set the
+environment variable
+.Ev LS_SAMESORT
+or use the
+.Fl y
+option.
+This causes
+.Nm
+to reverse the lexicographal sort order when sorting files with the
+same modification timestamp.
 .It Fl u
 Use time of last access,
-instead of last modification
+instead of time of last modification
 of the file for sorting
 .Pq Fl t
 or printing
@@ -268,6 +293,15 @@ The same as
 .Fl C ,
 except that the multi-column output is produced with entries sorted
 across, rather than down, the columns.
+.It Fl y
+When the
+.Fl t
+option is set, sort the alphabetical output in the same order as the time output.
+This has the same effect as setting
+.Ev LS_SAMESORT .
+See the description of the
+.Fl t
+option for more details.
 .It Fl 1
 (The numeric digit
 .Dq one . )
@@ -275,6 +309,15 @@ Force output to be
 one entry per line.
 This is the default when
 output is not to a terminal.
+.It Fl ,
+(Comma) When the
+.Fl l
+option is set, print file sizes grouped and separated by thousands using the
+non-monetary separator returned by
+.Xr localeconv 3 ,
+typically a comma or period.
+If no locale is set, or the locale does not have a non-monetary separator, this
+option has no effect.
 .El
 .Pp
 The
@@ -529,7 +572,7 @@ variable is defined.
 .It Ev CLICOLOR_FORCE
 Color sequences are normally disabled if the output is not directed to
 a terminal.
-This can be overridden by setting this flag.
+This can be overridden by setting this variable.
 The
 .Ev TERM
 variable still needs to reference a color capable terminal however
@@ -655,6 +698,14 @@ Not all columns have changeable widths.
 The fields are,
 in order: inode, block count, number of links, user name,
 group name, flags, file size, file name.
+.It Ev LS_SAMESORT
+If this variable is set, the
+.Fl t
+option sorts the names of files with the same modification timestamp in the same
+sense as the time sort.
+See the description of the
+.Fl t
+option for more details.
 .It Ev TERM
 The
 .Ev CLICOLOR
@@ -678,6 +729,7 @@ specification.
 .Xr getfacl 1 ,
 .Xr sort 1 ,
 .Xr xterm 1 ,
+.Xr localeconv 3 ,
 .Xr strftime 3 ,
 .Xr strmode 3 ,
 .Xr termcap 5 ,
@@ -716,3 +768,9 @@ option description might be a feature that was
 based on the fact that single-column output
 usually goes to something other than a terminal.
 It is debatable whether this is a design bug.
+.Pp
+.St -p1003.2
+mandates opposite sort orders for files with the same timestamp when
+sorting with the
+.Fl t
+option.

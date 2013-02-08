@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#46 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.c#50 $
  */
 
 #include <sys/types.h>
@@ -36,9 +36,9 @@
 #include <sys/dirent.h>
 #ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
-#else /* !HAVE_FULL_QUEUE_H */
+#else	/* !HAVE_FULL_QUEUE_H */
 #include <compat/queue.h>
-#endif /* !HAVE_FULL_QUEUE_H */
+#endif	/* !HAVE_FULL_QUEUE_H */
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -79,21 +79,21 @@
 
 
 /*
- * LaunchD flag (Mac OS X and, maybe, FreeBSD only.)  See launchd(8) and 
+ * LaunchD flag (Mac OS X and, maybe, FreeBSD only.)  See launchd(8) and
  * http://wiki.freebsd.org/launchd for more information.
  *
- *      In order for auditd to work "on demand" with launchd(8) it can't:
- *              call daemon(3)
- *              call fork and having the parent process exit
- *              change uids or gids.
- *              set up the current working directory or chroot.
- *              set the session id
- *              change stdio to /dev/null.
- *              call setrusage(2)
- *              call setpriority(2)
- *              Ignore SIGTERM.
- *      auditd (in 'launchd mode') is launched on demand so it must catch
- *      SIGTERM to exit cleanly.
+ *	In order for auditd to work "on demand" with launchd(8) it can't:
+ *		call daemon(3)
+ *		call fork and having the parent process exit
+ *		change uids or gids.
+ *		set up the current working directory or chroot.
+ *		set the session id
+ *		change stdio to /dev/null.
+ *		call setrusage(2)
+ *		call setpriority(2)
+ *		Ignore SIGTERM.
+ *	auditd (in 'launchd mode') is launched on demand so it must catch
+ *	SIGTERM to exit cleanly.
  */
 static int	launchd_flag = 0;
 
@@ -133,7 +133,7 @@ get_curfile(void)
 	if (cf == NULL) {
 		auditd_log_err("malloc failed: %m");
 		return (NULL);
-	}	
+	}
 
 	len = readlink(AUDIT_CURRENT_LINK, cf, MAXPATHLEN - 1);
 	if (len < 0) {
@@ -142,7 +142,7 @@ get_curfile(void)
 	}
 
 	/* readlink() doesn't terminate string. */
-	cf[len] = '\0';	
+	cf[len] = '\0';
 
 	return (cf);
 }
@@ -155,38 +155,35 @@ close_lastfile(char *TS)
 {
 	char *ptr;
 	char *oldname;
-	size_t len;
 
 	/* If lastfile is NULL try to get it from the 'current' link.  */
 	if (lastfile == NULL)
 		lastfile = get_curfile();
-	
+
 	if (lastfile != NULL) {
-		len = strlen(lastfile) + 1;
-		oldname = (char *)malloc(len);
+		oldname = strdup(lastfile);
 		if (oldname == NULL)
 			return (-1);
-		strlcpy(oldname, lastfile, len);
 
 		/* Rename the last file -- append timestamp. */
 		if ((ptr = strstr(lastfile, NOT_TERMINATED)) != NULL) {
 			memcpy(ptr, TS, POSTFIX_LEN);
-			if (rename(oldname, lastfile) != 0)
+			if (auditd_rename(oldname, lastfile) != 0)
 				auditd_log_err(
 				    "Could not rename %s to %s: %m", oldname,
 				    lastfile);
 			else {
-				/* 
+				/*
 				 * Remove the 'current' symlink since the link
-				 * is now invalid. 
+				 * is now invalid.
 				 */
 				(void) unlink(AUDIT_CURRENT_LINK);
-				auditd_log_notice( "renamed %s to %s",
+				auditd_log_notice("renamed %s to %s",
 				    oldname, lastfile);
 				audit_warn_closefile(lastfile);
 			}
-		} else 
-			auditd_log_err( "Could not rename %s to %s", oldname,
+		} else
+			auditd_log_err("Could not rename %s to %s", oldname,
 			    lastfile);
 		free(lastfile);
 		free(oldname);
@@ -202,16 +199,39 @@ static int
 swap_audit_file(void)
 {
 	int err;
-	char *newfile;
-	char TS[TIMESTAMP_LEN];
+	char *newfile, *name;
+	char TS[TIMESTAMP_LEN + 1];
 	time_t tt;
 
-	if (getTSstr(tt, TS, TIMESTAMP_LEN) != 0)
+	if (getTSstr(tt, TS, sizeof(TS)) != 0)
 		return (-1);
+	/*
+	 * If prefix and suffix are the same, it means that records are
+	 * being produced too fast. We don't want to rename now, because
+	 * next trail file can get the same name and once that one is
+	 * terminated also within one second it will overwrite the current
+	 * one. Just keep writing to the same trail and wait for the next
+	 * trigger from the kernel.
+	 * FREEBSD KERNEL WAS UPDATED TO KEEP SENDING TRIGGERS, WHICH MIGHT
+	 * NOT BE THE CASE FOR OTHER OSES.
+	 * If the kernel will not keep sending triggers, trail file will not
+	 * be terminated.
+	 */
+	if (lastfile == NULL) {
+		name = NULL;
+	} else {
+		name = strrchr(lastfile, '/');
+		if (name != NULL)
+			name++;
+	}
+	if (name != NULL && strncmp(name, TS, TIMESTAMP_LEN) == 0) {
+		auditd_log_debug("Not ready to terminate trail file yet.");
+		return (0);
+	}
 	err = auditd_swap_trail(TS, &newfile, audit_review_gid,
 	    audit_warn_getacdir);
 	if (err != ADE_NOERR) {
-		auditd_log_err( "%s: %m", auditd_strerror(err));
+		auditd_log_err("%s: %m", auditd_strerror(err));
 		if (err != ADE_ACTL)
 			return (-1);
 	}
@@ -229,13 +249,13 @@ swap_audit_file(void)
 	 * enabled) so updated the cached state as well.
 	 */
 	auditd_set_state(AUD_STATE_ENABLED);
-	
+
 	/*
 	 *  Create 'current' symlink.  Recover from crash, if needed.
 	 */
 	if (auditd_new_curlink(newfile) != 0)
-               	auditd_log_err("auditd_new_curlink(\"%s\") failed: %s: %m",
-		     newfile, auditd_strerror(err)); 
+		auditd_log_err("auditd_new_curlink(\"%s\") failed: %s: %m",
+		    newfile, auditd_strerror(err));
 
 	lastfile = newfile;
 	auditd_log_notice("New audit file is %s", newfile);
@@ -298,6 +318,14 @@ audit_setup(void)
 {
 	int err;
 
+	/* Configure trail files distribution. */
+	err = auditd_set_dist();
+	if (err) {
+		auditd_log_err("auditd_set_dist() %s: %m",
+		    auditd_strerror(err));
+	} else
+		auditd_log_debug("Configured trail files distribution.");
+
 	if (do_trail_file() == -1) {
 		auditd_log_err("Error creating audit trail file");
 		fail_exit();
@@ -306,19 +334,18 @@ audit_setup(void)
 	/* Generate an audit record. */
 	err = auditd_gen_record(AUE_audit_startup, NULL);
 	if (err)
-		auditd_log_err("auditd_gen_record(AUE_audit_startup) %s: %m", 
+		auditd_log_err("auditd_gen_record(AUE_audit_startup) %s: %m",
 		    auditd_strerror(err));
-	
+
 	if (auditd_config_controls() == 0)
 		auditd_log_info("Audit controls init successful");
 	else
 		auditd_log_err("Audit controls init failed");
-	
 }
 
 
 /*
- * Close auditd pid file and trigger mechanism. 
+ * Close auditd pid file and trigger mechanism.
  */
 static int
 close_misc(void)
@@ -345,14 +372,14 @@ static int
 close_all(void)
 {
 	int err_ret = 0;
-	char TS[TIMESTAMP_LEN];
+	char TS[TIMESTAMP_LEN + 1];
 	int err;
 	int cond;
 	time_t tt;
 
 	err = auditd_gen_record(AUE_audit_shutdown, NULL);
 	if (err)
-		auditd_log_err("auditd_gen_record(AUE_audit_shutdown) %s: %m", 
+		auditd_log_err("auditd_gen_record(AUE_audit_shutdown) %s: %m",
 		    auditd_strerror(err));
 
 	/* Flush contents. */
@@ -368,7 +395,7 @@ close_all(void)
 	 */
 	auditd_set_state(AUD_STATE_DISABLED);
 
-	if (getTSstr(tt, TS, TIMESTAMP_LEN) == 0)
+	if (getTSstr(tt, TS, sizeof(TS)) == 0)
 		close_lastfile(TS);
 	if (lastfile != NULL)
 		free(lastfile);
@@ -513,7 +540,7 @@ auditd_handle_trigger(int trigger)
 
 	/*
 	 * Message processing is done here.
- 	 */
+	 */
 	switch(trigger) {
 	case AUDIT_TRIGGER_LOW_SPACE:
 		auditd_log_notice("Got low space trigger");
@@ -554,7 +581,7 @@ auditd_handle_trigger(int trigger)
 		 * send SIGTERM.
 		 */
 		if (!launchd_flag) {
-			auditd_log_info("auditd exiting.");	
+			auditd_log_info("auditd exiting.");
 			exit (err);
 		}
 		break;
@@ -570,7 +597,7 @@ auditd_handle_trigger(int trigger)
 		err = auditd_expire_trails(audit_warn_expired);
 		if (err)
 			auditd_log_err("auditd_expire_trails(): %s",
-		    	    auditd_strerror(err));
+			    auditd_strerror(err));
 		break;
 
 	default:
@@ -609,7 +636,7 @@ auditd_terminate(void)
 	int ret;
 
 	auditd_reap_children();
-	
+
 	if (launchd_flag)
 		ret = close_misc();
 	else
@@ -630,7 +657,7 @@ auditd_config_controls(void)
 
 	/*
 	 * Configure event to class mappings in kernel.
-	 */	
+	 */
 	cnt = auditd_set_evcmap();
 	if (cnt < 0) {
 		auditd_log_err("auditd_set_evcmap() failed: %m");
@@ -646,7 +673,7 @@ auditd_config_controls(void)
 	 */
 	err = auditd_set_namask();
 	if (err) {
-		auditd_log_err("auditd_set_namask() %s: %m", 
+		auditd_log_err("auditd_set_namask() %s: %m",
 		    auditd_strerror(err));
 		ret = -1;
 	} else
@@ -657,12 +684,12 @@ auditd_config_controls(void)
 	 */
 	err = auditd_set_policy();
 	if (err) {
-		auditd_log_err("auditd_set_policy() %s: %m", 
+		auditd_log_err("auditd_set_policy() %s: %m",
 		    auditd_strerror(err));
 		ret = -1;
 	} else
 		auditd_log_debug("Set audit policy in kernel.");
-	
+
 	/*
 	 * Configure audit trail log size in kernel.
 	 */
@@ -673,9 +700,9 @@ auditd_config_controls(void)
 		ret = -1;
 	} else
 		auditd_log_debug("Set audit trail size in kernel.");
-	
+
 	/*
-	 * Configure audit trail volume minimum free percentage of blocks in 
+	 * Configure audit trail volume minimum free percentage of blocks in
 	 * kernel.
 	 */
 	err = auditd_set_minfree();
@@ -684,11 +711,11 @@ auditd_config_controls(void)
 		    auditd_strerror(err));
 		ret = -1;
 	} else
-		auditd_log_debug( 
+		auditd_log_debug(
 		    "Set audit trail min free percent in kernel.");
 
 	/*
-	 * Configure host address in the audit kernel information. 
+	 * Configure host address in the audit kernel information.
 	 */
 	err = auditd_set_host();
 	if (err) {
@@ -730,7 +757,7 @@ setup(void)
 	 */
 	err = auditd_prevent_audit();
 	if (err) {
-		auditd_log_err("auditd_prevent_audit() %s: %m", 
+		auditd_log_err("auditd_prevent_audit() %s: %m",
 		    auditd_strerror(err));
 		fail_exit();
 	}
@@ -785,7 +812,7 @@ main(int argc, char **argv)
 	 * likely the wheel group.  Is there a better way to deal with this?
 	 */
 	grp = getgrnam(AUDIT_REVIEW_GROUP);
-	if (grp != NULL) 
+	if (grp != NULL)
 		audit_review_gid = grp->gr_gid;
 #endif
 
@@ -815,7 +842,7 @@ main(int argc, char **argv)
 	setup();
 
 	/*
-	 * auditd_wait_for_events() shouldn't return unless something is wrong. 
+	 * auditd_wait_for_events() shouldn't return unless something is wrong.
 	 */
 	auditd_wait_for_events();
 

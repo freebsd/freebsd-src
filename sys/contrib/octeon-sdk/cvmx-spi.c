@@ -182,9 +182,7 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
     if (!(OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX)))
         return res;
 
-#if CVMX_ENABLE_DEBUG_PRINTS
     cvmx_dprintf ("SPI%d: Restart %s\n", interface, modes[mode]);
-#endif
 
     // Callback to perform SPI4 reset
     INVOKE_CB(cvmx_spi_callbacks.reset_cb, interface,mode);
@@ -652,6 +650,13 @@ int cvmx_spi_interface_up_cb(int interface, cvmx_spi_mode_t mode)
 
     gmxx_rxx_frm_min.u64 = 0;
     gmxx_rxx_frm_min.s.len = 64;
+#ifdef OCTEON_VENDOR_RADISYS
+    /*
+     * Incoming packets on the RSYS4GBE have the FCS stripped.
+     */
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE)
+	    gmxx_rxx_frm_min.s.len -= 4;
+#endif
     cvmx_write_csr(CVMX_GMXX_RXX_FRM_MIN(0,interface), gmxx_rxx_frm_min.u64);
     gmxx_rxx_frm_max.u64 = 0;
     gmxx_rxx_frm_max.s.len = 64*1024 - 4;

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangast
 
 SRCDIR=	tools/clang/lib/AST
@@ -63,6 +65,9 @@ SRCS=	APValue.cpp \
 TGHDRS=	AttrImpl \
 	AttrList \
 	Attrs \
+	CommentCommandInfo \
+	CommentHTMLTags \
+	CommentHTMLTagsProperties \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \

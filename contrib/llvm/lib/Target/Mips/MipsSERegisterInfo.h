@@ -18,11 +18,18 @@
 #include "MipsRegisterInfo.h"
 
 namespace llvm {
+class MipsSEInstrInfo;
 
 class MipsSERegisterInfo : public MipsRegisterInfo {
+  const MipsSEInstrInfo &TII;
+
 public:
   MipsSERegisterInfo(const MipsSubtarget &Subtarget,
-                     const TargetInstrInfo &TII);
+                     const MipsSEInstrInfo &TII);
+
+  bool requiresRegisterScavenging(const MachineFunction &MF) const;
+
+  bool requiresFrameIndexScavenging(const MachineFunction &MF) const;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,

@@ -63,7 +63,8 @@ void RegisterPressure::decrease(const TargetRegisterClass *RC,
   decreaseSetPressure(MaxSetPressure, RC, TRI);
 }
 
-void RegisterPressure::dump(const TargetRegisterInfo *TRI) {
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+void RegisterPressure::dump(const TargetRegisterInfo *TRI) const {
   dbgs() << "Live In: ";
   for (unsigned i = 0, e = LiveInRegs.size(); i < e; ++i)
     dbgs() << PrintReg(LiveInRegs[i], TRI) << " ";
@@ -78,6 +79,7 @@ void RegisterPressure::dump(const TargetRegisterInfo *TRI) {
              << '\n';
   }
 }
+#endif
 
 /// Increase the current pressure as impacted by these physical registers and
 /// bump the high water mark if needed.
@@ -320,10 +322,8 @@ struct RegisterOperands {
         if (findReg(MO.getReg(), isVReg, DeadDefs, TRI) == DeadDefs.end())
           DeadDefs.push_back(MO.getReg());
       }
-      else {
-        if (findReg(MO.getReg(), isVReg, Defs, TRI) == Defs.end())
-          Defs.push_back(MO.getReg());
-      }
+      else if (findReg(MO.getReg(), isVReg, Defs, TRI) == Defs.end())
+        Defs.push_back(MO.getReg());
     }
   }
 };
@@ -335,7 +335,7 @@ static void collectOperands(const MachineInstr *MI,
                             PhysRegOperands &PhysRegOpers,
                             VirtRegOperands &VirtRegOpers,
                             const TargetRegisterInfo *TRI,
-                            const RegisterClassInfo *RCI) {
+                            const MachineRegisterInfo *MRI) {
   for(ConstMIBundleOperands OperI(MI); OperI.isValid(); ++OperI) {
     const MachineOperand &MO = *OperI;
     if (!MO.isReg() || !MO.getReg())
@@ -343,7 +343,7 @@ static void collectOperands(const MachineInstr *MI,
 
     if (TargetRegisterInfo::isVirtualRegister(MO.getReg()))
       VirtRegOpers.collect(MO, TRI);
-    else if (RCI->isAllocatable(MO.getReg()))
+    else if (MRI->isAllocatable(MO.getReg()))
       PhysRegOpers.collect(MO, TRI);
   }
   // Remove redundant physreg dead defs.
@@ -449,7 +449,7 @@ bool RegPressureTracker::recede() {
 
   PhysRegOperands PhysRegOpers;
   VirtRegOperands VirtRegOpers;
-  collectOperands(CurrPos, PhysRegOpers, VirtRegOpers, TRI, RCI);
+  collectOperands(CurrPos, PhysRegOpers, VirtRegOpers, TRI, MRI);
 
   // Boost pressure for all dead defs together.
   increasePhysRegPressure(PhysRegOpers.DeadDefs);
@@ -522,7 +522,7 @@ bool RegPressureTracker::advance() {
 
   PhysRegOperands PhysRegOpers;
   VirtRegOperands VirtRegOpers;
-  collectOperands(CurrPos, PhysRegOpers, VirtRegOpers, TRI, RCI);
+  collectOperands(CurrPos, PhysRegOpers, VirtRegOpers, TRI, MRI);
 
   // Kill liveness at last uses.
   for (unsigned i = 0, e = PhysRegOpers.Uses.size(); i < e; ++i) {
@@ -664,7 +664,7 @@ void RegPressureTracker::bumpUpwardPressure(const MachineInstr *MI) {
   // Account for register pressure similar to RegPressureTracker::recede().
   PhysRegOperands PhysRegOpers;
   VirtRegOperands VirtRegOpers;
-  collectOperands(MI, PhysRegOpers, VirtRegOpers, TRI, RCI);
+  collectOperands(MI, PhysRegOpers, VirtRegOpers, TRI, MRI);
 
   // Boost max pressure for all dead defs together.
   // Since CurrSetPressure and MaxSetPressure
@@ -674,9 +674,16 @@ void RegPressureTracker::bumpUpwardPressure(const MachineInstr *MI) {
   decreaseVirtRegPressure(VirtRegOpers.DeadDefs);
 
   // Kill liveness at live defs.
-  decreasePhysRegPressure(PhysRegOpers.Defs);
-  decreaseVirtRegPressure(VirtRegOpers.Defs);
-
+  for (unsigned i = 0, e = PhysRegOpers.Defs.size(); i < e; ++i) {
+    unsigned Reg = PhysRegOpers.Defs[i];
+    if (!findReg(Reg, false, PhysRegOpers.Uses, TRI))
+      decreasePhysRegPressure(PhysRegOpers.Defs);
+  }
+  for (unsigned i = 0, e = VirtRegOpers.Defs.size(); i < e; ++i) {
+    unsigned Reg = VirtRegOpers.Defs[i];
+    if (!findReg(Reg, true, VirtRegOpers.Uses, TRI))
+      decreaseVirtRegPressure(VirtRegOpers.Defs);
+  }
   // Generate liveness for uses.
   for (unsigned i = 0, e = PhysRegOpers.Uses.size(); i < e; ++i) {
     unsigned Reg = PhysRegOpers.Uses[i];
@@ -750,7 +757,7 @@ void RegPressureTracker::bumpDownwardPressure(const MachineInstr *MI) {
   // Account for register pressure similar to RegPressureTracker::recede().
   PhysRegOperands PhysRegOpers;
   VirtRegOperands VirtRegOpers;
-  collectOperands(MI, PhysRegOpers, VirtRegOpers, TRI, RCI);
+  collectOperands(MI, PhysRegOpers, VirtRegOpers, TRI, MRI);
 
   // Kill liveness at last uses. Assume allocatable physregs are single-use
   // rather than checking LiveIntervals.

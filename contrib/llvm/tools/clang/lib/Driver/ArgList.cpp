@@ -211,7 +211,7 @@ bool ArgList::hasFlag(OptSpecifier Pos, OptSpecifier Neg, bool Default) const {
 StringRef ArgList::getLastArgValue(OptSpecifier Id,
                                          StringRef Default) const {
   if (Arg *A = getLastArg(Id))
-    return A->getValue(*this);
+    return A->getValue();
   return Default;
 }
 
@@ -220,10 +220,10 @@ int ArgList::getLastArgIntValue(OptSpecifier Id, int Default,
   int Res = Default;
 
   if (Arg *A = getLastArg(Id)) {
-    if (StringRef(A->getValue(*this)).getAsInteger(10, Res)) {
+    if (StringRef(A->getValue()).getAsInteger(10, Res)) {
       if (Diags)
         Diags->Report(diag::err_drv_invalid_int_value)
-          << A->getAsString(*this) << A->getValue(*this);
+          << A->getAsString(*this) << A->getValue();
     }
   }
 
@@ -258,7 +258,7 @@ void ArgList::AddAllArgValues(ArgStringList &Output, OptSpecifier Id0,
          ie = filtered_end(); it != ie; ++it) {
     (*it)->claim();
     for (unsigned i = 0, e = (*it)->getNumValues(); i != e; ++i)
-      Output.push_back((*it)->getValue(*this, i));
+      Output.push_back((*it)->getValue(i));
   }
 }
 
@@ -271,10 +271,10 @@ void ArgList::AddAllArgsTranslated(ArgStringList &Output, OptSpecifier Id0,
 
     if (Joined) {
       Output.push_back(MakeArgString(StringRef(Translation) +
-                                     (*it)->getValue(*this, 0)));
+                                     (*it)->getValue(0)));
     } else {
       Output.push_back(Translation);
-      Output.push_back((*it)->getValue(*this, 0));
+      Output.push_back((*it)->getValue(0));
     }
   }
 }
@@ -362,33 +362,40 @@ const char *DerivedArgList::MakeArgString(StringRef Str) const {
   return BaseArgs.MakeArgString(Str);
 }
 
-Arg *DerivedArgList::MakeFlagArg(const Arg *BaseArg, const Option *Opt) const {
-  Arg *A = new Arg(Opt, BaseArgs.MakeIndex(Opt->getName()), BaseArg);
+Arg *DerivedArgList::MakeFlagArg(const Arg *BaseArg, const Option Opt) const {
+  Arg *A = new Arg(Opt, ArgList::MakeArgString(Twine(Opt.getPrefix()) +
+                                               Twine(Opt.getName())),
+                   BaseArgs.MakeIndex(Opt.getName()), BaseArg);
   SynthesizedArgs.push_back(A);
   return A;
 }
 
-Arg *DerivedArgList::MakePositionalArg(const Arg *BaseArg, const Option *Opt,
+Arg *DerivedArgList::MakePositionalArg(const Arg *BaseArg, const Option Opt,
                                        StringRef Value) const {
   unsigned Index = BaseArgs.MakeIndex(Value);
-  Arg *A = new Arg(Opt, Index, BaseArgs.getArgString(Index), BaseArg);
+  Arg *A = new Arg(Opt, ArgList::MakeArgString(Twine(Opt.getPrefix()) +
+                                               Twine(Opt.getName())),
+                   Index, BaseArgs.getArgString(Index), BaseArg);
   SynthesizedArgs.push_back(A);
   return A;
 }
 
-Arg *DerivedArgList::MakeSeparateArg(const Arg *BaseArg, const Option *Opt,
+Arg *DerivedArgList::MakeSeparateArg(const Arg *BaseArg, const Option Opt,
                                      StringRef Value) const {
-  unsigned Index = BaseArgs.MakeIndex(Opt->getName(), Value);
-  Arg *A = new Arg(Opt, Index, BaseArgs.getArgString(Index + 1), BaseArg);
+  unsigned Index = BaseArgs.MakeIndex(Opt.getName(), Value);
+  Arg *A = new Arg(Opt, ArgList::MakeArgString(Twine(Opt.getPrefix()) +
+                                               Twine(Opt.getName())),
+                   Index, BaseArgs.getArgString(Index + 1), BaseArg);
   SynthesizedArgs.push_back(A);
   return A;
 }
 
-Arg *DerivedArgList::MakeJoinedArg(const Arg *BaseArg, const Option *Opt,
+Arg *DerivedArgList::MakeJoinedArg(const Arg *BaseArg, const Option Opt,
                                    StringRef Value) const {
-  unsigned Index = BaseArgs.MakeIndex(Opt->getName().str() + Value.str());
-  Arg *A = new Arg(Opt, Index,
-                   BaseArgs.getArgString(Index) + Opt->getName().size(),
+  unsigned Index = BaseArgs.MakeIndex(Opt.getName().str() + Value.str());
+  Arg *A = new Arg(Opt, ArgList::MakeArgString(Twine(Opt.getPrefix()) +
+                                               Twine(Opt.getName())), Index,
+                   BaseArgs.getArgString(Index) + Opt.getName().size(),
                    BaseArg);
   SynthesizedArgs.push_back(A);
   return A;

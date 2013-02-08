@@ -362,8 +362,8 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 {
 	struct trapframe *tf = td->td_frame;
 
-	tf->tf_usr_sp = ((int)stack->ss_sp + stack->ss_size
-	    - sizeof(struct trapframe)) & ~7;
+	tf->tf_usr_sp = STACKALIGN((int)stack->ss_sp + stack->ss_size
+	    - sizeof(struct trapframe));
 	tf->tf_pc = (int)entry;
 	tf->tf_r0 = (int)arg;
 	tf->tf_spsr = PSR_USR32_MODE;
@@ -396,8 +396,13 @@ cpu_thread_alloc(struct thread *td)
 {
 	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages *
 	    PAGE_SIZE) - 1;
-	td->td_frame = (struct trapframe *)
-	    ((u_int)td->td_kstack + USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
+	/*
+	 * Ensure td_frame is aligned to an 8 byte boundary as it will be
+	 * placed into the stack pointer which must be 8 byte aligned in
+	 * the ARM EABI.
+	 */
+	td->td_frame = (struct trapframe *)STACKALIGN((u_int)td->td_kstack +
+	    USPACE_SVC_STACK_TOP - sizeof(struct pcb) - 1);
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
@@ -651,12 +656,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			ret = ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
 			return (ret);
 		}
-		if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-			pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-		else
-			pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-		if (wait & M_ZERO)
-			pflags |= VM_ALLOC_ZERO;
+		pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
 		for (;;) {
 			m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
 			if (m == NULL) {

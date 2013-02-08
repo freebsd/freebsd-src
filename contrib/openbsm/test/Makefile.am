@@ -1,6 +1,6 @@
-#
-# $P4: //depot/projects/trustedbsd/openbsm/test/Makefile.am#2 $
-#
+##
+## $P4: //depot/projects/trustedbsd/openbsm/test/Makefile.am#3 $
+##
 
 SUBDIRS =		\
 	bsm
