@@ -10,7 +10,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2008
+.Dd November 9, 2012
 .Dt PKG_UPDATING 1
 .Os
 .Sh NAME
@@ -77,6 +77,13 @@ installed ports:
 Fetch UPDATING file from ftp mirror and show all entries of all
 installed ports:
 .Dl % pkg_updating -f ftp://ftp.freebsd.org/pub/FreeBSD/ports/packages/UPDATING
+.Sh ENVRIOMENT
+.Bl -tag -width indent
+.It Ev PKG_OLD_NOWARN
+If set
+.Nm
+will not warn about its use in the presence of pkgng databases.
+.El
 .Sh SEE ALSO
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,

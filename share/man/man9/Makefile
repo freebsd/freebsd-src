@@ -620,6 +620,7 @@ MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
 	domain.9 pfctlinput2.9 \
+	domain.9 pffinddomain.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
 MLINKS+=drbr.9 drbr_free.9 \

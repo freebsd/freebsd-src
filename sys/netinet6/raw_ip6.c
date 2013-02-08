@@ -459,7 +459,7 @@ rip6_output(m, va_alist)
 		code = icmp6->icmp6_code;
 	}
 
-	M_PREPEND(m, sizeof(*ip6), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*ip6), M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto bad;

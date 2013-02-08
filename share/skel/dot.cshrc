@@ -23,10 +23,7 @@ setenv	BLOCKSIZE	K
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
-	if ($uid == 0) then
-		set user = root
-	endif
-	set prompt = "%n@%m:%/ %# "
+	set prompt = "%N@%m:%~ %# "
 	set promptchars = "%#"
 
 	set filec

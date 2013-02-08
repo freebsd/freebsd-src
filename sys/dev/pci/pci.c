@@ -201,7 +201,7 @@ struct pci_quirk {
 	int	arg2;
 };
 
-static const struct pci_quirk const pci_quirks[] = {
+static const struct pci_quirk pci_quirks[] = {
 	/* The Intel 82371AB and 82443MX has a map register at offset 0x90. */
 	{ 0x71138086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 	{ 0x719b8086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
@@ -244,6 +244,7 @@ static const struct pci_quirk const pci_quirks[] = {
 	 * but support MSI just fine.  QEMU uses the Intel 82440.
 	 */
 	{ 0x12378086, PCI_QUIRK_ENABLE_MSI_VM,	0,	0 },
+	{ 0x12751275, PCI_QUIRK_ENABLE_MSI_VM,	0, 	0 },	/* bhyve */
 
 	/*
 	 * HPET MMIO base address may appear in Bar1 for AMD SB600 SMBus

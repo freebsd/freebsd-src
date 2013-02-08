@@ -82,6 +82,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/random.h>
 
+#include "opt_platform.h"
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -1001,6 +1009,10 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 				/* Check if RX TCP/UDP checksumming is being offloaded */
 				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+
+					struct ether_header *eh;
+
+					eh = mtod(m, struct ether_header *);
 				
 					/* Remove the extra 2 bytes of the csum */
 					pktlen -= 2;
@@ -1012,8 +1024,10 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 					 * the padding bytes as well. Therefore to be safe we
 					 * ignore the H/W csum on frames less than or equal to
 					 * 64 bytes.
+					 *
+					 * Ignore H/W csum for non-IPv4 packets.
 					 */
-					if (pktlen > ETHER_MIN_LEN) {
+					if (be16toh(eh->ether_type) == ETHERTYPE_IP && pktlen > ETHER_MIN_LEN) {
 					
 						/* Indicate the UDP/TCP csum has been calculated */
 						m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
@@ -1516,6 +1530,64 @@ smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (rc);
 }
 
+#ifdef FDT
+/**
+ * Get MAC address from FDT blob. Firmware or loader should fill
+ * mac-address or local-mac-address property Returns 0 if MAC address
+ * obtained, error code otherwise
+ */
+static int
+smsc_fdt_find_mac(unsigned char *mac)
+{
+	phandle_t child, parent, root;
+	int len;
+
+	root = OF_finddevice("/");
+	len = 0;
+	parent = root;
+
+	/* Traverse through entire tree to find nodes usb ethernet nodes */
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+
+		/* Find a 'leaf'. Start the search from this node. */
+		while (OF_child(child)) {
+			parent = child;
+			child = OF_child(child);
+		}
+
+		if (fdt_is_compatible(child, "net,ethernet") &&
+		    fdt_is_compatible(child, "usb,device")) {
+
+			/* Check if there is property */
+			if ((len = OF_getproplen(child, "local-mac-address")) > 0) {
+				if (len != ETHER_ADDR_LEN)
+					return (EINVAL);
+
+				OF_getprop(child, "local-mac-address", mac,
+				    ETHER_ADDR_LEN);
+				return (0);
+			}
+
+			if ((len = OF_getproplen(child, "mac-address")) > 0) {
+				if (len != ETHER_ADDR_LEN)
+					return (EINVAL);
+
+				OF_getprop(child, "mac-address", mac,
+				    ETHER_ADDR_LEN);
+				return (0);
+			}
+		}
+
+		if (OF_peer(child) == 0) {
+			/* No more siblings. */
+			child = parent;
+			parent = OF_parent(child);
+		}
+	}
+
+	return (ENXIO);
+}
+#endif
 
 /**
  *	smsc_attach_post - Called after the driver attached to the USB interface
@@ -1563,8 +1635,11 @@ smsc_attach_post(struct usb_ether *ue)
 	if (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
 
 		err = smsc_eeprom_read(sc, 0x01, sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN);
+#ifdef FDT
+		if ((err != 0) || (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)))
+			err = smsc_fdt_find_mac(sc->sc_ue.ue_eaddr);
+#endif
 		if ((err != 0) || (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr))) {
-		
 			read_random(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN);
 			sc->sc_ue.ue_eaddr[0] &= ~0x01;     /* unicast */
 			sc->sc_ue.ue_eaddr[0] |=  0x02;     /* locally administered */
@@ -1741,7 +1816,7 @@ static device_method_t smsc_methods[] = {
 	DEVMETHOD(miibus_writereg, smsc_miibus_writereg),
 	DEVMETHOD(miibus_statchg, smsc_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t smsc_driver = {

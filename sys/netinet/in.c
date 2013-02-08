@@ -799,7 +799,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
     int masksupplied, int vhid)
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
-	int flags = RTF_UP, error = 0;
+	int flags, error = 0;
 
 	IN_IFADDR_WLOCK();
 	if (ia->ia_addr.sin_family == AF_INET)
@@ -843,9 +843,11 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	}
 	ia->ia_subnet = i & ia->ia_subnetmask;
 	in_socktrim(&ia->ia_sockmask);
+
 	/*
 	 * Add route for the network.
 	 */
+	flags = RTF_UP;
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
 	if (ifp->if_flags & IFF_BROADCAST) {
 		if (ia->ia_subnetmask == IN_RFC3021_MASK)
@@ -1492,7 +1494,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	/* XXX stack use */
 	struct {
 		struct rt_msghdr	rtm;
-		struct sockaddr_inarp	sin;
+		struct sockaddr_in	sin;
 		struct sockaddr_dl	sdl;
 	} arpc;
 	int error, i;
@@ -1513,7 +1515,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
-			 *  struct sockaddr_inarp; (IPv4)
+			 *  struct sockaddr_in; (IPv4)
 			 *  struct sockaddr_dl;
 			 */
 			bzero(&arpc, sizeof(arpc));
@@ -1527,12 +1529,8 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			arpc.sin.sin_addr.s_addr = SIN(lle)->sin_addr.s_addr;
 
 			/* publish */
-			if (lle->la_flags & LLE_PUB) {
+			if (lle->la_flags & LLE_PUB)
 				arpc.rtm.rtm_flags |= RTF_ANNOUNCE;
-				/* proxy only */
-				if (lle->la_flags & LLE_PROXY)
-					arpc.sin.sin_other = SIN_PROXY;
-			}
 
 			sdl = &arpc.sdl;
 			sdl->sdl_family = AF_LINK;

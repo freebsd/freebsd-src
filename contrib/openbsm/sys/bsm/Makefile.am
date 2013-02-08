@@ -1,6 +1,6 @@
-#
-# $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/Makefile.am#4 $
-#
+##
+## $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/Makefile.am#5 $
+##
 
 
 if ! USE_NATIVE_INCLUDES 

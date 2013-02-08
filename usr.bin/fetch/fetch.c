@@ -115,11 +115,13 @@ sig_handler(int sig)
 
 struct xferstat {
 	char		 name[64];
-	struct timeval	 start;
-	struct timeval	 last;
-	off_t		 size;
-	off_t		 offset;
-	off_t		 rcvd;
+	struct timeval	 start;		/* start of transfer */
+	struct timeval	 last;		/* time of last update */
+	struct timeval	 last2;		/* time of previous last update */
+	off_t		 size;		/* size of file per HTTP hdr */
+	off_t		 offset;	/* starting offset in file */
+	off_t		 rcvd;		/* bytes already received */
+	off_t		 lastrcvd;	/* bytes received since last update */
 };
 
 /*
@@ -139,9 +141,12 @@ stat_eta(struct xferstat *xs)
 	if (eta > 3600)
 		snprintf(str, sizeof str, "%02ldh%02ldm",
 		    eta / 3600, (eta % 3600) / 60);
-	else
+	else if (eta > 0)
 		snprintf(str, sizeof str, "%02ldm%02lds",
 		    eta / 60, eta % 60);
+	else
+		snprintf(str, sizeof str, "%02ldm%02lds",
+		    elapsed / 60, elapsed % 60);
 	return (str);
 }
 
@@ -173,11 +178,12 @@ stat_bps(struct xferstat *xs)
 	double delta, bps;
 
 	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
-	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
+	    - (xs->last2.tv_sec + (xs->last2.tv_usec / 1.e6));
+
 	if (delta == 0.0) {
 		snprintf(str, sizeof str, "?? Bps");
 	} else {
-		bps = (xs->rcvd - xs->offset) / delta;
+		bps = (xs->rcvd - xs->lastrcvd) / delta;
 		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
 	}
 	return (str);
@@ -200,6 +206,7 @@ stat_display(struct xferstat *xs, int force)
 	gettimeofday(&now, NULL);
 	if (!force && now.tv_sec <= xs->last.tv_sec)
 		return;
+	xs->last2 = xs->last;
 	xs->last = now;
 
 	fprintf(stderr, "\r%-46.46s", xs->name);
@@ -214,10 +221,16 @@ stat_display(struct xferstat *xs, int force)
 		    (int)((100.0 * xs->rcvd) / xs->size),
 		    stat_bytes(xs->size));
 	}
+	if (force == 2) {
+		xs->lastrcvd = xs->offset;
+		xs->last2 = xs->start;
+	}
 	fprintf(stderr, " %s", stat_bps(xs));
-	if (xs->size > 0 && xs->rcvd > 0 &&
-	    xs->last.tv_sec >= xs->start.tv_sec + 10)
+	if ((xs->size > 0 && xs->rcvd > 0 &&
+	     xs->last.tv_sec >= xs->start.tv_sec + 3) ||
+	    force == 2)
 		fprintf(stderr, " %s", stat_eta(xs));
+	xs->lastrcvd = xs->rcvd;
 }
 
 /*
@@ -232,6 +245,7 @@ stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 	xs->size = size;
 	xs->offset = offset;
 	xs->rcvd = offset;
+	xs->lastrcvd = offset;
 	if (v_tty && v_level > 0)
 		stat_display(xs, 1);
 	else if (v_level > 0)
@@ -257,7 +271,7 @@ stat_end(struct xferstat *xs)
 {
 	gettimeofday(&xs->last, NULL);
 	if (v_tty && v_level > 0) {
-		stat_display(xs, 1);
+		stat_display(xs, 2);
 		putc('\n', stderr);
 	} else if (v_level > 0) {
 		fprintf(stderr, "        %s %s\n",
@@ -604,7 +618,10 @@ fetch(char *URL, const char *path)
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
 			    (int)(slash - path), path, slash);
 			if (tmppath != NULL) {
-				mkstemps(tmppath, strlen(slash) + 1);
+				if (mkstemps(tmppath, strlen(slash) + 1) == -1) {
+					warn("%s: mkstemps()", path);
+					goto failure;
+				}
 				of = fopen(tmppath, "w");
 				chown(tmppath, sb.st_uid, sb.st_gid);
 				chmod(tmppath, sb.st_mode & ALLPERMS);
@@ -974,7 +991,8 @@ main(int argc, char *argv[])
 	if (v_tty)
 		fetchAuthMethod = query_auth;
 	if (N_filename != NULL)
-		setenv("NETRC", N_filename, 1);
+		if (setenv("NETRC", N_filename, 1) == -1)
+			err(1, "setenv: cannot set NETRC=%s", N_filename);
 
 	while (argc) {
 		if ((p = strrchr(*argv, '/')) == NULL)

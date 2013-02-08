@@ -432,11 +432,21 @@ uplcom_attach(device_t dev)
 		    usbd_errstr(error));
 		goto detach;
 	}
-	/* clear stall at first run */
-	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_WR]);
-	usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_RD]);
-	mtx_unlock(&sc->sc_mtx);
+
+	if (sc->sc_chiptype != TYPE_PL2303HX) {
+		/* HX variants seem to lock up after a clear stall request. */
+		mtx_lock(&sc->sc_mtx);
+		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_WR]);
+		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_RD]);
+		mtx_unlock(&sc->sc_mtx);
+	} else {
+		if (uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
+		    UPLCOM_SET_REQUEST, 8, 0, 0) ||
+		    uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
+		    UPLCOM_SET_REQUEST, 9, 0, 0)) {
+			goto detach;
+		}
+	}
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &uplcom_callback, &sc->sc_mtx);
@@ -555,9 +565,6 @@ uplcom_pl2303_init(struct usb_device *udev, uint8_t chiptype)
 	if (err)
 		return (EIO);
 	
-	if (uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 8, 0, 0)
-	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 9, 0, 0))
-		return (EIO);
 	return (0);
 }
 

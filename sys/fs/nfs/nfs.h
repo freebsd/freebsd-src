@@ -50,6 +50,7 @@
 #define	NFS_MAXREXMIT	100		/* Stop counting after this many */
 #define	NFSV4_CALLBACKTIMEO (2 * NFS_HZ) /* Timeout in ticks */
 #define	NFSV4_CALLBACKRETRY 5		/* Number of retries before failure */
+#define	NFSV4_CBSLOTS	8		/* Number of slots for session */
 #define	NFSV4_CBRETRYCNT 4		/* # of CBRecall retries upon err */
 #define	NFSV4_UPCALLTIMEO (15 * NFS_HZ)	/* Timeout in ticks for upcalls */
 					/* to gssd or nfsuserd */
@@ -99,6 +100,9 @@
 #endif
 #ifndef	NFSCLDELEGHIGHWATER
 #define	NFSCLDELEGHIGHWATER	10000	/* limit for client delegations */
+#endif
+#ifndef	NFSCLLAYOUTHIGHWATER
+#define	NFSCLLAYOUTHIGHWATER	10000	/* limit for client pNFS layouts */
 #endif
 #ifndef NFSNOOPEN			/* Inactive open owner (sec) */
 #define	NFSNOOPEN		120
@@ -519,7 +523,6 @@ struct nfsrv_descript {
 	int			*nd_errp;	/* Pointer to ret status */
 	u_int32_t		nd_retxid;	/* Reply xid */
 	struct nfsrvcache	*nd_rp;		/* Assoc. cache entry */
-	struct timeval		nd_starttime;	/* Time RPC initiated */
 	fhandle_t		nd_fh;		/* File handle */
 	struct ucred		*nd_cred;	/* Credentials */
 	uid_t			nd_saveduid;	/* Saved uid */
@@ -529,6 +532,7 @@ struct nfsrv_descript {
 	nfsquad_t		nd_clientid;	/* Implied clientid */
 	int			nd_gssnamelen;	/* principal name length */
 	char			*nd_gssname;	/* principal name */
+	uint32_t		*nd_slotseq;	/* ptr to slot seq# in req */
 };
 
 #define	nd_princlen	nd_gssnamelen
@@ -560,6 +564,8 @@ struct nfsrv_descript {
 #define	ND_EXGSSPRIVACY		0x00400000
 #define	ND_INCRSEQID		0x00800000
 #define	ND_NFSCL		0x01000000
+#define	ND_NFSV41		0x02000000
+#define	ND_HASSEQUENCE		0x04000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.
@@ -572,6 +578,7 @@ struct nfsv4_opflag {
 	int	savereply;
 	int	modifyfs;
 	int	lktype;
+	int	needsseq;
 };
 
 /*
@@ -644,6 +651,15 @@ struct nfsv4lock {
  */
 #define	NFSACCCHK_VPNOTLOCKED		0
 #define	NFSACCCHK_VPISLOCKED		1
+
+/*
+ * Slot for the NFSv4.1 Sequence Op.
+ */
+struct nfsslot {
+	int		nfssl_inprog;
+	uint32_t	nfssl_seq;
+	struct mbuf	*nfssl_reply;
+};
 
 #endif	/* _KERNEL */
 

@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 451: 21 Jul 2012"
+.TH LESS 1 "Version 456: 08 Nov 2012"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -455,13 +455,14 @@ If an option appears in the LESS variable, it can be reset
 to its default value on the command line by beginning the command
 line option with "\-+".
 .sp
-For options like \-P or \-D which take a following string,
-a dollar sign ($) must be used to signal the end of the string.
-For example, to set two \-D options on MS-DOS, you must have
-a dollar sign between them, like this:
+Some options like \-k or \-D require a string to follow the option letter.
+The string for that option is considered to end when a dollar sign ($) is found.
+For example, you can set two \-D options on MS-DOS like this:
 .sp
-LESS="-Dn9.1$-Ds4.1"
+LESS="Dn9.1$Ds4.1"
 .sp
+A dollar sign or backslash may be included literally in an option string
+by preceding it with a backslash.
 .IP "\-? or \-\-help"
 This option displays a summary of the commands accepted by
 .I less
@@ -1739,9 +1740,9 @@ See the GNU General Public License for more details.
 
 .SH AUTHOR
 .PP
-Mark Nudelman <bug-less@gnu.org>
+Mark Nudelman 
 .br
-Send bug reports or comments to bug-less@gnu.org.
+Send bug reports or comments to <bug-less@gnu.org>
 .br
 See http://www.greenwoodsoftware.com/less/bugs.html for the latest list of known bugs in less.
 .br

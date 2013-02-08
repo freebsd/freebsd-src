@@ -124,36 +124,36 @@ but only receives unrecognized packets.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_ETHER_GET_IFNAME Pq Li getifname
+.Bl -tag -width foo
+.It Dv NGM_ETHER_GET_IFNAME Pq Ic getifname
 Returns the name of the associated interface as a
 .Dv NUL Ns -terminated
 .Tn ASCII
 string.
 Normally this is the same as the name of the node.
-.It Dv NGM_ETHER_GET_IFINDEX Pq Li getifindex
+.It Dv NGM_ETHER_GET_IFINDEX Pq Ic getifindex
 Returns the global index of the associated interface as a 32 bit integer.
-.It Dv NGM_ETHER_GET_ENADDR Pq Li getenaddr
+.It Dv NGM_ETHER_GET_ENADDR Pq Ic getenaddr
 Returns the device's unique six byte Ethernet address.
-.It Dv NGM_ETHER_SET_ENADDR Pq Li setenaddr
+.It Dv NGM_ETHER_SET_ENADDR Pq Ic setenaddr
 Sets the device's unique six byte Ethernet address.
 This control message is equivalent to using the
 .Dv SIOCSIFLLADDR
 .Xr ioctl 2
 system call.
-.It Dv NGM_ETHER_SET_PROMISC Pq Li setpromisc
+.It Dv NGM_ETHER_SET_PROMISC Pq Ic setpromisc
 Enable or disable promiscuous mode.
 This message includes a single 32 bit integer flag that enables or
 disables promiscuous mode on the interface.
 Any non-zero value enables promiscuous mode.
-.It Dv NGM_ETHER_GET_PROMISC Pq Li getpromisc
+.It Dv NGM_ETHER_GET_PROMISC Pq Ic getpromisc
 Get the current value of the node's promiscuous flag.
 The returned value is always either one or zero.
 Note that this flag reflects the node's own promiscuous setting
 and does not necessarily reflect the promiscuous state of the actual
 interface, which can be affected by other means (e.g.,
 .Xr bpf 4 ) .
-.It Dv NGM_ETHER_SET_AUTOSRC Pq Li setautosrc
+.It Dv NGM_ETHER_SET_AUTOSRC Pq Ic setautosrc
 Sets the automatic source address override flag.
 This message includes a single 32 bit integer flag that causes
 all outgoing packets to have their source Ethernet
@@ -161,22 +161,22 @@ address field overwritten with the device's unique Ethernet address.
 If this flag is set to zero, the source address in outgoing packets
 is not modified.
 The default setting for this flag is disabled.
-.It Dv NGM_ETHER_GET_AUTOSRC Pq Li getautosrc
+.It Dv NGM_ETHER_GET_AUTOSRC Pq Ic getautosrc
 Get the current value of the node's source address override flag.
 The returned value is always either one or zero.
-.It Dv NGM_ETHER_ADD_MULTI Pq Li addmulti
+.It Dv NGM_ETHER_ADD_MULTI Pq Ic addmulti
 Join Ethernet multicast group.
 This control message is equivalent to using the
 .Dv SIOCADDMULTI
 .Xr ioctl 2
 system call.
-.It Dv NGM_ETHER_DEL_MULTI Pq Li delmulti
+.It Dv NGM_ETHER_DEL_MULTI Pq Ic delmulti
 Leave Ethernet multicast group.
 This control message is equivalent to using the
 .Dv SIOCDELMULTI
 .Xr ioctl 2
 system call.
-.It Dv NGM_ETHER_DETACH Pq Li detach
+.It Dv NGM_ETHER_DETACH Pq Ic detach
 Detach from underlying Ethernet interface and shut down node.
 .El
 .Sh SHUTDOWN

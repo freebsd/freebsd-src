@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,7 @@ ApCheckForSpecialName (
 
 static void
 ApCheckObjectType (
+    const char              *PredefinedName,
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  ExpectedBtypes);
 
@@ -383,7 +384,8 @@ ApCheckPredefinedReturnValue (
 
             /* Static data return object - check against expected type */
 
-            ApCheckObjectType (ReturnValueOp,
+            ApCheckObjectType (PredefinedNames[Index].Info.Name,
+                ReturnValueOp,
                 PredefinedNames[Index].Info.ExpectedBtypes);
             break;
 
@@ -482,7 +484,8 @@ ApCheckForPredefinedObject (
 
         /* Typecheck the actual object, it is the next argument */
 
-        ApCheckObjectType (Op->Asl.Child->Asl.Next,
+        ApCheckObjectType (PredefinedNames[Index].Info.Name,
+            Op->Asl.Child->Asl.Next,
             PredefinedNames[Index].Info.ExpectedBtypes);
         return;
     }
@@ -640,7 +643,8 @@ ApCheckForSpecialName (
  *
  * FUNCTION:    ApCheckObjectType
  *
- * PARAMETERS:  Op              - Current parse node
+ * PARAMETERS:  PredefinedName  - Name of the predefined object we are checking
+ *              Op              - Current parse node
  *              ExpectedBtypes  - Bitmap of expected return type(s)
  *
  * RETURN:      None
@@ -653,6 +657,7 @@ ApCheckForSpecialName (
 
 static void
 ApCheckObjectType (
+    const char              *PredefinedName,
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  ExpectedBtypes)
 {
@@ -701,8 +706,8 @@ TypeErrorExit:
 
     ApGetExpectedTypes (StringBuffer, ExpectedBtypes);
 
-    sprintf (MsgBuffer, "found %s, requires %s",
-        UtGetOpName (Op->Asl.ParseOpcode), StringBuffer);
+    sprintf (MsgBuffer, "%s: found %s, requires %s",
+        PredefinedName, UtGetOpName (Op->Asl.ParseOpcode), StringBuffer);
 
     AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op,
         MsgBuffer);

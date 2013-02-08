@@ -62,7 +62,7 @@ MROFF_CMD?=	groff -Tascii -mtty-char -man -t
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
 
-SECTIONS=	1 1aout 2 3 4 5 6 7 8 9
+SECTIONS=	1 2 3 4 5 6 7 8 9
 .SUFFIXES:	${SECTIONS:S/^/./g}
 
 # Backwards compatibility.
@@ -216,7 +216,7 @@ _maninstall: ${MAN}
 		t=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
 		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
 		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
-		ln $${l}${ZEXT} $${t}${ZEXT}; \
+		${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}; \
 	done
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
@@ -231,7 +231,7 @@ _maninstall: ${MAN}
 		t=${DESTDIR}${CATDIR}$${sect}${MANSUBDIR}/$$name; \
 		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
 		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
-		ln $${l}${ZEXT} $${t}${ZEXT}; \
+		${INSTALL_LINK} $${l}${ZEXT} $${t}${ZEXT}; \
 	done
 .endif
 .endif

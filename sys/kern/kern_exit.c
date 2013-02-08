@@ -143,7 +143,7 @@ exit1(struct thread *td, int rv)
 	 * XXX in case we're rebooting we just let init die in order to
 	 * work around an unsolved stack overflow seen very late during
 	 * shutdown on sparc64 when the gmirror worker process exists.
-	 */ 
+	 */
 	if (p == initproc && rebooting == 0) {
 		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
@@ -266,7 +266,7 @@ exit1(struct thread *td, int rv)
 	PROC_LOCK(p);
 	rv = p->p_xstat;	/* Event handler could change exit status */
 	stopprofclock(p);
-	p->p_flag &= ~(P_TRACED | P_PPWAIT);
+	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
 
 	/*
 	 * Stop the real interval timer.  If the handler is currently
@@ -617,7 +617,7 @@ sys_abort2(struct thread *td, struct abort2_args *uap)
 	sbuf_clear(sb);
 	sbuf_printf(sb, "%s(pid %d uid %d) aborted: ",
 	    p->p_comm, p->p_pid, td->td_ucred->cr_uid);
-	/* 
+	/*
 	 * Since we can't return from abort2(), send SIGKILL in cases, where
 	 * abort2() was called improperly
 	 */
@@ -689,7 +689,7 @@ owait(struct thread *td, struct owait_args *uap __unused)
  * The dirty work is handled by kern_wait().
  */
 int
-sys_wait4(struct thread *td, struct wait_args *uap)
+sys_wait4(struct thread *td, struct wait4_args *uap)
 {
 	struct rusage ru, *rup;
 	int error, status;
@@ -706,14 +706,51 @@ sys_wait4(struct thread *td, struct wait_args *uap)
 	return (error);
 }
 
+int
+sys_wait6(struct thread *td, struct wait6_args *uap)
+{
+	struct __wrusage wru, *wrup;
+	siginfo_t si, *sip;
+	idtype_t idtype;
+	id_t id;
+	int error, status;
+
+	idtype = uap->idtype;
+	id = uap->id;
+
+	if (uap->wrusage != NULL)
+		wrup = &wru;
+	else
+		wrup = NULL;
+
+	if (uap->info != NULL) {
+		sip = &si;
+		bzero(sip, sizeof(*sip));
+	} else
+		sip = NULL;
+
+	/*
+	 *  We expect all callers of wait6() to know about WEXITED and
+	 *  WTRAPPED.
+	 */
+	error = kern_wait6(td, idtype, id, &status, uap->options, wrup, sip);
+
+	if (uap->status != NULL && error == 0)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->wrusage != NULL && error == 0)
+		error = copyout(&wru, uap->wrusage, sizeof(wru));
+	if (uap->info != NULL && error == 0)
+		error = copyout(&si, uap->info, sizeof(si));
+	return (error);
+}
+
 /*
  * Reap the remains of a zombie process and optionally return status and
  * rusage.  Asserts and will release both the proctree_lock and the process
  * lock as part of its work.
  */
 void
-proc_reap(struct thread *td, struct proc *p, int *status, int options,
-    struct rusage *rusage)
+proc_reap(struct thread *td, struct proc *p, int *status, int options)
 {
 	struct proc *q, *t;
 
@@ -723,10 +760,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	KASSERT(p->p_state == PRS_ZOMBIE, ("proc_reap: !PRS_ZOMBIE"));
 
 	q = td->td_proc;
-	if (rusage) {
-		*rusage = p->p_ru;
-		calcru(p, &rusage->ru_utime, &rusage->ru_stime);
-	}
+
 	PROC_SUNLOCK(p);
 	td->td_retval[0] = p->p_pid;
 	if (status)
@@ -839,20 +873,73 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 }
 
 static int
-proc_to_reap(struct thread *td, struct proc *p, pid_t pid, int *status,
-    int options, struct rusage *rusage)
+proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
+    int *status, int options, struct __wrusage *wrusage, siginfo_t *siginfo)
 {
 	struct proc *q;
+	struct rusage *rup;
 
 	sx_assert(&proctree_lock, SA_XLOCKED);
 
 	q = td->td_proc;
 	PROC_LOCK(p);
-	if (pid != WAIT_ANY && p->p_pid != pid && p->p_pgid != -pid) {
+
+	switch (idtype) {
+	case P_ALL:
+		break;
+	case P_PID:
+		if (p->p_pid != (pid_t)id) {
+			PROC_UNLOCK(p);
+			return (0);
+		}
+		break;
+	case P_PGID:
+		if (p->p_pgid != (pid_t)id) {
+			PROC_UNLOCK(p);
+			return (0);
+		}
+		break;
+	case P_SID:
+		if (p->p_session->s_sid != (pid_t)id) {
+			PROC_UNLOCK(p);
+			return (0);
+		}
+		break;
+	case P_UID:
+		if (p->p_ucred->cr_uid != (uid_t)id) {
+			PROC_UNLOCK(p);
+			return (0);
+		}
+		break;
+	case P_GID:
+		if (p->p_ucred->cr_gid != (gid_t)id) {
+			PROC_UNLOCK(p);
+			return (0);
+		}
+		break;
+	case P_JAILID:
+		if (p->p_ucred->cr_prison == NULL ||
+		    (p->p_ucred->cr_prison->pr_id != (int)id)) {
+			PROC_UNLOCK(p);
+			return (0);
+		}
+		break;
+	/*
+	 * It seems that the thread structures get zeroed out
+	 * at process exit.  This makes it impossible to
+	 * support P_SETID, P_CID or P_CPUID.
+	 */
+	default:
 		PROC_UNLOCK(p);
 		return (0);
 	}
+
 	if (p_canwait(td, p)) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+
+	if (((options & WEXITED) == 0) && (p->p_state == PRS_ZOMBIE)) {
 		PROC_UNLOCK(p);
 		return (0);
 	}
@@ -872,8 +959,59 @@ proc_to_reap(struct thread *td, struct proc *p, pid_t pid, int *status,
 	}
 
 	PROC_SLOCK(p);
+
+	if (siginfo != NULL) {
+		bzero(siginfo, sizeof(*siginfo));
+		siginfo->si_errno = 0;
+
+		/*
+		 * SUSv4 requires that the si_signo value is always
+		 * SIGCHLD. Obey it despite the rfork(2) interface
+		 * allows to request other signal for child exit
+		 * notification.
+		 */
+		siginfo->si_signo = SIGCHLD;
+
+		/*
+		 *  This is still a rough estimate.  We will fix the
+		 *  cases TRAPPED, STOPPED, and CONTINUED later.
+		 */
+		if (WCOREDUMP(p->p_xstat))
+			siginfo->si_code = CLD_DUMPED;
+		else if (WIFSIGNALED(p->p_xstat))
+			siginfo->si_code = CLD_KILLED;
+		else
+			siginfo->si_code = CLD_EXITED;
+
+		siginfo->si_pid = p->p_pid;
+		siginfo->si_uid = p->p_ucred->cr_uid;
+		siginfo->si_status = p->p_xstat;
+
+		/*
+		 * The si_addr field would be useful additional
+		 * detail, but apparently the PC value may be lost
+		 * when we reach this point.  bzero() above sets
+		 * siginfo->si_addr to NULL.
+		 */
+	}
+
+	/*
+	 * There should be no reason to limit resources usage info to
+	 * exited processes only.  A snapshot about any resources used
+	 * by a stopped process may be exactly what is needed.
+	 */
+	if (wrusage != NULL) {
+		rup = &wrusage->wru_self;
+		*rup = p->p_ru;
+		calcru(p, &rup->ru_utime, &rup->ru_stime);
+
+		rup = &wrusage->wru_children;
+		*rup = p->p_stats->p_cru;
+		calccru(p, &rup->ru_utime, &rup->ru_stime);
+	}
+
 	if (p->p_state == PRS_ZOMBIE) {
-		proc_reap(td, p, status, options, rusage);
+		proc_reap(td, p, status, options);
 		return (-1);
 	}
 	PROC_SUNLOCK(p);
@@ -885,21 +1023,77 @@ int
 kern_wait(struct thread *td, pid_t pid, int *status, int options,
     struct rusage *rusage)
 {
+	struct __wrusage wru, *wrup;
+	idtype_t idtype;
+	id_t id;
+	int ret;
+
+	/*
+	 * Translate the special pid values into the (idtype, pid)
+	 * pair for kern_wait6.  The WAIT_MYPGRP case is handled by
+	 * kern_wait6() on its own.
+	 */
+	if (pid == WAIT_ANY) {
+		idtype = P_ALL;
+		id = 0;
+	} else if (pid < 0) {
+		idtype = P_PGID;
+		id = (id_t)-pid;
+	} else {
+		idtype = P_PID;
+		id = (id_t)pid;
+	}
+
+	if (rusage != NULL)
+		wrup = &wru;
+	else
+		wrup = NULL;
+
+	/*
+	 * For backward compatibility we implicitly add flags WEXITED
+	 * and WTRAPPED here.
+	 */
+	options |= WEXITED | WTRAPPED;
+	ret = kern_wait6(td, idtype, id, status, options, wrup, NULL);
+	if (rusage != NULL)
+		*rusage = wru.wru_self;
+	return (ret);
+}
+
+int
+kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
+    int options, struct __wrusage *wrusage, siginfo_t *siginfo)
+{
 	struct proc *p, *q;
 	int error, nfound, ret;
 
-	AUDIT_ARG_PID(pid);
+	AUDIT_ARG_VALUE((int)idtype);	/* XXX - This is likely wrong! */
+	AUDIT_ARG_PID((pid_t)id);	/* XXX - This may be wrong! */
 	AUDIT_ARG_VALUE(options);
 
 	q = td->td_proc;
-	if (pid == 0) {
+
+	if ((pid_t)id == WAIT_MYPGRP && (idtype == P_PID || idtype == P_PGID)) {
 		PROC_LOCK(q);
-		pid = -q->p_pgid;
+		id = (id_t)q->p_pgid;
 		PROC_UNLOCK(q);
+		idtype = P_PGID;
 	}
+
 	/* If we don't know the option, just return. */
-	if (options & ~(WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
+	if ((options & ~(WUNTRACED | WNOHANG | WCONTINUED | WNOWAIT |
+	    WEXITED | WTRAPPED | WLINUXCLONE)) != 0)
 		return (EINVAL);
+	if ((options & (WEXITED | WUNTRACED | WCONTINUED | WTRAPPED)) == 0) {
+		/*
+		 * We will be unable to find any matching processes,
+		 * because there are no known events to look for.
+		 * Prefer to return error instead of blocking
+		 * indefinitely.
+		 */
+		return (EINVAL);
+	}
+
 loop:
 	if (q->p_flag & P_STATCHILD) {
 		PROC_LOCK(q);
@@ -909,7 +1103,8 @@ loop:
 	nfound = 0;
 	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
-		ret = proc_to_reap(td, p, pid, status, options, rusage);
+		ret = proc_to_reap(td, p, idtype, id, status, options,
+		    wrusage, siginfo);
 		if (ret == 0)
 			continue;
 		else if (ret == 1)
@@ -919,37 +1114,77 @@ loop:
 
 		PROC_LOCK(p);
 		PROC_SLOCK(p);
-		if ((p->p_flag & P_STOPPED_SIG) &&
+
+		if ((options & WTRAPPED) != 0 &&
+		    (p->p_flag & P_TRACED) != 0 &&
+		    (p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) != 0 &&
 		    (p->p_suspcount == p->p_numthreads) &&
-		    (p->p_flag & P_WAITED) == 0 &&
-		    (p->p_flag & P_TRACED || options & WUNTRACED)) {
+		    ((p->p_flag & P_WAITED) == 0)) {
 			PROC_SUNLOCK(p);
-			p->p_flag |= P_WAITED;
+			if ((options & WNOWAIT) == 0)
+				p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
-			if (status)
+
+			if (status != NULL)
 				*status = W_STOPCODE(p->p_xstat);
+			if (siginfo != NULL) {
+				siginfo->si_status = p->p_xstat;
+				siginfo->si_code = CLD_TRAPPED;
+			}
+			if ((options & WNOWAIT) == 0) {
+				PROC_LOCK(q);
+				sigqueue_take(p->p_ksi);
+				PROC_UNLOCK(q);
+			}
 
-			PROC_LOCK(q);
-			sigqueue_take(p->p_ksi);
-			PROC_UNLOCK(q);
 			PROC_UNLOCK(p);
+			return (0);
+		}
+		if ((options & WUNTRACED) != 0 &&
+		    (p->p_flag & P_STOPPED_SIG) != 0 &&
+		    (p->p_suspcount == p->p_numthreads) &&
+		    ((p->p_flag & P_WAITED) == 0)) {
+			PROC_SUNLOCK(p);
+			if ((options & WNOWAIT) == 0)
+				p->p_flag |= P_WAITED;
+			sx_xunlock(&proctree_lock);
+			td->td_retval[0] = p->p_pid;
 
+			if (status != NULL)
+				*status = W_STOPCODE(p->p_xstat);
+			if (siginfo != NULL) {
+				siginfo->si_status = p->p_xstat;
+				siginfo->si_code = CLD_STOPPED;
+			}
+			if ((options & WNOWAIT) == 0) {
+				PROC_LOCK(q);
+				sigqueue_take(p->p_ksi);
+				PROC_UNLOCK(q);
+			}
+
+			PROC_UNLOCK(p);
 			return (0);
 		}
 		PROC_SUNLOCK(p);
-		if (options & WCONTINUED && (p->p_flag & P_CONTINUED)) {
+		if ((options & WCONTINUED) != 0 &&
+		    (p->p_flag & P_CONTINUED) != 0) {
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
-			p->p_flag &= ~P_CONTINUED;
-
-			PROC_LOCK(q);
-			sigqueue_take(p->p_ksi);
-			PROC_UNLOCK(q);
+			if ((options & WNOWAIT) == 0) {
+				p->p_flag &= ~P_CONTINUED;
+				PROC_LOCK(q);
+				sigqueue_take(p->p_ksi);
+				PROC_UNLOCK(q);
+			}
 			PROC_UNLOCK(p);
 
-			if (status)
+			if (status != NULL)
 				*status = SIGCONT;
+			if (siginfo != NULL) {
+				siginfo->si_status = SIGCONT;
+				siginfo->si_code = CLD_CONTINUED;
+			}
 			return (0);
 		}
 		PROC_UNLOCK(p);
@@ -968,7 +1203,8 @@ loop:
 	 * to successfully wait until the child becomes a zombie.
 	 */
 	LIST_FOREACH(p, &q->p_orphans, p_orphan) {
-		ret = proc_to_reap(td, p, pid, status, options, rusage);
+		ret = proc_to_reap(td, p, idtype, id, status, options,
+		    wrusage, siginfo);
 		if (ret == 0)
 			continue;
 		else if (ret == 1)
@@ -994,7 +1230,7 @@ loop:
 		error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
 	PROC_UNLOCK(q);
 	if (error)
-		return (error);	
+		return (error);
 	goto loop;
 }
 

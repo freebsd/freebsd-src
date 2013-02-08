@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2011
+.Dd November 13, 2012
 .Dt NG_ONE2MANY 4
 .Os
 .Sh NAME
@@ -107,7 +107,7 @@ In the future other algorithms may be added as well.
 The node distinguishes between active and failed links.
 Data is sent only to active links.
 The following link failure detection algorithms are available:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NG_ONE2MANY_FAIL_MANUAL
 The node is explicitly told which of the links are up via the
 .Dv NGM_ONE2MANY_SET_CONFIG
@@ -149,7 +149,7 @@ plus a single hook named
 This node type supports the generic control messages, plus the
 following:
 .Bl -tag -width foo
-.It Dv NGM_ONE2MANY_SET_CONFIG
+.It Dv NGM_ONE2MANY_SET_CONFIG Pq Ic setconfig
 Sets the node configuration using a
 .Dv "struct ng_one2many_link_config"
 as the control message argument:
@@ -174,10 +174,10 @@ are
 .Dv NG_ONE2MANY_FAIL_MANUAL
 (default) or
 .Dv NG_ONE2MANY_FAIL_NOTIFY .
-.It Dv NGM_ONE2MANY_GET_CONFIG
+.It Dv NGM_ONE2MANY_GET_CONFIG Pq Ic getconfig
 Returns the current node configuration in a
 .Dv "struct ng_one2many_link_config" .
-.It Dv NGM_ONE2MANY_GET_STATS
+.It Dv NGM_ONE2MANY_GET_STATS Pq Ic getstats
 This command takes a 32 bit link number as an argument and
 returns a
 .Dv "struct ng_one2many_link_stats"
@@ -191,6 +191,7 @@ struct ng_one2many_link_stats {
   uint64_t   recvPackets;    /* total pkts rec'd on link */
   uint64_t   xmitOctets;     /* total octets xmit'd on link */
   uint64_t   xmitPackets;    /* total pkts xmit'd on link */
+  uint64_t   memoryFailures; /* times couldn't get mem or mbuf */
 };
 .Ed
 .Pp
@@ -198,10 +199,10 @@ To access statistics for the
 .Dv one
 link, use the link number
 .Dv -1 .
-.It Dv NGM_ONE2MANY_CLR_STATS
+.It Dv NGM_ONE2MANY_CLR_STATS Pq Ic clrstats
 This command takes a 32 bit link number as an argument and
 clears the statistics for that link.
-.It Dv NGM_ONE2MANY_GETCLR_STATS
+.It Dv NGM_ONE2MANY_GETCLR_STATS Pq Ic getclrstats
 Same as
 .Dv NGM_ONE2MANY_GET_STATS ,
 but also atomically clears the statistics for the link as well.

@@ -117,6 +117,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_tx_edma.h>
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 /*
  * some general macros
  */
@@ -130,12 +134,15 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_ATHDEV);
 
+static void ath_edma_tx_processq(struct ath_softc *sc, int dosched);
+
 static void
 ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_buf *bf;
+	int i = 0;
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called\n", __func__);
 
@@ -143,9 +150,19 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 		if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH)
 			break;
 		ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
+			ath_printtxbuf(sc, bf, txq->axq_qnum, i, 0);
+#endif/* ATH_DEBUG */
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+			ath_tx_alq_post(sc, bf);
+#endif /* ATH_DEBUG_ALQ */
 		txq->axq_fifo_depth++;
+		i++;
 	}
-	ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
+	if (i > 0)
+		ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
 }
 
 /*
@@ -154,21 +171,17 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
  *
  * This should only be called as part of the chip reset path, as it
  * assumes the FIFO is currently empty.
- *
- * TODO: verify that a cold/warm reset does clear the TX FIFO, so
- * writing in a partially-filled FIFO will not cause double-entries
- * to appear.
  */
 static void
 ath_edma_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 {
 
-	device_printf(sc->sc_dev, "%s: called: txq=%p, qnum=%d\n",
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called: txq=%p, qnum=%d\n",
 	    __func__,
 	    txq,
 	    txq->axq_qnum);
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 	ath_edma_tx_fifo_fill(sc, txq);
 
 }
@@ -191,7 +204,7 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
@@ -208,13 +221,16 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 	/* Push and update frame stats */
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 
-#ifdef	ATH_DEBUG
-	if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-		ath_printtxbuf(sc, bf, txq->axq_qnum, 0, 0);
-#endif	/* ATH_DEBUG */
-
 	/* Only schedule to the FIFO if there's space */
 	if (txq->axq_fifo_depth < HAL_TXFIFO_DEPTH) {
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
+			ath_printtxbuf(sc, bf, txq->axq_qnum, 0, 0);
+#endif /* ATH_DEBUG */
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+			ath_tx_alq_post(sc, bf);
+#endif	/* ATH_DEBUG_ALQ */
 		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
 		txq->axq_fifo_depth++;
 		ath_hal_txstart(ah, txq->axq_qnum);
@@ -224,23 +240,16 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 /*
  * Hand off this frame to a multicast software queue.
  *
- * Unlike legacy DMA, this doesn't chain together frames via the
- * link pointer.  Instead, they're just added to the queue.
- * When it comes time to populate the CABQ, these frames should
- * be individually pushed into the FIFO as appropriate.
- *
- * Yes, this does mean that I'll eventually have to flesh out some
- * replacement code to handle populating the CABQ, rather than
- * what's done in ath_beacon_generate().  It'll have to push each
- * frame from the HW CABQ to the FIFO rather than just appending
- * it to the existing TXQ and kicking off DMA.
+ * The EDMA TX CABQ will get a list of chained frames, chained
+ * together using the next pointer.  The single head of that
+ * particular queue is pushed to the hardware CABQ.
  */
 static void
 ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
 
@@ -260,7 +269,13 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		   BUS_DMASYNC_PREWRITE);
 	}
 
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+		ath_tx_alq_post(sc, bf);
+#endif	/* ATH_DEBUG_ALQ */
+
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 }
 
 /*
@@ -285,7 +300,7 @@ ath_edma_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_XMIT_DESC,
 	    "%s: called; bf=%p, txq=%p, qnum=%d\n",
@@ -360,7 +375,6 @@ ath_edma_dma_txsetup(struct ath_softc *sc)
 		ath_edma_setup_txfifo(sc, i);
 	}
 
-
 	return (0);
 }
 
@@ -387,7 +401,7 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
 	(void) ath_stoptxdma(sc);
 
@@ -397,16 +411,18 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	 *
 	 * Otherwise, just toss everything in each TX queue.
 	 */
+	if (reset_type == ATH_RESET_NOLOSS) {
+		ath_edma_tx_processq(sc, 0);
+	} else {
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i))
+				ath_tx_draintxq(sc, &sc->sc_txq[i]);
+		}
+	}
 
 	/* XXX dump out the TX completion FIFO contents */
 
 	/* XXX dump out the frames */
-
-	/* XXX for now, just drain */
-	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_draintxq(sc, &sc->sc_txq[i]);
-	}
 
 	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -415,12 +431,25 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 }
 
 /*
- * Process the TX status queue.
+ * TX completion tasklet.
  */
+
 static void
 ath_edma_tx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
+
+	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
+	    __func__, npending);
+	ath_edma_tx_processq(sc, 1);
+}
+
+/*
+ * Process the TX status queue.
+ */
+static void
+ath_edma_tx_processq(struct ath_softc *sc, int dosched)
+{
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 	struct ath_tx_status ts;
@@ -428,16 +457,28 @@ ath_edma_tx_proc(void *arg, int npending)
 	struct ath_buf *bf;
 	struct ieee80211_node *ni;
 	int nacked = 0;
+	int idx;
 
-	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
-	    __func__, npending);
+#ifdef	ATH_DEBUG
+	/* XXX */
+	uint32_t txstatus[32];
+#endif
 
-	for (;;) {
+	for (idx = 0; ; idx++) {
 		bzero(&ts, sizeof(ts));
 
 		ATH_TXSTATUS_LOCK(sc);
+#ifdef	ATH_DEBUG
+		ath_hal_gettxrawtxdesc(ah, txstatus);
+#endif
 		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
 		ATH_TXSTATUS_UNLOCK(sc);
+
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_TX_PROC)
+			ath_printtxstatbuf(sc, NULL, txstatus, ts.ts_queue_id,
+			    idx, (status == HAL_OK));
+#endif
 
 		if (status == HAL_EINPROGRESS)
 			break;
@@ -453,6 +494,13 @@ ath_edma_tx_proc(void *arg, int npending)
 			    __func__);
 			continue;
 		}
+
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS))
+			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS,
+			    sc->sc_tx_statuslen,
+			    (char *) txstatus);
+#endif /* ATH_DEBUG_ALQ */
 
 		/*
 		 * At this point we have a valid status descriptor.
@@ -475,12 +523,14 @@ ath_edma_tx_proc(void *arg, int npending)
 
 		txq = &sc->sc_txq[ts.ts_queue_id];
 
-		ATH_TXQ_LOCK(txq);
+		ATH_TX_LOCK(sc);
 		bf = TAILQ_FIRST(&txq->axq_q);
 
 		DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: qcuid=%d, bf=%p\n",
 		    __func__,
 		    ts.ts_queue_id, bf);
+
+		/* XXX TODO: actually output debugging info about this */
 
 #if 0
 		/* XXX assert the buffer/descriptor matches the status descid */
@@ -501,7 +551,7 @@ ath_edma_tx_proc(void *arg, int npending)
 			txq->axq_aggr_depth--;
 		txq->axq_fifo_depth --;
 		/* XXX assert FIFO depth >= 0 */
-		ATH_TXQ_UNLOCK(txq);
+		ATH_TX_UNLOCK(sc);
 
 		/*
 		 * First we need to make sure ts_rate is valid.
@@ -512,13 +562,26 @@ ath_edma_tx_proc(void *arg, int npending)
 		 * in the TX descriptor.  However the TX completion
 		 * FIFO doesn't have this information.  So here we
 		 * do a separate HAL call to populate that information.
+		 *
+		 * The same problem exists with ts_longretry.
+		 * The FreeBSD HAL corrects ts_longretry in the HAL layer;
+		 * the AR9380 HAL currently doesn't.  So until the HAL
+		 * is imported and this can be added, we correct for it
+		 * here.
 		 */
-
 		/* XXX TODO */
 		/* XXX faked for now. Ew. */
 		if (ts.ts_finaltsi < 4) {
 			ts.ts_rate =
 			    bf->bf_state.bfs_rc[ts.ts_finaltsi].ratecode;
+			switch (ts.ts_finaltsi) {
+			case 3: ts.ts_longretry +=
+			    bf->bf_state.bfs_rc[2].tries;
+			case 2: ts.ts_longretry +=
+			    bf->bf_state.bfs_rc[1].tries;
+			case 1: ts.ts_longretry +=
+			    bf->bf_state.bfs_rc[0].tries;
+			}
 		} else {
 			device_printf(sc->sc_dev, "%s: finaltsi=%d\n",
 			    __func__,
@@ -570,14 +633,20 @@ ath_edma_tx_proc(void *arg, int npending)
 		 * to begin validating that things are somewhat
 		 * working.
 		 */
-		ATH_TXQ_LOCK(txq);
-		if (txq->axq_fifo_depth == 0) {
+		ATH_TX_LOCK(sc);
+		if (dosched && txq->axq_fifo_depth == 0) {
 			ath_edma_tx_fifo_fill(sc, txq);
 		}
-		ATH_TXQ_UNLOCK(txq);
+		ATH_TX_UNLOCK(sc);
 	}
 
 	sc->sc_wd_timer = 0;
+
+	if (idx > 0) {
+		IF_LOCK(&sc->sc_ifp->if_snd);
+		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		IF_UNLOCK(&sc->sc_ifp->if_snd);
+	}
 
 	/* Kick software scheduler */
 	/*
@@ -585,7 +654,8 @@ ath_edma_tx_proc(void *arg, int npending)
 	 * but there's no easy way right now to only populate
 	 * the txq task for _one_ TXQ.  This should be fixed.
 	 */
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+	if (dosched)
+		ath_tx_swq_kick(sc);
 }
 
 static void

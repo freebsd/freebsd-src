@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -645,7 +645,7 @@ AcpiDmDisassembleOneOp (
          */
         if (!AcpiGbl_NoResourceDisassembly)
         {
-            Status = AcpiDmIsResourceTemplate (Op);
+            Status = AcpiDmIsResourceTemplate (WalkState, Op);
             if (ACPI_SUCCESS (Status))
             {
                 Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;

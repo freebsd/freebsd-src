@@ -27,6 +27,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "RegisterCoalescer.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -58,29 +59,22 @@ VNInfo *LiveInterval::createDeadDef(SlotIndex Def,
     return VNI;
   }
   if (SlotIndex::isSameInstr(Def, I->start)) {
-    assert(I->start == Def && "Cannot insert def, already live");
-    assert(I->valno->def == Def && "Inconsistent existing value def");
+    assert(I->valno->def == I->start && "Inconsistent existing value def");
+
+    // It is possible to have both normal and early-clobber defs of the same
+    // register on an instruction. It doesn't make a lot of sense, but it is
+    // possible to specify in inline assembly.
+    //
+    // Just convert everything to early-clobber.
+    Def = std::min(Def, I->start);
+    if (Def != I->start)
+      I->start = I->valno->def = Def;
     return I->valno;
   }
   assert(SlotIndex::isEarlierInstr(Def, I->start) && "Already live at def");
   VNInfo *VNI = getNextValue(Def, VNInfoAllocator);
   ranges.insert(I, LiveRange(Def, Def.getDeadSlot(), VNI));
   return VNI;
-}
-
-/// killedInRange - Return true if the interval has kills in [Start,End).
-bool LiveInterval::killedInRange(SlotIndex Start, SlotIndex End) const {
-  Ranges::const_iterator r =
-    std::lower_bound(ranges.begin(), ranges.end(), End);
-
-  // Now r points to the first interval with start >= End, or ranges.end().
-  if (r == ranges.begin())
-    return false;
-
-  --r;
-  // Now r points to the last interval with end <= End.
-  // r->end is the kill point.
-  return r->end >= Start && r->end < End;
 }
 
 // overlaps - Return true if the intersection of the two live intervals is
@@ -140,6 +134,48 @@ bool LiveInterval::overlapsFrom(const LiveInterval& other,
   }
 
   return false;
+}
+
+bool LiveInterval::overlaps(const LiveInterval &Other,
+                            const CoalescerPair &CP,
+                            const SlotIndexes &Indexes) const {
+  assert(!empty() && "empty interval");
+  if (Other.empty())
+    return false;
+
+  // Use binary searches to find initial positions.
+  const_iterator I = find(Other.beginIndex());
+  const_iterator IE = end();
+  if (I == IE)
+    return false;
+  const_iterator J = Other.find(I->start);
+  const_iterator JE = Other.end();
+  if (J == JE)
+    return false;
+
+  for (;;) {
+    // J has just been advanced to satisfy:
+    assert(J->end >= I->start);
+    // Check for an overlap.
+    if (J->start < I->end) {
+      // I and J are overlapping. Find the later start.
+      SlotIndex Def = std::max(I->start, J->start);
+      // Allow the overlap if Def is a coalescable copy.
+      if (Def.isBlock() ||
+          !CP.isCoalescable(Indexes.getInstructionFromIndex(Def)))
+        return true;
+    }
+    // Advance the iterator that ends first to check for more overlaps.
+    if (J->end > I->end) {
+      std::swap(I, J);
+      std::swap(IE, JE);
+    }
+    // Advance J until J->end >= I->start.
+    do
+      if (++J == JE)
+        return false;
+    while (J->end < I->start);
+  }
 }
 
 /// overlaps - Return true if the live interval overlaps a range specified
@@ -399,7 +435,7 @@ void LiveInterval::join(LiveInterval &Other,
 
   // If we have to apply a mapping to our base interval assignment, rewrite it
   // now.
-  if (MustMapCurValNos) {
+  if (MustMapCurValNos && !empty()) {
     // Map the first live range.
 
     iterator OutIt = begin();
@@ -673,27 +709,6 @@ VNInfo* LiveInterval::MergeValueNumberInto(VNInfo *V1, VNInfo *V2) {
   return V2;
 }
 
-void LiveInterval::Copy(const LiveInterval &RHS,
-                        MachineRegisterInfo *MRI,
-                        VNInfo::Allocator &VNInfoAllocator) {
-  ranges.clear();
-  valnos.clear();
-  std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(RHS.reg);
-  MRI->setRegAllocationHint(reg, Hint.first, Hint.second);
-
-  weight = RHS.weight;
-  for (unsigned i = 0, e = RHS.getNumValNums(); i != e; ++i) {
-    const VNInfo *VNI = RHS.getValNumInfo(i);
-    createValueCopy(VNI, VNInfoAllocator);
-  }
-  for (unsigned i = 0, e = RHS.ranges.size(); i != e; ++i) {
-    const LiveRange &LR = RHS.ranges[i];
-    addRange(LiveRange(LR.start, LR.end, getValNumInfo(LR.valno->id)));
-  }
-
-  verify();
-}
-
 unsigned LiveInterval::getSize() const {
   unsigned Sum = 0;
   for (const_iterator I = begin(), E = end(); I != E; ++I)
@@ -705,9 +720,11 @@ raw_ostream& llvm::operator<<(raw_ostream& os, const LiveRange &LR) {
   return os << '[' << LR.start << ',' << LR.end << ':' << LR.valno->id << ")";
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void LiveRange::dump() const {
   dbgs() << *this << "\n";
 }
+#endif
 
 void LiveInterval::print(raw_ostream &OS) const {
   if (empty())
@@ -740,9 +757,11 @@ void LiveInterval::print(raw_ostream &OS) const {
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void LiveInterval::dump() const {
   dbgs() << *this << "\n";
 }
+#endif
 
 #ifndef NDEBUG
 void LiveInterval::verify() const {

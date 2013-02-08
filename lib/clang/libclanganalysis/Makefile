@@ -1,17 +1,21 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clanganalysis
 
 SRCDIR=	tools/clang/lib/Analysis
 SRCS=	AnalysisDeclContext.cpp \
-	CallGraph.cpp \
+	BodyFarm.cpp \
 	CFG.cpp \
 	CFGReachabilityAnalysis.cpp \
 	CFGStmtMap.cpp \
+	CallGraph.cpp \
 	CocoaConventions.cpp \
 	Dominators.cpp \
 	FormatString.cpp \
 	LiveVariables.cpp \
+	ObjCNoReturn.cpp \
 	PostOrderCFGView.cpp \
 	PrintfFormatString.cpp \
 	ProgramPoint.cpp \

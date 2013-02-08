@@ -786,6 +786,29 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	KASSERT(opcode == CPL_PEER_CLOSE,
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
+
+	if (__predict_false(toep->flags & TPF_SYNQE)) {
+#ifdef INVARIANTS
+		struct synq_entry *synqe = (void *)toep;
+
+		INP_WLOCK(synqe->lctx->inp);
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
+			    ("%s: listen socket closed but tid %u not aborted.",
+			    __func__, tid));
+		} else {
+			/*
+			 * do_pass_accept_req is still running and will
+			 * eventually take care of this tid.
+			 */
+		}
+		INP_WUNLOCK(synqe->lctx->inp);
+#endif
+		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
+		    toep, toep->flags);
+		return (0);
+	}
+
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -982,7 +1005,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sge_wrq *ofld_txq = toep->ofld_txq;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct socket *so;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -996,8 +1018,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
-	if (cpl->status == CPL_ERR_RTX_NEG_ADVICE ||
-	    cpl->status == CPL_ERR_PERSIST_NEG_ADVICE) {
+	if (negative_advice(cpl->status)) {
 		CTR4(KTR_CXGBE, "%s: negative advice %d for tid %d (0x%x)",
 		    __func__, cpl->status, tid, toep->flags);
 		return (0);	/* Ignore negative advice */
@@ -1008,7 +1029,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
-	so = inp->inp_socket;
 
 	CTR6(KTR_CXGBE,
 	    "%s: tid %d (%s), toep_flags 0x%x, inp_flags 0x%x, status %d",
@@ -1026,10 +1046,16 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	so_error_set(so, abort_status_to_errno(tp, cpl->status));
-	tp = tcp_close(tp);
-	if (tp == NULL)
-		INP_WLOCK(inp);	/* re-acquire */
+	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+		struct socket *so = inp->inp_socket;
+
+		if (so != NULL)
+			so_error_set(so, abort_status_to_errno(tp,
+			    cpl->status));
+		tp = tcp_close(tp);
+		if (tp == NULL)
+			INP_WLOCK(inp);	/* re-acquire */
+	}
 
 	final_cpl_received(toep);
 done:
@@ -1086,15 +1112,27 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct socket *so;
 	struct sockbuf *sb;
 	int len;
+	uint32_t ddp_placed = 0;
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
-		/*
-		 * do_pass_establish failed and must be attempting to abort the
-		 * synqe's tid.  Meanwhile, the T4 has sent us data for such a
-		 * connection.
-		 */
-		KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
-		    ("%s: synqe and tid isn't being aborted.", __func__));
+#ifdef INVARIANTS
+		struct synq_entry *synqe = (void *)toep;
+
+		INP_WLOCK(synqe->lctx->inp);
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
+			    ("%s: listen socket closed but tid %u not aborted.",
+			    __func__, tid));
+		} else {
+			/*
+			 * do_pass_accept_req is still running and will
+			 * eventually take care of this tid.
+			 */
+		}
+		INP_WUNLOCK(synqe->lctx->inp);
+#endif
+		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
+		    toep, toep->flags);
 		m_freem(m);
 		return (0);
 	}
@@ -1116,13 +1154,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp = intotcpcb(inp);
 
-#ifdef INVARIANTS
-	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq))) {
-		log(LOG_ERR,
-		    "%s: unexpected seq# %x for TID %u, rcv_nxt %x\n",
-		    __func__, be32toh(cpl->seq), toep->tid, tp->rcv_nxt);
-	}
-#endif
+	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq)))
+		ddp_placed = be32toh(cpl->seq) - tp->rcv_nxt;
 
 	tp->rcv_nxt += len;
 	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
@@ -1169,12 +1202,20 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
 
 		if (changed) {
-			if (__predict_false(!(toep->ddp_flags & DDP_SC_REQ))) {
-				/* XXX: handle this if legitimate */
-				panic("%s: unexpected DDP state change %d",
-				    __func__, cpl->ddp_off);
+			if (toep->ddp_flags & DDP_SC_REQ)
+				toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
+			else {
+				KASSERT(cpl->ddp_off == 1,
+				    ("%s: DDP switched on by itself.",
+				    __func__));
+
+				/* Fell out of DDP mode */
+				toep->ddp_flags &= ~(DDP_ON | DDP_BUF0_ACTIVE |
+				    DDP_BUF1_ACTIVE);
+
+				if (ddp_placed)
+					insert_ddp_data(toep, ddp_placed);
 			}
-			toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
 		}
 
 		if ((toep->ddp_flags & DDP_OK) == 0 &&

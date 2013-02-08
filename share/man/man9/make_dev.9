@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2011
+.Dd Dec 22, 2012
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -364,6 +364,10 @@ or
 .Qq ..
 path component or ends with
 .Ql / .
+.It Bq Er EINVAL
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name contains invalid characters.
 .It Bq Er EEXIST
 The
 .Dv MAKEDEV_CHECKNAME

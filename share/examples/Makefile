@@ -52,7 +52,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	csh/dot.cshrc \
 	cvsup/README \
 	cvsup/cvs-supfile \
-	cvsup/gnats-supfile \
 	cvsup/ports-supfile \
 	cvsup/refuse \
 	cvsup/refuse.README \

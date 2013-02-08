@@ -30,6 +30,10 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <pwd.h>
+#include <grp.h>
+#include <libutil.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -55,101 +59,44 @@ vsetpwent(void)
 }
 
 static struct passwd *
-vnextpwent(char const * nam, uid_t uid, int doclose)
+vnextpwent(char const *nam, uid_t uid, int doclose)
 {
-	struct passwd * pw = NULL;
-	static char pwtmp[1024];
+	struct passwd *pw;
+	char *line;
+	size_t linecap;
+	ssize_t linelen;
 
-        strlcpy(pwtmp, getpwpath(_MASTERPASSWD), sizeof(pwtmp));
+	pw = NULL;
+	line = NULL;
+	linecap = 0;
+	linelen = 0;
 
-        if (pwd_fp != NULL || (pwd_fp = fopen(pwtmp, "r")) != NULL) {
-                int done = 0;
-
-                static struct passwd pwd;
-
-                while (!done && fgets(pwtmp, sizeof pwtmp, pwd_fp) != NULL)
-                {
-                        int i, quickout = 0;
-                        char * q;
-                        char * p = strchr(pwtmp, '\n');
-
-                        if (p == NULL) {
-		  		while (fgets(pwtmp, sizeof pwtmp, pwd_fp) != NULL && strchr(pwtmp, '\n')==NULL)
-		  			; /* Skip long lines */
-		  		continue;
-                        }
-
-			/* skip comments & empty lines */
-	       		if (*pwtmp =='\n' || *pwtmp == '#')
+	if (pwd_fp != NULL || (pwd_fp = fopen(getpwpath(_MASTERPASSWD), "r")) != NULL) {
+		while ((linelen = getline(&line, &linecap, pwd_fp)) > 0) {
+			/* Skip comments and empty lines */
+			if (*line == '\n' || *line == '#')
 				continue;
-
-                        i = 0;
-                        q = p = pwtmp;
-                        bzero(&pwd, sizeof pwd);
-                        while (!quickout && (p = strsep(&q, ":\n")) != NULL) {
-                          	switch (i++)
-                          	{
-                                case 0:   /* username */
-        				pwd.pw_name = p;
-        				if (nam) {
-        					if (strcmp(nam, p) == 0)
-        						done = 1;
-        					else
-        						quickout = 1;
-        				}
-        				break;
-                                case 1:   /* password */
-        				pwd.pw_passwd = p;
-        				break;
-                                case 2:   /* uid */
-        				pwd.pw_uid = atoi(p);
-        				if (uid != (uid_t)-1) {
-        					if (uid == pwd.pw_uid)
-        						done = 1;
-        					else
-        						quickout = 1;
-        				}
-        				break;
-                                case 3:   /* gid */
-        				pwd.pw_gid = atoi(p);
-        				break;
-                                case 4:   /* class */
-					if (nam == NULL && uid == (uid_t)-1)
-						done = 1;
-        				pwd.pw_class = p;
-        				break;
-                                case 5:   /* change */
-        				pwd.pw_change = (time_t)atol(p);
-        				break;
-                                case 6:   /* expire */
-        				pwd.pw_expire = (time_t)atol(p);
-        				break;
-                                case 7:   /* gecos */
-        				pwd.pw_gecos = p;
-        				break;
-                                case 8:   /* directory */
-        				pwd.pw_dir = p;
-        				break;
-                                case 9:   /* shell */
-        				pwd.pw_shell = p;
-        				break;
-                                }
-        		}
-                }
+			/* trim latest \n */
+			if (line[linelen - 1 ] == '\n')
+				line[linelen - 1] = '\0';
+			pw = pw_scan(line, PWSCAN_MASTER);
+			if (uid != (uid_t)-1) {
+				if (uid == pw->pw_uid)
+					break;
+			} else if (nam != NULL) {
+				if (strcmp(nam, pw->pw_name) == 0)
+					break;
+			} else
+				break;
+			free(pw);
+			pw = NULL;
+		}
 		if (doclose)
 			vendpwent();
-		if (done && pwd.pw_name) {
-			pw = &pwd;
+	}
+	free(line);
 
-			#define CKNULL(s)   s = s ? s : ""
-			CKNULL(pwd.pw_passwd);
-			CKNULL(pwd.pw_class);
-			CKNULL(pwd.pw_gecos);
-			CKNULL(pwd.pw_dir);
-			CKNULL(pwd.pw_shell);
-                }
-        }
-        return pw;
+	return (pw);
 }
 
 struct passwd *
@@ -192,93 +139,44 @@ vsetgrent(void)
 }
 
 static struct group *
-vnextgrent(char const * nam, gid_t gid, int doclose)
+vnextgrent(char const *nam, gid_t gid, int doclose)
 {
-	struct group * gr = NULL;
+	struct group *gr;
+	char *line;
+	size_t linecap;
+	ssize_t linelen;
 
-	static char * grtmp = NULL;
-	static int grlen = 0;
-	static char ** mems = NULL;
-	static int memlen = 0;
+	gr = NULL;
+	line = NULL;
+	linecap = 0;
+	linelen = 0;
 
-	extendline(&grtmp, &grlen, MAXPATHLEN);
-	strlcpy(grtmp, getgrpath(_GROUP), MAXPATHLEN);
-
-	if (grp_fp != NULL || (grp_fp = fopen(grtmp, "r")) != NULL) {
-		int done = 0;
-
-		static struct group grp;
-
-		while (!done && fgets(grtmp, grlen, grp_fp) != NULL)
-		{
-			int i, quickout = 0;
-			int mno = 0;
-			char * q, * p;
-			const char * sep = ":\n";
-
-			if ((p = strchr(grtmp, '\n')) == NULL) {
-				int l;
-				extendline(&grtmp, &grlen, grlen + PWBUFSZ);
-				l = strlen(grtmp);
-				if (fgets(grtmp + l, grlen - l, grp_fp) == NULL)
-				  break;	/* No newline terminator on last line */
-			}
+	if (grp_fp != NULL || (grp_fp = fopen(getgrpath(_GROUP), "r")) != NULL) {
+		while ((linelen = getline(&line, &linecap, grp_fp)) > 0) {
 			/* Skip comments and empty lines */
-			if (*grtmp == '\n' || *grtmp == '#')
+			if (*line == '\n' || *line == '#')
 				continue;
-			i = 0;
-			q = p = grtmp;
-			bzero(&grp, sizeof grp);
-			extendarray(&mems, &memlen, 200);
-			while (!quickout && (p = strsep(&q, sep)) != NULL) {
-				switch (i++)
-				{
-				case 0:   /* groupname */
-					grp.gr_name = p;
-					if (nam) {
-						if (strcmp(nam, p) == 0)
-							done = 1;
-						else
-							quickout = 1;
-					}
+			/* trim latest \n */
+			if (line[linelen - 1 ] == '\n')
+				line[linelen - 1] = '\0';
+			gr = gr_scan(line);
+			if (gid != (gid_t)-1) {
+				if (gid == gr->gr_gid)
 					break;
-				case 1:   /* password */
-					grp.gr_passwd = p;
+			} else if (nam != NULL) {
+				if (strcmp(nam, gr->gr_name) == 0)
 					break;
-				case 2:   /* gid */
-					grp.gr_gid = atoi(p);
-					if (gid != (gid_t)-1) {
-						if (gid == (gid_t)grp.gr_gid)
-							done = 1;
-						else
-							quickout = 1;
-					} else if (nam == NULL)
-						done = 1;
-					break;
-				case 3:
-					q = p;
-					sep = ",\n";
-					break;
-				default:
-					if (*p) {
-						extendarray(&mems, &memlen, mno + 2);
-						mems[mno++] = p;
-					}
-					break;
-				}
-			}
-			grp.gr_mem = mems;
-			mems[mno] = NULL;
-                }
+			} else
+				break;
+			free(gr);
+			gr = NULL;
+		}
 		if (doclose)
 			vendgrent();
-		if (done && grp.gr_name) {
-			gr = &grp;
-
-			CKNULL(grp.gr_passwd);
-		}
 	}
-	return gr;
+	free(line);
+
+	return (gr);
 }
 
 struct group *

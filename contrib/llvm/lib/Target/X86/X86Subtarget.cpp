@@ -163,17 +163,6 @@ bool X86Subtarget::IsLegalToCallImmediateAddr(const TargetMachine &TM) const {
   return isTargetELF() || TM.getRelocationModel() == Reloc::Static;
 }
 
-/// getSpecialAddressLatency - For targets where it is beneficial to
-/// backschedule instructions that compute addresses, return a value
-/// indicating the number of scheduling cycles of backscheduling that
-/// should be attempted.
-unsigned X86Subtarget::getSpecialAddressLatency() const {
-  // For x86 out-of-order targets, back-schedule address computations so
-  // that loads and stores aren't blocked.
-  // This value was chosen arbitrarily.
-  return 200;
-}
-
 void X86Subtarget::AutoDetectSubtargetFeatures() {
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
   unsigned MaxLevel;
@@ -313,6 +302,10 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
         HasBMI2 = true;
         ToggleFeature(X86::FeatureBMI2);
       }
+      if (IsIntel && ((EBX >> 11) & 0x1)) {
+        HasRTM = true;
+        ToggleFeature(X86::FeatureRTM);
+      }
     }
   }
 }
@@ -341,11 +334,13 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
   , HasLZCNT(false)
   , HasBMI(false)
   , HasBMI2(false)
+  , HasRTM(false)
   , IsBTMemSlow(false)
   , IsUAMemFast(false)
   , HasVectorUAMem(false)
   , HasCmpxchg16b(false)
   , UseLeaForSP(false)
+  , HasSlowDivide(false)
   , PostRAScheduler(false)
   , stackAlignment(4)
   // FIXME: this is a known good value for Yonah. How about others?
@@ -400,6 +395,10 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
     }
   }
 
+  // CPUName may have been set by the CPU detection code. Make sure the
+  // new MCSchedModel is used.
+  InitMCProcessorInfo(CPUName, FS);
+
   if (X86ProcFamily == IntelAtom)
     PostRAScheduler = true;
 
@@ -416,12 +415,12 @@ X86Subtarget::X86Subtarget(const std::string &TT, const std::string &CPU,
   assert((!In64BitMode || HasX86_64) &&
          "64-bit code requested on a subtarget that doesn't support it!");
 
-  // Stack alignment is 16 bytes on Darwin, FreeBSD, Linux and Solaris (both
+  // Stack alignment is 16 bytes on Darwin, Linux and Solaris (both
   // 32 and 64 bit) and for all 64-bit targets.
   if (StackAlignOverride)
     stackAlignment = StackAlignOverride;
-  else if (isTargetDarwin() || isTargetFreeBSD() || isTargetLinux() ||
-           isTargetSolaris() || In64BitMode)
+  else if (isTargetDarwin() || isTargetLinux() || isTargetSolaris() ||
+           In64BitMode)
     stackAlignment = 16;
 }
 

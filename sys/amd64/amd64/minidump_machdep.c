@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/pmap.h>
 #include <machine/atomic.h>
 #include <machine/elf.h>
@@ -231,7 +232,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Walk page table pages, set bits in vm_page_dump */
 	pmapsize = 0;
 	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
-	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + NKPT * NBPDR,
+	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); ) {
 		/*
 		 * We always write a page, even if it is zero. Each
@@ -363,7 +364,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Dump kernel page directory pages */
 	bzero(fakepd, sizeof(fakepd));
 	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
-	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + NKPT * NBPDR,
+	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); va += NBPDP) {
 		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
 

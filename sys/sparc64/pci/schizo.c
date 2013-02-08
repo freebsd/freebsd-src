@@ -229,7 +229,7 @@ struct schizo_desc {
 	const char	*sd_name;
 };
 
-static const struct schizo_desc const schizo_compats[] = {
+static const struct schizo_desc schizo_compats[] = {
 	{ "pci108e,8001",	SCHIZO_MODE_SCZ,	"Schizo" },
 #if 0
 	{ "pci108e,8002",	SCHIZO_MODE_XMS,	"XMITS" },

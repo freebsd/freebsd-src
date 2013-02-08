@@ -171,7 +171,7 @@ TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct rl_type const re_devs[] = {
+static const struct rl_type re_devs[] = {
 	{ DLINK_VENDORID, DLINK_DEVICEID_528T, 0,
 	    "D-Link DGE-528(T) Gigabit Ethernet Adapter" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530T_REVC, 0,
@@ -194,7 +194,7 @@ static const struct rl_type const re_devs[] = {
 	    "US Robotics 997902 (RTL8169S) Gigabit Ethernet" }
 };
 
-static const struct rl_hwrev const re_hwrevs[] = {
+static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8139, RL_8139, "", RL_MTU },
 	{ RL_HWREV_8139A, RL_8139, "A", RL_MTU },
 	{ RL_HWREV_8139AG, RL_8139, "A-G", RL_MTU },
@@ -758,7 +758,7 @@ re_diag(struct rl_softc *sc)
 	u_int8_t		src[] = { 0x00, 'w', 'o', 'r', 'l', 'd' };
 
 	/* Allocate a single mbuf */
-	MGETHDR(m0, M_DONTWAIT, MT_DATA);
+	MGETHDR(m0, M_NOWAIT, MT_DATA);
 	if (m0 == NULL)
 		return (ENOBUFS);
 
@@ -1886,7 +1886,7 @@ re_newbuf(struct rl_softc *sc, int idx)
 	uint32_t		cmdstat;
 	int			error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 
@@ -1950,7 +1950,7 @@ re_jumbo_newbuf(struct rl_softc *sc, int idx)
 	uint32_t		cmdstat;
 	int			error, nsegs;
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MJUM9BYTES;
@@ -2700,7 +2700,7 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 		padlen = RL_MIN_FRAMELEN - (*m_head)->m_pkthdr.len;
 		if (M_WRITABLE(*m_head) == 0) {
 			/* Get a writable copy. */
-			m_new = m_dup(*m_head, M_DONTWAIT);
+			m_new = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m_new == NULL) {
 				*m_head = NULL;
@@ -2710,7 +2710,7 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 		}
 		if ((*m_head)->m_next != NULL ||
 		    M_TRAILINGSPACE(*m_head) < padlen) {
-			m_new = m_defrag(*m_head, M_DONTWAIT);
+			m_new = m_defrag(*m_head, M_NOWAIT);
 			if (m_new == NULL) {
 				m_freem(*m_head);
 				*m_head = NULL;
@@ -2734,7 +2734,7 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->rl_ldata.rl_tx_mtag, txd->tx_dmamap,
 	    *m_head, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m_new = m_collapse(*m_head, M_DONTWAIT, RL_NTXSEGS);
+		m_new = m_collapse(*m_head, M_NOWAIT, RL_NTXSEGS);
 		if (m_new == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

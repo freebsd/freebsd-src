@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -279,7 +279,7 @@ AcpiDmResourceTemplate (
 
         /* Validate the Resource Type and Resource Length */
 
-        Status = AcpiUtValidateResource (Aml, &ResourceIndex);
+        Status = AcpiUtValidateResource (NULL, Aml, &ResourceIndex);
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("/*** Could not validate Resource, type (%X) %s***/\n",
@@ -366,7 +366,8 @@ AcpiDmResourceTemplate (
  *
  * FUNCTION:    AcpiDmIsResourceTemplate
  *
- * PARAMETERS:  Op          - Buffer Op to be examined
+ * PARAMETERS:  WalkState           - Current walk info
+ *              Op                  - Buffer Op to be examined
  *
  * RETURN:      Status. AE_OK if valid template
  *
@@ -377,6 +378,7 @@ AcpiDmResourceTemplate (
 
 ACPI_STATUS
 AcpiDmIsResourceTemplate (
+    ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op)
 {
     ACPI_STATUS             Status;
@@ -396,6 +398,12 @@ AcpiDmIsResourceTemplate (
     /* Get the ByteData list and length */
 
     NextOp = Op->Common.Value.Arg;
+    if (!NextOp)
+    {
+        AcpiOsPrintf ("NULL byte list in buffer\n");
+        return (AE_TYPE);
+    }
+
     NextOp = NextOp->Common.Next;
     if (!NextOp)
     {
@@ -407,7 +415,8 @@ AcpiDmIsResourceTemplate (
 
     /* Walk the byte list, abort on any invalid descriptor type or length */
 
-    Status = AcpiUtWalkAmlResources (Aml, Length, NULL, &EndAml);
+    Status = AcpiUtWalkAmlResources (WalkState, Aml, Length,
+        NULL, ACPI_CAST_INDIRECT_PTR (void, &EndAml));
     if (ACPI_FAILURE (Status))
     {
         return (AE_TYPE);

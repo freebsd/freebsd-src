@@ -135,6 +135,8 @@ restart:
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
+		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
+			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
@@ -188,6 +190,8 @@ restart:
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
+		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
+			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		vp = ndp->ni_vp;
@@ -1430,6 +1434,40 @@ vn_closefile(fp, td)
  * proceed. If a suspend request is in progress, we wait until the
  * suspension is over, and then proceed.
  */
+static int
+vn_start_write_locked(struct mount *mp, int flags)
+{
+	int error;
+
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
+	error = 0;
+
+	/*
+	 * Check on status of suspension.
+	 */
+	if ((curthread->td_pflags & TDP_IGNSUSP) == 0 ||
+	    mp->mnt_susp_owner != curthread) {
+		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
+			if (flags & V_NOWAIT) {
+				error = EWOULDBLOCK;
+				goto unlock;
+			}
+			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
+			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
+			if (error)
+				goto unlock;
+		}
+	}
+	if (flags & V_XSLEEP)
+		goto unlock;
+	mp->mnt_writeopcount++;
+unlock:
+	if (error != 0 || (flags & V_XSLEEP) != 0)
+		MNT_REL(mp);
+	MNT_IUNLOCK(mp);
+	return (error);
+}
+
 int
 vn_start_write(vp, mpp, flags)
 	struct vnode *vp;
@@ -1466,30 +1504,7 @@ vn_start_write(vp, mpp, flags)
 	if (vp == NULL)
 		MNT_REF(mp);
 
-	/*
-	 * Check on status of suspension.
-	 */
-	if ((curthread->td_pflags & TDP_IGNSUSP) == 0 ||
-	    mp->mnt_susp_owner != curthread) {
-		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
-			if (flags & V_NOWAIT) {
-				error = EWOULDBLOCK;
-				goto unlock;
-			}
-			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
-			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
-			if (error)
-				goto unlock;
-		}
-	}
-	if (flags & V_XSLEEP)
-		goto unlock;
-	mp->mnt_writeopcount++;
-unlock:
-	if (error != 0 || (flags & V_XSLEEP) != 0)
-		MNT_REL(mp);
-	MNT_IUNLOCK(mp);
-	return (error);
+	return (vn_start_write_locked(mp, flags));
 }
 
 /*
@@ -1627,7 +1642,7 @@ vfs_write_suspend(mp)
 	else
 		MNT_IUNLOCK(mp);
 	if ((error = VFS_SYNC(mp, MNT_SUSPEND)) != 0)
-		vfs_write_resume(mp);
+		vfs_write_resume(mp, 0);
 	return (error);
 }
 
@@ -1635,8 +1650,7 @@ vfs_write_suspend(mp)
  * Request a filesystem to resume write operations.
  */
 void
-vfs_write_resume(mp)
-	struct mount *mp;
+vfs_write_resume(struct mount *mp, int flags)
 {
 
 	MNT_ILOCK(mp);
@@ -1648,10 +1662,19 @@ vfs_write_resume(mp)
 		wakeup(&mp->mnt_writeopcount);
 		wakeup(&mp->mnt_flag);
 		curthread->td_pflags &= ~TDP_IGNSUSP;
+		if ((flags & VR_START_WRITE) != 0) {
+			MNT_REF(mp);
+			mp->mnt_writeopcount++;
+		}
 		MNT_IUNLOCK(mp);
-		VFS_SUSP_CLEAN(mp);
-	} else
+		if ((flags & VR_NO_SUSPCLR) == 0)
+			VFS_SUSP_CLEAN(mp);
+	} else if ((flags & VR_START_WRITE) != 0) {
+		MNT_REF(mp);
+		vn_start_write_locked(mp, 0);
+	} else {
 		MNT_IUNLOCK(mp);
+	}
 }
 
 /*
@@ -1660,10 +1683,8 @@ vfs_write_resume(mp)
 static int
 vn_kqfilter(struct file *fp, struct knote *kn)
 {
-	int error;
 
-	error = VOP_KQFILTER(fp->f_vnode, kn);
-	return (error);
+	return (VOP_KQFILTER(fp->f_vnode, kn));
 }
 
 /*

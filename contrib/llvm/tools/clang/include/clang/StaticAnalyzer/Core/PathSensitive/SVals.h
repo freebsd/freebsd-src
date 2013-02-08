@@ -154,9 +154,6 @@ public:
   SymExpr::symbol_iterator symbol_end() const { 
     return SymExpr::symbol_end();
   }
-
-  // Implement isa<T> support.
-  static inline bool classof(const SVal*) { return true; }
 };
 
 
@@ -257,7 +254,7 @@ public:
 
 namespace nonloc {
 
-enum Kind { ConcreteIntKind, SymbolValKind, SymExprValKind,
+enum Kind { ConcreteIntKind, SymbolValKind,
             LocAsIntegerKind, CompoundValKind, LazyCompoundValKind };
 
 /// \brief Represents symbolic expression.

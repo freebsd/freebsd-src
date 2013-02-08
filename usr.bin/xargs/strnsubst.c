@@ -48,7 +48,7 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 		match = NULL;
 		maxsize = strlen(s1) + 1;
 	}
-	s2 = calloc(maxsize, 1);
+	s2 = calloc(1, maxsize);
 	if (s2 == NULL)
 		err(1, "calloc");
 

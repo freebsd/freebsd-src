@@ -592,6 +592,12 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 		return -1;
 	    }
 #endif
+#if defined(OCTEON_VENDOR_UBIQUITI)
+	case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
+	    if (ipd_port > 2)
+		return -1;
+	    return (7 - ipd_port);
+#endif
 #if defined(OCTEON_VENDOR_RADISYS)
 	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
 	    /* No MII.  */
@@ -1313,14 +1319,6 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
 	        return 12;
 	    break;
 #endif
-#if defined(OCTEON_VENDOR_RADISYS)
-	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
-	    if (interface == 0)
-		    return 13;
-	    if (interface == 1)
-		    return 8;
-	    return 0;
-#endif
     }
 #ifdef CVMX_BUILD_FOR_UBOOT
     if (CVMX_HELPER_INTERFACE_MODE_SPI == cvmx_helper_interface_get_mode(interface) && getenv("disable_spi"))
@@ -1396,6 +1394,21 @@ int __cvmx_helper_board_hardware_enable(int interface)
             }
         }
     }
+#if defined(OCTEON_VENDOR_UBIQUITI)
+    else if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_UBIQUITI_E100)
+    {
+	/* Configure ASX cloks for all ports on interface 0.  */
+	if (interface == 0)
+	{
+	    int port;
+
+	    for (port = 0; port < 3; port++) {
+                cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, interface), 16);
+                cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, interface), 0);
+	    }
+	}
+    }
+#endif
     return 0;
 }
 
@@ -1470,6 +1483,9 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
 #if defined(OCTEON_VENDOR_LANNER)
     case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
     case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
+#endif
+#if defined(OCTEON_VENDOR_UBIQUITI)
+    case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
 #endif
 #if defined(OCTEON_BOARD_CAPK_0100ND)
 	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:

@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
  *	and to when physical maps must be made correct.
  */
 
+#include "opt_apic.h"
 #include "opt_cpu.h"
 #include "opt_pmap.h"
 #include "opt_smp.h"
@@ -135,6 +136,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
+#ifdef DEV_APIC
+#include <sys/bus.h>
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
+#endif
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -224,16 +230,7 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
 #define	PAT_INDEX_SIZE	8
 static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -1184,6 +1181,16 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 
+#ifdef DEV_APIC
+		/*
+		 * XXX: Some CPUs fault, hang, or trash the local APIC
+		 * registers if we use CLFLUSH on the local APIC
+		 * range.  The local APIC is always uncached, so we
+		 * don't need to flush for that range anyway.
+		 */
+		if (pmap_kextract(sva) == lapic_paddr)
+			return;
+#endif
 		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
 		 * instruction to insure that previous stores are

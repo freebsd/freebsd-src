@@ -113,7 +113,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh);
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
 
 int
 fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
@@ -122,7 +122,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	struct fuse_filehandle *fufh;
 	int err, directio;
 
-	MPASS(vp->v_type == VREG);
+	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
 	err = fuse_filehandle_getrw(vp,
 	    (uio->uio_rw == UIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
@@ -159,11 +159,10 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 			FS_DEBUG("direct write of vnode %ju via file handle %ju\n",
 			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
 			err = fuse_write_directbackend(vp, uio, cred, fufh);
-			fuse_invalidate_attr(vp);
 		} else {
 			FS_DEBUG("buffered write of vnode %ju\n", 
 			      (uintmax_t)VTOILLU(vp));
-			err = fuse_write_biobackend(vp, uio, cred, fufh);
+			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag);
 		}
 		break;
 	default:
@@ -372,7 +371,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 
 static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh)
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct buf *bp;
@@ -391,6 +390,8 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 		return (EINVAL);
 	if (uio->uio_resid == 0)
 		return (0);
+	if (ioflag & IO_APPEND)
+		uio_setoffset(uio, fvdat->filesize);
 
 	/*
          * Find all of this file's B_NEEDCOMMIT buffers.  If our writes
@@ -612,7 +613,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 	const int biosize = fuse_iosize(vp);
 
-	MPASS(vp->v_type == VREG);
+	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 	MPASS(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE);
 	FS_DEBUG("inode=%ju offset=%jd resid=%ld\n",
 	    (uintmax_t)VTOI(vp), (intmax_t)(((off_t)bp->b_blkno) * biosize),

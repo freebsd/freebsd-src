@@ -1,7 +1,6 @@
-/*	$OpenBSD: if_pfsync.c,v 1.110 2009/02/24 05:39:19 dlg Exp $	*/
-
-/*
+/*-
  * Copyright (c) 2002 Michael Shalayeff
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +25,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 2009 David Gwynne <dlg@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -43,10 +42,14 @@
  */
 
 /*
+ * $OpenBSD: if_pfsync.c,v 1.110 2009/02/24 05:39:19 dlg Exp $
+ *
  * Revisions picked from OpenBSD after revision 1.110 import:
+ * 1.119 - don't m_copydata() beyond the len of mbuf in pfsync_input()
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
+ * 1.125, 1.127 - rewrite merge or stale processing
  * 1.128 - cleanups
  * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
@@ -565,7 +568,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 	struct pfsync_header *ph;
 	struct pfsync_subheader subh;
 
-	int offset;
+	int offset, len;
 	int rv;
 	uint16_t count;
 
@@ -611,6 +614,12 @@ pfsync_input(struct mbuf *m, __unused int off)
 		goto done;
 	}
 
+	len = ntohs(ph->len) + offset;
+	if (m->m_pkthdr.len < len) {
+		V_pfsyncstats.pfsyncs_badlen++;
+		goto done;
+	}
+
 	/* Cheaper to grab this now than having to mess with mbufs later */
 	pkt.ip = ip;
 	pkt.src = ip->ip_src;
@@ -625,7 +634,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 		pkt.flags |= PFSYNC_SI_CKSUM;
 
 	offset += sizeof(*ph);
-	for (;;) {
+	while (offset <= len - sizeof(subh)) {
 		m_copydata(m, offset, sizeof(subh), (caddr_t)&subh);
 		offset += sizeof(subh);
 
@@ -774,7 +783,7 @@ static int
 pfsync_upd_tcp(struct pf_state *st, struct pfsync_state_peer *src,
     struct pfsync_state_peer *dst)
 {
-	int sfail = 0;
+	int sync = 0;
 
 	PF_STATE_LOCK_ASSERT(st);
 
@@ -783,27 +792,25 @@ pfsync_upd_tcp(struct pf_state *st, struct pfsync_state_peer *src,
 	 * for syn-proxy states.  Neither should the
 	 * sequence window slide backwards.
 	 */
-	if (st->src.state > src->state &&
+	if ((st->src.state > src->state &&
 	    (st->src.state < PF_TCPS_PROXY_SRC ||
-	    src->state >= PF_TCPS_PROXY_SRC))
-		sfail = 1;
-	else if (SEQ_GT(st->src.seqlo, ntohl(src->seqlo)))
-		sfail = 3;
-	else if (st->dst.state > dst->state) {
-		/* There might still be useful
-		 * information about the src state here,
-		 * so import that part of the update,
-		 * then "fail" so we send the updated
-		 * state back to the peer who is missing
-		 * our what we know. */
-		pf_state_peer_ntoh(src, &st->src);
-		/* XXX do anything with timeouts? */
-		sfail = 7;
-	} else if (st->dst.state >= TCPS_SYN_SENT &&
-	    SEQ_GT(st->dst.seqlo, ntohl(dst->seqlo)))
-		sfail = 4;
+	    src->state >= PF_TCPS_PROXY_SRC)) ||
 
-	return (sfail);
+	    (st->src.state == src->state &&
+	    SEQ_GT(st->src.seqlo, ntohl(src->seqlo))))
+		sync++;
+	else
+		pf_state_peer_ntoh(src, &st->src);
+
+	if ((st->dst.state > dst->state) ||
+
+	    (st->dst.state >= TCPS_SYN_SENT &&
+	    SEQ_GT(st->dst.seqlo, ntohl(dst->seqlo))))
+		sync++;
+	else
+		pf_state_peer_ntoh(dst, &st->dst);
+
+	return (sync);
 }
 
 static int
@@ -811,9 +818,8 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_state *sa, *sp;
-	struct pf_state_key *sk;
 	struct pf_state *st;
-	int sfail;
+	int sync;
 
 	struct mbuf *mp;
 	int len = count * sizeof(*sp);
@@ -855,29 +861,33 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 		}
 
-		sk = st->key[PF_SK_WIRE];	/* XXX right one? */
-		sfail = 0;
-		if (sk->proto == IPPROTO_TCP)
-			sfail = pfsync_upd_tcp(st, &sp->src, &sp->dst);
+		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP)
+			sync = pfsync_upd_tcp(st, &sp->src, &sp->dst);
 		else {
+			sync = 0;
+
 			/*
 			 * Non-TCP protocol state machine always go
 			 * forwards
 			 */
 			if (st->src.state > sp->src.state)
-				sfail = 5;
-			else if (st->dst.state > sp->dst.state)
-				sfail = 6;
+				sync++;
+			else
+				pf_state_peer_ntoh(&sp->src, &st->src);
+			if (st->dst.state > sp->dst.state)
+				sync++;
+			else
+				pf_state_peer_ntoh(&sp->dst, &st->dst);
 		}
+		if (sync < 2) {
+			pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
+			pf_state_peer_ntoh(&sp->dst, &st->dst);
+			st->expire = time_uptime;
+			st->timeout = sp->timeout;
+		}
+		st->pfsync_time = time_uptime;
 
-		if (sfail) {
-			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-				printf("pfsync: %s stale update (%d)"
-				    " id: %016llx creatorid: %08x\n",
-				    (sfail < 7 ?  "ignoring" : "partial"),
-				    sfail, (unsigned long long)be64toh(st->id),
-				    ntohl(st->creatorid));
-			}
+		if (sync) {
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
@@ -887,12 +897,6 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 			continue;
 		}
-		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
-		pf_state_peer_ntoh(&sp->src, &st->src);
-		pf_state_peer_ntoh(&sp->dst, &st->dst);
-		st->expire = time_uptime;
-		st->timeout = sp->timeout;
-		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
 	}
 
@@ -904,12 +908,9 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_upd_c *ua, *up;
-	struct pf_state_key *sk;
 	struct pf_state *st;
-
 	int len = count * sizeof(*up);
-	int sfail;
-
+	int sync;
 	struct mbuf *mp;
 	int offp, i;
 
@@ -951,28 +952,33 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 		}
 
-		sk = st->key[PF_SK_WIRE]; /* XXX right one? */
-		sfail = 0;
-		if (sk->proto == IPPROTO_TCP)
-			sfail = pfsync_upd_tcp(st, &up->src, &up->dst);
+		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP)
+			sync = pfsync_upd_tcp(st, &up->src, &up->dst);
 		else {
+			sync = 0;
+
 			/*
-			 * Non-TCP protocol state machine always go forwards
+			 * Non-TCP protocol state machine always go
+			 * forwards
 			 */
 			if (st->src.state > up->src.state)
-				sfail = 5;
-			else if (st->dst.state > up->dst.state)
-				sfail = 6;
+				sync++;
+			else
+				pf_state_peer_ntoh(&up->src, &st->src);
+			if (st->dst.state > up->dst.state)
+				sync++;
+			else
+				pf_state_peer_ntoh(&up->dst, &st->dst);
 		}
+		if (sync < 2) {
+			pfsync_alloc_scrub_memory(&up->dst, &st->dst);
+			pf_state_peer_ntoh(&up->dst, &st->dst);
+			st->expire = time_uptime;
+			st->timeout = up->timeout;
+		}
+		st->pfsync_time = time_uptime;
 
-		if (sfail) {
-			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-				printf("pfsync: ignoring stale update "
-				    "(%d) id: %016llx "
-				    "creatorid: %08x\n", sfail,
-				    (unsigned long long)be64toh(st->id),
-				    ntohl(st->creatorid));
-			}
+		if (sync) {
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
@@ -982,12 +988,6 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 			continue;
 		}
-		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
-		pf_state_peer_ntoh(&up->src, &st->src);
-		pf_state_peer_ntoh(&up->dst, &st->dst);
-		st->expire = time_uptime;
-		st->timeout = up->timeout;
-		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
 	}
 
@@ -1230,8 +1230,8 @@ static int
 pfsync_in_eof(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	/* check if we are at the right place in the packet */
-	if (offset != m->m_pkthdr.len - sizeof(struct pfsync_eof))
-		V_pfsyncstats.pfsyncs_badact++;
+	if (offset != m->m_pkthdr.len)
+		V_pfsyncstats.pfsyncs_badlen++;
 
 	/* we're done. free and let the caller return */
 	m_freem(m);
@@ -1599,8 +1599,6 @@ pfsync_sendout(int schedswi)
 	subh->action = PFSYNC_ACT_EOF;
 	subh->count = htons(1);
 	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_EOF]++;
-
-	/* XXX write checksum in EOF here */
 
 	/* we're done, let's put it on the wire */
 	if (ifp->if_bpf) {
@@ -2074,9 +2072,7 @@ pfsync_bulk_update(void *arg)
 			if (s->sync_state == PFSYNC_S_NONE &&
 			    s->timeout < PFTM_MAX &&
 			    s->pfsync_time <= sc->sc_ureq_received) {
-				PFSYNC_LOCK(sc);
 				pfsync_update_state_req(s);
-				PFSYNC_UNLOCK(sc);
 				sent++;
 			}
 		}

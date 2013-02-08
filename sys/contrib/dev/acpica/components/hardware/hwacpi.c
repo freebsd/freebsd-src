@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,13 +141,13 @@ AcpiHwSetMode (
     Retry = 3000;
     while (Retry)
     {
-        if (AcpiHwGetMode() == Mode)
+        if (AcpiHwGetMode () == Mode)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n",
                 Mode));
             return_ACPI_STATUS (AE_OK);
         }
-        AcpiOsStall(1000);
+        AcpiOsStall (ACPI_USEC_PER_MSEC);
         Retry--;
     }
 
@@ -186,22 +186,22 @@ AcpiHwGetMode (
      */
     if (!AcpiGbl_FADT.SmiCommand)
     {
-        return_UINT32 (ACPI_SYS_MODE_ACPI);
+        return_VALUE (ACPI_SYS_MODE_ACPI);
     }
 
     Status = AcpiReadBitRegister (ACPI_BITREG_SCI_ENABLE, &Value);
     if (ACPI_FAILURE (Status))
     {
-        return_UINT32 (ACPI_SYS_MODE_LEGACY);
+        return_VALUE (ACPI_SYS_MODE_LEGACY);
     }
 
     if (Value)
     {
-        return_UINT32 (ACPI_SYS_MODE_ACPI);
+        return_VALUE (ACPI_SYS_MODE_ACPI);
     }
     else
     {
-        return_UINT32 (ACPI_SYS_MODE_LEGACY);
+        return_VALUE (ACPI_SYS_MODE_LEGACY);
     }
 }
 

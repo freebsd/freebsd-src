@@ -94,6 +94,17 @@ vm_map_t buffer_map=0;
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
 
+SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
+    NULL, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
+
+SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
+#ifdef __sparc64__
+    &vm_max_kernel_address, 0,
+#else
+    NULL, VM_MAX_KERNEL_ADDRESS,
+#endif
+    "Max kernel address");
+
 /*
  *	kmem_alloc_nofault:
  *
@@ -222,12 +233,7 @@ kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 	vm_object_reference(object);
 	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
 	    VM_PROT_ALL, 0);
-	if ((flags & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOBUSY;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
-	if (flags & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
 	VM_OBJECT_LOCK(object);
 	end_offset = offset + size;
 	for (; offset < end_offset; offset += PAGE_SIZE) {
@@ -296,14 +302,7 @@ kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 	vm_object_reference(object);
 	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
 	    VM_PROT_ALL, 0);
-	if ((flags & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOBUSY;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOBUSY;
-	if (flags & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
-	if (flags & M_NODUMP)
-		pflags |= VM_ALLOC_NODUMP;
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
 	VM_OBJECT_LOCK(object);
 	tries = 0;
 retry:
@@ -487,15 +486,7 @@ kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
 	    entry->wired_count == 0 && (entry->eflags & MAP_ENTRY_IN_TRANSITION)
 	    == 0, ("kmem_back: entry not found or misaligned"));
 
-	if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-	else
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-
-	if (flags & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
-	if (flags & M_NODUMP)
-		pflags |= VM_ALLOC_NODUMP;
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
 
 	VM_OBJECT_LOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {

@@ -121,5 +121,21 @@ def warn_doc_returns_attached_to_a_void_function : Warning<
   "method returning void}1">,
   InGroup<Documentation>, DefaultIgnore;
 
+// \deprecated command
+
+def warn_doc_deprecated_not_sync : Warning<
+  "declaration is marked with '\\deprecated' command but does not have "
+  "a deprecation attribute">,
+  InGroup<DocumentationDeprecatedSync>, DefaultIgnore;
+
+def note_add_deprecation_attr : Note<
+  "add a deprecation attribute to the declaration to silence this warning">;
+
+// verbatim block commands
+
+def warn_verbatim_block_end_without_start : Warning<
+  "'\\%0' command does not terminate a verbatim text block">,
+  InGroup<Documentation>, DefaultIgnore;
+
 } // end of documentation issue category
 } // end of AST component

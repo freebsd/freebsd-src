@@ -33,7 +33,7 @@ namespace llvm {
   class Constant;
   class Function;
   class GlobalValue;
-  class TargetData;
+  class DataLayout;
   class FunctionType;
   class PointerType;
   class Value;
@@ -47,12 +47,24 @@ namespace CodeGen {
 class CodeGenModule;
 class CGBlockInfo;
 
-enum BlockFlag_t {
+// Flags stored in __block variables.
+enum BlockByrefFlags {
+  BLOCK_BYREF_HAS_COPY_DISPOSE         = (1   << 25), // compiler
+  BLOCK_BYREF_LAYOUT_MASK              = (0xF << 28), // compiler
+  BLOCK_BYREF_LAYOUT_EXTENDED          = (1   << 28),
+  BLOCK_BYREF_LAYOUT_NON_OBJECT        = (2   << 28),
+  BLOCK_BYREF_LAYOUT_STRONG            = (3   << 28),
+  BLOCK_BYREF_LAYOUT_WEAK              = (4   << 28),
+  BLOCK_BYREF_LAYOUT_UNRETAINED        = (5   << 28)
+};
+
+enum BlockLiteralFlags {
   BLOCK_HAS_COPY_DISPOSE =  (1 << 25),
   BLOCK_HAS_CXX_OBJ =       (1 << 26),
   BLOCK_IS_GLOBAL =         (1 << 28),
   BLOCK_USE_STRET =         (1 << 29),
-  BLOCK_HAS_SIGNATURE  =    (1 << 30)
+  BLOCK_HAS_SIGNATURE  =    (1 << 30),
+  BLOCK_HAS_EXTENDED_LAYOUT = (1 << 31)
 };
 class BlockFlags {
   uint32_t flags;
@@ -60,7 +72,7 @@ class BlockFlags {
   BlockFlags(uint32_t flags) : flags(flags) {}
 public:
   BlockFlags() : flags(0) {}
-  BlockFlags(BlockFlag_t flag) : flags(flag) {}
+  BlockFlags(BlockLiteralFlags flag) : flags(flag) {}
 
   uint32_t getBitMask() const { return flags; }
   bool empty() const { return flags == 0; }
@@ -76,7 +88,7 @@ public:
     return (l.flags & r.flags);
   }
 };
-inline BlockFlags operator|(BlockFlag_t l, BlockFlag_t r) {
+inline BlockFlags operator|(BlockLiteralFlags l, BlockLiteralFlags r) {
   return BlockFlags(l) | BlockFlags(r);
 }
 
@@ -182,6 +194,10 @@ public:
   /// UsesStret : True if the block uses an stret return.  Mutable
   /// because it gets set later in the block-creation process.
   mutable bool UsesStret : 1;
+  
+  /// HasCapturedVariableLayout : True if block has captured variables
+  /// and their layout meta-data has been generated.
+  bool HasCapturedVariableLayout : 1;
 
   /// The mapping of allocated indexes within the block.
   llvm::DenseMap<const VarDecl*, Capture> Captures;  

@@ -445,9 +445,9 @@ ieee80211_realign(struct ieee80211vap *vap, struct mbuf *m, size_t align)
 	pktlen = m->m_pkthdr.len;
 	space = pktlen + align;
 	if (space < MINCLSIZE)
-		n = m_gethdr(M_DONTWAIT, MT_DATA);
+		n = m_gethdr(M_NOWAIT, MT_DATA);
 	else {
-		n = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		n = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 		    space <= MCLBYTES ?     MCLBYTES :
 #if MJUMPAGESIZE != MCLBYTES
 		    space <= MJUMPAGESIZE ? MJUMPAGESIZE :

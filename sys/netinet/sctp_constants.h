@@ -370,6 +370,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DATAGRAM_ACKED		10010
 #define SCTP_DATAGRAM_MARKED		20010
 #define SCTP_FORWARD_TSN_SKIP		30010
+#define SCTP_DATAGRAM_NR_ACKED		40010
 
 /* chunk output send from locations */
 #define SCTP_OUTPUT_FROM_USR_SEND       0

@@ -1,6 +1,6 @@
-#
-# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.am#9 $
-#
+##
+## $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.am#10 $
+##
 
 if USE_NATIVE_INCLUDES
 INCLUDES = -I$(top_builddir) -I$(top_srcdir)

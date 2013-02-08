@@ -290,7 +290,7 @@ _find_processes()
 		_interpbn=${1##*/}
 		_fp_args='_argv'
 		_fp_match='case "$_argv" in
-		    ${_interp}|"${_interp} "*|"${_interpbn}: ${_procname}"*)'
+		    ${_interp}|"${_interp} "*|"[${_interpbn}]"|"${_interpbn}: ${_procname}"*)'
 	else					# a normal daemon
 		_procnamebn=${_procname##*/}
 		_fp_args='_arg0 _argv'
@@ -704,7 +704,10 @@ run_rc_command()
 
 		start)
 			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
-				echo 1>&2 "${name} already running? (pid=$rc_pid)."
+				if [ -z "$rc_quiet" ]; then
+					echo 1>&2 "${name} already running? " \
+					    "(pid=$rc_pid)."
+				fi
 				return 1
 			fi
 
@@ -1722,6 +1725,23 @@ check_kern_features()
 		eval _rc_cache_kern_features_$1=1
 		return 1
 	fi
+}
+
+# check_namevarlist var
+#	Return "0" if ${name}_var is reserved in rc.subr.
+
+_rc_namevarlist="program chroot chdir flags fib nice user group groups"
+check_namevarlist()
+{
+	local _v
+
+	for _v in $_rc_namevarlist; do
+	case $1 in
+	$_v)	return 0 ;;
+	esac
+	done
+
+	return 1
 }
 
 # _echoonce var msg mode

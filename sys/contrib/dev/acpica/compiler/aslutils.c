@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -826,7 +826,8 @@ UtAttachNameseg (
         /* No dots in the namepath, there is only a single nameseg. */
         /* Handle prefixes */
 
-        while ((*Name == '\\') || (*Name == '^'))
+        while (ACPI_IS_ROOT_PREFIX (*Name) ||
+               ACPI_IS_PARENT_PREFIX (*Name))
         {
             Name++;
         }

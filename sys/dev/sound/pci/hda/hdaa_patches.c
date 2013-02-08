@@ -271,7 +271,17 @@ hdac_pin_patch(struct hdaa_widget *w)
 	}
 
 	/* New patches */
-	if (id == HDA_CODEC_AD1986A &&
+	if (id == HDA_CODEC_AD1984A &&
+	    subid == LENOVO_X300_SUBVENDOR) {
+		switch (nid) {
+		case 17: /* Headphones with redirection */
+			patch = "as=1 seq=15";
+			break;
+		case 20: /* Two mics together */
+			patch = "as=2 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_AD1986A &&
 	    (subid == ASUS_M2NPVMX_SUBVENDOR ||
 	    subid == ASUS_A8NVMCSM_SUBVENDOR ||
 	    subid == ASUS_P5PL2_SUBVENDOR)) {
@@ -372,6 +382,13 @@ hdaa_widget_patch(struct hdaa_widget *w)
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_SHIFT;
 		w->waspin = 1;
 	}
+	/*
+	 * Clear "digital" flag from digital mic input, as its signal then goes
+	 * to "analog" mixer and this separation just limits functionaity.
+	 */
+	if (hdaa_codec_id(devinfo) == HDA_CODEC_AD1984A &&
+	    w->nid == 23)
+		w->param.widget_cap &= ~HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL_MASK;
 	HDA_BOOTVERBOSE(
 		if (w->param.widget_cap != orig) {
 			device_printf(w->devinfo->dev,

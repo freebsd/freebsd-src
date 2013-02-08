@@ -35,10 +35,10 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Broadcom BCM570x family gigabit ethernet driver for FreeBSD.
+ * Broadcom BCM57xx(x)/BCM590x NetXtreme and NetLink family Ethernet driver
  *
  * The Broadcom BCM5700 is based on technology originally developed by
- * Alteon Networks as part of the Tigon I and Tigon II gigabit ethernet
+ * Alteon Networks as part of the Tigon I and Tigon II Gigabit Ethernet
  * MAC chips. The BCM5700, sometimes referred to as the Tigon III, has
  * two on-board MIPS R4000 CPUs and can have as much as 16MB of external
  * SSRAM. The BCM5700 supports TCP, UDP and IP checksum offload, jumbo
@@ -139,7 +139,7 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
 static const struct bge_type {
 	uint16_t	bge_vid;
 	uint16_t	bge_did;
-} const bge_devs[] = {
+} bge_devs[] = {
 	{ ALTEON_VENDORID,	ALTEON_DEVICEID_BCM5700 },
 	{ ALTEON_VENDORID,	ALTEON_DEVICEID_BCM5701 },
 
@@ -216,7 +216,9 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5906M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57760 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57761 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57762 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57765 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57766 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57780 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57781 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57785 },
@@ -239,7 +241,7 @@ static const struct bge_type {
 static const struct bge_vendor {
 	uint16_t	v_id;
 	const char	*v_name;
-} const bge_vendors[] = {
+} bge_vendors[] = {
 	{ ALTEON_VENDORID,	"Alteon" },
 	{ ALTIMA_VENDORID,	"Altima" },
 	{ APPLE_VENDORID,	"Apple" },
@@ -254,7 +256,7 @@ static const struct bge_vendor {
 static const struct bge_revision {
 	uint32_t	br_chipid;
 	const char	*br_name;
-} const bge_revisions[] = {
+} bge_revisions[] = {
 	{ BGE_CHIPID_BCM5700_A0,	"BCM5700 A0" },
 	{ BGE_CHIPID_BCM5700_A1,	"BCM5700 A1" },
 	{ BGE_CHIPID_BCM5700_B0,	"BCM5700 B0" },
@@ -328,7 +330,7 @@ static const struct bge_revision {
  * Some defaults for major revisions, so that newer steppings
  * that we don't know about have a shot at working.
  */
-static const struct bge_revision const bge_majorrevs[] = {
+static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5700,		"unknown BCM5700" },
 	{ BGE_ASICREV_BCM5701,		"unknown BCM5701" },
 	{ BGE_ASICREV_BCM5703,		"unknown BCM5703" },
@@ -347,6 +349,7 @@ static const struct bge_revision const bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5787,		"unknown BCM5754/5787" },
 	{ BGE_ASICREV_BCM5906,		"unknown BCM5906" },
 	{ BGE_ASICREV_BCM57765,		"unknown BCM57765" },
+	{ BGE_ASICREV_BCM57766,		"unknown BCM57766" },
 	{ BGE_ASICREV_BCM57780,		"unknown BCM57780" },
 	{ BGE_ASICREV_BCM5717,		"unknown BCM5717" },
 	{ BGE_ASICREV_BCM5719,		"unknown BCM5719" },
@@ -362,9 +365,11 @@ static const struct bge_revision const bge_majorrevs[] = {
 #define	BGE_IS_575X_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_575X_PLUS)
 #define	BGE_IS_5755_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5755_PLUS)
 #define	BGE_IS_5717_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5717_PLUS)
+#define	BGE_IS_57765_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_57765_PLUS)
 
-const struct bge_revision * bge_lookup_rev(uint32_t);
-const struct bge_vendor * bge_lookup_vendor(uint16_t);
+static uint32_t bge_chipid(device_t);
+static const struct bge_vendor * bge_lookup_vendor(uint16_t);
+static const struct bge_revision * bge_lookup_rev(uint32_t);
 
 typedef int	(*bge_eaddr_fcn_t)(struct bge_softc *, uint8_t[]);
 
@@ -1308,12 +1313,12 @@ bge_newbuf_std(struct bge_softc *sc, int i)
 	if (sc->bge_flags & BGE_FLAG_JUMBO_STD &&
 	    (sc->bge_ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN +
 	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))) {
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 		if (m == NULL)
 			return (ENOBUFS);
 		m->m_len = m->m_pkthdr.len = MJUM9BYTES;
 	} else {
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL)
 			return (ENOBUFS);
 		m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1364,11 +1369,11 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	struct mbuf *m;
 	int error, nsegs;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 
-	m_cljget(m, M_DONTWAIT, MJUM9BYTES);
+	m_cljget(m, M_NOWAIT, MJUM9BYTES);
 	if (!(m->m_flags & M_EXT)) {
 		m_freem(m);
 		return (ENOBUFS);
@@ -1912,7 +1917,7 @@ bge_chipinit(struct bge_softc *sc)
 	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD,
 	    PCIM_CMD_INTxDIS | PCIM_CMD_MWIEN, 4);
 
-	/* Set the timer prescaler (always 66Mhz) */
+	/* Set the timer prescaler (always 66 MHz). */
 	CSR_WRITE_4(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
 
 	/* XXX: The Linux tg3 driver does this at the start of brgphy_reset. */
@@ -2243,7 +2248,7 @@ bge_blockinit(struct bge_softc *sc)
 	} else if (!BGE_IS_5705_PLUS(sc))
 		limit = BGE_RX_RINGS_MAX;
 	else if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM57765)
+	    BGE_IS_57765_PLUS(sc))
 		limit = 4;
 	else
 		limit = 1;
@@ -2582,7 +2587,7 @@ bge_blockinit(struct bge_softc *sc)
 	return (0);
 }
 
-const struct bge_revision *
+static const struct bge_revision *
 bge_lookup_rev(uint32_t chipid)
 {
 	const struct bge_revision *br;
@@ -2600,7 +2605,7 @@ bge_lookup_rev(uint32_t chipid)
 	return (NULL);
 }
 
-const struct bge_vendor *
+static const struct bge_vendor *
 bge_lookup_vendor(uint16_t vid)
 {
 	const struct bge_vendor *v;
@@ -2609,8 +2614,45 @@ bge_lookup_vendor(uint16_t vid)
 		if (v->v_id == vid)
 			return (v);
 
-	panic("%s: unknown vendor %d", __func__, vid);
 	return (NULL);
+}
+
+static uint32_t
+bge_chipid(device_t dev)
+{
+	uint32_t id;
+
+	id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
+	    BGE_PCIMISCCTL_ASICREV_SHIFT;
+	if (BGE_ASICREV(id) == BGE_ASICREV_USE_PRODID_REG) {
+		/*
+		 * Find the ASCI revision.  Different chips use different
+		 * registers.
+		 */
+		switch (pci_get_device(dev)) {
+		case BCOM_DEVICEID_BCM5717:
+		case BCOM_DEVICEID_BCM5718:
+		case BCOM_DEVICEID_BCM5719:
+		case BCOM_DEVICEID_BCM5720:
+			id = pci_read_config(dev,
+			    BGE_PCI_GEN2_PRODID_ASICREV, 4);
+			break;
+		case BCOM_DEVICEID_BCM57761:
+		case BCOM_DEVICEID_BCM57762:
+		case BCOM_DEVICEID_BCM57765:
+		case BCOM_DEVICEID_BCM57766:
+		case BCOM_DEVICEID_BCM57781:
+		case BCOM_DEVICEID_BCM57785:
+		case BCOM_DEVICEID_BCM57791:
+		case BCOM_DEVICEID_BCM57795:
+			id = pci_read_config(dev,
+			    BGE_PCI_GEN15_PRODID_ASICREV, 4);
+			break;
+		default:
+			id = pci_read_config(dev, BGE_PCI_PRODID_ASICREV, 4);
+		}
+	}
+	return (id);
 }
 
 /*
@@ -2630,59 +2672,34 @@ bge_probe(device_t dev)
 	char model[64];
 	const struct bge_revision *br;
 	const char *pname;
-	struct bge_softc *sc = device_get_softc(dev);
+	struct bge_softc *sc;
 	const struct bge_type *t = bge_devs;
 	const struct bge_vendor *v;
 	uint32_t id;
 	uint16_t did, vid;
 
+	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
 	vid = pci_get_vendor(dev);
 	did = pci_get_device(dev);
 	while(t->bge_vid != 0) {
 		if ((vid == t->bge_vid) && (did == t->bge_did)) {
-			id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
-			    BGE_PCIMISCCTL_ASICREV_SHIFT;
-			if (BGE_ASICREV(id) == BGE_ASICREV_USE_PRODID_REG) {
-				/*
-				 * Find the ASCI revision.  Different chips
-				 * use different registers.
-				 */
-				switch (pci_get_device(dev)) {
-				case BCOM_DEVICEID_BCM5717:
-				case BCOM_DEVICEID_BCM5718:
-				case BCOM_DEVICEID_BCM5719:
-				case BCOM_DEVICEID_BCM5720:
-					id = pci_read_config(dev,
-					    BGE_PCI_GEN2_PRODID_ASICREV, 4);
-					break;
-				case BCOM_DEVICEID_BCM57761:
-				case BCOM_DEVICEID_BCM57765:
-				case BCOM_DEVICEID_BCM57781:
-				case BCOM_DEVICEID_BCM57785:
-				case BCOM_DEVICEID_BCM57791:
-				case BCOM_DEVICEID_BCM57795:
-					id = pci_read_config(dev,
-					    BGE_PCI_GEN15_PRODID_ASICREV, 4);
-					break;
-				default:
-					id = pci_read_config(dev,
-					    BGE_PCI_PRODID_ASICREV, 4);
-				}
-			}
+			id = bge_chipid(dev);
 			br = bge_lookup_rev(id);
-			v = bge_lookup_vendor(vid);
 			if (bge_has_eaddr(sc) &&
 			    pci_get_vpd_ident(dev, &pname) == 0)
-				snprintf(model, 64, "%s", pname);
-			else
-				snprintf(model, 64, "%s %s", v->v_name,
+				snprintf(model, sizeof(model), "%s", pname);
+			else {
+				v = bge_lookup_vendor(vid);
+				snprintf(model, sizeof(model), "%s %s",
+				    v != NULL ? v->v_name : "Unknown",
 				    br != NULL ? br->br_name :
-				    "NetXtreme Ethernet Controller");
-			snprintf(buf, 96, "%s, %sASIC rev. %#08x", model,
-			    br != NULL ? "" : "unknown ", id);
+				    "NetXtreme/NetLink Ethernet Controller");
+			}
+			snprintf(buf, sizeof(buf), "%s, %sASIC rev. %#08x",
+			    model, br != NULL ? "" : "unknown ", id);
 			device_set_desc_copy(dev, buf);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
@@ -3122,7 +3139,7 @@ bge_mbox_reorder(struct bge_softc *sc)
 		const uint16_t vendor;
 		const uint16_t device;
 		const char *desc;
-	} const mbox_reorder_lists[] = {
+	} mbox_reorder_lists[] = {
 		{ 0x1022, 0x7450, "AMD-8131 PCI-X Bridge" },
 	};
 	devclass_t pci, pcib;
@@ -3241,36 +3258,7 @@ bge_attach(device_t dev)
 
 	/* Save various chip information. */
 	sc->bge_func_addr = pci_get_function(dev);
-	sc->bge_chipid =
-	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
-	    BGE_PCIMISCCTL_ASICREV_SHIFT;
-	if (BGE_ASICREV(sc->bge_chipid) == BGE_ASICREV_USE_PRODID_REG) {
-		/*
-		 * Find the ASCI revision.  Different chips use different
-		 * registers.
-		 */
-		switch (pci_get_device(dev)) {
-		case BCOM_DEVICEID_BCM5717:
-		case BCOM_DEVICEID_BCM5718:
-		case BCOM_DEVICEID_BCM5719:
-		case BCOM_DEVICEID_BCM5720:
-			sc->bge_chipid = pci_read_config(dev,
-			    BGE_PCI_GEN2_PRODID_ASICREV, 4);
-			break;
-		case BCOM_DEVICEID_BCM57761:
-		case BCOM_DEVICEID_BCM57765:
-		case BCOM_DEVICEID_BCM57781:
-		case BCOM_DEVICEID_BCM57785:
-		case BCOM_DEVICEID_BCM57791:
-		case BCOM_DEVICEID_BCM57795:
-			sc->bge_chipid = pci_read_config(dev,
-			    BGE_PCI_GEN15_PRODID_ASICREV, 4);
-			break;
-		default:
-			sc->bge_chipid = pci_read_config(dev,
-			    BGE_PCI_PRODID_ASICREV, 4);
-		}
-	}
+	sc->bge_chipid = bge_chipid(dev);
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
@@ -3321,10 +3309,13 @@ bge_attach(device_t dev)
 
 	/* Save chipset family. */
 	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM57765:
+	case BGE_ASICREV_BCM57766:
+		sc->bge_flags |= BGE_FLAG_57765_PLUS;
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5717:
 	case BGE_ASICREV_BCM5719:
 	case BGE_ASICREV_BCM5720:
-	case BGE_ASICREV_BCM57765:
 		sc->bge_flags |= BGE_FLAG_5717_PLUS | BGE_FLAG_5755_PLUS |
 		    BGE_FLAG_575X_PLUS | BGE_FLAG_5705_PLUS | BGE_FLAG_JUMBO |
 		    BGE_FLAG_JUMBO_FRAME;
@@ -3457,6 +3448,8 @@ bge_attach(device_t dev)
 	    pci_get_device(dev) == BCOM_DEVICEID_BCM5753F ||
 	    pci_get_device(dev) == BCOM_DEVICEID_BCM5787F)) ||
 	    pci_get_device(dev) == BCOM_DEVICEID_BCM57790 ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM57791 ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM57795 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5906) {
 		/* These chips are 10/100 only. */
 		capmask &= ~BMSR_EXTSTAT;
@@ -3468,8 +3461,8 @@ bge_attach(device_t dev)
 	 * TSO. But the firmware is not available to FreeBSD and Linux
 	 * claims that the TSO performed by the firmware is slower than
 	 * hardware based TSO. Moreover the firmware based TSO has one
-	 * known bug which can't handle TSO if ethernet header + IP/TCP
-	 * header is greater than 80 bytes. The workaround for the TSO
+	 * known bug which can't handle TSO if Ethernet header + IP/TCP
+	 * header is greater than 80 bytes. A workaround for the TSO
 	 * bug exist but it seems it's too expensive than not using
 	 * TSO at all. Some hardwares also have the TSO bug so limit
 	 * the TSO to the controllers that are not affected TSO issues
@@ -3738,12 +3731,9 @@ bge_attach(device_t dev)
 		sc->bge_phy_flags |= BGE_PHY_NO_3LED;
 	if ((BGE_IS_5705_PLUS(sc)) &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5719 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5720 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM57765 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
+	    sc->bge_asicrev != BGE_ASICREV_BCM57780 &&
+	    !BGE_IS_5717_PLUS(sc)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
@@ -3845,8 +3835,13 @@ again:
 			error = ENOMEM;
 			goto fail;
 		}
-		taskqueue_start_threads(&sc->bge_tq, 1, PI_NET, "%s taskq",
-		    device_get_nameunit(sc->bge_dev));
+		error = taskqueue_start_threads(&sc->bge_tq, 1, PI_NET,
+		    "%s taskq", device_get_nameunit(sc->bge_dev));
+		if (error != 0) {
+			device_printf(dev, "could not start threads.\n");
+			ether_ifdetach(ifp);
+			goto fail;
+		}
 		error = bus_setup_intr(dev, sc->bge_irq,
 		    INTR_TYPE_NET | INTR_MPSAFE, bge_msi_intr, NULL, sc,
 		    &sc->bge_intrhand);
@@ -3891,9 +3886,9 @@ bge_detach(device_t dev)
 	if (sc->bge_tq)
 		taskqueue_drain(sc->bge_tq, &sc->bge_intr_task);
 
-	if (sc->bge_flags & BGE_FLAG_TBI) {
+	if (sc->bge_flags & BGE_FLAG_TBI)
 		ifmedia_removeall(&sc->bge_ifmedia);
-	} else {
+	else if (sc->bge_miibus != NULL) {
 		bus_generic_detach(dev);
 		device_delete_child(dev, sc->bge_miibus);
 	}
@@ -4938,7 +4933,7 @@ bge_cksum_pad(struct mbuf *m)
 			/* Allocate new empty mbuf, pad it. Compact later. */
 			struct mbuf *n;
 
-			MGET(n, M_DONTWAIT, MT_DATA);
+			MGET(n, M_NOWAIT, MT_DATA);
 			if (n == NULL)
 				return (ENOBUFS);
 			n->m_len = 0;
@@ -4980,7 +4975,7 @@ bge_check_short_dma(struct mbuf *m)
 	}
 
 	if (found > 1) {
-		n = m_defrag(m, M_DONTWAIT);
+		n = m_defrag(m, M_NOWAIT);
 		if (n == NULL)
 			m_freem(m);
 	} else
@@ -5000,7 +4995,7 @@ bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss,
 
 	if (M_WRITABLE(m) == 0) {
 		/* Get a writable copy. */
-		n = m_dup(m, M_DONTWAIT);
+		n = m_dup(m, M_NOWAIT);
 		m_freem(m);
 		if (n == NULL)
 			return (NULL);
@@ -5117,9 +5112,9 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 			 * DMA read operation.
 			 */
 			if (sc->bge_forced_collapse == 1)
-				m = m_defrag(m, M_DONTWAIT);
+				m = m_defrag(m, M_NOWAIT);
 			else
-				m = m_collapse(m, M_DONTWAIT,
+				m = m_collapse(m, M_NOWAIT,
 				    sc->bge_forced_collapse);
 			if (m == NULL)
 				m = *m_head;
@@ -5131,7 +5126,7 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_tx_mtag, map, m, segs,
 	    &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(m, M_DONTWAIT, BGE_NSEG_NEW);
+		m = m_collapse(m, M_NOWAIT, BGE_NSEG_NEW);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -5419,7 +5414,7 @@ bge_init_locked(struct bge_softc *sc)
 	 * this number of frames, it will drop subsequent incoming
 	 * frames until the MBUF High Watermark is reached.
 	 */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM57765)
+	if (BGE_IS_57765_PLUS(sc))
 		CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 1);
 	else
 		CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);

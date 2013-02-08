@@ -41,6 +41,8 @@ server
 .Op Fl arduteo
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
+.Op Fl maxthreads Ar max_threads
+.Op Fl minthreads Ar min_threads
 .Sh DESCRIPTION
 The
 .Nm
@@ -74,8 +76,17 @@ Unregister the
 service with
 .Xr rpcbind 8
 without creating any servers.
-.It Fl n
-Specifies how many servers to create.
+.It Fl n Ar threads
+Specifies how many servers to create.  This option is equivalent to specifying
+.Fl maxthreads
+and
+.Fl minthreads
+with their respective arguments to
+.Ar threads .
+.It Fl maxthreads Ar threads
+Specifies the maximum servers that will be kept around to service requests.
+.It Fl minthreads Ar threads
+Specifies the minimum servers that will be kept around to service requests.
 .It Fl h Ar bindip
 Specifies which IP address or hostname to bind to on the local host.
 This option is recommended when a host has multiple interfaces.

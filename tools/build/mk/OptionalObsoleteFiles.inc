@@ -133,6 +133,7 @@ OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
 OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
 OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
 OLD_FILES+=usr/share/man/man7/atf.7.gz
+OLD_FILES+=usr/share/mk/atf.test.mk
 OLD_DIRS+=usr/share/xml/atf
 OLD_FILES+=usr/share/xml/atf/tests-results.dtd
 OLD_DIRS+=usr/share/xsl/atf
@@ -754,6 +755,8 @@ OLD_FILES+=usr/include/clang/3.1/wmmintrin.h
 OLD_FILES+=usr/include/clang/3.1/x86intrin.h
 OLD_FILES+=usr/include/clang/3.1/xmmintrin.h
 OLD_DIRS+=usr/include/clang/3.1
+OLD_FILES+=usr/include/clang/3.2/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.2/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.2/altivec.h
 OLD_FILES+=usr/include/clang/3.2/ammintrin.h
 OLD_FILES+=usr/include/clang/3.2/avx2intrin.h
@@ -762,6 +765,7 @@ OLD_FILES+=usr/include/clang/3.2/bmi2intrin.h
 OLD_FILES+=usr/include/clang/3.2/bmiintrin.h
 OLD_FILES+=usr/include/clang/3.2/cpuid.h
 OLD_FILES+=usr/include/clang/3.2/emmintrin.h
+OLD_FILES+=usr/include/clang/3.2/f16cintrin.h
 OLD_FILES+=usr/include/clang/3.2/fma4intrin.h
 OLD_FILES+=usr/include/clang/3.2/fmaintrin.h
 OLD_FILES+=usr/include/clang/3.2/immintrin.h
@@ -773,6 +777,7 @@ OLD_FILES+=usr/include/clang/3.2/module.map
 OLD_FILES+=usr/include/clang/3.2/nmmintrin.h
 OLD_FILES+=usr/include/clang/3.2/pmmintrin.h
 OLD_FILES+=usr/include/clang/3.2/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.2/rtmintrin.h
 OLD_FILES+=usr/include/clang/3.2/smmintrin.h
 OLD_FILES+=usr/include/clang/3.2/tmmintrin.h
 OLD_FILES+=usr/include/clang/3.2/unwind.h
@@ -3649,6 +3654,95 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_PC_SYSINSTALL} == no
+# backend-partmanager
+OLD_FILES+=usr/share/pc-sysinstall/backend-partmanager/create-part.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-partmanager/delete-part.sh
+# backend-query
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-emulation.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-laptop.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/detect-nics.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/disk-info.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/disk-list.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/disk-part.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/enable-net.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/get-packages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-components.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-config.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-mirrors.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-packages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-rsync-backups.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/list-tzones.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/query-langs.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/send-logs.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/setup-ssh-keys.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/set-mirror.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/sys-mem.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/test-live.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/test-netup.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/update-part-list.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/xkeyboard-layouts.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/xkeyboard-models.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend-query/xkeyboard-variants.sh
+# backend
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-bsdlabel.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-cleanup.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-disk.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-extractimage.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-ftp.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-installcomponents.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-installpackages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-localize.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-mountdisk.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-mountoptical.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-networking.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-newfs.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-parse.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-packages.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-runcommands.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-unmount.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-upgrade.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions-users.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/functions.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/installimage.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/parseconfig.sh
+OLD_FILES+=usr/share/pc-sysinstall/backend/startautoinstall.sh
+# conf
+OLD_FILES+=usr/share/pc-sysinstall/conf/avail-langs
+OLD_FILES+=usr/share/pc-sysinstall/conf/exclude-from-upgrade
+OLD_FILES+=usr/share/pc-sysinstall/conf/license/bsd-en.txt
+OLD_FILES+=usr/share/pc-sysinstall/conf/license/intel-en.txt
+OLD_FILES+=usr/share/pc-sysinstall/conf/license/nvidia-en.txt
+OLD_FILES+=usr/share/pc-sysinstall/conf/pc-sysinstall.conf
+# doc
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-disk-list
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-disk-size
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-index
+OLD_FILES+=usr/share/pc-sysinstall/doc/help-start-autoinstall
+# examples
+OLD_FILES+=usr/share/examples/pc-sysinstall/README
+OLD_FILES+=usr/share/examples/pc-sysinstall/pc-autoinstall.conf
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.fbsd-netinstall
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.geli
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.gmirror
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.netinstall
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.restore
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.rsync
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.upgrade
+OLD_FILES+=usr/share/examples/pc-sysinstall/pcinstall.cfg.zfs
+# pc-sysinstall
+OLD_FILES+=usr/sbin/pc-sysinstall
+OLD_FILES+=usr/share/man/man8/pc-sysinstall.8.gz
+OLD_DIRS+=usr/share/pc-sysinstall/backend
+OLD_DIRS+=usr/share/pc-sysinstall/backend-partmanager
+OLD_DIRS+=usr/share/pc-sysinstall/backend-query
+OLD_DIRS+=usr/share/pc-sysinstall/conf/license
+OLD_DIRS+=usr/share/pc-sysinstall/conf
+OLD_DIRS+=usr/share/pc-sysinstall/doc
+OLD_DIRS+=usr/share/pc-sysinstall
+OLD_DIRS+=usr/share/examples/pc-sysinstall
+.endif
+
 .if ${MK_PF} == no
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
@@ -3683,6 +3777,7 @@ OLD_FILES+=usr/sbin/pkg
 .endif
 
 .if ${MK_PKGTOOLS} == no
+OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
 OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
 OLD_FILES+=etc/periodic/security/460.chkportsum
 OLD_FILES+=etc/periodic/weekly/400.status-pkg

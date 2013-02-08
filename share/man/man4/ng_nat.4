@@ -44,7 +44,7 @@ node uses
 engine for packet aliasing.
 .Sh HOOKS
 This node type has two hooks:
-.Bl -tag -width indent
+.Bl -tag -width ".Va out"
 .It Va out
 Packets received on this hook are considered outgoing and will be
 masqueraded to a configured address.
@@ -54,12 +54,12 @@ dealiased.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_NAT_SET_IPADDR Pq Li setaliasaddr
+.Bl -tag -width foo
+.It Dv NGM_NAT_SET_IPADDR Pq Ic setaliasaddr
 Configure aliasing address for a node.
 After both hooks have been connected and aliasing address was configured,
 a node is ready for aliasing operation.
-.It Dv NGM_NAT_SET_MODE Pq Li setmode
+.It Dv NGM_NAT_SET_MODE Pq Ic setmode
 Set node's operation mode using supplied
 .Vt "struct ng_nat_mode" .
 .Bd -literal
@@ -76,11 +76,11 @@ struct ng_nat_mode {
 #define NG_NAT_PROXY_ONLY		0x40
 #define NG_NAT_REVERSE			0x80
 .Ed
-.It Dv NGM_NAT_SET_TARGET Pq Li settarget
+.It Dv NGM_NAT_SET_TARGET Pq Ic settarget
 Configure target address for a node.
 When an incoming packet not associated with any pre-existing aliasing
 link arrives at the host machine, it will be sent to the specified address.
-.It Dv NGM_NAT_REDIRECT_PORT Pq Li redirectport
+.It Dv NGM_NAT_REDIRECT_PORT Pq Ic redirectport
 Redirect incoming connections arriving to given port(s) to
 another host and port(s).
 The following
@@ -106,7 +106,7 @@ information about redirection added to
 list of static redirects which later can be retrieved by
 .Dv NGM_NAT_LIST_REDIRECTS
 message.
-.It Dv NGM_NAT_REDIRECT_ADDR Pq Li redirectaddr
+.It Dv NGM_NAT_REDIRECT_ADDR Pq Ic redirectaddr
 Redirect traffic for public IP address to a machine on the
 local network.
 This function is known as
@@ -123,7 +123,7 @@ struct ng_nat_redirect_addr {
 .Ed
 .Pp
 Unique ID for this redirection is returned as response to this message.
-.It Dv NGM_NAT_REDIRECT_PROTO Pq Li redirectproto
+.It Dv NGM_NAT_REDIRECT_PROTO Pq Ic redirectproto
 Redirect incoming IP packets of protocol
 .Va proto
 (see
@@ -143,7 +143,7 @@ struct ng_nat_redirect_proto {
 .Ed
 .Pp
 Unique ID for this redirection is returned as response to this message.
-.It Dv NGM_NAT_REDIRECT_DYNAMIC Pq Li redirectdynamic
+.It Dv NGM_NAT_REDIRECT_DYNAMIC Pq Ic redirectdynamic
 Mark redirection with specified ID as dynamic, i.e., it will serve
 for exactly one next connection and then will be automatically
 deleted from internal links table.
@@ -152,10 +152,10 @@ The redirection with this ID is also immediately deleted from
 user-visible list of static redirects (available through
 .Dv NGM_NAT_LIST_REDIRECTS
 message).
-.It Dv NGM_NAT_REDIRECT_DELETE Pq Li redirectdelete
+.It Dv NGM_NAT_REDIRECT_DELETE Pq Ic redirectdelete
 Delete redirection with specified ID (currently active
 connections are not affected).
-.It Dv NGM_NAT_ADD_SERVER Pq Li addserver
+.It Dv NGM_NAT_ADD_SERVER Pq Ic addserver
 Add another server to a pool.
 This is used to transparently offload network load on a single server
 and distribute the load across a pool of servers, also known as
@@ -191,7 +191,7 @@ and
 are also ignored after
 .Dv NGM_NAT_ADD_SERVER
 was used (they are effectively replaced by server pool).
-.It Dv NGM_NAT_LIST_REDIRECTS Pq Li listredirects
+.It Dv NGM_NAT_LIST_REDIRECTS Pq Ic listredirects
 Return list of configured static redirects as
 .Vt "struct ng_nat_list_redirects" .
 .Bd -literal
@@ -233,7 +233,7 @@ servers counter is greater than zero, then
 and
 .Va local_port
 are also meaningless.
-.It Dv NGM_NAT_PROXY_RULE Pq Li proxyrule
+.It Dv NGM_NAT_PROXY_RULE Pq Ic proxyrule
 Specify a transparent proxying rule (string must be
 supplied as argument).
 See

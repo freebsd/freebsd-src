@@ -119,7 +119,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	int32_t lastblock;
 	struct inode *oip;
 	int32_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
-	int32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
+	uint32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
 	struct bufobj *bo;
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -180,7 +180,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (ext2_update(ovp, 1));
+		return (ext2_update(ovp, !DOINGASYNC(ovp)));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -238,7 +238,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = ext2_update(ovp, 1);
+	allerror = ext2_update(ovp, !DOINGASYNC(ovp));
 
 	/*
 	 * Having written the new inode to disk, save its new configuration
@@ -311,7 +311,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		oip->i_size = length;
 		newspace = blksize(fs, oip, lastblock);
 		if (newspace == 0)
-			panic("itrunc: newspace");
+			panic("ext2_truncate: newspace");
 		if (oldspace - newspace > 0) {
 			/*
 			 * Block number of space to be free'd is
@@ -341,8 +341,9 @@ done:
 	 * Put back the real size.
 	 */
 	oip->i_size = length;
-	oip->i_blocks -= blocksreleased;
-	if (oip->i_blocks < 0)			/* sanity */
+	if (oip->i_blocks >= blocksreleased)
+		oip->i_blocks -= blocksreleased;
+	else				/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
 	vnode_pager_setsize(ovp, length);
@@ -420,9 +421,13 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof(int32_t));
 	if (last == -1)
 		bp->b_flags |= B_INVAL;
-	error = bwrite(bp);
-	if (error)
-		allerror = error;
+	if (DOINGASYNC(vp)) {
+		bdwrite(bp);
+	} else {
+		error = bwrite(bp);
+		if (error)
+			allerror = error;
+	}
 	bap = copy;
 
 	/*

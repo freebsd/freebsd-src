@@ -260,7 +260,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		struct llc llc;
 
 		ifa_free(&aa->aa_ifa);
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_NOWAIT);
 		if (m == NULL)
 			senderr(ENOBUFS);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
@@ -313,7 +313,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+	M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
 	if (m == NULL)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
@@ -362,7 +362,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			 * often used kernel parts suffer from the same bug.
 			 * See PR kern/105943 for a proposed general solution.
 			 */
-			if ((n = m_dup(m, M_DONTWAIT)) != NULL) {
+			if ((n = m_dup(m, M_NOWAIT)) != NULL) {
 				n->m_pkthdr.csum_flags |= csum_flags;
 				if (csum_flags & CSUM_DATA_VALID)
 					n->m_pkthdr.csum_data = 0xffff;
@@ -578,6 +578,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		bcopy((char *)evl, (char *)evl + ETHER_VLAN_ENCAP_LEN,
 		    ETHER_HDR_LEN - ETHER_TYPE_LEN);
 		m_adj(m, ETHER_VLAN_ENCAP_LEN);
+		eh = mtod(m, struct ether_header *);
 	}
 
 	M_SETFIB(m, ifp->if_fib);
@@ -592,6 +593,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			CURVNET_RESTORE();
 			return;
 		}
+		eh = mtod(m, struct ether_header *);
 	}
 
 	/*
@@ -606,6 +608,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			CURVNET_RESTORE();
 			return;
 		}
+		eh = mtod(m, struct ether_header *);
 	}
 
 #if defined(INET) || defined(INET6)
@@ -861,7 +864,7 @@ discard:
 		 * Put back the ethernet header so netgraph has a
 		 * consistent view of inbound packets.
 		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
 		(*ng_ether_input_orphan_p)(ifp, m);
 		return;
 	}
@@ -1285,7 +1288,7 @@ ether_vlanencap(struct mbuf *m, uint16_t tag)
 {
 	struct ether_vlan_header *evl;
 
-	M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_DONTWAIT);
+	M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_NOWAIT);
 	if (m == NULL)
 		return (NULL);
 	/* M_PREPEND takes care of m_len, m_pkthdr.len for us */

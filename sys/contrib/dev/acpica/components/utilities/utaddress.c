@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -237,7 +237,7 @@ AcpiUtCheckAddressRange (
     if ((SpaceId != ACPI_ADR_SPACE_SYSTEM_MEMORY) &&
         (SpaceId != ACPI_ADR_SPACE_SYSTEM_IO))
     {
-        return_UINT32 (0);
+        return_VALUE (0);
     }
 
     RangeInfo = AcpiGbl_AddressRangeList[SpaceId];
@@ -278,7 +278,7 @@ AcpiUtCheckAddressRange (
         RangeInfo = RangeInfo->Next;
     }
 
-    return_UINT32 (OverlapCount);
+    return_VALUE (OverlapCount);
 }
 
 

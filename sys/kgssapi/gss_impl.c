@@ -31,8 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
@@ -59,6 +61,7 @@ static bool_t gssd_syscall_registered = FALSE;
 
 struct kgss_mech_list kgss_mechs;
 CLIENT *kgss_gssd_handle;
+struct mtx kgss_gssd_lock;
 
 static void
 kgss_init(void *dummy)
@@ -92,13 +95,11 @@ sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
         struct netconfig *nconf;
 	char path[MAXPATHLEN];
 	int error;
+	CLIENT *cl, *oldcl;
         
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
-
-	if (kgss_gssd_handle)
-		CLNT_DESTROY(kgss_gssd_handle);
 
 	error = copyinstr(uap->path, path, sizeof(path), NULL);
 	if (error)
@@ -109,9 +110,19 @@ sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
         sun.sun_len = SUN_LEN(&sun);
         
         nconf = getnetconfigent("local");
-        kgss_gssd_handle = clnt_reconnect_create(nconf,
+        cl = clnt_reconnect_create(nconf,
 	    (struct sockaddr *) &sun, GSSD, GSSDVERS,
 	    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+
+	mtx_lock(&kgss_gssd_lock);
+	oldcl = kgss_gssd_handle;
+	kgss_gssd_handle = cl;
+	mtx_unlock(&kgss_gssd_lock);
+
+	if (oldcl != NULL) {
+		CLNT_CLOSE(oldcl);
+		CLNT_RELEASE(oldcl);
+	}
 
 	return (0);
 }
@@ -249,6 +260,23 @@ kgss_copy_buffer(const gss_buffer_t from, gss_buffer_t to)
 }
 
 /*
+ * Acquire the kgss_gssd_handle and return it with a reference count,
+ * if it is available.
+ */
+CLIENT *
+kgss_gssd_client(void)
+{
+	CLIENT *cl;
+
+	mtx_lock(&kgss_gssd_lock);
+	cl = kgss_gssd_handle;
+	if (cl != NULL)
+		CLNT_ACQUIRE(cl);
+	mtx_unlock(&kgss_gssd_lock);
+	return (cl);
+}
+
+/*
  * Kernel module glue
  */
 static int
@@ -280,6 +308,7 @@ kgssapi_modevent(module_t mod, int type, void *data)
 		    rpc_gss_get_principal_name;
 		rpc_gss_entries.rpc_gss_svc_max_data_length =
 		    rpc_gss_svc_max_data_length;
+		mtx_init(&kgss_gssd_lock, "kgss_gssd_lock", NULL, MTX_DEF);
 		break;
 	case MOD_UNLOAD:
 		/*

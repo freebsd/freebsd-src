@@ -88,6 +88,7 @@ static struct proc		*audit_thread;
 static int		 audit_file_rotate_wait;
 static struct ucred	*audit_cred;
 static struct vnode	*audit_vp;
+static off_t		 audit_size;
 static struct sx	 audit_worker_lock;
 
 #define	AUDIT_WORKER_LOCK_INIT()	sx_init(&audit_worker_lock, \
@@ -115,7 +116,6 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	struct statfs *mnt_stat;
 	int error;
 	static int cur_fail;
-	struct vattr vattr;
 	long temp;
 
 	AUDIT_WORKER_LOCK_ASSERT();
@@ -133,12 +133,6 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	error = VFS_STATFS(vp->v_mount, mnt_stat);
 	if (error)
 		goto fail;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	error = VOP_GETATTR(vp, &vattr, cred);
-	VOP_UNLOCK(vp, 0);
-	if (error)
-		goto fail;
-	audit_fstat.af_currsz = vattr.va_size;
 
 	/*
 	 * We handle four different space-related limits:
@@ -195,11 +189,11 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 * to the daemon.  This is only approximate, which is fine as more
 	 * records may be generated before the daemon rotates the file.
 	 */
-	if ((audit_fstat.af_filesz != 0) && (audit_file_rotate_wait == 0) &&
-	    (vattr.va_size >= audit_fstat.af_filesz)) {
+	if (audit_fstat.af_filesz != 0 &&
+	    audit_size >= audit_fstat.af_filesz * (audit_file_rotate_wait + 1)) {
 		AUDIT_WORKER_LOCK_ASSERT();
 
-		audit_file_rotate_wait = 1;
+		audit_file_rotate_wait++;
 		(void)audit_send_trigger(AUDIT_TRIGGER_ROTATE_KERNEL);
 	}
 
@@ -238,6 +232,8 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 		goto fail_enospc;
 	else if (error)
 		goto fail;
+	AUDIT_WORKER_LOCK_ASSERT();
+	audit_size += len;
 
 	/*
 	 * Catch completion of a queue drain here; if we're draining and the
@@ -448,9 +444,19 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 {
 	struct ucred *old_audit_cred;
 	struct vnode *old_audit_vp;
+	struct vattr vattr;
 
 	KASSERT((cred != NULL && vp != NULL) || (cred == NULL && vp == NULL),
 	    ("audit_rotate_vnode: cred %p vp %p", cred, vp));
+
+	if (vp != NULL) {
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		if (VOP_GETATTR(vp, &vattr, cred) != 0)
+			vattr.va_size = 0;
+		VOP_UNLOCK(vp, 0);
+	} else {
+		vattr.va_size = 0;
+	}
 
 	/*
 	 * Rotate the vnode/cred, and clear the rotate flag so that we will
@@ -461,6 +467,7 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 	old_audit_vp = audit_vp;
 	audit_cred = cred;
 	audit_vp = vp;
+	audit_size = vattr.va_size;
 	audit_file_rotate_wait = 0;
 	audit_enabled = (audit_vp != NULL);
 	AUDIT_WORKER_UNLOCK();

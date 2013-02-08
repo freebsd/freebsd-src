@@ -3168,7 +3168,7 @@ emu_pci_attach(device_t dev)
 		sc->output_base = 0x20;
 		/*
 		 * XXX 5.1 Analog outputs are inside efxc address space!
-		 * They use ouput+0x11/+0x12 (=efxc+1/+2).
+		 * They use output+0x11/+0x12 (=efxc+1/+2).
 		 * Don't use this efx registers for recording on SB Live! 5.1!
 		 */
 		sc->efxc_base = 0x30;
@@ -3529,7 +3529,7 @@ static device_method_t emu_methods[] = {
 	DEVMETHOD(bus_read_ivar, emu_read_ivar),
 	DEVMETHOD(bus_write_ivar, emu_write_ivar),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 

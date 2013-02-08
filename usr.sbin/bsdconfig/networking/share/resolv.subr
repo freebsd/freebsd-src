@@ -30,6 +30,7 @@ if [ ! "$_NETWORKING_RESOLV_SUBR" ]; then _NETWORKING_RESOLV_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/resolv.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/networking/common.subr
@@ -329,36 +330,13 @@ f_dialog_input_nameserver()
 		msg="$msg_please_enter_nameserver"
 	fi
 
-	local hline="$hline_num_punc_tab_enter"
-	local size="$( f_dialog_inputbox_size \
-	               		"$DIALOG_TITLE"     \
-	               		"$DIALOG_BACKTITLE" \
-	               		"$msg"              \
-	               		"$ns"               \
-	               		"$hline"            )"
-
 	#
 	# Loop until the user provides taint-free input.
 	#
 	while :; do
-
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-		        --backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$msg\" $size         \
-			\"\$ns\"                           \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		local retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		new_ns=$( f_dialog_inputstr )
-
-		[ $retval -eq $SUCCESS ] || return $retval
+		new_ns=$( f_dialog_input "$msg" "$ns" \
+		                         "$hline_num_punc_tab_enter"
+		        ) || return
 
 		# Take only the first "word" of the user's input
 		new_ns="${new_ns%%[$IFS]*}"
@@ -369,7 +347,6 @@ f_dialog_input_nameserver()
 
 		# Update prompt to allow user to re-edit previous entry
 		ns="$new_ns"
-
 	done
 
 	#
@@ -511,5 +488,9 @@ f_dialog_menu_nameservers()
 		esac
 	done
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/resolv.subr
 
 fi # ! $_NETWORKING_RESOLV_SUBR

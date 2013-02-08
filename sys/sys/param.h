@@ -48,9 +48,9 @@
  * __FreeBSD_version numbers are documented in the Porter's Handbook.
  * If you bump the version for any reason, you should update the documentation
  * there.
- * Currently this lives here:
+ * Currently this lives here in the doc/ repository:
  *
- *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
+ *	head/en_US.ISO8859-1/books/porters-handbook/book.xml
  *
  * scheme is:  <major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1000022	/* Master, propagated to newvers */
+#define __FreeBSD_version 1000027	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -96,7 +96,7 @@
 
 #define	MAXCOMLEN	19		/* max command name remembered */
 #define	MAXINTERP	PATH_MAX	/* max interpreter file name length */
-#define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
+#define	MAXLOGNAME	33		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
 #define	NGROUPS		(NGROUPS_MAX+1)	/* max number groups */
@@ -156,8 +156,8 @@
  * MCLBYTES must be no larger than PAGE_SIZE.
  */
 #ifndef	MSIZE
-#define MSIZE		256		/* size of an mbuf */
-#endif	/* MSIZE */
+#define	MSIZE		256		/* size of an mbuf */
+#endif
 
 #ifndef	MCLSHIFT
 #define MCLSHIFT	11		/* convert bytes to mbuf clusters */

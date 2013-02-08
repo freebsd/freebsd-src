@@ -2191,9 +2191,9 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 		ifp->if_ierrors++;
 		return;
 	} else if (rlen > (int)MHLEN)
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	else
-		m = m_gethdr(M_DONTWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: could not allocate rx mbuf\n",
 		    device_get_nameunit(sc->sc_dev));

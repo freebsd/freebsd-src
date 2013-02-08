@@ -57,27 +57,35 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-static struct mntopt mopts[] = {
-	MOPT_STDOPTS,
-	MOPT_END
-};
-
 int	subdir(const char *, const char *);
 static void	usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
 {
-	struct iovec iov[6];
-	int ch, mntflags;
+	struct iovec *iov;
+	char *p, *val;
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
+	char errmsg[255];
+	int ch, mntflags, iovlen;
+	char nullfs[] = "nullfs";
 
+	iov = NULL;
+	iovlen = 0;
 	mntflags = 0;
+	errmsg[0] = '\0';
 	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch(ch) {
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags, 0);
+			val = strdup("");
+			p = strchr(optarg, '=');
+			if (p != NULL) {
+				free(val);
+				*p = '\0';
+				val = p + 1;
+			}
+			build_iovec(&iov, &iovlen, optarg, val, (size_t)-1);
 			break;
 		case '?':
 		default:
@@ -99,21 +107,16 @@ main(int argc, char *argv[])
 		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
-	iov[0].iov_base = strdup("fstype");
-	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = strdup("nullfs");
-	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
-	iov[2].iov_base = strdup("fspath");
-	iov[2].iov_len = sizeof("fspath");
-	iov[3].iov_base = source;
-	iov[3].iov_len = strlen(source) + 1;
-	iov[4].iov_base = strdup("target");
-	iov[4].iov_len = sizeof("target");
-	iov[5].iov_base = target;
-	iov[5].iov_len = strlen(target) + 1;
-
-	if (nmount(iov, 6, mntflags))
-		err(1, NULL);
+	build_iovec(&iov, &iovlen, "fstype", nullfs, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", source, (size_t)-1);
+	build_iovec(&iov, &iovlen, "target", target, (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	if (nmount(iov, iovlen, mntflags) < 0) {
+		if (errmsg[0] != 0)
+			err(1, "%s: %s", source, errmsg);
+		else
+			err(1, "%s", source);
+	}
 	exit(0);
 }
 

@@ -86,7 +86,7 @@ fill_blocks(void)
 		if (len < 0)
 			break;
 		if (len != BLOCKSIZE) {
-			warnx("fill_blocks: write(%d) returned %d",
+			warnx("fill_blocks: write(%d) returned %zd",
 			    BLOCKSIZE, len);
 			close(fd);
 			(void)unlink(BLOCKS_FILENAME);

@@ -270,25 +270,20 @@ cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
-contrib/altq/altq/altq_cbq.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_cdnr.c	optional altq
-contrib/altq/altq/altq_hfsc.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_priq.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_red.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_rio.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_rmclass.c optional altq
-contrib/altq/altq/altq_subr.c	optional altq \
-	compile-with "${NORMAL_C}"
+compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
+compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
+compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
+compat/freebsd32/freebsd32_sysent.c	optional compat_freebsd32
+contrib/altq/altq/altq_cbq.c		optional altq
+contrib/altq/altq/altq_cdnr.c		optional altq
+contrib/altq/altq/altq_hfsc.c		optional altq
+contrib/altq/altq/altq_priq.c		optional altq
+contrib/altq/altq/altq_red.c		optional altq
+contrib/altq/altq/altq_rio.c		optional altq
+contrib/altq/altq/altq_rmclass.c	optional altq
+contrib/altq/altq/altq_subr.c		optional altq
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
+contrib/dev/acpica/components/debugger/dbconvert.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbexec.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbfileio.c	optional acpi acpi_debug
@@ -300,6 +295,7 @@ contrib/dev/acpica/components/debugger/dbstats.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbxface.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmbuffer.c	optional acpi acpi_debug
+contrib/dev/acpica/components/disassembler/dmdeferred.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmopcode.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmobject.c	optional acpi acpi_debug
@@ -329,6 +325,7 @@ contrib/dev/acpica/components/events/evgpe.c		optional acpi
 contrib/dev/acpica/components/events/evgpeblk.c		optional acpi
 contrib/dev/acpica/components/events/evgpeinit.c	optional acpi
 contrib/dev/acpica/components/events/evgpeutil.c	optional acpi
+contrib/dev/acpica/components/events/evhandler.c	optional acpi
 contrib/dev/acpica/components/events/evmisc.c		optional acpi
 contrib/dev/acpica/components/events/evregion.c		optional acpi
 contrib/dev/acpica/components/events/evrgnini.c		optional acpi
@@ -381,6 +378,7 @@ contrib/dev/acpica/components/namespace/nsnames.c	optional acpi
 contrib/dev/acpica/components/namespace/nsobject.c	optional acpi
 contrib/dev/acpica/components/namespace/nsparse.c	optional acpi
 contrib/dev/acpica/components/namespace/nspredef.c	optional acpi
+contrib/dev/acpica/components/namespace/nsprepkg.c	optional acpi
 contrib/dev/acpica/components/namespace/nsrepair.c	optional acpi
 contrib/dev/acpica/components/namespace/nsrepair2.c	optional acpi
 contrib/dev/acpica/components/namespace/nssearch.c	optional acpi
@@ -391,7 +389,9 @@ contrib/dev/acpica/components/namespace/nsxfname.c	optional acpi
 contrib/dev/acpica/components/namespace/nsxfobj.c	optional acpi
 contrib/dev/acpica/components/parser/psargs.c		optional acpi
 contrib/dev/acpica/components/parser/psloop.c		optional acpi
+contrib/dev/acpica/components/parser/psobject.c		optional acpi
 contrib/dev/acpica/components/parser/psopcode.c		optional acpi
+contrib/dev/acpica/components/parser/psopinfo.c		optional acpi
 contrib/dev/acpica/components/parser/psparse.c		optional acpi
 contrib/dev/acpica/components/parser/psscope.c		optional acpi
 contrib/dev/acpica/components/parser/pstree.c		optional acpi
@@ -402,6 +402,7 @@ contrib/dev/acpica/components/resources/rsaddr.c	optional acpi
 contrib/dev/acpica/components/resources/rscalc.c	optional acpi
 contrib/dev/acpica/components/resources/rscreate.c	optional acpi
 contrib/dev/acpica/components/resources/rsdump.c	optional acpi
+contrib/dev/acpica/components/resources/rsdumpinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsinfo.c	optional acpi
 contrib/dev/acpica/components/resources/rsio.c		optional acpi
 contrib/dev/acpica/components/resources/rsirq.c		optional acpi
@@ -436,8 +437,10 @@ contrib/dev/acpica/components/utilities/utmisc.c	optional acpi
 contrib/dev/acpica/components/utilities/utmutex.c	optional acpi
 contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
+contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
+contrib/dev/acpica/components/utilities/utstring.c	optional acpi
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
 contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
@@ -468,12 +471,12 @@ contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
-contrib/libfdt/fdt.c			optional	fdt
-contrib/libfdt/fdt_ro.c			optional	fdt
-contrib/libfdt/fdt_rw.c			optional	fdt
-contrib/libfdt/fdt_strerror.c		optional	fdt
-contrib/libfdt/fdt_sw.c			optional	fdt
-contrib/libfdt/fdt_wip.c		optional	fdt
+contrib/libfdt/fdt.c		optional fdt
+contrib/libfdt/fdt_ro.c		optional fdt
+contrib/libfdt/fdt_rw.c		optional fdt
+contrib/libfdt/fdt_strerror.c	optional fdt
+contrib/libfdt/fdt_sw.c		optional fdt
+contrib/libfdt/fdt_wip.c	optional fdt
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
@@ -518,10 +521,10 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
-crypto/blowfish/bf_ecb.c	optional ipsec 
-crypto/blowfish/bf_skey.c	optional crypto | ipsec 
-crypto/camellia/camellia.c	optional crypto | ipsec 
-crypto/camellia/camellia-api.c	optional crypto | ipsec 
+crypto/blowfish/bf_ecb.c	optional ipsec
+crypto/blowfish/bf_skey.c	optional crypto | ipsec
+crypto/camellia/camellia.c	optional crypto | ipsec
+crypto/camellia/camellia-api.c	optional crypto | ipsec
 crypto/des/des_ecb.c		optional crypto | ipsec
 crypto/des/des_setkey.c		optional crypto | ipsec
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
@@ -533,26 +536,26 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
 crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
 					 sctp | zfs
-ddb/db_access.c			optional	ddb
-ddb/db_break.c			optional	ddb
-ddb/db_capture.c		optional	ddb
-ddb/db_command.c		optional	ddb
-ddb/db_examine.c		optional	ddb
-ddb/db_expr.c			optional	ddb
-ddb/db_input.c			optional	ddb
-ddb/db_lex.c			optional	ddb
-ddb/db_main.c			optional	ddb
-ddb/db_output.c			optional	ddb
-ddb/db_print.c			optional	ddb
-ddb/db_ps.c			optional	ddb
-ddb/db_run.c			optional	ddb
-ddb/db_script.c			optional	ddb
-ddb/db_sym.c			optional	ddb
-ddb/db_thread.c			optional	ddb
-ddb/db_textdump.c		optional	ddb
-ddb/db_variables.c		optional	ddb
-ddb/db_watch.c			optional	ddb
-ddb/db_write_cmd.c		optional	ddb
+ddb/db_access.c			optional ddb
+ddb/db_break.c			optional ddb
+ddb/db_capture.c		optional ddb
+ddb/db_command.c		optional ddb
+ddb/db_examine.c		optional ddb
+ddb/db_expr.c			optional ddb
+ddb/db_input.c			optional ddb
+ddb/db_lex.c			optional ddb
+ddb/db_main.c			optional ddb
+ddb/db_output.c			optional ddb
+ddb/db_print.c			optional ddb
+ddb/db_ps.c			optional ddb
+ddb/db_run.c			optional ddb
+ddb/db_script.c			optional ddb
+ddb/db_sym.c			optional ddb
+ddb/db_thread.c			optional ddb
+ddb/db_textdump.c		optional ddb
+ddb/db_variables.c		optional ddb
+ddb/db_watch.c			optional ddb
+ddb/db_write_cmd.c		optional ddb
 #dev/dpt/dpt_control.c		optional dpt
 dev/aac/aac.c			optional aac
 dev/aac/aac_cam.c		optional aacp aac
@@ -617,7 +620,7 @@ dev/advansys/adwmcode.c		optional adw
 dev/ae/if_ae.c			optional ae pci
 dev/age/if_age.c		optional age pci
 dev/agp/agp.c			optional agp pci
-dev/agp/agp_if.m			optional agp pci
+dev/agp/agp_if.m		optional agp pci
 dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
@@ -643,9 +646,12 @@ dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/altera/avgen/altera_avgen.c		optional altera_avgen
+dev/altera/avgen/altera_avgen_fdt.c	optional altera_avgen fdt
+dev/altera/avgen/altera_avgen_nexus.c	optional altera_avgen
 dev/altera/sdcard/altera_sdcard.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
+dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
@@ -707,9 +713,8 @@ dev/ath/if_ath_pci.c		optional ath_pci pci \
 dev/ath/if_ath_ahb.c		optional ath_ahb \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
-# XXX Work around clang warning, until maintainer approves fix.
 dev/ath/if_ath.c		optional ath \
-	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} -I$S/dev/ath"
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
@@ -731,6 +736,8 @@ dev/ath/if_ath_sysctl.c		optional ath \
 dev/ath/if_ath_rx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_rx_edma.c	optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_spectral.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -864,6 +871,10 @@ dev/ath/ath_hal/ar5416/ar5416_beacon.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
 	ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_btcoex.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
+	ath_ar9287 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5416/ar5416_cal.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
 	ath_ar9287 \
@@ -920,6 +931,10 @@ dev/ath/ath_hal/ar5416/ar5416_reset.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
 	ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar5416/ar5416_spectral.c \
+	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
+	ath_ar9287 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5416/ar5416_xmit.c \
 	optional ath_hal | ath_ar5416 | ath_ar9160 | ath_ar9280 | ath_ar9285 | \
 	ath_ar9287 \
@@ -939,30 +954,32 @@ dev/ath/ath_hal/ar9001/ar9160_attach.c optional ath_hal | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9280 (depends on ar5416)
 dev/ath/ath_hal/ar9002/ar9280_attach.c optional ath_hal | ath_ar9280 | \
-	ath_ar9285 \ 
+	ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar9002/ar9280_olc.c optional ath_hal | ath_ar9280 | \
-	ath_ar9285 \ 
+	ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9285 (depends on ar5416 and ar9280)
-dev/ath/ath_hal/ar9002/ar9285_attach.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_attach.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_reset.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_btcoex.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_cal.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_reset.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_phy.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_cal.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_diversity.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_phy.c optional ath_hal | ath_ar9285 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar9002/ar9285_diversity.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9287 (depends on ar5416)
-dev/ath/ath_hal/ar9002/ar9287_attach.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_attach.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9287_reset.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_reset.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9287_cal.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_cal.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9287_olc.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_olc.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 
 # rf backends
@@ -997,9 +1014,9 @@ dev/ath/ath_rate/onoe/onoe.c	optional ath_rate_onoe \
 dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 # ath DFS modules
-dev/ath/ath_dfs/null/dfs_null.c	optional	ath \
+dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
-# 
+#
 dev/bce/if_bce.c		optional bce
 dev/bfe/if_bfe.c		optional bfe
 dev/bge/if_bge.c		optional bge
@@ -1061,7 +1078,7 @@ dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci \
 dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_tn1010.c	optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"	
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
@@ -1163,15 +1180,14 @@ dev/drm/mach64_state.c		optional mach64drm
 dev/drm/mga_dma.c		optional mgadrm
 dev/drm/mga_drv.c		optional mgadrm
 dev/drm/mga_irq.c		optional mgadrm
-dev/drm/mga_state.c		optional mgadrm \
-	compile-with "${NORMAL_C} -finline-limit=13500"
+dev/drm/mga_state.c		optional mgadrm
 dev/drm/mga_warp.c		optional mgadrm
 dev/drm/r128_cce.c		optional r128drm \
 	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
 dev/drm/r128_drv.c		optional r128drm
 dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
-	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} -finline-limit=13500"
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE}"
 dev/drm/r300_cmdbuf.c		optional radeondrm
 dev/drm/r600_blit.c		optional radeondrm
 dev/drm/r600_cp.c		optional radeondrm \
@@ -1262,12 +1278,12 @@ dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
-dev/etherswitch/etherswitch.c	optional etherswitch
+dev/etherswitch/etherswitch.c		optional etherswitch
 dev/etherswitch/etherswitch_if.m	optional etherswitch
-dev/etherswitch/mdio_if.m	optional miiproxy
-dev/etherswitch/mdio.c		optional miiproxy
-dev/etherswitch/miiproxy.c	optional miiproxy
-dev/etherswitch/rtl8366/rtl8366rb.c		optional rtl8366rb
+dev/etherswitch/mdio_if.m		optional miiproxy
+dev/etherswitch/mdio.c			optional miiproxy
+dev/etherswitch/miiproxy.c		optional miiproxy
+dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
@@ -1410,6 +1426,7 @@ dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/isf/isf.c			optional isf
+dev/isf/isf_fdt.c		optional isf fdt
 dev/isf/isf_nexus.c		optional isf
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
@@ -1779,7 +1796,7 @@ dev/oce/oce_util.c		optional oce pci
 dev/ofw/ofw_bus_if.m		optional fdt
 dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
-dev/ofw/ofw_if.m		optional fdt   
+dev/ofw/ofw_if.m		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
 dev/patm/if_patm.c		optional patm pci
@@ -2183,7 +2200,7 @@ dev/usb/net/if_udav.c		optional udav
 dev/usb/net/if_usie.c		optional usie
 dev/usb/net/ruephy.c		optional rue
 dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
-					 rue | smsc | udav
+					 rue | smsc | udav | ipheth
 dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
@@ -2271,15 +2288,6 @@ dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
-#
-# virtio support
-#
-dev/virtio/pci/virtio_pci.c    optional vtnet
-dev/virtio/virtio.c            optional vtnet
-dev/virtio/virtqueue.c         optional vtnet
-dev/virtio/network/if_vtnet.c  optional vtnet
-dev/virtio/virtio_bus_if.m     optional vtnet
-dev/virtio/virtio_if.m         optional vtnet
 
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
@@ -2580,7 +2588,7 @@ kern/clock_if.m			standard
 kern/cpufreq_if.m		standard
 kern/device_if.m		standard
 kern/imgact_elf.c		standard
-kern/imgact_elf32.c		optional	compat_freebsd32
+kern/imgact_elf32.c		optional compat_freebsd32
 kern/imgact_shell.c		standard
 kern/inflate.c			optional gzip
 kern/init_main.c		standard
@@ -3163,9 +3171,9 @@ netnatm/natm_proto.c		optional natm
 netpfil/ipfw/dn_heap.c		optional inet dummynet
 netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
 netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
-netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet 
+netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet
 netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
-netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet 
+netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet
 netpfil/ipfw/ip_dummynet.c	optional inet dummynet
 netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
@@ -3221,7 +3229,7 @@ ofed/include/linux/linux_radix.c		optional ofed		\
 	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
 	no-depend							\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"	
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/agent.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
@@ -3512,15 +3520,15 @@ rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/replay.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/replay.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/svc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
-rpc/svc_auth.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
-rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/svc_auth.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/svc_dg.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/svc_generic.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/svc_vc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
@@ -3532,16 +3540,16 @@ rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
-security/audit/audit_bsm_domain.c	optional audit
-security/audit/audit_bsm_errno.c	optional audit
-security/audit/audit_bsm_fcntl.c	optional audit
 security/audit/audit_bsm_klib.c	optional audit
-security/audit/audit_bsm_socket_type.c	optional audit
-security/audit/audit_bsm_token.c	optional audit
 security/audit/audit_pipe.c	optional audit
 security/audit/audit_syscalls.c	standard
 security/audit/audit_trigger.c	optional audit
 security/audit/audit_worker.c	optional audit
+security/audit/bsm_domain.c	optional audit
+security/audit/bsm_errno.c	optional audit
+security/audit/bsm_fcntl.c	optional audit
+security/audit/bsm_socket_type.c	optional audit
+security/audit/bsm_token.c	optional audit
 security/mac/mac_atalk.c	optional mac netatalk
 security/mac/mac_audit.c	optional mac audit
 security/mac/mac_cred.c		optional mac
@@ -3563,9 +3571,9 @@ security/mac/mac_sysv_sem.c	optional mac
 security/mac/mac_sysv_shm.c	optional mac
 security/mac/mac_vfs.c		optional mac
 security/mac_biba/mac_biba.c	optional mac_biba
-security/mac_bsdextended/mac_bsdextended.c optional mac_bsdextended
-security/mac_bsdextended/ugidfw_system.c optional mac_bsdextended
-security/mac_bsdextended/ugidfw_vnode.c optional mac_bsdextended
+security/mac_bsdextended/mac_bsdextended.c	optional mac_bsdextended
+security/mac_bsdextended/ugidfw_system.c	optional mac_bsdextended
+security/mac_bsdextended/ugidfw_vnode.c		optional mac_bsdextended
 security/mac_ifoff/mac_ifoff.c	optional mac_ifoff
 security/mac_lomac/mac_lomac.c	optional mac_lomac
 security/mac_mls/mac_mls.c	optional mac_mls
@@ -3586,6 +3594,7 @@ ufs/ffs/ffs_tables.c		optional ffs
 ufs/ffs/ffs_vfsops.c		optional ffs
 ufs/ffs/ffs_vnops.c		optional ffs
 ufs/ffs/ffs_rawread.c		optional directio
+ufs/ffs/ffs_suspend.c		optional ffs
 ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs
 ufs/ufs/ufs_dirhash.c		optional ffs

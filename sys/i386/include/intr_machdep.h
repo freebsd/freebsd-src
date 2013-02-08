@@ -94,7 +94,7 @@ struct pic {
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
-	STAILQ_ENTRY(pic) pics;
+	TAILQ_ENTRY(pic) pics;
 };
 
 /* Flags for pic_disable_source() */

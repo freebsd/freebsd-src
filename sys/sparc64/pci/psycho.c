@@ -222,14 +222,14 @@ struct psycho_desc {
 	const char	*pd_name;
 };
 
-static const struct psycho_desc const psycho_compats[] = {
+static const struct psycho_desc psycho_compats[] = {
 	{ "pci108e,8000", PSYCHO_MODE_PSYCHO,	"Psycho compatible" },
 	{ "pci108e,a000", PSYCHO_MODE_SABRE,	"Sabre compatible" },
 	{ "pci108e,a001", PSYCHO_MODE_SABRE,	"Hummingbird compatible" },
 	{ NULL,		  0,			NULL }
 };
 
-static const struct psycho_desc const psycho_models[] = {
+static const struct psycho_desc psycho_models[] = {
 	{ "SUNW,psycho",  PSYCHO_MODE_PSYCHO,	"Psycho" },
 	{ "SUNW,sabre",   PSYCHO_MODE_SABRE,	"Sabre" },
 	{ NULL,		  0,			NULL }

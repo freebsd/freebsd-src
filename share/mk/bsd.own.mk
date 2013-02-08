@@ -181,6 +181,15 @@ NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
 
+#
+# install(1) parameters.
+#
+HRDLINK?=	-l h
+SYMLINK?=	-l s
+
+INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+
 # Common variables
 .if !defined(DEBUG_FLAGS)
 STRIP?=		-s
@@ -216,80 +225,6 @@ WITHOUT_${var}=
 .endfor
 
 #
-# Compat NO_* options (same as above, except their use is deprecated).
-#
-.if !defined(BURN_BRIDGES)
-.for var in \
-    ACPI \
-    ATM \
-    AUDIT \
-    AUTHPF \
-    BIND \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
-    BLUETOOTH \
-    BOOT \
-    CALENDAR \
-    CPP \
-    CRYPT \
-    CVS \
-    CXX \
-    DICT \
-    DYNAMICROOT \
-    EXAMPLES \
-    FORTH \
-    FP_LIBC \
-    GAMES \
-    GCOV \
-    GDB \
-    GNU \
-    GPIB \
-    GROFF \
-    HTML \
-    INET6 \
-    INFO \
-    IPFILTER \
-    IPX \
-    KDUMP \
-    KERBEROS \
-    LIB32 \
-    LIBPTHREAD \
-    LIBTHR \
-    LOCALES \
-    LPR \
-    MAILWRAPPER \
-    NETCAT \
-    NIS \
-    NLS \
-    NLS_CATALOGS \
-    NS_CACHING \
-    OPENSSH \
-    OPENSSL \
-    PAM \
-    PF \
-    RCMDS \
-    RCS \
-    RESCUE \
-    SENDMAIL \
-    SETUID_LOGIN \
-    SHAREDOCS \
-    SYSCONS \
-    TCSH \
-    TOOLCHAIN \
-    USB \
-    WPA_SUPPLICANT_EAPOL
-.if defined(NO_${var})
-#.warning NO_${var} is deprecated in favour of WITHOUT_${var}=
-WITHOUT_${var}=
-.endif
-.endfor
-.endif # !defined(BURN_BRIDGES)
-
-#
 # Older-style variables that enabled behaviour when set.
 #
 .if defined(YES_HESIOD)
@@ -322,9 +257,6 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BSD_CPIO \
     BSNMP \
-    SOURCELESS \
-    SOURCELESS_HOST \
-    SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
@@ -386,6 +318,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSH \
     OPENSSL \
     PAM \
+    PC_SYSINSTALL \
     PF \
     PKGBOOTSTRAP \
     PKGTOOLS \
@@ -401,10 +334,13 @@ __DEFAULT_YES_OPTIONS = \
     SENDMAIL \
     SETUID_LOGIN \
     SHAREDOCS \
+    SOURCELESS \
+    SOURCELESS_HOST \
+    SOURCELESS_UCODE \
     SSP \
-    SYSINSTALL \
     SYMVER \
     SYSCONS \
+    SYSINSTALL \
     TCSH \
     TELNET \
     TEXTPROC \
@@ -417,25 +353,31 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    ARM_EABI \
     AUTO_OBJ \
     BMAKE \
     BSD_GREP \
+    BSD_PATCH \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    BMAKE \
     BSDCONFIG \
+    BSD_GREP \
     CLANG_EXTRAS \
-    CLANG_IS_CC \
     CTF \
+    GPL_DTC \
     HESIOD \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
     META_MODE \
+    NMTREE \
     NAND \
     OFED \
+    OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN \
     STAGING \
     STAGING_PROG
@@ -453,11 +395,21 @@ __T=${TARGET_ARCH}
 .else
 __T=${MACHINE_ARCH}
 .endif
-# Clang is only for x86 and powerpc right now, by default.
+# Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
+.elif ${__T} == "arm" || ${__T} == "armv6"
 __DEFAULT_YES_OPTIONS+=CLANG
+# GCC is unable to build the full clang on arm, disable it by default.
+__DEFAULT_NO_OPTIONS+=CLANG_FULL
 .else
-__DEFAULT_NO_OPTIONS+=CLANG
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
+.endif
+# Clang the default system compiler only on x86.
+.if ${__T} == "amd64" || ${__T} == "i386"
+__DEFAULT_YES_OPTIONS+=CLANG_IS_CC
+.else
+__DEFAULT_NO_OPTIONS+=CLANG_IS_CC
 .endif
 # FDT is needed only for arm, mips and powerpc
 .if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
@@ -539,10 +491,6 @@ MK_ZFS:=	no
 MK_CTF:=	no
 .endif
 
-.if ${MK_CLANG} == "no"
-MK_CLANG_EXTRAS:= no
-.endif
-
 .if ${MK_CRYPT} == "no"
 MK_OPENSSL:=	no
 MK_OPENSSH:=	no
@@ -585,6 +533,8 @@ MK_GDB:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
+MK_CLANG_EXTRAS:= no
+MK_CLANG_FULL:= no
 MK_CLANG_IS_CC:= no
 .endif
 
@@ -680,18 +630,21 @@ MK_${var}:=	no
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300
+.elif defined(.PARSEDIR) || (defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300)
 CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
 
 .if ${MK_INSTALL_AS_USER} != "no"
-_uid!=	id -un
+_uid!=	id -u
 .if ${_uid} != 0
+.if !defined(USER)
+USER!=	id -un
+.endif
 _gid!=	id -gn
 .for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
-$xOWN=	${_uid}
+$xOWN=	${USER}
 $xGRP=	${_gid}
 .endfor
 .endif

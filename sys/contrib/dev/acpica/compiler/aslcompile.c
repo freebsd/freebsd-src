@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,15 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcompile")
+
+/*
+ * Main parser entry
+ * External is here in case the parser emits the same external in the
+ * generated header. (Newer versions of Bison)
+ */
+int
+AslCompilerparse(
+    void);
 
 /* Local prototypes */
 
@@ -274,7 +283,7 @@ FlConsumeAnsiComment (
     BOOLEAN                 ClosingComment = FALSE;
 
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         /* Scan until comment close is found */
 
@@ -317,7 +326,7 @@ FlConsumeNewComment (
     UINT8                   Byte;
 
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         Status->Offset++;
 
@@ -368,7 +377,7 @@ FlCheckForAscii (
 
     /* Read the entire file */
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         /* Ignore comment fields (allow non-ascii within) */
 
@@ -608,7 +617,7 @@ CmDoCompile (
     /* Namespace cross-reference */
 
     AslGbl_NamespaceEvent = UtBeginEvent ("Cross reference parse tree and Namespace");
-    Status = LkCrossReferenceNamespace ();
+    Status = XfCrossReferenceNamespace ();
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
@@ -630,8 +639,8 @@ CmDoCompile (
 
     DbgPrint (ASL_DEBUG_OUTPUT, "\nSemantic analysis - Method analysis\n\n");
     TrWalkParseTree (RootNode, ASL_WALK_VISIT_TWICE,
-        AnMethodAnalysisWalkBegin,
-        AnMethodAnalysisWalkEnd, &AnalysisWalkInfo);
+        MtMethodAnalysisWalkBegin,
+        MtMethodAnalysisWalkEnd, &AnalysisWalkInfo);
     UtEndEvent (Event);
 
     /* Semantic error checking part two - typing of method returns */
@@ -710,11 +719,11 @@ CmDoOutputFiles (
     /* Create listings and hex files */
 
     LsDoListings ();
-    LsDoHexOutput ();
+    HxDoHexOutput ();
 
     /* Dump the namespace to the .nsp file if requested */
 
-    (void) LsDisplayNamespace ();
+    (void) NsDisplayNamespace ();
 }
 
 
@@ -757,12 +766,12 @@ CmDumpAllEvents (
 
             Delta = (UINT32) (Event->EndTime - Event->StartTime);
 
-            USec = Delta / 10;
-            MSec = Delta / 10000;
+            USec = Delta / ACPI_100NSEC_PER_USEC;
+            MSec = Delta / ACPI_100NSEC_PER_MSEC;
 
             /* Round milliseconds up */
 
-            if ((USec - (MSec * 1000)) >= 500)
+            if ((USec - (MSec * ACPI_USEC_PER_MSEC)) >= 500)
             {
                 MSec++;
             }

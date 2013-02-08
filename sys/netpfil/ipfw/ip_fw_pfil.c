@@ -346,7 +346,7 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 		 * Restore Ethernet header, as needed, in case the
 		 * mbuf chain was replaced by ipfw.
 		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
 		if (m == NULL) {
 			*m0 = NULL;
 			return (0);
@@ -411,7 +411,7 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		clone = *m0;	/* use the original mbuf */
 		*m0 = NULL;
 	} else {
-		clone = m_dup(*m0, M_DONTWAIT);
+		clone = m_dup(*m0, M_NOWAIT);
 		/* If we cannot duplicate the mbuf, we sacrifice the divert
 		 * chain and continue with the tee-ed packet.
 		 */

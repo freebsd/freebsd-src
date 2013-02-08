@@ -1746,14 +1746,14 @@ ng_btsocket_sco_send2(ng_btsocket_sco_pcb_p pcb)
 	while (pcb->rt->pending < pcb->rt->num_pkts &&
 	       pcb->so->so_snd.sb_cc > 0) {
 		/* Get a copy of the first packet on send queue */
-		m = m_dup(pcb->so->so_snd.sb_mb, M_DONTWAIT);
+		m = m_dup(pcb->so->so_snd.sb_mb, M_NOWAIT);
 		if (m == NULL) {
 			error = ENOBUFS;
 			break;
 		}
 
 		/* Create SCO packet header */
-		M_PREPEND(m, sizeof(*hdr), M_DONTWAIT);
+		M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 		if (m != NULL)
 			if (m->m_len < sizeof(*hdr))
 				m = m_pullup(m, sizeof(*hdr));

@@ -88,9 +88,8 @@ static u_char ext2_ft_to_dt[] = {
 	DT_SOCK,		/* EXT2_FT_SOCK */
 	DT_LNK,			/* EXT2_FT_SYMLINK */
 };
-#define	FTTODT(ft)						\
-    ((ft) > sizeof(ext2_ft_to_dt) / sizeof(ext2_ft_to_dt[0]) ?	\
-    DT_UNKNOWN : ext2_ft_to_dt[(ft)])
+#define	FTTODT(ft) \
+    ((ft) < nitems(ext2_ft_to_dt) ? ext2_ft_to_dt[(ft)] : DT_UNKNOWN)
 
 static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* DT_UNKNOWN */
@@ -109,9 +108,8 @@ static u_char dt_to_ext2_ft[] = {
 	EXT2_FT_UNKNOWN,	/* unused */
 	EXT2_FT_UNKNOWN,	/* DT_WHT */
 };
-#define	DTTOFT(dt)						\
-    ((dt) > sizeof(dt_to_ext2_ft) / sizeof(dt_to_ext2_ft[0]) ?	\
-    EXT2_FT_UNKNOWN : dt_to_ext2_ft[(dt)])
+#define	DTTOFT(dt) \
+    ((dt) < nitems(dt_to_ext2_ft) ? dt_to_ext2_ft[(dt)] : EXT2_FT_UNKNOWN)
 
 static int	ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 		    int entryoffsetinblock);
@@ -812,7 +810,7 @@ ext2_direnter(ip, dvp, cnp)
 
 #ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & SAVENAME) == 0)
-		panic("direnter: missing name");
+		panic("ext2_direnter: missing name");
 #endif
 	dp = VTOI(dvp);
 	newdir.e2d_ino = ip->i_number;
@@ -1088,7 +1086,7 @@ ext2_checkpath(source, target, cred)
 	struct ucred *cred;
 {
 	struct vnode *vp;
-	int error, rootino, namlen;
+	int error, namlen;
 	struct dirtemplate dirbuf;
 
 	vp = ITOV(target);
@@ -1096,10 +1094,10 @@ ext2_checkpath(source, target, cred)
 		error = EEXIST;
 		goto out;
 	}
-	rootino = EXT2_ROOTINO;
-	error = 0;
-	if (target->i_number == rootino)
+	if (target->i_number == EXT2_ROOTINO) {
+		error = 0;
 		goto out;
+	}
 
 	for (;;) {
 		if (vp->v_type != VDIR) {
@@ -1123,7 +1121,7 @@ ext2_checkpath(source, target, cred)
 			error = EINVAL;
 			break;
 		}
-		if (dirbuf.dotdot_ino == rootino)
+		if (dirbuf.dotdot_ino == EXT2_ROOTINO)
 			break;
 		vput(vp);
 		if ((error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino,

@@ -118,9 +118,9 @@ ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
 	uint32_t mask;
 	int rix, y;
 
-	PRINTMSG("static_rix (%d) ratemask 0x%x\n",
+	PRINTMSG("static_rix (%d) ratemask 0x%llx\n",
 	    sn->static_rix,
-	    sn->ratemask);
+	    (long long) sn->ratemask);
 
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		PRINTATTR_ON(COLOR_PAIR(y+4) | A_BOLD);
@@ -203,7 +203,7 @@ ath_setifname(struct ath_ratestats *r, const char *ifname)
 }
 
 static void
-ath_setsta(struct ath_ratestats *r, const char *mac)
+ath_setsta(struct ath_ratestats *r, uint8_t *mac)
 {
 
 	memcpy(&r->re.is_u.macaddr, mac, sizeof(r->re.is_u.macaddr));
@@ -224,7 +224,7 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 	struct sample_node *sn = NULL;
 	struct ath_rateioctl_rt *rt = NULL;
 	int error = 0;
-	uint8_t *buf = r->re.buf;
+	uint8_t *buf = (uint8_t *) r->re.buf;
 
 	/*
 	 * For now, hard-code the TLV order and contents.  Ew!
@@ -241,7 +241,7 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 		fprintf(stderr, "unexpected TLV len (got %d bytes, "
 		    "expected %d bytes\n",
 		    av->tlv_len,
-		    sizeof(struct ath_rateioctl_rt));
+		    (int) sizeof(struct ath_rateioctl_rt));
 		exit(127);
 	}
 	rt = (void *) (buf + sizeof(struct ath_rateioctl_tlv));
@@ -260,7 +260,7 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 		fprintf(stderr, "unexpected TLV len (got %d bytes, "
 		    "expected %d bytes\n",
 		    av->tlv_len,
-		    sizeof(struct sample_node));
+		    (int) sizeof(struct sample_node));
 		exit(127);
 	}
 	sn = (void *) (buf + sizeof(struct ath_rateioctl_tlv) +
@@ -268,6 +268,8 @@ rate_node_stats(struct ath_ratestats *r, struct ether_addr *e)
 	    sizeof(struct ath_rateioctl_tlv));
 
 	ath_sample_stats(r, rt, sn);
+
+	return (0);
 }
 
 static void
@@ -353,7 +355,7 @@ main(int argc, char *argv[])
 	if (buf == NULL)
 		err(1, "calloc");
 
-	r.re.buf = buf;
+	r.re.buf = (char *) buf;
 	r.re.len = STATS_BUF_SIZE;
 
 	r.s = socket(AF_INET, SOCK_DGRAM, 0);

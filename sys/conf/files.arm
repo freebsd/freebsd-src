@@ -6,7 +6,7 @@ arm/arm/blockio.S		standard
 arm/arm/bootconfig.c		standard
 arm/arm/bus_space_asm_generic.S	standard
 arm/arm/busdma_machdep.c 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/busdma_machdep-v6.c 	optional	cpu_arm11 | cpu_cortexa | cpu_mv_pj4b
+arm/arm/busdma_machdep-v6.c 	optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
@@ -32,9 +32,10 @@ arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
 arm/arm/nexus.c			standard
+arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/pmap-v6.c		optional	cpu_arm11 | cpu_cortexa | cpu_mv_pj4b
+arm/arm/pmap-v6.c		optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
@@ -69,9 +70,12 @@ font.h				optional	sc			\
 	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
+kern/subr_busdma_bufalloc.c	standard
 kern/subr_dummy_vdso_tc.c	standard
 libkern/arm/divsi3.S		standard
 libkern/arm/ffs.S		standard
+libkern/arm/ldivmod.S		standard
+libkern/arm/ldivmod_helper.c	standard
 libkern/arm/muldi3.c		standard
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard

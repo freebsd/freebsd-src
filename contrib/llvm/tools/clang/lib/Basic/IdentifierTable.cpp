@@ -17,7 +17,6 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cctype>
@@ -33,6 +32,7 @@ IdentifierInfo::IdentifierInfo() {
   TokenID = tok::identifier;
   ObjCOrBuiltinID = 0;
   HasMacro = false;
+  HadMacro = false;
   IsExtension = false;
   IsCXX11CompatKeyword = false;
   IsPoisoned = false;
@@ -105,6 +105,7 @@ namespace {
     KEYC11 = 0x400,
     KEYARC = 0x800,
     KEYNOMS = 0x01000,
+    WCHARSUPPORT = 0x02000,
     KEYALL = (0xffff & ~KEYNOMS) // Because KEYNOMS is used to exclude.
   };
 }
@@ -129,6 +130,7 @@ static void AddKeyword(StringRef Keyword,
   else if (LangOpts.MicrosoftExt && (Flags & KEYMS)) AddResult = 1;
   else if (LangOpts.Borland && (Flags & KEYBORLAND)) AddResult = 1;
   else if (LangOpts.Bool && (Flags & BOOLSUPPORT)) AddResult = 2;
+  else if (LangOpts.WChar && (Flags & WCHARSUPPORT)) AddResult = 2;
   else if (LangOpts.AltiVec && (Flags & KEYALTIVEC)) AddResult = 2;
   else if (LangOpts.OpenCL && (Flags & KEYOPENCL)) AddResult = 2;
   else if (!LangOpts.CPlusPlus && (Flags & KEYNOCXX)) AddResult = 2;

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -201,7 +201,7 @@ AcpiDmGpioCommon (
     AcpiOsPrintf (", ");
     AcpiOsPrintf ("0x%2.2X, ", Resource->Gpio.ResSourceIndex);
     AcpiOsPrintf ("%s, ",
-        AcpiGbl_ConsumeDecode [(Resource->Gpio.Flags & 1)]);
+        AcpiGbl_ConsumeDecode [ACPI_GET_1BIT_FLAG (Resource->Gpio.Flags)]);
 
     /* Insert a descriptor name */
 
@@ -273,9 +273,9 @@ AcpiDmGpioIntDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("GpioInt (%s, %s, %s, ",
-        AcpiGbl_HeDecode [(Resource->Gpio.IntFlags & 1)],
-        AcpiGbl_LlDecode [(Resource->Gpio.IntFlags >> 1) & 1],
-        AcpiGbl_ShrDecode [(Resource->Gpio.IntFlags >> 3) & 1]);
+        AcpiGbl_HeDecode [ACPI_GET_1BIT_FLAG (Resource->Gpio.IntFlags)],
+        AcpiGbl_LlDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->Gpio.IntFlags, 1)],
+        AcpiGbl_ShrDecode [ACPI_EXTRACT_2BIT_FLAG (Resource->Gpio.IntFlags, 3)]);
 
     /* PinConfig, DebounceTimeout */
 
@@ -306,7 +306,7 @@ AcpiDmGpioIntDescriptor (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Decode a GPIO Interrupt descriptor
+ * DESCRIPTION: Decode a GPIO I/O descriptor
  *
  ******************************************************************************/
 
@@ -323,7 +323,7 @@ AcpiDmGpioIoDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("GpioIo (%s, ",
-        AcpiGbl_ShrDecode [(Resource->Gpio.IntFlags >> 3) & 1]);
+        AcpiGbl_ShrDecode [ACPI_EXTRACT_2BIT_FLAG (Resource->Gpio.IntFlags, 3)]);
 
     if (Resource->Gpio.PinConfig <= 3)
     {
@@ -340,7 +340,7 @@ AcpiDmGpioIoDescriptor (
     AcpiOsPrintf ("0x%4.4X, ", Resource->Gpio.DebounceTimeout);
     AcpiOsPrintf ("0x%4.4X, ", Resource->Gpio.DriveStrength);
     AcpiOsPrintf ("%s,\n",
-        AcpiGbl_IorDecode [Resource->Gpio.IntFlags & 3]);
+        AcpiGbl_IorDecode [ACPI_GET_2BIT_FLAG (Resource->Gpio.IntFlags)]);
 
     /* Dump the GpioInt/GpioIo common portion of the descriptor */
 
@@ -480,12 +480,12 @@ AcpiDmI2cSerialBusDescriptor (
     AcpiDmIndent (Level);
     AcpiOsPrintf ("I2cSerialBus (0x%4.4X, %s, 0x%8.8X,\n",
         Resource->I2cSerialBus.SlaveAddress,
-        AcpiGbl_SmDecode [(Resource->I2cSerialBus.Flags & 1)],
+        AcpiGbl_SmDecode [ACPI_GET_1BIT_FLAG (Resource->I2cSerialBus.Flags)],
         Resource->I2cSerialBus.ConnectionSpeed);
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("%s, ",
-        AcpiGbl_AmDecode [(Resource->I2cSerialBus.TypeSpecificFlags & 1)]);
+        AcpiGbl_AmDecode [ACPI_GET_1BIT_FLAG (Resource->I2cSerialBus.TypeSpecificFlags)]);
 
     /* ResourceSource is a required field */
 
@@ -503,7 +503,7 @@ AcpiDmI2cSerialBusDescriptor (
     AcpiOsPrintf ("0x%2.2X, ", Resource->I2cSerialBus.ResSourceIndex);
 
     AcpiOsPrintf ("%s, ",
-        AcpiGbl_ConsumeDecode [(Resource->I2cSerialBus.Flags >> 1) & 1]);
+        AcpiGbl_ConsumeDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->I2cSerialBus.Flags, 1)]);
 
     /* Insert a descriptor name */
 
@@ -546,21 +546,21 @@ AcpiDmSpiSerialBusDescriptor (
     AcpiDmIndent (Level);
     AcpiOsPrintf ("SpiSerialBus (0x%4.4X, %s, %s, 0x%2.2X,\n",
         Resource->SpiSerialBus.DeviceSelection,
-        AcpiGbl_DpDecode [(Resource->SpiSerialBus.TypeSpecificFlags >> 1) & 1],
-        AcpiGbl_WmDecode [(Resource->SpiSerialBus.TypeSpecificFlags & 1)],
+        AcpiGbl_DpDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->SpiSerialBus.TypeSpecificFlags, 1)],
+        AcpiGbl_WmDecode [ACPI_GET_1BIT_FLAG (Resource->SpiSerialBus.TypeSpecificFlags)],
         Resource->SpiSerialBus.DataBitLength);
 
     /* SlaveMode, ConnectionSpeed, ClockPolarity, ClockPhase */
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("%s, 0x%8.8X, %s,\n",
-        AcpiGbl_SmDecode [(Resource->SpiSerialBus.Flags & 1)],
+        AcpiGbl_SmDecode [ACPI_GET_1BIT_FLAG (Resource->SpiSerialBus.Flags)],
         Resource->SpiSerialBus.ConnectionSpeed,
-        AcpiGbl_CpoDecode [(Resource->SpiSerialBus.ClockPolarity & 1)]);
+        AcpiGbl_CpoDecode [ACPI_GET_1BIT_FLAG (Resource->SpiSerialBus.ClockPolarity)]);
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("%s, ",
-        AcpiGbl_CphDecode [(Resource->SpiSerialBus.ClockPhase & 1)]);
+        AcpiGbl_CphDecode [ACPI_GET_1BIT_FLAG (Resource->SpiSerialBus.ClockPhase)]);
 
     /* ResourceSource is a required field */
 
@@ -578,7 +578,7 @@ AcpiDmSpiSerialBusDescriptor (
     AcpiOsPrintf ("0x%2.2X, ", Resource->SpiSerialBus.ResSourceIndex);
 
     AcpiOsPrintf ("%s, ",
-        AcpiGbl_ConsumeDecode [(Resource->SpiSerialBus.Flags >> 1) & 1]);
+        AcpiGbl_ConsumeDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->SpiSerialBus.Flags, 1)]);
 
     /* Insert a descriptor name */
 
@@ -621,17 +621,17 @@ AcpiDmUartSerialBusDescriptor (
     AcpiDmIndent (Level);
     AcpiOsPrintf ("UartSerialBus (0x%8.8X, %s, %s,\n",
         Resource->UartSerialBus.DefaultBaudRate,
-        AcpiGbl_BpbDecode [(Resource->UartSerialBus.TypeSpecificFlags >> 4) & 3],
-        AcpiGbl_SbDecode [(Resource->UartSerialBus.TypeSpecificFlags >> 2) & 3]);
+        AcpiGbl_BpbDecode [ACPI_EXTRACT_3BIT_FLAG (Resource->UartSerialBus.TypeSpecificFlags, 4)],
+        AcpiGbl_SbDecode [ACPI_EXTRACT_2BIT_FLAG (Resource->UartSerialBus.TypeSpecificFlags, 2)]);
 
     /* LinesInUse, IsBigEndian, Parity, FlowControl */
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%2.2X, %s, %s, %s,\n",
         Resource->UartSerialBus.LinesEnabled,
-        AcpiGbl_EdDecode [(Resource->UartSerialBus.TypeSpecificFlags >> 7) & 1],
-        AcpiGbl_PtDecode [Resource->UartSerialBus.Parity & 7],
-        AcpiGbl_FcDecode [Resource->UartSerialBus.TypeSpecificFlags & 3]);
+        AcpiGbl_EdDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->UartSerialBus.TypeSpecificFlags, 7)],
+        AcpiGbl_PtDecode [ACPI_GET_3BIT_FLAG (Resource->UartSerialBus.Parity)],
+        AcpiGbl_FcDecode [ACPI_GET_2BIT_FLAG (Resource->UartSerialBus.TypeSpecificFlags)]);
 
     /* ReceiveBufferSize, TransmitBufferSize */
 
@@ -656,7 +656,7 @@ AcpiDmUartSerialBusDescriptor (
     AcpiOsPrintf ("0x%2.2X, ", Resource->UartSerialBus.ResSourceIndex);
 
     AcpiOsPrintf ("%s, ",
-        AcpiGbl_ConsumeDecode [(Resource->UartSerialBus.Flags >> 1) & 1]);
+        AcpiGbl_ConsumeDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->UartSerialBus.Flags, 1)]);
 
     /* Insert a descriptor name */
 

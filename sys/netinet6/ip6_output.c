@@ -257,7 +257,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int segleft_org = 0;
 	struct secpolicy *sp = NULL;
 #endif /* IPSEC */
-	struct m_tag *fwd_tag;
+	struct m_tag *fwd_tag = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -636,26 +636,23 @@ again:
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	bzero(&dst_sa, sizeof(dst_sa));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(dst_sa);
-	dst_sa.sin6_addr = ip6->ip6_dst;
-	if (ro->ro_rt) {
+	if (ro->ro_rt && fwd_tag == NULL) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
-	} else if ((error = in6_selectroute_fib(&dst_sa, opt, im6o, ro,
-	    &ifp, &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0) {
-		switch (error) {
-		case EHOSTUNREACH:
-			V_ip6stat.ip6s_noroute++;
-			break;
-		case EADDRNOTAVAIL:
-		default:
-			break; /* XXX statistics? */
+	} else {
+		if (fwd_tag == NULL) {
+			bzero(&dst_sa, sizeof(dst_sa));
+			dst_sa.sin6_family = AF_INET6;
+			dst_sa.sin6_len = sizeof(dst_sa);
+			dst_sa.sin6_addr = ip6->ip6_dst;
 		}
-		if (ifp != NULL)
-			in6_ifstat_inc(ifp, ifs6_out_discard);
-		goto bad;
+		error = in6_selectroute_fib(&dst_sa, opt, im6o, ro, &ifp,
+		    &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+		if (error != 0) {
+			if (ifp != NULL)
+				in6_ifstat_inc(ifp, ifs6_out_discard);
+			goto bad;
+		}
 	}
 	if (rt == NULL) {
 		/*
@@ -933,7 +930,7 @@ again:
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		dst = (struct sockaddr_in6 *)&ro->ro_dst;
-		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in6));
+		bcopy((fwd_tag+1), &dst_sa, sizeof(struct sockaddr_in6));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
@@ -1125,7 +1122,7 @@ passout:
 		 */
 		m0 = m;
 		for (off = hlen; off < tlen; off += len) {
-			MGETHDR(m, M_DONTWAIT, MT_HEADER);
+			MGETHDR(m, M_NOWAIT, MT_HEADER);
 			if (!m) {
 				error = ENOBUFS;
 				V_ip6stat.ip6s_odropped++;
@@ -1225,12 +1222,12 @@ ip6_copyexthdr(struct mbuf **mp, caddr_t hdr, int hlen)
 	if (hlen > MCLBYTES)
 		return (ENOBUFS); /* XXX */
 
-	MGET(m, M_DONTWAIT, MT_DATA);
+	MGET(m, M_NOWAIT, MT_DATA);
 	if (!m)
 		return (ENOBUFS);
 
 	if (hlen > MLEN) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return (ENOBUFS);
@@ -1263,7 +1260,7 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 	 * Otherwise, use it to store the options.
 	 */
 	if (exthdrs->ip6e_hbh == 0) {
-		MGET(mopt, M_DONTWAIT, MT_DATA);
+		MGET(mopt, M_NOWAIT, MT_DATA);
 		if (mopt == 0)
 			return (ENOBUFS);
 		mopt->m_len = JUMBOOPTLEN;
@@ -1295,9 +1292,9 @@ ip6_insert_jumboopt(struct ip6_exthdrs *exthdrs, u_int32_t plen)
 			 * As a consequence, we must always prepare a cluster
 			 * at this point.
 			 */
-			MGET(n, M_DONTWAIT, MT_DATA);
+			MGET(n, M_NOWAIT, MT_DATA);
 			if (n) {
-				MCLGET(n, M_DONTWAIT);
+				MCLGET(n, M_NOWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
 					m_freem(n);
 					n = NULL;
@@ -1350,7 +1347,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 
 	if (hlen > sizeof(struct ip6_hdr)) {
 		n = m_copym(m0, sizeof(struct ip6_hdr),
-		    hlen - sizeof(struct ip6_hdr), M_DONTWAIT);
+		    hlen - sizeof(struct ip6_hdr), M_NOWAIT);
 		if (n == 0)
 			return (ENOBUFS);
 		m->m_next = n;
@@ -1372,7 +1369,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 		/* allocate a new mbuf for the fragment header */
 		struct mbuf *mfrg;
 
-		MGET(mfrg, M_DONTWAIT, MT_DATA);
+		MGET(mfrg, M_NOWAIT, MT_DATA);
 		if (mfrg == 0)
 			return (ENOBUFS);
 		mfrg->m_len = sizeof(struct ip6_frag);
@@ -3048,7 +3045,7 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (m->m_len > sizeof(*ip6)) {
-		MGETHDR(mh, M_DONTWAIT, MT_HEADER);
+		MGETHDR(mh, M_NOWAIT, MT_HEADER);
 		if (mh == 0) {
 			m_freem(m);
 			return ENOBUFS;

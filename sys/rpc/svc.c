@@ -563,8 +563,8 @@ svc_sendreply(struct svc_req *rqstp, xdrproc_t xdr_results, void * xdr_location)
 	rply.acpted_rply.ar_results.where = NULL;
 	rply.acpted_rply.ar_results.proc = (xdrproc_t) xdr_void;
 
-	MGET(m, M_WAIT, MT_DATA);
-	MCLGET(m, M_WAIT);
+	MGET(m, M_WAITOK, MT_DATA);
+	MCLGET(m, M_WAITOK);
 	m->m_len = 0;
 	xdrmbuf_create(&xdrs, m, XDR_ENCODE);
 	ok = xdr_results(&xdrs, xdr_location);

@@ -35,18 +35,9 @@ __FBSDID("$FreeBSD$");
 
 #ifndef _NETINET_SCTP_PEELOFF_H_
 #define _NETINET_SCTP_PEELOFF_H_
-
-
-
-
 #if defined(_KERNEL)
-
 int sctp_can_peel_off(struct socket *, sctp_assoc_t);
 int sctp_do_peeloff(struct socket *, struct socket *, sctp_assoc_t);
-struct socket *sctp_get_peeloff(struct socket *, sctp_assoc_t, int *);
-
-
 
 #endif				/* _KERNEL */
-
-#endif
+#endif				/* _NETINET_SCTP_PEELOFF_H_ */

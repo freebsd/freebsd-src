@@ -53,9 +53,12 @@ struct smbnode {
 	struct timespec		n_atime;	/* last access time */
 	u_quad_t		n_size;
 	long			n_ino;
+	long			n_parentino;	/* parent inode number */
 	int			n_dosattr;
 	u_int16_t		n_fid;		/* file handle */
 	int			n_rwstate;	/* granted access mode */
+	int			n_rplen;
+	char *			n_rpath;
 	u_char			n_nmlen;
 	u_char *		n_name;
 	struct smbfs_fctx *	n_dirseq;	/* ff context */
@@ -71,6 +74,8 @@ struct smbcmp {
 
 #define VTOSMB(vp)	((struct smbnode *)(vp)->v_data)
 #define SMBTOV(np)	((struct vnode *)(np)->n_vnode)
+
+#define	SMBFS_DNP_SEP(dnp)	((dnp->n_rplen > 1) ? '\\' : '\0')
 
 struct vop_getpages_args;
 struct vop_inactive_args;

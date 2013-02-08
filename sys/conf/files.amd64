@@ -190,8 +190,7 @@ dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/hpt27xx/os_bsd.c		optional	hpt27xx
-dev/hpt27xx/osm_bsd.c		optional	hpt27xx \
-	compile-with "${NORMAL_C} ${NO_WFORMAT_SECURITY}"
+dev/hpt27xx/osm_bsd.c		optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
 dev/hptmv/entry.c		optional	hptmv
 dev/hptmv/mv.c			optional	hptmv
@@ -390,6 +389,15 @@ dev/isci/scil/scif_sas_task_request.c				optional isci
 dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
+dev/virtio/virtio.c			optional	virtio
+dev/virtio/virtqueue.c			optional	virtio
+dev/virtio/virtio_bus_if.m		optional	virtio
+dev/virtio/virtio_if.m			optional	virtio
+dev/virtio/pci/virtio_pci.c		optional	virtio_pci virtio pci
+dev/virtio/network/if_vtnet.c		optional	vtnet virtio
+dev/virtio/block/virtio_blk.c		optional	virtio_blk virtio
+dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon virtio
+dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi virtio scbus
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
@@ -454,6 +462,11 @@ libkern/memset.c		standard
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+#
+# bvm console
+#
+dev/bvm/bvm_console.c		optional	bvmconsole
+dev/bvm/bvm_dbg.c		optional	bvmdebug
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #

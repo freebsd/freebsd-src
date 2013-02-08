@@ -103,6 +103,7 @@ uint32_t	nfscl_accesscache_load_done_id;
 
 extern struct nfsstats newnfsstats;
 extern int nfsrv_useacl;
+extern int nfscl_debuglevel;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
 /*
@@ -606,6 +607,10 @@ nfs_open(struct vop_open_args *ap)
 		np->n_directio_opens++;
 	}
 
+	/* If opened for writing via NFSv4.1 or later, mark that for pNFS. */
+	if (NFSHASPNFS(VFSTONFS(vp->v_mount)) && (fmode & FWRITE) != 0)
+		np->n_flag |= NWRITEOPENED;
+
 	/*
 	 * If this is an open for writing, capture a reference to the
 	 * credentials, so they can be used by ncl_putpages(). Using
@@ -619,6 +624,7 @@ nfs_open(struct vop_open_args *ap)
 	} else
 		cred = NULL;
 	mtx_unlock(&np->n_mtx);
+
 	if (cred != NULL)
 		crfree(cred);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
@@ -1362,9 +1368,18 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 {
 	int error, ret, attrflag;
 	struct nfsvattr nfsva;
+	struct nfsmount *nmp;
 
-	error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva, &attrflag,
-	    NULL);
+	nmp = VFSTONFS(vnode_mount(vp));
+	error = EIO;
+	attrflag = 0;
+	if (NFSHASPNFS(nmp))
+		error = nfscl_doiods(vp, uiop, NULL, NULL,
+		    NFSV4OPEN_ACCESSREAD, cred, uiop->uio_td);
+	NFSCL_DEBUG(4, "readrpc: aft doiods=%d\n", error);
+	if (error != 0)
+		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
+		    &attrflag, NULL);
 	if (attrflag) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0, 1);
 		if (ret && !error)
@@ -1383,10 +1398,20 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
     int *iomode, int *must_commit, int called_from_strategy)
 {
 	struct nfsvattr nfsva;
-	int error = 0, attrflag, ret;
+	int error, attrflag, ret;
+	struct nfsmount *nmp;
 
-	error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
-	    uiop->uio_td, &nfsva, &attrflag, NULL, called_from_strategy);
+	nmp = VFSTONFS(vnode_mount(vp));
+	error = EIO;
+	attrflag = 0;
+	if (NFSHASPNFS(nmp))
+		error = nfscl_doiods(vp, uiop, iomode, must_commit,
+		    NFSV4OPEN_ACCESSWRITE, cred, uiop->uio_td);
+	NFSCL_DEBUG(4, "writerpc: aft doiods=%d\n", error);
+	if (error != 0)
+		error = nfsrpc_write(vp, uiop, iomode, must_commit, cred,
+		    uiop->uio_td, &nfsva, &attrflag, NULL,
+		    called_from_strategy);
 	if (attrflag) {
 		if (VTONFS(vp)->n_flag & ND_NFSV4)
 			ret = nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 1,
@@ -2534,7 +2559,6 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 	struct nfsvattr nfsva;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error, attrflag;
-	u_char verf[NFSX_VERF];
 
 	mtx_lock(&nmp->nm_mtx);
 	if ((nmp->nm_state & NFSSTA_HASWRITEVERF) == 0) {
@@ -2542,21 +2566,13 @@ ncl_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 		return (0);
 	}
 	mtx_unlock(&nmp->nm_mtx);
-	error = nfsrpc_commit(vp, offset, cnt, cred, td, verf, &nfsva,
+	error = nfsrpc_commit(vp, offset, cnt, cred, td, &nfsva,
 	    &attrflag, NULL);
-	if (!error) {
-		mtx_lock(&nmp->nm_mtx);
-		if (NFSBCMP((caddr_t)nmp->nm_verf, verf, NFSX_VERF)) {
-			NFSBCOPY(verf, (caddr_t)nmp->nm_verf, NFSX_VERF);
-			error = NFSERR_STALEWRITEVERF;
-		}
-		mtx_unlock(&nmp->nm_mtx);
-		if (!error && attrflag)
-			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL,
-			    0, 1);
-	} else if (NFS_ISV4(vp)) {
+	if (attrflag != 0)
+		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL,
+		    0, 1);
+	if (error != 0 && NFS_ISV4(vp))
 		error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
-	}
 	return (error);
 }
 
@@ -2928,6 +2944,8 @@ loop:
 		mtx_unlock(&np->n_mtx);
 	} else
 		BO_UNLOCK(bo);
+	if (NFSHASPNFS(nmp))
+		nfscl_layoutcommit(vp, td);
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NWRITEERR) {
 		error = np->n_error;
@@ -3229,7 +3247,7 @@ nfsfifo_read(struct vop_read_args *ap)
 	 */
 	mtx_lock(&np->n_mtx);
 	np->n_flag |= NACC;
-	getnanotime(&np->n_atim);
+	vfs_timestamp(&np->n_atim);
 	mtx_unlock(&np->n_mtx);
 	error = fifo_specops.vop_read(ap);
 	return error;	
@@ -3248,7 +3266,7 @@ nfsfifo_write(struct vop_write_args *ap)
 	 */
 	mtx_lock(&np->n_mtx);
 	np->n_flag |= NUPD;
-	getnanotime(&np->n_mtim);
+	vfs_timestamp(&np->n_mtim);
 	mtx_unlock(&np->n_mtx);
 	return(fifo_specops.vop_write(ap));
 }
@@ -3268,7 +3286,7 @@ nfsfifo_close(struct vop_close_args *ap)
 
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & (NACC | NUPD)) {
-		getnanotime(&ts);
+		vfs_timestamp(&ts);
 		if (np->n_flag & NACC)
 			np->n_atim = ts;
 		if (np->n_flag & NUPD)

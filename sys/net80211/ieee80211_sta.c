@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_superg.h>
 #endif
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_sta.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -1086,7 +1087,7 @@ bad:
 		    IEEE80211_SCAN_FAIL_STATUS);
 }
 
-static int
+int
 ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 	const struct ieee80211_frame *wh)
 {

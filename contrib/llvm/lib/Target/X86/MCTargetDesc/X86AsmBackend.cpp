@@ -279,9 +279,9 @@ void X86AsmBackend::relaxInstruction(const MCInst &Inst, MCInst &Res) const {
   Res.setOpcode(RelaxedOp);
 }
 
-/// writeNopData - Write optimal nops to the output file for the \arg Count
+/// writeNopData - Write optimal nops to the output file for the \p Count
 /// bytes.  This returns the number of bytes written.  It may return 0 if
-/// the \arg Count is more than the maximum optimal nops.
+/// the \p Count is more than the maximum optimal nops.
 bool X86AsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
   static const uint8_t Nops[10][10] = {
     // nop
@@ -354,7 +354,7 @@ public:
     : ELFX86AsmBackend(T, OSABI, CPU) {}
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    return createX86ELFObjectWriter(OS, /*Is64Bit*/ false, OSABI);
+    return createX86ELFObjectWriter(OS, /*IsELF64*/ false, OSABI, ELF::EM_386);
   }
 };
 
@@ -364,7 +364,7 @@ public:
     : ELFX86AsmBackend(T, OSABI, CPU) {}
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
-    return createX86ELFObjectWriter(OS, /*Is64Bit*/ true, OSABI);
+    return createX86ELFObjectWriter(OS, /*IsELF64*/ true, OSABI, ELF::EM_X86_64);
   }
 };
 
@@ -455,7 +455,7 @@ MCAsmBackend *llvm::createX86_32AsmBackend(const Target &T, StringRef TT, String
   if (TheTriple.isOSDarwin() || TheTriple.getEnvironment() == Triple::MachO)
     return new DarwinX86_32AsmBackend(T, CPU);
 
-  if (TheTriple.isOSWindows())
+  if (TheTriple.isOSWindows() && TheTriple.getEnvironment() != Triple::ELF)
     return new WindowsX86AsmBackend(T, false, CPU);
 
   uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());
@@ -468,7 +468,7 @@ MCAsmBackend *llvm::createX86_64AsmBackend(const Target &T, StringRef TT, String
   if (TheTriple.isOSDarwin() || TheTriple.getEnvironment() == Triple::MachO)
     return new DarwinX86_64AsmBackend(T, CPU);
 
-  if (TheTriple.isOSWindows())
+  if (TheTriple.isOSWindows() && TheTriple.getEnvironment() != Triple::ELF)
     return new WindowsX86AsmBackend(T, true, CPU);
 
   uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());

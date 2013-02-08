@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,7 +89,7 @@ AcpiDmAddResourceToNamespace (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context);
+    void                    **Context);
 
 static void
 AcpiDmAddResourcesToNamespace (
@@ -625,7 +625,7 @@ AcpiGetTagPathname (
     Aml = ACPI_CAST_PTR (AML_RESOURCE,
             &Op->Named.Data[ResourceNode->Value]);
 
-    Status = AcpiUtValidateResource (Aml, &ResourceTableIndex);
+    Status = AcpiUtValidateResource (NULL, Aml, &ResourceTableIndex);
     if (ACPI_FAILURE (Status))
     {
         return (NULL);
@@ -938,7 +938,7 @@ AcpiDmFindResources (
                  * resource descriptors to the namespace, as children of the
                  * buffer node.
                  */
-                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (Op)))
+                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (NULL, Op)))
                 {
                     Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
                     AcpiDmAddResourcesToNamespace (Parent->Common.Node, Op);
@@ -991,9 +991,9 @@ AcpiDmAddResourcesToNamespace (
      * Insert each resource into the namespace
      * NextOp contains the Aml pointer and the Aml length
      */
-    AcpiUtWalkAmlResources ((UINT8 *) NextOp->Named.Data,
+    AcpiUtWalkAmlResources (NULL, (UINT8 *) NextOp->Named.Data,
         (ACPI_SIZE) NextOp->Common.Value.Integer,
-        AcpiDmAddResourceToNamespace, BufferNode);
+        AcpiDmAddResourceToNamespace, (void **) BufferNode);
 }
 
 
@@ -1019,7 +1019,7 @@ AcpiDmAddResourceToNamespace (
     UINT32                  Length,
     UINT32                  Offset,
     UINT8                   ResourceIndex,
-    void                    *Context)
+    void                    **Context)
 {
     ACPI_STATUS             Status;
     ACPI_GENERIC_STATE      ScopeInfo;

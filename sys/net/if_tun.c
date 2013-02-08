@@ -622,7 +622,7 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
 	if (cached_tun_flags & TUN_LMODE) {
 		/* allocate space for sockaddr */
-		M_PREPEND(m0, dst->sa_len, M_DONTWAIT);
+		M_PREPEND(m0, dst->sa_len, M_NOWAIT);
 
 		/* if allocation failed drop packet */
 		if (m0 == NULL) {
@@ -636,7 +636,7 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 
 	if (cached_tun_flags & TUN_IFHEAD) {
 		/* Prepend the address family */
-		M_PREPEND(m0, 4, M_DONTWAIT);
+		M_PREPEND(m0, 4, M_NOWAIT);
 
 		/* if allocation failed drop packet */
 		if (m0 == NULL) {
@@ -872,7 +872,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (EIO);
 	}
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0, M_PKTHDR)) == NULL) {
+	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, 0, M_PKTHDR)) == NULL) {
 		ifp->if_ierrors++;
 		return (ENOBUFS);
 	}

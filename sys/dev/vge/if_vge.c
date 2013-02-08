@@ -1239,7 +1239,7 @@ vge_newbuf(struct vge_softc *sc, int prod)
 	bus_dmamap_t map;
 	int i, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	/*
@@ -1827,7 +1827,7 @@ vge_encap(struct vge_softc *sc, struct mbuf **m_head)
 		padlen = VGE_MIN_FRAMELEN - m->m_pkthdr.len;
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1836,7 +1836,7 @@ vge_encap(struct vge_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 		if (M_TRAILINGSPACE(m) < padlen) {
-			m = m_defrag(m, M_DONTWAIT);
+			m = m_defrag(m, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(*m_head);
 				*m_head = NULL;
@@ -1858,7 +1858,7 @@ vge_encap(struct vge_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->vge_cdata.vge_tx_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, VGE_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, VGE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -318,7 +318,7 @@ AcpiDmAddressCommon (
 
     /* This is either a Memory, IO, or BusNumber descriptor (0,1,2) */
 
-    AcpiOsPrintf ("%s (", AcpiGbl_WordDecode [ResourceType & 0x3]);
+    AcpiOsPrintf ("%s (", AcpiGbl_WordDecode [ACPI_GET_2BIT_FLAG (ResourceType)]);
 
     /* Decode the general and type-specific flags */
 
@@ -331,7 +331,7 @@ AcpiDmAddressCommon (
         AcpiDmIoFlags (Flags);
         if (ResourceType == ACPI_IO_RANGE)
         {
-            AcpiOsPrintf (" %s,", AcpiGbl_RngDecode [SpecificFlags & 0x3]);
+            AcpiOsPrintf (" %s,", AcpiGbl_RngDecode [ACPI_GET_2BIT_FLAG (SpecificFlags)]);
         }
     }
 }
@@ -383,10 +383,10 @@ AcpiDmSpaceFlags (
 {
 
     AcpiOsPrintf ("%s, %s, %s, %s,",
-        AcpiGbl_ConsumeDecode [(Flags & 1)],
-        AcpiGbl_DecDecode [(Flags & 0x2) >> 1],
-        AcpiGbl_MinDecode [(Flags & 0x4) >> 2],
-        AcpiGbl_MaxDecode [(Flags & 0x8) >> 3]);
+        AcpiGbl_ConsumeDecode [ACPI_GET_1BIT_FLAG (Flags)],
+        AcpiGbl_DecDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 1)],
+        AcpiGbl_MinDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 2)],
+        AcpiGbl_MaxDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 3)]);
 }
 
 
@@ -407,10 +407,10 @@ AcpiDmIoFlags (
         UINT8               Flags)
 {
     AcpiOsPrintf ("%s, %s, %s, %s,",
-        AcpiGbl_ConsumeDecode [(Flags & 1)],
-        AcpiGbl_MinDecode [(Flags & 0x4) >> 2],
-        AcpiGbl_MaxDecode [(Flags & 0x8) >> 3],
-        AcpiGbl_DecDecode [(Flags & 0x2) >> 1]);
+        AcpiGbl_ConsumeDecode [ACPI_GET_1BIT_FLAG (Flags)],
+        AcpiGbl_MinDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 2)],
+        AcpiGbl_MaxDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 3)],
+        AcpiGbl_DecDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 1)]);
 }
 
 
@@ -432,14 +432,14 @@ AcpiDmIoFlags2 (
 {
 
     AcpiOsPrintf (", %s",
-        AcpiGbl_TtpDecode [(SpecificFlags & 0x10) >> 4]);
+        AcpiGbl_TtpDecode [ACPI_EXTRACT_1BIT_FLAG (SpecificFlags, 4)]);
 
     /* TRS is only used if TTP is TypeTranslation */
 
     if (SpecificFlags & 0x10)
     {
         AcpiOsPrintf (", %s",
-            AcpiGbl_TrsDecode [(SpecificFlags & 0x20) >> 5]);
+            AcpiGbl_TrsDecode [ACPI_EXTRACT_1BIT_FLAG (SpecificFlags, 5)]);
     }
 }
 
@@ -464,12 +464,12 @@ AcpiDmMemoryFlags (
 {
 
     AcpiOsPrintf ("%s, %s, %s, %s, %s, %s,",
-        AcpiGbl_ConsumeDecode [(Flags & 1)],
-        AcpiGbl_DecDecode [(Flags & 0x2) >> 1],
-        AcpiGbl_MinDecode [(Flags & 0x4) >> 2],
-        AcpiGbl_MaxDecode [(Flags & 0x8) >> 3],
-        AcpiGbl_MemDecode [(SpecificFlags & 0x6) >> 1],
-        AcpiGbl_RwDecode [(SpecificFlags & 0x1)]);
+        AcpiGbl_ConsumeDecode [ACPI_GET_1BIT_FLAG (Flags)],
+        AcpiGbl_DecDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 1)],
+        AcpiGbl_MinDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 2)],
+        AcpiGbl_MaxDecode [ACPI_EXTRACT_1BIT_FLAG (Flags, 3)],
+        AcpiGbl_MemDecode [ACPI_EXTRACT_2BIT_FLAG (SpecificFlags, 1)],
+        AcpiGbl_RwDecode [ACPI_GET_1BIT_FLAG (SpecificFlags)]);
 }
 
 
@@ -491,8 +491,8 @@ AcpiDmMemoryFlags2 (
 {
 
     AcpiOsPrintf (", %s, %s",
-        AcpiGbl_MtpDecode [(SpecificFlags & 0x18) >> 3],
-        AcpiGbl_TtpDecode [(SpecificFlags & 0x20) >> 5]);
+        AcpiGbl_MtpDecode [ACPI_EXTRACT_2BIT_FLAG (SpecificFlags, 3)],
+        AcpiGbl_TtpDecode [ACPI_EXTRACT_1BIT_FLAG (SpecificFlags, 5)]);
 }
 
 
@@ -767,7 +767,7 @@ AcpiDmMemory24Descriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Memory24 (%s,\n",
-        AcpiGbl_RwDecode [Resource->Memory24.Flags & 1]);
+        AcpiGbl_RwDecode [ACPI_GET_1BIT_FLAG (Resource->Memory24.Flags)]);
 
     /* Dump the 4 contiguous WORD values */
 
@@ -806,7 +806,7 @@ AcpiDmMemory32Descriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Memory32 (%s,\n",
-        AcpiGbl_RwDecode [Resource->Memory32.Flags & 1]);
+        AcpiGbl_RwDecode [ACPI_GET_1BIT_FLAG (Resource->Memory32.Flags)]);
 
     /* Dump the 4 contiguous DWORD values */
 
@@ -845,7 +845,7 @@ AcpiDmFixedMemory32Descriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Memory32Fixed (%s,\n",
-        AcpiGbl_RwDecode [Resource->FixedMemory32.Flags & 1]);
+        AcpiGbl_RwDecode [ACPI_GET_1BIT_FLAG (Resource->FixedMemory32.Flags)]);
 
     AcpiDmIndent (Level + 1);
     AcpiDmDumpInteger32 (Resource->FixedMemory32.Address, "Address Base");
@@ -942,10 +942,10 @@ AcpiDmInterruptDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("Interrupt (%s, %s, %s, %s, ",
-        AcpiGbl_ConsumeDecode [(Resource->ExtendedIrq.Flags & 1)],
-        AcpiGbl_HeDecode [(Resource->ExtendedIrq.Flags >> 1) & 1],
-        AcpiGbl_LlDecode [(Resource->ExtendedIrq.Flags >> 2) & 1],
-        AcpiGbl_ShrDecode [(Resource->ExtendedIrq.Flags >> 3) & 1]);
+        AcpiGbl_ConsumeDecode [ACPI_GET_1BIT_FLAG (Resource->ExtendedIrq.Flags)],
+        AcpiGbl_HeDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->ExtendedIrq.Flags, 1)],
+        AcpiGbl_LlDecode [ACPI_EXTRACT_1BIT_FLAG (Resource->ExtendedIrq.Flags, 2)],
+        AcpiGbl_ShrDecode [ACPI_EXTRACT_2BIT_FLAG (Resource->ExtendedIrq.Flags, 3)]);
 
     /*
      * The ResourceSource fields are optional and appear after the interrupt

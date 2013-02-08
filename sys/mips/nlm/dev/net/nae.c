@@ -1427,9 +1427,8 @@ nlm_nae_open_if(uint64_t nae_base, int nblock, int port_type,
     int port, uint32_t desc_size)
 {
 	uint32_t netwk_inf;
-	uint32_t mac_cfg1, mac_cfg2, netior_ctrl3;
-	int iface, speed, duplex, ifmode;
-	int iface_ctrl_reg, iface_ctrl3_reg, conf1_reg, conf2_reg;
+	uint32_t mac_cfg1, netior_ctrl3;
+	int iface, iface_ctrl_reg, iface_ctrl3_reg, conf1_reg, conf2_reg;
 
 	switch (port_type) {
 	case XAUIC:
@@ -1487,6 +1486,7 @@ nlm_nae_open_if(uint64_t nae_base, int nblock, int port_type,
 		/* clear gmac reset */
 		mac_cfg1 = nlm_read_nae_reg(nae_base, conf1_reg);
 		nlm_write_nae_reg(nae_base, conf1_reg, mac_cfg1 & ~(1 << 31));
+
 		/* clear speed debug bit */
 		iface_ctrl3_reg = SGMII_NET_IFACE_CTRL3(nblock, iface);
 		netior_ctrl3 = nlm_read_nae_reg(nae_base, iface_ctrl3_reg);
@@ -1500,33 +1500,21 @@ nlm_nae_open_if(uint64_t nae_base, int nblock, int port_type,
 		nlm_write_nae_reg(nae_base, iface_ctrl_reg,
 		    netwk_inf & ~(0x1 << 2));
 
-		/* setup defaults */	/* XXXJC: take defaults from sc? */
-		speed = 2;
-		duplex = 1;
-		ifmode = 0x2;
-		netwk_inf = nlm_read_nae_reg(nae_base, iface_ctrl_reg);
-		netwk_inf &= ~(0x3);
-		nlm_write_nae_reg(nae_base, iface_ctrl_reg,
-		    netwk_inf | (speed & 0x3));
-		mac_cfg2 = nlm_read_nae_reg(nae_base, conf2_reg);
-		mac_cfg2 &= ~(0x3 << 8);
-		nlm_write_nae_reg(nae_base, conf2_reg, 
-		    mac_cfg2			| 
-		    ((ifmode & 0x3) << 8)	| /* interface mode */
-		    (duplex & 0x1));
-
 		/* clear stats counters */
 		netwk_inf = nlm_read_nae_reg(nae_base, iface_ctrl_reg);
 		nlm_write_nae_reg(nae_base, iface_ctrl_reg,
 		    netwk_inf | (1 << 15));
+
 		/* enable stats counters */
 		netwk_inf = nlm_read_nae_reg(nae_base, iface_ctrl_reg);
 		nlm_write_nae_reg(nae_base, iface_ctrl_reg,
 		    (netwk_inf & ~(1 << 15)) | (1 << 16));
+
+		/* flow control? */
 		mac_cfg1 = nlm_read_nae_reg(nae_base, conf1_reg);
 		nlm_write_nae_reg(nae_base, conf1_reg,
 		    mac_cfg1 | (0x3 << 4));
-		break;
+ 		break;
 	}
 
 	nlm_nae_init_ingress(nae_base, desc_size);

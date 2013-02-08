@@ -29,12 +29,14 @@
 #ifndef _USB_IOCTL_H_
 #define	_USB_IOCTL_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/ioccom.h>
 
 /* Building "kdump" depends on these includes */
 
 #include <dev/usb/usb_endian.h>
 #include <dev/usb/usb.h>
+#endif
 
 #define	USB_DEVICE_NAME "usbctl"
 #define	USB_DEVICE_DIR "usb"

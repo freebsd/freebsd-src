@@ -271,7 +271,6 @@ static int
 gpiobus_child_location_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
-	// struct gpiobus_ivar *devi = GPIOBUS_IVAR(child);
 
 	snprintf(buf, buflen, "pins=?");
 	return (0);
@@ -349,7 +348,7 @@ gpiobus_acquire_bus(device_t busdev, device_t child)
 	GPIOBUS_ASSERT_LOCKED(sc);
 
 	if (sc->sc_owner)
-		panic("rb_cpldbus: cannot serialize the access to device.");
+		panic("gpiobus: cannot serialize the access to device.");
 	sc->sc_owner = child;
 }
 
@@ -362,9 +361,9 @@ gpiobus_release_bus(device_t busdev, device_t child)
 	GPIOBUS_ASSERT_LOCKED(sc);
 
 	if (!sc->sc_owner)
-		panic("rb_cpldbus: releasing unowned bus.");
+		panic("gpiobus: releasing unowned bus.");
 	if (sc->sc_owner != child)
-		panic("rb_cpldbus: you don't own the bus. game over.");
+		panic("gpiobus: you don't own the bus. game over.");
 
 	sc->sc_owner = NULL;
 }

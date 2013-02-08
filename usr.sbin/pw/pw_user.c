@@ -394,7 +394,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				/*
 				 * Remove crontabs
 				 */
-				sprintf(file, "/var/cron/tabs/%s", pwd->pw_name);
+				snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
 				if (access(file, F_OK) == 0) {
 					sprintf(file, "crontab -u %s -r", pwd->pw_name);
 					system(file);
@@ -425,7 +425,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 
 			grp = GETGRNAM(a_name->val);
-			if (*grp->gr_mem == NULL)
+			if (grp != NULL && *grp->gr_mem == NULL)
 				delgrent(GETGRNAM(a_name->val));
 			SETGRENT();
 			while ((grp = GETGRENT()) != NULL) {
@@ -745,25 +745,20 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 
 	if (mode == M_ADD || getarg(args, 'G') != NULL) {
-		int i, j;
+		int i;
 		for (i = 0; cnf->groups[i] != NULL; i++) {
 			grp = GETGRNAM(cnf->groups[i]);
-			for (j = 0; grp->gr_mem[j] != NULL; j++) {
-				if (!strcmp(grp->gr_mem[j], pwd->pw_name))
-					break;
-			}
-			if (grp->gr_mem[j] != NULL) /* user already member of group */
+			grp = gr_add(grp, pwd->pw_name);
+			/*
+			 * grp can only be NULL in 2 cases:
+			 * - the new member is already a member
+			 * - a problem with memory occurs
+			 * in both cases we want to skip now.
+			 */
+			if (grp == NULL)
 				continue;
-
-			if (j == 0)
-				grp->gr_mem = NULL;
-
-			grp->gr_mem = reallocf(grp->gr_mem, sizeof(*grp->gr_mem) *
-					                    (j + 2));
-
-			grp->gr_mem[j] = pwd->pw_name;
-			grp->gr_mem[j+1] = NULL;
 			chggrent(cnf->groups[i], grp);
+			free(grp);
 		}
 	}
 

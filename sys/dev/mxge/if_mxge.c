@@ -124,7 +124,8 @@ static device_method_t mxge_methods[] =
   DEVMETHOD(device_attach, mxge_attach),
   DEVMETHOD(device_detach, mxge_detach),
   DEVMETHOD(device_shutdown, mxge_shutdown),
-  {0, 0}
+
+  DEVMETHOD_END
 };
 
 static driver_t mxge_driver =
@@ -2004,7 +2005,7 @@ mxge_vlan_tag_insert(struct mbuf *m)
 {
 	struct ether_vlan_header *evl;
 
-	M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_DONTWAIT);
+	M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_NOWAIT);
 	if (__predict_false(m == NULL))
 		return NULL;
 	if (m->m_len < sizeof(*evl)) {
@@ -2376,7 +2377,7 @@ mxge_get_buf_small(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 	mxge_rx_ring_t *rx = &ss->rx_small;
 	int cnt, err;
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		rx->alloc_fail++;
 		err = ENOBUFS;
@@ -2409,7 +2410,7 @@ mxge_get_buf_big(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 	mxge_rx_ring_t *rx = &ss->rx_big;
 	int cnt, err, i;
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, rx->cl_size);
 	if (m == NULL) {
 		rx->alloc_fail++;
 		err = ENOBUFS;

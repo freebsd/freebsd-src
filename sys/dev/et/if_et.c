@@ -2169,7 +2169,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tx_tag, map, *m0, segs, &nsegs,
 	    0);
 	if (error == EFBIG) {
-		m = m_collapse(*m0, M_DONTWAIT, ET_NSEG_MAX);
+		m = m_collapse(*m0, M_NOWAIT, ET_NSEG_MAX);
 		if (m == NULL) {
 			m_freem(*m0);
 			*m0 = NULL;
@@ -2331,7 +2331,7 @@ et_newbuf_cluster(struct et_rxbuf_data *rbd, int buf_idx)
 	int nsegs;
 
 	MPASS(buf_idx < ET_RX_NDESC);
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -2390,7 +2390,7 @@ et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx)
 	int nsegs;
 
 	MPASS(buf_idx < ET_RX_NDESC);
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MHLEN;

@@ -151,11 +151,11 @@ nospace:
 
 static SYSCTL_NODE(_vfs, OID_AUTO, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
 
-static int doasyncfree = 1;
+static int doasyncfree = 0;
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0,
     "Use asychronous writes to update block pointers when freeing blocks");
 
-static int doreallocblks = 1;
+static int doreallocblks = 0;
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
 int
@@ -169,7 +169,7 @@ ext2_reallocblks(ap)
 	struct inode *ip;
 	struct vnode *vp;
 	struct buf *sbp, *ebp;
-	int32_t *bap, *sbap, *ebap = 0;
+	uint32_t *bap, *sbap, *ebap = 0;
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
@@ -196,6 +196,18 @@ ext2_reallocblks(ap)
 		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
 			panic("ext2_reallocblks: non-cluster");
 #endif
+	/*
+	 * If the cluster crosses the boundary for the first indirect
+	 * block, leave space for the indirect block. Indirect blocks
+	 * are initially laid out in a position after the last direct
+	 * block. Block reallocation would usually destroy locality by
+	 * moving the indirect block out of the way to make room for
+	 * data blocks if we didn't compensate here. We should also do
+	 * this for other indirect block boundaries, but it is only
+	 * important for the first one.
+	 */
+	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+		return (ENOSPC);
 	/*
 	 * If the latest allocation is in a new cylinder group, assume that
 	 * the filesystem has decided to move and do not force it back to
@@ -230,7 +242,7 @@ ext2_reallocblks(ap)
 	} else {
 #ifdef DIAGNOSTIC
 		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
-			panic("ext2_reallocblk: start == end");
+			panic("ext2_reallocblks: start == end");
 #endif
 		ssize = len - (idp->in_off + 1);
 		if (bread(vp, idp->in_lbn, (int)fs->e2fs_bsize, NOCRED, &ebp))
@@ -992,7 +1004,7 @@ ext2_blkfree(ip, bno, size)
         if (isclr(bbp, bno)) {
                 printf("block = %lld, fs = %s\n",
                      (long long)bno, fs->e2fs_fsmnt);
-                panic("blkfree: freeing free block");
+                panic("ext2_blkfree: freeing free block");
         }
         clrbit(bbp, bno);
 	EXT2_LOCK(ump);
@@ -1020,7 +1032,6 @@ ext2_vfree(pvp, ino, mode)
 	struct ext2mount *ump;
 	int error, cg;
 	char * ibp;
-/*	mode_t save_i_mode; */
 
 	pip = VTOI(pvp);
 	fs = pip->i_e2fs;
@@ -1043,7 +1054,7 @@ ext2_vfree(pvp, ino, mode)
 		printf("ino = %llu, fs = %s\n",
 			 (unsigned long long)ino, fs->e2fs_fsmnt);
 		if (fs->e2fs_ronly == 0)
-			panic("ifree: freeing free inode");
+			panic("ext2_vfree: freeing free inode");
 	}
 	clrbit(ibp, ino);
 	EXT2_LOCK(ump);
@@ -1088,7 +1099,7 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 		if (loc == NULL) {
 			printf("start = %d, len = %d, fs = %s\n",
 				start, len, fs->e2fs_fsmnt);
-			panic("ext2fs_alloccg: map corrupted");
+			panic("ext2_mapsearch: map corrupted");
 			/* NOTREACHED */
 		}
 	}

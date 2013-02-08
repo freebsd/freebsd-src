@@ -200,16 +200,7 @@ struct	pvo_head *moea_pvo_table;		/* pvo entries by pteg index */
 struct	pvo_head moea_pvo_kunmanaged =
     LIST_HEAD_INITIALIZER(moea_pvo_kunmanaged);	/* list of unmanaged pages */
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 uma_zone_t	moea_upvo_zone;	/* zone for pvo entries for unmanaged pages */
 uma_zone_t	moea_mpvo_zone;	/* zone for pvo entries for managed pages */
@@ -629,8 +620,17 @@ moea_cpu_bootstrap(mmu_t mmup, int ap)
 		isync();
 	}
 
-	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+	/*
+	 * Special case for the Wii: don't install the PCI BAT.
+	 */
+	if (strcmp(installed_platform(), "wii") != 0) {
+#endif
+		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+	}
+#endif
 	isync();
 
 	__asm __volatile("mtibatu 1,%0" :: "r"(0));
@@ -669,26 +669,26 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
         battable[0x0].batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
         battable[0x0].batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
 
-        /*
-         * Map PCI memory space.
-         */
-        battable[0x8].batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0x8].batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
+	/*
+	 * Map PCI memory space.
+	 */
+	battable[0x8].batl = BATL(0x80000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0x8].batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
 
-        battable[0x9].batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0x9].batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
+	battable[0x9].batl = BATL(0x90000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0x9].batu = BATU(0x90000000, BAT_BL_256M, BAT_Vs);
 
-        battable[0xa].batl = BATL(0xa0000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0xa].batu = BATU(0xa0000000, BAT_BL_256M, BAT_Vs);
+	battable[0xa].batl = BATL(0xa0000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0xa].batu = BATU(0xa0000000, BAT_BL_256M, BAT_Vs);
 
-        battable[0xb].batl = BATL(0xb0000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0xb].batu = BATU(0xb0000000, BAT_BL_256M, BAT_Vs);
+	battable[0xb].batl = BATL(0xb0000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0xb].batu = BATU(0xb0000000, BAT_BL_256M, BAT_Vs);
 
-        /*
-         * Map obio devices.
-         */
-        battable[0xf].batl = BATL(0xf0000000, BAT_I|BAT_G, BAT_PP_RW);
-        battable[0xf].batu = BATU(0xf0000000, BAT_BL_256M, BAT_Vs);
+	/*
+	 * Map obio devices.
+	 */
+	battable[0xf].batl = BATL(0xf0000000, BAT_I|BAT_G, BAT_PP_RW);
+	battable[0xf].batu = BATU(0xf0000000, BAT_BL_256M, BAT_Vs);
 
 	/*
 	 * Use an IBAT and a DBAT to map the bottom segment of memory
@@ -703,9 +703,15 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	    :: "r"(battable[0].batu), "r"(battable[0].batl));
 	mtmsr(msr);
 
-	/* map pci space */
-	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
-	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+        if (strcmp(installed_platform(), "wii") != 0) {
+#endif
+		/* map pci space */
+		__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
+		__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
+#ifdef WII
+	}
+#endif
 	isync();
 
 	/* set global direct map flag */

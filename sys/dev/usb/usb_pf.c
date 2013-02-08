@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,8 +33,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
@@ -59,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pf.h>
 #include <dev/usb/usb_transfer.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 static void usbpf_init(void);
 static void usbpf_uninit(void);

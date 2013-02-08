@@ -323,7 +323,7 @@ zfs_ioctl(vnode_t *vp, u_long com, intptr_t data, int flag, cred_t *cred,
 }
 
 static vm_page_t
-page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
+page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 {
 	vm_object_t obj;
 	vm_page_t pp;
@@ -333,7 +333,7 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 
 	for (;;) {
 		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
-		    vm_page_is_valid(pp, (vm_offset_t)off, nbytes)) {
+		    pp->valid) {
 			if ((pp->oflags & VPO_BUSY) != 0) {
 				/*
 				 * Reference the page before unlocking and
@@ -344,13 +344,18 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				vm_page_sleep(pp, "zfsmwb");
 				continue;
 			}
-			vm_page_busy(pp);
-			vm_page_undirty(pp);
 		} else {
-			if (vm_page_is_cached(obj, OFF_TO_IDX(start)))
-				vm_page_cache_free(obj, OFF_TO_IDX(start),
-				    OFF_TO_IDX(start) + 1);
-			pp = NULL;
+			pp = vm_page_alloc(obj, OFF_TO_IDX(start),
+			    VM_ALLOC_SYSTEM | VM_ALLOC_IFCACHED |
+			    VM_ALLOC_NOBUSY);
+		}
+
+		if (pp != NULL) {
+			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
+			vm_object_pip_add(obj, 1);
+			vm_page_io_start(pp);
+			pmap_remove_write(pp);
+			vm_page_clear_dirty(pp, off, nbytes);
 		}
 		break;
 	}
@@ -358,10 +363,55 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 }
 
 static void
-page_unlock(vm_page_t pp)
+page_unbusy(vm_page_t pp)
 {
 
-	vm_page_wakeup(pp);
+	vm_page_io_finish(pp);
+	vm_object_pip_subtract(pp->object, 1);
+}
+
+static vm_page_t
+page_hold(vnode_t *vp, int64_t start)
+{
+	vm_object_t obj;
+	vm_page_t pp;
+
+	obj = vp->v_object;
+	VM_OBJECT_LOCK_ASSERT(obj, MA_OWNED);
+
+	for (;;) {
+		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
+		    pp->valid) {
+			if ((pp->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_reference(pp);
+				vm_page_sleep(pp, "zfsmwb");
+				continue;
+			}
+
+			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
+			vm_page_lock(pp);
+			vm_page_hold(pp);
+			vm_page_unlock(pp);
+
+		} else
+			pp = NULL;
+		break;
+	}
+	return (pp);
+}
+
+static void
+page_unhold(vm_page_t pp)
+{
+
+	vm_page_lock(pp);
+	vm_page_unhold(pp);
+	vm_page_unlock(pp);
 }
 
 static caddr_t
@@ -392,6 +442,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 {
 	vm_object_t obj;
 	struct sf_buf *sf;
+	caddr_t va;
 	int off;
 
 	ASSERT(vp->v_mount != NULL);
@@ -402,27 +453,44 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 	VM_OBJECT_LOCK(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		vm_page_t pp;
-		int nbytes = MIN(PAGESIZE - off, len);
+		int nbytes = imin(PAGESIZE - off, len);
 
-		if ((pp = page_lookup(vp, start, off, nbytes)) != NULL) {
-			caddr_t va;
-
+		if (segflg == UIO_NOCOPY) {
+			pp = vm_page_lookup(obj, OFF_TO_IDX(start));
+			KASSERT(pp != NULL,
+			    ("zfs update_pages: NULL page in putpages case"));
+			KASSERT(off == 0,
+			    ("zfs update_pages: unaligned data in putpages case"));
+			KASSERT(pp->valid == VM_PAGE_BITS_ALL,
+			    ("zfs update_pages: invalid page in putpages case"));
+			KASSERT(pp->busy > 0,
+			    ("zfs update_pages: unbusy page in putpages case"));
+			KASSERT(!pmap_page_is_write_mapped(pp),
+			    ("zfs update_pages: writable page in putpages case"));
 			VM_OBJECT_UNLOCK(obj);
+
 			va = zfs_map_page(pp, &sf);
-			if (segflg == UIO_NOCOPY) {
-				(void) dmu_write(os, oid, start+off, nbytes,
-				    va+off, tx);
-			} else {
-				(void) dmu_read(os, oid, start+off, nbytes,
-				    va+off, DMU_READ_PREFETCH);
-			}
+			(void) dmu_write(os, oid, start, nbytes, va, tx);
 			zfs_unmap_page(sf);
+
 			VM_OBJECT_LOCK(obj);
-			page_unlock(pp);
+			vm_page_undirty(pp);
+		} else if ((pp = page_busy(vp, start, off, nbytes)) != NULL) {
+			VM_OBJECT_UNLOCK(obj);
+
+			va = zfs_map_page(pp, &sf);
+			(void) dmu_read(os, oid, start+off, nbytes,
+			    va+off, DMU_READ_PREFETCH);;
+			zfs_unmap_page(sf);
+
+			VM_OBJECT_LOCK(obj);
+			page_unbusy(pp);
 		}
 		len -= nbytes;
 		off = 0;
 	}
+	if (segflg != UIO_NOCOPY)
+		vm_object_pip_wakeupn(obj, 0);
 	VM_OBJECT_UNLOCK(obj);
 }
 
@@ -524,7 +592,7 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 		vm_page_t pp;
 		uint64_t bytes = MIN(PAGESIZE - off, len);
 
-		if (pp = page_lookup(vp, start, off, bytes)) {
+		if (pp = page_hold(vp, start)) {
 			struct sf_buf *sf;
 			caddr_t va;
 
@@ -533,7 +601,7 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 			error = uiomove(va + off, bytes, UIO_READ, uio);
 			zfs_unmap_page(sf);
 			VM_OBJECT_LOCK(obj);
-			page_unlock(pp);
+			page_unhold(pp);
 		} else {
 			VM_OBJECT_UNLOCK(obj);
 			error = dmu_read_uio(os, zp->z_id, uio, bytes);
@@ -1203,6 +1271,12 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 			    DMU_READ_NO_PREFETCH);
 
 		if (error == 0) {
+			blkptr_t *obp = dmu_buf_get_blkptr(db);
+			if (obp) {
+				ASSERT(BP_IS_HOLE(bp));
+				*bp = *obp;
+			}
+
 			zgd->zgd_db = db;
 			zgd->zgd_bp = bp;
 
@@ -1908,6 +1982,9 @@ top:
 	}
 
 	if (delete_now) {
+#ifdef __FreeBSD__
+		panic("zfs_remove: delete_now branch taken");
+#endif
 		if (xattr_obj_unlinked) {
 			ASSERT3U(xzp->z_links, ==, 2);
 			mutex_enter(&xzp->z_lock);
@@ -1937,6 +2014,9 @@ top:
 	} else if (unlinked) {
 		mutex_exit(&zp->z_lock);
 		zfs_unlinked_add(zp, tx);
+#ifdef __FreeBSD__
+		vp->v_vflag |= VV_NOSYNC;
+#endif
 	}
 
 	txtype = TX_REMOVE;
@@ -2667,7 +2747,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_MTIME(zfsvfs), NULL, &mtime, 16);
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL, &ctime, 16);
-	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL, &crtime, 16);
+	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CRTIME(zfsvfs), NULL, &crtime, 16);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_RDEV(zfsvfs), NULL,
 		    &rdev, 8);
@@ -3244,6 +3324,12 @@ top:
 		uint64_t pmode = zp->z_mode;
 		uint64_t acl_obj;
 		new_mode = (pmode & S_IFMT) | (vap->va_mode & ~S_IFMT);
+
+		if (zp->z_zfsvfs->z_acl_mode == ZFS_ACL_RESTRICTED &&
+		    !(zp->z_pflags & ZFS_ACL_TRIVIAL)) {
+			err = EPERM;
+			goto out;
+		}
 
 		if (err = zfs_acl_chmod_setattr(zp, &aclp, new_mode))
 			goto out;
@@ -4560,14 +4646,22 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		 * The fs has been unmounted, or we did a
 		 * suspend/resume and this file no longer exists.
 		 */
-		VI_LOCK(vp);
-		ASSERT(vp->v_count <= 1);
-		vp->v_count = 0;
-		VI_UNLOCK(vp);
-		vrecycle(vp);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		vrecycle(vp);
 		return;
 	}
+
+	mutex_enter(&zp->z_lock);
+	if (zp->z_unlinked) {
+		/*
+		 * Fast path to recycle a vnode of a removed file.
+		 */
+		mutex_exit(&zp->z_lock);
+		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		vrecycle(vp);
+		return;
+	}
+	mutex_exit(&zp->z_lock);
 
 	if (zp->z_atime_dirty && zp->z_unlinked == 0) {
 		dmu_tx_t *tx = dmu_tx_create(zfsvfs->z_os);
@@ -4586,8 +4680,6 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 			dmu_tx_commit(tx);
 		}
 	}
-
-	zfs_zinactive(zp);
 	rw_exit(&zfsvfs->z_teardown_inactive_lock);
 }
 
@@ -5550,34 +5642,61 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	znode_t *zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 	objset_t *os = zp->z_zfsvfs->z_os;
-	vm_page_t mreq;
+	vm_page_t mfirst, mlast, mreq;
 	vm_object_t object;
 	caddr_t va;
 	struct sf_buf *sf;
+	off_t startoff, endoff;
 	int i, error;
-	int pcount, size;
+	vm_pindex_t reqstart, reqend;
+	int pcount, lsize, reqsize, size;
 
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
 
-	pcount = round_page(count) / PAGE_SIZE;
+	pcount = OFF_TO_IDX(round_page(count));
 	mreq = m[reqpage];
 	object = mreq->object;
 	error = 0;
 
 	KASSERT(vp->v_object == object, ("mismatching object"));
 
+	if (pcount > 1 && zp->z_blksz > PAGESIZE) {
+		startoff = rounddown(IDX_TO_OFF(mreq->pindex), zp->z_blksz);
+		reqstart = OFF_TO_IDX(round_page(startoff));
+		if (reqstart < m[0]->pindex)
+			reqstart = 0;
+		else
+			reqstart = reqstart - m[0]->pindex;
+		endoff = roundup(IDX_TO_OFF(mreq->pindex) + PAGE_SIZE,
+		    zp->z_blksz);
+		reqend = OFF_TO_IDX(trunc_page(endoff)) - 1;
+		if (reqend > m[pcount - 1]->pindex)
+			reqend = m[pcount - 1]->pindex;
+		reqsize = reqend - m[reqstart]->pindex + 1;
+		KASSERT(reqstart <= reqpage && reqpage < reqstart + reqsize,
+		    ("reqpage beyond [reqstart, reqstart + reqsize[ bounds"));
+	} else {
+		reqstart = reqpage;
+		reqsize = 1;
+	}
+	mfirst = m[reqstart];
+	mlast = m[reqstart + reqsize - 1];
+
 	VM_OBJECT_LOCK(object);
 
-	for (i = 0; i < pcount; i++) {
-		if (i != reqpage) {
-			vm_page_lock(m[i]);
-			vm_page_free(m[i]);
-			vm_page_unlock(m[i]);
-		}
+	for (i = 0; i < reqstart; i++) {
+		vm_page_lock(m[i]);
+		vm_page_free(m[i]);
+		vm_page_unlock(m[i]);
+	}
+	for (i = reqstart + reqsize; i < pcount; i++) {
+		vm_page_lock(m[i]);
+		vm_page_free(m[i]);
+		vm_page_unlock(m[i]);
 	}
 
-	if (mreq->valid) {
+	if (mreq->valid && reqsize == 1) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
 		VM_OBJECT_UNLOCK(object);
@@ -5586,30 +5705,50 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	}
 
 	PCPU_INC(cnt.v_vnodein);
-	PCPU_INC(cnt.v_vnodepgsin);
+	PCPU_ADD(cnt.v_vnodepgsin, reqsize);
 
 	if (IDX_TO_OFF(mreq->pindex) >= object->un_pager.vnp.vnp_size) {
+		for (i = reqstart; i < reqstart + reqsize; i++) {
+			if (i != reqpage) {
+				vm_page_lock(m[i]);
+				vm_page_free(m[i]);
+				vm_page_unlock(m[i]);
+			}
+		}
 		VM_OBJECT_UNLOCK(object);
 		ZFS_EXIT(zfsvfs);
 		return (VM_PAGER_BAD);
 	}
 
-	size = PAGE_SIZE;
-	if (IDX_TO_OFF(mreq->pindex) + size > object->un_pager.vnp.vnp_size)
-		size = object->un_pager.vnp.vnp_size - IDX_TO_OFF(mreq->pindex);
+	lsize = PAGE_SIZE;
+	if (IDX_TO_OFF(mlast->pindex) + lsize > object->un_pager.vnp.vnp_size)
+		lsize = object->un_pager.vnp.vnp_size - IDX_TO_OFF(mlast->pindex);
 
 	VM_OBJECT_UNLOCK(object);
-	va = zfs_map_page(mreq, &sf);
-	error = dmu_read(os, zp->z_id, IDX_TO_OFF(mreq->pindex),
-	    size, va, DMU_READ_PREFETCH);
-	if (size != PAGE_SIZE)
-		bzero(va + size, PAGE_SIZE - size);
-	zfs_unmap_page(sf);
+
+	for (i = reqstart; i < reqstart + reqsize; i++) {
+		size = PAGE_SIZE;
+		if (i == (reqstart + reqsize - 1))
+			size = lsize;
+		va = zfs_map_page(m[i], &sf);
+		error = dmu_read(os, zp->z_id, IDX_TO_OFF(m[i]->pindex),
+		    size, va, DMU_READ_PREFETCH);
+		if (size != PAGE_SIZE)
+			bzero(va + size, PAGE_SIZE - size);
+		zfs_unmap_page(sf);
+		if (error != 0)
+			break;
+	}
+
 	VM_OBJECT_LOCK(object);
 
-	if (!error)
-		mreq->valid = VM_PAGE_BITS_ALL;
-	KASSERT(mreq->dirty == 0, ("zfs_getpages: page %p is dirty", mreq));
+	for (i = reqstart; i < reqstart + reqsize; i++) {
+		if (!error)
+			m[i]->valid = VM_PAGE_BITS_ALL;
+		KASSERT(m[i]->dirty == 0, ("zfs_getpages: page %p is dirty", m[i]));
+		if (i != reqpage)
+			vm_page_readahead_finish(m[i]);
+	}
 
 	VM_OBJECT_UNLOCK(object);
 
@@ -5630,6 +5769,30 @@ zfs_freebsd_getpages(ap)
 {
 
 	return (zfs_getpages(ap->a_vp, ap->a_m, ap->a_count, ap->a_reqpage));
+}
+
+static int
+zfs_freebsd_bmap(ap)
+	struct vop_bmap_args /* {
+		struct vnode *a_vp;
+		daddr_t  a_bn;
+		struct bufobj **a_bop;
+		daddr_t *a_bnp;
+		int *a_runp;
+		int *a_runb;
+	} */ *ap;
+{
+
+	if (ap->a_bop != NULL)
+		*ap->a_bop = &ap->a_vp->v_bufobj;
+	if (ap->a_bnp != NULL)
+		*ap->a_bnp = ap->a_bn;
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
+	if (ap->a_runb != NULL)
+		*ap->a_runb = 0;
+
+	return (0);
 }
 
 static int
@@ -5661,7 +5824,7 @@ zfs_freebsd_close(ap)
 	} */ *ap;
 {
 
-	return (zfs_close(ap->a_vp, ap->a_fflag, 0, 0, ap->a_cred, NULL));
+	return (zfs_close(ap->a_vp, ap->a_fflag, 1, 0, ap->a_cred, NULL));
 }
 
 static int
@@ -6103,28 +6266,6 @@ zfs_freebsd_inactive(ap)
 	return (0);
 }
 
-static void
-zfs_reclaim_complete(void *arg, int pending)
-{
-	znode_t	*zp = arg;
-	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
-
-	rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
-	if (zp->z_sa_hdl != NULL) {
-		ZFS_OBJ_HOLD_ENTER(zfsvfs, zp->z_id);
-		zfs_znode_dmu_fini(zp);
-		ZFS_OBJ_HOLD_EXIT(zfsvfs, zp->z_id);
-	}
-	zfs_znode_free(zp);
-	rw_exit(&zfsvfs->z_teardown_inactive_lock);
-	/*
-	 * If the file system is being unmounted, there is a process waiting
-	 * for us, wake it up.
-	 */
-	if (zfsvfs->z_unmounted)
-		wakeup_one(zfsvfs);
-}
-
 static int
 zfs_freebsd_reclaim(ap)
 	struct vop_reclaim_args /* {
@@ -6135,53 +6276,25 @@ zfs_freebsd_reclaim(ap)
 	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
-	boolean_t rlocked;
-
-	rlocked = rw_tryenter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
 
 	ASSERT(zp != NULL);
 
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
+	/* Destroy the vm object and flush associated pages. */
 	vnode_destroy_vobject(vp);
 
-	mutex_enter(&zp->z_lock);
-	zp->z_vnode = NULL;
-	mutex_exit(&zp->z_lock);
-
-	if (zp->z_unlinked) {
-		;	/* Do nothing. */
-	} else if (!rlocked) {
-		TASK_INIT(&zp->z_task, 0, zfs_reclaim_complete, zp);
-		taskqueue_enqueue(taskqueue_thread, &zp->z_task);
-	} else if (zp->z_sa_hdl == NULL) {
+	/*
+	 * z_teardown_inactive_lock protects from a race with
+	 * zfs_znode_dmu_fini in zfsvfs_teardown during
+	 * force unmount.
+	 */
+	rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
+	if (zp->z_sa_hdl == NULL)
 		zfs_znode_free(zp);
-	} else /* if (!zp->z_unlinked && zp->z_dbuf != NULL) */ {
-		int locked;
+	else
+		zfs_zinactive(zp);
+	rw_exit(&zfsvfs->z_teardown_inactive_lock);
 
-		locked = MUTEX_HELD(ZFS_OBJ_MUTEX(zfsvfs, zp->z_id)) ? 2 :
-		    ZFS_OBJ_HOLD_TRYENTER(zfsvfs, zp->z_id);
-		if (locked == 0) {
-			/*
-			 * Lock can't be obtained due to deadlock possibility,
-			 * so defer znode destruction.
-			 */
-			TASK_INIT(&zp->z_task, 0, zfs_reclaim_complete, zp);
-			taskqueue_enqueue(taskqueue_thread, &zp->z_task);
-		} else {
-			zfs_znode_dmu_fini(zp);
-			if (locked == 1)
-				ZFS_OBJ_HOLD_EXIT(zfsvfs, zp->z_id);
-			zfs_znode_free(zp);
-		}
-	}
-	VI_LOCK(vp);
 	vp->v_data = NULL;
-	ASSERT(vp->v_holdcnt >= 1);
-	VI_UNLOCK(vp);
-	if (rlocked)
-		rw_exit(&zfsvfs->z_teardown_inactive_lock);
 	return (0);
 }
 
@@ -6737,7 +6850,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_remove =		zfs_freebsd_remove,
 	.vop_rename =		zfs_freebsd_rename,
 	.vop_pathconf =		zfs_freebsd_pathconf,
-	.vop_bmap =		VOP_EOPNOTSUPP,
+	.vop_bmap =		zfs_freebsd_bmap,
 	.vop_fid =		zfs_freebsd_fid,
 	.vop_getextattr =	zfs_getextattr,
 	.vop_deleteextattr =	zfs_deleteextattr,

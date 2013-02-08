@@ -1,7 +1,7 @@
-# $Id: makefile.in,v 1.82 2012/02/16 00:35:37 Li-Wen.Hsu Exp $
+# $Id: makefile.in,v 1.79 2011/06/25 00:27:56 tom Exp $
 # template makefile for DIALOG
 ##############################################################################
-# Copyright (c) 1999-2011,2012 Thomas E. Dickey                              #
+# Copyright (c) 1999-2010,2011 Thomas E. Dickey                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -71,8 +71,7 @@ LIBS		= @LIBS@ @INTLLIBS@
 RANLIB		= @LIB_PREP@
 
 RM		= rm -f
-LINT		= @LINT@
-LINT_OPTS	= @LINT_OPTS@
+LINT		= lint
 
 CTAGS		= @CTAGS@
 ETAGS		= @ETAGS@
@@ -85,7 +84,6 @@ LIBTOOL_CREATE	= @LIB_CREATE@
 LIBTOOL_LINK	= @LIB_LINK@
 LIBTOOL_INSTALL	= @LIB_INSTALL@
 LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
-LIBTOOL_VERSION = @LIBTOOL_VERSION@
 
 INSTALL		= @INSTALL@
 INSTALL_PROGRAM	= $(LIBTOOL_INSTALL) @INSTALL_PROGRAM@
@@ -103,7 +101,7 @@ LIB_CONFIG	= @PACKAGE@-config
 # The library name $(LIB) is set at configure/make time, since it is used as a
 # makefile target.  Ditto for $(PROG).
 LIB		= @LIB_PREFIX@@PACKAGE@$a
-PROG		= @PACKAGE@$x
+PROG		= dialog$x
 #
 # Standard .c to .o compile line.
 #
@@ -181,7 +179,7 @@ $(LIB) : $(LIB_OBJECT)
 	$(LIBTOOL_CREATE) $(LIB) $(LIB_OBJECT)
 	$(RANLIB) $@
 
-$(PROG)$x : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
+dialog$x : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
 	$(LINK) -o $@ dialog$o -L. -l@PACKAGE@ $(LDFLAGS) $(LIBS)
 
 clean	\
@@ -251,20 +249,20 @@ install-lib :: $(LIB_DIRS) $(LIB) headers.sed
 	@ echo "** installing library in $(LIBDIR)"
 	@ $(LIBTOOL_INSTALL) $(INSTALL_DATA) $(LIB) $(LIBDIR)
 	@ echo "** installing headers in $(INCLUDEDIR)"
-	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dialog.h
-	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dlg_colors.h
-	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dlg_keys.h
-	@ $(SHELL) headers-sh $(INSTALL_DATA) $(INCLUDEDIR) .         dlg_config.h
+	@ $(SHELL) $(srcdir)/headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dialog.h
+	@ $(SHELL) $(srcdir)/headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dlg_colors.h
+	@ $(SHELL) $(srcdir)/headers-sh $(INSTALL_DATA) $(INCLUDEDIR) $(srcdir) dlg_keys.h
+	@ $(SHELL) $(srcdir)/headers-sh $(INSTALL_DATA) $(INCLUDEDIR) .         dlg_config.h
 
 uninstall-lib :: $(BINDIR)
 	$(RM) $(BINDIR)/$(LIB_CONFIG)
 
 uninstall-lib :: $(LIB_DIRS)
 	- $(LIBTOOL_UNINSTALL) $(RM) $(LIBDIR)/$(LIB)
-	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dialog.h
-	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_colors.h
-	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_keys.h
-	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) .         dlg_config.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dialog.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_colors.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_keys.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) .         dlg_config.h
 
 install-lib :: $(MAN3DIR)
 	@ echo "** installing @PACKAGE@.3"
@@ -278,8 +276,8 @@ install-lib :: $(MAN3DIR)
 uninstall-lib ::
 	$(RM) $(MAN3DIR)/@PACKAGE@.3
 
-headers.sed : headers-sh
-	$(SHELL) headers-sh $(INCLUDEDIR) $(srcdir)
+headers.sed : $(srcdir)/headers-sh
+	$(SHELL) $(srcdir)/headers-sh $(INCLUDEDIR) $(srcdir)
 
 ################################################################################
 TOP_DOCS = \
@@ -330,4 +328,4 @@ update-po:
 	test -f $(PO_DIR)/makefile && cd $(PO_DIR) && $(MAKE) $@
 
 lint:
-	$(LINT) $(LINT_OPTS) $(CPPFLAGS) *.c
+	$(LINT) $(CPPFLAGS) *.c

@@ -33,20 +33,28 @@ template<class ConstantClass, class TypeClass, class ValType>
 struct ConstantCreator;
 
 class InlineAsm : public Value {
+public:
+  enum AsmDialect {
+    AD_ATT,
+    AD_Intel
+  };
+
+private:
   friend struct ConstantCreator<InlineAsm, PointerType, InlineAsmKeyType>;
   friend class ConstantUniqueMap<InlineAsmKeyType, const InlineAsmKeyType&,
                                  PointerType, InlineAsm, false>;
 
-  InlineAsm(const InlineAsm &);             // do not implement
-  void operator=(const InlineAsm&);         // do not implement
+  InlineAsm(const InlineAsm &) LLVM_DELETED_FUNCTION;
+  void operator=(const InlineAsm&) LLVM_DELETED_FUNCTION;
 
   std::string AsmString, Constraints;
   bool HasSideEffects;
   bool IsAlignStack;
-  
+  AsmDialect Dialect;
+
   InlineAsm(PointerType *Ty, const std::string &AsmString,
             const std::string &Constraints, bool hasSideEffects,
-            bool isAlignStack);
+            bool isAlignStack, AsmDialect asmDialect);
   virtual ~InlineAsm();
 
   /// When the ConstantUniqueMap merges two types and makes two InlineAsms
@@ -58,11 +66,13 @@ public:
   ///
   static InlineAsm *get(FunctionType *Ty, StringRef AsmString,
                         StringRef Constraints, bool hasSideEffects,
-                        bool isAlignStack = false);
+                        bool isAlignStack = false,
+                        AsmDialect asmDialect = AD_ATT);
   
   bool hasSideEffects() const { return HasSideEffects; }
   bool isAlignStack() const { return IsAlignStack; }
-  
+  AsmDialect getDialect() const { return Dialect; }
+
   /// getType - InlineAsm's are always pointers.
   ///
   PointerType *getType() const {
@@ -179,7 +189,6 @@ public:
   }
   
   // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const InlineAsm *) { return true; }
   static inline bool classof(const Value *V) {
     return V->getValueID() == Value::InlineAsmVal;
   }
@@ -193,17 +202,20 @@ public:
     Op_InputChain = 0,
     Op_AsmString = 1,
     Op_MDNode = 2,
-    Op_ExtraInfo = 3,    // HasSideEffects, IsAlignStack
+    Op_ExtraInfo = 3,    // HasSideEffects, IsAlignStack, AsmDialect.
     Op_FirstOperand = 4,
 
     // Fixed operands on an INLINEASM MachineInstr.
     MIOp_AsmString = 0,
-    MIOp_ExtraInfo = 1,    // HasSideEffects, IsAlignStack
+    MIOp_ExtraInfo = 1,    // HasSideEffects, IsAlignStack, AsmDialect.
     MIOp_FirstOperand = 2,
 
     // Interpretation of the MIOp_ExtraInfo bit field.
     Extra_HasSideEffects = 1,
     Extra_IsAlignStack = 2,
+    Extra_AsmDialect = 4,
+    Extra_MayLoad = 8,
+    Extra_MayStore = 16,
 
     // Inline asm operands map to multiple SDNode / MachineInstr operands.
     // The first operand is an immediate describing the asm operand, the low

@@ -202,6 +202,8 @@ namespace hexagon {
 
 
 namespace darwin {
+  llvm::Triple::ArchType getArchTypeForDarwinArchName(StringRef Str);
+
   class LLVM_LIBRARY_VISIBILITY DarwinTool : public Tool {
     virtual void anchor();
   protected:
@@ -288,8 +290,9 @@ namespace darwin {
   };
 
   class LLVM_LIBRARY_VISIBILITY Link : public DarwinTool  {
+    bool NeedsTempPath(const InputInfoList &Inputs) const;
     void AddLinkArgs(Compilation &C, const ArgList &Args,
-                     ArgStringList &CmdArgs) const;
+                     ArgStringList &CmdArgs, const InputInfoList &Inputs) const;
 
   public:
     Link(const ToolChain &TC) : DarwinTool("darwin::Link", "linker", TC) {}

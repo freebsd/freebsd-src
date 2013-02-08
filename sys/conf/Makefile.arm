@@ -39,11 +39,15 @@ SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 STRIP_FLAGS = -S
 .endif
 
+CFLAGS += -mno-thumb-interwork
+
 .if empty(DDB_ENABLED)
 CFLAGS += -mno-apcs-frame
+.elif defined(WITH_ARM_EABI)
+CFLAGS += -funwind-tables
 .endif
 
-SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader \
+SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${LDFLAGS} \
 	  -warn-common -export-dynamic -dynamic-linker /red/herring -o \
 	   ${FULLKERNEL}.noheader -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
@@ -127,12 +131,10 @@ MKMODULESENV+=	MACHINE=${MACHINE}
 
 CLEAN+=	ldscript.$M ${KERNEL_KO}.bin ldscript.$M.noheader
 
-.if ${DDB_ENABLED} != ""
 CLEAN+= ${KERNEL_KO}.tramp ${KERNEL_KO}.tramp.bin ldscript.$M.tramp \
 	ldscript.$M.tramp.noheader ${KERNEL_KO}.gz.tramp \
 	${KERNEL_KO}.gz.tramp.bin
 
-.endif
 ldscript.$M: $S/conf/ldscript.$M
 	cat $S/conf/ldscript.$M|sed s/KERNPHYSADDR/${KERNPHYSADDR}/g| \
 	  sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M

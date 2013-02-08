@@ -59,6 +59,8 @@ typedef struct dst_context 	dst_context_t;
 #define DST_ALG_RSASHA256	8
 #define DST_ALG_RSASHA512	10
 #define DST_ALG_ECCGOST		12
+#define DST_ALG_ECDSA256	13
+#define DST_ALG_ECDSA384	14
 #define DST_ALG_HMACMD5		157
 #define DST_ALG_GSSAPI		160
 #define DST_ALG_HMACSHA1	161	/* XXXMPA */

@@ -83,40 +83,40 @@ The default mode is point-to-point.
 nodes support the Berkeley Packet Filter (BPF).
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobar
-.It Dv inet
+.Bl -tag -width ".Va inet6"
+.It Va inet
 Transmission and reception of IP packets.
-.It Dv inet6
+.It Va inet6
 Transmission and reception of IPv6 packets.
-.It Dv atalk
+.It Va atalk
 Transmission and reception of AppleTalk packets.
-.It Dv ipx
+.It Va ipx
 Transmission and reception of IPX packets.
-.It Dv atm
+.It Va atm
 Transmission and reception of ATM packets.
-.It Dv natm
+.It Va natm
 Transmission and reception of NATM packets.
-.It Dv ns
+.It Va ns
 Transmission and reception of NS packets.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_IFACE_GET_IFNAME
+.It Dv NGM_IFACE_GET_IFNAME Pq Ic getifname
 Returns the name of the associated interface as a
 .Dv NUL Ns -terminated
 .Tn ASCII
 string.
 Normally this is the same as the name of the node.
-.It Dv NGM_IFACE_GET_IFINDEX
+.It Dv NGM_IFACE_GET_IFINDEX Pq Ic getifindex
 Returns the global index of the associated interface as a 32 bit integer.
-.It Dv NGM_IFACE_POINT2POINT
+.It Dv NGM_IFACE_POINT2POINT Pq Ic point2point
 Set the interface to point-to-point mode.
 The interface must not currently be up.
-.It Dv NGM_IFACE_BROADCAST
+.It Dv NGM_IFACE_BROADCAST Pq Ic broadcast
 Set the interface to broadcast mode.
 The interface must not currently be up.
-.It Dv NGM_CISCO_GET_IPADDR
+.It Dv NGM_CISCO_GET_IPADDR Pq Ic getipaddr
 This message is defined by the
 .Xr ng_cisco 4
 node type; see

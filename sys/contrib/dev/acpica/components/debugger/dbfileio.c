@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,16 +135,15 @@ AcpiDbOpenDebugFile (
 
     AcpiDbCloseDebugFile ();
     AcpiGbl_DebugFile = fopen (Name, "w+");
-    if (AcpiGbl_DebugFile)
-    {
-        AcpiOsPrintf ("Debug output file %s opened\n", Name);
-        ACPI_STRCPY (AcpiGbl_DbDebugFilename, Name);
-        AcpiGbl_DbOutputToFile = TRUE;
-    }
-    else
+    if (!AcpiGbl_DebugFile)
     {
         AcpiOsPrintf ("Could not open debug file %s\n", Name);
+        return;
     }
+
+    AcpiOsPrintf ("Debug output file %s opened\n", Name);
+    ACPI_STRCPY (AcpiGbl_DbDebugFilename, Name);
+    AcpiGbl_DbOutputToFile = TRUE;
 
 #endif
 }
@@ -288,7 +287,7 @@ AcpiDbReadTable (
     {
         /* Read the table header */
 
-        if (fread (&TableHeader, 1, sizeof (TableHeader), fp) !=
+        if (fread (&TableHeader, 1, sizeof (ACPI_TABLE_HEADER), fp) !=
                 sizeof (ACPI_TABLE_HEADER))
         {
             AcpiOsPrintf ("Could not read the table header\n");
@@ -387,7 +386,6 @@ AcpiDbReadTable (
     AcpiOsFree (*Table);
     *Table = NULL;
     *TableLength = 0;
-
     return (AE_ERROR);
 }
 
@@ -485,15 +483,15 @@ AcpiDbReadTableFromFile (
     char                    *Filename,
     ACPI_TABLE_HEADER       **Table)
 {
-    FILE                    *fp;
+    FILE                    *File;
     UINT32                  TableLength;
     ACPI_STATUS             Status;
 
 
     /* Open the file */
 
-    fp = fopen (Filename, "rb");
-    if (!fp)
+    File = fopen (Filename, "rb");
+    if (!File)
     {
         AcpiOsPrintf ("Could not open input file %s\n", Filename);
         return (AE_ERROR);
@@ -502,8 +500,8 @@ AcpiDbReadTableFromFile (
     /* Get the entire file */
 
     fprintf (stderr, "Loading Acpi table from file %s\n", Filename);
-    Status = AcpiDbReadTable (fp, Table, &TableLength);
-    fclose(fp);
+    Status = AcpiDbReadTable (File, Table, &TableLength);
+    fclose(File);
 
     if (ACPI_FAILURE (Status))
     {

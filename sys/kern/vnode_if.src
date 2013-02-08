@@ -63,10 +63,8 @@ vop_islocked {
 	IN struct vnode *vp;
 };
 
-%% lookup	dvp	L ? ?
+%% lookup	dvp	L L L
 %% lookup	vpp	- L -
-%! lookup	pre	vop_lookup_pre
-%! lookup	post	vop_lookup_post
 
 # XXX - the lookup locking protocol defies simple description and depends
 #	on the flags and operation fields in the (cnp) structure.  Note
@@ -78,7 +76,7 @@ vop_lookup {
 	IN struct componentname *cnp;
 };
 
-%% cachedlookup	dvp	L ? ?
+%% cachedlookup	dvp	L L L
 %% cachedlookup	vpp	- L -
 
 # This must be an exact copy of lookup.  See kern/vfs_cache.c for details.

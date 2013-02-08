@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2012
+.Dd November 15, 2012
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -153,13 +153,12 @@ if
 .Dv M_WAITOK
 is specified.
 .It Dv M_USE_RESERVE
-Indicates that the system can dig into its reserve in order to obtain the
-requested memory.
-This option used to be called
-.Dv M_KERNEL
-but has been renamed to something more obvious.
-This option has been deprecated and is slowly being removed from the kernel,
-and so should not be used with any new programming.
+Indicates that the system can use its reserve of memory to satisfy the
+request.
+This option should only be used in combination with
+.Dv M_NOWAIT
+when an allocation failure cannot be tolerated by the caller without
+catastrophic effects on the system.
 .El
 .Pp
 Exactly one of either

@@ -649,7 +649,7 @@ create_service(struct netconfig *nconf)
 		 */
 		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
 			int non_fatal = 0;
-	    		if (errno == EPROTONOSUPPORT &&
+	    		if (errno == EAFNOSUPPORT &&
 			    nconf->nc_semantics != NC_TPI_CLTS) 
 				non_fatal = 1;
 				

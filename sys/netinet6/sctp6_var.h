@@ -42,6 +42,7 @@ SYSCTL_DECL(_net_inet6_sctp6);
 extern struct pr_usrreqs sctp6_usrreqs;
 
 int sctp6_input(struct mbuf **, int *, int);
+int sctp6_input_with_port(struct mbuf **, int *, uint16_t);
 int 
 sctp6_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
     struct mbuf *, struct proc *);

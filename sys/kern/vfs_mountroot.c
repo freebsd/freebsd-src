@@ -672,10 +672,11 @@ parse_mount_dev_present(const char *dev)
 	return (error != 0) ? 0 : 1;
 }
 
+#define	ERRMSGL	255
 static int
 parse_mount(char **conf)
 {
-	char errmsg[255];
+	char *errmsg;
 	struct mntarg *ma;
 	char *dev, *fs, *opts, *tok;
 	int delay, error, timeout;
@@ -707,7 +708,7 @@ parse_mount(char **conf)
 	printf("Trying to mount root from %s:%s [%s]...\n", fs, dev,
 	    (opts != NULL) ? opts : "");
 
-	bzero(errmsg, sizeof(errmsg));
+	errmsg = malloc(ERRMSGL, M_TEMP, M_WAITOK | M_ZERO);
 
 	if (vfs_byname(fs) == NULL) {
 		strlcpy(errmsg, "unknown file system", sizeof(errmsg));
@@ -734,7 +735,7 @@ parse_mount(char **conf)
 	ma = mount_arg(ma, "fstype", fs, -1);
 	ma = mount_arg(ma, "fspath", "/", -1);
 	ma = mount_arg(ma, "from", dev, -1);
-	ma = mount_arg(ma, "errmsg", errmsg, sizeof(errmsg));
+	ma = mount_arg(ma, "errmsg", errmsg, ERRMSGL);
 	ma = mount_arg(ma, "ro", NULL, 0);
 	ma = parse_mountroot_options(ma, opts);
 	error = kernel_mount(ma, MNT_ROOTFS);
@@ -748,11 +749,13 @@ parse_mount(char **conf)
 		printf(".\n");
 	}
 	free(fs, M_TEMP);
+	free(errmsg, M_TEMP);
 	if (opts != NULL)
 		free(opts, M_TEMP);
 	/* kernel_mount can return -1 on error. */
 	return ((error < 0) ? EDOOFUS : error);
 }
+#undef ERRMSGL
 
 static int
 vfs_mountroot_parse(struct sbuf *sb, struct mount *mpdevfs)

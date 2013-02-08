@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,6 +100,7 @@ enum AcpiExDebuggerCommands
     CMD_CLOSE,
     CMD_DEBUG,
     CMD_DISASSEMBLE,
+    CMD_DISASM,
     CMD_DUMP,
     CMD_ENABLEACPI,
     CMD_EVALUATE,
@@ -170,6 +171,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"CLOSE",        0},
     {"DEBUG",        1},
     {"DISASSEMBLE",  1},
+    {"DISASM",       1},
     {"DUMP",         1},
     {"ENABLEACPI",   0},
     {"EVALUATE",     1},
@@ -208,7 +210,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"RESOURCES",    1},
     {"RESULTS",      0},
     {"SET",          3},
-    {"SLEEP",        1},
+    {"SLEEP",        0},
     {"STATS",        1},
     {"STOP",         0},
     {"TABLES",       0},
@@ -272,7 +274,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  References <Addr>",                 "Find all references to object at addr\n"},
     {1, "  Resources <DeviceName | *>",        "Display Device resources (* = all devices)\n"},
     {1, "  Set N <NamedObject> <Value>",       "Set value for named integer\n"},
-    {1, "  Sleep <SleepState>",                "Simulate sleep/wake sequence\n"},
+    {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},
     {1, "  Template <Object>",                 "Format/dump a Buffer/ResourceTemplate\n"},
     {1, "  Terminate",                         "Delete namespace and all internal objects\n"},
     {1, "  Type <Object>",                     "Display object type\n"},
@@ -796,6 +798,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_DISASSEMBLE:
+    case CMD_DISASM:
         (void) AcpiDbDisassembleMethod (AcpiGbl_DbArgs[1]);
         break;
 
@@ -1164,6 +1167,8 @@ AcpiDbUserCommands (
 {
     ACPI_STATUS             Status = AE_OK;
 
+
+    AcpiOsPrintf ("\n");
 
     /* TBD: [Restructure] Need a separate command line buffer for step mode */
 

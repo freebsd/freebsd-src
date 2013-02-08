@@ -74,6 +74,10 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
+.elif ${MACHINE_CPUARCH} == "powerpc"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/powerpc
 .else
 # temporary hack
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel
@@ -99,7 +103,7 @@ dt_names.c:
 beforedepend:	dt_errtags.c dt_names.c
 
 beforeinstall:
-.if exists(${DESTDIR}/usr/lib/dtrace)
+.if !defined(LIBRARIES_ONLY) && exists(${DESTDIR}/usr/lib/dtrace)
 .for file in ${DSRCS}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${.CURDIR}/${file} ${DESTDIR}/usr/lib/dtrace
 .endfor

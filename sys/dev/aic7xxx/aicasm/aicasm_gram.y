@@ -103,7 +103,6 @@ static void add_version(const char *verstring);
 static int  is_download_const(expression_t *immed);
 
 extern int yylex (void);
-extern int yyparse (void);
 
 #define SRAM_SYMNAME "SRAM_BASE"
 #define SCB_SYMNAME "SCB_BASE"
@@ -1076,7 +1075,7 @@ conditional:
 		last_scope = TAILQ_LAST(&scope_context->inner_scope,
 					scope_tailq);
 		if (last_scope == NULL
-		 || last_scope->type == T_ELSE) {
+		 || last_scope->type == SCOPE_ELSE) {
 
 			stop("'else if' without leading 'if'", EX_DATAERR);
 			/* NOTREACHED */

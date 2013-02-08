@@ -225,6 +225,14 @@ static int eap_server_tls_process_fragment(struct eap_ssl_data *data,
 			return -1;
 		}
 
+		if (len > message_length) {
+			wpa_printf(MSG_INFO, "SSL: Too much data (%d bytes) in "
+				   "first fragment of frame (TLS Message "
+				   "Length %d bytes)",
+				   (int) len, (int) message_length);
+			return -1;
+		}
+
 		data->tls_in = wpabuf_alloc(message_length);
 		if (data->tls_in == NULL) {
 			wpa_printf(MSG_DEBUG, "SSL: No memory for message");

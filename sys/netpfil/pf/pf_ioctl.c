@@ -1,8 +1,7 @@
-/*	$OpenBSD: pf_ioctl.c,v 1.213 2009/02/15 21:46:12 mbalmer Exp $ */
-
-/*
+/*-
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002,2003 Henning Brauer
+ * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +32,7 @@
  * Agency (DARPA) and Air Force Research Laboratory, Air Force
  * Materiel Command, USAF, under agreement number F30602-01-2-0537.
  *
+ *	$OpenBSD: pf_ioctl.c,v 1.213 2009/02/15 21:46:12 mbalmer Exp $
  */
 
 #include <sys/cdefs.h>
@@ -963,8 +963,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 {
 	int			 error = 0;
 
-	CURVNET_SET(TD_TO_VNET(td));
-
 	/* XXX keep in sync with switch() below */
 	if (securelevel_gt(td->td_ucred, 2))
 		switch (cmd) {
@@ -1067,6 +1065,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		default:
 			return (EACCES);
 		}
+
+	CURVNET_SET(TD_TO_VNET(td));
 
 	switch (cmd) {
 	case DIOCSTART:

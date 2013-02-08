@@ -51,6 +51,9 @@
 #   define _LIBCPP_LITTLE_ENDIAN 0
 #   define _LIBCPP_BIG_ENDIAN    1
 # endif  // _BYTE_ORDER == _LITTLE_ENDIAN
+# ifndef __LONG_LONG_SUPPORTED
+#  define _LIBCPP_HAS_NO_LONG_LONG
+# endif  // __LONG_LONG_SUPPORTED
 #endif  // __FreeBSD__
 
 #ifdef _WIN32
@@ -62,6 +65,12 @@
 #    define _LIBCP_HAS_IS_BASE_OF
 #  endif
 #endif  // _WIN32
+
+#ifdef __linux__
+#  if defined(__GNUC__) && _GNUC_VER >= 403
+#    define _LIBCP_HAS_IS_BASE_OF
+#  endif
+#endif
 
 #ifdef __sun__
 # include <sys/isa_defs.h>
@@ -415,17 +424,21 @@ template <unsigned> struct __static_assert_check {};
 #endif
 
 #ifdef _LIBCPP_HAS_NO_STRONG_ENUMS
-#define _LIBCPP_DECLARE_STRONG_ENUM(x) struct _LIBCPP_VISIBLE x { enum _
+#define _LIBCPP_DECLARE_STRONG_ENUM(x) struct _LIBCPP_VISIBLE x { enum __lx
 #define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x) \
-    _ __v_; \
-    _LIBCPP_ALWAYS_INLINE x(_ __v) : __v_(__v) {} \
-    _LIBCPP_ALWAYS_INLINE explicit x(int __v) : __v_(static_cast<_>(__v)) {} \
+    __lx __v_; \
+    _LIBCPP_ALWAYS_INLINE x(__lx __v) : __v_(__v) {} \
+    _LIBCPP_ALWAYS_INLINE explicit x(int __v) : __v_(static_cast<__lx>(__v)) {} \
     _LIBCPP_ALWAYS_INLINE operator int() const {return __v_;} \
     };
 #else  // _LIBCPP_HAS_NO_STRONG_ENUMS
 #define _LIBCPP_DECLARE_STRONG_ENUM(x) enum class _LIBCPP_VISIBLE x
 #define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x)
 #endif  // _LIBCPP_HAS_NO_STRONG_ENUMS
+
+#ifndef _LIBCPP_EXTERN_TEMPLATE
+#define _LIBCPP_EXTERN_TEMPLATE(...) extern template __VA_ARGS__;
+#endif
 
 #if __APPLE__ || __FreeBSD__ || _WIN32 || __sun__
 #define _LIBCPP_LOCALE__L_EXTENSIONS 1

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2012
+.Dd January 21, 2013
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -143,7 +143,7 @@ and
 are not supported.
 .Va BDECFLAGS
 is provided as a set of
-.Xr gcc 1
+.Xr cc 1
 settings suggested by
 .An "Bruce Evans" Aq bde@FreeBSD.org
 for developing and testing changes.
@@ -162,7 +162,7 @@ the value of
 and
 .Va COPTFLAGS
 to contain the appropriate optimization directive to
-.Xr gcc 1 .
+.Xr cc 1 .
 The automatic setting of
 .Va CFLAGS
 and
@@ -255,10 +255,6 @@ Set this to not update the doc tree during
 .Pq Vt bool
 Set this to not update the ports tree during
 .Dq Li "make update" .
-.It Va NO_WWWUPDATE
-.Pq Vt bool
-Set this to not update the www tree during
-.Dq Li "make update" .
 .It Va SUP
 .Pq Vt str
 The location of the
@@ -309,6 +305,11 @@ and
 .Pa ports
 trees with
 .Dq Li "make update" .
+This option is deprecated.
+Please use
+.Va SVN_UPDATE
+or
+.Xr freebsd-update 8 .
 .It Va SVN_UPDATE
 .Pq Vt bool
 Set this to use
@@ -693,7 +694,7 @@ The default number is 20011.
 .Pq Vt int
 Causes the system compiler to be built such that it forces high optimization
 levels to a lower one.
-.Xr gcc 1
+.Xr cc 1
 .Fl O2
 and above is known to trigger known optimizer bugs at various
 times.
@@ -735,7 +736,7 @@ filter, or both.
 .It Pa /usr/src/Makefile.inc1
 .El
 .Sh SEE ALSO
-.Xr gcc 1 ,
+.Xr cc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr src.conf 5 ,

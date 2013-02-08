@@ -70,18 +70,8 @@ smbfs_name_alloc(const u_char *name, int nmlen)
 	u_char *cp;
 
 	nmlen++;
-#ifdef SMBFS_NAME_DEBUG
-	cp = malloc(nmlen + 2 + sizeof(int), M_SMBNODENAME, M_WAITOK);
-	*(int*)cp = nmlen;
-	cp += sizeof(int);
-	cp[0] = 0xfc;
-	cp++;
-	bcopy(name, cp, nmlen - 1);
-	cp[nmlen] = 0xfe;
-#else
 	cp = malloc(nmlen, M_SMBNODENAME, M_WAITOK);
 	bcopy(name, cp, nmlen - 1);
-#endif
 	cp[nmlen - 1] = 0;
 	return cp;
 }
@@ -89,26 +79,8 @@ smbfs_name_alloc(const u_char *name, int nmlen)
 static void
 smbfs_name_free(u_char *name)
 {
-#ifdef SMBFS_NAME_DEBUG
-	int nmlen, slen;
-	u_char *cp;
 
-	cp = name;
-	cp--;
-	if (*cp != 0xfc)
-		panic("First byte of name entry '%s' corrupted", name);
-	cp -= sizeof(int);
-	nmlen = *(int*)cp;
-	slen = strlen(name) + 1;
-	if (nmlen != slen)
-		panic("Name length mismatch: was %d, now %d name '%s'",
-		    nmlen, slen, name);
-	if (name[nmlen] != 0xfe)
-		panic("Last byte of name entry '%s' corrupted\n", name);
-	free(cp, M_SMBNODENAME);
-#else
 	free(name, M_SMBNODENAME);
-#endif
 }
 
 static int __inline
@@ -126,8 +98,9 @@ smbfs_vnode_cmp(struct vnode *vp, void *_sc)
 }
 
 static int
-smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
-	const char *name, int nmlen, struct smbfattr *fap, struct vnode **vpp)
+smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm, 
+	int dirlen, const char *name, int nmlen, char sep, 
+	struct smbfattr *fap, struct vnode **vpp)
 {
 	struct vattr vattr;
 	struct thread *td = curthread;	/* XXX */
@@ -135,12 +108,12 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 	struct smbnode *np, *dnp;
 	struct vnode *vp, *vp2;
 	struct smbcmp sc;
-	int error;
+	char *p, *rpath;
+	int error, rplen;
 
 	sc.n_parent = dvp;
 	sc.n_nmlen = nmlen;
 	sc.n_name = name;	
-	*vpp = NULL;
 	if (smp->sm_root != NULL && dvp == NULL) {
 		SMBERROR("do not allocate root vnode twice!\n");
 		return EINVAL;
@@ -162,7 +135,6 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 		vprint("smbfs_node_alloc: dead parent vnode", dvp);
 		return EINVAL;
 	}
-	*vpp = NULL;
 	error = vfs_hash_get(mp, smbfs_hash(name, nmlen), LK_EXCLUSIVE, td,
 	    vpp, smbfs_vnode_cmp, &sc);
 	if (error)
@@ -201,18 +173,37 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 		return (error);
 	vp = *vpp;
 	np = malloc(sizeof *np, M_SMBNODE, M_WAITOK | M_ZERO);
+	rplen = dirlen;
+	if (sep != '\0')
+		rplen++;
+	rplen += nmlen;
+	rpath = malloc(rplen + 1, M_SMBNODENAME, M_WAITOK);
+	p = rpath;
+	bcopy(dirnm, p, dirlen);
+	p += dirlen;
+	if (sep != '\0')
+		*p++ = sep;
+	if (name != NULL) {
+		bcopy(name, p, nmlen);
+		p += nmlen;
+	}
+	*p = '\0';
+	MPASS(p == rpath + rplen);
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	/* Vnode initialization */
 	vp->v_type = fap->fa_attr & SMB_FA_DIR ? VDIR : VREG;
 	vp->v_data = np;
 	np->n_vnode = vp;
 	np->n_mount = VFSTOSMBFS(mp);
+	np->n_rpath = rpath;
+	np->n_rplen = rplen;
 	np->n_nmlen = nmlen;
 	np->n_name = smbfs_name_alloc(name, nmlen);
 	np->n_ino = fap->fa_ino;
 	if (dvp) {
 		ASSERT_VOP_LOCKED(dvp, "smbfs_node_alloc");
 		np->n_parent = dvp;
+		np->n_parentino = VTOSMB(dvp)->n_ino;
 		if (/*vp->v_type == VDIR &&*/ (dvp->v_vflag & VV_ROOT) == 0) {
 			vref(dvp);
 			np->n_flag |= NREFPARENT;
@@ -237,14 +228,22 @@ int
 smbfs_nget(struct mount *mp, struct vnode *dvp, const char *name, int nmlen,
 	struct smbfattr *fap, struct vnode **vpp)
 {
-	struct smbnode *np;
+	struct smbnode *dnp, *np;
 	struct vnode *vp;
-	int error;
+	int error, sep;
 
-	*vpp = NULL;
-	error = smbfs_node_alloc(mp, dvp, name, nmlen, fap, &vp);
+	dnp = (dvp) ? VTOSMB(dvp) : NULL;
+	sep = 0;
+	if (dnp != NULL) {
+		sep = SMBFS_DNP_SEP(dnp); 
+		error = smbfs_node_alloc(mp, dvp, dnp->n_rpath, dnp->n_rplen, 
+		    name, nmlen, sep, fap, &vp); 
+	} else
+		error = smbfs_node_alloc(mp, NULL, "\\", 1, name, nmlen, 
+		    sep, fap, &vp); 
 	if (error)
 		return error;
+	MPASS(vp != NULL);
 	np = VTOSMB(vp);
 	if (fap)
 		smbfs_attr_cacheenter(vp, fap);
@@ -284,6 +283,8 @@ smbfs_reclaim(ap)
 	vfs_hash_remove(vp);
 	if (np->n_name)
 		smbfs_name_free(np->n_name);
+	if (np->n_rpath)
+		free(np->n_rpath, M_SMBNODENAME);
 	free(np, M_SMBNODE);
 	vp->v_data = NULL;
 	if (dvp != NULL) {

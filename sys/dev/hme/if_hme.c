@@ -564,7 +564,7 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 		hme_discard_rxbuf(sc, ri);
 		return (0);
 	}
-	if ((m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+	if ((m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
 	b = mtod(m, uintptr_t);
@@ -951,7 +951,7 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 	cflags = 0;
 	if (((*m0)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0) {
 		if (M_WRITABLE(*m0) == 0) {
-			m = m_dup(*m0, M_DONTWAIT);
+			m = m_dup(*m0, M_NOWAIT);
 			m_freem(*m0);
 			*m0 = m;
 			if (m == NULL)
@@ -974,7 +974,7 @@ hme_load_txmbuf(struct hme_softc *sc, struct mbuf **m0)
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, htx->htx_dmamap,
 	    *m0, segs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m0, M_DONTWAIT, HME_NTXSEGS);
+		m = m_collapse(*m0, M_NOWAIT, HME_NTXSEGS);
 		if (m == NULL) {
 			m_freem(*m0);
 			*m0 = NULL;

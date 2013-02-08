@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
@@ -733,4 +734,54 @@ smp_no_rendevous_barrier(void *dummy)
 #ifdef SMP
 	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
 #endif
+}
+
+/*
+ * Wait specified idle threads to switch once.  This ensures that even
+ * preempted threads have cycled through the switch function once,
+ * exiting their codepaths.  This allows us to change global pointers
+ * with no other synchronization.
+ */
+int
+quiesce_cpus(cpuset_t map, const char *wmesg, int prio)
+{
+	struct pcpu *pcpu;
+	u_int gen[MAXCPU];
+	int error;
+	int cpu;
+
+	error = 0;
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
+			continue;
+		pcpu = pcpu_find(cpu);
+		gen[cpu] = pcpu->pc_idlethread->td_generation;
+	}
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
+			continue;
+		pcpu = pcpu_find(cpu);
+		thread_lock(curthread);
+		sched_bind(curthread, cpu);
+		thread_unlock(curthread);
+		while (gen[cpu] == pcpu->pc_idlethread->td_generation) {
+			error = tsleep(quiesce_cpus, prio, wmesg, 1);
+			if (error != EWOULDBLOCK)
+				goto out;
+			error = 0;
+		}
+	}
+out:
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
+
+	return (error);
+}
+
+int
+quiesce_all_cpus(const char *wmesg, int prio)
+{
+
+	return quiesce_cpus(all_cpus, wmesg, prio);
 }

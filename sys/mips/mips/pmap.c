@@ -148,16 +148,7 @@ vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 
 static void pmap_asid_alloc(pmap_t pmap);
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -172,6 +163,7 @@ static vm_page_t pmap_pv_reclaim(pmap_t locked_pmap);
 static void pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
     vm_offset_t va);
+static vm_page_t pmap_alloc_direct_page(unsigned int index, int req);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va,
@@ -1050,7 +1042,7 @@ pmap_grow_direct_page_cache()
 #endif
 }
 
-vm_page_t
+static vm_page_t
 pmap_alloc_direct_page(unsigned int index, int req)
 {
 	vm_page_t m;

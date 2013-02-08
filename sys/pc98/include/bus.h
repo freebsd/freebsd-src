@@ -317,24 +317,22 @@ _BUS_ACCESS_METHODS_PROTO(u_int32_t,4)
 /*
  * read methods
  */
-#define	_BUS_SPACE_READ(TYPE,BWN)				\
-static __inline TYPE						\
-bus_space_read_##BWN (tag, bsh, offset)				\
-	bus_space_tag_t tag;					\
-	bus_space_handle_t bsh;					\
-	bus_size_t offset;					\
-{								\
-	register TYPE result;					\
-								\
-	__asm __volatile("call *%2"  				\
-			:"=a" (result),				\
-			 "=d" (offset)				\
-			:"o" (bsh->bsh_bam.bs_read_##BWN),	\
-			 "b" (bsh),				\
-			 "1" (offset)				\
-			);					\
-								\
-	return result;						\
+#define	_BUS_SPACE_READ(TYPE,BWN)					\
+static __inline TYPE							\
+bus_space_read_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh,	\
+	bus_size_t offset)						\
+{									\
+	register TYPE result;						\
+									\
+	__asm __volatile("call *%2"  					\
+			:"=a" (result),					\
+			 "=d" (offset)					\
+			:"o" (bsh->bsh_bam.bs_read_##BWN),		\
+			 "b" (bsh),					\
+			 "1" (offset)					\
+			);						\
+									\
+	return result;							\
 }
 
 _BUS_SPACE_READ(u_int8_t,1)
@@ -344,22 +342,19 @@ _BUS_SPACE_READ(u_int32_t,4)
 /*
  * write methods
  */
-#define	_BUS_SPACE_WRITE(TYPE,BWN)				\
-static __inline void						\
-bus_space_write_##BWN (tag, bsh, offset, val)			\
-	bus_space_tag_t tag;					\
-	bus_space_handle_t bsh;					\
-	bus_size_t offset;					\
-	TYPE val;						\
-{								\
-								\
-	__asm __volatile("call *%1"				\
-			:"=d" (offset)				\
-			:"o" (bsh->bsh_bam.bs_write_##BWN),	\
-			 "a" (val),				\
-			 "b" (bsh),				\
-			 "0" (offset)				\
-			);					\
+#define	_BUS_SPACE_WRITE(TYPE,BWN)					\
+static __inline void							\
+bus_space_write_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh,	\
+	bus_size_t offset, TYPE  val)					\
+{									\
+									\
+	__asm __volatile("call *%1"					\
+			:"=d" (offset)					\
+			:"o" (bsh->bsh_bam.bs_write_##BWN),		\
+			 "a" (val),					\
+			 "b" (bsh),					\
+			 "0" (offset)					\
+			);						\
 }								
 
 _BUS_SPACE_WRITE(u_int8_t,1)
@@ -371,12 +366,8 @@ _BUS_SPACE_WRITE(u_int32_t,4)
  */
 #define	_BUS_SPACE_READ_MULTI(TYPE,BWN)					\
 static __inline void							\
-bus_space_read_multi_##BWN (tag, bsh, offset, buf, cnt) 		\
-	bus_space_tag_t tag;						\
-	bus_space_handle_t bsh;						\
-	bus_size_t offset;						\
-	TYPE *buf;							\
-	size_t cnt;							\
+bus_space_read_multi_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh, \
+	bus_size_t offset, TYPE *buf, size_t cnt) 			\
 {									\
 									\
 	__asm __volatile("call *%3"					\
@@ -400,12 +391,8 @@ _BUS_SPACE_READ_MULTI(u_int32_t,4)
  */
 #define	_BUS_SPACE_WRITE_MULTI(TYPE,BWN)				\
 static __inline void							\
-bus_space_write_multi_##BWN (tag, bsh, offset, buf, cnt) 		\
-	bus_space_tag_t tag;						\
-	bus_space_handle_t bsh;						\
-	bus_size_t offset;						\
-	const TYPE *buf;						\
-	size_t cnt;							\
+bus_space_write_multi_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh, \
+	bus_size_t offset, const TYPE *buf, size_t cnt) 		\
 {									\
 									\
 	__asm __volatile("call *%3"					\
@@ -429,12 +416,8 @@ _BUS_SPACE_WRITE_MULTI(u_int32_t,4)
  */
 #define	_BUS_SPACE_READ_REGION(TYPE,BWN)				\
 static __inline void							\
-bus_space_read_region_##BWN (tag, bsh, offset, buf, cnt) 		\
-	bus_space_tag_t tag;						\
-	bus_space_handle_t bsh;						\
-	bus_size_t offset;						\
-	TYPE *buf;						\
-	size_t cnt;							\
+bus_space_read_region_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh, \
+	bus_size_t offset, TYPE *buf, size_t cnt) 			\
 {									\
 									\
 	__asm __volatile("call *%3"					\
@@ -458,12 +441,8 @@ _BUS_SPACE_READ_REGION(u_int32_t,4)
  */
 #define	_BUS_SPACE_WRITE_REGION(TYPE,BWN)				\
 static __inline void							\
-bus_space_write_region_##BWN (tag, bsh, offset, buf, cnt) 		\
-	bus_space_tag_t tag;						\
-	bus_space_handle_t bsh;						\
-	bus_size_t offset;						\
-	const TYPE *buf;						\
-	size_t cnt;							\
+bus_space_write_region_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh, \
+	bus_size_t offset, const TYPE *buf, size_t cnt) 		\
 {									\
 									\
 	__asm __volatile("call *%3"					\
@@ -487,12 +466,8 @@ _BUS_SPACE_WRITE_REGION(u_int32_t,4)
  */
 #define	_BUS_SPACE_SET_MULTI(TYPE,BWN)					\
 static __inline void							\
-bus_space_set_multi_##BWN (tag, bsh, offset, val, cnt)	 		\
-	bus_space_tag_t tag;						\
-	bus_space_handle_t bsh;						\
-	bus_size_t offset;						\
-	TYPE val;							\
-	size_t cnt;							\
+bus_space_set_multi_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh,	\
+	bus_size_t offset, TYPE val, size_t cnt)	 		\
 {									\
 									\
 	__asm __volatile("call *%2"					\
@@ -515,12 +490,8 @@ _BUS_SPACE_SET_MULTI(u_int32_t,4)
  */
 #define	_BUS_SPACE_SET_REGION(TYPE,BWN)					\
 static __inline void							\
-bus_space_set_region_##BWN (tag, bsh, offset, val, cnt) 		\
-	bus_space_tag_t tag;						\
-	bus_space_handle_t bsh;						\
-	bus_size_t offset;						\
-	TYPE val;							\
-	size_t cnt;							\
+bus_space_set_region_##BWN (bus_space_tag_t tag, bus_space_handle_t bsh, \
+	bus_size_t offset, TYPE val, size_t cnt) 			\
 {									\
 									\
 	__asm __volatile("call *%2"					\
@@ -543,13 +514,8 @@ _BUS_SPACE_SET_REGION(u_int32_t,4)
  */
 #define	_BUS_SPACE_COPY_REGION(BWN)					\
 static __inline void							\
-bus_space_copy_region_##BWN (tag, sbsh, src, dbsh, dst, cnt)		\
-	bus_space_tag_t tag;						\
-	bus_space_handle_t sbsh;					\
-	bus_size_t src;							\
-	bus_space_handle_t dbsh;					\
-	bus_size_t dst;							\
-	size_t cnt;							\
+bus_space_copy_region_##BWN (bus_space_tag_t tag, bus_space_handle_t sbsh, \
+	bus_size_t src, bus_space_handle_t dbsh, bus_size_t dst, size_t cnt) \
 {									\
 									\
 	if (dbsh->bsh_bam.bs_copy_region_1 != sbsh->bsh_bam.bs_copy_region_1) \

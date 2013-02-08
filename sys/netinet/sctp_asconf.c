@@ -80,7 +80,7 @@ sctp_asconf_success_response(uint32_t id)
 	struct sctp_asconf_paramhdr *aph;
 
 	m_reply = sctp_get_mbuf_for_msg(sizeof(struct sctp_asconf_paramhdr),
-	    0, M_DONTWAIT, 1, MT_DATA);
+	    0, M_NOWAIT, 1, MT_DATA);
 	if (m_reply == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "asconf_success_response: couldn't get mbuf!\n");
@@ -108,7 +108,7 @@ sctp_asconf_error_response(uint32_t id, uint16_t cause, uint8_t * error_tlv,
 	m_reply = sctp_get_mbuf_for_msg((sizeof(struct sctp_asconf_paramhdr) +
 	    tlv_length +
 	    sizeof(struct sctp_error_cause)),
-	    0, M_DONTWAIT, 1, MT_DATA);
+	    0, M_NOWAIT, 1, MT_DATA);
 	if (m_reply == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "asconf_error_response: couldn't get mbuf!\n");
@@ -633,7 +633,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 		}
 	}
 	m_ack = sctp_get_mbuf_for_msg(sizeof(struct sctp_asconf_ack_chunk), 0,
-	    M_DONTWAIT, 1, MT_DATA);
+	    M_NOWAIT, 1, MT_DATA);
 	if (m_ack == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "handle_asconf: couldn't get mbuf!\n");
@@ -2569,14 +2569,14 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 	 * it's simpler to fill in the asconf chunk header lookup address on
 	 * the fly
 	 */
-	m_asconf_chk = sctp_get_mbuf_for_msg(sizeof(struct sctp_asconf_chunk), 0, M_DONTWAIT, 1, MT_DATA);
+	m_asconf_chk = sctp_get_mbuf_for_msg(sizeof(struct sctp_asconf_chunk), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_asconf_chk == NULL) {
 		/* no mbuf's */
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "compose_asconf: couldn't get chunk mbuf!\n");
 		return (NULL);
 	}
-	m_asconf = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
+	m_asconf = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_asconf == NULL) {
 		/* no mbuf's */
 		SCTPDBG(SCTP_DEBUG_ASCONF1,

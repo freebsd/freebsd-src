@@ -31,13 +31,14 @@
  */
 
 #ifndef	lint
-static char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $";
+static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp $";
 #endif
 
 #include <stdio.h>
 
 #include <time.h>
 #include <unistd.h>
+#include <fnmatch.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
@@ -78,6 +79,7 @@ static char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp 
 #include "route6d.h"
 
 #define	MAXFILTER	40
+#define RT_DUMP_MAXRETRY	15
 
 #ifdef	DEBUG
 #define	INIT_INTERVAL6	6
@@ -90,21 +92,10 @@ static char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp 
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
-/*
- * Following two macros are highly depending on KAME Release
- */
-#define	IN6_LINKLOCAL_IFINDEX(addr) \
-	((addr).s6_addr[2] << 8 | (addr).s6_addr[3])
+struct ifc {			/* Configuration of an interface */
+	TAILQ_ENTRY(ifc) ifc_next;
 
-#define	SET_IN6_LINKLOCAL_IFINDEX(addr, index) \
-	do { \
-		(addr).s6_addr[2] = ((index) >> 8) & 0xff; \
-		(addr).s6_addr[3] = (index) & 0xff; \
-	} while (0)
-
-struct	ifc {			/* Configuration of an interface */
-	char	*ifc_name;			/* if name */
-	struct	ifc *ifc_next;
+	char	ifc_name[IFNAMSIZ];		/* if name */
 	int	ifc_index;			/* if index */
 	int	ifc_mtu;			/* if mtu */
 	int	ifc_metric;			/* if metric */
@@ -112,30 +103,32 @@ struct	ifc {			/* Configuration of an interface */
 	short	ifc_cflags;			/* IFC_XXX */
 	struct	in6_addr ifc_mylladdr;		/* my link-local address */
 	struct	sockaddr_in6 ifc_ripsin;	/* rip multicast address */
-	struct	iff *ifc_filter;		/* filter structure */
-	struct	ifac *ifc_addr;			/* list of AF_INET6 addresses */
+	TAILQ_HEAD(, ifac) ifc_ifac_head;	/* list of AF_INET6 addrs */
+	TAILQ_HEAD(, iff) ifc_iff_head;		/* list of filters */
 	int	ifc_joined;			/* joined to ff02::9 */
 };
+TAILQ_HEAD(, ifc) ifc_head = TAILQ_HEAD_INITIALIZER(ifc_head);
 
-struct	ifac {			/* Adddress associated to an interface */ 
-	struct	ifc *ifa_conf;		/* back pointer */
-	struct	ifac *ifa_next;
-	struct	in6_addr ifa_addr;	/* address */
-	struct	in6_addr ifa_raddr;	/* remote address, valid in p2p */
-	int	ifa_plen;		/* prefix length */
+struct ifac {			/* Adddress associated to an interface */ 
+	TAILQ_ENTRY(ifac) ifac_next;
+
+	struct	ifc *ifac_ifc;		/* back pointer */
+	struct	in6_addr ifac_addr;	/* address */
+	struct	in6_addr ifac_raddr;	/* remote address, valid in p2p */
+	int	ifac_scope_id;		/* scope id */
+	int	ifac_plen;		/* prefix length */
 };
 
-struct	iff {
+struct iff {			/* Filters for an interface */
+	TAILQ_ENTRY(iff) iff_next;
+
 	int	iff_type;
 	struct	in6_addr iff_addr;
 	int	iff_plen;
-	struct	iff *iff_next;
 };
 
-struct	ifc *ifc;
-int	nifc;		/* number of valid ifc's */
 struct	ifc **index2ifc;
-int	nindex2ifc;
+unsigned int	nindex2ifc;
 struct	ifc *loopifcp = NULL;	/* pointing to loopback */
 #ifdef HAVE_POLL_H
 struct	pollfd set[2];
@@ -162,8 +155,9 @@ struct	rip6 *ripbuf;	/* packet buffer for sending */
  * suppressing the specifics covered by the aggregate.
  */
 
-struct	riprt {
-	struct	riprt *rrt_next;	/* next destination */
+struct riprt {
+	TAILQ_ENTRY(riprt) rrt_next;	/* next destination */
+
 	struct	riprt *rrt_same;	/* same destination - future use */
 	struct	netinfo6 rrt_info;	/* network info */
 	struct	in6_addr rrt_gw;	/* gateway */
@@ -172,8 +166,7 @@ struct	riprt {
 	time_t	rrt_t;			/* when the route validated */
 	int	rrt_index;		/* ifindex from which this route got */
 };
-
-struct	riprt *riprt = 0;
+TAILQ_HEAD(, riprt) riprt_head = TAILQ_HEAD_INITIALIZER(riprt_head);
 
 int	dflag = 0;	/* debug flag */
 int	qflag = 0;	/* quiet flag */
@@ -181,6 +174,8 @@ int	nflag = 0;	/* don't update kernel routing table */
 int	aflag = 0;	/* age out even the statically defined routes */
 int	hflag = 0;	/* don't split horizon */
 int	lflag = 0;	/* exchange site local routes */
+int	Pflag = 0;	/* don't age out routes with RTF_PROTO[123] */
+int	Qflag = RTF_PROTO2;	/* set RTF_PROTO[123] flag to routes by RIPng */
 int	sflag = 0;	/* announce static routes w/ split horizon */
 int	Sflag = 0;	/* announce static routes to every interface */
 unsigned long routetag = 0;	/* route tag attached on originating case */
@@ -222,7 +217,7 @@ int out_filter(struct riprt *, struct ifc *);
 void init(void);
 void sockopt(struct ifc *);
 void ifconfig(void);
-void ifconfig1(const char *, const struct sockaddr *, struct ifc *, int);
+int ifconfig1(const char *, const struct sockaddr *, struct ifc *, int);
 void rtrecv(void);
 int rt_del(const struct sockaddr_in6 *, const struct sockaddr_in6 *,
 	const struct sockaddr_in6 *);
@@ -240,12 +235,13 @@ void applyplen(struct in6_addr *, int);
 void ifrtdump(int);
 void ifdump(int);
 void ifdump0(FILE *, const struct ifc *);
+void ifremove(int);
 void rtdump(int);
 void rt_entry(struct rt_msghdr *, int);
 void rtdexit(void);
 void riprequest(struct ifc *, struct netinfo6 *, int,
 	struct sockaddr_in6 *);
-void ripflush(struct ifc *, struct sockaddr_in6 *);
+void ripflush(struct ifc *, struct sockaddr_in6 *, int, struct netinfo6 *np);
 void sendrequest(struct ifc *);
 int sin6mask2len(const struct sockaddr_in6 *);
 int mask2len(const struct in6_addr *, int);
@@ -260,7 +256,7 @@ char *hms(void);
 const char *inet6_n2p(const struct in6_addr *);
 struct ifac *ifa_match(const struct ifc *, const struct in6_addr *, int);
 struct in6_addr *plen2mask(int);
-struct riprt *rtsearch(struct netinfo6 *, struct riprt **);
+struct riprt *rtsearch(struct netinfo6 *);
 int ripinterval(int);
 time_t ripsuptrig(void);
 void fatal(const char *, ...)
@@ -276,16 +272,23 @@ void setindex2ifc(int, struct ifc *);
 
 #define	MALLOC(type)	((type *)malloc(sizeof(type)))
 
+#define IFIL_TYPE_ANY	0x0
+#define IFIL_TYPE_A	'A'
+#define IFIL_TYPE_N	'N'
+#define IFIL_TYPE_T	'T'
+#define IFIL_TYPE_O	'O'
+#define IFIL_TYPE_L	'L'
+
 int
-main(argc, argv)
-	int	argc;
-	char	**argv;
+main(int argc, char *argv[])
 {
 	int	ch;
 	int	error = 0;
+	unsigned long proto;
 	struct	ifc *ifcp;
 	sigset_t mask, omask;
-	FILE	*pidfile;
+	const char *pidfile = ROUTE6D_PID;
+	FILE *pidfh;
 	char *progname;
 	char *ep;
 
@@ -296,7 +299,7 @@ main(argc, argv)
 		progname = *argv;
 
 	pid = getpid();
-	while ((ch = getopt(argc, argv, "A:N:O:R:T:L:t:adDhlnqsS")) != -1) {
+	while ((ch = getopt(argc, argv, "A:N:O:R:T:L:t:adDhlnp:P:Q:qsS")) != -1) {
 		switch (ch) {
 		case 'A':
 		case 'N':
@@ -317,6 +320,41 @@ main(argc, argv)
 				fatal("invalid route tag");
 				/*NOTREACHED*/
 			}
+			break;
+		case 'p':
+			pidfile = optarg;
+			break;
+		case 'P':
+			ep = NULL;
+			proto = strtoul(optarg, &ep, 0);
+			if (!ep || *ep != '\0' || 3 < proto) {
+				fatal("invalid P flag");
+				/*NOTREACHED*/
+			}
+			if (proto == 0)
+				Pflag = 0;
+			if (proto == 1)
+				Pflag |= RTF_PROTO1;
+			if (proto == 2)
+				Pflag |= RTF_PROTO2;
+			if (proto == 3)
+				Pflag |= RTF_PROTO3;
+			break;
+		case 'Q':
+			ep = NULL;
+			proto = strtoul(optarg, &ep, 0);
+			if (!ep || *ep != '\0' || 3 < proto) {
+				fatal("invalid Q flag");
+				/*NOTREACHED*/
+			}
+			if (proto == 0)
+				Qflag = 0;
+			if (proto == 1)
+				Qflag |= RTF_PROTO1;
+			if (proto == 2)
+				Qflag |= RTF_PROTO2;
+			if (proto == 3)
+				Qflag |= RTF_PROTO3;
 			break;
 		case 'R':
 			if ((rtlog = fopen(optarg, "w")) == NULL) {
@@ -372,11 +410,10 @@ main(argc, argv)
 
 	init();
 	ifconfig();
-	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next) {
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
 		if (ifcp->ifc_index < 0) {
-			fprintf(stderr,
-"No ifindex found at %s (no link-local address?)\n",
-				ifcp->ifc_name);
+			fprintf(stderr, "No ifindex found at %s "
+			    "(no link-local address?)\n", ifcp->ifc_name);
 			error++;
 		}
 	}
@@ -386,20 +423,19 @@ main(argc, argv)
 		fatal("No loopback found");
 		/*NOTREACHED*/
 	}
-	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next)
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
 		ifrt(ifcp, 0);
+	}
 	filterconfig();
 	krtread(0);
 	if (dflag)
 		ifrtdump(0);
 
-#if 1
 	pid = getpid();
-	if ((pidfile = fopen(ROUTE6D_PID, "w")) != NULL) {
-		fprintf(pidfile, "%d\n", pid);
-		fclose(pidfile);
+	if ((pidfh = fopen(pidfile, "w")) != NULL) {
+		fprintf(pidfh, "%d\n", pid);
+		fclose(pidfh);
 	}
-#endif
 
 	if ((ripbuf = (struct rip6 *)malloc(RIP6_MAXMTU)) == NULL) {
 		fatal("malloc");
@@ -427,8 +463,8 @@ main(argc, argv)
 	 */
 	alarm(ripinterval(INIT_INTERVAL6));
 
-	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next) {
-		if (iff_find(ifcp, 'N'))
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
+		if (iff_find(ifcp, IFIL_TYPE_N) != NULL)
 			continue;
 		if (ifcp->ifc_index > 0 && (ifcp->ifc_flags & IFF_UP))
 			sendrequest(ifcp);
@@ -495,8 +531,7 @@ main(argc, argv)
 }
 
 void
-sighandler(signo)
-	int signo;
+sighandler(int signo)
 {
 
 	switch (signo) {
@@ -520,12 +555,12 @@ sighandler(signo)
  */
 /* ARGSUSED */
 void
-rtdexit()
+rtdexit(void)
 {
 	struct	riprt *rrt;
 
 	alarm(0);
-	for (rrt = riprt; rrt; rrt = rrt->rrt_next) {
+	TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 		if (rrt->rrt_rflags & RRTF_AGGREGATE) {
 			delroute(&rrt->rrt_info, &rrt->rrt_gw);
 		}
@@ -547,39 +582,27 @@ rtdexit()
  */
 /* ARGSUSED */
 void
-ripalarm()
+ripalarm(void)
 {
 	struct	ifc *ifcp;
-	struct	riprt *rrt, *rrt_prev, *rrt_next;
+	struct	riprt *rrt, *rrt_tmp;
 	time_t	t_lifetime, t_holddown;
 
 	/* age the RIP routes */
-	rrt_prev = 0;
 	t_lifetime = time(NULL) - RIP_LIFETIME;
 	t_holddown = t_lifetime - RIP_HOLDDOWN;
-	for (rrt = riprt; rrt; rrt = rrt_next) {
-		rrt_next = rrt->rrt_next;
-
-		if (rrt->rrt_t == 0) {
-			rrt_prev = rrt;
+	TAILQ_FOREACH_SAFE(rrt, &riprt_head, rrt_next, rrt_tmp) {
+		if (rrt->rrt_t == 0)
 			continue;
-		}
-		if (rrt->rrt_t < t_holddown) {
-			if (rrt_prev) {
-				rrt_prev->rrt_next = rrt->rrt_next;
-			} else {
-				riprt = rrt->rrt_next;
-			}
+		else if (rrt->rrt_t < t_holddown) {
+			TAILQ_REMOVE(&riprt_head, rrt, rrt_next);
 			delroute(&rrt->rrt_info, &rrt->rrt_gw);
 			free(rrt);
-			continue;
-		}
-		if (rrt->rrt_t < t_lifetime)
+		} else if (rrt->rrt_t < t_lifetime)
 			rrt->rrt_info.rip6_metric = HOPCNT_INFINITY6;
-		rrt_prev = rrt;
 	}
 	/* Supply updates */
-	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next) {
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
 		if (ifcp->ifc_index > 0 && (ifcp->ifc_flags & IFF_UP))
 			ripsend(ifcp, &ifcp->ifc_ripsin, 0);
 	}
@@ -587,15 +610,14 @@ ripalarm()
 }
 
 void
-init()
+init(void)
 {
 	int	error;
 	const int int0 = 0, int1 = 1, int255 = 255;
 	struct	addrinfo hints, *res;
 	char	port[NI_MAXSERV];
 
-	ifc = (struct ifc *)NULL;
-	nifc = 0;
+	TAILQ_INIT(&ifc_head);
 	nindex2ifc = 0;	/*initial guess*/
 	index2ifc = NULL;
 	snprintf(port, sizeof(port), "%u", RIP6_PORT);
@@ -735,13 +757,8 @@ init()
 /*
  * ripflush flushes the rip datagram stored in the rip buffer
  */
-static int nrt;
-static struct netinfo6 *np;
-
 void
-ripflush(ifcp, sin6)
-	struct ifc *ifcp;
-	struct sockaddr_in6 *sin6;
+ripflush(struct ifc *ifcp, struct sockaddr_in6 *sin6, int nrt, struct netinfo6 *np)
 {
 	int i;
 	int error;
@@ -783,21 +800,19 @@ ripflush(ifcp, sin6)
 			ifcp->ifc_name, inet6_n2p(&ifcp->ifc_ripsin.sin6_addr));
 		ifcp->ifc_flags &= ~IFF_UP;	/* As if down for AF_INET6 */
 	}
-	nrt = 0; np = ripbuf->rip6_nets;
 }
 
 /*
  * Generate RIP6_RESPONSE packets and send them.
  */
 void
-ripsend(ifcp, sin6, flag)
-	struct	ifc *ifcp;
-	struct	sockaddr_in6 *sin6;
-	int flag;
+ripsend(struct	ifc *ifcp, struct sockaddr_in6 *sin6, int flag)
 {
 	struct	riprt *rrt;
 	struct	in6_addr *nh;	/* next hop */
+	struct netinfo6 *np;
 	int	maxrte;
+	int nrt;
 
 	if (qflag)
 		return;
@@ -811,20 +826,24 @@ ripsend(ifcp, sin6, flag)
 				sizeof(struct udphdr) - 
 				sizeof(struct rip6) + sizeof(struct netinfo6)) /
 				sizeof(struct netinfo6);
-		nrt = 0; np = ripbuf->rip6_nets; nh = NULL;
-		for (rrt = riprt; rrt; rrt = rrt->rrt_next) {
+		nh = NULL;
+		nrt = 0;
+		np = ripbuf->rip6_nets;
+		TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 			if (rrt->rrt_rflags & RRTF_NOADVERTISE)
 				continue;
 			/* Put the route to the buffer */
 			*np = rrt->rrt_info;
 			np++; nrt++;
 			if (nrt == maxrte) {
-				ripflush(NULL, sin6);
+				ripflush(NULL, sin6, nrt, np);
 				nh = NULL;
+				nrt = 0;
+				np = ripbuf->rip6_nets;
 			}
 		}
 		if (nrt)	/* Send last packet */
-			ripflush(NULL, sin6);
+			ripflush(NULL, sin6, nrt, np);
 		return;
 	}
 
@@ -833,11 +852,11 @@ ripsend(ifcp, sin6, flag)
 		return;
 
 	/* -N: no use */
-	if (iff_find(ifcp, 'N') != NULL)
+	if (iff_find(ifcp, IFIL_TYPE_N) != NULL)
 		return;
 
 	/* -T: generate default route only */
-	if (iff_find(ifcp, 'T') != NULL) {
+	if (iff_find(ifcp, IFIL_TYPE_T) != NULL) {
 		struct netinfo6 rrt_info;
 		memset(&rrt_info, 0, sizeof(struct netinfo6));
 		rrt_info.rip6_dest = in6addr_any;
@@ -848,7 +867,7 @@ ripsend(ifcp, sin6, flag)
 		np = ripbuf->rip6_nets;
 		*np = rrt_info;
 		nrt = 1;
-		ripflush(ifcp, sin6);
+		ripflush(ifcp, sin6, nrt, np);
 		return;
 	}
 
@@ -858,7 +877,7 @@ ripsend(ifcp, sin6, flag)
 			sizeof(struct netinfo6);
 
 	nrt = 0; np = ripbuf->rip6_nets; nh = NULL;
-	for (rrt = riprt; rrt; rrt = rrt->rrt_next) {
+	TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 		if (rrt->rrt_rflags & RRTF_NOADVERTISE)
 			continue;
 
@@ -880,11 +899,14 @@ ripsend(ifcp, sin6, flag)
 		    !IN6_IS_ADDR_UNSPECIFIED(&rrt->rrt_gw) &&
 		    (rrt->rrt_rflags & RRTF_NH_NOT_LLADDR) == 0) {
 			if (nh == NULL || !IN6_ARE_ADDR_EQUAL(nh, &rrt->rrt_gw)) {
-				if (nrt == maxrte - 2)
-					ripflush(ifcp, sin6);
+				if (nrt == maxrte - 2) {
+					ripflush(ifcp, sin6, nrt, np);
+					nh = NULL;
+					nrt = 0;
+					np = ripbuf->rip6_nets;
+				}
+
 				np->rip6_dest = rrt->rrt_gw;
-				if (IN6_IS_ADDR_LINKLOCAL(&np->rip6_dest))
-					SET_IN6_LINKLOCAL_IFINDEX(np->rip6_dest, 0);
 				np->rip6_plen = 0;
 				np->rip6_tag = 0;
 				np->rip6_metric = NEXTHOP_METRIC;
@@ -895,8 +917,12 @@ ripsend(ifcp, sin6, flag)
 			          !IN6_ARE_ADDR_EQUAL(nh, &rrt->rrt_gw) ||
 				  rrt->rrt_rflags & RRTF_NH_NOT_LLADDR)) {
 			/* Reset nexthop */
-			if (nrt == maxrte - 2)
-				ripflush(ifcp, sin6);
+			if (nrt == maxrte - 2) {
+				ripflush(ifcp, sin6, nrt, np);
+				nh = NULL;
+				nrt = 0;
+				np = ripbuf->rip6_nets;
+			}
 			memset(np, 0, sizeof(struct netinfo6));
 			np->rip6_metric = NEXTHOP_METRIC;
 			nh = NULL;
@@ -907,21 +933,21 @@ ripsend(ifcp, sin6, flag)
 		*np = rrt->rrt_info;
 		np++; nrt++;
 		if (nrt == maxrte) {
-			ripflush(ifcp, sin6);
+			ripflush(ifcp, sin6, nrt, np);
 			nh = NULL;
+			nrt = 0;
+			np = ripbuf->rip6_nets;
 		}
 	}
 	if (nrt)	/* Send last packet */
-		ripflush(ifcp, sin6);
+		ripflush(ifcp, sin6, nrt, np);
 }
 
 /*
  * outbound filter logic, per-route/interface.
  */
 int
-out_filter(rrt, ifcp)
-	struct riprt *rrt;
-	struct ifc *ifcp;
+out_filter(struct riprt *rrt, struct ifc *ifcp)
 {
 	struct iff *iffp;
 	struct in6_addr ia;
@@ -931,7 +957,7 @@ out_filter(rrt, ifcp)
 	 * -A: filter out less specific routes, if we have aggregated
 	 * route configured.
 	 */ 
-	for (iffp = ifcp->ifc_filter; iffp; iffp = iffp->iff_next) {
+	TAILQ_FOREACH(iffp, &ifcp->ifc_iff_head, iff_next) {
 		if (iffp->iff_type != 'A')
 			continue;
 		if (rrt->rrt_info.rip6_plen <= iffp->iff_plen)
@@ -948,7 +974,7 @@ out_filter(rrt, ifcp)
 	 */
 	if ((rrt->rrt_rflags & RRTF_AGGREGATE) != 0) {
 		ok = 0;
-		for (iffp = ifcp->ifc_filter; iffp; iffp = iffp->iff_next) {
+		TAILQ_FOREACH(iffp, &ifcp->ifc_iff_head, iff_next) {
 			if (iffp->iff_type != 'A')
 				continue;
 			if (rrt->rrt_info.rip6_plen == iffp->iff_plen &&
@@ -965,9 +991,9 @@ out_filter(rrt, ifcp)
 	/*
 	 * -O: advertise only if prefix matches the configured prefix.
 	 */
-	if (iff_find(ifcp, 'O')) {
+	if (iff_find(ifcp, IFIL_TYPE_O) != NULL) {
 		ok = 0;
-		for (iffp = ifcp->ifc_filter; iffp; iffp = iffp->iff_next) {
+		TAILQ_FOREACH(iffp, &ifcp->ifc_iff_head, iff_next) {
 			if (iffp->iff_type != 'O')
 				continue;
 			if (rrt->rrt_info.rip6_plen < iffp->iff_plen)
@@ -992,9 +1018,7 @@ out_filter(rrt, ifcp)
  * It checks options specified in the arguments and the split horizon rule.
  */
 int
-tobeadv(rrt, ifcp)
-	struct riprt *rrt;
-	struct ifc *ifcp;
+tobeadv(struct riprt *rrt, struct ifc *ifcp)
 {
 
 	/* Special care for static routes */
@@ -1019,9 +1043,7 @@ tobeadv(rrt, ifcp)
  * Send a rip packet actually.
  */
 int
-sendpacket(sin6, len)
-	struct	sockaddr_in6 *sin6;
-	int	len;
+sendpacket(struct sockaddr_in6 *sin6, int len)
 {
 	struct msghdr m;
 	struct cmsghdr *cm;
@@ -1036,12 +1058,9 @@ sendpacket(sin6, len)
 	sin6 = &sincopy;
 
 	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) ||
-	    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
-		/* XXX: do not mix the interface index and link index */
-		idx = IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr);
-		SET_IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr, 0);
-		sin6->sin6_scope_id = idx;
-	} else
+	    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+		idx = sin6->sin6_scope_id;
+	else
 		idx = 0;
 
 	m.msg_name = (caddr_t)sin6;
@@ -1080,7 +1099,7 @@ sendpacket(sin6, len)
  * table if necessary.
  */
 void
-riprecv()
+riprecv(void)
 {
 	struct	ifc *ifcp, *ic;
 	struct	sockaddr_in6 fsock;
@@ -1144,10 +1163,8 @@ riprecv()
 			break;
 		}
 	}
-	if (idx && IN6_IS_ADDR_LINKLOCAL(&fsock.sin6_addr))
-		SET_IN6_LINKLOCAL_IFINDEX(fsock.sin6_addr, idx);
 
-	if (len < sizeof(struct rip6)) {
+	if ((size_t)len < sizeof(struct rip6)) {
 		trace(1, "Packet too short\n");
 		return;
 	}
@@ -1221,7 +1238,7 @@ riprecv()
 		return;
 	}
 
-	idx = IN6_LINKLOCAL_IFINDEX(fsock.sin6_addr);
+	idx = fsock.sin6_scope_id;
 	ifcp = (idx < nindex2ifc) ? index2ifc[idx] : NULL;
 	if (!ifcp) {
 		trace(1, "Packets to unknown interface index %d\n", idx);
@@ -1235,7 +1252,7 @@ riprecv()
 	}
 
 	/* -N: no use */
-	if (iff_find(ifcp, 'N') != NULL)
+	if (iff_find(ifcp, IFIL_TYPE_N) != NULL)
 		return;
 
 	tracet(1, "Recv(%s): from %s.%d info(%zd)\n",
@@ -1248,7 +1265,6 @@ riprecv()
 			/* modify neighbor address */
 			if (IN6_IS_ADDR_LINKLOCAL(&np->rip6_dest)) {
 				nh = np->rip6_dest;
-				SET_IN6_LINKLOCAL_IFINDEX(nh, idx);
 				trace(1, "\tNexthop: %s\n", inet6_n2p(&nh));
 			} else if (IN6_IS_ADDR_UNSPECIFIED(&np->rip6_dest)) {
 				nh = fsock.sin6_addr;
@@ -1300,23 +1316,23 @@ riprecv()
 		/*
 		 * -L: listen only if the prefix matches the configuration
 		 */
-		ok = 1;		/* if there's no L filter, it is ok */
-		for (iffp = ifcp->ifc_filter; iffp; iffp = iffp->iff_next) {
-			if (iffp->iff_type != 'L')
-				continue;
-			ok = 0;
-			if (np->rip6_plen < iffp->iff_plen)
-				continue;
-			/* special rule: ::/0 means default, not "in /0" */
-			if (iffp->iff_plen == 0 && np->rip6_plen > 0)
-				continue;
-			ia = np->rip6_dest; 
-			applyplen(&ia, iffp->iff_plen);
-			if (IN6_ARE_ADDR_EQUAL(&ia, &iffp->iff_addr)) {
-				ok = 1;
-				break;
-			}
-		}
+                ok = 1;	/* if there's no L filter, it is ok */
+                TAILQ_FOREACH(iffp, &ifcp->ifc_iff_head, iff_next) {
+                        if (iffp->iff_type != IFIL_TYPE_L)
+                                continue;
+                        ok = 0;
+                        if (np->rip6_plen < iffp->iff_plen)
+                                continue;
+                        /* special rule: ::/0 means default, not "in /0" */
+                        if (iffp->iff_plen == 0 && np->rip6_plen > 0)
+                                continue;
+                        ia = np->rip6_dest; 
+                        applyplen(&ia, iffp->iff_plen);
+                        if (IN6_ARE_ADDR_EQUAL(&ia, &iffp->iff_addr)) {
+                                ok = 1;
+                                break;
+                        }
+                }
 		if (!ok) {
 			trace(2, "  (filtered)\n");
 			continue;
@@ -1329,7 +1345,7 @@ riprecv()
 			np->rip6_metric = HOPCNT_INFINITY6;
 
 		applyplen(&np->rip6_dest, np->rip6_plen);
-		if ((rrt = rtsearch(np, NULL)) != NULL) {
+		if ((rrt = rtsearch(np)) != NULL) {
 			if (rrt->rrt_t == 0)
 				continue;	/* Intf route has priority */
 			nq = &rrt->rrt_info;
@@ -1398,20 +1414,20 @@ riprecv()
 			if (nq->rip6_plen == sizeof(struct in6_addr) * 8)
 				rrt->rrt_flags |= RTF_HOST;
 
-			/* Put the route to the list */
-			rrt->rrt_next = riprt;
-			riprt = rrt;
 			/* Update routing table */
 			addroute(rrt, &nh, ifcp);
 			rrt->rrt_rflags |= RRTF_CHANGED;
 			need_trigger = 1;
 			rrt->rrt_t = t;
+
+			/* Put the route to the list */
+			TAILQ_INSERT_HEAD(&riprt_head, rrt, rrt_next);
 		}
 	}
 	/* XXX need to care the interval between triggered updates */
 	if (need_trigger) {
 		if (nextalarm > time(NULL) + RIP_TRIG_INT6_MAX) {
-			for (ic = ifc; ic; ic = ic->ifc_next) {
+			TAILQ_FOREACH(ic, &ifc_head, ifc_next) {
 				if (ifcp->ifc_index == ic->ifc_index)
 					continue;
 				if (ic->ifc_flags & IFF_UP)
@@ -1420,8 +1436,9 @@ riprecv()
 			}
 		}
 		/* Reset the flag */
-		for (rrt = riprt; rrt; rrt = rrt->rrt_next)
+		TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 			rrt->rrt_rflags &= ~RRTF_CHANGED;
+		}
 	}
 }
 
@@ -1429,8 +1446,7 @@ riprecv()
  * Send all routes request packet to the specified interface.
  */
 void
-sendrequest(ifcp)
-	struct ifc *ifcp;
+sendrequest(struct ifc *ifcp)
 {
 	struct netinfo6 *np;
 	int error;
@@ -1458,11 +1474,10 @@ sendrequest(ifcp)
  * Process a RIP6_REQUEST packet.
  */
 void
-riprequest(ifcp, np, nn, sin6)
-	struct ifc *ifcp;
-	struct netinfo6 *np;
-	int nn;
-	struct sockaddr_in6 *sin6;
+riprequest(struct ifc *ifcp,
+	struct netinfo6 *np,
+	int nn,
+	struct sockaddr_in6 *sin6)
 {
 	int i;
 	struct riprt *rrt;
@@ -1472,7 +1487,7 @@ riprequest(ifcp, np, nn, sin6)
 		/* Specific response, don't split-horizon */
 		trace(1, "\tRIP Request\n");
 		for (i = 0; i < nn; i++, np++) {
-			rrt = rtsearch(np, NULL);
+			rrt = rtsearch(np);
 			if (rrt)
 				np->rip6_metric = rrt->rrt_info.rip6_metric;
 			else
@@ -1490,7 +1505,7 @@ riprequest(ifcp, np, nn, sin6)
  * Get information of each interface.
  */
 void
-ifconfig()
+ifconfig(void)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct ifc *ifcp;
@@ -1521,14 +1536,14 @@ ifconfig()
 				/*NOTREACHED*/
 			}
 			memset(ifcp, 0, sizeof(*ifcp));
+
 			ifcp->ifc_index = -1;
-			ifcp->ifc_next = ifc;
-			ifc = ifcp;
-			nifc++;
-			ifcp->ifc_name = allocopy(ifa->ifa_name);
-			ifcp->ifc_addr = 0;
-			ifcp->ifc_filter = 0;
+			strlcpy(ifcp->ifc_name, ifa->ifa_name,
+			    sizeof(ifcp->ifc_name));
+			TAILQ_INIT(&ifcp->ifc_ifac_head);
+			TAILQ_INIT(&ifcp->ifc_iff_head);
 			ifcp->ifc_flags = ifa->ifa_flags;
+			TAILQ_INSERT_HEAD(&ifc_head, ifcp, ifc_next);
 			trace(1, "newif %s <%s>\n", ifcp->ifc_name,
 				ifflags(ifcp->ifc_flags));
 			if (!strcmp(ifcp->ifc_name, LOOPBACK_IF))
@@ -1543,7 +1558,10 @@ ifconfig()
 			}
 			ifcp->ifc_flags = ifa->ifa_flags;
 		}
-		ifconfig1(ifa->ifa_name, ifa->ifa_addr, ifcp, s);
+		if (ifconfig1(ifa->ifa_name, ifa->ifa_addr, ifcp, s) < 0) {
+			/* maybe temporary failure */
+			continue;
+		}
 		if ((ifcp->ifc_flags & (IFF_LOOPBACK | IFF_UP)) == IFF_UP
 		 && 0 < ifcp->ifc_index && !ifcp->ifc_joined) {
 			mreq.ipv6mr_multiaddr = ifcp->ifc_ripsin.sin6_addr;
@@ -1561,68 +1579,67 @@ ifconfig()
 	freeifaddrs(ifap);
 }
 
-void
-ifconfig1(name, sa, ifcp, s)
-	const char *name;
-	const struct sockaddr *sa;
-	struct	ifc *ifcp;
-	int	s;
+int
+ifconfig1(const char *name,
+	const struct sockaddr *sa,
+	struct ifc *ifcp,
+	int s)
 {
 	struct	in6_ifreq ifr;
 	const struct sockaddr_in6 *sin6;
-	struct	ifac *ifa;
+	struct	ifac *ifac;
 	int	plen;
 	char	buf[BUFSIZ];
 
 	sin6 = (const struct sockaddr_in6 *)sa;
 	if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) && !lflag)
-		return;
+		return (-1);
 	ifr.ifr_addr = *sin6;
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCGIFNETMASK_IN6, (char *)&ifr) < 0) {
-		fatal("ioctl: SIOCGIFNETMASK_IN6");
-		/*NOTREACHED*/
+		syslog(LOG_INFO, "ioctl: SIOCGIFNETMASK_IN6");
+		return (-1);
 	}
 	plen = sin6mask2len(&ifr.ifr_addr);
-	if ((ifa = ifa_match(ifcp, &sin6->sin6_addr, plen)) != NULL) {
+	if ((ifac = ifa_match(ifcp, &sin6->sin6_addr, plen)) != NULL) {
 		/* same interface found */
 		/* need check if something changed */
 		/* XXX not yet implemented */
-		return;
+		return (-1);
 	}
 	/*
 	 * New address is found
 	 */
-	if ((ifa = MALLOC(struct ifac)) == NULL) {
+	if ((ifac = MALLOC(struct ifac)) == NULL) {
 		fatal("malloc: struct ifac");
 		/*NOTREACHED*/
 	}
-	memset(ifa, 0, sizeof(*ifa));
-	ifa->ifa_conf = ifcp;
-	ifa->ifa_next = ifcp->ifc_addr;
-	ifcp->ifc_addr = ifa;
-	ifa->ifa_addr = sin6->sin6_addr;
-	ifa->ifa_plen = plen;
+	memset(ifac, 0, sizeof(*ifac));
+
+	ifac->ifac_ifc = ifcp;
+	ifac->ifac_addr = sin6->sin6_addr;
+	ifac->ifac_plen = plen;
+	ifac->ifac_scope_id = sin6->sin6_scope_id;
 	if (ifcp->ifc_flags & IFF_POINTOPOINT) {
 		ifr.ifr_addr = *sin6;
 		if (ioctl(s, SIOCGIFDSTADDR_IN6, (char *)&ifr) < 0) {
 			fatal("ioctl: SIOCGIFDSTADDR_IN6");
 			/*NOTREACHED*/
 		}
-		ifa->ifa_raddr = ifr.ifr_dstaddr.sin6_addr;
-		inet_ntop(AF_INET6, (void *)&ifa->ifa_raddr, buf, sizeof(buf));
+		ifac->ifac_raddr = ifr.ifr_dstaddr.sin6_addr;
+		inet_ntop(AF_INET6, (void *)&ifac->ifac_raddr, buf,
+		    sizeof(buf));
 		trace(1, "found address %s/%d -- %s\n",
-			inet6_n2p(&ifa->ifa_addr), ifa->ifa_plen, buf);
+			inet6_n2p(&ifac->ifac_addr), ifac->ifac_plen, buf);
 	} else {
 		trace(1, "found address %s/%d\n",
-			inet6_n2p(&ifa->ifa_addr), ifa->ifa_plen);
+			inet6_n2p(&ifac->ifac_addr), ifac->ifac_plen);
 	}
-	if (ifcp->ifc_index < 0 && IN6_IS_ADDR_LINKLOCAL(&ifa->ifa_addr)) {
-		ifcp->ifc_mylladdr = ifa->ifa_addr;
-		ifcp->ifc_index = IN6_LINKLOCAL_IFINDEX(ifa->ifa_addr);
+	if (ifcp->ifc_index < 0 && IN6_IS_ADDR_LINKLOCAL(&ifac->ifac_addr)) {
+		ifcp->ifc_mylladdr = ifac->ifac_addr;
+		ifcp->ifc_index = ifac->ifac_scope_id;
 		memcpy(&ifcp->ifc_ripsin, &ripsin, ripsin.ss_len);
-		SET_IN6_LINKLOCAL_IFINDEX(ifcp->ifc_ripsin.sin6_addr,
-			ifcp->ifc_index);
+		ifcp->ifc_ripsin.sin6_scope_id = ifcp->ifc_index;
 		setindex2ifc(ifcp->ifc_index, ifcp);
 		ifcp->ifc_mtu = getifmtu(ifcp->ifc_index);
 		if (ifcp->ifc_mtu > RIP6_MAXMTU)
@@ -1636,6 +1653,34 @@ ifconfig1(name, sa, ifcp, s)
 			ifcp->ifc_index, ifcp->ifc_mtu, ifcp->ifc_metric);
 	} else
 		ifcp->ifc_cflags |= IFC_CHANGED;
+
+	TAILQ_INSERT_HEAD(&ifcp->ifc_ifac_head, ifac, ifac_next);
+
+	return 0;
+}
+
+void
+ifremove(int ifindex)
+{
+	struct ifc *ifcp;
+	struct riprt *rrt;
+
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
+		if (ifcp->ifc_index == ifindex)
+			break;
+	}
+	if (ifcp == NULL)
+		return; 
+
+	tracet(1, "ifremove: %s is departed.\n", ifcp->ifc_name);
+	TAILQ_REMOVE(&ifc_head, ifcp, ifc_next);
+
+	TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
+		if (rrt->rrt_index == ifcp->ifc_index &&
+		    rrt->rrt_rflags & RRTF_AGGREGATE)
+			delroute(&rrt->rrt_info, &rrt->rrt_gw);
+	}
+	free(ifcp);
 }
 
 /*
@@ -1643,30 +1688,35 @@ ifconfig1(name, sa, ifcp, s)
  * Update interface information as necesssary.
  */
 void
-rtrecv()
+rtrecv(void)
 {
 	char buf[BUFSIZ];
-	char *p, *q;
+	char *p, *q = NULL;
 	struct rt_msghdr *rtm;
 	struct ifa_msghdr *ifam;
 	struct if_msghdr *ifm;
+	struct if_announcemsghdr *ifan;
 	int len;
 	struct ifc *ifcp, *ic;
 	int iface = 0, rtable = 0;
 	struct sockaddr_in6 *rta[RTAX_MAX];
 	struct sockaddr_in6 mask;
-	int i, addrs;
+	int i, addrs = 0;
 	struct riprt *rrt;
 
 	if ((len = read(rtsock, buf, sizeof(buf))) < 0) {
 		perror("read from rtsock");
 		exit(1);
 	}
+	if (len == 0)
+		return;
+#if 0
 	if (len < sizeof(*rtm)) {
 		trace(1, "short read from rtsock: %d (should be > %lu)\n",
 			len, (u_long)sizeof(*rtm));
 		return;
 	}
+#endif
 	if (dflag >= 2) {
 		fprintf(stderr, "rtmsg:\n");
 		for (i = 0; i < len; i++) {
@@ -1677,6 +1727,9 @@ rtrecv()
 	}
 
 	for (p = buf; p - buf < len; p += ((struct rt_msghdr *)p)->rtm_msglen) {
+		if (((struct rt_msghdr *)p)->rtm_version != RTM_VERSION)
+			continue;
+
 		/* safety against bogus message */
 		if (((struct rt_msghdr *)p)->rtm_msglen <= 0) {
 			trace(1, "bogus rtmsg: length=%d\n",
@@ -1697,6 +1750,18 @@ rtrecv()
 			ifm = (struct if_msghdr *)p;
 			addrs = ifm->ifm_addrs;
 			q = (char *)(ifm + 1);
+			break;
+		case RTM_IFANNOUNCE:
+			ifan = (struct if_announcemsghdr *)p;
+			switch (ifan->ifan_what) {
+			case IFAN_ARRIVAL:
+				iface++;
+				break;
+			case IFAN_DEPARTURE:
+				ifremove(ifan->ifan_index);
+				iface++;
+				break;
+			}
 			break;
 		default:
 			rtm = (struct rt_msghdr *)p;
@@ -1847,10 +1912,10 @@ rtrecv()
 	if (iface) {
 		trace(1, "rtsock: reconfigure interfaces, refresh interface routes\n");
 		ifconfig();
-		for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next)
+		TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
 			if (ifcp->ifc_cflags & IFC_CHANGED) {
 				if (ifrt(ifcp, 1)) {
-					for (ic = ifc; ic; ic = ic->ifc_next) {
+					TAILQ_FOREACH(ic, &ifc_head, ifc_next) {
 						if (ifcp->ifc_index == ic->ifc_index)
 							continue;
 						if (ic->ifc_flags & IFF_UP)
@@ -1858,11 +1923,13 @@ rtrecv()
 							RRTF_CHANGED);
 					}
 					/* Reset the flag */
-					for (rrt = riprt; rrt; rrt = rrt->rrt_next)
+					TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 						rrt->rrt_rflags &= ~RRTF_CHANGED;
+					}
 				}
 				ifcp->ifc_cflags &= ~IFC_CHANGED;
 			}
+		}
 	}
 	if (rtable) {
 		trace(1, "rtsock: read routing table again\n");
@@ -1874,10 +1941,9 @@ rtrecv()
  * remove specified route from the internal routing table.
  */
 int
-rt_del(sdst, sgw, smask)
-	const struct sockaddr_in6 *sdst;
-	const struct sockaddr_in6 *sgw;
-	const struct sockaddr_in6 *smask;
+rt_del(const struct sockaddr_in6 *sdst,
+	const struct sockaddr_in6 *sgw,
+	const struct sockaddr_in6 *smask)
 {
 	const struct in6_addr *dst = NULL;
 	const struct in6_addr *gw = NULL;
@@ -1913,7 +1979,7 @@ rt_del(sdst, sgw, smask)
 		trace(1, "\t%s is an interface route, guessing prefixlen\n",
 			inet6_n2p(dst));
 		longest = NULL;
-		for (rrt = riprt; rrt; rrt = rrt->rrt_next) {
+		TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 			if (IN6_ARE_ADDR_EQUAL(&rrt->rrt_info.rip6_dest,
 					&sdst->sin6_addr)
 			 && IN6_IS_ADDR_LOOPBACK(&rrt->rrt_gw)) {
@@ -1946,7 +2012,7 @@ rt_del(sdst, sgw, smask)
 	applyplen(&ni6.rip6_dest, ni6.rip6_plen);	/*to be sure*/
 	trace(1, "\tfind route %s/%d\n", inet6_n2p(&ni6.rip6_dest),
 		ni6.rip6_plen);
-	if (!rrt && (rrt = rtsearch(&ni6, NULL)) == NULL) {
+	if (!rrt && (rrt = rtsearch(&ni6)) == NULL) {
 		trace(1, "\tno route found\n");
 		return -1;
 	}
@@ -1973,14 +2039,13 @@ rt_del(sdst, sgw, smask)
  * remove specified address from internal interface/routing table.
  */
 int
-rt_deladdr(ifcp, sifa, smask)
-	struct ifc *ifcp;
-	const struct sockaddr_in6 *sifa;
-	const struct sockaddr_in6 *smask;
+rt_deladdr(struct ifc *ifcp,
+	const struct sockaddr_in6 *sifa,
+	const struct sockaddr_in6 *smask)
 {
 	const struct in6_addr *addr = NULL;
 	int prefix;
-	struct ifac *ifa = NULL;
+	struct ifac *ifac = NULL;
 	struct netinfo6 ni6;
 	struct riprt *rrt = NULL;
 	time_t t_lifetime;
@@ -1995,41 +2060,28 @@ rt_deladdr(ifcp, sifa, smask)
 
 	trace(1, "\tdeleting %s/%d from %s\n",
 		inet6_n2p(addr), prefix, ifcp->ifc_name);
-	ifa = ifa_match(ifcp, addr, prefix);
-	if (!ifa) {
+	ifac = ifa_match(ifcp, addr, prefix);
+	if (!ifac) {
 		trace(1, "\tno matching ifa found for %s/%d on %s\n",
 			inet6_n2p(addr), prefix, ifcp->ifc_name);
 		return -1;
 	}
-	if (ifa->ifa_conf != ifcp) {
+	if (ifac->ifac_ifc != ifcp) {
 		trace(1, "\taddress table corrupt: back pointer does not match "
 			"(%s != %s)\n",
-			ifcp->ifc_name, ifa->ifa_conf->ifc_name);
+			ifcp->ifc_name, ifac->ifac_ifc->ifc_name);
 		return -1;
 	}
-	/* remove ifa from interface */
-	if (ifcp->ifc_addr == ifa)
-		ifcp->ifc_addr = ifa->ifa_next;
-	else {
-		struct ifac *p;
-		for (p = ifcp->ifc_addr; p; p = p->ifa_next) {
-			if (p->ifa_next == ifa) {
-				p->ifa_next = ifa->ifa_next;
-				break;
-			}
-		}
-	}
-	ifa->ifa_next = NULL;
-	ifa->ifa_conf = NULL;
+	TAILQ_REMOVE(&ifcp->ifc_ifac_head, ifac, ifac_next);
 	t_lifetime = time(NULL) - RIP_LIFETIME;
 	/* age route for interface address */
 	memset(&ni6, 0, sizeof(ni6));
-	ni6.rip6_dest = ifa->ifa_addr;
-	ni6.rip6_plen = ifa->ifa_plen;
+	ni6.rip6_dest = ifac->ifac_addr;
+	ni6.rip6_plen = ifac->ifac_plen;
 	applyplen(&ni6.rip6_dest, ni6.rip6_plen);
 	trace(1, "\tfind interface route %s/%d on %d\n",
 		inet6_n2p(&ni6.rip6_dest), ni6.rip6_plen, ifcp->ifc_index);
-	if ((rrt = rtsearch(&ni6, NULL)) != NULL) {
+	if ((rrt = rtsearch(&ni6)) != NULL) {
 		struct in6_addr none;
 		memset(&none, 0, sizeof(none));
 		if (rrt->rrt_index == ifcp->ifc_index &&
@@ -2052,15 +2104,16 @@ rt_deladdr(ifcp, sifa, smask)
 	/* age route for p2p destination */
 	if (ifcp->ifc_flags & IFF_POINTOPOINT) {
 		memset(&ni6, 0, sizeof(ni6));
-		ni6.rip6_dest = ifa->ifa_raddr;
+		ni6.rip6_dest = ifac->ifac_raddr;
 		ni6.rip6_plen = 128;
 		applyplen(&ni6.rip6_dest, ni6.rip6_plen);	/*to be sure*/
 		trace(1, "\tfind p2p route %s/%d on %d\n",
 			inet6_n2p(&ni6.rip6_dest), ni6.rip6_plen,
 			ifcp->ifc_index);
-		if ((rrt = rtsearch(&ni6, NULL)) != NULL) {
+		if ((rrt = rtsearch(&ni6)) != NULL) {
 			if (rrt->rrt_index == ifcp->ifc_index &&
-			    IN6_ARE_ADDR_EQUAL(&rrt->rrt_gw, &ifa->ifa_addr)) {
+			    IN6_ARE_ADDR_EQUAL(&rrt->rrt_gw,
+			    &ifac->ifac_addr)) {
 				trace(1, "\troute found, age it\n");
 				if (rrt->rrt_t == 0 || rrt->rrt_t > t_lifetime) {
 					rrt->rrt_t = t_lifetime;
@@ -2077,7 +2130,9 @@ rt_deladdr(ifcp, sifa, smask)
 		} else
 			trace(1, "\tno p2p route found\n");
 	}
-	return updated ? 0 : -1;
+	free(ifac);
+
+	return ((updated) ? 0 : -1);
 }
 
 /*
@@ -2085,12 +2140,10 @@ rt_deladdr(ifcp, sifa, smask)
  * list.
  */
 int
-ifrt(ifcp, again)
-	struct ifc *ifcp;
-	int again;
+ifrt(struct ifc *ifcp, int again)
 {
-	struct ifac *ifa;
-	struct riprt *rrt = NULL, *search_rrt, *prev_rrt, *loop_rrt;
+	struct ifac *ifac;
+	struct riprt *rrt = NULL, *search_rrt, *loop_rrt;
 	struct netinfo6 *np;
 	time_t t_lifetime;
 	int need_trigger = 0;
@@ -2105,23 +2158,23 @@ ifrt(ifcp, again)
 		return 0;
 	}
 
-	for (ifa = ifcp->ifc_addr; ifa; ifa = ifa->ifa_next) {
-		if (IN6_IS_ADDR_LINKLOCAL(&ifa->ifa_addr)) {
+	TAILQ_FOREACH(ifac, &ifcp->ifc_ifac_head, ifac_next) {
+		if (IN6_IS_ADDR_LINKLOCAL(&ifac->ifac_addr)) {
 #if 0
 			trace(1, "route: %s on %s: "
 			    "skip linklocal interface address\n",
-			    inet6_n2p(&ifa->ifa_addr), ifcp->ifc_name);
+			    inet6_n2p(&ifac->ifac_addr), ifcp->ifc_name);
 #endif
 			continue;
 		}
-		if (IN6_IS_ADDR_UNSPECIFIED(&ifa->ifa_addr)) {
+		if (IN6_IS_ADDR_UNSPECIFIED(&ifac->ifac_addr)) {
 #if 0
 			trace(1, "route: %s: skip unspec interface address\n",
 			    ifcp->ifc_name);
 #endif
 			continue;
 		}
-		if (IN6_IS_ADDR_LOOPBACK(&ifa->ifa_addr)) {
+		if (IN6_IS_ADDR_LOOPBACK(&ifac->ifac_addr)) {
 #if 0
 			trace(1, "route: %s: skip loopback address\n",
 			    ifcp->ifc_name);
@@ -2135,17 +2188,17 @@ ifrt(ifcp, again)
 			rrt->rrt_same = NULL;
 			rrt->rrt_index = ifcp->ifc_index;
 			rrt->rrt_t = 0;	/* don't age */
-			rrt->rrt_info.rip6_dest = ifa->ifa_addr;
+			rrt->rrt_info.rip6_dest = ifac->ifac_addr;
 			rrt->rrt_info.rip6_tag = htons(routetag & 0xffff);
 			rrt->rrt_info.rip6_metric = 1 + ifcp->ifc_metric;
-			rrt->rrt_info.rip6_plen = ifa->ifa_plen;
+			rrt->rrt_info.rip6_plen = ifac->ifac_plen;
 			rrt->rrt_flags = RTF_HOST;
 			rrt->rrt_rflags |= RRTF_CHANGED;
-			applyplen(&rrt->rrt_info.rip6_dest, ifa->ifa_plen);
+			applyplen(&rrt->rrt_info.rip6_dest, ifac->ifac_plen);
 			memset(&rrt->rrt_gw, 0, sizeof(struct in6_addr));
-			rrt->rrt_gw = ifa->ifa_addr;
+			rrt->rrt_gw = ifac->ifac_addr;
 			np = &rrt->rrt_info;
-			search_rrt = rtsearch(np, &prev_rrt);
+			search_rrt = rtsearch(np);
 			if (search_rrt != NULL) {
 				if (search_rrt->rrt_info.rip6_metric <=
 				    rrt->rrt_info.rip6_metric) {
@@ -2159,25 +2212,21 @@ ifrt(ifcp, again)
 					goto next;
 				}
 
-				if (prev_rrt)
-					prev_rrt->rrt_next = rrt->rrt_next;
-				else
-					riprt = rrt->rrt_next;
+				TAILQ_REMOVE(&riprt_head, rrt, rrt_next);
 				delroute(&rrt->rrt_info, &rrt->rrt_gw);
 			}
 			/* Attach the route to the list */
 			trace(1, "route: %s/%d: register route (%s)\n",
 			    inet6_n2p(&np->rip6_dest), np->rip6_plen,
 			    ifcp->ifc_name);
-			rrt->rrt_next = riprt;
-			riprt = rrt;
+			TAILQ_INSERT_HEAD(&riprt_head, rrt, rrt_next);
 			addroute(rrt, &rrt->rrt_gw, ifcp);
 			rrt = NULL;
 			sendrequest(ifcp);
 			ripsend(ifcp, &ifcp->ifc_ripsin, 0);
 			need_trigger = 1;
 		} else {
-			for (loop_rrt = riprt; loop_rrt; loop_rrt = loop_rrt->rrt_next) {
+			TAILQ_FOREACH(loop_rrt, &riprt_head, rrt_next) {
 				if (loop_rrt->rrt_index == ifcp->ifc_index) {
 					t_lifetime = time(NULL) - RIP_LIFETIME;
 					if (loop_rrt->rrt_t == 0 || loop_rrt->rrt_t > t_lifetime) {
@@ -2202,12 +2251,10 @@ ifrt(ifcp, again)
  * since BSD kernels do not look at prefix length on p2p interfaces.
  */
 void
-ifrt_p2p(ifcp, again)
-	struct ifc *ifcp;
-	int again;
+ifrt_p2p(struct ifc *ifcp, int again)
 {
-	struct ifac *ifa;
-	struct riprt *rrt, *orrt, *prevrrt;
+	struct ifac *ifac;
+	struct riprt *rrt, *orrt;
 	struct netinfo6 *np;
 	struct in6_addr addr, dest;
 	int advert, ignore, i;
@@ -2219,11 +2266,11 @@ ifrt_p2p(ifcp, again)
 	const char *category = "";
 	const char *noadv;
 
-	for (ifa = ifcp->ifc_addr; ifa; ifa = ifa->ifa_next) {
-		addr = ifa->ifa_addr;
-		dest = ifa->ifa_raddr;
-		applyplen(&addr, ifa->ifa_plen);
-		applyplen(&dest, ifa->ifa_plen);
+	TAILQ_FOREACH(ifac, &ifcp->ifc_ifac_head, ifac_next) {
+		addr = ifac->ifac_addr;
+		dest = ifac->ifac_raddr;
+		applyplen(&addr, ifac->ifac_plen);
+		applyplen(&dest, ifac->ifac_plen);
 		advert = ignore = 0;
 		switch (behavior) {
 		case CISCO:
@@ -2268,7 +2315,7 @@ ifrt_p2p(ifcp, again)
 			 *	A/64 -> A/64
 			 *	A B/128 -> A/128 and B/128
 			 */
-			if (!IN6_IS_ADDR_UNSPECIFIED(&ifa->ifa_raddr)) {
+			if (!IN6_IS_ADDR_UNSPECIFIED(&ifac->ifac_raddr)) {
 				if (IN6_ARE_ADDR_EQUAL(&addr, &dest))
 					advert |= P2PADVERT_NETWORK;
 				else {
@@ -2294,22 +2341,22 @@ ifrt_p2p(ifcp, again)
 			rrt->rrt_t = 0;	/* don't age */
 			switch (i) {
 			case P2PADVERT_NETWORK:
-				rrt->rrt_info.rip6_dest = ifa->ifa_addr;
-				rrt->rrt_info.rip6_plen = ifa->ifa_plen;
+				rrt->rrt_info.rip6_dest = ifac->ifac_addr;
+				rrt->rrt_info.rip6_plen = ifac->ifac_plen;
 				applyplen(&rrt->rrt_info.rip6_dest,
-				    ifa->ifa_plen);
+				    ifac->ifac_plen);
 				category = "network";
 				break;
 			case P2PADVERT_ADDR:
-				rrt->rrt_info.rip6_dest = ifa->ifa_addr;
+				rrt->rrt_info.rip6_dest = ifac->ifac_addr;
 				rrt->rrt_info.rip6_plen = 128;
 				rrt->rrt_gw = in6addr_loopback;
 				category = "addr";
 				break;
 			case P2PADVERT_DEST:
-				rrt->rrt_info.rip6_dest = ifa->ifa_raddr;
+				rrt->rrt_info.rip6_dest = ifac->ifac_raddr;
 				rrt->rrt_info.rip6_plen = 128;
-				rrt->rrt_gw = ifa->ifa_addr;
+				rrt->rrt_gw = ifac->ifac_addr;
 				category = "dest";
 				break;
 			}
@@ -2330,23 +2377,19 @@ ifrt_p2p(ifcp, again)
 			rrt->rrt_info.rip6_tag = htons(routetag & 0xffff);
 			rrt->rrt_info.rip6_metric = 1 + ifcp->ifc_metric;
 			np = &rrt->rrt_info;
-			orrt = rtsearch(np, &prevrrt);
+			orrt = rtsearch(np);
 			if (!orrt) {
 				/* Attach the route to the list */
 				trace(1, "route: %s/%d: register route "
 				    "(%s on %s%s)\n",
 				    inet6_n2p(&np->rip6_dest), np->rip6_plen,
 				    category, ifcp->ifc_name, noadv);
-				rrt->rrt_next = riprt;
-				riprt = rrt;
+				TAILQ_INSERT_HEAD(&riprt_head, rrt, rrt_next);
 			} else if (rrt->rrt_index != orrt->rrt_index ||
 			    rrt->rrt_info.rip6_metric != orrt->rrt_info.rip6_metric) {
-				/* swap route */
-				rrt->rrt_next = orrt->rrt_next;
-				if (prevrrt)
-					prevrrt->rrt_next = rrt;
-				else
-					riprt = rrt;
+				/* replace route */
+				TAILQ_INSERT_BEFORE(orrt, rrt, rrt_next);
+				TAILQ_REMOVE(&riprt_head, orrt, rrt_next);
 				free(orrt);
 
 				trace(1, "route: %s/%d: update (%s on %s%s)\n",
@@ -2372,8 +2415,7 @@ ifrt_p2p(ifcp, again)
 }
 
 int
-getifmtu(ifindex)
-	int	ifindex;
+getifmtu(int ifindex)
 {
 	int	mib[6];
 	char	*buf;
@@ -2410,8 +2452,7 @@ getifmtu(ifindex)
 }
 
 const char *
-rttypes(rtm)
-	struct rt_msghdr *rtm;
+rttypes(struct rt_msghdr *rtm)
 {
 #define	RTTYPE(s, f) \
 do { \
@@ -2454,8 +2495,7 @@ do { \
 }
 
 const char *
-rtflags(rtm)
-	struct rt_msghdr *rtm;
+rtflags(struct rt_msghdr *rtm)
 {
 	static char buf[BUFSIZ];
 
@@ -2524,8 +2564,7 @@ do { \
 }
 
 const char *
-ifflags(flags)
-	int flags;
+ifflags(int flags)
 {
 	static char buf[BUFSIZ];
 
@@ -2564,8 +2603,7 @@ do { \
 }
 
 void
-krtread(again)
-	int again;
+krtread(int again)
 {
 	int mib[6];
 	size_t msize;
@@ -2583,6 +2621,8 @@ krtread(again)
 	mib[4] = NET_RT_DUMP;	/* Dump the kernel routing table */
 	mib[5] = 0;		/* No flags */
 	do {
+		if (retry)
+			sleep(1);
 		retry++;
 		errmsg = NULL;
 		if (buf)
@@ -2599,7 +2639,7 @@ krtread(again)
 			errmsg = "sysctl NET_RT_DUMP";
 			continue;
 		}
-	} while (retry < 5 && errmsg != NULL);
+	} while (retry < RT_DUMP_MAXRETRY && errmsg != NULL);
 	if (errmsg) {
 		fatal("%s (with %d retries, msize=%lu)", errmsg, retry,
 		    (u_long)msize);
@@ -2616,16 +2656,14 @@ krtread(again)
 }
 
 void
-rt_entry(rtm, again)
-	struct rt_msghdr *rtm;
-	int again;
+rt_entry(struct rt_msghdr *rtm, int again)
 {
 	struct	sockaddr_in6 *sin6_dst, *sin6_gw, *sin6_mask;
 	struct	sockaddr_in6 *sin6_genmask, *sin6_ifp;
 	char	*rtmp, *ifname = NULL;
 	struct	riprt *rrt, *orrt;
 	struct	netinfo6 *np;
-	int	s;
+	int ifindex;
 
 	sin6_dst = sin6_gw = sin6_mask = sin6_genmask = sin6_ifp = 0;
 	if ((rtm->rtm_flags & RTF_UP) == 0 || rtm->rtm_flags &
@@ -2641,6 +2679,9 @@ rt_entry(rtm, again)
 	if (rtm->rtm_flags & RTF_CLONED)
 		return;
 #endif
+	/* XXX: Ignore connected routes. */
+	if (!(rtm->rtm_flags & (RTF_GATEWAY|RTF_HOST|RTF_STATIC)))
+		return;
 	/*
 	 * do not look at dynamic routes.
 	 * netbsd/openbsd cloned routes have UGHD.
@@ -2690,6 +2731,8 @@ rt_entry(rtm, again)
 	rrt->rrt_t = time(NULL);
 	if (aflag == 0 && (rtm->rtm_flags & RTF_STATIC))
 		rrt->rrt_t = 0;	/* Don't age static routes */
+	if (rtm->rtm_flags & Pflag)
+		rrt->rrt_t = 0;	/* Don't age PROTO[123] routes */
 	if ((rtm->rtm_flags & (RTF_HOST|RTF_GATEWAY)) == RTF_HOST)
 		rrt->rrt_t = 0;	/* Don't age non-gateway host routes */
 	np->rip6_tag = 0;
@@ -2707,7 +2750,7 @@ rt_entry(rtm, again)
 	else
 		np->rip6_plen = 0;
 
-	orrt = rtsearch(np, NULL);
+	orrt = rtsearch(np);
 	if (orrt && orrt->rrt_info.rip6_metric != HOPCNT_INFINITY6) {
 		/* Already found */
 		if (!again) {
@@ -2735,16 +2778,16 @@ rt_entry(rtm, again)
 	trace(1, " gw %s", inet6_n2p(&rrt->rrt_gw));
 
 	/* Interface */
-	s = rtm->rtm_index;
-	if (s < nindex2ifc && index2ifc[s])
-		ifname = index2ifc[s]->ifc_name;
+	ifindex = rtm->rtm_index;
+	if ((unsigned int)ifindex < nindex2ifc && index2ifc[ifindex])
+		ifname = index2ifc[ifindex]->ifc_name;
 	else {
 		trace(1, " not configured\n");
 		free(rrt);
 		return;
 	}
-	trace(1, " if %s sock %d", ifname, s);
-	rrt->rrt_index = s;
+	trace(1, " if %s sock %d", ifname, ifindex);
+	rrt->rrt_index = ifindex;
 
 	trace(1, "\n");
 
@@ -2762,23 +2805,21 @@ rt_entry(rtm, again)
 	/* Put it to the route list */
 	if (orrt && orrt->rrt_info.rip6_metric == HOPCNT_INFINITY6) {
 		/* replace route list */
-		rrt->rrt_next = orrt->rrt_next;
-		*orrt = *rrt;
+		TAILQ_INSERT_BEFORE(orrt, rrt, rrt_next);
+		TAILQ_REMOVE(&riprt_head, orrt, rrt_next);
+
 		trace(1, "route: %s/%d flags %s: replace new route\n",
 		    inet6_n2p(&np->rip6_dest), np->rip6_plen,
 		    rtflags(rtm));
-		free(rrt);
-	} else {
-		rrt->rrt_next = riprt;
-		riprt = rrt;
-	}
+		free(orrt);
+	} else
+		TAILQ_INSERT_HEAD(&riprt_head, rrt, rrt_next);
 }
 
 int
-addroute(rrt, gw, ifcp)
-	struct riprt *rrt;
-	const struct in6_addr *gw;
-	struct ifc *ifcp;
+addroute(struct riprt *rrt,
+	const struct in6_addr *gw,
+	struct ifc *ifcp)
 {
 	struct	netinfo6 *np;
 	u_char	buf[BUFSIZ], buf1[BUFSIZ], buf2[BUFSIZ];
@@ -2806,6 +2847,7 @@ addroute(rrt, gw, ifcp)
 	rtm->rtm_seq = ++seq;
 	rtm->rtm_pid = pid;
 	rtm->rtm_flags = rrt->rrt_flags;
+	rtm->rtm_flags |= Qflag;
 	rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
 	rtm->rtm_rmx.rmx_hopcount = np->rip6_metric - 1;
 	rtm->rtm_inits = RTV_HOPCOUNT;
@@ -2848,9 +2890,7 @@ addroute(rrt, gw, ifcp)
 }
 
 int
-delroute(np, gw)
-	struct netinfo6 *np;
-	struct in6_addr *gw;
+delroute(struct netinfo6 *np, struct in6_addr *gw)
 {
 	u_char	buf[BUFSIZ], buf2[BUFSIZ];
 	struct	rt_msghdr	*rtm;
@@ -2873,6 +2913,7 @@ delroute(np, gw)
 	rtm->rtm_seq = ++seq;
 	rtm->rtm_pid = pid;
 	rtm->rtm_flags = RTF_UP | RTF_GATEWAY;
+	rtm->rtm_flags |= Qflag;
 	if (np->rip6_plen == sizeof(struct in6_addr) * 8)
 		rtm->rtm_flags |= RTF_HOST;
 	rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
@@ -2915,9 +2956,7 @@ delroute(np, gw)
 }
 
 struct in6_addr *
-getroute(np, gw)
-	struct netinfo6 *np;
-	struct in6_addr *gw;
+getroute(struct netinfo6 *np, struct in6_addr *gw)
 {
 	u_char buf[BUFSIZ];
 	int myseq;
@@ -2964,8 +3003,7 @@ getroute(np, gw)
 }
 
 const char *
-inet6_n2p(p)
-	const struct in6_addr *p;
+inet6_n2p(const struct in6_addr *p)
 {
 	static char buf[BUFSIZ];
 
@@ -2973,8 +3011,7 @@ inet6_n2p(p)
 }
 
 void
-ifrtdump(sig)
-	int sig;
+ifrtdump(int sig)
 {
 
 	ifdump(sig);
@@ -2982,12 +3019,11 @@ ifrtdump(sig)
 }
 
 void
-ifdump(sig)
-	int sig;
+ifdump(int sig)
 {
 	struct ifc *ifcp;
 	FILE *dump;
-	int i;
+	int nifc = 0;
 
 	if (sig == 0)
 		dump = stderr;
@@ -2996,21 +3032,25 @@ ifdump(sig)
 			dump = stderr;
 
 	fprintf(dump, "%s: Interface Table Dump\n", hms());
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next)
+		nifc++;
 	fprintf(dump, "  Number of interfaces: %d\n", nifc);
-	for (i = 0; i < 2; i++) {
-		fprintf(dump, "  %sadvertising interfaces:\n", i ? "non-" : "");
-		for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next) {
-			if (i == 0) {
-				if ((ifcp->ifc_flags & IFF_UP) == 0)
-					continue;
-				if (iff_find(ifcp, 'N') != NULL)
-					continue;
-			} else {
-				if (ifcp->ifc_flags & IFF_UP)
-					continue;
-			}
-			ifdump0(dump, ifcp);
-		}
+
+	fprintf(dump, "  advertising interfaces:\n");
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
+		if ((ifcp->ifc_flags & IFF_UP) == 0)
+			continue;
+		if (iff_find(ifcp, IFIL_TYPE_N) != NULL)
+			continue;
+		ifdump0(dump, ifcp);
+	}
+	fprintf(dump, "\n");
+	fprintf(dump, "  non-advertising interfaces:\n");
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
+		if ((ifcp->ifc_flags & IFF_UP) &&
+		    (iff_find(ifcp, IFIL_TYPE_N) == NULL))
+			continue;
+		ifdump0(dump, ifcp);
 	}
 	fprintf(dump, "\n");
 	if (dump != stderr)
@@ -3018,11 +3058,9 @@ ifdump(sig)
 }
 
 void
-ifdump0(dump, ifcp)
-	FILE *dump;
-	const struct ifc *ifcp;
+ifdump0(FILE *dump, const struct ifc *ifcp)
 {
-	struct ifac *ifa;
+	struct ifac *ifac;
 	struct iff *iffp;
 	char buf[BUFSIZ];
 	const char *ft;
@@ -3032,53 +3070,51 @@ ifdump0(dump, ifcp)
 		ifcp->ifc_name, ifcp->ifc_index, ifflags(ifcp->ifc_flags),
 		inet6_n2p(&ifcp->ifc_mylladdr),
 		ifcp->ifc_mtu, ifcp->ifc_metric);
-	for (ifa = ifcp->ifc_addr; ifa; ifa = ifa->ifa_next) {
+	TAILQ_FOREACH(ifac, &ifcp->ifc_ifac_head, ifac_next) {
 		if (ifcp->ifc_flags & IFF_POINTOPOINT) {
-			inet_ntop(AF_INET6, (void *)&ifa->ifa_raddr,
+			inet_ntop(AF_INET6, (void *)&ifac->ifac_raddr,
 				buf, sizeof(buf));
 			fprintf(dump, "\t%s/%d -- %s\n",
-				inet6_n2p(&ifa->ifa_addr),
-				ifa->ifa_plen, buf);
+				inet6_n2p(&ifac->ifac_addr),
+				ifac->ifac_plen, buf);
 		} else {
 			fprintf(dump, "\t%s/%d\n",
-				inet6_n2p(&ifa->ifa_addr),
-				ifa->ifa_plen);
+				inet6_n2p(&ifac->ifac_addr),
+				ifac->ifac_plen);
 		}
 	}
-	if (ifcp->ifc_filter) {
-		fprintf(dump, "\tFilter:");
-		for (iffp = ifcp->ifc_filter; iffp; iffp = iffp->iff_next) {
-			addr = 0;
-			switch (iffp->iff_type) {
-			case 'A':
-				ft = "Aggregate"; addr++; break;
-			case 'N':
-				ft = "No-use"; break;
-			case 'O':
-				ft = "Advertise-only"; addr++; break;
-			case 'T':
-				ft = "Default-only"; break;
-			case 'L':
-				ft = "Listen-only"; addr++; break;
-			default:
-				snprintf(buf, sizeof(buf), "Unknown-%c", iffp->iff_type);
-				ft = buf;
-				addr++;
-				break;
-			}
-			fprintf(dump, " %s", ft);
-			if (addr) {
-				fprintf(dump, "(%s/%d)", inet6_n2p(&iffp->iff_addr),
-					iffp->iff_plen);
-			}
+
+	fprintf(dump, "\tFilter:\n");
+	TAILQ_FOREACH(iffp, &ifcp->ifc_iff_head, iff_next) {
+		addr = 0;
+		switch (iffp->iff_type) {
+		case IFIL_TYPE_A:
+			ft = "Aggregate"; addr++; break;
+		case IFIL_TYPE_N:
+			ft = "No-use"; break;
+		case IFIL_TYPE_O:
+			ft = "Advertise-only"; addr++; break;
+		case IFIL_TYPE_T:
+			ft = "Default-only"; break;
+		case IFIL_TYPE_L:
+			ft = "Listen-only"; addr++; break;
+		default:
+			snprintf(buf, sizeof(buf), "Unknown-%c", iffp->iff_type);
+			ft = buf;
+			addr++;
+			break;
 		}
+		fprintf(dump, "\t\t%s", ft);
+		if (addr)
+			fprintf(dump, "(%s/%d)", inet6_n2p(&iffp->iff_addr),
+				iffp->iff_plen);
 		fprintf(dump, "\n");
 	}
+	fprintf(dump, "\n");
 }
 
 void
-rtdump(sig)
-	int sig;
+rtdump(int sig)
 {
 	struct	riprt *rrt;
 	char	buf[BUFSIZ];
@@ -3093,7 +3129,7 @@ rtdump(sig)
 
 	t = time(NULL);
 	fprintf(dump, "\n%s: Routing Table Dump\n", hms());
-	for (rrt = riprt; rrt; rrt = rrt->rrt_next) {
+	TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 		if (rrt->rrt_t == 0)
 			age = 0;
 		else
@@ -3127,11 +3163,11 @@ rtdump(sig)
  * 		-O 5f09:c400::/32,ef0,ef1  (only when match)
  */
 void
-filterconfig()
+filterconfig(void)
 {
 	int i;
 	char *p, *ap, *iflp, *ifname, *ep;
-	struct iff ftmp, *iff_obj;
+	struct iff iff, *iffp;
 	struct ifc *ifcp;
 	struct riprt *rrt;
 #if 0
@@ -3142,7 +3178,8 @@ filterconfig()
 	for (i = 0; i < nfilter; i++) {
 		ap = filter[i];
 		iflp = NULL;
-		ifcp = NULL;
+		iffp = &iff;
+		memset(iffp, 0, sizeof(*iffp));
 		if (filtertype[i] == 'N' || filtertype[i] == 'T') {
 			iflp = ap;
 			goto ifonly;
@@ -3156,22 +3193,21 @@ filterconfig()
 			/*NOTREACHED*/
 		}
 		*p++ = '\0';
-		if (inet_pton(AF_INET6, ap, &ftmp.iff_addr) != 1) {
+		if (inet_pton(AF_INET6, ap, &iffp->iff_addr) != 1) {
 			fatal("invalid prefix specified for '%s'", ap);
 			/*NOTREACHED*/
 		}
 		errno = 0;
 		ep = NULL;
 		plen = strtoul(p, &ep, 10);
-		if (errno || !*p || *ep || plen > sizeof(ftmp.iff_addr) * 8) {
+		if (errno || !*p || *ep || plen > sizeof(iffp->iff_addr) * 8) {
 			fatal("invalid prefix length specified for '%s'", ap);
 			/*NOTREACHED*/
 		}
-		ftmp.iff_plen = plen;
-		ftmp.iff_next = NULL;
-		applyplen(&ftmp.iff_addr, ftmp.iff_plen);
+		iffp->iff_plen = plen;
+		applyplen(&iffp->iff_addr, iffp->iff_plen);
 ifonly:
-		ftmp.iff_type = filtertype[i];
+		iffp->iff_type = filtertype[i];
 		if (iflp == NULL || *iflp == '\0') {
 			fatal("no interface specified for '%s'", ap);
 			/*NOTREACHED*/
@@ -3181,27 +3217,28 @@ ifonly:
 			ifname = iflp;
 			if ((iflp = strchr(iflp, ',')) != NULL)
 				*iflp++ = '\0';
-			ifcp = ifc_find(ifname);
-			if (ifcp == NULL) {
-				fatal("no interface %s exists", ifname);
-				/*NOTREACHED*/
+
+			TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
+				if (fnmatch(ifname, ifcp->ifc_name, 0) != 0)
+					continue;
+
+				iffp = malloc(sizeof(*iffp));
+				if (iffp == NULL) {
+					fatal("malloc of iff");
+					/*NOTREACHED*/
+				}
+				memcpy(iffp, &iff, sizeof(*iffp));
+#if 0
+				syslog(LOG_INFO, "Add filter: type %d, ifname %s.", iffp->iff_type, ifname);
+#endif
+				TAILQ_INSERT_HEAD(&ifcp->ifc_iff_head, iffp, iff_next);
 			}
-			iff_obj = (struct iff *)malloc(sizeof(struct iff));
-			if (iff_obj == NULL) {
-				fatal("malloc of iff_obj");
-				/*NOTREACHED*/
-			}
-			memcpy((void *)iff_obj, (void *)&ftmp,
-			    sizeof(struct iff));
-			/* link it to the interface filter */
-			iff_obj->iff_next = ifcp->ifc_filter;
-			ifcp->ifc_filter = iff_obj;
 		}
 
 		/*
 		 * -A: aggregate configuration.
 		 */
-		if (filtertype[i] != 'A')
+		if (filtertype[i] != IFIL_TYPE_A)
 			continue;
 		/* put the aggregate to the kernel routing table */
 		rrt = (struct riprt *)malloc(sizeof(struct riprt));
@@ -3210,8 +3247,8 @@ ifonly:
 			/*NOTREACHED*/
 		}
 		memset(rrt, 0, sizeof(struct riprt));
-		rrt->rrt_info.rip6_dest = ftmp.iff_addr;
-		rrt->rrt_info.rip6_plen = ftmp.iff_plen;
+		rrt->rrt_info.rip6_dest = iff.iff_addr;
+		rrt->rrt_info.rip6_plen = iff.iff_plen;
 		rrt->rrt_info.rip6_metric = 1;
 		rrt->rrt_info.rip6_tag = htons(routetag & 0xffff);
 		rrt->rrt_gw = in6addr_loopback;
@@ -3239,11 +3276,10 @@ ifonly:
 		}
 #endif
 		/* Put the route to the list */
-		rrt->rrt_next = riprt;
-		riprt = rrt;
+		TAILQ_INSERT_HEAD(&riprt_head, rrt, rrt_next);
 		trace(1, "Aggregate: %s/%d for %s\n",
-			inet6_n2p(&ftmp.iff_addr), ftmp.iff_plen,
-			ifcp->ifc_name);
+			inet6_n2p(&iff.iff_addr), iff.iff_plen,
+			loopifcp->ifc_name);
 		/* Add this route to the kernel */
 		if (nflag) 	/* do not modify kernel routing table */
 			continue;
@@ -3258,19 +3294,19 @@ ifonly:
  * with the address and prefix length specified in the arguments.
  */
 struct ifac *
-ifa_match(ifcp, ia, plen)
-	const struct ifc *ifcp;
-	const struct in6_addr *ia;
-	int plen;
+ifa_match(const struct ifc *ifcp,
+	const struct in6_addr *ia,
+	int plen)
 {
-	struct ifac *ifa;
+	struct ifac *ifac;
 
-	for (ifa = ifcp->ifc_addr; ifa; ifa = ifa->ifa_next) {
-		if (IN6_ARE_ADDR_EQUAL(&ifa->ifa_addr, ia) &&
-		    ifa->ifa_plen == plen)
+	TAILQ_FOREACH(ifac, &ifcp->ifc_ifac_head, ifac_next) {
+		if (IN6_ARE_ADDR_EQUAL(&ifac->ifac_addr, ia) &&
+		    ifac->ifac_plen == plen)
 			break;
 	}
-	return ifa;
+
+	return (ifac);
 }
 
 /*
@@ -3279,30 +3315,22 @@ ifa_match(ifcp, ia, plen)
  * Note: This is not a rtalloc().  Therefore exact match is necessary.
  */
 struct riprt *
-rtsearch(np, prev_rrt)
-	struct	netinfo6 *np;
-	struct	riprt **prev_rrt;
+rtsearch(struct netinfo6 *np)
 {
 	struct	riprt	*rrt;
 
-	if (prev_rrt)
-		*prev_rrt = NULL;
-	for (rrt = riprt; rrt; rrt = rrt->rrt_next) {
+	TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
 		if (rrt->rrt_info.rip6_plen == np->rip6_plen &&
 		    IN6_ARE_ADDR_EQUAL(&rrt->rrt_info.rip6_dest,
 				       &np->rip6_dest))
-			return rrt;
-		if (prev_rrt)
-			*prev_rrt = rrt;
+			break;
 	}
-	if (prev_rrt)
-		*prev_rrt = NULL;
-	return 0;
+
+	return (rrt);
 }
 
 int
-sin6mask2len(sin6)
-	const struct sockaddr_in6 *sin6;
+sin6mask2len(const struct sockaddr_in6 *sin6)
 {
 
 	return mask2len(&sin6->sin6_addr,
@@ -3310,9 +3338,7 @@ sin6mask2len(sin6)
 }
 
 int
-mask2len(addr, lenlim)
-	const struct in6_addr *addr;
-	int lenlim;
+mask2len(const struct in6_addr *addr, int lenlim)
 {
 	int i = 0, j;
 	const u_char *p = (const u_char *)addr;
@@ -3339,8 +3365,7 @@ mask2len(addr, lenlim)
 }
 
 void
-applymask(addr, mask)
-	struct in6_addr *addr, *mask;
+applymask(struct in6_addr *addr, struct in6_addr *mask)
 {
 	int	i;
 	u_long	*p, *q;
@@ -3355,9 +3380,7 @@ static const u_char plent[8] = {
 };
 
 void
-applyplen(ia, plen)
-	struct	in6_addr *ia;
-	int	plen;
+applyplen(struct in6_addr *ia, int plen)
 {
 	u_char	*p;
 	int	i;
@@ -3377,8 +3400,7 @@ static const int pl2m[9] = {
 };
 
 struct in6_addr *
-plen2mask(n)
-	int	n;
+plen2mask(int n)
 {
 	static struct in6_addr ia;
 	u_char	*p;
@@ -3398,8 +3420,7 @@ plen2mask(n)
 }
 
 char *
-allocopy(p)
-	char *p;
+allocopy(char *p)
 {
 	int len = strlen(p) + 1;
 	char *q = (char *)malloc(len);
@@ -3414,7 +3435,7 @@ allocopy(p)
 }
 
 char *
-hms()
+hms(void)
 {
 	static char buf[BUFSIZ];
 	time_t t;
@@ -3433,8 +3454,7 @@ hms()
 #define	RIPRANDDEV	1.0	/* 30 +- 15, max - min = 30 */
 
 int
-ripinterval(timer)
-	int timer;
+ripinterval(int timer)
 {
 	double r = rand();
 
@@ -3444,7 +3464,7 @@ ripinterval(timer)
 }
 
 time_t
-ripsuptrig()
+ripsuptrig(void)
 {
 	time_t t;
 
@@ -3554,7 +3574,7 @@ trace(level, fmt, va_alist)
 }
 
 unsigned int
-if_maxindex()
+if_maxindex(void)
 {
 	struct if_nameindex *p, *p0;
 	unsigned int max = 0;
@@ -3569,36 +3589,33 @@ if_maxindex()
 }
 
 struct ifc *
-ifc_find(name)
-	char *name;
+ifc_find(char *name)
 {
 	struct ifc *ifcp;
 
-	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next) {
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
 		if (strcmp(name, ifcp->ifc_name) == 0)
-			return ifcp;
+			break;
 	}
-	return (struct ifc *)NULL;
+	return (ifcp);
 }
 
 struct iff *
-iff_find(ifcp, type)
-	struct ifc *ifcp;
-	int type;
+iff_find(struct ifc *ifcp, int type)
 {
 	struct iff *iffp;
 
-	for (iffp = ifcp->ifc_filter; iffp; iffp = iffp->iff_next) {
-		if (iffp->iff_type == type)
-			return iffp;
+	TAILQ_FOREACH(iffp, &ifcp->ifc_iff_head, iff_next) {
+		if (type == IFIL_TYPE_ANY ||
+		    type == iffp->iff_type)
+			break;
 	}
-	return NULL;
+
+	return (iffp);
 }
 
 void
-setindex2ifc(idx, ifcp)
-	int idx;
-	struct ifc *ifcp;
+setindex2ifc(int idx, struct ifc *ifcp)
 {
 	int n, nsize;
 	struct ifc **p;

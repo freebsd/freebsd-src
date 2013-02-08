@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -255,7 +255,7 @@ AcpiEvaluateObject (
      * 3) Valid handle
      */
     if ((Pathname) &&
-        (AcpiNsValidRootPrefix (Pathname[0])))
+        (ACPI_IS_ROOT_PREFIX (Pathname[0])))
     {
         /* The path is fully qualified, just evaluate by name */
 

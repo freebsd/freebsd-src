@@ -81,7 +81,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
@@ -1700,7 +1699,7 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 	++pim6stat.pim6s_snd_registers;
 
 	/* Make a copy of the packet to send to the user level process */
-	MGETHDR(mm, M_DONTWAIT, MT_HEADER);
+	MGETHDR(mm, M_NOWAIT, MT_HEADER);
 	if (mm == NULL)
 		return (ENOBUFS);
 	mm->m_pkthdr.rcvif = NULL;

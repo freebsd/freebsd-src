@@ -116,6 +116,19 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		}
 	}
 
+#ifdef OCTEON_VENDOR_RADISYS
+	/*
+	 * The RSYS4GBE will hang if asked to transmit a packet less than 60 bytes.
+	 */
+	if (__predict_false(m->m_pkthdr.len < 60) &&
+	    cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE) {
+		static uint8_t pad[60];
+
+		if (!m_append(m, sizeof pad - m->m_pkthdr.len, pad))
+			printf("%s: unable to pad small packet.", __func__);
+	}
+#endif
+
 	/*
 	 * If the packet is not fragmented.
 	 */

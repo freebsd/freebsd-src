@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2012
+.Dd December 25, 2012
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -125,15 +125,14 @@ experiences problem with sending announcements, when an interface
 running a vhid goes down, or while the
 .Xr pfsync 4
 interface is not synchronized.
-The demotion value is writable, so that user may alter it
-depending on some external conditions, for example on the status of some
-daemon utility.
-However, altering the value should be performed with care, so as to
-not conflict with subsystems that adjust demotion factor
-automatically:
+The demotion factor can be adjusted writing to the sysctl oid.
+The signed value supplied to the
+.Xr sysctl 8
+command is added to current demotion factor.
+This allows to control
 .Nm
-and
-.Xr pfsync 4 .
+behaviour depending on some external conditions, for example on the status
+of some daemon utility.
 .It Va net.inet.carp.ifdown_demotion_factor
 This value is added to
 .Va net.inet.carp.demotion

@@ -73,8 +73,8 @@ class SDDbgInfo {
   SmallVector<SDDbgValue*, 32> ByvalParmDbgValues;
   DenseMap<const SDNode*, SmallVector<SDDbgValue*, 2> > DbgValMap;
 
-  void operator=(const SDDbgInfo&);   // Do not implement.
-  SDDbgInfo(const SDDbgInfo&);   // Do not implement.
+  void operator=(const SDDbgInfo&) LLVM_DELETED_FUNCTION;
+  SDDbgInfo(const SDDbgInfo&) LLVM_DELETED_FUNCTION;
 public:
   SDDbgInfo() {}
 
@@ -222,8 +222,8 @@ private:
                               DenseSet<SDNode *> &visited,
                               int level, bool &printed);
 
-  void operator=(const SelectionDAG&); // Do not implement.
-  SelectionDAG(const SelectionDAG&);   // Do not implement.
+  void operator=(const SelectionDAG&) LLVM_DELETED_FUNCTION;
+  SelectionDAG(const SelectionDAG&) LLVM_DELETED_FUNCTION;
 
 public:
   explicit SelectionDAG(const TargetMachine &TM, llvm::CodeGenOpt::Level);
@@ -437,7 +437,13 @@ public:
   SDValue getRegisterMask(const uint32_t *RegMask);
   SDValue getEHLabel(DebugLoc dl, SDValue Root, MCSymbol *Label);
   SDValue getBlockAddress(const BlockAddress *BA, EVT VT,
-                          bool isTarget = false, unsigned char TargetFlags = 0);
+                          int64_t Offset = 0, bool isTarget = false,
+                          unsigned char TargetFlags = 0);
+  SDValue getTargetBlockAddress(const BlockAddress *BA, EVT VT,
+                                int64_t Offset = 0,
+                                unsigned char TargetFlags = 0) {
+    return getBlockAddress(BA, VT, Offset, true, TargetFlags);
+  }
 
   SDValue getCopyToReg(SDValue Chain, DebugLoc dl, unsigned Reg, SDValue N) {
     return getNode(ISD::CopyToReg, dl, MVT::Other, Chain,

@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -137,7 +135,7 @@ agp_via_match(device_t dev)
 		return ("VIA PT880 host to PCI bridge");
 	case 0xb1981106:
 		return ("VIA VT83xx/VT87xx/KTxxx/Px8xx host to PCI bridge");
-	};
+	}
 
 	return NULL;
 }

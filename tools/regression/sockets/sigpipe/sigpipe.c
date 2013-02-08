@@ -97,7 +97,7 @@ test_send(const char *testname, int sock)
 			return;
 		err(-1, "%s: send", testname);
 	}
-	errx(-1, "%s: send: returned %d", testname, len);
+	errx(-1, "%s: send: returned %zd", testname, len);
 }
 
 static void
@@ -113,7 +113,7 @@ test_write(const char *testname, int sock)
 			return;
 		err(-1, "%s: write", testname);
 	}
-	errx(-1, "%s: write: returned %d", testname, len);
+	errx(-1, "%s: write: returned %zd", testname, len);
 }
 
 static void

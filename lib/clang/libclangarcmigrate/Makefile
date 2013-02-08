@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangarcmigrate
 
 SRCDIR=	tools/clang/lib/ARCMigrate

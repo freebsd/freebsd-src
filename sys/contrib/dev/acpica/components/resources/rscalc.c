@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -430,7 +430,7 @@ AcpiRsGetListLength (
     {
         /* Validate the Resource Type and Resource Length */
 
-        Status = AcpiUtValidateResource (AmlBuffer, &ResourceIndex);
+        Status = AcpiUtValidateResource (NULL, AmlBuffer, &ResourceIndex);
         if (ACPI_FAILURE (Status))
         {
             /*

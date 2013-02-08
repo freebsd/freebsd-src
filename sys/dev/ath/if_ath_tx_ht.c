@@ -349,6 +349,14 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	 */
 	ndelim += ATH_AGGR_ENCRYPTDELIM;
 
+	/*
+	 * For AR9380, there's a minimum number of delimeters
+	 * required when doing RTS.
+	 */
+	if (sc->sc_use_ent && (sc->sc_ent_cfg & AH_ENT_RTSCTS_DELIM_WAR)
+	    && ndelim < AH_FIRST_DESC_NDELIMS)
+		ndelim = AH_FIRST_DESC_NDELIMS;
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: pktlen=%d, ndelim=%d, mpdudensity=%d\n",
 	    __func__, pktlen, ndelim, mpdudensity);
@@ -542,12 +550,13 @@ ath_rateseries_print(struct ath_softc *sc, HAL_11N_RATE_SERIES *series)
 	int i;
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		device_printf(sc->sc_dev ,"series %d: rate %x; tries %d; "
-		    "pktDuration %d; chSel %d; rateFlags %x\n",
+		    "pktDuration %d; chSel %d; txpowcap %d, rateFlags %x\n",
 		    i,
 		    series[i].Rate,
 		    series[i].Tries,
 		    series[i].PktDuration,
 		    series[i].ChSel,
+		    series[i].tx_power_cap,
 		    series[i].RateFlags);
 	}
 }
@@ -577,7 +586,6 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	ath_rateseries_setup(sc, ni, bf, series);
 
 #if 0
-	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
 	ath_rateseries_print(sc, series);
 #endif
 
@@ -650,7 +658,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 	int prev_frames = 0;	/* XXX for AR5416 burst, not done here */
 	int prev_al = 0;	/* XXX also for AR5416 burst */
 
-	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[tid->ac]);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 	if (tap == NULL) {
@@ -678,11 +686,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 
 		/* Set this early just so things don't get confused */
 		bf->bf_next = NULL;
-
-		/*
-		 * Don't unlock the tid lock until we're sure we are going
-		 * to queue this frame.
-		 */
 
 		/*
 		 * If the frame doesn't have a sequence number that we're
@@ -741,11 +744,13 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * that differs from the first frame, override the
 		 * subsequent frame with this config.
 		 */
-		bf->bf_state.bfs_txflags &=
-		    ~ (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
-		bf->bf_state.bfs_txflags |=
-		    bf_first->bf_state.bfs_txflags &
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		if (bf != bf_first) {
+			bf->bf_state.bfs_txflags &=
+			    ~ (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+			bf->bf_state.bfs_txflags |=
+			    bf_first->bf_state.bfs_txflags &
+			    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		}
 
 		/*
 		 * If the packet has a sequence number, do not

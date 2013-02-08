@@ -473,7 +473,7 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 
 				cb->s_cc &= ~SPX_EM;
 				while (len > mtu) {
-					m = m_copym(m0, 0, mtu, M_DONTWAIT);
+					m = m_copym(m0, 0, mtu, M_NOWAIT);
 					if (m == NULL) {
 					    cb->s_cc |= oldEM;
 					    m_freem(m0);
@@ -509,7 +509,7 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 			if (M_TRAILINGSPACE(m) >= 1)
 				m->m_len++;
 			else {
-				struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
+				struct mbuf *m1 = m_get(M_NOWAIT, MT_DATA);
 
 				if (m1 == NULL) {
 					m_freem(m0);
@@ -520,7 +520,7 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 				m->m_next = m1;
 			}
 		}
-		m = m_gethdr(M_DONTWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			m_freem(m0);
 			return (ENOBUFS);
@@ -734,7 +734,7 @@ send:
 			spxstat.spxs_sndprobe++;
 		if (cb->s_flags & SF_ACKNOW)
 			spxstat.spxs_sndacks++;
-		m = m_gethdr(M_DONTWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return (ENOBUFS);
 
@@ -1091,7 +1091,7 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	cb = malloc(sizeof *cb, M_PCB, M_NOWAIT | M_ZERO);
 	if (cb == NULL)
 		return (ENOBUFS);
-	mm = m_getclr(M_DONTWAIT, MT_DATA);
+	mm = m_getclr(M_NOWAIT, MT_DATA);
 	if (mm == NULL) {
 		free(cb, M_PCB);
 		return (ENOBUFS);

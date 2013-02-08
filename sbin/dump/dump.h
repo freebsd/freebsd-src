@@ -121,7 +121,7 @@ void	trewind(void);
 void	writerec(char *dp, int isspcl);
 
 void	Exit(int status) __dead2;
-void	dumpabort(int signo);
+void	dumpabort(int signo) __dead2;
 void	dump_getfstab(void);
 
 char	*rawname(char *cp);

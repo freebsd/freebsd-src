@@ -40,8 +40,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bus.h"
-
 #if 0
 #define	KTR_AGP_I810	KTR_DEV
 #else
@@ -728,6 +726,11 @@ static const struct agp_i810_match {
 	{
 		.devid = 0x015a8086,
 		.name = "IvyBridge server GT1 IG",
+		.driver = &agp_i810_sb_driver
+	},
+	{
+		.devid = 0x016a8086,
+		.name = "IvyBridge server GT2 IG",
 		.driver = &agp_i810_sb_driver
 	},
 	{
@@ -2225,7 +2228,7 @@ agp_i830_chipset_flush(device_t dev)
 	bus_write_4(sc->sc_res[0], AGP_I830_HIC, hic | (1 << 31));
 	for (i = 0; i < 20000 /* 1 sec */; i++) {
 		hic = bus_read_4(sc->sc_res[0], AGP_I830_HIC);
-		if ((hic & (1 << 31)) != 0)
+		if ((hic & (1 << 31)) == 0)
 			break;
 		DELAY(50);
 	}
