@@ -73,7 +73,8 @@ main(int argc, char *argv[])
 {
 	int ch, login;
 
-	euid = geteuid();
+	if ((euid = geteuid()) != 0)
+		warnx("need root permissions to function properly, check setuid bit");
 	if (seteuid(getuid()) < 0)
 		err(1, "seteuid");
 
