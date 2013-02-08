@@ -688,11 +688,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		bf->bf_next = NULL;
 
 		/*
-		 * Don't unlock the tid lock until we're sure we are going
-		 * to queue this frame.
-		 */
-
-		/*
 		 * If the frame doesn't have a sequence number that we're
 		 * tracking in the BAW (eg NULL QOS data frame), we can't
 		 * aggregate it. Stop the aggregation process; the sender
@@ -749,11 +744,13 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * that differs from the first frame, override the
 		 * subsequent frame with this config.
 		 */
-		bf->bf_state.bfs_txflags &=
-		    ~ (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
-		bf->bf_state.bfs_txflags |=
-		    bf_first->bf_state.bfs_txflags &
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		if (bf != bf_first) {
+			bf->bf_state.bfs_txflags &=
+			    ~ (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+			bf->bf_state.bfs_txflags |=
+			    bf_first->bf_state.bfs_txflags &
+			    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		}
 
 		/*
 		 * If the packet has a sequence number, do not
