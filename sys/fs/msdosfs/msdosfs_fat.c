@@ -1114,7 +1114,7 @@ extendfile(dep, count, bpp, ncp, flags)
  * Routine to mark a FAT16 or FAT32 volume as "clean" or "dirty" by
  * manipulating the upper bit of the FAT entry for cluster 1.  Note that
  * this bit is not defined for FAT12 volumes, which are always assumed to
- * be dirty.
+ * be clean.
  *
  * The fatentry() routine only works on cluster numbers that a file could
  * occupy, so it won't manipulate the entry for cluster 1.  So we have to do
