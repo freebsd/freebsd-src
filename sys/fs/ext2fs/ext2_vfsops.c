@@ -527,6 +527,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	int ronly;
 	int i, size;
 	int32_t *lp;
+	int32_t e2fs_maxcontig;
 
 	ronly = vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0);
 	/* XXX: use VOP_ACESS to check FS perms */
@@ -601,12 +602,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * in ext2fs doesn't have these variables, so we can calculate 
 	 * them here.
 	 */
-	ump->um_e2fs->e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
-	if (ump->um_e2fs->e2fs_maxcontig > 0)
-		ump->um_e2fs->e2fs_contigsumsize =
-		    MIN(ump->um_e2fs->e2fs_maxcontig, EXT2_MAXCONTIG);
-	else
-		ump->um_e2fs->e2fs_contigsumsize = 0;
+	e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
+	ump->um_e2fs->e2fs_contigsumsize = MIN(e2fs_maxcontig, EXT2_MAXCONTIG);
 	if (ump->um_e2fs->e2fs_contigsumsize > 0) {
 		size = ump->um_e2fs->e2fs_gcount * sizeof(int32_t);
 		ump->um_e2fs->e2fs_maxcluster = malloc(size, M_EXT2MNT, M_WAITOK);
