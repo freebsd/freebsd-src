@@ -766,7 +766,7 @@ cpu_stopprofclock(void)
 /*
  * Switch to idle mode (all ticks handled).
  */
-int
+sbintime_t
 cpu_idleclock(void)
 {
 	struct bintime now, t;
@@ -795,8 +795,7 @@ cpu_idleclock(void)
 		loadtimer(&now, 0);
 	ET_HW_UNLOCK(state);
 	bintime_sub(&t, &now);
-	return (t.sec > (INT_MAX >> 20) ? INT_MAX :
-	    ((t.sec < 0) ? 0 : ((t.sec << 20) + (t.frac >> 44))));
+	return (MAX(bintime2sbintime(t), 0));
 }
 
 /*

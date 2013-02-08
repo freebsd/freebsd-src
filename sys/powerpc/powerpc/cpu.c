@@ -79,9 +79,9 @@ static void	cpu_970_setup(int cpuid, uint16_t vers);
 static void	cpu_booke_setup(int cpuid, uint16_t vers);
 
 int powerpc_pow_enabled;
-void (*cpu_idle_hook)(int) = NULL;
-static void	cpu_idle_60x(int);
-static void	cpu_idle_booke(int);
+void (*cpu_idle_hook)(sbintime_t) = NULL;
+static void	cpu_idle_60x(sbintime_t);
+static void	cpu_idle_booke(sbintime_t);
 
 struct cputab {
 	const char	*name;
@@ -516,7 +516,7 @@ cpu_feature_bit(SYSCTL_HANDLER_ARGS)
 void
 cpu_idle(int busy)
 {
-	int us = -1;
+	sbintime_t sbt = -1;
 
 #ifdef INVARIANTS
 	if ((mfmsr() & PSL_EE) != PSL_EE) {
@@ -532,9 +532,9 @@ cpu_idle(int busy)
 	if (cpu_idle_hook != NULL) {
 		if (!busy) {
 			critical_enter();
-			us = cpu_idleclock();
+			sbt = cpu_idleclock();
 		}
-		cpu_idle_hook(us);
+		cpu_idle_hook(sbt);
 		if (!busy) {
 			cpu_activeclock();
 			critical_exit();
@@ -552,7 +552,7 @@ cpu_idle_wakeup(int cpu)
 }
 
 static void
-cpu_idle_60x(int us)
+cpu_idle_60x(sbintime_t sbt)
 {
 	register_t msr;
 	uint16_t vers;
@@ -587,7 +587,7 @@ cpu_idle_60x(int us)
 }
 
 static void
-cpu_idle_booke(int us)
+cpu_idle_booke(sbintime_t sbt)
 {
 	register_t msr;
 
