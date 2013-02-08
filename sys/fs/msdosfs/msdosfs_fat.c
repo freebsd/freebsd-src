@@ -379,7 +379,7 @@ updatefats(pmp, bp, fatbn)
 				((u_int8_t *)bpn->b_data)[3] |= 0x80;
 			else if (cleanfat == 32)
 				((u_int8_t *)bpn->b_data)[7] |= 0x08;
-			if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
+			if (pmp->pm_mountp->mnt_flag & MNT_SYNCHRONOUS)
 				bwrite(bpn);
 			else
 				bdwrite(bpn);
@@ -389,7 +389,7 @@ updatefats(pmp, bp, fatbn)
 	/*
 	 * Write out the first (or current) fat last.
 	 */
-	if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
+	if (pmp->pm_mountp->mnt_flag & MNT_SYNCHRONOUS)
 		bwrite(bp);
 	else
 		bdwrite(bp);
