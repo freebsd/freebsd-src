@@ -62,7 +62,7 @@ typedef void timeout_t (void *);
 .Ft void
 .Fn callout_handle_init "struct callout_handle *handle"
 .Bd -literal
-struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
+struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Ed
 .Ft void
 .Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"

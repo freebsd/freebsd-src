@@ -266,7 +266,7 @@ exit1(struct thread *td, int rv)
 	PROC_LOCK(p);
 	rv = p->p_xstat;	/* Event handler could change exit status */
 	stopprofclock(p);
-	p->p_flag &= ~(P_TRACED | P_PPWAIT);
+	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
 
 	/*
 	 * Stop the real interval timer.  If the handler is currently

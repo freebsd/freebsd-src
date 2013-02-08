@@ -358,28 +358,28 @@ uath_attach(device_t dev)
 	callout_init(&sc->stat_ch, 0);
 	callout_init_mtx(&sc->watchdog_ch, &sc->sc_mtx, 0);
 
-	/*
-	 * Allocate xfers for firmware commands.
-	 */
-	error = uath_alloc_cmd_list(sc, sc->sc_cmd);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not allocate Tx command list\n");
-		goto fail;
-	}
-
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    uath_usbconfig, UATH_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
 		    "err=%s\n", usbd_errstr(error));
-		goto fail1;
+		goto fail;
 	}
 
 	sc->sc_cmd_dma_buf = 
 	    usbd_xfer_get_frame_buffer(sc->sc_xfer[UATH_INTR_TX], 0);
 	sc->sc_tx_dma_buf = 
 	    usbd_xfer_get_frame_buffer(sc->sc_xfer[UATH_BULK_TX], 0);
+
+	/*
+	 * Setup buffers for firmware commands.
+	 */
+	error = uath_alloc_cmd_list(sc, sc->sc_cmd);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "could not allocate Tx command list\n");
+		goto fail1;
+	}
 
 	/*
 	 * We're now ready to send+receive firmware commands.
@@ -492,8 +492,8 @@ uath_attach(device_t dev)
 
 fail4:	if_free(ifp);
 fail3:	UATH_UNLOCK(sc);
-fail2:	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
-fail1:	uath_free_cmd_list(sc, sc->sc_cmd);
+fail2:	uath_free_cmd_list(sc, sc->sc_cmd);
+fail1:	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
 fail:
 	return (error);
 }
@@ -2436,11 +2436,8 @@ uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	UATH_ASSERT_LOCKED(sc);
 
-	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_TRANSFERRED:
-		cmd = STAILQ_FIRST(&sc->sc_cmd_active);
-		if (cmd == NULL)
-			goto setup;
+	cmd = STAILQ_FIRST(&sc->sc_cmd_active);
+	if (cmd != NULL && USB_GET_STATE(xfer) != USB_ST_SETUP) {
 		STAILQ_REMOVE_HEAD(&sc->sc_cmd_active, next);
 		UATH_STAT_DEC(sc, st_cmd_active);
 		STAILQ_INSERT_TAIL((cmd->flags & UATH_CMD_FLAG_READ) ?
@@ -2449,7 +2446,10 @@ uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 			UATH_STAT_INC(sc, st_cmd_waiting);
 		else
 			UATH_STAT_INC(sc, st_cmd_inactive);
-		/* FALLTHROUGH */
+	}
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 setup:
 		cmd = STAILQ_FIRST(&sc->sc_cmd_pending);

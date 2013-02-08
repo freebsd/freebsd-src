@@ -53,9 +53,9 @@ SRCS+=	bsd_usbloader_test.c
 LDADD+=	libusbboot.a
 DPADD+= libusbboot.a
 
-all: libusbboot.a
-
 .include <bsd.prog.mk>
+
+${PROG}: libusbboot.a
 
 libusbboot.a:
 	make -f Makefile
