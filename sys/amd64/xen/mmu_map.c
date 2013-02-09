@@ -71,20 +71,12 @@ pml4t_index(uintptr_t va)
 static int
 pdpt_index(uintptr_t va)
 {
-	/* amd64 sign extends 48th bit and upwards */
-	const uint64_t SIGNMASK = (1UL << 48) - 1;
-	va &= SIGNMASK; /* Remove sign extension */
-
 	return ((va & PML4MASK) >> PDPSHIFT);
 }
 
 static int
 pdt_index(uintptr_t va)
 {
-	/* amd64 sign extends 48th bit and upwards */
-	const uint64_t SIGNMASK = (1UL << 48) - 1;
-	va &= SIGNMASK; /* Remove sign extension */
-
 	return ((va & PDPMASK) >> PDRSHIFT);
 }
 
@@ -92,10 +84,6 @@ pdt_index(uintptr_t va)
 static int
 pt_index(uintptr_t va)
 {
-	/* amd64 sign extends 48th bit and upwards */
-	const uint64_t SIGNMASK = (1UL << 48) - 1;
-	va &= SIGNMASK; /* Remove sign extension */
-
 	return ((va & PDRMASK) >> PAGE_SHIFT);
 }
 #endif
