@@ -24,10 +24,11 @@
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2012
+.Dd February 8, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -866,7 +867,7 @@ but this may change in future releases). The value
 disables integrity checking on user data. Disabling checksums is
 .Em NOT
 a recommended practice.
-.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle
+.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | zle | Cm lz4
 Controls the compression algorithm used for this dataset. The
 .Cm lzjb
 compression algorithm is optimized for performance while providing decent data
@@ -893,6 +894,26 @@ is equivalent to
 The
 .Cm zle
 compression algorithm compresses runs of zeros.
+.Pp
+The
+.Sy lz4
+compression algorithm is a high-performance replacement
+for the
+.Sy lzjb
+algorithm. It features significantly faster
+compression and decompression, as well as a moderately higher
+compression ratio than
+.Sy lzjb ,
+but can only be used on pools with
+the
+.Sy lz4_compress
+feature set to
+.Sy enabled .
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy lz4_compress
+feature.
 .Pp
 This property can also be referred to by its shortened column name
 .Cm compress .

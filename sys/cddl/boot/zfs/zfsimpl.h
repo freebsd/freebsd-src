@@ -52,6 +52,9 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright 2013 by Saso Kiselkov. All rights reserved.
+ */
 
 #define	MAXNAMELEN	256
 
@@ -439,6 +442,7 @@ enum zio_compress {
 	ZIO_COMPRESS_GZIP_8,
 	ZIO_COMPRESS_GZIP_9,
 	ZIO_COMPRESS_ZLE,
+	ZIO_COMPRESS_LZ4,
 	ZIO_COMPRESS_FUNCTIONS
 };
 
