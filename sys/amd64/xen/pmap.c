@@ -957,9 +957,6 @@ pmap_kextract_ma(vm_offset_t va)
 			 * effectively const.
 			 */
 
-	const uint64_t SIGNMASK = (1UL << 48) - 1;
-	va &= SIGNMASK; /* Remove sign extension */
-
 	mmu_map_t tptr = tbuf;
 
 	struct mmu_map_mbackend mb = {
@@ -980,7 +977,7 @@ pmap_kextract_ma(vm_offset_t va)
 	mmu_map_t_fini(tptr);
 
 nomapping:
-	return (ma & PG_FRAME) | (va & ~PG_FRAME);
+	return (ma & PG_FRAME) | (va & PAGE_MASK);
 }
 
 /***************************************************
