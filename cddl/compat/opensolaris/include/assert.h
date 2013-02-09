@@ -43,6 +43,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 static __inline void
 __assert(const char *expr, const char *file, int line)
 {
@@ -52,4 +56,9 @@ __assert(const char *expr, const char *file, int line)
 	abort();
 	/* NOTREACHED */
 }
+
+#ifdef  __cplusplus
+}
+#endif
+
 #endif /* !_ASSERT_H_ */
