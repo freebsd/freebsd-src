@@ -936,16 +936,16 @@ mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
 			return (err);
 	}
 	/* Process the queue */
-	while ((next = drbr_peek(ifp, ring->br)) != NULL) {
+	while ((next = drbr_peek(dev, ring->br)) != NULL) {
 		if ((err = mlx4_en_xmit(dev, tx_ind, &next)) != 0) {
 			if (next == NULL) {
-				drbr_advance(ifp, ring->br);
+				drbr_advance(dev, ring->br);
 			} else {
-				drbr_putback(ifp, ring->br, next);
+				drbr_putback(dev, ring->br, next);
 			}
 			break;
 		}
-		drbr_advance(ifp, ring->br);
+		drbr_advance(dev, ring->br);
 		enqueued++;
 		dev->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
