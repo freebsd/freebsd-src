@@ -31,7 +31,7 @@
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
-__RCSID("$NetBSD: exec_elf32.c,v 1.4 1997/08/12 06:07:24 mikel Exp $");
+__RCSID("$NetBSD: exec_elf32.c,v 1.6 1999/09/20 04:12:16 christos Exp $");
 #endif
 #endif
 __FBSDID("$FreeBSD$");
@@ -98,7 +98,7 @@ xreadatoff(int fd, void *buf, off_t off, size_t size, const char *fn)
 		perror(fn);
 		return -1;
 	}
-	if ((rv = read(fd, buf, size)) != size) {
+	if ((size_t)(rv = read(fd, buf, size)) != size) {
 		fprintf(stderr, "%s: read error: %s\n", fn,
 		    rv == -1 ? strerror(errno) : "short read");
 		return -1;
@@ -115,7 +115,7 @@ xwriteatoff(int fd, void *buf, off_t off, size_t size, const char *fn)
 		perror(fn);
 		return -1;
 	}
-	if ((rv = write(fd, buf, size)) != size) {
+	if ((size_t)(rv = write(fd, buf, size)) != size) {
 		fprintf(stderr, "%s: write error: %s\n", fn,
 		    rv == -1 ? strerror(errno) : "short write");
 		return -1;
@@ -162,7 +162,7 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	 */
 	if (fstat(fd, &sb) == -1)
 		return 0;
-	if (sb.st_size < sizeof eh)
+	if (sb.st_size < (off_t)(sizeof eh))
 		return 0;
 	if (read(fd, &eh, sizeof eh) != sizeof eh)
 		return 0;
@@ -305,7 +305,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	if ((symtabp = xmalloc(xewtoh(symtabshdr->sh_size), fn, "symbol table"))
 	    == NULL)
 		goto bad;
-	if (xreadatoff(fd, symtabp, xewtoh(symtabshdr->sh_offset),
+	if ((size_t)xreadatoff(fd, symtabp, xewtoh(symtabshdr->sh_offset),
 	    xewtoh(symtabshdr->sh_size), fn) != xewtoh(symtabshdr->sh_size))
 		goto bad;
 
@@ -313,7 +313,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	if ((strtabp = xmalloc(xewtoh(strtabshdr->sh_size), fn, "string table"))
 	    == NULL)
 		goto bad;
-	if (xreadatoff(fd, strtabp, xewtoh(strtabshdr->sh_offset),
+	if ((size_t)xreadatoff(fd, strtabp, xewtoh(strtabshdr->sh_offset),
 	    xewtoh(strtabshdr->sh_size), fn) != xewtoh(strtabshdr->sh_size))
 		goto bad;
 
@@ -370,7 +370,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 	if (xwriteatoff(fd, shdrp, xewtoh(ehdr.e_shoff), shdrsize, fn) !=
 	    shdrsize)
 		goto bad;
-	if (xwriteatoff(fd, symtabp, xewtoh(symtabshdr->sh_offset),
+	if ((size_t)xwriteatoff(fd, symtabp, xewtoh(symtabshdr->sh_offset),
 	    xewtoh(symtabshdr->sh_size), fn) != xewtoh(symtabshdr->sh_size))
 		goto bad;
 	/* write new symbol table strings */
@@ -384,7 +384,7 @@ out:
 	if (symtabp != NULL)
 		free(symtabp);
 	if (strtabp != NULL)
-		free(strtabp);
+		free(nstrtabp);
 	return (rv);
 
 bad:
