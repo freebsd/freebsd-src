@@ -384,6 +384,8 @@ out:
 	if (symtabp != NULL)
 		free(symtabp);
 	if (strtabp != NULL)
+		free(strtabp);
+	if (nstrtabp != NULL)
 		free(nstrtabp);
 	return (rv);
 
