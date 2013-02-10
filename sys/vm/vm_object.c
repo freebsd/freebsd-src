@@ -1729,7 +1729,7 @@ vm_object_collapse(vm_object_t object)
 				/*
 				 * Free any cached pages from backing_object.
 				 */
-				if (!vm_object_cache_is_empty(object))
+				if (!vm_object_cache_is_empty(backing_object))
 					vm_page_cache_free(backing_object, 0, 0);
 			}
 			/*
