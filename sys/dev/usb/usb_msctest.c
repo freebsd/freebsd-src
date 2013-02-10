@@ -505,13 +505,8 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 	usb_error_t err;
 	uint8_t do_unlock;
 
-	/* automatic locking */
-	if (usbd_enum_is_locked(udev)) {
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		usbd_enum_lock(udev);
-	}
+	/* Prevent re-enumeration */
+	do_unlock = usbd_enum_lock(udev);
 
 	/*
 	 * Make sure any driver which is hooked up to this interface,
