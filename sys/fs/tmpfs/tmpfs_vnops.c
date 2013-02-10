@@ -511,14 +511,6 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if (vobj == NULL)
-		goto nocache;
-
-	VM_OBJECT_LOCK(vobj);
-	if (vobj->resident_page_count == 0 && vobj->cached_page_count == 0) {
-		VM_OBJECT_UNLOCK(vobj);
-		goto nocache;
-	}
 lookupvpg:
 	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(m, offset, tlen)) {
@@ -572,7 +564,6 @@ lookupvpg:
 		return	(error);
 	}
 	VM_OBJECT_UNLOCK(vobj);
-nocache:
 	error = tmpfs_nocacheread(tobj, idx, offset, tlen, uio);
 
 	return	(error);
@@ -642,17 +633,6 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if (vobj == NULL) {
-		vpg = NULL;
-		goto nocache;
-	}
-
-	VM_OBJECT_LOCK(vobj);
-	if (vobj->resident_page_count == 0 && vobj->cached_page_count == 0) {
-		VM_OBJECT_UNLOCK(vobj);
-		vpg = NULL;
-		goto nocache;
-	}
 lookupvpg:
 	vpg = vm_radix_lookup(&vobj->rtree, idx, VM_RADIX_ANY);
 	if (vpg != NULL) {
@@ -683,7 +663,6 @@ lookupvpg:
 		}
 	} else
 		VM_OBJECT_UNLOCK(vobj);
-nocache:
 	VM_OBJECT_LOCK(tobj);
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
