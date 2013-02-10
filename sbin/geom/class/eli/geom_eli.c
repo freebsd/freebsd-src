@@ -380,6 +380,8 @@ eli_genkey_files(struct gctl_req *req, bool new, const char *type,
 			while ((done = read(fd, buf, sizeof(buf))) > 0)
 				g_eli_crypto_hmac_update(ctxp, buf, done);
 		} else /* if (strcmp(type, "passfile") == 0) */ {
+			assert(strcmp(type, "passfile") == 0);
+
 			while ((done = read(fd, buf, sizeof(buf) - 1)) > 0) {
 				buf[done] = '\0';
 				p = strchr(buf, '\n');
