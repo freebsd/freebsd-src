@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmpowerpcdesc
 
 SRCDIR=	lib/Target/PowerPC/MCTargetDesc

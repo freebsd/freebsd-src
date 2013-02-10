@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangcodegen
 
 SRCDIR=	tools/clang/lib/CodeGen
