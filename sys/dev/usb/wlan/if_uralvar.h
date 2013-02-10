@@ -110,6 +110,7 @@ struct ural_softc {
 	uint32_t			rf_regs[4];
 	uint8_t				txpow[14];
 	uint8_t				sc_bssid[6];
+	uint8_t				sc_detached;
 
 	struct {
 		uint8_t			val;
