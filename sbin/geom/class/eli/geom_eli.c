@@ -1255,6 +1255,7 @@ eli_trash_metadata(struct gctl_req *req, const char *prov, int fd, off_t offset)
 		}
 		(void)g_flush(fd);
 	} while (--overwrites > 0);
+	free(sector);
 	if (error != 0) {
 		gctl_error(req, "Cannot trash metadata on provider %s: %s.",
 		    prov, strerror(error));
