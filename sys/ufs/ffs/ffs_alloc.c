@@ -2906,10 +2906,11 @@ buffered_write(fp, uio, active_cred, flags, td)
 	int flags;
 	struct thread *td;
 {
-	struct vnode *devvp;
+	struct vnode *devvp, *vp;
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
+	struct filedesc *fdp;
 	int error;
 	daddr_t lbn;
 
@@ -2920,10 +2921,29 @@ buffered_write(fp, uio, active_cred, flags, td)
 	 * within the filesystem being written. Yes, this is an ugly hack.
 	 */
 	devvp = fp->f_vnode;
-	ip = VTOI(td->td_proc->p_fd->fd_cdir);
-	if (ip->i_devvp != devvp)
+	if (!vn_isdisk(devvp, NULL))
 		return (EINVAL);
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	vp = fdp->fd_cdir;
+	vref(vp);
+	FILEDESC_SUNLOCK(fdp);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	/*
+	 * Check that the current directory vnode indeed belongs to
+	 * UFS before trying to dereference UFS-specific v_data fields.
+	 */
+	if (vp->v_op != &ffs_vnodeops1 && vp->v_op != &ffs_vnodeops2) {
+		vput(vp);
+		return (EINVAL);
+	}
+	ip = VTOI(vp);
+	if (ip->i_devvp != devvp) {
+		vput(vp);
+		return (EINVAL);
+	}
 	fs = ip->i_fs;
+	vput(vp);
 	foffset_lock_uio(fp, uio, flags);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef DEBUG
