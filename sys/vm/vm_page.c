@@ -927,7 +927,7 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 {
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if (object->resident_page_count)
+	if (object->resident_page_count != 0)
 		return (vm_radix_lookup_ge(&object->rtree, pindex));
 	return (NULL);
 }
