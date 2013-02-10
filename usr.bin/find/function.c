@@ -711,7 +711,13 @@ c_exec(OPTION *option, char ***argvp)
 		for (ep = environ; *ep != NULL; ep++)
 			argmax -= strlen(*ep) + 1 + sizeof(*ep);
 		argmax -= 1 + sizeof(*ep);
-		new->e_pnummax = argmax / 16;
+		/*
+		 * Ensure that -execdir ... {} + does not mix files
+		 * from different directories in one invocation.
+		 * Files from the same directory should be handled
+		 * in one invocation but there is no code for it.
+		 */
+		new->e_pnummax = new->flags & F_EXECDIR ? 1 : argmax / 16;
 		argmax -= sizeof(char *) * new->e_pnummax;
 		if (argmax <= 0)
 			errx(1, "no space for arguments");
