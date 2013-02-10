@@ -794,25 +794,24 @@ sctp_disconnect(struct socket *so)
 					/* only send SHUTDOWN 1st time thru */
 					struct sctp_nets *netp;
 
-					if (stcb->asoc.alternate) {
-						netp = stcb->asoc.alternate;
-					} else {
-						netp = stcb->asoc.primary_destination;
-					}
-					sctp_stop_timers_for_shutdown(stcb);
-					sctp_send_shutdown(stcb, netp);
-					sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_LOCKED);
 					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 					SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
+					sctp_stop_timers_for_shutdown(stcb);
+					if (stcb->asoc.alternate) {
+						netp = stcb->asoc.alternate;
+					} else {
+						netp = stcb->asoc.primary_destination;
+					}
+					sctp_send_shutdown(stcb, netp);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 					    stcb->sctp_ep, stcb, netp);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 					    stcb->sctp_ep, stcb, netp);
-
+					sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_LOCKED);
 				}
 			} else {
 				/*
@@ -1014,24 +1013,24 @@ sctp_shutdown(struct socket *so)
 				/* only send SHUTDOWN the first time through */
 				struct sctp_nets *netp;
 
-				if (stcb->asoc.alternate) {
-					netp = stcb->asoc.alternate;
-				} else {
-					netp = stcb->asoc.primary_destination;
-				}
-				sctp_stop_timers_for_shutdown(stcb);
-				sctp_send_shutdown(stcb, netp);
-				sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_LOCKED);
 				if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
 				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
+				sctp_stop_timers_for_shutdown(stcb);
+				if (stcb->asoc.alternate) {
+					netp = stcb->asoc.alternate;
+				} else {
+					netp = stcb->asoc.primary_destination;
+				}
+				sctp_send_shutdown(stcb, netp);
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 				    stcb->sctp_ep, stcb, netp);
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 				    stcb->sctp_ep, stcb, netp);
+				sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_LOCKED);
 			}
 		} else {
 			/*
@@ -1144,23 +1143,29 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 
 	if (stcb) {
 		/* Turn on all the appropriate scope */
-		loopback_scope = stcb->asoc.loopback_scope;
-		ipv4_local_scope = stcb->asoc.ipv4_local_scope;
-		local_scope = stcb->asoc.local_scope;
-		site_scope = stcb->asoc.site_scope;
+		loopback_scope = stcb->asoc.scope.loopback_scope;
+		ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+		local_scope = stcb->asoc.scope.local_scope;
+		site_scope = stcb->asoc.scope.site_scope;
+		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+		ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
 	} else {
-		/* Turn on ALL scope, since we look at the EP */
-		loopback_scope = ipv4_local_scope = local_scope =
-		    site_scope = 1;
-	}
-	ipv4_addr_legal = ipv6_addr_legal = 0;
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-		ipv6_addr_legal = 1;
-		if (SCTP_IPV6_V6ONLY(inp) == 0) {
+		/* Use generic values for endpoints. */
+		loopback_scope = 1;
+		ipv4_local_scope = 1;
+		local_scope = 1;
+		site_scope = 1;
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+			ipv6_addr_legal = 1;
+			if (SCTP_IPV6_V6ONLY(inp)) {
+				ipv4_addr_legal = 0;
+			} else {
+				ipv4_addr_legal = 1;
+			}
+		} else {
+			ipv6_addr_legal = 0;
 			ipv4_addr_legal = 1;
 		}
-	} else {
-		ipv4_addr_legal = 1;
 	}
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
@@ -1299,8 +1304,21 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 			}
 			if (sctp_fill_user_address(sas, &laddr->ifa->address.sa))
 				continue;
-
-			((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
+			switch (laddr->ifa->address.sa.sa_family) {
+#ifdef INET
+			case AF_INET:
+				((struct sockaddr_in *)sas)->sin_port = inp->sctp_lport;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
+				break;
+#endif
+			default:
+				/* TSNH */
+				break;
+			}
 			sas = (struct sockaddr_storage *)((caddr_t)sas +
 			    laddr->ifa->address.sa.sa_len);
 			actual += laddr->ifa->address.sa.sa_len;
@@ -5949,7 +5967,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		error = EINVAL;
 		goto out_now;
 	}
-#endif				/* INET6 */
+#endif
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
@@ -6243,8 +6261,8 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 				return (ENOMEM);
 			sin->sin_family = AF_INET;
 			sin->sin_len = sizeof(*sin);
-			sin->sin_port = ((struct sockaddr_in *)&store)->sin_port;
-			sin->sin_addr = ((struct sockaddr_in *)&store)->sin_addr;
+			sin->sin_port = store.sin.sin_port;
+			sin->sin_addr = store.sin.sin_addr;
 			*addr = (struct sockaddr *)sin;
 			break;
 		}
@@ -6259,9 +6277,8 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 				return (ENOMEM);
 			sin6->sin6_family = AF_INET6;
 			sin6->sin6_len = sizeof(*sin6);
-			sin6->sin6_port = ((struct sockaddr_in6 *)&store)->sin6_port;
-
-			sin6->sin6_addr = ((struct sockaddr_in6 *)&store)->sin6_addr;
+			sin6->sin6_port = store.sin6.sin6_port;
+			sin6->sin6_addr = store.sin6.sin6_addr;
 			if ((error = sa6_recoverscope(sin6)) != 0) {
 				SCTP_FREE_SONAME(sin6);
 				return (error);
