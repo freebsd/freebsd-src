@@ -472,6 +472,14 @@ c_delete(OPTION *option, char ***argvp __unused)
 	isoutput = 1;			/* possible output */
 	isdepth = 1;			/* -depth implied */
 
+	/*
+	 * Try to avoid the confusing error message about relative paths
+	 * being potentially not safe.
+	 */
+	if (ftsoptions & FTS_NOCHDIR)
+		errx(1, "%s: forbidden when the current directory cannot be opened",
+		    "-delete");
+
 	return palloc(option);
 }
 
@@ -644,7 +652,8 @@ doexec:	if ((plan->flags & F_NEEDOK) && !queryuser(plan->e_argv))
 		/* NOTREACHED */
 	case 0:
 		/* change dir back from where we started */
-		if (!(plan->flags & F_EXECDIR) && fchdir(dotfd)) {
+		if (!(plan->flags & F_EXECDIR) &&
+		    !(ftsoptions & FTS_NOCHDIR) && fchdir(dotfd)) {
 			warn("chdir");
 			_exit(1);
 		}
@@ -676,6 +685,11 @@ c_exec(OPTION *option, char ***argvp)
 	long argmax;
 	int cnt, i;
 	char **argv, **ap, **ep, *p;
+
+	/* This would defeat -execdir's intended security. */
+	if (option->flags & F_EXECDIR && ftsoptions & FTS_NOCHDIR)
+		errx(1, "%s: forbidden when the current directory cannot be opened",
+		    "-execdir");
 
 	/* XXX - was in c_execdir, but seems unnecessary!?
 	ftsoptions &= ~FTS_NOSTAT;
