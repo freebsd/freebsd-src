@@ -163,6 +163,7 @@ static struct cap_desc {
 	{ CAP_MKDIR,		"md" },
 	{ CAP_RMDIR,		"rm" },
 	{ CAP_MKFIFO,		"mf" },
+	{ CAP_MKNOD,		"mn" },
 
 	/* Lookups - used to constraint *at() calls. */
 	{ CAP_LOOKUP,		"lo" },
