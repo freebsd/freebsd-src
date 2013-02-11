@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -38,10 +38,46 @@
 #include "config.h"
 
 #include <isc/assertions.h>
+#include <isc/platform.h>
 #include <isc/sha1.h>
 #include <isc/string.h>
 #include <isc/types.h>
 #include <isc/util.h>
+
+#ifdef ISC_PLATFORM_OPENSSLHASH
+
+void
+isc_sha1_init(isc_sha1_t *context)
+{
+	INSIST(context != NULL);
+
+	EVP_DigestInit(context, EVP_sha1());
+}
+
+void
+isc_sha1_invalidate(isc_sha1_t *context) {
+	EVP_MD_CTX_cleanup(context);
+}
+
+void
+isc_sha1_update(isc_sha1_t *context, const unsigned char *data,
+		unsigned int len)
+{
+	INSIST(context != 0);
+	INSIST(data != 0);
+
+	EVP_DigestUpdate(context, (const void *) data, (size_t) len);
+}
+
+void
+isc_sha1_final(isc_sha1_t *context, unsigned char *digest) {
+	INSIST(digest != 0);
+	INSIST(context != 0);
+
+	EVP_DigestFinal(context, digest, NULL);
+}
+
+#else
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
@@ -315,3 +351,4 @@ isc_sha1_final(isc_sha1_t *context, unsigned char *digest) {
 
 	memset(context, 0, sizeof(isc_sha1_t));
 }
+#endif

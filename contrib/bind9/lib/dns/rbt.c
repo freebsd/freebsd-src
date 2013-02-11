@@ -537,7 +537,10 @@ dns_rbt_addnode(dns_rbt_t *rbt, dns_name_t *name, dns_rbtnode_t **nodep) {
 				 * current node.
 				 */
 				new_current->is_root = current->is_root;
-				new_current->nsec3 = current->nsec3;
+				if (current->nsec == DNS_RBT_NSEC_HAS_NSEC)
+					new_current->nsec = DNS_RBT_NSEC_NORMAL;
+				else
+					new_current->nsec = current->nsec;
 				PARENT(new_current)  = PARENT(current);
 				LEFT(new_current)    = LEFT(current);
 				RIGHT(new_current)   = RIGHT(current);
@@ -1453,7 +1456,7 @@ create_node(isc_mem_t *mctx, dns_name_t *name, dns_rbtnode_t **nodep) {
 	DIRTY(node) = 0;
 	dns_rbtnode_refinit(node, 0);
 	node->find_callback = 0;
-	node->nsec3 = 0;
+	node->nsec = DNS_RBT_NSEC_NORMAL;
 
 	MAKE_BLACK(node);
 

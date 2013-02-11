@@ -375,4 +375,9 @@ checknames_in_wks(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_in_wks(ARGS_COMPARE) {
+	return (compare_in_wks(rdata1, rdata2));
+}
+
 #endif	/* RDATA_IN_1_WKS_11_C */

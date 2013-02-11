@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -447,7 +447,8 @@ req_send(dns_request_t *request, isc_task_t *task, isc_sockaddr_t *address) {
 }
 
 static isc_result_t
-new_request(isc_mem_t *mctx, dns_request_t **requestp) {
+new_request(isc_mem_t *mctx, dns_request_t **requestp)
+{
 	dns_request_t *request;
 
 	request = isc_mem_get(mctx, sizeof(*request));
@@ -1055,6 +1056,9 @@ req_render(dns_message_t *message, isc_buffer_t **bufferp,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	cleanup_cctx = ISC_TRUE;
+
+	if ((options & DNS_REQUESTOPT_CASE) != 0)
+		dns_compress_setsensitive(&cctx, ISC_TRUE);
 
 	/*
 	 * Render message.

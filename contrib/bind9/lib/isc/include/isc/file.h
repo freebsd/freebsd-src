@@ -25,12 +25,16 @@
 #include <stdio.h>
 
 #include <isc/lang.h>
+#include <isc/stat.h>
 #include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
 
 isc_result_t
 isc_file_settime(const char *file, isc_time_t *time);
+
+isc_result_t
+isc_file_mode(const char *file, mode_t *modep);
 
 isc_result_t
 isc_file_getmodtime(const char *file, isc_time_t *time);
@@ -100,7 +104,15 @@ isc_file_mktemplate(const char *path, char *buf, size_t buflen);
 isc_result_t
 isc_file_openunique(char *templet, FILE **fp);
 isc_result_t
+isc_file_openuniqueprivate(char *templet, FILE **fp);
+isc_result_t
+isc_file_openuniquemode(char *templet, int mode, FILE **fp);
+isc_result_t
 isc_file_bopenunique(char *templet, FILE **fp);
+isc_result_t
+isc_file_bopenuniqueprivate(char *templet, FILE **fp);
+isc_result_t
+isc_file_bopenuniquemode(char *templet, int mode, FILE **fp);
 /*!<
  * \brief Create and open a file with a unique name based on 'templet'.
  *	isc_file_bopen*() open the file in binary mode in Windows. 
@@ -273,6 +285,29 @@ isc_result_t
 isc_file_truncate(const char *filename, isc_offset_t size);
 /*%<
  * Truncate/extend the file specified to 'size' bytes.
+ */
+
+isc_result_t
+isc_file_safecreate(const char *filename, FILE **fp);
+/*%<
+ * Open 'filename' for writing, truncating if necessary.  Ensure that
+ * if it existed it was a normal file.  If creating the file, ensure
+ * that only the owner can read/write it.
+ */
+
+isc_result_t
+isc_file_splitpath(isc_mem_t *mctx, char *path,
+		   char **dirname, char **basename);
+/*%<
+ * Split a path into dirname and basename.  If 'path' contains no slash
+ * (or, on windows, backslash), then '*dirname' is set to ".".
+ *
+ * Allocates memory for '*dirname', which can be freed with isc_mem_free().
+ *
+ * Returns:
+ * - ISC_R_SUCCESS on success
+ * - ISC_R_INVALIDFILE if 'path' is empty or ends with '/'
+ * - ISC_R_NOMEMORY if unable to allocate memory
  */
 
 ISC_LANG_ENDDECLS

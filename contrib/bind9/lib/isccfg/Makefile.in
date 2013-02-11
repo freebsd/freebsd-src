@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -27,7 +27,7 @@ top_srcdir =	@top_srcdir@
 
 CINCLUDES =	-I. ${DNS_INCLUDES} ${ISC_INCLUDES} ${ISCCFG_INCLUDES}
 
-CDEFINES =      @USE_DLZ@
+CDEFINES =
 CWARNINGS =
 
 ISCLIBS =	../../lib/isc/libisc.@A@

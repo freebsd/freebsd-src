@@ -1,0 +1,92 @@
+<!--
+ - Copyright (C) 2009, 2011 Internet Systems Consortium, Inc. ("ISC")
+ - 
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id$ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>dnssec-revoke</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
+<a name="man.dnssec-revoke"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">dnssec-revoke</span> &#8212; Set the REVOKED bit on a DNSSEC key</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">dnssec-revoke</code>  [<code class="option">-hr</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] [<code class="option">-f</code>] [<code class="option">-R</code>] {keyfile}</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2543382"></a><h2>DESCRIPTION</h2>
+<p><span><strong class="command">dnssec-revoke</strong></span>
+      reads a DNSSEC key file, sets the REVOKED bit on the key as defined
+      in RFC 5011, and creates a new pair of key files containing the
+      now-revoked key.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2543394"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-h</span></dt>
+<dd><p>
+	    Emit usage message and exit.
+	  </p></dd>
+<dt><span class="term">-K <em class="replaceable"><code>directory</code></em></span></dt>
+<dd><p>
+            Sets the directory in which the key files are to reside.
+          </p></dd>
+<dt><span class="term">-r</span></dt>
+<dd><p>
+	    After writing the new keyset files remove the original keyset
+	    files.
+	  </p></dd>
+<dt><span class="term">-v <em class="replaceable"><code>level</code></em></span></dt>
+<dd><p>
+            Sets the debugging level.
+          </p></dd>
+<dt><span class="term">-E <em class="replaceable"><code>engine</code></em></span></dt>
+<dd><p>
+            Use the given OpenSSL engine. When compiled with PKCS#11 support
+            it defaults to pkcs11; the empty name resets it to no engine.
+          </p></dd>
+<dt><span class="term">-f</span></dt>
+<dd><p>
+            Force overwrite: Causes <span><strong class="command">dnssec-revoke</strong></span> to
+            write the new key pair even if a file already exists matching
+            the algorithm and key ID of the revoked key.
+          </p></dd>
+<dt><span class="term">-R</span></dt>
+<dd><p>
+	    Print the key tag of the key with the REVOKE bit set but do
+	    not revoke the key.
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2543512"></a><h2>SEE ALSO</h2>
+<p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
+      <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
+      <em class="citetitle">RFC 5011</em>.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2543537"></a><h2>AUTHOR</h2>
+<p><span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div></body>
+</html>

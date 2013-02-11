@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: atomic.h,v 1.7 2009/04/08 06:48:23 tbox Exp $ */
 
 /*
  * This code was written based on FreeBSD's kernel source whose copyright

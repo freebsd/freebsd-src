@@ -1,0 +1,139 @@
+# Copyright (C) 2009, 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+
+# $Id: Makefile.in,v 1.8 2010/06/09 23:50:58 tbox Exp $
+
+top_srcdir =	@top_srcdir@
+srcdir =	@top_srcdir@/lib/isc
+export_srcdir =	@top_srcdir@/lib/export
+
+@BIND9_VERSION@
+
+@LIBISC_API@
+
+CINCLUDES =	-I${srcdir}/unix/include \
+		-I${srcdir}/@ISC_THREAD_DIR@/include \
+		-I${srcdir}/@ISC_ARCH_DIR@/include \
+		-I${export_srcdir}/isc/include -I${srcdir}/include \
+		@ISC_OPENSSL_INC@
+CDEFINES =	@USE_OPENSSL@ -DUSE_APPIMPREGISTER -DUSE_MEMIMPREGISTER \
+		-DUSE_SOCKETIMPREGISTER -DUSE_TASKIMPREGISTER \
+		-DUSE_TIMERIMPREGISTER
+CWARNINGS =
+
+# Alphabetically
+# {file,dir}.c is necessary for isclog
+# symtab.c is necessary for isccfg
+APIOBJS =	app_api.@O@ mem_api.@O@ socket_api.@O@ \
+		task_api.@O@ timer_api.@O@
+
+ISCDRIVEROBJS =	mem.@O@ unix/socket.@O@ task.@O@ timer.@O@ lib.@O@ \
+		heap.@O@	#timer module depends on this
+
+UNIXOBJS =	@ISC_ISCIPV6_O@ \
+		unix/app.@O@ \
+		unix/dir.@O@ \
+		unix/errno2result.@O@ \
+		unix/file.@O@ \
+		unix/fsaccess.@O@ \
+		unix/stdio.@O@ \
+		unix/stdtime.@O@ unix/strerror.@O@ unix/time.@O@
+
+NLSOBJS =	nls/msgcat.@O@
+
+THREADOPTOBJS = @ISC_THREAD_DIR@/condition.@O@ @ISC_THREAD_DIR@/mutex.@O@
+
+THREADOBJS =	@THREADOPTOBJS@ @ISC_THREAD_DIR@/thread.@O@
+
+WIN32OBJS = 	win32/condition.@O@ win32/dir.@O@ win32/file.@O@ \
+		win32/fsaccess.@O@ win32/once.@O@ win32/stdtime.@O@ \
+		win32/thread.@O@ win32/time.@O@
+
+# Alphabetically
+OBJS =		@ISC_EXTRA_OBJS@ \
+		assertions.@O@ backtrace.@O@ backtrace-emptytbl.@O@ base32.@O@ \
+		base64.@O@ buffer.@O@ bufferlist.@O@ \
+		error.@O@ event.@O@ \
+		hash.@O@ hex.@O@ hmacmd5.@O@ hmacsha.@O@ \
+		inet_aton.@O@ iterated_hash.@O@ lex.@O@ lfsr.@O@ log.@O@ \
+		md5.@O@ mutexblock.@O@ \
+		netaddr.@O@ netscope.@O@ \
+		ondestroy.@O@ \
+		parseint.@O@ portset.@O@ radix.@O@ \
+		random.@O@ refcount.@O@ region.@O@ result.@O@ rwlock.@O@ \
+		serial.@O@ sha1.@O@ sha2.@O@ sockaddr.@O@ stats.@O@ string.@O@ \
+		symtab.@O@ \
+		version.@O@ \
+		${APIOBJS} ${ISCDRIVEROBJS} \
+		${UNIXOBJS} ${NLSOBJS} ${THREADOBJS}
+
+# Alphabetically
+APISRCS =	app_api.c mem_api.c socket_api.c \
+		task_api.c timer_api.c
+
+ISCDRIVERSRCS =	mem.c task.c lib.c timer.c heap.c
+
+SRCS =		@ISC_EXTRA_SRCS@ \
+		assertions.c backtrace.c backtrace-emptytbl.c base32.c \
+		base64.c buffer.c bufferlist.c \
+		error.c event.c \
+		hash.c hex.c hmacmd5.c hmacsha.c \
+		inet_aton.c iterated_hash.c lex.c log.c lfsr.c \
+		md5.c mutexblock.c \
+		netaddr.c netscope.c \
+		ondestroy.c \
+		parseint.c portset.c radix.c \
+		random.c refcount.c region.c result.c rwlock.c \
+		serial.c sha1.c sha2.c sockaddr.c stats.c string.c symtab.c \
+		version.c \
+		${APISRCS} ${ISCDRIVERSRCS}
+
+LIBS =		@LIBS@
+
+SUBDIRS =	include unix nls @ISC_THREAD_DIR@
+TARGETS =	timestamp
+
+@BIND9_MAKE_RULES@
+
+version.@O@: ${srcdir}/version.c
+	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
+		-DVERSION=\"${VERSION}\" \
+		-DLIBINTERFACE=${LIBINTERFACE} \
+		-DLIBREVISION=${LIBREVISION} \
+		-DLIBAGE=${LIBAGE} \
+		-c ${srcdir}/version.c
+
+libisc.@SA@: ${OBJS}
+	${AR} ${ARFLAGS} $@ ${OBJS}
+	${RANLIB} $@
+
+libisc.la: ${OBJS}
+	${LIBTOOL_MODE_LINK} \
+		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisc.la \
+		-rpath ${export_libdir} \
+		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
+		${OBJS} ${LIBS}
+
+timestamp: libisc.@A@
+	touch timestamp
+
+installdirs:
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${export_libdir}
+
+install:: timestamp installdirs
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_DATA} libisc.@A@ \
+	${DESTDIR}${export_libdir}
+
+clean distclean::
+	rm -f libisc.@A@ libisc.la timestamp

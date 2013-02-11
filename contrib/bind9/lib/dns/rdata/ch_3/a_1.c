@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: a_1.c,v 1.8 2009/12/04 22:06:37 tbox Exp $ */
 
 /* by Bjorn.Victor@it.uu.se, 2005-05-07 */
 /* Based on generic/soa_6.c and generic/mx_15.c */
@@ -313,4 +313,8 @@ checknames_ch_a(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_ch_a(ARGS_COMPARE) {
+	return (compare_ch_a(rdata1, rdata2));
+}
 #endif	/* RDATA_CH_3_A_1_C */

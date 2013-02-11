@@ -9,13 +9,11 @@ SRCDIR=		${BIND_DIR}/bin/rndc
 
 PROG=		rndc
 
-.PATH: ${SRCDIR}/unix
-SRCS+=		os.c
-
 .PATH: ${SRCDIR}
 SRCS+=		rndc.c util.c
 
-CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
+CFLAGS+=	-I${SRCDIR}/include -I${LIB_BIND_DIR}
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}

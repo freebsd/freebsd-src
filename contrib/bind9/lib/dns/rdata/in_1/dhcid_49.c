@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -224,6 +224,11 @@ checknames_in_dhcid(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_in_dhcid(ARGS_COMPARE) {
+	return (compare_in_dhcid(rdata1, rdata2));
 }
 
 #endif	/* RDATA_IN_1_DHCID_49_C */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: nslookup.c,v 1.127.38.2 2011/02/28 01:19:58 tbox Exp $ */
 
 #include <config.h>
 
@@ -540,22 +540,6 @@ testclass(char *typetext) {
 		printf("unknown query class: %s\n", typetext);
 		return (ISC_FALSE);
 	}
-}
-
-static isc_result_t
-parse_uint(isc_uint32_t *uip, const char *value, isc_uint32_t max,
-	   const char *desc) {
-	isc_uint32_t n;
-	isc_result_t result = isc_parse_uint32(&n, value, 10);
-	if (result == ISC_R_SUCCESS && n > max)
-		result = ISC_R_RANGE;
-	if (result != ISC_R_SUCCESS) {
-		printf("invalid %s '%s': %s\n", desc,
-		       value, isc_result_totext(result));
-		return result;
-	}
-	*uip = n;
-	return (ISC_R_SUCCESS);
 }
 
 static void

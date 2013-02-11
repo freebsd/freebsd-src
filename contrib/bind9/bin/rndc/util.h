@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: util.h,v 1.12 2009/09/29 23:48:03 tbox Exp $ */
 
 #ifndef RNDC_UTIL_H
 #define RNDC_UTIL_H 1
@@ -23,9 +23,9 @@
 /*! \file */
 
 #include <isc/lang.h>
+#include <isc/platform.h>
 
 #include <isc/formatcheck.h>
-#include <isc/platform.h>
 
 #define NS_CONTROL_PORT		953
 

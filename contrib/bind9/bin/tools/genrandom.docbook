@@ -1,0 +1,121 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id$ -->
+<refentry id="man.genrandom">
+  <refentryinfo>
+    <date>Feb 19, 2009</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>genrandom</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>genrandom</application></refname>
+    <refpurpose>generate a file containing random data</refpurpose>
+  </refnamediv>
+
+  <docinfo>
+    <copyright>
+      <year>2009</year>
+      <year>2010</year>
+      <year>2011</year>
+      <year>2012</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>genrandom</command>
+      <arg><option>-n <replaceable class="parameter">number</replaceable></option></arg>
+      <arg choice="req"><replaceable class="parameter">size</replaceable></arg>
+      <arg choice="req"><replaceable class="parameter">filename</replaceable></arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para>
+      <command>genrandom</command>
+      generates a file or a set of files containing a specified quantity
+      of pseudo-random data, which can be used as a source of entropy for
+      other commands on systems with no random device.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>ARGUMENTS</title>
+    <variablelist>
+      <varlistentry>
+        <term>-n <replaceable class="parameter">number</replaceable></term>
+        <listitem>
+          <para>
+            In place of generating one file, generates <option>number</option>
+            (from 2 to 9) files, appending <option>number</option> to the name.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>size</term>
+        <listitem>
+          <para>
+            The size of the file, in kilobytes, to generate.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>filename</term>
+        <listitem>
+          <para>
+            The file name into which random data should be written.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para>
+      <citerefentry>
+        <refentrytitle>rand</refentrytitle><manvolnum>3</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>arc4random</refentrytitle><manvolnum>3</manvolnum>
+      </citerefentry>
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry><!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

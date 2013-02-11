@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ - Copyright (C) 2010  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: managed-keys.xml,v 1.3 2010/02/03 23:49:07 tbox Exp $ -->
+
+<sect1 id="rfc5011.support">
+  <title>Dynamic Trust Anchor Management</title>
+  <para>BIND 9.7.0 introduces support for RFC 5011, dynamic trust
+  anchor management. Using this feature allows 
+  <command>named</command> to keep track of changes to critical
+  DNSSEC keys without any need for the operator to make changes to
+  configuration files.</para>
+  <sect2>
+    <title>Validating Resolver</title>
+    <!-- TODO: command tag is overloaded for configuration and executables -->
+    <para>To configure a validating resolver to use RFC 5011 to
+    maintain a trust anchor, configure the trust anchor using a 
+    <command>managed-keys</command> statement. Information about
+    this can be found in 
+    <xref linkend="managed-keys" />.</para>
+    <!-- TODO: managed-keys examples
+also in DNSSEC section above here in ARM -->
+  </sect2>
+  <sect2>
+    <title>Authoritative Server</title>
+    <para>To set up an authoritative zone for RFC 5011 trust anchor
+    maintenance, generate two (or more) key signing keys (KSKs) for
+    the zone. Sign the zone with one of them; this is the "active"
+    KSK. All KSK's which do not sign the zone are "stand-by"
+    keys.</para>
+    <para>Any validating resolver which is configured to use the
+    active KSK as an RFC 5011-managed trust anchor will take note
+    of the stand-by KSKs in the zone's DNSKEY RRset, and store them
+    for future reference. The resolver will recheck the zone
+    periodically, and after 30 days, if the new key is still there,
+    then the key will be accepted by the resolver as a valid trust
+    anchor for the zone. Any time after this 30-day acceptance
+    timer has completed, the active KSK can be revoked, and the
+    zone can be "rolled over" to the newly accepted key.</para>
+    <para>The easiest way to place a stand-by key in a zone is to
+    use the "smart signing" features of 
+    <command>dnssec-keygen</command> and 
+    <command>dnssec-signzone</command>. If a key with a publication
+    date in the past, but an activation date which is unset or in
+    the future, " 
+    <command>dnssec-signzone -S</command>" will include the DNSKEY
+    record in the zone, but will not sign with it:</para>
+    <screen>
+$ <userinput>dnssec-keygen -K keys -f KSK -P now -A now+2y example.net</userinput>
+$ <userinput>dnssec-signzone -S -K keys example.net</userinput>
+</screen>
+    <para>To revoke a key, the new command 
+    <command>dnssec-revoke</command> has been added. This adds the
+    REVOKED bit to the key flags and re-generates the 
+    <filename>K*.key</filename> and 
+    <filename>K*.private</filename> files.</para>
+    <para>After revoking the active key, the zone must be signed
+    with both the revoked KSK and the new active KSK. (Smart
+    signing takes care of this automatically.)</para>
+    <para>Once a key has been revoked and used to sign the DNSKEY
+    RRset in which it appears, that key will never again be
+    accepted as a valid trust anchor by the resolver. However,
+    validation can proceed using the new active key (which had been
+    accepted by the resolver when it was a stand-by key).</para>
+    <para>See RFC 5011 for more details on key rollover
+    scenarios.</para>
+    <para>When a key has been revoked, its key ID changes,
+    increasing by 128, and wrapping around at 65535. So, for
+    example, the key "<filename>Kexample.com.+005+10000</filename>" becomes
+    "<filename>Kexample.com.+005+10128</filename>".</para>
+    <para>If two keys have ID's exactly 128 apart, and one is
+    revoked, then the two key ID's will collide, causing several
+    problems. To prevent this, 
+    <command>dnssec-keygen</command> will not generate a new key if
+    another key is present which may collide. This checking will
+    only occur if the new keys are written to the same directory
+    which holds all other keys in use for that zone.</para>
+    <para>Older versions of BIND 9 did not have this precaution.
+    Exercise caution if using key revocation on keys that were
+    generated by previous releases, or if using keys stored in
+    multiple directories or on multiple machines.</para>
+    <para>It is expected that a future release of BIND 9 will
+    address this problem in a different way, by storing revoked
+    keys with their original unrevoked key ID's.</para>
+  </sect2>
+</sect1>

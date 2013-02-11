@@ -20,6 +20,9 @@
 #ifndef ISC_TYPES_H
 #define ISC_TYPES_H 1
 
+#include <isc/bind9.h>
+#include <isc/namespace.h>
+
 /*! \file isc/types.h
  * \brief
  * OS-specific types, from the OS-specific include directories.
@@ -40,6 +43,8 @@
 
 /* Core Types.  Alphabetized by defined type. */
 
+typedef struct isc_appctx		isc_appctx_t;	 	/*%< Application context */
+typedef struct isc_backtrace_symmap	isc_backtrace_symmap_t; /*%< Symbol Table Entry */
 typedef struct isc_bitstring		isc_bitstring_t; 	/*%< Bitstring */
 typedef struct isc_buffer		isc_buffer_t;		/*%< Buffer */
 typedef ISC_LIST(isc_buffer_t)		isc_bufferlist_t;	/*%< Buffer List */
@@ -94,7 +99,7 @@ typedef struct isc_timer		isc_timer_t;		/*%< Timer */
 typedef struct isc_timermgr		isc_timermgr_t;		/*%< Timer Manager */
 
 typedef void (*isc_taskaction_t)(isc_task_t *, isc_event_t *);
-typedef int (*isc_sockfdwatch_t)(isc_task_t *, isc_socket_t *, void *);
+typedef int (*isc_sockfdwatch_t)(isc_task_t *, isc_socket_t *, void *, int);
 
 /* The following cannot be listed alphabetically due to forward reference */
 typedef isc_result_t (isc_httpdaction_t)(const char *url,

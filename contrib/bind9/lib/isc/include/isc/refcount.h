@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: refcount.h,v 1.17 2009/09/29 23:48:04 tbox Exp $ */
 
 #ifndef ISC_REFCOUNT_H
 #define ISC_REFCOUNT_H 1
@@ -103,7 +103,7 @@ typedef struct isc_refcount {
 	isc_int32_t refs;
 } isc_refcount_t;
 
-#define isc_refcount_destroy(rp) (REQUIRE((rp)->refs == 0))
+#define isc_refcount_destroy(rp) REQUIRE((rp)->refs == 0)
 #define isc_refcount_current(rp) ((unsigned int)((rp)->refs))
 
 #define isc_refcount_increment0(rp, tp)				\
@@ -192,7 +192,7 @@ typedef struct isc_refcount {
 	int refs;
 } isc_refcount_t;
 
-#define isc_refcount_destroy(rp) (REQUIRE((rp)->refs == 0))
+#define isc_refcount_destroy(rp) REQUIRE((rp)->refs == 0)
 #define isc_refcount_current(rp) ((unsigned int)((rp)->refs))
 
 #define isc_refcount_increment0(rp, tp)					\

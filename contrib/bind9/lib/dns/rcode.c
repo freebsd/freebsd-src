@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -79,12 +79,17 @@
 	{ dns_tsigerror_badtrunc, "BADTRUNC", 0}, \
 	{ 0, NULL, 0 }
 
-/* RFC2538 section 2.1 */
+/* RFC4398 section 2.1 */
 
 #define CERTNAMES \
 	{ 1, "PKIX", 0}, \
 	{ 2, "SPKI", 0}, \
 	{ 3, "PGP", 0}, \
+	{ 4, "IPKIX", 0}, \
+	{ 5, "ISPKI", 0}, \
+	{ 6, "IPGP", 0}, \
+	{ 7, "ACPKIX", 0}, \
+	{ 8, "IACPKIX", 0}, \
 	{ 253, "URI", 0}, \
 	{ 254, "OID", 0}, \
 	{ 0, NULL, 0}
@@ -102,6 +107,9 @@
 	{ DNS_KEYALG_NSEC3RSASHA1, "NSEC3RSASHA1", 0 }, \
 	{ DNS_KEYALG_RSASHA256, "RSASHA256", 0 }, \
 	{ DNS_KEYALG_RSASHA512, "RSASHA512", 0 }, \
+	{ DNS_KEYALG_ECCGOST, "ECCGOST", 0 }, \
+	{ DNS_KEYALG_ECDSA256, "ECDSAP256SHA256", 0 }, \
+	{ DNS_KEYALG_ECDSA384, "ECDSAP384SHA384", 0 }, \
 	{ DNS_KEYALG_INDIRECT, "INDIRECT", 0 }, \
 	{ DNS_KEYALG_PRIVATEDNS, "PRIVATEDNS", 0 }, \
 	{ DNS_KEYALG_PRIVATEOID, "PRIVATEOID", 0 }, \
@@ -311,6 +319,21 @@ dns_secalg_fromtext(dns_secalg_t *secalgp, isc_textregion_t *source) {
 isc_result_t
 dns_secalg_totext(dns_secalg_t secalg, isc_buffer_t *target) {
 	return (dns_mnemonic_totext(secalg, target, secalgs));
+}
+
+void
+dns_secalg_format(dns_secalg_t alg, char *cp, unsigned int size) {
+	isc_buffer_t b;
+	isc_region_t r;
+	isc_result_t result;
+
+	REQUIRE(cp != NULL && size > 0);
+	isc_buffer_init(&b, cp, size - 1);
+	result = dns_secalg_totext(alg, &b);
+	isc_buffer_usedregion(&b, &r);
+	r.base[r.length] = 0;
+	if (result != ISC_R_SUCCESS)
+		r.base[0] = 0;
 }
 
 isc_result_t

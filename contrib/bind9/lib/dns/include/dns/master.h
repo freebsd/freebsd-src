@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -56,6 +56,7 @@
 #define DNS_MASTER_CHECKMXFAIL	0x00001000
 
 #define DNS_MASTER_RESIGN	0x00002000
+#define DNS_MASTER_KEY	 	0x00004000	/*%< Loading a key zone master file. */
 
 ISC_LANG_BEGINDECLS
 
