@@ -375,7 +375,7 @@ dsl_dataset_get_ref(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 
 	ds = dmu_buf_get_user(dbuf);
 	if (ds == NULL) {
-		dsl_dataset_t *winner;
+		dsl_dataset_t *winner = NULL;
 
 		ds = kmem_zalloc(sizeof (dsl_dataset_t), KM_SLEEP);
 		ds->ds_dbuf = dbuf;
@@ -460,11 +460,8 @@ dsl_dataset_get_ref(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 			ds->ds_reserved = ds->ds_quota = 0;
 		}
 
-		if (err == 0) {
-			winner = dmu_buf_set_user_ie(dbuf, ds, &ds->ds_phys,
-			    dsl_dataset_evict);
-		}
-		if (err || winner) {
+		if (err != 0 || (winner = dmu_buf_set_user_ie(dbuf, ds,
+		    &ds->ds_phys, dsl_dataset_evict)) != NULL) {
 			bplist_destroy(&ds->ds_pending_deadlist);
 			dsl_deadlist_close(&ds->ds_deadlist);
 			if (ds->ds_prev)
