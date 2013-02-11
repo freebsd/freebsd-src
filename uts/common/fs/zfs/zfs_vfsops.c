@@ -407,12 +407,18 @@ zfs_register_callbacks(vfs_t *vfsp)
 	objset_t *os = NULL;
 	zfsvfs_t *zfsvfs = NULL;
 	uint64_t nbmand;
-	int readonly, do_readonly = B_FALSE;
-	int setuid, do_setuid = B_FALSE;
-	int exec, do_exec = B_FALSE;
-	int devices, do_devices = B_FALSE;
-	int xattr, do_xattr = B_FALSE;
-	int atime, do_atime = B_FALSE;
+	boolean_t readonly = B_FALSE;
+	boolean_t do_readonly = B_FALSE;
+	boolean_t setuid = B_FALSE;
+	boolean_t do_setuid = B_FALSE;
+	boolean_t exec = B_FALSE;
+	boolean_t do_exec = B_FALSE;
+	boolean_t devices = B_FALSE;
+	boolean_t do_devices = B_FALSE;
+	boolean_t xattr = B_FALSE;
+	boolean_t do_xattr = B_FALSE;
+	boolean_t atime = B_FALSE;
+	boolean_t do_atime = B_FALSE;
 	int error = 0;
 
 	ASSERT(vfsp);

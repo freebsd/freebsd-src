@@ -975,7 +975,7 @@ static int
 zfs_secpolicy_snapshot(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 {
 	nvlist_t *snaps;
-	int error;
+	int error = 0;
 	nvpair_t *pair;
 
 	if (nvlist_lookup_nvlist(innvl, "snaps", &snaps) != 0)

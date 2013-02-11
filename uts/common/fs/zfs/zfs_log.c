@@ -238,7 +238,7 @@ zfs_log_create(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
 	itx_t *itx;
 	lr_create_t *lr;
 	lr_acl_create_t *lracl;
-	size_t aclsize;
+	size_t aclsize = (vsecp != NULL) ? vsecp->vsa_aclentsz : 0;
 	size_t xvatsize = 0;
 	size_t txsize;
 	xvattr_t *xvap = (xvattr_t *)vap;
@@ -268,7 +268,6 @@ zfs_log_create(zilog_t *zilog, dmu_tx_t *tx, uint64_t txtype,
 		txsize = sizeof (*lr) + namesize + fuidsz + xvatsize;
 		lrsize = sizeof (*lr);
 	} else {
-		aclsize = (vsecp) ? vsecp->vsa_aclentsz : 0;
 		txsize =
 		    sizeof (lr_acl_create_t) + namesize + fuidsz +
 		    ZIL_ACE_LENGTH(aclsize) + xvatsize;
