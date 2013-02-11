@@ -5861,7 +5861,7 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 	size_t size;
 	int vtime, onintr;
 	volatile uint16_t *flags;
-	hrtime_t now;
+	hrtime_t now, end;
 
 	/*
 	 * Kick out immediately if this CPU is still being born (in which case
@@ -5875,6 +5875,8 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 	probe = dtrace_probes[id - 1];
 	cpuid = CPU->cpu_id;
 	onintr = CPU_ON_INTR(CPU);
+
+	CPU->cpu_dtrace_probes++;
 
 	if (!onintr && probe->dtpr_predcache != DTRACE_CACHEIDNONE &&
 	    probe->dtpr_predcache == curthread->t_predcache) {
@@ -6455,8 +6457,11 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 			buf->dtb_offset = offs + ecb->dte_size;
 	}
 
+	end = dtrace_gethrtime();
 	if (vtime)
-		curthread->t_dtrace_start = dtrace_gethrtime();
+		curthread->t_dtrace_start = end;
+
+	CPU->cpu_dtrace_nsec += end - now;
 
 	dtrace_interrupt_enable(cookie);
 }

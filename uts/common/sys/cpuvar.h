@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 1989, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_CPUVAR_H
@@ -187,6 +188,9 @@ typedef struct cpu {
 	uintptr_t	cpu_dtrace_caller;	/* DTrace: caller, if any */
 	hrtime_t	cpu_dtrace_chillmark;	/* DTrace: chill mark time */
 	hrtime_t	cpu_dtrace_chilled;	/* DTrace: total chill time */
+	uint64_t	cpu_dtrace_probes;	/* DTrace: total probes fired */
+	hrtime_t	cpu_dtrace_nsec;	/* DTrace: ns in dtrace_probe */
+
 	volatile uint16_t cpu_mstate;		/* cpu microstate */
 	volatile uint16_t cpu_mstate_gen;	/* generation counter */
 	volatile hrtime_t cpu_mstate_start;	/* cpu microstate start time */
