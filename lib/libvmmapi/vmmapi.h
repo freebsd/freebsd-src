@@ -56,8 +56,6 @@ int	vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t *base, uint32_t *limit, uint32_t *access);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
-int	vm_get_pinning(struct vmctx *ctx, int vcpu, int *host_cpuid);
-int	vm_set_pinning(struct vmctx *ctx, int vcpu, int host_cpuid);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
