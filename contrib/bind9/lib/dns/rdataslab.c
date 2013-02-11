@@ -150,21 +150,25 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 
 	nalloc = dns_rdataset_count(rdataset);
 	nitems = nalloc;
-	if (nitems == 0)
+	if (nitems == 0 && rdataset->type != 0)
 		return (ISC_R_FAILURE);
 
 	if (nalloc > 0xffff)
 		return (ISC_R_NOSPACE);
 
-	x = isc_mem_get(mctx, nalloc * sizeof(struct xrdata));
-	if (x == NULL)
-		return (ISC_R_NOMEMORY);
+
+	if (nalloc != 0) {
+		x = isc_mem_get(mctx, nalloc * sizeof(struct xrdata));
+		if (x == NULL)
+			return (ISC_R_NOMEMORY);
+	} else
+		x = NULL;
 
 	/*
 	 * Save all of the rdata members into an array.
 	 */
 	result = dns_rdataset_first(rdataset);
-	if (result != ISC_R_SUCCESS)
+	if (result != ISC_R_SUCCESS && result != ISC_R_NOMORE)
 		goto free_rdatas;
 	for (i = 0; i < nalloc && result == ISC_R_SUCCESS; i++) {
 		INSIST(result == ISC_R_SUCCESS);
@@ -229,11 +233,14 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	/*
 	 * Don't forget the last item!
 	 */
+	if (nalloc != 0) {
 #if DNS_RDATASET_FIXED
-	buflen += (8 + x[i-1].rdata.length);
+		buflen += (8 + x[i-1].rdata.length);
 #else
-	buflen += (2 + x[i-1].rdata.length);
+		buflen += (2 + x[i-1].rdata.length);
 #endif
+	}
+
 	/*
 	 * Provide space to store the per RR meta data.
 	 */
@@ -323,7 +330,8 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	result = ISC_R_SUCCESS;
 
  free_rdatas:
-	isc_mem_put(mctx, x, nalloc * sizeof(struct xrdata));
+	if (x != NULL)
+		isc_mem_put(mctx, x, nalloc * sizeof(struct xrdata));
 	return (result);
 }
 

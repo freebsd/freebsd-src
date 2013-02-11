@@ -392,10 +392,22 @@ diff_apply(dns_diff_t *diff, dns_db_t *db, dns_dbversion_t *ver,
 				 * from a server that is not as careful.
 				 * Issue a warning and continue.
 				 */
-				if (warn)
+				if (warn) {
+					char classbuf[DNS_RDATATYPE_FORMATSIZE];
+					char namebuf[DNS_NAME_FORMATSIZE];
+
+					dns_name_format(dns_db_origin(db),
+							namebuf,
+							sizeof(namebuf));
+					dns_rdataclass_format(dns_db_class(db),
+							      classbuf,
+							      sizeof(classbuf));
 					isc_log_write(DIFF_COMMON_LOGARGS,
 						      ISC_LOG_WARNING,
-						      "update with no effect");
+						      "%s/%s: dns_diff_apply: "
+						      "update with no effect",
+						      namebuf, classbuf);
+				}
 			} else if (result == DNS_R_NXRRSET) {
 				/*
 				 * OK.
@@ -483,6 +495,7 @@ dns_diff_load(dns_diff_t *diff, dns_addrdatasetfunc_t addfunc,
 			if (result == DNS_R_UNCHANGED) {
 				isc_log_write(DIFF_COMMON_LOGARGS,
 					      ISC_LOG_WARNING,
+					      "dns_diff_load: "
 					      "update with no effect");
 			} else if (result == ISC_R_SUCCESS ||
 				   result == DNS_R_NXRRSET) {

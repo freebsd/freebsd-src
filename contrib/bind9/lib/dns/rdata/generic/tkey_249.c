@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -552,4 +552,8 @@ checknames_tkey(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline isc_result_t
+casecompare_tkey(ARGS_COMPARE) {
+	return (compare_tkey(rdata1, rdata2));
+}
 #endif	/* RDATA_GENERIC_TKEY_249_C */

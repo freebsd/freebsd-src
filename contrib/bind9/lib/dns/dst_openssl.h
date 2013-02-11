@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -48,9 +48,6 @@ dst__openssl_getengine(const char *engine);
 #else
 #define dst__openssl_getengine(x) NULL
 #endif
-
-isc_result_t
-dst__openssl_setdefault(const char *name);
 
 ISC_LANG_ENDDECLS
 

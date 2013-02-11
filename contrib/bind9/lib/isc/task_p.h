@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -23,9 +23,9 @@
 /*! \file */
 
 isc_boolean_t
-isc__taskmgr_ready(void);
+isc__taskmgr_ready(isc_taskmgr_t *taskmgr);
 
 isc_result_t
-isc__taskmgr_dispatch(void);
+isc__taskmgr_dispatch(isc_taskmgr_t *taskmgr);
 
 #endif /* ISC_TASK_P_H */

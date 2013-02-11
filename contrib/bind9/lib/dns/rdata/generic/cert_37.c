@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -276,5 +276,9 @@ checknames_cert(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
-#endif	/* RDATA_GENERIC_CERT_37_C */
 
+static inline int
+casecompare_cert(ARGS_COMPARE) {
+	return (compare_cert(rdata1, rdata2));
+}
+#endif	/* RDATA_GENERIC_CERT_37_C */

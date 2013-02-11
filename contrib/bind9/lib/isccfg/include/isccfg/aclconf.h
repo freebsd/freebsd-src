@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -28,7 +28,8 @@
 
 typedef struct cfg_aclconfctx {
 	ISC_LIST(dns_acl_t) named_acl_cache;
-	ISC_LIST(dns_iptable_t) named_iptable_cache;
+	isc_mem_t *mctx;
+	isc_refcount_t references;
 } cfg_aclconfctx_t;
 
 /***
@@ -37,16 +38,23 @@ typedef struct cfg_aclconfctx {
 
 ISC_LANG_BEGINDECLS
 
-void
-cfg_aclconfctx_init(cfg_aclconfctx_t *ctx);
+isc_result_t
+cfg_aclconfctx_create(isc_mem_t *mctx, cfg_aclconfctx_t **ret);
 /*
- * Initialize an ACL configuration context.
+ * Creates and initializes an ACL configuration context.
  */
 
 void
-cfg_aclconfctx_destroy(cfg_aclconfctx_t *ctx);
+cfg_aclconfctx_detach(cfg_aclconfctx_t **actxp);
 /*
- * Destroy an ACL configuration context.
+ * Removes a reference to an ACL configuration context; when references
+ * reaches zero, clears the contents and deallocate the structure.
+ */
+
+void
+cfg_aclconfctx_attach(cfg_aclconfctx_t *src, cfg_aclconfctx_t **dest);
+/*
+ * Attaches a pointer to an existing ACL configuration context.
  */
 
 isc_result_t

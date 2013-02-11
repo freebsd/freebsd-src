@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -78,10 +78,9 @@ dns_cache_create3(isc_mem_t *cmctx, isc_mem_t *hmctx, isc_taskmgr_t *taskmgr,
 /*%<
  * Create a new DNS cache.
  *
- * dns_cache_create2() is used in BIND 9.7 and up but is not implemented
- * here.
+ * dns_cache_create2() will create a named cache.
  *
- * dns_cache_create3() will create a cache using two separate memory
+ * dns_cache_create3() will create a named cache using two separate memory
  * contexts, one for cache data which can be cleaned and a separate one for
  * memory allocated for the heap (which can grow without an upper limit and
  * has no mechanism for shrinking).
@@ -96,6 +95,8 @@ dns_cache_create3(isc_mem_t *cmctx, isc_mem_t *hmctx, isc_taskmgr_t *taskmgr,
  *\li	'taskmgr' is a valid task manager and 'timermgr' is a valid timer
  * 	manager, or both are NULL.  If NULL, no periodic cleaning of the
  * 	cache will take place.
+ *
+ *\li	'cachename' is a valid string.  This must not be NULL.
  *
  *\li	'cachep' is a valid pointer, and *cachep == NULL
  *
@@ -238,10 +239,34 @@ dns_cache_setcleaninginterval(dns_cache_t *cache, unsigned int interval);
  * Set the periodic cache cleaning interval to 'interval' seconds.
  */
 
+unsigned int
+dns_cache_getcleaninginterval(dns_cache_t *cache);
+/*%<
+ * Get the periodic cache cleaning interval to 'interval' seconds.
+ */
+
+isc_uint32_t
+dns_cache_getcachesize(dns_cache_t *cache);
+/*%<
+ * Get the maximum cache size.
+ */
+
+const char *
+dns_cache_getname(dns_cache_t *cache);
+/*%<
+ * Get the cache name.
+ */
+
 void
 dns_cache_setcachesize(dns_cache_t *cache, isc_uint32_t size);
 /*%<
  * Set the maximum cache size.  0 means unlimited.
+ */
+
+isc_uint32_t
+dns_cache_getcachesize(dns_cache_t *cache);
+/*%<
+ * Get the maximum cache size.
  */
 
 isc_result_t

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: mf_4.c,v 1.47 2009/12/04 22:06:37 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 17:47:33 PST 2000 by brister */
 
@@ -230,6 +230,11 @@ checknames_mf(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_mf(ARGS_COMPARE) {
+	return (compare_mf(rdata1, rdata2));
 }
 
 #endif	/* RDATA_GENERIC_MF_4_C */

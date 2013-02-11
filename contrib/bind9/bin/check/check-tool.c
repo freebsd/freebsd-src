@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: check-tool.c,v 1.41 2010/09/07 23:46:59 tbox Exp $ */
 
 /*! \file */
 
@@ -601,8 +601,7 @@ load_zone(isc_mem_t *mctx, const char *zonename, const char *filename,
 	isc_buffer_add(&buffer, strlen(zonename));
 	dns_fixedname_init(&fixorigin);
 	origin = dns_fixedname_name(&fixorigin);
-	CHECK(dns_name_fromtext(origin, &buffer, dns_rootname,
-				ISC_FALSE, NULL));
+	CHECK(dns_name_fromtext(origin, &buffer, dns_rootname, 0, NULL));
 	CHECK(dns_zone_setorigin(zone, origin));
 	CHECK(dns_zone_setdbtype(zone, 1, (const char * const *) dbtype));
 	CHECK(dns_zone_setfile2(zone, filename, fileformat));

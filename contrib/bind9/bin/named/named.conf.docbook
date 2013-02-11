@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2008, 2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id$ -->
+<!-- $Id: named.conf.docbook,v 1.49.14.2 2011/11/07 00:31:47 marka Exp $ -->
 <refentry>
   <refentryinfo>
     <date>Aug 13, 2004</date>
@@ -41,7 +41,9 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
-      <year>2012</year>
+      <year>2009</year>
+      <year>2010</year>
+      <year>2011</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -133,6 +135,15 @@ trusted-keys {
   </refsect1>
 
   <refsect1>
+    <title>MANAGED-KEYS</title>
+    <literallayout>
+managed-keys {
+	<replaceable>domain_name</replaceable> <constant>initial-key</constant> <replaceable>flags</replaceable> <replaceable>protocol</replaceable> <replaceable>algorithm</replaceable> <replaceable>key</replaceable>; ... 
+};
+</literallayout>
+  </refsect1>
+
+  <refsect1>
     <title>CONTROLS</title>
     <literallayout>
 controls {
@@ -215,6 +226,7 @@ options {
 	tcp-listen-queue <replaceable>integer</replaceable>;
 	tkey-dhkey <replaceable>quoted_string</replaceable> <replaceable>integer</replaceable>;
 	tkey-gssapi-credential <replaceable>quoted_string</replaceable>;
+	tkey-gssapi-keytab <replaceable>quoted_string</replaceable>;
 	tkey-domain <replaceable>quoted_string</replaceable>;
 	transfers-per-ns <replaceable>integer</replaceable>;
 	transfers-in <replaceable>integer</replaceable>;
@@ -243,6 +255,7 @@ options {
 	queryport-pool-ports <replaceable>integer</replaceable>;
 	queryport-pool-updateinterval <replaceable>integer</replaceable>;
 	cleaning-interval <replaceable>integer</replaceable>;
+	resolver-query-timeout <replaceable>integer</replaceable>;
 	min-roots <replaceable>integer</replaceable>; // not implemented
 	lame-ttl <replaceable>integer</replaceable>;
 	max-ncache-ttl <replaceable>integer</replaceable>;
@@ -272,9 +285,20 @@ options {
 	disable-algorithms <replaceable>string</replaceable> { <replaceable>string</replaceable>; ... };
 	dnssec-enable <replaceable>boolean</replaceable>;
 	dnssec-validation <replaceable>boolean</replaceable>;
-	dnssec-lookaside <replaceable>string</replaceable> trust-anchor <replaceable>string</replaceable>;
+	dnssec-lookaside ( <replaceable>auto</replaceable> | <replaceable>no</replaceable> | <replaceable>domain</replaceable> trust-anchor <replaceable>domain</replaceable> );
 	dnssec-must-be-secure <replaceable>string</replaceable> <replaceable>boolean</replaceable>;
 	dnssec-accept-expired <replaceable>boolean</replaceable>;
+
+	dns64-server <replaceable>string</replaceable>;
+	dns64-contact <replaceable>string</replaceable>;
+	dns64 <replaceable>prefix</replaceable> {
+		clients { <replacable>acl</replacable>; };
+		exclude { <replacable>acl</replacable>; };
+		mapped { <replacable>acl</replacable>; };
+		break-dnssec <replaceable>boolean</replaceable>;
+		recursive-only <replaceable>boolean</replaceable>;
+		suffix <replaceable>ipv6_address</replaceable>;
+	};
 
 	empty-server <replaceable>string</replaceable>;
 	empty-contact <replaceable>string</replaceable>;
@@ -292,6 +316,7 @@ options {
 	allow-update { <replaceable>address_match_element</replaceable>; ... };
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
 	update-check-ksk <replaceable>boolean</replaceable>;
+	dnssec-dnskey-kskonly <replaceable>boolean</replaceable>;
 
 	masterfile-format ( text | raw );
 	notify <replaceable>notifytype</replaceable>;
@@ -338,9 +363,18 @@ options {
 
 	zone-statistics <replaceable>boolean</replaceable>;
 	key-directory <replaceable>quoted_string</replaceable>;
+	managed-keys-directory <replaceable>quoted_string</replaceable>;
+	auto-dnssec <constant>allow</constant>|<constant>maintain</constant>|<constant>create</constant>|<constant>off</constant>;
 	try-tcp-refresh <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl-cache <replaceable>boolean</replaceable>;
+	dnssec-secure-to-insecure <replaceable>boolean</replaceable>;
+	deny-answer-addresses {
+		<replaceable>address_match_list</replaceable>
+	} <optional> except-from { <replaceable>namelist</replaceable> } </optional>;
+	deny-answer-aliases {
+		<replaceable>namelist</replaceable>
+	} <optional> except-from { <replaceable>namelist</replaceable> } </optional>;
 
 	nsec3-test-zone <replaceable>boolean</replaceable>;  // testing only
 
@@ -382,7 +416,8 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	};
 
 	trusted-keys {
-		<replaceable>string</replaceable> <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>quoted_string</replaceable>; ...
+		<replaceable>string</replaceable> <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>quoted_string</replaceable>;
+		<optional>...</optional>
 	};
 
 	allow-recursion { <replaceable>address_match_element</replaceable>; ... };
@@ -407,6 +442,7 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	queryport-pool-ports <replaceable>integer</replaceable>;
 	queryport-pool-updateinterval <replaceable>integer</replaceable>;
 	cleaning-interval <replaceable>integer</replaceable>;
+	resolver-query-timeout <replaceable>integer</replaceable>;
 	min-roots <replaceable>integer</replaceable>; // not implemented
 	lame-ttl <replaceable>integer</replaceable>;
 	max-ncache-ttl <replaceable>integer</replaceable>;
@@ -436,9 +472,20 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	disable-algorithms <replaceable>string</replaceable> { <replaceable>string</replaceable>; ... };
 	dnssec-enable <replaceable>boolean</replaceable>;
 	dnssec-validation <replaceable>boolean</replaceable>;
-	dnssec-lookaside <replaceable>string</replaceable> trust-anchor <replaceable>string</replaceable>;
+	dnssec-lookaside ( <replaceable>auto</replaceable> | <replaceable>no</replaceable> | <replaceable>domain</replaceable> trust-anchor <replaceable>domain</replaceable> );
 	dnssec-must-be-secure <replaceable>string</replaceable> <replaceable>boolean</replaceable>;
 	dnssec-accept-expired <replaceable>boolean</replaceable>;
+
+	dns64-server <replaceable>string</replaceable>;
+	dns64-contact <replaceable>string</replaceable>;
+	dns64 <replaceable>prefix</replaceable> {
+		clients { <replacable>acl</replacable>; };
+		exclude { <replacable>acl</replacable>; };
+		mapped { <replacable>acl</replacable>; };
+		break-dnssec <replaceable>boolean</replaceable>;
+		recursive-only <replaceable>boolean</replaceable>;
+		suffix <replaceable>ipv6_address</replaceable>;
+	};
 
 	empty-server <replaceable>string</replaceable>;
 	empty-contact <replaceable>string</replaceable>;
@@ -456,6 +503,7 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	allow-update { <replaceable>address_match_element</replaceable>; ... };
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
 	update-check-ksk <replaceable>boolean</replaceable>;
+	dnssec-dnskey-kskonly <replaceable>boolean</replaceable>;
 
 	masterfile-format ( text | raw );
 	notify <replaceable>notifytype</replaceable>;
@@ -500,6 +548,7 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	key-directory <replaceable>quoted_string</replaceable>;
 	zero-no-soa-ttl <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl-cache <replaceable>boolean</replaceable>;
+	dnssec-secure-to-insecure <replaceable>boolean</replaceable>;
 
 	allow-v6-synthesis { <replaceable>address_match_element</replaceable>; ... }; // obsolete
 	fetch-glue <replaceable>boolean</replaceable>; // obsolete
@@ -534,20 +583,23 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	ixfr-from-differences <replaceable>boolean</replaceable>;
 	journal <replaceable>quoted_string</replaceable>;
 	zero-no-soa-ttl <replaceable>boolean</replaceable>;
+	dnssec-secure-to-insecure <replaceable>boolean</replaceable>;
 
 	allow-query { <replaceable>address_match_element</replaceable>; ... };
 	allow-query-on { <replaceable>address_match_element</replaceable>; ... };
 	allow-transfer { <replaceable>address_match_element</replaceable>; ... };
 	allow-update { <replaceable>address_match_element</replaceable>; ... };
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
-	update-policy {
+	update-policy <replaceable>local</replaceable> | <replaceable> {
 		( grant | deny ) <replaceable>string</replaceable>
 		( name | subdomain | wildcard | self | selfsub | selfwild |
                   krb5-self | ms-self | krb5-subdomain | ms-subdomain |
-		  tcp-self | 6to4-self ) <replaceable>string</replaceable>
-		<replaceable>rrtypelist</replaceable>; ...
-	};
+		  tcp-self | zonesub | 6to4-self ) <replaceable>string</replaceable>
+		<replaceable>rrtypelist</replaceable>;
+		<optional>...</optional>
+	}</replaceable>;
 	update-check-ksk <replaceable>boolean</replaceable>;
+	dnssec-dnskey-kskonly <replaceable>boolean</replaceable>;
 
 	masterfile-format ( text | raw );
 	notify <replaceable>notifytype</replaceable>;

@@ -282,4 +282,9 @@ checknames_tlsa(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_tlsa(ARGS_COMPARE) {
+	return (compare_tlsa(rdata1, rdata2));
+}
+
 #endif	/* RDATA_GENERIC_TLSA_52_C */

@@ -94,10 +94,75 @@
  ***** Tasks.
  *****/
 
-#define TASK_MAGIC			ISC_MAGIC('T', 'A', 'S', 'K')
-#define VALID_TASK(t)			ISC_MAGIC_VALID(t, TASK_MAGIC)
-
 ISC_LANG_BEGINDECLS
+
+/***
+ *** Types
+ ***/
+
+/*% Task and task manager methods */
+typedef struct isc_taskmgrmethods {
+	void		(*destroy)(isc_taskmgr_t **managerp);
+	isc_result_t	(*taskcreate)(isc_taskmgr_t *manager,
+				      unsigned int quantum,
+				      isc_task_t **taskp);
+	void (*setexcltask)(isc_taskmgr_t *mgr, isc_task_t *task);
+	isc_result_t (*excltask)(isc_taskmgr_t *mgr, isc_task_t **taskp);
+} isc_taskmgrmethods_t;
+
+typedef struct isc_taskmethods {
+	void (*attach)(isc_task_t *source, isc_task_t **targetp);
+	void (*detach)(isc_task_t **taskp);
+	void (*destroy)(isc_task_t **taskp);
+	void (*send)(isc_task_t *task, isc_event_t **eventp);
+	void (*sendanddetach)(isc_task_t **taskp, isc_event_t **eventp);
+	unsigned int (*unsend)(isc_task_t *task, void *sender, isc_eventtype_t type,
+			       void *tag, isc_eventlist_t *events);
+	isc_result_t (*onshutdown)(isc_task_t *task, isc_taskaction_t action,
+				   const void *arg);
+	void (*shutdown)(isc_task_t *task);
+	void (*setname)(isc_task_t *task, const char *name, void *tag);
+	unsigned int (*purgeevents)(isc_task_t *task, void *sender,
+				    isc_eventtype_t type, void *tag);
+	unsigned int (*purgerange)(isc_task_t *task, void *sender,
+				   isc_eventtype_t first, isc_eventtype_t last,
+				   void *tag);
+	isc_result_t (*beginexclusive)(isc_task_t *task);
+	void (*endexclusive)(isc_task_t *task);
+} isc_taskmethods_t;
+
+/*%
+ * This structure is actually just the common prefix of a task manager
+ * object implementation's version of an isc_taskmgr_t.
+ * \brief
+ * Direct use of this structure by clients is forbidden.  task implementations
+ * may change the structure.  'magic' must be ISCAPI_TASKMGR_MAGIC for any
+ * of the isc_task_ routines to work.  task implementations must maintain
+ * all task invariants.
+ */
+struct isc_taskmgr {
+	unsigned int		impmagic;
+	unsigned int		magic;
+	isc_taskmgrmethods_t	*methods;
+};
+
+#define ISCAPI_TASKMGR_MAGIC	ISC_MAGIC('A','t','m','g')
+#define ISCAPI_TASKMGR_VALID(m)	((m) != NULL && \
+				 (m)->magic == ISCAPI_TASKMGR_MAGIC)
+
+/*%
+ * This is the common prefix of a task object.  The same note as
+ * that for the taskmgr structure applies.
+ */
+struct isc_task {
+	unsigned int		impmagic;
+	unsigned int		magic;
+	isc_taskmethods_t	*methods;
+};
+
+#define ISCAPI_TASK_MAGIC	ISC_MAGIC('A','t','s','t')
+#define ISCAPI_TASK_VALID(s)	((s) != NULL && \
+				 (s)->magic == ISCAPI_TASK_MAGIC)
 
 isc_result_t
 isc_task_create(isc_taskmgr_t *manager, unsigned int quantum,
@@ -553,10 +618,15 @@ isc_task_exiting(isc_task_t *t);
  *****/
 
 isc_result_t
+isc_taskmgr_createinctx(isc_mem_t *mctx, isc_appctx_t *actx,
+			unsigned int workers, unsigned int default_quantum,
+			isc_taskmgr_t **managerp);
+isc_result_t
 isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 		   unsigned int default_quantum, isc_taskmgr_t **managerp);
 /*%<
- * Create a new task manager.
+ * Create a new task manager.  isc_taskmgr_createinctx() also associates
+ * the new manager with the specified application context.
  *
  * Notes:
  *
@@ -578,6 +648,8 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
  *
  *\li	managerp != NULL && *managerp == NULL
  *
+ *\li	'actx' is a valid application context (for createinctx()).
+ *
  * Ensures:
  *
  *\li	On success, '*managerp' will be attached to the newly created task
@@ -587,8 +659,10 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
  *
  *\li	#ISC_R_SUCCESS
  *\li	#ISC_R_NOMEMORY
- *\li	#ISC_R_NOTHREADS			No threads could be created.
+ *\li	#ISC_R_NOTHREADS		No threads could be created.
  *\li	#ISC_R_UNEXPECTED		An unexpected error occurred.
+ *\li	#ISC_R_SHUTTINGDOWN      	The non-threaded, shared, task
+ *					manager shutting down.
  */
 
 void
@@ -625,12 +699,62 @@ isc_taskmgr_destroy(isc_taskmgr_t **managerp);
  *	have been freed.
  */
 
+void
+isc_taskmgr_setexcltask(isc_taskmgr_t *mgr, isc_task_t *task);
+/*%<
+ * Set a task which will be used for all task-exclusive operations.
+ *
+ * Requires:
+ *\li	'manager' is a valid task manager.
+ *
+ *\li	'task' is a valid task.
+ */
+
+isc_result_t
+isc_taskmgr_excltask(isc_taskmgr_t *mgr, isc_task_t **taskp);
+/*%<
+ * Attach '*taskp' to the task set by isc_taskmgr_getexcltask().
+ * This task should be used whenever running in task-exclusive mode,
+ * so as to prevent deadlock between two exclusive tasks.
+ *
+ * Requires:
+ *\li	'manager' is a valid task manager.
+
+ *\li	taskp != NULL && *taskp == NULL
+ */
+
+
 #ifdef HAVE_LIBXML2
 
 void
 isc_taskmgr_renderxml(isc_taskmgr_t *mgr, xmlTextWriterPtr writer);
 
 #endif
+
+/*%<
+ * See isc_taskmgr_create() above.
+ */
+typedef isc_result_t
+(*isc_taskmgrcreatefunc_t)(isc_mem_t *mctx, unsigned int workers,
+			   unsigned int default_quantum,
+			   isc_taskmgr_t **managerp);
+
+isc_result_t
+isc_task_register(isc_taskmgrcreatefunc_t createfunc);
+/*%<
+ * Register a new task management implementation and add it to the list of
+ * supported implementations.  This function must be called when a different
+ * event library is used than the one contained in the ISC library.
+ */
+
+isc_result_t
+isc__task_register(void);
+/*%<
+ * A short cut function that specifies the task management module in the ISC
+ * library for isc_task_register().  An application that uses the ISC library
+ * usually do not have to care about this function: it would call
+ * isc_lib_register(), which internally calls this function.
+ */
 
 ISC_LANG_ENDDECLS
 

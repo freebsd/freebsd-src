@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: interfaceiter.c,v 1.45 2008/12/01 03:51:47 marka Exp $ */
 
 /*! \file */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ptr_12.c,v 1.45 2009/12/04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 14:05:12 PST 2000 by explorer */
 
@@ -288,4 +288,8 @@ checknames_ptr(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_ptr(ARGS_COMPARE) {
+	return (compare_ptr(rdata1, rdata2));
+}
 #endif	/* RDATA_GENERIC_PTR_12_C */

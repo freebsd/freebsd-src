@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: xfrin.h,v 1.30 2009/01/17 23:47:43 tbox Exp $ */
 
 #ifndef DNS_XFRIN_H
 #define DNS_XFRIN_H 1

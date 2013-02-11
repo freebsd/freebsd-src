@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -183,6 +183,11 @@ checknames_null(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_null(ARGS_COMPARE) {
+	return (compare_null(rdata1, rdata2));
 }
 
 #endif	/* RDATA_GENERIC_NULL_10_C */

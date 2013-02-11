@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: client.c,v 1.271.10.4 2012/01/31 23:46:39 tbox Exp $ */
 
 #include <config.h>
 
@@ -919,7 +919,7 @@ ns_client_send(ns_client_t *client) {
 	dns_compress_t cctx;
 	isc_boolean_t cleanup_cctx = ISC_FALSE;
 	unsigned char sendbuf[SEND_BUFFER_SIZE];
-	unsigned int dnssec_opts;
+	unsigned int render_opts;
 	unsigned int preferred_glue;
 	isc_boolean_t opt_included = ISC_FALSE;
 
@@ -931,9 +931,9 @@ ns_client_send(ns_client_t *client) {
 		client->message->flags |= DNS_MESSAGEFLAG_RA;
 
 	if ((client->attributes & NS_CLIENTATTR_WANTDNSSEC) != 0)
-		dnssec_opts = 0;
+		render_opts = 0;
 	else
-		dnssec_opts = DNS_MESSAGERENDER_OMITDNSSEC;
+		render_opts = DNS_MESSAGERENDER_OMITDNSSEC;
 
 	preferred_glue = 0;
 	if (client->view != NULL) {
@@ -942,6 +942,24 @@ ns_client_send(ns_client_t *client) {
 		else if (client->view->preferred_glue == dns_rdatatype_aaaa)
 			preferred_glue = DNS_MESSAGERENDER_PREFER_AAAA;
 	}
+
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+	/*
+	 * filter-aaaa-on-v4 yes or break-dnssec option to suppress
+	 * AAAA records
+	 * We already know that request came via IPv4,
+	 * that we have both AAAA and A records,
+	 * and that we either have no signatures that the client wants
+	 * or we are supposed to break DNSSEC.
+	 *
+	 * Override preferred glue if necessary.
+	 */
+	if ((client->attributes & NS_CLIENTATTR_FILTER_AAAA) != 0) {
+		render_opts |= DNS_MESSAGERENDER_FILTER_AAAA;
+		if (preferred_glue == DNS_MESSAGERENDER_PREFER_AAAA)
+			preferred_glue = DNS_MESSAGERENDER_PREFER_A;
+	}
+#endif
 
 	/*
 	 * XXXRTH  The following doesn't deal with TCP buffer resizing.
@@ -978,7 +996,7 @@ ns_client_send(ns_client_t *client) {
 	result = dns_message_rendersection(client->message,
 					   DNS_SECTION_ANSWER,
 					   DNS_MESSAGERENDER_PARTIAL |
-					   dnssec_opts);
+					   render_opts);
 	if (result == ISC_R_NOSPACE) {
 		client->message->flags |= DNS_MESSAGEFLAG_TC;
 		goto renderend;
@@ -988,7 +1006,7 @@ ns_client_send(ns_client_t *client) {
 	result = dns_message_rendersection(client->message,
 					   DNS_SECTION_AUTHORITY,
 					   DNS_MESSAGERENDER_PARTIAL |
-					   dnssec_opts);
+					   render_opts);
 	if (result == ISC_R_NOSPACE) {
 		client->message->flags |= DNS_MESSAGEFLAG_TC;
 		goto renderend;
@@ -997,7 +1015,7 @@ ns_client_send(ns_client_t *client) {
 		goto done;
 	result = dns_message_rendersection(client->message,
 					   DNS_SECTION_ADDITIONAL,
-					   preferred_glue | dnssec_opts);
+					   preferred_glue | render_opts);
 	if (result != ISC_R_SUCCESS && result != ISC_R_NOSPACE)
 		goto done;
  renderend:
@@ -1362,7 +1380,6 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	dns_name_t *signame;
 	isc_boolean_t ra;	/* Recursion available. */
 	isc_netaddr_t netaddr;
-	isc_netaddr_t destaddr;
 	int match;
 	dns_messageid_t id;
 	unsigned int flags;
@@ -1480,7 +1497,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 
 	/*
 	 * Silently drop multicast requests for the present.
-	 * XXXMPA look at when/if mDNS spec stabilizes.
+	 * XXXMPA revisit this as mDNS spec was published.
 	 */
 	if ((client->attributes & NS_CLIENTATTR_MULTICAST) != 0) {
 		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
@@ -1654,24 +1671,20 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	 * etc), we regard this as an error for safety.
 	 */
 	if ((client->interface->flags & NS_INTERFACEFLAG_ANYADDR) == 0)
-		isc_netaddr_fromsockaddr(&destaddr, &client->interface->addr);
+		isc_netaddr_fromsockaddr(&client->destaddr,
+					 &client->interface->addr);
 	else {
+		isc_sockaddr_t sockaddr;
 		result = ISC_R_FAILURE;
 
-		if (TCP_CLIENT(client)) {
-			isc_sockaddr_t destsockaddr;
-
+		if (TCP_CLIENT(client))
 			result = isc_socket_getsockname(client->tcpsocket,
-							&destsockaddr);
-			if (result == ISC_R_SUCCESS)
-				isc_netaddr_fromsockaddr(&destaddr,
-							 &destsockaddr);
-		}
+							&sockaddr);
+		if (result == ISC_R_SUCCESS)
+			isc_netaddr_fromsockaddr(&client->destaddr, &sockaddr);
 		if (result != ISC_R_SUCCESS &&
 		    client->interface->addr.type.sa.sa_family == AF_INET6 &&
 		    (client->attributes & NS_CLIENTATTR_PKTINFO) != 0) {
-			isc_uint32_t zone = 0;
-
 			/*
 			 * XXXJT technically, we should convert the receiving
 			 * interface ID to a proper scope zone ID.  However,
@@ -1680,12 +1693,11 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			 * interface index as link ID.  Despite the assumption,
 			 * it should cover most typical cases.
 			 */
-			if (IN6_IS_ADDR_LINKLOCAL(&client->pktinfo.ipi6_addr))
-				zone = (isc_uint32_t)client->pktinfo.ipi6_ifindex;
-
-			isc_netaddr_fromin6(&destaddr,
+			isc_netaddr_fromin6(&client->destaddr,
 					    &client->pktinfo.ipi6_addr);
-			isc_netaddr_setzone(&destaddr, zone);
+			if (IN6_IS_ADDR_LINKLOCAL(&client->pktinfo.ipi6_addr))
+				isc_netaddr_setzone(&client->destaddr,
+						client->pktinfo.ipi6_ifindex);
 			result = ISC_R_SUCCESS;
 		}
 		if (result != ISC_R_SUCCESS) {
@@ -1715,7 +1727,8 @@ client_request(isc_task_t *task, isc_event_t *event) {
 				tsig = dns_tsigkey_identity(client->message->tsigkey);
 
 			if (allowed(&netaddr, tsig, view->matchclients) &&
-			    allowed(&destaddr, tsig, view->matchdestinations) &&
+			    allowed(&client->destaddr, tsig,
+				    view->matchdestinations) &&
 			    !((client->message->flags & DNS_MESSAGEFLAG_RD)
 			      == 0 && view->matchrecursiveonly))
 			{
@@ -1778,9 +1791,11 @@ client_request(isc_task_t *task, isc_event_t *event) {
 
 	}
 	if (result == ISC_R_SUCCESS) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		dns_name_format(&client->signername, namebuf, sizeof(namebuf));
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
-			      "request has valid signature");
+			      "request has valid signature: %s", namebuf);
 		client->signer = &client->signername;
 	} else if (result == ISC_R_NOTFOUND) {
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
@@ -1868,10 +1883,10 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	    ns_client_checkaclsilent(client, NULL,
 				     client->view->cacheacl,
 				     ISC_TRUE) == ISC_R_SUCCESS &&
-	    ns_client_checkaclsilent(client, &client->interface->addr,
+	    ns_client_checkaclsilent(client, &client->destaddr,
 				     client->view->recursiononacl,
 				     ISC_TRUE) == ISC_R_SUCCESS &&
-	    ns_client_checkaclsilent(client, &client->interface->addr,
+	    ns_client_checkaclsilent(client, &client->destaddr,
 				     client->view->cacheonacl,
 				     ISC_TRUE) == ISC_R_SUCCESS)
 		ra = ISC_TRUE;
@@ -2101,6 +2116,9 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 	client->recursionquota = NULL;
 	client->interface = NULL;
 	client->peeraddr_valid = ISC_FALSE;
+#ifdef ALLOW_FILTER_AAAA_ON_V4
+	client->filter_aaaa = dns_v4_aaaa_ok;
+#endif
 	ISC_EVENT_INIT(&client->ctlevent, sizeof(client->ctlevent), 0, NULL,
 		       NS_EVENT_CLIENTCONTROL, client_start, client, client,
 		       NULL, NULL);
@@ -2608,12 +2626,12 @@ ns_client_getsockaddr(ns_client_t *client) {
 }
 
 isc_result_t
-ns_client_checkaclsilent(ns_client_t *client, isc_sockaddr_t *sockaddr,
+ns_client_checkaclsilent(ns_client_t *client, isc_netaddr_t *netaddr,
 			 dns_acl_t *acl, isc_boolean_t default_allow)
 {
 	isc_result_t result;
+	isc_netaddr_t tmpnetaddr;
 	int match;
-	isc_netaddr_t netaddr;
 
 	if (acl == NULL) {
 		if (default_allow)
@@ -2622,15 +2640,13 @@ ns_client_checkaclsilent(ns_client_t *client, isc_sockaddr_t *sockaddr,
 			goto deny;
 	}
 
+	if (netaddr == NULL) {
+		isc_netaddr_fromsockaddr(&tmpnetaddr, &client->peeraddr);
+		netaddr = &tmpnetaddr;
+	}
 
-	if (sockaddr == NULL)
-		isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
-	else
-		isc_netaddr_fromsockaddr(&netaddr, sockaddr);
-
-	result = dns_acl_match(&netaddr, client->signer, acl,
-			       &ns_g_server->aclenv,
-			       &match, NULL);
+	result = dns_acl_match(netaddr, client->signer, acl,
+			       &ns_g_server->aclenv, &match, NULL);
 
 	if (result != ISC_R_SUCCESS)
 		goto deny; /* Internal error, already logged. */
@@ -2650,8 +2666,14 @@ ns_client_checkacl(ns_client_t *client, isc_sockaddr_t *sockaddr,
 		   const char *opname, dns_acl_t *acl,
 		   isc_boolean_t default_allow, int log_level)
 {
-	isc_result_t result =
-		ns_client_checkaclsilent(client, sockaddr, acl, default_allow);
+	isc_result_t result;
+	isc_netaddr_t netaddr;
+
+	if (sockaddr != NULL)
+		isc_netaddr_fromsockaddr(&netaddr, sockaddr);
+
+	result = ns_client_checkaclsilent(client, sockaddr ? &netaddr : NULL,
+					  acl, default_allow);
 
 	if (result == ISC_R_SUCCESS)
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
@@ -2761,9 +2783,14 @@ void
 ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 	ns_client_t *client;
 	char namebuf[DNS_NAME_FORMATSIZE];
+	char original[DNS_NAME_FORMATSIZE];
 	char peerbuf[ISC_SOCKADDR_FORMATSIZE];
+	char typebuf[DNS_RDATATYPE_FORMATSIZE];
+	char classbuf[DNS_RDATACLASS_FORMATSIZE];
 	const char *name;
 	const char *sep;
+	const char *origfor;
+	dns_rdataset_t *rdataset;
 
 	REQUIRE(VALID_MANAGER(manager));
 
@@ -2781,8 +2808,31 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 			sep = "";
 		}
 		dns_name_format(client->query.qname, namebuf, sizeof(namebuf));
-		fprintf(f, "; client %s%s%s: '%s' requesttime %d\n",
-			peerbuf, sep, name, namebuf, client->requesttime);
+		if (client->query.qname != client->query.origqname &&
+		    client->query.origqname != NULL) {
+			origfor = " for ";
+			dns_name_format(client->query.origqname, original,
+					sizeof(original));
+		} else {
+			origfor = "";
+			original[0] = '\0';
+		}
+		rdataset = ISC_LIST_HEAD(client->query.qname->list);
+		if (rdataset == NULL && client->query.origqname != NULL)
+			rdataset = ISC_LIST_HEAD(client->query.origqname->list);
+		if (rdataset != NULL) {
+			dns_rdatatype_format(rdataset->type, typebuf,
+					     sizeof(typebuf));
+			dns_rdataclass_format(rdataset->rdclass, classbuf,
+					      sizeof(classbuf));
+		} else {
+			strcpy(typebuf, "-");
+			strcpy(classbuf, "-");
+		}
+		fprintf(f, "; client %s%s%s: id %u '%s/%s/%s'%s%s "
+			"requesttime %d\n", peerbuf, sep, name,
+			client->message->id, namebuf, typebuf, classbuf,
+			origfor, original, client->requesttime);
 		client = ISC_LIST_NEXT(client, link);
 	}
 	UNLOCK(&manager->lock);

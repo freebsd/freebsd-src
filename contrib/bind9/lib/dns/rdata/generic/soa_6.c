@@ -441,4 +441,9 @@ checknames_soa(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_soa(ARGS_COMPARE) {
+	return (compare_soa(rdata1, rdata2));
+}
+
 #endif	/* RDATA_GENERIC_SOA_6_C */

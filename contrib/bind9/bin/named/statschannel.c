@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: statschannel.c,v 1.26.150.2 2011/03/12 04:59:14 tbox Exp $ */
 
 /*! \file */
 
@@ -29,6 +29,7 @@
 #include <isc/stats.h>
 #include <isc/task.h>
 
+#include <dns/cache.h>
 #include <dns/db.h>
 #include <dns/opcode.h>
 #include <dns/resolver.h>
@@ -858,9 +859,9 @@ generatexml(ns_server_t *server, int *buflen, xmlChar **buf) {
 			TRY0(xmlTextWriterStartElement(writer,
 						       ISC_XMLCHAR "cache"));
 			TRY0(xmlTextWriterWriteAttribute(writer,
-							 ISC_XMLCHAR "name",
-							 ISC_XMLCHAR
-							 view->name));
+					 ISC_XMLCHAR "name",
+					 ISC_XMLCHAR
+					 dns_cache_getname(view->cache)));
 			dumparg.result = ISC_R_SUCCESS;
 			dns_rdatasetstats_dump(cachestats, rdatasetstats_dump,
 					       &dumparg, 0);
@@ -1440,7 +1441,15 @@ ns_stats_dump(ns_server_t *server, FILE *fp) {
 		if (strcmp(view->name, "_default") == 0)
 			fprintf(fp, "[View: default]\n");
 		else
-			fprintf(fp, "[View: %s]\n", view->name);
+			fprintf(fp, "[View: %s (Cache: %s)]\n", view->name,
+				dns_cache_getname(view->cache));
+		if (dns_view_iscacheshared(view)) {
+			/*
+			 * Avoid dumping redundant statistics when the cache is
+			 * shared.
+			 */
+			continue;
+		}
 		dns_rdatasetstats_dump(cachestats, rdatasetstats_dump, &dumparg,
 				       0);
 	}

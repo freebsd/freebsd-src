@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: log.h,v 1.14 2009/01/18 23:48:14 tbox Exp $ */
 
 #ifndef ISCCFG_LOG_H
 #define ISCCFG_LOG_H 1

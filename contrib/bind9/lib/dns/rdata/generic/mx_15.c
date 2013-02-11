@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: mx_15.c,v 1.58 2009/12/04 22:06:37 tbox Exp $ */
 
 /* reviewed: Wed Mar 15 18:05:46 PST 2000 by brister */
 
@@ -314,6 +314,11 @@ checknames_mx(ARGS_CHECKNAMES) {
 		return (ISC_FALSE);
 	}
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_mx(ARGS_COMPARE) {
+	return (compare_mx(rdata1, rdata2));
 }
 
 #endif	/* RDATA_GENERIC_MX_15_C */

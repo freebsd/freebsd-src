@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: os.h,v 1.12 2009/06/10 00:27:21 each Exp $ */
 
 /*! \file */
 
@@ -26,12 +26,6 @@
 #include <stdio.h>
 
 ISC_LANG_BEGINDECLS
-
-FILE *safe_create(const char *filename);
-/*%<
- * Open 'filename' for writing, truncate if necessary.  If the file was
- * created ensure that only the owner can read/write it.
- */
 
 int set_user(FILE *fd, const char *user);
 /*%<

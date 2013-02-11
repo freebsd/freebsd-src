@@ -1,0 +1,218 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+	       "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: ddns-confgen.docbook,v 1.6 2009/09/18 22:08:55 fdupont Exp $ -->
+<refentry id="man.ddns-confgen">
+  <refentryinfo>
+    <date>Jan 29, 2009</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>ddns-confgen</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>ddns-confgen</application></refname>
+    <refpurpose>ddns key generation tool</refpurpose>
+  </refnamediv>
+
+  <docinfo>
+    <copyright>
+      <year>2009</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>ddns-confgen</command>
+      <arg><option>-a <replaceable class="parameter">algorithm</replaceable></option></arg>
+      <arg><option>-h</option></arg>
+      <arg><option>-k <replaceable class="parameter">keyname</replaceable></option></arg>
+      <arg><option>-r <replaceable class="parameter">randomfile</replaceable></option></arg>
+      <group>
+        <arg choice="plain">-s <replaceable class="parameter">name</replaceable></arg>
+        <arg choice="plain">-z <replaceable class="parameter">zone</replaceable></arg>
+      </group>
+      <arg><option>-q</option></arg>
+      <arg choice="opt">name</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para><command>ddns-confgen</command>
+      generates a key for use by <command>nsupdate</command>
+      and <command>named</command>.  It simplifies configuration
+      of dynamic zones by generating a key and providing the
+      <command>nsupdate</command> and <command>named.conf</command>
+      syntax that will be needed to use it, including an example
+      <command>update-policy</command> statement.
+    </para>
+
+    <para>
+      If a domain name is specified on the command line, it will
+      be used in the name of the generated key and in the sample
+      <command>named.conf</command> syntax.  For example,
+      <command>ddns-confgen example.com</command> would
+      generate a key called "ddns-key.example.com", and sample
+      <command>named.conf</command> command that could be used
+      in the zone definition for "example.com".
+    </para>
+
+    <para>
+      Note that <command>named</command> itself can configure a
+      local DDNS key for use with <command>nsupdate -l</command>.
+      <command>ddns-confgen</command> is only needed when a 
+      more elaborate configuration is required: for instance, if
+      <command>nsupdate</command> is to be used from a remote system.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+	<term>-a <replaceable class="parameter">algorithm</replaceable></term>
+	<listitem>
+	  <para>
+            Specifies the algorithm to use for the TSIG key.  Available
+            choices are: hmac-md5, hmac-sha1, hmac-sha224, hmac-sha256,
+            hmac-sha384 and hmac-sha512.  The default is hmac-sha256.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-h</term>
+	<listitem>
+	  <para>
+	    Prints a short summary of the options and arguments to
+	    <command>ddns-confgen</command>.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-k <replaceable class="parameter">keyname</replaceable></term>
+	<listitem>
+	  <para>
+	    Specifies the key name of the DDNS authentication key.
+	    The default is <constant>ddns-key</constant> when neither
+	    the <option>-s</option> nor <option>-z</option> option is
+	    specified; otherwise, the default
+	    is <constant>ddns-key</constant> as a separate label
+	    followed by the argument of the option, e.g.,
+	    <constant>ddns-key.example.com.</constant>
+	    The key name must have the format of a valid domain name,
+	    consisting of letters, digits, hyphens and periods.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-q</term>
+	<listitem>
+	  <para>
+	    Quiet mode:  Print only the key, with no explanatory text or
+            usage examples.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-r <replaceable class="parameter">randomfile</replaceable></term>
+	<listitem>
+	  <para>
+            Specifies a source of random data for generating the
+            authorization.  If the operating system does not provide a
+            <filename>/dev/random</filename> or equivalent device, the
+            default source of randomness is keyboard input.
+            <filename>randomdev</filename> specifies the name of a
+            character device or file containing random data to be used
+            instead of the default.  The special value
+            <filename>keyboard</filename> indicates that keyboard input
+            should be used.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-s <replaceable class="parameter">name</replaceable></term>
+	<listitem>
+	  <para>
+	    Single host mode: The example <command>named.conf</command> text
+	    shows how to set an update policy for the specified
+	    <replaceable class="parameter">name</replaceable>
+	    using the "name" nametype.
+	    The default key name is
+	    ddns-key.<replaceable class="parameter">name</replaceable>.
+	    Note that the "self" nametype cannot be used, since
+	    the name to be updated may differ from the key name.
+	    This option cannot be used with the <option>-z</option> option.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-z <replaceable class="parameter">zone</replaceable></term>
+	<listitem>
+	  <para>
+	    zone mode:  The example <command>named.conf</command> text
+            shows how to set an update policy for the specified
+	    <replaceable class="parameter">zone</replaceable>
+	    using the "zonesub" nametype, allowing updates to all subdomain
+	    names within
+	    that <replaceable class="parameter">zone</replaceable>.
+	    This option cannot be used with the <option>-s</option> option.
+	  </para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para><citerefentry>
+	<refentrytitle>nsupdate</refentrytitle><manvolnum>1</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+	<refentrytitle>named.conf</refentrytitle><manvolnum>5</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+	<refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry><!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

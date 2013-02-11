@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: controlconf.c,v 1.60.544.3 2011/12/22 08:10:09 marka Exp $ */
 
 /*! \file */
 

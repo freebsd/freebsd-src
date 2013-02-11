@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: nsec3param_51.c,v 1.7 2009/12/04 21:09:34 marka Exp $ */
 
 /*
  * Copyright (C) 2004  Nominet, Ltd.
@@ -309,6 +309,11 @@ checknames_nsec3param(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_nsec3param(ARGS_COMPARE) {
+	return (compare_nsec3param(rdata1, rdata2));
 }
 
 #endif	/* RDATA_GENERIC_NSEC3PARAM_51_C */

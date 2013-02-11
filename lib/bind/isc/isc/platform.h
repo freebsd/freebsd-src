@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h.in,v 1.48.84.4 2010-06-03 23:47:49 tbox Exp $ */
+/* $Id: platform.h.in,v 1.56 2010/12/18 01:56:23 each Exp $ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
@@ -148,6 +148,11 @@
  */
 #undef ISC_PLATFORM_HAVEDEVPOLL
 
+/*! \brief
+ * Define if we want to log backtrace
+ */
+#define ISC_PLATFORM_USEBACKTRACE 1
+
 /*
  *** Printing.
  ***/
@@ -214,13 +219,19 @@
  * Defined to <gssapi.h> or <gssapi/gssapi.h> for how to include
  * the GSSAPI header.
  */
+#define ISC_PLATFORM_GSSAPIHEADER <gssapi/gssapi.h>
 
+/*
+ * Defined to <gssapi_krb5.h> or <gssapi/gssapi_krb5.h> for how to
+ * include the GSSAPI KRB5 header.
+ */
+#define ISC_PLATFORM_GSSAPI_KRB5_HEADER <gssapi/gssapi_krb5.h>
 
 /*
  * Defined to <krb5.h> or <krb5/krb5.h> for how to include
  * the KRB5 header.
  */
-
+#define ISC_PLATFORM_KRB5HEADER <krb5.h>
 
 /*
  * Type used for resource limits.
@@ -326,6 +337,11 @@
  * Define if the platform has <strings.h>.
  */
 #define ISC_PLATFORM_HAVESTRINGSH 1
+
+/*
+ * Define if the hash functions must be provided by OpenSSL.
+ */
+#undef ISC_PLATFORM_OPENSSLHASH
 
 /*
  * Defines for the noreturn attribute.

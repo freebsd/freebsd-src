@@ -478,4 +478,9 @@ checknames_nsec3(ARGS_CHECKNAMES) {
 	return (ISC_TRUE);
 }
 
+static inline int
+casecompare_nsec3(ARGS_COMPARE) {
+	return (compare_nsec3(rdata1, rdata2));
+}
+
 #endif	/* RDATA_GENERIC_NSEC3_50_C */

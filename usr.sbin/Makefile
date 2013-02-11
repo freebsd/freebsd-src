@@ -43,10 +43,6 @@ SUBDIR=	${_ac} \
 	devinfo \
 	digictl \
 	diskinfo \
-	${_dnssec-dsfromkey} \
-	${_dnssec-keyfromlabel} \
-	${_dnssec-keygen} \
-	${_dnssec-signzone} \
 	dumpcis \
 	${_editmap} \
 	${_edquota} \
@@ -107,10 +103,6 @@ SUBDIR=	${_ac} \
 	mptutil \
 	mtest \
 	mtree \
-	${_named} \
-	${_named-checkconf} \
-	${_named-checkzone} \
-	${_named.reload} \
 	${_ndiscvt} \
 	${_ndp} \
 	newsyslog \
@@ -149,8 +141,6 @@ SUBDIR=	${_ac} \
 	${_repquota} \
 	${_rip6query} \
 	rmt \
-	${_rndc} \
-	${_rndc-confgen} \
 	${_route6d} \
 	rpcbind \
 	rpc.lockd \
@@ -236,18 +226,26 @@ _authpf=	authpf
 .endif
 
 .if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
-_dnssec-dsfromkey=	dnssec-dsfromkey
-_dnssec-keyfromlabel=	dnssec-keyfromlabel
-_dnssec-keygen=		dnssec-keygen
-_dnssec-signzone=	dnssec-signzone
+SUBDIR+=	dnssec-dsfromkey
+SUBDIR+=	dnssec-keyfromlabel
+SUBDIR+=	dnssec-keygen
+SUBDIR+=	dnssec-revoke
+SUBDIR+=	dnssec-settime
+SUBDIR+=	dnssec-signzone
 .endif
 .if ${MK_BIND_NAMED} != "no"
-_named=			named
-_named-checkconf=	named-checkconf
-_named-checkzone=	named-checkzone
-_named.reload=		named.reload
-_rndc=			rndc
-_rndc-confgen=		rndc-confgen
+SUBDIR+=	arpaname
+SUBDIR+=	ddns-confgen
+SUBDIR+=	genrandom
+SUBDIR+=	isc-hmac-fixup
+SUBDIR+=	named
+SUBDIR+=	named-checkconf
+SUBDIR+=	named-checkzone
+SUBDIR+=	named-journalprint
+SUBDIR+=	named.reload
+SUBDIR+=	nsec3hash
+SUBDIR+=	rndc
+SUBDIR+=	rndc-confgen
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
