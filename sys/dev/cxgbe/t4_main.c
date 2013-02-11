@@ -5161,23 +5161,24 @@ get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
 	    cntxt->mem_id != CTXT_FLM && cntxt->mem_id != CTXT_CNM)
 		return (EINVAL);
 
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ctxt");
+	if (rc)
+		return (rc);
+
 	if (sc->flags & FW_OK) {
-		rc = begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4ctxt");
-		if (rc == 0) {
-			rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid,
-			    cntxt->mem_id, &cntxt->data[0]);
-			end_synchronized_op(sc, LOCK_HELD);
-			if (rc == 0)
-				return (0);
-		}
+		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid, cntxt->mem_id,
+		    &cntxt->data[0]);
+		if (rc == 0)
+			goto done;
 	}
 
 	/*
 	 * Read via firmware failed or wasn't even attempted.  Read directly via
 	 * the backdoor.
 	 */
-	rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id,
-	    &cntxt->data[0]);
+	rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id, &cntxt->data[0]);
+done:
+	end_synchronized_op(sc, 0);
 	return (rc);
 }
 
@@ -5533,6 +5534,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 				txq->txpkt_wrs = 0;
 				txq->txpkts_wrs = 0;
 				txq->txpkts_pkts = 0;
+				txq->br->br_drops = 0;
 				txq->no_dmamap = 0;
 				txq->no_desc = 0;
 			}

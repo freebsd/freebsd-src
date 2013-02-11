@@ -116,7 +116,8 @@ struct if_ath_alq {
 
 struct if_ath_alq_hdr {
 	uint64_t	threadid;
-	uint32_t	tstamp;
+	uint32_t	tstamp_sec;
+	uint32_t	tstamp_usec;
 	uint16_t	op;
 	uint16_t	len;	/* Length of (optional) payload */
 };

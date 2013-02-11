@@ -50,6 +50,7 @@ struct host_service {
 
 static bool tcpdrop_list_commands = false;
 
+static char *findport(const char *);
 static struct xinpgen *getxpcblist(const char *);
 static void sockinfo(const struct sockaddr *, struct host_service *);
 static bool tcpdrop(const struct sockaddr *, const struct sockaddr *);
@@ -65,6 +66,7 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
+	char *lport, *fport;
 	bool dropall;
 	int ch;
 
@@ -93,13 +95,41 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
-	if (argc != 4 || tcpdrop_list_commands)
+	if ((argc != 2 && argc != 4) || tcpdrop_list_commands)
 		usage();
 
-	if (!tcpdropbyname(argv[0], argv[1], argv[2], argv[3]))
+	if (argc == 2) {
+		lport = findport(argv[0]);
+		fport = findport(argv[1]);
+		if (lport == NULL || lport[1] == '\0' || fport == NULL ||
+		    fport[1] == '\0')
+			usage();
+		*lport++ = '\0';
+		*fport++ = '\0';
+		if (!tcpdropbyname(argv[0], lport, argv[1], fport))
+			exit(1);
+	} else if (!tcpdropbyname(argv[0], argv[1], argv[2], argv[3]))
 		exit(1);
 
 	exit(0);
+}
+
+static char *
+findport(const char *arg)
+{
+	char *dot, *colon;
+
+	/* A strrspn() or strrpbrk() would be nice. */
+	dot = strrchr(arg, '.');
+	colon = strrchr(arg, ':');
+	if (dot == NULL)
+		return (colon);
+	if (colon == NULL)
+		return (dot);
+	if (dot < colon)
+		return (colon);
+	else
+		return (dot);
 }
 
 static struct xinpgen *
@@ -237,7 +267,7 @@ tcpdropbyname(const char *lhost, const char *lport, const char *fhost,
 	error = getaddrinfo(fhost, fport, &hints, &foreign);
 	if (error != 0) {
 		freeaddrinfo(local); /* XXX gratuitous */
-		errx(1, "getaddrinfo: %s port %s: %s", lhost, lport,
+		errx(1, "getaddrinfo: %s port %s: %s", fhost, fport,
 		    gai_strerror(error));
 	}
 
@@ -318,6 +348,8 @@ usage(void)
 {
 	fprintf(stderr,
 "usage: tcpdrop local-address local-port foreign-address foreign-port\n"
+"       tcpdrop local-address:local-port foreign-address:foreign-port\n"
+"       tcpdrop local-address.local-port foreign-address.foreign-port\n"
 "       tcpdrop [-l] -a\n");
 	exit(1);
 }

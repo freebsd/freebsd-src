@@ -553,8 +553,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	}
 
 	if (pmp->pm_RootDirEnts == 0) {
-		if (pmp->pm_Sectors
-		    || pmp->pm_FATsecs
+		if (pmp->pm_FATsecs
 		    || getushort(b710->bpbFSVers)) {
 			error = EINVAL;
 #ifdef MSDOSFS_DEBUG

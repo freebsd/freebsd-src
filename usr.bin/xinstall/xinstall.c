@@ -953,9 +953,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		}
 
 	if (mode != (to_sb.st_mode & ALLPERMS)) {
-		if (dounpriv)
-			mode &= S_IRWXU|S_IRWXG|S_IRWXO;
-		if (fchmod(to_fd, mode)) {
+		if (fchmod(to_fd,
+		     dounpriv ? mode & (S_IRWXU|S_IRWXG|S_IRWXO) : mode)) {
 			serrno = errno;
 			(void)unlink(to_name);
 			errno = serrno;

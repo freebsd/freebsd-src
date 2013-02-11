@@ -862,30 +862,42 @@ vm_lapic(struct vm *vm, int cpu)
 boolean_t
 vmm_is_pptdev(int bus, int slot, int func)
 {
-	int found, b, s, f, n;
+	int found, i, n;
+	int b, s, f;
 	char *val, *cp, *cp2;
 
 	/*
-	 * setenv pptdevs "1/2/3 4/5/6 7/8/9 10/11/12"
+	 * XXX
+	 * The length of an environment variable is limited to 128 bytes which
+	 * puts an upper limit on the number of passthru devices that may be
+	 * specified using a single environment variable.
+	 *
+	 * Work around this by scanning multiple environment variable
+	 * names instead of a single one - yuck!
 	 */
+	const char *names[] = { "pptdevs", "pptdevs2", "pptdevs3", NULL };
+
+	/* set pptdevs="1/2/3 4/5/6 7/8/9 10/11/12" */
 	found = 0;
-	cp = val = getenv("pptdevs");
-	while (cp != NULL && *cp != '\0') {
-		if ((cp2 = strchr(cp, ' ')) != NULL)
-			*cp2 = '\0';
+	for (i = 0; names[i] != NULL && !found; i++) {
+		cp = val = getenv(names[i]);
+		while (cp != NULL && *cp != '\0') {
+			if ((cp2 = strchr(cp, ' ')) != NULL)
+				*cp2 = '\0';
 
-		n = sscanf(cp, "%d/%d/%d", &b, &s, &f);
-		if (n == 3 && bus == b && slot == s && func == f) {
-			found = 1;
-			break;
-		}
+			n = sscanf(cp, "%d/%d/%d", &b, &s, &f);
+			if (n == 3 && bus == b && slot == s && func == f) {
+				found = 1;
+				break;
+			}
 		
-		if (cp2 != NULL)
-			*cp2++ = ' ';
+			if (cp2 != NULL)
+				*cp2++ = ' ';
 
-		cp = cp2;
+			cp = cp2;
+		}
+		freeenv(val);
 	}
-	freeenv(val);
 	return (found);
 }
 

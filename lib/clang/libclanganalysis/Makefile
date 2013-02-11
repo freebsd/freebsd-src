@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clanganalysis
 
 SRCDIR=	tools/clang/lib/Analysis

@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -61,6 +64,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /* function prototypes */
 
@@ -187,13 +191,8 @@ usb_check_alt_setting(struct usb_device *udev,
 	uint8_t do_unlock;
 	usb_error_t err = 0;
 
-	/* automatic locking */
-	if (usbd_enum_is_locked(udev)) {
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		usbd_enum_lock(udev);
-	}
+	/* Prevent re-enumeration */
+	do_unlock = usbd_enum_lock(udev);
 
 	if (alt_index >= usbd_get_no_alts(udev->cdesc, iface->idesc))
 		err = USB_ERR_INVAL;

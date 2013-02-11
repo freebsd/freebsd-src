@@ -113,7 +113,8 @@ static device_method_t cx_isa_methods [] = {
 	DEVMETHOD(device_probe,		cx_probe),
 	DEVMETHOD(device_attach,	cx_attach),
 	DEVMETHOD(device_detach,	cx_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 typedef struct _cx_dma_mem_t {

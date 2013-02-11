@@ -258,7 +258,7 @@ static device_method_t fdc_acpi_methods[] = {
 	DEVMETHOD(bus_read_ivar,	fdc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	fdc_write_ivar),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t fdc_acpi_driver = {

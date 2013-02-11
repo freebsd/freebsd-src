@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -67,6 +70,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_UGEN
 
@@ -715,12 +719,19 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	return (error);
 }
 
+/*
+ * This function is called having the enumeration SX locked which
+ * protects the scratch area used.
+ */
 static int
 ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 {
-	void *ptr = f->udev->bus->scratch[0].data;
-	uint16_t size = sizeof(f->udev->bus->scratch[0].data);
+	void *ptr;
+	uint16_t size;
 	int error;
+
+	ptr = f->udev->scratch.data;
+	size = sizeof(f->udev->scratch.data);
 
 	if (usbd_req_get_string_desc(f->udev, NULL, ptr,
 	    size, ugd->ugd_lang_id, ugd->ugd_string_index)) {

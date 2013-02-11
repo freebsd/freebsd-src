@@ -259,26 +259,26 @@ upgt_attach(device_t dev)
 	callout_init(&sc->sc_led_ch, 0);
 	callout_init(&sc->sc_watchdog_ch, 0);
 
-	/* Allocate TX and RX xfers.  */
-	error = upgt_alloc_tx(sc);
-	if (error)
-		goto fail1;
-	error = upgt_alloc_rx(sc);
-	if (error)
-		goto fail2;
-
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    upgt_config, UPGT_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
 		    "err=%s\n", usbd_errstr(error));
-		goto fail3;
+		goto fail1;
 	}
 
 	sc->sc_rx_dma_buf = usbd_xfer_get_frame_buffer(
 	    sc->sc_xfer[UPGT_BULK_RX], 0);
 	sc->sc_tx_dma_buf = usbd_xfer_get_frame_buffer(
 	    sc->sc_xfer[UPGT_BULK_TX], 0);
+
+	/* Setup TX and RX buffers */
+	error = upgt_alloc_tx(sc);
+	if (error)
+		goto fail2;
+	error = upgt_alloc_rx(sc);
+	if (error)
+		goto fail3;
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
@@ -382,9 +382,9 @@ upgt_attach(device_t dev)
 	return (0);
 
 fail5:	if_free(ifp);
-fail4:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
-fail3:	upgt_free_rx(sc);
-fail2:	upgt_free_tx(sc);
+fail4:	upgt_free_rx(sc);
+fail3:	upgt_free_tx(sc);
+fail2:	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 fail1:	mtx_destroy(&sc->sc_mtx);
 
 	return (error);
@@ -466,7 +466,14 @@ upgt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct upgt_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	int error;
+	int startall = 0;
+
+	UPGT_LOCK(sc);
+	error = (sc->sc_flags & UPGT_FLAG_DETACHED) ? ENXIO : 0;
+	UPGT_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -1976,7 +1983,6 @@ upgt_alloc_rx(struct upgt_softc *sc)
 		data->buf = ((uint8_t *)sc->sc_rx_dma_buf) + (i * MCLBYTES);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 	}
-
 	return (0);
 }
 
@@ -1986,22 +1992,42 @@ upgt_detach(device_t dev)
 	struct upgt_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	unsigned int x;
 
-	if (!device_is_attached(dev))
-		return 0;
+	/*
+	 * Prevent further allocations from RX/TX/CMD
+	 * data lists and ioctls
+	 */
+	UPGT_LOCK(sc);
+	sc->sc_flags |= UPGT_FLAG_DETACHED;
+
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
+
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
+	UPGT_UNLOCK(sc);
 
 	upgt_stop(sc);
 
 	callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	ieee80211_ifdetach(ic);
+	/* drain USB transfers */
+	for (x = 0; x != UPGT_N_XFERS; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
 
-	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
-
+	/* free data buffers */
+	UPGT_LOCK(sc);
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
+	UPGT_UNLOCK(sc);
 
+	/* free USB transfers and some data buffers */
+	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+
+	ieee80211_ifdetach(ic);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 
@@ -2028,6 +2054,9 @@ upgt_free_tx(struct upgt_softc *sc)
 
 	for (i = 0; i < UPGT_TX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_tx_data[i];
+
+		if (data->ni != NULL)
+			ieee80211_free_node(data->ni);
 
 		data->buf = NULL;
 		data->ni = NULL;

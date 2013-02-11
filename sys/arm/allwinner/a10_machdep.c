@@ -49,16 +49,16 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
+#include <arm/allwinner/a10_wdog.h>
+
 /* Start of address space used for bootstrap map */
 #define DEVMAP_BOOTSTRAP_MAP_START      0xE0000000
 
-void (*a10_cpu_reset)(void);
 
 vm_offset_t
 initarm_lastaddr(void)
 {
 
-	a10_cpu_reset = NULL;
 	return (DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE);
 }
 
@@ -113,10 +113,7 @@ bus_dma_get_range_nb(void)
 void
 cpu_reset()
 {
-	if (a10_cpu_reset)
-		(*a10_cpu_reset)();
-	else
-		printf("no cpu_reset implementation\n");
+	a10wd_watchdog_reset();
 	printf("Reset failed!\n");
 	while (1);
 }

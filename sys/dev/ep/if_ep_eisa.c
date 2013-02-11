@@ -238,7 +238,7 @@ static device_method_t ep_eisa_methods[] = {
 	DEVMETHOD(device_attach, ep_eisa_attach),
 	DEVMETHOD(device_detach, ep_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ep_eisa_driver = {

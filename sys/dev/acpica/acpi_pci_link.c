@@ -1097,7 +1097,7 @@ static device_method_t acpi_pci_link_methods[] = {
 	DEVMETHOD(device_attach,	acpi_pci_link_attach),
 	DEVMETHOD(device_resume,	acpi_pci_link_resume),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t acpi_pci_link_driver = {

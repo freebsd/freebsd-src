@@ -50,6 +50,8 @@ struct udphdr {
  */
 #define	UDP_ENCAP			1
 
+/* Start of reserved space for third-party user-settable options. */
+#define	UDP_VENDOR			SO_VENDOR
 
 /*
  * UDP Encapsulation of IPsec Packets options.

@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -96,6 +97,7 @@ zfs_prop_init(void)
 		{ "gzip-8",	ZIO_COMPRESS_GZIP_8 },
 		{ "gzip-9",	ZIO_COMPRESS_GZIP_9 },
 		{ "zle",	ZIO_COMPRESS_ZLE },
+		{ "lz4",	ZIO_COMPRESS_LZ4 },
 		{ NULL }
 	};
 
@@ -211,8 +213,8 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_COMPRESSION, "compression",
 	    ZIO_COMPRESS_DEFAULT, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
-	    "on | off | lzjb | gzip | gzip-[1-9] | zle", "COMPRESS",
-	    compress_table);
+	    "on | off | lzjb | gzip | gzip-[1-9] | zle | lz4",
+	    "COMPRESS", compress_table);
 	zprop_register_index(ZFS_PROP_SNAPDIR, "snapdir", ZFS_SNAPDIR_HIDDEN,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
 	    "hidden | visible", "SNAPDIR", snapdir_table);

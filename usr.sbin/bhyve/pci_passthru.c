@@ -355,11 +355,17 @@ msix_table_write(struct vmctx *ctx, int vcpu, struct passthru_softc *sc,
 static int
 init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 {
-	int idx;
-	size_t table_size;
+	int b, s, f;
+	int error, idx;
+	size_t len, remaining, table_size;
 	vm_paddr_t start;
-	size_t len;
 	struct pci_devinst *pi = sc->psc_pi;
+
+	assert(pci_msix_table_bar(pi) >= 0 && pci_msix_pba_bar(pi) >= 0);
+
+	b = sc->psc_sel.pc_bus;
+	s = sc->psc_sel.pc_dev;
+	f = sc->psc_sel.pc_func;
 
 	/* 
 	 * If the MSI-X table BAR maps memory intended for
@@ -370,32 +376,44 @@ init_msix_table(struct vmctx *ctx, struct passthru_softc *sc, uint64_t base)
 	if (pi->pi_msix.pba_bar == pi->pi_msix.table_bar && 
 	    ((pi->pi_msix.pba_offset - pi->pi_msix.table_offset) < 4096)) {
 		/* Need to also emulate the PBA, not supported yet */
-		printf("Unsupported MSI-X table and PBA in same page\n");
+		printf("Unsupported MSI-X configuration: %d/%d/%d\n", b, s, f);
 		return (-1);
 	}
 
-	/* 
-	 * May need to split the BAR into 3 regions:
-	 * Before the MSI-X table, the MSI-X table, and after it
-	 * XXX for now, assume that the table is not in the middle
-	 */
+	/* Compute the MSI-X table size */
 	table_size = pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
-	idx = pi->pi_msix.table_bar;
-
-	/* Round up to page size */
 	table_size = roundup2(table_size, 4096);
-	if (pi->pi_msix.table_offset == 0) {		
-		/* Map everything after the MSI-X table */
-		start = pi->pi_bar[idx].addr + table_size;
-		len = pi->pi_bar[idx].size - table_size;
-	} else {
-                /* Map everything before the MSI-X table */
-		start = pi->pi_bar[idx].addr;
+
+	idx = pi->pi_msix.table_bar;
+	start = pi->pi_bar[idx].addr;
+	remaining = pi->pi_bar[idx].size;
+
+	/* Map everything before the MSI-X table */
+	if (pi->pi_msix.table_offset > 0) {
 		len = pi->pi_msix.table_offset;
+		error = vm_map_pptdev_mmio(ctx, b, s, f, start, len, base);
+		if (error)
+			return (error);
+
+		base += len;
+		start += len;
+		remaining -= len;
 	}
-	return (vm_map_pptdev_mmio(ctx, sc->psc_sel.pc_bus, 
-				   sc->psc_sel.pc_dev, sc->psc_sel.pc_func, 
-				   start, len, base + table_size));
+
+	/* Skip the MSI-X table */
+	base += table_size;
+	start += table_size;
+	remaining -= table_size;
+
+	/* Map everything beyond the end of the MSI-X table */
+	if (remaining > 0) {
+		len = remaining;
+		error = vm_map_pptdev_mmio(ctx, b, s, f, start, len, base);
+		if (error)
+			return (error);
+	}
+
+	return (0);
 }
 
 static int
@@ -447,7 +465,7 @@ cfginitbar(struct vmctx *ctx, struct passthru_softc *sc)
 			return (-1);
 
 		/* The MSI-X table needs special handling */
-		if (i == pi->pi_msix.table_bar) {
+		if (i == pci_msix_table_bar(pi)) {
 			error = init_msix_table(ctx, sc, base);
 			if (error) 
 				return (-1);
@@ -688,7 +706,7 @@ passthru_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.table_bar == baridx) {
+	if (baridx == pci_msix_table_bar(pi)) {
 		msix_table_write(ctx, vcpu, sc, offset, size, value);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
@@ -712,7 +730,7 @@ passthru_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.table_bar == baridx) {
+	if (baridx == pci_msix_table_bar(pi)) {
 		val = msix_table_read(sc, offset, size);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);

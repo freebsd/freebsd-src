@@ -99,7 +99,8 @@ static device_method_t	mfip_methods[] = {
 	DEVMETHOD(device_probe,		mfip_probe),
 	DEVMETHOD(device_attach,	mfip_attach),
 	DEVMETHOD(device_detach,	mfip_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 static driver_t mfip_driver = {
 	"mfip",

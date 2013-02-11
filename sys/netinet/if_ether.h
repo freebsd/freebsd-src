@@ -89,6 +89,7 @@ struct	ether_arp {
 #define	arp_pln	ea_hdr.ar_pln
 #define	arp_op	ea_hdr.ar_op
 
+#ifndef BURN_BRIDGES	/* Can be used by third party software. */
 struct sockaddr_inarp {
 	u_char	sin_len;
 	u_char	sin_family;
@@ -99,6 +100,8 @@ struct sockaddr_inarp {
 	u_short	sin_other;
 #define SIN_PROXY 1
 };
+#endif /* !BURN_BRIDGES  */
+
 /*
  * IP and ethernet specific routing flags
  */

@@ -776,6 +776,10 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			/* verify something */
 			break;
 		case IEEE80211_ACTION_MESH_GANN:
+			IEEE80211_VERIFY_LENGTH(efrm - frm,
+			    sizeof(struct ieee80211_meshgann_ie),
+			    return EINVAL);
+			break;
 		case IEEE80211_ACTION_MESH_CC:
 		case IEEE80211_ACTION_MESH_MCCA_SREQ:
 		case IEEE80211_ACTION_MESH_MCCA_SREP:
