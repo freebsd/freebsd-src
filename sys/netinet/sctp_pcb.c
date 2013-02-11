@@ -3308,22 +3308,16 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				/* Left with Data unread */
 				struct mbuf *op_err;
 
-				op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
+				op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 				    0, M_NOWAIT, 1, MT_DATA);
 				if (op_err) {
 					/* Fill in the user initiated abort */
 					struct sctp_paramhdr *ph;
-					uint32_t *ippp;
 
-					SCTP_BUF_LEN(op_err) =
-					    sizeof(struct sctp_paramhdr) + sizeof(uint32_t);
-					ph = mtod(op_err,
-					    struct sctp_paramhdr *);
-					ph->param_type = htons(
-					    SCTP_CAUSE_USER_INITIATED_ABT);
+					SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
+					ph = mtod(op_err, struct sctp_paramhdr *);
+					ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 					ph->param_length = htons(SCTP_BUF_LEN(op_err));
-					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_3);
 				}
 				asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_3;
 				sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
@@ -3395,7 +3389,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 					struct mbuf *op_err;
 
 			abort_anyway:
-					op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
+					op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 					    0, M_NOWAIT, 1, MT_DATA);
 					if (op_err) {
 						/*
@@ -3403,18 +3397,11 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 						 * initiated abort
 						 */
 						struct sctp_paramhdr *ph;
-						uint32_t *ippp;
 
-						SCTP_BUF_LEN(op_err) =
-						    (sizeof(struct sctp_paramhdr) +
-						    sizeof(uint32_t));
-						ph = mtod(op_err,
-						    struct sctp_paramhdr *);
-						ph->param_type = htons(
-						    SCTP_CAUSE_USER_INITIATED_ABT);
+						SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
+						ph = mtod(op_err, struct sctp_paramhdr *);
+						ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 						ph->param_length = htons(SCTP_BUF_LEN(op_err));
-						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_5);
 					}
 					asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_5;
 					sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
@@ -3478,23 +3465,17 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		if ((SCTP_GET_STATE(&asoc->asoc) != SCTP_STATE_COOKIE_WAIT) &&
 		    ((asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0)) {
 			struct mbuf *op_err;
-			uint32_t *ippp;
 
-			op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
+			op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 			    0, M_NOWAIT, 1, MT_DATA);
 			if (op_err) {
 				/* Fill in the user initiated abort */
 				struct sctp_paramhdr *ph;
 
-				SCTP_BUF_LEN(op_err) = (sizeof(struct sctp_paramhdr) +
-				    sizeof(uint32_t));
+				SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
 				ph = mtod(op_err, struct sctp_paramhdr *);
-				ph->param_type = htons(
-				    SCTP_CAUSE_USER_INITIATED_ABT);
+				ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 				ph->param_length = htons(SCTP_BUF_LEN(op_err));
-				ippp = (uint32_t *) (ph + 1);
-				*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_7);
-
 			}
 			asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_7;
 			sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
