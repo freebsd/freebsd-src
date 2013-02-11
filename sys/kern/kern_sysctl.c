@@ -1051,9 +1051,10 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
-	if (!arg1)
-		return (EINVAL);
-	tmplong = *(long *)arg1;
+	if (arg1)
+		tmplong = *(long *)arg1;
+	else
+		tmplong = arg2;
 #ifdef SCTL_MASK32
 	if (req->flags & SCTL_MASK32) {
 		tmpint = tmplong;
@@ -1065,12 +1066,15 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+	if (!arg1)
+		error = EPERM;
 #ifdef SCTL_MASK32
-	if (req->flags & SCTL_MASK32) {
+	else if (req->flags & SCTL_MASK32) {
 		error = SYSCTL_IN(req, &tmpint, sizeof(int));
 		*(long *)arg1 = (long)tmpint;
-	} else
+	}
 #endif
+	else
 		error = SYSCTL_IN(req, arg1, sizeof(long));
 	return (error);
 }
@@ -1087,15 +1091,19 @@ sysctl_handle_64(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
-	if (!arg1)
-		return (EINVAL);
-	tmpout = *(uint64_t *)arg1;
+	if (arg1)
+		tmpout = *(uint64_t *)arg1;
+	else
+		tmpout = arg2;
 	error = SYSCTL_OUT(req, &tmpout, sizeof(uint64_t));
 
 	if (error || !req->newptr)
 		return (error);
 
-	error = SYSCTL_IN(req, arg1, sizeof(uint64_t));
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(uint64_t));
 	return (error);
 }
 
