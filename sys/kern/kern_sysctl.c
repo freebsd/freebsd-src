@@ -1036,7 +1036,10 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 
 
 /*
- * Handle a long, signed or unsigned.  arg1 points to it.
+ * Handle a long, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
  */
 
 int
@@ -1080,7 +1083,10 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Handle a 64 bit int, signed or unsigned.  arg1 points to it.
+ * Handle a 64 bit int, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
  */
 int
 sysctl_handle_64(SYSCTL_HANDLER_ARGS)
