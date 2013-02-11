@@ -149,8 +149,8 @@
  *
  * We define some interesting address constants:
  *
- * VM_MIN_ADDRESS and VM_MAX_ADDRESS define the start and of the entire 64 bit
- * address space, mostly just for convenience.
+ * VM_MIN_ADDRESS and VM_MAX_ADDRESS define the start and end of the entire
+ * 64 bit address space, mostly just for convenience.
  *
  * VM_MIN_DIRECT_ADDRESS and VM_MAX_DIRECT_ADDRESS define the start and end
  * of the direct mapped region.  This maps virtual addresses to physical
