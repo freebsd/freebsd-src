@@ -12,6 +12,7 @@ arm/arm/irq_dispatch.S			standard
 arm/allwinner/a10_clk.c			standard
 arm/allwinner/a10_gpio.c		optional	gpio
 arm/allwinner/a10_ehci.c		optional	ehci
+arm/allwinner/a10_wdog.c		standard
 arm/allwinner/timer.c			standard
 arm/allwinner/aintc.c			standard
 arm/allwinner/bus_space.c		standard
