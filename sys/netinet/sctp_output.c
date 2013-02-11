@@ -4643,19 +4643,19 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		chunk_len += parameter_len;
 	}
 	/* Adaptation layer indication parameter */
-	/* XXX: Should we include this always? */
-	if (padding_len > 0) {
-		memset(mtod(m, caddr_t)+chunk_len, 0, padding_len);
-		chunk_len += padding_len;
-		padding_len = 0;
+	if (inp->sctp_ep.adaptation_layer_indicator_provided) {
+		if (padding_len > 0) {
+			memset(mtod(m, caddr_t)+chunk_len, 0, padding_len);
+			chunk_len += padding_len;
+			padding_len = 0;
+		}
+		parameter_len = (uint16_t) sizeof(struct sctp_adaptation_layer_indication);
+		ali = (struct sctp_adaptation_layer_indication *)(mtod(m, caddr_t)+chunk_len);
+		ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
+		ali->ph.param_length = htons(parameter_len);
+		ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
+		chunk_len += parameter_len;
 	}
-	parameter_len = (uint16_t) sizeof(struct sctp_adaptation_layer_indication);
-	ali = (struct sctp_adaptation_layer_indication *)(mtod(m, caddr_t)+chunk_len);
-	ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
-	ali->ph.param_length = htons(parameter_len);
-	ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
-	chunk_len += parameter_len;
-
 	if (SCTP_BASE_SYSCTL(sctp_inits_include_nat_friendly)) {
 		/* Add NAT friendly parameter. */
 		if (padding_len > 0) {
@@ -5723,12 +5723,16 @@ do_a_abort:
 	    htons(inp->sctp_ep.max_open_streams_intome);
 
 	/* adaptation layer indication parameter */
-	ali = (struct sctp_adaptation_layer_indication *)((caddr_t)initack + sizeof(*initack));
-	ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
-	ali->ph.param_length = htons(sizeof(*ali));
-	ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
-	SCTP_BUF_LEN(m) += sizeof(*ali);
-	ecn = (struct sctp_ecn_supported_param *)((caddr_t)ali + sizeof(*ali));
+	if (inp->sctp_ep.adaptation_layer_indicator_provided) {
+		ali = (struct sctp_adaptation_layer_indication *)((caddr_t)initack + sizeof(*initack));
+		ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
+		ali->ph.param_length = htons(sizeof(*ali));
+		ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
+		SCTP_BUF_LEN(m) += sizeof(*ali);
+		ecn = (struct sctp_ecn_supported_param *)((caddr_t)ali + sizeof(*ali));
+	} else {
+		ecn = (struct sctp_ecn_supported_param *)((caddr_t)initack + sizeof(*initack));
+	}
 
 	/* ECN parameter */
 	if (((asoc != NULL) && (asoc->ecn_allowed == 1)) ||
