@@ -994,9 +994,13 @@ siis_begin_transaction(device_t dev, union ccb *ccb)
 	    (ccb->ataio.cmd.flags & (CAM_ATAIO_CONTROL | CAM_ATAIO_NEEDRESULT)))
 		ch->aslots |= (1 << slot->slot);
 	slot->dma.nsegs = 0;
-	slot->state = SIIS_SLOT_LOADING;
-	bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map,
-	    ccb, siis_dmasetprd, slot, 0);
+	/* If request moves data, setup and load SG list */
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		slot->state = SIIS_SLOT_LOADING;
+		bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map,
+		    ccb, siis_dmasetprd, slot, 0);
+	} else
+		siis_execute_transaction(slot);
 }
 
 /* Locked by busdma engine. */
