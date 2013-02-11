@@ -20,7 +20,10 @@
  */
 /*
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
- *
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
+
+/*
  * Common routines for acquiring snapshots of kstats for
  * iostat, mpstat, and vmstat.
  */
@@ -221,6 +224,7 @@ struct snapshot {
 	size_t s_iodevs_is_name_maxlen;
 	struct sys_snapshot s_sys;
 	struct biostats s_biostats;
+	size_t s_nr_active_cpus;
 };
 
 /* print a message and exit with failure */
