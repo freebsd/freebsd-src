@@ -4617,6 +4617,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(adap_bits, optval, struct sctp_setadaptation, optsize);
 			SCTP_INP_WLOCK(inp);
 			inp->sctp_ep.adaptation_layer_indicator = adap_bits->ssb_adaptation_ind;
+			inp->sctp_ep.adaptation_layer_indicator_provided = 1;
 			SCTP_INP_WUNLOCK(inp);
 			break;
 		}
