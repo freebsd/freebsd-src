@@ -207,6 +207,7 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 		struct	ccb_hdr *ccb_h;
 		struct	ccb_scsiio *csio;
 		struct	adv_ccb_info *cinfo;
+		int error;
 
 		ccb_h = &ccb->ccb_h;
 		csio = &ccb->csio;
@@ -217,58 +218,17 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 		ccb_h->ccb_cinfo_ptr = cinfo;
 		cinfo->ccb = ccb;
 
-		/* Only use S/G if there is a transfer */
-		if ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if ((ccb_h->flags & CAM_SCATTER_VALID) == 0) {
-				/*
-				 * We've been given a pointer
-				 * to a single buffer
-				 */
-				if ((ccb_h->flags & CAM_DATA_PHYS) == 0) {
-					int error;
-
-					error =
-					    bus_dmamap_load(adv->buffer_dmat,
-							    cinfo->dmamap,
-							    csio->data_ptr,
-							    csio->dxfer_len,
-							    adv_execute_ccb,
-							    csio, /*flags*/0);
-					if (error == EINPROGRESS) {
-						/*
-						 * So as to maintain ordering,
-						 * freeze the controller queue
-						 * until our mapping is
-						 * returned.
-						 */
-						adv_set_state(adv,
-							      ADV_BUSDMA_BLOCK);
-					}
-				} else {
-					struct bus_dma_segment seg;
-
-					/* Pointer to physical buffer */
-					seg.ds_addr =
-					     (bus_addr_t)csio->data_ptr;
-					seg.ds_len = csio->dxfer_len;
-					adv_execute_ccb(csio, &seg, 1, 0);
-				}
-			} else {
-				struct bus_dma_segment *segs;
-				if ((ccb_h->flags & CAM_DATA_PHYS) != 0)
-					panic("adv_setup_data - Physical "
-					      "segment pointers unsupported");
-
-				if ((ccb_h->flags & CAM_SG_LIST_PHYS) == 0)
-					panic("adv_setup_data - Virtual "
-					      "segment addresses unsupported");
-
-				/* Just use the segments provided */
-				segs = (struct bus_dma_segment *)csio->data_ptr;
-				adv_execute_ccb(ccb, segs, csio->sglist_cnt, 0);
-			}
-		} else {
-			adv_execute_ccb(ccb, NULL, 0, 0);
+		error = bus_dmamap_load_ccb(adv->buffer_dmat,
+					    cinfo->dmamap,
+					    ccb,
+					    adv_execute_ccb,
+					    csio, /*flags*/0);
+		if (error == EINPROGRESS) {
+			/*
+			 * So as to maintain ordering, freeze the controller
+			 * queue until our mapping is returned.
+			 */
+			adv_set_state(adv, ADV_BUSDMA_BLOCK);
 		}
 		break;
 	}
