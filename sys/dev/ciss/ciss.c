@@ -2688,9 +2688,14 @@ ciss_map_request(struct ciss_request *cr)
 		    BUS_DMASYNC_PREWRITE);
 
     if (cr->cr_data != NULL) {
-	error = bus_dmamap_load(sc->ciss_buffer_dmat, cr->cr_datamap,
-				cr->cr_data, cr->cr_length,
-				ciss_request_map_helper, cr, 0);
+	if (cr->cr_flags & CISS_REQ_CCB)
+		error = bus_dmamap_load_ccb(sc->ciss_buffer_dmat,
+					cr->cr_datamap, cr->cr_data,
+					ciss_request_map_helper, cr, 0);
+	else
+		error = bus_dmamap_load(sc->ciss_buffer_dmat, cr->cr_datamap,
+					cr->cr_data, cr->cr_length,
+					ciss_request_map_helper, cr, 0);
 	if (error != 0)
 	    return (error);
     } else {
@@ -3056,18 +3061,6 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 	csio->ccb_h.status = CAM_REQ_CMP_ERR;
     }
 
-    /* if there is data transfer, it must be to/from a virtual address */
-    if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-	if (csio->ccb_h.flags & CAM_DATA_PHYS) {		/* we can't map it */
-	    debug(3, "  data pointer is to physical address");
-	    csio->ccb_h.status = CAM_REQ_CMP_ERR;
-	}
-	if (csio->ccb_h.flags & CAM_SCATTER_VALID) {	/* we want to do the s/g setup */
-	    debug(3, "  data has premature s/g setup");
-	    csio->ccb_h.status = CAM_REQ_CMP_ERR;
-	}
-    }
-
     /* abandon aborted ccbs or those that have failed validation */
     if ((csio->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 	debug(3, "abandoning CCB due to abort/validation failure");
@@ -3094,7 +3087,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      * Build the command.
      */
     cc = cr->cr_cc;
-    cr->cr_data = csio->data_ptr;
+    cr->cr_data = csio;
     cr->cr_length = csio->dxfer_len;
     cr->cr_complete = ciss_cam_complete;
     cr->cr_private = csio;
@@ -3112,12 +3105,13 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     cc->cdb.type = CISS_CDB_TYPE_COMMAND;
     cc->cdb.attribute = CISS_CDB_ATTRIBUTE_SIMPLE;	/* XXX ordered tags? */
     if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
-	cr->cr_flags = CISS_REQ_DATAOUT;
+	cr->cr_flags = CISS_REQ_DATAOUT | CISS_REQ_CCB;
 	cc->cdb.direction = CISS_CDB_DIRECTION_WRITE;
     } else if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-	cr->cr_flags = CISS_REQ_DATAIN;
+	cr->cr_flags = CISS_REQ_DATAIN | CISS_REQ_CCB;
 	cc->cdb.direction = CISS_CDB_DIRECTION_READ;
     } else {
+	cr->cr_data = NULL;
 	cr->cr_flags = 0;
 	cc->cdb.direction = CISS_CDB_DIRECTION_NONE;
     }
