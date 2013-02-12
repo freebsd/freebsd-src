@@ -36,6 +36,9 @@
 #define WDIOC_SETTIMEOUT    _IOW('W', 43, int)
 #define WDIOC_GETTIMEOUT    _IOR('W', 44, int)
 #define WDIOC_GETTIMELEFT   _IOR('W', 45, int)
+#define WDIOC_GETPRETIMEOUT _IOR('W', 46, int)
+#define WDIOC_SETPRETIMEOUT _IOW('W', 47, int)
+#define WDIOC_SETPRETIMEOUTACT _IOW('W', 48, int)
 
 #define WD_ACTIVE	0x8000000
 	/* 
@@ -79,6 +82,11 @@
 #define WD_TO_8SEC	33
 #define WD_TO_16SEC	34
 #define WD_TO_32SEC	35
+
+/* action on pre-timeout trigger */
+#define	WD_PRE_PANIC	1	/* panic */
+#define	WD_PRE_DDB	2	/* enter debugger */
+#define	WD_PRE_LOG	3	/* log(9) */
 
 #ifdef _KERNEL
 

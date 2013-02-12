@@ -1,5 +1,8 @@
 /*-
  * Copyright (c) 2004 Poul-Henning Kamp
+ * Copyright (c) 2013 iXsystems.com,
+ *               author: Alfred Perlstein <alfred@freebsd.org>
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,17 +32,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/syslog.h>
 #include <sys/watchdog.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 
 #include <sys/syscallsubr.h> /* kern_clock_gettime() */
+
+static int wd_set_pretimeout(int newtimeout, int disableiftoolong);
+
+static struct callout wd_pretimeo_handle;
+static int wd_pretimeout;
+static int wd_pretimeout_act;
 
 static struct cdev *wd_dev;
 static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
@@ -80,6 +91,7 @@ kern_do_pat(u_int utim)
 		error = EOPNOTSUPP;
 	}
 	EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+	wd_set_pretimeout(wd_pretimeout, true);
 	/*
 	 * If we were able to arm/strobe the watchdog, then
 	 * update the last time it was strobed for WDIOC_GETTIMELEFT
@@ -132,6 +144,67 @@ wd_get_time_left(struct thread *td, time_t *remainp)
 	return (0);
 }
 
+static void
+wd_pretimeout_cb(void *arg __unused)
+{
+
+	switch (wd_pretimeout_act) {
+	case WD_PRE_PANIC:
+		panic("watchdog pre-timeout, WD_PRE_PANIC set");
+		break;
+#ifdef DDB
+	case WD_PRE_DDB:
+		debugger();
+		break;
+#endif
+	case WD_PRE_LOG:
+		log(LOG_EMERG, "watchdog pre-timeout, WD_PRE_LOG");
+		break;
+	default:
+		panic("watchdog: unexpected wd_pretimeout_act %d",
+		    wd_pretimeout_act);
+	}
+}
+
+/*
+ * Called to manage timeouts.
+ * newtimeout needs to be in the range of 0 to actual watchdog timeout.
+ * if 0, we disable the pre-timeout.
+ * otherwise we set the pre-timeout provided it's not greater than the
+ * current actual watchdog timeout.
+ */
+static int
+wd_set_pretimeout(int newtimeout, int disableiftoolong)
+{
+	u_int utime;
+
+	utime = wdog_kern_last_timeout();
+	/* do not permit a pre-timeout >= than the timeout. */
+	if (newtimeout >= utime) {
+		/*
+		 * If 'disableiftoolong' then just fall through
+		 * so as to disable the pre-watchdog
+		 */
+		if (disableiftoolong)
+			newtimeout = 0;
+		else
+			return EINVAL;
+	}
+
+	/* disable the pre-timeout */
+	if (newtimeout == 0) {
+		wd_pretimeout = 0;
+		callout_stop(&wd_pretimeo_handle);
+		return 0;
+	}
+
+	/* We determined the value is sane, so reset the callout */
+	(void) callout_reset(&wd_pretimeo_handle, hz*(utime - newtimeout),
+	    wd_pretimeout_cb, NULL);
+	wd_pretimeout = newtimeout;
+	return 0;
+}
+
 static int
 wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
     int flags __unused, struct thread *td)
@@ -143,6 +216,27 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	error = 0;
 
 	switch (cmd) {
+	case WDIOC_SETPRETIMEOUTACT:
+		u = *(int *)data;
+		switch (u) {
+		case WD_PRE_PANIC:
+#ifdef DDB
+		case WD_PRE_DDB:
+#endif
+		case WD_PRE_LOG:
+			wd_pretimeout_act = u;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+	case WDIOC_GETPRETIMEOUT:
+		*(int *)data = (int)wd_pretimeout;
+		break;
+	case WDIOC_SETPRETIMEOUT:
+		error = wd_set_pretimeout(*(int *)data, false);
+		break;
 	case WDIOC_GETTIMELEFT:
 		error = wd_get_time_left(td, &timeleft);
 		if (error)
@@ -166,7 +260,6 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	}
 	return (error);
 }
-		
 
 u_int
 wdog_kern_last_timeout(void)
@@ -196,10 +289,12 @@ watchdog_modevent(module_t mod __unused, int type, void *data __unused)
 {
 	switch(type) {
 	case MOD_LOAD:
+		callout_init(&wd_pretimeo_handle, true);
 		wd_dev = make_dev(&wd_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0600, _PATH_WATCHDOG);
 		return 0;
 	case MOD_UNLOAD:
+		callout_drain(&wd_pretimeo_handle);
 		destroy_dev(wd_dev);
 		return 0;
 	case MOD_SHUTDOWN:
