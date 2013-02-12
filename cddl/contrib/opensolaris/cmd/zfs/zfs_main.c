@@ -240,9 +240,9 @@ get_usage(zfs_help_t idx)
 		return (gettext("\tupgrade [-v]\n"
 		    "\tupgrade [-r] [-V version] <-a | filesystem ...>\n"));
 	case HELP_JAIL:
-		return (gettext("\tjail <jailid> <filesystem>\n"));
+		return (gettext("\tjail <jailid|jailname> <filesystem>\n"));
 	case HELP_UNJAIL:
-		return (gettext("\tunjail <jailid> <filesystem>\n"));
+		return (gettext("\tunjail <jailid|jailname> <filesystem>\n"));
 	case HELP_LIST:
 		return (gettext("\tlist [-rH][-d max] "
 		    "[-o property[,...]] [-t type[,...]] [-s property] ...\n"
@@ -6289,9 +6289,9 @@ do_jail(int argc, char **argv, int attach)
 		usage(B_FALSE);
 	}
 
-	jailid = atoi(argv[1]);
-	if (jailid == 0) {
-		(void) fprintf(stderr, gettext("invalid jailid\n"));
+	jailid = jail_getid(argv[1]);
+	if (jailid < 0) {
+		(void) fprintf(stderr, gettext("invalid jail id or name\n"));
 		usage(B_FALSE);
 	}
 
