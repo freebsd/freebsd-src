@@ -1,7 +1,9 @@
 # $FreeBSD$
 
-PROG_CXX=llvm-objdump
 NO_MAN=
+.include <bsd.own.mk>
+
+PROG_CXX=llvm-objdump
 
 SRCDIR=	tools/llvm-objdump
 SRCS=	llvm-objdump.cpp \
