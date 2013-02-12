@@ -73,26 +73,25 @@ END(fusufault)
  */
 ENTRY(casuword, 3)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
+	ld8.acq		r15=[r13]		// r15 = curthread
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	add		r15=TD_PCB,r15
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
 }
 {	.mlx
-	add		r15=TD_PCB,r15
+	ld8		r15=[r15]		// r15 = PCB
 	movl		r14=fusufault
 	;;
 }
 {	.mmi
-	ld8		r15=[r15]		// r15 = PCB
-	;;
 	mov		ar.ccv=in1
 	add		r15=PCB_ONFAULT,r15
+	nop		0
 	;;
 }
 {	.mmi
@@ -123,12 +122,11 @@ END(casuword)
  */
 ENTRY(casuword32, 3)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -177,12 +175,11 @@ END(casuword32)
 
 ENTRY(subyte, 2)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -223,12 +220,11 @@ END(subyte)
 
 ENTRY(suword16, 2)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -269,12 +265,11 @@ END(suword16)
 
 ENTRY(suword32, 2)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -316,12 +311,11 @@ END(suword32)
 ENTRY(suword64, 2)
 XENTRY(suword)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -370,12 +364,11 @@ END(suword64)
 
 ENTRY(fubyte, 1)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -416,12 +409,11 @@ END(fubyte)
 
 ENTRY(fuword16, 2)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -462,12 +454,11 @@ END(fuword16)
 
 ENTRY(fuword32, 2)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -509,12 +500,11 @@ END(fuword32)
 ENTRY(fuword64, 2)
 XENTRY(fuword)
 {	.mlx
-	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
-	ld8		r15=[r15]		// r15 = curthread
+	ld8.acq		r15=[r13]		// r15 = curthread
 	cmp.geu		p6,p0=in0,r14
 (p6)	br.dpnt.few	1f
 	;;
@@ -630,10 +620,8 @@ ENTRY(copyinstr, 4)
 	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
+	ld8.acq	r15=[r13]
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=PC_CURTHREAD,r13		// find curthread
-	;;
-	ld8	r15=[r15]
 	;;
 	add	r15=TD_PCB,r15			// find pcb
 	;;
@@ -743,10 +731,8 @@ ENTRY(copyin, 3)
 	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
+	ld8.acq	r15=[r13]
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=PC_CURTHREAD,r13		// find curthread
-	;;
-	ld8	r15=[r15]
 	;;
 	add	r15=TD_PCB,r15			// find pcb
 	;;
@@ -781,10 +767,8 @@ ENTRY(copyout, 3)
 	cmp.geu	p6,p0=in1,loc2			// is in user space.
 	;; 
 (p6)	br.cond.spnt.few copyerr		// if it's not, error out.
+	ld8.acq	r15=[r13]
 	movl	r14=copyerr			// set up fault handler.
-	add	r15=PC_CURTHREAD,r13		// find curthread
-	;;
-	ld8	r15=[r15]
 	;;
 	add	r15=TD_PCB,r15			// find pcb
 	;;
@@ -806,8 +790,7 @@ ENTRY(copyout, 3)
 END(copyout)
 
 ENTRY(copyerr, 0)
-	add	r14=PC_CURTHREAD,r13 ;;		// find curthread
-	ld8	r14=[r14] ;;
+	ld8.acq	r14=[r13] ;;
 	add	r14=TD_PCB,r14 ;;		// curthread->td_addr
 	ld8	r14=[r14] ;;
 	add	r14=PCB_ONFAULT,r14 ;;		// &curthread->td_pcb->pcb_onfault
