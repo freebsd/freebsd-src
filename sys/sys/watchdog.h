@@ -32,13 +32,18 @@
 
 #define	_PATH_WATCHDOG	"fido"
 
-#define WDIOCPATPAT	_IOW('W', 42, u_int)
-#define WDIOC_SETTIMEOUT    _IOW('W', 43, int)
-#define WDIOC_GETTIMEOUT    _IOR('W', 44, int)
-#define WDIOC_GETTIMELEFT   _IOR('W', 45, int)
-#define WDIOC_GETPRETIMEOUT _IOR('W', 46, int)
-#define WDIOC_SETPRETIMEOUT _IOW('W', 47, int)
+#define WDIOCPATPAT	_IOW('W', 42, u_int)	/* pat the watchdog */
+#define WDIOC_SETTIMEOUT    _IOW('W', 43, int)	/* set/reset the timer */
+#define WDIOC_GETTIMEOUT    _IOR('W', 44, int)	/* get total timeout */
+#define WDIOC_GETTIMELEFT   _IOR('W', 45, int)	/* get time left */
+#define WDIOC_GETPRETIMEOUT _IOR('W', 46, int)	/* get the pre-timeout */
+#define WDIOC_SETPRETIMEOUT _IOW('W', 47, int)	/* set the pre-timeout */
+/* set the action when a pre-timeout occurs see: WD_SOFT_* */
 #define WDIOC_SETPRETIMEOUTACT _IOW('W', 48, int)
+
+/* use software watchdog instead of hardware */
+#define WDIOC_SETSOFT	_IOW('W', 49, int)
+#define WDIOC_SETSOFTTIMEOUTACT	_IOW('W', 50, int)
 
 #define WD_ACTIVE	0x8000000
 	/* 
@@ -84,9 +89,9 @@
 #define WD_TO_32SEC	35
 
 /* action on pre-timeout trigger */
-#define	WD_PRE_PANIC	1	/* panic */
-#define	WD_PRE_DDB	2	/* enter debugger */
-#define	WD_PRE_LOG	3	/* log(9) */
+#define	WD_SOFT_PANIC	1	/* panic */
+#define	WD_SOFT_DDB	2	/* enter debugger */
+#define	WD_SOFT_LOG	3	/* log(9) */
 
 #ifdef _KERNEL
 

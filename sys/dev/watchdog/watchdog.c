@@ -47,10 +47,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h> /* kern_clock_gettime() */
 
 static int wd_set_pretimeout(int newtimeout, int disableiftoolong);
+static void wd_timeout_cb(void *arg);
 
 static struct callout wd_pretimeo_handle;
 static int wd_pretimeout;
 static int wd_pretimeout_act;
+
+static struct callout wd_softtimeo_handle;
+static int wd_softtimer;	/* true = use softtimer instead of hardware
+				   watchdog */
+static int wd_softtimeout_act;	/* action for the software timeout */
 
 static struct cdev *wd_dev;
 static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
@@ -90,7 +96,16 @@ kern_do_pat(u_int utim)
 		/* Assume no watchdog available; watchdog flags success */
 		error = EOPNOTSUPP;
 	}
-	EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+	if (wd_softtimer) {
+		if (utim == 0) {
+			callout_stop(&wd_softtimeo_handle);
+		} else {
+			(void) callout_reset(&wd_softtimeo_handle,
+			    hz*utim, wd_timeout_cb, "soft");
+		}
+	} else {
+		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
+	}
 	wd_set_pretimeout(wd_pretimeout, true);
 	/*
 	 * If we were able to arm/strobe the watchdog, then
@@ -107,6 +122,21 @@ kern_do_pat(u_int utim)
 		}
 	}
 	return (error);
+}
+
+static int
+wd_valid_act(int act)
+{
+
+	switch (act) {
+	case WD_SOFT_PANIC:
+#ifdef DDB
+	case WD_SOFT_DDB:
+#endif
+	case WD_SOFT_LOG:
+		return true;
+	}
+	return false;
 }
 
 static int
@@ -145,20 +175,26 @@ wd_get_time_left(struct thread *td, time_t *remainp)
 }
 
 static void
-wd_pretimeout_cb(void *arg __unused)
+wd_timeout_cb(void *arg)
 {
+	const char *type = arg;
+#ifdef DDB
+	char kdb_why[80];
+#endif
 
 	switch (wd_pretimeout_act) {
-	case WD_PRE_PANIC:
-		panic("watchdog pre-timeout, WD_PRE_PANIC set");
+	case WD_SOFT_PANIC:
+		panic("watchdog %s-timeout, WD_SOFT_PANIC set", type);
 		break;
 #ifdef DDB
-	case WD_PRE_DDB:
-		debugger();
+	case WD_SOFT_DDB:
+		snprintf(kdb_why, sizeof(buf), "watchdog %s timeout", type);
+		kdb_backtrace();
+		kdb_enter(KDB_WHY_WATCHDOG, kdb_why);
 		break;
 #endif
-	case WD_PRE_LOG:
-		log(LOG_EMERG, "watchdog pre-timeout, WD_PRE_LOG");
+	case WD_SOFT_LOG:
+		log(LOG_EMERG, "watchdog %s-timeout, WD_SOFT_LOG", type);
 		break;
 	default:
 		panic("watchdog: unexpected wd_pretimeout_act %d",
@@ -200,7 +236,7 @@ wd_set_pretimeout(int newtimeout, int disableiftoolong)
 
 	/* We determined the value is sane, so reset the callout */
 	(void) callout_reset(&wd_pretimeo_handle, hz*(utime - newtimeout),
-	    wd_pretimeout_cb, NULL);
+	    wd_timeout_cb, "pre-timeout");
 	wd_pretimeout = newtimeout;
 	return 0;
 }
@@ -216,19 +252,32 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	error = 0;
 
 	switch (cmd) {
-	case WDIOC_SETPRETIMEOUTACT:
+	case WDIOC_SETSOFT:
 		u = *(int *)data;
-		switch (u) {
-		case WD_PRE_PANIC:
-#ifdef DDB
-		case WD_PRE_DDB:
-#endif
-		case WD_PRE_LOG:
-			wd_pretimeout_act = u;
+		/* do nothing? */
+		if (u == wd_softtimer)
 			break;
-		default:
+		/* If there is a pending timeout disallow this ioctl */
+		if (wd_last_u != 0) {
 			error = EINVAL;
 			break;
+		}
+		wd_softtimer = u;
+		break;
+	case WDIOC_SETSOFTTIMEOUTACT:
+		u = *(int *)data;
+		if (wd_valid_act(u)) {
+			wd_softtimeout_act = u;
+		} else {
+			error = EINVAL;
+		}
+		break;
+	case WDIOC_SETPRETIMEOUTACT:
+		u = *(int *)data;
+		if (wd_valid_act(u)) {
+			wd_pretimeout_act = u;
+		} else {
+			error = EINVAL;
 		}
 		break;
 	case WDIOC_GETPRETIMEOUT:
@@ -290,11 +339,15 @@ watchdog_modevent(module_t mod __unused, int type, void *data __unused)
 	switch(type) {
 	case MOD_LOAD:
 		callout_init(&wd_pretimeo_handle, true);
+		callout_init(&wd_softtimeo_handle, true);
 		wd_dev = make_dev(&wd_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0600, _PATH_WATCHDOG);
 		return 0;
 	case MOD_UNLOAD:
+		callout_stop(&wd_pretimeo_handle);
+		callout_stop(&wd_softtimeo_handle);
 		callout_drain(&wd_pretimeo_handle);
+		callout_drain(&wd_softtimeo_handle);
 		destroy_dev(wd_dev);
 		return 0;
 	case MOD_SHUTDOWN:
