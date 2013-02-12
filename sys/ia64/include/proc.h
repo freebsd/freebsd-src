@@ -44,10 +44,10 @@ struct mdproc {
 #ifdef _KERNEL
 struct syscall_args {
 	u_int code;
+	int narg;
 	struct sysent *callp;
 	register_t *args;
 	register_t args32[8];
-	int narg;
 };
 #endif
 
