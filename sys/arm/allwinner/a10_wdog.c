@@ -93,7 +93,6 @@ static int
 a10wd_probe(device_t dev)
 {
 
-	printf("A10 watchdog probe\n");
 	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-wdt")) {
 		device_set_desc(dev, "Allwinner A10 Watchdog");
 		return (BUS_PROBE_DEFAULT);
