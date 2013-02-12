@@ -1492,7 +1492,6 @@ ktrsockaddr(struct sockaddr *sa)
 
 		memset(&sa_un, 0, sizeof(sa_un));
 		memcpy(&sa_un, sa, sa->sa_len);
-		check_sockaddr_len(un);
 		printf("%.*s", (int)sizeof(sa_un.sun_path), sa_un.sun_path);
 		break;
 	}
@@ -1616,8 +1615,7 @@ ktrstruct(char *buf, size_t buflen)
 		if (datalen > sizeof(ss))
 			goto invalid;
 		memcpy(&ss, data, datalen);
-		if (datalen < sizeof(struct sockaddr) ||
-		    datalen != ss.ss_len)
+		if (datalen != ss.ss_len)
 			goto invalid;
 		ktrsockaddr((struct sockaddr *)&ss);
 	} else {
