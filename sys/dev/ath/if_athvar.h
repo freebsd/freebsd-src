@@ -279,8 +279,6 @@ struct ath_buf {
 		int32_t bfs_keyix;		/* crypto key index */
 		int32_t bfs_txantenna;	/* TX antenna config */
 
-		uint16_t bfs_nextpktlen;	/* length of next frag pkt */
-
 		/* Make this an 8 bit value? */
 		enum ieee80211_protmode bfs_protmode;
 
@@ -525,7 +523,6 @@ struct ath_softc {
 	struct mtx		sc_tx_ic_mtx;	/* TX queue mutex */
 	char			sc_tx_ic_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
-	struct taskqueue	*sc_tx_tq;	/* private TX task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
 	struct ath_tx99		*sc_tx99;	/* tx99 adjunct state */
@@ -815,6 +812,8 @@ struct ath_softc {
 		MA_OWNED)
 #define	ATH_TX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
 		MA_NOTOWNED)
+#define	ATH_TX_TRYLOCK(_sc)	(mtx_owned(&(_sc)->sc_tx_mtx) != 0 &&	\
+					mtx_trylock(&(_sc)->sc_tx_mtx))
 
 /*
  * The IC TX lock is non-reentrant and serialises packet queuing from
