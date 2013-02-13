@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2013 Konstantin Belousov <kib@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,23 +26,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/syscall.h>
+#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/vdso.h>
 #include <errno.h>
-#include "libc_private.h"
 
-int __gettimeofday(struct timeval *tv, struct timezone *tz);
-
-__weak_reference(__gettimeofday, gettimeofday);
-
-int
-__gettimeofday(struct timeval *tv, struct timezone *tz)
+#pragma weak __vdso_gettc
+u_int
+__vdso_gettc(const struct vdso_timehands *th)
 {
-	int error;
 
-	error = __vdso_gettimeofday(tv, tz);
-	if (error == ENOSYS)
-		error = __sys_gettimeofday(tv, tz);
-	return (error);
+	return (0);
+}
+
+#pragma weak __vdso_gettimekeep
+int
+__vdso_gettimekeep(struct vdso_timekeep **tk)
+{
+
+	return (ENOSYS);
 }
