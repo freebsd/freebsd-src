@@ -27,48 +27,46 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/ucred.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 
-#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
-#include <setjmp.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 /*
  * There are tables with tests descriptions and pointers to test
  * functions.  Each t_*() function returns 0 if its test passed,
- * -1 if its test failed (something wrong was found in local domain
- * control messages), -2 if some system error occurred.  If test
- * function returns -2, then a program exits.
+ * -1 if its test failed, -2 if some system error occurred.
+ * If a test function returns -2, then a program exits.
  *
- * Each test function completely control what to do (eg. fork or
- * do not fork a client process).  If a test function forks a client
- * process, then it waits for its termination.  If a return code of a
- * client process is not equal to zero, or if a client process was
- * terminated by a signal, then test function returns -2.
+ * If a test function forks a client process, then it waits for its
+ * termination.  If a return code of a client process is not equal
+ * to zero, or if a client process was terminated by a signal, then
+ * a test function returns -1 or -2 depending on exit status of
+ * a client process.
  *
- * Each test function and complete program are not optimized
- * a lot to allow easy to modify tests.
- *
- * Each function which can block, is run under TIMEOUT, if timeout
- * occurs, then test function returns -2 or a client process exits
- * with nonzero return code.
+ * Each function which can block, is run under TIMEOUT.  If timeout
+ * occurs, then a test function returns -2 or a client process exits
+ * with a non-zero return code.
  */
 
 #ifndef LISTENQ
@@ -76,207 +74,290 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifndef TIMEOUT
-# define TIMEOUT	60
+# define TIMEOUT	2
 #endif
 
-#define EXTRA_CMSG_SPACE 512	/* Memory for not expected control data. */
-
-static int	t_cmsgcred(void), t_sockcred_stream1(void);
-static int	t_sockcred_stream2(void), t_cmsgcred_sockcred(void);
-static int	t_sockcred_dgram(void), t_timestamp(void);
+static int	t_cmsgcred(void);
+static int	t_sockcred_1(void);
+static int	t_sockcred_2(void);
+static int	t_cmsgcred_sockcred(void);
+static int	t_timeval(void);
+static int	t_bintime(void);
+static int	t_cmsg_len(void);
+static int	t_peercred(void);
 
 struct test_func {
-	int	(*func)(void);	/* Pointer to function.	*/
-	const char *desc;	/* Test description.	*/
+	int		(*func)(void);
+	const char	*desc;
 };
 
-static struct test_func test_stream_tbl[] = {
-	{ NULL,			" 0: All tests" },
-	{ t_cmsgcred,		" 1: Sending, receiving cmsgcred" },
-	{ t_sockcred_stream1,	" 2: Receiving sockcred (listening socket has LOCAL_CREDS)" },
-	{ t_sockcred_stream2,	" 3: Receiving sockcred (accepted socket has LOCAL_CREDS)" },
-	{ t_cmsgcred_sockcred,	" 4: Sending cmsgcred, receiving sockcred" },
-	{ t_timestamp,		" 5: Sending, receiving timestamp" },
-	{ NULL, NULL }
+static const struct test_func test_stream_tbl[] = {
+	{
+	  .func = NULL,
+	  .desc = "All tests"
+	},
+	{
+	  .func = t_cmsgcred,
+	  .desc = "Sending, receiving cmsgcred"
+	},
+	{
+	  .func = t_sockcred_1,
+	  .desc = "Receiving sockcred (listening socket)"
+	},
+	{
+	  .func = t_sockcred_2,
+	  .desc = "Receiving sockcred (accepted socket)"
+	},
+	{
+	  .func = t_cmsgcred_sockcred,
+	  .desc = "Sending cmsgcred, receiving sockcred"
+	},
+	{
+	  .func = t_timeval,
+	  .desc = "Sending, receiving timeval"
+	},
+	{
+	  .func = t_bintime,
+	  .desc = "Sending, receiving bintime"
+	},
+	{
+	  .func = t_cmsg_len,
+	  .desc = "Check cmsghdr.cmsg_len"
+	},
+	{
+	  .func = t_peercred,
+	  .desc = "Check LOCAL_PEERCRED socket option"
+	}
 };
 
-static struct test_func test_dgram_tbl[] = {
-	{ NULL,			" 0: All tests" },
-	{ t_cmsgcred,		" 1: Sending, receiving cmsgcred" },
-	{ t_sockcred_dgram,	" 2: Receiving sockcred" },
-	{ t_cmsgcred_sockcred,	" 3: Sending cmsgcred, receiving sockcred" },
-	{ t_timestamp,		" 4: Sending, receiving timestamp" },
-	{ NULL, NULL }
+#define TEST_STREAM_TBL_SIZE \
+	(sizeof(test_stream_tbl) / sizeof(test_stream_tbl[0]))
+
+static const struct test_func test_dgram_tbl[] = {
+	{
+	  .func = NULL,
+	  .desc = "All tests"
+	},
+	{
+	  .func = t_cmsgcred,
+	  .desc = "Sending, receiving cmsgcred"
+	},
+	{
+	  .func = t_sockcred_2,
+	  .desc = "Receiving sockcred"
+	},
+	{
+	  .func = t_cmsgcred_sockcred,
+	  .desc = "Sending cmsgcred, receiving sockcred"
+	},
+	{
+	  .func = t_timeval,
+	  .desc = "Sending, receiving timeval"
+	},
+	{
+	  .func = t_bintime,
+	  .desc = "Sending, receiving bintime"
+	},
+	{
+	  .func = t_cmsg_len,
+	  .desc = "Check cmsghdr.cmsg_len"
+	}
 };
 
-#define TEST_STREAM_NO_MAX	(sizeof(test_stream_tbl) / sizeof(struct test_func) - 2)
-#define TEST_DGRAM_NO_MAX	(sizeof(test_dgram_tbl) / sizeof(struct test_func) - 2)
+#define TEST_DGRAM_TBL_SIZE \
+	(sizeof(test_dgram_tbl) / sizeof(test_dgram_tbl[0]))
 
-static const char *myname = "SERVER";	/* "SERVER" or "CLIENT" */
+static bool	debug = false;
+static bool	server_flag = true;
+static bool	send_data_flag = true;
+static bool	send_array_flag = true;	
+static bool	failed_flag = false;
 
-static int	debug = 0;		/* 1, if -d. */
-static int	no_control_data = 0;	/* 1, if -z. */
+static int	sock_type;
+static const char *sock_type_str;
 
-static u_int	nfailed = 0;		/* Number of failed tests. */
+static const char *proc_name;
 
-static int	sock_type;		/* SOCK_STREAM or SOCK_DGRAM */
-static const char *sock_type_str;	/* "SOCK_STREAM" or "SOCK_DGRAN" */
+static char	work_dir[] = _PATH_TMP "unix_cmsg.XXXXXXX";
+static int	serv_sock_fd;
+static struct sockaddr_un serv_addr_sun;
 
-static char	tempdir[] = "/tmp/unix_cmsg.XXXXXXX";
-static char	serv_sock_path[PATH_MAX];
+static struct {
+	char		*buf_send;
+	char		*buf_recv;
+	size_t		buf_size;
+	u_int		msg_num;
+}		ipc_msg;
 
-static char	ipc_message[] = "hello";
+#define IPC_MSG_NUM_DEF		5
+#define IPC_MSG_NUM_MAX		10
+#define IPC_MSG_SIZE_DEF	7
+#define IPC_MSG_SIZE_MAX	128
 
-#define IPC_MESSAGE_SIZE	(sizeof(ipc_message))
+static struct {
+	uid_t		uid;
+	uid_t		euid;
+	gid_t		gid;
+	gid_t		egid;
+	gid_t		*gid_arr;
+	int		gid_num;
+}		proc_cred;
 
-static struct sockaddr_un servaddr;	/* Server address. */
+static pid_t	client_pid;
 
-static sigjmp_buf env_alrm;
+#define SYNC_SERVER	0
+#define SYNC_CLIENT	1
+#define SYNC_RECV	0
+#define SYNC_SEND	1
 
-static uid_t	my_uid;
-static uid_t	my_euid;
-static gid_t	my_gid;
-static gid_t	my_egid;
+static int	sync_fd[2][2];
 
-/*
- * my_gids[0] is EGID, next items are supplementary GIDs,
- * my_ngids determines valid items in my_gids array.
- */
-static gid_t	my_gids[NGROUPS_MAX];
-static int	my_ngids;
-
-static pid_t	client_pid;		/* PID of forked client. */
-
-#define dbgmsg(x)	do {			\
-	if (debug)				\
-	       logmsgx x ;			\
-} while (/* CONSTCOND */0)
+#define LOGMSG_SIZE	128
 
 static void	logmsg(const char *, ...) __printflike(1, 2);
 static void	logmsgx(const char *, ...) __printflike(1, 2);
+static void	dbgmsg(const char *, ...) __printflike(1, 2);
 static void	output(const char *, ...) __printflike(1, 2);
 
-extern char	*__progname;		/* The name of program. */
-
-/*
- * Output the help message (-h switch).
- */
 static void
-usage(int quick)
+usage(bool verbose)
 {
-	const struct test_func *test_func;
+	u_int i;
 
-	fprintf(stderr, "Usage: %s [-dhz] [-t <socktype>] [testno]\n",
-	    __progname);
-	if (quick)
+	printf("usage: %s [-dh] [-n num] [-s size] [-t type] "
+	    "[-z value] [testno]\n", getprogname());
+	if (!verbose)
 		return;
-	fprintf(stderr, "\n Options are:\n\
-  -d\t\t\tOutput debugging information\n\
-  -h\t\t\tOutput this help message and exit\n\
-  -t <socktype>\t\tRun test only for the given socket type:\n\
-\t\t\tstream or dgram\n\
-  -z\t\t\tDo not send real control data if possible\n\n");
-	fprintf(stderr, " Available tests for stream sockets:\n");
-	for (test_func = test_stream_tbl; test_func->desc != NULL; ++test_func)
-		fprintf(stderr, "  %s\n", test_func->desc);
-	fprintf(stderr, "\n Available tests for datagram sockets:\n");
-	for (test_func = test_dgram_tbl; test_func->desc != NULL; ++test_func)
-		fprintf(stderr, "  %s\n", test_func->desc);
+	printf("\n Options are:\n\
+  -d            Output debugging information\n\
+  -h            Output the help message and exit\n\
+  -n num        Number of messages to send\n\
+  -s size       Specify size of data for IPC\n\
+  -t type       Specify socket type (stream, dgram) for tests\n\
+  -z value      Do not send data in a message (bit 0x1), do not send\n\
+                data array associated with a cmsghdr structure (bit 0x2)\n\
+  testno        Run one test by its number (require the -t option)\n\n");
+	printf(" Available tests for stream sockets:\n");
+	for (i = 0; i < TEST_STREAM_TBL_SIZE; ++i)
+		printf("   %u: %s\n", i, test_stream_tbl[i].desc);
+	printf("\n Available tests for datagram sockets:\n");
+	for (i = 0; i < TEST_DGRAM_TBL_SIZE; ++i)
+		printf("   %u: %s\n", i, test_dgram_tbl[i].desc);
 }
 
-/*
- * printf-like function for outputting to STDOUT_FILENO.
- */
 static void
 output(const char *format, ...)
 {
-	char buf[128];
+	char buf[LOGMSG_SIZE];
 	va_list ap;
 
 	va_start(ap, format);
 	if (vsnprintf(buf, sizeof(buf), format, ap) < 0)
-		err(EX_SOFTWARE, "output: vsnprintf failed");
+		err(EXIT_FAILURE, "output: vsnprintf failed");
 	write(STDOUT_FILENO, buf, strlen(buf));
 	va_end(ap);
 }
 
-/*
- * printf-like function for logging, also outputs message for errno.
- */
 static void
 logmsg(const char *format, ...)
 {
-	char buf[128];
+	char buf[LOGMSG_SIZE];
 	va_list ap;
 	int errno_save;
 
-	errno_save = errno;		/* Save errno. */
-
+	errno_save = errno;
 	va_start(ap, format);
 	if (vsnprintf(buf, sizeof(buf), format, ap) < 0)
-		err(EX_SOFTWARE, "logmsg: vsnprintf failed");
+		err(EXIT_FAILURE, "logmsg: vsnprintf failed");
 	if (errno_save == 0)
-		output("%s: %s\n", myname, buf);
+		output("%s: %s\n", proc_name, buf);
 	else
-		output("%s: %s: %s\n", myname, buf, strerror(errno_save));
+		output("%s: %s: %s\n", proc_name, buf, strerror(errno_save));
 	va_end(ap);
-
-	errno = errno_save;		/* Restore errno. */
+	errno = errno_save;
 }
 
-/*
- * printf-like function for logging, do not output message for errno.
- */
+static void
+vlogmsgx(const char *format, va_list ap)
+{
+	char buf[LOGMSG_SIZE];
+
+	if (vsnprintf(buf, sizeof(buf), format, ap) < 0)
+		err(EXIT_FAILURE, "logmsgx: vsnprintf failed");
+	output("%s: %s\n", proc_name, buf);
+
+}
+
 static void
 logmsgx(const char *format, ...)
 {
-	char buf[128];
 	va_list ap;
 
 	va_start(ap, format);
-	if (vsnprintf(buf, sizeof(buf), format, ap) < 0)
-		err(EX_SOFTWARE, "logmsgx: vsnprintf failed");
-	output("%s: %s\n", myname, buf);
+	vlogmsgx(format, ap);
 	va_end(ap);
 }
 
-/*
- * Run tests from testno1 to testno2.
- */
-static int
-run_tests(u_int testno1, u_int testno2)
+static void
+dbgmsg(const char *format, ...)
 {
-	const struct test_func *test_func;
-	u_int i, nfailed1;
+	va_list ap;
+
+	if (debug) {
+		va_start(ap, format);
+		vlogmsgx(format, ap);
+		va_end(ap);
+	}
+}
+
+static int
+run_tests(int type, u_int testno1)
+{
+	const struct test_func *tf;
+	u_int i, testno2, failed_num;
+
+	sock_type = type;
+	if (type == SOCK_STREAM) {
+		sock_type_str = "SOCK_STREAM";
+		tf = test_stream_tbl;
+		i = TEST_STREAM_TBL_SIZE - 1;
+	} else {
+		sock_type_str = "SOCK_DGRAM";
+		tf = test_dgram_tbl;
+		i = TEST_DGRAM_TBL_SIZE - 1;
+	}
+	if (testno1 == 0) {
+		testno1 = 1;
+		testno2 = i;
+	} else
+		testno2 = testno1;
 
 	output("Running tests for %s sockets:\n", sock_type_str);
-	test_func = (sock_type == SOCK_STREAM ?
-	    test_stream_tbl : test_dgram_tbl) + testno1;
-
-	nfailed1 = 0;
-	for (i = testno1; i <= testno2; ++test_func, ++i) {
-		output(" %s\n", test_func->desc);
-		switch (test_func->func()) {
+	failed_num = 0;
+	for (i = testno1, tf += testno1; i <= testno2; ++tf, ++i) {
+		output("  %u: %s\n", i, tf->desc);
+		switch (tf->func()) {
 		case -1:
-			++nfailed1;
+			++failed_num;
 			break;
 		case -2:
-			logmsgx("some system error occurred, exiting");
+			logmsgx("some system error or timeout occurred");
 			return (-1);
 		}
 	}
 
-	nfailed += nfailed1;
+	if (failed_num != 0)
+		failed_flag = true;
 
 	if (testno1 != testno2) {
-		if (nfailed1 == 0)
-			output("-- all tests were passed!\n");
+		if (failed_num == 0)
+			output("-- all tests passed!\n");
 		else
-			output("-- %u test%s failed!\n", nfailed1,
-			    nfailed1 == 1 ? "" : "s");
+			output("-- %u test%s failed!\n",
+			    failed_num, failed_num == 1 ? "" : "s");
 	} else {
-		if (nfailed == 0)
-			output("-- test was passed!\n");
+		if (failed_num == 0)
+			output("-- test passed!\n");
 		else
 			output("-- test failed!\n");
 	}
@@ -284,183 +365,322 @@ run_tests(u_int testno1, u_int testno2)
 	return (0);
 }
 
-/* ARGSUSED */
-static void
-sig_alrm(int signo __unused)
+static int
+init(void)
 {
-	siglongjmp(env_alrm, 1);
+	struct sigaction sigact;
+	size_t idx;
+	int rv;
+
+	proc_name = "SERVER";
+
+	sigact.sa_handler = SIG_IGN;
+	sigact.sa_flags = 0;
+	sigemptyset(&sigact.sa_mask);
+	if (sigaction(SIGPIPE, &sigact, (struct sigaction *)NULL) < 0) {
+		logmsg("init: sigaction");
+		return (-1);
+	}
+
+	if (ipc_msg.buf_size == 0)
+		ipc_msg.buf_send = ipc_msg.buf_recv = NULL;
+	else {
+		ipc_msg.buf_send = malloc(ipc_msg.buf_size);
+		ipc_msg.buf_recv = malloc(ipc_msg.buf_size);
+		if (ipc_msg.buf_send == NULL || ipc_msg.buf_recv == NULL) {
+			logmsg("init: malloc");
+			return (-1);
+		}
+		for (idx = 0; idx < ipc_msg.buf_size; ++idx)
+			ipc_msg.buf_send[idx] = (char)idx;
+	}
+
+	proc_cred.uid = getuid();
+	proc_cred.euid = geteuid();
+	proc_cred.gid = getgid();
+	proc_cred.egid = getegid();
+	proc_cred.gid_num = getgroups(0, (gid_t *)NULL);
+	if (proc_cred.gid_num < 0) {
+		logmsg("init: getgroups");
+		return (-1);
+	}
+	proc_cred.gid_arr = malloc(proc_cred.gid_num *
+	    sizeof(*proc_cred.gid_arr));
+	if (proc_cred.gid_arr == NULL) {
+		logmsg("init: malloc");
+		return (-1);
+	}
+	if (getgroups(proc_cred.gid_num, proc_cred.gid_arr) < 0) {
+		logmsg("init: getgroups");
+		return (-1);
+	}
+
+	memset(&serv_addr_sun, 0, sizeof(serv_addr_sun));
+	rv = snprintf(serv_addr_sun.sun_path, sizeof(serv_addr_sun.sun_path),
+	    "%s/%s", work_dir, proc_name);
+	if (rv < 0) {
+		logmsg("init: snprintf");
+		return (-1);
+	}
+	if ((size_t)rv >= sizeof(serv_addr_sun.sun_path)) {
+		logmsgx("init: not enough space for socket pathname");
+		return (-1);
+	}
+	serv_addr_sun.sun_family = PF_LOCAL;
+	serv_addr_sun.sun_len = SUN_LEN(&serv_addr_sun);
+
+	return (0);
 }
 
-/*
- * Initialize signals handlers.
- */
-static void
-sig_init(void)
+static int
+client_fork(void)
 {
-	struct sigaction sa;
+	int fd1, fd2;
 
-	sa.sa_handler = SIG_IGN;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	if (sigaction(SIGPIPE, &sa, (struct sigaction *)NULL) < 0) 
-		err(EX_OSERR, "sigaction(SIGPIPE)");
+	if (pipe(sync_fd[SYNC_SERVER]) < 0 ||
+	    pipe(sync_fd[SYNC_CLIENT]) < 0) {
+		logmsg("client_fork: pipe");
+		return (-1);
+	}
+	client_pid = fork();
+	if (client_pid == (pid_t)-1) {
+		logmsg("client_fork: fork");
+		return (-1);
+	}
+	if (client_pid == 0) {
+		proc_name = "CLIENT";
+		server_flag = false;
+		fd1 = sync_fd[SYNC_SERVER][SYNC_RECV];
+		fd2 = sync_fd[SYNC_CLIENT][SYNC_SEND];
+	} else {
+		fd1 = sync_fd[SYNC_SERVER][SYNC_SEND];
+		fd2 = sync_fd[SYNC_CLIENT][SYNC_RECV];
+	}
+	if (close(fd1) < 0 || close(fd2) < 0) {
+		logmsg("client_fork: close");
+		return (-1);
+	}
+	return (client_pid != 0);
+}
 
-	sa.sa_handler = sig_alrm;
-	if (sigaction(SIGALRM, &sa, (struct sigaction *)NULL) < 0)
-		err(EX_OSERR, "sigaction(SIGALRM)");
+static void
+client_exit(int rv)
+{
+	if (close(sync_fd[SYNC_SERVER][SYNC_SEND]) < 0 ||
+	    close(sync_fd[SYNC_CLIENT][SYNC_RECV]) < 0) {
+		logmsg("client_exit: close");
+		rv = -1;
+	}
+	rv = rv == 0 ? EXIT_SUCCESS : -rv;
+	dbgmsg("exit: code %d", rv);
+	_exit(rv);
+}
+
+static int
+client_wait(void)
+{
+	int status;
+	pid_t pid;
+
+	dbgmsg("waiting for client");
+
+	if (close(sync_fd[SYNC_SERVER][SYNC_RECV]) < 0 ||
+	    close(sync_fd[SYNC_CLIENT][SYNC_SEND]) < 0) {
+		logmsg("client_wait: close");
+		return (-1);
+	}
+
+	pid = waitpid(client_pid, &status, 0);
+	if (pid == (pid_t)-1) {
+		logmsg("client_wait: waitpid");
+		return (-1);
+	}
+
+	if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) != EXIT_SUCCESS) {
+			logmsgx("client exit status is %d",
+			    WEXITSTATUS(status));
+			return (-WEXITSTATUS(status));
+		}
+	} else {
+		if (WIFSIGNALED(status))
+			logmsgx("abnormal termination of client, signal %d%s",
+			    WTERMSIG(status), WCOREDUMP(status) ?
+			    " (core file generated)" : "");
+		else
+			logmsgx("termination of client, unknown status");
+		return (-1);
+	}
+
+	return (0);
 }
 
 int
 main(int argc, char *argv[])
 {
 	const char *errstr;
-	int opt, dgramflag, streamflag;
-	u_int testno1, testno2;
+	u_int testno, zvalue;
+	int opt, rv;
+	bool dgram_flag, stream_flag;
 
-	dgramflag = streamflag = 0;
-	while ((opt = getopt(argc, argv, "dht:z")) != -1)
+	ipc_msg.buf_size = IPC_MSG_SIZE_DEF;
+	ipc_msg.msg_num = IPC_MSG_NUM_DEF;
+	dgram_flag = stream_flag = false;
+	while ((opt = getopt(argc, argv, "dhn:s:t:z:")) != -1)
 		switch (opt) {
 		case 'd':
-			debug = 1;
+			debug = true;
 			break;
 		case 'h':
-			usage(0);
-			return (EX_OK);
+			usage(true);
+			return (EXIT_SUCCESS);
+		case 'n':
+			ipc_msg.msg_num = strtonum(optarg, 1,
+			    IPC_MSG_NUM_MAX, &errstr);
+			if (errstr != NULL)
+				errx(EXIT_FAILURE, "option -n: number is %s",
+				    errstr);
+			break;
+		case 's':
+			ipc_msg.buf_size = strtonum(optarg, 0,
+			    IPC_MSG_SIZE_MAX, &errstr);
+			if (errstr != NULL)
+				errx(EXIT_FAILURE, "option -s: number is %s",
+				    errstr);
+			break;
 		case 't':
 			if (strcmp(optarg, "stream") == 0)
-				streamflag = 1;
+				stream_flag = true;
 			else if (strcmp(optarg, "dgram") == 0)
-				dgramflag = 1;
+				dgram_flag = true;
 			else
-				errx(EX_USAGE, "wrong socket type in -t option");
+				errx(EXIT_FAILURE, "option -t: "
+				    "wrong socket type");
 			break;
 		case 'z':
-			no_control_data = 1;
+			zvalue = strtonum(optarg, 0, 3, &errstr);
+			if (errstr != NULL)
+				errx(EXIT_FAILURE, "option -z: number is %s",
+				    errstr);
+			if (zvalue & 0x1)
+				send_data_flag = false;
+			if (zvalue & 0x2)
+				send_array_flag = false;
 			break;
-		case '?':
 		default:
-			usage(1);
-			return (EX_USAGE);
+			usage(false);
+			return (EXIT_FAILURE);
 		}
 
 	if (optind < argc) {
 		if (optind + 1 != argc)
-			errx(EX_USAGE, "too many arguments");
-		testno1 = strtonum(argv[optind], 0, UINT_MAX, &errstr);
+			errx(EXIT_FAILURE, "too many arguments");
+		testno = strtonum(argv[optind], 0, UINT_MAX, &errstr);
 		if (errstr != NULL)
-			errx(EX_USAGE, "wrong test number: %s", errstr);
+			errx(EXIT_FAILURE, "test number is %s", errstr);
+		if (stream_flag && testno >= TEST_STREAM_TBL_SIZE)
+			errx(EXIT_FAILURE, "given test %u for stream "
+			    "sockets does not exist", testno);
+		if (dgram_flag && testno >= TEST_DGRAM_TBL_SIZE)
+			errx(EXIT_FAILURE, "given test %u for datagram "
+			    "sockets does not exist", testno);
 	} else
-		testno1 = 0;
+		testno = 0;
 
-	if (dgramflag == 0 && streamflag == 0)
-		dgramflag = streamflag = 1;
-
-	if (dgramflag && streamflag && testno1 != 0)
-		errx(EX_USAGE, "you can use particular test, only with datagram or stream sockets");
-
-	if (streamflag) {
-		if (testno1 > TEST_STREAM_NO_MAX)
-			errx(EX_USAGE, "given test %u for stream sockets does not exist",
-			    testno1);
-	} else {
-		if (testno1 > TEST_DGRAM_NO_MAX)
-			errx(EX_USAGE, "given test %u for datagram sockets does not exist",
-			    testno1);
+	if (!dgram_flag && !stream_flag) {
+		if (testno != 0)
+			errx(EXIT_FAILURE, "particular test number "
+			    "can be used with the -t option only");
+		dgram_flag = stream_flag = true;
 	}
 
-	my_uid = getuid();
-	my_euid = geteuid();
-	my_gid = getgid();
-	my_egid = getegid();
-	switch (my_ngids = getgroups(sizeof(my_gids) / sizeof(my_gids[0]), my_gids)) {
-	case -1:
-		err(EX_SOFTWARE, "getgroups");
-		/* NOTREACHED */
-	case 0:
-		errx(EX_OSERR, "getgroups returned 0 groups");
+	if (mkdtemp(work_dir) == NULL)
+		err(EXIT_FAILURE, "mkdtemp(%s)", work_dir);
+
+	rv = EXIT_FAILURE;
+	if (init() < 0)
+		goto done;
+
+	if (stream_flag)
+		if (run_tests(SOCK_STREAM, testno) < 0)
+			goto done;
+	if (dgram_flag)
+		if (run_tests(SOCK_DGRAM, testno) < 0)
+			goto done;
+
+	rv = EXIT_SUCCESS;
+done:
+	if (rmdir(work_dir) < 0) {
+		logmsg("rmdir(%s)", work_dir);
+		rv = EXIT_FAILURE;
 	}
-
-	sig_init();
-
-	if (mkdtemp(tempdir) == NULL)
-		err(EX_OSERR, "mkdtemp");
-
-	if (streamflag) {
-		sock_type = SOCK_STREAM;
-		sock_type_str = "SOCK_STREAM";
-		if (testno1 == 0) {
-			testno1 = 1;
-			testno2 = TEST_STREAM_NO_MAX;
-		} else
-			testno2 = testno1;
-		if (run_tests(testno1, testno2) < 0)
-			goto failed;
-		testno1 = 0;
-	}
-
-	if (dgramflag) {
-		sock_type = SOCK_DGRAM;
-		sock_type_str = "SOCK_DGRAM";
-		if (testno1 == 0) {
-			testno1 = 1;
-			testno2 = TEST_DGRAM_NO_MAX;
-		} else
-			testno2 = testno1;
-		if (run_tests(testno1, testno2) < 0)
-			goto failed;
-	}
-
-	if (rmdir(tempdir) < 0) {
-		logmsg("rmdir(%s)", tempdir);
-		return (EX_OSERR);
-	}
-
-	return (nfailed ? EX_OSERR : EX_OK);
-
-failed:
-	if (rmdir(tempdir) < 0)
-		logmsg("rmdir(%s)", tempdir);
-	return (EX_OSERR);
+	return (failed_flag ? EXIT_FAILURE : rv);
 }
 
-/*
- * Create PF_LOCAL socket, if sock_path is not equal to NULL, then
- * bind() it.  Return socket address in addr.  Return file descriptor
- * or -1 if some error occurred.
- */
 static int
-create_socket(char *sock_path, size_t sock_path_len, struct sockaddr_un *addr)
+socket_close(int fd)
 {
-	int rv, fd;
+	int rv;
 
-	if ((fd = socket(PF_LOCAL, sock_type, 0)) < 0) {
-		logmsg("create_socket: socket(PF_LOCAL, %s, 0)", sock_type_str);
+	rv = 0;
+	if (close(fd) < 0) {
+		logmsg("socket_close: close");
+		rv = -1;
+	}
+	if (server_flag && fd == serv_sock_fd)
+		if (unlink(serv_addr_sun.sun_path) < 0) {
+			logmsg("socket_close: unlink(%s)",
+			    serv_addr_sun.sun_path);
+			rv = -1;
+		}
+	return (rv);
+}
+
+static int
+socket_create(void)
+{
+	struct timeval tv;
+	int fd;
+
+	fd = socket(PF_LOCAL, sock_type, 0);
+	if (fd < 0) {
+		logmsg("socket_create: socket(PF_LOCAL, %s, 0)", sock_type_str);
 		return (-1);
 	}
+	if (server_flag)
+		serv_sock_fd = fd;
 
-	if (sock_path != NULL) {
-		if ((rv = snprintf(sock_path, sock_path_len, "%s/%s",
-		    tempdir, myname)) < 0) {
-			logmsg("create_socket: snprintf failed");
+	tv.tv_sec = TIMEOUT;
+	tv.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0 ||
+	    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
+		logmsg("socket_create: setsockopt(SO_RCVTIMEO/SO_SNDTIMEO)");
+		goto failed;
+	}
+
+	if (server_flag) {
+		if (bind(fd, (struct sockaddr *)&serv_addr_sun,
+		    serv_addr_sun.sun_len) < 0) {
+			logmsg("socket_create: bind(%s)",
+			    serv_addr_sun.sun_path);
 			goto failed;
 		}
-		if ((size_t)rv >= sock_path_len) {
-			logmsgx("create_socket: too long path name for given buffer");
-			goto failed;
-		}
+		if (sock_type == SOCK_STREAM) {
+			int val;
 
-		memset(addr, 0, sizeof(*addr));
-		addr->sun_family = AF_LOCAL;
-		if (strlen(sock_path) >= sizeof(addr->sun_path)) {
-			logmsgx("create_socket: too long path name (>= %lu) for local domain socket",
-			    (u_long)sizeof(addr->sun_path));
-			goto failed;
-		}
-		strcpy(addr->sun_path, sock_path);
-
-		if (bind(fd, (struct sockaddr *)addr, SUN_LEN(addr)) < 0) {
-			logmsg("create_socket: bind(%s)", sock_path);
-			goto failed;
+			if (listen(fd, LISTENQ) < 0) {
+				logmsg("socket_create: listen");
+				goto failed;
+			}
+			val = fcntl(fd, F_GETFL, 0);
+			if (val < 0) {
+				logmsg("socket_create: fcntl(F_GETFL)");
+				goto failed;
+			}
+			if (fcntl(fd, F_SETFL, val | O_NONBLOCK) < 0) {
+				logmsg("socket_create: fcntl(F_SETFL)");
+				goto failed;
+			}
 		}
 	}
 
@@ -468,1163 +688,1282 @@ create_socket(char *sock_path, size_t sock_path_len, struct sockaddr_un *addr)
 
 failed:
 	if (close(fd) < 0)
-		logmsg("create_socket: close");
+		logmsg("socket_create: close");
+	if (server_flag)
+		if (unlink(serv_addr_sun.sun_path) < 0)
+			logmsg("socket_close: unlink(%s)",
+			    serv_addr_sun.sun_path);
 	return (-1);
 }
 
-/*
- * Call create_socket() for server listening socket.
- * Return socket descriptor or -1 if some error occurred.
- */
 static int
-create_server_socket(void)
+socket_connect(int fd)
 {
-	return (create_socket(serv_sock_path, sizeof(serv_sock_path), &servaddr));
-}
+	dbgmsg("connect");
 
-/*
- * Create unbound socket.
- */
-static int
-create_unbound_socket(void)
-{
-	return (create_socket((char *)NULL, 0, (struct sockaddr_un *)NULL));
-}
-
-/*
- * Close socket descriptor, if sock_path is not equal to NULL,
- * then unlink the given path.
- */
-static int
-close_socket(const char *sock_path, int fd)
-{
-	int error = 0;
-
-	if (close(fd) < 0) {
-		logmsg("close_socket: close");
-		error = -1;
-	}
-	if (sock_path != NULL)
-		if (unlink(sock_path) < 0) {
-			logmsg("close_socket: unlink(%s)", sock_path);
-			error = -1;
-		}
-	return (error);
-}
-
-/*
- * Connect to server (socket address in servaddr).
- */
-static int
-connect_server(int fd)
-{
-	dbgmsg(("connecting to %s", serv_sock_path));
-
-	/*
-	 * If PF_LOCAL listening socket's queue is full, then connect()
-	 * returns ECONNREFUSED immediately, do not need timeout.
-	 */
-	if (connect(fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
-		logmsg("connect_server: connect(%s)", serv_sock_path);
+	if (connect(fd, (struct sockaddr *)&serv_addr_sun,
+	    serv_addr_sun.sun_len) < 0) {
+		logmsg("socket_connect: connect(%s)", serv_addr_sun.sun_path);
 		return (-1);
 	}
-
 	return (0);
 }
 
-/*
- * sendmsg() with timeout.
- */
 static int
-sendmsg_timeout(int fd, struct msghdr *msg, size_t n)
+sync_recv(void)
 {
-	ssize_t nsent;
-
-	dbgmsg(("sending %lu bytes", (u_long)n));
-
-	if (sigsetjmp(env_alrm, 1) != 0) {
-		logmsgx("sendmsg_timeout: cannot send message to %s (timeout)", serv_sock_path);
-		return (-1);
-	}
-
-	(void)alarm(TIMEOUT);
-
-	nsent = sendmsg(fd, msg, 0);
-
-	(void)alarm(0);
-
-	if (nsent < 0) {
-		logmsg("sendmsg_timeout: sendmsg");
-		return (-1);
-	}
-
-	if ((size_t)nsent != n) {
-		logmsgx("sendmsg_timeout: sendmsg: short send: %ld of %lu bytes",
-		    (long)nsent, (u_long)n);
-		return (-1);
-	}
-
-	return (0);
-}
-
-/*
- * accept() with timeout.
- */
-static int
-accept_timeout(int listenfd)
-{
+	ssize_t ssize;
 	int fd;
-
-	dbgmsg(("accepting connection"));
-
-	if (sigsetjmp(env_alrm, 1) != 0) {
-		logmsgx("accept_timeout: cannot accept connection (timeout)");
-		return (-1);
-	}
-
-	(void)alarm(TIMEOUT);
-
-	fd = accept(listenfd, (struct sockaddr *)NULL, (socklen_t *)NULL);
-
-	(void)alarm(0);
-
-	if (fd < 0) {
-		logmsg("accept_timeout: accept");
-		return (-1);
-	}
-
-	return (fd);
-}
-
-/*
- * recvmsg() with timeout.
- */
-static int
-recvmsg_timeout(int fd, struct msghdr *msg, size_t n)
-{
-	ssize_t nread;
-
-	dbgmsg(("receiving %lu bytes", (u_long)n));
-
-	if (sigsetjmp(env_alrm, 1) != 0) {
-		logmsgx("recvmsg_timeout: cannot receive message (timeout)");
-		return (-1);
-	}
-
-	(void)alarm(TIMEOUT);
-
-	nread = recvmsg(fd, msg, MSG_WAITALL);
-
-	(void)alarm(0);
-
-	if (nread < 0) {
-		logmsg("recvmsg_timeout: recvmsg");
-		return (-1);
-	}
-
-	if ((size_t)nread != n) {
-		logmsgx("recvmsg_timeout: recvmsg: short read: %ld of %lu bytes",
-		    (long)nread, (u_long)n);
-		return (-1);
-	}
-
-	return (0);
-}
-
-/*
- * Wait for synchronization message (1 byte) with timeout.
- */
-static int
-sync_recv(int fd)
-{
-	ssize_t nread;
 	char buf;
 
-	dbgmsg(("waiting for sync message"));
+	dbgmsg("sync: wait");
 
-	if (sigsetjmp(env_alrm, 1) != 0) {
-		logmsgx("sync_recv: cannot receive sync message (timeout)");
-		return (-1);
-	}
+	fd = sync_fd[server_flag ? SYNC_SERVER : SYNC_CLIENT][SYNC_RECV];
 
-	(void)alarm(TIMEOUT);
-
-	nread = read(fd, &buf, 1);
-
-	(void)alarm(0);
-
-	if (nread < 0) {
+	ssize = read(fd, &buf, 1);
+	if (ssize < 0) {
 		logmsg("sync_recv: read");
 		return (-1);
 	}
-
-	if (nread != 1) {
-		logmsgx("sync_recv: read: short read: %ld of 1 byte",
-		    (long)nread);
+	if (ssize < 1) {
+		logmsgx("sync_recv: read %zd of 1 byte", ssize);
 		return (-1);
 	}
+
+	dbgmsg("sync: received");
 
 	return (0);
 }
 
-/*
- * Send synchronization message (1 byte) with timeout.
- */
 static int
-sync_send(int fd)
+sync_send(void)
 {
-	ssize_t nsent;
+	ssize_t ssize;
+	int fd;
 
-	dbgmsg(("sending sync message"));
+	dbgmsg("sync: send");
 
-	if (sigsetjmp(env_alrm, 1) != 0) {
-		logmsgx("sync_send: cannot send sync message (timeout)");
-		return (-1);
-	}
+	fd = sync_fd[server_flag ? SYNC_CLIENT : SYNC_SERVER][SYNC_SEND];
 
-	(void)alarm(TIMEOUT);
-
-	nsent = write(fd, "", 1);
-
-	(void)alarm(0);
-
-	if (nsent < 0) {
+	ssize = write(fd, "", 1);
+	if (ssize < 0) {
 		logmsg("sync_send: write");
 		return (-1);
 	}
-
-	if (nsent != 1) {
-		logmsgx("sync_send: write: short write: %ld of 1 byte",
-		    (long)nsent);
+	if (ssize < 1) {
+		logmsgx("sync_send: sent %zd of 1 byte", ssize);
 		return (-1);
 	}
 
 	return (0);
 }
 
-/*
- * waitpid() for client with timeout.
- */
 static int
-wait_client(void)
+message_send(int fd, const struct msghdr *msghdr)
 {
-	int status;
-	pid_t pid;
+	const struct cmsghdr *cmsghdr;
+	size_t size;
+	ssize_t ssize;
 
-	if (sigsetjmp(env_alrm, 1) != 0) {
-		logmsgx("wait_client: cannot get exit status of client PID %ld (timeout)",
-		    (long)client_pid);
+	size = msghdr->msg_iov != 0 ? msghdr->msg_iov->iov_len : 0;
+	dbgmsg("send: data size %zu", size);
+	dbgmsg("send: msghdr.msg_controllen %u",
+	    (u_int)msghdr->msg_controllen);
+	cmsghdr = CMSG_FIRSTHDR(msghdr);
+	if (cmsghdr != NULL)
+		dbgmsg("send: cmsghdr.cmsg_len %u",
+		    (u_int)cmsghdr->cmsg_len);
+
+	ssize = sendmsg(fd, msghdr, 0);
+	if (ssize < 0) {
+		logmsg("message_send: sendmsg");
+		return (-1);
+	}
+	if ((size_t)ssize != size) {
+		logmsgx("message_send: sendmsg: sent %zd of %zu bytes",
+		    ssize, size);
 		return (-1);
 	}
 
-	(void)alarm(TIMEOUT);
+	if (!send_data_flag)
+		if (sync_send() < 0)
+			return (-1);
 
-	pid = waitpid(client_pid, &status, 0);
+	return (0);
+}
 
-	(void)alarm(0);
+static int
+message_sendn(int fd, struct msghdr *msghdr)
+{
+	u_int i;
 
-	if (pid == (pid_t)-1) {
-		logmsg("wait_client: waitpid");
+	for (i = 1; i <= ipc_msg.msg_num; ++i) {
+		dbgmsg("message #%u", i);
+		if (message_send(fd, msghdr) < 0)
+			return (-1);
+	}
+	return (0);
+}
+
+static int
+message_recv(int fd, struct msghdr *msghdr)
+{
+	const struct cmsghdr *cmsghdr;
+	size_t size;
+	ssize_t ssize;
+
+	if (!send_data_flag)
+		if (sync_recv() < 0)
+			return (-1);
+
+	size = msghdr->msg_iov != NULL ? msghdr->msg_iov->iov_len : 0;
+	ssize = recvmsg(fd, msghdr, MSG_WAITALL);
+	if (ssize < 0) {
+		logmsg("message_recv: recvmsg");
+		return (-1);
+	}
+	if ((size_t)ssize != size) {
+		logmsgx("message_recv: recvmsg: received %zd of %zu bytes",
+		    ssize, size);
 		return (-1);
 	}
 
-	if (WIFEXITED(status)) {
-		if (WEXITSTATUS(status) != 0) {
-			logmsgx("wait_client: exit status of client PID %ld is %d",
-			    (long)client_pid, WEXITSTATUS(status));
+	dbgmsg("recv: data size %zd", ssize);
+	dbgmsg("recv: msghdr.msg_controllen %u",
+	    (u_int)msghdr->msg_controllen);
+	cmsghdr = CMSG_FIRSTHDR(msghdr);
+	if (cmsghdr != NULL)
+		dbgmsg("recv: cmsghdr.cmsg_len %u",
+		    (u_int)cmsghdr->cmsg_len);
+
+	if (memcmp(ipc_msg.buf_recv, ipc_msg.buf_send, size) != 0) {
+		logmsgx("message_recv: received message has wrong content");
+		return (-1);
+	}
+
+	return (0);
+}
+
+static int
+socket_accept(int listenfd)
+{
+	fd_set rset;
+	struct timeval tv;
+	int fd, rv, val;
+
+	dbgmsg("accept");
+
+	FD_ZERO(&rset);
+	FD_SET(listenfd, &rset);
+	tv.tv_sec = TIMEOUT;
+	tv.tv_usec = 0;
+	rv = select(listenfd + 1, &rset, (fd_set *)NULL, (fd_set *)NULL, &tv);
+	if (rv < 0) {
+		logmsg("socket_accept: select");
+		return (-1);
+	}
+	if (rv == 0) {
+		logmsgx("socket_accept: select timeout");
+		return (-1);
+	}
+
+	fd = accept(listenfd, (struct sockaddr *)NULL, (socklen_t *)NULL);
+	if (fd < 0) {
+		logmsg("socket_accept: accept");
+		return (-1);
+	}
+
+	val = fcntl(fd, F_GETFL, 0);
+	if (val < 0) {
+		logmsg("socket_accept: fcntl(F_GETFL)");
+		goto failed;
+	}
+	if (fcntl(fd, F_SETFL, val & ~O_NONBLOCK) < 0) {
+		logmsg("socket_accept: fcntl(F_SETFL)");
+		goto failed;
+	}
+
+	return (fd);
+
+failed:
+	if (close(fd) < 0)
+		logmsg("socket_accept: close");
+	return (-1);
+}
+
+static int
+check_msghdr(const struct msghdr *msghdr, size_t size)
+{
+	if (msghdr->msg_flags & MSG_TRUNC) {
+		logmsgx("msghdr.msg_flags has MSG_TRUNC");
+		return (-1);
+	}
+	if (msghdr->msg_flags & MSG_CTRUNC) {
+		logmsgx("msghdr.msg_flags has MSG_CTRUNC");
+		return (-1);
+	}
+	if (msghdr->msg_controllen < size) {
+		logmsgx("msghdr.msg_controllen %u < %zu",
+		    (u_int)msghdr->msg_controllen, size);
+		return (-1);
+	}
+	if (msghdr->msg_controllen > 0 && size == 0) {
+		logmsgx("msghdr.msg_controllen %u > 0",
+		    (u_int)msghdr->msg_controllen);
+		return (-1);
+	}
+	return (0);
+}
+
+static int
+check_cmsghdr(const struct cmsghdr *cmsghdr, int type, size_t size)
+{
+	if (cmsghdr == NULL) {
+		logmsgx("cmsghdr is NULL");
+		return (-1);
+	}
+	if (cmsghdr->cmsg_level != SOL_SOCKET) {
+		logmsgx("cmsghdr.cmsg_level %d != SOL_SOCKET",
+		    cmsghdr->cmsg_level);
+		return (-1);
+	}
+	if (cmsghdr->cmsg_type != type) {
+		logmsgx("cmsghdr.cmsg_type %d != %d",
+		    cmsghdr->cmsg_type, type);
+		return (-1);
+	}
+	if (cmsghdr->cmsg_len != CMSG_LEN(size)) {
+		logmsgx("cmsghdr.cmsg_len %u != %zu",
+		    (u_int)cmsghdr->cmsg_len, CMSG_LEN(size));
+		return (-1);
+	}
+	return (0);
+}
+
+static int
+check_groups(const char *gid_arr_str, const gid_t *gid_arr,
+    const char *gid_num_str, int gid_num, bool all_gids)
+{
+	int i;
+
+	for (i = 0; i < gid_num; ++i)
+		dbgmsg("%s[%d] %lu", gid_arr_str, i, (u_long)gid_arr[i]);
+
+	if (all_gids) {
+		if (gid_num != proc_cred.gid_num) {
+			logmsgx("%s %d != %d", gid_num_str, gid_num,
+			    proc_cred.gid_num);
 			return (-1);
 		}
 	} else {
-		if (WIFSIGNALED(status))
-			logmsgx("wait_client: abnormal termination of client PID %ld, signal %d%s",
-			    (long)client_pid, WTERMSIG(status), WCOREDUMP(status) ? " (core file generated)" : "");
-		else
-			logmsgx("wait_client: termination of client PID %ld, unknown status",
-			    (long)client_pid);
+		if (gid_num > proc_cred.gid_num) {
+			logmsgx("%s %d > %d", gid_num_str, gid_num,
+			    proc_cred.gid_num);
+			return (-1);
+		}
+	}
+	if (memcmp(gid_arr, proc_cred.gid_arr,
+	    gid_num * sizeof(*gid_arr)) != 0) {
+		logmsgx("%s content is wrong", gid_arr_str);
+		for (i = 0; i < gid_num; ++i)
+			if (gid_arr[i] != proc_cred.gid_arr[i]) {
+				logmsgx("%s[%d] %lu != %lu",
+				    gid_arr_str, i, (u_long)gid_arr[i],
+				    (u_long)proc_cred.gid_arr[i]);
+				break;
+			}
 		return (-1);
 	}
+	return (0);
+}
+
+static int
+check_xucred(const struct xucred *xucred, socklen_t len)
+{
+	if (len != sizeof(*xucred)) {
+		logmsgx("option value size %zu != %zu",
+		    (size_t)len, sizeof(*xucred));
+		return (-1);
+	}
+
+	dbgmsg("xucred.cr_version %u", xucred->cr_version);
+	dbgmsg("xucred.cr_uid %lu", (u_long)xucred->cr_uid);
+	dbgmsg("xucred.cr_ngroups %d", xucred->cr_ngroups);
+
+	if (xucred->cr_version != XUCRED_VERSION) {
+		logmsgx("xucred.cr_version %u != %d",
+		    xucred->cr_version, XUCRED_VERSION);
+		return (-1);
+	}
+	if (xucred->cr_uid != proc_cred.euid) {
+		logmsgx("xucred.cr_uid %lu != %lu (EUID)",
+		   (u_long)xucred->cr_uid, (u_long)proc_cred.euid);
+		return (-1);
+	}
+	if (xucred->cr_ngroups == 0) {
+		logmsgx("xucred.cr_ngroups == 0");
+		return (-1);
+	}
+	if (xucred->cr_ngroups < 0) {
+		logmsgx("xucred.cr_ngroups < 0");
+		return (-1);
+	}
+	if (xucred->cr_ngroups > XU_NGROUPS) {
+		logmsgx("xucred.cr_ngroups %hu > %u (max)",
+		    xucred->cr_ngroups, XU_NGROUPS);
+		return (-1);
+	}
+	if (xucred->cr_groups[0] != proc_cred.egid) {
+		logmsgx("xucred.cr_groups[0] %lu != %lu (EGID)",
+		    (u_long)xucred->cr_groups[0], (u_long)proc_cred.egid);
+		return (-1);
+	}
+	if (check_groups("xucred.cr_groups", xucred->cr_groups,
+	    "xucred.cr_ngroups", xucred->cr_ngroups, false) < 0)
+		return (-1);
+	return (0);
+}
+
+static int
+check_scm_creds_cmsgcred(struct cmsghdr *cmsghdr)
+{
+	const struct cmsgcred *cmsgcred;
+
+	if (check_cmsghdr(cmsghdr, SCM_CREDS, sizeof(*cmsgcred)) < 0)
+		return (-1);
+
+	cmsgcred = (struct cmsgcred *)CMSG_DATA(cmsghdr);
+
+	dbgmsg("cmsgcred.cmcred_pid %ld", (long)cmsgcred->cmcred_pid);
+	dbgmsg("cmsgcred.cmcred_uid %lu", (u_long)cmsgcred->cmcred_uid);
+	dbgmsg("cmsgcred.cmcred_euid %lu", (u_long)cmsgcred->cmcred_euid);
+	dbgmsg("cmsgcred.cmcred_gid %lu", (u_long)cmsgcred->cmcred_gid);
+	dbgmsg("cmsgcred.cmcred_ngroups %d", cmsgcred->cmcred_ngroups);
+
+	if (cmsgcred->cmcred_pid != client_pid) {
+		logmsgx("cmsgcred.cmcred_pid %ld != %ld",
+		    (long)cmsgcred->cmcred_pid, (long)client_pid);
+		return (-1);
+	}
+	if (cmsgcred->cmcred_uid != proc_cred.uid) {
+		logmsgx("cmsgcred.cmcred_uid %lu != %lu",
+		    (u_long)cmsgcred->cmcred_uid, (u_long)proc_cred.uid);
+		return (-1);
+	}
+	if (cmsgcred->cmcred_euid != proc_cred.euid) {
+		logmsgx("cmsgcred.cmcred_euid %lu != %lu",
+		    (u_long)cmsgcred->cmcred_euid, (u_long)proc_cred.euid);
+		return (-1);
+	}
+	if (cmsgcred->cmcred_gid != proc_cred.gid) {
+		logmsgx("cmsgcred.cmcred_gid %lu != %lu",
+		    (u_long)cmsgcred->cmcred_gid, (u_long)proc_cred.gid);
+		return (-1);
+	}
+	if (cmsgcred->cmcred_ngroups == 0) {
+		logmsgx("cmsgcred.cmcred_ngroups == 0");
+		return (-1);
+	}
+	if (cmsgcred->cmcred_ngroups < 0) {
+		logmsgx("cmsgcred.cmcred_ngroups %d < 0",
+		    cmsgcred->cmcred_ngroups);
+		return (-1);
+	}
+	if (cmsgcred->cmcred_ngroups > CMGROUP_MAX) {
+		logmsgx("cmsgcred.cmcred_ngroups %d > %d",
+		    cmsgcred->cmcred_ngroups, CMGROUP_MAX);
+		return (-1);
+	}
+	if (cmsgcred->cmcred_groups[0] != proc_cred.egid) {
+		logmsgx("cmsgcred.cmcred_groups[0] %lu != %lu (EGID)",
+		    (u_long)cmsgcred->cmcred_groups[0], (u_long)proc_cred.egid);
+		return (-1);
+	}
+	if (check_groups("cmsgcred.cmcred_groups", cmsgcred->cmcred_groups,
+	    "cmsgcred.cmcred_ngroups", cmsgcred->cmcred_ngroups, false) < 0)
+		return (-1);
+	return (0);
+}
+
+static int
+check_scm_creds_sockcred(struct cmsghdr *cmsghdr)
+{
+	const struct sockcred *sockcred;
+
+	if (check_cmsghdr(cmsghdr, SCM_CREDS,
+	    SOCKCREDSIZE(proc_cred.gid_num)) < 0)
+		return (-1);
+
+	sockcred = (struct sockcred *)CMSG_DATA(cmsghdr);
+
+	dbgmsg("sockcred.sc_uid %lu", (u_long)sockcred->sc_uid);
+	dbgmsg("sockcred.sc_euid %lu", (u_long)sockcred->sc_euid);
+	dbgmsg("sockcred.sc_gid %lu", (u_long)sockcred->sc_gid);
+	dbgmsg("sockcred.sc_egid %lu", (u_long)sockcred->sc_egid);
+	dbgmsg("sockcred.sc_ngroups %d", sockcred->sc_ngroups);
+
+	if (sockcred->sc_uid != proc_cred.uid) {
+		logmsgx("sockcred.sc_uid %lu != %lu",
+		    (u_long)sockcred->sc_uid, (u_long)proc_cred.uid);
+		return (-1);
+	}
+	if (sockcred->sc_euid != proc_cred.euid) {
+		logmsgx("sockcred.sc_euid %lu != %lu",
+		    (u_long)sockcred->sc_euid, (u_long)proc_cred.euid);
+		return (-1);
+	}
+	if (sockcred->sc_gid != proc_cred.gid) {
+		logmsgx("sockcred.sc_gid %lu != %lu",
+		    (u_long)sockcred->sc_gid, (u_long)proc_cred.gid);
+		return (-1);
+	}
+	if (sockcred->sc_egid != proc_cred.egid) {
+		logmsgx("sockcred.sc_egid %lu != %lu",
+		    (u_long)sockcred->sc_egid, (u_long)proc_cred.egid);
+		return (-1);
+	}
+	if (sockcred->sc_ngroups == 0) {
+		logmsgx("sockcred.sc_ngroups == 0");
+		return (-1);
+	}
+	if (sockcred->sc_ngroups < 0) {
+		logmsgx("sockcred.sc_ngroups %d < 0",
+		    sockcred->sc_ngroups);
+		return (-1);
+	}
+	if (sockcred->sc_ngroups != proc_cred.gid_num) {
+		logmsgx("sockcred.sc_ngroups %d != %u",
+		    sockcred->sc_ngroups, proc_cred.gid_num);
+		return (-1);
+	}
+	if (check_groups("sockcred.sc_groups", sockcred->sc_groups,
+	    "sockcred.sc_ngroups", sockcred->sc_ngroups, true) < 0)
+		return (-1);
+	return (0);
+}
+
+static int
+check_scm_timestamp(struct cmsghdr *cmsghdr)
+{
+	const struct timeval *timeval;
+
+	if (check_cmsghdr(cmsghdr, SCM_TIMESTAMP, sizeof(struct timeval)) < 0)
+		return (-1);
+
+	timeval = (struct timeval *)CMSG_DATA(cmsghdr);
+
+	dbgmsg("timeval.tv_sec %"PRIdMAX", timeval.tv_usec %"PRIdMAX,
+	    (intmax_t)timeval->tv_sec, (intmax_t)timeval->tv_usec);
 
 	return (0);
 }
 
-/*
- * Check if n supplementary GIDs in gids are correct.  (my_gids + 1)
- * has (my_ngids - 1) supplementary GIDs of current process.
- */
 static int
-check_groups(const gid_t *gids, int n)
+check_scm_bintime(struct cmsghdr *cmsghdr)
 {
-	char match[NGROUPS_MAX] = { 0 };
-	int error, i, j;
+	const struct bintime *bintime;
 
-	if (n != my_ngids - 1) {
-		logmsgx("wrong number of groups %d != %d (returned from getgroups() - 1)",
-		    n, my_ngids - 1);
-		error = -1;
-	} else
-		error = 0;
-	for (i = 0; i < n; ++i) {
-		for (j = 1; j < my_ngids; ++j) {
-			if (gids[i] == my_gids[j]) {
-				if (match[j]) {
-					logmsgx("duplicated GID %lu",
-					    (u_long)gids[i]);
-					error = -1;
-				} else
-					match[j] = 1;
-				break;
-			}
-		}
-		if (j == my_ngids) {
-			logmsgx("unexpected GID %lu", (u_long)gids[i]);
-			error = -1;
-		}
-	}
-	for (j = 1; j < my_ngids; ++j)
-		if (match[j] == 0) {
-			logmsgx("did not receive supplementary GID %u", my_gids[j]);
-			error = -1;
-		}
-	return (error);
+	if (check_cmsghdr(cmsghdr, SCM_BINTIME, sizeof(struct bintime)) < 0)
+		return (-1);
+
+	bintime = (struct bintime *)CMSG_DATA(cmsghdr);
+
+	dbgmsg("bintime.sec %"PRIdMAX", bintime.frac %"PRIu64,
+	    (intmax_t)bintime->sec, bintime->frac);
+
+	return (0);
 }
 
-/*
- * Send n messages with data and control message with SCM_CREDS type
- * to server and exit.
- */
 static void
-t_cmsgcred_client(u_int n)
+msghdr_init_generic(struct msghdr *msghdr, struct iovec *iov, void *cmsg_data)
 {
-	union {
-		struct cmsghdr	cm;
-		char	control[CMSG_SPACE(sizeof(struct cmsgcred))];
-	} control_un;
-	struct msghdr msg;
-	struct iovec iov[1];
-	struct cmsghdr *cmptr;
-	int fd;
-	u_int i;
-
-	assert(n == 1 || n == 2);
-
-	if ((fd = create_unbound_socket()) < 0)
-		goto failed;
-
-	if (connect_server(fd) < 0)
-		goto failed_close;
-
-	iov[0].iov_base = ipc_message;
-	iov[0].iov_len = IPC_MESSAGE_SIZE;
-
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = control_un.control;
-	msg.msg_controllen = no_control_data ?
-	    sizeof(struct cmsghdr) : sizeof(control_un.control);
-	msg.msg_flags = 0;
-
-	cmptr = CMSG_FIRSTHDR(&msg);
-	cmptr->cmsg_len = CMSG_LEN(no_control_data ?
-	    0 : sizeof(struct cmsgcred));
-	cmptr->cmsg_level = SOL_SOCKET;
-	cmptr->cmsg_type = SCM_CREDS;
-
-	for (i = 0; i < n; ++i) {
-		dbgmsg(("#%u msg_controllen = %u, cmsg_len = %u", i,
-		    (u_int)msg.msg_controllen, (u_int)cmptr->cmsg_len));
-		if (sendmsg_timeout(fd, &msg, IPC_MESSAGE_SIZE) < 0)
-			goto failed_close;
+	msghdr->msg_name = NULL;
+	msghdr->msg_namelen = 0;
+	if (send_data_flag) {
+		iov->iov_base = server_flag ?
+		    ipc_msg.buf_recv : ipc_msg.buf_send;
+		iov->iov_len = ipc_msg.buf_size;
+		msghdr->msg_iov = iov;
+		msghdr->msg_iovlen = 1;
+	} else {
+		msghdr->msg_iov = NULL;
+		msghdr->msg_iovlen = 0;
 	}
-
-	if (close_socket((const char *)NULL, fd) < 0)
-		goto failed;
-
-	_exit(0);
-
-failed_close:
-	(void)close_socket((const char *)NULL, fd);
-
-failed:
-	_exit(1);
+	msghdr->msg_control = cmsg_data;
+	msghdr->msg_flags = 0;
 }
 
-/*
- * Receive two messages with data and control message with SCM_CREDS
- * type followed by struct cmsgcred{} from client.  fd1 is a listen
- * socket for stream sockets or simply socket for datagram sockets.
- */
+static void
+msghdr_init_server(struct msghdr *msghdr, struct iovec *iov,
+    void *cmsg_data, size_t cmsg_size)
+{
+	msghdr_init_generic(msghdr, iov, cmsg_data);
+	msghdr->msg_controllen = cmsg_size;
+	dbgmsg("init: data size %zu", msghdr->msg_iov != NULL ?
+	    msghdr->msg_iov->iov_len : (size_t)0);
+	dbgmsg("init: msghdr.msg_controllen %u",
+	    (u_int)msghdr->msg_controllen);
+}
+
+static void
+msghdr_init_client(struct msghdr *msghdr, struct iovec *iov,
+    void *cmsg_data, size_t cmsg_size, int type, size_t arr_size)
+{
+	struct cmsghdr *cmsghdr;
+
+	msghdr_init_generic(msghdr, iov, cmsg_data);
+	if (cmsg_data != NULL) {
+		msghdr->msg_controllen = send_array_flag ?
+		    cmsg_size : CMSG_SPACE(0);
+		cmsghdr = CMSG_FIRSTHDR(msghdr);
+		cmsghdr->cmsg_level = SOL_SOCKET;
+		cmsghdr->cmsg_type = type;
+		cmsghdr->cmsg_len = CMSG_LEN(send_array_flag ? arr_size : 0);
+	} else
+		msghdr->msg_controllen = 0;
+}
+
+static int
+t_generic(int (*client_func)(int), int (*server_func)(int))
+{
+	int fd, rv, rv_client;
+
+	switch (client_fork()) {
+	case 0:
+		fd = socket_create();
+		if (fd < 0)
+			rv = -2;
+		else {
+			rv = client_func(fd);
+			if (socket_close(fd) < 0)
+				rv = -2;
+		}
+		client_exit(rv);
+		break;
+	case 1:
+		fd = socket_create();
+		if (fd < 0)
+			rv = -2;
+		else {
+			rv = server_func(fd);
+			rv_client = client_wait();
+			if (rv == 0 || (rv == -2 && rv_client != 0))
+				rv = rv_client;
+			if (socket_close(fd) < 0)
+				rv = -2;
+		}
+		break;
+	default:
+		rv = -2;
+	}
+	return (rv);
+}
+
+static int
+t_cmsgcred_client(int fd)
+{
+	struct msghdr msghdr;
+	struct iovec iov[1];
+	void *cmsg_data;
+	size_t cmsg_size;
+	int rv;
+
+	if (sync_recv() < 0)
+		return (-2);
+
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(sizeof(struct cmsgcred));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
+	msghdr_init_client(&msghdr, iov, cmsg_data, cmsg_size,
+	    SCM_CREDS, sizeof(struct cmsgcred));
+
+	if (socket_connect(fd) < 0)
+		goto done;
+
+	if (message_sendn(fd, &msghdr) < 0)
+		goto done;
+
+	rv = 0;
+done:
+	free(cmsg_data);
+	return (rv);
+}
+
 static int
 t_cmsgcred_server(int fd1)
 {
-	char buf[IPC_MESSAGE_SIZE];
-	union {
-		struct cmsghdr	cm;
-		char	control[CMSG_SPACE(sizeof(struct cmsgcred)) + EXTRA_CMSG_SPACE];
-	} control_un;
-	struct msghdr msg;
+	struct msghdr msghdr;
 	struct iovec iov[1];
-	struct cmsghdr *cmptr;
-	const struct cmsgcred *cmcredptr;
-	socklen_t controllen;
-	int error, error2, fd2;
+	struct cmsghdr *cmsghdr;
+	void *cmsg_data;
+	size_t cmsg_size;
 	u_int i;
+	int fd2, rv;
+
+	if (sync_send() < 0)
+		return (-2);
+
+	fd2 = -1;
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(sizeof(struct cmsgcred));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
 
 	if (sock_type == SOCK_STREAM) {
-		if ((fd2 = accept_timeout(fd1)) < 0)
-			return (-2);
+		fd2 = socket_accept(fd1);
+		if (fd2 < 0)
+			goto done;
 	} else
 		fd2 = fd1;
 
-	error = 0;
+	rv = -1;
+	for (i = 1; i <= ipc_msg.msg_num; ++i) {
+		dbgmsg("message #%u", i);
 
-	controllen = sizeof(control_un.control);
-
-	for (i = 0; i < 2; ++i) {
-		iov[0].iov_base = buf;
-		iov[0].iov_len = sizeof(buf);
-
-		msg.msg_name = NULL;
-		msg.msg_namelen = 0;
-		msg.msg_iov = iov;
-		msg.msg_iovlen = 1;
-		msg.msg_control = control_un.control;
-		msg.msg_controllen = controllen;
-		msg.msg_flags = 0;
-
-		controllen = CMSG_SPACE(sizeof(struct cmsgcred));
-
-		if (recvmsg_timeout(fd2, &msg, sizeof(buf)) < 0)
-			goto failed;
-
-		if (msg.msg_flags & MSG_CTRUNC) {
-			logmsgx("#%u control data was truncated, MSG_CTRUNC flag is on",
-			    i);
-			goto next_error;
+		msghdr_init_server(&msghdr, iov, cmsg_data, cmsg_size);
+		if (message_recv(fd2, &msghdr) < 0) {
+			rv = -2;
+			break;
 		}
 
-		if (msg.msg_controllen < sizeof(struct cmsghdr)) {
-			logmsgx("#%u msg_controllen %u < %lu (sizeof(struct cmsghdr))",
-			    i, (u_int)msg.msg_controllen, (u_long)sizeof(struct cmsghdr));
-			goto next_error;
-		}
+		if (check_msghdr(&msghdr, sizeof(*cmsghdr)) < 0)
+			break;
 
-		if ((cmptr = CMSG_FIRSTHDR(&msg)) == NULL) {
-			logmsgx("CMSG_FIRSTHDR is NULL");
-			goto next_error;
-		}
-
-		dbgmsg(("#%u msg_controllen = %u, cmsg_len = %u", i,
-		    (u_int)msg.msg_controllen, (u_int)cmptr->cmsg_len));
-
-		if (cmptr->cmsg_level != SOL_SOCKET) {
-			logmsgx("#%u cmsg_level %d != SOL_SOCKET", i,
-			    cmptr->cmsg_level);
-			goto next_error;
-		}
-
-		if (cmptr->cmsg_type != SCM_CREDS) {
-			logmsgx("#%u cmsg_type %d != SCM_CREDS", i,
-			    cmptr->cmsg_type);
-			goto next_error;
-		}
-
-		if (cmptr->cmsg_len != CMSG_LEN(sizeof(struct cmsgcred))) {
-			logmsgx("#%u cmsg_len %u != %lu (CMSG_LEN(sizeof(struct cmsgcred))",
-			    i, (u_int)cmptr->cmsg_len, (u_long)CMSG_LEN(sizeof(struct cmsgcred)));
-			goto next_error;
-		}
-
-		cmcredptr = (const struct cmsgcred *)CMSG_DATA(cmptr);
-
-		error2 = 0;
-		if (cmcredptr->cmcred_pid != client_pid) {
-			logmsgx("#%u cmcred_pid %ld != %ld (PID of client)",
-			    i, (long)cmcredptr->cmcred_pid, (long)client_pid);
-			error2 = 1;
-		}
-		if (cmcredptr->cmcred_uid != my_uid) {
-			logmsgx("#%u cmcred_uid %lu != %lu (UID of current process)",
-			    i, (u_long)cmcredptr->cmcred_uid, (u_long)my_uid);
-			error2 = 1;
-		}
-		if (cmcredptr->cmcred_euid != my_euid) {
-			logmsgx("#%u cmcred_euid %lu != %lu (EUID of current process)",
-			    i, (u_long)cmcredptr->cmcred_euid, (u_long)my_euid);
-			error2 = 1;
-		}
-		if (cmcredptr->cmcred_gid != my_gid) {
-			logmsgx("#%u cmcred_gid %lu != %lu (GID of current process)",
-			    i, (u_long)cmcredptr->cmcred_gid, (u_long)my_gid);
-			error2 = 1;
-		}
-		if (cmcredptr->cmcred_ngroups == 0) {
-			logmsgx("#%u cmcred_ngroups = 0, this is wrong", i);
-			error2 = 1;
-		} else {
-			if (cmcredptr->cmcred_ngroups > NGROUPS_MAX) {
-				logmsgx("#%u cmcred_ngroups %d > %u (NGROUPS_MAX)",
-				    i, cmcredptr->cmcred_ngroups, NGROUPS_MAX);
-				error2 = 1;
-			} else if (cmcredptr->cmcred_ngroups < 0) {
-				logmsgx("#%u cmcred_ngroups %d < 0",
-				    i, cmcredptr->cmcred_ngroups);
-				error2 = 1;
-			} else {
-				dbgmsg(("#%u cmcred_ngroups = %d", i,
-				    cmcredptr->cmcred_ngroups));
-				if (cmcredptr->cmcred_groups[0] != my_egid) {
-					logmsgx("#%u cmcred_groups[0] %lu != %lu (EGID of current process)",
-					    i, (u_long)cmcredptr->cmcred_groups[0], (u_long)my_egid);
-					error2 = 1;
-				}
-				if (check_groups(cmcredptr->cmcred_groups + 1, cmcredptr->cmcred_ngroups - 1) < 0) {
-					logmsgx("#%u cmcred_groups has wrong GIDs", i);
-					error2 = 1;
-				}
-			}
-		}
-
-		if (error2)
-			goto next_error;
-
-		if ((cmptr = CMSG_NXTHDR(&msg, cmptr)) != NULL) {
-			logmsgx("#%u control data has extra header", i);
-			goto next_error;
-		}
-
-		continue;
-next_error:
-		error = -1;
+		cmsghdr = CMSG_FIRSTHDR(&msghdr);
+		if (check_scm_creds_cmsgcred(cmsghdr) < 0)
+			break;
 	}
-
-	if (sock_type == SOCK_STREAM)
-		if (close(fd2) < 0) {
-			logmsg("close");
-			return (-2);
-		}
-	return (error);
-
-failed:
-	if (sock_type == SOCK_STREAM)
-		if (close(fd2) < 0)
-			logmsg("close");
-	return (-2);
+	if (i > ipc_msg.msg_num)
+		rv = 0;
+done:
+	free(cmsg_data);
+	if (sock_type == SOCK_STREAM && fd2 >= 0)
+		if (socket_close(fd2) < 0)
+			rv = -2;
+	return (rv);
 }
 
 static int
 t_cmsgcred(void)
 {
-	int error, fd;
-
-	if ((fd = create_server_socket()) < 0)
-		return (-2);
-
-	if (sock_type == SOCK_STREAM)
-		if (listen(fd, LISTENQ) < 0) {
-			logmsg("listen");
-			goto failed;
-		}
-
-	if ((client_pid = fork()) == (pid_t)-1) {
-		logmsg("fork");
-		goto failed;
-	}
-
-	if (client_pid == 0) {
-		myname = "CLIENT";
-		if (close_socket((const char *)NULL, fd) < 0)
-			_exit(1);
-		t_cmsgcred_client(2);
-	}
-
-	if ((error = t_cmsgcred_server(fd)) == -2) {
-		(void)wait_client();
-		goto failed;
-	}
-
-	if (wait_client() < 0)
-		goto failed;
-
-	if (close_socket(serv_sock_path, fd) < 0) {
-		logmsgx("close_socket failed");
-		return (-2);
-	}
-	return (error);
-
-failed:
-	if (close_socket(serv_sock_path, fd) < 0)
-		logmsgx("close_socket failed");
-	return (-2);
+	return (t_generic(t_cmsgcred_client, t_cmsgcred_server));
 }
 
-/*
- * Send two messages with data to server and exit.
- */
-static void
-t_sockcred_client(int type)
-{
-	struct msghdr msg;
-	struct iovec iov[1];
-	int fd;
-	u_int i;
-
-	assert(type == 0 || type == 1);
-
-	if ((fd = create_unbound_socket()) < 0)
-		goto failed;
-
-	if (connect_server(fd) < 0)
-		goto failed_close;
-
-	if (type == 1)
-		if (sync_recv(fd) < 0)
-			goto failed_close;
-
-	iov[0].iov_base = ipc_message;
-	iov[0].iov_len = IPC_MESSAGE_SIZE;
-
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags = 0;
-
-	for (i = 0; i < 2; ++i)
-		if (sendmsg_timeout(fd, &msg, IPC_MESSAGE_SIZE) < 0)
-			goto failed_close;
-
-	if (close_socket((const char *)NULL, fd) < 0)
-		goto failed;
-
-	_exit(0);
-
-failed_close:
-	(void)close_socket((const char *)NULL, fd);
-
-failed:
-	_exit(1);
-}
-
-/*
- * Receive one message with data and control message with SCM_CREDS
- * type followed by struct sockcred{} and if n is not equal 1, then
- * receive another one message with data.  fd1 is a listen socket for
- * stream sockets or simply socket for datagram sockets.  If type is
- * 1, then set LOCAL_CREDS option for accepted stream socket.
- */
 static int
-t_sockcred_server(int type, int fd1, u_int n)
+t_sockcred_client(int type, int fd)
 {
-	char buf[IPC_MESSAGE_SIZE];
-	union {
-		struct cmsghdr	cm;
-		char	control[CMSG_SPACE(SOCKCREDSIZE(NGROUPS_MAX)) + EXTRA_CMSG_SPACE];
-	} control_un;
-	struct msghdr msg;
+	struct msghdr msghdr;
 	struct iovec iov[1];
-	struct cmsghdr *cmptr;
-	const struct sockcred *sockcred;
-	int error, error2, fd2, optval;
-	u_int i;
+	int rv;
 
-	assert(n == 1 || n == 2);
-	assert(type == 0 || type == 1);
+	if (sync_recv() < 0)
+		return (-2);
+
+	rv = -2;
+
+	msghdr_init_client(&msghdr, iov, NULL, 0, 0, 0);
+
+	if (socket_connect(fd) < 0)
+		goto done;
+
+	if (type == 2)
+		if (sync_recv() < 0)
+			goto done;
+
+	if (message_sendn(fd, &msghdr) < 0)
+		goto done;
+
+	rv = 0;
+done:
+	return (rv);
+}
+
+static int
+t_sockcred_server(int type, int fd1)
+{
+	struct msghdr msghdr;
+	struct iovec iov[1];
+	struct cmsghdr *cmsghdr;
+	void *cmsg_data;
+	size_t cmsg_size;
+	u_int i;
+	int fd2, rv, val;
+
+	fd2 = -1;
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(SOCKCREDSIZE(proc_cred.gid_num));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
+
+	if (type == 1) {
+		dbgmsg("setting LOCAL_CREDS");
+		val = 1;
+		if (setsockopt(fd1, 0, LOCAL_CREDS, &val, sizeof(val)) < 0) {
+			logmsg("setsockopt(LOCAL_CREDS)");
+			goto done;
+		}
+	}
+
+	if (sync_send() < 0)
+		goto done;
 
 	if (sock_type == SOCK_STREAM) {
-		if ((fd2 = accept_timeout(fd1)) < 0)
-			return (-2);
-		if (type == 1) {
-			optval = 1;
-			if (setsockopt(fd2, 0, LOCAL_CREDS, &optval, sizeof optval) < 0) {
-				logmsg("setsockopt(LOCAL_CREDS) for accepted socket");
-				if (errno == ENOPROTOOPT) {
-					error = -1;
-					goto done_close;
-				}
-				goto failed;
-			}
-			if (sync_send(fd2) < 0)
-				goto failed;
-		}
+		fd2 = socket_accept(fd1);
+		if (fd2 < 0)
+			goto done;
 	} else
 		fd2 = fd1;
 
-	error = 0;
+	if (type == 2) {
+		dbgmsg("setting LOCAL_CREDS");
+		val = 1;
+		if (setsockopt(fd2, 0, LOCAL_CREDS, &val, sizeof(val)) < 0) {
+			logmsg("setsockopt(LOCAL_CREDS)");
+			goto done;
+		}
+		if (sync_send() < 0)
+			goto done;
+	}
 
-	for (i = 0; i < n; ++i) {
-		iov[0].iov_base = buf;
-		iov[0].iov_len = sizeof buf;
+	rv = -1;
+	for (i = 1; i <= ipc_msg.msg_num; ++i) {
+		dbgmsg("message #%u", i);
 
-		msg.msg_name = NULL;
-		msg.msg_namelen = 0;
-		msg.msg_iov = iov;
-		msg.msg_iovlen = 1;
-		msg.msg_control = control_un.control;
-		msg.msg_controllen = sizeof control_un.control;
-		msg.msg_flags = 0;
-
-		if (recvmsg_timeout(fd2, &msg, sizeof buf) < 0)
-			goto failed;
-
-		if (msg.msg_flags & MSG_CTRUNC) {
-			logmsgx("control data was truncated, MSG_CTRUNC flag is on");
-			goto next_error;
+		msghdr_init_server(&msghdr, iov, cmsg_data, cmsg_size);
+		if (message_recv(fd2, &msghdr) < 0) {
+			rv = -2;
+			break;
 		}
 
-		if (i != 0 && sock_type == SOCK_STREAM) {
-			if (msg.msg_controllen != 0) {
-				logmsgx("second message has control data, this is wrong for stream sockets");
-				goto next_error;
-			}
-			dbgmsg(("#%u msg_controllen = %u", i,
-			    (u_int)msg.msg_controllen));
-			continue;
-		}
-
-		if (msg.msg_controllen < sizeof(struct cmsghdr)) {
-			logmsgx("#%u msg_controllen %u < %lu (sizeof(struct cmsghdr))",
-			    i, (u_int)msg.msg_controllen, (u_long)sizeof(struct cmsghdr));
-			goto next_error;
-		}
-
-		if ((cmptr = CMSG_FIRSTHDR(&msg)) == NULL) {
-			logmsgx("CMSG_FIRSTHDR is NULL");
-			goto next_error;
-		}
-
-		dbgmsg(("#%u msg_controllen = %u, cmsg_len = %u", i,
-		    (u_int)msg.msg_controllen, (u_int)cmptr->cmsg_len));
-
-		if (cmptr->cmsg_level != SOL_SOCKET) {
-			logmsgx("#%u cmsg_level %d != SOL_SOCKET", i,
-			    cmptr->cmsg_level);
-			goto next_error;
-		}
-
-		if (cmptr->cmsg_type != SCM_CREDS) {
-			logmsgx("#%u cmsg_type %d != SCM_CREDS", i,
-			    cmptr->cmsg_type);
-			goto next_error;
-		}
-
-		if (cmptr->cmsg_len < CMSG_LEN(SOCKCREDSIZE(1))) {
-			logmsgx("#%u cmsg_len %u != %lu (CMSG_LEN(SOCKCREDSIZE(1)))",
-			    i, (u_int)cmptr->cmsg_len, (u_long)CMSG_LEN(SOCKCREDSIZE(1)));
-			goto next_error;
-		}
-
-		sockcred = (const struct sockcred *)CMSG_DATA(cmptr);
-
-		error2 = 0;
-		if (sockcred->sc_uid != my_uid) {
-			logmsgx("#%u sc_uid %lu != %lu (UID of current process)",
-			    i, (u_long)sockcred->sc_uid, (u_long)my_uid);
-			error2 = 1;
-		}
-		if (sockcred->sc_euid != my_euid) {
-			logmsgx("#%u sc_euid %lu != %lu (EUID of current process)",
-			    i, (u_long)sockcred->sc_euid, (u_long)my_euid);
-			error2 = 1;
-		}
-		if (sockcred->sc_gid != my_gid) {
-			logmsgx("#%u sc_gid %lu != %lu (GID of current process)",
-			    i, (u_long)sockcred->sc_gid, (u_long)my_gid);
-			error2 = 1;
-		}
-		if (sockcred->sc_egid != my_egid) {
-			logmsgx("#%u sc_egid %lu != %lu (EGID of current process)",
-			    i, (u_long)sockcred->sc_gid, (u_long)my_egid);
-			error2 = 1;
-		}
-		if (sockcred->sc_ngroups > NGROUPS_MAX) {
-			logmsgx("#%u sc_ngroups %d > %u (NGROUPS_MAX)",
-			    i, sockcred->sc_ngroups, NGROUPS_MAX);
-			error2 = 1;
-		} else if (sockcred->sc_ngroups < 0) {
-			logmsgx("#%u sc_ngroups %d < 0",
-			    i, sockcred->sc_ngroups);
-			error2 = 1;
+		if (i > 1 && sock_type == SOCK_STREAM) {
+			if (check_msghdr(&msghdr, 0) < 0)
+				break;
 		} else {
-			dbgmsg(("#%u sc_ngroups = %d", i, sockcred->sc_ngroups));
-			if (check_groups(sockcred->sc_groups, sockcred->sc_ngroups) < 0) {
-				logmsgx("#%u sc_groups has wrong GIDs", i);
-				error2 = 1;
+			if (check_msghdr(&msghdr, sizeof(*cmsghdr)) < 0)
+				break;
+
+			cmsghdr = CMSG_FIRSTHDR(&msghdr);
+			if (check_scm_creds_sockcred(cmsghdr) < 0)
+				break;
+		}
+	}
+	if (i > ipc_msg.msg_num)
+		rv = 0;
+done:
+	free(cmsg_data);
+	if (sock_type == SOCK_STREAM && fd2 >= 0)
+		if (socket_close(fd2) < 0)
+			rv = -2;
+	return (rv);
+}
+
+static int
+t_sockcred_1(void)
+{
+	u_int i;
+	int fd, rv, rv_client;
+
+	switch (client_fork()) {
+	case 0:
+		for (i = 1; i <= 2; ++i) {
+			dbgmsg("client #%u", i);
+			fd = socket_create();
+			if (fd < 0)
+				rv = -2;
+			else {
+				rv = t_sockcred_client(1, fd);
+				if (socket_close(fd) < 0)
+					rv = -2;
 			}
+			if (rv != 0)
+				break;
 		}
-
-		if (error2)
-			goto next_error;
-
-		if ((cmptr = CMSG_NXTHDR(&msg, cmptr)) != NULL) {
-			logmsgx("#%u control data has extra header, this is wrong",
-			    i);
-			goto next_error;
+		client_exit(rv);
+		break;
+	case 1:
+		fd = socket_create();
+		if (fd < 0)
+			rv = -2;
+		else {
+			rv = t_sockcred_server(1, fd);
+			if (rv == 0)
+				rv = t_sockcred_server(3, fd);
+			rv_client = client_wait();
+			if (rv == 0 || (rv == -2 && rv_client != 0))
+				rv = rv_client;
+			if (socket_close(fd) < 0)
+				rv = -2;
 		}
-
-		continue;
-next_error:
-		error = -1;
+		break;
+	default:
+		rv = -2;
 	}
 
-done_close:
-	if (sock_type == SOCK_STREAM)
-		if (close(fd2) < 0) {
-			logmsg("close");
-			return (-2);
-		}
-	return (error);
-
-failed:
-	if (sock_type == SOCK_STREAM)
-		if (close(fd2) < 0)
-			logmsg("close");
-	return (-2);
+	return (rv);
 }
 
 static int
-t_sockcred(int type)
+t_sockcred_2_client(int fd)
 {
-	int error, fd, optval;
+	return (t_sockcred_client(2, fd));
+}
 
-	assert(type == 0 || type == 1);
+static int
+t_sockcred_2_server(int fd)
+{
+	return (t_sockcred_server(2, fd));
+}
 
-	if ((fd = create_server_socket()) < 0)
-		return (-2);
+static int
+t_sockcred_2(void)
+{
+	return (t_generic(t_sockcred_2_client, t_sockcred_2_server));
+}
 
-	if (sock_type == SOCK_STREAM)
-		if (listen(fd, LISTENQ) < 0) {
-			logmsg("listen");
-			goto failed;
+static int
+t_cmsgcred_sockcred_server(int fd1)
+{
+	struct msghdr msghdr;
+	struct iovec iov[1];
+	struct cmsghdr *cmsghdr;
+	void *cmsg_data, *cmsg1_data, *cmsg2_data;
+	size_t cmsg_size, cmsg1_size, cmsg2_size;
+	u_int i;
+	int fd2, rv, val;
+
+	fd2 = -1;
+	rv = -2;
+
+	cmsg1_size = CMSG_SPACE(SOCKCREDSIZE(proc_cred.gid_num));
+	cmsg2_size = CMSG_SPACE(sizeof(struct cmsgcred));
+	cmsg1_data = malloc(cmsg1_size);
+	cmsg2_data = malloc(cmsg2_size);
+	if (cmsg1_data == NULL || cmsg2_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
+
+	dbgmsg("setting LOCAL_CREDS");
+	val = 1;
+	if (setsockopt(fd1, 0, LOCAL_CREDS, &val, sizeof(val)) < 0) {
+		logmsg("setsockopt(LOCAL_CREDS)");
+		goto done;
+	}
+
+	if (sync_send() < 0)
+		goto done;
+
+	if (sock_type == SOCK_STREAM) {
+		fd2 = socket_accept(fd1);
+		if (fd2 < 0)
+			goto done;
+	} else
+		fd2 = fd1;
+
+	cmsg_data = cmsg1_data;
+	cmsg_size = cmsg1_size;
+	rv = -1;
+	for (i = 1; i <= ipc_msg.msg_num; ++i) {
+		dbgmsg("message #%u", i);
+
+		msghdr_init_server(&msghdr, iov, cmsg_data, cmsg_size);
+		if (message_recv(fd2, &msghdr) < 0) {
+			rv = -2;
+			break;
 		}
 
-	if (type == 0) {
-		optval = 1;
-		if (setsockopt(fd, 0, LOCAL_CREDS, &optval, sizeof optval) < 0) {
-			logmsg("setsockopt(LOCAL_CREDS) for %s socket",
-			    sock_type == SOCK_STREAM ? "stream listening" : "datagram");
-			if (errno == ENOPROTOOPT) {
-				error = -1;
-				goto done_close;
-			}
-			goto failed;
+		if (check_msghdr(&msghdr, sizeof(*cmsghdr)) < 0)
+			break;
+
+		cmsghdr = CMSG_FIRSTHDR(&msghdr);
+		if (i == 1 || sock_type == SOCK_DGRAM) {
+			if (check_scm_creds_sockcred(cmsghdr) < 0)
+				break;
+		} else {
+			if (check_scm_creds_cmsgcred(cmsghdr) < 0)
+				break;
 		}
+
+		cmsg_data = cmsg2_data;
+		cmsg_size = cmsg2_size;
 	}
-
-	if ((client_pid = fork()) == (pid_t)-1) {
-		logmsg("fork");
-		goto failed;
-	}
-
-	if (client_pid == 0) {
-		myname = "CLIENT";
-		if (close_socket((const char *)NULL, fd) < 0)
-			_exit(1);
-		t_sockcred_client(type);
-	}
-
-	if ((error = t_sockcred_server(type, fd, 2)) == -2) {
-		(void)wait_client();
-		goto failed;
-	}
-
-	if (wait_client() < 0)
-		goto failed;
-
-done_close:
-	if (close_socket(serv_sock_path, fd) < 0) {
-		logmsgx("close_socket failed");
-		return (-2);
-	}
-	return (error);
-
-failed:
-	if (close_socket(serv_sock_path, fd) < 0)
-		logmsgx("close_socket failed");
-	return (-2);
-}
-
-static int
-t_sockcred_stream1(void)
-{
-	return (t_sockcred(0));
-}
-
-static int
-t_sockcred_stream2(void)
-{
-	return (t_sockcred(1));
-}
-
-static int
-t_sockcred_dgram(void)
-{
-	return (t_sockcred(0));
+	if (i > ipc_msg.msg_num)
+		rv = 0;
+done:
+	free(cmsg1_data);
+	free(cmsg2_data);
+	if (sock_type == SOCK_STREAM && fd2 >= 0)
+		if (socket_close(fd2) < 0)
+			rv = -2;
+	return (rv);
 }
 
 static int
 t_cmsgcred_sockcred(void)
 {
-	int error, fd, optval;
-
-	if ((fd = create_server_socket()) < 0)
-		return (-2);
-
-	if (sock_type == SOCK_STREAM)
-		if (listen(fd, LISTENQ) < 0) {
-			logmsg("listen");
-			goto failed;
-		}
-
-	optval = 1;
-	if (setsockopt(fd, 0, LOCAL_CREDS, &optval, sizeof optval) < 0) {
-		logmsg("setsockopt(LOCAL_CREDS) for %s socket",
-		    sock_type == SOCK_STREAM ? "stream listening" : "datagram");
-		if (errno == ENOPROTOOPT) {
-			error = -1;
-			goto done_close;
-		}
-		goto failed;
-	}
-
-	if ((client_pid = fork()) == (pid_t)-1) {
-		logmsg("fork");
-		goto failed;
-	}
-
-	if (client_pid == 0) {
-		myname = "CLIENT";
-		if (close_socket((const char *)NULL, fd) < 0)
-			_exit(1);
-		t_cmsgcred_client(1);
-	}
-
-	if ((error = t_sockcred_server(0, fd, 1)) == -2) {
-		(void)wait_client();
-		goto failed;
-	}
-
-	if (wait_client() < 0)
-		goto failed;
-
-done_close:
-	if (close_socket(serv_sock_path, fd) < 0) {
-		logmsgx("close_socket failed");
-		return (-2);
-	}
-	return (error);
-
-failed:
-	if (close_socket(serv_sock_path, fd) < 0)
-		logmsgx("close_socket failed");
-	return (-2);
+	return (t_generic(t_cmsgcred_client, t_cmsgcred_sockcred_server));
 }
 
-/*
- * Send one message with data and control message with SCM_TIMESTAMP
- * type to server and exit.
- */
-static void
-t_timestamp_client(void)
-{
-	union {
-		struct cmsghdr	cm;
-		char	control[CMSG_SPACE(sizeof(struct timeval))];
-	} control_un;
-	struct msghdr msg;
-	struct iovec iov[1];
-	struct cmsghdr *cmptr;
-	int fd;
-
-	if ((fd = create_unbound_socket()) < 0)
-		goto failed;
-
-	if (connect_server(fd) < 0)
-		goto failed_close;
-
-	iov[0].iov_base = ipc_message;
-	iov[0].iov_len = IPC_MESSAGE_SIZE;
-
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = control_un.control;
-	msg.msg_controllen = no_control_data ?
-	    sizeof(struct cmsghdr) :sizeof control_un.control;
-	msg.msg_flags = 0;
-
-	cmptr = CMSG_FIRSTHDR(&msg);
-	cmptr->cmsg_len = CMSG_LEN(no_control_data ?
-	    0 : sizeof(struct timeval));
-	cmptr->cmsg_level = SOL_SOCKET;
-	cmptr->cmsg_type = SCM_TIMESTAMP;
-
-	dbgmsg(("msg_controllen = %u, cmsg_len = %u",
-	    (u_int)msg.msg_controllen, (u_int)cmptr->cmsg_len));
-
-	if (sendmsg_timeout(fd, &msg, IPC_MESSAGE_SIZE) < 0)
-		goto failed_close;
-
-	if (close_socket((const char *)NULL, fd) < 0)
-		goto failed;
-
-	_exit(0);
-
-failed_close:
-	(void)close_socket((const char *)NULL, fd);
-
-failed:
-	_exit(1);
-}
-
-/*
- * Receive one message with data and control message with SCM_TIMESTAMP
- * type followed by struct timeval{} from client.
- */
 static int
-t_timestamp_server(int fd1)
+t_timeval_client(int fd)
 {
-	union {
-		struct cmsghdr	cm;
-		char	control[CMSG_SPACE(sizeof(struct timeval)) + EXTRA_CMSG_SPACE];
-	} control_un;
-	char buf[IPC_MESSAGE_SIZE];
-	int error, fd2;
-	struct msghdr msg;
+	struct msghdr msghdr;
 	struct iovec iov[1];
-	struct cmsghdr *cmptr;
-	const struct timeval *timeval;
+	void *cmsg_data;
+	size_t cmsg_size;
+	int rv;
+
+	if (sync_recv() < 0)
+		return (-2);
+
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(sizeof(struct timeval));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
+	msghdr_init_client(&msghdr, iov, cmsg_data, cmsg_size,
+	    SCM_TIMESTAMP, sizeof(struct timeval));
+
+	if (socket_connect(fd) < 0)
+		goto done;
+
+	if (message_sendn(fd, &msghdr) < 0)
+		goto done;
+
+	rv = 0;
+done:
+	free(cmsg_data);
+	return (rv);
+}
+
+static int
+t_timeval_server(int fd1)
+{
+	struct msghdr msghdr;
+	struct iovec iov[1];
+	struct cmsghdr *cmsghdr;
+	void *cmsg_data;
+	size_t cmsg_size;
+	u_int i;
+	int fd2, rv;
+
+	if (sync_send() < 0)
+		return (-2);
+
+	fd2 = -1;
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(sizeof(struct timeval));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
 
 	if (sock_type == SOCK_STREAM) {
-		if ((fd2 = accept_timeout(fd1)) < 0)
-			return (-2);
+		fd2 = socket_accept(fd1);
+		if (fd2 < 0)
+			goto done;
 	} else
 		fd2 = fd1;
 
-	iov[0].iov_base = buf;
-	iov[0].iov_len = sizeof buf;
+	rv = -1;
+	for (i = 1; i <= ipc_msg.msg_num; ++i) {
+		dbgmsg("message #%u", i);
 
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = control_un.control;
-	msg.msg_controllen = sizeof control_un.control;
-	msg.msg_flags = 0;
-
-	if (recvmsg_timeout(fd2, &msg, sizeof buf) < 0)
-		goto failed;
-
-	error = -1;
-
-	if (msg.msg_flags & MSG_CTRUNC) {
-		logmsgx("control data was truncated, MSG_CTRUNC flag is on");
-		goto done;
-	}
-
-	if (msg.msg_controllen < sizeof(struct cmsghdr)) {
-		logmsgx("msg_controllen %u < %lu (sizeof(struct cmsghdr))",
-		    (u_int)msg.msg_controllen, (u_long)sizeof(struct cmsghdr));
-		goto done;
-	}
-
-	if ((cmptr = CMSG_FIRSTHDR(&msg)) == NULL) {
-		logmsgx("CMSG_FIRSTHDR is NULL");
-		goto done;
-	}
-
-	dbgmsg(("msg_controllen = %u, cmsg_len = %u",
-	    (u_int)msg.msg_controllen, (u_int)cmptr->cmsg_len));
-
-	if (cmptr->cmsg_level != SOL_SOCKET) {
-		logmsgx("cmsg_level %d != SOL_SOCKET", cmptr->cmsg_level);
-		goto done;
-	}
-
-	if (cmptr->cmsg_type != SCM_TIMESTAMP) {
-		logmsgx("cmsg_type %d != SCM_TIMESTAMP", cmptr->cmsg_type);
-		goto done;
-	}
-
-	if (cmptr->cmsg_len != CMSG_LEN(sizeof(struct timeval))) {
-		logmsgx("cmsg_len %u != %lu (CMSG_LEN(sizeof(struct timeval))",
-		    (u_int)cmptr->cmsg_len, (u_long)CMSG_LEN(sizeof(struct timeval)));
-		goto done;
-	}
-
-	timeval = (const struct timeval *)CMSG_DATA(cmptr);
-
-	dbgmsg(("timeval tv_sec %jd, tv_usec %jd",
-	    (intmax_t)timeval->tv_sec, (intmax_t)timeval->tv_usec));
-
-	if ((cmptr = CMSG_NXTHDR(&msg, cmptr)) != NULL) {
-		logmsgx("control data has extra header");
-		goto done;
-	}
-
-	error = 0;
-
-done:
-	if (sock_type == SOCK_STREAM)
-		if (close(fd2) < 0) {
-			logmsg("close");
-			return (-2);
+		msghdr_init_server(&msghdr, iov, cmsg_data, cmsg_size);
+		if (message_recv(fd2, &msghdr) < 0) {
+			rv = -2;
+			break;
 		}
-	return (error);
 
-failed:
-	if (sock_type == SOCK_STREAM)
-		if (close(fd2) < 0)
-			logmsg("close");
-	return (-2);
+		if (check_msghdr(&msghdr, sizeof(*cmsghdr)) < 0)
+			break;
+
+		cmsghdr = CMSG_FIRSTHDR(&msghdr);
+		if (check_scm_timestamp(cmsghdr) < 0)
+			break;
+	}
+	if (i > ipc_msg.msg_num)
+		rv = 0;
+done:
+	free(cmsg_data);
+	if (sock_type == SOCK_STREAM && fd2 >= 0)
+		if (socket_close(fd2) < 0)
+			rv = -2;
+	return (rv);
 }
 
 static int
-t_timestamp(void)
+t_timeval(void)
 {
-	int error, fd;
+	return (t_generic(t_timeval_client, t_timeval_server));
+}
 
-	if ((fd = create_server_socket()) < 0)
+static int
+t_bintime_client(int fd)
+{
+	struct msghdr msghdr;
+	struct iovec iov[1];
+	void *cmsg_data;
+	size_t cmsg_size;
+	int rv;
+
+	if (sync_recv() < 0)
 		return (-2);
 
-	if (sock_type == SOCK_STREAM)
-		if (listen(fd, LISTENQ) < 0) {
-			logmsg("listen");
-			goto failed;
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(sizeof(struct bintime));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
+	msghdr_init_client(&msghdr, iov, cmsg_data, cmsg_size,
+	    SCM_BINTIME, sizeof(struct bintime));
+
+	if (socket_connect(fd) < 0)
+		goto done;
+
+	if (message_sendn(fd, &msghdr) < 0)
+		goto done;
+
+	rv = 0;
+done:
+	free(cmsg_data);
+	return (rv);
+}
+
+static int
+t_bintime_server(int fd1)
+{
+	struct msghdr msghdr;
+	struct iovec iov[1];
+	struct cmsghdr *cmsghdr;
+	void *cmsg_data;
+	size_t cmsg_size;
+	u_int i;
+	int fd2, rv;
+
+	if (sync_send() < 0)
+		return (-2);
+
+	fd2 = -1;
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(sizeof(struct bintime));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
+
+	if (sock_type == SOCK_STREAM) {
+		fd2 = socket_accept(fd1);
+		if (fd2 < 0)
+			goto done;
+	} else
+		fd2 = fd1;
+
+	rv = -1;
+	for (i = 1; i <= ipc_msg.msg_num; ++i) {
+		dbgmsg("message #%u", i);
+
+		msghdr_init_server(&msghdr, iov, cmsg_data, cmsg_size);
+		if (message_recv(fd2, &msghdr) < 0) {
+			rv = -2;
+			break;
 		}
 
-	if ((client_pid = fork()) == (pid_t)-1) {
-		logmsg("fork");
-		goto failed;
+		if (check_msghdr(&msghdr, sizeof(*cmsghdr)) < 0)
+			break;
+
+		cmsghdr = CMSG_FIRSTHDR(&msghdr);
+		if (check_scm_bintime(cmsghdr) < 0)
+			break;
 	}
+	if (i > ipc_msg.msg_num)
+		rv = 0;
+done:
+	free(cmsg_data);
+	if (sock_type == SOCK_STREAM && fd2 >= 0)
+		if (socket_close(fd2) < 0)
+			rv = -2;
+	return (rv);
+}
 
-	if (client_pid == 0) {
-		myname = "CLIENT";
-		if (close_socket((const char *)NULL, fd) < 0)
-			_exit(1);
-		t_timestamp_client();
-	}
+static int
+t_bintime(void)
+{
+	return (t_generic(t_bintime_client, t_bintime_server));
+}
 
-	if ((error = t_timestamp_server(fd)) == -2) {
-		(void)wait_client();
-		goto failed;
-	}
+static int
+t_cmsg_len_client(int fd)
+{
+	struct msghdr msghdr;
+	struct iovec iov[1];
+	struct cmsghdr *cmsghdr;
+	void *cmsg_data;
+	size_t size, cmsg_size;
+	socklen_t socklen;
+	int rv;
 
-	if (wait_client() < 0)
-		goto failed;
-
-	if (close_socket(serv_sock_path, fd) < 0) {
-		logmsgx("close_socket failed");
+	if (sync_recv() < 0)
 		return (-2);
-	}
-	return (error);
 
-failed:
-	if (close_socket(serv_sock_path, fd) < 0)
-		logmsgx("close_socket failed");
-	return (-2);
+	rv = -2;
+
+	cmsg_size = CMSG_SPACE(sizeof(struct cmsgcred));
+	cmsg_data = malloc(cmsg_size);
+	if (cmsg_data == NULL) {
+		logmsg("malloc");
+		goto done;
+	}
+	msghdr_init_client(&msghdr, iov, cmsg_data, cmsg_size,
+	    SCM_CREDS, sizeof(struct cmsgcred));
+	cmsghdr = CMSG_FIRSTHDR(&msghdr);
+
+	if (socket_connect(fd) < 0)
+		goto done;
+
+	size = msghdr.msg_iov != NULL ? msghdr.msg_iov->iov_len : 0;
+	rv = -1;
+	for (socklen = 0; socklen < CMSG_LEN(0); ++socklen) {
+		cmsghdr->cmsg_len = socklen;
+		dbgmsg("send: data size %zu", size);
+		dbgmsg("send: msghdr.msg_controllen %u",
+		    (u_int)msghdr.msg_controllen);
+		dbgmsg("send: cmsghdr.cmsg_len %u",
+		    (u_int)cmsghdr->cmsg_len);
+		if (sendmsg(fd, &msghdr, 0) < 0)
+			continue;
+		logmsgx("sent message with cmsghdr.cmsg_len %u < %u",
+		    (u_int)cmsghdr->cmsg_len, (u_int)CMSG_LEN(0));
+		break;
+	}
+	if (socklen == CMSG_LEN(0))
+		rv = 0;
+
+	if (sync_send() < 0) {
+		rv = -2;
+		goto done;
+	}
+done:
+	free(cmsg_data);
+	return (rv);
+}
+
+static int
+t_cmsg_len_server(int fd1)
+{
+	int fd2, rv;
+
+	if (sync_send() < 0)
+		return (-2);
+
+	rv = -2;
+
+	if (sock_type == SOCK_STREAM) {
+		fd2 = socket_accept(fd1);
+		if (fd2 < 0)
+			goto done;
+	} else
+		fd2 = fd1;
+
+	if (sync_recv() < 0)
+		goto done;
+
+	rv = 0;
+done:
+	if (sock_type == SOCK_STREAM && fd2 >= 0)
+		if (socket_close(fd2) < 0)
+			rv = -2;
+	return (rv);
+}
+
+static int
+t_cmsg_len(void)
+{
+	return (t_generic(t_cmsg_len_client, t_cmsg_len_server));
+}
+
+static int
+t_peercred_client(int fd)
+{
+	struct xucred xucred;
+	socklen_t len;
+
+	if (sync_recv() < 0)
+		return (-1);
+
+	if (socket_connect(fd) < 0)
+		return (-1);
+
+	len = sizeof(xucred);
+	if (getsockopt(fd, 0, LOCAL_PEERCRED, &xucred, &len) < 0) {
+		logmsg("getsockopt(LOCAL_PEERCRED)");
+		return (-1);
+	}
+
+	if (check_xucred(&xucred, len) < 0)
+		return (-1);
+
+	return (0);
+}
+
+static int
+t_peercred_server(int fd1)
+{
+	struct xucred xucred;
+	socklen_t len;
+	int fd2, rv;
+
+	if (sync_send() < 0)
+		return (-2);
+
+	fd2 = socket_accept(fd1);
+	if (fd2 < 0)
+		return (-2);
+
+	len = sizeof(xucred);
+	if (getsockopt(fd2, 0, LOCAL_PEERCRED, &xucred, &len) < 0) {
+		logmsg("getsockopt(LOCAL_PEERCRED)");
+		rv = -2;
+		goto done;
+	}
+
+	if (check_xucred(&xucred, len) < 0) {
+		rv = -1;
+		goto done;
+	}
+
+	rv = 0;
+done:
+	if (socket_close(fd2) < 0)
+		rv = -2;
+	return (rv);
+}
+
+static int
+t_peercred(void)
+{
+	return (t_generic(t_peercred_client, t_peercred_server));
 }

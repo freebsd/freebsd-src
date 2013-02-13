@@ -369,9 +369,8 @@ ps3cdrom_action(struct cam_sim *sim, union ccb *ccb)
 
 		TAILQ_REMOVE(&sc->sc_free_xferq, xp, x_queue);
 
-		err = bus_dmamap_load(sc->sc_dmatag, xp->x_dmamap,
-		    ccb->csio.data_ptr, ccb->csio.dxfer_len, ps3cdrom_transfer,
-		    xp, 0);
+		err = bus_dmamap_load_ccb(sc->sc_dmatag, xp->x_dmamap,
+		    ccb, ps3cdrom_transfer, xp, 0);
 		if (err && err != EINPROGRESS) {
 			device_printf(dev, "Could not load DMA map (%d)\n",
 			    err);

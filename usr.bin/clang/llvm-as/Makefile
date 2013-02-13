@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=llvm-as
 
 SRCDIR=	tools/llvm-as
