@@ -11,8 +11,8 @@ First, read http://wiki.freebsd.org/SubversionPrimer/VendorImports
 # Xlist
 setenv XLIST /FreeBSD/work/openssl/svn-FREEBSD-files/FREEBSD-Xlist
 setenv FSVN "svn+ssh://svn.freebsd.org/base"
-setenv OSSLVER 1.0.1c
-# OSSLTAG format: v1_0_1c
+setenv OSSLVER 1.0.1e
+# OSSLTAG format: v1_0_1e
 
 ###setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
 
@@ -35,7 +35,7 @@ comm -23 old new
 # See that files to add makes sense
 comm -13 old new
 
-tar -cf - -C openssl-${OSSLVER} . | tar xf - -C dist
+tar -cf - -C openssl-${OSSLVER} . | tar -xf - -C dist
 cd dist
 comm -23 ../old ../new | xargs svn rm
 # Make sure to remove empty directories
