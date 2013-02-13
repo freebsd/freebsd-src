@@ -145,10 +145,10 @@ long vm_page_array_size;
 long first_page;
 int vm_page_zero_count;
 
-static int boot_pages = UMA_BOOT_PAGES;
-TUNABLE_INT("vm.boot_pages", &boot_pages);
-SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
-	"number of pages allocated for bootstrapping the VM system");
+static int boot_pages = UMA_INIT_BOOT_PAGES;
+TUNABLE_INT("vm.initial_boot_pages", &boot_pages);
+SYSCTL_INT(_vm, OID_AUTO, initial_boot_pages, CTLFLAG_RD, &boot_pages, 0,
+	"Initial number of pages allocated for bootstrapping the VM system");
 
 static int pa_tryrelock_restart;
 SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
@@ -307,28 +307,16 @@ vm_page_startup(vm_offset_t vaddr)
 	low_water = 0;
 #endif	
 
-	end = phys_avail[biggestone+1];
+	new_end = phys_avail[biggestone+1];
 
 	/*
 	 * Initialize the page and queue locks.
 	 */
-	mtx_init(&vm_page_queue_free_mtx, "vm page free queue", NULL, MTX_DEF |
-	    MTX_RECURSE);
+	mtx_init(&vm_page_queue_free_mtx, "vm page free queue", NULL, MTX_DEF);
 	for (i = 0; i < PA_LOCK_COUNT; i++)
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < PQ_COUNT; i++)
 		vm_pagequeue_init_lock(&vm_pagequeues[i]);
-
-	/*
-	 * Allocate memory for use when boot strapping the kernel memory
-	 * allocator.
-	 */
-	new_end = end - (boot_pages * UMA_SLAB_SIZE);
-	new_end = trunc_page(new_end);
-	mapped = pmap_map(&vaddr, new_end, end,
-	    VM_PROT_READ | VM_PROT_WRITE);
-	bzero((void *)mapped, end - new_end);
-	uma_startup((void *)mapped, boot_pages);
 
 #if defined(__amd64__) || defined(__i386__) || defined(__arm__) || \
     defined(__mips__)
@@ -382,6 +370,20 @@ vm_page_startup(vm_offset_t vaddr)
 #else
 #error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
+	end = new_end;
+
+	/*
+	 * Allocate memory for use when boot strapping the kernel memory
+	 * allocator.
+	 */
+	boot_pages += howmany(vm_radix_allocphys_size(page_range),
+	    UMA_SLAB_SIZE - UMA_MAX_WASTE);
+	new_end = end - (boot_pages * UMA_SLAB_SIZE);
+	new_end = trunc_page(new_end);
+	mapped = pmap_map(&vaddr, new_end, end,
+	    VM_PROT_READ | VM_PROT_WRITE);
+	bzero((void *)mapped, end - new_end);
+	uma_startup((void *)mapped, boot_pages);
 	end = new_end;
 
 	/*

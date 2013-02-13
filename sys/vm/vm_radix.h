@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 EMC Corp.
  * Copyright (c) 2011 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2008 Mayur Shardul <mayur.shardul@gmail.com>
  * All rights reserved.
@@ -33,6 +34,7 @@
 
 #ifdef _KERNEL
 
+size_t		vm_radix_allocphys_size(size_t nitems);
 void		vm_radix_init(void);
 void		vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index,
 		    vm_page_t page);

@@ -26,6 +26,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130211:
+	The vm.boot_pages tunable and sysctl are removed and new
+	vm.initial_boot_pages tunable and sysctl are introduced.  The new
+	adds represent the number of pages that are initially reserved to the
+	system for startup.  The number of pages can however be extended if
+	necessary by the system during the boot stage.
+
 20130129:
 	A BSD-licensed patch(1) variant has been added and is installed
 	as bsdpatch, being the GNU version the default patch.

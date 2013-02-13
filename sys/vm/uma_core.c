@@ -329,7 +329,7 @@ bucket_alloc(int entries, int bflags)
 
 	/*
 	 * This is to stop us from allocating per cpu buckets while we're
-	 * running out of vm.boot_pages.  Otherwise, we would exhaust the
+	 * running out of boot_pages.  Otherwise, we would exhaust the
 	 * boot pages.  This also prevents us from allocating buckets in
 	 * low memory situations.
 	 */
@@ -984,7 +984,7 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 	}
 	mtx_unlock(&uma_boot_pages_mtx);
 	if (booted < UMA_STARTUP2)
-		panic("UMA: Increase vm.boot_pages");
+		panic("UMA: Increase vm.initial_boot_pages");
 	/*
 	 * Now that we've booted reset these users to their real allocator.
 	 */
