@@ -10,9 +10,9 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
 	memccpy.c memchr.c memrchr.c memcmp.c \
 	memcpy.c memmem.c memmove.c memset.c \
 	stpcpy.c stpncpy.c strcasecmp.c \
-	strcat.c strcasestr.c strchr.c strcmp.c strcoll.c strcpy.c strcspn.c \
-	strdup.c strerror.c strlcat.c strlcpy.c strlen.c strmode.c strncat.c \
-	strncmp.c strncpy.c strndup.c strnlen.c strnstr.c \
+	strcat.c strcasestr.c strchr.c strchrnul.c strcmp.c strcoll.c strcpy.c\
+	strcspn.c strdup.c strerror.c strlcat.c strlcpy.c strlen.c strmode.c \
+	strncat.c strncmp.c strncpy.c strndup.c strnlen.c strnstr.c \
 	strpbrk.c strrchr.c strsep.c strsignal.c strspn.c strstr.c strtok.c \
 	strxfrm.c swab.c wcpcpy.c wcpncpy.c wcscasecmp.c wcscat.c \
 	wcschr.c wcscmp.c wcscoll.c wcscpy.c wcscspn.c wcsdup.c \
