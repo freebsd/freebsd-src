@@ -81,7 +81,8 @@ typedef struct platform_kobj	*platform_t;
 typedef struct kobj_class	platform_def_t;
 #define platform_method_t	kobj_method_t
 
-#define PLATFORMMETHOD	KOBJMETHOD
+#define PLATFORMMETHOD		KOBJMETHOD
+#define	PLATFORMMETHOD_END	KOBJMETHOD_END
 
 #define PLATFORM_DEF(name)	DATA_SET(platform_set, name)
 
