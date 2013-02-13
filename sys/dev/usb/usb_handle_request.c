@@ -149,6 +149,7 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 {
 	struct usb_device *udev = xfer->xroot->udev;
 	usb_error_t err = 0;
+	uint8_t do_unlock;
 
 	/*
 	 * We need to protect against other threads doing probe and
@@ -156,7 +157,8 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 	 */
 	USB_XFER_UNLOCK(xfer);
 
-	usbd_enum_lock(udev);
+	/* Prevent re-enumeration */
+	do_unlock = usbd_enum_lock(udev);
 
 	if (conf_no == USB_UNCONFIG_NO) {
 		conf_no = USB_UNCONFIG_INDEX;
@@ -179,7 +181,8 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 		goto done;
 	}
 done:
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (err);
 }
@@ -221,6 +224,7 @@ usb_handle_iface_request(struct usb_xfer *xfer,
 	int error;
 	uint8_t iface_index;
 	uint8_t temp_state;
+	uint8_t do_unlock;
 
 	if ((req.bmRequestType & 0x1F) == UT_INTERFACE) {
 		iface_index = req.wIndex[0];	/* unicast */
@@ -234,7 +238,8 @@ usb_handle_iface_request(struct usb_xfer *xfer,
 	 */
 	USB_XFER_UNLOCK(xfer);
 
-	usbd_enum_lock(udev);
+	/* Prevent re-enumeration */
+	do_unlock = usbd_enum_lock(udev);
 
 	error = ENXIO;
 
@@ -350,17 +355,20 @@ tr_repeat:
 		goto tr_stalled;
 	}
 tr_valid:
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (0);
 
 tr_short:
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_SHORT_XFER);
 
 tr_stalled:
-	usbd_enum_unlock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_STALLED);
 }
