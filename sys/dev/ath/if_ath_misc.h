@@ -137,7 +137,7 @@ static inline void
 ath_tx_swq_kick(struct ath_softc *sc)
 {
 
-	taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txqtask);
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
 }
 
 #endif

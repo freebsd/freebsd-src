@@ -76,6 +76,12 @@
 			clock-frequency = < 24000000 >;
 		};
 
+		watchdog@01c20c90 {
+			compatible = "allwinner,sun4i-wdt";
+			reg = <0x01c20c90 0x08>;
+		};
+
+
 		GPIO: gpio@01c20800 {
 			#gpio-cells = <3>;
 			compatible = "allwinner,sun4i-gpio";

@@ -854,7 +854,7 @@ sctp_disconnect(struct socket *so)
 					struct mbuf *op_err;
 
 			abort_anyway:
-					op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
+					op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 					    0, M_NOWAIT, 1, MT_DATA);
 					if (op_err) {
 						/*
@@ -862,17 +862,11 @@ sctp_disconnect(struct socket *so)
 						 * initiated abort
 						 */
 						struct sctp_paramhdr *ph;
-						uint32_t *ippp;
 
-						SCTP_BUF_LEN(op_err) =
-						    (sizeof(struct sctp_paramhdr) + sizeof(uint32_t));
-						ph = mtod(op_err,
-						    struct sctp_paramhdr *);
-						ph->param_type = htons(
-						    SCTP_CAUSE_USER_INITIATED_ABT);
+						SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
+						ph = mtod(op_err, struct sctp_paramhdr *);
+						ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 						ph->param_length = htons(SCTP_BUF_LEN(op_err));
-						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(SCTP_FROM_SCTP_USRREQ + SCTP_LOC_4);
 					}
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_4;
 					sctp_send_abort_tcb(stcb, op_err, SCTP_SO_LOCKED);
@@ -1069,22 +1063,16 @@ sctp_shutdown(struct socket *so)
 				struct mbuf *op_err;
 
 		abort_anyway:
-				op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
+				op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
 				    0, M_NOWAIT, 1, MT_DATA);
 				if (op_err) {
 					/* Fill in the user initiated abort */
 					struct sctp_paramhdr *ph;
-					uint32_t *ippp;
 
-					SCTP_BUF_LEN(op_err) =
-					    sizeof(struct sctp_paramhdr) + sizeof(uint32_t);
-					ph = mtod(op_err,
-					    struct sctp_paramhdr *);
-					ph->param_type = htons(
-					    SCTP_CAUSE_USER_INITIATED_ABT);
+					SCTP_BUF_LEN(op_err) = sizeof(struct sctp_paramhdr);
+					ph = mtod(op_err, struct sctp_paramhdr *);
+					ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 					ph->param_length = htons(SCTP_BUF_LEN(op_err));
-					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6);
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
@@ -4629,6 +4617,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(adap_bits, optval, struct sctp_setadaptation, optsize);
 			SCTP_INP_WLOCK(inp);
 			inp->sctp_ep.adaptation_layer_indicator = adap_bits->ssb_adaptation_ind;
+			inp->sctp_ep.adaptation_layer_indicator_provided = 1;
 			SCTP_INP_WUNLOCK(inp);
 			break;
 		}

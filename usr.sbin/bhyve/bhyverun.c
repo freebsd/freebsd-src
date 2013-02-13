@@ -520,13 +520,17 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 static void
 vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
+	cpuset_t mask;
 	int error, rc, prevcpu;
 
 	if (guest_vcpu_mux)
 		setup_timeslice();
 
 	if (pincpu >= 0) {
-		error = vm_set_pinning(ctx, vcpu, pincpu + vcpu);
+		CPU_ZERO(&mask);
+		CPU_SET(pincpu + vcpu, &mask);
+		error = pthread_setaffinity_np(pthread_self(),
+					       sizeof(mask), &mask);
 		assert(error == 0);
 	}
 

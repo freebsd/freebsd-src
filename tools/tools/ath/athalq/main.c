@@ -126,8 +126,9 @@ main(int argc, const char *argv[])
 					ar9300_alq_payload(a);
 #endif
 				else
-					printf("[%d] [%lld] op: %d; len %d\n",
-					    be32toh(a->hdr.tstamp),
+					printf("[%d.%06d] [%lld] op: %d; len %d\n",
+					    be32toh(a->hdr.tstamp_sec),
+					    be32toh(a->hdr.tstamp_usec),
 					    be64toh(a->hdr.threadid),
 					    be16toh(a->hdr.op),
 					    be16toh(a->hdr.len));

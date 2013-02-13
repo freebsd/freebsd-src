@@ -144,7 +144,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_memory_segment *seg;
 	struct vm_register *vmreg;
 	struct vm_seg_desc* vmsegdesc;
-	struct vm_pin *vmpin;
 	struct vm_run *vmrun;
 	struct vm_event *vmevent;
 	struct vm_lapic_irq *vmirq;
@@ -170,7 +169,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	 */
 	switch (cmd) {
 	case VM_RUN:
-	case VM_SET_PINNING:
 	case VM_GET_REGISTER:
 	case VM_SET_REGISTER:
 	case VM_GET_SEGMENT_DESCRIPTOR:
@@ -300,16 +298,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_LAPIC_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_set_intr(sc->vm, vmirq->cpuid, vmirq->vector);
-		break;
-	case VM_SET_PINNING:
-		vmpin = (struct vm_pin *)data;
-		error = vm_set_pinning(sc->vm, vmpin->vm_cpuid,
-				       vmpin->host_cpuid);
-		break;
-	case VM_GET_PINNING:
-		vmpin = (struct vm_pin *)data;
-		error = vm_get_pinning(sc->vm, vmpin->vm_cpuid,
-				       &vmpin->host_cpuid);
 		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;

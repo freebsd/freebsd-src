@@ -969,6 +969,14 @@ carp_ifa_delroute(struct ifaddr *ifa)
 	}
 }
 
+int
+carp_master(struct ifaddr *ifa)
+{
+	struct carp_softc *sc = ifa->ifa_carp;
+
+	return (sc->sc_state == MASTER);
+}
+
 #ifdef INET
 /*
  * Broadcast a gratuitous ARP request containing
@@ -2072,6 +2080,7 @@ carp_mod_cleanup(void)
 	carp_forus_p = NULL;
 	carp_output_p = NULL;
 	carp_demote_adj_p = NULL;
+	carp_master_p = NULL;
 	mtx_unlock(&carp_mtx);
 	taskqueue_drain(taskqueue_swi, &carp_sendall_task);
 	mtx_destroy(&carp_mtx);
@@ -2092,6 +2101,7 @@ carp_mod_load(void)
 	carp_attach_p = carp_attach;
 	carp_detach_p = carp_detach;
 	carp_demote_adj_p = carp_demote_adj;
+	carp_master_p = carp_master;
 #ifdef INET6
 	carp_iamatch6_p = carp_iamatch6;
 	carp_macmatch6_p = carp_macmatch6;

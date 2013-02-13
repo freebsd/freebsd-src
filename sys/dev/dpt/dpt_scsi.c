@@ -910,56 +910,22 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 	        /* Only use S/G if there is a transfer */
 		if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if ((ccbh->flags & CAM_SCATTER_VALID) == 0) {
+			int error;
+
+			error = bus_dmamap_load_ccb(dpt->buffer_dmat,
+						    dccb->dmamap,
+						    ccb,
+						    dptexecuteccb,
+						    dccb, /*flags*/0);
+			if (error == EINPROGRESS) {
 				/*
-				 * We've been given a pointer
-				 * to a single buffer.
+				 * So as to maintain ordering,
+				 * freeze the controller queue
+				 * until our mapping is
+				 * returned.
 				 */
-				if ((ccbh->flags & CAM_DATA_PHYS) == 0) {
-					int error;
-
-					error =
-					    bus_dmamap_load(dpt->buffer_dmat,
-							    dccb->dmamap,
-							    csio->data_ptr,
-							    csio->dxfer_len,
-							    dptexecuteccb,
-							    dccb, /*flags*/0);
-					if (error == EINPROGRESS) {
-						/*
-						 * So as to maintain ordering,
-						 * freeze the controller queue
-						 * until our mapping is
-						 * returned.
-						 */
-						xpt_freeze_simq(sim, 1);
-						dccb->state |= CAM_RELEASE_SIMQ;
-					}
-				} else {
-					struct bus_dma_segment seg; 
-
-					/* Pointer to physical buffer */
-					seg.ds_addr =
-					    (bus_addr_t)csio->data_ptr;
-					seg.ds_len = csio->dxfer_len;
-					dptexecuteccb(dccb, &seg, 1, 0);
-				}
-			} else {
-				struct bus_dma_segment *segs;
-
-				if ((ccbh->flags & CAM_DATA_PHYS) != 0)
-					panic("dpt_action - Physical "
-					      "segment pointers "
-					      "unsupported");
-
-				if ((ccbh->flags&CAM_SG_LIST_PHYS)==0)
-					panic("dpt_action - Virtual "
-					      "segment addresses "
-					      "unsupported");
-
-				/* Just use the segments provided */
-				segs = (struct bus_dma_segment *)csio->data_ptr;
-				dptexecuteccb(dccb, segs, csio->sglist_cnt, 0);
+				xpt_freeze_simq(sim, 1);
+				dccb->state |= CAM_RELEASE_SIMQ;
 			}
 		} else {
 			/*

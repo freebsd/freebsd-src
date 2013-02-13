@@ -323,13 +323,13 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 		IEEE80211_ADDR_COPY(eh->ether_shost, wh.i_addr4);
 		break;
 	}
-#ifdef ALIGNED_POINTER
+#ifndef __NO_STRICT_ALIGNMENT
 	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), uint32_t)) {
 		m = ieee80211_realign(vap, m, sizeof(*eh));
 		if (m == NULL)
 			return NULL;
 	}
-#endif /* ALIGNED_POINTER */
+#endif /* !__NO_STRICT_ALIGNMENT */
 	if (llc != NULL) {
 		eh = mtod(m, struct ether_header *);
 		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));

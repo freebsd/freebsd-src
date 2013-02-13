@@ -961,28 +961,31 @@ vtscsi_sg_append_scsi_buf(struct vtscsi_softc *sc, struct sglist *sg,
 	ccbh = &csio->ccb_h;
 	error = 0;
 
-	if ((ccbh->flags & CAM_SCATTER_VALID) == 0) {
-
-		if ((ccbh->flags & CAM_DATA_PHYS) == 0)
-			error = sglist_append(sg,
-			    csio->data_ptr, csio->dxfer_len);
-		else
-			error = sglist_append_phys(sg,
-			    (vm_paddr_t)(vm_offset_t) csio->data_ptr,
-			    csio->dxfer_len);
-	} else {
-
+	switch ((ccbh->flags & CAM_DATA_MASK)) {
+	case CAM_DATA_VADDR:
+		error = sglist_append(sg, csio->data_ptr, csio->dxfer_len);
+		break;
+	case CAM_DATA_PADDR:
+		error = sglist_append_phys(sg,
+		    (vm_paddr_t)(vm_offset_t) csio->data_ptr, csio->dxfer_len);
+		break;
+	case CAM_DATA_SG:
 		for (i = 0; i < csio->sglist_cnt && error == 0; i++) {
 			dseg = &((struct bus_dma_segment *)csio->data_ptr)[i];
-
-			if ((ccbh->flags & CAM_SG_LIST_PHYS) == 0)
-				error = sglist_append(sg,
-				    (void *)(vm_offset_t) dseg->ds_addr,
-				    dseg->ds_len);
-			else
-				error = sglist_append_phys(sg,
-				    (vm_paddr_t) dseg->ds_addr, dseg->ds_len);
+			error = sglist_append(sg,
+			    (void *)(vm_offset_t) dseg->ds_addr, dseg->ds_len);
 		}
+		break;
+	case CAM_DATA_SG_PADDR:
+		for (i = 0; i < csio->sglist_cnt && error == 0; i++) {
+			dseg = &((struct bus_dma_segment *)csio->data_ptr)[i];
+			error = sglist_append_phys(sg,
+			    (vm_paddr_t) dseg->ds_addr, dseg->ds_len);
+		}
+		break;
+	default:
+		error = EINVAL;
+		break;
 	}
 
 	return (error);

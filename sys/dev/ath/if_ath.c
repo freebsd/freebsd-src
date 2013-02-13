@@ -4226,7 +4226,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 
 	/* Kick the software TXQ scheduler */
 	if (dosched) {
-		ath_tx_swq_kick(sc);
+		ATH_TX_LOCK(sc);
+		ath_txq_sched(sc, txq);
+		ATH_TX_UNLOCK(sc);
 	}
 
 	ATH_KTR(sc, ATH_KTR_TXCOMP, 1,
@@ -4271,11 +4273,11 @@ ath_tx_proc_q0(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
+	ath_txq_qrun(ifp);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
-
-	ath_tx_kick(sc);
 }
 
 /*
@@ -4324,11 +4326,11 @@ ath_tx_proc_q0123(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
+	ath_txq_qrun(ifp);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
-
-	ath_tx_kick(sc);
 }
 
 /*
@@ -4369,11 +4371,11 @@ ath_tx_proc(void *arg, int npending)
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
 
+	ath_txq_qrun(ifp);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_txproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
-
-	ath_tx_kick(sc);
 }
 #undef	TXQACTIVE
 
