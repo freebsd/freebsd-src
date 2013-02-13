@@ -648,7 +648,7 @@ restart:
 		}
 
 		/*
-		 * If a valid page or edge, smaller then the search slot, is
+		 * If a valid page or edge, smaller than the search slot, is
 		 * found in the traversal, skip to the next higher-level key.
 		 */
 		if (slot == 0 && (rnode->rn_child[slot] == NULL || m != NULL)) {
