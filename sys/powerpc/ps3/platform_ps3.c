@@ -89,7 +89,7 @@ static platform_method_t ps3_methods[] = {
 
 	PLATFORMMETHOD(platform_reset,		ps3_reset),
 
-	{ 0, 0 }
+	PLATFORMMETHOD_END
 };
 
 static platform_def_t ps3_platform = {
