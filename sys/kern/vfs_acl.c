@@ -247,7 +247,7 @@ vacl_get_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 	struct acl *inkernelacl;
 	int error;
 
-	inkernelacl = acl_alloc(M_WAITOK);
+	inkernelacl = acl_alloc(M_WAITOK | M_ZERO);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_vnode_check_getacl(td->td_ucred, vp, type);
