@@ -101,9 +101,8 @@ int metaslab_smo_bonus_pct = 150;
  * Should we be willing to write data to degraded vdevs?
  */
 boolean_t zfs_write_to_degraded = B_FALSE;
-SYSCTL_INT(_vfs_zfs, OID_AUTO, write_to_degraded, CTLFLAG_RW,
-    &zfs_write_to_degraded, 0,
-    "Allow writing data to degraded vdevs");
+SYSCTL_INT(_vfs_zfs, OID_AUTO, write_to_degraded, CTLFLAG_RWTUN,
+    &zfs_write_to_degraded, 0, "Allow writing data to degraded vdevs");
 TUNABLE_INT("vfs.zfs.write_to_degraded", &zfs_write_to_degraded);
 
 /*
