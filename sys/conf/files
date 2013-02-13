@@ -1294,7 +1294,8 @@ dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_pci.c		optional fdt pci
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
-dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static
+dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
+	dependency	"$S/boot/fdt/dts/${FDT_DTS_FILE}"
 dev/fdt/fdtbus.c		optional fdt
 dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
