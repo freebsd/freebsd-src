@@ -1567,7 +1567,6 @@ upgt_tx_done(struct upgt_softc *sc, uint8_t *data)
 			data_tx->ni = NULL;
 			data_tx->addr = 0;
 			data_tx->m = NULL;
-			data_tx->use = 0;
 
 			DPRINTF(sc, UPGT_DEBUG_TX_PROC,
 			    "TX done: memaddr=0x%08x, status=0x%04x, rssi=%d, ",
