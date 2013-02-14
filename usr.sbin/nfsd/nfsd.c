@@ -119,6 +119,7 @@ static void	usage(void);
 static void	open_stable(int *, int *);
 static void	copy_stable(int, int);
 static void	backup_stable(int);
+static void	set_nfsdcnt(int);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -178,8 +179,7 @@ main(int argc, char **argv)
 			bindanyflag = 1;
 			break;
 		case 'n':
-			nfsdcnt_set = 1;
-			nfsdcnt = atoi(optarg);
+			set_nfsdcnt(atoi(optarg));
 			break;
 		case 'h':
 			bindhostc++;
@@ -235,15 +235,8 @@ main(int argc, char **argv)
 	 */
 	if (argc > 1)
 		usage();
-	if (argc == 1) {
-		nfsdcnt_set = 1;
-		nfsdcnt = atoi(argv[0]);
-		if (nfsdcnt < 1 || nfsdcnt > MAXNFSDCNT) {
-			warnx("nfsd count %d; reset to %d", nfsdcnt,
-			    DEFNFSDCNT);
-			nfsdcnt = DEFNFSDCNT;
-		}
-	}
+	if (argc == 1)
+		set_nfsdcnt(atoi(argv[0]));
 
 	/*
 	 * Unless the "-o" option was specified, try and run "nfsd".
@@ -429,16 +422,6 @@ main(int argc, char **argv)
 	}
 
 	if (!new_syscall) {
-		if (nfsdcnt < 1) {
-			warnx("nfsd count too low %d; reset to %d", nfsdcnt,
-			    DEFNFSDCNT);
-			nfsdcnt = DEFNFSDCNT;
-		}
-		if (nfsdcnt > MAXNFSDCNT) {
-			warnx("nfsd count too high %d; reset to %d", nfsdcnt,
-			    DEFNFSDCNT);
-			nfsdcnt = MAXNFSDCNT;
-		}
 		/* If we use UDP only, we start the last server below. */
 		srvcnt = tcpflag ? nfsdcnt : nfsdcnt - 1;
 		for (i = 0; i < srvcnt; i++) {
@@ -888,6 +871,23 @@ setbindhost(struct addrinfo **ai, const char *bindhost, struct addrinfo hints)
 		return (1);
 	}
 	return (0);
+}
+
+static void
+set_nfsdcnt(int proposed)
+{
+
+	if (proposed < 1) {
+		warnx("nfsd count too low %d; reset to %d", proposed,
+		    DEFNFSDCNT);
+		nfsdcnt = DEFNFSDCNT;
+	} else if (proposed > MAXNFSDCNT) {
+		warnx("nfsd count too high %d; truncated to %d", proposed,
+		    MAXNFSDCNT);
+		nfsdcnt = MAXNFSDCNT;
+	} else
+		nfsdcnt = proposed;
+	nfsdcnt_set = 1;
 }
 
 static void
