@@ -74,7 +74,7 @@ char	*strcasestr(const char *, const char *) __pure;
 #endif
 char	*strcat(char * __restrict, const char * __restrict);
 char	*strchr(const char *, int) __pure;
-#if defined(_GNU_SOURCE)
+#if __BSD_VISIBLE
 char	*strchrnul(const char*, int) __pure;
 #endif
 int	 strcmp(const char *, const char *) __pure;
