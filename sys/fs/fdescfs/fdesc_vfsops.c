@@ -237,4 +237,4 @@ static struct vfsops fdesc_vfsops = {
 	.vfs_unmount =		fdesc_unmount,
 };
 
-VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC|VFCF_JAIL);
+VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC);
