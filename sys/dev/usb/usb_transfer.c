@@ -1923,6 +1923,17 @@ usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
 	return (&xfer->frbuffers[frindex]);
 }
 
+void *
+usbd_xfer_get_frame_buffer(struct usb_xfer *xfer, usb_frcount_t frindex)
+{
+	struct usb_page_search page_info;
+
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
+	usbd_get_page(&xfer->frbuffers[frindex], 0, &page_info);
+	return (page_info.buffer);
+}
+
 /*------------------------------------------------------------------------*
  *	usbd_xfer_get_fps_shift
  *
