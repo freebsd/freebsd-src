@@ -4446,8 +4446,10 @@ pmap_remove_pages(pmap_t pmap)
 					pte = &pte[pmap_pte_index(pv->pv_va)];
 					tpte = *pte & ~PG_PTE_PAT;
 				}
-				if ((tpte & PG_V) == 0)
-					panic("bad pte");
+				if ((tpte & PG_V) == 0) {
+					panic("bad pte va %lx pte %lx",
+					    pv->pv_va, tpte);
+				}
 
 /*
  * We cannot remove wired pages from a process' mapping at this time
