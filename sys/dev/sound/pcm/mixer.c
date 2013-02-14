@@ -893,14 +893,8 @@ mixer_hwvol_init(device_t dev)
 }
 
 void
-mixer_hwvol_mute(device_t dev)
+mixer_hwvol_mute_locked(struct snd_mixer *m)
 {
-	struct snd_mixer *m;
-	struct cdev *pdev;
-
-	pdev = mixer_get_devt(dev);
-	m = pdev->si_drv1;
-	snd_mtxlock(m->lock);
 	if (m->hwvol_muted) {
 		m->hwvol_muted = 0;
 		mixer_set(m, m->hwvol_mixer, m->hwvol_mute_level);
@@ -909,19 +903,26 @@ mixer_hwvol_mute(device_t dev)
 		m->hwvol_mute_level = mixer_get(m, m->hwvol_mixer);
 		mixer_set(m, m->hwvol_mixer, 0);
 	}
-	snd_mtxunlock(m->lock);
 }
 
 void
-mixer_hwvol_step(device_t dev, int left_step, int right_step)
+mixer_hwvol_mute(device_t dev)
 {
 	struct snd_mixer *m;
-	int level, left, right;
 	struct cdev *pdev;
 
 	pdev = mixer_get_devt(dev);
 	m = pdev->si_drv1;
 	snd_mtxlock(m->lock);
+	mixer_hwvol_mute_locked(m);
+	snd_mtxunlock(m->lock);
+}
+
+void
+mixer_hwvol_step_locked(struct snd_mixer *m, int left_step, int right_step)
+{
+	int level, left, right;
+
 	if (m->hwvol_muted) {
 		m->hwvol_muted = 0;
 		level = m->hwvol_mute_level;
@@ -929,15 +930,31 @@ mixer_hwvol_step(device_t dev, int left_step, int right_step)
 		level = mixer_get(m, m->hwvol_mixer);
 	if (level != -1) {
 		left = level & 0xff;
-		right = level >> 8;
+		right = (level >> 8) & 0xff;
 		left += left_step * m->hwvol_step;
 		if (left < 0)
 			left = 0;
+		else if (left > 100)
+			left = 100;
 		right += right_step * m->hwvol_step;
 		if (right < 0)
 			right = 0;
+		else if (right > 100)
+			right = 100;
 		mixer_set(m, m->hwvol_mixer, left | right << 8);
 	}
+}
+
+void
+mixer_hwvol_step(device_t dev, int left_step, int right_step)
+{
+	struct snd_mixer *m;
+	struct cdev *pdev;
+
+	pdev = mixer_get_devt(dev);
+	m = pdev->si_drv1;
+	snd_mtxlock(m->lock);
+	mixer_hwvol_step_locked(m, left_step, right_step);
 	snd_mtxunlock(m->lock);
 }
 
@@ -1491,4 +1508,31 @@ mixer_get_lock(struct snd_mixer *m)
 		return (&Giant);
 	}
 	return (m->lock);
+}
+
+int
+mix_get_locked(struct snd_mixer *m, u_int dev, int *pleft, int *pright)
+{
+	int level;
+
+	level = mixer_get(m, dev);
+	if (level < 0) {
+		*pright = *pleft = -1;
+		return (-1);
+	}
+
+	*pleft = level & 0xFF;
+	*pright = (level >> 8) & 0xFF;
+
+	return (0);
+}
+
+int
+mix_set_locked(struct snd_mixer *m, u_int dev, int left, int right)
+{
+	int level;
+
+	level = (left & 0xFF) | ((right & 0xFF) << 8);
+
+	return (mixer_set(m, dev, level));
 }
