@@ -1014,26 +1014,13 @@ start_server(int master)
 		}
 		nfsdargs.principal = principal;
 
-		if (minthreads_set) {
-			nfsdargs.minthreads = minthreads;
-			if (!maxthreads_set)
-				nfsdargs.maxthreads = minthreads;
-		}
-		if (maxthreads_set) {
-			nfsdargs.maxthreads = maxthreads;
-			if (!minthreads_set)
-				nfsdargs.minthreads = maxthreads;
-		}
-		if (nfsdcnt_set) {
-			nfsdargs.minthreads = nfsdcnt;
-			nfsdargs.maxthreads = nfsdcnt;
-		}
-		if (!minthreads_set && !maxthreads_set && !nfsdcnt_set) {
-			int tuned_nfsdcnt;
-
-			tuned_nfsdcnt = get_tuned_nfsdcount();
-			nfsdargs.minthreads = tuned_nfsdcnt;
-			nfsdargs.maxthreads = tuned_nfsdcnt;
+		if (nfsdcnt_set)
+			nfsdargs.minthreads = nfsdargs.maxthreads = nfsdcnt;
+		else {
+			nfsdargs.minthreads = minthreads_set ? minthreads : get_tuned_nfsdcount();
+			nfsdargs.maxthreads = maxthreads_set ? maxthreads : nfsdargs.minthreads;
+			if (nfsdargs.maxthreads < nfsdargs.minthreads)
+				nfsdargs.maxthreads = nfsdargs.minthreads;
 		}
 		error = nfssvc(nfssvc_nfsd, &nfsdargs);
 		if (error < 0 && errno == EAUTH) {
