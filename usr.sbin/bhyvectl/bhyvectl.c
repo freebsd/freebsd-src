@@ -185,6 +185,7 @@ usage(void)
 	"       [--get-vmcs-interruptibility]\n"
 	"       [--set-x2apic-state=<state>]\n"
 	"       [--get-x2apic-state]\n"
+	"       [--unassign-pptdev=<bus/slot/func>]\n"
 	"       [--set-lowmem=<memory below 4GB in units of MB>]\n"
 	"       [--get-lowmem]\n"
 	"       [--set-highmem=<memory above 4GB in units of MB>]\n"
@@ -218,6 +219,7 @@ static int set_cs, set_ds, set_es, set_fs, set_gs, set_ss, set_tr, set_ldtr;
 static int get_cs, get_ds, get_es, get_fs, get_gs, get_ss, get_tr, get_ldtr;
 static int set_x2apic_state, get_x2apic_state;
 enum x2apic_state x2apic_state;
+static int unassign_pptdev, bus, slot, func;
 static int run;
 
 /*
@@ -376,6 +378,7 @@ enum {
 	SET_VMCS_ENTRY_INTERRUPTION_INFO,
 	SET_CAP,
 	CAPNAME,
+	UNASSIGN_PPTDEV,
 };
 
 int
@@ -425,6 +428,7 @@ main(int argc, char *argv[])
 		{ "set-vmcs-entry-interruption-info",
 				REQ_ARG, 0, SET_VMCS_ENTRY_INTERRUPTION_INFO },
 		{ "capname",	REQ_ARG,	0,	CAPNAME },
+		{ "unassign-pptdev", REQ_ARG,	0,	UNASSIGN_PPTDEV },
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
 		{ "getcap",	NO_ARG,		&getcap,	1 },
 		{ "get-stats",	NO_ARG,		&get_stats,	1 },
@@ -672,6 +676,11 @@ main(int argc, char *argv[])
 		case CAPNAME:
 			capname = optarg;
 			break;
+		case UNASSIGN_PPTDEV:
+			unassign_pptdev = 1;
+			if (sscanf(optarg, "%d/%d/%d", &bus, &slot, &func) != 3)
+				usage();
+			break;
 		default:
 			usage();
 		}
@@ -804,6 +813,9 @@ main(int argc, char *argv[])
 
 	if (!error && set_x2apic_state)
 		error = vm_set_x2apic_state(ctx, vcpu, x2apic_state);
+
+	if (!error && unassign_pptdev)
+		error = vm_unassign_pptdev(ctx, bus, slot, func);
 
 	if (!error && set_exception_bitmap) {
 		error = vm_set_vmcs_field(ctx, vcpu, VMCS_EXCEPTION_BITMAP,
