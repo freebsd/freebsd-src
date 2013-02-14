@@ -26,6 +26,7 @@ FBSD_1.3 {
 	sallocm;
 	dallocm;
 	nallocm;
+	/* __jemalloc_opt_utrace;*/
 };
 
 FBSDprivate_1.0 {

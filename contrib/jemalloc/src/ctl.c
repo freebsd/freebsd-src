@@ -86,6 +86,7 @@ CTL_PROTO(config_stats)
 CTL_PROTO(config_tcache)
 CTL_PROTO(config_tls)
 CTL_PROTO(config_utrace)
+CTL_PROTO(config_utrace2)
 CTL_PROTO(config_valgrind)
 CTL_PROTO(config_xmalloc)
 CTL_PROTO(opt_abort)
@@ -99,6 +100,7 @@ CTL_PROTO(opt_zero)
 CTL_PROTO(opt_quarantine)
 CTL_PROTO(opt_redzone)
 CTL_PROTO(opt_utrace)
+CTL_PROTO(opt_utrace2)
 CTL_PROTO(opt_valgrind)
 CTL_PROTO(opt_xmalloc)
 CTL_PROTO(opt_tcache)
@@ -225,6 +227,7 @@ static const ctl_named_node_t	config_node[] = {
 	{NAME("tcache"),		CTL(config_tcache)},
 	{NAME("tls"),			CTL(config_tls)},
 	{NAME("utrace"),		CTL(config_utrace)},
+	{NAME("utrace2"),		CTL(config_utrace2)},
 	{NAME("valgrind"),		CTL(config_valgrind)},
 	{NAME("xmalloc"),		CTL(config_xmalloc)}
 };
@@ -241,6 +244,7 @@ static const ctl_named_node_t opt_node[] = {
 	{NAME("quarantine"),		CTL(opt_quarantine)},
 	{NAME("redzone"),		CTL(opt_redzone)},
 	{NAME("utrace"),		CTL(opt_utrace)},
+	{NAME("utrace2"),		CTL(opt_utrace2)},
 	{NAME("valgrind"),		CTL(opt_valgrind)},
 	{NAME("xmalloc"),		CTL(opt_xmalloc)},
 	{NAME("tcache"),		CTL(opt_tcache)},
@@ -1242,6 +1246,7 @@ CTL_RO_BOOL_CONFIG_GEN(config_stats)
 CTL_RO_BOOL_CONFIG_GEN(config_tcache)
 CTL_RO_BOOL_CONFIG_GEN(config_tls)
 CTL_RO_BOOL_CONFIG_GEN(config_utrace)
+CTL_RO_BOOL_CONFIG_GEN(config_utrace2)
 CTL_RO_BOOL_CONFIG_GEN(config_valgrind)
 CTL_RO_BOOL_CONFIG_GEN(config_xmalloc)
 
@@ -1258,6 +1263,7 @@ CTL_RO_NL_CGEN(config_fill, opt_zero, opt_zero, bool)
 CTL_RO_NL_CGEN(config_fill, opt_quarantine, opt_quarantine, size_t)
 CTL_RO_NL_CGEN(config_fill, opt_redzone, opt_redzone, bool)
 CTL_RO_NL_CGEN(config_utrace, opt_utrace, opt_utrace, bool)
+CTL_RO_NL_CGEN(config_utrace2, opt_utrace2, opt_utrace2, bool)
 CTL_RO_NL_CGEN(config_valgrind, opt_valgrind, opt_valgrind, bool)
 CTL_RO_NL_CGEN(config_xmalloc, opt_xmalloc, opt_xmalloc, bool)
 CTL_RO_NL_CGEN(config_tcache, opt_tcache, opt_tcache, bool)

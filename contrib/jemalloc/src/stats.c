@@ -383,6 +383,7 @@ stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 		OPT_WRITE_BOOL(redzone)
 		OPT_WRITE_BOOL(zero)
 		OPT_WRITE_BOOL(utrace)
+		OPT_WRITE_BOOL(utrace2)
 		OPT_WRITE_BOOL(valgrind)
 		OPT_WRITE_BOOL(xmalloc)
 		OPT_WRITE_BOOL(tcache)
