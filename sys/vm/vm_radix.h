@@ -34,8 +34,6 @@
 
 #ifdef _KERNEL
 
-size_t		vm_radix_allocphys_size(size_t nitems);
-void		vm_radix_init(void);
 void		vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index,
 		    vm_page_t page);
 vm_page_t	vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);

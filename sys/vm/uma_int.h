@@ -118,8 +118,7 @@
 #define UMA_SLAB_MASK	(PAGE_SIZE - 1)	/* Mask to get back to the page */
 #define UMA_SLAB_SHIFT	PAGE_SHIFT	/* Number of bits PAGE_MASK */
 
-/* Initial pages allocated for startup */
-#define UMA_INIT_BOOT_PAGES	64
+#define UMA_BOOT_PAGES		64	/* Pages allocated for startup */
 
 /* Max waste before going to off page slab management */
 #define UMA_MAX_WASTE	(UMA_SLAB_SIZE / 10)
