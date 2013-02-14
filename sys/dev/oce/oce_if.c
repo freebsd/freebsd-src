@@ -1817,6 +1817,9 @@ oce_local_timer(void *arg)
 }
 
 
+/* NOTE : This should only be called holding
+ *        DEVICE_LOCK.
+*/
 static void
 oce_if_deactivate(POCE_SOFTC sc)
 {
@@ -1846,11 +1849,17 @@ oce_if_deactivate(POCE_SOFTC sc)
 	/* Stop intrs and finish any bottom halves pending */
 	oce_hw_intr_disable(sc);
 
+    /* Since taskqueue_drain takes a Giant Lock, We should not acquire
+       any other lock. So unlock device lock and require after
+       completing taskqueue_drain.
+    */
+    UNLOCK(&sc->dev_lock);
 	for (i = 0; i < sc->intr_count; i++) {
 		if (sc->intrs[i].tq != NULL) {
 			taskqueue_drain(sc->intrs[i].tq, &sc->intrs[i].task);
 		}
 	}
+    LOCK(&sc->dev_lock);
 
 	/* Delete RX queue in card with flush param */
 	oce_stop_rx(sc);
