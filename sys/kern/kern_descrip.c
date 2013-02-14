@@ -776,7 +776,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		}
 		fhold(fp);
 		FILEDESC_SUNLOCK(fdp);
-		if (arg != 0) {
+		if (arg >= 0) {
 			vp = fp->f_vnode;
 			error = vn_lock(vp, LK_SHARED);
 			if (error != 0) {
