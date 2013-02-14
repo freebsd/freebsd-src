@@ -68,7 +68,6 @@ int
 aout_getnfile(const char *filename, char ***defaultEs)
 {
     FILE	*nfile;
-    int		valcmp();
 
     nfile = fopen( filename ,"r");
     if (nfile == NULL)

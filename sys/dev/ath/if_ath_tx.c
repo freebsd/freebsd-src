@@ -1124,11 +1124,7 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			dur = rt->info[rix].lpAckDuration;
 		if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
 			dur += dur;		/* additional SIFS+ACK */
-			if (bf->bf_state.bfs_nextpktlen == 0) {
-				device_printf(sc->sc_dev,
-				    "%s: next txfrag len=0?\n",
-				    __func__);
-			}
+			KASSERT(bf->bf_m->m_nextpkt != NULL, ("no fragment"));
 			/*
 			 * Include the size of next fragment so NAV is
 			 * updated properly.  The last fragment uses only
@@ -1139,7 +1135,7 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			 * first fragment!
 			 */
 			dur += ath_hal_computetxtime(ah, rt,
-					bf->bf_state.bfs_nextpktlen,
+					bf->bf_m->m_nextpkt->m_pkthdr.len,
 					rix, shortPreamble);
 		}
 		if (isfrag) {

@@ -181,7 +181,6 @@ union usb_device_scratch {
 struct usb_device {
 	struct usb_clear_stall_msg cs_msg[2];	/* generic clear stall
 						 * messages */
-	struct sx ctrl_sx;
 	struct sx enum_sx;
 	struct sx sr_sx;
 	struct mtx device_mtx;

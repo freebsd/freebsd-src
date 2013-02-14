@@ -238,6 +238,16 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 #endif
 
 /*
+ * FreeBSD: can't use GCC's __builtin_ctz when using sparc64 because
+ * gcc currently rely on libcompiler_rt.
+ *
+ * TODO: revisit this when situation changes.
+ */
+#if defined(__sparc64__)
+#define	LZ4_FORCE_SW_BITCOUNT
+#endif
+
+/*
  * Compiler Options
  */
 #if __STDC_VERSION__ >= 199901L	/* C99 */
@@ -378,9 +388,38 @@ static inline int
 LZ4_NbCommonBytes(register U64 val)
 {
 #if defined(LZ4_BIG_ENDIAN)
+#if !defined(LZ4_FORCE_SW_BITCOUNT)
 	return (__builtin_clzll(val) >> 3);
 #else
+	int r;
+	if (!(val >> 32)) {
+		r = 4;
+	} else {
+		r = 0;
+		val >>= 32;
+	}
+	if (!(val >> 16)) {
+		r += 2;
+		val >>= 8;
+	} else {
+		val >>= 24;
+	}
+	r += (!val);
+	return (r);
+#endif
+#else
+#if !defined(LZ4_FORCE_SW_BITCOUNT)
 	return (__builtin_ctzll(val) >> 3);
+#else
+	static const int DeBruijnBytePos[64] =
+	    { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5,
+		3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5,
+		5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4,
+		4, 5, 7, 2, 6, 5, 7, 6, 7, 7
+	};
+	return DeBruijnBytePos[((U64) ((val & -val) * 0x0218A392CDABBD3F)) >>
+	    58];
+#endif
 #endif
 }
 
@@ -390,9 +429,33 @@ static inline int
 LZ4_NbCommonBytes(register U32 val)
 {
 #if defined(LZ4_BIG_ENDIAN)
+#if !defined(LZ4_FORCE_SW_BITCOUNT)
 	return (__builtin_clz(val) >> 3);
 #else
+	int r;
+	if (!(val >> 16)) {
+		r = 2;
+		val >>= 8;
+	} else {
+		r = 0;
+		val >>= 24;
+	}
+	r += (!val);
+	return (r);
+#endif
+#else
+#if !defined(LZ4_FORCE_SW_BITCOUNT)
 	return (__builtin_ctz(val) >> 3);
+#else
+	static const int DeBruijnBytePos[32] = {
+		0, 0, 3, 0, 3, 1, 3, 0,
+		3, 2, 2, 1, 3, 2, 0, 1,
+		3, 3, 1, 2, 2, 2, 2, 0,
+		3, 1, 2, 0, 1, 0, 1, 1
+	};
+	return DeBruijnBytePos[((U32) ((val & -(S32) val) * 0x077CB531U)) >>
+	    27];
+#endif
 #endif
 }
 
