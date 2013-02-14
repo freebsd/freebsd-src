@@ -405,7 +405,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, vm_page_t page)
 		vm_radix_addpage(rnode, index, 0, page);
 		return;
 	}
-	while (rnode) {
+	while (rnode != NULL) {
 		if (vm_radix_keybarr(rnode, index) == TRUE)
 			break;
 		slot = vm_radix_slot(index, rnode->rn_clev);
@@ -481,7 +481,7 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 	int slot;
 
 	rnode = vm_radix_getroot(rtree);
-	while (rnode) {
+	while (rnode != NULL) {
 		if (vm_radix_keybarr(rnode, index) == TRUE)
 			return (NULL);
 		slot = vm_radix_slot(index, rnode->rn_clev);
@@ -518,7 +518,7 @@ restart:
 	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
 		maplevels[difflev] = FALSE;
 	rnode = vm_radix_getroot(rtree);
-	while (rnode) {
+	while (rnode != NULL) {
 		maplevels[rnode->rn_clev] = TRUE;
 
 		/*
@@ -607,7 +607,7 @@ restart:
 	for (difflev = 0; difflev < (VM_RADIX_LIMIT + 1); difflev++)
 		maplevels[difflev] = FALSE;
 	rnode = vm_radix_getroot(rtree);
-	while (rnode) {
+	while (rnode != NULL) {
 		maplevels[rnode->rn_clev] = TRUE;
 
 		/*
