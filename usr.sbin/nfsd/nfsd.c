@@ -105,20 +105,20 @@ static struct option longopts[] = {
 	{ NULL, 0, NULL, 0}
 };
 
-void	cleanup(int);
-void	child_cleanup(int);
-void	killchildren(void);
-void	nfsd_exit(int);
-void	nonfs(int);
-void	reapchild(int);
-int	setbindhost(struct addrinfo **ia, const char *bindhost,
-	    struct addrinfo hints);
-void	start_server(int);
-void	unregistration(void);
-void	usage(void);
-void	open_stable(int *, int *);
-void	copy_stable(int, int);
-void	backup_stable(int);
+static void	cleanup(int);
+static void	child_cleanup(int);
+static void	killchildren(void);
+static void	nfsd_exit(int);
+static void	nonfs(int);
+static void	reapchild(int);
+static int	setbindhost(struct addrinfo **ia, const char *bindhost,
+		    struct addrinfo hints);
+static void	start_server(int);
+static void	unregistration(void);
+static void	usage(void);
+static void	open_stable(int *, int *);
+static void	copy_stable(int, int);
+static void	backup_stable(int);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -844,7 +844,7 @@ main(int argc, char **argv)
 	}
 }
 
-int
+static int
 setbindhost(struct addrinfo **ai, const char *bindhost, struct addrinfo hints)
 {
 	int ecode;
@@ -890,20 +890,20 @@ setbindhost(struct addrinfo **ai, const char *bindhost, struct addrinfo hints)
 	return (0);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s", getopt_usage);
 	exit(1);
 }
 
-void
+static void
 nonfs(__unused int signo)
 {
 	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
-void
+static void
 reapchild(__unused int signo)
 {
 	pid_t pid;
@@ -916,7 +916,7 @@ reapchild(__unused int signo)
 	}
 }
 
-void
+static void
 unregistration(void)
 {
 	if ((!rpcb_unset(NFS_PROGRAM, 2, NULL)) ||
@@ -924,7 +924,7 @@ unregistration(void)
 		syslog(LOG_ERR, "rpcb_unset failed");
 }
 
-void
+static void
 killchildren(void)
 {
 	int i;
@@ -938,7 +938,7 @@ killchildren(void)
 /*
  * Cleanup master after SIGUSR1.
  */
-void
+static void
 cleanup(__unused int signo)
 {
 	nfsd_exit(0);
@@ -947,13 +947,13 @@ cleanup(__unused int signo)
 /*
  * Cleanup child after SIGUSR1.
  */
-void
+static void
 child_cleanup(__unused int signo)
 {
 	exit(0);
 }
 
-void
+static void
 nfsd_exit(int status)
 {
 	killchildren();
@@ -984,7 +984,7 @@ get_tuned_nfsdcount(void)
 	return tuned_nfsdcnt;
 }
 
-void
+static void
 start_server(int master)
 {
 	char principal[MAXHOSTNAMELEN + 5];
@@ -1066,7 +1066,7 @@ start_server(int master)
 /*
  * Open the stable restart file and return the file descriptor for it.
  */
-void
+static void
 open_stable(int *stable_fdp, int *backup_fdp)
 {
 	int stable_fd, backup_fd = -1, ret;
@@ -1118,7 +1118,7 @@ open_stable(int *stable_fdp, int *backup_fdp)
 /*
  * Copy the stable restart file to the backup or vice versa.
  */
-void
+static void
 copy_stable(int from_fd, int to_fd)
 {
 	int cnt, ret;
@@ -1146,7 +1146,7 @@ copy_stable(int from_fd, int to_fd)
 /*
  * Back up the stable restart file when indicated by the kernel.
  */
-void
+static void
 backup_stable(__unused int signo)
 {
 
