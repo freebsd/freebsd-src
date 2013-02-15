@@ -759,7 +759,7 @@ vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 
 #ifdef DDB
 /*
- * Show details about the given vnode.
+ * Show details about the given radix node.
  */
 DB_SHOW_COMMAND(radixnode, db_show_radixnode)
 {
