@@ -825,7 +825,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	 */
 	if (object->resident_page_count == 0) {
 		TAILQ_INSERT_TAIL(&object->memq, m, listq);
-	} else { 
+	} else {
 		neighbor = vm_radix_lookup_ge(&object->rtree, pindex);
 		if (neighbor != NULL) {
 		    	KASSERT(pindex < neighbor->pindex,
