@@ -1053,9 +1053,7 @@ vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	if (!vm_object_cache_is_empty(object))
-		return (vm_radix_lookup(&object->cache, pindex));
-	return (NULL);
+	return (vm_radix_lookup(&object->cache, pindex));
 }
 
 /*
