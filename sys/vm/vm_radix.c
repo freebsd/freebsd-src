@@ -115,22 +115,6 @@ static uma_zone_t vm_radix_node_zone;
 static u_int boot_cache_cnt;
 static struct vm_radix_node boot_cache[VM_RADIX_BOOT_CACHE];
 
-#ifdef INVARIANTS
-/*
- * Radix node zone destructor.
- */
-static void
-vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
-{
-	struct vm_radix_node *rnode;
-
-	rnode = mem;
-	KASSERT(rnode->rn_count == 0,
-	    ("vm_radix_node_put: Freeing node %p with %d children\n", mem,
-	    rnode->rn_count));
-}
-#endif
-
 static struct vm_radix_node *
 vm_radix_carve_bootcache(void)
 {
@@ -372,6 +356,22 @@ vm_radix_reclaim_allnodes_int(struct vm_radix_node *rnode)
 	}
 	vm_radix_node_put(rnode);
 }
+
+#ifdef INVARIANTS
+/*
+ * Radix node zone destructor.
+ */
+static void
+vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
+{
+	struct vm_radix_node *rnode;
+
+	rnode = mem;
+	KASSERT(rnode->rn_count == 0,
+	    ("vm_radix_node_put: Freeing node %p with %d children\n", mem,
+	    rnode->rn_count));
+}
+#endif
 
 /*
  * Pre-allocate intermediate nodes from the UMA slab zone.
