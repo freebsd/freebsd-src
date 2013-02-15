@@ -646,6 +646,26 @@ When set, it also enforces the following options:
 Set to build some programs without optional
 .Nm libkvm
 support.
+.It Va WITHOUT_LDNS
+.\" from FreeBSD: head/tools/build/options/WITHOUT_LDNS 246827 2013-02-15 13:44:18Z des
+Setting this variable will prevent LDNS from being built.
+When set, it also enforces the following options:
+.Pp
+.Bl -item -compact
+.It
+.Va WITHOUT_LDNS_UTILS
+.El
+.It Va WITH_LDNS_UTILS
+.\" from FreeBSD: head/tools/build/options/WITH_LDNS_UTILS 246830 2013-02-15 13:57:51Z des
+Setting this variable will enable the LDNS-based versions of
+.Xr dig 1
+and
+.Xr host 1 .
+When set, the following options are also in effect:
+.Pp
+.Bl -inset -compact
+.It Va WITHOUT_BIND_UTILS
+.El
 .It Va WITHOUT_LEGACY_CONSOLE
 .\" from FreeBSD: head/tools/build/options/WITHOUT_LEGACY_CONSOLE 183242 2008-09-21 22:02:26Z sam
 Set to not build programs that support a legacy PC console; e.g.
