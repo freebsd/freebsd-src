@@ -477,7 +477,7 @@ MK_BIND_UTILS:=	no
 MK_LDNS_UTILS:=	no
 .endif
 
-.if ${MK_LDNS_UTILS} == "no"
+.if ${MK_LDNS_UTILS} != "no"
 MK_BIND_UTILS:=	no
 .endif
 
