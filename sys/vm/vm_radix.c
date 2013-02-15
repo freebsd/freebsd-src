@@ -45,6 +45,7 @@
 #include <sys/cdefs.h>
 
 #include "opt_ddb.h"
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -67,7 +68,9 @@
 #include <ddb/ddb.h>
 #endif
 
+#ifndef VM_RADIX_BOOT_CACHE
 #define	VM_RADIX_BOOT_CACHE	1500
+#endif
 
 /*
  * Such sizes should permit to keep node children contained into a single
@@ -134,7 +137,8 @@ vm_radix_carve_bootcache(void)
 	struct vm_radix_node *rnode;
 
 	if (boot_cache_cnt == VM_RADIX_BOOT_CACHE)
-		panic("%s: Increase VM_RADIX_BOOT_CACHE", __func__);
+		panic("%s: Increase VM_RADIX_BOOT_CACHE (%u)", __func__,
+		    VM_RADIX_BOOT_CACHE);
 	rnode = &boot_cache[boot_cache_cnt];
 	boot_cache_cnt++;
 	return (rnode);
