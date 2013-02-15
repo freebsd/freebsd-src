@@ -232,7 +232,7 @@ parse_anodes(char *oparg)
 {
 	struct action_node *tmp_anode;
 	char *anode_str, *x;
-	char *sep = ",";
+	const char *sep = ",";
 
 	x = strdup(oparg);
 
