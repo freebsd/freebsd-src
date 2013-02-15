@@ -229,13 +229,13 @@ parse_anode(char *s, struct action_node *an)
 }
 
 static void
-parse_anodes(char *optarg)
+parse_anodes(char *oparg)
 {
 	struct action_node *tmp_anode;
 	char *anode_str, *x;
 	char *sep = ",";
 
-	x = strdup(optarg);
+	x = strdup(oparg);
 
 	for (anode_str = strtok(x, sep); anode_str;
 	    anode_str = strtok(NULL, sep)) {
@@ -250,13 +250,13 @@ parse_anodes(char *optarg)
 }
 
 static void
-parse_class(char *optarg, uint32_t *class_ip, uint16_t *class_port)
+parse_class(char *oparg, uint32_t *class_ip, uint16_t *class_port)
 {
 	struct addrinfo *ai, *curai;
 	char *errptr, *p;
 	int ret;
 
-	p = strstr(optarg, ":");
+	p = strstr(oparg, ":");
 
 	if (p != NULL) {
 		*p = '\0';
@@ -266,7 +266,7 @@ parse_class(char *optarg, uint32_t *class_ip, uint16_t *class_port)
 			errx(EX_USAGE, "parse error port '%s': %s", p, errptr);
 	}
 
-	ret = getaddrinfo(optarg, NULL, NULL, &ai);
+	ret = getaddrinfo(oparg, NULL, NULL, &ai);
 
 	if (ret != 0)
 		errx(EX_OSERR, "%s", gai_strerror(ret));
