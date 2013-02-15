@@ -228,7 +228,7 @@ leap_days(int y1, int y2)
  * Code adapted from Python 2.4.1 sources (Lib/calendar.py).
  */
 time_t
-mktime_from_utc(const struct tm *tm)
+ldns_mktime_from_utc(const struct tm *tm)
 {
 	int year = 1900 + tm->tm_year;
 	time_t days = 365 * ((time_t) year - 1970) + leap_days(1970, year);
@@ -250,6 +250,12 @@ mktime_from_utc(const struct tm *tm)
 	seconds = minutes * 60 + tm->tm_sec;
 
 	return seconds;
+}
+
+time_t
+mktime_from_utc(const struct tm *tm)
+{
+	return ldns_mktime_from_utc(tm);
 }
 
 #if SIZEOF_TIME_T <= 4
@@ -399,6 +405,7 @@ ldns_init_random(FILE *fd, unsigned int size)
 
 	if (read < size) {
 		LDNS_FREE(seed);
+		if (!fd) fclose(rand_f);
 		return 1;
 	} else {
 #ifdef HAVE_SSL

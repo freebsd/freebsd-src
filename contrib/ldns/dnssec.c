@@ -743,7 +743,6 @@ ldns_dnssec_create_nsec_bitmap(ldns_rr_type rr_type_list[],
 		memcpy(data + cur_data_size + 2, cur_data, cur_window_max+1);
 		cur_data_size += cur_window_max + 3;
 	}
-
 	bitmap_rdf = ldns_rdf_new_frm_data(LDNS_RDF_TYPE_NSEC,
 								cur_data_size,
 								data);
@@ -1154,12 +1153,15 @@ ldns_create_nsec3(ldns_rdf *cur_owner,
 								 salt_length,
 								 salt);
 	status = ldns_dname_cat(hashed_owner, cur_zone);
-        if(status != LDNS_STATUS_OK)
+        if(status != LDNS_STATUS_OK) {
+		ldns_rdf_deep_free(hashed_owner);
                 return NULL;
-
+	}
 	nsec = ldns_rr_new_frm_type(LDNS_RR_TYPE_NSEC3);
-        if(!nsec)
+        if(!nsec) {
+		ldns_rdf_deep_free(hashed_owner);
                 return NULL;
+	}
 	ldns_rr_set_type(nsec, LDNS_RR_TYPE_NSEC3);
 	ldns_rr_set_owner(nsec, hashed_owner);
 
@@ -1443,8 +1445,9 @@ ldns_pkt_verify_time(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o,
 		sigs = s;
 	} else {
 		/* otherwise get them from the packet */
-		sigs = ldns_pkt_rr_list_by_name_and_type(p, o, LDNS_RR_TYPE_RRSIG,
-									  LDNS_SECTION_ANY_NOQUESTION);
+		sigs = ldns_pkt_rr_list_by_name_and_type(p, o,
+				LDNS_RR_TYPE_RRSIG,
+				LDNS_SECTION_ANY_NOQUESTION);
 		if (!sigs) {
 			/* no sigs */
 			return LDNS_STATUS_ERR;
@@ -1457,24 +1460,26 @@ ldns_pkt_verify_time(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o,
 	 */
 	t_netorder = htons(t); /* rdf are in network order! */
 	/* a type identifier is a 16-bit number, so the size is 2 bytes */
-	rdf_t = ldns_rdf_new(LDNS_RDF_TYPE_TYPE,
-					 2,
-					 &t_netorder);
+	rdf_t = ldns_rdf_new(LDNS_RDF_TYPE_TYPE, 2, &t_netorder);
+
 	sigs_covered = ldns_rr_list_subtype_by_rdf(sigs, rdf_t, 0);
+	ldns_rdf_free(rdf_t);
+	if (! sigs_covered) {
+		if (! s) {
+			ldns_rr_list_deep_free(sigs);
+		}
+		return LDNS_STATUS_ERR;
+	}
+	ldns_rr_list_deep_free(sigs_covered);
 
-	rrset = ldns_pkt_rr_list_by_name_and_type(p,
-									  o,
-									  t,
-									  LDNS_SECTION_ANY_NOQUESTION);
-
+	rrset = ldns_pkt_rr_list_by_name_and_type(p, o, t,
+			LDNS_SECTION_ANY_NOQUESTION);
 	if (!rrset) {
+		if (! s) {
+			ldns_rr_list_deep_free(sigs);
+		}
 		return LDNS_STATUS_ERR;
 	}
-
-	if (!sigs_covered) {
-		return LDNS_STATUS_ERR;
-	}
-
 	return ldns_verify_time(rrset, sigs, k, check_time, good_keys);
 }
 
