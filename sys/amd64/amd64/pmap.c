@@ -5015,7 +5015,7 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 			return ((void *)va);
 	}
 	offset = pa & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 	va = kmem_alloc_nofault(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
@@ -5051,7 +5051,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 		return;
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 	kmem_free(kernel_map, base, size);
 }
 
@@ -5173,7 +5173,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 
 	/*
 	 * Only supported on kernel virtual addresses, including the direct
