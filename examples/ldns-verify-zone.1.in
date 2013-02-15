@@ -37,6 +37,9 @@ Default signatures should just be valid now.
 A file that contains a trusted DNSKEY or DS rr.
 This option may be given more than once.
 
+Alternatively, if \fB-k\fR is not specified, and a default trust anchor
+(@LDNS_TRUST_ANCHOR_FILE@) exists and contains a valid DNSKEY or DS record,
+it will be used as the trust anchor.
 .TP
 \fB-p\fR \fI[0-100]\fR
 Only check this percentage of the zone.
@@ -76,6 +79,16 @@ P[n]Y[n]M[n]DT[n]H[n]M[n]S
 .RE
 .LP
 If no file is given standard input is read.
+
+.SH "FILES"
+.TP
+@LDNS_TRUST_ANCHOR_FILE@
+The file from which trusted keys are loaded for signature chasing,
+when no \fB-k\fR option is given.
+
+.SH "SEE ALSO"
+.LP
+unbound-anchor(8)
 
 .SH AUTHOR
 Written by the ldns team as an example for ldns usage.

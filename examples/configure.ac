@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.56)
-AC_INIT(ldns, 1.6.13, libdns@nlnetlabs.nl,libdns)
+AC_INIT(ldns, 1.6.16, libdns@nlnetlabs.nl,libdns)
 AC_CONFIG_SRCDIR([ldns-read-zone.c])
 sinclude(../acx_nlnetlabs.m4)
 
@@ -136,7 +136,9 @@ ACX_WITH_SSL_OPTIONAL
 AC_SUBST(LIBSSL_CPPFLAGS)
 AC_SUBST(LIBSSL_LDFLAGS)
 AC_SUBST(LIBSSL_LIBS)
-
+if test "x$HAVE_SSL" = "xyes"; then
+AC_SUBST(LIBSSL_SSL_LIBS, ["$LIBSSL_LIBS -lssl"])
+fi
 CPPFLAGS="$tmp_CPPFLAGS"
 LDFLAGS="$tmp_LDFLAGS"
 LIBS="$tmp_LIBS"
@@ -313,13 +315,51 @@ if test -f $ldns_dev_dir/ldns/util.h && \
 else
 	AC_MSG_RESULT([no])
 	AC_CHECK_LIB(ldns, ldns_rr_new,, [
-			AC_MSG_ERROR([Can't find ldns library])
+			AC_MSG_ERROR([Can't find ldns library])dnl'
 		]
 	)
 fi
 
 AC_SUBST(LDNSDIR)
 
+AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file for drill and ldns-dane. [default=SYSCONFDIR/unbound/root.key]]), [
+ LDNS_TRUST_ANCHOR_FILE="$withval"
+],[
+ if test "x$LDNS_TRUST_ANCHOR_FILE" = "x"; then
+  if test "x$sysconfdir" = 'x${prefix}/etc' ; then
+   if test "x$prefix" = 'xNONE' ; then
+    LDNS_TRUST_ANCHOR_FILE="/etc/unbound/root.key"
+   else
+    LDNS_TRUST_ANCHOR_FILE="${prefix}/etc/unbound/root.key"
+   fi
+  else
+    LDNS_TRUST_ANCHOR_FILE="${sysconfdir}/unbound/root.key"
+  fi
+ fi
+])
+AC_DEFINE_UNQUOTED([LDNS_TRUST_ANCHOR_FILE], ["$LDNS_TRUST_ANCHOR_FILE"], [Default trust anchor file])
+AC_SUBST(LDNS_TRUST_ANCHOR_FILE)
+AC_MSG_NOTICE([Default trust anchor: $LDNS_TRUST_ANCHOR_FILE])
+
+AC_ARG_WITH(ca-file, AC_HELP_STRING([--with-ca-file=CAFILE], [File containing CA certificates for ldns-dane]), [
+ AC_DEFINE([HAVE_DANE_CA_FILE], [1], [Is a CAFILE given at configure time])
+ AC_DEFINE_UNQUOTED([LDNS_DANE_CA_FILE], ["$withval"], [Is a CAFILE given at configure time])
+ AC_MSG_NOTICE([Using CAfile: $withval])
+ AC_SUBST(DEFAULT_CAFILE, ["Default is $withval"])
+],[
+ AC_DEFINE([HAVE_DANE_CA_FILE], [0], [Is a CAFILE given at configure time])
+ AC_SUBST(DEFAULT_CAFILE, [])
+])
+
+AC_ARG_WITH(ca-path, AC_HELP_STRING([--with-ca-path=CAPATH], [Directory containing CA certificate files for ldns-dane]), [
+ AC_DEFINE([HAVE_DANE_CA_PATH], [1], [Is a CAPATH given at configure time])
+ AC_DEFINE_UNQUOTED([LDNS_DANE_CA_PATH], ["$withval"], [Is a CAPATH given at configure time])
+ AC_MSG_NOTICE([Using CApath: $withval])
+ AC_SUBST(DEFAULT_CAPATH, ["Default is $withval"])
+],[
+ AC_DEFINE([HAVE_DANE_CA_PATH], [0], [Is a CAPATH given at configure time])
+ AC_SUBST(DEFAULT_CAPATH, [])
+])
 
 AH_BOTTOM([
 
@@ -416,6 +456,6 @@ extern int optind, opterr;
 #endif
 ])
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile ldns-dane.1 ldns-verify-zone.1])
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT

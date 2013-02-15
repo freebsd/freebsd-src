@@ -8,7 +8,6 @@
 #ifndef LDNS_DNSSEC_ZONE_H
 #define LDNS_DNSSEC_ZONE_H
  
-#include <ldns/ldns.h>
 #include <ldns/rbtree.h>
 #include <ldns/host2str.h>
 

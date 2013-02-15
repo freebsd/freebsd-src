@@ -19,7 +19,7 @@ ldns_update_resolver_new(const char *fqdn, const char *zone,
         ldns_resolver   *r1, *r2;
         ldns_pkt        *query = NULL, *resp;
         ldns_rr_list    *nslist, *iplist;
-        ldns_rdf        *soa_zone, *soa_mname, *ns_name;
+        ldns_rdf        *soa_zone, *soa_mname = NULL, *ns_name;
         size_t          i;
         ldns_status     s;
 
@@ -96,6 +96,7 @@ ldns_update_resolver_new(const char *fqdn, const char *zone,
                         /* Match */
                         iplist = ldns_get_rr_list_addr_by_name(r1, ns_name, class, 0);
                         (void) ldns_resolver_push_nameserver_rr_list(r2, iplist);
+			ldns_rr_list_deep_free(iplist);
                         break;
                 }
         }
@@ -109,12 +110,15 @@ ldns_update_resolver_new(const char *fqdn, const char *zone,
                         /* No match, add it now. */
                         iplist = ldns_get_rr_list_addr_by_name(r1, ns_name, class, 0);
                         (void) ldns_resolver_push_nameserver_rr_list(r2, iplist);
+			ldns_rr_list_deep_free(iplist);
                 }
         }
 
         ldns_resolver_set_random(r2, false);
         ldns_pkt_free(resp);
         ldns_resolver_deep_free(r1);
+	if (soa_mname)
+		ldns_rdf_deep_free(soa_mname);
         return r2;
 
   bad:
@@ -126,6 +130,8 @@ ldns_update_resolver_new(const char *fqdn, const char *zone,
                 ldns_pkt_free(query);
         if (resp)
                 ldns_pkt_free(resp);
+	if (soa_mname)
+		ldns_rdf_deep_free(soa_mname);
         return NULL;
 }
 
@@ -138,7 +144,7 @@ ldns_update_send_simple_addr(const char *fqdn, const char *zone,
         ldns_pkt        *u_pkt = NULL, *r_pkt;
         ldns_rr_list    *up_rrlist;
         ldns_rr         *up_rr;
-        ldns_rdf        *zone_rdf;
+        ldns_rdf        *zone_rdf = NULL;
         char            *rrstr;
         uint32_t        rrstrlen, status = LDNS_STATUS_OK;
 
@@ -231,6 +237,8 @@ ldns_update_send_simple_addr(const char *fqdn, const char *zone,
                 ldns_resolver_deep_free(res);
         if (u_pkt)
                 ldns_pkt_free(u_pkt);
+	if (zone_rdf)
+		ldns_rdf_deep_free(zone_rdf);
         return LDNS_STATUS_ERR;
 }
 
@@ -302,8 +310,10 @@ main(int argc, char **argv)
 
 	printf(";; trying UPDATE with FQDN \"%s\" and IP \"%s\"\n",
 	    fqdn, ipaddr ? ipaddr : "<none>");
-	printf(";; tsig: \"%s\" \"%s\" \"%s\"\n", tsig_cr.keyname,
-	    tsig_cr.algorithm, tsig_cr.keydata);
+	if (argc == 6 || argc == 7) {
+		printf(";; tsig: \"%s\" \"%s\" \"%s\"\n", tsig_cr.keyname,
+			tsig_cr.algorithm, tsig_cr.keydata);
+	}
 
 	ret = ldns_update_send_simple_addr(fqdn, zone, ipaddr, port, defttl, tsig_cred);
 	exit(ret);

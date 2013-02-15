@@ -204,6 +204,11 @@ main(int argc, char **argv)
 			tsig_cred.algorithm = (char*)"hmac-md5.sig-alg.reg.int.";
 			tsig_cred.keyname = optarg;
 			tsig_cred.keydata = strchr(optarg, ':');
+			if (tsig_cred.keydata == NULL) {
+				printf("TSIG argument is not in form "
+					"key:data: %s\n", optarg);
+				exit(1);
+			}
 			*tsig_cred.keydata = '\0';
 			tsig_cred.keydata++;
 			printf("Sign with %s : %s\n", tsig_cred.keyname,
@@ -250,7 +255,7 @@ main(int argc, char **argv)
 	ldns_pkt_set_opcode(notify, LDNS_PACKET_NOTIFY);
 	ldns_pkt_push_rr(notify, LDNS_SECTION_QUESTION, question);
 	ldns_pkt_set_aa(notify, true);
-	ldns_pkt_set_id(notify, random()&0xffff);
+	ldns_pkt_set_random_id(notify);
 	if(include_soa) {
 		char buf[10240];
 		ldns_rr *soa_rr=NULL;

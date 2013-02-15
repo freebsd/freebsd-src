@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.56)
-AC_INIT(ldns, 1.6.13, libdns@nlnetlabs.nl,libdns)
+AC_INIT(ldns, 1.6.16, libdns@nlnetlabs.nl,libdns)
 AC_CONFIG_SRCDIR([drill.c])
 sinclude(../acx_nlnetlabs.m4)
 
@@ -170,12 +170,32 @@ if test -f $ldns_dev_dir/ldns/util.h && \
 else
 	AC_MSG_RESULT([no])
 	AC_CHECK_LIB(ldns, ldns_rr_new, , [
-			AC_MSG_ERROR([Can't find ldns library])
+			AC_MSG_ERROR([Can't find ldns library])dnl '
 		]
 	)
 fi
 
 AC_SUBST(LDNSDIR)
+
+AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE],
+[Default location of the trust anchor file. [default=SYSCONFDIR/unbound/root.key]]), [
+ LDNS_TRUST_ANCHOR_FILE="$withval"
+],[
+ if test "x$LDNS_TRUST_ANCHOR_FILE" = "x"; then
+  if test "x$sysconfdir" = 'x${prefix}/etc' ; then
+   if test "x$prefix" = 'xNONE' ; then
+    LDNS_TRUST_ANCHOR_FILE="/etc/unbound/root.key"
+   else
+    LDNS_TRUST_ANCHOR_FILE="${prefix}/etc/unbound/root.key"
+   fi
+  else
+    LDNS_TRUST_ANCHOR_FILE="${sysconfdir}/unbound/root.key"
+  fi
+ fi
+])
+AC_DEFINE_UNQUOTED([LDNS_TRUST_ANCHOR_FILE], ["$LDNS_TRUST_ANCHOR_FILE"], [Default trust anchor file])
+AC_SUBST(LDNS_TRUST_ANCHOR_FILE)
+AC_MSG_NOTICE([Default trust anchor: $LDNS_TRUST_ANCHOR_FILE])
 
 AH_BOTTOM([
 
@@ -254,6 +274,6 @@ extern int optind, opterr;
 #endif
 ])
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile drill.1])
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT

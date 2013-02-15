@@ -110,12 +110,14 @@ ldns_send_buffer(ldns_pkt **result, ldns_resolver *r, ldns_buffer *qb, ldns_rdf 
 		if ((ns->ss_family == AF_INET) &&
 				(ldns_resolver_ip6(r) == LDNS_RESOLV_INET6)) {
 			/* not reachable */
+			LDNS_FREE(ns);
 			continue;
 		}
 
 		if ((ns->ss_family == AF_INET6) &&
 				 (ldns_resolver_ip6(r) == LDNS_RESOLV_INET)) {
 			/* not reachable */
+			LDNS_FREE(ns);
 			continue;
 		}
 #endif
@@ -182,7 +184,8 @@ ldns_send_buffer(ldns_pkt **result, ldns_resolver *r, ldns_buffer *qb, ldns_rdf 
 			ldns_pkt_set_querytime(reply, (uint32_t)
 				((tv_e.tv_sec - tv_s.tv_sec) * 1000) +
 				(tv_e.tv_usec - tv_s.tv_usec) / 1000);
-			ldns_pkt_set_answerfrom(reply, ns_array[i]);
+			ldns_pkt_set_answerfrom(reply,
+					ldns_rdf_clone(ns_array[i]));
 			ldns_pkt_set_timestamp(reply, tv_s);
 			ldns_pkt_set_size(reply, reply_size);
 			break;
@@ -203,7 +206,7 @@ ldns_send_buffer(ldns_pkt **result, ldns_resolver *r, ldns_buffer *qb, ldns_rdf 
 		return LDNS_STATUS_RES_NO_NS;
 	}
 #ifdef HAVE_SSL
-	if (tsig_mac && reply_bytes) {
+	if (tsig_mac && reply && reply_bytes) {
 		if (!ldns_pkt_tsig_verify(reply,
 		                          reply_bytes,
 					  reply_size,
@@ -470,7 +473,7 @@ ldns_tcp_send_query(ldns_buffer *qbin, int sockfd,
 	sendbuf = LDNS_XMALLOC(uint8_t, ldns_buffer_position(qbin) + 2);
 	if(!sendbuf) return 0;
 	ldns_write_uint16(sendbuf, ldns_buffer_position(qbin));
-	memcpy(sendbuf + 2, ldns_buffer_export(qbin), ldns_buffer_position(qbin));
+	memcpy(sendbuf + 2, ldns_buffer_begin(qbin), ldns_buffer_position(qbin));
 
 	bytes = sendto(sockfd, (void*)sendbuf,
 			ldns_buffer_position(qbin) + 2, 0, (struct sockaddr *)to, tolen);
@@ -669,7 +672,7 @@ ldns_tcp_send(uint8_t **result,  ldns_buffer *qbin, const struct sockaddr_storag
 	}
 
 	/* resize accordingly */
-	*result = (uint8_t*)LDNS_XREALLOC(answer, uint8_t *, (size_t)*answer_size);
+	*result = LDNS_XREALLOC(answer, uint8_t, (size_t)*answer_size);
         if(!*result) {
                 LDNS_FREE(answer);
                 return LDNS_STATUS_MEM_ERR;
@@ -807,6 +810,9 @@ ldns_axfr_start(ldns_resolver *resolver, ldns_rdf *domain, ldns_rr_class class)
              ns_i < ldns_resolver_nameserver_count(resolver) &&
              resolver->_socket == 0;
              ns_i++) {
+		if (ns != NULL) {
+			LDNS_FREE(ns);
+		}
 	        ns = ldns_rdf2native_sockaddr_storage(
 	        	resolver->_nameservers[ns_i],
 			ldns_resolver_port(resolver), &ns_len);
@@ -836,6 +842,9 @@ ldns_axfr_start(ldns_resolver *resolver, ldns_rdf *domain, ldns_rr_class class)
 			closesocket(resolver->_socket);
 #endif
 			resolver->_socket = 0;
+
+			ldns_pkt_free(query);
+			LDNS_FREE(ns);
 
 			return LDNS_STATUS_CRYPTO_TSIG_ERR;
 		}

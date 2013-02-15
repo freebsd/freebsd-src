@@ -161,7 +161,7 @@ ldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *li
 	return (ssize_t)i;
 
 tokenread:
-	ldns_fskipcs_l(f, delim, line_nr);
+	ldns_fskipcs_l(f, del, line_nr);
 	*t = '\0';
 	if (p != 0) {
 		return -1;
@@ -331,7 +331,7 @@ ldns_bget_token(ldns_buffer *b, char *token, const char *delim, size_t limit)
 	return (ssize_t)i;
 
 tokenread:
-	ldns_bskipcs(b, delim);
+	ldns_bskipcs(b, del);
 	*t = '\0';
 
 	if (p != 0) {

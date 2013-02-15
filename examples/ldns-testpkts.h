@@ -197,8 +197,9 @@ struct entry {
 /**
  * reads the canned reply file and returns a list of structs 
  * does an exit on error.
+ * @param skip_withespace: skip leftside whitespace.
  */
-struct entry* read_datafile(const char* name);
+struct entry* read_datafile(const char* name, int skip_whitespace);
 
 /**
  * Delete linked list of entries.
@@ -217,10 +218,12 @@ void delete_entry(struct entry* list);
  *	later it stores the $ORIGIN value last seen. Often &NULL or the zone
  *	name on first call.
  * @param prev_rr: previous rr name for correcter parsing. &NULL on first call.
+ * @param skip_whitespace: skip leftside whitespace.
  * @return: The entry read (malloced) or NULL if no entry could be read.
  */
 struct entry* read_entry(FILE* in, const char* name, int *lineno, 
-	uint32_t* default_ttl, ldns_rdf** origin, ldns_rdf** prev_rr);
+	uint32_t* default_ttl, ldns_rdf** origin, ldns_rdf** prev_rr,
+	int skip_whitespace);
 
 /**
  * finds entry in list, or returns NULL.

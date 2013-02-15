@@ -3,44 +3,70 @@ Installation
 
 **Prerequisites**
 
-Python 2.4 or higher, SWIG 1.3 or higher, GNU make
+SWIG 1.3 and GNU make are required to build modules for Python 2.4 and higher
+(but lower than 3). In order to build modules for Python 3.2 or higher,
+SWIG in version 2.0.4 or higher is required.
+
+Note that Python 3.0 and 3.1 are not supported.
+
+In order to build this documentation the Sphinx Python documentation generator
+is required.
 
 **Download**
 
-You can download the source codes `here`_.
-The latest release is 1.4.1, Jan 15, 2009.
+The lates source codes can be downloaded from `here`_.
 
-.. _here: ldns-1.4.1-py.tar.gz
+.. _here: http://nlnetlabs.nl/projects/ldns/
 
 **Compiling**
 
-After downloading, you can compile the library by doing::
+After downloading the source code archive (this example uses
+ldns-1.6.13.tar.gz), pyLDNS can be enabled and compiled by typing::
 
-	> tar -xzf ldns-1.4.1-py.tar.gz
-	> cd ldns-1.4.1
+	> tar -xzf ldns-1.6.13.tar.gz
+	> cd ldns-1.6.13
 	> ./configure --with-pyldns
 	> make
 
-You need GNU make to compile pyLDNS; SWIG and Python development libraries to compile extension module. 
+You need GNU make to compile pyLDNS; SWIG and Python development libraries to
+compile the extension module.
 
+**Selecting Target Python Interpreter**
+
+By default, the pyLDNS module builds for the default Python interpreter (i.e.,
+the Python interpreter which can be accessed by just typing ``python`` in
+the command line). If you desire to build the pyLDNS module for a different
+Python version then you must specify the desired Python version by setting
+the ``PYTHON_VERSION`` variable during the configure phase::
+
+	> PYTHON_VERSION=3.2 ./configure --with-pyldns
+	> make
+
+By default the pyLDNS compiles from sources for a single Python interpreter.
+Remember to execute scripts requiring pyLDNS in those Python interpreters which
+have pyLDNS installed.
 
 **Testing**
 
-If the compilation is successfull, you can test the python LDNS extension module by::
+If the compilation is successful, you can test the python LDNS extension module
+by executing the commands::
 
 	> cd contrib/python
 	> make testenv
 	> ./ldns-mx.py
 
-This will start a new shell, during which the symbolic links will be working. 
-When you exit the shell, then symbolic links will be deleted. 
+Again, remember to use the Python interpreter version which the pyLDNS module
+has been compiled with.
 
-In ``contrib/examples`` you can find many simple applications in python which demostrates the capabilities of LDNS library.
+The commands will start a new shell, in which several symbolic links will be
+set-up. When you exit the shell, then symbolic links will be deleted.
+
+In ``contrib/python/examples`` several simple Python scripts utilising pyLDNS
+can be found. These scripts demonstrate the capabilities of the LDNS library.
 
 **Installation**
 
-To install libraries and extension type::
+To install the libraries and it's extensions type::
 
-	> cd ldns-1.4.1
+	> cd ldns-1.6.13
 	> make install
-

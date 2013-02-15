@@ -14,7 +14,13 @@ will create 3 files; a .key file with the public DNSKEY, a .private
 file with the private keydata and a .ds with the DS record of the
 DNSKEY record.
 
-It prints out the basename for these files: K<name>+<alg>+<id>
+\fBldns-keygen\fR can also be used to create symmetric keys (for TSIG) by
+selecting the appropriate algorithm: \%\fIhmac-md5.sig-alg.reg.int\fR,
+\%\fIhmac-sha1\fR or \%\fIhmac-sha256\fR.
+In that case no DS record will be created and no .ds file.
+
+\fBldns-keygen\fR prints the basename for the key files:
+K<name>+<alg>+<id>
 
 .SH OPTIONS
 .TP

@@ -492,7 +492,7 @@ main(int argc, char **argv)
 	
 	datafile = argv[0];
 	log_msg("Reading datafile %s\n", datafile);
-	entries = read_datafile(datafile);
+	entries = read_datafile(datafile, 0);
 
 #ifdef USE_WINSOCK
 	if(WSAStartup(MAKEWORD(2,2), &wsa_data) != 0)

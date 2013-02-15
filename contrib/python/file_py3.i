@@ -103,7 +103,8 @@ dispose_file(FILE **fp) {
 
 %typemap(check, noblock = 1) FILE* {
   if ($1 == NULL) {
-    SWIG_exception_fail(SWIG_ValueError, "in method '" "$symname" "', argument "
+    /* The generated wrapper function raises TypeError on mismatching types. */
+    SWIG_exception_fail(SWIG_TypeError, "in method '" "$symname" "', argument "
                         "$argnum"" of type '" "$type""'");
   }
 }
