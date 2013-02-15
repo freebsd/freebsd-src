@@ -493,7 +493,7 @@ struct oce_lock {
 #define LOCK_CREATE(lock, desc) 		{ \
 	strncpy((lock)->name, (desc), MAX_LOCK_DESC_LEN); \
 	(lock)->name[MAX_LOCK_DESC_LEN] = '\0'; \
-	mtx_init(&(lock)->mutex, (lock)->name, MTX_NETWORK_LOCK, MTX_DEF); \
+	mtx_init(&(lock)->mutex, (lock)->name, NULL, MTX_DEF); \
 }
 #define LOCK_DESTROY(lock) 			\
 		if (mtx_initialized(&(lock)->mutex))\

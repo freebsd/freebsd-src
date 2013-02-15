@@ -82,6 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
@@ -175,6 +176,10 @@ _libiconv_modules=	libiconv_modules
 
 .if ${MK_IPX} != "no"
 _libipx=	libipx
+.endif
+
+.if ${MK_LDNS} != "no"
+_libldns=	libldns
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"
