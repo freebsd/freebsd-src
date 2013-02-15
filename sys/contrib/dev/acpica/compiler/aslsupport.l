@@ -403,6 +403,9 @@ count (
         TotalKeywords++;
         TotalExecutableOpcodes++;
         break;
+
+    default:
+        break;
     }
 
     for (i = 0; (yytext[i] != 0) && (yytext[i] != EOF); i++)
@@ -570,7 +573,6 @@ AslDoStringLiteral (
         AslInsertLineBuffer (StringChar);
 
 DoCharacter:
-
         switch (State)
         {
         case ASL_NORMAL_CHAR:
@@ -590,6 +592,9 @@ DoCharacter:
                 /* String terminator */
 
                 goto CompletedString;
+
+            default:
+                break;
             }
             break;
 
@@ -748,6 +753,9 @@ DoCharacter:
             ConvertBuffer[i] = StringChar;
             i++;
             continue;
+
+        default:
+            break;
         }
 
         /* Save the finished character */

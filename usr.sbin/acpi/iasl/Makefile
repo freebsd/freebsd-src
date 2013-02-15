@@ -13,16 +13,16 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslerror.c aslfileio.c aslfiles.c aslfold.c aslhex.c	\
 	asllength.c asllisting.c aslload.c asllookup.c		\
 	aslmain.c aslmap.c aslmethod.c aslnamesp.c aslopcodes.c	\
-	asloperands.c aslopt.c aslpredef.c aslresource.c	\
-	aslrestype1.c aslrestype1i.c aslrestype2.c		\
-	aslrestype2d.c aslrestype2e.c aslrestype2q.c		\
-	aslrestype2s.c aslrestype2w.c aslstartup.c aslstubs.c	\
-	asltransform.c asltree.c aslutils.c asluuid.c		\
-	aslwalks.c aslxref.c dtcompile.c dtexpress.c dtfield.c	\
-	dtio.c dtparser.y.h dtparserlex.c dtparserparse.c	\
-	dtsubtable.c dttable.c dttemplate.c dtutils.c		\
-	prexpress.c prmacros.c prparser.y.h prparserlex.c	\
-	prparserparse.c prscan.c prutils.c
+	asloperands.c aslopt.c aslpredef.c aslprepkg.c		\
+	aslresource.c aslrestype1.c aslrestype1i.c		\
+	aslrestype2.c aslrestype2d.c aslrestype2e.c		\
+	aslrestype2q.c aslrestype2s.c aslrestype2w.c		\
+	aslstartup.c aslstubs.c asltransform.c asltree.c	\
+	aslutils.c asluuid.c aslwalks.c aslxref.c dtcompile.c	\
+	dtexpress.c dtfield.c dtio.c dtparser.y.h dtparserlex.c	\
+	dtparserparse.c dtsubtable.c dttable.c dttemplate.c	\
+	dtutils.c prexpress.c prmacros.c prparser.y.h		\
+	prparserlex.c prparserparse.c prscan.c prutils.c
 
 # components/debugger
 SRCS+=	dbfileio.c
