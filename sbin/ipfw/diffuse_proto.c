@@ -137,7 +137,8 @@ diffuse_proto_get_info(uint16_t id)
 {
 	int i;
 
-	for (i = 0; i < sizeof(dip_info) / sizeof(struct dip_info_descr); i++) {
+	for (i = 0; i < (int)(sizeof(dip_info) / sizeof(struct dip_info_descr));
+	    i++) {
 		if (dip_info[i].id == id)
 			return (dip_info[i]);
 	}
@@ -197,8 +198,8 @@ diffuse_proto_print_msg(char *buf, struct di_template_head *templ_list)
 				r->id = s.id;
 
 				while (offs - toffs < ntohs(shdr->set_len) -
-				    sizeof(struct dip_set_header) -
-				    sizeof(struct dip_templ_header)) {
+				    (int)sizeof(struct dip_set_header) -
+				    (int)sizeof(struct dip_templ_header)) {
 					r->fields[r->fcnt].id =
 					    be16dec(buf + offs);
 					offs += sizeof(uint16_t);
@@ -243,7 +244,7 @@ diffuse_proto_print_msg(char *buf, struct di_template_head *templ_list)
 				cnt = 0;
 
 				while (offs - toffs < ntohs(shdr->set_len) -
-				    sizeof(struct dip_set_header)) {
+				    (int)sizeof(struct dip_set_header)) {
 					if (r->fields[cnt].len == -1) {
 						/* Read dynamic length */
 						dlen =
