@@ -211,10 +211,9 @@ parse_anode(char *s, struct action_node *an)
 
 	if (curai != NULL) {
 		v4sockaddr = (struct sockaddr_in *)&an->an_details;
+		bcopy(curai->ai_addr, v4sockaddr, sizeof(struct sockaddr_in));
 		v4sockaddr->sin_family = curai->ai_family;
 		v4sockaddr->sin_port = port;
-		v4sockaddr->sin_addr.s_addr =
-		    ((struct sockaddr_in *)curai->ai_addr)->sin_addr.s_addr;
 	} else {
 		errx(EX_USAGE, "getaddrinfo() returned non IPv4 details");
 	}
@@ -252,6 +251,7 @@ parse_anodes(char *oparg)
 static void
 parse_class(char *oparg, uint32_t *class_ip, uint16_t *class_port)
 {
+	struct sockaddr_in v4sockaddr;
 	struct addrinfo *ai, *curai;
 	char *errptr, *p;
 	int ret;
@@ -276,8 +276,8 @@ parse_class(char *oparg, uint32_t *class_ip, uint16_t *class_port)
 		curai = curai->ai_next;
 
 	if (curai != NULL) {
-		*class_ip =
-		    ((struct sockaddr_in *)curai->ai_addr)->sin_addr.s_addr;
+		bcopy(curai->ai_addr, &v4sockaddr, sizeof(struct sockaddr_in));
+		*class_ip = v4sockaddr.sin_addr.s_addr;
 	} else {
 		errx(EX_USAGE, "getaddrinfo() returned non IPv4 details");
 	}
@@ -366,7 +366,7 @@ send_anode_pkt(struct action_node *anode, char *colpkt, int tplindex,
 
 	if (anode->proto == IPPROTO_SCTP) {
 		/* Send templates and data over different streams. */
-		if (tpllen > sizeof(struct dip_header)) {
+		if (tpllen > (int)sizeof(struct dip_header)) {
 			hdr = (struct dip_header *)colpkt + tplindex;
 			hdr->msg_len = htons(tpllen);
 			hdr->seq_no = htonl(anode->seq_no++);
@@ -377,7 +377,7 @@ send_anode_pkt(struct action_node *anode, char *colpkt, int tplindex,
 			    tpllen, &sinfo, 0);
 		}
 
-		if (!ret && datalen > sizeof(struct dip_header)) {
+		if (!ret && datalen > (int)sizeof(struct dip_header)) {
 			hdr = (struct dip_header *)colpkt + dataindex;
 			hdr->msg_len = htons(datalen);
 			hdr->seq_no = htonl(anode->seq_no++);
@@ -628,7 +628,7 @@ handle_anode_state_request(struct action_node *anode, char *buf, int buflen)
 		offs += sizeof(struct dip_templ_header);
 
 		/* Add the IE data for the default flowrule template. */
-		for (i = 0; i < N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS; i++) {
+		for (i = 0; i < (int)N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS; i++) {
 			be16enc(dstbuf + offs,
 			    dip_info[def_flowrule_template[i]].id);
 			offs += sizeof(uint16_t);
