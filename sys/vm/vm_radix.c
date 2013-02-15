@@ -128,6 +128,18 @@ vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
 }
 #endif
 
+static struct vm_radix_node *
+vm_radix_carve_bootcache(void)
+{
+	struct vm_radix_node *rnode;
+
+	if (boot_cache_cnt == VM_RADIX_BOOT_CACHE)
+		panic("%s: Increase VM_RADIX_BOOT_CACHE", __func__);
+	rnode = &boot_cache[boot_cache_cnt];
+	boot_cache_cnt++;
+	return (rnode);
+}
+
 /*
  * Allocate a radix node.  Pre-allocation ensures that the request will be
  * always successfully satisfied.
@@ -137,12 +149,9 @@ vm_radix_node_get(vm_pindex_t owner, uint16_t count, uint16_t clevel)
 {
 	struct vm_radix_node *rnode;
 
-	if (boot_cache_cnt <= VM_RADIX_BOOT_CACHE) {
-		if (boot_cache_cnt == VM_RADIX_BOOT_CACHE)
-			panic("%s: Increase VM_RADIX_BOOT_CACHE", __func__);
-		rnode = &boot_cache[boot_cache_cnt];
-		boot_cache_cnt++;
-	} else {
+	if (__predict_false(boot_cache_cnt <= VM_RADIX_BOOT_CACHE))
+		rnode = vm_radix_carve_bootcache();
+	else {
 		rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO);
 
 		/*
@@ -173,7 +182,8 @@ static __inline void
 vm_radix_node_put(struct vm_radix_node *rnode)
 {
 
-	if (rnode > boot_cache && rnode <= &boot_cache[VM_RADIX_BOOT_CACHE])
+	if (__predict_false(rnode > boot_cache &&
+	    rnode <= &boot_cache[VM_RADIX_BOOT_CACHE]))
 		return;
 	uma_zfree(vm_radix_node_zone, rnode);
 }
