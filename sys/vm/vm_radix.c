@@ -48,19 +48,13 @@
 #include "opt_vm.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/queue.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_radix.h>
 
