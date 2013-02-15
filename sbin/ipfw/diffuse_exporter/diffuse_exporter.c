@@ -155,7 +155,7 @@ static int stop;
 
 /* Sets the flag to terminate the main loop on receipt of a signal. */
 static void
-sigint_handler(int i)
+sigint_handler(int i __unused)
 {
 
 	stop = 1;
