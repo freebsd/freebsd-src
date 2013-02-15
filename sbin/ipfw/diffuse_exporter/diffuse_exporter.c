@@ -43,6 +43,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/tree.h>
@@ -628,19 +629,17 @@ handle_anode_state_request(struct action_node *anode, char *buf, int buflen)
 
 		/* Add the IE data for the default flowrule template. */
 		for (i = 0; i < N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS; i++) {
-			*((uint16_t *)(dstbuf + offs)) =
-			    htons(dip_info[def_flowrule_template[i]].id);
+			be16enc(dstbuf + offs,
+			    dip_info[def_flowrule_template[i]].id);
 			offs += sizeof(uint16_t);
 			if (def_flowrule_template[i] == DIP_IE_ACTION ||
 			    def_flowrule_template[i] == DIP_IE_EXPORT_NAME ||
 			    def_flowrule_template[i] == DIP_IE_CLASSIFIER_NAME) {
-				*((uint16_t *)(dstbuf + offs)) =
-				    htons((uint16_t)DI_MAX_NAME_STR_LEN);
+				be16enc(dstbuf + offs, DI_MAX_NAME_STR_LEN);
 				offs += sizeof(uint16_t);
 			} else if (def_flowrule_template[i] ==
 			    DIP_IE_ACTION_PARAMS) {
-				*((uint16_t *)(dstbuf + offs)) =
-				    htons((uint16_t)DI_MAX_PARAM_STR_LEN);
+				be16enc(dstbuf + offs, DI_MAX_PARAM_STR_LEN);
 				offs += sizeof(uint16_t);
 			}
 		}
