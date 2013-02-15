@@ -101,6 +101,7 @@
 #define CCM_MALI400_CLK		0x0154
 
 #define CCM_AHB_GATING_USB0	(1 << 0)
+#define CCM_AHB_GATING_EHCI0	(1 << 1)
 #define CCM_AHB_GATING_EHCI1	(1 << 3)
 
 #define CCM_USB_PHY		(1 << 8)
