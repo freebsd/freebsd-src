@@ -740,6 +740,38 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	CFGWRITE(pi, offset, val, bytes);
 }
 
+void
+pciecap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
+		 int bytes, uint32_t val)
+{
+
+	/* XXX don't write to the readonly parts */
+	CFGWRITE(pi, offset, val, bytes);
+}
+
+#define	PCIECAP_VERSION	0x2
+int
+pci_emul_add_pciecap(struct pci_devinst *pi, int type)
+{
+	int err;
+	struct pciecap pciecap;
+
+	CTASSERT(sizeof(struct pciecap) == 60);
+
+	if (type != PCIEM_TYPE_ROOT_PORT)
+		return (-1);
+
+	bzero(&pciecap, sizeof(pciecap));
+
+	pciecap.capid = PCIY_EXPRESS;
+	pciecap.pcie_capabilities = PCIECAP_VERSION | PCIEM_TYPE_ROOT_PORT;
+	pciecap.link_capabilities = 0x411;	/* gen1, x1 */
+	pciecap.link_status = 0x11;		/* gen1, x1 */
+
+	err = pci_emul_add_capability(pi, (u_char *)&pciecap, sizeof(pciecap));
+	return (err);
+}
+
 /*
  * This function assumes that 'coff' is in the capabilities region of the
  * config space.
@@ -781,6 +813,9 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 		break;
 	case PCIY_MSIX:
 		msixcap_cfgwrite(pi, capoff, offset, bytes, val);
+		break;
+	case PCIY_EXPRESS:
+		pciecap_cfgwrite(pi, capoff, offset, bytes, val);
 		break;
 	default:
 		break;
