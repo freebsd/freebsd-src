@@ -85,6 +85,9 @@ static const AH_DEVICE_ID  AhDeviceIds[] =
 #define AH_DISPLAY_EXCEPTION(Status, Name) \
     printf ("%.4X: %s\n", Status, Name)
 
+#define AH_DISPLAY_EXCEPTION_TEXT(Status, Exception) \
+    printf ("%.4X: %-28s (%s)\n", Status, Exception->Name, Exception->Description)
+
 #define BUFFER_LENGTH           128
 #define LINE_BUFFER_LENGTH      512
 
@@ -878,9 +881,9 @@ void
 AhDecodeException (
     char                    *HexString)
 {
-    const char              *ExceptionName;
-    UINT32                  Status;
-    UINT32                  i;
+    const ACPI_EXCEPTION_INFO   *ExceptionInfo;
+    UINT32                      Status;
+    UINT32                      i;
 
 
     /*
@@ -889,8 +892,8 @@ AhDecodeException (
      */
     if (!HexString)
     {
-        printf ("All defined ACPI exception codes:\n\n");
-        AH_DISPLAY_EXCEPTION (0, "AE_OK");
+        printf ("All defined ACPICA exception codes:\n\n");
+        AH_DISPLAY_EXCEPTION (0, "AE_OK                        (No error occurred)");
 
         /* Display codes in each block of exception types */
 
@@ -899,14 +902,14 @@ AhDecodeException (
             Status = i;
             do
             {
-                ExceptionName = AcpiUtValidateException ((ACPI_STATUS) Status);
-                if (ExceptionName)
+                ExceptionInfo = AcpiUtValidateException ((ACPI_STATUS) Status);
+                if (ExceptionInfo)
                 {
-                    AH_DISPLAY_EXCEPTION (Status, ExceptionName);
+                    AH_DISPLAY_EXCEPTION_TEXT (Status, ExceptionInfo);
                 }
                 Status++;
 
-            } while (ExceptionName);
+            } while (ExceptionInfo);
         }
         return;
     }
@@ -916,7 +919,7 @@ AhDecodeException (
     Status = ACPI_STRTOUL (HexString, NULL, 16);
     if (!Status)
     {
-        printf ("%s: Invalid hexadecimal exception code\n", HexString);
+        printf ("%s: Invalid hexadecimal exception code value\n", HexString);
         return;
     }
 
@@ -926,12 +929,12 @@ AhDecodeException (
         return;
     }
 
-    ExceptionName = AcpiUtValidateException ((ACPI_STATUS) Status);
-    if (!ExceptionName)
+    ExceptionInfo = AcpiUtValidateException ((ACPI_STATUS) Status);
+    if (!ExceptionInfo)
     {
         AH_DISPLAY_EXCEPTION (Status, "Unknown exception code");
         return;
     }
 
-    AH_DISPLAY_EXCEPTION (Status, ExceptionName);
+    AH_DISPLAY_EXCEPTION_TEXT (Status, ExceptionInfo);
 }

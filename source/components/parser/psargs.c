@@ -118,7 +118,7 @@ AcpiPsGetNextPackageLength (
     /* Byte 0 is a special case, either bits [0:3] or [0:5] are used */
 
     PackageLength |= (Aml[0] & ByteZeroMask);
-    return_VALUE (PackageLength);
+    return_UINT32 (PackageLength);
 }
 
 

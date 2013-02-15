@@ -111,7 +111,8 @@ AslDoResponseFile (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display option help message
+ * DESCRIPTION: Display option help message.
+ *              Optional items in square brackets.
  *
  ******************************************************************************/
 
@@ -132,7 +133,7 @@ Options (
     ACPI_OPTION ("-P",              "Preprocess only and create preprocessor output file (*.i)");
     ACPI_OPTION ("-Pn",             "Disable preprocessor");
 
-    printf ("\nGeneral Output:\n");
+    printf ("\nGeneral Processing:\n");
     ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
     ACPI_OPTION ("-va",             "Disable all errors and warnings (summary only)");
     ACPI_OPTION ("-vi",             "Less verbose errors and warnings for use with IDEs");
@@ -142,12 +143,7 @@ Options (
     ACPI_OPTION ("-w1 -w2 -w3",     "Set warning reporting level");
     ACPI_OPTION ("-we",             "Report warnings as errors");
 
-    printf ("\nAML and Data Output Files:\n");
-    ACPI_OPTION ("-sa -sc",         "Create assembler or C source file (*.asm or *.c)");
-    ACPI_OPTION ("-ia -ic",         "Create assembler or C include file (*.inc or *.h)");
-    ACPI_OPTION ("-ta -tc -ts",     "Create assembler, C, or ASL hex table (*.hex)");
-
-    printf ("\nAML Code Generation:\n");
+    printf ("\nAML Code Generation (*.aml):\n");
     ACPI_OPTION ("-oa",             "Disable all optimizations (compatibility mode)");
     ACPI_OPTION ("-of",             "Disable constant folding");
     ACPI_OPTION ("-oi",             "Disable integer optimization to Zero/One/Ones");
@@ -156,22 +152,28 @@ Options (
     ACPI_OPTION ("-in",             "Ignore NoOp operators");
     ACPI_OPTION ("-r <revision>",   "Override table header Revision (1-255)");
 
-    printf ("\nASL Listing Files:\n");
+    printf ("\nOptional Source Code Output Files:\n");
+    ACPI_OPTION ("-sc -sa",         "Create source file in C or assembler (*.c or *.asm)");
+    ACPI_OPTION ("-ic -ia",         "Create include file in C or assembler (*.h or *.inc)");
+    ACPI_OPTION ("-tc -ta -ts",     "Create hex AML table in C, assembler, or ASL (*.hex)");
+
+    printf ("\nOptional Listing Files:\n");
     ACPI_OPTION ("-l",              "Create mixed listing file (ASL source and AML) (*.lst)");
     ACPI_OPTION ("-ln",             "Create namespace file (*.nsp)");
     ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
 
-    printf ("\nACPI Data Tables:\n");
-    ACPI_OPTION ("-G",              "Compile custom table containing generic operators");
-    ACPI_OPTION ("-vt",             "Create verbose templates (full disassembly)");
+    printf ("\nData Table Compiler:\n");
+    ACPI_OPTION ("-G",              "Compile custom table that contains generic operators");
+    ACPI_OPTION ("-vt",             "Create verbose template files (full disassembly)");
 
     printf ("\nAML Disassembler:\n");
-    ACPI_OPTION ("-d  [file]",      "Disassemble or decode binary ACPI table to file (*.dsl)");
-    ACPI_OPTION ("-da [f1,f2]",     "Disassemble multiple tables from single namespace");
+    ACPI_OPTION ("-d  <f1,f2>",     "Disassemble or decode binary ACPI tables to file (*.dsl)");
+    ACPI_OPTION ("",                "  (Optional, file type is automatically detected)");
+    ACPI_OPTION ("-da <f1,f2>",     "Disassemble multiple tables from single namespace");
     ACPI_OPTION ("-db",             "Do not translate Buffers to Resource Templates");
-    ACPI_OPTION ("-dc [file]",      "Disassemble AML and immediately compile it");
-    ACPI_OPTION ("",                "(Obtain DSDT from current system if no input file)");
-    ACPI_OPTION ("-e  [f1,f2]",     "Include ACPI table(s) for external symbol resolution");
+    ACPI_OPTION ("-dc <f1,f2>",     "Disassemble AML and immediately compile it");
+    ACPI_OPTION ("",                "  (Obtain DSDT from current system if no input file)");
+    ACPI_OPTION ("-e  <f1,f2>",     "Include ACPI table(s) for external symbol resolution");
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
     ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
@@ -186,6 +188,7 @@ Options (
     printf ("\nDebug Options:\n");
     ACPI_OPTION ("-bf -bt",         "Create debug file (full or parse tree only) (*.txt)");
     ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
+    ACPI_OPTION ("-m <size>",       "Set internal line buffer size (in Kbytes)");
     ACPI_OPTION ("-n",              "Parse only, no output generation");
     ACPI_OPTION ("-ot",             "Display compile times and statistics");
     ACPI_OPTION ("-x <level>",      "Set debug level for trace output");

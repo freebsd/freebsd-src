@@ -122,10 +122,17 @@ AcpiNsCheckPackage (
     Elements = ReturnObject->Package.Elements;
     Count = ReturnObject->Package.Count;
 
-    /* The package must have at least one element, else invalid */
-
+    /*
+     * Most packages must have at least one element. The only exception
+     * is the variable-length package (ACPI_PTYPE1_VAR).
+     */
     if (!Count)
     {
+        if (Package->RetInfo.Type == ACPI_PTYPE1_VAR)
+        {
+            return (AE_OK);
+        }
+
         ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
             "Return Package has no elements (empty)"));
 

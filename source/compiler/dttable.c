@@ -1412,6 +1412,31 @@ DtCompileMsct (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileMtmr
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile MTMR.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileMtmr (
+    void                    **List)
+{
+    ACPI_STATUS             Status;
+
+
+    Status = DtCompileTwoSubtables (List,
+                 AcpiDmTableInfoMtmr, AcpiDmTableInfoMtmr0);
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompilePmtt
  *
  * PARAMETERS:  List                - Current field list pointer
@@ -1969,6 +1994,31 @@ DtCompileUefi (
     DtCompileGeneric ((void **) PFieldList);
 
     return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileVrtc
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile VRTC.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileVrtc (
+    void                    **List)
+{
+    ACPI_STATUS             Status;
+
+
+    Status = DtCompileTwoSubtables (List,
+                 AcpiDmTableInfoVrtc, AcpiDmTableInfoVrtc0);
+    return (Status);
 }
 
 
