@@ -372,7 +372,7 @@ AdAmlDisassemble (
     }
 
     /*
-     * Output:  ASL code. Redirect to a file if requested
+     * Output: ASL code. Redirect to a file if requested
      */
     if (OutToFile)
     {
@@ -540,11 +540,6 @@ Cleanup:
         ACPI_FREE (Table);
     }
 
-    if (DisasmFilename)
-    {
-        ACPI_FREE (DisasmFilename);
-    }
-
     if (OutToFile && File)
     {
         if (AslCompilerdebug) /* Display final namespace, with transforms */
@@ -667,7 +662,7 @@ AdCreateTableHeader (
     AcpiOsPrintf (" *     OEM Revision     0x%8.8X (%u)\n", Table->OemRevision, Table->OemRevision);
     AcpiOsPrintf (" *     Compiler ID      \"%.4s\"\n",     Table->AslCompilerId);
     AcpiOsPrintf (" *     Compiler Version 0x%8.8X (%u)\n", Table->AslCompilerRevision, Table->AslCompilerRevision);
-    AcpiOsPrintf (" */\n\n");
+    AcpiOsPrintf (" */\n");
 
     /* Create AML output filename based on input filename */
 

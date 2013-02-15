@@ -46,6 +46,7 @@
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 #include <contrib/dev/acpica/include/acpredef.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 
 #define _COMPONENT          ACPI_COMPILER
@@ -63,12 +64,6 @@ static UINT32
 ApCheckForSpecialName (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name);
-
-static void
-ApCheckObjectType (
-    const char              *PredefinedName,
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  ExpectedBtypes);
 
 static void
 ApGetExpectedTypes (
@@ -386,7 +381,15 @@ ApCheckPredefinedReturnValue (
 
             ApCheckObjectType (PredefinedNames[Index].Info.Name,
                 ReturnValueOp,
-                PredefinedNames[Index].Info.ExpectedBtypes);
+                PredefinedNames[Index].Info.ExpectedBtypes,
+                ACPI_NOT_PACKAGE_ELEMENT);
+
+            /* For packages, check the individual package elements */
+
+            if (ReturnValueOp->Asl.ParseOpcode == PARSEOP_PACKAGE)
+            {
+                ApCheckPackage (ReturnValueOp, &PredefinedNames[Index]);
+            }
             break;
 
         default:
@@ -428,6 +431,7 @@ ApCheckForPredefinedObject (
     char                    *Name)
 {
     UINT32                  Index;
+    ACPI_PARSE_OBJECT       *ObjectOp;
 
 
     /*
@@ -456,38 +460,49 @@ ApCheckForPredefinedObject (
             "with zero arguments");
         return;
 
-    default: /* A standard predefined ACPI name */
+    default:
+        break;
+    }
 
-        /*
-         * If this predefined name requires input arguments, then
-         * it must be implemented as a control method
-         */
-        if (PredefinedNames[Index].Info.ParamCount > 0)
-        {
-            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
-                "with arguments");
-            return;
-        }
+    /* A standard predefined ACPI name */
 
-        /*
-         * If no return value is expected from this predefined name, then
-         * it follows that it must be implemented as a control method
-         * (with zero args, because the args > 0 case was handled above)
-         * Examples are: _DIS, _INI, _IRC, _OFF, _ON, _PSx
-         */
-        if (!PredefinedNames[Index].Info.ExpectedBtypes)
-        {
-            AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
-                "with zero arguments");
-            return;
-        }
-
-        /* Typecheck the actual object, it is the next argument */
-
-        ApCheckObjectType (PredefinedNames[Index].Info.Name,
-            Op->Asl.Child->Asl.Next,
-            PredefinedNames[Index].Info.ExpectedBtypes);
+    /*
+     * If this predefined name requires input arguments, then
+     * it must be implemented as a control method
+     */
+    if (PredefinedNames[Index].Info.ParamCount > 0)
+    {
+        AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+            "with arguments");
         return;
+    }
+
+    /*
+     * If no return value is expected from this predefined name, then
+     * it follows that it must be implemented as a control method
+     * (with zero args, because the args > 0 case was handled above)
+     * Examples are: _DIS, _INI, _IRC, _OFF, _ON, _PSx
+     */
+    if (!PredefinedNames[Index].Info.ExpectedBtypes)
+    {
+        AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
+            "with zero arguments");
+        return;
+    }
+
+    /* Typecheck the actual object, it is the next argument */
+
+    ObjectOp = Op->Asl.Child->Asl.Next;
+    ApCheckObjectType (PredefinedNames[Index].Info.Name,
+        Op->Asl.Child->Asl.Next,
+        PredefinedNames[Index].Info.ExpectedBtypes,
+        ACPI_NOT_PACKAGE_ELEMENT);
+
+    /* For packages, check the individual package elements */
+
+    if (ObjectOp->Asl.ParseOpcode == PARSEOP_PACKAGE)
+    {
+        ApCheckPackage (ObjectOp, &PredefinedNames[Index]);
     }
 }
 
@@ -646,6 +661,9 @@ ApCheckForSpecialName (
  * PARAMETERS:  PredefinedName  - Name of the predefined object we are checking
  *              Op              - Current parse node
  *              ExpectedBtypes  - Bitmap of expected return type(s)
+ *              PackageIndex    - Index of object within parent package (if
+ *                                applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                otherwise)
  *
  * RETURN:      None
  *
@@ -655,14 +673,23 @@ ApCheckForSpecialName (
  *
  ******************************************************************************/
 
-static void
+ACPI_STATUS
 ApCheckObjectType (
     const char              *PredefinedName,
     ACPI_PARSE_OBJECT       *Op,
-    UINT32                  ExpectedBtypes)
+    UINT32                  ExpectedBtypes,
+    UINT32                  PackageIndex)
 {
     UINT32                  ReturnBtype;
+    char                    *TypeName;
 
+
+    if (!Op)
+    {
+        return (AE_TYPE);
+    }
+
+    /* Map the parse opcode to a bitmapped return type (RTYPE) */
 
     switch (Op->Asl.ParseOpcode)
     {
@@ -671,24 +698,35 @@ ApCheckObjectType (
     case PARSEOP_ONES:
     case PARSEOP_INTEGER:
         ReturnBtype = ACPI_RTYPE_INTEGER;
-        break;
-
-    case PARSEOP_BUFFER:
-        ReturnBtype = ACPI_RTYPE_BUFFER;
+        TypeName = "Integer";
         break;
 
     case PARSEOP_STRING_LITERAL:
         ReturnBtype = ACPI_RTYPE_STRING;
+        TypeName = "String";
+        break;
+
+    case PARSEOP_BUFFER:
+        ReturnBtype = ACPI_RTYPE_BUFFER;
+        TypeName = "Buffer";
         break;
 
     case PARSEOP_PACKAGE:
     case PARSEOP_VAR_PACKAGE:
         ReturnBtype = ACPI_RTYPE_PACKAGE;
+        TypeName = "Package";
+        break;
+
+    case PARSEOP_NAMESEG:
+    case PARSEOP_NAMESTRING:
+        ReturnBtype = ACPI_RTYPE_REFERENCE;
+        TypeName = "Reference";
         break;
 
     default:
         /* Not one of the supported object types */
 
+        TypeName = UtGetOpName (Op->Asl.ParseOpcode);
         goto TypeErrorExit;
     }
 
@@ -696,7 +734,7 @@ ApCheckObjectType (
 
     if (ReturnBtype & ExpectedBtypes)
     {
-        return;
+        return (AE_OK);
     }
 
 
@@ -706,11 +744,19 @@ TypeErrorExit:
 
     ApGetExpectedTypes (StringBuffer, ExpectedBtypes);
 
-    sprintf (MsgBuffer, "%s: found %s, requires %s",
-        PredefinedName, UtGetOpName (Op->Asl.ParseOpcode), StringBuffer);
+    if (PackageIndex == ACPI_NOT_PACKAGE_ELEMENT)
+    {
+        sprintf (MsgBuffer, "%s: found %s, %s required",
+            PredefinedName, TypeName, StringBuffer);
+    }
+    else
+    {
+        sprintf (MsgBuffer, "%s: found %s at index %u, %s required",
+            PredefinedName, TypeName, PackageIndex, StringBuffer);
+    }
 
-    AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op,
-        MsgBuffer);
+    AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op, MsgBuffer);
+    return (AE_TYPE);
 }
 
 
