@@ -67,10 +67,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <sys/queue.h>
+
 #define	MAXDUP		10	/* limit on dup blks (per inode) */
 #define	MAXBAD		10	/* limit on bad blks (per inode) */
-#define	MAXBUFSPACE	40*1024	/* maximum space to allocate to buffers */
-#define	INOBUFSIZE	56*1024	/* size of buffer to read inodes in pass1 */
+#define	MINBUFS		10	/* minimum number of buffers required */
+#define	MAXBUFS		40	/* maximum space to allocate to buffers */
+#define	INOBUFSIZE	64*1024	/* size of buffer to read inodes in pass1 */
 
 union dinode {
 	struct ufs1_dinode dp1;
@@ -130,8 +133,7 @@ struct inostatlist {
  * buffer cache structure.
  */
 struct bufarea {
-	struct bufarea *b_next;		/* free list queue */
-	struct bufarea *b_prev;		/* free list queue */
+	TAILQ_ENTRY(bufarea) b_list;		/* buffer list */
 	ufs2_daddr_t b_bno;
 	int b_size;
 	int b_errs;
@@ -159,10 +161,11 @@ struct bufarea {
 		(bp)->b_un.b_indir2[i] = (val); \
 	} while (0)
 
-#define	B_INUSE 1
+/*
+ * Buffer flags
+ */
+#define	B_INUSE 	0x00000001	/* Buffer is in use */
 
-#define	MINBUFS		5	/* minimum number of buffers required */
-struct bufarea bufhead;		/* head of list of other blks in filesys */
 struct bufarea sblk;		/* file system superblock */
 struct bufarea cgblk;		/* cylinder group blocks */
 struct bufarea *pdirbp;		/* current directory contents */

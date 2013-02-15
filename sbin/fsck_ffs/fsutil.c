@@ -67,6 +67,8 @@ long	diskreads, totalreads;	/* Disk cache statistics */
 struct timeval slowio_starttime;
 int slowio_delay_usec = 10000;	/* Initial IO delay for background fsck */
 int slowio_pollcnt;
+static TAILQ_HEAD(buflist, bufarea) bufhead;	/* head of buffer cache list */
+static int numbufs;				/* size of buffer cache */
 
 int
 ftypeok(union dinode *dp)
@@ -162,8 +164,8 @@ bufinit(void)
 		errx(EEXIT, "cannot allocate buffer pool");
 	cgblk.b_un.b_buf = bufp;
 	initbarea(&cgblk);
-	bufhead.b_next = bufhead.b_prev = &bufhead;
-	bufcnt = MAXBUFSPACE / sblock.fs_bsize;
+	TAILQ_INIT(&bufhead);
+	bufcnt = MAXBUFS;
 	if (bufcnt < MINBUFS)
 		bufcnt = MINBUFS;
 	for (i = 0; i < bufcnt; i++) {
@@ -175,13 +177,10 @@ bufinit(void)
 			errx(EEXIT, "cannot allocate buffer pool");
 		}
 		bp->b_un.b_buf = bufp;
-		bp->b_prev = &bufhead;
-		bp->b_next = bufhead.b_next;
-		bufhead.b_next->b_prev = bp;
-		bufhead.b_next = bp;
+		TAILQ_INSERT_HEAD(&bufhead, bp, b_list);
 		initbarea(bp);
 	}
-	bufhead.b_size = i;	/* save number of buffers */
+	numbufs = i;	/* save number of buffers */
 }
 
 /*
@@ -192,23 +191,19 @@ getdatablk(ufs2_daddr_t blkno, long size)
 {
 	struct bufarea *bp;
 
-	for (bp = bufhead.b_next; bp != &bufhead; bp = bp->b_next)
+	TAILQ_FOREACH(bp, &bufhead, b_list)
 		if (bp->b_bno == fsbtodb(&sblock, blkno))
 			goto foundit;
-	for (bp = bufhead.b_prev; bp != &bufhead; bp = bp->b_prev)
+	TAILQ_FOREACH_REVERSE(bp, &bufhead, buflist, b_list)
 		if ((bp->b_flags & B_INUSE) == 0)
 			break;
-	if (bp == &bufhead)
+	if (bp == NULL)
 		errx(EEXIT, "deadlocked buffer pool");
 	getblk(bp, blkno, size);
 	/* fall through */
 foundit:
-	bp->b_prev->b_next = bp->b_next;
-	bp->b_next->b_prev = bp->b_prev;
-	bp->b_prev = &bufhead;
-	bp->b_next = bufhead.b_next;
-	bufhead.b_next->b_prev = bp;
-	bufhead.b_next = bp;
+	TAILQ_REMOVE(&bufhead, bp, b_list);
+	TAILQ_INSERT_HEAD(&bufhead, bp, b_list);
 	bp->b_flags |= B_INUSE;
 	return (bp);
 }
@@ -274,7 +269,7 @@ void
 ckfini(int markclean)
 {
 	struct bufarea *bp, *nbp;
-	int ofsmodified, cnt = 0;
+	int ofsmodified, cnt;
 
 	if (bkgrdflag) {
 		unlink(snapname);
@@ -295,6 +290,10 @@ ckfini(int markclean)
 			rerun = 1;
 		}
 	}
+	if (debug && totalreads > 0)
+		printf("cache with %d buffers missed %ld of %ld (%d%%)\n",
+		    numbufs, diskreads, totalreads,
+		    (int)(diskreads * 100 / totalreads));
 	if (fswritefd < 0) {
 		(void)close(fsreadfd);
 		return;
@@ -309,15 +308,16 @@ ckfini(int markclean)
 	}
 	flush(fswritefd, &cgblk);
 	free(cgblk.b_un.b_buf);
-	for (bp = bufhead.b_prev; bp && bp != &bufhead; bp = nbp) {
+	cnt = 0;
+	TAILQ_FOREACH_REVERSE_SAFE(bp, &bufhead, buflist, b_list, nbp) {
+		TAILQ_REMOVE(&bufhead, bp, b_list);
 		cnt++;
 		flush(fswritefd, bp);
-		nbp = bp->b_prev;
 		free(bp->b_un.b_buf);
 		free((char *)bp);
 	}
-	if (bufhead.b_size != cnt)
-		errx(EEXIT, "panic: lost %d buffers", bufhead.b_size - cnt);
+	if (numbufs != cnt)
+		errx(EEXIT, "panic: lost %d buffers", numbufs - cnt);
 	pbp = pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		if ((sblock.fs_clean = markclean) != 0) {
@@ -343,9 +343,6 @@ ckfini(int markclean)
 			rerun = 1;
 		}
 	}
-	if (debug && totalreads > 0)
-		printf("cache missed %ld of %ld (%d%%)\n", diskreads,
-		    totalreads, (int)(diskreads * 100 / totalreads));
 	(void)close(fsreadfd);
 	(void)close(fswritefd);
 }
