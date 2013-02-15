@@ -968,6 +968,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = dmat->segments;
 
+	map->pmap = pmap;
+
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
@@ -979,7 +981,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 	sl = NULL;
 	vaddr = (vm_offset_t)buf;
-	map->pmap = pmap;
 
 	while (buflen > 0) {
 		/*
