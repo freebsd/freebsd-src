@@ -1893,7 +1893,7 @@ request_classifier_state()
 	thdr->flags = 0;
 	offs += sizeof(struct dip_templ_header);
 
-	be16enc(reqstatepkt + offs, htons(dip_info[DIP_IE_MSG_TYPE].id));
+	be16enc(reqstatepkt + offs, dip_info[DIP_IE_MSG_TYPE].id);
 	offs += sizeof(uint16_t);
 	shdr->set_len = htons(offs - sizeof(struct dip_header));
 
