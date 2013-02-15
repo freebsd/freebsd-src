@@ -38,6 +38,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/socket.h>
 #include <sys/tree.h>
 
@@ -73,7 +74,7 @@ print_field(int idx, int id, int len, char *val)
 	case DIP_IE_DST_IPV4:
 		{
 		/* XXX: Resolve to name. */
-		a.s_addr = *((uint32_t *)val);
+		a.s_addr = le32dec(val); /* le32dec to leave as BE. */
 		printf("%s", inet_ntoa(a));
 		break;
 		}
@@ -81,7 +82,7 @@ print_field(int idx, int id, int len, char *val)
 	case DIP_IE_SRC_PORT:
 	case DIP_IE_DST_PORT:
 		/* XXX: Resolve to name. */
-		printf("%u", ntohs(*((uint16_t *)val)));
+		printf("%u", be16dec(val));
 		break;
 
 	case DIP_IE_PROTO:
@@ -89,13 +90,13 @@ print_field(int idx, int id, int len, char *val)
 	case DIP_IE_TIMEOUT_TYPE:
 	case DIP_IE_IPV4_TOS:
 		/* XXX: Resolve to name. */
-		printf("%u", *((uint8_t *)val));
+		printf("%u", *val);
 		break;
 
 	case DIP_IE_CLASS_LABEL:
 	case DIP_IE_ACTION_FLAGS:
 	case DIP_IE_TIMEOUT:
-		printf("%u", ntohs(*((uint16_t *)val)));
+		printf("%u", be16dec(val));
 		break;
 
 	case DIP_IE_ACTION:
@@ -107,7 +108,7 @@ print_field(int idx, int id, int len, char *val)
 
 	case DIP_IE_PCKT_CNT:
 	case DIP_IE_KBYTE_CNT:
-		printf("%u", ntohl(*((uint32_t *)val)));
+		printf("%u", be32dec(val));
 		break;
 
 	case DIP_IE_CLASSES:
@@ -116,7 +117,7 @@ print_field(int idx, int id, int len, char *val)
 		while (c < val + len) {
 			printf("%s:", c);
 			c += strlen(val) + 1;
-			printf("%u", ntohs(*((uint16_t *)c)));
+			printf("%u", be16dec(c));
 			c += sizeof(uint16_t);
 			if (c < val + len)
 				printf(" ");
@@ -199,7 +200,7 @@ diffuse_proto_print_msg(char *buf, struct di_template_head *templ_list)
 				    sizeof(struct dip_set_header) -
 				    sizeof(struct dip_templ_header)) {
 					r->fields[r->fcnt].id =
-					    ntohs(*((uint16_t *)(buf + offs)));
+					    be16dec(buf + offs);
 					offs += sizeof(uint16_t);
 					info = diffuse_proto_get_info(
 					    r->fields[r->fcnt].id);
@@ -207,8 +208,7 @@ diffuse_proto_print_msg(char *buf, struct di_template_head *templ_list)
 					r->fields[r->fcnt].len = info.len;
 					if (r->fields[r->fcnt].len == 0) {
 						r->fields[r->fcnt].len =
-						    ntohs(*((uint16_t *)
-						    (buf + offs)));
+						    be16dec(buf + offs);
 						offs += sizeof(uint16_t);
 					}
 					r->fcnt++;
