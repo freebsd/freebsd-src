@@ -578,6 +578,7 @@ ldns_status ldns_resolver_push_nameserver_rr_list(ldns_resolver *r, ldns_rr_list
  * \param[in] t query for this type (may be 0, defaults to A)
  * \param[in] c query for this class (may be 0, default to IN)
  * \param[in] flags the query flags
+ *
  * \return ldns_pkt* a packet with the reply from the nameserver
  */
 ldns_pkt* ldns_resolver_search(const ldns_resolver *r, const ldns_rdf *rdf, ldns_rr_type t, ldns_rr_class c, uint16_t flags);
@@ -590,6 +591,7 @@ ldns_pkt* ldns_resolver_search(const ldns_resolver *r, const ldns_rdf *rdf, ldns
  * \param[in] t query for this type (may be 0, defaults to A)
  * \param[in] c query for this class (may be 0, default to IN)
  * \param[in] f the query flags
+ *
  * \return ldns_pkt* a packet with the reply from the nameserver
  */
 ldns_status ldns_resolver_prepare_query_pkt(ldns_pkt **q, ldns_resolver *r, const  ldns_rdf *name, ldns_rr_type t, ldns_rr_class c, uint16_t f);
@@ -602,6 +604,7 @@ ldns_status ldns_resolver_prepare_query_pkt(ldns_pkt **q, ldns_resolver *r, cons
  * \param[in] t query for this type (may be 0, defaults to A)
  * \param[in] c query for this class (may be 0, default to IN)
  * \param[in] flags the query flags
+ *
  * \return ldns_pkt* a packet with the reply from the nameserver
  */
 ldns_status ldns_resolver_send(ldns_pkt **answer, ldns_resolver *r, const ldns_rdf *name, ldns_rr_type t, ldns_rr_class c, uint16_t flags);
@@ -621,6 +624,7 @@ ldns_status ldns_resolver_send_pkt(ldns_pkt **answer, ldns_resolver *r, ldns_pkt
  * \param[in] *t query for this type (may be 0, defaults to A)
  * \param[in] *c query for this class (may be 0, default to IN)
  * \param[in] flags the query flags
+ *
  * \return ldns_pkt* a packet with the reply from the nameserver
  * if _defnames is true the default domain will be added
  */

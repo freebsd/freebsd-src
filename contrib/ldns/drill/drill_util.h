@@ -12,6 +12,13 @@
 #define _DRILL_UTIL_H_
 #include <ldns/ldns.h>
 
+
+/**
+ * Read  keys from filename and append to key_list.
+ */
+ldns_status read_key_file(const char *filename, ldns_rr_list *key_list,
+		bool silently);
+
 /**
  * return a address rdf, either A or AAAA 
  * NULL if anything goes wrong

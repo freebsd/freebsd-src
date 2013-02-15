@@ -64,6 +64,8 @@ extern "C" {
 #define LDNS_COMMENT_LAYOUT		0x0080
 /** Also comment KEY_ID with RRSIGS **/
 #define LDNS_COMMENT_RRSIGS		0x0100
+#define LDNS_FMT_ZEROIZE_RRSIGS		0x0200
+#define LDNS_FMT_PAD_SOA_SERIAL		0x0400
 
 /**
  * Output format specifier
@@ -601,13 +603,25 @@ char *ldns_rr_list2str_fmt(
 		const ldns_output_format *fmt, const ldns_rr_list *rr_list);
 
 /**
- * Returns the data in the buffer as a null terminated char * string
- * Buffer data must be char * type, and must be freed by the caller
+ * Returns a copy of the data in the buffer as a null terminated
+ * char * string. The returned string must be freed by the caller.
+ * The buffer must be in write modus and may thus not have been flipped.
  *
  * \param[in] buffer buffer containing char * data
  * \return null terminated char * data, or NULL on error
  */
 char *ldns_buffer2str(ldns_buffer *buffer);
+
+/**
+ * Exports and returns the data in the buffer as a null terminated
+ * char * string. The returned string must be freed by the caller.
+ * The buffer must be in write modus and may thus not have been flipped.
+ * The buffer is fixed after this function returns.
+ *
+ * \param[in] buffer buffer containing char * data
+ * \return null terminated char * data, or NULL on error
+ */
+char *ldns_buffer_export2str(ldns_buffer *buffer);
 
 /**
  * Prints the data in the rdata field to the given file stream

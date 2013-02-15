@@ -253,13 +253,20 @@ ldns_resolver_pop_nameserver(ldns_resolver *r)
 
 	pop = nameservers[ns_count - 1];
 
-	nameservers = LDNS_XREALLOC(nameservers, ldns_rdf *, (ns_count - 1));
-	rtt = LDNS_XREALLOC(rtt, size_t, (ns_count - 1));
+	if (ns_count == 1) {
+		LDNS_FREE(nameservers);
+		LDNS_FREE(rtt);
 
-        if(nameservers)
+		ldns_resolver_set_nameservers(r, NULL);
+		ldns_resolver_set_rtt(r, NULL);
+	} else {
+		nameservers = LDNS_XREALLOC(nameservers, ldns_rdf *, 
+				(ns_count - 1));
+		rtt = LDNS_XREALLOC(rtt, size_t, (ns_count - 1));
+
 	        ldns_resolver_set_nameservers(r, nameservers);
-        if(rtt)
 	        ldns_resolver_set_rtt(r, rtt);
+	}
 	/* decr the count */
 	ldns_resolver_dec_nameserver_count(r);
 	return pop;
@@ -385,7 +392,9 @@ ldns_resolver_push_dnssec_anchor(ldns_resolver *r, ldns_rr *rr)
 {
   ldns_rr_list * trust_anchors;
 
-  if ((!rr) || (ldns_rr_get_type(rr) != LDNS_RR_TYPE_DNSKEY)) {
+  if ((!rr) || (ldns_rr_get_type(rr) != LDNS_RR_TYPE_DNSKEY &&
+                ldns_rr_get_type(rr) != LDNS_RR_TYPE_DS)) {
+
     return LDNS_STATUS_ERR;
   }
 
@@ -800,8 +809,7 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 					gtr -= bgtr;
                                         if(word[0] == '#') {
                                                 expect = LDNS_RESOLV_KEYWORD;
-						ldns_buffer_free(b);
-                                                continue;
+                                                break;
                                         }
 					tmp = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, word);
 					if (!tmp) {
@@ -817,8 +825,10 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 					    (size_t) gtr + 1);
 				}
 				ldns_buffer_free(b);
-				gtr = 1;
-				expect = LDNS_RESOLV_KEYWORD;
+				if (expect != LDNS_RESOLV_KEYWORD) {
+					gtr = 1;
+					expect = LDNS_RESOLV_KEYWORD;
+				}
 				break;
 			case LDNS_RESOLV_SORTLIST:
 				gtr = ldns_fget_token_l(fp, word, LDNS_PARSE_SKIP_SPACE, 0, line_nr);
@@ -885,6 +895,7 @@ ldns_resolver_new_frm_file(ldns_resolver **res, const char *filename)
 			*res = r;
 			return LDNS_STATUS_OK;
 		} else  {
+			ldns_resolver_free(r);
 			return LDNS_STATUS_NULL;
 		}
 	}
@@ -947,15 +958,12 @@ ldns_resolver_search(const ldns_resolver *r,const  ldns_rdf *name,
 	ldns_rr_type t, ldns_rr_class c, uint16_t flags)
 {
 
-	char *str_dname;
 	ldns_rdf *new_name;
 	ldns_rdf **search_list;
 	size_t i;
 	ldns_pkt *p;
 
-	str_dname = ldns_rdf2str(name);
-
-	if (ldns_dname_str_absolute(str_dname)) {
+	if (ldns_dname_absolute(name)) {
 		/* query as-is */
 		return ldns_resolver_query(r, name, t, c, flags);
 	} else if (ldns_resolver_dnsrch(r)) {
@@ -1017,9 +1025,6 @@ ldns_resolver_query(const ldns_resolver *r, const ldns_rdf *name,
 
 	newname = ldns_dname_cat_clone((const ldns_rdf*)name, ldns_resolver_domain(r));
 	if (!newname) {
-		if (pkt) {
-			ldns_pkt_free(pkt);
-		}
 		return NULL;
 	}
 
@@ -1212,9 +1217,11 @@ ldns_resolver_send(ldns_pkt **answer, ldns_resolver *r, const ldns_rdf *name,
 		                            ldns_resolver_tsig_keydata(r),
 		                            300, ldns_resolver_tsig_algorithm(r), NULL);
 		if (status != LDNS_STATUS_OK) {
+			ldns_pkt_free(query_pkt);
 			return LDNS_STATUS_CRYPTO_TSIG_ERR;
 		}
 #else
+		ldns_pkt_free(query_pkt);
 	        return LDNS_STATUS_CRYPTO_TSIG_ERR;
 #endif /* HAVE_SSL */
 	}
@@ -1294,7 +1301,14 @@ ldns_axfr_next(ldns_resolver *resolver)
 			return NULL;
 		} else if (ldns_pkt_get_rcode(resolver->_cur_axfr_pkt) != 0) {
 			rcode = ldns_lookup_by_id(ldns_rcodes, (int) ldns_pkt_get_rcode(resolver->_cur_axfr_pkt));
-			fprintf(stderr, "Error in AXFR: %s\n", rcode->name);
+			if (rcode) {
+				fprintf(stderr, "Error in AXFR: %s\n", 
+						rcode->name);
+			} else {
+				fprintf(stderr, "Error in AXFR: %d\n", 
+						(int) ldns_pkt_get_rcode(
+						resolver->_cur_axfr_pkt));
+			}
 
 			/* RoRi: we must now also close the socket, otherwise subsequent uses of the
 			   same resolver structure will fail because the link is still open or
@@ -1333,17 +1347,22 @@ void
 ldns_resolver_nameservers_randomize(ldns_resolver *r)
 {
 	uint16_t i, j;
-	ldns_rdf **ns, *tmp;
+	ldns_rdf **ns, *tmpns;
+	size_t *rtt, tmprtt;
 
 	/* should I check for ldns_resolver_random?? */
 	assert(r != NULL);
 
 	ns = ldns_resolver_nameservers(r);
+	rtt = ldns_resolver_rtt(r);
 	for (i = 0; i < ldns_resolver_nameserver_count(r); i++) {
 		j = ldns_get_random() % ldns_resolver_nameserver_count(r);
-		tmp = ns[i];
+		tmpns = ns[i];
 		ns[i] = ns[j];
-		ns[j] = tmp;
+		ns[j] = tmpns;
+		tmprtt = rtt[i];
+		rtt[i] = rtt[j];
+		rtt[j] = tmprtt;
 	}
 	ldns_resolver_set_nameservers(r, ns);
 }
