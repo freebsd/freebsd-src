@@ -34,6 +34,12 @@
 /* Define to 1 if you have the `ctime_r' function. */
 #define HAVE_CTIME_R 1
 
+/* Is a CAFILE given at configure time */
+#define HAVE_DANE_CA_FILE 0
+
+/* Is a CAPATH given at configure time */
+#define HAVE_DANE_CA_PATH 0
+
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
 #define HAVE_DECL_NID_SECP384R1 1
@@ -251,6 +257,15 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #define HAVE__BOOL 1
 
+/* Is a CAFILE given at configure time */
+/* #undef LDNS_DANE_CA_FILE */
+
+/* Is a CAPATH given at configure time */
+/* #undef LDNS_DANE_CA_PATH */
+
+/* Default trust anchor file */
+#define LDNS_TRUST_ANCHOR_FILE "/etc/unbound/root.key"
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #define LT_OBJDIR ".libs/"
@@ -262,7 +277,7 @@
 #define PACKAGE_NAME "ldns"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ldns 1.6.13"
+#define PACKAGE_STRING "ldns 1.6.16"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libdns"
@@ -271,7 +286,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.6.13"
+#define PACKAGE_VERSION "1.6.16"
 
 /* The size of `time_t', as computed by sizeof. */
 #define SIZEOF_TIME_T 8

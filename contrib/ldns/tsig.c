@@ -179,10 +179,12 @@ ldns_tsig_mac_new(ldns_rdf **tsig_mac, uint8_t *pkt_wire, size_t pkt_wire_size,
 		return LDNS_STATUS_NULL;
 	}
 	canonical_key_name_rdf  = ldns_rdf_clone(key_name_rdf);
+	if (canonical_key_name_rdf == NULL) {
+		return LDNS_STATUS_MEM_ERR;
+	}
 	canonical_algorithm_rdf = ldns_rdf_clone(algorithm_rdf);
-
-	if (canonical_key_name_rdf == NULL 
-			|| canonical_algorithm_rdf  == NULL) {
+	if (canonical_algorithm_rdf == NULL) {
+		ldns_rdf_deep_free(canonical_key_name_rdf);
 		return LDNS_STATUS_MEM_ERR;
 	}
 	/*
@@ -266,8 +268,8 @@ ldns_tsig_mac_new(ldns_rdf **tsig_mac, uint8_t *pkt_wire, size_t pkt_wire_size,
 	LDNS_FREE(key_bytes);
 	LDNS_FREE(algorithm_name);
 	ldns_buffer_free(data_buffer);
-	ldns_rdf_free(canonical_algorithm_rdf);
-	ldns_rdf_free(canonical_key_name_rdf);
+	ldns_rdf_deep_free(canonical_algorithm_rdf);
+	ldns_rdf_deep_free(canonical_key_name_rdf);
 	return status;
 }
 #endif /*  HAVE_SSL */

@@ -27,8 +27,8 @@ extern "C" {
 #define dprintf(X,Y) fprintf(stderr, (X), (Y))
 /* #define	dprintf(X, Y)  */
 
-#define LDNS_VERSION "1.6.13"
-#define LDNS_REVISION ((1<<16)|(6<<8)|(13))
+#define LDNS_VERSION "1.6.16"
+#define LDNS_REVISION ((1<<16)|(6<<8)|(16))
 
 /**
  * splint static inline workaround
@@ -268,6 +268,8 @@ const char * ldns_version(void);
  * \param[in] tm a struct tm* with the date
  * \return the seconds since epoch
  */
+time_t ldns_mktime_from_utc(const struct tm *tm);
+
 time_t mktime_from_utc(const struct tm *tm);
 
 /**

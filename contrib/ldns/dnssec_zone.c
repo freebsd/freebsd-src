@@ -708,6 +708,7 @@ ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, ldns_rdf* origin,
 		case LDNS_STATUS_SYNTAX_EMPTY:	/* empty line was seen */
 		case LDNS_STATUS_SYNTAX_TTL:	/* the ttl was set*/
 		case LDNS_STATUS_SYNTAX_ORIGIN:	/* the origin was set*/
+			status = LDNS_STATUS_OK;
 			break;
 
 		case LDNS_STATUS_SYNTAX_INCLUDE:/* $include not implemented */
@@ -721,31 +722,32 @@ ldns_dnssec_zone_new_frm_fp_l(ldns_dnssec_zone** z, FILE* fp, ldns_rdf* origin,
 
 	if (ldns_rr_list_rr_count(todo_nsec3s) > 0) {
 		(void) ldns_dnssec_zone_add_empty_nonterminals(newzone);
-		for (i = 0; i < ldns_rr_list_rr_count(todo_nsec3s); i++) {
+		for (i = 0; status == LDNS_STATUS_OK && 
+				i < ldns_rr_list_rr_count(todo_nsec3s); i++) {
 			cur_rr = ldns_rr_list_rr(todo_nsec3s, i);
 			status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
 		}
-		for (i = 0; i < ldns_rr_list_rr_count(todo_nsec3_rrsigs); i++){
+		for (i = 0; status == LDNS_STATUS_OK &&
+				i < ldns_rr_list_rr_count(todo_nsec3_rrsigs);
+			       	i++){
 			cur_rr = ldns_rr_list_rr(todo_nsec3_rrsigs, i);
 			status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
 		}
 	} else if (ldns_rr_list_rr_count(todo_nsec3_rrsigs) > 0) {
-		for (i = 0; i < ldns_rr_list_rr_count(todo_nsec3_rrsigs); i++){
+		for (i = 0; status == LDNS_STATUS_OK &&
+				i < ldns_rr_list_rr_count(todo_nsec3_rrsigs);
+				i++){
 			cur_rr = ldns_rr_list_rr(todo_nsec3_rrsigs, i);
 			status = ldns_dnssec_zone_add_rr(newzone, cur_rr);
 		}
 	}
 
-	ldns_rr_list_free(todo_nsec3_rrsigs);
-	ldns_rr_list_free(todo_nsec3s);
-
 	if (z) {
 		*z = newzone;
+		newzone = NULL;
 	} else {
 		ldns_dnssec_zone_free(newzone);
 	}
-
-	return LDNS_STATUS_OK;
 
 error:
 #ifdef FASTER_DNSSEC_ZONE_NEW_FRM_FP
@@ -753,6 +755,9 @@ error:
 		ldns_zone_free(zone);
 	}
 #endif
+	ldns_rr_list_free(todo_nsec3_rrsigs);
+	ldns_rr_list_free(todo_nsec3s);
+
 	if (my_origin) {
 		ldns_rdf_deep_free(my_origin);
 	}
@@ -822,7 +827,6 @@ ldns_dname_compare_v(const void *a, const void *b) {
 	return ldns_dname_compare((ldns_rdf *)a, (ldns_rdf *)b);
 }
 
-#ifdef HAVE_SSL
 static ldns_rbnode_t *
 ldns_dnssec_zone_find_nsec3_original(ldns_dnssec_zone *zone,
                                      ldns_rr *rr) {
@@ -912,7 +916,6 @@ ldns_dnssec_zone_add_rr(ldns_dnssec_zone *zone, ldns_rr *rr)
 
 	return result;
 }
-#endif /* HAVE_SSL */
 
 void
 ldns_dnssec_zone_names_print_fmt(FILE *out, const ldns_output_format *fmt,
@@ -1009,7 +1012,9 @@ ldns_dnssec_zone_add_empty_nonterminals(ldns_dnssec_zone *zone)
 		if (next_node == LDNS_RBTREE_NULL) {
 			next_node = ldns_rbtree_first(zone->names);
 		}
-
+		if (! cur_node->data || ! next_node->data) {
+			return LDNS_STATUS_ERR;
+		}
 		cur_name = ((ldns_dnssec_name *)cur_node->data)->name;
 		next_name = ((ldns_dnssec_name *)next_node->data)->name;
 		cur_label_count = ldns_dname_label_count(cur_name);
