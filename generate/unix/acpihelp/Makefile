@@ -19,28 +19,28 @@ PROG = $(OBJDIR)/acpihelp
 # Search paths for source files
 #
 vpath %.c \
-    $(ACPIHELP) \
-    $(ACPICA_COMMON) \
+    $(ACPIHELP)\
+    $(ACPICA_COMMON)\
     $(ACPICA_UTILITIES)
 
 HEADERS = \
     $(wildcard $(ACPIHELP)/*.h)
 
 OBJECTS = \
-	$(OBJDIR)/ahamlops.o \
-	$(OBJDIR)/ahaslkey.o \
-	$(OBJDIR)/ahaslops.o \
-	$(OBJDIR)/ahdecode.o \
-	$(OBJDIR)/ahpredef.o \
-	$(OBJDIR)/ahmain.o \
-	$(OBJDIR)/getopt.o \
+	$(OBJDIR)/ahamlops.o\
+	$(OBJDIR)/ahaslkey.o\
+	$(OBJDIR)/ahaslops.o\
+	$(OBJDIR)/ahdecode.o\
+	$(OBJDIR)/ahpredef.o\
+	$(OBJDIR)/ahmain.o\
+	$(OBJDIR)/getopt.o\
 	$(OBJDIR)/utexcep.o
 
 #
 # Flags specific to acpihelp
 #
-CFLAGS+= \
-    -DACPI_HELP_APP \
+CFLAGS += \
+    -DACPI_HELP_APP\
     -I$(ACPIHELP)
 
 #

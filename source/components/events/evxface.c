@@ -534,9 +534,9 @@ AcpiInstallFixedEventHandler (
         return_ACPI_STATUS (Status);
     }
 
-    /* Don't allow two handlers. */
+    /* Do not allow multiple handlers */
 
-    if (NULL != AcpiGbl_FixedEventHandlers[Event].Handler)
+    if (AcpiGbl_FixedEventHandlers[Event].Handler)
     {
         Status = AE_ALREADY_EXISTS;
         goto Cleanup;
@@ -550,7 +550,9 @@ AcpiInstallFixedEventHandler (
     Status = AcpiEnableEvent (Event, 0);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_WARNING ((AE_INFO, "Could not enable fixed event 0x%X", Event));
+        ACPI_WARNING ((AE_INFO,
+            "Could not enable fixed event - %s (%u)",
+            AcpiUtGetEventName (Event), Event));
 
         /* Remove the handler */
 
@@ -560,7 +562,8 @@ AcpiInstallFixedEventHandler (
     else
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Enabled fixed event %X, Handler=%p\n", Event, Handler));
+            "Enabled fixed event %s (%X), Handler=%p\n",
+            AcpiUtGetEventName (Event), Event, Handler));
     }
 
 
@@ -621,11 +624,14 @@ AcpiRemoveFixedEventHandler (
     if (ACPI_FAILURE (Status))
     {
         ACPI_WARNING ((AE_INFO,
-            "Could not write to fixed event enable register 0x%X", Event));
+            "Could not disable fixed event - %s (%u)",
+            AcpiUtGetEventName (Event), Event));
     }
     else
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Disabled fixed event %X\n", Event));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Disabled fixed event - %s (%X)\n",
+            AcpiUtGetEventName (Event), Event));
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);

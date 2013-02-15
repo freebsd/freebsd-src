@@ -18,38 +18,38 @@ PROG = $(OBJDIR)/acpibin
 # Search paths for source files
 #
 vpath %.c \
-    $(ACPIBIN) \
-    $(ACPICA_UTILITIES) \
-    $(ACPICA_COMMON) \
+    $(ACPIBIN)\
+    $(ACPICA_UTILITIES)\
+    $(ACPICA_COMMON)\
     $(ACPICA_OSL)
 
 HEADERS = \
     $(wildcard $(ACPIBIN)/*.h)
 
 OBJECTS = \
-	$(OBJDIR)/abcompare.o \
-	$(OBJDIR)/abmain.o \
-	$(OBJDIR)/utalloc.o \
-	$(OBJDIR)/utcache.o \
-	$(OBJDIR)/utdebug.o \
-	$(OBJDIR)/utdecode.o \
-	$(OBJDIR)/utexcep.o \
-	$(OBJDIR)/utglobal.o \
-	$(OBJDIR)/utlock.o \
-	$(OBJDIR)/utmath.o \
-	$(OBJDIR)/utmisc.o \
-	$(OBJDIR)/utmutex.o \
-	$(OBJDIR)/utstate.o \
-	$(OBJDIR)/utstring.o \
-	$(OBJDIR)/utxferror.o \
-	$(OBJDIR)/osunixxf.o \
+	$(OBJDIR)/abcompare.o\
+	$(OBJDIR)/abmain.o\
+	$(OBJDIR)/utalloc.o\
+	$(OBJDIR)/utcache.o\
+	$(OBJDIR)/utdebug.o\
+	$(OBJDIR)/utdecode.o\
+	$(OBJDIR)/utexcep.o\
+	$(OBJDIR)/utglobal.o\
+	$(OBJDIR)/utlock.o\
+	$(OBJDIR)/utmath.o\
+	$(OBJDIR)/utmisc.o\
+	$(OBJDIR)/utmutex.o\
+	$(OBJDIR)/utstate.o\
+	$(OBJDIR)/utstring.o\
+	$(OBJDIR)/utxferror.o\
+	$(OBJDIR)/osunixxf.o\
 	$(OBJDIR)/getopt.o
 
 #
 # Flags specific to acpibin
 #
-CFLAGS+= \
-    -DACPI_BIN_APP \
+CFLAGS += \
+    -DACPI_BIN_APP\
     -I$(ACPIBIN)
 
 #

@@ -87,6 +87,11 @@ AcpiNsGetExpectedTypes (
     char                        *Buffer,
     UINT32                      ExpectedBtypes);
 
+static UINT32
+AcpiNsGetBitmappedType (
+    ACPI_OPERAND_OBJECT         *ReturnObject);
+
+
 /*
  * Names for the types that can be returned by the predefined objects.
  * Used for warning messages. Must be in the same order as the ACPI_RTYPEs
@@ -124,7 +129,6 @@ AcpiNsCheckPredefinedNames (
     ACPI_STATUS                 ReturnStatus,
     ACPI_OPERAND_OBJECT         **ReturnObjectPtr)
 {
-    ACPI_OPERAND_OBJECT         *ReturnObject = *ReturnObjectPtr;
     ACPI_STATUS                 Status = AE_OK;
     const ACPI_PREDEFINED_INFO  *Predefined;
     char                        *Pathname;
@@ -163,26 +167,6 @@ AcpiNsCheckPredefinedNames (
      */
     if ((ReturnStatus != AE_OK) && (ReturnStatus != AE_CTRL_RETURN_VALUE))
     {
-        goto Cleanup;
-    }
-
-    /*
-     * If there is no return value, check if we require a return value for
-     * this predefined name. Either one return value is expected, or none,
-     * for both methods and other objects.
-     *
-     * Exit now if there is no return object. Warning if one was expected.
-     */
-    if (!ReturnObject)
-    {
-        if ((Predefined->Info.ExpectedBtypes) &&
-            (!(Predefined->Info.ExpectedBtypes & ACPI_RTYPE_NONE)))
-        {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Pathname, ACPI_WARN_ALWAYS,
-                "Missing expected return value"));
-
-            Status = AE_AML_NO_RETURN_VALUE;
-        }
         goto Cleanup;
     }
 
@@ -447,30 +431,13 @@ AcpiNsCheckObjectType (
 {
     ACPI_OPERAND_OBJECT         *ReturnObject = *ReturnObjectPtr;
     ACPI_STATUS                 Status = AE_OK;
-    UINT32                      ReturnBtype;
     char                        TypeBuffer[48]; /* Room for 5 types */
 
 
-    /*
-     * If we get a NULL ReturnObject here, it is a NULL package element.
-     * Since all extraneous NULL package elements were removed earlier by a
-     * call to AcpiNsRemoveNullElements, this is an unexpected NULL element.
-     * We will attempt to repair it.
-     */
-    if (!ReturnObject)
-    {
-        Status = AcpiNsRepairNullElement (Data, ExpectedBtypes,
-                    PackageIndex, ReturnObjectPtr);
-        if (ACPI_SUCCESS (Status))
-        {
-            return (AE_OK); /* Repair was successful */
-        }
-        goto TypeErrorExit;
-    }
-
     /* A Namespace node should not get here, but make sure */
 
-    if (ACPI_GET_DESCRIPTOR_TYPE (ReturnObject) == ACPI_DESC_TYPE_NAMED)
+    if (ReturnObject &&
+        ACPI_GET_DESCRIPTOR_TYPE (ReturnObject) == ACPI_DESC_TYPE_NAMED)
     {
         ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
             "Invalid return type - Found a Namespace node [%4.4s] type %s",
@@ -487,56 +454,26 @@ AcpiNsCheckObjectType (
      * from all of the predefined names (including elements of returned
      * packages)
      */
-    switch (ReturnObject->Common.Type)
+    Data->ReturnBtype = AcpiNsGetBitmappedType (ReturnObject);
+    if (Data->ReturnBtype == ACPI_RTYPE_ANY)
     {
-    case ACPI_TYPE_INTEGER:
-        ReturnBtype = ACPI_RTYPE_INTEGER;
-        break;
-
-    case ACPI_TYPE_BUFFER:
-        ReturnBtype = ACPI_RTYPE_BUFFER;
-        break;
-
-    case ACPI_TYPE_STRING:
-        ReturnBtype = ACPI_RTYPE_STRING;
-        break;
-
-    case ACPI_TYPE_PACKAGE:
-        ReturnBtype = ACPI_RTYPE_PACKAGE;
-        break;
-
-    case ACPI_TYPE_LOCAL_REFERENCE:
-        ReturnBtype = ACPI_RTYPE_REFERENCE;
-        break;
-
-    default:
         /* Not one of the supported objects, must be incorrect */
-
         goto TypeErrorExit;
     }
 
-    /* Is the object one of the expected types? */
+    /* For reference objects, check that the reference type is correct */
 
-    if (ReturnBtype & ExpectedBtypes)
+    if ((Data->ReturnBtype & ExpectedBtypes) == ACPI_RTYPE_REFERENCE)
     {
-        /* For reference objects, check that the reference type is correct */
-
-        if (ReturnObject->Common.Type == ACPI_TYPE_LOCAL_REFERENCE)
-        {
-            Status = AcpiNsCheckReference (Data, ReturnObject);
-        }
-
+        Status = AcpiNsCheckReference (Data, ReturnObject);
         return (Status);
     }
 
-    /* Type mismatch -- attempt repair of the returned object */
+    /* Attempt simple repair of the returned object if necessary */
 
-    Status = AcpiNsRepairObject (Data, ExpectedBtypes,
+    Status = AcpiNsSimpleRepair (Data, ExpectedBtypes,
                 PackageIndex, ReturnObjectPtr);
-    if (ACPI_SUCCESS (Status))
-    {
-        return (AE_OK); /* Repair was successful */
-    }
+    return (Status);
 
 
 TypeErrorExit:
@@ -601,6 +538,67 @@ AcpiNsCheckReference (
         ReturnObject->Reference.Class));
 
     return (AE_AML_OPERAND_TYPE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsGetBitmappedType
+ *
+ * PARAMETERS:  ReturnObject    - Object returned from method/obj evaluation
+ *
+ * RETURN:      Object return type. ACPI_RTYPE_ANY indicates that the object
+ *              type is not supported. ACPI_RTYPE_NONE indicates that no
+ *              object was returned (ReturnObject is NULL).
+ *
+ * DESCRIPTION: Convert object type into a bitmapped object return type.
+ *
+ ******************************************************************************/
+
+static UINT32
+AcpiNsGetBitmappedType (
+    ACPI_OPERAND_OBJECT         *ReturnObject)
+{
+    UINT32                      ReturnBtype;
+
+
+    if (!ReturnObject)
+    {
+        return (ACPI_RTYPE_NONE);
+    }
+
+    /* Map ACPI_OBJECT_TYPE to internal bitmapped type */
+
+    switch (ReturnObject->Common.Type)
+    {
+    case ACPI_TYPE_INTEGER:
+        ReturnBtype = ACPI_RTYPE_INTEGER;
+        break;
+
+    case ACPI_TYPE_BUFFER:
+        ReturnBtype = ACPI_RTYPE_BUFFER;
+        break;
+
+    case ACPI_TYPE_STRING:
+        ReturnBtype = ACPI_RTYPE_STRING;
+        break;
+
+    case ACPI_TYPE_PACKAGE:
+        ReturnBtype = ACPI_RTYPE_PACKAGE;
+        break;
+
+    case ACPI_TYPE_LOCAL_REFERENCE:
+        ReturnBtype = ACPI_RTYPE_REFERENCE;
+        break;
+
+    default:
+        /* Not one of the supported objects, must be incorrect */
+
+        ReturnBtype = ACPI_RTYPE_ANY;
+        break;
+    }
+
+    return (ReturnBtype);
 }
 
 
