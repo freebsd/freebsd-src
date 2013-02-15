@@ -50,11 +50,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/vmmeter.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_radix.h>
 
@@ -383,7 +383,9 @@ vm_radix_init(void *arg __unused)
 	    NULL,
 #endif
 	    NULL, NULL, VM_RADIX_PAD, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	nitems = uma_zone_set_max(vm_radix_node_zone, vm_page_array_size);
+	nitems = uma_zone_set_max(vm_radix_node_zone, cnt.v_page_count);
+	if (nitems < cnt.v_page_count)
+		panic("%s: unexpected requested number of items", __func__);
 	uma_prealloc(vm_radix_node_zone, nitems);
 	boot_cache_cnt = VM_RADIX_BOOT_CACHE + 1;
 }
