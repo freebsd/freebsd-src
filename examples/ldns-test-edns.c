@@ -15,6 +15,18 @@
 /** print error details */
 static int verb = 1;
 
+struct sockaddr_in6* cast_sockaddr_storage2sockaddr_in6(
+		struct sockaddr_storage* s)
+{
+	return (struct sockaddr_in6*)s;
+}
+
+struct sockaddr_in* cast_sockaddr_storage2sockaddr_in(
+		struct sockaddr_storage* s)
+{
+	return (struct sockaddr_in*)s;
+}
+
 /** parse IP address */
 static int
 convert_addr(char* str, int p, struct sockaddr_storage* addr, socklen_t* len)
@@ -22,8 +34,10 @@ convert_addr(char* str, int p, struct sockaddr_storage* addr, socklen_t* len)
 #ifdef AF_INET6
 	if(strchr(str, ':')) {
 		*len = (socklen_t)sizeof(struct sockaddr_in6);
-		((struct sockaddr_in6*)addr)->sin6_family = AF_INET6;
-		((struct sockaddr_in6*)addr)->sin6_port = htons((uint16_t)p);
+		cast_sockaddr_storage2sockaddr_in6(addr)->sin6_family =
+			AF_INET6;
+		cast_sockaddr_storage2sockaddr_in6(addr)->sin6_port =
+			htons((uint16_t)p);
 		if(inet_pton(AF_INET6, str,
 			&((struct sockaddr_in6*)addr)->sin6_addr) == 1)
 			return 1;
@@ -31,9 +45,11 @@ convert_addr(char* str, int p, struct sockaddr_storage* addr, socklen_t* len)
 #endif
 		*len = (socklen_t)sizeof(struct sockaddr_in);
 #ifndef S_SPLINT_S
-		((struct sockaddr_in*)addr)->sin_family = AF_INET;
+		cast_sockaddr_storage2sockaddr_in(addr)->sin_family =
+			AF_INET;
 #endif
-		((struct sockaddr_in*)addr)->sin_port = htons((uint16_t)p);
+		cast_sockaddr_storage2sockaddr_in(addr)->sin_port =
+			htons((uint16_t)p);
 		if(inet_pton(AF_INET, str,
 			&((struct sockaddr_in*)addr)->sin_addr) == 1)
 			return 1;

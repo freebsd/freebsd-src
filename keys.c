@@ -431,8 +431,7 @@ ldns_key_new_frm_fp_l(ldns_key **key, FILE *fp, int *line_nr)
 				ldns_key_free(k);
 				return LDNS_STATUS_ERR;
 			}
-			ldns_key_set_rsa_key(k, rsa);
-			RSA_free(rsa);
+			ldns_key_assign_rsa_key(k, rsa);
 #endif /* HAVE_SSL */
 			break;
 		case LDNS_SIGN_DSA:
@@ -444,8 +443,7 @@ ldns_key_new_frm_fp_l(ldns_key **key, FILE *fp, int *line_nr)
 				ldns_key_free(k);
 				return LDNS_STATUS_ERR;
 			}
-			ldns_key_set_dsa_key(k, dsa);
-			DSA_free(dsa);
+			ldns_key_assign_dsa_key(k, dsa);
 #endif /* HAVE_SSL */
 			break;
 		case LDNS_SIGN_HMACMD5:
@@ -505,6 +503,7 @@ ldns_key_new_frm_fp_l(ldns_key **key, FILE *fp, int *line_nr)
 		*key = k;
 		return LDNS_STATUS_OK;
 	}
+	ldns_key_free(k);
 	return LDNS_STATUS_ERR;
 }
 
@@ -751,28 +750,21 @@ ldns_key_new_frm_fp_hmac_l( FILE *f
 			  , size_t *hmac_size
 			  )
 {
-	size_t i;
-	char *d;
-	unsigned char *buf;
-
-	d = LDNS_XMALLOC(char, LDNS_MAX_LINELEN);
-	buf = LDNS_XMALLOC(unsigned char, LDNS_MAX_LINELEN);
-        if(!d || !buf) {
-                goto error;
-        }
+	size_t i, bufsz;
+	char d[LDNS_MAX_LINELEN];
+	unsigned char *buf = NULL;
 
 	if (ldns_fget_keyword_data_l(f, "Key", ": ", d, "\n", LDNS_MAX_LINELEN, line_nr) == -1) {
 		goto error;
 	}
-	i = (size_t) ldns_b64_pton((const char*)d,
-	                           buf,
-	                           ldns_b64_ntop_calculate_size(strlen(d)));
+	bufsz = ldns_b64_ntop_calculate_size(strlen(d));
+	buf = LDNS_XMALLOC(unsigned char, bufsz);
+	i = (size_t) ldns_b64_pton((const char*)d, buf, bufsz);
 
 	*hmac_size = i;
 	return buf;
 
 	error:
-	LDNS_FREE(d);
 	LDNS_FREE(buf);
 	*hmac_size = 0;
 	return NULL;
@@ -850,6 +842,7 @@ ldns_key_new_frm_algorithm(ldns_signing_algorithm alg, uint16_t size)
 				return NULL;
 			}
 			ldns_key_set_rsa_key(k, r);
+			RSA_free(r);
 #endif /* HAVE_SSL */
 			break;
 		case LDNS_SIGN_DSA:
@@ -865,6 +858,7 @@ ldns_key_new_frm_algorithm(ldns_signing_algorithm alg, uint16_t size)
 				return NULL;
 			}
 			ldns_key_set_dsa_key(k, d);
+			DSA_free(d);
 #endif /* HAVE_SSL */
 			break;
 		case LDNS_SIGN_HMACMD5:
@@ -1003,6 +997,22 @@ ldns_key_set_dsa_key(ldns_key *k, DSA *d)
 {
 	EVP_PKEY *key = EVP_PKEY_new();
 	EVP_PKEY_set1_DSA(key, d);
+	k->_key.key  = key;
+}
+
+void
+ldns_key_assign_rsa_key(ldns_key *k, RSA *r)
+{
+	EVP_PKEY *key = EVP_PKEY_new();
+	EVP_PKEY_assign_RSA(key, r);
+	k->_key.key = key;
+}
+
+void
+ldns_key_assign_dsa_key(ldns_key *k, DSA *d)
+{
+	EVP_PKEY *key = EVP_PKEY_new();
+	EVP_PKEY_assign_DSA(key, d);
 	k->_key.key  = key;
 }
 #endif /* splint */
@@ -1302,7 +1312,7 @@ ldns_key_dsa2bin(unsigned char *data, DSA *k, uint16_t *size)
 	}
 	
 	/* See RFC2536 */
-	*size = (uint16_t)BN_num_bytes(k->g);
+	*size = (uint16_t)BN_num_bytes(k->p);
 	T = (*size - 64) / 8;
 	memcpy(data, &T, 1);
 
@@ -1365,10 +1375,10 @@ ldns_key2rr(const ldns_key *k)
 #endif
 	int internal_data = 0;
 
-	pubkey = ldns_rr_new();
 	if (!k) {
 		return NULL;
 	}
+	pubkey = ldns_rr_new();
 
 	switch (ldns_key_algorithm(k)) {
 	case LDNS_SIGN_HMACMD5:
@@ -1638,7 +1648,7 @@ ldns_key_get_file_base_name(ldns_key *key)
 	                   "+%03u+%05u",
 			   ldns_key_algorithm(key),
 			   ldns_key_keytag(key));
-	file_base_name = strdup(ldns_buffer_export(buffer));
+	file_base_name = ldns_buffer_export(buffer);
 	ldns_buffer_free(buffer);
 	return file_base_name;
 }

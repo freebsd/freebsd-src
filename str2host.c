@@ -96,7 +96,7 @@ ldns_str2rdf_time(ldns_rdf **rd, const char *time)
 			goto bad_format;
 		}
 
-		l = htonl(mktime_from_utc(&tm));
+		l = htonl(ldns_mktime_from_utc(&tm));
 		memcpy(r, &l, sizeof(uint32_t));
 		*rd = ldns_rdf_new_frm_data(
 			LDNS_RDF_TYPE_TIME, sizeof(uint32_t), r);
@@ -534,6 +534,7 @@ ldns_str2rdf_apl(ldns_rdf **rd, const char *str)
 
 	data = LDNS_XMALLOC(uint8_t, 4 + afdlength);
         if(!data) {
+		LDNS_FREE(afdpart);
 		LDNS_FREE(my_ip_str);
 		return LDNS_STATUS_INVALID_STR;
         }
@@ -1104,8 +1105,6 @@ ldns_str2rdf_wks(ldns_rdf **rd, const char *str)
 		data[0] = (uint8_t) proto->p_proto;
 	} else if (proto_str) {
 		data[0] = (uint8_t) atoi(proto_str);
-	} else {
-		data[0] = 0;
 	}
 	memcpy(data + 1, bitmap, (size_t) bm_len);
 

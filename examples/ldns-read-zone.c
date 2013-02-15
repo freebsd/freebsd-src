@@ -33,14 +33,23 @@ main(int argc, char **argv)
 	ldns_rr_list *stripped_list;
 	ldns_rr *cur_rr;
 	ldns_rr_type cur_rr_type;
-	const ldns_output_format *fmt = NULL;
+	ldns_output_format fmt = { 
+		ldns_output_format_default->flags,
+		ldns_output_format_default->data
+	};
 	ldns_soa_serial_increment_func_t soa_serial_increment_func = NULL;
 	int soa_serial_increment_func_data = 0;
 
-        while ((c = getopt(argc, argv, "bcdhnsvzS:")) != -1) {
+        while ((c = getopt(argc, argv, "0bcdhnpsvzS:")) != -1) {
                 switch(c) {
 			case 'b':
-				fmt = ldns_output_format_bubblebabble;
+				fmt.flags |= 
+					( LDNS_COMMENT_BUBBLEBABBLE |
+					  LDNS_COMMENT_FLAGS        );
+				break;
+			case '0':
+				fmt.flags |= LDNS_FMT_ZEROIZE_RRSIGS;
+				break;
                 	case 'c':
                 		canonicalize = true;
                 		break;
@@ -51,14 +60,17 @@ main(int argc, char **argv)
 				}
 				break;
 			case 'h':
-				printf("Usage: %s [-c] [-v] [-z] <zonefile>\n", argv[0]);
+				printf("Usage: %s [OPTIONS] <zonefile>\n", argv[0]);
 				printf("\tReads the zonefile and prints it.\n");
 				printf("\tThe RR count of the zone is printed to stderr.\n");
 				printf("\t-b include bubblebabble of DS's.\n");
+				printf("\t-0 zeroize timestamps and signature in RRSIG records.\n");
 				printf("\t-c canonicalize all rrs in the zone.\n");
 				printf("\t-d only show DNSSEC data from the zone\n");
 				printf("\t-h show this text\n");
 				printf("\t-n do not print the SOA record\n");
+				printf("\t-p prepend SOA serial with spaces so"
+					" it takes exactly ten characters.\n");
 				printf("\t-s strip DNSSEC data from the zone\n");
 				printf("\t-S [[+|-]<number> | YYYYMMDDxx | "
 						" unixtime ]\n"
@@ -79,6 +91,9 @@ main(int argc, char **argv)
 				break;
 			case 'n':
 				print_soa = false;
+				break;
+			case 'p':
+				fmt.flags |= LDNS_FMT_PAD_SOA_SERIAL;
 				break;
                         case 's':
                         	strip = true;
@@ -141,6 +156,15 @@ main(int argc, char **argv)
 	
 	s = ldns_zone_new_frm_fp_l(&z, fp, NULL, 0, LDNS_RR_CLASS_IN, &line_nr);
 
+	fclose(fp);
+	if (s != LDNS_STATUS_OK) {
+		fprintf(stderr, "%s at %d\n", 
+				ldns_get_errorstr_by_id(s),
+				line_nr);
+                exit(EXIT_FAILURE);
+	}
+
+
 	if (strip) {
 		stripped_list = ldns_rr_list_new();
 		while ((cur_rr = ldns_rr_list_pop_rr(ldns_zone_rrs(z)))) {
@@ -176,37 +200,29 @@ main(int argc, char **argv)
 		ldns_zone_set_rrs(z, stripped_list);
 	}
 
-	if (s == LDNS_STATUS_OK) {
-		if (canonicalize) {
-			ldns_rr2canonical(ldns_zone_soa(z));
-			for (i = 0; i < ldns_rr_list_rr_count(ldns_zone_rrs(z)); i++) {
-				ldns_rr2canonical(ldns_rr_list_rr(ldns_zone_rrs(z), i));
-			}
+	if (canonicalize) {
+		ldns_rr2canonical(ldns_zone_soa(z));
+		for (i = 0; i < ldns_rr_list_rr_count(ldns_zone_rrs(z)); i++) {
+			ldns_rr2canonical(ldns_rr_list_rr(ldns_zone_rrs(z), i));
 		}
-		if (sort) {
-			ldns_zone_sort(z);
-		}
-
-		if (print_soa && ldns_zone_soa(z)) {
-			if (soa_serial_increment_func) {
-				ldns_rr_soa_increment_func_int(
-					  ldns_zone_soa(z)
-					, soa_serial_increment_func
-					, soa_serial_increment_func_data
-					);
-			}
-			ldns_rr_print_fmt(stdout, fmt, ldns_zone_soa(z));
-		}
-		ldns_rr_list_print_fmt(stdout, fmt, ldns_zone_rrs(z));
-
-		ldns_zone_deep_free(z);
-	} else {
-		fprintf(stderr, "%s at %d\n", 
-				ldns_get_errorstr_by_id(s),
-				line_nr);
-                exit(EXIT_FAILURE);
 	}
-	fclose(fp);
+	if (sort) {
+		ldns_zone_sort(z);
+	}
+
+	if (print_soa && ldns_zone_soa(z)) {
+		if (soa_serial_increment_func) {
+			ldns_rr_soa_increment_func_int(
+					ldns_zone_soa(z)
+				, soa_serial_increment_func
+				, soa_serial_increment_func_data
+				);
+		}
+		ldns_rr_print_fmt(stdout, &fmt, ldns_zone_soa(z));
+	}
+	ldns_rr_list_print_fmt(stdout, &fmt, ldns_zone_rrs(z));
+
+	ldns_zone_deep_free(z);
 
         exit(EXIT_SUCCESS);
 }

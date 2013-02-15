@@ -367,6 +367,7 @@ void ldns_dnssec_derive_trust_tree_no_sig_time(
  *
  * \param *tree The trust tree so search
  * \param *keys A ldns_rr_list of DNSKEY and DS rrs to look for
+ *
  * \return LDNS_STATUS_OK if there is a trusted path to one of
  *                        the keys, or the *first* error encountered
  *                        if there were no paths

@@ -95,6 +95,35 @@ ldns_lookup_table ldns_error_str[] = {
 		"DNSSEC signature will expire too soon" },
 	{ LDNS_STATUS_CRYPTO_SIG_NOT_INCEPTED_WITHIN_MARGIN,
 		"DNSSEC signature not incepted long enough" },
+	{ LDNS_STATUS_DANE_UNKNOWN_CERTIFICATE_USAGE,
+		"Unknown TLSA Certificate Usage" },
+	{ LDNS_STATUS_DANE_UNKNOWN_SELECTOR, "Unknown TLSA Selector" },
+	{ LDNS_STATUS_DANE_UNKNOWN_MATCHING_TYPE,
+		"Unknown TLSA Matching Type" },
+	{ LDNS_STATUS_DANE_UNKNOWN_PROTOCOL,
+		"Unknown protocol. Only IPv4 and IPv6 are understood" },
+	{ LDNS_STATUS_DANE_UNKNOWN_TRANSPORT,
+		"Unknown transport. Should be one of {tcp, udp, sctp}" },
+	{ LDNS_STATUS_DANE_MISSING_EXTRA_CERTS,  /* Trust anchor assertion */
+		"More than one certificate should be provided" },
+	{ LDNS_STATUS_DANE_EXTRA_CERTS_NOT_USED, /* Trust anchor assertion */
+		"Non of the extra certificates is used to sign the first" },
+	{ LDNS_STATUS_DANE_OFFSET_OUT_OF_RANGE,   /* Trust anchor assertion */
+		"The offset was out of range" },
+	{ LDNS_STATUS_DANE_INSECURE,             /* Unused by library */
+		"The queried resource records were insecure" },
+	{ LDNS_STATUS_DANE_BOGUS,             /* Unused by library */
+		"The queried resource records were bogus" },
+	{ LDNS_STATUS_DANE_TLSA_DID_NOT_MATCH,
+		"The TLSA record(s) "
+		"did not match with the server certificate (chain)" },
+	{ LDNS_STATUS_DANE_NON_CA_CERTIFICATE,
+		"The certificate was not a CA certificate" },
+	{ LDNS_STATUS_DANE_PKIX_DID_NOT_VALIDATE,
+		"Could not PKIX validate" },
+	{ LDNS_STATUS_DANE_PKIX_NO_SELF_SIGNED_TRUST_ANCHOR,
+		"The validation path "
+		"did not end in a self-signed certificate" },
 	{ 0, NULL }
 };
 

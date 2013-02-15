@@ -247,6 +247,29 @@ ldns_status ldns_dnssec_zone_sign_defcb(ldns_dnssec_zone *zone, ldns_rr_list *ne
 
  return ldns_dnssec_zone_sign(zone, new_rrs, key_list, ldns_dnssec_default_replace_signatures, NULL);
 }
+
+ldns_status ldns_dnssec_zone_add_rr_(ldns_dnssec_zone *zone, ldns_rr *rr)
+{
+  ldns_rr *new_rr;
+  ldns_status status;
+
+  new_rr = ldns_rr_clone(rr);
+
+  /*
+   * A clone of the RR is created to be stored in the DNSSEC zone.
+   * The Python engine frees a RR object as soon it's reference count
+   * reaches zero. The code must avoid double freeing or accessing of freed
+   * memory.
+   */
+
+  status = ldns_dnssec_zone_add_rr(zone, new_rr);
+
+  if (status != LDNS_STATUS_OK) {
+    ldns_rr_free(new_rr);
+  }
+
+  return status;
+}
 %}
 
 %extend ldns_dnssec_zone {
@@ -413,7 +436,7 @@ ldns_status ldns_dnssec_zone_sign_defcb(ldns_dnssec_zone *zone, ldns_rr_list *ne
                    The RR to add
                :returns: (ldns_status) LDNS_STATUS_OK on success, an error code otherwise
             """
-            return _ldns.ldns_dnssec_zone_add_rr(self,rr)
+            return _ldns.ldns_dnssec_zone_add_rr_(self,rr)
             #parameters: ldns_dnssec_zone *,ldns_rr *,
             #retvals: ldns_status
 

@@ -7,7 +7,7 @@ import ldns
 algorithm = ldns.LDNS_SIGN_DSA
 bits = 512
 
-ldns.ldns_init_random(open("/dev/random","rb"), (bits+7)//8)
+ldns.ldns_init_random(open("/dev/urandom","rb"), (bits+7)//8)
 
 domain = ldns.ldns_dname("example.")
 

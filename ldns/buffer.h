@@ -630,8 +630,9 @@ void ldns_buffer_free(ldns_buffer *buffer);
 void *ldns_buffer_export(ldns_buffer *buffer);
 
 /**
- * Copy contents of the other buffer to this buffer. Silently truncated
- * if this buffer is too small.
+ * Copy contents of the from buffer to the result buffer and then flips 
+ * the result buffer. Data will be silently truncated if the result buffer is
+ * too small.
  * \param[out] *result resulting buffer which is copied to.
  * \param[in] *from what to copy to result.
  */

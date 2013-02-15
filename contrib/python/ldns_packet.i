@@ -217,7 +217,7 @@ This simple example instances a resolver in order to resolve NS for nic.cz.
 
         def opcode2str(self):
             """Converts a packet opcode to its mnemonic and returns that as an allocated null-terminated string."""
-            return _ldns.ldns_pkt_opcode2str(sefl.get_opcode())
+            return _ldns.ldns_pkt_opcode2str(self.get_opcode())
 
         def rcode2str(self):
             """Converts a packet rcode to its mnemonic and returns that as an allocated null-terminated string."""

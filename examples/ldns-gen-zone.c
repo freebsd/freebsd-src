@@ -133,7 +133,7 @@ main(int argc, char **argv) {
                         break;
                 case 'p':
                         dsperc = atoi(optarg);
-                        if (dsperc <= 0 || dsperc > 100) {
+                        if (dsperc < 0 || dsperc > 100) {
                                 fprintf(stderr, "error: percentage of signed delegations must be between [0-100].\n");
                                 exit(EXIT_FAILURE);
                         }

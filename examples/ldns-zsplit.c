@@ -63,6 +63,7 @@ open_keyfiles(char **files, uint16_t filec)
 		}
 		if (ldns_rr_new_frm_fp(&k, kfp, NULL, NULL, NULL) != LDNS_STATUS_OK) {
 			fprintf(stderr, "Error parsing the key file %s: %s\n", files[i], strerror(errno));
+			ldns_rr_list_deep_free(pubkeys);
 			return NULL;
 		}
 		fclose(kfp);

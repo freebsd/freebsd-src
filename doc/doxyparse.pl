@@ -87,7 +87,7 @@ if (defined $options{'m'}) {
 
 # 0 - somewhere in the file
 # 1 - in a doxygen par
-# 2 - after doxygen, except funcion
+# 2 - after doxygen, expect function
 
 # create our pwd
 mkdir "doc";
@@ -126,7 +126,14 @@ while($i < $max) {
 	}
 	if ($cur_line =~ /\*\// and $state == 1) {
 		#print "END Comment seen!\n";
-		$state = 2;
+		if ($description =~ /^\\\\file/mg) {
+			# Doxygen text for the file, do not expect
+			# a function coming.
+			#
+			$state = 0;
+		} else {
+			$state = 2;
+		}
 		$i++;
 		next;
 	}
@@ -183,6 +190,14 @@ while($i < $max) {
 		$description =~ s/\\param\[in\][ \t]*([\*\w]+)[ \t]+/.br\n\\fB$1\\fR: /g;
 		$description =~ s/\\param\[out\][ \t]*([\*\w]+)[ \t]+/.br\n\\fB$1\\fR: /g;
 		$description =~ s/\\return[ \t]*/.br\nReturns /g;
+
+		# Delete leading spaces to prevent manpages to be ascii format-
+		# ted and enable justification of text.
+		#
+		$description =~ s/^[ \t]*//mg;
+
+		# Prevent hyphening of all caps and underscore words
+		$description =~ s/\b([A-Z_]+)\b/\\%$1/g;
 
 		$description{$key} = $description;
 		$api{$key} = $api;

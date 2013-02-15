@@ -649,13 +649,26 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Warning: Unable to create stub resolver from /etc/resolv.conf:\n");
 		fprintf(stderr, "%s\n", ldns_get_errorstr_by_id(status));
 		fprintf(stderr, "defaulting to nameserver at 127.0.0.1 for separate nameserver name lookups\n");
-		res = ldns_resolver_new();
-		ns = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A, "127.0.0.1");
-		status = ldns_resolver_push_nameserver(res, ns);
-		if (status != LDNS_STATUS_OK) {
-			fprintf(stderr, "Unable to create stub resolver: %s\n", ldns_get_errorstr_by_id(status));
+		do {
+			res = ldns_resolver_new();
+			if (res) {
+				ns = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A,
+						"127.0.0.1");
+				if (ns) {
+					status = ldns_resolver_push_nameserver(
+							res, ns);
+					if (status == LDNS_STATUS_OK) {
+						break;
+					}
+					ldns_rdf_deep_free(ns);
+				}
+				ldns_resolver_free(res);
+			}
+			fprintf(stderr, "Unable to create stub resolver: %s\n",
+					ldns_get_errorstr_by_id(status));
 			exit(EXIT_FAILURE);
-		}
+
+		} while (false);
 		ldns_rdf_deep_free(ns);
 	}
 

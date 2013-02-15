@@ -28,6 +28,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+
+.PHONY: help clean testenv test doc te bw bw3 sw sw3
+
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  testenv   to make test environment and run bash "
@@ -41,27 +44,65 @@ help:
 _ldns.so:	../../Makefile
 	$(MAKE) -C ../..
 
-../../.libs/ldns.so.1:	../../Makefile
+../../.libs/libldns.so.1:	../../Makefile
 	$(MAKE) -C ../..
 
 clean:
-	rm -rdf examples/ldns
+	rm -rf examples/ldns
 	rm -f _ldns.so ldns_wrapper.o
 	$(MAKE) -C ../.. clean
 
 testenv: ../../.libs/libldns.so.1 _ldns.so
-	rm -rdf examples/ldns
-	cd examples && mkdir ldns && ln -s ../../ldns.py ldns/__init__.py && ln -s ../../_ldns.so ldns/_ldns.so && ln -s ../../../../.libs/libldns.so.1 ldns/libldns.so.1 && ls -la
+	rm -rf examples/ldns
+	cd examples && mkdir ldns && ln -s ../../ldns.py ldns/__init__.py && ln -s ../../../../.libs/_ldns.so ldns/_ldns.so && ln -s ../../../../.libs/libldns.so.1 ldns/libldns.so.1 && ls -la
 	@echo "Run a script by typing ./script_name.py"
 	cd examples && LD_LIBRARY_PATH=ldns bash
-	rm -rdf examples/ldns
+	rm -rf examples/ldns
 
-doc: ../../.libs/ldns.so.1 _ldns.so
+test: ../../.libs/libldns.so.1 _ldns.so examples/test_buffer.py examples/test_rdf.py examples/test_dname.py examples/test_rr.py
+	@rm -rf examples/ldns
+	@cd examples && mkdir ldns && ln -s ../../ldns.py ldns/__init__.py && ln -s ../../../../.libs/_ldns.so ldns/_ldns.so && ln -s ../../../../.libs/libldns.so.1 ldns/libldns.so.1
+	@cd examples && LD_LIBRARY_PATH=ldns ./test_buffer.py 2>/dev/null
+	@cd examples && LD_LIBRARY_PATH=ldns ./test_rdf.py 2>/dev/null
+	@cd examples && LD_LIBRARY_PATH=ldns ./test_dname.py 2>/dev/null
+	@cd examples && LD_LIBRARY_PATH=ldns ./test_rr.py 2>/dev/null
+	@rm -rf examples/ldns
+
+doc: ../../.libs/libldns.so.1 _ldns.so
+	echo @VERSION_MAJOR@
+	rm -f _ldns.so
+	ln -s ../../.libs/_ldns.so
 	$(MAKE) -C docs html
+	rm -f _ldns.so
 
-#for development only
-swig: ldns.i
-	swig -python -py3 -o ldns_wrapper.c -I../.. ldns.i
-	gcc -c ldns_wrapper.c -O9 -fPIC -I../.. -I../../ldns -I/usr/include/python3.1 -I. -o ldns_wrapper.o
-	ld -shared ldns_wrapper.o -L../../.libs -lldns -o _ldns.so 
+# For development only:
 
+# Test environment, does not build the wrapper from dependencies.
+te:
+	rm -rf examples/ldns
+	cd examples && mkdir ldns && ln -s ../../ldns.py ldns/__init__.py && ln -s ../../../../.libs/_ldns.so ldns/_ldns.so && ln -s ../../../../.libs/libldns.so.1 ldns/libldns.so.1 && ls -la
+	@echo "Run a script by typing ./script_name.py"
+	cd examples && LD_LIBRARY_PATH=ldns bash
+	rm -rf examples/ldns
+
+# Builds Python 2 wrapper from present wrapper C code.
+bw:
+	gcc -c ldns_wrapper.c -O9 -fPIC -I../.. -I../../ldns -I/usr/include/python2.7 -I. -o ldns_wrapper.o
+	mkdir -p ../../.libs
+	ld -shared ldns_wrapper.o -L../../.libs -lldns -o ../../.libs/_ldns.so
+
+# Builds Python 3 wrapper from present wrapper C code.
+bw3:
+	gcc -c ldns_wrapper.c -O9 -fPIC -I../.. -I../../ldns -I/usr/include/python3.2 -I. -o ldns_wrapper.o
+	mkdir -p ../../.libs
+	ld -shared ldns_wrapper.o -L../../.libs -ldns -o ../../.libs/_ldns.so
+
+# Builds Python 2 wrapper from interface file.
+sw: ldns.i
+	swig -python -o ldns_wrapper.c -I../.. ldns.i
+	$(MAKE) bw
+
+# Builds Python 3 wrapper from interface file.
+sw3: ldns.i
+	swig -python -py3 -DPY3 -o ldns_wrapper.c -I../.. ldns.i
+	$(MAKE) bw3

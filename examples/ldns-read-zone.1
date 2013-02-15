@@ -22,12 +22,23 @@ that is not of type NSEC, NSEC3, RRSIG or DNSKEY. DS records are not
 printed.
 
 .TP
+\fB-0\fR
+Print a (null) for the RRSIG inception, expiry and key data. This option
+can be used when comparing different signing systems that use the same
+DNSKEYs for signing but would have a slightly different timings/jitter.
+
+.TP
 \fB-h\fR
 Show usage and exit
 
 .TP
 \fB-n\fR
 Do not print the SOA record
+
+.TP
+\fB-p\fR
+Pad the SOA serial number with spaces so the number and the spaces together
+take ten characters. This is useful for in file serial number increments.
 
 .TP
 \fB-s\fR

@@ -122,11 +122,6 @@ packetbuffromfile(char *filename, uint8_t *wire)
 				hexbuf[hexbufpos] = (uint8_t) c;
 				hexbufpos++;
 				break;
-			default:
-				warning("unknown state while reading %s", filename);
-				xfree(hexbuf);
-				return 0;
-				break;
 		}
 		c = fgetc(fp);
 	}
@@ -178,20 +173,7 @@ read_hex_buffer(char *filename)
 	size_t wiresize;
 	ldns_buffer *result_buffer = NULL;
 	
-	FILE *fp = NULL;
-	
-	if (strncmp(filename, "-", 2) != 0) {
-		fp = fopen(filename, "r");
-	} else {
-		fp = stdin;
-	}
-	
-	if (fp == NULL) {
-		perror("");
-		warning("Unable to open %s", filename);
-		return NULL;
-	}
-	
+
 	wire = xmalloc(LDNS_MAX_PACKETLEN);
 	
 	wiresize = packetbuffromfile(filename, wire);
@@ -199,8 +181,8 @@ read_hex_buffer(char *filename)
 	result_buffer = LDNS_MALLOC(ldns_buffer);
 	ldns_buffer_new_frm_data(result_buffer, wire, wiresize);
 	ldns_buffer_set_position(result_buffer, ldns_buffer_capacity(result_buffer));
-	
 	xfree(wire);
+
 	return result_buffer;
 }
 
@@ -236,7 +218,7 @@ read_hex_pkt(char *filename)
 void
 dump_hex(const ldns_pkt *pkt, const char *filename)
 {
-	uint8_t *wire;
+	uint8_t *wire = NULL;
 	size_t size, i;
 	FILE *fp;
 	ldns_status status;
@@ -252,6 +234,7 @@ dump_hex(const ldns_pkt *pkt, const char *filename)
 	
 	if (status != LDNS_STATUS_OK) {
 		error("Unable to convert packet: error code %u", status);
+		LDNS_FREE(wire);
 		return;
 	}
 	
@@ -273,4 +256,5 @@ dump_hex(const ldns_pkt *pkt, const char *filename)
 	}
 	fprintf(fp, "\n");
 	fclose(fp);
+	LDNS_FREE(wire);
 }

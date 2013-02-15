@@ -78,6 +78,36 @@
 #endif
 %include "typemaps.i"
 
+
+/* ========================================================================= */
+/* Preliminary Python code. */
+/* ========================================================================= */
+
+%pythoncode
+%{
+	#
+	# Use and don't ignore DeprecationWarning and
+	# PendingDeprecationWarning.
+	#
+	import warnings
+	warnings.filterwarnings("module", category=DeprecationWarning)
+	warnings.filterwarnings("module", category=PendingDeprecationWarning)
+%}
+
+
+/* Tell SWIG how to handle ssize_t as input parameter. */
+%typemap(in, noblock=1) (ssize_t)
+{
+  int $1_res = 0;
+  $1_res = SWIG_AsVal_long($input, &$1);
+  if (!SWIG_IsOK($1_res)) {
+    SWIG_exception_fail(SWIG_ArgError($1_res), "in method '"
+      "$symname" "', argument " "$argnum" " of type '"
+      "$type""'");
+  }
+}
+
+
 %inline %{
 struct timeval* ldns_make_timeval(uint32_t sec, uint32_t usec)
 {
@@ -97,8 +127,9 @@ uint32_t ldns_read_timeval_usec(struct timeval* t) {
 %immutable ldns_error_str;
 %immutable ldns_signing_algorithms;
 
-//new_frm_fp_l
-%apply int *OUTPUT { int *line_nr};
+//*_new_frm_fp_l
+%apply int *OUTPUT { (int *line_nr) };
+
 %apply uint32_t *OUTPUT { uint32_t *default_ttl};
 
 // wire2pkt
@@ -192,8 +223,53 @@ typedef struct ldns_dnssec_zone { };
    return tuple;
  }
 
+ PyObject* ldns_rr_new_frm_fp_(FILE *fp, uint32_t default_ttl,  ldns_rdf* origin,  ldns_rdf* prev) 
+ //returns tuple (status, ldns_rr, ttl, origin, prev)
+ {
+   uint32_t defttl = default_ttl;
+   uint32_t *p_defttl = &defttl;
+   if (defttl == 0) p_defttl = 0;
+
+   /*  origin and prev have to be cloned in order to decouple the data
+    *  from the python wrapper
+    */
+   if (origin != NULL)
+       origin = ldns_rdf_clone(origin);
+   if (prev != NULL)
+       prev = ldns_rdf_clone(prev);
+
+   ldns_rdf *p_origin = origin;
+   ldns_rdf **pp_origin = &p_origin;
+   //if (p_origin == 0) pp_origin = 0;
+
+   ldns_rdf *p_prev = prev;
+   ldns_rdf **pp_prev = &p_prev;
+   //if (p_prev == 0) pp_prev = 0;
+
+   ldns_rr *p_rr = 0;
+   ldns_rr **pp_rr = &p_rr;
+
+   ldns_status st = ldns_rr_new_frm_fp(pp_rr, fp, p_defttl, pp_origin, pp_prev);
+
+   PyObject* tuple;
+   tuple = PyTuple_New(5);
+   int idx = 0;
+   PyTuple_SetItem(tuple, idx, SWIG_From_int(st)); 
+   idx++;
+   PyTuple_SetItem(tuple, idx, (st == LDNS_STATUS_OK) ? 
+                             SWIG_NewPointerObj(SWIG_as_voidptr(p_rr), SWIGTYPE_p_ldns_struct_rr, SWIG_POINTER_OWN |  0 ) : 
+		   (Py_INCREF(Py_None), Py_None));
+   idx++;
+   PyTuple_SetItem(tuple, idx, SWIG_From_int(defttl));
+   idx++;
+   PyTuple_SetItem(tuple, idx, SWIG_NewPointerObj(SWIG_as_voidptr(p_origin), SWIGTYPE_p_ldns_struct_rdf, SWIG_POINTER_OWN |  0 ));
+   idx++;
+   PyTuple_SetItem(tuple, idx, SWIG_NewPointerObj(SWIG_as_voidptr(p_prev), SWIGTYPE_p_ldns_struct_rdf, SWIG_POINTER_OWN |  0 ));
+   return tuple;
+ }
+
  PyObject* ldns_rr_new_frm_fp_l_(FILE *fp, uint32_t default_ttl,  ldns_rdf* origin,  ldns_rdf* prev) 
- //returns tuple (status, ldns_rr, [line if ret_linenr], ttl, origin, prev)
+ //returns tuple (status, ldns_rr, line, ttl, origin, prev)
  {
    int linenr = 0;
    int *p_linenr = &linenr;

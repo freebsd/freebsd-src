@@ -39,6 +39,11 @@ ldns_dname_compare, ldns_dname_interval | ldns_dname_is_subdomain | ldns_dname
 ldns_dname | ldns_dname_left_chop, ldns_dname_label_count, ldns_dname2canonical, ldns_dname_cat, ldns_dname_cat_clone, ldns_dname_new, ldns_dname_new_frm_str, ldns_dname_new_frm_data, ldns_dname_is_subdomain, ldns_dname_str_absolute, ldns_dname_label, ldns_dname_compare, ldns_dname_interval
 ### /dname.h
 
+### dane.h
+ldns_dane_create_tlsa_owner, ldns_dane_cert2rdf, ldns_dane_select_certificate, ldns_dane_create_tlsa_rr | ldns_dane_verify, ldns_dane_verify_rr
+ldns_dane_verify, ldns_dane_verify_rr | ldns_dane_create_tlsa_owner, ldns_dane_cert2rdf, ldns_dane_select_certificate, ldns_dane_create_tlsa_rr
+### /dane.h
+
 ### rdata.h
 ldns_rdf, ldns_rdf_type | ldns_rdf_set_size, ldns_rdf_set_type, ldns_rdf_set_data, ldns_rdf_size, ldns_rdf_get_type, ldns_rdf_data, ldns_rdf_compare, ldns_rdf_new, ldns_rdf_clone, ldns_rdf_new_frm_data, ldns_rdf_new_frm_str, ldns_rdf_new_frm_fp, ldns_rdf_free, ldns_rdf_deep_free, ldns_rdf_print, ldns_native2rdf_int8, ldns_native2rdf_int16, ldns_native2rdf_int32, ldns_native2rdf_int16_data, ldns_rdf2native_int8, ldns_rdf2native_int16, ldns_rdf2native_int32, ldns_rdf2native_sockaddr_storage, ldns_rdf2native_time_t, ldns_native2rdf_int8, ldns_native2rdf_int16, ldns_native2rdf_int32, ldns_native2rdf_int16_data, ldns_rdf2native_int8, ldns_rdf2native_int16, ldns_rdf2native_int32, ldns_rdf2native_sockaddr_storage, ldns_rdf2native_time_t, ldns_native2rdf_int8, ldns_native2rdf_int16, ldns_native2rdf_int32, ldns_native2rdf_int16_data, ldns_rdf2native_int8, ldns_rdf2native_int16, ldns_rdf2native_int32, ldns_rdf2native_sockaddr_storage, ldns_rdf2native_time_t
 ldns_rdf_set_size, ldns_rdf_set_type, ldns_rdf_set_data | ldns_rdf
