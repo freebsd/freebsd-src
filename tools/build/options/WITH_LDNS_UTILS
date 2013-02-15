@@ -1,6 +1,5 @@
 .\" $FreeBSD$
-Setting this variable will prevent the LDNS-based versions of
+Setting this variable will enable the LDNS-based versions of
 .Xr dig 1
 and
-.Xr host 1
-from being built.
+.Xr host 1 .
