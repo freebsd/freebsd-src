@@ -99,8 +99,7 @@ __FBSDID("$FreeBSD$");
 #define PFSYNC_MINPKT ( \
 	sizeof(struct ip) + \
 	sizeof(struct pfsync_header) + \
-	sizeof(struct pfsync_subheader) + \
-	sizeof(struct pfsync_eof))
+	sizeof(struct pfsync_subheader) )
 
 struct pfsync_pkt {
 	struct ip *ip;
