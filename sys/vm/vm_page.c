@@ -820,6 +820,9 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	m->object = object;
 	m->pindex = pindex;
 
+	/*
+	 * Now link into the object's ordered list of backed pages.
+	 */
 	if (object->resident_page_count == 0) {
 		TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	} else { 
@@ -879,6 +882,9 @@ vm_page_remove(vm_page_t m)
 		vm_page_flash(m);
 	}
 
+	/*
+	 * Now remove from the object's list of backed pages.
+	 */
 	vm_radix_remove(&object->rtree, m->pindex);
 	TAILQ_REMOVE(&object->memq, m, listq);
 
@@ -909,7 +915,6 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-
 	return (vm_radix_lookup(&object->rtree, pindex));
 }
 
@@ -1101,10 +1106,16 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 	mtx_lock(&vm_page_queue_free_mtx);
 	while ((m = vm_radix_lookup_ge(&orig_object->cache,
 	    offidxstart)) != NULL) {
+		/*
+		 * Transfer all of the pages with offset greater than or
+		 * equal to 'offidxstart' from the original object's
+		 * cache to the new object's cache.
+		 */
 		if ((m->pindex - offidxstart) >= new_object->size)
 			break;
 		vm_radix_remove(&orig_object->cache, m->pindex);
 		vm_radix_insert(&new_object->cache, m->pindex - offidxstart, m);
+		/* Update the page's object and offset. */
 		m->object = new_object;
 		m->pindex -= offidxstart;
 	}
@@ -2157,6 +2168,10 @@ vm_page_cache(vm_page_t m)
 	 */
 	vm_page_remque(m);
 
+	/*
+	 * Remove the page from the object's collection of resident
+	 * pages. 
+	 */
 	vm_radix_remove(&object->rtree, m->pindex);
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
