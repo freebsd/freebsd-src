@@ -2625,7 +2625,7 @@ mesh_parse_meshgate_action(struct ieee80211_node *ni,
 		switch (*frm) {
 		case IEEE80211_ELEMID_MESHGANN:
 			gannie = (const struct ieee80211_meshgann_ie *) frm;
-			memset(ie, 0, sizeof(ie));
+			memset(ie, 0, sizeof(*ie));
 			ie->gann_ie = gannie->gann_ie;
 			ie->gann_len = gannie->gann_len;
 			ie->gann_flags = gannie->gann_flags;
