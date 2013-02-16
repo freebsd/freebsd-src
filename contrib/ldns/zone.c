@@ -56,6 +56,7 @@ ldns_zone_push_rr(ldns_zone *z, ldns_rr *rr)
 	return ldns_rr_list_push_rr( ldns_zone_rrs(z), rr);
 }
 
+#if 0
 /* return a clone of the given rr list, without the glue records
  * rr list should be the complete zone
  * if present, stripped records are added to the list *glue_records
@@ -153,6 +154,7 @@ memory_error:
 	}
 	return NULL;
 }
+#endif
 
 /*
  * Get the list of glue records in a zone

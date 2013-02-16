@@ -1394,7 +1394,7 @@ ldns_rr_list_clone(const ldns_rr_list *rrlist)
 	return new_list;
 }
 
-
+#if 0
 static int
 qsort_rr_compare(const void *a, const void *b)
 {
@@ -1412,6 +1412,7 @@ qsort_rr_compare(const void *a, const void *b)
 	}
 	return ldns_rr_compare(rr1, rr2);
 }
+#endif
 
 static int
 qsort_schwartz_rr_compare(const void *a, const void *b)
