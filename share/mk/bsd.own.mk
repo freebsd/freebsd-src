@@ -355,9 +355,6 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     ARM_EABI \
     AUTO_OBJ \
-    BMAKE \
-    BSD_GREP \
-    BSD_PATCH \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
@@ -366,6 +363,7 @@ __DEFAULT_NO_OPTIONS = \
     BMAKE \
     BSDCONFIG \
     BSD_GREP \
+    BSD_PATCH \
     CLANG_EXTRAS \
     CTF \
     GPL_DTC \
@@ -374,8 +372,8 @@ __DEFAULT_NO_OPTIONS = \
     IDEA \
     INSTALL_AS_USER \
     META_MODE \
-    NMTREE \
     NAND \
+    NMTREE \
     OFED \
     OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN \
