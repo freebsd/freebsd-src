@@ -198,15 +198,11 @@ _sem_open(const char *name, int flags, ...)
 		goto error;
 	}
 
-	fd = _open(path, flags|O_RDWR|O_CLOEXEC, mode);
+	fd = _open(path, flags|O_RDWR|O_CLOEXEC|O_EXLOCK, mode);
 	if (fd == -1)
 		goto error;
-	if (flock(fd, LOCK_EX) == -1)
+	if (_fstat(fd, &sb))
 		goto error;
-	if (_fstat(fd, &sb)) {
-		flock(fd, LOCK_UN);
-		goto error;
-	}
 	if (sb.st_size < sizeof(sem_t)) {
 		sem_t tmp;
 
@@ -214,10 +210,8 @@ _sem_open(const char *name, int flags, ...)
 		tmp._kern._has_waiters = 0;
 		tmp._kern._count = value;
 		tmp._kern._flags = USYNC_PROCESS_SHARED | SEM_NAMED;
-		if (_write(fd, &tmp, sizeof(tmp)) != sizeof(tmp)) {
-			flock(fd, LOCK_UN);
+		if (_write(fd, &tmp, sizeof(tmp)) != sizeof(tmp))
 			goto error;
-		}
 	}
 	flock(fd, LOCK_UN);
 	sem = (sem_t *)mmap(NULL, sizeof(sem_t), PROT_READ|PROT_WRITE,
