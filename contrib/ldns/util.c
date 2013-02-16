@@ -25,6 +25,7 @@
 #include <openssl/rand.h>
 #endif
 
+#if 0
 /* put this here tmp. for debugging */
 static void
 xprintf_rdf(ldns_rdf *rd)
@@ -62,6 +63,7 @@ xprintf_hex(uint8_t *data, size_t len)
 	}
 	printf("\n");
 }
+#endif
 
 ldns_lookup_table *
 ldns_lookup_by_name(ldns_lookup_table *table, const char *name)
