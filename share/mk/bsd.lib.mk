@@ -436,7 +436,11 @@ stage_libs stage_files stage_as:
 .else
 .if !empty(_LIBS) && !defined(INTERNALLIB)
 stage_libs: ${_LIBS}
-all: stage_libs
+.for t in stage_libs stage_files stage_as
+.if target($t)
+all: $t
+.endif
+.endfor
 .endif
 .if !empty(INCS) || !empty(INCSGROUPS)
 prebuild: buildincludes
