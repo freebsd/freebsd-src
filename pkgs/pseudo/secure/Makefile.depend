@@ -4,8 +4,6 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
 	secure/lib/libcrypto/engines/lib4758cca \
 	secure/lib/libcrypto/engines/libaep \

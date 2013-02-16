@@ -4,8 +4,6 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
 	rescue/librescue \
 	rescue/rescue \
@@ -13,8 +11,8 @@ DIRDEPS = \
 	etc/sendmail \
 
 
-.if ${_DEP_MACHINE:U${MACHINE}:S,amd64,i386,} == "i386"
-DIRDEPS += \
+
+DIRDEPS.x86sys= \
 	sys/boot/i386/mbr \
 	sys/boot/i386/pmbr \
 	sys/boot/i386/boot0 \
@@ -34,9 +32,9 @@ DIRDEPS += \
 	sys/boot/i386/gptzfsboot \
 	sys/boot/i386/zfsloader \
 
-.endif
 
 DIRDEPS.amd64= \
+	${DIRDEPS.x86sys} \
 	sys/boot/efi/libefi \
 	sys/boot/zfs \
 	sys/boot/userboot/ficl \
@@ -45,7 +43,7 @@ DIRDEPS.amd64= \
 	sys/boot/userboot/userboot \
 
 DIRDEPS.arm= sys/boot/fdt sys/boot/uboot
-DIRDEPS.i386= sys/boot/efi/libefi sys/boot/zfs
+DIRDEPS.i386= ${DIRDEPS.x86sys} sys/boot/efi/libefi sys/boot/zfs
 DIRDEPS.ia64= sys/boot/efi/libefi sys/boot/zfs
 DIRDEPS.powerpc= sys/boot/fdt sys/boot/ofw sys/boot/uboot
 DIRDEPS.sparc64= sys/boot/ofw sys/boot/zfs
