@@ -65,7 +65,7 @@ struct sdhci_softc {
 
 static SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
 
-int	sdhci_debug = 0;
+int	sdhci_debug = 1;
 TUNABLE_INT("hw.sdhci.debug", &sdhci_debug);
 SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RW, &sdhci_debug, 0, "Debug level");
 
@@ -97,6 +97,9 @@ static void sdhci_card_task(void *, int);
 #define SDHCI_ASSERT_UNLOCKED(_slot)	mtx_assert(&_slot->mtx, MA_NOTOWNED);
 
 #define	SDHCI_DEFAULT_MAX_FREQ	50
+
+#define	SDHCI_200_MAX_DIVIDER	256
+#define	SDHCI_300_MAX_DIVIDER	2046
 
 static void
 sdhci_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -238,7 +241,7 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	if (slot->version < SDHCI_SPEC_300) {
 		/* Looking for highest freq <= clock. */
 		res = slot->max_clk;
-		for (div = 1; div < 256; div <<= 1) {
+		for (div = 1; div < SDHCI_200_MAX_DIVIDER; div <<= 1) {
 			if (res <= clock)
 				break;
 			res >>= 1;
@@ -248,10 +251,10 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	}
 	else {
 		/* Version 3.0 divisors are multiples of two up to 1023*2 */
-		if (clock > slot->max_clk)
-			div = 2;
+		if (clock >= slot->max_clk)
+			div = 0;
 		else {
-			for (div = 2; div < 1023*2; div += 2) {
+			for (div = 2; div < SDHCI_300_MAX_DIVIDER; div += 2) { 
 				if ((slot->max_clk / div) <= clock) 
 					break;
 			}
@@ -545,7 +548,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		    "frequency.\n");
 	}
 
-	slot->host.f_min = slot->max_clk / 256;
+	slot->host.f_min = SDHCI_MIN_FREQ(slot->bus, slot);
 	slot->host.f_max = slot->max_clk;
 	slot->host.host_ocr = 0;
 	if (caps & SDHCI_CAN_VDD_330)
@@ -633,6 +636,15 @@ sdhci_generic_resume(struct sdhci_slot *slot)
 	sdhci_init(slot);
 
 	return (0);
+}
+
+uint32_t
+sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot)
+{
+	if (slot->version >= SDHCI_SPEC_300)
+		return (slot->max_clk / SDHCI_300_MAX_DIVIDER);
+	else
+		return (slot->max_clk / SDHCI_200_MAX_DIVIDER);
 }
 
 int
@@ -1078,8 +1090,12 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	}
 	if (intmask & SDHCI_INT_DATA_TIMEOUT)
 		slot->curcmd->error = MMC_ERR_TIMEOUT;
-	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT))
+	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT)) {
+		if (intmask & SDHCI_INT_DATA_CRC) {
+			panic("DATA CRC error\n");
+		}
 		slot->curcmd->error = MMC_ERR_BADCRC;
+	}
 	if (slot->curcmd->data == NULL &&
 	    (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
 	    SDHCI_INT_DMA_END))) {
@@ -1299,14 +1315,30 @@ sdhci_generic_write_ivar(device_t bus, device_t child, int which, uintptr_t valu
 		break;
 	case MMCBR_IVAR_CLOCK:
 		if (value > 0) {
-			uint32_t clock = slot->max_clk;
+			uint32_t max_clock;
+			uint32_t clock;
 			int i;
 
-			for (i = 0; i < 8; i++) {
-				if (clock <= value)
-					break;
-				clock >>= 1;
+			max_clock = slot->max_clk;
+			clock = max_clock;
+
+			if (slot->version < SDHCI_SPEC_300) {
+				for (i = 0; i < SDHCI_200_MAX_DIVIDER;
+				    i <<= 1) {
+					if (clock <= value)
+						break;
+					clock >>= 1;
+				}
 			}
+			else {
+				for (i = 0; i < SDHCI_300_MAX_DIVIDER;
+				    i += 2) {
+					if (clock <= value)
+						break;
+					clock = max_clock / (i + 2);
+				}
+			}
+
 			slot->host.ios.clock = clock;
 		} else
 			slot->host.ios.clock = 0;
