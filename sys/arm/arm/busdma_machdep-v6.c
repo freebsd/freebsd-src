@@ -856,7 +856,7 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 		    curaddr);
 		if (dr == NULL) {
 			_bus_dmamap_unload(dmat, map);
-			return (EINVAL);
+			return (0);
 		}
 		/*
 		 * In a valid DMA range.  Translate the physical
