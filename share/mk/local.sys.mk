@@ -108,6 +108,11 @@ WITH_STAGING_PROG= yes
 PYTHON ?= /usr/local/bin/python
 
 .if ${.MAKE.LEVEL} == 0
+.if ${MAKESYSPATH:Uno:M*.../*} != ""
+# make sure this is resolved
+MAKESYSPATH:= ${MAKESYSPATH:S,:, ,g:C,\.\.\./.*,${_this:H},:ts:}
+.export MAKESYSPATH
+.endif
 # this works best if share/mk is ready for it.
 BUILD_AT_LEVEL0= no
 # By default only MACHINE0 updates dependencies
@@ -146,8 +151,13 @@ STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 CFLAGS_LAST+= -nostdinc
 .endif
 CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include -isystem ${STAGE_OBJTOP}/include
+CFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR}
-CXXFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}
+CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}
+# backward doesn't get searched if -nostdinc
+CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}/backward
+CFLAGS_LAST.clang += -isystem ${STAGE_OBJTOP}/usr/include/clang/3.2
+CXXFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 .else
 # if ld suppored sysroot, this would suffice
 CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP} -isystem ${STAGE_OBJTOP}/include
@@ -201,6 +211,11 @@ MAKE_PRINT_VAR_ON_ERROR+= \
 	MAKE_VERSION\
 	OBJTOP \
 	${MAKE_PRINT_VAR_ON_ERROR_XTRAS}
+
+.if ${.MAKE.LEVEL} > 0
+MAKE_PRINT_VAR_ON_ERROR += .MAKE.MAKEFILES .PATH
+.endif
+
 
 # these are handy
 # we can use this for a cheap timestamp at the start of a target's script,
