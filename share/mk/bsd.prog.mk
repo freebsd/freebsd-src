@@ -247,6 +247,7 @@ stage_files stage_as:
 .if ${MK_STAGING_PROG:Uno} != "no"
 STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
 
+.if !empty(PROG)
 .if defined(PROGNAME)
 STAGE_AS_SETS+= prog
 STAGE_AS_${PROG}= ${PROGNAME}
@@ -254,22 +255,23 @@ stage_as.prog: ${PROG}
 .else
 STAGE_SETS+= prog
 stage_files.prog: ${PROG}
+all: stage_files
+.endif
 .endif
 
 .if !empty(LINKS)
 all: stage_links
+STAGE_SETS+= prog
 STAGE_LINKS.prog= ${LINKS}
 .endif
 .if !empty(SYMLINKS)
 all: stage_symlinks
+STAGE_SETS+= prog
 STAGE_SYMLINKS.prog= ${SYMLINKS}
 .endif
 
 .if !empty(STAGE_AS_SETS)
 all: stage_as
-.endif
-.if !empty(STAGE_SETS)
-all: stage_files
 .endif
 
 .endif
