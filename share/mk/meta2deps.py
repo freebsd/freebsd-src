@@ -35,9 +35,10 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.7 2012/11/06 05:44:03 sjg Exp $
+	$Id: meta2deps.py,v 1.8 2013/02/10 19:21:46 sjg Exp $
 
-	Copyright (c) 2011, Juniper Networks, Inc.
+	Copyright (c) 2011-2013, Juniper Networks, Inc.
+	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions 
@@ -174,6 +175,8 @@ class MetaFile:
         self.debug = getv(conf, 'debug', 0)
         self.debug_out = getv(conf, 'debug_out', sys.stderr)
 
+        self.machine = getv(conf, 'MACHINE', '')
+
         if not self.conf:
             # some of the steps below we want to do only once
             self.conf = conf
@@ -190,6 +193,12 @@ class MetaFile:
                     self.srctops.append(_srctop)
 
             for objroot in getv(conf, 'OBJROOTS', []):
+                for e in ['/' + self.machine, '/' + self.machine + '/']:
+                    if objroot.endswith(e):
+                        # this is not what we want - fix it
+                        objroot = objroot[0:-len(e)]
+                        if e.endswith('/'):
+                            objroot += '/'
                 if not objroot in self.objroots:
                     self.objroots.append(objroot)
                     _objroot = os.path.realpath(objroot)
@@ -198,6 +207,10 @@ class MetaFile:
                     if not _objroot in self.objroots:
                         self.objroots.append(_objroot)
 
+            # we want the longest match
+            self.srctops.sort(reverse=True)
+            self.objroots.sort(reverse=True)
+            
             if self.debug:
                 print >> self.debug_out, "host_target=", self.host_target
                 print >> self.debug_out, "srctops=", self.srctops
@@ -206,7 +219,6 @@ class MetaFile:
             self.dirdep_re = re.compile(r'([^/]+)/(.+)')
 
         self.curdir = getv(conf, 'CURDIR')
-        self.machine = getv(conf, 'MACHINE', '')
         self.reldir = getv(conf, 'RELDIR')
         self.dpdeps = getv(conf, 'DPDEPS')
         if self.dpdeps and not self.reldir:
