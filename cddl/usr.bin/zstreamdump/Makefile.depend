@@ -2,8 +2,6 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
 	cddl/lib/libavl \
 	cddl/lib/libnvpair \

@@ -2,8 +2,6 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
@@ -70,6 +68,8 @@ main.o: builtins.h
 main.o: nodes.h
 main.po: builtins.h
 main.po: nodes.h
+miscbltin.o: syntax.h
+miscbltin.po: syntax.h
 mystring.o: syntax.h
 mystring.po: syntax.h
 nodes.o: nodes.c
