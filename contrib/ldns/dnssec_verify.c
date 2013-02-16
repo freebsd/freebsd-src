@@ -628,6 +628,7 @@ ldns_dnssec_trust_tree_print_sm_fmt(FILE *out,
 	}
 }
 
+#if 0
 static void
 ldns_dnssec_trust_tree_print_sm(FILE *out, 
 		ldns_dnssec_trust_tree *tree,
@@ -639,6 +640,7 @@ ldns_dnssec_trust_tree_print_sm(FILE *out,
 	ldns_dnssec_trust_tree_print_sm_fmt(out, ldns_output_format_default, 
 			tree, tabs, extended, sibmap, treedepth);
 }
+#endif
 
 void
 ldns_dnssec_trust_tree_print_fmt(FILE *out, const ldns_output_format *fmt,

@@ -298,6 +298,7 @@ ldns_dnssec_rrsets_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 	}
 }
 
+#if 0
 static void
 ldns_dnssec_rrsets_print_soa(FILE *out,
 		ldns_dnssec_rrsets *rrsets,
@@ -307,7 +308,7 @@ ldns_dnssec_rrsets_print_soa(FILE *out,
 	ldns_dnssec_rrsets_print_soa_fmt(out, ldns_output_format_default,
 		       	rrsets, follow, show_soa);
 }
-
+#endif
 
 void
 ldns_dnssec_rrsets_print_fmt(FILE *out, const ldns_output_format *fmt,
@@ -428,6 +429,7 @@ ldns_dnssec_name_set_name(ldns_dnssec_name *rrset,
 	}
 }
 
+#if 0
 static ldns_rr *
 ldns_dnssec_name_nsec(ldns_dnssec_name *rrset)
 {
@@ -436,6 +438,7 @@ ldns_dnssec_name_nsec(ldns_dnssec_name *rrset)
 	}
 	return NULL;
 }
+#endif
 
 void
 ldns_dnssec_name_set_nsec(ldns_dnssec_name *rrset, ldns_rr *nsec)
@@ -589,12 +592,14 @@ ldns_dnssec_name_print_soa_fmt(FILE *out, const ldns_output_format *fmt,
 	}
 }
 
+#if 0
 static void
 ldns_dnssec_name_print_soa(FILE *out, ldns_dnssec_name *name, bool show_soa)
 {
 	ldns_dnssec_name_print_soa_fmt(out, ldns_output_format_default,
 		       name, show_soa);
 }
+#endif
 
 void
 ldns_dnssec_name_print_fmt(FILE *out, const ldns_output_format *fmt,
