@@ -65,7 +65,7 @@ struct sdhci_softc {
 
 static SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
 
-int	sdhci_debug = 1;
+int	sdhci_debug = 0;
 TUNABLE_INT("hw.sdhci.debug", &sdhci_debug);
 SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RW, &sdhci_debug, 0, "Debug level");
 
