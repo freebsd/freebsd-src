@@ -311,7 +311,7 @@ ext2_truncate(vp, length, flags, cred, td)
 		oip->i_size = length;
 		newspace = blksize(fs, oip, lastblock);
 		if (newspace == 0)
-			panic("itrunc: newspace");
+			panic("ext2_truncate: newspace");
 		if (oldspace - newspace > 0) {
 			/*
 			 * Block number of space to be free'd is
@@ -398,8 +398,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 */
 	vp = ITOV(ip);
 	bp = getblk(vp, lbn, (int)fs->e2fs_bsize, 0, 0, 0);
-	if (bp->b_flags & (B_DONE | B_DELWRI)) {
-	} else {
+	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
 		bp->b_iocmd = BIO_READ;
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ext2_indirtrunc: bad buffer size");
