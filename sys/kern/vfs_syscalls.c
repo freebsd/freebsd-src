@@ -3268,8 +3268,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	AUDIT_ARG_FD(fd);
 	if ((error = getutimes(tptr, tptrseg, ts)) != 0)
 		return (error);
-	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_FUTIMES, &fp))
-	    != 0)
+	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_FUTIMES, &fp)) != 0)
 		return (error);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
@@ -3419,8 +3418,7 @@ sys_fsync(td, uap)
 	int error, lock_flags;
 
 	AUDIT_ARG_FD(uap->fd);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_FSYNC,
-	    &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_FSYNC, &fp)) != 0)
 		return (error);
 	vp = fp->f_vnode;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
@@ -3529,8 +3527,7 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 		goto out1;
 	}
 	NDINIT_ATRIGHTS(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE |
-	    SAVESTART | AUDITVNODE2, pathseg, new, newfd, CAP_CREATE,
-	    td);
+	    SAVESTART | AUDITVNODE2, pathseg, new, newfd, CAP_CREATE, td);
 	if (fromnd.ni_vp->v_type == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&tond)) != 0) {
@@ -3829,8 +3826,7 @@ kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	/* XXX arbitrary sanity limit on `count'. */
 	if (uap->count > 64 * 1024)
 		return (EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ,
-	    &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -4621,7 +4617,7 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	error = fget(td, fd, 0, &fp);
 	if (error != 0)
 		goto out;
-	
+
 	switch (fp->f_type) {
 	case DTYPE_VNODE:
 		break;
