@@ -19,10 +19,8 @@
 
 ident		EFIKA_MX
 
-#hints		"EFIKA_MX_SMARTTOP.hints"
 include 	"../freescale/imx/std.imx"
 
-makeoptions	MODULES_OVERRIDE=""
 makeoptions 	WITHOUT_MODULES="ahc"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
