@@ -54,7 +54,7 @@ static inline void
 clear_evtchn(int port)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
-	synch_clear_bit(port, s->evtchn_pending);
+	synch_clear_bit(port, &s->evtchn_pending[0]);
 }
 
 static inline void 
