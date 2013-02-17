@@ -3130,6 +3130,7 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 			break;
 		default:
 			sbuf_putc(&sb, format[i]);
+			break;
 		}
 	}
 	free(hostname, M_TEMP);
