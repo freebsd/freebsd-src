@@ -229,18 +229,18 @@ _sem_open(const char *name, int flags, ...)
 	ni->open_count = 1;
 	ni->sem = sem;
 	LIST_INSERT_HEAD(&sem_list, ni, next);
-	_pthread_mutex_unlock(&sem_llock);
 	_close(fd);
+	_pthread_mutex_unlock(&sem_llock);
 	return (sem);
 
 error:
 	errsave = errno;
-	_pthread_mutex_unlock(&sem_llock);
 	if (fd != -1)
 		_close(fd);
 	if (sem != NULL)
 		munmap(sem, sizeof(sem_t));
 	free(ni);
+	_pthread_mutex_unlock(&sem_llock);
 	errno = errsave;
 	return (SEM_FAILED);
 }
