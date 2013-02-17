@@ -1090,12 +1090,8 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	}
 	if (intmask & SDHCI_INT_DATA_TIMEOUT)
 		slot->curcmd->error = MMC_ERR_TIMEOUT;
-	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT)) {
-		if (intmask & SDHCI_INT_DATA_CRC) {
-			panic("DATA CRC error\n");
-		}
+	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT))
 		slot->curcmd->error = MMC_ERR_BADCRC;
-	}
 	if (slot->curcmd->data == NULL &&
 	    (intmask & (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL |
 	    SDHCI_INT_DMA_END))) {
