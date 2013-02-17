@@ -354,7 +354,7 @@ distrib-dirs:
 		    ${METALOG.add} ; \
 	done; true
 .endif
-	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
+	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/
 	cd ${DESTDIR}/usr/share/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
