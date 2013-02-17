@@ -1,5 +1,8 @@
 /*-
  * Copyright (c) 2003 Poul-Henning Kamp
+ * Copyright (c) 2013 iXsystems.com,
+ *                    author: Alfred Perlstein <alfred@freebsd.org>
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,11 +90,15 @@
 #define WD_TO_8SEC	33
 #define WD_TO_16SEC	34
 #define WD_TO_32SEC	35
+#define WD_TO_64SEC	36
+#define WD_TO_128SEC	37
 
 /* action on pre-timeout trigger */
-#define	WD_SOFT_PANIC	1	/* panic */
-#define	WD_SOFT_DDB	2	/* enter debugger */
-#define	WD_SOFT_LOG	3	/* log(9) */
+#define	WD_SOFT_PANIC	0x01	/* panic */
+#define	WD_SOFT_DDB	0x02	/* enter debugger */
+#define	WD_SOFT_LOG	0x04	/* log(9) */
+#define	WD_SOFT_PRINTF	0x08	/* printf(9) */
+#define WD_SOFT_MASK	0x0f	/* all of the above */
 
 #ifdef _KERNEL
 

@@ -51,12 +51,12 @@ static void wd_timeout_cb(void *arg);
 
 static struct callout wd_pretimeo_handle;
 static int wd_pretimeout;
-static int wd_pretimeout_act;
+static int wd_pretimeout_act = WD_SOFT_LOG;
 
 static struct callout wd_softtimeo_handle;
 static int wd_softtimer;	/* true = use softtimer instead of hardware
 				   watchdog */
-static int wd_softtimeout_act;	/* action for the software timeout */
+static int wd_softtimeout_act = WD_SOFT_LOG;	/* action for the software timeout */
 
 static struct cdev *wd_dev;
 static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
@@ -64,8 +64,8 @@ static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
 static int wd_lastpat_valid = 0;
 static time_t wd_lastpat = 0;	/* when the watchdog was last patted */
 
-static int
-kern_do_pat(u_int utim)
+int
+wdog_kern_pat(u_int utim)
 {
 	int error;
 
@@ -103,6 +103,7 @@ kern_do_pat(u_int utim)
 			(void) callout_reset(&wd_softtimeo_handle,
 			    hz*utim, wd_timeout_cb, "soft");
 		}
+		error = 0;
 	} else {
 		EVENTHANDLER_INVOKE(watchdog_list, utim, &error);
 	}
@@ -128,15 +129,9 @@ static int
 wd_valid_act(int act)
 {
 
-	switch (act) {
-	case WD_SOFT_PANIC:
-#ifdef DDB
-	case WD_SOFT_DDB:
-#endif
-	case WD_SOFT_LOG:
-		return true;
-	}
-	return false;
+	if ((act & ~(WD_SOFT_MASK)) != 0)
+		return false;
+	return true;
 }
 
 static int
@@ -156,7 +151,7 @@ wd_ioctl_patpat(caddr_t data)
 		return (ENOSYS);	/* XXX Not implemented yet */
 	u &= ~(WD_ACTIVE | WD_PASSIVE);
 
-	return (kern_do_pat(u));
+	return (wdog_kern_pat(u));
 }
 
 static int
@@ -178,28 +173,21 @@ static void
 wd_timeout_cb(void *arg)
 {
 	const char *type = arg;
-#ifdef DDB
-	char kdb_why[80];
-#endif
 
-	switch (wd_pretimeout_act) {
-	case WD_SOFT_PANIC:
-		panic("watchdog %s-timeout, WD_SOFT_PANIC set", type);
-		break;
 #ifdef DDB
-	case WD_SOFT_DDB:
+	if ((wd_pretimeout_act & WD_SOFT_DDB)) {
+		char kdb_why[80];
 		snprintf(kdb_why, sizeof(buf), "watchdog %s timeout", type);
 		kdb_backtrace();
 		kdb_enter(KDB_WHY_WATCHDOG, kdb_why);
-		break;
-#endif
-	case WD_SOFT_LOG:
-		log(LOG_EMERG, "watchdog %s-timeout, WD_SOFT_LOG", type);
-		break;
-	default:
-		panic("watchdog: unexpected wd_pretimeout_act %d",
-		    wd_pretimeout_act);
 	}
+#endif
+	if ((wd_pretimeout_act & WD_SOFT_LOG))
+		log(LOG_EMERG, "watchdog %s-timeout, WD_SOFT_LOG", type);
+	if ((wd_pretimeout_act & WD_SOFT_PRINTF))
+		printf("watchdog %s-timeout, WD_SOFT_PRINTF\n", type);
+	if ((wd_pretimeout_act & WD_SOFT_PANIC))
+		panic("watchdog %s-timeout, WD_SOFT_PANIC set", type);
 }
 
 /*
@@ -310,21 +298,15 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	return (error);
 }
 
+/*
+ * Return the last timeout set, this is NOT the seconds from NOW until timeout,
+ * rather it is the amount of seconds passed to WDIOCPATPAT/WDIOC_SETTIMEOUT.
+ */
 u_int
 wdog_kern_last_timeout(void)
 {
 
 	return (wd_last_u);
-}
-
-int
-wdog_kern_pat(u_int utim)
-{
-
-	if (utim & ~(WD_LASTVAL | WD_INTERVAL))
-		return (EINVAL);
-
-	return (kern_do_pat(utim));
 }
 
 static struct cdevsw wd_cdevsw = {
