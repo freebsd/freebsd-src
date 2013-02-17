@@ -980,7 +980,10 @@ flags_to_rights(int flags)
 	if (flags & O_TRUNC)
 		rights |= CAP_FTRUNCATE;
 
-	if ((flags & O_EXLOCK) || (flags & O_SHLOCK))
+	if (flags & (O_SYNC | O_FSYNC))
+		rights |= CAP_FSYNC;
+
+	if (flags & (O_EXLOCK | O_SHLOCK))
 		rights |= CAP_FLOCK;
 
 	return (rights);
