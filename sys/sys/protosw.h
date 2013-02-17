@@ -203,7 +203,7 @@ struct pr_usrreqs {
 	int	(*pru_peeraddr)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_rcvd)(struct socket *so, int flags);
 	int	(*pru_rcvoob)(struct socket *so, struct mbuf *m, int flags);
-	int	(*pru_send)(struct socket *so, int flags, struct mbuf *m, 
+	int	(*pru_send)(struct socket *so, int flags, struct mbuf *m,
 		    struct sockaddr *addr, struct mbuf *control,
 		    struct thread *td);
 #define	PRUS_OOB	0x1
@@ -211,7 +211,7 @@ struct pr_usrreqs {
 #define	PRUS_MORETOCOME	0x4
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
         int	(*pru_shutdown)(struct socket *so);
-	int	(*pru_flush)(struct socket *so, int direction);  
+	int	(*pru_flush)(struct socket *so, int direction);
 	int	(*pru_sockaddr)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
 		    struct uio *uio, struct mbuf *top, struct mbuf *control,
