@@ -179,7 +179,7 @@ struct sigwork_entry {
 	int	 sw_pidok;		/* true if pid value is valid */
 	pid_t	 sw_pid;		/* the process id from the PID file */
 	const char *sw_pidtype;		/* "daemon" or "process group" */
-	int	 run_cmd;		/* run command or send PID to signal */
+	int	 sw_runcmd;		/* run command or send PID to signal */
 	char	 sw_fname[1];		/* file the PID was read from or shell cmd */
 };
 
@@ -1864,7 +1864,7 @@ do_sigwork(struct sigwork_entry *swork)
 	int kres, secs;
 	char *tmp;
 
-	if (!(swork->sw_pidok) || swork->sw_pid == 0)
+	if (swork->sw_runcmd == 0 && (!(swork->sw_pidok) || swork->sw_pid == 0))
 		return;			/* no work to do... */
 
 	/*
@@ -1898,14 +1898,19 @@ do_sigwork(struct sigwork_entry *swork)
 	}
 
 	if (noaction) {
-		printf("\tkill -%d %d \t\t# %s\n", swork->sw_signum,
-		    (int)swork->sw_pid, swork->sw_fname);
-		if (secs > 0)
-			printf("\tsleep %d\n", secs);
+		if (swork->sw_runcmd)
+			printf("\tsh -c '%s %d'\n", swork->sw_fname,
+			    swork->sw_signum);
+		else {
+			printf("\tkill -%d %d \t\t# %s\n", swork->sw_signum,
+			    (int)swork->sw_pid, swork->sw_fname);
+			if (secs > 0)
+				printf("\tsleep %d\n", secs);
+		}
 		return;
 	}
 
-	if (swork->run_cmd) {
+	if (swork->sw_runcmd) {
 		asprintf(&tmp, "%s %d", swork->sw_fname, swork->sw_signum);
 		if (tmp == NULL) {
 			warn("can't allocate memory to run %s",
@@ -1981,7 +1986,7 @@ do_zipwork(struct zipwork_entry *zwork)
 	else
 		pgm_name++;
 
-	if (zwork->zw_swork != NULL && zwork->zw_swork->run_cmd == 0 &&
+	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_runcmd == 0 &&
 	    zwork->zw_swork->sw_pidok <= 0) {
 		warnx(
 		    "log %s not compressed because daemon(s) not notified",
@@ -2073,10 +2078,12 @@ save_sigwork(const struct conf_entry *ent)
 	tmpsiz = sizeof(struct sigwork_entry) + strlen(ent->pid_cmd_file) + 1;
 	stmp = malloc(tmpsiz);
 	
-	stmp->run_cmd = 0;
+	stmp->sw_runcmd = 0;
 	/* If this is a command to run we just set the flag and run command */
 	if (ent->flags & CE_PID2CMD) {
-		stmp->run_cmd = 1;
+		stmp->sw_pid = -1;
+		stmp->sw_pidok = 0;
+		stmp->sw_runcmd = 1;
 	} else {
 		set_swpid(stmp, ent);
 	}
