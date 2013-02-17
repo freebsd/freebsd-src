@@ -487,15 +487,14 @@ ENTRY(fork_trampoline)
 	RESTORE_GENERAL_REGS	;
 	RESTORE_SEGMENT_REGS	;
 	INTR_EXIT		;
-	/* XXX: more work required - %rsp offset calc etc. */
 
 IDTVEC(hypervisor_callback)	/* Xen only */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_EVENT)	;
 	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
-	DO_STI_MAYBE		;
 	EVENT_UPCALL		;
+	DO_STI_MAYBE		;
 	DO_AST_MAYBE		;
 	RESTORE_GENERAL_REGS	;
 	RESTORE_SEGMENT_REGS	;

@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 static inline unsigned long __ffs(unsigned long word)
 {
-        __asm__("bsfl %1,%0"
+        __asm__("bsfq %1,%0"
                 :"=r" (word)
                 :"rm" (word));
         return word;
@@ -172,7 +172,6 @@ static void init_evtchn_cpu_bindings(void)
 
 #endif
 
-
 /*
  * Force a proper event-channel callback from Xen after clearing the
  * callback mask. We do this in a very simple manner, by making a call
@@ -191,7 +190,7 @@ evtchn_do_upcall(struct trapframe *frame)
 	int            irq, cpu;
 	shared_info_t *s;
 	vcpu_info_t   *vcpu_info;
-	
+
 	cpu = PCPU_GET(cpuid);
 	s = HYPERVISOR_shared_info;
 	vcpu_info = &s->vcpu_info[cpu];
@@ -953,14 +952,14 @@ unmask_evtchn(int port)
 		return;
 	}
 
-	synch_clear_bit(port, &s->evtchn_mask);
+	synch_clear_bit(port, &s->evtchn_mask[0]);
 
 	/*
 	 * The following is basically the equivalent of 'hw_resend_irq'. Just
 	 * like a real IO-APIC we 'lose the interrupt edge' if the channel is
 	 * masked.
 	 */
-	if (synch_test_bit(port, &s->evtchn_pending) && 
+	if (synch_test_bit(port, &s->evtchn_pending[0]) && 
 	    !synch_test_and_set_bit(port / LONG_BIT,
 				    &vcpu_info->evtchn_pending_sel)) {
 		vcpu_info->evtchn_upcall_pending = 1;
