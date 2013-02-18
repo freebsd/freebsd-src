@@ -237,6 +237,8 @@ void file_discard(struct preloaded_file *fp);
 void file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p);
 int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
 	struct kernel_module **newmp);
+/* Load from a buffer in memory. */
+struct preloaded_file *mem_load_raw(char *type, char *name, const void *p, size_t len);
 
 /* MI module loaders */
 #ifdef __elfN
