@@ -92,6 +92,13 @@ struct if_ath_alq_tdma_timer_set {
 	uint32_t	sc_tdmaswbaprep;
 };
 
+#define	ATH_ALQ_INTR_STATUS		10
+struct if_ath_alq_interrupt {
+	uint32_t	intr_status;
+	uint32_t	intr_state[8];
+	uint32_t	intr_syncstate;
+};
+
 /*
  * These will always be logged, regardless.
  */
@@ -144,6 +151,27 @@ extern	int if_ath_alq_start(struct if_ath_alq *alq);
 extern	int if_ath_alq_stop(struct if_ath_alq *alq);
 extern	void if_ath_alq_post(struct if_ath_alq *alq, uint16_t op,
 	    uint16_t len, const char *buf);
+
+/* XXX maybe doesn't belong here? */
+static inline void
+if_ath_alq_post_intr(struct if_ath_alq *alq, uint32_t status,
+    uint32_t *state, uint32_t sync_state)
+{
+	int i;
+	struct if_ath_alq_interrupt intr;
+
+	if (! if_ath_alq_checkdebug(alq, ATH_ALQ_INTR_STATUS))
+		return;
+
+	intr.intr_status = htobe32(status);
+	for (i = 0; i < 8; i++)
+		intr.intr_state[i] = htobe32(state[i]);
+	intr.intr_syncstate = htobe32(sync_state);
+
+	if_ath_alq_post(alq, ATH_ALQ_INTR_STATUS, sizeof(&intr),
+	    (const char *) &intr);
+}
+
 #endif	/* _KERNEL */
 
 #endif
