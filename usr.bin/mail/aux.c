@@ -257,8 +257,8 @@ istrncpy(dest, src, dsize)
 {
 
 	strlcpy(dest, src, dsize);
-	while (*dest)
-		*dest++ = tolower((unsigned char)*dest);
+	for (; *dest; dest++)
+		*dest = tolower((unsigned char)*dest);
 }
 
 /*
