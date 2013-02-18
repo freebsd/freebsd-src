@@ -210,7 +210,7 @@ struct pr_usrreqs {
 #define	PRUS_EOF	0x2
 #define	PRUS_MORETOCOME	0x4
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
-        int	(*pru_shutdown)(struct socket *so);
+	int	(*pru_shutdown)(struct socket *so);
 	int	(*pru_flush)(struct socket *so, int direction);
 	int	(*pru_sockaddr)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
@@ -266,7 +266,7 @@ int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
  */
 #define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
-#define	PRC_IFUP		2 	/* interface has come back up */
+#define	PRC_IFUP		2	/* interface has come back up */
 #define	PRC_QUENCH2		3	/* DEC congestion bit says slow down */
 #define	PRC_QUENCH		4	/* some one said to slow down */
 #define	PRC_MSGSIZE		5	/* message size forced drop */
