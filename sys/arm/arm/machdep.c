@@ -1178,7 +1178,6 @@ initarm(struct arm_boot_params *abp)
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	vm_offset_t pmap_bootstrap_lastaddr;
 	uint32_t memsize, l2size;
 	char *env;
 	void *kmdp;
@@ -1288,7 +1287,7 @@ initarm(struct arm_boot_params *abp)
 	availmem_regions_sz = curr;
 
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = initarm_lastaddr();
+	vm_max_kernel_address = initarm_lastaddr();
 
 	pcpu0_init();
 
@@ -1477,7 +1476,7 @@ initarm(struct arm_boot_params *abp)
 	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
-	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
+	pmap_bootstrap(freemempos, vm_max_kernel_address, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
