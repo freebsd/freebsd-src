@@ -32,7 +32,7 @@
 .\"     @(#)setbuf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2013
+.Dd February 18, 2013
 .Dt SETBUF 3
 .Os
 .Sh NAME
@@ -195,3 +195,6 @@ and
 functions
 conform to
 .St -isoC .
+.Sh BUGS
+.Fn setbuf
+usually uses a suboptimal buffer size and should be avoided.
