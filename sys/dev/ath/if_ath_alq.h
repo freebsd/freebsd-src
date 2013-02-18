@@ -168,7 +168,7 @@ if_ath_alq_post_intr(struct if_ath_alq *alq, uint32_t status,
 		intr.intr_state[i] = htobe32(state[i]);
 	intr.intr_syncstate = htobe32(sync_state);
 
-	if_ath_alq_post(alq, ATH_ALQ_INTR_STATUS, sizeof(&intr),
+	if_ath_alq_post(alq, ATH_ALQ_INTR_STATUS, sizeof(intr),
 	    (const char *) &intr);
 }
 
