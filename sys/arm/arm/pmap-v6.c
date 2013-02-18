@@ -231,6 +231,8 @@ vm_paddr_t kernel_l1pa;
 
 vm_offset_t kernel_vm_end = 0;
 
+vm_offset_t vm_max_kernel_address;
+
 struct pmap kernel_pmap_store;
 
 static pt_entry_t *csrc_pte, *cdst_pte;

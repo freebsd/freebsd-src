@@ -98,7 +98,7 @@ SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
     NULL, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
 
 SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
-#ifdef __sparc64__
+#if defined(__arm__) || defined(__sparc64__)
     &vm_max_kernel_address, 0,
 #else
     NULL, VM_MAX_KERNEL_ADDRESS,
