@@ -489,6 +489,11 @@ initxen(struct start_info *si)
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 
+	PCPU_SET(tssp, &common_tss[0]); /* Dummy - see definition */
+	PCPU_SET(commontssp, &common_tss[0]); /* Dummy - see definition */
+	PCPU_SET(fs32p, (void *)xpmap_ptom(VTOP(&gdt[GUFS32_SEL]))); /* Note: On Xen PV, we set the machine address. */
+	PCPU_SET(gs32p, (void *)xpmap_ptom(VTOP(&gdt[GUGS32_SEL]))); /* Note: On Xen PV, we set the machine address. */
+
 	/*
 	 * Initialize mutexes.
 	 *
@@ -518,8 +523,8 @@ initxen(struct start_info *si)
 #endif
 
 	identify_cpu();		/* Final stage of CPU initialization */
-	//initializecpu();
-	//initializecpucache();
+	initializecpu();
+	initializecpucache();
 
 	init_param2(physmem);
 
@@ -1225,21 +1230,6 @@ vprintk(const char *fmt, __va_list ap)
 }
 
 
-static __inline void
-cpu_write_rflags(u_long rf)
-{
-	__asm __volatile("pushq %0; popfq" : : "r" (rf));
-}
-
-static __inline u_long
-cpu_read_rflags(void)
-{
-	u_long	rf;
-
-	__asm __volatile("pushfq; popq %0" : "=r" (rf));
-	return (rf);
-}
-
 #ifdef KTR
 static __inline u_long
 rrbp(void)
@@ -1295,6 +1285,13 @@ xen_rcr2(void)
 {
 
 	return (HYPERVISOR_shared_info->vcpu_info[curcpu].arch.cr2);
+}
+
+void
+xen_set_proc(struct pcb *newpcb)
+{
+	HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL), 
+		(unsigned long) PCPU_GET(rsp0));
 }
 
 char *console_page;

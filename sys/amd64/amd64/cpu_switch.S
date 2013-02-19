@@ -106,9 +106,11 @@ ENTRY(cpu_switch)
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rax,PCB_RIP(%r8)
 
+#ifndef XEN
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	store_dr			/* static predict not taken */
 done_store_dr:
+#endif	/* !XEN */
 
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
@@ -145,7 +147,23 @@ ctx_switch_xsave:
 	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
 	jmp	sw1
 swinact:
+#ifndef XEN
 	movq	%rcx,%cr3			/* new address space */
+#else
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%r8
+
+	movq	%rcx, %rdi
+	callq	xen_pt_switch
+
+	popq	%r8
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+
+#endif  /* XEN */
 	movl	PCPU(CPUID), %eax
 	/* Release bit from old pmap->pm_active */
 	movq	PCPU(CURPMAP),%rcx
@@ -158,7 +176,6 @@ swact:
 	addq	$VM_PMAP,%rdx
 	LK btsl	%eax,PM_ACTIVE(%rdx)		/* set new */
 	movq	%rdx,PCPU(CURPMAP)
-
 sw1:
 #if defined(SCHED_ULE) && defined(SMP)
 	/* Wait for the new thread to become unblocked */
@@ -185,7 +202,9 @@ sw1:
 	cmpq	$0, P_MD+MD_LDT(%rcx)
 	jne	do_ldt
 	xorl	%eax,%eax
-ld_ldt:	lldt	%ax
+ld_ldt:
+#ifndef XEN
+	lldt	%ax
 
 	/* Restore fs base in GDT */
 	movl	PCB_FSBASE(%r8),%eax
@@ -204,7 +223,79 @@ ld_ldt:	lldt	%ax
 	movb	%al,4(%rdx)
 	shrl	$8,%eax
 	movb	%al,7(%rdx)
+#else
+#ifdef notyet_xenldt
+	pushq	%rdi
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%r8
+	
+	/* Restore fs base in GDT */
+	movl	PCB_FSBASE(%r8), %eax
+	movq	%rsp, %rdx /* register_t tmp, %rdx == &tmp */
+	subq	$8, %rsp   /* allocate tmp */
+	
+	/* Reconstruct the_segment_descriptor */
+	movq	$0, (%rdx)	/* Zero it first */
+	movw	%ax, 2(%rdx)	/* .base = %eax */
+	shrl	$16,%eax
+	movb	%al, 4(%rdx)
+	shrl	$8,%eax
+	movb	%al, 7(%rdx)
+	movw	$0xffff, (%rdx)	/* limit = 0xfffff */
+	movb	$1, 6(%rdx)
+	movb	$1, %al		/* p = 1 */
+	shlb	$2, %al
+	orb	$SEL_UPL, %al	/* dpl = SEL_UPL */
+	shlb	$5, %al
+	orb	$SDT_MEMRWA, %al/* type = SDT_MEMRWA */
+	movb	%al, 5(%rdx)
+	movb	$0xc, %al
+	orb	%al, 6(%rdx)	/* def32 = 1, gran = 1 */
+	
+	movq	PCPU(FS32P), %rdi /* dte_ma */
+	movq	%rdx, %rsi	 /* dte_ptr */
+	callq	xen_set_descriptor
 
+	movq	16(%rsp), %r8	/* Restore caller saved %r8 */
+	
+	/* Restore gs base in GDT */
+	movl	PCB_GSBASE(%r8),%eax
+	movq	%rsp, %rdx /* register_t tmp, %rdx == &tmp */
+	addq	$8, %rdx	/* allocate tmp */
+
+	/* Reconstruct the_segment_descriptor */
+	movq	$0, (%rdx)	/* Zero it first */
+	movw	%ax, 2(%rdx)	/* .base = %eax */
+	shrl	$16,%eax
+	movb	%al, 4(%rdx)
+	shrl	$8,%eax
+	movb	%al, 7(%rdx)
+	movw	$0xffff, (%rdx)	/* limit = 0xfffff */
+	movb	$1, 6(%rdx)
+	movb	$1, %al		/* p = 1 */
+	shlb	$2, %al
+	orb	$SEL_UPL, %al	/* dpl = SEL_UPL */
+	shlb	$5, %al
+	orb	$SDT_MEMRWA, %al/* type = SDT_MEMRWA */
+	movb	%al, 5(%rdx)
+	movb	$0xc, %al
+	orb	%al, 6(%rdx)	/* def32 = 1, gran = 1 */
+
+	movq	PCPU(GS32P), %rdi /* dte_ma */
+	movq	%rdx, %rsi	 /* dte_ptr */
+	callq	xen_set_descriptor
+
+	addq	$8, %rsp   /* De-allocate temp "variable" stackspace */
+	/* XXX: Do hypervisor GS/FS update ? */
+	
+	popq	%r8
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+
+#endif	
+#endif	/* !XEN */
 do_kthread:
 	/* Do we need to reload tss ? */
 	movq	PCPU(TSSP),%rax
@@ -219,12 +310,12 @@ done_tss:
 	/* Update the TSS_RSP0 pointer for the next interrupt */
 	movq	%r8,COMMON_TSS_RSP0(%rdx)
 	movq	%rsi,PCPU(CURTHREAD)		/* into next thread */
-
+#ifndef	XEN
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	load_dr				/* static predict not taken */
 done_load_dr:
-
+#endif	/* !XEN */
 	/* Restore context. */
 	movq	PCB_R15(%r8),%r15
 	movq	PCB_R14(%r8),%r14
@@ -247,6 +338,7 @@ done_load_dr:
 	 * We use jumps rather than call in order to avoid the stack.
 	 */
 
+#ifndef XEN
 store_dr:
 	movq	%dr7,%rax			/* yes, do the save */
 	movq	%dr0,%r15
@@ -297,14 +389,41 @@ do_tss:	movq	%rdx,PCPU(TSSP)
 	movb	$0x89,5(%rax)	/* unset busy */
 	movl	$TSSSEL,%eax
 	ltr	%ax
-	jmp	done_tss
+#else
+do_tss:
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%r8
 
+	movq	%r8, %rdi
+	callq	xen_set_proc
+
+	popq	%r8
+	popq	%rdx
+	popq	%rsi
+#endif 	/* !XEN */
+	jmp	done_tss
+	
 do_ldt:	movq	PCPU(LDT),%rax
+#ifndef XEN	
 	movq	P_MD+MD_LDT_SD(%rcx),%rdx
 	movq	%rdx,(%rax)
 	movq	P_MD+MD_LDT_SD+8(%rcx),%rdx
 	movq	%rdx,8(%rax)
 	movl	$LDTSEL,%eax
+#else	/* !XEN */
+	pushq	%rsi
+	pushq	%rdx
+	pushq	%r8
+	
+	movq	P_MD+MD_LDT_SD(%rcx),%rsi
+	movq	P_MD+MD_LDT_SD+8(%rcx),%rdi
+	callq	xen_set_ldt
+
+	popq	%r8
+	popq	%rdx
+	popq	%rsi
+#endif	/* !XEN */
 	jmp	ld_ldt
 END(cpu_switch)
 

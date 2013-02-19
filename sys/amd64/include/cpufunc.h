@@ -44,12 +44,15 @@
 #endif
 
 #ifdef XEN
+struct pcb; /* Forward declaration */
+
 extern void xen_cli(void);
 extern void xen_sti(void);
 extern u_long xen_rcr2(void);
 extern void xen_load_cr3(u_long data);
 extern void xen_tlb_flush(void);
 extern void xen_invlpg(vm_offset_t addr);
+extern void xen_set_proc(struct pcb *newpcb);
 extern void write_rflags(u_long rflags);
 extern u_long read_rflags(void);
 #endif /* XEN */
