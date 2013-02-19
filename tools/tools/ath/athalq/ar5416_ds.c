@@ -227,6 +227,8 @@ ar5416_decode_txdesc(struct if_ath_alq_payload *a)
 	    MF(txc.ds_ctl7, AR_2040_3),
 	    MF(txc.ds_ctl7, AR_STBC3));
 
+	printf("    RTSCtsRate=0x%02x\n", MS(txc.ds_ctl7, AR_RTSCTSRate));
+
 	/* ds_ctl8 */
 	printf("    try 0: ant=0x%08x\n", txc.ds_ctl8 &  AR_AntCtl0);
 
