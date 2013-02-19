@@ -32,7 +32,7 @@
 .\"     @(#)qsort.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2003
+.Dd February 20, 2013
 .Dt QSORT 3
 .Os
 .Sh NAME
@@ -211,6 +211,52 @@ Previous versions of
 did not permit the comparison routine itself to call
 .Fn qsort 3 .
 This is no longer true.
+.Sh EXAMPLES
+A sample program that sorts an array of
+.Vt int
+values in place using
+.Fn qsort ,
+and then prints the sorted array to standard output is:
+.Bd -literal
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/*
+ * Custom comparison function that can compare 'int' values through pointers
+ * passed by qsort(3).
+ */
+static int
+int_compare(const void *p1, const void *p2)
+{
+        int *left = (int *)p1;
+        int *right = (int *)p2;
+
+        if (*left < *right)
+                return (-1);
+        else if (*left > *right)
+                return (1);
+        else
+                return (0);
+}
+
+/*
+ * Sort an array of 'int' values and print it to standard output.
+ */
+int
+main(void)
+{
+       int int_array[] = { 4, 5, 9, 3, 0, 1, 7, 2, 8, 6 };
+       const int array_size = sizeof(int_array) / sizeof(int_array[0]);
+       int k;
+
+       qsort(&int_array, array_size, sizeof(int), int_compare);
+       for (k = 0; k < array_size; k++)
+                printf(" %d", int_array[k]);
+        printf("\\n");
+        exit(EXIT_SUCCESS);
+}
+.Ed
 .Sh ERRORS
 The
 .Fn heapsort
