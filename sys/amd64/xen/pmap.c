@@ -727,6 +727,22 @@ pmap_pinit(pmap_t pmap)
 	 * XXX: review this when userland is up.
 	 */
 
+#if 1 /* XXX: DEBUG ONLY - EXPOSES KERNEL TO USERLAND - TERRIBLE SECURITY RISK! */
+	/* Wire in kernel global address entries. */
+	pmap->pm_pml4[KPML4I] = phystomach(VTOP(KPDPphys)) | PG_RW | PG_V | PG_U;
+
+	/* Copy over Direct mapping entries, from kernel_pmap. */
+	int i;
+	for (i = 0; i < NDMPML4E; i++) {
+		pmap->pm_pml4[DMPML4I + i] = ((pdp_entry_t *)KPML4phys)[DMPML4I + i];
+	}
+
+	pmap_xen_setpages_ro((uintptr_t)pmap->pm_pml4, 1);
+
+	xen_pgdir_pin(phystomach(ptmb_vtop((uintptr_t)pmap->pm_pml4)));
+
+#endif
+
 	pmap->pm_root = NULL;
 	CPU_ZERO(&pmap->pm_active);
 	pmap_pv_pmap_init(pmap);
@@ -913,7 +929,10 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	KASSERT(pmap == kernel_pmap, ("XXX: TODO: Userland pmap\n"));
+
+	KASSERT(eva >= sva, ("End VA is lower than Start VA"));
+	pmap_qremove(sva, atop(eva - sva));
 }
 
 void
@@ -925,8 +944,9 @@ pmap_remove_all(vm_page_t m)
 vm_paddr_t 
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
-	return 0;
+	KASSERT(pmap == kernel_pmap, ("XXX: %s: TODO\n", __func__));
+
+	return 	pmap_kextract(va);
 }
 
 vm_page_t
@@ -942,7 +962,7 @@ pmap_kextract(vm_offset_t va)
 	vm_paddr_t ma;
 	ma = pmap_kextract_ma(va);
 
-	KASSERT(ma != 0, ("%s: Unmapped va: 0x%lx \n", __func__, va));
+	KASSERT((ma & ~PAGE_MASK) != 0, ("%s: Unmapped va: 0x%lx \n", __func__, va));
 
 	return xpmap_mtop(ma);
 }
@@ -1014,6 +1034,7 @@ pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
 {
 
 	KASSERT(tsz != 0, ("tsz != 0"));
+
 	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
 			 * effectively const.
 			 */
@@ -1047,17 +1068,40 @@ pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
  * This function may be used before pmap_bootstrap() is called.
  */
 
-__inline void
+void
 pmap_kremove(vm_offset_t va)
 {
-	pt_entry_t *pte;
 
+	pt_entry_t *pte;
 	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
 			 * effectively const.
 			 */
 
 	mmu_map_t tptr = tbuf;
 
+#define nobackingfree /* Shim to make boot progress. XXX: MUST go away */
+#ifdef nobackingfree
+	(void) pte;
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+	mmu_map_t_init(tptr, &mb);
+
+	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
+		mmu_map_hold_va(kernel_pmap, tptr, va); /* PT hierarchy */
+		xen_flush_queue(); /* XXX: cleanup */
+	}
+
+	/* Backing page tables are in place, let xen do the maths */
+	PT_SET_MA(va, 0);
+	PT_UPDATES_FLUSH();
+
+	mmu_map_t_fini(tptr);
+
+#else
 	pte = vtopte_hold(va, &tptr);
 	if (pte == NULL) { /* Mapping doesn't exist */
 		goto unmappte;
@@ -1068,6 +1112,7 @@ pmap_kremove(vm_offset_t va)
 
 unmappte:
 	vtopte_release(va, &tptr);
+#endif
 }
 
 /*
@@ -1123,7 +1168,10 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	/* 
+	 * Nothing to do - page table backing pages are the only pages
+	 * that are implicitly "wired". These are managed by uma(9).
+	 */
 }
 
 void
@@ -1326,7 +1374,7 @@ xen_vm_ptov(vm_paddr_t pa)
 	m = PHYS_TO_VM_PAGE(pa);
 
 	/* Assert for valid PA *after* the VM has been init-ed */
-	KASSERT(gdtset == 1 && m != NULL || pa < physfree, ("Stray PA 0x%lx passed\n", pa));
+	KASSERT((gdtset == 1 && m != NULL) || pa < physfree, ("Stray PA 0x%lx passed\n", pa));
 
 	if (m == NULL) { /* Early boottime page - obeys early mapping rules */
 		/* XXX: KASSERT() for this */
