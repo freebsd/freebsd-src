@@ -78,7 +78,12 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
-static int bcm2835_sdhci_min_freq = 8000000;
+/* 
+ * Arasan HC seems to have problem with Data CRC on lower frequencies.
+ * Use this tunable to cap intilization sequence frequency at higher
+ * value. Default is standard 400KHz
+ */
+static int bcm2835_sdhci_min_freq = 400000;
 static int bcm2835_sdhci_hs = 1;
 
 TUNABLE_INT("hw.bcm2835.sdhci.min_freq", &bcm2835_sdhci_min_freq);
@@ -346,12 +351,6 @@ static uint32_t
 bcm_sdhci_min_freq(device_t dev, struct sdhci_slot *slot)
 {
 
-	/* 
-	 * Arasan HC seems to have problem with 
-	 * Data CRC on lower frequencies. Cap minimum
-	 * frequncy at 8MHz (or whatever set via tunable) 
-	 * to work around this issue
-	 */
 	return bcm2835_sdhci_min_freq;
 }
 
