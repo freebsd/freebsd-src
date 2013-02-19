@@ -139,7 +139,7 @@ static void transition(state_t);
 static state_t requested_transition;
 static state_t current_state = death_single;
 
-static void setctty(const char *);
+static void open_console(void);
 static const char *get_shell(void);
 static void write_stderr(const char *message);
 
@@ -585,19 +585,39 @@ clear_session_logs(session_t *sp __unused)
  * Only called by children of init after forking.
  */
 static void
-setctty(const char *name)
+open_console(void)
 {
 	int fd;
 
-	revoke(name);
-	if ((fd = open(name, O_RDWR)) == -1) {
-		stall("can't open %s: %m", name);
+	/*
+	 * Try to open /dev/console.  Open the device with O_NONBLOCK to
+	 * prevent potential blocking on a carrier.
+	 */
+	revoke(_PATH_CONSOLE);
+	if ((fd = open(_PATH_CONSOLE, O_RDWR | O_NONBLOCK)) != -1) {
+		(void)fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
+		if (login_tty(fd) == 0)
+			return;
+		close(fd);
+	}
+
+	/* No luck.  Log output to file if possible. */
+	if ((fd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+		stall("cannot open null device.");
 		_exit(1);
 	}
-	if (login_tty(fd) == -1) {
-		stall("can't get %s for controlling terminal: %m", name);
-		_exit(1);
+	if (fd != STDIN_FILENO) {
+		dup2(fd, STDIN_FILENO);
+		close(fd);
 	}
+	fd = open(_PATH_INITLOG, O_WRONLY | O_APPEND | O_CREAT, 0644);
+	if (fd == -1)
+		dup2(STDIN_FILENO, STDOUT_FILENO);
+	else if (fd != STDOUT_FILENO) {
+		dup2(fd, STDOUT_FILENO);
+		close(fd);
+	}
+	dup2(STDOUT_FILENO, STDERR_FILENO);
 }
 
 static const char *
@@ -655,7 +675,7 @@ single_user(void)
 		/*
 		 * Start the single user session.
 		 */
-		setctty(_PATH_CONSOLE);
+		open_console();
 
 #ifdef SECURE
 		/*
@@ -819,7 +839,7 @@ run_script(const char *script)
 		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		sigaction(SIGHUP, &sa, (struct sigaction *)0);
 
-		setctty(_PATH_CONSOLE);
+		open_console();
 
 		char _sh[]		= "sh";
 		char _autoboot[]	= "autoboot";
@@ -1602,7 +1622,7 @@ runshutdown(void)
 		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		sigaction(SIGHUP, &sa, (struct sigaction *)0);
 
-		setctty(_PATH_CONSOLE);
+		open_console();
 
 		char _sh[]	= "sh";
 		char _reboot[]	= "reboot";
