@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20130218:	p12	FreeBSD-SA-13:02.libc
+	Fix Denial of Service vulnerability in libc's glob(3) functionality.
+
 20121122:	p11	FreeBSD-SA-12:06.bind FreeBSD-SA-12:08.linux
 	Fix multiple Denial of Service vulnerabilities with named(8).
 
