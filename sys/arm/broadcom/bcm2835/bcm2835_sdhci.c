@@ -80,8 +80,8 @@ __FBSDID("$FreeBSD$");
 
 /* 
  * Arasan HC seems to have problem with Data CRC on lower frequencies.
- * Use this tunable to cap intilization sequence frequency at higher
- * value. Default is standard 400KHz
+ * Use this tunable to cap initialization sequence frequency at higher
+ * value. Default is standard 400kHz
  */
 static int bcm2835_sdhci_min_freq = 400000;
 static int bcm2835_sdhci_hs = 1;
