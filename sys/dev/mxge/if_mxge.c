@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <netinet6/ip6_var.h>
 
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
@@ -91,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 /* tunable params */
 static int mxge_nvidia_ecrc_enable = 1;
@@ -1810,21 +1813,99 @@ mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src,
         wmb();
 }
 
+static int
+mxge_parse_tx(struct mxge_slice_state *ss, struct mbuf *m,
+    struct mxge_pkt_info *pi)
+{
+	struct ether_vlan_header *eh;
+	uint16_t etype;
+	int tso = m->m_pkthdr.csum_flags & (CSUM_TSO);
+#if IFCAP_TSO6 && defined(INET6)
+	int nxt;
+#endif
+
+	eh = mtod(m, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		etype = ntohs(eh->evl_proto);
+		pi->ip_off = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	} else {
+		etype = ntohs(eh->evl_encap_proto);
+		pi->ip_off = ETHER_HDR_LEN;
+	}
+
+	switch (etype) {
+	case ETHERTYPE_IP:
+		/*
+		 * ensure ip header is in first mbuf, copy it to a
+		 * scratch buffer if not
+		 */
+		pi->ip = (struct ip *)(m->m_data + pi->ip_off);
+		pi->ip6 = NULL;
+		if (__predict_false(m->m_len < pi->ip_off + sizeof(*pi->ip))) {
+			m_copydata(m, 0, pi->ip_off + sizeof(*pi->ip),
+			    ss->scratch);
+			pi->ip = (struct ip *)(ss->scratch + pi->ip_off);
+		}
+		pi->ip_hlen = pi->ip->ip_hl << 2;
+		if (!tso)
+			return 0;
+
+		if (__predict_false(m->m_len < pi->ip_off + pi->ip_hlen +
+		    sizeof(struct tcphdr))) {
+			m_copydata(m, 0, pi->ip_off + pi->ip_hlen +
+			    sizeof(struct tcphdr), ss->scratch);
+			pi->ip = (struct ip *)(ss->scratch + pi->ip_off);
+		}
+		pi->tcp = (struct tcphdr *)((char *)pi->ip + pi->ip_hlen);
+		break;
+#if IFCAP_TSO6 && defined(INET6)
+	case ETHERTYPE_IPV6:
+		pi->ip6 = (struct ip6_hdr *)(m->m_data + pi->ip_off);
+		if (__predict_false(m->m_len < pi->ip_off + sizeof(*pi->ip6))) {
+			m_copydata(m, 0, pi->ip_off + sizeof(*pi->ip6),
+			    ss->scratch);
+			pi->ip6 = (struct ip6_hdr *)(ss->scratch + pi->ip_off);
+		}
+		nxt = 0;
+		pi->ip_hlen = ip6_lasthdr(m, pi->ip_off, IPPROTO_IPV6, &nxt);
+		pi->ip_hlen -= pi->ip_off;
+		if (nxt != IPPROTO_TCP && nxt != IPPROTO_UDP)
+			return EINVAL;
+
+		if (!tso)
+			return 0;
+
+		if (pi->ip_off + pi->ip_hlen > ss->sc->max_tso6_hlen)
+			return EINVAL;
+
+		if (__predict_false(m->m_len < pi->ip_off + pi->ip_hlen +
+		    sizeof(struct tcphdr))) {
+			m_copydata(m, 0, pi->ip_off + pi->ip_hlen +
+			    sizeof(struct tcphdr), ss->scratch);
+			pi->ip6 = (struct ip6_hdr *)(ss->scratch + pi->ip_off);
+		}
+		pi->tcp = (struct tcphdr *)((char *)pi->ip6 + pi->ip_hlen);
+		break;
+#endif
+	default:
+		return EINVAL;
+	}
+	return 0;
+}
+
 #if IFCAP_TSO4
 
 static void
 mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
-	       int busdma_seg_cnt, int ip_off)
+	       int busdma_seg_cnt, struct mxge_pkt_info *pi)
 {
 	mxge_tx_ring_t *tx;
 	mcp_kreq_ether_send_t *req;
 	bus_dma_segment_t *seg;
-	struct ip *ip;
-	struct tcphdr *tcp;
 	uint32_t low, high_swapped;
 	int len, seglen, cum_len, cum_len_next;
 	int next_is_first, chop, cnt, rdma_count, small;
-	uint16_t pseudo_hdr_offset, cksum_offset, mss;
+	uint16_t pseudo_hdr_offset, cksum_offset, mss, sum;
 	uint8_t flags, flags_next;
 	static int once;
 
@@ -1835,38 +1916,33 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 	 * header portion of the TSO packet.
 	 */
 
-	/* ensure we have the ethernet, IP and TCP
-	   header together in the first mbuf, copy
-	   it to a scratch buffer if not */
-	if (__predict_false(m->m_len < ip_off + sizeof (*ip))) {
-		m_copydata(m, 0, ip_off + sizeof (*ip),
-			   ss->scratch);
-		ip = (struct ip *)(ss->scratch + ip_off);
-	} else {
-		ip = (struct ip *)(mtod(m, char *) + ip_off);
-	}
-	if (__predict_false(m->m_len < ip_off + (ip->ip_hl << 2)
-			    + sizeof (*tcp))) {
-		m_copydata(m, 0, ip_off + (ip->ip_hl << 2)
-			   + sizeof (*tcp),  ss->scratch);
-		ip = (struct ip *)(mtod(m, char *) + ip_off);
-	} 
-
-	tcp = (struct tcphdr *)((char *)ip + (ip->ip_hl << 2));
-	cum_len = -(ip_off + ((ip->ip_hl + tcp->th_off) << 2));
-	cksum_offset = ip_off + (ip->ip_hl << 2);
+	cksum_offset = pi->ip_off + pi->ip_hlen;
+	cum_len = -(cksum_offset + (pi->tcp->th_off << 2));
 
 	/* TSO implies checksum offload on this hardware */
-	if (__predict_false((m->m_pkthdr.csum_flags & (CSUM_TCP)) == 0)) {
+	if (__predict_false((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_TCP_IPV6)) == 0)) {
 		/*
 		 * If packet has full TCP csum, replace it with pseudo hdr
 		 * sum that the NIC expects, otherwise the NIC will emit
 		 * packets with bad TCP checksums.
 		 */
-		m->m_pkthdr.csum_flags = CSUM_TCP;
 		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
-		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-			htons(IPPROTO_TCP + (m->m_pkthdr.len - cksum_offset)));		
+		if (pi->ip6) {
+#if (CSUM_TCP_IPV6 != 0) && defined(INET6)
+			m->m_pkthdr.csum_flags |= CSUM_TCP_IPV6;
+			sum = in6_cksum_pseudo(pi->ip6,
+			    m->m_pkthdr.len - cksum_offset,
+			    IPPROTO_TCP, 0);
+#endif
+		} else {
+			m->m_pkthdr.csum_flags |= CSUM_TCP;
+			sum = in_pseudo(pi->ip->ip_src.s_addr,
+			    pi->ip->ip_dst.s_addr,
+			    htons(IPPROTO_TCP + (m->m_pkthdr.len -
+				    cksum_offset)));
+		}
+		m_copyback(m, offsetof(struct tcphdr, th_sum) +
+		    cksum_offset, sizeof(sum), (caddr_t)&sum);
 	}
 	flags = MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST;
 
@@ -1875,6 +1951,14 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 	 * The firmware figures out where to put
 	 * the checksum by parsing the header. */
 	pseudo_hdr_offset = htobe16(mss);
+
+	if (pi->ip6) {
+		/*
+		 * for IPv6 TSO, the "checksum offset" is re-purposed
+		 * to store the TCP header len
+		 */
+		cksum_offset = (pi->tcp->th_off << 2);
+	}
 
 	tx = &ss->tx;
 	req = tx->req_list;
@@ -1947,10 +2031,12 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 			req++;
 			cnt++;
 			rdma_count++;
-			if (__predict_false(cksum_offset > seglen))
-				cksum_offset -= seglen;
-			else
-				cksum_offset = 0;
+			if (cksum_offset != 0 && !pi->ip6) {
+				if (__predict_false(cksum_offset > seglen))
+					cksum_offset -= seglen;
+				else
+					cksum_offset = 0;
+			}
 			if (__predict_false(cnt > tx->max_desc))
 				goto drop;
 		}
@@ -2030,14 +2116,14 @@ mxge_vlan_tag_insert(struct mbuf *m)
 static void
 mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 {
+	struct mxge_pkt_info pi = {0,0,0,0};
 	mxge_softc_t *sc;
 	mcp_kreq_ether_send_t *req;
 	bus_dma_segment_t *seg;
 	struct mbuf *m_tmp;
 	struct ifnet *ifp;
 	mxge_tx_ring_t *tx;
-	struct ip *ip;
-	int cnt, cum_len, err, i, idx, odd_flag, ip_off;
+	int cnt, cum_len, err, i, idx, odd_flag;
 	uint16_t pseudo_hdr_offset;
         uint8_t flags, cksum_offset;
 
@@ -2046,15 +2132,19 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	ifp = sc->ifp;
 	tx = &ss->tx;
 
-	ip_off = sizeof (struct ether_header);
 #ifdef MXGE_NEW_VLAN_API
 	if (m->m_flags & M_VLANTAG) {
 		m = mxge_vlan_tag_insert(m);
 		if (__predict_false(m == NULL))
-			goto drop;
-		ip_off += ETHER_VLAN_ENCAP_LEN;
+			goto drop_without_m;
 	}
 #endif
+	if (m->m_pkthdr.csum_flags &
+	    (CSUM_TSO | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)) {
+		if (mxge_parse_tx(ss, m, &pi))
+			goto drop;
+	}
+
 	/* (try to) map the frame for DMA */
 	idx = tx->req & tx->mask;
 	err = bus_dmamap_load_mbuf_sg(tx->dmat, tx->info[idx].map,
@@ -2086,7 +2176,7 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 #if IFCAP_TSO4
 	/* TSO is different enough, we handle it in another routine */
 	if (m->m_pkthdr.csum_flags & (CSUM_TSO)) {
-		mxge_encap_tso(ss, m, cnt, ip_off);
+		mxge_encap_tso(ss, m, cnt, &pi);
 		return;
 	}
 #endif
@@ -2097,17 +2187,11 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	flags = MXGEFW_FLAGS_NO_TSO;
 
 	/* checksum offloading? */
-	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA)) {
+	if (m->m_pkthdr.csum_flags &
+	    (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)) {
 		/* ensure ip header is in first mbuf, copy
 		   it to a scratch buffer if not */
-		if (__predict_false(m->m_len < ip_off + sizeof (*ip))) {
-			m_copydata(m, 0, ip_off + sizeof (*ip),
-				   ss->scratch);
-			ip = (struct ip *)(ss->scratch + ip_off);
-		} else {
-			ip = (struct ip *)(mtod(m, char *) + ip_off);
-		}
-		cksum_offset = ip_off + (ip->ip_hl << 2);
+		cksum_offset = pi.ip_off + pi.ip_hlen;
 		pseudo_hdr_offset = cksum_offset +  m->m_pkthdr.csum_data;
 		pseudo_hdr_offset = htobe16(pseudo_hdr_offset);
 		req->cksum_offset = cksum_offset;
@@ -2190,6 +2274,7 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 
 drop:
 	m_freem(m);
+drop_without_m:
 	ss->oerrors++;
 	return;
 }
@@ -4126,8 +4211,7 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (mask & IFCAP_TXCSUM) {
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
 				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
-						      | CSUM_TSO);
+				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
 			} else {
 				ifp->if_capenable |= IFCAP_TXCSUM;
 				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
@@ -4144,7 +4228,6 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (mask & IFCAP_TSO4) {
 			if (IFCAP_TSO4 & ifp->if_capenable) {
 				ifp->if_capenable &= ~IFCAP_TSO4;
-				ifp->if_hwassist &= ~CSUM_TSO;
 			} else if (IFCAP_TXCSUM & ifp->if_capenable) {
 				ifp->if_capenable |= IFCAP_TSO4;
 				ifp->if_hwassist |= CSUM_TSO;
@@ -4154,6 +4237,43 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				err = EINVAL;
 			}
 		}
+#if IFCAP_TSO6
+		if (mask & IFCAP_TXCSUM_IPV6) {
+			if (IFCAP_TXCSUM_IPV6 & ifp->if_capenable) {
+				ifp->if_capenable &= ~(IFCAP_TXCSUM_IPV6
+						       | IFCAP_TSO6);
+				ifp->if_hwassist &= ~(CSUM_TCP_IPV6
+						      | CSUM_UDP);
+			} else {
+				ifp->if_capenable |= IFCAP_TXCSUM_IPV6;
+				ifp->if_hwassist |= (CSUM_TCP_IPV6
+						     | CSUM_UDP_IPV6);
+			}
+#ifdef NOTYET
+		} else if (mask & IFCAP_RXCSUM6) {
+			if (IFCAP_RXCSUM6 & ifp->if_capenable) {
+				ifp->if_capenable &= ~IFCAP_RXCSUM6;
+				sc->csum_flag = 0;
+			} else {
+				ifp->if_capenable |= IFCAP_RXCSUM6;
+				sc->csum_flag = 1;
+			}
+#endif
+		}
+		if (mask & IFCAP_TSO6) {
+			if (IFCAP_TSO6 & ifp->if_capenable) {
+				ifp->if_capenable &= ~IFCAP_TSO6;
+			} else if (IFCAP_TXCSUM_IPV6 & ifp->if_capenable) {
+				ifp->if_capenable |= IFCAP_TSO6;
+				ifp->if_hwassist |= CSUM_TSO;
+			} else {
+				printf("mxge requires tx checksum offload"
+				       " be enabled to use TSO\n");
+				err = EINVAL;
+			}
+		}
+#endif /*IFCAP_TSO6 */
+
 		if (mask & IFCAP_LRO) {
 			if (IFCAP_LRO & ifp->if_capenable) 
 				err = mxge_change_lro_locked(sc, 0);
@@ -4646,6 +4766,7 @@ mxge_add_irq(mxge_softc_t *sc)
 static int 
 mxge_attach(device_t dev)
 {
+	mxge_cmd_t cmd;
 	mxge_softc_t *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	int err, rid;
@@ -4776,7 +4897,7 @@ mxge_attach(device_t dev)
 
 	if_initbaudrate(ifp, IF_Gbps(10));
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU | IFCAP_LINKSTATE;
+		IFCAP_VLAN_MTU | IFCAP_LINKSTATE | IFCAP_TXCSUM_IPV6;
 #ifdef INET
 	ifp->if_capabilities |= IFCAP_LRO;
 #endif
@@ -4789,7 +4910,6 @@ mxge_attach(device_t dev)
 	    sc->fw_ver_tiny >= 32)
 		ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
 #endif
-
 	sc->max_mtu = mxge_max_mtu(sc);
 	if (sc->max_mtu >= 9000)
 		ifp->if_capabilities |= IFCAP_JUMBO_MTU;
@@ -4798,6 +4918,14 @@ mxge_attach(device_t dev)
 			      "latest firmware for 9000 byte jumbo support\n",
 			      sc->max_mtu - ETHER_HDR_LEN);
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
+	ifp->if_hwassist |= CSUM_TCP_IPV6 | CSUM_UDP_IPV6;
+	/* check to see if f/w supports TSO for IPv6 */
+	if (!mxge_send_cmd(sc, MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE, &cmd)) {
+		if (CSUM_TCP_IPV6)
+			ifp->if_capabilities |= IFCAP_TSO6;
+		sc->max_tso6_hlen = min(cmd.data0,
+					sizeof (sc->ss[0].scratch));
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 	if (sc->lro_cnt == 0)
 		ifp->if_capenable &= ~IFCAP_LRO;
