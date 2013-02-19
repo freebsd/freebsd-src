@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2012
+.Dd February 19, 2013
 .Dt CONDVAR 9
 .Os
 .Sh NAME
@@ -37,9 +37,9 @@
 .Nm cv_wait_sig ,
 .Nm cv_wait_unlock ,
 .Nm cv_timedwait ,
-.Nm cv_timedwait_bt ,
+.Nm cv_timedwait_sbt ,
 .Nm cv_timedwait_sig ,
-.Nm cv_timedwait_sig_bt ,
+.Nm cv_timedwait_sig_sbt ,
 .Nm cv_signal ,
 .Nm cv_broadcast ,
 .Nm cv_broadcastpri ,
@@ -62,13 +62,13 @@
 .Ft int
 .Fn cv_timedwait "struct cv *cvp" "lock" "int timo"
 .Ft int
-.Fn cv_timedwait_bt "struct cv *cvp" "lock" "struct bintime bt" \
-"struct bintime pr" "int flags"
+.Fn cv_timedwait_sbt "struct cv *cvp" "lock" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
 .Ft int
 .Fn cv_timedwait_sig "struct cv *cvp" "lock" "int timo"
 .Ft int
-.Fn cv_timedwait_sig_bt "struct cv *cvp" "lock" "struct bintime bt" \
-"struct bintime pr" "int flags"
+.Fn cv_timedwait_sig_sbt "struct cv *cvp" "lock" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
 .Ft void
 .Fn cv_signal "struct cv *cvp"
 .Ft void
@@ -200,22 +200,24 @@ if a signal is caught, or 0 if signaled via
 or
 .Fn cv_broadcast .
 .Pp
-.Fn cv_timedwait_bt
+.Fn cv_timedwait_sbt
 and
-.Fn cv_timedwait_sig_bt
+.Fn cv_timedwait_sig_sbt
 functions take
-.Fa bt
+.Fa sbt
 argument instead of
 .Fa timo .
-It allows to specify unblock time with higher resolution as absolute time
-since boot in form of
-.Vt struct bintime * ,
-as returned by
-.Fn binuptime
-function.
+It allows to specify relative or absolute unblock time with higher resolution
+in form of
+.Vt sbintime_t .
 The parameter
 .Fa pr
 allows to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows to pass additional
+.Fn callout_reset_sbt
+flags.
 .Sh RETURN VALUES
 If successful,
 .Fn cv_wait_sig ,
@@ -255,4 +257,5 @@ Timeout expired.
 .Xr rwlock 9 ,
 .Xr sema 9 ,
 .Xr sleep 9 ,
-.Xr sx 9
+.Xr sx 9 ,
+.Xr timeout 9
