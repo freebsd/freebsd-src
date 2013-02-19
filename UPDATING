@@ -9,6 +9,11 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130218:	p1	FreeBSD-SA-13:01.bind FreeBSD-SA-13:02.libc
+	Fix Denial of Service vulnerability in named(8) with DNS64.
+
+	Fix Denial of Service vulnerability in libc's glob(3) functionality.
+
 20121205:
 	9.1-RELEASE.
 
