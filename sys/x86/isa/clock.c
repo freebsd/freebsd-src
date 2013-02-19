@@ -450,6 +450,8 @@ set_i8254_freq(int mode, uint32_t period)
 		outb(TIMER_CNTR0, new_count & 0xff);
 		outb(TIMER_CNTR0, new_count >> 8);
 		break;
+	default:
+		panic("set_i8254_freq: unknown operational mode");
 	}
 	timer0_mode = new_mode;
 	timer0_last = new_count;
