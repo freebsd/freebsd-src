@@ -28,52 +28,22 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_SIGFRAME_H_
-#define	_MACHINE_SIGFRAME_H_
+#ifndef _X86_SIGFRAME_H_
+#define	_X86_SIGFRAME_H_
 
 /*
  * Signal frames, arguments passed to application signal handlers.
  */
-#ifdef _KERNEL
-#ifdef COMPAT_43
-struct osigframe {
+
+#ifdef __i386__
+struct sigframe {
 	/*
 	 * The first four members may be used by applications.
+	 *
+	 * NOTE: The 4th argument is undocumented, ill commented
+	 * on and seems to be somewhat BSD "standard".  Handlers
+	 * installed with sigvec may be using it.
 	 */
-
-	register_t	sf_signum;
-
-	/*
-	 * Either 'int' for old-style FreeBSD handler or 'siginfo_t *'
-	 * pointing to sf_siginfo for SA_SIGINFO handlers.
-	 */
-	register_t	sf_arg2;
-
-	/* Points to sf_siginfo.si_sc. */
-	register_t	sf_scp;
-
-	register_t	sf_addr;
-
-	/*
-	 * The following arguments are not constrained by the
-	 * function call protocol.
-	 * Applications are not supposed to access these members,
-	 * except using the pointers we provide in the first three
-	 * arguments.
-	 */
-
-	union {
-		__osiginfohandler_t	*sf_action;
-		__sighandler_t		*sf_handler;
-	} sf_ahu;
-
-	/* In the SA_SIGINFO case, sf_arg2 points here. */
-	osiginfo_t	sf_siginfo;
-};
-#endif
-#ifdef COMPAT_FREEBSD4
-/* FreeBSD 4.x */
-struct sigframe4 {
 	register_t	sf_signum;
 	register_t	sf_siginfo;	/* code or pointer to sf_si */
 	register_t	sf_ucontext;	/* points to sf_uc */
@@ -83,12 +53,20 @@ struct sigframe4 {
 		__siginfohandler_t	*sf_action;
 		__sighandler_t		*sf_handler;
 	} sf_ahu;
-	struct ucontext4 sf_uc;		/* = *sf_ucontext */
+	ucontext_t	sf_uc;		/* = *sf_ucontext */
 	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
-#endif
-#endif
+#endif /* __i386__ */
 
-#include <x86/sigframe.h>
+#ifdef __amd64__
+struct sigframe {
+	union {
+		__siginfohandler_t	*sf_action;
+		__sighandler_t		*sf_handler;
+	} sf_ahu;
+	ucontext_t	sf_uc;		/* = *sf_ucontext */
+	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
+};
+#endif /* __amd64__ */
 
-#endif /* !_MACHINE_SIGFRAME_H_ */
+#endif /* _X86_SIGFRAME_H_ */
