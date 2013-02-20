@@ -28,11 +28,19 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+
 #include "systat.h"
 #include "extern.h"
 #include "convtbl.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 int curscale = SC_AUTO;
+char *matchline = NULL;
+int showpps = 0;
+int needsort = 0;
 
 int
 ifcmd(const char *cmd, const char *args)
@@ -48,6 +56,24 @@ ifcmd(const char *cmd, const char *args)
 			addstr("what scale? ");
 			addstr(get_helplist());
 		}
-	}
+	} else if (prefix(cmd, "match")) {
+		if (args != NULL && *args != '\0' && memcmp(args, "*", 2) != 0) {
+			/* We got a valid match line */
+			if (matchline != NULL) {
+				free(matchline);
+			}
+			needsort = 1;
+			matchline = strdup(args);
+		} else {
+			/* Empty or * pattern, turn filtering off */
+			if (matchline != NULL) {
+				free(matchline);
+			}
+			needsort = 1;
+			matchline = NULL;
+		}
+	} else if (prefix(cmd, "pps"))
+		showpps = !showpps;
+
 	return (1);
 }
