@@ -230,7 +230,7 @@ initifstat(void)
 
 	n = getifnum();
 	if (n <= 0)
-		return -1;
+		return (-1);
 
 	SLIST_INIT(&curlist);
 
@@ -254,7 +254,7 @@ initifstat(void)
 
 	sort_interface_list();
 
-	return 1;
+	return (1);
 }
 
 void
@@ -372,9 +372,9 @@ check_match(const char *ifname)
 	char *p = matchline, *c, t;
 	int match = 0, mlen;
 	
-	if (matchline == NULL) {
-		return 0;
-	}
+	if (matchline == NULL)
+		return (0);
+
 	/* Strip leading whitespaces */
 	while (*p == ' ')
 		p ++;
@@ -387,7 +387,7 @@ check_match(const char *ifname)
 			*p = '\0';
 			if (fnmatch(c, ifname, FNM_CASEFOLD) == 0) {
 				*p = t;
-				return 1;
+				return (1);
 			}
 			*p = t;
 			c = p + strspn(p, " ;,");
@@ -397,7 +397,7 @@ check_match(const char *ifname)
 		}
 	}
 
-	return match;
+	return (match);
 }
 
 /*
@@ -447,7 +447,7 @@ getifnum(void)
 	if (sysctl(name, 5, (void *)&data, (size_t *)&datalen, (void *)NULL,
 	    (size_t)0) != 0)
 		IFSTAT_ERR(1, "sysctl error");
-	return data;
+	return (data);
 }
 
 static void
@@ -485,5 +485,5 @@ cmdifstat(const char *cmd, const char *args)
 		}
 	}
 
-	return retval;
+	return (retval);
 }
