@@ -974,15 +974,15 @@ read_mtree_spec(FILE *fp)
 		do {
 			*cp++ = '\0';
 
-			/* Disallow '.' and '..' as components. */
-			if (IS_DOT(pathspec) || IS_DOTDOT(pathspec)) {
-				mtree_error("absolute path cannot contain . "
-				    "or .. components");
+			/* Disallow '..' as a component. */
+			if (IS_DOTDOT(pathspec)) {
+				mtree_error("absolute path cannot contain "
+				    ".. component");
 				goto out;
 			}
 
-			/* Ignore multiple adjacent slashes. */
-			if (pathspec[0] != '\0')
+			/* Ignore multiple adjacent slashes and '.'. */
+			if (pathspec[0] != '\0' && !IS_DOT(pathspec))
 				error = read_mtree_spec1(fp, false, pathspec);
 			memmove(pathspec, cp, strlen(cp) + 1);
 			cp = strchr(pathspec, '/');
