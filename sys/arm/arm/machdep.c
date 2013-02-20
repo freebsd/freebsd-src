@@ -1476,7 +1476,7 @@ initarm(struct arm_boot_params *abp)
 	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
-	pmap_bootstrap(freemempos, vm_max_kernel_address, &kernel_l1pt);
+	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
