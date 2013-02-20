@@ -169,6 +169,7 @@ void		cd9660_makefs(const char *, const char *, fsnode *, fsinfo_t *);
 
 
 extern	u_int		debug;
+extern	int		dupsok;
 extern	struct timespec	start_time;
 
 /*
