@@ -62,9 +62,7 @@ jmp_buf	toplevel;
 static struct cmd *getcmd(char *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	register struct cmd *c;
 
@@ -131,8 +129,7 @@ main(argc, argv)
 }
 
 void
-intr(signo)
-	int signo;
+intr(int signo __unused)
 {
 	if (!fromatty)
 		exit(0);
@@ -141,8 +138,7 @@ intr(signo)
 
 
 static struct cmd *
-getcmd(name)
-	char *name;
+getcmd(char *name)
 {
 	register char *p, *q;
 	register struct cmd *c, *found;
@@ -175,7 +171,7 @@ getcmd(name)
  * Slice a string up into argc/argv.
  */
 void
-makeargv()
+makeargv(void)
 {
 	register char *cp;
 	register char **argp = margv;
@@ -203,9 +199,7 @@ makeargv()
  * Help command.
  */
 void
-help(argc, argv)
-	int argc;
-	char *argv[];
+help(int argc, char *argv[])
 {
 	register struct cmd *c;
 

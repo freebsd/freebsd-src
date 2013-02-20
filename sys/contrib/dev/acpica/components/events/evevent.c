@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -291,6 +291,8 @@ AcpiEvFixedEventDetect (
  *
  * DESCRIPTION: Clears the status bit for the requested event, calls the
  *              handler that previously registered for the event.
+ *              NOTE: If there is no handler for the event, the event is
+ *              disabled to prevent futher interrupts.
  *
  ******************************************************************************/
 
@@ -309,18 +311,18 @@ AcpiEvFixedEventDispatch (
             ACPI_CLEAR_STATUS);
 
     /*
-     * Make sure we've got a handler. If not, report an error. The event is
-     * disabled to prevent further interrupts.
+     * Make sure that a handler exists. If not, report an error
+     * and disable the event to prevent further interrupts.
      */
-    if (NULL == AcpiGbl_FixedEventHandlers[Event].Handler)
+    if (!AcpiGbl_FixedEventHandlers[Event].Handler)
     {
         (void) AcpiWriteBitRegister (
                 AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
                 ACPI_DISABLE_EVENT);
 
         ACPI_ERROR ((AE_INFO,
-            "No installed handler for fixed event [0x%08X]",
-            Event));
+            "No installed handler for fixed event - %s (%u), disabling",
+            AcpiUtGetEventName (Event), Event));
 
         return (ACPI_INTERRUPT_NOT_HANDLED);
     }

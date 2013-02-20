@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
+#include <dev/usb/usbhid.h>
 #include <dev/usb/usb_request.h>
 
 #define	USB_DEBUG_VAR uaudio_debug
@@ -277,16 +278,40 @@ struct uaudio_search_result {
 	uint8_t is_input;
 };
 
+enum {
+	UAUDIO_HID_RX_TRANSFER,
+	UAUDIO_HID_N_TRANSFER,
+};
+
+struct uaudio_hid {
+	struct usb_xfer *xfer[UAUDIO_HID_N_TRANSFER];
+	struct hid_location volume_up_loc;
+	struct hid_location volume_down_loc;
+	struct hid_location mute_loc;
+	uint32_t flags;
+#define	UAUDIO_HID_VALID		0x0001
+#define	UAUDIO_HID_HAS_ID		0x0002
+#define	UAUDIO_HID_HAS_VOLUME_UP	0x0004
+#define	UAUDIO_HID_HAS_VOLUME_DOWN	0x0008
+#define	UAUDIO_HID_HAS_MUTE		0x0010
+	uint8_t iface_index;
+	uint8_t volume_up_id;
+	uint8_t volume_down_id;
+	uint8_t mute_id;
+};
+
 struct uaudio_softc {
 	struct sbuf sc_sndstat;
 	struct sndcard_func sc_sndcard_func;
 	struct uaudio_chan sc_rec_chan;
 	struct uaudio_chan sc_play_chan;
 	struct umidi_chan sc_midi_chan;
+	struct uaudio_hid sc_hid;
 	struct uaudio_search_result sc_mixer_clocks;
 	struct uaudio_mixer_node sc_mixer_node;
 
 	struct mtx *sc_mixer_lock;
+	struct snd_mixer *sc_mixer_dev;
 	struct usb_device *sc_udev;
 	struct usb_xfer *sc_mixer_xfer[1];
 	struct uaudio_mixer_node *sc_mixer_root;
@@ -407,6 +432,7 @@ static usb_callback_t uaudio_chan_record_sync_callback;
 static usb_callback_t uaudio_mixer_write_cfg_callback;
 static usb_callback_t umidi_bulk_read_callback;
 static usb_callback_t umidi_bulk_write_callback;
+static usb_callback_t uaudio_hid_rx_callback;
 
 /* ==== USB mixer ==== */
 
@@ -500,6 +526,9 @@ static void	umidi_close(struct usb_fifo *, int);
 static void	umidi_init(device_t dev);
 static int	umidi_probe(device_t dev);
 static int	umidi_detach(device_t dev);
+static int	uaudio_hid_probe(struct uaudio_softc *sc,
+		    struct usb_attach_arg *uaa);
+static void	uaudio_hid_detach(struct uaudio_softc *sc);
 
 #ifdef USB_DEBUG
 static void	uaudio_chan_dump_ep_desc(
@@ -621,6 +650,18 @@ static const struct usb_config
 		.bufsize = 4,	/* bytes */
 		.flags = {.short_xfer_ok = 1,.proxy_buffer = 1,},
 		.callback = &umidi_bulk_read_callback,
+	},
+};
+
+static const struct usb_config
+	uaudio_hid_config[UAUDIO_HID_N_TRANSFER] = {
+	[UAUDIO_HID_RX_TRANSFER] = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.short_xfer_ok = 1,},
+		.callback = &uaudio_hid_rx_callback,
 	},
 };
 
@@ -896,7 +937,7 @@ uaudio_attach(device_t dev)
 		}
 		device_printf(dev, "MIDI sequencer.\n");
 	} else {
-		device_printf(dev, "No midi sequencer.\n");
+		device_printf(dev, "No MIDI sequencer.\n");
 	}
 
 	DPRINTF("doing child attach\n");
@@ -924,6 +965,12 @@ uaudio_attach(device_t dev)
 	if (bus_generic_attach(dev)) {
 		DPRINTF("child attach failed\n");
 		goto detach;
+	}
+
+	if (uaudio_hid_probe(sc, uaa) == 0) {
+		device_printf(dev, "HID volume keys found.\n");
+	} else {
+		device_printf(dev, "No HID volume keys found.\n");
 	}
 
 	/* reload all mixer settings */
@@ -967,6 +1014,8 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 	if (mixer_init(dev, mixer_class, sc))
 		goto detach;
 	sc->sc_mixer_init = 1;
+
+	mixer_hwvol_init(dev);
 
 	snprintf(status, sizeof(status), "at ? %s", PCM_KLDSTRING(snd_uaudio));
 
@@ -1033,6 +1082,8 @@ uaudio_detach(device_t dev)
 		usbd_transfer_unsetup(sc->sc_play_chan.xfer, UAUDIO_NCHANBUFS + 1);
 	if (sc->sc_rec_chan.valid)
 		usbd_transfer_unsetup(sc->sc_rec_chan.xfer, UAUDIO_NCHANBUFS + 1);
+
+	uaudio_hid_detach(sc);
 
 	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
@@ -1211,6 +1262,18 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 			} else {
 				alt_index++;
+			}
+
+			if ((!(sc->sc_hid.flags & UAUDIO_HID_VALID)) &&
+			    (id->bInterfaceClass == UICLASS_HID) &&
+			    (id->bInterfaceSubClass == 0) &&
+			    (id->bInterfaceProtocol == 0) &&
+			    (alt_index == 0) &&
+			    usbd_get_iface(udev, curidx) != NULL) {
+				DPRINTF("Found HID interface at %d\n",
+				    curidx);
+				sc->sc_hid.flags |= UAUDIO_HID_VALID;
+				sc->sc_hid.iface_index = curidx;
 			}
 
 			uma_if_class =
@@ -2490,6 +2553,9 @@ uaudio_mixer_reload_all(struct uaudio_softc *sc)
 			pmc->update[chan / 8] |= (1 << (chan % 8));
 	}
 	usbd_transfer_start(sc->sc_mixer_xfer[0]);
+
+	/* start HID volume keys, if any */
+	usbd_transfer_start(sc->sc_hid.xfer[0]);
 	mtx_unlock(sc->sc_mixer_lock);
 }
 
@@ -4818,6 +4884,7 @@ uaudio_mixer_init_sub(struct uaudio_softc *sc, struct snd_mixer *m)
 	DPRINTF("\n");
 
 	sc->sc_mixer_lock = mixer_get_lock(m);
+	sc->sc_mixer_dev = m;
 
 	if (usbd_transfer_setup(sc->sc_udev, &sc->sc_mixer_iface_index,
 	    sc->sc_mixer_xfer, uaudio_mixer_config, 1, sc,
@@ -5450,6 +5517,167 @@ umidi_detach(device_t dev)
 	mtx_destroy(&chan->mtx);
 
 	return (0);
+}
+
+static void
+uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct uaudio_softc *sc = usbd_xfer_softc(xfer);
+	const uint8_t *buffer = usbd_xfer_get_frame_buffer(xfer, 0);
+	struct snd_mixer *m;
+	uint8_t id;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+		DPRINTF("actlen=%d\n", actlen);
+
+		if (actlen != 0 &&
+		    (sc->sc_hid.flags & UAUDIO_HID_HAS_ID)) {
+			id = *buffer;
+			buffer++;
+			actlen--;
+		} else {
+			id = 0;
+		}
+
+		m = sc->sc_mixer_dev;
+
+		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_MUTE) &&
+		    (sc->sc_hid.mute_id == id) &&
+		    hid_get_data(buffer, actlen,
+		    &sc->sc_hid.mute_loc)) {
+
+			DPRINTF("Mute toggle\n");
+
+			mixer_hwvol_mute_locked(m);
+		}
+
+		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_UP) &&
+		    (sc->sc_hid.volume_up_id == id) &&
+		    hid_get_data(buffer, actlen,
+		    &sc->sc_hid.volume_up_loc)) {
+
+			DPRINTF("Volume Up\n");
+
+			mixer_hwvol_step_locked(m, 1, 1);
+		}
+
+		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_DOWN) &&
+		    (sc->sc_hid.volume_down_id == id) &&
+		    hid_get_data(buffer, actlen,
+		    &sc->sc_hid.volume_down_loc)) {
+
+			DPRINTF("Volume Down\n");
+
+			mixer_hwvol_step_locked(m, -1, -1);
+		}
+
+	case USB_ST_SETUP:
+tr_setup:
+		/* check if we can put more data into the FIFO */
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
+		break;
+
+	default:			/* Error */
+		if (error != USB_ERR_CANCELLED) {
+			/* try clear stall first */
+			usbd_xfer_set_stall(xfer);
+			goto tr_setup;
+		}
+		break;
+	}
+}
+
+static int
+uaudio_hid_probe(struct uaudio_softc *sc,
+    struct usb_attach_arg *uaa)
+{
+	void *d_ptr;
+	uint32_t flags;
+	uint16_t d_len;
+	uint8_t id;
+	int error;
+
+	if (!(sc->sc_hid.flags & UAUDIO_HID_VALID))
+		return (-1);
+
+	if (sc->sc_mixer_lock == NULL)
+		return (-1);
+
+	/* Get HID descriptor */
+	error = usbd_req_get_hid_desc(uaa->device, NULL, &d_ptr,
+	    &d_len, M_TEMP, sc->sc_hid.iface_index);
+
+	if (error) {
+		DPRINTF("error reading report description\n");
+		return (-1);
+	}
+
+	/* check if there is an ID byte */
+	hid_report_size(d_ptr, d_len, hid_input, &id);
+
+	if (id != 0)
+		sc->sc_hid.flags |= UAUDIO_HID_HAS_ID;
+
+	if (hid_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_CONSUMER, 0xE9 /* Volume Increment */),
+	    hid_input, 0, &sc->sc_hid.volume_up_loc, &flags,
+	    &sc->sc_hid.volume_up_id)) {
+		if (flags & HIO_VARIABLE)
+			sc->sc_hid.flags |= UAUDIO_HID_HAS_VOLUME_UP;
+		DPRINTFN(1, "Found Volume Up key\n");
+	}
+
+	if (hid_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_CONSUMER, 0xEA /* Volume Decrement */),
+	    hid_input, 0, &sc->sc_hid.volume_down_loc, &flags,
+	    &sc->sc_hid.volume_down_id)) {
+		if (flags & HIO_VARIABLE)
+			sc->sc_hid.flags |= UAUDIO_HID_HAS_VOLUME_DOWN;
+		DPRINTFN(1, "Found Volume Down key\n");
+	}
+
+	if (hid_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_CONSUMER, 0xE2 /* Mute */),
+	    hid_input, 0, &sc->sc_hid.mute_loc, &flags,
+	    &sc->sc_hid.mute_id)) {
+		if (flags & HIO_VARIABLE)
+			sc->sc_hid.flags |= UAUDIO_HID_HAS_MUTE;
+		DPRINTFN(1, "Found Mute key\n");
+	}
+
+	free(d_ptr, M_TEMP);
+
+	if (!(sc->sc_hid.flags & (UAUDIO_HID_HAS_VOLUME_UP |
+	    UAUDIO_HID_HAS_VOLUME_DOWN |
+	    UAUDIO_HID_HAS_MUTE))) {
+		DPRINTFN(1, "Did not find any volume related keys\n");
+		return (-1);
+	}
+
+	/* prevent the uhid driver from attaching */
+	usbd_set_parent_iface(uaa->device, sc->sc_hid.iface_index,
+	    sc->sc_mixer_iface_index);
+
+	/* allocate USB transfers */
+	error = usbd_transfer_setup(uaa->device, &sc->sc_hid.iface_index,
+	    sc->sc_hid.xfer, uaudio_hid_config, UAUDIO_HID_N_TRANSFER,
+	    sc, sc->sc_mixer_lock);
+	if (error) {
+		DPRINTF("error=%s\n", usbd_errstr(error));
+		return (-1);
+	}
+	return (0);
+}
+
+static void
+uaudio_hid_detach(struct uaudio_softc *sc)
+{
+	usbd_transfer_unsetup(sc->sc_hid.xfer, UAUDIO_HID_N_TRANSFER);
 }
 
 DRIVER_MODULE(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0);

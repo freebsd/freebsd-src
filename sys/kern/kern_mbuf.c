@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_map.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
@@ -104,15 +105,24 @@ int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 struct mbstat mbstat;
 
 /*
- * tunable_mbinit() has to be run before init_maxsockets() thus
- * the SYSINIT order below is SI_ORDER_MIDDLE while init_maxsockets()
- * runs at SI_ORDER_ANY.
- *
- * NB: This has to be done before VM init.
+ * tunable_mbinit() has to be run before any mbuf allocations are done.
  */
 static void
 tunable_mbinit(void *dummy)
 {
+	quad_t realmem, maxmbufmem;
+
+	/*
+	 * The default limit for all mbuf related memory is 1/2 of all
+	 * available kernel memory (physical or kmem).
+	 * At most it can be 3/4 of available kernel memory.
+	 */
+	realmem = qmin((quad_t)physmem * PAGE_SIZE,
+	    vm_map_max(kernel_map) - vm_map_min(kernel_map));
+	maxmbufmem = realmem / 2;
+	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
+	if (maxmbufmem > realmem / 4 * 3)
+		maxmbufmem = realmem / 4 * 3;
 
 	TUNABLE_INT_FETCH("kern.ipc.nmbclusters", &nmbclusters);
 	if (nmbclusters == 0)
@@ -139,7 +149,7 @@ tunable_mbinit(void *dummy)
 		nmbufs = lmax(maxmbufmem / MSIZE / 5,
 		    nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16);
 }
-SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
+SYSINIT(tunable_mbinit, SI_SUB_KMEM, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 
 static int
 sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
@@ -279,16 +289,14 @@ static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
-static void	mbuf_init(void *);
 static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
 
-/* Ensure that MSIZE must be a power of 2. */
+/* Ensure that MSIZE is a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
 
 /*
  * Initialize FreeBSD Network buffer allocation.
  */
-SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
 static void
 mbuf_init(void *dummy)
 {
@@ -396,6 +404,7 @@ mbuf_init(void *dummy)
 	mbstat.sf_iocnt = 0;
 	mbstat.sf_allocwait = mbstat.sf_allocfail = 0;
 }
+SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
 
 /*
  * UMA backend page allocator for the jumbo frame zones.

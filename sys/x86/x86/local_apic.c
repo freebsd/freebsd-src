@@ -227,8 +227,8 @@ lapic_init(vm_paddr_t addr)
 	/* Map the local APIC and setup the spurious interrupt handler. */
 	KASSERT(trunc_page(addr) == addr,
 	    ("local APIC not aligned on a page boundary"));
-	lapic = pmap_mapdev(addr, sizeof(lapic_t));
 	lapic_paddr = addr;
+	lapic = pmap_mapdev(addr, sizeof(lapic_t));
 	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_APIC, SEL_KPL,
 	    GSEL_APIC);
 
@@ -1360,11 +1360,19 @@ apic_setup_io(void *dummy __unused)
 
 	if (best_enum == NULL)
 		return;
+
+	/*
+	 * Local APIC must be registered before other PICs and pseudo PICs
+	 * for proper suspend/resume order.
+	 */
+#ifndef XEN
+	intr_register_pic(&lapic_pic);
+#endif
+
 	retval = best_enum->apic_setup_io();
 	if (retval != 0)
 		printf("%s: Failed to setup I/O APICs: returned %d\n",
 		    best_enum->apic_name, retval);
-
 #ifdef XEN
 	return;
 #endif
@@ -1373,7 +1381,6 @@ apic_setup_io(void *dummy __unused)
 	 * properly program the LINT pins.
 	 */
 	lapic_setup(1);
-	intr_register_pic(&lapic_pic);
 	if (bootverbose)
 		lapic_dump("BSP");
 

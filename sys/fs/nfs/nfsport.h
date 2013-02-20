@@ -588,12 +588,6 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NCHNAMLEN	9999999
 
 /*
- * Define these to use the time of day clock.
- */
-#define	NFSGETTIME(t)		(getmicrotime(t))
-#define	NFSGETNANOTIME(t)	(getnanotime(t))
-
-/*
  * These macros are defined to initialize and set the timer routine.
  */
 #define	NFS_TIMERINIT \

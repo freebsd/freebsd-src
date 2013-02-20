@@ -85,6 +85,9 @@ LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
+.if ${MK_LDNS} != "no"
+LIBLDNS?=	${DESTDIR}${LIBDIR}/libldns.a
+.endif
 LIBLN?=		"don't use LIBLN, use LIBL"
 .if ${MK_BIND} != "no"
 LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
@@ -162,6 +165,7 @@ LIBULOG?=	${DESTDIR}${LIBDIR}/libulog.a
 LIBUTIL?=	${DESTDIR}${LIBDIR}/libutil.a
 LIBUUTIL?=	${DESTDIR}${LIBDIR}/libuutil.a
 LIBVGL?=	${DESTDIR}${LIBDIR}/libvgl.a
+LIBVMMAPI?=	${DESTDIR}${LIBDIR}/libvmmapi.a
 LIBWIND?=	${DESTDIR}${LIBDIR}/libwind.a
 LIBWRAP?=	${DESTDIR}${LIBDIR}/libwrap.a
 LIBXPG4?=	${DESTDIR}${LIBDIR}/libxpg4.a

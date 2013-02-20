@@ -776,11 +776,13 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		}
 		fhold(fp);
 		FILEDESC_SUNLOCK(fdp);
-		if (arg != 0) {
+		if (arg >= 0) {
 			vp = fp->f_vnode;
 			error = vn_lock(vp, LK_SHARED);
-			if (error != 0)
-				goto readahead_vnlock_fail;
+			if (error != 0) {
+				fdrop(fp, td);
+				break;
+			}
 			bsize = fp->f_vnode->v_mount->mnt_stat.f_iosize;
 			VOP_UNLOCK(vp, 0);
 			fp->f_seqcount = (arg + bsize - 1) / bsize;
@@ -788,7 +790,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				new = old = fp->f_flag;
 				new |= FRDAHEAD;
 			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
-		readahead_vnlock_fail:;
 		} else {
 			do {
 				new = old = fp->f_flag;
@@ -1948,11 +1949,11 @@ fdfree(struct thread *td)
 	fdp->fd_jdir = NULL;
 	FILEDESC_XUNLOCK(fdp);
 
-	if (cdir)
+	if (cdir != NULL)
 		vrele(cdir);
-	if (rdir)
+	if (rdir != NULL)
 		vrele(rdir);
-	if (jdir)
+	if (jdir != NULL)
 		vrele(jdir);
 
 	fddrop(fdp);

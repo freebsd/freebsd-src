@@ -266,5 +266,6 @@ int sdhci_generic_get_ro(device_t brdev, device_t reqdev);
 int sdhci_generic_acquire_host(device_t brdev, device_t reqdev);
 int sdhci_generic_release_host(device_t brdev, device_t reqdev);
 void sdhci_generic_intr(struct sdhci_slot *slot);
+uint32_t sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot);
 
 #endif	/* __SDHCI_H__ */

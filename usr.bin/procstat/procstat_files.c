@@ -163,6 +163,7 @@ static struct cap_desc {
 	{ CAP_MKDIR,		"md" },
 	{ CAP_RMDIR,		"rm" },
 	{ CAP_MKFIFO,		"mf" },
+	{ CAP_MKNOD,		"mn" },
 
 	/* Lookups - used to constraint *at() calls. */
 	{ CAP_LOOKUP,		"lo" },
@@ -208,11 +209,10 @@ static struct cap_desc {
 	{ CAP_IOCTL,		"io" },
 	{ CAP_TTYHOOK,		"ty" },
 
-#ifdef NOTYET
+	/* Process management via process descriptors. */
 	{ CAP_PDGETPID,		"pg" },
-	{ CAP_PDWAIT4,		"pw" },
+	{ CAP_PDWAIT,		"pw" },
 	{ CAP_PDKILL,		"pk" },
-#endif
 };
 static const u_int	cap_desc_count = sizeof(cap_desc) /
 			    sizeof(cap_desc[0]);

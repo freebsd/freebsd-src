@@ -45,6 +45,10 @@ OLD_DIRS+=usr/share/man/man1aout
 OLD_DIRS+=usr/share/man/cat1aout
 OLD_DIRS+=usr/share/man/en.ISO8859-1/cat1aout
 OLD_DIRS+=usr/share/man/en.UTF-8/cat1aout
+# 20130110: bsd.compat.mk removed
+OLD_FILES+=usr/share/mk/bsd.compat.mk
+# 20130103: gnats-supfile removed
+OLD_FILES+=usr/share/examples/cvsup/gnats-supfile
 # 20121230: libdisk removed
 OLD_FILES+=usr/share/man/man3/libdisk.3.gz usr/include/libdisk.h
 OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a

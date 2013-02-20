@@ -58,6 +58,7 @@ brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2003/01/13"]
 chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20"]
 danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
+dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/10/15"]
 ebrandi [label="Edson Brandi\nebrandi@FreeBSD.org\n2012/09/13"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
@@ -93,6 +94,7 @@ zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
 bcr -> gavin
 bcr -> wblock
 bcr -> eadler
+bcr -> dru
 
 blackend -> ale
 
@@ -117,8 +119,10 @@ gabor -> ebrandi
 
 gjb -> wblock
 gjb -> rene
+gjb -> dru
 
 hrs -> ryusuke
+hrs -> dru
 
 jesusr -> jcamou
 

@@ -321,35 +321,12 @@ updatefats(pmp, bp, fatbn)
 	struct buf *bp;
 	u_long fatbn;
 {
-	int i;
 	struct buf *bpn;
+	int cleanfat, i;
 
 #ifdef MSDOSFS_DEBUG
 	printf("updatefats(pmp %p, bp %p, fatbn %lu)\n", pmp, bp, fatbn);
 #endif
-
-	/*
-	 * If we have an FSInfo block, update it.
-	 */
-	if (pmp->pm_fsinfo) {
-		if (bread(pmp->pm_devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
-		    NOCRED, &bpn) != 0) {
-			/*
-			 * Ignore the error, but turn off FSInfo update for the future.
-			 */
-			pmp->pm_fsinfo = 0;
-			brelse(bpn);
-		} else {
-			struct fsinfo *fp = (struct fsinfo *)bpn->b_data;
-
-			putulong(fp->fsinfree, pmp->pm_freeclustercount);
-			putulong(fp->fsinxtfree, pmp->pm_nxtfree);
-			if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
-				bwrite(bpn);
-			else
-				bdwrite(bpn);
-		}
-	}
 
 	if (pmp->pm_flags & MSDOSFS_FATMIRROR) {
 		/*
@@ -362,13 +339,24 @@ updatefats(pmp, bp, fatbn)
 		 * filesystem was mounted.  If synch is asked for then use
 		 * bwrite()'s and really slow things down.
 		 */
+		if (fatbn != pmp->pm_fatblk || FAT12(pmp))
+			cleanfat = 0;
+		else if (FAT16(pmp))
+			cleanfat = 16;
+		else
+			cleanfat = 32;
 		for (i = 1; i < pmp->pm_FATs; i++) {
 			fatbn += pmp->pm_FATsecs;
 			/* getblk() never fails */
 			bpn = getblk(pmp->pm_devvp, fatbn, bp->b_bcount,
 			    0, 0, 0);
 			bcopy(bp->b_data, bpn->b_data, bp->b_bcount);
-			if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
+			/* Force the clean bit on in the other copies. */
+			if (cleanfat == 16)
+				((u_int8_t *)bpn->b_data)[3] |= 0x80;
+			else if (cleanfat == 32)
+				((u_int8_t *)bpn->b_data)[7] |= 0x08;
+			if (pmp->pm_mountp->mnt_flag & MNT_SYNCHRONOUS)
 				bwrite(bpn);
 			else
 				bdwrite(bpn);
@@ -378,13 +366,10 @@ updatefats(pmp, bp, fatbn)
 	/*
 	 * Write out the first (or current) fat last.
 	 */
-	if (pmp->pm_flags & MSDOSFSMNT_WAITONFAT)
+	if (pmp->pm_mountp->mnt_flag & MNT_SYNCHRONOUS)
 		bwrite(bp);
 	else
 		bdwrite(bp);
-	/*
-	 * Maybe update fsinfo sector here?
-	 */
 }
 
 /*
@@ -420,6 +405,7 @@ usemap_alloc(pmp, cn)
 	pmp->pm_inusemap[cn / N_INUSEBITS] |= 1 << (cn % N_INUSEBITS);
 	KASSERT(pmp->pm_freeclustercount > 0, ("usemap_alloc: too little"));
 	pmp->pm_freeclustercount--;
+	pmp->pm_flags |= MSDOSFS_FSIMOD;
 }
 
 static __inline void
@@ -430,6 +416,7 @@ usemap_free(pmp, cn)
 
 	MSDOSFS_ASSERT_MP_LOCKED(pmp);
 	pmp->pm_freeclustercount++;
+	pmp->pm_flags |= MSDOSFS_FSIMOD;
 	KASSERT((pmp->pm_inusemap[cn / N_INUSEBITS] & (1 << (cn % N_INUSEBITS)))
 	    != 0, ("Freeing unused sector %ld %ld %x", cn, cn % N_INUSEBITS,
 		(unsigned)pmp->pm_inusemap[cn / N_INUSEBITS]));
@@ -731,7 +718,10 @@ chainalloc(pmp, start, count, fillwith, retcluster, got)
 
 	for (cl = start, n = count; n-- > 0;)
 		usemap_alloc(pmp, cl++);
-
+	pmp->pm_nxtfree = start + count;
+	if (pmp->pm_nxtfree > pmp->pm_maxcluster)
+		pmp->pm_nxtfree = CLUST_FIRST;
+	pmp->pm_flags |= MSDOSFS_FSIMOD;
 	error = fatchain(pmp, start, count, fillwith);
 	if (error != 0)
 		return (error);
@@ -743,9 +733,6 @@ chainalloc(pmp, start, count, fillwith, retcluster, got)
 		*retcluster = start;
 	if (got)
 		*got = count;
-	pmp->pm_nxtfree = start + count;
-	if (pmp->pm_nxtfree > pmp->pm_maxcluster)
-		pmp->pm_nxtfree = CLUST_FIRST;
 	return (0);
 }
 
@@ -1114,7 +1101,7 @@ extendfile(dep, count, bpp, ncp, flags)
  * Routine to mark a FAT16 or FAT32 volume as "clean" or "dirty" by
  * manipulating the upper bit of the FAT entry for cluster 1.  Note that
  * this bit is not defined for FAT12 volumes, which are always assumed to
- * be dirty.
+ * be clean.
  *
  * The fatentry() routine only works on cluster numbers that a file could
  * occupy, so it won't manipulate the entry for cluster 1.  So we have to do

@@ -306,10 +306,14 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		    & AR_TxIntrReq;
 		ads->ds_ctl2 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl2);
 		ads->ds_ctl3 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl3);
+		/* ctl6 - we only need encrtype; the rest are blank */
+		ads->ds_ctl6 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType);
 #else
 		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
 		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
 		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
+		/* ctl6 - we only need encrtype; the rest are blank */
+		ads->ds_ctl6 = AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType;
 #endif
 	} else {			/* !firstSeg && !lastSeg */
 		/*
@@ -318,8 +322,10 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 #ifdef AH_NEED_DESC_SWAP
 		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
 		    & AR_TxIntrReq;
+		ads->ds_ctl6 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType);
 #else
 		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
+		ads->ds_ctl6 = AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType;
 #endif
 		ads->ds_ctl1 = segLen | AR_TxMore;
 		ads->ds_ctl2 = 0;

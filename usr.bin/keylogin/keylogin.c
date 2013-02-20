@@ -48,8 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
 
+extern int key_setnet(struct key_netstarg *);
+
 int
-main()
+main(void)
 {
 	char fullname[MAXNETNAMELEN + 1];
 	struct key_netstarg netst;

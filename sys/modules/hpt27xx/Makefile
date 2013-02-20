@@ -12,6 +12,3 @@ hpt27xx_lib.o:
 	uudecode -p < ${HPT27XX}/$(MACHINE_ARCH)-elf.hpt27xx_lib.o.uu > ${.TARGET}
 
 .include <bsd.kmod.mk>
-
-CWARNFLAGS.osm_bsd.c=	${NO_WFORMAT_SECURITY}
-CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}

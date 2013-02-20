@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-static int bflag, eflag, nflag, sflag, tflag, vflag;
+static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
 static int rval;
 static const char *filename;
 
@@ -96,16 +96,20 @@ int
 main(int argc, char *argv[])
 {
 	int ch;
+	struct flock stdout_lock;
 
 	setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "benstuv")) != -1)
+	while ((ch = getopt(argc, argv, "belnstuv")) != -1)
 		switch (ch) {
 		case 'b':
 			bflag = nflag = 1;	/* -b implies -n */
 			break;
 		case 'e':
 			eflag = vflag = 1;	/* -e implies -v */
+			break;
+		case 'l':
+			lflag = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -127,6 +131,15 @@ main(int argc, char *argv[])
 		}
 	argv += optind;
 
+	if (lflag) {
+		stdout_lock.l_len = 0;
+		stdout_lock.l_start = 0;
+		stdout_lock.l_type = F_WRLCK;
+		stdout_lock.l_whence = SEEK_SET;
+		if (fcntl(STDOUT_FILENO, F_SETLKW, &stdout_lock) == -1)
+			err(EXIT_FAILURE, "stdout");
+	}
+
 	if (bflag || eflag || nflag || sflag || tflag || vflag)
 		scanfiles(argv, 1);
 	else
@@ -140,7 +153,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: cat [-benstuv] [file ...]\n");
+	fprintf(stderr, "usage: cat [-belnstuv] [file ...]\n");
 	exit(1);
 	/* NOTREACHED */
 }

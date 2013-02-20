@@ -875,7 +875,7 @@ cxgbe_attach(device_t dev)
 	ifp->if_capabilities = T4_CAP;
 #ifdef TCP_OFFLOAD
 	if (is_offload(pi->adapter))
-		ifp->if_capabilities |= IFCAP_TOE4;
+		ifp->if_capabilities |= IFCAP_TOE;
 #endif
 	ifp->if_capenable = T4_CAP_ENABLE;
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
@@ -1604,21 +1604,28 @@ prep_firmware(struct adapter *sc)
 
 	/* Partition adapter resources as specified in the config file. */
 	if (sc->flags & MASTER_PF) {
-		if (strncmp(t4_cfg_file, "default", sizeof(t4_cfg_file))) {
+		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s",
+		    pci_get_device(sc->dev) == 0x440a ? "uwire" : t4_cfg_file);
+		if (strncmp(sc->cfg_file, "default", sizeof(sc->cfg_file))) {
 			char s[32];
 
-			snprintf(s, sizeof(s), "t4fw_cfg_%s", t4_cfg_file);
+			snprintf(s, sizeof(s), "t4fw_cfg_%s", sc->cfg_file);
 			cfg = firmware_get(s);
 			if (cfg == NULL) {
 				device_printf(sc->dev,
 				    "unable to locate %s module, "
 				    "will use default config file.\n", s);
+				snprintf(sc->cfg_file, sizeof(sc->cfg_file),
+				    "%s", "default");
 			}
 		}
 
 		rc = partition_resources(sc, cfg ? cfg : default_cfg);
 		if (rc != 0)
 			goto done;	/* error message displayed already */
+	} else {
+		snprintf(sc->cfg_file, sizeof(sc->cfg_file), "%s", "notme");
+		sc->cfcsum = (u_int)-1;
 	}
 
 	sc->flags |= FW_OK;
@@ -3109,7 +3116,7 @@ t4_sysctls(struct adapter *sc)
 	    CTLFLAG_RD, &sc->fw_version, 0, "firmware version");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "cf",
-	    CTLFLAG_RD, &t4_cfg_file, 0, "configuration file");
+	    CTLFLAG_RD, &sc->cfg_file, 0, "configuration file");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cfcsum", CTLFLAG_RD,
 	    &sc->cfcsum, 0, "config file checksum");
@@ -5154,23 +5161,24 @@ get_sge_context(struct adapter *sc, struct t4_sge_context *cntxt)
 	    cntxt->mem_id != CTXT_FLM && cntxt->mem_id != CTXT_CNM)
 		return (EINVAL);
 
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4ctxt");
+	if (rc)
+		return (rc);
+
 	if (sc->flags & FW_OK) {
-		rc = begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4ctxt");
-		if (rc == 0) {
-			rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid,
-			    cntxt->mem_id, &cntxt->data[0]);
-			end_synchronized_op(sc, LOCK_HELD);
-			if (rc == 0)
-				return (0);
-		}
+		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cntxt->cid, cntxt->mem_id,
+		    &cntxt->data[0]);
+		if (rc == 0)
+			goto done;
 	}
 
 	/*
 	 * Read via firmware failed or wasn't even attempted.  Read directly via
 	 * the backdoor.
 	 */
-	rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id,
-	    &cntxt->data[0]);
+	rc = -t4_sge_ctxt_rd_bd(sc, cntxt->cid, cntxt->mem_id, &cntxt->data[0]);
+done:
+	end_synchronized_op(sc, 0);
 	return (rc);
 }
 
@@ -5526,6 +5534,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 				txq->txpkt_wrs = 0;
 				txq->txpkts_wrs = 0;
 				txq->txpkts_pkts = 0;
+				txq->br->br_drops = 0;
 				txq->no_dmamap = 0;
 				txq->no_desc = 0;
 			}

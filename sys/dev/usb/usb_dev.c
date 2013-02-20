@@ -27,6 +27,9 @@
  * usb_dev.c - An abstraction layer for creating devices under /dev/...
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -75,6 +78,7 @@
 #include <sys/syscallsubr.h>
 
 #include <machine/stdarg.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_UGEN
 
@@ -214,10 +218,10 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		mtx_unlock(&usb_ref_lock);
 
 		/*
-		 * We need to grab the sx-lock before grabbing the
-		 * FIFO refs to avoid deadlock at detach!
+		 * We need to grab the enumeration SX-lock before
+		 * grabbing the FIFO refs to avoid deadlock at detach!
 		 */
-		usbd_enum_lock(cpd->udev);
+		crd->do_unlock = usbd_enum_lock(cpd->udev);
 
 		mtx_lock(&usb_ref_lock);
 
@@ -278,9 +282,10 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 	return (0);
 
 error:
-	if (crd->is_uref) {
+	if (crd->do_unlock)
 		usbd_enum_unlock(cpd->udev);
 
+	if (crd->is_uref) {
 		if (--(cpd->udev->refcount) == 0) {
 			cv_signal(&cpd->udev->ref_cv);
 		}
@@ -332,7 +337,7 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 
 	DPRINTFN(2, "cpd=%p is_uref=%d\n", cpd, crd->is_uref);
 
-	if (crd->is_uref)
+	if (crd->do_unlock)
 		usbd_enum_unlock(cpd->udev);
 
 	mtx_lock(&usb_ref_lock);

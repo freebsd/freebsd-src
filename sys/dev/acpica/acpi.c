@@ -217,7 +217,7 @@ static device_method_t acpi_methods[] = {
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_driver = {
@@ -613,7 +613,9 @@ acpi_attach(device_t dev)
     /* Probe all supported sleep states. */
     acpi_sleep_states[ACPI_STATE_S0] = TRUE;
     for (state = ACPI_STATE_S1; state < ACPI_S_STATE_COUNT; state++)
-	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB)))
+	if (ACPI_SUCCESS(AcpiEvaluateObject(ACPI_ROOT_OBJECT,
+	    __DECONST(char *, AcpiGbl_SleepStateNames[state]), NULL, NULL)) &&
+	    ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB)))
 	    acpi_sleep_states[state] = TRUE;
 
     /*
@@ -2657,6 +2659,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 {
     register_t intr;
     ACPI_STATUS status;
+    ACPI_EVENT_STATUS power_button_status;
     enum acpi_sleep_state slp_state;
     int sleep_result;
 
@@ -2742,7 +2745,44 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (state != ACPI_STATE_S1) {
 	sleep_result = acpi_sleep_machdep(sc, state);
 	acpi_wakeup_machdep(sc, state, sleep_result, 0);
+
+	/*
+	 * XXX According to ACPI specification SCI_EN bit should be restored
+	 * by ACPI platform (BIOS, firmware) to its pre-sleep state.
+	 * Unfortunately some BIOSes fail to do that and that leads to
+	 * unexpected and serious consequences during wake up like a system
+	 * getting stuck in SMI handlers.
+	 * This hack is picked up from Linux, which claims that it follows
+	 * Windows behavior.
+	 */
+	if (sleep_result == 1 && state != ACPI_STATE_S4)
+	    AcpiWriteBitRegister(ACPI_BITREG_SCI_ENABLE, ACPI_ENABLE_EVENT);
+
 	AcpiLeaveSleepStatePrep(state);
+
+	if (sleep_result == 1 && state == ACPI_STATE_S3) {
+	    /*
+	     * Prevent mis-interpretation of the wakeup by power button
+	     * as a request for power off.
+	     * Ideally we should post an appropriate wakeup event,
+	     * perhaps using acpi_event_power_button_wake or alike.
+	     *
+	     * Clearing of power button status after wakeup is mandated
+	     * by ACPI specification in section "Fixed Power Button".
+	     *
+	     * XXX As of ACPICA 20121114 AcpiGetEventStatus provides
+	     * status as 0/1 corressponding to inactive/active despite
+	     * its type being ACPI_EVENT_STATUS.  In other words,
+	     * we should not test for ACPI_EVENT_FLAG_SET for time being.
+	     */
+	    if (ACPI_SUCCESS(AcpiGetEventStatus(ACPI_EVENT_POWER_BUTTON,
+		&power_button_status)) && power_button_status != 0) {
+		AcpiClearEvent(ACPI_EVENT_POWER_BUTTON);
+		device_printf(sc->acpi_dev,
+		    "cleared fixed power button status\n");
+	    }
+	}
+
 	intr_restore(intr);
 
 	/* call acpi_wakeup_machdep() again with interrupt enabled */

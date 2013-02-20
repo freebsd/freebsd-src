@@ -826,16 +826,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (phdr[i].p_memsz == 0)
 				break;
 			prot = __elfN(trans_prot)(phdr[i].p_flags);
-
-#if defined(__ia64__) && __ELF_WORD_SIZE == 32 && defined(IA32_ME_HARDER)
-			/*
-			 * Some x86 binaries assume read == executable,
-			 * notably the M3 runtime and therefore cvsup
-			 */
-			if (prot & VM_PROT_READ)
-				prot |= VM_PROT_EXECUTE;
-#endif
-
 			error = __elfN(load_section)(imgp, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + et_dyn_addr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,

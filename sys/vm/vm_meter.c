@@ -283,6 +283,7 @@ VM_STATS_SYS(v_syscall, "System calls");
 VM_STATS_SYS(v_intr, "Device interrupts");
 VM_STATS_SYS(v_soft, "Software interrupts");
 VM_STATS_VM(v_vm_faults, "Address memory faults");
+VM_STATS_VM(v_io_faults, "Page faults requiring I/O");
 VM_STATS_VM(v_cow_faults, "Copy-on-write faults");
 VM_STATS_VM(v_cow_optim, "Optimized COW faults");
 VM_STATS_VM(v_zfod, "Pages zero-filled on demand");

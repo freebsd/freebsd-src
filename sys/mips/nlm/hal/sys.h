@@ -140,5 +140,18 @@ enum {
 	INVALID_DFS_DEVICE = 0xFF
 };
 
+static __inline
+void nlm_sys_enable_block(uint64_t sys_base, int block)
+{
+	uint32_t dfsdis, mask;
+
+	mask = 1 << block;
+	dfsdis = nlm_read_sys_reg(sys_base, SYS_DFS_DIS_CTRL);
+	if ((dfsdis & mask) == 0)
+		return;			/* already enabled, nothing to do */
+	dfsdis &= ~mask;
+	nlm_write_sys_reg(sys_base, SYS_DFS_DIS_CTRL, dfsdis);
+}
+
 #endif
 #endif

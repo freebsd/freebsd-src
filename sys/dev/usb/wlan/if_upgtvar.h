@@ -352,7 +352,6 @@ struct upgt_data {
 	struct ieee80211_node		*ni;
 	struct mbuf			*m;
 	uint32_t			 addr;
-	uint8_t				 use;
 	STAILQ_ENTRY(upgt_data)		 next;
 };
 typedef STAILQ_HEAD(, upgt_data) upgt_datahead;
@@ -429,6 +428,7 @@ struct upgt_softc {
 	int			 sc_flags;
 #define	UPGT_FLAG_FWLOADED	 (1 << 0)
 #define	UPGT_FLAG_INITDONE	 (1 << 1)
+#define	UPGT_FLAG_DETACHED	 (1 << 2)
 	int			 sc_if_flags;
 	int			 sc_debug;
 
@@ -453,7 +453,7 @@ struct upgt_softc {
 	struct upgt_memory	 sc_memory;
 
 	/* data which we found in the EEPROM */
-	uint8_t			 sc_eeprom[UPGT_EEPROM_SIZE];
+	uint8_t			 sc_eeprom[2 * UPGT_EEPROM_SIZE] __aligned(4);
 	uint16_t		 sc_eeprom_hwrx;
 	struct upgt_lmac_freq3	 sc_eeprom_freq3[IEEE80211_CHAN_MAX];
 	struct upgt_lmac_freq4	 sc_eeprom_freq4[IEEE80211_CHAN_MAX][8];

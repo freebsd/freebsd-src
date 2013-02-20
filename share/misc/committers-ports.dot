@@ -164,6 +164,7 @@ osa [label="Sergey A. Osokin\nosa@FreeBSD.org\n2003/06/04"]
 pat [label="Patrick Li\npat@FreeBSD.org\n2001/11/14"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
 pawel [label="Pawel Pekala\npawel@FreeBSD.org\n2011/03/11"]
+pclin [label="Po-Chien Lin\npclin@FreeBSD.org\n2013/02/11"]
 pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
@@ -224,6 +225,7 @@ ahze -> shaun
 ahze -> tmclaugh
 
 araujo -> lippe
+araujo -> pclin
 araujo -> pgollucci
 
 arved -> markus
@@ -473,6 +475,8 @@ sobomax -> znerd
 stas -> araujo
 
 steve -> netchild
+
+swills -> pclin
 
 tabthorpe -> ashish
 tabthorpe -> avilla
