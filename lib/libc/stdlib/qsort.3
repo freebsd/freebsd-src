@@ -220,7 +220,6 @@ and then prints the sorted array to standard output is:
 .Bd -literal
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 /*
  * Custom comparison function that can compare 'int' values through pointers
@@ -229,15 +228,10 @@ and then prints the sorted array to standard output is:
 static int
 int_compare(const void *p1, const void *p2)
 {
-        int *left = (int *)p1;
-        int *right = (int *)p2;
+        int left = *(const int *)p1;
+        int right = *(const int *)p2;
 
-        if (*left < *right)
-                return (-1);
-        else if (*left > *right)
-                return (1);
-        else
-                return (0);
+        return ((left > right) - (left < right));
 }
 
 /*
@@ -247,14 +241,14 @@ int
 main(void)
 {
        int int_array[] = { 4, 5, 9, 3, 0, 1, 7, 2, 8, 6 };
-       const int array_size = sizeof(int_array) / sizeof(int_array[0]);
-       int k;
+       const size_t array_size = sizeof(int_array) / sizeof(int_array[0]);
+       size_t k;
 
-       qsort(&int_array, array_size, sizeof(int), int_compare);
+       qsort(&int_array, array_size, sizeof(int_array[0]), int_compare);
        for (k = 0; k < array_size; k++)
                 printf(" %d", int_array[k]);
-        printf("\\n");
-        exit(EXIT_SUCCESS);
+        puts("");
+        return (EXIT_SUCCESS);
 }
 .Ed
 .Sh ERRORS
