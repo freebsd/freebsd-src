@@ -1591,7 +1591,7 @@ ath_intr(void *arg)
 #ifdef	ATH_DEBUG_ALQ
 	if_ath_alq_post_intr(&sc->sc_alq, status, ah->ah_intrstate,
 	    ah->ah_syncstate);
-#endif /* ATH_DEBUG_ALQ */
+#endif	/* ATH_DEBUG_ALQ */
 #ifdef	ATH_KTR_INTR_DEBUG
 	ATH_KTR(sc, ATH_KTR_INTERRUPTS, 5,
 	    "ath_intr: ISR=0x%.8x, ISR_S0=0x%.8x, ISR_S1=0x%.8x, ISR_S2=0x%.8x, ISR_S5=0x%.8x",
