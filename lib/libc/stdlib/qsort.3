@@ -205,12 +205,6 @@ functions
 return no value.
 .Pp
 .Rv -std heapsort mergesort
-.Sh COMPATIBILITY
-Previous versions of
-.Fn qsort
-did not permit the comparison routine itself to call
-.Fn qsort 3 .
-This is no longer true.
 .Sh EXAMPLES
 A sample program that sorts an array of
 .Vt int
@@ -251,6 +245,12 @@ main(void)
         return (EXIT_SUCCESS);
 }
 .Ed
+.Sh COMPATIBILITY
+Previous versions of
+.Fn qsort
+did not permit the comparison routine itself to call
+.Fn qsort 3 .
+This is no longer true.
 .Sh ERRORS
 The
 .Fn heapsort
