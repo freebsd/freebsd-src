@@ -210,8 +210,6 @@ extern struct vm_object kmem_object_store;
 	rw_assert(&(object)->lock, (type))
 #define	VM_OBJECT_LOCK_INIT(object, name)				\
 	rw_init_flags(&(object)->lock, (name), RW_DUPOK)
-#define	VM_OBJECT_LOCKED(object)					\
-	rw_wowned(&(object)->lock)
 #define	VM_OBJECT_SLEEP(wchan, object, pri, wmesg, timo)		\
 	rw_sleep((wchan), &(object)->lock, (pri), (wmesg), (timo))
 #define	VM_OBJECT_TRYLOCK(object)					\
