@@ -1,0 +1,9 @@
+.\" $FreeBSD$
+Set to install
+.Xr nmtree 8
+as
+.Xr mtree 8 .
+By default
+.Xr fmtree 8
+is installed as
+.Xr mtree 8 .

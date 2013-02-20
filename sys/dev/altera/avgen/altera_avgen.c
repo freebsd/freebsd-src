@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Robert N. M. Watson
+ * Copyright (c) 2012-2013 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
  * Avalon, so conceivably this should just be soc_dev or similar, since many
  * system-on-chip bus environments would work fine with the same code.
  */
+
+devclass_t altera_avgen_devclass;
 
 static d_mmap_t altera_avgen_mmap;
 static d_read_t altera_avgen_read;
@@ -226,13 +228,6 @@ altera_avgen_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	return (0);
 }
 
-static int
-altera_avgen_nexus_probe(device_t dev)
-{
-
-	device_set_desc(dev, "Generic Altera Avalon device attachment");
-	return (BUS_PROBE_DEFAULT);
-}
 
 static int
 altera_avgen_process_options(struct altera_avgen_softc *sc,
@@ -321,42 +316,14 @@ altera_avgen_process_options(struct altera_avgen_softc *sc,
 	return (0);
 }
 
-static int
-altera_avgen_nexus_attach(device_t dev)
+int
+altera_avgen_attach(struct altera_avgen_softc *sc, const char *str_fileio,
+    const char *str_mmapio, const char *str_devname, int devunit)
 {
-	struct altera_avgen_softc *sc;
-	const char *str_fileio, *str_mmapio;
-	const char *str_devname;
+	device_t dev = sc->avg_dev;
 	char devname[SPECNAMELEN + 1];
-	int devunit, error;
+	int error;
 
-	sc = device_get_softc(dev);
-	sc->avg_dev = dev;
-	sc->avg_unit = device_get_unit(dev);
-
-	/*
-	 * Query non-standard hints to find out what operations are permitted
-	 * on the device, and whether it is cached.
-	 */
-	str_fileio = NULL;
-	str_mmapio = NULL;
-	str_devname = NULL;
-	devunit = -1;
-	sc->avg_width = 1;
-	error = resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    ALTERA_AVALON_STR_WIDTH, &sc->avg_width);
-	if (error != 0 && error != ENOENT) {
-		device_printf(dev, "invalid %s\n", ALTERA_AVALON_STR_WIDTH);
-		return (error);
-	}
-	(void)resource_string_value(device_get_name(dev),
-	    device_get_unit(dev), ALTERA_AVALON_STR_FILEIO, &str_fileio);
-	(void)resource_string_value(device_get_name(dev),
-	    device_get_unit(dev), ALTERA_AVALON_STR_MMAPIO, &str_mmapio);
-	(void)resource_string_value(device_get_name(dev),
-	    device_get_unit(dev), ALTERA_AVALON_STR_DEVNAME, &str_devname);
-	(void)resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    ALTERA_AVALON_STR_DEVUNIT, &devunit);
 	error = altera_avgen_process_options(sc, str_fileio, str_mmapio,
 	    str_devname, devunit);
 	if (error)
@@ -374,25 +341,15 @@ altera_avgen_nexus_attach(device_t dev)
 		snprintf(devname, sizeof(devname), "%s%d", "avgen",
 		    sc->avg_unit);
 
-	/* Memory allocation and checking. */
-	sc->avg_rid = 0;
-	sc->avg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->avg_rid, RF_ACTIVE);
-	if (sc->avg_res == NULL) {
-		device_printf(dev, "couldn't map memory\n");
-		return (ENXIO);
-	}
 	if (rman_get_size(sc->avg_res) >= PAGE_SIZE || str_mmapio != NULL) {
 		if (rman_get_size(sc->avg_res) % PAGE_SIZE != 0) {
 			device_printf(dev,
 			    "memory region not even multiple of page size\n");
-			error = ENXIO;
-			goto error;
+			return (ENXIO);
 		}
 		if (rman_get_start(sc->avg_res) % PAGE_SIZE != 0) {
 			device_printf(dev, "memory region not page-aligned\n");
-			error = ENXIO;
-			goto error;
+			return (ENXIO);
 		}
 	}
 
@@ -409,43 +366,16 @@ altera_avgen_nexus_attach(device_t dev)
 		    GID_WHEEL, S_IRUSR | S_IWUSR, str_devname);
 	if (sc->avg_cdev == NULL) {
 		device_printf(sc->avg_dev, "%s: make_dev failed\n", __func__);
-		error = ENXIO;
-		goto error;
+		return (ENXIO);
 	}
 	/* XXXRW: Slight race between make_dev(9) and here. */
 	sc->avg_cdev->si_drv1 = sc;
 	return (0);
-
-error:
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->avg_rid, sc->avg_res);
-	return (error);
 }
 
-static int
-altera_avgen_nexus_detach(device_t dev)
+void
+altera_avgen_detach(struct altera_avgen_softc *sc)
 {
-	struct altera_avgen_softc *sc;
 
-	sc = device_get_softc(dev);
 	destroy_dev(sc->avg_cdev);
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->avg_rid, sc->avg_res);
-	return (0);
 }
-
-static device_method_t altera_avgen_nexus_methods[] = {
-	DEVMETHOD(device_probe,		altera_avgen_nexus_probe),
-	DEVMETHOD(device_attach,	altera_avgen_nexus_attach),
-	DEVMETHOD(device_detach,	altera_avgen_nexus_detach),
-	{ 0, 0 }
-};
-
-static driver_t altera_avgen_nexus_driver = {
-	"altera_avgen",
-	altera_avgen_nexus_methods,
-	sizeof(struct altera_avgen_softc),
-};
-
-static devclass_t altera_avgen_devclass;
-
-DRIVER_MODULE(avgen, nexus, altera_avgen_nexus_driver, altera_avgen_devclass,
-    0, 0);

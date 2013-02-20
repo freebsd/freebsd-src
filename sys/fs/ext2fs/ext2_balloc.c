@@ -55,13 +55,8 @@
  * the inode and the logical block number in a file.
  */
 int
-ext2_balloc(ip, lbn, size, cred, bpp, flags)
-	struct inode *ip;
-	int32_t lbn;
-	int size;
-	struct ucred *cred;
-	struct buf **bpp;
-	int flags;
+ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
+    struct buf **bpp, int flags)
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
@@ -69,7 +64,7 @@ ext2_balloc(ip, lbn, size, cred, bpp, flags)
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];
-	int32_t newb, *bap, pref;
+	uint32_t newb, *bap, pref;
 	int osize, nsize, num, i, error;
 
 	*bpp = NULL;

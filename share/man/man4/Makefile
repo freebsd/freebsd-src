@@ -70,6 +70,7 @@ MAN=	aac.4 \
 	bce.4 \
 	bfe.4 \
 	bge.4 \
+	${_bhyve.4} \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
@@ -784,6 +785,7 @@ MLINKS+=lindev.4 full.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_bhyve.4=	bhyve.4
 _qlxgb.4=	qlxgb.4
 _sfxge.4=	sfxge.4
 

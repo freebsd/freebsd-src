@@ -53,6 +53,8 @@ typedef struct kstat_named {
 #define	KSTAT_DATA_INT64	3
 #define	KSTAT_DATA_UINT64	4
 	uchar_t	data_type;
+#define	KSTAT_DESCLEN		128
+	char	desc[KSTAT_DESCLEN];
 	union {
 		uint64_t	ui64;
 	} value;

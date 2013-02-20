@@ -85,7 +85,7 @@ netsettime(time_t tval)
 	dest.sin_addr.s_addr = htonl((u_long)INADDR_ANY);
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
-		if (errno != EPROTONOSUPPORT)
+		if (errno != EAFNOSUPPORT)
 			warn("timed");
 		return (retval = 2);
 	}

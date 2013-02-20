@@ -81,7 +81,7 @@ ENTRY_NP(arm9_icache_sync_range)
 	mcr	p15, 0, r0, c7, c10, 1	/* Clean D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm9_sync_next
+	bhi	.Larm9_sync_next
 	mov	pc, lr
 
 ENTRY_NP(arm9_icache_sync_all)
@@ -101,12 +101,10 @@ ENTRY_NP(arm9_icache_sync_all)
 	orr	ip, s_max, i_max
 .Lnext_index:
 	mcr	p15, 0, ip, c7, c10, 2	/* Clean D cache SE with Set/Index */
-	sub	ip, ip, i_inc
-	tst	ip, i_max		/* Index 0 is last one */
-	bne	.Lnext_index		/* Next index */
-	mcr	p15, 0, ip, c7, c10, 2	/* Clean D cache SE with Set/Index */
+	subs	ip, ip, i_inc
+	bhs	.Lnext_index		/* Next index */
 	subs	s_max, s_max, s_inc
-	bpl	.Lnext_set		/* Next set */
+	bhs	.Lnext_set		/* Next set */
 	mov	pc, lr
 
 .Larm9_line_size:
@@ -125,7 +123,7 @@ ENTRY(arm9_dcache_wb_range)
 	mcr	p15, 0, r0, c7, c10, 1	/* Clean D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm9_wb_next
+	bhi	.Larm9_wb_next
 	mov	pc, lr
 	
 ENTRY(arm9_dcache_wbinv_range)
@@ -141,7 +139,7 @@ ENTRY(arm9_dcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c14, 1	/* Purge D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm9_wbinv_next
+	bhi	.Larm9_wbinv_next
 	mov	pc, lr
 	
 /*
@@ -161,7 +159,7 @@ ENTRY(arm9_dcache_inv_range)
 	mcr	p15, 0, r0, c7, c6, 1	/* Invalidate D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm9_inv_next
+	bhi	.Larm9_inv_next
 	mov	pc, lr
 
 ENTRY(arm9_idcache_wbinv_range)
@@ -178,7 +176,7 @@ ENTRY(arm9_idcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c14, 1	/* Purge D cache SE with VA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
-	bpl	.Larm9_id_wbinv_next
+	bhi	.Larm9_id_wbinv_next
 	mov	pc, lr
 
 ENTRY_NP(arm9_idcache_wbinv_all)
@@ -199,12 +197,10 @@ ENTRY(arm9_dcache_wbinv_all)
 	orr	ip, s_max, i_max
 .Lnext_index_inv:
 	mcr	p15, 0, ip, c7, c14, 2	/* Purge D cache SE with Set/Index */
-	sub	ip, ip, i_inc
-	tst	ip, i_max		/* Index 0 is last one */
-	bne	.Lnext_index_inv		/* Next index */
-	mcr	p15, 0, ip, c7, c14, 2	/* Purge D cache SE with Set/Index */
+	subs	ip, ip, i_inc
+	bhs	.Lnext_index_inv		/* Next index */
 	subs	s_max, s_max, s_inc
-	bpl	.Lnext_set_inv		/* Next set */
+	bhs	.Lnext_set_inv		/* Next set */
 	mov	pc, lr
 
 .Larm9_cache_data:

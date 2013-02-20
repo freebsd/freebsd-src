@@ -111,6 +111,7 @@ struct dns_adb {
 
 	isc_taskmgr_t                  *taskmgr;
 	isc_task_t                     *task;
+	isc_task_t                     *excl;
 
 	isc_interval_t                  tick_interval;
 	int                             next_cleanbucket;
@@ -1627,10 +1628,12 @@ new_adbname(dns_adb_t *adb, dns_name_t *dnsname) {
 
 	LOCK(&adb->namescntlock);
 	adb->namescnt++;
-	if (!adb->grownames_sent && adb->namescnt > (adb->nnames * 8)) {
+	if (!adb->grownames_sent && adb->excl != NULL &&
+	    adb->namescnt > (adb->nnames * 8))
+	{
 		isc_event_t *event = &adb->grownames;
 		inc_adb_irefcnt(adb);
-		isc_task_send(adb->task, &event);
+		isc_task_send(adb->excl, &event);
 		adb->grownames_sent = ISC_TRUE;
 	}
 	UNLOCK(&adb->namescntlock);
@@ -1751,8 +1754,9 @@ new_adbentry(dns_adb_t *adb) {
 	ISC_LINK_INIT(e, plink);
 	LOCK(&adb->entriescntlock);
 	adb->entriescnt++;
-	if (!adb->growentries_sent &&
-	    adb->entriescnt > (adb->nentries * 8)) {
+	if (!adb->growentries_sent && adb->growentries_sent &&
+	    adb->entriescnt > (adb->nentries * 8))
+	{
 		isc_event_t *event = &adb->growentries;
 		inc_adb_irefcnt(adb);
 		isc_task_send(adb->task, &event);
@@ -2327,6 +2331,7 @@ destroy(dns_adb_t *adb) {
 	adb->magic = 0;
 
 	isc_task_detach(&adb->task);
+	isc_task_detach(&adb->excl);
 
 	isc_mempool_destroy(&adb->nmp);
 	isc_mempool_destroy(&adb->nhmp);
@@ -2410,6 +2415,7 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	adb->aimp = NULL;
 	adb->afmp = NULL;
 	adb->task = NULL;
+	adb->excl = NULL;
 	adb->mctx = NULL;
 	adb->view = view;
 	adb->taskmgr = taskmgr;
@@ -2444,6 +2450,16 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 		       DNS_EVENT_ADBGROWNAMES, grow_names, adb,
 		       adb, NULL, NULL);
 	adb->grownames_sent = ISC_FALSE;
+
+	result = isc_taskmgr_excltask(adb->taskmgr, &adb->excl);
+	if (result != ISC_R_SUCCESS) {
+		DP(ISC_LOG_INFO, "adb: task-exclusive mode unavailable, "
+				 "intializing table sizes to %u\n",
+				 nbuckets[11]);
+		adb->nentries = nbuckets[11];
+		adb->nnames= nbuckets[11];
+
+	}
 
 	isc_mem_attach(mem, &adb->mctx);
 
@@ -2557,6 +2573,7 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	result = isc_task_create(adb->taskmgr, 0, &adb->task);
 	if (result != ISC_R_SUCCESS)
 		goto fail3;
+
 	isc_task_setname(adb->task, "ADB", adb);
 
 	/*
@@ -3904,8 +3921,10 @@ dns_adb_adjustsrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 	addr->entry->srtt = new_srtt;
 	addr->srtt = new_srtt;
 
-	isc_stdtime_get(&now);
-	addr->entry->expires = now + ADB_ENTRY_WINDOW;
+	if (addr->entry->expires == 0) {
+		isc_stdtime_get(&now);
+		addr->entry->expires = now + ADB_ENTRY_WINDOW;
+	}
 
 	UNLOCK(&adb->entrylocks[bucket]);
 }
@@ -3915,6 +3934,7 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 		    unsigned int bits, unsigned int mask)
 {
 	int bucket;
+	isc_stdtime_t now;
 
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
@@ -3923,6 +3943,11 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 	LOCK(&adb->entrylocks[bucket]);
 
 	addr->entry->flags = (addr->entry->flags & ~mask) | (bits & mask);
+	if (addr->entry->expires == 0) {
+		isc_stdtime_get(&now);
+		addr->entry->expires = now + ADB_ENTRY_WINDOW;
+	}
+
 	/*
 	 * Note that we do not update the other bits in addr->flags with
 	 * the most recent values from addr->entry->flags.
@@ -4001,15 +4026,16 @@ dns_adb_freeaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **addrp) {
 	entry = addr->entry;
 	REQUIRE(DNS_ADBENTRY_VALID(entry));
 
-	isc_stdtime_get(&now);
-
 	*addrp = NULL;
 	overmem = isc_mem_isovermem(adb->mctx);
 
 	bucket = addr->entry->lock_bucket;
 	LOCK(&adb->entrylocks[bucket]);
 
-	entry->expires = now + ADB_ENTRY_WINDOW;
+	if (entry->expires == 0) {
+		isc_stdtime_get(&now);
+		entry->expires = now + ADB_ENTRY_WINDOW;
+	}
 
 	want_check_exit = dec_entry_refcnt(adb, overmem, entry, ISC_FALSE);
 

@@ -1781,7 +1781,7 @@ spa_load_verify_done(zio_t *zio)
 /*ARGSUSED*/
 static int
 spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    arc_buf_t *pbuf, const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	if (bp != NULL) {
 		zio_t *rio = arg;
@@ -3792,14 +3792,13 @@ spa_generate_rootconf(const char *name)
 	/*
 	 * Multi-vdev root pool configuration discovery is not supported yet.
 	 */
-	nchildren = 0;
-	VERIFY(nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN,
-	    &nchildren) == 0);
+	nchildren = 1;
+	nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN, &nchildren);
 	holes = NULL;
 	nvlist_lookup_uint64_array(best_cfg, ZPOOL_CONFIG_HOLE_ARRAY,
 	    &holes, &nholes);
 
-	tops = kmem_alloc(nchildren * sizeof(void *), KM_SLEEP | KM_ZERO);
+	tops = kmem_zalloc(nchildren * sizeof(void *), KM_SLEEP);
 	for (i = 0; i < nchildren; i++) {
 		if (i >= count)
 			break;

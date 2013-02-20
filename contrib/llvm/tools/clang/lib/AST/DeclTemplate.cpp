@@ -32,9 +32,25 @@ TemplateParameterList::TemplateParameterList(SourceLocation TemplateLoc,
                                              NamedDecl **Params, unsigned NumParams,
                                              SourceLocation RAngleLoc)
   : TemplateLoc(TemplateLoc), LAngleLoc(LAngleLoc), RAngleLoc(RAngleLoc),
-    NumParams(NumParams) {
-  for (unsigned Idx = 0; Idx < NumParams; ++Idx)
-    begin()[Idx] = Params[Idx];
+    NumParams(NumParams), ContainsUnexpandedParameterPack(false) {
+  assert(this->NumParams == NumParams && "Too many template parameters");
+  for (unsigned Idx = 0; Idx < NumParams; ++Idx) {
+    NamedDecl *P = Params[Idx];
+    begin()[Idx] = P;
+
+    if (!P->isTemplateParameterPack()) {
+      if (NonTypeTemplateParmDecl *NTTP = dyn_cast<NonTypeTemplateParmDecl>(P))
+        if (NTTP->getType()->containsUnexpandedParameterPack())
+          ContainsUnexpandedParameterPack = true;
+
+      if (TemplateTemplateParmDecl *TTP = dyn_cast<TemplateTemplateParmDecl>(P))
+        if (TTP->getTemplateParameters()->containsUnexpandedParameterPack())
+          ContainsUnexpandedParameterPack = true;
+
+      // FIXME: If a default argument contains an unexpanded parameter pack, the
+      // template parameter list does too.
+    }
+  }
 }
 
 TemplateParameterList *
@@ -577,6 +593,19 @@ SourceLocation NonTypeTemplateParmDecl::getDefaultArgumentLoc() const {
 
 void TemplateTemplateParmDecl::anchor() { }
 
+TemplateTemplateParmDecl::TemplateTemplateParmDecl(
+    DeclContext *DC, SourceLocation L, unsigned D, unsigned P,
+    IdentifierInfo *Id, TemplateParameterList *Params,
+    unsigned NumExpansions, TemplateParameterList * const *Expansions)
+  : TemplateDecl(TemplateTemplateParm, DC, L, Id, Params),
+    TemplateParmPosition(D, P), DefaultArgument(),
+    DefaultArgumentWasInherited(false), ParameterPack(true),
+    ExpandedParameterPack(true), NumExpandedParams(NumExpansions) {
+  if (Expansions)
+    std::memcpy(reinterpret_cast<void*>(this + 1), Expansions,
+                sizeof(TemplateParameterList*) * NumExpandedParams);
+}
+
 TemplateTemplateParmDecl *
 TemplateTemplateParmDecl::Create(const ASTContext &C, DeclContext *DC,
                                  SourceLocation L, unsigned D, unsigned P,
@@ -587,10 +616,33 @@ TemplateTemplateParmDecl::Create(const ASTContext &C, DeclContext *DC,
 }
 
 TemplateTemplateParmDecl *
+TemplateTemplateParmDecl::Create(const ASTContext &C, DeclContext *DC,
+                                 SourceLocation L, unsigned D, unsigned P,
+                                 IdentifierInfo *Id,
+                                 TemplateParameterList *Params,
+                            llvm::ArrayRef<TemplateParameterList*> Expansions) {
+  void *Mem = C.Allocate(sizeof(TemplateTemplateParmDecl) +
+                         sizeof(TemplateParameterList*) * Expansions.size());
+  return new (Mem) TemplateTemplateParmDecl(DC, L, D, P, Id, Params,
+                                            Expansions.size(),
+                                            Expansions.data());
+}
+
+TemplateTemplateParmDecl *
 TemplateTemplateParmDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   void *Mem = AllocateDeserializedDecl(C, ID, sizeof(TemplateTemplateParmDecl));
   return new (Mem) TemplateTemplateParmDecl(0, SourceLocation(), 0, 0, false,
                                             0, 0);
+}
+
+TemplateTemplateParmDecl *
+TemplateTemplateParmDecl::CreateDeserialized(ASTContext &C, unsigned ID,
+                                             unsigned NumExpansions) {
+  unsigned Size = sizeof(TemplateTemplateParmDecl) +
+                  sizeof(TemplateParameterList*) * NumExpansions;
+  void *Mem = AllocateDeserializedDecl(C, ID, Size);
+  return new (Mem) TemplateTemplateParmDecl(0, SourceLocation(), 0, 0, 0, 0,
+                                            NumExpansions, 0);
 }
 
 //===----------------------------------------------------------------------===//
@@ -712,13 +764,27 @@ ClassTemplateSpecializationDecl::getSpecializedTemplate() const {
 SourceRange
 ClassTemplateSpecializationDecl::getSourceRange() const {
   if (ExplicitInfo) {
-    SourceLocation Begin = getExternLoc();
-    if (Begin.isInvalid())
-      Begin = getTemplateKeywordLoc();
-    SourceLocation End = getRBraceLoc();
-    if (End.isInvalid())
-      End = getTypeAsWritten()->getTypeLoc().getEndLoc();
-    return SourceRange(Begin, End);
+    SourceLocation Begin = getTemplateKeywordLoc();
+    if (Begin.isValid()) {
+      // Here we have an explicit (partial) specialization or instantiation.
+      assert(getSpecializationKind() == TSK_ExplicitSpecialization ||
+             getSpecializationKind() == TSK_ExplicitInstantiationDeclaration ||
+             getSpecializationKind() == TSK_ExplicitInstantiationDefinition);
+      if (getExternLoc().isValid())
+        Begin = getExternLoc();
+      SourceLocation End = getRBraceLoc();
+      if (End.isInvalid())
+        End = getTypeAsWritten()->getTypeLoc().getEndLoc();
+      return SourceRange(Begin, End);
+    }
+    // An implicit instantiation of a class template partial specialization
+    // uses ExplicitInfo to record the TypeAsWritten, but the source
+    // locations should be retrieved from the instantiation pattern.
+    typedef ClassTemplatePartialSpecializationDecl CTPSDecl;
+    CTPSDecl *ctpsd = const_cast<CTPSDecl*>(cast<CTPSDecl>(this));
+    CTPSDecl *inst_from = ctpsd->getInstantiatedFromMember();
+    assert(inst_from != 0);
+    return inst_from->getSourceRange();
   }
   else {
     // No explicit info available.

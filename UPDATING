@@ -4,7 +4,9 @@ This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
-handbook.
+handbook:
+
+    http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -23,6 +25,45 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20130129:
+	A BSD-licensed patch(1) variant has been added and is installed
+	as bsdpatch, being the GNU version the default patch.
+	To inverse the logic and use the BSD-licensed one as default,
+	while having the GNU version installed as gnupatch, rebuild
+	and install world with the WITH_BSD_PATCH knob set.
+
+20130118:
+	The install(1) option -M has changed meaning and now takes an
+	argument that is a file or path to append logs to.  In the
+	unlikely event that -M was the last option on the command line
+	and the command line contained at least two files and a target
+	directory the first file will have logs appended to it.  The -M
+	option served little practical purpose in the last decade so it's
+	used expected to be extremely rare.
+
+20121223:
+	After switching to Clang as the default compiler some users of ZFS
+	on i386 systems started to experience stack overflow kernel panics.
+	Please consider using 'options KSTACK_PAGES=4' in such configurations.
+
+20121222:
+	GEOM_LABEL now mangles label names read from file system metadata.
+	Mangling affect labels containing spaces, non-printable characters,
+	'%' or '"'. Device names in /etc/fstab and other places may need to
+	be updated.
+
+20121217:
+	By default, only the 10 most recent kernel dumps will be saved.  To
+	restore the previous behaviour (no limit on the number of kernel dumps
+	stored in the dump directory) add the following line to /etc/rc.conf:
+
+		savecore_flags=""
+
+20121201:
+	With the addition of auditdistd(8), a new auditdistd user is now
+	depended on during installworld.  "mergemaster -p" can be used to add
+	the user prior to installworld, as documented in the handbook.
 
 20121117:
 	The sin6_scope_id member variable in struct sockaddr_in6 is now

@@ -4,7 +4,9 @@
 
 INCSDIR=${INCLUDEDIR}/clang/3.2
 
-INCS=	altivec.h \
+INCS=	__wmmintrin_aes.h \
+	__wmmintrin_pclmul.h \
+	altivec.h \
 	ammintrin.h \
 	avx2intrin.h \
 	avxintrin.h \
@@ -12,6 +14,7 @@ INCS=	altivec.h \
 	bmiintrin.h \
 	cpuid.h \
 	emmintrin.h \
+	f16cintrin.h \
 	fma4intrin.h \
 	fmaintrin.h \
 	immintrin.h \
@@ -23,6 +26,7 @@ INCS=	altivec.h \
 	nmmintrin.h \
 	pmmintrin.h \
 	popcntintrin.h \
+	rtmintrin.h \
 	smmintrin.h \
 	tmmintrin.h \
 	wmmintrin.h \

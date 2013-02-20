@@ -696,8 +696,7 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		uint16_t limit_mask = cmd->limit_mask;
 		int pindex;
 
-		conn_limit = (cmd->conn_limit == IP_FW_TABLEARG) ?
-		    tablearg : cmd->conn_limit;
+		conn_limit = IP_FW_ARG_TABLEARG(cmd->conn_limit);
 		  
 		DEB(
 		if (cmd->conn_limit == IP_FW_TABLEARG)
@@ -810,7 +809,7 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 #endif
 	struct tcphdr *th = NULL;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 

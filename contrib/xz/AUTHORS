@@ -16,11 +16,11 @@ Authors of XZ Utils
 
     Some scripts have been adapted from gzip. The original versions
     were written by Jean-loup Gailly, Charles Levert, and Paul Eggert.
-    Andrew Dudman helped adapting the script and their man pages for
+    Andrew Dudman helped adapting the scripts and their man pages for
     XZ Utils.
 
-    The GNU Autotools based build system contains files from many authors,
-    which I'm not trying list here.
+    The GNU Autotools-based build system contains files from many authors,
+    which I'm not trying to list here.
 
     Several people have contributed fixes or reported bugs. Most of them
     are mentioned in the file THANKS.

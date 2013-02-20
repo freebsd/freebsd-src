@@ -995,13 +995,12 @@ ukbd_probe(device_t dev)
 	if (uaa->info.bInterfaceClass != UICLASS_HID)
 		return (ENXIO);
 
+	if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
+		return (ENXIO);
+
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
-	    (uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD)) {
-		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
-			return (ENXIO);
-		else
-			return (BUS_PROBE_DEFAULT);
-	}
+	    (uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD))
+		return (BUS_PROBE_DEFAULT);
 
 	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
@@ -1009,23 +1008,20 @@ ukbd_probe(device_t dev)
 	if (error)
 		return (ENXIO);
 
-	/*
-	 * NOTE: we currently don't support USB mouse and USB keyboard
-	 * on the same USB endpoint.
-	 */
-	if (hid_is_collection(d_ptr, d_len,
-	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))) {
-		/* most likely a mouse */
-		error = ENXIO;
-	} else if (hid_is_collection(d_ptr, d_len,
-	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD))) {
-		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
+	if (hid_is_keyboard(d_ptr, d_len)) {
+		if (hid_is_mouse(d_ptr, d_len)) {
+			/*
+			 * NOTE: We currently don't support USB mouse
+			 * and USB keyboard on the same USB endpoint.
+			 * Let "ums" driver win.
+			 */
 			error = ENXIO;
-		else
+		} else {
 			error = BUS_PROBE_DEFAULT;
-	} else
+		}
+	} else {
 		error = ENXIO;
-
+	}
 	free(d_ptr, M_TEMP);
 	return (error);
 }
@@ -2124,7 +2120,8 @@ static device_method_t ukbd_methods[] = {
 	DEVMETHOD(device_attach, ukbd_attach),
 	DEVMETHOD(device_detach, ukbd_detach),
 	DEVMETHOD(device_resume, ukbd_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ukbd_driver = {

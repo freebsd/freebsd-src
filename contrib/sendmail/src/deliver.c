@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010, 2012 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1024 2011/01/12 23:52:59 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1027 2012/12/19 02:49:21 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -37,6 +37,7 @@ static void	sendenvelope __P((ENVELOPE *, int));
 static int	coloncmp __P((const char *, const char *));
 
 #if STARTTLS
+#  include <openssl/err.h>
 static int	starttls __P((MAILER *, MCI *, ENVELOPE *));
 static int	endtlsclt __P((MCI *));
 #endif /* STARTTLS */
@@ -4277,7 +4278,7 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 
 	/* pri: changes with each delivery attempt */
 	(void) sm_snprintf(bp, SPACELEFT(buf, bp), ", pri=%ld",
-		e->e_msgpriority);
+		PRT_NONNEGL(e->e_msgpriority));
 	bp += strlen(bp);
 
 	/* relay: max 66 bytes for IPv4 addresses */
@@ -6197,10 +6198,16 @@ ssl_retry:
 
 		if (LogLevel > 5)
 		{
+			unsigned long l;
+			const char *sr;
+
+			l = ERR_peek_error();
+			sr = ERR_reason_error_string(l);
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS=client, error: connect failed=%d, SSL_error=%d, errno=%d, retry=%d",
-				  result, ssl_err, errno, i);
-			if (LogLevel > 8)
+				  "STARTTLS=client, error: connect failed=%d, reason=%s, SSL_error=%d, errno=%d, retry=%d",
+				  result, sr == NULL ? "unknown" : sr, ssl_err,
+				  errno, i);
+			if (LogLevel > 9)
 				tlslogerr("client");
 		}
 

@@ -91,6 +91,12 @@ ata_ati_probe(device_t dev)
      { ATA_ATI_IXP700_S4, 0x00, ATI_AHCI, 0, ATA_SA300, "IXP700/800" },
      { ATA_ATI_IXP800_S1, 0x00, ATI_AHCI, 0, ATA_SA300, "IXP800" },
      { ATA_ATI_IXP800_S2, 0x00, ATI_AHCI, 0, ATA_SA300, "IXP800" },
+     { ATA_AMD_HUDSON2,     0x00, ATI_PATA, 0, ATA_UDMA6, "Hudson-2" },
+     { ATA_AMD_HUDSON2_S1,  0x00, ATI_AHCI, 0, ATA_SA300, "Hudson-2" },
+     { ATA_AMD_HUDSON2_S2,  0x00, ATI_AHCI, 0, ATA_SA300, "Hudson-2" },
+     { ATA_AMD_HUDSON2_S3,  0x00, ATI_AHCI, 0, ATA_SA300, "Hudson-2" },
+     { ATA_AMD_HUDSON2_S4,  0x00, ATI_AHCI, 0, ATA_SA300, "Hudson-2" },
+     { ATA_AMD_HUDSON2_S5,  0x00, ATI_AHCI, 0, ATA_SA300, "Hudson-2" },
      { 0, 0, 0, 0, 0, 0}};
 
     if (pci_get_vendor(dev) != ATA_ATI_ID)

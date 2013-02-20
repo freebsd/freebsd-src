@@ -1,9 +1,9 @@
 /*
- * $Id: calendar.c,v 1.66 2012/07/01 18:13:07 Zoltan.Kelemen Exp $
+ * $Id: calendar.c,v 1.62 2011/06/29 09:47:06 tom Exp $
  *
  *  calendar.c -- implements the calendar box
  *
- *  Copyright 2001-2011,2012	Thomas E. Dickey
+ *  Copyright 2001-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -225,14 +225,12 @@ draw_day(BOX * data, struct tm *current)
     int prev = days_in_month(current, -1);
 
     werase(data->window);
-    dlg_draw_box2(data->parent,
-		  data->y - MARGIN, data->x - MARGIN,
-		  data->height + (2 * MARGIN), data->width + (2 * MARGIN),
-		  menubox_attr,
-		  menubox_border_attr,
-		  menubox_border2_attr);
+    dlg_draw_box(data->parent,
+		 data->y - MARGIN, data->x - MARGIN,
+		 data->height + (2 * MARGIN), data->width + (2 * MARGIN),
+		 menubox_border_attr, menubox_attr);	/* border of daybox */
 
-    (void) wattrset(data->window, menubox_attr);	/* daynames headline */
+    wattrset(data->window, menubox_attr);	/* daynames headline */
     for (x = 0; x < 7; x++) {
 	mvwprintw(data->window,
 		  0, (x + 1) * cell_wide, "%*.*s ",
@@ -248,7 +246,7 @@ draw_day(BOX * data, struct tm *current)
     week = (current->tm_yday + 6 + mday - current->tm_mday) / 7;
 
     for (y = 1; mday < last; y++) {
-	(void) wattrset(data->window, menubox_attr);	/* weeknumbers headline */
+	wattrset(data->window, menubox_attr);	/* weeknumbers headline */
 	mvwprintw(data->window,
 		  y, 0,
 		  "%*d ",
@@ -259,9 +257,9 @@ draw_day(BOX * data, struct tm *current)
 	    ++mday;
 	    if (wmove(data->window, y, this_x) == ERR)
 		continue;
-	    (void) wattrset(data->window, item_attr);	/* not selected days */
+	    wattrset(data->window, item_attr);	/* not selected days */
 	    if (mday == day) {
-		(void) wattrset(data->window, item_selected_attr);	/* selected day */
+		wattrset(data->window, item_selected_attr);	/* selected day */
 		save_y = y;
 		save_x = this_x;
 	    }
@@ -296,15 +294,13 @@ draw_month(BOX * data, struct tm *current)
 
     month = current->tm_mon + 1;
 
-    (void) wattrset(data->parent, dialog_attr);		/* Headline "Month" */
+    wattrset(data->parent, dialog_attr);	/* Headline "Month" */
     (void) mvwprintw(data->parent, data->y - 2, data->x - 1, _("Month"));
-    dlg_draw_box2(data->parent,
-		  data->y - 1, data->x - 1,
-		  data->height + 2, data->width + 2,
-		  menubox_attr,
-		  menubox_border_attr,
-		  menubox_border2_attr);
-    (void) wattrset(data->window, item_attr);	/* color the month selection */
+    dlg_draw_box(data->parent,
+		 data->y - 1, data->x - 1,
+		 data->height + 2, data->width + 2,
+		 menubox_border_attr, menubox_attr);	/* borders of monthbox */
+    wattrset(data->window, item_attr);	/* color the month selection */
     mvwprintw(data->window, 0, 0, "%s", nameOfMonth(month - 1));
     wmove(data->window, 0, 0);
     return 0;
@@ -318,15 +314,13 @@ draw_year(BOX * data, struct tm *current)
 {
     int year = current->tm_year + 1900;
 
-    (void) wattrset(data->parent, dialog_attr);		/* Headline "Year" */
+    wattrset(data->parent, dialog_attr);	/* Headline "Year" */
     (void) mvwprintw(data->parent, data->y - 2, data->x - 1, _("Year"));
-    dlg_draw_box2(data->parent,
-		  data->y - 1, data->x - 1,
-		  data->height + 2, data->width + 2,
-		  menubox_attr,
-		  menubox_border_attr,
-		  menubox_border2_attr);
-    (void) wattrset(data->window, item_attr);	/* color the year selection */
+    dlg_draw_box(data->parent,
+		 data->y - 1, data->x - 1,
+		 data->height + 2, data->width + 2,
+		 menubox_border_attr, menubox_attr);	/* borders of yearbox */
+    wattrset(data->window, item_attr);	/* color the year selection */
     mvwprintw(data->window, 0, 0, "%4d", year);
     wmove(data->window, 0, 0);
     return 0;
@@ -436,7 +430,7 @@ dialog_calendar(const char *title,
     WINDOW *dialog;
     time_t now_time = time((time_t *) 0);
     struct tm current;
-    int state = dlg_default_button();
+    int state = dlg_defaultno_button();
     const char **buttons = dlg_ok_labels();
     char *prompt = dlg_strclone(subtitle);
     int mincols = MIN_WIDE;
@@ -497,11 +491,11 @@ dialog_calendar(const char *title,
     dlg_register_buttons(dialog, "calendar", buttons);
 
     /* mainbox */
-    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
-    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
+    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
+    dlg_draw_bottom_box(dialog);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);	/* text mainbox */
+    wattrset(dialog, dialog_attr);	/* text mainbox */
     dlg_print_autowrap(dialog, prompt, height, width);
 
     /* compute positions of day, month and year boxes */
@@ -545,7 +539,6 @@ dialog_calendar(const char *title,
 	return CleanupResult(DLG_EXIT_ERROR, dialog, prompt, &save_vars);
     }
 
-    dlg_trace_win(dialog);
     while (result == DLG_EXIT_UNKNOWN) {
 	BOX *obj = (state == sDAY ? &dy_box
 		    : (state == sMONTH ? &mn_box :

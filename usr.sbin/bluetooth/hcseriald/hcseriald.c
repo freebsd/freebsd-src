@@ -257,7 +257,7 @@ usage(void)
 {
 	fprintf(stderr, "Usage: %s -f device -n node_name [-s speed -d -h]\n" \
 			"Where:\n" \
-			"\t-f device    tty device name, ex. /dev/cuad1\n" \
+			"\t-f device    tty device name, ex. /dev/cuau1\n" \
 			"\t-n node_name set Netgraph node name to node_name\n" \
 			"\t-s speed     set tty speed, ex. 115200\n" \
 			"\t-d           run in foreground\n" \

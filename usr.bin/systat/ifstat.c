@@ -38,6 +38,7 @@
 #include <string.h>
 #include <err.h>
 #include <errno.h>
+#include <fnmatch.h>
 
 #include "systat.h"
 #include "extern.h"
@@ -71,12 +72,22 @@ struct if_stat {
 	u_long	if_out_curtraffic;
 	u_long	if_in_traffic_peak;
 	u_long	if_out_traffic_peak;
+	u_long	if_in_curpps;
+	u_long	if_out_curpps;
+	u_long	if_in_pps_peak;
+	u_long	if_out_pps_peak;
 	u_int	if_row;			/* Index into ifmib sysctl */
 	u_int	if_ypos;		/* 0 if not being displayed */
 	u_int	display;
+	u_int	match;
 };
 
-extern	 u_int curscale;
+extern	 int curscale;
+extern	 char *matchline;
+extern	 int showpps;
+extern	 int needsort;
+
+static	 int needclear = 0;
 
 static	 void  right_align_string(struct if_stat *);
 static	 void  getifmibdata(const int, struct ifmibdata *);
@@ -96,34 +107,48 @@ static	 u_int getifnum(void);
 #define STARTING_ROW	(TOPLINE + 1)
 #define ROW_SPACING	(3)
 
-#define CLEAR_LINE(y, x)	do {					\
-	wmove(wnd, y, x);						\
-	wclrtoeol(wnd);							\
-} while (0)
-
-#define IN_col2		(ifp->if_in_curtraffic)
-#define OUT_col2	(ifp->if_out_curtraffic)
-#define IN_col3		(ifp->if_in_traffic_peak)
-#define OUT_col3	(ifp->if_out_traffic_peak)
-#define IN_col4		(ifp->if_mib.ifmd_data.ifi_ibytes)
-#define OUT_col4	(ifp->if_mib.ifmd_data.ifi_obytes)
+#define IN_col2		(showpps ? ifp->if_in_curpps : ifp->if_in_curtraffic)
+#define OUT_col2	(showpps ? ifp->if_out_curpps : ifp->if_out_curtraffic)
+#define IN_col3		(showpps ? \
+		ifp->if_in_pps_peak : ifp->if_in_traffic_peak)
+#define OUT_col3	(showpps ? \
+		ifp->if_out_pps_peak : ifp->if_out_traffic_peak)
+#define IN_col4		(showpps ? \
+	ifp->if_mib.ifmd_data.ifi_ipackets : ifp->if_mib.ifmd_data.ifi_ibytes)
+#define OUT_col4	(showpps ? \
+	ifp->if_mib.ifmd_data.ifi_opackets : ifp->if_mib.ifmd_data.ifi_obytes)
 
 #define EMPTY_COLUMN 	"                    "
 #define CLEAR_COLUMN(y, x)	mvprintw((y), (x), "%20s", EMPTY_COLUMN);
 
 #define DOPUTRATE(c, r, d)	do {					\
 	CLEAR_COLUMN(r, c);						\
-	mvprintw(r, (c), "%10.3f %s%s  ",				\
-		 convert(d##_##c, curscale),				\
-		 get_string(d##_##c, curscale),				\
-		 "/s");							\
+	if (showpps) {							\
+		mvprintw(r, (c), "%10.3f %cp%s  ",			\
+			 convert(d##_##c, curscale),			\
+			 *get_string(d##_##c, curscale),		\
+			 "/s");						\
+	}								\
+	else {								\
+		mvprintw(r, (c), "%10.3f %s%s  ",			\
+			 convert(d##_##c, curscale),			\
+			 get_string(d##_##c, curscale),			\
+			 "/s");						\
+	}								\
 } while (0)
 
 #define DOPUTTOTAL(c, r, d)	do {					\
 	CLEAR_COLUMN((r), (c));						\
-	mvprintw((r), (c), "%12.3f %s  ",				\
-		 convert(d##_##c, SC_AUTO),				\
-		 get_string(d##_##c, SC_AUTO));				\
+	if (showpps) {							\
+		mvprintw((r), (c), "%12.3f %cp  ",			\
+			 convert(d##_##c, SC_AUTO),			\
+			 *get_string(d##_##c, SC_AUTO));		\
+	}								\
+	else {								\
+		mvprintw((r), (c), "%12.3f %s  ",			\
+			 convert(d##_##c, SC_AUTO),			\
+			 get_string(d##_##c, SC_AUTO));			\
+	}								\
 } while (0)
 
 #define PUTRATE(c, r)	do {						\
@@ -183,8 +208,10 @@ void
 showifstat(void)
 {
 	struct	if_stat *ifp = NULL;
+	
 	SLIST_FOREACH(ifp, &curlist, link) {
-		if (ifp->display == 0)
+		if (ifp->display == 0 || (ifp->match == 0) ||
+			ifp->if_ypos > LINES - 3 - 1)
 			continue;
 		PUTNAME(ifp);
 		PUTRATE(col2, ifp->if_ypos);
@@ -215,6 +242,7 @@ initifstat(void)
 		p->if_row = i+1;
 		getifmibdata(p->if_row, &p->if_mib);
 		right_align_string(p);
+		p->match = 1;
 
 		/*
 		 * Initially, we only display interfaces that have
@@ -236,7 +264,7 @@ fetchifstat(void)
 	struct	timeval tv, new_tv, old_tv;
 	double	elapsed = 0.0;
 	u_int	new_inb, new_outb, old_inb, old_outb = 0;
-	u_int	we_need_to_sort_interface_list = 0;
+	u_int	new_inp, new_outp, old_inp, old_outp = 0;
 
 	SLIST_FOREACH(ifp, &curlist, link) {
 		/*
@@ -245,6 +273,8 @@ fetchifstat(void)
 		 */
 		old_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
 		old_outb = ifp->if_mib.ifmd_data.ifi_obytes;
+		old_inp = ifp->if_mib.ifmd_data.ifi_ipackets;
+		old_outp = ifp->if_mib.ifmd_data.ifi_opackets;
 		ifp->tv_lastchanged = ifp->if_mib.ifmd_data.ifi_lastchange;
 
 		(void)gettimeofday(&new_tv, NULL);
@@ -252,11 +282,13 @@ fetchifstat(void)
 
 		new_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
 		new_outb = ifp->if_mib.ifmd_data.ifi_obytes;
+		new_inp = ifp->if_mib.ifmd_data.ifi_ipackets;
+		new_outp = ifp->if_mib.ifmd_data.ifi_opackets;
 
 		/* Display interface if it's received some traffic. */
 		if (new_inb > 0 && old_inb == 0) {
 			ifp->display = 1;
-			we_need_to_sort_interface_list++;
+			needsort = 1;
 		}
 
 		/*
@@ -271,6 +303,9 @@ fetchifstat(void)
 		ifp->if_in_curtraffic = new_inb - old_inb;
 		ifp->if_out_curtraffic = new_outb - old_outb;
 
+		ifp->if_in_curpps = new_inp - old_inp;
+		ifp->if_out_curpps = new_outp - old_outp;
+
 		/*
 		 * Rather than divide by the time specified on the comm-
 		 * and line, we divide by ``elapsed'' as this is likely
@@ -278,6 +313,8 @@ fetchifstat(void)
 		 */
 		ifp->if_in_curtraffic /= elapsed;
 		ifp->if_out_curtraffic /= elapsed;
+		ifp->if_in_curpps /= elapsed;
+		ifp->if_out_curpps /= elapsed;
 
 		if (ifp->if_in_curtraffic > ifp->if_in_traffic_peak)
 			ifp->if_in_traffic_peak = ifp->if_in_curtraffic;
@@ -285,12 +322,18 @@ fetchifstat(void)
 		if (ifp->if_out_curtraffic > ifp->if_out_traffic_peak)
 			ifp->if_out_traffic_peak = ifp->if_out_curtraffic;
 
+		if (ifp->if_in_curpps > ifp->if_in_pps_peak)
+			ifp->if_in_pps_peak = ifp->if_in_curpps;
+
+		if (ifp->if_out_curpps > ifp->if_out_pps_peak)
+			ifp->if_out_pps_peak = ifp->if_out_curpps;
+
 		ifp->tv.tv_sec = new_tv.tv_sec;
 		ifp->tv.tv_usec = new_tv.tv_usec;
 
 	}
 
-	if (we_need_to_sort_interface_list)
+	if (needsort)
 		sort_interface_list();
 
 	return;
@@ -323,6 +366,40 @@ right_align_string(struct if_stat *ifp)
 	return;
 }
 
+static int
+check_match(const char *ifname) 
+{
+	char *p = matchline, *c, t;
+	int match = 0, mlen;
+	
+	if (matchline == NULL) {
+		return 0;
+	}
+	/* Strip leading whitespaces */
+	while (*p == ' ')
+		p ++;
+
+	c = p;
+	while ((mlen = strcspn(c, " ;,")) != 0) {
+		p = c + mlen;
+		t = *p;
+		if (p - c > 0) {
+			*p = '\0';
+			if (fnmatch(c, ifname, FNM_CASEFOLD) == 0) {
+				*p = t;
+				return 1;
+			}
+			*p = t;
+			c = p + strspn(p, " ;,");
+		}
+		else {
+			c = p + strspn(p, " ;,");
+		}
+	}
+
+	return match;
+}
+
 /*
  * This function iterates through our list of interfaces, identifying
  * those that are to be displayed (ifp->display = 1).  For each interf-
@@ -340,11 +417,18 @@ sort_interface_list(void)
 
 	y = STARTING_ROW;
 	SLIST_FOREACH(ifp, &curlist, link) {
-		if (ifp->display) {
+		if (matchline && !check_match(ifp->if_mib.ifmd_name))
+			ifp->match = 0;
+		else
+			ifp->match = 1;
+		if (ifp->display && ifp->match) {
 			ifp->if_ypos = y;
 			y += ROW_SPACING;
 		}
 	}
+	
+	needsort = 0;
+	needclear = 1;
 }
 
 static
@@ -394,6 +478,11 @@ cmdifstat(const char *cmd, const char *args)
 	if (retval == 1) {
 		showifstat();
 		refresh();
+		if (needclear) {
+			werase(wnd);
+			labelifstat();
+			needclear = 0;
+		}
 	}
 
 	return retval;

@@ -216,7 +216,8 @@ static device_method_t ixgbe_methods[] = {
 	DEVMETHOD(device_attach, ixgbe_attach),
 	DEVMETHOD(device_detach, ixgbe_detach),
 	DEVMETHOD(device_shutdown, ixgbe_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ixgbe_driver = {
@@ -831,22 +832,24 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	}
 
 	enqueued = 0;
-	if (m == NULL) {
-		next = drbr_dequeue(ifp, txr->br);
-	} else if (drbr_needs_enqueue(ifp, txr->br)) {
-		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+	if (m != NULL) {
+		err = drbr_enqueue(ifp, txr->br, m);
+		if (err) {
 			return (err);
-		next = drbr_dequeue(ifp, txr->br);
-	} else
-		next = m;
+		}
+	}
 
 	/* Process the queue */
-	while (next != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = ixgbe_xmit(txr, &next)) != 0) {
-			if (next != NULL)
-				err = drbr_enqueue(ifp, txr->br, next);
+			if (next == NULL) {
+				drbr_advance(ifp, txr->br);
+			} else {
+				drbr_putback(ifp, txr->br, next);
+			}
 			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enqueued++;
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
@@ -854,7 +857,6 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD)
 			ixgbe_txeof(txr);
-		next = drbr_dequeue(ifp, txr->br);
 	}
 
 	if (enqueued > 0) {
@@ -2329,7 +2331,7 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		if (adapter->num_queues > 1)
 			bus_bind_intr(dev, que->res, i);
 
-#ifdef IXGBE_LEGACY_TX
+#ifndef IXGBE_LEGACY_TX
 		TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
 #endif
 		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
@@ -3082,6 +3084,9 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 		txr->txd_cmd = IXGBE_TXD_CMD_IFCS;
 		txr->queue_status = IXGBE_QUEUE_IDLE;
 
+		/* Set the processing limit */
+		txr->process_limit = ixgbe_tx_process_limit;
+
 		/* Disable Head Writeback */
 		switch (hw->mac.type) {
 		case ixgbe_mac_82598EB:
@@ -3704,7 +3709,7 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, rxr->mbuf_sz);
 			if (mp == NULL)
 				goto update;
@@ -3718,8 +3723,8 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 		 */
 		if ((rxbuf->flags & IXGBE_RX_COPY) == 0) {
 			/* Get the memory mapping */
-			error = bus_dmamap_load_mbuf_sg(rxr->tag,
-			    rxbuf->map, mp, seg, &nsegs, BUS_DMA_NOWAIT);
+			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+			    rxbuf->pmap, mp, seg, &nsegs, BUS_DMA_NOWAIT);
 			if (error != 0) {
 				printf("Refresh mbufs: payload dmamap load"
 				    " failure - %d\n", error);
@@ -3728,7 +3733,7 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 				goto update;
 			}
 			rxbuf->buf = mp;
-			bus_dmamap_sync(rxr->tag, rxbuf->map,
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 			    BUS_DMASYNC_PREREAD);
 			rxbuf->addr = rxr->rx_base[i].read.pkt_addr =
 			    htole64(seg[0].ds_addr);
@@ -3787,15 +3792,15 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 				   0,			/* flags */
 				   NULL,		/* lockfunc */
 				   NULL,		/* lockfuncarg */
-				   &rxr->tag))) {
+				   &rxr->ptag))) {
 		device_printf(dev, "Unable to create RX DMA tag\n");
 		goto fail;
 	}
 
 	for (i = 0; i < rxr->num_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->tag,
-		    BUS_DMA_NOWAIT, &rxbuf->map);
+		error = bus_dmamap_create(rxr->ptag,
+		    BUS_DMA_NOWAIT, &rxbuf->pmap);
 		if (error) {
 			device_printf(dev, "Unable to create RX dma map\n");
 			goto fail;
@@ -3894,9 +3899,9 @@ ixgbe_free_receive_ring(struct rx_ring *rxr)
 	for (i = 0; i < rxr->num_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf != NULL) {
-			bus_dmamap_sync(rxr->tag, rxbuf->map,
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->tag, rxbuf->map);
+			bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
 			rxbuf->buf->m_flags |= M_PKTHDR;
 			m_freem(rxbuf->buf);
 			rxbuf->buf = NULL;
@@ -3963,7 +3968,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			void *addr;
 
 			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->tag, rxbuf->map, addr);
+			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
@@ -3978,13 +3983,13 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		mp = rxbuf->buf;
 		mp->m_pkthdr.len = mp->m_len = rxr->mbuf_sz;
 		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->tag,
-		    rxbuf->map, mp, seg,
+		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+		    rxbuf->pmap, mp, seg,
 		    &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0)
                         goto fail;
-		bus_dmamap_sync(rxr->tag,
-		    rxbuf->map, BUS_DMASYNC_PREREAD);
+		bus_dmamap_sync(rxr->ptag,
+		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
 		/* Update descriptor */
 		rxr->rx_base[j].read.pkt_addr = htole64(seg[0].ds_addr);
 	}
@@ -4130,6 +4135,9 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(i), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), 0);
+
+		/* Set the processing limit */
+		rxr->process_limit = ixgbe_rx_process_limit;
 	}
 
 	if (adapter->hw.mac.type != ixgbe_mac_82598EB) {
@@ -4231,16 +4239,16 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 		for (int i = 0; i < adapter->num_rx_desc; i++) {
 			rxbuf = &rxr->rx_buffers[i];
 			if (rxbuf->buf != NULL) {
-				bus_dmamap_sync(rxr->tag, rxbuf->map,
+				bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->tag, rxbuf->map);
+				bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
 				rxbuf->buf->m_flags |= M_PKTHDR;
 				m_freem(rxbuf->buf);
 			}
 			rxbuf->buf = NULL;
-			if (rxbuf->map != NULL) {
-				bus_dmamap_destroy(rxr->tag, rxbuf->map);
-				rxbuf->map = NULL;
+			if (rxbuf->pmap != NULL) {
+				bus_dmamap_destroy(rxr->ptag, rxbuf->pmap);
+				rxbuf->pmap = NULL;
 			}
 		}
 		if (rxr->rx_buffers != NULL) {
@@ -4249,9 +4257,9 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 		}
 	}
 
-	if (rxr->tag != NULL) {
-		bus_dma_tag_destroy(rxr->tag);
-		rxr->tag = NULL;
+	if (rxr->ptag != NULL) {
+		bus_dma_tag_destroy(rxr->ptag);
+		rxr->ptag = NULL;
 	}
 
 	return;
@@ -5173,23 +5181,6 @@ ixgbe_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
-/** ixgbe_sysctl_tx_process_limit - Handler function
- *  Set the limit value for TX processing
- */
-static int 
-ixgbe_sysctl_tx_process_limit(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
-	if (!txr) return 0;
-
-	error = sysctl_handle_int(oidp, &ixgbe_tx_process_limit, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
 /** ixgbe_sysctl_rdh_handler - Handler function
  *  Retrieves the RDH value from the hardware
  */
@@ -5221,23 +5212,6 @@ ixgbe_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
 
 	unsigned val = IXGBE_READ_REG(&rxr->adapter->hw, IXGBE_RDT(rxr->me));
 	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** ixgbe_sysctl_rx_process_limit - Handler function
- *  Set the limit value for RX processing
- */
-static int 
-ixgbe_sysctl_rx_process_limit(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
-	if (!rxr) return 0;
-
-	error = sysctl_handle_int(oidp, &ixgbe_rx_process_limit, 0, req);
 	if (error || !req->newptr)
 		return error;
 	return 0;
@@ -5330,10 +5304,6 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 				ixgbe_sysctl_tdt_handler, "IU",
 				"Transmit Descriptor Tail");
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_process_limit", 
-				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
-				ixgbe_sysctl_tx_process_limit, "IU",
-				"Transmit Process Limit");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tso_tx",
 				CTLFLAG_RD, &txr->tso_tx,
 				"TSO");
@@ -5369,10 +5339,6 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
 				ixgbe_sysctl_rdt_handler, "IU",
 				"Receive Descriptor Tail");
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_process_limit", 
-				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
-				ixgbe_sysctl_rx_process_limit, "IU",
-				"Receive Process Limit");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &rxr->rx_packets,
 				"Queue Packets Received");

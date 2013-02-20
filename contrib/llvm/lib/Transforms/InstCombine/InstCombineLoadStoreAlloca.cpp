@@ -14,13 +14,161 @@
 #include "InstCombine.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Analysis/Loads.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
-STATISTIC(NumDeadStore, "Number of dead stores eliminated");
+STATISTIC(NumDeadStore,    "Number of dead stores eliminated");
+STATISTIC(NumGlobalCopies, "Number of allocas copied from constant global");
+
+/// pointsToConstantGlobal - Return true if V (possibly indirectly) points to
+/// some part of a constant global variable.  This intentionally only accepts
+/// constant expressions because we can't rewrite arbitrary instructions.
+static bool pointsToConstantGlobal(Value *V) {
+  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
+    return GV->isConstant();
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
+    if (CE->getOpcode() == Instruction::BitCast ||
+        CE->getOpcode() == Instruction::GetElementPtr)
+      return pointsToConstantGlobal(CE->getOperand(0));
+  return false;
+}
+
+/// isOnlyCopiedFromConstantGlobal - Recursively walk the uses of a (derived)
+/// pointer to an alloca.  Ignore any reads of the pointer, return false if we
+/// see any stores or other unknown uses.  If we see pointer arithmetic, keep
+/// track of whether it moves the pointer (with IsOffset) but otherwise traverse
+/// the uses.  If we see a memcpy/memmove that targets an unoffseted pointer to
+/// the alloca, and if the source pointer is a pointer to a constant global, we
+/// can optimize this.
+static bool
+isOnlyCopiedFromConstantGlobal(Value *V, MemTransferInst *&TheCopy,
+                               SmallVectorImpl<Instruction *> &ToDelete,
+                               bool IsOffset = false) {
+  // We track lifetime intrinsics as we encounter them.  If we decide to go
+  // ahead and replace the value with the global, this lets the caller quickly
+  // eliminate the markers.
+
+  for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI!=E; ++UI) {
+    User *U = cast<Instruction>(*UI);
+
+    if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
+      // Ignore non-volatile loads, they are always ok.
+      if (!LI->isSimple()) return false;
+      continue;
+    }
+
+    if (BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
+      // If uses of the bitcast are ok, we are ok.
+      if (!isOnlyCopiedFromConstantGlobal(BCI, TheCopy, ToDelete, IsOffset))
+        return false;
+      continue;
+    }
+    if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(U)) {
+      // If the GEP has all zero indices, it doesn't offset the pointer.  If it
+      // doesn't, it does.
+      if (!isOnlyCopiedFromConstantGlobal(GEP, TheCopy, ToDelete,
+                                          IsOffset || !GEP->hasAllZeroIndices()))
+        return false;
+      continue;
+    }
+
+    if (CallSite CS = U) {
+      // If this is the function being called then we treat it like a load and
+      // ignore it.
+      if (CS.isCallee(UI))
+        continue;
+
+      // If this is a readonly/readnone call site, then we know it is just a
+      // load (but one that potentially returns the value itself), so we can
+      // ignore it if we know that the value isn't captured.
+      unsigned ArgNo = CS.getArgumentNo(UI);
+      if (CS.onlyReadsMemory() &&
+          (CS.getInstruction()->use_empty() || CS.doesNotCapture(ArgNo)))
+        continue;
+
+      // If this is being passed as a byval argument, the caller is making a
+      // copy, so it is only a read of the alloca.
+      if (CS.isByValArgument(ArgNo))
+        continue;
+    }
+
+    // Lifetime intrinsics can be handled by the caller.
+    if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+      if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
+          II->getIntrinsicID() == Intrinsic::lifetime_end) {
+        assert(II->use_empty() && "Lifetime markers have no result to use!");
+        ToDelete.push_back(II);
+        continue;
+      }
+    }
+
+    // If this is isn't our memcpy/memmove, reject it as something we can't
+    // handle.
+    MemTransferInst *MI = dyn_cast<MemTransferInst>(U);
+    if (MI == 0)
+      return false;
+
+    // If the transfer is using the alloca as a source of the transfer, then
+    // ignore it since it is a load (unless the transfer is volatile).
+    if (UI.getOperandNo() == 1) {
+      if (MI->isVolatile()) return false;
+      continue;
+    }
+
+    // If we already have seen a copy, reject the second one.
+    if (TheCopy) return false;
+
+    // If the pointer has been offset from the start of the alloca, we can't
+    // safely handle this.
+    if (IsOffset) return false;
+
+    // If the memintrinsic isn't using the alloca as the dest, reject it.
+    if (UI.getOperandNo() != 0) return false;
+
+    // If the source of the memcpy/move is not a constant global, reject it.
+    if (!pointsToConstantGlobal(MI->getSource()))
+      return false;
+
+    // Otherwise, the transform is safe.  Remember the copy instruction.
+    TheCopy = MI;
+  }
+  return true;
+}
+
+/// isOnlyCopiedFromConstantGlobal - Return true if the specified alloca is only
+/// modified by a copy from a constant global.  If we can prove this, we can
+/// replace any uses of the alloca with uses of the global directly.
+static MemTransferInst *
+isOnlyCopiedFromConstantGlobal(AllocaInst *AI,
+                               SmallVectorImpl<Instruction *> &ToDelete) {
+  MemTransferInst *TheCopy = 0;
+  if (isOnlyCopiedFromConstantGlobal(AI, TheCopy, ToDelete))
+    return TheCopy;
+  return 0;
+}
+
+/// getPointeeAlignment - Compute the minimum alignment of the value pointed
+/// to by the given pointer.
+static unsigned getPointeeAlignment(Value *V, const DataLayout &TD) {
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
+    if (CE->getOpcode() == Instruction::BitCast ||
+        (CE->getOpcode() == Instruction::GetElementPtr &&
+         cast<GEPOperator>(CE)->hasAllZeroIndices()))
+      return getPointeeAlignment(CE->getOperand(0), TD);
+
+  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
+    if (!GV->isDeclaration())
+      return TD.getPreferredAlignment(GV);
+
+  if (PointerType *PT = dyn_cast<PointerType>(V->getType()))
+    if (PT->getElementType()->isSized())
+      return TD.getABITypeAlignment(PT->getElementType());
+
+  return 0;
+}
 
 Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
   // Ensure that the alloca array size argument has type intptr_t, so that
@@ -99,16 +247,45 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
           return &AI;
         }
 
+        // If the alignment of the entry block alloca is 0 (unspecified),
+        // assign it the preferred alignment.
+        if (EntryAI->getAlignment() == 0)
+          EntryAI->setAlignment(
+            TD->getPrefTypeAlignment(EntryAI->getAllocatedType()));
         // Replace this zero-sized alloca with the one at the start of the entry
         // block after ensuring that the address will be aligned enough for both
         // types.
-        unsigned MaxAlign =
-          std::max(TD->getPrefTypeAlignment(EntryAI->getAllocatedType()),
-                   TD->getPrefTypeAlignment(AI.getAllocatedType()));
+        unsigned MaxAlign = std::max(EntryAI->getAlignment(),
+                                     AI.getAlignment());
         EntryAI->setAlignment(MaxAlign);
         if (AI.getType() != EntryAI->getType())
           return new BitCastInst(EntryAI, AI.getType());
         return ReplaceInstUsesWith(AI, EntryAI);
+      }
+    }
+  }
+
+  if (TD) {
+    // Check to see if this allocation is only modified by a memcpy/memmove from
+    // a constant global whose alignment is equal to or exceeds that of the
+    // allocation.  If this is the case, we can change all users to use
+    // the constant global instead.  This is commonly produced by the CFE by
+    // constructs like "void foo() { int A[] = {1,2,3,4,5,6,7,8,9...}; }" if 'A'
+    // is only subsequently read.
+    SmallVector<Instruction *, 4> ToDelete;
+    if (MemTransferInst *Copy = isOnlyCopiedFromConstantGlobal(&AI, ToDelete)) {
+      if (AI.getAlignment() <= getPointeeAlignment(Copy->getSource(), *TD)) {
+        DEBUG(dbgs() << "Found alloca equal to global: " << AI << '\n');
+        DEBUG(dbgs() << "  memcpy = " << *Copy << '\n');
+        for (unsigned i = 0, e = ToDelete.size(); i != e; ++i)
+          EraseInstFromFunction(*ToDelete[i]);
+        Constant *TheSrc = cast<Constant>(Copy->getSource());
+        Instruction *NewI
+          = ReplaceInstUsesWith(AI, ConstantExpr::getBitCast(TheSrc,
+                                                             AI.getType()));
+        EraseInstFromFunction(*Copy);
+        ++NumGlobalCopies;
+        return NewI;
       }
     }
   }
@@ -121,7 +298,7 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
 
 /// InstCombineLoadCast - Fold 'load (cast P)' -> cast (load P)' when possible.
 static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
-                                        const TargetData *TD) {
+                                        const DataLayout *TD) {
   User *CI = cast<User>(LI.getOperand(0));
   Value *CastOp = CI->getOperand(0);
 
@@ -151,14 +328,14 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
             SrcPTy = SrcTy->getElementType();
           }
 
-      if (IC.getTargetData() &&
+      if (IC.getDataLayout() &&
           (SrcPTy->isIntegerTy() || SrcPTy->isPointerTy() || 
             SrcPTy->isVectorTy()) &&
           // Do not allow turning this into a load of an integer, which is then
           // casted to a pointer, this pessimizes pointer analysis a lot.
           (SrcPTy->isPointerTy() == LI.getType()->isPointerTy()) &&
-          IC.getTargetData()->getTypeSizeInBits(SrcPTy) ==
-               IC.getTargetData()->getTypeSizeInBits(DestPTy)) {
+          IC.getDataLayout()->getTypeSizeInBits(SrcPTy) ==
+               IC.getDataLayout()->getTypeSizeInBits(DestPTy)) {
 
         // Okay, we are casting from one integer or pointer type to another of
         // the same size.  Instead of casting the pointer before the load, cast
@@ -336,11 +513,11 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
   
   // If the pointers point into different address spaces or if they point to
   // values with different sizes, we can't do the transformation.
-  if (!IC.getTargetData() ||
+  if (!IC.getDataLayout() ||
       SrcTy->getAddressSpace() != 
         cast<PointerType>(CI->getType())->getAddressSpace() ||
-      IC.getTargetData()->getTypeSizeInBits(SrcPTy) !=
-      IC.getTargetData()->getTypeSizeInBits(DestPTy))
+      IC.getDataLayout()->getTypeSizeInBits(SrcPTy) !=
+      IC.getDataLayout()->getTypeSizeInBits(DestPTy))
     return 0;
 
   // Okay, we are casting from one integer or pointer type to another of

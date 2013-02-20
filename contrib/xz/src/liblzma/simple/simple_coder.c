@@ -35,9 +35,6 @@ copy_or_code(lzma_coder *coder, lzma_allocator *allocator,
 
 	} else {
 		// Call the next coder in the chain to provide us some data.
-		// We don't care about uncompressed_size here, because
-		// the next filter in the chain will do it for us (since
-		// we don't change the size of the data).
 		const lzma_ret ret = coder->next.code(
 				coder->next.coder, allocator,
 				in, in_pos, in_size,
@@ -110,7 +107,7 @@ simple_code(lzma_coder *coder, lzma_allocator *allocator,
 	// filtered if the buffer sizes used by the application are reasonable.
 	const size_t out_avail = out_size - *out_pos;
 	const size_t buf_avail = coder->size - coder->pos;
-	if (out_avail > buf_avail) {
+	if (out_avail > buf_avail || buf_avail == 0) {
 		// Store the old position so that we know from which byte
 		// to start filtering.
 		const size_t out_start = *out_pos;

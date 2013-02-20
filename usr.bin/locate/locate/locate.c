@@ -292,7 +292,9 @@ search_mmap(db, s)
 		err(1, "`%s'", db);
 	len = sb.st_size;
 	if (len < (2*NBG))
-		errx(1, "database too small: %s", db);
+		errx(1,
+		    "database too small: %s\nRun /usr/libexec/locate.updatedb",
+		    db);
 
 	if ((p = mmap((caddr_t)0, (size_t)len,
 		      PROT_READ, MAP_SHARED,

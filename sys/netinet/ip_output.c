@@ -621,7 +621,7 @@ passout:
 		}
 #ifdef MBUF_STRESS_TEST
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
-			m = m_fragment(m, M_DONTWAIT, mbuf_frag_size);
+			m = m_fragment(m, M_NOWAIT, mbuf_frag_size);
 #endif
 		/*
 		 * Reset layer specific mbuf flags
@@ -784,7 +784,7 @@ smart_frag_failure:
 		struct mbuf *m;
 		int mhlen = sizeof (struct ip);
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			IPSTAT_INC(ips_odropped);
@@ -813,7 +813,7 @@ smart_frag_failure:
 		} else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
-		m->m_next = m_copym(m0, off, len, M_DONTWAIT);
+		m->m_next = m_copym(m0, off, len, M_NOWAIT);
 		if (m->m_next == NULL) {	/* copy failed */
 			m_free(m);
 			error = ENOBUFS;	/* ??? */
@@ -951,7 +951,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = EMSGSIZE;
 				break;
 			}
-			MGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT, MT_DATA);
+			MGET(m, sopt->sopt_td ? M_WAITOK : M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				error = ENOBUFS;
 				break;
@@ -1289,7 +1289,7 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 	 * Make a deep copy of the packet because we're going to
 	 * modify the pack in order to generate checksums.
 	 */
-	copym = m_dup(m, M_DONTWAIT);
+	copym = m_dup(m, M_NOWAIT);
 	if (copym != NULL && (copym->m_flags & M_EXT || copym->m_len < hlen))
 		copym = m_pullup(copym, hlen);
 	if (copym != NULL) {

@@ -39,7 +39,7 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
-	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
+	globals.c pager.c printf.c strdup.c strerror.c strtol.c strtoul.c random.c \
 	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
@@ -61,7 +61,20 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .endif
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${.CURDIR}/../libc/arm/gen
+
+.if ${MK_ARM_EABI} == "no"
 SRCS+= divsi3.S
+.else
+# Compiler support functions
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/
+SRCS+=	 divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
+SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
+
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/arm/
+SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
+SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
+.endif
+
 .endif
 .if ${MACHINE_CPUARCH} == "ia64"
 .PATH: ${.CURDIR}/../libc/ia64/string

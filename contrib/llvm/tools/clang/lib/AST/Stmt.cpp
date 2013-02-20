@@ -20,6 +20,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/Basic/TargetInfo.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
@@ -320,15 +321,52 @@ bool Stmt::hasImplicitControlFlow() const {
   }
 }
 
-Expr *AsmStmt::getOutputExpr(unsigned i) {
-  return cast<Expr>(Exprs[i]);
+std::string AsmStmt::generateAsmString(ASTContext &C) const {
+  if (const GCCAsmStmt *gccAsmStmt = dyn_cast<GCCAsmStmt>(this))
+    return gccAsmStmt->generateAsmString(C);
+  if (const MSAsmStmt *msAsmStmt = dyn_cast<MSAsmStmt>(this))
+    return msAsmStmt->generateAsmString(C);
+  llvm_unreachable("unknown asm statement kind!");
 }
 
-/// getOutputConstraint - Return the constraint string for the specified
-/// output operand.  All output constraints are known to be non-empty (either
-/// '=' or '+').
 StringRef AsmStmt::getOutputConstraint(unsigned i) const {
-  return getOutputConstraintLiteral(i)->getString();
+  if (const GCCAsmStmt *gccAsmStmt = dyn_cast<GCCAsmStmt>(this))
+    return gccAsmStmt->getOutputConstraint(i);
+  if (const MSAsmStmt *msAsmStmt = dyn_cast<MSAsmStmt>(this))
+    return msAsmStmt->getOutputConstraint(i);
+  llvm_unreachable("unknown asm statement kind!");
+}
+
+const Expr *AsmStmt::getOutputExpr(unsigned i) const {
+  if (const GCCAsmStmt *gccAsmStmt = dyn_cast<GCCAsmStmt>(this))
+    return gccAsmStmt->getOutputExpr(i);
+  if (const MSAsmStmt *msAsmStmt = dyn_cast<MSAsmStmt>(this))
+    return msAsmStmt->getOutputExpr(i);
+  llvm_unreachable("unknown asm statement kind!");
+}
+
+StringRef AsmStmt::getInputConstraint(unsigned i) const {
+  if (const GCCAsmStmt *gccAsmStmt = dyn_cast<GCCAsmStmt>(this))
+    return gccAsmStmt->getInputConstraint(i);
+  if (const MSAsmStmt *msAsmStmt = dyn_cast<MSAsmStmt>(this))
+    return msAsmStmt->getInputConstraint(i);
+  llvm_unreachable("unknown asm statement kind!");
+}
+
+const Expr *AsmStmt::getInputExpr(unsigned i) const {
+  if (const GCCAsmStmt *gccAsmStmt = dyn_cast<GCCAsmStmt>(this))
+    return gccAsmStmt->getInputExpr(i);
+  if (const MSAsmStmt *msAsmStmt = dyn_cast<MSAsmStmt>(this))
+    return msAsmStmt->getInputExpr(i);
+  llvm_unreachable("unknown asm statement kind!");
+}
+
+StringRef AsmStmt::getClobber(unsigned i) const {
+  if (const GCCAsmStmt *gccAsmStmt = dyn_cast<GCCAsmStmt>(this))
+    return gccAsmStmt->getClobber(i);
+  if (const MSAsmStmt *msAsmStmt = dyn_cast<MSAsmStmt>(this))
+    return msAsmStmt->getClobber(i);
+  llvm_unreachable("unknown asm statement kind!");
 }
 
 /// getNumPlusOperands - Return the number of output operands that have a "+"
@@ -341,22 +379,35 @@ unsigned AsmStmt::getNumPlusOperands() const {
   return Res;
 }
 
-Expr *AsmStmt::getInputExpr(unsigned i) {
+StringRef GCCAsmStmt::getClobber(unsigned i) const {
+  return getClobberStringLiteral(i)->getString();
+}
+
+Expr *GCCAsmStmt::getOutputExpr(unsigned i) {
+  return cast<Expr>(Exprs[i]);
+}
+
+/// getOutputConstraint - Return the constraint string for the specified
+/// output operand.  All output constraints are known to be non-empty (either
+/// '=' or '+').
+StringRef GCCAsmStmt::getOutputConstraint(unsigned i) const {
+  return getOutputConstraintLiteral(i)->getString();
+}
+
+Expr *GCCAsmStmt::getInputExpr(unsigned i) {
   return cast<Expr>(Exprs[i + NumOutputs]);
 }
-void AsmStmt::setInputExpr(unsigned i, Expr *E) {
+void GCCAsmStmt::setInputExpr(unsigned i, Expr *E) {
   Exprs[i + NumOutputs] = E;
 }
 
-
 /// getInputConstraint - Return the specified input constraint.  Unlike output
 /// constraints, these can be empty.
-StringRef AsmStmt::getInputConstraint(unsigned i) const {
+StringRef GCCAsmStmt::getInputConstraint(unsigned i) const {
   return getInputConstraintLiteral(i)->getString();
 }
 
-
-void AsmStmt::setOutputsAndInputsAndClobbers(ASTContext &C,
+void GCCAsmStmt::setOutputsAndInputsAndClobbers(ASTContext &C,
                                              IdentifierInfo **Names,
                                              StringLiteral **Constraints,
                                              Stmt **Exprs,
@@ -390,7 +441,7 @@ void AsmStmt::setOutputsAndInputsAndClobbers(ASTContext &C,
 /// getNamedOperand - Given a symbolic operand reference like %[foo],
 /// translate this into a numeric value needed to reference the same operand.
 /// This returns -1 if the operand name is invalid.
-int AsmStmt::getNamedOperand(StringRef SymbolicName) const {
+int GCCAsmStmt::getNamedOperand(StringRef SymbolicName) const {
   unsigned NumPlusOperands = 0;
 
   // Check if this is an output operand.
@@ -410,7 +461,7 @@ int AsmStmt::getNamedOperand(StringRef SymbolicName) const {
 /// AnalyzeAsmString - Analyze the asm string of the current asm, decomposing
 /// it into pieces.  If the asm string is erroneous, emit errors and return
 /// true, otherwise return false.
-unsigned AsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
+unsigned GCCAsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
                                    ASTContext &C, unsigned &DiagOffs) const {
   StringRef Str = getAsmString()->getString();
   const char *StrStart = Str.begin();
@@ -548,6 +599,44 @@ unsigned AsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
   }
 }
 
+/// Assemble final IR asm string (GCC-style).
+std::string GCCAsmStmt::generateAsmString(ASTContext &C) const {
+  // Analyze the asm string to decompose it into its pieces.  We know that Sema
+  // has already done this, so it is guaranteed to be successful.
+  SmallVector<GCCAsmStmt::AsmStringPiece, 4> Pieces;
+  unsigned DiagOffs;
+  AnalyzeAsmString(Pieces, C, DiagOffs);
+
+  std::string AsmString;
+  for (unsigned i = 0, e = Pieces.size(); i != e; ++i) {
+    if (Pieces[i].isString())
+      AsmString += Pieces[i].getString();
+    else if (Pieces[i].getModifier() == '\0')
+      AsmString += '$' + llvm::utostr(Pieces[i].getOperandNo());
+    else
+      AsmString += "${" + llvm::utostr(Pieces[i].getOperandNo()) + ':' +
+                   Pieces[i].getModifier() + '}';
+  }
+  return AsmString;
+}
+
+/// Assemble final IR asm string (MS-style).
+std::string MSAsmStmt::generateAsmString(ASTContext &C) const {
+  // FIXME: This needs to be translated into the IR string representation.
+  return AsmStr;
+}
+
+Expr *MSAsmStmt::getOutputExpr(unsigned i) {
+  return cast<Expr>(Exprs[i]);
+}
+
+Expr *MSAsmStmt::getInputExpr(unsigned i) {
+  return cast<Expr>(Exprs[i + NumOutputs]);
+}
+void MSAsmStmt::setInputExpr(unsigned i, Expr *E) {
+  Exprs[i + NumOutputs] = E;
+}
+
 QualType CXXCatchStmt::getCaughtType() const {
   if (ExceptionDecl)
     return ExceptionDecl->getType();
@@ -558,15 +647,14 @@ QualType CXXCatchStmt::getCaughtType() const {
 // Constructors
 //===----------------------------------------------------------------------===//
 
-AsmStmt::AsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple,
-                 bool isvolatile, bool msasm,
-                 unsigned numoutputs, unsigned numinputs,
-                 IdentifierInfo **names, StringLiteral **constraints,
-                 Expr **exprs, StringLiteral *asmstr, unsigned numclobbers,
-                 StringLiteral **clobbers, SourceLocation rparenloc)
-  : Stmt(AsmStmtClass), AsmLoc(asmloc), RParenLoc(rparenloc), AsmStr(asmstr)
-  , IsSimple(issimple), IsVolatile(isvolatile), MSAsm(msasm)
-  , NumOutputs(numoutputs), NumInputs(numinputs), NumClobbers(numclobbers) {
+GCCAsmStmt::GCCAsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple,
+                       bool isvolatile, unsigned numoutputs, unsigned numinputs,
+                       IdentifierInfo **names, StringLiteral **constraints,
+                       Expr **exprs, StringLiteral *asmstr,
+                       unsigned numclobbers, StringLiteral **clobbers,
+                       SourceLocation rparenloc)
+  : AsmStmt(GCCAsmStmtClass, asmloc, issimple, isvolatile, numoutputs,
+            numinputs, numclobbers), RParenLoc(rparenloc), AsmStr(asmstr) {
 
   unsigned NumExprs = NumOutputs + NumInputs;
 
@@ -585,25 +673,36 @@ AsmStmt::AsmStmt(ASTContext &C, SourceLocation asmloc, bool issimple,
 
 MSAsmStmt::MSAsmStmt(ASTContext &C, SourceLocation asmloc,
                      SourceLocation lbraceloc, bool issimple, bool isvolatile,
-                     ArrayRef<Token> asmtoks, ArrayRef<IdentifierInfo*> inputs,
-                     ArrayRef<IdentifierInfo*> outputs, StringRef asmstr,
-                     ArrayRef<StringRef> clobbers, SourceLocation endloc)
-  : Stmt(MSAsmStmtClass), AsmLoc(asmloc), LBraceLoc(lbraceloc), EndLoc(endloc),
-    AsmStr(asmstr.str()), IsSimple(issimple), IsVolatile(isvolatile),
-    NumAsmToks(asmtoks.size()), NumInputs(inputs.size()),
-    NumOutputs(outputs.size()), NumClobbers(clobbers.size()) {
+                     ArrayRef<Token> asmtoks, unsigned numoutputs,
+                     unsigned numinputs, ArrayRef<IdentifierInfo*> names,
+                     ArrayRef<StringRef> constraints, ArrayRef<Expr*> exprs,
+                     StringRef asmstr, ArrayRef<StringRef> clobbers,
+                     SourceLocation endloc)
+  : AsmStmt(MSAsmStmtClass, asmloc, issimple, isvolatile, numoutputs,
+            numinputs, clobbers.size()), LBraceLoc(lbraceloc),
+            EndLoc(endloc), AsmStr(asmstr.str()), NumAsmToks(asmtoks.size()) {
 
   unsigned NumExprs = NumOutputs + NumInputs;
 
   Names = new (C) IdentifierInfo*[NumExprs];
-  for (unsigned i = 0, e = NumOutputs; i != e; ++i)
-    Names[i] = outputs[i];
-  for (unsigned i = NumOutputs, e = NumExprs; i != e; ++i)
-    Names[i] = inputs[i];
+  for (unsigned i = 0, e = NumExprs; i != e; ++i)
+    Names[i] = names[i];
+
+  Exprs = new (C) Stmt*[NumExprs];
+  for (unsigned i = 0, e = NumExprs; i != e; ++i)
+    Exprs[i] = exprs[i];
 
   AsmToks = new (C) Token[NumAsmToks];
   for (unsigned i = 0, e = NumAsmToks; i != e; ++i)
     AsmToks[i] = asmtoks[i];
+
+  Constraints = new (C) StringRef[NumExprs];
+  for (unsigned i = 0, e = NumExprs; i != e; ++i) {
+    size_t size = constraints[i].size();
+    char *dest = new (C) char[size];
+    std::strncpy(dest, constraints[i].data(), size); 
+    Constraints[i] = StringRef(dest, size);
+  }
 
   Clobbers = new (C) StringRef[NumClobbers];
   for (unsigned i = 0, e = NumClobbers; i != e; ++i) {

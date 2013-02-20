@@ -105,7 +105,7 @@ namespace EEVT {
 
     /// MergeInTypeInfo - This merges in type information from the specified
     /// argument.  If 'this' changes, it returns true.  If the two types are
-    /// contradictory (e.g. merge f32 into i32) then this throws an exception.
+    /// contradictory (e.g. merge f32 into i32) then this flags an error.
     bool MergeInTypeInfo(const EEVT::TypeSet &InVT, TreePattern &TP);
 
     bool MergeInTypeInfo(MVT::SimpleValueType InVT, TreePattern &TP) {
@@ -187,8 +187,8 @@ struct SDTypeConstraint {
 
   /// ApplyTypeConstraint - Given a node in a pattern, apply this type
   /// constraint to the nodes operands.  This returns true if it makes a
-  /// change, false otherwise.  If a type contradiction is found, throw an
-  /// exception.
+  /// change, false otherwise.  If a type contradiction is found, an error
+  /// is flagged.
   bool ApplyTypeConstraint(TreePatternNode *N, const SDNodeInfo &NodeInfo,
                            TreePattern &TP) const;
 };
@@ -232,7 +232,7 @@ public:
   /// ApplyTypeConstraints - Given a node in a pattern, apply the type
   /// constraints for this node to the operands of the node.  This returns
   /// true if it makes a change, false otherwise.  If a type contradiction is
-  /// found, throw an exception.
+  /// found, an error is flagged.
   bool ApplyTypeConstraints(TreePatternNode *N, TreePattern &TP) const {
     bool MadeChange = false;
     for (unsigned i = 0, e = TypeConstraints.size(); i != e; ++i)
@@ -446,13 +446,12 @@ public:   // Higher level manipulation routines.
 
   /// ApplyTypeConstraints - Apply all of the type constraints relevant to
   /// this node and its children in the tree.  This returns true if it makes a
-  /// change, false otherwise.  If a type contradiction is found, throw an
-  /// exception.
+  /// change, false otherwise.  If a type contradiction is found, flag an error.
   bool ApplyTypeConstraints(TreePattern &TP, bool NotRegisters);
 
   /// UpdateNodeType - Set the node type of N to VT if VT contains
-  /// information.  If N already contains a conflicting type, then throw an
-  /// exception.  This returns true if any information was updated.
+  /// information.  If N already contains a conflicting type, then flag an
+  /// error.  This returns true if any information was updated.
   ///
   bool UpdateNodeType(unsigned ResNo, const EEVT::TypeSet &InTy,
                       TreePattern &TP) {
@@ -514,6 +513,10 @@ class TreePattern {
   /// isInputPattern - True if this is an input pattern, something to match.
   /// False if this is an output pattern, something to emit.
   bool isInputPattern;
+
+  /// hasError - True if the currently processed nodes have unresolvable types
+  /// or other non-fatal errors
+  bool HasError;
 public:
 
   /// TreePattern constructor - Parse the specified DagInits into the
@@ -565,13 +568,19 @@ public:
 
   /// InferAllTypes - Infer/propagate as many types throughout the expression
   /// patterns as possible.  Return true if all types are inferred, false
-  /// otherwise.  Throw an exception if a type contradiction is found.
+  /// otherwise.  Bail out if a type contradiction is found.
   bool InferAllTypes(const StringMap<SmallVector<TreePatternNode*,1> >
                           *NamedTypes=0);
 
-  /// error - Throw an exception, prefixing it with information about this
-  /// pattern.
-  void error(const std::string &Msg) const;
+  /// error - If this is the first error in the current resolution step,
+  /// print it and set the error flag.  Otherwise, continue silently.
+  void error(const std::string &Msg);
+  bool hasError() const {
+    return HasError;
+  }
+  void resetError() {
+    HasError = false;
+  }
 
   void print(raw_ostream &OS) const;
   void dump() const;
@@ -582,8 +591,8 @@ private:
   void ComputeNamedNodes(TreePatternNode *N);
 };
 
-/// DAGDefaultOperand - One of these is created for each PredicateOperand
-/// or OptionalDefOperand that has a set ExecuteAlways / DefaultOps field.
+/// DAGDefaultOperand - One of these is created for each OperandWithDefaultOps
+/// that has a set ExecuteAlways / DefaultOps field.
 struct DAGDefaultOperand {
   std::vector<TreePatternNode*> DefaultOps;
 };
@@ -602,7 +611,7 @@ public:
     : Pattern(TP), Results(results), Operands(operands),
       ImpResults(impresults), ResultPattern(0) {}
 
-  const TreePattern *getPattern() const { return Pattern; }
+  TreePattern *getPattern() const { return Pattern; }
   unsigned getNumResults() const { return Results.size(); }
   unsigned getNumOperands() const { return Operands.size(); }
   unsigned getNumImpResults() const { return ImpResults.size(); }
@@ -661,23 +670,18 @@ public:
   unsigned getPatternComplexity(const CodeGenDAGPatterns &CGP) const;
 };
 
-// Deterministic comparison of Record*.
-struct RecordPtrCmp {
-  bool operator()(const Record *LHS, const Record *RHS) const;
-};
-
 class CodeGenDAGPatterns {
   RecordKeeper &Records;
   CodeGenTarget Target;
   std::vector<CodeGenIntrinsic> Intrinsics;
   std::vector<CodeGenIntrinsic> TgtIntrinsics;
 
-  std::map<Record*, SDNodeInfo, RecordPtrCmp> SDNodes;
-  std::map<Record*, std::pair<Record*, std::string>, RecordPtrCmp> SDNodeXForms;
-  std::map<Record*, ComplexPattern, RecordPtrCmp> ComplexPatterns;
-  std::map<Record*, TreePattern*, RecordPtrCmp> PatternFragments;
-  std::map<Record*, DAGDefaultOperand, RecordPtrCmp> DefaultOperands;
-  std::map<Record*, DAGInstruction, RecordPtrCmp> Instructions;
+  std::map<Record*, SDNodeInfo, LessRecordByID> SDNodes;
+  std::map<Record*, std::pair<Record*, std::string>, LessRecordByID> SDNodeXForms;
+  std::map<Record*, ComplexPattern, LessRecordByID> ComplexPatterns;
+  std::map<Record*, TreePattern*, LessRecordByID> PatternFragments;
+  std::map<Record*, DAGDefaultOperand, LessRecordByID> DefaultOperands;
+  std::map<Record*, DAGInstruction, LessRecordByID> Instructions;
 
   // Specific SDNode definitions:
   Record *intrinsic_void_sdnode;
@@ -708,7 +712,7 @@ public:
     return SDNodeXForms.find(R)->second;
   }
 
-  typedef std::map<Record*, NodeXForm, RecordPtrCmp>::const_iterator
+  typedef std::map<Record*, NodeXForm, LessRecordByID>::const_iterator
           nx_iterator;
   nx_iterator nx_begin() const { return SDNodeXForms.begin(); }
   nx_iterator nx_end() const { return SDNodeXForms.end(); }
@@ -758,7 +762,7 @@ public:
     return PatternFragments.find(R)->second;
   }
 
-  typedef std::map<Record*, TreePattern*, RecordPtrCmp>::const_iterator
+  typedef std::map<Record*, TreePattern*, LessRecordByID>::const_iterator
           pf_iterator;
   pf_iterator pf_begin() const { return PatternFragments.begin(); }
   pf_iterator pf_end() const { return PatternFragments.end(); }
@@ -797,8 +801,9 @@ private:
   void ParsePatterns();
   void InferInstructionFlags();
   void GenerateVariants();
+  void VerifyInstructionFlags();
 
-  void AddPatternToMatch(const TreePattern *Pattern, const PatternToMatch &PTM);
+  void AddPatternToMatch(TreePattern *Pattern, const PatternToMatch &PTM);
   void FindPatternInputsAndOutputs(TreePattern *I, TreePatternNode *Pat,
                                    std::map<std::string,
                                    TreePatternNode*> &InstInputs,

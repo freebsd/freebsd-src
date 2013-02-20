@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=llc
 
 SRCDIR=	tools/llc
@@ -13,12 +15,12 @@ LIBDEPS=llvmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
-	llvmmipsdisassembler \
 	llvmmipsasmparser \
+	llvmmipscodegen \
 	llvmmipsdesc \
-	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \

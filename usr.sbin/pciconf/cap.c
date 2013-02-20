@@ -449,24 +449,28 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 static void
 cap_msix(int fd, struct pci_conf *p, uint8_t ptr)
 {
-	uint32_t val;
+	uint32_t pba_offset, table_offset, val;
+	int msgnum, pba_bar, table_bar;
 	uint16_t ctrl;
-	int msgnum, table_bar, pba_bar;
 
 	ctrl = read_config(fd, &p->pc_sel, ptr + PCIR_MSIX_CTRL, 2);
 	msgnum = (ctrl & PCIM_MSIXCTRL_TABLE_SIZE) + 1;
+
 	val = read_config(fd, &p->pc_sel, ptr + PCIR_MSIX_TABLE, 4);
 	table_bar = PCIR_BAR(val & PCIM_MSIX_BIR_MASK);
+	table_offset = val & ~PCIM_MSIX_BIR_MASK;
+
 	val = read_config(fd, &p->pc_sel, ptr + PCIR_MSIX_PBA, 4);
-	pba_bar = PCIR_BAR(val & PCIM_MSIX_BIR_MASK);	
-	printf("MSI-X supports %d message%s ", msgnum,
-	    (msgnum == 1) ? "" : "s");
-	if (table_bar == pba_bar)
-		printf("in map 0x%x", table_bar);
-	else
-		printf("in maps 0x%x and 0x%x", table_bar, pba_bar);
-	if (ctrl & PCIM_MSIXCTRL_MSIX_ENABLE)
-		printf(" enabled");
+	pba_bar = PCIR_BAR(val & PCIM_MSIX_BIR_MASK);
+	pba_offset = val & ~PCIM_MSIX_BIR_MASK;
+
+	printf("MSI-X supports %d message%s%s\n", msgnum,
+	    (msgnum == 1) ? "" : "s",
+	    (ctrl & PCIM_MSIXCTRL_MSIX_ENABLE) ? ", enabled" : "");
+
+	printf("                 ");
+	printf("Table in map 0x%x[0x%x], PBA in map 0x%x[0x%x]",
+	    table_bar, table_offset, pba_bar, pba_offset);
 }
 
 static void

@@ -27,6 +27,7 @@
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -75,6 +76,7 @@
 #include <sys/zvol.h>
 #include <sys/dsl_scan.h>
 #include <sys/dmu_objset.h>
+#include <sys/zfeature.h>
 
 #include "zfs_namecheck.h"
 #include "zfs_prop.h"
@@ -104,12 +106,18 @@ typedef enum {
 	DATASET_NAME
 } zfs_ioc_namecheck_t;
 
+typedef enum {
+	POOL_CHECK_NONE		= 1 << 0,
+	POOL_CHECK_SUSPENDED	= 1 << 1,
+	POOL_CHECK_READONLY	= 1 << 2
+} zfs_ioc_poolcheck_t;
+
 typedef struct zfs_ioc_vec {
 	zfs_ioc_func_t		*zvec_func;
 	zfs_secpolicy_func_t	*zvec_secpolicy;
 	zfs_ioc_namecheck_t	zvec_namecheck;
 	boolean_t		zvec_his_log;
-	boolean_t		zvec_pool_check;
+	zfs_ioc_poolcheck_t	zvec_pool_check;
 } zfs_ioc_vec_t;
 
 /* This array is indexed by zfs_userquota_prop_t */
@@ -130,6 +138,12 @@ static int zfs_fill_zplprops_root(uint64_t, nvlist_t *, nvlist_t *,
 int zfs_set_prop_nvlist(const char *, zprop_source_t, nvlist_t *, nvlist_t **);
  
 static void zfsdev_close(void *data);
+
+static int zfs_prop_activate_feature(dsl_pool_t *dp, zfeature_info_t *feature);
+static int zfs_prop_activate_feature_check(void *arg1, void *arg2,
+    dmu_tx_t *tx);
+static void zfs_prop_activate_feature_sync(void *arg1, void *arg2,
+    dmu_tx_t *tx);
 
 /* _NOTE(PRINTFLIKE(4)) - this is printf-like, but lint is too whiney */
 void
@@ -2264,6 +2278,40 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 		}
 		break;
 	}
+	case ZFS_PROP_COMPRESSION:
+	{
+		if (intval == ZIO_COMPRESS_LZ4) {
+			zfeature_info_t *feature =
+			    &spa_feature_table[SPA_FEATURE_LZ4_COMPRESS];
+			spa_t *spa;
+			dsl_pool_t *dp;
+
+			if ((err = spa_open(dsname, &spa, FTAG)) != 0)
+				return (err);
+
+			dp = spa->spa_dsl_pool;
+
+			/*
+			 * Setting the LZ4 compression algorithm activates
+			 * the feature.
+			 */
+			if (!spa_feature_is_active(spa, feature)) {
+				if ((err = zfs_prop_activate_feature(dp,
+				    feature)) != 0) {
+					spa_close(spa, FTAG);
+					return (err);
+				}
+			}
+
+			spa_close(spa, FTAG);
+		}
+		/*
+		 * We still want the default set action to be performed in the
+		 * caller, we only performed zfeature settings here.
+		 */
+		err = -1;
+		break;
+	}
 
 	default:
 		err = -1;
@@ -3481,6 +3529,22 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 			    SPA_VERSION_ZLE_COMPRESSION))
 				return (ENOTSUP);
 
+			if (intval == ZIO_COMPRESS_LZ4) {
+				zfeature_info_t *feature =
+				    &spa_feature_table[
+				    SPA_FEATURE_LZ4_COMPRESS];
+				spa_t *spa;
+
+				if ((err = spa_open(dsname, &spa, FTAG)) != 0)
+					return (err);
+
+				if (!spa_feature_is_enabled(spa, feature)) {
+					spa_close(spa, FTAG);
+					return (ENOTSUP);
+				}
+				spa_close(spa, FTAG);
+			}
+
 			/*
 			 * If this is a bootable dataset then
 			 * verify that the compression algorithm
@@ -3522,6 +3586,56 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 	}
 
 	return (zfs_secpolicy_setprop(dsname, prop, pair, CRED()));
+}
+
+/*
+ * Activates a feature on a pool in response to a property setting. This
+ * creates a new sync task which modifies the pool to reflect the feature
+ * as being active.
+ */
+static int
+zfs_prop_activate_feature(dsl_pool_t *dp, zfeature_info_t *feature)
+{
+	int err;
+
+	/* EBUSY here indicates that the feature is already active */
+	err = dsl_sync_task_do(dp, zfs_prop_activate_feature_check,
+	    zfs_prop_activate_feature_sync, dp->dp_spa, feature, 2);
+
+	if (err != 0 && err != EBUSY)
+		return (err);
+	else
+		return (0);
+}
+
+/*
+ * Checks for a race condition to make sure we don't increment a feature flag
+ * multiple times.
+ */
+/*ARGSUSED*/
+static int
+zfs_prop_activate_feature_check(void *arg1, void *arg2, dmu_tx_t *tx)
+{
+	spa_t *spa = arg1;
+	zfeature_info_t *feature = arg2;
+
+	if (!spa_feature_is_active(spa, feature))
+		return (0);
+	else
+		return (EBUSY);
+}
+
+/*
+ * The callback invoked on feature activation in the sync task caused by
+ * zfs_prop_activate_feature.
+ */
+static void
+zfs_prop_activate_feature_sync(void *arg1, void *arg2, dmu_tx_t *tx)
+{
+	spa_t *spa = arg1;
+	zfeature_info_t *feature = arg2;
+
+	spa_feature_incr(spa, feature, tx);
 }
 
 /*
@@ -4944,138 +5058,155 @@ zfs_ioc_unjail(zfs_cmd_t *zc)
 
 static zfs_ioc_vec_t zfs_ioc_vec[] = {
 	{ zfs_ioc_pool_create, zfs_secpolicy_config, POOL_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_destroy,	zfs_secpolicy_config, POOL_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_import, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_export, zfs_secpolicy_config, POOL_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_configs,	zfs_secpolicy_none, NO_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_stats, zfs_secpolicy_read, POOL_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_tryimport, zfs_secpolicy_config, NO_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_scan, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_pool_freeze, zfs_secpolicy_config, NO_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_READONLY },
 	{ zfs_ioc_pool_upgrade,	zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_pool_get_history, zfs_secpolicy_config, POOL_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_vdev_add, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_vdev_remove, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_vdev_set_state, zfs_secpolicy_config,	POOL_NAME, B_TRUE,
-	    B_FALSE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_vdev_attach, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_vdev_detach, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_vdev_setpath,	zfs_secpolicy_config, POOL_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_vdev_setfru,	zfs_secpolicy_config, POOL_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_objset_stats,	zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED },
 	{ zfs_ioc_objset_zplprops, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_dataset_list_next, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED },
 	{ zfs_ioc_snapshot_list_next, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_TRUE },
-	{ zfs_ioc_set_prop, zfs_secpolicy_none, DATASET_NAME, B_TRUE, B_TRUE },
-	{ zfs_ioc_create, zfs_secpolicy_create, DATASET_NAME, B_TRUE, B_TRUE },
+	    POOL_CHECK_SUSPENDED },
+	{ zfs_ioc_set_prop, zfs_secpolicy_none, DATASET_NAME, B_TRUE,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
+	{ zfs_ioc_create, zfs_secpolicy_create, DATASET_NAME, B_TRUE,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_destroy, zfs_secpolicy_destroy, DATASET_NAME, B_TRUE,
-	    B_TRUE},
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY},
 	{ zfs_ioc_rollback, zfs_secpolicy_rollback, DATASET_NAME, B_TRUE,
-	    B_TRUE },
-	{ zfs_ioc_rename, zfs_secpolicy_rename,	DATASET_NAME, B_TRUE, B_TRUE },
-	{ zfs_ioc_recv, zfs_secpolicy_receive, DATASET_NAME, B_TRUE, B_TRUE },
-	{ zfs_ioc_send, zfs_secpolicy_send, DATASET_NAME, B_FALSE, B_FALSE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
+	{ zfs_ioc_rename, zfs_secpolicy_rename,	DATASET_NAME, B_TRUE,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
+	{ zfs_ioc_recv, zfs_secpolicy_receive, DATASET_NAME, B_TRUE,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
+	{ zfs_ioc_send, zfs_secpolicy_send, DATASET_NAME, B_FALSE,
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_inject_fault,	zfs_secpolicy_inject, NO_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_clear_fault, zfs_secpolicy_inject, NO_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_inject_list_next, zfs_secpolicy_inject, NO_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_error_log, zfs_secpolicy_inject, POOL_NAME, B_FALSE,
-	    B_FALSE },
-	{ zfs_ioc_clear, zfs_secpolicy_config, POOL_NAME, B_TRUE, B_FALSE },
+	    POOL_CHECK_NONE },
+	{ zfs_ioc_clear, zfs_secpolicy_config, POOL_NAME, B_TRUE,
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_promote, zfs_secpolicy_promote, DATASET_NAME, B_TRUE,
-	    B_TRUE },
-	{ zfs_ioc_destroy_snaps_nvl, zfs_secpolicy_destroy_recursive, DATASET_NAME,
-	    B_TRUE, B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
+	{ zfs_ioc_destroy_snaps_nvl, zfs_secpolicy_destroy_recursive,
+	    DATASET_NAME, B_TRUE, POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_snapshot, zfs_secpolicy_snapshot, DATASET_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_dsobj_to_dsname, zfs_secpolicy_diff, POOL_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_obj_to_path, zfs_secpolicy_diff, DATASET_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED },
 	{ zfs_ioc_pool_set_props, zfs_secpolicy_config,	POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_pool_get_props, zfs_secpolicy_read, POOL_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_set_fsacl, zfs_secpolicy_fsacl, DATASET_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_get_fsacl, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_FALSE },
-	{ zfs_ioc_share, zfs_secpolicy_share, DATASET_NAME, B_FALSE, B_FALSE },
+	    POOL_CHECK_NONE },
+	{ zfs_ioc_share, zfs_secpolicy_share, DATASET_NAME, B_FALSE,
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_inherit_prop, zfs_secpolicy_inherit, DATASET_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_smb_acl, zfs_secpolicy_smb_acl, DATASET_NAME, B_FALSE,
-	    B_FALSE },
-	{ zfs_ioc_userspace_one, zfs_secpolicy_userspace_one,
-	    DATASET_NAME, B_FALSE, B_FALSE },
-	{ zfs_ioc_userspace_many, zfs_secpolicy_userspace_many,
-	    DATASET_NAME, B_FALSE, B_FALSE },
+	    POOL_CHECK_NONE },
+	{ zfs_ioc_userspace_one, zfs_secpolicy_userspace_one, DATASET_NAME,
+	    B_FALSE, POOL_CHECK_NONE },
+	{ zfs_ioc_userspace_many, zfs_secpolicy_userspace_many, DATASET_NAME,
+	    B_FALSE, POOL_CHECK_NONE },
 	{ zfs_ioc_userspace_upgrade, zfs_secpolicy_userspace_upgrade,
-	    DATASET_NAME, B_FALSE, B_TRUE },
-	{ zfs_ioc_hold, zfs_secpolicy_hold, DATASET_NAME, B_TRUE, B_TRUE },
+	    DATASET_NAME, B_FALSE, POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
+	{ zfs_ioc_hold, zfs_secpolicy_hold, DATASET_NAME, B_TRUE,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_release, zfs_secpolicy_release, DATASET_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_get_holds, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED },
 	{ zfs_ioc_objset_recvd_props, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_vdev_split, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_next_obj, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_FALSE },
-	{ zfs_ioc_diff, zfs_secpolicy_diff, DATASET_NAME, B_FALSE, B_FALSE },
+	    POOL_CHECK_NONE },
+	{ zfs_ioc_diff, zfs_secpolicy_diff, DATASET_NAME, B_FALSE,
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_tmp_snapshot, zfs_secpolicy_tmp_snapshot, DATASET_NAME,
-	    B_FALSE, B_FALSE },
+	    B_FALSE, POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_obj_to_stats, zfs_secpolicy_diff, DATASET_NAME, B_FALSE,
-	    B_TRUE },
-	{ zfs_ioc_jail, zfs_secpolicy_config, DATASET_NAME, B_TRUE, B_FALSE },
-	{ zfs_ioc_unjail, zfs_secpolicy_config, DATASET_NAME, B_TRUE, B_FALSE },
+	    POOL_CHECK_SUSPENDED },
+	{ zfs_ioc_jail, zfs_secpolicy_config, DATASET_NAME, B_TRUE,
+	    POOL_CHECK_NONE },
+	{ zfs_ioc_unjail, zfs_secpolicy_config, DATASET_NAME, B_TRUE,
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_reguid, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY },
 	{ zfs_ioc_space_written, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED },
 	{ zfs_ioc_space_snaps, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED },
 	{ zfs_ioc_send_progress, zfs_secpolicy_read, DATASET_NAME, B_FALSE,
-	    B_FALSE },
+	    POOL_CHECK_NONE },
 	{ zfs_ioc_pool_reopen, zfs_secpolicy_config, POOL_NAME, B_TRUE,
-	    B_TRUE },
+	    POOL_CHECK_SUSPENDED },
 };
 
 int
-pool_status_check(const char *name, zfs_ioc_namecheck_t type)
+pool_status_check(const char *name, zfs_ioc_namecheck_t type,
+    zfs_ioc_poolcheck_t check)
 {
 	spa_t *spa;
 	int error;
 
 	ASSERT(type == POOL_NAME || type == DATASET_NAME);
 
+	if (check & POOL_CHECK_NONE)
+		return (0);
+
 	error = spa_open(name, &spa, FTAG);
 	if (error == 0) {
-		if (spa_suspended(spa))
+		if ((check & POOL_CHECK_SUSPENDED) && spa_suspended(spa))
 			error = EAGAIN;
+		else if ((check & POOL_CHECK_READONLY) && !spa_writeable(spa))
+			error = EROFS;
 		spa_close(spa, FTAG);
 	}
 	return (error);
@@ -5245,17 +5376,19 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		case POOL_NAME:
 			if (pool_namecheck(zc->zc_name, NULL, NULL) != 0)
 				error = EINVAL;
-			if (zfs_ioc_vec[vec].zvec_pool_check)
+			else
 				error = pool_status_check(zc->zc_name,
-				    zfs_ioc_vec[vec].zvec_namecheck);
+				    zfs_ioc_vec[vec].zvec_namecheck,
+				    zfs_ioc_vec[vec].zvec_pool_check);
 			break;
 
 		case DATASET_NAME:
 			if (dataset_namecheck(zc->zc_name, NULL, NULL) != 0)
 				error = EINVAL;
-			if (zfs_ioc_vec[vec].zvec_pool_check)
+			else
 				error = pool_status_check(zc->zc_name,
-				    zfs_ioc_vec[vec].zvec_namecheck);
+				    zfs_ioc_vec[vec].zvec_namecheck,
+				    zfs_ioc_vec[vec].zvec_pool_check);
 			break;
 
 		case NO_NAME:
@@ -5536,6 +5669,7 @@ static moduledata_t zfs_mod = {
 	0
 };
 DECLARE_MODULE(zfsctrl, zfs_mod, SI_SUB_VFS, SI_ORDER_ANY);
+MODULE_VERSION(zfsctrl, 1);
 MODULE_DEPEND(zfsctrl, opensolaris, 1, 1, 1);
 MODULE_DEPEND(zfsctrl, krpc, 1, 1, 1);
 MODULE_DEPEND(zfsctrl, acl_nfs4, 1, 1, 1);

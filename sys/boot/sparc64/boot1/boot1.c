@@ -340,11 +340,11 @@ main(int ac, char **av)
 	}
 
 #ifdef ZFSBOOT
-	printf(" \n>> FreeBSD/sparc64 ZFS boot block\n    Boot path:   %s\n",
+	printf(" \n>> FreeBSD/sparc64 ZFS boot block\n   Boot path:   %s\n",
 	    bootpath);
 #else
-	printf(" \n>> FreeBSD/sparc64 boot block\n    Boot path:   %s\n"
-	    "   Boot loader: %s\n", "", bootpath, path);
+	printf(" \n>> FreeBSD/sparc64 boot block\n   Boot path:   %s\n"
+	    "   Boot loader: %s\n", bootpath, path);
 #endif
 
 	if (domount(bootpath) == -1)

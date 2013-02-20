@@ -150,7 +150,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		struct mbuf *oper;
 
 		oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-		    0, M_DONTWAIT, 1, MT_DATA);
+		    0, M_NOWAIT, 1, MT_DATA);
 		if (oper) {
 			struct sctp_paramhdr *ph;
 			uint32_t *ippp;
@@ -1054,7 +1054,7 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 			struct mbuf *oper;
 
 			oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-			    0, M_DONTWAIT, 1, MT_DATA);
+			    0, M_NOWAIT, 1, MT_DATA);
 			if (oper) {
 				struct sctp_paramhdr *ph;
 				uint32_t *ippp;
@@ -1560,18 +1560,19 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 					/* only send SHUTDOWN 1st time thru */
 					struct sctp_nets *netp;
 
-					if (stcb->asoc.alternate) {
-						netp = stcb->asoc.alternate;
-					} else {
-						netp = stcb->asoc.primary_destination;
-					}
-					sctp_send_shutdown(stcb, netp);
 					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 					SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
+					sctp_stop_timers_for_shutdown(stcb);
+					if (stcb->asoc.alternate) {
+						netp = stcb->asoc.alternate;
+					} else {
+						netp = stcb->asoc.primary_destination;
+					}
+					sctp_send_shutdown(stcb, netp);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 					    stcb->sctp_ep, stcb,
 					    netp);

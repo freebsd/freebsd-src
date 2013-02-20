@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <kgssapi/gssapi.h>
 #include <kgssapi/gssapi_impl.h>
@@ -58,9 +60,13 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	gss_ctx_id_t ctx = *context_handle;
 	gss_name_t name;
 	gss_cred_id_t cred;
+	CLIENT *cl;
 
-	if (!kgss_gssd_handle)
+	cl = kgss_gssd_client();
+	if (cl == NULL) {
+		*minor_status = 0;
 		return (GSS_S_FAILURE);
+	}
 
 	if (ctx)
 		args.ctx = ctx->handle;
@@ -74,7 +80,8 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	args.input_chan_bindings = input_chan_bindings;
 
 	bzero(&res, sizeof(res));
-	stat = gssd_accept_sec_context_1(&args, &res, kgss_gssd_handle);
+	stat = gssd_accept_sec_context_1(&args, &res, cl);
+	CLNT_RELEASE(cl);
 	if (stat != RPC_SUCCESS) {
 		*minor_status = stat;
 		return (GSS_S_FAILURE);

@@ -13,7 +13,7 @@
 
 #include "InstCombine.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Support/PatternMatch.h"
 using namespace llvm;
@@ -78,7 +78,7 @@ static Value *DecomposeSimpleLinearExpr(Value *Val, unsigned &Scale,
 /// try to eliminate the cast by moving the type information into the alloc.
 Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
                                                    AllocaInst &AI) {
-  // This requires TargetData to get the alloca alignment and size information.
+  // This requires DataLayout to get the alloca alignment and size information.
   if (!TD) return 0;
 
   PointerType *PTy = cast<PointerType>(CI.getType());
@@ -229,7 +229,7 @@ isEliminableCastPair(
   const CastInst *CI, ///< The first cast instruction
   unsigned opcode,       ///< The opcode of the second cast instruction
   Type *DstTy,     ///< The target type for the second cast instruction
-  TargetData *TD         ///< The target data for pointer size
+  DataLayout *TD         ///< The target data for pointer size
 ) {
 
   Type *SrcTy = CI->getOperand(0)->getType();   // A from above
@@ -238,17 +238,20 @@ isEliminableCastPair(
   // Get the opcodes of the two Cast instructions
   Instruction::CastOps firstOp = Instruction::CastOps(CI->getOpcode());
   Instruction::CastOps secondOp = Instruction::CastOps(opcode);
-
+  Type *SrcIntPtrTy = TD && SrcTy->isPtrOrPtrVectorTy() ?
+    TD->getIntPtrType(SrcTy) : 0;
+  Type *MidIntPtrTy = TD && MidTy->isPtrOrPtrVectorTy() ?
+    TD->getIntPtrType(MidTy) : 0;
+  Type *DstIntPtrTy = TD && DstTy->isPtrOrPtrVectorTy() ?
+    TD->getIntPtrType(DstTy) : 0;
   unsigned Res = CastInst::isEliminableCastPair(firstOp, secondOp, SrcTy, MidTy,
-                                                DstTy,
-                                  TD ? TD->getIntPtrType(CI->getContext()) : 0);
-  
+                                                DstTy, SrcIntPtrTy, MidIntPtrTy,
+                                                DstIntPtrTy);
+
   // We don't want to form an inttoptr or ptrtoint that converts to an integer
   // type that differs from the pointer size.
-  if ((Res == Instruction::IntToPtr &&
-          (!TD || SrcTy != TD->getIntPtrType(CI->getContext()))) ||
-      (Res == Instruction::PtrToInt &&
-          (!TD || DstTy != TD->getIntPtrType(CI->getContext()))))
+  if ((Res == Instruction::IntToPtr && SrcTy != DstIntPtrTy) ||
+      (Res == Instruction::PtrToInt && DstTy != SrcIntPtrTy))
     Res = 0;
   
   return Instruction::CastOps(Res);

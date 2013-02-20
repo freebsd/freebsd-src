@@ -1,15 +1,81 @@
-	--- 9.8.3-P4 released ---
+	--- 9.8.4-P1 released ---
+
+3407.	[security]	Named could die on specific queries with dns64 enabled.
+			[Addressed in change #3388 for BIND 9.8.5 and 9.9.3.]
+
+	--- 9.8.4 released ---
 
 3383.	[security]	A certain combination of records in the RBT could
                         cause named to hang while populating the additional
                         section of a response. [RT #31090]
 
-	--- 9.8.3-P3 released ---
+3373.	[bug]		win32: open raw files in binary mode. [RT #30944]
 
 3364.	[security]	Named could die on specially crafted record.
 			[RT #30416]
 
-	--- 9.8.3-P2 released ---
+	--- 9.8.4rc1 released ---
+
+3369.	[bug]		nsupdate terminated unexpectedly in interactive mode
+			if built with readline support. [RT #29550]
+
+3368.	[bug]		<dns/iptable.h> and <dns/zone.h> were not C++ safe.
+
+3367.	[bug]		dns_dnsseckey_create() result was not being checked.
+			[RT #30685]
+
+3366.	[bug]		Fixed Read-After-Write dependency violation for IA64
+			atomic operations. [RT #25181]
+
+3365.	[bug]		Removed spurious newlines from log messages in
+			zone.c [RT #30675]
+
+3363.	[bug]		Need to allow "forward" and "fowarders" options
+			in static-stub zones; this had been overlooked.
+			[RT #30482]
+
+3362.	[bug]		Setting some option values to 0 in named.conf
+			could trigger an assertion failure on startup.
+			[RT #27730]
+
+3360.	[bug]		'host -w' could die.  [RT #18723]
+
+3359.	[bug]		An improperly-formed TSIG secret could cause a
+			memory leak. [RT #30607]
+
+3357.	[port]		Add support for libxml2-2.8.x [RT #30440]
+
+3356.	[bug]		Cap the TTL of signed RRsets when RRSIGs are
+			approaching their expiry, so they don't remain
+			in caches after expiry. [RT #26429]
+
+	--- 9.8.4b1 released ---
+
+3354.	[func]		Improve OpenSSL error logging. [RT #29932]
+
+3353.	[bug]		Use a single task for task exclusive operations.
+			[RT #29872]
+
+3352.	[bug]		Ensure that learned server attributes timeout of the
+			adb cache. [RT #29856]
+
+3351.	[bug]		isc_mem_put and isc_mem_putanddetach didn't report
+			caller if either ISC_MEM_DEBUGSIZE or ISC_MEM_DEBUGCTX
+			memory debugging flags are set. [RT #30243]
+
+3350.	[bug]		Memory read overrun in isc___mem_reallocate if
+			ISC_MEM_DEBUGCTX memory debugging flag is set.
+			[RT #30240]
+
+3348.	[bug]		Prevent RRSIG data from being cached if a negative
+			record matching the covering type exists at a higher
+			trust level. Such data already can't be retrieved from
+			the cache since change 3218 -- this prevents it
+			being inserted into the cache as well. [RT #26809]
+
+3347.	[bug]		dnssec-settime: Issue a warning when writing a new
+			private key file would cause a change in the
+			permissions of the existing file. [RT #27724]
 
 3346.	[security]	Bad-cache data could be used before it was
 			initialized, causing an assert. [RT #30025]
@@ -18,11 +84,47 @@
 			resulting in excessive cpu usage in some cases.
 			[RT #29952]
 
-	--- 9.8.3-P1 released ---
+3337.	[bug]		Change #3294 broke support for the multiple keys
+			in controls. [RT #29694]
+
+3335.	[func]		nslookup: return a nonzero exit code when unable
+			to get an answer. [RT #29492]
+
+3333.	[bug]		Setting resolver-query-timeout too low can cause
+			named to not recover if it loses connectivity.
+			[RT #29623]
+
+3332.	[bug]		Re-use cached DS rrsets if possible. [RT #29446]
 
 3331.	[security]	dns_rdataslab_fromrdataset could produce bad
 			rdataslabs. [RT #29644]
-			
+
+3330.	[func]		Fix missing signatures on NOERROR results despite
+			RPZ rewriting.  Also
+			 - add optional "recursive-only yes|no" to the
+			   response-policy statement
+			 - add optional "max-policy-ttl" to the response-policy
+			    statement to limit the false data that
+			    "recursive-only no" can introduce into
+			    resolvers' caches
+			 - add a RPZ performance test to bin/tests/system/rpz
+			     when queryperf is available.
+			 - the encoding of PASSTHRU action to "rpz-passthru".
+			     (The old encoding is still accepted.)
+		       [RT #26172]
+
+
+3329.	[bug]		Handle RRSIG signer-name case consistently: We
+			generate RRSIG records with the signer-name in
+			lower case.  We accept them with any case, but if
+			they fail to validate, we try again in lower case.
+			[RT #27451]
+
+3328.	[bug]		Fixed inconsistent data checking in dst_parse.c.
+			[RT #29401]
+
+3317.	[func]		Add ECDSA support (RFC 6605). [RT #21918]
+
 	--- 9.8.3 released ---
 
 3318.	[tuning]	Reduce the amount of work performed while holding a

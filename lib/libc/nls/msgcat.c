@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 				  if (np != NULL) {				\
 				  	np->name = strdup(n);			\
 					np->path = NULL;			\
+					np->catd = NLERR;			\
 					np->lang = (l == NULL) ? NULL :		\
 					    strdup(l);				\
 					np->caterrno = e;			\

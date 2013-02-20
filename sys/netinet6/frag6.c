@@ -565,7 +565,7 @@ insert:
 		m->m_len -= sizeof(struct ip6_frag);
 	} else {
 		/* this comes with no copy if the boundary is on cluster */
-		if ((t = m_split(m, offset, M_DONTWAIT)) == NULL) {
+		if ((t = m_split(m, offset, M_NOWAIT)) == NULL) {
 			frag6_remque(q6);
 			V_frag6_nfrags -= q6->ip6q_nfrag;
 #ifdef MAC

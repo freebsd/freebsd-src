@@ -64,8 +64,6 @@ namespace X86_MC {
 
   unsigned getDwarfRegFlavour(StringRef TT, bool isEH);
 
-  unsigned getX86RegNum(unsigned RegNo);
-
   void InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI);
 
   /// createX86MCSubtargetInfo - Create a X86 MCSubtargetInfo instance.
@@ -91,8 +89,9 @@ MCObjectWriter *createX86MachObjectWriter(raw_ostream &OS,
 
 /// createX86ELFObjectWriter - Construct an X86 ELF object writer.
 MCObjectWriter *createX86ELFObjectWriter(raw_ostream &OS,
-                                         bool Is64Bit,
-                                         uint8_t OSABI);
+                                         bool IsELF64,
+                                         uint8_t OSABI,
+                                         uint16_t EMachine);
 /// createX86WinCOFFObjectWriter - Construct an X86 Win COFF object writer.
 MCObjectWriter *createX86WinCOFFObjectWriter(raw_ostream &OS, bool Is64Bit);
 } // End llvm namespace

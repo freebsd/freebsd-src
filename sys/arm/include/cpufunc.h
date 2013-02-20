@@ -462,7 +462,8 @@ void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
 void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || \
+	defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 void	arm11_setttb		(u_int);
 void	arm11_sleep		(int);
 
@@ -530,6 +531,21 @@ int	get_core_id			(void);
 void	armadaxp_idcache_wbinv_all	(void);
 
 void 	cortexa_setup			(char *);
+#endif
+
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+void    arm11x6_setttb                  (u_int);
+void    arm11x6_idcache_wbinv_all       (void);
+void    arm11x6_dcache_wbinv_all        (void);
+void    arm11x6_icache_sync_all         (void);
+void    arm11x6_flush_prefetchbuf       (void);
+void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
+void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
+void    arm11x6_setup                   (char *string);
+void    arm11x6_sleep                   (int);  /* no ref. for errata */
+#endif
+#if defined(CPU_ARM1136)
+void    arm1136_sleep_rev0              (int);  /* for errata 336501 */
 #endif
 
 #if defined(CPU_ARM9E) || defined (CPU_ARM10)

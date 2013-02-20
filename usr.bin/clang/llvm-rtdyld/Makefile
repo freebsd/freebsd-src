@@ -1,7 +1,9 @@
 # $FreeBSD$
 
-PROG_CXX=llvm-rtdyld
 NO_MAN=
+.include <bsd.own.mk>
+
+PROG_CXX=llvm-rtdyld
 
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp
@@ -15,12 +17,12 @@ LIBDEPS=llvmjit \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
-	llvmmipsdisassembler \
 	llvmmipsasmparser \
+	llvmmipscodegen \
 	llvmmipsdesc \
-	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \

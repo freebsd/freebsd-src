@@ -32,7 +32,10 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 [ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
-[ ! "$_SYSRC_JAILED" ] && f_include_lang $BSDCFG_LIBE/include/messages.subr
+if [ ! "$_SYSRC_JAILED" ]; then
+	f_dprintf "%s: loading includes..." sysrc.subr
+	f_include_lang $BSDCFG_LIBE/include/messages.subr
+fi
 
 ############################################################ CONFIGURATION
 
@@ -622,5 +625,9 @@ f_sysrc_delete()
 		mv "$tmpfile" "$file"
 	done
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." sysrc.subr
 
 fi # ! $_SYSRC_SUBR

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_no_adaptive_rwlocks.h"
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -258,7 +259,7 @@ _rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line)
 
 	rw = rwlock2rw(c);
 
-	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
 	    ("rw_wlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -282,7 +283,7 @@ __rw_try_wlock(volatile uintptr_t *c, const char *file, int line)
 
 	rw = rwlock2rw(c);
 
-	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
 	    ("rw_try_wlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -364,7 +365,7 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 
 	rw = rwlock2rw(c);
 
-	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
 	    ("rw_rlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -558,7 +559,7 @@ __rw_try_rlock(volatile uintptr_t *c, const char *file, int line)
 
 	rw = rwlock2rw(c);
 
-	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
 	    ("rw_try_rlock() by idle thread %p on rwlock %s @ %s:%d",
 	    curthread, rw->lock_object.lo_name, file, line));
 

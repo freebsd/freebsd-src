@@ -1750,13 +1750,13 @@ again:
 
     case 'k':			/* Const qualifier on some type (Sun) */
       type = read_type (pp, objfile);
-      type = make_cv_type (1, TYPE_VOLATILE (type), type,
+      type = make_cvr_type (1, TYPE_VOLATILE (type), TYPE_RESTRICT(type), type,
 			   dbx_lookup_type (typenums));
       break;
 
     case 'B':			/* Volatile qual on some type (Sun) */
       type = read_type (pp, objfile);
-      type = make_cv_type (TYPE_CONST (type), 1, type,
+      type = make_cvr_type (TYPE_CONST (type), 1, TYPE_RESTRICT(type), type,
 			   dbx_lookup_type (typenums));
       break;
 

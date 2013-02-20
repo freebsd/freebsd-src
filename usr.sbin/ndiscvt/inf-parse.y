@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include "inf.h"
 
-extern int yyparse (void);
 extern int yylex (void);
 extern void yyerror(const char *);
 %}

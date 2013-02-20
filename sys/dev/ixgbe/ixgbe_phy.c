@@ -1194,25 +1194,23 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			/* Make sure we're a supported PHY type */
 			if (hw->phy.type == ixgbe_phy_sfp_intel) {
 				status = IXGBE_SUCCESS;
+			} else if (hw->allow_unsupported_sfp == TRUE) {
+				EWARN(hw, "WARNING: Intel (R) Network "
+				    "Connections are quality tested "
+				    "using Intel (R) Ethernet Optics."
+				    " Using untested modules is not "
+				    "supported and may cause unstable"
+				    " operation or damage to the "
+				    "module or the adapter. Intel "
+				    "Corporation is not responsible "
+				    "for any harm caused by using "
+				    "untested modules.\n", status);
+				status = IXGBE_SUCCESS;
 			} else {
-				if (hw->allow_unsupported_sfp == TRUE) {
-					EWARN(hw, "WARNING: Intel (R) Network "
-					      "Connections are quality tested "
-					      "using Intel (R) Ethernet Optics."
-					      " Using untested modules is not "
-					      "supported and may cause unstable"
-					      " operation or damage to the "
-					      "module or the adapter. Intel "
-					      "Corporation is not responsible "
-					      "for any harm caused by using "
-					      "untested modules.\n", status);
-					status = IXGBE_SUCCESS;
-				} else {
-					DEBUGOUT("SFP+ module not supported\n");
-					hw->phy.type =
-						ixgbe_phy_sfp_unsupported;
-					status = IXGBE_ERR_SFP_NOT_SUPPORTED;
-				}
+				DEBUGOUT("SFP+ module not supported\n");
+				hw->phy.type =
+				    ixgbe_phy_sfp_unsupported;
+				status = IXGBE_ERR_SFP_NOT_SUPPORTED;
 			}
 		} else {
 			status = IXGBE_SUCCESS;

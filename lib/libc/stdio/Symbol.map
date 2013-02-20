@@ -155,6 +155,7 @@ FBSD_1.3 {
 	getwchar_l;
 	putwc_l;
 	putwchar_l;
+	fmemopen;
 };
 
 FBSDprivate_1.0 {

@@ -1386,7 +1386,7 @@ static char *ncr_name (ncb_p np)
  * Kernel variables referenced in the scripts.
  * THESE MUST ALL BE ALIGNED TO A 4-BYTE BOUNDARY.
  */
-static void *script_kvars[] =
+static volatile void *script_kvars[] =
 	{ &time_second, &ticks, &ncr_cache };
 
 static	struct script script0 = {

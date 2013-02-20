@@ -399,7 +399,7 @@ present:
 				spx_newchecks[4]++;
 				if (dt != cb->s_rhdr.spx_dt) {
 					struct mbuf *mm =
-					   m_getclr(M_DONTWAIT, MT_CONTROL);
+					   m_getclr(M_NOWAIT, MT_CONTROL);
 					spx_newchecks[0]++;
 					if (mm != NULL) {
 						u_short *s =

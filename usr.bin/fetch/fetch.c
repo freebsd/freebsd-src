@@ -183,7 +183,7 @@ stat_bps(struct xferstat *xs)
 	if (delta == 0.0) {
 		snprintf(str, sizeof str, "?? Bps");
 	} else {
-		bps = (xs->rcvd - xs->lastrcvd - xs->offset) / delta;
+		bps = (xs->rcvd - xs->lastrcvd) / delta;
 		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
 	}
 	return (str);
@@ -618,7 +618,10 @@ fetch(char *URL, const char *path)
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
 			    (int)(slash - path), path, slash);
 			if (tmppath != NULL) {
-				mkstemps(tmppath, strlen(slash) + 1);
+				if (mkstemps(tmppath, strlen(slash) + 1) == -1) {
+					warn("%s: mkstemps()", path);
+					goto failure;
+				}
 				of = fopen(tmppath, "w");
 				chown(tmppath, sb.st_uid, sb.st_gid);
 				chmod(tmppath, sb.st_mode & ALLPERMS);
@@ -988,7 +991,8 @@ main(int argc, char *argv[])
 	if (v_tty)
 		fetchAuthMethod = query_auth;
 	if (N_filename != NULL)
-		setenv("NETRC", N_filename, 1);
+		if (setenv("NETRC", N_filename, 1) == -1)
+			err(1, "setenv: cannot set NETRC=%s", N_filename);
 
 	while (argc) {
 		if ((p = strrchr(*argv, '/')) == NULL)

@@ -26,13 +26,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2012
+.Dd December 7, 2012
 .Dt DOMAIN 9
 .Os
 .Sh NAME
 .Nm domain_add ,
 .Nm pfctlinput ,
 .Nm pfctlinput2 ,
+.Nm pffinddomain ,
 .Nm pffindproto ,
 .Nm pffindtype ,
 .Nm DOMAIN_SET
@@ -48,6 +49,8 @@
 .Fn pfctlinput "int cmd" "struct sockaddr *sa"
 .Ft void
 .Fn pfctlinput2 "int cmd" "struct sockaddr *sa" "void *ctlparam"
+.Ft struct domain *
+.Fn pffinddomain "int family"
 .Ft struct protosw *
 .Fn pffindproto "int family" "int protocol" "int type"
 .Ft struct protosw *
@@ -175,6 +178,12 @@ Once a domain is added it cannot be unloaded.
 This is because there is
 no reference counting system in place to determine if there are any
 active references from sockets within that domain.
+.Pp
+.Fn pffinddomain
+finds a domain by family.
+If the domain cannot be found,
+.Dv NULL
+is returned.
 .Pp
 .Fn pffindtype
 and

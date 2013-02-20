@@ -438,7 +438,7 @@ parse_environment(args_info *args, char *argv0, const char *varname)
 		} else if (prev_was_space) {
 			prev_was_space = false;
 
-			// Keep argc small enough to fit into a singed int
+			// Keep argc small enough to fit into a signed int
 			// and to keep it usable for memory allocation.
 			if (++argc == my_min(
 					INT_MAX, SIZE_MAX / sizeof(char *)))

@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sasl.c,v 8.22 2006/08/15 23:24:57 ca Exp $")
+SM_RCSID("@(#)$Id: sasl.c,v 8.23 2012/11/27 18:53:13 gshapiro Exp $")
 
 #if SASL
 # include <stdlib.h>
@@ -20,15 +20,15 @@ SM_RCSID("@(#)$Id: sasl.c,v 8.22 2006/08/15 23:24:57 ca Exp $")
 **  In order to ensure that storage leaks are tracked, and to prevent
 **  conflicts between the sm_heap package and sasl, we tell sasl to
 **  use the following heap allocation functions.  Unfortunately,
-**  the sasl package incorrectly specifies the size of a block
+**  older sasl packages incorrectly specifies the size of a block
 **  using unsigned long: for portability, it should be size_t.
 */
 
-#if defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a
-#define SM_SASL_SIZE_T	size_t
-#else /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
-#define SM_SASL_SIZE_T	unsigned long
-#endif /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
+# if defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a
+#  define SM_SASL_SIZE_T	size_t
+# else /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
+#  define SM_SASL_SIZE_T	unsigned long
+# endif /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
 
 void *sm_sasl_malloc __P((SM_SASL_SIZE_T));
 static void *sm_sasl_calloc __P((SM_SASL_SIZE_T, SM_SASL_SIZE_T));

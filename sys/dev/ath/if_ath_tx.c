@@ -325,7 +325,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 	 */
 	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
 		sc->sc_stats.ast_tx_linear++;
-		m = m_collapse(m0, M_DONTWAIT, ATH_TXDESC);
+		m = m_collapse(m0, M_NOWAIT, ATH_TXDESC);
 		if (m == NULL) {
 			ath_freetx(m0);
 			sc->sc_stats.ast_tx_nombuf++;
@@ -372,7 +372,6 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 	uint32_t segLenList[4];
 	int numTxMaps = 1;
 	int isFirstDesc = 1;
-	int qnum;
 
 	/*
 	 * XXX There's txdma and txdma_mgmt; the descriptor
@@ -426,18 +425,16 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 			    bf->bf_daddr + dd->dd_descsize * (dsp + 1));
 
 		/*
-		 * XXX this assumes that bfs_txq is the actual destination
-		 * hardware queue at this point.  It may not have been assigned,
-		 * it may actually be pointing to the multicast software
-		 * TXQ id.  These must be fixed!
+		 * XXX This assumes that bfs_txq is the actual destination
+		 * hardware queue at this point.  It may not have been
+		 * assigned, it may actually be pointing to the multicast
+		 * software TXQ id.  These must be fixed!
 		 */
-		qnum = bf->bf_state.bfs_txq->axq_qnum;
-
 		ath_hal_filltxdesc(ah, (struct ath_desc *) ds
 			, bufAddrList
 			, segLenList
 			, bf->bf_descid		/* XXX desc id */
-			, qnum
+			, bf->bf_state.bfs_tx_queue
 			, isFirstDesc		/* first segment */
 			, i == bf->bf_nseg - 1	/* last segment */
 			, (struct ath_desc *) ds0	/* first descriptor */
@@ -476,10 +473,6 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 			    bf->bf_state.bfs_ndelim);
 		}
 		isFirstDesc = 0;
-#ifdef	ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_XMIT)
-			ath_printtxbuf(sc, bf, qnum, 0, 0);
-#endif
 		bf->bf_lastds = (struct ath_desc *) ds;
 
 		/*
@@ -697,11 +690,11 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
  * during the beacon setup code.
  *
  * XXX TODO: since the AR9300 EDMA TX queue support wants the QCU ID
- * as part of the TX descriptor, bf_state.bfs_txq must be updated
+ * as part of the TX descriptor, bf_state.bfs_tx_queue must be updated
  * with the actual hardware txq, or all of this will fall apart.
  *
  * XXX It may not be a bad idea to just stuff the QCU ID into bf_state
- * and retire bfs_txq; then make sure the CABQ QCU ID is populated
+ * and retire bfs_tx_queue; then make sure the CABQ QCU ID is populated
  * correctly.
  */
 static void
@@ -1395,12 +1388,13 @@ static void
 ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
     struct ath_buf *bf)
 {
+	struct ath_node *an = ATH_NODE(bf->bf_node);
 
 	ATH_TX_LOCK_ASSERT(sc);
 
-	if (tid->clrdmask == 1) {
+	if (an->clrdmask == 1) {
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
-		tid->clrdmask = 0;
+		an->clrdmask = 0;
 	}
 }
 
@@ -1840,7 +1834,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* Set local packet state, used to queue packets to hardware */
 	bf->bf_state.bfs_tid = tid;
-	bf->bf_state.bfs_txq = txq;
+	bf->bf_state.bfs_tx_queue = txq->axq_qnum;
 	bf->bf_state.bfs_pri = pri;
 
 	/*
@@ -1858,7 +1852,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * queue, so the descriptor setup functions will
 		 * correctly initialise the descriptor 'qcuId' field.
 		 */
-		bf->bf_state.bfs_txq = sc->sc_cabq;
+		bf->bf_state.bfs_tx_queue = sc->sc_cabq->axq_qnum;
 	}
 
 	/* Do the generic frame setup */
@@ -2114,7 +2108,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	/* Set local packet state, used to queue packets to hardware */
 	bf->bf_state.bfs_tid = WME_AC_TO_TID(pri);
-	bf->bf_state.bfs_txq = sc->sc_ac2q[pri];
+	bf->bf_state.bfs_tx_queue = sc->sc_ac2q[pri]->axq_qnum;
 	bf->bf_state.bfs_pri = pri;
 
 	/* XXX this should be done in ath_tx_setrate() */
@@ -2713,15 +2707,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
     struct ath_txq *txq, struct ath_buf *bf)
 {
 	struct ath_tid *tid = &an->an_tid[bf->bf_state.bfs_tid];
-//	struct ath_txq *txq = bf->bf_state.bfs_txq;
 	struct ieee80211_tx_ampdu *tap;
-
-	if (txq != bf->bf_state.bfs_txq) {
-		device_printf(sc->sc_dev, "%s: txq %d != bfs_txq %d!\n",
-		    __func__,
-		    txq->axq_qnum,
-		    bf->bf_state.bfs_txq->axq_qnum);
-	}
 
 	ATH_TX_LOCK_ASSERT(sc);
 
@@ -2821,9 +2807,8 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 
 	/* Set local packet state, used to queue packets to hardware */
 	/* XXX potentially duplicate info, re-check */
-	/* XXX remember, txq must be the hardware queue, not the av_mcastq */
 	bf->bf_state.bfs_tid = tid;
-	bf->bf_state.bfs_txq = txq;
+	bf->bf_state.bfs_tx_queue = txq->axq_qnum;
 	bf->bf_state.bfs_pri = pri;
 
 	/*
@@ -2895,6 +2880,29 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 }
 
 /*
+ * Only set the clrdmask bit if none of the nodes are currently
+ * filtered.
+ *
+ * XXX TODO: go through all the callers and check to see
+ * which are being called in the context of looping over all
+ * TIDs (eg, if all tids are being paused, resumed, etc.)
+ * That'll avoid O(n^2) complexity here.
+ */
+static void
+ath_tx_set_clrdmask(struct ath_softc *sc, struct ath_node *an)
+{
+	int i;
+
+	ATH_TX_LOCK_ASSERT(sc);
+
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		if (an->an_tid[i].isfiltered == 1)
+			return;
+	}
+	an->clrdmask = 1;
+}
+
+/*
  * Configure the per-TID node state.
  *
  * This likely belongs in if_ath_node.c but I can't think of anywhere
@@ -2925,12 +2933,12 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		atid->sched = 0;
 		atid->hwq_depth = 0;
 		atid->cleanup_inprogress = 0;
-		atid->clrdmask = 1;	/* Always start by setting this bit */
 		if (i == IEEE80211_NONQOS_TID)
 			atid->ac = ATH_NONQOS_TID_AC;
 		else
 			atid->ac = TID_TO_WME_AC(i);
 	}
+	an->clrdmask = 1;	/* Always start by setting this bit */
 }
 
 /*
@@ -2956,7 +2964,6 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
-
 	ATH_TX_LOCK_ASSERT(sc);
 
 	tid->paused--;
@@ -2971,7 +2978,7 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	 * Override the clrdmask configuration for the next frame
 	 * from this TID, just to get the ball rolling.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	if (tid->axq_depth == 0)
 		return;
@@ -2983,9 +2990,11 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	}
 
 	ath_tx_tid_sched(sc, tid);
-	/* Punt some frames to the hardware if needed */
-	//ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+
+	/*
+	 * Queue the software TX scheduler.
+	 */
+	ath_tx_swq_kick(sc);
 }
 
 /*
@@ -3054,7 +3063,8 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: hwq=0, transition back\n",
 	    __func__);
 	tid->isfiltered = 0;
-	tid->clrdmask = 1;
+	/* XXX ath_tx_tid_resume() also calls ath_tx_set_clrdmask()! */
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/* XXX this is really quite inefficient */
 	while ((bf = ATH_TID_FILT_LAST(tid, ath_bufhead_s)) != NULL) {
@@ -3139,7 +3149,7 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		 * Don't allow a filtered frame to live forever.
 		 */
 		if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
-		sc->sc_stats.ast_tx_swretrymax++;
+			sc->sc_stats.ast_tx_swretrymax++;
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 			    "%s: bf=%p, seqno=%d, exceeded retries\n",
 			    __func__,
@@ -3310,7 +3320,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 * Override the clrdmask configuration for the next frame,
 	 * just to get the ball rolling.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/*
 	 * Calculate new BAW left edge, now that all frames have either
@@ -3491,7 +3501,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 	 *
 	 * This won't hurt things if the TID is about to be freed.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/*
 	 * Now that it's completed, grab the TID lock and update
@@ -4869,8 +4879,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 
 		}
 	queuepkt:
-		//txq = bf->bf_state.bfs_txq;
-
 		/* Set completion handler, multi-frame aggregate or not */
 		bf->bf_comp = ath_tx_aggr_comp;
 
@@ -4935,8 +4943,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		}
 
 		ATH_TID_REMOVE(tid, bf, bf_list);
-
-		KASSERT(txq == bf->bf_state.bfs_txq, ("txqs not equal!\n"));
 
 		/* Sanity check! */
 		if (tid->tid != bf->bf_state.bfs_tid) {

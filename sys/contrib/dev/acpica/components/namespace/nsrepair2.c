@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ typedef struct acpi_repair_info
 /* Local prototypes */
 
 static const ACPI_REPAIR_INFO *
-AcpiNsMatchRepairableName (
+AcpiNsMatchComplexRepair (
     ACPI_NAMESPACE_NODE     *Node);
 
 static ACPI_STATUS
@@ -197,7 +197,7 @@ AcpiNsComplexRepairs (
 
     /* Check if this name is in the list of repairable names */
 
-    Predefined = AcpiNsMatchRepairableName (Node);
+    Predefined = AcpiNsMatchComplexRepair (Node);
     if (!Predefined)
     {
         return (ValidateStatus);
@@ -210,7 +210,7 @@ AcpiNsComplexRepairs (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiNsMatchRepairableName
+ * FUNCTION:    AcpiNsMatchComplexRepair
  *
  * PARAMETERS:  Node                - Namespace node for the method/object
  *
@@ -221,7 +221,7 @@ AcpiNsComplexRepairs (
  *****************************************************************************/
 
 static const ACPI_REPAIR_INFO *
-AcpiNsMatchRepairableName (
+AcpiNsMatchComplexRepair (
     ACPI_NAMESPACE_NODE     *Node)
 {
     const ACPI_REPAIR_INFO  *ThisName;

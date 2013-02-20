@@ -43,6 +43,8 @@ DEFINE_TEST(test_archive_getdate)
 	assertEqualInt(get_date(now, "2004/01/29 513 mest"), 1075345980);
 	assertEqualInt(get_date(now, "99/02/17 7pm utc"), 919278000);
 	assertEqualInt(get_date(now, "02/17/99 7:11am est"), 919253460);
+	assertEqualInt(get_date(now, "now - 2 hours"),
+	    get_date(now, "2 hours ago"));
 	/* It's important that we handle ctime() format. */
 	assertEqualInt(get_date(now, "Sun Feb 22 17:38:26 PST 2009"),
 	    1235353106);
@@ -77,5 +79,6 @@ DEFINE_TEST(test_archive_getdate)
 	/* "last tuesday" is one week before "tuesday" */
 	assertEqualInt(get_date(now, "last tuesday UTC"),
 	    now - 6 * 24 * 60 * 60);
+
 	/* TODO: Lots more tests here. */
 }

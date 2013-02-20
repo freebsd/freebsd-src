@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG_CXX=llvm-extract
 
 SRCDIR=	tools/llvm-extract

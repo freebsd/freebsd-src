@@ -37,6 +37,10 @@ void initarm_gpio_init(void);
 void initarm_late_init(void);
 int platform_devmap_init(void);
 
+/* Board-specific attributes */
+void board_set_serial(uint64_t);
+void board_set_revision(uint32_t);
+
 /* Needs to be initialised by platform_devmap_init */
 extern const struct pmap_devmap *pmap_devmap_bootstrap_table;
 

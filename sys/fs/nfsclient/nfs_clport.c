@@ -726,7 +726,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
 	nfsattrbit_t attrbits;
-	struct timeval curtime;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
 	case ND_NFSV2:
@@ -755,7 +754,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 		break;
 	case ND_NFSV3:
-		getmicrotime(&curtime);
 		if (vap->va_mode != (mode_t)VNOVAL) {
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = newnfs_true;
@@ -789,7 +787,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = newnfs_false;
 		}
 		if (vap->va_atime.tv_sec != VNOVAL) {
-			if (vap->va_atime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_atime, tl);
@@ -802,7 +800,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 		}
 		if (vap->va_mtime.tv_sec != VNOVAL) {
-			if (vap->va_mtime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_mtime, tl);
@@ -853,7 +851,7 @@ nfscl_request(struct nfsrv_descript *nd, struct vnode *vp, NFSPROC_T *p,
 	else
 		vers = NFS_VER2;
 	ret = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, vp, p, cred,
-		NFS_PROG, vers, NULL, 1, NULL);
+		NFS_PROG, vers, NULL, 1, NULL, NULL);
 	return (ret);
 }
 
@@ -1112,10 +1110,15 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 		    "No name and/or group mapping for uid,gid:(%d,%d)\n",
 		    uid, gid);
 		return (EPERM);
+	case NFSERR_BADNAME:
+	case NFSERR_BADCHAR:
+		printf("nfsv4 char/name not handled by server\n");
+		return (ENOENT);
 	case NFSERR_STALECLIENTID:
 	case NFSERR_STALESTATEID:
 	case NFSERR_EXPIRED:
 	case NFSERR_BADSTATEID:
+	case NFSERR_BADSESSION:
 		printf("nfsv4 recover err returned %d\n", error);
 		return (EIO);
 	case NFSERR_BADHANDLE:
@@ -1131,8 +1134,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 	case NFSERR_LEASEMOVED:
 	case NFSERR_RECLAIMBAD:
 	case NFSERR_BADXDR:
-	case NFSERR_BADCHAR:
-	case NFSERR_BADNAME:
 	case NFSERR_OPILLEGAL:
 		printf("nfsv4 client/server protocol prob err=%d\n",
 		    error);

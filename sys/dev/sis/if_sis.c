@@ -1411,7 +1411,7 @@ sis_newbuf(struct sis_softc *sc, struct sis_rxdesc *rxd)
 	bus_dmamap_t		map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = SIS_RXLEN;
@@ -1771,7 +1771,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 		padlen = SIS_MIN_FRAMELEN - m->m_pkthdr.len;
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1780,7 +1780,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 		if (m->m_next != NULL || M_TRAILINGSPACE(m) < padlen) {
-			m = m_defrag(m, M_DONTWAIT);
+			m = m_defrag(m, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(*m_head);
 				*m_head = NULL;
@@ -1799,7 +1799,7 @@ sis_encap(struct sis_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->sis_tx_tag, txd->tx_dmamap,
 	    *m_head, segs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, SIS_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, SIS_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

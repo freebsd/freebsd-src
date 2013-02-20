@@ -50,7 +50,7 @@ typedef struct uma_zone * uma_zone_t;
 
 void zone_drain(uma_zone_t);
 
-/* 
+/*
  * Item constructor
  *
  * Arguments:
@@ -58,7 +58,7 @@ void zone_drain(uma_zone_t);
  *	arg   The arg field passed to uma_zalloc_arg
  *	size  The size of the allocated item
  *	flags See zalloc flags
- * 
+ *
  * Returns:
  *	0      on success
  *      errno  on failure
@@ -76,7 +76,7 @@ typedef int (*uma_ctor)(void *mem, int size, void *arg, int flags);
  *	item  A pointer to the memory which has been allocated.
  *	size  The size of the item being destructed.
  *	arg   Argument passed through uma_zfree_arg
- * 
+ *
  * Returns:
  *	Nothing
  *
@@ -87,20 +87,20 @@ typedef int (*uma_ctor)(void *mem, int size, void *arg, int flags);
  */
 typedef void (*uma_dtor)(void *mem, int size, void *arg);
 
-/* 
+/*
  * Item initializer
  *
  * Arguments:
  *	item  A pointer to the memory which has been allocated.
  *	size  The size of the item being initialized.
  *	flags See zalloc flags
- * 
+ *
  * Returns:
  *	0      on success
  *      errno  on failure
  *
  * Discussion:
- *	The initializer is called when the memory is cached in the uma zone. 
+ *	The initializer is called when the memory is cached in the uma zone.
  *	The initializer and the destructor should leave the object in the same
  *	state.
  */
@@ -110,7 +110,7 @@ typedef int (*uma_init)(void *mem, int size, int flags);
  * Item discard function
  *
  * Arguments:
- * 	item  A pointer to memory which has been 'freed' but has not left the 
+ *	item  A pointer to memory which has been 'freed' but has not left the
  *	      zone's cache.
  *	size  The size of the item being discarded.
  *
@@ -126,7 +126,7 @@ typedef void (*uma_fini)(void *mem, int size);
 /*
  * What's the difference between initializing and constructing?
  *
- * The item is initialized when it is cached, and this is the state that the 
+ * The item is initialized when it is cached, and this is the state that the
  * object should be in when returned to the allocator. The purpose of this is
  * to remove some code which would otherwise be called on each allocation by
  * utilizing a known, stable state.  This differs from the constructor which
@@ -211,7 +211,7 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
  * the only supported.
  *
  * Returns:
- * 	Error on failure, 0 on success.
+ *	Error on failure, 0 on success.
  */
 int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
 
@@ -403,7 +403,7 @@ void uma_startup(void *bootmem, int boot_pages);
  * Discussion:
  *	uma_startup2 is called by kmeminit() to enable us of uma for malloc.
  */
- 
+
 void uma_startup2(void);
 
 /*
@@ -474,6 +474,18 @@ int uma_zone_set_max(uma_zone_t zone, int nitems);
  *	int  The effective limit of the zone
  */
 int uma_zone_get_max(uma_zone_t zone);
+
+/*
+ * Sets a warning to be printed when limit is reached
+ *
+ * Arguments:
+ *	zone  The zone we will warn about
+ *	warning  Warning content
+ *
+ * Returns:
+ *	Nothing
+ */
+void uma_zone_set_warning(uma_zone_t zone, const char *warning);
 
 /*
  * Obtains the approximate current number of items allocated from a zone
@@ -571,11 +583,11 @@ void uma_prealloc(uma_zone_t zone, int itemcnt);
  * the underlying slab header.
  *
  * Arguments:
- * 	zone  The UMA_ZONE_REFCNT zone to which the item belongs.
+ *	zone  The UMA_ZONE_REFCNT zone to which the item belongs.
  *	item  The address of the item for which we want a refcnt.
  *
  * Returns:
- * 	A pointer to a u_int32_t reference counter.
+ *	A pointer to a u_int32_t reference counter.
  */
 u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
 
@@ -586,7 +598,7 @@ u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
  *	zone    The zone to check
  *
  * Returns:
- * 	Non-zero if zone is exhausted.
+ *	Non-zero if zone is exhausted.
  */
 int uma_zone_exhausted(uma_zone_t zone);
 int uma_zone_exhausted_nolock(uma_zone_t zone);

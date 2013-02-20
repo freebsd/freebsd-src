@@ -39,7 +39,6 @@ SUBDIR=	adduser \
 	kldxref \
 	mailwrapper \
 	makefs \
-	manctl \
 	memcontrol \
 	mergemaster \
 	mfiutil \
@@ -55,8 +54,9 @@ SUBDIR=	adduser \
 	nfsdumpstate \
 	nfsrevoke \
 	nfsuserd \
+	nmtree \
 	nologin \
-	pc-sysinstall \
+	${_pc_sysinstall} \
 	pciconf \
 	periodic \
 	powerd \
@@ -262,6 +262,10 @@ SUBDIR+=	ntp
 
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=	keyserv
+.endif
+
+.if ${MK_PC_SYSINSTALL} != "no"
+_pc_sysinstall=	pc-sysinstall
 .endif
 
 .if ${MK_PF} != "no"

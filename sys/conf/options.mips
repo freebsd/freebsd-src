@@ -73,6 +73,7 @@ MAXMEM			opt_global.h
 #
 OCTEON_MODEL			opt_cvmx.h
 OCTEON_VENDOR_LANNER		opt_cvmx.h
+OCTEON_VENDOR_UBIQUITI		opt_cvmx.h
 OCTEON_VENDOR_RADISYS		opt_cvmx.h
 OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 

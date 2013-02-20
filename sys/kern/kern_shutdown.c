@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/kthread.h>
+#include <sys/ktr.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
@@ -150,6 +151,7 @@ static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
 static void shutdown_reset(void *junk, int howto);
+static void vpanic(const char *fmt, va_list ap) __dead2;
 
 /* register various local shutdown events */
 static void
@@ -538,6 +540,134 @@ shutdown_reset(void *junk, int howto)
 	/* NOTREACHED */ /* assuming reset worked */
 }
 
+#if defined(WITNESS) || defined(INVARIANTS)
+static int kassert_warn_only = 0;
+#ifdef KDB
+static int kassert_do_kdb = 0;
+#endif
+#ifdef KTR
+static int kassert_do_ktr = 0;
+#endif
+static int kassert_do_log = 1;
+static int kassert_log_pps_limit = 4;
+static int kassert_log_mute_at = 0;
+static int kassert_log_panic_at = 0;
+static int kassert_warnings = 0;
+
+SYSCTL_NODE(_debug, OID_AUTO, kassert, CTLFLAG_RW, NULL, "kassert options");
+
+SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_warn_only, 0,
+    "KASSERT triggers a panic (1) or just a warning (0)");
+TUNABLE_INT("debug.kassert.warn_only", &kassert_warn_only);
+
+#ifdef KDB
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_do_kdb, 0, "KASSERT will enter the debugger");
+TUNABLE_INT("debug.kassert.do_kdb", &kassert_do_kdb);
+#endif
+
+#ifdef KTR
+SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_do_ktr, 0,
+    "KASSERT does a KTR, set this to the KTRMASK you want");
+TUNABLE_INT("debug.kassert.do_ktr", &kassert_do_ktr);
+#endif
+
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_do_log, 0, "KASSERT triggers a panic (1) or just a warning (0)");
+TUNABLE_INT("debug.kassert.do_log", &kassert_do_log);
+
+SYSCTL_INT(_debug_kassert, OID_AUTO, warnings, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_warnings, 0, "number of KASSERTs that have been triggered");
+TUNABLE_INT("debug.kassert.warnings", &kassert_warnings);
+
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_panic_at, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_log_panic_at, 0, "max number of KASSERTS before we will panic");
+TUNABLE_INT("debug.kassert.log_panic_at", &kassert_log_panic_at);
+
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_pps_limit, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_log_pps_limit, 0, "limit number of log messages per second");
+TUNABLE_INT("debug.kassert.log_pps_limit", &kassert_log_pps_limit);
+
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_mute_at, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_log_mute_at, 0, "max number of KASSERTS to log");
+TUNABLE_INT("debug.kassert.log_mute_at", &kassert_log_mute_at);
+
+static int kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS);
+
+SYSCTL_PROC(_debug_kassert, OID_AUTO, kassert,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
+    kassert_sysctl_kassert, "I", "set to trigger a test kassert");
+
+static int
+kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+
+	error = sysctl_wire_old_buffer(req, sizeof(int));
+	if (error == 0) {
+		i = 0;
+		error = sysctl_handle_int(oidp, &i, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	KASSERT(0, ("kassert_sysctl_kassert triggered kassert %d", i));
+	return (0);
+}
+
+/*
+ * Called by KASSERT, this decides if we will panic
+ * or if we will log via printf and/or ktr.
+ */
+void
+kassert_panic(const char *fmt, ...)
+{
+	static char buf[256];
+	va_list ap;
+
+	va_start(ap, fmt);
+	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	/*
+	 * panic if we're not just warning, or if we've exceeded
+	 * kassert_log_panic_at warnings.
+	 */
+	if (!kassert_warn_only ||
+	    (kassert_log_panic_at > 0 &&
+	     kassert_warnings >= kassert_log_panic_at)) {
+		va_start(ap, fmt);
+		vpanic(fmt, ap);
+		/* NORETURN */
+	}
+#ifdef KTR
+	if (kassert_do_ktr)
+		CTR0(ktr_mask, buf);
+#endif /* KTR */
+	/*
+	 * log if we've not yet met the mute limit.
+	 */
+	if (kassert_do_log &&
+	    (kassert_log_mute_at == 0 ||
+	     kassert_warnings < kassert_log_mute_at)) {
+		static  struct timeval lasterr;
+		static  int curerr;
+
+		if (ppsratecheck(&lasterr, &curerr, kassert_log_pps_limit)) {
+			printf("KASSERT failed: %s\n", buf);
+			kdb_backtrace();
+		}
+	}
+#ifdef KDB
+	if (kassert_do_kdb) {
+		kdb_enter(KDB_WHY_KASSERT, buf);
+	}
+#endif
+	atomic_add_int(&kassert_warnings, 1);
+}
+#endif
+
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
@@ -546,12 +676,20 @@ shutdown_reset(void *junk, int howto)
 void
 panic(const char *fmt, ...)
 {
+	va_list ap;
+
+	va_start(ap, fmt);
+	vpanic(fmt, ap);
+}
+
+static void
+vpanic(const char *fmt, va_list ap)
+{
 #ifdef SMP
 	cpuset_t other_cpus;
 #endif
 	struct thread *td = curthread;
 	int bootopt, newpanic;
-	va_list ap;
 	static char buf[256];
 
 	spinlock_enter();
@@ -587,7 +725,6 @@ panic(const char *fmt, ...)
 		newpanic = 1;
 	}
 
-	va_start(ap, fmt);
 	if (newpanic) {
 		(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 		panicstr = buf;
@@ -598,7 +735,6 @@ panic(const char *fmt, ...)
 		vprintf(fmt, ap);
 		printf("\n");
 	}
-	va_end(ap);
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif

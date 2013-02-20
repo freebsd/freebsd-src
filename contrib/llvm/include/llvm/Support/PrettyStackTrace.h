@@ -16,6 +16,8 @@
 #ifndef LLVM_SUPPORT_PRETTYSTACKTRACE_H
 #define LLVM_SUPPORT_PRETTYSTACKTRACE_H
 
+#include "llvm/Support/Compiler.h"
+
 namespace llvm {
   class raw_ostream;
 
@@ -32,8 +34,8 @@ namespace llvm {
   /// virtual stack trace.  This gets dumped out if the program crashes.
   class PrettyStackTraceEntry {
     const PrettyStackTraceEntry *NextEntry;
-    PrettyStackTraceEntry(const PrettyStackTraceEntry &); // DO NOT IMPLEMENT
-    void operator=(const PrettyStackTraceEntry&);         // DO NOT IMPLEMENT
+    PrettyStackTraceEntry(const PrettyStackTraceEntry &) LLVM_DELETED_FUNCTION;
+    void operator=(const PrettyStackTraceEntry&) LLVM_DELETED_FUNCTION;
   public:
     PrettyStackTraceEntry();
     virtual ~PrettyStackTraceEntry();
@@ -52,7 +54,7 @@ namespace llvm {
     const char *Str;
   public:
     PrettyStackTraceString(const char *str) : Str(str) {}
-    virtual void print(raw_ostream &OS) const;
+    virtual void print(raw_ostream &OS) const LLVM_OVERRIDE;
   };
 
   /// PrettyStackTraceProgram - This object prints a specified program arguments
@@ -63,7 +65,7 @@ namespace llvm {
   public:
     PrettyStackTraceProgram(int argc, const char * const*argv)
       : ArgC(argc), ArgV(argv) {}
-    virtual void print(raw_ostream &OS) const;
+    virtual void print(raw_ostream &OS) const LLVM_OVERRIDE;
   };
 
 } // end namespace llvm

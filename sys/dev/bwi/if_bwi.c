@@ -2534,7 +2534,7 @@ bwi_newbuf(struct bwi_softc *sc, int buf_idx, int init)
 
 	KASSERT(buf_idx < BWI_RX_NDESC, ("buf_idx %d", buf_idx));
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		error = ENOBUFS;
 
@@ -3015,7 +3015,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * Setup the embedded TX header
 	 */
-	M_PREPEND(m, sizeof(*hdr), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 	if (m == NULL) {
 		if_printf(ifp, "%s: prepend TX header failed\n", __func__);
 		return ENOBUFS;
@@ -3074,7 +3074,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	if (error) {	/* error == EFBIG */
 		struct mbuf *m_new;
 
-		m_new = m_defrag(m, M_DONTWAIT);
+		m_new = m_defrag(m, M_NOWAIT);
 		if (m_new == NULL) {
 			if_printf(ifp, "%s: can't defrag TX buffer\n",
 			    __func__);
@@ -3195,7 +3195,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	/*
 	 * Setup the embedded TX header
 	 */
-	M_PREPEND(m, sizeof(*hdr), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*hdr), M_NOWAIT);
 	if (m == NULL) {
 		if_printf(ifp, "%s: prepend TX header failed\n", __func__);
 		return ENOBUFS;
@@ -3249,7 +3249,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 			    __func__, error);
 			goto back;
 		}
-		m_new = m_defrag(m, M_DONTWAIT);
+		m_new = m_defrag(m, M_NOWAIT);
 		if (m_new == NULL) {
 			if_printf(ifp, "%s: can't defrag TX buffer\n",
 			    __func__);

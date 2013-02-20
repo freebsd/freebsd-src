@@ -1301,8 +1301,8 @@ nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
 	if (*bp >= *be) {
 		if (*mp == mb)
 			(*mp)->m_len += *bp - bpos;
-		MGET(nmp, M_WAIT, MT_DATA);
-		MCLGET(nmp, M_WAIT);
+		MGET(nmp, M_WAITOK, MT_DATA);
+		MCLGET(nmp, M_WAITOK);
 		nmp->m_len = NFSMSIZ(nmp);
 		(*mp)->m_next = nmp;
 		*mp = nmp;
@@ -1393,7 +1393,7 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 		toclient = 1;
 		break;
 	case NFSV3SATTRTIME_TOSERVER:
-		getnanotime(&(a)->va_atime);
+		vfs_timestamp(&a->va_atime);
 		a->va_vaflags |= VA_UTIMES_NULL;
 		break;
 	}
@@ -1409,7 +1409,7 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 		a->va_vaflags &= ~VA_UTIMES_NULL;
 		break;
 	case NFSV3SATTRTIME_TOSERVER:
-		getnanotime(&(a)->va_mtime);
+		vfs_timestamp(&a->va_mtime);
 		if (toclient == 0)
 			a->va_vaflags |= VA_UTIMES_NULL;
 		break;

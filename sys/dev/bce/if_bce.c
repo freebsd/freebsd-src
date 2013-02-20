@@ -5437,9 +5437,9 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 
 		/* This is a new mbuf allocation. */
 		if (bce_hdr_split == TRUE)
-			MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+			MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		else
-			m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+			m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 			    sc->rx_bd_mbuf_alloc_size);
 
 		if (m_new == NULL) {
@@ -5559,7 +5559,7 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 		    goto bce_get_pg_buf_exit);
 
 		/* This is a new mbuf allocation. */
-		m_new = m_getcl(M_DONTWAIT, MT_DATA, 0);
+		m_new = m_getcl(M_NOWAIT, MT_DATA, 0);
 		if (m_new == NULL) {
 			sc->mbuf_alloc_failed_count++;
 			rc = ENOBUFS;
@@ -7320,7 +7320,7 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 
 	/* Controller may modify mbuf chains. */
 	if (M_WRITABLE(*m_head) == 0) {
-		m = m_dup(*m_head, M_DONTWAIT);
+		m = m_dup(*m_head, M_NOWAIT);
 		m_freem(*m_head);
 		if (m == NULL) {
 			sc->mbuf_alloc_failed_count++;
@@ -7486,7 +7486,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 		sc->mbuf_frag_count++;
 
 		/* Try to defrag the mbuf. */
-		m0 = m_collapse(*m_head, M_DONTWAIT, BCE_MAX_SEGMENTS);
+		m0 = m_collapse(*m_head, M_NOWAIT, BCE_MAX_SEGMENTS);
 		if (m0 == NULL) {
 			/* Defrag was unsuccessful */
 			m_freem(*m_head);

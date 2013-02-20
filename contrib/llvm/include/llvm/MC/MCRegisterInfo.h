@@ -333,6 +333,13 @@ public:
     return NumRegs;
   }
 
+  /// getNumSubRegIndices - Return the number of sub-register indices
+  /// understood by the target. Index 0 is reserved for the no-op sub-register,
+  /// while 1 to getNumSubRegIndices() - 1 represent real sub-registers.
+  unsigned getNumSubRegIndices() const {
+    return NumSubRegIndices;
+  }
+
   /// getNumRegUnits - Return the number of (native) register units in the
   /// target. Register units are numbered from 0 to getNumRegUnits() - 1. They
   /// can be accessed through MCRegUnitIterator defined below.
@@ -363,7 +370,7 @@ public:
 
   /// getRegClass - Returns the register class associated with the enumeration
   /// value.  See class MCOperandInfo.
-  const MCRegisterClass getRegClass(unsigned i) const {
+  const MCRegisterClass& getRegClass(unsigned i) const {
     assert(i < getNumRegClasses() && "Register Class ID out of range");
     return Classes[i];
   }

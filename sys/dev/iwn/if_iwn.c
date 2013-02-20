@@ -1377,7 +1377,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			goto fail;
 		}
 
-		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		data->m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 		    IWN_RBUF_SIZE);
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
@@ -2334,7 +2334,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		return;
 	}
 
-	m1 = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, IWN_RBUF_SIZE);
+	m1 = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, IWN_RBUF_SIZE);
 	if (m1 == NULL) {
 		DPRINTF(sc, IWN_DEBUG_ANY, "%s: no mbuf to restock ring\n",
 		    __func__);
@@ -3539,7 +3539,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
-		m1 = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
+		m1 = m_collapse(m, M_NOWAIT, IWN_MAX_SCATTER);
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
@@ -3743,7 +3743,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 			return error;
 		}
 		/* Too many DMA segments, linearize mbuf. */
-		m1 = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
+		m1 = m_collapse(m, M_NOWAIT, IWN_MAX_SCATTER);
 		if (m1 == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not defrag mbuf\n", __func__);
@@ -3976,7 +3976,7 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 		/* Command is too large to fit in a descriptor. */
 		if (totlen > MCLBYTES)
 			return EINVAL;
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
 		if (m == NULL)
 			return ENOMEM;
 		cmd = mtod(m, struct iwn_tx_cmd *);

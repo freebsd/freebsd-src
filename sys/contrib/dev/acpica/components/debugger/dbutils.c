@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -286,7 +286,7 @@ AcpiDbPrepNamestring (
 
     /* Ignore a leading backslash, this is the root prefix */
 
-    if (*Name == '\\')
+    if (ACPI_IS_ROOT_PREFIX (*Name))
     {
         Name++;
     }

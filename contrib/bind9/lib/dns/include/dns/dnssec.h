@@ -24,6 +24,7 @@
 
 #include <isc/lang.h>
 #include <isc/stdtime.h>
+#include <isc/stats.h>
 
 #include <dns/diff.h>
 #include <dns/types.h>
@@ -31,6 +32,8 @@
 #include <dst/dst.h>
 
 ISC_LANG_BEGINDECLS
+
+LIBDNS_EXTERNAL_DATA extern isc_stats_t *dns_dnssec_stats;
 
 /*%< Maximum number of keys supported in a zone. */
 #define DNS_MAXZONEKEYS 32
@@ -96,8 +99,8 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		isc_stdtime_t *inception, isc_stdtime_t *expire,
 		isc_mem_t *mctx, isc_buffer_t *buffer, dns_rdata_t *sigrdata);
 /*%<
- *	Generates a SIG record covering this rdataset.  This has no effect
- *	on existing SIG records.
+ *	Generates a RRSIG record covering this rdataset.  This has no effect
+ *	on existing RRSIG records.
  *
  *	Requires:
  *\li		'name' (the owner name of the record) is a valid name
@@ -130,9 +133,9 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		   isc_boolean_t ignoretime, isc_mem_t *mctx,
 		   dns_rdata_t *sigrdata, dns_name_t *wild);
 /*%<
- *	Verifies the SIG record covering this rdataset signed by a specific
- *	key.  This does not determine if the key's owner is authorized to
- *	sign this record, as this requires a resolver or database.
+ *	Verifies the RRSIG record covering this rdataset signed by a specific
+ *	key.  This does not determine if the key's owner is authorized to sign
+ *	this record, as this requires a resolver or database.
  *	If 'ignoretime' is ISC_TRUE, temporal validity will not be checked.
  *
  *	Requires:

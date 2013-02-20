@@ -248,7 +248,8 @@ static device_method_t udbp_methods[] = {
 	DEVMETHOD(device_probe, udbp_probe),
 	DEVMETHOD(device_attach, udbp_attach),
 	DEVMETHOD(device_detach, udbp_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t udbp_driver = {
@@ -410,12 +411,12 @@ udbp_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* allocate new mbuf */
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 
 		if (m == NULL) {
 			goto tr_setup;
 		}
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		if (!(m->m_flags & M_EXT)) {
 			m_freem(m);

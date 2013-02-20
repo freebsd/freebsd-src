@@ -514,12 +514,6 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 		("CAM CCB too long for ATAPI"));
 	    goto action_invalid;
 	}
-	if ((ccb_h->flags & CAM_SCATTER_VALID)) {
-	    /* scatter-gather not supported */
-	    xpt_print_path(ccb_h->path);
-	    printf("ATAPI/CAM does not support scatter-gather yet!\n");
-	    goto action_invalid;
-	}
 
 	switch (ccb_h->flags & CAM_DIR_MASK) {
 	case CAM_DIR_IN:

@@ -109,8 +109,7 @@ omap4_get_revision(void)
 	 *   STD_FUSE_PROD_ID_0   0x4A00 2214
 	 *   STD_FUSE_PROD_ID_1   0x4A00 2218
 	 */
-	// id_code = REG_READ32(OMAP44XX_L4_CORE_VBASE + OMAP4_ID_CODE); 
-	//FIXME Should we map somewhere else?
+	/* FIXME Should we map somewhere else? */
 	bus_space_map(fdtbus_bs_tag,OMAP44XX_L4_CORE_HWBASE, 0x4000, 0, &bsh);
 	id_code = bus_space_read_4(fdtbus_bs_tag, bsh, OMAP4_ID_CODE);
 	bus_space_unmap(fdtbus_bs_tag, bsh, 0x4000);
@@ -129,27 +128,75 @@ omap4_get_revision(void)
 
 	switch (hawkeye) {
 	case 0xB852:
-		if (revision == 0)
+		switch (revision) {
+		case 0:
 			chip_revision = OMAP4430_REV_ES1_0;
-		else
-			chip_revision = OMAP4430_REV_ES2_0;
-		break;
-	case 0xB95C:
-		if (revision == 3)
+			break;
+		case 1:
 			chip_revision = OMAP4430_REV_ES2_1;
-		else if (revision == 4)
-			chip_revision = OMAP4430_REV_ES2_2;
-		else
-			chip_revision = OMAP4430_REV_ES2_3;
+			break;
+		default:
+			chip_revision = OMAP4430_REV_UNKNOWN;
+			break;
+		}
 		break;
+
+	case 0xB95C:
+		switch (revision) {
+		case 3:
+			chip_revision = OMAP4430_REV_ES2_1;
+			break;
+		case 4:
+			chip_revision = OMAP4430_REV_ES2_2;
+			break;
+		case 6:
+			chip_revision = OMAP4430_REV_ES2_3;
+			break;
+		default:
+			chip_revision = OMAP4430_REV_UNKNOWN;
+			break;
+		}
+		break;
+
+	case 0xB94E:
+		switch (revision) {
+		case 0:
+			chip_revision = OMAP4460_REV_ES1_0;
+			break;
+		case 2:
+			chip_revision = OMAP4460_REV_ES1_1;
+			break;
+		default:
+			chip_revision = OMAP4460_REV_UNKNOWN;
+			break;
+		}
+		break;
+
+	case 0xB975:
+		switch (revision) {
+		case 0:
+			chip_revision = OMAP4470_REV_ES1_0;
+			break;
+		default:
+			chip_revision = OMAP4470_REV_UNKNOWN;
+			break;
+		}
+		break;
+
 	default:
 		/* Default to the latest revision if we can't determine type */
-		chip_revision = OMAP4430_REV_ES2_3;
+		chip_revision = OMAP_UNKNOWN_DEV;
 		break;
 	}
-	printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
-		OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
-		OMAP_REV_MINOR(chip_revision));
+	if (chip_revision != OMAP_UNKNOWN_DEV) {
+		printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
+		    OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
+		    OMAP_REV_MINOR(chip_revision));
+	}
+	else {
+		printf("Texas Instruments unknown OMAP chip: %04x, rev %d\n",
+		    hawkeye, revision); 
+	}
 }
 
 /**
@@ -180,10 +227,9 @@ omap3_get_revision(void)
 	 *
 	 *
 	 */
-	//id_code = REG_READ32(OMAP35XX_L4_WAKEUP_VBASE + OMAP3_ID_CODE);
-	bus_space_map(fdtbus_bs_tag,OMAP35XX_L4_WAKEUP_HWBASE, 0x10000, 0, &bsh);
+	bus_space_map(fdtbus_bs_tag, OMAP35XX_L4_WAKEUP_HWBASE, 0x10000, 0, &bsh);
 	id_code = bus_space_read_4(fdtbus_bs_tag, bsh, OMAP3_ID_CODE);
-	bus_space_unmap(fdtbus_bs_tag, bsh, 0x4000);
+	bus_space_unmap(fdtbus_bs_tag, bsh, 0x10000);
 
 	hawkeye = ((id_code >> 12) & 0xffff);
 	revision = ((id_code >> 28) & 0xf);

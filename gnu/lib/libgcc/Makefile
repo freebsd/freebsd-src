@@ -15,6 +15,10 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
+.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+CFLAGS+=	-DTARGET_ARM_EABI
+.endif
+
 .if ${TARGET_CPUARCH} == "mips"
 LIB=		gcc
 .endif
@@ -38,13 +42,16 @@ OBJS=		# added to below in various ways depending on TARGET_CPUARCH
 #
 # Library members defined in libgcc2.c.
 LIB2FUNCS= _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 \
-	_cmpdi2 _ucmpdi2 _clear_cache \
+	_cmpdi2 _ucmpdi2 \
 	_enable_execute_stack _trampoline __main _absvsi2 _absvdi2 _addvsi3 \
 	_addvdi3 _subvsi3 _subvdi3 _mulvsi3 _mulvdi3 _negvsi2 _negvdi2 _ctors \
 	_ffssi2 _ffsdi2 _clz _clzsi2 _clzdi2 _ctzsi2 _ctzdi2 _popcount_tab \
 	_popcountsi2 _popcountdi2 _paritysi2 _paritydi2 _powisf2 _powidf2 \
 	_powixf2 _powitf2 _mulsc3 _muldc3 _mulxc3 _multc3 _divsc3 _divdc3 \
 	_divxc3 _divtc3
+.if ${COMPILER_TYPE} != "clang" || ${TARGET_CPUARCH} != "arm"
+LIB2FUNCS+= _clear_cache
+.endif
 
 # The floating-point conversion routines that involve a single-word integer.
 .for mode in sf df xf
@@ -52,10 +59,13 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
+.if ${TARGET_CPUARCH} != "arm" || ${MK_ARM_EABI} == "no"
+# These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
 LIB2FUNCS+= _floatdi${mode} _floatundi${mode}
 .endfor
+.endif
 
 LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
@@ -106,17 +116,20 @@ LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 .if ${TARGET_CPUARCH} == "arm"
 #	from config/arm/t-strongarm-elf
 CFLAGS+=	-Dinhibit_libc -fno-inline
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS+=	-fheinous-gnu-extensions
+.endif
+
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+.if ${MK_ARM_EABI} != "no"
+LIB1ASMFUNCS+=	_addsubdf3 _addsubsf3 _cmpdf2 _cmpsf2 _fixdfsi _fixsfsi \
+		_fixunsdfsi _fixunsdfsi _muldivdf3 _muldivsf3 _udivsi3
 
-# Not now
-#LIB1ASMFUNCS =  _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
-#LIB1ASMFUNCS+=	_call_via_rX _interwork_call_via_rX \
-#	_lshrdi3 _ashrdi3 _ashldi3 \
-#	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
-#	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
-#	_fixsfsi _fixunssfsi _floatdidf _floatdisf
+LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
+.else
+LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+.endif
 .endif
 
 .if ${TARGET_CPUARCH} == mips
@@ -322,6 +335,9 @@ CLEANFILES += cs-*.h option*
 SHLIB_MKMAP      = ${GCCDIR}/mkmap-symver.awk
 SHLIB_MKMAP_OPTS =
 SHLIB_MAPFILES   = ${GCCDIR}/libgcc-std.ver
+.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
+.endif
 VERSION_MAP      = libgcc.map
 
 libgcc.map: ${SHLIB_MKMAP} ${SHLIB_MAPFILES} ${SOBJS} ${OBJS:R:S/$/.So/}
@@ -341,7 +357,7 @@ CLEANFILES +=	libgcc.map
 libgcc_eh.a:	${EH_OBJS_T}
 	@${ECHO} building static gcc_eh library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
 	${RANLIB} ${.TARGET}
 
 all:	libgcc_eh.a
@@ -350,7 +366,7 @@ all:	libgcc_eh.a
 libgcc_eh_p.a:	${EH_OBJS_P}
 	@${ECHO} building profiled gcc_eh library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
 	${RANLIB} ${.TARGET}
 all:	libgcc_eh_p.a
 .endif

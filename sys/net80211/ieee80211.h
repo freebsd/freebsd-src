@@ -200,11 +200,11 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_QOS_EOSP_S			4
 #define	IEEE80211_QOS_TID			0x0f
 /* qos[1] byte used for all frames sent by mesh STAs in a mesh BSS */
-#define IEEE80211_QOS_MC			0x10	/* Mesh control */
+#define IEEE80211_QOS_MC			0x01	/* Mesh control */
 /* Mesh power save level*/
-#define IEEE80211_QOS_MESH_PSL			0x20
+#define IEEE80211_QOS_MESH_PSL			0x02
 /* Mesh Receiver Service Period Initiated */
-#define IEEE80211_QOS_RSPI			0x40
+#define IEEE80211_QOS_RSPI			0x04
 /* bits 11 to 15 reserved */
 
 /* does frame have QoS sequence control data */

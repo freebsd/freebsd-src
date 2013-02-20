@@ -1414,9 +1414,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			mtx_unlock(&vm_page_queue_free_mtx);
 			return (NULL);
 #if VM_NRESERVLEVEL > 0
-		} else if (object == NULL || object->type == OBJT_DEVICE ||
-		    object->type == OBJT_SG ||
-		    (object->flags & OBJ_COLORED) == 0 ||
+		} else if (object == NULL || (object->flags & (OBJ_COLORED |
+		    OBJ_FICTITIOUS)) != OBJ_COLORED ||
 		    (m = vm_reserv_alloc_page(object, pindex)) == NULL) {
 #else
 		} else {
@@ -1491,10 +1490,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	m->flags = flags;
 	mtx_unlock(&vm_page_queue_free_mtx);
 	m->aflags = 0;
-	if (object == NULL || object->type == OBJT_PHYS)
-		m->oflags = VPO_UNMANAGED;
-	else
-		m->oflags = 0;
+	m->oflags = object == NULL || (object->flags & OBJ_UNMANAGED) != 0 ?
+	    VPO_UNMANAGED : 0;
 	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ)) == 0)
 		m->oflags |= VPO_BUSY;
 	if (req & VM_ALLOC_WIRED) {
@@ -1510,7 +1507,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	if (object != NULL) {
 		/* Ignore device objects; the pager sets "memattr" for them. */
 		if (object->memattr != VM_MEMATTR_DEFAULT &&
-		    object->type != OBJT_DEVICE && object->type != OBJT_SG)
+		    (object->flags & OBJ_FICTITIOUS) == 0)
 			pmap_page_set_memattr(m, object->memattr);
 		vm_page_insert(m, object, pindex);
 	} else

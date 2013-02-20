@@ -62,4 +62,8 @@ f_nfs_mounted()
 	[ "$( df -t nfs )" ]
 }
 
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/common.subr
+
 fi # ! $_NETWORKING_COMMON_SUBR

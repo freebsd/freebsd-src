@@ -123,6 +123,31 @@ static const char *TCPA_pcclient_strings[] = {
 	"Table of Devices",
 };
 
+#define	PRINTFLAG_END()		printflag_end()
+
+static char pf_sep = '{';
+
+static void
+printflag_end(void)
+{
+
+	if (pf_sep != '{') {
+		printf("}");
+		pf_sep = '{';
+	}
+	printf("\n");
+}
+
+static void
+printflag(uint64_t var, uint64_t mask, const char *name)
+{
+
+	if (var & mask) {
+		printf("%c%s", pf_sep, name);
+		pf_sep = ',';
+	}
+}
+
 static void
 acpi_print_string(char *s, size_t length)
 {
@@ -729,6 +754,238 @@ acpi_handle_tcpa(ACPI_TABLE_HEADER *sdp)
 	printf(END_COMMENT);
 }
 
+static const char *
+devscope_type2str(int type)
+{
+	static char typebuf[16];
+
+	switch (type) {
+	case 1:
+		return ("PCI Endpoint Device");
+	case 2:
+		return ("PCI Sub-Hierarchy");
+	case 3:
+		return ("IOAPIC");
+	case 4:
+		return ("HPET");
+	default:
+		snprintf(typebuf, sizeof(typebuf), "%d", type);
+		return (typebuf);
+	}
+}
+
+static int
+acpi_handle_dmar_devscope(void *addr, int remaining)
+{
+	char sep;
+	int pathlen;
+	ACPI_DMAR_PCI_PATH *path, *pathend;
+	ACPI_DMAR_DEVICE_SCOPE *devscope = addr;
+
+	if (remaining < (int)sizeof(ACPI_DMAR_DEVICE_SCOPE))
+		return (-1);
+
+	if (remaining < devscope->Length)
+		return (-1);
+
+	printf("\n");
+	printf("\t\tType=%s\n", devscope_type2str(devscope->EntryType));
+	printf("\t\tLength=%d\n", devscope->Length);
+	printf("\t\tEnumerationId=%d\n", devscope->EnumerationId);
+	printf("\t\tStartBusNumber=%d\n", devscope->Bus);
+
+	path = (ACPI_DMAR_PCI_PATH *)(devscope + 1);
+	pathlen = devscope->Length - sizeof(ACPI_DMAR_DEVICE_SCOPE);
+	pathend = path + pathlen / sizeof(ACPI_DMAR_PCI_PATH);
+	if (path < pathend) {
+		sep = '{';
+		printf("\t\tPath=");
+		do {
+			printf("%c%d:%d", sep, path->Device, path->Function);
+			sep=',';
+			path++;
+		} while (path < pathend);
+		printf("}\n");
+	}
+
+	return (devscope->Length);
+}
+
+static void
+acpi_handle_dmar_drhd(ACPI_DMAR_HARDWARE_UNIT *drhd)
+{
+	char *cp;
+	int remaining, consumed;
+
+	printf("\n");
+	printf("\tType=DRHD\n");
+	printf("\tLength=%d\n", drhd->Header.Length);
+
+#define	PRINTFLAG(var, flag)	printflag((var), ACPI_DMAR_## flag, #flag)
+
+	printf("\tFlags=");
+	PRINTFLAG(drhd->Flags, INCLUDE_ALL);
+	PRINTFLAG_END();
+
+#undef PRINTFLAG
+
+	printf("\tSegment=%d\n", drhd->Segment);
+	printf("\tAddress=0x%0jx\n", drhd->Address);
+
+	remaining = drhd->Header.Length - sizeof(ACPI_DMAR_HARDWARE_UNIT);
+	if (remaining > 0)
+		printf("\tDevice Scope:");
+	while (remaining > 0) {
+		cp = (char *)drhd + drhd->Header.Length - remaining;
+		consumed = acpi_handle_dmar_devscope(cp, remaining);
+		if (consumed <= 0)
+			break;
+		else
+			remaining -= consumed;
+	}
+}
+
+static void
+acpi_handle_dmar_rmrr(ACPI_DMAR_RESERVED_MEMORY *rmrr)
+{
+	char *cp;
+	int remaining, consumed;
+
+	printf("\n");
+	printf("\tType=RMRR\n");
+	printf("\tLength=%d\n", rmrr->Header.Length);
+	printf("\tSegment=%d\n", rmrr->Segment);
+	printf("\tBaseAddress=0x%0jx\n", rmrr->BaseAddress);
+	printf("\tLimitAddress=0x%0jx\n", rmrr->EndAddress);
+
+	remaining = rmrr->Header.Length - sizeof(ACPI_DMAR_RESERVED_MEMORY);
+	if (remaining > 0)
+		printf("\tDevice Scope:");
+	while (remaining > 0) {
+		cp = (char *)rmrr + rmrr->Header.Length - remaining;
+		consumed = acpi_handle_dmar_devscope(cp, remaining);
+		if (consumed <= 0)
+			break;
+		else
+			remaining -= consumed;
+	}
+}
+
+static void
+acpi_handle_dmar_atsr(ACPI_DMAR_ATSR *atsr)
+{
+	char *cp;
+	int remaining, consumed;
+
+	printf("\n");
+	printf("\tType=ATSR\n");
+	printf("\tLength=%d\n", atsr->Header.Length);
+
+#define	PRINTFLAG(var, flag)	printflag((var), ACPI_DMAR_## flag, #flag)
+
+	printf("\tFlags=");
+	PRINTFLAG(atsr->Flags, ALL_PORTS);
+	PRINTFLAG_END();
+
+#undef PRINTFLAG
+
+	printf("\tSegment=%d\n", atsr->Segment);
+
+	remaining = atsr->Header.Length - sizeof(ACPI_DMAR_ATSR);
+	if (remaining > 0)
+		printf("\tDevice Scope:");
+	while (remaining > 0) {
+		cp = (char *)atsr + atsr->Header.Length - remaining;
+		consumed = acpi_handle_dmar_devscope(cp, remaining);
+		if (consumed <= 0)
+			break;
+		else
+			remaining -= consumed;
+	}
+}
+
+static void
+acpi_handle_dmar_rhsa(ACPI_DMAR_RHSA *rhsa)
+{
+
+	printf("\n");
+	printf("\tType=RHSA\n");
+	printf("\tLength=%d\n", rhsa->Header.Length);
+	printf("\tBaseAddress=0x%0jx\n", rhsa->BaseAddress);
+	printf("\tProximityDomain=0x%08x\n", rhsa->ProximityDomain);
+}
+
+static int
+acpi_handle_dmar_remapping_structure(void *addr, int remaining)
+{
+	ACPI_DMAR_HEADER *hdr = addr;
+
+	if (remaining < (int)sizeof(ACPI_DMAR_HEADER))
+		return (-1);
+
+	if (remaining < hdr->Length)
+		return (-1);
+
+	switch (hdr->Type) {
+	case ACPI_DMAR_TYPE_HARDWARE_UNIT:
+		acpi_handle_dmar_drhd(addr);
+		break;
+	case ACPI_DMAR_TYPE_RESERVED_MEMORY:
+		acpi_handle_dmar_rmrr(addr);
+		break;
+	case ACPI_DMAR_TYPE_ATSR:
+		acpi_handle_dmar_atsr(addr);
+		break;
+	case ACPI_DMAR_HARDWARE_AFFINITY:
+		acpi_handle_dmar_rhsa(addr);
+		break;
+	default:
+		printf("\n");
+		printf("\tType=%d\n", hdr->Type);
+		printf("\tLength=%d\n", hdr->Length);
+		break;
+	}
+	return (hdr->Length);
+}
+
+#ifndef ACPI_DMAR_X2APIC_OPT_OUT
+#define	ACPI_DMAR_X2APIC_OPT_OUT	(0x2)
+#endif
+
+static void
+acpi_handle_dmar(ACPI_TABLE_HEADER *sdp)
+{
+	char *cp;
+	int remaining, consumed;
+	ACPI_TABLE_DMAR *dmar;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	dmar = (ACPI_TABLE_DMAR *)sdp;
+	printf("\tHost Address Width=%d\n", dmar->Width + 1);
+
+#define PRINTFLAG(var, flag)	printflag((var), ACPI_DMAR_## flag, #flag)
+
+	printf("\tFlags=");
+	PRINTFLAG(dmar->Flags, INTR_REMAP);
+	PRINTFLAG(dmar->Flags, X2APIC_OPT_OUT);
+	PRINTFLAG_END();
+
+#undef PRINTFLAG
+
+	remaining = sdp->Length - sizeof(ACPI_TABLE_DMAR);
+	while (remaining > 0) {
+		cp = (char *)sdp + sdp->Length - remaining;
+		consumed = acpi_handle_dmar_remapping_structure(cp, remaining);
+		if (consumed <= 0)
+			break;
+		else
+			remaining -= consumed;
+	}
+
+	printf(END_COMMENT);
+}
+
 static void
 acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp)
 {
@@ -854,7 +1111,6 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 {
 	ACPI_TABLE_FADT *fadt;
 	const char *pm;
-	char	    sep;
 
 	fadt = (ACPI_TABLE_FADT *)sdp;
 	printf(BEGIN_COMMENT);
@@ -914,25 +1170,17 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	printf("\tDAY_ALRM=%d, MON_ALRM=%d, CENTURY=%d\n",
 	       fadt->DayAlarm, fadt->MonthAlarm, fadt->Century);
 
-#define PRINTFLAG(var, flag) do {			\
-	if ((var) & ACPI_FADT_## flag) {		\
-		printf("%c%s", sep, #flag); sep = ',';	\
-	}						\
-} while (0)
+#define PRINTFLAG(var, flag)	printflag((var), ACPI_FADT_## flag, #flag)
 
 	printf("\tIAPC_BOOT_ARCH=");
-	sep = '{';
 	PRINTFLAG(fadt->BootFlags, LEGACY_DEVICES);
 	PRINTFLAG(fadt->BootFlags, 8042);
 	PRINTFLAG(fadt->BootFlags, NO_VGA);
 	PRINTFLAG(fadt->BootFlags, NO_MSI);
 	PRINTFLAG(fadt->BootFlags, NO_ASPM);
-	if (fadt->BootFlags != 0)
-		printf("}");
-	printf("\n");
+	PRINTFLAG_END();
 
 	printf("\tFlags=");
-	sep = '{';
 	PRINTFLAG(fadt->Flags, WBINVD);
 	PRINTFLAG(fadt->Flags, WBINVD_FLUSH);
 	PRINTFLAG(fadt->Flags, C1_SUPPORTED);
@@ -953,8 +1201,7 @@ acpi_print_fadt(ACPI_TABLE_HEADER *sdp)
 	PRINTFLAG(fadt->Flags, REMOTE_POWER_ON);
 	PRINTFLAG(fadt->Flags, APIC_CLUSTER);
 	PRINTFLAG(fadt->Flags, APIC_PHYSICAL);
-	if (fadt->Flags != 0)
-		printf("}\n");
+	PRINTFLAG_END();
 
 #undef PRINTFLAG
 
@@ -1127,6 +1374,8 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 			acpi_handle_srat(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_TCPA, 4))
 			acpi_handle_tcpa(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_DMAR, 4))
+			acpi_handle_dmar(sdp);
 		else {
 			printf(BEGIN_COMMENT);
 			acpi_print_sdt(sdp);

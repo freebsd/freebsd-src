@@ -16,8 +16,10 @@
 #include "CodeGenDAGPatterns.h"
 #include "CodeGenSchedule.h"
 #include "CodeGenTarget.h"
+#include "TableGenBackends.h"
 #include "SequenceToOffsetTable.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 #include <algorithm>
@@ -89,7 +91,7 @@ InstrInfoEmitter::GetOperandInfo(const CodeGenInstruction &Inst) {
       for (unsigned j = 0, e = Inst.Operands[i].MINumOperands; j != e; ++j) {
         OperandList.push_back(Inst.Operands[i]);
 
-        Record *OpR = dynamic_cast<DefInit*>(MIOI->getArg(j))->getDef();
+        Record *OpR = cast<DefInit>(MIOI->getArg(j))->getDef();
         OperandList.back().Rec = OpR;
       }
     }
@@ -299,16 +301,15 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
                                   const OperandInfoMapTy &OpInfo,
                                   raw_ostream &OS) {
   int MinOperands = 0;
-  if (!Inst.Operands.size() == 0)
+  if (!Inst.Operands.empty())
     // Each logical operand can be multiple MI operands.
     MinOperands = Inst.Operands.back().MIOperandNo +
                   Inst.Operands.back().MINumOperands;
 
-  Record *ItinDef = Inst.TheDef->getValueAsDef("Itinerary");
   OS << "  { ";
   OS << Num << ",\t" << MinOperands << ",\t"
      << Inst.Operands.NumDefs << ",\t"
-     << SchedModels.getItinClassIdx(ItinDef) << ",\t"
+     << SchedModels.getSchedClassIdx(Inst) << ",\t"
      << Inst.TheDef->getValueAsInt("Size") << ",\t0";
 
   // Emit all of the target indepedent flags...
@@ -343,13 +344,14 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
 
   // Emit all of the target-specific flags...
   BitsInit *TSF = Inst.TheDef->getValueAsBitsInit("TSFlags");
-  if (!TSF) throw "no TSFlags?";
+  if (!TSF)
+    PrintFatalError("no TSFlags?");
   uint64_t Value = 0;
   for (unsigned i = 0, e = TSF->getNumBits(); i != e; ++i) {
-    if (BitInit *Bit = dynamic_cast<BitInit*>(TSF->getBit(i)))
+    if (BitInit *Bit = dyn_cast<BitInit>(TSF->getBit(i)))
       Value |= uint64_t(Bit->getValue()) << i;
     else
-      throw "Invalid TSFlags bit in " + Inst.TheDef->getName();
+      PrintFatalError("Invalid TSFlags bit in " + Inst.TheDef->getName());
   }
   OS << ", 0x";
   OS.write_hex(Value);
@@ -416,6 +418,7 @@ namespace llvm {
 
 void EmitInstrInfo(RecordKeeper &RK, raw_ostream &OS) {
   InstrInfoEmitter(RK).run(OS);
+  EmitMapTable(RK, OS);
 }
 
 } // End llvm namespace

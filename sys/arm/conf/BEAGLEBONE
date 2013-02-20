@@ -37,6 +37,7 @@ options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	TMPFS			#Efficient memory filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
 options 	KTRACE			#ktrace(1) support
@@ -61,12 +62,12 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #options 	DIAGNOSTIC
 
 # NFS support
-#options 	NFSCL
-#options 	NFSSERVER		#Network Filesystem Server
-#options 	NFSCLIENT		#Network Filesystem Client
+options 	NFSCL
+#options	NFSD
+options 	NFSLOCKD
 
 # Uncomment this for NFS root
-#options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+#options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
 #options 	BOOTP
@@ -124,4 +125,3 @@ device		axe			# ASIX Electronics USB Ethernet
 options         FDT
 options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=beaglebone.dts
-

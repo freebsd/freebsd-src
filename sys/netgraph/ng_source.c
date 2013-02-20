@@ -445,7 +445,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    {
 			struct ng_source_embed_info *embed;
 
-			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				goto done;
@@ -484,7 +484,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EINVAL;
 				goto done;
 			}
-			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				goto done;
@@ -873,9 +873,9 @@ ng_source_dup_mod(sc_p sc, struct mbuf *m0, struct mbuf **m_ptr)
 
 	/* Duplicate the packet. */
 	if (modify)
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 	else
-		m = m_copypacket(m0, M_DONTWAIT);
+		m = m_copypacket(m0, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto done;

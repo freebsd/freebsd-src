@@ -26,17 +26,11 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/Triple.h"
 using namespace llvm;
-
-// SSPBufferSize - The lower bound for a buffer to be considered for stack
-// smashing protection.
-static cl::opt<unsigned>
-SSPBufferSize("stack-protector-buffer-size", cl::init(8),
-              cl::desc("Lower bound for a buffer to be considered for "
-                       "stack protection"));
 
 namespace {
   class StackProtector : public FunctionPass {
@@ -60,6 +54,11 @@ namespace {
     /// CreateFailBB - Create a basic block to jump to when the stack protector
     /// check fails.
     BasicBlock *CreateFailBB();
+
+    /// ContainsProtectableArray - Check whether the type either is an array or
+    /// contains an array of sufficient size so that we need stack protectors
+    /// for it.
+    bool ContainsProtectableArray(Type *Ty, bool InStruct = false) const;
 
     /// RequiresStackProtector - Check whether or not this function needs a
     /// stack protector based upon the stack protector level.
@@ -100,20 +99,49 @@ bool StackProtector::runOnFunction(Function &Fn) {
   return InsertStackProtectors();
 }
 
+/// ContainsProtectableArray - Check whether the type either is an array or
+/// contains a char array of sufficient size so that we need stack protectors
+/// for it.
+bool StackProtector::ContainsProtectableArray(Type *Ty, bool InStruct) const {
+  if (!Ty) return false;
+  if (ArrayType *AT = dyn_cast<ArrayType>(Ty)) {
+    const TargetMachine &TM = TLI->getTargetMachine();
+    if (!AT->getElementType()->isIntegerTy(8)) {
+      Triple Trip(TM.getTargetTriple());
+
+      // If we're on a non-Darwin platform or we're inside of a structure, don't
+      // add stack protectors unless the array is a character array.
+      if (InStruct || !Trip.isOSDarwin())
+          return false;
+    }
+
+    // If an array has more than SSPBufferSize bytes of allocated space, then we
+    // emit stack protectors.
+    if (TM.Options.SSPBufferSize <= TLI->getDataLayout()->getTypeAllocSize(AT))
+      return true;
+  }
+
+  const StructType *ST = dyn_cast<StructType>(Ty);
+  if (!ST) return false;
+
+  for (StructType::element_iterator I = ST->element_begin(),
+         E = ST->element_end(); I != E; ++I)
+    if (ContainsProtectableArray(*I, true))
+      return true;
+
+  return false;
+}
+
 /// RequiresStackProtector - Check whether or not this function needs a stack
 /// protector based upon the stack protector level. The heuristic we use is to
 /// add a guard variable to functions that call alloca, and functions with
 /// buffers larger than SSPBufferSize bytes.
 bool StackProtector::RequiresStackProtector() const {
-  if (F->hasFnAttr(Attribute::StackProtectReq))
+  if (F->getFnAttributes().hasAttribute(Attributes::StackProtectReq))
     return true;
 
-  if (!F->hasFnAttr(Attribute::StackProtect))
+  if (!F->getFnAttributes().hasAttribute(Attributes::StackProtect))
     return false;
-
-  const TargetData *TD = TLI->getTargetData();
-  const TargetMachine &TM = TLI->getTargetMachine();
-  Triple Trip(TM.getTargetTriple());
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
     BasicBlock *BB = I;
@@ -126,17 +154,8 @@ bool StackProtector::RequiresStackProtector() const {
           // protectors.
           return true;
 
-        if (ArrayType *AT = dyn_cast<ArrayType>(AI->getAllocatedType())) {
-          // If we're on a non-Darwin platform, don't add stack protectors
-          // unless the array is a character array.
-          if (!Trip.isOSDarwin() && !AT->getElementType()->isIntegerTy(8))
-            continue;
-
-          // If an array has more than SSPBufferSize bytes of allocated space,
-          // then we emit stack protectors.
-          if (SSPBufferSize <= TD->getTypeAllocSize(AT))
-            return true;
-        }
+        if (ContainsProtectableArray(AI->getAllocatedType()))
+          return true;
       }
   }
 

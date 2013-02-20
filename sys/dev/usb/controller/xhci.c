@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
@@ -38,9 +39,9 @@
  * way we avoid too much diveration among USB drivers.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -76,6 +77,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
 
@@ -544,19 +547,12 @@ xhci_init(struct xhci_softc *sc, device_t self)
         sc->sc_config_msg[1].hdr.pm_callback = &xhci_configure_msg;
         sc->sc_config_msg[1].bus = &sc->sc_bus;
 
-	if (usb_proc_create(&sc->sc_config_proc,
-	    &sc->sc_bus.bus_mtx, device_get_nameunit(self), USB_PRI_MED)) {
-                printf("WARNING: Creation of XHCI configure "
-                    "callback process failed.\n");
-        }
 	return (0);
 }
 
 void
 xhci_uninit(struct xhci_softc *sc)
 {
-	usb_proc_free(&sc->sc_config_proc);
-
 	usb_bus_mem_free_all(&sc->sc_bus, &xhci_iterate_hw_softc);
 
 	cv_destroy(&sc->sc_cmd_cv);
@@ -886,6 +882,12 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 			 * a short packet also makes the transfer done
 			 */
 			if (td->remainder > 0) {
+				if (td->alt_next == NULL) {
+					DPRINTF(
+					    "short TD has no alternate next\n");
+					xhci_generic_done(xfer);
+					break;
+				}
 				DPRINTF("TD has short pkt\n");
 				if (xfer->flags_int.short_frames_ok ||
 				    xfer->flags_int.isochronous_xfr ||
@@ -1440,26 +1442,37 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
-	uint32_t temp;
+	uint32_t iman;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
+	if (status == 0)
+		goto done;
 
 	/* acknowledge interrupts */
 
 	XWRITE4(sc, oper, XHCI_USBSTS, status);
 
-	temp = XREAD4(sc, runt, XHCI_IMAN(0));
+	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
+ 
+	if (status & XHCI_STS_EINT) {
 
-	/* acknowledge pending event */
+		/* acknowledge pending event */
+		iman = XREAD4(sc, runt, XHCI_IMAN(0));
 
-	XWRITE4(sc, runt, XHCI_IMAN(0), temp);
+		/* reset interrupt */
+		XWRITE4(sc, runt, XHCI_IMAN(0), iman);
+ 
+		DPRINTFN(16, "real interrupt (iman=0x%08x)\n", iman);
+ 
+		/* check for event(s) */
+		xhci_interrupt_poll(sc);
+	}
 
-	DPRINTFN(16, "real interrupt (sts=0x%08x, "
-	    "iman=0x%08x)\n", status, temp);
+	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
+	    XHCI_STS_HSE | XHCI_STS_HCE)) {
 
-	if (status != 0) {
 		if (status & XHCI_STS_PCD) {
 			xhci_root_intr(sc);
 		}
@@ -1479,9 +1492,7 @@ xhci_interrupt(struct xhci_softc *sc)
 			   __FUNCTION__);
 		}
 	}
-
-	xhci_interrupt_poll(sc);
-
+done:
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -2666,7 +2677,7 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 		DPRINTFN(8, "Not running\n");
 
 		/* start configuration */
-		(void)usb_proc_msignal(&sc->sc_config_proc,
+		(void)usb_proc_msignal(USB_BUS_CONTROL_XFER_PROC(&sc->sc_bus),
 		    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 		return (0);
 	}
@@ -3634,7 +3645,7 @@ xhci_start_dma_delay(struct usb_xfer *xfer)
 	/* put transfer on interrupt queue (again) */
 	usbd_transfer_enqueue(&sc->sc_bus.intr_q, xfer);
 
-	(void)usb_proc_msignal(&sc->sc_config_proc,
+	(void)usb_proc_msignal(USB_BUS_CONTROL_XFER_PROC(&sc->sc_bus),
 	    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 }
 
