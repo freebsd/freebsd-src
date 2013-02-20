@@ -508,8 +508,8 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 {
 	char keyword[PATH_MAX];
 	char *name, *p, *value;
-	struct group *grent;
-	struct passwd *pwent;
+	gid_t gid;
+	uid_t uid;
 	struct stat *st, sb;
 	intmax_t num;
 	u_long flset, flclr;
@@ -585,11 +585,10 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				grent = getgrnam(value);
-				if (grent != NULL)
-					st->st_gid = grent->gr_gid;
+				if (gid_from_group(value, &gid) == 0)
+					st->st_gid = gid;
 				else
-					error = errno;
+					error = EINVAL;
 			} else
 				error = ENOSYS;
 			break;
@@ -698,11 +697,10 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					error = ENOATTR;
 					break;
 				}
-				pwent = getpwnam(value);
-				if (pwent != NULL)
-					st->st_uid = pwent->pw_uid;
+				if (uid_from_user(value, &uid) == 0)
+					st->st_uid = uid;
 				else
-					error = errno;
+					error = EINVAL;
 			} else
 				error = ENOSYS;
 			break;
