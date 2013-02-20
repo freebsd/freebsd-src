@@ -779,6 +779,24 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 		return (0);
 	}
 
+	/*
+         * Check for hardlinks. If the contents key is used, then the check
+         * will only trigger if the contents file is a link even if it is used
+         * by more than one file
+	 */
+	if (sb.st_nlink > 1) {
+		fsinode *curino;
+
+		st->st_ino = sb.st_ino;
+		st->st_dev = sb.st_dev;
+		curino = link_check(node->inode);
+		if (curino != NULL) {
+			free(node->inode);
+			node->inode = curino;
+			node->inode->nlink++;
+		}
+	}
+
 	free(node->contents);
 	node->contents = name;
 	st->st_size = sb.st_size;
