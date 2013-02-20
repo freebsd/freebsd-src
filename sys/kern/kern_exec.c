@@ -933,7 +933,7 @@ exec_map_first_page(imgp)
 	object = imgp->vp->v_object;
 	if (object == NULL)
 		return (EACCES);
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 #if VM_NRESERVLEVEL > 0
 	if ((object->flags & OBJ_COLORED) == 0) {
 		object->flags |= OBJ_COLORED;
@@ -968,7 +968,7 @@ exec_map_first_page(imgp)
 				vm_page_free(ma[0]);
 				vm_page_unlock(ma[0]);
 			}
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			return (EIO);
 		}
 	}
@@ -976,7 +976,7 @@ exec_map_first_page(imgp)
 	vm_page_hold(ma[0]);
 	vm_page_unlock(ma[0]);
 	vm_page_wakeup(ma[0]);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	imgp->firstpage = sf_buf_alloc(ma[0], 0);
 	imgp->image_header = (char *)sf_buf_kva(imgp->firstpage);

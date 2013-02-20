@@ -2577,9 +2577,9 @@ retrylookup:
 	m = vm_page_alloc(object, pindex, allocflags & ~(VM_ALLOC_RETRY |
 	    VM_ALLOC_IGN_SBUSY));
 	if (m == NULL) {
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		VM_WAIT;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		goto retrylookup;
 	} else if (m->valid != 0)
 		return (m);
@@ -2976,9 +2976,9 @@ vm_page_cowfault(vm_page_t m)
 	if (mnew == NULL) {
 		vm_page_insert(m, object, pindex);
 		vm_page_unlock(m);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		VM_WAIT;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (m == vm_page_lookup(object, pindex)) {
 			vm_page_lock(m);
 			goto retry_alloc;
@@ -3035,11 +3035,11 @@ vm_page_cowsetup(vm_page_t m)
 	vm_page_lock_assert(m, MA_OWNED);
 	if ((m->flags & PG_FICTITIOUS) != 0 ||
 	    (m->oflags & VPO_UNMANAGED) != 0 ||
-	    m->cow == USHRT_MAX - 1 || !VM_OBJECT_TRYLOCK(m->object))
+	    m->cow == USHRT_MAX - 1 || !VM_OBJECT_TRYWLOCK(m->object))
 		return (EBUSY);
 	m->cow++;
 	pmap_remove_write(m);
-	VM_OBJECT_UNLOCK(m->object);
+	VM_OBJECT_WUNLOCK(m->object);
 	return (0);
 }
 

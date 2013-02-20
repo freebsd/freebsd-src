@@ -104,7 +104,7 @@ vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
 			   &upindex, &prot, &wired)) != KERN_SUCCESS) {
 		return(EFAULT);
 	}
-	VM_OBJECT_LOCK(uobject);
+	VM_OBJECT_WLOCK(uobject);
 retry:
 	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
 		if (vm_page_sleep_if_busy(user_pg, TRUE, "vm_pgmoveco"))
@@ -124,7 +124,7 @@ retry:
 	}
 	vm_page_insert(kern_pg, uobject, upindex);
 	vm_page_dirty(kern_pg);
-	VM_OBJECT_UNLOCK(uobject);
+	VM_OBJECT_WUNLOCK(uobject);
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
 }

@@ -1224,10 +1224,10 @@ charged:
 		 * reference counting is insufficient to recognize
 		 * aliases with precision.)
 		 */
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (object->ref_count > 1 || object->shadow_count != 0)
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 	else if ((prev_entry != &map->header) &&
 		 (prev_entry->eflags == protoeflags) &&
@@ -1625,12 +1625,12 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
 		   entry->cred != NULL) {
-		VM_OBJECT_LOCK(entry->object.vm_object);
+		VM_OBJECT_WLOCK(entry->object.vm_object);
 		KASSERT(entry->object.vm_object->cred == NULL,
 		    ("OVERCOMMIT: vm_entry_clip_start: both cred e %p", entry));
 		entry->object.vm_object->cred = entry->cred;
 		entry->object.vm_object->charge = entry->end - entry->start;
-		VM_OBJECT_UNLOCK(entry->object.vm_object);
+		VM_OBJECT_WUNLOCK(entry->object.vm_object);
 		entry->cred = NULL;
 	}
 
@@ -1702,12 +1702,12 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
 		   entry->cred != NULL) {
-		VM_OBJECT_LOCK(entry->object.vm_object);
+		VM_OBJECT_WLOCK(entry->object.vm_object);
 		KASSERT(entry->object.vm_object->cred == NULL,
 		    ("OVERCOMMIT: vm_entry_clip_end: both cred e %p", entry));
 		entry->object.vm_object->cred = entry->cred;
 		entry->object.vm_object->charge = entry->end - entry->start;
-		VM_OBJECT_UNLOCK(entry->object.vm_object);
+		VM_OBJECT_WUNLOCK(entry->object.vm_object);
 		entry->cred = NULL;
 	}
 
@@ -1807,7 +1807,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
 		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
 		goto unlock_return;
@@ -1858,7 +1858,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		pmap_enter_object(map->pmap, start, addr + ptoa(psize),
 		    p_start, prot);
 unlock_return:
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 }
 
 /*
@@ -1934,9 +1934,9 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			continue;
 		}
 
-		VM_OBJECT_LOCK(obj);
+		VM_OBJECT_WLOCK(obj);
 		if (obj->type != OBJT_DEFAULT && obj->type != OBJT_SWAP) {
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 			continue;
 		}
 
@@ -1948,7 +1948,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		KASSERT(obj->charge == 0,
 		    ("vm_map_protect: object %p overcharged\n", obj));
 		if (!swap_reserve(ptoa(obj->size))) {
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 			vm_map_unlock(map);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
@@ -1956,7 +1956,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		crhold(cred);
 		obj->cred = cred;
 		obj->charge = ptoa(obj->size);
-		VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_WUNLOCK(obj);
 	}
 
 	/*
@@ -2719,7 +2719,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		count = OFF_TO_IDX(size);
 		offidxstart = OFF_TO_IDX(entry->offset);
 		offidxend = offidxstart + count;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (object->ref_count != 1 &&
 		    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
 		    object == kernel_object || object == kmem_object)) {
@@ -2748,7 +2748,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 				}
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	} else
 		entry->object.vm_object = NULL;
 	if (map->system_map)
@@ -2956,7 +2956,7 @@ vm_map_copy_entry(
 		 */
 		size = src_entry->end - src_entry->start;
 		if ((src_object = src_entry->object.vm_object) != NULL) {
-			VM_OBJECT_LOCK(src_object);
+			VM_OBJECT_WLOCK(src_object);
 			charged = ENTRY_CHARGED(src_entry);
 			if ((src_object->handle == NULL) &&
 				(src_object->type == OBJT_DEFAULT ||
@@ -2977,7 +2977,7 @@ vm_map_copy_entry(
 				src_object->cred = src_entry->cred;
 				src_object->charge = size;
 			}
-			VM_OBJECT_UNLOCK(src_object);
+			VM_OBJECT_WUNLOCK(src_object);
 			dst_entry->object.vm_object = src_object;
 			if (charged) {
 				cred = curthread->td_ucred;
@@ -3153,7 +3153,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				vm_object_deallocate(object);
 				object = old_entry->object.vm_object;
 			}
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 			if (old_entry->cred != NULL) {
 				KASSERT(object->cred == NULL, ("vmspace_fork both cred"));
@@ -3161,7 +3161,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				object->charge = old_entry->end - old_entry->start;
 				old_entry->cred = NULL;
 			}
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 
 			/*
 			 * Clone the entry, referencing the shared object.
@@ -3847,10 +3847,10 @@ RetryLookup:;
 				crfree(entry->cred);
 				entry->cred = NULL;
 			} else if (entry->cred != NULL) {
-				VM_OBJECT_LOCK(eobject);
+				VM_OBJECT_WLOCK(eobject);
 				eobject->cred = entry->cred;
 				eobject->charge = size;
-				VM_OBJECT_UNLOCK(eobject);
+				VM_OBJECT_WUNLOCK(eobject);
 				entry->cred = NULL;
 			}
 
@@ -3875,10 +3875,10 @@ RetryLookup:;
 		    atop(size));
 		entry->offset = 0;
 		if (entry->cred != NULL) {
-			VM_OBJECT_LOCK(entry->object.vm_object);
+			VM_OBJECT_WLOCK(entry->object.vm_object);
 			entry->object.vm_object->cred = entry->cred;
 			entry->object.vm_object->charge = size;
-			VM_OBJECT_UNLOCK(entry->object.vm_object);
+			VM_OBJECT_WUNLOCK(entry->object.vm_object);
 			entry->cred = NULL;
 		}
 		vm_map_lock_downgrade(map);

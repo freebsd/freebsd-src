@@ -419,9 +419,9 @@ vm_object_reference(vm_object_t object)
 {
 	if (object == NULL)
 		return;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	vm_object_reference_locked(object);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 }
 
 /*
@@ -465,23 +465,23 @@ vm_object_vndeallocate(vm_object_t object)
 
 	if (object->ref_count > 1) {
 		object->ref_count--;
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		/* vrele may need the vnode lock. */
 		vrele(vp);
 	} else {
 		vhold(vp);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		vdrop(vp);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		object->ref_count--;
 		if (object->type == OBJT_DEAD) {
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			VOP_UNLOCK(vp, 0);
 		} else {
 			if (object->ref_count == 0)
 				VOP_UNSET_TEXT(vp);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			vput(vp);
 		}
 	}
@@ -504,7 +504,7 @@ vm_object_deallocate(vm_object_t object)
 	vm_object_t temp;
 
 	while (object != NULL) {
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (object->type == OBJT_VNODE) {
 			vm_object_vndeallocate(object);
 			return;
@@ -521,7 +521,7 @@ vm_object_deallocate(vm_object_t object)
 		 */
 		object->ref_count--;
 		if (object->ref_count > 1) {
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			return;
 		} else if (object->ref_count == 1) {
 			if (object->shadow_count == 0 &&
@@ -540,12 +540,12 @@ vm_object_deallocate(vm_object_t object)
 				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
 					 object->ref_count,
 					 object->shadow_count));
-				if (!VM_OBJECT_TRYLOCK(robject)) {
+				if (!VM_OBJECT_TRYWLOCK(robject)) {
 					/*
 					 * Avoid a potential deadlock.
 					 */
 					object->ref_count++;
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 					/*
 					 * More likely than not the thread
 					 * holding robject's lock has lower
@@ -569,27 +569,27 @@ vm_object_deallocate(vm_object_t object)
 					robject->ref_count++;
 retry:
 					if (robject->paging_in_progress) {
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 						vm_object_pip_wait(robject,
 						    "objde1");
 						temp = robject->backing_object;
 						if (object == temp) {
-							VM_OBJECT_LOCK(object);
+							VM_OBJECT_WLOCK(object);
 							goto retry;
 						}
 					} else if (object->paging_in_progress) {
-						VM_OBJECT_UNLOCK(robject);
+						VM_OBJECT_WUNLOCK(robject);
 						object->flags |= OBJ_PIPWNT;
 						VM_OBJECT_SLEEP(object, object,
 						    PDROP | PVM, "objde2" , 0);
-						VM_OBJECT_LOCK(robject);
+						VM_OBJECT_WLOCK(robject);
 						temp = robject->backing_object;
 						if (object == temp) {
-							VM_OBJECT_LOCK(object);
+							VM_OBJECT_WLOCK(object);
 							goto retry;
 						}
 					} else
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 
 					if (robject->ref_count == 1) {
 						robject->ref_count--;
@@ -598,21 +598,21 @@ retry:
 					}
 					object = robject;
 					vm_object_collapse(object);
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 					continue;
 				}
-				VM_OBJECT_UNLOCK(robject);
+				VM_OBJECT_WUNLOCK(robject);
 			}
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			return;
 		}
 doterm:
 		temp = object->backing_object;
 		if (temp != NULL) {
-			VM_OBJECT_LOCK(temp);
+			VM_OBJECT_WLOCK(temp);
 			LIST_REMOVE(object, shadow_list);
 			temp->shadow_count--;
-			VM_OBJECT_UNLOCK(temp);
+			VM_OBJECT_WUNLOCK(temp);
 			object->backing_object = NULL;
 		}
 		/*
@@ -623,7 +623,7 @@ doterm:
 		if ((object->flags & OBJ_DEAD) == 0)
 			vm_object_terminate(object);
 		else
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 		object = temp;
 	}
 }
@@ -701,11 +701,11 @@ vm_object_terminate(vm_object_t object)
 		 * Clean pages and flush buffers.
 		 */
 		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 
 		vinvalbuf(vp, V_SAVE, 0, 0);
 
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 	}
 
 	KASSERT(object->ref_count == 0, 
@@ -760,7 +760,7 @@ vm_object_terminate(vm_object_t object)
 	 * Let the pager know object is dead.
 	 */
 	vm_pager_deallocate(object);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	vm_object_destroy(object);
 }
@@ -960,11 +960,11 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		return (TRUE);
 	res = TRUE;
 	error = 0;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	while ((backing_object = object->backing_object) != NULL) {
-		VM_OBJECT_LOCK(backing_object);
+		VM_OBJECT_WLOCK(backing_object);
 		offset += object->backing_object_offset;
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		object = backing_object;
 		if (object->size < OFF_TO_IDX(offset + size))
 			size = IDX_TO_OFF(object->size) - offset;
@@ -984,7 +984,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	if (object->type == OBJT_VNODE &&
 	    (object->flags & OBJ_MIGHTBEDIRTY) != 0) {
 		vp = object->handle;
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (syncio && !invalidate && offset == 0 &&
@@ -1002,17 +1002,17 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 			flags |= invalidate ? (OBJPC_SYNC | OBJPC_INVAL) : 0;
 			fsync_after = FALSE;
 		}
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		res = vm_object_page_clean(object, offset, offset + size,
 		    flags);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		if (fsync_after)
 			error = VOP_FSYNC(vp, MNT_WAIT, curthread);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 		if (error != 0)
 			res = FALSE;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 	}
 	if ((object->type == OBJT_VNODE ||
 	     object->type == OBJT_DEVICE) && invalidate) {
@@ -1030,7 +1030,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		vm_object_page_remove(object, OFF_TO_IDX(offset),
 		    OFF_TO_IDX(offset + size + PAGE_MASK), flags);
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return (res);
 }
 
@@ -1065,7 +1065,7 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, vm_pindex_t end,
 
 	if (object == NULL)
 		return;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	/*
 	 * Locate and adjust resident pages
 	 */
@@ -1106,10 +1106,10 @@ shadowlookup:
 			backing_object = tobject->backing_object;
 			if (backing_object == NULL)
 				goto unlock_tobject;
-			VM_OBJECT_LOCK(backing_object);
+			VM_OBJECT_WLOCK(backing_object);
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			if (tobject != object)
-				VM_OBJECT_UNLOCK(tobject);
+				VM_OBJECT_WUNLOCK(tobject);
 			tobject = backing_object;
 			goto shadowlookup;
 		} else if (m->valid != VM_PAGE_BITS_ALL)
@@ -1137,10 +1137,10 @@ shadowlookup:
 			}
 			vm_page_unlock(m);
 			if (object != tobject)
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 			m->oflags |= VPO_WANTED;
 			VM_OBJECT_SLEEP(m, tobject, PDROP | PVM, "madvpo" , 0);
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
   			goto relookup;
 		}
 		if (advise == MADV_WILLNEED) {
@@ -1173,9 +1173,9 @@ shadowlookup:
 			swap_pager_freespace(tobject, tpindex, 1);
 unlock_tobject:
 		if (tobject != object)
-			VM_OBJECT_UNLOCK(tobject);
+			VM_OBJECT_WUNLOCK(tobject);
 	}	
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 }
 
 /*
@@ -1203,15 +1203,15 @@ vm_object_shadow(
 	 * Don't create the new object if the old object isn't shared.
 	 */
 	if (source != NULL) {
-		VM_OBJECT_LOCK(source);
+		VM_OBJECT_WLOCK(source);
 		if (source->ref_count == 1 &&
 		    source->handle == NULL &&
 		    (source->type == OBJT_DEFAULT ||
 		     source->type == OBJT_SWAP)) {
-			VM_OBJECT_UNLOCK(source);
+			VM_OBJECT_WUNLOCK(source);
 			return;
 		}
-		VM_OBJECT_UNLOCK(source);
+		VM_OBJECT_WUNLOCK(source);
 	}
 
 	/*
@@ -1236,7 +1236,7 @@ vm_object_shadow(
 	 */
 	result->backing_object_offset = *offset;
 	if (source != NULL) {
-		VM_OBJECT_LOCK(source);
+		VM_OBJECT_WLOCK(source);
 		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 #if VM_NRESERVLEVEL > 0
@@ -1244,7 +1244,7 @@ vm_object_shadow(
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
 		    ((1 << (VM_NFREEORDER - 1)) - 1);
 #endif
-		VM_OBJECT_UNLOCK(source);
+		VM_OBJECT_WUNLOCK(source);
 	}
 
 
@@ -1275,7 +1275,7 @@ vm_object_split(vm_map_entry_t entry)
 		return;
 	if (orig_object->ref_count <= 1)
 		return;
-	VM_OBJECT_UNLOCK(orig_object);
+	VM_OBJECT_WUNLOCK(orig_object);
 
 	offidxstart = OFF_TO_IDX(entry->offset);
 	size = atop(entry->end - entry->start);
@@ -1290,17 +1290,17 @@ vm_object_split(vm_map_entry_t entry)
 	 * At this point, the new object is still private, so the order in
 	 * which the original and new objects are locked does not matter.
 	 */
-	VM_OBJECT_LOCK(new_object);
-	VM_OBJECT_LOCK(orig_object);
+	VM_OBJECT_WLOCK(new_object);
+	VM_OBJECT_WLOCK(orig_object);
 	source = orig_object->backing_object;
 	if (source != NULL) {
-		VM_OBJECT_LOCK(source);
+		VM_OBJECT_WLOCK(source);
 		if ((source->flags & OBJ_DEAD) != 0) {
-			VM_OBJECT_UNLOCK(source);
-			VM_OBJECT_UNLOCK(orig_object);
-			VM_OBJECT_UNLOCK(new_object);
+			VM_OBJECT_WUNLOCK(source);
+			VM_OBJECT_WUNLOCK(orig_object);
+			VM_OBJECT_WUNLOCK(new_object);
 			vm_object_deallocate(new_object);
-			VM_OBJECT_LOCK(orig_object);
+			VM_OBJECT_WLOCK(orig_object);
 			return;
 		}
 		LIST_INSERT_HEAD(&source->shadow_head,
@@ -1308,7 +1308,7 @@ vm_object_split(vm_map_entry_t entry)
 		source->shadow_count++;
 		vm_object_reference_locked(source);	/* for new_object */
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
-		VM_OBJECT_UNLOCK(source);
+		VM_OBJECT_WUNLOCK(source);
 		new_object->backing_object_offset = 
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
@@ -1335,10 +1335,10 @@ retry:
 		 * not be changed by this operation.
 		 */
 		if ((m->oflags & VPO_BUSY) || m->busy) {
-			VM_OBJECT_UNLOCK(new_object);
+			VM_OBJECT_WUNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
 			VM_OBJECT_SLEEP(m, orig_object, PVM, "spltwt" , 0);
-			VM_OBJECT_LOCK(new_object);
+			VM_OBJECT_WLOCK(new_object);
 			goto retry;
 		}
 #if VM_NRESERVLEVEL > 0
@@ -1382,14 +1382,14 @@ retry:
 			vm_page_cache_transfer(orig_object, offidxstart,
 			    new_object);
 	}
-	VM_OBJECT_UNLOCK(orig_object);
+	VM_OBJECT_WUNLOCK(orig_object);
 	TAILQ_FOREACH(m, &new_object->memq, listq)
 		vm_page_wakeup(m);
-	VM_OBJECT_UNLOCK(new_object);
+	VM_OBJECT_WUNLOCK(new_object);
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
 	vm_object_deallocate(orig_object);
-	VM_OBJECT_LOCK(new_object);
+	VM_OBJECT_WLOCK(new_object);
 }
 
 #define	OBSC_TEST_ALL_SHADOWED	0x0001
@@ -1493,12 +1493,12 @@ vm_object_backing_scan(vm_object_t object, int op)
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
 				if ((p->oflags & VPO_BUSY) || p->busy) {
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 					p->oflags |= VPO_WANTED;
 					VM_OBJECT_SLEEP(p, backing_object,
 					    PDROP | PVM, "vmocol", 0);
-					VM_OBJECT_LOCK(object);
-					VM_OBJECT_LOCK(backing_object);
+					VM_OBJECT_WLOCK(object);
+					VM_OBJECT_WLOCK(backing_object);
 					/*
 					 * If we slept, anything could have
 					 * happened.  Since the object is
@@ -1661,7 +1661,7 @@ vm_object_collapse(vm_object_t object)
 		 * we check the backing object first, because it is most likely
 		 * not collapsable.
 		 */
-		VM_OBJECT_LOCK(backing_object);
+		VM_OBJECT_WLOCK(backing_object);
 		if (backing_object->handle != NULL ||
 		    (backing_object->type != OBJT_DEFAULT &&
 		     backing_object->type != OBJT_SWAP) ||
@@ -1670,7 +1670,7 @@ vm_object_collapse(vm_object_t object)
 		    (object->type != OBJT_DEFAULT &&
 		     object->type != OBJT_SWAP) ||
 		    (object->flags & OBJ_DEAD)) {
-			VM_OBJECT_UNLOCK(backing_object);
+			VM_OBJECT_WUNLOCK(backing_object);
 			break;
 		}
 
@@ -1679,7 +1679,7 @@ vm_object_collapse(vm_object_t object)
 		    backing_object->paging_in_progress != 0
 		) {
 			vm_object_qcollapse(object);
-			VM_OBJECT_UNLOCK(backing_object);
+			VM_OBJECT_WUNLOCK(backing_object);
 			break;
 		}
 		/*
@@ -1739,7 +1739,7 @@ vm_object_collapse(vm_object_t object)
 			LIST_REMOVE(object, shadow_list);
 			backing_object->shadow_count--;
 			if (backing_object->backing_object) {
-				VM_OBJECT_LOCK(backing_object->backing_object);
+				VM_OBJECT_WLOCK(backing_object->backing_object);
 				LIST_REMOVE(backing_object, shadow_list);
 				LIST_INSERT_HEAD(
 				    &backing_object->backing_object->shadow_head,
@@ -1747,7 +1747,7 @@ vm_object_collapse(vm_object_t object)
 				/*
 				 * The shadow_count has not changed.
 				 */
-				VM_OBJECT_UNLOCK(backing_object->backing_object);
+				VM_OBJECT_WUNLOCK(backing_object->backing_object);
 			}
 			object->backing_object = backing_object->backing_object;
 			object->backing_object_offset +=
@@ -1763,7 +1763,7 @@ vm_object_collapse(vm_object_t object)
 			KASSERT(backing_object->ref_count == 1, (
 "backing_object %p was somehow re-referenced during collapse!",
 			    backing_object));
-			VM_OBJECT_UNLOCK(backing_object);
+			VM_OBJECT_WUNLOCK(backing_object);
 			vm_object_destroy(backing_object);
 
 			object_collapses++;
@@ -1777,7 +1777,7 @@ vm_object_collapse(vm_object_t object)
 			if (object->resident_page_count != object->size &&
 			    vm_object_backing_scan(object,
 			    OBSC_TEST_ALL_SHADOWED) == 0) {
-				VM_OBJECT_UNLOCK(backing_object);
+				VM_OBJECT_WUNLOCK(backing_object);
 				break;
 			}
 
@@ -1791,7 +1791,7 @@ vm_object_collapse(vm_object_t object)
 
 			new_backing_object = backing_object->backing_object;
 			if ((object->backing_object = new_backing_object) != NULL) {
-				VM_OBJECT_LOCK(new_backing_object);
+				VM_OBJECT_WLOCK(new_backing_object);
 				LIST_INSERT_HEAD(
 				    &new_backing_object->shadow_head,
 				    object,
@@ -1799,7 +1799,7 @@ vm_object_collapse(vm_object_t object)
 				);
 				new_backing_object->shadow_count++;
 				vm_object_reference_locked(new_backing_object);
-				VM_OBJECT_UNLOCK(new_backing_object);
+				VM_OBJECT_WUNLOCK(new_backing_object);
 				object->backing_object_offset +=
 					backing_object->backing_object_offset;
 			}
@@ -1809,7 +1809,7 @@ vm_object_collapse(vm_object_t object)
 			 * its ref_count was at least 2, it will not vanish.
 			 */
 			backing_object->ref_count--;
-			VM_OBJECT_UNLOCK(backing_object);
+			VM_OBJECT_WUNLOCK(backing_object);
 			object_bypasses++;
 		}
 
@@ -2056,10 +2056,10 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 
 	if (prev_object == NULL)
 		return (TRUE);
-	VM_OBJECT_LOCK(prev_object);
+	VM_OBJECT_WLOCK(prev_object);
 	if (prev_object->type != OBJT_DEFAULT &&
 	    prev_object->type != OBJT_SWAP) {
-		VM_OBJECT_UNLOCK(prev_object);
+		VM_OBJECT_WUNLOCK(prev_object);
 		return (FALSE);
 	}
 
@@ -2074,7 +2074,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	 * pages not mapped to prev_entry may be in use anyway)
 	 */
 	if (prev_object->backing_object != NULL) {
-		VM_OBJECT_UNLOCK(prev_object);
+		VM_OBJECT_WUNLOCK(prev_object);
 		return (FALSE);
 	}
 
@@ -2084,7 +2084,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 
 	if ((prev_object->ref_count > 1) &&
 	    (prev_object->size != next_pindex)) {
-		VM_OBJECT_UNLOCK(prev_object);
+		VM_OBJECT_WUNLOCK(prev_object);
 		return (FALSE);
 	}
 
@@ -2138,7 +2138,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	if (next_pindex + next_size > prev_object->size)
 		prev_object->size = next_pindex + next_size;
 
-	VM_OBJECT_UNLOCK(prev_object);
+	VM_OBJECT_WUNLOCK(prev_object);
 	return (TRUE);
 }
 

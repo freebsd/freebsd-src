@@ -3433,9 +3433,9 @@ sys_fsync(td, uap)
 	vn_lock(vp, lock_flags | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
 	if (vp->v_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_object);
+		VM_OBJECT_WLOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 	}
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 

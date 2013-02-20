@@ -204,17 +204,17 @@ extern struct vm_object kmem_object_store;
 #define	kernel_object	(&kernel_object_store)
 #define	kmem_object	(&kmem_object_store)
 
-#define	VM_OBJECT_LOCK(object)						\
-	rw_wlock(&(object)->lock)
 #define	VM_OBJECT_LOCK_ASSERT(object, type)				\
 	rw_assert(&(object)->lock, (type))
 #define	VM_OBJECT_LOCK_INIT(object, name)				\
 	rw_init_flags(&(object)->lock, (name), RW_DUPOK)
 #define	VM_OBJECT_SLEEP(wchan, object, pri, wmesg, timo)		\
 	rw_sleep((wchan), &(object)->lock, (pri), (wmesg), (timo))
-#define	VM_OBJECT_TRYLOCK(object)					\
+#define	VM_OBJECT_TRYWLOCK(object)					\
 	rw_try_wlock(&(object)->lock)
-#define	VM_OBJECT_UNLOCK(object)					\
+#define	VM_OBJECT_WLOCK(object)						\
+	rw_wlock(&(object)->lock)
+#define	VM_OBJECT_WUNLOCK(object)					\
 	rw_wunlock(&(object)->lock)
 
 /*

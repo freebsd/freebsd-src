@@ -1046,7 +1046,7 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	/*
 	 * This looks a little weird since we're getting one page at a time.
 	 */
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	p = TAILQ_LAST(&object->memq, pglist);
 	pages = p != NULL ? p->pindex + 1 : 0;
 	startpages = pages;
@@ -1073,7 +1073,7 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		pages += 1;
 	}
 done:
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	*flags = UMA_SLAB_PRIV;
 
 	return ((void *)retkva);

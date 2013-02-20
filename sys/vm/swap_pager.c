@@ -623,14 +623,14 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 				crhold(cred);
 			}
 			object = vm_object_allocate(OBJT_DEFAULT, pindex);
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			object->handle = handle;
 			if (cred != NULL) {
 				object->cred = cred;
 				object->charge = size;
 			}
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
 		mtx_unlock(&Giant);
@@ -641,13 +641,13 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			crhold(cred);
 		}
 		object = vm_object_allocate(OBJT_DEFAULT, pindex);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (cred != NULL) {
 			object->cred = cred;
 			object->charge = size;
 		}
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 	return (object);
 }
@@ -836,7 +836,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 	daddr_t blk = SWAPBLK_NONE;
 	vm_pindex_t beg = start;	/* save start index */
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	while (size) {
 		if (n == 0) {
 			n = BLIST_MAX_ALLOC;
@@ -844,7 +844,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 				n >>= 1;
 				if (n == 0) {
 					swp_pager_meta_free(object, beg, start - beg);
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 					return (-1);
 				}
 			}
@@ -856,7 +856,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 		--n;
 	}
 	swp_pager_meta_free(object, start, n);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return (0);
 }
 
@@ -936,11 +936,11 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 				 * swp_pager_meta_build() can sleep.
 				 */
 				vm_object_pip_add(srcobject, 1);
-				VM_OBJECT_UNLOCK(srcobject);
+				VM_OBJECT_WUNLOCK(srcobject);
 				vm_object_pip_add(dstobject, 1);
 				swp_pager_meta_build(dstobject, i, srcaddr);
 				vm_object_pip_wakeup(dstobject);
-				VM_OBJECT_LOCK(srcobject);
+				VM_OBJECT_WLOCK(srcobject);
 				vm_object_pip_wakeup(srcobject);
 			}
 		} else {
@@ -1149,7 +1149,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	/*
 	 * Getpbuf() can sleep.
 	 */
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	/*
 	 * Get a swap buffer header to perform the IO
 	 */
@@ -1170,7 +1170,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	bp->b_bufsize = PAGE_SIZE * (j - i);
 	bp->b_pager.pg_reqpage = reqpage - i;
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	{
 		int k;
 
@@ -1189,7 +1189,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * does not remove it.
 	 */
 	vm_object_pip_add(object, bp->b_npages);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	/*
 	 * perform the I/O.  NOTE!!!  bp cannot be considered valid after
@@ -1210,7 +1210,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * cleared on completion.  If an I/O error occurs, SWAPBLK_NONE
 	 * is set in the meta-data.
 	 */
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
 		mreq->oflags |= VPO_WANTED;
 		PCPU_INC(cnt.v_intrans);
@@ -1285,7 +1285,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 */
 	if (object->type != OBJT_SWAP)
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	if (curproc != pageproc)
 		sync = TRUE;
@@ -1380,7 +1380,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
 
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		for (j = 0; j < n; ++j) {
 			vm_page_t mreq = m[i+j];
 
@@ -1395,7 +1395,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			mreq->oflags |= VPO_SWAPINPROG;
 			bp->b_pages[j] = mreq;
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		bp->b_npages = n;
 		/*
 		 * Must set dirty range for NFS to work.
@@ -1445,7 +1445,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		 */
 		swp_pager_async_iodone(bp);
 	}
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 }
 
 /*
@@ -1489,7 +1489,7 @@ swp_pager_async_iodone(struct buf *bp)
 
 	if (bp->b_npages) {
 		object = bp->b_pages[0]->object;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 	}
 
 	/*
@@ -1613,7 +1613,7 @@ swp_pager_async_iodone(struct buf *bp)
 	 */
 	if (object != NULL) {
 		vm_object_pip_wakeupn(object, bp->b_npages);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 
 	/*
@@ -1748,13 +1748,13 @@ restart:
 			for (j = 0; j < SWAP_META_PAGES; ++j) {
 				if (swp_pager_isondev(swap->swb_pages[j], sp)) {
 					/* avoid deadlock */
-					if (!VM_OBJECT_TRYLOCK(object)) {
+					if (!VM_OBJECT_TRYWLOCK(object)) {
 						break;
 					} else {
 						mtx_unlock(&swhash_mtx);
 						swp_pager_force_pagein(object,
 						    pindex + j);
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 						mtx_lock(&swhash_mtx);
 						goto restart;
 					}
@@ -1847,7 +1847,7 @@ retry:
 		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
 		if (swap == NULL) {
 			mtx_unlock(&swhash_mtx);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			if (uma_zone_exhausted(swap_zone)) {
 				if (atomic_cmpset_int(&exhausted, 0, 1))
 					printf("swap zone exhausted, "
@@ -1856,7 +1856,7 @@ retry:
 				pause("swzonex", 10);
 			} else
 				VM_WAIT;
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			goto retry;
 		}
 
@@ -2466,14 +2466,14 @@ vmspace_swap_count(struct vmspace *vmspace)
 	for (cur = map->header.next; cur != &map->header; cur = cur->next) {
 		if ((cur->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
 		    (object = cur->object.vm_object) != NULL) {
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			if (object->type == OBJT_SWAP &&
 			    object->un_pager.swp.swp_bcount != 0) {
 				n = (cur->end - cur->start) / PAGE_SIZE;
 				count += object->un_pager.swp.swp_bcount *
 				    SWAP_META_PAGES * n / object->size + 1;
 			}
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 		}
 	}
 	return (count);

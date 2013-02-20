@@ -236,13 +236,13 @@ dev_pager_dealloc(object)
 {
 	vm_page_t m;
 
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.dev);
 
 	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
 	mtx_unlock(&dev_pager_mtx);
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 
 	if (object->type == OBJT_DEVICE) {
 		/*
@@ -305,12 +305,12 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	pidx = OFF_TO_IDX(offset);
 	memattr = object->memattr;
 
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	dev = object->handle;
 	csw = dev_refthread(dev, &ref);
 	if (csw == NULL) {
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		return (VM_PAGER_FAIL);
 	}
 	td = curthread;
@@ -322,7 +322,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	if (ret != 0) {
 		printf(
 	    "WARNING: dev_pager_getpage: map function returns error %d", ret);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		return (VM_PAGER_FAIL);
 	}
 
@@ -339,7 +339,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 * the new physical address.
 		 */
 		page = *mres;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		vm_page_updatefake(page, paddr, memattr);
 	} else {
 		/*
@@ -347,7 +347,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 * free up the all of the original pages.
 		 */
 		page = vm_page_getfake(paddr, memattr);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		vm_page_lock(*mres);
 		vm_page_free(*mres);
 		vm_page_unlock(*mres);

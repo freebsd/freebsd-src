@@ -1863,12 +1863,12 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 			 * reclamation of its vnode does not
 			 * immediately destroy it.
 			 */
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			if ((obj->flags & OBJ_DEAD) == 0) {
 				vm_object_reference_locked(obj);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 			} else {
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				obj = NULL;
 			}
 		}
@@ -2045,7 +2045,7 @@ retry_space:
 			vm_offset_t pgoff;
 			struct mbuf *m0;
 
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			/*
 			 * Calculate the amount to transfer.
 			 * Not to exceed a page, the EOF,
@@ -2063,7 +2063,7 @@ retry_space:
 			xfsize = omin(rem, xfsize);
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				done = 1;		/* all data sent */
 				break;
 			}
@@ -2084,7 +2084,7 @@ retry_space:
 			 * block.
 			 */
 			if (pg->valid && vm_page_is_valid(pg, pgoff, xfsize))
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 			else if (m != NULL)
 				error = EAGAIN;	/* send what we already got */
 			else if (uap->flags & SF_NODISKIO)
@@ -2098,7 +2098,7 @@ retry_space:
 				 * when the I/O completes.
 				 */
 				vm_page_io_start(pg);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 
 				/*
 				 * Get the page from backing store.
@@ -2120,10 +2120,10 @@ retry_space:
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
 			after_read:
-				VM_OBJECT_LOCK(obj);
+				VM_OBJECT_WLOCK(obj);
 				vm_page_io_finish(pg);
 				if (!error)
-					VM_OBJECT_UNLOCK(obj);
+					VM_OBJECT_WUNLOCK(obj);
 				mbstat.sf_iocnt++;
 			}
 			if (error) {
@@ -2138,7 +2138,7 @@ retry_space:
 				    pg->busy == 0 && !(pg->oflags & VPO_BUSY))
 					vm_page_free(pg);
 				vm_page_unlock(pg);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 				if (error == EAGAIN)
 					error = 0;	/* not a real error */
 				break;

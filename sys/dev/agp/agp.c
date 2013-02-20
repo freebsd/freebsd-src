@@ -545,7 +545,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	 * because vm_page_grab() may sleep and we can't hold a mutex
 	 * while sleeping.
 	 */
-	VM_OBJECT_LOCK(mem->am_obj);
+	VM_OBJECT_WLOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		/*
 		 * Find a page from the object and wire it
@@ -558,14 +558,14 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		AGP_DPF("found page pa=%#jx\n", (uintmax_t)VM_PAGE_TO_PHYS(m));
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	mtx_lock(&sc->as_lock);
 
 	if (mem->am_is_bound) {
 		device_printf(dev, "memory already bound\n");
 		error = EINVAL;
-		VM_OBJECT_LOCK(mem->am_obj);
+		VM_OBJECT_WLOCK(mem->am_obj);
 		i = 0;
 		goto bad;
 	}
@@ -574,7 +574,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	 * Bind the individual pages and flush the chipset's
 	 * TLB.
 	 */
-	VM_OBJECT_LOCK(mem->am_obj);
+	VM_OBJECT_WLOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
 
@@ -602,7 +602,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		}
 		vm_page_wakeup(m);
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	/*
 	 * Flush the cpu cache since we are providing a new mapping
@@ -632,7 +632,7 @@ bad:
 		vm_page_unwire(m, 0);
 		vm_page_unlock(m);
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	return error;
 }
@@ -659,14 +659,14 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	 */
 	for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE)
 		AGP_UNBIND_PAGE(dev, mem->am_offset + i);
-	VM_OBJECT_LOCK(mem->am_obj);
+	VM_OBJECT_WLOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, atop(i));
 		vm_page_lock(m);
 		vm_page_unwire(m, 0);
 		vm_page_unlock(m);
 	}
-	VM_OBJECT_UNLOCK(mem->am_obj);
+	VM_OBJECT_WUNLOCK(mem->am_obj);
 		
 	agp_flush_cache();
 	AGP_FLUSH_TLB(dev);

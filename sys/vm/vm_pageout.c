@@ -249,7 +249,7 @@ vm_pageout_init_marker(vm_page_t marker, u_short queue)
 /*
  * vm_pageout_fallback_object_lock:
  * 
- * Lock vm object currently associated with `m'. VM_OBJECT_TRYLOCK is
+ * Lock vm object currently associated with `m'. VM_OBJECT_TRYWLOCK is
  * known to have failed and page queue must be either PQ_ACTIVE or
  * PQ_INACTIVE.  To avoid lock order violation, unlock the page queues
  * while locking the vm object.  Use marker page to detect page queue
@@ -277,7 +277,7 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	TAILQ_INSERT_AFTER(&pq->pq_pl, m, &marker, pageq);
 	vm_pagequeue_unlock(pq);
 	vm_page_unlock(m);
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	vm_page_lock(m);
 	vm_pagequeue_lock(pq);
 
@@ -596,12 +596,12 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 			continue;
 		}
 		object = m->object;
-		if ((!VM_OBJECT_TRYLOCK(object) &&
+		if ((!VM_OBJECT_TRYWLOCK(object) &&
 		    (!vm_pageout_fallback_object_lock(m, &next) ||
 		    m->hold_count != 0)) || (m->oflags & VPO_BUSY) != 0 ||
 		    m->busy != 0) {
 			vm_page_unlock(m);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			continue;
 		}
 		vm_page_test_dirty(m);
@@ -610,19 +610,19 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 		if (m->dirty != 0) {
 			vm_page_unlock(m);
 			if (tries == 0 || (object->flags & OBJ_DEAD) != 0) {
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				continue;
 			}
 			if (object->type == OBJT_VNODE) {
 				vm_pagequeue_unlock(pq);
 				vp = object->handle;
 				vm_object_reference_locked(object);
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				(void)vn_start_write(vp, &mp, V_WAIT);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-				VM_OBJECT_LOCK(object);
+				VM_OBJECT_WLOCK(object);
 				vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				VOP_UNLOCK(vp, 0);
 				vm_object_deallocate(object);
 				vn_finished_write(mp);
@@ -633,7 +633,7 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 				m_tmp = m;
 				vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC,
 				    0, NULL, NULL);
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				return (TRUE);
 			}
 		} else {
@@ -645,7 +645,7 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 			vm_page_cache(m);
 			vm_page_unlock(m);
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 	vm_pagequeue_unlock(pq);
 	return (FALSE);
@@ -776,13 +776,13 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 		}
 		if ((backing_object = object->backing_object) == NULL)
 			goto unlock_return;
-		VM_OBJECT_LOCK(backing_object);
+		VM_OBJECT_WLOCK(backing_object);
 		if (object != first_object)
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 	}
 unlock_return:
 	if (object != first_object)
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 }
 
 /*
@@ -812,15 +812,15 @@ vm_pageout_map_deactivate_pages(map, desired)
 	while (tmpe != &map->header) {
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
-			if (obj != NULL && VM_OBJECT_TRYLOCK(obj)) {
+			if (obj != NULL && VM_OBJECT_TRYWLOCK(obj)) {
 				if (obj->shadow_count <= 1 &&
 				    (bigobj == NULL ||
 				     bigobj->resident_page_count < obj->resident_page_count)) {
 					if (bigobj != NULL)
-						VM_OBJECT_UNLOCK(bigobj);
+						VM_OBJECT_WUNLOCK(bigobj);
 					bigobj = obj;
 				} else
-					VM_OBJECT_UNLOCK(obj);
+					VM_OBJECT_WUNLOCK(obj);
 			}
 		}
 		if (tmpe->wired_count > 0)
@@ -830,7 +830,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 
 	if (bigobj != NULL) {
 		vm_pageout_object_deactivate_pages(map->pmap, bigobj, desired);
-		VM_OBJECT_UNLOCK(bigobj);
+		VM_OBJECT_WUNLOCK(bigobj);
 	}
 	/*
 	 * Next, hunt around for other pages to deactivate.  We actually
@@ -843,9 +843,9 @@ vm_pageout_map_deactivate_pages(map, desired)
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
 			if (obj != NULL) {
-				VM_OBJECT_LOCK(obj);
+				VM_OBJECT_WLOCK(obj);
 				vm_pageout_object_deactivate_pages(map->pmap, obj, desired);
-				VM_OBJECT_UNLOCK(obj);
+				VM_OBJECT_WUNLOCK(obj);
 			}
 		}
 		tmpe = tmpe->next;
@@ -964,10 +964,10 @@ vm_pageout_scan(int pass)
 			continue;
 		}
 		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object) &&
+		if (!VM_OBJECT_TRYWLOCK(object) &&
 		    !vm_pageout_fallback_object_lock(m, &next)) {
 			vm_page_unlock(m);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			continue;
 		}
 
@@ -980,7 +980,7 @@ vm_pageout_scan(int pass)
 		 */
 		if (m->busy != 0 || (m->oflags & VPO_BUSY) != 0) {
 			vm_page_unlock(m);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			addl_page_shortage++;
 			continue;
 		}
@@ -1017,7 +1017,7 @@ vm_pageout_scan(int pass)
 			vm_page_activate(m);
 			vm_page_unlock(m);
 			m->act_count += actcount + ACT_ADVANCE;
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			goto relock_queues;
 		}
 
@@ -1033,13 +1033,13 @@ vm_pageout_scan(int pass)
 			vm_page_activate(m);
 			vm_page_unlock(m);
 			m->act_count += actcount + ACT_ADVANCE + 1;
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			goto relock_queues;
 		}
 
 		if (m->hold_count != 0) {
 			vm_page_unlock(m);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 
 			/*
 			 * Held pages are essentially stuck in the
@@ -1123,7 +1123,7 @@ vm_pageout_scan(int pass)
 			if (!swap_pageouts_ok || (object->flags & OBJ_DEAD)) {
 				vm_pagequeue_lock(pq);
 				vm_page_unlock(m);
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
 				goto relock_queues;
@@ -1166,17 +1166,17 @@ vm_pageout_scan(int pass)
 				KASSERT(mp != NULL,
 				    ("vp %p with NULL v_mount", vp));
 				vm_object_reference_locked(object);
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				if (vget(vp, LK_EXCLUSIVE | LK_TIMELOCK,
 				    curthread)) {
-					VM_OBJECT_LOCK(object);
+					VM_OBJECT_WLOCK(object);
 					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					vp = NULL;
 					goto unlock_and_continue;
 				}
-				VM_OBJECT_LOCK(object);
+				VM_OBJECT_WLOCK(object);
 				vm_page_lock(m);
 				vm_pagequeue_lock(pq);
 				queues_locked = TRUE;
@@ -1237,7 +1237,7 @@ vm_pageout_scan(int pass)
 			}
 unlock_and_continue:
 			vm_page_lock_assert(m, MA_NOTOWNED);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			if (mp != NULL) {
 				if (queues_locked) {
 					vm_pagequeue_unlock(pq);
@@ -1252,7 +1252,7 @@ unlock_and_continue:
 			goto relock_queues;
 		}
 		vm_page_unlock(m);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 relock_queues:
 		if (!queues_locked) {
 			vm_pagequeue_lock(pq);
@@ -1300,9 +1300,9 @@ relock_queues:
 			continue;
 		}
 		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object) &&
+		if (!VM_OBJECT_TRYWLOCK(object) &&
 		    !vm_pageout_fallback_object_lock(m, &next)) {
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			vm_page_unlock(m);
 			m = next;
 			continue;
@@ -1315,7 +1315,7 @@ relock_queues:
 		    (m->oflags & VPO_BUSY) ||
 		    (m->hold_count != 0)) {
 			vm_page_unlock(m);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			vm_page_requeue_locked(m);
 			m = next;
 			continue;
@@ -1376,7 +1376,7 @@ relock_queues:
 				vm_page_requeue_locked(m);
 		}
 		vm_page_unlock(m);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		m = next;
 	}
 	vm_pagequeue_unlock(pq);
@@ -1572,9 +1572,9 @@ vm_pageout_page_stats(void)
 			continue;
 		}
 		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object) &&
+		if (!VM_OBJECT_TRYWLOCK(object) &&
 		    !vm_pageout_fallback_object_lock(m, &next)) {
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			vm_page_unlock(m);
 			m = next;
 			continue;
@@ -1587,7 +1587,7 @@ vm_pageout_page_stats(void)
 		    (m->oflags & VPO_BUSY) ||
 		    (m->hold_count != 0)) {
 			vm_page_unlock(m);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			vm_page_requeue_locked(m);
 			m = next;
 			continue;
@@ -1626,7 +1626,7 @@ vm_pageout_page_stats(void)
 			}
 		}
 		vm_page_unlock(m);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		m = next;
 	}
 	vm_pagequeue_unlock(pq);

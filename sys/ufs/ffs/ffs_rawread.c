@@ -144,9 +144,9 @@ ffs_rawread_sync(struct vnode *vp)
 		if ((obj = vp->v_object) != NULL &&
 		    (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
 			VI_UNLOCK(vp);
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 		} else
 			VI_UNLOCK(vp);
 
