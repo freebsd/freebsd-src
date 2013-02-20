@@ -163,6 +163,7 @@ CXXFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP} -isystem ${STAGE_OBJTOP}/include
 .endif
 .endif
+STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/include
 .if ${USE_META:Uyes} == "yes"
 .include "meta.sys.mk"
 .endif
