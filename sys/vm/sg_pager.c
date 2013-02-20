@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/sglist.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -142,7 +143,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	size_t space;
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	sg = object->handle;
 	memattr = object->memattr;
 	VM_OBJECT_UNLOCK(object);

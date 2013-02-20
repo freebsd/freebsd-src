@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/ucred.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -248,7 +249,7 @@ vm_pager_deallocate(object)
 	vm_object_t object;
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 

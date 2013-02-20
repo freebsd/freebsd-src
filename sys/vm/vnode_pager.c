@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/limits.h>
 #include <sys/conf.h>
+#include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 
 #include <machine/atomic.h>
@@ -116,7 +117,7 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 		}
 		VOP_UNLOCK(vp, 0);
 		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
-		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vodead", 0);
+		VM_OBJECT_SLEEP(object, object, PDROP | PVM, "vodead" , 0);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	}
 
@@ -210,7 +211,7 @@ retry:
 		if ((object->flags & OBJ_DEAD) == 0)
 			break;
 		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
-		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vadead", 0);
+		VM_OBJECT_SLEEP(object, object, PDROP | PVM, "vadead" , 0);
 	}
 
 	if (vp->v_usecount == 0)
@@ -259,7 +260,7 @@ vnode_pager_dealloc(object)
 	if (vp == NULL)
 		panic("vnode_pager_dealloc: pager already dealloced");
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	vm_object_pip_wait(object, "vnpdea");
 	refs = object->ref_count;
 
@@ -299,7 +300,7 @@ vnode_pager_haspage(object, pindex, before, after)
 	int bsize;
 	int pagesperblock, blocksperpage;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	/*
 	 * If no vp or vp is doomed or marked transparent to VM, we do not
 	 * have the page.
@@ -594,7 +595,7 @@ vnode_pager_input_old(object, m)
 	struct sf_buf *sf;
 	struct vnode *vp;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	error = 0;
 
 	/*

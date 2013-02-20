@@ -1663,7 +1663,7 @@ pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
@@ -2061,7 +2061,7 @@ pmap_is_modified(vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no TTEs can have TD_W set.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
@@ -2129,7 +2129,7 @@ pmap_clear_modify(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("pmap_clear_modify: page %p is busy", m));
 
@@ -2184,7 +2184,7 @@ pmap_remove_write(vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;

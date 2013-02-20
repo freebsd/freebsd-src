@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>

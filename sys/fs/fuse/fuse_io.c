@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/sx.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
@@ -87,8 +88,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
 #include <vm/vm_object.h>
 
 #include "fuse.h"

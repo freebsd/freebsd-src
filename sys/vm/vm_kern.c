@@ -70,9 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>		/* for ticks and hz */
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>

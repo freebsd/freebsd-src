@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 
 #include <dev/agp/agppriv.h>
 #include <dev/agp/agpreg.h>

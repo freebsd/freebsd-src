@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>

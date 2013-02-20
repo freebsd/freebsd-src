@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/namei.h>
 #include <sys/pioctl.h>
@@ -53,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/systm.h>

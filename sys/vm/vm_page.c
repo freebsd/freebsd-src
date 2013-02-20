@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -468,7 +469,7 @@ void
 vm_page_busy(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("vm_page_busy: page already busy!!!"));
 	m->oflags |= VPO_BUSY;
@@ -483,7 +484,7 @@ void
 vm_page_flash(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if (m->oflags & VPO_WANTED) {
 		m->oflags &= ~VPO_WANTED;
 		wakeup(m);
@@ -501,7 +502,7 @@ void
 vm_page_wakeup(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	KASSERT(m->oflags & VPO_BUSY, ("vm_page_wakeup: page not busy!!!"));
 	m->oflags &= ~VPO_BUSY;
 	vm_page_flash(m);
@@ -511,7 +512,7 @@ void
 vm_page_io_start(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	m->busy++;
 }
 
@@ -519,7 +520,7 @@ void
 vm_page_io_finish(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	KASSERT(m->busy > 0, ("vm_page_io_finish: page %p is not busy", m));
 	m->busy--;
 	if (m->busy == 0)
@@ -751,7 +752,7 @@ void
 vm_page_sleep(vm_page_t m, const char *msg)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if (mtx_owned(vm_page_lockptr(m)))
 		vm_page_unlock(m);
 
@@ -763,7 +764,7 @@ vm_page_sleep(vm_page_t m, const char *msg)
 	 * it.
 	 */
 	m->oflags |= VPO_WANTED;
-	msleep(m, VM_OBJECT_MTX(m->object), PVM, msg, 0);
+	VM_OBJECT_SLEEP(m, m->object, PVM, msg, 0);
 }
 
 /*
@@ -866,7 +867,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t root;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if (m->object != NULL)
 		panic("vm_page_insert: page already inserted");
 
@@ -942,7 +943,7 @@ vm_page_remove(vm_page_t m)
 		vm_page_lock_assert(m, MA_OWNED);
 	if ((object = m->object) == NULL)
 		return;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if (m->oflags & VPO_BUSY) {
 		m->oflags &= ~VPO_BUSY;
 		vm_page_flash(m);
@@ -1016,7 +1017,7 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if ((m = object->root) != NULL && m->pindex != pindex) {
 		m = vm_page_splay(pindex, m);
 		if ((object->root = m)->pindex != pindex)
@@ -1038,7 +1039,7 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if ((m = TAILQ_FIRST(&object->memq)) != NULL) {
 		if (m->pindex < pindex) {
 			m = vm_page_splay(pindex, object->root);
@@ -1060,7 +1061,7 @@ vm_page_next(vm_page_t m)
 {
 	vm_page_t next;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((next = TAILQ_NEXT(m, listq)) != NULL &&
 	    next->pindex != m->pindex + 1)
 		next = NULL;
@@ -1078,7 +1079,7 @@ vm_page_prev(vm_page_t m)
 {
 	vm_page_t prev;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
 	    prev->pindex != m->pindex - 1)
 		prev = NULL;
@@ -1256,7 +1257,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 	 * requires the object to be locked.  In contrast, removal does
 	 * not.
 	 */
-	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(new_object, RA_WLOCKED);
 	KASSERT(new_object->cache == NULL,
 	    ("vm_page_cache_transfer: object %p has cached pages",
 	    new_object));
@@ -1326,7 +1327,7 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 	 * page queues lock in order to prove that the specified page doesn't
 	 * exist.
 	 */
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if (__predict_true(object->cache == NULL))
 		return (FALSE);
 	mtx_lock(&vm_page_queue_free_mtx);
@@ -1375,7 +1376,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0),
 	    ("vm_page_alloc: inconsistent object/req"));
 	if (object != NULL)
-		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+		VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 
 	req_class = req & VM_ALLOC_CLASS_MASK;
 
@@ -1582,7 +1583,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0),
 	    ("vm_page_alloc_contig: inconsistent object/req"));
 	if (object != NULL) {
-		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+		VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 		KASSERT(object->type == OBJT_PHYS,
 		    ("vm_page_alloc_contig: object %p isn't OBJT_PHYS",
 		    object));
@@ -1992,7 +1993,7 @@ vm_page_activate(vm_page_t m)
 	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((queue = m->queue) != PQ_ACTIVE) {
 		if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
@@ -2276,7 +2277,7 @@ vm_page_try_to_cache(vm_page_t m)
 {
 
 	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->oflags & (VPO_BUSY | VPO_UNMANAGED)) != 0)
 		return (0);
@@ -2299,7 +2300,7 @@ vm_page_try_to_free(vm_page_t m)
 
 	vm_page_lock_assert(m, MA_OWNED);
 	if (m->object != NULL)
-		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+		VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->oflags & (VPO_BUSY | VPO_UNMANAGED)) != 0)
 		return (0);
@@ -2325,7 +2326,7 @@ vm_page_cache(vm_page_t m)
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) || m->busy ||
 	    m->hold_count || m->wire_count)
 		panic("vm_page_cache: attempting to cache busy page");
@@ -2482,7 +2483,7 @@ vm_page_dontneed(vm_page_t m)
 	int head;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	dnw = PCPU_GET(dnweight);
 	PCPU_INC(dnweight);
 
@@ -2547,7 +2548,7 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	KASSERT((allocflags & VM_ALLOC_RETRY) != 0,
 	    ("vm_page_grab: VM_ALLOC_RETRY is required"));
 retrylookup:
@@ -2628,7 +2629,7 @@ vm_page_set_valid_range(vm_page_t m, int base, int size)
 {
 	int endoff, frag;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if (size == 0)	/* handle degenerate case */
 		return;
 
@@ -2681,7 +2682,7 @@ vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits)
 	 * write mapped, then the page's dirty field cannot possibly be
 	 * set by a concurrent pmap operation.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((m->oflags & VPO_BUSY) == 0 && !pmap_page_is_write_mapped(m))
 		m->dirty &= ~pagebits;
 	else {
@@ -2735,7 +2736,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	vm_page_bits_t oldvalid, pagebits;
 	int endoff, frag;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if (size == 0)	/* handle degenerate case */
 		return;
 
@@ -2825,7 +2826,7 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 {
 	vm_page_bits_t bits;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("vm_page_set_invalid: page %p is busy", m));
 	bits = vm_page_bits(base, size);
@@ -2854,7 +2855,7 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	int b;
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	/*
 	 * Scan the valid bits looking for invalid sections that
 	 * must be zerod.  Invalid sub-DEV_BSIZE'd areas ( where the
@@ -2893,7 +2894,7 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 {
 	vm_page_bits_t bits;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	bits = vm_page_bits(base, size);
 	if (m->valid && ((m->valid & bits) == bits))
 		return 1;
@@ -2908,7 +2909,7 @@ void
 vm_page_test_dirty(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if (m->dirty != VM_PAGE_BITS_ALL && pmap_is_modified(m))
 		vm_page_dirty(m);
 }
@@ -2962,7 +2963,7 @@ vm_page_cowfault(vm_page_t m)
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	KASSERT(object->paging_in_progress != 0,
 	    ("vm_page_cowfault: object %p's paging-in-progress count is zero.",
 	    object)); 
@@ -3055,7 +3056,7 @@ vm_page_object_lock_assert(vm_page_t m)
 	 * here.
 	 */
 	if (m->object != NULL && (m->oflags & VPO_BUSY) == 0)
-		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+		VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 }
 #endif
 

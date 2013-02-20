@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/malloc.h>
 #include <sys/signalvar.h>
@@ -59,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #ifdef COMPAT_FREEBSD32

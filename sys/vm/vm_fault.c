@@ -81,9 +81,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
@@ -960,7 +960,7 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 	vm_pindex_t pindex;
 
 	object = fs->object;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	first_object = fs->first_object;
 	if (first_object != object) {
 		if (!VM_OBJECT_TRYLOCK(first_object)) {
@@ -1403,7 +1403,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t rtm;
 	int cbehind, cahead;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 
 	object = m->object;
 	pindex = m->pindex;

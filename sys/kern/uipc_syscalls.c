@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/sysent.h>
 #include <sys/socket.h>

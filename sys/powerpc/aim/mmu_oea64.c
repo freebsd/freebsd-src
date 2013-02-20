@@ -1449,7 +1449,7 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have LPTE_CHG set.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
@@ -1484,7 +1484,7 @@ moea64_clear_modify(mmu_t mmu, vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("moea64_clear_modify: page %p is busy", m));
 
@@ -1517,7 +1517,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
 	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;

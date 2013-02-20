@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 
 #include <dev/agp/agppriv.h>
 #include <dev/agp/agpvar.h>
@@ -622,7 +623,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	return 0;
 bad:
 	mtx_unlock(&sc->as_lock);
-	VM_OBJECT_LOCK_ASSERT(mem->am_obj, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(mem->am_obj, RA_WLOCKED);
 	for (k = 0; k < mem->am_size; k += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(k));
 		if (k >= i)

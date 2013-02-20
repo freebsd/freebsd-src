@@ -43,9 +43,9 @@
 #include <sys/filedesc.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #ifdef COMPAT_FREEBSD32
 #include <sys/sysent.h>

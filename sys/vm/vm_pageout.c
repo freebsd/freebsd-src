@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 
@@ -346,7 +347,7 @@ vm_pageout_clean(vm_page_t m)
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 
 	/*
 	 * It doesn't cost us anything to pageout OBJT_DEFAULT or OBJT_SWAP
@@ -484,7 +485,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 	int numpagedout = 0;
 	int i, runlen;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 
 	/*
 	 * Initiate I/O.  Bump the vm_page_t->busy counter and
@@ -713,13 +714,13 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 	vm_page_t p;
 	int actcount, remove_mode;
 
-	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(first_object, RA_WLOCKED);
 	if ((first_object->flags & OBJ_FICTITIOUS) != 0)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
 			goto unlock_return;
-		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+		VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 		if ((object->flags & OBJ_UNMANAGED) != 0 ||
 		    object->paging_in_progress != 0)
 			goto unlock_return;

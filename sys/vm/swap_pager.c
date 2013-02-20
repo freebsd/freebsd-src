@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/blist.h>
@@ -675,7 +676,7 @@ swap_pager_dealloc(vm_object_t object)
 		mtx_unlock(&sw_alloc_mtx);
 	}
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	vm_object_pip_wait(object, "swpdea");
 
 	/*
@@ -816,7 +817,7 @@ void
 swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	swp_pager_meta_free(object, start, size);
 }
 
@@ -884,8 +885,8 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 {
 	vm_pindex_t i;
 
-	VM_OBJECT_LOCK_ASSERT(srcobject, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(dstobject, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(srcobject, RA_WLOCKED);
+	VM_OBJECT_LOCK_ASSERT(dstobject, RA_WLOCKED);
 
 	/*
 	 * If destroysource is set, we remove the source object from the
@@ -988,7 +989,7 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
 {
 	daddr_t blk0;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	/*
 	 * do we have good backing store at the requested index ?
 	 */
@@ -1059,7 +1060,7 @@ static void
 swap_pager_unswapped(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
 	swp_pager_meta_ctl(m->object, m->pindex, SWM_FREE);
 }
 
@@ -1213,7 +1214,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
 		mreq->oflags |= VPO_WANTED;
 		PCPU_INC(cnt.v_intrans);
-		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
+		if (VM_OBJECT_SLEEP(mreq, object, PSWP, "swread", hz * 20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
 			    bp->b_bufobj, (intmax_t)bp->b_blkno, bp->b_bcount);
@@ -1653,7 +1654,7 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 	int bcount;
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if (object->type != OBJT_SWAP)
 		return (0);
 
@@ -1809,7 +1810,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	struct swblock **pswap;
 	int idx;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	/*
 	 * Convert default object to swap object if necessary
 	 */
@@ -1907,7 +1908,7 @@ static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -1953,7 +1954,7 @@ swp_pager_meta_free_all(vm_object_t object)
 {
 	daddr_t index = 0;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -2012,7 +2013,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 	daddr_t r1;
 	int idx;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	/*
 	 * The meta data only exists of the object is OBJT_SWAP
 	 * and even then might not be allocated yet.

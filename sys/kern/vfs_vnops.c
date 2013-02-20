@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/filio.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/ttycom.h>

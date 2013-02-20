@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mutex.h>
 #include <sys/mman.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -139,7 +140,7 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 {
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	for (i = 0; i < count; i++) {
 		if (m[i]->valid == 0) {
 			if ((m[i]->flags & PG_ZERO) == 0)

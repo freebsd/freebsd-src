@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
@@ -3031,7 +3032,7 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	if (obj == NULL)
 		obj = vm_object_allocate(OBJT_PHYS, pages);
 	else {
-		VM_OBJECT_LOCK_INIT(obj, "uma object");
+		VM_OBJECT_LOCK_INIT(obj, "uma vm object");
 		_vm_object_allocate(OBJT_PHYS, pages, obj);
 	}
 	ZONE_LOCK(zone);

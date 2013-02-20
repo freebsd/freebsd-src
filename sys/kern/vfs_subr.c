@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>

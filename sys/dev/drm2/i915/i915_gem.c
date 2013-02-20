@@ -2488,7 +2488,7 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 	int rv;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
