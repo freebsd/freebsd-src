@@ -881,8 +881,14 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 
 		if (strcmp(name, node->name) == 0) {
 			if (def == true) {
-				mtree_error("duplicate definition of %s",
-				    name);
+				if (!dupsok)
+					mtree_error(
+					    "duplicate definition of %s",
+					    name);
+				else
+					mtree_warning(
+					    "duplicate definition of %s",
+					    name);
 				return (0);
 			}
 
