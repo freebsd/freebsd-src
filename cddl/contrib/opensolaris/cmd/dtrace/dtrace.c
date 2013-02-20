@@ -195,6 +195,13 @@ fatal(const char *fmt, ...)
 	verror(fmt, ap);
 	va_end(ap);
 
+	/*
+	 * Close the DTrace handle to ensure that any controlled processes are
+	 * correctly restored and continued.
+	 */
+	if (g_dtp)
+		dtrace_close(g_dtp);
+
 	exit(E_ERROR);
 }
 
