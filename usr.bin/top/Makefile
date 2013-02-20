@@ -26,7 +26,8 @@ LDADD=	-ltermcap -lm -lkvm
 
 CLEANFILES= sigdesc.h
 SIGCONV_AWK= ${.CURDIR}/../../contrib/top/sigconv.awk
-SIGNAL_H= ${DESTDIR}/usr/include/sys/signal.h
+STAGED_INCLUDE_DIR?= ${DESTDIR}/usr/include
+SIGNAL_H= ${STAGED_INCLUDE_DIR}/sys/signal.h
 sigdesc.h: ${SIGCONV_AWK} ${SIGNAL_H}
 	awk -f ${SIGCONV_AWK} < ${SIGNAL_H} > ${.TARGET}
 
