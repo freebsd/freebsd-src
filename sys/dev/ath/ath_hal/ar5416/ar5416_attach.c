@@ -254,10 +254,6 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 		AH5212(ah)->ah_txTrigLev = (AR_FTRIG_512B >> AR_FTRIG_S);
 		AH5212(ah)->ah_maxTxTrigLev = ((4096 / 64) - 1);
 	}
-	ath_hal_printf(ah, "%s: trigLev=%d, maxTxTrigLev=%d\n",
-	    __func__,
-	    AH5212(ah)->ah_txTrigLev,
-	    AH5212(ah)->ah_maxTxTrigLev);
 #undef	AR_FTRIG_512B
 }
 
