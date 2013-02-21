@@ -5544,7 +5544,6 @@ static void ncr_exception (ncb_p np)
 	**	Freeze system to be able to read the messages.
 	*/
 	printf ("ncr: fatal error: system halted - press reset to reboot ...");
-	(void) splhigh();
 	for (;;);
 #endif
 
