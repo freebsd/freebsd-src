@@ -204,6 +204,10 @@ extern struct vm_object kmem_object_store;
 #define	kernel_object	(&kernel_object_store)
 #define	kmem_object	(&kmem_object_store)
 
+#define	VM_OBJECT_ASSERT_LOCKED(object)					\
+	rw_assert(&(object)->lock, RA_LOCKED)
+#define	VM_OBJECT_ASSERT_RLOCKED(object)				\
+	rw_assert(&(object)->lock, RA_RLOCKED)
 #define	VM_OBJECT_ASSERT_WLOCKED(object)				\
 	rw_assert(&(object)->lock, RA_WLOCKED)
 #define	VM_OBJECT_LOCK_INIT(object, name)				\
