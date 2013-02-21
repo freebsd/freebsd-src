@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2013
+.Dd February 21, 2013
 .Dt VFS_SET 9
 .Os
 .Sh NAME
@@ -80,6 +80,9 @@ Supports delegated administration if
 .Va vfs.usermount
 sysctl is set to
 .Dv 1 .
+.It Dv VFCF_SBDRY
+When in VFS method, the thread suspension is deferred to the user
+boundary upon arrival of stop action.
 .El
 .Sh PSEUDOCODE
 .Bd -literal
