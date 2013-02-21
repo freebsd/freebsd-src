@@ -74,6 +74,22 @@ static void ppcintr(void *arg);
 
 #define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
 
+/*
+ * We use critical enter/leave for the simple config locking needed to
+ * detect the devices. We just want to make sure that both of our writes
+ * happen without someone else also writing to those config registers. Since
+ * we just do this at startup, Giant keeps multiple threads from executing,
+ * and critical_enter() then is all that's needed to keep us from being preempted
+ * during the critical sequences with the hardware.
+ *
+ * Note: this doesn't prevent multiple threads from putting the chips into
+ * config mode, but since we only do that to detect the type at startup the
+ * extra overhead isn't needed since Giant protects us from multiple entry
+ * and no other code changes these registers.
+ */
+#define PPC_CONFIG_LOCK(ppc)		critical_enter()
+#define PPC_CONFIG_UNLOCK(ppc)		critical_leave()
+
 devclass_t ppc_devclass;
 const char ppc_driver_name[] = "ppc";
 
@@ -689,7 +705,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 static int
 ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 {
-	int s, i;
+	int i;
 	u_char r;
 	int type = -1;
 	int csr = SMC66x_CSR;	/* initial value is 0x3F0 */
@@ -702,11 +718,10 @@ ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 	/*
 	 * Detection: enter configuration mode and read CRD register.
 	 */
-
-	s = splhigh();
+	PPC_CONFIG_LOCK(ppc);
 	outb(csr, SMC665_iCODE);
 	outb(csr, SMC665_iCODE);
-	splx(s);
+	PPC_CONFIG_UNLOCK(ppc);
 
 	outb(csr, 0xd);
 	if (inb(cio) == 0x65) {
@@ -715,10 +730,10 @@ ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 	}
 
 	for (i = 0; i < 2; i++) {
-		s = splhigh();
+		PPC_CONFIG_LOCK(ppc);
 		outb(csr, SMC666_iCODE);
 		outb(csr, SMC666_iCODE);
-		splx(s);
+		PPC_CONFIG_UNLOCK(ppc);
 
 		outb(csr, 0xd);
 		if (inb(cio) == 0x66) {
@@ -734,16 +749,20 @@ config:
 	/*
 	 * If chipset not found, do not continue.
 	 */
-	if (type == -1)
+	if (type == -1) {
+		outb(csr, 0xaa);	/* end config mode */
 		return (-1);
+	}
 
 	/* select CR1 */
 	outb(csr, 0x1);
 
 	/* read the port's address: bits 0 and 1 of CR1 */
 	r = inb(cio) & SMC_CR1_ADDR;
-	if (port_address[(int)r] != ppc->ppc_base)
+	if (port_address[(int)r] != ppc->ppc_base) {
+		outb(csr, 0xaa);	/* end config mode */
 		return (-1);
+	}
 
 	ppc->ppc_model = type;
 
@@ -881,8 +900,7 @@ end_detect:
 			outb(cio, (r | SMC_CR4_EPPTYPE));
 	}
 
-	/* end config mode */
-	outb(csr, 0xaa);
+	outb(csr, 0xaa);	/* end config mode */
 
 	ppc->ppc_type = PPC_TYPE_SMCLIKE;
 	ppc_smclike_setmode(ppc, chipset_mode);
@@ -897,13 +915,12 @@ end_detect:
 static int
 ppc_smc37c935_detect(struct ppc_data *ppc, int chipset_mode)
 {
-	int s;
 	int type = -1;
 
-	s = splhigh();
+	PPC_CONFIG_LOCK(ppc);
 	outb(SMC935_CFG, 0x55); /* enter config mode */
 	outb(SMC935_CFG, 0x55);
-	splx(s);
+	PPC_CONFIG_UNLOCK(ppc);
 
 	outb(SMC935_IND, SMC935_ID); /* check device id */
 	if (inb(SMC935_DAT) == 0x2)
