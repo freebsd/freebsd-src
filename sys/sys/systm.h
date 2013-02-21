@@ -330,7 +330,6 @@ static __inline intrmask_t	splclock(void)		{ return 0; }
 static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
-static __inline intrmask_t	splsoftclock(void)	{ return 0; }
 static __inline intrmask_t	splsoftvm(void)		{ return 0; }
 static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
