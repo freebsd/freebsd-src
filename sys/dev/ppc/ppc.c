@@ -75,7 +75,7 @@ static void ppcintr(void *arg);
 #define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
 
 /*
- * We use critical enter/leave for the simple config locking needed to
+ * We use critical enter/exit for the simple config locking needed to
  * detect the devices. We just want to make sure that both of our writes
  * happen without someone else also writing to those config registers. Since
  * we just do this at startup, Giant keeps multiple threads from executing,
@@ -88,7 +88,7 @@ static void ppcintr(void *arg);
  * and no other code changes these registers.
  */
 #define PPC_CONFIG_LOCK(ppc)		critical_enter()
-#define PPC_CONFIG_UNLOCK(ppc)		critical_leave()
+#define PPC_CONFIG_UNLOCK(ppc)		critical_exit()
 
 devclass_t ppc_devclass;
 const char ppc_driver_name[] = "ppc";
