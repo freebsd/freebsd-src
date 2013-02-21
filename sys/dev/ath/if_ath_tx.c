@@ -3373,6 +3373,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_update_baw(sc, an, tid, bf);
 			bf->bf_state.bfs_dobaw = 0;
 		}
+#if 0
 		/*
 		 * This has become a non-fatal error now
 		 */
@@ -3380,6 +3381,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			device_printf(sc->sc_dev,
 			    "%s: wasn't added: seqno %d\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno));
+#endif
 	}
 	TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
 }
