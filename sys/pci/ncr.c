@@ -6425,7 +6425,6 @@ static	nccb_p ncr_get_nccb
 	if (cp != NULL) {
 		if (cp->magic) {
 			printf("%s: Bogus free cp found\n", ncr_name(np));
-			splx(s);
 			return (NULL);
 		}
 		cp->magic = 1;
