@@ -718,6 +718,7 @@ struct ath_softc {
 	int			sc_txchainmask;	/* currently configured TX chainmask */
 	int			sc_rxchainmask;	/* currently configured RX chainmask */
 	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
+	int			sc_aggr_limit;	/* TX limit on all aggregates */
 
 	/* Queue limits */
 
