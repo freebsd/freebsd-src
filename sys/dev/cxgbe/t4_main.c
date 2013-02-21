@@ -317,6 +317,9 @@ static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 #ifdef SBUF_DRAIN
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_la(SYSCTL_HANDLER_ARGS);
+static int sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_ddp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_devlog(SYSCTL_HANDLER_ARGS);
@@ -3171,6 +3174,62 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_cctrl, "A", "congestion control");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_tp0",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_cim_ibq_obq, "A", "CIM IBQ 0 (TP0)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_tp1",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 1,
+	    sysctl_cim_ibq_obq, "A", "CIM IBQ 1 (TP1)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_ulp",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 2,
+	    sysctl_cim_ibq_obq, "A", "CIM IBQ 2 (ULP)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_sge0",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 3,
+	    sysctl_cim_ibq_obq, "A", "CIM IBQ 3 (SGE0)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_sge1",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 4,
+	    sysctl_cim_ibq_obq, "A", "CIM IBQ 4 (SGE1)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ibq_ncsi",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 5,
+	    sysctl_cim_ibq_obq, "A", "CIM IBQ 5 (NCSI)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_la",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_cim_la, "A", "CIM logic analyzer");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp0",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0 + CIM_NUM_IBQ,
+	    sysctl_cim_ibq_obq, "A", "CIM OBQ 0 (ULP0)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp1",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 1 + CIM_NUM_IBQ,
+	    sysctl_cim_ibq_obq, "A", "CIM OBQ 1 (ULP1)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp2",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 2 + CIM_NUM_IBQ,
+	    sysctl_cim_ibq_obq, "A", "CIM OBQ 2 (ULP2)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ulp3",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 3 + CIM_NUM_IBQ,
+	    sysctl_cim_ibq_obq, "A", "CIM OBQ 3 (ULP3)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_sge",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 4 + CIM_NUM_IBQ,
+	    sysctl_cim_ibq_obq, "A", "CIM OBQ 4 (SGE)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_obq_ncsi",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 5 + CIM_NUM_IBQ,
+	    sysctl_cim_ibq_obq, "A", "CIM OBQ 5 (NCSI)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_qcfg",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_cim_qcfg, "A", "CIM queue configuration");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cpl_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_cpl_stats, "A", "CPL statistics");
@@ -3687,6 +3746,176 @@ sysctl_cctrl(SYSCTL_HANDLER_ARGS)
 		    incr[12][i], incr[13][i], incr[14][i], incr[15][i],
 		    sc->params.a_wnd[i], dec_fac[sc->params.b_wnd[i]]);
 	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static const char *qname[CIM_NUM_IBQ + CIM_NUM_OBQ] = {
+	"TP0", "TP1", "ULP", "SGE0", "SGE1", "NC-SI",	/* ibq's */
+	"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI"	/* obq's */
+};
+
+static int
+sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, i, n, qid = arg2;
+	uint32_t *buf, *p;
+	char *qtype;
+
+	KASSERT(qid >= 0 && qid < nitems(qname),
+	    ("%s: bad qid %d\n", __func__, qid));
+
+	if (qid < CIM_NUM_IBQ) {
+		/* inbound queue */
+		qtype = "IBQ";
+		n = 4 * CIM_IBQ_SIZE;
+		buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
+		rc = t4_read_cim_ibq(sc, qid, buf, n);
+	} else {
+		/* outbound queue */
+		qtype = "OBQ";
+		qid -= CIM_NUM_IBQ;
+		n = 4 * 6 * CIM_OBQ_SIZE;
+		buf = malloc(n * sizeof(uint32_t), M_CXGBE, M_ZERO | M_WAITOK);
+		rc = t4_read_cim_obq(sc, qid, buf, n);
+	}
+
+	if (rc < 0) {
+		rc = -rc;
+		goto done;
+	}
+	n = rc * sizeof(uint32_t);	/* rc has # of words actually read */
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		goto done;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL) {
+		rc = ENOMEM;
+		goto done;
+	}
+
+	sbuf_printf(sb, "%s%d %s", qtype , qid, qname[arg2]);
+	for (i = 0, p = buf; i < n; i += 16, p += 4)
+		sbuf_printf(sb, "\n%#06x: %08x %08x %08x %08x", i, p[0], p[1],
+		    p[2], p[3]);
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+done:
+	free(buf, M_CXGBE);
+	return (rc);
+}
+
+static int
+sysctl_cim_la(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	u_int cfg;
+	struct sbuf *sb;
+	uint32_t *buf, *p;
+	int rc;
+
+	rc = -t4_cim_read(sc, A_UP_UP_DBG_LA_CFG, 1, &cfg);
+	if (rc != 0)
+		return (rc);
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	buf = malloc(sc->params.cim_la_size * sizeof(uint32_t), M_CXGBE,
+	    M_ZERO | M_WAITOK);
+
+	rc = -t4_cim_read_la(sc, buf, NULL);
+	if (rc != 0)
+		goto done;
+
+	sbuf_printf(sb, "Status   Data      PC%s",
+	    cfg & F_UPDBGLACAPTPCONLY ? "" :
+	    "     LS0Stat  LS0Addr             LS0Data");
+
+	KASSERT((sc->params.cim_la_size & 7) == 0,
+	    ("%s: p will walk off the end of buf", __func__));
+
+	for (p = buf; p < &buf[sc->params.cim_la_size]; p += 8) {
+		if (cfg & F_UPDBGLACAPTPCONLY) {
+			sbuf_printf(sb, "\n  %02x   %08x %08x", p[5] & 0xff,
+			    p[6], p[7]);
+			sbuf_printf(sb, "\n  %02x   %02x%06x %02x%06x",
+			    (p[3] >> 8) & 0xff, p[3] & 0xff, p[4] >> 8,
+			    p[4] & 0xff, p[5] >> 8);
+			sbuf_printf(sb, "\n  %02x   %x%07x %x%07x",
+			    (p[0] >> 4) & 0xff, p[0] & 0xf, p[1] >> 4,
+			    p[1] & 0xf, p[2] >> 4);
+		} else {
+			sbuf_printf(sb,
+			    "\n  %02x   %x%07x %x%07x %08x %08x "
+			    "%08x%08x%08x%08x",
+			    (p[0] >> 4) & 0xff, p[0] & 0xf, p[1] >> 4,
+			    p[1] & 0xf, p[2] >> 4, p[2] & 0xf, p[3], p[4], p[5],
+			    p[6], p[7]);
+		}
+	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+done:
+	free(buf, M_CXGBE);
+	return (rc);
+}
+
+static int
+sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc, i;
+	uint16_t base[CIM_NUM_IBQ + CIM_NUM_OBQ];
+	uint16_t size[CIM_NUM_IBQ + CIM_NUM_OBQ];
+	uint16_t thres[CIM_NUM_IBQ];
+	uint32_t obq_wr[2 * CIM_NUM_OBQ], *wr = obq_wr;
+	uint32_t stat[4 * (CIM_NUM_IBQ + CIM_NUM_OBQ)], *p = stat;
+
+	rc = -t4_cim_read(sc, A_UP_IBQ_0_RDADDR, nitems(stat), stat);
+	if (rc == 0)
+		rc = -t4_cim_read(sc, A_UP_OBQ_0_REALADDR, nitems(obq_wr),
+		    obq_wr);
+	if (rc != 0)
+		return (rc);
+
+	t4_read_cimq_cfg(sc, base, size, thres);
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(sb, "Queue  Base  Size Thres RdPtr WrPtr  SOP  EOP Avail");
+
+	for (i = 0; i < CIM_NUM_IBQ; i++, p += 4)
+		sbuf_printf(sb, "\n%5s %5x %5u %4u %6x  %4x %4u %4u %5u",
+		    qname[i], base[i], size[i], thres[i], G_IBQRDADDR(p[0]),
+		    G_IBQWRADDR(p[1]), G_QUESOPCNT(p[3]), G_QUEEOPCNT(p[3]),
+		    G_QUEREMFLITS(p[2]) * 16);
+	for ( ; i < CIM_NUM_IBQ + CIM_NUM_OBQ; i++, p += 4, wr += 2)
+		sbuf_printf(sb, "\n%5s %5x %5u %11x  %4x %4u %4u %5u", qname[i],
+		    base[i], size[i], G_QUERDADDR(p[0]) & 0x3fff,
+		    wr[0] - base[i], G_QUESOPCNT(p[3]), G_QUEEOPCNT(p[3]),
+		    G_QUEREMFLITS(p[2]) * 16);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
