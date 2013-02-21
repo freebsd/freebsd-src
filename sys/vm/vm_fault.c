@@ -960,7 +960,7 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 	vm_pindex_t pindex;
 
 	object = fs->object;
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	first_object = fs->first_object;
 	if (first_object != object) {
 		if (!VM_OBJECT_TRYWLOCK(first_object)) {
@@ -1403,7 +1403,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t rtm;
 	int cbehind, cahead;
 
-	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	object = m->object;
 	pindex = m->pindex;

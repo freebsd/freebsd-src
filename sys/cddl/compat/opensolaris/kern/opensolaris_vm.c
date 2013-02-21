@@ -66,7 +66,7 @@ zfs_vmobject_assert_wlocked(vm_object_t object)
 	 * be too helpful, but it must be an hard function for
 	 * compatibility reasons.
 	 */
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 }
 
 void

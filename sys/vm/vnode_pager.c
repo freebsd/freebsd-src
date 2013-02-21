@@ -260,7 +260,7 @@ vnode_pager_dealloc(object)
 	if (vp == NULL)
 		panic("vnode_pager_dealloc: pager already dealloced");
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	vm_object_pip_wait(object, "vnpdea");
 	refs = object->ref_count;
 
@@ -300,7 +300,7 @@ vnode_pager_haspage(object, pindex, before, after)
 	int bsize;
 	int pagesperblock, blocksperpage;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	/*
 	 * If no vp or vp is doomed or marked transparent to VM, we do not
 	 * have the page.
@@ -595,7 +595,7 @@ vnode_pager_input_old(object, m)
 	struct sf_buf *sf;
 	struct vnode *vp;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	error = 0;
 
 	/*

@@ -459,7 +459,7 @@ vfs_buf_test_cache(struct buf *bp,
 		  vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if (bp->b_flags & B_CACHE) {
 		int base = (foff + off) & PAGE_MASK;
 		if (vm_page_is_valid(m, base, size) == 0)
@@ -2534,7 +2534,7 @@ vfs_setdirty_locked_object(struct buf *bp)
 	int i;
 
 	object = bp->b_bufobj->bo_object;
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
 	 * We qualify the scan for modified pages on whether the
@@ -3567,7 +3567,7 @@ vfs_drain_busy_pages(struct buf *bp)
 	vm_page_t m;
 	int i, last_busied;
 
-	VM_OBJECT_LOCK_ASSERT(bp->b_bufobj->bo_object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(bp->b_bufobj->bo_object);
 	last_busied = 0;
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -3720,7 +3720,7 @@ vfs_bio_clrbuf(struct buf *bp)
 		if (bp->b_pages[0] == bogus_page)
 			goto unlock;
 		mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;
-		VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, RA_WLOCKED);
+		VM_OBJECT_ASSERT_WLOCKED(bp->b_pages[0]->object);
 		if ((bp->b_pages[0]->valid & mask) == mask)
 			goto unlock;
 		if ((bp->b_pages[0]->valid & mask) == 0) {
@@ -3739,7 +3739,7 @@ vfs_bio_clrbuf(struct buf *bp)
 			continue;
 		j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
 		mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
-		VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, RA_WLOCKED);
+		VM_OBJECT_ASSERT_WLOCKED(bp->b_pages[i]->object);
 		if ((bp->b_pages[i]->valid & mask) == mask)
 			continue;
 		if ((bp->b_pages[i]->valid & mask) == 0)

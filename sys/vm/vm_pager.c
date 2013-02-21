@@ -249,7 +249,7 @@ vm_pager_deallocate(object)
 	vm_object_t object;
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 

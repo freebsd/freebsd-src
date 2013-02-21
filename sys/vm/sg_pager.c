@@ -143,7 +143,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	size_t space;
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	sg = object->handle;
 	memattr = object->memattr;
 	VM_OBJECT_WUNLOCK(object);

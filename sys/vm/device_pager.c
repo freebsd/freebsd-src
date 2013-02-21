@@ -207,7 +207,7 @@ void
 cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type == OBJT_MGTDEVICE) {
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
 		pmap_remove_all(m);
@@ -222,7 +222,7 @@ static void
 dev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->type == OBJT_DEVICE &&
 	    (m->oflags & VPO_UNMANAGED) != 0),
 	    ("Managed device or page obj %p m %p", object, m));
@@ -259,11 +259,11 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
 {
 	int error, i;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
 	    IDX_TO_OFF(ma[reqpage]->pindex), PROT_READ, &ma[reqpage]);
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	for (i = 0; i < count; i++) {
 		if (i != reqpage) {

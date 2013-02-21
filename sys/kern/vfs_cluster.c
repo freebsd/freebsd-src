@@ -413,8 +413,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				tinc = tsize;
 				if (toff + tinc > PAGE_SIZE)
 					tinc = PAGE_SIZE - toff;
-				VM_OBJECT_LOCK_ASSERT(tbp->b_pages[j]->object,
-				    RA_WLOCKED);
+				VM_OBJECT_ASSERT_WLOCKED(tbp->b_pages[j]->object);
 				if ((tbp->b_pages[j]->valid &
 				    vm_page_bits(toff, tinc)) != 0)
 					break;
@@ -490,7 +489,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	 */
 	VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
 	for (j = 0; j < bp->b_npages; j++) {
-		VM_OBJECT_LOCK_ASSERT(bp->b_pages[j]->object, RA_WLOCKED);
+		VM_OBJECT_ASSERT_WLOCKED(bp->b_pages[j]->object);
 		if (bp->b_pages[j]->valid == VM_PAGE_BITS_ALL)
 			bp->b_pages[j] = bogus_page;
 	}

@@ -301,7 +301,7 @@ void
 vm_object_clear_flag(vm_object_t object, u_short bits)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	object->flags &= ~bits;
 }
 
@@ -318,7 +318,7 @@ int
 vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	switch (object->type) {
 	case OBJT_DEFAULT:
 	case OBJT_DEVICE:
@@ -344,7 +344,7 @@ void
 vm_object_pip_add(vm_object_t object, short i)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	object->paging_in_progress += i;
 }
 
@@ -352,7 +352,7 @@ void
 vm_object_pip_subtract(vm_object_t object, short i)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	object->paging_in_progress -= i;
 }
 
@@ -360,7 +360,7 @@ void
 vm_object_pip_wakeup(vm_object_t object)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	object->paging_in_progress--;
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
 		vm_object_clear_flag(object, OBJ_PIPWNT);
@@ -372,7 +372,7 @@ void
 vm_object_pip_wakeupn(vm_object_t object, short i)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (i)
 		object->paging_in_progress -= i;
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
@@ -385,7 +385,7 @@ void
 vm_object_pip_wait(vm_object_t object, char *waitid)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	while (object->paging_in_progress) {
 		object->flags |= OBJ_PIPWNT;
 		VM_OBJECT_SLEEP(object, object, PVM, waitid, 0);
@@ -436,7 +436,7 @@ vm_object_reference_locked(vm_object_t object)
 {
 	struct vnode *vp;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
 		vp = object->handle;
@@ -452,7 +452,7 @@ vm_object_vndeallocate(vm_object_t object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
@@ -675,7 +675,7 @@ vm_object_terminate(vm_object_t object)
 {
 	vm_page_t p, p_next;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
 	 * Make sure no one uses us.
@@ -816,7 +816,7 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 	int curgeneration, n, pagerflags;
 	boolean_t clearobjflags, eio, res;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0 ||
 	    object->resident_page_count == 0)
@@ -902,7 +902,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 	int count, i, mreq, runlen;
 
 	vm_page_lock_assert(p, MA_NOTOWNED);
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	count = 1;
 	mreq = 0;
@@ -1404,8 +1404,8 @@ vm_object_backing_scan(vm_object_t object, int op)
 	vm_object_t backing_object;
 	vm_pindex_t backing_offset_index;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
-	VM_OBJECT_LOCK_ASSERT(object->backing_object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_WLOCKED(object->backing_object);
 
 	backing_object = object->backing_object;
 	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
@@ -1625,8 +1625,8 @@ vm_object_qcollapse(vm_object_t object)
 {
 	vm_object_t backing_object = object->backing_object;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
-	VM_OBJECT_LOCK_ASSERT(backing_object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_WLOCKED(backing_object);
 
 	if (backing_object->ref_count != 1)
 		return;
@@ -1644,7 +1644,7 @@ vm_object_qcollapse(vm_object_t object)
 void
 vm_object_collapse(vm_object_t object)
 {
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	
 	while (TRUE) {
 		vm_object_t backing_object;
@@ -1852,7 +1852,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	vm_page_t p, next;
 	int wirings;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
 	    (options & (OBJPR_CLEANONLY | OBJPR_NOTMAPPED)) == OBJPR_NOTMAPPED,
 	    ("vm_object_page_remove: illegal options for object %p", object));
@@ -1947,7 +1947,7 @@ vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	struct mtx *mtx, *new_mtx;
 	vm_page_t p, next;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0,
 	    ("vm_object_page_cache: illegal object %p", object));
 	if (object->resident_page_count == 0)
@@ -1995,7 +1995,7 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	vm_pindex_t pindex;
 	int rv;
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	for (pindex = start; pindex < end; pindex++) {
 		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL |
 		    VM_ALLOC_RETRY);
@@ -2146,7 +2146,7 @@ void
 vm_object_set_writeable_dirty(vm_object_t object)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, RA_WLOCKED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type != OBJT_VNODE)
 		return;
 	object->generation++;
