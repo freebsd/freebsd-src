@@ -328,7 +328,6 @@ static int
 atrtc_gettime(device_t dev, struct timespec *ts)
 {
 	struct clocktime ct;
-	int s;
 
 	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
@@ -338,11 +337,8 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 
 	/* wait for time update to complete */
 	/* If RTCSA_TUP is zero, we have at least 244us before next update */
-	s = splhigh();
-	while (rtcin(RTC_STATUSA) & RTCSA_TUP) {
-		splx(s);
-		s = splhigh();
-	}
+	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
+		continue;
 	ct.nsec = 0;
 	ct.sec = readrtc(RTC_SEC);
 	ct.min = readrtc(RTC_MIN);
