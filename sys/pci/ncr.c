@@ -6396,12 +6396,8 @@ static	nccb_p ncr_get_nccb
 	(ncb_p np, u_long target, u_long lun)
 {
 	lcb_p lp;
-	int s;
 	nccb_p cp = NULL;
 
-	/* Keep our timeout handler out */
-	s = splsoftclock();
-	
 	/*
 	**	Lun structure available ?
 	*/
@@ -6434,7 +6430,6 @@ static	nccb_p ncr_get_nccb
 		}
 		cp->magic = 1;
 	}
-	splx(s);
 	return (cp);
 }
 
