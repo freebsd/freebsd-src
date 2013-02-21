@@ -2473,8 +2473,10 @@ scsi_dev_advinfo(union ccb *start_ccb)
 		break;
 	case CDAI_TYPE_PHYS_PATH:
 		if (cdai->flags & CDAI_FLAG_STORE) {
-			if (device->physpath != NULL)
+			if (device->physpath != NULL) {
 				free(device->physpath, M_CAMXPT);
+				device->physpath = NULL;
+			}
 			device->physpath_len = cdai->bufsiz;
 			/* Clear existing buffer if zero length */
 			if (cdai->bufsiz == 0)
@@ -2493,6 +2495,36 @@ scsi_dev_advinfo(union ccb *start_ccb)
 			if (cdai->provsiz > cdai->bufsiz)
 				amt = cdai->bufsiz;
 			memcpy(cdai->buf, device->physpath, amt);
+		}
+		break;
+	case CDAI_TYPE_RCAPLONG:
+		if (cdai->flags & CDAI_FLAG_STORE) {
+			if (device->rcap_buf != NULL) {
+				free(device->rcap_buf, M_CAMXPT);
+				device->rcap_buf = NULL;
+			}
+
+			device->rcap_len = cdai->bufsiz;
+			/* Clear existing buffer if zero length */
+			if (cdai->bufsiz == 0)
+				break;
+
+			device->rcap_buf = malloc(cdai->bufsiz, M_CAMXPT,
+						  M_NOWAIT);
+			if (device->rcap_buf == NULL) {
+				start_ccb->ccb_h.status = CAM_REQ_ABORTED;
+				return;
+			}
+
+			memcpy(device->rcap_buf, cdai->buf, cdai->bufsiz);
+		} else {
+			cdai->provsiz = device->rcap_len;
+			if (device->rcap_len == 0)
+				break;
+			amt = device->rcap_len;
+			if (cdai->provsiz > cdai->bufsiz)
+				amt = cdai->bufsiz;
+			memcpy(cdai->buf, device->rcap_buf, amt);
 		}
 		break;
 	default:

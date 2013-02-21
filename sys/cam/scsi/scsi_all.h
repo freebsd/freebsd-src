@@ -1444,14 +1444,24 @@ struct scsi_read_capacity_data_long
 	uint8_t length[4];
 #define	SRC16_PROT_EN		0x01
 #define	SRC16_P_TYPE		0x0e
+#define	SRC16_PTYPE_1		0x00
+#define	SRC16_PTYPE_2		0x02
+#define	SRC16_PTYPE_3		0x04
 	uint8_t prot;
 #define	SRC16_LBPPBE		0x0f
 #define	SRC16_PI_EXPONENT	0xf0
 #define	SRC16_PI_EXPONENT_SHIFT	4
 	uint8_t prot_lbppbe;
-#define	SRC16_LALBA		0x3fff
-#define	SRC16_LBPRZ		0x4000
-#define	SRC16_LBPME		0x8000
+#define	SRC16_LALBA		0x3f
+#define	SRC16_LBPRZ		0x40
+#define	SRC16_LBPME		0x80
+/*
+ * Alternate versions of these macros that are intended for use on a 16-bit
+ * version of the lalba_lbp field instead of the array of 2 8 bit numbers.
+ */
+#define	SRC16_LALBA_A		0x3fff
+#define	SRC16_LBPRZ_A		0x4000
+#define	SRC16_LBPME_A		0x8000
 	uint8_t lalba_lbp[2];
 };
 
