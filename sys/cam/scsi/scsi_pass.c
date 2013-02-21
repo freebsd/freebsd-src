@@ -76,6 +76,7 @@ struct pass_softc {
 	pass_flags	 flags;
 	u_int8_t	 pd_type;
 	union ccb	 saved_ccb;
+	int		 open_count;
 	struct devstat	*device_stats;
 	struct cdev	*dev;
 	struct cdev	*alias_dev;
@@ -140,12 +141,43 @@ passinit(void)
 static void
 passdevgonecb(void *arg)
 {
+	struct cam_sim    *sim;
 	struct cam_periph *periph;
+	struct pass_softc *softc;
+	int i;
 
 	periph = (struct cam_periph *)arg;
+	sim = periph->sim;
+	softc = (struct pass_softc *)periph->softc;
 
-	xpt_print(periph->path, "%s: devfs entry is gone\n", __func__);
-	cam_periph_release(periph);
+	KASSERT(softc->open_count >= 0, ("Negative open count %d",
+		softc->open_count));
+
+	mtx_lock(sim->mtx);
+
+	/*
+	 * When we get this callback, we will get no more close calls from
+	 * devfs.  So if we have any dangling opens, we need to release the
+	 * reference held for that particular context.
+	 */
+	for (i = 0; i < softc->open_count; i++)
+		cam_periph_release_locked(periph);
+
+	softc->open_count = 0;
+
+	/*
+	 * Release the reference held for the device node, it is gone now.
+	 */
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the final call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 */
+	mtx_unlock(sim->mtx);
 }
 
 static void
@@ -368,7 +400,7 @@ passregister(struct cam_periph *periph, void *arg)
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
-		mtx_lock(periph->sim->mtx);
+		cam_periph_lock(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
 
@@ -461,6 +493,8 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		return(EINVAL);
 	}
 
+	softc->open_count++;
+
 	cam_periph_unlock(periph);
 
 	return (error);
@@ -469,13 +503,36 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
+	struct  cam_sim    *sim;
 	struct 	cam_periph *periph;
+	struct  pass_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
-	cam_periph_release(periph);
+	sim = periph->sim;
+	softc = periph->softc;
+
+	mtx_lock(sim->mtx);
+
+	softc->open_count--;
+
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 *
+	 * cam_periph_release() avoids this problem using the same method,
+	 * but we're manually acquiring and dropping the lock here to
+	 * protect the open count and avoid another lock acquisition and
+	 * release.
+	 */
+	mtx_unlock(sim->mtx);
 
 	return (0);
 }
