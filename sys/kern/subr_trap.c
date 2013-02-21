@@ -164,6 +164,8 @@ userret(struct thread *td, struct trapframe *frame)
 	    ("userret: Returning with with pinned thread"));
 	KASSERT(td->td_vp_reserv == 0,
 	    ("userret: Returning while holding vnode reservation"));
+	KASSERT((td->td_flags & TDF_SBDRY) == 0,
+	    ("userret: Returning with stop signals deferred"));
 #ifdef VIMAGE
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,

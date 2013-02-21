@@ -2537,16 +2537,22 @@ tdsigcleanup(struct thread *td)
 
 }
 
-/* Defer the delivery of SIGSTOP for the current thread. */
-void
-sigdeferstop(struct thread *td)
+/*
+ * Defer the delivery of SIGSTOP for the current thread.  Returns true
+ * if stops were deferred and false if they were already deferred.
+ */
+int
+sigdeferstop(void)
 {
+	struct thread *td;
 
-	KASSERT(!(td->td_flags & TDF_SBDRY),
-	    ("attempt to set TDF_SBDRY recursively"));
+	td = curthread;
+	if (td->td_flags & TDF_SBDRY)
+		return (0);
 	thread_lock(td);
 	td->td_flags |= TDF_SBDRY;
 	thread_unlock(td);
+	return (1);
 }
 
 /*
@@ -2555,11 +2561,11 @@ sigdeferstop(struct thread *td)
  * will suspend either via ast() or a subsequent interruptible sleep.
  */
 void
-sigallowstop(struct thread *td)
+sigallowstop()
 {
+	struct thread *td;
 
-	KASSERT(td->td_flags & TDF_SBDRY,
-	    ("attempt to clear already-cleared TDF_SBDRY"));
+	td = curthread;
 	thread_lock(td);
 	td->td_flags &= ~TDF_SBDRY;
 	thread_unlock(td);
