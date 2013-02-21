@@ -478,9 +478,10 @@ i8254_restore(void)
  *
  * This function is called from pmtimer_resume() to restore all the timers.
  * This should not be necessary, but there are broken laptops that do not
- * restore all the timers on resume.
- * As long as pmtimer is not part of amd64 suport, skip this for the amd64
- * case.
+ * restore all the timers on resume. The APM spec was at best vague on the
+ * subject.
+ * pmtimer is used only with the old APM power management, and not with
+ * acpi, which is required for amd64, so skip it in that case.
  */
 void
 timer_restore(void)
