@@ -1107,8 +1107,6 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		fdclose(fdp, fp, indx, td);
 		fdrop(fp, td);
 
-		if (error == ERESTART)
-			error = EINTR;
 		return (error);
 	}
 	td->td_dupfd = 0;
