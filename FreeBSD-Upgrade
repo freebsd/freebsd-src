@@ -1,0 +1,23 @@
+Instructions for updating unvis(1):
+
+1) checkout the head of the vendor branch:
+
+	REPO=svn+ssh://svn.freebsd.org/
+	svn co $REPO/base/vendor/NetBSD/unvis/dist
+
+2) Update sources:
+
+	rm dist/*
+	export CVSROOT=anoncvs@anoncvs.NetBSD.org:/cvsroot
+	cvs export -r HEAD -d dist src/usr.bin/unvis
+
+3) Commit the new versions:
+
+	svn commit -m "Vendor import of NetBSD's unvis(1) at `date +%F`" dist
+	svn cp -m "Tag `date +%F` import of NetBSD's unvis(1)" \
+	    $REPO/base/vendor/NetBSD/unvis/dist \
+	    $REPO/base/vendor/NetBSD/unvis/`date +%Y%d%m`
+
+4) Update the files in src/contrib/unvis:
+
+
