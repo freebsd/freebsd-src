@@ -570,6 +570,10 @@ ar5416InitDMA(struct ath_hal *ah)
 	/*
 	 * let mac dma writes be in 128 byte chunks
 	 */
+	/*
+	 * XXX If you change this, you must change the headroom
+	 * assigned in ah_maxTxTrigLev - see ar5416InitState().
+	 */
 	OS_REG_WRITE(ah, AR_RXCFG, 
 		(OS_REG_READ(ah, AR_RXCFG) & ~AR_RXCFG_DMASZ_MASK) | AR_RXCFG_DMASZ_128B);
 
