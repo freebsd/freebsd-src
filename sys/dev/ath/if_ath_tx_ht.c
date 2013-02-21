@@ -364,6 +364,13 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	    && ndelim < AH_FIRST_DESC_NDELIMS)
 		ndelim = AH_FIRST_DESC_NDELIMS;
 
+	/*
+	 * If sc_delim_min_pad is non-zero, enforce it as the minimum
+	 * pad delimiter count.
+	 */
+	if (sc->sc_delim_min_pad != 0)
+		ndelim = MAX(ndelim, sc->sc_delim_min_pad);
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: pktlen=%d, ndelim=%d, mpdudensity=%d\n",
 	    __func__, pktlen, ndelim, mpdudensity);
