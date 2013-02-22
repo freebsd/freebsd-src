@@ -2560,7 +2560,6 @@ mxge_rx_csum(struct mbuf *m, int csum)
 #ifdef INET
 	struct ip *ip;
 #endif
-	int cap = m->m_pkthdr.rcvif->if_capenable;
 	uint16_t c, etype;
 
 
