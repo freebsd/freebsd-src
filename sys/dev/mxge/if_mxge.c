@@ -291,11 +291,12 @@ mxge_parse_strings(mxge_softc_t *sc)
 #define MXGE_NEXT_STRING(p) while(ptr < limit && *ptr++)
 
 	char *ptr, *limit;
-	int i, found_mac;
+	int i, found_mac, found_sn2;
 
 	ptr = sc->eeprom_strings;
 	limit = sc->eeprom_strings + MXGE_EEPROM_STRINGS_SIZE;
 	found_mac = 0;
+	found_sn2 = 0;
 	while (ptr < limit && *ptr != '\0') {
 		if (memcmp(ptr, "MAC=", 4) == 0) {
 			ptr += 1;
@@ -311,8 +312,14 @@ mxge_parse_strings(mxge_softc_t *sc)
 			ptr += 3;
 			strncpy(sc->product_code_string, ptr,
 				sizeof (sc->product_code_string) - 1);
-		} else if (memcmp(ptr, "SN=", 3) == 0) {
+		} else if (!found_sn2 && (memcmp(ptr, "SN=", 3) == 0)) {
 			ptr += 3;
+			strncpy(sc->serial_number_string, ptr,
+				sizeof (sc->serial_number_string) - 1);
+		} else if (memcmp(ptr, "SN2=", 4) == 0) {
+			/* SN2 takes precedence over SN */
+			ptr += 4;
+			found_sn2 = 1;
 			strncpy(sc->serial_number_string, ptr,
 				sizeof (sc->serial_number_string) - 1);
 		}
@@ -581,9 +588,10 @@ mxge_firmware_probe(mxge_softc_t *sc)
 
 	/* 
 	 * Run a DMA test which watches for unaligned completions and
-	 * aborts on the first one seen.
+	 * aborts on the first one seen.  Not required on Z8ES or newer.
 	 */
-
+	if (pci_get_revid(sc->dev) >= MXGE_PCI_REV_Z8ES)
+		return 0;
 	status = mxge_dma_test(sc, MXGEFW_CMD_UNALIGNED_TEST);
 	if (status == 0)
 		return 0; /* keep the aligned firmware */
