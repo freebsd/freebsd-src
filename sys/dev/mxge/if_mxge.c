@@ -1,6 +1,6 @@
 /******************************************************************************
 
-Copyright (c) 2006-2009, Myricom Inc.
+Copyright (c) 2006-2013, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
