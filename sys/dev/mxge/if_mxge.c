@@ -1887,11 +1887,13 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 			    IPPROTO_TCP, 0);
 #endif
 		} else {
+#ifdef INET
 			m->m_pkthdr.csum_flags |= CSUM_TCP;
 			sum = in_pseudo(pi->ip->ip_src.s_addr,
 			    pi->ip->ip_dst.s_addr,
 			    htons(IPPROTO_TCP + (m->m_pkthdr.len -
 				    cksum_offset)));
+#endif
 		}
 		m_copyback(m, offsetof(struct tcphdr, th_sum) +
 		    cksum_offset, sizeof(sum), (caddr_t)&sum);
@@ -2538,8 +2540,6 @@ mxge_rx_csum6(void *p, struct mbuf *m, uint32_t csum)
 	csum = (csum >> 16) + (csum & 0xFFFF);
 	c = in6_cksum_pseudo(ip6, m->m_pkthdr.len - cksum_offset, nxt,
 			     csum);
-
-//	printf("%d %d %x %x %x %x %x\n", m->m_pkthdr.len, cksum_offset, c, csum, ocsum, partial, d);
 	c ^= 0xffff;
 	return (c);
 }
@@ -2559,6 +2559,9 @@ mxge_rx_csum(struct mbuf *m, int csum)
 	struct ether_header *eh;
 #ifdef INET
 	struct ip *ip;
+#endif
+#if defined(INET) || defined(INET6)
+	int cap = m->m_pkthdr.rcvif->if_capenable;
 #endif
 	uint16_t c, etype;
 
