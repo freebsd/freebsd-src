@@ -715,7 +715,7 @@ spa_change_guid_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	vdev_config_dirty(rvd);
 	spa_config_exit(spa, SCL_STATE, FTAG);
 
-	spa_history_log_internal(spa, "guid change", tx, "old=%lld new=%lld",
+	spa_history_log_internal(spa, "guid change", tx, "old=%llu new=%llu",
 	    oldguid, *newguid);
 }
 
