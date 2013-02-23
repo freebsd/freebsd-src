@@ -36,26 +36,9 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-int
-vm_pagerret_bad(void)
-{
-
-	return (VM_PAGER_BAD);
-}
-
-int
-vm_pagerret_error(void)
-{
-
-	return (VM_PAGER_ERROR);
-}
-
-int
-vm_pagerret_ok(void)
-{
-
-	return (VM_PAGER_OK);
-}
+const int zfs_vm_pagerret_bad = VM_PAGER_BAD;
+const int zfs_vm_pagerret_error = VM_PAGER_ERROR;
+const int zfs_vm_pagerret_ok = VM_PAGER_OK;
 
 void
 zfs_vmobject_assert_wlocked(vm_object_t object)

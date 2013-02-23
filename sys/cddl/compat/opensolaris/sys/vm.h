@@ -31,9 +31,9 @@
 
 #ifdef _KERNEL
 
-int	vm_pagerret_bad(void);
-int	vm_pagerret_error(void);
-int	vm_pagerret_ok(void);
+extern const int zfs_vm_pagerret_bad;
+extern const int zfs_vm_pagerret_error;
+extern const int zfs_vm_pagerret_ok;
 
 void	zfs_vmobject_assert_wlocked(vm_object_t object);
 void	zfs_vmobject_wlock(vm_object_t object);

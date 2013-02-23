@@ -5702,7 +5702,7 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 			vm_page_zero_invalid(mreq, TRUE);
 		zfs_vmobject_wunlock(object);
 		ZFS_EXIT(zfsvfs);
-		return (vm_pagerret_ok());
+		return (zfs_vm_pagerret_ok);
 	}
 
 	PCPU_INC(cnt.v_vnodein);
@@ -5718,7 +5718,7 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 		}
 		zfs_vmobject_wunlock(object);
 		ZFS_EXIT(zfsvfs);
-		return (vm_pagerret_bad());
+		return (zfs_vm_pagerret_bad);
 	}
 
 	lsize = PAGE_SIZE;
@@ -5755,7 +5755,7 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 	ZFS_EXIT(zfsvfs);
-	return (error ? vm_pagerret_error() : vm_pagerret_ok());
+	return (error ? zfs_vm_pagerret_error : zfs_vm_pagerret_ok);
 }
 
 static int
