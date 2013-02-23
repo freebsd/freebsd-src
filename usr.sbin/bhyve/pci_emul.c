@@ -846,12 +846,29 @@ pci_emul_iscap(struct pci_devinst *pi, int offset)
 	return (found);
 }
 
+static int
+pci_emul_fallback_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
+			  int size, uint64_t *val, void *arg1, long arg2)
+{
+	/*
+	 * Ignore writes; return 0xff's for reads. The mem read code
+	 * will take care of truncating to the correct size.
+	 */
+	if (dir == MEM_F_READ) {
+		*val = 0xffffffffffffffff;
+	}
+
+	return (0);
+}
+
 void
 init_pci(struct vmctx *ctx)
 {
+	struct mem_range memp;
 	struct pci_devemu *pde;
 	struct slotinfo *si;
 	int slot, func;
+	int error;
 
 	pci_emul_iobase = PCI_EMUL_IOBASE;
 	pci_emul_membase32 = PCI_EMUL_MEMBASE32;
@@ -879,6 +896,20 @@ init_pci(struct vmctx *ctx)
 	lirq[11].li_generic = 1;
 	lirq[12].li_generic = 1;
 	lirq[15].li_generic = 1;
+
+	/*
+	 * Setup the PCI hole to return 0xff's when accessed in a region
+	 * with no devices
+	 */
+	memset(&memp, 0, sizeof(struct mem_range));
+	memp.name = "PCI hole";
+	memp.flags = MEM_F_RW;
+	memp.base = lomem_sz;
+	memp.size = (4ULL * 1024 * 1024 * 1024) - lomem_sz;
+	memp.handler = pci_emul_fallback_handler;
+
+	error = register_mem_fallback(&memp);
+	assert(error == 0);
 }
 
 int

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-Copyright (c) 2006-2009, Myricom Inc.
+Copyright (c) 2006-2013, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -291,11 +291,12 @@ mxge_parse_strings(mxge_softc_t *sc)
 #define MXGE_NEXT_STRING(p) while(ptr < limit && *ptr++)
 
 	char *ptr, *limit;
-	int i, found_mac;
+	int i, found_mac, found_sn2;
 
 	ptr = sc->eeprom_strings;
 	limit = sc->eeprom_strings + MXGE_EEPROM_STRINGS_SIZE;
 	found_mac = 0;
+	found_sn2 = 0;
 	while (ptr < limit && *ptr != '\0') {
 		if (memcmp(ptr, "MAC=", 4) == 0) {
 			ptr += 1;
@@ -311,8 +312,14 @@ mxge_parse_strings(mxge_softc_t *sc)
 			ptr += 3;
 			strncpy(sc->product_code_string, ptr,
 				sizeof (sc->product_code_string) - 1);
-		} else if (memcmp(ptr, "SN=", 3) == 0) {
+		} else if (!found_sn2 && (memcmp(ptr, "SN=", 3) == 0)) {
 			ptr += 3;
+			strncpy(sc->serial_number_string, ptr,
+				sizeof (sc->serial_number_string) - 1);
+		} else if (memcmp(ptr, "SN2=", 4) == 0) {
+			/* SN2 takes precedence over SN */
+			ptr += 4;
+			found_sn2 = 1;
 			strncpy(sc->serial_number_string, ptr,
 				sizeof (sc->serial_number_string) - 1);
 		}
@@ -581,9 +588,10 @@ mxge_firmware_probe(mxge_softc_t *sc)
 
 	/* 
 	 * Run a DMA test which watches for unaligned completions and
-	 * aborts on the first one seen.
+	 * aborts on the first one seen.  Not required on Z8ES or newer.
 	 */
-
+	if (pci_get_revid(sc->dev) >= MXGE_PCI_REV_Z8ES)
+		return 0;
 	status = mxge_dma_test(sc, MXGEFW_CMD_UNALIGNED_TEST);
 	if (status == 0)
 		return 0; /* keep the aligned firmware */
@@ -1887,11 +1895,13 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 			    IPPROTO_TCP, 0);
 #endif
 		} else {
+#ifdef INET
 			m->m_pkthdr.csum_flags |= CSUM_TCP;
 			sum = in_pseudo(pi->ip->ip_src.s_addr,
 			    pi->ip->ip_dst.s_addr,
 			    htons(IPPROTO_TCP + (m->m_pkthdr.len -
 				    cksum_offset)));
+#endif
 		}
 		m_copyback(m, offsetof(struct tcphdr, th_sum) +
 		    cksum_offset, sizeof(sum), (caddr_t)&sum);
@@ -2538,8 +2548,6 @@ mxge_rx_csum6(void *p, struct mbuf *m, uint32_t csum)
 	csum = (csum >> 16) + (csum & 0xFFFF);
 	c = in6_cksum_pseudo(ip6, m->m_pkthdr.len - cksum_offset, nxt,
 			     csum);
-
-//	printf("%d %d %x %x %x %x %x\n", m->m_pkthdr.len, cksum_offset, c, csum, ocsum, partial, d);
 	c ^= 0xffff;
 	return (c);
 }
@@ -2560,7 +2568,9 @@ mxge_rx_csum(struct mbuf *m, int csum)
 #ifdef INET
 	struct ip *ip;
 #endif
+#if defined(INET) || defined(INET6)
 	int cap = m->m_pkthdr.rcvif->if_capenable;
+#endif
 	uint16_t c, etype;
 
 
