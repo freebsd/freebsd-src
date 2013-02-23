@@ -294,6 +294,9 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_duplicate_buffers;
 	kstat_named_t arcstat_duplicate_buffers_size;
 	kstat_named_t arcstat_duplicate_reads;
+	kstat_named_t arcstat_meta_used;
+	kstat_named_t arcstat_meta_limit;
+	kstat_named_t arcstat_meta_max;
 } arc_stats_t;
 
 static arc_stats_t arc_stats = {
@@ -352,7 +355,10 @@ static arc_stats_t arc_stats = {
 	{ "memory_throttle_count",	KSTAT_DATA_UINT64 },
 	{ "duplicate_buffers",		KSTAT_DATA_UINT64 },
 	{ "duplicate_buffers_size",	KSTAT_DATA_UINT64 },
-	{ "duplicate_reads",		KSTAT_DATA_UINT64 }
+	{ "duplicate_reads",		KSTAT_DATA_UINT64 },
+	{ "arc_meta_used",		KSTAT_DATA_UINT64 },
+	{ "arc_meta_limit",		KSTAT_DATA_UINT64 },
+	{ "arc_meta_max",		KSTAT_DATA_UINT64 }
 };
 
 #define	ARCSTAT(stat)	(arc_stats.stat.value.ui64)
@@ -414,13 +420,13 @@ static arc_state_t	*arc_l2c_only;
 #define	arc_c		ARCSTAT(arcstat_c)	/* target size of cache */
 #define	arc_c_min	ARCSTAT(arcstat_c_min)	/* min target cache size */
 #define	arc_c_max	ARCSTAT(arcstat_c_max)	/* max target cache size */
+#define	arc_meta_limit	ARCSTAT(arcstat_meta_limit) /* max size for metadata */
+#define	arc_meta_used	ARCSTAT(arcstat_meta_used) /* size of metadata */
+#define	arc_meta_max	ARCSTAT(arcstat_meta_max) /* max size of metadata */
 
 static int		arc_no_grow;	/* Don't try to grow cache size */
 static uint64_t		arc_tempreserve;
 static uint64_t		arc_loaned_bytes;
-static uint64_t		arc_meta_used;
-static uint64_t		arc_meta_limit;
-static uint64_t		arc_meta_max = 0;
 
 typedef struct l2arc_buf_hdr l2arc_buf_hdr_t;
 
@@ -1218,7 +1224,7 @@ arc_space_consume(uint64_t space, arc_space_type_t type)
 		break;
 	}
 
-	atomic_add_64(&arc_meta_used, space);
+	ARCSTAT_INCR(arcstat_meta_used, space);
 	atomic_add_64(&arc_size, space);
 }
 
@@ -1245,7 +1251,7 @@ arc_space_return(uint64_t space, arc_space_type_t type)
 	ASSERT(arc_meta_used >= space);
 	if (arc_meta_max < arc_meta_used)
 		arc_meta_max = arc_meta_used;
-	atomic_add_64(&arc_meta_used, -space);
+	ARCSTAT_INCR(arcstat_meta_used, -space);
 	ASSERT(arc_size >= space);
 	atomic_add_64(&arc_size, -space);
 }
