@@ -39,7 +39,7 @@
 
 #define FDT_MEM_REGIONS	8
 
-#define DI_MAX_INTR_NUM	8
+#define DI_MAX_INTR_NUM	32
 
 struct fdt_pci_range {
 	u_long	base_pci;
