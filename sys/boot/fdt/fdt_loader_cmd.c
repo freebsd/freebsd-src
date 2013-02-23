@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 
 #define	CMD_REQUIRES_BLOB	0x01
 
-/* Local copy of FDT */
+/* Location of FDT yet to be loaded. */
+static struct fdt_header *fdt_to_load = NULL;
+/* Local copy of FDT on heap. */
 static struct fdt_header *fdtp = NULL;
 /* Size of FDT blob */
 static size_t fdtp_size = 0;
@@ -252,13 +254,20 @@ fdt_setup_fdtp()
 {
   struct preloaded_file *bfp;
   struct fdt_header *hdr;
-  const char *s, *p;
+  const char *s;
+  char *p;
   vm_offset_t va;
 
   if ((bfp = file_findfile(NULL, "dtb")) != NULL) {
 	  printf("Using DTB from loaded file.\n");
 	  return fdt_load_dtb(bfp->f_addr);
-  } 
+  }
+
+  if (fdt_to_load != NULL) {
+	  printf("Using DTB from memory address 0x%08X.\n",
+		 (unsigned int)fdt_to_load);
+	  return fdt_load_dtb_addr(fdt_to_load);
+  }
 
   s = ub_env_get("fdtaddr");
   if (s != NULL && *s != '\0') {
@@ -810,8 +819,12 @@ command_fdt_internal(int argc, char *argv[])
 static int
 fdt_cmd_addr(int argc, char *argv[])
 {
+	struct preloaded_file *fp;
 	struct fdt_header *hdr;
-	const char *addr, *cp;
+	const char *addr;
+	char *cp;
+
+	fdt_to_load = NULL;
 
 	if (argc > 2)
 		addr = argv[2];
@@ -820,15 +833,17 @@ fdt_cmd_addr(int argc, char *argv[])
 		return (CMD_ERROR);
 	}
 
-	hdr = (struct fdt_header *)strtoul(addr, &cp, 0);
+	hdr = (struct fdt_header *)strtoul(addr, &cp, 16);
 	if (cp == addr) {
 		sprintf(command_errbuf, "Invalid address: %s", addr);
 		return (CMD_ERROR);
 	}
 
-	if (fdt_load_dtb_addr(hdr) != 0)
-		return (CMD_ERROR);
+	while ((fp = file_findfile(NULL, "dtb")) != NULL) {
+		file_discard(fp);
+	}
 
+	fdt_to_load = hdr;
 	return (CMD_OK);
 }
 
