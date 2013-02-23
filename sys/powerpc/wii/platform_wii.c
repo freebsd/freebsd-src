@@ -69,7 +69,7 @@ static platform_method_t wii_methods[] = {
 	PLATFORMMETHOD(platform_timebase_freq,	wii_timebase_freq),
 	PLATFORMMETHOD(platform_reset,		wii_reset),
  
-	{ 0, 0 }
+	PLATFORMMETHOD_END
 };
 
 static platform_def_t wii_platform = {

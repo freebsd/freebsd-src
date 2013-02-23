@@ -595,7 +595,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			 * causes timeouts if external SEP is not connected
 			 * to PMP over I2C.
 			 */
-			if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
+			if ((softc->pm_pid == 0x37261095 ||
+			     softc->pm_pid == 0x38261095) &&
+			    softc->pm_ports == 6)
 				softc->pm_ports = 5;
 
 			/*

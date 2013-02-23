@@ -133,7 +133,7 @@
 #define VM_MIN_KERNEL_ADDRESS KERNBASE
 #endif
 
-#define VM_MAX_KERNEL_ADDRESS	0xffffffff
+#define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
 
 /*
  * Virtual size (bytes) for various kernel submaps.
@@ -143,6 +143,14 @@
 #endif
 #ifndef VM_KMEM_SIZE_SCALE
 #define VM_KMEM_SIZE_SCALE	(2)
+#endif
+
+/*
+ * Ceiling on the size of the kmem submap: 60% of the kernel map.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define	VM_KMEM_SIZE_MAX	((vm_max_kernel_address - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 3 / 5)
 #endif
 
 #define MAXTSIZ 	(16*1024*1024)
@@ -165,6 +173,8 @@
 #ifdef ARM_USE_SMALL_ALLOC
 #define UMA_MD_SMALL_ALLOC
 #endif /* ARM_USE_SMALL_ALLOC */
+
+extern vm_offset_t vm_max_kernel_address;
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 

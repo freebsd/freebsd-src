@@ -1546,9 +1546,6 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		return (NULL);
 	}
 	/* initialise our SX-lock */
-	sx_init_flags(&udev->ctrl_sx, "USB device SX lock", SX_DUPOK);
-
-	/* initialise our SX-lock */
 	sx_init_flags(&udev->enum_sx, "USB config SX lock", SX_DUPOK);
 	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_NOWITNESS);
 
@@ -2119,7 +2116,6 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	    &udev->cs_msg[0], &udev->cs_msg[1]);
 	USB_BUS_UNLOCK(udev->bus);
 
-	sx_destroy(&udev->ctrl_sx);
 	sx_destroy(&udev->enum_sx);
 	sx_destroy(&udev->sr_sx);
 

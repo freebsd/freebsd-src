@@ -5544,7 +5544,6 @@ static void ncr_exception (ncb_p np)
 	**	Freeze system to be able to read the messages.
 	*/
 	printf ("ncr: fatal error: system halted - press reset to reboot ...");
-	(void) splhigh();
 	for (;;);
 #endif
 
@@ -6397,12 +6396,8 @@ static	nccb_p ncr_get_nccb
 	(ncb_p np, u_long target, u_long lun)
 {
 	lcb_p lp;
-	int s;
 	nccb_p cp = NULL;
 
-	/* Keep our timeout handler out */
-	s = splsoftclock();
-	
 	/*
 	**	Lun structure available ?
 	*/
@@ -6430,12 +6425,10 @@ static	nccb_p ncr_get_nccb
 	if (cp != NULL) {
 		if (cp->magic) {
 			printf("%s: Bogus free cp found\n", ncr_name(np));
-			splx(s);
 			return (NULL);
 		}
 		cp->magic = 1;
 	}
-	splx(s);
 	return (cp);
 }
 

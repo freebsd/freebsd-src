@@ -125,8 +125,9 @@
 /* Types for input files */
 
 #define ASL_INPUT_TYPE_BINARY       0
-#define ASL_INPUT_TYPE_ASCII_ASL    1
-#define ASL_INPUT_TYPE_ASCII_DATA   2
+#define ASL_INPUT_TYPE_ACPI_TABLE   1
+#define ASL_INPUT_TYPE_ASCII_ASL    2
+#define ASL_INPUT_TYPE_ASCII_DATA   3
 
 
 /* Misc */

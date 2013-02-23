@@ -174,6 +174,7 @@ evalstring(char *s, int flags)
 			any = 1;
 		}
 		popstackmark(&smark);
+		setstackmark(&smark);
 	}
 	popfile();
 	popstackmark(&smark);
@@ -296,6 +297,7 @@ evaltree(union node *n, int flags)
 		}
 		n = next;
 		popstackmark(&smark);
+		setstackmark(&smark);
 	} while (n != NULL);
 out:
 	popstackmark(&smark);

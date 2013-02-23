@@ -389,9 +389,8 @@ usbd_get_hr_func(struct usb_device *udev)
  * than 30 seconds is treated like a 30 second timeout. This USB stack
  * does not allow control requests without a timeout.
  *
- * NOTE: This function is thread safe. All calls to
- * "usbd_do_request_flags" will be serialised by the use of an
- * internal "sx_lock".
+ * NOTE: This function is thread safe. All calls to "usbd_do_request_flags"
+ * will be serialized by the use of the USB device enumeration lock.
  *
  * Returns:
  *    0: Success
@@ -415,7 +414,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	uint16_t length;
 	uint16_t temp;
 	uint16_t acttemp;
-	uint8_t enum_locked;
+	uint8_t do_unlock;
 
 	if (timeout < 50) {
 		/* timeout is too small */
@@ -426,8 +425,6 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		timeout = 30000;
 	}
 	length = UGETW(req->wLength);
-
-	enum_locked = usbd_enum_is_locked(udev);
 
 	DPRINTFN(5, "udev=%p bmRequestType=0x%02x bRequest=0x%02x "
 	    "wValue=0x%02x%02x wIndex=0x%02x%02x wLength=0x%02x%02x\n",
@@ -459,17 +456,16 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	}
 
 	/*
+	 * Grab the USB device enumeration SX-lock serialization is
+	 * achieved when multiple threads are involved:
+	 */
+	do_unlock = usbd_enum_lock(udev);
+
+	/*
 	 * We need to allow suspend and resume at this point, else the
 	 * control transfer will timeout if the device is suspended!
 	 */
-	if (enum_locked)
-		usbd_sr_unlock(udev);
-
-	/*
-	 * Grab the default sx-lock so that serialisation
-	 * is achieved when multiple threads are involved:
-	 */
-	sx_xlock(&udev->ctrl_sx);
+	usbd_sr_unlock(udev);
 
 	hr_func = usbd_get_hr_func(udev);
 
@@ -713,10 +709,10 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 	USB_XFER_UNLOCK(xfer);
 
 done:
-	sx_xunlock(&udev->ctrl_sx);
+	usbd_sr_lock(udev);
 
-	if (enum_locked)
-		usbd_sr_lock(udev);
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 
 	if ((mtx != NULL) && (mtx != &Giant))
 		mtx_lock(mtx);

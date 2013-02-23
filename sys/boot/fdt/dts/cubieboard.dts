@@ -91,7 +91,14 @@
 			interrupt-parent = <&AINTC>;
 		};
 
-		usb1: usb@01c1c000 {
+		usb1: usb@01c14000 {
+			compatible = "allwinner,usb-ehci", "usb-ehci";
+			reg = <0x01c14000 0x1000>;
+			interrupts = < 39 >;
+			interrupt-parent = <&AINTC>;
+		};
+
+		usb2: usb@01c1c000 {
 			compatible = "allwinner,usb-ehci", "usb-ehci";
 			reg = <0x01c1c000 0x1000>;
 			interrupts = < 40 >;

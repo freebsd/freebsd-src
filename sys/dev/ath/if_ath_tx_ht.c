@@ -346,16 +346,30 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	 * crypto hardware catch up. This could be tuned per-MAC and
 	 * per-rate, but for now we'll simply assume encryption is
 	 * always enabled.
+	 *
+	 * Also note that the Atheros reference driver inserts two
+	 * delimiters by default for pre-AR9380 peers.  This will
+	 * include "that" required delimiter.
 	 */
 	ndelim += ATH_AGGR_ENCRYPTDELIM;
 
 	/*
 	 * For AR9380, there's a minimum number of delimeters
 	 * required when doing RTS.
+	 *
+	 * XXX TODO: this is only needed if (a) RTS/CTS is enabled, and
+	 * XXX (b) this is the first sub-frame in the aggregate.
 	 */
 	if (sc->sc_use_ent && (sc->sc_ent_cfg & AH_ENT_RTSCTS_DELIM_WAR)
 	    && ndelim < AH_FIRST_DESC_NDELIMS)
 		ndelim = AH_FIRST_DESC_NDELIMS;
+
+	/*
+	 * If sc_delim_min_pad is non-zero, enforce it as the minimum
+	 * pad delimiter count.
+	 */
+	if (sc->sc_delim_min_pad != 0)
+		ndelim = MAX(ndelim, sc->sc_delim_min_pad);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: pktlen=%d, ndelim=%d, mpdudensity=%d\n",
@@ -420,8 +434,11 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 static int
 ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
 {
-	int amin = 65530;
+	int amin = ATH_AGGR_MAXSIZE;
 	int i;
+
+	if (sc->sc_aggr_limit > 0 && sc->sc_aggr_limit < ATH_AGGR_MAXSIZE)
+		amin = sc->sc_aggr_limit;
 
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		if (bf->bf_state.bfs_rc[i].tries == 0)
@@ -487,6 +504,13 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		 * XXX it's the interface chainmask at startup.
 		 * XXX It's overridden in the HAL rate scenario function
 		 * XXX for now.
+		 */
+		/*
+		 * XXX TODO: When the NIC is capable of three stream TX,
+		 * transmit 1/2 stream rates on two streams.
+		 *
+		 * This reduces the power consumption of the NIC and
+		 * keeps it within the PCIe slot power limits.
 		 */
 		series[i].ChSel = sc->sc_txchainmask;
 

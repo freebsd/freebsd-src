@@ -19,7 +19,15 @@ CFLAGS+=	-fno-strict-aliasing
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd10.0
+
+.if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
+    ${MK_ARM_EABI} != "no"
+TARGET_ABI=	gnueabi
+.else
+TARGET_ABI=	unknown
+.endif
+
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd10.0
 BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd10.0
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOSTTRIPLE=\"${BUILD_TRIPLE}\" \

@@ -70,7 +70,6 @@ struct vcpu {
 	int		flags;
 	enum vcpu_state	state;
 	struct mtx	mtx;
-	int		pincpu;		/* host cpuid this vcpu is bound to */
 	int		hostcpu;	/* host cpuid this vcpu last ran on */
 	uint64_t	guest_msrs[VMM_MSR_NUM];
 	struct vlapic	*vlapic;
@@ -81,18 +80,6 @@ struct vcpu {
 	enum x2apic_state x2apic_state;
 	int		nmi_pending;
 };
-#define	VCPU_F_PINNED	0x0001
-
-#define	VCPU_PINCPU(vm, vcpuid)	\
-    ((vm->vcpu[vcpuid].flags & VCPU_F_PINNED) ? vm->vcpu[vcpuid].pincpu : -1)
-
-#define	VCPU_UNPIN(vm, vcpuid)	(vm->vcpu[vcpuid].flags &= ~VCPU_F_PINNED)
-
-#define	VCPU_PIN(vm, vcpuid, host_cpuid)				\
-do {									\
-	vm->vcpu[vcpuid].flags |= VCPU_F_PINNED;			\
-	vm->vcpu[vcpuid].pincpu = host_cpuid;				\
-} while(0)
 
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
@@ -592,52 +579,6 @@ vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 		return (EINVAL);
 
 	return (VMSETDESC(vm->cookie, vcpu, reg, desc));
-}
-
-int
-vm_get_pinning(struct vm *vm, int vcpuid, int *cpuid)
-{
-
-	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
-		return (EINVAL);
-
-	*cpuid = VCPU_PINCPU(vm, vcpuid);
-
-	return (0);
-}
-
-int
-vm_set_pinning(struct vm *vm, int vcpuid, int host_cpuid)
-{
-	struct thread *td;
-
-	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
-		return (EINVAL);
-
-	td = curthread;		/* XXXSMP only safe when muxing vcpus */
-
-	/* unpin */
-	if (host_cpuid < 0) {
-		VCPU_UNPIN(vm, vcpuid);
-		thread_lock(td);
-		sched_unbind(td);
-		thread_unlock(td);
-		return (0);
-	}
-
-	if (CPU_ABSENT(host_cpuid))
-		return (EINVAL);
-
-	/*
-	 * XXX we should check that 'host_cpuid' has not already been pinned
-	 * by another vm.
-	 */
-	thread_lock(td);
-	sched_bind(td, host_cpuid);
-	thread_unlock(td);
-	VCPU_PIN(vm, vcpuid, host_cpuid);
-
-	return (0);
 }
 
 static void

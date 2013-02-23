@@ -85,6 +85,9 @@ LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
+.if ${MK_LDNS} != "no"
+LIBLDNS?=	${DESTDIR}${LIBDIR}/libldns.a
+.endif
 LIBLN?=		"don't use LIBLN, use LIBL"
 .if ${MK_BIND} != "no"
 LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a

@@ -2341,7 +2341,7 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb, union ccb *p
 				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[7] << 8  |
 				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[8];
 					/* 4 bytes: Areca io control code */
-	if((pccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
+	if ((pccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) {
 		buffer = pccb->csio.data_ptr;
 		transfer_len = pccb->csio.dxfer_len;
 	} else {
@@ -2731,6 +2731,7 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 	case XPT_SCSI_IO: {
 			struct CommandControlBlock *srb;
 			int target = pccb->ccb_h.target_id;
+			int error;
 	
 			if(target == 16) {
 				/* virtual device for iop message transfer */
@@ -2745,52 +2746,13 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			pccb->ccb_h.arcmsr_ccbsrb_ptr = srb;
 			pccb->ccb_h.arcmsr_ccbacb_ptr = acb;
 			srb->pccb = pccb;
-			if((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-				if(!(pccb->ccb_h.flags & CAM_SCATTER_VALID)) {
-					/* Single buffer */
-					if(!(pccb->ccb_h.flags & CAM_DATA_PHYS)) {
-						/* Buffer is virtual */
-						u_int32_t error, s;
-	
-						s = splsoftvm();
-						error =	bus_dmamap_load(acb->dm_segs_dmat
-							, srb->dm_segs_dmamap
-							, pccb->csio.data_ptr
-							, pccb->csio.dxfer_len
-							, arcmsr_execute_srb, srb, /*flags*/0);
-	         				if(error == EINPROGRESS) {
-							xpt_freeze_simq(acb->psim, 1);
-							pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-						}
-						splx(s);
-					}
-					else {		/* Buffer is physical */
-#ifdef	PAE
-						panic("arcmsr: CAM_DATA_PHYS not supported");
-#else
-						struct bus_dma_segment seg;
-						
-						seg.ds_addr = (bus_addr_t)pccb->csio.data_ptr;
-						seg.ds_len = pccb->csio.dxfer_len;
-						arcmsr_execute_srb(srb, &seg, 1, 0);
-#endif
-					}
-				} else { 
-					/* Scatter/gather list */
-					struct bus_dma_segment *segs;
-	
-					if((pccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0
-					|| (pccb->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-						pccb->ccb_h.status |= CAM_PROVIDE_FAIL;
-						xpt_done(pccb);
-						free(srb, M_DEVBUF);
-						return;
-					}
-					segs = (struct bus_dma_segment *)pccb->csio.data_ptr;
-					arcmsr_execute_srb(srb, segs, pccb->csio.sglist_cnt, 0);
-				}
-			} else {
-				arcmsr_execute_srb(srb, NULL, 0, 0);
+			error =	bus_dmamap_load_ccb(acb->dm_segs_dmat
+				, srb->dm_segs_dmamap
+				, pccb
+				, arcmsr_execute_srb, srb, /*flags*/0);
+			if(error == EINPROGRESS) {
+				xpt_freeze_simq(acb->psim, 1);
+				pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 			}
 			break;
 		}

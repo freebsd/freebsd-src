@@ -202,7 +202,7 @@ struct audit_record {
 	mode_t			ar_arg_mode;
 	int			ar_arg_dev;
 	long			ar_arg_value;
-	void *			ar_arg_addr;
+	void			*ar_arg_addr;
 	int			ar_arg_len;
 	int			ar_arg_mask;
 	u_int			ar_arg_signum;
@@ -219,7 +219,7 @@ struct audit_record {
 	int			ar_arg_svipc_cmd;
 	struct ipc_perm		ar_arg_svipc_perm;
 	int			ar_arg_svipc_id;
-	void *			ar_arg_svipc_addr;
+	void			*ar_arg_svipc_addr;
 	struct posix_ipc_perm	ar_arg_pipc_perm;
 	union auditon_udata	ar_arg_auditon;
 	char			*ar_arg_argv;

@@ -89,7 +89,7 @@ static int udp_done, tcp_done, sdp_done;
 #endif /* INET6 */
 
 static int
-pcblist_sysctl(int proto, const char *name, char **bufp, int istcp)
+pcblist_sysctl(int proto, const char *name, char **bufp, int istcp __unused)
 {
 	const char *mibvar;
 	char *buf;

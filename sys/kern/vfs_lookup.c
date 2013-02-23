@@ -339,7 +339,7 @@ namei(struct nameidata *ndp)
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_td = (struct thread *)0;
+		auio.uio_td = td;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {

@@ -324,19 +324,12 @@ caddr_t	kern_timeout_callwheel_alloc(caddr_t v);
 void	kern_timeout_callwheel_init(void);
 
 /* Stubs for obsolete functions that used to be for interrupt management */
-static __inline void		spl0(void)		{ return; }
 static __inline intrmask_t	splbio(void)		{ return 0; }
 static __inline intrmask_t	splcam(void)		{ return 0; }
 static __inline intrmask_t	splclock(void)		{ return 0; }
 static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
-static __inline intrmask_t	splsoftcam(void)	{ return 0; }
-static __inline intrmask_t	splsoftclock(void)	{ return 0; }
-static __inline intrmask_t	splsofttty(void)	{ return 0; }
-static __inline intrmask_t	splsoftvm(void)		{ return 0; }
-static __inline intrmask_t	splsofttq(void)		{ return 0; }
-static __inline intrmask_t	splstatclock(void)	{ return 0; }
 static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl __unused)	{ return; }

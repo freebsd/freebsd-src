@@ -250,34 +250,6 @@ vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *ret_val)
 }
 
 int
-vm_get_pinning(struct vmctx *ctx, int vcpu, int *host_cpuid)
-{
-	int error;
-	struct vm_pin vmpin;
-
-	bzero(&vmpin, sizeof(vmpin));
-	vmpin.vm_cpuid = vcpu;
-
-	error = ioctl(ctx->fd, VM_GET_PINNING, &vmpin);
-	*host_cpuid = vmpin.host_cpuid;
-	return (error);
-}
-
-int
-vm_set_pinning(struct vmctx *ctx, int vcpu, int host_cpuid)
-{
-	int error;
-	struct vm_pin vmpin;
-
-	bzero(&vmpin, sizeof(vmpin));
-	vmpin.vm_cpuid = vcpu;
-	vmpin.host_cpuid = host_cpuid;
-
-	error = ioctl(ctx->fd, VM_SET_PINNING, &vmpin);
-	return (error);
-}
-
-int
 vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
 {
 	int error;

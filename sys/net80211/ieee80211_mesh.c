@@ -1401,13 +1401,13 @@ mesh_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen, int meshdrlen)
 			return NULL;
 		}
 	}
-#ifdef ALIGNED_POINTER
+#ifndef __NO_STRICT_ALIGNMENT
 	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), uint32_t)) {
 		m = ieee80211_realign(vap, m, sizeof(*eh));
 		if (m == NULL)
 			return NULL;
 	}
-#endif /* ALIGNED_POINTER */
+#endif /* !__NO_STRICT_ALIGNMENT */
 	if (llc != NULL) {
 		eh = mtod(m, struct ether_header *);
 		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
@@ -2625,7 +2625,7 @@ mesh_parse_meshgate_action(struct ieee80211_node *ni,
 		switch (*frm) {
 		case IEEE80211_ELEMID_MESHGANN:
 			gannie = (const struct ieee80211_meshgann_ie *) frm;
-			memset(ie, 0, sizeof(ie));
+			memset(ie, 0, sizeof(*ie));
 			ie->gann_ie = gannie->gann_ie;
 			ie->gann_len = gannie->gann_len;
 			ie->gann_flags = gannie->gann_flags;

@@ -1481,6 +1481,7 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	va = sva;
 	while (count-- > 0) {
+		KASSERT(va >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", va));
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
@@ -4445,8 +4446,10 @@ pmap_remove_pages(pmap_t pmap)
 					pte = &pte[pmap_pte_index(pv->pv_va)];
 					tpte = *pte & ~PG_PTE_PAT;
 				}
-				if ((tpte & PG_V) == 0)
-					panic("bad pte");
+				if ((tpte & PG_V) == 0) {
+					panic("bad pte va %lx pte %lx",
+					    pv->pv_va, tpte);
+				}
 
 /*
  * We cannot remove wired pages from a process' mapping at this time
@@ -5012,7 +5015,7 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 			return ((void *)va);
 	}
 	offset = pa & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 	va = kmem_alloc_nofault(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
@@ -5048,7 +5051,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 		return;
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 	kmem_free(kernel_map, base, size);
 }
 
@@ -5170,7 +5173,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 
 	/*
 	 * Only supported on kernel virtual addresses, including the direct
