@@ -301,7 +301,7 @@ evaltree(union node *n, int flags)
 	} while (n != NULL);
 out:
 	popstackmark(&smark);
-	if (pendingsigs)
+	if (pendingsig)
 		dotrap();
 	if (eflag && exitstatus != 0 && do_etest)
 		exitshell(exitstatus);
