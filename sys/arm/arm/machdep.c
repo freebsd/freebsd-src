@@ -45,6 +45,7 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_platform.h"
+#include "opt_sched.h"
 #include "opt_timer.h"
 
 #include <sys/cdefs.h>
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -433,19 +435,24 @@ void
 cpu_idle(int busy)
 {
 	
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		critical_enter();
 		cpu_idleclock();
 	}
 #endif
-	cpu_sleep(0);
+	if (!sched_runnable())
+		cpu_sleep(0);
 #ifndef NO_EVENTTIMERS
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
 	}
 #endif
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int
