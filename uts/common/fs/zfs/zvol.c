@@ -145,10 +145,11 @@ static int zvol_dump_fini(zvol_state_t *zv);
 static int zvol_dump_init(zvol_state_t *zv, boolean_t resize);
 
 static void
-zvol_size_changed(uint64_t volsize, major_t maj, minor_t min)
+zvol_size_changed(zvol_state_t *zv, uint64_t volsize)
 {
-	dev_t dev = makedevice(maj, min);
+	dev_t dev = makedevice(ddi_driver_major(zfs_dip), zv->zv_minor);
 
+	zv->zv_volsize = volsize;
 	VERIFY(ddi_prop_update_int64(dev, zfs_dip,
 	    "Size", volsize) == DDI_SUCCESS);
 	VERIFY(ddi_prop_update_int64(dev, zfs_dip,
@@ -610,22 +611,22 @@ zvol_first_open(zvol_state_t *zv)
 	if (error)
 		return (error);
 
+	zv->zv_objset = os;
 	error = zap_lookup(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize);
 	if (error) {
 		ASSERT(error == 0);
 		dmu_objset_disown(os, zvol_tag);
 		return (error);
 	}
-	zv->zv_objset = os;
+
 	error = dmu_bonus_hold(os, ZVOL_OBJ, zvol_tag, &zv->zv_dbuf);
 	if (error) {
 		dmu_objset_disown(os, zvol_tag);
 		return (error);
 	}
-	zv->zv_volsize = volsize;
+
+	zvol_size_changed(zv, volsize);
 	zv->zv_zilog = zil_open(os, zvol_get_data);
-	zvol_size_changed(zv->zv_volsize, ddi_driver_major(zfs_dip),
-	    zv->zv_minor);
 
 	VERIFY(dsl_prop_get_integer(zv->zv_name, "readonly", &readonly,
 	    NULL) == 0);
@@ -747,55 +748,36 @@ zvol_remove_minors(const char *name)
 	mutex_exit(&zfsdev_state_lock);
 }
 
-int
-zvol_set_volsize(const char *name, major_t maj, uint64_t volsize)
+static int
+zvol_set_volsize_impl(objset_t *os, zvol_state_t *zv, uint64_t volsize)
 {
-	zvol_state_t *zv = NULL;
-	objset_t *os;
-	int error;
-	dmu_object_info_t doi;
 	uint64_t old_volsize = 0ULL;
-	uint64_t readonly;
+	int error;
 
-	mutex_enter(&zfsdev_state_lock);
-	zv = zvol_minor_lookup(name);
-	if ((error = dmu_objset_hold(name, FTAG, &os)) != 0) {
-		mutex_exit(&zfsdev_state_lock);
-		return (error);
-	}
-
-	if ((error = dmu_object_info(os, ZVOL_OBJ, &doi)) != 0 ||
-	    (error = zvol_check_volsize(volsize,
-	    doi.doi_data_block_size)) != 0)
-		goto out;
-
-	VERIFY(dsl_prop_get_integer(name, "readonly", &readonly,
-	    NULL) == 0);
-	if (readonly) {
-		error = EROFS;
-		goto out;
-	}
-
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
 	error = zvol_update_volsize(os, volsize);
+
 	/*
 	 * Reinitialize the dump area to the new size. If we
 	 * failed to resize the dump area then restore it back to
-	 * its original size.
+	 * its original size.  We must set the new volsize prior
+	 * to calling dumpvp_resize() to ensure that the devices'
+	 * size(9P) is not visible by the dump subsystem.
 	 */
 	if (zv && error == 0) {
+		old_volsize = zv->zv_volsize;
+		zvol_size_changed(zv, volsize);
+
 		if (zv->zv_flags & ZVOL_DUMPIFIED) {
-			old_volsize = zv->zv_volsize;
-			zv->zv_volsize = volsize;
 			if ((error = zvol_dumpify(zv)) != 0 ||
 			    (error = dumpvp_resize()) != 0) {
+				int dumpify_error;
+
 				(void) zvol_update_volsize(os, old_volsize);
-				zv->zv_volsize = old_volsize;
-				error = zvol_dumpify(zv);
+				zvol_size_changed(zv, old_volsize);
+				dumpify_error = zvol_dumpify(zv);
+				error = dumpify_error ? dumpify_error : error;
 			}
-		}
-		if (error == 0) {
-			zv->zv_volsize = volsize;
-			zvol_size_changed(volsize, maj, zv->zv_minor);
 		}
 	}
 
@@ -819,12 +801,41 @@ zvol_set_volsize(const char *name, major_t maj, uint64_t volsize)
 		nvlist_free(attr);
 		kmem_free(physpath, MAXPATHLEN);
 	}
+	return (error);
+}
 
+int
+zvol_set_volsize(const char *name, uint64_t volsize)
+{
+	zvol_state_t *zv = NULL;
+	objset_t *os;
+	int error;
+	dmu_object_info_t doi;
+	uint64_t readonly;
+
+	mutex_enter(&zfsdev_state_lock);
+	zv = zvol_minor_lookup(name);
+	if ((error = dmu_objset_hold(name, FTAG, &os)) != 0) {
+		mutex_exit(&zfsdev_state_lock);
+		return (error);
+	}
+
+	if ((error = dmu_object_info(os, ZVOL_OBJ, &doi)) != 0 ||
+	    (error = zvol_check_volsize(volsize,
+	    doi.doi_data_block_size)) != 0)
+		goto out;
+
+	VERIFY3U(dsl_prop_get_integer(name,
+	    zfs_prop_to_name(ZFS_PROP_READONLY), &readonly, NULL), ==, 0);
+	if (readonly) {
+		error = EROFS;
+		goto out;
+	}
+
+	error = zvol_set_volsize_impl(os, zv, volsize);
 out:
 	dmu_objset_rele(os, FTAG);
-
 	mutex_exit(&zfsdev_state_lock);
-
 	return (error);
 }
 
