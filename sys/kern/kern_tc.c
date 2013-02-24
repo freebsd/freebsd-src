@@ -919,7 +919,7 @@ binuptime(struct bintime *bt)
 }
 
 void
-sbinuptime(sbintime_t sbt)
+sbinuptime(sbintime_t *sbt)
 {
 	/* XXX: We need a real implementation, but tomorrow */ 
 	struct bintime bt;
