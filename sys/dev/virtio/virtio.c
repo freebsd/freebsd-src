@@ -48,8 +48,8 @@ static int virtio_modevent(module_t, int, void *);
 static const char *virtio_feature_name(uint64_t, struct virtio_feature_desc *);
 
 static struct virtio_ident {
-	uint16_t devid;
-	char	*name;
+	uint16_t	devid;
+	const char	*name;
 } virtio_ident_table[] = {
 	{ VIRTIO_ID_NETWORK,	"Network"	},
 	{ VIRTIO_ID_BLOCK,	"Block"		},
