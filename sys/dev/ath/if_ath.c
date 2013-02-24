@@ -799,6 +799,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hwq_limit = ATH_AGGR_MIN_QDEPTH;
 	sc->sc_tid_hwq_lo = ATH_AGGR_SCHED_LOW;
 	sc->sc_tid_hwq_hi = ATH_AGGR_SCHED_HIGH;
+	sc->sc_aggr_limit = ATH_AGGR_MAXSIZE;
+	sc->sc_delim_min_pad = 0;
 
 	/*
 	 * Check if the hardware requires PCI register serialisation.
@@ -1588,6 +1590,10 @@ ath_intr(void *arg)
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
 	ATH_KTR(sc, ATH_KTR_INTERRUPTS, 1, "ath_intr: mask=0x%.8x", status);
+#ifdef	ATH_DEBUG_ALQ
+	if_ath_alq_post_intr(&sc->sc_alq, status, ah->ah_intrstate,
+	    ah->ah_syncstate);
+#endif	/* ATH_DEBUG_ALQ */
 #ifdef	ATH_KTR_INTR_DEBUG
 	ATH_KTR(sc, ATH_KTR_INTERRUPTS, 5,
 	    "ath_intr: ISR=0x%.8x, ISR_S0=0x%.8x, ISR_S1=0x%.8x, ISR_S2=0x%.8x, ISR_S5=0x%.8x",
@@ -1979,6 +1985,7 @@ ath_init(void *arg)
 	 */
 	sc->sc_imask = HAL_INT_RX | HAL_INT_TX
 		  | HAL_INT_RXEOL | HAL_INT_RXORN
+		  | HAL_INT_TXURN
 		  | HAL_INT_FATAL | HAL_INT_GLOBAL;
 
 	/*
@@ -3581,17 +3588,24 @@ ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
 		if (ts->ts_status & HAL_TXERR_TIMER_EXPIRED)
 			sc->sc_stats.ast_tx_timerexpired++;
 
-		if (ts->ts_status & HAL_TX_DATA_UNDERRUN)
-			sc->sc_stats.ast_tx_data_underrun++;
-		if (ts->ts_status & HAL_TX_DELIM_UNDERRUN)
-			sc->sc_stats.ast_tx_delim_underrun++;
-
 		if (bf->bf_m->m_flags & M_FF)
 			sc->sc_stats.ast_ff_txerr++;
 	}
 	/* XXX when is this valid? */
-	if (ts->ts_status & HAL_TX_DESC_CFG_ERR)
+	if (ts->ts_flags & HAL_TX_DESC_CFG_ERR)
 		sc->sc_stats.ast_tx_desccfgerr++;
+	/*
+	 * This can be valid for successful frame transmission!
+	 * If there's a TX FIFO underrun during aggregate transmission,
+	 * the MAC will pad the rest of the aggregate with delimiters.
+	 * If a BA is returned, the frame is marked as "OK" and it's up
+	 * to the TX completion code to notice which frames weren't
+	 * successfully transmitted.
+	 */
+	if (ts->ts_flags & HAL_TX_DATA_UNDERRUN)
+		sc->sc_stats.ast_tx_data_underrun++;
+	if (ts->ts_flags & HAL_TX_DELIM_UNDERRUN)
+		sc->sc_stats.ast_tx_delim_underrun++;
 
 	sr = ts->ts_shortretry;
 	lr = ts->ts_longretry;
@@ -3617,12 +3631,14 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		st = ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0) ?
 		    ts->ts_status : HAL_TXERR_XRETRY;
 
+#if 0
 	if (bf->bf_state.bfs_dobaw)
 		device_printf(sc->sc_dev,
 		    "%s: bf %p: seqno %d: dobaw should've been cleared!\n",
 		    __func__,
 		    bf,
 		    SEQNO(bf->bf_state.bfs_seqno));
+#endif
 	if (bf->bf_next != NULL)
 		device_printf(sc->sc_dev,
 		    "%s: bf %p: seqno %d: bf_next not NULL!\n",

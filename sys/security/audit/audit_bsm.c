@@ -223,9 +223,7 @@ kau_free(struct au_record *rec)
 } while (0)
 
 #define	UPATH1_VNODE1_TOKENS do {					\
-	if (ARG_IS_VALID(kar, ARG_UPATH1)) {				\
-		UPATH1_TOKENS;						\
-	}								\
+	UPATH1_TOKENS;							\
 	if (ARG_IS_VALID(kar, ARG_VNODE1)) {				\
 		tok = au_to_attr32(&ar->ar_arg_vnode1);			\
 		kau_write(rec, tok);					\

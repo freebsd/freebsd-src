@@ -231,7 +231,8 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 	if (status != LDNS_STATUS_OK) {
 		printf("ERRRRR: %s\n", ldns_get_errorstr_by_id(status));
 		ldns_rr_list_print(stdout, global_dns_root);
-		return status;
+		result = status;
+		goto done;
 	}
 	labels_count = ldns_dname_label_count(name);
 	if (start_name) {
@@ -392,7 +393,6 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 					printf(";; There is an empty non-terminal here, continue\n");
 					continue;
 				}
-				goto done;
 			}
 
 			if (ldns_resolver_nameserver_count(res) == 0) {

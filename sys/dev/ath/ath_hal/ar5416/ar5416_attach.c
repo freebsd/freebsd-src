@@ -241,8 +241,37 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	/* Enable all ANI functions to begin with */
 	AH5416(ah)->ah_ani_function = 0xffffffff;
 
-        /* Set overridable ANI methods */
-        AH5212(ah)->ah_aniControl = ar5416AniControl;
+	/* Set overridable ANI methods */
+	AH5212(ah)->ah_aniControl = ar5416AniControl;
+
+	/*
+	 * Default FIFO Trigger levels
+	 *
+	 * These define how filled the TX FIFO needs to be before
+	 * the baseband begins to be given some data.
+	 *
+	 * To be paranoid, we ensure that the TX trigger level always
+	 * has at least enough space for two TX DMA to occur.
+	 * The TX DMA size is currently hard-coded to AR_TXCFG_DMASZ_128B.
+	 * That means we need to leave at least 256 bytes available in
+	 * the TX DMA FIFO.
+	 */
+#define	AR_FTRIG_512B	0x00000080 // 5 bits total
+	/*
+	 * AR9285/AR9271 have half the size TX FIFO compared to
+	 * other devices
+	 */
+	if (AR_SREV_KITE(ah) || AR_SREV_9271(ah)) {
+		AH5212(ah)->ah_txTrigLev = (AR_FTRIG_256B >> AR_FTRIG_S);
+		AH5212(ah)->ah_maxTxTrigLev = ((2048 / 64) - 1);
+	} else {
+		AH5212(ah)->ah_txTrigLev = (AR_FTRIG_512B >> AR_FTRIG_S);
+		AH5212(ah)->ah_maxTxTrigLev = ((4096 / 64) - 1);
+	}
+#undef	AR_FTRIG_512B
+
+	/* And now leave some headspace - 256 bytes */
+	AH5212(ah)->ah_maxTxTrigLev -= 4;
 }
 
 uint32_t

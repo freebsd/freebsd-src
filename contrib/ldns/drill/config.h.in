@@ -111,6 +111,9 @@
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #undef HAVE_WS2TCPIP_H
 
+/* Default trust anchor file */
+#undef LDNS_TRUST_ANCHOR_FILE
+
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 

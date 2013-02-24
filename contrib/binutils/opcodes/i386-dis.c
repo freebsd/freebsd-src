@@ -543,6 +543,13 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
 #define PREGRP97  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 97 } }
 #define PREGRP98  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 98 } }
 #define PREGRP99  NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 99 } }
+#define PREGRP100 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 100 } }
+#define PREGRP101 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 101 } }
+#define PREGRP102 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 102 } }
+#define PREGRP103 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 103 } }
+#define PREGRP104 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 104 } }
+#define PREGRP105 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 105 } }
+#define PREGRP106 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 106 } }
 
 
 #define X86_64_0  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 0 } }
@@ -1319,7 +1326,7 @@ static const unsigned char threebyte_0x38_uses_DATA_prefix[256] = {
   /* a0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* af */
   /* b0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* bf */
   /* c0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* cf */
-  /* d0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* df */
+  /* d0 */ 0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1, /* df */
   /* e0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ef */
   /* f0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ff */
   /*       -------------------------------        */
@@ -1382,7 +1389,7 @@ static const unsigned char threebyte_0x3a_uses_DATA_prefix[256] = {
   /* 10 */ 0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0, /* 1f */
   /* 20 */ 1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 2f */
   /* 30 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 3f */
-  /* 40 */ 1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 4f */
+  /* 40 */ 1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0, /* 4f */
   /* 50 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 5f */
   /* 60 */ 1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0, /* 6f */
   /* 70 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 7f */
@@ -1391,7 +1398,7 @@ static const unsigned char threebyte_0x3a_uses_DATA_prefix[256] = {
   /* a0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* af */
   /* b0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* bf */
   /* c0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* cf */
-  /* d0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* df */
+  /* d0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1, /* df */
   /* e0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ef */
   /* f0 */ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ff */
   /*       -------------------------------        */
@@ -2605,6 +2612,62 @@ static const struct dis386 prefix_user_table[][4] = {
     { "invvpid",{ Gm, Mo } },
     { "(bad)",	{ XX } },
   },
+
+  /* PREGRP100 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesimc", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP101 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesenc",{ XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP102 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesenclast", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP103 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesdec", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP104 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aesdeclast", { XM, EXx } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP105 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "aeskeygenassist", { XM, EXx, Ib } },
+    { "(bad)",	{ XX } },
+  },
+
+  /* PREGRP106 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "pclmulqdq", { XM, EXx, Ib } },
+    { "(bad)",	{ XX } },
+  },
 };
 
 static const struct dis386 x86_64_table[][2] = {
@@ -2876,11 +2939,11 @@ static const struct dis386 three_byte_table[][256] = {
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
-    { "(bad)", { XX } },
+    { PREGRP100 },
+    { PREGRP101 },
+    { PREGRP102 },
+    { PREGRP103 },
+    { PREGRP104 },
     /* e0 */
     { "(bad)", { XX } },
     { "(bad)", { XX } },
@@ -2997,7 +3060,7 @@ static const struct dis386 three_byte_table[][256] = {
     { PREGRP84 },
     { PREGRP85 },
     { "(bad)", { XX } },
-    { "(bad)", { XX } },
+    { PREGRP106 },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
@@ -3171,7 +3234,7 @@ static const struct dis386 three_byte_table[][256] = {
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
-    { "(bad)", { XX } },
+    { PREGRP105 },
     /* e0 */
     { "(bad)", { XX } },
     { "(bad)", { XX } },

@@ -260,6 +260,8 @@ ldns_sign_public(ldns_rr_list *rrset, ldns_key_list *keys)
 				ldns_buffer_free(sign_buf);
 				/* ERROR */
 				ldns_rr_list_deep_free(rrset_clone);
+				ldns_rr_free(current_sig);
+				ldns_rr_list_deep_free(signatures);
 				return NULL;
 			}
 
@@ -268,6 +270,8 @@ ldns_sign_public(ldns_rr_list *rrset, ldns_key_list *keys)
 			    != LDNS_STATUS_OK) {
 				ldns_buffer_free(sign_buf);
 				ldns_rr_list_deep_free(rrset_clone);
+				ldns_rr_free(current_sig);
+				ldns_rr_list_deep_free(signatures);
 				return NULL;
 			}
 
@@ -276,6 +280,8 @@ ldns_sign_public(ldns_rr_list *rrset, ldns_key_list *keys)
 			if (!b64rdf) {
 				/* signing went wrong */
 				ldns_rr_list_deep_free(rrset_clone);
+				ldns_rr_free(current_sig);
+				ldns_rr_list_deep_free(signatures);
 				return NULL;
 			}
 
@@ -481,10 +487,7 @@ ldns_sign_public_rsasha1(ldns_buffer *to_sign, RSA *key)
 				   (unsigned char*)ldns_buffer_begin(b64sig),
 				   &siglen, key);
 	if (result != 1) {
-		return NULL;
-	}
-
-	if (result != 1) {
+		ldns_buffer_free(b64sig);
 		return NULL;
 	}
 
@@ -859,16 +862,14 @@ ldns_dnssec_zone_create_nsec3s_mkmap(ldns_dnssec_zone *zone,
 		                   ldns_rbtree_next(current_name_node));
 	}
 	if (result != LDNS_STATUS_OK) {
+		ldns_rr_list_free(nsec3_list);
 		return result;
 	}
 
 	ldns_rr_list_sort_nsec3(nsec3_list);
 	result = ldns_dnssec_chain_nsec3_list(nsec3_list);
-	if (result != LDNS_STATUS_OK) {
-		return result;
-	}
-
 	ldns_rr_list_free(nsec3_list);
+
 	return result;
 }
 
@@ -1023,9 +1024,9 @@ ldns_key_list_filter_for_non_dnskey(ldns_key_list *key_list)
 }
 
 ldns_status
-ldns_dnssec_zone_create_rrsigs_flg( ATTR_UNUSED(ldns_dnssec_zone *zone)
-				  , ATTR_UNUSED(ldns_rr_list *new_rrs)
-				  , ATTR_UNUSED(ldns_key_list *key_list)
+ldns_dnssec_zone_create_rrsigs_flg( ldns_dnssec_zone *zone
+				  , ldns_rr_list *new_rrs
+				  , ldns_key_list *key_list
 				  , int (*func)(ldns_rr *, void*)
 				  , void *arg
 				  , int flags
@@ -1112,9 +1113,11 @@ ldns_dnssec_zone_create_rrsigs_flg( ATTR_UNUSED(ldns_dnssec_zone *zone)
 							cur_rrset->signatures = ldns_dnssec_rrs_new();
 							cur_rrset->signatures->rr =
 								ldns_rr_list_rr(siglist, i);
+						}
+						if (new_rrs) {
 							ldns_rr_list_push_rr(new_rrs,
-											 ldns_rr_list_rr(siglist,
-														  i));
+												 ldns_rr_list_rr(siglist,
+															  i));
 						}
 					}
 					ldns_rr_list_free(siglist);
@@ -1146,8 +1149,10 @@ ldns_dnssec_zone_create_rrsigs_flg( ATTR_UNUSED(ldns_dnssec_zone *zone)
 					cur_name->nsec_signatures = ldns_dnssec_rrs_new();
 					cur_name->nsec_signatures->rr =
 						ldns_rr_list_rr(siglist, i);
+				}
+				if (new_rrs) {
 					ldns_rr_list_push_rr(new_rrs,
-									 ldns_rr_list_rr(siglist, i));
+								 ldns_rr_list_rr(siglist, i));
 				}
 			}
 

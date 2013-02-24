@@ -129,8 +129,12 @@ The
 .Aq node
 argument can be replaced either by a full hostname as obtained by
 .Xr gethostname 3 ,
-only first part of the hostname, or by node's UUID as found in the
+only first part of the hostname, by node's UUID as found in the
 .Va kern.hostuuid
+.Xr sysctl 8
+variable
+or by node's hostid as found in the
+.Va kern.hostid
 .Xr sysctl 8
 variable.
 .Pp
@@ -208,15 +212,12 @@ to the application was lost.
 The risk of such a situation is very small.
 The
 .Ic memsync
-replication mode is currently not implemented.
+replication mode is the default.
 .It Ic fullsync
 .Pp
 Mark the write operation as completed when local as well as remote
 write completes.
 This is the safest and the slowest replication mode.
-The
-.Ic fullsync
-replication mode is the default.
 .It Ic async
 .Pp
 The write operation is reported as complete right after the local write

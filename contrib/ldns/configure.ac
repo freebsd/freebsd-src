@@ -6,7 +6,7 @@ sinclude(acx_nlnetlabs.m4)
 # must be numbers. ac_defun because of later processing.
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[6])
-m4_define([VERSION_MICRO],[13])
+m4_define([VERSION_MICRO],[16])
 AC_INIT(ldns, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), libdns@nlnetlabs.nl, libdns)
 AC_CONFIG_SRCDIR([packet.c])
 # needed to build correct soname
@@ -63,8 +63,10 @@ COPY_FILES($srcdir/$1/*.h, $2)
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_LANG_C
-ACX_CHECK_COMPILER_FLAG(g, [CFLAGS="-g $CFLAGS"])
+if test "x$CFLAGS" = "x" ; then
+ACX_CHECK_COMPILER_FLAG(g, [CFLAGS="-g"])
 ACX_CHECK_COMPILER_FLAG(O2, [CFLAGS="-O2 $CFLAGS"])
+fi
 ACX_CHECK_COMPILER_FLAG(Wall, [CFLAGS="-Wall $CFLAGS"])
 ACX_CHECK_COMPILER_FLAG(W, [CFLAGS="-W $CFLAGS"])
 ACX_CHECK_COMPILER_FLAG(Wwrite-strings, [CFLAGS="-Wwrite-strings $CFLAGS"])
@@ -112,12 +114,14 @@ This does not work with the --with-drill option.
 Please remove the config.h from the drill subdirectory 
 or do not use the --with-drill option.])
 	fi
+	DRILL_CONFIG=" drill/drill.1"
 else
 	AC_SUBST(DRILL,[""])
 	AC_SUBST(INSTALL_DRILL,[""])
 	AC_SUBST(UNINSTALL_DRILL,[""])
 	AC_SUBST(CLEAN_DRILL,[""])
 	AC_SUBST(LINT_DRILL,[""])
+	DRILL_CONFIG=""
 fi
 
 
@@ -137,12 +141,14 @@ This does not work with the --with-examples option.
 Please remove the config.h from the examples subdirectory 
 or do not use the --with-examples option.])
 	fi
+	EXAMPLES_CONFIG=" examples/ldns-dane.1 examples/ldns-verify-zone.1"
 else
 	AC_SUBST(EXAMPLES,[""])
 	AC_SUBST(INSTALL_EXAMPLES,[""])
 	AC_SUBST(UNINSTALL_EXAMPLES,[""])
 	AC_SUBST(CLEAN_EXAMPLES,[""])
 	AC_SUBST(LINT_EXAMPLES,[""])
+	EXAMPLES_CONFIG=""
 fi
 
 # add option to disable installation of ldns-config script
@@ -249,7 +255,6 @@ else
   AC_SUBST(PYLDNSXUNINST, "")
 fi
 
-
 # Use libtool
 ACX_LIBTOOL_C_ONLY
 
@@ -318,6 +323,9 @@ esac
 AC_SUBST(LIBSSL_CPPFLAGS)
 AC_SUBST(LIBSSL_LDFLAGS)
 AC_SUBST(LIBSSL_LIBS)
+if test "x$HAVE_SSL" = "xyes"; then
+AC_SUBST(LIBSSL_SSL_LIBS, ["$LIBSSL_LIBS -lssl"])
+fi
 CPPFLAGS=$tmp_CPPFLAGS
 LDFLAGS=$tmp_LDFLAGS
 LIBS=$tmp_LIBS
@@ -444,6 +452,11 @@ AC_INCLUDES_DEFAULT
 fi
 
 ACX_TYPE_SOCKLEN_T
+if test "x$ac_cv_type_socklen_t" = xyes; then
+  AC_SUBST(ldns_build_config_have_socklen_t, 1)
+else
+  AC_SUBST(ldns_build_config_have_socklen_t, 0)
+fi
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 AC_TYPE_INTPTR_T
@@ -506,6 +519,45 @@ if echo $build_os | grep darwin > /dev/null; then
 fi
 
 AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])
+
+AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file for drill and ldns-dane. [default=SYSCONFDIR/unbound/root.key]]), [
+ LDNS_TRUST_ANCHOR_FILE="$withval"
+],[
+ if test "x$LDNS_TRUST_ANCHOR_FILE" = "x"; then
+  if test "x$sysconfdir" = 'x${prefix}/etc' ; then
+   if test "x$prefix" = 'xNONE' ; then
+    LDNS_TRUST_ANCHOR_FILE="/etc/unbound/root.key"
+   else
+    LDNS_TRUST_ANCHOR_FILE="${prefix}/etc/unbound/root.key"
+   fi
+  else
+    LDNS_TRUST_ANCHOR_FILE="${sysconfdir}/unbound/root.key"
+  fi
+ fi
+])
+AC_DEFINE_UNQUOTED([LDNS_TRUST_ANCHOR_FILE], ["$LDNS_TRUST_ANCHOR_FILE"], [Default trust anchor file])
+AC_SUBST(LDNS_TRUST_ANCHOR_FILE)
+AC_MSG_NOTICE([Default trust anchor: $LDNS_TRUST_ANCHOR_FILE])
+
+AC_ARG_WITH(ca-file, AC_HELP_STRING([--with-ca-file=CAFILE], [File containing CA certificates for ldns-dane]), [
+ AC_DEFINE([HAVE_DANE_CA_FILE], [1], [Is a CAFILE given at configure time])
+ AC_DEFINE_UNQUOTED([LDNS_DANE_CA_FILE], ["$withval"], [Is a CAFILE given at configure time])
+ AC_MSG_NOTICE([Using CAfile: $withval])
+ AC_SUBST(DEFAULT_CAFILE, ["Default is $withval"])
+],[
+ AC_DEFINE([HAVE_DANE_CA_FILE], [0], [Is a CAFILE given at configure time])
+ AC_SUBST(DEFAULT_CAFILE, [])
+])
+
+AC_ARG_WITH(ca-path, AC_HELP_STRING([--with-ca-path=CAPATH], [Directory containing CA certificate files for ldns-dane]), [
+ AC_DEFINE([HAVE_DANE_CA_PATH], [1], [Is a CAPATH given at configure time])
+ AC_DEFINE_UNQUOTED([LDNS_DANE_CA_PATH], ["$withval"], [Is a CAPATH given at configure time])
+ AC_MSG_NOTICE([Using CApath: $withval])
+ AC_SUBST(DEFAULT_CAPATH, ["Default is $withval"])
+],[
+ AC_DEFINE([HAVE_DANE_CA_PATH], [0], [Is a CAPATH given at configure time])
+ AC_SUBST(DEFAULT_CAPATH, [])
+])
 
 AH_BOTTOM([
 #include <stdio.h>
@@ -663,7 +715,9 @@ else
   AC_SUBST(ldns_build_config_have_attr_unused, 0)
 fi
 
-AC_CONFIG_FILES([Makefile ldns/common.h ldns/net.h ldns/util.h packaging/libldns.pc packaging/ldns-config])
+CONFIG_FILES="Makefile ldns/common.h ldns/net.h ldns/util.h packaging/libldns.pc packaging/ldns-config $DRILL_CONFIG $EXAMPLES_CONFIG"
+AC_SUBST(CONFIG_FILES)
+AC_CONFIG_FILES([$CONFIG_FILES])
 
 AC_CONFIG_HEADER([ldns/config.h])
 AC_OUTPUT

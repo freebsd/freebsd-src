@@ -33,6 +33,12 @@
 /* Define to 1 if you have the `ctime_r' function. */
 #undef HAVE_CTIME_R
 
+/* Is a CAFILE given at configure time */
+#undef HAVE_DANE_CA_FILE
+
+/* Is a CAPATH given at configure time */
+#undef HAVE_DANE_CA_PATH
+
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
 #undef HAVE_DECL_NID_SECP384R1
@@ -249,6 +255,15 @@
 
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
+
+/* Is a CAFILE given at configure time */
+#undef LDNS_DANE_CA_FILE
+
+/* Is a CAPATH given at configure time */
+#undef LDNS_DANE_CA_PATH
+
+/* Default trust anchor file */
+#undef LDNS_TRUST_ANCHOR_FILE
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

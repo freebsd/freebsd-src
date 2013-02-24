@@ -1,3 +1,51 @@
+1.6.16	2012-11-13
+	* Fix Makefile to build pyldns with BSD make
+	* Fix typo in exporting b32_* symbols to make pyldns load again
+	* Allow leaving the RR owner name empty in ldns-testns datafiles.
+	* Fix fail to create NSEC3 bitmap for empty non-terminal (bug
+	  introduced in 1.6.14).
+
+1.6.15	2012-10-25
+	* Remove LDNS_STATUS_EXISTS_ERR from ldns/error.h to make ldns
+	  binary compatible with earlier releases again.
+
+1.6.14	2012-10-23
+	* DANE support (RFC6698), including ldns-dane example tool.
+	* Configurable default CA certificate repository for ldns-dane with
+	  --with-ca-file=CAFILE and --with-ca-path=CAPATH
+	* Configurable default trust anchor with --with-trust-anchor=FILE
+	  for drill, ldns-verify-zone and ldns-dane
+	* bugfix #474: Define socklen_t when undefined (like in Win32)
+	* bugfix #473: Dead code removal and resource leak fix in drill
+	* bugfix #471: Let ldns_resolver_push_dnssec_anchor accept DS RR's too.
+	* Various bugfixes from code reviews from CZ.NIC and Paul Wouters
+	* ldns-notify TSIG option argument checking
+	* Let ldns_resolver_nameservers_randomize keep nameservers and rtt's
+	  in sync.
+	* Let ldns_pkt_push_rr now return false on (memory) errors.
+	* Make buffer_export comply to documentation and fix buffer2str
+	* Various improvements and fixes of pyldns from Katel Slany
+	  now documented in their own Changelog.
+	* bugfix: Make ldns_resolver_pop_nameserver clear the array when
+	  there was only one.
+	* bugfix #459: Remove ldns_symbols and export symbols based on regex
+	* bugfix #458: Track all newly created signatures when signing.
+	* bugfix #454: Only set -g and -O2 CFLAGS when no CFLAGS was given.
+	* bugfix #457: Memory leak fix for ldns_key_new_frm_algorithm.
+	* pyldns memory handling fixes and the python3/ldns-signzone.py
+	  examples script contribution from Karel Slany.
+	* bugfix #450: Base # bytes for P, G and Y (T) on the guaranteed
+	  to be bigger (or equal) P in ldns_key_dsa2bin.
+	* bugfix #449: Deep free cloned rdf's in ldns_tsig_mac_new.
+	* bugfix #448: Copy nameserver value (in stead of reference) of the
+	  answering nameserver to the answer packet in ldns_send_buffer, so
+	  the original value may be deep freed with the ldns_resolver struct.
+	* New -0 option for ldns-read-zone to replace inception, expiration
+	  and signature rdata fields with (null). Thanks Paul Wouters.
+	* New -p option for ldns-read-zone to prepend-pad SOA serial to take
+	  up ten characters.
+	* Return error if printing RR fails due to unknown/null RDATA.
+
 1.6.13	2012-05-21
 	* New -S option for ldns-verify-zone to chase signatures online.
 	* New -k option for ldns-verify-zone to validate using a trusted key.

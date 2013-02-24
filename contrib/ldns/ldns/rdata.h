@@ -194,6 +194,7 @@ ldns_rdf_type ldns_rdf_get_type(const ldns_rdf *rd);
 /**
  * returns the data of the rdf.
  * \param[in] *rd the rdf to read from
+ *
  * \return uint8_t* pointer to the rdf's data
  */
 uint8_t *ldns_rdf_data(const ldns_rdf *rd);
@@ -303,6 +304,7 @@ ldns_rdf *ldns_native2rdf_int32(ldns_rdf_type type, uint32_t value);
  * The memory is copied, and an LDNS_RDF_TYPE_INT16DATA is returned
  * \param[in] size the size of the data
  * \param[in] *data pointer to the actual data
+ *
  * \return ldns_rd* the rdf with the data
  */
 ldns_rdf *ldns_native2rdf_int16_data(size_t size, uint8_t *data);

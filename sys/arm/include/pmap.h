@@ -222,7 +222,7 @@ extern vm_paddr_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
+void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);

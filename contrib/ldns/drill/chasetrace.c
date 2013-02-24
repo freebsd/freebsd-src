@@ -45,7 +45,15 @@ do_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 	p = ldns_pkt_new();
 	res = ldns_resolver_new();
 
-	if (!p || !res) {
+	if (!p) {
+		if (res) {
+			ldns_resolver_free(res);
+		}
+                error("Memory allocation failed");
+                return NULL;
+	}
+	if (!res) {
+		ldns_pkt_free(p);
                 error("Memory allocation failed");
                 return NULL;
         }
@@ -73,6 +81,8 @@ do_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 	if (status != LDNS_STATUS_OK) {
 		fprintf(stderr, "Error adding root servers to resolver: %s\n", ldns_get_errorstr_by_id(status));
 		ldns_rr_list_print(stdout, global_dns_root);
+		ldns_resolver_free(res);
+		ldns_pkt_free(p);
 		return NULL;
 	}
 
@@ -118,7 +128,7 @@ do_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 		drill_pkt_print_footer(stdout, local_res, p);
 		
 		/* remove the old nameserver from the resolver */
-		while((pop = ldns_resolver_pop_nameserver(res))) { /* do it */ }
+		while(ldns_resolver_pop_nameserver(res)) { /* do it */ }
 
 		/* also check for new_nss emptyness */
 

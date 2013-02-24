@@ -126,6 +126,7 @@ ldns_get_rr_list_name_by_addr(ldns_resolver *res, ldns_rdf *addr, ldns_rr_class 
 	
 	/* add the RD flags, because we want an answer */
 	pkt = ldns_resolver_query(res, name, LDNS_RR_TYPE_PTR, c, flags | LDNS_RD);
+	ldns_rdf_deep_free(name);
 	if (pkt) {
 		/* extract the data we need */
 		names = ldns_pkt_rr_list_by_type(pkt, 
