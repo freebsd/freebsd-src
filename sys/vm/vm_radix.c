@@ -327,7 +327,7 @@ vm_radix_declev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 	*idx = vm_radix_trimkey(*idx, ilev);
 	*idx |= VM_RADIX_UNITLEVEL(ilev) - 1;
 	*idx -= VM_RADIX_UNITLEVEL(ilev);
-	if (*idx < wrapidx)
+	if (*idx > wrapidx)
 		return (1);
 	return (0);
 }
