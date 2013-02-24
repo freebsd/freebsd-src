@@ -109,8 +109,7 @@ omap4_get_revision(void)
 	 *   STD_FUSE_PROD_ID_0   0x4A00 2214
 	 *   STD_FUSE_PROD_ID_1   0x4A00 2218
 	 */
-	// id_code = REG_READ32(OMAP44XX_L4_CORE_VBASE + OMAP4_ID_CODE); 
-	//FIXME Should we map somewhere else?
+	/* FIXME Should we map somewhere else? */
 	bus_space_map(fdtbus_bs_tag,OMAP44XX_L4_CORE_HWBASE, 0x4000, 0, &bsh);
 	id_code = bus_space_read_4(fdtbus_bs_tag, bsh, OMAP4_ID_CODE);
 	bus_space_unmap(fdtbus_bs_tag, bsh, 0x4000);
@@ -228,10 +227,9 @@ omap3_get_revision(void)
 	 *
 	 *
 	 */
-	//id_code = REG_READ32(OMAP35XX_L4_WAKEUP_VBASE + OMAP3_ID_CODE);
-	bus_space_map(fdtbus_bs_tag,OMAP35XX_L4_WAKEUP_HWBASE, 0x10000, 0, &bsh);
+	bus_space_map(fdtbus_bs_tag, OMAP35XX_L4_WAKEUP_HWBASE, 0x10000, 0, &bsh);
 	id_code = bus_space_read_4(fdtbus_bs_tag, bsh, OMAP3_ID_CODE);
-	bus_space_unmap(fdtbus_bs_tag, bsh, 0x4000);
+	bus_space_unmap(fdtbus_bs_tag, bsh, 0x10000);
 
 	hawkeye = ((id_code >> 12) & 0xffff);
 	revision = ((id_code >> 28) & 0xf);

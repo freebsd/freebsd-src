@@ -37,7 +37,7 @@ extern "C" {
 #define LDNS_RR_OVERHEAD	10
 
 /* The first fields are 'common' and can be referenced instantly */
-#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON 52
+#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON 53
 
 
 
@@ -179,6 +179,8 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_NSEC3 = 50, /* RFC 5155 */
 	LDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
 	LDNS_RR_TYPE_NSEC3PARAMS = 51,
+	/** draft-ietf-dane-protocol */
+	LDNS_RR_TYPE_TLSA = 52,
 
         /** draft-ietf-dnsop-trust-history */
         LDNS_RR_TYPE_TALINK = 58,

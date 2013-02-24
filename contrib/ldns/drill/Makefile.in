@@ -9,6 +9,7 @@ exec_prefix = @exec_prefix@
 bindir = @bindir@
 mandir = @mandir@
 includedir = @includedir@
+datarootdir = @datarootdir@
 
 CC = @CC@
 CFLAGS = -I. @CFLAGS@
@@ -77,7 +78,6 @@ docclean:
 
 distclean: clean docclean
 	rm -f config.h
-	rm -f drill.h
 
 realclean: clean docclean
 	rm -f tags
@@ -88,9 +88,9 @@ realclean: clean docclean
 	rm -rf autom4te.cache
 	rm -f config.h
 	rm -f config.h.in
-	rm -f drill.h
 	rm -f configure
 	rm -f Makefile	
+	rm -f drill.1
 	rm -f aclocal.m4
 
 doc:	
@@ -99,7 +99,7 @@ doc:
 install: all
 	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) drill $(DESTDIR)$(bindir)/drill
-	$(INSTALL) -m 644 $(srcdir)/drill.1 $(DESTDIR)$(mandir)/man1/drill.1
+	$(INSTALL) -m 644 drill.1 $(DESTDIR)$(mandir)/man1/drill.1
 
 uninstall:
 	@echo
@@ -116,4 +116,4 @@ lint:
         done
 
 confclean: clean
-	rm -rf config.log config.status config.h Makefile
+	rm -rf config.log config.status config.h Makefile drill.1

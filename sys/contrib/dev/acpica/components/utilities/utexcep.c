@@ -71,7 +71,7 @@ const char *
 AcpiFormatException (
     ACPI_STATUS             Status)
 {
-    const char              *Exception = NULL;
+    const ACPI_EXCEPTION_INFO   *Exception;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -85,10 +85,10 @@ AcpiFormatException (
         ACPI_ERROR ((AE_INFO,
             "Unknown exception code: 0x%8.8X", Status));
 
-        Exception = "UNKNOWN_STATUS_CODE";
+        return ("UNKNOWN_STATUS_CODE");
     }
 
-    return (ACPI_CAST_PTR (const char, Exception));
+    return (Exception->Name);
 }
 
 ACPI_EXPORT_SYMBOL (AcpiFormatException)
@@ -108,12 +108,12 @@ ACPI_EXPORT_SYMBOL (AcpiFormatException)
  *
  ******************************************************************************/
 
-const char *
+const ACPI_EXCEPTION_INFO *
 AcpiUtValidateException (
     ACPI_STATUS             Status)
 {
-    UINT32                  SubStatus;
-    const char              *Exception = NULL;
+    UINT32                      SubStatus;
+    const ACPI_EXCEPTION_INFO   *Exception = NULL;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -130,7 +130,7 @@ AcpiUtValidateException (
 
         if (SubStatus <= AE_CODE_ENV_MAX)
         {
-            Exception = AcpiGbl_ExceptionNames_Env [SubStatus];
+            Exception = &AcpiGbl_ExceptionNames_Env [SubStatus];
         }
         break;
 
@@ -138,7 +138,7 @@ AcpiUtValidateException (
 
         if (SubStatus <= AE_CODE_PGM_MAX)
         {
-            Exception = AcpiGbl_ExceptionNames_Pgm [SubStatus];
+            Exception = &AcpiGbl_ExceptionNames_Pgm [SubStatus];
         }
         break;
 
@@ -146,7 +146,7 @@ AcpiUtValidateException (
 
         if (SubStatus <= AE_CODE_TBL_MAX)
         {
-            Exception = AcpiGbl_ExceptionNames_Tbl [SubStatus];
+            Exception = &AcpiGbl_ExceptionNames_Tbl [SubStatus];
         }
         break;
 
@@ -154,7 +154,7 @@ AcpiUtValidateException (
 
         if (SubStatus <= AE_CODE_AML_MAX)
         {
-            Exception = AcpiGbl_ExceptionNames_Aml [SubStatus];
+            Exception = &AcpiGbl_ExceptionNames_Aml [SubStatus];
         }
         break;
 
@@ -162,7 +162,7 @@ AcpiUtValidateException (
 
         if (SubStatus <= AE_CODE_CTRL_MAX)
         {
-            Exception = AcpiGbl_ExceptionNames_Ctrl [SubStatus];
+            Exception = &AcpiGbl_ExceptionNames_Ctrl [SubStatus];
         }
         break;
 
@@ -170,5 +170,10 @@ AcpiUtValidateException (
         break;
     }
 
-    return (ACPI_CAST_PTR (const char, Exception));
+    if (!Exception || !Exception->Name)
+    {
+        return (NULL);
+    }
+
+    return (Exception);
 }

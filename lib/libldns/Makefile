@@ -11,6 +11,7 @@ INTERNALLIB = true
 CFLAGS += -I${LDNSDIR}
 
 SRCS +=	buffer.c
+SRCS += dane.c
 SRCS +=	dname.c
 SRCS +=	dnssec.c
 SRCS +=	dnssec_sign.c

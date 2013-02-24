@@ -1949,11 +1949,11 @@ fdfree(struct thread *td)
 	fdp->fd_jdir = NULL;
 	FILEDESC_XUNLOCK(fdp);
 
-	if (cdir)
+	if (cdir != NULL)
 		vrele(cdir);
-	if (rdir)
+	if (rdir != NULL)
 		vrele(rdir);
-	if (jdir)
+	if (jdir != NULL)
 		vrele(jdir);
 
 	fddrop(fdp);

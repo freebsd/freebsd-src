@@ -113,7 +113,7 @@ sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 {
 	u_int i;
 
-	i = (IN_CAPABILITY_MODE(td)) ? 1 : 0;
+	i = IN_CAPABILITY_MODE(td) ? 1 : 0;
 	return (copyout(&i, uap->modep, sizeof(i)));
 }
 

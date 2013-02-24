@@ -856,7 +856,7 @@ _bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
 		    curaddr);
 		if (dr == NULL) {
 			_bus_dmamap_unload(dmat, map);
-			return (EINVAL);
+			return (0);
 		}
 		/*
 		 * In a valid DMA range.  Translate the physical
@@ -968,6 +968,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = dmat->segments;
 
+	map->pmap = pmap;
+
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
@@ -979,7 +981,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 	sl = NULL;
 	vaddr = (vm_offset_t)buf;
-	map->pmap = pmap;
 
 	while (buflen > 0) {
 		/*

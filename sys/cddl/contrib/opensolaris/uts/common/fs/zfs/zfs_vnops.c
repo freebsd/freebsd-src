@@ -644,7 +644,7 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	objset_t	*os;
 	ssize_t		n, nbytes;
-	int		error;
+	int		error = 0;
 	rl_t		*rl;
 	xuio_t		*xuio = NULL;
 
@@ -804,9 +804,9 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	ssize_t		n, nbytes;
 	rl_t		*rl;
 	int		max_blksz = zfsvfs->z_max_blksz;
-	int		error;
+	int		error = 0;
 	arc_buf_t	*abuf;
-	iovec_t		*aiov;
+	iovec_t		*aiov = NULL;
 	xuio_t		*xuio = NULL;
 	int		i_iov = 0;
 	int		iovcnt = uio->uio_iovcnt;
@@ -2476,6 +2476,7 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 		odp = (struct dirent64 *)outbuf;
 	} else {
 		bufsize = bytes_wanted;
+		outbuf = NULL;
 		odp = (struct dirent64 *)iovp->iov_base;
 	}
 	eodp = (struct edirent *)odp;
@@ -2959,7 +2960,7 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	vattr_t		oldva;
 	xvattr_t	tmpxvattr;
 	uint_t		mask = vap->va_mask;
-	uint_t		saved_mask;
+	uint_t		saved_mask = 0;
 	uint64_t	saved_mode;
 	int		trim_mask = 0;
 	uint64_t	new_mode;

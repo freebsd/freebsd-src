@@ -119,7 +119,7 @@ ldns_rr_new_frm_str_internal(ldns_rr **newrr, const char *str,
 	char  *type = NULL;
 	char  *rdata = NULL;
 	char  *rd = NULL;
-	char  *b64 = NULL;
+	char  *	b64 = NULL;
 	size_t rd_strlen;
 	const char *delimiters;
 	ssize_t c;
@@ -477,6 +477,7 @@ ldns_rr_new_frm_str_internal(ldns_rr **newrr, const char *str,
                                                                 ldns_buffer_free(rr_buf);
                                                                 LDNS_FREE(rdata);
                                                                 ldns_rr_free(new);
+								LDNS_FREE(hex_data);
                                                                 return s;
                                                         }
 							LDNS_FREE(hex_data);
@@ -600,6 +601,9 @@ ldns_rr_new_frm_str_internal(ldns_rr **newrr, const char *str,
 
 	if (newrr) {
 		*newrr = new;
+	} else {
+		/* Maybe the caller just wanted to see if it would parse? */
+		ldns_rr_free(new);
 	}
 	return LDNS_STATUS_OK;
 
@@ -724,8 +728,13 @@ ldns_rr_new_frm_fp_l(ldns_rr **newrr, FILE *fp, uint32_t *default_ttl, ldns_rdf 
 		}
 	}
 	LDNS_FREE(line);
-	if (newrr && s == LDNS_STATUS_OK) {
-		*newrr = rr;
+	if (s == LDNS_STATUS_OK) {
+		if (newrr) {
+			*newrr = rr;
+		} else {
+			/* Just testing if it would parse? */
+			ldns_rr_free(rr);
+		}
 	}
 	return s;
 }
@@ -1156,7 +1165,8 @@ ldns_rr_list_pop_rr_list(ldns_rr_list *rr_list, size_t howmany)
 		i--;
 	}
 
-	if (i == howmany) {
+	if (i == howmany) { /* so i <= 0 */
+		ldns_rr_list_free(popped);
 		return NULL;
 	} else {
 		return popped;
@@ -1384,7 +1394,7 @@ ldns_rr_list_clone(const ldns_rr_list *rrlist)
 	return new_list;
 }
 
-
+#if 0
 static int
 qsort_rr_compare(const void *a, const void *b)
 {
@@ -1402,6 +1412,7 @@ qsort_rr_compare(const void *a, const void *b)
 	}
 	return ldns_rr_compare(rr1, rr2);
 }
+#endif
 
 static int
 qsort_schwartz_rr_compare(const void *a, const void *b)
@@ -1480,6 +1491,7 @@ ldns_rr_list_sort(ldns_rr_list *unsorted)
                                         LDNS_FREE(sortables[i]);
                                 }
                                 /* no way to return error */
+				LDNS_FREE(sortables);
                                 return;
                         }
 			sortables[i]->original_object = ldns_rr_list_rr(unsorted, i);
@@ -1941,6 +1953,12 @@ static const ldns_rdf_type type_tsig_wireformat[] = {
 	LDNS_RDF_TYPE_INT16,
 	LDNS_RDF_TYPE_INT16_DATA
 };
+static const ldns_rdf_type type_tlsa_wireformat[] = {
+	LDNS_RDF_TYPE_INT8,
+	LDNS_RDF_TYPE_INT8,
+	LDNS_RDF_TYPE_INT8,
+	LDNS_RDF_TYPE_HEX
+};
 /** \endcond */
 
 /** \cond */
@@ -2048,13 +2066,14 @@ static ldns_rr_descriptor rdata_field_descriptors[] = {
 	/* 48 */
 	{LDNS_RR_TYPE_DNSKEY, "DNSKEY", 4, 4, type_dnskey_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 	/* 49 */
-{LDNS_RR_TYPE_DHCID, "DHCID", 1, 1, type_dhcid_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+	{LDNS_RR_TYPE_DHCID, "DHCID", 1, 1, type_dhcid_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 	/* 50 */
 	{LDNS_RR_TYPE_NSEC3, "NSEC3", 5, 6, type_nsec3_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 	/* 51 */
-{LDNS_RR_TYPE_NSEC3PARAM, "NSEC3PARAM", 4, 4, type_nsec3param_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+	{LDNS_RR_TYPE_NSEC3PARAM, "NSEC3PARAM", 4, 4, type_nsec3param_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 	/* 52 */
-{LDNS_RR_TYPE_NULL, "TYPE52", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+	{LDNS_RR_TYPE_TLSA, "TLSA", 4, 4, type_tlsa_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
+
 {LDNS_RR_TYPE_NULL, "TYPE53", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 {LDNS_RR_TYPE_NULL, "TYPE54", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },
 {LDNS_RR_TYPE_NULL, "TYPE55", 1, 1, type_0_wireformat, LDNS_RDF_TYPE_NONE, LDNS_RR_NO_COMPRESS, 0 },

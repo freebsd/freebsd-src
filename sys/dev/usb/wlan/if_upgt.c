@@ -1132,11 +1132,22 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 	    (sizeof(struct upgt_eeprom_header) + preamble_len));
 
 	while (!option_end) {
+
+		/* sanity check */
+		if (eeprom_option >= (struct upgt_eeprom_option *)
+		    (sc->sc_eeprom + UPGT_EEPROM_SIZE)) {
+			return (EINVAL);
+		}
+
 		/* the eeprom option length is stored in words */
 		option_len =
 		    (le16toh(eeprom_option->len) - 1) * sizeof(uint16_t);
 		option_type =
 		    le16toh(eeprom_option->type);
+
+		/* sanity check */
+		if (option_len == 0 || option_len >= UPGT_EEPROM_SIZE)
+			return (EINVAL);
 
 		switch (option_type) {
 		case UPGT_EEPROM_TYPE_NAME:
@@ -1208,7 +1219,6 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 		eeprom_option = (struct upgt_eeprom_option *)
 		    (eeprom_option->data + option_len);
 	}
-
 	return (0);
 }
 
@@ -1217,7 +1227,9 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 {
 	struct upgt_eeprom_freq3_header *freq3_header;
 	struct upgt_lmac_freq3 *freq3;
-	int i, elements, flags;
+	int i;
+	int elements;
+	int flags;
 	unsigned channel;
 
 	freq3_header = (struct upgt_eeprom_freq3_header *)data;
@@ -1228,6 +1240,9 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d\n",
 	    flags, elements);
+
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq3[0])))
+		return;
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq3[i].freq), 0);
@@ -1247,7 +1262,11 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 	struct upgt_eeprom_freq4_header *freq4_header;
 	struct upgt_eeprom_freq4_1 *freq4_1;
 	struct upgt_eeprom_freq4_2 *freq4_2;
-	int i, j, elements, settings, flags;
+	int i;
+	int j;
+	int elements;
+	int settings;
+	int flags;
 	unsigned channel;
 
 	freq4_header = (struct upgt_eeprom_freq4_header *)data;
@@ -1261,6 +1280,9 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "flags=0x%02x elements=%d settings=%d\n",
 	    flags, elements, settings);
+
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq4_1[0])))
+		return;
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq4_1[i].freq), 0);
@@ -1282,13 +1304,17 @@ void
 upgt_eeprom_parse_freq6(struct upgt_softc *sc, uint8_t *data, int len)
 {
 	struct upgt_lmac_freq6 *freq6;
-	int i, elements;
+	int i;
+	int elements;
 	unsigned channel;
 
 	freq6 = (struct upgt_lmac_freq6 *)data;
 	elements = len / sizeof(struct upgt_lmac_freq6);
 
 	DPRINTF(sc, UPGT_DEBUG_FW, "elements=%d\n", elements);
+
+	if (elements >= (int)(UPGT_EEPROM_SIZE / sizeof(freq6[0])))
+		return;
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq6[i].freq), 0);
