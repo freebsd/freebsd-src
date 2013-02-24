@@ -98,9 +98,8 @@ virtio_feature_name(uint64_t val, struct virtio_feature_desc *desc)
 			continue;
 
 		for (j = 0; descs[i][j].vfd_val != 0; j++) {
-			if (val != descs[i][j].vfd_val)
-				continue;
-			return (descs[i][j].vfd_str);
+			if (val == descs[i][j].vfd_val)
+				return (descs[i][j].vfd_str);
 		}
 	}
 
@@ -252,13 +251,12 @@ virtio_modevent(module_t mod, int type, void *unused)
 {
 	int error;
 
-	error = 0;
-
 	switch (type) {
 	case MOD_LOAD:
 	case MOD_QUIESCE:
 	case MOD_UNLOAD:
 	case MOD_SHUTDOWN:
+		error = 0;
 		break;
 	default:
 		error = EOPNOTSUPP;
