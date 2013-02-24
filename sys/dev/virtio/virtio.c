@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/_inttypes.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
@@ -119,12 +118,12 @@ virtio_describe(device_t dev, const char *msg,
 	int n;
 
 	if ((buf = malloc(512, M_TEMP, M_NOWAIT)) == NULL) {
-		device_printf(dev, "%s features: 0x%"PRIx64"\n", msg, features);
+		device_printf(dev, "%s features: %#jx\n", msg, (uintmax_t) features);
 		return;
 	}
 
 	sbuf_new(&sb, buf, 512, SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "%s features: 0x%"PRIx64, msg, features);
+	sbuf_printf(&sb, "%s features: %#jx", msg, (uintmax_t) features);
 
 	for (n = 0, val = 1ULL << 63; val != 0; val >>= 1) {
 		/*
@@ -141,7 +140,7 @@ virtio_describe(device_t dev, const char *msg,
 
 		name = virtio_feature_name(val, desc);
 		if (name == NULL)
-			sbuf_printf(&sb, "0x%"PRIx64, val);
+			sbuf_printf(&sb, "%#jx", (uintmax_t) val);
 		else
 			sbuf_cat(&sb, name);
 	}
