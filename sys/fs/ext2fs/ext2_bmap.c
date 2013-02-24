@@ -56,15 +56,7 @@
  * number to index into the array of block pointers described by the dinode.
  */
 int
-ext2_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t a_bn;
-		struct bufobj **a_bop;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
+ext2_bmap(struct vop_bmap_args *ap)
 {
 	int32_t blkno;
 	int error;
@@ -99,12 +91,7 @@ ext2_bmap(ap)
  */
 
 int
-ext2_bmaparray(vp, bn, bnp, runp, runb)
-	struct vnode *vp;
-	int32_t bn;
-	int32_t *bnp;
-	int *runp;
-	int *runb;
+ext2_bmaparray(struct vnode *vp, int32_t bn, int32_t *bnp, int *runp, int *runb)
 {
 	struct inode *ip;
 	struct buf *bp;
@@ -252,11 +239,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
  * once with the offset into the page itself.
  */
 int
-ext2_getlbns(vp, bn, ap, nump)
-	struct vnode *vp;
-	int32_t bn;
-	struct indir *ap;
-	int *nump;
+ext2_getlbns(struct vnode *vp, int32_t bn, struct indir *ap, int *nump)
 {
 	long blockcnt, metalbn, realbn;
 	struct ext2mount *ump;
