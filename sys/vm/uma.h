@@ -432,24 +432,21 @@ void uma_reclaim(void);
 void uma_set_align(int align);
 
 /*
- * Switches the backing object of a zone
+ * Switches the backing object of a zone to VM_ALLOC_NOOBJ.
  *
  * Arguments:
  *	zone  The zone to update.
- *	obj   The VM object to use for future allocations.
- *	size  The size of the object to allocate.
+ *	nitems  The number of items previewed to be allocated.
  *
  * Returns:
  *	0  if kva space can not be allocated
  *	1  if successful
  *
  * Discussion:
- *	A NULL object can be used and uma will allocate one for you.  Setting
- *	the size will limit the amount of memory allocated to this zone.
+ *	The size will limit the amount of memory allocated to this zone.
  *
  */
-struct vm_object;
-int uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int size);
+int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
 
 /*
  * Sets a high limit on the number of items allowed in a zone

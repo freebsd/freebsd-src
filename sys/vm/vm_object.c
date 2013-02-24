@@ -194,20 +194,23 @@ vm_object_zinit(void *mem, int size, int flags)
 	vm_object_t object;
 
 	object = (vm_object_t)mem;
-	bzero(&object->mtx, sizeof(object->mtx));
-	VM_OBJECT_LOCK_INIT(object, "standard object");
 
 	/* These are true for any object that has been freed */
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
+
+	/* It relies on vm object mutex to be initialized afterwards. */
 	return (0);
 }
 
-void
-_vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
+static void
+_vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object,
+    const char *mtxname)
 {
 
+	bzero(&object->mtx, sizeof(object->mtx));
+	mtx_init(&object->mtx, "vm object", mtxname, MTX_DEF | MTX_DUPOK);
 	TAILQ_INIT(&object->memq);
 	LIST_INIT(&object->shadow_head);
 
@@ -267,17 +270,15 @@ vm_object_init(void)
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
-	VM_OBJECT_LOCK_INIT(kernel_object, "kernel object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
-	    kernel_object);
+	    kernel_object, "kernel object");
 #if VM_NRESERVLEVEL > 0
 	kernel_object->flags |= OBJ_COLORED;
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
 #endif
 
-	VM_OBJECT_LOCK_INIT(kmem_object, "kmem object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
-	    kmem_object);
+	    kmem_object, "kmem object");
 #if VM_NRESERVLEVEL > 0
 	kmem_object->flags |= OBJ_COLORED;
 	kmem_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
@@ -403,7 +404,7 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 	vm_object_t object;
 
 	object = (vm_object_t)uma_zalloc(obj_zone, M_WAITOK);
-	_vm_object_allocate(type, size, object);
+	_vm_object_allocate(type, size, object, NULL);
 	return (object);
 }
 

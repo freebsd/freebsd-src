@@ -63,7 +63,7 @@
 #endif
 
 #ifndef VM_RADIX_BOOT_CACHE
-#define	VM_RADIX_BOOT_CACHE	1500
+#define	VM_RADIX_BOOT_CACHE	150
 #endif
 
 /*
@@ -373,7 +373,6 @@ vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
 static void
 vm_radix_init(void *arg __unused)
 {
-	int nitems;
 
 	vm_radix_node_zone = uma_zcreate("RADIX NODE",
 	    sizeof(struct vm_radix_node), NULL,
@@ -383,10 +382,9 @@ vm_radix_init(void *arg __unused)
 	    NULL,
 #endif
 	    NULL, NULL, VM_RADIX_PAD, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	nitems = uma_zone_set_max(vm_radix_node_zone, cnt.v_page_count);
-	if (nitems < cnt.v_page_count)
-		panic("%s: unexpected requested number of items", __func__);
-	uma_prealloc(vm_radix_node_zone, nitems);
+	if (!uma_zone_reserve_kva(vm_radix_node_zone, cnt.v_page_count))
+		panic("%s: unable to create new zone", __func__);
+	uma_prealloc(vm_radix_node_zone, cnt.v_page_count);
 	boot_cache_cnt = VM_RADIX_BOOT_CACHE + 1;
 }
 SYSINIT(vm_radix_init, SI_SUB_KMEM, SI_ORDER_SECOND, vm_radix_init, NULL);
