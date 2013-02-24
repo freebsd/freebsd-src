@@ -92,9 +92,8 @@ Extract Detail:  How to show filenames on debug screen as they're extracted.
 
     While a distribution is being extracted, the default detail level
     of "high" will show the full file names as they're extracted.
-    If you would prefer a more terse form for this, namely dots, select
-    the "medium" detail level.  If you want nothing to be printed
-    on the debugging screen during extraction, select "low".
+    If you want nothing to be printed on the debugging screen during
+    extraction, select "low".
 
 
 Release Name:  Which release to attempt to load from installation media.
