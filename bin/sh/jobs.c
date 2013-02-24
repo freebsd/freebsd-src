@@ -521,7 +521,7 @@ waitcmd(int argc, char **argv)
 	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
-	return 0;
+	return pendingsig + 128;
 }
 
 

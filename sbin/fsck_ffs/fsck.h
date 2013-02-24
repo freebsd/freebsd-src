@@ -138,6 +138,7 @@ struct bufarea {
 	int b_size;
 	int b_errs;
 	int b_flags;
+	int b_type;
 	union {
 		char *b_buf;			/* buffer space */
 		ufs1_daddr_t *b_indir1;		/* UFS1 indirect block */
@@ -165,6 +166,36 @@ struct bufarea {
  * Buffer flags
  */
 #define	B_INUSE 	0x00000001	/* Buffer is in use */
+/*
+ * Type of data in buffer
+ */
+#define	BT_UNKNOWN 	 0	/* Buffer holds a superblock */
+#define	BT_SUPERBLK 	 1	/* Buffer holds a superblock */
+#define	BT_CYLGRP 	 2	/* Buffer holds a cylinder group map */
+#define	BT_LEVEL1 	 3	/* Buffer holds single level indirect */
+#define	BT_LEVEL2 	 4	/* Buffer holds double level indirect */
+#define	BT_LEVEL3 	 5	/* Buffer holds triple level indirect */
+#define	BT_EXTATTR 	 6	/* Buffer holds external attribute data */
+#define	BT_INODES 	 7	/* Buffer holds external attribute data */
+#define	BT_DIRDATA 	 8	/* Buffer holds directory data */
+#define	BT_DATA	 	 9	/* Buffer holds user data */
+#define BT_NUMBUFTYPES	10
+#define BT_NAMES {			\
+	"unknown",			\
+	"Superblock",			\
+	"Cylinder Group",		\
+	"Single Level Indirect",	\
+	"Double Level Indirect",	\
+	"Triple Level Indirect",	\
+	"External Attribute",		\
+	"Inode Block",			\
+	"Directory Contents",		\
+	"User Data" }
+long readcnt[BT_NUMBUFTYPES];
+long totalreadcnt[BT_NUMBUFTYPES];
+struct timespec readtime[BT_NUMBUFTYPES];
+struct timespec totalreadtime[BT_NUMBUFTYPES];
+struct timespec startprog;
 
 struct bufarea sblk;		/* file system superblock */
 struct bufarea cgblk;		/* cylinder group blocks */
@@ -177,10 +208,11 @@ struct bufarea *pbp;		/* current inode block */
 	else \
 		(bp)->b_dirty = 1; \
 } while (0)
-#define	initbarea(bp) do { \
+#define	initbarea(bp, type) do { \
 	(bp)->b_dirty = 0; \
 	(bp)->b_bno = (ufs2_daddr_t)-1; \
 	(bp)->b_flags = 0; \
+	(bp)->b_type = type; \
 } while (0)
 
 #define	sbdirty()	dirty(&sblk)
@@ -357,6 +389,7 @@ int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, const char *msg);
 int		eascan(struct inodesc *, struct ufs2_dinode *dp);
 void		fileerror(ino_t cwd, ino_t ino, const char *errmesg);
+void		finalIOstats(void);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
 void		flush(int fd, struct bufarea *bp);
@@ -365,7 +398,7 @@ void		freeino(ino_t ino);
 void		freeinodebuf(void);
 int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
-struct bufarea *getdatablk(ufs2_daddr_t blkno, long size);
+struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
 union dinode   *getnextinode(ino_t inumber, int rebuildcg);
 void		getpathname(char *namebuf, ino_t curdir, ino_t ino);
@@ -375,6 +408,7 @@ void		alarmhandler(int sig);
 void		inocleanup(void);
 void		inodirty(void);
 struct inostat *inoinfo(ino_t inum);
+void		IOstats(char *what);
 int		linkup(ino_t orphan, ino_t parentdir, char *name);
 int		makeentry(ino_t parent, ino_t ino, const char *name);
 void		panic(const char *fmt, ...) __printflike(1, 2);
