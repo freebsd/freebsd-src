@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-Copyright (c) 2006-2009, Myricom Inc.
+Copyright (c) 2006-2013, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -194,31 +194,6 @@ typedef struct
 	char mtx_name[16];
 } mxge_tx_ring_t;
 
-struct lro_entry;
-struct lro_entry
-{
-	SLIST_ENTRY(lro_entry) next;
-	struct mbuf  	*m_head;
-	struct mbuf	*m_tail;
-	int		timestamp;
-	struct ip	*ip;
-	uint32_t	tsval;
-	uint32_t	tsecr;
-	uint32_t	source_ip;
-	uint32_t	dest_ip;
-	uint32_t	next_seq;
-	uint32_t	ack_seq;
-	uint32_t	len;
-	uint32_t	data_csum;
-	uint16_t	window;
-	uint16_t	source_port;
-	uint16_t	dest_port;
-	uint16_t	append_cnt;
-	uint16_t	mss;
-	
-};
-SLIST_HEAD(lro_head, lro_entry);
-
 struct mxge_softc;
 typedef struct mxge_softc mxge_softc_t;
 
@@ -236,11 +211,7 @@ struct mxge_slice_state {
 	u_long omcasts;
 	u_long oerrors;
 	int if_drv_flags;
-	struct lro_head lro_active;
-	struct lro_head lro_free;
-	int lro_queued;
-	int lro_flushed;
-	int lro_bad_csum;
+	struct lro_ctrl lc;
 	mxge_dma_t fw_stats_dma;
 	struct sysctl_oid *sysctl_tree;
 	struct sysctl_ctx_list sysctl_ctx;
@@ -250,7 +221,6 @@ struct mxge_slice_state {
 struct mxge_softc {
 	struct ifnet* ifp;
 	struct mxge_slice_state *ss;
-	int csum_flag;			/* rx_csums? 		*/
 	int tx_boundary;		/* boundary transmits cannot cross*/
 	int lro_cnt;
 	bus_dma_tag_t	parent_dmat;

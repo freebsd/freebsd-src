@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 
 #define	CMD_REQUIRES_BLOB	0x01
 
-/* Local copy of FDT */
+/* Location of FDT yet to be loaded. */
+static struct fdt_header *fdt_to_load = NULL;
+/* Local copy of FDT on heap. */
 static struct fdt_header *fdtp = NULL;
 /* Size of FDT blob */
 static size_t fdtp_size = 0;
@@ -235,26 +237,54 @@ fdt_load_dtb(vm_offset_t va)
 }
 
 static int
-fdt_setup_fdtp()
+fdt_load_dtb_addr(struct fdt_header *header)
 {
 	struct preloaded_file *bfp;
-	vm_offset_t va;
 
-	bfp = file_findfile(NULL, "dtb");
+	bfp = mem_load_raw("dtb", "memory.dtb", header, fdt_totalsize(header));
 	if (bfp == NULL) {
-		if ((va = fdt_find_static_dtb()) == 0) {
-			command_errmsg = "no device tree blob found!";
-			return (1);
-		}
-	} else {
-		/* Dynamic blob has precedence over static. */
-		va = bfp->f_addr;
-	}
-
-	if (fdt_load_dtb(va) != 0)
+		command_errmsg = "unable to copy DTB into module directory";
 		return (1);
-	
-	return (0);
+	}
+	return fdt_load_dtb(bfp->f_addr);
+}
+
+static int
+fdt_setup_fdtp()
+{
+  struct preloaded_file *bfp;
+  struct fdt_header *hdr;
+  const char *s;
+  char *p;
+  vm_offset_t va;
+
+  if ((bfp = file_findfile(NULL, "dtb")) != NULL) {
+	  printf("Using DTB from loaded file.\n");
+	  return fdt_load_dtb(bfp->f_addr);
+  }
+
+  if (fdt_to_load != NULL) {
+	  printf("Using DTB from memory address 0x%08X.\n",
+		 (unsigned int)fdt_to_load);
+	  return fdt_load_dtb_addr(fdt_to_load);
+  }
+
+  s = ub_env_get("fdtaddr");
+  if (s != NULL && *s != '\0') {
+	  hdr = (struct fdt_header *)strtoul(s, &p, 16);
+	  if (*p == '\0') {
+		  printf("Using DTB provided by U-Boot.\n");
+		  return fdt_load_dtb_addr(hdr);
+	  }
+  }
+
+  if ((va = fdt_find_static_dtb()) != 0) {
+	  printf("Using DTB compiled into kernel.\n");
+	  return (fdt_load_dtb(va));
+  }
+
+  command_errmsg = "no device tree blob found!";
+  return (1);
 }
 
 #define fdt_strtovect(str, cellbuf, lim, cellsize) _fdt_strtovect((str), \
@@ -789,8 +819,12 @@ command_fdt_internal(int argc, char *argv[])
 static int
 fdt_cmd_addr(int argc, char *argv[])
 {
-	vm_offset_t va;
-	char *addr, *cp;
+	struct preloaded_file *fp;
+	struct fdt_header *hdr;
+	const char *addr;
+	char *cp;
+
+	fdt_to_load = NULL;
 
 	if (argc > 2)
 		addr = argv[2];
@@ -799,15 +833,17 @@ fdt_cmd_addr(int argc, char *argv[])
 		return (CMD_ERROR);
 	}
 
-	va = strtol(addr, &cp, 0);
+	hdr = (struct fdt_header *)strtoul(addr, &cp, 16);
 	if (cp == addr) {
 		sprintf(command_errbuf, "Invalid address: %s", addr);
 		return (CMD_ERROR);
 	}
 
-	if (fdt_load_dtb(va) != 0)
-		return (CMD_ERROR);
+	while ((fp = file_findfile(NULL, "dtb")) != NULL) {
+		file_discard(fp);
+	}
 
+	fdt_to_load = hdr;
 	return (CMD_OK);
 }
 
@@ -1484,6 +1520,7 @@ fdt_cmd_mkprop(int argc, char *argv[])
 	if (fdt_modprop(o, propname, value, 1))
 		return (CMD_ERROR);
 
+	COPYIN(fdtp, fdtp_va, fdtp_size);
 	return (CMD_OK);
 }
 

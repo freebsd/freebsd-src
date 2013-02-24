@@ -2254,7 +2254,7 @@ extern struct mtx smallalloc_mtx;
 #endif
 
 void
-pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt)
+pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 {
 	static struct l1_ttable static_l1;
 	static struct l2_dtable static_l2[PMAP_STATIC_L2_SIZE];
@@ -2270,7 +2270,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	int l1idx, l2idx, l2next = 0;
 
 	PDEBUG(1, printf("firstaddr = %08x, lastaddr = %08x\n",
-	    firstaddr, lastaddr));
+	    firstaddr, vm_max_kernel_address));
 	
 	virtual_avail = firstaddr;
 	kernel_pmap->pm_l1 = l1;
@@ -2388,7 +2388,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)csrc_pte);
 	pmap_alloc_specials(&virtual_avail, 1, &cdstp, &cdst_pte);
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)cdst_pte);
-	size = ((lastaddr - pmap_curmaxkvaddr) + L1_S_OFFSET) / L1_S_SIZE;
+	size = ((vm_max_kernel_address - pmap_curmaxkvaddr) + L1_S_OFFSET) /
+	    L1_S_SIZE;
 	pmap_alloc_specials(&virtual_avail,
 	    round_page(size * L2_TABLE_SIZE_REAL) / PAGE_SIZE,
 	    &pmap_kernel_l2ptp_kva, NULL);
@@ -2410,9 +2411,9 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	cpu_l2cache_wbinv_all();
 
 	virtual_avail = round_page(virtual_avail);
-	virtual_end = lastaddr;
+	virtual_end = vm_max_kernel_address;
 	kernel_vm_end = pmap_curmaxkvaddr;
-	arm_nocache_startaddr = lastaddr;
+	arm_nocache_startaddr = vm_max_kernel_address;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
 #ifdef ARM_USE_SMALL_ALLOC
