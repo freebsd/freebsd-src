@@ -144,8 +144,11 @@ struct netmap_slot {
 				 * e.g. by generating an interrupt
 				 */
 #define	NS_FORWARD	0x0004	/* pass packet to the other endpoint
-				 * (host stack or device
+				 * (host stack or device)
 				 */
+#define	NS_NO_LEARN	0x0008
+#define	NS_PORT_SHIFT	8
+#define	NS_PORT_MASK	(0xff << NS_PORT_SHIFT)
 };
 
 /*
