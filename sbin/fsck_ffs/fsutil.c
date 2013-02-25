@@ -448,8 +448,8 @@ static void printIOstats(void)
 
 	clock_gettime(CLOCK_REALTIME_PRECISE, &finishpass);
 	timespecsub(&finishpass, &startpass);
-	printf("Running time: %ld msec\n",
-		finishpass.tv_sec * 1000 + finishpass.tv_nsec / 1000000);
+	msec = finishpass.tv_sec * 1000 + finishpass.tv_nsec / 1000000;
+	printf("Running time: %lld msec\n", msec);
 	printf("buffer reads by type:\n");
 	for (totalmsec = 0, i = 0; i < BT_NUMBUFTYPES; i++)
 		totalmsec += readtime[i].tv_sec * 1000 +
