@@ -282,6 +282,7 @@ TUNABLE_INT("hw.ciss.force_interrupt", &ciss_force_interrupt);
 #define CISS_BOARD_SA5		1
 #define CISS_BOARD_SA5B		2
 #define CISS_BOARD_NOMSI	(1<<4)
+#define CISS_BOARD_SIMPLE       (1<<5)
 
 static struct
 {
@@ -290,7 +291,8 @@ static struct
     int		flags;
     char	*desc;
 } ciss_vendor_data[] = {
-    { 0x0e11, 0x4070, CISS_BOARD_SA5|CISS_BOARD_NOMSI,	"Compaq Smart Array 5300" },
+    { 0x0e11, 0x4070, CISS_BOARD_SA5|CISS_BOARD_NOMSI|CISS_BOARD_SIMPLE,
+                                                        "Compaq Smart Array 5300" },
     { 0x0e11, 0x4080, CISS_BOARD_SA5B|CISS_BOARD_NOMSI,	"Compaq Smart Array 5i" },
     { 0x0e11, 0x4082, CISS_BOARD_SA5B|CISS_BOARD_NOMSI,	"Compaq Smart Array 532" },
     { 0x0e11, 0x4083, CISS_BOARD_SA5B|CISS_BOARD_NOMSI,	"HP Smart Array 5312" },
@@ -682,8 +684,15 @@ ciss_init_pci(struct ciss_softc *sc)
 	supported_methods = CISS_TRANSPORT_METHOD_PERF;
 	break;
     default:
-	supported_methods = sc->ciss_cfg->supported_methods;
-	break;
+        /*
+         * Override the capabilities of the BOARD and specify SIMPLE
+         * MODE 
+         */
+        if (ciss_vendor_data[i].flags & CISS_BOARD_SIMPLE)
+                supported_methods = CISS_TRANSPORT_METHOD_SIMPLE;
+        else
+                supported_methods = sc->ciss_cfg->supported_methods;
+        break;
     }
 
 setup:
