@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-extern int pendingsigs;
+extern volatile sig_atomic_t pendingsig;
 extern int in_dotrap;
 extern volatile sig_atomic_t gotwinch;
 

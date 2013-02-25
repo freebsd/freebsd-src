@@ -239,6 +239,7 @@ extern	HAL_BOOL ar5416SetDecompMask(struct ath_hal *, uint16_t, int);
 extern	void ar5416SetCoverageClass(struct ath_hal *, uint8_t, int);
 extern	HAL_BOOL ar5416GetMibCycleCounts(struct ath_hal *ah,
 	    HAL_SURVEY_SAMPLE *hsample);
+extern	void ar5416SetChainMasks(struct ath_hal *ah, uint32_t, uint32_t);
 extern	uint32_t ar5416Get11nExtBusy(struct ath_hal *ah);
 extern	void ar5416Set11nMac2040(struct ath_hal *ah, HAL_HT_MACMODE mode);
 extern	HAL_HT_RXCLEAR ar5416Get11nRxClear(struct ath_hal *ah);
