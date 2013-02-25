@@ -1425,8 +1425,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
-	KASSERT(fdp->fd_nfiles > 0,
-	    ("zero-length file table"));
+	KASSERT(fdp->fd_nfiles > 0, ("zero-length file table"));
 
 	/* save old values */
 	onfiles = fdp->fd_nfiles;
@@ -1447,13 +1446,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	 * it on the freelist.  We place the struct freetable in the
 	 * middle so we don't have to worry about padding.
 	 */
-	ntable = malloc(nnfiles * sizeof(*ntable) +
-	    sizeof(struct freetable) +
-	    nnfiles * sizeof(*nfileflags),
-	    M_FILEDESC, M_ZERO | M_WAITOK);
+	ntable = malloc(nnfiles * sizeof(*ntable) + sizeof(struct freetable) +
+	    nnfiles * sizeof(*nfileflags), M_FILEDESC, M_ZERO | M_WAITOK);
 	nfileflags = (char *)&ntable[nnfiles] + sizeof(struct freetable);
-	nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE,
-	    M_FILEDESC, M_ZERO | M_WAITOK);
+	nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
+	    M_ZERO | M_WAITOK);
 
 	/* copy the old data over and point at the new tables */
 	memcpy(ntable, otable, onfiles * sizeof(*otable));
