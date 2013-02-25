@@ -256,6 +256,20 @@ ar5416GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 }
 
 /*
+ * Setup the TX/RX chainmasks - this needs to be done before a call
+ * to the reset method as it doesn't update the hardware.
+ */
+void
+ar5416SetChainMasks(struct ath_hal *ah, uint32_t tx_chainmask,
+    uint32_t rx_chainmask)
+{
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+
+	AH5416(ah)->ah_tx_chainmask = tx_chainmask & pCap->halTxChainMask;
+	AH5416(ah)->ah_rx_chainmask = rx_chainmask & pCap->halRxChainMask;
+}
+
+/*
  * Return approximation of extension channel busy over an time interval
  * 0% (clear) -> 100% (busy)
  *
