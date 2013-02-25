@@ -105,7 +105,6 @@ struct pci_devinst {
 	uint8_t	  pi_bus, pi_slot, pi_func;
 	uint8_t   pi_lintr_pin;
 	char	  pi_name[PI_NAMESZ];
-	uint16_t  pi_iobase;
 	int	  pi_bar_getsize;
 
 	struct {
