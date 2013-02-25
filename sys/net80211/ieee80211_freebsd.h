@@ -57,6 +57,30 @@ typedef struct {
 	mtx_assert(IEEE80211_LOCK_OBJ(_ic), MA_NOTOWNED)
 
 /*
+ * Transmit lock.
+ *
+ * This is a (mostly) temporary lock designed to serialise all of the
+ * transmission operations throughout the stack.
+ */
+typedef struct {
+	char		name[16];		/* e.g. "ath0_com_lock" */
+	struct mtx	mtx;
+} ieee80211_tx_lock_t;
+#define	IEEE80211_TX_LOCK_INIT(_ic, _name) do {				\
+	ieee80211_tx_lock_t *cl = &(_ic)->ic_txlock;			\
+	snprintf(cl->name, sizeof(cl->name), "%s_tx_lock", _name);	\
+	mtx_init(&cl->mtx, cl->name, NULL, MTX_DEF);	\
+} while (0)
+#define	IEEE80211_TX_LOCK_OBJ(_ic)	(&(_ic)->ic_txlock.mtx)
+#define	IEEE80211_TX_LOCK_DESTROY(_ic) mtx_destroy(IEEE80211_TX_LOCK_OBJ(_ic))
+#define	IEEE80211_TX_LOCK(_ic)	   mtx_lock(IEEE80211_TX_LOCK_OBJ(_ic))
+#define	IEEE80211_TX_UNLOCK(_ic)	   mtx_unlock(IEEE80211_TX_LOCK_OBJ(_ic))
+#define	IEEE80211_TX_LOCK_ASSERT(_ic) \
+	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_OWNED)
+#define	IEEE80211_TX_UNLOCK_ASSERT(_ic) \
+	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_NOTOWNED)
+
+/*
  * Node locking definitions.
  */
 typedef struct {

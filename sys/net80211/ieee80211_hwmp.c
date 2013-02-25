@@ -592,6 +592,7 @@ hwmp_send_action(struct ieee80211vap *vap,
 	struct ieee80211_bpf_params params;
 	struct mbuf *m;
 	uint8_t *frm;
+	int ret;
 
 	if (IEEE80211_IS_MULTICAST(da)) {
 		ni = ieee80211_ref_node(vap->iv_bss);
@@ -654,6 +655,9 @@ hwmp_send_action(struct ieee80211vap *vap,
 		vap->iv_stats.is_tx_nobuf++;
 		return ENOMEM;
 	}
+
+	IEEE80211_TX_LOCK(ic);
+
 	ieee80211_send_setup(ni, m,
 	    IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_ACTION,
 	    IEEE80211_NONQOS_TID, vap->iv_myaddr, da, vap->iv_myaddr);
@@ -669,7 +673,9 @@ hwmp_send_action(struct ieee80211vap *vap,
 	else
 		params.ibp_try0 = ni->ni_txparms->maxretry;
 	params.ibp_power = ni->ni_txpower;
-	return ic->ic_raw_xmit(ni, m, &params);
+	ret = ic->ic_raw_xmit(ni, m, &params);
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 }
 
 #define ADDSHORT(frm, v) do {		\

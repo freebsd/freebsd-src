@@ -2743,6 +2743,7 @@ mesh_send_action(struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_bpf_params params;
 	struct ieee80211_frame *wh;
+	int ret;
 
 	KASSERT(ni != NULL, ("null node"));
 
@@ -2761,6 +2762,7 @@ mesh_send_action(struct ieee80211_node *ni,
 		return ENOMEM;
 	}
 
+	IEEE80211_TX_LOCK(ic);
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_ACTION,
@@ -2778,7 +2780,9 @@ mesh_send_action(struct ieee80211_node *ni,
 
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
 
-	return ic->ic_raw_xmit(ni, m, &params);
+	ret = ic->ic_raw_xmit(ni, m, &params);
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 }
 
 #define	ADDSHORT(frm, v) do {			\

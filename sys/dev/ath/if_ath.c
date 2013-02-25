@@ -2525,9 +2525,14 @@ static void
 ath_start_queue(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
+	struct ieee80211com *ic = ifp->if_l2com;
+
+	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: start");
-	ath_tx_kick(sc);
+	ATH_TX_LOCK(sc);
+	ath_start(ifp);
+	ATH_TX_UNLOCK(sc);
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: finished");
 }
 
@@ -2535,6 +2540,7 @@ void
 ath_start_task(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ifnet *ifp = sc->sc_ifp;
 
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: start");
@@ -2555,9 +2561,11 @@ ath_start_task(void *arg, int npending)
 	sc->sc_txstart_cnt++;
 	ATH_PCU_UNLOCK(sc);
 
+	IEEE80211_TX_LOCK(ic);
 	ATH_TX_LOCK(sc);
 	ath_start(sc->sc_ifp);
 	ATH_TX_UNLOCK(sc);
+	IEEE80211_TX_UNLOCK(ic);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
@@ -2569,6 +2577,7 @@ void
 ath_start(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
+	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
@@ -2578,6 +2587,7 @@ ath_start(struct ifnet *ifp)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
 
+	IEEE80211_TX_LOCK_ASSERT(ic);
 	ATH_TX_LOCK_ASSERT(sc);
 
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start: called");

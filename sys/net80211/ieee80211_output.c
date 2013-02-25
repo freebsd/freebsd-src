@@ -282,6 +282,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
 
+
 	/*
 	 * Check if A-MPDU tx aggregation is setup or if we
 	 * should try to enable it.  The sta must be associated
@@ -317,6 +318,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 			/* XXX hold frame for reply? */
 		}
 	}
+
 #ifdef IEEE80211_SUPPORT_SUPERG
 	else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
 		m = ieee80211_ff_check(ni, m);
@@ -327,6 +329,14 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 		}
 	}
 #endif /* IEEE80211_SUPPORT_SUPERG */
+
+	/*
+	 * Grab the TX lock - serialise the TX process from this
+	 * point (where TX state is being checked/modified)
+	 * through to driver queue.
+	 */
+	IEEE80211_TX_LOCK(ic);
+
 	if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
 		/*
 		 * Encapsulate the packet in prep for transmission.
@@ -334,12 +344,19 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 		m = ieee80211_encap(vap, ni, m);
 		if (m == NULL) {
 			/* NB: stat+msg handled in ieee80211_encap */
+			IEEE80211_TX_UNLOCK(ic);
 			ieee80211_free_node(ni);
 			/* XXX better status? */
 			return (ENOBUFS);
 		}
 	}
 	error = parent->if_transmit(parent, m);
+
+	/*
+	 * Unlock at this point - no need to hold it across
+	 * ieee80211_free_node() (ie, the comlock)
+	 */
+	IEEE80211_TX_UNLOCK(ic);
 	if (error != 0) {
 		/* NB: IFQ_HANDOFF reclaims mbuf */
 		ieee80211_free_node(ni);
@@ -425,7 +442,9 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	struct ieee80211_node *ni = NULL;
 	struct ieee80211vap *vap;
 	struct ieee80211_frame *wh;
+	struct ieee80211com *ic = NULL;
 	int error;
+	int ret;
 
 	IFQ_LOCK(&ifp->if_snd);
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
@@ -442,6 +461,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	}
 	IFQ_UNLOCK(&ifp->if_snd);
 	vap = ifp->if_softc;
+	ic = vap->iv_ic;
 	/*
 	 * Hand to the 802.3 code if not tagged as
 	 * a raw 802.11 frame.
@@ -522,15 +542,19 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	/* NB: ieee80211_encap does not include 802.11 header */
 	IEEE80211_NODE_STAT_ADD(ni, tx_bytes, m->m_pkthdr.len);
 
+	IEEE80211_TX_LOCK(ic);
+
 	/*
 	 * NB: DLT_IEEE802_11_RADIO identifies the parameters are
 	 * present by setting the sa_len field of the sockaddr (yes,
 	 * this is a hack).
 	 * NB: we assume sa_data is suitably aligned to cast.
 	 */
-	return vap->iv_ic->ic_raw_xmit(ni, m,
+	ret = vap->iv_ic->ic_raw_xmit(ni, m,
 	    (const struct ieee80211_bpf_params *)(dst->sa_len ?
 		dst->sa_data : NULL));
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 bad:
 	if (m != NULL)
 		m_freem(m);
@@ -559,7 +583,10 @@ ieee80211_send_setup(
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_tx_ampdu *tap;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
+	struct ieee80211com *ic = ni->ni_ic;
 	ieee80211_seq seqno;
+
+	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | type;
 	if ((type & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_DATA) {
@@ -654,6 +681,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_frame *wh;
+	int ret;
 
 	KASSERT(ni != NULL, ("null node"));
 
@@ -674,6 +702,8 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 		ieee80211_free_node(ni);
 		return ENOMEM;
 	}
+
+	IEEE80211_TX_LOCK(ic);
 
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, m,
@@ -703,7 +733,9 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 #endif
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
 
-	return ic->ic_raw_xmit(ni, m, params);
+	ret = ic->ic_raw_xmit(ni, m, params);
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 }
 
 /*
@@ -727,6 +759,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	struct ieee80211_frame *wh;
 	int hdrlen;
 	uint8_t *frm;
+	int ret;
 
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT | IEEE80211_MSG_DOTH,
@@ -761,6 +794,8 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 		ieee80211_free_node(ni);
 		return ENOMEM;
 	}
+
+	IEEE80211_TX_LOCK(ic);
 
 	wh = mtod(m, struct ieee80211_frame *);		/* NB: a little lie */
 	if (ni->ni_flags & IEEE80211_NODE_QOS) {
@@ -804,7 +839,9 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	    ieee80211_chan2ieee(ic, ic->ic_curchan),
 	    wh->i_fc[1] & IEEE80211_FC1_PWR_MGT ? "ena" : "dis");
 
-	return ic->ic_raw_xmit(ni, m, NULL);
+	ret = ic->ic_raw_xmit(ni, m, NULL);
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 }
 
 /* 
@@ -1067,6 +1104,8 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	ieee80211_seq seqno;
 	int meshhdrsize, meshae;
 	uint8_t *qos;
+	
+	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	/*
 	 * Copy existing Ethernet header to a safe place.  The
@@ -1839,6 +1878,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	const struct ieee80211_rateset *rs;
 	struct mbuf *m;
 	uint8_t *frm;
+	int ret;
 
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT, ni,
@@ -1911,6 +1951,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 		return ENOMEM;
 	}
 
+	IEEE80211_TX_LOCK(ic);
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
@@ -1938,7 +1979,9 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	} else
 		params.ibp_try0 = tp->maxretry;
 	params.ibp_power = ni->ni_txpower;
-	return ic->ic_raw_xmit(ni, m, &params);
+	ret = ic->ic_raw_xmit(ni, m, &params);
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 }
 
 /*
@@ -2507,6 +2550,7 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_frame *wh;
 	struct mbuf *m;
+	int ret;
 
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT, bss,
@@ -2535,6 +2579,7 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_NOWAIT);
 	KASSERT(m != NULL, ("no room for header"));
 
+	IEEE80211_TX_LOCK(ic);
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(bss, m,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
@@ -2550,7 +2595,9 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	    legacy ? " <legacy>" : "");
 	IEEE80211_NODE_STAT(bss, tx_mgmt);
 
-	return ic->ic_raw_xmit(bss, m, NULL);
+	ret = ic->ic_raw_xmit(bss, m, NULL);
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 }
 
 /*
