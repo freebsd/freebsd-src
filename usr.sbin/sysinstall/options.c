@@ -75,6 +75,9 @@ mediaCheck(Option *opt)
 	case DEVICE_TYPE_FTP:
 	    return "FTP";
 
+	case DEVICE_TYPE_HTTP:
+	    return "HTTP Proxy";
+
 	case DEVICE_TYPE_CDROM:
 	    return "CDROM";
 
