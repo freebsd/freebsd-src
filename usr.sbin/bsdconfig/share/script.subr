@@ -1,6 +1,6 @@
 if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
 #
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,10 @@ if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." script.subr
+f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/variable.subr
+f_include $BSDCFG_SHARE/media/any.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
 
 ############################################################ GLOBALS
 
@@ -75,11 +78,13 @@ f_dispatch()
 	local func="$1" resword="${2:-$1}"
 	f_dprintf "f_dispatch: calling resword \`%s'" "$resword"
 	eval $func
-	local retval=$? _ignore_this_error
-	f_getvar $VAR_NO_ERROR _ignore_this_error
-	[ $retval -eq $SUCCESS ] ||
+	local retval=$?
+	if [ $retval -ne $SUCCESS ]; then
+		local _ignore_this_error
+		f_getvar $VAR_NO_ERROR _ignore_this_error
 		[ "$_ignore_this_error" ] || f_die $retval \
-		"$msg_command_failed_rest_of_script_aborted" "$resword"
+			"$msg_command_failed_rest_of_script_aborted" "$resword"
+	fi
 	unset $VAR_NO_ERROR
 }
 
@@ -146,8 +151,26 @@ f_script_load()
 #
 # Reserved words meant for scripting
 #
+f_resword_new deviceRescan		f_device_rescan
 f_resword_new dumpVariables		f_dump_variables
 f_resword_new loadConfig		f_script_load
+f_resword_new mediaClose		f_media_close
+f_resword_new mediaGetType		f_media_get_type
+f_resword_new mediaOpen			f_media_open
+f_resword_new mediaSetCDROM		f_media_set_cdrom
+f_resword_new mediaSetDOS		f_media_set_dos
+f_resword_new mediaSetFTP		f_media_set_ftp
+f_resword_new mediaSetFTPActive		f_media_set_ftp_active
+f_resword_new mediaSetFTPPassive	f_media_set_ftp_passive
+f_resword_new mediaSetFTPUserPass	f_media_set_ftp_userpass
+f_resword_new mediaSetFloppy		f_media_set_floppy
+f_resword_new mediaSetHTTP		f_media_set_http_proxy
+f_resword_new mediaSetHTTPProxy		f_media_set_http_proxy
+f_resword_new mediaSetNFS		f_media_set_nfs
+f_resword_new mediaSetUFS		f_media_set_ufs
+f_resword_new mediaSetUSB		f_media_set_usb
+f_resword_new optionsEditor		f_media_options_menu
+f_resword_new tcpMenuSelect		f_dialog_menu_select_tcp
 
 f_dprintf "%s: Successfully loaded." script.subr
 

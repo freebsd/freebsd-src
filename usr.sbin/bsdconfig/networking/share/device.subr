@@ -1,6 +1,6 @@
 if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,10 @@ if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." networking/device.subr
+f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/networking/common.subr
 f_include $BSDCFG_SHARE/networking/ipaddr.subr
 f_include $BSDCFG_SHARE/networking/media.subr
@@ -43,8 +45,6 @@ f_include $BSDCFG_SHARE/networking/routing.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-TCP_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/tcp.hlp
-
 ############################################################ GLOBALS
 
 #
@@ -54,133 +54,6 @@ TCP_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/tcp.hlp
 : ${DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK=3}
 
 ############################################################ FUNCTIONS
-
-# f_device_desc $device_name
-#
-# Print a description for a device name (eg., `fxp0').
-#
-f_device_desc()
-{
-	local device="$1" d="[1234567890]" desc=""
-
-	# Check variables
-	[ "$device" ] || return $SUCCESS
-
-	#
-	# Return sysctl MIB dev.NAME.UNIT.%desc if it exists,
-	# otherwise fall through to below static list.
-	#
-	if f_have sysctl; then
-		local devname devunit
-		devname="${device%%$d*}"
-		devunit="${device#$devname}"
-		devunit="${devunit%%[a-zA-Z_]*}"
-		sysctl -n "dev.$devname.$devunit.%desc" 2> /dev/null &&
-			return $SUCCESS
-	fi
-
-	case "$device" in
-	# Network devices
-	ae$d)    desc="Attansic/Atheros L2 Fast Ethernet";;
-	age$d)   desc="Attansic/Atheros L1 Gigabit Ethernet";;
-	alc$d)   desc="Atheros AR8131/AR8132 PCIe Ethernet";;
-	ale$d)   desc="Atheros AR8121/AR8113/AR8114 PCIe Ethernet";;
-	an$d)    desc="Aironet 4500/4800 802.11 wireless adapter";;
-	ath$d)   desc="Atheros IEEE 802.11 wireless adapter";;
-	aue$d)   desc="ADMtek USB Ethernet adapter";;
-	axe$d)   desc="ASIX Electronics USB Ethernet adapter";;
-	bce$d)   desc="Broadcom NetXtreme II Gigabit Ethernet card";;
-	bfe$d)   desc="Broadcom BCM440x PCI Ethernet card";;
-	bge$d)   desc="Broadcom BCM570x PCI Gigabit Ethernet card";;
-	bm$d)    desc="Apple BMAC Built-in Ethernet";;
-	bwn$d)   desc="Broadcom BCM43xx IEEE 802.11 wireless adapter";;
-	cas$d)   desc="Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet";;
-	cc3i$d)  desc="SDL HSSI sync serial PCI card";;
-	cue$d)   desc="CATC USB Ethernet adapter";;
-	cxgb$d)  desc="Chelsio T3 10Gb Ethernet card";;
-	dc$d)    desc="DEC/Intel 21143 (and clones) PCI Fast Ethernet card";;
-	de$d)    desc="DEC DE435 PCI NIC or other DC21040-AA based card";;
-	disc$d)  desc="Software discard network interface";;
-	ed$d)    desc="Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA";;
-	el$d)    desc="3Com 3C501 Ethernet card";;
-	em$d)    desc="Intel(R) PRO/1000 Ethernet card";;
-	en$d)    desc="Efficient Networks ATM PCI card";;
-	ep$d)    desc="3Com 3C509 Ethernet card/3C589 PCMCIA";;
-	et$d)    desc="Agere ET1310 based PCI Express Gigabit Ethernet card";;
-	ex$d)    desc="Intel EtherExpress Pro/10 Ethernet card";;
-	fe$d)    desc="Fujitsu MB86960A/MB86965A Ethernet card";;
-	fpa$d)   desc="DEC DEFPA PCI FDDI card";;
-	fwe$d)   desc="FireWire Ethernet emulation";;
-	fwip$d)  desc="IP over FireWire";;
-	fxp$d)   desc="Intel EtherExpress Pro/100B PCI Fast Ethernet card";;
-	gem$d)   desc="Apple GMAC or Sun ERI/GEM Ethernet adapter";;
-	hme$d)   desc="Sun HME (Happy Meal Ethernet) Ethernet adapter";;
-	ie$d)    desc="AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210";;
-	igb$d)   desc="Intel(R) PRO/1000 PCI Express Gigabit Ethernet card";;
-	ipw$d)   desc="Intel PRO/Wireless 2100 IEEE 802.11 adapter";;
-	iwi$d)   desc="Intel PRO/Wireless 2200BG/2225BG/2915ABG adapter";;
-	iwn$d)   desc="Intel Wireless WiFi Link 4965AGN IEEE 802.11n adapter";;
-	ix$d)    desc="Intel Etherexpress Ethernet card";;
-	ixgb$d)  desc="Intel(R) PRO/10Gb Ethernet card";;
-	ixgbe$d) desc="Intel(R) PRO/10Gb Ethernet card";;
-	jme$d)   desc="JMicron JMC250 Gigabit/JMC260 Fast Ethernet";;
-	kue$d)   desc="Kawasaki LSI USB Ethernet adapter";;
-	le$d)    desc="AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter";;
-	lge$d)   desc="Level 1 LXT1001 Gigabit Ethernet card";;
-	lnc$d)   desc="Lance/PCnet (Isolan/Novell NE2100/NE32-VL) Ethernet";;
-	lp$d)    desc="Parallel Port IP (PLIP) peer connection";;
-	lo$d)    desc="Loop-back (local) network interface";;
-	malo$d)  desc="Marvell Libertas 88W8335 802.11 wireless adapter";;
-	msk$d)   desc="Marvell/SysKonnect Yukon II Gigabit Ethernet";;
-	mxge$d)  desc="Myricom Myri10GE 10Gb Ethernet card";;
-	nfe$d)   desc="NVIDIA nForce MCP Ethernet";;
-	ng${d}_*|ng$d${d}_*|ng$d$d${d}_*|ng$d$d$d${d}_*|ng$d$d$d$d${d}_*)
-	         desc="Vimage netgraph(4) bridged Ethernet device";;
-	nge$d)   desc="NatSemi PCI Gigabit Ethernet card";;
-	nve$d)   desc="NVIDIA nForce MCP Ethernet";;
-	nxge$d)  desc="Neterion Xframe 10GbE Server/Storage adapter";;
-	pcn$d)   desc="AMD Am79c79x PCI Ethernet card";;
-	plip$d)  desc="Parallel Port IP (PLIP) peer connection";;
-	ral$d)   desc="Ralink Technology IEEE 802.11 wireless adapter";;
-	ray$d)   desc="Raytheon Raylink 802.11 wireless adapter";;
-	re$d)    desc="RealTek 8139C+/8169/8169S/8110S PCI Ethernet adapter";;
-	rl$d)    desc="RealTek 8129/8139 PCI Ethernet card";;
-	rue$d)   desc="RealTek USB Ethernet card";;
-	rum$d)   desc="Ralink Technology USB IEEE 802.11 wireless adapter";;
-	sf$d)    desc="Adaptec AIC-6915 PCI Ethernet card";;
-	sge$d)   desc="Silicon Integrated Systems SiS190/191 Ethernet";;
-	sis$d)   desc="SiS 900/SiS 7016 PCI Ethernet card";;
-	sk$d)    desc="SysKonnect PCI Gigabit Ethernet card";;
-	sn$d)    desc="SMC/Megahertz Ethernet card";;
-	snc$d)   desc="SONIC Ethernet card";;
-	sr$d)    desc="SDL T1/E1 sync serial PCI card";;
-	ste$d)   desc="Sundance ST201 PCI Ethernet card";;
-	stge$d)  desc="Sundance/Tamarack TC9021 Gigabit Ethernet";;
-	ti$d)    desc="Alteon Networks PCI Gigabit Ethernet card";;
-	tl$d)    desc="Texas Instruments ThunderLAN PCI Ethernet card";;
-	tx$d)    desc="SMC 9432TX Ethernet card";;
-	txp$d)   desc="3Com 3cR990 Ethernet card";;
-	uath$d)  desc="Atheros AR5005UG and AR5005UX USB wireless adapter";;
-	upgt$d)  desc="Conexant/Intersil PrismGT USB wireless adapter";;
-	ural$d)  desc="Ralink Technology RT2500USB 802.11 wireless adapter";;
-	urtw$d)  desc="Realtek 8187L USB wireless adapter";;
-	vge$d)   desc="VIA VT612x PCI Gigabit Ethernet card";;
-	vlan$d|vlan$d$d|vlan$d$d$d|vlan$d$d$d$d|vlan$d$d$d$d$d)
-	         desc="IEEE 802.1Q VLAN network interface";;
-	vr$d)    desc="VIA VT3043/VT86C100A Rhine PCI Ethernet card";;
-	vx$d)    desc="3COM 3c590 / 3c595 Ethernet card";;
-	wb$d)    desc="Winbond W89C840F PCI Ethernet card";;
-	wi$d)    desc="Lucent WaveLAN/IEEE 802.11 wireless adapter";;
-	wpi$d)   desc="Intel 3945ABG IEEE 802.11 wireless adapter";;
-	wx$d)    desc="Intel Gigabit Ethernet (82452) card";;
-	xe$d)    desc="Xircom/Intel EtherExpress Pro100/16 Ethernet card";;
-	xl$d)    desc="3COM 3c90x / 3c90xB PCI Ethernet card";;
-	zyd$d)   desc="ZyDAS ZD1211/ZD1211B USB 802.11 wireless adapter";;
-	# Unknown device
-	*)       desc="<unknown network interface type>";;
-	esac
-	printf "%s\n" "$desc"
-}
 
 # f_dialog_menu_netdev
 #
