@@ -179,11 +179,13 @@ struct callout_cpu cc_cpu;
 	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)
 
 static int timeout_cpu;
-void (*callout_new_inserted)(int cpu, struct bintime bt,
-    struct bintime bt_opt) = NULL;
+void (*callout_new_inserted)(int cpu, sbintime_t bt, sbintime_t bt_opt) = NULL;
 static void
-softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
-    int *lockcalls, int *gcalls, int direct);
+softclock_call_cc(struct callout *c, struct callout_cpu *cc,
+#ifdef CALLOUT_PROFILING
+    int *mpcalls, int *lockcalls, int *gcalls,
+#endif
+    int direct);
 
 static MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 
@@ -382,28 +384,26 @@ callout_get_bucket(sbintime_t sbt)
 }
 
 void
-callout_process(struct bintime *now)
+callout_process(sbintime_t now)
 {
 	struct callout *tmp, *tmpn;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
-	uint64_t lookahead;
-	sbintime_t first, last, max, now_sbt, tmp_max;
-	int depth_dir, firstb, lastb, mpcalls_dir, nowb,
-	    lockcalls_dir, need_softclock, exit_allowed, exit_wanted;
+	sbintime_t first, last, max, tmp_max;
+	uint32_t lookahead;
+	int firstb, lastb, nowb, need_softclock, exit_allowed, exit_wanted;
+#ifdef CALLOUT_PROFILING
+	int depth_dir = 0, mpcalls_dir = 0, lockcalls_dir = 0;
+#endif
 
 	need_softclock = 0;
-	depth_dir = 0;
-	mpcalls_dir = 0;
-	lockcalls_dir = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 
 	/* Compute the buckets of the last scan and present times. */
 	firstb = callout_hash(cc->cc_lastscan);
-	now_sbt = bintime2sbintime(*now);
-	cc->cc_lastscan = now_sbt;
-	nowb = callout_hash(now_sbt);
+	cc->cc_lastscan = now;
+	nowb = callout_hash(now);
 
 	/* Compute the last bucket and minimum time of the bucket after it. */
 	if (nowb == firstb)
@@ -412,7 +412,7 @@ callout_process(struct bintime *now)
 		lookahead = (SBT_1S / 8);
 	else
 		lookahead = (SBT_1S / 2);
-	first = last = now_sbt;
+	first = last = now;
 	first += (lookahead / 2);
 	last += lookahead;
 	last &= (0xffffffffffffffffLLU << (32 - CC_HASH_SHIFT));
@@ -438,19 +438,23 @@ callout_process(struct bintime *now)
 		tmp = TAILQ_FIRST(sc);
 		while (tmp != NULL) {
 			/* Run the callout if present time within allowed. */
-			if (tmp->c_time <= now_sbt) {
+			if (tmp->c_time <= now) {
 				/*
 				 * Consumer told us the callout may be run
 				 * directly from hardware interrupt context.
 				 */
 				if (tmp->c_flags & CALLOUT_DIRECT) {
+#ifdef CALLOUT_PROFILING
 					++depth_dir;
+#endif
 					cc->cc_exec_next_dir =
 					    TAILQ_NEXT(tmp, c_links.tqe);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
 					softclock_call_cc(tmp, cc,
-					    &mpcalls_dir, &lockcalls_dir,
-					    NULL, 1);
+#ifdef CALLOUT_PROFILING
+					    &mpcalls_dir, &lockcalls_dir, NULL,
+#endif
+					    1);
 					tmp = cc->cc_exec_next_dir;
 				} else {
 					tmpn = TAILQ_NEXT(tmp, c_links.tqe);
@@ -500,8 +504,7 @@ next:
 	}
 	cc->cc_exec_next_dir = NULL;
 	if (callout_new_inserted != NULL)
-		(*callout_new_inserted)(curcpu, sbintime2bintime(last), 
-		    sbintime2bintime(first));
+		(*callout_new_inserted)(curcpu, last, first);
 	cc->cc_firstevent = last;
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
@@ -573,8 +576,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	if (callout_new_inserted != NULL && ((last < cc->cc_firstevent) ||
 	    (cc->cc_firstevent == 0))) {
 		cc->cc_firstevent = last;
-		(*callout_new_inserted)(cpu, sbintime2bintime(last), 
-		    sbintime2bintime(c->c_time));
+		(*callout_new_inserted)(cpu, last, c->c_time);
 	}
 }
 
@@ -589,8 +591,11 @@ callout_cc_del(struct callout *c, struct callout_cpu *cc)
 }
 
 static void
-softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
-    int *lockcalls, int *gcalls, int direct)
+softclock_call_cc(struct callout *c, struct callout_cpu *cc,
+#ifdef CALLOUT_PROFILING
+    int *mpcalls, int *lockcalls, int *gcalls,
+#endif
+    int direct)
 {
 	void (*c_func)(void *);
 	void *c_arg;
@@ -605,9 +610,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	sbintime_t new_time;
 #endif
 #ifdef DIAGNOSTIC
-	struct bintime bt1, bt2;
+	sbintime_t bt1, bt2;
 	struct timespec ts2;
-	static uint64_t maxdt = 36893488147419102LL;	/* 2 msec */
+	static sbintime_t maxdt = 2 * SBT_1MS;	/* 2 msec */
 	static timeout_t *lastfunc;
 #endif
 
@@ -639,27 +644,28 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 		}
 		/* The callout cannot be stopped now. */
 		cc->cc_exec_entity[direct].cc_cancel = 1;
-		/*
-		 * In case we're processing a direct callout we
-		 * can't hold giant because holding a sleep mutex
-		 * from hardware interrupt context is not allowed.
-		 */
-		if ((c_lock == &Giant.lock_object) && gcalls != NULL) {
+		if (c_lock == &Giant.lock_object) {
+#ifdef CALLOUT_PROFILING
 			(*gcalls)++;
-			CTR3(KTR_CALLOUT, "callout %p func %p arg %p",
+#endif
+			CTR3(KTR_CALLOUT, "callout giant %p func %p arg %p",
 			    c, c_func, c_arg);
 		} else {
+#ifdef CALLOUT_PROFILING
 			(*lockcalls)++;
+#endif
 			CTR3(KTR_CALLOUT, "callout lock %p func %p arg %p",
 			    c, c_func, c_arg);
 		}
 	} else {
+#ifdef CALLOUT_PROFILING
 		(*mpcalls)++;
-		CTR3(KTR_CALLOUT, "callout mpsafe %p func %p arg %p",
+#endif
+		CTR3(KTR_CALLOUT, "callout %p func %p arg %p",
 		    c, c_func, c_arg);
 	}
 #ifdef DIAGNOSTIC
-	binuptime(&bt1);
+	sbinuptime(&bt1);
 #endif
 	if (!direct)
 		THREAD_NO_SLEEPING();
@@ -669,16 +675,16 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	if (!direct)
 		THREAD_SLEEPING_OK();
 #ifdef DIAGNOSTIC
-	binuptime(&bt2);
-	bintime_sub(&bt2, &bt1);
-	if (bt2.frac > maxdt) {
-		if (lastfunc != c_func || bt2.frac > maxdt * 2) {
-			bintime2timespec(&bt2, &ts2);
+	sbinuptime(&bt2);
+	bt2 -= bt1;
+	if (bt2 > maxdt) {
+		if (lastfunc != c_func || bt2 > maxdt * 2) {
+			ts2 = sbintime2timespec(bt2);
 			printf(
 		"Expensive timeout(9) function: %p(%p) %jd.%09ld s\n",
 			    c_func, c_arg, (intmax_t)ts2.tv_sec, ts2.tv_nsec);
 		}
-		maxdt = bt2.frac;
+		maxdt = bt2;
 		lastfunc = c_func;
 	}
 #endif
@@ -784,18 +790,22 @@ softclock(void *arg)
 {
 	struct callout_cpu *cc;
 	struct callout *c;
-	int depth, gcalls, lockcalls, mpcalls;
+#ifdef CALLOUT_PROFILING
+	int depth = 0, gcalls = 0, lockcalls = 0, mpcalls = 0;
+#endif
 
-	depth = 0;
-	mpcalls = 0;
-	lockcalls = 0;
-	gcalls = 0;
 	cc = (struct callout_cpu *)arg;
 	CC_LOCK(cc);
 	while ((c = TAILQ_FIRST(&cc->cc_expireq)) != NULL) {
 		TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
-		softclock_call_cc(c, cc, &mpcalls, &lockcalls, &gcalls, 0);
+		softclock_call_cc(c, cc,
+#ifdef CALLOUT_PROFILING
+		    &mpcalls, &lockcalls, &gcalls,
+#endif
+		    0);
+#ifdef CALLOUT_PROFILING
 		++depth;
+#endif
 	}
 #ifdef CALLOUT_PROFILING
 	avg_depth += (depth * 1000 - avg_depth) >> 8;
@@ -876,7 +886,7 @@ callout_handle_init(struct callout_handle *handle)
 }
 
 #ifndef NO_EVENTTIMERS
-DPCPU_DECLARE(struct bintime, hardclocktime);
+DPCPU_DECLARE(sbintime_t, hardclocktime);
 #endif
 
 /*
@@ -900,7 +910,6 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
     void (*ftn)(void *), void *arg, int cpu, int flags)
 {
 	sbintime_t to_sbt, pr;
-	struct bintime to_bt;
 	struct callout_cpu *cc;
 	int bucket, cancelled, direct;
 
@@ -925,8 +934,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 			 * active ones.
 			 */
 			spinlock_enter();
-			to_bt = DPCPU_GET(hardclocktime);
-			to_sbt = bintime2sbintime(to_bt);
+			to_sbt = DPCPU_GET(hardclocktime);
 			spinlock_exit();
 #endif
 			if ((flags & C_HARDCLOCK) == 0)
@@ -946,6 +954,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC)
 		cpu = c->c_cpu;
 	direct = c->c_flags & CALLOUT_DIRECT;
+	KASSERT(!direct || c->c_lock == NULL,
+	    ("%s: direct callout %p has lock", __func__, c));
 	cc = callout_lock(c);
 	if (cc->cc_exec_entity[direct].cc_curr == c) {
 		/*

@@ -445,6 +445,8 @@ int	tvtohz(struct timeval *tv);
 	(((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /           \
 	    ((bt)->frac >> 1))
 
+#define	SBT2FREQ(sbt)	((SBT_1S + ((sbt) >> 1)) / (sbt))
+
 #define	FREQ2BT(freq, bt)                                               \
 {									\
 	(bt)->sec = 0;                                                  \

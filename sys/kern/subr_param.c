@@ -223,8 +223,8 @@ init_param1(void)
 	if (hz == -1)
 		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
 	tick = 1000000 / hz;
-	FREQ2BT(hz, &tick_bt);
-	tick_sbt = bintime2sbintime(tick_bt);
+	tick_sbt = SBT_1S / hz;
+	tick_bt = sbintime2bintime(tick_sbt);
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
