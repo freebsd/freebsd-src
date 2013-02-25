@@ -499,20 +499,13 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		series[i].Tries = rc[i].tries;
 
 		/*
-		 * XXX this isn't strictly correct - sc_txchainmask
-		 * XXX isn't the currently active chainmask;
-		 * XXX it's the interface chainmask at startup.
-		 * XXX It's overridden in the HAL rate scenario function
-		 * XXX for now.
-		 */
-		/*
 		 * XXX TODO: When the NIC is capable of three stream TX,
 		 * transmit 1/2 stream rates on two streams.
 		 *
 		 * This reduces the power consumption of the NIC and
 		 * keeps it within the PCIe slot power limits.
 		 */
-		series[i].ChSel = sc->sc_txchainmask;
+		series[i].ChSel = sc->sc_cur_txchainmask;
 
 		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
@@ -541,6 +534,14 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
 		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
+
+		/*
+		 * XXX TODO: STBC if it's possible
+		 */
+
+		/*
+		 * XXX TODO: LDPC if it's possible
+		 */
 
 		series[i].Rate = rt->info[rc[i].rix].rateCode;
 		series[i].RateIndex = rc[i].rix;
