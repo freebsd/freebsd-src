@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 /*
@@ -140,6 +141,10 @@ uint_t		zio_taskq_basedc = 80;		/* base duty cycle */
 
 boolean_t	spa_create_process = B_TRUE;	/* no process ==> no sysdc */
 extern int	zfs_sync_pass_deferred_free;
+
+#ifndef illumos
+extern void spa_deadman(void *arg);
+#endif
 
 /*
  * This (illegal) pool name is used when temporarily importing a spa_t in order
@@ -6258,6 +6263,17 @@ spa_sync(spa_t *spa, uint64_t txg)
 
 	tx = dmu_tx_create_assigned(dp, txg);
 
+	spa->spa_sync_starttime = gethrtime();
+#ifdef illumos
+	VERIFY(cyclic_reprogram(spa->spa_deadman_cycid,
+	    spa->spa_sync_starttime + spa->spa_deadman_synctime));
+#else	/* FreeBSD */
+#ifdef _KERNEL
+	callout_reset(&spa->spa_deadman_cycid,
+	    hz * spa->spa_deadman_synctime / NANOSEC, spa_deadman, spa);
+#endif
+#endif
+
 	/*
 	 * If we are upgrading to SPA_VERSION_RAIDZ_DEFLATE this txg,
 	 * set spa_deflate if we have no raid-z vdevs.
@@ -6385,6 +6401,14 @@ spa_sync(spa_t *spa, uint64_t txg)
 		zio_resume_wait(spa);
 	}
 	dmu_tx_commit(tx);
+
+#ifdef illumos
+	VERIFY(cyclic_reprogram(spa->spa_deadman_cycid, CY_INFINITY));
+#else	/* FreeBSD */
+#ifdef _KERNEL
+	callout_drain(&spa->spa_deadman_cycid);
+#endif
+#endif
 
 	/*
 	 * Clear the dirty config list.
