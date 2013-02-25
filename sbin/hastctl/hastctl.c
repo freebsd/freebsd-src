@@ -351,6 +351,12 @@ control_status(struct nv *nv)
 		    (uint64_t)nv_get_uint64(nv, "stat_flush%u", ii));
 		printf("    activemap updates: %ju\n",
 		    (uint64_t)nv_get_uint64(nv, "stat_activemap_update%u", ii));
+		printf("    local errors: "
+		    "read: %ju, write: %ju, delete: %ju, flush: %ju\n",
+		    (uintmax_t)nv_get_uint64(nv, "stat_read_error%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "stat_write_error%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "stat_delete_error%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "stat_flush_error%u", ii));
 	}
 	return (ret);
 }
