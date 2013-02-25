@@ -855,9 +855,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	/*
 	 * If the caller specified a file descriptor, make sure the file
 	 * table is large enough to hold it, and grab it.  Otherwise, just
-	 * allocate a new descriptor the usual way.  Since the filedesc
-	 * lock may be temporarily dropped in the process, we have to look
-	 * out for a race.
+	 * allocate a new descriptor the usual way.
 	 */
 	if (flags & DUP_FIXED) {
 		if (new >= fdp->fd_nfiles) {
