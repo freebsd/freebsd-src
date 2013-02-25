@@ -1437,6 +1437,8 @@ struct ath_hal {
 	HAL_STATUS	__ahdecl(*ah_setQuiet)(struct ath_hal *ah, uint32_t period,
 				uint32_t duration, uint32_t nextStart,
 				HAL_QUIET_FLAG flag);
+	void	  __ahdecl(*ah_setChainMasks)(struct ath_hal *,
+				uint32_t, uint32_t);
 
 	/* DFS functions */
 	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,
