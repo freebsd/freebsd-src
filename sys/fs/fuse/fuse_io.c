@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <vm/vm_object.h>
 
 #include "fuse.h"
 #include "fuse_file.h"
