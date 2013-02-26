@@ -50,6 +50,19 @@ $FreeBSD$
 #define IFNET_BUF_RING 1
 #endif
 
+#if (__FreeBSD_version < 1000020)
+#undef IF_Kbps
+#undef IF_Mbps
+#undef IF_Gbps
+#define	IF_Kbps(x)	((uintmax_t)(x) * 1000)	/* kilobits/sec. */
+#define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
+#define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
+static __inline void
+if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
+{
+	ifp->if_baudrate = baud;
+}
+#endif
 #ifndef VLAN_CAPABILITIES
 #define VLAN_CAPABILITIES(ifp)
 #define mxge_vlans_active(sc) (sc)->ifp->if_nvlans
@@ -73,10 +86,33 @@ $FreeBSD$
 #define IFCAP_TSO4 0
 #endif
 
+#ifndef IFCAP_TSO6
+#define IFCAP_TSO6 0
+#endif
+
+#ifndef IFCAP_TXCSUM_IPV6
+#define IFCAP_TXCSUM_IPV6 0
+#endif
+
+#ifndef IFCAP_RXCSUM_IPV6
+#define IFCAP_RXCSUM_IPV6 0
+#endif
+
 #ifndef CSUM_TSO
 #define CSUM_TSO 0
 #endif
 
+#ifndef CSUM_TCP_IPV6
+#define CSUM_TCP_IPV6 0
+#endif
+
+#ifndef CSUM_UDP_IPV6
+#define CSUM_UDP_IPV6 0
+#endif
+
+#ifndef CSUM_DELAY_DATA_IPV6
+#define CSUM_DELAY_DATA_IPV6 0
+#endif
 
 typedef struct {
 	void *addr;
@@ -270,6 +306,7 @@ struct mxge_softc {
 	int dying;
 	int connector;
 	int current_media;
+	int max_tso6_hlen;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	struct taskqueue *tq;
@@ -311,6 +348,15 @@ struct mxge_media_type
 	uint8_t bitmask;
 	char *name;
 };
+
+struct mxge_pkt_info {
+	int ip_off;
+	int ip_hlen;
+	struct ip *ip;
+	struct ip6_hdr *ip6;
+	struct tcphdr *tcp;
+};
+
 
 /* implement our own memory barriers, since bus_space_barrier
    cannot handle write-combining regions */
