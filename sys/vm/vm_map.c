@@ -125,7 +125,6 @@ static uma_zone_t mapentzone;
 static uma_zone_t kmapentzone;
 static uma_zone_t mapzone;
 static uma_zone_t vmspace_zone;
-static struct vm_object kmapentobj;
 static int vmspace_zinit(void *mem, int size, int flags);
 static void vmspace_zfini(void *mem, int size);
 static int vm_map_zinit(void *mem, int ize, int flags);
@@ -303,7 +302,7 @@ vmspace_alloc(min, max)
 void
 vm_init2(void)
 {
-	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(cnt.v_page_count,
+	uma_zone_reserve_kva(kmapentzone, lmin(cnt.v_page_count,
 	    (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / PAGE_SIZE) / 8 +
 	     maxproc * 2 + maxfiles);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,

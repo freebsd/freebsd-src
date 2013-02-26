@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
@@ -213,7 +214,7 @@ enum zfreeskip { SKIP_NONE, SKIP_DTOR, SKIP_FINI };
 
 /* Prototypes.. */
 
-static void *obj_alloc(uma_zone_t, int, u_int8_t *, int);
+static void *noobj_alloc(uma_zone_t, int, u_int8_t *, int);
 static void *page_alloc(uma_zone_t, int, u_int8_t *, int);
 static void *startup_alloc(uma_zone_t, int, u_int8_t *, int);
 static void page_free(void *, int, u_int8_t);
@@ -1030,50 +1031,53 @@ page_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
  *	NULL if M_NOWAIT is set.
  */
 static void *
-obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+noobj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	vm_object_t object;
+	TAILQ_HEAD(, vm_page) alloctail;
+	u_long npages;
 	vm_offset_t retkva, zkva;
-	vm_page_t p;
-	int pages, startpages;
+	vm_page_t p, p_next;
 	uma_keg_t keg;
 
+	TAILQ_INIT(&alloctail);
 	keg = zone_first_keg(zone);
-	object = keg->uk_obj;
-	retkva = 0;
 
-	/*
-	 * This looks a little weird since we're getting one page at a time.
-	 */
-	VM_OBJECT_LOCK(object);
-	p = TAILQ_LAST(&object->memq, pglist);
-	pages = p != NULL ? p->pindex + 1 : 0;
-	startpages = pages;
-	zkva = keg->uk_kva + pages * PAGE_SIZE;
-	for (; bytes > 0; bytes -= PAGE_SIZE) {
-		p = vm_page_alloc(object, pages,
-		    VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
-		if (p == NULL) {
-			if (pages != startpages)
-				pmap_qremove(retkva, pages - startpages);
-			while (pages != startpages) {
-				pages--;
-				p = TAILQ_LAST(&object->memq, pglist);
-				vm_page_unwire(p, 0);
-				vm_page_free(p);
-			}
-			retkva = 0;
-			goto done;
+	npages = howmany(bytes, PAGE_SIZE);
+	while (npages > 0) {
+		p = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT |
+		    VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
+		if (p != NULL) {
+			/*
+			 * Since the page does not belong to an object, its
+			 * listq is unused.
+			 */
+			TAILQ_INSERT_TAIL(&alloctail, p, listq);
+			npages--;
+			continue;
 		}
-		pmap_qenter(zkva, &p, 1);
-		if (retkva == 0)
-			retkva = zkva;
-		zkva += PAGE_SIZE;
-		pages += 1;
+		if (wait & M_WAITOK) {
+			VM_WAIT;
+			continue;
+		}
+
+		/*
+		 * Page allocation failed, free intermediate pages and
+		 * exit.
+		 */
+		TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
+			vm_page_unwire(p, 0);
+			vm_page_free(p); 
+		}
+		return (NULL);
 	}
-done:
-	VM_OBJECT_UNLOCK(object);
 	*flags = UMA_SLAB_PRIV;
+	zkva = keg->uk_kva +
+	    atomic_fetchadd_long(&keg->uk_offset, round_page(bytes));
+	retkva = zkva;
+	TAILQ_FOREACH(p, &alloctail, listq) {
+		pmap_qenter(zkva, &p, 1);
+		zkva += PAGE_SIZE;
+	}
 
 	return ((void *)retkva);
 }
@@ -3012,7 +3016,7 @@ uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf)
 
 /* See uma.h */
 int
-uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
+uma_zone_reserve_kva(uma_zone_t zone, int count)
 {
 	uma_keg_t keg;
 	vm_offset_t kva;
@@ -3024,21 +3028,25 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	if (pages * keg->uk_ipers < count)
 		pages++;
 
-	kva = kmem_alloc_nofault(kernel_map, pages * UMA_SLAB_SIZE);
-
-	if (kva == 0)
-		return (0);
-	if (obj == NULL)
-		obj = vm_object_allocate(OBJT_PHYS, pages);
-	else {
-		VM_OBJECT_LOCK_INIT(obj, "uma object");
-		_vm_object_allocate(OBJT_PHYS, pages, obj);
-	}
+#ifdef UMA_MD_SMALL_ALLOC
+	if (keg->uk_ppera > 1) {
+#else
+	if (1) {
+#endif
+		kva = kmem_alloc_nofault(kernel_map, pages * UMA_SLAB_SIZE);
+		if (kva == 0)
+			return (0);
+	} else
+		kva = 0;
 	ZONE_LOCK(zone);
 	keg->uk_kva = kva;
-	keg->uk_obj = obj;
+	keg->uk_offset = 0;
 	keg->uk_maxpages = pages;
-	keg->uk_allocf = obj_alloc;
+#ifdef UMA_MD_SMALL_ALLOC
+	keg->uk_allocf = (keg->uk_ppera > 1) ? noobj_alloc : uma_small_alloc;
+#else
+	keg->uk_allocf = noobj_alloc;
+#endif
 	keg->uk_flags |= UMA_ZONE_NOFREE | UMA_ZFLAG_PRIVALLOC;
 	ZONE_UNLOCK(zone);
 	return (1);
