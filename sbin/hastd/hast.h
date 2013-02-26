@@ -239,6 +239,18 @@ struct hast_resource {
 	uint64_t	hr_stat_flush;
 	/* Number of activemap updates. */
 	uint64_t	hr_stat_activemap_update;
+	/* Number of local read errors. */
+	uint64_t	hr_stat_read_error;
+	/* Number of local write errors. */
+	uint64_t	hr_stat_write_error;
+	/* Number of local delete errors. */
+	uint64_t	hr_stat_delete_error;
+	/* Number of flush errors. */
+	uint64_t	hr_stat_flush_error;
+	/* Number of activemap write errors. */
+	uint64_t	hr_stat_activemap_write_error;
+	/* Number of activemap flush errors. */
+	uint64_t	hr_stat_activemap_flush_error;
 
 	/* Next resource. */
 	TAILQ_ENTRY(hast_resource) hr_next;

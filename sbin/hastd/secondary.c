@@ -765,6 +765,7 @@ disk_thread(void *arg)
 				pjdlog_errno(LOG_WARNING,
 				    "Unable to store cleared activemap");
 				free(map);
+				res->hr_stat_activemap_write_error++;
 				break;
 			}
 			free(map);
@@ -883,8 +884,23 @@ send_thread(void *arg)
 			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
 			    hio->hio_cmd);
 		}
-		if (hio->hio_error != 0)
+		if (hio->hio_error != 0) {
+			switch (hio->hio_cmd) {
+			case HIO_READ:
+				res->hr_stat_read_error++;
+				break;
+			case HIO_WRITE:
+				res->hr_stat_write_error++;
+				break;
+			case HIO_DELETE:
+				res->hr_stat_delete_error++;
+				break;
+			case HIO_FLUSH:
+				res->hr_stat_flush_error++;
+				break;
+			}
 			nv_add_int16(nvout, hio->hio_error, "error");
+		}
 		if (hast_proto_send(res, res->hr_remoteout, nvout, data,
 		    length) == -1) {
 			secondary_exit(EX_TEMPFAIL, "Unable to send reply");
