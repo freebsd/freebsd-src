@@ -72,7 +72,7 @@ CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
 		-Wno-parentheses-equality -Wno-unused-function -Wno-conversion
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
-CWARNFLAGS+=	-Wno-switch -Wno-switch-enum
+CWARNFLAGS+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
 .endif # WARNS <= 2
 .if ${WARNS} <= 1
 CWARNFLAGS+=	-Wno-parentheses
