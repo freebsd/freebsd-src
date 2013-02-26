@@ -432,19 +432,21 @@ void uma_reclaim(void);
 void uma_set_align(int align);
 
 /*
- * Switches the backing object of a zone to VM_ALLOC_NOOBJ.
+ * Reserves the maximum KVA space required by the zone and configures the zone
+ * to use a VM_ALLOC_NOOBJ-based backend allocator.
  *
  * Arguments:
  *	zone  The zone to update.
- *	nitems  The number of items previewed to be allocated.
+ *	nitems  The upper limit on the number of items that can be allocated.
  *
  * Returns:
- *	0  if kva space can not be allocated
+ *	0  if KVA space can not be allocated
  *	1  if successful
  *
  * Discussion:
- *	The size will limit the amount of memory allocated to this zone.
- *
+ *	When the machine supports a direct map and the zone's items are smaller
+ *	than a page, the zone will use the direct map instead of allocating KVA
+ *	space.
  */
 int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
 
