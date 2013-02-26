@@ -408,8 +408,11 @@ pmc_soft_intr(struct pmckern_soft *ks)
 		}
 
 		processed = 1;
-		pc->soft_values[ri]++;
 		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+			if ((pc->soft_values[ri]--) <= 0)
+				pc->soft_values[ri] += pm->pm_sc.pm_reloadcount;
+			else
+				continue;
 			user_mode = TRAPF_USERMODE(ks->pm_tf);
 			error = pmc_process_interrupt(ks->pm_cpu, PMC_SR, pm,
 			    ks->pm_tf, user_mode);
@@ -424,7 +427,8 @@ pmc_soft_intr(struct pmckern_soft *ks)
 				 */
 				curthread->td_flags |= TDF_ASTPENDING;
 			}
-		}
+		} else
+			pc->soft_values[ri]++;
 	}
 
 	atomic_add_int(processed ? &pmc_stats.pm_intr_processed :

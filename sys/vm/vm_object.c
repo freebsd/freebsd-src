@@ -581,7 +581,7 @@ retry:
 						VM_OBJECT_WUNLOCK(robject);
 						object->flags |= OBJ_PIPWNT;
 						VM_OBJECT_SLEEP(object, object,
-						    PDROP | PVM, "objde2" , 0);
+						    PDROP | PVM, "objde2", 0);
 						VM_OBJECT_WLOCK(robject);
 						temp = robject->backing_object;
 						if (object == temp) {
