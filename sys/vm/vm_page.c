@@ -763,7 +763,7 @@ vm_page_sleep(vm_page_t m, const char *msg)
 	 * it.
 	 */
 	m->oflags |= VPO_WANTED;
-	msleep(m, VM_OBJECT_MTX(m->object), PVM, msg, 0);
+	VM_OBJECT_SLEEP(m->object, m, PVM, msg, 0);
 }
 
 /*
