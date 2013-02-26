@@ -21,11 +21,13 @@ using namespace llvm::object;
 
 namespace llvm {
 
-void RuntimeDyldMachO::resolveRelocation(uint8_t *LocalAddress,
-                                         uint64_t FinalAddress,
+void RuntimeDyldMachO::resolveRelocation(const SectionEntry &Section,
+                                         uint64_t Offset,
                                          uint64_t Value,
                                          uint32_t Type,
                                          int64_t Addend) {
+  uint8_t *LocalAddress = Section.Address + Offset;
+  uint64_t FinalAddress = Section.LoadAddress + Offset;
   bool isPCRel = (Type >> 24) & 1;
   unsigned MachoType = (Type >> 28) & 0xf;
   unsigned Size = 1 << ((Type >> 25) & 3);
@@ -57,7 +59,7 @@ void RuntimeDyldMachO::resolveRelocation(uint8_t *LocalAddress,
                           FinalAddress,
                           (uintptr_t)Value,
                           isPCRel,
-                          Type,
+                          MachoType,
                           Size,
                           Addend);
     break;
@@ -211,7 +213,6 @@ void RuntimeDyldMachO::processRelocationRef(const ObjRelocationInfo &Rel,
   uint32_t RelType = (uint32_t) (Rel.Type & 0xffffffffL);
   RelocationValueRef Value;
   SectionEntry &Section = Sections[Rel.SectionID];
-  uint8_t *Target = Section.Address + Rel.Offset;
 
   bool isExtern = (RelType >> 27) & 1;
   if (isExtern) {
@@ -246,7 +247,12 @@ void RuntimeDyldMachO::processRelocationRef(const ObjRelocationInfo &Rel,
     }
     assert(si != se && "No section containing relocation!");
     Value.SectionID = findOrEmitSection(Obj, *si, true, ObjSectionToID);
-    Value.Addend = *(const intptr_t *)Target;
+    Value.Addend = 0;
+    // FIXME: The size and type of the relocation determines if we can
+    // encode an Addend in the target location itself, and if so, how many
+    // bytes we should read in order to get it. We don't yet support doing
+    // that, and just assuming it's sizeof(intptr_t) is blatantly wrong.
+    //Value.Addend = *(const intptr_t *)Target;
     if (Value.Addend) {
       // The MachO addend is an offset from the current section.  We need it
       // to be an offset from the destination section
@@ -254,13 +260,13 @@ void RuntimeDyldMachO::processRelocationRef(const ObjRelocationInfo &Rel,
     }
   }
 
-  if (Arch == Triple::arm && RelType == macho::RIT_ARM_Branch24Bit) {
+  if (Arch == Triple::arm && (RelType & 0xf) == macho::RIT_ARM_Branch24Bit) {
     // This is an ARM branch relocation, need to use a stub function.
 
     //  Look up for existing stub.
     StubMap::const_iterator i = Stubs.find(Value);
     if (i != Stubs.end())
-      resolveRelocation(Target, (uint64_t)Target,
+      resolveRelocation(Section, Rel.Offset,
                         (uint64_t)Section.Address + i->second,
                         RelType, 0);
     else {
@@ -274,7 +280,7 @@ void RuntimeDyldMachO::processRelocationRef(const ObjRelocationInfo &Rel,
         addRelocationForSymbol(RE, Value.SymbolName);
       else
         addRelocationForSection(RE, Value.SectionID);
-      resolveRelocation(Target, (uint64_t)Target,
+      resolveRelocation(Section, Rel.Offset,
                         (uint64_t)Section.Address + Section.StubOffset,
                         RelType, 0);
       Section.StubOffset += getMaxStubSize();
@@ -290,8 +296,10 @@ void RuntimeDyldMachO::processRelocationRef(const ObjRelocationInfo &Rel,
 
 
 bool RuntimeDyldMachO::isCompatibleFormat(
-        const MemoryBuffer *InputBuffer) const {
-  StringRef Magic = InputBuffer->getBuffer().slice(0, 4);
+        const ObjectBuffer *InputBuffer) const {
+  if (InputBuffer->getBufferSize() < 4)
+    return false;
+  StringRef Magic(InputBuffer->getBufferStart(), 4);
   if (Magic == "\xFE\xED\xFA\xCE") return true;
   if (Magic == "\xCE\xFA\xED\xFE") return true;
   if (Magic == "\xFE\xED\xFA\xCF") return true;

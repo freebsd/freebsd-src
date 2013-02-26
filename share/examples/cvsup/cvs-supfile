@@ -1,7 +1,14 @@
 # $FreeBSD$
 #
-# This file contains all of the "CVSup collections" that make up the
-# CVS development tree of the FreeBSD system.
+# BEWARE, CVS is deprecated and no longer supported by the FreeBSD project.
+#
+# The primary development work happens in Subversion and is temporarily
+# exported to the legacy CVS system with significant time delays.
+#
+# You should NOT set up a new consumer of FreeBSD source code via CVS.
+# Please see:
+# http://www.freebsd.org/doc/handbook/svn.html
+# http://www.freebsd.org/doc/handbook/svn-mirrors.html
 #
 # csup (CVS Update Protocol) allows you to download the latest CVS
 # tree (or any branch of development therefrom) to your system easily
@@ -61,113 +68,12 @@
 # mega-collection.  It includes all of the individual "src-*" collections.
 src-all
 
-# These are the individual collections that make up "src-all".  If you
-# use these, be sure to comment out "src-all" above.
-#src-base
-#src-bin
-#src-cddl
-#src-contrib
-#src-etc
-#src-games
-#src-gnu
-#src-include
-#src-kerberos5
-#src-kerberosIV
-#src-lib
-#src-libexec
-#src-release
-#src-rescue
-#src-sbin
-#src-share
-#src-sys
-#src-tools
-#src-usrbin
-#src-usrsbin
-# These are the individual collections that make up FreeBSD's crypto
-# collection. They are no longer export-restricted and are a part of
-# src-all
-#src-crypto
-#src-eBones
-#src-secure
-#src-sys-crypto
-
 ## Ports Collection.
 #
 # The easiest way to get the ports tree is to use the "ports-all"
 # mega-collection.  It includes all of the individual "ports-*"
 # collections,
 ports-all
-
-# These are the individual collections that make up "ports-all".  If you
-# use these, be sure to comment out "ports-all" above and always include
-# "ports-base" if you use any of the other individual collections below.
-# Your ports may not build correctly without an up-to-date "ports-base".
-#
-#ports-base
-#
-#ports-accessibility
-#ports-arabic
-#ports-archivers
-#ports-astro
-#ports-audio
-#ports-benchmarks
-#ports-biology
-#ports-cad
-#ports-chinese
-#ports-comms
-#ports-converters
-#ports-databases
-#ports-deskutils
-#ports-devel
-#ports-dns
-#ports-editors
-#ports-emulators
-#ports-finance
-#ports-french
-#ports-ftp
-#ports-games
-#ports-german
-#ports-graphics
-#ports-hebrew
-#ports-hungarian
-#ports-irc
-#ports-japanese
-#ports-java
-#ports-korean
-#ports-lang
-#ports-mail
-#ports-math
-#ports-misc
-#ports-multimedia
-#ports-net
-#ports-net-im
-#ports-net-mgmt
-#ports-net-p2p
-#ports-news
-#ports-palm
-#ports-picobsd
-#ports-polish
-#ports-ports-mgmt
-#ports-portuguese
-#ports-print
-#ports-russian
-#ports-science
-#ports-security
-#ports-shells
-#ports-sysutils
-#ports-textproc
-#ports-ukrainian
-#ports-vietnamese
-#ports-www
-#ports-x11
-#ports-x11-clocks
-#ports-x11-drivers
-#ports-x11-fm
-#ports-x11-fonts
-#ports-x11-servers
-#ports-x11-themes
-#ports-x11-toolkits
-#ports-x11-wm
 
 ## Projects
 #
@@ -179,11 +85,3 @@ projects-all
 #
 # This is to get the control files that cvs(1) needs and the commit logs.
 cvsroot-all
-
-# These are the individual collections that make up "cvsroot-all"  If you
-# use these, be sure to comment out "cvsroot-all" above.  "cvsroot-common"
-# is a synthetic CVSROOT that has all the modules from the other CVSROOT-*
-# directories merged into one, and merged commitlogs via symlinks.
-#cvsroot-common
-#cvsroot-src
-#cvsroot-ports

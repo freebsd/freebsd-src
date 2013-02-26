@@ -129,7 +129,7 @@ static int 	vtscsi_execute_abort_task_cmd(struct vtscsi_softc *,
 static int 	vtscsi_execute_reset_dev_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
 
-static void 	vtscsi_get_request_lun(uint8_t lun[], target_id_t *, lun_id_t *);
+static void 	vtscsi_get_request_lun(uint8_t [], target_id_t *, lun_id_t *);
 static void	vtscsi_set_request_lun(struct ccb_hdr *, uint8_t []);
 static void	vtscsi_init_scsi_cmd_req(struct ccb_scsiio *,
 		    struct virtio_scsi_cmd_req *);
@@ -347,18 +347,15 @@ vtscsi_attach(device_t dev)
 		device_printf(dev, "cannot allocate taskqueue\n");
 		goto fail;
 	}
-	error = taskqueue_start_threads(&sc->vtscsi_tq, 1, PI_DISK, "%s taskq",
-	    device_get_nameunit(dev));
-	if (error) {
-		device_printf(dev, "cannot start taskqueue threads\n");
-		goto fail;
-	}
 
 	error = virtio_setup_intr(dev, INTR_TYPE_CAM);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupts\n");
 		goto fail;
 	}
+
+	taskqueue_start_threads(&sc->vtscsi_tq, 1, PI_DISK, "%s taskq",
+	    device_get_nameunit(dev));
 
 	vtscsi_enable_vqs_intr(sc);
 
@@ -964,28 +961,31 @@ vtscsi_sg_append_scsi_buf(struct vtscsi_softc *sc, struct sglist *sg,
 	ccbh = &csio->ccb_h;
 	error = 0;
 
-	if ((ccbh->flags & CAM_SCATTER_VALID) == 0) {
-
-		if ((ccbh->flags & CAM_DATA_PHYS) == 0)
-			error = sglist_append(sg,
-			    csio->data_ptr, csio->dxfer_len);
-		else
-			error = sglist_append_phys(sg,
-			    (vm_paddr_t)(vm_offset_t) csio->data_ptr,
-			    csio->dxfer_len);
-	} else {
-
+	switch ((ccbh->flags & CAM_DATA_MASK)) {
+	case CAM_DATA_VADDR:
+		error = sglist_append(sg, csio->data_ptr, csio->dxfer_len);
+		break;
+	case CAM_DATA_PADDR:
+		error = sglist_append_phys(sg,
+		    (vm_paddr_t)(vm_offset_t) csio->data_ptr, csio->dxfer_len);
+		break;
+	case CAM_DATA_SG:
 		for (i = 0; i < csio->sglist_cnt && error == 0; i++) {
 			dseg = &((struct bus_dma_segment *)csio->data_ptr)[i];
-
-			if ((ccbh->flags & CAM_SG_LIST_PHYS) == 0)
-				error = sglist_append(sg,
-				    (void *)(vm_offset_t) dseg->ds_addr,
-				    dseg->ds_len);
-			else
-				error = sglist_append_phys(sg,
-				    (vm_paddr_t) dseg->ds_addr, dseg->ds_len);
+			error = sglist_append(sg,
+			    (void *)(vm_offset_t) dseg->ds_addr, dseg->ds_len);
 		}
+		break;
+	case CAM_DATA_SG_PADDR:
+		for (i = 0; i < csio->sglist_cnt && error == 0; i++) {
+			dseg = &((struct bus_dma_segment *)csio->data_ptr)[i];
+			error = sglist_append_phys(sg,
+			    (vm_paddr_t) dseg->ds_addr, dseg->ds_len);
+		}
+		break;
+	default:
+		error = EINVAL;
+		break;
 	}
 
 	return (error);
@@ -1672,9 +1672,6 @@ vtscsi_announce(struct vtscsi_softc *sc, uint32_t ac_code,
     target_id_t target_id, lun_id_t lun_id)
 {
 	struct cam_path *path;
-
-		xpt_async(ac_code, sc->vtscsi_path, NULL);
-		return;
 
 	/* Use the wildcard path from our softc for bus announcements. */
 	if (target_id == CAM_TARGET_WILDCARD && lun_id == CAM_LUN_WILDCARD) {

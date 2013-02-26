@@ -123,7 +123,7 @@ typedef std::pair<unsigned,unsigned> ScopePair;
 /// diagnostic that should be emitted if control goes over it. If not, return 0.
 static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
   if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
-    unsigned InDiag = 0, OutDiag = 0;
+    unsigned InDiag = 0;
     if (VD->getType()->isVariablyModifiedType())
       InDiag = diag::note_protected_by_vla;
 
@@ -164,43 +164,53 @@ static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
       //   where it is in scope is ill-formed unless the variable has
       //   POD type and is declared without an initializer.
 
-      if (const Expr *init = VD->getInit()) {
-        // We actually give variables of record type (or array thereof)
-        // an initializer even if that initializer only calls a trivial
-        // ctor.  Detect that case.
-        // FIXME: With generalized initializer lists, this may
-        // classify "X x{};" as having no initializer.
-        unsigned inDiagToUse = diag::note_protected_by_variable_init;
+      const Expr *Init = VD->getInit();
+      if (!Init)
+        return ScopePair(InDiag, 0);
 
-        const CXXRecordDecl *record = 0;
+      const ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(Init);
+      if (EWC)
+        Init = EWC->getSubExpr();
 
-        if (const CXXConstructExpr *cce = dyn_cast<CXXConstructExpr>(init)) {
-          const CXXConstructorDecl *ctor = cce->getConstructor();
-          record = ctor->getParent();
+      const MaterializeTemporaryExpr *M = NULL;
+      Init = Init->findMaterializedTemporary(M);
 
-          if (ctor->isTrivial() && ctor->isDefaultConstructor()) {
-            if (!record->hasTrivialDestructor())
-              inDiagToUse = diag::note_protected_by_variable_nontriv_destructor;
-            else if (!record->isPOD())
-              inDiagToUse = diag::note_protected_by_variable_non_pod;
-            else
-              inDiagToUse = 0;
-          }
-        } else if (VD->getType()->isArrayType()) {
-          record = VD->getType()->getBaseElementTypeUnsafe()
-                                ->getAsCXXRecordDecl();
+      SmallVector<SubobjectAdjustment, 2> Adjustments;
+      Init = Init->skipRValueSubobjectAdjustments(Adjustments);
+
+      QualType QT = Init->getType();
+      if (QT.isNull())
+        return ScopePair(diag::note_protected_by_variable_init, 0);
+
+      const Type *T = QT.getTypePtr();
+      if (T->isArrayType())
+        T = T->getBaseElementTypeUnsafe();
+
+      const CXXRecordDecl *Record = T->getAsCXXRecordDecl();
+      if (!Record)
+        return ScopePair(diag::note_protected_by_variable_init, 0);
+
+      // If we need to call a non trivial destructor for this variable,
+      // record an out diagnostic.
+      unsigned OutDiag = 0;
+      if (!Init->isGLValue() && !Record->hasTrivialDestructor())
+        OutDiag = diag::note_exits_dtor;
+
+      if (const CXXConstructExpr *cce = dyn_cast<CXXConstructExpr>(Init)) {
+        const CXXConstructorDecl *ctor = cce->getConstructor();
+        if (ctor->isTrivial() && ctor->isDefaultConstructor()) {
+          if (OutDiag)
+            InDiag = diag::note_protected_by_variable_nontriv_destructor;
+          else if (!Record->isPOD())
+            InDiag = diag::note_protected_by_variable_non_pod;
+          return ScopePair(InDiag, OutDiag);
         }
-
-        if (inDiagToUse)
-          InDiag = inDiagToUse;
-
-        // Also object to indirect jumps which leave scopes with dtors.
-        if (record && !record->hasTrivialDestructor())
-          OutDiag = diag::note_exits_dtor;
       }
+
+      return ScopePair(diag::note_protected_by_variable_init, OutDiag);
     }
-    
-    return ScopePair(InDiag, OutDiag);    
+
+    return ScopePair(InDiag, 0);
   }
 
   if (const TypedefDecl *TD = dyn_cast<TypedefDecl>(D)) {
@@ -322,6 +332,29 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned &origParentScope)
     Jumps.push_back(S);
     break;
 
+  case Stmt::CXXTryStmtClass: {
+    CXXTryStmt *TS = cast<CXXTryStmt>(S);
+    unsigned newParentScope;
+    Scopes.push_back(GotoScope(ParentScope,
+                               diag::note_protected_by_cxx_try,
+                               diag::note_exits_cxx_try,
+                               TS->getSourceRange().getBegin()));
+    if (Stmt *TryBlock = TS->getTryBlock())
+      BuildScopeInformation(TryBlock, (newParentScope = Scopes.size()-1));
+
+    // Jump from the catch into the try is not allowed either.
+    for (unsigned I = 0, E = TS->getNumHandlers(); I != E; ++I) {
+      CXXCatchStmt *CS = TS->getHandler(I);
+      Scopes.push_back(GotoScope(ParentScope,
+                                 diag::note_protected_by_cxx_catch,
+                                 diag::note_exits_cxx_catch,
+                                 CS->getSourceRange().getBegin()));
+      BuildScopeInformation(CS->getHandlerBlock(), 
+                            (newParentScope = Scopes.size()-1));
+    }
+    return;
+  }
+
   default:
     break;
   }
@@ -418,30 +451,6 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned &origParentScope)
       continue;
     }
 
-    // Disallow jumps into any part of a C++ try statement. This is pretty
-    // much the same as for Obj-C.
-    if (CXXTryStmt *TS = dyn_cast<CXXTryStmt>(SubStmt)) {
-      Scopes.push_back(GotoScope(ParentScope,
-                                 diag::note_protected_by_cxx_try,
-                                 diag::note_exits_cxx_try,
-                                 TS->getSourceRange().getBegin()));
-      if (Stmt *TryBlock = TS->getTryBlock())
-        BuildScopeInformation(TryBlock, (newParentScope = Scopes.size()-1));
-
-      // Jump from the catch into the try is not allowed either.
-      for (unsigned I = 0, E = TS->getNumHandlers(); I != E; ++I) {
-        CXXCatchStmt *CS = TS->getHandler(I);
-        Scopes.push_back(GotoScope(ParentScope,
-                                   diag::note_protected_by_cxx_catch,
-                                   diag::note_exits_cxx_catch,
-                                   CS->getSourceRange().getBegin()));
-        BuildScopeInformation(CS->getHandlerBlock(), 
-                              (newParentScope = Scopes.size()-1));
-      }
-
-      continue;
-    }
-
     // Disallow jumps into the protected statement of an @autoreleasepool.
     if (ObjCAutoreleasePoolStmt *AS = dyn_cast<ObjCAutoreleasePoolStmt>(SubStmt)){
       // Recursively walk the AST for the @autoreleasepool part, protected by a new
@@ -453,14 +462,19 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S, unsigned &origParentScope)
       BuildScopeInformation(AS->getSubStmt(), (newParentScope = Scopes.size()-1));
       continue;
     }
-    
-    if (const BlockExpr *BE = dyn_cast<BlockExpr>(SubStmt)) {
-        const BlockDecl *BDecl = BE->getBlockDecl();
+
+    // Disallow jumps past full-expressions that use blocks with
+    // non-trivial cleanups of their captures.  This is theoretically
+    // implementable but a lot of work which we haven't felt up to doing.
+    if (ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(SubStmt)) {
+      for (unsigned i = 0, e = EWC->getNumObjects(); i != e; ++i) {
+        const BlockDecl *BDecl = EWC->getObject(i);
         for (BlockDecl::capture_const_iterator ci = BDecl->capture_begin(),
              ce = BDecl->capture_end(); ci != ce; ++ci) {
           VarDecl *variable = ci->getVariable();
           BuildScopeInformation(variable, BDecl, ParentScope);
         }
+      }
     }
     
     // Recursively walk the AST.

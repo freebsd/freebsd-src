@@ -467,7 +467,7 @@ ng_mppc_compress(node_p node, struct mbuf **datap)
 	struct mbuf *m = *datap;
 
 	/* We must own the mbuf chain exclusively to modify it. */
-	m = m_unshare(m, M_DONTWAIT);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL)
 		return (ENOMEM);
 
@@ -595,7 +595,7 @@ err1:
 	MPPC_CCOUNT_INC(d->cc);
 
 	/* Install header */
-	M_PREPEND(m, MPPC_HDRLEN, M_DONTWAIT);
+	M_PREPEND(m, MPPC_HDRLEN, M_NOWAIT);
 	if (m != NULL)
 		be16enc(mtod(m, void *), header);
 
@@ -617,7 +617,7 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 	struct mbuf *m = *datap;
 
 	/* We must own the mbuf chain exclusively to modify it. */
-	m = m_unshare(m, M_DONTWAIT);
+	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL)
 		return (ENOMEM);
 

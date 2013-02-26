@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -66,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/sdhci/sdhci.h>
 #include "sdhci_if.h"
 
+#define	BCM2835_DEFAULT_SDHCI_FREQ	50
+
 #define	DEBUG
 
 #ifdef DEBUG
@@ -74,6 +77,17 @@ __FBSDID("$FreeBSD$");
 #else
 #define dprintf(fmt, args...)
 #endif
+
+/* 
+ * Arasan HC seems to have problem with Data CRC on lower frequencies.
+ * Use this tunable to cap initialization sequence frequency at higher
+ * value. Default is standard 400kHz
+ */
+static int bcm2835_sdhci_min_freq = 400000;
+static int bcm2835_sdhci_hs = 1;
+
+TUNABLE_INT("hw.bcm2835.sdhci.min_freq", &bcm2835_sdhci_min_freq);
+TUNABLE_INT("hw.bcm2835.sdhci.hs", &bcm2835_sdhci_hs);
 
 struct bcm_sdhci_dmamap_arg {
 	bus_addr_t		sc_dma_busaddr;
@@ -129,9 +143,19 @@ bcm_sdhci_attach(device_t dev)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	int rid, err;
+	phandle_t node;
+	pcell_t cell;
+	int default_freq;
 
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
+
+	default_freq = BCM2835_DEFAULT_SDHCI_FREQ;
+	node = ofw_bus_get_node(sc->sc_dev);
+	if ((OF_getprop(node, "clock-frequency", &cell, sizeof(cell))) > 0)
+		default_freq = (int)fdt32_to_cpu(cell)/1000000;
+
+	dprintf("SDHCI frequency: %dMHz\n", default_freq);
 
 	mtx_init(&sc->sc_mtx, "bcm sdhci", "sdhci", MTX_DEF);
 
@@ -167,8 +191,10 @@ bcm_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->sc_slot.caps = SDHCI_CAN_VDD_330 | SDHCI_CAN_VDD_180 | SDHCI_CAN_DO_HISPD;
-	sc->sc_slot.caps |= (50 << SDHCI_CLOCK_BASE_SHIFT);
+	sc->sc_slot.caps = SDHCI_CAN_VDD_330 | SDHCI_CAN_VDD_180;
+	if (bcm2835_sdhci_hs)
+		sc->sc_slot.caps |= SDHCI_CAN_DO_HISPD;
+	sc->sc_slot.caps |= (default_freq << SDHCI_CLOCK_BASE_SHIFT);
 	sc->sc_slot.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK 
 		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
 		| SDHCI_QUIRK_MISSING_CAPS;
@@ -321,6 +347,13 @@ bcm_sdhci_write_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	bus_space_write_multi_4(sc->sc_bst, sc->sc_bsh, off, data, count);
 }
 
+static uint32_t
+bcm_sdhci_min_freq(device_t dev, struct sdhci_slot *slot)
+{
+
+	return bcm2835_sdhci_min_freq;
+}
+
 static device_method_t bcm_sdhci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_sdhci_probe),
@@ -340,6 +373,7 @@ static device_method_t bcm_sdhci_methods[] = {
 	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
 
 	/* SDHCI registers accessors */
+	DEVMETHOD(sdhci_min_freq,	bcm_sdhci_min_freq),
 	DEVMETHOD(sdhci_read_1,		bcm_sdhci_read_1),
 	DEVMETHOD(sdhci_read_2,		bcm_sdhci_read_2),
 	DEVMETHOD(sdhci_read_4,		bcm_sdhci_read_4),

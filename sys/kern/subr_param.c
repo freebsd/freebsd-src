@@ -159,6 +159,8 @@ static const char *const vm_bnames[] = {
 	"Plex86",			/* Plex86 */
 	"Bochs",			/* Bochs */
 	"Xen",				/* Xen */
+	"BHYVE",			/* bhyve */
+	"Seabios",			/* KVM */
 	NULL
 };
 
@@ -167,6 +169,7 @@ static const char *const vm_pnames[] = {
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
 	"Parallels Virtual Platform",	/* Parallels VM */
+	"KVM",				/* KVM */
 	NULL
 };
 
@@ -293,19 +296,25 @@ init_param2(long physpages)
 	/*
 	 * The following can be overridden after boot via sysctl.  Note:
 	 * unless overriden, these macros are ultimately based on maxusers.
-	 */
-	maxproc = NPROC;
-	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
-	/*
 	 * Limit maxproc so that kmap entries cannot be exhausted by
 	 * processes.
 	 */
+	maxproc = NPROC;
+	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
 	if (maxproc > (physpages / 12))
 		maxproc = physpages / 12;
-	maxfiles = MAXFILES;
-	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
 	maxprocperuid = (maxproc * 9) / 10;
-	maxfilesperproc = (maxfiles * 9) / 10;
+
+	/*
+	 * The default limit for maxfiles is 1/12 of the number of
+	 * physical page but not less than 16 times maxusers.
+	 * At most it can be 1/6 the number of physical pages.
+	 */
+	maxfiles = imax(MAXFILES, physpages / 8);
+	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
+	if (maxfiles > (physpages / 4))
+		maxfiles = physpages / 4;
+	maxfilesperproc = (maxfiles / 10) * 9;
 	
 	/*
 	 * Cannot be changed after boot.
@@ -313,7 +322,13 @@ init_param2(long physpages)
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
 
-	ncallout = 16 + maxproc + maxfiles;
+	/*
+	 * XXX: Does the callout wheel have to be so big?
+	 *
+	 * Clip callout to result of previous function of maxusers maximum
+	 * 384.  This is still huge, but acceptable.
+	 */
+	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 
 	/*
@@ -321,12 +336,12 @@ init_param2(long physpages)
 	 * max(1/64 of main memory, 512KB)).  See sys_pipe.c for more details.
 	 */
 	maxpipekva = (physpages / 64) * PAGE_SIZE;
+	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
 	if (maxpipekva > (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / 64)
 		maxpipekva = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) /
 		    64;
-	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
 
 /*

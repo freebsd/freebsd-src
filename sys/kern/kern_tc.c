@@ -103,8 +103,8 @@ static struct timecounter *timecounters = &dummy_timecounter;
 
 int tc_min_ticktock_freq = 1;
 
-time_t time_second = 1;
-time_t time_uptime = 1;
+volatile time_t time_second = 1;
+volatile time_t time_uptime = 1;
 
 struct bintime boottimebin;
 struct timeval boottime;
@@ -1446,6 +1446,50 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
  * RFC 2783 PPS-API implementation.
  */
 
+static int
+pps_fetch(struct pps_fetch_args *fapi, struct pps_state *pps)
+{
+	int err, timo;
+	pps_seq_t aseq, cseq;
+	struct timeval tv;
+
+	if (fapi->tsformat && fapi->tsformat != PPS_TSFMT_TSPEC)
+		return (EINVAL);
+
+	/*
+	 * If no timeout is requested, immediately return whatever values were
+	 * most recently captured.  If timeout seconds is -1, that's a request
+	 * to block without a timeout.  WITNESS won't let us sleep forever
+	 * without a lock (we really don't need a lock), so just repeatedly
+	 * sleep a long time.
+	 */
+	if (fapi->timeout.tv_sec || fapi->timeout.tv_nsec) {
+		if (fapi->timeout.tv_sec == -1)
+			timo = 0x7fffffff;
+		else {
+			tv.tv_sec = fapi->timeout.tv_sec;
+			tv.tv_usec = fapi->timeout.tv_nsec / 1000;
+			timo = tvtohz(&tv);
+		}
+		aseq = pps->ppsinfo.assert_sequence;
+		cseq = pps->ppsinfo.clear_sequence;
+		while (aseq == pps->ppsinfo.assert_sequence &&
+		    cseq == pps->ppsinfo.clear_sequence) {
+			err = tsleep(pps, PCATCH, "ppsfch", timo);
+			if (err == EWOULDBLOCK && fapi->timeout.tv_sec == -1) {
+				continue;
+			} else if (err != 0) {
+				return (err);
+			}
+		}
+	}
+
+	pps->ppsinfo.current_mode = pps->ppsparam.mode;
+	fapi->pps_info_buf = pps->ppsinfo;
+
+	return (0);
+}
+
 int
 pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 {
@@ -1485,13 +1529,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 		return (0);
 	case PPS_IOC_FETCH:
 		fapi = (struct pps_fetch_args *)data;
-		if (fapi->tsformat && fapi->tsformat != PPS_TSFMT_TSPEC)
-			return (EINVAL);
-		if (fapi->timeout.tv_sec || fapi->timeout.tv_nsec)
-			return (EOPNOTSUPP);
-		pps->ppsinfo.current_mode = pps->ppsparam.mode;
-		fapi->pps_info_buf = pps->ppsinfo;
-		return (0);
+		return (pps_fetch(fapi, pps));
 #ifdef FFCLOCK
 	case PPS_IOC_FETCH_FFCOUNTER:
 		fapi_ffc = (struct pps_fetch_ffc_args *)data;
@@ -1540,7 +1578,7 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 void
 pps_init(struct pps_state *pps)
 {
-	pps->ppscap |= PPS_TSFMT_TSPEC;
+	pps->ppscap |= PPS_TSFMT_TSPEC | PPS_CANWAIT;
 	if (pps->ppscap & PPS_CAPTUREASSERT)
 		pps->ppscap |= PPS_OFFSETASSERT;
 	if (pps->ppscap & PPS_CAPTURECLEAR)
@@ -1680,6 +1718,9 @@ pps_event(struct pps_state *pps, int event)
 		hardpps(tsp, ts.tv_nsec + 1000000000 * ts.tv_sec);
 	}
 #endif
+
+	/* Wakeup anyone sleeping in pps_fetch().  */
+	wakeup(pps);
 }
 
 /*

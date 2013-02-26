@@ -106,8 +106,8 @@ tcp_reass_zone_change(void *tag)
 
 	/* Set the zone limit and read back the effective value. */
 	V_tcp_reass_maxseg = nmbclusters / 16;
-	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
-	V_tcp_reass_maxseg = uma_zone_get_max(V_tcp_reass_zone);
+	V_tcp_reass_maxseg = uma_zone_set_max(V_tcp_reass_zone,
+	    V_tcp_reass_maxseg);
 }
 
 void
@@ -120,8 +120,8 @@ tcp_reass_init(void)
 	V_tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	/* Set the zone limit and read back the effective value. */
-	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
-	V_tcp_reass_maxseg = uma_zone_get_max(V_tcp_reass_zone);
+	V_tcp_reass_maxseg = uma_zone_set_max(V_tcp_reass_zone,
+	    V_tcp_reass_maxseg);
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 }
@@ -160,7 +160,7 @@ tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS)
 	int qsize;
 
 	qsize = uma_zone_get_cur(V_tcp_reass_zone);
-	return (sysctl_handle_int(oidp, &qsize, sizeof(qsize), req));
+	return (sysctl_handle_int(oidp, &qsize, 0, req));
 }
 
 int

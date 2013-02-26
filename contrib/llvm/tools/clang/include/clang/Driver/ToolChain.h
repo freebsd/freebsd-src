@@ -85,6 +85,10 @@ public:
   StringRef getPlatform() const { return Triple.getVendorName(); }
   StringRef getOS() const { return Triple.getOSName(); }
 
+  /// \brief Provide the default architecture name (as expected by -arch) for
+  /// this toolchain. Note t
+  std::string getDefaultUniversalArchName() const;
+
   std::string getTripleString() const {
     return Triple.getTriple();
   }
@@ -107,15 +111,15 @@ public:
     return 0;
   }
 
-  /// SelectTool - Choose a tool to use to handle the action \arg JA with the
-  /// given \arg Inputs.
+  /// SelectTool - Choose a tool to use to handle the action \p JA with the
+  /// given \p Inputs.
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
                            const ActionList &Inputs) const = 0;
 
   // Helper methods
 
   std::string GetFilePath(const char *Name) const;
-  std::string GetProgramPath(const char *Name, bool WantFile = false) const;
+  std::string GetProgramPath(const char *Name) const;
 
   // Platform defaults information
 
@@ -144,6 +148,10 @@ public:
   /// IsObjCDefaultSynthPropertiesDefault - Does this tool chain enable
   /// -fobjc-default-synthesize-properties by default.
   virtual bool IsObjCDefaultSynthPropertiesDefault() const { return false; }
+  
+  /// IsEncodeExtendedBlockSignatureDefault - Does this tool chain enable
+  /// -fencode-extended-block-signature by default.
+  virtual bool IsEncodeExtendedBlockSignatureDefault() const { return false; }
 
   /// IsObjCNonFragileABIDefault - Does this tool chain set
   /// -fobjc-nonfragile-abi by default.
@@ -166,16 +174,15 @@ public:
 
   /// IsUnwindTablesDefault - Does this tool chain use -funwind-tables
   /// by default.
-  virtual bool IsUnwindTablesDefault() const = 0;
+  virtual bool IsUnwindTablesDefault() const;
 
-  /// GetDefaultRelocationModel - Return the LLVM name of the default
-  /// relocation model for this tool chain.
-  virtual const char *GetDefaultRelocationModel() const = 0;
+  /// \brief Test whether this toolchain defaults to PIC.
+  virtual bool isPICDefault() const = 0;
 
-  /// GetForcedPicModel - Return the LLVM name of the forced PIC model
-  /// for this tool chain, or 0 if this tool chain does not force a
-  /// particular PIC mode.
-  virtual const char *GetForcedPicModel() const = 0;
+  /// \brief Tests whether this toolchain forces its default for PIC or non-PIC.
+  /// If this returns true, any PIC related flags should be ignored and instead
+  /// the result of \c isPICDefault() is used exclusively.
+  virtual bool isPICDefaultForced() const = 0;
 
   /// SupportsProfiling - Does this tool chain support -pg.
   virtual bool SupportsProfiling() const { return true; }
@@ -183,8 +190,8 @@ public:
   /// Does this tool chain support Objective-C garbage collection.
   virtual bool SupportsObjCGC() const { return true; }
 
-  /// Does this tool chain support Objective-C ARC.
-  virtual bool SupportsObjCARC() const { return true; }
+  /// Complain if this tool chain doesn't support Objective-C ARC.
+  virtual void CheckObjCARC() const {}
 
   /// UseDwarfDebugFlags - Embed the compile options to clang into the Dwarf
   /// compile unit information.
@@ -252,6 +259,13 @@ public:
   /// for kernel extensions (Darwin-specific).
   virtual void AddCCKextLibArgs(const ArgList &Args,
                                 ArgStringList &CmdArgs) const;
+
+  /// AddFastMathRuntimeIfAvailable - If a runtime library exists that sets
+  /// global flags for unsafe floating point math, add it and return true.
+  ///
+  /// This checks for presence of the -ffast-math or -funsafe-math flags.
+  virtual bool AddFastMathRuntimeIfAvailable(const ArgList &Args,
+                                             ArgStringList &CmdArgs) const;
 };
 
 } // end namespace driver

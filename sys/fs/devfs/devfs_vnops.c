@@ -1049,6 +1049,7 @@ devfs_open(struct vop_open_args *ap)
 	int error, ref, vlocked;
 	struct cdevsw *dsw;
 	struct file *fpop;
+	struct mtx *mtxp;
 
 	if (vp->v_type == VBLK)
 		return (ENXIO);
@@ -1088,8 +1089,11 @@ devfs_open(struct vop_open_args *ap)
 
 	vn_lock(vp, vlocked | LK_RETRY);
 	dev_relthread(dev, ref);
-	if (error)
+	if (error != 0) {
+		if (error == ERESTART)
+			error = EINTR;
 		return (error);
+	}
 
 #if 0	/* /dev/console */
 	KASSERT(fp != NULL, ("Could not vnode bypass device on NULL fp"));
@@ -1099,6 +1103,16 @@ devfs_open(struct vop_open_args *ap)
 #endif
 	if (fp->f_ops == &badfileops)
 		finit(fp, fp->f_flag, DTYPE_VNODE, dev, &devfs_ops_f);
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+
+	/*
+	 * Hint to the dofilewrite() to not force the buffer draining
+	 * on the writer to the file.  Most likely, the write would
+	 * not need normal buffers.
+	 */
+	mtx_lock(mtxp);
+	fp->f_vnread_flags |= FDEVFS_VNODE;
+	mtx_unlock(mtxp);
 	return (error);
 }
 

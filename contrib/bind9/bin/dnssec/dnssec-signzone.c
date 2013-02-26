@@ -3893,7 +3893,10 @@ main(int argc, char *argv[]) {
 	check_result(result, "isc_file_mktemplate");
 
 	fp = NULL;
-	result = isc_file_openunique(tempfile, &fp);
+	if (outputformat == dns_masterformat_text)
+		result = isc_file_openunique(tempfile, &fp);
+	else
+		result = isc_file_bopenunique(tempfile, &fp);
 	if (result != ISC_R_SUCCESS)
 		fatal("failed to open temporary output file: %s",
 		      isc_result_totext(result));

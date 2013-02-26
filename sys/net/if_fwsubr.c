@@ -229,7 +229,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		/*
 		 * No fragmentation is necessary.
 		 */
-		M_PREPEND(m, sizeof(uint32_t), M_DONTWAIT);
+		M_PREPEND(m, sizeof(uint32_t), M_NOWAIT);
 		if (!m) {
 			error = ENOBUFS;
 			goto bad;
@@ -261,7 +261,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 				 * Split off the tail segment from the
 				 * datagram, copying our tags over.
 				 */
-				mtail = m_split(m, fsize, M_DONTWAIT);
+				mtail = m_split(m, fsize, M_NOWAIT);
 				m_tag_copy_chain(mtail, m, M_NOWAIT);
 			} else {
 				mtail = 0;
@@ -271,7 +271,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			 * Add our encapsulation header to this
 			 * fragment and hand it off to the link.
 			 */
-			M_PREPEND(m, 2*sizeof(uint32_t), M_DONTWAIT);
+			M_PREPEND(m, 2*sizeof(uint32_t), M_NOWAIT);
 			if (!m) {
 				error = ENOBUFS;
 				goto bad;

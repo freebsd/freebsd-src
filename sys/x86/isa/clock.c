@@ -125,6 +125,8 @@ struct attimer_softc {
 static struct attimer_softc *attimer_sc = NULL;
 
 static int timer0_period = -2;
+static int timer0_mode = 0xffff;
+static int timer0_last = 0xffff;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -404,7 +406,7 @@ DELAY(int n)
 static void
 set_i8254_freq(int mode, uint32_t period)
 {
-	int new_count;
+	int new_count, new_mode;
 
 	mtx_lock_spin(&clock_lock);
 	if (mode == MODE_STOP) {
@@ -423,21 +425,36 @@ set_i8254_freq(int mode, uint32_t period)
 	timer0_period = (mode == MODE_PERIODIC) ? new_count : -1;
 	switch (mode) {
 	case MODE_STOP:
-		outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT);
+		new_mode = TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT;
+		outb(TIMER_MODE, new_mode);
 		outb(TIMER_CNTR0, 0);
 		outb(TIMER_CNTR0, 0);
 		break;
 	case MODE_PERIODIC:
-		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+		new_mode = TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT;
+		outb(TIMER_MODE, new_mode);
 		outb(TIMER_CNTR0, new_count & 0xff);
 		outb(TIMER_CNTR0, new_count >> 8);
 		break;
 	case MODE_ONESHOT:
-		outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT);
+		if (new_count < 256 && timer0_last < 256) {
+			new_mode = TIMER_SEL0 | TIMER_INTTC | TIMER_LSB;
+			if (new_mode != timer0_mode)
+				outb(TIMER_MODE, new_mode);
+			outb(TIMER_CNTR0, new_count & 0xff);
+			break;
+		}
+		new_mode = TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT;
+		if (new_mode != timer0_mode)
+			outb(TIMER_MODE, new_mode);
 		outb(TIMER_CNTR0, new_count & 0xff);
 		outb(TIMER_CNTR0, new_count >> 8);
 		break;
+	default:
+		panic("set_i8254_freq: unknown operational mode");
 	}
+	timer0_mode = new_mode;
+	timer0_last = new_count;
 out:
 	mtx_unlock_spin(&clock_lock);
 }
@@ -447,6 +464,8 @@ i8254_restore(void)
 {
 
 	timer0_period = -2;
+	timer0_mode = 0xffff;
+	timer0_last = 0xffff;
 	if (attimer_sc != NULL)
 		set_i8254_freq(attimer_sc->mode, attimer_sc->period);
 	else
@@ -459,9 +478,10 @@ i8254_restore(void)
  *
  * This function is called from pmtimer_resume() to restore all the timers.
  * This should not be necessary, but there are broken laptops that do not
- * restore all the timers on resume.
- * As long as pmtimer is not part of amd64 suport, skip this for the amd64
- * case.
+ * restore all the timers on resume. The APM spec was at best vague on the
+ * subject.
+ * pmtimer is used only with the old APM power management, and not with
+ * acpi, which is required for amd64, so skip it in that case.
  */
 void
 timer_restore(void)

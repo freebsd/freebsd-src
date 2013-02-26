@@ -523,7 +523,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 
 	INP_WLOCK_ASSERT(inp);
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_data += max_linkhdr;

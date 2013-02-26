@@ -1,5 +1,5 @@
-#!/bin/sh
-# $Id: copi.wheel,v 1.4 2012/06/29 10:53:52 tom Exp $
+#!/bin/bash
+# $Id: copi.wheel,v 1.2 2001/01/15 22:26:33 tom Exp $
 
 mkstemp size
 dialog --print-maxsize 2>$tmp_size
@@ -9,10 +9,10 @@ rm $tmp_size
 
 # Takes an integer, multiplies it for COLS, divides for 132
 scalex() {
-  expr $1 \* $COLS / 132
+  echo $[$1*$COLS/132]
 }
 scaley() {
-  expr $1 \* $ROWS / 60
+  echo $[$1*$ROWS/60]
 }
 
 dialog --backtitle "$TITLE" --no-shadow \

@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2011
+.Dd December 9, 2012
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -175,6 +175,18 @@ Use the NFS Version 3 protocol.
 Use the NFS Version 4 protocol.
 This option will force the mount to use
 TCP transport.
+.It Cm minorversion Ns = Ns Aq Ar value
+Override the default of 0 for the minor version of the NFS Version 4 protocol.
+The only minor version currently supported is 1.
+This option is only meaningful when used with the
+.Cm nfsv4
+option.
+.It Cm pnfs
+Enable support for parallel NFS (pNFS) for minor version 1 of the
+NFS Version 4 protocol.
+This option is only meaningful when used with the
+.Cm minorversion
+option.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .

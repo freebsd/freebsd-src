@@ -44,7 +44,7 @@ options 	NFSLOCKD	# Network Lock Manager
 options 	NFSD		# New Network Filesystem Server
 options 	NFS_ROOT	# NFS usable as root device
 options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
-#options 	PREEMPTION	# Enable kernel thread preemption
+options 	PREEMPTION	# Enable kernel thread preemption
 options 	PRINTF_BUFR_SIZE=128  # Printf buffering to limit interspersion
 options 	PROCFS		# Process filesystem (/proc)
 options 	PSEUDOFS	# Pseudo-filesystem framework
@@ -60,6 +60,7 @@ options 	SYSVSHM		# SYSV-style shared memory
 options 	UFS_ACL		# Support for access control lists
 options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	UFS_GJOURNAL	# Enable gjournal-based UFS journaling
+options 	QUOTA		# Enable disk quotas for UFS
 options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
 
 # Debugging support.  Always need this:
@@ -77,7 +78,6 @@ options 	WITNESS_SKIPSPIN # Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # Various "busses"
-device		firewire	# FireWire bus code
 device		miibus		# MII bus support (Ethernet)
 device		pci		# PCI bus support
 device		scbus		# SCSI bus (required for ATA/SCSI)
@@ -189,11 +189,6 @@ options		IEEE80211_SUPPORT_MESH
 # The ath(4) and ath_hal(4) code requires this.  The module currently
 # builds everything including AR5416 (and later 11n NIC) support.
 options		AH_SUPPORT_AR5416
-
-# FireWire support
-device		fwip		# IP over FireWire (RFC 2734,3146)
-# sbp(4) works for some systems but causes boot failure on others
-#device		sbp		# SCSI over FireWire (need scbus & da)
 
 # Various (pseudo) devices
 device		ether		# Ethernet support

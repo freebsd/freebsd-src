@@ -148,15 +148,16 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		ah->ah_eepromdata = eepromdata;
 	}
 
-	/* XXX override with 9285 specific state */
-	/* override 5416 methods for our needs */
+	/* override with 9285 specific state */
 	AH5416(ah)->ah_initPLL = ar9280InitPLL;
+	AH5416(ah)->ah_btCoexSetDiversity = ar5416BTCoexAntennaDiversity;
 
 	ah->ah_setAntennaSwitch		= ar9285SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9285ConfigPCIE;
 	ah->ah_disablePCIE		= ar9285DisablePCIE;
 	ah->ah_setTxPower		= ar9285SetTransmitPower;
 	ah->ah_setBoardValues		= ar9285SetBoardValues;
+	ah->ah_btcoexSetParameter	= ar9285BTCoexSetParameter;
 
 	AH5416(ah)->ah_cal.iqCalData.calData = &ar9280_iq_cal;
 	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9280_adc_gain_cal;
@@ -523,6 +524,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halHasRxSelfLinkedTail = AH_FALSE;
 	pCap->halMbssidAggrSupport = AH_TRUE;  
 	pCap->hal4AddrAggrSupport = AH_TRUE;
+	pCap->halSpectralScanSupport = AH_TRUE;
 
 	if (AR_SREV_KITE_12_OR_LATER(ah))
 		pCap->halPSPollBroken = AH_FALSE;

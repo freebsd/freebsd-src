@@ -83,7 +83,7 @@ static device_method_t acpi_pcib_pci_methods[] = {
     DEVMETHOD(pcib_route_interrupt,	acpi_pcib_pci_route_interrupt),
     DEVMETHOD(pcib_power_for_sleep,	acpi_pcib_power_for_sleep),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static devclass_t pcib_devclass;

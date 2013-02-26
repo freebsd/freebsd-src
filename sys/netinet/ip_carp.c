@@ -192,6 +192,7 @@ static int carp_log = 1;		/* Log level. */
 static int carp_demotion = 0;		/* Global advskew demotion. */
 static int carp_senderr_adj = CARP_MAXSKEW;	/* Send error demotion factor */
 static int carp_ifdown_adj = CARP_MAXSKEW;	/* Iface down demotion factor */
+static int carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, allow, CTLFLAG_RW, &carp_allow, 0,
@@ -200,8 +201,9 @@ SYSCTL_INT(_net_inet_carp, OID_AUTO, preempt, CTLFLAG_RW, &carp_preempt, 0,
     "High-priority backup preemption mode");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, log, CTLFLAG_RW, &carp_log, 0,
     "CARP log level");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, demotion, CTLFLAG_RW, &carp_demotion, 0,
-    "Demotion factor (skew of advskew)");
+SYSCTL_PROC(_net_inet_carp, OID_AUTO, demotion, CTLTYPE_INT|CTLFLAG_RW,
+    0, 0, carp_demote_adj_sysctl, "I",
+    "Adjust demotion factor (skew of advskew)");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, senderr_demotion_factor, CTLFLAG_RW,
     &carp_senderr_adj, 0, "Send error demotion factor adjustment");
 SYSCTL_INT(_net_inet_carp, OID_AUTO, ifdown_demotion_factor, CTLFLAG_RW,
@@ -287,12 +289,6 @@ static LIST_HEAD(, carp_softc) carp_list;
 static struct mtx carp_mtx;
 static struct task carp_sendall_task =
     TASK_INITIALIZER(0, carp_send_ad_all, NULL);
-
-static __inline uint16_t
-carp_cksum(struct mbuf *m, int len)
-{
-	return (in_cksum(m, len));
-}
 
 static void
 carp_hmac_prepare(struct carp_softc *sc)
@@ -476,7 +472,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	/* verify the CARP checksum */
 	m->m_data += iplen;
-	if (carp_cksum(m, len - iplen)) {
+	if (in_cksum(m, len - iplen)) {
 		CARPSTATS_INC(carps_badsum);
 		CARP_DEBUG("%s: checksum failed on %s\n", __func__,
 		    m->m_pkthdr.rcvif->if_xname);
@@ -535,7 +531,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 
 	/* verify the CARP checksum */
 	m->m_data += *offp;
-	if (carp_cksum(m, sizeof(*ch))) {
+	if (in_cksum(m, sizeof(*ch))) {
 		CARPSTATS_INC(carps_badsum);
 		CARP_DEBUG("%s: checksum failed, on %s\n", __func__,
 		    m->m_pkthdr.rcvif->if_xname);
@@ -807,7 +803,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 			goto resched;
 
 		m->m_data += sizeof(*ip);
-		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip));
+		ch_ptr->carp_cksum = in_cksum(m, len - sizeof(*ip));
 		m->m_data -= sizeof(*ip);
 
 		CARPSTATS_INC(carps_opackets);
@@ -880,7 +876,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 			goto resched;
 
 		m->m_data += sizeof(*ip6);
-		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip6));
+		ch_ptr->carp_cksum = in_cksum(m, len - sizeof(*ip6));
 		m->m_data -= sizeof(*ip6);
 
 		CARPSTATS_INC(carps_opackets6);
@@ -971,6 +967,14 @@ carp_ifa_delroute(struct ifaddr *ifa)
 		break;
 #endif
 	}
+}
+
+int
+carp_master(struct ifaddr *ifa)
+{
+	struct carp_softc *sc = ifa->ifa_carp;
+
+	return (sc->sc_state == MASTER);
 }
 
 #ifdef INET
@@ -1999,9 +2003,24 @@ carp_sc_state(struct carp_softc *sc)
 static void
 carp_demote_adj(int adj, char *reason)
 {
-	carp_demotion += adj;
+	atomic_add_int(&carp_demotion, adj);
 	CARP_LOG("demoted by %d to %d (%s)\n", adj, carp_demotion, reason);
 	taskqueue_enqueue(taskqueue_swi, &carp_sendall_task);
+}
+
+static int
+carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	int new, error;
+
+	new = carp_demotion;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	carp_demote_adj(new, "sysctl");
+
+	return (0);
 }
 
 #ifdef INET
@@ -2061,6 +2080,7 @@ carp_mod_cleanup(void)
 	carp_forus_p = NULL;
 	carp_output_p = NULL;
 	carp_demote_adj_p = NULL;
+	carp_master_p = NULL;
 	mtx_unlock(&carp_mtx);
 	taskqueue_drain(taskqueue_swi, &carp_sendall_task);
 	mtx_destroy(&carp_mtx);
@@ -2081,6 +2101,7 @@ carp_mod_load(void)
 	carp_attach_p = carp_attach;
 	carp_detach_p = carp_detach;
 	carp_demote_adj_p = carp_demote_adj;
+	carp_master_p = carp_master;
 #ifdef INET6
 	carp_iamatch6_p = carp_iamatch6;
 	carp_macmatch6_p = carp_macmatch6;

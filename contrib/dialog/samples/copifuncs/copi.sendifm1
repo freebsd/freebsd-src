@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-# $Id: copi.sendifm1,v 1.2 2012/06/29 22:33:42 tom Exp $
+#! /bin/sh
+##  $Revision: 1.1 $
 ##  SH script to send UUCP batches out.
 
 ##  =()<. @<_PATH_SHELLVARS>@>()=

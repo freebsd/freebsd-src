@@ -2047,7 +2047,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			/* Release original mbufs. */
 			m_freem(*m_head);
 			if (m == NULL) {
@@ -2125,7 +2125,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->alc_cdata.alc_tx_tag, map,
 	    *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, ALC_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, ALC_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -2803,7 +2803,7 @@ alc_newbuf(struct alc_softc *sc, struct alc_rxdesc *rxd)
 	bus_dmamap_t map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = RX_BUF_SIZE_MAX;
@@ -2923,7 +2923,7 @@ alc_fixup_rx(struct ifnet *ifp, struct mbuf *m)
 	 * header from the mbuf chain. This can save lots of CPU
 	 * cycles for jumbo frame.
 	 */
-	MGETHDR(n, M_DONTWAIT, MT_DATA);
+	MGETHDR(n, M_NOWAIT, MT_DATA);
 	if (n == NULL) {
 		ifp->if_iqdrops++;
 		m_freem(m);

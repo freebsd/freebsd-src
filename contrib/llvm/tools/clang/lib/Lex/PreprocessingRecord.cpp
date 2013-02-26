@@ -25,10 +25,11 @@ ExternalPreprocessingRecordSource::~ExternalPreprocessingRecordSource() { }
 InclusionDirective::InclusionDirective(PreprocessingRecord &PPRec,
                                        InclusionKind Kind, 
                                        StringRef FileName, 
-                                       bool InQuotes, const FileEntry *File, 
+                                       bool InQuotes, bool ImportedModule,
+                                       const FileEntry *File,
                                        SourceRange Range)
   : PreprocessingDirective(InclusionDirectiveKind, Range), 
-    InQuotes(InQuotes), Kind(Kind), File(File) 
+    InQuotes(InQuotes), Kind(Kind), ImportedModule(ImportedModule), File(File)
 { 
   char *Memory 
     = (char*)PPRec.Allocate(FileName.size() + 1, llvm::alignOf<char>());
@@ -59,8 +60,7 @@ PreprocessingRecord::getPreprocessedEntitiesInRange(SourceRange Range) {
                           iterator(this, CachedRangeQuery.Result.second));
   }
 
-  std::pair<PPEntityID, PPEntityID>
-    Res = getPreprocessedEntitiesInRangeSlow(Range);
+  std::pair<int, int> Res = getPreprocessedEntitiesInRangeSlow(Range);
   
   CachedRangeQuery.Range = Range;
   CachedRangeQuery.Result = Res;
@@ -95,12 +95,12 @@ bool PreprocessingRecord::isEntityInFileID(iterator PPEI, FileID FID) {
   if (FID.isInvalid())
     return false;
 
-  PPEntityID PPID = PPEI.Position;
-  if (PPID < 0) {
-    assert(unsigned(-PPID-1) < LoadedPreprocessedEntities.size() &&
+  int Pos = PPEI.Position;
+  if (Pos < 0) {
+    assert(unsigned(-Pos-1) < LoadedPreprocessedEntities.size() &&
            "Out-of bounds loaded preprocessed entity");
     assert(ExternalSource && "No external source to load from");
-    unsigned LoadedIndex = LoadedPreprocessedEntities.size()+PPID;
+    unsigned LoadedIndex = LoadedPreprocessedEntities.size()+Pos;
     if (PreprocessedEntity *PPE = LoadedPreprocessedEntities[LoadedIndex])
       return isPreprocessedEntityIfInFileID(PPE, FID, SourceMgr);
 
@@ -118,15 +118,15 @@ bool PreprocessingRecord::isEntityInFileID(iterator PPEI, FileID FID) {
                                           FID, SourceMgr);
   }
 
-  assert(unsigned(PPID) < PreprocessedEntities.size() &&
+  assert(unsigned(Pos) < PreprocessedEntities.size() &&
          "Out-of bounds local preprocessed entity");
-  return isPreprocessedEntityIfInFileID(PreprocessedEntities[PPID],
+  return isPreprocessedEntityIfInFileID(PreprocessedEntities[Pos],
                                         FID, SourceMgr);
 }
 
 /// \brief Returns a pair of [Begin, End) iterators of preprocessed entities
 /// that source range \arg R encompasses.
-std::pair<PreprocessingRecord::PPEntityID, PreprocessingRecord::PPEntityID>
+std::pair<int, int>
 PreprocessingRecord::getPreprocessedEntitiesInRangeSlow(SourceRange Range) {
   assert(Range.isValid());
   assert(!SourceMgr.isBeforeInTranslationUnit(Range.getEnd(),Range.getBegin()));
@@ -319,14 +319,19 @@ void PreprocessingRecord::RegisterMacroDefinition(MacroInfo *Macro,
 
 /// \brief Retrieve the preprocessed entity at the given ID.
 PreprocessedEntity *PreprocessingRecord::getPreprocessedEntity(PPEntityID PPID){
-  if (PPID < 0) {
-    assert(unsigned(-PPID-1) < LoadedPreprocessedEntities.size() &&
+  if (PPID.ID < 0) {
+    unsigned Index = -PPID.ID - 1;
+    assert(Index < LoadedPreprocessedEntities.size() &&
            "Out-of bounds loaded preprocessed entity");
-    return getLoadedPreprocessedEntity(LoadedPreprocessedEntities.size()+PPID);
+    return getLoadedPreprocessedEntity(Index);
   }
-  assert(unsigned(PPID) < PreprocessedEntities.size() &&
+
+  if (PPID.ID == 0)
+    return 0;
+  unsigned Index = PPID.ID - 1;
+  assert(Index < PreprocessedEntities.size() &&
          "Out-of bounds local preprocessed entity");
-  return PreprocessedEntities[PPID];
+  return PreprocessedEntities[Index];
 }
 
 /// \brief Retrieve the loaded preprocessed entity at the given index.
@@ -389,10 +394,11 @@ void PreprocessingRecord::InclusionDirective(
     const clang::Token &IncludeTok,
     StringRef FileName,
     bool IsAngled,
+    CharSourceRange FilenameRange,
     const FileEntry *File,
-    clang::SourceLocation EndLoc,
     StringRef SearchPath,
-    StringRef RelativePath) {
+    StringRef RelativePath,
+    const Module *Imported) {
   InclusionDirective::InclusionKind Kind = InclusionDirective::Include;
   
   switch (IncludeTok.getIdentifierInfo()->getPPKeywordID()) {
@@ -415,9 +421,19 @@ void PreprocessingRecord::InclusionDirective(
   default:
     llvm_unreachable("Unknown include directive kind");
   }
-  
+
+  SourceLocation EndLoc;
+  if (!IsAngled) {
+    EndLoc = FilenameRange.getBegin();
+  } else {
+    EndLoc = FilenameRange.getEnd();
+    if (FilenameRange.isCharRange())
+      EndLoc = EndLoc.getLocWithOffset(-1); // the InclusionDirective expects
+                                            // a token range.
+  }
   clang::InclusionDirective *ID
-    = new (*this) clang::InclusionDirective(*this, Kind, FileName, !IsAngled, 
+    = new (*this) clang::InclusionDirective(*this, Kind, FileName, !IsAngled,
+                                            (bool)Imported,
                                             File, SourceRange(HashLoc, EndLoc));
   addPreprocessedEntity(ID);
 }

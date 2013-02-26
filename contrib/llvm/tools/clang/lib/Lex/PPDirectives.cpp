@@ -1296,7 +1296,7 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
   case tok::string_literal:
     Filename = getSpelling(FilenameTok, FilenameBuffer);
     End = FilenameTok.getLocation();
-    CharEnd = End.getLocWithOffset(Filename.size());
+    CharEnd = End.getLocWithOffset(FilenameTok.getLength());
     break;
 
   case tok::less:
@@ -1306,7 +1306,7 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
     if (ConcatenateIncludeName(FilenameBuffer, End))
       return;   // Found <eod> but no ">"?  Diagnostic already emitted.
     Filename = FilenameBuffer.str();
-    CharEnd = getLocForEndOfToken(End);
+    CharEnd = End.getLocWithOffset(1);
     break;
   default:
     Diag(FilenameTok.getLocation(), diag::err_pp_expects_filename);
@@ -1314,6 +1314,8 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
     return;
   }
 
+  CharSourceRange FilenameRange
+    = CharSourceRange::getCharRange(FilenameTok.getLocation(), CharEnd);
   StringRef OriginalFilename = Filename;
   bool isAngled =
     GetIncludeFilenameSpelling(FilenameTok.getLocation(), Filename);
@@ -1384,9 +1386,13 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
       }
     }
     
-    // Notify the callback object that we've seen an inclusion directive.
-    Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled, File,
-                                  End, SearchPath, RelativePath);
+    if (!SuggestedModule) {
+      // Notify the callback object that we've seen an inclusion directive.
+      Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled,
+                                    FilenameRange, File,
+                                    SearchPath, RelativePath,
+                                    /*ImportedModule=*/0);
+    }
   }
   
   if (File == 0) {
@@ -1480,10 +1486,28 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
     Module *Imported
       = TheModuleLoader.loadModule(IncludeTok.getLocation(), Path, Visibility,
                                    /*IsIncludeDirective=*/true);
+    assert((Imported == 0 || Imported == SuggestedModule) &&
+           "the imported module is different than the suggested one");
     
     // If this header isn't part of the module we're building, we're done.
-    if (!BuildingImportedModule && Imported)
+    if (!BuildingImportedModule && Imported) {
+      if (Callbacks) {
+        Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled,
+                                      FilenameRange, File,
+                                      SearchPath, RelativePath, Imported);
+      }
       return;
+    }
+  }
+
+  if (Callbacks && SuggestedModule) {
+    // We didn't notify the callback object that we've seen an inclusion
+    // directive before. Now that we are parsing the include normally and not
+    // turning it to a module import, notify the callback object.
+    Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled,
+                                  FilenameRange, File,
+                                  SearchPath, RelativePath,
+                                  /*ImportedModule=*/0);
   }
   
   // The #included file will be considered to be a system header if either it is
@@ -1849,7 +1873,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
   MI->setDefinitionEndLoc(LastTok.getLocation());
 
   // Finally, if this identifier already had a macro defined for it, verify that
-  // the macro bodies are identical and free the old definition.
+  // the macro bodies are identical, and issue diagnostics if they are not.
   if (MacroInfo *OtherMI = getMacroInfo(MacroNameTok.getIdentifierInfo())) {
     // It is very common for system headers to have tons of macro redefinitions
     // and for warnings to be disabled in system headers.  If this is the case,
@@ -1870,7 +1894,6 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
     }
     if (OtherMI->isWarnIfUnused())
       WarnUnusedMacroLocs.erase(OtherMI->getDefinitionLoc());
-    ReleaseMacroInfo(OtherMI);
   }
 
   setMacroInfo(MacroNameTok.getIdentifierInfo(), MI);
@@ -1921,9 +1944,20 @@ void Preprocessor::HandleUndefDirective(Token &UndefTok) {
   if (MI->isWarnIfUnused())
     WarnUnusedMacroLocs.erase(MI->getDefinitionLoc());
 
-  // Free macro definition.
-  ReleaseMacroInfo(MI);
-  setMacroInfo(MacroNameTok.getIdentifierInfo(), 0);
+  UndefineMacro(MacroNameTok.getIdentifierInfo(), MI,
+                MacroNameTok.getLocation());
+}
+
+void Preprocessor::UndefineMacro(IdentifierInfo *II, MacroInfo *MI,
+                                 SourceLocation UndefLoc) {
+  MI->setUndefLoc(UndefLoc);
+  if (MI->isFromAST()) {
+    MI->setChangedAfterLoad();
+    if (Listener)
+      Listener->UndefinedMacro(MI);
+  }
+
+  clearMacroInfo(II);
 }
 
 

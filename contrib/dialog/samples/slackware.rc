@@ -1,4 +1,4 @@
-# $Id: slackware.rc,v 1.9 2011/10/15 01:00:25 tom Exp $
+# $Id: slackware.rc,v 1.7 2011/01/17 00:14:41 tom Exp $
 # vile:confmode
 # Run-time configuration file for dialog, matches Slackware color scheme.
 #
@@ -46,16 +46,16 @@ border_color = (CYAN,CYAN,ON)
 button_active_color = (WHITE,BLUE,ON)
 
 # Inactive button color
-button_inactive_color = dialog_color
+button_inactive_color = (BLACK,CYAN,OFF)
 
 # Active button key color
-button_key_active_color = button_active_color
+button_key_active_color = (WHITE,BLUE,ON)
 
 # Inactive button key color
 button_key_inactive_color = (RED,CYAN,OFF)
 
 # Active button label color
-button_label_active_color = button_active_color
+button_label_active_color = (WHITE,BLUE,ON)
 
 # Inactive button label color
 button_label_inactive_color = (BLACK,CYAN,ON)
@@ -64,46 +64,47 @@ button_label_inactive_color = (BLACK,CYAN,ON)
 inputbox_color = (BLUE,WHITE,OFF)
 
 # Input box border color
-inputbox_border_color = border_color
+inputbox_border_color = (CYAN,CYAN,ON)
 
 # Search box color
 searchbox_color = (YELLOW,WHITE,ON)
 
 # Search box title color
+# FIXME
 searchbox_title_color = (WHITE,WHITE,ON)
 
 # Search box border color
 searchbox_border_color = (RED,WHITE,OFF)
 
 # File position indicator color
-position_indicator_color = button_key_inactive_color
+position_indicator_color = (RED,CYAN,OFF)
 
 # Menu box color
-menubox_color = dialog_color
+menubox_color = (BLACK,CYAN,OFF)
 
 # Menu box border color
-menubox_border_color = border_color
+menubox_border_color = (CYAN,CYAN,ON)
 
 # Item color
-item_color = dialog_color
+item_color = (BLACK,CYAN,OFF)
 
 # Selected item color
-item_selected_color = screen_color
+item_selected_color = (WHITE,BLUE,OFF)
 
 # Tag color
-tag_color = title_color
+tag_color = (YELLOW,CYAN,ON)
 
 # Selected tag color
-tag_selected_color = screen_color
+tag_selected_color = (WHITE,BLUE,OFF)
 
 # Tag key color
-tag_key_color = button_key_inactive_color
+tag_key_color = (RED,CYAN,OFF)
 
 # Selected tag key color
 tag_key_selected_color = (RED,BLUE,ON)
 
 # Check box color
-check_color = dialog_color
+check_color = (BLACK,CYAN,OFF)
 
 # Selected check box color
 check_selected_color = (WHITE,CYAN,ON)
@@ -112,13 +113,13 @@ check_selected_color = (WHITE,CYAN,ON)
 uarrow_color = (GREEN,CYAN,ON)
 
 # Down arrow color
-darrow_color = uarrow_color
+darrow_color = (GREEN,CYAN,ON)
 
 # Item help-text color
-itemhelp_color = shadow_color
+itemhelp_color = (WHITE,BLACK,OFF)
 
 # Active form text color
-form_active_text_color = inputbox_color
+form_active_text_color = (BLUE,WHITE,OFF)
 
 # Form text color
 form_text_color = (CYAN,BLUE,ON)
@@ -128,15 +129,3 @@ form_item_readonly_color = (CYAN,WHITE,ON)
 
 # Dialog box gauge color
 gauge_color = (BLUE,WHITE,ON)
-
-# Dialog box border2 color
-border2_color = (BLACK,WHITE,OFF)
-
-# Input box border2 color
-inputbox_border2_color = border2_color
-
-# Search box border2 color
-searchbox_border2_color = border2_color
-
-# Menu box border2 color
-menubox_border2_color = border2_color

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -94,7 +94,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.3.2";
+char em_driver_version[] = "7.3.7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -172,6 +172,12 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_PCH_D_HV_DC,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH2_LV_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH2_LV_V,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPT_I217_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPT_I217_V,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPTLP_I218_LM,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPTLP_I218_V,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -309,7 +315,7 @@ static device_method_t em_methods[] = {
 	DEVMETHOD(device_shutdown, em_shutdown),
 	DEVMETHOD(device_suspend, em_suspend),
 	DEVMETHOD(device_resume, em_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t em_driver = {
@@ -520,7 +526,8 @@ em_attach(device_t dev)
 	    (hw->mac.type == e1000_ich9lan) ||
 	    (hw->mac.type == e1000_ich10lan) ||
 	    (hw->mac.type == e1000_pchlan) ||
-	    (hw->mac.type == e1000_pch2lan)) {
+	    (hw->mac.type == e1000_pch2lan) ||
+	    (hw->mac.type == e1000_pch_lpt)) {
 		int rid = EM_BAR_TYPE_FLASH;
 		adapter->flash = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -605,8 +612,8 @@ em_attach(device_t dev)
 	 * Set the frame limits assuming
 	 * standard ethernet sized frames.
 	 */
-	adapter->max_frame_size = ETHERMTU + ETHER_HDR_LEN + ETHERNET_FCS_SIZE;
-	adapter->min_frame_size = ETH_ZLEN + ETHERNET_FCS_SIZE;
+	adapter->hw.mac.max_frame_size =
+	    ETHERMTU + ETHER_HDR_LEN + ETHERNET_FCS_SIZE;
 
 	/*
 	 * This controls when hardware reports transmit completion
@@ -905,22 +912,22 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	}
 
 	enq = 0;
-	if (m == NULL) {
-		next = drbr_dequeue(ifp, txr->br);
-	} else if (drbr_needs_enqueue(ifp, txr->br)) {
-		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+	if (m != NULL) {
+		err = drbr_enqueue(ifp, txr->br, m);
+		if (err)
 			return (err);
-		next = drbr_dequeue(ifp, txr->br);
-	} else
-		next = m;
+	} 
 
 	/* Process the queue */
-	while (next != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = em_xmit(txr, &next)) != 0) {
-                        if (next != NULL)
-                                err = drbr_enqueue(ifp, txr->br, next);
-                        break;
+			if (next == NULL)
+				drbr_advance(ifp, txr->br);
+			else 
+				drbr_putback(ifp, txr->br, next);
+			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enq++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -928,7 +935,6 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
                         break;
-		next = drbr_dequeue(ifp, txr->br);
 	}
 
 	if (enq > 0) {
@@ -1107,6 +1113,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case e1000_ich9lan:
 		case e1000_ich10lan:
 		case e1000_pch2lan:
+		case e1000_pch_lpt:
 		case e1000_82574:
 		case e1000_82583:
 		case e1000_80003es2lan:	/* 9K Jumbo Frame size */
@@ -1130,7 +1137,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 
 		ifp->if_mtu = ifr->ifr_mtu;
-		adapter->max_frame_size =
+		adapter->hw.mac.max_frame_size =
 		    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 		em_init_locked(adapter);
 		EM_CORE_UNLOCK(adapter);
@@ -1325,9 +1332,9 @@ em_init_locked(struct adapter *adapter)
 	** Figure out the desired mbuf
 	** pool for doing jumbos
 	*/
-	if (adapter->max_frame_size <= 2048)
+	if (adapter->hw.mac.max_frame_size <= 2048)
 		adapter->rx_mbuf_sz = MCLBYTES;
-	else if (adapter->max_frame_size <= 4096)
+	else if (adapter->hw.mac.max_frame_size <= 4096)
 		adapter->rx_mbuf_sz = MJUMPAGESIZE;
 	else
 		adapter->rx_mbuf_sz = MJUM9BYTES;
@@ -1831,7 +1838,7 @@ retry:
 		if (do_tso || (m_head->m_next != NULL && 
 		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
 			if (M_WRITABLE(*m_headp) == 0) {
-				m_head = m_dup(*m_headp, M_DONTWAIT);
+				m_head = m_dup(*m_headp, M_NOWAIT);
 				m_freem(*m_headp);
 				if (m_head == NULL) {
 					*m_headp = NULL;
@@ -1948,7 +1955,7 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_alloc_failed++;
 			m_freem(*m_headp);
@@ -2816,17 +2823,18 @@ em_reset(struct adapter *adapter)
 	case e1000_ich9lan:
 	case e1000_ich10lan:
 		/* Boost Receive side for jumbo frames */
-		if (adapter->max_frame_size > 4096)
+		if (adapter->hw.mac.max_frame_size > 4096)
 			pba = E1000_PBA_14K;
 		else
 			pba = E1000_PBA_10K;
 		break;
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		pba = E1000_PBA_26K;
 		break;
 	default:
-		if (adapter->max_frame_size > 8192)
+		if (adapter->hw.mac.max_frame_size > 8192)
 			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
 		else
 			pba = E1000_PBA_48K; /* 48K for Rx, 16K for Tx */
@@ -2849,7 +2857,7 @@ em_reset(struct adapter *adapter)
 	 */
 	rx_buffer_size = ((E1000_READ_REG(hw, E1000_PBA) & 0xffff) << 10 );
 	hw->fc.high_water = rx_buffer_size -
-	    roundup2(adapter->max_frame_size, 1024);
+	    roundup2(adapter->hw.mac.max_frame_size, 1024);
 	hw->fc.low_water = hw->fc.high_water - 1500;
 
 	if (adapter->fc) /* locally set flow control value? */
@@ -2880,6 +2888,7 @@ em_reset(struct adapter *adapter)
 		hw->fc.refresh_time = 0x1000;
 		break;
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0x0650;
@@ -3930,7 +3939,7 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->m_head == NULL) {
-			m = m_getjcl(M_DONTWAIT, MT_DATA,
+			m = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			/*
 			** If we have a temporary resource shortage
@@ -4100,7 +4109,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 			continue;
 		}
 #endif /* DEV_NETMAP */
-		rxbuf->m_head = m_getjcl(M_DONTWAIT, MT_DATA,
+		rxbuf->m_head = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_head == NULL) {
 			error = ENOBUFS;
@@ -4340,7 +4349,7 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
 	}
 		
-	if (adapter->hw.mac.type == e1000_pch2lan) {
+	if (adapter->hw.mac.type >= e1000_pch2lan) {
 		if (ifp->if_mtu > ETHERMTU)
 			e1000_lv_jumbo_workaround_ich8lan(hw, TRUE);
 		else
@@ -4474,7 +4483,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 			ifp->if_ipackets++;
 			em_receive_checksum(cur, sendmp);
 #ifndef __NO_STRICT_ALIGNMENT
-			if (adapter->max_frame_size >
+			if (adapter->hw.mac.max_frame_size >
 			    (MCLBYTES - ETHER_ALIGN) &&
 			    em_fixup_rx(rxr) != 0)
 				goto skip;
@@ -4579,7 +4588,7 @@ em_fixup_rx(struct rx_ring *rxr)
 		bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
 		m->m_data += ETHER_HDR_LEN;
 	} else {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n != NULL) {
 			bcopy(m->m_data, n->m_data, ETHER_HDR_LEN);
 			m->m_data += ETHER_HDR_LEN;

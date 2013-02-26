@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2012
+.Dd December 3, 2012
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -169,21 +169,17 @@ Note that limiting RSS may kill the machine due to thrashing.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-.Dl rctl -a user:joe:vmemoryuse:deny=1g
+Prevent user "joe" from allocating more than 1GB of virtual memory:
+.Dl Nm Fl a Ar user:joe:vmemoryuse:deny=1g
 .Pp
-Prevent user "joe" from allocating more than 1GB of virtual memory.
+Remove all RCTL rules:
+.Dl Nm Fl r Ar \&:
 .Pp
-.Dl rctl -r :
+Display resource usage information for jail named "www":
+.Dl Nm Fl hu Ar jail:www
 .Pp
-Remove all RCTL rules.
-.Pp
-.Dl rctl -hu jail:www
-.Pp
-Display resource usage information for jail named "www".
-.Pp
-.Dl rctl -l process:512
-.Pp
-Display all the rules applicable to process with PID 512.
+Display all the rules applicable to process with PID 512:
+.Dl Nm Fl l Ar process:512
 .Sh SEE ALSO
 .Xr rctl.conf 5
 .Sh HISTORY

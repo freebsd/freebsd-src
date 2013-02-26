@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmipsdesc
 
 SRCDIR=	lib/Target/Mips/MCTargetDesc
 SRCS=	MipsAsmBackend.cpp \
+	MipsDirectObjLower.cpp \
 	MipsELFObjectWriter.cpp \
 	MipsMCAsmInfo.cpp \
 	MipsMCCodeEmitter.cpp \

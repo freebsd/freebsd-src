@@ -394,7 +394,7 @@ struct xhci_hw_dev {
 	uint8_t			state;
 	uint8_t			nports;
 	uint8_t			tt;
-	uint8_t			reserved;
+	uint8_t			context_num;
 };
 
 struct xhci_hw_softc {
@@ -434,8 +434,7 @@ struct xhci_softc {
 	struct xhci_hw_softc	sc_hw;
 	/* base device */
 	struct usb_bus		sc_bus;
-	/* configure process */
-	struct usb_process	sc_config_proc;
+	/* configure message */
 	struct usb_bus_msg	sc_config_msg[2];
 
 	union xhci_hub_desc	sc_hub_desc;

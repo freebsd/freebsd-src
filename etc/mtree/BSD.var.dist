@@ -18,6 +18,10 @@
 /set mode=0750
 /set gname=audit
     audit
+        dist            uname=auditdistd gname=audit mode=0770
+        ..
+        remote          uname=auditdistd gname=wheel mode=0700
+        ..
     ..
 /set gname=wheel
     backups

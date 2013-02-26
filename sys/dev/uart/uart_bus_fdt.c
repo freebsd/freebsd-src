@@ -206,8 +206,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	err = fdt_regsize(node, &start, &size);
 	if (err)
 		return (ENXIO);
+	err = fdt_get_range(OF_parent(node), 0, &pbase, &psize);
+	if (err)
+		pbase = 0;
 
-	fdt_get_range(OF_parent(node), 0, &pbase, &psize);
 	start += pbase;
 
 	return (bus_space_map(di->bas.bst, start, size, 0, &di->bas.bsh));

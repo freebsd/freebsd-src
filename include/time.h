@@ -112,6 +112,7 @@ typedef	__pid_t		pid_t;
 #define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
 #define CLOCK_SECOND	13		/* FreeBSD-specific. */
 #define CLOCK_THREAD_CPUTIME_ID	14
+#define	CLOCK_PROCESS_CPUTIME_ID	15
 #endif /* !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 200112 */
 
 #if !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 200112

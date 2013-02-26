@@ -14,6 +14,7 @@
 
 #include "FormatStringParsing.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/TargetInfo.h"
 
 using clang::analyze_format_string::ArgType;
 using clang::analyze_format_string::FormatStringHandler;
@@ -489,9 +490,12 @@ analyze_format_string::LengthModifier::toString() const {
 const char *ConversionSpecifier::toString() const {
   switch (kind) {
   case dArg: return "d";
+  case DArg: return "D";
   case iArg: return "i";
   case oArg: return "o";
+  case OArg: return "O";
   case uArg: return "u";
+  case UArg: return "U";
   case xArg: return "x";
   case XArg: return "X";
   case fArg: return "f";
@@ -518,14 +522,37 @@ const char *ConversionSpecifier::toString() const {
   case ObjCObjArg: return "@";
 
   // FreeBSD specific specifiers.
-  case bArg: return "b";
-  case DArg: return "D";
-  case rArg: return "r";
+  case FreeBSDbArg: return "b";
+  case FreeBSDDArg: return "D";
+  case FreeBSDrArg: return "r";
 
   // GlibC specific specifiers.
   case PrintErrno: return "m";
   }
   return NULL;
+}
+
+llvm::Optional<ConversionSpecifier>
+ConversionSpecifier::getStandardSpecifier() const {
+  ConversionSpecifier::Kind NewKind;
+  
+  switch (getKind()) {
+  default:
+    return llvm::Optional<ConversionSpecifier>();
+  case DArg:
+    NewKind = dArg;
+    break;
+  case UArg:
+    NewKind = uArg;
+    break;
+  case OArg:
+    NewKind = oArg;
+    break;
+  }
+
+  ConversionSpecifier FixedCS(*this);
+  FixedCS.setKind(NewKind);
+  return FixedCS;
 }
 
 //===----------------------------------------------------------------------===//
@@ -553,7 +580,7 @@ void OptionalAmount::toString(raw_ostream &os) const {
   }
 }
 
-bool FormatSpecifier::hasValidLengthModifier() const {
+bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target) const {
   switch (LM.getKind()) {
     case LengthModifier::None:
       return true;
@@ -568,13 +595,16 @@ bool FormatSpecifier::hasValidLengthModifier() const {
     case LengthModifier::AsPtrDiff:
       switch (CS.getKind()) {
         case ConversionSpecifier::dArg:
+        case ConversionSpecifier::DArg:
         case ConversionSpecifier::iArg:
         case ConversionSpecifier::oArg:
+        case ConversionSpecifier::OArg:
         case ConversionSpecifier::uArg:
+        case ConversionSpecifier::UArg:
         case ConversionSpecifier::xArg:
         case ConversionSpecifier::XArg:
         case ConversionSpecifier::nArg:
-        case ConversionSpecifier::rArg:
+        case ConversionSpecifier::FreeBSDrArg:
           return true;
         default:
           return false;
@@ -584,9 +614,12 @@ bool FormatSpecifier::hasValidLengthModifier() const {
     case LengthModifier::AsLong:
       switch (CS.getKind()) {
         case ConversionSpecifier::dArg:
+        case ConversionSpecifier::DArg:
         case ConversionSpecifier::iArg:
         case ConversionSpecifier::oArg:
+        case ConversionSpecifier::OArg:
         case ConversionSpecifier::uArg:
+        case ConversionSpecifier::UArg:
         case ConversionSpecifier::xArg:
         case ConversionSpecifier::XArg:
         case ConversionSpecifier::aArg:
@@ -600,7 +633,7 @@ bool FormatSpecifier::hasValidLengthModifier() const {
         case ConversionSpecifier::nArg:
         case ConversionSpecifier::cArg:
         case ConversionSpecifier::sArg:
-        case ConversionSpecifier::rArg:
+        case ConversionSpecifier::FreeBSDrArg:
         case ConversionSpecifier::ScanListArg:
           return true;
         default:
@@ -618,14 +651,15 @@ bool FormatSpecifier::hasValidLengthModifier() const {
         case ConversionSpecifier::gArg:
         case ConversionSpecifier::GArg:
           return true;
-        // GNU extension.
+        // GNU libc extension.
         case ConversionSpecifier::dArg:
         case ConversionSpecifier::iArg:
         case ConversionSpecifier::oArg:
         case ConversionSpecifier::uArg:
         case ConversionSpecifier::xArg:
         case ConversionSpecifier::XArg:
-          return true;
+          return !Target.getTriple().isOSDarwin() &&
+                 !Target.getTriple().isOSWindows();
         default:
           return false;
       }
@@ -703,10 +737,13 @@ bool FormatSpecifier::hasStandardConversionSpecifier(const LangOptions &LangOpt)
     case ConversionSpecifier::SArg:
       return LangOpt.ObjC1 || LangOpt.ObjC2;
     case ConversionSpecifier::InvalidSpecifier:
-    case ConversionSpecifier::bArg:
-    case ConversionSpecifier::DArg:
-    case ConversionSpecifier::rArg:
+    case ConversionSpecifier::FreeBSDbArg:
+    case ConversionSpecifier::FreeBSDDArg:
+    case ConversionSpecifier::FreeBSDrArg:
     case ConversionSpecifier::PrintErrno:
+    case ConversionSpecifier::DArg:
+    case ConversionSpecifier::OArg:
+    case ConversionSpecifier::UArg:
       return false;
   }
   llvm_unreachable("Invalid ConversionSpecifier Kind!");
@@ -727,6 +764,20 @@ bool FormatSpecifier::hasStandardLengthConversionCombination() const {
     }
   }
   return true;
+}
+
+llvm::Optional<LengthModifier>
+FormatSpecifier::getCorrectedLengthModifier() const {
+  if (CS.isAnyIntArg() || CS.getKind() == ConversionSpecifier::nArg) {
+    if (LM.getKind() == LengthModifier::AsLongDouble ||
+        LM.getKind() == LengthModifier::AsQuad) {
+      LengthModifier FixedLM(LM);
+      FixedLM.setKind(LengthModifier::AsLongLong);
+      return FixedLM;
+    }
+  }
+
+  return llvm::Optional<LengthModifier>();
 }
 
 bool FormatSpecifier::namedTypeToLengthModifier(QualType QT,

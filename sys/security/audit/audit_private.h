@@ -202,7 +202,7 @@ struct audit_record {
 	mode_t			ar_arg_mode;
 	int			ar_arg_dev;
 	long			ar_arg_value;
-	void *			ar_arg_addr;
+	void			*ar_arg_addr;
 	int			ar_arg_len;
 	int			ar_arg_mask;
 	u_int			ar_arg_signum;
@@ -219,7 +219,7 @@ struct audit_record {
 	int			ar_arg_svipc_cmd;
 	struct ipc_perm		ar_arg_svipc_perm;
 	int			ar_arg_svipc_id;
-	void *			ar_arg_svipc_addr;
+	void			*ar_arg_svipc_addr;
 	struct posix_ipc_perm	ar_arg_pipc_perm;
 	union auditon_udata	ar_arg_auditon;
 	char			*ar_arg_argv;
@@ -230,6 +230,7 @@ struct audit_record {
 	int			ar_arg_exitretval;
 	struct sockaddr_storage ar_arg_sockaddr;
 	cap_rights_t		ar_arg_rights;
+	char			ar_jailname[MAXHOSTNAMELEN];
 };
 
 /*
@@ -388,7 +389,8 @@ au_event_t	 audit_flags_and_error_to_openevent(int oflags, int error);
 au_event_t	 audit_flags_and_error_to_openatevent(int oflags, int error);
 au_event_t	 audit_msgctl_to_event(int cmd);
 au_event_t	 audit_semctl_to_event(int cmr);
-void		 audit_canon_path(struct thread *td, char *path, char *cpath);
+void		 audit_canon_path(struct thread *td, int dirfd, char *path,
+		    char *cpath);
 au_event_t	 auditon_command_event(int cmd);
 
 /*

@@ -1,5 +1,5 @@
 /*
- *  $Id: progressbox.c,v 1.21 2012/07/03 00:12:52 tom Exp $
+ *  $Id: progressbox.c,v 1.13 2011/06/27 08:18:20 tom Exp $
  *
  *  progressbox.c -- implements the progress box
  *
@@ -99,7 +99,6 @@ print_line(MY_OBJ * obj, WINDOW *win, int row, int width)
 #endif
 
     getyx(win, y, x);
-    (void) y;
     /* Clear 'residue' of previous line */
     for (i = 0; i < width - x; i++)
 	(void) waddch(win, ' ');
@@ -112,79 +111,54 @@ pause_for_ok(WINDOW *dialog, int height, int width)
     static DLG_KEYS_BINDING binding[] = {
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
-	TRAVERSE_BINDINGS,
+	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
 
-    int button;
+    int button = 0;
     int key = 0, fkey;
     int result = DLG_EXIT_UNKNOWN;
     const char **buttons = dlg_ok_label();
     int check;
-    int save_nocancel = dialog_vars.nocancel;
-    bool redraw = TRUE;
-
-    dialog_vars.nocancel = TRUE;
-    button = dlg_default_button();
 
     dlg_register_window(dialog, "progressbox", binding);
     dlg_register_buttons(dialog, "progressbox", buttons);
 
-    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
+    dlg_draw_bottom_box(dialog);
     mouse_mkbutton(height - 2, width / 2 - 4, 6, '\n');
+    dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
 
     while (result == DLG_EXIT_UNKNOWN) {
-	if (redraw) {
-	    redraw = FALSE;
-	    if (button < 0)
-		button = 0;
-	    dlg_draw_buttons(dialog,
-			     height - 2, 0,
-			     buttons, button,
-			     FALSE, width);
-	}
-
 	key = dlg_mouse_wgetch(dialog, &fkey);
 	if (dlg_result_key(key, fkey, &result))
 	    break;
 
 	if (!fkey && (check = dlg_char_to_button(key, buttons)) >= 0) {
-	    result = dlg_ok_buttoncode(check);
+	    result = check ? DLG_EXIT_HELP : DLG_EXIT_OK;
 	    break;
 	}
 
 	if (fkey) {
 	    switch (key) {
-	    case DLGK_FIELD_NEXT:
-		button = dlg_next_button(buttons, button);
-		redraw = TRUE;
-		break;
-	    case DLGK_FIELD_PREV:
-		button = dlg_prev_button(buttons, button);
-		redraw = TRUE;
-		break;
 	    case DLGK_ENTER:
-		result = dlg_ok_buttoncode(button);
+		result = button ? DLG_EXIT_HELP : DLG_EXIT_OK;
+		break;
+	    case DLGK_MOUSE(0):
+		result = DLG_EXIT_OK;
+		break;
+	    case DLGK_MOUSE(1):
+		result = DLG_EXIT_HELP;
 		break;
 	    default:
-		if (is_DLGK_MOUSE(key)) {
-		    result = dlg_ok_buttoncode(key - M_EVENT);
-		    if (result < 0)
-			result = DLG_EXIT_OK;
-		} else {
-		    beep();
-		}
+		beep();
 		break;
 	    }
-
 	} else {
 	    beep();
 	}
     }
     dlg_unregister_window(dialog);
-
-    dialog_vars.nocancel = save_nocancel;
     return result;
 }
 
@@ -214,17 +188,16 @@ dlg_progressbox(const char *title,
 
     dialog = dlg_new_window(height, width, y, x);
 
-    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
+    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
     dlg_draw_title(dialog, title);
     dlg_draw_helpline(dialog, FALSE);
 
     if (*prompt != '\0') {
 	int y2, x2;
 
-	(void) wattrset(dialog, dialog_attr);
+	wattrset(dialog, dialog_attr);
 	dlg_print_autowrap(dialog, prompt, height, width);
 	getyx(dialog, y2, x2);
-	(void) x2;
 	++y2;
 	wmove(dialog, y2, MARGIN);
 	for (i = 0; i < getmaxx(dialog) - 2 * MARGIN; i++)
@@ -263,7 +236,6 @@ dlg_progressbox(const char *title,
 	    print_line(obj, text, thigh - 1, width - (2 * MARGIN));
 	}
 	(void) wrefresh(text);
-	dlg_trace_win(dialog);
 	if (obj->is_eof)
 	    break;
     }
@@ -282,7 +254,7 @@ dlg_progressbox(const char *title,
     free(prompt);
     free(obj);
 
-    return result;
+    return DLG_EXIT_OK;
 }
 
 /*

@@ -69,7 +69,7 @@ main(int argc, char *argv[])
 		filename = argv[1];
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
-		err(1, filename);
+		err(1, "open: %s", filename);
 	if (fstat(fd, &sb) < 0)
 		err(1, "fstat");
 	addr = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE|MAP_NOCORE, fd, 0);
@@ -192,6 +192,7 @@ opmark(FILE *fd, int i, const struct athregrec *r)
 		fprintf(fd, "mark #%u value %u/0x%x", r->reg, r->val, r->val);
 		break;
 	}
+	exit(0);
 }
 
 #include "ah_devid.h"
@@ -302,8 +303,8 @@ register_regs(struct dumpreg *chipregs, u_int nchipregs,
 			 */
 			if (nr->addr == r->addr &&
 			    (nr->name == r->name ||
-			     nr->name != NULL && r->name != NULL &&
-			     strcmp(nr->name, r->name) == 0)) {
+			     (nr->name != NULL && r->name != NULL &&
+			     strcmp(nr->name, r->name) == 0))) {
 				if (nr->srevMin < r->srevMin &&
 				    (r->srevMin <= nr->srevMax &&
 				     nr->srevMax+1 <= r->srevMax)) {

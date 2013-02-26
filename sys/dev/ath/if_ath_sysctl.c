@@ -505,6 +505,33 @@ ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+static int
+ath_sysctl_hangcheck(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int val = 0;
+	int error;
+	uint32_t mask = 0xffffffff;
+	uint32_t *sp;
+	uint32_t rsize;
+	struct ath_hal *ah = sc->sc_ah;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	if (val == 0)
+		return 0;
+
+	/* Do a hang check */
+	if (!ath_hal_getdiagstate(ah, HAL_DIAG_CHECK_HANGS,
+	    &mask, sizeof(mask),
+	    (void *) &sp, &rsize))
+		return (0);
+	device_printf(sc->sc_dev, "%s: sp=0x%08x\n", __func__, *sp);
+
+	val = 0;
+	return 0;
+}
 
 #ifdef ATH_DEBUG_ALQ
 static int
@@ -661,6 +688,10 @@ ath_sysctlattach(struct ath_softc *sc)
 		"forcebstuck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_forcebstuck, "I", "");
 
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hangcheck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_hangcheck, "I", "");
+
 	if (ath_hal_hasintmit(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -673,13 +704,26 @@ ath_sysctlattach(struct ath_softc *sc)
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
-		"");
+		"Hardware queue depth before software-queuing TX frames");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
 		"");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
+
+	/* Aggregate length twiddles */
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"aggr_limit", CTLFLAG_RW, &sc->sc_aggr_limit, 0,
+		"Maximum A-MPDU size, or 0 for 'default'");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"rts_aggr_limit", CTLFLAG_RW, &sc->sc_rts_aggr_limit, 0,
+		"Maximum A-MPDU size for RTS-protected frames, or '0' "
+		"for default");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"delim_min_pad", CTLFLAG_RW, &sc->sc_delim_min_pad, 0,
+		"Enforce a minimum number of delimiters per A-MPDU "
+		" sub-frame");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,

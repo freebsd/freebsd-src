@@ -48,14 +48,15 @@ TUNABLE_INT("vfs.zfs.zio.exclude_metadata", &zio_exclude_metadata);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, exclude_metadata, CTLFLAG_RDTUN, &zio_exclude_metadata, 0,
     "Exclude metadata buffers from dumps as well");
 
-/*
- * See zio.h for more information about these fields.
- */
 zio_trim_stats_t zio_trim_stats = {
-	{ "zio_trim_bytes",		KSTAT_DATA_UINT64 },
-	{ "zio_trim_success",		KSTAT_DATA_UINT64 },
-	{ "zio_trim_unsupported",	KSTAT_DATA_UINT64 },
-	{ "zio_trim_failed",		KSTAT_DATA_UINT64 },
+	{ "bytes",		KSTAT_DATA_UINT64,
+	  "Number of bytes successfully TRIMmed" },
+	{ "success",		KSTAT_DATA_UINT64,
+	  "Number of successful TRIM requests" },
+	{ "unsupported",	KSTAT_DATA_UINT64,
+	  "Number of TRIM requests that failed because TRIM is not supported" },
+	{ "failed",		KSTAT_DATA_UINT64,
+	  "Number of TRIM requests that failed for reasons other than not supported" },
 };
 
 static kstat_t *zio_trim_ksp;
@@ -2068,7 +2069,7 @@ zio_ddt_collision(zio_t *zio, ddt_t *ddt, ddt_entry_t *dde)
 
 			ddt_exit(ddt);
 
-			error = arc_read_nolock(NULL, spa, &blk,
+			error = arc_read(NULL, spa, &blk,
 			    arc_getbuf_func, &abuf, ZIO_PRIORITY_SYNC_READ,
 			    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE,
 			    &aflags, &zio->io_bookmark);
@@ -2447,7 +2448,7 @@ zio_free_zil(spa_t *spa, uint64_t txg, blkptr_t *bp)
 
 /*
  * ==========================================================================
- * Read and write to physical devices
+ * Read, write and delete to physical devices
  * ==========================================================================
  */
 static int
@@ -2660,14 +2661,14 @@ zio_vdev_io_assess(zio_t *zio)
 	if (zio->io_type == ZIO_TYPE_IOCTL && zio->io_cmd == DKIOCTRIM)
 		switch (zio->io_error) {
 		case 0:
-			ZIO_TRIM_STAT_INCR(zio_trim_bytes, zio->io_size);
-			ZIO_TRIM_STAT_BUMP(zio_trim_success);
+			ZIO_TRIM_STAT_INCR(bytes, zio->io_size);
+			ZIO_TRIM_STAT_BUMP(success);
 			break;
 		case EOPNOTSUPP:
-			ZIO_TRIM_STAT_BUMP(zio_trim_unsupported);
+			ZIO_TRIM_STAT_BUMP(unsupported);
 			break;
 		default:
-			ZIO_TRIM_STAT_BUMP(zio_trim_failed);
+			ZIO_TRIM_STAT_BUMP(failed);
 			break;
 		}
 

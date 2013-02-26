@@ -408,7 +408,7 @@ ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp,
 		type = htons(m->m_pkthdr.len);
 		break;
 	    case ETHER_FT_8022:
-		M_PREPEND(m, ETHER_HDR_LEN + 3, M_WAIT);
+		M_PREPEND(m, ETHER_HDR_LEN + 3, M_WAITOK);
 		/*
 		 * Ensure that ethernet header and next three bytes
 		 * will fit into single mbuf
@@ -427,7 +427,7 @@ ef_output(struct ifnet *ifp, struct mbuf **mp, struct sockaddr *dst, short *tp,
 		*hlen += 3;
 		break;
 	    case ETHER_FT_SNAP:
-		M_PREPEND(m, 8, M_WAIT);
+		M_PREPEND(m, 8, M_WAITOK);
 		type = htons(m->m_pkthdr.len);
 		cp = mtod(m, u_char *);
 		bcopy("\xAA\xAA\x03\x00\x00\x00\x81\x37", cp, 8);

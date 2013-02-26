@@ -2362,6 +2362,8 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx,
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "txpkts_pkts", CTLFLAG_RD,
 	    &txq->txpkts_pkts, "# of frames tx'd using txpkts work requests");
 
+	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "br_drops", CTLFLAG_RD,
+	    &txq->br->br_drops, "# of drops in the buf_ring for this queue");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_dmamap", CTLFLAG_RD,
 	    &txq->no_dmamap, 0, "# of times txq ran out of DMA maps");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "no_desc", CTLFLAG_RD,
@@ -2761,7 +2763,7 @@ start:	sgl->nsegs = 0;
 	rc = bus_dmamap_load_mbuf_sg(txq->tx_tag, txm->map, m, sgl->seg,
 	    &sgl->nsegs, BUS_DMA_NOWAIT);
 	if (rc == EFBIG && defragged == 0) {
-		m = m_defrag(m, M_DONTWAIT);
+		m = m_defrag(m, M_NOWAIT);
 		if (m == NULL)
 			return (EFBIG);
 
@@ -2948,13 +2950,13 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 
 	/* Checksum offload */
 	ctrl1 = 0;
-	if (!(m->m_pkthdr.csum_flags & CSUM_IP))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO)))
 		ctrl1 |= F_TXPKT_IPCSUM_DIS;
 	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
-	    CSUM_TCP_IPV6)))
+	    CSUM_TCP_IPV6 | CSUM_TSO)))
 		ctrl1 |= F_TXPKT_L4CSUM_DIS;
 	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP |
-	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6))
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6 | CSUM_TSO))
 		txq->txcsum++;	/* some hardware assistance provided */
 
 	/* VLAN tag insertion */
@@ -3150,11 +3152,13 @@ write_ulp_cpl_sgl(struct port_info *pi, struct sge_txq *txq,
 
 	/* Checksum offload */
 	ctrl = 0;
-	if (!(m->m_pkthdr.csum_flags & CSUM_IP))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TSO)))
 		ctrl |= F_TXPKT_IPCSUM_DIS;
-	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)))
+	if (!(m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 |
+	    CSUM_TCP_IPV6 | CSUM_TSO)))
 		ctrl |= F_TXPKT_L4CSUM_DIS;
-	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP))
+	if (m->m_pkthdr.csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP |
+	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6 | CSUM_TSO))
 		txq->txcsum++;	/* some hardware assistance provided */
 
 	/* VLAN tag insertion */
@@ -3505,6 +3509,10 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 	return (0);
 }
 
+/* handle_fw_msg works for both fw4_msg and fw6_msg because this is valid */
+CTASSERT(offsetof(struct cpl_fw4_msg, data) == \
+    offsetof(struct cpl_fw6_msg, data));
+
 static int
 handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
@@ -3513,6 +3521,13 @@ handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
+
+	if (cpl->type == FW_TYPE_RSSCPL || cpl->type == FW6_TYPE_RSSCPL) {
+		const struct rss_header *rss2;
+
+		rss2 = (const struct rss_header *)&cpl->data[0];
+		return (sc->cpl_handler[rss2->opcode](iq, rss2, m));
+	}
 
 	return (sc->fw_msg_handler[cpl->type](sc, &cpl->data[0]));
 }

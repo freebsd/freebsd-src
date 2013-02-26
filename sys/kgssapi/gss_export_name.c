@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <kgssapi/gssapi.h>
 #include <kgssapi/gssapi_impl.h>
@@ -45,14 +47,18 @@ gss_export_name(OM_uint32 *minor_status, gss_name_t input_name,
 	struct export_name_res res;
 	struct export_name_args args;
 	enum clnt_stat stat;
+	CLIENT *cl;
 
-	if (!kgss_gssd_handle)
+	*minor_status = 0;
+	cl = kgss_gssd_client();
+	if (cl == NULL)
 		return (GSS_S_FAILURE);
 
 	args.input_name = input_name->handle;
 
 	bzero(&res, sizeof(res));
-	stat = gssd_export_name_1(&args, &res, kgss_gssd_handle);
+	stat = gssd_export_name_1(&args, &res, cl);
+	CLNT_RELEASE(cl);
 	if (stat != RPC_SUCCESS) {
 		*minor_status = stat;
 		return (GSS_S_FAILURE);
@@ -63,7 +69,6 @@ gss_export_name(OM_uint32 *minor_status, gss_name_t input_name,
 		return (res.major_status);
 	}
 
-	*minor_status = 0;
 	kgss_copy_buffer(&res.exported_name, exported_name);
 	xdr_free((xdrproc_t) xdr_export_name_res, &res);
 

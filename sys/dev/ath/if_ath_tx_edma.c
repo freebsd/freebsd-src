@@ -142,7 +142,7 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_buf *bf;
 	int i = 0;
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called\n", __func__);
 
@@ -181,7 +181,7 @@ ath_edma_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 	    txq,
 	    txq->axq_qnum);
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 	ath_edma_tx_fifo_fill(sc, txq);
 
 }
@@ -204,7 +204,7 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
@@ -249,7 +249,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
 
@@ -300,7 +300,7 @@ ath_edma_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 
-	ATH_TXQ_LOCK_ASSERT(txq);
+	ATH_TX_LOCK_ASSERT(sc);
 
 	DPRINTF(sc, ATH_DEBUG_XMIT_DESC,
 	    "%s: called; bf=%p, txq=%p, qnum=%d\n",
@@ -523,7 +523,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 
 		txq = &sc->sc_txq[ts.ts_queue_id];
 
-		ATH_TXQ_LOCK(txq);
+		ATH_TX_LOCK(sc);
 		bf = TAILQ_FIRST(&txq->axq_q);
 
 		DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: qcuid=%d, bf=%p\n",
@@ -551,7 +551,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 			txq->axq_aggr_depth--;
 		txq->axq_fifo_depth --;
 		/* XXX assert FIFO depth >= 0 */
-		ATH_TXQ_UNLOCK(txq);
+		ATH_TX_UNLOCK(sc);
 
 		/*
 		 * First we need to make sure ts_rate is valid.
@@ -633,11 +633,11 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		 * to begin validating that things are somewhat
 		 * working.
 		 */
-		ATH_TXQ_LOCK(txq);
+		ATH_TX_LOCK(sc);
 		if (dosched && txq->axq_fifo_depth == 0) {
 			ath_edma_tx_fifo_fill(sc, txq);
 		}
-		ATH_TXQ_UNLOCK(txq);
+		ATH_TX_UNLOCK(sc);
 	}
 
 	sc->sc_wd_timer = 0;
@@ -655,7 +655,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 	 * the txq task for _one_ TXQ.  This should be fixed.
 	 */
 	if (dosched)
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+		ath_tx_swq_kick(sc);
 }
 
 static void

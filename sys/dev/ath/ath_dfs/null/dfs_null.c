@@ -146,6 +146,26 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 }
 
 /*
+ * Explicity disable radar reporting.
+ *
+ * Return 0 if it was disabled, < 0 on error.
+ */
+int
+ath_dfs_radar_disable(struct ath_softc *sc)
+{
+#if 0
+	HAL_PHYERR_PARAM pe;
+
+	(void) ath_hal_getdfsthresh(sc->sc_ah, &pe);
+	pe.pe_enabled = 0;
+	(void) ath_hal_enabledfs(sc->sc_ah, &pe);
+	return (0);
+#else
+	return (0);
+#endif
+}
+
+/*
  * Process DFS related PHY errors
  *
  * The mbuf is not "ours" and if we want a copy, we have

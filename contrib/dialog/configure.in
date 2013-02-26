@@ -1,4 +1,4 @@
-dnl $Id: configure.in,v 1.68 2011/10/20 21:02:43 tom Exp $
+dnl $Id: configure.in,v 1.65 2011/06/27 10:42:27 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl ---------------------------------------------------------------------------
 dnl Copyright 1999-2010,2011 -- Thomas E. Dickey
@@ -45,7 +45,6 @@ AC_PROG_GCC_TRADITIONAL
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_INSTALL
-CF_PROG_LINT
 
 dnl needed for CF_WITH_LIBTOOL
 AC_CHECK_TOOL(AR, ar, ar)
@@ -233,7 +232,6 @@ wget_wch \
 AC_CHECK_FUNC(start_color,[AC_DEFINE(HAVE_COLOR)])
 CF_CURSES_CHTYPE
 CF_CURSES_WACS_SYMBOLS
-CF_CURSES_WGETPARENT
 CF_FUNC_WAIT
 CF_MBSTATE_T
 

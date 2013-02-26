@@ -19,9 +19,9 @@
 #include "clang/Driver/CC1AsOptions.h"
 #include "clang/Driver/OptTable.h"
 #include "clang/Driver/Options.h"
-#include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Basic/DiagnosticOptions.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
@@ -51,7 +51,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 using namespace clang;
 using namespace clang::driver;
 using namespace llvm;
@@ -189,7 +189,7 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
            ie = Args->filtered_end(); it != ie; ++it, First=false) {
       const Arg *A = it;
       if (First)
-        Opts.InputFile = A->getValue(*Args);
+        Opts.InputFile = A->getValue();
       else {
         Diags.Report(diag::err_drv_unknown_argument) << A->getAsString(*Args);
         Success = false;
@@ -201,7 +201,7 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
     Opts.LLVMArgs.push_back("-fatal-assembler-warnings");
   Opts.OutputPath = Args->getLastArgValue(OPT_o);
   if (Arg *A = Args->getLastArg(OPT_filetype)) {
-    StringRef Name = A->getValue(*Args);
+    StringRef Name = A->getValue();
     unsigned OutputType = StringSwitch<unsigned>(Name)
       .Case("asm", FT_Asm)
       .Case("null", FT_Null)
@@ -394,11 +394,12 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
   InitializeAllAsmParsers();
 
   // Construct our diagnostic client.
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
   TextDiagnosticPrinter *DiagClient
-    = new TextDiagnosticPrinter(errs(), DiagnosticOptions());
+    = new TextDiagnosticPrinter(errs(), &*DiagOpts);
   DiagClient->setPrefix("clang -cc1as");
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-  DiagnosticsEngine Diags(DiagID, DiagClient);
+  DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagClient);
 
   // Set an error handler, so that any LLVM backend diagnostics go through our
   // error handler.

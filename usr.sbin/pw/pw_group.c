@@ -274,8 +274,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
 
-	if (members)
-		free(members);
+	free(members);
 
 	return EXIT_SUCCESS;
 }
@@ -408,7 +407,7 @@ print_group(struct group * grp, int pretty)
 		char           *buf = NULL;
 
 		buf = gr_make(grp);
-		fputs(buf, stdout);
+		printf("%s\n", buf);
 		free(buf);
 	} else {
 		int             i;

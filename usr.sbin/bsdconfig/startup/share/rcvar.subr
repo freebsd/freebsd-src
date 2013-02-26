@@ -30,6 +30,7 @@ if [ ! "$_STARTUP_RCVAR_SUBR" ]; then _STARTUP_RCVAR_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." startup/rcvar.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 
 ############################################################ CONFIGURATION
@@ -106,11 +107,11 @@ f_startup_rcvar_map()
 	)"
 
 	#
-	# Calculate a digest given the checksums of all dependencies (scripts and
-	# the defaults file). This digest will be used to determine if an on-disk
-	# global persistant cache file (containg this digest on the first line)
-	# is valid and can be used to quickly populate the cache value for
-	# immediate return.
+	# Calculate a digest given the checksums of all dependencies (scripts
+	# and the defaults file). This digest will be used to determine if an
+	# on-disk global persistant cache file (containg this digest on the
+	# first line) is valid and can be used to quickly populate the cache
+	# value for immediate return.
 	#
 	local rc_script_list_digest
 	rc_script_list_digest=$( cd "$ETC_RC_D" &&
@@ -130,11 +131,12 @@ f_startup_rcvar_map()
 				read digest rest_ignored
 
 				#
-				# If the stored digest matches the calculated-one
-				# populate the in-memory cache from the on-disk
-				# cache and provide success exit status.
+				# If the stored digest matches the calculated-
+				# one populate the in-memory cache from the on-
+				# disk cache and provide success exit status.
 				#
-				if [ "$digest" = "$rc_script_list_digest" ]; then
+				if [ "$digest" = "$rc_script_list_digest" ]
+				then
 					cat
 					exit $SUCCESS
 				else
@@ -150,7 +152,7 @@ f_startup_rcvar_map()
 			echo "$STARTUP_RCVAR_MAP"
 			return $SUCCESS
 		fi
-		# Otherwise, fall-through to create in-memory cache from scratch
+		# Otherwise, fall-thru to create in-memory cache from scratch
 	fi
 
 	#
@@ -202,5 +204,9 @@ f_startup_rcvar_map()
 	esac
 	mv "$tmpfile" "$STARTUP_RCVAR_MAP_CACHEFILE"
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." startup/rcvar.subr
 
 fi # ! $_STARTUP_RCVAR_SUBR

@@ -1,6 +1,4 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2009 Hans Petter Selasky. All rights reserved.
  *
@@ -35,7 +33,9 @@ __FBSDID("$FreeBSD$");
  * NOTE: When the chip detects BUS-reset it will also reset the
  * endpoints, Function-address and more.
  */
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -71,6 +71,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/avr32dci.h>
 
 #define	AVR32_BUS2SC(bus) \
@@ -1503,18 +1505,12 @@ static const struct usb_hub_descriptor_min avr32dci_hubd = {
 	.DeviceRemovable = {0},		/* port is removable */
 };
 
-#define	STRING_LANG \
-  0x09, 0x04,				/* American English */
-
 #define	STRING_VENDOR \
-  'A', 0, 'V', 0, 'R', 0, '3', 0, '2', 0
+  "A\0V\0R\0003\0002"
 
 #define	STRING_PRODUCT \
-  'D', 0, 'C', 0, 'I', 0, ' ', 0, 'R', 0, \
-  'o', 0, 'o', 0, 't', 0, ' ', 0, 'H', 0, \
-  'U', 0, 'B', 0,
+  "D\0C\0I\0 \0R\0o\0o\0t\0 \0H\0U\0B"
 
-USB_MAKE_STRING_DESC(STRING_LANG, avr32dci_langtab);
 USB_MAKE_STRING_DESC(STRING_VENDOR, avr32dci_vendor);
 USB_MAKE_STRING_DESC(STRING_PRODUCT, avr32dci_product);
 
@@ -1717,8 +1713,8 @@ tr_handle_get_descriptor:
 	case UDESC_STRING:
 		switch (value & 0xff) {
 		case 0:		/* Language table */
-			len = sizeof(avr32dci_langtab);
-			ptr = (const void *)&avr32dci_langtab;
+			len = sizeof(usb_string_lang_en);
+			ptr = (const void *)&usb_string_lang_en;
 			goto tr_valid;
 
 		case 1:		/* Vendor */

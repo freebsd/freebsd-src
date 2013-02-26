@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
+#include <net80211/ieee80211_sta.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
@@ -170,7 +171,9 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				 * Already have a channel; bypass the
 				 * scan and startup immediately.
 				 */
-				ieee80211_create_ibss(vap, vap->iv_des_chan);
+				ieee80211_create_ibss(vap,
+				    ieee80211_ht_adjust_channel(ic,
+				    vap->iv_des_chan, vap->iv_flags_ht));
 				break;
 			}
 			/*
@@ -685,6 +688,9 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm, *sfrm;
 	uint8_t *ssid, *rates, *xrates;
+#if 0
+	int ht_state_change = 0;
+#endif
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	frm = (uint8_t *)&wh[1];
@@ -745,10 +751,42 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				memcpy(ni->ni_tstamp.data, scan.tstamp,
 					sizeof(ni->ni_tstamp));
 			}
+			/*
+			 * This isn't enabled yet - otherwise it would
+			 * update the HT parameters and channel width
+			 * from any node, which could lead to lots of
+			 * strange behaviour if the 11n nodes aren't
+			 * exactly configured to match.
+			 */
+#if 0
+			if (scan.htcap != NULL && scan.htinfo != NULL &&
+			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
+				if (ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo))
+					ht_state_change = 1;
+			}
+#endif
 			if (ni != NULL) {
 				IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 				ni->ni_noise = nf;
 			}
+			/*
+			 * Same here - the channel width change should
+			 * be applied to the specific peer node, not
+			 * to the ic.  Ie, the interface configuration
+			 * should stay in its current channel width;
+			 * but it should change the rate control and
+			 * any queued frames for the given node only.
+			 *
+			 * Since there's no (current) way to inform
+			 * the driver that a channel width change has
+			 * occured for a single node, just stub this
+			 * out.
+			 */
+#if 0
+			if (ht_state_change)
+				ieee80211_update_chw(ic);
+#endif
 		}
 		break;
 	}

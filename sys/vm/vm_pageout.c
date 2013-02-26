@@ -151,18 +151,21 @@ static struct mtx vm_daemon_mtx;
 MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 #endif
 static int vm_max_launder = 32;
-static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
-static int vm_pageout_full_stats_interval = 0;
-static int vm_pageout_algorithm=0;
-static int defer_swap_pageouts=0;
-static int disable_swap_pageouts=0;
+static int vm_pageout_stats_max;
+static int vm_pageout_stats;
+static int vm_pageout_stats_interval;
+static int vm_pageout_full_stats;
+static int vm_pageout_full_stats_interval;
+static int vm_pageout_algorithm;
+static int defer_swap_pageouts;
+static int disable_swap_pageouts;
 
 #if defined(NO_SWAPPING)
-static int vm_swap_enabled=0;
-static int vm_swap_idle_enabled=0;
+static int vm_swap_enabled = 0;
+static int vm_swap_idle_enabled = 0;
 #else
-static int vm_swap_enabled=1;
-static int vm_swap_idle_enabled=0;
+static int vm_swap_enabled = 1;
+static int vm_swap_idle_enabled = 0;
 #endif
 
 SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,
@@ -174,11 +177,17 @@ SYSCTL_INT(_vm, OID_AUTO, max_launder,
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_max,
 	CTLFLAG_RW, &vm_pageout_stats_max, 0, "Max pageout stats scan length");
 
-SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats_interval,
-	CTLFLAG_RW, &vm_pageout_full_stats_interval, 0, "Interval for full stats scan");
+SYSCTL_INT(_vm, OID_AUTO, pageout_stats,
+	CTLFLAG_RD, &vm_pageout_stats, 0, "Number of partial stats scans");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_interval,
 	CTLFLAG_RW, &vm_pageout_stats_interval, 0, "Interval for partial stats scan");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats,
+	CTLFLAG_RD, &vm_pageout_full_stats, 0, "Number of full stats scans");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats_interval,
+	CTLFLAG_RW, &vm_pageout_full_stats_interval, 0, "Interval for full stats scan");
 
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
@@ -705,14 +714,14 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 	int actcount, remove_mode;
 
 	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
-	if (first_object->type == OBJT_DEVICE ||
-	    first_object->type == OBJT_SG)
+	if ((first_object->flags & OBJ_FICTITIOUS) != 0)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
 			goto unlock_return;
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-		if (object->type == OBJT_PHYS || object->paging_in_progress)
+		if ((object->flags & OBJ_UNMANAGED) != 0 ||
+		    object->paging_in_progress != 0)
 			goto unlock_return;
 
 		remove_mode = 0;
@@ -1512,12 +1521,12 @@ vm_pageout_oom(int shortage)
  * helps the situation where paging just starts to occur.
  */
 static void
-vm_pageout_page_stats()
+vm_pageout_page_stats(void)
 {
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	vm_page_t m,next;
-	int pcount,tpcount;		/* Number of pages to check */
+	vm_page_t m, next;
+	int pcount, tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
 	int page_shortage;
 
@@ -1531,11 +1540,13 @@ vm_pageout_page_stats()
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
 	if (fullintervalcount < vm_pageout_full_stats_interval) {
+		vm_pageout_stats++;
 		tpcount = (int64_t)vm_pageout_stats_max * cnt.v_active_count /
 		    cnt.v_page_count;
 		if (pcount > tpcount)
 			pcount = tpcount;
 	} else {
+		vm_pageout_full_stats++;
 		fullintervalcount = 0;
 	}
 
@@ -1624,7 +1635,7 @@ vm_pageout_page_stats()
  *	vm_pageout is the high level pageout daemon.
  */
 static void
-vm_pageout()
+vm_pageout(void)
 {
 	int error, pass;
 
@@ -1757,7 +1768,7 @@ vm_pageout()
  * the free page queue lock is held until the msleep() is performed.
  */
 void
-pagedaemon_wakeup()
+pagedaemon_wakeup(void)
 {
 
 	if (!vm_pages_needed && curthread->td_proc != pageproc) {
@@ -1782,7 +1793,7 @@ vm_req_vmdaemon(int req)
 }
 
 static void
-vm_daemon()
+vm_daemon(void)
 {
 	struct rlimit rsslim;
 	struct proc *p;

@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2009
+.Dd December 7, 2012
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -248,21 +248,26 @@ The
 .Fn socket
 system call fails if:
 .Bl -tag -width Er
-.It Bq Er EPROTONOSUPPORT
-The protocol type or the specified protocol is not supported
-within this domain.
+.It Bq Er EACCES
+Permission to create a socket of the specified type and/or protocol
+is denied.
+.It Bq Er EAFNOSUPPORT
+The address family (domain) is not supported or the
+specified domain is not supported by this protocol family.
 .It Bq Er EMFILE
 The per-process descriptor table is full.
 .It Bq Er ENFILE
 The system file table is full.
-.It Bq Er EACCES
-Permission to create a socket of the specified type and/or protocol
-is denied.
 .It Bq Er ENOBUFS
 Insufficient buffer space is available.
 The socket cannot be created until sufficient resources are freed.
 .It Bq Er EPERM
 User has insufficient privileges to carry out the requested operation.
+.It Bq Er EPROTONOSUPPORT
+The protocol type or the specified protocol is not supported
+within this domain.
+.It Bq Er EPROTOTYPE
+The socket type is not supported by the protocol.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,

@@ -21,6 +21,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/SetVector.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -63,10 +64,20 @@ private:
   /// \brief A mapping from the submodule name to the index into the 
   /// \c SubModules vector at which that submodule resides.
   llvm::StringMap<unsigned> SubModuleIndex;
+
+  /// \brief The AST file if this is a top-level module which has a
+  /// corresponding serialized AST file, or null otherwise.
+  const FileEntry *ASTFile;
   
 public:
   /// \brief The headers that are part of this module.
   llvm::SmallVector<const FileEntry *, 2> Headers;
+
+  /// \brief The headers that are explicitly excluded from this module.
+  llvm::SmallVector<const FileEntry *, 2> ExcludedHeaders;
+
+  /// \brief The top-level headers associated with this module.
+  llvm::SmallSetVector<const FileEntry *, 2> TopHeaders;
 
   /// \brief The set of language features required to use this module.
   ///
@@ -158,7 +169,7 @@ public:
   /// \brief Construct a top-level module.
   explicit Module(StringRef Name, SourceLocation DefinitionLoc,
                   bool IsFramework)
-    : Name(Name), DefinitionLoc(DefinitionLoc), Parent(0), Umbrella(),
+    : Name(Name), DefinitionLoc(DefinitionLoc), Parent(0),Umbrella(),ASTFile(0),
       IsAvailable(true), IsFromModuleFile(false), IsFramework(IsFramework), 
       IsExplicit(false), IsSystem(false),
       InferSubmodules(false), InferExplicitSubmodules(false),
@@ -227,7 +238,18 @@ public:
   StringRef getTopLevelModuleName() const {
     return getTopLevelModule()->Name;
   }
-  
+
+  /// \brief The serialized AST file for this module, if one was created.
+  const FileEntry *getASTFile() const {
+    return getTopLevelModule()->ASTFile;
+  }
+
+  /// \brief Set the serialized AST file for the top-level module of this module.
+  void setASTFile(const FileEntry *File) {
+    assert((getASTFile() == 0 || getASTFile() == File) && "file path changed");
+    getTopLevelModule()->ASTFile = File;
+  }
+
   /// \brief Retrieve the directory for which this module serves as the
   /// umbrella.
   const DirectoryEntry *getUmbrellaDir() const;
@@ -271,6 +293,10 @@ public:
   submodule_iterator submodule_end()   { return SubModules.end(); }
   submodule_const_iterator submodule_end() const { return SubModules.end(); }
   
+  static StringRef getModuleInputBufferName() {
+    return "<module-includes>";
+  }
+
   /// \brief Print the module map for this module to the given stream. 
   ///
   void print(llvm::raw_ostream &OS, unsigned Indent = 0) const;

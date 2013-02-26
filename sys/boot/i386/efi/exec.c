@@ -46,14 +46,4 @@ __v86int()
 void
 __exec(caddr_t addr, ...)
 {
-	/* XXX this is wrong */
-	__asm __volatile("movl %cr0, %eax");
-	__asm __volatile("andl $0x7fffffff, %eax");
-	__asm __volatile("mov %eax, %cr0");
-	__asm __volatile("xorl %eax, %eax");
-	__asm __volatile("mov %eax, %cr3");
-	__asm __volatile("movl %cr0, %eax");
-	__asm __volatile("andl $0xfffffffe, %eax");
-	__asm __volatile("movl %eax, %cr0");
-	__asm __volatile("jmp %0" :: "r" (addr));
 }

@@ -63,8 +63,8 @@ namespace llvm {
     SmallVector<Value *, 4> AllSubprograms;
     SmallVector<Value *, 4> AllGVs;
 
-    DIBuilder(const DIBuilder &);       // DO NOT IMPLEMENT
-    void operator=(const DIBuilder &);  // DO NOT IMPLEMENT
+    DIBuilder(const DIBuilder &) LLVM_DELETED_FUNCTION;
+    void operator=(const DIBuilder &) LLVM_DELETED_FUNCTION;
 
     public:
     explicit DIBuilder(Module &M);
@@ -179,8 +179,10 @@ namespace llvm {
     /// @param Ty           Parent type.
     /// @param PropertyName Name of the Objective C property associated with
     ///                     this ivar.
-    /// @param GetterName   Name of the Objective C property getter selector.
-    /// @param SetterName   Name of the Objective C property setter selector.
+    /// @param PropertyGetterName Name of the Objective C property getter
+    ///                           selector.
+    /// @param PropertySetterName Name of the Objective C property setter
+    ///                           selector.
     /// @param PropertyAttributes Objective C property attributes.
     DIType createObjCIVar(StringRef Name, DIFile File,
                           unsigned LineNo, uint64_t SizeInBits, 
@@ -201,7 +203,7 @@ namespace llvm {
     /// @param OffsetInBits Member offset.
     /// @param Flags        Flags to encode member attribute, e.g. private
     /// @param Ty           Parent type.
-    /// @param Property     Property associated with this ivar.
+    /// @param PropertyNode Property associated with this ivar.
     DIType createObjCIVar(StringRef Name, DIFile File,
                           unsigned LineNo, uint64_t SizeInBits, 
                           uint64_t AlignInBits, uint64_t OffsetInBits, 
@@ -228,7 +230,7 @@ namespace llvm {
     /// @param Scope        Scope in which this class is defined.
     /// @param Name         class name.
     /// @param File         File where this member is defined.
-    /// @param LineNo       Line number.
+    /// @param LineNumber   Line number.
     /// @param SizeInBits   Member size.
     /// @param AlignInBits  Member alignment.
     /// @param OffsetInBits Member offset.
@@ -250,7 +252,7 @@ namespace llvm {
     /// @param Scope        Scope in which this struct is defined.
     /// @param Name         Struct name.
     /// @param File         File where this member is defined.
-    /// @param LineNo       Line number.
+    /// @param LineNumber   Line number.
     /// @param SizeInBits   Member size.
     /// @param AlignInBits  Member alignment.
     /// @param Flags        Flags to encode member attribute, e.g. private
@@ -265,7 +267,7 @@ namespace llvm {
     /// @param Scope        Scope in which this union is defined.
     /// @param Name         Union name.
     /// @param File         File where this member is defined.
-    /// @param LineNo       Line number.
+    /// @param LineNumber   Line number.
     /// @param SizeInBits   Member size.
     /// @param AlignInBits  Member alignment.
     /// @param Flags        Flags to encode member attribute, e.g. private
@@ -325,25 +327,27 @@ namespace llvm {
     /// @param Scope        Scope in which this enumeration is defined.
     /// @param Name         Union name.
     /// @param File         File where this member is defined.
-    /// @param LineNo       Line number.
+    /// @param LineNumber   Line number.
     /// @param SizeInBits   Member size.
     /// @param AlignInBits  Member alignment.
     /// @param Elements     Enumeration elements.
-    /// @param Flags        Flags (e.g. forward decl)
     DIType createEnumerationType(DIDescriptor Scope, StringRef Name, 
                                  DIFile File, unsigned LineNumber, 
                                  uint64_t SizeInBits, uint64_t AlignInBits,
-                                 DIArray Elements, DIType ClassType,
-                                 unsigned Flags);
+                                 DIArray Elements, DIType ClassType);
 
     /// createSubroutineType - Create subroutine type.
-    /// @param File          File in which this subroutine is defined.
-    /// @param ParamterTypes An array of subroutine parameter types. This
-    ///                      includes return type at 0th index.
+    /// @param File           File in which this subroutine is defined.
+    /// @param ParameterTypes An array of subroutine parameter types. This
+    ///                       includes return type at 0th index.
     DIType createSubroutineType(DIFile File, DIArray ParameterTypes);
 
     /// createArtificialType - Create a new DIType with "artificial" flag set.
     DIType createArtificialType(DIType Ty);
+
+    /// createObjectPointerType - Create a new DIType with the "object pointer"
+    /// flag set.
+    DIType createObjectPointerType(DIType Ty);
 
     /// createTemporaryType - Create a temporary forward-declared type.
     DIType createTemporaryType();
@@ -351,7 +355,8 @@ namespace llvm {
 
     /// createForwardDecl - Create a temporary forward-declared type.
     DIType createForwardDecl(unsigned Tag, StringRef Name, DIDescriptor Scope,
-                             DIFile F, unsigned Line, unsigned RuntimeLang = 0);
+                             DIFile F, unsigned Line, unsigned RuntimeLang = 0,
+                             uint64_t SizeInBits = 0, uint64_t AlignInBits = 0);
 
     /// retainType - Retain DIType in a module even if it is not referenced 
     /// through debug info anchors.
@@ -383,9 +388,9 @@ namespace llvm {
 
     /// createStaticVariable - Create a new descriptor for the specified 
     /// variable.
-    /// @param Conext      Variable scope. 
+    /// @param Context     Variable scope.
     /// @param Name        Name of the variable.
-    /// @param LinakgeName Mangled  name of the variable.
+    /// @param LinkageName Mangled  name of the variable.
     /// @param File        File where this variable is defined.
     /// @param LineNo      Line number.
     /// @param Ty          Variable Type.
@@ -426,7 +431,7 @@ namespace llvm {
     ///                    DW_TAG_arg_variable.
     /// @param Scope       Variable scope.
     /// @param Name        Variable name.
-    /// @param File        File where this variable is defined.
+    /// @param F           File where this variable is defined.
     /// @param LineNo      Line number.
     /// @param Ty          Variable Type
     /// @param Addr        An array of complex address operations.

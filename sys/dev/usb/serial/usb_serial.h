@@ -183,6 +183,7 @@ struct ucom_softc {
 #define	UCOM_FLAG_CONSOLE	0x80	/* set if device is a console */
 #define	UCOM_FLAG_WAIT_REFS   0x0100	/* set if we must wait for refs */
 #define	UCOM_FLAG_FREE_UNIT   0x0200	/* set if we must free the unit */
+#define	UCOM_FLAG_INWAKEUP    0x0400	/* set if we are in the tsw_inwakeup callback */
 	uint8_t	sc_lsr;
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;

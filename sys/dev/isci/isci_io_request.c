@@ -670,8 +670,7 @@ isci_io_request_construct(void *arg, bus_dma_segment_t *seg, int nseg,
 	io_request->sge = seg;
 	ccb = io_request->ccb;
 
-	/* XXX More cleanup is needed here */
-	if ((nseg == 0) || (error != 0)) {
+	if (error != 0) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
 		return;
@@ -714,7 +713,6 @@ void
 isci_io_request_execute_scsi_io(union ccb *ccb,
     struct ISCI_CONTROLLER *controller)
 {
-	struct ccb_scsiio *csio = &ccb->csio;
 	target_id_t target_id = ccb->ccb_h.target_id;
 	struct ISCI_REQUEST *request;
 	struct ISCI_IO_REQUEST *io_request;
@@ -749,18 +747,13 @@ isci_io_request_execute_scsi_io(union ccb *ccb,
 	io_request->current_sge_index = 0;
 	io_request->parent.remote_device_handle = device->sci_object;
 
-	if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) != 0)
-		panic("Unexpected CAM_SCATTER_VALID flag!  flags = 0x%x\n",
+	if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+		panic("Unexpected cam data format!  flags = 0x%x\n",
 		    ccb->ccb_h.flags);
 
-	if ((ccb->ccb_h.flags & CAM_DATA_PHYS) != 0)
-		panic("Unexpected CAM_DATA_PHYS flag!  flags = 0x%x\n",
-		    ccb->ccb_h.flags);
-
-	error = bus_dmamap_load(io_request->parent.dma_tag,
-	    io_request->parent.dma_map, csio->data_ptr, csio->dxfer_len,
+	error = bus_dmamap_load_ccb(io_request->parent.dma_tag,
+	    io_request->parent.dma_map, ccb,
 	    isci_io_request_construct, io_request, 0x0);
-
 	/* A resource shortage from BUSDMA will be automatically
 	 * continued at a later point, pushing the CCB processing
 	 * forward, which will in turn unfreeze the simq.

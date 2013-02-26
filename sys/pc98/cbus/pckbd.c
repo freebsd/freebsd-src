@@ -77,9 +77,9 @@ DRIVER_MODULE(pckbd, isa, pckbd_driver, pckbd_devclass, 0, 0);
 
 static bus_addr_t pckbd_iat[] = {0, 2};
 
-static int		pckbd_probe_unit(int unit, int port, int irq,
+static int		pckbd_probe_unit(device_t dev, int port, int irq,
 					 int flags);
-static int		pckbd_attach_unit(int unit, keyboard_t **kbd,
+static int		pckbd_attach_unit(device_t dev, keyboard_t **kbd,
 					  int port, int irq, int flags);
 static timeout_t	pckbd_timeout;
 
@@ -103,7 +103,7 @@ pckbdprobe(device_t dev)
 		return ENXIO;
 	isa_load_resourcev(res, pckbd_iat, 2);
 
-	error = pckbd_probe_unit(device_get_unit(dev),
+	error = pckbd_probe_unit(dev,
 				 isa_get_port(dev),
 				 (1 << isa_get_irq(dev)),
 				 device_get_flags(dev));
@@ -128,7 +128,7 @@ pckbdattach(device_t dev)
 		return ENXIO;
 	isa_load_resourcev(res, pckbd_iat, 2);
 
-	error = pckbd_attach_unit(device_get_unit(dev), &kbd,
+	error = pckbd_attach_unit(dev, &kbd,
 				  isa_get_port(dev),
 				  (1 << isa_get_irq(dev)),
 				  device_get_flags(dev));
@@ -164,7 +164,7 @@ pckbd_isa_intr(void *arg)
 }
 
 static int
-pckbd_probe_unit(int unit, int port, int irq, int flags)
+pckbd_probe_unit(device_t dev, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
@@ -176,24 +176,26 @@ pckbd_probe_unit(int unit, int port, int irq, int flags)
 
 	args[0] = port;
 	args[1] = irq;
-	error = (*sw->probe)(unit, args, flags);
+	error = (*sw->probe)(device_get_unit(dev), args, flags);
 	if (error)
 		return error;
 	return 0;
 }
 
 static int
-pckbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
+pckbd_attach_unit(device_t dev, keyboard_t **kbd, int port, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
 	int error;
+	int unit;
 
 	sw = kbd_get_switch(DRIVER_NAME);
 	if (sw == NULL)
 		return ENXIO;
 
 	/* reset, initialize and enable the device */
+	unit = device_get_unit(dev);
 	args[0] = port;
 	args[1] = irq;
 	*kbd = NULL;

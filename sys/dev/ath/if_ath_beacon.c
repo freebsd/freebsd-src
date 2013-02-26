@@ -564,8 +564,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 		struct ath_hal *ah = sc->sc_ah;
 
 		/* NB: only at DTIM */
-		ATH_TXQ_LOCK(cabq);
-		ATH_TXQ_LOCK(&avp->av_mcastq);
+		ATH_TX_LOCK(sc);
 		if (nmcastq) {
 			struct ath_buf *bfm;
 
@@ -586,8 +585,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* NB: gated by beacon so safe to start here */
 		if (! TAILQ_EMPTY(&(cabq->axq_q)))
 			ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TXQ_UNLOCK(&avp->av_mcastq);
-		ATH_TXQ_UNLOCK(cabq);
+		ATH_TX_UNLOCK(sc);
 	}
 	return bf;
 }
@@ -707,6 +705,16 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 
 	if (vap == NULL)
 		vap = TAILQ_FIRST(&ic->ic_vaps);	/* XXX */
+	/*
+	 * Just ensure that we aren't being called when the last
+	 * VAP is destroyed.
+	 */
+	if (vap == NULL) {
+		device_printf(sc->sc_dev, "%s: called with no VAPs\n",
+		    __func__);
+		return;
+	}
+
 	ni = ieee80211_ref_node(vap->iv_bss);
 
 	/* extract tstamp from last beacon and convert to TU */

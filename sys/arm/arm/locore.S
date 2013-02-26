@@ -168,7 +168,7 @@ Lunmapped:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM11) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -178,7 +178,7 @@ Lunmapped:
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM11) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
@@ -363,7 +363,7 @@ Ltag:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -375,7 +375,7 @@ Ltag:
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
@@ -484,12 +484,29 @@ ENTRY_NP(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
+
+	/*
+	 * Call the sigreturn system call.
+	 * 
+	 * We have to load r7 manually rather than using
+	 * "ldr r7, =SYS_sigreturn" to ensure the value of szsigcode is
+	 * correct. Using the alternative places esigcode at the address
+	 * of the data rather than the address one past the data.
+	 */
+
+	ldr	r7, [pc, #12]	/* Load SYS_sigreturn */
 	swi	SYS_sigreturn
 
 	/* Well if that failed we better exit quick ! */
 
+	ldr	r7, [pc, #8]	/* Load SYS_exit */
 	swi	SYS_exit
-	b	. - 8
+
+	/* Branch back to retry SYS_sigreturn */
+	b	. - 16
+
+	.word	SYS_sigreturn
+	.word	SYS_exit
 
 	.align	0
 	.global _C_LABEL(esigcode)

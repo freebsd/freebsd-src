@@ -69,7 +69,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
-	libdisk \
 	libdwarf \
 	libedit \
 	${_libefi} \
@@ -83,6 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
@@ -90,6 +90,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmilter} \
 	${_libmp} \
 	${_libnandfs} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \
@@ -115,6 +116,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
+	${_libvmmapi} \
 	libwrap \
 	liby \
 	libz \
@@ -176,6 +178,15 @@ _libiconv_modules=	libiconv_modules
 _libipx=	libipx
 .endif
 
+.if ${MK_LDNS} != "no"
+_libldns=	libldns
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
+.endif
+
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
 .endif
@@ -198,6 +209,10 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64"
+_libvmmapi=	libvmmapi
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 .endif
@@ -214,11 +229,6 @@ _librtld_db=	librtld_db
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
-.endif
-
-.if ${MK_LIBCPLUSPLUS} != "no"
-_libcxxrt=	libcxxrt
-_libcplusplus=	libc++
 .endif
 
 .if ${MK_PMC} != "no"

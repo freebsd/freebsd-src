@@ -160,17 +160,6 @@ namei(struct nameidata *ndp)
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
 
-	if (error == 0) {
-		/*
-		 * If we are auditing the kernel pathname, save the user
-		 * pathname.
-		 */
-		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
-		if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
-	}
-
 	/*
 	 * Don't allow empty pathnames.
 	 */
@@ -217,6 +206,14 @@ namei(struct nameidata *ndp)
 	FILEDESC_SLOCK(fdp);
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
+
+	/*
+	 * If we are auditing the kernel pathname, save the user pathname.
+	 */
+	if (cnp->cn_flags & AUDITVNODE1)
+		AUDIT_ARG_UPATH1(td, ndp->ni_dirfd, cnp->cn_pnbuf);
+	if (cnp->cn_flags & AUDITVNODE2)
+		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
 
 	dp = NULL;
 	if (cnp->cn_pnbuf[0] != '/') {
@@ -342,7 +339,7 @@ namei(struct nameidata *ndp)
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_td = (struct thread *)0;
+		auio.uio_td = td;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {

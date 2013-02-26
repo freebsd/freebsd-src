@@ -45,12 +45,13 @@ __FBSDID("$FreeBSD$");
 
 NFSDLOCKMUTEX;
 
-SVCPOOL		*nfscbd_pool;
+extern SVCPOOL	*nfscbd_pool;
 
 static int nfs_cbproc(struct nfsrv_descript *, u_int32_t);
 
 extern u_long sb_max_adj;
 extern int nfs_numnfscbd;
+extern int nfscl_debuglevel;
 
 /*
  * NFS client system calls for handling callbacks.
@@ -90,6 +91,7 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nd.nd_mreq = NULL;
 	nd.nd_cred = NULL;
 
+	NFSCL_DEBUG(1, "cbproc=%d\n",nd.nd_procnum);
 	if (nd.nd_procnum != NFSPROC_NULL) {
 		if (!svc_getcred(rqst, &nd.nd_cred, &credflavor)) {
 			svcerr_weakauth(rqst);
@@ -133,9 +135,10 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 		svcerr_auth(rqst, nd.nd_repstat & ~NFSERR_AUTHERR);
 		if (nd.nd_mreq != NULL)
 			m_freem(nd.nd_mreq);
-	} else if (!svc_sendreply_mbuf(rqst, nd.nd_mreq)) {
+	} else if (!svc_sendreply_mbuf(rqst, nd.nd_mreq))
 		svcerr_systemerr(rqst);
-	}
+	else
+		NFSCL_DEBUG(1, "cbrep sent\n");
 	svc_freereq(rqst);
 }
 
@@ -271,13 +274,15 @@ nfsrvd_cbinit(int terminating)
 	NFSD_LOCK_ASSERT();
 
 	if (terminating) {
+		/* Wait for any xprt registrations to complete. */
+		while (nfs_numnfscbd > 0)
+			msleep(&nfs_numnfscbd, NFSDLOCKMUTEXPTR, PZERO, 
+			    "nfscbdt", 0);
 		NFSD_UNLOCK();
 		svcpool_destroy(nfscbd_pool);
 		nfscbd_pool = NULL;
-		NFSD_LOCK();
-	}
-
-	NFSD_UNLOCK();
+	} else
+		NFSD_UNLOCK();
 
 	nfscbd_pool = svcpool_create("nfscbd", NULL);
 	nfscbd_pool->sp_rcache = NULL;

@@ -48,9 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "elf_tables.h"
+#include "dns_utils.h"
 
 #define _LOCALBASE "/usr/local"
-#define _PKGS_URL "http://pkgbeta.FreeBSD.org"
+#define _PKGS_URL "http://pkg.FreeBSD.org"
 
 static const char *
 elf_corres_to_string(struct _elf_corres *m, int e)
@@ -211,7 +212,7 @@ extract_pkg_static(int fd, char *p, int sz)
 		warn("archive_read_new");
 		return (ret);
 	}
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_tar(a);
 
 	if (lseek(fd, 0, 0) == -1) {
@@ -246,7 +247,7 @@ extract_pkg_static(int fd, char *p, int sz)
 		warnx("fail to extract pkg-static");
 
 cleanup:
-	archive_read_finish(a);
+	archive_read_free(a);
 	return (ret);
 
 }
@@ -281,16 +282,20 @@ install_pkg_static(char *path, char *pkgpath)
 static int
 bootstrap_pkg(void)
 {
+	struct url *u;
 	FILE *remote;
 	FILE *config;
 	char *site;
+	struct dns_srvinfo *mirrors, *current;
+	/* To store _https._tcp. + hostname + \0 */
+	char zone[MAXHOSTNAMELEN + 13];
 	char url[MAXPATHLEN];
 	char conf[MAXPATHLEN];
 	char abi[BUFSIZ];
 	char tmppkg[MAXPATHLEN];
 	char buf[10240];
 	char pkgstatic[MAXPATHLEN];
-	int fd, retry, ret;
+	int fd, retry, ret, max_retry;
 	struct url_stat st;
 	off_t done, r;
 	time_t now;
@@ -298,9 +303,11 @@ bootstrap_pkg(void)
 
 	done = 0;
 	last = 0;
+	max_retry = 3;
 	ret = -1;
 	remote = NULL;
 	config = NULL;
+	current = mirrors = NULL;
 
 	printf("Bootstrapping pkg please wait\n");
 
@@ -324,12 +331,37 @@ bootstrap_pkg(void)
 		return (-1);
 	}
 
-	retry = 3;
-	do {
-		remote = fetchXGetURL(url, &st, "");
-		if (remote == NULL)
-			sleep(1);
-	} while (remote == NULL && retry-- > 0);
+	retry = max_retry;
+
+	u = fetchParseURL(url);
+	while (remote == NULL) {
+		if (retry == max_retry) {
+			if (strcmp(u->scheme, "file") != 0) {
+				snprintf(zone, sizeof(zone),
+				    "_%s._tcp.%s", u->scheme, u->host);
+				printf("%s\n", zone);
+				mirrors = dns_getsrvinfo(zone);
+				current = mirrors;
+			}
+		}
+
+		if (mirrors != NULL)
+			strlcpy(u->host, current->host, sizeof(u->host));
+
+		remote = fetchXGet(u, &st, "");
+		if (remote == NULL) {
+			--retry;
+			if (retry <= 0)
+				goto fetchfail;
+			if (mirrors == NULL) {
+				sleep(1);
+			} else {
+				current = current->next;
+				if (current == NULL)
+					current = mirrors;
+			}
+		}
+	}
 
 	if (remote == NULL)
 		goto fetchfail;
@@ -379,6 +411,8 @@ bootstrap_pkg(void)
 
 fetchfail:
 	warnx("Error fetching %s: %s", url, fetchLastErrString);
+	fprintf(stderr, "A pre-built version of pkg could not be found for your system.\n");
+	fprintf(stderr, "Consider changing PACKAGESITE or installing it from ports: 'ports-mgmt/pkg'.\n");
 
 cleanup:
 	if (remote != NULL)
@@ -420,6 +454,14 @@ main(__unused int argc, char *argv[])
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
 	if (access(pkgpath, X_OK) == -1) {
+		/* 
+		 * To allow 'pkg -N' to be used as a reliable test for whether
+		 * a system is configured to use pkg, don't bootstrap pkg
+		 * when that argument is given as argv[1].
+		 */
+		if (argv[1] != NULL && strcmp(argv[1], "-N") == 0)
+			errx(EXIT_FAILURE, "pkg is not installed");
+
 		/*
 		 * Do not ask for confirmation if either of stdin or stdout is
 		 * not tty. Check the environment to see if user has answer

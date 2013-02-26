@@ -103,29 +103,19 @@ static char writer[] = "\
 
 static FILE *cfile;
 static FILE *hfile;
-static const char *syntax[513];
-static int base;
-static int size;	/* number of values which a char variable can have */
-static int nbits;	/* number of bits in a character */
-static int digit_contig;/* true if digits are contiguous */
 
-static void filltable(const char *);
-static void init(void);
+static void add_default(void);
+static void finish(void);
+static void init(const char *);
 static void add(const char *, const char *);
-static void print(const char *);
 static void output_type_macros(void);
-static void digit_convert(void);
 
 int
 main(int argc __unused, char **argv __unused)
 {
-	char c;
-	char d;
-	int sign;
 	int i;
 	char buf[80];
 	int pos;
-	static char digit[] = "0123456789";
 
 	/* Create output files */
 	if ((cfile = fopen("syntax.c", "w")) == NULL) {
@@ -139,33 +129,8 @@ main(int argc __unused, char **argv __unused)
 	fputs(writer, hfile);
 	fputs(writer, cfile);
 
-	/* Determine the characteristics of chars. */
-	c = -1;
-	sign = (c > 0) ? 0 : 1;
-	for (nbits = 1 ; ; nbits++) {
-		d = (1 << nbits) - 1;
-		if (d == c)
-			break;
-	}
-#if 0
-	printf("%s %d bit chars\n", sign? "signed" : "unsigned", nbits);
-#endif
-	if (nbits > 9) {
-		fputs("Characters can't have more than 9 bits\n", stderr);
-		exit(2);
-	}
-	size = (1 << nbits) + 1;
-	base = 1;
-	if (sign)
-		base += 1 << (nbits - 1);
-	digit_contig = 1;
-	for (i = 0 ; i < 10 ; i++) {
-		if (digit[i] != '0' + i)
-			digit_contig = 0;
-	}
-
 	fputs("#include <sys/cdefs.h>\n", hfile);
-	fputs("#include <ctype.h>\n", hfile);
+	fputs("#include <limits.h>\n\n", hfile);
 
 	/* Generate the #define statements in the header file */
 	fputs("/* Syntax classes */\n", hfile);
@@ -186,8 +151,8 @@ main(int argc __unused, char **argv __unused)
 		fprintf(hfile, "/* %s */\n", is_entry[i].comment);
 	}
 	putc('\n', hfile);
-	fprintf(hfile, "#define SYNBASE %d\n", base);
-	fprintf(hfile, "#define PEOF %d\n\n", -base);
+	fputs("#define SYNBASE (1 - CHAR_MIN)\n", hfile);
+	fputs("#define PEOF -SYNBASE\n\n", hfile);
 	putc('\n', hfile);
 	fputs("#define BASESYNTAX (basesyntax + SYNBASE)\n", hfile);
 	fputs("#define DQSYNTAX (dqsyntax + SYNBASE)\n", hfile);
@@ -198,10 +163,13 @@ main(int argc __unused, char **argv __unused)
 	putc('\n', hfile);
 
 	/* Generate the syntax tables. */
+	fputs("#include \"parser.h\"\n", cfile);
 	fputs("#include \"shell.h\"\n", cfile);
 	fputs("#include \"syntax.h\"\n\n", cfile);
-	init();
+
 	fputs("/* syntax table used when not in quotes */\n", cfile);
+	init("basesyntax");
+	add_default();
 	add("\n", "CNL");
 	add("\\", "CBACK");
 	add("'", "CSQUOTE");
@@ -210,9 +178,11 @@ main(int argc __unused, char **argv __unused)
 	add("$", "CVAR");
 	add("}", "CENDVAR");
 	add("<>();&| \t", "CSPCL");
-	print("basesyntax");
-	init();
+	finish();
+
 	fputs("\n/* syntax table used when in double quotes */\n", cfile);
+	init("dqsyntax");
+	add_default();
 	add("\n", "CNL");
 	add("\\", "CBACK");
 	add("\"", "CENDQUOTE");
@@ -221,17 +191,21 @@ main(int argc __unused, char **argv __unused)
 	add("}", "CENDVAR");
 	/* ':/' for tilde expansion, '-^]' for [a\-x] pattern ranges */
 	add("!*?[]=~:/-^", "CCTL");
-	print("dqsyntax");
-	init();
+	finish();
+
 	fputs("\n/* syntax table used when in single quotes */\n", cfile);
+	init("sqsyntax");
+	add_default();
 	add("\n", "CNL");
 	add("\\", "CSBACK");
 	add("'", "CENDQUOTE");
 	/* ':/' for tilde expansion, '-^]' for [a\-x] pattern ranges */
 	add("!*?[]=~:/-^", "CCTL");
-	print("sqsyntax");
-	init();
+	finish();
+
 	fputs("\n/* syntax table used when in arithmetic */\n", cfile);
+	init("arisyntax");
+	add_default();
 	add("\n", "CNL");
 	add("\\", "CBACK");
 	add("`", "CBQUOTE");
@@ -240,54 +214,68 @@ main(int argc __unused, char **argv __unused)
 	add("}", "CENDVAR");
 	add("(", "CLP");
 	add(")", "CRP");
-	print("arisyntax");
-	filltable("0");
+	finish();
+
 	fputs("\n/* character classification table */\n", cfile);
+	init("is_type");
 	add("0123456789", "ISDIGIT");
 	add("abcdefghijklmnopqrstuvwxyz", "ISLOWER");
 	add("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "ISUPPER");
 	add("_", "ISUNDER");
 	add("#?$!-*@", "ISSPECL");
-	print("is_type");
-	if (! digit_contig)
-		digit_convert();
+	finish();
+
 	exit(0);
 }
 
 
-
 /*
- * Clear the syntax table.
+ * Output the header and declaration of a syntax table.
  */
 
 static void
-filltable(const char *dftval)
+init(const char *name)
 {
-	int i;
+	fprintf(hfile, "extern const char %s[];\n", name);
+	fprintf(cfile, "const char %s[SYNBASE + CHAR_MAX + 1] = {\n", name);
+}
 
-	for (i = 0 ; i < size ; i++)
-		syntax[i] = dftval;
+
+static void
+add_one(const char *key, const char *type)
+{
+	fprintf(cfile, "\t[SYNBASE + %s] = %s,\n", key, type);
 }
 
 
 /*
- * Initialize the syntax table with default values.
+ * Add default values to the syntax table.
  */
 
 static void
-init(void)
+add_default(void)
 {
-	filltable("CWORD");
-	syntax[0] = "CEOF";
-	syntax[base + CTLESC] = "CCTL";
-	syntax[base + CTLVAR] = "CCTL";
-	syntax[base + CTLENDVAR] = "CCTL";
-	syntax[base + CTLBACKQ] = "CCTL";
-	syntax[base + CTLBACKQ + CTLQUOTE] = "CCTL";
-	syntax[base + CTLARI] = "CCTL";
-	syntax[base + CTLENDARI] = "CCTL";
-	syntax[base + CTLQUOTEMARK] = "CCTL";
-	syntax[base + CTLQUOTEEND] = "CCTL";
+	add_one("PEOF",                "CEOF");
+	add_one("CTLESC",              "CCTL");
+	add_one("CTLVAR",              "CCTL");
+	add_one("CTLENDVAR",           "CCTL");
+	add_one("CTLBACKQ",            "CCTL");
+	add_one("CTLBACKQ + CTLQUOTE", "CCTL");
+	add_one("CTLARI",              "CCTL");
+	add_one("CTLENDARI",           "CCTL");
+	add_one("CTLQUOTEMARK",        "CCTL");
+	add_one("CTLQUOTEEND",         "CCTL");
+}
+
+
+/*
+ * Output the footer of a syntax table.
+ */
+
+static void
+finish(void)
+{
+	fputs("};\n", cfile);
 }
 
 
@@ -298,42 +286,21 @@ init(void)
 static void
 add(const char *p, const char *type)
 {
-	while (*p)
-		syntax[*p++ + base] = type;
-}
+	for (; *p; ++p) {
+		char c = *p;
+		switch (c) {
+		case '\t': c = 't';  break;
+		case '\n': c = 'n';  break;
+		case '\'': c = '\''; break;
+		case '\\': c = '\\'; break;
 
-
-
-/*
- * Output the syntax table.
- */
-
-static void
-print(const char *name)
-{
-	int i;
-	int col;
-
-	fprintf(hfile, "extern const char %s[];\n", name);
-	fprintf(cfile, "const char %s[%d] = {\n", name, size);
-	col = 0;
-	for (i = 0 ; i < size ; i++) {
-		if (i == 0) {
-			fputs("      ", cfile);
-		} else if ((i & 03) == 0) {
-			fputs(",\n      ", cfile);
-			col = 0;
-		} else {
-			putc(',', cfile);
-			while (++col < 9 * (i & 03))
-				putc(' ', cfile);
+		default:
+			fprintf(cfile, "\t[SYNBASE + '%c'] = %s,\n", c, type);
+			continue;
 		}
-		fputs(syntax[i], cfile);
-		col += strlen(syntax[i]);
+		fprintf(cfile, "\t[SYNBASE + '\\%c'] = %s,\n", c, type);
 	}
-	fputs("\n};\n", cfile);
 }
-
 
 
 /*
@@ -342,12 +309,13 @@ print(const char *name)
  */
 
 static const char *macro[] = {
-	"#define is_digit(c)\t((is_type+SYNBASE)[(int)c] & ISDIGIT)",
+	"#define is_digit(c)\t((unsigned int)((c) - '0') <= 9)",
 	"#define is_eof(c)\t((c) == PEOF)",
 	"#define is_alpha(c)\t((is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER))",
 	"#define is_name(c)\t((is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER|ISUNDER))",
 	"#define is_in_name(c)\t((is_type+SYNBASE)[(int)c] & (ISUPPER|ISLOWER|ISUNDER|ISDIGIT))",
 	"#define is_special(c)\t((is_type+SYNBASE)[(int)c] & (ISSPECL|ISDIGIT))",
+	"#define digit_val(c)\t((c) - '0')",
 	NULL
 };
 
@@ -356,41 +324,6 @@ output_type_macros(void)
 {
 	const char **pp;
 
-	if (digit_contig)
-		macro[0] = "#define is_digit(c)\t((unsigned int)((c) - '0') <= 9)";
 	for (pp = macro ; *pp ; pp++)
 		fprintf(hfile, "%s\n", *pp);
-	if (digit_contig)
-		fputs("#define digit_val(c)\t((c) - '0')\n", hfile);
-	else
-		fputs("#define digit_val(c)\t(digit_value[c])\n", hfile);
-}
-
-
-
-/*
- * Output digit conversion table (if digits are not contiguous).
- */
-
-static void
-digit_convert(void)
-{
-	int maxdigit;
-	static char digit[] = "0123456789";
-	char *p;
-	int i;
-
-	maxdigit = 0;
-	for (p = digit ; *p ; p++)
-		if (*p > maxdigit)
-			maxdigit = *p;
-	fputs("extern const char digit_value[];\n", hfile);
-	fputs("\n\nconst char digit_value[] = {\n", cfile);
-	for (i = 0 ; i <= maxdigit ; i++) {
-		for (p = digit ; *p && *p != i ; p++);
-		if (*p == '\0')
-			p = digit;
-		fprintf(cfile, "      %d,\n", (int)(p - digit));
-	}
-	fputs("};\n", cfile);
 }

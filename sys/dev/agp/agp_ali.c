@@ -69,7 +69,7 @@ agp_ali_match(device_t dev)
 		return ("Ali M1541 host to AGP bridge");
 	case 0x162110b9:
 		return ("Ali M1621 host to AGP bridge");
-	};
+	}
 
 	return NULL;
 }

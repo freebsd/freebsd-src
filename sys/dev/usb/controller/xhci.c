@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*-
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
@@ -38,9 +39,9 @@
  * way we avoid too much diveration among USB drivers.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -76,6 +77,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
+
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
 
@@ -544,19 +547,12 @@ xhci_init(struct xhci_softc *sc, device_t self)
         sc->sc_config_msg[1].hdr.pm_callback = &xhci_configure_msg;
         sc->sc_config_msg[1].bus = &sc->sc_bus;
 
-	if (usb_proc_create(&sc->sc_config_proc,
-	    &sc->sc_bus.bus_mtx, device_get_nameunit(self), USB_PRI_MED)) {
-                printf("WARNING: Creation of XHCI configure "
-                    "callback process failed.\n");
-        }
 	return (0);
 }
 
 void
 xhci_uninit(struct xhci_softc *sc)
 {
-	usb_proc_free(&sc->sc_config_proc);
-
 	usb_bus_mem_free_all(&sc->sc_bus, &xhci_iterate_hw_softc);
 
 	cv_destroy(&sc->sc_cmd_cv);
@@ -886,6 +882,12 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 			 * a short packet also makes the transfer done
 			 */
 			if (td->remainder > 0) {
+				if (td->alt_next == NULL) {
+					DPRINTF(
+					    "short TD has no alternate next\n");
+					xhci_generic_done(xfer);
+					break;
+				}
 				DPRINTF("TD has short pkt\n");
 				if (xfer->flags_int.short_frames_ok ||
 				    xfer->flags_int.isochronous_xfr ||
@@ -1440,26 +1442,37 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
-	uint32_t temp;
+	uint32_t iman;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
+	if (status == 0)
+		goto done;
 
 	/* acknowledge interrupts */
 
 	XWRITE4(sc, oper, XHCI_USBSTS, status);
 
-	temp = XREAD4(sc, runt, XHCI_IMAN(0));
+	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
+ 
+	if (status & XHCI_STS_EINT) {
 
-	/* acknowledge pending event */
+		/* acknowledge pending event */
+		iman = XREAD4(sc, runt, XHCI_IMAN(0));
 
-	XWRITE4(sc, runt, XHCI_IMAN(0), temp);
+		/* reset interrupt */
+		XWRITE4(sc, runt, XHCI_IMAN(0), iman);
+ 
+		DPRINTFN(16, "real interrupt (iman=0x%08x)\n", iman);
+ 
+		/* check for event(s) */
+		xhci_interrupt_poll(sc);
+	}
 
-	DPRINTFN(16, "real interrupt (sts=0x%08x, "
-	    "iman=0x%08x)\n", status, temp);
+	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
+	    XHCI_STS_HSE | XHCI_STS_HCE)) {
 
-	if (status != 0) {
 		if (status & XHCI_STS_PCD) {
 			xhci_root_intr(sc);
 		}
@@ -1479,9 +1492,7 @@ xhci_interrupt(struct xhci_softc *sc)
 			   __FUNCTION__);
 		}
 	}
-
-	xhci_interrupt_poll(sc);
-
+done:
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -2045,7 +2056,9 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	struct usb_page_search buf_inp;
 	struct xhci_input_dev_ctx *pinp;
+	uint32_t temp;
 	uint8_t index;
+	uint8_t x;
 
 	index = udev->controller_slot_id;
 
@@ -2060,6 +2073,24 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 	} else {
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, 0);
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, mask);
+
+		/* find most significant set bit */
+		for (x = 31; x != 1; x--) {
+			if (mask & (1 << x))
+				break;
+		}
+
+		/* adjust */
+		x--;
+
+		/* figure out maximum */
+		if (x > sc->sc_hw.devs[index].context_num) {
+			sc->sc_hw.devs[index].context_num = x;
+			temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
+			temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
+			temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
+			xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
+		}
 	}
 	return (0);
 }
@@ -2311,16 +2342,9 @@ xhci_configure_device(struct usb_device *udev)
 
 	DPRINTF("Route=0x%08x\n", route);
 
-	temp = XHCI_SCTX_0_ROUTE_SET(route);
-
-	switch (sc->sc_hw.devs[index].state) {
-	case XHCI_ST_CONFIGURED:
-		temp |= XHCI_SCTX_0_CTX_NUM_SET(XHCI_MAX_ENDPOINTS - 1);
-		break;
-	default:
-		temp |= XHCI_SCTX_0_CTX_NUM_SET(1);
-		break;
-	}
+	temp = XHCI_SCTX_0_ROUTE_SET(route) |
+	    XHCI_SCTX_0_CTX_NUM_SET(
+	    sc->sc_hw.devs[index].context_num + 1);
 
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
@@ -2464,8 +2488,9 @@ xhci_alloc_device_ext(struct usb_device *udev)
 
 	if (usb_pc_alloc_mem(pc, pg, sc->sc_ctx_is_64_byte ?
 	    (2 * sizeof(struct xhci_input_dev_ctx)) :
-	     sizeof(struct xhci_input_dev_ctx), XHCI_PAGE_SIZE))
+	    sizeof(struct xhci_input_dev_ctx), XHCI_PAGE_SIZE)) {
 		goto error;
+	}
 
 	pc = &sc->sc_hw.devs[index].endpoint_pc;
 	pg = &sc->sc_hw.devs[index].endpoint_pg;
@@ -2473,15 +2498,18 @@ xhci_alloc_device_ext(struct usb_device *udev)
 	/* need to initialize the page cache */
 	pc->tag_parent = sc->sc_bus.dma_parent_tag;
 
-	if (usb_pc_alloc_mem(pc, pg, sizeof(struct xhci_dev_endpoint_trbs), XHCI_PAGE_SIZE))
+	if (usb_pc_alloc_mem(pc, pg,
+	    sizeof(struct xhci_dev_endpoint_trbs), XHCI_PAGE_SIZE)) {
 		goto error;
+	}
 
 	/* initialise all endpoint LINK TRBs */
 
 	for (i = 0; i != XHCI_MAX_ENDPOINTS; i++) {
 
 		/* lookup endpoint TRB ring */
-		usbd_get_page(pc, (uintptr_t)&((struct xhci_dev_endpoint_trbs *)0)->trb[i][0], &buf_ep);
+		usbd_get_page(pc, (uintptr_t)&
+		    ((struct xhci_dev_endpoint_trbs *)0)->trb[i][0], &buf_ep);
 
 		/* get TRB pointer */
 		trb = buf_ep.buffer;
@@ -2568,8 +2596,10 @@ xhci_endpoint_doorbell(struct usb_xfer *xfer)
 	epno = XHCI_EPNO2EPID(epno);
 	index = xfer->xroot->udev->controller_slot_id;
 
-	if (xfer->xroot->udev->flags.self_suspended == 0)
-		XWRITE4(sc, door, XHCI_DOORBELL(index), epno | XHCI_DB_SID_SET(0));
+	if (xfer->xroot->udev->flags.self_suspended == 0) {
+		XWRITE4(sc, door, XHCI_DOORBELL(index),
+		    epno | XHCI_DB_SID_SET(xfer->stream_id));
+	}
 }
 
 static void
@@ -2647,7 +2677,7 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 		DPRINTFN(8, "Not running\n");
 
 		/* start configuration */
-		(void)usb_proc_msignal(&sc->sc_config_proc,
+		(void)usb_proc_msignal(USB_BUS_CONTROL_XFER_PROC(&sc->sc_bus),
 		    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 		return (0);
 	}
@@ -3584,7 +3614,7 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 * endpoint context state diagram in the XHCI specification:
 	 */
 
-	xhci_configure_mask(udev, 1U << epno, 0);
+	xhci_configure_mask(udev, (1U << epno) | 1U, 0);
 
 	err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
 
@@ -3615,7 +3645,7 @@ xhci_start_dma_delay(struct usb_xfer *xfer)
 	/* put transfer on interrupt queue (again) */
 	usbd_transfer_enqueue(&sc->sc_bus.intr_q, xfer);
 
-	(void)usb_proc_msignal(&sc->sc_config_proc,
+	(void)usb_proc_msignal(USB_BUS_CONTROL_XFER_PROC(&sc->sc_bus),
 	    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 }
 
@@ -3858,6 +3888,7 @@ xhci_device_resume(struct usb_device *udev)
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	uint8_t index;
 	uint8_t n;
+	uint8_t p;
 
 	DPRINTF("\n");
 
@@ -3873,8 +3904,12 @@ xhci_device_resume(struct usb_device *udev)
 
 	USB_BUS_LOCK(udev->bus);
 
-	for (n = 1; n != XHCI_MAX_ENDPOINTS; n++)
-		XWRITE4(sc, door, XHCI_DOORBELL(index), n | XHCI_DB_SID_SET(0));
+	for (n = 1; n != XHCI_MAX_ENDPOINTS; n++) {
+		for (p = 0; p != XHCI_MAX_STREAMS; p++) {
+			XWRITE4(sc, door, XHCI_DOORBELL(index),
+			    n | XHCI_DB_SID_SET(p));
+		}
+	}
 
 	USB_BUS_UNLOCK(udev->bus);
 
@@ -3948,7 +3983,11 @@ xhci_device_state_change(struct usb_device *udev)
 		if (sc->sc_hw.devs[index].state == XHCI_ST_DEFAULT)
 			break;
 
+		/* set default state */
 		sc->sc_hw.devs[index].state = XHCI_ST_DEFAULT;
+
+		/* reset number of contexts */
+		sc->sc_hw.devs[index].context_num = 0;
 
 		err = xhci_cmd_reset_dev(sc, index);
 
@@ -3976,11 +4015,15 @@ xhci_device_state_change(struct usb_device *udev)
 		if (sc->sc_hw.devs[index].state == XHCI_ST_CONFIGURED)
 			break;
 
+		/* set configured state */
 		sc->sc_hw.devs[index].state = XHCI_ST_CONFIGURED;
+
+		/* reset number of contexts */
+		sc->sc_hw.devs[index].context_num = 0;
 
 		usbd_get_page(&sc->sc_hw.devs[index].input_pc, 0, &buf_inp);
 
-		xhci_configure_mask(udev, 1, 0);
+		xhci_configure_mask(udev, 3, 0);
 
 		err = xhci_configure_device(udev);
 		if (err != 0) {

@@ -1090,7 +1090,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	m = *m_head;
 	if (! arge_mbuf_chain_is_tx_aligned(m)) {
 		sc->stats.tx_pkts_unaligned++;
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
@@ -1772,7 +1772,7 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;

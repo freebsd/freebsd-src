@@ -78,6 +78,20 @@ initarm_gpio_init(void)
 void
 initarm_late_init(void)
 {
+	phandle_t system;
+	pcell_t cells[2];
+	int len;
+
+	system = OF_finddevice("/system");
+	if (system != 0) {
+		len = OF_getprop(system, "linux,serial", &cells, sizeof(cells));
+		if (len > 0)
+			board_set_serial(fdt64_to_cpu(*((uint64_t *)cells)));
+
+		len = OF_getprop(system, "linux,revision", &cells, sizeof(cells));
+		if (len > 0)
+			board_set_revision(fdt32_to_cpu(*((uint32_t *)cells)));
+	}
 }
 
 #define FDT_DEVMAP_MAX	(2)		// FIXME

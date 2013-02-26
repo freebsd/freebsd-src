@@ -37,8 +37,10 @@ namespace lltok {
     kw_global,  kw_constant,
 
     kw_private, kw_linker_private, kw_linker_private_weak,
-    kw_linker_private_weak_def_auto, kw_internal,
-    kw_linkonce, kw_linkonce_odr, kw_weak, kw_weak_odr, kw_appending,
+    kw_linker_private_weak_def_auto, // FIXME: For backwards compatibility.
+    kw_internal,
+    kw_linkonce, kw_linkonce_odr, kw_linkonce_odr_auto_hide,
+    kw_weak, kw_weak_odr, kw_appending,
     kw_dllimport, kw_dllexport, kw_common, kw_available_externally,
     kw_default, kw_hidden, kw_protected,
     kw_unnamed_addr,
@@ -70,14 +72,17 @@ namespace lltok {
     kw_asm,
     kw_sideeffect,
     kw_alignstack,
+    kw_inteldialect,
     kw_gc,
     kw_c,
 
     kw_cc, kw_ccc, kw_fastcc, kw_coldcc,
+	  kw_intel_ocl_bicc,
     kw_x86_stdcallcc, kw_x86_fastcallcc, kw_x86_thiscallcc,
     kw_arm_apcscc, kw_arm_aapcscc, kw_arm_aapcs_vfpcc,
     kw_msp430_intrcc,
     kw_ptx_kernel, kw_ptx_device,
+    kw_spir_kernel, kw_spir_func,
 
     kw_signext,
     kw_zeroext,
@@ -105,7 +110,7 @@ namespace lltok {
     kw_naked,
     kw_nonlazybind,
     kw_address_safety,
-    kw_ia_nsdialect,
+    kw_minsize,
 
     kw_type,
     kw_opaque,

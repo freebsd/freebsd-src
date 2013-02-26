@@ -136,6 +136,7 @@ struct vm_object {
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist;
 			struct cdev_pager_ops *ops;
+			struct cdev *dev;
 		} devp;
 
 		/*
@@ -165,6 +166,8 @@ struct vm_object {
 /*
  * Flags
  */
+#define	OBJ_FICTITIOUS	0x0001		/* (c) contains fictitious pages */
+#define	OBJ_UNMANAGED	0x0002		/* (c) contains unmanaged pages */
 #define OBJ_ACTIVE	0x0004		/* active objects */
 #define OBJ_DEAD	0x0008		/* dead objects (during rundown) */
 #define	OBJ_NOSPLIT	0x0010		/* dont split this object */
@@ -207,7 +210,9 @@ extern struct vm_object kmem_object_store;
 					mtx_init(&(object)->mtx, "vm object", \
 					    (type), MTX_DEF | MTX_DUPOK)
 #define	VM_OBJECT_LOCKED(object)	mtx_owned(&(object)->mtx)
-#define	VM_OBJECT_MTX(object)		(&(object)->mtx)
+#define	VM_OBJECT_SLEEP(object, wchan, pri, wmesg, timo) \
+					msleep((wchan), &(object)->mtx, (pri), \
+					    (wmesg), (timo))
 #define	VM_OBJECT_TRYLOCK(object)	mtx_trylock(&(object)->mtx)
 #define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
 

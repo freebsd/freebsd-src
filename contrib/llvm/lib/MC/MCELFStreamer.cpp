@@ -98,16 +98,12 @@ public:
                               uint64_t Size, unsigned ByteAlignment = 0) {
     llvm_unreachable("ELF doesn't support this directive");
   }
-  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
-  virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
-                                    unsigned ValueSize = 1,
-                                    unsigned MaxBytesToEmit = 0);
-  virtual void EmitCodeAlignment(unsigned ByteAlignment,
-                                 unsigned MaxBytesToEmit = 0);
   virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
                              unsigned AddrSpace);
 
   virtual void EmitFileDirective(StringRef Filename);
+
+  virtual void EmitTCEntry(const MCSymbol &S);
 
   virtual void FinishImpl();
 
@@ -247,7 +243,6 @@ void MCELFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   switch (Attribute) {
   case MCSA_LazyReference:
   case MCSA_Reference:
-  case MCSA_NoDeadStrip:
   case MCSA_SymbolResolver:
   case MCSA_PrivateExtern:
   case MCSA_WeakDefinition:
@@ -256,6 +251,7 @@ void MCELFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   case MCSA_IndirectSymbol:
     llvm_unreachable("Invalid symbol attribute for ELF!");
 
+  case MCSA_NoDeadStrip:
   case MCSA_ELF_TypeGnuUniqueObject:
     // Ignore for now.
     break;
@@ -353,42 +349,6 @@ void MCELFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
   SD.setExternal(false);
   BindingExplicitlySet.insert(Symbol);
   EmitCommonSymbol(Symbol, Size, ByteAlignment);
-}
-
-void MCELFStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  getOrCreateDataFragment()->getContents().append(Data.begin(), Data.end());
-}
-
-void MCELFStreamer::EmitValueToAlignment(unsigned ByteAlignment,
-                                           int64_t Value, unsigned ValueSize,
-                                           unsigned MaxBytesToEmit) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  if (MaxBytesToEmit == 0)
-    MaxBytesToEmit = ByteAlignment;
-  new MCAlignFragment(ByteAlignment, Value, ValueSize, MaxBytesToEmit,
-                      getCurrentSectionData());
-
-  // Update the maximum alignment on the current section if necessary.
-  if (ByteAlignment > getCurrentSectionData()->getAlignment())
-    getCurrentSectionData()->setAlignment(ByteAlignment);
-}
-
-void MCELFStreamer::EmitCodeAlignment(unsigned ByteAlignment,
-                                        unsigned MaxBytesToEmit) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  if (MaxBytesToEmit == 0)
-    MaxBytesToEmit = ByteAlignment;
-  MCAlignFragment *F = new MCAlignFragment(ByteAlignment, 0, 1, MaxBytesToEmit,
-                                           getCurrentSectionData());
-  F->setEmitNops(true);
-
-  // Update the maximum alignment on the current section if necessary.
-  if (ByteAlignment > getCurrentSectionData()->getAlignment())
-    getCurrentSectionData()->setAlignment(ByteAlignment);
 }
 
 void MCELFStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
@@ -509,6 +469,12 @@ void MCELFStreamer::FinishImpl() {
   }
 
   this->MCObjectStreamer::FinishImpl();
+}
+
+void MCELFStreamer::EmitTCEntry(const MCSymbol &S)
+{
+  // Creates a R_PPC64_TOC relocation
+  MCObjectStreamer::EmitSymbolValue(&S, 8, 0);
 }
 
 MCStreamer *llvm::createELFStreamer(MCContext &Context, MCAsmBackend &MAB,

@@ -50,12 +50,11 @@ setgrdir(const char * dir)
 {
 	if (dir == NULL)
 		return -1;
-	else {
-		char * d = malloc(strlen(dir)+1);
-		if (d == NULL)
-			return -1;
-		grpath = strcpy(d, dir);
-	}
+	else
+		grpath = strdup(dir);
+	if (grpath == NULL)
+		return -1;
+
 	return 0;
 }
 

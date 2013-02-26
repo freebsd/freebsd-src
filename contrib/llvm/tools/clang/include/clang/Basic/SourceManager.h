@@ -62,7 +62,6 @@ class LangOptions;
 class ASTWriter;
 class ASTReader;
 
-/// \namespace
 /// \brief Public enums and private classes that are part of the
 /// SourceManager implementation.
 ///
@@ -221,7 +220,7 @@ namespace SrcMgr {
 
   private:
     // Disable assignments.
-    ContentCache &operator=(const ContentCache& RHS);
+    ContentCache &operator=(const ContentCache& RHS) LLVM_DELETED_FUNCTION;
   };
 
   /// \brief Information about a FileID, basically just the logical file
@@ -647,8 +646,8 @@ class SourceManager : public RefCountedBase<SourceManager> {
   mutable llvm::DenseMap<FileID, MacroArgsMap *> MacroArgsCacheMap;
 
   // SourceManager doesn't support copy construction.
-  explicit SourceManager(const SourceManager&);
-  void operator=(const SourceManager&);
+  explicit SourceManager(const SourceManager&) LLVM_DELETED_FUNCTION;
+  void operator=(const SourceManager&) LLVM_DELETED_FUNCTION;
 public:
   SourceManager(DiagnosticsEngine &Diag, FileManager &FileMgr,
                 bool UserFilesAreVolatile = false);
@@ -675,9 +674,10 @@ public:
   ///
   /// One example of when this would be used is when the main source is read
   /// from STDIN.
-  FileID createMainFileIDForMemBuffer(const llvm::MemoryBuffer *Buffer) {
+  FileID createMainFileIDForMemBuffer(const llvm::MemoryBuffer *Buffer,
+                             SrcMgr::CharacteristicKind Kind = SrcMgr::C_User) {
     assert(MainFileID.isInvalid() && "MainFileID already set!");
-    MainFileID = createFileIDForMemBuffer(Buffer);
+    MainFileID = createFileIDForMemBuffer(Buffer, Kind);
     return MainFileID;
   }
 
@@ -734,10 +734,11 @@ public:
   /// This does no caching of the buffer and takes ownership of the
   /// MemoryBuffer, so only pass a MemoryBuffer to this once.
   FileID createFileIDForMemBuffer(const llvm::MemoryBuffer *Buffer,
+                      SrcMgr::CharacteristicKind FileCharacter = SrcMgr::C_User,
                                   int LoadedID = 0, unsigned LoadedOffset = 0,
                                  SourceLocation IncludeLoc = SourceLocation()) {
     return createFileID(createMemBufferContentCache(Buffer), IncludeLoc,
-                        SrcMgr::C_User, LoadedID, LoadedOffset);
+                        FileCharacter, LoadedID, LoadedOffset);
   }
 
   /// \brief Return a new SourceLocation that encodes the
@@ -1557,7 +1558,11 @@ private:
   getDecomposedSpellingLocSlowCase(const SrcMgr::SLocEntry *E,
                                    unsigned Offset) const;
   void computeMacroArgsCache(MacroArgsMap *&MacroArgsCache, FileID FID) const;
-
+  void associateFileChunkWithMacroArgExp(MacroArgsMap &MacroArgsCache,
+                                         FileID FID,
+                                         SourceLocation SpellLoc,
+                                         SourceLocation ExpansionLoc,
+                                         unsigned ExpansionLength) const;
   friend class ASTReader;
   friend class ASTWriter;
 };

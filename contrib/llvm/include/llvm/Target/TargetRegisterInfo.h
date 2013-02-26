@@ -221,13 +221,17 @@ public:
 private:
   const TargetRegisterInfoDesc *InfoDesc;     // Extra desc array for codegen
   const char *const *SubRegIndexNames;        // Names of subreg indexes.
+  // Pointer to array of lane masks, one per sub-reg index.
+  const unsigned *SubRegIndexLaneMasks;
+
   regclass_iterator RegClassBegin, RegClassEnd;   // List of regclasses
 
 protected:
   TargetRegisterInfo(const TargetRegisterInfoDesc *ID,
                      regclass_iterator RegClassBegin,
                      regclass_iterator RegClassEnd,
-                     const char *const *subregindexnames);
+                     const char *const *SRINames,
+                     const unsigned *SRILaneMasks);
   virtual ~TargetRegisterInfo();
 public:
 
@@ -327,8 +331,34 @@ public:
   /// getSubRegIndexName - Return the human-readable symbolic target-specific
   /// name for the specified SubRegIndex.
   const char *getSubRegIndexName(unsigned SubIdx) const {
-    assert(SubIdx && "This is not a subregister index");
+    assert(SubIdx && SubIdx < getNumSubRegIndices() &&
+           "This is not a subregister index");
     return SubRegIndexNames[SubIdx-1];
+  }
+
+  /// getSubRegIndexLaneMask - Return a bitmask representing the parts of a
+  /// register that are covered by SubIdx.
+  ///
+  /// Lane masks for sub-register indices are similar to register units for
+  /// physical registers. The individual bits in a lane mask can't be assigned
+  /// any specific meaning. They can be used to check if two sub-register
+  /// indices overlap.
+  ///
+  /// If the target has a register such that:
+  ///
+  ///   getSubReg(Reg, A) overlaps getSubReg(Reg, B)
+  ///
+  /// then:
+  ///
+  ///   getSubRegIndexLaneMask(A) & getSubRegIndexLaneMask(B) != 0
+  ///
+  /// The converse is not necessarily true. If two lane masks have a common
+  /// bit, the corresponding sub-registers may not overlap, but it can be
+  /// assumed that they usually will.
+  unsigned getSubRegIndexLaneMask(unsigned SubIdx) const {
+    // SubIdx == 0 is allowed, it has the lane mask ~0u.
+    assert(SubIdx < getNumSubRegIndices() && "This is not a subregister index");
+    return SubRegIndexLaneMasks[SubIdx];
   }
 
   /// regsOverlap - Returns true if the two registers are equal or alias each
@@ -416,18 +446,6 @@ public:
     return MCRegisterInfo::getMatchingSuperReg(Reg, SubIdx, RC->MC);
   }
 
-  /// canCombineSubRegIndices - Given a register class and a list of
-  /// subregister indices, return true if it's possible to combine the
-  /// subregister indices into one that corresponds to a larger
-  /// subregister. Return the new subregister index by reference. Note the
-  /// new index may be zero if the given subregisters can be combined to
-  /// form the whole register.
-  virtual bool canCombineSubRegIndices(const TargetRegisterClass *RC,
-                                       SmallVectorImpl<unsigned> &SubIndices,
-                                       unsigned &NewSubIdx) const {
-    return 0;
-  }
-
   /// getMatchingSuperRegClass - Return a subclass of the specified register
   /// class A so that each register in it has a sub-register of the
   /// specified sub-register index which is in the specified register class B.
@@ -458,6 +476,8 @@ public:
   /// composeSubRegIndices - Return the subregister index you get from composing
   /// two subregister indices.
   ///
+  /// The special null sub-register index composes as the identity.
+  ///
   /// If R:a:b is the same register as R:c, then composeSubRegIndices(a, b)
   /// returns c. Note that composeSubRegIndices does not tell you about illegal
   /// compositions. If R does not have a subreg a, or R:a does not have a subreg
@@ -467,11 +487,19 @@ public:
   /// ssub_0:S0 - ssub_3:S3 subregs.
   /// If you compose subreg indices dsub_1, ssub_0 you get ssub_2.
   ///
-  virtual unsigned composeSubRegIndices(unsigned a, unsigned b) const {
-    // This default implementation is correct for most targets.
-    return b;
+  unsigned composeSubRegIndices(unsigned a, unsigned b) const {
+    if (!a) return b;
+    if (!b) return a;
+    return composeSubRegIndicesImpl(a, b);
   }
 
+protected:
+  /// Overridden by TableGen in targets that have sub-registers.
+  virtual unsigned composeSubRegIndicesImpl(unsigned, unsigned) const {
+    llvm_unreachable("Target has no sub-registers");
+  }
+
+public:
   /// getCommonSuperRegClass - Find a common super-register class if it exists.
   ///
   /// Find a register class, SuperRC and two sub-register indices, PreA and

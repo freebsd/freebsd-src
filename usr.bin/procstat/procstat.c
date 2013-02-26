@@ -216,8 +216,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	/* We require that either 0 or 1 mode flags be set. */
-	tmp = bflag + cflag + eflag + fflag + (kflag ? 1 : 0) + lflag + sflag +
-	    tflag + vflag + xflag;
+	tmp = bflag + cflag + eflag + fflag + iflag + jflag + (kflag ? 1 : 0) +
+	    lflag + sflag + tflag + vflag + xflag;
 	if (!(tmp == 0 || tmp == 1))
 		usage();
 

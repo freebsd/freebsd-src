@@ -32,7 +32,7 @@
 .\"     @(#)cat.1	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2004
+.Dd January 29, 2013
 .Dt CAT 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd concatenate and print files
 .Sh SYNOPSIS
 .Nm
-.Op Fl benstuv
+.Op Fl belnstuv
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -79,6 +79,16 @@ Display non-printing characters (see the
 option), and display a dollar sign
 .Pq Ql \&$
 at the end of each line.
+.It Fl l
+Set an exclusive advisory lock on the standard output file descriptor.
+This lock is set using
+.Xr fcntl 2
+with the
+.Dv F_SETLKW
+command.
+If the output file is already locked,
+.Nm
+will block until the lock is acquired.
 .It Fl n
 Number the output lines, starting at 1.
 .It Fl s
@@ -160,6 +170,7 @@ operand.
 .Xr tail 1 ,
 .Xr vis 1 ,
 .Xr zcat 1 ,
+.Xr fcntl 2 ,
 .Xr setbuf 3
 .Rs
 .%A Rob Pike
@@ -175,7 +186,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl benstv
+.Op Fl belnstv
 are extensions to the specification.
 .Sh HISTORY
 A

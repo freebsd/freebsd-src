@@ -35,6 +35,19 @@ TGHDRS=	CC1AsOptions \
 	DiagnosticLexKinds \
 	DiagnosticSemaKinds \
 	Options
+
+.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+_clangstaticanalyzer= \
+	clangstaticanalyzerfrontend \
+	clangstaticanalyzercheckers \
+	clangstaticanalyzercore
+_clangarcmigrate= \
+	clangarcmigrate
+_clangrewriter= \
+	clangrewritefrontend \
+	clangrewritecore
+.endif # !EARLY_BUILD && MK_CLANG_FULL
+
 LIBDEPS=clangfrontendtool \
 	clangfrontend \
 	clangdriver \
@@ -42,12 +55,10 @@ LIBDEPS=clangfrontendtool \
 	clangcodegen \
 	clangparse \
 	clangsema \
-	clangstaticanalyzerfrontend \
-	clangstaticanalyzercheckers \
-	clangstaticanalyzercore \
+	${_clangstaticanalyzer} \
 	clanganalysis \
-	clangarcmigrate \
-	clangrewrite \
+	${_clangarcmigrate} \
+	${_clangrewriter} \
 	clangedit \
 	clangast \
 	clanglex \
@@ -66,12 +77,12 @@ LIBDEPS=clangfrontendtool \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
-	llvmmipsdisassembler \
 	llvmmipsasmparser \
+	llvmmipscodegen \
 	llvmmipsdesc \
-	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \

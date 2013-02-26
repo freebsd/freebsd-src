@@ -139,7 +139,7 @@ static device_method_t amdsbwd_methods[] = {
 #if 0
 	DEVMETHOD(device_shutdown,	amdsbwd_detach),
 #endif
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t	amdsbwd_devclass;

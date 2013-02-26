@@ -206,6 +206,9 @@ SYSCTL_INT(_vfs, OID_AUTO, flushbufqtarget, CTLFLAG_RW, &flushbufqtarget, 0,
 static long notbufdflashes;
 SYSCTL_LONG(_vfs, OID_AUTO, notbufdflashes, CTLFLAG_RD, &notbufdflashes, 0,
     "Number of dirty buffer flushes done by the bufdaemon helpers");
+static long barrierwrites;
+SYSCTL_LONG(_vfs, OID_AUTO, barrierwrites, CTLFLAG_RW, &barrierwrites, 0,
+    "Number of barrier writes");
 
 /*
  * Wakeup point for bufdaemon, as well as indicator of whether it is already
@@ -888,6 +891,9 @@ bufwrite(struct buf *bp)
 		return (0);
 	}
 
+	if (bp->b_flags & B_BARRIER)
+		barrierwrites++;
+
 	oldflags = bp->b_flags;
 
 	BUF_ASSERT_HELD(bp);
@@ -1007,6 +1013,8 @@ bdwrite(struct buf *bp)
 
 	CTR3(KTR_BUF, "bdwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
+	KASSERT((bp->b_flags & B_BARRIER) == 0,
+	    ("Barrier request in delayed write %p", bp));
 	BUF_ASSERT_HELD(bp);
 
 	if (bp->b_flags & B_INVAL) {
@@ -1164,6 +1172,40 @@ bawrite(struct buf *bp)
 
 	bp->b_flags |= B_ASYNC;
 	(void) bwrite(bp);
+}
+
+/*
+ *	babarrierwrite:
+ *
+ *	Asynchronous barrier write.  Start output on a buffer, but do not
+ *	wait for it to complete.  Place a write barrier after this write so
+ *	that this buffer and all buffers written before it are committed to
+ *	the disk before any buffers written after this write are committed
+ *	to the disk.  The buffer is released when the output completes.
+ */
+void
+babarrierwrite(struct buf *bp)
+{
+
+	bp->b_flags |= B_ASYNC | B_BARRIER;
+	(void) bwrite(bp);
+}
+
+/*
+ *	bbarrierwrite:
+ *
+ *	Synchronous barrier write.  Start output on a buffer and wait for
+ *	it to complete.  Place a write barrier after this write so that
+ *	this buffer and all buffers written before it are committed to 
+ *	the disk before any buffers written after this write are committed
+ *	to the disk.  The buffer is released when the output completes.
+ */
+int
+bbarrierwrite(struct buf *bp)
+{
+
+	bp->b_flags |= B_BARRIER;
+	return (bwrite(bp));
 }
 
 /*
@@ -2107,15 +2149,16 @@ restart:
 
 		if (maxsize != bp->b_kvasize) {
 			vm_offset_t addr = 0;
+			int rv;
 
 			bfreekva(bp);
 
 			vm_map_lock(buffer_map);
 			if (vm_map_findspace(buffer_map,
-				vm_map_min(buffer_map), maxsize, &addr)) {
+			    vm_map_min(buffer_map), maxsize, &addr)) {
 				/*
-				 * Uh oh.  Buffer map is to fragmented.  We
-				 * must defragment the map.
+				 * Buffer map is too fragmented.
+				 * We must defragment the map.
 				 */
 				atomic_add_int(&bufdefragcnt, 1);
 				vm_map_unlock(buffer_map);
@@ -2124,22 +2167,21 @@ restart:
 				brelse(bp);
 				goto restart;
 			}
-			if (addr) {
-				vm_map_insert(buffer_map, NULL, 0,
-					addr, addr + maxsize,
-					VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
-
-				bp->b_kvabase = (caddr_t) addr;
-				bp->b_kvasize = maxsize;
-				atomic_add_long(&bufspace, bp->b_kvasize);
-				atomic_add_int(&bufreusecnt, 1);
-			}
+			rv = vm_map_insert(buffer_map, NULL, 0, addr,
+			    addr + maxsize, VM_PROT_ALL, VM_PROT_ALL,
+			    MAP_NOFAULT);
+			KASSERT(rv == KERN_SUCCESS,
+			    ("vm_map_insert(buffer_map) rv %d", rv));
 			vm_map_unlock(buffer_map);
+			bp->b_kvabase = (caddr_t)addr;
+			bp->b_kvasize = maxsize;
+			atomic_add_long(&bufspace, bp->b_kvasize);
+			atomic_add_int(&bufreusecnt, 1);
 		}
 		bp->b_saveaddr = bp->b_kvabase;
 		bp->b_data = bp->b_saveaddr;
 	}
-	return(bp);
+	return (bp);
 }
 
 /*
@@ -2209,7 +2251,7 @@ buf_daemon()
 		while (numdirtybuffers > lodirtybuffers) {
 			if (buf_do_flush(NULL) == 0)
 				break;
-			kern_yield(PRI_UNCHANGED);
+			kern_yield(PRI_USER);
 		}
 		lodirtybuffers = lodirtysave;
 
@@ -2605,8 +2647,6 @@ loop:
          * If this check ever becomes a bottleneck it may be better to
          * move it into the else, when gbincore() fails.  At the moment
          * it isn't a problem.
-	 *
-	 * XXX remove if 0 sections (clean this up after its proven)
          */
 	if (numfreebuffers == 0) {
 		if (TD_IS_IDLETHREAD(curthread))

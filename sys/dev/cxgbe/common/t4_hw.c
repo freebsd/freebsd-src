@@ -35,7 +35,12 @@ __FBSDID("$FreeBSD$");
 #include "firmware/t4fw_interface.h"
 
 #undef msleep
-#define msleep(x) pause("t4hw", (x) * hz / 1000)
+#define msleep(x) do { \
+	if (cold) \
+		DELAY((x) * 1000); \
+	else \
+		pause("t4hw", (x) * hz / 1000); \
+} while (0)
 
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
@@ -3904,13 +3909,13 @@ int t4_i2c_rd(struct adapter *adap, unsigned int mbox, unsigned int port_id,
 		F_FW_CMD_READ |
 		V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_I2C));
 	c.cycles_to_len16 = htonl(FW_LEN16(c));
-	c.u.i2c.pid_pkd = V_FW_LDST_CMD_PID(port_id);
-	c.u.i2c.base = dev_addr;
-	c.u.i2c.boffset = offset;
+	c.u.i2c_deprecated.pid_pkd = V_FW_LDST_CMD_PID(port_id);
+	c.u.i2c_deprecated.base = dev_addr;
+	c.u.i2c_deprecated.boffset = offset;
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0)
-		*valp = c.u.i2c.data;
+		*valp = c.u.i2c_deprecated.data;
 	return ret;
 }
 
@@ -4588,7 +4593,7 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		}
 	}
 	if (rss_size)
-		*rss_size = G_FW_VI_CMD_RSSSIZE(ntohs(c.rsssize_pkd));
+		*rss_size = G_FW_VI_CMD_RSSSIZE(ntohs(c.norss_rsssize));
 	return G_FW_VI_CMD_VIID(htons(c.type_to_viid));
 }
 
@@ -5298,44 +5303,4 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
 
 	return 0;
-}
-
-int t4_config_scheduler(struct adapter *adapter, int mode, int level,
-			int pktsize, int sched_class, int port, int unit,
-			int rate, int weight, int minrate, int maxrate)
-{
-	struct fw_sched_cmd cmd, rpl;
-
-	if (rate < 0 || unit < 0)
-		return -EINVAL;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
-	    F_FW_CMD_REQUEST | F_FW_CMD_WRITE);
-	cmd.retval_len16 = cpu_to_be32(V_FW_CMD_LEN16(sizeof(cmd)/16));
-
-	cmd.u.params.sc = 1;
-	cmd.u.params.level = level;
-	cmd.u.params.mode = mode;
-	cmd.u.params.ch = port;
-	cmd.u.params.cl = sched_class;
-	cmd.u.params.rate = rate;
-	cmd.u.params.unit = unit;
-
- 	switch (level) {
-		case FW_SCHED_PARAMS_LEVEL_CH_WRR:
-		case FW_SCHED_PARAMS_LEVEL_CL_WRR:
-			cmd.u.params.weight = cpu_to_be16(weight);
-			break;
-		case FW_SCHED_PARAMS_LEVEL_CH_RL:
-		case FW_SCHED_PARAMS_LEVEL_CL_RL:
-			cmd.u.params.max = cpu_to_be32(maxrate);
-			cmd.u.params.min = cpu_to_be32(minrate);
-			cmd.u.params.pktsize = cpu_to_be16(pktsize);
-			break;
-		default:
-			return -EINVAL;
-	}
-
-	return t4_wr_mbox_meat(adapter, adapter->mbox, &cmd, sizeof(cmd), &rpl, 1);
 }

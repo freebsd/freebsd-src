@@ -580,7 +580,7 @@ smb_nbst_send(struct smb_vc *vcp, struct mbuf *m0, struct thread *td)
 		error = ENOTCONN;
 		goto abort;
 	}
-	M_PREPEND(m0, 4, M_WAIT);
+	M_PREPEND(m0, 4, M_WAITOK);
 	nb_sethdr(m0, NB_SSN_MESSAGE, m_fixhdr(m0) - 4);
 	error = nb_sosend(nbp->nbp_tso, m0, 0, td);
 	return error;

@@ -70,19 +70,11 @@ public:
     llvm_unreachable("macho doesn't support this directive");
   }
   virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                     unsigned ByteAlignment) {
-    llvm_unreachable("macho doesn't support this directive");
-  }
+                                     unsigned ByteAlignment);
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             uint64_t Size = 0, unsigned ByteAlignment = 0);
   virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
                               uint64_t Size, unsigned ByteAlignment = 0);
-  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
-  virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
-                                    unsigned ValueSize = 1,
-                                    unsigned MaxBytesToEmit = 0);
-  virtual void EmitCodeAlignment(unsigned ByteAlignment,
-                                 unsigned MaxBytesToEmit = 0);
 
   virtual void EmitFileDirective(StringRef Filename) {
     // FIXME: Just ignore the .file; it isn't important enough to fail the
@@ -141,6 +133,8 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
 }
 
 void MCMachOStreamer::EmitDataRegion(DataRegionData::KindTy Kind) {
+  if (!getAssembler().getBackend().hasDataInCodeSupport())
+    return;
   // Create a temporary label to mark the start of the data region.
   MCSymbol *Start = getContext().CreateTempSymbol();
   EmitLabel(Start);
@@ -151,6 +145,8 @@ void MCMachOStreamer::EmitDataRegion(DataRegionData::KindTy Kind) {
 }
 
 void MCMachOStreamer::EmitDataRegionEnd() {
+  if (!getAssembler().getBackend().hasDataInCodeSupport())
+    return;
   std::vector<DataRegionData> &Regions = getAssembler().getDataRegions();
   assert(Regions.size() && "Mismatched .end_data_region!");
   DataRegionData &Data = Regions.back();
@@ -325,6 +321,15 @@ void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
   SD.setCommon(Size, ByteAlignment);
 }
 
+void MCMachOStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                            unsigned ByteAlignment) {
+  // '.lcomm' is equivalent to '.zerofill'.
+  return EmitZerofill(getContext().getMachOSection("__DATA", "__bss",
+                                                   MCSectionMachO::S_ZEROFILL,
+                                                   0, SectionKind::getBSS()),
+                      Symbol, Size, ByteAlignment);
+}
+
 void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
                                    uint64_t Size, unsigned ByteAlignment) {
   MCSectionData &SectData = getAssembler().getOrCreateSectionData(*Section);
@@ -359,42 +364,6 @@ void MCMachOStreamer::EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
                                      uint64_t Size, unsigned ByteAlignment) {
   EmitZerofill(Section, Symbol, Size, ByteAlignment);
   return;
-}
-
-void MCMachOStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  getOrCreateDataFragment()->getContents().append(Data.begin(), Data.end());
-}
-
-void MCMachOStreamer::EmitValueToAlignment(unsigned ByteAlignment,
-                                           int64_t Value, unsigned ValueSize,
-                                           unsigned MaxBytesToEmit) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  if (MaxBytesToEmit == 0)
-    MaxBytesToEmit = ByteAlignment;
-  new MCAlignFragment(ByteAlignment, Value, ValueSize, MaxBytesToEmit,
-                      getCurrentSectionData());
-
-  // Update the maximum alignment on the current section if necessary.
-  if (ByteAlignment > getCurrentSectionData()->getAlignment())
-    getCurrentSectionData()->setAlignment(ByteAlignment);
-}
-
-void MCMachOStreamer::EmitCodeAlignment(unsigned ByteAlignment,
-                                        unsigned MaxBytesToEmit) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  if (MaxBytesToEmit == 0)
-    MaxBytesToEmit = ByteAlignment;
-  MCAlignFragment *F = new MCAlignFragment(ByteAlignment, 0, 1, MaxBytesToEmit,
-                                           getCurrentSectionData());
-  F->setEmitNops(true);
-
-  // Update the maximum alignment on the current section if necessary.
-  if (ByteAlignment > getCurrentSectionData()->getAlignment())
-    getCurrentSectionData()->setAlignment(ByteAlignment);
 }
 
 void MCMachOStreamer::EmitInstToData(const MCInst &Inst) {

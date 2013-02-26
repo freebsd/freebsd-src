@@ -416,6 +416,8 @@ pwrsave_flushq(struct ieee80211_node *ni)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_psq_head *qhead;
 	struct ifnet *parent, *ifp;
+	struct mbuf *parent_q = NULL, *ifp_q = NULL;
+	struct mbuf *m;
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
 	    "flush ps queue, %u packets queued", psq->psq_len);
@@ -427,8 +429,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		parent = vap->iv_ic->ic_ifp;
 		/* XXX need different driver interface */
 		/* XXX bypasses q max and OACTIVE */
-		IF_PREPEND_LIST(&parent->if_snd, qhead->head, qhead->tail,
-		    qhead->len);
+		parent_q = qhead->head;
 		qhead->head = qhead->tail = NULL;
 		qhead->len = 0;
 	} else
@@ -439,8 +440,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		ifp = vap->iv_ifp;
 		/* XXX need different driver interface */
 		/* XXX bypasses q max and OACTIVE */
-		IF_PREPEND_LIST(&ifp->if_snd, qhead->head, qhead->tail,
-		    qhead->len);
+		ifp_q = qhead->head;
 		qhead->head = qhead->tail = NULL;
 		qhead->len = 0;
 	} else
@@ -450,10 +450,34 @@ pwrsave_flushq(struct ieee80211_node *ni)
 
 	/* NB: do this outside the psq lock */
 	/* XXX packets might get reordered if parent is OACTIVE */
-	if (parent != NULL)
-		if_start(parent);
-	if (ifp != NULL)
-		if_start(ifp);
+	/* parent frames, should be encapsulated */
+	if (parent != NULL) {
+		while (parent_q != NULL) {
+			m = parent_q;
+			parent_q = m->m_nextpkt;
+			/* must be encapsulated */
+			KASSERT((m->m_flags & M_ENCAP),
+			    ("%s: parentq with non-M_ENCAP frame!\n",
+			    __func__));
+			/*
+			 * For encaped frames, we need to free the node
+			 * reference upon failure.
+			 */
+			if (parent->if_transmit(parent, m) != 0)
+				ieee80211_free_node(ni);
+		}
+	}
+
+	/* VAP frames, aren't encapsulated */
+	if (ifp != NULL) {
+		while (ifp_q != NULL) {
+			m = ifp_q;
+			ifp_q = m->m_nextpkt;
+			KASSERT((!(m->m_flags & M_ENCAP)),
+			    ("%s: vapq with M_ENCAP frame!\n", __func__));
+			(void) ifp->if_transmit(ifp, m);
+		}
+	}
 }
 
 /*

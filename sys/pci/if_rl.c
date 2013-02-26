@@ -148,6 +148,8 @@ static const struct rl_type rl_devs[] = {
 		"Delta Electronics 8139 10/100BaseTX" },
 	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139, RL_8139,
 		"Addtron Technology 8139 10/100BaseTX" },
+	{ DLINK_VENDORID, DLINK_DEVICEID_520TX_REVC1, RL_8139,
+		"D-Link DFE-520TX (rev. C1) 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS, RL_8139,
 		"D-Link DFE-530TX+ 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_690TXD, RL_8139,
@@ -1565,7 +1567,7 @@ rl_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 */
 	if (m->m_next != NULL || (mtod(m, uintptr_t) & 3) != 0 ||
 	    (padlen > 0 && M_TRAILINGSPACE(m) < padlen)) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

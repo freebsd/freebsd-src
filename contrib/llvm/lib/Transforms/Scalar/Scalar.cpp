@@ -19,7 +19,7 @@
 #include "llvm/PassManager.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/Verifier.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Transforms/Scalar.h"
 
 using namespace llvm;
@@ -59,6 +59,7 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeRegToMemPass(Registry);
   initializeSCCPPass(Registry);
   initializeIPSCCPPass(Registry);
+  initializeSROAPass(Registry);
   initializeSROA_DTPass(Registry);
   initializeSROA_SSAUpPass(Registry);
   initializeCFGSimplifyPassPass(Registry);

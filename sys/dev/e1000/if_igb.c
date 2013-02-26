@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -100,7 +100,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.5";
+char igb_driver_version[] = "version - 2.3.9";
 
 
 /*********************************************************************
@@ -294,7 +294,7 @@ static device_method_t igb_methods[] = {
 	DEVMETHOD(device_shutdown, igb_shutdown),
 	DEVMETHOD(device_suspend, igb_suspend),
 	DEVMETHOD(device_resume, igb_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t igb_driver = {
@@ -349,6 +349,16 @@ static int igb_max_interrupt_rate = 8000;
 TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
 SYSCTL_INT(_hw_igb, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &igb_max_interrupt_rate, 0, "Maximum interrupts per second");
+
+#if __FreeBSD_version >= 800000
+/*
+** Tuneable number of buffers in the buf-ring (drbr_xxx)
+*/
+static int igb_buf_ring_size = IGB_BR_SIZE;
+TUNABLE_INT("hw.igb.buf_ring_size", &igb_buf_ring_size);
+SYSCTL_INT(_hw_igb, OID_AUTO, buf_ring_size, CTLFLAG_RDTUN,
+    &igb_buf_ring_size, 0, "Size of the bufring");
+#endif
 
 /*
 ** Header split causes the packet header to
@@ -939,7 +949,8 @@ igb_start(struct ifnet *ifp)
 #else /* __FreeBSD_version >= 800000 */
 
 /*
-** Multiqueue Transmit driver
+** Multiqueue Transmit Entry:
+**  quick turnaround to the stack
 **
 */
 static int
@@ -955,24 +966,11 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
 	else
 		i = curcpu % adapter->num_queues;
-
 	txr = &adapter->tx_rings[i];
 	que = &adapter->queues[i];
-	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
-	    IGB_TX_TRYLOCK(txr)) {
-		/*
-		** Try to queue first to avoid
-		** out-of-order delivery, but 
-		** settle for it if that fails
-		*/
-		if (m)
-			drbr_enqueue(ifp, txr->br, m);
-		err = igb_mq_start_locked(ifp, txr);
-		IGB_TX_UNLOCK(txr);
-	} else {
-		err = drbr_enqueue(ifp, txr->br, m);
-		taskqueue_enqueue(que->tq, &txr->txq_task);
-	}
+
+	err = drbr_enqueue(ifp, txr->br, m);
+	taskqueue_enqueue(que->tq, &txr->txq_task);
 
 	return (err);
 }
@@ -987,19 +985,28 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	IGB_TX_LOCK_ASSERT(txr);
 
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    (txr->queue_status & IGB_QUEUE_DEPLETED) ||
 	    adapter->link_active == 0)
-		return (err);
+		return (ENETDOWN);
 
 	enq = 0;
 
 	/* Process the queue */
-	while ((next = drbr_dequeue(ifp, txr->br)) != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = igb_xmit(txr, &next)) != 0) {
-			if (next != NULL)
-				err = drbr_enqueue(ifp, txr->br, next);
+			if (next == NULL) {
+				/* It was freed, move forward */
+				drbr_advance(ifp, txr->br);
+			} else {
+				/* 
+				 * Still have one left, it may not be
+				 * the same since the transmit function
+				 * may have changed it.
+				 */
+				drbr_putback(ifp, txr->br, next);
+			}
 			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enq++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -1681,7 +1688,6 @@ static void
 igb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct adapter *adapter = ifp->if_softc;
-	u_char fiber_type = IFM_1000_SX;
 
 	INIT_DEBUGOUT("igb_media_status: begin");
 
@@ -1698,26 +1704,31 @@ igb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
-	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
-	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes))
-		ifmr->ifm_active |= fiber_type | IFM_FDX;
-	else {
-		switch (adapter->link_speed) {
-		case 10:
-			ifmr->ifm_active |= IFM_10_T;
-			break;
-		case 100:
-			ifmr->ifm_active |= IFM_100_TX;
-			break;
-		case 1000:
-			ifmr->ifm_active |= IFM_1000_T;
-			break;
-		}
-		if (adapter->link_duplex == FULL_DUPLEX)
-			ifmr->ifm_active |= IFM_FDX;
+	switch (adapter->link_speed) {
+	case 10:
+		ifmr->ifm_active |= IFM_10_T;
+		break;
+	case 100:
+		/*
+		** Support for 100Mb SFP - these are Fiber 
+		** but the media type appears as serdes
+		*/
+		if (adapter->hw.phy.media_type ==
+		    e1000_media_type_internal_serdes)
+			ifmr->ifm_active |= IFM_100_FX;
 		else
-			ifmr->ifm_active |= IFM_HDX;
+			ifmr->ifm_active |= IFM_100_TX;
+		break;
+	case 1000:
+		ifmr->ifm_active |= IFM_1000_T;
+		break;
 	}
+
+	if (adapter->link_duplex == FULL_DUPLEX)
+		ifmr->ifm_active |= IFM_FDX;
+	else
+		ifmr->ifm_active |= IFM_HDX;
+
 	IGB_CORE_UNLOCK(adapter);
 }
 
@@ -1830,7 +1841,7 @@ retry:
 		if (do_tso || (m_head->m_next != NULL && 
 		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
 			if (M_WRITABLE(*m_headp) == 0) {
-				m_head = m_dup(*m_headp, M_DONTWAIT);
+				m_head = m_dup(*m_headp, M_NOWAIT);
 				m_freem(*m_headp);
 				if (m_head == NULL) {
 					*m_headp = NULL;
@@ -1935,7 +1946,7 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -2220,11 +2231,13 @@ timeout:
 static void
 igb_update_link_status(struct adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
-	struct ifnet *ifp = adapter->ifp;
-	device_t dev = adapter->dev;
-	struct tx_ring *txr = adapter->tx_rings;
-	u32 link_check, thstat, ctrl;
+	struct e1000_hw		*hw = &adapter->hw;
+	struct e1000_fc_info	*fc = &hw->fc;
+	struct ifnet		*ifp = adapter->ifp;
+	device_t		dev = adapter->dev;
+	struct tx_ring		*txr = adapter->tx_rings;
+	u32			link_check, thstat, ctrl;
+	char			*flowctl = NULL;
 
 	link_check = thstat = ctrl = 0;
 
@@ -2262,15 +2275,33 @@ igb_update_link_status(struct adapter *adapter)
 		ctrl = E1000_READ_REG(hw, E1000_CTRL_EXT);
 	}
 
+	/* Get the flow control for display */
+	switch (fc->current_mode) {
+	case e1000_fc_rx_pause:
+		flowctl = "RX";
+		break;	
+	case e1000_fc_tx_pause:
+		flowctl = "TX";
+		break;	
+	case e1000_fc_full:
+		flowctl = "Full";
+		break;	
+	case e1000_fc_none:
+	default:
+		flowctl = "None";
+		break;	
+	}
+
 	/* Now we check if a transition has happened */
 	if (link_check && (adapter->link_active == 0)) {
 		e1000_get_speed_and_duplex(&adapter->hw, 
 		    &adapter->link_speed, &adapter->link_duplex);
 		if (bootverbose)
-			device_printf(dev, "Link is up %d Mbps %s\n",
+			device_printf(dev, "Link is up %d Mbps %s,"
+			    " Flow Control: %s\n",
 			    adapter->link_speed,
 			    ((adapter->link_duplex == FULL_DUPLEX) ?
-			    "Full Duplex" : "Half Duplex"));
+			    "Full Duplex" : "Half Duplex"), flowctl);
 		adapter->link_active = 1;
 		ifp->if_baudrate = adapter->link_speed * 1000000;
 		if ((ctrl & E1000_CTRL_EXT_LINK_MODE_GMII) &&
@@ -3301,7 +3332,7 @@ igb_allocate_queues(struct adapter *adapter)
         	}
 #if __FreeBSD_version >= 800000
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(IGB_BR_SIZE, M_DEVBUF,
+		txr->br = buf_ring_alloc(igb_buf_ring_size, M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
 #endif
 	}
@@ -3983,7 +4014,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 		if (rxr->hdr_split == FALSE)
 			goto no_split;
 		if (rxbuf->m_head == NULL) {
-			mh = m_gethdr(M_DONTWAIT, MT_DATA);
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
 		} else
@@ -4009,7 +4040,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 		    htole64(hseg[0].ds_addr);
 no_split:
 		if (rxbuf->m_pack == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;
@@ -4225,7 +4256,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			goto skip_head;
 
 		/* First the header */
-		rxbuf->m_head = m_gethdr(M_DONTWAIT, MT_DATA);
+		rxbuf->m_head = m_gethdr(M_NOWAIT, MT_DATA);
 		if (rxbuf->m_head == NULL) {
 			error = ENOBUFS;
                         goto fail;
@@ -4247,7 +4278,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 
 skip_head:
 		/* Now the payload cluster */
-		rxbuf->m_pack = m_getjcl(M_DONTWAIT, MT_DATA,
+		rxbuf->m_pack = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_pack == NULL) {
 			error = ENOBUFS;
@@ -4330,8 +4361,8 @@ fail:
 	 * the rings that completed, the failing case will have
 	 * cleaned up for itself. 'i' is the endpoint.
 	 */
-	for (int j = 0; j > i; ++j) {
-		rxr = &adapter->rx_rings[i];
+	for (int j = 0; j < i; ++j) {
+		rxr = &adapter->rx_rings[j];
 		IGB_RX_LOCK(rxr);
 		igb_free_receive_ring(rxr);
 		IGB_RX_UNLOCK(rxr);

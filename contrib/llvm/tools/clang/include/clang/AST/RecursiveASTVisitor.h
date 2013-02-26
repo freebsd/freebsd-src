@@ -721,6 +721,7 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplateArgument(
   case TemplateArgument::Null:
   case TemplateArgument::Declaration:
   case TemplateArgument::Integral:
+  case TemplateArgument::NullPtr:
     return true;
 
   case TemplateArgument::Type:
@@ -753,6 +754,7 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplateArgumentLoc(
   case TemplateArgument::Null:
   case TemplateArgument::Declaration:
   case TemplateArgument::Integral:
+  case TemplateArgument::NullPtr:
     return true;
 
   case TemplateArgument::Type: {
@@ -799,7 +801,7 @@ bool RecursiveASTVisitor<Derived>::TraverseConstructorInitializer(
   if (TypeSourceInfo *TInfo = Init->getTypeSourceInfo())
     TRY_TO(TraverseTypeLoc(TInfo->getTypeLoc()));
 
-  if (Init->isWritten())
+  if (Init->isWritten() || getDerived().shouldVisitImplicitCode())
     TRY_TO(TraverseStmt(Init->getInit()));
   return true;
 }
@@ -1827,7 +1829,7 @@ bool RecursiveASTVisitor<Derived>::Traverse##STMT (STMT *S) {           \
   return true;                                                          \
 }
 
-DEF_TRAVERSE_STMT(AsmStmt, {
+DEF_TRAVERSE_STMT(GCCAsmStmt, {
     TRY_TO(TraverseStmt(S->getAsmString()));
     for (unsigned I = 0, E = S->getNumInputs(); I < E; ++I) {
       TRY_TO(TraverseStmt(S->getInputConstraintLiteral(I)));
@@ -1836,7 +1838,7 @@ DEF_TRAVERSE_STMT(AsmStmt, {
       TRY_TO(TraverseStmt(S->getOutputConstraintLiteral(I)));
     }
     for (unsigned I = 0, E = S->getNumClobbers(); I < E; ++I) {
-      TRY_TO(TraverseStmt(S->getClobber(I)));
+      TRY_TO(TraverseStmt(S->getClobberStringLiteral(I)));
     }
     // children() iterates over inputExpr and outputExpr.
   })
@@ -2141,7 +2143,9 @@ DEF_TRAVERSE_STMT(BlockExpr, {
   return true; // no child statements to loop through.
 })
 DEF_TRAVERSE_STMT(ChooseExpr, { })
-DEF_TRAVERSE_STMT(CompoundLiteralExpr, { })
+DEF_TRAVERSE_STMT(CompoundLiteralExpr, {
+  TRY_TO(TraverseTypeLoc(S->getTypeSourceInfo()->getTypeLoc()));
+})
 DEF_TRAVERSE_STMT(CXXBindTemporaryExpr, { })
 DEF_TRAVERSE_STMT(CXXBoolLiteralExpr, { })
 DEF_TRAVERSE_STMT(CXXDefaultArgExpr, { })
@@ -2219,6 +2223,7 @@ DEF_TRAVERSE_STMT(PackExpansionExpr, { })
 DEF_TRAVERSE_STMT(SizeOfPackExpr, { })
 DEF_TRAVERSE_STMT(SubstNonTypeTemplateParmPackExpr, { })
 DEF_TRAVERSE_STMT(SubstNonTypeTemplateParmExpr, { })
+DEF_TRAVERSE_STMT(FunctionParmPackExpr, { })
 DEF_TRAVERSE_STMT(MaterializeTemporaryExpr, { })
 DEF_TRAVERSE_STMT(AtomicExpr, { })
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -166,6 +166,7 @@ typedef enum
     ASL_MSG_RESERVED_METHOD,
     ASL_MSG_RESERVED_NO_RETURN_VAL,
     ASL_MSG_RESERVED_OPERAND_TYPE,
+    ASL_MSG_RESERVED_PACKAGE_LENGTH,
     ASL_MSG_RESERVED_RETURN_VALUE,
     ASL_MSG_RESERVED_USE,
     ASL_MSG_RESERVED_WORD,
@@ -190,6 +191,7 @@ typedef enum
     ASL_MSG_TAG_SMALLER,
     ASL_MSG_TIMEOUT,
     ASL_MSG_TOO_MANY_TEMPS,
+    ASL_MSG_TRUNCATION,
     ASL_MSG_UNKNOWN_RESERVED_NAME,
     ASL_MSG_UNREACHABLE_CODE,
     ASL_MSG_UNSUPPORTED,
@@ -274,7 +276,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_HID_SUFFIX */                 "_HID suffix must be all hex digits",
 /*    ASL_MSG_INCLUDE_FILE_OPEN */          "Could not open include file",
 /*    ASL_MSG_INPUT_FILE_OPEN */            "Could not open input file",
-/*    ASL_MSG_INTEGER_LENGTH */             "64-bit integer in 32-bit table, truncating",
+/*    ASL_MSG_INTEGER_LENGTH */             "64-bit integer in 32-bit table, truncating (DSDT version < 2)",
 /*    ASL_MSG_INTEGER_OPTIMIZATION */       "Integer optimized to single-byte AML opcode",
 /*    ASL_MSG_INTERRUPT_LIST */             "Too many interrupts (16 max)",
 /*    ASL_MSG_INTERRUPT_NUMBER */           "Invalid interrupt number (must be 0-15)",
@@ -342,6 +344,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_RESERVED_METHOD */            "Reserved name must be a control method",
 /*    ASL_MSG_RESERVED_NO_RETURN_VAL */     "Reserved method should not return a value",
 /*    ASL_MSG_RESERVED_OPERAND_TYPE */      "Invalid object type for reserved name",
+/*    ASL_MSG_RESERVED_PACKAGE_LENGTH */    "Invalid package length for reserved name",
 /*    ASL_MSG_RESERVED_RETURN_VALUE */      "Reserved method must return a value",
 /*    ASL_MSG_RESERVED_USE */               "Invalid use of reserved name",
 /*    ASL_MSG_RESERVED_WORD */              "Use of reserved name",
@@ -366,6 +369,7 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_TAG_SMALLER */                "ResourceTag smaller than Field",
 /*    ASL_MSG_TIMEOUT */                    "Result is not used, possible operator timeout will be missed",
 /*    ASL_MSG_TOO_MANY_TEMPS */             "Method requires too many temporary variables (_T_x)",
+/*    ASL_MSG_TRUNCATION */                 "64-bit return value will be truncated to 32 bits (DSDT version < 2)",
 /*    ASL_MSG_UNKNOWN_RESERVED_NAME */      "Unknown reserved name",
 /*    ASL_MSG_UNREACHABLE_CODE */           "Statement is unreachable",
 /*    ASL_MSG_UNSUPPORTED */                "Unsupported feature",

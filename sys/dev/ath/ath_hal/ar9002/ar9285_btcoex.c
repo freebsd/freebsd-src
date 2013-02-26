@@ -24,7 +24,7 @@
 #include "ah_internal.h"
 #include "ah_devid.h"
 #ifdef AH_DEBUG
-#include "ah_desc.h"                    /* NB: for HAL_PHYERR* */
+#include "ah_desc.h"		    /* NB: for HAL_PHYERR* */
 #endif
 
 #include "ar5416/ar5416.h"
@@ -47,64 +47,75 @@ ar9285BTCoexAntennaDiversity(struct ath_hal *ah)
 	u_int32_t regVal;
 	u_int8_t ant_div_control1, ant_div_control2;
 
-    if ((ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_ANT_DIV_ALLOW) ||
-        (AH5212(ah)->ah_diversity != HAL_ANT_VARIABLE)) {
-        if ((ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_ANT_DIV_ENABLE) &&
-             (AH5212(ah)->ah_diversity == HAL_ANT_VARIABLE)) {
-            /* Enable antenna diversity */
-            ant_div_control1 = HAL_BT_COEX_ANTDIV_CONTROL1_ENABLE;
-            ant_div_control2 = HAL_BT_COEX_ANTDIV_CONTROL2_ENABLE;
+	if ((ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_ANT_DIV_ALLOW) ||
+	    (AH5212(ah)->ah_diversity != HAL_ANT_VARIABLE)) {
+	if ((ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_ANT_DIV_ENABLE) &&
+	     (AH5212(ah)->ah_diversity == HAL_ANT_VARIABLE)) {
+		/* Enable antenna diversity */
+		ant_div_control1 = HAL_BT_COEX_ANTDIV_CONTROL1_ENABLE;
+		ant_div_control2 = HAL_BT_COEX_ANTDIV_CONTROL2_ENABLE;
 
-            /* Don't disable BT ant to allow BB to control SWCOM */
-            ahp->ah_btCoexMode2 &= (~(AR_BT_DISABLE_BT_ANT));
-            OS_REG_WRITE(ah, AR_BT_COEX_MODE2, ahp->ah_btCoexMode2);
+		/* Don't disable BT ant to allow BB to control SWCOM */
+		ahp->ah_btCoexMode2 &= (~(AR_BT_DISABLE_BT_ANT));
+		OS_REG_WRITE(ah, AR_BT_COEX_MODE2, ahp->ah_btCoexMode2);
 
-            /* Program the correct SWCOM table */
-            OS_REG_WRITE(ah, AR_PHY_SWITCH_COM,
-              HAL_BT_COEX_ANT_DIV_SWITCH_COM);
-            OS_REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0, 0xf0000000);
-        } else if (AH5212(ah)->ah_diversity == HAL_ANT_FIXED_B) {
-            /* Disable antenna diversity. Use antenna B(LNA2) only. */
-            ant_div_control1 = HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_B;
-            ant_div_control2 = HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_B;
+		/* Program the correct SWCOM table */
+		OS_REG_WRITE(ah, AR_PHY_SWITCH_COM,
+		    HAL_BT_COEX_ANT_DIV_SWITCH_COM);
+		OS_REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0, 0xf0000000);
+	} else if (AH5212(ah)->ah_diversity == HAL_ANT_FIXED_B) {
+		/* Disable antenna diversity. Use antenna B(LNA2) only. */
+		ant_div_control1 = HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_B;
+		ant_div_control2 = HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_B;
 
-            /* Disable BT ant to allow concurrent BT and WLAN receive */
-            ahp->ah_btCoexMode2 |= AR_BT_DISABLE_BT_ANT;
-            OS_REG_WRITE(ah, AR_BT_COEX_MODE2, ahp->ah_btCoexMode2);
+		/* Disable BT ant to allow concurrent BT and WLAN receive */
+		ahp->ah_btCoexMode2 |= AR_BT_DISABLE_BT_ANT;
+		OS_REG_WRITE(ah, AR_BT_COEX_MODE2, ahp->ah_btCoexMode2);
 
-            /* Program SWCOM talbe to make sure RF switch always parks at WLAN side */
-            OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, HAL_BT_COEX_ANT_DIV_SWITCH_COM);
-            OS_REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0x60000000, 0xf0000000);
-        } else {
-            /* Disable antenna diversity. Use antenna A(LNA1) only */
-            ant_div_control1 = HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_A;
-            ant_div_control2 = HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_A;
+		/*
+		 * Program SWCOM table to make sure RF switch always parks
+		 * at WLAN side
+		 */
+		OS_REG_WRITE(ah, AR_PHY_SWITCH_COM,
+		    HAL_BT_COEX_ANT_DIV_SWITCH_COM);
+		OS_REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0x60000000, 0xf0000000);
+	} else {
+		/* Disable antenna diversity. Use antenna A(LNA1) only */
+		ant_div_control1 = HAL_BT_COEX_ANTDIV_CONTROL1_FIXED_A;
+		ant_div_control2 = HAL_BT_COEX_ANTDIV_CONTROL2_FIXED_A;
 
-            /* Disable BT ant to allow concurrent BT and WLAN receive */
-            ahp->ah_btCoexMode2 |= AR_BT_DISABLE_BT_ANT;
-            OS_REG_WRITE(ah, AR_BT_COEX_MODE2, ahp->ah_btCoexMode2);
+		/* Disable BT ant to allow concurrent BT and WLAN receive */
+		ahp->ah_btCoexMode2 |= AR_BT_DISABLE_BT_ANT;
+		OS_REG_WRITE(ah, AR_BT_COEX_MODE2, ahp->ah_btCoexMode2);
 
-            /* Program SWCOM talbe to make sure RF switch always parks at BT side */
-            OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, 0);
-            OS_REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0, 0xf0000000);
-        }
+		/*
+		 * Program SWCOM table to make sure RF switch always
+		 * parks at BT side
+		 */
+		OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, 0);
+		OS_REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0, 0xf0000000);
+	}
 
-        regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
-        regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
-        /* Clear ant_fast_div_bias [14:9] since for Janus the main LNA is always LNA1. */
-        regVal &= (~(AR_PHY_9285_FAST_DIV_BIAS));
+	regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+	regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
+	/*
+	 * Clear ant_fast_div_bias [14:9] since for Janus the main LNA is
+	 * always LNA1.
+	 */
+	regVal &= (~(AR_PHY_9285_FAST_DIV_BIAS));
 
-        regVal |= SM(ant_div_control1, AR_PHY_9285_ANT_DIV_CTL);
-        regVal |= SM(ant_div_control2, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
-        regVal |= SM((ant_div_control2 >> 2), AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
-        regVal |= SM((ant_div_control1 >> 1), AR_PHY_9285_ANT_DIV_ALT_GAINTB);
-        regVal |= SM((ant_div_control1 >> 2), AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
-        OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
+	regVal |= SM(ant_div_control1, AR_PHY_9285_ANT_DIV_CTL);
+	regVal |= SM(ant_div_control2, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+	regVal |= SM((ant_div_control2 >> 2), AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+	regVal |= SM((ant_div_control1 >> 1), AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+	regVal |= SM((ant_div_control1 >> 2), AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+	OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
 
-        regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-        regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
-        regVal |= SM((ant_div_control1 >> 3), AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
-        OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
+	regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+	regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+	regVal |= SM((ant_div_control1 >> 3),
+	    AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+	OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
     }
 }
 

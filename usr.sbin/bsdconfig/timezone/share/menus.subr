@@ -30,6 +30,7 @@ if [ ! "$_TIMEZONE_MENUS_SUBR" ]; then _TIMEZONE_MENUS_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." timezone/menus.subr
 f_include $BSDCFG_SHARE/dialog.subr
 
 ############################################################ GLOBALS
@@ -216,5 +217,9 @@ f_make_menus()
 {
 	eval $( :| awk "$f_make_menus_awk" )
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/menus.subr
 
 fi # ! $_TIMEZONE_MENUS_SUBR

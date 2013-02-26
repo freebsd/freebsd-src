@@ -212,15 +212,35 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 
 	object->root = NULL;
 	object->type = type;
+	switch (type) {
+	case OBJT_DEAD:
+		panic("_vm_object_allocate: can't create OBJT_DEAD");
+	case OBJT_DEFAULT:
+	case OBJT_SWAP:
+		object->flags = OBJ_ONEMAPPING;
+		break;
+	case OBJT_DEVICE:
+	case OBJT_SG:
+		object->flags = OBJ_FICTITIOUS | OBJ_UNMANAGED;
+		break;
+	case OBJT_MGTDEVICE:
+		object->flags = OBJ_FICTITIOUS;
+		break;
+	case OBJT_PHYS:
+		object->flags = OBJ_UNMANAGED;
+		break;
+	case OBJT_VNODE:
+		object->flags = 0;
+		break;
+	default:
+		panic("_vm_object_allocate: type %d is undefined", type);
+	}
 	object->size = size;
 	object->generation = 1;
 	object->ref_count = 1;
 	object->memattr = VM_MEMATTR_DEFAULT;
-	object->flags = 0;
 	object->cred = NULL;
 	object->charge = 0;
-	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
-		object->flags = OBJ_ONEMAPPING;
 	object->pg_color = 0;
 	object->handle = NULL;
 	object->backing_object = NULL;
@@ -301,6 +321,7 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 	switch (object->type) {
 	case OBJT_DEFAULT:
 	case OBJT_DEVICE:
+	case OBJT_MGTDEVICE:
 	case OBJT_PHYS:
 	case OBJT_SG:
 	case OBJT_SWAP:
@@ -310,6 +331,9 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 		break;
 	case OBJT_DEAD:
 		return (KERN_INVALID_ARGUMENT);
+	default:
+		panic("vm_object_set_memattr: object %p is of undefined type",
+		    object);
 	}
 	object->memattr = memattr;
 	return (KERN_SUCCESS);
@@ -363,7 +387,7 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	while (object->paging_in_progress) {
 		object->flags |= OBJ_PIPWNT;
-		msleep(object, VM_OBJECT_MTX(object), PVM, waitid, 0);
+		VM_OBJECT_SLEEP(object, object, PVM, waitid, 0);
 	}
 }
 
@@ -555,8 +579,7 @@ retry:
 					} else if (object->paging_in_progress) {
 						VM_OBJECT_UNLOCK(robject);
 						object->flags |= OBJ_PIPWNT;
-						msleep(object,
-						    VM_OBJECT_MTX(object),
+						VM_OBJECT_SLEEP(object, object,
 						    PDROP | PVM, "objde2", 0);
 						VM_OBJECT_LOCK(robject);
 						temp = robject->backing_object;
@@ -1060,7 +1083,7 @@ shadowlookup:
 			    (tobject->flags & OBJ_ONEMAPPING) == 0) {
 				goto unlock_tobject;
 			}
-		} else if (tobject->type == OBJT_PHYS)
+		} else if ((tobject->flags & OBJ_UNMANAGED) != 0)
 			goto unlock_tobject;
 		m = vm_page_lookup(tobject, tpindex);
 		if (m == NULL && advise == MADV_WILLNEED) {
@@ -1115,8 +1138,7 @@ shadowlookup:
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo",
-			    0);
+			VM_OBJECT_SLEEP(tobject, m, PDROP | PVM, "madvpo", 0);
 			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}
@@ -1314,7 +1336,7 @@ retry:
 		if ((m->oflags & VPO_BUSY) || m->busy) {
 			VM_OBJECT_UNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(orig_object), PVM, "spltwt", 0);
+			VM_OBJECT_SLEEP(orig_object, m, PVM, "spltwt", 0);
 			VM_OBJECT_LOCK(new_object);
 			goto retry;
 		}
@@ -1472,7 +1494,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				if ((p->oflags & VPO_BUSY) || p->busy) {
 					VM_OBJECT_UNLOCK(object);
 					p->oflags |= VPO_WANTED;
-					msleep(p, VM_OBJECT_MTX(backing_object),
+					VM_OBJECT_SLEEP(backing_object, p,
 					    PDROP | PVM, "vmocol", 0);
 					VM_OBJECT_LOCK(object);
 					VM_OBJECT_LOCK(backing_object);
@@ -1830,7 +1852,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	int wirings;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT((object->type != OBJT_DEVICE && object->type != OBJT_PHYS) ||
+	KASSERT((object->flags & OBJ_UNMANAGED) == 0 ||
 	    (options & (OBJPR_CLEANONLY | OBJPR_NOTMAPPED)) == OBJPR_NOTMAPPED,
 	    ("vm_object_page_remove: illegal options for object %p", object));
 	if (object->resident_page_count == 0)
@@ -1914,7 +1936,7 @@ skipmemq:
  *	pages are moved to the cache queue.
  *
  *	This operation should only be performed on objects that
- *	contain managed pages.
+ *	contain non-fictitious, managed pages.
  *
  *	The object must be locked.
  */
@@ -1925,8 +1947,7 @@ vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	vm_page_t p, next;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT((object->type != OBJT_DEVICE && object->type != OBJT_SG &&
-	    object->type != OBJT_PHYS),
+	KASSERT((object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0,
 	    ("vm_object_page_cache: illegal object %p", object));
 	if (object->resident_page_count == 0)
 		return;

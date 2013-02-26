@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -133,6 +134,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -198,6 +201,10 @@ struct pmap kernel_pmap_store;
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
+
+int nkpt;
+SYSCTL_INT(_machdep, OID_AUTO, nkpt, CTLFLAG_RD, &nkpt, 0,
+    "Number of kernel page table pages allocated on bootup");
 
 static int ndmpdp;
 static vm_paddr_t dmaplimit;
@@ -492,17 +499,42 @@ allocpages(vm_paddr_t *firstaddr, int n)
 
 CTASSERT(powerof2(NDMPML4E));
 
+/* number of kernel PDP slots */
+#define	NKPDPE(ptpgs)		howmany((ptpgs), NPDEPG)
+
+static void
+nkpt_init(vm_paddr_t addr)
+{
+	int pt_pages;
+	
+#ifdef NKPT
+	pt_pages = NKPT;
+#else
+	pt_pages = howmany(addr, 1 << PDRSHIFT);
+	pt_pages += NKPDPE(pt_pages);
+
+	/*
+	 * Add some slop beyond the bare minimum required for bootstrapping
+	 * the kernel.
+	 *
+	 * This is quite important when allocating KVA for kernel modules.
+	 * The modules are required to be linked in the negative 2GB of
+	 * the address space.  If we run out of KVA in this region then
+	 * pmap_growkernel() will need to allocate page table pages to map
+	 * the entire 512GB of KVA space which is an unnecessary tax on
+	 * physical memory.
+	 */
+	pt_pages += 8;		/* 16MB additional slop for kernel modules */
+#endif
+	nkpt = pt_pages;
+}
+
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
-	int i, j, ndm1g;
+	int i, j, ndm1g, nkpdpe;
 
-	/* Allocate pages */
-	KPTphys = allocpages(firstaddr, NKPT);
-	KPML4phys = allocpages(firstaddr, 1);
-	KPDPphys = allocpages(firstaddr, NKPML4E);
-	KPDphys = allocpages(firstaddr, NKPDPE);
-
+	/* Allocate page table pages for the direct map */
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
@@ -514,6 +546,22 @@ create_pagetables(vm_paddr_t *firstaddr)
 		DMPDphys = allocpages(firstaddr, ndmpdp - ndm1g);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
+	/* Allocate pages */
+	KPML4phys = allocpages(firstaddr, 1);
+	KPDPphys = allocpages(firstaddr, NKPML4E);
+
+	/*
+	 * Allocate the initial number of kernel page table pages required to
+	 * bootstrap.  We defer this until after all memory-size dependent
+	 * allocations are done (e.g. direct map), so that we don't have to
+	 * build in too much slop in our estimate.
+	 */
+	nkpt_init(*firstaddr);
+	nkpdpe = NKPDPE(nkpt);
+
+	KPTphys = allocpages(firstaddr, nkpt);
+	KPDphys = allocpages(firstaddr, nkpdpe);
+
 	/* Fill in the underlying page table pages */
 	/* Read-only from zero to physfree */
 	/* XXX not fully used, underneath 2M pages */
@@ -523,7 +571,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 
 	/* Now map the page tables at their location within PTmap */
-	for (i = 0; i < NKPT; i++) {
+	for (i = 0; i < nkpt; i++) {
 		((pd_entry_t *)KPDphys)[i] = KPTphys + (i << PAGE_SHIFT);
 		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V;
 	}
@@ -536,7 +584,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 
 	/* And connect up the PD to the PDP */
-	for (i = 0; i < NKPDPE; i++) {
+	for (i = 0; i < nkpdpe; i++) {
 		((pdp_entry_t *)KPDPphys)[i + KPDPI] = KPDphys +
 		    (i << PAGE_SHIFT);
 		((pdp_entry_t *)KPDPphys)[i + KPDPI] |= PG_RW | PG_V | PG_U;
@@ -765,7 +813,7 @@ pmap_init(void)
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
-	for (i = 0; i < NKPT; i++) {
+	for (i = 0; i < nkpt; i++) {
 		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
@@ -1150,6 +1198,15 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 
 		/*
+		 * XXX: Some CPUs fault, hang, or trash the local APIC
+		 * registers if we use CLFLUSH on the local APIC
+		 * range.  The local APIC is always uncached, so we
+		 * don't need to flush for that range anyway.
+		 */
+		if (pmap_kextract(sva) == lapic_paddr)
+			return;
+
+		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
 		 * instruction to insure that previous stores are
 		 * included in the write-back.  The processor
@@ -1424,6 +1481,7 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	va = sva;
 	while (count-- > 0) {
+		KASSERT(va >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", va));
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
@@ -1983,7 +2041,7 @@ pmap_growkernel(vm_offset_t addr)
 	 * any new kernel page table pages between "kernel_vm_end" and
 	 * "KERNBASE".
 	 */
-	if (KERNBASE < addr && addr <= KERNBASE + NKPT * NBPDR)
+	if (KERNBASE < addr && addr <= KERNBASE + nkpt * NBPDR)
 		return;
 
 	addr = roundup2(addr, NBPDR);
@@ -4388,8 +4446,10 @@ pmap_remove_pages(pmap_t pmap)
 					pte = &pte[pmap_pte_index(pv->pv_va)];
 					tpte = *pte & ~PG_PTE_PAT;
 				}
-				if ((tpte & PG_V) == 0)
-					panic("bad pte");
+				if ((tpte & PG_V) == 0) {
+					panic("bad pte va %lx pte %lx",
+					    pv->pv_va, tpte);
+				}
 
 /*
  * We cannot remove wired pages from a process' mapping at this time
@@ -4955,7 +5015,7 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 			return ((void *)va);
 	}
 	offset = pa & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 	va = kmem_alloc_nofault(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
@@ -4991,7 +5051,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 		return;
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 	kmem_free(kernel_map, base, size);
 }
 
@@ -5113,7 +5173,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
+	size = round_page(offset + size);
 
 	/*
 	 * Only supported on kernel virtual addresses, including the direct
@@ -5446,3 +5506,46 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 	else
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(pte, pmap_print_pte)
+{
+	pmap_t pmap;
+	pml4_entry_t *pml4;
+	pdp_entry_t *pdp;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+	vm_offset_t va;
+
+	if (have_addr) {
+		va = (vm_offset_t)addr;
+		pmap = PCPU_GET(curpmap); /* XXX */
+	} else {
+		db_printf("show pte addr\n");
+		return;
+	}
+	pml4 = pmap_pml4e(pmap, va);
+	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);
+	if ((*pml4 & PG_V) == 0) {
+		db_printf("\n");
+		return;
+	}
+	pdp = pmap_pml4e_to_pdpe(pml4, va);
+	db_printf(" pdpe %#016lx", *pdp);
+	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
+		db_printf("\n");
+		return;
+	}
+	pde = pmap_pdpe_to_pde(pdp, va);
+	db_printf(" pde %#016lx", *pde);
+	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
+		db_printf("\n");
+		return;
+	}
+	pte = pmap_pde_to_pte(pde, va);
+	db_printf(" pte %#016lx\n", *pte);
+}
+#endif

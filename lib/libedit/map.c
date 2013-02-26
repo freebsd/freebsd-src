@@ -1250,7 +1250,7 @@ map_bind(EditLine *el, int argc, const char **argv)
 	char inbuf[EL_BUFSIZ];
 	char outbuf[EL_BUFSIZ];
 	const char *in = NULL;
-	char *out = NULL;
+	char *out;
 	el_bindings_t *bp, *ep;
 	int cmd;
 	int key;
@@ -1368,7 +1368,7 @@ map_bind(EditLine *el, int argc, const char **argv)
 			return (-1);
 		}
 		if (key)
-			term_set_arrow(el, in, key_map_str(el, out), ntype);
+			term_set_arrow(el, in, key_map_cmd(el, cmd), ntype);
 		else {
 			if (in[1]) {
 				key_add(el, in, key_map_cmd(el, cmd), ntype);

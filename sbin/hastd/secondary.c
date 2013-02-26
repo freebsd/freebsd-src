@@ -71,6 +71,7 @@ struct hio {
 	uint8_t		 hio_cmd;
 	uint64_t	 hio_offset;
 	uint64_t	 hio_length;
+	bool		 hio_memsync;
 	TAILQ_ENTRY(hio) hio_next;
 };
 
@@ -135,6 +136,22 @@ hio_clear(struct hio *hio)
 	hio->hio_cmd = HIO_UNDEF;
 	hio->hio_offset = 0;
 	hio->hio_length = 0;
+	hio->hio_memsync = false;
+}
+
+static void
+hio_copy(const struct hio *srchio, struct hio *dsthio)
+{
+
+	/*
+	 * We don't copy hio_error, hio_data and hio_next fields.
+	 */
+
+	dsthio->hio_seq = srchio->hio_seq;
+	dsthio->hio_cmd = srchio->hio_cmd;
+	dsthio->hio_offset = srchio->hio_offset;
+	dsthio->hio_length = srchio->hio_length;
+	dsthio->hio_memsync = srchio->hio_memsync;
 }
 
 static void
@@ -543,8 +560,10 @@ requnpack(struct hast_resource *res, struct hio *hio, struct nv *nv)
 	case HIO_FLUSH:
 	case HIO_KEEPALIVE:
 		break;
-	case HIO_READ:
 	case HIO_WRITE:
+		hio->hio_memsync = nv_exists(nv, "memsync");
+		/* FALLTHROUGH */
+	case HIO_READ:
 	case HIO_DELETE:
 		hio->hio_offset = nv_get_uint64(nv, "offset");
 		if (nv_error(nv) != 0) {
@@ -621,7 +640,7 @@ static void *
 recv_thread(void *arg)
 {
 	struct hast_resource *res = arg;
-	struct hio *hio;
+	struct hio *hio, *mshio;
 	struct nv *nv;
 
 	for (;;) {
@@ -675,6 +694,27 @@ recv_thread(void *arg)
 				secondary_exit(EX_TEMPFAIL,
 				    "Unable to receive request data");
 			}
+			if (hio->hio_memsync) {
+				/*
+				 * For memsync requests we expect two replies.
+				 * Clone the hio so we can handle both of them.
+				 */
+				pjdlog_debug(2, "recv: Taking free request.");
+				QUEUE_TAKE(free, mshio);
+				pjdlog_debug(2, "recv: (%p) Got request.",
+				    mshio);
+				hio_copy(hio, mshio);
+				mshio->hio_error = 0;
+				/*
+				 * We want to keep 'memsync' tag only on the
+				 * request going onto send queue (mshio).
+				 */
+				hio->hio_memsync = false;
+				pjdlog_debug(2,
+				    "recv: (%p) Moving memsync request to the send queue.",
+				    mshio);
+				QUEUE_INSERT(send, mshio);
+			}
 		}
 		nv_free(nv);
 		pjdlog_debug(2, "recv: (%p) Moving request to the disk queue.",
@@ -725,6 +765,7 @@ disk_thread(void *arg)
 				pjdlog_errno(LOG_WARNING,
 				    "Unable to store cleared activemap");
 				free(map);
+				res->hr_stat_activemap_write_error++;
 				break;
 			}
 			free(map);
@@ -818,6 +859,10 @@ send_thread(void *arg)
 		nvout = nv_alloc();
 		/* Copy sequence number. */
 		nv_add_uint64(nvout, hio->hio_seq, "seq");
+		if (hio->hio_memsync) {
+			PJDLOG_ASSERT(hio->hio_cmd == HIO_WRITE);
+			nv_add_int8(nvout, 1, "received");
+		}
 		switch (hio->hio_cmd) {
 		case HIO_READ:
 			if (hio->hio_error == 0) {
@@ -839,8 +884,23 @@ send_thread(void *arg)
 			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
 			    hio->hio_cmd);
 		}
-		if (hio->hio_error != 0)
+		if (hio->hio_error != 0) {
+			switch (hio->hio_cmd) {
+			case HIO_READ:
+				res->hr_stat_read_error++;
+				break;
+			case HIO_WRITE:
+				res->hr_stat_write_error++;
+				break;
+			case HIO_DELETE:
+				res->hr_stat_delete_error++;
+				break;
+			case HIO_FLUSH:
+				res->hr_stat_flush_error++;
+				break;
+			}
 			nv_add_int16(nvout, hio->hio_error, "error");
+		}
 		if (hast_proto_send(res, res->hr_remoteout, nvout, data,
 		    length) == -1) {
 			secondary_exit(EX_TEMPFAIL, "Unable to send reply");
