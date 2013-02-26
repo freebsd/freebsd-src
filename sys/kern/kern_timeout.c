@@ -179,7 +179,6 @@ struct callout_cpu cc_cpu;
 	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)
 
 static int timeout_cpu;
-void (*callout_new_inserted)(int cpu, sbintime_t bt, sbintime_t bt_opt) = NULL;
 static void
 softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 #ifdef CALLOUT_PROFILING
@@ -391,12 +390,11 @@ callout_process(sbintime_t now)
 	struct callout_tailq *sc;
 	sbintime_t first, last, max, tmp_max;
 	uint32_t lookahead;
-	int firstb, lastb, nowb, need_softclock, exit_allowed, exit_wanted;
+	u_int firstb, lastb, nowb;
 #ifdef CALLOUT_PROFILING
 	int depth_dir = 0, mpcalls_dir = 0, lockcalls_dir = 0;
 #endif
 
-	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 
@@ -427,14 +425,10 @@ callout_process(sbintime_t now)
 		lastb = firstb - 1;
 	if (nowb - firstb >= callwheelsize)
 		nowb = firstb - 1;
-	nowb &= callwheelmask;
-	lastb &= callwheelmask;
-	firstb &= callwheelmask;
 
 	/* Iterate callwheel from firstb to nowb and then up to lastb. */
-	exit_allowed = exit_wanted = 0;
-	for (;;) {
-		sc = &cc->cc_callwheel[firstb];
+	do {
+		sc = &cc->cc_callwheel[firstb & callwheelmask];
 		tmp = TAILQ_FIRST(sc);
 		while (tmp != NULL) {
 			/* Run the callout if present time within allowed. */
@@ -462,7 +456,6 @@ callout_process(sbintime_t now)
 					TAILQ_INSERT_TAIL(&cc->cc_expireq,
 					    tmp, c_links.tqe);
 					tmp->c_flags |= CALLOUT_PROCESSED;
-					need_softclock = 1;
 					tmp = tmpn;
 				}
 				continue;
@@ -475,37 +468,31 @@ callout_process(sbintime_t now)
 			 * time, so it cannot be aggregated.
 			 */
 			if (tmp->c_time > last) {
-				exit_wanted = 1;
+				lastb = nowb;
 				goto next;
 			}
 			/* Update first and last time, respecting this event. */
 			if (tmp->c_time < first)
 				first = tmp->c_time;
-			tmp_max = tmp->c_time;
-			tmp_max += tmp->c_precision;
+			tmp_max = tmp->c_time + tmp->c_precision;
 			if (tmp_max < last)
 				last = tmp_max;
 next:
 			tmp = TAILQ_NEXT(tmp, c_links.tqe);
 		}
-		/* Stop if we looked far enough into the future. */
-		if (firstb == lastb)
-			break;
+		/* Proceed with the next bucket. */
+		firstb++;
 		/*
 		 * Stop if we looked after present time and found
 		 * some event we can't execute at now.
+		 * Stop if we looked far enough into the future.
 		 */
-		if (firstb == nowb)
-			exit_allowed = 1;
-		if (exit_allowed && exit_wanted)
-			break;
-		/* Proceed with the next bucket. */
-		firstb = (firstb + 1) & callwheelmask;
-	}
+	} while (firstb <= lastb);
 	cc->cc_exec_next_dir = NULL;
-	if (callout_new_inserted != NULL)
-		(*callout_new_inserted)(curcpu, last, first);
 	cc->cc_firstevent = last;
+#ifndef NO_EVENTTIMERS
+	cpu_new_callout(curcpu, last, first);
+#endif
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
 	avg_mpcalls_dir += (mpcalls_dir * 1000 - avg_mpcalls_dir) >> 8;
@@ -516,7 +503,7 @@ next:
 	 * swi_sched acquires the thread lock, so we don't want to call it
 	 * with cc_lock held; incorrect locking order.
 	 */
-	if (need_softclock)
+	if (!TAILQ_EMPTY(&cc->cc_expireq))
 		swi_sched(cc->cc_cookie, 0);
 }
 
@@ -549,7 +536,6 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
     sbintime_t sbt, sbintime_t precision, void (*func)(void *),
     void *arg, int cpu, int flags)
 {
-	sbintime_t last;
 	int bucket;
 
 	CC_LOCK_ASSERT(cc);
@@ -568,16 +554,17 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	    c, (int)(c->c_precision >> 32), 
 	    (u_int)(c->c_precision & 0xffffffff));
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
+#ifndef NO_EVENTTIMERS
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
-	last = c->c_time + c->c_precision;
-	if (callout_new_inserted != NULL && ((last < cc->cc_firstevent) ||
-	    (cc->cc_firstevent == 0))) {
-		cc->cc_firstevent = last;
-		(*callout_new_inserted)(cpu, last, c->c_time);
+	sbt = c->c_time + c->c_precision;
+	if (sbt < cc->cc_firstevent || cc->cc_firstevent == 0) {
+		cc->cc_firstevent = sbt;
+		cpu_new_callout(cpu, sbt, c->c_time);
 	}
+#endif
 }
 
 static void

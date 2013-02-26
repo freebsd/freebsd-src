@@ -97,7 +97,6 @@ int	callout_schedule_on(struct callout *, int, int);
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
 void	callout_process(sbintime_t now);
-extern void (*callout_new_inserted)(int cpu, sbintime_t bt, sbintime_t bt_opt);
 
 #endif
 

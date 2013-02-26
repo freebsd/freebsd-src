@@ -73,8 +73,6 @@ static int		round_freq(struct eventtimer *et, int freq);
 static sbintime_t	getnextcpuevent(int idle);
 static sbintime_t	getnextevent(void);
 static int		handleevents(sbintime_t now, int fake);
-static void		cpu_new_callout(int cpu, sbintime_t bt,
-			    sbintime_t bt_opt);
 
 static struct mtx	et_hw_mtx;
 
@@ -99,7 +97,7 @@ static sbintime_t	timerperiod;	/* Timer period for periodic mode. */
 static sbintime_t	statperiod;	/* statclock() events period. */
 static sbintime_t	profperiod;	/* profclock() events period. */
 static sbintime_t	nexttick;	/* Next global timer tick time. */
-static u_int		busy = 0;	/* Reconfiguration is in progress. */
+static u_int		busy = 1;	/* Reconfiguration is in progress. */
 static int		profiling = 0;	/* Profiling events enabled. */
 
 static char		timername[32];	/* Wanted timer. */
@@ -527,6 +525,8 @@ configtimer(int start)
 			state->nexthard = next;
 			state->nextstat = next;
 			state->nextprof = next;
+			state->nextcall = next;
+			state->nextcallopt = next;
 			hardclock_sync(cpu);
 		}
 		busy = 0;
@@ -609,7 +609,6 @@ cpu_initclocks_bsp(void)
 		state->nextcall = -1;
 		state->nextcallopt = -1;
 	}
-	callout_new_inserted = cpu_new_callout;
 	periodic = want_periodic;
 	/* Grab requested timer or the best of present. */
 	if (timername[0])
@@ -803,6 +802,9 @@ clocksource_cyc_set(const struct bintime *bt)
 	sbintime_t now, t;
 	struct pcpu_state *state;
 
+	/* Do not touch anything if somebody reconfiguring timers. */
+	if (busy)
+		return;
 	t = bintime2sbintime(*bt);
 	state = DPCPU_PTR(timerstate);
 	if (periodic)
@@ -831,12 +833,15 @@ clocksource_cyc_set(const struct bintime *bt)
 }
 #endif
 
-static void
+void
 cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 {
 	sbintime_t now;
 	struct pcpu_state *state;
 
+	/* Do not touch anything if somebody reconfiguring timers. */
+	if (busy)
+		return;
 	CTR6(KTR_SPARE2, "new co at %d:    on %d at %d.%08x - %d.%08x",
 	    curcpu, cpu, (int)(bt_opt >> 32), (u_int)(bt_opt & 0xffffffff),
 	    (int)(bt >> 32), (u_int)(bt & 0xffffffff));
