@@ -2224,6 +2224,15 @@ struct cpl_sge_egr_update {
 #define V_EGR_QID(x) ((x) << S_EGR_QID)
 #define G_EGR_QID(x) (((x) >> S_EGR_QID) & M_EGR_QID)
 
+/* cpl_fw*.type values */
+enum {
+	FW_TYPE_CMD_RPL = 0,
+	FW_TYPE_WR_RPL = 1,
+	FW_TYPE_CQE = 2,
+	FW_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+	FW_TYPE_RSSCPL = 4,
+};
+
 struct cpl_fw2_pld {
 	RSS_HDR
 	u8 opcode;
@@ -2292,10 +2301,11 @@ struct cpl_fw6_msg {
 
 /* cpl_fw6_msg.type values */
 enum {
-	FW6_TYPE_CMD_RPL = 0,
-	FW6_TYPE_WR_RPL = 1,
-	FW6_TYPE_CQE = 2,
-	FW6_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+	FW6_TYPE_CMD_RPL	= FW_TYPE_CMD_RPL,
+	FW6_TYPE_WR_RPL		= FW_TYPE_WR_RPL,
+	FW6_TYPE_CQE		= FW_TYPE_CQE,
+	FW6_TYPE_OFLD_CONNECTION_WR_RPL = FW_TYPE_OFLD_CONNECTION_WR_RPL,
+	FW6_TYPE_RSSCPL		= FW_TYPE_RSSCPL,
 
 	NUM_FW6_TYPES
 };
