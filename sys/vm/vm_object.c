@@ -267,7 +267,7 @@ vm_object_init(void)
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
-	rw_init(&object->lock, "kernel vm object");
+	rw_init(&kernel_object->lock, "kernel vm object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
 #if VM_NRESERVLEVEL > 0
@@ -275,7 +275,7 @@ vm_object_init(void)
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
 #endif
 
-	rw_init(&object->lock, "kmem vm object");
+	rw_init(&kmem_object->lock, "kmem vm object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
 #if VM_NRESERVLEVEL > 0
