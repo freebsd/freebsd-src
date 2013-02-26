@@ -323,14 +323,14 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
+				timespecsubt_to(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
+				timespecsubt_to(&trussinfo->curthread->after,
 				    &trussinfo->curthread->before, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
@@ -349,14 +349,14 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
+				timespecsubt_to(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
+				timespecsubt_to(&trussinfo->curthread->after,
 				    &trussinfo->curthread->before, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec, timediff.tv_nsec);
