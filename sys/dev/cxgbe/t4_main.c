@@ -281,6 +281,7 @@ static int upload_config_file(struct adapter *, const struct firmware *,
 static int partition_resources(struct adapter *, const struct firmware *);
 static int get_params__pre_init(struct adapter *);
 static int get_params__post_init(struct adapter *);
+static int set_params__post_init(struct adapter *);
 static void t4_set_desc(struct adapter *);
 static void build_medialist(struct port_info *);
 static int update_mac_settings(struct port_info *, int);
@@ -516,6 +517,10 @@ t4_attach(device_t dev)
 	}
 
 	rc = get_params__post_init(sc);
+	if (rc != 0)
+		goto done; /* error message displayed already */
+
+	rc = set_params__post_init(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
@@ -1991,6 +1996,33 @@ get_params__post_init(struct adapter *sc)
 	return (rc);
 }
 
+static int
+set_params__post_init(struct adapter *sc)
+{
+	uint32_t param, val;
+	int rc;
+
+	param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+	if (rc == 0) {
+		/* ask for encapsulated CPLs */
+		param = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
+		val = 1;
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to set parameter (post_init): %d.\n", rc);
+			return (rc);
+		}
+	} else if (rc != FW_EINVAL) {
+		device_printf(sc->dev,
+		    "failed to check for encapsulated CPLs: %d.\n", rc);
+	} else
+		rc = 0;	/* the firmware doesn't support the param, no worries */
+
+	return (rc);
+}
+
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
 
@@ -3075,6 +3107,14 @@ t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
 	uintptr_t *loc, new;
 
 	if (type >= nitems(sc->fw_msg_handler))
+		return (EINVAL);
+
+	/*
+	 * These are dispatched by the handler for FW{4|6}_CPL_MSG using the CPL
+	 * handler dispatch table.  Reject any attempt to install a handler for
+	 * this subtype.
+	 */
+	if (type == FW_TYPE_RSSCPL || type == FW6_TYPE_RSSCPL)
 		return (EINVAL);
 
 	new = h ? (uintptr_t)h : (uintptr_t)fw_msg_not_handled;
