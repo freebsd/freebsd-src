@@ -156,9 +156,6 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	/* 18446744073709 = int(2^64 / 1000000) */
 	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
 }
-#endif /* __BSD_VISIBLE */
-
-#ifdef _KERNEL
 
 /* Operations on timespecs */
 #define	timespecclear(tvp)	((tvp)->tv_sec = (tvp)->tv_nsec = 0)
@@ -197,7 +194,7 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 
 /* timevaladd and timevalsub are not inlined */
 
-#endif /* _KERNEL */
+#endif /* __BSD_VISIBLE */
 
 #ifndef _KERNEL			/* NetBSD/OpenBSD compatible interfaces */
 
