@@ -200,6 +200,14 @@ exit1(struct thread *td, int rv)
 	_STOPEVENT(p, S_EXIT, rv);
 
 	/*
+	 * Ignore any pending request to stop due to a stop signal.
+	 * Once P_WEXIT is set, future requests will be ignored as
+	 * well.
+	 */
+	p->p_flag &= ~P_STOPPED_SIG;
+	KASSERT(!P_SHOULDSTOP(p), ("exiting process is stopped"));
+
+	/*
 	 * Note that we are exiting and do another wakeup of anyone in
 	 * PIOCWAIT in case they aren't listening for S_EXIT stops or
 	 * decided to wait again after we told them we are exiting.
