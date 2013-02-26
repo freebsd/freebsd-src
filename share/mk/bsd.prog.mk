@@ -259,19 +259,25 @@ all: stage_files
 .endif
 .endif
 
+.if !empty(STAGE_AS_SETS)
+all: stage_as
+.endif
 .if !empty(LINKS)
 all: stage_links
+.ORDER: stage_files stage_links
+.if !empty(STAGE_AS_SETS)
+.ORDER: stage_as stage_links
+.endif
 STAGE_SETS+= prog
 STAGE_LINKS.prog= ${LINKS}
 .endif
 .if !empty(SYMLINKS)
 all: stage_symlinks
+.if !empty(STAGE_AS_SETS)
+.ORDER: stage_as stage_symlinks
+.endif
 STAGE_SETS+= prog
 STAGE_SYMLINKS.prog= ${SYMLINKS}
-.endif
-
-.if !empty(STAGE_AS_SETS)
-all: stage_as
 .endif
 
 .endif
