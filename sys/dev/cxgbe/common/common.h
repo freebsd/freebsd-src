@@ -68,6 +68,11 @@ enum {
 #define FW_VERSION_MICRO 4
 #define FW_VERSION_BUILD 0
 
+#define FW_VERSION (V_FW_HDR_FW_VER_MAJOR(FW_VERSION_MAJOR) | \
+    V_FW_HDR_FW_VER_MINOR(FW_VERSION_MINOR) | \
+    V_FW_HDR_FW_VER_MICRO(FW_VERSION_MICRO) | \
+    V_FW_HDR_FW_VER_BUILD(FW_VERSION_BUILD))
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
