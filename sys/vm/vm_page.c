@@ -1006,16 +1006,12 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	infinity.  If the given object is backed by a vnode and it
  *	transitions from having one or more cached pages to none, the
  *	vnode's hold count is reduced. 
- *
- *	The object must be locked.
  */
 void
 vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
 	vm_page_t m;
 	boolean_t empty;
-
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (vm_object_cache_is_empty(object)) {
@@ -1045,13 +1041,12 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
  *	Returns the cached page that is associated with the given
  *	object and offset.  If, however, none exists, returns NULL.
  *
- *	The free page queue and object must be locked.
+ *	The free page queue must be locked.
  */
 static inline vm_page_t
 vm_page_cache_lookup(vm_object_t object, vm_pindex_t pindex)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	return (vm_radix_lookup(&object->cache, pindex));
 }
@@ -1083,7 +1078,7 @@ vm_page_cache_remove(vm_page_t m)
  *	empty.  Offset 'offidxstart' in the original object must
  *	correspond to offset zero in the new object.
  *
- *	The new object and original object must be locked.
+ *	The new object must be locked.
  */
 void
 vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
@@ -1097,7 +1092,6 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 	 * not.
 	 */
 	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(orig_object, MA_OWNED);
 	KASSERT(vm_object_cache_is_empty(new_object),
 	    ("vm_page_cache_transfer: object %p has cached pages",
 	    new_object));
