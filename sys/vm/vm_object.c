@@ -387,7 +387,7 @@ vm_object_pip_wait(vm_object_t object, char *waitid)
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	while (object->paging_in_progress) {
 		object->flags |= OBJ_PIPWNT;
-		msleep(object, VM_OBJECT_MTX(object), PVM, waitid, 0);
+		VM_OBJECT_SLEEP(object, object, PVM, waitid, 0);
 	}
 }
 
@@ -579,8 +579,7 @@ retry:
 					} else if (object->paging_in_progress) {
 						VM_OBJECT_UNLOCK(robject);
 						object->flags |= OBJ_PIPWNT;
-						msleep(object,
-						    VM_OBJECT_MTX(object),
+						VM_OBJECT_SLEEP(object, object,
 						    PDROP | PVM, "objde2", 0);
 						VM_OBJECT_LOCK(robject);
 						temp = robject->backing_object;
@@ -1139,8 +1138,7 @@ shadowlookup:
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(tobject), PDROP | PVM, "madvpo",
-			    0);
+			VM_OBJECT_SLEEP(tobject, m, PDROP | PVM, "madvpo" , 0);
 			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}
@@ -1338,7 +1336,7 @@ retry:
 		if ((m->oflags & VPO_BUSY) || m->busy) {
 			VM_OBJECT_UNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
-			msleep(m, VM_OBJECT_MTX(orig_object), PVM, "spltwt", 0);
+			VM_OBJECT_SLEEP(orig_object, m, PVM, "spltwt" , 0);
 			VM_OBJECT_LOCK(new_object);
 			goto retry;
 		}
@@ -1496,7 +1494,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				if ((p->oflags & VPO_BUSY) || p->busy) {
 					VM_OBJECT_UNLOCK(object);
 					p->oflags |= VPO_WANTED;
-					msleep(p, VM_OBJECT_MTX(backing_object),
+					VM_OBJECT_SLEEP(backing_object, p,
 					    PDROP | PVM, "vmocol", 0);
 					VM_OBJECT_LOCK(object);
 					VM_OBJECT_LOCK(backing_object);

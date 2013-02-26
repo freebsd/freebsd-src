@@ -1213,7 +1213,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
 		mreq->oflags |= VPO_WANTED;
 		PCPU_INC(cnt.v_intrans);
-		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
+		if (VM_OBJECT_SLEEP(object, mreq, PSWP, "swread", hz * 20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
 			    bp->b_bufobj, (intmax_t)bp->b_blkno, bp->b_bcount);
