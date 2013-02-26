@@ -154,6 +154,36 @@ u32 t4_hw_pci_read_cfg4(adapter_t *adap, int reg)
 }
 
 /*
+ *	t4_report_fw_error - report firmware error
+ *	@adap: the adapter
+ *
+ *	The adapter firmware can indicate error conditions to the host.
+ *	This routine prints out the reason for the firmware error (as
+ *	reported by the firmware).
+ */
+static void t4_report_fw_error(struct adapter *adap)
+{
+	static const char *reason[] = {
+		"Crash",			/* PCIE_FW_EVAL_CRASH */
+		"During Device Preparation",	/* PCIE_FW_EVAL_PREP */
+		"During Device Configuration",	/* PCIE_FW_EVAL_CONF */
+		"During Device Initialization",	/* PCIE_FW_EVAL_INIT */
+		"Unexpected Event",		/* PCIE_FW_EVAL_UNEXPECTEDEVENT */
+		"Insufficient Airflow",		/* PCIE_FW_EVAL_OVERHEAT */
+		"Device Shutdown",		/* PCIE_FW_EVAL_DEVICESHUTDOWN */
+		"Reserved",			/* reserved */
+	};
+	u32 pcie_fw;
+
+	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
+	if (!(pcie_fw & F_PCIE_FW_ERR))
+		CH_ERR(adap, "Firmware error report called with no error\n");
+	else
+		CH_ERR(adap, "Firmware reports adapter error: %s\n",
+		       reason[G_PCIE_FW_EVAL(pcie_fw)]);
+}
+
+/*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */
 static void get_mbox_rpl(struct adapter *adap, __be64 *rpl, int nflit,
@@ -267,8 +297,15 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		}
 	}
 
+	/*
+	 * We timed out waiting for a reply to our mailbox command.  Report
+	 * the error and also check to see if the firmware reported any
+	 * errors ...
+	 */
 	CH_ERR(adap, "command %#x in mailbox %d timed out\n",
 	       *(const u8 *)cmd, mbox);
+	if (t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_ERR)
+		t4_report_fw_error(adap);
 	return -ETIMEDOUT;
 }
 
@@ -2033,8 +2070,10 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ F_TIMEOUTMAINT , "CIM PIF MA timeout", -1, 1 },
 		{ 0 }
 	};
-
 	int fat;
+
+	if (t4_read_reg(adapter, A_PCIE_FW) & F_PCIE_FW_ERR)
+		t4_report_fw_error(adapter);
 
 	fat = t4_handle_intr_status(adapter, A_CIM_HOST_INT_CAUSE,
 				    cim_intr_info) +
@@ -4103,12 +4142,16 @@ retry:
 	/*
 	 * Issue the HELLO command to the firmware.  If it's not successful
 	 * but indicates that we got a "busy" or "timeout" condition, retry
-	 * the HELLO until we exhaust our retry limit.
+	 * the HELLO until we exhaust our retry limit.  If we do exceed our
+	 * retry limit, check to see if the firmware left us any error
+	 * information and report that if so ...
 	 */
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret != FW_SUCCESS) {
 		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
 			goto retry;
+		if (t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_ERR)
+			t4_report_fw_error(adap);
 		return ret;
 	}
 
