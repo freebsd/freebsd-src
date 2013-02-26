@@ -281,7 +281,7 @@ ti_gpio_pin_max(device_t dev, int *maxpin)
 			banks++;
 	}
 
-	*maxpin = (banks * PINS_PER_BANK);
+	*maxpin = (banks * PINS_PER_BANK) - 1;
 
 	TI_GPIO_UNLOCK(sc);
 
@@ -315,7 +315,7 @@ ti_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -353,7 +353,7 @@ ti_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -390,7 +390,7 @@ ti_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -445,7 +445,7 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -494,7 +494,7 @@ ti_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -533,7 +533,7 @@ ti_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -541,13 +541,11 @@ ti_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 	/* Sanity check the pin is not configured as an output */
 	val = ti_gpio_read_4(sc, bank, TI_GPIO_OE);
 
-	if ((val & mask) == mask) {
-		TI_GPIO_UNLOCK(sc);
-		return (EINVAL);
-	}
-
 	/* Read the value on the pin */
-	*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAIN) & mask) ? 1 : 0;
+	if (val & mask)
+		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAOUT) & mask) ? 1 : 0;
+	else
+		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAIN) & mask) ? 1 : 0;
 
 	TI_GPIO_UNLOCK(sc);
 
@@ -577,7 +575,7 @@ ti_gpio_pin_toggle(device_t dev, uint32_t pin)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank > MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -728,6 +726,7 @@ ti_gpio_attach(device_t dev)
 	/* Finish of the probe call */
 	device_add_child(dev, "gpioc", device_get_unit(dev));
 	device_add_child(dev, "gpiobus", device_get_unit(dev));
+
 	return (bus_generic_attach(dev));
 }
 

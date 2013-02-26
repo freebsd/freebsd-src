@@ -3509,6 +3509,10 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 	return (0);
 }
 
+/* handle_fw_msg works for both fw4_msg and fw6_msg because this is valid */
+CTASSERT(offsetof(struct cpl_fw4_msg, data) == \
+    offsetof(struct cpl_fw6_msg, data));
+
 static int
 handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
@@ -3517,6 +3521,13 @@ handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
+
+	if (cpl->type == FW_TYPE_RSSCPL || cpl->type == FW6_TYPE_RSSCPL) {
+		const struct rss_header *rss2;
+
+		rss2 = (const struct rss_header *)&cpl->data[0];
+		return (sc->cpl_handler[rss2->opcode](iq, rss2, m));
+	}
 
 	return (sc->fw_msg_handler[cpl->type](sc, &cpl->data[0]));
 }

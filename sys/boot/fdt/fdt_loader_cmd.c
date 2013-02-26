@@ -63,12 +63,16 @@ __FBSDID("$FreeBSD$");
 #define	CMD_REQUIRES_BLOB	0x01
 
 /* Location of FDT yet to be loaded. */
+/* This may be in read-only memory, so can't be manipulated directly. */
 static struct fdt_header *fdt_to_load = NULL;
-/* Local copy of FDT on heap. */
+/* Location of FDT on heap. */
+/* This is the copy we actually manipulate. */
 static struct fdt_header *fdtp = NULL;
 /* Size of FDT blob */
 static size_t fdtp_size = 0;
-/* Location of FDT in kernel or module */
+/* Location of FDT in kernel or module. */
+/* This won't be set if FDT is loaded from disk or memory. */
+/* If it is set, we'll update it when fdt_copy() gets called. */
 static vm_offset_t fdtp_va = 0;
 
 static int fdt_load_dtb(vm_offset_t va);
@@ -191,7 +195,6 @@ fdt_find_static_dtb()
 			fdt_start = (vm_offset_t)sym.st_value + offs;
 		free(strp);
 	}
-	printf("fdt_start: 0x%08jX\n", (intmax_t)fdt_start);
 	return (fdt_start);
 }
 
@@ -239,14 +242,19 @@ fdt_load_dtb(vm_offset_t va)
 static int
 fdt_load_dtb_addr(struct fdt_header *header)
 {
-	struct preloaded_file *bfp;
 
-	bfp = mem_load_raw("dtb", "memory.dtb", header, fdt_totalsize(header));
-	if (bfp == NULL) {
-		command_errmsg = "unable to copy DTB into module directory";
+	// TODO: Verify that there really is an FDT at
+	// the specified location.
+	fdtp_size = fdt_totalsize(header);
+	free(fdtp);
+	if ((fdtp = malloc(fdtp_size)) == NULL) {
+		command_errmsg = "can't allocate memory for device tree copy";
 		return (1);
 	}
-	return fdt_load_dtb(bfp->f_addr);
+
+	fdtp_va = 0; // Don't write this back into module or kernel.
+	bcopy(header, fdtp, fdtp_size);
+	return (0);
 }
 
 static int
@@ -339,7 +347,7 @@ _fdt_strtovect(char *str, void *cellbuf, int lim, unsigned char cellsize,
 
 #define	TMP_MAX_ETH	8
 
-void
+static void
 fixup_ethernet(const char *env, char *ethstr, int *eth_no, int len)
 {
 	char *end, *str;
@@ -376,7 +384,7 @@ fixup_ethernet(const char *env, char *ethstr, int *eth_no, int len)
 		*eth_no = n + 1;
 }
 
-void
+static void
 fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 {
 	int lo, o = 0, o2, maxo = 0, depth;
@@ -424,7 +432,7 @@ fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 	}
 }
 
-int
+static int
 fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 {
 	int cells_in_tuple, i, tuples, tuple_size;
@@ -456,7 +464,7 @@ fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 	return (0);
 }
 
-void
+static void
 fixup_memory(struct sys_info *si)
 {
 	struct mem_region *curmr;
@@ -611,7 +619,7 @@ fixup_memory(struct sys_info *si)
 	free(sb);
 }
 
-void
+static void
 fixup_stdout(const char *env)
 {
 	const char *str;
@@ -664,7 +672,7 @@ fixup_stdout(const char *env)
 /*
  * Locate the blob, fix it up and return its location.
  */
-static vm_offset_t
+static int
 fdt_fixup(void)
 {
 	const char *env;
@@ -692,7 +700,7 @@ fdt_fixup(void)
 
 	/* Value assigned to fixup-applied does not matter. */
 	if (fdt_getprop(fdtp, chosen, "fixup-applied", NULL))
-		goto success;
+		return (1);
 
 	/* Acquire sys_info */
 	si = ub_get_sys_info();
@@ -735,15 +743,11 @@ fdt_fixup(void)
 	fixup_memory(si);
 
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
-
-success:
-	/* Overwrite the FDT with the fixed version. */
-	COPYIN(fdtp, fdtp_va, fdtp_size);
-	return (fdtp_va);
+	return (1);
 }
 
 /*
- * Copy DTB blob to specified location and its return size
+ * Copy DTB blob to specified location and return size
  */
 int
 fdt_copy(vm_offset_t va)
@@ -761,6 +765,11 @@ fdt_copy(vm_offset_t va)
 	if (fdt_fixup() == 0)
 		return (0);
 
+	if (fdtp_va != 0) {
+		/* Overwrite the FDT with the fixed version. */
+		/* XXX Is this really appropriate? */
+		COPYIN(fdtp, fdtp_va, fdtp_size);
+	}
 	COPYIN(fdtp, va, fdtp_size);
 	return (fdtp_size);
 }
@@ -1334,8 +1343,6 @@ fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 		else
 			sprintf(command_errbuf,
 			    "Could not add/modify property!\n");
-	} else {
-		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (rv);
 }
@@ -1520,7 +1527,6 @@ fdt_cmd_mkprop(int argc, char *argv[])
 	if (fdt_modprop(o, propname, value, 1))
 		return (CMD_ERROR);
 
-	COPYIN(fdtp, fdtp_va, fdtp_size);
 	return (CMD_OK);
 }
 
@@ -1557,8 +1563,6 @@ fdt_cmd_rm(int argc, char *argv[])
 	if (rv) {
 		sprintf(command_errbuf, "could not delete node");
 		return (CMD_ERROR);
-	} else {
-		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }
@@ -1589,8 +1593,6 @@ fdt_cmd_mknode(int argc, char *argv[])
 			sprintf(command_errbuf,
 			    "Could not add node!\n");
 		return (CMD_ERROR);
-	} else {
-		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }

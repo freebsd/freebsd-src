@@ -715,8 +715,10 @@ struct ath_softc {
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
-	int			sc_txchainmask;	/* currently configured TX chainmask */
-	int			sc_rxchainmask;	/* currently configured RX chainmask */
+	int			sc_txchainmask;	/* hardware TX chainmask */
+	int			sc_rxchainmask;	/* hardware RX chainmask */
+	int			sc_cur_txchainmask;	/* currently configured TX chainmask */
+	int			sc_cur_rxchainmask;	/* currently configured RX chainmask */
 	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
 	int			sc_aggr_limit;	/* TX limit on all aggregates */
 	int			sc_delim_min_pad;	/* Minimum delimiter count */
@@ -1334,6 +1336,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
+#define	ath_hal_setchainmasks(_ah, _txchainmask, _rxchainmask) \
+	((*(_ah)->ah_setChainMasks)((_ah), (_txchainmask), (_rxchainmask)))
 
 #define	ath_hal_spectral_supported(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_SPECTRAL_SCAN, 0, NULL) == HAL_OK)
