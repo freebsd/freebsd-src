@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #ifdef COMPAT_FREEBSD32

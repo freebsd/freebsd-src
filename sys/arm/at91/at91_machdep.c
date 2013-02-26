@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_map.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
