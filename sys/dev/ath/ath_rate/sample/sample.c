@@ -1008,11 +1008,28 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     short_tries, long_tries,
 				     long_tries > rc[0].tries,
 				     nframes, nbad);
+			update_ewma_stats(sc, an, frame_size,
+				     rc[0].rix, rc[0].tries,
+				     rc[1].rix, rc[1].tries,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
+				     short_tries, long_tries,
+				     long_tries > rc[0].tries,
+				     nframes, nbad);
+
 			long_tries -= rc[0].tries;
 		}
 		
 		if (rc[1].tries && finalTSIdx > 0) {
 			update_stats(sc, an, frame_size,
+				     rc[1].rix, rc[1].tries,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
+				     0, 0,
+				     short_tries, long_tries,
+				     status,
+				     nframes, nbad);
+			update_ewma_stats(sc, an, frame_size,
 				     rc[1].rix, rc[1].tries,
 				     rc[2].rix, rc[2].tries,
 				     rc[3].rix, rc[3].tries,
@@ -1032,6 +1049,14 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     short_tries, long_tries,
 				     status,
 				     nframes, nbad);
+			update_ewma_stats(sc, an, frame_size,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
+				     0, 0,
+				     0, 0,
+				     short_tries, long_tries,
+				     status,
+				     nframes, nbad);
 			long_tries -= rc[2].tries;
 		}
 
@@ -1044,17 +1069,15 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     short_tries, long_tries,
 				     status,
 				     nframes, nbad);
+			update_ewma_stats(sc, an, frame_size,
+				     rc[3].rix, rc[3].tries,
+				     0, 0,
+				     0, 0,
+				     0, 0,
+				     short_tries, long_tries,
+				     status,
+				     nframes, nbad);
 		}
-
-		update_ewma_stats(sc, an, frame_size,
-			     rc[0].rix, rc[0].tries,
-			     rc[1].rix, rc[1].tries,
-			     rc[2].rix, rc[2].tries,
-			     rc[3].rix, rc[3].tries,
-			     short_tries, long_tries,
-			     long_tries > rc[0].tries,
-			     nframes, nbad);
-
 	}
 }
 
