@@ -195,7 +195,7 @@ vm_object_zinit(void *mem, int size, int flags)
 
 	object = (vm_object_t)mem;
 	bzero(&object->lock, sizeof(object->lock));
-	VM_OBJECT_LOCK_INIT(object, "standard vm object");
+	rw_init_flags(&object->lock, "vm object", RW_DUPOK);
 
 	/* These are true for any object that has been freed */
 	object->paging_in_progress = 0;
@@ -204,7 +204,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	return (0);
 }
 
-void
+static void
 _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 {
 
@@ -267,7 +267,7 @@ vm_object_init(void)
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
-	VM_OBJECT_LOCK_INIT(kernel_object, "kernel vm object");
+	rw_init(&object->lock, "kernel vm object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
 #if VM_NRESERVLEVEL > 0
@@ -275,7 +275,7 @@ vm_object_init(void)
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
 #endif
 
-	VM_OBJECT_LOCK_INIT(kmem_object, "kmem vm object");
+	rw_init(&object->lock, "kmem vm object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
 #if VM_NRESERVLEVEL > 0

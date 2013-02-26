@@ -210,8 +210,6 @@ extern struct vm_object kmem_object_store;
 	rw_assert(&(object)->lock, RA_RLOCKED)
 #define	VM_OBJECT_ASSERT_WLOCKED(object)				\
 	rw_assert(&(object)->lock, RA_WLOCKED)
-#define	VM_OBJECT_LOCK_INIT(object, name)				\
-	rw_init_flags(&(object)->lock, (name), RW_DUPOK)
 #define	VM_OBJECT_RLOCK(object)						\
 	rw_rlock(&(object)->lock)
 #define	VM_OBJECT_RUNLOCK(object)					\
@@ -245,7 +243,6 @@ void vm_object_pip_wakeupn(vm_object_t object, short i);
 void vm_object_pip_wait(vm_object_t object, char *waitid);
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
-void _vm_object_allocate (objtype_t, vm_pindex_t, vm_object_t);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    boolean_t);
 void vm_object_collapse (vm_object_t);
