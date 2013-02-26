@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.15 2012/10/14 02:50:38 sjg Exp $
+# $Id: meta.stage.mk,v 1.18 2013/02/26 05:40:49 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -74,7 +74,7 @@ STAGE_FILE_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageFiles() { \
 	rm -f $$t; \
 	{ ln $$f $$t 2> /dev/null || \
 	cp -p $$f $$t; }; \
-	$${mode:+chmod $$mode $$t}; \
+	[ -z "$$mode" ] || chmod $$mode $$t; \
   done; :; }
 
 STAGE_LINKS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageLinks() { \
@@ -106,7 +106,7 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
 	rm -f $$t; \
 	{ ln $$s $$t 2> /dev/null || \
 	cp -p $$s $$t; }; \
-	$${mode:+chmod $$mode $$t}; \
+	[ -z "$$mode" ] || chmod $$mode $$t; \
   done; :; }
 
 # this is simple, a list of the "staged" files depends on this,
@@ -152,7 +152,6 @@ STAGE_SYMLINKS ?= ${.ALLSRC:T:N.dirdep:Nstage_*}
 .endif
 
 .if !empty(STAGE_SETS)
-
 CLEANFILES += ${STAGE_SETS:@s@stage*$s@}
 
 # some makefiles need to populate multiple directories
@@ -193,7 +192,6 @@ stage_symlinks:	.dirdep
 .endif
 
 .if !empty(STAGE_AS_SETS)
-
 CLEANFILES += ${STAGE_AS_SETS:@s@stage*$s@}
 
 # sometimes things need to be renamed as they are staged
