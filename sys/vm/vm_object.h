@@ -206,9 +206,6 @@ extern struct vm_object kmem_object_store;
 #define	VM_OBJECT_LOCK(object)		mtx_lock(&(object)->mtx)
 #define	VM_OBJECT_LOCK_ASSERT(object, type) \
 					mtx_assert(&(object)->mtx, (type))
-#define	VM_OBJECT_LOCK_INIT(object, type) \
-					mtx_init(&(object)->mtx, "vm object", \
-					    (type), MTX_DEF | MTX_DUPOK)
 #define	VM_OBJECT_LOCKED(object)	mtx_owned(&(object)->mtx)
 #define	VM_OBJECT_SLEEP(object, wchan, pri, wmesg, timo) \
 					msleep((wchan), &(object)->mtx, (pri), \
@@ -234,7 +231,6 @@ void vm_object_pip_wakeupn(vm_object_t object, short i);
 void vm_object_pip_wait(vm_object_t object, char *waitid);
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
-void _vm_object_allocate (objtype_t, vm_pindex_t, vm_object_t);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    boolean_t);
 void vm_object_collapse (vm_object_t);
