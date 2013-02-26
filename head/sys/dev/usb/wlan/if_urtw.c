@@ -532,9 +532,8 @@ static const struct usb_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = 0x89,
 		.direction = UE_DIR_IN,
-		.bufsize = MCLBYTES,
+		.bufsize = sizeof(uint64_t),
 		.flags = {
-			.ext_buffer = 1,
 			.pipe_bof = 1,
 			.short_xfer_ok = 1
 		},
@@ -544,9 +543,8 @@ static const struct usb_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = URTW_8187B_TXPIPE_BE,
 		.direction = UE_DIR_OUT,
-		.bufsize = URTW_TX_MAXSIZE,
+		.bufsize = URTW_TX_MAXSIZE * URTW_TX_DATA_LIST_COUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.force_short_xfer = 1,
 			.pipe_bof = 1,
 		},
@@ -624,9 +622,8 @@ static const struct usb_config urtw_8187l_usbconfig[URTW_8187L_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = 0x2,
 		.direction = UE_DIR_OUT,
-		.bufsize = URTW_TX_MAXSIZE,
+		.bufsize = URTW_TX_MAXSIZE * URTW_TX_DATA_LIST_COUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.force_short_xfer = 1,
 			.pipe_bof = 1,
 		},
@@ -654,8 +651,8 @@ static struct ieee80211vap *urtw_vap_create(struct ieee80211com *,
 			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtw_vap_delete(struct ieee80211vap *);
 static void		urtw_init(void *);
-static void		urtw_stop(struct ifnet *, int);
-static void		urtw_stop_locked(struct ifnet *, int);
+static void		urtw_stop(struct ifnet *);
+static void		urtw_stop_locked(struct ifnet *);
 static int		urtw_ioctl(struct ifnet *, u_long, caddr_t);
 static void		urtw_start(struct ifnet *);
 static int		urtw_alloc_rx_data_list(struct urtw_softc *);
@@ -827,6 +824,16 @@ urtw_attach(device_t dev)
 		goto fail0;
 	}
 
+	if (sc->sc_flags & URTW_RTL8187B) {
+		sc->sc_tx_dma_buf = 
+		    usbd_xfer_get_frame_buffer(sc->sc_xfer[
+		    URTW_8187B_BULK_TX_BE], 0);
+	} else {
+		sc->sc_tx_dma_buf =
+		    usbd_xfer_get_frame_buffer(sc->sc_xfer[
+		    URTW_8187L_BULK_TX_LOW], 0);
+	}
+
 	URTW_LOCK(sc);
 
 	urtw_read32_m(sc, URTW_RX, &data);
@@ -926,41 +933,63 @@ urtw_detach(device_t dev)
 	struct urtw_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	unsigned int x;
+	unsigned int n_xfers;
 
-	if (!device_is_attached(dev))
-		return (0);
+	/* Prevent further ioctls */
+	URTW_LOCK(sc);
+	sc->sc_flags |= URTW_DETACHED;
+	URTW_UNLOCK(sc);
 
-	urtw_stop(ifp, 1);
+	urtw_stop(ifp);
+
 	ieee80211_draintask(ic, &sc->sc_updateslot_task);
 	ieee80211_draintask(ic, &sc->sc_led_task);
 
 	usb_callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	usbd_transfer_unsetup(sc->sc_xfer, (sc->sc_flags & URTW_RTL8187B) ?
-	    URTW_8187B_N_XFERS : URTW_8187L_N_XFERS);
-	ieee80211_ifdetach(ic);
+	n_xfers = (sc->sc_flags & URTW_RTL8187B) ?
+	    URTW_8187B_N_XFERS : URTW_8187L_N_XFERS;
 
+	/* prevent further allocations from RX/TX data lists */
+	URTW_LOCK(sc);
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
+
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
+	URTW_UNLOCK(sc);
+
+	/* drain USB transfers */
+	for (x = 0; x != n_xfers; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
+
+	/* free data buffers */
+	URTW_LOCK(sc);
 	urtw_free_tx_data_list(sc);
 	urtw_free_rx_data_list(sc);
+	URTW_UNLOCK(sc);
 
+	/* free USB transfers and some data buffers */
+	usbd_transfer_unsetup(sc->sc_xfer, n_xfers);
+
+	ieee80211_ifdetach(ic);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
-
 	return (0);
 }
 
 static void
 urtw_free_tx_data_list(struct urtw_softc *sc)
 {
-
 	urtw_free_data_list(sc, sc->sc_tx, URTW_TX_DATA_LIST_COUNT, 0);
 }
 
 static void
 urtw_free_rx_data_list(struct urtw_softc *sc)
 {
-
 	urtw_free_data_list(sc, sc->sc_rx, URTW_RX_DATA_LIST_COUNT, 1);
 }
 
@@ -980,10 +1009,7 @@ urtw_free_data_list(struct urtw_softc *sc, struct urtw_data data[], int ndata,
 				dp->buf = NULL;
 			}
 		} else {
-			if (dp->buf != NULL) {
-				free(dp->buf, M_USBDEV);
-				dp->buf = NULL;
-			}
+			dp->buf = NULL;
 		}
 		if (dp->ni != NULL) {
 			ieee80211_free_node(dp->ni);
@@ -1041,7 +1067,7 @@ urtw_init_locked(void *arg)
 	usb_error_t error;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		urtw_stop_locked(ifp, 0);
+		urtw_stop_locked(ifp);
 
 	error = (sc->sc_flags & URTW_RTL8187B) ? urtw_adapter_start_b(sc) :
 	    urtw_adapter_start(sc);
@@ -1304,13 +1330,12 @@ urtw_do_request(struct urtw_softc *sc,
 }
 
 static void
-urtw_stop_locked(struct ifnet *ifp, int disable)
+urtw_stop_locked(struct ifnet *ifp)
 {
 	struct urtw_softc *sc = ifp->if_softc;
 	uint8_t data8;
 	usb_error_t error;
 
-	(void)disable;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	error = urtw_intr_disable(sc);
@@ -1344,12 +1369,12 @@ fail:
 }
 
 static void
-urtw_stop(struct ifnet *ifp, int disable)
+urtw_stop(struct ifnet *ifp)
 {
 	struct urtw_softc *sc = ifp->if_softc;
 
 	URTW_LOCK(sc);
-	urtw_stop_locked(ifp, disable);
+	urtw_stop_locked(ifp);
 	URTW_UNLOCK(sc);
 }
 
@@ -1374,7 +1399,14 @@ urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct urtw_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	int error;
+	int startall = 0;
+
+	URTW_LOCK(sc);
+	error = (sc->sc_flags & URTW_DETACHED) ? ENXIO : 0;
+	URTW_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -1389,7 +1421,7 @@ urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				urtw_stop(ifp, 1);
+				urtw_stop(ifp);
 		}
 		sc->sc_if_flags = ifp->if_flags;
 		if (startall)
@@ -1405,7 +1437,6 @@ urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = EINVAL;
 		break;
 	}
-
 	return (error);
 }
 
@@ -1449,7 +1480,7 @@ urtw_start(struct ifnet *ifp)
 
 static int
 urtw_alloc_data_list(struct urtw_softc *sc, struct urtw_data data[],
-	int ndata, int maxsz, int fillmbuf)
+    int ndata, int maxsz, void *dma_buf)
 {
 	int i, error;
 
@@ -1457,8 +1488,8 @@ urtw_alloc_data_list(struct urtw_softc *sc, struct urtw_data data[],
 		struct urtw_data *dp = &data[i];
 
 		dp->sc = sc;
-		if (fillmbuf) {
-			dp->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (dma_buf == NULL) {
+			dp->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (dp->m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate rx mbuf\n");
@@ -1468,24 +1499,15 @@ urtw_alloc_data_list(struct urtw_softc *sc, struct urtw_data data[],
 			dp->buf = mtod(dp->m, uint8_t *);
 		} else {
 			dp->m = NULL;
-			dp->buf = malloc(maxsz, M_USBDEV, M_NOWAIT);
-			if (dp->buf == NULL) {
-				device_printf(sc->sc_dev,
-				    "could not allocate buffer\n");
-				error = ENOMEM;
-				goto fail;
-			}
-			if (((unsigned long)dp->buf) % 4)
-				device_printf(sc->sc_dev,
-				    "warn: unaligned buffer %p\n", dp->buf);
+			dp->buf = ((uint8_t *)dma_buf) +
+			    (i * maxsz);
 		}
 		dp->ni = NULL;
 	}
+	return (0);
 
-	return 0;
-
-fail:	urtw_free_data_list(sc, data, ndata, fillmbuf);
-	return error;
+fail:	urtw_free_data_list(sc, data, ndata, 1);
+	return (error);
 }
 
 static int
@@ -1494,7 +1516,8 @@ urtw_alloc_rx_data_list(struct urtw_softc *sc)
 	int error, i;
 
 	error = urtw_alloc_data_list(sc,
-	    sc->sc_rx, URTW_RX_DATA_LIST_COUNT, MCLBYTES, 1 /* mbufs */);
+	    sc->sc_rx, URTW_RX_DATA_LIST_COUNT,
+	    MCLBYTES, NULL /* mbufs */);
 	if (error != 0)
 		return (error);
 
@@ -1514,7 +1537,7 @@ urtw_alloc_tx_data_list(struct urtw_softc *sc)
 
 	error = urtw_alloc_data_list(sc,
 	    sc->sc_tx, URTW_TX_DATA_LIST_COUNT, URTW_TX_MAXSIZE,
-	    0 /* no mbufs */);
+	    sc->sc_tx_dma_buf /* no mbufs */);
 	if (error != 0)
 		return (error);
 
@@ -1994,9 +2017,11 @@ urtw_update_msr(struct urtw_softc *sc)
 			data |= URTW_MSR_LINK_HOSTAP;
 			break;
 		default:
-			panic("unsupported operation mode 0x%x\n",
+			DPRINTF(sc, URTW_DEBUG_STATE,
+			    "unsupported operation mode 0x%x\n",
 			    ic->ic_opmode);
-			/* never reach  */
+			error = USB_ERR_INVAL;
+			goto fail;
 		}
 	} else
 		data |= URTW_MSR_LINK_NONE;
@@ -2427,8 +2452,10 @@ urtw_get_rfchip(struct urtw_softc *sc)
 		sc->sc_rf_stop = urtw_8225_rf_stop;
 		break;
 	default:
-		panic("unsupported RF chip %d\n", data & 0xff);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported RF chip %d\n", data & 0xff);
+		error = USB_ERR_INVAL;
+		goto fail;
 	}
 
 	device_printf(sc->sc_dev, "%s rf %s hwrev %s\n",
@@ -2709,42 +2736,28 @@ fail:
 	return (error);
 }
 
-/* XXX why we should allocalte memory buffer instead of using memory stack?  */
 static usb_error_t
 urtw_8225_write_s16(struct urtw_softc *sc, uint8_t addr, int index,
     uint16_t *data)
 {
-	uint8_t *buf;
+	uint8_t buf[2];
 	uint16_t data16;
-	struct usb_device_request *req;
+	struct usb_device_request req;
 	usb_error_t error = 0;
 
 	data16 = *data;
-	req = (usb_device_request_t *)malloc(sizeof(usb_device_request_t),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (req == NULL) {
-		device_printf(sc->sc_dev, "could not allocate a memory\n");
-		goto fail0;
-	}
-	buf = (uint8_t *)malloc(2, M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (req == NULL) {
-		device_printf(sc->sc_dev, "could not allocate a memory\n");
-		goto fail1;
-	}
 
-	req->bmRequestType = UT_WRITE_VENDOR_DEVICE;
-	req->bRequest = URTW_8187_SETREGS_REQ;
-	USETW(req->wValue, addr);
-	USETW(req->wIndex, index);
-	USETW(req->wLength, sizeof(uint16_t));
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = URTW_8187_SETREGS_REQ;
+	USETW(req.wValue, addr);
+	USETW(req.wIndex, index);
+	USETW(req.wLength, sizeof(uint16_t));
 	buf[0] = (data16 & 0x00ff);
 	buf[1] = (data16 & 0xff00) >> 8;
 
-	error = urtw_do_request(sc, req, buf);
+	error = urtw_do_request(sc, &req, buf);
 
-	free(buf, M_80211_VAP);
-fail1:	free(req, M_80211_VAP);
-fail0:	return (error);
+	return (error);
 }
 
 static usb_error_t
@@ -3622,8 +3635,10 @@ urtw_led_ctl(struct urtw_softc *sc, int mode)
 		error = urtw_led_mode3(sc, mode);
 		break;
 	default:
-		panic("unsupported LED mode %d\n", sc->sc_strategy);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED mode %d\n", sc->sc_strategy);
+		error = USB_ERR_INVAL;
+		break;
 	}
 
 	return (error);
@@ -3648,8 +3663,9 @@ urtw_led_mode0(struct urtw_softc *sc, int mode)
 		sc->sc_gpio_ledstate = URTW_LED_ON;
 		break;
 	default:
-		panic("unsupported LED mode 0x%x", mode);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED mode 0x%x", mode);
+		return (USB_ERR_INVAL);
 	}
 
 	switch (sc->sc_gpio_ledstate) {
@@ -3672,8 +3688,9 @@ urtw_led_mode0(struct urtw_softc *sc, int mode)
 		urtw_led_off(sc, URTW_LED_GPIO);
 		break;
 	default:
-		panic("unknown LED status 0x%x", sc->sc_gpio_ledstate);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unknown LED status 0x%x", sc->sc_gpio_ledstate);
+		return (USB_ERR_INVAL);
 	}
 	return (0);
 }
@@ -3681,21 +3698,18 @@ urtw_led_mode0(struct urtw_softc *sc, int mode)
 static usb_error_t
 urtw_led_mode1(struct urtw_softc *sc, int mode)
 {
-
 	return (USB_ERR_INVAL);
 }
 
 static usb_error_t
 urtw_led_mode2(struct urtw_softc *sc, int mode)
 {
-
 	return (USB_ERR_INVAL);
 }
 
 static usb_error_t
 urtw_led_mode3(struct urtw_softc *sc, int mode)
 {
-
 	return (USB_ERR_INVAL);
 }
 
@@ -3711,13 +3725,17 @@ urtw_led_on(struct urtw_softc *sc, int type)
 			urtw_write8_m(sc, URTW_GP_ENABLE, 0x00);
 			break;
 		default:
-			panic("unsupported LED PIN type 0x%x",
+			DPRINTF(sc, URTW_DEBUG_STATE,
+			    "unsupported LED PIN type 0x%x",
 			    sc->sc_gpio_ledpin);
-			/* never reach  */
+			error = USB_ERR_INVAL;
+			goto fail;
 		}
 	} else {
-		panic("unsupported LED type 0x%x", type);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED type 0x%x", type);
+		error = USB_ERR_INVAL;
+		goto fail;
 	}
 
 	sc->sc_gpio_ledon = 1;
@@ -3738,13 +3756,17 @@ urtw_led_off(struct urtw_softc *sc, int type)
 			    URTW_GP_ENABLE, URTW_GP_ENABLE_DATA_MAGIC1);
 			break;
 		default:
-			panic("unsupported LED PIN type 0x%x",
+			DPRINTF(sc, URTW_DEBUG_STATE,
+			    "unsupported LED PIN type 0x%x",
 			    sc->sc_gpio_ledpin);
-			/* never reach  */
+			error = USB_ERR_INVAL;
+			goto fail;
 		}
 	} else {
-		panic("unsupported LED type 0x%x", type);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED type 0x%x", type);
+		error = USB_ERR_INVAL;
+		goto fail;
 	}
 
 	sc->sc_gpio_ledon = 0;
@@ -3768,8 +3790,12 @@ urtw_ledtask(void *arg, int pending)
 {
 	struct urtw_softc *sc = arg;
 
-	if (sc->sc_strategy != URTW_SW_LED_MODE0)
-		panic("could not process a LED strategy 0x%x", sc->sc_strategy);
+	if (sc->sc_strategy != URTW_SW_LED_MODE0) {
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "could not process a LED strategy 0x%x",
+		    sc->sc_strategy);
+		return;
+	}
 
 	URTW_LOCK(sc);
 	urtw_led_blink(sc);
@@ -3816,8 +3842,10 @@ urtw_led_blink(struct urtw_softc *sc)
 		usb_callout_reset(&sc->sc_led_ch, hz, urtw_led_ch, sc);
 		break;
 	default:
-		panic("unknown LED status 0x%x", sc->sc_gpio_ledstate);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unknown LED status 0x%x",
+		    sc->sc_gpio_ledstate);
+		return (USB_ERR_INVAL);
 	}
 	return (0);
 }
@@ -3994,7 +4022,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 		noise = rx->noise;
 	}
 
-	mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
 		ifp->if_ierrors++;
 		return (NULL);
@@ -4133,6 +4161,7 @@ urtw_bulk_tx_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
+	void *dma_buf = usbd_xfer_get_frame_buffer(xfer, 0);
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -4142,8 +4171,8 @@ urtw_bulk_tx_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 setup:
-		usbd_xfer_set_frame_data(xfer, 0, &sc->sc_txstatus,
-		    sizeof(int64_t));
+		memcpy(dma_buf, &sc->sc_txstatus, sizeof(uint64_t));
+		usbd_xfer_set_frame_len(xfer, 0, sizeof(uint64_t));
 		usbd_transfer_submit(xfer);
 		break;
 	default:
@@ -4431,7 +4460,7 @@ static device_method_t urtw_methods[] = {
 	DEVMETHOD(device_probe, urtw_match),
 	DEVMETHOD(device_attach, urtw_attach),
 	DEVMETHOD(device_detach, urtw_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t urtw_driver = {
 	.name = "urtw",

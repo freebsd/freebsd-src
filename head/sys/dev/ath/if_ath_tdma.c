@@ -402,28 +402,6 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * not just 0..65535 TU.
 	 */
 	nextslottu = TSF_TO_TU(nextslot>>32, nextslot);
-	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
-	    "rs->rstamp %llu rstamp %llu tsf %llu txtime %d, nextslot %llu, nextslottu %d, nextslottume %d\n",
-	    (unsigned long long) rs->rs_tstamp, rstamp, tsf, txtime, nextslot, nextslottu, TSF_TO_TU(nextslot >> 32, nextslot));
-	DPRINTF(sc, ATH_DEBUG_TDMA,
-	    "  beacon tstamp: %llu (0x%016llx)\n",
-	    le64toh(ni->ni_tstamp.tsf),
-	    le64toh(ni->ni_tstamp.tsf));
-
-#ifdef	ATH_DEBUG_ALQ
-	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_BEACON_STATE)) {
-		struct if_ath_alq_tdma_beacon_state t;
-		t.rx_tsf = htobe64(rstamp);
-		t.beacon_tsf = htobe64(le64toh(ni->ni_tstamp.tsf));
-		t.tsf64 = htobe64(tsf);
-		t.nextslot_tsf = htobe64(nextslot);
-		t.nextslot_tu = htobe32(nextslottu);
-		t.txtime = htobe32(txtime);
-		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_BEACON_STATE,
-		    sizeof(t), (char *) &t);
-	}
-#endif
-
 	/*
 	 * Retrieve the hardware NextTBTT in usecs
 	 * and calculate the difference between what the
@@ -459,26 +437,21 @@ ath_tdma_update(struct ieee80211_node *ni,
 	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD + 1)) - nexttbtt);
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
+	    "rs->rstamp %llu rstamp %llu tsf %llu txtime %d, nextslot %llu, "
+	    "nextslottu %d, nextslottume %d\n",
+	    (unsigned long long) rs->rs_tstamp, rstamp, tsf, txtime,
+	    nextslot, nextslottu, TSF_TO_TU(nextslot >> 32, nextslot));
+	DPRINTF(sc, ATH_DEBUG_TDMA,
+	    "  beacon tstamp: %llu (0x%016llx)\n",
+	    le64toh(ni->ni_tstamp.tsf),
+	    le64toh(ni->ni_tstamp.tsf));
+
+	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "nexttbtt %llu (0x%08llx) tsfdelta %d avg +%d/-%d\n",
 	    nexttbtt,
 	    (long long) nexttbtt,
 	    tsfdelta,
 	    TDMA_AVG(sc->sc_avgtsfdeltap), TDMA_AVG(sc->sc_avgtsfdeltam));
-
-#ifdef	ATH_DEBUG_ALQ
-	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_SLOT_CALC)) {
-		struct if_ath_alq_tdma_slot_calc t;
-
-		t.nexttbtt = htobe64(nexttbtt_full);
-		t.next_slot = htobe64(nextslot);
-		t.tsfdelta = htobe32(tsfdelta);
-		t.avg_plus = htobe32(TDMA_AVG(sc->sc_avgtsfdeltap));
-		t.avg_minus = htobe32(TDMA_AVG(sc->sc_avgtsfdeltam));
-
-		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_SLOT_CALC,
-		    sizeof(t), (char *) &t);
-	}
-#endif
 
 	if (tsfdelta < 0) {
 		TDMA_SAMPLE(sc->sc_avgtsfdeltap, 0);
@@ -495,6 +468,33 @@ ath_tdma_update(struct ieee80211_node *ni,
 		TDMA_SAMPLE(sc->sc_avgtsfdeltam, 0);
 	}
 	tudelta = nextslottu - TSF_TO_TU(nexttbtt_full >> 32, nexttbtt_full);
+
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_BEACON_STATE)) {
+		struct if_ath_alq_tdma_beacon_state t;
+		t.rx_tsf = htobe64(rstamp);
+		t.beacon_tsf = htobe64(le64toh(ni->ni_tstamp.tsf));
+		t.tsf64 = htobe64(tsf);
+		t.nextslot_tsf = htobe64(nextslot);
+		t.nextslot_tu = htobe32(nextslottu);
+		t.txtime = htobe32(txtime);
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_BEACON_STATE,
+		    sizeof(t), (char *) &t);
+	}
+
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_SLOT_CALC)) {
+		struct if_ath_alq_tdma_slot_calc t;
+
+		t.nexttbtt = htobe64(nexttbtt_full);
+		t.next_slot = htobe64(nextslot);
+		t.tsfdelta = htobe32(tsfdelta);
+		t.avg_plus = htobe32(TDMA_AVG(sc->sc_avgtsfdeltap));
+		t.avg_minus = htobe32(TDMA_AVG(sc->sc_avgtsfdeltam));
+
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_SLOT_CALC,
+		    sizeof(t), (char *) &t);
+	}
+#endif
 
 	/*
 	 * Copy sender's timetstamp into tdma ie so they can

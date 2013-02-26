@@ -103,6 +103,14 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
+  // createProfileMetadataLoaderPass - This pass loads information from a
+  // profile dump file and sets branch weight metadata.
+  //
+  ModulePass *createProfileMetadataLoaderPass();
+  extern char &ProfileMetadataLoaderPassID;
+
+  //===--------------------------------------------------------------------===//
+  //
   // createNoProfileInfoPass - This pass implements the default "no profile".
   //
   ImmutablePass *createNoProfileInfoPass();
@@ -172,11 +180,20 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
-  // createLoopDependenceAnalysisPass - This creates an instance of the
-  // LoopDependenceAnalysis pass.
+  // createDependenceAnalysisPass - This creates an instance of the
+  // DependenceAnalysis pass.
   //
-  LoopPass *createLoopDependenceAnalysisPass();
+  FunctionPass *createDependenceAnalysisPass();
 
+  //===--------------------------------------------------------------------===//
+  //
+  // createCostModelAnalysisPass - This creates an instance of the
+  // CostModelAnalysis pass.
+  //
+  FunctionPass *createCostModelAnalysisPass();
+
+  //===--------------------------------------------------------------------===//
+  //
   // Minor pass prototypes, allowing us to expose them through bugpoint and
   // analyze.
   FunctionPass *createInstCountPass();

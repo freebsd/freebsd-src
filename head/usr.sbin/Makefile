@@ -39,7 +39,6 @@ SUBDIR=	adduser \
 	kldxref \
 	mailwrapper \
 	makefs \
-	manctl \
 	memcontrol \
 	mergemaster \
 	mfiutil \
@@ -55,8 +54,9 @@ SUBDIR=	adduser \
 	nfsdumpstate \
 	nfsrevoke \
 	nfsuserd \
+	nmtree \
 	nologin \
-	pc-sysinstall \
+	${_pc_sysinstall} \
 	pciconf \
 	periodic \
 	powerd \
@@ -110,6 +110,9 @@ SUBDIR+=	amd
 .if ${MK_AUDIT} != "no"
 SUBDIR+=	audit
 SUBDIR+=	auditd
+.if ${MK_OPENSSL} != "no"
+SUBDIR+=	auditdistd
+.endif
 SUBDIR+=	auditreduce
 SUBDIR+=	praudit
 .endif
@@ -259,6 +262,10 @@ SUBDIR+=	ntp
 
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=	keyserv
+.endif
+
+.if ${MK_PC_SYSINSTALL} != "no"
+_pc_sysinstall=	pc-sysinstall
 .endif
 
 .if ${MK_PF} != "no"

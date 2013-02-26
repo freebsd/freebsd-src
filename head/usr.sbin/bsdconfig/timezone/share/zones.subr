@@ -30,6 +30,7 @@ if [ ! "$_TIMEZONE_ZONES_SUBR" ]; then _TIMEZONE_ZONES_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." timezone/zones.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/timezone/continents.subr
 
@@ -666,5 +667,9 @@ f_set_zone_utc()
 	f_confirm_zone "" || return $FAILURE
 	f_install_zoneinfo_file ""
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." timezone/zones.subr
 
 fi # ! $_TIMEZONE_ZONES_SUBR

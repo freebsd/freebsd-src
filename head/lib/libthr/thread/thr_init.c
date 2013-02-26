@@ -363,6 +363,12 @@ _libpthread_init(struct pthread *curthread)
 		_thr_signal_init();
 		if (_thread_event_mask & TD_CREATE)
 			_thr_report_creation(curthread, curthread);
+		/*
+		 * Always use our rtld lock implementation.
+		 * It is faster because it postpones signal handlers
+		 * instead of calling sigprocmask(2).
+		 */
+		_thr_rtld_init();
 	}
 }
 

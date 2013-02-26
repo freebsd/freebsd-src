@@ -162,6 +162,8 @@ struct dns_view {
 	dns_dns64list_t 		dns64;
 	unsigned int 			dns64cnt;
 	ISC_LIST(dns_rpz_zone_t)	rpz_zones;
+	isc_boolean_t			rpz_recursive_only;
+	isc_boolean_t			rpz_break_dnssec;
 
 	/*
 	 * Configurable data for server use only,

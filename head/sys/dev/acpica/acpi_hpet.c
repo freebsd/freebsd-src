@@ -849,7 +849,7 @@ static device_method_t hpet_methods[] = {
 	DEVMETHOD(bus_remap_intr, hpet_remap_intr),
 #endif
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	hpet_driver = {

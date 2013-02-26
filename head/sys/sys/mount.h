@@ -199,8 +199,8 @@ struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
 
-#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp)				\
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp));			\
 		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
@@ -218,40 +218,12 @@ struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 
-#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) 				\
+	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); 		\
 		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
-	do {								\
-		MNT_ILOCK(mp);						\
-		__mnt_vnode_markerfree_active(&(mvp), (mp));		\
-		/* MNT_IUNLOCK(mp); -- done in above function */	\
-		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
-	} while (0)
-
-/*
- * Definitions for MNT_VNODE_FOREACH.
- *
- * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
- */
-struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
-struct vnode *__mnt_vnode_first(struct vnode **mvp, struct mount *mp);
-void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
-
-#define MNT_VNODE_FOREACH(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first(&(mvp), (mp)); \
-		(vp) != NULL; vp = __mnt_vnode_next(&(mvp), (mp)))
-
-#define MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp)			\
-	__mnt_vnode_markerfree(&(mvp), (mp))
-
-#define MNT_VNODE_FOREACH_ABORT(mp, mvp)				\
-	do {								\
-		MNT_ILOCK(mp);						\
-		MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);		\
-		MNT_IUNLOCK(mp);					\
-	} while (0)
+	__mnt_vnode_markerfree_active(&(mvp), (mp))
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
 #define	MNT_ITRYLOCK(mp) mtx_trylock(&(mp)->mnt_mtx)
@@ -521,6 +493,7 @@ struct ovfsconf {
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode */
 #define	VFCF_JAIL	0x00400000	/* can be mounted from within a jail */
 #define	VFCF_DELEGADMIN	0x00800000	/* supports delegated administration */
+#define	VFCF_SBDRY	0x01000000	/* defer stop requests */
 
 typedef uint32_t fsctlop_t;
 
@@ -657,30 +630,121 @@ struct vfsops {
 
 vfs_statfs_t	__vfs_statfs;
 
-#define	VFS_MOUNT(MP)		(*(MP)->mnt_op->vfs_mount)(MP)
-#define	VFS_UNMOUNT(MP, FORCE)	(*(MP)->mnt_op->vfs_unmount)(MP, FORCE)
-#define	VFS_ROOT(MP, FLAGS, VPP)					\
-	(*(MP)->mnt_op->vfs_root)(MP, FLAGS, VPP)
-#define	VFS_QUOTACTL(MP, C, U, A)					\
-	(*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A)
-#define	VFS_STATFS(MP, SBP)	__vfs_statfs((MP), (SBP))
-#define	VFS_SYNC(MP, WAIT)	(*(MP)->mnt_op->vfs_sync)(MP, WAIT)
-#define VFS_VGET(MP, INO, FLAGS, VPP) \
-	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)
-#define VFS_FHTOVP(MP, FIDP, FLAGS, VPP) \
-	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, FLAGS, VPP)
-#define VFS_CHECKEXP(MP, NAM, EXFLG, CRED, NUMSEC, SEC)	\
-	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED, NUMSEC, SEC)
-#define	VFS_EXTATTRCTL(MP, C, FN, NS, N)				\
-	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N)
-#define VFS_SYSCTL(MP, OP, REQ) \
-	(*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ)
-#define	VFS_SUSP_CLEAN(MP) \
-	({if (*(MP)->mnt_op->vfs_susp_clean != NULL)		\
-	       (*(MP)->mnt_op->vfs_susp_clean)(MP); })
-#define	VFS_RECLAIM_LOWERVP(MP, VP)				\
-	({if (*(MP)->mnt_op->vfs_reclaim_lowervp != NULL)	\
-		(*(MP)->mnt_op->vfs_reclaim_lowervp)((MP), (VP)); })
+#define	VFS_PROLOGUE(MP)	do {					\
+	int _enable_stops;						\
+									\
+	_enable_stops = ((MP) != NULL &&				\
+	    ((MP)->mnt_vfc->vfc_flags & VFCF_SBDRY) && sigdeferstop())
+
+#define	VFS_EPILOGUE(MP)						\
+	if (_enable_stops)						\
+		sigallowstop();						\
+} while (0)
+
+#define	VFS_MOUNT(MP) ({						\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_mount)(MP);				\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_UNMOUNT(MP, FORCE) ({					\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_unmount)(MP, FORCE);			\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_ROOT(MP, FLAGS, VPP) ({					\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_root)(MP, FLAGS, VPP);		\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_QUOTACTL(MP, C, U, A) ({					\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A);		\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_STATFS(MP, SBP) ({						\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = __vfs_statfs((MP), (SBP));				\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_SYNC(MP, WAIT) ({						\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_sync)(MP, WAIT);			\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_VGET(MP, INO, FLAGS, VPP) ({				\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP);		\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_FHTOVP(MP, FIDP, FLAGS, VPP) ({				\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, FLAGS, VPP);	\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_CHECKEXP(MP, NAM, EXFLG, CRED, NUMSEC, SEC) ({		\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED, NUMSEC,\
+	    SEC);							\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_EXTATTRCTL(MP, C, FN, NS, N) ({				\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N);	\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_SYSCTL(MP, OP, REQ) ({					\
+	int _rc;							\
+									\
+	VFS_PROLOGUE(MP);						\
+	_rc = (*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ);			\
+	VFS_EPILOGUE(MP);						\
+	_rc; })
+
+#define	VFS_SUSP_CLEAN(MP) do {						\
+	if (*(MP)->mnt_op->vfs_susp_clean != NULL) {			\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_susp_clean)(MP);			\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
+
+#define	VFS_RECLAIM_LOWERVP(MP, VP) do {				\
+	if (*(MP)->mnt_op->vfs_reclaim_lowervp != NULL) {		\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_reclaim_lowervp)((MP), (VP));	\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
 
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
@@ -790,8 +854,9 @@ extern	struct nfs_public nfs_pub;
 
 /*
  * Declarations for these vfs default operations are located in
- * kern/vfs_default.c, they should be used instead of making "dummy"
- * functions or casting entries in the VFS op table to "enopnotsupp()".
+ * kern/vfs_default.c.  They will be automatically used to replace
+ * null entries in VFS ops tables when registering a new filesystem
+ * type in the global table.
  */
 vfs_root_t		vfs_stdroot;
 vfs_quotactl_t		vfs_stdquotactl;

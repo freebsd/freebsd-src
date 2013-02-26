@@ -133,7 +133,6 @@ public:
   virtual void skip() {}
 
   unsigned int getType() const { return TypeID; }
-  static inline bool classof(const Node *) { return true; }
 
   void *operator new ( size_t Size
                      , BumpPtrAllocator &Alloc
@@ -166,7 +165,6 @@ class NullNode : public Node {
 public:
   NullNode(OwningPtr<Document> &D) : Node(NK_Null, D, StringRef()) {}
 
-  static inline bool classof(const NullNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Null;
   }
@@ -199,7 +197,6 @@ public:
   ///        This happens with escaped characters and multi-line literals.
   StringRef getValue(SmallVectorImpl<char> &Storage) const;
 
-  static inline bool classof(const ScalarNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Scalar;
   }
@@ -241,12 +238,11 @@ public:
   /// @returns The value, or nullptr if failed() == true.
   Node *getValue();
 
-  virtual void skip() {
+  virtual void skip() LLVM_OVERRIDE {
     getKey()->skip();
     getValue()->skip();
   }
 
-  static inline bool classof(const KeyValueNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_KeyValue;
   }
@@ -358,11 +354,10 @@ public:
 
   iterator end() { return iterator(); }
 
-  virtual void skip() {
+  virtual void skip() LLVM_OVERRIDE {
     yaml::skip(*this);
   }
 
-  static inline bool classof(const MappingNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Mapping;
   }
@@ -421,11 +416,10 @@ public:
 
   iterator end() { return iterator(); }
 
-  virtual void skip() {
+  virtual void skip() LLVM_OVERRIDE {
     yaml::skip(*this);
   }
 
-  static inline bool classof(const SequenceNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Sequence;
   }
@@ -450,7 +444,6 @@ public:
   StringRef getName() const { return Name; }
   Node *getTarget();
 
-  static inline bool classof(const ScalarNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Alias;
   }

@@ -1861,7 +1861,6 @@ gotit:
 	/*
 	 * Check to see if we need to initialize more inodes.
 	 */
-	ibp = NULL;
 	if (fs->fs_magic == FS_UFS2_MAGIC &&
 	    ipref + INOPB(fs) > cgp->cg_initediblk &&
 	    cgp->cg_initediblk < cgp->cg_niblk) {
@@ -1874,6 +1873,16 @@ gotit:
 			dp2->di_gen = arc4random() / 2 + 1;
 			dp2++;
 		}
+		/*
+		 * Rather than adding a soft updates dependency to ensure
+		 * that the new inode block is written before it is claimed
+		 * by the cylinder group map, we just do a barrier write
+		 * here. The barrier write will ensure that the inode block
+		 * gets written before the updated cylinder group map can be
+		 * written. The barrier write should only slow down bulk
+		 * loading of newly created filesystems.
+		 */
+		babarrierwrite(ibp);
 		cgp->cg_initediblk += INOPB(fs);
 	}
 	UFS_LOCK(ump);
@@ -1892,8 +1901,6 @@ gotit:
 	if (DOINGSOFTDEP(ITOV(ip)))
 		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref, mode);
 	bdwrite(bp);
-	if (ibp != NULL)
-		bawrite(ibp);
 	return ((ino_t)(cg * fs->fs_ipg + ipref));
 }
 
@@ -2906,10 +2913,11 @@ buffered_write(fp, uio, active_cred, flags, td)
 	int flags;
 	struct thread *td;
 {
-	struct vnode *devvp;
+	struct vnode *devvp, *vp;
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
+	struct filedesc *fdp;
 	int error;
 	daddr_t lbn;
 
@@ -2920,10 +2928,29 @@ buffered_write(fp, uio, active_cred, flags, td)
 	 * within the filesystem being written. Yes, this is an ugly hack.
 	 */
 	devvp = fp->f_vnode;
-	ip = VTOI(td->td_proc->p_fd->fd_cdir);
-	if (ip->i_devvp != devvp)
+	if (!vn_isdisk(devvp, NULL))
 		return (EINVAL);
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	vp = fdp->fd_cdir;
+	vref(vp);
+	FILEDESC_SUNLOCK(fdp);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	/*
+	 * Check that the current directory vnode indeed belongs to
+	 * UFS before trying to dereference UFS-specific v_data fields.
+	 */
+	if (vp->v_op != &ffs_vnodeops1 && vp->v_op != &ffs_vnodeops2) {
+		vput(vp);
+		return (EINVAL);
+	}
+	ip = VTOI(vp);
+	if (ip->i_devvp != devvp) {
+		vput(vp);
+		return (EINVAL);
+	}
 	fs = ip->i_fs;
+	vput(vp);
 	foffset_lock_uio(fp, uio, flags);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef DEBUG

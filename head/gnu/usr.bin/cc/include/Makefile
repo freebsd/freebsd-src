@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 
 INCSDIR=${INCLUDEDIR}/gcc/${GCCVER}

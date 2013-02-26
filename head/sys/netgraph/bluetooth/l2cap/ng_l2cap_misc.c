@@ -558,7 +558,7 @@ ng_l2cap_command_untimeout(ng_l2cap_cmd_p cmd)
 struct mbuf *
 ng_l2cap_prepend(struct mbuf *m, int size)
 {
-	M_PREPEND(m, size, M_DONTWAIT);
+	M_PREPEND(m, size, M_NOWAIT);
 	if (m == NULL || (m->m_len < size && (m = m_pullup(m, size)) == NULL))
 		return (NULL);
 

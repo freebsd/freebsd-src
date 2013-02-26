@@ -791,7 +791,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c)
 	u_int32_t ctrl;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
 
 	if (bus_dmamap_load_mbuf_sg(sc->bfe_rxmbuf_tag, sc->bfe_rx_sparemap,
@@ -1519,7 +1519,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->bfe_txmbuf_tag, r->bfe_map, *m_head,
 	    txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, BFE_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, BFE_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

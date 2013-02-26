@@ -14,7 +14,7 @@
 extern int Header_lines;	/* 7 */
 
 /* Maximum number of columns allowed for display */
-#define MAX_COLS	128
+#define MAX_COLS	512
 
 /* Log base 2 of 1024 is 10 (2^10 == 1024) */
 #define LOG1024		10

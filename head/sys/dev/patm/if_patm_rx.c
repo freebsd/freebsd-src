@@ -396,9 +396,9 @@ patm_rcv_mbuf(struct patm_softc *sc, void *buf, u_int h, int hdr)
 		return ((struct mbuf *)buf);
 
 	if (hdr)
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 	else
-		MGET(m, M_DONTWAIT, MT_DATA);
+		MGET(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		patm_rcv_free(sc, buf, h);
 		return (NULL);
@@ -458,7 +458,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 		}
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		sc->stats.raw_no_buf++;
 		return;

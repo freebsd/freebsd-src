@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2003
+.Dd December 15, 2012
 .Dt DEVSTAT 3
 .Os
 .Sh NAME
@@ -523,6 +523,35 @@ type:
 .Pp
 The total number of transactions of the specified type between
 the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_DURATION
+type:
+.Vt "long double *"
+.Pp
+The total duration of transactions, in seconds, between the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_DURATION_OTHER
+.It Dv DSM_TOTAL_DURATION_READ
+.It Dv DSM_TOTAL_DURATION_WRITE
+.It Dv DSM_TOTAL_DURATION_FREE
+type:
+.Vt "long double *"
+.Pp
+The total duration of transactions of the specified type between
+the acquisition of
+.Fa previous
+and
+.Fa current .
+.It Dv DSM_TOTAL_BUSY_TIME
+type:
+.Vt "long double *"
+.Pp
+Total time the device had one or more transactions outstanding
+between the acquisition of
 .Fa previous
 and
 .Fa current .

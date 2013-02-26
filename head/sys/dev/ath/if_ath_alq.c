@@ -44,6 +44,7 @@
 #include <sys/mutex.h>
 #include <sys/alq.h>
 #include <sys/endian.h>
+#include <sys/time.h>
 
 #include <dev/ath/if_ath_alq.h>
 
@@ -153,9 +154,12 @@ if_ath_alq_post(struct if_ath_alq *alq, uint16_t op, uint16_t len,
 {
 	struct if_ath_alq_hdr *ap;
 	struct ale *ale;
+	struct timeval tv;
 
 	if (! if_ath_alq_checkdebug(alq, op))
 		return;
+
+	microtime(&tv);
 
 	/*
 	 * Enforce some semblence of sanity on 'len'.
@@ -172,7 +176,8 @@ if_ath_alq_post(struct if_ath_alq *alq, uint16_t op, uint16_t len,
 
 	ap = (struct if_ath_alq_hdr *) ale->ae_data;
 	ap->threadid = htobe64((uint64_t) curthread->td_tid);
-	ap->tstamp = htobe32((uint32_t) ticks);
+	ap->tstamp_sec = htobe32((uint32_t) tv.tv_sec);
+	ap->tstamp_usec = htobe32((uint32_t) tv.tv_usec);
 	ap->op = htobe16(op);
 	ap->len = htobe16(len);
 

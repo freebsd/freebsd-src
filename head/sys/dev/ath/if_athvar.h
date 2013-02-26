@@ -105,17 +105,15 @@ struct ath_buf;
  */
 struct ath_tid {
 	TAILQ_HEAD(,ath_buf)	tid_q;		/* pending buffers */
-	u_int			axq_depth;	/* SW queue depth */
-	char			axq_name[48];	/* lock name */
 	struct ath_node		*an;		/* pointer to parent */
 	int			tid;		/* tid */
 	int			ac;		/* which AC gets this trafic */
 	int			hwq_depth;	/* how many buffers are on HW */
+	u_int			axq_depth;	/* SW queue depth */
 
 	struct {
 		TAILQ_HEAD(,ath_buf)	tid_q;		/* filtered queue */
 		u_int			axq_depth;	/* SW queue depth */
-		char			axq_name[48];	/* lock name */
 	} filtq;
 
 	/*
@@ -134,7 +132,6 @@ struct ath_tid {
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
 	int			isfiltered;	/* is this node currently filtered */
-	int			clrdmask;	/* has clrdmask been set */
 
 	/*
 	 * Is the TID being cleaned up after a transition
@@ -184,6 +181,7 @@ struct ath_node {
 	struct mtx	an_mtx;		/* protecting the ath_node state */
 	uint32_t	an_swq_depth;	/* how many SWQ packets for this
 					   node */
+	int			clrdmask;	/* has clrdmask been set */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -243,8 +241,7 @@ struct ath_buf {
 		uint8_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
 		uint8_t bfs_nframes;	/* number of frames in aggregate */
 		uint8_t bfs_pri;	/* packet AC priority */
-
-		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
+		uint8_t bfs_tx_queue;	/* destination hardware TX queue */
 
 		u_int32_t bfs_aggr:1,		/* part of aggregate? */
 		    bfs_aggrburst:1,	/* part of aggregate burst? */
@@ -332,7 +329,6 @@ struct ath_txq {
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
-	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
 	/* Per-TID traffic queue for software -> hardware TX */
@@ -344,25 +340,6 @@ struct ath_txq {
 #define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)
 #define	ATH_NODE_UNLOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx,	\
 					    MA_NOTOWNED)
-
-#define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
-	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
-		device_get_nameunit((_sc)->sc_dev), (_tq)->axq_qnum); \
-	mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, NULL, MTX_DEF); \
-} while (0)
-#define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
-#define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
-#define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
-#define	ATH_TXQ_LOCK_ASSERT(_tq)	\
-	    mtx_assert(&(_tq)->axq_lock, MA_OWNED)
-#define	ATH_TXQ_UNLOCK_ASSERT(_tq)	\
-	    mtx_assert(&(_tq)->axq_lock, MA_NOTOWNED)
-#define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
-
-#define	ATH_TID_LOCK_ASSERT(_sc, _tid)	\
-	    ATH_TXQ_LOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
-#define	ATH_TID_UNLOCK_ASSERT(_sc, _tid)	\
-	    ATH_TXQ_UNLOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
 
 /*
  * These are for the hardware queue.
@@ -517,6 +494,13 @@ struct ath_softc {
 	struct ath_tx_methods	sc_tx;
 	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
 
+	/*
+	 * This is (currently) protected by the TX queue lock;
+	 * it should migrate to a separate lock later
+	 * so as to minimise contention.
+	 */
+	ath_bufhead		sc_txbuf_list;
+
 	int			sc_rx_statuslen;
 	int			sc_tx_desclen;
 	int			sc_tx_statuslen;
@@ -534,8 +518,10 @@ struct ath_softc {
 	char			sc_pcu_mtx_name[32];
 	struct mtx		sc_rx_mtx;	/* RX access mutex */
 	char			sc_rx_mtx_name[32];
-	struct mtx		sc_tx_mtx;	/* TX access mutex */
+	struct mtx		sc_tx_mtx;	/* TX handling/comp mutex */
 	char			sc_tx_mtx_name[32];
+	struct mtx		sc_tx_ic_mtx;	/* TX queue mutex */
+	char			sc_tx_ic_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
@@ -683,6 +669,7 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
+	struct task		sc_txpkttask;	/* tx frame processing */
 
 	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
 	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
@@ -728,9 +715,13 @@ struct ath_softc {
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
-	int			sc_txchainmask;	/* currently configured TX chainmask */
-	int			sc_rxchainmask;	/* currently configured RX chainmask */
+	int			sc_txchainmask;	/* hardware TX chainmask */
+	int			sc_rxchainmask;	/* hardware RX chainmask */
+	int			sc_cur_txchainmask;	/* currently configured TX chainmask */
+	int			sc_cur_rxchainmask;	/* currently configured RX chainmask */
 	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
+	int			sc_aggr_limit;	/* TX limit on all aggregates */
+	int			sc_delim_min_pad;	/* Minimum delimiter count */
 
 	/* Queue limits */
 
@@ -773,6 +764,10 @@ struct ath_softc {
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
 
+	/* Spectral related state */
+	void			*sc_spectral;
+	int			sc_dospectral;
+
 	/* ALQ */
 #ifdef	ATH_DEBUG_ALQ
 	struct if_ath_alq sc_alq;
@@ -803,10 +798,8 @@ struct ath_softc {
 #define	ATH_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
 /*
- * The TX lock is non-reentrant and serialises the TX send operations.
- * (ath_start(), ath_raw_xmit().)  It doesn't yet serialise the TX
- * completion operations; thus it can't be used (yet!) to protect
- * hardware / software TXQ operations.
+ * The TX lock is non-reentrant and serialises the TX frame send
+ * and completion operations.
  */
 #define	ATH_TX_LOCK_INIT(_sc) do {\
 	snprintf((_sc)->sc_tx_mtx_name,				\
@@ -822,6 +815,28 @@ struct ath_softc {
 #define	ATH_TX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
 		MA_OWNED)
 #define	ATH_TX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
+		MA_NOTOWNED)
+#define	ATH_TX_TRYLOCK(_sc)	(mtx_owned(&(_sc)->sc_tx_mtx) != 0 &&	\
+					mtx_trylock(&(_sc)->sc_tx_mtx))
+
+/*
+ * The IC TX lock is non-reentrant and serialises packet queuing from
+ * the upper layers.
+ */
+#define	ATH_TX_IC_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_tx_ic_mtx_name,				\
+	    sizeof((_sc)->sc_tx_ic_mtx_name),				\
+	    "%s IC TX lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_tx_ic_mtx, (_sc)->sc_tx_ic_mtx_name,	\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_TX_IC_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_LOCK(_sc)		mtx_lock(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
+		MA_OWNED)
+#define	ATH_TX_IC_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
 		MA_NOTOWNED)
 
 /*
@@ -1321,5 +1336,18 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
+#define	ath_hal_setchainmasks(_ah, _txchainmask, _rxchainmask) \
+	((*(_ah)->ah_setChainMasks)((_ah), (_txchainmask), (_rxchainmask)))
+
+#define	ath_hal_spectral_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_SPECTRAL_SCAN, 0, NULL) == HAL_OK)
+#define	ath_hal_spectral_get_config(_ah, _p) \
+	((*(_ah)->ah_spectralGetConfig)((_ah), (_p)))
+#define	ath_hal_spectral_configure(_ah, _p) \
+	((*(_ah)->ah_spectralConfigure)((_ah), (_p)))
+#define	ath_hal_spectral_start(_ah) \
+	((*(_ah)->ah_spectralStart)((_ah)))
+#define	ath_hal_spectral_stop(_ah) \
+	((*(_ah)->ah_spectralStop)((_ah)))
 
 #endif /* _DEV_ATH_ATHVAR_H */

@@ -87,9 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
-#include <vm/vm_object.h>
 
 #include "fuse.h"
 #include "fuse_file.h"
@@ -113,7 +110,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh);
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
 
 int
 fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
@@ -162,7 +159,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		} else {
 			FS_DEBUG("buffered write of vnode %ju\n", 
 			      (uintmax_t)VTOILLU(vp));
-			err = fuse_write_biobackend(vp, uio, cred, fufh);
+			err = fuse_write_biobackend(vp, uio, cred, fufh, ioflag);
 		}
 		break;
 	default:
@@ -371,7 +368,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 
 static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh)
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct buf *bp;
@@ -390,6 +387,8 @@ fuse_write_biobackend(struct vnode *vp, struct uio *uio,
 		return (EINVAL);
 	if (uio->uio_resid == 0)
 		return (0);
+	if (ioflag & IO_APPEND)
+		uio_setoffset(uio, fvdat->filesize);
 
 	/*
          * Find all of this file's B_NEEDCOMMIT buffers.  If our writes

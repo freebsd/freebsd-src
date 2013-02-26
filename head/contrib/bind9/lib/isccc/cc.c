@@ -399,8 +399,6 @@ table_fromwire(isccc_region_t *source, isccc_region_t *secret,
 		first_tag = ISC_FALSE;
 	}
 
-	*alistp = alist;
-
 	if (secret != NULL) {
 		if (checksum_rstart != NULL)
 			result = verify(alist, checksum_rstart,
@@ -412,7 +410,9 @@ table_fromwire(isccc_region_t *source, isccc_region_t *secret,
 		result = ISC_R_SUCCESS;
 
  bad:
-	if (result != ISC_R_SUCCESS)
+	if (result == ISC_R_SUCCESS)
+		*alistp = alist;
+	else
 		isccc_sexpr_free(&alist);
 
 	return (result);

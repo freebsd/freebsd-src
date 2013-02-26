@@ -39,7 +39,7 @@ class ReturnInst;
 class CallSite;
 class Trace;
 class CallGraph;
-class TargetData;
+class DataLayout;
 class Loop;
 class LoopInfo;
 class AllocaInst;
@@ -116,13 +116,6 @@ Function *CloneFunction(const Function *F,
                         bool ModuleLevelChanges,
                         ClonedCodeInfo *CodeInfo = 0);
 
-/// CloneFunction - Version of the function that doesn't need the VMap.
-///
-inline Function *CloneFunction(const Function *F, ClonedCodeInfo *CodeInfo = 0){
-  ValueToValueMapTy VMap;
-  return CloneFunction(F, VMap, CodeInfo);
-}
-
 /// Clone OldFunc into NewFunc, transforming the old arguments into references
 /// to VMap values.  Note that if NewFunc already has basic blocks, the ones
 /// cloned into it will be added to the end of the function.  This function
@@ -157,7 +150,7 @@ void CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
                                SmallVectorImpl<ReturnInst*> &Returns,
                                const char *NameSuffix = "", 
                                ClonedCodeInfo *CodeInfo = 0,
-                               const TargetData *TD = 0,
+                               const DataLayout *TD = 0,
                                Instruction *TheCall = 0);
 
   
@@ -165,13 +158,13 @@ void CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
 /// InlineFunction call, and records the auxiliary results produced by it. 
 class InlineFunctionInfo {
 public:
-  explicit InlineFunctionInfo(CallGraph *cg = 0, const TargetData *td = 0)
+  explicit InlineFunctionInfo(CallGraph *cg = 0, const DataLayout *td = 0)
     : CG(cg), TD(td) {}
   
   /// CG - If non-null, InlineFunction will update the callgraph to reflect the
   /// changes it makes.
   CallGraph *CG;
-  const TargetData *TD;
+  const DataLayout *TD;
 
   /// StaticAllocas - InlineFunction fills this in with all static allocas that
   /// get copied into the caller.

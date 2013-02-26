@@ -86,7 +86,6 @@ union	sockunion {
 #endif
 	struct	sockaddr_at sat;
 	struct	sockaddr_dl sdl;
-	struct	sockaddr_inarp sinarp;
 	struct	sockaddr_storage ss; /* added to avoid memory overrun */
 } so_dst, so_gate, so_mask, so_genmask, so_ifa, so_ifp;
 
@@ -94,7 +93,7 @@ typedef union sockunion *sup;
 int	pid, rtm_addrs;
 int	s;
 int	forcehost, forcenet, doflush, nflag, af, qflag, tflag;
-int	iflag, verbose, aflen = sizeof (struct sockaddr_in);
+int	verbose, aflen = sizeof (struct sockaddr_in);
 int	locking, lockrest, debugonly;
 struct	rt_metrics rt_metrics;
 u_long  rtm_inits;
@@ -107,7 +106,7 @@ static char	*atalk_ntoa(struct at_addr);
 static void	bprintf(FILE *, int, u_char *);
 static void	flushroutes(int argc, char *argv[]);
 static int	flushroutes_fib(int);
-static int	getaddr(int, char *, struct hostent **);
+static int	getaddr(int, char *, struct hostent **, int);
 static int	keyword(const char *);
 static void	inet_makenetandmask(u_long, struct sockaddr_in *, u_long);
 #ifdef INET6
@@ -260,19 +259,25 @@ static int
 fiboptlist_range(const char *arg, struct fibl_head_t *flh)
 {
 	struct fibl *fl;
-	char *str, *token, *endptr;
+	char *str0, *str, *token, *endptr;
 	int fib[2], i, error;
 
-	str = strdup(arg);
+	str0 = str = strdup(arg);
 	error = 0;
 	i = 0;
 	while ((token = strsep(&str, "-")) != NULL) {
 		switch (i) {
 		case 0:
 		case 1:
+			errno = 0;
 			fib[i] = strtol(token, &endptr, 0);
-			if (*endptr != '\0' || (fib[i] == 0 &&
-			    (errno == EINVAL || errno == ERANGE)))
+			if (errno == 0) {
+				if (*endptr != '\0' ||
+				    fib[i] < 0 ||
+				    (numfibs != -1 && fib[i] > numfibs - 1)) 
+					errno = EINVAL;
+			}
+			if (errno)
 				error = 1;
 			break;
 		default:
@@ -296,7 +301,7 @@ fiboptlist_range(const char *arg, struct fibl_head_t *flh)
 		TAILQ_INSERT_TAIL(flh, fl, fl_next);
 	}
 fiboptlist_range_ret:
-	free(str);
+	free(str0);
 	return (error);
 }
 
@@ -305,7 +310,7 @@ static int
 fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 {
 	struct fibl *fl;
-	char *str, *token, *endptr;
+	char *str0, *str, *token, *endptr;
 	int fib, error;
 
 	if (strcmp("all", arg) == 0) {
@@ -319,14 +324,14 @@ fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 		else
 			snprintf(str, ALLSTRLEN - 1, "%d", 0);
 	} else if (strcmp("default", arg) == 0) {
-		str = calloc(1, ALLSTRLEN);
+		str0 = str = calloc(1, ALLSTRLEN);
 		if (str == NULL) {
 			error = 1;
 			goto fiboptlist_csv_ret;
 		}
 		snprintf(str, ALLSTRLEN - 1, "%d", defaultfib);
 	} else
-		str = strdup(arg);
+		str0 = str = strdup(arg);
 
 	error = 0;
 	while ((token = strsep(&str, ",")) != NULL) {
@@ -335,9 +340,15 @@ fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 			if (error)
 				goto fiboptlist_csv_ret;
 		} else {
+			errno = 0;
 			fib = strtol(token, &endptr, 0);
-			if (*endptr != '\0' || (fib == 0 &&
-			    (errno == EINVAL || errno == ERANGE))) {
+			if (errno == 0) {
+				if (*endptr != '\0' ||
+				    fib < 0 ||
+				    (numfibs != -1 && fib > numfibs - 1))
+					errno = EINVAL;
+			}
+			if (errno) {
 				error = 1;
 				goto fiboptlist_csv_ret;
 			}
@@ -351,7 +362,7 @@ fiboptlist_csv(const char *arg, struct fibl_head_t *flh)
 		}
 	}
 fiboptlist_csv_ret:
-	free(str);
+	free(str0);
 	return (error);
 }
 
@@ -365,7 +376,7 @@ flushroutes(int argc, char *argv[])
 	struct fibl *fl;
 	int error;
 
-	if (uid != 0 && !debugonly) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 	shutdown(s, SHUT_RD); /* Don't want to read back our messages */
@@ -396,7 +407,7 @@ flushroutes(int argc, char *argv[])
 				usage(*argv);
 			error = fiboptlist_csv(*++argv, &fibl_head);
 			if (error)
-				usage(*argv);
+				errx(EX_USAGE, "invalid fib number: %s", *argv);
 			break;
 		default:
 			usage(*argv);
@@ -727,7 +738,7 @@ newroute(int argc, char **argv)
 	const char *dest, *gateway, *errmsg;
 	int key, error, flags, nrflags, fibnum;
 
-	if (uid != 0) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 
@@ -815,39 +826,40 @@ newroute(int argc, char **argv)
 					usage(NULL);
 				error = fiboptlist_csv(*++argv, &fibl_head);
 				if (error)
-					usage(NULL);
+					errx(EX_USAGE,
+					    "invalid fib number: %s", *argv);
 				break;
 			case K_IFA:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_IFA, *++argv, 0);
+				getaddr(RTA_IFA, *++argv, 0, nrflags);
 				break;
 			case K_IFP:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_IFP, *++argv, 0);
+				getaddr(RTA_IFP, *++argv, 0, nrflags);
 				break;
 			case K_GENMASK:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_GENMASK, *++argv, 0);
+				getaddr(RTA_GENMASK, *++argv, 0, nrflags);
 				break;
 			case K_GATEWAY:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_GATEWAY, *++argv, 0);
+				getaddr(RTA_GATEWAY, *++argv, 0, nrflags);
 				break;
 			case K_DST:
 				if (!--argc)
 					usage(NULL);
-				if (getaddr(RTA_DST, *++argv, &hp))
+				if (getaddr(RTA_DST, *++argv, &hp, nrflags))
 					nrflags |= F_ISHOST;
 				dest = *argv;
 				break;
 			case K_NETMASK:
 				if (!--argc)
 					usage(NULL);
-				(void) getaddr(RTA_NETMASK, *++argv, 0);
+				getaddr(RTA_NETMASK, *++argv, 0, nrflags);
 				/* FALLTHROUGH */
 			case K_NET:
 				nrflags |= F_FORCENET;
@@ -882,13 +894,13 @@ newroute(int argc, char **argv)
 		} else {
 			if ((rtm_addrs & RTA_DST) == 0) {
 				dest = *argv;
-				if (getaddr(RTA_DST, *argv, &hp))
+				if (getaddr(RTA_DST, *argv, &hp, nrflags))
 					nrflags |= F_ISHOST;
 			} else if ((rtm_addrs & RTA_GATEWAY) == 0) {
 				gateway = *argv;
-				(void) getaddr(RTA_GATEWAY, *argv, &hp);
+				getaddr(RTA_GATEWAY, *argv, &hp, nrflags);
 			} else {
-				(void) getaddr(RTA_NETMASK, *argv, 0);
+				getaddr(RTA_NETMASK, *argv, 0, nrflags);
 				nrflags |= F_FORCENET;
 			}
 		}
@@ -910,10 +922,8 @@ newroute(int argc, char **argv)
 		flags |= RTF_HOST;
 	if ((nrflags & F_INTERFACE) == 0)
 		flags |= RTF_GATEWAY;
-	if (nrflags & F_PROXY) {
-		so_dst.sinarp.sin_other = SIN_PROXY;
+	if (nrflags & F_PROXY)
 		flags |= RTF_ANNOUNCE;
-	}
 	if (dest == NULL)
 		dest = "";
 	if (gateway == NULL)
@@ -1033,6 +1043,13 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin, u_long bits)
 	rtm_addrs |= RTA_NETMASK;
 
 	/*
+	 * MSB of net should be meaningful. 0/0 is exception.
+	 */
+	if (net > 0)
+		while ((net & 0xff000000) == 0)
+			net <<= 8;
+
+	/*
 	 * If no /xx was specified we must calculate the
 	 * CIDR address.
 	 */
@@ -1096,7 +1113,7 @@ inet6_makenetandmask(struct sockaddr_in6 *sin6, const char *plen)
  * returning 1 if a host address, 0 if a network address.
  */
 static int
-getaddr(int which, char *str, struct hostent **hpp)
+getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 {
 	sup su;
 	struct hostent *hp;
@@ -1117,7 +1134,7 @@ getaddr(int which, char *str, struct hostent **hpp)
 		break;
 	case RTA_GATEWAY:
 		su = &so_gate;
-		if (iflag) {
+		if (nrflags & F_INTERFACE) {
 			struct ifaddrs *ifap, *ifa;
 			struct sockaddr_dl *sdl = NULL;
 
@@ -1177,7 +1194,7 @@ getaddr(int which, char *str, struct hostent **hpp)
 #if 0
 			bzero(su, sizeof(*su));	/* for readability */
 #endif
-			getaddr(RTA_NETMASK, str, 0);
+			getaddr(RTA_NETMASK, str, 0, nrflags);
 			break;
 #if 0
 		case RTA_NETMASK:
@@ -1376,10 +1393,16 @@ monitor(int argc, char *argv[])
 		case K_FIB:
 			if (!--argc)
 				usage(*argv);
+			errno = 0;
 			fib = strtol(*++argv, &endptr, 0);
-			if (*endptr != '\0' || (fib == 0 &&
-			    (errno == EINVAL || errno == ERANGE)))
-				usage(*argv);
+			if (errno == 0) {
+				if (*endptr != '\0' ||
+				    fib < 0 ||
+				    (numfibs != -1 && fib > numfibs - 1))
+					errno = EINVAL;
+			}
+			if (errno)
+				errx(EX_USAGE, "invalid fib number: %s", *argv);
 			break;
 		default:
 			usage(*argv);
@@ -1632,6 +1655,7 @@ print_rtmsg(struct rt_msghdr *rtm, size_t msglen)
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 
 	default:

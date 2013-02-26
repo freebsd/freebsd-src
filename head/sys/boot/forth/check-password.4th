@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ variable readlen        \ input length
    again
 ;
 
-: read ( -- String prompt )
+: read ( String prompt -- )
 
 	0 25 at-xy           \ Move the cursor to the bottom-left
 	dup 1+ read-start !  \ Store X offset after the prompt
@@ -134,23 +134,37 @@ variable readlen        \ input length
 
 : check-password ( -- )
 
-	\ Exit if a password was not set
-	s" password" getenv dup -1 = if
-		drop exit
+	\ Do not allow the user to proceed beyond this point if a boot-lock
+	\ password has been set (preventing even boot from proceeding)
+	s" bootlock_password" getenv dup -1 <> if
+		begin
+			s" Boot Password: " read ( prompt -- )
+			2dup readval readlen @ compare 0<>
+		while
+			3000 ms ." loader: incorrect password" 10 emit
+		repeat
+		2drop ( c-addr/u )
+	else
+		drop ( -1 ) \ getenv cruft
 	then
 
-	begin \ Loop as long as it takes to get the right password
+	\ Exit if a password was not set
+	s" password" getenv -1 = if exit else drop then
 
-		s" Password: " \ Output a prompt for a password
-		read           \ Read the user's input until Enter
+	\ We should prevent the user from visiting the menu or dropping to the
+	\ interactive loader(8) prompt, but still allow the machine to boot...
 
+	0 autoboot
+
+	\ Only reached if autoboot fails for any reason (including if/when
+	\ the user aborts/escapes the countdown sequence leading to boot).
+
+	s" password" getenv
+	begin
+		s" Password: " read ( prompt -- )
 		2dup readval readlen @ compare 0= if
 			2drop exit \ Correct password
 		then
-
-		\ Bad Password
-		3000 ms
-		." loader: incorrect password" 10 emit
-
-	again \ Not the right password; repeat
+		3000 ms ." loader: incorrect password" 10 emit
+	again
 ;

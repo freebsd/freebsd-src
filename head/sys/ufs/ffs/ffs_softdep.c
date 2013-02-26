@@ -1569,7 +1569,7 @@ softdep_process_worklist(mp, full)
 		 */
 		if (should_yield()) {
 			FREE_LOCK(&lk);
-			kern_yield(PRI_UNCHANGED);
+			kern_yield(PRI_USER);
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}
@@ -2802,7 +2802,7 @@ journal_unsuspend(struct ufsmount *ump)
 		jblocks->jb_suspended = 0;
 		FREE_LOCK(&lk);
 		mp->mnt_susp_owner = curthread;
-		vfs_write_resume(mp);
+		vfs_write_resume(mp, 0);
 		ACQUIRE_LOCK(&lk);
 		return (1);
 	}

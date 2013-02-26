@@ -397,7 +397,7 @@ prthumanvalinode(int64_t bytes)
 static intmax_t
 fsbtoblk(int64_t num, uint64_t fsbs, u_long bs)
 {
-	return (num * (intmax_t) fsbs / bs);
+	return (num * (intmax_t) fsbs / (int64_t) bs);
 }
 
 /*
@@ -564,7 +564,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-"usage: df [-b | -g | -H | -h | -k | -m | -P] [-acilnT] [-t type] [-,] [file | filesystem ...]\n");
+"usage: df [-b | -g | -H | -h | -k | -m | -P] [-acilnT] [-t type] [-,]\n"
+"          [file | filesystem ...]\n");
 	exit(EX_USAGE);
 }
 

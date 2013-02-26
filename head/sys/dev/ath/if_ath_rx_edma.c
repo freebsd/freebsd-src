@@ -518,7 +518,7 @@ ath_edma_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_RX_LOCK_ASSERT(sc);
 
-	m = m_getm(NULL, sc->sc_edma_bufsize, M_DONTWAIT, MT_DATA);
+	m = m_getm(NULL, sc->sc_edma_bufsize, M_NOWAIT, MT_DATA);
 	if (! m)
 		return (ENOBUFS);		/* XXX ?*/
 

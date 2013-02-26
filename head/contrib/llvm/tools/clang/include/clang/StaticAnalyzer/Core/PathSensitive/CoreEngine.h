@@ -80,10 +80,6 @@ private:
   /// usually because it could not reason about something.
   BlocksAborted blocksAborted;
 
-  /// The functions which have been analyzed through inlining. This is owned by
-  /// AnalysisConsumer. It can be null.
-  SetOfConstDecls *AnalyzedCallees;
-
   /// The information about functions shared by the whole translation unit.
   /// (This data is owned by AnalysisConsumer.)
   FunctionSummariesTy *FunctionSummaries;
@@ -101,19 +97,18 @@ private:
                     ExplodedNode *Pred);
 
 private:
-  CoreEngine(const CoreEngine&); // Do not implement.
-  CoreEngine& operator=(const CoreEngine&);
+  CoreEngine(const CoreEngine &) LLVM_DELETED_FUNCTION;
+  void operator=(const CoreEngine &) LLVM_DELETED_FUNCTION;
 
   ExplodedNode *generateCallExitBeginNode(ExplodedNode *N);
 
 public:
   /// Construct a CoreEngine object to analyze the provided CFG.
-  CoreEngine(SubEngine& subengine, SetOfConstDecls *VisitedCallees,
+  CoreEngine(SubEngine& subengine,
              FunctionSummariesTy *FS)
     : SubEng(subengine), G(new ExplodedGraph()),
       WList(WorkList::makeDFS()),
       BCounterFactory(G->getAllocator()),
-      AnalyzedCallees(VisitedCallees),
       FunctionSummaries(FS){}
 
   /// getGraph - Returns the exploded graph.
@@ -185,20 +180,18 @@ public:
 struct NodeBuilderContext {
   const CoreEngine &Eng;
   const CFGBlock *Block;
-  ExplodedNode *Pred;
+  const LocationContext *LC;
   NodeBuilderContext(const CoreEngine &E, const CFGBlock *B, ExplodedNode *N)
-    : Eng(E), Block(B), Pred(N) { assert(B); assert(!N->isSink()); }
-
-  ExplodedNode *getPred() const { return Pred; }
+    : Eng(E), Block(B), LC(N->getLocationContext()) { assert(B); }
 
   /// \brief Return the CFGBlock associated with this builder.
   const CFGBlock *getBlock() const { return Block; }
 
   /// \brief Returns the number of times the current basic block has been
   /// visited on the exploded graph path.
-  unsigned getCurrentBlockCount() const {
+  unsigned blockCount() const {
     return Eng.WList->getBlockCounter().getNumVisited(
-                    Pred->getLocationContext()->getCurrentStackFrame(),
+                    LC->getCurrentStackFrame(),
                     Block->getBlockID());
   }
 };
@@ -265,14 +258,21 @@ public:
   virtual ~NodeBuilder() {}
 
   /// \brief Generates a node in the ExplodedGraph.
-  ///
-  /// When a node is marked as sink, the exploration from the node is stopped -
-  /// the node becomes the last node on the path.
   ExplodedNode *generateNode(const ProgramPoint &PP,
                              ProgramStateRef State,
-                             ExplodedNode *Pred,
-                             bool MarkAsSink = false) {
-    return generateNodeImpl(PP, State, Pred, MarkAsSink);
+                             ExplodedNode *Pred) {
+    return generateNodeImpl(PP, State, Pred, false);
+  }
+
+  /// \brief Generates a sink in the ExplodedGraph.
+  ///
+  /// When a node is marked as sink, the exploration from the node is stopped -
+  /// the node becomes the last node on the path and certain kinds of bugs are
+  /// suppressed.
+  ExplodedNode *generateSink(const ProgramPoint &PP,
+                             ProgramStateRef State,
+                             ExplodedNode *Pred) {
+    return generateNodeImpl(PP, State, Pred, true);
   }
 
   const ExplodedNodeSet &getResults() {
@@ -317,13 +317,18 @@ public:
   NodeBuilderWithSinks(ExplodedNode *Pred, ExplodedNodeSet &DstSet,
                        const NodeBuilderContext &Ctx, ProgramPoint &L)
     : NodeBuilder(Pred, DstSet, Ctx), Location(L) {}
+
   ExplodedNode *generateNode(ProgramStateRef State,
                              ExplodedNode *Pred,
-                             const ProgramPointTag *Tag = 0,
-                             bool MarkAsSink = false) {
-    ProgramPoint LocalLoc = (Tag ? Location.withTag(Tag): Location);
+                             const ProgramPointTag *Tag = 0) {
+    const ProgramPoint &LocalLoc = (Tag ? Location.withTag(Tag) : Location);
+    return NodeBuilder::generateNode(LocalLoc, State, Pred);
+  }
 
-    ExplodedNode *N = generateNodeImpl(LocalLoc, State, Pred, MarkAsSink);
+  ExplodedNode *generateSink(ProgramStateRef State, ExplodedNode *Pred,
+                             const ProgramPointTag *Tag = 0) {
+    const ProgramPoint &LocalLoc = (Tag ? Location.withTag(Tag) : Location);
+    ExplodedNode *N = NodeBuilder::generateSink(LocalLoc, State, Pred);
     if (N && N->isSink())
       sinksGenerated.push_back(N);
     return N;
@@ -336,7 +341,7 @@ public:
 
 /// \class StmtNodeBuilder
 /// \brief This builder class is useful for generating nodes that resulted from
-/// visiting a statement. The main difference from it's parent NodeBuilder is
+/// visiting a statement. The main difference from its parent NodeBuilder is
 /// that it creates a statement specific ProgramPoint.
 class StmtNodeBuilder: public NodeBuilder {
   NodeBuilder *EnclosingBldr;
@@ -363,22 +368,27 @@ public:
 
   virtual ~StmtNodeBuilder();
 
+  using NodeBuilder::generateNode;
+  using NodeBuilder::generateSink;
+
   ExplodedNode *generateNode(const Stmt *S,
                              ExplodedNode *Pred,
                              ProgramStateRef St,
-                             bool MarkAsSink = false,
                              const ProgramPointTag *tag = 0,
                              ProgramPoint::Kind K = ProgramPoint::PostStmtKind){
     const ProgramPoint &L = ProgramPoint::getProgramPoint(S, K,
                                   Pred->getLocationContext(), tag);
-    return generateNodeImpl(L, St, Pred, MarkAsSink);
+    return NodeBuilder::generateNode(L, St, Pred);
   }
 
-  ExplodedNode *generateNode(const ProgramPoint &PP,
+  ExplodedNode *generateSink(const Stmt *S,
                              ExplodedNode *Pred,
-                             ProgramStateRef State,
-                             bool MarkAsSink = false) {
-    return generateNodeImpl(PP, State, Pred, MarkAsSink);
+                             ProgramStateRef St,
+                             const ProgramPointTag *tag = 0,
+                             ProgramPoint::Kind K = ProgramPoint::PostStmtKind){
+    const ProgramPoint &L = ProgramPoint::getProgramPoint(S, K,
+                                  Pred->getLocationContext(), tag);
+    return NodeBuilder::generateSink(L, St, Pred);
   }
 };
 

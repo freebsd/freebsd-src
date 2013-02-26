@@ -105,7 +105,7 @@ agp_intel_match(device_t dev)
 		return ("Intel 82845G host to AGP bridge");
 	case 0x35808086:
 		return ("Intel 82855GM host to AGP bridge");
-	};
+	}
 
 	return (NULL);
 }

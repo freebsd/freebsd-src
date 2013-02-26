@@ -20107,6 +20107,7 @@ static const struct arm_option_cpu_value_table arm_fpus[] =
   {"softvfp",		FPU_ARCH_VFP},
   {"softvfp+vfp",	FPU_ARCH_VFP_V2},
   {"vfp",		FPU_ARCH_VFP_V2},
+  {"vfpv2",		FPU_ARCH_VFP_V2},
   {"vfp9",		FPU_ARCH_VFP_V2},
   {"vfp3",              FPU_ARCH_VFP_V3},
   {"vfpv3",             FPU_ARCH_VFP_V3},

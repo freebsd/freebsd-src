@@ -111,6 +111,7 @@ void MachineOperand::setIsDef(bool Val) {
 /// the specified value.  If an operand is known to be an immediate already,
 /// the setImm method should be used.
 void MachineOperand::ChangeToImmediate(int64_t ImmVal) {
+  assert((!isReg() || !isTied()) && "Cannot change a tied operand into an imm");
   // If this operand is currently a register operand, and if this is in a
   // function, deregister the operand from the register's use/def list.
   if (isReg() && isOnRegUseList())
@@ -136,7 +137,8 @@ void MachineOperand::ChangeToRegister(unsigned Reg, bool isDef, bool isImp,
         RegInfo = &MF->getRegInfo();
   // If this operand is already a register operand, remove it from the
   // register's use/def lists.
-  if (RegInfo && isReg())
+  bool WasReg = isReg();
+  if (RegInfo && WasReg)
     RegInfo->removeRegOperandFromUseList(this);
 
   // Change this to a register and set the reg#.
@@ -153,6 +155,9 @@ void MachineOperand::ChangeToRegister(unsigned Reg, bool isDef, bool isImp,
   IsDebug = isDebug;
   // Ensure isOnRegUseList() returns false.
   Contents.Reg.Prev = 0;
+  // Preserve the tie when the operand was already a register.
+  if (!WasReg)
+    TiedTo = 0;
 
   // If this operand is embedded in a function, add the operand to the
   // register's use/def list.
@@ -193,7 +198,8 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
     return !strcmp(getSymbolName(), Other.getSymbolName()) &&
            getOffset() == Other.getOffset();
   case MachineOperand::MO_BlockAddress:
-    return getBlockAddress() == Other.getBlockAddress();
+    return getBlockAddress() == Other.getBlockAddress() &&
+           getOffset() == Other.getOffset();
   case MO_RegisterMask:
     return getRegMask() == Other.getRegMask();
   case MachineOperand::MO_MCSymbol:
@@ -208,8 +214,8 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
 hash_code llvm::hash_value(const MachineOperand &MO) {
   switch (MO.getType()) {
   case MachineOperand::MO_Register:
-    return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getReg(),
-                        MO.getSubReg(), MO.isDef());
+    // Register operands don't have target flags.
+    return hash_combine(MO.getType(), MO.getReg(), MO.getSubReg(), MO.isDef());
   case MachineOperand::MO_Immediate:
     return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getImm());
   case MachineOperand::MO_CImmediate:
@@ -234,7 +240,7 @@ hash_code llvm::hash_value(const MachineOperand &MO) {
                         MO.getOffset());
   case MachineOperand::MO_BlockAddress:
     return hash_combine(MO.getType(), MO.getTargetFlags(),
-                        MO.getBlockAddress());
+                        MO.getBlockAddress(), MO.getOffset());
   case MachineOperand::MO_RegisterMask:
     return hash_combine(MO.getType(), MO.getTargetFlags(), MO.getRegMask());
   case MachineOperand::MO_Metadata:
@@ -262,7 +268,7 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
     OS << PrintReg(getReg(), TRI, getSubReg());
 
     if (isDef() || isKill() || isDead() || isImplicit() || isUndef() ||
-        isInternalRead() || isEarlyClobber()) {
+        isInternalRead() || isEarlyClobber() || isTied()) {
       OS << '<';
       bool NeedComma = false;
       if (isDef()) {
@@ -282,27 +288,32 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
           NeedComma = true;
       }
 
-      if (isKill() || isDead() || (isUndef() && isUse()) || isInternalRead()) {
+      if (isKill()) {
         if (NeedComma) OS << ',';
-        NeedComma = false;
-        if (isKill()) {
-          OS << "kill";
-          NeedComma = true;
-        }
-        if (isDead()) {
-          OS << "dead";
-          NeedComma = true;
-        }
-        if (isUndef() && isUse()) {
-          if (NeedComma) OS << ',';
-          OS << "undef";
-          NeedComma = true;
-        }
-        if (isInternalRead()) {
-          if (NeedComma) OS << ',';
-          OS << "internal";
-          NeedComma = true;
-        }
+        OS << "kill";
+        NeedComma = true;
+      }
+      if (isDead()) {
+        if (NeedComma) OS << ',';
+        OS << "dead";
+        NeedComma = true;
+      }
+      if (isUndef() && isUse()) {
+        if (NeedComma) OS << ',';
+        OS << "undef";
+        NeedComma = true;
+      }
+      if (isInternalRead()) {
+        if (NeedComma) OS << ',';
+        OS << "internal";
+        NeedComma = true;
+      }
+      if (isTied()) {
+        if (NeedComma) OS << ',';
+        OS << "tied";
+        if (TiedTo != 15)
+          OS << unsigned(TiedTo - 1);
+        NeedComma = true;
       }
       OS << '>';
     }
@@ -352,6 +363,7 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
   case MachineOperand::MO_BlockAddress:
     OS << '<';
     WriteAsOperand(OS, getBlockAddress(), /*PrintType=*/false);
+    if (getOffset()) OS << "+" << getOffset();
     OS << '>';
     break;
   case MachineOperand::MO_RegisterMask:
@@ -528,20 +540,6 @@ void MachineInstr::addImplicitDefUseOperands() {
 /// MachineInstr ctor - This constructor creates a MachineInstr and adds the
 /// implicit operands. It reserves space for the number of operands specified by
 /// the MCInstrDesc.
-MachineInstr::MachineInstr(const MCInstrDesc &tid, bool NoImp)
-  : MCID(&tid), Flags(0), AsmPrinterFlags(0),
-    NumMemRefs(0), MemRefs(0), Parent(0) {
-  unsigned NumImplicitOps = 0;
-  if (!NoImp)
-    NumImplicitOps = MCID->getNumImplicitDefs() + MCID->getNumImplicitUses();
-  Operands.reserve(NumImplicitOps + MCID->getNumOperands());
-  if (!NoImp)
-    addImplicitDefUseOperands();
-  // Make sure that we get added to a machine basicblock
-  LeakDetector::addGarbageObject(this);
-}
-
-/// MachineInstr ctor - As above, but with a DebugLoc.
 MachineInstr::MachineInstr(const MCInstrDesc &tid, const DebugLoc dl,
                            bool NoImp)
   : MCID(&tid), Flags(0), AsmPrinterFlags(0),
@@ -559,21 +557,6 @@ MachineInstr::MachineInstr(const MCInstrDesc &tid, const DebugLoc dl,
 /// MachineInstr ctor - Work exactly the same as the ctor two above, except
 /// that the MachineInstr is created and added to the end of the specified
 /// basic block.
-MachineInstr::MachineInstr(MachineBasicBlock *MBB, const MCInstrDesc &tid)
-  : MCID(&tid), Flags(0), AsmPrinterFlags(0),
-    NumMemRefs(0), MemRefs(0), Parent(0) {
-  assert(MBB && "Cannot use inserting ctor with null basic block!");
-  unsigned NumImplicitOps =
-    MCID->getNumImplicitDefs() + MCID->getNumImplicitUses();
-  Operands.reserve(NumImplicitOps + MCID->getNumOperands());
-  addImplicitDefUseOperands();
-  // Make sure that we get added to a machine basicblock
-  LeakDetector::addGarbageObject(this);
-  MBB->push_back(this);  // Add instruction to end of basic block!
-}
-
-/// MachineInstr ctor - As above, but with a DebugLoc.
-///
 MachineInstr::MachineInstr(MachineBasicBlock *MBB, const DebugLoc dl,
                            const MCInstrDesc &tid)
   : MCID(&tid), Flags(0), AsmPrinterFlags(0),
@@ -673,6 +656,7 @@ void MachineInstr::addOperand(const MachineOperand &Op) {
   if (!isImpReg && !isInlineAsm()) {
     while (OpNo && Operands[OpNo-1].isReg() && Operands[OpNo-1].isImplicit()) {
       --OpNo;
+      assert(!Operands[OpNo].isTied() && "Cannot move tied operands");
       if (RegInfo)
         RegInfo->removeRegOperandFromUseList(&Operands[OpNo]);
     }
@@ -708,12 +692,25 @@ void MachineInstr::addOperand(const MachineOperand &Op) {
   if (Operands[OpNo].isReg()) {
     // Ensure isOnRegUseList() returns false, regardless of Op's status.
     Operands[OpNo].Contents.Reg.Prev = 0;
+    // Ignore existing ties. This is not a property that can be copied.
+    Operands[OpNo].TiedTo = 0;
     // Add the new operand to RegInfo.
     if (RegInfo)
       RegInfo->addRegOperandToUseList(&Operands[OpNo]);
-    // If the register operand is flagged as early, mark the operand as such.
-    if (MCID->getOperandConstraint(OpNo, MCOI::EARLY_CLOBBER) != -1)
-      Operands[OpNo].setIsEarlyClobber(true);
+    // The MCID operand information isn't accurate until we start adding
+    // explicit operands. The implicit operands are added first, then the
+    // explicits are inserted before them.
+    if (!isImpReg) {
+      // Tie uses to defs as indicated in MCInstrDesc.
+      if (Operands[OpNo].isUse()) {
+        int DefIdx = MCID->getOperandConstraint(OpNo, MCOI::TIED_TO);
+        if (DefIdx != -1)
+          tieOperands(DefIdx, OpNo);
+      }
+      // If the register operand is flagged as early, mark the operand as such.
+      if (MCID->getOperandConstraint(OpNo, MCOI::EARLY_CLOBBER) != -1)
+        Operands[OpNo].setIsEarlyClobber(true);
+    }
   }
 
   // Re-add all the implicit ops.
@@ -730,6 +727,7 @@ void MachineInstr::addOperand(const MachineOperand &Op) {
 ///
 void MachineInstr::RemoveOperand(unsigned OpNo) {
   assert(OpNo < Operands.size() && "Invalid operand number");
+  untieRegOperand(OpNo);
   MachineRegisterInfo *RegInfo = getRegInfo();
 
   // Special case removing the last one.
@@ -751,6 +749,13 @@ void MachineInstr::RemoveOperand(unsigned OpNo) {
         RegInfo->removeRegOperandFromUseList(&Operands[i]);
     }
   }
+
+#ifndef NDEBUG
+  // Moving tied operands would break the ties.
+  for (unsigned i = OpNo + 1, e = Operands.size(); i != e; ++i)
+    if (Operands[i].isReg())
+      assert(!Operands[i].isTied() && "Cannot move tied operands");
+#endif
 
   Operands.erase(Operands.begin()+OpNo);
 
@@ -935,6 +940,12 @@ bool MachineInstr::isStackAligningInlineAsm() const {
   return false;
 }
 
+InlineAsm::AsmDialect MachineInstr::getInlineAsmDialect() const {
+  assert(isInlineAsm() && "getInlineAsmDialect() only works for inline asms!");
+  unsigned ExtraInfo = getOperand(InlineAsm::MIOp_ExtraInfo).getImm();
+  return InlineAsm::AsmDialect((ExtraInfo & InlineAsm::Extra_AsmDialect) != 0);
+}
+
 int MachineInstr::findInlineAsmFlagIdx(unsigned OpIdx,
                                        unsigned *GroupNo) const {
   assert(isInlineAsm() && "Expected an inline asm instruction");
@@ -1004,9 +1015,10 @@ MachineInstr::getRegClassConstraint(unsigned OpIdx,
 unsigned MachineInstr::getBundleSize() const {
   assert(isBundle() && "Expecting a bundle");
 
-  MachineBasicBlock::const_instr_iterator I = *this;
+  const MachineBasicBlock *MBB = getParent();
+  MachineBasicBlock::const_instr_iterator I = *this, E = MBB->instr_end();
   unsigned Size = 0;
-  while ((++I)->isInsideBundle()) {
+  while ((++I != E) && I->isInsideBundle()) {
     ++Size;
   }
   assert(Size > 1 && "Malformed bundle");
@@ -1114,107 +1126,99 @@ int MachineInstr::findFirstPredOperandIdx() const {
   return -1;
 }
 
-/// isRegTiedToUseOperand - Given the index of a register def operand,
-/// check if the register def is tied to a source operand, due to either
-/// two-address elimination or inline assembly constraints. Returns the
-/// first tied use operand index by reference is UseOpIdx is not null.
-bool MachineInstr::
-isRegTiedToUseOperand(unsigned DefOpIdx, unsigned *UseOpIdx) const {
-  if (isInlineAsm()) {
-    assert(DefOpIdx > InlineAsm::MIOp_FirstOperand);
-    const MachineOperand &MO = getOperand(DefOpIdx);
-    if (!MO.isReg() || !MO.isDef() || MO.getReg() == 0)
-      return false;
-    // Determine the actual operand index that corresponds to this index.
-    unsigned DefNo = 0;
-    int FlagIdx = findInlineAsmFlagIdx(DefOpIdx, &DefNo);
-    if (FlagIdx < 0)
-      return false;
+// MachineOperand::TiedTo is 4 bits wide.
+const unsigned TiedMax = 15;
 
-    // Which part of the group is DefOpIdx?
-    unsigned DefPart = DefOpIdx - (FlagIdx + 1);
+/// tieOperands - Mark operands at DefIdx and UseIdx as tied to each other.
+///
+/// Use and def operands can be tied together, indicated by a non-zero TiedTo
+/// field. TiedTo can have these values:
+///
+/// 0:              Operand is not tied to anything.
+/// 1 to TiedMax-1: Tied to getOperand(TiedTo-1).
+/// TiedMax:        Tied to an operand >= TiedMax-1.
+///
+/// The tied def must be one of the first TiedMax operands on a normal
+/// instruction. INLINEASM instructions allow more tied defs.
+///
+void MachineInstr::tieOperands(unsigned DefIdx, unsigned UseIdx) {
+  MachineOperand &DefMO = getOperand(DefIdx);
+  MachineOperand &UseMO = getOperand(UseIdx);
+  assert(DefMO.isDef() && "DefIdx must be a def operand");
+  assert(UseMO.isUse() && "UseIdx must be a use operand");
+  assert(!DefMO.isTied() && "Def is already tied to another use");
+  assert(!UseMO.isTied() && "Use is already tied to another def");
 
-    for (unsigned i = InlineAsm::MIOp_FirstOperand, e = getNumOperands();
-         i != e; ++i) {
-      const MachineOperand &FMO = getOperand(i);
-      if (!FMO.isImm())
-        continue;
-      if (i+1 >= e || !getOperand(i+1).isReg() || !getOperand(i+1).isUse())
-        continue;
-      unsigned Idx;
-      if (InlineAsm::isUseOperandTiedToDef(FMO.getImm(), Idx) &&
-          Idx == DefNo) {
-        if (UseOpIdx)
-          *UseOpIdx = (unsigned)i + 1 + DefPart;
-        return true;
-      }
-    }
-    return false;
+  if (DefIdx < TiedMax)
+    UseMO.TiedTo = DefIdx + 1;
+  else {
+    // Inline asm can use the group descriptors to find tied operands, but on
+    // normal instruction, the tied def must be within the first TiedMax
+    // operands.
+    assert(isInlineAsm() && "DefIdx out of range");
+    UseMO.TiedTo = TiedMax;
   }
 
-  assert(getOperand(DefOpIdx).isDef() && "DefOpIdx is not a def!");
-  const MCInstrDesc &MCID = getDesc();
-  for (unsigned i = 0, e = MCID.getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = getOperand(i);
-    if (MO.isReg() && MO.isUse() &&
-        MCID.getOperandConstraint(i, MCOI::TIED_TO) == (int)DefOpIdx) {
-      if (UseOpIdx)
-        *UseOpIdx = (unsigned)i;
-      return true;
-    }
-  }
-  return false;
+  // UseIdx can be out of range, we'll search for it in findTiedOperandIdx().
+  DefMO.TiedTo = std::min(UseIdx + 1, TiedMax);
 }
 
-/// isRegTiedToDefOperand - Return true if the operand of the specified index
-/// is a register use and it is tied to an def operand. It also returns the def
-/// operand index by reference.
-bool MachineInstr::
-isRegTiedToDefOperand(unsigned UseOpIdx, unsigned *DefOpIdx) const {
-  if (isInlineAsm()) {
-    const MachineOperand &MO = getOperand(UseOpIdx);
-    if (!MO.isReg() || !MO.isUse() || MO.getReg() == 0)
-      return false;
+/// Given the index of a tied register operand, find the operand it is tied to.
+/// Defs are tied to uses and vice versa. Returns the index of the tied operand
+/// which must exist.
+unsigned MachineInstr::findTiedOperandIdx(unsigned OpIdx) const {
+  const MachineOperand &MO = getOperand(OpIdx);
+  assert(MO.isTied() && "Operand isn't tied");
 
-    // Find the flag operand corresponding to UseOpIdx
-    int FlagIdx = findInlineAsmFlagIdx(UseOpIdx);
-    if (FlagIdx < 0)
-      return false;
+  // Normally TiedTo is in range.
+  if (MO.TiedTo < TiedMax)
+    return MO.TiedTo - 1;
 
-    const MachineOperand &UFMO = getOperand(FlagIdx);
-    unsigned DefNo;
-    if (InlineAsm::isUseOperandTiedToDef(UFMO.getImm(), DefNo)) {
-      if (!DefOpIdx)
-        return true;
-
-      unsigned DefIdx = InlineAsm::MIOp_FirstOperand;
-      // Remember to adjust the index. First operand is asm string, second is
-      // the HasSideEffects and AlignStack bits, then there is a flag for each.
-      while (DefNo) {
-        const MachineOperand &FMO = getOperand(DefIdx);
-        assert(FMO.isImm());
-        // Skip over this def.
-        DefIdx += InlineAsm::getNumOperandRegisters(FMO.getImm()) + 1;
-        --DefNo;
-      }
-      *DefOpIdx = DefIdx + UseOpIdx - FlagIdx;
-      return true;
+  // Uses on normal instructions can be out of range.
+  if (!isInlineAsm()) {
+    // Normal tied defs must be in the 0..TiedMax-1 range.
+    if (MO.isUse())
+      return TiedMax - 1;
+    // MO is a def. Search for the tied use.
+    for (unsigned i = TiedMax - 1, e = getNumOperands(); i != e; ++i) {
+      const MachineOperand &UseMO = getOperand(i);
+      if (UseMO.isReg() && UseMO.isUse() && UseMO.TiedTo == OpIdx + 1)
+        return i;
     }
-    return false;
+    llvm_unreachable("Can't find tied use");
   }
 
-  const MCInstrDesc &MCID = getDesc();
-  if (UseOpIdx >= MCID.getNumOperands())
-    return false;
-  const MachineOperand &MO = getOperand(UseOpIdx);
-  if (!MO.isReg() || !MO.isUse())
-    return false;
-  int DefIdx = MCID.getOperandConstraint(UseOpIdx, MCOI::TIED_TO);
-  if (DefIdx == -1)
-    return false;
-  if (DefOpIdx)
-    *DefOpIdx = (unsigned)DefIdx;
-  return true;
+  // Now deal with inline asm by parsing the operand group descriptor flags.
+  // Find the beginning of each operand group.
+  SmallVector<unsigned, 8> GroupIdx;
+  unsigned OpIdxGroup = ~0u;
+  unsigned NumOps;
+  for (unsigned i = InlineAsm::MIOp_FirstOperand, e = getNumOperands(); i < e;
+       i += NumOps) {
+    const MachineOperand &FlagMO = getOperand(i);
+    assert(FlagMO.isImm() && "Invalid tied operand on inline asm");
+    unsigned CurGroup = GroupIdx.size();
+    GroupIdx.push_back(i);
+    NumOps = 1 + InlineAsm::getNumOperandRegisters(FlagMO.getImm());
+    // OpIdx belongs to this operand group.
+    if (OpIdx > i && OpIdx < i + NumOps)
+      OpIdxGroup = CurGroup;
+    unsigned TiedGroup;
+    if (!InlineAsm::isUseOperandTiedToDef(FlagMO.getImm(), TiedGroup))
+      continue;
+    // Operands in this group are tied to operands in TiedGroup which must be
+    // earlier. Find the number of operands between the two groups.
+    unsigned Delta = i - GroupIdx[TiedGroup];
+
+    // OpIdx is a use tied to TiedGroup.
+    if (OpIdxGroup == CurGroup)
+      return OpIdx - Delta;
+
+    // OpIdx is a def tied to this use group.
+    if (OpIdxGroup == TiedGroup)
+      return OpIdx + Delta;
+  }
+  llvm_unreachable("Invalid tied operand on inline asm");
 }
 
 /// clearKillInfo - Clears kill flags on all operands.
@@ -1292,7 +1296,12 @@ bool MachineInstr::isSafeToMove(const TargetInstrInfo *TII,
                                 AliasAnalysis *AA,
                                 bool &SawStore) const {
   // Ignore stuff that we obviously can't move.
-  if (mayStore() || isCall()) {
+  //
+  // Treat volatile loads as stores. This is not strictly necessary for
+  // volatiles, but it is required for atomic loads. It is not allowed to move
+  // a load across an atomic load with Ordering > Monotonic.
+  if (mayStore() || isCall() ||
+      (mayLoad() && hasOrderedMemoryRef())) {
     SawStore = true;
     return false;
   }
@@ -1308,8 +1317,8 @@ bool MachineInstr::isSafeToMove(const TargetInstrInfo *TII,
   // load.
   if (mayLoad() && !isInvariantLoad(AA))
     // Otherwise, this is a real load.  If there is a store between the load and
-    // end of block, or if the load is volatile, we can't move it.
-    return !SawStore && !hasVolatileMemoryRef();
+    // end of block, we can't move it.
+    return !SawStore;
 
   return true;
 }
@@ -1340,11 +1349,11 @@ bool MachineInstr::isSafeToReMat(const TargetInstrInfo *TII,
   return true;
 }
 
-/// hasVolatileMemoryRef - Return true if this instruction may have a
-/// volatile memory reference, or if the information describing the
-/// memory reference is not available. Return false if it is known to
-/// have no volatile memory references.
-bool MachineInstr::hasVolatileMemoryRef() const {
+/// hasOrderedMemoryRef - Return true if this instruction may have an ordered
+/// or volatile memory reference, or if the information describing the memory
+/// reference is not available. Return false if it is known to have no ordered
+/// memory references.
+bool MachineInstr::hasOrderedMemoryRef() const {
   // An instruction known never to access memory won't have a volatile access.
   if (!mayStore() &&
       !mayLoad() &&
@@ -1357,9 +1366,9 @@ bool MachineInstr::hasVolatileMemoryRef() const {
   if (memoperands_empty())
     return true;
 
-  // Check the memory reference information for volatile references.
+  // Check the memory reference information for ordered references.
   for (mmo_iterator I = memoperands_begin(), E = memoperands_end(); I != E; ++I)
-    if ((*I)->isVolatile())
+    if (!(*I)->isUnordered())
       return true;
 
   return false;
@@ -1461,7 +1470,9 @@ void MachineInstr::copyImplicitOps(const MachineInstr *MI) {
 }
 
 void MachineInstr::dump() const {
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   dbgs() << "  " << *this;
+#endif
 }
 
 static void printDebugLoc(DebugLoc DL, const MachineFunction *MF,
@@ -1540,6 +1551,10 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
       OS << " [sideeffect]";
     if (ExtraInfo & InlineAsm::Extra_IsAlignStack)
       OS << " [alignstack]";
+    if (getInlineAsmDialect() == InlineAsm::AD_ATT)
+      OS << " [attdialect]";
+    if (getInlineAsmDialect() == InlineAsm::AD_Intel)
+      OS << " [inteldialect]";
 
     StartOp = AsmDescOp = InlineAsm::MIOp_FirstOperand;
     FirstOp = false;

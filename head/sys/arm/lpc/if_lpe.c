@@ -1122,7 +1122,7 @@ lpe_init_rxbuf(struct lpe_softc *sc, int n)
 	rxd = &sc->lpe_cdata.lpe_rx_desc[n];
 	hwd = &sc->lpe_rdata.lpe_rx_ring[n];
 	hws = &sc->lpe_rdata.lpe_rx_status[n];
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 
 	if (!m) {
 		device_printf(sc->lpe_dev, "WARNING: mbufs exhausted!\n");

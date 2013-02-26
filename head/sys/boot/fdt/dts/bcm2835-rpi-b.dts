@@ -95,50 +95,12 @@
 			clock-frequency = <1000000>;
 		};
 
-		dma: dma {
-			compatible = "broadcom,bcm2835-dma", "broadcom,bcm2708-dma";
-			reg = <0x7000 0x1000>, <0xE05000 0x1000>;
-			interrupts = <
-				26	/*  2 */
-				27	/*  3 */
-			>;
-			interrupt-parent = <&intc>;
-
-			broadcom,channels = <0>;	/* Set by VideoCore */
-		};
-
-		sdhci {
-			compatible = "broadcom,bcm2835-sdhci", "broadcom,bcm2708-sdhci";
-			reg = <0x300000 0x100>;
-			interrupts = <70>;
-			interrupt-parent = <&intc>;
-
-			clock-frequency = <50000000>;	/* Set by VideoCore */
-		};
-
 		armtimer {
 			/* Not AMBA compatible */
 			compatible = "broadcom,bcm2835-sp804", "arm,sp804";
 			reg = <0xB400 0x24>;
 			interrupts = <0>;
 			interrupt-parent = <&intc>;
-		};
-
-		vc_mbox: mbox {
-			compatible = "broadcom,bcm2835-mbox", "broadcom,bcm2708-mbox";
-			reg = <0xB880 0x40>;
-			interrupts = <1>;
-			interrupt-parent = <&intc>;
-
-			/* Channels
-			 * 0: Power
-			 * 1: Frame buffer
-			 * 2: Virtual UART
-			 * 3: VCHIQ
-			 * 4: LEDs
-			 * 5: Buttons
-			 * 6: Touch screen
-			 */
 		};
 
 		watchdog0 {
@@ -461,6 +423,41 @@
 			};
 		};
 
+		dma: dma {
+			compatible = "broadcom,bcm2835-dma", "broadcom,bcm2708-dma";
+			reg = <0x7000 0x1000>, <0xE05000 0x1000>;
+			interrupts = <24 25 26 27 28 29 30 31 32 33 34 35 36>;
+			interrupt-parent = <&intc>;
+
+			broadcom,channels = <0>;	/* Set by VideoCore */
+		};
+
+		vc_mbox: mbox {
+			compatible = "broadcom,bcm2835-mbox", "broadcom,bcm2708-mbox";
+			reg = <0xB880 0x40>;
+			interrupts = <1>;
+			interrupt-parent = <&intc>;
+
+			/* Channels
+			 * 0: Power
+			 * 1: Frame buffer
+			 * 2: Virtual UART
+			 * 3: VCHIQ
+			 * 4: LEDs
+			 * 5: Buttons
+			 * 6: Touch screen
+			 */
+		};
+
+		sdhci {
+			compatible = "broadcom,bcm2835-sdhci", "broadcom,bcm2708-sdhci";
+			reg = <0x300000 0x100>;
+			interrupts = <70>;
+			interrupt-parent = <&intc>;
+
+			clock-frequency = <50000000>;	/* Set by VideoCore */
+		};
+
 		uart0: uart0 {
 			compatible = "broadcom,bcm2835-uart", "broadcom,bcm2708-uart", "arm,pl011", "arm,primecell";
 			reg = <0x201000 0x1000>;
@@ -469,6 +466,13 @@
 
 			clock-frequency = <3000000>;	/* Set by VideoCore */
 			reg-shift = <2>;
+		};
+
+		vchiq {
+			compatible = "broadcom,bcm2835-vchiq";
+			reg = <0xB800 0x50>;
+			interrupts = <2>;
+			interrupt-parent = <&intc>;
 		};
 
 		usb {

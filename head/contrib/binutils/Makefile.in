@@ -284,7 +284,7 @@ MAKEINFOFLAGS = --split-size=5000000
 
 AS = @AS@
 AR = @AR@
-AR_FLAGS = rc
+ARFLAGS = @ARFLAGS@
 CC = @CC@
 CXX = @CXX@
 DLLTOOL = @DLLTOOL@
@@ -474,7 +474,7 @@ BASE_FLAGS_TO_PASS = \
 	"SHELL=$(SHELL)" \
 	"YACC=$(YACC)" \
 	"`echo 'ADAFLAGS=$(ADAFLAGS)' | sed -e s'/[^=][^=]*=$$/XFOO=/'`" \
-	"AR_FLAGS=$(AR_FLAGS)" \
+	"AR_FLAGS=$(ARFLAGS)" \
 	"`echo 'BOOT_ADAFLAGS=$(BOOT_ADAFLAGS)' | sed -e s'/[^=][^=]*=$$/XFOO=/'`" \
 	"BOOT_CFLAGS=$(BOOT_CFLAGS)" \
 	"BOOT_LDFLAGS=$(BOOT_LDFLAGS)" \

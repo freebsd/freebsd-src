@@ -30,6 +30,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/sysrc.subr
@@ -253,34 +254,11 @@ dialog_menu_main()
 #
 dialog_input_value()
 {
-	local hline="$hline_alnum_tab_enter"
-	local size prompt="$1" _input="$2"
+	local prompt="$1" _input="$2"
 
 	f_dialog_title "$msg_value_required"
-
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$prompt"           \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$prompt\" $size      \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
-
+	_input=$( f_dialog_input "$prompt" "$_input" "$hline_alnum_tab_enter" )
+	local retval=$?
 	f_dialog_title_restore
 
 	# Return if user has either pressed ESC or chosen Cancel/No
@@ -308,7 +286,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_miscellaneous_startup_services"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
@@ -330,14 +307,14 @@ while :; do
 		?" [X] "*) err=$( f_sysrc_set apm_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set apm_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_startup_dirs")
 		dialog_input_value \
 			"$msg_startup_dirs_desc" \
 			"$( f_sysrc_get local_startup )"
 		if [ $? -eq $SUCCESS ]; then
 			err=$( f_sysrc_set local_startup "$value" ) ||
-				f_show_msg "%s\n" "$err"
+				f_dialog_msgbox "$err\n"
 		fi
 		;;
 	?" ["?"] $msg_named")
@@ -345,14 +322,14 @@ while :; do
 		?" [X] "*) err=$( f_sysrc_set named_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set named_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_named_flags")
 		dialog_input_value \
 			"$msg_named_flags_desc" \
 			"$( f_sysrc_get named_flags )"
 		if [ $? -eq $SUCCESS ]; then
 			err=$( f_sysrc_set named_flags "$value" ) ||
-				f_show_msg "%s\n" "$err"
+				f_dialog_msgbox "$err\n"
 		fi
 		;;
 	?" ["?"] $msg_nis_client")
@@ -362,14 +339,14 @@ while :; do
 			err=$( f_sysrc_set nis_client_enable YES 2>&1 ) \
 			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_nis_domainname")
 		dialog_input_value \
 			"$msg_nis_domainname_desc" \
 			"$( f_sysrc_get nisdomainname )"
 		if [ $? -eq $SUCCESS ]; then
 			err=$( f_sysrc_set nisdomainname "$value" ) ||
-				f_show_msg "%s\n" "$err"
+				f_dialog_msgbox "$err\n"
 		fi
 		;;
 	?" ["?"] $msg_nis_server")
@@ -379,31 +356,31 @@ while :; do
 			err=$( f_sysrc_set nis_server_enable YES 2>&1 ) \
 			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_accounting")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set accounting_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set accounting_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_lpd")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set lpd_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set lpd_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_sco")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set ibcs2_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set ibcs2_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	?" ["?"] $msg_svr4")
 		case "$mtag" in
 		?" [X] "*) err=$( f_sysrc_set svr4_enable NO 2>&1 ) ;;
 		?" [ ] "*) err=$( f_sysrc_set svr4_enable YES 2>&1 ) ;;
 		esac
-		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
 	esac
 done
 

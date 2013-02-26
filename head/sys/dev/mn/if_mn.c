@@ -693,7 +693,7 @@ ngmn_connect(hook_p hook)
 	/* Setup a transmit chain with one descriptor */
 	/* XXX: we actually send a 1 byte packet */
 	dp = mn_alloc_desc();
-	MGETHDR(m, M_WAIT, MT_DATA);
+	MGETHDR(m, M_WAITOK, MT_DATA);
 	m->m_pkthdr.len = 0;
 	dp->m = m;
 	dp->flags = 0xc0000000 + (1 << 16);
@@ -708,8 +708,8 @@ ngmn_connect(hook_p hook)
 
 	dp = mn_alloc_desc();
 	m = NULL;
-	MGETHDR(m, M_WAIT, MT_DATA);
-	MCLGET(m, M_WAIT);
+	MGETHDR(m, M_WAITOK, MT_DATA);
+	MCLGET(m, M_WAITOK);
 	dp->m = m;
 	dp->data = vtophys(m->m_data);
 	dp->flags = 0x40000000;
@@ -722,8 +722,8 @@ ngmn_connect(hook_p hook)
 		dp2 = dp;
 		dp = mn_alloc_desc();
 		m = NULL;
-		MGETHDR(m, M_WAIT, MT_DATA);
-		MCLGET(m, M_WAIT);
+		MGETHDR(m, M_WAITOK, MT_DATA);
+		MCLGET(m, M_WAITOK);
 		dp->m = m;
 		dp->data = vtophys(m->m_data);
 		dp->flags = 0x00000000;
@@ -1160,12 +1160,12 @@ mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 
 		/* Replenish desc + mbuf supplies */
 		if (!m) {
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
 				mn_free_desc(dp);
 				return; /* ENOBUFS */
 			}
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if((m->m_flags & M_EXT) == 0) {
 				mn_free_desc(dp);
 				m_freem(m);
@@ -1418,7 +1418,7 @@ static device_method_t mn_methods[] = {
         DEVMETHOD(device_resume,        bus_generic_resume),
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
 
-        {0, 0}
+	DEVMETHOD_END
 };
  
 static driver_t mn_driver = {

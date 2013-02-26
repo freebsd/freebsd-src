@@ -1,6 +1,6 @@
 if [ ! "$_NETWORKING_COMMON_SUBR" ]; then _NETWORKING_COMMON_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,17 +33,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 
 ############################################################ FUNCTIONS
 
-# f_mounted $local_directory
-#
-# Return success if a filesystem is mounted on a particular directory.
-#
-f_mounted()
-{
-	local dir="$1"
-	[ -d "$dir" ] || return $FAILURE
-	mount | grep -Eq " on $dir \([^)]+\)$"
-}
-
 # f_jailed
 #
 # Returns true if the current process is jail(8)ed.
@@ -61,5 +50,9 @@ f_nfs_mounted()
 {
 	[ "$( df -t nfs )" ]
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/common.subr
 
 fi # ! $_NETWORKING_COMMON_SUBR

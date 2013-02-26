@@ -109,6 +109,7 @@ static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
 static int	 needuser;	/* -o "user" */
 static int	 optfatal;	/* Fatal error parsing some list-option. */
+static int	 pid_max;	/* kern.max_pid */
 
 static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
@@ -140,7 +141,7 @@ static void	 format_output(KINFO *);
 static void	*expand_list(struct listinfo *);
 static const char *
 		 fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
-		    KINFO *, char *, int);
+		    KINFO *, char *, char *, int);
 static void	 free_list(struct listinfo *);
 static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
 static char	*kludge_oldps_options(const char *, char *, const char *);
@@ -148,6 +149,7 @@ static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
 static void	 scanvars(void);
 static void	 sizevars(void);
+static void	 pidmax_init(void);
 static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
@@ -199,6 +201,8 @@ main(int argc, char *argv[])
 	 */
 	if (argc > 1)
 		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
+
+	pidmax_init();
 
 	all = descendancy = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
@@ -722,7 +726,6 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	return (1);
 }
 
-#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h. */
 static int
 addelem_pid(struct listinfo *inf, const char *elem)
 {
@@ -740,7 +743,7 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	if (*endp != '\0' || tempid < 0 || elem == endp) {
 		warnx("Invalid %s: %s", inf->lname, elem);
 		errno = ERANGE;
-	} else if (errno != 0 || tempid > BSD_PID_MAX) {
+	} else if (errno != 0 || tempid > pid_max) {
 		warnx("%s too large: %s", inf->lname, elem);
 		errno = ERANGE;
 	}
@@ -753,7 +756,6 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	inf->l.pids[(inf->count)++] = tempid;
 	return (1);
 }
-#undef	BSD_PID_MAX
 
 /*-
  * The user can specify a device via one of three formats:
@@ -1161,11 +1163,12 @@ sizevars(void)
 
 static const char *
 fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
-    char *comm, int maxlen)
+    char *comm, char *thread, int maxlen)
 {
 	const char *s;
 
-	s = fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm, maxlen);
+	s = fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm,
+	    showthreads && ki->ki_p->ki_numthreads > 1 ? thread : NULL, maxlen);
 	return (s);
 }
 
@@ -1193,7 +1196,7 @@ saveuser(KINFO *ki)
 			ki->ki_args = strdup("<defunct>");
 		else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL))
 			ki->ki_args = strdup(fmt(kvm_getargv, ki,
-			    ki->ki_p->ki_comm, MAXCOMLEN));
+			    ki->ki_p->ki_comm, ki->ki_p->ki_tdname, MAXCOMLEN));
 		else
 			asprintf(&ki->ki_args, "(%s)", ki->ki_p->ki_comm);
 		if (ki->ki_args == NULL)
@@ -1204,7 +1207,7 @@ saveuser(KINFO *ki)
 	if (needenv) {
 		if (UREADOK(ki))
 			ki->ki_env = strdup(fmt(kvm_getenvv, ki,
-			    (char *)NULL, 0));
+			    (char *)NULL, (char *)NULL, 0));
 		else
 			ki->ki_env = strdup("()");
 		if (ki->ki_env == NULL)
@@ -1349,6 +1352,18 @@ kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 	}
 
 	return (newopts);
+}
+
+static void
+pidmax_init(void)
+{
+	size_t intsize;
+
+	intsize = sizeof(pid_max);
+	if (sysctlbyname("kern.pid_max", &pid_max, &intsize, NULL, 0) < 0) {
+		warn("unable to read kern.pid_max");
+		pid_max = 99999;
+	}
 }
 
 static void

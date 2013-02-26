@@ -1203,7 +1203,7 @@ release_futexes(struct proc *p)
 
 		if (entry != pending)
 			if (handle_futex_death(p,
-			    (uint32_t *)entry + futex_offset, pi)) {
+			    (uint32_t *)((caddr_t)entry + futex_offset), pi)) {
 				LIN_SDT_PROBE0(futex, release_futexes, return);
 				return;
 			}
@@ -1222,7 +1222,7 @@ release_futexes(struct proc *p)
 	}
 
 	if (pending)
-		handle_futex_death(p, (uint32_t *)pending + futex_offset, pip);
+		handle_futex_death(p, (uint32_t *)((caddr_t)pending + futex_offset), pip);
 
 	LIN_SDT_PROBE0(futex, release_futexes, return);
 }

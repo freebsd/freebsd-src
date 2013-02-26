@@ -3757,7 +3757,7 @@ bxe_alloc_buf_rings(struct bxe_softc *sc)
 
 		if (fp != NULL) {
 			fp->br = buf_ring_alloc(BXE_BR_SIZE,
-			    M_DEVBUF, M_DONTWAIT, &fp->mtx);
+			    M_DEVBUF, M_NOWAIT, &fp->mtx);
 			if (fp->br == NULL) {
 				rc = ENOMEM;
 				goto bxe_alloc_buf_rings_exit;
@@ -8960,7 +8960,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 		} else if (error == EFBIG) {
 			/* Possibly recoverable with defragmentation. */
 			fp->mbuf_defrag_attempts++;
-			m0 = m_defrag(*m_head, M_DONTWAIT);
+			m0 = m_defrag(*m_head, M_NOWAIT);
 			if (m0 == NULL) {
 				fp->mbuf_defrag_failures++;
 				rc = ENOBUFS;
@@ -9506,24 +9506,15 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 
 	BXE_FP_LOCK_ASSERT(fp);
 
-	if (m == NULL) {
-		/* No new work, check for pending frames. */
-		next = drbr_dequeue(ifp, fp->br);
-	} else if (drbr_needs_enqueue(ifp, fp->br)) {
-		/* Both new and pending work, maintain packet order. */
+	if (m != NULL) {
 		rc = drbr_enqueue(ifp, fp->br, m);
 		if (rc != 0) {
 			fp->tx_soft_errors++;
 			goto bxe_tx_mq_start_locked_exit;
 		}
-		next = drbr_dequeue(ifp, fp->br);
-	} else
-		/* New work only, nothing pending. */
-		next = m;
-
+	}
  	/* Keep adding entries while there are frames to send. */
-	while (next != NULL) {
-
+	while ((next = drbr_peek(ifp, fp->br)) != NULL) {
 		/* The transmit mbuf now belongs to us, keep track of it. */
 		fp->tx_mbuf_alloc++;
 
@@ -9537,23 +9528,22 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 		if (__predict_false(rc != 0)) {
 			fp->tx_encap_failures++;
 			/* Very Bad Frames(tm) may have been dropped. */
-			if (next != NULL) {
+			if (next == NULL) {
+				drbr_advance(ifp, fp->br);
+			} else {
+				drbr_putback(ifp, fp->br, next);
 				/*
 				 * Mark the TX queue as full and save
 				 * the frame.
 				 */
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				fp->tx_frame_deferred++;
-
-				/* This may reorder frame. */
-				rc = drbr_enqueue(ifp, fp->br, next);
 				fp->tx_mbuf_alloc--;
 			}
-
 			/* Stop looking for more work. */
 			break;
 		}
-
+		drbr_advance(ifp, fp->br);
 		/* The transmit frame was enqueued successfully. */
 		tx_count++;
 
@@ -9574,8 +9564,6 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			break;
 		}
-
-		next = drbr_dequeue(ifp, fp->br);
 	}
 
 	/* No TX packets were dequeued. */
@@ -10467,7 +10455,7 @@ bxe_alloc_tpa_mbuf(struct bxe_fastpath *fp, int queue)
 #endif
 
 	/* Allocate the new TPA mbuf. */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
 	if (__predict_false(m == NULL)) {
 		fp->mbuf_tpa_alloc_failed++;
 		rc = ENOBUFS;
@@ -10661,7 +10649,7 @@ bxe_alloc_rx_sge_mbuf(struct bxe_fastpath *fp, uint16_t index)
 #endif
 
 	/* Allocate a new SGE mbuf. */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
 	if (__predict_false(m == NULL)) {
 		fp->mbuf_sge_alloc_failed++;
 		rc = ENOMEM;
@@ -10851,7 +10839,7 @@ bxe_alloc_rx_bd_mbuf(struct bxe_fastpath *fp, uint16_t index)
 #endif
 
 	/* Allocate the new RX BD mbuf. */
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, sc->mbuf_alloc_size);
 	if (__predict_false(m == NULL)) {
 		fp->mbuf_rx_bd_alloc_failed++;
 		rc = ENOBUFS;
@@ -16281,7 +16269,7 @@ void bxe_dump_mbuf(struct bxe_softc *sc, struct mbuf *m)
 			    "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
 			    "\22M_PROMISC\23M_NOFREE",
 			    m->m_pkthdr.csum_flags,
-			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP"
 			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
 			    "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
 			    "\14CSUM_PSEUDO_HDR");

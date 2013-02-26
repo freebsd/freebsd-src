@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/clock.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
@@ -52,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include "clock_if.h"
 
-#define	RTC_LOCK	mtx_lock_spin(&clock_lock)
-#define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
+#define	RTC_LOCK	do { if (!kdb_active) mtx_lock_spin(&clock_lock); } while (0)
+#define	RTC_UNLOCK	do { if (!kdb_active) mtx_unlock_spin(&clock_lock); } while (0)
 
 int	atrtcclock_disable = 0;
 
@@ -328,7 +329,6 @@ static int
 atrtc_gettime(device_t dev, struct timespec *ts)
 {
 	struct clocktime ct;
-	int s;
 
 	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
@@ -336,13 +336,16 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 		return (EINVAL);
 	}
 
-	/* wait for time update to complete */
-	/* If RTCSA_TUP is zero, we have at least 244us before next update */
-	s = splhigh();
-	while (rtcin(RTC_STATUSA) & RTCSA_TUP) {
-		splx(s);
-		s = splhigh();
-	}
+	/*
+	 * wait for time update to complete
+	 * If RTCSA_TUP is zero, we have at least 244us before next update.
+	 * This is fast enough on most hardware, but a refinement would be
+	 * to make sure that no more than 240us pass after we start reading,
+	 * and try again if so.
+	 */
+	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
+		continue;
+	critical_enter();
 	ct.nsec = 0;
 	ct.sec = readrtc(RTC_SEC);
 	ct.min = readrtc(RTC_MIN);
@@ -356,6 +359,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 #else
 	ct.year += 2000;
 #endif
+	critical_exit();
 	/* Set dow = -1 because some clocks don't set it correctly. */
 	ct.dow = -1;
 	return (clock_ct_to_ts(&ct, ts));

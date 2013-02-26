@@ -238,6 +238,7 @@ kern_bind(td, fd, sa)
 	int error;
 
 	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_SOCKADDR(td, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_BIND, &fp, NULL);
 	if (error)
 		return (error);
@@ -452,6 +453,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 			*namelen = 0;
 		goto done;
 	}
+	AUDIT_ARG_SOCKADDR(td, sa);
 	if (name) {
 		/* check sa_len before it is destroyed */
 		if (*namelen > sa->sa_len)
@@ -547,6 +549,7 @@ kern_connect(td, fd, sa)
 	int interrupted = 0;
 
 	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_SOCKADDR(td, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_CONNECT, &fp, NULL);
 	if (error)
 		return (error);
@@ -722,7 +725,7 @@ sendit(td, s, mp, flags)
 		if (mp->msg_flags == MSG_COMPAT) {
 			struct cmsghdr *cm;
 
-			M_PREPEND(control, sizeof(*cm), M_WAIT);
+			M_PREPEND(control, sizeof(*cm), M_WAITOK);
 			cm = mtod(control, struct cmsghdr *);
 			cm->cmsg_len = control->m_len;
 			cm->cmsg_level = SOL_SOCKET;
@@ -763,8 +766,10 @@ kern_sendit(td, s, mp, flags, control, segflg)
 
 	AUDIT_ARG_FD(s);
 	rights = CAP_WRITE;
-	if (mp->msg_name != NULL)
+	if (mp->msg_name != NULL) {
+		AUDIT_ARG_SOCKADDR(td, mp->msg_name);
 		rights |= CAP_CONNECT;
+	}
 	error = getsock_cap(td->td_proc->p_fd, s, rights, &fp, NULL);
 	if (error)
 		return (error);
@@ -956,11 +961,11 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	int i;
 	ssize_t len;
 	int error;
-	struct mbuf *m, *control = 0;
+	struct mbuf *m, *control = NULL;
 	caddr_t ctlbuf;
 	struct file *fp;
 	struct socket *so;
-	struct sockaddr *fromsa = 0;
+	struct sockaddr *fromsa = NULL;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -1001,14 +1006,16 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
-	error = soreceive(so, &fromsa, &auio, (struct mbuf **)0,
-	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
+	error = soreceive(so, &fromsa, &auio, NULL,
+	    (mp->msg_control || controlp) ? &control : NULL,
 	    &mp->msg_flags);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 	}
+	if (fromsa != NULL)
+		AUDIT_ARG_SOCKADDR(td, fromsa);
 #ifdef KTRACE
 	if (ktruio != NULL) {
 		ktruio->uio_resid = len - auio.uio_resid;
@@ -1020,7 +1027,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	td->td_retval[0] = len - auio.uio_resid;
 	if (mp->msg_name) {
 		len = mp->msg_namelen;
-		if (len <= 0 || fromsa == 0)
+		if (len <= 0 || fromsa == NULL)
 			len = 0;
 		else {
 			/* save sa_len before it is destroyed by MSG_COMPAT */
@@ -1095,7 +1102,7 @@ out:
 	if (fromsa)
 		free(fromsa, M_SONAME);
 
-	if (error == 0 && controlp != NULL)  
+	if (error == 0 && controlp != NULL)
 		*controlp = control;
 	else  if (control)
 		m_freem(control);
@@ -1661,9 +1668,9 @@ sockargs(mp, buf, buflen, type)
 			if ((u_int)buflen > MCLBYTES)
 				return (EINVAL);
 	}
-	m = m_get(M_WAIT, type);
+	m = m_get(M_WAITOK, type);
 	if ((u_int)buflen > MLEN)
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_WAITOK);
 	m->m_len = buflen;
 	error = copyin(buf, mtod(m, caddr_t), (u_int)buflen);
 	if (error)
@@ -1716,7 +1723,7 @@ getsockaddr(namp, uaddr, len)
 struct sendfile_sync {
 	struct mtx	mtx;
 	struct cv	cv;
-	unsigned 	count;
+	unsigned	count;
 };
 
 /*
@@ -2233,7 +2240,7 @@ retry_space:
 		}
 
 		/* Quit outer loop on error or when we're done. */
-		if (done) 
+		if (done)
 			break;
 		if (error)
 			goto done;
@@ -2333,7 +2340,7 @@ sys_sctp_peeloff(td, uap)
 
 	CURVNET_SET(head->so_vnet);
 	so = sonewconn(head, SS_ISCONNECTED);
-	if (so == NULL) 
+	if (so == NULL)
 		goto noconnection;
 	/*
 	 * Before changing the flags on the socket, we have to bump the
@@ -2387,12 +2394,12 @@ int
 sys_sctp_generic_sendmsg (td, uap)
 	struct thread *td;
 	struct sctp_generic_sendmsg_args /* {
-		int sd, 
-		caddr_t msg, 
-		int mlen, 
-		caddr_t to, 
-		__socklen_t tolen, 
-		struct sctp_sndrcvinfo *sinfo, 
+		int sd,
+		caddr_t msg,
+		int mlen,
+		caddr_t to,
+		__socklen_t tolen,
+		struct sctp_sndrcvinfo *sinfo,
 		int flags
 	} */ *uap;
 {
@@ -2498,12 +2505,12 @@ int
 sys_sctp_generic_sendmsg_iov(td, uap)
 	struct thread *td;
 	struct sctp_generic_sendmsg_iov_args /* {
-		int sd, 
-		struct iovec *iov, 
-		int iovlen, 
-		caddr_t to, 
-		__socklen_t tolen, 
-		struct sctp_sndrcvinfo *sinfo, 
+		int sd,
+		struct iovec *iov,
+		int iovlen,
+		caddr_t to,
+		__socklen_t tolen,
+		struct sctp_sndrcvinfo *sinfo,
 		int flags
 	} */ *uap;
 {
@@ -2625,12 +2632,12 @@ int
 sys_sctp_generic_recvmsg(td, uap)
 	struct thread *td;
 	struct sctp_generic_recvmsg_args /* {
-		int sd, 
-		struct iovec *iov, 
+		int sd,
+		struct iovec *iov,
 		int iovlen,
-		struct sockaddr *from, 
+		struct sockaddr *from,
 		__socklen_t *fromlenaddr,
-		struct sctp_sndrcvinfo *sinfo, 
+		struct sctp_sndrcvinfo *sinfo,
 		int *msg_flags
 	} */ *uap;
 {
@@ -2696,7 +2703,7 @@ sys_sctp_generic_recvmsg(td, uap)
 	}
 	auio.uio_iov = iov;
 	auio.uio_iovcnt = uap->iovlen;
-  	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */
@@ -2767,7 +2774,7 @@ sys_sctp_generic_recvmsg(td, uap)
 out:
 	free(iov, M_IOV);
 out1:
-	if (fp) 
+	if (fp)
 		fdrop(fp, td);
 
 	return (error);

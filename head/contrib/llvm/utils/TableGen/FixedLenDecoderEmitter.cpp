@@ -15,6 +15,7 @@
 #define DEBUG_TYPE "decoder-emitter"
 
 #include "CodeGenTarget.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallString.h"
@@ -142,7 +143,7 @@ static int Value(bit_value_t V) {
   return ValueNotSet(V) ? -1 : (V == BIT_FALSE ? 0 : 1);
 }
 static bit_value_t bitFromBits(const BitsInit &bits, unsigned index) {
-  if (BitInit *bit = dynamic_cast<BitInit*>(bits.getBit(index)))
+  if (BitInit *bit = dyn_cast<BitInit>(bits.getBit(index)))
     return bit->getValue() ? BIT_TRUE : BIT_FALSE;
 
   // The bit is uninitialized.
@@ -741,7 +742,7 @@ void FixedLenDecoderEmitter::emitTable(formatted_raw_ostream &OS,
 
     switch (*I) {
     default:
-      throw "invalid decode table opcode";
+      PrintFatalError("invalid decode table opcode");
     case MCD::OPC_ExtractField: {
       ++I;
       unsigned Start = *I++;
@@ -1757,8 +1758,8 @@ static bool populateInstruction(const CodeGenInstruction &CGI, unsigned Opc,
     // for decoding register classes.
     // FIXME: This need to be extended to handle instructions with custom
     // decoder methods, and operands with (simple) MIOperandInfo's.
-    TypedInit *TI = dynamic_cast<TypedInit*>(NI->first);
-    RecordRecTy *Type = dynamic_cast<RecordRecTy*>(TI->getType());
+    TypedInit *TI = cast<TypedInit>(NI->first);
+    RecordRecTy *Type = cast<RecordRecTy>(TI->getType());
     Record *TypeRecord = Type->getRecord();
     bool isReg = false;
     if (TypeRecord->isSubClassOf("RegisterOperand"))
@@ -1770,7 +1771,7 @@ static bool populateInstruction(const CodeGenInstruction &CGI, unsigned Opc,
 
     RecordVal *DecoderString = TypeRecord->getValue("DecoderMethod");
     StringInit *String = DecoderString ?
-      dynamic_cast<StringInit*>(DecoderString->getValue()) : 0;
+      dyn_cast<StringInit>(DecoderString->getValue()) : 0;
     if (!isReg && String && String->getValue() != "")
       Decoder = String->getValue();
 
@@ -1781,11 +1782,11 @@ static bool populateInstruction(const CodeGenInstruction &CGI, unsigned Opc,
 
     for (unsigned bi = 0; bi < Bits.getNumBits(); ++bi) {
       VarInit *Var = 0;
-      VarBitInit *BI = dynamic_cast<VarBitInit*>(Bits.getBit(bi));
+      VarBitInit *BI = dyn_cast<VarBitInit>(Bits.getBit(bi));
       if (BI)
-        Var = dynamic_cast<VarInit*>(BI->getVariable());
+        Var = dyn_cast<VarInit>(BI->getBitVar());
       else
-        Var = dynamic_cast<VarInit*>(Bits.getBit(bi));
+        Var = dyn_cast<VarInit>(Bits.getBit(bi));
 
       if (!Var) {
         if (Base != ~0U) {
@@ -1882,7 +1883,7 @@ static void emitDecodeInstruction(formatted_raw_ostream &OS) {
      << "  uint64_t Bits = STI.getFeatureBits();\n"
      << "\n"
      << "  const uint8_t *Ptr = DecodeTable;\n"
-     << "  uint32_t CurFieldValue;\n"
+     << "  uint32_t CurFieldValue = 0;\n"
      << "  DecodeStatus S = MCDisassembler::Success;\n"
      << "  for (;;) {\n"
      << "    ptrdiff_t Loc = Ptr - DecodeTable;\n"

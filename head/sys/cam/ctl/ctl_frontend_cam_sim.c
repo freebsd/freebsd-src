@@ -93,8 +93,8 @@ struct cfcs_softc {
  * handle physical addresses yet.  That would require mapping things in
  * order to do the copy.
  */
-#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_PHYS | CAM_SG_LIST_PHYS | \
-	CAM_MSG_BUF_PHYS | CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |\
+#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_ISPHYS | CAM_MSG_BUF_PHYS |	\
+	CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
 	CAM_SENSE_PHYS)
 
 int cfcs_init(void);
@@ -275,7 +275,7 @@ cfcs_shutdown(void)
 }
 
 static void
-cfcs_online(void *arg)
+cfcs_onoffline(void *arg, int online)
 {
 	struct cfcs_softc *softc;
 	union ccb *ccb;
@@ -283,13 +283,12 @@ cfcs_online(void *arg)
 	softc = (struct cfcs_softc *)arg;
 
 	mtx_lock(&softc->lock);
-	softc->online = 1;
-	mtx_unlock(&softc->lock);
+	softc->online = online;
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		printf("%s: unable to allocate CCB for rescan\n", __func__);
-		return;
+		goto bailout;
 	}
 
 	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
@@ -297,37 +296,24 @@ cfcs_online(void *arg)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: can't allocate path for rescan\n", __func__);
 		xpt_free_ccb(ccb);
-		return;
+		goto bailout;
 	}
 	xpt_rescan(ccb);
+
+bailout:
+	mtx_unlock(&softc->lock);
+}
+
+static void
+cfcs_online(void *arg)
+{
+	cfcs_onoffline(arg, /*online*/ 1);
 }
 
 static void
 cfcs_offline(void *arg)
 {
-	struct cfcs_softc *softc;
-	union ccb *ccb;
-
-	softc = (struct cfcs_softc *)arg;
-
-	mtx_lock(&softc->lock);
-	softc->online = 0;
-	mtx_unlock(&softc->lock);
-
-	ccb = xpt_alloc_ccb_nowait();
-	if (ccb == NULL) {
-		printf("%s: unable to allocate CCB for rescan\n", __func__);
-		return;
-	}
-
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
-			    cam_sim_path(softc->sim), CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		printf("%s: can't allocate path for rescan\n", __func__);
-		xpt_free_ccb(ccb);
-		return;
-	}
-	xpt_rescan(ccb);
+	cfcs_onoffline(arg, /*online*/ 0);
 }
 
 static int
@@ -393,36 +379,35 @@ cfcs_datamove(union ctl_io *io)
 	 * Simplify things on both sides by putting single buffers into a
 	 * single entry S/G list.
 	 */
-	if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-		if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) {
-			/* We should filter this out on entry */
-			panic("%s: physical S/G list, should not get here",
-			      __func__);
-		} else {
-			int len_seen;
+	switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
+	case CAM_DATA_SG: {
+		int len_seen;
 
-			cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
-			cam_sg_count = ccb->csio.sglist_cnt;
+		cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
+		cam_sg_count = ccb->csio.sglist_cnt;
 
-			for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
-				if ((len_seen + cam_sglist[i].ds_len) >=
-				     io->scsiio.kern_rel_offset) {
-					cam_sg_start = i;
-					cam_sg_offset =
-						io->scsiio.kern_rel_offset -
-						len_seen;
-					break;
-				}
-				len_seen += cam_sglist[i].ds_len;
+		for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
+			if ((len_seen + cam_sglist[i].ds_len) >=
+			     io->scsiio.kern_rel_offset) {
+				cam_sg_start = i;
+				cam_sg_offset = io->scsiio.kern_rel_offset -
+					len_seen;
+				break;
 			}
+			len_seen += cam_sglist[i].ds_len;
 		}
-	} else {
+		break;
+	}
+	case CAM_DATA_VADDR:
 		cam_sglist = &cam_sg_entry;
 		cam_sglist[0].ds_len = ccb->csio.dxfer_len;
 		cam_sglist[0].ds_addr = (bus_addr_t)ccb->csio.data_ptr;
 		cam_sg_count = 1;
 		cam_sg_start = 0;
 		cam_sg_offset = io->scsiio.kern_rel_offset;
+		break;
+	default:
+		panic("Invalid CAM flags %#x", ccb->ccb_h.flags);
 	}
 
 	if (io->scsiio.kern_sg_entries > 0) {

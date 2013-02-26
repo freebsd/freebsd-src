@@ -1034,7 +1034,7 @@ vte_encap(struct vte_softc *sc, struct mbuf **m_head)
 		if (M_WRITABLE(m) == 0) {
 			if (m->m_next != NULL || padlen > 0) {
 				/* Get a writable copy. */
-				m = m_dup(*m_head, M_DONTWAIT);
+				m = m_dup(*m_head, M_NOWAIT);
 				/* Release original mbuf chains. */
 				m_freem(*m_head);
 				if (m == NULL) {
@@ -1046,7 +1046,7 @@ vte_encap(struct vte_softc *sc, struct mbuf **m_head)
 		}
 
 		if (m->m_next != NULL) {
-			m = m_defrag(*m_head, M_DONTWAIT);
+			m = m_defrag(*m_head, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(*m_head);
 				*m_head = NULL;
@@ -1057,7 +1057,7 @@ vte_encap(struct vte_softc *sc, struct mbuf **m_head)
 
 		if (padlen > 0) {
 			if (M_TRAILINGSPACE(m) < padlen) {
-				m = m_defrag(*m_head, M_DONTWAIT);
+				m = m_defrag(*m_head, M_NOWAIT);
 				if (m == NULL) {
 					m_freem(*m_head);
 					*m_head = NULL;
@@ -1422,7 +1422,7 @@ vte_newbuf(struct vte_softc *sc, struct vte_rxdesc *rxd)
 	bus_dmamap_t map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1870,7 +1870,7 @@ vte_init_tx_ring(struct vte_softc *sc)
 	/* Pre-allocate TX mbufs for deep copy. */
 	if (tx_deep_copy != 0) {
 		for (i = 0; i < VTE_TX_RING_CNT; i++) {
-			sc->vte_cdata.vte_txmbufs[i] = m_getcl(M_DONTWAIT,
+			sc->vte_cdata.vte_txmbufs[i] = m_getcl(M_NOWAIT,
 			    MT_DATA, M_PKTHDR);
 			if (sc->vte_cdata.vte_txmbufs[i] == NULL)
 				return (ENOBUFS);

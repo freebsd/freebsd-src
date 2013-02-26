@@ -27,21 +27,21 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/lock.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_dinode.h>
+#include <fs/ext2fs/ext2_extern.h>
 
 #define XTIME_TO_NSEC(x)	((x & EXT3_NSEC_MASK) >> 2)
-#define NSEC_TO_XTIME(t)	((t << 2) & EXT3_NSEC_MASK)
+#define NSEC_TO_XTIME(t)	(le32toh(t << 2) & EXT3_NSEC_MASK)
 
 void
-ext2_print_inode( in )
-	struct inode *in;
+ext2_print_inode(struct inode *in)
 {
 	int i;
 
@@ -67,9 +67,7 @@ ext2_print_inode( in )
  *	raw ext2 inode to inode
  */
 void
-ext2_ei2i(ei, ip)
-	struct ext2fs_dinode *ei;
-	struct inode *ip;
+ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 {
         int i;
 
@@ -112,9 +110,7 @@ ext2_ei2i(ei, ip)
  *	inode to raw ext2 inode
  */
 void
-ext2_i2ei(ip, ei)
-	struct inode *ip;
-	struct ext2fs_dinode *ei;
+ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 {
 	int i;
 

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -55,6 +56,11 @@ VNET_DEFINE(int, ip6_use_defzone) = 1;
 #else
 VNET_DEFINE(int, ip6_use_defzone) = 0;
 #endif
+VNET_DEFINE(int, deembed_scopeid) = 1;
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_VNET_INT(_net_inet6_ip6, OID_AUTO, deembed_scopeid, CTLFLAG_RW,
+    &VNET_NAME(deembed_scopeid), 0,
+    "Extract embedded zone ID and set it to sin6_scope_id in sockaddr_in6.");
 
 /*
  * The scope6_lock protects the global sid default stored in
@@ -330,7 +336,6 @@ scope6_addr2default(struct in6_addr *addr)
 int
 sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 {
-	struct ifnet *ifp;
 	u_int32_t zoneid;
 
 	if ((zoneid = sin6->sin6_scope_id) == 0 && defaultok)
@@ -345,15 +350,11 @@ sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 		 * zone IDs assuming a one-to-one mapping between interfaces
 		 * and links.
 		 */
-		if (V_if_index < zoneid)
-			return (ENXIO);
-		ifp = ifnet_byindex(zoneid);
-		if (ifp == NULL) /* XXX: this can happen for some OS */
+		if (V_if_index < zoneid || ifnet_byindex(zoneid) == NULL)
 			return (ENXIO);
 
 		/* XXX assignment to 16bit from 32bit variable */
 		sin6->sin6_addr.s6_addr16[1] = htons(zoneid & 0xffff);
-
 		sin6->sin6_scope_id = 0;
 	}
 
@@ -379,8 +380,11 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 			/* sanity check */
 			if (V_if_index < zoneid)
 				return (ENXIO);
+#if 0
+			/* XXX: Disabled due to possible deadlock. */
 			if (!ifnet_byindex(zoneid))
 				return (ENXIO);
+#endif
 			if (sin6->sin6_scope_id != 0 &&
 			    zoneid != sin6->sin6_scope_id) {
 				log(LOG_NOTICE,
@@ -411,62 +415,34 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 	u_int32_t zoneid = 0;
 	struct scope6_id *sid;
 
-	IF_AFDATA_RLOCK(ifp);
-
-	sid = SID(ifp);
-
-#ifdef DIAGNOSTIC
-	if (sid == NULL) { /* should not happen */
-		panic("in6_setscope: scope array is NULL");
-		/* NOTREACHED */
-	}
-#endif
-
 	/*
 	 * special case: the loopback address can only belong to a loopback
 	 * interface.
 	 */
 	if (IN6_IS_ADDR_LOOPBACK(in6)) {
-		if (!(ifp->if_flags & IFF_LOOPBACK)) {
-			IF_AFDATA_RUNLOCK(ifp);
+		if (!(ifp->if_flags & IFF_LOOPBACK))
 			return (EINVAL);
-		} else {
-			if (ret_id != NULL)
-				*ret_id = 0; /* there's no ambiguity */
+	} else {
+		scope = in6_addrscope(in6);
+		if (scope == IPV6_ADDR_SCOPE_INTFACELOCAL ||
+		    scope == IPV6_ADDR_SCOPE_LINKLOCAL) {
+			/*
+			 * Currently we use interface indeces as the
+			 * zone IDs for interface-local and link-local
+			 * scopes.
+			 */
+			zoneid = ifp->if_index;
+			in6->s6_addr16[1] = htons(zoneid & 0xffff); /* XXX */
+		} else if (scope != IPV6_ADDR_SCOPE_GLOBAL) {
+			IF_AFDATA_RLOCK(ifp);
+			sid = SID(ifp);
+			zoneid = sid->s6id_list[scope];
 			IF_AFDATA_RUNLOCK(ifp);
-			return (0);
 		}
 	}
 
-	scope = in6_addrscope(in6);
-	switch (scope) {
-	case IPV6_ADDR_SCOPE_INTFACELOCAL: /* should be interface index */
-		zoneid = sid->s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL];
-		break;
-
-	case IPV6_ADDR_SCOPE_LINKLOCAL:
-		zoneid = sid->s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL];
-		break;
-
-	case IPV6_ADDR_SCOPE_SITELOCAL:
-		zoneid = sid->s6id_list[IPV6_ADDR_SCOPE_SITELOCAL];
-		break;
-
-	case IPV6_ADDR_SCOPE_ORGLOCAL:
-		zoneid = sid->s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL];
-		break;
-
-	default:
-		zoneid = 0;	/* XXX: treat as global. */
-		break;
-	}
-	IF_AFDATA_RUNLOCK(ifp);
-
 	if (ret_id != NULL)
 		*ret_id = zoneid;
-
-	if (IN6_IS_SCOPE_LINKLOCAL(in6) || IN6_IS_ADDR_MC_INTFACELOCAL(in6))
-		in6->s6_addr16[1] = htons(zoneid & 0xffff); /* XXX */
 
 	return (0);
 }

@@ -1015,7 +1015,7 @@ txp_rxbuf_reclaim(struct txp_softc *sc)
 			break;
 		rbd = sc->sc_rxbufs + prod;
 		bcopy((u_long *)&rbd->rb_vaddrlo, &sd, sizeof(sd));
-		sd->sd_mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		sd->sd_mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (sd->sd_mbuf == NULL)
 			break;
 		sd->sd_mbuf->m_pkthdr.len = sd->sd_mbuf->m_len = MCLBYTES;
@@ -1792,7 +1792,7 @@ txp_rxring_fill(struct txp_softc *sc)
 		bcopy(&sd, (u_long *)&rbd->rb_vaddrlo, sizeof(sd));
 		KASSERT(sd->sd_mbuf == NULL,
 		    ("%s : Rx buffer ring corrupted", __func__));
-		sd->sd_mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		sd->sd_mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (sd->sd_mbuf == NULL)
 			return (ENOMEM);
 		sd->sd_mbuf->m_pkthdr.len = sd->sd_mbuf->m_len = MCLBYTES;
@@ -2105,7 +2105,7 @@ txp_encap(struct txp_softc *sc, struct txp_tx_ring *r, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->sc_cdata.txp_tx_tag, sd->sd_map,
 	    *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, TXP_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, TXP_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

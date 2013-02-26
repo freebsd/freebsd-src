@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #define	SOFT_CAPS (PMC_CAP_READ | PMC_CAP_WRITE | PMC_CAP_INTERRUPT | \
     PMC_CAP_USER | PMC_CAP_SYSTEM)
 
+PMC_SOFT_DECLARE( , , clock, prof);
+
 struct soft_descr {
 	struct pmc_descr pm_descr;  /* "base class" */
 };
@@ -116,7 +118,7 @@ soft_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return (EPERM);
 
 	ev = pm->pm_event;
-	if (ev < PMC_EV_SOFT_FIRST || ev > PMC_EV_SOFT_LAST)
+	if ((int)ev < PMC_EV_SOFT_FIRST || (int)ev > PMC_EV_SOFT_LAST)
 		return (EINVAL);
 
 	/* Check if event is registered. */
@@ -125,6 +127,8 @@ soft_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return (EINVAL);
 	pmc_soft_ev_release(ps);
 
+	if (ev == pmc___clock_prof.ps_ev.pm_ev_code)
+		cpu_startprofclock();
 	return (0);
 }
 
@@ -324,9 +328,8 @@ soft_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[soft,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-	/*
-	 * Nothing to do.
-	 */
+	if (pmc->pm_event == pmc___clock_prof.ps_ev.pm_ev_code)
+		cpu_stopprofclock();
 	return (0);
 }
 
@@ -408,8 +411,11 @@ pmc_soft_intr(struct pmckern_soft *ks)
 		}
 
 		processed = 1;
-		pc->soft_values[ri]++;
 		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
+			if ((pc->soft_values[ri]--) <= 0)
+				pc->soft_values[ri] += pm->pm_sc.pm_reloadcount;
+			else
+				continue;
 			user_mode = TRAPF_USERMODE(ks->pm_tf);
 			error = pmc_process_interrupt(ks->pm_cpu, PMC_SR, pm,
 			    ks->pm_tf, user_mode);
@@ -424,7 +430,8 @@ pmc_soft_intr(struct pmckern_soft *ks)
 				 */
 				curthread->td_flags |= TDF_ASTPENDING;
 			}
-		}
+		} else
+			pc->soft_values[ri]++;
 	}
 
 	atomic_add_int(processed ? &pmc_stats.pm_intr_processed :

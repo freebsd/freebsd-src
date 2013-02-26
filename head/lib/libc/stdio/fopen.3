@@ -32,13 +32,14 @@
 .\"     @(#)fopen.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2011
+.Dd January 30, 2013
 .Dt FOPEN 3
 .Os
 .Sh NAME
 .Nm fopen ,
 .Nm fdopen ,
-.Nm freopen
+.Nm freopen ,
+.Nm fmemopen
 .Nd stream open functions
 .Sh LIBRARY
 .Lb libc
@@ -50,6 +51,8 @@
 .Fn fdopen "int fildes" "const char *mode"
 .Ft FILE *
 .Fn freopen "const char *path" "const char *mode" "FILE *stream"
+.Ft FILE *
+.Fn fmemopen "void *restrict *buf" "size_t size" "const char * restrict mode"
 .Sh DESCRIPTION
 The
 .Fn fopen
@@ -97,6 +100,14 @@ or
 causes the
 .Fn fopen
 call to fail if the file already exists.
+An optional
+.Dq Li e
+following the above
+causes the
+.Fn fopen
+call to set the
+.Dv FD_CLOEXEC
+flag on the underlying file descriptor.
 .Pp
 The
 .Fa mode
@@ -107,7 +118,9 @@ after either the
 or the first letter.
 This is strictly for compatibility with
 .St -isoC
-and has no effect; the ``b'' is ignored.
+and has effect only for
+.Fn fmemopen
+; otherwise the ``b'' is ignored.
 .Pp
 Any created files will have mode
 .Do Dv S_IRUSR
@@ -144,6 +157,11 @@ of the stream must be compatible with the mode of the file descriptor.
 The
 .Dq Li x
 mode option is ignored.
+If the
+.Dq Li e
+mode option is present, the
+.Dv FD_CLOEXEC
+flag is set, otherwise it remains unchanged.
 When the stream is closed via
 .Xr fclose 3 ,
 .Fa fildes
@@ -189,6 +207,34 @@ standard text stream
 .Dv ( stderr , stdin ,
 or
 .Dv stdout ) .
+.Pp
+The
+.Fn fmemopen
+function
+associates the buffer given by the
+.Fa buf
+and
+.Fa size
+arguments with a stream.
+The
+.Fa buf
+argument is either a null pointer or point to a buffer that
+is at least
+.Fa size
+bytes long.
+If a null pointer is specified as the
+.Fa buf
+argument,
+.Fn fmemopen
+allocates
+.Fa size
+bytes of memory. This buffer is automatically freed when the
+stream is closed. Buffers can be opened in text-mode (default) or binary-mode
+(if ``b'' is present in the second or third position of the
+.Fa mode
+argument). Buffers opened in text-mode make sure that writes are terminated with
+a NULL byte, if the last write hasn't filled up the whole buffer. Buffers
+opened in binary-mode never append a NULL byte.
 .Sh RETURN VALUES
 Upon successful completion
 .Fn fopen ,
@@ -212,16 +258,18 @@ argument
 to
 .Fn fopen ,
 .Fn fdopen ,
+.Fn freopen ,
 or
-.Fn freopen
+.Fn fmemopen
 was invalid.
 .El
 .Pp
 The
 .Fn fopen ,
-.Fn fdopen
-and
+.Fn fdopen ,
 .Fn freopen
+and
+.Fn fmemopen
 functions
 may also fail and set
 .Va errno
@@ -277,3 +325,14 @@ The
 function
 conforms to
 .St -p1003.1-88 .
+The
+.Dq Li e
+mode option does not conform to any standard
+but is also supported by glibc.
+The
+.Fn fmemopen
+function
+conforms to
+.St -p1003.1-2008 .
+The ``b'' mode does not conform to any standard
+but is also supported by glibc.

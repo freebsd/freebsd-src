@@ -89,6 +89,8 @@ struct isf_softc {
 
 int	isf_attach(struct isf_softc *sc);
 void	isf_detach(struct isf_softc *sc);
+
+extern devclass_t	isf_devclass;
 #endif /* _KERNEL */
 
 #endif	/* _DEV_ISF_H_ */

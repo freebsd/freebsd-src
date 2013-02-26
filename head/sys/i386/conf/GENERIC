@@ -37,6 +37,7 @@ options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
 options 	MD_ROOT			# MD is a potential root device
 options 	NFSCL			# New Network Filesystem Client
 options 	NFSD			# New Network Filesystem Server
@@ -207,7 +208,6 @@ device		uart		# Generic UART driver
 device		ppc
 device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
-device		plip		# TCP/IP over parallel
 device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 
@@ -331,15 +331,6 @@ device		usb		# USB Bus (required)
 device		ukbd		# Keyboard
 device		umass		# Disks/Mass storage - Requires scbus and da
 
-# FireWire support
-device		firewire	# FireWire bus code
-# sbp(4) works for some systems but causes boot failure on others
-#device		sbp		# SCSI over FireWire (Requires scbus and da)
-device		fwe		# Ethernet over FireWire (non-standard!)
-device		fwip		# IP over FireWire (RFC 2734,3146)
-device		dcons		# Dumb console driver
-device		dcons_crom	# Configuration ROM for dcons
-
 # Sound support
 device		sound		# Generic sound driver (required)
 device		snd_cmi		# CMedia CMI8338/CMI8738
@@ -354,3 +345,11 @@ device		snd_via8233	# VIA VT8233x Audio
 device		mmc		# MMC/SD bus
 device		mmcsd		# MMC/SD memory card
 device		sdhci		# Generic PCI SD Host Controller
+
+# VirtIO support
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI device
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device

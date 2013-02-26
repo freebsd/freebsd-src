@@ -34,8 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/ctype.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
@@ -136,6 +138,26 @@ g_label_is_name_ok(const char *label)
 	if ((s = strstr(label, "/..")) != NULL && s[3] == '\0')
 		return (0);
 	return (1);
+}
+
+static void
+g_label_mangle_name(char *label, size_t size)
+{
+	struct sbuf *sb;
+	const u_char *c;
+
+	sb = sbuf_new(NULL, NULL, size, SBUF_FIXEDLEN);
+	for (c = label; *c != '\0'; c++) {
+		if (!isprint(*c) || isspace(*c) || *c =='"' || *c == '%')
+			sbuf_printf(sb, "%%%02X", *c);
+		else
+			sbuf_putc(sb, *c);
+	}
+	if (sbuf_finish(sb) != 0)
+		label[0] = '\0';
+	else
+		strlcpy(label, sbuf_data(sb), size);
+	sbuf_delete(sb);
 }
 
 static struct g_geom *
@@ -323,6 +345,7 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			continue;
 		g_topology_unlock();
 		g_labels[i]->ld_taste(cp, label, sizeof(label));
+		g_label_mangle_name(label, sizeof(label));
 		g_topology_lock();
 		if (label[0] == '\0')
 			continue;

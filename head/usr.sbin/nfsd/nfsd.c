@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <sys/module.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/ucred.h>
 
 #include <rpc/rpc.h>
@@ -71,14 +72,11 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sysexits.h>
 
-/* Global defs */
-#ifdef DEBUG
-#define	syslog(e, s...)	fprintf(stderr,s)
-static int	debug = 1;
-#else
+#include <getopt.h>
+
 static int	debug = 0;
-#endif
 
 #define	NFSD_STABLERESTART	"/var/db/nfs-stablerestart"
 #define	NFSD_STABLEBACKUP	"/var/db/nfs-stablerestart.bak"
@@ -86,26 +84,42 @@ static int	debug = 0;
 #define	DEFNFSDCNT	 4
 static pid_t children[MAXNFSDCNT]; /* PIDs of children */
 static int nfsdcnt;		/* number of children */
+static int nfsdcnt_set;
+static int minthreads;
+static int maxthreads;
 static int new_syscall;
 static int run_v4server = 1;	/* Force running of nfsv4 server */
 static int nfssvc_nfsd;		/* Set to correct NFSSVC_xxx flag */
 static int stablefd = -1;	/* Fd for the stable restart file */
 static int backupfd;		/* Fd for the backup stable restart file */
+static const char *getopt_shortopts;
+static const char *getopt_usage;
 
-void	cleanup(int);
-void	child_cleanup(int);
-void	killchildren(void);
-void	nfsd_exit(int);
-void	nonfs(int);
-void	reapchild(int);
-int	setbindhost(struct addrinfo **ia, const char *bindhost,
-	    struct addrinfo hints);
-void	start_server(int);
-void	unregistration(void);
-void	usage(void);
-void	open_stable(int *, int *);
-void	copy_stable(int, int);
-void	backup_stable(int);
+static int minthreads_set;
+static int maxthreads_set;
+
+static struct option longopts[] = {
+	{ "debug", no_argument, &debug, 1 },
+	{ "minthreads", required_argument, &minthreads_set, 1 },
+	{ "maxthreads", required_argument, &maxthreads_set, 1 },
+	{ NULL, 0, NULL, 0}
+};
+
+static void	cleanup(int);
+static void	child_cleanup(int);
+static void	killchildren(void);
+static void	nfsd_exit(int);
+static void	nonfs(int);
+static void	reapchild(int);
+static int	setbindhost(struct addrinfo **ia, const char *bindhost,
+		    struct addrinfo hints);
+static void	start_server(int);
+static void	unregistration(void);
+static void	usage(void);
+static void	open_stable(int *, int *);
+static void	copy_stable(int, int);
+static void	backup_stable(int);
+static void	set_nfsdcnt(int);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -145,26 +159,27 @@ main(int argc, char **argv)
 	int udpflag, ecode, error, s, srvcnt;
 	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
 	int nfssvc_addsock;
+	int longindex = 0;
+	const char *lopt;
 	char **bindhost = NULL;
 	pid_t pid;
 
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-#define	GETOPT	"ah:n:rdtueo"
-#define	USAGE	"[-ardtueo] [-n num_servers] [-h bindip]"
-	while ((ch = getopt(argc, argv, GETOPT)) != -1)
+	getopt_shortopts = "ah:n:rdtueo";
+	getopt_usage =
+	    "usage:\n"
+	    "  nfsd [-ardtueo] [-h bindip]\n"
+	    "       [-n numservers] [--minthreads #] [--maxthreads #]\n";
+	while ((ch = getopt_long(argc, argv, getopt_shortopts, longopts,
+		    &longindex)) != -1)
 		switch (ch) {
 		case 'a':
 			bindanyflag = 1;
 			break;
 		case 'n':
-			nfsdcnt = atoi(optarg);
-			if (nfsdcnt < 1 || nfsdcnt > MAXNFSDCNT) {
-				warnx("nfsd count %d; reset to %d", nfsdcnt,
-				    DEFNFSDCNT);
-				nfsdcnt = DEFNFSDCNT;
-			}
+			set_nfsdcnt(atoi(optarg));
 			break;
 		case 'h':
 			bindhostc++;
@@ -193,6 +208,14 @@ main(int argc, char **argv)
 		case 'o':
 			run_v4server = 0;
 			break;
+		case 0:
+			lopt = longopts[longindex].name;
+			if (!strcmp(lopt, "minthreads")) {
+				minthreads = atoi(optarg);
+			} else if (!strcmp(lopt, "maxthreads")) {
+				maxthreads = atoi(optarg);
+			}
+			break;
 		default:
 		case '?':
 			usage();
@@ -201,6 +224,10 @@ main(int argc, char **argv)
 		udpflag = 1;
 	argv += optind;
 	argc -= optind;
+	if (minthreads_set && maxthreads_set && minthreads > maxthreads)
+		errx(EX_USAGE,
+		    "error: minthreads(%d) can't be greater than "
+		    "maxthreads(%d)", minthreads, maxthreads);
 
 	/*
 	 * XXX
@@ -208,14 +235,8 @@ main(int argc, char **argv)
 	 */
 	if (argc > 1)
 		usage();
-	if (argc == 1) {
-		nfsdcnt = atoi(argv[0]);
-		if (nfsdcnt < 1 || nfsdcnt > MAXNFSDCNT) {
-			warnx("nfsd count %d; reset to %d", nfsdcnt,
-			    DEFNFSDCNT);
-			nfsdcnt = DEFNFSDCNT;
-		}
-	}
+	if (argc == 1)
+		set_nfsdcnt(atoi(argv[0]));
 
 	/*
 	 * Unless the "-o" option was specified, try and run "nfsd".
@@ -236,7 +257,7 @@ main(int argc, char **argv)
 	ip6flag = 1;
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
-		if (errno != EPROTONOSUPPORT)
+		if (errno != EPROTONOSUPPORT && errno != EAFNOSUPPORT)
 			err(1, "socket");
 		ip6flag = 0;
 	} else if (getnetconfigent("udp6") == NULL ||
@@ -356,7 +377,7 @@ main(int argc, char **argv)
 	(void)signal(SIGCHLD, reapchild);
 	(void)signal(SIGUSR2, backup_stable);
 
-	openlog("nfsd", LOG_PID, LOG_DAEMON);
+	openlog("nfsd", LOG_PID | (debug ? LOG_PERROR : 0), LOG_DAEMON);
 
 	/*
 	 * For V4, we open the stablerestart file and call nfssvc()
@@ -374,13 +395,13 @@ main(int argc, char **argv)
 	if (run_v4server > 0) {
 		open_stable(&stablefd, &backupfd);
 		if (stablefd < 0) {
-			syslog(LOG_ERR, "Can't open %s\n", NFSD_STABLERESTART);
+			syslog(LOG_ERR, "Can't open %s: %m\n", NFSD_STABLERESTART);
 			exit(1);
 		}
 		/* This system call will fail for old kernels, but that's ok. */
 		nfssvc(NFSSVC_BACKUPSTABLE, NULL);
 		if (nfssvc(NFSSVC_STABLERESTART, (caddr_t)&stablefd) < 0) {
-			syslog(LOG_ERR, "Can't read stable storage file\n");
+			syslog(LOG_ERR, "Can't read stable storage file: %m\n");
 			exit(1);
 		}
 		nfssvc_addsock = NFSSVC_NFSDADDSOCK;
@@ -806,7 +827,7 @@ main(int argc, char **argv)
 	}
 }
 
-int
+static int
 setbindhost(struct addrinfo **ai, const char *bindhost, struct addrinfo hints)
 {
 	int ecode;
@@ -852,20 +873,37 @@ setbindhost(struct addrinfo **ai, const char *bindhost, struct addrinfo hints)
 	return (0);
 }
 
-void
+static void
+set_nfsdcnt(int proposed)
+{
+
+	if (proposed < 1) {
+		warnx("nfsd count too low %d; reset to %d", proposed,
+		    DEFNFSDCNT);
+		nfsdcnt = DEFNFSDCNT;
+	} else if (proposed > MAXNFSDCNT) {
+		warnx("nfsd count too high %d; truncated to %d", proposed,
+		    MAXNFSDCNT);
+		nfsdcnt = MAXNFSDCNT;
+	} else
+		nfsdcnt = proposed;
+	nfsdcnt_set = 1;
+}
+
+static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: nfsd %s\n", USAGE);
+	(void)fprintf(stderr, "%s", getopt_usage);
 	exit(1);
 }
 
-void
+static void
 nonfs(__unused int signo)
 {
 	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
-void
+static void
 reapchild(__unused int signo)
 {
 	pid_t pid;
@@ -878,7 +916,7 @@ reapchild(__unused int signo)
 	}
 }
 
-void
+static void
 unregistration(void)
 {
 	if ((!rpcb_unset(NFS_PROGRAM, 2, NULL)) ||
@@ -886,7 +924,7 @@ unregistration(void)
 		syslog(LOG_ERR, "rpcb_unset failed");
 }
 
-void
+static void
 killchildren(void)
 {
 	int i;
@@ -900,7 +938,7 @@ killchildren(void)
 /*
  * Cleanup master after SIGUSR1.
  */
-void
+static void
 cleanup(__unused int signo)
 {
 	nfsd_exit(0);
@@ -909,13 +947,13 @@ cleanup(__unused int signo)
 /*
  * Cleanup child after SIGUSR1.
  */
-void
+static void
 child_cleanup(__unused int signo)
 {
 	exit(0);
 }
 
-void
+static void
 nfsd_exit(int status)
 {
 	killchildren();
@@ -923,7 +961,30 @@ nfsd_exit(int status)
 	exit(status);
 }
 
-void
+static int
+get_tuned_nfsdcount(void)
+{
+	int ncpu, error, tuned_nfsdcnt;
+	size_t ncpu_size;
+
+	ncpu_size = sizeof(ncpu);
+	error = sysctlbyname("hw.ncpu", &ncpu, &ncpu_size, NULL, 0);
+	if (error) {
+		warnx("sysctlbyname(hw.ncpu) failed defaulting to %d nfs servers",
+		    DEFNFSDCNT);
+		tuned_nfsdcnt = DEFNFSDCNT;
+	} else {
+		tuned_nfsdcnt = ncpu * 8;
+	}
+	if (!new_syscall && tuned_nfsdcnt > MAXNFSDCNT) {
+		warnx("nfsd count %d; truncated to %d", tuned_nfsdcnt,
+		    MAXNFSDCNT);
+		tuned_nfsdcnt = MAXNFSDCNT;
+	}
+	return tuned_nfsdcnt;
+}
+
+static void
 start_server(int master)
 {
 	char principal[MAXHOSTNAMELEN + 5];
@@ -952,8 +1013,15 @@ start_server(int master)
 			}
 		}
 		nfsdargs.principal = principal;
-		nfsdargs.minthreads = nfsdcnt;
-		nfsdargs.maxthreads = nfsdcnt;
+
+		if (nfsdcnt_set)
+			nfsdargs.minthreads = nfsdargs.maxthreads = nfsdcnt;
+		else {
+			nfsdargs.minthreads = minthreads_set ? minthreads : get_tuned_nfsdcount();
+			nfsdargs.maxthreads = maxthreads_set ? maxthreads : nfsdargs.minthreads;
+			if (nfsdargs.maxthreads < nfsdargs.minthreads)
+				nfsdargs.maxthreads = nfsdargs.minthreads;
+		}
 		error = nfssvc(nfssvc_nfsd, &nfsdargs);
 		if (error < 0 && errno == EAUTH) {
 			/*
@@ -985,7 +1053,7 @@ start_server(int master)
 /*
  * Open the stable restart file and return the file descriptor for it.
  */
-void
+static void
 open_stable(int *stable_fdp, int *backup_fdp)
 {
 	int stable_fd, backup_fd = -1, ret;
@@ -1037,7 +1105,7 @@ open_stable(int *stable_fdp, int *backup_fdp)
 /*
  * Copy the stable restart file to the backup or vice versa.
  */
-void
+static void
 copy_stable(int from_fd, int to_fd)
 {
 	int cnt, ret;
@@ -1065,7 +1133,7 @@ copy_stable(int from_fd, int to_fd)
 /*
  * Back up the stable restart file when indicated by the kernel.
  */
-void
+static void
 backup_stable(__unused int signo)
 {
 

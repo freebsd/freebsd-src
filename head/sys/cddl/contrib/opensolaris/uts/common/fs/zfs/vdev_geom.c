@@ -373,8 +373,8 @@ resize_configs(nvlist_t ***configs, uint64_t *count, uint64_t id)
 
 	if (id < *count)
 		return;
-	new_configs = kmem_alloc((id + 1) * sizeof(nvlist_t *),
-	    KM_SLEEP | KM_ZERO);
+	new_configs = kmem_zalloc((id + 1) * sizeof(nvlist_t *),
+	    KM_SLEEP);
 	for (i = 0; i < *count; i++)
 		new_configs[i] = (*configs)[i];
 	if (*configs != NULL)

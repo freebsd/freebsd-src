@@ -4,6 +4,8 @@
 # Make command line options:
 #	-DNO_CLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNO_CLEAN do not clean at all
+#	-DDB_FROM_SRC use the user/group databases in src/etc instead of
+#	    the system database when installing.
 #	-DNO_SHARE do not go into share subdir
 #	-DKERNFAST define NO_KERNEL{CONFIG,CLEAN,DEPEND,OBJ}
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
@@ -11,8 +13,8 @@
 #	-DNO_KERNELDEPEND do not run ${MAKE} depend in ${MAKE} buildkernel
 #	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
+#	-DNO_ROOT install without using root privilege
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
-#	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
@@ -20,9 +22,13 @@
 #	    to be created before files are installed
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
+#	METALOG="path to metadata log" to write permission and ownership
+#	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
+#	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
+#	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
 
 #
 # The intended user-driven targets are:
@@ -181,7 +187,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 # /usr/games added for fortune which depend on strfile
-BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games
+BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
@@ -241,7 +247,7 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 		COMPILER_TYPE=${COMPILER_TYPE}
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
@@ -251,7 +257,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
@@ -284,7 +290,7 @@ WMAKE_COMPILER_TYPE=	gcc
 WMAKE_COMPILER_TYPE=	clang
 .endif
 WMAKEENV+=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
-WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
+WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
@@ -334,18 +340,20 @@ LIB32WMAKEFLAGS+=	\
 		CXX="${CXX} ${LIB32FLAGS}" \
 		DESTDIR=${LIB32TMP} \
 		-DCOMPAT_32BIT \
+		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
 		-DNO_CTF \
 		-DNO_LINT
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
-LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
+		${IMAKE_INSTALL}
 .endif
 
-# install stage
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
-IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
+IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${IMAKE_INSTALL} ${IMAKE_MTREE}
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
 		LD_LIBRARY_PATH=${INSTALLTMP} \
@@ -354,10 +362,25 @@ IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
 .else
 IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 .endif
+.if defined(DB_FROM_SRC)
+INSTALLFLAGS+=	-N ${.CURDIR}/etc
+MTREEFLAGS+=	-N ${.CURDIR}/etc
+.endif
+.if defined(NO_ROOT)
+METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
+IMAKE+=		-DNO_ROOT METALOG=${METALOG}
+INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
+INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g:C:/$::}
+MTREEFLAGS+=	-W
+.endif
+.if defined(DB_FROM_SRC) || defined(NO_ROOT)
+IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
+IMAKE_MTREE=	MTREE_CMD="nmtree ${MTREEFLAGS}"
+.endif
 
 # kernel stage
 KMAKEENV=	${WMAKEENV}
-KMAKE=		${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME}
+KMAKE=		${KMAKEENV} ${MAKE} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 
 #
 # buildworld
@@ -391,7 +414,7 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
-    lib usr legacy/usr
+    lib usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -511,6 +534,8 @@ build32:
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
+	    WORLDTMP=${WORLDTMP} \
+	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF \
 	    -DEARLY_BUILD build-tools
@@ -593,9 +618,11 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 installcheck:
 
 #
-# Require DESTDIR to be set if installing for a different architecture.
+# Require DESTDIR to be set if installing for a different architecture or
+# using the user/group database in the source tree.
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE} || \
+    defined(DB_FROM_SRC)
 .if !make(distributeworld)
 installcheck: installcheck_DESTDIR
 installcheck_DESTDIR:
@@ -606,10 +633,11 @@ installcheck_DESTDIR:
 .endif
 .endif
 
+.if !defined(DB_FROM_SRC)
 #
 # Check for missing UIDs/GIDs.
 #
-CHECK_UIDS=
+CHECK_UIDS=	auditdistd
 CHECK_GIDS=	audit
 .if ${MK_SENDMAIL} != "no"
 CHECK_UIDS+=	smmsp
@@ -633,6 +661,7 @@ installcheck_UGID:
 		false; \
 	fi
 .endfor
+.endif
 
 #
 # Required install tools to be saved in a scratch dir for safety.
@@ -644,10 +673,14 @@ _install-info=	install-info
 _zoneinfo=	zic tzsetup
 .endif
 
+.if exists(/usr/sbin/nmtree)
+_nmtree_itools=	nmtree
+.endif
+
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
-	date echo egrep find grep ${_install-info} \
-	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
-	test true uname wc ${_zoneinfo}
+	date echo egrep find grep id install ${_install-info} \
+	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
+	rm sed sh sysctl test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
@@ -667,6 +700,8 @@ EXTRA_DISTRIBUTIONS+=	games
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
+
+MTREE_MAGIC?=	mtree 2.0
 
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
@@ -690,6 +725,9 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+.if defined(NO_ROOT)
+	echo "#${MTREE_MAGIC}" > ${METALOG}
+.endif
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
@@ -699,10 +737,20 @@ distributeworld installworld: installcheck
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.if defined(NO_ROOT)
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
+	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
+	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
+	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
+	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
+.endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
-	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
-	    DESTDIR=${DESTDIR}/${DISTDIR}/base
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
+	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
+	    LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
@@ -710,12 +758,30 @@ distributeworld installworld: installcheck
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
 .endfor
+.if defined(NO_ROOT)
+.for dist in base ${EXTRA_DISTRIBUTIONS}
+	@# For each file that exists in this dist, print the corresponding
+	@# line from the METALOG.  This relies on the fact that
+	@# a line containing only the filename will sort immediatly before
+	@# the relevant mtree line.
+	cd ${DESTDIR}/${DISTDIR}; \
+	find ./${dist} | sort -u ${METALOG} - | \
+	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	${DESTDIR}/${DISTDIR}/${dist}.meta
+.endfor
+.endif
 .endif
 
 packageworld:
 .for dist in base ${EXTRA_DISTRIBUTIONS}
+.if defined(NO_ROOT)
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
+	    @${DESTDIR}/${DISTDIR}/${dist}.meta
+.else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz .
+.endif
 .endfor
 
 #
@@ -751,7 +817,8 @@ redistribute:
 .endif
 
 distrib-dirs distribution:
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} ${.TARGET}
+	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
 #
 # buildkernel and installkernel
@@ -903,7 +970,7 @@ reinstallkernel reinstallkernel.debug: installcheck
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
-	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+	    ${MAKE} ${IMAKE_INSTALL} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 
 distributekernel distributekernel.debug:
 .if empty(INSTALLKERNEL)
@@ -953,6 +1020,13 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Running ${SUP}"
 	@echo "--------------------------------------------------------------"
+	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
+	@echo "!! Update methods with ${SUP} are deprecated."
+	@echo "!! Please see http://www.freebsd.org/handbook/svn.html"
+	@echo "!! and convert your update method to SVN_UPDATE or"
+	@echo "!! freebsd-update(8)."
+	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
+	@sleep 5
 .if defined(SUPFILE)
 	@${SUP} ${SUPFLAGS} ${SUPFILE}
 .endif
@@ -968,9 +1042,6 @@ update:
 .if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
 	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
 .endif
-.if defined(WWWSUPFILE) && !defined(NO_WWWUPDATE)
-	@${SUP} ${SUPFLAGS} ${WWWSUPFILE}
-.endif
 .endif
 .if defined(CVS_UPDATE)
 	@cd ${.CURDIR} ; \
@@ -978,6 +1049,13 @@ update:
 		echo "--------------------------------------------------------------" ; \
 		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
 		echo "--------------------------------------------------------------" ; \
+		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
+		echo "!! Update methods with CVS are deprecated." ; \
+		echo "!! Please see http://www.freebsd.org/handbook/svn.html" ; \
+		echo "!! and convert your update method to SVN_UPDATE or" ; \
+		echo "!! freebsd-update(8)." ; \
+		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
+		sleep 5 ; \
 		echo ${CVS} -R -q update ${CVSFLAGS} ; \
 		${CVS} -R -q update ${CVSFLAGS} ; \
 	fi
@@ -1054,7 +1132,17 @@ _lex=		usr.bin/lex
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
-_yacc=		usr.bin/yacc
+_yacc=		lib/liby \
+		usr.bin/yacc
+.endif
+
+.if ${BOOTSTRAPPING} < 1000026
+_nmtree=	lib/libnetbsd \
+		usr.sbin/nmtree
+.endif
+
+.if ${BOOTSTRAPPING} < 1000027
+_cat=		bin/cat
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
@@ -1082,7 +1170,10 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
 
-.if ${MK_FDT} != "no"
+# Default to building the BSDL DTC, but build the GPL one if users explicitly
+# request it.
+_dtc= usr.bin/dtc
+.if ${MK_GPL_DTC} != "no"
 _dtc= gnu/usr.bin/dtc
 .endif
 
@@ -1109,6 +1200,7 @@ bootstrap-tools:
     ${_ar} \
     ${_dtc} \
     ${_awk} \
+    ${_cat} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
@@ -1116,9 +1208,11 @@ bootstrap-tools:
     ${_sed} \
     ${_yacc} \
     ${_lex} \
+    lib/libmd \
     usr.bin/xinstall \
     ${_gensnmptree} \
-    usr.sbin/config
+    usr.sbin/config \
+    ${_nmtree}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1226,11 +1320,12 @@ cross-tools:
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier:
-	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
-.for _mtree in ${LOCAL_MTREE}
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/${_mtree} \
-	    -p ${DESTDIR}/
-.endfor
+.if defined(NO_ROOT)
+	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} \
+	    -DNO_ROOT METALOG=${METALOG} distrib-dirs
+.else
+	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
+.endif
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
@@ -1642,7 +1737,8 @@ NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
 
 XDDIR=${XDEV_ARCH}-freebsd
 XDTP=/usr/${XDDIR}
-CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR}
+CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
+	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
 	_SHLIBDIRPREFIX=${XDTP} \
 	TOOLS_PREFIX=${XDTP}

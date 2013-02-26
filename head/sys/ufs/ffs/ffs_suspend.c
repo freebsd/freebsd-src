@@ -252,7 +252,7 @@ ffs_susp_dtor(void *data)
 	 */
 	mp->mnt_susp_owner = curthread;
 
-	vfs_write_resume(mp);
+	vfs_write_resume(mp, 0);
 	vfs_unbusy(mp);
 	ump->um_writesuspended = 0;
 

@@ -1,4 +1,4 @@
-OpenBSM 1.1p2
+OpenBSM 1.2a2
 
   Introduction
 
@@ -38,6 +38,7 @@ The following programs are included with OpenBSM:
 
     audit          Command line audit control tool
     auditd         Audit management daemon
+    auditdistd     Audit trail distribution daemon
     auditfilterd   Experimental event monitoring framework
     auditreduce    Audit trail reduction tool
     audump         Debugging tool to parse and print audit databases
@@ -64,4 +65,4 @@ Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
 
-$P4: //depot/projects/trustedbsd/openbsm/README#37 $
+$P4: //depot/projects/trustedbsd/openbsm/README#41 $

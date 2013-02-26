@@ -21,7 +21,7 @@
 
 #define DEBUG_TYPE "tsan"
 
-#include "FunctionBlackList.h"
+#include "BlackList.h"
 #include "llvm/Function.h"
 #include "llvm/IRBuilder.h"
 #include "llvm/Intrinsics.h"
@@ -38,7 +38,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
@@ -47,10 +47,19 @@ using namespace llvm;
 
 static cl::opt<std::string>  ClBlackListFile("tsan-blacklist",
        cl::desc("Blacklist file"), cl::Hidden);
+static cl::opt<bool>  ClInstrumentMemoryAccesses(
+    "tsan-instrument-memory-accesses", cl::init(true),
+    cl::desc("Instrument memory accesses"), cl::Hidden);
+static cl::opt<bool>  ClInstrumentFuncEntryExit(
+    "tsan-instrument-func-entry-exit", cl::init(true),
+    cl::desc("Instrument function entry and exit"), cl::Hidden);
+static cl::opt<bool>  ClInstrumentAtomics(
+    "tsan-instrument-atomics", cl::init(true),
+    cl::desc("Instrument atomics"), cl::Hidden);
 
 STATISTIC(NumInstrumentedReads, "Number of instrumented reads");
 STATISTIC(NumInstrumentedWrites, "Number of instrumented writes");
-STATISTIC(NumOmittedReadsBeforeWrite, 
+STATISTIC(NumOmittedReadsBeforeWrite,
           "Number of reads ignored due to following writes");
 STATISTIC(NumAccessesWithBadSize, "Number of accesses with bad size");
 STATISTIC(NumInstrumentedVtableWrites, "Number of vtable ptr writes");
@@ -76,8 +85,8 @@ struct ThreadSanitizer : public FunctionPass {
   bool addrPointsToConstantData(Value *Addr);
   int getMemoryAccessFuncIndex(Value *Addr);
 
-  TargetData *TD;
-  OwningPtr<FunctionBlackList> BL;
+  DataLayout *TD;
+  OwningPtr<BlackList> BL;
   IntegerType *OrdTy;
   // Callbacks to run-time library are computed in doInitialization.
   Function *TsanFuncEntry;
@@ -88,6 +97,10 @@ struct ThreadSanitizer : public FunctionPass {
   Function *TsanWrite[kNumberOfAccessSizes];
   Function *TsanAtomicLoad[kNumberOfAccessSizes];
   Function *TsanAtomicStore[kNumberOfAccessSizes];
+  Function *TsanAtomicRMW[AtomicRMWInst::LAST_BINOP + 1][kNumberOfAccessSizes];
+  Function *TsanAtomicCAS[kNumberOfAccessSizes];
+  Function *TsanAtomicThreadFence;
+  Function *TsanAtomicSignalFence;
   Function *TsanVptrUpdate;
 };
 }  // namespace
@@ -118,10 +131,10 @@ static Function *checkInterfaceFunction(Constant *FuncOrBitcast) {
 }
 
 bool ThreadSanitizer::doInitialization(Module &M) {
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   if (!TD)
     return false;
-  BL.reset(new FunctionBlackList(ClBlackListFile));
+  BL.reset(new BlackList(ClBlackListFile));
 
   // Always insert a call to __tsan_init into the module's CTORs.
   IRBuilder<> IRB(M.getContext());
@@ -158,10 +171,42 @@ bool ThreadSanitizer::doInitialization(Module &M) {
     TsanAtomicStore[i] = checkInterfaceFunction(M.getOrInsertFunction(
         AtomicStoreName, IRB.getVoidTy(), PtrTy, Ty, OrdTy,
         NULL));
+
+    for (int op = AtomicRMWInst::FIRST_BINOP;
+        op <= AtomicRMWInst::LAST_BINOP; ++op) {
+      TsanAtomicRMW[op][i] = NULL;
+      const char *NamePart = NULL;
+      if (op == AtomicRMWInst::Xchg)
+        NamePart = "_exchange";
+      else if (op == AtomicRMWInst::Add)
+        NamePart = "_fetch_add";
+      else if (op == AtomicRMWInst::Sub)
+        NamePart = "_fetch_sub";
+      else if (op == AtomicRMWInst::And)
+        NamePart = "_fetch_and";
+      else if (op == AtomicRMWInst::Or)
+        NamePart = "_fetch_or";
+      else if (op == AtomicRMWInst::Xor)
+        NamePart = "_fetch_xor";
+      else
+        continue;
+      SmallString<32> RMWName("__tsan_atomic" + itostr(BitSize) + NamePart);
+      TsanAtomicRMW[op][i] = checkInterfaceFunction(M.getOrInsertFunction(
+          RMWName, Ty, PtrTy, Ty, OrdTy, NULL));
+    }
+
+    SmallString<32> AtomicCASName("__tsan_atomic" + itostr(BitSize) +
+                                  "_compare_exchange_val");
+    TsanAtomicCAS[i] = checkInterfaceFunction(M.getOrInsertFunction(
+        AtomicCASName, Ty, PtrTy, Ty, Ty, OrdTy, NULL));
   }
   TsanVptrUpdate = checkInterfaceFunction(M.getOrInsertFunction(
       "__tsan_vptr_update", IRB.getVoidTy(), IRB.getInt8PtrTy(),
       IRB.getInt8PtrTy(), NULL));
+  TsanAtomicThreadFence = checkInterfaceFunction(M.getOrInsertFunction(
+      "__tsan_atomic_thread_fence", IRB.getVoidTy(), OrdTy, NULL));
+  TsanAtomicSignalFence = checkInterfaceFunction(M.getOrInsertFunction(
+      "__tsan_atomic_signal_fence", IRB.getVoidTy(), OrdTy, NULL));
   return true;
 }
 
@@ -186,7 +231,7 @@ bool ThreadSanitizer::addrPointsToConstantData(Value *Addr) {
       NumOmittedReadsFromConstantGlobals++;
       return true;
     }
-  } else if(LoadInst *L = dyn_cast<LoadInst>(Addr)) {
+  } else if (LoadInst *L = dyn_cast<LoadInst>(Addr)) {
     if (isVtableAccess(L)) {
       // Reads from a vtable pointer can not race with any writes.
       NumOmittedReadsFromVtable++;
@@ -244,8 +289,8 @@ static bool isAtomic(Instruction *I) {
     return true;
   if (isa<AtomicCmpXchgInst>(I))
     return true;
-  if (FenceInst *FI = dyn_cast<FenceInst>(I))
-    return FI->getSynchScope() == CrossThread;
+  if (isa<FenceInst>(I))
+    return true;
   return false;
 }
 
@@ -284,17 +329,19 @@ bool ThreadSanitizer::runOnFunction(Function &F) {
   // (e.g. variables that do not escape, etc).
 
   // Instrument memory accesses.
-  for (size_t i = 0, n = AllLoadsAndStores.size(); i < n; ++i) {
-    Res |= instrumentLoadOrStore(AllLoadsAndStores[i]);
-  }
+  if (ClInstrumentMemoryAccesses)
+    for (size_t i = 0, n = AllLoadsAndStores.size(); i < n; ++i) {
+      Res |= instrumentLoadOrStore(AllLoadsAndStores[i]);
+    }
 
   // Instrument atomic memory accesses.
-  for (size_t i = 0, n = AtomicAccesses.size(); i < n; ++i) {
-    Res |= instrumentAtomic(AtomicAccesses[i]);
-  }
+  if (ClInstrumentAtomics)
+    for (size_t i = 0, n = AtomicAccesses.size(); i < n; ++i) {
+      Res |= instrumentAtomic(AtomicAccesses[i]);
+    }
 
   // Instrument function entry/exit points if there were instrumented accesses.
-  if (Res || HasCalls) {
+  if ((Res || HasCalls) && ClInstrumentFuncEntryExit) {
     IRBuilder<> IRB(F.getEntryBlock().getFirstNonPHI());
     Value *ReturnAddress = IRB.CreateCall(
         Intrinsic::getDeclaration(F.getParent(), Intrinsic::returnaddress),
@@ -343,12 +390,12 @@ static ConstantInt *createOrdering(IRBuilder<> *IRB, AtomicOrdering ord) {
   switch (ord) {
     case NotAtomic:              assert(false);
     case Unordered:              // Fall-through.
-    case Monotonic:              v = 1 << 0; break;
- // case Consume:                v = 1 << 1; break;  // Not specified yet.
-    case Acquire:                v = 1 << 2; break;
-    case Release:                v = 1 << 3; break;
-    case AcquireRelease:         v = 1 << 4; break;
-    case SequentiallyConsistent: v = 1 << 5; break;
+    case Monotonic:              v = 0; break;
+ // case Consume:                v = 1; break;  // Not specified yet.
+    case Acquire:                v = 2; break;
+    case Release:                v = 3; break;
+    case AcquireRelease:         v = 4; break;
+    case SequentiallyConsistent: v = 5; break;
   }
   return IRB->getInt32(v);
 }
@@ -385,12 +432,44 @@ bool ThreadSanitizer::instrumentAtomic(Instruction *I) {
     CallInst *C = CallInst::Create(TsanAtomicStore[Idx],
                                    ArrayRef<Value*>(Args));
     ReplaceInstWithInst(I, C);
-  } else if (isa<AtomicRMWInst>(I)) {
-    // FIXME: Not yet supported.
-  } else if (isa<AtomicCmpXchgInst>(I)) {
-    // FIXME: Not yet supported.
-  } else if (isa<FenceInst>(I)) {
-    // FIXME: Not yet supported.
+  } else if (AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(I)) {
+    Value *Addr = RMWI->getPointerOperand();
+    int Idx = getMemoryAccessFuncIndex(Addr);
+    if (Idx < 0)
+      return false;
+    Function *F = TsanAtomicRMW[RMWI->getOperation()][Idx];
+    if (F == NULL)
+      return false;
+    const size_t ByteSize = 1 << Idx;
+    const size_t BitSize = ByteSize * 8;
+    Type *Ty = Type::getIntNTy(IRB.getContext(), BitSize);
+    Type *PtrTy = Ty->getPointerTo();
+    Value *Args[] = {IRB.CreatePointerCast(Addr, PtrTy),
+                     IRB.CreateIntCast(RMWI->getValOperand(), Ty, false),
+                     createOrdering(&IRB, RMWI->getOrdering())};
+    CallInst *C = CallInst::Create(F, ArrayRef<Value*>(Args));
+    ReplaceInstWithInst(I, C);
+  } else if (AtomicCmpXchgInst *CASI = dyn_cast<AtomicCmpXchgInst>(I)) {
+    Value *Addr = CASI->getPointerOperand();
+    int Idx = getMemoryAccessFuncIndex(Addr);
+    if (Idx < 0)
+      return false;
+    const size_t ByteSize = 1 << Idx;
+    const size_t BitSize = ByteSize * 8;
+    Type *Ty = Type::getIntNTy(IRB.getContext(), BitSize);
+    Type *PtrTy = Ty->getPointerTo();
+    Value *Args[] = {IRB.CreatePointerCast(Addr, PtrTy),
+                     IRB.CreateIntCast(CASI->getCompareOperand(), Ty, false),
+                     IRB.CreateIntCast(CASI->getNewValOperand(), Ty, false),
+                     createOrdering(&IRB, CASI->getOrdering())};
+    CallInst *C = CallInst::Create(TsanAtomicCAS[Idx], ArrayRef<Value*>(Args));
+    ReplaceInstWithInst(I, C);
+  } else if (FenceInst *FI = dyn_cast<FenceInst>(I)) {
+    Value *Args[] = {createOrdering(&IRB, FI->getOrdering())};
+    Function *F = FI->getSynchScope() == SingleThread ?
+        TsanAtomicSignalFence : TsanAtomicThreadFence;
+    CallInst *C = CallInst::Create(F, ArrayRef<Value*>(Args));
+    ReplaceInstWithInst(I, C);
   }
   return true;
 }

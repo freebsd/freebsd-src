@@ -657,12 +657,12 @@ ndis_ptom(m0, p)
 	for (buf = priv->npp_head; buf != NULL; buf = buf->mdl_next) {
 		if (buf == priv->npp_head)
 #ifdef MT_HEADER
-			MGETHDR(m, M_DONTWAIT, MT_HEADER);
+			MGETHDR(m, M_NOWAIT, MT_HEADER);
 #else
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 #endif
 		else
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			m_freem(*m0);
 			*m0 = NULL;

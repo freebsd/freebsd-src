@@ -24,7 +24,7 @@
 /// does not imply the existence of any other C++ library features.
 #if (__has_feature(cxx_rvalue_references)   \
      || defined(__GXX_EXPERIMENTAL_CXX0X__) \
-     || _MSC_VER >= 1600)
+     || (defined(_MSC_VER) && _MSC_VER >= 1600))
 #define LLVM_USE_RVALUE_REFERENCES 1
 #else
 #define LLVM_USE_RVALUE_REFERENCES 0
@@ -40,7 +40,7 @@
 
 /// LLVM_DELETED_FUNCTION - Expands to = delete if the compiler supports it.
 /// Use to mark functions as uncallable. Member functions with this should
-/// be declared private so that some behaivor is kept in C++03 mode.
+/// be declared private so that some behavior is kept in C++03 mode.
 ///
 /// class DontCopy {
 /// private:
@@ -55,6 +55,22 @@
 #define LLVM_DELETED_FUNCTION = delete
 #else
 #define LLVM_DELETED_FUNCTION
+#endif
+
+/// LLVM_FINAL - Expands to 'final' if the compiler supports it.
+/// Use to mark classes or virtual methods as final.
+#if (__has_feature(cxx_override_control))
+#define LLVM_FINAL final
+#else
+#define LLVM_FINAL
+#endif
+
+/// LLVM_OVERRIDE - Expands to 'override' if the compiler supports it.
+/// Use to mark virtual methods as overriding a base class method.
+#if (__has_feature(cxx_override_control))
+#define LLVM_OVERRIDE override
+#else
+#define LLVM_OVERRIDE
 #endif
 
 /// LLVM_LIBRARY_VISIBILITY - If a class marked with this attribute is linked
@@ -106,9 +122,11 @@
 #endif
 
 #if (__GNUC__ >= 4)
-#define BUILTIN_EXPECT(EXPR, VALUE) __builtin_expect((EXPR), (VALUE))
+#define LLVM_LIKELY(EXPR) __builtin_expect((bool)(EXPR), true)
+#define LLVM_UNLIKELY(EXPR) __builtin_expect((bool)(EXPR), false)
 #else
-#define BUILTIN_EXPECT(EXPR, VALUE) (EXPR)
+#define LLVM_LIKELY(EXPR) (EXPR)
+#define LLVM_UNLIKELY(EXPR) (EXPR)
 #endif
 
 
@@ -185,6 +203,15 @@
 #if defined(__clang__) || (__GNUC__ > 4) \
  || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)
 # define LLVM_BUILTIN_UNREACHABLE __builtin_unreachable()
+#endif
+
+// LLVM_BUILTIN_TRAP - On compilers which support it, expands to an expression
+// which causes the program to exit abnormally.
+#if defined(__clang__) || (__GNUC__ > 4) \
+ || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+# define LLVM_BUILTIN_TRAP __builtin_trap()
+#else
+# define LLVM_BUILTIN_TRAP *(volatile int*)0x11 = 0
 #endif
 
 #endif

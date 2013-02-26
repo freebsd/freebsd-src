@@ -387,7 +387,7 @@ pmap_bootstrap()
 	 */
 	ia64_kptdir = ia64_physmem_alloc(PAGE_SIZE, PAGE_SIZE);
 	nkpt = 0;
-	kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
+	kernel_vm_end = VM_INIT_KERNEL_ADDRESS;
 
 	/*
 	 * Determine a valid (mappable) VHPT size.
@@ -425,7 +425,7 @@ pmap_bootstrap()
 	ia64_set_pta(base + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
 
-	virtual_avail = VM_MIN_KERNEL_ADDRESS;
+	virtual_avail = VM_INIT_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
@@ -1383,7 +1383,7 @@ pmap_kextract(vm_offset_t va)
 	/* Region 5 is our KVA. Bail out if the VA is beyond our limits. */
 	if (va >= kernel_vm_end)
 		goto err_out;
-	if (va >= VM_MIN_KERNEL_ADDRESS) {
+	if (va >= VM_INIT_KERNEL_ADDRESS) {
 		pte = pmap_find_kpte(va);
 		pa = pmap_present(pte) ? pmap_ppn(pte) | (va & PAGE_MASK) : 0;
 		goto out;
@@ -2746,7 +2746,7 @@ DB_COMMAND(kpte, db_kpte)
 		db_printf("usage: kpte <kva>\n");
 		return;
 	}
-	if (addr < VM_MIN_KERNEL_ADDRESS) {
+	if (addr < VM_INIT_KERNEL_ADDRESS) {
 		db_printf("kpte: error: invalid <kva>\n");
 		return;
 	}

@@ -8,7 +8,8 @@ SRCS+=	_flock_stub.c asprintf.c clrerr.c dprintf.c \
 	fclose.c fcloseall.c fdopen.c \
 	feof.c ferror.c fflush.c fgetc.c fgetln.c fgetpos.c fgets.c fgetwc.c \
 	fgetwln.c fgetws.c \
-	fileno.c findfp.c flags.c fopen.c fprintf.c fpurge.c fputc.c fputs.c \
+	fileno.c findfp.c flags.c fmemopen.c fopen.c fprintf.c fpurge.c \
+	fputc.c fputs.c \
 	fputwc.c fputws.c fread.c freopen.c fscanf.c fseek.c fsetpos.c \
 	ftell.c funopen.c fvwrite.c fwalk.c fwide.c fwprintf.c fwscanf.c \
 	fwrite.c getc.c getchar.c getdelim.c getline.c \
@@ -48,7 +49,7 @@ MLINKS+=ferror.3 ferror_unlocked.3 \
 MLINKS+=fflush.3 fpurge.3
 MLINKS+=fgets.3 gets.3
 MLINKS+=flockfile.3 ftrylockfile.3 flockfile.3 funlockfile.3
-MLINKS+=fopen.3 fdopen.3 fopen.3 freopen.3
+MLINKS+=fopen.3 fdopen.3 fopen.3 freopen.3 fopen.3 fmemopen.3
 MLINKS+=fputs.3 puts.3
 MLINKS+=fread.3 fwrite.3
 MLINKS+=fseek.3 fgetpos.3 fseek.3 fseeko.3 fseek.3 fsetpos.3 fseek.3 ftell.3 \

@@ -49,6 +49,7 @@ extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* kern_reboot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
+extern char compiler_version[];	/* compiler version */
 extern char copyright[];	/* system copyright */
 extern int kstack_pages;	/* number of kernel stack pages */
 
@@ -72,15 +73,19 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
+#if defined(WITNESS) || defined(INVARIANTS)
+void	kassert_panic(const char *fmt, ...);
+#endif
+
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
-		panic msg;						\
+		kassert_panic msg;						\
 } while (0)
 #define	VNASSERT(exp, vp, msg) do {					\
 	if (__predict_false(!(exp))) {					\
 		vn_printf(vp, "VNASSERT failed\n");			\
-		panic msg;						\
+		kassert_panic msg;						\
 	}								\
 } while (0)
 #else
@@ -319,19 +324,12 @@ caddr_t	kern_timeout_callwheel_alloc(caddr_t v);
 void	kern_timeout_callwheel_init(void);
 
 /* Stubs for obsolete functions that used to be for interrupt management */
-static __inline void		spl0(void)		{ return; }
 static __inline intrmask_t	splbio(void)		{ return 0; }
 static __inline intrmask_t	splcam(void)		{ return 0; }
 static __inline intrmask_t	splclock(void)		{ return 0; }
 static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
-static __inline intrmask_t	splsoftcam(void)	{ return 0; }
-static __inline intrmask_t	splsoftclock(void)	{ return 0; }
-static __inline intrmask_t	splsofttty(void)	{ return 0; }
-static __inline intrmask_t	splsoftvm(void)		{ return 0; }
-static __inline intrmask_t	splsofttq(void)		{ return 0; }
-static __inline intrmask_t	splstatclock(void)	{ return 0; }
 static __inline intrmask_t	spltty(void)		{ return 0; }
 static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl __unused)	{ return; }

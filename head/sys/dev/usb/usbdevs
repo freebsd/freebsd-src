@@ -581,6 +581,7 @@ vendor CCYU		0x1065	CCYU Technology
 vendor CURITEL		0x106c	Curitel Communications Inc
 vendor SILABS2		0x10a6	SILABS2
 vendor USI		0x10ab	USI
+vendor LIEBERT2		0x10af	Liebert
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor SILABS		0x10c4	Silicon Labs
@@ -649,6 +650,7 @@ vendor OWEN		0x1555	Owen
 vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
+vendor AFATECH		0x15a4	Afatech Technologies, Inc.
 vendor SPARKLAN		0x15a9	SparkLAN
 vendor OLIMEX		0x15ba	Olimex
 vendor SOUNDGRAPH 	0x15c2	Soundgraph, Inc.
@@ -721,6 +723,7 @@ vendor RTSYSTEMS	0x2100	RTSYSTEMS
 vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
+vendor WETELECOM	0x22de	WeTelecom
 vendor TRIPPLITE	0x2478	Tripp-Lite
 vendor HIROSE		0x2631	Hirose Electric
 vendor NHJ		0x2770	NHJ
@@ -914,6 +917,9 @@ product ADS UBS10BTX		0x0009	UBS-10BT Ethernet
 /* AEI products */
 product AEI FASTETHERNET	0x1701	Fast Ethernet
 
+/* Afatech Technologies, Inc. */
+product AFATECH AFATECH1336	0x1336	Flash Card Reader
+
 /* Agate Technologies products */
 product AGATE QDRIVE		0x0378	Q-Drive
 
@@ -943,6 +949,7 @@ product AIRPLUS MCD650		0x3198	MCD650 modem
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
 product AIRPRIME USB308		0x68A3	USB308 HSPA+ USB Modem
+product AIRPRIME AC313U		0x68aa	Sierra Wireless AirCard 313U
 
 /* AirTies products */
 product AIRTIES RT3070		0x2310	RT3070
@@ -1048,6 +1055,7 @@ product AOX USB101		0x0008	Ethernet
 product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
+product APPLE DUMMY		0x0000	Dummy product
 product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
 product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
@@ -1483,6 +1491,7 @@ product DIGIANSWER ZIGBEE802154	0x000a	ZigBee/802.15.4 MAC
 /* D-Link products */
 /*product DLINK DSBS25		0x0100	DSB-S25 serial*/
 product DLINK DUBE100		0x1a00	10/100 Ethernet
+product DLINK DUBE100C1		0x1a02	DUB-E100 rev C1
 product DLINK DSB650TX4		0x200c	10/100 Ethernet
 product DLINK DWL120E		0x3200	DWL-120 rev E
 product DLINK DWL122		0x3700	DWL-122
@@ -1712,6 +1721,7 @@ product FTDI 232H		0x6014	FTDI compatible adapter
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
 product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
 product FTDI BEAGLEBONE		0xa6d0	BeagleBone
+product FTDI KTLINK		0xbbe2	KT-LINK Embedded Hackers Multitool
 product FTDI TURTELIZER2	0xbdc8	egnite Turtelizer 2 JTAG/RS232 Adapter
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
@@ -2423,6 +2433,7 @@ product LEXMARK S2450		0x0009	Optra S 2450
 
 /* Liebert products */
 product LIEBERT POWERSURE_PXT	0xffff	PowerSure Personal XT
+product LIEBERT2 PSI1000	0x0004	UPS PSI 1000 FW:08
 
 /* Link Instruments Inc. products */
 product	LINKINSTRUMENTS MSO19	0xf190	Link Instruments MSO-19
@@ -2936,6 +2947,7 @@ product MOTOROLA2 A41XV32X	0x2a22	A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
 product MOTOROLA2 USBLAN	0x600c	USBLAN
 product MOTOROLA2 USBLAN2	0x6027	USBLAN
+product MOTOROLA2 MB886		0x710f	MB886 Mobile Phone (Atria HD)
 product MOTOROLA4 RT2770	0x9031	RT2770
 product MOTOROLA4 RT3070	0x9032	RT3070
 
@@ -3055,6 +3067,7 @@ product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
+product NOVATEL MIFI2200	0x5041	Novatel MiFi 2200 CDMA
 product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL MC760		0x6002	Novatel MC760
@@ -3556,6 +3569,7 @@ product SANDISK SDDR75		0x0810	ImageMate SDDR-75
 product SANDISK SDCZ2_256	0x7104	Cruzer Mini 256MB
 product SANDISK SDCZ4_128	0x7112	Cruzer Micro 128MB
 product SANDISK SDCZ4_256	0x7113	Cruzer Micro 256MB
+product SANDISK IMAGEMATE_SDDR289	0xb6ba	ImageMate SDDR-289
 
 /* Sanwa Electric Instrument Co., Ltd. products */
 product SANWA KB_USB2 		0x0701	KB-USB2 multimeter cable
@@ -4192,6 +4206,9 @@ product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
 product WESTERN MYPASSWORD	0x0704	MyPassword External HDD
+
+/* WeTelecom products */
+product WETELECOM WM_D200	0x6801	WM-D200
 
 /* WIENER Plein & Baus GmbH products */
 product WIENERPLEINBAUS PL512	0x0010	PL512 PSU

@@ -220,6 +220,8 @@ vm_paddr_t kernel_l1pa;
 
 vm_offset_t kernel_vm_end = 0;
 
+vm_offset_t vm_max_kernel_address;
+
 struct pmap kernel_pmap_store;
 
 static pt_entry_t *csrc_pte, *cdst_pte;
@@ -1366,7 +1368,8 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		    (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~PVF_NC;
-			pmap_set_cache_entry(pv, pm, va, 1);
+			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+				pmap_set_cache_entry(pv, pm, va, 1);
 			continue;
 		}
 			/* user is no longer sharable and writable */
@@ -1375,7 +1378,8 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		    !pmwc && (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~(PVF_NC | PVF_MWC);
-			pmap_set_cache_entry(pv, pm, va, 1);
+			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+				pmap_set_cache_entry(pv, pm, va, 1);
 		}
 	}
 
@@ -1426,15 +1430,16 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 
 		if (!(oflags & maskbits)) {
 			if ((maskbits & PVF_WRITE) && (pv->pv_flags & PVF_NC)) {
-				/* It is safe to re-enable cacheing here. */
-				PMAP_LOCK(pm);
-				l2b = pmap_get_l2_bucket(pm, va);
-				ptep = &l2b->l2b_kva[l2pte_index(va)];
-				*ptep |= pte_l2_s_cache_mode;
-				PTE_SYNC(ptep);
-				PMAP_UNLOCK(pm);
+				if (pg->md.pv_memattr != 
+				    VM_MEMATTR_UNCACHEABLE) {
+					PMAP_LOCK(pm);
+					l2b = pmap_get_l2_bucket(pm, va);
+					ptep = &l2b->l2b_kva[l2pte_index(va)];
+					*ptep |= pte_l2_s_cache_mode;
+					PTE_SYNC(ptep);
+					PMAP_UNLOCK(pm);
+				}
 				pv->pv_flags &= ~(PVF_NC | PVF_MWC);
-				
 			}
 			continue;
 		}
@@ -1463,7 +1468,9 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 				 * permission.
 				 */
 				if (maskbits & PVF_WRITE) {
-					npte |= pte_l2_s_cache_mode;
+					if (pg->md.pv_memattr !=
+					    VM_MEMATTR_UNCACHEABLE)
+						npte |= pte_l2_s_cache_mode;
 					pv->pv_flags &= ~(PVF_NC | PVF_MWC);
 				}
 			} else
@@ -1794,6 +1801,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pv_memattr = VM_MEMATTR_DEFAULT;
 }
 
 /*
@@ -2246,7 +2254,7 @@ extern struct mtx smallalloc_mtx;
 #endif
 
 void
-pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt)
+pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 {
 	static struct l1_ttable static_l1;
 	static struct l2_dtable static_l2[PMAP_STATIC_L2_SIZE];
@@ -2262,7 +2270,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	int l1idx, l2idx, l2next = 0;
 
 	PDEBUG(1, printf("firstaddr = %08x, lastaddr = %08x\n",
-	    firstaddr, lastaddr));
+	    firstaddr, vm_max_kernel_address));
 	
 	virtual_avail = firstaddr;
 	kernel_pmap->pm_l1 = l1;
@@ -2380,7 +2388,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)csrc_pte);
 	pmap_alloc_specials(&virtual_avail, 1, &cdstp, &cdst_pte);
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)cdst_pte);
-	size = ((lastaddr - pmap_curmaxkvaddr) + L1_S_OFFSET) / L1_S_SIZE;
+	size = ((vm_max_kernel_address - pmap_curmaxkvaddr) + L1_S_OFFSET) /
+	    L1_S_SIZE;
 	pmap_alloc_specials(&virtual_avail,
 	    round_page(size * L2_TABLE_SIZE_REAL) / PAGE_SIZE,
 	    &pmap_kernel_l2ptp_kva, NULL);
@@ -2402,9 +2411,9 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	cpu_l2cache_wbinv_all();
 
 	virtual_avail = round_page(virtual_avail);
-	virtual_end = lastaddr;
+	virtual_end = vm_max_kernel_address;
 	kernel_vm_end = pmap_curmaxkvaddr;
-	arm_nocache_startaddr = lastaddr;
+	arm_nocache_startaddr = vm_max_kernel_address;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
 #ifdef ARM_USE_SMALL_ALLOC
@@ -3393,7 +3402,8 @@ do_l2b_alloc:
 		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
-	npte |= pte_l2_s_cache_mode;
+	if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
+		npte |= pte_l2_s_cache_mode;
 	if (m && m == opg) {
 		/*
 		 * We're changing the attrs of an existing mapping.
@@ -4928,4 +4938,25 @@ pmap_devmap_find_va(vm_offset_t va, vm_size_t size)
 
 	return (NULL);
 }
+
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+	/* 
+	 * Remember the memattr in a field that gets used to set the appropriate
+	 * bits in the PTEs as mappings are established.
+	 */
+	m->md.pv_memattr = ma;
+
+	/*
+	 * It appears that this function can only be called before any mappings
+	 * for the page are established on ARM.  If this ever changes, this code
+	 * will need to walk the pv_list and make each of the existing mappings
+	 * uncacheable, being careful to sync caches and PTEs (and maybe
+	 * invalidate TLB?) for any current mapping it modifies.
+	 */
+	if (m->md.pv_kva != 0 || TAILQ_FIRST(&m->md.pv_list) != NULL)
+		panic("Can't change memattr on page with existing mappings");
+}
+
 

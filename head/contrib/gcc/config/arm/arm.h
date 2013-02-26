@@ -1866,8 +1866,10 @@ typedef struct
 #   define DTOR_LIST_BEGIN asm (ARM_EABI_DTORS_SECTION_OP)
 #   define DTOR_LIST_END /* empty */
 # else /* !defined (__ARM_EABI__) */
+#  ifndef __clang__
 #   define CTORS_SECTION_ASM_OP ARM_CTORS_SECTION_OP
 #   define DTORS_SECTION_ASM_OP ARM_DTORS_SECTION_OP
+#  endif
 # endif /* !defined (__ARM_EABI__) */
 #endif /* !defined (IN_LIBCC2) */
 

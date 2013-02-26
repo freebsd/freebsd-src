@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Sat May 14 21:31:14 PDT 2011
-##### in /extra/home/ca/sm-8.14.5/OpenSource/sendmail-8.14.5/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Fri Dec 21 10:45:15 PST 2012
+##### in /extra/home/ca/sm-8.14.6/OpenSource/sendmail-8.14.6/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -35,7 +35,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.744 2010/11/23 20:29:47 guenther Exp $  #####
+#####  $Id: proto.m4,v 8.760 2012/09/07 16:30:15 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.14.5/Submit
+DZ8.14.6/Submit
 
 
 ###############
@@ -922,6 +922,8 @@ R$* < @ *LOCAL* > $*	$: $1 < @ $j . > $2
 ###################################################################
 
 SParseLocal=98
+
+
 
 
 

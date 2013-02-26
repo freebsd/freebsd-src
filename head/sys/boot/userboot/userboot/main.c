@@ -69,7 +69,7 @@ exit(int v)
 void
 loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 {
-	static char malloc[512*1024];
+	static char malloc[1024*1024];
 	const char *var;
 	int i;
 
@@ -85,7 +85,7 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	 * alloc() is usable. The stack is buried inside us, so this is
 	 * safe.
 	 */
-	setheap((void *)malloc, (void *)(malloc + 512*1024));
+	setheap((void *)malloc, (void *)(malloc + 1024*1024));
 
         /*
          * Hook up the console
@@ -153,11 +153,13 @@ extract_currdev(void)
 		dev.d_slice = 0;
 		dev.d_partition = 0;
 		/*
-		 * Figure out if we are using MBR or GPT - for GPT we
-		 * set the partition to 0 since everything is a GPT slice.
+		 * If we cannot auto-detect the partition type then
+		 * access the disk as a raw device.
 		 */
-		if (dev.d_dev->dv_open(NULL, &dev))
-			dev.d_partition = 255;
+		if (dev.d_dev->dv_open(NULL, &dev)) {
+			dev.d_slice = -1;
+			dev.d_partition = -1;
+		}
 	} else {
 		dev.d_dev = &host_dev;
 		dev.d_type = dev.d_dev->dv_type;

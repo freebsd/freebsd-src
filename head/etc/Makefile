@@ -156,6 +156,9 @@ ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 # Special top level files for FreeBSD
 FREEBSD=COPYRIGHT
 
+# Sanitize DESTDIR
+DESTDIR:=	${DESTDIR:C://*:/:g}
+
 afterinstall:
 .if ${MK_MAN} != "no"
 	${_+_}cd ${.CURDIR}/../share/man; ${MAKE} makedb
@@ -175,6 +178,10 @@ PWD_MKDB_ENDIAN?= -B
 .else
 CAP_MKDB_ENDIAN?=
 PWD_MKDB_ENDIAN?=
+.endif
+
+.if defined(NO_ROOT)
+METALOG.add?=	cat -l >> ${METALOG}
 .endif
 
 distribution:
@@ -198,6 +205,14 @@ distribution:
 .endif
 	pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
 	    ${DESTDIR}/etc/master.passwd
+.if defined(NO_ROOT)
+	( \
+		echo "./etc/login.conf.db type=file mode=0644 uname=root gname=wheel"; \
+		echo "./etc/passwd type=file mode=0644 uname=root gname=wheel"; \
+		echo "./etc/pwd.db type=file mode=0644 uname=root gname=wheel"; \
+		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
+	) | ${METALOG.add}
+.endif
 .if ${MK_ATF} != "no"
 	${_+_}cd ${.CURDIR}/atf; ${MAKE} install
 .endif
@@ -291,52 +306,77 @@ distribution:
 		${DESTDIR}/etc/nsswitch.conf
 .endif
 
-distrib-dirs:
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
-	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
-		-p ${DESTDIR}/usr/include
+MTREE_CMD?=	mtree
+
+MTREES=		mtree/BSD.root.dist		/		\
+		mtree/BSD.var.dist		/var		\
+		mtree/BSD.usr.dist		/usr		\
+		mtree/BSD.include.dist		/usr/include
 .if ${MK_BIND_LIBS} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
-	    -p ${DESTDIR}/usr/include
+MTREES+=	mtree/BIND.include.dist		/usr/include
 .endif
 .if ${MK_BIND_MTREE} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
-	    -p ${DESTDIR}/var/named
+MTREES+=	mtree/BIND.chroot.dist		/var/named
 .endif
 .if ${MK_GROFF} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.groff.dist -p ${DESTDIR}/usr
+MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
 .if ${MK_SENDMAIL} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
+MTREES+=	mtree/BSD.sendmail.dist		/
 .endif
-	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
-	cd ${DESTDIR}/usr/share/man/en.ISO8859-1; ln -sf ../man* .
-	cd ${DESTDIR}/usr/share/man/en.UTF-8; ln -sf ../man* .
+.for mtree in ${LOCAL_MTREE}
+MTREES+=	../${mtree}			/
+.endfor
+
+distrib-dirs:
+	@set ${MTREES}; \
+	while test $$# -ge 2; do \
+		m=${.CURDIR}/$$1; \
+		shift; \
+		d=${DESTDIR}$$1; \
+		shift; \
+		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
+		    -f $$m -p $$d; \
+		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
+	done; true
+.if defined(NO_ROOT)
+	@set ${MTREES}; \
+	while test $$# -ge 2; do \
+		m=${.CURDIR}/$$1; \
+		shift; \
+		d=$$1; \
+		test "$$d" == "/" && d=""; \
+		d=${DISTBASE}$$d; \
+		shift; \
+		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
+		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
+		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \
+		    ${METALOG.add} ; \
+	done; true
+.endif
+	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
 	cd ${DESTDIR}/usr/share/man; \
-	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		rm -rf "$$1"; \
-		ln -s "$$2" "$$1"; \
-		shift; shift; \
+	for mandir in man*; do \
+		${INSTALL_SYMLINK} ../$$mandir \
+		    ${DESTDIR}/usr/share/man/en.ISO8859-1/; \
+		${INSTALL_SYMLINK} ../$$mandir \
+		    ${DESTDIR}/usr/share/man/en.UTF-8/; \
 	done
 	cd ${DESTDIR}/usr/share/openssl/man; \
+	for mandir in man*; do \
+		${INSTALL_SYMLINK} ../$$mandir \
+		    ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1/; \
+	done
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		rm -rf "$$1"; \
-		ln -s "$$2" "$$1"; \
+	while [ $$# -gt 0 ] ; do \
+		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/man/$$1"; \
+		${INSTALL_SYMLINK} "$$2" \
+		    "${DESTDIR}/usr/share/openssl/man/$$1"; \
 		shift; shift; \
 	done
-	cd ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1; ln -sf ../man* .
-	cd ${DESTDIR}/usr/share/nls; \
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		rm -rf "$$1"; \
-		ln -s "$$2" "$$1"; \
+	while [ $$# -gt 0 ] ; do \
+		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/nls/$$1"; \
 		shift; shift; \
 	done
 

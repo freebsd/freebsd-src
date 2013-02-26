@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmdebuginfo
 
 SRCDIR=	lib/DebugInfo
@@ -12,6 +14,7 @@ SRCS=	DIContext.cpp \
 	DWARFDebugAranges.cpp \
 	DWARFDebugInfoEntry.cpp \
 	DWARFDebugLine.cpp \
+	DWARFDebugRangeList.cpp \
 	DWARFFormValue.cpp
 
 .include "../clang.lib.mk"

@@ -411,7 +411,7 @@ ip_srcroute(struct mbuf *m0)
 
 	if (opts->ip_nhops == 0)
 		return (NULL);
-	m = m_get(M_DONTWAIT, MT_DATA);
+	m = m_get(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
@@ -495,7 +495,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n == NULL) {
 			*phlen = 0;
 			return (m);

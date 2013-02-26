@@ -73,9 +73,11 @@ static int		__setrunelocale(struct xlocale_ctype *l, const char *);
 #define __collate_chain_pri_table (table->__collate_chain_pri_table)
 
 
-static void destruct_ctype(void *v)
+static void
+destruct_ctype(void *v)
 {
 	struct xlocale_ctype *l = v;
+
 	if (strcmp(l->runes->__encoding, "EUC") == 0)
 		free(l->runes->__variable);
 	if (&_DefaultRuneLocale != l->runes) 
@@ -83,13 +85,17 @@ static void destruct_ctype(void *v)
 	free(l);
 }
 
-const _RuneLocale *__getCurrentRuneLocale(void)
+const _RuneLocale *
+__getCurrentRuneLocale(void)
 {
+
 	return XLOCALE_CTYPE(__get_locale())->runes;
 }
 
-static void free_runes(_RuneLocale *rl)
+static void
+free_runes(_RuneLocale *rl)
 {
+
 	/* FIXME: The "EUC" check here is a hideous abstraction violation. */
 	if ((rl != &_DefaultRuneLocale) && (rl)) {
 		if (strcmp(rl->__encoding, "EUC") == 0) {
@@ -123,7 +129,7 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	(void) strcat(name, encoding);
 	(void) strcat(name, "/LC_CTYPE");
 
-	if ((fp = fopen(name, "r")) == NULL)
+	if ((fp = fopen(name, "re")) == NULL)
 		return (errno == 0 ? ENOENT : errno);
 
 	if ((rl = _Read_RuneMagi(fp)) == NULL) {
@@ -191,7 +197,8 @@ __wrap_setrunelocale(const char *locale)
 
 #ifndef __NO_TLS
 void
-__set_thread_rune_locale(locale_t loc) {
+__set_thread_rune_locale(locale_t loc)
+{
 
 	if (loc == NULL) {
 		_ThreadRuneLocale = &_DefaultRuneLocale;
@@ -205,6 +212,7 @@ void *
 __ctype_load(const char *locale, locale_t unused)
 {
 	struct xlocale_ctype *l = calloc(sizeof(struct xlocale_ctype), 1);
+
 	l->header.header.destructor = destruct_ctype;
 	if (__setrunelocale(l, locale))
 	{

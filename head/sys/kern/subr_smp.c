@@ -766,8 +766,9 @@ quiesce_cpus(cpuset_t map, const char *wmesg, int prio)
 		thread_unlock(curthread);
 		while (gen[cpu] == pcpu->pc_idlethread->td_generation) {
 			error = tsleep(quiesce_cpus, prio, wmesg, 1);
-			if (error)
+			if (error != EWOULDBLOCK)
 				goto out;
+			error = 0;
 		}
 	}
 out:

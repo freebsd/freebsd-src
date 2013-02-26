@@ -1192,7 +1192,7 @@ vxge_rx_rxd_1b_set(vxge_vpath_t *vpath, vxge_hal_rxd_h rxdh, void *dtr_priv)
 
 	vxge_dev_t *vdev = vpath->vdev;
 
-	mbuf_pkt = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, vdev->rx_mbuf_sz);
+	mbuf_pkt = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, vdev->rx_mbuf_sz);
 	if (!mbuf_pkt) {
 		err = ENOBUFS;
 		VXGE_DRV_STATS(vpath, rx_no_buf);
@@ -3011,7 +3011,7 @@ retry:
 	    dma_buffers, num_segs, BUS_DMA_NOWAIT);
 	if (err == EFBIG) {
 		/* try to defrag, too many segments */
-		mbuf_pkt = m_defrag(*m_headp, M_DONTWAIT);
+		mbuf_pkt = m_defrag(*m_headp, M_NOWAIT);
 		if (mbuf_pkt == NULL) {
 			err = ENOBUFS;
 			goto _exit0;
@@ -4188,7 +4188,8 @@ static device_method_t vxge_methods[] = {
 	DEVMETHOD(device_attach, vxge_attach),
 	DEVMETHOD(device_detach, vxge_detach),
 	DEVMETHOD(device_shutdown, vxge_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t vxge_driver = {

@@ -236,6 +236,8 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, const char *name,
 	    NULL, NULL, inpcbzone_init, inpcbzone_fini, UMA_ALIGN_PTR,
 	    inpcbzone_flags);
 	uma_zone_set_max(pcbinfo->ipi_zone, maxsockets);
+	uma_zone_set_warning(pcbinfo->ipi_zone,
+	    "kern.ipc.maxsockets limit reached");
 }
 
 /*
@@ -332,8 +334,7 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
-	anonport = inp->inp_lport == 0 && (nam == NULL ||
-	    ((struct sockaddr_in *)nam)->sin_port == 0);
+	anonport = nam == NULL || ((struct sockaddr_in *)nam)->sin_port == 0;
 	error = in_pcbbind_setup(inp, nam, &inp->inp_laddr.s_addr,
 	    &inp->inp_lport, cred);
 	if (error)

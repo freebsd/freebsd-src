@@ -157,7 +157,7 @@ static device_method_t cue_methods[] = {
 	DEVMETHOD(device_attach, cue_attach),
 	DEVMETHOD(device_detach, cue_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t cue_driver = {

@@ -18,6 +18,7 @@ namespace clang {
 class ASTContext;
 class ASTReader;
 class Decl;
+class Preprocessor;
 
 namespace comments {
   class FullComment;
@@ -114,7 +115,8 @@ public:
   }
 
   /// Parse the comment, assuming it is attached to decl \c D.
-  comments::FullComment *parse(const ASTContext &Context, const Decl *D) const;
+  comments::FullComment *parse(const ASTContext &Context,
+                               const Preprocessor *PP, const Decl *D) const;
 
 private:
   SourceRange Range;
@@ -188,7 +190,7 @@ public:
 private:
   SourceManager &SourceMgr;
   std::vector<RawComment *> Comments;
-  RawComment LastComment;
+  SourceLocation PrevCommentEndLoc;
   bool OnlyWhitespaceSeen;
 
   void addCommentsToFront(const std::vector<RawComment *> &C) {

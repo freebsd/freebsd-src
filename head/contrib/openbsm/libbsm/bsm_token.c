@@ -30,26 +30,29 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#93 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#99 $
  */
 
 #include <sys/types.h>
 
 #include <config/config.h>
-#if defined(HAVE_SYS_ENDIAN_H) && defined(HAVE_BE32ENC)
-#include <sys/endian.h>
-#else /* !HAVE_SYS_ENDIAN_H || !HAVE_BE32ENC */
-#ifdef HAVE_MACHINE_ENDIAN_H
-#include <machine/endian.h>
-#else /* !HAVE_MACHINE_ENDIAN_H */
-#ifdef HAVE_ENDIAN_H
+
+#ifdef USE_ENDIAN_H
 #include <endian.h>
-#else /* !HAVE_ENDIAN_H */
-#error "No supported endian.h"
-#endif /* !HAVE_ENDIAN_H */
-#endif /* !HAVE_MACHINE_ENDIAN_H */
+#endif
+#ifdef USE_SYS_ENDIAN_H
+#include <sys/endian.h>
+#endif
+#ifdef USE_MACHINE_ENDIAN_H
+#include <machine/endian.h>
+#endif
+#ifdef USE_COMPAT_ENDIAN_H
 #include <compat/endian.h>
-#endif /* !HAVE_SYS_ENDIAN_H || !HAVE_BE32ENC */
+#endif
+#ifdef USE_COMPAT_ENDIAN_ENC_H
+#include <compat/endian_enc.h>
+#endif
+
 #ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
 #else /* !HAVE_FULL_QUEUE_H */
@@ -79,16 +82,68 @@
 	(t) = malloc(sizeof(token_t));					\
 	if ((t) != NULL) {						\
 		(t)->len = (length);					\
-		(dptr) = (t->t_data) = malloc((length) * sizeof(u_char)); \
+		(dptr) = (t->t_data) = calloc((length), sizeof(u_char)); \
 		if ((dptr) == NULL) {					\
 			free(t);					\
 			(t) = NULL;					\
-		} else							\
-			memset((dptr), 0, (length));			\
+		}							\
 	} else								\
 		(dptr) = NULL;						\
 	assert((t) == NULL || (dptr) != NULL);				\
 } while (0)
+
+/*
+ * token ID                1 byte
+ * success/failure         1 byte
+ * privstrlen              2 bytes
+ * privstr                 N bytes + 1 (\0 byte)
+ */
+token_t *
+au_to_upriv(char sorf, char *priv)
+{
+	u_int16_t textlen;
+	u_char *dptr;
+	token_t *t;
+
+	textlen = strlen(priv) + 1;
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_char) +
+	    sizeof(u_int16_t) + textlen);
+	if (t == NULL)
+		return (NULL);
+	ADD_U_CHAR(dptr, AUT_UPRIV);
+	ADD_U_CHAR(dptr, sorf);
+	ADD_U_INT16(dptr, textlen);
+	ADD_STRING(dptr, priv, textlen);
+	return (t);
+}
+
+/*
+ * token ID		1 byte
+ * privtstrlen		2 bytes
+ * privtstr		N bytes + 1
+ * privstrlen		2 bytes
+ * privstr		N bytes + 1
+ */
+token_t *
+au_to_privset(char *privtypestr, char *privstr)
+{
+	u_int16_t	 type_len, priv_len;
+	u_char		*dptr;
+	token_t		*t;
+
+	type_len = strlen(privtypestr) + 1;
+	priv_len = strlen(privstr) + 1;
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int16_t) +
+	    sizeof(u_int16_t) + type_len + priv_len);
+	if (t == NULL)
+		return (NULL);
+	ADD_U_CHAR(dptr, AUT_PRIV);
+	ADD_U_INT16(dptr, type_len);
+	ADD_STRING(dptr, privtypestr, type_len);
+	ADD_U_INT16(dptr, priv_len);
+	ADD_STRING(dptr, privstr, priv_len);
+	return (t);
+}
 
 /*
  * token ID                1 byte
@@ -968,6 +1023,8 @@ au_to_socket_ex(u_short so_domain, u_short so_type,
 		errno = EINVAL;
 		return (NULL);
 	}
+	if (t == NULL)
+		return (NULL);
 
 	ADD_U_CHAR(dptr, AUT_SOCKET_EX);
 	ADD_U_INT16(dptr, au_domain_to_bsm(so_domain));
@@ -1285,9 +1342,9 @@ au_to_me(void)
 				auinfo.ai_asid, &auinfo.ai_termid));
 		} else {
 			/* getaudit_addr(2) failed for some other reason. */
-			return (NULL); 
+			return (NULL);
 		}
-	} 
+	}
 
 	return (au_to_subject32_ex(aia.ai_auid, geteuid(), getegid(), getuid(),
 		getgid(), getpid(), aia.ai_asid, &aia.ai_termid));
@@ -1459,7 +1516,7 @@ au_to_header32_ex_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
 	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 3 *
 	    sizeof(u_int32_t) + tid->at_type);
-	if (t == NULL) 
+	if (t == NULL)
 		return (NULL);
 
 	ADD_U_CHAR(dptr, AUT_HEADER32_EX);
@@ -1478,7 +1535,7 @@ au_to_header32_ex_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	ADD_U_INT32(dptr, tm.tv_sec);
 	ADD_U_INT32(dptr, timems);      /* We need time in ms. */
 
-	return (t);   
+	return (t);
 }
 
 token_t *

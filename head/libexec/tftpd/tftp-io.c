@@ -87,14 +87,13 @@ errtomsg(int error)
 {
 	static char ebuf[40];
 	struct errmsg *pe;
-	char buf[MAXPKTSIZE];
 
 	if (error == 0)
 		return ("success");
 	for (pe = errmsgs; pe->e_code >= 0; pe++)
 		if (pe->e_code == error)
 			return (pe->e_msg);
-	snprintf(ebuf, sizeof(buf), "error %d", error);
+	snprintf(ebuf, sizeof(ebuf), "error %d", error);
 	return (ebuf);
 }
 
@@ -107,13 +106,13 @@ send_packet(int peer, uint16_t block, char *pkt, int size)
 	for (i = 0; i < 12 ; i++) {
 		DROPPACKETn("send_packet", 0);
 
-		if (sendto(peer, pkt, size, 0,
-			(struct sockaddr *)&peer_sock, peer_sock.ss_len)
-			== size) {
+		if (sendto(peer, pkt, size, 0, (struct sockaddr *)&peer_sock,
+		    peer_sock.ss_len) == size) {
 			if (i)
 				tftp_log(LOG_ERR,
 				    "%s block %d, attempt %d successful",
-				    block, i);
+		    		    packettype(ntohs(((struct tftphdr *)
+				    (pkt))->th_opcode)), block, i);
 			return (0);
 		}
 		tftp_log(LOG_ERR,
@@ -143,7 +142,7 @@ send_error(int peer, int error)
 	char buf[MAXPKTSIZE];
 
 	if (debug&DEBUG_PACKETS)
-		tftp_log(LOG_DEBUG, "Sending ERROR %d: %s", error);
+		tftp_log(LOG_DEBUG, "Sending ERROR %d", error);
 
 	DROPPACKET("send_error");
 

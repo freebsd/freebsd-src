@@ -46,6 +46,7 @@
 #define RADIUS_PORT		1812
 #define RADACCT_PORT		1813
 #define TIMEOUT			3	/* In seconds */
+#define	DEAD_TIME		0
 
 /* Limits */
 #define ERRSIZE		128		/* Maximum error message length */
@@ -68,6 +69,10 @@ struct rad_server {
 	int		 timeout;	/* Timeout in seconds */
 	int		 max_tries;	/* Number of tries before giving up */
 	int		 num_tries;	/* Number of tries so far */
+	int		 is_dead;	/* The server did not answer last time */
+	time_t		 dead_time;	/* Don't try this server for the time period if it is dead */
+	time_t		 next_probe;	/* Time of a next probe after failure */
+	in_addr_t	 bindto;	/* Bind to address */
 };
 
 struct rad_handle {
@@ -88,11 +93,9 @@ struct rad_handle {
 	unsigned char	 in[MSGSIZE];	/* Response received */
 	int		 in_len;	/* Length of response */
 	int		 in_pos;	/* Current position scanning attrs */
-	int		 total_tries;	/* How many requests we'll send */
-	int		 try;		/* How many requests we've sent */
 	int		 srv;		/* Server number we did last */
 	int		 type;		/* Handle type */
-	in_addr_t	 bindto;	/* Bind to address */
+	in_addr_t	 bindto;	/* Current bind address */
 };
 
 struct vendor_attribute {

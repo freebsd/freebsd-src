@@ -28,7 +28,7 @@
 .\"	@(#)mlock.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2010
+.Dd December 25, 2012
 .Dt MLOCK 2
 .Os
 .Sh NAME
@@ -94,12 +94,15 @@ limited in how much they can lock down.
 A single process can
 .Fn mlock
 the minimum of
-a system-wide ``wired pages'' limit and
-the per-process
+a system-wide ``wired pages'' limit
+.Va vm.max_wired
+and the per-process
 .Li RLIMIT_MEMLOCK
 resource limit.
 .Pp
-These calls are only available to the super-user.
+If
+.Va security.bsd.unprivileged_mlock
+is set to 0 these calls are only available to the super-user.
 .Sh RETURN VALUES
 .Rv -std
 .Pp
@@ -112,7 +115,8 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
-The caller is not the super-user.
+.Va security.bsd.unprivileged_mlock
+is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
 The address given is not page aligned or the length is negative.
 .It Bq Er EAGAIN
@@ -129,7 +133,8 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
-The caller is not the super-user.
+.Va security.bsd.unprivileged_mlock
+is set to 0 and the caller is not the super-user.
 .It Bq Er EINVAL
 The address given is not page aligned or the length is negative.
 .It Bq Er ENOMEM

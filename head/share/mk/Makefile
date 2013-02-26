@@ -6,7 +6,6 @@
 FILES=	\
 	bsd.README \
 	bsd.arch.inc.mk \
-	bsd.compat.mk \
 	bsd.compiler.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \

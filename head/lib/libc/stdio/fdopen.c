@@ -80,6 +80,12 @@ fdopen(fd, mode)
 
 	if ((fp = __sfp()) == NULL)
 		return (NULL);
+
+	if ((oflags & O_CLOEXEC) && _fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
+		fp->_flags = 0;
+		return (NULL);
+	}
+
 	fp->_flags = flags;
 	/*
 	 * If opened for appending, but underlying descriptor does not have

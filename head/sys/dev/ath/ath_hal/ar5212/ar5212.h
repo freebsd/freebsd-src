@@ -513,6 +513,7 @@ extern	HAL_STATUS ar5212SetQuiet(struct ath_hal *ah, uint32_t period,
 		uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 extern	HAL_BOOL ar5212GetMibCycleCounts(struct ath_hal *,
 		HAL_SURVEY_SAMPLE *);
+extern	void ar5212SetChainMasks(struct ath_hal *, uint32_t, uint32_t);
 
 extern	HAL_BOOL ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
 		int setChip);

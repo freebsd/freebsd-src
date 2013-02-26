@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -543,6 +543,7 @@ then
 		fi
 	done
 fi
+OPENSSL_ECDSA=""
 OPENSSL_GOST=""
 case "$use_openssl" in
 	no)
@@ -698,7 +699,40 @@ esac
 		else
 			AC_MSG_RESULT(no)
 		fi
-		AC_CHECK_FUNCS(EVP_sha256 EVP_sha512)
+
+		AC_CHECK_FUNCS(EVP_sha256 EVP_sha384 EVP_sha512)
+
+		AC_MSG_CHECKING(for OpenSSL ECDSA support)
+		have_ecdsa=""
+		AC_TRY_RUN([
+#include <stdio.h>
+#include <openssl/ecdsa.h>
+#include <openssl/objects.h>
+int main() {
+	EC_KEY *ec256, *ec384;
+
+#if !defined(HAVE_EVP_SHA256) || !defined(HAVE_EVP_SHA384)
+	return (1);
+#endif
+	ec256 = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+	ec384 = EC_KEY_new_by_curve_name(NID_secp384r1);
+	if (ec256 == NULL || ec384 == NULL)
+		return (2);
+	return (0);
+}
+],
+		[AC_MSG_RESULT(yes)
+		have_ecdsa="yes"],
+		[AC_MSG_RESULT(no)
+		have_ecdsa="no"])
+		case $have_ecdsa in
+		yes)
+			OPENSSL_ECDSA="yes"
+			AC_DEFINE(HAVE_OPENSSL_ECDSA)
+			;;
+		*)
+			;;
+		esac
 
 		AC_MSG_CHECKING(for OpenSSL GOST support)
 		have_gost=""
@@ -772,7 +806,9 @@ AC_SUBST(USE_OPENSSL)
 AC_SUBST(DST_OPENSSL_INC)
 AC_SUBST(OPENSSLLINKOBJS)
 AC_SUBST(OPENSSLLINKSRCS)
+AC_SUBST(OPENSSL_ECDSA)
 AC_SUBST(OPENSSL_GOST)
+
 DNS_CRYPTO_LIBS="$DNS_CRYPTO_LIBS $DNS_OPENSSL_LIBS"
 
 #
@@ -1222,7 +1258,7 @@ case "$use_libxml2" in
 		;;
 	auto|yes)
 		case X`(xml2-config --version) 2>/dev/null` in
-		X2.[[67]].*)
+		X2.[[678]].*)
 			libxml2_libs=`xml2-config --libs`
 			libxml2_cflags=`xml2-config --cflags`
 			;;
@@ -3462,6 +3498,7 @@ AC_CONFIG_FILES([
 	bin/tests/system/dlz/prereq.sh
 	bin/tests/system/dlzexternal/Makefile
 	bin/tests/system/dlzexternal/ns1/named.conf
+	bin/tests/system/ecdsa/prereq.sh
 	bin/tests/system/filter-aaaa/Makefile
 	bin/tests/system/gost/prereq.sh
 	bin/tests/system/lwresd/Makefile

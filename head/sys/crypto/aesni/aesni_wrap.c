@@ -1,4 +1,5 @@
 /*-
+ * Copyright (C) 2008 Damien Miller <djm@mindrot.org>
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
  * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.

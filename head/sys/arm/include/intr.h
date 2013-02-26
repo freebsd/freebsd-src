@@ -52,7 +52,7 @@
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
 #define NIRQ		128
-#elif defined(CPU_ARM11)
+#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define NIRQ		128
 #elif defined(SOC_MV_ARMADAXP)
 #define MAIN_IRQ_NUM		116
@@ -70,6 +70,7 @@
 int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);
 void arm_unmask_irq(uintptr_t);
+void arm_intrnames_init(void);
 void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*),
     void *, int, int, void **);
 int arm_remove_irqhandler(int, void *);

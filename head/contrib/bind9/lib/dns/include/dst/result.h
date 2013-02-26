@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -34,7 +34,9 @@
 #include <isc/result.h>		/* Contractual promise. */
 
 #define DST_R_UNSUPPORTEDALG		(ISC_RESULTCLASS_DST + 0)
-#define DST_R_OPENSSLFAILURE		(ISC_RESULTCLASS_DST + 1)
+#define DST_R_CRYPTOFAILURE		(ISC_RESULTCLASS_DST + 1)
+/* compat */
+#define DST_R_OPENSSLFAILURE		DST_R_CRYPTOFAILURE
 #define DST_R_NOCRYPTO			(ISC_RESULTCLASS_DST + 2)
 #define DST_R_NULLKEY			(ISC_RESULTCLASS_DST + 3)
 #define DST_R_INVALIDPUBLICKEY		(ISC_RESULTCLASS_DST + 4)

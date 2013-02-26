@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
  * The lifetime of dynamic rules is regulated by dyn_*_lifetime,
  * measured in seconds and depending on the flags.
  *
- * The total number of dynamic rules is stored in dyn_count.
+ * The total number of dynamic rules is equal to UMA zone items count.
  * The max number of dynamic rules is dyn_max. When we reach
  * the maximum number of rules we do not create anymore. This is
  * done to avoid consuming too much memory, but also too much
@@ -111,37 +111,33 @@ __FBSDID("$FreeBSD$");
  * passes through the firewall. XXX check the latter!!!
  */
 
+struct ipfw_dyn_bucket {
+	struct mtx	mtx;		/* Bucket protecting lock */
+	ipfw_dyn_rule	*head;		/* Pointer to first rule */
+};
+
 /*
  * Static variables followed by global ones
  */
-static VNET_DEFINE(ipfw_dyn_rule **, ipfw_dyn_v);
-static VNET_DEFINE(u_int32_t, dyn_buckets);
+static VNET_DEFINE(struct ipfw_dyn_bucket *, ipfw_dyn_v);
+static VNET_DEFINE(u_int32_t, dyn_buckets_max);
 static VNET_DEFINE(u_int32_t, curr_dyn_buckets);
 static VNET_DEFINE(struct callout, ipfw_timeout);
 #define	V_ipfw_dyn_v			VNET(ipfw_dyn_v)
-#define	V_dyn_buckets			VNET(dyn_buckets)
+#define	V_dyn_buckets_max		VNET(dyn_buckets_max)
 #define	V_curr_dyn_buckets		VNET(curr_dyn_buckets)
 #define V_ipfw_timeout                  VNET(ipfw_timeout)
 
-static uma_zone_t ipfw_dyn_rule_zone;
-#ifndef __FreeBSD__
-DEFINE_SPINLOCK(ipfw_dyn_mtx);
-#else
-static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
-#endif
+static VNET_DEFINE(uma_zone_t, ipfw_dyn_rule_zone);
+#define	V_ipfw_dyn_rule_zone		VNET(ipfw_dyn_rule_zone)
 
-#define	IPFW_DYN_LOCK_INIT() \
-	mtx_init(&ipfw_dyn_mtx, "IPFW dynamic rules", NULL, MTX_DEF)
-#define	IPFW_DYN_LOCK_DESTROY()	mtx_destroy(&ipfw_dyn_mtx)
-#define	IPFW_DYN_LOCK()		mtx_lock(&ipfw_dyn_mtx)
-#define	IPFW_DYN_UNLOCK()	mtx_unlock(&ipfw_dyn_mtx)
-#define	IPFW_DYN_LOCK_ASSERT()	mtx_assert(&ipfw_dyn_mtx, MA_OWNED)
-
-void
-ipfw_dyn_unlock(void)
-{
-	IPFW_DYN_UNLOCK();
-}
+#define	IPFW_BUCK_LOCK_INIT(b)	\
+	mtx_init(&(b)->mtx, "IPFW dynamic bucket", NULL, MTX_DEF)
+#define	IPFW_BUCK_LOCK_DESTROY(b)	\
+	mtx_destroy(&(b)->mtx)
+#define	IPFW_BUCK_LOCK(i)	mtx_lock(&V_ipfw_dyn_v[(i)].mtx)
+#define	IPFW_BUCK_UNLOCK(i)	mtx_unlock(&V_ipfw_dyn_v[(i)].mtx)
+#define	IPFW_BUCK_ASSERT(i)	mtx_assert(&V_ipfw_dyn_v[(i)].mtx, MA_OWNED)
 
 /*
  * Timeouts for various events in handing dynamic rules.
@@ -171,33 +167,42 @@ static VNET_DEFINE(u_int32_t, dyn_short_lifetime);
 static VNET_DEFINE(u_int32_t, dyn_keepalive_interval);
 static VNET_DEFINE(u_int32_t, dyn_keepalive_period);
 static VNET_DEFINE(u_int32_t, dyn_keepalive);
+static VNET_DEFINE(time_t, dyn_keepalive_last);
 
 #define	V_dyn_keepalive_interval	VNET(dyn_keepalive_interval)
 #define	V_dyn_keepalive_period		VNET(dyn_keepalive_period)
 #define	V_dyn_keepalive			VNET(dyn_keepalive)
+#define	V_dyn_keepalive_last		VNET(dyn_keepalive_last)
 
-static VNET_DEFINE(u_int32_t, dyn_count);	/* # of dynamic rules */
 static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 
-#define	V_dyn_count			VNET(dyn_count)
+#define	DYN_COUNT			uma_zone_get_cur(V_ipfw_dyn_rule_zone)
 #define	V_dyn_max			VNET(dyn_max)
 
+static int last_log;	/* Log ratelimiting */
+
+static void ipfw_dyn_tick(void *vnetx);
+static void check_dyn_rules(struct ip_fw_chain *, struct ip_fw *,
+    int, int, int);
 #ifdef SYSCTL_NODE
+
+static int sysctl_ipfw_dyn_count(SYSCTL_HANDLER_ARGS);
+static int sysctl_ipfw_dyn_max(SYSCTL_HANDLER_ARGS);
 
 SYSBEGIN(f2)
 
 SYSCTL_DECL(_net_inet_ip_fw);
 SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
-    CTLFLAG_RW, &VNET_NAME(dyn_buckets), 0,
-    "Number of dyn. buckets");
+    CTLFLAG_RW, &VNET_NAME(dyn_buckets_max), 0,
+    "Max number of dyn. buckets");
 SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
     CTLFLAG_RD, &VNET_NAME(curr_dyn_buckets), 0,
     "Current Number of dyn. buckets");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_count,
-    CTLFLAG_RD, &VNET_NAME(dyn_count), 0,
+SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, dyn_count,
+    CTLTYPE_UINT|CTLFLAG_RD, 0, 0, sysctl_ipfw_dyn_count, "IU",
     "Number of dyn. rules");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_max,
-    CTLFLAG_RW, &VNET_NAME(dyn_max), 0,
+SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, dyn_max,
+    CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_dyn_max, "IU",
     "Max number of dyn. rules");
 SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
     CTLFLAG_RW, &VNET_NAME(dyn_ack_lifetime), 0,
@@ -244,7 +249,7 @@ hash_packet6(struct ipfw_flow_id *id)
  * and we want to find both in the same bucket.
  */
 static __inline int
-hash_packet(struct ipfw_flow_id *id)
+hash_packet(struct ipfw_flow_id *id, int buckets)
 {
 	u_int32_t i;
 
@@ -254,7 +259,7 @@ hash_packet(struct ipfw_flow_id *id)
 	else
 #endif /* INET6 */
 	i = (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
-	i &= (V_curr_dyn_buckets - 1);
+	i &= (buckets - 1);
 	return i;
 }
 
@@ -286,124 +291,19 @@ print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
 	}
 	log(log_flags, "ipfw: %s type %d %s %d -> %s %d, %d %s\n",
 	    prefix, dyn_type, src, id->src_port, dst,
-	    id->dst_port, V_dyn_count, postfix);
+	    id->dst_port, DYN_COUNT, postfix);
 }
 
 #define	print_dyn_rule(id, dtype, prefix, postfix)	\
 	print_dyn_rule_flags(id, dtype, LOG_DEBUG, prefix, postfix)
 
-/**
- * unlink a dynamic rule from a chain. prev is a pointer to
- * the previous one, q is a pointer to the rule to delete,
- * head is a pointer to the head of the queue.
- * Modifies q and potentially also head.
- */
-#define UNLINK_DYN_RULE(prev, head, q) {				\
-	ipfw_dyn_rule *old_q = q;					\
-									\
-	/* remove a refcount to the parent */				\
-	if (q->dyn_type == O_LIMIT)					\
-		q->parent->count--;					\
-	V_dyn_count--;							\
-	DEB(print_dyn_rule(&q->id, q->dyn_type, "unlink entry", "left");) \
-	if (prev != NULL)						\
-		prev->next = q = q->next;				\
-	else								\
-		head = q = q->next;					\
-	uma_zfree(ipfw_dyn_rule_zone, old_q); }
-
 #define TIME_LEQ(a,b)       ((int)((a)-(b)) <= 0)
-
-/**
- * Remove dynamic rules pointing to "rule", or all of them if rule == NULL.
- *
- * If keep_me == NULL, rules are deleted even if not expired,
- * otherwise only expired rules are removed.
- *
- * The value of the second parameter is also used to point to identify
- * a rule we absolutely do not want to remove (e.g. because we are
- * holding a reference to it -- this is the case with O_LIMIT_PARENT
- * rules). The pointer is only used for comparison, so any non-null
- * value will do.
- */
-static void
-remove_dyn_rule(struct ip_fw *rule, ipfw_dyn_rule *keep_me)
-{
-	static u_int32_t last_remove = 0;
-
-#define FORCE (keep_me == NULL)
-
-	ipfw_dyn_rule *prev, *q;
-	int i, pass = 0, max_pass = 0;
-
-	IPFW_DYN_LOCK_ASSERT();
-
-	if (V_ipfw_dyn_v == NULL || V_dyn_count == 0)
-		return;
-	/* do not expire more than once per second, it is useless */
-	if (!FORCE && last_remove == time_uptime)
-		return;
-	last_remove = time_uptime;
-
-	/*
-	 * because O_LIMIT refer to parent rules, during the first pass only
-	 * remove child and mark any pending LIMIT_PARENT, and remove
-	 * them in a second pass.
-	 */
-next_pass:
-	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
-		for (prev=NULL, q = V_ipfw_dyn_v[i] ; q ; ) {
-			/*
-			 * Logic can become complex here, so we split tests.
-			 */
-			if (q == keep_me)
-				goto next;
-			if (rule != NULL && rule != q->rule)
-				goto next; /* not the one we are looking for */
-			if (q->dyn_type == O_LIMIT_PARENT) {
-				/*
-				 * handle parent in the second pass,
-				 * record we need one.
-				 */
-				max_pass = 1;
-				if (pass == 0)
-					goto next;
-				if (FORCE && q->count != 0 ) {
-					/* XXX should not happen! */
-					printf("ipfw: OUCH! cannot remove rule,"
-					     " count %d\n", q->count);
-				}
-			} else {
-				if (!FORCE &&
-				    !TIME_LEQ( q->expire, time_uptime ))
-					goto next;
-			}
-             if (q->dyn_type != O_LIMIT_PARENT || !q->count) {
-                     UNLINK_DYN_RULE(prev, V_ipfw_dyn_v[i], q);
-                     continue;
-             }
-next:
-			prev=q;
-			q=q->next;
-		}
-	}
-	if (pass++ < max_pass)
-		goto next_pass;
-}
-
-void
-ipfw_remove_dyn_children(struct ip_fw *rule)
-{
-	IPFW_DYN_LOCK();
-	remove_dyn_rule(rule, NULL /* force removal */);
-	IPFW_DYN_UNLOCK();
-}
 
 /*
  * Lookup a dynamic rule, locked version.
  */
 static ipfw_dyn_rule *
-lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
+lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int i, int *match_direction,
     struct tcphdr *tcp)
 {
 	/*
@@ -414,23 +314,17 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
 #define MATCH_FORWARD	1
 #define MATCH_NONE	2
 #define MATCH_UNKNOWN	3
-	int i, dir = MATCH_NONE;
+	int dir = MATCH_NONE;
 	ipfw_dyn_rule *prev, *q = NULL;
 
-	IPFW_DYN_LOCK_ASSERT();
+	IPFW_BUCK_ASSERT(i);
 
-	if (V_ipfw_dyn_v == NULL)
-		goto done;				/* not found */
-	i = hash_packet(pkt);
-	for (prev = NULL, q = V_ipfw_dyn_v[i]; q != NULL;) {
+	for (prev = NULL, q = V_ipfw_dyn_v[i].head; q; prev = q, q = q->next) {
 		if (q->dyn_type == O_LIMIT_PARENT && q->count)
-			goto next;
-		if (TIME_LEQ(q->expire, time_uptime)) {	/* expire entry */
-			UNLINK_DYN_RULE(prev, V_ipfw_dyn_v[i], q);
 			continue;
-		}
+
 		if (pkt->proto != q->id.proto || q->dyn_type == O_LIMIT_PARENT)
-			goto next;
+			continue;
 
 		if (IS_IP6_FLOW_ID(pkt)) {
 			if (IN6_ARE_ADDR_EQUAL(&pkt->src_ip6, &q->id.src_ip6) &&
@@ -463,17 +357,14 @@ lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
 				break;
 			}
 		}
-next:
-		prev = q;
-		q = q->next;
 	}
 	if (q == NULL)
 		goto done;	/* q = NULL, not found */
 
 	if (prev != NULL) {	/* found and not in front */
 		prev->next = q->next;
-		q->next = V_ipfw_dyn_v[i];
-		V_ipfw_dyn_v[i] = q;
+		q->next = V_ipfw_dyn_v[i].head;
+		V_ipfw_dyn_v[i].head = q;
 	}
 	if (pkt->proto == IPPROTO_TCP) { /* update state according to flags */
 		uint32_t ack;
@@ -556,42 +447,108 @@ ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
     struct tcphdr *tcp)
 {
 	ipfw_dyn_rule *q;
+	int i;
 
-	IPFW_DYN_LOCK();
-	q = lookup_dyn_rule_locked(pkt, match_direction, tcp);
+	i = hash_packet(pkt, V_curr_dyn_buckets);
+
+	IPFW_BUCK_LOCK(i);
+	q = lookup_dyn_rule_locked(pkt, i, match_direction, tcp);
 	if (q == NULL)
-		IPFW_DYN_UNLOCK();
+		IPFW_BUCK_UNLOCK(i);
 	/* NB: return table locked when q is not NULL */
 	return q;
 }
 
-static void
-realloc_dynamic_table(void)
+/*
+ * Unlock bucket mtx
+ * @p - pointer to dynamic rule
+ */
+void
+ipfw_dyn_unlock(ipfw_dyn_rule *q)
 {
-	IPFW_DYN_LOCK_ASSERT();
+
+	IPFW_BUCK_UNLOCK(q->bucket);
+}
+
+static int
+resize_dynamic_table(struct ip_fw_chain *chain, int nbuckets)
+{
+	int i, k, nbuckets_old;
+	ipfw_dyn_rule *q;
+	struct ipfw_dyn_bucket *dyn_v, *dyn_v_old;
+
+	/* Check if given number is power of 2 and less than 64k */
+	if ((nbuckets > 65536) || (!powerof2(nbuckets)))
+		return 1;
+
+	CTR3(KTR_NET, "%s: resize dynamic hash: %d -> %d", __func__,
+	    V_curr_dyn_buckets, nbuckets);
+
+	/* Allocate and initialize new hash */
+	dyn_v = malloc(nbuckets * sizeof(ipfw_dyn_rule), M_IPFW,
+	    M_WAITOK | M_ZERO);
+
+	for (i = 0 ; i < nbuckets; i++)
+		IPFW_BUCK_LOCK_INIT(&dyn_v[i]);
 
 	/*
-	 * Try reallocation, make sure we have a power of 2 and do
-	 * not allow more than 64k entries. In case of overflow,
-	 * default to 1024.
+	 * Call upper half lock, as get_map() do to ease
+	 * read-only access to dynamic rules hash from sysctl
 	 */
+	IPFW_UH_WLOCK(chain);
 
-	if (V_dyn_buckets > 65536)
-		V_dyn_buckets = 1024;
-	if ((V_dyn_buckets & (V_dyn_buckets-1)) != 0) { /* not a power of 2 */
-		V_dyn_buckets = V_curr_dyn_buckets; /* reset */
-		return;
+	/*
+	 * Acquire chain write lock to permit hash access
+	 * for main traffic path without additional locks
+	 */
+	IPFW_WLOCK(chain);
+
+	/* Save old values */
+	nbuckets_old = V_curr_dyn_buckets;
+	dyn_v_old = V_ipfw_dyn_v;
+
+	/* Skip relinking if array is not set up */
+	if (V_ipfw_dyn_v == NULL)
+		V_curr_dyn_buckets = 0;
+
+	/* Re-link all dynamic states */
+	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
+		while (V_ipfw_dyn_v[i].head != NULL) {
+			/* Remove from current chain */
+			q = V_ipfw_dyn_v[i].head;
+			V_ipfw_dyn_v[i].head = q->next;
+
+			/* Get new hash value */
+			k = hash_packet(&q->id, nbuckets);
+			q->bucket = k;
+			/* Add to the new head */
+			q->next = dyn_v[k].head;
+			dyn_v[k].head = q;
+             }
 	}
-	V_curr_dyn_buckets = V_dyn_buckets;
-	if (V_ipfw_dyn_v != NULL)
-		free(V_ipfw_dyn_v, M_IPFW);
-	for (;;) {
-		V_ipfw_dyn_v = malloc(V_curr_dyn_buckets * sizeof(ipfw_dyn_rule *),
-		       M_IPFW, M_NOWAIT | M_ZERO);
-		if (V_ipfw_dyn_v != NULL || V_curr_dyn_buckets <= 2)
-			break;
-		V_curr_dyn_buckets /= 2;
+
+	/* Update current pointers/buckets values */
+	V_curr_dyn_buckets = nbuckets;
+	V_ipfw_dyn_v = dyn_v;
+
+	IPFW_WUNLOCK(chain);
+
+	IPFW_UH_WUNLOCK(chain);
+
+	/* Start periodic callout on initial creation */
+	if (dyn_v_old == NULL) {
+        	callout_reset_on(&V_ipfw_timeout, hz, ipfw_dyn_tick, curvnet, 0);
+		return (0);
 	}
+
+	/* Destroy all mutexes */
+	for (i = 0 ; i < nbuckets_old ; i++)
+		IPFW_BUCK_LOCK_DESTROY(&dyn_v_old[i]);
+
+	/* Free old hash */
+	free(dyn_v_old, M_IPFW);
+
+	return 0;
 }
 
 /**
@@ -605,33 +562,30 @@ realloc_dynamic_table(void)
  * - "parent" rules for the above (O_LIMIT_PARENT).
  */
 static ipfw_dyn_rule *
-add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
+add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *rule)
 {
 	ipfw_dyn_rule *r;
-	int i;
 
-	IPFW_DYN_LOCK_ASSERT();
+	IPFW_BUCK_ASSERT(i);
 
-	if (V_ipfw_dyn_v == NULL ||
-	    (V_dyn_count == 0 && V_dyn_buckets != V_curr_dyn_buckets)) {
-		realloc_dynamic_table();
-		if (V_ipfw_dyn_v == NULL)
-			return NULL; /* failed ! */
-	}
-	i = hash_packet(id);
-
-	r = uma_zalloc(ipfw_dyn_rule_zone, M_NOWAIT | M_ZERO);
+	r = uma_zalloc(V_ipfw_dyn_rule_zone, M_NOWAIT | M_ZERO);
 	if (r == NULL) {
-		printf ("ipfw: sorry cannot allocate state\n");
+		if (last_log != time_uptime) {
+			last_log = time_uptime;
+			log(LOG_DEBUG, "ipfw: %s: Cannot allocate rule\n",
+			    __func__);
+		}
 		return NULL;
 	}
 
-	/* increase refcount on parent, and set pointer */
+	/*
+	 * refcount on parent is already incremented, so
+	 * it is safe to use parent unlocked.
+	 */
 	if (dyn_type == O_LIMIT) {
 		ipfw_dyn_rule *parent = (ipfw_dyn_rule *)rule;
 		if ( parent->dyn_type != O_LIMIT_PARENT)
 			panic("invalid parent");
-		parent->count++;
 		r->parent = parent;
 		rule = parent->rule;
 	}
@@ -640,13 +594,12 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	r->expire = time_uptime + V_dyn_syn_lifetime;
 	r->rule = rule;
 	r->dyn_type = dyn_type;
-	r->pcnt = r->bcnt = 0;
+	IPFW_ZERO_DYN_COUNTER(r);
 	r->count = 0;
 
 	r->bucket = i;
-	r->next = V_ipfw_dyn_v[i];
-	V_ipfw_dyn_v[i] = r;
-	V_dyn_count++;
+	r->next = V_ipfw_dyn_v[i].head;
+	V_ipfw_dyn_v[i].head = r;
 	DEB(print_dyn_rule(id, dyn_type, "add dyn entry", "total");)
 	return r;
 }
@@ -656,40 +609,40 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
  * If the lookup fails, then install one.
  */
 static ipfw_dyn_rule *
-lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
+lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule)
 {
 	ipfw_dyn_rule *q;
-	int i;
+	int i, is_v6;
 
-	IPFW_DYN_LOCK_ASSERT();
+	is_v6 = IS_IP6_FLOW_ID(pkt);
+	i = hash_packet( pkt, V_curr_dyn_buckets );
+	*pindex = i;
+	IPFW_BUCK_LOCK(i);
+	for (q = V_ipfw_dyn_v[i].head ; q != NULL ; q=q->next)
+		if (q->dyn_type == O_LIMIT_PARENT &&
+		    rule== q->rule &&
+		    pkt->proto == q->id.proto &&
+		    pkt->src_port == q->id.src_port &&
+		    pkt->dst_port == q->id.dst_port &&
+		    (
+			(is_v6 &&
+			 IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
+				&(q->id.src_ip6)) &&
+			 IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
+				&(q->id.dst_ip6))) ||
+			(!is_v6 &&
+			 pkt->src_ip == q->id.src_ip &&
+			 pkt->dst_ip == q->id.dst_ip)
+		    )
+		) {
+			q->expire = time_uptime + V_dyn_short_lifetime;
+			DEB(print_dyn_rule(pkt, q->dyn_type,
+			    "lookup_dyn_parent found", "");)
+			return q;
+		}
 
-	if (V_ipfw_dyn_v) {
-		int is_v6 = IS_IP6_FLOW_ID(pkt);
-		i = hash_packet( pkt );
-		for (q = V_ipfw_dyn_v[i] ; q != NULL ; q=q->next)
-			if (q->dyn_type == O_LIMIT_PARENT &&
-			    rule== q->rule &&
-			    pkt->proto == q->id.proto &&
-			    pkt->src_port == q->id.src_port &&
-			    pkt->dst_port == q->id.dst_port &&
-			    (
-				(is_v6 &&
-				 IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
-					&(q->id.src_ip6)) &&
-				 IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
-					&(q->id.dst_ip6))) ||
-				(!is_v6 &&
-				 pkt->src_ip == q->id.src_ip &&
-				 pkt->dst_ip == q->id.dst_ip)
-			    )
-			) {
-				q->expire = time_uptime + V_dyn_short_lifetime;
-				DEB(print_dyn_rule(pkt, q->dyn_type,
-				    "lookup_dyn_parent found", "");)
-				return q;
-			}
-	}
-	return add_dyn_rule(pkt, O_LIMIT_PARENT, rule);
+	/* Add virtual limiting rule */
+	return add_dyn_rule(pkt, i, O_LIMIT_PARENT, rule);
 }
 
 /**
@@ -702,14 +655,16 @@ int
 ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
     struct ip_fw_args *args, uint32_t tablearg)
 {
-	static int last_log;
 	ipfw_dyn_rule *q;
+	int i;
 
 	DEB(print_dyn_rule(&args->f_id, cmd->o.opcode, "install_state", "");)
+	
+	i = hash_packet(&args->f_id, V_curr_dyn_buckets);
 
-	IPFW_DYN_LOCK();
+	IPFW_BUCK_LOCK(i);
 
-	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
+	q = lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL);
 
 	if (q != NULL) {	/* should never occur */
 		DEB(
@@ -718,26 +673,20 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			printf("ipfw: %s: entry already present, done\n",
 			    __func__);
 		})
-		IPFW_DYN_UNLOCK();
+		IPFW_BUCK_UNLOCK(i);
 		return (0);
 	}
 
-	if (V_dyn_count >= V_dyn_max)
-		/* Run out of slots, try to remove any expired rule. */
-		remove_dyn_rule(NULL, (ipfw_dyn_rule *)1);
-
-	if (V_dyn_count >= V_dyn_max) {
-		if (last_log != time_uptime) {
-			last_log = time_uptime;
-			printf("ipfw: %s: Too many dynamic rules\n", __func__);
-		}
-		IPFW_DYN_UNLOCK();
-		return (1);	/* cannot install, notify caller */
-	}
+	/*
+	 * State limiting is done via uma(9) zone limiting.
+	 * Save pointer to newly-installed rule and reject
+	 * packet if add_dyn_rule() returned NULL.
+	 * Note q is currently set to NULL.
+	 */
 
 	switch (cmd->o.opcode) {
 	case O_KEEP_STATE:	/* bidir rule */
-		add_dyn_rule(&args->f_id, O_KEEP_STATE, rule);
+		q = add_dyn_rule(&args->f_id, i, O_KEEP_STATE, rule);
 		break;
 
 	case O_LIMIT: {		/* limit number of sessions */
@@ -745,9 +694,9 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		ipfw_dyn_rule *parent;
 		uint32_t conn_limit;
 		uint16_t limit_mask = cmd->limit_mask;
+		int pindex;
 
-		conn_limit = (cmd->conn_limit == IP_FW_TABLEARG) ?
-		    tablearg : cmd->conn_limit;
+		conn_limit = IP_FW_ARG_TABLEARG(cmd->conn_limit);
 		  
 		DEB(
 		if (cmd->conn_limit == IP_FW_TABLEARG)
@@ -778,46 +727,65 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			id.src_port = args->f_id.src_port;
 		if (limit_mask & DYN_DST_PORT)
 			id.dst_port = args->f_id.dst_port;
-		if ((parent = lookup_dyn_parent(&id, rule)) == NULL) {
+
+		/*
+		 * We have to release lock for previous bucket to
+		 * avoid possible deadlock
+		 */
+		IPFW_BUCK_UNLOCK(i);
+
+		if ((parent = lookup_dyn_parent(&id, &pindex, rule)) == NULL) {
 			printf("ipfw: %s: add parent failed\n", __func__);
-			IPFW_DYN_UNLOCK();
+			IPFW_BUCK_UNLOCK(pindex);
 			return (1);
 		}
 
 		if (parent->count >= conn_limit) {
-			/* See if we can remove some expired rule. */
-			remove_dyn_rule(rule, parent);
-			if (parent->count >= conn_limit) {
-				if (V_fw_verbose && last_log != time_uptime) {
-					last_log = time_uptime;
-					char sbuf[24];
-					last_log = time_uptime;
-					snprintf(sbuf, sizeof(sbuf),
-					    "%d drop session",
-					    parent->rule->rulenum);
-					print_dyn_rule_flags(&args->f_id,
-					    cmd->o.opcode,
-					    LOG_SECURITY | LOG_DEBUG,
-					    sbuf, "too many entries");
-				}
-				IPFW_DYN_UNLOCK();
-				return (1);
+			if (V_fw_verbose && last_log != time_uptime) {
+				last_log = time_uptime;
+				char sbuf[24];
+				last_log = time_uptime;
+				snprintf(sbuf, sizeof(sbuf),
+				    "%d drop session",
+				    parent->rule->rulenum);
+				print_dyn_rule_flags(&args->f_id,
+				    cmd->o.opcode,
+				    LOG_SECURITY | LOG_DEBUG,
+				    sbuf, "too many entries");
 			}
+			IPFW_BUCK_UNLOCK(pindex);
+			return (1);
 		}
-		add_dyn_rule(&args->f_id, O_LIMIT, (struct ip_fw *)parent);
+		/* Increment counter on parent */
+		parent->count++;
+		IPFW_BUCK_UNLOCK(pindex);
+
+		IPFW_BUCK_LOCK(i);
+		q = add_dyn_rule(&args->f_id, i, O_LIMIT, (struct ip_fw *)parent);
+		if (q == NULL) {
+			/* Decrement index and notify caller */
+			IPFW_BUCK_UNLOCK(i);
+			IPFW_BUCK_LOCK(pindex);
+			parent->count--;
+			IPFW_BUCK_UNLOCK(pindex);
+			return (1);
+		}
 		break;
 	}
 	default:
 		printf("ipfw: %s: unknown dynamic rule type %u\n",
 		    __func__, cmd->o.opcode);
-		IPFW_DYN_UNLOCK();
-		return (1);
+	}
+
+	if (q == NULL) {
+		IPFW_BUCK_UNLOCK(i);
+		return (1);	/* Notify caller about failure */
 	}
 
 	/* XXX just set lifetime */
-	lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
+	lookup_dyn_rule_locked(&args->f_id, i, NULL, NULL);
 
-	IPFW_DYN_UNLOCK();
+	IPFW_BUCK_UNLOCK(i);
 	return (0);
 }
 
@@ -841,7 +809,7 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 #endif
 	struct tcphdr *th = NULL;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
@@ -996,23 +964,92 @@ ipfw_dyn_send_ka(struct mbuf **mtailp, ipfw_dyn_rule *q)
 }
 
 /*
- * This procedure is only used to handle keepalives. It is invoked
- * every dyn_keepalive_period
+ * This procedure is used to perform various maintance
+ * on dynamic hash list. Currently it is called every second.
  */
 static void
-ipfw_tick(void * vnetx) 
+ipfw_dyn_tick(void * vnetx) 
 {
-	struct mbuf *m0, *m, *mnext, **mtailp;
-	struct ip *h;
-	int i;
-	ipfw_dyn_rule *q;
+	struct ip_fw_chain *chain;
+	int check_ka = 0;
 #ifdef VIMAGE
 	struct vnet *vp = vnetx;
 #endif
 
 	CURVNET_SET(vp);
-	if (V_dyn_keepalive == 0 || V_ipfw_dyn_v == NULL || V_dyn_count == 0)
-		goto done;
+
+	chain = &V_layer3_chain;
+
+	/* Run keepalive checks every keepalive_interval iff ka is enabled */
+	if ((V_dyn_keepalive_last + V_dyn_keepalive_interval >= time_uptime) &&
+	    (V_dyn_keepalive != 0)) {
+		V_dyn_keepalive_last = time_uptime;
+		check_ka = 1;
+	}
+
+	check_dyn_rules(chain, NULL, RESVD_SET, check_ka, 1);
+
+	callout_reset_on(&V_ipfw_timeout, hz, ipfw_dyn_tick, vnetx, 0);
+
+	CURVNET_RESTORE();
+}
+
+
+/*
+ * Walk thru all dynamic states doing generic maintance:
+ * 1) free expired states
+ * 2) free all states based on deleted rule / set
+ * 3) send keepalives for states if needed
+ *
+ * @chain - pointer to current ipfw rules chain
+ * @rule - delete all states originated by given rule if != NULL
+ * @set - delete all states originated by any rule in set @set if != RESVD_SET
+ * @check_ka - perform checking/sending keepalives
+ * @timer - indicate call from timer routine.
+ *
+ * Timer routine must call this function unlocked to permit
+ * sending keepalives/resizing table.
+ *
+ * Others has to call function with IPFW_UH_WLOCK held.
+ * Additionally, function assume that dynamic rule/set is
+ * ALREADY deleted so no new states can be generated by
+ * 'deleted' rules.
+ *
+ * Write lock is needed to ensure that unused parent rules
+ * are not freed by other instance (see stage 2, 3)
+ */
+static void
+check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
+    int set, int check_ka, int timer)
+{
+	struct mbuf *m0, *m, *mnext, **mtailp;
+	struct ip *h;
+	int i, dyn_count, new_buckets = 0, max_buckets;
+	int expired = 0, expired_limits = 0, parents = 0, total = 0;
+	ipfw_dyn_rule *q, *q_prev, *q_next;
+	ipfw_dyn_rule *exp_head, **exptailp;
+	ipfw_dyn_rule *exp_lhead, **expltailp;
+
+	KASSERT(V_ipfw_dyn_v != NULL, ("%s: dynamic table not allocated",
+	    __func__));
+
+	/* Avoid possible LOR */
+	KASSERT(!check_ka || timer, ("%s: keepalive check with lock held",
+	    __func__));
+
+	/*
+	 * Do not perform any checks if we currently have no dynamic states
+	 */
+	if (DYN_COUNT == 0)
+		return;
+
+	/* Expired states */
+	exp_head = NULL;
+	exptailp = &exp_head;
+
+	/* Expired limit states */
+	exp_lhead = NULL;
+	expltailp = &exp_lhead;
 
 	/*
 	 * We make a chain of packets to go out here -- not deferring
@@ -1022,26 +1059,211 @@ ipfw_tick(void * vnetx)
 	 */
 	m0 = NULL;
 	mtailp = &m0;
-	IPFW_DYN_LOCK();
+
+	/* Protect from hash resizing */
+	if (timer != 0)
+		IPFW_UH_WLOCK(chain);
+	else
+		IPFW_UH_WLOCK_ASSERT(chain);
+
+#define	NEXT_RULE()	{ q_prev = q; q = q->next ; continue; }
+
+	/* Stage 1: perform requested deletion */
 	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
-		for (q = V_ipfw_dyn_v[i] ; q ; q = q->next ) {
-			if (q->dyn_type == O_LIMIT_PARENT)
-				continue;
-			if (TIME_LEQ(q->expire, time_uptime))
-				continue;	/* too late, rule expired */
+		IPFW_BUCK_LOCK(i);
+		for (q = V_ipfw_dyn_v[i].head, q_prev = q; q ; ) {
+			/* account every rule */
+			total++;
 
-			if (q->id.proto != IPPROTO_TCP)
-				continue;
-			if ( (q->state & BOTH_SYN) != BOTH_SYN)
-				continue;
-			if (TIME_LEQ(time_uptime + V_dyn_keepalive_interval,
-			    q->expire))
-				continue;	/* too early */
+			/* Skip parent rules at all */
+			if (q->dyn_type == O_LIMIT_PARENT) {
+				parents++;
+				NEXT_RULE();
+			}
 
-			mtailp = ipfw_dyn_send_ka(mtailp, q);
+			/*
+			 * Remove rules which are:
+			 * 1) expired
+			 * 2) created by given rule
+			 * 3) created by any rule in given set
+			 */
+			if ((TIME_LEQ(q->expire, time_uptime)) ||
+			    ((rule != NULL) && (q->rule == rule)) ||
+			    ((set != RESVD_SET) && (q->rule->set == set))) {
+				/* Unlink q from current list */
+				q_next = q->next;
+				if (q == V_ipfw_dyn_v[i].head)
+					V_ipfw_dyn_v[i].head = q_next;
+				else
+					q_prev->next = q_next;
+
+				q->next = NULL;
+
+				/* queue q to expire list */
+				if (q->dyn_type != O_LIMIT) {
+					*exptailp = q;
+					exptailp = &(*exptailp)->next;
+					DEB(print_dyn_rule(&q->id, q->dyn_type,
+					    "unlink entry", "left");
+					)
+				} else {
+					/* Separate list for limit rules */
+					*expltailp = q;
+					expltailp = &(*expltailp)->next;
+					expired_limits++;
+					DEB(print_dyn_rule(&q->id, q->dyn_type,
+					    "unlink limit entry", "left");
+					)
+				}
+
+				q = q_next;
+				expired++;
+				continue;
+			}
+
+			/*
+			 * Check if we need to send keepalive:
+			 * we need to ensure if is time to do KA,
+			 * this is established TCP session, and
+			 * expire time is within keepalive interval
+			 */
+			if ((check_ka != 0) && (q->id.proto == IPPROTO_TCP) &&
+			    ((q->state & BOTH_SYN) == BOTH_SYN) &&
+			    (TIME_LEQ(q->expire, time_uptime +
+			      V_dyn_keepalive_interval)))
+				mtailp = ipfw_dyn_send_ka(mtailp, q);
+
+			NEXT_RULE();
+		}
+		IPFW_BUCK_UNLOCK(i);
+	}
+
+	/* Stage 2: decrement counters from O_LIMIT parents */
+	if (expired_limits != 0) {
+		/*
+		 * XXX: Note that deleting set with more than one
+		 * heavily-used LIMIT rules can result in overwhelming
+		 * locking due to lack of per-hash value sorting
+		 *
+		 * We should probably think about:
+		 * 1) pre-allocating hash of size, say,
+		 * MAX(16, V_curr_dyn_buckets / 1024)
+		 * 2) checking if expired_limits is large enough
+		 * 3) If yes, init hash (or its part), re-link
+		 * current list and start decrementing procedure in
+		 * each bucket separately
+		 */
+
+		/*
+		 * Small optimization: do not unlock bucket until
+		 * we see the next item resides in different bucket
+		 */
+		if (exp_lhead != NULL) {
+			i = exp_lhead->parent->bucket;
+			IPFW_BUCK_LOCK(i);
+		}
+		for (q = exp_lhead; q != NULL; q = q->next) {
+			if (i != q->parent->bucket) {
+				IPFW_BUCK_UNLOCK(i);
+				i = q->parent->bucket;
+				IPFW_BUCK_LOCK(i);
+			}
+
+			/* Decrease parent refcount */
+			q->parent->count--;
+		}
+		if (exp_lhead != NULL)
+			IPFW_BUCK_UNLOCK(i);
+	}
+
+	/*
+	 * We protectet ourselves from unused parent deletion
+	 * (from the timer function) by holding UH write lock.
+	 */
+
+	/* Stage 3: remove unused parent rules */
+	if ((parents != 0) && (expired != 0)) {
+		for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
+			IPFW_BUCK_LOCK(i);
+			for (q = V_ipfw_dyn_v[i].head, q_prev = q ; q ; ) {
+				if (q->dyn_type != O_LIMIT_PARENT)
+					NEXT_RULE();
+
+				if (q->count != 0)
+					NEXT_RULE();
+
+				/* Parent rule without consumers */
+
+				/* Unlink q from current list */
+				q_next = q->next;
+				if (q == V_ipfw_dyn_v[i].head)
+					V_ipfw_dyn_v[i].head = q_next;
+				else
+					q_prev->next = q_next;
+
+				q->next = NULL;
+
+				/* Add to expired list */
+				*exptailp = q;
+				exptailp = &(*exptailp)->next;
+
+				DEB(print_dyn_rule(&q->id, q->dyn_type,
+				    "unlink parent entry", "left");
+				)
+
+				expired++;
+
+				q = q_next;
+			}
+			IPFW_BUCK_UNLOCK(i);
 		}
 	}
-	IPFW_DYN_UNLOCK();
+
+#undef NEXT_RULE
+
+	if (timer != 0) {
+		/*
+		 * Check if we need to resize hash:
+		 * if current number of states exceeds number of buckes in hash,
+		 * grow hash size to the minimum power of 2 which is bigger than
+		 * current states count. Limit hash size by 64k.
+		 */
+		max_buckets = (V_dyn_buckets_max > 65536) ?
+		    65536 : V_dyn_buckets_max;
+	
+		dyn_count = DYN_COUNT;
+	
+		if ((dyn_count > V_curr_dyn_buckets * 2) &&
+		    (dyn_count < max_buckets)) {
+			new_buckets = V_curr_dyn_buckets;
+			while (new_buckets < dyn_count) {
+				new_buckets *= 2;
+	
+				if (new_buckets >= max_buckets)
+					break;
+			}
+		}
+
+		IPFW_UH_WUNLOCK(chain);
+	}
+
+	/* Finally delete old states ad limits if any */
+	for (q = exp_head; q != NULL; q = q_next) {
+		q_next = q->next;
+		uma_zfree(V_ipfw_dyn_rule_zone, q);
+	}
+
+	for (q = exp_lhead; q != NULL; q = q_next) {
+		q_next = q->next;
+		uma_zfree(V_ipfw_dyn_rule_zone, q);
+	}
+
+	/*
+	 * The rest code MUST be called from timer routine only
+	 * without holding any locks
+	 */
+	if (timer == 0)
+		return;
 
 	/* Send keepalive packets if any */
 	for (m = m0; m != NULL; m = mnext) {
@@ -1055,34 +1277,37 @@ ipfw_tick(void * vnetx)
 			ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 #endif
 	}
-done:
-	callout_reset_on(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
-		      ipfw_tick, vnetx, 0);
-	CURVNET_RESTORE();
+
+	/* Run table resize without holding any locks */
+	if (new_buckets != 0)
+		resize_dynamic_table(chain, new_buckets);
+}
+
+/*
+ * Deletes all dynamic rules originated by given rule or all rules in
+ * given set. Specify RESVD_SET to indicate set should not be used.
+ * @chain - pointer to current ipfw rules chain
+ * @rule - delete all states originated by given rule if != NULL
+ * @set - delete all states originated by any rule in set @set if != RESVD_SET
+ *
+ * Function has to be called with IPFW_UH_WLOCK held.
+ * Additionally, function assume that dynamic rule/set is
+ * ALREADY deleted so no new states can be generated by
+ * 'deleted' rules.
+ */
+void
+ipfw_expire_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule, int set)
+{
+
+	check_dyn_rules(chain, rule, set, 0, 0);
 }
 
 void
-ipfw_dyn_attach(void)
+ipfw_dyn_init(struct ip_fw_chain *chain)
 {
-        ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule",
-            sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
-            UMA_ALIGN_PTR, 0);
 
-        IPFW_DYN_LOCK_INIT();
-}
-
-void
-ipfw_dyn_detach(void)
-{
-        uma_zdestroy(ipfw_dyn_rule_zone);
-        IPFW_DYN_LOCK_DESTROY();
-}
-
-void
-ipfw_dyn_init(void)
-{
         V_ipfw_dyn_v = NULL;
-        V_dyn_buckets = 256;    /* must be power of 2 */
+        V_dyn_buckets_max = 256; /* must be power of 2 */
         V_curr_dyn_buckets = 256; /* must be power of 2 */
  
         V_dyn_ack_lifetime = 300;
@@ -1095,32 +1320,109 @@ ipfw_dyn_init(void)
         V_dyn_keepalive_interval = 20;
         V_dyn_keepalive_period = 5;
         V_dyn_keepalive = 1;    /* do send keepalives */
+	V_dyn_keepalive = time_uptime;
         
         V_dyn_max = 4096;       /* max # of dynamic rules */
+
+	V_ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule",
+	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+
+	/* Enforce limit on dynamic rules */
+	uma_zone_set_max(V_ipfw_dyn_rule_zone, V_dyn_max);
+
         callout_init(&V_ipfw_timeout, CALLOUT_MPSAFE);
-        callout_reset_on(&V_ipfw_timeout, hz, ipfw_tick, curvnet, 0);
+
+	/*
+	 * This can potentially be done on first dynamic rule
+	 * being added to chain.
+	 */
+	resize_dynamic_table(chain, V_curr_dyn_buckets);
 }
 
 void
 ipfw_dyn_uninit(int pass)
 {
-	if (pass == 0)
+	int i;
+
+	if (pass == 0) {
 		callout_drain(&V_ipfw_timeout);
-	else {
-		if (V_ipfw_dyn_v != NULL)
-			free(V_ipfw_dyn_v, M_IPFW);
+		return;
 	}
+
+	if (V_ipfw_dyn_v != NULL) {
+		/*
+		 * Skip deleting all dynamic states -
+		 * uma_zdestroy() does this more efficiently;
+		 */
+
+		/* Destroy all mutexes */
+		for (i = 0 ; i < V_curr_dyn_buckets ; i++)
+			IPFW_BUCK_LOCK_DESTROY(&V_ipfw_dyn_v[i]);
+		free(V_ipfw_dyn_v, M_IPFW);
+		V_ipfw_dyn_v = NULL;
+	}
+
+        uma_zdestroy(V_ipfw_dyn_rule_zone);
 }
 
+#ifdef SYSCTL_NODE
+/*
+ * Get/set maximum number of dynamic states in given VNET instance.
+ */
+static int
+sysctl_ipfw_dyn_max(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	unsigned int nstates;
+
+	nstates = V_dyn_max;
+
+	error = sysctl_handle_int(oidp, &nstates, 0, req);
+	/* Read operation or some error */
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	V_dyn_max = nstates;
+	uma_zone_set_max(V_ipfw_dyn_rule_zone, V_dyn_max);
+
+	return (0);
+}
+
+/*
+ * Get current number of dynamic states in given VNET instance.
+ */
+static int
+sysctl_ipfw_dyn_count(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	unsigned int nstates;
+
+	nstates = DYN_COUNT;
+
+	error = sysctl_handle_int(oidp, &nstates, 0, req);
+
+	return (error);
+}
+#endif
+
+/*
+ * Returns number of dynamic rules.
+ */
 int
 ipfw_dyn_len(void)
 {
+
 	return (V_ipfw_dyn_v == NULL) ? 0 :
-		(V_dyn_count * sizeof(ipfw_dyn_rule));
+		(DYN_COUNT * sizeof(ipfw_dyn_rule));
 }
 
+/*
+ * Fill given buffer with dynamic states.
+ * IPFW_UH_RLOCK has to be held while calling.
+ */
 void
-ipfw_get_dynamic(char **pbp, const char *ep)
+ipfw_get_dynamic(struct ip_fw_chain *chain, char **pbp, const char *ep)
 {
 	ipfw_dyn_rule *p, *last = NULL;
 	char *bp;
@@ -1130,9 +1432,11 @@ ipfw_get_dynamic(char **pbp, const char *ep)
 		return;
 	bp = *pbp;
 
-	IPFW_DYN_LOCK();
-	for (i = 0 ; i < V_curr_dyn_buckets; i++)
-		for (p = V_ipfw_dyn_v[i] ; p != NULL; p = p->next) {
+	IPFW_UH_RLOCK_ASSERT(chain);
+
+	for (i = 0 ; i < V_curr_dyn_buckets; i++) {
+		IPFW_BUCK_LOCK(i);
+		for (p = V_ipfw_dyn_v[i].head ; p != NULL; p = p->next) {
 			if (bp + sizeof *p <= ep) {
 				ipfw_dyn_rule *dst =
 					(ipfw_dyn_rule *)bp;
@@ -1161,7 +1465,9 @@ ipfw_get_dynamic(char **pbp, const char *ep)
 				bp += sizeof(ipfw_dyn_rule);
 			}
 		}
-	IPFW_DYN_UNLOCK();
+		IPFW_BUCK_UNLOCK(i);
+	}
+
 	if (last != NULL) /* mark last dynamic rule */
 		bzero(&last->next, sizeof(last));
 	*pbp = bp;

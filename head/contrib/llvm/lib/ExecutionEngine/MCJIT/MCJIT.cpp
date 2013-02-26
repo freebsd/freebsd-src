@@ -8,18 +8,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCJIT.h"
-#include "MCJITMemoryManager.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/JITMemoryManager.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/ObjectBuffer.h"
+#include "llvm/ExecutionEngine/ObjectImage.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MutexGuard.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 
 using namespace llvm;
 
@@ -44,24 +46,20 @@ ExecutionEngine *MCJIT::createJIT(Module *M,
   // FIXME: Don't do this here.
   sys::DynamicLibrary::LoadLibraryPermanently(0, NULL);
 
-  // If the target supports JIT code generation, create the JIT.
-  if (TargetJITInfo *TJ = TM->getJITInfo())
-    return new MCJIT(M, TM, *TJ, new MCJITMemoryManager(JMM), GVsWithCode);
-
-  if (ErrorStr)
-    *ErrorStr = "target does not support JIT code generation";
-  return 0;
+  return new MCJIT(M, TM, JMM, GVsWithCode);
 }
 
-MCJIT::MCJIT(Module *m, TargetMachine *tm, TargetJITInfo &tji,
-             RTDyldMemoryManager *MM, bool AllocateGVsWithCode)
-  : ExecutionEngine(m), TM(tm), Ctx(0), MemMgr(MM), Dyld(MM), 
-    isCompiled(false), M(m), OS(Buffer)  {
+MCJIT::MCJIT(Module *m, TargetMachine *tm, RTDyldMemoryManager *MM,
+             bool AllocateGVsWithCode)
+  : ExecutionEngine(m), TM(tm), Ctx(0), MemMgr(MM), Dyld(MM),
+    isCompiled(false), M(m)  {
 
-  setTargetData(TM->getTargetData());
+  setDataLayout(TM->getDataLayout());
 }
 
 MCJIT::~MCJIT() {
+  if (LoadedObject)
+    NotifyFreeingObject(*LoadedObject.get());
   delete MemMgr;
   delete TM;
 }
@@ -69,7 +67,7 @@ MCJIT::~MCJIT() {
 void MCJIT::emitObject(Module *m) {
   /// Currently, MCJIT only supports a single module and the module passed to
   /// this function call is expected to be the contained module.  The module
-  /// is passed as a parameter here to prepare for multiple module support in 
+  /// is passed as a parameter here to prepare for multiple module support in
   /// the future.
   assert(M == m);
 
@@ -84,34 +82,53 @@ void MCJIT::emitObject(Module *m) {
 
   PassManager PM;
 
-  PM.add(new TargetData(*TM->getTargetData()));
+  PM.add(new DataLayout(*TM->getDataLayout()));
+
+  // The RuntimeDyld will take ownership of this shortly
+  OwningPtr<ObjectBufferStream> Buffer(new ObjectBufferStream());
 
   // Turn the machine code intermediate representation into bytes in memory
   // that may be executed.
-  if (TM->addPassesToEmitMC(PM, Ctx, OS, false)) {
+  if (TM->addPassesToEmitMC(PM, Ctx, Buffer->getOStream(), false)) {
     report_fatal_error("Target does not support MC emission!");
   }
 
   // Initialize passes.
-  // FIXME: When we support multiple modules, we'll want to move the code
-  // gen and finalization out of the constructor here and do it more
-  // on-demand as part of getPointerToFunction().
   PM.run(*m);
-  // Flush the output buffer so the SmallVector gets its data.
-  OS.flush();
+  // Flush the output buffer to get the generated code into memory
+  Buffer->flush();
 
   // Load the object into the dynamic linker.
-  MemoryBuffer* MB = MemoryBuffer::getMemBuffer(StringRef(Buffer.data(),
-                                                          Buffer.size()),
-                                                "", false);
-  if (Dyld.loadObject(MB))
+  // handing off ownership of the buffer
+  LoadedObject.reset(Dyld.loadObject(Buffer.take()));
+  if (!LoadedObject)
     report_fatal_error(Dyld.getErrorString());
 
   // Resolve any relocations.
   Dyld.resolveRelocations();
 
+  // FIXME: Make this optional, maybe even move it to a JIT event listener
+  LoadedObject->registerWithDebugger();
+
+  NotifyObjectEmitted(*LoadedObject);
+
   // FIXME: Add support for per-module compilation state
   isCompiled = true;
+}
+
+// FIXME: Add a parameter to identify which object is being finalized when
+// MCJIT supports multiple modules.
+void MCJIT::finalizeObject() {
+  // If the module hasn't been compiled, just do that.
+  if (!isCompiled) {
+    // If the call to Dyld.resolveRelocations() is removed from emitObject()
+    // we'll need to do that here.
+    emitObject(M);
+    return;
+  }
+
+  // Resolve any relocations.
+  Dyld.resolveRelocations();
 }
 
 void *MCJIT::getPointerToBasicBlock(BasicBlock *BB) {
@@ -119,6 +136,11 @@ void *MCJIT::getPointerToBasicBlock(BasicBlock *BB) {
 }
 
 void *MCJIT::getPointerToFunction(Function *F) {
+  // FIXME: This should really return a uint64_t since it's a pointer in the
+  // target address space, not our local address space. That's part of the
+  // ExecutionEngine interface, though. Fix that when the old JIT finally
+  // dies.
+
   // FIXME: Add support for per-module compilation state
   if (!isCompiled)
     emitObject(M);
@@ -132,10 +154,13 @@ void *MCJIT::getPointerToFunction(Function *F) {
 
   // FIXME: Should the Dyld be retaining module information? Probably not.
   // FIXME: Should we be using the mangler for this? Probably.
+  //
+  // This is the accessor for the target address, so make sure to check the
+  // load address of the symbol, not the local address.
   StringRef BaseName = F->getName();
   if (BaseName[0] == '\1')
-    return (void*)Dyld.getSymbolAddress(BaseName.substr(1));
-  return (void*)Dyld.getSymbolAddress((TM->getMCAsmInfo()->getGlobalPrefix()
+    return (void*)Dyld.getSymbolLoadAddress(BaseName.substr(1));
+  return (void*)Dyld.getSymbolLoadAddress((TM->getMCAsmInfo()->getGlobalPrefix()
                                        + BaseName).str());
 }
 
@@ -269,4 +294,34 @@ void *MCJIT::getPointerToNamedFunction(const std::string &Name,
                        "' which could not be resolved!");
   }
   return 0;
+}
+
+void MCJIT::RegisterJITEventListener(JITEventListener *L) {
+  if (L == NULL)
+    return;
+  MutexGuard locked(lock);
+  EventListeners.push_back(L);
+}
+void MCJIT::UnregisterJITEventListener(JITEventListener *L) {
+  if (L == NULL)
+    return;
+  MutexGuard locked(lock);
+  SmallVector<JITEventListener*, 2>::reverse_iterator I=
+      std::find(EventListeners.rbegin(), EventListeners.rend(), L);
+  if (I != EventListeners.rend()) {
+    std::swap(*I, EventListeners.back());
+    EventListeners.pop_back();
+  }
+}
+void MCJIT::NotifyObjectEmitted(const ObjectImage& Obj) {
+  MutexGuard locked(lock);
+  for (unsigned I = 0, S = EventListeners.size(); I < S; ++I) {
+    EventListeners[I]->NotifyObjectEmitted(Obj);
+  }
+}
+void MCJIT::NotifyFreeingObject(const ObjectImage& Obj) {
+  MutexGuard locked(lock);
+  for (unsigned I = 0, S = EventListeners.size(); I < S; ++I) {
+    EventListeners[I]->NotifyFreeingObject(Obj);
+  }
 }
