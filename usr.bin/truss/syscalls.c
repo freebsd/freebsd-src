@@ -1126,14 +1126,14 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs,
 	}
 
 	if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt_to(&trussinfo->curthread->after,
+		timespecsubt(&trussinfo->curthread->after,
 		    &trussinfo->start_time, &timediff);
 		len += fprintf(trussinfo->outfile, "%ld.%09ld ",
 		    (long)timediff.tv_sec, timediff.tv_nsec);
 	}
 
 	if (trussinfo->flags & RELATIVETIMESTAMPS) {
-		timespecsubt_to(&trussinfo->curthread->after,
+		timespecsubt(&trussinfo->curthread->after,
 		    &trussinfo->curthread->before, &timediff);
 		len += fprintf(trussinfo->outfile, "%ld.%09ld ",
 		    (long)timediff.tv_sec, timediff.tv_nsec);
@@ -1165,9 +1165,9 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
 		if (!sc)
 			return;
 		clock_gettime(CLOCK_REALTIME, &trussinfo->curthread->after);
-		timespecsubt_to(&trussinfo->curthread->after,
+		timespecsubt(&trussinfo->curthread->after,
 		    &trussinfo->curthread->before, &timediff);
-		timespecadd_to(&sc->time, &timediff, &sc->time);
+		timespecadd(&sc->time, &timediff, &sc->time);
 		sc->ncalls++;
 		if (errorp)
 			sc->nerror++;
@@ -1205,7 +1205,7 @@ print_summary(struct trussinfo *trussinfo)
 			fprintf(trussinfo->outfile, "%-20s%5jd.%09ld%8d%8d\n",
 			    sc->name, (intmax_t)sc->time.tv_sec,
 			    sc->time.tv_nsec, sc->ncalls, sc->nerror);
-			timespecadd_to(&total, &sc->time, &total);
+			timespecadd(&total, &sc->time, &total);
 			ncall += sc->ncalls;
 			nerror += sc->nerror;
 		}
