@@ -1139,7 +1139,7 @@ shadowlookup:
 			if (object != tobject)
 				VM_OBJECT_UNLOCK(object);
 			m->oflags |= VPO_WANTED;
-			VM_OBJECT_SLEEP(tobject, m, PDROP | PVM, "madvpo" , 0);
+			VM_OBJECT_SLEEP(tobject, m, PDROP | PVM, "madvpo", 0);
 			VM_OBJECT_LOCK(object);
   			goto relookup;
 		}

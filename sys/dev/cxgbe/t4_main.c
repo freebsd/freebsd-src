@@ -213,6 +213,13 @@ static char t4_cfg_file[32] = "default";
 TUNABLE_STR("hw.cxgbe.config_file", t4_cfg_file, sizeof(t4_cfg_file));
 
 /*
+ * Firmware auto-install by driver during attach (0, 1, 2 = prohibited, allowed,
+ * encouraged respectively).
+ */
+static unsigned int t4_fw_install = 1;
+TUNABLE_INT("hw.cxgbe.fw_install", &t4_fw_install);
+
+/*
  * ASIC features that will be used.  Disable the ones you don't want so that the
  * chip resources aren't wasted on features that will not be used.
  */
@@ -1503,6 +1510,33 @@ allocate:
 }
 
 /*
+ * Is the given firmware compatible with the one the driver was compiled with?
+ */
+static int
+fw_compatible(const struct fw_hdr *hdr)
+{
+
+	if (hdr->fw_ver == htonl(FW_VERSION))
+		return (1);
+
+	/*
+	 * XXX: Is this too conservative?  Perhaps I should limit this to the
+	 * features that are supported in the driver.
+	 */
+	if (hdr->intfver_nic == FW_HDR_INTFVER_NIC &&
+	    hdr->intfver_vnic == FW_HDR_INTFVER_VNIC &&
+	    hdr->intfver_ofld == FW_HDR_INTFVER_OFLD &&
+	    hdr->intfver_ri == FW_HDR_INTFVER_RI &&
+	    hdr->intfver_iscsipdu == FW_HDR_INTFVER_ISCSIPDU &&
+	    hdr->intfver_iscsi == FW_HDR_INTFVER_ISCSI &&
+	    hdr->intfver_fcoepdu == FW_HDR_INTFVER_FCOEPDU &&
+	    hdr->intfver_fcoe == FW_HDR_INTFVER_FCOEPDU)
+		return (1);
+
+	return (0);
+}
+
+/*
  * Install a compatible firmware (if required), establish contact with it (by
  * saying hello), and reset the device.  If we end up as the master driver,
  * partition adapter resources by providing a configuration file to the
@@ -1512,83 +1546,98 @@ static int
 prep_firmware(struct adapter *sc)
 {
 	const struct firmware *fw = NULL, *cfg = NULL, *default_cfg;
-	int rc;
+	int rc, card_fw_usable, kld_fw_usable;
 	enum dev_state state;
+	struct fw_hdr *card_fw;
+	const struct fw_hdr *kld_fw;
 
 	default_cfg = firmware_get(T4_CFGNAME);
 
-	/* Check firmware version and install a different one if necessary */
-	rc = t4_check_fw_version(sc);
+	/* Read the header of the firmware on the card */
+	card_fw = malloc(sizeof(*card_fw), M_CXGBE, M_ZERO | M_WAITOK);
+	rc = -t4_read_flash(sc, FLASH_FW_START,
+	    sizeof (*card_fw) / sizeof (uint32_t), (uint32_t *)card_fw, 1);
+	if (rc == 0)
+		card_fw_usable = fw_compatible((const void*)card_fw);
+	else {
+		device_printf(sc->dev,
+		    "Unable to read card's firmware header: %d\n", rc);
+		card_fw_usable = 0;
+	}
+
+	/* This is the firmware in the KLD */
+	fw = firmware_get(T4_FWNAME);
+	if (fw != NULL) {
+		kld_fw = (const void *)fw->data;
+		kld_fw_usable = fw_compatible(kld_fw);
+	} else {
+		kld_fw = NULL;
+		kld_fw_usable = 0;
+	}
+
+	/*
+	 * Short circuit for the common case: the firmware on the card is an
+	 * exact match and the KLD is an exact match too, or it's
+	 * absent/incompatible, or we're prohibited from using it.  Note that
+	 * t4_fw_install = 2 is ignored here -- use cxgbetool loadfw if you want
+	 * to reinstall the same firmware as the one on the card.
+	 */
+	if (card_fw_usable && card_fw->fw_ver == htonl(FW_VERSION) &&
+	    (!kld_fw_usable || kld_fw->fw_ver == htonl(FW_VERSION) ||
+	    t4_fw_install == 0))
+		goto hello;
+
+	if (kld_fw_usable && (!card_fw_usable ||
+	    ntohl(kld_fw->fw_ver) > ntohl(card_fw->fw_ver) ||
+	    (t4_fw_install == 2 && kld_fw->fw_ver != card_fw->fw_ver))) {
+		uint32_t v = ntohl(kld_fw->fw_ver);
+
+		device_printf(sc->dev,
+		    "installing firmware %d.%d.%d.%d on card.\n",
+		    G_FW_HDR_FW_VER_MAJOR(v), G_FW_HDR_FW_VER_MINOR(v),
+		    G_FW_HDR_FW_VER_MICRO(v), G_FW_HDR_FW_VER_BUILD(v));
+
+		rc = -t4_load_fw(sc, fw->data, fw->datasize);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to install firmware: %d\n", rc);
+			goto done;
+		}
+
+		/* Installed successfully, update the cached header too. */
+		memcpy(card_fw, kld_fw, sizeof(*card_fw));
+		card_fw_usable = 1;
+	}
+
+	if (!card_fw_usable) {
+		uint32_t c, k;
+
+		c = ntohl(card_fw->fw_ver);
+		k = kld_fw ? ntohl(kld_fw->fw_ver) : 0;
+
+		device_printf(sc->dev, "Cannot find a usable firmware: "
+		    "fw_install %d, driver compiled with %d.%d.%d.%d, "
+		    "card has %d.%d.%d.%d, KLD has %d.%d.%d.%d\n",
+		    t4_fw_install,
+		    G_FW_HDR_FW_VER_MAJOR(FW_VERSION),
+		    G_FW_HDR_FW_VER_MINOR(FW_VERSION),
+		    G_FW_HDR_FW_VER_MICRO(FW_VERSION),
+		    G_FW_HDR_FW_VER_BUILD(FW_VERSION),
+		    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
+		    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c),
+		    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
+		    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k));
+		goto done;
+	}
+
+hello:
+	/* We're using whatever's on the card and it's known to be good. */
+	sc->params.fw_vers = ntohl(card_fw->fw_ver);
 	snprintf(sc->fw_version, sizeof(sc->fw_version), "%u.%u.%u.%u",
 	    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
-	if (rc != 0) {
-		uint32_t v = 0;
-
-		fw = firmware_get(T4_FWNAME);
-		if (fw != NULL) {
-			const struct fw_hdr *hdr = (const void *)fw->data;
-
-			v = ntohl(hdr->fw_ver);
-
-			/*
-			 * The firmware module will not be used if it isn't the
-			 * same major version as what the driver was compiled
-			 * with.
-			 */
-			if (G_FW_HDR_FW_VER_MAJOR(v) != FW_VERSION_MAJOR) {
-				device_printf(sc->dev,
-				    "Found firmware image but version %d "
-				    "can not be used with this driver (%d)\n",
-				    G_FW_HDR_FW_VER_MAJOR(v), FW_VERSION_MAJOR);
-
-				firmware_put(fw, FIRMWARE_UNLOAD);
-				fw = NULL;
-			}
-		}
-
-		if (fw == NULL && rc < 0) {
-			device_printf(sc->dev, "No usable firmware. "
-			    "card has %d.%d.%d, driver compiled with %d.%d.%d",
-			    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
-			    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
-			    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
-			    FW_VERSION_MAJOR, FW_VERSION_MINOR,
-			    FW_VERSION_MICRO);
-			rc = EAGAIN;
-			goto done;
-		}
-
-		/*
-		 * Always upgrade, even for minor/micro/build mismatches.
-		 * Downgrade only for a major version mismatch or if
-		 * force_firmware_install was specified.
-		 */
-		if (fw != NULL && (rc < 0 || v > sc->params.fw_vers)) {
-			device_printf(sc->dev,
-			    "installing firmware %d.%d.%d.%d on card.\n",
-			    G_FW_HDR_FW_VER_MAJOR(v), G_FW_HDR_FW_VER_MINOR(v),
-			    G_FW_HDR_FW_VER_MICRO(v), G_FW_HDR_FW_VER_BUILD(v));
-
-			rc = -t4_load_fw(sc, fw->data, fw->datasize);
-			if (rc != 0) {
-				device_printf(sc->dev,
-				    "failed to install firmware: %d\n", rc);
-				goto done;
-			} else {
-				/* refresh */
-				(void) t4_check_fw_version(sc);
-				snprintf(sc->fw_version,
-				    sizeof(sc->fw_version), "%u.%u.%u.%u",
-				    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
-				    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
-				    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
-				    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
-			}
-		}
-	}
 
 	/* Contact firmware.  */
 	rc = t4_fw_hello(sc, sc->mbox, sc->mbox, MASTER_MAY, &state);
@@ -1639,6 +1688,7 @@ prep_firmware(struct adapter *sc)
 	sc->flags |= FW_OK;
 
 done:
+	free(card_fw, M_CXGBE);
 	if (fw != NULL)
 		firmware_put(fw, FIRMWARE_UNLOAD);
 	if (cfg != NULL)

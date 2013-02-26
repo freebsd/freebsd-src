@@ -62,7 +62,7 @@ struct trussinfo
 	SLIST_HEAD(, threadinfo) threadlist;
 };
 
-#define	timespecsubt_to(tvp, uvp, vvp)					\
+#define	timespecsubt(tvp, uvp, vvp)					\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
 		(vvp)->tv_nsec = (tvp)->tv_nsec - (uvp)->tv_nsec;	\
@@ -72,7 +72,7 @@ struct trussinfo
 		}							\
 	} while (0)
 
-#define	timespecadd_to(tvp, uvp, vvp)					\
+#define	timespecadd(tvp, uvp, vvp)					\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
 		(vvp)->tv_nsec = (tvp)->tv_nsec + (uvp)->tv_nsec;	\
