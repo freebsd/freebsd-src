@@ -64,6 +64,7 @@
 #define	PCIM_CMD_BACKTOBACK	0x0200
 #define	PCIM_CMD_INTxDIS	0x0400
 #define	PCIR_STATUS	0x06
+#define	PCIM_STATUS_INTxSTATE	0x0008
 #define	PCIM_STATUS_CAPPRESENT	0x0010
 #define	PCIM_STATUS_66CAPABLE	0x0020
 #define	PCIM_STATUS_BACKTOBACK	0x0080
@@ -134,11 +135,22 @@
 #define	PCIZ_VC		0x0002	/* Virtual Channel */
 #define	PCIZ_SERNUM	0x0003	/* Device Serial Number */
 #define	PCIZ_PWRBDGT	0x0004	/* Power Budgeting */
+#define	PCIZ_RCLINK_DCL	0x0005	/* Root Complex Link Declaration */
+#define	PCIZ_RCLINK_CTL	0x0006	/* Root Complex Internal Link Control */
+#define	PCIZ_RCEC_ASSOC	0x0007	/* Root Complex Event Collector Association */
+#define	PCIZ_MFVC	0x0008	/* Multi-Function Virtual Channel */
+#define	PCIZ_RCRB	0x000a	/* RCRB Header */
 #define	PCIZ_VENDOR	0x000b	/* Vendor Unique */
 #define	PCIZ_ACS	0x000d	/* Access Control Services */
 #define	PCIZ_ARI	0x000e	/* Alternative Routing-ID Interpretation */
 #define	PCIZ_ATS	0x000f	/* Address Translation Services */
 #define	PCIZ_SRIOV	0x0010	/* Single Root IO Virtualization */
+#define	PCIZ_MULTICAST	0x0012	/* Multicast */
+#define	PCIZ_RESIZE_BAR	0x0015	/* Resizable BAR */
+#define	PCIZ_DPA	0x0016	/* Dynamic Power Allocation */
+#define	PCIZ_TPH_REQ	0x0017	/* TPH Requester */
+#define	PCIZ_LTR	0x0018	/* Latency Tolerance Reporting */
+#define	PCIZ_SEC_PCIE	0x0019	/* Secondary PCI Express */
 
 /* config registers for header type 0 devices */
 
@@ -913,6 +925,10 @@
 #define	PCIM_AER_UC_ECRC_ERROR		0x00080000
 #define	PCIM_AER_UC_UNSUPPORTED_REQUEST	0x00100000
 #define	PCIM_AER_UC_ACS_VIOLATION	0x00200000
+#define	PCIM_AER_UC_INTERNAL_ERROR	0x00400000
+#define	PCIM_AER_UC_MC_BLOCKED_TLP	0x00800000
+#define	PCIM_AER_UC_ATOMIC_EGRESS_BLK	0x01000000
+#define	PCIM_AER_UC_TLP_PREFIX_BLOCKED	0x02000000
 #define	PCIR_AER_UC_MASK	0x08	/* Shares bits with UC_STATUS */
 #define	PCIR_AER_UC_SEVERITY	0x0c	/* Shares bits with UC_STATUS */
 #define	PCIR_AER_COR_STATUS	0x10
@@ -922,6 +938,8 @@
 #define	PCIM_AER_COR_REPLAY_ROLLOVER	0x00000100
 #define	PCIM_AER_COR_REPLAY_TIMEOUT	0x00001000
 #define	PCIM_AER_COR_ADVISORY_NF_ERROR	0x00002000
+#define	PCIM_AER_COR_INTERNAL_ERROR	0x00004000
+#define	PCIM_AER_COR_HEADER_LOG_OVFLOW	0x00008000
 #define	PCIR_AER_COR_MASK	0x14	/* Shares bits with COR_STATUS */
 #define	PCIR_AER_CAP_CONTROL	0x18
 #define	PCIM_AER_FIRST_ERROR_PTR	0x0000001f
@@ -929,6 +947,9 @@
 #define	PCIM_AER_ECRC_GEN_ENABLE	0x00000040
 #define	PCIM_AER_ECRC_CHECK_CAPABLE	0x00000080
 #define	PCIM_AER_ECRC_CHECK_ENABLE	0x00000100
+#define	PCIM_AER_MULT_HDR_CAPABLE	0x00000200
+#define	PCIM_AER_MULT_HDR_ENABLE	0x00000400
+#define	PCIM_AER_TLP_PREFIX_LOG_PRESENT	0x00000800
 #define	PCIR_AER_HEADER_LOG	0x1c
 #define	PCIR_AER_ROOTERR_CMD	0x2c	/* Only for root complex ports */
 #define	PCIM_AER_ROOTERR_COR_ENABLE	0x00000001
@@ -945,6 +966,7 @@
 #define	PCIM_AER_ROOTERR_INT_MESSAGE	0xf8000000
 #define	PCIR_AER_COR_SOURCE_ID	0x34	/* Only for root complex ports */
 #define	PCIR_AER_ERR_SOURCE_ID	0x36	/* Only for root complex ports */
+#define	PCIR_AER_TLP_PREFIX_LOG	0x38	/* Only for TLP prefix functions */
 
 /* Virtual Channel definitions */
 #define	PCIR_VC_CAP1		0x04
