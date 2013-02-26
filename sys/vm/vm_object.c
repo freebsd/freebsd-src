@@ -1139,7 +1139,7 @@ shadowlookup:
 			if (object != tobject)
 				VM_OBJECT_WUNLOCK(object);
 			m->oflags |= VPO_WANTED;
-			VM_OBJECT_SLEEP(tobject, m, PDROP | PVM, "madvpo" , 0);
+			VM_OBJECT_SLEEP(tobject, m, PDROP | PVM, "madvpo", 0);
 			VM_OBJECT_WLOCK(object);
   			goto relookup;
 		}
@@ -1337,7 +1337,7 @@ retry:
 		if ((m->oflags & VPO_BUSY) || m->busy) {
 			VM_OBJECT_WUNLOCK(new_object);
 			m->oflags |= VPO_WANTED;
-			VM_OBJECT_SLEEP(orig_object, m, PVM, "spltwt" , 0);
+			VM_OBJECT_SLEEP(orig_object, m, PVM, "spltwt", 0);
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
 		}

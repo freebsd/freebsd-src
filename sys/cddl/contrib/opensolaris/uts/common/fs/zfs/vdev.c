@@ -23,6 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -3205,7 +3206,10 @@ vdev_deadman(vdev_t *vd)
 				    fio->io_timestamp, delta,
 				    vq->vq_io_complete_ts);
 				fm_panic("I/O to pool '%s' appears to be "
-				    "hung.", spa_name(spa));
+				    "hung on vdev guid %llu at '%s'.",
+				    spa_name(spa),
+				    (long long unsigned int) vd->vdev_guid,
+				    vd->vdev_path);
 			}
 		}
 		mutex_exit(&vq->vq_lock);

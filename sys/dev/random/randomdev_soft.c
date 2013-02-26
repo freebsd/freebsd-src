@@ -391,7 +391,7 @@ random_yarrow_block(int flag)
 	mtx_lock(&random_reseed_mtx);
 
 	/* Blocking logic */
-	while (random_systat.seeded && !error) {
+	while (!random_systat.seeded && !error) {
 		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {
