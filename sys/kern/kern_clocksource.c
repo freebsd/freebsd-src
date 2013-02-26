@@ -236,10 +236,6 @@ handleevents(sbintime_t now, int fake)
 #endif
 
 	t = getnextcpuevent(0);
-	if (fake == 2) {
-		state->nextevent = t;
-		return (done);
-	}
 	ET_HW_LOCK(state);
 	if (!busy) {
 		state->idle = 0;
@@ -307,7 +303,7 @@ getnextevent(void)
 	event = state->nextevent;
 	c = curcpu;
 #ifdef SMP
-	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 && smp_started) {
+	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
 		CPU_FOREACH(cpu) {
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			if (event > state->nextevent) {
@@ -517,7 +513,10 @@ configtimer(int start)
 		CPU_FOREACH(cpu) {
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			state->now = now;
-			state->nextevent = next;
+			if (!smp_started && cpu != CPU_FIRST())
+				state->nextevent = INT64_MAX;
+			else
+				state->nextevent = next;
 			if (periodic)
 				state->nexttick = next;
 			else
@@ -689,16 +688,20 @@ cpu_initclocks_ap(void)
 {
 	sbintime_t now;
 	struct pcpu_state *state;
+	struct thread *td;
 
 	state = DPCPU_PTR(timerstate);
 	sbinuptime(&now);
 	ET_HW_LOCK(state);
 	state->now = now;
 	hardclock_sync(curcpu);
-	handleevents(state->now, 2);
-	if (timer->et_flags & ET_FLAGS_PERCPU)
-		loadtimer(now, 1);
+	spinlock_enter();
 	ET_HW_UNLOCK(state);
+	td = curthread;
+	td->td_intr_nesting_level++;
+	handleevents(state->now, 2);
+	td->td_intr_nesting_level--;
+	spinlock_exit();
 }
 
 /*
