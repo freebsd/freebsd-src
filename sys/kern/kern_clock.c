@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 PMC_SOFT_DEFINE( , , clock, hard);
 PMC_SOFT_DEFINE( , , clock, stat);
+PMC_SOFT_DEFINE( , , clock, prof);
 #endif
 
 #ifdef DEVICE_POLLING
@@ -816,6 +817,10 @@ profclock_cnt(int cnt, int usermode, uintfptr_t pc)
 			}
 		}
 	}
+#endif
+#ifdef HWPMC_HOOKS
+	if (td->td_intr_frame != NULL)
+		PMC_SOFT_CALL_TF( , , clock, prof, td->td_intr_frame);
 #endif
 }
 

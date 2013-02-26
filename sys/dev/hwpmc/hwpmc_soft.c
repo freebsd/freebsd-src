@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #define	SOFT_CAPS (PMC_CAP_READ | PMC_CAP_WRITE | PMC_CAP_INTERRUPT | \
     PMC_CAP_USER | PMC_CAP_SYSTEM)
 
+PMC_SOFT_DECLARE( , , clock, prof);
+
 struct soft_descr {
 	struct pmc_descr pm_descr;  /* "base class" */
 };
@@ -125,6 +127,8 @@ soft_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		return (EINVAL);
 	pmc_soft_ev_release(ps);
 
+	if (ev == pmc___clock_prof.ps_ev.pm_ev_code)
+		cpu_startprofclock();
 	return (0);
 }
 
@@ -324,9 +328,8 @@ soft_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[soft,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-	/*
-	 * Nothing to do.
-	 */
+	if (pmc->pm_event == pmc___clock_prof.ps_ev.pm_ev_code)
+		cpu_stopprofclock();
 	return (0);
 }
 
