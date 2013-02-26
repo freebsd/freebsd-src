@@ -220,15 +220,14 @@ you can use the
 option to force the kernel to use the serial port as its
 console device.
 The serial port driver
-.Xr uart 4
+.Xr sio 4
+(but not
+.Xr uart 4 )
 has a flag (0x20) to override this option.
 If that flag is set, the serial port will always be used as the console,
 regardless of the
 .Fl h
 option described here.
-See the man page for
-.Xr uart 4
-for more details.
 .It Fl m
 mute the console to suppress all console input and output during the
 boot.
