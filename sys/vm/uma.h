@@ -520,7 +520,7 @@ void uma_zone_set_zinit(uma_zone_t zone, uma_init zinit);
 void uma_zone_set_zfini(uma_zone_t zone, uma_fini zfini);
 
 /*
- * Replaces the standard page_alloc or obj_alloc functions for this zone
+ * Replaces the standard backend allocator for this zone.
  *
  * Arguments:
  *	zone   The zone whose backend allocator is being changed.
