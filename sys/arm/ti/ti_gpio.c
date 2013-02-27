@@ -724,7 +724,7 @@ ti_gpio_attach(device_t dev)
 			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE1, 0xffffffff);
 			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE2, 0xffffffff);
 
-			/* Init OE registger based on pads configuration */
+			/* Init OE register based on pads configuration */
 			reg_oe = 0xffffffff;
 			for (pin = 0; pin < 32; pin++) {
 				ti_scm_padconf_get_gpioflags(
