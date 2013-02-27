@@ -102,7 +102,7 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls_dir, CTLFLAG_RD, &avg_mpcalls_dir,
  * TODO:
  *	allocate more timeout table slots when table overflows.
  */
-int callwheelsize, callwheelmask;
+u_int callwheelsize, callwheelmask;
 
 /*
  * The callout cpu exec entities represent informations necessary for
@@ -369,18 +369,18 @@ SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL)
 
 #define	CC_HASH_SHIFT	10
 
-static inline int
+static inline u_int
 callout_hash(sbintime_t sbt)
 {
-	
-	return (int)(sbt >> (32 - CC_HASH_SHIFT));
+
+	return (sbt >> (32 - CC_HASH_SHIFT));
 }
 
-static inline int
+static inline u_int
 callout_get_bucket(sbintime_t sbt)
 {
 
-	return callout_hash(sbt) & callwheelmask;
+	return (callout_hash(sbt) & callwheelmask);
 }
 
 void
@@ -422,10 +422,11 @@ callout_process(sbintime_t now)
 	 * Check if we wrapped around the entire wheel from the last scan.
 	 * In case, we need to scan entirely the wheel for pending callouts.
 	 */
-	if (lastb - firstb >= callwheelsize)
-		lastb = firstb - 1;
-	if (nowb - firstb >= callwheelsize)
-		nowb = firstb - 1;
+	if (lastb - firstb >= callwheelsize) {
+		lastb = firstb + callwheelsize - 1;
+		if (nowb - firstb >= callwheelsize)
+			nowb = lastb;
+	}
 
 	/* Iterate callwheel from firstb to nowb and then up to lastb. */
 	do {
@@ -488,7 +489,7 @@ next:
 		 * some event we can't execute at now.
 		 * Stop if we looked far enough into the future.
 		 */
-	} while (firstb <= lastb);
+	} while (((int)(firstb - lastb)) <= 0);
 	cc->cc_firstevent = last;
 #ifndef NO_EVENTTIMERS
 	cpu_new_callout(curcpu, last, first);
