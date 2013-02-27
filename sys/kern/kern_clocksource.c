@@ -221,16 +221,14 @@ handleevents(sbintime_t now, int fake)
 		}
 	} else
 		state->nextprof = state->nextstat;
-	if (now >= state->nextcallopt && state->nextcallopt != -1) {
-		state->nextcall = -1;
-		state->nextcallopt = -1;
+	if (now >= state->nextcallopt) {
+		state->nextcall = state->nextcallopt = INT64_MAX;
 		callout_process(now);
 	}
 
 #ifdef KDTRACE_HOOKS
-	if (fake == 0 && cyclic_clock_func != NULL &&
-	    state->nextcyc != -1 && now >= state->nextcyc) {
-		state->nextcyc = -1;
+	if (fake == 0 && now >= state->nextcyc && cyclic_clock_func != NULL) {
+		state->nextcyc = INT64_MAX;
 		(*cyclic_clock_func)(frame);
 	}
 #endif
@@ -271,7 +269,7 @@ getnextcpuevent(int idle)
 			event += tick_sbt * (hardfreq - 1);
 	}
 	/* Handle callout events. */
-	if (state->nextcall != -1 && event > state->nextcall)
+	if (event > state->nextcall)
 		event = state->nextcall;
 	if (!idle) { /* If CPU is active - handle other types of events. */
 		if (event > state->nextstat)
@@ -280,7 +278,7 @@ getnextcpuevent(int idle)
 			event = state->nextprof;
 	}
 #ifdef KDTRACE_HOOKS
-	if (state->nextcyc != -1 && event > state->nextcyc)
+	if (event > state->nextcyc)
 		event = state->nextcyc;
 #endif
 	return (event);
@@ -603,10 +601,10 @@ cpu_initclocks_bsp(void)
 		state = DPCPU_ID_PTR(cpu, timerstate);
 		mtx_init(&state->et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
 #ifdef KDTRACE_HOOKS
-		state->nextcyc = -1;
+		state->nextcyc = INT64_MAX;
 #endif
-		state->nextcall = -1;
-		state->nextcallopt = -1;
+		state->nextcall = INT64_MAX;
+		state->nextcallopt = INT64_MAX;
 	}
 	periodic = want_periodic;
 	/* Grab requested timer or the best of present. */
@@ -831,11 +829,11 @@ clocksource_cyc_set(const struct bintime *bt)
 		return;
 	}
 	state->nextcyc = t;
-	if (state->nextcyc >= state->nextevent) {
+	if (t >= state->nextevent) {
 		ET_HW_UNLOCK(state);
 		return;
 	}
-	state->nextevent = state->nextcyc;
+	state->nextevent = t;
 	if (!periodic)
 		loadtimer(now, 0);
 	ET_HW_UNLOCK(state);
@@ -865,17 +863,17 @@ cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 	 * and scheduling.
 	 */
 	state->nextcallopt = bt_opt;
-	if (state->nextcall != -1 && bt >= state->nextcall) {
+	if (bt >= state->nextcall) {
 		ET_HW_UNLOCK(state);
 		return;
 	}
 	state->nextcall = bt;
-	/* If there is some some other event set earlier -- do nothing. */
-	if (state->nextcall >= state->nextevent) {
+	/* If there is some other event set earlier -- do nothing. */
+	if (bt >= state->nextevent) {
 		ET_HW_UNLOCK(state);
 		return;
 	}
-	state->nextevent = state->nextcall;
+	state->nextevent = bt;
 	/* If timer is periodic -- there is nothing to reprogram. */
 	if (periodic) {
 		ET_HW_UNLOCK(state);
