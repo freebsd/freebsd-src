@@ -304,7 +304,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 	 * only adjust the entry point if it's a virtual address to begin with.
 	 */
 	off = -0xc0000000u;
-	if ((ehdr->e_entry & 0xc0000000u) == 0xc000000u)
+	if ((ehdr->e_entry & 0xc0000000u) == 0xc0000000u)
 		ehdr->e_entry += off;
 #ifdef ELF_VERBOSE
 	printf("ehdr->e_entry 0x%08x, va<->pa off %llx\n", ehdr->e_entry, off);
