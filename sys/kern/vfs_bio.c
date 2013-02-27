@@ -1268,6 +1268,15 @@ brelse(struct buf *bp)
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)),
 	    ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
 
+	if (BUF_LOCKRECURSED(bp)) {
+		/*
+		 * Do not process, in particular, do not handle the
+		 * B_INVAL/B_RELBUF and do not release to free list.
+		 */
+		BUF_UNLOCK(bp);
+		return;
+	}
+
 	if (bp->b_flags & B_MANAGED) {
 		bqrelse(bp);
 		return;
@@ -1444,12 +1453,6 @@ brelse(struct buf *bp)
 			brelvp(bp);
 	}
 			
-	if (BUF_LOCKRECURSED(bp)) {
-		/* do not release to free list */
-		BUF_UNLOCK(bp);
-		return;
-	}
-
 	/* enqueue */
 	mtx_lock(&bqlock);
 	/* Handle delayed bremfree() processing. */
@@ -2681,6 +2684,9 @@ loop:
 		/* We timed out or were interrupted. */
 		else if (error)
 			return (NULL);
+		/* If recursed, assume caller knows the rules. */
+		else if (BUF_LOCKRECURSED(bp))
+			goto end;
 
 		/*
 		 * The buffer is locked.  B_CACHE is cleared if the buffer is 
@@ -2864,6 +2870,7 @@ loop:
 	}
 	CTR4(KTR_BUF, "getblk(%p, %ld, %d) = %p", vp, (long)blkno, size, bp);
 	BUF_ASSERT_HELD(bp);
+end:
 	KASSERT(bp->b_bufobj == bo,
 	    ("bp %p wrong b_bufobj %p should be %p", bp, bp->b_bufobj, bo));
 	return (bp);

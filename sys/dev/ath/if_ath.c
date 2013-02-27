@@ -781,6 +781,28 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
+		/*
+		 * Setup TX and RX STBC based on what the HAL allows and
+		 * the currently configured chainmask set.
+		 * Ie - don't enable STBC TX if only one chain is enabled.
+		 * STBC RX is fine on a single RX chain; it just won't
+		 * provide any real benefit.
+		 */
+		if (ath_hal_getcapability(ah, HAL_CAP_RX_STBC, 0,
+		    NULL) == HAL_OK) {
+			sc->sc_rx_stbc = 1;
+			device_printf(sc->sc_dev,
+			    "[HT] 1 stream STBC receive enabled\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_RXSTBC_1STREAM;
+		}
+		if (txs > 1 && ath_hal_getcapability(ah, HAL_CAP_TX_STBC, 0,
+		    NULL) == HAL_OK) {
+			sc->sc_tx_stbc = 1;
+			device_printf(sc->sc_dev,
+			    "[HT] 1 stream STBC transmit enabled\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_TXSTBC;
+		}
+
 		(void) ath_hal_getcapability(ah, HAL_CAP_RTS_AGGR_LIMIT, 1,
 		    &sc->sc_rts_aggr_limit);
 		if (sc->sc_rts_aggr_limit != (64 * 1024))

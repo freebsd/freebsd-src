@@ -536,16 +536,29 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
 		/*
-		 * XXX TODO: STBC if it's possible
+		 * Setup rate and TX power cap for this series.
 		 */
+		series[i].Rate = rt->info[rc[i].rix].rateCode;
+		series[i].RateIndex = rc[i].rix;
+		series[i].tx_power_cap = 0x3f;	/* XXX for now */
+
+
+		/*
+		 * If we have STBC TX enabled and the receiver
+		 * can receive (at least) 1 stream STBC, AND it's
+		 * MCS 0-7, AND we have at least two chains enabled,
+		 * enable STBC.
+		 */
+		if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+		    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+		    (sc->sc_cur_txchainmask > 1) &&
+		    HT_RC_2_STREAMS(series[i].Rate) == 1) {
+			series[i].RateFlags |= HAL_RATESERIES_STBC;
+		}
 
 		/*
 		 * XXX TODO: LDPC if it's possible
 		 */
-
-		series[i].Rate = rt->info[rc[i].rix].rateCode;
-		series[i].RateIndex = rc[i].rix;
-		series[i].tx_power_cap = 0x3f;	/* XXX for now */
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
