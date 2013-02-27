@@ -110,8 +110,9 @@ CTASSERT(sizeof(struct vtblk_config) == VTBLK_CFGSZ);
  * Fixed-size block header
  */
 struct virtio_blk_hdr {
-#define VBH_OP_READ	0
-#define VBH_OP_WRITE	1
+#define	VBH_OP_READ		0
+#define	VBH_OP_WRITE		1
+#define	VBH_FLAG_BARRIER	0x80000000	/* OR'ed into vbh_type */
 	uint32_t       	vbh_type;
 	uint32_t	vbh_ioprio;
 	uint64_t	vbh_sector;
@@ -198,7 +199,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	int iolen;
 	int nsegs;
 	int uidx, aidx, didx;
-	int writeop;
+	int writeop, type;
 	off_t offset;
 
 	uidx = *hq->hq_used_idx;
@@ -232,7 +233,13 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	assert(vid[0].vd_flags & VRING_DESC_F_NEXT);
 	assert((vid[0].vd_flags & VRING_DESC_F_WRITE) == 0);
 
-	writeop = (vbh->vbh_type == VBH_OP_WRITE);
+	/*
+	 * XXX
+	 * The guest should not be setting the BARRIER flag because
+	 * we don't advertise the capability.
+	 */
+	type = vbh->vbh_type & ~VBH_FLAG_BARRIER;
+	writeop = (type == VBH_OP_WRITE);
 
 	offset = vbh->vbh_sector * DEV_BSIZE;
 

@@ -781,6 +781,28 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
+		/*
+		 * Setup TX and RX STBC based on what the HAL allows and
+		 * the currently configured chainmask set.
+		 * Ie - don't enable STBC TX if only one chain is enabled.
+		 * STBC RX is fine on a single RX chain; it just won't
+		 * provide any real benefit.
+		 */
+		if (ath_hal_getcapability(ah, HAL_CAP_RX_STBC, 0,
+		    NULL) == HAL_OK) {
+			sc->sc_rx_stbc = 1;
+			device_printf(sc->sc_dev,
+			    "[HT] 1 stream STBC receive enabled\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_RXSTBC_1STREAM;
+		}
+		if (txs > 1 && ath_hal_getcapability(ah, HAL_CAP_TX_STBC, 0,
+		    NULL) == HAL_OK) {
+			sc->sc_tx_stbc = 1;
+			device_printf(sc->sc_dev,
+			    "[HT] 1 stream STBC transmit enabled\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_TXSTBC;
+		}
+
 		(void) ath_hal_getcapability(ah, HAL_CAP_RTS_AGGR_LIMIT, 1,
 		    &sc->sc_rts_aggr_limit);
 		if (sc->sc_rts_aggr_limit != (64 * 1024))
@@ -1476,6 +1498,26 @@ ath_reset_keycache(struct ath_softc *sc)
 	ieee80211_crypto_reload_keys(ic);
 }
 
+/*
+ * Fetch the current chainmask configuration based on the current
+ * operating channel and options.
+ */
+static void
+ath_update_chainmasks(struct ath_softc *sc, struct ieee80211_channel *chan)
+{
+
+	/*
+	 * Set TX chainmask to the currently configured chainmask;
+	 * the TX chainmask depends upon the current operating mode.
+	 */
+	sc->sc_cur_rxchainmask = sc->sc_rxchainmask;
+	if (IEEE80211_IS_CHAN_HT(chan)) {
+		sc->sc_cur_txchainmask = sc->sc_txchainmask;
+	} else {
+		sc->sc_cur_txchainmask = 1;
+	}
+}
+
 void
 ath_resume(struct ath_softc *sc)
 {
@@ -1494,6 +1536,10 @@ ath_resume(struct ath_softc *sc)
 	 * Must reset the chip before we reload the
 	 * keycache as we were powered down on suspend.
 	 */
+	ath_update_chainmasks(sc,
+	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan);
+	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
+	    sc->sc_cur_rxchainmask);
 	ath_hal_reset(ah, sc->sc_opmode,
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
 	    AH_FALSE, &status);
@@ -1935,6 +1981,9 @@ ath_init(void *arg)
 	 * and then setup of the interrupt mask.
 	 */
 	ath_settkipmic(sc);
+	ath_update_chainmasks(sc, ic->ic_curchan);
+	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
+	    sc->sc_cur_rxchainmask);
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_FALSE, &status)) {
 		if_printf(ifp, "unable to reset hardware; hal status %u\n",
 			status);
@@ -2250,6 +2299,9 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
+	ath_update_chainmasks(sc, ic->ic_curchan);
+	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
+	    sc->sc_cur_rxchainmask);
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
@@ -4440,6 +4492,9 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 */
 		ath_draintxq(sc, ATH_RESET_FULL);	/* clear pending tx frames */
 
+		ath_update_chainmasks(sc, chan);
+		ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
+		    sc->sc_cur_rxchainmask);
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",

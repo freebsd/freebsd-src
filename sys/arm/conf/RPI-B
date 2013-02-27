@@ -42,6 +42,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
+options 	MSDOSFS			#MSDOS Filesystem
 device		snp
 
 options 	NFSCL			#Network Filesystem Client
@@ -113,5 +114,7 @@ device		smsc
 
 # Flattened Device Tree
 options         FDT
-options         FDT_DTB_STATIC
-makeoptions     FDT_DTS_FILE=bcm2835-rpi-b.dts
+# Note:  DTB is normally loaded and modified by RPi boot loader, then
+# handed to kernel via U-Boot and ubldr.
+#options         FDT_DTB_STATIC
+#makeoptions     FDT_DTS_FILE=bcm2835-rpi-b.dts

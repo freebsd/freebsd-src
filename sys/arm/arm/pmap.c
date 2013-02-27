@@ -397,7 +397,6 @@ static uma_zone_t l2table_zone;
 static vm_offset_t pmap_kernel_l2dtable_kva;
 static vm_offset_t pmap_kernel_l2ptp_kva;
 static vm_paddr_t pmap_kernel_l2ptp_phys;
-static struct vm_object pvzone_obj;
 static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
 static struct rwlock pvh_global_lock;
 
@@ -1828,7 +1827,7 @@ pmap_init(void)
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+	uma_zone_reserve_kva(pvzone, pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	/*

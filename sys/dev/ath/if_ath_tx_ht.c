@@ -499,20 +499,13 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		series[i].Tries = rc[i].tries;
 
 		/*
-		 * XXX this isn't strictly correct - sc_txchainmask
-		 * XXX isn't the currently active chainmask;
-		 * XXX it's the interface chainmask at startup.
-		 * XXX It's overridden in the HAL rate scenario function
-		 * XXX for now.
-		 */
-		/*
 		 * XXX TODO: When the NIC is capable of three stream TX,
 		 * transmit 1/2 stream rates on two streams.
 		 *
 		 * This reduces the power consumption of the NIC and
 		 * keeps it within the PCIe slot power limits.
 		 */
-		series[i].ChSel = sc->sc_txchainmask;
+		series[i].ChSel = sc->sc_cur_txchainmask;
 
 		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
@@ -542,9 +535,30 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
+		/*
+		 * Setup rate and TX power cap for this series.
+		 */
 		series[i].Rate = rt->info[rc[i].rix].rateCode;
 		series[i].RateIndex = rc[i].rix;
 		series[i].tx_power_cap = 0x3f;	/* XXX for now */
+
+
+		/*
+		 * If we have STBC TX enabled and the receiver
+		 * can receive (at least) 1 stream STBC, AND it's
+		 * MCS 0-7, AND we have at least two chains enabled,
+		 * enable STBC.
+		 */
+		if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+		    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+		    (sc->sc_cur_txchainmask > 1) &&
+		    HT_RC_2_STREAMS(series[i].Rate) == 1) {
+			series[i].RateFlags |= HAL_RATESERIES_STBC;
+		}
+
+		/*
+		 * XXX TODO: LDPC if it's possible
+		 */
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
