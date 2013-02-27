@@ -128,7 +128,7 @@ struct cc_exec {
 };
 
 /*
- * There is one struct callou_cpu per cpu, holding all relevant
+ * There is one struct callout_cpu per cpu, holding all relevant
  * state for the callout processing thread on the individual CPU.
  */
 struct callout_cpu {
@@ -277,6 +277,7 @@ callout_cpu_init(struct callout_cpu *cc)
 		TAILQ_INIT(&cc->cc_callwheel[i]);
 	}
 	TAILQ_INIT(&cc->cc_expireq);
+	cc->cc_firstevent = INT64_MAX;
 	for (i = 0; i < 2; i++)
 		cc_cme_cleanup(cc, i);
 	if (cc->cc_callout == NULL)
@@ -560,7 +561,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * that has been inserted, but only if really required.
 	 */
 	sbt = c->c_time + c->c_precision;
-	if (sbt < cc->cc_firstevent || cc->cc_firstevent == 0) {
+	if (sbt < cc->cc_firstevent) {
 		cc->cc_firstevent = sbt;
 		cpu_new_callout(cpu, sbt, c->c_time);
 	}
