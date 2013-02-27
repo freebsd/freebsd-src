@@ -142,15 +142,15 @@
 #define VM_KMEM_SIZE		(12*1024*1024)
 #endif
 #ifndef VM_KMEM_SIZE_SCALE
-#define VM_KMEM_SIZE_SCALE	(2)
+#define VM_KMEM_SIZE_SCALE	(3)
 #endif
 
 /*
- * Ceiling on the size of the kmem submap: 60% of the kernel map.
+ * Ceiling on the size of the kmem submap: 40% of the kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((vm_max_kernel_address - \
-    VM_MIN_KERNEL_ADDRESS + 1) * 3 / 5)
+    VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
 #endif
 
 #define MAXTSIZ 	(16*1024*1024)

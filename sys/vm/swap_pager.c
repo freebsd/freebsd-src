@@ -343,7 +343,6 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 static struct mtx sw_alloc_mtx;	/* protect list manipulation */
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 static uma_zone_t	swap_zone;
-static struct vm_object	swap_zone_obj;
 
 /*
  * pagerops for OBJT_SWAP - "swap pager".  Some ops are also global procedure
@@ -554,7 +553,7 @@ swap_pager_swap_init(void)
 	if (swap_zone == NULL)
 		panic("failed to create swap_zone.");
 	do {
-		if (uma_zone_set_obj(swap_zone, &swap_zone_obj, n))
+		if (uma_zone_reserve_kva(swap_zone, n))
 			break;
 		/*
 		 * if the allocation failed, try a zone two thirds the
@@ -1213,7 +1212,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
 		mreq->oflags |= VPO_WANTED;
 		PCPU_INC(cnt.v_intrans);
-		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
+		if (VM_OBJECT_SLEEP(object, mreq, PSWP, "swread", hz * 20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
 			    bp->b_bufobj, (intmax_t)bp->b_blkno, bp->b_bcount);
