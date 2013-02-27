@@ -567,7 +567,9 @@ struct ath_softc {
 	/*
 	 * Second set of flags.
 	 */
-	u_int32_t		sc_use_ent  : 1;
+	u_int32_t		sc_use_ent  : 1,
+				sc_rx_stbc  : 1,
+				sc_tx_stbc  : 1;
 
 	/*
 	 * Enterprise mode configuration for AR9380 and later chipsets.
