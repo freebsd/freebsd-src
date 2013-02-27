@@ -723,10 +723,8 @@ mfi_attach(struct mfi_softc *sc)
 		    "hook\n");
 		return (EINVAL);
 	}
-	if ((error = mfi_aen_setup(sc, 0), 0) != 0) {
-		mtx_unlock(&sc->mfi_io_lock);
+	if ((error = mfi_aen_setup(sc, 0), 0) != 0)
 		return (error);
-	}
 
 	/*
 	 * Register a shutdown handler.
