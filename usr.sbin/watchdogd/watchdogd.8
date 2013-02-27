@@ -132,23 +132,27 @@ This flag will cause watchdogd to complain when the amount of time to
 execute the watchdog script exceeds the threshold of 'sleep' option.
 .Pp
 .It Fl -pretimeout Ar timeout
-Set a "pretimeout" watchdog.  At "timeout" seconds before the watchdog
-will fire attempt an action.  The action is set by the --pretimeout-action
-flag.  The default is just to log a message (WD_SOFT_LOG) via
+Set a "pretimeout" watchdog.
+At "timeout" seconds before the watchdog will fire attempt an action.
+The action is set by the --pretimeout-action flag.
+The default is just to log a message (WD_SOFT_LOG) via
 .Xr log 9 .
 .Pp
 .It Fl -pretimeout-action Ar action
-Set the timeout action for the pretimeout.  See the section 
+Set the timeout action for the pretimeout.
+See the section 
 .Sx Timeout Actions .
 .Pp
 .It Fl -softtimeout
 Instead of arming the various hardware watchdogs, only use a basic software
-watchdog.  The default action is just to
+watchdog.
+The default action is just to
 .Xr log 9
 a message (WD_SOFT_LOG).
 .Pp
 .It Fl -softtimeout-action Ar action
-Set the timeout action for the softtimeout.  See the section 
+Set the timeout action for the softtimeout.
+See the section 
 .Sx Timeout Actions .
 .Pp
 .El
