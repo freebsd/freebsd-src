@@ -489,7 +489,6 @@ next:
 		 * Stop if we looked far enough into the future.
 		 */
 	} while (firstb <= lastb);
-	cc->cc_exec_next_dir = NULL;
 	cc->cc_firstevent = last;
 #ifndef NO_EVENTTIMERS
 	cpu_new_callout(curcpu, last, first);
@@ -555,6 +554,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	    c, (int)(c->c_precision >> 32), 
 	    (u_int)(c->c_precision & 0xffffffff));
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
+	if (cc->cc_exec_next_dir == NULL)
+		cc->cc_exec_next_dir = c;
 #ifndef NO_EVENTTIMERS
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout
