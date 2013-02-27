@@ -279,8 +279,6 @@ struct ath_buf {
 		int32_t bfs_keyix;		/* crypto key index */
 		int32_t bfs_txantenna;	/* TX antenna config */
 
-		uint16_t bfs_nextpktlen;	/* length of next frag pkt */
-
 		/* Make this an 8 bit value? */
 		enum ieee80211_protmode bfs_protmode;
 
@@ -520,10 +518,11 @@ struct ath_softc {
 	char			sc_pcu_mtx_name[32];
 	struct mtx		sc_rx_mtx;	/* RX access mutex */
 	char			sc_rx_mtx_name[32];
-	struct mtx		sc_tx_mtx;	/* TX access mutex */
+	struct mtx		sc_tx_mtx;	/* TX handling/comp mutex */
 	char			sc_tx_mtx_name[32];
+	struct mtx		sc_tx_ic_mtx;	/* TX queue mutex */
+	char			sc_tx_ic_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
-	struct taskqueue	*sc_tx_tq;	/* private TX task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
 	struct ath_tx99		*sc_tx99;	/* tx99 adjunct state */
@@ -568,7 +567,9 @@ struct ath_softc {
 	/*
 	 * Second set of flags.
 	 */
-	u_int32_t		sc_use_ent  : 1;
+	u_int32_t		sc_use_ent  : 1,
+				sc_rx_stbc  : 1,
+				sc_tx_stbc  : 1;
 
 	/*
 	 * Enterprise mode configuration for AR9380 and later chipsets.
@@ -716,9 +717,13 @@ struct ath_softc {
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
-	int			sc_txchainmask;	/* currently configured TX chainmask */
-	int			sc_rxchainmask;	/* currently configured RX chainmask */
+	int			sc_txchainmask;	/* hardware TX chainmask */
+	int			sc_rxchainmask;	/* hardware RX chainmask */
+	int			sc_cur_txchainmask;	/* currently configured TX chainmask */
+	int			sc_cur_rxchainmask;	/* currently configured RX chainmask */
 	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
+	int			sc_aggr_limit;	/* TX limit on all aggregates */
+	int			sc_delim_min_pad;	/* Minimum delimiter count */
 
 	/* Queue limits */
 
@@ -795,10 +800,8 @@ struct ath_softc {
 #define	ATH_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
 /*
- * The TX lock is non-reentrant and serialises the TX send operations.
- * (ath_start(), ath_raw_xmit().)  It doesn't yet serialise the TX
- * completion operations; thus it can't be used (yet!) to protect
- * hardware / software TXQ operations.
+ * The TX lock is non-reentrant and serialises the TX frame send
+ * and completion operations.
  */
 #define	ATH_TX_LOCK_INIT(_sc) do {\
 	snprintf((_sc)->sc_tx_mtx_name,				\
@@ -814,6 +817,28 @@ struct ath_softc {
 #define	ATH_TX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
 		MA_OWNED)
 #define	ATH_TX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
+		MA_NOTOWNED)
+#define	ATH_TX_TRYLOCK(_sc)	(mtx_owned(&(_sc)->sc_tx_mtx) != 0 &&	\
+					mtx_trylock(&(_sc)->sc_tx_mtx))
+
+/*
+ * The IC TX lock is non-reentrant and serialises packet queuing from
+ * the upper layers.
+ */
+#define	ATH_TX_IC_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_tx_ic_mtx_name,				\
+	    sizeof((_sc)->sc_tx_ic_mtx_name),				\
+	    "%s IC TX lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_tx_ic_mtx, (_sc)->sc_tx_ic_mtx_name,	\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_TX_IC_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_LOCK(_sc)		mtx_lock(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_tx_ic_mtx)
+#define	ATH_TX_IC_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
+		MA_OWNED)
+#define	ATH_TX_IC_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_ic_mtx,	\
 		MA_NOTOWNED)
 
 /*
@@ -1313,6 +1338,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getMibCycleCounts)((_ah), (_sample)))
 #define	ath_hal_get_chan_ext_busy(_ah) \
 	((*(_ah)->ah_get11nExtBusy)((_ah)))
+#define	ath_hal_setchainmasks(_ah, _txchainmask, _rxchainmask) \
+	((*(_ah)->ah_setChainMasks)((_ah), (_txchainmask), (_rxchainmask)))
 
 #define	ath_hal_spectral_supported(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_SPECTRAL_SCAN, 0, NULL) == HAL_OK)

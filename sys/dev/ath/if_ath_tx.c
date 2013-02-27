@@ -473,11 +473,6 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 			    bf->bf_state.bfs_ndelim);
 		}
 		isFirstDesc = 0;
-#ifdef	ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_XMIT)
-			ath_printtxbuf(sc, bf, bf->bf_state.bfs_tx_queue,
-			    0, 0);
-#endif
 		bf->bf_lastds = (struct ath_desc *) ds;
 
 		/*
@@ -1124,11 +1119,7 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			dur = rt->info[rix].lpAckDuration;
 		if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
 			dur += dur;		/* additional SIFS+ACK */
-			if (bf->bf_state.bfs_nextpktlen == 0) {
-				device_printf(sc->sc_dev,
-				    "%s: next txfrag len=0?\n",
-				    __func__);
-			}
+			KASSERT(bf->bf_m->m_nextpkt != NULL, ("no fragment"));
 			/*
 			 * Include the size of next fragment so NAV is
 			 * updated properly.  The last fragment uses only
@@ -1139,7 +1130,7 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			 * first fragment!
 			 */
 			dur += ath_hal_computetxtime(ah, rt,
-					bf->bf_state.bfs_nextpktlen,
+					bf->bf_m->m_nextpkt->m_pkthdr.len,
 					rix, shortPreamble);
 		}
 		if (isfrag) {
@@ -2999,9 +2990,11 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	}
 
 	ath_tx_tid_sched(sc, tid);
-	/* Punt some frames to the hardware if needed */
-	//ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
-	taskqueue_enqueue(sc->sc_tx_tq, &sc->sc_txqtask);
+
+	/*
+	 * Queue the software TX scheduler.
+	 */
+	ath_tx_swq_kick(sc);
 }
 
 /*
@@ -3156,7 +3149,7 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		 * Don't allow a filtered frame to live forever.
 		 */
 		if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
-		sc->sc_stats.ast_tx_swretrymax++;
+			sc->sc_stats.ast_tx_swretrymax++;
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 			    "%s: bf=%p, seqno=%d, exceeded retries\n",
 			    __func__,
@@ -3380,6 +3373,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_update_baw(sc, an, tid, bf);
 			bf->bf_state.bfs_dobaw = 0;
 		}
+#if 0
 		/*
 		 * This has become a non-fatal error now
 		 */
@@ -3387,6 +3381,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			device_printf(sc->sc_dev,
 			    "%s: wasn't added: seqno %d\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno));
+#endif
 	}
 	TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
 }

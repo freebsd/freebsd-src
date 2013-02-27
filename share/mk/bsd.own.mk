@@ -295,6 +295,7 @@ __DEFAULT_YES_OPTIONS = \
     KERBEROS \
     KERNEL_SYMBOLS \
     KVM \
+    LDNS \
     LEGACY_CONSOLE \
     LIB32 \
     LIBPTHREAD \
@@ -370,6 +371,7 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
+    LDNS_UTILS \
     NMTREE \
     NAND \
     OFED \
@@ -389,9 +391,13 @@ __T=${TARGET_ARCH}
 .else
 __T=${MACHINE_ARCH}
 .endif
-# Clang is only for x86 and powerpc right now, by default.
+# Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
+.elif ${__T} == "arm" || ${__T} == "armv6"
+__DEFAULT_YES_OPTIONS+=CLANG
+# GCC is unable to build the full clang on arm, disable it by default.
+__DEFAULT_NO_OPTIONS+=CLANG_FULL
 .else
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
@@ -464,6 +470,14 @@ MK_BIND_LIBS:=	no
 MK_BIND_LIBS_LWRES:= no
 MK_BIND_MTREE:=	no
 MK_BIND_NAMED:=	no
+MK_BIND_UTILS:=	no
+.endif
+
+.if ${MK_LDNS} == "no"
+MK_LDNS_UTILS:=	no
+.endif
+
+.if ${MK_LDNS_UTILS} != "no"
 MK_BIND_UTILS:=	no
 .endif
 

@@ -1592,8 +1592,8 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 
 		bintime(&bt);
 		if (inp->inp_socket->so_options & SO_BINTIME) {
-			*mp = sbcreatecontrol((caddr_t) &bt, sizeof(bt),
-			SCM_BINTIME, SOL_SOCKET);
+			*mp = sbcreatecontrol((caddr_t)&bt, sizeof(bt),
+			    SCM_BINTIME, SOL_SOCKET);
 			if (*mp)
 				mp = &(*mp)->m_next;
 		}
@@ -1601,20 +1601,20 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 			struct timeval tv;
 
 			bintime2timeval(&bt, &tv);
-			*mp = sbcreatecontrol((caddr_t) &tv, sizeof(tv),
-				SCM_TIMESTAMP, SOL_SOCKET);
+			*mp = sbcreatecontrol((caddr_t)&tv, sizeof(tv),
+			    SCM_TIMESTAMP, SOL_SOCKET);
 			if (*mp)
 				mp = &(*mp)->m_next;
 		}
 	}
 	if (inp->inp_flags & INP_RECVDSTADDR) {
-		*mp = sbcreatecontrol((caddr_t) &ip->ip_dst,
+		*mp = sbcreatecontrol((caddr_t)&ip->ip_dst,
 		    sizeof(struct in_addr), IP_RECVDSTADDR, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVTTL) {
-		*mp = sbcreatecontrol((caddr_t) &ip->ip_ttl,
+		*mp = sbcreatecontrol((caddr_t)&ip->ip_ttl,
 		    sizeof(u_char), IP_RECVTTL, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
@@ -1626,14 +1626,14 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 	 */
 	/* options were tossed already */
 	if (inp->inp_flags & INP_RECVOPTS) {
-		*mp = sbcreatecontrol((caddr_t) opts_deleted_above,
+		*mp = sbcreatecontrol((caddr_t)opts_deleted_above,
 		    sizeof(struct in_addr), IP_RECVOPTS, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	/* ip_srcroute doesn't do what we want here, need to fix */
 	if (inp->inp_flags & INP_RECVRETOPTS) {
-		*mp = sbcreatecontrol((caddr_t) ip_srcroute(m),
+		*mp = sbcreatecontrol((caddr_t)ip_srcroute(m),
 		    sizeof(struct in_addr), IP_RECVRETOPTS, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
@@ -1648,32 +1648,32 @@ ip_savecontrol(struct inpcb *inp, struct mbuf **mp, struct ip *ip,
 		struct sockaddr_dl *sdp;
 		struct sockaddr_dl *sdl2 = &sdlbuf.sdl;
 
-		if (((ifp = m->m_pkthdr.rcvif)) 
-		&& ( ifp->if_index && (ifp->if_index <= V_if_index))) {
+		if ((ifp = m->m_pkthdr.rcvif) &&
+		    ifp->if_index && ifp->if_index <= V_if_index) {
 			sdp = (struct sockaddr_dl *)ifp->if_addr->ifa_addr;
 			/*
 			 * Change our mind and don't try copy.
 			 */
-			if ((sdp->sdl_family != AF_LINK)
-			|| (sdp->sdl_len > sizeof(sdlbuf))) {
+			if (sdp->sdl_family != AF_LINK ||
+			    sdp->sdl_len > sizeof(sdlbuf)) {
 				goto makedummy;
 			}
 			bcopy(sdp, sdl2, sdp->sdl_len);
 		} else {
 makedummy:	
-			sdl2->sdl_len
-				= offsetof(struct sockaddr_dl, sdl_data[0]);
+			sdl2->sdl_len =
+			    offsetof(struct sockaddr_dl, sdl_data[0]);
 			sdl2->sdl_family = AF_LINK;
 			sdl2->sdl_index = 0;
 			sdl2->sdl_nlen = sdl2->sdl_alen = sdl2->sdl_slen = 0;
 		}
-		*mp = sbcreatecontrol((caddr_t) sdl2, sdl2->sdl_len,
-			IP_RECVIF, IPPROTO_IP);
+		*mp = sbcreatecontrol((caddr_t)sdl2, sdl2->sdl_len,
+		    IP_RECVIF, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
 	if (inp->inp_flags & INP_RECVTOS) {
-		*mp = sbcreatecontrol((caddr_t) &ip->ip_tos,
+		*mp = sbcreatecontrol((caddr_t)&ip->ip_tos,
 		    sizeof(u_char), IP_RECVTOS, IPPROTO_IP);
 		if (*mp)
 			mp = &(*mp)->m_next;

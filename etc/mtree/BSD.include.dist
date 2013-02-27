@@ -100,6 +100,8 @@
     dev
         acpica
         ..
+        agp
+        ..
         an
         ..
         bktr
@@ -135,6 +137,8 @@
         ofw
         ..
         pbio
+        ..
+        pci
         ..
         powermac_nvram
         ..

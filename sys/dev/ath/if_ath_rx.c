@@ -954,16 +954,31 @@ rx_proc_next:
 	 * need to be handled, kick the PCU if there's
 	 * been an RXEOL condition.
 	 */
-	ATH_PCU_LOCK(sc);
-	if (resched && sc->sc_kickpcu) {
+	if (resched && kickpcu) {
+		ATH_PCU_LOCK(sc);
 		ATH_KTR(sc, ATH_KTR_ERROR, 0, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
 
-		/* XXX rxslink? */
-#if 0
+		/*
+		 * Go through the process of fully tearing down
+		 * the RX buffers and reinitialising them.
+		 *
+		 * There's a hardware bug that causes the RX FIFO
+		 * to get confused under certain conditions and
+		 * constantly write over the same frame, leading
+		 * the RX driver code here to get heavily confused.
+		 */
+#if 1
 		ath_startrecv(sc);
 #else
+		/*
+		 * Disabled for now - it'd be nice to be able to do
+		 * this in order to limit the amount of CPU time spent
+		 * reinitialising the RX side (and thus minimise RX
+		 * drops) however there's a hardware issue that
+		 * causes things to get too far out of whack.
+		 */
 		/*
 		 * XXX can we hold the PCU lock here?
 		 * Are there any net80211 buffer calls involved?
@@ -977,8 +992,8 @@ rx_proc_next:
 
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
+		ATH_PCU_UNLOCK(sc);
 	}
-	ATH_PCU_UNLOCK(sc);
 
 	/* XXX check this inside of IF_LOCK? */
 	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {

@@ -212,7 +212,7 @@ extract_pkg_static(int fd, char *p, int sz)
 		warn("archive_read_new");
 		return (ret);
 	}
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_tar(a);
 
 	if (lseek(fd, 0, 0) == -1) {
@@ -247,7 +247,7 @@ extract_pkg_static(int fd, char *p, int sz)
 		warnx("fail to extract pkg-static");
 
 cleanup:
-	archive_read_finish(a);
+	archive_read_free(a);
 	return (ret);
 
 }
@@ -411,6 +411,8 @@ bootstrap_pkg(void)
 
 fetchfail:
 	warnx("Error fetching %s: %s", url, fetchLastErrString);
+	fprintf(stderr, "A pre-built version of pkg could not be found for your system.\n");
+	fprintf(stderr, "Consider changing PACKAGESITE or installing it from ports: 'ports-mgmt/pkg'.\n");
 
 cleanup:
 	if (remote != NULL)

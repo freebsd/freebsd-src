@@ -36,8 +36,8 @@
 /*
  * The reserved event numbers for kernel events are 1...2047 and 43001..44900.
  */
-#define	AUE_IS_A_KEVENT(e)	(((e) > 0 && (e) < 2048) || 	\
-    				 ((e) > 43000 && (e) < 45000))
+#define	AUE_IS_A_KEVENT(e)	(((e) > 0 && (e) < 2048) ||	\
+				 ((e) > 43000 && (e) < 45000))
 
 /*
  * Values marked as AUE_NULL are not required to be audited as per CAPP.

@@ -121,11 +121,6 @@
 
 #endif /* AIM/E500 */
 
-/* XXX max. amount of KVM to be used by buffers. */
-#ifndef VM_MAX_KERNEL_BUF
-#define	VM_MAX_KERNEL_BUF	(SEGMENT_LENGTH * 7 / 10)
-#endif
-
 #if !defined(LOCORE)
 struct pmap_physseg {
 	struct pv_entry *pvent;

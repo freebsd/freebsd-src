@@ -673,6 +673,10 @@ _install-info=	install-info
 _zoneinfo=	zic tzsetup
 .endif
 
+.if exists(/usr/sbin/nmtree)
+_nmtree_itools=	nmtree
+.endif
+
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
@@ -1128,14 +1132,13 @@ _lex=		usr.bin/lex
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
-_yacc=		usr.bin/yacc
+_yacc=		lib/liby \
+		usr.bin/yacc
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
-.else
-_nmtree_itools=	nmtree
 .endif
 
 .if ${BOOTSTRAPPING} < 1000027
@@ -1205,6 +1208,7 @@ bootstrap-tools:
     ${_sed} \
     ${_yacc} \
     ${_lex} \
+    lib/libmd \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \

@@ -719,12 +719,19 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	return (error);
 }
 
+/*
+ * This function is called having the enumeration SX locked which
+ * protects the scratch area used.
+ */
 static int
 ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 {
-	void *ptr = f->udev->bus->scratch[0].data;
-	uint16_t size = sizeof(f->udev->bus->scratch[0].data);
+	void *ptr;
+	uint16_t size;
 	int error;
+
+	ptr = f->udev->scratch.data;
+	size = sizeof(f->udev->scratch.data);
 
 	if (usbd_req_get_string_desc(f->udev, NULL, ptr,
 	    size, ugd->ugd_lang_id, ugd->ugd_string_index)) {
@@ -1834,6 +1841,17 @@ ugen_get_power_mode(struct usb_fifo *f)
 }
 
 static int
+ugen_get_power_usage(struct usb_fifo *f)
+{
+	struct usb_device *udev = f->udev;
+
+	if (udev == NULL)
+		return (0);
+
+	return (udev->power);
+}
+
+static int
 ugen_do_port_feature(struct usb_fifo *f, uint8_t port_no,
     uint8_t set, uint16_t feature)
 {
@@ -2193,6 +2211,10 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_GET_POWER_MODE:
 		*u.pint = ugen_get_power_mode(f);
+		break;
+
+	case USB_GET_POWER_USAGE:
+		*u.pint = ugen_get_power_usage(f);
 		break;
 
 	case USB_SET_PORT_ENABLE:

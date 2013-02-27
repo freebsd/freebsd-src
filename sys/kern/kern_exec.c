@@ -640,7 +640,7 @@ interpret:
 	 */
 	p->p_flag |= P_EXEC;
 	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {
-		p->p_flag &= ~P_PPWAIT;
+		p->p_flag &= ~(P_PPWAIT | P_PPTRACE);
 		cv_broadcast(&p->p_pwait);
 	}
 

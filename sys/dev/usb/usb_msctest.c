@@ -505,13 +505,8 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 	usb_error_t err;
 	uint8_t do_unlock;
 
-	/* automatic locking */
-	if (usbd_enum_is_locked(udev)) {
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		usbd_enum_lock(udev);
-	}
+	/* Prevent re-enumeration */
+	do_unlock = usbd_enum_lock(udev);
 
 	/*
 	 * Make sure any driver which is hooked up to this interface,
@@ -848,7 +843,7 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		    sizeof(scsi_tct_eject), USB_MS_HZ);
 		break;
 	default:
-		printf("usb_msc_eject: unknown eject method (%d)\n", method);
+		DPRINTF("Unknown eject method (%d)\n", method);
 		break;
 	}
 	DPRINTF("Eject CD command status: %s\n", usbd_errstr(err));

@@ -1166,29 +1166,27 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 		return status;
 	}
 
-	if (m == NULL)
-		next = drbr_dequeue(ifp, br);		
-	else if (drbr_needs_enqueue(ifp, br)) {
+	 if (m != NULL) {
 		if ((status = drbr_enqueue(ifp, br, m)) != 0)
 			return status;
-		next = drbr_dequeue(ifp, br);
-	} else
-		next = m;
-
-	while (next != NULL) {
+	} 
+	while ((next = drbr_peek(ifp, br)) != NULL) {
 		if (oce_tx(sc, &next, queue_index)) {
-			if (next != NULL) {
+			if (next == NULL) {
+				drbr_advance(ifp, br);
+			} else {
+				drbr_putback(ifp, br, next);
 				wq->tx_stats.tx_stops ++;
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				status = drbr_enqueue(ifp, br, next);
 			}  
 			break;
 		}
+		drbr_advance(ifp, br);
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
 			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
-		next = drbr_dequeue(ifp, br);
 	}
 
 	return status;
@@ -1819,6 +1817,9 @@ oce_local_timer(void *arg)
 }
 
 
+/* NOTE : This should only be called holding
+ *        DEVICE_LOCK.
+*/
 static void
 oce_if_deactivate(POCE_SOFTC sc)
 {
@@ -1848,11 +1849,17 @@ oce_if_deactivate(POCE_SOFTC sc)
 	/* Stop intrs and finish any bottom halves pending */
 	oce_hw_intr_disable(sc);
 
+    /* Since taskqueue_drain takes a Giant Lock, We should not acquire
+       any other lock. So unlock device lock and require after
+       completing taskqueue_drain.
+    */
+    UNLOCK(&sc->dev_lock);
 	for (i = 0; i < sc->intr_count; i++) {
 		if (sc->intrs[i].tq != NULL) {
 			taskqueue_drain(sc->intrs[i].tq, &sc->intrs[i].task);
 		}
 	}
+    LOCK(&sc->dev_lock);
 
 	/* Delete RX queue in card with flush param */
 	oce_stop_rx(sc);

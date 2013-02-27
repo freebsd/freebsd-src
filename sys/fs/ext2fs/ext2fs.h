@@ -170,7 +170,6 @@ struct m_ext2fs {
 	char     e2fs_wasvalid;   /* valid at mount time */
 	off_t    e2fs_maxfilesize;
 	struct   ext2_gd *e2fs_gd; /* Group Descriptors */
-	int32_t  e2fs_maxcontig;	/* max number of contiguous blks */
 	int32_t  e2fs_contigsumsize;    /* size of cluster summary array */
 	int32_t *e2fs_maxcluster;       /* max cluster in each cyl group */
 	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
@@ -304,7 +303,6 @@ struct csum {
 /*
  * Macro-instructions used to manage several block sizes
  */
-#define EXT2_MIN_BLOCK_SIZE		1024
 #define	EXT2_MAX_BLOCK_SIZE		4096
 #define EXT2_MIN_BLOCK_LOG_SIZE		  10
 #define EXT2_BLOCK_SIZE(s)		((s)->e2fs_bsize)

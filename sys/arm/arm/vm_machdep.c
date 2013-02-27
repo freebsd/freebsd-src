@@ -402,7 +402,8 @@ cpu_thread_alloc(struct thread *td)
 	 * the ARM EABI.
 	 */
 	td->td_frame = (struct trapframe *)STACKALIGN((u_int)td->td_kstack +
-	    USPACE_SVC_STACK_TOP - sizeof(struct pcb) - 1);
+	    USPACE_SVC_STACK_TOP - sizeof(struct pcb) -
+	    sizeof(struct trapframe));
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);

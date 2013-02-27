@@ -521,7 +521,7 @@ waitcmd(int argc, char **argv)
 	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
-	return 0;
+	return pendingsig + 128;
 }
 
 
@@ -1030,7 +1030,7 @@ dowait(int mode, struct job *job)
 	int wflags;
 	int restore_sigchld;
 
-	TRACE(("dowait(%d) called\n", block));
+	TRACE(("dowait(%d, %p) called\n", mode, job));
 	restore_sigchld = 0;
 	if ((mode & DOWAIT_SIG) != 0) {
 		sigfillset(&mask);
