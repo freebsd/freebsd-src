@@ -1194,6 +1194,7 @@ mfi_process_fw_state_chg_isr(void *arg)
 			sc->hw_crit_error= 1;
 			return ;
 		}
+		mtx_unlock(&sc->mfi_io_lock);
 		if ((error = mfi_tbolt_init_MFI_queue(sc)) != 0)
 				return;
 
@@ -1225,7 +1226,9 @@ mfi_process_fw_state_chg_isr(void *arg)
 			/*
 			 * Initiate AEN (Asynchronous Event Notification)
 			 */
+			mtx_unlock(&sc->mfi_io_lock);
 			mfi_aen_setup(sc, sc->last_seq_num);
+			mtx_lock(&sc->mfi_io_lock);
 			sc->issuepend_done = 1;
 			device_printf(sc->mfi_dev, "second stage of reset "
 			    "complete, FW is ready now.\n");
@@ -1237,7 +1240,6 @@ mfi_process_fw_state_chg_isr(void *arg)
 		device_printf(sc->mfi_dev, "mfi_process_fw_state_chg_isr "
 		    "called with unhandled value:%d\n", sc->adpreset);
 	}
-	mtx_unlock(&sc->mfi_io_lock);
 }
 
 /*
