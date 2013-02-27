@@ -653,6 +653,9 @@ ti_gpio_attach(device_t dev)
 	struct ti_gpio_softc *sc = device_get_softc(dev);
 	unsigned int i;
 	int err = 0;
+	int pin;
+	uint32_t flags;
+	uint32_t reg_oe;
 
 	sc->sc_dev = dev;
 
@@ -720,6 +723,17 @@ ti_gpio_attach(device_t dev)
 			/* Disable interrupts for all pins */
 			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE1, 0xffffffff);
 			ti_gpio_write_4(sc, i, TI_GPIO_CLEARIRQENABLE2, 0xffffffff);
+
+			/* Init OE registger based on pads configuration */
+			reg_oe = 0xffffffff;
+			for (pin = 0; pin < 32; pin++) {
+				ti_scm_padconf_get_gpioflags(
+				    PINS_PER_BANK*i + pin, &flags);
+				if (flags & GPIO_PIN_OUTPUT)
+					reg_oe &= ~(1U << pin);
+			}
+
+			ti_gpio_write_4(sc, i, TI_GPIO_OE, reg_oe);
 		}
 	}
 
