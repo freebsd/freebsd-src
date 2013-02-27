@@ -137,6 +137,9 @@ typedef enum {
 	HAL_CAP_RIFS_RX_ENABLED	= 53,
 	HAL_CAP_BB_DFS_HANG	= 54,
 
+	HAL_CAP_RX_STBC		= 58,
+	HAL_CAP_TX_STBC		= 59,
+
 	HAL_CAP_BT_COEX		= 60,	/* hardware is capable of bluetooth coexistence */
 	HAL_CAP_DYNAMIC_SMPS	= 61,	/* Dynamic MIMO Power Save hardware support */
 
