@@ -42,7 +42,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixv_driver_version[] = "1.1.2";
+char ixv_driver_version[] = "1.1.4";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -169,7 +169,8 @@ static device_method_t ixv_methods[] = {
 	DEVMETHOD(device_attach, ixv_attach),
 	DEVMETHOD(device_detach, ixv_detach),
 	DEVMETHOD(device_shutdown, ixv_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t ixv_driver = {
@@ -381,7 +382,7 @@ ixv_attach(device_t dev)
 	/* Get Hardware Flow Control setting */
 	hw->fc.requested_mode = ixgbe_fc_full;
 	hw->fc.pause_time = IXV_FC_PAUSE;
-	hw->fc.low_water = IXV_FC_LO;
+	hw->fc.low_water[0] = IXV_FC_LO;
 	hw->fc.high_water[0] = IXV_FC_HI;
 	hw->fc.send_xon = TRUE;
 
@@ -614,10 +615,6 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		return (err);
 	}
 
-	/* Do a clean if descriptors are low */
-	if (txr->tx_avail <= IXV_TX_CLEANUP_THRESHOLD)
-		ixv_txeof(txr);
-
 	enqueued = 0;
 	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
@@ -631,20 +628,20 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	/* Process the queue */
 	while (next != NULL) {
 		if ((err = ixv_xmit(txr, &next)) != 0) {
-			if (next != NULL)
+			if (next != NULL) 
 				err = drbr_enqueue(ifp, txr->br, next);
 			break;
 		}
 		enqueued++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
-		if (txr->tx_avail <= IXV_TX_OP_THRESHOLD) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
+		if (txr->tx_avail < IXV_TX_OP_THRESHOLD)
+			ixv_txeof(txr);
 		next = drbr_dequeue(ifp, txr->br);
 	}
 
@@ -653,6 +650,9 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		txr->watchdog_check = TRUE;
 		txr->watchdog_time = ticks;
 	}
+
+	if (txr->tx_avail < IXV_TX_CLEANUP_THRESHOLD)
+		ixv_txeof(txr);
 
 	return (err);
 }
@@ -1233,7 +1233,7 @@ ixv_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -2294,7 +2294,7 @@ ixv_initialize_transmit_units(struct adapter *adapter)
 		    adapter->num_tx_desc *
 		    sizeof(struct ixgbe_legacy_tx_desc));
 		txctrl = IXGBE_READ_REG(hw, IXGBE_VFDCA_TXCTRL(i));
-		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		txctrl &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_VFDCA_TXCTRL(i), txctrl);
 		break;
 	}
@@ -2721,7 +2721,7 @@ ixv_refresh_mbufs(struct rx_ring *rxr, int limit)
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if ((rxbuf->m_head == NULL) && (rxr->hdr_split)) {
-			mh = m_gethdr(M_DONTWAIT, MT_DATA);
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
 			mh->m_pkthdr.len = mh->m_len = MHLEN;
@@ -2745,7 +2745,7 @@ ixv_refresh_mbufs(struct rx_ring *rxr, int limit)
 		}
 
 		if (rxbuf->m_pack == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;
@@ -3999,7 +3999,7 @@ ixv_set_flowcntl(SYSCTL_HANDLER_ARGS)
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
 	}
 
-	ixgbe_fc_enable(&adapter->hw, 0);
+	ixgbe_fc_enable(&adapter->hw);
 	return error;
 }
 
