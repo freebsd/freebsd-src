@@ -622,7 +622,7 @@ puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
 	if (cookiep == NULL || res != port->p_ires)
 		return (EINVAL);
 	/* We demand that serdev devices use filter_only interrupts. */
-	if (ihand != NULL)
+	if (port->p_type == PUC_TYPE_SERIAL && ihand != NULL)
 		return (ENXIO);
 	if (rman_get_device(port->p_ires) != originator)
 		return (ENXIO);
