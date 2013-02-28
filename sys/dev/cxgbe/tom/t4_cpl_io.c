@@ -1018,8 +1018,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
-	if (cpl->status == CPL_ERR_RTX_NEG_ADVICE ||
-	    cpl->status == CPL_ERR_PERSIST_NEG_ADVICE) {
+	if (negative_advice(cpl->status)) {
 		CTR4(KTR_CXGBE, "%s: negative advice %d for tid %d (0x%x)",
 		    __func__, cpl->status, tid, toep->flags);
 		return (0);	/* Ignore negative advice */
