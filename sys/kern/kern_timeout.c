@@ -100,7 +100,7 @@ struct cc_mig_ent {
 	int	ce_migration_ticks;
 #endif
 };
-	
+
 /*
  * There is one struct callout_cpu per cpu, holding all relevant
  * state for the callout processing thread on the individual CPU.
@@ -613,7 +613,7 @@ skip:
 }
 
 /*
- * The callout mechanism is based on the work of Adam M. Costello and 
+ * The callout mechanism is based on the work of Adam M. Costello and
  * George Varghese, published in a technical report entitled "Redesigning
  * the BSD Callout and Timer Facilities" and modified slightly for inclusion
  * in FreeBSD by Justin T. Gibbs.  The original work on the data structures
