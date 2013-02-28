@@ -117,6 +117,11 @@ int	tcp_maxpersistidle;
 	/* max idle time in persist */
 int	tcp_maxidle;
 
+static int	tcp_rexmit_drop_options = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
+    &tcp_rexmit_drop_options, 0,
+    "Drop TCP options from 3rd and later retransmitted SYN");
+
 /*
  * Tcp protocol timeout routine called every 500 ms.
  * Updates timestamps used for TCP
@@ -552,7 +557,8 @@ tcp_timer_rexmt(void * xtp)
 	 * header compression code which trashes TCP segments containing
 	 * unknown-to-them TCP options.
 	 */
-	if ((tp->t_state == TCPS_SYN_SENT) && (tp->t_rxtshift == 3))
+	if (tcp_rexmit_drop_options && (tp->t_state == TCPS_SYN_SENT) &&
+	    (tp->t_rxtshift == 3))
 		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP);
 	/*
 	 * If we backed off this far, our srtt estimate is probably bogus.
