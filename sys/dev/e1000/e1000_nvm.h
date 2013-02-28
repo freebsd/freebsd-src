@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -35,6 +35,14 @@
 #ifndef _E1000_NVM_H_
 #define _E1000_NVM_H_
 
+#if !defined(NO_READ_PBA_RAW) || !defined(NO_WRITE_PBA_RAW)
+struct e1000_pba {
+	u16 word[2];
+	u16 *pba_block;
+};
+#endif
+
+
 void e1000_init_nvm_ops_generic(struct e1000_hw *hw);
 s32  e1000_null_read_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c);
 void e1000_null_nvm_generic(struct e1000_hw *hw);
@@ -47,6 +55,13 @@ s32  e1000_read_mac_addr_generic(struct e1000_hw *hw);
 s32  e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 				   u32 pba_num_size);
 s32  e1000_read_pba_length_generic(struct e1000_hw *hw, u32 *pba_num_size);
+s32 e1000_read_pba_raw(struct e1000_hw *hw, u16 *eeprom_buf,
+		       u32 eeprom_buf_size, u16 max_pba_block_size,
+		       struct e1000_pba *pba);
+s32 e1000_write_pba_raw(struct e1000_hw *hw, u16 *eeprom_buf,
+			u32 eeprom_buf_size, struct e1000_pba *pba);
+s32 e1000_get_pba_block_size(struct e1000_hw *hw, u16 *eeprom_buf,
+			     u32 eeprom_buf_size, u16 *pba_block_size);
 s32  e1000_read_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
 s32  e1000_read_nvm_microwire(struct e1000_hw *hw, u16 offset,
 			      u16 words, u16 *data);
