@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.91 2010/11/29 23:45:51 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.96 2012/05/13 01:42:32 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -332,7 +332,7 @@ auth_root_allowed(char *method)
  *
  * This returns a buffer allocated by xmalloc.
  */
-static char *
+char *
 expand_authorized_keys(const char *filename, struct passwd *pw)
 {
 	char *file, ret[MAXPATHLEN];
@@ -356,21 +356,10 @@ expand_authorized_keys(const char *filename, struct passwd *pw)
 }
 
 char *
-authorized_keys_file(struct passwd *pw)
-{
-	return expand_authorized_keys(options.authorized_keys_file, pw);
-}
-
-char *
-authorized_keys_file2(struct passwd *pw)
-{
-	return expand_authorized_keys(options.authorized_keys_file2, pw);
-}
-
-char *
 authorized_principals_file(struct passwd *pw)
 {
-	if (options.authorized_principals_file == NULL)
+	if (options.authorized_principals_file == NULL ||
+	    strcasecmp(options.authorized_principals_file, "none") == 0)
 		return NULL;
 	return expand_authorized_keys(options.authorized_principals_file, pw);
 }
@@ -469,7 +458,6 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		}
 		strlcpy(buf, cp, sizeof(buf));
 
-		debug3("secure_filename: checking '%s'", buf);
 		if (stat(buf, &st) < 0 ||
 		    (st.st_uid != 0 && st.st_uid != uid) ||
 		    (st.st_mode & 022) != 0) {
@@ -479,11 +467,9 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		}
 
 		/* If are past the homedir then we can stop */
-		if (comparehome && strcmp(homedir, buf) == 0) {
-			debug3("secure_filename: terminating check at '%s'",
-			    buf);
+		if (comparehome && strcmp(homedir, buf) == 0)
 			break;
-		}
+
 		/*
 		 * dirname should always complete with a "/" path,
 		 * but we can be paranoid and check for "." too
@@ -560,9 +546,10 @@ getpwnamallow(const char *user)
 #endif
 #endif
 	struct passwd *pw;
+	struct connection_info *ci = get_connection_info(1, options.use_dns);
 
-	parse_server_match_config(&options, user,
-	    get_canonical_hostname(options.use_dns), get_remote_ipaddr());
+	ci->user = user;
+	parse_server_match_config(&options, ci);
 
 #if defined(_AIX) && defined(HAVE_SETAUTHDB)
 	aix_setauthdb(user);

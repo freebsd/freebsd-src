@@ -17,6 +17,9 @@
 /* Define if your resolver libs need this for getrrsetbyname */
 /* #undef BIND_8_COMPAT */
 
+/* The system has incomplete BSM API */
+/* #undef BROKEN_BSM_API */
+
 /* Define if cmsg_type is not passed correctly */
 /* #undef BROKEN_CMSG_TYPE */
 
@@ -125,9 +128,6 @@
 
 /* Enable for PKCS#11 support */
 #define ENABLE_PKCS11 /**/
-
-/* Builtin PRNG command timeout */
-#define ENTROPY_TIMEOUT_MSEC 200
 
 /* File names may not contain backslash characters */
 /* #undef FILESYSTEM_NO_BACKSLASH */
@@ -504,6 +504,9 @@
 /* Define if HEADER.ad exists in arpa/nameser.h */
 #define HAVE_HEADER_AD 1
 
+/* Define to 1 if you have the `HMAC_CTX_init' function. */
+#define HAVE_HMAC_CTX_INIT 1
+
 /* Define if you have ut_host in utmp.h */
 /* #undef HAVE_HOST_IN_UTMP */
 
@@ -555,6 +558,9 @@
 /* Define to 1 if you have the <lastlog.h> header file. */
 /* #undef HAVE_LASTLOG_H */
 
+/* Define if you want ldns support */
+/* #undef HAVE_LDNS */
+
 /* Define to 1 if you have the <libaudit.h> header file. */
 /* #undef HAVE_LIBAUDIT_H */
 
@@ -597,10 +603,19 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
+/* Define to 1 if you have the <linux/audit.h> header file. */
+/* #undef HAVE_LINUX_AUDIT_H */
+
+/* Define to 1 if you have the <linux/filter.h> header file. */
+/* #undef HAVE_LINUX_FILTER_H */
+
 /* Define to 1 if you have the <linux/if_tun.h> header file. */
 /* #undef HAVE_LINUX_IF_TUN_H */
 
-/* Define if your libraries define login() */
+/* Define to 1 if you have the <linux/seccomp.h> header file. */
+/* #undef HAVE_LINUX_SECCOMP_H */
+
+/* Define to 1 if you have the `login' function. */
 /* #undef HAVE_LOGIN */
 
 /* Define to 1 if you have the <login_cap.h> header file. */
@@ -754,6 +769,9 @@
 /* Define to 1 if you have the `recvmsg' function. */
 #define HAVE_RECVMSG 1
 
+/* sys/resource.h has RLIMIT_NPROC */
+#define HAVE_RLIMIT_NPROC /**/
+
 /* Define to 1 if you have the <rpc/types.h> header file. */
 #define HAVE_RPC_TYPES_H 1
 
@@ -765,6 +783,12 @@
 
 /* Define to 1 if you have the `RSA_get_default_method' function. */
 #define HAVE_RSA_GET_DEFAULT_METHOD 1
+
+/* Define to 1 if you have the <sandbox.h> header file. */
+/* #undef HAVE_SANDBOX_H */
+
+/* Define to 1 if you have the `sandbox_init' function. */
+/* #undef HAVE_SANDBOX_INIT */
 
 /* define if you have sa_family_t data type */
 #define HAVE_SA_FAMILY_T 1
@@ -798,6 +822,9 @@
 
 /* Define to 1 if you have the `setgroups' function. */
 #define HAVE_SETGROUPS 1
+
+/* Define to 1 if you have the `setlinebuf' function. */
+#define HAVE_SETLINEBUF 1
 
 /* Define to 1 if you have the `setlogin' function. */
 #define HAVE_SETLOGIN 1
@@ -924,6 +951,9 @@
 
 /* Define to 1 if you have the `strmode' function. */
 #define HAVE_STRMODE 1
+
+/* Define to 1 if you have the `strnlen' function. */
+#define HAVE_STRNLEN 1
 
 /* Define to 1 if you have the `strnvis' function. */
 /* #undef HAVE_STRNVIS */
@@ -1263,7 +1293,7 @@
    from environment and PATH */
 #define LOGIN_PROGRAM_FALLBACK "/usr/bin/login"
 
-/* Set this to your mail directory if you don't have maillock.h */
+/* Set this to your mail directory if you do not have _PATH_MAILDIR */
 /* #undef MAIL_DIRECTORY */
 
 /* Define on *nto-qnx systems */
@@ -1336,11 +1366,29 @@
 /* read(1) can return 0 for a non-closed fd */
 /* #undef PTY_ZEROREAD */
 
+/* Sandbox using Darwin sandbox_init(3) */
+/* #undef SANDBOX_DARWIN */
+
+/* no privsep sandboxing */
+/* #undef SANDBOX_NULL */
+
+/* Sandbox using setrlimit(2) */
+#define SANDBOX_RLIMIT 1
+
+/* Sandbox using seccomp filter */
+/* #undef SANDBOX_SECCOMP_FILTER */
+
+/* setrlimit RLIMIT_FSIZE works */
+/* #undef SANDBOX_SKIP_RLIMIT_FSIZE */
+
+/* Sandbox using systrace(4) */
+/* #undef SANDBOX_SYSTRACE */
+
+/* Specify the system call convention in use */
+/* #undef SECCOMP_AUDIT_ARCH */
+
 /* Define if your platform breaks doing a seteuid before a setuid */
 /* #undef SETEUID_BREAKS_SETUID */
-
-/* The size of `char', as computed by sizeof. */
-#define SIZEOF_CHAR 1
 
 /* The size of `int', as computed by sizeof. */
 #define SIZEOF_INT 4
@@ -1469,14 +1517,23 @@
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
-#if defined __BIG_ENDIAN__
-# define WORDS_BIGENDIAN 1
-#elif ! defined __LITTLE_ENDIAN__
-/* # undef WORDS_BIGENDIAN */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+/* #  undef WORDS_BIGENDIAN */
+# endif
 #endif
 
 /* Define if xauth is found in your path */
-/* #undef XAUTH_PATH */
+#define XAUTH_PATH "/usr/local/bin/xauth"
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

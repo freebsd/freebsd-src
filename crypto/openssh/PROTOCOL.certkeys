@@ -162,6 +162,13 @@ extensions is a set of zero or more optional extensions. These extensions
 are not critical, and an implementation that encounters one that it does
 not recognise may safely ignore it.
 
+Generally, critical options are used to control features that restrict
+access where extensions are used to enable features that grant access.
+This ensures that certificates containing unknown restrictions do not
+inadvertently grant access while allowing new protocol features to be
+enabled via extensions without breaking certificates' backwards
+compatibility.
+
 The reserved field is currently unused and is ignored in this version of
 the protocol.
 
@@ -189,7 +196,7 @@ is a sequence of zero or more tuples:
     string       data
 
 Options must be lexically ordered by "name" if they appear in the
-sequence.
+sequence. Each named option may only appear once in a certificate.
 
 The name field identifies the option and the data field encodes
 option-specific information (see below). All options are
@@ -220,7 +227,9 @@ Extensions
 
 The extensions section of the certificate specifies zero or more
 non-critical certificate extensions. The encoding and ordering of
-extensions in this field is identical to that of the critical options.
+extensions in this field is identical to that of the critical options,
+as is the requirement that each name appear only once.
+
 If an implementation does not recognise an extension, then it should
 ignore it.
 
@@ -253,4 +262,4 @@ permit-user-rc          empty         Flag indicating that execution of
                                       of this script will not be permitted if
                                       this option is not present.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.8 2010/08/31 11:54:45 djm Exp $
+$OpenBSD: PROTOCOL.certkeys,v 1.9 2012/03/28 07:23:22 djm Exp $

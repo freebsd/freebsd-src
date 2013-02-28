@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.4 2010/09/10 01:04:10 djm Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.5 2012/01/08 13:17:11 miod Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -145,6 +145,7 @@ ssh_ecdsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	buffer_get_bignum2(&bb, sig->s);
 	if (buffer_len(&bb) != 0)
 		fatal("%s: remaining bytes in inner sigblob", __func__);
+	buffer_free(&bb);
 
 	/* clean up */
 	memset(sigblob, 0, len);

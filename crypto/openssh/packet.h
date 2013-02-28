@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.55 2010/11/13 23:27:50 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.57 2012/01/25 19:40:09 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -59,7 +59,6 @@ void     packet_send(void);
 
 int      packet_read(void);
 void     packet_read_expect(int type);
-int      packet_read_poll(void);
 void     packet_process_incoming(const char *buf, u_int len);
 int      packet_read_seqnr(u_int32_t *seqnr_p);
 int      packet_read_poll_seqnr(u_int32_t *seqnr_p);
@@ -96,7 +95,6 @@ int      packet_have_data_to_write(void);
 int      packet_not_very_much_data_to_write(void);
 
 int	 packet_connection_is_on_socket(void);
-int	 packet_connection_is_ipv4(void);
 int	 packet_remaining(void);
 void	 packet_send_ignore(int);
 void	 packet_add_padding(u_char);

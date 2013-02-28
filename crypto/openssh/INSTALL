@@ -16,9 +16,7 @@ The remaining items are optional.
 
 NB. If you operating system supports /dev/random, you should configure
 OpenSSL to use it. OpenSSH relies on OpenSSL's direct support of
-/dev/random, or failing that, either prngd or egd.  If you don't have
-any of these you will have to rely on ssh-rand-helper, which is inferior
-to a good kernel-based solution or prngd.
+/dev/random, or failing that, either prngd or egd
 
 PRNGD:
 
@@ -81,6 +79,12 @@ these multi-platform ports:
 
 http://www.thrysoee.dk/editline/
 http://sourceforge.net/projects/libedit/
+
+LDNS:
+
+LDNS is a DNS BSD-licensed resolver library which supports DNSSEC.
+
+http://nlnetlabs.nl/projects/ldns/
 
 Autoconf:
 
@@ -262,4 +266,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.85 2010/02/11 22:34:22 djm Exp $
+$Id: INSTALL,v 1.87 2011/11/04 00:25:25 dtucker Exp $

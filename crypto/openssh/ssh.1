@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.316 2010/11/18 15:01:00 jmc Exp $
+.\" $OpenBSD: ssh.1,v 1.326 2012/06/18 12:17:18 dtucker Exp $
 .\" $FreeBSD$
-.Dd November 18, 2010
+.Dd June 18 2012
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -393,9 +393,13 @@ Valid commands are:
 .Dq check
 (check that the master process is running),
 .Dq forward
-(request forwardings without command execution) and
+(request forwardings without command execution),
+.Dq cancel
+(cancel forwardings),
 .Dq exit
-(request the master to exit).
+(request the master to exit), and
+.Dq stop
+(request the master to stop accepting further multiplexing requests).
 .It Fl o Ar option
 Can be used to give options in the format used in the configuration file.
 This is useful for specifying options for which there is no separate
@@ -418,11 +422,13 @@ For full details of the options listed below, and their possible values, see
 .It ConnectTimeout
 .It ControlMaster
 .It ControlPath
+.It ControlPersist
 .It DynamicForward
 .It EscapeChar
 .It ExitOnForwardFailure
 .It ForwardAgent
 .It ForwardX11
+.It ForwardX11Timeout
 .It ForwardX11Trusted
 .It GatewayPorts
 .It GlobalKnownHostsFile
@@ -437,6 +443,7 @@ For full details of the options listed below, and their possible values, see
 .It IdentityFile
 .It IdentitiesOnly
 .It IPQoS
+.It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
 .It KexAlgorithms
 .It LocalCommand
@@ -455,6 +462,7 @@ For full details of the options listed below, and their possible values, see
 .It PubkeyAuthentication
 .It RekeyLimit
 .It RemoteForward
+.It RequestTTY
 .It RhostsRSAAuthentication
 .It RSAAuthentication
 .It SendEnv
@@ -500,7 +508,7 @@ from the local machine.
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
 logging in as root on the remote machine.
-IPv6 addresses can be specified by enclosing the address in square braces.
+IPv6 addresses can be specified by enclosing the address in square brackets.
 .Pp
 By default, the listening socket on the server will be bound to the loopback
 interface only.
@@ -581,8 +589,8 @@ Implies
 .Fl T ,
 .Cm ExitOnForwardFailure
 and
-.Cm ClearAllForwardings
-and works with Protocol version 2 only.
+.Cm ClearAllForwardings .
+Works with Protocol version 2 only.
 .It Fl w Xo
 .Ar local_tun Ns Op : Ns Ar remote_tun
 .Xc
@@ -666,7 +674,9 @@ Both protocols support similar authentication methods,
 but protocol 2 is the default since
 it provides additional mechanisms for confidentiality
 (the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
-and integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).
+and integrity (hmac-md5, hmac-sha1,
+hmac-sha2-256, hmac-sha2-512,
+umac-64, hmac-ripemd160).
 Protocol 1 lacks a strong mechanism for ensuring the
 integrity of the connection.
 .Pp
@@ -893,11 +903,20 @@ Currently this allows the addition of port forwardings using the
 and
 .Fl D
 options (see above).
-It also allows the cancellation of existing remote port-forwardings
-using
+It also allows the cancellation of existing port-forwardings
+with
 .Sm off
-.Fl KR Oo Ar bind_address : Oc Ar port .
+.Fl KL Oo Ar bind_address : Oc Ar port
 .Sm on
+for local,
+.Sm off
+.Fl KR Oo Ar bind_address : Oc Ar port
+.Sm on
+for remote and
+.Sm off
+.Fl KD Oo Ar bind_address : Oc Ar port
+.Sm on
+for dynamic port-forwardings.
 .Ic !\& Ns Ar command
 allows the user to execute a local command if the
 .Ic PermitLocalCommand
@@ -1358,7 +1377,7 @@ The file format and configuration options are described in
 .It Pa /etc/ssh/ssh_host_dsa_key
 .It Pa /etc/ssh/ssh_host_ecdsa_key
 .It Pa /etc/ssh/ssh_host_rsa_key
-These three files contain the private parts of the host keys
+These files contain the private parts of the host keys
 and are used for host-based authentication.
 If protocol version 1 is used,
 .Nm
