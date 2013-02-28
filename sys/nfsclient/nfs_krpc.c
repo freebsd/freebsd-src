@@ -394,18 +394,17 @@ nfs_feedback(int type, int proc, void *arg)
 {
 	struct nfs_feedback_arg *nf = (struct nfs_feedback_arg *) arg;
 	struct nfsmount *nmp = nf->nf_mount;
-	struct timeval now;
-
-	getmicrouptime(&now);
+	time_t now;
 
 	switch (type) {
 	case FEEDBACK_REXMIT2:
 	case FEEDBACK_RECONNECT:
-		if (nf->nf_lastmsg + nmp->nm_tprintf_delay < now.tv_sec) {
+		now = time_uptime;
+		if (nf->nf_lastmsg + nmp->nm_tprintf_delay < now) {
 			nfs_down(nmp, nf->nf_td,
 			    "not responding", 0, NFSSTA_TIMEO);
 			nf->nf_tprintfmsg = TRUE;
-			nf->nf_lastmsg = now.tv_sec;
+			nf->nf_lastmsg = now;
 		}
 		break;
 
@@ -438,7 +437,6 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 	time_t waituntil;
 	caddr_t dpos;
 	int error = 0, timeo;
-	struct timeval now;
 	AUTH *auth = NULL;
 	enum nfs_rto_timer_t timer;
 	struct nfs_feedback_arg nf;
@@ -455,8 +453,7 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 	bzero(&nf, sizeof(struct nfs_feedback_arg));
 	nf.nf_mount = nmp;
 	nf.nf_td = td;
-	getmicrouptime(&now);
-	nf.nf_lastmsg = now.tv_sec -
+	nf.nf_lastmsg = time_uptime -
 	    ((nmp->nm_tprintf_delay) - (nmp->nm_tprintf_initial_delay));
 
 	/*
