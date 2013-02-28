@@ -26,7 +26,7 @@ parse_file()
 			\#*|'')
 				;;
 			*)
-				mib=${var%=*}
+				mib=${var%%=*}
 				val=${var#*=}
 
 				if current_value=`${SYSCTL} -n ${mib} 2>/dev/null`; then
