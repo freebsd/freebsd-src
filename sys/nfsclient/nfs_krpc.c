@@ -549,14 +549,21 @@ tryagain:
 	 */
 	if (stat == RPC_SUCCESS)
 		error = 0;
-	else if (stat == RPC_TIMEDOUT)
+	else if (stat == RPC_TIMEDOUT) {
+		nfsstats.rpctimeouts++;
 		error = ETIMEDOUT;
-	else if (stat == RPC_VERSMISMATCH)
+	} else if (stat == RPC_VERSMISMATCH) {
+		nfsstats.rpcinvalid++;
 		error = EOPNOTSUPP;
-	else if (stat == RPC_PROGVERSMISMATCH)
+	} else if (stat == RPC_PROGVERSMISMATCH) {
+		nfsstats.rpcinvalid++;
 		error = EPROTONOSUPPORT;
-	else
+	} else if (stat == RPC_INTR) {
+		error = EINTR;
+	} else {
+		nfsstats.rpcinvalid++;
 		error = EACCES;
+	}
 	if (error)
 		goto nfsmout;
 
@@ -572,6 +579,7 @@ tryagain:
 	if (error == ENOMEM) {
 		m_freem(mrep);
 		AUTH_DESTROY(auth);
+		nfsstats.rpcinvalid++;
 		return (error);
 	}
 
