@@ -238,7 +238,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		/*
 		 * Only enable short preamble for legacy rates
 		 */
-		if (IS_HT_RATE(rate) && bf->bf_state.bfs_shpream)
+		if ((! IS_HT_RATE(rate)) && bf->bf_state.bfs_shpream)
 			rate |= rt->info[rc[i].rix].shortPreamble;
 
 		/*
