@@ -981,8 +981,8 @@ acpi_cpu_idle(sbintime_t sbt)
 
     /* Find the lowest state that has small enough latency. */
     us = sc->cpu_prev_sleep;
-    if (sbt >= 0 && us > sbt / SBT_1US)
-	us = sbt / SBT_1US;
+    if (sbt >= 0 && us > (sbt >> 12))
+	us = (sbt >> 12);
     cx_next_idx = 0;
     if (cpu_disable_deep_sleep)
 	i = min(sc->cpu_cx_lowest, sc->cpu_non_c3);
