@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.84 2010/11/21 01:01:13 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.86 2011/09/05 05:59:08 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -942,7 +942,7 @@ static const struct {
 	{ "af11", IPTOS_DSCP_AF11 },
 	{ "af12", IPTOS_DSCP_AF12 },
 	{ "af13", IPTOS_DSCP_AF13 },
-	{ "af14", IPTOS_DSCP_AF21 },
+	{ "af21", IPTOS_DSCP_AF21 },
 	{ "af22", IPTOS_DSCP_AF22 },
 	{ "af23", IPTOS_DSCP_AF23 },
 	{ "af31", IPTOS_DSCP_AF31 },
@@ -986,6 +986,19 @@ parse_ipqos(const char *cp)
 	return val;
 }
 
+const char *
+iptos2str(int iptos)
+{
+	int i;
+	static char iptos_str[sizeof "0xff"];
+
+	for (i = 0; ipqos[i].name != NULL; i++) {
+		if (ipqos[i].value == iptos)
+			return ipqos[i].name;
+	}
+	snprintf(iptos_str, sizeof iptos_str, "0x%02x", iptos);
+	return iptos_str;
+}
 void
 sock_set_v6only(int s)
 {

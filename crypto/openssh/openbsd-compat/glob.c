@@ -1,4 +1,4 @@
-/*	$OpenBSD: glob.c,v 1.35 2011/01/12 01:53:14 djm Exp $ */
+/*	$OpenBSD: glob.c,v 1.38 2011/09/22 06:27:29 djm Exp $ */
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -66,6 +66,7 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,13 +133,22 @@ typedef char Char;
 #define	GLOB_LIMIT_STAT		128
 #define	GLOB_LIMIT_READDIR	16384
 
+/* Limit of recursion during matching attempts. */
+#define GLOB_LIMIT_RECUR	64
+
 struct glob_lim {
 	size_t	glim_malloc;
 	size_t	glim_stat;
 	size_t	glim_readdir;
 };
 
+struct glob_path_stat {
+	char		*gps_path;
+	struct stat	*gps_stat;
+};
+
 static int	 compare(const void *, const void *);
+static int	 compare_gps(const void *, const void *);
 static int	 g_Ctoc(const Char *, char *, u_int);
 static int	 g_lstat(Char *, struct stat *, glob_t *);
 static DIR	*g_opendir(Char *, glob_t *);
@@ -158,7 +168,7 @@ static const Char *
 static int	 globexp1(const Char *, glob_t *, struct glob_lim *);
 static int	 globexp2(const Char *, const Char *, glob_t *,
 		    struct glob_lim *);
-static int	 match(Char *, Char *, Char *);
+static int	 match(Char *, Char *, Char *, int);
 #ifdef DEBUG
 static void	 qprintf(const char *, Char *);
 #endif
@@ -171,6 +181,9 @@ glob(const char *pattern, int flags, int (*errfunc)(const char *, int),
 	int c;
 	Char *bufnext, *bufend, patbuf[MAXPATHLEN];
 	struct glob_lim limit = { 0, 0, 0 };
+
+	if (strnlen(pattern, PATH_MAX) == PATH_MAX)
+		return(GLOB_NOMATCH);
 
 	patnext = (u_char *) pattern;
 	if (!(flags & GLOB_APPEND)) {
@@ -548,9 +561,32 @@ glob0(const Char *pattern, glob_t *pglob, struct glob_lim *limitp)
 		else
 			return(GLOB_NOMATCH);
 	}
-	if (!(pglob->gl_flags & GLOB_NOSORT))
-		qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
-		    pglob->gl_pathc - oldpathc, sizeof(char *), compare);
+	if (!(pglob->gl_flags & GLOB_NOSORT)) {
+		if ((pglob->gl_flags & GLOB_KEEPSTAT)) {
+			/* Keep the paths and stat info synced during sort */
+			struct glob_path_stat *path_stat;
+			int i;
+			int n = pglob->gl_pathc - oldpathc;
+			int o = pglob->gl_offs + oldpathc;
+
+			if ((path_stat = calloc(n, sizeof(*path_stat))) == NULL)
+				return GLOB_NOSPACE;
+			for (i = 0; i < n; i++) {
+				path_stat[i].gps_path = pglob->gl_pathv[o + i];
+				path_stat[i].gps_stat = pglob->gl_statv[o + i];
+			}
+			qsort(path_stat, n, sizeof(*path_stat), compare_gps);
+			for (i = 0; i < n; i++) {
+				pglob->gl_pathv[o + i] = path_stat[i].gps_path;
+				pglob->gl_statv[o + i] = path_stat[i].gps_stat;
+			}
+			free(path_stat);
+		} else {
+			qsort(pglob->gl_pathv + pglob->gl_offs + oldpathc,
+			    pglob->gl_pathc - oldpathc, sizeof(char *),
+			    compare);
+		}
+	}
 	return(0);
 }
 
@@ -558,6 +594,15 @@ static int
 compare(const void *p, const void *q)
 {
 	return(strcmp(*(char **)p, *(char **)q));
+}
+
+static int
+compare_gps(const void *_p, const void *_q)
+{
+	const struct glob_path_stat *p = (const struct glob_path_stat *)_p;
+	const struct glob_path_stat *q = (const struct glob_path_stat *)_q;
+
+	return(strcmp(p->gps_path, q->gps_path));
 }
 
 static int
@@ -697,7 +742,8 @@ glob3(Char *pathbuf, Char *pathbuf_last, Char *pathend, Char *pathend_last,
 			errno = 0;
 			*pathend++ = SEP;
 			*pathend = EOS;
-			return(GLOB_NOSPACE);
+			err = GLOB_NOSPACE;
+			break;
 		}
 
 		/* Initial DOT must be matched literally. */
@@ -713,7 +759,7 @@ glob3(Char *pathbuf, Char *pathbuf_last, Char *pathend, Char *pathend_last,
 			break;
 		}
 
-		if (!match(pathend, pattern, restpattern)) {
+		if (!match(pathend, pattern, restpattern, GLOB_LIMIT_RECUR)) {
 			*pathend = EOS;
 			continue;
 		}
@@ -850,19 +896,24 @@ globextend(const Char *path, glob_t *pglob, struct glob_lim *limitp,
  * pattern causes a recursion level.
  */
 static int
-match(Char *name, Char *pat, Char *patend)
+match(Char *name, Char *pat, Char *patend, int recur)
 {
 	int ok, negate_range;
 	Char c, k;
+
+	if (recur-- == 0)
+		return(GLOB_NOSPACE);
 
 	while (pat < patend) {
 		c = *pat++;
 		switch (c & M_MASK) {
 		case M_ALL:
+			while (pat < patend && (*pat & M_MASK) == M_ALL)
+				pat++;	/* eat consecutive '*' */
 			if (pat == patend)
 				return(1);
 			do {
-			    if (match(name, pat, patend))
+			    if (match(name, pat, patend, recur))
 				    return(1);
 			} while (*name++ != EOS);
 			return(0);

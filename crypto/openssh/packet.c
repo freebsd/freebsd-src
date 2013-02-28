@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.172 2010/11/13 23:27:50 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.176 2012/01/25 19:40:09 markus Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -246,7 +246,7 @@ packet_set_connection(int fd_in, int fd_out)
 void
 packet_set_timeout(int timeout, int count)
 {
-	if (timeout == 0 || count == 0) {
+	if (timeout <= 0 || count <= 0) {
 		active_state->packet_timeout_ms = -1;
 		return;
 	}
@@ -426,10 +426,8 @@ packet_set_state(int mode, u_int32_t seqnr, u_int64_t blocks, u_int32_t packets,
 	state->bytes = bytes;
 }
 
-/* returns 1 if connection is via ipv4 */
-
-int
-packet_connection_is_ipv4(void)
+static int
+packet_connection_af(void)
 {
 	struct sockaddr_storage to;
 	socklen_t tolen = sizeof(to);
@@ -438,14 +436,12 @@ packet_connection_is_ipv4(void)
 	if (getsockname(active_state->connection_out, (struct sockaddr *)&to,
 	    &tolen) < 0)
 		return 0;
-	if (to.ss_family == AF_INET)
-		return 1;
 #ifdef IPV4_IN_IPV6
 	if (to.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)&to)->sin6_addr))
-		return 1;
+		return AF_INET;
 #endif
-	return 0;
+	return to.ss_family;
 }
 
 /* Sets the connection into non-blocking mode. */
@@ -978,8 +974,10 @@ packet_send2(void)
 
 	/* during rekeying we can only send key exchange messages */
 	if (active_state->rekeying) {
-		if (!((type >= SSH2_MSG_TRANSPORT_MIN) &&
-		    (type <= SSH2_MSG_TRANSPORT_MAX))) {
+		if ((type < SSH2_MSG_TRANSPORT_MIN) ||
+		    (type > SSH2_MSG_TRANSPORT_MAX) ||
+		    (type == SSH2_MSG_SERVICE_REQUEST) ||
+		    (type == SSH2_MSG_SERVICE_ACCEPT)) {
 			debug("enqueue packet: %u", type);
 			p = xmalloc(sizeof(*p));
 			p->type = type;
@@ -1271,6 +1269,7 @@ packet_read_poll2(u_int32_t *seqnr_p)
 		cipher_crypt(&active_state->receive_context, cp,
 		    buffer_ptr(&active_state->input), block_size);
 		cp = buffer_ptr(&active_state->incoming_packet);
+
 		active_state->packlen = get_u32(cp);
 		if (active_state->packlen < 1 + 4 ||
 		    active_state->packlen > PACKET_MAX_SIZE) {
@@ -1452,12 +1451,6 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 			}
 		}
 	}
-}
-
-int
-packet_read_poll(void)
-{
-	return packet_read_poll_seqnr(NULL);
 }
 
 /*
@@ -1756,16 +1749,30 @@ packet_not_very_much_data_to_write(void)
 static void
 packet_set_tos(int tos)
 {
-#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
-	if (!packet_connection_is_on_socket() ||
-	    !packet_connection_is_ipv4())
+#ifndef IP_TOS_IS_BROKEN
+	if (!packet_connection_is_on_socket())
 		return;
-	debug3("%s: set IP_TOS 0x%02x", __func__, tos);
-	if (setsockopt(active_state->connection_in, IPPROTO_IP, IP_TOS, &tos,
-	    sizeof(tos)) < 0)
-		error("setsockopt IP_TOS %d: %.100s:",
-		    tos, strerror(errno));
-#endif
+	switch (packet_connection_af()) {
+# ifdef IP_TOS
+	case AF_INET:
+		debug3("%s: set IP_TOS 0x%02x", __func__, tos);
+		if (setsockopt(active_state->connection_in,
+		    IPPROTO_IP, IP_TOS, &tos, sizeof(tos)) < 0)
+			error("setsockopt IP_TOS %d: %.100s:",
+			    tos, strerror(errno));
+		break;
+# endif /* IP_TOS */
+# ifdef IPV6_TCLASS
+	case AF_INET6:
+		debug3("%s: set IPV6_TCLASS 0x%02x", __func__, tos);
+		if (setsockopt(active_state->connection_in,
+		    IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos)) < 0)
+			error("setsockopt IPV6_TCLASS %d: %.100s:",
+			    tos, strerror(errno));
+		break;
+# endif /* IPV6_TCLASS */
+	}
+#endif /* IP_TOS_IS_BROKEN */
 }
 
 /* Informs that the current session is interactive.  Sets IP flags for that. */

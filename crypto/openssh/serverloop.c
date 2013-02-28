@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.159 2009/05/28 16:50:16 andreas Exp $ */
+/* $OpenBSD: serverloop.c,v 1.162 2012/06/20 04:42:58 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -132,8 +132,8 @@ notify_setup(void)
 {
 	if (pipe(notify_pipe) < 0) {
 		error("pipe(notify_pipe) failed %s", strerror(errno));
-	} else if ((fcntl(notify_pipe[0], F_SETFD, 1) == -1) ||
-	    (fcntl(notify_pipe[1], F_SETFD, 1) == -1)) {
+	} else if ((fcntl(notify_pipe[0], F_SETFD, FD_CLOEXEC) == -1) ||
+	    (fcntl(notify_pipe[1], F_SETFD, FD_CLOEXEC) == -1)) {
 		error("fcntl(notify_pipe, F_SETFD) failed %s", strerror(errno));
 		close(notify_pipe[0]);
 		close(notify_pipe[1]);
@@ -282,8 +282,17 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 {
 	struct timeval tv, *tvp;
 	int ret;
+	time_t minwait_secs = 0;
 	int client_alive_scheduled = 0;
 	int program_alive_scheduled = 0;
+
+	/* Allocate and update select() masks for channel descriptors. */
+	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp,
+	    &minwait_secs, 0);
+
+	if (minwait_secs != 0)
+		max_time_milliseconds = MIN(max_time_milliseconds,
+		    (u_int)minwait_secs * 1000);
 
 	/*
 	 * if using client_alive, set the max timeout accordingly,
@@ -298,9 +307,6 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 		client_alive_scheduled = 1;
 		max_time_milliseconds = options.client_alive_interval * 1000;
 	}
-
-	/* Allocate and update select() masks for channel descriptors. */
-	channel_prepare_select(readsetp, writesetp, maxfdp, nallocp, 0);
 
 	if (compat20) {
 #if 0
@@ -727,7 +733,7 @@ server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 	/* Wait until all output has been sent to the client. */
 	drain_output();
 
-	debug("End of interactive session; stdin %ld, stdout (read %ld, " "sent %ld), stderr %ld bytes.",
+	debug("End of interactive session; stdin %ld, stdout (read %ld, sent %ld), stderr %ld bytes.",
 	    stdin_bytes, fdout_bytes, stdout_bytes, stderr_bytes);
 
 	/* Free and clear the buffers. */

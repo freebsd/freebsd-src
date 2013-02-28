@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.356 2011/01/06 22:23:53 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.370 2012/07/06 01:47:38 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -113,13 +113,16 @@ __RCSID("$FreeBSD$");
 
 extern char *__progname;
 
+/* Saves a copy of argv for setproctitle emulation */
+#ifndef HAVE_SETPROCTITLE
+static char **saved_av;
+#endif
+
 /* Flag indicating whether debug mode is on.  May be set on the command line. */
 int debug_flag = 0;
 
-/* Flag indicating whether a tty should be allocated */
+/* Flag indicating whether a tty should be requested */
 int tty_flag = 0;
-int no_tty_flag = 0;
-int force_tty_flag = 0;
 
 /* don't exec a shell */
 int no_shell_flag = 0;
@@ -137,7 +140,7 @@ int stdin_null_flag = 0;
 int need_controlpersist_detach = 0;
 
 /* Copies of flags for ControlPersist foreground slave */
-int ostdin_null_flag, ono_shell_flag, ono_tty_flag, otty_flag;
+int ostdin_null_flag, ono_shell_flag, otty_flag, orequest_tty;
 
 /*
  * Flag indicating that ssh should fork after authentication.  This is useful
@@ -216,6 +219,20 @@ static void main_sigchld_handler(int);
 void muxclient(const char *);
 void muxserver_listen(void);
 
+/* ~/ expand a list of paths. NB. assumes path[n] is heap-allocated. */
+static void
+tilde_expand_paths(char **paths, u_int num_paths)
+{
+	u_int i;
+	char *cp;
+
+	for (i = 0; i < num_paths; i++) {
+		cp = tilde_expand_filename(paths[i], original_real_uid);
+		xfree(paths[i]);
+		paths[i] = cp;
+	}
+}
+
 /*
  * Main program for the ssh client.
  */
@@ -224,11 +241,13 @@ main(int ac, char **av)
 {
 	int i, r, opt, exit_status, use_syslog;
 	char *p, *cp, *line, *argv0, buf[MAXPATHLEN], *host_arg;
+	char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
 	struct stat st;
 	struct passwd *pw;
 	int dummy, timeout_ms;
 	extern int optind, optreset;
 	extern char *optarg;
+
 	struct servent *sp;
 	Forward fwd;
 
@@ -236,7 +255,17 @@ main(int ac, char **av)
 	sanitise_stdfd();
 
 	__progname = ssh_get_progname(av[0]);
-	init_rng();
+
+#ifndef HAVE_SETPROCTITLE
+	/* Prepare for later setproctitle emulation */
+	/* Save argv so it isn't clobbered by setproctitle() emulation */
+	saved_av = xcalloc(ac + 1, sizeof(*saved_av));
+	for (i = 0; i < ac; i++)
+		saved_av[i] = xstrdup(av[i]);
+	saved_av[i] = NULL;
+	compat_init_setproctitle(ac, av);
+	av = saved_av;
+#endif
 
 	/*
 	 * Discard other fds that are hanging around. These can cause problem
@@ -348,6 +377,10 @@ main(int ac, char **av)
 				muxclient_command = SSHMUX_COMMAND_FORWARD;
 			else if (strcmp(optarg, "exit") == 0)
 				muxclient_command = SSHMUX_COMMAND_TERMINATE;
+			else if (strcmp(optarg, "stop") == 0)
+				muxclient_command = SSHMUX_COMMAND_STOP;
+			else if (strcmp(optarg, "cancel") == 0)
+				muxclient_command = SSHMUX_COMMAND_CANCEL_FWD;
 			else
 				fatal("Invalid multiplex command.");
 			break;
@@ -389,9 +422,10 @@ main(int ac, char **av)
 #endif
 			break;
 		case 't':
-			if (tty_flag)
-				force_tty_flag = 1;
-			tty_flag = 1;
+			if (options.request_tty == REQUEST_TTY_YES)
+				options.request_tty = REQUEST_TTY_FORCE;
+			else
+				options.request_tty = REQUEST_TTY_YES;
 			break;
 		case 'v':
 			if (debug_flag == 0) {
@@ -404,9 +438,16 @@ main(int ac, char **av)
 			}
 			/* FALLTHROUGH */
 		case 'V':
-			fprintf(stderr, "%s, %s\n",
-			    ssh_version_get(options.hpn_disabled),
-			    SSLeay_version(SSLEAY_VERSION));
+			if (options.version_addendum &&
+			    *options.version_addendum != '\0')
+				fprintf(stderr, "%s%s %s, %s\n", SSH_RELEASE,
+				    options.hpn_disabled ? "" : SSH_VERSION_HPN,
+				    options.version_addendum,
+				    SSLeay_version(SSLEAY_VERSION));
+			else
+				fprintf(stderr, "%s%s, %s\n", SSH_RELEASE,
+				    options.hpn_disabled ? "" : SSH_VERSION_HPN,
+				    SSLeay_version(SSLEAY_VERSION));
 			if (opt == 'V')
 				exit(0);
 			break;
@@ -435,7 +476,7 @@ main(int ac, char **av)
 				    optarg);
 				exit(255);
 			}
-			no_tty_flag = 1;
+			options.request_tty = REQUEST_TTY_NO;
 			no_shell_flag = 1;
 			options.clear_forwardings = 1;
 			options.exit_on_forward_failure = 1;
@@ -544,10 +585,10 @@ main(int ac, char **av)
 			break;
 		case 'N':
 			no_shell_flag = 1;
-			no_tty_flag = 1;
+			options.request_tty = REQUEST_TTY_NO;
 			break;
 		case 'T':
-			no_tty_flag = 1;
+			options.request_tty = REQUEST_TTY_NO;
 #ifdef	NONE_CIPHER_ENABLED
 			/*
 			 * Ensure that the user does not try to backdoor a
@@ -623,7 +664,6 @@ main(int ac, char **av)
 	 */
 	if (!ac) {
 		/* No command specified - execute shell on a tty. */
-		tty_flag = 1;
 		if (subsystem_flag) {
 			fprintf(stderr,
 			    "You must specify a subsystem to invoke.\n");
@@ -643,21 +683,6 @@ main(int ac, char **av)
 	    !no_shell_flag)
 		fatal("Cannot fork into background without a command "
 		    "to execute.");
-
-	/* Allocate a tty by default if no command specified. */
-	if (buffer_len(&command) == 0)
-		tty_flag = 1;
-
-	/* Force no tty */
-	if (no_tty_flag || muxclient_command != 0)
-		tty_flag = 0;
-	/* Do not allocate a tty if stdin is not a tty. */
-	if ((!isatty(fileno(stdin)) || stdin_null_flag) && !force_tty_flag) {
-		if (tty_flag)
-			logit("Pseudo-terminal will not be allocated because "
-			    "stdin is not a terminal.");
-		tty_flag = 0;
-	}
 
 	/*
 	 * Initialize "log" output.  Since we are the client all output
@@ -681,7 +706,7 @@ main(int ac, char **av)
 		if (r > 0 && (size_t)r < sizeof(buf))
 			(void)read_config_file(buf, host, &options, 1);
 
-		/* Read systemwide configuration file after use config. */
+		/* Read systemwide configuration file after user config. */
 		(void)read_config_file(_PATH_HOST_CONFIG_FILE, host,
 		    &options, 0);
 	}
@@ -693,6 +718,26 @@ main(int ac, char **av)
 
 	/* reinit */
 	log_init(argv0, options.log_level, SYSLOG_FACILITY_USER, !use_syslog);
+
+	if (options.request_tty == REQUEST_TTY_YES ||
+	    options.request_tty == REQUEST_TTY_FORCE)
+		tty_flag = 1;
+
+	/* Allocate a tty by default if no command specified. */
+	if (buffer_len(&command) == 0)
+		tty_flag = options.request_tty != REQUEST_TTY_NO;
+
+	/* Force no tty */
+	if (options.request_tty == REQUEST_TTY_NO || muxclient_command != 0)
+		tty_flag = 0;
+	/* Do not allocate a tty if stdin is not a tty. */
+	if ((!isatty(fileno(stdin)) || stdin_null_flag) &&
+	    options.request_tty != REQUEST_TTY_FORCE) {
+		if (tty_flag)
+			logit("Pseudo-terminal will not be allocated because "
+			    "stdin is not a terminal.");
+		tty_flag = 0;
+	}
 
 	seed_rng();
 
@@ -712,17 +757,19 @@ main(int ac, char **av)
 		    "h", host, (char *)NULL);
 	}
 
-	if (options.local_command != NULL) {
-		char thishost[NI_MAXHOST];
+	if (gethostname(thishost, sizeof(thishost)) == -1)
+		fatal("gethostname: %s", strerror(errno));
+	strlcpy(shorthost, thishost, sizeof(shorthost));
+	shorthost[strcspn(thishost, ".")] = '\0';
+	snprintf(portstr, sizeof(portstr), "%d", options.port);
 
-		if (gethostname(thishost, sizeof(thishost)) == -1)
-			fatal("gethostname: %s", strerror(errno));
-		snprintf(buf, sizeof(buf), "%d", options.port);
+	if (options.local_command != NULL) {
 		debug3("expanding LocalCommand: %s", options.local_command);
 		cp = options.local_command;
 		options.local_command = percent_expand(cp, "d", pw->pw_dir,
 		    "h", host, "l", thishost, "n", host_arg, "r", options.user,
-		    "p", buf, "u", pw->pw_name, (char *)NULL);
+		    "p", portstr, "u", pw->pw_name, "L", shorthost,
+		    (char *)NULL);
 		debug3("expanded LocalCommand: %s", options.local_command);
 		xfree(cp);
 	}
@@ -763,16 +810,13 @@ main(int ac, char **av)
 	}
 
 	if (options.control_path != NULL) {
-		char thishost[NI_MAXHOST];
-
-		if (gethostname(thishost, sizeof(thishost)) == -1)
-			fatal("gethostname: %s", strerror(errno));
-		snprintf(buf, sizeof(buf), "%d", options.port);
 		cp = tilde_expand_filename(options.control_path,
 		    original_real_uid);
 		xfree(options.control_path);
-		options.control_path = percent_expand(cp, "p", buf, "h", host,
-		    "r", options.user, "l", thishost, (char *)NULL);
+		options.control_path = percent_expand(cp, "h", host,
+		    "l", thishost, "n", host_arg, "r", options.user,
+		    "p", portstr, "u", pw->pw_name, "L", shorthost,
+		    (char *)NULL);
 		xfree(cp);
 	}
 	if (muxclient_command != 0 && options.control_path == NULL)
@@ -877,31 +921,28 @@ main(int ac, char **av)
 	 * Now that we are back to our own permissions, create ~/.ssh
 	 * directory if it doesn't already exist.
 	 */
-	r = snprintf(buf, sizeof buf, "%s%s%s", pw->pw_dir,
-	    strcmp(pw->pw_dir, "/") ? "/" : "", _PATH_SSH_USER_DIR);
-	if (r > 0 && (size_t)r < sizeof(buf) && stat(buf, &st) < 0) {
+	if (config == NULL) {
+		r = snprintf(buf, sizeof buf, "%s%s%s", pw->pw_dir,
+		    strcmp(pw->pw_dir, "/") ? "/" : "", _PATH_SSH_USER_DIR);
+		if (r > 0 && (size_t)r < sizeof(buf) && stat(buf, &st) < 0) {
 #ifdef WITH_SELINUX
-		ssh_selinux_setfscreatecon(buf);
+			ssh_selinux_setfscreatecon(buf);
 #endif
-		if (mkdir(buf, 0700) < 0)
-			error("Could not create directory '%.200s'.", buf);
+			if (mkdir(buf, 0700) < 0)
+				error("Could not create directory '%.200s'.",
+				    buf);
 #ifdef WITH_SELINUX
-		ssh_selinux_setfscreatecon(NULL);
+			ssh_selinux_setfscreatecon(NULL);
 #endif
+		}
 	}
 	/* load options.identity_files */
 	load_public_identity_files();
 
 	/* Expand ~ in known host file names. */
-	/* XXX mem-leaks: */
-	options.system_hostfile =
-	    tilde_expand_filename(options.system_hostfile, original_real_uid);
-	options.user_hostfile =
-	    tilde_expand_filename(options.user_hostfile, original_real_uid);
-	options.system_hostfile2 =
-	    tilde_expand_filename(options.system_hostfile2, original_real_uid);
-	options.user_hostfile2 =
-	    tilde_expand_filename(options.user_hostfile2, original_real_uid);
+	tilde_expand_paths(options.system_hostfiles,
+	    options.num_system_hostfiles);
+	tilde_expand_paths(options.user_hostfiles, options.num_user_hostfiles);
 
 	signal(SIGPIPE, SIG_IGN); /* ignore SIGPIPE early */
 	signal(SIGCHLD, main_sigchld_handler);
@@ -974,8 +1015,7 @@ control_persist_detach(void)
 		/* Parent: set up mux slave to connect to backgrounded master */
 		debug2("%s: background process is %ld", __func__, (long)pid);
 		stdin_null_flag = ostdin_null_flag;
-		no_shell_flag = ono_shell_flag;
-		no_tty_flag = ono_tty_flag;
+		options.request_tty = orequest_tty;
 		tty_flag = otty_flag;
  		close(muxserver_sock);
  		muxserver_sock = -1;
@@ -994,6 +1034,7 @@ control_persist_detach(void)
 		if (devnull > STDERR_FILENO)
 			close(devnull);
 	}
+	setproctitle("%s [mux]", options.control_path);
 }
 
 /* Do fork() after authentication. Used by "ssh -f" */
@@ -1018,11 +1059,17 @@ ssh_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
 	debug("remote forward %s for: listen %d, connect %s:%d",
 	    type == SSH2_MSG_REQUEST_SUCCESS ? "success" : "failure",
 	    rfwd->listen_port, rfwd->connect_host, rfwd->connect_port);
-	if (type == SSH2_MSG_REQUEST_SUCCESS && rfwd->listen_port == 0) {
-		rfwd->allocated_port = packet_get_int();
-		logit("Allocated port %u for remote forward to %s:%d",
-		    rfwd->allocated_port,
-		    rfwd->connect_host, rfwd->connect_port);
+	if (rfwd->listen_port == 0) {
+		if (type == SSH2_MSG_REQUEST_SUCCESS) {
+			rfwd->allocated_port = packet_get_int();
+			logit("Allocated port %u for remote forward to %s:%d",
+			    rfwd->allocated_port,
+			    rfwd->connect_host, rfwd->connect_port);
+			channel_update_permitted_opens(rfwd->handle,
+			    rfwd->allocated_port);
+		} else {
+			channel_update_permitted_opens(rfwd->handle, -1);
+		}
 	}
 	
 	if (type == SSH2_MSG_REQUEST_FAILURE) {
@@ -1047,25 +1094,26 @@ client_cleanup_stdio_fwd(int id, void *arg)
 	cleanup_exit(0);
 }
 
-static int
-client_setup_stdio_fwd(const char *host_to_connect, u_short port_to_connect)
+static void
+ssh_init_stdio_forwarding(void)
 {
 	Channel *c;
 	int in, out;
 
-	debug3("client_setup_stdio_fwd %s:%d", host_to_connect,
-	    port_to_connect);
+	if (stdio_forward_host == NULL)
+		return;
+	if (!compat20) 
+		fatal("stdio forwarding require Protocol 2");
 
-	in = dup(STDIN_FILENO);
-	out = dup(STDOUT_FILENO);
-	if (in < 0 || out < 0)
+	debug3("%s: %s:%d", __func__, stdio_forward_host, stdio_forward_port);
+
+	if ((in = dup(STDIN_FILENO)) < 0 ||
+	    (out = dup(STDOUT_FILENO)) < 0)
 		fatal("channel_connect_stdio_fwd: dup() in/out failed");
-
-	if ((c = channel_connect_stdio_fwd(host_to_connect, port_to_connect,
-	    in, out)) == NULL)
-		return 0;
+	if ((c = channel_connect_stdio_fwd(stdio_forward_host,
+	    stdio_forward_port, in, out)) == NULL)
+		fatal("%s: channel_connect_stdio_fwd failed", __func__);
 	channel_register_cleanup(c->self, client_cleanup_stdio_fwd, 0);
-	return 1;
 }
 
 static void
@@ -1073,15 +1121,6 @@ ssh_init_forwarding(void)
 {
 	int success = 0;
 	int i;
-
-	if (stdio_forward_host != NULL) {
-		if (!compat20) {
-			fatal("stdio forwarding require Protocol 2");
-		}
-		if (!client_setup_stdio_fwd(stdio_forward_host,
-		    stdio_forward_port))
-			fatal("Failed to connect in stdio forward mode.");
-	}
 
 	/* Initiate local TCP/IP port forwardings. */
 	for (i = 0; i < options.num_local_forwards; i++) {
@@ -1114,19 +1153,22 @@ ssh_init_forwarding(void)
 		    options.remote_forwards[i].listen_port,
 		    options.remote_forwards[i].connect_host,
 		    options.remote_forwards[i].connect_port);
-		if (channel_request_remote_forwarding(
+		options.remote_forwards[i].handle =
+		    channel_request_remote_forwarding(
 		    options.remote_forwards[i].listen_host,
 		    options.remote_forwards[i].listen_port,
 		    options.remote_forwards[i].connect_host,
-		    options.remote_forwards[i].connect_port) < 0) {
+		    options.remote_forwards[i].connect_port);
+		if (options.remote_forwards[i].handle < 0) {
 			if (options.exit_on_forward_failure)
 				fatal("Could not request remote forwarding.");
 			else
 				logit("Warning: Could not request remote "
 				    "forwarding.");
+		} else {
+			client_register_global_confirm(ssh_confirm_remote_forward,
+			    &options.remote_forwards[i]);
 		}
-		client_register_global_confirm(ssh_confirm_remote_forward,
-		    &options.remote_forwards[i]);
 	}
 
 	/* Initiate tunnel forwarding. */
@@ -1238,8 +1280,8 @@ ssh_session(void)
 		/* Request forwarding with authentication spoofing. */
 		debug("Requesting X11 forwarding with authentication "
 		    "spoofing.");
-		x11_request_forwarding_with_spoofing(0, display, proto, data);
-
+		x11_request_forwarding_with_spoofing(0, display, proto,
+		    data, 0);
 		/* Read response from the server. */
 		type = packet_read();
 		if (type == SSH_SMSG_SUCCESS) {
@@ -1270,6 +1312,7 @@ ssh_session(void)
 	}
 
 	/* Initiate port forwardings. */
+	ssh_init_stdio_forwarding();
 	ssh_init_forwarding();
 
 	/* Execute a local command */
@@ -1337,9 +1380,11 @@ ssh_session2_setup(int id, int success, void *arg)
 		/* Request forwarding with authentication spoofing. */
 		debug("Requesting X11 forwarding with authentication "
 		    "spoofing.");
-		x11_request_forwarding_with_spoofing(id, display, proto, data);
+		x11_request_forwarding_with_spoofing(id, display, proto,
+		    data, 1);
+		client_expect_confirm(id, "X11 forwarding", CONFIRM_WARN);
+		/* XXX exit_on_forward_failure */
 		interactive = 1;
-		/* XXX wait for reply */
 	}
 
 	check_agent_present();
@@ -1348,6 +1393,10 @@ ssh_session2_setup(int id, int success, void *arg)
 		channel_request_start(id, "auth-agent-req@openssh.com", 0);
 		packet_send();
 	}
+
+	/* Tell the packet module whether this is an interactive session. */
+	packet_set_interactive(interactive,
+	    options.ip_qos_interactive, options.ip_qos_bulk);
 
 	client_session2_setup(id, tty_flag, subsystem_flag, getenv("TERM"),
 	    NULL, fileno(stdin), &command, environ);
@@ -1430,6 +1479,7 @@ ssh_session2_open(void)
 		c->dynamic_window = 1;
 		debug("Enabled Dynamic Window Scaling\n");
 	}
+
 	debug3("ssh_session2_open: channel_new: %d", c->self);
 
 	channel_send_open(c->self);
@@ -1446,15 +1496,18 @@ ssh_session2(void)
 	int id = -1;
 
 	/* XXX should be pre-session */
+	if (!options.control_persist)
+		ssh_init_stdio_forwarding();
 	ssh_init_forwarding();
 
 	/* Start listening for multiplex clients */
 	muxserver_listen();
 
  	/*
-	 * If we are in control persist mode, then prepare to background
-	 * ourselves and have a foreground client attach as a control
-	 * slave. NB. we must save copies of the flags that we override for
+	 * If we are in control persist mode and have a working mux listen
+	 * socket, then prepare to background ourselves and have a foreground
+	 * client attach as a control slave.
+	 * NB. we must save copies of the flags that we override for
 	 * the backgrounding, since we defer attachment of the slave until
 	 * after the connection is fully established (in particular,
 	 * async rfwd replies have been received for ExitOnForwardFailure).
@@ -1462,16 +1515,21 @@ ssh_session2(void)
  	if (options.control_persist && muxserver_sock != -1) {
 		ostdin_null_flag = stdin_null_flag;
 		ono_shell_flag = no_shell_flag;
-		ono_tty_flag = no_tty_flag;
+		orequest_tty = options.request_tty;
 		otty_flag = tty_flag;
  		stdin_null_flag = 1;
  		no_shell_flag = 1;
- 		no_tty_flag = 1;
  		tty_flag = 0;
 		if (!fork_after_authentication_flag)
 			need_controlpersist_detach = 1;
 		fork_after_authentication_flag = 1;
  	}
+	/*
+	 * ControlPersist mux listen socket setup failed, attempt the
+	 * stdio forward setup that we skipped earlier.
+	 */
+	if (options.control_persist && muxserver_sock == -1)
+		ssh_init_stdio_forwarding();
 
 	if (!no_shell_flag || (datafellows & SSH_BUG_DUMMYCHAN))
 		id = ssh_session2_open();

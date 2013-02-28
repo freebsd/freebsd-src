@@ -1,7 +1,6 @@
-/* $Id: port-linux.h,v 1.5 2011/01/25 01:16:18 djm Exp $ */
-
+/* $OpenBSD: ssh-sandbox.h,v 1.1 2011/06/23 09:34:13 djm Exp $ */
 /*
- * Copyright (c) 2006 Damien Miller <djm@openbsd.org>
+ * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,20 +15,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _PORT_LINUX_H
-#define _PORT_LINUX_H
+struct ssh_sandbox;
 
-#ifdef WITH_SELINUX
-int ssh_selinux_enabled(void);
-void ssh_selinux_setup_pty(char *, const char *);
-void ssh_selinux_setup_exec_context(char *);
-void ssh_selinux_change_context(const char *);
-void ssh_selinux_setfscreatecon(const char *);
-#endif
-
-#ifdef LINUX_OOM_ADJUST
-void oom_adjust_restore(void);
-void oom_adjust_setup(void);
-#endif
-
-#endif /* ! _PORT_LINUX_H */
+struct ssh_sandbox *ssh_sandbox_init(void);
+void ssh_sandbox_child(struct ssh_sandbox *);
+void ssh_sandbox_parent_finish(struct ssh_sandbox *);
+void ssh_sandbox_parent_preauth(struct ssh_sandbox *, pid_t);
