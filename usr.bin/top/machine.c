@@ -178,7 +178,7 @@ char *memorynames[] = {
 
 int arc_stats[7];
 char *arcnames[] = {
-	"K Total, ", "K MRU, ", "K MFU, ", "K Anon, ", "K Header, ", "K Other",
+	"K Total, ", "K MFU, ", "K MRU, ", "K Anon, ", "K Header, ", "K Other",
 	NULL
 };
 
