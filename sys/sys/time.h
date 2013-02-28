@@ -109,6 +109,37 @@ bintime_mul(struct bintime *bt, u_int x)
 	    ((a)->frac cmp (b)->frac) :					\
 	    ((a)->sec cmp (b)->sec))
 
+typedef int64_t sbintime_t;
+#define	SBT_1S	((sbintime_t)1 << 32)
+#define	SBT_1M	(SBT_1S * 60)
+#define	SBT_1MS	(SBT_1S / 1000)
+#define	SBT_1US	(SBT_1S / 1000000)
+#define	SBT_1NS (SBT_1S / 1000000000)  
+
+static __inline int
+sbintime_getsec(sbintime_t sbt)
+{
+
+	return (sbt >> 32);
+}
+
+static __inline sbintime_t
+bttosbt(const struct bintime bt)
+{
+
+	return (((sbintime_t)bt.sec << 32) + (bt.frac >> 32));
+}
+
+static __inline struct bintime
+sbttobt(sbintime_t sbt)
+{
+	struct bintime bt;
+	
+	bt.sec = sbt >> 32;
+	bt.frac = sbt << 32;
+	return (bt);
+}
+
 /*-
  * Background information:
  *
@@ -155,6 +186,42 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 	bt->sec = tv->tv_sec;
 	/* 18446744073709 = int(2^64 / 1000000) */
 	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
+}
+
+static __inline struct timespec
+sbttots(sbintime_t sbt)
+{
+	struct timespec ts;
+
+	ts.tv_sec = sbt >> 32;
+	ts.tv_nsec = ((uint64_t)1000000000 * (uint32_t)sbt) >> 32;
+	return (ts);
+}
+
+static __inline sbintime_t
+tstosbt(struct timespec ts)
+{
+
+	return (((sbintime_t)ts.tv_sec << 32) +
+	    (ts.tv_nsec * (((uint64_t)1 << 63) / 500000000) >> 32));
+}
+
+static __inline struct timeval
+sbttotv(sbintime_t sbt)
+{
+	struct timeval tv;
+
+	tv.tv_sec = sbt >> 32;
+	tv.tv_usec = ((uint64_t)1000000 * (uint32_t)sbt) >> 32;
+	return (tv);
+}
+
+static __inline sbintime_t
+tvtosbt(struct timeval tv)
+{
+
+	return (((sbintime_t)tv.tv_sec << 32) +
+	    (tv.tv_usec * (((uint64_t)1 << 63) / 500000) >> 32));
 }
 #endif /* __BSD_VISIBLE */
 
@@ -317,6 +384,15 @@ void	binuptime(struct bintime *bt);
 void	nanouptime(struct timespec *tsp);
 void	microuptime(struct timeval *tvp);
 
+static __inline sbintime_t
+sbinuptime(void)
+{
+	struct bintime bt;
+
+	binuptime(&bt);
+	return (bttosbt(bt));
+}
+
 void	bintime(struct bintime *bt);
 void	nanotime(struct timespec *tsp);
 void	microtime(struct timeval *tvp);
@@ -324,6 +400,15 @@ void	microtime(struct timeval *tvp);
 void	getbinuptime(struct bintime *bt);
 void	getnanouptime(struct timespec *tsp);
 void	getmicrouptime(struct timeval *tvp);
+
+static __inline sbintime_t
+getsbinuptime(void)
+{
+	struct bintime bt;
+
+	getbinuptime(&bt);
+	return (bttosbt(bt));
+}
 
 void	getbintime(struct bintime *bt);
 void	getnanotime(struct timespec *tsp);
