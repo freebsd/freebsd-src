@@ -14,8 +14,9 @@ rcvar="sshd_enable"
 command="/usr/sbin/${name}"
 keygen_cmd="sshd_keygen"
 start_precmd="sshd_precmd"
+configtest_cmd="sshd_configtest"
 pidfile="/var/run/${name}.pid"
-extra_commands="keygen reload"
+extra_commands="configtest keygen reload"
 
 timeout=300
 
@@ -87,6 +88,12 @@ sshd_keygen()
 	)
 }
 
+sshd_configtest()
+{
+	echo "Performing sanity check on ${name} configuration."
+	eval ${command} ${sshd_flags} -t
+}
+
 sshd_precmd()
 {
 	if [ ! -f /etc/ssh/ssh_host_key -o \
@@ -96,6 +103,7 @@ sshd_precmd()
 		user_reseed
 		run_rc_command keygen
 	fi
+	sshd_configtest
 }
 
 load_rc_config $name
