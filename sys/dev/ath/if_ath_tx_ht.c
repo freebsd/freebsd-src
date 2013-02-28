@@ -236,9 +236,9 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 		rate = rt->info[rc[i].rix].rateCode;
 
 		/*
-		 * XXX only do this for legacy rates?
+		 * Only enable short preamble for legacy rates
 		 */
-		if (bf->bf_state.bfs_shpream)
+		if (IS_HT_RATE(rate) && bf->bf_state.bfs_shpream)
 			rate |= rt->info[rc[i].rix].shortPreamble;
 
 		/*
@@ -266,6 +266,19 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
 			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
 				rc[i].flags |= ATH_RC_SGI_FLAG;
+
+			/*
+			 * If we have STBC TX enabled and the receiver
+			 * can receive (at least) 1 stream STBC, AND it's
+			 * MCS 0-7, AND we have at least two chains enabled,
+			 * enable STBC.
+			 */
+			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+			    (sc->sc_cur_txchainmask > 1) &&
+			    HT_RC_2_STREAMS(rate) == 1) {
+				rc[i].flags |= ATH_RC_STBC_FLAG;
+			}
 
 			/* XXX dual stream? and 3-stream? */
 		}
@@ -459,6 +472,9 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
  *
  * It, along with ath_buf_set_rate, must be called -after- a burst
  * or aggregate is setup.
+ *
+ * XXX TODO: it should use the rate series information from the
+ * ath_buf, rather than recalculating it here!
  */
 static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
@@ -507,34 +523,6 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		series[i].ChSel = sc->sc_cur_txchainmask;
 
-		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
-			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
-
-		/*
-		 * Transmit 40MHz frames only if the node has negotiated
-		 * it rather than whether the node is capable of it or not.
-	 	 * It's subtly different in the hostap case.
-	 	 */
-		if (ni->ni_chw == 40)
-			series[i].RateFlags |= HAL_RATESERIES_2040;
-
-		/*
-		 * Set short-GI only if the node has advertised it
-		 * the channel width is suitable, and we support it.
-		 * We don't currently have a "negotiated" set of bits -
-		 * ni_htcap is what the remote end sends, not what this
-		 * node is capable of.
-		 */
-		if (ni->ni_chw == 40 &&
-		    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
-		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
-			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
-
-		if (ni->ni_chw == 20 &&
-		    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
-		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
-			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
-
 		/*
 		 * Setup rate and TX power cap for this series.
 		 */
@@ -542,23 +530,55 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		series[i].RateIndex = rc[i].rix;
 		series[i].tx_power_cap = 0x3f;	/* XXX for now */
 
-
 		/*
-		 * If we have STBC TX enabled and the receiver
-		 * can receive (at least) 1 stream STBC, AND it's
-		 * MCS 0-7, AND we have at least two chains enabled,
-		 * enable STBC.
+		 * Enable RTS/CTS as appropriate.
 		 */
-		if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
-		    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
-		    (sc->sc_cur_txchainmask > 1) &&
-		    HT_RC_2_STREAMS(series[i].Rate) == 1) {
-			series[i].RateFlags |= HAL_RATESERIES_STBC;
+		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
+			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
+
+
+		if (IS_HT_RATE(rt->info[rc[i].rix].rateCode)) {
+			/*
+			 * Transmit 40MHz frames only if the node has negotiated
+			 * it rather than whether the node is capable of it or not.
+			 * It's subtly different in the hostap case.
+			 */
+			if (ni->ni_chw == 40)
+				series[i].RateFlags |= HAL_RATESERIES_2040;
+
+			/*
+			 * Set short-GI only if the node has advertised it
+			 * the channel width is suitable, and we support it.
+			 * We don't currently have a "negotiated" set of bits -
+			 * ni_htcap is what the remote end sends, not what this
+			 * node is capable of.
+			 */
+			if (ni->ni_chw == 40 &&
+			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
+			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+				series[i].RateFlags |= HAL_RATESERIES_HALFGI;
+
+			if (ni->ni_chw == 20 &&
+			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
+			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+				series[i].RateFlags |= HAL_RATESERIES_HALFGI;
+
+			/*
+			 * If we have STBC TX enabled and the receiver
+			 * can receive (at least) 1 stream STBC, AND it's
+			 * MCS 0-7, AND we have at least two chains enabled,
+			 * enable STBC.
+			 */
+			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
+			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
+			    (sc->sc_cur_txchainmask > 1) &&
+			    HT_RC_2_STREAMS(series[i].Rate) == 1) {
+				series[i].RateFlags |= HAL_RATESERIES_STBC;
+			}
+			/*
+			 * XXX TODO: LDPC if it's possible
+			 */
 		}
-
-		/*
-		 * XXX TODO: LDPC if it's possible
-		 */
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
