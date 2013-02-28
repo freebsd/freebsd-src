@@ -153,6 +153,8 @@ static DPCPU_DEFINE(struct pcpu_state, timerstate);
 	(((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /		\
 	    ((bt)->frac >> 1))
 
+#define	SBT2FREQ(sbt)	((SBT_1S + ((sbt) >> 1)) / (sbt))
+
 /*
  * Timer broadcast IPI handler.
  */
@@ -442,7 +444,7 @@ loadtimer(struct bintime *now, int start)
 			    new.sec, (u_int)(new.frac >> 32));
 			*next = new;
 			bintime_add(next, now);
-			et_start(timer, &new, &timerperiod);
+			et_start(timer, bttosbt(new), bttosbt(timerperiod));
 		}
 	} else {
 		getnextevent(&new);
@@ -454,7 +456,7 @@ loadtimer(struct bintime *now, int start)
 		if (!eq) {
 			*next = new;
 			bintime_sub(&new, now);
-			et_start(timer, &new, NULL);
+			et_start(timer, bttosbt(new), 0);
 		}
 	}
 }
@@ -603,13 +605,13 @@ round_freq(struct eventtimer *et, int freq)
 			div = 1 << (flsl(div + div / 2) - 1);
 		freq = (et->et_frequency + div / 2) / div;
 	}
-	if (et->et_min_period.sec > 0)
+	if (et->et_min_period > SBT_1S)
 		panic("Event timer \"%s\" doesn't support sub-second periods!",
 		    et->et_name);
-	else if (et->et_min_period.frac != 0)
-		freq = min(freq, BT2FREQ(&et->et_min_period));
-	if (et->et_max_period.sec == 0 && et->et_max_period.frac != 0)
-		freq = max(freq, BT2FREQ(&et->et_max_period));
+	else if (et->et_min_period != 0)
+		freq = min(freq, SBT2FREQ(et->et_min_period));
+	if (et->et_max_period < SBT_1S && et->et_max_period != 0)
+		freq = max(freq, SBT2FREQ(et->et_max_period));
 	return (freq);
 }
 
