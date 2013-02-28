@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/rwlock.h>
 #include <sys/cons.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -78,9 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_map.h>
-#include <vm/vnode_pager.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
