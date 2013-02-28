@@ -124,7 +124,6 @@ bintime_shift(struct bintime *bt, int exp)
 	    ((a)->frac cmp (b)->frac) :					\
 	    ((a)->sec cmp (b)->sec))
 
-typedef int64_t sbintime_t;
 #define	SBT_1S	((sbintime_t)1 << 32)
 #define	SBT_1M	(SBT_1S * 60)
 #define	SBT_1MS	(SBT_1S / 1000)

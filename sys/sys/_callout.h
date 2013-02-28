@@ -39,7 +39,6 @@
 #define	_SYS__CALLOUT_H
 
 #include <sys/queue.h>
-#include <sys/time.h>
 
 struct lock_object;
 
