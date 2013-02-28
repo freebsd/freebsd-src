@@ -336,7 +336,7 @@ timercb(struct eventtimer *et, void *arg)
 		next = &state->nexttick;
 	} else
 		next = &nexttick;
-	sbinuptime(&now);
+	now = sbinuptime();
 	if (periodic)
 		*next = now + timerperiod;
 	else
@@ -461,7 +461,7 @@ doconfigtimer(void)
 	state = DPCPU_PTR(timerstate);
 	switch (atomic_load_acq_int(&state->action)) {
 	case 1:
-		sbinuptime(&now);
+		now = sbinuptime();
 		ET_HW_LOCK(state);
 		loadtimer(now, 1);
 		ET_HW_UNLOCK(state);
@@ -477,7 +477,7 @@ doconfigtimer(void)
 		return (1);
 	}
 	if (atomic_readandclear_int(&state->handle) && !busy) {
-		sbinuptime(&now);
+		now = sbinuptime();
 		handleevents(now, 0);
 		return (1);
 	}
@@ -497,8 +497,9 @@ configtimer(int start)
 
 	if (start) {
 		setuptimer();
-		sbinuptime(&now);
-	}
+		now = sbinuptime();
+	} else
+		now = 0;
 	critical_enter();
 	ET_HW_LOCK(DPCPU_PTR(timerstate));
 	if (start) {
@@ -670,7 +671,7 @@ cpu_initclocks_bsp(void)
 	}
 	tick = 1000000 / hz;
 	tick_sbt = SBT_1S / hz;
-	tick_bt = sbintime2bintime(tick_sbt);
+	tick_bt = sbttobt(tick_sbt);
 	statperiod = SBT_1S / stathz;
 	profperiod = SBT_1S / profhz;
 	ET_LOCK();
@@ -689,7 +690,7 @@ cpu_initclocks_ap(void)
 	struct thread *td;
 
 	state = DPCPU_PTR(timerstate);
-	sbinuptime(&now);
+	now = sbinuptime();
 	ET_HW_LOCK(state);
 	state->now = now;
 	hardclock_sync(curcpu);
@@ -762,7 +763,7 @@ cpu_idleclock(void)
 	if (periodic)
 		now = state->now;
 	else
-		sbinuptime(&now);
+		now = sbinuptime();
 	CTR3(KTR_SPARE2, "idle at %d:    now  %d.%08x",
 	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
 	t = getnextcpuevent(1);
@@ -791,7 +792,7 @@ cpu_activeclock(void)
 	if (periodic)
 		now = state->now;
 	else
-		sbinuptime(&now);
+		now = sbinuptime();
 	CTR3(KTR_SPARE2, "active at %d:  now  %d.%08x",
 	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
 	spinlock_enter();
@@ -812,12 +813,12 @@ clocksource_cyc_set(const struct bintime *bt)
 	/* Do not touch anything if somebody reconfiguring timers. */
 	if (busy)
 		return;
-	t = bintime2sbintime(*bt);
+	t = bttosbt(*bt);
 	state = DPCPU_PTR(timerstate);
 	if (periodic)
 		now = state->now;
 	else
-		sbinuptime(&now);
+		now = sbinuptime();
 
 	CTR5(KTR_SPARE2, "set_cyc at %d:  now  %d.%08x  t  %d.%08x",
 	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff),
@@ -881,7 +882,7 @@ cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 	}
 	/* If timer is global or of the current CPU -- reprogram it. */
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 || cpu == curcpu) {
-		sbinuptime(&now);
+		now = sbinuptime();
 		loadtimer(now, 0);
 		ET_HW_UNLOCK(state);
 		return;

@@ -1004,7 +1004,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			error = EINVAL;
 			goto done;
 		}
-		rsbt = timeval2sbintime(rtv);
+		rsbt = tvtosbt(rtv);
 		precision = rsbt;
 		precision >>= tc_precexp;
 		if (TIMESEL(&asbt, rsbt))

@@ -671,7 +671,7 @@ journal_findfile(void)
 				return (ino);
 		}
 	} else {
-		if ((off_t)dp1->di_size >= lblktosize(&sblock, NDADDR)) {
+		if ((off_t)dp2->di_size >= lblktosize(&sblock, NDADDR)) {
 			warnx("ROOTINO extends beyond direct blocks.");
 			return (-1);
 		}

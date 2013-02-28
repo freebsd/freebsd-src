@@ -26,6 +26,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130208:
+	A new compression method (lz4) has been merged to -HEAD.  Please
+	refer to zpool-features(7) for more information.
+
+	Please refer to the "ZFS notes" section of this file for information
+	on upgrading boot ZFS pools.
+
 20130129:
 	A BSD-licensed patch(1) variant has been added and is installed
 	as bsdpatch, being the GNU version the default patch.

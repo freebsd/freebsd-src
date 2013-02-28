@@ -1330,7 +1330,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 			goto done_nl;
 		}
 		if (timespecisset(tsp)) {
-			rsbt = timespec2sbintime(*tsp);
+			rsbt = tstosbt(*tsp);
 			if (TIMESEL(&asbt, rsbt))
 				asbt += tc_tick_sbt;
 			asbt += rsbt;

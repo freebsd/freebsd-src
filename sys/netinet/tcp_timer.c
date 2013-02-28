@@ -727,7 +727,7 @@ tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
 	bzero(xtimer, sizeof(*xtimer));
 	if (timer == NULL)
 		return;
-	getsbinuptime(&now);
+	now = getsbinuptime();
 	if (callout_active(&timer->tt_delack))
 		xtimer->tt_delack = (timer->tt_delack.c_time - now) / SBT_1MS;
 	if (callout_active(&timer->tt_rexmt))

@@ -350,16 +350,6 @@ binuptime(struct bintime *bt)
 }
 
 void
-sbinuptime(sbintime_t *sbt)
-{
-	/* XXX: We need a real implementation, but tomorrow */
-	struct bintime bt;
-
-	binuptime(&bt);
-	*sbt = bintime2sbintime(bt);
-}
-
-void
 nanouptime(struct timespec *tsp)
 {
 	struct bintime bt;
@@ -414,16 +404,6 @@ getbinuptime(struct bintime *bt)
 		gen = th->th_generation;
 		*bt = th->th_offset;
 	} while (gen == 0 || gen != th->th_generation);
-}
-
-void
-getsbinuptime(sbintime_t *sbt)
-{
-	/* XXX: We need a real implementation, but tomorrow */ 
-	struct bintime bt;
-
-	getbinuptime(&bt);
-	*sbt = bintime2sbintime(bt);
 }
 
 void
@@ -919,16 +899,6 @@ binuptime(struct bintime *bt)
 }
 
 void
-sbinuptime(sbintime_t *sbt)
-{
-	/* XXX: We need a real implementation, but tomorrow */ 
-	struct bintime bt;
-
-	binuptime(&bt);
-	*sbt = bintime2sbintime(bt);
-} 
-
-void
 nanouptime(struct timespec *tsp)
 {
 
@@ -968,16 +938,6 @@ getbinuptime(struct bintime *bt)
 {
 
 	getbinuptime_fromclock(bt, sysclock_active);
-}
-
-void
-getsbinuptime(sbintime_t *sbt)
-{
-	/* XXX: We need a real implementation, but tomorrow */ 
-	struct bintime bt;
-
-	getbinuptime(&bt);
-	*sbt = bintime2sbintime(bt);
 }
 
 void
@@ -1820,8 +1780,8 @@ tc_adjprecision(void)
 		bt_timethreshold.frac = ~(uint64_t)0;
 		bt_tickthreshold = bt_timethreshold;
 	}
-	sbt_timethreshold = bintime2sbintime(bt_timethreshold);
-	sbt_tickthreshold = bintime2sbintime(bt_tickthreshold);
+	sbt_timethreshold = bttosbt(bt_timethreshold);
+	sbt_tickthreshold = bttosbt(bt_tickthreshold);
 }
 
 static int
@@ -1858,10 +1818,10 @@ inittimecounter(void *dummy)
 		tc_tick = 1;
 	tc_adjprecision();
 	FREQ2BT(hz, &tick_bt);
-	tick_sbt = bintime2sbintime(tick_bt);
+	tick_sbt = bttosbt(tick_bt);
 	tick_rate = hz / tc_tick;
 	FREQ2BT(tick_rate, &tc_tick_bt);
-	tc_tick_sbt = bintime2sbintime(tc_tick_bt);
+	tc_tick_sbt = bttosbt(tc_tick_bt);
 	p = (tc_tick * 1000000) / hz;
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
 

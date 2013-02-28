@@ -426,7 +426,6 @@ initclocks(dummy)
 void
 hardclock_cpu(int usermode)
 {
-	sbintime_t now;
 	struct pstats *pstats;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -461,8 +460,7 @@ hardclock_cpu(int usermode)
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
-	sbinuptime(&now);
-	callout_process(now);
+	callout_process(sbinuptime());
 }
 
 /*

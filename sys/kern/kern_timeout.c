@@ -655,7 +655,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		    c, c_func, c_arg);
 	}
 #ifdef DIAGNOSTIC
-	sbinuptime(&bt1);
+	sbt1 = sbinuptime();
 #endif
 	if (!direct)
 		THREAD_NO_SLEEPING();
@@ -665,11 +665,11 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	if (!direct)
 		THREAD_SLEEPING_OK();
 #ifdef DIAGNOSTIC
-	sbinuptime(&bt2);
+	bt2 = sbinuptime();
 	bt2 -= bt1;
 	if (bt2 > maxdt) {
 		if (lastfunc != c_func || bt2 > maxdt * 2) {
-			ts2 = sbintime2timespec(bt2);
+			ts2 = sbttots(bt2);
 			printf(
 		"Expensive timeout(9) function: %p(%p) %jd.%09ld s\n",
 			    c_func, c_arg, (intmax_t)ts2.tv_sec, ts2.tv_nsec);
@@ -912,7 +912,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		if ((flags & C_HARDCLOCK) ||
 #ifdef NO_EVENTTIMERS
 		    sbt >= sbt_timethreshold) {
-			getsbinuptime(&to_sbt);
+			to_sbt = getsbinuptime();
 			/* Add safety belt for the case of hz > 1000. */
 			to_sbt += (tc_tick_sbt - tick_sbt);
 #else
@@ -930,7 +930,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 			if ((flags & C_HARDCLOCK) == 0)
 				to_sbt += tick_sbt;
 		} else
-			sbinuptime(&to_sbt);
+			to_sbt = sbinuptime();
 		to_sbt += sbt;
 		pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :
 		    sbt >> C_PRELGET(flags));
