@@ -1979,7 +1979,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	struct statfs fs;
 	struct nfsfsinfo fsinf;
 	struct timespec temptime;
-	struct timeval curtime;
 	NFSACL_T *aclp, *naclp = NULL;
 #ifdef QUOTA
 	struct dqblk dqb;
@@ -2393,8 +2392,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_V4TIME;
 			break;
 		case NFSATTRBIT_TIMEACCESSSET:
-			NFSGETTIME(&curtime);
-			if (vap->va_atime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_V4SETTIME);
 				*tl++ = txdr_unsigned(NFSV4SATTRTIME_TOCLIENT);
 				txdr_nfsv4time(&vap->va_atime, tl);
@@ -2423,8 +2421,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_V4TIME;
 			break;
 		case NFSATTRBIT_TIMEMODIFYSET:
-			NFSGETTIME(&curtime);
-			if (vap->va_mtime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_V4SETTIME);
 				*tl++ = txdr_unsigned(NFSV4SATTRTIME_TOCLIENT);
 				txdr_nfsv4time(&vap->va_mtime, tl);

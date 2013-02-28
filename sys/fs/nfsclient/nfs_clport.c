@@ -702,7 +702,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
 	nfsattrbit_t attrbits;
-	struct timeval curtime;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
 	case ND_NFSV2:
@@ -731,7 +730,6 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 		break;
 	case ND_NFSV3:
-		getmicrotime(&curtime);
 		if (vap->va_mode != (mode_t)VNOVAL) {
 			NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = newnfs_true;
@@ -765,7 +763,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = newnfs_false;
 		}
 		if (vap->va_atime.tv_sec != VNOVAL) {
-			if (vap->va_atime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_atime, tl);
@@ -778,7 +776,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 		}
 		if (vap->va_mtime.tv_sec != VNOVAL) {
-			if (vap->va_mtime.tv_sec != curtime.tv_sec) {
+			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_mtime, tl);
