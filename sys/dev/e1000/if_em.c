@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -94,7 +94,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.3.2";
+char em_driver_version[] = "7.3.7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -172,6 +172,12 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_PCH_D_HV_DC,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH2_LV_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_PCH2_LV_V,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPT_I217_LM,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPT_I217_V,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPTLP_I218_LM,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_PCH_LPTLP_I218_V,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -289,6 +295,7 @@ static void	em_handle_link(void *context, int pending);
 static void	em_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
 static int	em_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	em_sysctl_eee(SYSCTL_HANDLER_ARGS);
 
 static __inline void em_rx_discard(struct rx_ring *, int);
 
@@ -308,7 +315,7 @@ static device_method_t em_methods[] = {
 	DEVMETHOD(device_shutdown, em_shutdown),
 	DEVMETHOD(device_suspend, em_suspend),
 	DEVMETHOD(device_resume, em_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t em_driver = {
@@ -389,13 +396,17 @@ SYSCTL_INT(_hw_em, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
     "at a time, -1 means unlimited");
 
 /* Energy efficient ethernet - default to OFF */
-static int eee_setting = 0;
+static int eee_setting = 1;
 TUNABLE_INT("hw.em.eee_setting", &eee_setting);
 SYSCTL_INT(_hw_em, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &eee_setting, 0,
     "Enable Energy Efficient Ethernet");
 
 /* Global used in WOL setup with multiport cards */
 static int global_quad_port_a = 0;
+
+#ifdef DEV_NETMAP	/* see ixgbe.c for details */
+#include <dev/netmap/if_em_netmap.h>
+#endif /* DEV_NETMAP */
 
 /*********************************************************************
  *  Device identification routine
@@ -515,7 +526,8 @@ em_attach(device_t dev)
 	    (hw->mac.type == e1000_ich9lan) ||
 	    (hw->mac.type == e1000_ich10lan) ||
 	    (hw->mac.type == e1000_pchlan) ||
-	    (hw->mac.type == e1000_pch2lan)) {
+	    (hw->mac.type == e1000_pch2lan) ||
+	    (hw->mac.type == e1000_pch_lpt)) {
 		int rid = EM_BAR_TYPE_FLASH;
 		adapter->flash = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -600,8 +612,8 @@ em_attach(device_t dev)
 	 * Set the frame limits assuming
 	 * standard ethernet sized frames.
 	 */
-	adapter->max_frame_size = ETHERMTU + ETHER_HDR_LEN + ETHERNET_FCS_SIZE;
-	adapter->min_frame_size = ETH_ZLEN + ETHERNET_FCS_SIZE;
+	adapter->hw.mac.max_frame_size =
+	    ETHERMTU + ETHER_HDR_LEN + ETHERNET_FCS_SIZE;
 
 	/*
 	 * This controls when hardware reports transmit completion
@@ -632,9 +644,12 @@ em_attach(device_t dev)
 		    " due to SOL/IDER session.\n");
 
 	/* Sysctl for setting Energy Efficient Ethernet */
-	em_set_sysctl_value(adapter, "eee_control",
-	    "enable Energy Efficient Ethernet",
-	    &hw->dev_spec.ich8lan.eee_disable, eee_setting);
+	hw->dev_spec.ich8lan.eee_disable = eee_setting;
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "eee_control", CTLTYPE_INT|CTLFLAG_RW,
+	    adapter, 0, em_sysctl_eee, "I",
+	    "Disable Energy Efficient Ethernet");
 
 	/*
 	** Start from a known state, this is
@@ -718,6 +733,9 @@ em_attach(device_t dev)
 
 	adapter->led_dev = led_create(em_led_func, adapter,
 	    device_get_nameunit(dev));
+#ifdef DEV_NETMAP
+	em_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 
 	INIT_DEBUGOUT("em_attach: end");
 
@@ -788,6 +806,10 @@ em_detach(device_t dev)
 
 	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
+
+#ifdef DEV_NETMAP
+	netmap_detach(ifp);
+#endif /* DEV_NETMAP */
 
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
@@ -890,28 +912,29 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	}
 
 	enq = 0;
-	if (m == NULL) {
-		next = drbr_dequeue(ifp, txr->br);
-	} else if (drbr_needs_enqueue(ifp, txr->br)) {
-		if ((err = drbr_enqueue(ifp, txr->br, m)) != 0)
+	if (m != NULL) {
+		err = drbr_enqueue(ifp, txr->br, m);
+		if (err)
 			return (err);
-		next = drbr_dequeue(ifp, txr->br);
-	} else
-		next = m;
+	} 
 
 	/* Process the queue */
-	while (next != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = em_xmit(txr, &next)) != 0) {
-                        if (next != NULL)
-                                err = drbr_enqueue(ifp, txr->br, next);
-                        break;
+			if (next == NULL)
+				drbr_advance(ifp, txr->br);
+			else 
+				drbr_putback(ifp, txr->br, next);
+			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enq++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
                         break;
-		next = drbr_dequeue(ifp, txr->br);
 	}
 
 	if (enq > 0) {
@@ -1090,6 +1113,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case e1000_ich9lan:
 		case e1000_ich10lan:
 		case e1000_pch2lan:
+		case e1000_pch_lpt:
 		case e1000_82574:
 		case e1000_82583:
 		case e1000_80003es2lan:	/* 9K Jumbo Frame size */
@@ -1113,7 +1137,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 
 		ifp->if_mtu = ifr->ifr_mtu;
-		adapter->max_frame_size =
+		adapter->hw.mac.max_frame_size =
 		    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
 		em_init_locked(adapter);
 		EM_CORE_UNLOCK(adapter);
@@ -1308,9 +1332,9 @@ em_init_locked(struct adapter *adapter)
 	** Figure out the desired mbuf
 	** pool for doing jumbos
 	*/
-	if (adapter->max_frame_size <= 2048)
+	if (adapter->hw.mac.max_frame_size <= 2048)
 		adapter->rx_mbuf_sz = MCLBYTES;
-	else if (adapter->max_frame_size <= 4096)
+	else if (adapter->hw.mac.max_frame_size <= 4096)
 		adapter->rx_mbuf_sz = MJUMPAGESIZE;
 	else
 		adapter->rx_mbuf_sz = MJUM9BYTES;
@@ -1555,6 +1579,8 @@ em_msix_rx(void *arg)
 	bool		more;
 
 	++rxr->rx_irq;
+	if (!(adapter->ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return;
 	more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
@@ -1812,7 +1838,7 @@ retry:
 		if (do_tso || (m_head->m_next != NULL && 
 		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
 			if (M_WRITABLE(*m_headp) == 0) {
-				m_head = m_dup(*m_headp, M_DONTWAIT);
+				m_head = m_dup(*m_headp, M_NOWAIT);
 				m_freem(*m_headp);
 				if (m_head == NULL) {
 					*m_headp = NULL;
@@ -1929,7 +1955,7 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_alloc_failed++;
 			m_freem(*m_headp);
@@ -2797,17 +2823,18 @@ em_reset(struct adapter *adapter)
 	case e1000_ich9lan:
 	case e1000_ich10lan:
 		/* Boost Receive side for jumbo frames */
-		if (adapter->max_frame_size > 4096)
+		if (adapter->hw.mac.max_frame_size > 4096)
 			pba = E1000_PBA_14K;
 		else
 			pba = E1000_PBA_10K;
 		break;
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		pba = E1000_PBA_26K;
 		break;
 	default:
-		if (adapter->max_frame_size > 8192)
+		if (adapter->hw.mac.max_frame_size > 8192)
 			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
 		else
 			pba = E1000_PBA_48K; /* 48K for Rx, 16K for Tx */
@@ -2830,7 +2857,7 @@ em_reset(struct adapter *adapter)
 	 */
 	rx_buffer_size = ((E1000_READ_REG(hw, E1000_PBA) & 0xffff) << 10 );
 	hw->fc.high_water = rx_buffer_size -
-	    roundup2(adapter->max_frame_size, 1024);
+	    roundup2(adapter->hw.mac.max_frame_size, 1024);
 	hw->fc.low_water = hw->fc.high_water - 1500;
 
 	if (adapter->fc) /* locally set flow control value? */
@@ -2861,6 +2888,7 @@ em_reset(struct adapter *adapter)
 		hw->fc.refresh_time = 0x1000;
 		break;
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0x0650;
@@ -3289,9 +3317,17 @@ em_setup_transmit_ring(struct tx_ring *txr)
 	struct adapter *adapter = txr->adapter;
 	struct em_buffer *txbuf;
 	int i;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	/* Clear the old descriptor contents */
 	EM_TX_LOCK(txr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_TX, txr->me, 0);
+#endif /* DEV_NETMAP */
+
 	bzero((void *)txr->tx_base,
 	      (sizeof(struct e1000_tx_desc)) * adapter->num_tx_desc);
 	/* Reset indices */
@@ -3308,6 +3344,19 @@ em_setup_transmit_ring(struct tx_ring *txr)
 			m_freem(txbuf->m_head);
 			txbuf->m_head = NULL;
 		}
+#ifdef DEV_NETMAP
+		if (slot) {
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
+			uint64_t paddr;
+			void *addr;
+
+			addr = PNMB(slot + si, &paddr);
+			txr->tx_base[i].buffer_addr = htole64(paddr);
+			/* reload the map for netmap mode */
+			netmap_load_map(txr->txtag, txbuf->map, addr);
+		}
+#endif /* DEV_NETMAP */
+
 		/* clear the watch index */
 		txbuf->next_eop = -1;
         }
@@ -3753,6 +3802,19 @@ em_txeof(struct tx_ring *txr)
 	struct ifnet   *ifp = adapter->ifp;
 
 	EM_TX_LOCK_ASSERT(txr);
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
+		EM_TX_UNLOCK(txr);
+		EM_CORE_LOCK(adapter);
+		selwakeuppri(&na->tx_si, PI_NET);
+		EM_CORE_UNLOCK(adapter);
+		EM_TX_LOCK(txr);
+		return;
+	}
+#endif /* DEV_NETMAP */
 
 	/* No work, make sure watchdog is off */
         if (txr->tx_avail == adapter->num_tx_desc) {
@@ -3877,7 +3939,7 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->m_head == NULL) {
-			m = m_getjcl(M_DONTWAIT, MT_DATA,
+			m = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			/*
 			** If we have a temporary resource shortage
@@ -4001,7 +4063,11 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	struct em_buffer	*rxbuf;
 	bus_dma_segment_t	seg[1];
-	int			rsize, nsegs, error;
+	int			rsize, nsegs, error = 0;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot;
+#endif
 
 
 	/* Clear the ring contents */
@@ -4009,6 +4075,9 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_RX, 0, 0);
+#endif
 
 	/*
 	** Free current RX buffer structs and their mbufs
@@ -4027,7 +4096,20 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	/* Now replenish the mbufs */
         for (int j = 0; j != adapter->num_rx_desc; ++j) {
 		rxbuf = &rxr->rx_buffers[j];
-		rxbuf->m_head = m_getjcl(M_DONTWAIT, MT_DATA,
+#ifdef DEV_NETMAP
+		if (slot) {
+			int si = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
+			uint64_t paddr;
+			void *addr;
+
+			addr = PNMB(slot + si, &paddr);
+			netmap_load_map(rxr->rxtag, rxbuf->map, addr);
+			/* Update descriptor */
+			rxr->rx_base[j].buffer_addr = htole64(paddr);
+			continue;
+		}
+#endif /* DEV_NETMAP */
+		rxbuf->m_head = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_head == NULL) {
 			error = ENOBUFS;
@@ -4240,6 +4322,21 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RDBAL(i), (u32)bus_addr);
 		/* Setup the Head and Tail Descriptor Pointers */
 		E1000_WRITE_REG(hw, E1000_RDH(i), 0);
+#ifdef DEV_NETMAP
+		/*
+		 * an init() while a netmap client is active must
+		 * preserve the rx buffers passed to userspace.
+		 * In this driver it means we adjust RDT to
+		 * something different from na->num_rx_desc - 1.
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
+
+			E1000_WRITE_REG(hw, E1000_RDT(i), t);
+		} else
+#endif /* DEV_NETMAP */
 		E1000_WRITE_REG(hw, E1000_RDT(i), adapter->num_rx_desc - 1);
 	}
 
@@ -4252,7 +4349,7 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
 	}
 		
-	if (adapter->hw.mac.type == e1000_pch2lan) {
+	if (adapter->hw.mac.type >= e1000_pch2lan) {
 		if (ifp->if_mtu > ETHERMTU)
 			e1000_lv_jumbo_workaround_ich8lan(hw, TRUE);
 		else
@@ -4316,6 +4413,20 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 
 	EM_RX_LOCK(rxr);
 
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
+		EM_RX_UNLOCK(rxr);
+		EM_CORE_LOCK(adapter);
+		selwakeuppri(&na->rx_si, PI_NET);
+		EM_CORE_UNLOCK(adapter);
+		return (0);
+	}
+#endif /* DEV_NETMAP */
+
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
 
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -4372,7 +4483,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 			ifp->if_ipackets++;
 			em_receive_checksum(cur, sendmp);
 #ifndef __NO_STRICT_ALIGNMENT
-			if (adapter->max_frame_size >
+			if (adapter->hw.mac.max_frame_size >
 			    (MCLBYTES - ETHER_ALIGN) &&
 			    em_fixup_rx(rxr) != 0)
 				goto skip;
@@ -4477,7 +4588,7 @@ em_fixup_rx(struct rx_ring *rxr)
 		bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
 		m->m_data += ETHER_HDR_LEN;
 	} else {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n != NULL) {
 			bcopy(m->m_data, n->m_data, ETHER_HDR_LEN);
 			m->m_data += ETHER_HDR_LEN;
@@ -5019,7 +5130,7 @@ em_disable_aspm(struct adapter *adapter)
 		return;
 	reg = base + PCIER_LINK_CTL;
 	link_ctrl = pci_read_config(dev, reg, 2);
-	link_ctrl &= 0xFFFC; /* turn off bit 1 and 2 */
+	link_ctrl &= ~PCIEM_LINK_CTL_ASPMC;
 	pci_write_config(dev, reg, link_ctrl, 2);
 	return;
 }
@@ -5601,6 +5712,27 @@ em_set_flowcntl(SYSCTL_HANDLER_ARGS)
         return (error);
 }
 
+/*
+** Manage Energy Efficient Ethernet:
+** Control values:
+**     0/1 - enabled/disabled
+*/
+static int
+em_sysctl_eee(SYSCTL_HANDLER_ARGS)
+{
+       struct adapter *adapter = (struct adapter *) arg1;
+       int             error, value;
+
+       value = adapter->hw.dev_spec.ich8lan.eee_disable;
+       error = sysctl_handle_int(oidp, &value, 0, req);
+       if (error || req->newptr == NULL)
+               return (error);
+       EM_CORE_LOCK(adapter);
+       adapter->hw.dev_spec.ich8lan.eee_disable = (value != 0);
+       em_init_locked(adapter);
+       EM_CORE_UNLOCK(adapter);
+       return (0);
+}
 
 static int
 em_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
