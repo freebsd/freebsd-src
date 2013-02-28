@@ -95,7 +95,7 @@ int a10_timer_get_timerfreq(struct a10_timer_softc *);
 
 static u_int	a10_timer_get_timecount(struct timecounter *);
 static int	a10_timer_timer_start(struct eventtimer *,
-    struct bintime *, struct bintime *);
+    sbintime_t first, sbintime_t period);
 static int	a10_timer_timer_stop(struct eventtimer *);
 
 static uint64_t timer_read_counter64(void);
@@ -193,12 +193,8 @@ a10_timer_attach(device_t dev)
 	sc->et.et_name = "a10_timer Eventtimer";
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
 	sc->et.et_quality = 1000;
-	sc->et.et_min_period.sec = 0;
-	sc->et.et_min_period.frac =
-	    ((0x00000005LLU << 32) / sc->et.et_frequency) << 32;
-	sc->et.et_max_period.sec = 0xfffffff0U / sc->et.et_frequency;
-	sc->et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	sc->et.et_min_period = (0x00000005LLU << 32) / sc->et.et_frequency;
+	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
 	sc->et.et_start = a10_timer_timer_start;
 	sc->et.et_stop = a10_timer_timer_stop;
 	sc->et.et_priv = sc;
@@ -225,8 +221,8 @@ a10_timer_attach(device_t dev)
 }
 
 static int
-a10_timer_timer_start(struct eventtimer *et, struct bintime *first,
-    struct bintime *period)
+a10_timer_timer_start(struct eventtimer *et, sbintime_t first,
+    sbintime_t period)
 {
 	struct a10_timer_softc *sc;
 	uint32_t count;
@@ -234,26 +230,21 @@ a10_timer_timer_start(struct eventtimer *et, struct bintime *first,
 
 	sc = (struct a10_timer_softc *)et->et_priv;
 
-	sc->sc_period = 0;
-
-	if (period != NULL) {
-		sc->sc_period = (sc->et.et_frequency * (period->frac >> 32)) >> 32;
-		sc->sc_period += sc->et.et_frequency * period->sec;
-	}
-	if (first == NULL)
+	if (period != 0)
+		sc->sc_period = ((uint32_t)et->et_frequency * period) >> 32;
+	else
+		sc->sc_period = 0;
+	if (first != 0)
+		count = ((uint32_t)et->et_frequency * first) >> 32;
+	else
 		count = sc->sc_period;
-	else {
-		count = (sc->et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			count += sc->et.et_frequency * first->sec;
-	}
 
 	/* Update timer values */
 	timer_write_4(sc, SW_TIMER0_INT_VALUE_REG, sc->sc_period);
 	timer_write_4(sc, SW_TIMER0_CUR_VALUE_REG, count);
 
 	val = timer_read_4(sc, SW_TIMER0_CTRL_REG);
-	if (first == NULL) {
+	if (period != 0) {
 		/* periodic */
 		val |= TIMER_AUTORELOAD;
 	} else {
