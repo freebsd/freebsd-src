@@ -39,7 +39,7 @@
 #include <sys/sa_impl.h>
 
 static void dbuf_destroy(dmu_buf_impl_t *db);
-static int dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
+static boolean_t dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 static void dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx);
 
 /*
@@ -499,7 +499,7 @@ dbuf_read_done(zio_t *zio, arc_buf_t *buf, void *vdb)
 	} else {
 		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
 		ASSERT3P(db->db_buf, ==, NULL);
-		VERIFY(arc_buf_remove_ref(buf, db) == 1);
+		VERIFY(arc_buf_remove_ref(buf, db));
 		db->db_state = DB_UNCACHED;
 	}
 	cv_broadcast(&db->db_changed);
@@ -828,10 +828,12 @@ dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
 			continue;
 
 		/* found a level 0 buffer in the range */
-		if (dbuf_undirty(db, tx))
-			continue;
-
 		mutex_enter(&db->db_mtx);
+		if (dbuf_undirty(db, tx)) {
+			/* mutex has been dropped and dbuf destroyed */
+			continue;
+		}
+
 		if (db->db_state == DB_UNCACHED ||
 		    db->db_state == DB_NOFILL ||
 		    db->db_state == DB_EVICTING) {
@@ -958,7 +960,7 @@ dbuf_new_size(dmu_buf_impl_t *db, int size, dmu_tx_t *tx)
 
 	mutex_enter(&db->db_mtx);
 	dbuf_set_data(db, buf);
-	VERIFY(arc_buf_remove_ref(obuf, db) == 1);
+	VERIFY(arc_buf_remove_ref(obuf, db));
 	db->db.db_size = size;
 
 	if (db->db_level == 0) {
@@ -1258,7 +1260,10 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	return (dr);
 }
 
-static int
+/*
+ * Return TRUE if this evicted the dbuf.
+ */
+static boolean_t
 dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 {
 	dnode_t *dn;
@@ -1267,18 +1272,17 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 
 	ASSERT(txg != 0);
 	ASSERT(db->db_blkid != DMU_BONUS_BLKID);
+	ASSERT0(db->db_level);
+	ASSERT(MUTEX_HELD(&db->db_mtx));
 
-	mutex_enter(&db->db_mtx);
 	/*
 	 * If this buffer is not dirty, we're done.
 	 */
 	for (drp = &db->db_last_dirty; (dr = *drp) != NULL; drp = &dr->dr_next)
 		if (dr->dr_txg <= txg)
 			break;
-	if (dr == NULL || dr->dr_txg < txg) {
-		mutex_exit(&db->db_mtx);
-		return (0);
-	}
+	if (dr == NULL || dr->dr_txg < txg)
+		return (B_FALSE);
 	ASSERT(dr->dr_txg == txg);
 	ASSERT(dr->dr_dbuf == db);
 
@@ -1286,24 +1290,12 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	dn = DB_DNODE(db);
 
 	/*
-	 * If this buffer is currently held, we cannot undirty
-	 * it, since one of the current holders may be in the
-	 * middle of an update.  Note that users of dbuf_undirty()
-	 * should not place a hold on the dbuf before the call.
-	 * Also note: we can get here with a spill block, so
-	 * test for that similar to how dbuf_dirty does.
+	 * Note:  This code will probably work even if there are concurrent
+	 * holders, but it is untested in that scenerio, as the ZPL and
+	 * ztest have additional locking (the range locks) that prevents
+	 * that type of concurrent access.
 	 */
-	if (refcount_count(&db->db_holds) > db->db_dirtycnt) {
-		mutex_exit(&db->db_mtx);
-		/* Make sure we don't toss this buffer at sync phase */
-		if (db->db_blkid != DMU_SPILL_BLKID) {
-			mutex_enter(&dn->dn_mtx);
-			dnode_clear_range(dn, db->db_blkid, 1, tx);
-			mutex_exit(&dn->dn_mtx);
-		}
-		DB_DNODE_EXIT(db);
-		return (0);
-	}
+	ASSERT3U(refcount_count(&db->db_holds), ==, db->db_dirtycnt);
 
 	dprintf_dbuf(db, "size=%llx\n", (u_longlong_t)db->db.db_size);
 
@@ -1332,21 +1324,13 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	}
 	DB_DNODE_EXIT(db);
 
-	if (db->db_level == 0) {
-		if (db->db_state != DB_NOFILL) {
-			dbuf_unoverride(dr);
+	if (db->db_state != DB_NOFILL) {
+		dbuf_unoverride(dr);
 
-			ASSERT(db->db_buf != NULL);
-			ASSERT(dr->dt.dl.dr_data != NULL);
-			if (dr->dt.dl.dr_data != db->db_buf)
-				VERIFY(arc_buf_remove_ref(dr->dt.dl.dr_data,
-				    db) == 1);
-		}
-	} else {
 		ASSERT(db->db_buf != NULL);
-		ASSERT(list_head(&dr->dt.di.dr_children) == NULL);
-		mutex_destroy(&dr->dt.di.dr_mtx);
-		list_destroy(&dr->dt.di.dr_children);
+		ASSERT(dr->dt.dl.dr_data != NULL);
+		if (dr->dt.dl.dr_data != db->db_buf)
+			VERIFY(arc_buf_remove_ref(dr->dt.dl.dr_data, db));
 	}
 	kmem_free(dr, sizeof (dbuf_dirty_record_t));
 
@@ -1358,13 +1342,12 @@ dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 
 		ASSERT(db->db_state == DB_NOFILL || arc_released(buf));
 		dbuf_set_data(db, NULL);
-		VERIFY(arc_buf_remove_ref(buf, db) == 1);
+		VERIFY(arc_buf_remove_ref(buf, db));
 		dbuf_evict(db);
-		return (1);
+		return (B_TRUE);
 	}
 
-	mutex_exit(&db->db_mtx);
-	return (0);
+	return (B_FALSE);
 }
 
 #pragma weak dmu_buf_will_dirty = dbuf_will_dirty
@@ -1463,7 +1446,7 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 		mutex_exit(&db->db_mtx);
 		(void) dbuf_dirty(db, tx);
 		bcopy(buf->b_data, db->db.db_data, db->db.db_size);
-		VERIFY(arc_buf_remove_ref(buf, db) == 1);
+		VERIFY(arc_buf_remove_ref(buf, db));
 		xuio_stat_wbuf_copied();
 		return;
 	}
@@ -1481,10 +1464,10 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
 				arc_release(db->db_buf, db);
 			}
 			dr->dt.dl.dr_data = buf;
-			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 1);
+			VERIFY(arc_buf_remove_ref(db->db_buf, db));
 		} else if (dr == NULL || dr->dt.dl.dr_data != db->db_buf) {
 			arc_release(db->db_buf, db);
-			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 1);
+			VERIFY(arc_buf_remove_ref(db->db_buf, db));
 		}
 		db->db_buf = NULL;
 	}
@@ -2067,10 +2050,10 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag)
 			 * This dbuf has anonymous data associated with it.
 			 */
 			dbuf_set_data(db, NULL);
-			VERIFY(arc_buf_remove_ref(buf, db) == 1);
+			VERIFY(arc_buf_remove_ref(buf, db));
 			dbuf_evict(db);
 		} else {
-			VERIFY(arc_buf_remove_ref(db->db_buf, db) == 0);
+			VERIFY(!arc_buf_remove_ref(db->db_buf, db));
 
 			/*
 			 * A dbuf will be eligible for eviction if either the
@@ -2567,7 +2550,7 @@ dbuf_write_done(zio_t *zio, arc_buf_t *buf, void *vdb)
 		if (db->db_state != DB_NOFILL) {
 			if (dr->dt.dl.dr_data != db->db_buf)
 				VERIFY(arc_buf_remove_ref(dr->dt.dl.dr_data,
-				    db) == 1);
+				    db));
 			else if (!arc_released(db->db_buf))
 				arc_set_callback(db->db_buf, dbuf_do_evict, db);
 		}

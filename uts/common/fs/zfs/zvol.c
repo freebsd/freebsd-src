@@ -653,7 +653,7 @@ zvol_last_close(zvol_state_t *zv)
 	if (dsl_dataset_is_dirty(dmu_objset_ds(zv->zv_objset)) &&
 	    !(zv->zv_flags & ZVOL_RDONLY))
 		txg_wait_synced(dmu_objset_pool(zv->zv_objset), 0);
-	(void) dmu_objset_evict_dbufs(zv->zv_objset);
+	dmu_objset_evict_dbufs(zv->zv_objset);
 
 	dmu_objset_disown(zv->zv_objset, zvol_tag);
 	zv->zv_objset = NULL;
@@ -698,7 +698,7 @@ zvol_prealloc(zvol_state_t *zv)
 	return (0);
 }
 
-int
+static int
 zvol_update_volsize(objset_t *os, uint64_t volsize)
 {
 	dmu_tx_t *tx;
@@ -749,13 +749,12 @@ zvol_remove_minors(const char *name)
 }
 
 static int
-zvol_set_volsize_impl(objset_t *os, zvol_state_t *zv, uint64_t volsize)
+zvol_update_live_volsize(zvol_state_t *zv, uint64_t volsize)
 {
 	uint64_t old_volsize = 0ULL;
-	int error;
+	int error = 0;
 
 	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
-	error = zvol_update_volsize(os, volsize);
 
 	/*
 	 * Reinitialize the dump area to the new size. If we
@@ -764,27 +763,25 @@ zvol_set_volsize_impl(objset_t *os, zvol_state_t *zv, uint64_t volsize)
 	 * to calling dumpvp_resize() to ensure that the devices'
 	 * size(9P) is not visible by the dump subsystem.
 	 */
-	if (zv && error == 0) {
-		old_volsize = zv->zv_volsize;
-		zvol_size_changed(zv, volsize);
+	old_volsize = zv->zv_volsize;
+	zvol_size_changed(zv, volsize);
 
-		if (zv->zv_flags & ZVOL_DUMPIFIED) {
-			if ((error = zvol_dumpify(zv)) != 0 ||
-			    (error = dumpvp_resize()) != 0) {
-				int dumpify_error;
+	if (zv->zv_flags & ZVOL_DUMPIFIED) {
+		if ((error = zvol_dumpify(zv)) != 0 ||
+		    (error = dumpvp_resize()) != 0) {
+			int dumpify_error;
 
-				(void) zvol_update_volsize(os, old_volsize);
-				zvol_size_changed(zv, old_volsize);
-				dumpify_error = zvol_dumpify(zv);
-				error = dumpify_error ? dumpify_error : error;
-			}
+			(void) zvol_update_volsize(zv->zv_objset, old_volsize);
+			zvol_size_changed(zv, old_volsize);
+			dumpify_error = zvol_dumpify(zv);
+			error = dumpify_error ? dumpify_error : error;
 		}
 	}
 
 	/*
 	 * Generate a LUN expansion event.
 	 */
-	if (zv && error == 0) {
+	if (error == 0) {
 		sysevent_id_t eid;
 		nvlist_t *attr;
 		char *physpath = kmem_zalloc(MAXPATHLEN, KM_SLEEP);
@@ -812,29 +809,45 @@ zvol_set_volsize(const char *name, uint64_t volsize)
 	int error;
 	dmu_object_info_t doi;
 	uint64_t readonly;
+	boolean_t owned = B_FALSE;
+
+	error = dsl_prop_get_integer(name,
+	    zfs_prop_to_name(ZFS_PROP_READONLY), &readonly, NULL);
+	if (error != 0)
+		return (error);
+	if (readonly)
+		return (EROFS);
 
 	mutex_enter(&zfsdev_state_lock);
 	zv = zvol_minor_lookup(name);
-	if ((error = dmu_objset_hold(name, FTAG, &os)) != 0) {
-		mutex_exit(&zfsdev_state_lock);
-		return (error);
+
+	if (zv == NULL || zv->zv_objset == NULL) {
+		if ((error = dmu_objset_own(name, DMU_OST_ZVOL, B_FALSE,
+		    FTAG, &os)) != 0) {
+			mutex_exit(&zfsdev_state_lock);
+			return (error);
+		}
+		owned = B_TRUE;
+		if (zv != NULL)
+			zv->zv_objset = os;
+	} else {
+		os = zv->zv_objset;
 	}
 
 	if ((error = dmu_object_info(os, ZVOL_OBJ, &doi)) != 0 ||
-	    (error = zvol_check_volsize(volsize,
-	    doi.doi_data_block_size)) != 0)
+	    (error = zvol_check_volsize(volsize, doi.doi_data_block_size)) != 0)
 		goto out;
 
-	VERIFY3U(dsl_prop_get_integer(name,
-	    zfs_prop_to_name(ZFS_PROP_READONLY), &readonly, NULL), ==, 0);
-	if (readonly) {
-		error = EROFS;
-		goto out;
-	}
+	error = zvol_update_volsize(os, volsize);
 
-	error = zvol_set_volsize_impl(os, zv, volsize);
+	if (error == 0 && zv != NULL)
+		error = zvol_update_live_volsize(zv, volsize);
 out:
-	dmu_objset_rele(os, FTAG);
+	if (owned) {
+		dmu_objset_disown(os, FTAG);
+		if (zv != NULL)
+			zv->zv_objset = NULL;
+	}
 	mutex_exit(&zfsdev_state_lock);
 	return (error);
 }
@@ -1155,6 +1168,9 @@ zvol_dumpio(zvol_state_t *zv, void *addr, uint64_t offset, uint64_t size,
 		ze = list_next(&zv->zv_extents, ze);
 	}
 
+	if (ze == NULL)
+		return (EINVAL);
+
 	if (!ddi_in_panic())
 		spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
 
@@ -1307,6 +1323,9 @@ zvol_dump(dev_t dev, caddr_t addr, daddr_t blkno, int nblocks)
 	zv = zfsdev_get_soft_state(minor, ZSST_ZVOL);
 	if (zv == NULL)
 		return (ENXIO);
+
+	if ((zv->zv_flags & ZVOL_DUMPIFIED) == 0)
+		return (EINVAL);
 
 	boff = ldbtob(blkno);
 	resid = ldbtob(nblocks);

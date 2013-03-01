@@ -237,8 +237,8 @@ kmem_cache_t *spa_buffer_pool;
 int spa_mode_global;
 
 #ifdef ZFS_DEBUG
-/* Everything except dprintf is on by default in debug builds */
-int zfs_flags = ~ZFS_DEBUG_DPRINTF;
+/* Everything except dprintf and spa is on by default in debug builds */
+int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA);
 #else
 int zfs_flags = 0;
 #endif
@@ -282,7 +282,7 @@ spa_config_lock_init(spa_t *spa)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		mutex_init(&scl->scl_lock, NULL, MUTEX_DEFAULT, NULL);
 		cv_init(&scl->scl_cv, NULL, CV_DEFAULT, NULL);
-		refcount_create(&scl->scl_count);
+		refcount_create_untracked(&scl->scl_count);
 		scl->scl_writer = NULL;
 		scl->scl_write_wanted = 0;
 	}
@@ -334,6 +334,8 @@ void
 spa_config_enter(spa_t *spa, int locks, void *tag, krw_t rw)
 {
 	int wlocks_held = 0;
+
+	ASSERT3U(SCL_LOCKS, <, sizeof (wlocks_held) * NBBY);
 
 	for (int i = 0; i < SCL_LOCKS; i++) {
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
@@ -413,26 +415,21 @@ spa_lookup(const char *name)
 	static spa_t search;	/* spa_t is large; don't allocate on stack */
 	spa_t *spa;
 	avl_index_t where;
-	char c;
 	char *cp;
 
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+
+	(void) strlcpy(search.spa_name, name, sizeof (search.spa_name));
 
 	/*
 	 * If it's a full dataset name, figure out the pool name and
 	 * just use that.
 	 */
-	cp = strpbrk(name, "/@");
-	if (cp) {
-		c = *cp;
+	cp = strpbrk(search.spa_name, "/@");
+	if (cp != NULL)
 		*cp = '\0';
-	}
 
-	(void) strlcpy(search.spa_name, name, sizeof (search.spa_name));
 	spa = avl_find(&spa_namespace_avl, &search, &where);
-
-	if (cp)
-		*cp = c;
 
 	return (spa);
 }
@@ -566,6 +563,8 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 		spa->spa_iokstat->ks_lock = &spa->spa_iokstat_lock;
 		kstat_install(spa->spa_iokstat);
 	}
+
+	spa->spa_debug = ((zfs_flags & ZFS_DEBUG_SPA) != 0);
 
 	return (spa);
 }

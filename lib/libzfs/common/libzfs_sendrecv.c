@@ -972,9 +972,7 @@ hold_for_send(zfs_handle_t *zhp, send_dump_data_t *sdd)
 	 */
 	if (pzhp) {
 		error = zfs_hold(pzhp, thissnap, sdd->holdtag,
-		    B_FALSE, B_TRUE, B_TRUE, sdd->cleanup_fd,
-		    zfs_prop_get_int(zhp, ZFS_PROP_OBJSETID),
-		    zfs_prop_get_int(zhp, ZFS_PROP_CREATETXG));
+		    B_FALSE, B_TRUE, sdd->cleanup_fd);
 		zfs_close(pzhp);
 	}
 
@@ -1713,12 +1711,11 @@ recv_rename(libzfs_handle_t *hdl, const char *name, const char *tryname,
 		err = ENOENT;
 	}
 
-	if (err != 0 && strncmp(name+baselen, "recv-", 5) != 0) {
+	if (err != 0 && strncmp(name + baselen, "recv-", 5) != 0) {
 		seq++;
 
-		(void) strncpy(newname, name, baselen);
-		(void) snprintf(newname+baselen, ZFS_MAXNAMELEN-baselen,
-		    "recv-%u-%u", getpid(), seq);
+		(void) snprintf(newname, ZFS_MAXNAMELEN, "%.*srecv-%u-%u",
+		    baselen, name, getpid(), seq);
 		(void) strlcpy(zc.zc_value, newname, sizeof (zc.zc_value));
 
 		if (flags->verbose) {
@@ -2643,7 +2640,6 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 	/*
 	 * Determine name of destination snapshot, store in zc_value.
 	 */
-	(void) strcpy(zc.zc_top_ds, tosnap);
 	(void) strcpy(zc.zc_value, tosnap);
 	(void) strncat(zc.zc_value, chopprefix, sizeof (zc.zc_value));
 	free(cp);
