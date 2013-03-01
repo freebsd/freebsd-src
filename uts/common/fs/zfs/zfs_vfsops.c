@@ -513,27 +513,31 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 * overboard...
 	 */
 	ds = dmu_objset_ds(os);
-	error = dsl_prop_register(ds, "atime", atime_changed_cb, zfsvfs);
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+	error = dsl_prop_register(ds,
+	    zfs_prop_to_name(ZFS_PROP_ATIME), atime_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "xattr", xattr_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_XATTR), xattr_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "recordsize", blksz_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_RECORDSIZE), blksz_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "readonly", readonly_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_READONLY), readonly_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "devices", devices_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_DEVICES), devices_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "setuid", setuid_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_SETUID), setuid_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "exec", exec_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_EXEC), exec_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "snapdir", snapdir_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_SNAPDIR), snapdir_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "aclmode", acl_mode_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_ACLMODE), acl_mode_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "aclinherit", acl_inherit_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_ACLINHERIT), acl_inherit_changed_cb,
+	    zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
-	    "vscan", vscan_changed_cb, zfsvfs);
+	    zfs_prop_to_name(ZFS_PROP_VSCAN), vscan_changed_cb, zfsvfs);
+	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 	if (error)
 		goto unregister;
 
@@ -563,28 +567,35 @@ unregister:
 	 * registered, but this is OK; it will simply return ENOMSG,
 	 * which we will ignore.
 	 */
-	(void) dsl_prop_unregister(ds, "atime", atime_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "xattr", xattr_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "recordsize", blksz_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "readonly", readonly_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "devices", devices_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "setuid", setuid_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "exec", exec_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, "aclinherit", acl_inherit_changed_cb,
-	    zfsvfs);
-	(void) dsl_prop_unregister(ds, "vscan", vscan_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_ATIME),
+	    atime_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_XATTR),
+	    xattr_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_RECORDSIZE),
+	    blksz_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_READONLY),
+	    readonly_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_DEVICES),
+	    devices_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_SETUID),
+	    setuid_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_EXEC),
+	    exec_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_SNAPDIR),
+	    snapdir_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_ACLMODE),
+	    acl_mode_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_ACLINHERIT),
+	    acl_inherit_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_VSCAN),
+	    vscan_changed_cb, zfsvfs);
 	return (error);
-
 }
 
 static int
 zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
     uint64_t *userp, uint64_t *groupp)
 {
-	int error = 0;
-
 	/*
 	 * Is it a valid type of object to track?
 	 */
@@ -641,7 +652,7 @@ zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
 			*groupp = BSWAP_64(*groupp);
 		}
 	}
-	return (error);
+	return (0);
 }
 
 static void
@@ -993,7 +1004,7 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	mutex_init(&zfsvfs->z_lock, NULL, MUTEX_DEFAULT, NULL);
 	list_create(&zfsvfs->z_all_znodes, sizeof (znode_t),
 	    offsetof(znode_t, z_link_node));
-	rrw_init(&zfsvfs->z_teardown_lock);
+	rrw_init(&zfsvfs->z_teardown_lock, B_FALSE);
 	rw_init(&zfsvfs->z_teardown_inactive_lock, NULL, RW_DEFAULT, NULL);
 	rw_init(&zfsvfs->z_fuid_lock, NULL, RW_DEFAULT, NULL);
 	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
@@ -1444,8 +1455,9 @@ zfs_mount_label_policy(vfs_t *vfsp, char *osname)
 		char *str = NULL;
 
 		if (l_to_str_internal(mnt_sl, &str) == 0 &&
-		    dsl_prop_set(osname, zfs_prop_to_name(ZFS_PROP_MLSLABEL),
-		    ZPROP_SRC_LOCAL, 1, strlen(str) + 1, str) == 0)
+		    dsl_prop_set_string(osname,
+		    zfs_prop_to_name(ZFS_PROP_MLSLABEL),
+		    ZPROP_SRC_LOCAL, str) == 0)
 			retv = 0;
 		if (str != NULL)
 			kmem_free(str, strlen(str) + 1);
@@ -1856,7 +1868,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	if (dsl_dataset_is_dirty(dmu_objset_ds(zfsvfs->z_os)) &&
 	    !(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
 		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
-	(void) dmu_objset_evict_dbufs(zfsvfs->z_os);
+	dmu_objset_evict_dbufs(zfsvfs->z_os);
 
 	return (0);
 }

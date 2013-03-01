@@ -72,6 +72,7 @@
 #include <sys/gfs.h>
 #include <sys/stat.h>
 #include <sys/dmu.h>
+#include <sys/dsl_destroy.h>
 #include <sys/dsl_deleg.h>
 #include <sys/mount.h>
 #include <sys/sunddi.h>
@@ -615,7 +616,7 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 	zfsvfs_t *zfsvfs;
 	avl_index_t where;
 	char from[MAXNAMELEN], to[MAXNAMELEN];
-	char real[MAXNAMELEN];
+	char real[MAXNAMELEN], fsname[MAXNAMELEN];
 	int err;
 
 	zfsvfs = sdvp->v_vfsp->vfs_data;
@@ -634,12 +635,14 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 
 	ZFS_EXIT(zfsvfs);
 
+	dmu_objset_name(zfsvfs->z_os, fsname);
+
 	err = zfsctl_snapshot_zname(sdvp, snm, MAXNAMELEN, from);
-	if (!err)
+	if (err == 0)
 		err = zfsctl_snapshot_zname(tdvp, tnm, MAXNAMELEN, to);
-	if (!err)
+	if (err == 0)
 		err = zfs_secpolicy_rename_perms(from, to, cr);
-	if (err)
+	if (err != 0)
 		return (err);
 
 	/*
@@ -659,7 +662,7 @@ zfsctl_snapdir_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm,
 		return (ENOENT);
 	}
 
-	err = dmu_objset_rename(from, to, B_FALSE);
+	err = dsl_dataset_rename_snapshot(fsname, snm, tnm, B_FALSE);
 	if (err == 0)
 		zfsctl_rename_snap(sdp, sep, tnm);
 
@@ -699,9 +702,9 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 	ZFS_EXIT(zfsvfs);
 
 	err = zfsctl_snapshot_zname(dvp, name, MAXNAMELEN, snapname);
-	if (!err)
+	if (err == 0)
 		err = zfs_secpolicy_destroy_perms(snapname, cr);
-	if (err)
+	if (err != 0)
 		return (err);
 
 	mutex_enter(&sdp->sd_lock);
@@ -711,10 +714,10 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 	if (sep) {
 		avl_remove(&sdp->sd_snaps, sep);
 		err = zfsctl_unmount_snap(sep, MS_FORCE, cr);
-		if (err)
+		if (err != 0)
 			avl_add(&sdp->sd_snaps, sep);
 		else
-			err = dmu_objset_destroy(snapname, B_FALSE);
+			err = dsl_destroy_snapshot(snapname, B_FALSE);
 	} else {
 		err = ENOENT;
 	}
@@ -746,12 +749,12 @@ zfsctl_snapdir_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t  **vpp,
 	*vpp = NULL;
 
 	err = zfs_secpolicy_snapshot_perms(name, cr);
-	if (err)
+	if (err != 0)
 		return (err);
 
 	if (err == 0) {
 		err = dmu_objset_snapshot_one(name, dirname);
-		if (err)
+		if (err != 0)
 			return (err);
 		err = lookupnameat(dirname, seg, follow, NULL, vpp, dvp);
 	}
@@ -831,7 +834,7 @@ zfsctl_snapdir_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 		*vpp = sep->se_root;
 		VN_HOLD(*vpp);
 		err = traverse(vpp);
-		if (err) {
+		if (err != 0) {
 			VN_RELE(*vpp);
 			*vpp = NULL;
 		} else if (*vpp == sep->se_root) {
@@ -857,7 +860,7 @@ zfsctl_snapdir_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
 	 * The requested snapshot is not currently mounted, look it up.
 	 */
 	err = zfsctl_snapshot_zname(dvp, nm, MAXNAMELEN, snapname);
-	if (err) {
+	if (err != 0) {
 		mutex_exit(&sdp->sd_lock);
 		ZFS_EXIT(zfsvfs);
 		/*
@@ -930,7 +933,7 @@ domount:
 	 * If we had an error, drop our hold on the vnode and
 	 * zfsctl_snapshot_inactive() will clean up.
 	 */
-	if (err) {
+	if (err != 0) {
 		VN_RELE(*vpp);
 		*vpp = NULL;
 	}
@@ -982,8 +985,10 @@ zfsctl_snapdir_readdir_cb(vnode_t *vp, void *dp, int *eofp,
 	ZFS_ENTER(zfsvfs);
 
 	cookie = *offp;
+	dsl_pool_config_enter(dmu_objset_pool(zfsvfs->z_os), FTAG);
 	error = dmu_snapshot_list_next(zfsvfs->z_os, MAXNAMELEN, snapname, &id,
 	    &cookie, &case_conflict);
+	dsl_pool_config_exit(dmu_objset_pool(zfsvfs->z_os), FTAG);
 	if (error) {
 		ZFS_EXIT(zfsvfs);
 		if (error == ENOENT) {

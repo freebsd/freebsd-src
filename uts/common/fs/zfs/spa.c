@@ -63,6 +63,7 @@
 #include <sys/zfs_ioctl.h>
 #include <sys/dsl_scan.h>
 #include <sys/zfeature.h>
+#include <sys/dsl_destroy.h>
 
 #ifdef	_KERNEL
 #include <sys/bootprops.h>
@@ -129,10 +130,8 @@ const zio_taskq_info_t zio_taskqs[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* IOCTL */
 };
 
-static dsl_syncfunc_t spa_sync_version;
-static dsl_syncfunc_t spa_sync_props;
-static dsl_checkfunc_t spa_change_guid_check;
-static dsl_syncfunc_t spa_change_guid_sync;
+static void spa_sync_version(void *arg, dmu_tx_t *tx);
+static void spa_sync_props(void *arg, dmu_tx_t *tx);
 static boolean_t spa_has_active_shared_spare(spa_t *spa);
 static int spa_load_impl(spa_t *spa, uint64_t, nvlist_t *config,
     spa_load_state_t state, spa_import_type_t type, boolean_t mosconfig,
@@ -325,10 +324,10 @@ spa_prop_get(spa_t *spa, nvlist_t **nvp)
 				dsl_dataset_t *ds = NULL;
 
 				dp = spa_get_dsl(spa);
-				rw_enter(&dp->dp_config_rwlock, RW_READER);
+				dsl_pool_config_enter(dp, FTAG);
 				if (err = dsl_dataset_hold_obj(dp,
 				    za.za_first_integer, FTAG, &ds)) {
-					rw_exit(&dp->dp_config_rwlock);
+					dsl_pool_config_exit(dp, FTAG);
 					break;
 				}
 
@@ -337,7 +336,7 @@ spa_prop_get(spa_t *spa, nvlist_t **nvp)
 				    KM_SLEEP);
 				dsl_dataset_name(ds, strval);
 				dsl_dataset_rele(ds, FTAG);
-				rw_exit(&dp->dp_config_rwlock);
+				dsl_pool_config_exit(dp, FTAG);
 			} else {
 				strval = NULL;
 				intval = za.za_first_integer;
@@ -491,9 +490,10 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 
 				if (dmu_objset_type(os) != DMU_OST_ZFS) {
 					error = ENOTSUP;
-				} else if ((error = dsl_prop_get_integer(strval,
+				} else if ((error =
+				    dsl_prop_get_int_ds(dmu_objset_ds(os),
 				    zfs_prop_to_name(ZFS_PROP_COMPRESSION),
-				    &compress, NULL)) == 0 &&
+				    &compress)) == 0 &&
 				    !BOOTFS_COMPRESS_VALID(compress)) {
 					error = ENOTSUP;
 				} else {
@@ -660,8 +660,8 @@ spa_prop_set(spa_t *spa, nvlist_t *nvp)
 			 * read object, the features for write object, or the
 			 * feature descriptions object.
 			 */
-			error = dsl_sync_task_do(spa_get_dsl(spa), NULL,
-			    spa_sync_version, spa, &ver, 6);
+			error = dsl_sync_task(spa->spa_name, NULL,
+			    spa_sync_version, &ver, 6);
 			if (error)
 				return (error);
 			continue;
@@ -672,8 +672,8 @@ spa_prop_set(spa_t *spa, nvlist_t *nvp)
 	}
 
 	if (need_sync) {
-		return (dsl_sync_task_do(spa_get_dsl(spa), NULL, spa_sync_props,
-		    spa, nvp, 6));
+		return (dsl_sync_task(spa->spa_name, NULL, spa_sync_props,
+		    nvp, 6));
 	}
 
 	return (0);
@@ -695,10 +695,10 @@ spa_prop_clear_bootfs(spa_t *spa, uint64_t dsobj, dmu_tx_t *tx)
 
 /*ARGSUSED*/
 static int
-spa_change_guid_check(void *arg1, void *arg2, dmu_tx_t *tx)
+spa_change_guid_check(void *arg, dmu_tx_t *tx)
 {
-	spa_t *spa = arg1;
-	uint64_t *newguid = arg2;
+	uint64_t *newguid = arg;
+	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
 	vdev_t *rvd = spa->spa_root_vdev;
 	uint64_t vdev_state;
 
@@ -715,10 +715,10 @@ spa_change_guid_check(void *arg1, void *arg2, dmu_tx_t *tx)
 }
 
 static void
-spa_change_guid_sync(void *arg1, void *arg2, dmu_tx_t *tx)
+spa_change_guid_sync(void *arg, dmu_tx_t *tx)
 {
-	spa_t *spa = arg1;
-	uint64_t *newguid = arg2;
+	uint64_t *newguid = arg;
+	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
 	uint64_t oldguid;
 	vdev_t *rvd = spa->spa_root_vdev;
 
@@ -752,8 +752,8 @@ spa_change_guid(spa_t *spa)
 	mutex_enter(&spa_namespace_lock);
 	guid = spa_generate_guid(NULL);
 
-	error = dsl_sync_task_do(spa_get_dsl(spa), spa_change_guid_check,
-	    spa_change_guid_sync, spa, &guid, 5);
+	error = dsl_sync_task(spa->spa_name, spa_change_guid_check,
+	    spa_change_guid_sync, &guid, 5);
 
 	if (error == 0) {
 		spa_config_sync(spa, B_FALSE, B_TRUE);
@@ -1687,21 +1687,22 @@ spa_config_valid(spa_t *spa, nvlist_t *config)
 /*
  * Check for missing log devices
  */
-static int
+static boolean_t
 spa_check_logs(spa_t *spa)
 {
+	boolean_t rv = B_FALSE;
+
 	switch (spa->spa_log_state) {
 	case SPA_LOG_MISSING:
 		/* need to recheck in case slog has been restored */
 	case SPA_LOG_UNKNOWN:
-		if (dmu_objset_find(spa->spa_name, zil_check_log_chain, NULL,
-		    DS_FIND_CHILDREN)) {
+		rv = (dmu_objset_find(spa->spa_name, zil_check_log_chain,
+		    NULL, DS_FIND_CHILDREN) != 0);
+		if (rv)
 			spa_set_log_state(spa, SPA_LOG_MISSING);
-			return (1);
-		}
 		break;
 	}
-	return (0);
+	return (rv);
 }
 
 static boolean_t
@@ -1747,11 +1748,11 @@ spa_activate_log(spa_t *spa)
 int
 spa_offline_log(spa_t *spa)
 {
-	int error = 0;
+	int error;
 
-	if ((error = dmu_objset_find(spa_name(spa), zil_vdev_offline,
-	    NULL, DS_FIND_CHILDREN)) == 0) {
-
+	error = dmu_objset_find(spa_name(spa), zil_vdev_offline,
+	    NULL, DS_FIND_CHILDREN);
+	if (error == 0) {
 		/*
 		 * We successfully offlined the log device, sync out the
 		 * current txg so that the "stubby" block can be removed
@@ -3549,7 +3550,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 
 	if (props != NULL) {
 		spa_configfile_set(spa, props, B_FALSE);
-		spa_sync_props(spa, props, tx);
+		spa_sync_props(props, tx);
 	}
 
 	dmu_tx_commit(tx);
@@ -5813,10 +5814,11 @@ spa_sync_config_object(spa_t *spa, dmu_tx_t *tx)
 }
 
 static void
-spa_sync_version(void *arg1, void *arg2, dmu_tx_t *tx)
+spa_sync_version(void *arg, dmu_tx_t *tx)
 {
-	spa_t *spa = arg1;
-	uint64_t version = *(uint64_t *)arg2;
+	uint64_t *versionp = arg;
+	uint64_t version = *versionp;
+	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
 
 	/*
 	 * Setting the version is special cased when first creating the pool.
@@ -5835,11 +5837,11 @@ spa_sync_version(void *arg1, void *arg2, dmu_tx_t *tx)
  * Set zpool properties.
  */
 static void
-spa_sync_props(void *arg1, void *arg2, dmu_tx_t *tx)
+spa_sync_props(void *arg, dmu_tx_t *tx)
 {
-	spa_t *spa = arg1;
+	nvlist_t *nvp = arg;
+	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
 	objset_t *mos = spa->spa_meta_objset;
-	nvlist_t *nvp = arg2;
 	nvpair_t *elem = NULL;
 
 	mutex_enter(&spa->spa_props_lock);
@@ -5990,6 +5992,8 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 
 	ASSERT(spa->spa_sync_pass == 1);
 
+	rrw_enter(&dp->dp_config_rwlock, RW_WRITER, FTAG);
+
 	if (spa->spa_ubsync.ub_version < SPA_VERSION_ORIGIN &&
 	    spa->spa_uberblock.ub_version >= SPA_VERSION_ORIGIN) {
 		dsl_pool_create_origin(dp, tx);
@@ -6015,6 +6019,7 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 	    spa->spa_uberblock.ub_version >= SPA_VERSION_FEATURES) {
 		spa_feature_create_zap_objects(spa, tx);
 	}
+	rrw_exit(&dp->dp_config_rwlock, FTAG);
 }
 
 /*
