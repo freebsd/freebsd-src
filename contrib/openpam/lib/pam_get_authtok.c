@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_authtok.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_get_authtok.c 510 2011-12-31 13:14:23Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/param.h>
 
@@ -46,6 +50,7 @@
 #include "openpam_impl.h"
 
 static const char authtok_prompt[] = "Password:";
+static const char authtok_prompt_remote[] = "Password for %u@%h:";
 static const char oldauthtok_prompt[] = "Old Password:";
 static const char newauthtok_prompt[] = "New Password:";
 
@@ -61,8 +66,11 @@ pam_get_authtok(pam_handle_t *pamh,
 	const char **authtok,
 	const char *prompt)
 {
+	char prompt_buf[1024];
+	size_t prompt_size;
 	const void *oldauthtok, *prevauthtok, *promptp;
-	const char *default_prompt;
+	const char *prompt_option, *default_prompt;
+	const void *lhost, *rhost;
 	char *resp, *resp2;
 	int pitem, r, style, twice;
 
@@ -74,7 +82,16 @@ pam_get_authtok(pam_handle_t *pamh,
 	switch (item) {
 	case PAM_AUTHTOK:
 		pitem = PAM_AUTHTOK_PROMPT;
+		prompt_option = "authtok_prompt";
 		default_prompt = authtok_prompt;
+		r = pam_get_item(pamh, PAM_RHOST, &rhost);
+		if (r == PAM_SUCCESS && rhost != NULL) {
+			r = pam_get_item(pamh, PAM_HOST, &lhost);
+			if (r == PAM_SUCCESS && lhost != NULL) {
+				if (strcmp(rhost, lhost) != 0)
+					default_prompt = authtok_prompt_remote;
+			}
+		}
 		r = pam_get_item(pamh, PAM_OLDAUTHTOK, &oldauthtok);
 		if (r == PAM_SUCCESS && oldauthtok != NULL) {
 			default_prompt = newauthtok_prompt;
@@ -83,6 +100,7 @@ pam_get_authtok(pam_handle_t *pamh,
 		break;
 	case PAM_OLDAUTHTOK:
 		pitem = PAM_OLDAUTHTOK_PROMPT;
+		prompt_option = "oldauthtok_prompt";
 		default_prompt = oldauthtok_prompt;
 		twice = 0;
 		break;
@@ -99,13 +117,21 @@ pam_get_authtok(pam_handle_t *pamh,
 		else if (openpam_get_option(pamh, "use_first_pass"))
 			RETURNC(r == PAM_SUCCESS ? PAM_AUTH_ERR : r);
 	}
-	if (prompt == NULL) {
-		r = pam_get_item(pamh, pitem, &promptp);
-		if (r != PAM_SUCCESS || promptp == NULL)
-			prompt = default_prompt;
-		else
+	/* pam policy overrides the module's choice */
+	if ((promptp = openpam_get_option(pamh, prompt_option)) != NULL)
+		prompt = promptp;
+	/* no prompt provided, see if there is one tucked away somewhere */
+	if (prompt == NULL)
+		if (pam_get_item(pamh, pitem, &promptp) && promptp != NULL)
 			prompt = promptp;
-	}
+	/* fall back to hardcoded default */
+	if (prompt == NULL)
+		prompt = default_prompt;
+	/* expand */
+	prompt_size = sizeof prompt_buf;
+	r = openpam_subst(pamh, prompt_buf, &prompt_size, prompt);
+	if (r == PAM_SUCCESS && prompt_size <= sizeof prompt_buf)
+		prompt = prompt_buf;
 	style = openpam_get_option(pamh, "echo_pass") ?
 	    PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF;
 	r = pam_prompt(pamh, style, &resp, "%s", prompt);
@@ -160,6 +186,13 @@ pam_get_authtok(pam_handle_t *pamh,
  * If it is =NULL, the =PAM_AUTHTOK_PROMPT or =PAM_OLDAUTHTOK_PROMPT item,
  * as appropriate, will be used.
  * If that item is also =NULL, a hardcoded default prompt will be used.
+ * Either way, the prompt is expanded using =openpam_subst before it is
+ * passed to the conversation function.
+ *
+ * If =pam_get_authtok is called from a module and the ;authtok_prompt /
+ * ;oldauthtok_prompt option is set in the policy file, the value of that
+ * option takes precedence over both the =prompt argument and the
+ * =PAM_AUTHTOK_PROMPT / =PAM_OLDAUTHTOK_PROMPT item.
  *
  * If =item is set to =PAM_AUTHTOK and there is a non-null =PAM_OLDAUTHTOK
  * item, =pam_get_authtok will ask the user to confirm the new token by
@@ -168,4 +201,5 @@ pam_get_authtok(pam_handle_t *pamh,
  *
  * >pam_get_item
  * >pam_get_user
+ * >openpam_subst
  */

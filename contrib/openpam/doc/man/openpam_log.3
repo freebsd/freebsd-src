@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
-.\" Copyright (c) 2004-2007 Dag-Erling Smørgrav
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4$
+.\" $Id$
 .\"
-.Dd December 21, 2007
+.Dd May 26, 2012
 .Dt OPENPAM_LOG 3
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Fn openpam_log "int level" "const char *fmt" "..."
 .Sh DESCRIPTION
 The
-.Nm
+.Fn openpam_log
 function logs messages using
 .Xr syslog 3 .
 It is primarily intended for internal use by the library and modules.
@@ -60,11 +60,14 @@ The
 argument indicates the importance of the message.
 The following levels are defined:
 .Bl -tag -width 18n
+.It Dv PAM_LOG_LIBDEBUG
+Debugging messages.
+For internal use only.
 .It Dv PAM_LOG_DEBUG
 Debugging messages.
 These messages are normally not logged unless the global
 integer variable
-.Va _openpam_debug
+.Va openpam_debug
 is set to a non-zero
 value, in which case they are logged with a
 .Xr syslog 3
@@ -101,12 +104,13 @@ corresponding arguments.
 .Xr syslog 3
 .Sh STANDARDS
 The
-.Nm
+.Fn openpam_log
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn openpam_log
+function and this manual page were
+developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2008 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam.h 418 2008-12-13 22:39:24Z des $
+ * $Id: openpam.h 605 2012-04-20 11:05:10Z des $
  */
 
 #ifndef SECURITY_OPENPAM_H_INCLUDED
@@ -58,6 +58,12 @@ int
 openpam_borrow_cred(pam_handle_t *_pamh,
 	const struct passwd *_pwd)
 	OPENPAM_NONNULL((1,2));
+
+int
+openpam_subst(const pam_handle_t *_pamh,
+	char *_buf,
+	size_t *_bufsize,
+	const char *_template);
 
 void
 openpam_free_data(pam_handle_t *_pamh,
@@ -151,12 +157,49 @@ openpam_readline(FILE *_f,
 	int *_lineno,
 	size_t *_lenp)
 	OPENPAM_NONNULL((1));
+
+char **
+openpam_readlinev(FILE *_f,
+	int *_lineno,
+	int *_lenp)
+	OPENPAM_NONNULL((1));
+
+char *
+openpam_readword(FILE *_f,
+	int *_lineno,
+	size_t *_lenp)
+	OPENPAM_NONNULL((1));
 #endif
+
+int
+openpam_straddch(char **_str,
+	size_t *_sizep,
+	size_t *_lenp,
+	int ch)
+	OPENPAM_NONNULL((1));
+
+/*
+ * Enable / disable optional features
+ */
+enum {
+	OPENPAM_RESTRICT_SERVICE_NAME,
+	OPENPAM_VERIFY_POLICY_FILE,
+	OPENPAM_RESTRICT_MODULE_NAME,
+	OPENPAM_VERIFY_MODULE_FILE,
+	OPENPAM_NUM_FEATURES
+};
+
+int
+openpam_set_feature(int _feature, int _onoff);
+
+int
+openpam_get_feature(int _feature, int *_onoff);
 
 /*
  * Log levels
  */
 enum {
+	PAM_LOG_LIBDEBUG = -1,
 	PAM_LOG_DEBUG,
 	PAM_LOG_VERBOSE,
 	PAM_LOG_NOTICE,
@@ -190,8 +233,8 @@ _openpam_log(int _level,
 void
 openpam_log(int _level,
 	const char *_format,
- 	...)
- 	OPENPAM_FORMAT ((__printf__, 2, 3))
+	...)
+	OPENPAM_FORMAT ((__printf__, 2, 3))
 	OPENPAM_NONNULL((2));
 #endif
 

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_dispatch.c 408 2007-12-21 11:36:24Z des $
+ * $Id: openpam_dispatch.c 501 2011-12-07 01:28:05Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/param.h>
 
@@ -42,9 +46,9 @@
 #include "openpam_impl.h"
 
 #if !defined(OPENPAM_RELAX_CHECKS)
-static void _openpam_check_error_code(int, int);
+static void openpam_check_error_code(int, int);
 #else
-#define _openpam_check_error_code(a, b)
+#define openpam_check_error_code(a, b)
 #endif /* !defined(OPENPAM_RELAX_CHECKS) */
 
 /*
@@ -60,9 +64,7 @@ openpam_dispatch(pam_handle_t *pamh,
 {
 	pam_chain_t *chain;
 	int err, fail, r;
-#ifdef DEBUG
 	int debug;
-#endif
 
 	ENTER();
 	if (pamh == NULL)
@@ -72,9 +74,9 @@ openpam_dispatch(pam_handle_t *pamh,
 	if (pamh->current != NULL) {
 		openpam_log(PAM_LOG_ERROR,
 		    "%s() called while %s::%s() is in progress",
-		    _pam_func_name[primitive],
+		    pam_func_name[primitive],
 		    pamh->current->module->path,
-		    _pam_sm_func_name[pamh->primitive]);
+		    pam_sm_func_name[pamh->primitive]);
 		RETURNC(PAM_ABORT);
 	}
 
@@ -102,28 +104,24 @@ openpam_dispatch(pam_handle_t *pamh,
 	for (err = fail = 0; chain != NULL; chain = chain->next) {
 		if (chain->module->func[primitive] == NULL) {
 			openpam_log(PAM_LOG_ERROR, "%s: no %s()",
-			    chain->module->path, _pam_sm_func_name[primitive]);
-			continue;
+			    chain->module->path, pam_sm_func_name[primitive]);
+			r = PAM_SYSTEM_ERR;
 		} else {
 			pamh->primitive = primitive;
 			pamh->current = chain;
-#ifdef DEBUG
 			debug = (openpam_get_option(pamh, "debug") != NULL);
 			if (debug)
-				++_openpam_debug;
+				++openpam_debug;
 			openpam_log(PAM_LOG_DEBUG, "calling %s() in %s",
-			    _pam_sm_func_name[primitive], chain->module->path);
-#endif
+			    pam_sm_func_name[primitive], chain->module->path);
 			r = (chain->module->func[primitive])(pamh, flags,
 			    chain->optc, (const char **)chain->optv);
 			pamh->current = NULL;
-#ifdef DEBUG
 			openpam_log(PAM_LOG_DEBUG, "%s: %s(): %s",
-			    chain->module->path, _pam_sm_func_name[primitive],
+			    chain->module->path, pam_sm_func_name[primitive],
 			    pam_strerror(pamh, r));
 			if (debug)
-				--_openpam_debug;
-#endif
+				--openpam_debug;
 		}
 
 		if (r == PAM_IGNORE)
@@ -143,7 +141,7 @@ openpam_dispatch(pam_handle_t *pamh,
 			continue;
 		}
 
-		_openpam_check_error_code(primitive, r);
+		openpam_check_error_code(primitive, r);
 
 		/*
 		 * Record the return code from the first module to
@@ -177,7 +175,7 @@ openpam_dispatch(pam_handle_t *pamh,
 
 #if !defined(OPENPAM_RELAX_CHECKS)
 static void
-_openpam_check_error_code(int primitive, int r)
+openpam_check_error_code(int primitive, int r)
 {
 	/* common error codes */
 	if (r == PAM_SUCCESS ||
@@ -229,7 +227,7 @@ _openpam_check_error_code(int primitive, int r)
 	}
 
 	openpam_log(PAM_LOG_ERROR, "%s(): unexpected return value %d",
-	    _pam_sm_func_name[primitive], r);
+	    pam_sm_func_name[primitive], r);
 }
 #endif /* !defined(OPENPAM_RELAX_CHECKS) */
 

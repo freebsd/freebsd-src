@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_putenv.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_putenv.c 539 2012-03-31 20:53:22Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -98,7 +102,7 @@ pam_putenv(pam_handle_t *pamh,
  */
 
 /**
- * The =pam_putenv function sets a environment variable.
+ * The =pam_putenv function sets an environment variable.
  * Its semantics are similar to those of =putenv, but it modifies the PAM
  * context's environment list instead of the application's.
  *

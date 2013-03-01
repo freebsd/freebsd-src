@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_ttyconv.c 408 2007-12-21 11:36:24Z des $
+ * $Id: openpam_ttyconv.c 527 2012-02-26 03:23:59Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/types.h>
 
@@ -65,17 +69,17 @@ prompt(const char *msg)
 {
 	char buf[PAM_MAX_RESP_SIZE];
 	struct sigaction action, saved_action;
-	sigset_t saved_sigset, sigset;
+	sigset_t saved_sigset, the_sigset;
 	unsigned int saved_alarm;
 	int eof, error, fd;
 	size_t len;
 	char *retval;
 	char ch;
 
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGINT);
-	sigaddset(&sigset, SIGTSTP);
-	sigprocmask(SIG_SETMASK, &sigset, &saved_sigset);
+	sigemptyset(&the_sigset);
+	sigaddset(&the_sigset, SIGINT);
+	sigaddset(&the_sigset, SIGTSTP);
+	sigprocmask(SIG_SETMASK, &the_sigset, &saved_sigset);
 	action.sa_handler = &timeout;
 	action.sa_flags = 0;
 	sigemptyset(&action.sa_mask);
@@ -211,7 +215,7 @@ openpam_ttyconv(int n,
 	}
 	*resp = aresp;
 	RETURNC(PAM_SUCCESS);
- fail:
+fail:
 	for (i = 0; i < n; ++i) {
 		if (aresp[i].resp != NULL) {
 			memset(aresp[i].resp, 0, strlen(aresp[i].resp));
