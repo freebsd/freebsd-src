@@ -135,12 +135,13 @@ struct callout_cpu {
 	struct mtx_padalign	cc_lock;
 	struct cc_exec 		cc_exec_entity[2];
 	struct callout		*cc_callout;
-	struct callout_tailq	*cc_callwheel;
+	struct callout_list	*cc_callwheel;
 	struct callout_tailq	cc_expireq;
-	struct callout_list	cc_callfree;
+	struct callout_slist	cc_callfree;
 	sbintime_t		cc_firstevent;
 	sbintime_t		cc_lastscan;
 	void			*cc_cookie;
+	u_int			cc_bucket;
 };
 
 #define	cc_exec_curr		cc_exec_entity[0].cc_curr
@@ -260,7 +261,7 @@ kern_timeout_callwheel_alloc(caddr_t v)
 
 	cc->cc_callout = (struct callout *)v;
 	v = (caddr_t)(cc->cc_callout + ncallout);
-	cc->cc_callwheel = (struct callout_tailq *)v;
+	cc->cc_callwheel = (struct callout_list *)v;
 	v = (caddr_t)(cc->cc_callwheel + callwheelsize);
 	return(v);
 }
@@ -273,9 +274,8 @@ callout_cpu_init(struct callout_cpu *cc)
 
 	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
 	SLIST_INIT(&cc->cc_callfree);
-	for (i = 0; i < callwheelsize; i++) {
-		TAILQ_INIT(&cc->cc_callwheel[i]);
-	}
+	for (i = 0; i < callwheelsize; i++)
+		LIST_INIT(&cc->cc_callwheel[i]);
 	TAILQ_INIT(&cc->cc_expireq);
 	cc->cc_firstevent = INT64_MAX;
 	for (i = 0; i < 2; i++)
@@ -358,7 +358,7 @@ start_softclock(void *dummy)
 			panic("died while creating standard software ithreads");
 		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(). */
 		cc->cc_callwheel = malloc(
-		    sizeof(struct callout_tailq) * callwheelsize, M_CALLOUT,
+		    sizeof(struct callout_list) * callwheelsize, M_CALLOUT,
 		    M_WAITOK);
 		callout_cpu_init(cc);
 	}
@@ -388,7 +388,7 @@ callout_process(sbintime_t now)
 {
 	struct callout *tmp, *tmpn;
 	struct callout_cpu *cc;
-	struct callout_tailq *sc;
+	struct callout_list *sc;
 	sbintime_t first, last, max, tmp_max;
 	uint32_t lookahead;
 	u_int firstb, lastb, nowb;
@@ -431,7 +431,7 @@ callout_process(sbintime_t now)
 	/* Iterate callwheel from firstb to nowb and then up to lastb. */
 	do {
 		sc = &cc->cc_callwheel[firstb & callwheelmask];
-		tmp = TAILQ_FIRST(sc);
+		tmp = LIST_FIRST(sc);
 		while (tmp != NULL) {
 			/* Run the callout if present time within allowed. */
 			if (tmp->c_time <= now) {
@@ -444,8 +444,9 @@ callout_process(sbintime_t now)
 					++depth_dir;
 #endif
 					cc->cc_exec_next_dir =
-					    TAILQ_NEXT(tmp, c_links.tqe);
-					TAILQ_REMOVE(sc, tmp, c_links.tqe);
+					    LIST_NEXT(tmp, c_links.le);
+					cc->cc_bucket = firstb & callwheelmask;
+					LIST_REMOVE(tmp, c_links.le);
 					softclock_call_cc(tmp, cc,
 #ifdef CALLOUT_PROFILING
 					    &mpcalls_dir, &lockcalls_dir, NULL,
@@ -453,8 +454,8 @@ callout_process(sbintime_t now)
 					    1);
 					tmp = cc->cc_exec_next_dir;
 				} else {
-					tmpn = TAILQ_NEXT(tmp, c_links.tqe);
-					TAILQ_REMOVE(sc, tmp, c_links.tqe);
+					tmpn = LIST_NEXT(tmp, c_links.le);
+					LIST_REMOVE(tmp, c_links.le);
 					TAILQ_INSERT_TAIL(&cc->cc_expireq,
 					    tmp, c_links.tqe);
 					tmp->c_flags |= CALLOUT_PROCESSED;
@@ -480,7 +481,7 @@ callout_process(sbintime_t now)
 			if (tmp_max < last)
 				last = tmp_max;
 next:
-			tmp = TAILQ_NEXT(tmp, c_links.tqe);
+			tmp = LIST_NEXT(tmp, c_links.le);
 		}
 		/* Proceed with the next bucket. */
 		firstb++;
@@ -554,8 +555,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	CTR3(KTR_CALLOUT, "precision set for %p: %d.%08x",
 	    c, (int)(c->c_precision >> 32), 
 	    (u_int)(c->c_precision & 0xffffffff));
-	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
-	if (cc->cc_exec_next_dir == NULL)
+	LIST_INSERT_HEAD(&cc->cc_callwheel[bucket], c, c_links.le);
+	if (cc->cc_bucket == bucket)
 		cc->cc_exec_next_dir = c;
 #ifndef NO_EVENTTIMERS
 	/*
@@ -901,7 +902,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 {
 	sbintime_t to_sbt, pr;
 	struct callout_cpu *cc;
-	int bucket, cancelled, direct;
+	int cancelled, direct;
 
 	cancelled = 0;
 	if (flags & C_ABSOLUTE) {
@@ -972,11 +973,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	if (c->c_flags & CALLOUT_PENDING) {
 		if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
 			if (cc->cc_exec_next_dir == c)
-				cc->cc_exec_next_dir = TAILQ_NEXT(c,
-				    c_links.tqe);
-			bucket = callout_get_bucket(c->c_time);
-			TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
-			    c_links.tqe);
+				cc->cc_exec_next_dir = LIST_NEXT(c, c_links.le);
+			LIST_REMOVE(c, c_links.le);
 		} else
 			TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 		cancelled = 1;
@@ -1039,7 +1037,7 @@ _callout_stop_safe(c, safe)
 {
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
-	int bucket, direct, sq_locked, use_lock;
+	int direct, sq_locked, use_lock;
 
 	/*
 	 * Some old subsystems don't hold Giant while running a callout_stop(),
@@ -1195,10 +1193,8 @@ again:
 	    c, c->c_func, c->c_arg);
 	if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
 		if (cc->cc_exec_next_dir == c)
-			cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
-		bucket = callout_get_bucket(c->c_time);
-		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
-		    c_links.tqe);
+			cc->cc_exec_next_dir = LIST_NEXT(c, c_links.le);
+		LIST_REMOVE(c, c_links.le);
 	} else
 		TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 	callout_cc_del(c, cc);
@@ -1328,7 +1324,7 @@ sysctl_kern_callout_stat(SYSCTL_HANDLER_ARGS)
 {
 	struct callout *tmp;
 	struct callout_cpu *cc;
-	struct callout_tailq *sc;
+	struct callout_list *sc;
 	sbintime_t maxpr, maxt, medpr, medt, now, spr, st, t;
 	int ct[64], cpr[64], ccpbk[32];
 	int error, val, i, count, tcum, pcum, maxc, c, medc;
@@ -1356,7 +1352,7 @@ sysctl_kern_callout_stat(SYSCTL_HANDLER_ARGS)
 		for (i = 0; i < callwheelsize; i++) {
 			sc = &cc->cc_callwheel[i];
 			c = 0;
-			TAILQ_FOREACH(tmp, sc, c_links.tqe) {
+			LIST_FOREACH(tmp, sc, c_links.le) {
 				c++;
 				t = tmp->c_time - now;
 				if (t < 0)
