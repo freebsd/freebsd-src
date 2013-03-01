@@ -394,6 +394,7 @@ aac_pci_attach(device_t dev)
 	 * Allocate the interrupt.
 	 */
 	rid = 0;
+	count = 0;
 	if (aac_enable_msi != 0 && pci_find_cap(dev, PCIY_MSI, &reg) == 0) {
 		count = pci_msi_count(dev);
 		if (count > 1)
