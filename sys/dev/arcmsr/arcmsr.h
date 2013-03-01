@@ -1,17 +1,14 @@
 /*
-***********************************************************************************************
-**        O.S   : FreeBSD
+********************************************************************************
+**        OS    : FreeBSD
 **   FILE NAME  : arcmsr.h
 **        BY    : Erich Chen, Ching Huang
 **   Description: SCSI RAID Device Driver for 
-**                ARECA SATA/SAS RAID HOST Adapter
-**                [RAID controller:INTEL 331(PCI-X) 341(PCI-EXPRESS) chip set]
-***********************************************************************************************
-************************************************************************
-** Copyright (C) 2002 - 2010, Areca Technology Corporation All rights reserved.
-**
-**     Web site: www.areca.com.tw
-**       E-mail: erich@areca.com.tw; ching2048@areca.com.tw
+**                ARECA (ARC11XX/ARC12XX/ARC13XX/ARC16XX/ARC188x)
+**                SATA/SAS RAID HOST Adapter
+********************************************************************************
+********************************************************************************
+** Copyright (C) 2002 - 2012, Areca Technology Corporation All rights reserved.
 **
 ** Redistribution and use in source and binary forms,with or without
 ** modification,are permitted provided that the following conditions

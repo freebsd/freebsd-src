@@ -3492,9 +3492,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
 	    va >= kmi.clean_eva,
 	    ("pmap_enter: managed mapping within the clean submap"));
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
-	    VM_OBJECT_LOCKED(m->object),
-	    ("pmap_enter: page %p is not busy", m));
+	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	pa = VM_PAGE_TO_PHYS(m);
 	newpte = (pt_entry_t)(pa | PG_A | PG_V);
 	if ((access & VM_PROT_WRITE) != 0)

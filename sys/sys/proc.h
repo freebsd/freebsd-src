@@ -908,7 +908,7 @@ void	tidhash_add(struct thread *);
 void	tidhash_remove(struct thread *);
 void	cpu_idle(int);
 int	cpu_idle_wakeup(int);
-extern	void (*cpu_idle_hook)(void);	/* Hook to machdep CPU idler. */
+extern	void (*cpu_idle_hook)(sbintime_t);	/* Hook to machdep CPU idler. */
 void	cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	cpu_throw(struct thread *, struct thread *) __dead2;
 void	unsleep(struct thread *);

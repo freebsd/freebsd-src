@@ -3456,9 +3456,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%x)",
 	    va));
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
-	    VM_OBJECT_LOCKED(m->object),
-	    ("pmap_enter: page %p is not busy", m));
+	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 
 	mpte = NULL;
 

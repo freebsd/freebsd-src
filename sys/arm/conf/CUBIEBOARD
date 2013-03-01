@@ -87,8 +87,8 @@ options		ROOTDEVNAME=\"ufs:/dev/da0s2\"
 #options	ATA_STATIC_ID	# Static device numbering
 
 # Console and misc
-#device		uart
-#device		uart_ns8250
+device		uart
+device		uart_ns8250
 device		pty
 device		snp
 device		md

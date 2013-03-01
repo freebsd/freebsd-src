@@ -1121,9 +1121,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
-	    VM_OBJECT_LOCKED(m->object),
-	    ("moea_enter_locked: page %p is not busy", m));
+	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
