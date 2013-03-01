@@ -17,5 +17,5 @@ arm/allwinner/timer.c			standard
 arm/allwinner/aintc.c			standard
 arm/allwinner/bus_space.c		standard
 arm/allwinner/common.c			standard
-arm/allwinner/console.c			standard
+#arm/allwinner/console.c			standard
 arm/allwinner/a10_machdep.c		standard
