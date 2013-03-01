@@ -500,6 +500,7 @@ cdce_attach(device_t dev)
 	const struct usb_interface_descriptor *id;
 	const struct usb_cdc_ethernet_descriptor *ued;
 	const struct usb_config *pcfg;
+	uint32_t seed;
 	int error;
 	uint8_t i;
 	uint8_t data_iface_no;
@@ -612,8 +613,9 @@ alloc_transfers:
 		/* fake MAC address */
 
 		device_printf(dev, "faking MAC address\n");
+		seed = ticks;
 		sc->sc_ue.ue_eaddr[0] = 0x2a;
-		memcpy(&sc->sc_ue.ue_eaddr[1], &ticks, sizeof(uint32_t));
+		memcpy(&sc->sc_ue.ue_eaddr[1], &seed, sizeof(uint32_t));
 		sc->sc_ue.ue_eaddr[5] = device_get_unit(dev);
 
 	} else {
