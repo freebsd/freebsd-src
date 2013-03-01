@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -329,6 +330,21 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_TIMESTAMP);
 	case LINUX_SO_ACCEPTCONN:
 		return (SO_ACCEPTCONN);
+	}
+	return (-1);
+}
+
+static int
+linux_to_bsd_tcp_sockopt(int opt)
+{
+
+	switch (opt) {
+	case LINUX_TCP_NODELAY:
+		return (TCP_NODELAY);
+	case LINUX_TCP_MAXSEG:
+		return (TCP_MAXSEG);
+	case LINUX_TCP_MD5SIG:
+		return (TCP_MD5SIG);
 	}
 	return (-1);
 }
@@ -1504,8 +1520,7 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
-		/* Linux TCP option values match BSD's */
-		name = args->optname;
+		name = linux_to_bsd_tcp_sockopt(args->optname);
 		break;
 	default:
 		name = -1;
@@ -1599,8 +1614,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		name = linux_to_bsd_ip_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
-		/* Linux TCP option values match BSD's */
-		name = args->optname;
+		name = linux_to_bsd_tcp_sockopt(args->optname);
 		break;
 	default:
 		name = -1;
