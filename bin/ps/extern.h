@@ -50,7 +50,7 @@ int	 donlist(void);
 void	 elapsed(KINFO *, VARENT *);
 void	 emulname(KINFO *, VARENT *);
 VARENT	*find_varentry(VAR *);
-const	 char *fmt_argv(char **, char *, size_t);
+const	 char *fmt_argv(char **, char *, char *, size_t);
 double	 getpcpu(const KINFO *);
 void	 kvar(KINFO *, VARENT *);
 void	 label(KINFO *, VARENT *);
