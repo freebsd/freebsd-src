@@ -43,7 +43,7 @@ extern char *vmname;
 
 extern u_long lomem_sz, himem_sz;
 
-void *paddr_guest2host(uintptr_t);
+void *paddr_guest2host(uintptr_t addr, size_t len);
 
 void fbsdrun_addcpu(struct vmctx *ctx, int cpu, uint64_t rip);
 int  fbsdrun_muxed(void);
