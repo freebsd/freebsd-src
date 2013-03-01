@@ -367,7 +367,7 @@ start_softclock(void *dummy)
 
 SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
 
-#define	CC_HASH_SHIFT	10
+#define	CC_HASH_SHIFT	8
 
 static inline u_int
 callout_hash(sbintime_t sbt)
