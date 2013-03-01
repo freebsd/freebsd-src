@@ -199,6 +199,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	callout_init(&vap->iv_mgtsend, CALLOUT_MPSAFE);
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
+	TASK_INIT(&vap->iv_tx_task, 0, ieee80211_vap_tx_task, vap);
 	/*
 	 * Install default tx rate handling: no fixed rate, lowest
 	 * supported rate for mgmt and multicast frames.  Default
@@ -1792,7 +1793,7 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 * XXX Kick-start a VAP queue - this should be a method,
 		 * not if_start()!
 		 */
-		if_start(vap->iv_ifp);
+		ieee80211_runtask(ic, &vap->iv_tx_task);
 
 		/* bring up any vaps waiting on us */
 		wakeupwaiting(vap);
