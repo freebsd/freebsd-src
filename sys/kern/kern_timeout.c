@@ -958,10 +958,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		 * currently in progress.  If there is a lock then we
 		 * can cancel the callout if it has not really started.
 		 */
-		if (c->c_lock != NULL &&
-		    !cc->cc_exec_entity[direct].cc_cancel)
-			cancelled =
-			    cc->cc_exec_entity[direct].cc_cancel = 1;
+		if (c->c_lock != NULL && !cc->cc_exec_entity[direct].cc_cancel)
+			cancelled = cc->cc_exec_entity[direct].cc_cancel = 1;
 		if (cc->cc_exec_entity[direct].cc_waiting) {
 			/*
 			 * Someone has called callout_drain to kill this
