@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
-#include <machine/bus.h>
-
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcib_private.h>
@@ -58,8 +56,12 @@ __FBSDID("$FreeBSD$");
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/pci/ofw_pcib_subr.h>
 
+#define	PCI_DEVID_ALI_M5249	0x524910b9
+#define	PCI_VENDOR_PLX		0x10b5
+
 static device_probe_t ofw_pcib_probe;
 static device_attach_t ofw_pcib_attach;
+static ofw_pci_setup_device_t ofw_pcib_setup_device;
 
 static device_method_t ofw_pcib_methods[] = {
 	/* Device interface */
@@ -73,6 +75,7 @@ static device_method_t ofw_pcib_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_gen_get_node),
+	DEVMETHOD(ofw_pci_setup_device, ofw_pcib_setup_device),
 
 	DEVMETHOD_END
 };
@@ -81,7 +84,7 @@ static devclass_t pcib_devclass;
 
 DEFINE_CLASS_1(pcib, ofw_pcib_driver, ofw_pcib_methods,
     sizeof(struct ofw_pcib_gen_softc), pcib_driver);
-EARLY_DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_driver, pcib_devclass, 0, 0,
+EARLY_DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_driver, pcib_devclass, NULL, NULL,
     BUS_PASS_BUS);
 MODULE_DEPEND(ofw_pcib, pci, 1, 1, 1);
 
@@ -104,7 +107,7 @@ ofw_pcib_probe(device_t dev)
 		    ISDTYPE(pbdtype, OFW_TYPE_PCIE) ? "e" : "",
 		    ISDTYPE(dtype, OFW_TYPE_PCIE) ? "e" : "");
 		device_set_desc_copy(dev, desc);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 #undef ISDTYPE
@@ -119,7 +122,6 @@ ofw_pcib_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	/* Quirk handling */
 	switch (pci_get_devid(dev)) {
 	/*
 	 * The ALi M5249 found in Fire-based machines by definition must me
@@ -127,8 +129,21 @@ ofw_pcib_attach(device_t dev)
 	 * don't indicate this in the class code although the ISA I/O range
 	 * isn't included in their bridge decode.
 	 */
-	case 0x524910b9:
+	case PCI_DEVID_ALI_M5249:
 		sc->ops_pcib_sc.flags |= PCIB_SUBTRACTIVE;
+		break;
+	}
+
+	switch (pci_get_vendor(dev)) {
+	/*
+	 * Concurrently write the primary and secondary bus numbers in order
+	 * to work around a bug in PLX PEX 8114 causing the internal shadow
+	 * copies of these not to be updated when setting them bytewise.
+	 */
+	case PCI_VENDOR_PLX:
+		pci_write_config(dev, PCIR_PRIBUS_1,
+		    pci_read_config(dev, PCIR_SECBUS_1, 1) << 8 |
+		    pci_read_config(dev, PCIR_PRIBUS_1, 1), 2);
 		break;
 	}
 
@@ -136,4 +151,24 @@ ofw_pcib_attach(device_t dev)
 	pcib_attach_common(dev);
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
+}
+
+static void
+ofw_pcib_setup_device(device_t bus, device_t child)
+{
+	int i;
+	uint16_t reg;
+
+	switch (pci_get_vendor(bus)) {
+	/*
+	 * For PLX PEX 8532 issue 64 TLPs to the child from the downstream
+	 * port to the child device in order to work around a hardware bug.
+	 */
+	case PCI_VENDOR_PLX:
+		for (i = 0, reg = 0; i < 64; i++)
+			reg |= pci_get_devid(child);
+		break;
+	}
+
+	OFW_PCI_SETUP_DEVICE(device_get_parent(bus), child);
 }
