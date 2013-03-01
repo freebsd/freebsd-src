@@ -1860,7 +1860,6 @@ vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
     struct thread *td)
 {
 	struct vnode *vp;
-	int error;
 
 	vp = fp->f_vnode;
 #ifdef AUDIT
@@ -1868,8 +1867,7 @@ vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
 	AUDIT_ARG_VNODE1(vp);
 	VOP_UNLOCK(vp, 0);
 #endif
-	error = setfmode(td, active_cred, vp, mode);
-	return (error);
+	return (setfmode(td, active_cred, vp, mode));
 }
 
 int
@@ -1877,7 +1875,6 @@ vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
     struct thread *td)
 {
 	struct vnode *vp;
-	int error;
 
 	vp = fp->f_vnode;
 #ifdef AUDIT
@@ -1885,8 +1882,7 @@ vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 	AUDIT_ARG_VNODE1(vp);
 	VOP_UNLOCK(vp, 0);
 #endif
-	error = setfown(td, active_cred, vp, uid, gid);
-	return (error);
+	return (setfown(td, active_cred, vp, uid, gid));
 }
 
 void
