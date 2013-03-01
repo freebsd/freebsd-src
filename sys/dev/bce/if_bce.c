@@ -1076,6 +1076,7 @@ bce_attach(device_t dev)
 	bce_probe_pci_caps(dev, sc);
 
 	rid = 1;
+	count = 0;
 #if 0
 	/* Try allocating MSI-X interrupts. */
 	if ((sc->bce_cap_flags & BCE_MSIX_CAPABLE_FLAG) &&
