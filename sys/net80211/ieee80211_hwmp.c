@@ -673,7 +673,7 @@ hwmp_send_action(struct ieee80211vap *vap,
 	else
 		params.ibp_try0 = ni->ni_txparms->maxretry;
 	params.ibp_power = ni->ni_txpower;
-	ret = ic->ic_raw_xmit(ni, m, &params);
+	ret = ieee80211_raw_output(vap, ni, m, &params);
 	IEEE80211_TX_UNLOCK(ic);
 	return (ret);
 }

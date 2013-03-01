@@ -2780,7 +2780,7 @@ mesh_send_action(struct ieee80211_node *ni,
 
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
 
-	ret = ic->ic_raw_xmit(ni, m, &params);
+	ret = ieee80211_raw_output(vap, ni, m, &params);
 	IEEE80211_TX_UNLOCK(ic);
 	return (ret);
 }

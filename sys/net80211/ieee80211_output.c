@@ -430,6 +430,18 @@ ieee80211_start(struct ifnet *ifp)
 }
 
 /*
+ * 802.11 raw output routine.
+ */
+int
+ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
+    struct mbuf *m, const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	return (ic->ic_raw_xmit(ni, m, params));
+}
+
+/*
  * 802.11 output routine. This is (currently) used only to
  * connect bpf write calls to the 802.11 layer for injecting
  * raw 802.11 frames.
@@ -550,7 +562,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	 * this is a hack).
 	 * NB: we assume sa_data is suitably aligned to cast.
 	 */
-	ret = vap->iv_ic->ic_raw_xmit(ni, m,
+	ret = ieee80211_raw_output(vap, ni, m,
 	    (const struct ieee80211_bpf_params *)(dst->sa_len ?
 		dst->sa_data : NULL));
 	IEEE80211_TX_UNLOCK(ic);
@@ -733,7 +745,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 #endif
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
 
-	ret = ic->ic_raw_xmit(ni, m, params);
+	ret = ieee80211_raw_output(vap, ni, m, params);
 	IEEE80211_TX_UNLOCK(ic);
 	return (ret);
 }
@@ -839,7 +851,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	    ieee80211_chan2ieee(ic, ic->ic_curchan),
 	    wh->i_fc[1] & IEEE80211_FC1_PWR_MGT ? "ena" : "dis");
 
-	ret = ic->ic_raw_xmit(ni, m, NULL);
+	ret = ieee80211_raw_output(vap, ni, m, NULL);
 	IEEE80211_TX_UNLOCK(ic);
 	return (ret);
 }
@@ -1979,7 +1991,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	} else
 		params.ibp_try0 = tp->maxretry;
 	params.ibp_power = ni->ni_txpower;
-	ret = ic->ic_raw_xmit(ni, m, &params);
+	ret = ieee80211_raw_output(vap, ni, m, &params);
 	IEEE80211_TX_UNLOCK(ic);
 	return (ret);
 }
@@ -2595,7 +2607,7 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	    legacy ? " <legacy>" : "");
 	IEEE80211_NODE_STAT(bss, tx_mgmt);
 
-	ret = ic->ic_raw_xmit(bss, m, NULL);
+	ret = ieee80211_raw_output(vap, bss, m, NULL);
 	IEEE80211_TX_UNLOCK(ic);
 	return (ret);
 }
