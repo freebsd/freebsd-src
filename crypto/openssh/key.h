@@ -1,4 +1,4 @@
-/* $OpenBSD: key.h,v 1.28 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: key.h,v 1.34 2012/05/23 03:28:28 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -29,19 +29,27 @@
 #include "buffer.h"
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
+#ifdef OPENSSL_HAS_ECC
+#include <openssl/ec.h>
+#endif
 
 typedef struct Key Key;
 enum types {
 	KEY_RSA1,
 	KEY_RSA,
 	KEY_DSA,
+	KEY_ECDSA,
 	KEY_RSA_CERT,
 	KEY_DSA_CERT,
+	KEY_ECDSA_CERT,
+	KEY_RSA_CERT_V00,
+	KEY_DSA_CERT_V00,
 	KEY_UNSPEC
 };
 enum fp_type {
 	SSH_FP_SHA1,
-	SSH_FP_MD5
+	SSH_FP_MD5,
+	SSH_FP_SHA256
 };
 enum fp_rep {
 	SSH_FP_HEX,
@@ -56,11 +64,13 @@ enum fp_rep {
 struct KeyCert {
 	Buffer		 certblob; /* Kept around for use on wire */
 	u_int		 type; /* SSH2_CERT_TYPE_USER or SSH2_CERT_TYPE_HOST */
+	u_int64_t	 serial;
 	char		*key_id;
 	u_int		 nprincipals;
 	char		**principals;
 	u_int64_t	 valid_after, valid_before;
-	Buffer		 constraints;
+	Buffer		 critical;
+	Buffer		 extensions;
 	Key		*signature_key;
 };
 
@@ -69,6 +79,12 @@ struct Key {
 	int	 flags;
 	RSA	*rsa;
 	DSA	*dsa;
+	int	 ecdsa_nid;	/* NID of curve */
+#ifdef OPENSSL_HAS_ECC
+	EC_KEY	*ecdsa;
+#else
+	void	*ecdsa;
+#endif
 	struct KeyCert *cert;
 };
 
@@ -82,6 +98,7 @@ int		 key_equal(const Key *, const Key *);
 char		*key_fingerprint(Key *, enum fp_type, enum fp_rep);
 u_char		*key_fingerprint_raw(Key *, enum fp_type, u_int *);
 const char	*key_type(const Key *);
+const char	*key_cert_type(const Key *);
 int		 key_write(const Key *, FILE *);
 int		 key_read(Key *, char **);
 u_int		 key_size(const Key *);
@@ -91,16 +108,30 @@ Key	*key_from_private(const Key *);
 int	 key_type_from_name(char *);
 int	 key_is_cert(const Key *);
 int	 key_type_plain(int);
-int	 key_to_certified(Key *);
+int	 key_to_certified(Key *, int);
 int	 key_drop_cert(Key *);
 int	 key_certify(Key *, Key *);
 void	 key_cert_copy(const Key *, struct Key *);
 int	 key_cert_check_authority(const Key *, int, int, const char *,
 	    const char **);
+int	 key_cert_is_legacy(Key *);
+
+int		 key_ecdsa_nid_from_name(const char *);
+int		 key_curve_name_to_nid(const char *);
+const char *	 key_curve_nid_to_name(int);
+u_int		 key_curve_nid_to_bits(int);
+int		 key_ecdsa_bits_to_nid(int);
+#ifdef OPENSSL_HAS_ECC
+int		 key_ecdsa_key_to_nid(EC_KEY *);
+const EVP_MD *	 key_ec_nid_to_evpmd(int nid);
+int		 key_ec_validate_public(const EC_GROUP *, const EC_POINT *);
+int		 key_ec_validate_private(const EC_KEY *);
+#endif
 
 Key		*key_from_blob(const u_char *, u_int);
 int		 key_to_blob(const Key *, u_char **, u_int *);
 const char	*key_ssh_name(const Key *);
+const char	*key_ssh_name_plain(const Key *);
 int		 key_names_valid2(const char *);
 
 int	 key_sign(const Key *, u_char **, u_int *, const u_char *, u_int);
@@ -108,7 +139,14 @@ int	 key_verify(const Key *, const u_char *, u_int, const u_char *, u_int);
 
 int	 ssh_dss_sign(const Key *, u_char **, u_int *, const u_char *, u_int);
 int	 ssh_dss_verify(const Key *, const u_char *, u_int, const u_char *, u_int);
+int	 ssh_ecdsa_sign(const Key *, u_char **, u_int *, const u_char *, u_int);
+int	 ssh_ecdsa_verify(const Key *, const u_char *, u_int, const u_char *, u_int);
 int	 ssh_rsa_sign(const Key *, u_char **, u_int *, const u_char *, u_int);
 int	 ssh_rsa_verify(const Key *, const u_char *, u_int, const u_char *, u_int);
+
+#if defined(OPENSSL_HAS_ECC) && (defined(DEBUG_KEXECDH) || defined(DEBUG_PK))
+void	key_dump_ec_point(const EC_GROUP *, const EC_POINT *);
+void	key_dump_ec_key(const EC_KEY *);
+#endif
 
 #endif

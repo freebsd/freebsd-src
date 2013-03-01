@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.49 2010/01/16 12:58:37 dtucker Exp $ */
+/* $Id: openbsd-compat.h,v 1.52 2011/09/23 01:16:11 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -87,6 +87,11 @@ int setenv(register const char *name, register const char *value, int rewrite);
 void strmode(int mode, char *p);
 #endif
 
+#ifndef HAVE_STRPTIME
+#include  <time.h>
+char *strptime(const char *buf, const char *fmt, struct tm *tm);
+#endif
+
 #if !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP)
 int mkstemps(char *path, int slen);
 int mkstemp(char *path);
@@ -111,7 +116,7 @@ char *inet_ntoa(struct in_addr in);
 #endif
 
 #ifndef HAVE_INET_NTOP
-const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
 #endif
 
 #ifndef HAVE_INET_ATON
@@ -206,6 +211,10 @@ char *user_from_uid(uid_t, int);
 
 #ifndef HAVE_GROUP_FROM_GID
 char *group_from_gid(gid_t, int);
+#endif
+
+#ifndef HAVE_TIMINGSAFE_BCMP
+int timingsafe_bcmp(const void *, const void *, size_t);
 #endif
 
 void *xmmap(size_t size);

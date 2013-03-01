@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.180 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.189 2012/06/22 12:30:26 dtucker Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -70,6 +70,7 @@
 #include "msg.h"
 #include "pathnames.h"
 #include "uidswap.h"
+#include "hostfile.h"
 #include "schnorr.h"
 #include "jpake.h"
 
@@ -112,8 +113,61 @@ verify_host_key_callback(Key *hostkey)
 	return 0;
 }
 
+static char *
+order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
+{
+	char *oavail, *avail, *first, *last, *alg, *hostname, *ret;
+	size_t maxlen;
+	struct hostkeys *hostkeys;
+	int ktype;
+	u_int i;
+
+	/* Find all hostkeys for this hostname */
+	get_hostfile_hostname_ipaddr(host, hostaddr, port, &hostname, NULL);
+	hostkeys = init_hostkeys();
+	for (i = 0; i < options.num_user_hostfiles; i++)
+		load_hostkeys(hostkeys, hostname, options.user_hostfiles[i]);
+	for (i = 0; i < options.num_system_hostfiles; i++)
+		load_hostkeys(hostkeys, hostname, options.system_hostfiles[i]);
+
+	oavail = avail = xstrdup(KEX_DEFAULT_PK_ALG);
+	maxlen = strlen(avail) + 1;
+	first = xmalloc(maxlen);
+	last = xmalloc(maxlen);
+	*first = *last = '\0';
+
+#define ALG_APPEND(to, from) \
+	do { \
+		if (*to != '\0') \
+			strlcat(to, ",", maxlen); \
+		strlcat(to, from, maxlen); \
+	} while (0)
+
+	while ((alg = strsep(&avail, ",")) && *alg != '\0') {
+		if ((ktype = key_type_from_name(alg)) == KEY_UNSPEC)
+			fatal("%s: unknown alg %s", __func__, alg);
+		if (lookup_key_in_hostkeys_by_type(hostkeys,
+		    key_type_plain(ktype), NULL))
+			ALG_APPEND(first, alg);
+		else
+			ALG_APPEND(last, alg);
+	}
+#undef ALG_APPEND
+	xasprintf(&ret, "%s%s%s", first, *first == '\0' ? "" : ",", last);
+	if (*first != '\0')
+		debug3("%s: prefer hostkeyalgs: %s", __func__, first);
+
+	xfree(first);
+	xfree(last);
+	xfree(hostname);
+	xfree(oavail);
+	free_hostkeys(hostkeys);
+
+	return ret;
+}
+
 void
-ssh_kex2(char *host, struct sockaddr *hostaddr)
+ssh_kex2(char *host, struct sockaddr *hostaddr, u_short port)
 {
 	Kex *kex;
 
@@ -146,6 +200,13 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	if (options.hostkeyalgorithms != NULL)
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
 		    options.hostkeyalgorithms;
+	else {
+		/* Prefer algorithms that we already have keys for */
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
+		    order_hostkeyalgs(host, hostaddr, port);
+	}
+	if (options.kex_algorithms != NULL)
+		myproposal[PROPOSAL_KEX_ALGS] = options.kex_algorithms;
 
 	if (options.rekey_limit)
 		packet_set_rekey_limit((u_int32_t)options.rekey_limit);
@@ -156,6 +217,7 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	kex->kex[KEX_DH_GRP14_SHA1] = kexdh_client;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_client;
 	kex->kex[KEX_DH_GEX_SHA256] = kexgex_client;
+	kex->kex[KEX_ECDH_SHA2] = kexecdh_client;
 	kex->client_version_string=client_version_string;
 	kex->server_version_string=server_version_string;
 	kex->verify_host_key=&verify_host_key_callback;
@@ -206,7 +268,7 @@ struct Authctxt {
 	const char *host;
 	const char *service;
 	Authmethod *method;
-	int success;
+	sig_atomic_t success;
 	char *authlist;
 	/* pubkey */
 	Idlist keys;
@@ -1174,8 +1236,11 @@ sign_and_send_pubkey(Authctxt *authctxt, Identity *id)
 	u_int skip = 0;
 	int ret = -1;
 	int have_sig = 1;
+	char *fp;
 
-	debug3("sign_and_send_pubkey");
+	fp = key_fingerprint(id->key, SSH_FP_MD5, SSH_FP_HEX);
+	debug3("sign_and_send_pubkey: %s %s", key_type(id->key), fp);
+	xfree(fp);
 
 	if (key_to_blob(id->key, &blob, &bloblen) == 0) {
 		/* we cannot handle this key */
@@ -1432,7 +1497,8 @@ userauth_pubkey(Authctxt *authctxt)
 		 * private key instead
 		 */
 		if (id->key && id->key->type != KEY_RSA1) {
-			debug("Offering public key: %s", id->filename);
+			debug("Offering %s public key: %s", key_type(id->key),
+			    id->filename);
 			sent = send_pubkey_test(authctxt, id);
 		} else if (id->key == NULL) {
 			debug("Trying private key: %s", id->filename);
@@ -1857,6 +1923,7 @@ authmethod_get(char *authlist)
 		    authmethod_is_enabled(current)) {
 			debug3("authmethod_is_enabled %s", name);
 			debug("Next authentication method: %s", name);
+			xfree(name);
 			return current;
 		}
 	}

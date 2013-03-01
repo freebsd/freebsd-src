@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.21 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.30 2011/09/25 05:44:47 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -57,6 +57,7 @@
 #include "monitor_wrap.h"
 #include "misc.h"
 #include "authfile.h"
+#include "match.h"
 
 /* import */
 extern ServerOptions options;
@@ -176,6 +177,84 @@ done:
 	return authenticated;
 }
 
+static int
+match_principals_option(const char *principal_list, struct KeyCert *cert)
+{
+	char *result;
+	u_int i;
+
+	/* XXX percent_expand() sequences for authorized_principals? */
+
+	for (i = 0; i < cert->nprincipals; i++) {
+		if ((result = match_list(cert->principals[i],
+		    principal_list, NULL)) != NULL) {
+			debug3("matched principal from key options \"%.100s\"",
+			    result);
+			xfree(result);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int
+match_principals_file(char *file, struct passwd *pw, struct KeyCert *cert)
+{
+	FILE *f;
+	char line[SSH_MAX_PUBKEY_BYTES], *cp, *ep, *line_opts;
+	u_long linenum = 0;
+	u_int i;
+
+	temporarily_use_uid(pw);
+	debug("trying authorized principals file %s", file);
+	if ((f = auth_openprincipals(file, pw, options.strict_modes)) == NULL) {
+		restore_uid();
+		return 0;
+	}
+	while (read_keyfile_line(f, file, line, sizeof(line), &linenum) != -1) {
+		/* Skip leading whitespace. */
+		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
+			;
+		/* Skip blank and comment lines. */
+		if ((ep = strchr(cp, '#')) != NULL)
+			*ep = '\0';
+		if (!*cp || *cp == '\n')
+			continue;
+		/* Trim trailing whitespace. */
+		ep = cp + strlen(cp) - 1;
+		while (ep > cp && (*ep == '\n' || *ep == ' ' || *ep == '\t'))
+			*ep-- = '\0';
+		/*
+		 * If the line has internal whitespace then assume it has
+		 * key options.
+		 */
+		line_opts = NULL;
+		if ((ep = strrchr(cp, ' ')) != NULL ||
+		    (ep = strrchr(cp, '\t')) != NULL) {
+			for (; *ep == ' ' || *ep == '\t'; ep++)
+				;
+			line_opts = cp;
+			cp = ep;
+		}
+		for (i = 0; i < cert->nprincipals; i++) {
+			if (strcmp(cp, cert->principals[i]) == 0) {
+				debug3("matched principal \"%.100s\" "
+				    "from file \"%s\" on line %lu",
+			    	    cert->principals[i], file, linenum);
+				if (auth_parse_options(pw, line_opts,
+				    file, linenum) != 1)
+					continue;
+				fclose(f);
+				restore_uid();
+				return 1;
+			}
+		}
+	}
+	fclose(f);
+	restore_uid();
+	return 0;
+}	
+
 /* return 1 if user allows given key */
 static int
 user_key_allowed2(struct passwd *pw, Key *key, char *file)
@@ -233,32 +312,54 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 				continue;
 			}
 		}
-		if (auth_parse_options(pw, key_options, file, linenum) != 1)
-			continue;
-		if (key->type == KEY_RSA_CERT || key->type == KEY_DSA_CERT) {
-			if (!key_is_cert_authority)
-				continue;
+		if (key_is_cert(key)) {
 			if (!key_equal(found, key->cert->signature_key))
 				continue;
-			debug("matching CA found: file %s, line %lu",
-			    file, linenum);
+			if (auth_parse_options(pw, key_options, file,
+			    linenum) != 1)
+				continue;
+			if (!key_is_cert_authority)
+				continue;
 			fp = key_fingerprint(found, SSH_FP_MD5,
 			    SSH_FP_HEX);
-			verbose("Found matching %s CA: %s",
-			    key_type(found), fp);
-			xfree(fp);
-			if (key_cert_check_authority(key, 0, 0, pw->pw_name,
-			    &reason) != 0) {
+			debug("matching CA found: file %s, line %lu, %s %s",
+			    file, linenum, key_type(found), fp);
+			/*
+			 * If the user has specified a list of principals as
+			 * a key option, then prefer that list to matching
+			 * their username in the certificate principals list.
+			 */
+			if (authorized_principals != NULL &&
+			    !match_principals_option(authorized_principals,
+			    key->cert)) {
+				reason = "Certificate does not contain an "
+				    "authorized principal";
+ fail_reason:
+				xfree(fp);
 				error("%s", reason);
 				auth_debug_add("%s", reason);
 				continue;
 			}
-			if (auth_cert_constraints(&key->cert->constraints,
-			    pw) != 0)
+			if (key_cert_check_authority(key, 0, 0,
+			    authorized_principals == NULL ? pw->pw_name : NULL,
+			    &reason) != 0)
+				goto fail_reason;
+			if (auth_cert_options(key, pw) != 0) {
+				xfree(fp);
 				continue;
+			}
+			verbose("Accepted certificate ID \"%s\" "
+			    "signed by %s CA %s via %s", key->cert->key_id,
+			    key_type(found), fp, file);
+			xfree(fp);
 			found_key = 1;
 			break;
-		} else if (!key_is_cert_authority && key_equal(found, key)) {
+		} else if (key_equal(found, key)) {
+			if (auth_parse_options(pw, key_options, file,
+			    linenum) != 1)
+				continue;
+			if (key_is_cert_authority)
+				continue;
 			found_key = 1;
 			debug("matching key found: file %s, line %lu",
 			    file, linenum);
@@ -281,15 +382,15 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 static int
 user_cert_trusted_ca(struct passwd *pw, Key *key)
 {
-	char *key_fp, *ca_fp;
+	char *ca_fp, *principals_file = NULL;
 	const char *reason;
 	int ret = 0;
 
 	if (!key_is_cert(key) || options.trusted_user_ca_keys == NULL)
 		return 0;
 
-	key_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
-	ca_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
+	ca_fp = key_fingerprint(key->cert->signature_key,
+	    SSH_FP_MD5, SSH_FP_HEX);
 
 	if (key_in_file(key->cert->signature_key,
 	    options.trusted_user_ca_keys, 1) != 1) {
@@ -298,21 +399,35 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 		    options.trusted_user_ca_keys);
 		goto out;
 	}
-	if (key_cert_check_authority(key, 0, 1, pw->pw_name, &reason) != 0) {
-		error("%s", reason);
-		auth_debug_add("%s", reason);
-		goto out;
+	/*
+	 * If AuthorizedPrincipals is in use, then compare the certificate
+	 * principals against the names in that file rather than matching
+	 * against the username.
+	 */
+	if ((principals_file = authorized_principals_file(pw)) != NULL) {
+		if (!match_principals_file(principals_file, pw, key->cert)) {
+			reason = "Certificate does not contain an "
+			    "authorized principal";
+ fail_reason:
+			error("%s", reason);
+			auth_debug_add("%s", reason);
+			goto out;
+		}
 	}
-	if (auth_cert_constraints(&key->cert->constraints, pw) != 0)
+	if (key_cert_check_authority(key, 0, 1,
+	    principals_file == NULL ? pw->pw_name : NULL, &reason) != 0)
+		goto fail_reason;
+	if (auth_cert_options(key, pw) != 0)
 		goto out;
 
-	verbose("%s certificate %s allowed by trusted %s key %s",
-	    key_type(key), key_fp, key_type(key->cert->signature_key), ca_fp);
+	verbose("Accepted certificate ID \"%s\" signed by %s CA %s via %s",
+	    key->cert->key_id, key_type(key->cert->signature_key), ca_fp,
+	    options.trusted_user_ca_keys);
 	ret = 1;
 
  out:
-	if (key_fp != NULL)
-		xfree(key_fp);
+	if (principals_file != NULL)
+		xfree(principals_file);
 	if (ca_fp != NULL)
 		xfree(ca_fp);
 	return ret;
@@ -322,7 +437,7 @@ user_cert_trusted_ca(struct passwd *pw, Key *key)
 int
 user_key_allowed(struct passwd *pw, Key *key)
 {
-	int success;
+	u_int success, i;
 	char *file;
 
 	if (auth_key_is_revoked(key))
@@ -334,16 +449,13 @@ user_key_allowed(struct passwd *pw, Key *key)
 	if (success)
 		return success;
 
-	file = authorized_keys_file(pw);
-	success = user_key_allowed2(pw, key, file);
-	xfree(file);
-	if (success)
-		return success;
+	for (i = 0; !success && i < options.num_authkeys_files; i++) {
+		file = expand_authorized_keys(
+		    options.authorized_keys_files[i], pw);
+		success = user_key_allowed2(pw, key, file);
+		xfree(file);
+	}
 
-	/* try suffix "2" for backward compat, too */
-	file = authorized_keys_file2(pw);
-	success = user_key_allowed2(pw, key, file);
-	xfree(file);
 	return success;
 }
 

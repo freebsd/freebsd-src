@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.86 2010/03/05 02:58:11 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.96 2012/05/13 01:42:32 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -144,7 +144,7 @@ allowed_user(struct passwd * pw)
 			locked = 1;
 #endif
 #ifdef USE_LIBIAF
-		free(passwd);
+		free((void *) passwd);
 #endif /* USE_LIBIAF */
 		if (locked) {
 			logit("User %.100s not allowed because account is locked",
@@ -332,7 +332,7 @@ auth_root_allowed(char *method)
  *
  * This returns a buffer allocated by xmalloc.
  */
-static char *
+char *
 expand_authorized_keys(const char *filename, struct passwd *pw)
 {
 	char *file, ret[MAXPATHLEN];
@@ -356,15 +356,12 @@ expand_authorized_keys(const char *filename, struct passwd *pw)
 }
 
 char *
-authorized_keys_file(struct passwd *pw)
+authorized_principals_file(struct passwd *pw)
 {
-	return expand_authorized_keys(options.authorized_keys_file, pw);
-}
-
-char *
-authorized_keys_file2(struct passwd *pw)
-{
-	return expand_authorized_keys(options.authorized_keys_file2, pw);
+	if (options.authorized_principals_file == NULL ||
+	    strcasecmp(options.authorized_principals_file, "none") == 0)
+		return NULL;
+	return expand_authorized_keys(options.authorized_principals_file, pw);
 }
 
 /* return ok if key exists in sysfile or userfile */
@@ -372,16 +369,15 @@ HostStatus
 check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
     const char *sysfile, const char *userfile)
 {
-	Key *found;
 	char *user_hostfile;
 	struct stat st;
 	HostStatus host_status;
+	struct hostkeys *hostkeys;
+	const struct hostkey_entry *found;
 
-	/* Check if we know the host and its host key. */
-	found = key_new(key->type);
-	host_status = check_host_in_hostfile(sysfile, host, key, found, NULL);
-
-	if (host_status != HOST_OK && userfile != NULL) {
+	hostkeys = init_hostkeys();
+	load_hostkeys(hostkeys, host, sysfile);
+	if (userfile != NULL) {
 		user_hostfile = tilde_expand_filename(userfile, pw->pw_uid);
 		if (options.strict_modes &&
 		    (stat(user_hostfile, &st) == 0) &&
@@ -390,18 +386,27 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 			logit("Authentication refused for %.100s: "
 			    "bad owner or modes for %.200s",
 			    pw->pw_name, user_hostfile);
+			auth_debug_add("Ignored %.200s: bad ownership or modes",
+			    user_hostfile);
 		} else {
 			temporarily_use_uid(pw);
-			host_status = check_host_in_hostfile(user_hostfile,
-			    host, key, found, NULL);
+			load_hostkeys(hostkeys, host, user_hostfile);
 			restore_uid();
 		}
 		xfree(user_hostfile);
 	}
-	key_free(found);
+	host_status = check_key_in_hostkeys(hostkeys, key, &found);
+	if (host_status == HOST_REVOKED)
+		error("WARNING: revoked key for %s attempted authentication",
+		    found->host);
+	else if (host_status == HOST_OK)
+		debug("%s: key for %s found at %s:%ld", __func__,
+		    found->host, found->file, found->line);
+	else
+		debug("%s: key for host %s not found", __func__, host);
 
-	debug2("check_key_in_hostfiles: key %s for %s", host_status == HOST_OK ?
-	    "ok" : "not found", host);
+	free_hostkeys(hostkeys);
+
 	return host_status;
 }
 
@@ -453,7 +458,6 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		}
 		strlcpy(buf, cp, sizeof(buf));
 
-		debug3("secure_filename: checking '%s'", buf);
 		if (stat(buf, &st) < 0 ||
 		    (st.st_uid != 0 && st.st_uid != uid) ||
 		    (st.st_mode & 022) != 0) {
@@ -463,11 +467,9 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		}
 
 		/* If are past the homedir then we can stop */
-		if (comparehome && strcmp(homedir, buf) == 0) {
-			debug3("secure_filename: terminating check at '%s'",
-			    buf);
+		if (comparehome && strcmp(homedir, buf) == 0)
 			break;
-		}
+
 		/*
 		 * dirname should always complete with a "/" path,
 		 * but we can be paranoid and check for "." too
@@ -478,21 +480,18 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 	return 0;
 }
 
-FILE *
-auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
+static FILE *
+auth_openfile(const char *file, struct passwd *pw, int strict_modes,
+    int log_missing, char *file_type)
 {
 	char line[1024];
 	struct stat st;
 	int fd;
 	FILE *f;
 
-	/*
-	 * Open the file containing the authorized keys
-	 * Fail quietly if file does not exist
-	 */
 	if ((fd = open(file, O_RDONLY|O_NONBLOCK)) == -1) {
-		if (errno != ENOENT)
-			debug("Could not open keyfile '%s': %s", file,
+		if (log_missing || errno != ENOENT)
+			debug("Could not open %s '%s': %s", file_type, file,
 			   strerror(errno));
 		return NULL;
 	}
@@ -502,8 +501,8 @@ auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
 		return NULL;
 	}
 	if (!S_ISREG(st.st_mode)) {
-		logit("User %s authorized keys %s is not a regular file",
-		    pw->pw_name, file);
+		logit("User %s %s %s is not a regular file",
+		    pw->pw_name, file_type, file);
 		close(fd);
 		return NULL;
 	}
@@ -512,14 +511,29 @@ auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
 		close(fd);
 		return NULL;
 	}
-	if (options.strict_modes &&
+	if (strict_modes &&
 	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
 		fclose(f);
 		logit("Authentication refused: %s", line);
+		auth_debug_add("Ignored %s: %s", file_type, line);
 		return NULL;
 	}
 
 	return f;
+}
+
+
+FILE *
+auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
+{
+	return auth_openfile(file, pw, strict_modes, 1, "authorized keys");
+}
+
+FILE *
+auth_openprincipals(const char *file, struct passwd *pw, int strict_modes)
+{
+	return auth_openfile(file, pw, strict_modes, 0,
+	    "authorized principals");
 }
 
 struct passwd *
@@ -532,9 +546,10 @@ getpwnamallow(const char *user)
 #endif
 #endif
 	struct passwd *pw;
+	struct connection_info *ci = get_connection_info(1, options.use_dns);
 
-	parse_server_match_config(&options, user,
-	    get_canonical_hostname(options.use_dns), get_remote_ipaddr());
+	ci->user = user;
+	parse_server_match_config(&options, ci);
 
 #if defined(_AIX) && defined(HAVE_SETAUTHDB)
 	aix_setauthdb(user);

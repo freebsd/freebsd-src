@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.159 2010/01/13 23:44:34 tim Exp $ */
+/* $Id: defines.h,v 1.169 2012/02/15 04:13:06 tim Exp $ */
 
 
 /* Constants */
@@ -42,6 +42,11 @@ enum
 # define SHUT_RDWR SHUT_RDWR
 #endif
 
+/*
+ * Definitions for IP type of service (ip_tos)
+ */
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 #ifndef IPTOS_LOWDELAY
 # define IPTOS_LOWDELAY          0x10
 # define IPTOS_THROUGHPUT        0x08
@@ -49,6 +54,44 @@ enum
 # define IPTOS_LOWCOST           0x02
 # define IPTOS_MINCOST           IPTOS_LOWCOST
 #endif /* IPTOS_LOWDELAY */
+
+/*
+ * Definitions for DiffServ Codepoints as per RFC2474
+ */
+#ifndef IPTOS_DSCP_AF11
+# define	IPTOS_DSCP_AF11		0x28
+# define	IPTOS_DSCP_AF12		0x30
+# define	IPTOS_DSCP_AF13		0x38
+# define	IPTOS_DSCP_AF21		0x48
+# define	IPTOS_DSCP_AF22		0x50
+# define	IPTOS_DSCP_AF23		0x58
+# define	IPTOS_DSCP_AF31		0x68
+# define	IPTOS_DSCP_AF32		0x70
+# define	IPTOS_DSCP_AF33		0x78
+# define	IPTOS_DSCP_AF41		0x88
+# define	IPTOS_DSCP_AF42		0x90
+# define	IPTOS_DSCP_AF43		0x98
+# define	IPTOS_DSCP_EF		0xb8
+#endif /* IPTOS_DSCP_AF11 */
+#ifndef IPTOS_DSCP_CS0
+# define	IPTOS_DSCP_CS0		0x00
+# define	IPTOS_DSCP_CS1		0x20
+# define	IPTOS_DSCP_CS2		0x40
+# define	IPTOS_DSCP_CS3		0x60
+# define	IPTOS_DSCP_CS4		0x80
+# define	IPTOS_DSCP_CS5		0xa0
+# define	IPTOS_DSCP_CS6		0xc0
+# define	IPTOS_DSCP_CS7		0xe0
+#endif /* IPTOS_DSCP_CS0 */
+#ifndef IPTOS_DSCP_EF
+# define	IPTOS_DSCP_EF		0xb8
+#endif /* IPTOS_DSCP_EF */
+
+#ifndef PATH_MAX
+# ifdef _POSIX_PATH_MAX
+# define PATH_MAX _POSIX_PATH_MAX
+# endif
+#endif
 
 #ifndef MAXPATHLEN
 # ifdef PATH_MAX
@@ -61,12 +104,6 @@ enum
 #  endif /* BROKEN_REALPATH */
 # endif /* PATH_MAX */
 #endif /* MAXPATHLEN */
-
-#ifndef PATH_MAX
-# ifdef _POSIX_PATH_MAX
-# define PATH_MAX _POSIX_PATH_MAX
-# endif
-#endif
 
 #if defined(HAVE_DECL_MAXSYMLINKS) && HAVE_DECL_MAXSYMLINKS == 0
 # define MAXSYMLINKS 5
@@ -93,6 +130,10 @@ enum
 #if defined(HAVE_DECL_O_NONBLOCK) && HAVE_DECL_O_NONBLOCK == 0
 # define O_NONBLOCK      00004	/* Non Blocking Open */
 #endif
+
+#ifndef S_IFSOCK
+# define S_IFSOCK 0
+#endif /* S_IFSOCK */
 
 #ifndef S_ISDIR
 # define S_ISDIR(mode)	(((mode) & (_S_IFMT)) == (_S_IFDIR))
@@ -153,11 +194,7 @@ typedef unsigned int u_int;
 #endif
 
 #ifndef HAVE_INTXX_T
-# if (SIZEOF_CHAR == 1)
-typedef char int8_t;
-# else
-#  error "8 bit int type not found."
-# endif
+typedef signed char int8_t;
 # if (SIZEOF_SHORT_INT == 2)
 typedef short int int16_t;
 # else
@@ -256,6 +293,10 @@ typedef unsigned int size_t;
 # define SIZE_T_MAX UINT_MAX
 #endif /* HAVE_SIZE_T */
 
+#ifndef SIZE_MAX
+#define SIZE_MAX SIZE_T_MAX
+#endif
+
 #ifndef HAVE_SSIZE_T
 typedef int ssize_t;
 # define HAVE_SSIZE_T
@@ -344,17 +385,14 @@ struct winsize {
 # define _PATH_DEVNULL "/dev/null"
 #endif
 
-#ifndef MAIL_DIRECTORY
-# define MAIL_DIRECTORY "/var/spool/mail"
-#endif
+/* user may have set a different path */
+#if defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY)
+# undef _PATH_MAILDIR MAILDIR
+#endif /* defined(_PATH_MAILDIR) && defined(MAIL_DIRECTORY) */
 
-#ifndef MAILDIR
-# define MAILDIR MAIL_DIRECTORY
+#ifdef MAIL_DIRECTORY
+# define _PATH_MAILDIR MAIL_DIRECTORY
 #endif
-
-#if !defined(_PATH_MAILDIR) && defined(MAILDIR)
-# define _PATH_MAILDIR MAILDIR
-#endif /* !defined(_PATH_MAILDIR) && defined(MAILDIR) */
 
 #ifndef _PATH_NOLOGIN
 # define _PATH_NOLOGIN "/etc/nologin"
@@ -566,6 +604,11 @@ struct winsize {
 # define CUSTOM_SSH_AUDIT_EVENTS
 #endif
 
+#ifdef USE_LINUX_AUDIT
+# define SSH_AUDIT_EVENTS
+# define CUSTOM_SSH_AUDIT_EVENTS
+#endif
+
 #if !defined(HAVE___func__) && defined(HAVE___FUNCTION__)
 #  define __func__ __FUNCTION__
 #elif !defined(HAVE___func__)
@@ -674,7 +717,7 @@ struct winsize {
 #else
 /* Simply select your favourite login types. */
 /* Can't do if-else because some systems use several... <sigh> */
-#  if defined(UTMPX_FILE) && !defined(DISABLE_UTMPX)
+#  if !defined(DISABLE_UTMPX)
 #    define USE_UTMPX
 #  endif
 #  if defined(UTMP_FILE) && !defined(DISABLE_UTMP)
