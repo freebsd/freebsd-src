@@ -23,7 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org>
+ * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
@@ -5331,12 +5331,14 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	len = IOCPARM_LEN(cmd);
 
 	/*
-	 * Check if we have sufficient kernel memory allocated
-	 * for the zfs_cmd_t request.  Bail out if not so we
-	 * will not access undefined memory region.
+	 * Check if we are talking to supported older binaries
+	 * and translate zfs_cmd if necessary
 	 */
 	if (len < sizeof(zfs_cmd_t))
-		if (len == sizeof(zfs_cmd_v15_t)) {
+		if (len == sizeof(zfs_cmd_v28_t)) {
+			cflag = ZFS_CMD_COMPAT_V28;
+			vec = ZFS_IOC(cmd);
+		} else if (len == sizeof(zfs_cmd_v15_t)) {
 			cflag = ZFS_CMD_COMPAT_V15;
 			vec = zfs_ioctl_v15_to_v28[ZFS_IOC(cmd)];
 		} else
@@ -5351,6 +5353,11 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			return (ENOTSUP);
 	}
 
+	/*
+	 * Check if we have sufficient kernel memory allocated
+	 * for the zfs_cmd_t request.  Bail out if not so we
+	 * will not access undefined memory region.
+	 */
 	if (vec >= sizeof (zfs_ioc_vec) / sizeof (zfs_ioc_vec[0]))
 		return (EINVAL);
 
