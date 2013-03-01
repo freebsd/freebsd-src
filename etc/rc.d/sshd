@@ -14,8 +14,9 @@ rcvar="sshd_enable"
 command="/usr/sbin/${name}"
 keygen_cmd="sshd_keygen"
 start_precmd="sshd_precmd"
+configtest_cmd="sshd_configtest"
 pidfile="/var/run/${name}.pid"
-extra_commands="keygen reload"
+extra_commands="configtest keygen reload"
 
 timeout=300
 
@@ -70,23 +71,39 @@ sshd_keygen()
 	fi
 
 	if [ -f /etc/ssh/ssh_host_rsa_key ]; then
-		echo "You already have a RSA host key" \
+		echo "You already have an RSA host key" \
 		    "in /etc/ssh/ssh_host_rsa_key"
 		echo "Skipping protocol version 2 RSA Key Generation"
 	else
 		/usr/bin/ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ''
 	fi
+
+	if [ -f /etc/ssh/ssh_host_ecdsa_key ]; then
+		echo "You already have an ECDSA host key" \
+		    "in /etc/ssh/ssh_host_ecdsa_key"
+		echo "Skipping protocol version 2 ECDSA Key Generation"
+	else
+		/usr/bin/ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key -N ''
+	fi
 	)
+}
+
+sshd_configtest()
+{
+	echo "Performing sanity check on ${name} configuration."
+	eval ${command} ${sshd_flags} -t
 }
 
 sshd_precmd()
 {
 	if [ ! -f /etc/ssh/ssh_host_key -o \
 	    ! -f /etc/ssh/ssh_host_dsa_key -o \
+	    ! -f /etc/ssh/ssh_host_ecdsa_key -o \
 	    ! -f /etc/ssh/ssh_host_rsa_key ]; then
 		user_reseed
 		run_rc_command keygen
 	fi
+	sshd_configtest
 }
 
 load_rc_config $name

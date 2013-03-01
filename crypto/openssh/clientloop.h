@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.h,v 1.23 2010/01/26 01:28:35 djm Exp $ */
+/* $OpenBSD: clientloop.h,v 1.29 2011/09/09 22:46:44 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -39,12 +39,13 @@
 
 /* Client side main loop for the interactive session. */
 int	 client_loop(int, int, int);
-void	 client_x11_get_proto(const char *, const char *, u_int,
+void	 client_x11_get_proto(const char *, const char *, u_int, u_int,
 	    char **, char **);
 void	 client_global_request_reply_fwd(int, u_int32_t, void *);
 void	 client_session2_setup(int, int, int, const char *, struct termios *,
 	    int, Buffer *, char **);
 int	 client_request_tun_fwd(int, int, int);
+void	 client_stop_mux(void);
 
 /* Escape filter for protocol 2 sessions */
 void	*client_new_escape_filter_ctx(int);
@@ -55,6 +56,10 @@ int	 client_simple_escape_filter(Channel *, char *, int);
 typedef void global_confirm_cb(int, u_int32_t seq, void *);
 void	 client_register_global_confirm(global_confirm_cb *, void *);
 
+/* Channel request confirmation callbacks */
+enum confirm_action { CONFIRM_WARN = 0, CONFIRM_CLOSE, CONFIRM_TTY };
+void client_expect_confirm(int, const char *, enum confirm_action);
+
 /* Multiplexing protocol version */
 #define SSHMUX_VER			4
 
@@ -63,7 +68,12 @@ void	 client_register_global_confirm(global_confirm_cb *, void *);
 #define SSHMUX_COMMAND_ALIVE_CHECK	2	/* Check master is alive */
 #define SSHMUX_COMMAND_TERMINATE	3	/* Ask master to exit */
 #define SSHMUX_COMMAND_STDIO_FWD	4	/* Open stdio fwd (ssh -W) */
+#define SSHMUX_COMMAND_FORWARD		5	/* Forward only, no command */
+#define SSHMUX_COMMAND_STOP		6	/* Disable mux but not conn */
+#define SSHMUX_COMMAND_CANCEL_FWD	7	/* Cancel forwarding(s) */
 
 void	muxserver_listen(void);
 void	muxclient(const char *);
 void	mux_exit_message(Channel *, int);
+void	mux_tty_alloc_failed(Channel *);
+

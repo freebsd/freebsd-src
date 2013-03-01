@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.52 2009/06/27 09:29:06 andreas Exp $ */
+/* $OpenBSD: packet.h,v 1.57 2012/01/25 19:40:09 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -20,6 +20,9 @@
 #include <termios.h>
 
 #include <openssl/bn.h>
+#ifdef OPENSSL_HAS_ECC
+#include <openssl/ec.h>
+#endif
 
 void     packet_set_connection(int, int);
 void     packet_set_timeout(int, int);
@@ -32,7 +35,7 @@ u_int	 packet_get_encryption_key(u_char *);
 void     packet_set_protocol_flags(u_int);
 u_int	 packet_get_protocol_flags(void);
 void     packet_start_compression(int);
-void     packet_set_interactive(int);
+void     packet_set_interactive(int, int, int);
 int      packet_is_interactive(void);
 void     packet_set_server(void);
 void     packet_set_authenticated(void);
@@ -46,6 +49,9 @@ void     packet_put_int(u_int value);
 void     packet_put_int64(u_int64_t value);
 void     packet_put_bignum(BIGNUM * value);
 void     packet_put_bignum2(BIGNUM * value);
+#ifdef OPENSSL_HAS_ECC
+void     packet_put_ecpoint(const EC_GROUP *, const EC_POINT *);
+#endif
 void     packet_put_string(const void *buf, u_int len);
 void     packet_put_cstring(const char *str);
 void     packet_put_raw(const void *buf, u_int len);
@@ -53,7 +59,6 @@ void     packet_send(void);
 
 int      packet_read(void);
 void     packet_read_expect(int type);
-int      packet_read_poll(void);
 void     packet_process_incoming(const char *buf, u_int len);
 int      packet_read_seqnr(u_int32_t *seqnr_p);
 int      packet_read_poll_seqnr(u_int32_t *seqnr_p);
@@ -63,8 +68,12 @@ u_int	 packet_get_int(void);
 u_int64_t packet_get_int64(void);
 void     packet_get_bignum(BIGNUM * value);
 void     packet_get_bignum2(BIGNUM * value);
+#ifdef OPENSSL_HAS_ECC
+void	 packet_get_ecpoint(const EC_GROUP *, EC_POINT *);
+#endif
 void	*packet_get_raw(u_int *length_ptr);
 void	*packet_get_string(u_int *length_ptr);
+char	*packet_get_cstring(u_int *length_ptr);
 void	*packet_get_string_ptr(u_int *length_ptr);
 void     packet_disconnect(const char *fmt,...) __attribute__((format(printf, 1, 2)));
 void     packet_send_debug(const char *fmt,...) __attribute__((format(printf, 1, 2)));
@@ -86,7 +95,6 @@ int      packet_have_data_to_write(void);
 int      packet_not_very_much_data_to_write(void);
 
 int	 packet_connection_is_on_socket(void);
-int	 packet_connection_is_ipv4(void);
 int	 packet_remaining(void);
 void	 packet_send_ignore(int);
 void	 packet_add_padding(u_char);

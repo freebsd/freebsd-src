@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.65 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.69 2011/05/23 03:30:07 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -53,6 +53,7 @@ struct Authctxt {
 	int		 valid;		/* user exists and is allowed to login */
 	int		 attempt;
 	int		 failures;
+	int		 server_caused_failure; 
 	int		 force_pwchange;
 	char		*user;		/* username sent by the client */
 	char		*service;
@@ -167,10 +168,11 @@ char	*get_challenge(Authctxt *);
 int	verify_response(Authctxt *, const char *);
 void	abandon_challenge_response(Authctxt *);
 
-char	*authorized_keys_file(struct passwd *);
-char	*authorized_keys_file2(struct passwd *);
+char	*expand_authorized_keys(const char *, struct passwd *pw);
+char	*authorized_principals_file(struct passwd *);
 
 FILE	*auth_openkeyfile(const char *, struct passwd *, int);
+FILE	*auth_openprincipals(const char *, struct passwd *, int);
 int	 auth_key_is_revoked(Key *);
 
 HostStatus

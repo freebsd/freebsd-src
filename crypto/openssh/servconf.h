@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.92 2010/03/04 10:36:03 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.103 2012/07/10 02:19:15 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -28,6 +28,7 @@
 #define MAX_HOSTCERTS		256	/* Max # host certificates. */
 #define MAX_ACCEPT_ENV		256	/* Max # of env vars. */
 #define MAX_MATCH_GROUPS	256	/* Max # of groups for Match. */
+#define MAX_AUTHKEYS_FILES	256	/* Max # of authorized_keys files. */
 
 /* permit_root_login */
 #define	PERMIT_NOT_SET		-1
@@ -35,6 +36,11 @@
 #define	PERMIT_FORCED_ONLY	1
 #define	PERMIT_NO_PASSWD	2
 #define	PERMIT_YES		3
+
+/* use_privsep */
+#define PRIVSEP_OFF		0
+#define PRIVSEP_ON		1
+#define PRIVSEP_NOSANDBOX	2
 
 #define DEFAULT_AUTH_FAIL_MAX	6	/* Default for MaxAuthTries */
 #define DEFAULT_SESSIONS_MAX	10	/* Default for MaxSessions */
@@ -71,8 +77,11 @@ typedef struct {
 	char   *xauth_location;	/* Location of xauth program */
 	int     strict_modes;	/* If true, require string home dir modes. */
 	int     tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
+	int	ip_qos_interactive;	/* IP ToS/DSCP/class for interactive */
+	int	ip_qos_bulk;		/* IP ToS/DSCP/class for bulk traffic */
 	char   *ciphers;	/* Supported SSH2 ciphers. */
 	char   *macs;		/* Supported SSH2 macs. */
+	char   *kex_algorithms;	/* SSH2 kex methods in order of preference. */
 	int	protocol;	/* Supported protocol versions. */
 	int     gateway_ports;	/* If true, allow remote connects to forwarded ports. */
 	SyslogFacility log_facility;	/* Facility for system logging. */
@@ -143,8 +152,8 @@ typedef struct {
 					 * disconnect the session
 					 */
 
-	char   *authorized_keys_file;	/* File containing public keys */
-	char   *authorized_keys_file2;
+	u_int num_authkeys_files;	/* Files containing public keys */
+	char   *authorized_keys_files[MAX_AUTHKEYS_FILES];
 
 	char   *adm_forced_command;
 
@@ -157,6 +166,9 @@ typedef struct {
 	char   *chroot_directory;
 	char   *revoked_keys_file;
 	char   *trusted_user_ca_keys;
+	char   *authorized_principals_file;
+
+	char   *version_addendum;	/* Appended to SSH banner */
 
 	int	hpn_disabled;		/* Disable HPN functionality. */
 	int	hpn_buffer_size;	/* Set HPN buffer size - default 2MB.*/
@@ -168,15 +180,46 @@ typedef struct {
 #endif
 }       ServerOptions;
 
+/* Information about the incoming connection as used by Match */
+struct connection_info {
+	const char *user;
+	const char *host;	/* possibly resolved hostname */
+	const char *address; 	/* remote address */
+	const char *laddress;	/* local address */
+	int lport;		/* local port */
+};
+
+
+/*
+ * These are string config options that must be copied between the
+ * Match sub-config and the main config, and must be sent from the
+ * privsep slave to the privsep master. We use a macro to ensure all
+ * the options are copied and the copies are done in the correct order.
+ */
+#define COPY_MATCH_STRING_OPTS() do { \
+		M_CP_STROPT(banner); \
+		M_CP_STROPT(trusted_user_ca_keys); \
+		M_CP_STROPT(revoked_keys_file); \
+		M_CP_STROPT(authorized_principals_file); \
+		M_CP_STRARRAYOPT(authorized_keys_files, num_authkeys_files); \
+		M_CP_STRARRAYOPT(allow_users, num_allow_users); \
+		M_CP_STRARRAYOPT(deny_users, num_deny_users); \
+		M_CP_STRARRAYOPT(allow_groups, num_allow_groups); \
+		M_CP_STRARRAYOPT(deny_groups, num_deny_groups); \
+		M_CP_STRARRAYOPT(accept_env, num_accept_env); \
+	} while (0)
+
+struct connection_info *get_connection_info(int, int);
 void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);
 int	 process_server_config_line(ServerOptions *, char *, const char *, int,
-	     int *, const char *, const char *, const char *);
+	     int *, struct connection_info *);
 void	 load_server_config(const char *, Buffer *);
 void	 parse_server_config(ServerOptions *, const char *, Buffer *,
-	     const char *, const char *, const char *);
-void	 parse_server_match_config(ServerOptions *, const char *, const char *,
-	     const char *);
+	     struct connection_info *);
+void	 parse_server_match_config(ServerOptions *, struct connection_info *);
+int	 parse_server_match_testspec(struct connection_info *, char *);
+int	 server_match_spec_complete(struct connection_info *);
 void	 copy_set_server_options(ServerOptions *, ServerOptions *, int);
 void	 dump_config(ServerOptions *);
 char	*derelativise_path(const char *);

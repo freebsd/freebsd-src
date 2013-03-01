@@ -433,7 +433,8 @@ MK_${var}:=	yes
     BIND_XML \
     CTF \
     HESIOD \
-    IDEA
+    IDEA \
+    OPENSSH_NONE_CIPHER
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif

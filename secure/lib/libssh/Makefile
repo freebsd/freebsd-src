@@ -11,19 +11,18 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 	log.c match.c md-sha256.c moduli.c nchan.c packet.c \
 	readpass.c rsa.c ttymodes.c xmalloc.c addrmatch.c \
 	atomicio.c key.c dispatch.c kex.c mac.c uidswap.c uuencode.c misc.c \
-	monitor_fdpass.c rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c \
-	kexgex.c kexdhc.c kexgexc.c msg.c progressmeter.c dns.c \
-	entropy.c umac.c jpake.c schnorr.c \
-	ssh-pkcs11.c
+	monitor_fdpass.c rijndael.c ssh-dss.c ssh-ecdsa.c ssh-rsa.c dh.c \
+	kexdh.c kexgex.c kexdhc.c kexgexc.c bufec.c kexecdh.c kexecdhc.c \
+	msg.c progressmeter.c dns.c entropy.c umac.c jpake.c \
+	schnorr.c ssh-pkcs11.c
 
 # gss-genr.c should be in $SRCS but causes linking problems, so it is
 # compiled directly into sshd instead.
 
 # Portability layer
 SRCS+=	bsd-misc.c fmt_scaled.c getrrsetbyname.c glob.c \
-	openssl-compat.c port-tun.c strtonum.c vis.c xcrypt.c xmmap.c
-# FreeBSD additions
-SRCS+=	version.c
+	openssl-compat.c port-tun.c strtonum.c timingsafe_bcmp.c \
+	vis.c xcrypt.c xmmap.c
 
 .if defined(COMPAT_GETADDRINFO)
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
@@ -37,6 +36,10 @@ LDADD=	-lz
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
 DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
 LDADD+=	-lgssapi -lkrb5 -lhx509 -lasn1 -lcom_err -lmd -lroken
+.endif
+
+.if ${MK_OPENSSH_NONE_CIPHER} != "no"
+CFLAGS+= -DNONE_CIPHER_ENABLED
 .endif
 
 NO_LINT=

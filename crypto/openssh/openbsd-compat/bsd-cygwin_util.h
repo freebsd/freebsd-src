@@ -1,7 +1,7 @@
-/* $Id: bsd-cygwin_util.h,v 1.12 2009/03/08 00:40:28 dtucker Exp $ */
+/* $Id: bsd-cygwin_util.h,v 1.15 2012/08/28 09:57:19 dtucker Exp $ */
 
 /*
- * Copyright (c) 2000, 2001, Corinna Vinschen <vinschen@cygnus.com>
+ * Copyright (c) 2000, 2001, 2011 Corinna Vinschen <vinschen@redhat.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,18 +36,24 @@
 
 #undef ERROR
 
+#define WIN32_LEAN_AND_MEAN
+
 #include <windows.h>
 #include <sys/cygwin.h>
 #include <io.h>
 
+/* Make sure _WIN32 isn't defined later in the code, otherwise headers from
+   other packages might get the wrong idea about the target system. */
+#ifdef _WIN32
+#undef _WIN32
+#endif
+
 int binary_open(const char *, int , ...);
-int binary_pipe(int fd[2]);
 int check_ntsec(const char *);
 char **fetch_windows_environment(void);
 void free_windows_environment(char **);
 
 #define open binary_open
-#define pipe binary_pipe
 
 #endif /* HAVE_CYGWIN */
 

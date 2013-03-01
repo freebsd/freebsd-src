@@ -1,4 +1,3 @@
-.\"  -*- nroff -*-
 .\"
 .\" scp.1
 .\"
@@ -9,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.50 2010/02/08 10:50:20 markus Exp $
+.\" $OpenBSD: scp.1,v 1.58 2011/09/05 07:01:44 jmc Exp $
 .\"
-.Dd February 8, 2010
+.Dd September 5 2011
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -20,7 +19,7 @@
 .Sh SYNOPSIS
 .Nm scp
 .Bk -words
-.Op Fl 1246BCpqrv
+.Op Fl 12346BCpqrv
 .Op Fl c Ar cipher
 .Op Fl F Ar ssh_config
 .Op Fl i Ar identity_file
@@ -32,7 +31,7 @@
 .Oo
 .Op Ar user No @
 .Ar host1 No :
-.Oc Ns Ar file1
+.Oc Ar file1
 .Sm on
 .Ar ...
 .Sm off
@@ -76,6 +75,11 @@ to use protocol 1.
 Forces
 .Nm
 to use protocol 2.
+.It Fl 3
+Copies between two remote hosts are transferred through the local host.
+Without this option the data is copied directly between the two remote
+hosts.
+Note that this option disables the progress meter.
 .It Fl 4
 Forces
 .Nm
@@ -136,6 +140,7 @@ For full details of the options listed below, and their possible values, see
 .It ConnectTimeout
 .It ControlMaster
 .It ControlPath
+.It ControlPersist
 .It GlobalKnownHostsFile
 .It GSSAPIAuthentication
 .It GSSAPIDelegateCredentials
@@ -147,7 +152,10 @@ For full details of the options listed below, and their possible values, see
 .It HostName
 .It IdentityFile
 .It IdentitiesOnly
+.It IPQoS
+.It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
+.It KexAlgorithms
 .It LogLevel
 .It MACs
 .It NoHostAuthenticationForLocalhost
@@ -209,7 +217,7 @@ to print debugging messages about their progress.
 This is helpful in
 debugging connection, authentication, and configuration problems.
 .El
-.Pp
+.Sh EXIT STATUS
 .Ex -std scp
 .Sh SEE ALSO
 .Xr rcp 1 ,
