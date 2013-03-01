@@ -153,7 +153,9 @@
     VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
 #endif
 
-#define MAXTSIZ 	(16*1024*1024)
+#ifndef MAXTSIZ
+#define MAXTSIZ 	(64*1024*1024)
+#endif
 #ifndef DFLDSIZ
 #define DFLDSIZ         (128*1024*1024)
 #endif
