@@ -296,8 +296,8 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 
 	/* If this thread is not allowed to sleep, die a horrible death. */
-	KASSERT(!(td->td_pflags & TDP_NOSLEEPING),
-	    ("%s: td %p to sleep on wchan %p with TDP_NOSLEEPING on",
+	KASSERT(td->td_no_sleeping == 0,
+	    ("%s: td %p to sleep on wchan %p with sleeping prohibited",
 	    __func__, td, wchan));
 
 	/* Look up the sleep queue associated with the wait channel 'wchan'. */
