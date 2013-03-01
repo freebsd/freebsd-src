@@ -1307,3 +1307,121 @@ adjust_timeout_calltodo(time_change)
 	return;
 }
 #endif /* APM_FIXUP_CALLTODO */
+
+static int
+flssbt(sbintime_t sbt)
+{
+
+	sbt += (uint64_t)sbt >> 1;
+	if (sizeof(long) >= sizeof(sbintime_t))
+		return (flsl(sbt));
+	if (sbt >= SBT_1S)
+		return (flsl(((uint64_t)sbt) >> 32) + 32);
+	return (flsl(sbt));
+}
+
+/*
+ * Dump immediate statistic snapshot of the scheduled callouts.
+ */
+static int
+sysctl_kern_callout_stat(SYSCTL_HANDLER_ARGS)
+{
+	struct callout *tmp;
+	struct callout_cpu *cc;
+	struct callout_tailq *sc;
+	sbintime_t maxpr, maxt, medpr, medt, now, spr, st, t;
+	int ct[64], cpr[64], ccpbk[32];
+	int error, val, i, count, tcum, pcum, maxc, c, medc;
+#ifdef SMP
+	int cpu;
+#endif
+
+	val = 0;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	count = maxc = 0;
+	st = spr = maxt = maxpr = 0;
+	bzero(ccpbk, sizeof(ccpbk));
+	bzero(ct, sizeof(ct));
+	bzero(cpr, sizeof(cpr));
+	now = sbinuptime();
+#ifdef SMP
+	CPU_FOREACH(cpu) {
+		cc = CC_CPU(cpu);
+#else
+		cc = CC_CPU(timeout_cpu);
+#endif
+		CC_LOCK(cc);
+		for (i = 0; i < callwheelsize; i++) {
+			sc = &cc->cc_callwheel[i];
+			c = 0;
+			TAILQ_FOREACH(tmp, sc, c_links.tqe) {
+				c++;
+				t = tmp->c_time - now;
+				if (t < 0)
+					t = 0;
+				st += t / SBT_1US;
+				spr += tmp->c_precision / SBT_1US;
+				if (t > maxt)
+					maxt = t;
+				if (tmp->c_precision > maxpr)
+					maxpr = tmp->c_precision;
+				ct[flssbt(t)]++;
+				cpr[flssbt(tmp->c_precision)]++;
+			}
+			if (c > maxc)
+				maxc = c;
+			ccpbk[fls(c + c / 2)]++;
+			count += c;
+		}
+		CC_UNLOCK(cc);
+#ifdef SMP
+	}
+#endif
+
+	for (i = 0, tcum = 0; i < 64 && tcum < count / 2; i++)
+		tcum += ct[i];
+	medt = (i >= 2) ? (((sbintime_t)1) << (i - 2)) : 0;
+	for (i = 0, pcum = 0; i < 64 && pcum < count / 2; i++)
+		pcum += cpr[i];
+	medpr = (i >= 2) ? (((sbintime_t)1) << (i - 2)) : 0;
+	for (i = 0, c = 0; i < 32 && c < count / 2; i++)
+		c += ccpbk[i];
+	medc = (i >= 2) ? (1 << (i - 2)) : 0;
+
+	printf("Scheduled callouts statistic snapshot:\n");
+	printf("  Callouts: %6d  Buckets/CPU: %6d  Bucket size: 0.%06ds\n",
+	    count, callwheelsize, 1000000 >> CC_HASH_SHIFT);
+	printf("  C/Bk: med %5d         avg %6d.%06jd  max %6d\n",
+	    medc,
+	    count / callwheelsize / mp_ncpus,
+	    (uint64_t)count * 1000000 / callwheelsize / mp_ncpus % 1000000,
+	    maxc);
+	printf("  Time: med %5jd.%06jds avg %6jd.%06jds max %6jd.%06jds\n",
+	    medt / SBT_1S, (medt & 0xffffffff) * 1000000 >> 32,
+	    (st / count) / 1000000, (st / count) % 1000000,
+	    maxt / SBT_1S, (maxt & 0xffffffff) * 1000000 >> 32);
+	printf("  Prec: med %5jd.%06jds avg %6jd.%06jds max %6jd.%06jds\n",
+	    medpr / SBT_1S, (medpr & 0xffffffff) * 1000000 >> 32,
+	    (spr / count) / 1000000, (spr / count) % 1000000,
+	    maxpr / SBT_1S, (maxpr & 0xffffffff) * 1000000 >> 32);
+	printf("  Distribution:       \tbuckets\t   time\t   tcum\t"
+	    "   prec\t   pcum\n");
+	for (i = 0, tcum = pcum = 0; i < 64; i++) {
+		if (ct[i] == 0 && cpr[i] == 0)
+			continue;
+		t = (i != 0) ? (((sbintime_t)1) << (i - 1)) : 0;
+		tcum += ct[i];
+		pcum += cpr[i];
+		printf("  %10jd.%06jds\t 2**%d\t%7d\t%7d\t%7d\t%7d\n",
+		    t / SBT_1S, (t & 0xffffffff) * 1000000 >> 32,
+		    i - 1 - (32 - CC_HASH_SHIFT),
+		    ct[i], tcum, cpr[i], pcum);
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, callout_stat,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, 0, sysctl_kern_callout_stat, "I",
+    "Dump immediate statistic snapshot of the scheduled callouts");
