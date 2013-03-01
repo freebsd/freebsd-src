@@ -379,7 +379,7 @@ static void watchdog_config(void *, u_int, int *);
 int	stathz;
 int	profhz;
 int	profprocs;
-int	ticks;
+volatile int	ticks;
 int	psratio;
 
 /*
@@ -461,7 +461,7 @@ void
 hardclock(int usermode, uintfptr_t pc)
 {
 
-	atomic_add_int((volatile int *)&ticks, 1);
+	atomic_add_int(&ticks, 1);
 	hardclock_cpu(usermode);
 	tc_ticktock();
 	/*

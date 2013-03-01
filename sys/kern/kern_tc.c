@@ -87,8 +87,8 @@ static struct timehands *volatile timehands = &th0;
 struct timecounter *timecounter = &dummy_timecounter;
 static struct timecounter *timecounters = &dummy_timecounter;
 
-time_t time_second = 1;
-time_t time_uptime = 1;
+volatile time_t time_second = 1;
+volatile time_t time_uptime = 1;
 
 static struct bintime boottimebin;
 struct timeval boottime;
