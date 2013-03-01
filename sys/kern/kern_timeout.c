@@ -1391,8 +1391,8 @@ sysctl_kern_callout_stat(SYSCTL_HANDLER_ARGS)
 	medc = (i >= 2) ? (1 << (i - 2)) : 0;
 
 	printf("Scheduled callouts statistic snapshot:\n");
-	printf("  Callouts: %6d  Buckets/CPU: %6d  Bucket size: 0.%06ds\n",
-	    count, callwheelsize, 1000000 >> CC_HASH_SHIFT);
+	printf("  Callouts: %6d  Buckets: %6d*%-3d  Bucket size: 0.%06ds\n",
+	    count, callwheelsize, mp_ncpus, 1000000 >> CC_HASH_SHIFT);
 	printf("  C/Bk: med %5d         avg %6d.%06jd  max %6d\n",
 	    medc,
 	    count / callwheelsize / mp_ncpus,
