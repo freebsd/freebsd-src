@@ -924,9 +924,13 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 			 * This value is per-CPU, but it is equal for all
 			 * active ones.
 			 */
+#ifdef __LP64__
+			to_sbt = DPCPU_GET(hardclocktime);
+#else
 			spinlock_enter();
 			to_sbt = DPCPU_GET(hardclocktime);
 			spinlock_exit();
+#endif
 #endif
 			if ((flags & C_HARDCLOCK) == 0)
 				to_sbt += tick_sbt;
