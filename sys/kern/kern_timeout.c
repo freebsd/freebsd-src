@@ -948,7 +948,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	 */
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC)
 		cpu = c->c_cpu;
-	direct = !!(c->c_flags & CALLOUT_DIRECT);
+	direct = (c->c_flags & CALLOUT_DIRECT) != 0;
 	KASSERT(!direct || c->c_lock == NULL,
 	    ("%s: direct callout %p has lock", __func__, c));
 	cc = callout_lock(c);
@@ -1055,7 +1055,7 @@ _callout_stop_safe(c, safe)
 		}
 	} else
 		use_lock = 0;
-	direct = !!(c->c_flags & CALLOUT_DIRECT);
+	direct = (c->c_flags & CALLOUT_DIRECT) != 0;
 	sq_locked = 0;
 	old_cc = NULL;
 again:
