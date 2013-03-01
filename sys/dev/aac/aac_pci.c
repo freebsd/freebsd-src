@@ -60,6 +60,11 @@ __FBSDID("$FreeBSD$");
 static int	aac_pci_probe(device_t dev);
 static int	aac_pci_attach(device_t dev);
 
+static int aac_enable_msi = 1;
+TUNABLE_INT("hw.aac.enable_msi", &aac_enable_msi);
+SYSCTL_INT(_hw_aac, OID_AUTO, enable_msi, CTLFLAG_RDTUN, &aac_enable_msi, 0,
+    "Enable MSI interrupts");
+
 static device_method_t aac_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		aac_pci_probe),
@@ -79,11 +84,10 @@ static driver_t aac_pci_driver = {
 
 static devclass_t	aac_devclass;
 
-DRIVER_MODULE(aac, pci, aac_pci_driver, aac_devclass, 0, 0);
+DRIVER_MODULE(aac, pci, aac_pci_driver, aac_devclass, NULL, NULL);
 MODULE_DEPEND(aac, pci, 1, 1, 1);
 
-
-struct aac_ident
+static const struct aac_ident
 {
 	u_int16_t		vendor;
 	u_int16_t		device;
@@ -91,7 +95,7 @@ struct aac_ident
 	u_int16_t		subdevice;
 	int			hwif;
 	int			quirks;
-	char			*desc;
+	const char		*desc;
 } aac_identifiers[] = {
 	{0x1028, 0x0001, 0x1028, 0x0001, AAC_HWIF_I960RX, 0,
 	"Dell PERC 2/Si"},
@@ -139,7 +143,6 @@ struct aac_ident
 	 "Adaptec SCSI RAID 2230S"},
 	{0x9005, 0x0286, 0x9005, 0x028d, AAC_HWIF_RKT, 0,
 	 "Adaptec SCSI RAID 2130S"},
-
 	{0x9005, 0x0285, 0x9005, 0x0287, AAC_HWIF_I960RX, AAC_FLAGS_NO4GB |
 	 AAC_FLAGS_256FIBS, "Adaptec SCSI RAID 2200S"},
 	{0x9005, 0x0285, 0x17aa, 0x0286, AAC_HWIF_I960RX, AAC_FLAGS_NO4GB |
@@ -276,7 +279,8 @@ struct aac_ident
 	 "AOC-USAS-S8iR-LP"},
 	{0, 0, 0, 0, 0, 0, 0}
 };
-struct aac_ident
+
+static const struct aac_ident
 aac_family_identifiers[] = {
 	{0x9005, 0x0285, 0, 0, AAC_HWIF_I960RX, 0,
 	 "Adaptec RAID Controller"},
@@ -285,10 +289,10 @@ aac_family_identifiers[] = {
 	{0, 0, 0, 0, 0, 0, 0}
 };
 
-static struct aac_ident *
+static const struct aac_ident *
 aac_find_ident(device_t dev)
 {
-	struct aac_ident *m;
+	const struct aac_ident *m;
 	u_int16_t vendid, devid, sub_vendid, sub_devid;
 
 	vendid = pci_get_vendor(dev);
@@ -317,7 +321,7 @@ aac_find_ident(device_t dev)
 static int
 aac_pci_probe(device_t dev)
 {
-	struct aac_ident *id;
+	const struct aac_ident *id;
 
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
@@ -335,9 +339,8 @@ static int
 aac_pci_attach(device_t dev)
 {
 	struct aac_softc *sc;
-	struct aac_ident *id;
-	int error;
-	u_int32_t command;
+	const struct aac_ident *id;
+	int count, error, reg, rid;
 
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
@@ -345,7 +348,6 @@ aac_pci_attach(device_t dev)
 	 * Initialise softc.
 	 */
 	sc = device_get_softc(dev);
-	bzero(sc, sizeof(*sc));
 	sc->aac_dev = dev;
 
 	/* assume failure is 'not configured' */
@@ -354,47 +356,57 @@ aac_pci_attach(device_t dev)
 	/*
 	 * Verify that the adapter is correctly set up in PCI space.
 	 */
-	command = pci_read_config(sc->aac_dev, PCIR_COMMAND, 2);
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 2);
-	command = pci_read_config(sc->aac_dev, PCIR_COMMAND, 2);
-	if (!(command & PCIM_CMD_BUSMASTEREN)) {
-		device_printf(sc->aac_dev, "can't enable bus-master feature\n");
-		goto out;
-	}
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-		device_printf(sc->aac_dev, "memory window not available\n");
+	pci_enable_busmaster(dev);
+	if (!(pci_read_config(dev, PCIR_COMMAND, 2) & PCIM_CMD_BUSMASTEREN)) {
+		device_printf(dev, "can't enable bus-master feature\n");
 		goto out;
 	}
 
 	/*
-	 * Allocate the PCI register window.
+	 * Allocate the PCI register window(s).
 	 */
-	sc->aac_regs_rid0 = PCIR_BAR(0);
-	if ((sc->aac_regs_res0 = bus_alloc_resource_any(sc->aac_dev,
-	    SYS_RES_MEMORY, &sc->aac_regs_rid0, RF_ACTIVE)) == NULL) {
-		device_printf(sc->aac_dev,
-		    "couldn't allocate register window 0\n");
+	rid = PCIR_BAR(0);
+	if ((sc->aac_regs_res0 = bus_alloc_resource_any(dev,
+	    SYS_RES_MEMORY, &rid, RF_ACTIVE)) == NULL) {
+		device_printf(dev, "can't allocate register window 0\n");
 		goto out;
 	}
 	sc->aac_btag0 = rman_get_bustag(sc->aac_regs_res0);
 	sc->aac_bhandle0 = rman_get_bushandle(sc->aac_regs_res0);
 
 	if (sc->aac_hwif == AAC_HWIF_NARK) {
-		sc->aac_regs_rid1 = PCIR_BAR(1);
-		if ((sc->aac_regs_res1 = bus_alloc_resource_any(sc->aac_dev,
-		    SYS_RES_MEMORY, &sc->aac_regs_rid1, RF_ACTIVE)) == NULL) {
-			device_printf(sc->aac_dev,
-			    "couldn't allocate register window 1\n");
+		rid = PCIR_BAR(1);
+		if ((sc->aac_regs_res1 = bus_alloc_resource_any(dev,
+		    SYS_RES_MEMORY, &rid, RF_ACTIVE)) == NULL) {
+			device_printf(dev,
+			    "can't allocate register window 1\n");
 			goto out;
 		}
 		sc->aac_btag1 = rman_get_bustag(sc->aac_regs_res1);
 		sc->aac_bhandle1 = rman_get_bushandle(sc->aac_regs_res1);
 	} else {
 		sc->aac_regs_res1 = sc->aac_regs_res0;
-		sc->aac_regs_rid1 = sc->aac_regs_rid0;
 		sc->aac_btag1 = sc->aac_btag0;
 		sc->aac_bhandle1 = sc->aac_bhandle0;
+	}
+
+	/*
+	 * Allocate the interrupt.
+	 */
+	rid = 0;
+	if (aac_enable_msi != 0 && pci_find_cap(dev, PCIY_MSI, &reg) == 0) {
+		count = pci_msi_count(dev);
+		if (count > 1)
+			count = 1;
+		else
+			count = 0;
+		if (count == 1 && pci_alloc_msi(dev, &count) == 0)
+			rid = 1;
+	}
+	if ((sc->aac_irq = bus_alloc_resource_any(sc->aac_dev, SYS_RES_IRQ,
+	    &rid, RF_ACTIVE | (count != 0 ? 0 : RF_SHAREABLE))) == NULL) {
+		device_printf(dev, "can't allocate interrupt\n");
+		goto out;
 	}
 
 	/*
@@ -402,7 +414,7 @@ aac_pci_attach(device_t dev)
 	 *
 	 * Note that some of these controllers are 64-bit capable.
 	 */
-	if (bus_dma_tag_create(bus_get_dma_tag(sc->aac_dev), /* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       PAGE_SIZE, 0,		/* algnmnt, boundary */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
@@ -413,7 +425,7 @@ aac_pci_attach(device_t dev)
 			       0,			/* flags */
 			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_parent_dmat)) {
-		device_printf(sc->aac_dev, "can't allocate parent DMA tag\n");
+		device_printf(dev, "can't allocate parent DMA tag\n");
 		goto out;
 	}
 
@@ -427,19 +439,19 @@ aac_pci_attach(device_t dev)
 	case AAC_HWIF_I960RX:
 	case AAC_HWIF_NARK:
 		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for i960Rx/NARK");
-		sc->aac_if = aac_rx_interface;
+		sc->aac_if = &aac_rx_interface;
 		break;
 	case AAC_HWIF_STRONGARM:
 		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for StrongARM");
-		sc->aac_if = aac_sa_interface;
+		sc->aac_if = &aac_sa_interface;
 		break;
 	case AAC_HWIF_RKT:
 		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for Rocket/MIPS");
-		sc->aac_if = aac_rkt_interface;
+		sc->aac_if = &aac_rkt_interface;
 		break;
 	default:
 		sc->aac_hwif = AAC_HWIF_UNKNOWN;
-		device_printf(sc->aac_dev, "unknown hardware type\n");
+		device_printf(dev, "unknown hardware type\n");
 		error = ENXIO;
 		goto out;
 	}
@@ -472,7 +484,7 @@ static device_method_t aacch_methods[] = {
 	DEVMETHOD(device_probe,		aacch_probe),
 	DEVMETHOD(device_attach,	aacch_attach),
 	DEVMETHOD(device_detach,	aacch_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 struct aacch_softc {
@@ -486,7 +498,7 @@ static driver_t aacch_driver = {
 };
 
 static devclass_t	aacch_devclass;
-DRIVER_MODULE(aacch, pci, aacch_driver, aacch_devclass, 0, 0);
+DRIVER_MODULE(aacch, pci, aacch_driver, aacch_devclass, NULL, NULL);
 
 static int
 aacch_probe(device_t dev)
