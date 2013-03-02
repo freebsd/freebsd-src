@@ -95,8 +95,7 @@ static off_t nandfs_seek(struct open_file *, off_t, int);
 static int nandfs_stat(struct open_file *, struct stat *);
 static int nandfs_readdir(struct open_file *, struct dirent *);
 
-static int nandfs_buf_read(struct nandfs *, char **, size_t *);
-static struct nandfs_node *nandfs_lookup_inode(struct nandfs *, nandfs_daddr_t);
+static int nandfs_buf_read(struct nandfs *, void **, size_t *);
 static struct nandfs_node *nandfs_lookup_path(struct nandfs *, const char *);
 static int nandfs_read_inode(struct nandfs *, struct nandfs_node *,
     nandfs_lbn_t, u_int, void *, int);
@@ -453,7 +452,7 @@ nandfs_read(struct open_file *f, void *addr, size_t size, size_t *resid)
 {
 	struct nandfs *fs = (struct nandfs *)f->f_fsdata;
 	size_t csize, buf_size;
-	uint8_t *buf;
+	void *buf;
 	int error = 0;
 
 	NANDFS_DEBUG("nandfs_read(file=%p, addr=%p, size=%d)\n", f, addr, size);
@@ -462,7 +461,7 @@ nandfs_read(struct open_file *f, void *addr, size_t size, size_t *resid)
 		if (fs->nf_offset >= fs->nf_opened_node->inode->i_size)
 			break;
 
-		error = nandfs_buf_read(fs, (void *)&buf, &buf_size);
+		error = nandfs_buf_read(fs, &buf, &buf_size);
 		if (error)
 			break;
 
@@ -539,7 +538,7 @@ nandfs_readdir(struct open_file *f, struct dirent *d)
 {
 	struct nandfs *fs = f->f_fsdata;
 	struct nandfs_dir_entry *dirent;
-	uint8_t *buf;
+	void *buf;
 	size_t buf_size;
 
 	NANDFS_DEBUG("nandfs_readdir(file=%p, dirent=%p)\n", f, d);
@@ -550,7 +549,7 @@ nandfs_readdir(struct open_file *f, struct dirent *d)
 		return (ENOENT);
 	}
 
-	if (nandfs_buf_read(fs, (void *)&buf, &buf_size)) {
+	if (nandfs_buf_read(fs, &buf, &buf_size)) {
 		NANDFS_DEBUG("nandfs_readdir(file=%p, dirent=%p)"
 		    "buf_read failed\n", f, d);
 		return (EIO);
@@ -568,7 +567,7 @@ nandfs_readdir(struct open_file *f, struct dirent *d)
 }
 
 static int
-nandfs_buf_read(struct nandfs *fs, char **buf_p, size_t *size_p)
+nandfs_buf_read(struct nandfs *fs, void **buf_p, size_t *size_p)
 {
 	nandfs_daddr_t blknr, blkoff;
 
@@ -634,8 +633,8 @@ nandfs_lookup_path(struct nandfs *fs, const char *path)
 	struct nandfs_node *node;
 	struct nandfs_dir_entry *dirent;
 	char *namebuf;
-	uint64_t i, j, done, counter, pinode, inode;
-	int nlinks = 0, len, link_len, nameidx;
+	uint64_t i, done, pinode, inode;
+	int nlinks = 0, counter, len, link_len, nameidx;
 	uint8_t *buffer, *orig;
 	char *strp, *lpath;
 
@@ -672,7 +671,8 @@ nandfs_lookup_path(struct nandfs *fs, const char *path)
 			buffer = orig;
 			done = counter = 0;
 			while (1) {
-				dirent = (struct nandfs_dir_entry *)buffer;
+				dirent = 
+				    (struct nandfs_dir_entry *)(void *)buffer;
 				NANDFS_DEBUG("%s: dirent.name = %s\n",
 				    __func__, dirent->name);
 				NANDFS_DEBUG("%s: dirent.rec_len = %d\n",
@@ -768,9 +768,9 @@ static int
 nandfs_read_inode(struct nandfs *fs, struct nandfs_node *node,
     nandfs_daddr_t blknr, u_int nblks, void *buf, int raw)
 {
-	int i;
 	uint64_t *pblks;
 	uint64_t *vblks;
+	u_int i;
 	int error;
 
 	pblks = malloc(nblks * sizeof(uint64_t));
@@ -799,7 +799,7 @@ nandfs_read_inode(struct nandfs *fs, struct nandfs_node *node,
 			return (EIO);
 		}
 
-		buf += fs->nf_blocksize;
+		buf = (void *)((uintptr_t)buf + fs->nf_blocksize);
 	}
 
 	free(pblks);
@@ -881,8 +881,7 @@ nandfs_bmap_lookup(struct nandfs *fs, struct nandfs_node *node,
 {
 	struct nandfs_inode *ino;
 	nandfs_daddr_t ind_block_num;
-	uint64_t *map, *indir;
-	uint64_t idx0, idx1, vblk, tmp;
+	uint64_t *map;
 	int idx;
 	int level;
 
@@ -1028,7 +1027,7 @@ ioread(struct open_file *f, off_t pos, void *buf, u_int length)
 	err = (f->f_dev->dv_strategy)(f->f_devdata, F_READ, pos,
 	    nsec * bsize, buffer, NULL);
 
-	memcpy(buf, buffer + off, length);
+	memcpy(buf, (void *)((uintptr_t)buffer + off), length);
 	free(buffer);
 
 	return (err);
