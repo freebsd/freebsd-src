@@ -83,7 +83,7 @@ typedef boolean_t bool;
 #define simple_strtoul strtoul
 #define DIV_ROUND_UP(x, y) howmany(x, y)
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define ARRAY_SIZE(x) nitems(x)
 #define container_of(p, s, f) ((s *)(((uint8_t *)(p)) - offsetof(s, f)))
 
 #define swab16(x) bswap16(x) 
@@ -111,6 +111,7 @@ typedef boolean_t bool;
 #define AUTONEG_DISABLE	0
 #define AUTONEG_ENABLE	1
 
+#define PCI_DEVICE_ID	PCIR_DEVICE
 #define PCI_CAP_ID_VPD  PCIY_VPD
 #define PCI_VPD_ADDR    PCIR_VPD_ADDR
 #define PCI_VPD_ADDR_F  0x8000

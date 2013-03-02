@@ -58,6 +58,7 @@ enum {
 	CIM_PIFLA_SIZE = 64,    /* # of 192-bit words in CIM PIF LA */
 	CIM_MALA_SIZE  = 64,    /* # of 160-bit words in CIM MA LA */
 	CIM_IBQ_SIZE   = 128,   /* # of 128-bit words in a CIM IBQ */
+	CIM_OBQ_SIZE   = 128,   /* # of 128-bit words in a CIM OBQ */
 	TPLA_SIZE      = 128,   /* # of 64-bit words in TP LA */
 	ULPRX_LA_SIZE  = 512,   /* # of 256-bit words in ULP_RX LA */
 };
@@ -161,10 +162,12 @@ struct pagepod {
 #define S_PPOD_TAG    6
 #define M_PPOD_TAG    0xFFFFFF
 #define V_PPOD_TAG(x) ((x) << S_PPOD_TAG)
+#define G_PPOD_TAG(x) (((x) >> S_PPOD_TAG) & M_PPOD_TAG)
 
 #define S_PPOD_PGSZ    30
 #define M_PPOD_PGSZ    0x3
 #define V_PPOD_PGSZ(x) ((x) << S_PPOD_PGSZ)
+#define G_PPOD_PGSZ(x) (((x) >> S_PPOD_PGSZ) & M_PPOD_PGSZ)
 
 #define S_PPOD_TID    32
 #define M_PPOD_TID    0xFFFFFF
