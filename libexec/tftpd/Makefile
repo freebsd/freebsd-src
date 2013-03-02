@@ -6,6 +6,8 @@ MAN=	tftpd.8
 SRCS=	tftp-file.c tftp-io.c tftp-options.c tftp-transfer.c tftp-utils.c
 SRCS+=	tftpd.c
 WFORMAT=0
-LDFLAGS= -lwrap
+
+DPADD=	${LIBWRAP}
+LDADD=	-lwrap
 
 .include <bsd.prog.mk>
