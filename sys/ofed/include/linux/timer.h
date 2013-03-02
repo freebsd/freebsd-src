@@ -66,7 +66,7 @@ do {									\
 
 #define	mod_timer(timer, exp)						\
 do {									\
-	(timer)->expires = exp;						\
+	(timer)->expires = (exp);					\
 	callout_reset(&(timer)->timer_callout, (exp) - jiffies,		\
 	    _timer_fn, (timer));					\
 } while (0)
