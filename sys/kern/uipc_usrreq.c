@@ -279,7 +279,7 @@ static void	unp_drop(struct unpcb *, int);
 static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct file *));
 static void	unp_discard(struct file *);
-static void	unp_freerights(struct file **, int);
+static void	unp_freerights(struct filedescent *, int);
 static void	unp_init(void);
 static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
@@ -1642,14 +1642,14 @@ unp_drop(struct unpcb *unp, int errno)
 }
 
 static void
-unp_freerights(struct file **rp, int fdcount)
+unp_freerights(struct filedescent *fde, int fdcount)
 {
-	int i;
 	struct file *fp;
+	int i;
 
-	for (i = 0; i < fdcount; i++) {
-		fp = *rp;
-		*rp++ = NULL;
+	for (i = 0; i < fdcount; i++, fde++) {
+		fp = fde->fde_file;
+		bzero(fde, sizeof(*fde));
 		unp_discard(fp);
 	}
 }
@@ -1661,8 +1661,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	int i;
 	int *fdp;
-	struct file **rp;
-	struct file *fp;
+	struct filedesc *fdesc = td->td_proc->p_fd;
+	struct filedescent *fde, *fdep;
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, newfds;
@@ -1683,20 +1683,20 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 		if (cm->cmsg_level == SOL_SOCKET
 		    && cm->cmsg_type == SCM_RIGHTS) {
-			newfds = datalen / sizeof(struct file *);
-			rp = data;
+			newfds = datalen / sizeof(*fdep);
+			fdep = data;
 
 			/* If we're not outputting the descriptors free them. */
 			if (error || controlp == NULL) {
-				unp_freerights(rp, newfds);
+				unp_freerights(fdep, newfds);
 				goto next;
 			}
-			FILEDESC_XLOCK(td->td_proc->p_fd);
+			FILEDESC_XLOCK(fdesc);
 			/* if the new FD's will not fit free them.  */
 			if (!fdavail(td, newfds)) {
-				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				FILEDESC_XUNLOCK(fdesc);
 				error = EMSGSIZE;
-				unp_freerights(rp, newfds);
+				unp_freerights(fdep, newfds);
 				goto next;
 			}
 
@@ -1710,23 +1710,24 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
-				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				FILEDESC_XUNLOCK(fdesc);
 				error = E2BIG;
-				unp_freerights(rp, newfds);
+				unp_freerights(fdep, newfds);
 				goto next;
 			}
 
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
-			for (i = 0; i < newfds; i++) {
+			for (i = 0; i < newfds; i++, fdep++, fdp++) {
 				if (fdalloc(td, 0, &f))
 					panic("unp_externalize fdalloc failed");
-				fp = *rp++;
-				td->td_proc->p_fd->fd_ofiles[f] = fp;
-				unp_externalize_fp(fp);
-				*fdp++ = f;
+				fde = &fdesc->fd_ofiles[f];
+				fde->fde_file = fdep->fde_file;
+				filecaps_copy(&fdep->fde_caps, &fde->fde_caps);
+				unp_externalize_fp(fde->fde_file);
+				*fdp = f;
 			}
-			FILEDESC_XUNLOCK(td->td_proc->p_fd);
+			FILEDESC_XUNLOCK(fdesc);
 		} else {
 			/* We can just copy anything else across. */
 			if (error || controlp == NULL)
@@ -1797,11 +1798,11 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 {
 	struct mbuf *control = *controlp;
 	struct proc *p = td->td_proc;
-	struct filedesc *fdescp = p->p_fd;
+	struct filedesc *fdesc = p->p_fd;
 	struct bintime *bt;
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	struct cmsgcred *cmcred;
-	struct file **rp;
+	struct filedescent *fde, *fdep;
 	struct file *fp;
 	struct timeval *tv;
 	int i, fd, *fdp;
@@ -1854,18 +1855,17 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 * files.  If not, reject the entire operation.
 			 */
 			fdp = data;
-			FILEDESC_SLOCK(fdescp);
+			FILEDESC_SLOCK(fdesc);
 			for (i = 0; i < oldfds; i++) {
 				fd = *fdp++;
-				if (fd < 0 || fd >= fdescp->fd_nfiles ||
-				    fdescp->fd_ofiles[fd] == NULL) {
-					FILEDESC_SUNLOCK(fdescp);
+				if (fget_locked(fdesc, fd) == NULL) {
+					FILEDESC_SUNLOCK(fdesc);
 					error = EBADF;
 					goto out;
 				}
-				fp = fdescp->fd_ofiles[fd];
+				fp = fdesc->fd_ofiles[fd].fde_file;
 				if (!(fp->f_ops->fo_flags & DFLAG_PASSABLE)) {
-					FILEDESC_SUNLOCK(fdescp);
+					FILEDESC_SUNLOCK(fdesc);
 					error = EOPNOTSUPP;
 					goto out;
 				}
@@ -1874,25 +1874,26 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 
 			/*
 			 * Now replace the integer FDs with pointers to the
-			 * associated global file table entry..
+			 * file structure and capability rights.
 			 */
-			newlen = oldfds * sizeof(struct file *);
+			newlen = oldfds * sizeof(*fdep);
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
-				FILEDESC_SUNLOCK(fdescp);
+				FILEDESC_SUNLOCK(fdesc);
 				error = E2BIG;
 				goto out;
 			}
 			fdp = data;
-			rp = (struct file **)
+			fdep = (struct filedescent *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
-			for (i = 0; i < oldfds; i++) {
-				fp = fdescp->fd_ofiles[*fdp++];
-				*rp++ = fp;
-				unp_internalize_fp(fp);
+			for (i = 0; i < oldfds; i++, fdep++, fdp++) {
+				fde = &fdesc->fd_ofiles[*fdp];
+				fdep->fde_file = fde->fde_file;
+				filecaps_copy(&fde->fde_caps, &fdep->fde_caps);
+				unp_internalize_fp(fdep->fde_file);
 			}
-			FILEDESC_SUNLOCK(fdescp);
+			FILEDESC_SUNLOCK(fdesc);
 			break;
 
 		case SCM_TIMESTAMP:
@@ -2252,7 +2253,7 @@ static void
 unp_scan(struct mbuf *m0, void (*op)(struct file *))
 {
 	struct mbuf *m;
-	struct file **rp;
+	struct filedescent *fdep;
 	struct cmsghdr *cm;
 	void *data;
 	int i;
@@ -2277,10 +2278,10 @@ unp_scan(struct mbuf *m0, void (*op)(struct file *))
 
 				if (cm->cmsg_level == SOL_SOCKET &&
 				    cm->cmsg_type == SCM_RIGHTS) {
-					qfds = datalen / sizeof (struct file *);
-					rp = data;
-					for (i = 0; i < qfds; i++)
-						(*op)(*rp++);
+					qfds = datalen / sizeof(*fdep);
+					fdep = data;
+					for (i = 0; i < qfds; i++, fdep++)
+						(*op)(fdep->fde_file);
 				}
 
 				if (CMSG_SPACE(datalen) < clen) {

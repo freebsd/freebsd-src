@@ -1597,6 +1597,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_CAP_NEW:
+	case AUE_CAP_RIGHTS_LIMIT:
 		/*
 		 * XXXRW/XXXJA: Would be nice to audit socket/etc information.
 		 */
@@ -1607,9 +1608,21 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
-	case AUE_CAP_GETRIGHTS:
+	case AUE_CAP_FCNTLS_GET:
+	case AUE_CAP_IOCTLS_GET:
+	case AUE_CAP_IOCTLS_LIMIT:
+	case AUE_CAP_RIGHTS_GET:
 		if (ARG_IS_VALID(kar, ARG_FD)) {
 			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_CAP_FCNTLS_LIMIT:
+		FD_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_FCNTL_RIGHTS)) {
+			tok = au_to_arg32(2, "fcntlrights",
+			    ar->ar_arg_fcntl_rights);
 			kau_write(rec, tok);
 		}
 		break;

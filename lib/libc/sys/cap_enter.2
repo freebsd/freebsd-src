@@ -58,8 +58,10 @@ or
 .Xr pdfork 2
 will be placed in capability mode from inception.
 .Pp
-When combined with capabilities created with
-.Xr cap_new 2 ,
+When combined with
+.Xr cap_rights_limit 2 ,
+.Xr cap_ioctls_limit 2 ,
+.Xr cap_fcntls_limit 2 ,
 .Fn cap_enter
 may be used to create kernel-enforced sandboxes in which
 appropriately-crafted applications or application components may be run.
@@ -71,11 +73,6 @@ sandbox.
 Creating effective process sandboxes is a tricky process that involves
 identifying the least possible rights required by the process and then
 passing those rights into the process in a safe manner.
-See the CAVEAT
-section of
-.Xr cap_new 2
-for why this is particularly tricky with UNIX file descriptors as the
-canonical representation of a right.
 Consumers of
 .Fn cap_enter
 should also be aware of other inherited rights, such as access to VM
@@ -87,8 +84,33 @@ to create a runtime environment inside the sandbox that has as few implicitly
 acquired rights as possible.
 .Sh RETURN VALUES
 .Rv -std cap_enter cap_getmode
+.Sh ERRORS
+The
+.Fn cap_enter
+and
+.Fn cap_getmode
+system calls
+will fail if:
+.Bl -tag -width Er
+.It Bq Er ENOSYS
+The kernel is compiled without:
+.Pp
+.Cd "options CAPABILITY_MODE"
+.El
+.Pp
+The
+.Fn cap_getmode
+system call may also return the following error:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+Pointer
+.Fa modep
+points outside the process's allocated address space.
+.El
 .Sh SEE ALSO
-.Xr cap_new 2 ,
+.Xr cap_fcntls_limit 2 ,
+.Xr cap_ioctls_limit 2 ,
+.Xr cap_rights_limit 2 ,
 .Xr fexecve 2 ,
 .Xr cap_sandboxed 3 ,
 .Xr capsicum 4

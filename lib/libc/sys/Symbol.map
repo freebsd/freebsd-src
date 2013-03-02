@@ -364,7 +364,6 @@ FBSD_1.2 {
 	cap_enter;
 	cap_getmode;
 	cap_new;
-	cap_getrights;
 	getloginclass;
 	pdfork;
 	pdgetpid;
@@ -379,6 +378,12 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	cap_fcntls_get;
+	cap_fcntls_limit;
+	cap_ioctls_get;
+	cap_ioctls_limit;
+	cap_rights_get;
+	cap_rights_limit;
 	cap_sandboxed;
 	clock_getcpuclockid2;
 	ffclock_getcounter;
