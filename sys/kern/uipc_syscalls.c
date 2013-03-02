@@ -201,26 +201,23 @@ sys_bind(td, uap)
 	struct sockaddr *sa;
 	int error;
 
-	if ((error = getsockaddr(&sa, uap->name, uap->namelen)) != 0)
-		return (error);
-
-	error = kern_bind(td, uap->s, sa);
-	free(sa, M_SONAME);
+	error = getsockaddr(&sa, uap->name, uap->namelen);
+	if (error == 0) {
+		error = kern_bind(td, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
-int
-kern_bind(td, fd, sa)
-	struct thread *td;
-	int fd;
-	struct sockaddr *sa;
+static int
+kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	AUDIT_ARG_SOCKADDR(td, sa);
+	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_BIND, &fp, NULL);
 	if (error)
 		return (error);
@@ -231,10 +228,45 @@ kern_bind(td, fd, sa)
 #endif
 #ifdef MAC
 	error = mac_socket_check_bind(td->td_ucred, so, sa);
-	if (error == 0)
+	if (error == 0) {
 #endif
-		error = sobind(so, sa, td);
+		if (dirfd == AT_FDCWD)
+			error = sobind(so, sa, td);
+		else
+			error = sobindat(dirfd, so, sa, td);
+#ifdef MAC
+	}
+#endif
 	fdrop(fp, td);
+	return (error);
+}
+
+int
+kern_bind(struct thread *td, int fd, struct sockaddr *sa)
+{
+
+	return (kern_bindat(td, AT_FDCWD, fd, sa));
+}
+
+/* ARGSUSED */
+int
+sys_bindat(td, uap)
+	struct thread *td;
+	struct bindat_args /* {
+		int	fd;
+		int	s;
+		caddr_t	name;
+		int	namelen;
+	} */ *uap;
+{
+	struct sockaddr *sa;
+	int error;
+
+	error = getsockaddr(&sa, uap->name, uap->namelen);
+	if (error == 0) {
+		error = kern_bindat(td, uap->fd, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
@@ -435,7 +467,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 			*namelen = 0;
 		goto done;
 	}
-	AUDIT_ARG_SOCKADDR(td, sa);
+	AUDIT_ARG_SOCKADDR(td, AT_FDCWD, sa);
 	if (name) {
 		/* check sa_len before it is destroyed */
 		if (*namelen > sa->sa_len)
@@ -510,20 +542,15 @@ sys_connect(td, uap)
 	int error;
 
 	error = getsockaddr(&sa, uap->name, uap->namelen);
-	if (error)
-		return (error);
-
-	error = kern_connect(td, uap->s, sa);
-	free(sa, M_SONAME);
+	if (error == 0) {
+		error = kern_connect(td, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
-
-int
-kern_connect(td, fd, sa)
-	struct thread *td;
-	int fd;
-	struct sockaddr *sa;
+static int
+kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
@@ -531,7 +558,7 @@ kern_connect(td, fd, sa)
 	int interrupted = 0;
 
 	AUDIT_ARG_FD(fd);
-	AUDIT_ARG_SOCKADDR(td, sa);
+	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
 	error = getsock_cap(td->td_proc->p_fd, fd, CAP_CONNECT, &fp, NULL);
 	if (error)
 		return (error);
@@ -549,7 +576,10 @@ kern_connect(td, fd, sa)
 	if (error)
 		goto bad;
 #endif
-	error = soconnect(so, sa, td);
+	if (dirfd == AT_FDCWD)
+		error = soconnect(so, sa, td);
+	else
+		error = soconnectat(dirfd, so, sa, td);
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
@@ -578,6 +608,35 @@ bad:
 		error = EINTR;
 done1:
 	fdrop(fp, td);
+	return (error);
+}
+
+int
+kern_connect(struct thread *td, int fd, struct sockaddr *sa)
+{
+
+	return (kern_connectat(td, AT_FDCWD, fd, sa));
+}
+
+/* ARGSUSED */
+int
+sys_connectat(td, uap)
+	struct thread *td;
+	struct connectat_args /* {
+		int	fd;
+		int	s;
+		caddr_t	name;
+		int	namelen;
+	} */ *uap;
+{
+	struct sockaddr *sa;
+	int error;
+
+	error = getsockaddr(&sa, uap->name, uap->namelen);
+	if (error == 0) {
+		error = kern_connectat(td, uap->fd, uap->s, sa);
+		free(sa, M_SONAME);
+	}
 	return (error);
 }
 
@@ -749,7 +808,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	AUDIT_ARG_FD(s);
 	rights = CAP_SEND;
 	if (mp->msg_name != NULL) {
-		AUDIT_ARG_SOCKADDR(td, mp->msg_name);
+		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
 		rights |= CAP_CONNECT;
 	}
 	error = getsock_cap(td->td_proc->p_fd, s, rights, &fp, NULL);
@@ -997,7 +1056,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 			error = 0;
 	}
 	if (fromsa != NULL)
-		AUDIT_ARG_SOCKADDR(td, fromsa);
+		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, fromsa);
 #ifdef KTRACE
 	if (ktruio != NULL) {
 		ktruio->uio_resid = len - auio.uio_resid;

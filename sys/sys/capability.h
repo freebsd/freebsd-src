@@ -182,13 +182,18 @@
 #define	CAP_PDWAIT		0x0020000000000000ULL
 #define	CAP_PDKILL		0x0040000000000000ULL
 
+/*
+ * Rights that allow to use bindat(2) and connectat(2) syscalls on a
+ * directory descriptor.
+ */
+#define	CAP_BINDAT		0x0400000000000000ULL
+#define	CAP_CONNECTAT		0x0800000000000000ULL
+
 /* The mask of all valid method rights. */
-#define	CAP_MASK_VALID		0x03ffffffffffffffULL
+#define	CAP_MASK_VALID		0x0fffffffffffffffULL
 #define	CAP_ALL			CAP_MASK_VALID
 
 /* Available bits. */
-#define	CAP_UNUSED5		0x0400000000000000ULL
-#define	CAP_UNUSED4		0x0800000000000000ULL
 #define	CAP_UNUSED3		0x1000000000000000ULL
 #define	CAP_UNUSED2		0x2000000000000000ULL
 #define	CAP_UNUSED1		0x4000000000000000ULL

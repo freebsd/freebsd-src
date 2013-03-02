@@ -215,6 +215,13 @@ static struct cap_desc {
 	{ CAP_PDWAIT,		"pw" },
 	{ CAP_PDKILL,		"pk" },
 
+	/*
+	 * Rights that allow to use bindat(2) and connectat(2) syscalls on a
+	 * directory descriptor.
+	 */
+	{ CAP_BINDAT,		"ba" },
+	{ CAP_CONNECTAT,	"ca" },
+
 	/* Aliases and defines that combine multiple rights. */
 	{ CAP_PREAD,		"prd" },
 	{ CAP_PWRITE,		"pwr" },
