@@ -418,7 +418,7 @@ nandfs_open(const char *path, struct open_file *f)
 	return (0);
 }
 
-static int
+static void
 nandfs_free_node(struct nandfs_node *node)
 {
 	struct bmap_buf *bmap, *tmp;
@@ -445,6 +445,7 @@ nandfs_close(struct open_file *f)
 	nandfs_free_node(fs->nf_opened_node);
 	free(fs->nf_sb);
 	free(fs);
+	return (0);
 }
 
 static int
