@@ -37,10 +37,9 @@
 struct timer_list {
 	struct callout	timer_callout;
 	void		(*function)(unsigned long);
-        unsigned long	data;
+	unsigned long	data;
+	unsigned long	expires;
 };
-
-#define	expires	timer_callout.c_time
 
 static inline void
 _timer_fn(void *context)
@@ -65,13 +64,16 @@ do {									\
 	callout_init(&(timer)->timer_callout, CALLOUT_MPSAFE);		\
 } while (0)
 
-#define	mod_timer(timer, expire)					\
-	callout_reset(&(timer)->timer_callout, (expire) - jiffies,	\
-	    _timer_fn, (timer))
+#define	mod_timer(timer, exp)						\
+do {									\
+	(timer)->expires = exp;						\
+	callout_reset(&(timer)->timer_callout, (exp) - jiffies,		\
+	    _timer_fn, (timer));					\
+} while (0)
 
 #define	add_timer(timer)						\
 	callout_reset(&(timer)->timer_callout,				\
-	    (timer)->timer_callout.c_time - jiffies, _timer_fn, (timer))
+	    (timer)->expires - jiffies, _timer_fn, (timer))
 
 #define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
 #define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
