@@ -81,7 +81,7 @@ static const struct psycho_desc *psycho_find_desc(const struct psycho_desc *,
     const char *);
 static const struct psycho_desc *psycho_get_desc(device_t);
 static void psycho_set_intr(struct psycho_softc *, u_int, bus_addr_t,
-    driver_filter_t);
+    driver_filter_t, driver_intr_t);
 static int psycho_find_intrmap(struct psycho_softc *, u_int, bus_addr_t *,
     bus_addr_t *, u_long *);
 static void sabre_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map,
@@ -96,8 +96,8 @@ static driver_filter_t psycho_ue;
 static driver_filter_t psycho_ce;
 static driver_filter_t psycho_pci_bus;
 static driver_filter_t psycho_powerdebug;
-static driver_filter_t psycho_powerdown;
-static driver_filter_t psycho_overtemp;
+static driver_intr_t psycho_powerdown;
+static driver_intr_t psycho_overtemp;
 #ifdef PSYCHO_MAP_WAKEUP
 static driver_filter_t psycho_wakeup;
 #endif
@@ -619,17 +619,17 @@ psycho_attach(device_t dev)
 		 * XXX Not all controllers have these, but installing them
 		 * is better than trying to sort through this mess.
 		 */
-		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, psycho_ue);
-		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, psycho_ce);
+		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, psycho_ue, NULL);
+		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, psycho_ce, NULL);
 		switch (psycho_powerfail) {
 		case 0:
 			break;
 		case 2:
 			psycho_set_intr(sc, 3, PSR_POWER_INT_MAP,
-			    psycho_powerdebug);
+			    psycho_powerdebug, NULL);
 			break;
 		default:
-			psycho_set_intr(sc, 3, PSR_POWER_INT_MAP,
+			psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
 			    psycho_powerdown);
 			break;
 		}
@@ -643,7 +643,7 @@ psycho_attach(device_t dev)
 			 * The spare hardware interrupt is used for the
 			 * over-temperature interrupt.
 			 */
-			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP,
+			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP, NULL,
 			    psycho_overtemp);
 #ifdef PSYCHO_MAP_WAKEUP
 			/*
@@ -651,7 +651,7 @@ psycho_attach(device_t dev)
 			 * now.
 			 */
 			psycho_set_intr(sc, 5, PSR_PWRMGT_INT_MAP,
-			    psycho_wakeup);
+			    psycho_wakeup, NULL);
 #endif /* PSYCHO_MAP_WAKEUP */
 		}
 	}
@@ -661,7 +661,7 @@ psycho_attach(device_t dev)
 	 * interrupt but they are also only used for PCI bus A.
 	 */
 	psycho_set_intr(sc, 0, sc->sc_half == 0 ? PSR_PCIAERR_INT_MAP :
-	    PSR_PCIBERR_INT_MAP, psycho_pci_bus);
+	    PSR_PCIBERR_INT_MAP, psycho_pci_bus, NULL);
 
 	/*
 	 * Set the latency timer register as this isn't always done by the
@@ -701,7 +701,7 @@ psycho_attach(device_t dev)
 
 static void
 psycho_set_intr(struct psycho_softc *sc, u_int index, bus_addr_t intrmap,
-    driver_filter_t handler)
+    driver_filter_t filt, driver_intr_t intr)
 {
 	u_long vec;
 	int rid;
@@ -722,7 +722,7 @@ psycho_set_intr(struct psycho_softc *sc, u_int index, bus_addr_t intrmap,
 	    INTVEC(PSYCHO_READ8(sc, intrmap)) != vec ||
 	    intr_vectors[vec].iv_ic != &psycho_ic ||
 	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
-	    INTR_TYPE_MISC | INTR_BRIDGE, handler, NULL, sc,
+	    INTR_TYPE_MISC | INTR_BRIDGE, filt, intr, sc,
 	    &sc->sc_ihand[index]) != 0)
 		panic("%s: failed to set up interrupt %d", __func__, index);
 }
@@ -858,32 +858,30 @@ psycho_powerdebug(void *arg __unused)
 	return (FILTER_HANDLED);
 }
 
-static int
+static void
 psycho_powerdown(void *arg __unused)
 {
 	static int shutdown;
 
 	/* As the interrupt is cleared we may be called multiple times. */
 	if (shutdown != 0)
-		return (FILTER_HANDLED);
+		return;
 	shutdown++;
 	printf("Power Failure Detected: Shutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
-	return (FILTER_HANDLED);
 }
 
-static int
+static void
 psycho_overtemp(void *arg __unused)
 {
 	static int shutdown;
 
 	/* As the interrupt is cleared we may be called multiple times. */
 	if (shutdown != 0)
-		return (FILTER_HANDLED);
+		return;
 	shutdown++;
 	printf("DANGER: OVER TEMPERATURE detected.\nShutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
-	return (FILTER_HANDLED);
 }
 
 #ifdef PSYCHO_MAP_WAKEUP
