@@ -658,13 +658,11 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 #ifdef DIAGNOSTIC
 	sbt1 = sbinuptime();
 #endif
-	if (!direct)
-		THREAD_NO_SLEEPING();
+	THREAD_NO_SLEEPING();
 	SDT_PROBE(callout_execute, kernel, , callout_start, c, 0, 0, 0, 0);
 	c_func(c_arg);
 	SDT_PROBE(callout_execute, kernel, , callout_end, c, 0, 0, 0, 0);
-	if (!direct)
-		THREAD_SLEEPING_OK();
+	THREAD_SLEEPING_OK();
 #ifdef DIAGNOSTIC
 	bt2 = sbinuptime();
 	bt2 -= bt1;
