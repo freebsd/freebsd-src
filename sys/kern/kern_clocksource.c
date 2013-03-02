@@ -299,7 +299,7 @@ getnextevent(void)
 
 	state = DPCPU_PTR(timerstate);
 	event = state->nextevent;
-	c = curcpu;
+	c = -1;
 #ifdef SMP
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
 		CPU_FOREACH(cpu) {
