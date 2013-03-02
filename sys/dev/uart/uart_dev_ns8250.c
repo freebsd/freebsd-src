@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -35,6 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
@@ -44,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #include "uart_if.h"
 
 #define	DEFAULT_RCLK	1843200
+
+static int broken_txfifo = 0;
+SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RW | CTLFLAG_TUN,
+	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
+TUNABLE_INT("hw.broken_txfifo", &broken_txfifo);
 
 /*
  * Clear pending interrupts. THRE is cleared by reading IIR. Data
@@ -350,6 +363,7 @@ struct ns8250_softc {
 	
 	uint8_t		ier_mask;
 	uint8_t		ier_rxbits;
+	uint8_t		busy_detect;
 };
 
 static int ns8250_bus_attach(struct uart_softc *);
@@ -401,6 +415,24 @@ ns8250_bus_attach(struct uart_softc *sc)
 	struct ns8250_softc *ns8250 = (struct ns8250_softc*)sc;
 	struct uart_bas *bas;
 	unsigned int ivar;
+#ifdef FDT
+	phandle_t node;
+	pcell_t cell;
+#endif
+
+	ns8250->busy_detect = 0;
+
+#ifdef FDT
+	/* 
+	 * Check whether uart requires to read USR reg when IIR_BUSY and 
+	 * has broken txfifo. 
+	 */
+	node = ofw_bus_get_node(sc->sc_dev);
+	if ((OF_getprop(node, "busy-detect", &cell, sizeof(cell))) > 0)
+		ns8250->busy_detect = 1;
+	if ((OF_getprop(node, "broken-txfifo", &cell, sizeof(cell))) > 0)
+		broken_txfifo = 1;
+#endif
 
 	bas = &sc->sc_bas;
 
@@ -592,6 +624,12 @@ ns8250_bus_ipend(struct uart_softc *sc)
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 	iir = uart_getreg(bas, REG_IIR);
+
+	if (ns8250->busy_detect && (iir & IIR_BUSY) == IIR_BUSY) {
+		(void)uart_getreg(bas, DW_REG_USR);
+		uart_unlock(sc->sc_hwmtx);
+		return (0);
+	}
 	if (iir & IIR_NOPEND) {
 		uart_unlock(sc->sc_hwmtx);
 		return (0);
@@ -846,11 +884,6 @@ ns8250_bus_setsig(struct uart_softc *sc, int sig)
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
 }
-
-static int broken_txfifo = 0;
-SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RW | CTLFLAG_TUN,
-	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
-TUNABLE_INT("hw.broken_txfifo", &broken_txfifo);
 
 static int
 ns8250_bus_transmit(struct uart_softc *sc)

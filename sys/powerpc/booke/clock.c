@@ -88,7 +88,7 @@ static u_long		*decr_counts[MAXCPU];
 #define	DIFF19041970	2082844800
 
 static int		decr_et_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period);
+    sbintime_t first, sbintime_t period);
 static int		decr_et_stop(struct eventtimer *et);
 static timecounter_get_t decr_get_timecount;
 
@@ -193,12 +193,8 @@ decr_tc_init(void)
 	    ET_FLAGS_PERCPU;
 	decr_et.et_quality = 1000;
 	decr_et.et_frequency = ticks_per_sec;
-	decr_et.et_min_period.sec = 0;
-	decr_et.et_min_period.frac =
-	    ((0x00000002LLU << 32) / ticks_per_sec) << 32;
-	decr_et.et_max_period.sec = 0xfffffffeLLU / ticks_per_sec;
-	decr_et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / ticks_per_sec) << 32;
+	decr_et.et_min_period = (0x00000002LLU << 32) / ticks_per_sec;
+	decr_et.et_max_period = (0xfffffffeLLU << 32) / ticks_per_sec;
 	decr_et.et_start = decr_et_start;
 	decr_et.et_stop = decr_et_stop;
 	decr_et.et_priv = NULL;
@@ -209,26 +205,21 @@ decr_tc_init(void)
  * Event timer start method.
  */
 static int
-decr_et_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+decr_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct decr_state *s = DPCPU_PTR(decr_state);
 	uint32_t fdiv, tcr;
 
-	if (period != NULL) {
+	if (period != 0) {
 		s->mode = 1;
-		s->div = (decr_et.et_frequency * (period->frac >> 32)) >> 32;
-		if (period->sec != 0)
-			s->div += decr_et.et_frequency * period->sec;
+		s->div = (decr_et.et_frequency * period) >> 32;
 	} else {
 		s->mode = 2;
-		s->div = 0xffffffff;
+		s->div = 0;
 	}
-	if (first != NULL) {
-		fdiv = (decr_et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			fdiv += decr_et.et_frequency * first->sec;
-	} else
+	if (first != 0)
+		fdiv = (decr_et.et_frequency * first) >> 32;
+	else
 		fdiv = s->div;
 
 	tcr = mfspr(SPR_TCR);

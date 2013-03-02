@@ -3665,7 +3665,7 @@ retry:
 		pv = get_pv_entry(pmap, &lock);
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		if ((newpte & PG_RW) != 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
