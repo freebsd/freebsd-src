@@ -11,6 +11,13 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130225:
+	A new compression method (lz4) has been merged to.  Please refer to
+	zpool-features(7) for more information.
+
+	Please refer to the "ZFS notes" section of this file for information
+	on upgrading boot ZFS pools.
+
 20121224:
 	The VFS KBI was changed with the merge of several nullfs
 	optimizations and fixes.  All filesystem modules must be
