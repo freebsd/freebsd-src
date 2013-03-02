@@ -615,7 +615,18 @@ sobind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td);
 	CURVNET_RESTORE();
-	return error;
+	return (error);
+}
+
+int
+sobindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+	int error;
+
+	CURVNET_SET(so->so_vnet);
+	error = (*so->so_proto->pr_usrreqs->pru_bindat)(fd, so, nam, td);
+	CURVNET_RESTORE();
+	return (error);
 }
 
 /*
@@ -638,7 +649,7 @@ solisten(struct socket *so, int backlog, struct thread *td)
 	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, backlog, td);
 	CURVNET_RESTORE();
-	return error;
+	return (error);
 }
 
 int
@@ -896,6 +907,13 @@ soaccept(struct socket *so, struct sockaddr **nam)
 int
 soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+
+	return (soconnectat(AT_FDCWD, so, nam, td));
+}
+
+int
+soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
+{
 	int error;
 
 	if (so->so_options & SO_ACCEPTCONN)
@@ -917,7 +935,13 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * biting us.
 		 */
 		so->so_error = 0;
-		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
+		if (fd == AT_FDCWD) {
+			error = (*so->so_proto->pr_usrreqs->pru_connect)(so,
+			    nam, td);
+		} else {
+			error = (*so->so_proto->pr_usrreqs->pru_connectat)(fd,
+			    so, nam, td);
+		}
 	}
 	CURVNET_RESTORE();
 
@@ -3141,7 +3165,23 @@ pru_bind_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 int
+pru_bindat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
+{
+
+	return EOPNOTSUPP;
+}
+
+int
 pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+
+	return EOPNOTSUPP;
+}
+
+int
+pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
 {
 
 	return EOPNOTSUPP;

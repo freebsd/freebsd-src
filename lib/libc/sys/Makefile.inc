@@ -91,6 +91,7 @@ MAN+=	abort2.2 \
 	aio_waitcomplete.2 \
 	aio_write.2 \
 	bind.2 \
+	bindat.2 \
 	brk.2 \
 	cap_enter.2 \
 	cap_fcntls_limit.2 \
@@ -105,6 +106,7 @@ MAN+=	abort2.2 \
 	close.2 \
 	closefrom.2 \
 	connect.2 \
+	connectat.2 \
 	cpuset.2 \
 	cpuset_getaffinity.2 \
 	dup.2 \
