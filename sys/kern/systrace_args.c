@@ -3134,9 +3134,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cap_getrights */
+	/* cap_rights_get */
 	case 515: {
-		struct cap_getrights_args *p = params;
+		struct cap_rights_get_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
 		*n_args = 2;
@@ -3284,6 +3284,48 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
 		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
 		*n_args = 6;
+		break;
+	}
+	/* cap_rights_limit */
+	case 533: {
+		struct cap_rights_limit_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->rights; /* uint64_t */
+		*n_args = 2;
+		break;
+	}
+	/* cap_ioctls_limit */
+	case 534: {
+		struct cap_ioctls_limit_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->cmds; /* const u_long * */
+		uarg[2] = p->ncmds; /* size_t */
+		*n_args = 3;
+		break;
+	}
+	/* cap_ioctls_get */
+	case 535: {
+		struct cap_ioctls_get_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->cmds; /* u_long * */
+		uarg[2] = p->maxcmds; /* size_t */
+		*n_args = 3;
+		break;
+	}
+	/* cap_fcntls_limit */
+	case 536: {
+		struct cap_fcntls_limit_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->fcntlrights; /* uint32_t */
+		*n_args = 2;
+		break;
+	}
+	/* cap_fcntls_get */
+	case 537: {
+		struct cap_fcntls_get_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->fcntlrightsp; /* uint32_t * */
+		*n_args = 2;
 		break;
 	}
 	default:
@@ -8477,7 +8519,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cap_getrights */
+	/* cap_rights_get */
 	case 515:
 		switch(ndx) {
 		case 0:
@@ -8740,6 +8782,77 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 5:
 			p = "siginfo_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_rights_limit */
+	case 533:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint64_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_ioctls_limit */
+	case 534:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const u_long *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_ioctls_get */
+	case 535:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_long *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_fcntls_limit */
+	case 536:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_fcntls_get */
+	case 537:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t *";
 			break;
 		default:
 			break;
@@ -10556,7 +10669,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cap_getrights */
+	/* cap_rights_get */
 	case 515:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10635,6 +10748,31 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* wait6 */
 	case 532:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cap_rights_limit */
+	case 533:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cap_ioctls_limit */
+	case 534:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cap_ioctls_get */
+	case 535:
+		if (ndx == 0 || ndx == 1)
+			p = "ssize_t";
+		break;
+	/* cap_fcntls_limit */
+	case 536:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* cap_fcntls_get */
+	case 537:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
