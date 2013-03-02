@@ -1593,16 +1593,16 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	fd = aiocbe->uaiocb.aio_fildes;
 	switch (opcode) {
 	case LIO_WRITE:
-		error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
+		error = fget_write(td, fd, CAP_PWRITE, &fp);
 		break;
 	case LIO_READ:
-		error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
+		error = fget_read(td, fd, CAP_PREAD, &fp);
 		break;
 	case LIO_SYNC:
 		error = fget(td, fd, CAP_FSYNC, &fp);
 		break;
 	case LIO_NOP:
-		error = fget(td, fd, 0, &fp);
+		error = fget(td, fd, CAP_NONE, &fp);
 		break;
 	default:
 		error = EINVAL;

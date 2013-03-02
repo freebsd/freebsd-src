@@ -970,6 +970,8 @@ flags_to_rights(int flags)
 			/* FALLTHROUGH */
 		case O_WRONLY:
 			rights |= CAP_WRITE;
+			if (!(flags & O_APPEND))
+				rights |= CAP_SEEK;
 			break;
 		}
 	}
@@ -1143,19 +1145,22 @@ success:
 	 * If we haven't already installed the FD (for dupfdopen), do so now.
 	 */
 	if (indx == -1) {
+		struct filecaps *fcaps;
+
 #ifdef CAPABILITIES
-		if (nd.ni_strictrelative == 1) {
-			/*
-			 * We are doing a strict relative lookup; wrap the
-			 * result in a capability.
-			 */
-			if ((error = kern_capwrap(td, fp, nd.ni_baserights,
-			    &indx)) != 0)
-				goto bad;
-		} else
+		if (nd.ni_strictrelative == 1)
+			fcaps = &nd.ni_filecaps;
+		else
 #endif
-			if ((error = finstall(td, fp, &indx, flags)) != 0)
-				goto bad;
+			fcaps = NULL;
+		error = finstall(td, fp, &indx, flags, fcaps);
+		/* On success finstall() consumes fcaps. */
+		if (error != 0) {
+			filecaps_free(&nd.ni_filecaps);
+			goto bad;
+		}
+	} else {
+		filecaps_free(&nd.ni_filecaps);
 	}
 
 	/*
@@ -1279,7 +1284,7 @@ kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    pathseg, path, fd, CAP_MKNOD, td);
+	    pathseg, path, fd, CAP_MKNODAT, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1399,7 +1404,7 @@ kern_mkfifoat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    pathseg, path, fd, CAP_MKFIFO, td);
+	    pathseg, path, fd, CAP_MKFIFOAT, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
@@ -1553,7 +1558,7 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 		return (error);
 	}
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE2,
-	    segflg, path2, fd2, CAP_CREATE, td);
+	    segflg, path2, fd2, CAP_LINKAT, td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
 			if (nd.ni_dvp == nd.ni_vp)
@@ -1646,7 +1651,7 @@ kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    segflg, path2, fd, CAP_CREATE, td);
+	    segflg, path2, fd, CAP_SYMLINKAT, td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	if (nd.ni_vp) {
@@ -1798,7 +1803,7 @@ kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
-	    pathseg, path, fd, CAP_DELETE, td);
+	    pathseg, path, fd, CAP_UNLINKAT, td);
 	if ((error = namei(&nd)) != 0)
 		return (error == EINVAL ? EPERM : error);
 	vp = nd.ni_vp;
@@ -3502,10 +3507,10 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 	bwillwrite();
 #ifdef MAC
 	NDINIT_ATRIGHTS(&fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART |
-	    AUDITVNODE1, pathseg, old, oldfd, CAP_DELETE, td);
+	    AUDITVNODE1, pathseg, old, oldfd, CAP_RENAMEAT, td);
 #else
 	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | SAVESTART | AUDITVNODE1,
-	    pathseg, old, oldfd, CAP_DELETE, td);
+	    pathseg, old, oldfd, CAP_RENAMEAT, td);
 #endif
 
 	if ((error = namei(&fromnd)) != 0)
@@ -3527,7 +3532,7 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 		goto out1;
 	}
 	NDINIT_ATRIGHTS(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE |
-	    SAVESTART | AUDITVNODE2, pathseg, new, newfd, CAP_CREATE, td);
+	    SAVESTART | AUDITVNODE2, pathseg, new, newfd, CAP_LINKAT, td);
 	if (fromnd.ni_vp->v_type == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&tond)) != 0) {
@@ -3550,6 +3555,15 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 			error = EISDIR;
 			goto out;
 		}
+#ifdef CAPABILITIES
+		/*
+		 * If the target already exists we require CAP_UNLINKAT
+		 * from 'newfd'.
+		 */
+		error = cap_check(tond.ni_filecaps.fc_rights, CAP_UNLINKAT);
+		if (error != 0)
+			goto out;
+#endif
 	}
 	if (fvp == tdvp) {
 		error = EINVAL;
@@ -3650,7 +3664,7 @@ kern_mkdirat(struct thread *td, int fd, char *path, enum uio_seg segflg,
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    segflg, path, fd, CAP_MKDIR, td);
+	    segflg, path, fd, CAP_MKDIRAT, td);
 	nd.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -3734,7 +3748,7 @@ kern_rmdirat(struct thread *td, int fd, char *path, enum uio_seg pathseg)
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
-	    pathseg, path, fd, CAP_RMDIR, td);
+	    pathseg, path, fd, CAP_UNLINKAT, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -3987,8 +4001,7 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	if (count > IOSIZE_MAX)
 		return (EINVAL);
 	auio.uio_resid = count;
-	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_READ | CAP_SEEK,
-	    &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_READ, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -4151,33 +4164,14 @@ out:
  * entry is held upon returning.
  */
 int
-getvnode(struct filedesc *fdp, int fd, cap_rights_t rights,
-    struct file **fpp)
+getvnode(struct filedesc *fdp, int fd, cap_rights_t rights, struct file **fpp)
 {
 	struct file *fp;
-#ifdef CAPABILITIES
-	struct file *fp_fromcap;
 	int error;
-#endif
 
-	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
-		return (EBADF);
-#ifdef CAPABILITIES
-	/*
-	 * If the file descriptor is for a capability, test rights and use the
-	 * file descriptor referenced by the capability.
-	 */
-	error = cap_funwrap(fp, rights, &fp_fromcap);
-	if (error) {
-		fdrop(fp, curthread);
+	error = fget_unlocked(fdp, fd, rights, 0, &fp, NULL);
+	if (error != 0)
 		return (error);
-	}
-	if (fp != fp_fromcap) {
-		fhold(fp_fromcap);
-		fdrop(fp, curthread);
-		fp = fp_fromcap;
-	}
-#endif /* CAPABILITIES */
 
 	/*
 	 * The file could be not of the vnode type, or it may be not
@@ -4361,7 +4355,7 @@ sys_fhopen(td, uap)
 			goto bad;
 	}
 
-	error = finstall(td, fp, &indx, fmode);
+	error = finstall(td, fp, &indx, fmode, NULL);
 bad:
 	fdrop(fp, td);
 	td->td_retval[0] = indx;
@@ -4614,7 +4608,7 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 		return (EINVAL);
 	}
 	/* XXX: CAP_POSIX_FADVISE? */
-	error = fget(td, fd, 0, &fp);
+	error = fget(td, fd, CAP_NONE, &fp);
 	if (error != 0)
 		goto out;
 

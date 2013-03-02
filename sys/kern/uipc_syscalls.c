@@ -121,38 +121,20 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
     "Number of sendfile(2) sf_bufs in use");
 
 /*
- * Convert a user file descriptor to a kernel file entry and check that, if
- * it is a capability, the right rights are present. A reference on the file
- * entry is held upon returning.
+ * Convert a user file descriptor to a kernel file entry and check if required
+ * capability rights are present.
+ * A reference on the file entry is held upon returning.
  */
 static int
 getsock_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
     struct file **fpp, u_int *fflagp)
 {
 	struct file *fp;
-#ifdef CAPABILITIES
-	struct file *fp_fromcap;
 	int error;
-#endif
 
-	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
-		return (EBADF);
-#ifdef CAPABILITIES
-	/*
-	 * If the file descriptor is for a capability, test rights and use
-	 * the file descriptor referenced by the capability.
-	 */
-	error = cap_funwrap(fp, rights, &fp_fromcap);
-	if (error) {
-		fdrop(fp, curthread);
+	error = fget_unlocked(fdp, fd, rights, 0, &fp, NULL);
+	if (error != 0)
 		return (error);
-	}
-	if (fp != fp_fromcap) {
-		fhold(fp_fromcap);
-		fdrop(fp, curthread);
-		fp = fp_fromcap;
-	}
-#endif /* CAPABILITIES */
 	if (fp->f_type != DTYPE_SOCKET) {
 		fdrop(fp, curthread);
 		return (ENOTSOCK);
@@ -765,7 +747,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 #endif
 
 	AUDIT_ARG_FD(s);
-	rights = CAP_WRITE;
+	rights = CAP_SEND;
 	if (mp->msg_name != NULL) {
 		AUDIT_ARG_SOCKADDR(td, mp->msg_name);
 		rights |= CAP_CONNECT;
@@ -974,7 +956,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s, CAP_READ, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, s, CAP_RECV, &fp, NULL);
 	if (error)
 		return (error);
 	so = fp->f_data;
@@ -1850,7 +1832,11 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * we send only the header/trailer and no payload data.
 	 */
 	AUDIT_ARG_FD(uap->fd);
-	if ((error = fgetvp_read(td, uap->fd, CAP_READ, &vp)) != 0)
+	/*
+	 * sendfile(2) can start at any offset within a file so we require
+	 * CAP_READ+CAP_SEEK = CAP_PREAD.
+	 */
+	if ((error = fgetvp_read(td, uap->fd, CAP_PREAD, &vp)) != 0)
 		goto out;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (vp->v_type == VREG) {
@@ -1886,7 +1872,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * The socket must be a stream socket and connected.
 	 * Remember if it a blocking or non-blocking socket.
 	 */
-	if ((error = getsock_cap(td->td_proc->p_fd, uap->s, CAP_WRITE,
+	if ((error = getsock_cap(td->td_proc->p_fd, uap->s, CAP_SEND,
 	    &sock_fp, NULL)) != 0)
 		goto out;
 	so = sock_fp->f_data;
@@ -2423,7 +2409,7 @@ sys_sctp_generic_sendmsg (td, uap)
 		u_sinfo = &sinfo;
 	}
 
-	rights = CAP_WRITE;
+	rights = CAP_SEND;
 	if (uap->tolen) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error) {
@@ -2534,7 +2520,7 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 			return (error);
 		u_sinfo = &sinfo;
 	}
-	rights = CAP_WRITE;
+	rights = CAP_SEND;
 	if (uap->tolen) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error) {
@@ -2658,7 +2644,7 @@ sys_sctp_generic_recvmsg(td, uap)
 #endif
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, CAP_READ, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, uap->sd, CAP_RECV, &fp, NULL);
 	if (error) {
 		return (error);
 	}

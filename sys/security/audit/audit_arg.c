@@ -871,6 +871,19 @@ audit_arg_rights(cap_rights_t rights)
 	ARG_SET_VALID(ar, ARG_RIGHTS);
 }
 
+void
+audit_arg_fcntl_rights(uint32_t fcntlrights)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_fcntl_rights = fcntlrights;
+	ARG_SET_VALID(ar, ARG_FCNTL_RIGHTS);
+}
+
 /*
  * The close() system call uses it's own audit call to capture the path/vnode
  * information because those pieces are not easily obtained within the system

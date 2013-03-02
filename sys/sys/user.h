@@ -251,8 +251,7 @@ struct user {
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9
 #define	KF_TYPE_PTS	10
-/* no KF_TYPE_CAPABILITY (11), since capabilities wrap other file objects */
-#define	KF_TYPE_PROCDESC	12
+#define	KF_TYPE_PROCDESC	11
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -288,7 +287,6 @@ struct user {
 #define	KF_FLAG_TRUNC		0x00001000
 #define	KF_FLAG_EXCL		0x00002000
 #define	KF_FLAG_EXEC		0x00004000
-#define	KF_FLAG_CAPABILITY	0x00008000
 
 /*
  * Old format.  Has variable hidden padding due to alignment.
