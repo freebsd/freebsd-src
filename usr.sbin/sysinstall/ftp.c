@@ -50,8 +50,12 @@ int FtpPort;
 
 /* List of sub directories to look for under a given FTP server. */
 const char *ftp_dirs[] = { ".", "releases/"MACHINE, "snapshots/"MACHINE,
+    "releases/"MACHINE"/"MACHINE_ARCH, "snapshots/"MACHINE"/"MACHINE_ARCH,
     "pub/FreeBSD", "pub/FreeBSD/releases/"MACHINE,
-    "pub/FreeBSD/snapshots/"MACHINE, NULL };
+    "pub/FreeBSD/snapshots/"MACHINE,
+    "pub/FreeBSD/releases/"MACHINE"/"MACHINE_ARCH,
+    "pub/FreeBSD/snapshots/"MACHINE"/"MACHINE_ARCH,
+    NULL };
 
 /* Brings up attached network device, if any - takes FTP device as arg */
 static Boolean
