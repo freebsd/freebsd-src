@@ -37,8 +37,8 @@
 struct timer_list {
 	struct callout	timer_callout;
 	void		(*function)(unsigned long);
-        unsigned long	data;
-	int		expires;
+	unsigned long	data;
+	unsigned long	expires;
 };
 
 static inline void

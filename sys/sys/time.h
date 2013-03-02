@@ -148,7 +148,7 @@ static __inline struct bintime
 sbttobt(sbintime_t sbt)
 {
 	struct bintime bt;
-	
+
 	bt.sec = sbt >> 32;
 	bt.frac = sbt << 32;
 	return (bt);
