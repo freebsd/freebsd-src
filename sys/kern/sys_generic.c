@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
@@ -244,7 +245,7 @@ kern_readv(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, CAP_READ | CAP_SEEK, &fp);
+	error = fget_read(td, fd, CAP_READ, &fp);
 	if (error)
 		return (error);
 	error = dofileread(td, fd, fp, auio, (off_t)-1, 0);
@@ -287,7 +288,7 @@ kern_preadv(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_read(td, fd, CAP_READ, &fp);
+	error = fget_read(td, fd, CAP_PREAD, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -453,7 +454,7 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, CAP_WRITE | CAP_SEEK, &fp);
+	error = fget_write(td, fd, CAP_WRITE, &fp);
 	if (error)
 		return (error);
 	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
@@ -496,7 +497,7 @@ kern_pwritev(td, fd, auio, offset)
 	struct file *fp;
 	int error;
 
-	error = fget_write(td, fd, CAP_WRITE, &fp);
+	error = fget_write(td, fd, CAP_PWRITE, &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -704,28 +705,60 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 {
 	struct file *fp;
 	struct filedesc *fdp;
-	int error;
-	int tmp;
+	int error, tmp, locked;
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_CMD(com);
-	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0)
-		return (error);
-	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
-		fdrop(fp, td);
-		return (EBADF);
-	}
+
 	fdp = td->td_proc->p_fd;
+
 	switch (com) {
 	case FIONCLEX:
-		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
-		FILEDESC_XUNLOCK(fdp);
-		goto out;
 	case FIOCLEX:
 		FILEDESC_XLOCK(fdp);
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-		FILEDESC_XUNLOCK(fdp);
+		locked = LA_XLOCKED;
+		break;
+	default:
+#ifdef CAPABILITIES
+		FILEDESC_SLOCK(fdp);
+		locked = LA_SLOCKED;
+#else
+		locked = LA_UNLOCKED;
+#endif
+		break;
+	}
+
+#ifdef CAPABILITIES
+	if ((fp = fget_locked(fdp, fd)) == NULL) {
+		error = EBADF;
+		goto out;
+	}
+	if ((error = cap_ioctl_check(fdp, fd, com)) != 0) {
+		fp = NULL;	/* fhold() was not called yet */
+		goto out;
+	}
+	fhold(fp);
+	if (locked == LA_SLOCKED) {
+		FILEDESC_SUNLOCK(fdp);
+		locked = LA_UNLOCKED;
+	}
+#else
+	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0) {
+		fp = NULL;
+		goto out;
+	}
+#endif
+	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
+		error = EBADF;
+		goto out;
+	}
+
+	switch (com) {
+	case FIONCLEX:
+		fdp->fd_ofiles[fd].fde_flags &= ~UF_EXCLOSE;
+		goto out;
+	case FIOCLEX:
+		fdp->fd_ofiles[fd].fde_flags |= UF_EXCLOSE;
 		goto out;
 	case FIONBIO:
 		if ((tmp = *(int *)data))
@@ -745,7 +778,21 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 
 	error = fo_ioctl(fp, com, data, td->td_ucred, td);
 out:
-	fdrop(fp, td);
+	switch (locked) {
+	case LA_XLOCKED:
+		FILEDESC_XUNLOCK(fdp);
+		break;
+#ifdef CAPABILITIES
+	case LA_SLOCKED:
+		FILEDESC_SUNLOCK(fdp);
+		break;
+#endif
+	default:
+		FILEDESC_UNLOCK_ASSERT(fdp);
+		break;
+	}
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 
@@ -1130,32 +1177,8 @@ selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
 static __inline int
 getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
-	struct file *fp;
-#ifdef CAPABILITIES
-	struct file *fp_fromcap;
-	int error;
-#endif
 
-	if ((fp = fget_unlocked(fdp, fd)) == NULL)
-		return (EBADF);
-#ifdef CAPABILITIES
-	/*
-	 * If the file descriptor is for a capability, test rights and use
-	 * the file descriptor references by the capability.
-	 */
-	error = cap_funwrap(fp, CAP_POLL_EVENT, &fp_fromcap);
-	if (error) {
-		fdrop(fp, curthread);
-		return (error);
-	}
-	if (fp != fp_fromcap) {
-		fhold(fp_fromcap);
-		fdrop(fp, curthread);
-		fp = fp_fromcap;
-	}
-#endif /* CAPABILITIES */
-	*fpp = fp;
-	return (0);
+	return (fget_unlocked(fdp, fd, CAP_POLL_EVENT, 0, fpp, NULL));
 }
 
 /*
@@ -1349,13 +1372,14 @@ pollrescan(struct thread *td)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		fp = fdp->fd_ofiles[fd->fd];
+		fp = fdp->fd_ofiles[fd->fd].fde_file;
 #ifdef CAPABILITIES
-		if ((fp == NULL)
-		    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+		if (fp == NULL ||
+		    cap_check(cap_rights(fdp, fd->fd), CAP_POLL_EVENT) != 0)
 #else
-		if (fp == NULL) {
+		if (fp == NULL)
 #endif
+		{
 			fd->revents = POLLNVAL;
 			n++;
 			continue;
@@ -1408,9 +1432,8 @@ pollscan(td, fds, nfd)
 	u_int nfd;
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
-	int i;
 	struct file *fp;
-	int n = 0;
+	int i, n = 0;
 
 	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
@@ -1420,13 +1443,15 @@ pollscan(td, fds, nfd)
 		} else if (fds->fd < 0) {
 			fds->revents = 0;
 		} else {
-			fp = fdp->fd_ofiles[fds->fd];
+			fp = fdp->fd_ofiles[fds->fd].fde_file;
 #ifdef CAPABILITIES
-			if ((fp == NULL)
-			    || (cap_funwrap(fp, CAP_POLL_EVENT, &fp) != 0)) {
+			if (fp == NULL ||
+			    cap_check(cap_rights(fdp, fds->fd),
+			    CAP_POLL_EVENT) != 0)
 #else
-			if (fp == NULL) {
+			if (fp == NULL)
 #endif
+			{
 				fds->revents = POLLNVAL;
 				n++;
 			} else {

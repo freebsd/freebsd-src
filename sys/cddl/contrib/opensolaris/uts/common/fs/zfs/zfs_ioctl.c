@@ -3822,7 +3822,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		return (error);
 
 	fd = zc->zc_cookie;
-	fp = getf(fd);
+	fp = getf(fd, CAP_PREAD);
 	if (fp == NULL) {
 		nvlist_free(props);
 		return (EBADF);
@@ -4079,7 +4079,7 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		error = dmu_send_estimate(tosnap, fromsnap, zc->zc_obj,
 		    &zc->zc_objset_type);
 	} else {
-		file_t *fp = getf(zc->zc_cookie);
+		file_t *fp = getf(zc->zc_cookie, CAP_WRITE);
 		if (fp == NULL) {
 			dsl_dataset_rele(ds, FTAG);
 			if (dsfrom)
@@ -4675,7 +4675,7 @@ zfs_ioc_diff(zfs_cmd_t *zc)
 		return (error);
 	}
 
-	fp = getf(zc->zc_cookie);
+	fp = getf(zc->zc_cookie, CAP_WRITE);
 	if (fp == NULL) {
 		dmu_objset_rele(fromsnap, FTAG);
 		dmu_objset_rele(tosnap, FTAG);

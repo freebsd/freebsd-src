@@ -629,8 +629,8 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	finit(fp, FFLAGS(uap->flags & O_ACCMODE), DTYPE_SHM, shmfd, &shm_ops);
 
 	FILEDESC_XLOCK(fdp);
-	if (fdp->fd_ofiles[fd] == fp)
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+	if (fdp->fd_ofiles[fd].fde_file == fp)
+		fdp->fd_ofiles[fd].fde_flags |= UF_EXCLOSE;
 	FILEDESC_XUNLOCK(fdp);
 	td->td_retval[0] = fd;
 	fdrop(fp, td);

@@ -115,6 +115,7 @@ void	 audit_arg_file(struct proc *p, struct file *fp);
 void	 audit_arg_argv(char *argv, int argc, int length);
 void	 audit_arg_envv(char *envv, int envc, int length);
 void	 audit_arg_rights(cap_rights_t rights);
+void	 audit_arg_fcntl_rights(uint32_t fcntlrights);
 void	 audit_sysclose(struct thread *td, int fd);
 void	 audit_cred_copy(struct ucred *src, struct ucred *dest);
 void	 audit_cred_destroy(struct ucred *cred);
@@ -241,6 +242,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_rights((rights));				\
 } while (0)
 
+#define	AUDIT_ARG_FCNTL_RIGHTS(fcntlrights) do {			\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_fcntl_rights((fcntlrights));			\
+} while (0)
+
 #define	AUDIT_ARG_RUID(ruid) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_ruid((ruid));					\
@@ -354,6 +360,7 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_PROCESS(p)
 #define	AUDIT_ARG_RGID(rgid)
 #define	AUDIT_ARG_RIGHTS(rights)
+#define	AUDIT_ARG_FCNTL_RIGHTS(fcntlrights)
 #define	AUDIT_ARG_RUID(ruid)
 #define	AUDIT_ARG_SIGNUM(signum)
 #define	AUDIT_ARG_SGID(sgid)
