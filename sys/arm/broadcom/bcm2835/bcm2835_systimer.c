@@ -118,19 +118,16 @@ bcm_systimer_tc_get_timecount(struct timecounter *tc)
 }
 
 static int
-bcm_systimer_start(struct eventtimer *et, struct bintime *first,
-              struct bintime *period)
+bcm_systimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct systimer *st = et->et_priv;
 	uint32_t clo;
 	uint32_t count;
 	register_t s;
 
-	if (first != NULL) {
+	if (first != 0) {
 
-		count = (st->et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			count += st->et.et_frequency * first->sec;
+		count = ((uint32_t)et->et_frequency * first) >> 32;
 
 		s = intr_disable();
 		clo = bcm_systimer_tc_read_4(SYSTIMER_CLO);
@@ -238,12 +235,10 @@ bcm_systimer_attach(device_t dev)
 	sc->st[DEFAULT_TIMER].et.et_flags = ET_FLAGS_ONESHOT;
 	sc->st[DEFAULT_TIMER].et.et_quality = 1000;
 	sc->st[DEFAULT_TIMER].et.et_frequency = sc->sysclk_freq;
-	sc->st[DEFAULT_TIMER].et.et_min_period.sec = 0;
-	sc->st[DEFAULT_TIMER].et.et_min_period.frac =
-	    ((MIN_PERIOD << 32) / sc->st[DEFAULT_TIMER].et.et_frequency) << 32;
-	sc->st[DEFAULT_TIMER].et.et_max_period.sec = 0xfffffff0U / sc->st[DEFAULT_TIMER].et.et_frequency;
-	sc->st[DEFAULT_TIMER].et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency) << 32;
+	sc->st[DEFAULT_TIMER].et.et_min_period =
+	    (MIN_PERIOD << 32) / sc->st[DEFAULT_TIMER].et.et_frequency;
+	sc->st[DEFAULT_TIMER].et.et_max_period =
+	    (0xfffffffeLLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency;
 	sc->st[DEFAULT_TIMER].et.et_start = bcm_systimer_start;
 	sc->st[DEFAULT_TIMER].et.et_stop = bcm_systimer_stop;
 	sc->st[DEFAULT_TIMER].et.et_priv = &sc->st[DEFAULT_TIMER];

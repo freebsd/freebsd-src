@@ -856,8 +856,12 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 				error = ENOMEM;
 				goto out;
 			}
-			bcopy(dp->d_name, buf + i, dp->d_namlen);
-			error = 0;
+			if (dp->d_namlen == 1 && dp->d_name[0] == '.') {
+				error = ENOENT;
+			} else {
+				bcopy(dp->d_name, buf + i, dp->d_namlen);
+				error = 0;
+			}
 			goto out;
 		}
 	} while (len > 0 || !eofflag);
