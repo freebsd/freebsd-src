@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130302: CODAFS support removed
+OLD_FILES+=usr/share/man/man4/coda.4.gz
 # 20130302: XFS support removed
 OLD_FILES+=usr/share/man/man5/xfs.5.gz
 # 20130116: removed long unused directories for .1aout section manpages
