@@ -822,18 +822,15 @@ clocksource_cyc_set(const struct bintime *bt)
 	    (int)(t >> 32), (u_int)(t & 0xffffffff));
 
 	ET_HW_LOCK(state);
-	if (t == state->nextcyc) {
-		ET_HW_UNLOCK(state);
-		return;
-	}
+	if (t == state->nextcyc)
+		goto done;
 	state->nextcyc = t;
-	if (t >= state->nextevent) {
-		ET_HW_UNLOCK(state);
-		return;
-	}
+	if (t >= state->nextevent)
+		goto done;
 	state->nextevent = t;
 	if (!periodic)
 		loadtimer(now, 0);
+done:
 	ET_HW_UNLOCK(state);
 }
 #endif
@@ -841,7 +838,6 @@ clocksource_cyc_set(const struct bintime *bt)
 void
 cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 {
-	sbintime_t now;
 	struct pcpu_state *state;
 
 	/* Do not touch anything if somebody reconfiguring timers. */
@@ -861,26 +857,20 @@ cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 	 * and scheduling.
 	 */
 	state->nextcallopt = bt_opt;
-	if (bt >= state->nextcall) {
-		ET_HW_UNLOCK(state);
-		return;
-	}
+	if (bt >= state->nextcall)
+		goto done;
 	state->nextcall = bt;
 	/* If there is some other event set earlier -- do nothing. */
-	if (bt >= state->nextevent) {
-		ET_HW_UNLOCK(state);
-		return;
-	}
+	if (bt >= state->nextevent)
+		goto done;
 	state->nextevent = bt;
 	/* If timer is periodic -- there is nothing to reprogram. */
-	if (periodic) {
-		ET_HW_UNLOCK(state);
-		return;
-	}
+	if (periodic)
+		goto done;
 	/* If timer is global or of the current CPU -- reprogram it. */
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 || cpu == curcpu) {
-		now = sbinuptime();
-		loadtimer(now, 0);
+		loadtimer(sbinuptime(), 0);
+done:
 		ET_HW_UNLOCK(state);
 		return;
 	}
