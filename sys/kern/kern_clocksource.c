@@ -168,7 +168,6 @@ handleevents(sbintime_t now, int fake)
 	sbintime_t t, *hct;
 	struct trapframe *frame;
 	struct pcpu_state *state;
-	uintfptr_t pc;
 	int usermode;
 	int done, runs;
 
@@ -178,11 +177,9 @@ handleevents(sbintime_t now, int fake)
 	if (fake) {
 		frame = NULL;
 		usermode = 0;
-		pc = 0;
 	} else {
 		frame = curthread->td_intr_frame;
 		usermode = TRAPF_USERMODE(frame);
-		pc = TRAPF_PC(frame);
 	}
 
 	state = DPCPU_PTR(timerstate);
@@ -216,7 +213,7 @@ handleevents(sbintime_t now, int fake)
 			runs++;
 		}
 		if (runs && !fake) {
-			profclock_cnt(runs, usermode, pc);
+			profclock_cnt(runs, usermode, TRAPF_PC(frame));
 			done = 1;
 		}
 	} else
