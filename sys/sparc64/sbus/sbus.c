@@ -152,8 +152,8 @@ static void sbus_intr_assign(void *);
 static void sbus_intr_clear(void *);
 static int sbus_find_intrmap(struct sbus_softc *, u_int, bus_addr_t *,
     bus_addr_t *);
-static driver_intr_t sbus_overtemp;
-static driver_intr_t sbus_pwrfail;
+static driver_filter_t sbus_overtemp;
+static driver_filter_t sbus_pwrfail;
 static int sbus_print_res(struct sbus_devinfo *);
 
 static device_method_t sbus_methods[] = {
@@ -199,7 +199,7 @@ static driver_t sbus_driver = {
 
 static devclass_t sbus_devclass;
 
-EARLY_DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0,
+EARLY_DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, NULL, NULL,
     BUS_PASS_BUS);
 MODULE_DEPEND(sbus, nexus, 1, 1, 1);
 MODULE_VERSION(sbus, 1);
@@ -410,7 +410,7 @@ sbus_attach(device_t dev)
 	    INTVEC(SYSIO_READ8(sc, SBR_THERM_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
 	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_BRIDGE,
-	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
+	    sbus_overtemp, NULL, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	i = 3;
 	sc->sc_pf_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
@@ -420,7 +420,7 @@ sbus_attach(device_t dev)
 	    INTVEC(SYSIO_READ8(sc, SBR_POWER_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
 	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_BRIDGE,
-	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
+	    sbus_pwrfail, NULL, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 
 	/* Initialize the counter-timer. */
@@ -897,31 +897,33 @@ sbus_get_devinfo(device_t bus, device_t child)
  * This handles the interrupt and powers off the machine.
  * The same needs to be done to PCI controller drivers.
  */
-static void
-sbus_overtemp(void *arg)
+static int
+sbus_overtemp(void *arg __unused)
 {
 	static int shutdown;
 
 	/* As the interrupt is cleared we may be called multiple times. */
 	if (shutdown != 0)
-		return;
+		return (FILTER_HANDLED);
 	shutdown++;
 	printf("DANGER: OVER TEMPERATURE detected\nShutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
+	return (FILTER_HANDLED);
 }
 
 /* Try to shut down in time in case of power failure. */
-static void
-sbus_pwrfail(void *arg)
+static int
+sbus_pwrfail(void *arg __unused)
 {
 	static int shutdown;
 
 	/* As the interrupt is cleared we may be called multiple times. */
 	if (shutdown != 0)
-		return;
+		return (FILTER_HANDLED);
 	shutdown++;
 	printf("Power failure detected\nShutting down NOW.\n");
-	shutdown_nice(0);
+	shutdown_nice(FILTER_HANDLED);
+	return (FILTER_HANDLED);
 }
 
 static int
