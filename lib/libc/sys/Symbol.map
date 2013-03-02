@@ -379,6 +379,7 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	cap_sandboxed;
 	clock_getcpuclockid2;
 	ffclock_getcounter;
 	ffclock_getestimate;
