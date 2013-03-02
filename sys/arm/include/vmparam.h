@@ -153,7 +153,9 @@
     VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
 #endif
 
-#define MAXTSIZ 	(16*1024*1024)
+#ifndef MAXTSIZ
+#define MAXTSIZ 	(64*1024*1024)
+#endif
 #ifndef DFLDSIZ
 #define DFLDSIZ         (128*1024*1024)
 #endif
@@ -177,5 +179,9 @@
 extern vm_offset_t vm_max_kernel_address;
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
+#ifndef VM_MAX_AUTOTUNE_MAXUSERS
+#define	VM_MAX_AUTOTUNE_MAXUSERS	384
+#endif
 
 #endif	/* _MACHINE_VMPARAM_H_ */

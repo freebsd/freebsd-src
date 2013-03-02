@@ -526,6 +526,39 @@ if the snapshot has been marked for deferred destroy by using the
 .Qq Nm Cm destroy -d
 command. Otherwise, the property is
 .Cm off .
+.It Sy logicalreferenced
+The amount of space that is
+.Qq logically
+accessible by this dataset.
+See the
+.Sy referenced
+property.
+The logical space ignores the effect of the
+.Sy compression
+and
+.Sy copies
+properties, giving a quantity closer to the amount of data that applications
+see.
+However, it does include space consumed by metadata.
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy lrefer .
+.It Sy logicalused
+The amount of space that is
+.Qq logically
+consumed by this dataset and all its descendents.
+See the
+.Sy used
+property.
+The logical space ignores the effect of the
+.Sy compression
+and
+.Sy copies
+properties, giving a quantity closer to the amount of data that applications
+see.
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy lused .
 .It Sy mounted
 For file systems, indicates whether the file system is currently mounted. This
 property can be either

@@ -326,7 +326,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 		 * Get a pointer to the rx header, and use the
 		 * data immediately following it for the packet buffer.
 		 */
-		vrx = (struct virtio_net_rxhdr *)paddr_guest2host(vd->vd_addr);
+		vrx = paddr_guest2host(vd->vd_addr, vd->vd_len);
 		buf = (uint8_t *)(vrx + 1);
 
 		len = read(sc->vsc_tapfd, buf,
@@ -434,7 +434,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vring_hqueue *hq)
 	for (i = 0, plen = 0;
 	     i < VTNET_MAXSEGS;
 	     i++, vd = &hq->hq_dtable[vd->vd_next]) {
-		iov[i].iov_base = paddr_guest2host(vd->vd_addr);
+		iov[i].iov_base = paddr_guest2host(vd->vd_addr, vd->vd_len);
 		iov[i].iov_len = vd->vd_len;
 		plen += vd->vd_len;
 		tlen += vd->vd_len;
@@ -517,7 +517,8 @@ pci_vtnet_ring_init(struct pci_vtnet_softc *sc, uint64_t pfn)
 	hq = &sc->vsc_hq[qnum];
 	hq->hq_size = pci_vtnet_qsize(qnum);
 
-	hq->hq_dtable = paddr_guest2host(pfn << VRING_PFN);
+	hq->hq_dtable = paddr_guest2host(pfn << VRING_PFN,
+					 vring_size(hq->hq_size));
 	hq->hq_avail_flags =  (uint16_t *)(hq->hq_dtable + hq->hq_size);
 	hq->hq_avail_idx = hq->hq_avail_flags + 1;
 	hq->hq_avail_ring = hq->hq_avail_flags + 2;
@@ -540,13 +541,6 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	char nstr[80];
 	struct pci_vtnet_softc *sc;
 	const char *env_msi;
-
-	/*
-	 * Access to guest memory is required. Fail if
-	 * memory not mapped
-	 */
-	if (paddr_guest2host(0) == NULL)
-		return (1);
 
 	sc = malloc(sizeof(struct pci_vtnet_softc));
 	memset(sc, 0, sizeof(struct pci_vtnet_softc));
