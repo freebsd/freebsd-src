@@ -15,6 +15,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130225:
+	A new compression method (lz4) has been merged.  Please refer to
+	zpool-features(7) for more information.
+
+	Please refer to the "ZFS notes" section of this file for information
+	on upgrading boot ZFS pools.
+
 20121130:
 	A new version of ZFS (pool version 5000) has been merged to 8-STABLE.
 	Starting with this version the old system of ZFS pool versioning
