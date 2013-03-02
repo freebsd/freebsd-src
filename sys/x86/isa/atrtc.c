@@ -164,11 +164,10 @@ struct atrtc_softc {
 };
 
 static int
-rtc_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+rtc_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 
-	atrtc_rate(max(fls((period->frac + (period->frac >> 1)) >> 32) - 17, 1));
+	atrtc_rate(max(fls(period + (period >> 1)) - 17, 1));
 	atrtc_enable_intr();
 	return (0);
 }
@@ -277,10 +276,8 @@ atrtc_attach(device_t dev)
 		sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_POW2DIV;
 		sc->et.et_quality = 0;
 		sc->et.et_frequency = 32768;
-		sc->et.et_min_period.sec = 0;
-		sc->et.et_min_period.frac = 0x0008LLU << 48;
-		sc->et.et_max_period.sec = 0;
-		sc->et.et_max_period.frac = 0x8000LLU << 48;
+		sc->et.et_min_period = 0x00080000;
+		sc->et.et_max_period = 0x80000000;
 		sc->et.et_start = rtc_start;
 		sc->et.et_stop = rtc_stop;
 		sc->et.et_priv = dev;

@@ -204,6 +204,7 @@ mmu_done:
 virt_done:
 	mov	r1, #20			/* loader info size is 20 bytes also second arg */
 	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
+	bic	sp, sp, #7		/* align stack to 8 bytes */
 	mov	r0, sp			/* loader info pointer is first arg */
 	str	r1, [r0]		/* Store length of loader info */
 	str	r9, [r0, #4]		/* Store r0 from boot loader */

@@ -124,7 +124,7 @@ zfs_onexit_fd_hold(int fd, minor_t *minorp)
 	void *data;
 	int error;
 
-	fp = getf(fd);
+	fp = getf(fd, CAP_NONE);
 	if (fp == NULL)
 		return (EBADF);
 

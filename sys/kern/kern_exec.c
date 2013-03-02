@@ -438,9 +438,6 @@ interpret:
 	} else {
 		AUDIT_ARG_FD(args->fd);
 		/*
-		 * Some might argue that CAP_READ and/or CAP_MMAP should also
-		 * be required here; such arguments will be entertained.
-		 *
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
 		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
