@@ -31,18 +31,15 @@
 #ifndef __T4_OFFLOAD_H__
 #define __T4_OFFLOAD_H__
 
-/* XXX: flagrant misuse of mbuf fields (during tx by TOM) */
-#define MBUF_EQ(m)		(*((void **)(&(m)->m_pkthdr.rcvif)))
-/* These have to work for !M_PKTHDR so we use a field from m_hdr. */
-#define MBUF_TX_CREDITS(m)	((m)->m_hdr.pad[0])
-#define MBUF_DMA_MAPPED(m)	((m)->m_hdr.pad[1])
-
-#define INIT_ULPTX_WR(w, wrlen, atomic, tid) do { \
-	(w)->wr.wr_hi = htonl(V_FW_WR_OP(FW_ULPTX_WR) | V_FW_WR_ATOMIC(atomic)); \
-	(w)->wr.wr_mid = htonl(V_FW_WR_LEN16(DIV_ROUND_UP(wrlen, 16)) | \
+#define INIT_ULPTX_WRH(w, wrlen, atomic, tid) do { \
+	(w)->wr_hi = htonl(V_FW_WR_OP(FW_ULPTX_WR) | V_FW_WR_ATOMIC(atomic)); \
+	(w)->wr_mid = htonl(V_FW_WR_LEN16(DIV_ROUND_UP(wrlen, 16)) | \
 			       V_FW_WR_FLOWID(tid)); \
-	(w)->wr.wr_lo = cpu_to_be64(0); \
+	(w)->wr_lo = cpu_to_be64(0); \
 } while (0)
+
+#define INIT_ULPTX_WR(w, wrlen, atomic, tid) \
+    INIT_ULPTX_WRH(&((w)->wr), wrlen, atomic, tid)
 
 #define INIT_TP_WR(w, tid) do { \
 	(w)->wr.wr_hi = htonl(V_FW_WR_OP(FW_TP_WR) | \
@@ -57,15 +54,19 @@
 	OPCODE_TID(w) = htonl(MK_OPCODE_TID(cpl, tid)); \
 } while (0)
 
+TAILQ_HEAD(stid_head, stid_region);
+struct listen_ctx;
+
+struct stid_region {
+	TAILQ_ENTRY(stid_region) link;
+	int used;	/* # of stids used by this region */
+	int free;	/* # of contiguous stids free right after this region */
+};
+
 /*
  * Max # of ATIDs.  The absolute HW max is 16K but we keep it lower.
  */
 #define MAX_ATIDS 8192U
-
-union serv_entry {
-	void *data;
-	union serv_entry *next;
-};
 
 union aopen_entry {
 	void *data;
@@ -78,34 +79,33 @@ union aopen_entry {
  */
 struct tid_info {
 	void **tid_tab;
-	unsigned int ntids;
+	u_int ntids;
+	u_int tids_in_use;
 
-	union serv_entry *stid_tab;
-	unsigned int nstids;
-	unsigned int stid_base;
+	struct mtx stid_lock __aligned(CACHE_LINE_SIZE);
+	struct listen_ctx **stid_tab;
+	u_int nstids;
+	u_int stid_base;
+	u_int stids_in_use;
+	u_int nstids_free_head;	/* # of available stids at the begining */
+	struct stid_head stids;
 
+	struct mtx atid_lock __aligned(CACHE_LINE_SIZE);
 	union aopen_entry *atid_tab;
-	unsigned int natids;
-
-	struct filter_entry *ftid_tab;
-	unsigned int nftids;
-	unsigned int ftid_base;
-	unsigned int ftids_in_use;
-
-	struct mtx atid_lock;
+	u_int natids;
 	union aopen_entry *afree;
-	unsigned int atids_in_use;
+	u_int atids_in_use;
 
-	struct mtx stid_lock;
-	union serv_entry *sfree;
-	unsigned int stids_in_use;
-
-	unsigned int tids_in_use;
+	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
+	struct filter_entry *ftid_tab;
+	u_int nftids;
+	u_int ftid_base;
+	u_int ftids_in_use;
 };
 
 struct t4_range {
-	unsigned int start;
-	unsigned int size;
+	u_int start;
+	u_int size;
 };
 
 struct t4_virt_res {                      /* virtualized HW resources */
@@ -117,9 +117,10 @@ struct t4_virt_res {                      /* virtualized HW resources */
 	struct t4_range qp;
 	struct t4_range cq;
 	struct t4_range ocq;
+	struct t4_range l2t;
 };
 
-#ifndef TCP_OFFLOAD_DISABLE
+#ifdef TCP_OFFLOAD
 enum {
 	ULD_TOM = 1,
 };
@@ -130,13 +131,8 @@ struct uld_info {
 	SLIST_ENTRY(uld_info) link;
 	int refcount;
 	int uld_id;
-	int (*attach)(struct adapter *, void **);
-	int (*detach)(void *);
-};
-
-struct uld_softc {
-	struct uld_info *uld;
-	void *softc;
+	int (*activate)(struct adapter *);
+	int (*deactivate)(struct adapter *);
 };
 
 struct tom_tunables {
@@ -148,6 +144,8 @@ struct tom_tunables {
 
 int t4_register_uld(struct uld_info *);
 int t4_unregister_uld(struct uld_info *);
+int t4_activate_uld(struct adapter *, int);
+int t4_deactivate_uld(struct adapter *, int);
 #endif
 
 #endif
