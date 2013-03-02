@@ -3556,13 +3556,16 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 			goto out;
 		}
 #ifdef CAPABILITIES
-		/*
-		 * If the target already exists we require CAP_UNLINKAT
-		 * from 'newfd'.
-		 */
-		error = cap_check(tond.ni_filecaps.fc_rights, CAP_UNLINKAT);
-		if (error != 0)
-			goto out;
+		if (newfd != AT_FDCWD) {
+			/*
+			 * If the target already exists we require CAP_UNLINKAT
+			 * from 'newfd'.
+			 */
+			error = cap_check(tond.ni_filecaps.fc_rights,
+			    CAP_UNLINKAT);
+			if (error != 0)
+				goto out;
+		}
 #endif
 	}
 	if (fvp == tdvp) {
