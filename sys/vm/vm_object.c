@@ -737,7 +737,6 @@ vm_object_terminate(vm_object_t object)
 		}
 		vm_page_unlock(p);
 	}
-
 	/*
 	 * If the object contained any pages, then reset it to an empty state.
 	 * None of the object's fields, including "resident_page_count", were
