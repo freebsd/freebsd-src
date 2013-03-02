@@ -51,7 +51,7 @@ ioctl_tests_0(int fd)
 {
 	unsigned long cmds[2];
 
-	CHECK(cap_ioctls_get(fd, NULL, 0) == INT_MAX);
+	CHECK(cap_ioctls_get(fd, NULL, 0) == CAP_IOCTLS_ALL);
 
 	CHECK(fcntl(fd, F_GETFD) == 0);
 	CHECK(ioctl(fd, FIOCLEX) == 0);
@@ -241,7 +241,7 @@ ioctl_tests_recv_0(int sock)
 
 	CHECK(descriptor_recv(sock, &fd) == 0);
 
-	CHECK(cap_ioctls_get(fd, NULL, 0) == INT_MAX);
+	CHECK(cap_ioctls_get(fd, NULL, 0) == CAP_IOCTLS_ALL);
 
 	CHECK(fcntl(fd, F_GETFD) == 0);
 	CHECK(ioctl(fd, FIOCLEX) == 0);
