@@ -38,6 +38,16 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130302: NTFS support removed
+OLD_FILES+=usr/include/fs/ntfs/ntfs.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_compr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_ihash.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_inode.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_subr.h
+OLD_FILES+=usr/include/fs/ntfs/ntfs_vfsops.h
+OLD_FILES+=usr/include/fs/ntfs/ntfsmount.h
+OLD_DIRS+=usr/include/fs/ntfs
+OLD_FILES+=usr/share/man/man8/mount_ntfs.8.gz
 # 20130302: PORTALFS support removed
 OLD_FILES+=usr/include/fs/portalfs/portal.h
 OLD_DIRS+=usr/include/fs/portalfs
