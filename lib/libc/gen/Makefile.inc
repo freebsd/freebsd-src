@@ -16,6 +16,7 @@ SRCS+=	__getosreldate.c \
 	assert.c \
 	auxv.c \
 	basename.c \
+	cap_sandboxed.c \
 	check_utility_compat.c \
 	clock.c \
 	clock_getcpuclockid.c \
@@ -168,6 +169,7 @@ SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 MAN+=	alarm.3 \
 	arc4random.3 \
 	basename.3 \
+	cap_sandboxed.3 \
 	check_utility_compat.3 \
 	clock.3 \
 	clock_getcpuclockid.3 \
