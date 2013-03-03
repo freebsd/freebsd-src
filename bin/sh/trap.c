@@ -455,7 +455,6 @@ dotrap(void)
 					last_trapsig = i;
 					savestatus = exitstatus;
 					evalstring(trap[i], 0);
-					exitstatus = savestatus;
 
 					/*
 					 * If such a command was not
@@ -464,9 +463,11 @@ dotrap(void)
 					 * trap action to have an effect
 					 * outside of it.
 					 */
-					if (prev_evalskip != 0) {
+					if (evalskip == 0 ||
+					    prev_evalskip != 0) {
 						evalskip  = prev_evalskip;
 						skipcount = prev_skipcount;
+						exitstatus = savestatus;
 					}
 
 					if (i == SIGCHLD)
