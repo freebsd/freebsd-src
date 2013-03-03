@@ -1135,7 +1135,7 @@ again:
 				 * will be packed up, just let softclock()
 				 * take care of it.
 				 */
-				cc->cc_exec_entity[direct].cc_waiting = FALSE;
+				cc->cc_exec_entity[direct].cc_waiting = TRUE;
 				DROP_GIANT();
 				CC_UNLOCK(cc);
 				sleepq_add(
