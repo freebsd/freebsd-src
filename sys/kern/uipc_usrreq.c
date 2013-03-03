@@ -102,6 +102,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+MALLOC_DECLARE(M_FILECAPS);
+
 /*
  * Locking key:
  * (l)	Locked using list lock
@@ -282,7 +284,7 @@ static void	unp_drop(struct unpcb *, int);
 static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct file *));
 static void	unp_discard(struct file *);
-static void	unp_freerights(struct filedescent *, int);
+static void	unp_freerights(struct filedescent **, int);
 static void	unp_init(void);
 static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
@@ -1679,17 +1681,17 @@ unp_drop(struct unpcb *unp, int errno)
 }
 
 static void
-unp_freerights(struct filedescent *fde, int fdcount)
+unp_freerights(struct filedescent **fdep, int fdcount)
 {
 	struct file *fp;
 	int i;
 
-	for (i = 0; i < fdcount; i++, fde++) {
-		fp = fde->fde_file;
-		filecaps_free(&fdep->fde_caps);
-		bzero(fde, sizeof(*fde));
+	for (i = 0; i < fdcount; i++) {
+		fp = fdep[i]->fde_file;
+		filecaps_free(&fdep[i]->fde_caps);
 		unp_discard(fp);
 	}
+	free(fdep[0], M_FILECAPS);
 }
 
 static int
@@ -1700,7 +1702,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 	int i;
 	int *fdp;
 	struct filedesc *fdesc = td->td_proc->p_fd;
-	struct filedescent *fde, *fdep;
+	struct filedescent *fde, **fdep;
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, newfds;
@@ -1756,16 +1758,18 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
-			for (i = 0; i < newfds; i++, fdep++, fdp++) {
+			for (i = 0; i < newfds; i++, fdp++) {
 				if (fdalloc(td, 0, &f))
 					panic("unp_externalize fdalloc failed");
 				fde = &fdesc->fd_ofiles[f];
-				fde->fde_file = fdep->fde_file;
-				filecaps_move(&fdep->fde_caps, &fde->fde_caps);
+				fde->fde_file = fdep[0]->fde_file;
+				filecaps_move(&fdep[0]->fde_caps,
+				    &fde->fde_caps);
 				unp_externalize_fp(fde->fde_file);
 				*fdp = f;
 			}
 			FILEDESC_XUNLOCK(fdesc);
+			free(fdep[0], M_FILECAPS);
 		} else {
 			/* We can just copy anything else across. */
 			if (error || controlp == NULL)
@@ -1840,7 +1844,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	struct bintime *bt;
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	struct cmsgcred *cmcred;
-	struct filedescent *fde, *fdep;
+	struct filedescent *fde, **fdep, *fdev;
 	struct file *fp;
 	struct timeval *tv;
 	int i, fd, *fdp;
@@ -1914,7 +1918,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 * Now replace the integer FDs with pointers to the
 			 * file structure and capability rights.
 			 */
-			newlen = oldfds * sizeof(*fdep);
+			newlen = oldfds * sizeof(fdep[0]);
 			*controlp = sbcreatecontrol(NULL, newlen,
 			    SCM_RIGHTS, SOL_SOCKET);
 			if (*controlp == NULL) {
@@ -1923,13 +1927,17 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 				goto out;
 			}
 			fdp = data;
-			fdep = (struct filedescent *)
+			fdep = (struct filedescent **)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
-			for (i = 0; i < oldfds; i++, fdep++, fdp++) {
+			fdev = malloc(sizeof(*fdev) * oldfds, M_FILECAPS,
+			    M_WAITOK);
+			for (i = 0; i < oldfds; i++, fdev++, fdp++) {
 				fde = &fdesc->fd_ofiles[*fdp];
-				fdep->fde_file = fde->fde_file;
-				filecaps_copy(&fde->fde_caps, &fdep->fde_caps);
-				unp_internalize_fp(fdep->fde_file);
+				fdep[i] = fdev;
+				fdep[i]->fde_file = fde->fde_file;
+				filecaps_copy(&fde->fde_caps,
+				    &fdep[i]->fde_caps);
+				unp_internalize_fp(fdep[i]->fde_file);
 			}
 			FILEDESC_SUNLOCK(fdesc);
 			break;
@@ -2291,7 +2299,7 @@ static void
 unp_scan(struct mbuf *m0, void (*op)(struct file *))
 {
 	struct mbuf *m;
-	struct filedescent *fdep;
+	struct filedescent **fdep;
 	struct cmsghdr *cm;
 	void *data;
 	int i;
@@ -2318,8 +2326,8 @@ unp_scan(struct mbuf *m0, void (*op)(struct file *))
 				    cm->cmsg_type == SCM_RIGHTS) {
 					qfds = datalen / sizeof(*fdep);
 					fdep = data;
-					for (i = 0; i < qfds; i++, fdep++)
-						(*op)(fdep->fde_file);
+					for (i = 0; i < qfds; i++)
+						(*op)(fdep[i]->fde_file);
 				}
 
 				if (CMSG_SPACE(datalen) < clen) {
