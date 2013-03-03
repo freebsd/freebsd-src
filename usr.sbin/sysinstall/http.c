@@ -253,7 +253,7 @@ mediaGetHTTP(Device *dev, char *file, Boolean probe)
 		    msgConfirm("Client error %s, you could try an other server",buf);
 		    return NULL;
 		} else if (rv >= 300) {
-		    msgConfirm("Error %s,",buf);
+		    msgConfirm("Error %s",buf);
 		    return NULL;
 		} else if (rv != 200) {
 		    msgConfirm("Error %s when sending %s, you could try an other server",buf, req);
