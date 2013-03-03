@@ -2997,7 +2997,7 @@ mfi_stp_cmd(struct mfi_softc *sc, struct mfi_command *cm,caddr_t arg)
 			cm->cm_frame->stp.sgl.sg64[i].len =
 			    ioc->mfi_sgl[i].iov_len;
 		} else {
-			cm->cm_frame->stp.sgl.sg32[i].len =
+			cm->cm_frame->stp.sgl.sg32[i].addr =
 			    kern_sge[i].phys_addr;
 			cm->cm_frame->stp.sgl.sg32[i].len =
 			    ioc->mfi_sgl[i].iov_len;

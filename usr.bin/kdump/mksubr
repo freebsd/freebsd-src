@@ -361,6 +361,7 @@ _EOF_
 auto_or_type     "accessmodename"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/unistd.h"
 auto_switch_type "acltypename"         "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+"        "sys/acl.h"
 auto_or_type     "capname"             "CAP_[A-Z]+[[:space:]]+0x[01248]{16}ULL"       "sys/capability.h"
+auto_or_type     "capfcntlname"        "CAP_FCNTL_[A-Z]+[[:space:]]+\(1"              "sys/capability.h"
 auto_switch_type "extattrctlname"      "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
 auto_switch_type "fadvisebehavname"    "POSIX_FADV_[A-Z]+[[:space:]]+[0-9]+"          "sys/fcntl.h"
 auto_or_type     "flagsname"           "O_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"           "sys/fcntl.h"

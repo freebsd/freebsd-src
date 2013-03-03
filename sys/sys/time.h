@@ -113,7 +113,7 @@ bintime_mul(struct bintime *bt, u_int x)
 #define	SBT_1M	(SBT_1S * 60)
 #define	SBT_1MS	(SBT_1S / 1000)
 #define	SBT_1US	(SBT_1S / 1000000)
-#define	SBT_1NS (SBT_1S / 1000000000)  
+#define	SBT_1NS	(SBT_1S / 1000000000)
 
 static __inline int
 sbintime_getsec(sbintime_t sbt)
@@ -133,7 +133,7 @@ static __inline struct bintime
 sbttobt(sbintime_t sbt)
 {
 	struct bintime bt;
-	
+
 	bt.sec = sbt >> 32;
 	bt.frac = sbt << 32;
 	return (bt);
