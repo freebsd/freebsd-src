@@ -413,6 +413,7 @@ static void
 pwrsave_flushq(struct ieee80211_node *ni)
 {
 	struct ieee80211_psq *psq = &ni->ni_psq;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_psq_head *qhead;
 	struct ifnet *parent, *ifp;
@@ -463,7 +464,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 			 * For encaped frames, we need to free the node
 			 * reference upon failure.
 			 */
-			if (parent->if_transmit(parent, m) != 0)
+			if (ieee80211_parent_transmit(ic, m) != 0)
 				ieee80211_free_node(ni);
 		}
 	}

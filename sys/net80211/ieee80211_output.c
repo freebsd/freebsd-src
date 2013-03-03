@@ -126,7 +126,6 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 	(vap->iv_opmode == IEEE80211_M_WDS && \
 	 (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY) == 0)
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *parent = ic->ic_ifp;
 	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211_node *ni;
 	struct ether_header *eh;
@@ -340,7 +339,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 			return (ENOBUFS);
 		}
 	}
-	error = parent->if_transmit(parent, m);
+	error = ieee80211_parent_transmit(ic, m);
 
 	/*
 	 * Unlock at this point - no need to hold it across

@@ -1041,7 +1041,6 @@ mesh_transmit_to_gate(struct ieee80211vap *vap, struct mbuf *m,
 {
 	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *parent = ic->ic_ifp;
 	struct ieee80211_node *ni;
 	struct ether_header *eh;
 	int error;
@@ -1143,9 +1142,8 @@ mesh_transmit_to_gate(struct ieee80211vap *vap, struct mbuf *m,
 			return;
 		}
 	}
-	error = parent->if_transmit(parent, m);
+	error = ieee80211_parent_transmit(ic, m);
 	if (error != 0) {
-		m_freem(m);
 		ieee80211_free_node(ni);
 	} else {
 		ifp->if_opackets++;
@@ -1240,7 +1238,6 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ifnet *ifp = vap->iv_ifp;
-	struct ifnet *parent = ic->ic_ifp;
 	const struct ieee80211_frame *wh =
 	    mtod(m, const struct ieee80211_frame *);
 	struct mbuf *mcopy;
@@ -1320,7 +1317,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 
 	/* XXX do we know m_nextpkt is NULL? */
 	mcopy->m_pkthdr.rcvif = (void *) ni;
-	err = parent->if_transmit(parent, mcopy);
+	err = ieee80211_parent_transmit(ic, mcopy);
 	if (err != 0) {
 		/* NB: IFQ_HANDOFF reclaims mbuf */
 		ieee80211_free_node(ni);

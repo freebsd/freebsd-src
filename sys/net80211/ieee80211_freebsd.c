@@ -504,6 +504,26 @@ ieee80211_process_callback(struct ieee80211_node *ni,
 	}
 }
 
+/*
+ * Transmit a frame to the parent interface.
+ *
+ * TODO: if the transmission fails, make sure the parent node is freed
+ *   (the callers will first need modifying.)
+ */
+int
+ieee80211_parent_transmit(struct ieee80211com *ic,
+	struct mbuf *m)
+{
+	struct ifnet *parent = ic->ic_ifp;
+	/*
+	 * Assert the IC lock is held - this enforces the
+	 * processing -> queuing order is maintained
+	 */
+	IEEE80211_TX_LOCK_ASSERT(ic);
+
+	return (parent->if_transmit(parent, m));
+}
+
 #include <sys/libkern.h>
 
 void

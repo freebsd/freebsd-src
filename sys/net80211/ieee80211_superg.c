@@ -501,6 +501,7 @@ static void
 ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	int error;
 
 	IEEE80211_TX_LOCK_ASSERT(vap->iv_ic);
@@ -509,9 +510,8 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 	m = ieee80211_encap(vap, ni, m);
 	if (m != NULL) {
 		struct ifnet *ifp = vap->iv_ifp;
-		struct ifnet *parent = ni->ni_ic->ic_ifp;
 
-		error = parent->if_transmit(parent, m);
+		error = ieee80211_parent_transmit(ic, m);;
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);
