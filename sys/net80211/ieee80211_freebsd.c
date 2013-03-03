@@ -516,12 +516,30 @@ ieee80211_parent_transmit(struct ieee80211com *ic,
 {
 	struct ifnet *parent = ic->ic_ifp;
 	/*
-	 * Assert the IC lock is held - this enforces the
+	 * Assert the IC TX lock is held - this enforces the
 	 * processing -> queuing order is maintained
 	 */
 	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	return (parent->if_transmit(parent, m));
+}
+
+/*
+ * Transmit a frame to the VAP interface.
+ */
+int
+ieee80211_vap_transmit(struct ieee80211vap *vap, struct mbuf *m)
+{
+	struct ifnet *ifp = vap->iv_ifp;
+
+	/*
+	 * When transmitting via the VAP, we shouldn't hold
+	 * any IC TX lock as the VAP TX path will acquire it.
+	 */
+	IEEE80211_TX_UNLOCK_ASSERT(vap->iv_ic);
+
+	return (ifp->if_transmit(ifp, m));
+
 }
 
 #include <sys/libkern.h>

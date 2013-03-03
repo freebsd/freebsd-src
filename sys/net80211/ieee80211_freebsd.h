@@ -298,10 +298,9 @@ void	ieee80211_process_callback(struct ieee80211_node *, struct mbuf *, int);
 
 struct ieee80211com;
 int	ieee80211_parent_transmit(struct ieee80211com *, struct mbuf *);
+int	ieee80211_vap_transmit(struct ieee80211vap *, struct mbuf *);
 
 void	get_random_bytes(void *, size_t);
-
-struct ieee80211com;
 
 void	ieee80211_sysctl_attach(struct ieee80211com *);
 void	ieee80211_sysctl_detach(struct ieee80211com *);

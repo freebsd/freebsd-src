@@ -476,7 +476,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 			ifp_q = m->m_nextpkt;
 			KASSERT((!(m->m_flags & M_ENCAP)),
 			    ("%s: vapq with M_ENCAP frame!\n", __func__));
-			(void) ifp->if_transmit(ifp, m);
+			(void) ieee80211_vap_transmit(vap, m);
 		}
 	}
 }
