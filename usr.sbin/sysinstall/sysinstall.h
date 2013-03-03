@@ -130,7 +130,7 @@
 #define VAR_INSTALL_CFG			"installConfig"
 #define VAR_INSTALL_ROOT		"installRoot"
 #define VAR_IPADDR			"ipaddr"
-#define VAR_IPV6_ENABLE			"ipv6_enable"
+#define VAR_IPV6_ENABLE			"ipv6_activate_all_interfaces"
 #define VAR_IPV6ADDR			"ipv6addr"
 #define VAR_KERN_SECURELEVEL		"kern_securelevel"
 #define VAR_KEYMAP			"keymap"
