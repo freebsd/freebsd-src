@@ -104,12 +104,20 @@ or
 and that socket options set with
 .Xr setsockopt 2
 may also affect binding behavior.
+.It Dv CAP_BINDAT
+Permit
+.Xr bindat 2 .
+This right has to be present on the directory descriptor.
 .It Dv CAP_CONNECT
 Permit
 .Xr connect 2 ;
 also required for
 .Xr sendto 2
 with a non-NULL destination address.
+.It Dv CAP_CONNECTAT
+Permit
+.Xr connectat 2 .
+This right has to be present on the directory descriptor.
 .It Dv CAP_CREATE
 Permit
 .Xr openat 2
@@ -511,11 +519,13 @@ argument points at an invalid address.
 .Xr aio_read 2 ,
 .Xr aio_write 2 ,
 .Xr bind 2 ,
+.Xr bindat 2 ,
 .Xr cap_enter 2 ,
 .Xr cap_fcntls_limit 2 ,
 .Xr cap_ioctls_limit 2 ,
 .Xr cap_rights_limit 2 ,
 .Xr connect 2 ,
+.Xr connectat 2 ,
 .Xr dup 2 ,
 .Xr dup2 2 ,
 .Xr extattr_delete_fd 2 ,

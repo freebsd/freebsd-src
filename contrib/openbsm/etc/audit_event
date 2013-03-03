@@ -568,6 +568,8 @@
 43204:AUE_CAP_IOCTLS_GET:cap_ioctls_get(2):fm
 43205:AUE_CAP_FCNTLS_LIMIT:cap_fcntls_limit(2):fm
 43206:AUE_CAP_FCNTLS_GET:cap_fcntls_get(2):fm
+43207:AUE_BINDAT:bindat(2):nt
+43208:AUE_CONNECTAT:connectat(2):nt
 #
 # Solaris userspace events.
 #

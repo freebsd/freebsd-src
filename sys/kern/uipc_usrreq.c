@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>		/* XXX must be before <sys/file.h> */
@@ -271,6 +272,8 @@ static int	uipc_connect2(struct socket *, struct socket *);
 static int	uipc_ctloutput(struct socket *, struct sockopt *);
 static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
+static int	unp_connectat(int, struct socket *, struct sockaddr *,
+		    struct thread *);
 static int	unp_connect2(struct socket *so, struct socket *so2, int);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct mbuf *);
@@ -450,7 +453,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 }
 
 static int
-uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
+uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vattr vattr;
@@ -496,8 +499,8 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	buf[namelen] = 0;
 
 restart:
-	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME,
-	    UIO_SYSSPACE, buf, td);
+	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME,
+	    UIO_SYSSPACE, buf, fd, CAP_BINDAT, td);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
@@ -560,6 +563,13 @@ error:
 }
 
 static int
+uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+
+	return (uipc_bindat(AT_FDCWD, so, nam, td));
+}
+
+static int
 uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error;
@@ -567,6 +577,19 @@ uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
 	UNP_LINK_WLOCK();
 	error = unp_connect(so, nam, td);
+	UNP_LINK_WUNLOCK();
+	return (error);
+}
+
+static int
+uipc_connectat(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
+{
+	int error;
+
+	KASSERT(td == curthread, ("uipc_connectat: td != curthread"));
+	UNP_LINK_WLOCK();
+	error = unp_connectat(fd, so, nam, td);
 	UNP_LINK_WUNLOCK();
 	return (error);
 }
@@ -1081,7 +1104,9 @@ static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_accept =		uipc_accept,
 	.pru_attach =		uipc_attach,
 	.pru_bind =		uipc_bind,
+	.pru_bindat =		uipc_bindat,
 	.pru_connect =		uipc_connect,
+	.pru_connectat =	uipc_connectat,
 	.pru_connect2 =		uipc_connect2,
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
@@ -1101,7 +1126,9 @@ static struct pr_usrreqs uipc_usrreqs_seqpacket = {
 	.pru_accept =		uipc_accept,
 	.pru_attach =		uipc_attach,
 	.pru_bind =		uipc_bind,
+	.pru_bindat =		uipc_bindat,
 	.pru_connect =		uipc_connect,
+	.pru_connectat =	uipc_connectat,
 	.pru_connect2 =		uipc_connect2,
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
@@ -1121,7 +1148,9 @@ static struct pr_usrreqs uipc_usrreqs_stream = {
 	.pru_accept =		uipc_accept,
 	.pru_attach =		uipc_attach,
 	.pru_bind =		uipc_bind,
+	.pru_bindat =		uipc_bindat,
 	.pru_connect =		uipc_connect,
+	.pru_connectat =	uipc_connectat,
 	.pru_connect2 =		uipc_connect2,
 	.pru_detach =		uipc_detach,
 	.pru_disconnect =	uipc_disconnect,
@@ -1233,6 +1262,14 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 static int
 unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+
+	return (unp_connectat(AT_FDCWD, so, nam, td));
+}
+
+static int
+unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
+{
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vnode *vp;
 	struct socket *so2, *so3;
@@ -1265,8 +1302,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
-	    UIO_SYSSPACE, buf, td);
+	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
+	    UIO_SYSSPACE, buf, fd, CAP_CONNECTAT, td);
 	error = namei(&nd);
 	if (error)
 		vp = NULL;
