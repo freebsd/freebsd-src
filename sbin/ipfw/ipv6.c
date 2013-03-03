@@ -42,6 +42,11 @@
 #include <netinet/ip_fw.h>
 #include <arpa/inet.h>
 
+#define	CHECK_LENGTH(v, len) do {			\
+	if ((v) < (len))				\
+		errx(EX_DATAERR, "Rule too long");	\
+	} while (0)
+
 static struct _s_x icmp6codes[] = {
       { "no-route",		ICMP6_DST_UNREACH_NOROUTE },
       { "admin-prohib",		ICMP6_DST_UNREACH_ADMIN },
@@ -131,9 +136,11 @@ print_ip6(ipfw_insn_ip6 *cmd, char const *s)
 }
 
 void
-fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av)
+fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av, int cblen)
 {
        uint8_t type;
+
+       CHECK_LENGTH(cblen, F_INSN_SIZE(ipfw_insn_icmp6));
 
        bzero(cmd, sizeof(*cmd));
        while (*av) {
@@ -327,7 +334,7 @@ lookup_host6 (char *host, struct in6_addr *ip6addr)
  * Return 1 on success, 0 on failure.
  */
 static int
-fill_ip6(ipfw_insn_ip6 *cmd, char *av)
+fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen)
 {
 	int len = 0;
 	struct in6_addr *d = &(cmd->addr6);
@@ -378,6 +385,8 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av)
 		char *p;
 		int masklen;
 		char md = '\0';
+
+		CHECK_LENGTH(cblen, 1 + len + 2 * F_INSN_SIZE(struct in6_addr));
 
 		if ((p = strpbrk(av, "/,")) ) {
 			md = *p;	/* save the separator */
@@ -453,7 +462,7 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av)
  * additional flow-id we want to filter, the basic is 1
  */
 void
-fill_flow6( ipfw_insn_u32 *cmd, char *av )
+fill_flow6( ipfw_insn_u32 *cmd, char *av, int cblen)
 {
 	u_int32_t type;	 /* Current flow number */
 	u_int16_t nflow = 0;    /* Current flow index */
@@ -461,6 +470,8 @@ fill_flow6( ipfw_insn_u32 *cmd, char *av )
 	cmd->d[0] = 0;	  /* Initializing the base number*/
 
 	while (s) {
+		CHECK_LENGTH(cblen, F_INSN_SIZE(ipfw_insn_u32) + nflow + 1);
+
 		av = strsep( &s, ",") ;
 		type = strtoul(av, &av, 0);
 		if (*av != ',' && *av != '\0')
@@ -481,10 +492,10 @@ fill_flow6( ipfw_insn_u32 *cmd, char *av )
 }
 
 ipfw_insn *
-add_srcip6(ipfw_insn *cmd, char *av)
+add_srcip6(ipfw_insn *cmd, char *av, int cblen)
 {
 
-	fill_ip6((ipfw_insn_ip6 *)cmd, av);
+	fill_ip6((ipfw_insn_ip6 *)cmd, av, cblen);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		cmd->opcode = O_IP_SRC_SET;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
@@ -503,10 +514,10 @@ add_srcip6(ipfw_insn *cmd, char *av)
 }
 
 ipfw_insn *
-add_dstip6(ipfw_insn *cmd, char *av)
+add_dstip6(ipfw_insn *cmd, char *av, int cblen)
 {
 
-	fill_ip6((ipfw_insn_ip6 *)cmd, av);
+	fill_ip6((ipfw_insn_ip6 *)cmd, av, cblen);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
