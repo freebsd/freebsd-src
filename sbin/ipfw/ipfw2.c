@@ -3912,6 +3912,7 @@ ipfw_flush(int force)
 
 
 static void table_list(uint16_t num, int need_header);
+static void table_fill_xentry(char *arg, ipfw_table_xentry *xent);
 
 /*
  * This one handles all table-related commands
@@ -3927,8 +3928,7 @@ ipfw_table_handler(int ac, char *av[])
 	int do_add;
 	int is_all;
 	size_t len;
-	char *p;
-	uint32_t a, type, mask, addrlen;
+	uint32_t a, mask;
 	uint32_t tables_max;
 
 	mask = 0;	// XXX uninitialized ?
@@ -3965,57 +3965,8 @@ ipfw_table_handler(int ac, char *av[])
 		ac--; av++;
 		if (!ac)
 			errx(EX_USAGE, "address required");
-		/* 
-		 * Let's try to guess type by agrument.
-		 * Possible types: 
-		 * 1) IPv4[/mask]
-		 * 2) IPv6[/mask]
-		 * 3) interface name
-		 * 4) port ?
-		 */
-		type = 0;
-		if (ishexnumber(*av[0])) {
-			/* Remove / if exists */
-			if ((p = strchr(*av, '/')) != NULL) {
-				*p = '\0';
-				mask = atoi(p + 1);
-			}
 
-			if (inet_pton(AF_INET, *av, &xent.k.addr6) == 1) {
-				type = IPFW_TABLE_CIDR;
-				if ((p != NULL) && (mask > 32))
-					errx(EX_DATAERR, "bad IPv4 mask width: %s", p + 1);
-				xent.masklen = p ? mask : 32;
-				addrlen = sizeof(struct in_addr);
-			} else if (inet_pton(AF_INET6, *av, &xent.k.addr6) == 1) {
-				type = IPFW_TABLE_CIDR;
-				if ((p != NULL) && (mask > 128))
-					errx(EX_DATAERR, "bad IPv6 mask width: %s", p + 1);
-				xent.masklen = p ? mask : 128;
-				addrlen = sizeof(struct in6_addr);
-			}
-		}
-
-		if ((type == 0) && (strchr(*av, '.') == NULL)) {
-			/* Assume interface name. Copy significant data only */
-			mask = MIN(strlen(*av), IF_NAMESIZE - 1);
-			memcpy(xent.k.iface, *av, mask);
-			/* Set mask to exact match */
-			xent.masklen = 8 * IF_NAMESIZE;
-			type = IPFW_TABLE_INTERFACE;
-			addrlen = IF_NAMESIZE;
-		}
-
-		if (type == 0) {
-			if (lookup_host(*av, (struct in_addr *)&xent.k.addr6) != 0)
-				errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
-			xent.masklen = 32;
-			type = IPFW_TABLE_CIDR;
-			addrlen = sizeof(struct in_addr);
-		}
-
-		xent.type = type;
-		xent.len = offsetof(ipfw_table_xentry, k) + addrlen;
+		table_fill_xentry(*av, &xent);
 
 		ac--; av++;
 		if (do_add && ac) {
@@ -4065,6 +4016,93 @@ ipfw_table_handler(int ac, char *av[])
 }
 
 static void
+table_fill_xentry(char *arg, ipfw_table_xentry *xent)
+{
+	int addrlen, mask, masklen, type;
+	struct in6_addr *paddr;
+	uint32_t *pkey;
+	char *p;
+	uint32_t key;
+
+	mask = 0;
+	type = 0;
+	addrlen = 0;
+	masklen = 0;
+
+	/* 
+	 * Let's try to guess type by agrument.
+	 * Possible types: 
+	 * 1) IPv4[/mask]
+	 * 2) IPv6[/mask]
+	 * 3) interface name
+	 * 4) port, uid/gid or other u32 key (base 10 format)
+	 * 5) hostname
+	 */
+	paddr = &xent->k.addr6;
+	if (ishexnumber(*arg) != 0 || *arg == ':') {
+		/* Remove / if exists */
+		if ((p = strchr(arg, '/')) != NULL) {
+			*p = '\0';
+			mask = atoi(p + 1);
+		}
+
+		if (inet_pton(AF_INET, arg, paddr) == 1) {
+			if (p != NULL && mask > 32)
+				errx(EX_DATAERR, "bad IPv4 mask width: %s",
+				    p + 1);
+
+			type = IPFW_TABLE_CIDR;
+			masklen = p ? mask : 32;
+			addrlen = sizeof(struct in_addr);
+		} else if (inet_pton(AF_INET6, arg, paddr) == 1) {
+			if (IN6_IS_ADDR_V4COMPAT(paddr))
+				errx(EX_DATAERR,
+				    "Use IPv4 instead of v4-compatible");
+			if (p != NULL && mask > 128)
+				errx(EX_DATAERR, "bad IPv6 mask width: %s",
+				    p + 1);
+
+			type = IPFW_TABLE_CIDR;
+			masklen = p ? mask : 128;
+			addrlen = sizeof(struct in6_addr);
+		} else {
+			/* Port or any other key */
+			key = strtol(arg, &p, 10);
+			/* Skip non-base 10 entries like 'fa1' */
+			if (p != arg) {
+				pkey = (uint32_t *)paddr;
+				*pkey = htonl(key);
+				type = IPFW_TABLE_CIDR;
+				addrlen = sizeof(uint32_t);
+			}
+		}
+	}
+
+	if (type == 0 && strchr(arg, '.') == NULL) {
+		/* Assume interface name. Copy significant data only */
+		mask = MIN(strlen(arg), IF_NAMESIZE - 1);
+		memcpy(xent->k.iface, arg, mask);
+		/* Set mask to exact match */
+		masklen = 8 * IF_NAMESIZE;
+		type = IPFW_TABLE_INTERFACE;
+		addrlen = IF_NAMESIZE;
+	}
+
+	if (type == 0) {
+		if (lookup_host(arg, (struct in_addr *)paddr) != 0)
+			errx(EX_NOHOST, "hostname ``%s'' unknown", arg);
+
+		masklen = 32;
+		type = IPFW_TABLE_CIDR;
+		addrlen = sizeof(struct in_addr);
+	}
+
+	xent->type = type;
+	xent->masklen = masklen;
+	xent->len = offsetof(ipfw_table_xentry, k) + addrlen;
+}
+
+static void
 table_list(uint16_t num, int need_header)
 {
 	ipfw_xtable *tbl;
@@ -4107,8 +4145,8 @@ table_list(uint16_t num, int need_header)
 			tval = xent->value;
 			addr6 = &xent->k.addr6;
 
-			if ((addr6->s6_addr32[0] == 0) && (addr6->s6_addr32[1] == 0) && 
-			    (addr6->s6_addr32[2] == 0)) {
+
+			if (IN6_IS_ADDR_V4COMPAT(addr6)) {
 				/* IPv4 address */
 				inet_ntop(AF_INET, &addr6->s6_addr32[3], tbuf, sizeof(tbuf));
 			} else {

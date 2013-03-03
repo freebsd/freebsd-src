@@ -95,7 +95,7 @@ void	 audit_arg_pid(pid_t pid);
 void	 audit_arg_process(struct proc *p);
 void	 audit_arg_signum(u_int signum);
 void	 audit_arg_socket(int sodomain, int sotype, int soprotocol);
-void	 audit_arg_sockaddr(struct thread *td, struct sockaddr *sa);
+void	 audit_arg_sockaddr(struct thread *td, int dirfd, struct sockaddr *sa);
 void	 audit_arg_auid(uid_t auid);
 void	 audit_arg_auditinfo(struct auditinfo *au_info);
 void	 audit_arg_auditinfo_addr(struct auditinfo_addr *au_info);
@@ -267,9 +267,9 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_socket((sodomain), (sotype), (soprotocol));	\
 } while (0)
 
-#define	AUDIT_ARG_SOCKADDR(td, sa) do {					\
+#define	AUDIT_ARG_SOCKADDR(td, dirfd, sa) do {				\
 	if (AUDITING_TD(curthread))					\
-		audit_arg_sockaddr((td), (sa));				\
+		audit_arg_sockaddr((td), (dirfd), (sa));		\
 } while (0)
 
 #define	AUDIT_ARG_SUID(suid) do {					\
@@ -365,7 +365,7 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_SIGNUM(signum)
 #define	AUDIT_ARG_SGID(sgid)
 #define	AUDIT_ARG_SOCKET(sodomain, sotype, soprotocol)
-#define	AUDIT_ARG_SOCKADDR(td, sa)
+#define	AUDIT_ARG_SOCKADDR(td, dirfd, sa)
 #define	AUDIT_ARG_SUID(suid)
 #define	AUDIT_ARG_TEXT(text)
 #define	AUDIT_ARG_UID(uid)

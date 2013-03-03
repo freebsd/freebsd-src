@@ -2038,7 +2038,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 					vm_page_dirty(m);
 				if ((tpte & PG_A) != 0)
 					vm_page_aflag_set(m, PGA_REFERENCED);
-				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_aflag_clear(m, PGA_WRITEABLE);
 				pc->pc_map[field] |= 1UL << bit;
@@ -2239,9 +2239,9 @@ pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
-			TAILQ_REMOVE(&pvh->pv_list, pv, pv_list);
+			TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 			break;
 		}
 	}
@@ -2281,7 +2281,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	if (pv_entry_count < pv_entry_high_water && 
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -2503,7 +2503,7 @@ pmap_remove_all(vm_page_t m)
 			vm_page_dirty(m);
 		pmap_unuse_pt(pmap, pv->pv_va, &free);
 		pmap_invalidate_page(pmap, pv->pv_va);
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -2770,7 +2770,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		if (pv == NULL)
 			pv = get_pv_entry(pmap, FALSE);
 		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		pa |= PG_MANAGED;
 	} else if (pv != NULL)
 		free_pv_entry(pmap, pv);
@@ -3465,7 +3465,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	rv = FALSE;
 	rw_wlock(&pvh_global_lock);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (PV_PMAP(pv) == pmap) {
 			rv = TRUE;
 			break;
@@ -3497,7 +3497,7 @@ pmap_page_wired_mappings(vm_page_t m)
 		return (count);
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -3602,7 +3602,7 @@ pmap_remove_pages(pmap_t pmap)
 				if (tpte & PG_M)
 					vm_page_dirty(m);
 
-				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 				if (TAILQ_EMPTY(&m->md.pv_list))
 					vm_page_aflag_clear(m, PGA_WRITEABLE);
 
@@ -3662,7 +3662,7 @@ pmap_is_modified(vm_page_t m)
 		return (rv);
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -3723,7 +3723,7 @@ pmap_is_referenced(vm_page_t m)
 	rv = FALSE;
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -3793,7 +3793,7 @@ pmap_remove_write(vm_page_t m)
 		return;
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -3852,9 +3852,9 @@ pmap_ts_referenced(vm_page_t m)
 	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pvf = pv;
 		do {
-			pvn = TAILQ_NEXT(pv, pv_list);
-			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+			pvn = TAILQ_NEXT(pv, pv_next);
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
+			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 			pmap = PV_PMAP(pv);
 			PMAP_LOCK(pmap);
 			pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -3901,7 +3901,7 @@ pmap_clear_modify(vm_page_t m)
 		return;
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -3936,7 +3936,7 @@ pmap_clear_reference(vm_page_t m)
 	    ("pmap_clear_reference: page %p is not managed", m));
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -4418,7 +4418,7 @@ pmap_pvdump(vm_paddr_t pa)
 
 	printf("pa %x", pa);
 	m = PHYS_TO_VM_PAGE(pa);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		printf(" -> pmap %p, va %x", (void *)pmap, pv->pv_va);
 		pads(pmap);
