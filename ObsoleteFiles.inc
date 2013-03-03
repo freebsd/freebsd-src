@@ -39,6 +39,8 @@
 # done
 
 # 20130302: NTFS support removed
+OLD_FILES+=rescue/mount_ntfs
+OLD_FILES+=sbin/mount_ntfs
 OLD_FILES+=usr/include/fs/ntfs/ntfs.h
 OLD_FILES+=usr/include/fs/ntfs/ntfs_compr.h
 OLD_FILES+=usr/include/fs/ntfs/ntfs_ihash.h
@@ -51,6 +53,7 @@ OLD_FILES+=usr/share/man/man8/mount_ntfs.8.gz
 # 20130302: PORTALFS support removed
 OLD_FILES+=usr/include/fs/portalfs/portal.h
 OLD_DIRS+=usr/include/fs/portalfs
+OLD_FILES+=usr/sbin/mount_portalfs
 OLD_FILES+=usr/share/examples/portal/README
 OLD_FILES+=usr/share/examples/portal/portal.conf
 OLD_DIRS+=usr/share/examples/portal
@@ -79,9 +82,10 @@ OLD_DIRS+=var/remote
 # 20121114: zpool-features manual page moved from section 5 to 7
 OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
 # 20121022: remove harp, hfa and idt man page
-OLD_FILES+=share/man/man4/harp.4
-OLD_FILES+=share/man/man4/hfa.4
-OLD_FILES+=share/man/man4/idt.4
+OLD_FILES+=usr/share/man/man4/harp.4.gz
+OLD_FILES+=usr/share/man/man4/hfa.4.gz
+OLD_FILES+=usr/share/man/man4/idt.4.gz
+OLD_FILES+=usr/share/man/man4/if_idt.4.gz
 # 20121022: VFS_LOCK_GIANT elimination
 OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
 OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz
