@@ -46,9 +46,3 @@ You can install from the following types of media:
             If this install method hangs on you or refuses to work
             properly, you may need to set some special options for
             your NFS server.  See the Options screen for more details.
-
-
-   Tape     Extract distribution files from tape into a temporary
-            directory and install from there.  If the tape was created
-            with blocksize other than 20, you may wish to change this
-            in the Options screen.
