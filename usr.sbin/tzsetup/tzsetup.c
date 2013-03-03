@@ -836,9 +836,11 @@ install_zoneinfo(const char *zoneinfo)
 	rv = install_zoneinfo_file(path_zoneinfo_file);
 
 	/* Save knowledge for later */
-	if ((f = fopen(path_db, "w")) != NULL) {
-		fprintf(f, "%s\n", zoneinfo);
-		fclose(f);
+	if (reallydoit && (rv & DITEM_FAILURE) == 0) {
+		if ((f = fopen(path_db, "w")) != NULL) {
+			fprintf(f, "%s\n", zoneinfo);
+			fclose(f);
+		}
 	}
 
 	return (rv);
