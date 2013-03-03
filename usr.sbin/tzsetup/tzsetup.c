@@ -56,6 +56,13 @@ __FBSDID("$FreeBSD$");
 #define	_PATH_DB		"/var/db/zoneinfo"
 #define	_PATH_WALL_CMOS_CLOCK	"/etc/wall_cmos_clock"
 
+#ifdef PATH_MAX
+#define	SILLY_BUFFER_SIZE	2*PATH_MAX
+#else
+#warning "Somebody needs to fix this to dynamically size this buffer."
+#define	SILLY_BUFFER_SIZE	2048
+#endif
+
 static char	path_zonetab[MAXPATHLEN], path_iso3166[MAXPATHLEN],
 		path_zoneinfo[MAXPATHLEN], path_localtime[MAXPATHLEN], 
 		path_db[MAXPATHLEN], path_wall_cmos_clock[MAXPATHLEN];
@@ -523,7 +530,7 @@ static int
 install_zoneinfo_file(const char *zoneinfo_file)
 {
 	char		buf[1024];
-	char		title[64], prompt[64];
+	char		title[64], prompt[SILLY_BUFFER_SIZE];
 	struct stat	sb;
 	ssize_t		len;
 	int		fd1, fd2, copymode;
@@ -594,7 +601,18 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 
-			unlink(path_localtime);
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not unlink %s: %s",
+				    path_localtime, strerror(errno));
+				if (usedialog) {
+					snprintf(title, sizeof(title), "Error");
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				} else
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
+
 			fd2 = open(path_localtime, O_CREAT | O_EXCL | O_WRONLY,
 			    S_IRUSR | S_IRGRP | S_IROTH);
 			if (fd2 < 0) {
@@ -640,7 +658,17 @@ install_zoneinfo_file(const char *zoneinfo_file)
 					fprintf(stderr, "%s\n", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
-			unlink(path_localtime);
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
+				snprintf(prompt, sizeof(prompt),
+				    "Could not unlink %s: %s",
+				    path_localtime, strerror(errno));
+				if (usedialog) {
+					snprintf(title, sizeof(title), "Error");
+					dialog_msgbox(title, prompt, 8, 72, 1);
+				} else
+					fprintf(stderr, "%s\n", prompt);
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
 			if (symlink(zoneinfo_file, path_localtime) < 0) {
 				snprintf(title, sizeof(title), "Error");
 				snprintf(prompt, sizeof(prompt),
