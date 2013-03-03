@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 
@@ -252,7 +251,7 @@ getnextcpuevent(int idle)
 	u_int hardfreq;
 
 	state = DPCPU_PTR(timerstate);
-	/* Handle hardclock() events, skipping some is CPU is idle. */
+	/* Handle hardclock() events, skipping some if CPU is idle. */
 	event = state->nexthard;
 	if (idle) {
 		hardfreq = (u_int)hz / 2;

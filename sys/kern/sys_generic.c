@@ -1056,7 +1056,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		precision >>= tc_precexp;
 		if (TIMESEL(&asbt, rsbt))
 			asbt += tc_tick_sbt;
-		asbt += rsbt; 
+		asbt += rsbt;
 	} else
 		asbt = -1;
 	seltdinit(td);
@@ -1295,7 +1295,7 @@ sys_poll(td, uap)
 			error = EINVAL;
 			goto done;
 		}
-		rsbt = SBT_1MS * uap->timeout; 
+		rsbt = SBT_1MS * uap->timeout;
 		precision = rsbt;
 		precision >>= tc_precexp;
 		if (TIMESEL(&asbt, rsbt))

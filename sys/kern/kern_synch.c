@@ -353,7 +353,7 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
 	int sbt_sec;
 
-	sbt_sec = sbintime_getsec(sbt);	
+	sbt_sec = sbintime_getsec(sbt);
 	KASSERT(sbt_sec >= 0, ("pause: timo must be >= 0"));
 
 	/* silently convert invalid timeouts */

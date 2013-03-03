@@ -71,12 +71,12 @@ void	cv_broadcastpri(struct cv *cvp, int pri);
 	_cv_wait_sig((cvp), &(lock)->lock_object)
 #define	cv_timedwait(cvp, lock, timo)					\
 	_cv_timedwait_sbt((cvp), &(lock)->lock_object,			\
-	    (tick_sbt * (timo)), 0, C_HARDCLOCK)
+	    tick_sbt * (timo), 0, C_HARDCLOCK)
 #define	cv_timedwait_sbt(cvp, lock, sbt, pr, flags)			\
 	_cv_timedwait_sbt((cvp), &(lock)->lock_object, (sbt), (pr), (flags))
 #define	cv_timedwait_sig(cvp, lock, timo)				\
 	_cv_timedwait_sig_sbt((cvp), &(lock)->lock_object,		\
-	    (tick_sbt * (timo)), 0, C_HARDCLOCK)
+	    tick_sbt * (timo), 0, C_HARDCLOCK)
 #define	cv_timedwait_sig_sbt(cvp, lock, sbt, pr, flags)			\
 	_cv_timedwait_sig_sbt((cvp), &(lock)->lock_object, (sbt), (pr), (flags))
 

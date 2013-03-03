@@ -377,7 +377,7 @@ extern struct mtx_pool *mtxpool_sleep;
 
 #define	mtx_sleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
-	    (tick_sbt * (timo)), 0, C_HARDCLOCK)
+	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
 #define	mtx_initialized(m)	lock_initalized(&(m)->lock_object)
 

@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
-#include <sys/time.h>
 
 #ifdef SMP
 #include <machine/cpu.h>
@@ -175,9 +174,6 @@ struct callout_cpu cc_cpu;
 #define	CC_LOCK(cc)	mtx_lock_spin(&(cc)->cc_lock)
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
 #define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
-
-#define	TIME_T_MAX							\
-	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)
 
 static int timeout_cpu;
 static void
@@ -553,7 +549,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_precision = precision;
 	bucket = callout_get_bucket(c->c_time);
 	CTR3(KTR_CALLOUT, "precision set for %p: %d.%08x",
-	    c, (int)(c->c_precision >> 32), 
+	    c, (int)(c->c_precision >> 32),
 	    (u_int)(c->c_precision & 0xffffffff));
 	LIST_INSERT_HEAD(&cc->cc_callwheel[bucket], c, c_links.le);
 	if (cc->cc_bucket == bucket)
@@ -1008,7 +1004,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 
 	callout_cc_add(c, cc, to_sbt, precision, ftn, arg, cpu, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
-	    cancelled ? "re" : "", c, c->c_func, c->c_arg,(int)(to_sbt >> 32),
+	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_sbt >> 32),
 	    (u_int)(to_sbt & 0xffffffff));
 	CC_UNLOCK(cc);
 

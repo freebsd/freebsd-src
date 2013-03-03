@@ -1918,7 +1918,7 @@ done:
 	    rate = 2;
 	else
 	    rate = 30;
-	callout_reset_sbt(&sc->ctimeout, (SBT_1S / rate), 0,
+	callout_reset_sbt(&sc->ctimeout, SBT_1S / rate, 0,
 	    scrn_timer, sc, C_PREL(1));
     }
 }
@@ -3864,7 +3864,7 @@ blink_screen(void *arg)
 	(*scp->rndr->draw)(scp, 0, scp->xsize*scp->ysize, 
 			   scp->sc->blink_in_progress & 1);
 	scp->sc->blink_in_progress--;
-	callout_reset_sbt(&scp->sc->cblink, (SBT_1S / 15), 0,
+	callout_reset_sbt(&scp->sc->cblink, SBT_1S / 15, 0,
 	    blink_screen, scp, C_PREL(0));
     }
 }

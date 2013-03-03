@@ -111,7 +111,7 @@ int	sleepq_signal(void *wchan, int flags, int pri, int queue);
 void	sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt,
 	    sbintime_t pr, int flags);
 #define	sleepq_set_timeout(wchan, timo)					\
-    sleepq_set_timeout_sbt((wchan), (tick_sbt * (timo)), 0, C_HARDCLOCK)
+    sleepq_set_timeout_sbt((wchan), tick_sbt * (timo), 0, C_HARDCLOCK)
 u_int	sleepq_sleepcnt(void *wchan, int queue);
 int	sleepq_timedwait(void *wchan, int pri);
 int	sleepq_timedwait_sig(void *wchan, int pri);
