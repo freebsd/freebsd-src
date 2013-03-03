@@ -83,7 +83,7 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
  * TODO:
  *	allocate more timeout table slots when table overflows.
  */
-int callwheelsize, callwheelmask;
+u_int callwheelsize, callwheelmask;
 
 /*
  * The callout cpu migration entity represents informations necessary for
