@@ -63,6 +63,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #endif
 
+#ifndef NO_EVENTTIMERS
+DPCPU_DECLARE(sbintime_t, hardclocktime);
+#endif
+
 SDT_PROVIDER_DEFINE(callout_execute);
 SDT_PROBE_DEFINE(callout_execute, kernel, , callout_start, callout-start);
 SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_start, 0,
@@ -176,12 +180,12 @@ struct callout_cpu cc_cpu;
 #define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
 
 static int timeout_cpu;
-static void
-softclock_call_cc(struct callout *c, struct callout_cpu *cc,
+
+static void	softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 #ifdef CALLOUT_PROFILING
-    int *mpcalls, int *lockcalls, int *gcalls,
+		    int *mpcalls, int *lockcalls, int *gcalls,
 #endif
-    int direct);
+		    int direct);
 
 static MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 
@@ -203,16 +207,16 @@ static MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
  */
 
 /*
- * Resets the migration entity tied to a specific callout cpu.
+ * Resets the execution entity tied to a specific callout cpu.
  */
 static void
-cc_cme_cleanup(struct callout_cpu *cc, int direct)
+cc_cce_cleanup(struct callout_cpu *cc, int direct)
 {
 
 	cc->cc_exec_entity[direct].cc_curr = NULL;
 	cc->cc_exec_entity[direct].cc_next = NULL;
-	cc->cc_exec_entity[direct].cc_cancel = 0;
-	cc->cc_exec_entity[direct].cc_waiting = 0;
+	cc->cc_exec_entity[direct].cc_cancel = FALSE;
+	cc->cc_exec_entity[direct].cc_waiting = FALSE;
 #ifdef SMP
 	cc->cc_exec_entity[direct].ce_migration_cpu = CPUBLOCK;
 	cc->cc_exec_entity[direct].ce_migration_time = 0;
@@ -225,7 +229,7 @@ cc_cme_cleanup(struct callout_cpu *cc, int direct)
  * Checks if migration is requested by a specific callout cpu.
  */
 static int
-cc_cme_migrating(struct callout_cpu *cc, int direct)
+cc_cce_migrating(struct callout_cpu *cc, int direct)
 {
 
 #ifdef SMP
@@ -275,7 +279,7 @@ callout_cpu_init(struct callout_cpu *cc)
 	TAILQ_INIT(&cc->cc_expireq);
 	cc->cc_firstevent = INT64_MAX;
 	for (i = 0; i < 2; i++)
-		cc_cme_cleanup(cc, i);
+		cc_cce_cleanup(cc, i);
 	if (cc->cc_callout == NULL)
 		return;
 	for (i = 0; i < ncallout; i++) {
@@ -596,7 +600,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	int flags, new_cpu;
 	sbintime_t new_time;
 #endif
-#ifdef DIAGNOSTIC
+#if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING) 
 	sbintime_t bt1, bt2;
 	struct timespec ts2;
 	static sbintime_t maxdt = 2 * SBT_1MS;	/* 2 msec */
@@ -617,7 +621,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	else
 		c->c_flags &= ~CALLOUT_PENDING;
 	cc->cc_exec_entity[direct].cc_curr = c;
-	cc->cc_exec_entity[direct].cc_cancel = 0;
+	cc->cc_exec_entity[direct].cc_cancel = FALSE;
 	CC_UNLOCK(cc);
 	if (c_lock != NULL) {
 		class->lc_lock(c_lock, sharedlock);
@@ -630,7 +634,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 			goto skip;
 		}
 		/* The callout cannot be stopped now. */
-		cc->cc_exec_entity[direct].cc_cancel = 1;
+		cc->cc_exec_entity[direct].cc_cancel = TRUE;
 		if (c_lock == &Giant.lock_object) {
 #ifdef CALLOUT_PROFILING
 			(*gcalls)++;
@@ -687,8 +691,8 @@ skip:
 		 * If the callout was scheduled for
 		 * migration just cancel it.
 		 */
-		if (cc_cme_migrating(cc, direct)) {
-			cc_cme_cleanup(cc, direct);
+		if (cc_cce_migrating(cc, direct)) {
+			cc_cce_cleanup(cc, direct);
 
 			/*
 			 * It should be assert here that the callout is not
@@ -696,11 +700,11 @@ skip:
 			 */
 			c->c_flags &= ~CALLOUT_DFRMIGRATION;
 		}
-		cc->cc_exec_entity[direct].cc_waiting = 0;
+		cc->cc_exec_entity[direct].cc_waiting = FALSE;
 		CC_UNLOCK(cc);
 		wakeup(&cc->cc_exec_entity[direct].cc_waiting);
 		CC_LOCK(cc);
-	} else if (cc_cme_migrating(cc, direct)) {
+	} else if (cc_cce_migrating(cc, direct)) {
 		KASSERT((c_flags & CALLOUT_LOCAL_ALLOC) == 0,
 		    ("Migrating legacy callout %p", c));
 #ifdef SMP
@@ -712,7 +716,7 @@ skip:
 		new_time = cc->cc_exec_entity[direct].ce_migration_time;
 		new_func = cc->cc_exec_entity[direct].ce_migration_func;
 		new_arg = cc->cc_exec_entity[direct].ce_migration_arg;
-		cc_cme_cleanup(cc, direct);
+		cc_cce_cleanup(cc, direct);
 
 		/*
 		 * It should be assert here that the callout is not destroyed
@@ -870,10 +874,6 @@ callout_handle_init(struct callout_handle *handle)
 	handle->callout = NULL;
 }
 
-#ifndef NO_EVENTTIMERS
-DPCPU_DECLARE(sbintime_t, hardclocktime);
-#endif
-
 /*
  * New interface; clients allocate their own callout structures.
  *
@@ -908,8 +908,9 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 #ifdef NO_EVENTTIMERS
 		    sbt >= sbt_timethreshold) {
 			to_sbt = getsbinuptime();
+
 			/* Add safety belt for the case of hz > 1000. */
-			to_sbt += (tc_tick_sbt - tick_sbt);
+			to_sbt += tc_tick_sbt - tick_sbt;
 #else
 		    sbt >= sbt_tickthreshold) {
 			/*
@@ -953,7 +954,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		 * can cancel the callout if it has not really started.
 		 */
 		if (c->c_lock != NULL && !cc->cc_exec_entity[direct].cc_cancel)
-			cancelled = cc->cc_exec_entity[direct].cc_cancel = 1;
+			cancelled = cc->cc_exec_entity[direct].cc_cancel = TRUE;
 		if (cc->cc_exec_entity[direct].cc_waiting) {
 			/*
 			 * Someone has called callout_drain to kill this
@@ -1134,7 +1135,7 @@ again:
 				 * will be packed up, just let softclock()
 				 * take care of it.
 				 */
-				cc->cc_exec_entity[direct].cc_waiting = 1;
+				cc->cc_exec_entity[direct].cc_waiting = FALSE;
 				DROP_GIANT();
 				CC_UNLOCK(cc);
 				sleepq_add(
@@ -1160,10 +1161,10 @@ again:
 			 * lock, the callout will be skipped in
 			 * softclock().
 			 */
-			cc->cc_exec_entity[direct].cc_cancel = 1;
+			cc->cc_exec_entity[direct].cc_cancel = TRUE;
 			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
-			KASSERT(!cc_cme_migrating(cc, direct),
+			KASSERT(!cc_cce_migrating(cc, direct),
 			    ("callout wrongly scheduled for migration"));
 			CC_UNLOCK(cc);
 			KASSERT(!sq_locked, ("sleepqueue chain locked"));
@@ -1183,6 +1184,7 @@ again:
 	}
 	if (sq_locked)
 		sleepq_release(&cc->cc_exec_entity[direct].cc_waiting);
+
 	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 
 	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
