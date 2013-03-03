@@ -1686,6 +1686,7 @@ unp_freerights(struct filedescent *fde, int fdcount)
 
 	for (i = 0; i < fdcount; i++, fde++) {
 		fp = fde->fde_file;
+		filecaps_free(&fdep->fde_caps);
 		bzero(fde, sizeof(*fde));
 		unp_discard(fp);
 	}
@@ -1760,7 +1761,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 					panic("unp_externalize fdalloc failed");
 				fde = &fdesc->fd_ofiles[f];
 				fde->fde_file = fdep->fde_file;
-				filecaps_copy(&fdep->fde_caps, &fde->fde_caps);
+				filecaps_move(&fdep->fde_caps, &fde->fde_caps);
 				unp_externalize_fp(fde->fde_file);
 				*fdp = f;
 			}
