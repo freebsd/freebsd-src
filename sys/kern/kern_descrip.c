@@ -1397,7 +1397,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst)
 /*
  * Move filecaps structure to the new place and clear the old place.
  */
-static void
+void
 filecaps_move(struct filecaps *src, struct filecaps *dst)
 {
 
