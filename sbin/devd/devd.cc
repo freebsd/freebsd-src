@@ -912,9 +912,7 @@ event_loop(void)
 	server_fd = create_socket(PIPE);
 	accepting = 1;
 	max_fd = max(fd, server_fd) + 1;
-	while (1) {
-		if (romeo_must_die)
-			break;
+	while (!romeo_must_die) {
 		if (!once && !dflag && !nflag) {
 			// Check to see if we have any events pending.
 			tv.tv_sec = 0;
