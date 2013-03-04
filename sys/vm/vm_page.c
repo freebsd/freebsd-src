@@ -2132,7 +2132,7 @@ void
 vm_page_cache(vm_page_t m)
 {
 	vm_object_t object;
-	int old_empty_cache;
+	boolean_t cache_was_empty;
 
 	vm_page_lock_assert(m, MA_OWNED);
 	object = m->object;
@@ -2184,8 +2184,8 @@ vm_page_cache(vm_page_t m)
 	m->flags &= ~PG_ZERO;
 	mtx_lock(&vm_page_queue_free_mtx);
 	m->flags |= PG_CACHED;
-	old_empty_cache = vm_object_cache_is_empty(object);
 	cnt.v_cache_count++;
+	cache_was_empty = vm_object_cache_is_empty(object);
 	vm_radix_insert(&object->cache, m->pindex, m);
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m)) {
@@ -2204,10 +2204,9 @@ vm_page_cache(vm_page_t m)
 	 * the object's only resident page.
 	 */
 	if (object->type == OBJT_VNODE) {
-		if (old_empty_cache != 0 && object->resident_page_count != 0)
+		if (cache_was_empty && object->resident_page_count != 0)
 			vhold(object->handle);
-		else if (old_empty_cache == 0 &&
-		    object->resident_page_count == 0)
+		else if (!cache_was_empty && object->resident_page_count == 0)
 			vdrop(object->handle);
 	}
 }
