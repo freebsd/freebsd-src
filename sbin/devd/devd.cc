@@ -653,7 +653,7 @@ config::expand_string(const char *src, const char *prepend, const char *append)
 }
 
 bool
-config::chop_var(char *&buffer, char *&lhs, char *&rhs)
+config::chop_var(char *&buffer, char *&lhs, char *&rhs) const
 {
 	char *walker;
 	

@@ -172,7 +172,7 @@ protected:
 	void parse_files_in_dir(const char *dirname);
 	void expand_one(const char *&src, std::string &dst);
 	bool is_id_char(char) const;
-	bool chop_var(char *&buffer, char *&lhs, char *&rhs);
+	bool chop_var(char *&buffer, char *&lhs, char *&rhs) const;
 private:
 	std::vector<std::string> _dir_list;
 	std::string _pidfile;
