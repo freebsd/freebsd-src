@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
-#include <sys/condvar.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -84,7 +83,7 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
  * TODO:
  *	allocate more timeout table slots when table overflows.
  */
-int callwheelsize, callwheelmask;
+u_int callwheelsize, callwheelmask;
 
 /*
  * The callout cpu migration entity represents informations necessary for
@@ -205,7 +204,7 @@ cc_cme_migrating(struct callout_cpu *cc)
 }
 
 /*
- * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization 
+ * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization
  *
  *	This code is called very early in the kernel initialization sequence,
  *	and may be called more then once.
@@ -704,7 +703,7 @@ softclock(void *arg)
  *	Initialize a handle so that using it with untimeout is benign.
  *
  *	See AT&T BCI Driver Reference Manual for specification.  This
- *	implementation differs from that one in that although an 
+ *	implementation differs from that one in that although an
  *	identification value is returned from timeout, the original
  *	arguments to timeout as well as the identifier are used to
  *	identify entries for untimeout.
