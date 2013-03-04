@@ -295,7 +295,7 @@ vm_radix_declev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 }
 
 /*
- * Internal helper for vm_radix_reclaim_allonodes().
+ * Internal helper for vm_radix_reclaim_allnodes().
  * This function is recursive.
  */
 static void
