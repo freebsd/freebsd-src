@@ -42,7 +42,6 @@ class var_list
 {
 public:
 	var_list() {}
-	virtual ~var_list() {}
 	/** Set a variable in this var list.
 	 */
 	void set_variable(const std::string &var, const std::string &val);
