@@ -41,7 +41,6 @@ class config;
 class var_list
 {
 public:
-	var_list() {}
 	/** Set a variable in this var list.
 	 */
 	void set_variable(const std::string &var, const std::string &val);
@@ -67,7 +66,6 @@ private:
 struct eps
 {
 public:
-	eps() {}
 	virtual ~eps() {}
 	/** Does this eps match the current config?
 	 */
