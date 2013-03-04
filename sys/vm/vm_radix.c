@@ -45,7 +45,6 @@
 #include <sys/cdefs.h>
 
 #include "opt_ddb.h"
-#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -60,10 +59,6 @@
 
 #ifdef DDB
 #include <ddb/ddb.h>
-#endif
-
-#ifndef VM_RADIX_BOOT_CACHE
-#define	VM_RADIX_BOOT_CACHE	150
 #endif
 
 /*
@@ -102,27 +97,6 @@ struct vm_radix_node {
 static uma_zone_t vm_radix_node_zone;
 
 /*
- * Boot-time cache of struct vm_radix_node objects.
- * This cache is used to cater page allocations before the UMA zone is
- * actually setup and pre-allocated (ie. pmap_init()).
- */
-static u_int boot_cache_cnt;
-static struct vm_radix_node boot_cache[VM_RADIX_BOOT_CACHE];
-
-static struct vm_radix_node *
-vm_radix_carve_bootcache(void)
-{
-	struct vm_radix_node *rnode;
-
-	if (boot_cache_cnt == VM_RADIX_BOOT_CACHE)
-		panic("%s: Increase VM_RADIX_BOOT_CACHE (%u)", __func__,
-		    VM_RADIX_BOOT_CACHE);
-	rnode = &boot_cache[boot_cache_cnt];
-	boot_cache_cnt++;
-	return (rnode);
-}
-
-/*
  * Allocate a radix node.  Pre-allocation ensures that the request will be
  * always successfully satisfied.
  */
@@ -131,26 +105,22 @@ vm_radix_node_get(vm_pindex_t owner, uint16_t count, uint16_t clevel)
 {
 	struct vm_radix_node *rnode;
 
-	if (__predict_false(boot_cache_cnt <= VM_RADIX_BOOT_CACHE))
-		rnode = vm_radix_carve_bootcache();
-	else {
-		rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO);
+	rnode = uma_zalloc(vm_radix_node_zone, M_NOWAIT | M_ZERO);
 
-		/*
-		 * The required number of nodes might be already correctly
-		 * pre-allocated in vm_radix_init().  However, UMA can reserve
-		 * few nodes on per-cpu specific buckets, which will not be
-		 * accessible from the curcpu.  The allocation could then
-		 * return NULL when the pre-allocation pool is close to be
-		 * exhausted.  Anyway, in practice this should never be a
-		 * problem because a new node is not always required for
-		 * insert, thus the pre-allocation pool should already have
-		 * some extra-pages that indirectly deal with this situation.
-		 */
-		if (rnode == NULL)
-			panic("%s: uma_zalloc() returned NULL for a new node",
-			    __func__);
-	}
+	/*
+	 * The required number of nodes might be already correctly
+	 * pre-allocated in vm_radix_init().  However, UMA can reserve
+	 * few nodes on per-cpu specific buckets, which will not be
+	 * accessible from the curcpu.  The allocation could then
+	 * return NULL when the pre-allocation pool is close to be
+	 * exhausted.  Anyway, in practice this should never be a
+	 * problem because a new node is not always required for
+	 * insert, thus the pre-allocation pool should already have
+	 * some extra-pages that indirectly deal with this situation.
+	 */
+	if (rnode == NULL)
+		panic("%s: uma_zalloc() returned NULL for a new node",
+		    __func__);
 	rnode->rn_owner = owner;
 	rnode->rn_count = count;
 	rnode->rn_clev = clevel;
@@ -164,9 +134,6 @@ static __inline void
 vm_radix_node_put(struct vm_radix_node *rnode)
 {
 
-	if (__predict_false(rnode > boot_cache &&
-	    rnode <= &boot_cache[VM_RADIX_BOOT_CACHE]))
-		return;
 	uma_zfree(vm_radix_node_zone, rnode);
 }
 
@@ -367,7 +334,23 @@ vm_radix_node_zone_dtor(void *mem, int size __unused, void *arg __unused)
  * Pre-allocate intermediate nodes from the UMA slab zone.
  */
 static void
-vm_radix_init(void *arg __unused)
+vm_radix_prealloc(void *arg __unused)
+{
+
+	if (!uma_zone_reserve_kva(vm_radix_node_zone, cnt.v_page_count))
+		panic("%s: unable to create new zone", __func__);
+	uma_prealloc(vm_radix_node_zone, cnt.v_page_count);
+}
+SYSINIT(vm_radix_prealloc, SI_SUB_KMEM, SI_ORDER_SECOND, vm_radix_prealloc,
+    NULL);
+
+/*
+ * Initialize the UMA slab zone.
+ * Until vm_radix_prealloc() is called, the zone will be served by the
+ * UMA boot-time pre-allocated pool of pages.
+ */
+void
+vm_radix_init(void)
 {
 
 	vm_radix_node_zone = uma_zcreate("RADIX NODE",
@@ -378,12 +361,7 @@ vm_radix_init(void *arg __unused)
 	    NULL,
 #endif
 	    NULL, NULL, VM_RADIX_PAD, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	if (!uma_zone_reserve_kva(vm_radix_node_zone, cnt.v_page_count))
-		panic("%s: unable to create new zone", __func__);
-	uma_prealloc(vm_radix_node_zone, cnt.v_page_count);
-	boot_cache_cnt = VM_RADIX_BOOT_CACHE + 1;
 }
-SYSINIT(vm_radix_init, SI_SUB_KMEM, SI_ORDER_SECOND, vm_radix_init, NULL);
 
 /*
  * Inserts the key-value pair in to the trie.

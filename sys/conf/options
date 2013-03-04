@@ -591,7 +591,6 @@ VM_KMEM_SIZE_MAX	opt_vm.h
 VM_NDOMAIN		opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
-VM_RADIX_BOOT_CACHE	opt_vm.h
 NO_SWAPPING		opt_vm.h
 MALLOC_MAKE_FAILURES	opt_vm.h
 MALLOC_PROFILE		opt_vm.h
