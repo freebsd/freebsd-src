@@ -114,7 +114,7 @@ META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} \
 META2DEPS_CMD += -D ${DPDEPS}
 .endif
 
-M2D_OBJROOTS += ${OBJTOP}/ ${_OBJROOT}
+M2D_OBJROOTS += ${OBJTOP}/ ${_OBJROOT} ${_objroot}
 .if defined(SB_OBJROOT)
 M2D_OBJROOTS += ${SB_OBJROOT}
 .endif
@@ -157,7 +157,21 @@ dir_list != cd ${_OBJDIR} && \
 .if !empty(DPADD)
 _nonlibs := ${DPADD:T:Nlib*:N*include}
 .if !empty(_nonlibs)
-dir_list += ${_nonlibs:@x@${DPADD:M*/$x}@:H:tA}
+ddep_list =
+.for f in ${_nonlibs:@x@${DPADD:M*/$x}@:tA}
+.if exists($f.dirdep)
+ddep_list += $f.dirdep
+.elif exists(${f:H}.dirdep)
+ddep_list += ${f:H}.dirdep
+.else
+dir_list += ${f:H}
+.endif
+.endfor
+.if !empty(ddep_list)
+ddeps != cat ${ddep_list:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
+        sed 's,//*$$,,;s,\.${HOST_TARGET}$$,.host,'
+dir_list += ${ddeps}
+.endif
 .endif
 .endif
 
@@ -173,22 +187,21 @@ dirdep_list = \
 	${dir_list:M${_objtop}*/*:C,${_objtop}[^/]*/,,} \
 	${GENDIRDEPS_DIR_LIST_XTRAS}
 
+# sort longest first
+M2D_OBJROOTS := ${M2D_OBJROOTS:O:u:[-1..1]}
+
 # anything we use from an object dir other than ours
 # needs to be qualified with its .<machine> suffix
 # (we used the pseudo machine "host" for the HOST_TARGET).
-qualdir_list = \
-	${dir_list:M${_objroot}*/*/*:N${SRCTOP}*:N${_objtop}*:C,${_objroot}([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
-
-.if ${_OBJROOT} != ${_objroot}
-dirdep_list += \
-	${dir_list:M${_OBJTOP}*/*:C,${_OBJTOP}[^/]*/,,}
-
+skip_ql= ${SRCTOP}* ${_objtop}*
+.for o in ${M2D_OBJROOTS:${skip_ql:${M_ListToSkip}}}
 qualdir_list += \
-	${dir_list:M${_OBJROOT}*/*/*:N${SRCTOP}*:N${_OBJTOP}*:C,${_OBJROOT}([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
-.endif
+	${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
+skip_ql+= $o*
+.endfor
 
 dirdep_list := ${dirdep_list:O:u}
-qualdir_list := ${qualdir_list:O:u}
+qualdir_list := ${qualdir_list:N*.${MACHINE}:O:u}
 
 DIRDEPS = \
 	${dirdep_list:N${RELDIR}:N${RELDIR}/*} \
@@ -209,6 +222,7 @@ DIRDEPS += \
 DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:O:u}
 
 .if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
 .info ${RELDIR}: dir_list='${dir_list}'
 .info ${RELDIR}: dirdep_list='${dirdep_list}'
 .info ${RELDIR}: qualdir_list='${qualdir_list}'
