@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0";
+char ixgbe_driver_version[] = "2.5.7 - HEAD";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -83,7 +83,7 @@ static ixgbe_vendor_info_t ixgbe_vendor_info_array[] =
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF2, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_FCOE, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599EN_SFP, 0, 0, 0},
-	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T1, 0, 0, 0},
+	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF_QP, 0, 0, 0},
 	{IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T, 0, 0, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
@@ -216,7 +216,6 @@ static device_method_t ixgbe_methods[] = {
 	DEVMETHOD(device_attach, ixgbe_attach),
 	DEVMETHOD(device_detach, ixgbe_detach),
 	DEVMETHOD(device_shutdown, ixgbe_shutdown),
-
 	DEVMETHOD_END
 };
 
@@ -595,6 +594,9 @@ ixgbe_attach(device_t dev)
 		device_printf(dev, "For optimal performance a x8 "
 		    "PCIE, or x4 PCIE 2 slot is required.\n");
         }
+
+	/* Set an initial default flow control value */
+	adapter->fc =  ixgbe_fc_full;
 
 	/* let hardware know driver is loaded */
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
@@ -1310,7 +1312,7 @@ ixgbe_init_locked(struct adapter *adapter)
 			tmp = IXGBE_LOW_DV(frame);
 		hw->fc.low_water[0] = IXGBE_BT2KB(tmp);
 		
-		adapter->fc = hw->fc.requested_mode = ixgbe_fc_full;
+		hw->fc.requested_mode = adapter->fc;
 		hw->fc.pause_time = IXGBE_FC_PAUSE;
 		hw->fc.send_xon = TRUE;
 	}
@@ -1680,7 +1682,7 @@ ixgbe_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
 			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
-			ifmr->ifm_active |= adapter->optics | IFM_FDX;
+			ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
 			break;
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ifmr->ifm_active |= adapter->optics | IFM_FDX;
@@ -1932,18 +1934,6 @@ ixgbe_set_multi(struct adapter *adapter)
 	bzero(mta, sizeof(u8) * IXGBE_ETH_LENGTH_OF_ADDRESS *
 	    MAX_NUM_MULTICAST_ADDRESSES);
 
-	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
-	fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
-	if (ifp->if_flags & IFF_PROMISC)
-		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
-	else if (ifp->if_flags & IFF_ALLMULTI) {
-		fctrl |= IXGBE_FCTRL_MPE;
-		fctrl &= ~IXGBE_FCTRL_UPE;
-	} else
-		fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
-	
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, fctrl);
-
 #if __FreeBSD_version < 800000
 	IF_ADDR_LOCK(ifp);
 #else
@@ -1952,6 +1942,8 @@ ixgbe_set_multi(struct adapter *adapter)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
+		if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+			break;
 		bcopy(LLADDR((struct sockaddr_dl *) ifma->ifma_addr),
 		    &mta[mcnt * IXGBE_ETH_LENGTH_OF_ADDRESS],
 		    IXGBE_ETH_LENGTH_OF_ADDRESS);
@@ -1963,9 +1955,24 @@ ixgbe_set_multi(struct adapter *adapter)
 	if_maddr_runlock(ifp);
 #endif
 
-	update_ptr = mta;
-	ixgbe_update_mc_addr_list(&adapter->hw,
-	    update_ptr, mcnt, ixgbe_mc_array_itr, TRUE);
+	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
+	fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+	if (ifp->if_flags & IFF_PROMISC)
+		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+	else if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES ||
+	    ifp->if_flags & IFF_ALLMULTI) {
+		fctrl |= IXGBE_FCTRL_MPE;
+		fctrl &= ~IXGBE_FCTRL_UPE;
+	} else
+		fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+	
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, fctrl);
+
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES) {
+		update_ptr = mta;
+		ixgbe_update_mc_addr_list(&adapter->hw,
+		    update_ptr, mcnt, ixgbe_mc_array_itr, TRUE);
+	}
 
 	return;
 }
@@ -2172,7 +2179,7 @@ ixgbe_setup_optics(struct adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int		layer;
-	
+
 	layer = ixgbe_get_supported_physical_layer(hw);
 
 	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_T) {
@@ -2651,7 +2658,7 @@ ixgbe_config_link(struct adapter *adapter)
 			taskqueue_enqueue(adapter->tq, &adapter->mod_task);
 	} else {
 		if (hw->mac.ops.check_link)
-			err = ixgbe_check_link(hw, &autoneg,
+			err = ixgbe_check_link(hw, &adapter->link_speed,
 			    &adapter->link_up, FALSE);
 		if (err)
 			goto out;
@@ -2662,8 +2669,8 @@ ixgbe_config_link(struct adapter *adapter)
 		if (err)
 			goto out;
 		if (hw->mac.ops.setup_link)
-                	err = hw->mac.ops.setup_link(hw, autoneg,
-			    negotiate, adapter->link_up);
+                	err = hw->mac.ops.setup_link(hw,
+			    autoneg, adapter->link_up);
 	}
 out:
 	return;
@@ -3713,6 +3720,8 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 			    M_PKTHDR, rxr->mbuf_sz);
 			if (mp == NULL)
 				goto update;
+			if (adapter->max_frame_size <= (MCLBYTES - ETHER_ALIGN))
+				m_adj(mp, ETHER_ALIGN);
 		} else
 			mp = rxbuf->buf;
 
@@ -4408,7 +4417,6 @@ ixgbe_rxeof(struct ix_queue *que)
 		/* Make sure bad packets are discarded */
 		if (((staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) ||
 		    (rxr->discard)) {
-			ifp->if_ierrors++;
 			rxr->rx_discarded++;
 			if (eop)
 				rxr->discard = FALSE;
@@ -4734,14 +4742,25 @@ ixgbe_enable_intr(struct adapter *adapter)
 	/* Enable Fan Failure detection */
 	if (hw->device_id == IXGBE_DEV_ID_82598AT)
 		    mask |= IXGBE_EIMS_GPI_SDP1;
-	else {
-		    mask |= IXGBE_EIMS_ECC;
-		    mask |= IXGBE_EIMS_GPI_SDP0;
-		    mask |= IXGBE_EIMS_GPI_SDP1;
-		    mask |= IXGBE_EIMS_GPI_SDP2;
+
+	switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82599EB:
+			mask |= IXGBE_EIMS_ECC;
+			mask |= IXGBE_EIMS_GPI_SDP0;
+			mask |= IXGBE_EIMS_GPI_SDP1;
+			mask |= IXGBE_EIMS_GPI_SDP2;
 #ifdef IXGBE_FDIR
-		    mask |= IXGBE_EIMS_FLOW_DIR;
+			mask |= IXGBE_EIMS_FLOW_DIR;
 #endif
+			break;
+		case ixgbe_mac_X540:
+			mask |= IXGBE_EIMS_ECC;
+#ifdef IXGBE_FDIR
+			mask |= IXGBE_EIMS_FLOW_DIR;
+#endif
+		/* falls through */
+		default:
+			break;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_EIMS, mask);
@@ -4969,7 +4988,7 @@ ixgbe_handle_msf(void *context, int pending)
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiate);
 	if (hw->mac.ops.setup_link)
-		hw->mac.ops.setup_link(hw, autoneg, negotiate, TRUE);
+		hw->mac.ops.setup_link(hw, autoneg, TRUE);
 	return;
 }
 
@@ -5013,6 +5032,11 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	adapter->stats.errbc += IXGBE_READ_REG(hw, IXGBE_ERRBC);
 	adapter->stats.mspdc += IXGBE_READ_REG(hw, IXGBE_MSPDC);
 
+	/*
+	** Note: these are for the 8 possible traffic classes,
+	**	 which in current implementation is unused,
+	**	 therefore only 0 should read real data.
+	*/
 	for (int i = 0; i < 8; i++) {
 		u32 mp;
 		mp = IXGBE_READ_REG(hw, IXGBE_MPC(i));
@@ -5022,13 +5046,20 @@ ixgbe_update_stats_counters(struct adapter *adapter)
         	adapter->stats.mpc[i] += mp;
 		/* Running comprehensive total for stats display */
 		total_missed_rx += adapter->stats.mpc[i];
-		if (hw->mac.type == ixgbe_mac_82598EB)
+		if (hw->mac.type == ixgbe_mac_82598EB) {
 			adapter->stats.rnbc[i] +=
 			    IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+			adapter->stats.qbtc[i] +=
+			    IXGBE_READ_REG(hw, IXGBE_QBTC(i));
+			adapter->stats.qbrc[i] +=
+			    IXGBE_READ_REG(hw, IXGBE_QBRC(i));
+			adapter->stats.pxonrxc[i] +=
+		    	    IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
+		} else
+			adapter->stats.pxonrxc[i] +=
+		    	    IXGBE_READ_REG(hw, IXGBE_PXONRXCNT(i));
 		adapter->stats.pxontxc[i] +=
 		    IXGBE_READ_REG(hw, IXGBE_PXONTXC(i));
-		adapter->stats.pxonrxc[i] +=
-		    IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
 		adapter->stats.pxofftxc[i] +=
 		    IXGBE_READ_REG(hw, IXGBE_PXOFFTXC(i));
 		adapter->stats.pxoffrxc[i] +=
@@ -5039,12 +5070,6 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	for (int i = 0; i < 16; i++) {
 		adapter->stats.qprc[i] += IXGBE_READ_REG(hw, IXGBE_QPRC(i));
 		adapter->stats.qptc[i] += IXGBE_READ_REG(hw, IXGBE_QPTC(i));
-		adapter->stats.qbrc[i] += IXGBE_READ_REG(hw, IXGBE_QBRC(i));
-		adapter->stats.qbrc[i] += 
-		    ((u64)IXGBE_READ_REG(hw, IXGBE_QBRC(i)) << 32);
-		adapter->stats.qbtc[i] += IXGBE_READ_REG(hw, IXGBE_QBTC(i));
-		adapter->stats.qbtc[i] +=
-		    ((u64)IXGBE_READ_REG(hw, IXGBE_QBTC(i)) << 32);
 		adapter->stats.qprdc[i] += IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
 	}
 	adapter->stats.mlfc += IXGBE_READ_REG(hw, IXGBE_MLFC);
@@ -5141,8 +5166,8 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	ifp->if_collisions = 0;
 
 	/* Rx Errors */
-	ifp->if_ierrors = total_missed_rx + adapter->stats.crcerrs +
-		adapter->stats.rlec;
+	ifp->if_iqdrops = total_missed_rx;
+	ifp->if_ierrors = adapter->stats.crcerrs + adapter->stats.rlec;
 }
 
 /** ixgbe_sysctl_tdh_handler - Handler function
@@ -5528,10 +5553,13 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 				ixgbe_disable_rx_drop(adapter);
 			break;
 		case ixgbe_fc_none:
-		default:
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
 			if (adapter->num_queues > 1)
 				ixgbe_enable_rx_drop(adapter);
+			break;
+		default:
+			adapter->fc = last;
+			return (EINVAL);
 	}
 	/* Don't autoneg if forcing a value */
 	adapter->hw.fc.disable_fc_autoneg = TRUE;
@@ -5560,7 +5588,7 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 	last = adapter->advertise;
 
 	error = sysctl_handle_int(oidp, &adapter->advertise, 0, req);
-	if ((error) || (adapter->advertise == -1))
+	if ((error) || (req->newptr == NULL))
 		return (error);
 
 	if (adapter->advertise == last) /* no change */
@@ -5568,11 +5596,11 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 
 	if (!((hw->phy.media_type == ixgbe_media_type_copper) ||
             (hw->phy.multispeed_fiber)))
-		return (error);
+		return (EINVAL);
 
 	if ((adapter->advertise == 2) && (hw->mac.type != ixgbe_mac_X540)) {
 		device_printf(dev, "Set Advertise: 100Mb on X540 only\n");
-		return (error);
+		return (EINVAL);
 	}
 
 	if (adapter->advertise == 1)
@@ -5582,11 +5610,13 @@ ixgbe_set_advertise(SYSCTL_HANDLER_ARGS)
 	else if (adapter->advertise == 3)
                 speed = IXGBE_LINK_SPEED_1GB_FULL |
 			IXGBE_LINK_SPEED_10GB_FULL;
-	else /* bogus value */
-		return (error);
+	else {	/* bogus value */
+		adapter->advertise = last;
+		return (EINVAL);
+	}
 
 	hw->mac.autotry_restart = TRUE;
-	hw->mac.ops.setup_link(hw, speed, TRUE, TRUE);
+	hw->mac.ops.setup_link(hw, speed, TRUE);
 
 	return (error);
 }
