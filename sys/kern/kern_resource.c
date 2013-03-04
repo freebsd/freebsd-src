@@ -645,7 +645,8 @@ lim_cb(void *arg)
 		}
 	}
 	if ((p->p_flag & P_WEXIT) == 0)
-		callout_reset(&p->p_limco, hz, lim_cb, p);
+		callout_reset_sbt(&p->p_limco, SBT_1S, 0,
+		    lim_cb, p, C_PREL(1));
 }
 
 int
@@ -697,7 +698,8 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	case RLIMIT_CPU:
 		if (limp->rlim_cur != RLIM_INFINITY &&
 		    p->p_cpulimit == RLIM_INFINITY)
-			callout_reset(&p->p_limco, hz, lim_cb, p);
+			callout_reset_sbt(&p->p_limco, SBT_1S, 0,
+			    lim_cb, p, C_PREL(1));
 		p->p_cpulimit = limp->rlim_cur;
 		break;
 	case RLIMIT_DATA:
@@ -1137,7 +1139,8 @@ lim_fork(struct proc *p1, struct proc *p2)
 	p2->p_limit = lim_hold(p1->p_limit);
 	callout_init_mtx(&p2->p_limco, &p2->p_mtx, 0);
 	if (p1->p_cpulimit != RLIM_INFINITY)
-		callout_reset(&p2->p_limco, hz, lim_cb, p2);
+		callout_reset_sbt(&p2->p_limco, SBT_1S, 0,
+		    lim_cb, p2, C_PREL(1));
 }
 
 void
