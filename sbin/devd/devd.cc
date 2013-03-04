@@ -249,10 +249,8 @@ action::do_action(config &c)
 }
 
 match::match(config &c, const char *var, const char *re)
-	: _var(var)
+	: _var(var), _re("^")
 {
-	string pattern = re;
-	_re = "^";
 	if (!c.expand_string(string(re)).empty() &&
 	    c.expand_string(string(re)).at(0) == '!') {
 		_re.append(c.expand_string(string(re)).substr(1));
@@ -273,7 +271,7 @@ match::~match()
 bool
 match::do_match(config &c)
 {
-	string value = c.get_variable(_var);
+	const string &value = c.get_variable(_var);
 	bool retval;
 
 	if (Dflag)
@@ -590,7 +588,7 @@ void
 config::expand_one(const char *&src, string &dst)
 {
 	int count;
-	string buffer, varstr;
+	string buffer;
 
 	src++;
 	// $$ -> $
@@ -628,8 +626,7 @@ config::expand_one(const char *&src, string &dst)
 		buffer.append(src++, 1);
 	} while (is_id_char(*src));
 	buffer.append("", 1);
-	varstr = get_variable(buffer.c_str());
-	dst.append(varstr);
+	dst.append(get_variable(buffer.c_str()));
 }
 
 const string
@@ -763,9 +760,13 @@ process_event(char *buffer)
 		if (sp == NULL)
 			return;	/* Can't happen? */
 		*sp++ = '\0';
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "at ", 3) == 0)
 			sp += 3;
 		sp = cfg.set_vars(sp);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "on ", 3) == 0)
 			cfg.set_variable("bus", sp + 3);
 		break;
@@ -776,9 +777,13 @@ process_event(char *buffer)
 			return;	/* Can't happen? */
 		*sp++ = '\0';
 		cfg.set_variable("device-name", buffer);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "at ", 3) == 0)
 			sp += 3;
 		sp = cfg.set_vars(sp);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "on ", 3) == 0)
 			cfg.set_variable("bus", sp + 3);
 		break;
@@ -803,7 +808,7 @@ create_socket(const char *name)
 	unlink(name);
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 	    	err(1, "fcntl");
-	if (bind(fd, (struct sockaddr *) & sun, slen) < 0)
+	if (::bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
 	chown(name, 0, 0);	/* XXX - root.wheel */
