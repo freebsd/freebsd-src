@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static char	path_zonetab[MAXPATHLEN], path_iso3166[MAXPATHLEN],
-		path_zoneinfo[MAXPATHLEN], path_localtime[MAXPATHLEN], 
+		path_zoneinfo[MAXPATHLEN], path_localtime[MAXPATHLEN],
 		path_db[MAXPATHLEN], path_wall_cmos_clock[MAXPATHLEN];
 
 static int reallydoit = 1;
@@ -105,7 +105,7 @@ static struct continent_names {
 	{ "Europe",	&europe },
 	{ "Indian",	&indian },
 	{ "Pacific",	&pacific },
-	{ "UTC", 	&utc }
+	{ "UTC",	&utc }
 };
 
 static struct continent_items {
@@ -141,7 +141,7 @@ continent_country_menu(dialogMenuItem *continent)
 	int		rv;
 
 	if (strcmp(continent->title, "UTC") == 0)
-	        return set_zone_utc();	
+	        return set_zone_utc();
 
 	/* Short cut -- if there's only one country, don't post a menu. */
 	if (contp->nitems == 1)
@@ -273,7 +273,7 @@ add_zone_to_country(int lineno, const char *tlc, const char *descr,
 	if (tlc[0] < 'A' || tlc[0] > 'Z' || tlc[1] < 'A' || tlc[1] > 'Z')
 		errx(1, "%s:%d: country code `%s' invalid", path_zonetab,
 		    lineno, tlc);
-	
+
 	cp = &countries[CODE2INT(tlc)];
 	if (cp->name == 0)
 		errx(1, "%s:%d: country code `%s' unknown", path_zonetab,
@@ -287,7 +287,7 @@ add_zone_to_country(int lineno, const char *tlc, const char *descr,
 		zp = malloc(sizeof(*zp));
 		if (zp == 0)
 			errx(1, "malloc(%zu)", sizeof(*zp));
-		
+
 		if (cp->nzones == 0)
 			TAILQ_INIT(&cp->zones);
 
@@ -522,7 +522,7 @@ set_zone_utc(void)
 {
 	if (!confirm_zone(NULL))
 		return (DITEM_FAILURE | DITEM_RECREATE);
-		
+
 	return (install_zoneinfo_file(NULL));
 }
 
@@ -586,7 +586,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 			}
 			return (DITEM_LEAVE_MENU);
 		}
-		
+
 		if (copymode) {
 			fd1 = open(zoneinfo_file, O_RDONLY, 0);
 			if (fd1 < 0) {
@@ -729,7 +729,7 @@ confirm_zone(const char *filename)
 	time_t		t = time(0);
 	struct tm	*tm;
 	int		rv;
-	
+
 	setenv("TZ", filename == NULL ? "" : filename, 1);
 	tzset();
 	tm = localtime(&t);
