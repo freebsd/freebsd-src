@@ -26,6 +26,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130304:
+	The ctl device has been re-enabled in GENERIC for i386 and amd64,
+	but does not initialize by default (because of the new CTL_DISABLE
+	option) to save memory.  To re-enable it, remove the CTL_DISABLE
+	option from the kernel config file or set kern.cam.ctl.disable=0
+	in /boot/loader.conf.
+
 20130301:
 	The ctl device has been disabled in GENERIC for i386 and amd64.
 	This was done due to the extra memory being allocated at system
