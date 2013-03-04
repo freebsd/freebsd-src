@@ -215,8 +215,8 @@ cc_cce_cleanup(struct callout_cpu *cc, int direct)
 
 	cc->cc_exec_entity[direct].cc_curr = NULL;
 	cc->cc_exec_entity[direct].cc_next = NULL;
-	cc->cc_exec_entity[direct].cc_cancel = FALSE;
-	cc->cc_exec_entity[direct].cc_waiting = FALSE;
+	cc->cc_exec_entity[direct].cc_cancel = false;
+	cc->cc_exec_entity[direct].cc_waiting = false;
 #ifdef SMP
 	cc->cc_exec_entity[direct].ce_migration_cpu = CPUBLOCK;
 	cc->cc_exec_entity[direct].ce_migration_time = 0;
@@ -621,7 +621,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	else
 		c->c_flags &= ~CALLOUT_PENDING;
 	cc->cc_exec_entity[direct].cc_curr = c;
-	cc->cc_exec_entity[direct].cc_cancel = FALSE;
+	cc->cc_exec_entity[direct].cc_cancel = false;
 	CC_UNLOCK(cc);
 	if (c_lock != NULL) {
 		class->lc_lock(c_lock, sharedlock);
@@ -634,7 +634,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 			goto skip;
 		}
 		/* The callout cannot be stopped now. */
-		cc->cc_exec_entity[direct].cc_cancel = TRUE;
+		cc->cc_exec_entity[direct].cc_cancel = true;
 		if (c_lock == &Giant.lock_object) {
 #ifdef CALLOUT_PROFILING
 			(*gcalls)++;
@@ -700,7 +700,7 @@ skip:
 			 */
 			c->c_flags &= ~CALLOUT_DFRMIGRATION;
 		}
-		cc->cc_exec_entity[direct].cc_waiting = FALSE;
+		cc->cc_exec_entity[direct].cc_waiting = false;
 		CC_UNLOCK(cc);
 		wakeup(&cc->cc_exec_entity[direct].cc_waiting);
 		CC_LOCK(cc);
@@ -954,7 +954,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		 * can cancel the callout if it has not really started.
 		 */
 		if (c->c_lock != NULL && !cc->cc_exec_entity[direct].cc_cancel)
-			cancelled = cc->cc_exec_entity[direct].cc_cancel = TRUE;
+			cancelled = cc->cc_exec_entity[direct].cc_cancel = true;
 		if (cc->cc_exec_entity[direct].cc_waiting) {
 			/*
 			 * Someone has called callout_drain to kill this
@@ -1135,7 +1135,7 @@ again:
 				 * will be packed up, just let softclock()
 				 * take care of it.
 				 */
-				cc->cc_exec_entity[direct].cc_waiting = TRUE;
+				cc->cc_exec_entity[direct].cc_waiting = true;
 				DROP_GIANT();
 				CC_UNLOCK(cc);
 				sleepq_add(
@@ -1161,7 +1161,7 @@ again:
 			 * lock, the callout will be skipped in
 			 * softclock().
 			 */
-			cc->cc_exec_entity[direct].cc_cancel = TRUE;
+			cc->cc_exec_entity[direct].cc_cancel = true;
 			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
 			KASSERT(!cc_cce_migrating(cc, direct),
