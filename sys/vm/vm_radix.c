@@ -259,7 +259,7 @@ vm_radix_addlev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 	    vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1); ilev--)
 		if (ilev == 0)
 			break;
-	KASSERT(ilev > 0 || levels[0] == TRUE,
+	KASSERT(ilev > 0 || levels[0],
 	    ("%s: levels back-scanning problem", __func__));
 	if (ilev == 0 && vm_radix_slot(*idx, ilev) == (VM_RADIX_COUNT - 1))
 		return (1);
@@ -284,7 +284,7 @@ vm_radix_declev(vm_pindex_t *idx, boolean_t *levels, uint16_t ilev)
 	    vm_radix_slot(*idx, ilev) == 0; ilev--)
 		if (ilev == 0)
 			break;
-	KASSERT(ilev > 0 || levels[0] == TRUE,
+	KASSERT(ilev > 0 || levels[0],
 	    ("%s: levels back-scanning problem", __func__));
 	if (ilev == 0 && vm_radix_slot(*idx, ilev) == 0)
 		return (1);
@@ -388,7 +388,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, vm_page_t page)
 		return;
 	}
 	while (rnode != NULL) {
-		if (vm_radix_keybarr(rnode, index) == TRUE)
+		if (vm_radix_keybarr(rnode, index))
 			break;
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		m = vm_radix_node_page(rnode->rn_child[slot]);
@@ -464,7 +464,7 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index)
 
 	rnode = vm_radix_getroot(rtree);
 	while (rnode != NULL) {
-		if (vm_radix_keybarr(rnode, index) == TRUE)
+		if (vm_radix_keybarr(rnode, index))
 			return (NULL);
 		slot = vm_radix_slot(index, rnode->rn_clev);
 		rnode = rnode->rn_child[slot];
@@ -513,7 +513,7 @@ restart:
 		 * the use of maplevels array which should bring immediately
 		 * a lower useful level, skipping holes.
 		 */
-		if (vm_radix_keybarr(rnode, index) == TRUE) {
+		if (vm_radix_keybarr(rnode, index)) {
 			difflev = vm_radix_keydiff(index, rnode->rn_owner);
 			if (index > rnode->rn_owner) {
 				if (vm_radix_addlev(&index, maplevels,
@@ -602,7 +602,7 @@ restart:
 		 * the use of maplevels array which should bring immediately
 		 * a lower useful level, skipping holes.
 		 */
-		if (vm_radix_keybarr(rnode, index) == TRUE) {
+		if (vm_radix_keybarr(rnode, index)) {
 			difflev = vm_radix_keydiff(index, rnode->rn_owner);
 			if (index > rnode->rn_owner) {
 				index = vm_radix_trimkey(rnode->rn_owner,
