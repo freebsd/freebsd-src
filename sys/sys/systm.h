@@ -44,7 +44,6 @@
 #include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/stdint.h>		/* for people using printf mainly */
-#include <sys/time.h>
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* kern_reboot() has been called. */

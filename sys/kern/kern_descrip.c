@@ -104,6 +104,7 @@ static MALLOC_DEFINE(M_FILEDESC, "filedesc", "Open file descriptor table");
 static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "filedesc_to_leader",
     "file desc to leader structures");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
+MALLOC_DEFINE(M_FILECAPS, "filecaps", "descriptor capabilities");
 
 MALLOC_DECLARE(M_FADVISE);
 
@@ -1389,7 +1390,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst)
 		    ("fc_ioctls != NULL, but fc_nioctls=%hd", src->fc_nioctls));
 
 		size = sizeof(src->fc_ioctls[0]) * src->fc_nioctls;
-		dst->fc_ioctls = malloc(size, M_TEMP, M_WAITOK);
+		dst->fc_ioctls = malloc(size, M_FILECAPS, M_WAITOK);
 		bcopy(src->fc_ioctls, dst->fc_ioctls, size);
 	}
 }
@@ -1397,7 +1398,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst)
 /*
  * Move filecaps structure to the new place and clear the old place.
  */
-static void
+void
 filecaps_move(struct filecaps *src, struct filecaps *dst)
 {
 
@@ -1425,7 +1426,7 @@ void
 filecaps_free(struct filecaps *fcaps)
 {
 
-	free(fcaps->fc_ioctls, M_TEMP);
+	free(fcaps->fc_ioctls, M_FILECAPS);
 	bzero(fcaps, sizeof(*fcaps));
 }
 
