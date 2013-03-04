@@ -460,7 +460,7 @@ config::open_pidfile()
 {
 	pid_t otherpid;
 	
-	if (_pidfile == "")
+	if (_pidfile.empty())
 		return;
 	pfh = pidfile_open(_pidfile.c_str(), 0600, &otherpid);
 	if (pfh == NULL) {
@@ -528,7 +528,7 @@ config::add_notify(int prio, event_proc *p)
 void
 config::set_pidfile(const char *fn)
 {
-	_pidfile = string(fn);
+	_pidfile = fn;
 }
 
 void
@@ -617,7 +617,7 @@ config::expand_one(const char *&src, string &dst)
 	do {
 		buffer.append(src++, 1);
 	} while (is_id_char(*src));
-	dst.append(get_variable(buffer.c_str()));
+	dst.append(get_variable(buffer));
 }
 
 const string
