@@ -386,8 +386,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		sbuf_printf(sb, " 0 0\n");
 	}
 	mtx_unlock(&mountlist_mtx);
-	if (flep != NULL)
-		free(flep, M_TEMP);
+	free(flep, M_TEMP);
 	return (error);
 }
 
@@ -447,8 +446,7 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	}
 	g_topology_unlock();
 
-	if (flep != NULL)
-		free(flep, M_TEMP);
+	free(flep, M_TEMP);
 	return (error);
 }
 
