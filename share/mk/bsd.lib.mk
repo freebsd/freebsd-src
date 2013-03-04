@@ -112,8 +112,8 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .if !defined(_SKIP_BUILD)
-all: prebuild .WAIT
-prebuild: objwarn
+all: beforebuild .WAIT
+beforebuild: objwarn
 .if !defined(.PARSEDIR)
 # this is a no-op
 .WAIT:
@@ -429,22 +429,3 @@ clean:
 .include <bsd.obj.mk>
 
 .include <bsd.sys.mk>
-
-.if ${MK_STAGING} != "no"
-.if defined(_SKIP_BUILD)
-stage_libs stage_files stage_as:
-.else
-.if !empty(_LIBS) && !defined(INTERNALLIB)
-stage_libs: ${_LIBS}
-.for t in stage_libs stage_files stage_as
-.if target($t)
-all: $t
-.endif
-.endfor
-.endif
-.if !empty(INCS) || !empty(INCSGROUPS)
-prebuild: buildincludes
-.endif
-.include <meta.stage.mk>
-.endif
-.endif

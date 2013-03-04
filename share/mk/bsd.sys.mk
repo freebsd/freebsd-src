@@ -141,3 +141,79 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}
+
+.if ${MK_STAGING} != "no"
+.if defined(_SKIP_BUILD) || !make(all)
+stage_libs stage_files stage_as stage_links stage_symlinks:
+.else
+# allow targets like beforeinstall to be leveraged
+DESTDIR= ${STAGE_OBJTOP}
+
+.if target(beforeinstall)
+.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+stage_files: beforeinstall
+.endif
+.endif
+
+# normally only libs and includes are staged
+.if ${MK_STAGING_PROG} != "no"
+STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
+
+.if !empty(PROG)
+.if defined(PROGNAME)
+STAGE_AS_SETS+= prog
+STAGE_AS_${PROG}= ${PROGNAME}
+stage_as.prog: ${PROG}
+.else
+STAGE_SETS+= prog
+stage_files.prog: ${PROG}
+all: stage_files
+.endif
+.endif
+.endif
+
+.if !empty(_LIBS) && !defined(INTERNALLIB)
+stage_libs: ${_LIBS}
+.endif
+
+.if !empty(INCS) || !empty(INCSGROUPS) && target(buildincludes)
+beforebuild: buildincludes
+.endif
+
+.if !empty(STAGE_AS_SETS)
+all: stage_as
+.endif
+
+.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+
+.if !empty(LINKS)
+all: stage_links
+.ORDER: stage_files stage_links
+.if !empty(STAGE_AS_SETS)
+.ORDER: stage_as stage_links
+.endif
+STAGE_SETS+= links
+STAGE_LINKS.links= ${LINKS}
+.endif
+
+.if !empty(SYMLINKS)
+all: stage_symlinks
+.if !empty(STAGE_AS_SETS)
+.ORDER: stage_as stage_symlinks
+.endif
+STAGE_SETS+= links
+STAGE_SYMLINKS.links= ${SYMLINKS}
+.endif
+
+.endif
+
+.for t in stage_libs stage_files stage_as
+.if target($t)
+all: $t
+.endif
+.endfor
+
+.include <meta.stage.mk>
+.endif
+.endif
+
