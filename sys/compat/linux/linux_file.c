@@ -517,8 +517,7 @@ eof:
 	td->td_retval[0] = nbytes - resid;
 
 out:
-	if (cookies)
-		free(cookies, M_TEMP);
+	free(cookies, M_TEMP);
 
 	VOP_UNLOCK(vp, 0);
 	foffset_unlock(fp, off, 0);
