@@ -340,14 +340,27 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * less often.
  */
 int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
-	    int timo) __nonnull(1);
+	   sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
-	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo))
-int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo)
-	    __nonnull(1);
-int	pause(const char *wmesg, int timo);
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
+	    tick_sbt * (timo), 0, C_HARDCLOCK)
+#define	msleep_sbt(chan, mtx, pri, wmesg, bt, pr, flags)		\
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (bt), (pr),	\
+	    (flags))
+int	msleep_spin_sbt(void *chan, struct mtx *mtx, const char *wmesg,
+	    sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
+#define	msleep_spin(chan, mtx, wmesg, timo)				\
+	msleep_spin_sbt((chan), (mtx), (wmesg), tick_sbt * (timo),	\
+	    0, C_HARDCLOCK)
+int	pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr,
+	    int flags);
+#define	pause(wmesg, timo)						\
+	pause_sbt((wmesg), tick_sbt * (timo), 0, C_HARDCLOCK)
 #define	tsleep(chan, pri, wmesg, timo)					\
-	_sleep((chan), NULL, (pri), (wmesg), (timo))
+	_sleep((chan), NULL, (pri), (wmesg), tick_sbt * (timo),		\
+	    0, C_HARDCLOCK)
+#define	tsleep_sbt(chan, pri, wmesg, bt, pr, flags)			\
+	_sleep((chan), NULL, (pri), (wmesg), (bt), (pr), (flags))
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
 
