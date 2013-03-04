@@ -1007,6 +1007,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		} else {
 			sl = &map->slist[map->sync_count - 1];
 			if (map->sync_count == 0 ||
+#ifdef ARM_L2_PIPT
+			    curaddr != sl->busaddr + sl->datacount ||
+#endif
 			    vaddr != sl->vaddr + sl->datacount) {
 				if (++map->sync_count > dmat->nsegments)
 					goto cleanup;
