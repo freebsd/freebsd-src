@@ -601,7 +601,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbintime_t new_time;
 #endif
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING) 
-	sbintime_t bt1, bt2;
+	sbintime_t sbt1, sbt2;
 	struct timespec ts2;
 	static sbintime_t maxdt = 2 * SBT_1MS;	/* 2 msec */
 	static timeout_t *lastfunc;
@@ -655,7 +655,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		CTR3(KTR_CALLOUT, "callout %p func %p arg %p",
 		    c, c_func, c_arg);
 	}
-#ifdef DIAGNOSTIC
+#if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
@@ -663,17 +663,17 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	c_func(c_arg);
 	SDT_PROBE(callout_execute, kernel, , callout_end, c, 0, 0, 0, 0);
 	THREAD_SLEEPING_OK();
-#ifdef DIAGNOSTIC
-	bt2 = sbinuptime();
-	bt2 -= bt1;
-	if (bt2 > maxdt) {
-		if (lastfunc != c_func || bt2 > maxdt * 2) {
-			ts2 = sbttots(bt2);
+#if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
+	sbt2 = sbinuptime();
+	sbt2 -= sbt1;
+	if (sbt2 > maxdt) {
+		if (lastfunc != c_func || sbt2 > maxdt * 2) {
+			ts2 = sbttots(sbt2);
 			printf(
 		"Expensive timeout(9) function: %p(%p) %jd.%09ld s\n",
 			    c_func, c_arg, (intmax_t)ts2.tv_sec, ts2.tv_nsec);
 		}
-		maxdt = bt2;
+		maxdt = sbt2;
 		lastfunc = c_func;
 	}
 #endif
