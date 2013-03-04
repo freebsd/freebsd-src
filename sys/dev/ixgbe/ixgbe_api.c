@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -93,53 +93,53 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 
 	DEBUGFUNC("ixgbe_set_mac_type\n");
 
-	if (hw->vendor_id == IXGBE_INTEL_VENDOR_ID) {
-		switch (hw->device_id) {
-		case IXGBE_DEV_ID_82598:
-		case IXGBE_DEV_ID_82598_BX:
-		case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
-		case IXGBE_DEV_ID_82598AF_DUAL_PORT:
-		case IXGBE_DEV_ID_82598AT:
-		case IXGBE_DEV_ID_82598AT2:
-		case IXGBE_DEV_ID_82598EB_CX4:
-		case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
-		case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
-		case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
-		case IXGBE_DEV_ID_82598EB_XF_LR:
-		case IXGBE_DEV_ID_82598EB_SFP_LOM:
-			hw->mac.type = ixgbe_mac_82598EB;
-			break;
-		case IXGBE_DEV_ID_82599_KX4:
-		case IXGBE_DEV_ID_82599_KX4_MEZZ:
-		case IXGBE_DEV_ID_82599_XAUI_LOM:
-		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
-		case IXGBE_DEV_ID_82599_KR:
-		case IXGBE_DEV_ID_82599_SFP:
-		case IXGBE_DEV_ID_82599_BACKPLANE_FCOE:
-		case IXGBE_DEV_ID_82599_SFP_FCOE:
-		case IXGBE_DEV_ID_82599_SFP_EM:
-		case IXGBE_DEV_ID_82599_SFP_SF2:
-		case IXGBE_DEV_ID_82599EN_SFP:
-		case IXGBE_DEV_ID_82599_CX4:
-		case IXGBE_DEV_ID_82599_T3_LOM:
-			hw->mac.type = ixgbe_mac_82599EB;
-			break;
-		case IXGBE_DEV_ID_82599_VF:
-			hw->mac.type = ixgbe_mac_82599_vf;
-			break;
-		case IXGBE_DEV_ID_X540_VF:
-			hw->mac.type = ixgbe_mac_X540_vf;
-			break;
-		case IXGBE_DEV_ID_X540T:
-		case IXGBE_DEV_ID_X540T1:
-			hw->mac.type = ixgbe_mac_X540;
-			break;
-		default:
-			ret_val = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
-			break;
-		}
-	} else {
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82598:
+	case IXGBE_DEV_ID_82598_BX:
+	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
+	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
+	case IXGBE_DEV_ID_82598AT:
+	case IXGBE_DEV_ID_82598AT2:
+	case IXGBE_DEV_ID_82598EB_CX4:
+	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
+	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
+	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
+	case IXGBE_DEV_ID_82598EB_XF_LR:
+	case IXGBE_DEV_ID_82598EB_SFP_LOM:
+		hw->mac.type = ixgbe_mac_82598EB;
+		break;
+	case IXGBE_DEV_ID_82599_KX4:
+	case IXGBE_DEV_ID_82599_KX4_MEZZ:
+	case IXGBE_DEV_ID_82599_XAUI_LOM:
+	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
+	case IXGBE_DEV_ID_82599_KR:
+	case IXGBE_DEV_ID_82599_SFP:
+	case IXGBE_DEV_ID_82599_BACKPLANE_FCOE:
+	case IXGBE_DEV_ID_82599_SFP_FCOE:
+	case IXGBE_DEV_ID_82599_SFP_EM:
+	case IXGBE_DEV_ID_82599_SFP_SF2:
+	case IXGBE_DEV_ID_82599_SFP_SF_QP:
+	case IXGBE_DEV_ID_82599EN_SFP:
+	case IXGBE_DEV_ID_82599_CX4:
+	case IXGBE_DEV_ID_82599_BYPASS:
+	case IXGBE_DEV_ID_82599_T3_LOM:
+		hw->mac.type = ixgbe_mac_82599EB;
+		break;
+	case IXGBE_DEV_ID_82599_VF:
+	case IXGBE_DEV_ID_82599_VF_HV:
+		hw->mac.type = ixgbe_mac_82599_vf;
+		break;
+	case IXGBE_DEV_ID_X540_VF:
+	case IXGBE_DEV_ID_X540_VF_HV:
+		hw->mac.type = ixgbe_mac_X540_vf;
+		break;
+	case IXGBE_DEV_ID_X540T:
+	case IXGBE_DEV_ID_X540_BYPASS:
+		hw->mac.type = ixgbe_mac_X540;
+		break;
+	default:
 		ret_val = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
+		break;
 	}
 
 	DEBUGOUT2("ixgbe_set_mac_type found mac: %d, returns: %d\n",
@@ -507,16 +507,14 @@ s32 ixgbe_check_phy_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
  *  ixgbe_setup_phy_link_speed - Set auto advertise
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: TRUE if autonegotiation enabled
  *
  *  Sets the auto advertised capabilities
  **/
 s32 ixgbe_setup_phy_link_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed,
-			       bool autoneg,
 			       bool autoneg_wait_to_complete)
 {
 	return ixgbe_call_func(hw, hw->phy.ops.setup_link_speed, (hw, speed,
-			       autoneg, autoneg_wait_to_complete),
+			       autoneg_wait_to_complete),
 			       IXGBE_NOT_IMPLEMENTED);
 }
 
@@ -576,17 +574,15 @@ void ixgbe_flap_tx_laser(struct ixgbe_hw *hw)
  *  ixgbe_setup_link - Set link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: TRUE if autonegotiation enabled
  *
  *  Configures link settings.  Restarts the link.
  *  Performs autonegotiation if needed.
  **/
 s32 ixgbe_setup_link(struct ixgbe_hw *hw, ixgbe_link_speed speed,
-		     bool autoneg,
 		     bool autoneg_wait_to_complete)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.setup_link, (hw, speed,
-			       autoneg, autoneg_wait_to_complete),
+			       autoneg_wait_to_complete),
 			       IXGBE_NOT_IMPLEMENTED);
 }
 
