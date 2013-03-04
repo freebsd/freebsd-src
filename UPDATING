@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20130304:
+	Recent commits to callout(9) changed the size of struct callout,
+	so the KBI is probably heavily disturbed. Also, some functions
+	in callout(9)/sleep(9)/sleepqueue(9)/condvar(9) KPIs were replaced
+	by macros. Every kernel module using it won't load, so rebuild
+	is requested.
+
 	The ctl device has been re-enabled in GENERIC for i386 and amd64,
 	but does not initialize by default (because of the new CTL_DISABLE
 	option) to save memory.  To re-enable it, remove the CTL_DISABLE
