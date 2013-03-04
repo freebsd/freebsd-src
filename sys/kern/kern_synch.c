@@ -560,8 +560,9 @@ loadav(void *arg)
 	 * random variation to avoid synchronisation with processes that
 	 * run at regular intervals.
 	 */
-	callout_reset(&loadav_callout, hz * 4 + (int)(random() % (hz * 2 + 1)),
-	    loadav, NULL);
+	callout_reset_sbt(&loadav_callout,
+	    tick_sbt * (hz * 4 + (int)(random() % (hz * 2 + 1))), 0,
+	    loadav, NULL, C_DIRECT_EXEC | C_HARDCLOCK);
 }
 
 /* ARGSUSED */
