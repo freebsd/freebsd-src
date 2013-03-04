@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/sleepqueue.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -481,38 +482,37 @@ static int nanowait;
 int
 kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec ts;
+	sbintime_t sbt, sbtt, prec, tmp;
 	int error;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || (rqt->tv_sec == 0 && rqt->tv_nsec == 0))
 		return (0);
-	getnanouptime(&ts);
-	timespecadd(&ts, rqt);
-	TIMESPEC_TO_TIMEVAL(&tv, rqt);
-	for (;;) {
-		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp",
-		    tvtohz(&tv));
-		getnanouptime(&ts2);
-		if (error != EWOULDBLOCK) {
-			if (error == ERESTART)
-				error = EINTR;
-			if (rmt != NULL) {
-				timespecsub(&ts, &ts2);
-				if (ts.tv_sec < 0)
-					timespecclear(&ts);
-				*rmt = ts;
-			}
-			return (error);
+	tmp = tstosbt(*rqt);
+	prec = tmp;
+	prec >>= tc_precexp;
+	if (TIMESEL(&sbt, tmp))
+		sbt += tc_tick_sbt;
+	sbt += tmp;
+	error = tsleep_sbt(&nanowait, PWAIT | PCATCH, "nanslp", sbt, prec,
+	    C_ABSOLUTE);
+	if (error != EWOULDBLOCK) {
+		if (error == ERESTART)
+			error = EINTR;
+		TIMESEL(&sbtt, tmp);
+		if (rmt != NULL) {
+			ts = sbttots(sbt - sbtt);
+			if (ts.tv_sec < 0)
+				timespecclear(&ts);
+			*rmt = ts;
 		}
-		if (timespeccmp(&ts2, &ts, >=))
+		if (sbtt >= sbt)
 			return (0);
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		return (error);
 	}
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
