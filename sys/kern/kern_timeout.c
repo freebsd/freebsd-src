@@ -126,8 +126,8 @@ struct cc_exec {
 	int			ce_migration_cpu;
 	sbintime_t		ce_migration_time;
 #endif
-	boolean_t		cc_cancel;
-	boolean_t		cc_waiting;
+	bool			cc_cancel;
+	bool			cc_waiting;
 };
 
 /*
