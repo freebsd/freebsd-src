@@ -950,10 +950,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
-	sbintime_t asbt, precision, rsbt;
 	struct timeval rtv;
-	int error, lf, ndu;
+	sbintime_t asbt, precision, rsbt;
 	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
+	int error, lf, ndu;
 
 	if (nd < 0)
 		return (EINVAL);
@@ -1274,8 +1274,8 @@ sys_poll(td, uap)
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
 	sbintime_t asbt, precision, rsbt;
-	int error;
 	u_int nfds;
+	int error;
 	size_t ni;
 
 	nfds = uap->nfds;

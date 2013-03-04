@@ -270,8 +270,9 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 }
 
 /*
- * Wait on a condition variable.  Returns 0 if the process was resumed by
- * cv_signal or cv_broadcast, EWOULDBLOCK if the timeout expires.
+ * Wait on a condition variable for (at most) the value specified in sbt
+ * argument. Returns 0 if the process was resumed by cv_signal or cv_broadcast,
+ * EWOULDBLOCK if the timeout expires.
  */
 int
 _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
@@ -336,10 +337,11 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 }
 
 /*
- * Wait on a condition variable allowing interruption by signals.
+ * Wait on a condition variable for (at most) the value specified in sbt 
+ * argument, allowing interruption by signals.
  * Returns 0 if the thread was resumed by cv_signal or cv_broadcast,
- * or cv_broadcast, EWOULDBLOCK if the timeout expires, and EINTR
- * or ERESTART if a signal was caught.
+ * EWOULDBLOCK if the timeout expires, and EINTR or ERESTART if a signal
+ * was caught.
  */
 int
 _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,

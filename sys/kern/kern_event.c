@@ -517,7 +517,7 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
-static __inline sbintime_t
+static __inline sbintime_t 
 timer2sbintime(intptr_t data)
 {
 
@@ -1309,10 +1309,9 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
     const struct timespec *tsp, struct kevent *keva, struct thread *td)
 {
 	struct kevent *kevp;
-	sbintime_t asbt, rsbt;
 	struct knote *kn, *marker;
-	int count, nkev, error, influx;
-	int haskqglobal, touch;
+	sbintime_t asbt, rsbt;
+	int count, error, haskqglobal, influx, nkev, touch;
 
 	count = maxevents;
 	nkev = 0;

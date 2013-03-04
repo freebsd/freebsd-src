@@ -151,7 +151,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	struct thread *td;
 	struct proc *p;
 	struct lock_class *class;
-	int catch, sleepq_flags, lock_state, pri, rval;
+	int catch, lock_state, pri, rval, sleepq_flags;
 	WITNESS_SAVE_DECL(lock_witness);
 
 	td = curthread;

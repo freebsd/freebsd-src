@@ -60,17 +60,55 @@ setup_zfs_filesystem()
     fi
   done 
 
-
   # Check if we have some custom zpool arguments and use them if so
   if [ ! -z "${ZPOOLOPTS}" ] ; then
-    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${ZPOOLOPTS}"
+    # Sort through devices and run gnop on them
+    local gnopDev=""
+    local newOpts=""
+    for i in $ZPOOLOPTS
+    do
+       echo "$i" | grep -q '/dev/'
+       if [ $? -eq 0 ] ; then
+          rc_halt "gnop create -S 4096 ${i}"
+          gnopDev="$gnopDev $i"
+          newOpts="$newOpts ${i}.nop"
+       else
+          newOpts="$newOpts $i"
+       fi
+    done
+    
+    echo_log "Creating zpool ${ZPOOLNAME} with $newOpts"
+    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${newOpts}"
+
+    # Export the pool
+    rc_halt "zpool export ${ZPOOLNAME}"
+
+    # Destroy the gnop devices
+    for i in $gnopDev
+    do
+       rc_halt "gnop destroy ${i}.nop"
+    done
+
+    # And lastly re-import the pool
+    rc_halt "zpool import ${ZPOOLNAME}"
   else
+    # Lets do our pseudo-4k drive
+    rc_halt "gnop create -S 4096 ${PART}${EXT}"
+
     # No zpool options, create pool on single device
-    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${PART}${EXT}"
+    echo_log "Creating zpool ${ZPOOLNAME} on ${PART}${EXT}"
+    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${PART}${EXT}.nop"
+
+    # Finish up the gnop 4k trickery
+    rc_halt "zpool export ${ZPOOLNAME}"
+    rc_halt "gnop destroy ${PART}${EXT}.nop"
+    rc_halt "zpool import ${ZPOOLNAME}"
   fi
 
   # Disable atime for this zfs partition, speed increase
   rc_nohalt "zfs set atime=off ${ZPOOLNAME}"
+
+
 
 };
 
