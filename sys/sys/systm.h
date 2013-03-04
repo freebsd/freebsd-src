@@ -269,6 +269,7 @@ void	cpu_startprofclock(void);
 void	cpu_stopprofclock(void);
 sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
+void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
 extern int	cpu_can_deep_sleep;
 extern int	cpu_disable_deep_sleep;
 
