@@ -168,8 +168,9 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	    ("object %p resident_page_count = %d",
 	    object, object->resident_page_count));
 	KASSERT(TAILQ_EMPTY(&object->memq),
-	    ("object %p has resident pages",
-	    object));
+	    ("object %p has resident pages in its memq", object));
+	KASSERT(object->root == NULL,
+	    ("object %p has resident pages in its tree", object));
 #if VM_NRESERVLEVEL > 0
 	KASSERT(LIST_EMPTY(&object->rvq),
 	    ("object %p has reservations",
@@ -197,9 +198,11 @@ vm_object_zinit(void *mem, int size, int flags)
 	mtx_init(&object->mtx, "vm object", NULL, MTX_DEF | MTX_DUPOK);
 
 	/* These are true for any object that has been freed */
+	object->root = NULL;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
+	object->cache = NULL;
 	return (0);
 }
 
@@ -210,7 +213,6 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	TAILQ_INIT(&object->memq);
 	LIST_INIT(&object->shadow_head);
 
-	object->rtree.rt_root = 0;
 	object->type = type;
 	switch (type) {
 	case OBJT_DEAD:

@@ -47,6 +47,16 @@
 #define	CALLOUT_RETURNUNLOCKED	0x0010 /* handler returns with mtx unlocked */
 #define	CALLOUT_SHAREDLOCK	0x0020 /* callout lock held in shared mode */
 #define	CALLOUT_DFRMIGRATION	0x0040 /* callout in deferred migration mode */
+#define	CALLOUT_PROCESSED	0x0080 /* callout in wheel or processing list? */
+#define	CALLOUT_DIRECT 		0x0100 /* allow exec from hw int context */
+
+#define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
+#define	C_PRELBITS		7
+#define	C_PRELRANGE		((1 << C_PRELBITS) - 1)
+#define	C_PREL(x)		(((x) + 1) << 1)
+#define	C_PRELGET(x)		(int)((((x) >> 1) & C_PRELRANGE) - 1)
+#define	C_HARDCLOCK		0x0100 /* align to hardclock() calls */
+#define	C_ABSOLUTE		0x0200 /* event time is absolute. */
 
 struct callout_handle {
 	struct callout *callout;
@@ -67,7 +77,15 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-int	callout_reset_on(struct callout *, int, void (*)(void *), void *, int);
+int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
+	    void (*)(void *), void *, int, int);
+#define	callout_reset_sbt(c, sbt, pr, fn, arg, flags)			\
+    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), (c)->c_cpu, flags)
+#define	callout_reset_sbt_curcpu(c, sbt, pr, fn, arg, flags)		\
+    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), PCPU_GET(cpuid), flags)
+#define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
+    callout_reset_sbt_on((c), (tick_sbt * (to_ticks)), 0, (fn), (arg), \
+        (cpu), C_HARDCLOCK)
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\
@@ -78,9 +96,7 @@ int	callout_schedule_on(struct callout *, int, int);
     callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
-void	callout_tick(void);
-int	callout_tickstofirst(int limit);
-extern void (*callout_new_inserted)(int cpu, int ticks);
+void	callout_process(sbintime_t now);
 
 #endif
 
