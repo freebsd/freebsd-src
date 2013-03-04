@@ -544,16 +544,19 @@ install_zoneinfo_file(const char *zoneinfo_file)
 		copymode = 1;
 
 #ifdef VERBOSE
-	if (copymode)
+	snprintf(title, sizeof(title), "Info");
+	if (zoneinfo_file == NULL)
+		snprintf(prompt, sizeof(prompt),
+		    "Removing %s", path_localtime);
+	else if (copymode)
 		snprintf(prompt, sizeof(prompt),
 		    "Copying %s to %s", zoneinfo_file, path_localtime);
 	else
 		snprintf(prompt, sizeof(prompt),
 		    "Creating symbolic link %s to %s",
-		    path_localtime,
-		    zoneinfo_file == NULL ? "(UTC)" : zoneinfo_file);
+		    path_localtime, zoneinfo_file);
 	if (usedialog)
-		dialog_notify(prompt);
+		dialog_mesgbox(title, prompt, 8, 72);
 	else
 		fprintf(stderr, "%s\n", prompt);
 #endif
@@ -584,6 +587,10 @@ install_zoneinfo_file(const char *zoneinfo_file)
 
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
+#ifdef VERBOSE
+			snprintf(prompt, sizeof(prompt),
+			    "Removed %s", path_localtime);
+#endif
 			return (DITEM_LEAVE_MENU);
 		}
 
@@ -682,23 +689,23 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 		}
-	}
 
 #ifdef VERBOSE
-	snprintf(title, sizeof(title), "Done");
-	if (copymode)
-		snprintf(prompt, sizeof(prompt),
-		    "Copied timezone file from %s to %s", zoneinfo_file,
-		    path_localtime);
-	else
-		snprintf(prompt, sizeof(prompt),
-		    "Created symbolic link from %s to %s", zoneinfo_file,
-		    path_localtime);
-	if (usedialog)
-		dialog_mesgbox(title, prompt, 8, 72);
-	else
-		fprintf(stderr, "%s\n", prompt);
+		snprintf(title, sizeof(title), "Done");
+		if (copymode)
+			snprintf(prompt, sizeof(prompt),
+			    "Copied timezone file from %s to %s",
+			    zoneinfo_file, path_localtime);
+		else
+			snprintf(prompt, sizeof(prompt),
+			    "Created symbolic link from %s to %s",
+			    zoneinfo_file, path_localtime);
+		if (usedialog)
+			dialog_mesgbox(title, prompt, 8, 72);
+		else
+			fprintf(stderr, "%s\n", prompt);
 #endif
+	} /* reallydoit */
 
 	return (DITEM_LEAVE_MENU);
 }
