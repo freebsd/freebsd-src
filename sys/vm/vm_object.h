@@ -235,7 +235,7 @@ static __inline boolean_t
 vm_object_cache_is_empty(vm_object_t object)
 {
 
-	return (__predict_true(object->cache.rt_root == 0));
+	return (object->cache.rt_root == 0);
 }
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);

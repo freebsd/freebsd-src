@@ -1017,7 +1017,7 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	boolean_t empty;
 
 	mtx_lock(&vm_page_queue_free_mtx);
-	if (vm_object_cache_is_empty(object)) {
+	if (__predict_false(vm_object_cache_is_empty(object))) {
 		mtx_unlock(&vm_page_queue_free_mtx);
 		return;
 	}
@@ -1136,7 +1136,7 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 	 * exist.
 	 */
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	if (vm_object_cache_is_empty(object))
+	if (__predict_true(vm_object_cache_is_empty(object)))
 		return (FALSE);
 	mtx_lock(&vm_page_queue_free_mtx);
 	m = vm_page_cache_lookup(object, pindex);
