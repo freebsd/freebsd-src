@@ -1527,11 +1527,13 @@ struct ath_hal {
 	    			struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
 				struct ath_desc *);
-
 	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_set11nVirtMoreFrag)(struct ath_hal *,
+				struct ath_desc *, u_int);
+
 	HAL_BOOL  __ahdecl(*ah_getMibCycleCounts) (struct ath_hal *,
 				HAL_SURVEY_SAMPLE *);
 

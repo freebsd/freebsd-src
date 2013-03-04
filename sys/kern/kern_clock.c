@@ -460,7 +460,7 @@ hardclock_cpu(int usermode)
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
-	callout_tick();
+	callout_process(sbinuptime());
 }
 
 /*
@@ -550,7 +550,6 @@ hardclock_cnt(int cnt, int usermode)
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
-	callout_tick();
 	/* We are in charge to handle this tick duty. */
 	if (newticks > 0) {
 		/* Dangerous and no need to call these things concurrently. */
