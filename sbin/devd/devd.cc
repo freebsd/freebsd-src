@@ -1077,7 +1077,6 @@ static void
 gensighand(int)
 {
 	romeo_must_die = 1;
-	_exit(0);
 }
 
 static void
