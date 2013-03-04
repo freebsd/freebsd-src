@@ -103,7 +103,7 @@ static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 static void	seltdinit(struct thread *);
-static int	seltdwait(struct thread *, int);
+static int	seltdwait(struct thread *, sbintime_t, sbintime_t);
 static void	seltdclear(struct thread *);
 
 /*
@@ -950,9 +950,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
-	struct timeval atv, rtv, ttv;
-	int error, lf, ndu, timo;
+	struct timeval rtv;
+	sbintime_t asbt, precision, rsbt;
 	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
+	int error, lf, ndu;
 
 	if (nd < 0)
 		return (EINVAL);
@@ -1042,35 +1043,29 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nbufbytes != 0)
 		bzero(selbits, nbufbytes / 2);
 
+	precision = 0;
 	if (tvp != NULL) {
-		atv = *tvp;
-		if (itimerfix(&atv)) {
+		rtv = *tvp;
+		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 ||
+		    rtv.tv_usec >= 1000000) {
 			error = EINVAL;
 			goto done;
 		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-	}
-	timo = 0;
+		rsbt = tvtosbt(rtv);
+		precision = rsbt;
+		precision >>= tc_precexp;
+		if (TIMESEL(&asbt, rsbt))
+			asbt += tc_tick_sbt;
+		asbt += rsbt;
+	} else
+		asbt = -1;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = selscan(td, ibits, obits, nd);
 		if (error || td->td_retval[0] != 0)
 			break;
-		if (atv.tv_sec || atv.tv_usec) {
-			getmicrouptime(&rtv);
-			if (timevalcmp(&rtv, &atv, >=))
-				break;
-			ttv = atv;
-			timevalsub(&ttv, &rtv);
-			timo = ttv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&ttv);
-		}
-		error = seltdwait(td, timo);
+		error = seltdwait(td, asbt, precision);
 		if (error)
 			break;
 		error = selrescan(td, ibits, obits);
@@ -1278,9 +1273,9 @@ sys_poll(td, uap)
 {
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
-	struct timeval atv, rtv, ttv;
-	int error, timo;
+	sbintime_t asbt, precision, rsbt;
 	u_int nfds;
+	int error;
 	size_t ni;
 
 	nfds = uap->nfds;
@@ -1294,36 +1289,27 @@ sys_poll(td, uap)
 	error = copyin(uap->fds, bits, ni);
 	if (error)
 		goto done;
+	precision = 0;
 	if (uap->timeout != INFTIM) {
-		atv.tv_sec = uap->timeout / 1000;
-		atv.tv_usec = (uap->timeout % 1000) * 1000;
-		if (itimerfix(&atv)) {
+		if (uap->timeout < 0) {
 			error = EINVAL;
 			goto done;
 		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-	}
-	timo = 0;
+		rsbt = SBT_1MS * uap->timeout;
+		precision = rsbt;
+		precision >>= tc_precexp;
+		if (TIMESEL(&asbt, rsbt))
+			asbt += tc_tick_sbt;
+		asbt += rsbt;
+	} else
+		asbt = -1;
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = pollscan(td, bits, nfds);
 		if (error || td->td_retval[0] != 0)
 			break;
-		if (atv.tv_sec || atv.tv_usec) {
-			getmicrouptime(&rtv);
-			if (timevalcmp(&rtv, &atv, >=))
-				break;
-			ttv = atv;
-			timevalsub(&ttv, &rtv);
-			timo = ttv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&ttv);
-		}
-		error = seltdwait(td, timo);
+		error = seltdwait(td, asbt, precision);
 		if (error)
 			break;
 		error = pollrescan(td);
@@ -1667,7 +1653,7 @@ out:
 }
 
 static int
-seltdwait(struct thread *td, int timo)
+seltdwait(struct thread *td, sbintime_t sbt, sbintime_t precision)
 {
 	struct seltd *stp;
 	int error;
@@ -1686,8 +1672,11 @@ seltdwait(struct thread *td, int timo)
 		mtx_unlock(&stp->st_mtx);
 		return (0);
 	}
-	if (timo > 0)
-		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
+	if (sbt == 0)
+		error = EWOULDBLOCK;
+	else if (sbt != -1)
+		error = cv_timedwait_sig_sbt(&stp->st_wait, &stp->st_mtx,
+		    sbt, precision, C_ABSOLUTE);
 	else
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
 	mtx_unlock(&stp->st_mtx);
