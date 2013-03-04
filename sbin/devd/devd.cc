@@ -116,7 +116,7 @@ static struct pidfh *pfh;
 int Dflag;
 int dflag;
 int nflag;
-int romeo_must_die = 0;
+static volatile sig_atomic_t romeo_must_die = 0;
 
 static const char *configfile = CF;
 
@@ -1076,7 +1076,7 @@ set_variable(const char *var, const char *val)
 static void
 gensighand(int)
 {
-	romeo_must_die++;
+	romeo_must_die = 1;
 	_exit(0);
 }
 
