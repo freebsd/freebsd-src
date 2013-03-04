@@ -606,7 +606,7 @@ config::expand_one(const char *&src, string &dst)
 		return;
 	}
 	
-	// ${^A-Za-z] -> $\1
+	// $[^A-Za-z] -> $\1
 	if (!isalpha(*src)) {
 		dst += '$';
 		dst += *src++;
