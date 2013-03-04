@@ -825,6 +825,17 @@ ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds)
 	ads->ds_ctl6 &= ~AR_AggrLen;
 }
 
+void
+ar5416Set11nVirtualMoreFrag(struct ath_hal *ah, struct ath_desc *ds,
+    u_int vmf)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+	if (vmf)
+		ads->ds_ctl0 |= AR_VirtMoreFrag;
+	else
+		ads->ds_ctl0 &= ~AR_VirtMoreFrag;
+}
+
 /*
  * Program the burst duration, with the included BA delta if it's
  * applicable.
