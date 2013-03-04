@@ -319,7 +319,7 @@ media::do_match(config &c)
 	// the name of interest, first try device-name and fall back
 	// to subsystem if none exists.
 	value = c.get_variable("device-name");
-	if (value.length() == 0)
+	if (value.empty())
 		value = c.get_variable("subsystem");
 	if (Dflag)
 		fprintf(stderr, "Testing media type of %s against 0x%x\n",
