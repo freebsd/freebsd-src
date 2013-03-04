@@ -654,7 +654,7 @@ ixgbe_detach(device_t dev)
 
 	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
 		if (que->tq) {
-#ifdef IXGBE_LEGACY_TX
+#ifndef IXGBE_LEGACY_TX
 			taskqueue_drain(que->tq, &txr->txq_task);
 #endif
 			taskqueue_drain(que->tq, &que->que_task);
