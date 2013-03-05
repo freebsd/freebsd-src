@@ -228,7 +228,7 @@ typedef void			irqreturn_t;
 #define IRQ_NONE		/* nothing */
 
 #define unlikely(x)            __builtin_expect(!!(x), 0)
-#define likely(x)              __builtin_expect((x), 0)
+#define likely(x)              __builtin_expect(!!(x), 1)
 #define container_of(ptr, type, member) ({			\
 	__typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
