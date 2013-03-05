@@ -499,8 +499,8 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	hdlr.cyh_arg = spa;
 	hdlr.cyh_level = CY_LOW_LEVEL;
 
-	spa->spa_deadman_synctime = zfs_deadman_synctime *
-	    zfs_txg_synctime_ms * MICROSEC;
+	spa->spa_deadman_synctime = MSEC2NSEC(zfs_deadman_synctime *
+	    zfs_txg_synctime_ms);
 
 	/*
 	 * This determines how often we need to check for hung I/Os after
@@ -508,7 +508,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	 * an expensive operation we don't want to check too frequently.
 	 * Instead wait for 5 synctimes before checking again.
 	 */
-	when.cyt_interval = 5ULL * zfs_txg_synctime_ms * MICROSEC;
+	when.cyt_interval = MSEC2NSEC(5 * zfs_txg_synctime_ms);
 	when.cyt_when = CY_INFINITY;
 	mutex_enter(&cpu_lock);
 	spa->spa_deadman_cycid = cyclic_add(&hdlr, &when);
