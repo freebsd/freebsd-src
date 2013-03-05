@@ -7,6 +7,7 @@ SHLIB_MAJOR=	0
 INCS=		bsdyml.h
 SRCS=		api.c dumper.c emitter.c loader.c \
 		parser.c reader.c scanner.c writer.c
+MAN=		libbsdyml.3
 
 .PATH:		${LIBYAML}/src ${LIBYAML}/include
 CLEANFILES=	bsdyml.h
