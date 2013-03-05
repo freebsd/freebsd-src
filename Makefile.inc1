@@ -1420,6 +1420,7 @@ _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib= cddl/lib
+cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 .endif
 
 .if ${MK_CRYPT} != "no"
