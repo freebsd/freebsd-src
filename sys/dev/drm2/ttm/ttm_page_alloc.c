@@ -113,15 +113,21 @@ struct ttm_pool_manager {
 	struct ttm_pool_opts	options;
 
 	union {
-		struct ttm_page_pool	pools[NUM_POOLS];
-		struct {
-			struct ttm_page_pool	wc_pool;
-			struct ttm_page_pool	uc_pool;
-			struct ttm_page_pool	wc_pool_dma32;
-			struct ttm_page_pool	uc_pool_dma32;
-		} ;
-	};
+		struct ttm_page_pool	u_pools[NUM_POOLS];
+		struct _utag {
+			struct ttm_page_pool	u_wc_pool;
+			struct ttm_page_pool	u_uc_pool;
+			struct ttm_page_pool	u_wc_pool_dma32;
+			struct ttm_page_pool	u_uc_pool_dma32;
+		} _ut;
+	} _u;
 };
+
+#define	pools _u.u_pools
+#define	wc_pool _u._ut.u_wc_pool
+#define	uc_pool _u._ut.u_uc_pool
+#define	wc_pool_dma32 _u._ut.u_wc_pool_dma32
+#define	uc_pool_dma32 _u._ut.u_uc_pool_dma32
 
 MALLOC_DEFINE(M_TTM_POOLMGR, "ttm_poolmgr", "TTM Pool Manager");
 
