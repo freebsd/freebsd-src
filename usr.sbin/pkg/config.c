@@ -376,7 +376,7 @@ finalize:
 		c[ABI].val = abi;
 	}
 
-	subst_packagesite(c[ABI].val);
+	subst_packagesite(c[ABI].value != NULL ? c[ABI].value : c[ABI].val);
 
 	return (0);
 }
