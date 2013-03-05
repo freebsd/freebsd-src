@@ -3,40 +3,13 @@
 .PATH: ${.CURDIR}/../../../cddl/compat/opensolaris/misc
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
+.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs_core/common
 
-LIB=	zfs
-DPADD=	${LIBMD} ${LIBPTHREAD} ${LIBUMEM} ${LIBUTIL} ${LIBM} ${LIBNVPAIR} \
-	${LIBZFS_CORE}
-LDADD=	-lmd -lpthread -lumem -lutil -lm -lnvpair -lzfs_core
+LIB=	zfs_core
+DPADD=	${LIBNVPAIR}
+LDADD=	-lnvpair
 
-SRCS=	deviceid.c \
-	fsshare.c \
-	mkdirp.c \
-	mnttab.c \
-	zmount.c \
-	zone.c
-
-SRCS+=	libzfs_changelist.c \
-	libzfs_config.c \
-	libzfs_dataset.c \
-	libzfs_diff.c \
-	libzfs_import.c \
-	libzfs_iter.c \
-	libzfs_mount.c \
-	libzfs_pool.c \
-	libzfs_sendrecv.c \
-	libzfs_status.c \
-	libzfs_util.c \
-	zfeature_common.c \
-	zfs_comutil.c \
-	zfs_deleg.c \
-	zfs_fletcher.c \
-	zfs_ioctl_compat.c \
-	zfs_namecheck.c \
-	zfs_prop.c \
-	zpool_prop.c \
-	zprop_common.c \
+SRCS=	libzfs_core.c
 
 WARNS?=	0
 CSTD=	c99
@@ -54,7 +27,7 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libnvpair
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libuutil/common
-CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs_core/common
+CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
 
 .include <bsd.lib.mk>

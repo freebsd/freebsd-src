@@ -22,6 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -45,8 +46,8 @@
 #include "zfs_namecheck.h"
 
 static uint64_t dsl_dir_space_towrite(dsl_dir_t *dd);
-static void dsl_dir_set_reservation_sync(void *arg1, void *arg2, dmu_tx_t *tx);
-
+static void dsl_dir_set_reservation_sync_impl(dsl_dir_t *dd,
+    uint64_t value, dmu_tx_t *tx);
 
 /* ARGSUSED */
 static void
@@ -452,8 +453,7 @@ dsl_dir_create_sync(dsl_pool_t *dp, dsl_dir_t *pds, const char *name,
 int
 dsl_dir_destroy_check(void *arg1, void *arg2, dmu_tx_t *tx)
 {
-	dsl_dataset_t *ds = arg1;
-	dsl_dir_t *dd = ds->ds_dir;
+	dsl_dir_t *dd = arg1;
 	dsl_pool_t *dp = dd->dd_pool;
 	objset_t *mos = dp->dp_meta_objset;
 	int err;
@@ -484,24 +484,19 @@ dsl_dir_destroy_check(void *arg1, void *arg2, dmu_tx_t *tx)
 void
 dsl_dir_destroy_sync(void *arg1, void *tag, dmu_tx_t *tx)
 {
-	dsl_dataset_t *ds = arg1;
-	dsl_dir_t *dd = ds->ds_dir;
+	dsl_dir_t *dd = arg1;
 	objset_t *mos = dd->dd_pool->dp_meta_objset;
-	dsl_prop_setarg_t psa;
-	uint64_t value = 0;
 	uint64_t obj;
 	dd_used_t t;
 
 	ASSERT(RW_WRITE_HELD(&dd->dd_pool->dp_config_rwlock));
 	ASSERT(dd->dd_phys->dd_head_dataset_obj == 0);
 
-	/* Remove our reservation. */
-	dsl_prop_setarg_init_uint64(&psa, "reservation",
-	    (ZPROP_SRC_NONE | ZPROP_SRC_LOCAL | ZPROP_SRC_RECEIVED),
-	    &value);
-	psa.psa_effective_value = 0;	/* predict default value */
-
-	dsl_dir_set_reservation_sync(ds, &psa, tx);
+	/*
+	 * Remove our reservation. The impl() routine avoids setting the
+	 * actual property, which would require the (already destroyed) ds.
+	 */
+	dsl_dir_set_reservation_sync_impl(dd, 0, tx);
 
 	ASSERT0(dd->dd_phys->dd_used_bytes);
 	ASSERT0(dd->dd_phys->dd_reserved);
@@ -1151,25 +1146,17 @@ dsl_dir_set_reservation_check(void *arg1, void *arg2, dmu_tx_t *tx)
 }
 
 static void
-dsl_dir_set_reservation_sync(void *arg1, void *arg2, dmu_tx_t *tx)
+dsl_dir_set_reservation_sync_impl(dsl_dir_t *dd, uint64_t value, dmu_tx_t *tx)
 {
-	dsl_dataset_t *ds = arg1;
-	dsl_dir_t *dd = ds->ds_dir;
-	dsl_prop_setarg_t *psa = arg2;
-	uint64_t effective_value = psa->psa_effective_value;
 	uint64_t used;
 	int64_t delta;
-
-	dsl_prop_set_sync(ds, psa, tx);
-	DSL_PROP_CHECK_PREDICTION(dd, psa);
 
 	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 
 	mutex_enter(&dd->dd_lock);
 	used = dd->dd_phys->dd_used_bytes;
-	delta = MAX(used, effective_value) -
-	    MAX(used, dd->dd_phys->dd_reserved);
-	dd->dd_phys->dd_reserved = effective_value;
+	delta = MAX(used, value) - MAX(used, dd->dd_phys->dd_reserved);
+	dd->dd_phys->dd_reserved = value;
 
 	if (dd->dd_parent != NULL) {
 		/* Roll up this additional usage into our ancestors */
@@ -1177,6 +1164,23 @@ dsl_dir_set_reservation_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 		    delta, 0, 0, tx);
 	}
 	mutex_exit(&dd->dd_lock);
+}
+
+static void
+dsl_dir_set_reservation_sync(void *arg1, void *arg2, dmu_tx_t *tx)
+{
+	dsl_dataset_t *ds = arg1;
+	dsl_dir_t *dd = ds->ds_dir;
+	dsl_prop_setarg_t *psa = arg2;
+	uint64_t value = psa->psa_effective_value;
+
+	dsl_prop_set_sync(ds, psa, tx);
+	DSL_PROP_CHECK_PREDICTION(dd, psa);
+
+	dsl_dir_set_reservation_sync_impl(dd, value, tx);
+
+	spa_history_log_internal_dd(dd, "set reservation", tx,
+	    "reservation=%lld", (longlong_t)value);
 }
 
 int
@@ -1302,8 +1306,14 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	dsl_pool_t *dp = dd->dd_pool;
 	objset_t *mos = dp->dp_meta_objset;
 	int err;
+	char namebuf[MAXNAMELEN];
 
 	ASSERT(ra->allowmounted || dmu_buf_refcount(dd->dd_dbuf) <= 2);
+
+	/* Log this before we change the name. */
+	dsl_dir_name(ra->newparent, namebuf);
+	spa_history_log_internal_dd(dd, "rename", tx,
+	    "-> %s/%s", namebuf, ra->mynewname);
 
 	if (ra->newparent != dd->dd_parent) {
 		dsl_dir_diduse_space(dd->dd_parent, DD_USED_CHILD,
@@ -1350,8 +1360,6 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	zvol_rename_minors(oldname, newname);
 #endif
 
-	spa_history_log_internal(LOG_DS_RENAME, dd->dd_pool->dp_spa,
-	    tx, "dataset = %llu", dd->dd_phys->dd_head_dataset_obj);
 }
 
 int
