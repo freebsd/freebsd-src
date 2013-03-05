@@ -18,6 +18,7 @@ SRCS	= \
 	drm_fops.c \
 	drm_gem.c \
 	drm_gem_names.c \
+	drm_global.c \
 	drm_hashtab.c \
 	drm_ioctl.c \
 	drm_irq.c \
