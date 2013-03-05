@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #define	SOFT_CAPS (PMC_CAP_READ | PMC_CAP_WRITE | PMC_CAP_INTERRUPT | \
     PMC_CAP_USER | PMC_CAP_SYSTEM)
 
-PMC_SOFT_DECLARE( , , clock, prof);
-
 struct soft_descr {
 	struct pmc_descr pm_descr;  /* "base class" */
 };
@@ -126,9 +124,10 @@ soft_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (ps == NULL)
 		return (EINVAL);
 	pmc_soft_ev_release(ps);
+	/* Module unload is protected by pmc SX lock. */
+	if (ps->ps_alloc != NULL)
+		ps->ps_alloc();
 
-	if (ev == pmc___clock_prof.ps_ev.pm_ev_code)
-		cpu_startprofclock();
 	return (0);
 }
 
@@ -315,6 +314,8 @@ static int
 soft_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
 	struct pmc_hw *phw;
+	enum pmc_event ev;
+	struct pmc_soft *ps;
 
 	(void) pmc;
 
@@ -328,8 +329,16 @@ soft_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[soft,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-	if (pmc->pm_event == pmc___clock_prof.ps_ev.pm_ev_code)
-		cpu_stopprofclock();
+	ev = pmc->pm_event;
+
+	/* Check if event is registered. */
+	ps = pmc_soft_ev_acquire(ev);
+	KASSERT(ps != NULL,
+	    ("[soft,%d] unregistered event %d", __LINE__, ev));
+	pmc_soft_ev_release(ps);
+	/* Module unload is protected by pmc SX lock. */
+	if (ps->ps_release != NULL)
+		ps->ps_release();
 	return (0);
 }
 
