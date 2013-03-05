@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "o:")) != -1) {
 		switch(ch) {
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags, 0);
+			getmntopts(optarg, mopts, &mntflags, NULL);
 			break;
 		case '?':
 		default:
