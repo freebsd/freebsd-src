@@ -906,6 +906,7 @@ struct drm_device {
 	struct drm_minor *control;		/**< Control node for card */
 	struct drm_minor *primary;		/**< render type primary screen head */
 
+	void		  *drm_ttm_bo;
 	struct unrhdr	  *drw_unrhdr;
 	/* RB tree of drawable infos */
 	RB_HEAD(drawable_tree, bsd_drm_drawable_info) drw_head;
@@ -1302,9 +1303,13 @@ void drm_gem_release(struct drm_device *dev, struct drm_file *file_priv);
 
 int drm_gem_create_mmap_offset(struct drm_gem_object *obj);
 void drm_gem_free_mmap_offset(struct drm_gem_object *obj);
-int drm_gem_mmap_single(struct cdev *kdev, vm_ooffset_t *offset, vm_size_t size,
-    struct vm_object **obj_res, int nprot);
+int drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **obj_res, int nprot);
 void drm_gem_pager_dtr(void *obj);
+
+struct ttm_bo_device;
+int ttm_bo_mmap_single(struct ttm_bo_device *bdev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **obj_res, int nprot);
 
 void drm_device_lock_mtx(struct drm_device *dev);
 void drm_device_unlock_mtx(struct drm_device *dev);
