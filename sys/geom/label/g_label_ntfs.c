@@ -55,7 +55,7 @@ struct ntfs_attr {
 	uint16_t	reserved3;
 	uint16_t	a_dataoff;
 	uint16_t	a_indexed;
-};
+} __packed;
 
 struct ntfs_filerec {
 	uint32_t	fr_hdrmagic;
@@ -70,7 +70,7 @@ struct ntfs_filerec {
 	uint32_t	fr_allocated;
 	uint64_t	fr_mainrec;
 	uint16_t	fr_attrnum;
-};
+} __packed;
 
 struct ntfs_bootfile {
 	uint8_t		reserved1[3];
@@ -89,7 +89,7 @@ struct ntfs_bootfile {
 	uint8_t		bf_mftrecsz;
 	uint32_t	bf_ibsz;
 	uint32_t	bf_volsn;
-};
+} __packed;
 
 static void
 g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
