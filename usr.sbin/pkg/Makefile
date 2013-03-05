@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 PROG=	pkg
-SRCS=	pkg.c dns_utils.c
+SRCS=	pkg.c dns_utils.c config.c
 
 NO_MAN=	yes
-DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH}
-LDADD=	-larchive -lelf -lfetch
+DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH} ${LIBBSDYML} ${LIBSUBF}
+LDADD=	-larchive -lelf -lfetch -lbsdyml -lsbuf
 
 .include <bsd.prog.mk>
