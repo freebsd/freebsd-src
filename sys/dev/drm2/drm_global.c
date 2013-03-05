@@ -63,6 +63,7 @@ void drm_global_release(void)
 		struct drm_global_item *item = &glob[i];
 		MPASS(item->object == NULL);
 		MPASS(item->refcount == 0);
+		sx_destroy(&item->mutex);
 	}
 }
 
