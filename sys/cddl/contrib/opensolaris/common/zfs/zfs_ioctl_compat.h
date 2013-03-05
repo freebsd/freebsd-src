@@ -56,6 +56,8 @@ extern "C" {
 #define	ZFS_IOC_COMPAT_PASS	254
 #define	ZFS_IOC_COMPAT_FAIL	255
 
+#define	ZFS_IOCREQ(ioreq)	((ioreq) & 0xff)
+
 typedef struct zinject_record_v15 {
 	uint64_t	zi_objset;
 	uint64_t	zi_object;

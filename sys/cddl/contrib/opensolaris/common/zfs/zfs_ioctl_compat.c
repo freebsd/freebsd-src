@@ -488,10 +488,10 @@ zcmd_ioctl_compat(int fd, unsigned long cmd, zfs_cmd_t *zc, const int cflag)
 		return (ret);
 	case ZFS_CMD_COMPAT_V28:
 		zc_c = malloc(sizeof(zfs_cmd_v28_t));
-		ncmd = _IOWR('Z', ZFS_IOC(cmd), struct zfs_cmd_v28);
+		ncmd = _IOWR('Z', ZFS_IOCREQ(cmd), struct zfs_cmd_v28);
 		break;
 	case ZFS_CMD_COMPAT_V15:
-		nc = zfs_ioctl_v28_to_v15[ZFS_IOC(cmd)];
+		nc = zfs_ioctl_v28_to_v15[ZFS_IOCREQ(cmd)];
 		zc_c = malloc(sizeof(zfs_cmd_v15_t));
 		ncmd = _IOWR('Z', nc, struct zfs_cmd_v15);
 		break;
@@ -499,7 +499,7 @@ zcmd_ioctl_compat(int fd, unsigned long cmd, zfs_cmd_t *zc, const int cflag)
 		return (EINVAL);
 	}
 
-	if (ZFS_IOC(ncmd) == ZFS_IOC_COMPAT_FAIL)
+	if (ZFS_IOCREQ(ncmd) == ZFS_IOC_COMPAT_FAIL)
 		return (ENOTSUP);
 
 	zfs_cmd_compat_put(zc, (caddr_t)zc_c, cflag);

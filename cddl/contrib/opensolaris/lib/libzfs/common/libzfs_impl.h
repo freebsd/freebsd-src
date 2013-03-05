@@ -23,12 +23,12 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
-#ifndef	_LIBFS_IMPL_H
-#define	_LIBFS_IMPL_H
+#ifndef	_LIBZFS_IMPL_H
+#define	_LIBZFS_IMPL_H
 
 #include <sys/dmu.h>
 #include <sys/fs/zfs.h>
@@ -39,6 +39,7 @@
 #include <libshare.h>
 #include <libuutil.h>
 #include <libzfs.h>
+#include <libzfs_core.h>
 
 #include "zfs_ioctl_compat.h"
 
@@ -70,7 +71,6 @@ struct libzfs_handle {
 	int libzfs_desc_active;
 	char libzfs_action[1024];
 	char libzfs_desc[1024];
-	char *libzfs_log_str;
 	int libzfs_printerr;
 	int libzfs_storeerr; /* stuff error messages into buffer */
 	void *libzfs_sharehdl; /* libshare handle */
@@ -225,10 +225,13 @@ static int zfs_ioctl_version = 0;
  * error is returned zc_nvlist_dst_size won't be updated.
  */
 static __inline int
-zcmd_ioctl(int fd, unsigned long cmd, zfs_cmd_t *zc)
+zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 {
+	unsigned long cmd;
 	size_t oldsize, zfs_kernel_version_size, zfs_ioctl_version_size;
 	int version, ret, cflag = ZFS_CMD_COMPAT_NONE;
+
+	cmd = _IOWR('Z', request, struct zfs_cmd);
 
 	zfs_ioctl_version_size = sizeof(zfs_ioctl_version);
 	if (zfs_ioctl_version == 0) {
@@ -273,4 +276,4 @@ zcmd_ioctl(int fd, unsigned long cmd, zfs_cmd_t *zc)
 }
 #endif
 
-#endif	/* _LIBFS_IMPL_H */
+#endif	/* _LIBZFS_IMPL_H */
