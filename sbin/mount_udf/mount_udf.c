@@ -74,17 +74,17 @@ int
 main(int argc, char **argv)
 {
 	struct iovec iov[12];
-	int ch, i, mntflags, opts, udf_flags;
+	int ch, i, mntflags, udf_flags;
 	char *dev, *dir, mntpath[MAXPATHLEN];
 	char *cs_disk, *cs_local;
 	int verbose;
 
-	i = mntflags = opts = udf_flags = verbose = 0;
+	i = mntflags = udf_flags = verbose = 0;
 	cs_disk = cs_local = NULL;
 	while ((ch = getopt(argc, argv, "o:vC:")) != -1)
 		switch (ch) {
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags, &opts);
+			getmntopts(optarg, mopts, &mntflags, NULL);
 			break;
 		case 'v':
 			verbose++;
