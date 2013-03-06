@@ -49,6 +49,7 @@ extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* boot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
+extern char compiler_version[];	/* compiler version */
 extern char copyright[];	/* system copyright */
 extern int kstack_pages;	/* number of kernel stack pages */
 
