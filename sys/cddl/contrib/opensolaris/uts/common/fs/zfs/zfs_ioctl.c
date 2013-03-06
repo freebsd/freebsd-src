@@ -5801,11 +5801,11 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t addr, int flag,
 {
 	zfs_cmd_t *zc;
 	uint_t vecnum;
-#ifdef illumos
 	int error, rc, len;
+#ifdef illumos
 	minor_t minor = getminor(dev);
 #else
-	int cflag, cmd, error, rc, len;
+	int cflag, cmd;
 	cred_t *cr = td->td_ucred;
 #endif
 	const zfs_ioc_vec_t *vec;
@@ -5989,7 +5989,7 @@ out:
 		zfs_cmd_compat_put(zc, addr, cflag);
 	}
 
-	kmem_free(zc, sizeof(zfs_cmd_t));
+	kmem_free(zc, sizeof (zfs_cmd_t));
 	return (error);
 }
 
