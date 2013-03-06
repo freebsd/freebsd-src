@@ -1960,6 +1960,7 @@ static void
 acpi_shutdown_final(void *arg, int howto)
 {
     struct acpi_softc *sc = (struct acpi_softc *)arg;
+    register_t intr;
     ACPI_STATUS status;
 
     /*
@@ -1975,13 +1976,15 @@ acpi_shutdown_final(void *arg, int howto)
 	    return;
 	}
 	device_printf(sc->acpi_dev, "Powering system off\n");
-	ACPI_DISABLE_IRQS();
+	intr = intr_disable();
 	status = AcpiEnterSleepState(ACPI_STATE_S5);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - %s\n",
 		AcpiFormatException(status));
-	else {
+	} else {
 	    DELAY(1000000);
+	    intr_restore(intr);
 	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
 	}
     } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
@@ -2652,8 +2655,10 @@ enum acpi_sleep_state {
 static ACPI_STATUS
 acpi_EnterSleepState(struct acpi_softc *sc, int state)
 {
-    ACPI_STATUS	status;
+    register_t intr;
+    ACPI_STATUS status;
     enum acpi_sleep_state slp_state;
+    int sleep_result;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
@@ -2733,15 +2738,24 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (sc->acpi_sleep_delay > 0)
 	DELAY(sc->acpi_sleep_delay * 1000000);
 
+    intr = intr_disable();
     if (state != ACPI_STATE_S1) {
-	acpi_sleep_machdep(sc, state);
+	sleep_result = acpi_sleep_machdep(sc, state);
+	acpi_wakeup_machdep(sc, state, sleep_result, 0);
+	intr_restore(intr);
+
+	/* call acpi_wakeup_machdep() again with interrupt enabled */
+	acpi_wakeup_machdep(sc, state, sleep_result, 1);
+
+	if (sleep_result == -1)
+		goto backout;
 
 	/* Re-enable ACPI hardware on wakeup from sleep state 4. */
 	if (state == ACPI_STATE_S4)
 	    AcpiEnable();
     } else {
-	ACPI_DISABLE_IRQS();
 	status = AcpiEnterSleepState(state);
+	intr_restore(intr);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
 			  AcpiFormatException(status));
