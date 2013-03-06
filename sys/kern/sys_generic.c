@@ -1051,12 +1051,19 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			error = EINVAL;
 			goto done;
 		}
-		rsbt = tvtosbt(rtv);
-		precision = rsbt;
-		precision >>= tc_precexp;
-		if (TIMESEL(&asbt, rsbt))
-			asbt += tc_tick_sbt;
-		asbt += rsbt;
+		if (rtv.tv_sec == 0 && rtv.tv_usec == 0)
+			asbt = 0;
+		else if (rtv.tv_sec < INT32_MAX) {
+			rsbt = tvtosbt(rtv);
+			precision = rsbt;
+			precision >>= tc_precexp;
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			asbt += rsbt;
+			if (asbt < rsbt)
+				asbt = -1;
+		} else
+			asbt = -1;
 	} else
 		asbt = -1;
 	seltdinit(td);
@@ -1295,12 +1302,16 @@ sys_poll(td, uap)
 			error = EINVAL;
 			goto done;
 		}
-		rsbt = SBT_1MS * uap->timeout;
-		precision = rsbt;
-		precision >>= tc_precexp;
-		if (TIMESEL(&asbt, rsbt))
-			asbt += tc_tick_sbt;
-		asbt += rsbt;
+		if (uap->timeout == 0)
+			asbt = 0;
+		else {
+			rsbt = SBT_1MS * uap->timeout;
+			precision = rsbt;
+			precision >>= tc_precexp;
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			asbt += rsbt;
+		}
 	} else
 		asbt = -1;
 	seltdinit(td);
