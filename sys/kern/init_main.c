@@ -325,6 +325,7 @@ print_version(void *data __unused)
 	while (len > 0 && version[len - 1] == '\n')
 		len--;
 	printf("%.*s %s\n", len, version, machine);
+	printf("%s\n", compiler_version);
 }
 
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
