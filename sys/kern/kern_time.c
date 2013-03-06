@@ -484,13 +484,20 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
 	struct timespec ts;
 	sbintime_t sbt, sbtt, prec, tmp;
+	time_t over;
 	int error;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || (rqt->tv_sec == 0 && rqt->tv_nsec == 0))
 		return (0);
-	tmp = tstosbt(*rqt);
+	ts = *rqt;
+	if (ts.tv_sec > INT32_MAX / 2) {
+		over = ts.tv_sec - INT32_MAX / 2;
+		ts.tv_sec -= over;
+	} else
+		over = 0;
+	tmp = tstosbt(ts);
 	prec = tmp;
 	prec >>= tc_precexp;
 	if (TIMESEL(&sbt, tmp))
@@ -504,6 +511,7 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 		TIMESEL(&sbtt, tmp);
 		if (rmt != NULL) {
 			ts = sbttots(sbt - sbtt);
+			ts.tv_sec += over;
 			if (ts.tv_sec < 0)
 				timespecclear(&ts);
 			*rmt = ts;

@@ -1329,11 +1329,16 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 			goto done_nl;
 		}
 		if (timespecisset(tsp)) {
-			rsbt = tstosbt(*tsp);
-			if (TIMESEL(&asbt, rsbt))
-				asbt += tc_tick_sbt;
-			asbt += rsbt;
-			rsbt >>= tc_precexp;
+			if (tsp->tv_sec < INT32_MAX) {
+				rsbt = tstosbt(*tsp);
+				if (TIMESEL(&asbt, rsbt))
+					asbt += tc_tick_sbt;
+				asbt += rsbt;
+				if (asbt < rsbt)
+					asbt = 0;
+				rsbt >>= tc_precexp;
+			} else
+				asbt = 0;
 		} else
 			asbt = -1;
 	} else
