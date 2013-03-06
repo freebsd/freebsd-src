@@ -5796,7 +5796,7 @@ zfsdev_close(void *data)
 }
 
 static int
-zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t addr, int flag,
+zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
     struct thread *td)
 {
 	zfs_cmd_t *zc;
@@ -5856,18 +5856,14 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t addr, int flag,
 	zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
 	bzero(zc, sizeof(zfs_cmd_t));
 
-#ifdef illumos
 	error = ddi_copyin((void *)arg, zc, sizeof (zfs_cmd_t), flag);
-#else
-	error = ddi_copyin((void *)addr, zc, sizeof (zfs_cmd_t), flag);
-#endif
 	if (error != 0) {
 		error = EFAULT;
 		goto out;
 	}
 
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
-		zfs_cmd_compat_get(zc, addr, cflag);
+		zfs_cmd_compat_get(zc, arg, cflag);
 		zfs_ioctl_compat_pre(zc, &vecnum, cflag);
 	}
 
@@ -5986,7 +5982,7 @@ out:
 
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
 		zfs_ioctl_compat_post(zc, cmd, cflag);
-		zfs_cmd_compat_put(zc, addr, cflag);
+		zfs_cmd_compat_put(zc, arg, cflag);
 	}
 
 	kmem_free(zc, sizeof (zfs_cmd_t));
@@ -6216,9 +6212,11 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 		spa_init(FREAD | FWRITE);
 		zfs_init();
 		zvol_init();
+		zfs_ioctl_init();
 
 		tsd_create(&zfs_fsyncer_key, NULL);
-		tsd_create(&rrw_tsd_key, NULL);
+		tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
+		tsd_create(&zfs_allow_log_key, zfs_allow_log_destroy);
 
 		printf("ZFS storage pool version: features support (" SPA_VERSION_STRING ")\n");
 		root_mount_rel(zfs_root_token);
@@ -6239,6 +6237,7 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 
 		tsd_destroy(&zfs_fsyncer_key);
 		tsd_destroy(&rrw_tsd_key);
+		tsd_destroy(&zfs_allow_log_key);
 
 		mutex_destroy(&zfs_share_lock);
 		break;
