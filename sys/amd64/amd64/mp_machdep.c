@@ -1365,13 +1365,14 @@ cpususpend_handler(void)
 	while (!(started_cpus & cpumask))
 		ia32_pause();
 
-	atomic_clear_int(&started_cpus, cpumask);
-	atomic_clear_int(&stopped_cpus, cpumask);
-
 	/* Restore CR3 and enable interrupts */
 	load_cr3(cr3);
 	mca_resume();
 	lapic_setup(0);
+
+	atomic_clear_int(&started_cpus, cpumask);
+	atomic_clear_int(&stopped_cpus, cpumask);
+
 	intr_restore(rf);
 }
 
