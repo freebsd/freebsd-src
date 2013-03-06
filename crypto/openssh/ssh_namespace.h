@@ -451,9 +451,6 @@
 #define start_progress_meter			ssh_start_progress_meter
 #define stop_progress_meter			ssh_stop_progress_meter
 #define strdelim				ssh_strdelim
-#define strnvis					ssh_strnvis
-#define strvis					ssh_strvis
-#define strvisx					ssh_strvisx
 #define sys_tun_open				ssh_sys_tun_open
 #define temporarily_use_uid			ssh_temporarily_use_uid
 #define tilde_expand_filename			ssh_tilde_expand_filename
