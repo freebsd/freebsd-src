@@ -73,14 +73,15 @@ void	usage(void);
 int
 main(int argc, char **argv)
 {
-	struct iovec iov[12];
-	int ch, i, mntflags, udf_flags;
-	char *dev, *dir, mntpath[MAXPATHLEN];
-	char *cs_disk, *cs_local;
-	int verbose;
+	char mntpath[MAXPATHLEN];
+	char fstype[] = "udf";
+	struct iovec *iov;
+	char *cs_disk, *cs_local, *dev, *dir;
+	int ch, i, iovlen, mntflags, udf_flags, verbose;
 
-	i = mntflags = udf_flags = verbose = 0;
+	i = iovlen = mntflags = udf_flags = verbose = 0;
 	cs_disk = cs_local = NULL;
+	iov = NULL;
 	while ((ch = getopt(argc, argv, "o:vC:")) != -1)
 		switch (ch) {
 		case 'o':
@@ -120,32 +121,13 @@ main(int argc, char **argv)
 	 */
 	mntflags |= MNT_RDONLY;
 
-	iov[i].iov_base = "fstype";
-	iov[i++].iov_len = sizeof("fstype");
-	iov[i].iov_base = "udf";
-	iov[i].iov_len = strlen(iov[i].iov_base) + 1;
-	i++;
-	iov[i].iov_base = "fspath";
-	iov[i++].iov_len = sizeof("fspath");
-	iov[i].iov_base = mntpath;
-	iov[i++].iov_len = strlen(mntpath) + 1;
-	iov[i].iov_base = "from";
-	iov[i++].iov_len = sizeof("from");
-	iov[i].iov_base = dev;
-	iov[i++].iov_len = strlen(dev) + 1;
-	iov[i].iov_base = "flags";
-	iov[i++].iov_len = sizeof("flags");
-	iov[i].iov_base = &udf_flags;
-	iov[i++].iov_len = sizeof(udf_flags);
+	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
+	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
+	build_iovec(&iov, &iovlen, "flags", &udf_flags, sizeof(udf_flags));
 	if (udf_flags & UDFMNT_KICONV) {
-		iov[i].iov_base = "cs_disk";
-		iov[i++].iov_len = sizeof("cs_disk");
-		iov[i].iov_base = cs_disk;
-		iov[i++].iov_len = strlen(cs_disk) + 1;
-		iov[i].iov_base = "cs_local";
-		iov[i++].iov_len = sizeof("cs_local");
-		iov[i].iov_base = cs_local;
-		iov[i++].iov_len = strlen(cs_local) + 1;
+		build_iovec(&iov, &iovlen, "cs_disk", cs_disk, (size_t)-1);
+		build_iovec(&iov, &iovlen, "cs_local", cs_local, (size_t)-1);
 	}
 	if (nmount(iov, i, mntflags) < 0)
 		err(1, "%s", dev);
