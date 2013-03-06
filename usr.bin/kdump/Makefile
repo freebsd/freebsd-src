@@ -41,6 +41,5 @@ linux_syscalls.c:
 
 .if ${MK_STAGING} != ""
 # we are interested in the files put in ${STAGE_OBJTOP}/include
-DESTDIR= ${STAGE_OBJTOP}
 INCLUDEDIR= /include
 .endif
