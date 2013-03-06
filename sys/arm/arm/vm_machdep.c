@@ -73,6 +73,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
+/*
+ * struct switchframe must be a multiple of 8 for correct stack alignment
+ */
+CTASSERT(sizeof(struct switchframe) == 24);
+CTASSERT(sizeof(struct trapframe) == 76);
+
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
 #endif
@@ -131,8 +137,8 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2->un_32.pcb32_sp = td2->td_kstack +
 	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
 	pmap_activate(td2);
-	td2->td_frame = tf =
-	    (struct trapframe *)pcb2->un_32.pcb32_sp - 1;
+	td2->td_frame = tf = (struct trapframe *)STACKALIGN(
+	    pcb2->un_32.pcb32_sp - sizeof(struct trapframe));
 	*tf = *td1->td_frame;
 	sf = (struct switchframe *)tf - 1;
 	sf->sf_r4 = (u_int)fork_return;
@@ -142,6 +148,8 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	tf->tf_r0 = 0;
 	tf->tf_r1 = 0;
 	pcb2->un_32.pcb32_sp = (u_int)sf;
+	KASSERT((pcb2->un_32.pcb32_sp & 7) == 0,
+	    ("cpu_fork: Incorrect stack alignment"));
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
@@ -345,6 +353,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	tf->tf_r0 = 0;
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
 	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + USPACE_UNDEF_STACK_TOP;
+	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
+	    ("cpu_set_upcall: Incorrect stack alignment"));
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
@@ -438,6 +448,8 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 	sf->sf_r4 = (u_int)func;
 	sf->sf_r5 = (u_int)arg;
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
+	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
+	    ("cpu_set_fork_handler: Incorrect stack alignment"));
 }
 
 /*
