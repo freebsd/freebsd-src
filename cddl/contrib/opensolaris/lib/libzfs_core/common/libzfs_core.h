@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #ifndef	_LIBZFS_CORE_H

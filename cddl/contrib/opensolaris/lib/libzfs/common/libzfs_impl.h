@@ -40,8 +40,7 @@
 #include <libuutil.h>
 #include <libzfs.h>
 #include <libzfs_core.h>
-
-#include "zfs_ioctl_compat.h"
+#include <libzfs_compat.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -214,63 +213,6 @@ extern int zfs_unshare_proto(zfs_handle_t *,
     const char *, zfs_share_proto_t *);
 
 extern void libzfs_fru_clear(libzfs_handle_t *, boolean_t);
-
-#ifndef sun
-static int zfs_kernel_version = 0;
-static int zfs_ioctl_version = 0;
-
-/*
- * This is FreeBSD version of ioctl, because Solaris' ioctl() updates
- * zc_nvlist_dst_size even if an error is returned, on FreeBSD if an
- * error is returned zc_nvlist_dst_size won't be updated.
- */
-static __inline int
-zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
-{
-	unsigned long cmd;
-	size_t oldsize, zfs_kernel_version_size, zfs_ioctl_version_size;
-	int version, ret, cflag = ZFS_CMD_COMPAT_NONE;
-
-	cmd = _IOWR('Z', request, struct zfs_cmd);
-
-	zfs_ioctl_version_size = sizeof(zfs_ioctl_version);
-	if (zfs_ioctl_version == 0) {
-		sysctlbyname("vfs.zfs.version.ioctl", &zfs_ioctl_version,
-		    &zfs_ioctl_version_size, NULL, 0);
-	}
-
-	/*
-	 * If vfs.zfs.version.ioctl is not defined, assume we have v28
-	 * compatible binaries and use vfs.zfs.version.spa to test for v15
-	 */
-	if (zfs_ioctl_version < ZFS_IOCVER_DEADMAN) {
-		cflag = ZFS_CMD_COMPAT_V28;
-		zfs_kernel_version_size = sizeof(zfs_kernel_version);
-
-		if (zfs_kernel_version == 0) {
-			sysctlbyname("vfs.zfs.version.spa",
-			    &zfs_kernel_version,
-			    &zfs_kernel_version_size, NULL, 0);
-		}
-
-		if (zfs_kernel_version == SPA_VERSION_15 ||
-		    zfs_kernel_version == SPA_VERSION_14 ||
-		    zfs_kernel_version == SPA_VERSION_13)
-			cflag = ZFS_CMD_COMPAT_V15;
-	}
-
-	oldsize = zc->zc_nvlist_dst_size;
-	ret = zcmd_ioctl_compat(fd, cmd, zc, cflag);
-
-	if (ret == 0 && oldsize < zc->zc_nvlist_dst_size) {
-		ret = -1;
-		errno = ENOMEM;
-	}
-
-	return (ret);
-}
-#define	ioctl(fd, cmd, zc)	zcmd_ioctl((fd), (cmd), (zc))
-#endif	/* !sun */
 
 #ifdef	__cplusplus
 }
