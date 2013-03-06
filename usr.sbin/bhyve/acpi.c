@@ -687,12 +687,16 @@ basl_load(int fd, uint64_t off)
 	int err;
 
 	err = 0;
-	gaddr = paddr_guest2host(basl_acpi_base + off, sb.st_size);
-	if (gaddr != NULL) {
-		if (fstat(fd, &sb) < 0 || read(fd, gaddr, sb.st_size) < 0)
-			err = errno;
-	} else
-		err = EFAULT;
+        if (fstat(fd, &sb) < 0) {
+		err = errno;
+        } else {
+		gaddr = paddr_guest2host(basl_acpi_base + off, sb.st_size);
+		if (gaddr != NULL) {
+			if (read(fd, gaddr, sb.st_size) < 0)
+				err = errno;
+		} else
+			err = EFAULT;
+        }
 
 	return (err);
 }
