@@ -84,7 +84,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/zfs_ioctl.h>
-#include <libzfs_impl.h>
+#include <libzfs_compat.h>
 
 static int g_fd;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
