@@ -2742,6 +2742,19 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (state != ACPI_STATE_S1) {
 	sleep_result = acpi_sleep_machdep(sc, state);
 	acpi_wakeup_machdep(sc, state, sleep_result, 0);
+
+	/*
+	 * XXX According to ACPI specification SCI_EN bit should be restored
+	 * by ACPI platform (BIOS, firmware) to its pre-sleep state.
+	 * Unfortunately some BIOSes fail to do that and that leads to
+	 * unexpected and serious consequences during wake up like a system
+	 * getting stuck in SMI handlers.
+	 * This hack is picked up from Linux, which claims that it follows
+	 * Windows behavior.
+	 */
+	if (sleep_result == 1 && state != ACPI_STATE_S4)
+	    AcpiWriteBitRegister(ACPI_BITREG_SCI_ENABLE, ACPI_ENABLE_EVENT);
+
 	intr_restore(intr);
 
 	/* call acpi_wakeup_machdep() again with interrupt enabled */
