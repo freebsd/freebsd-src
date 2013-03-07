@@ -377,7 +377,7 @@ struct sctp_sysctl {
 #define SCTPCTL_ABC_L_VAR_DESC		"SCTP ABC max increase per SACK (L)"
 #define SCTPCTL_ABC_L_VAR_MIN		0
 #define SCTPCTL_ABC_L_VAR_MAX		0xFFFFFFFF
-#define SCTPCTL_ABC_L_VAR_DEFAULT	1
+#define SCTPCTL_ABC_L_VAR_DEFAULT	2
 
 /* max_chained_mbufs: Default max number of small mbufs on a chain */
 #define SCTPCTL_MAX_CHAINED_MBUFS_DESC	"Default max number of small mbufs on a chain"
