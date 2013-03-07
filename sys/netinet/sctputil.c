@@ -1725,8 +1725,7 @@ sctp_timeout_handler(void *t)
 			break;
 		}
 		SCTP_STAT_INCR(sctps_timoshutdownguard);
-		sctp_abort_an_association(inp, stcb,
-		    SCTP_SHUTDOWN_GUARD_EXPIRES, NULL, SCTP_SO_NOT_LOCKED);
+		sctp_abort_an_association(inp, stcb, NULL, SCTP_SO_NOT_LOCKED);
 		/* no need to unlock on tcb its gone */
 		goto out_decr;
 
@@ -2593,7 +2592,7 @@ sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 
 static void
 sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
-    uint16_t error, int so_locked
+    uint16_t error, struct sctp_abort_chunk *abort, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -2602,7 +2601,7 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	struct mbuf *m_notify;
 	struct sctp_assoc_change *sac;
 	struct sctp_queued_to_read *control;
-	size_t len;
+	size_t notif_len, abort_len;
 	unsigned int i;
 
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -2652,16 +2651,27 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 		/* event not enabled */
 		return;
 	}
-	len = sizeof(struct sctp_assoc_change);
-	if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
-		len += SCTP_ASSOC_SUPPORTS_MAX;
+	notif_len = sizeof(struct sctp_assoc_change);
+	if (abort != NULL) {
+		abort_len = htons(abort->ch.chunk_length);
+	} else {
+		abort_len = 0;
 	}
-	m_notify = sctp_get_mbuf_for_msg(len, 0, M_DONTWAIT, 1, MT_DATA);
-	if (m_notify == NULL)
-		/* no space left */
-		return;
-	SCTP_BUF_LEN(m_notify) = 0;
-
+	if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
+		notif_len += SCTP_ASSOC_SUPPORTS_MAX;
+	} else if ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC)) {
+		notif_len += abort_len;
+	}
+	m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+	if (m_notify == NULL) {
+		/* Retry with smaller value. */
+		notif_len = sizeof(struct sctp_assoc_change);
+		m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+		if (m_notify == NULL) {
+			return;
+		}
+	}
+	SCTP_BUF_NEXT(m_notify) = NULL;
 	sac = mtod(m_notify, struct sctp_assoc_change *);
 	sac->sac_type = SCTP_ASSOC_CHANGE;
 	sac->sac_flags = 0;
@@ -2672,25 +2682,29 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	sac->sac_outbound_streams = stcb->asoc.streamoutcnt;
 	sac->sac_inbound_streams = stcb->asoc.streamincnt;
 	sac->sac_assoc_id = sctp_get_associd(stcb);
-	if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
-		i = 0;
-		if (stcb->asoc.peer_supports_prsctp) {
-			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_PR;
+	if (notif_len > sizeof(struct sctp_assoc_change)) {
+		if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
+			i = 0;
+			if (stcb->asoc.peer_supports_prsctp) {
+				sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_PR;
+			}
+			if (stcb->asoc.peer_supports_auth) {
+				sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_AUTH;
+			}
+			if (stcb->asoc.peer_supports_asconf) {
+				sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_ASCONF;
+			}
+			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_MULTIBUF;
+			if (stcb->asoc.peer_supports_strreset) {
+				sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_RE_CONFIG;
+			}
+			sac->sac_length += i;
+		} else if ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC)) {
+			memcpy(sac->sac_info, abort, abort_len);
+			sac->sac_length += abort_len;
 		}
-		if (stcb->asoc.peer_supports_auth) {
-			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_AUTH;
-		}
-		if (stcb->asoc.peer_supports_asconf) {
-			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_ASCONF;
-		}
-		sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_MULTIBUF;
-		if (stcb->asoc.peer_supports_strreset) {
-			sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_RE_CONFIG;
-		}
-		sac->sac_length += i;
 	}
 	SCTP_BUF_LEN(m_notify) = sac->sac_length;
-	SCTP_BUF_NEXT(m_notify) = NULL;
 	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
 	    0, 0, stcb->asoc.context, 0, 0, 0,
 	    m_notify);
@@ -3500,7 +3514,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	switch (notification) {
 	case SCTP_NOTIFY_ASSOC_UP:
 		if (stcb->asoc.assoc_up_sent == 0) {
-			sctp_notify_assoc_change(SCTP_COMM_UP, stcb, error, so_locked);
+			sctp_notify_assoc_change(SCTP_COMM_UP, stcb, error, NULL, so_locked);
 			stcb->asoc.assoc_up_sent = 1;
 		}
 		if (stcb->asoc.adaptation_needed && (stcb->asoc.adaptation_sent == 0)) {
@@ -3512,7 +3526,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		}
 		break;
 	case SCTP_NOTIFY_ASSOC_DOWN:
-		sctp_notify_assoc_change(SCTP_SHUTDOWN_COMP, stcb, error, so_locked);
+		sctp_notify_assoc_change(SCTP_SHUTDOWN_COMP, stcb, error, NULL, so_locked);
 		break;
 	case SCTP_NOTIFY_INTERFACE_DOWN:
 		{
@@ -3563,9 +3577,9 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_ASSOC_ABORTED:
 		if ((stcb) && (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
 		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED))) {
-			sctp_notify_assoc_change(SCTP_CANT_STR_ASSOC, stcb, error, so_locked);
+			sctp_notify_assoc_change(SCTP_CANT_STR_ASSOC, stcb, error, data, so_locked);
 		} else {
-			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, so_locked);
+			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, data, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_PEER_OPENED_STREAM:
@@ -3573,7 +3587,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_STREAM_OPENED_OK:
 		break;
 	case SCTP_NOTIFY_ASSOC_RESTART:
-		sctp_notify_assoc_change(SCTP_RESTART, stcb, error, so_locked);
+		sctp_notify_assoc_change(SCTP_RESTART, stcb, error, NULL, so_locked);
 		if (stcb->asoc.peer_supports_auth == 0) {
 			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0,
 			    NULL, so_locked);
@@ -3742,7 +3756,8 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 }
 
 void
-sctp_abort_notification(struct sctp_tcb *stcb, int error, int so_locked
+sctp_abort_notification(struct sctp_tcb *stcb, uint16_t error,
+    struct sctp_abort_chunk *abort, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -3763,7 +3778,7 @@ sctp_abort_notification(struct sctp_tcb *stcb, int error, int so_locked
 	}
 	/* Tell them we lost the asoc */
 	sctp_report_all_outbound(stcb, 1, so_locked);
-	sctp_ulp_notify(SCTP_NOTIFY_ASSOC_ABORTED, stcb, error, NULL, so_locked);
+	sctp_ulp_notify(SCTP_NOTIFY_ASSOC_ABORTED, stcb, error, abort, so_locked);
 }
 
 void
@@ -3782,7 +3797,7 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (stcb != NULL) {
 		/* We have a TCB to abort, send notification too */
 		vtag = stcb->asoc.peer_vtag;
-		sctp_abort_notification(stcb, 0, SCTP_SO_NOT_LOCKED);
+		sctp_abort_notification(stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 		/* get the assoc vrf id and table id */
 		vrf_id = stcb->asoc.vrf_id;
 		stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
@@ -3876,7 +3891,7 @@ none_in:
 
 void
 sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    int error, struct mbuf *op_err,
+    struct mbuf *op_err,
     int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -3904,8 +3919,9 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
 	}
 	/* notify the ulp */
-	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0)
-		sctp_abort_notification(stcb, error, so_locked);
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
+		sctp_abort_notification(stcb, 0, NULL, so_locked);
+	}
 	/* notify the peer */
 	sctp_send_abort_tcb(stcb, op_err, so_locked);
 	SCTP_STAT_INCR_COUNTER32(sctps_aborted);
