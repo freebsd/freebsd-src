@@ -4516,7 +4516,7 @@ __attribute__((noinline))
 		}
 		if (stcb == NULL) {
 			/* no association, so it's out of the blue... */
-			sctp_handle_ootb(m, iphlen, *offset, sh, inp, NULL,
+			sctp_handle_ootb(m, iphlen, *offset, sh, inp,
 			    vrf_id, port);
 			*offset = length;
 			if (locked_tcb) {
@@ -4554,7 +4554,7 @@ __attribute__((noinline))
 					SCTP_TCB_UNLOCK(locked_tcb);
 				}
 				sctp_handle_ootb(m, iphlen, *offset, sh, inp,
-				    NULL, vrf_id, port);
+				    vrf_id, port);
 				return (NULL);
 			}
 		} else {
@@ -5586,7 +5586,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 			 * NOT respond to any packet.. its OOTB.
 			 */
 			SCTP_TCB_UNLOCK(stcb);
-			sctp_handle_ootb(m, iphlen, offset, sh, inp, NULL,
+			sctp_handle_ootb(m, iphlen, offset, sh, inp,
 			    vrf_id, port);
 			goto out_now;
 		}
@@ -5630,7 +5630,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		}
 		if (stcb == NULL) {
 			/* out of the blue DATA chunk */
-			sctp_handle_ootb(m, iphlen, offset, sh, inp, NULL,
+			sctp_handle_ootb(m, iphlen, offset, sh, inp,
 			    vrf_id, port);
 			goto out_now;
 		}
@@ -5699,7 +5699,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 			/*
 			 * We consider OOTB any data sent during asoc setup.
 			 */
-			sctp_handle_ootb(m, iphlen, offset, sh, inp, NULL,
+			sctp_handle_ootb(m, iphlen, offset, sh, inp,
 			    vrf_id, port);
 			SCTP_TCB_UNLOCK(stcb);
 			goto out_now;

@@ -3994,7 +3994,7 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 void
 sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
-    struct sctp_inpcb *inp, struct mbuf *op_err, uint32_t vrf_id, uint16_t port)
+    struct sctp_inpcb *inp, uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_chunkhdr *ch, chunk_buf;
 	unsigned int chk_length;
@@ -4049,7 +4049,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 	if ((SCTP_BASE_SYSCTL(sctp_blackhole) == 0) ||
 	    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
 	    (contains_init_chunk == 0))) {
-		sctp_send_abort(m, iphlen, sh, 0, op_err, vrf_id, port);
+		sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id, port);
 	}
 }
 

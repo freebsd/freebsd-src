@@ -200,7 +200,7 @@ sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *,
 
 void 
 sctp_handle_ootb(struct mbuf *, int, int, struct sctphdr *,
-    struct sctp_inpcb *, struct mbuf *, uint32_t, uint16_t);
+    struct sctp_inpcb *, uint32_t, uint16_t);
 
 int 
 sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
