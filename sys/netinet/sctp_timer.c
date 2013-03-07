@@ -101,8 +101,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				net->dest_state &= ~SCTP_ADDR_REQ_PRIMARY;
 				net->dest_state &= ~SCTP_ADDR_PF;
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-				    stcb,
-				    SCTP_FAILED_THRESHOLD,
+				    stcb, 0,
 				    (void *)net, SCTP_SO_NOT_LOCKED);
 			}
 		} else if ((net->pf_threshold < net->failure_threshold) &&
