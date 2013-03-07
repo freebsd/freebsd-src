@@ -78,7 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 PMC_SOFT_DEFINE( , , clock, hard);
 PMC_SOFT_DEFINE( , , clock, stat);
-PMC_SOFT_DEFINE( , , clock, prof);
+PMC_SOFT_DEFINE_EX( , , clock, prof, \
+    cpu_startprofclock, cpu_stopprofclock);
 #endif
 
 #ifdef DEVICE_POLLING

@@ -3083,9 +3083,14 @@ chkarg:
 			} else {
 				len = sizeof(c->max_log);
 				if (sysctlbyname("net.inet.ip.fw.verbose_limit",
-				    &c->max_log, &len, NULL, 0) == -1)
+				    &c->max_log, &len, NULL, 0) == -1) {
+					if (co.test_only) {
+						c->max_log = 0;
+						break;
+					}
 					errx(1, "sysctlbyname(\"%s\")",
 					    "net.inet.ip.fw.verbose_limit");
+				}
 			}
 		    }
 			break;
@@ -3986,9 +3991,13 @@ ipfw_table_handler(int ac, char *av[])
 	mask = 0;	// XXX uninitialized ?
 	len = sizeof(tables_max);
 	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
-		NULL, 0) == -1)
-		errx(1, "Can't determine maximum number of ipfw tables. "
-		    "Perhaps you forgot to load ipfw module?");
+	    NULL, 0) == -1) {
+		if (co.test_only)
+			tables_max = 128; /* Old conservative default */
+		else
+			errx(1, "Can't determine maximum number of ipfw tables."
+			    " Perhaps you forgot to load ipfw module?");
+	}
 
 	memset(&xent, 0, sizeof(xent));
 
