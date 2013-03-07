@@ -956,6 +956,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FAITH:
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
+		case IP_RECVTOS:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1018,6 +1019,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			case IP_BINDANY:
 				OPTSET(INP_BINDANY);
+				break;
+			case IP_RECVTOS:
+				OPTSET(INP_RECVTOS);
 				break;
 			}
 			break;
@@ -1128,6 +1132,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
 		case IP_BINDANY:
+		case IP_RECVTOS:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1185,6 +1190,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			case IP_BINDANY:
 				optval = OPTBIT(INP_BINDANY);
+				break;
+			case IP_RECVTOS:
+				optval = OPTBIT(INP_RECVTOS);
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
