@@ -47,9 +47,6 @@ struct sctp_sysctl {
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
-#if !defined(SCTP_WITH_NO_CSUM)
-	uint32_t sctp_no_csum_on_loopback;
-#endif
 	uint32_t sctp_peer_chunk_oh;
 	uint32_t sctp_max_burst_default;
 	uint32_t sctp_max_chunks_on_queue;
