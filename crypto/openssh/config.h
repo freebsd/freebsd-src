@@ -956,7 +956,7 @@
 #define HAVE_STRNLEN 1
 
 /* Define to 1 if you have the `strnvis' function. */
-#define HAVE_STRNVIS 1
+/* #undef HAVE_STRNVIS */
 
 /* Define to 1 if you have the `strptime' function. */
 #define HAVE_STRPTIME 1
@@ -1196,7 +1196,7 @@
 /* #undef HAVE_VHANGUP */
 
 /* Define to 1 if you have the <vis.h> header file. */
-#define HAVE_VIS_H 1
+/* #undef HAVE_VIS_H */
 
 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_VSNPRINTF 1
