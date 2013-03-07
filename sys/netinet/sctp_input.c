@@ -2874,14 +2874,12 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			return (m);
 		}
 	}
-	if ((*inp_p)->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
-		if (notification) {
-			sctp_ulp_notify(notification, *stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
-		}
-		if (send_int_conf) {
-			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
-			    (*stcb), 0, (void *)netl, SCTP_SO_NOT_LOCKED);
-		}
+	if (notification) {
+		sctp_ulp_notify(notification, *stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
+	}
+	if (send_int_conf) {
+		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
+		    (*stcb), 0, (void *)netl, SCTP_SO_NOT_LOCKED);
 	}
 	return (m);
 }
