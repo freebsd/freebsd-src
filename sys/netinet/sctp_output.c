@@ -11047,11 +11047,8 @@ sctp_send_shutdown_complete2(struct mbuf *m, struct sctphdr *sh,
 #endif
 #ifdef INET6
 	if (ip6_out != NULL) {
-		struct route_in6 ro;
 		int ret;
-		struct ifnet *ifp = NULL;
 
-		bzero(&ro, sizeof(ro));
 		mlen = SCTP_BUF_LEN(mout);
 #ifdef  SCTP_PACKET_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
@@ -11077,11 +11074,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, struct sctphdr *sh,
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 		}
-		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, NULL, vrf_id);
-
-		/* Free the route if we got one back */
-		if (ro.ro_rt)
-			RTFREE(ro.ro_rt);
+		SCTP_IP6_OUTPUT(ret, o_pak, NULL, NULL, NULL, vrf_id);
 	}
 #endif
 	SCTP_STAT_INCR(sctps_sendpackets);
@@ -12148,12 +12141,8 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 #endif
 #ifdef INET6
 	if (ip6_out != NULL) {
-		struct route_in6 ro;
 		int ret;
-		struct ifnet *ifp = NULL;
 
-		/* zap the stack pointer to the route */
-		bzero(&ro, sizeof(ro));
 		if (port) {
 			udp->uh_ulen = htons(len - sizeof(struct ip6_hdr));
 		}
@@ -12184,11 +12173,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 		}
-		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, NULL, vrf_id);
-
-		/* Free the route if we got one back */
-		if (ro.ro_rt)
-			RTFREE(ro.ro_rt);
+		SCTP_IP6_OUTPUT(ret, o_pak, NULL, NULL, NULL, vrf_id);
 	}
 #endif
 	SCTP_STAT_INCR(sctps_sendpackets);
@@ -12414,12 +12399,8 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 #endif
 #ifdef INET6
 	if (ip6_out != NULL) {
-		struct route_in6 ro;
 		int ret;
-		struct ifnet *ifp = NULL;
 
-		/* zap the stack pointer to the route */
-		bzero(&ro, sizeof(ro));
 		if (port) {
 			udp->uh_ulen = htons(len - sizeof(struct ip6_hdr));
 		}
@@ -12448,11 +12429,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 		}
-		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, NULL, vrf_id);
-
-		/* Free the route if we got one back */
-		if (ro.ro_rt)
-			RTFREE(ro.ro_rt);
+		SCTP_IP6_OUTPUT(ret, o_pak, NULL, NULL, NULL, vrf_id);
 	}
 #endif
 	SCTP_STAT_INCR(sctps_sendpackets);
