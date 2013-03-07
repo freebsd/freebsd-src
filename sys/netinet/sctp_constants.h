@@ -348,7 +348,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NO_FR_UNLESS_SEGMENT_SMALLER 1
 
 /* default max I can burst out after a fast retransmit, 0 disables it */
-#define SCTP_DEF_MAX_BURST 0
+#define SCTP_DEF_MAX_BURST 4
 #define SCTP_DEF_HBMAX_BURST 4
 #define SCTP_DEF_FRMAX_BURST 4
 
