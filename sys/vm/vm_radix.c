@@ -35,10 +35,10 @@
  * of this code must achieve highest possible performance.
  *
  * The implementation takes into account the following rationale:
- * - Size of the nodes might be as small as possible.
+ * - Size of the nodes should be as small as possible.
  * - There is no bias toward lookup operations over inserts or removes,
  *   and vice-versa.
- * - In average there are not many complete levels, than level
+ * - On average not many nodes are expected to be full, hence level
  *   compression may just complicate things.
  */
 
@@ -222,7 +222,7 @@ vm_radix_keydiff(vm_pindex_t index1, vm_pindex_t index2)
 	for (clev = 0; clev <= VM_RADIX_LIMIT ; clev++)
 		if (vm_radix_slot(index1, clev))
 			return (clev);
-	panic("%s: it might have not reached this point", __func__);
+	panic("%s: cannot reach this point", __func__);
 	return (0);
 }
 
@@ -508,9 +508,9 @@ restart:
 		 * available bisection node, or to the smaller value
 		 * in the current domain (if the owner is bigger than the
 		 * search key).
-		 * The search for a valid bisection node is helped through
-		 * the use of maplevels array which should bring immediately
-		 * a lower useful level, skipping holes.
+		 * The maplevels array records any node has been seen
+		 * at a given level.  This aids the search for a valid
+		 * bisection node.
 		 */
 		if (vm_radix_keybarr(rnode, index)) {
 			difflev = vm_radix_keydiff(index, rnode->rn_owner);
@@ -597,9 +597,9 @@ restart:
 		 * available bisection node, or to the higher value
 		 * in the current domain (if the owner is smaller than the
 		 * search key).
-		 * The search for a valid bisection node is helped through
-		 * the use of maplevels array which should bring immediately
-		 * a lower useful level, skipping holes.
+		 * The maplevels array records any node has been seen
+		 * at a given level.  This aids the search for a valid
+		 * bisection node.
 		 */
 		if (vm_radix_keybarr(rnode, index)) {
 			difflev = vm_radix_keydiff(index, rnode->rn_owner);
