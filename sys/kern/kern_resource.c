@@ -469,8 +469,7 @@ sys_rtprio(td, uap)
 int
 rtp_to_pri(struct rtprio *rtp, struct thread *td)
 {
-	u_char	newpri;
-	u_char	oldpri;
+	u_char  newpri, oldclass, oldpri;
 
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
@@ -493,11 +492,12 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	}
 
 	thread_lock(td);
+	oldclass = td->td_pri_class;
 	sched_class(td, rtp->type);	/* XXX fix */
 	oldpri = td->td_user_pri;
 	sched_user_prio(td, newpri);
-	if (td->td_user_pri != oldpri && (td == curthread ||
-	    td->td_priority == oldpri || td->td_user_pri <= PRI_MAX_REALTIME))
+	if (td->td_user_pri != oldpri && (oldclass != RTP_PRIO_NORMAL ||
+	    td->td_pri_class != RTP_PRIO_NORMAL))
 		sched_prio(td, td->td_user_pri);
 	if (TD_ON_UPILOCK(td) && oldpri != newpri) {
 		critical_enter();
