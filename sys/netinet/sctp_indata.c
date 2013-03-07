@@ -2516,6 +2516,7 @@ doit_again:
 
 int
 sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
+    struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t * high_tsn,
     uint8_t use_mflowid, uint32_t mflowid,
@@ -2626,8 +2627,8 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 
 				}
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
-				sctp_abort_association(inp, stcb, m, iphlen, sh,
-				    op_err,
+				sctp_abort_association(inp, stcb, m, iphlen,
+				    src, dst, sh, op_err,
 				    use_mflowid, mflowid,
 				    vrf_id, port);
 				return (2);
@@ -2695,6 +2696,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					op_err = sctp_generate_invmanparam(SCTP_CAUSE_PROTOCOL_VIOLATION);
 					sctp_abort_association(inp, stcb,
 					    m, iphlen,
+					    src, dst,
 					    sh, op_err,
 					    use_mflowid, mflowid,
 					    vrf_id, port);

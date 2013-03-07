@@ -71,6 +71,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	int iphlen;
 	uint32_t vrf_id = 0;
 	uint8_t ecn_bits;
+	struct sockaddr_in6 src, dst;
 	struct ip6_hdr *ip6;
 	struct sctphdr *sh;
 	struct sctp_chunkhdr *ch;
@@ -131,7 +132,23 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	}
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(struct sctphdr));
 	offset -= sizeof(struct sctp_chunkhdr);
-	if (faithprefix_p != NULL && (*faithprefix_p) (&ip6->ip6_dst)) {
+	memset(&src, 0, sizeof(struct sockaddr_in6));
+	src.sin6_family = AF_INET6;
+	src.sin6_len = sizeof(struct sockaddr_in6);
+	src.sin6_port = sh->src_port;
+	src.sin6_addr = ip6->ip6_src;
+	if (in6_setscope(&src.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
+		goto bad;
+	}
+	memset(&dst, 0, sizeof(struct sockaddr_in6));
+	dst.sin6_family = AF_INET6;
+	dst.sin6_len = sizeof(struct sockaddr_in6);
+	dst.sin6_port = sh->dest_port;
+	dst.sin6_addr = ip6->ip6_dst;
+	if (in6_setscope(&dst.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
+		goto bad;
+	}
+	if (faithprefix_p != NULL && (*faithprefix_p) (&dst.sin6_addr)) {
 		/* XXX send icmp6 host/port unreach? */
 		goto bad;
 	}
@@ -169,6 +186,8 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
 		    calc_check, check, m, length, iphlen);
 		stcb = sctp_findassociation_addr(m, offset,
+		    (struct sockaddr *)&src,
+		    (struct sockaddr *)&dst,
 		    sh, ch, &inp, &net, vrf_id);
 		if ((net) && (port)) {
 			if (net->port == 0) {
@@ -200,6 +219,8 @@ sctp_skip_csum:
 		goto bad;
 	}
 	stcb = sctp_findassociation_addr(m, offset,
+	    (struct sockaddr *)&src,
+	    (struct sockaddr *)&dst,
 	    sh, ch, &inp, &net, vrf_id);
 	if ((net) && (port)) {
 		if (net->port == 0) {
@@ -218,7 +239,9 @@ sctp_skip_csum:
 		if (badport_bandlim(BANDLIM_SCTP_OOTB) < 0)
 			goto bad;
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			sctp_send_shutdown_complete2(m, sh,
+			sctp_send_shutdown_complete2((struct sockaddr *)&src,
+			    (struct sockaddr *)&dst,
+			    sh,
 			    use_mflowid, mflowid,
 			    vrf_id, port);
 			goto bad;
@@ -230,7 +253,10 @@ sctp_skip_csum:
 			if ((SCTP_BASE_SYSCTL(sctp_blackhole) == 0) ||
 			    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
 			    (ch->chunk_type != SCTP_INIT))) {
-				sctp_send_abort(m, iphlen, sh, 0, NULL,
+				sctp_send_abort(m, iphlen,
+				    (struct sockaddr *)&src,
+				    (struct sockaddr *)&dst,
+				    sh, 0, NULL,
 				    use_mflowid, mflowid,
 				    vrf_id, port);
 			}
@@ -253,8 +279,10 @@ sctp_skip_csum:
 
 	ecn_bits = ((ntohl(ip6->ip6_flow) >> 20) & 0x000000ff);
 	/* sa_ignore NO_NULL_CHK */
-	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
-	    inp, stcb, net, ecn_bits,
+	sctp_common_input_processing(&m, iphlen, offset, length,
+	    (struct sockaddr *)&src,
+	    (struct sockaddr *)&dst,
+	    sh, ch, inp, stcb, net, ecn_bits,
 	    use_mflowid, mflowid,
 	    vrf_id, port);
 	if (m) {
@@ -497,8 +525,8 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 		final.sin6_family = AF_INET6;
 		final.sin6_addr = ((struct sockaddr_in6 *)pktdst)->sin6_addr;
 		final.sin6_port = sh.dest_port;
-		stcb = sctp_findassociation_addr_sa((struct sockaddr *)ip6cp->ip6c_src,
-		    (struct sockaddr *)&final,
+		stcb = sctp_findassociation_addr_sa((struct sockaddr *)&final,
+		    (struct sockaddr *)ip6cp->ip6c_src,
 		    &inp, &net, 1, vrf_id);
 		/* inp's ref-count increased && stcb locked */
 		if (stcb != NULL && inp && (inp->sctp_socket != NULL)) {
@@ -565,8 +593,8 @@ sctp6_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	stcb = sctp_findassociation_addr_sa(sin6tosa(&addrs[0]),
-	    sin6tosa(&addrs[1]),
+	stcb = sctp_findassociation_addr_sa(sin6tosa(&addrs[1]),
+	    sin6tosa(&addrs[0]),
 	    &inp, &net, 1, vrf_id);
 	if (stcb == NULL || inp == NULL || inp->sctp_socket == NULL) {
 		if ((inp != NULL) && (stcb == NULL)) {
