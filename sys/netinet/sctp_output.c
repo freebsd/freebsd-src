@@ -4116,14 +4116,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #if defined(SCTP_WITH_NO_CSUM)
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-				if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-				    (stcb) &&
-				    (stcb->asoc.loopback_scope))) {
-					sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip) + sizeof(struct udphdr));
-					SCTP_STAT_INCR(sctps_sendswcrc);
-				} else {
-					SCTP_STAT_INCR(sctps_sendnocrc);
-				}
+				sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip) + sizeof(struct udphdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
 				if (V_udp_cksum) {
 					SCTP_ENABLE_UDP_CSUM(o_pak);
@@ -4474,14 +4468,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #if defined(SCTP_WITH_NO_CSUM)
 				SCTP_STAT_INCR(sctps_sendnocrc);
 #else
-				if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-				    (stcb) &&
-				    (stcb->asoc.loopback_scope))) {
-					sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
-					SCTP_STAT_INCR(sctps_sendswcrc);
-				} else {
-					SCTP_STAT_INCR(sctps_sendnocrc);
-				}
+				sctphdr->checksum = sctp_calculate_cksum(m, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+				SCTP_STAT_INCR(sctps_sendswcrc);
 #endif
 				if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), packet_length - sizeof(struct ip6_hdr))) == 0) {
 					udp->uh_sum = 0xffff;
