@@ -3464,6 +3464,63 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 }
 
 
+static void
+sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_error_chunk *chunk)
+{
+	struct mbuf *m_notify;
+	struct sctp_remote_error *sre;
+	struct sctp_queued_to_read *control;
+	size_t notif_len, chunk_len;
+
+	if ((stcb == NULL) ||
+	    sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVPEERERR)) {
+		return;
+	}
+	if (chunk != NULL) {
+		chunk_len = htons(chunk->ch.chunk_length);
+	} else {
+		chunk_len = 0;
+	}
+	notif_len = sizeof(struct sctp_remote_error) + chunk_len;
+	m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+	if (m_notify == NULL) {
+		/* Retry with smaller value. */
+		notif_len = sizeof(struct sctp_remote_error);
+		m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+		if (m_notify == NULL) {
+			return;
+		}
+	}
+	SCTP_BUF_NEXT(m_notify) = NULL;
+	sre = mtod(m_notify, struct sctp_remote_error *);
+	sre->sre_type = SCTP_REMOTE_ERROR;
+	sre->sre_flags = 0;
+	sre->sre_length = sizeof(struct sctp_remote_error);
+	sre->sre_error = error;
+	sre->sre_assoc_id = sctp_get_associd(stcb);
+	if (notif_len > sizeof(struct sctp_remote_error)) {
+		memcpy(sre->sre_data, chunk, chunk_len);
+		sre->sre_length += chunk_len;
+	}
+	SCTP_BUF_LEN(m_notify) = sre->sre_length;
+	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
+	    0, 0, stcb->asoc.context, 0, 0, 0,
+	    m_notify);
+	if (control != NULL) {
+		control->length = SCTP_BUF_LEN(m_notify);
+		/* not that we need this */
+		control->tail_mbuf = m_notify;
+		control->spec_flags = M_NOTIFICATION;
+		sctp_add_to_readq(stcb->sctp_ep, stcb,
+		    control,
+		    &stcb->sctp_socket->so_rcv, 1,
+		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
+	} else {
+		sctp_m_freem(m_notify);
+	}
+}
+
+
 void
 sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
     uint32_t error, void *data, int so_locked
@@ -3633,6 +3690,9 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	case SCTP_NOTIFY_SENDER_DRY:
 		sctp_notify_sender_dry_event(stcb, so_locked);
+		break;
+	case SCTP_NOTIFY_REMOTE_ERROR:
+		sctp_notify_remote_error(stcb, error, data);
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_UTIL1, "%s: unknown notification %xh (%u)\n",
