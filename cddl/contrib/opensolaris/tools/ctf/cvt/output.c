@@ -379,8 +379,7 @@ sort_iidescs(Elf *elf, const char *file, tdata_t *td, int fuzzymatch,
 		switch (GELF_ST_TYPE(sym.st_info)) {
 		case STT_FILE:
 			bname = strrchr(match.iim_name, '/');
-			bname = bname == NULL ? match.iim_name : bname + 1;
-			match.iim_file = match.iim_name;
+			match.iim_file = bname == NULL ? match.iim_name : bname + 1;
 			continue;
 		case STT_OBJECT:
 			tolist = iiburst->iib_objts;
