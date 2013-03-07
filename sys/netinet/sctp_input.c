@@ -6013,7 +6013,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 #endif
 		}
 		if ((inp) && (stcb)) {
-			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
+			sctp_send_packet_dropped(stcb, net, m, mlen + iphlen, iphlen, 1);
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
 		} else if ((inp != NULL) && (stcb == NULL)) {
 			refcount_up = 1;
