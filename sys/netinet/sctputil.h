@@ -185,8 +185,10 @@ sctp_abort_notification(struct sctp_tcb *, uint8_t, uint16_t,
 
 /* We abort responding to an IP packet for some reason */
 void
-sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *,
-    struct mbuf *, int, struct sctphdr *, struct mbuf *, uint32_t, uint16_t);
+sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *, struct mbuf *,
+    int, struct sctphdr *, struct mbuf *,
+    uint8_t, uint32_t,
+    uint32_t, uint16_t);
 
 
 /* We choose to abort via user input */
@@ -200,7 +202,9 @@ sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *,
 
 void 
 sctp_handle_ootb(struct mbuf *, int, int, struct sctphdr *,
-    struct sctp_inpcb *, uint32_t, uint16_t);
+    struct sctp_inpcb *,
+    uint8_t, uint32_t,
+    uint32_t, uint16_t);
 
 int 
 sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
