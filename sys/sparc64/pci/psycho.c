@@ -200,7 +200,7 @@ struct psycho_icarg {
  * "Sabre" is the UltraSPARC IIi onboard UPA to PCI bridge.  It manages a
  * single PCI bus and does not have a streaming buffer.  It often has an APB
  * (advanced PCI bridge) connected to it, which was designed specifically for
- * the IIi.  The APB let's the IIi handle two independednt PCI buses, and
+ * the IIi.  The APB lets the IIi handle two independent PCI buses, and
  * appears as two "Simba"'s underneath the Sabre.
  *
  * "Hummingbird" is the UltraSPARC IIe onboard UPA to PCI bridge. It's
