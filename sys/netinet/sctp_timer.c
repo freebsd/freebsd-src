@@ -614,7 +614,7 @@ start_again:
 					if (chk->data) {
 						(void)sctp_release_pr_sctp_chunk(stcb,
 						    chk,
-						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
+						    1,
 						    SCTP_SO_NOT_LOCKED);
 						cnt_abandoned++;
 					}
@@ -627,7 +627,7 @@ start_again:
 					if (chk->data) {
 						(void)sctp_release_pr_sctp_chunk(stcb,
 						    chk,
-						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
+						    1,
 						    SCTP_SO_NOT_LOCKED);
 						cnt_abandoned++;
 					}
