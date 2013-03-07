@@ -5853,6 +5853,7 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		return (EINVAL);
 	vec = &zfs_ioc_vec[vecnum];
 
+#ifdef illumos
 	zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
 	bzero(zc, sizeof(zfs_cmd_t));
 
@@ -5861,11 +5862,15 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		error = EFAULT;
 		goto out;
 	}
+#endif
 
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
+		zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
+		bzero(zc, sizeof(zfs_cmd_t));
 		zfs_cmd_compat_get(zc, arg, cflag);
 		zfs_ioctl_compat_pre(zc, &vecnum, cflag);
-	}
+	} else
+		zc = (void *)arg;
 
 	zc->zc_iflags = flag & FKIOCTL;
 	if (zc->zc_nvlist_src_size != 0) {
@@ -5983,9 +5988,12 @@ out:
 	if (cflag != ZFS_CMD_COMPAT_NONE) {
 		zfs_ioctl_compat_post(zc, cmd, cflag);
 		zfs_cmd_compat_put(zc, arg, cflag);
+		kmem_free(zc, sizeof (zfs_cmd_t));
 	}
 
+#ifdef illumos
 	kmem_free(zc, sizeof (zfs_cmd_t));
+#endif
 	return (error);
 }
 
