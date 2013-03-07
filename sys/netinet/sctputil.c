@@ -3556,8 +3556,6 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 			sctp_notify_partial_delivery_indication(stcb, error, val, so_locked);
 			break;
 		}
-	case SCTP_NOTIFY_STRDATA_ERR:
-		break;
 	case SCTP_NOTIFY_ASSOC_LOC_ABORTED:
 		if ((stcb) && (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
 		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED))) {
@@ -3574,18 +3572,12 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, data, 1, so_locked);
 		}
 		break;
-	case SCTP_NOTIFY_PEER_OPENED_STREAM:
-		break;
-	case SCTP_NOTIFY_STREAM_OPENED_OK:
-		break;
 	case SCTP_NOTIFY_ASSOC_RESTART:
 		sctp_notify_assoc_change(SCTP_RESTART, stcb, error, NULL, 0, so_locked);
 		if (stcb->asoc.peer_supports_auth == 0) {
 			sctp_ulp_notify(SCTP_NOTIFY_NO_PEER_AUTH, stcb, 0,
 			    NULL, so_locked);
 		}
-		break;
-	case SCTP_NOTIFY_HB_RESP:
 		break;
 	case SCTP_NOTIFY_STR_RESET_SEND:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *) data), SCTP_STREAM_RESET_OUTGOING_SSN);
@@ -3620,10 +3612,6 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_ASCONF_SET_PRIMARY:
 		sctp_notify_peer_addr_change(stcb, SCTP_ADDR_MADE_PRIM, data,
 		    error);
-		break;
-	case SCTP_NOTIFY_ASCONF_SUCCESS:
-		break;
-	case SCTP_NOTIFY_ASCONF_FAILED:
 		break;
 	case SCTP_NOTIFY_PEER_SHUTDOWN:
 		sctp_notify_shutdown_event(stcb);
