@@ -331,3 +331,11 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver
 device		dcons_crom	# Configuration ROM for dcons
+
+# VirtIO support
+device		virtio		# Generic VirtIO bus (required)
+device		virtio_pci	# VirtIO PCI device
+device		vtnet		# VirtIO Ethernet device
+device		virtio_blk	# VirtIO Block device
+device		virtio_scsi	# VirtIO SCSI device
+device		virtio_balloon	# VirtIO Memory Balloon device
