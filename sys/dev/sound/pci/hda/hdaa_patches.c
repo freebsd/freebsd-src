@@ -333,6 +333,23 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_CX20590 &&
+	    (subid == LENOVO_X1_SUBVENDOR ||
+	    subid == LENOVO_X220_SUBVENDOR ||
+	    subid == LENOVO_T420_SUBVENDOR ||
+	    subid == LENOVO_T520_SUBVENDOR)) {
+		switch (nid) {
+		case 25:
+			patch = "as=1 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC269 &&
+	    subid == LENOVO_X1CRBN_SUBVENDOR) {
+		switch (nid) {
+		case 21:
+			patch = "as=1 seq=15";
+			break;
+		}
 	}
 
 	if (patch != NULL)

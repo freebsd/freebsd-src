@@ -1,5 +1,5 @@
-.\" Copyright (c) 1993, 1994
-.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,14 +9,11 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
 .\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 .\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,46 +24,38 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 1996
-.Dt MOUNT_EXT2FS 8
+.Dd March 05, 2013
+.Dt LIBBSDYML 3
 .Os
 .Sh NAME
-.Nm mount_ext2fs
-.Nd mount an ext2fs file system
+.Nm libbsdyml
+.Nd LibYAML library for parsing and emitting YAML
 .Sh SYNOPSIS
-.Nm
-.Op Fl o Ar options
-.Ar special
-.Ar node
+.In bsdyml.h
 .Sh DESCRIPTION
 The
 .Nm
-utility attaches an ext2fs file system
-.Ar special
-device on to the file system tree at the point
-.Ar node .
+library is a verbatim copy of the LibYAML version 0.1.4
 .Pp
-This command is normally executed by
-.Xr mount 8
-at boot time.
-.Pp
-The options are as follows:
-.Bl -tag -width indent
-.It Fl o
-Options are specified with a
-.Fl o
-flag followed by a comma separated string of options.
-See the
-.Xr mount 8
-man page for possible options and their meanings.
-.El
-.Sh SEE ALSO
-.Xr mount 2 ,
-.Xr unmount 2 ,
-.Xr fstab 5 ,
-.Xr mount 8
-.Sh HISTORY
 The
 .Nm
-utility first appeared in
-.Fx 2.2 .
+library is intended to be used within the
+.Fx
+base system only.
+Use of the
+.Nm
+library for other purposes is not supported and discouraged.
+.Pp
+To avoid version and autoconfiguration issues, the library has been
+renamed to
+.Nm
+rather than retain the original LibYAML library and include file names
+to prevent confusion and autoconfiguration issues for 3rd party
+software.
+.Sh SEE ALSO
+For full documentation, please see the LibYAML webpage at
+.Pa http://pyyaml.org/wiki/LibYAML .
+.Sh AUTHORS
+.An -nosplit
+The original LibYAML was written by
+.An Kirill Simonov Aq xi@resolvent.net .
