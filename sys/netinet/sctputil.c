@@ -2385,7 +2385,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	timevalsub(&now, old);
 	/* store the current RTT in us */
 	net->rtt = (uint64_t) 1000000 *(uint64_t) now.tv_sec +
-	         (uint64_t) now.tv_usec;
+	        (uint64_t) now.tv_usec;
 
 	/* computer rtt in ms */
 	rtt = net->rtt / 1000;
