@@ -6344,7 +6344,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							 * abort this guy
 							 */
 							sctp_abort_an_association(stcb_tmp->sctp_ep,
-							    stcb_tmp, 1, NULL, 0);
+							    stcb_tmp, NULL, SCTP_SO_NOT_LOCKED);
 							goto add_it_now;
 						}
 						SCTP_TCB_UNLOCK(stcb_tmp);
@@ -6435,7 +6435,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							 * abort this guy
 							 */
 							sctp_abort_an_association(stcb_tmp->sctp_ep,
-							    stcb_tmp, 1, NULL, 0);
+							    stcb_tmp, NULL, SCTP_SO_NOT_LOCKED);
 							goto add_it_now6;
 						}
 					SCTP_TCB_UNLOCK(stcb_tmp);
