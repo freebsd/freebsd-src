@@ -4262,19 +4262,19 @@ again:
 		    (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
 
-			if (asoc->alternate) {
-				netp = asoc->alternate;
-			} else {
-				netp = asoc->primary_destination;
-			}
 			if (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT) {
 				goto abort_out_now;
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-			sctp_send_shutdown_ack(stcb, netp);
 			sctp_stop_timers_for_shutdown(stcb);
+			if (asoc->alternate) {
+				netp = asoc->alternate;
+			} else {
+				netp = asoc->primary_destination;
+			}
+			sctp_send_shutdown_ack(stcb, netp);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
 			    stcb->sctp_ep, stcb, netp);
 		}
@@ -4973,11 +4973,6 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			} else {
 				struct sctp_nets *netp;
 
-				if (asoc->alternate) {
-					netp = asoc->alternate;
-				} else {
-					netp = asoc->primary_destination;
-				}
 				if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
@@ -4985,6 +4980,11 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 				sctp_stop_timers_for_shutdown(stcb);
+				if (asoc->alternate) {
+					netp = asoc->alternate;
+				} else {
+					netp = asoc->primary_destination;
+				}
 				sctp_send_shutdown(stcb, netp);
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 				    stcb->sctp_ep, stcb, netp);
@@ -4996,19 +4996,19 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		    (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
 
-			if (asoc->alternate) {
-				netp = asoc->alternate;
-			} else {
-				netp = asoc->primary_destination;
-			}
 			if (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT) {
 				goto abort_out_now;
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-			sctp_send_shutdown_ack(stcb, netp);
 			sctp_stop_timers_for_shutdown(stcb);
+			if (asoc->alternate) {
+				netp = asoc->alternate;
+			} else {
+				netp = asoc->primary_destination;
+			}
+			sctp_send_shutdown_ack(stcb, netp);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
 			    stcb->sctp_ep, stcb, netp);
 			return;
