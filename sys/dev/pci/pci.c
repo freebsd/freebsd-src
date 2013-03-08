@@ -243,10 +243,11 @@ static const struct pci_quirk pci_quirks[] = {
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
 	/*
-	 * MSI-X doesn't work with at least LSI SAS1068E passed through by
-	 * VMware.
+	 * MSI-X allocation doesn't work properly for devices passed through
+	 * by VMware up to at least ESXi 5.1.
 	 */
-	{ 0x079015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x079015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 }, /* PCI/PCI-X */
+	{ 0x07a015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 }, /* PCIe */
 
 	/*
 	 * Some virtualization environments emulate an older chipset
@@ -3572,11 +3573,11 @@ pci_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-static struct
+static const struct
 {
-	int	class;
-	int	subclass;
-	char	*desc;
+	int		class;
+	int		subclass;
+	const char	*desc;
 } pci_nomatch_tab[] = {
 	{PCIC_OLD,		-1,			"old"},
 	{PCIC_OLD,		PCIS_OLD_NONVGA,	"non-VGA display device"},
@@ -3668,8 +3669,9 @@ static struct
 void
 pci_probe_nomatch(device_t dev, device_t child)
 {
-	int	i;
-	char	*cp, *scp, *device;
+	int i;
+	const char *cp, *scp;
+	char *device;
 
 	/*
 	 * Look for a listing for this device in a loaded device database.
@@ -3702,7 +3704,6 @@ pci_probe_nomatch(device_t dev, device_t child)
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
 	pci_cfg_save(child, device_get_ivars(child), 1);
-	return;
 }
 
 /*
