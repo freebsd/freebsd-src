@@ -2694,9 +2694,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	ip_inp = (struct inpcb *)so->so_pcb;
 #ifdef SCTP_DEBUG
 	if (addr) {
-		SCTPDBG(SCTP_DEBUG_PCB1, "Bind called port:%d\n",
+		SCTPDBG(SCTP_DEBUG_PCB1, "Bind called port: %d\n",
 		    ntohs(((struct sockaddr_in *)addr)->sin_port));
-		SCTPDBG(SCTP_DEBUG_PCB1, "Addr :");
+		SCTPDBG(SCTP_DEBUG_PCB1, "Addr: ");
 		SCTPDBG_ADDR(SCTP_DEBUG_PCB1, addr);
 	}
 #endif
