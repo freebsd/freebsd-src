@@ -38,8 +38,6 @@
 
 /* $FreeBSD$ */
 
-/* $FreeBSD$ */
-
 #include <sys/types.h>
 
 #undef _BIG_ENDIAN /* TODO */
