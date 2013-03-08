@@ -780,10 +780,35 @@ const struct puc_cfg puc_pci_devices[] = {
 	 */
 
 	{   0x155f, 0x0331, 0xffff, 0,
+	    "Perle Ultraport4 Express",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB012, 0xffff, 0,
+	    "Perle Speed2 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB022, 0xffff, 0,
+	    "Perle Speed2 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB004, 0xffff, 0,
 	    "Perle Speed4 LE",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_4S, 0x10, 0, 8,
 	},
+
+	{   0x155f, 0xB008, 0xffff, 0,
+	    "Perle Speed8 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, 8,
+	},
+
 
 	/*
 	 * Oxford Semiconductor PCI Express Expresso family
@@ -947,6 +972,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    DEFAULT_RCLK,
 	    PUC_PORT_4S1P, 0x10, 0, -1,
 	    .config_function = puc_config_syba
+	},
+
+	{   0x1fd4, 0x1999, 0xffff, 0,
+	    "Sunix SER5437A",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
 	},
 
 	{    0x5372, 0x6873, 0xffff, 0,
