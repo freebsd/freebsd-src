@@ -440,6 +440,11 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 		if (SCTP_TSN_GE(asoc->last_acked_seq, chk->rec.data.TSN_seq)) {
 			SCTP_PRINTF("Found chk:%p tsn:%x <= last_acked_seq:%x\n",
 			    (void *)chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
+			if (chk->sent != SCTP_DATAGRAM_NR_MARKED) {
+				if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
+					asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+				}
+			}
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			if (chk->pr_sctp_on) {
 				if (asoc->pr_sctp_cnt != 0)
